@@ -1,2 +1,3 @@
 .git*            export-ignore
 
+*.sh             crlf=input

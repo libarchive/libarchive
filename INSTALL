@@ -1,0 +1,20 @@
+On most Unix-like systems, you should be able to install libarchive
+and bsdtar using the following common steps:
+    ./configure
+    make
+    make install
+
+If you need to customize the target directories or otherwise adjust
+the build setting, use
+    ./configure --help
+to list the configure options.
+
+To build and install only libarchive:
+    ./configure
+    make
+    cd libarchive && make install
+
+To build and install only bsdtar (assumes a suitable
+libarchive is already installed on the system):
+    ./configure
+    cd tar && make && make install

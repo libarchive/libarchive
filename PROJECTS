@@ -1,0 +1,78 @@
+The following is a list of things I would like to see
+done with libarchive.  It's sorted roughly in priority;
+more feasible and more often-requested items are higher
+on the list.  If you think you have time to work on any
+of these, please let me know.
+
+* mtree format.  libarchive can now read mtree files,
+  though there are still some missing details.  The
+  ability to write mtree format is desirable.
+
+* archive_entry_from_file().  This would be very useful.
+  Ideally, it would accept a pathname (required) and an
+  optional fd.  This will allow it to optimize by using
+  fstat() and friends to eliminate races on platforms that
+  support those interfaces.
+
+* cpio front-end.  The basic bsdcpio front-end is now
+  working.  I'm looking for feedback about what additional
+  features are necessary.
+
+* pax front-end.  Once cpio is a little more stable, I plan
+  to fork it as the basis of a pax front-end.  The only really
+  tricky part will be implementing the header-editing features
+  from POSIX 2001 'pax', which will require some changes to
+  the libarchive API.
+
+* libarchive on Windows.  Recent changes should allow libarchive
+  to port to Visual Studio pretty quickly (large parts of
+  archive_write_disk will have to be customized or replaced,
+  but that's only about five percent of the entire library).
+
+* bsdtar on Windows.  After libarchive is working on Windows,
+  this should be much simpler.  At worst, you can just disable
+  features.
+
+* Writing tar sparse entries.  The GNU "1.0" format mentioned above
+  sucks a lot less than the old GNU sparse format, so I'm finally
+  dropping my objections to sparse file writing.  This requires
+  extending archive_entry to support a block list, and will
+  require extensive changes to bsdtar to generate block lists.
+  The sparse read code will also need to put block lists into
+  the entry so that archive-to-archive copies preserve sparseness.
+
+* ISO9660 writing.  Writing ISO9660 requires two passes, and
+  libarchive is a single-pass API.  For ISO9660, you can hide
+  that behind a temp file, though.  Collect metadata in memory,
+  append file bodies (properly padded to 2k sector boundaries)
+  to a temp file, then format the directory section and copy
+  the file data through at format close.
+
+* Augmenting bsdtar's archive-copy feature:  Being able to "update"
+  one archive with the contents of another would be a very
+  useful feature, especially for building software packages.
+  Consider being able to generate a tar archive of a directory,
+  then "fixing" the ownership and permissions based on an
+  mtree file.  (Equivalently, reading a tar archive and
+  replacing the file contents while retaining the metadata.)
+  mtree format, which represents file and directory metadata
+  in an easily-editable format, is a natural counterpart to this.
+
+* archive_read_disk:  Currently, libarchive can generate a stream
+  of entries from an archive file and can feed entries to an
+  archive file or a directory.  The missing corner is pulling
+  entries from a directory.  With that, libarchive can provide
+  efficient bulk copy services for dir-to-dir, dir-to-archive,
+  archive-to-dir, and archive-to-archive.  Right now, the
+  read-from-disk capabilities are handled in the client.
+
+* ISO9660 Level 3.  ISO9660 Level 3 supports files over 4GB.
+
+* --split=<limit> option to bsdtar.  This would watch the total output
+  size and begin a new archive file whenever <next file size> +
+  <total archive size> exceeded <limit>.  Not as robust as
+  GNU tar's ability to split an entry across archives, but still
+  useful in many situations.
+
+* Filename matching extensions:  ^ to anchor a pattern to the
+  beginning of the file, [!...] negated character classes, etc.
