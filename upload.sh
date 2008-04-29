@@ -3,9 +3,6 @@
 PATH=/usr/local/gnu-autotools/bin/:$PATH
 export PATH
 
-# Basic cleanup
-(cd minitar ; make clean) > /dev/null
-
 dt=`date`
 # BSD make's "OBJDIR" support freaks out the automake-generated
 # Makefile.  Effectively disable it.
@@ -60,5 +57,3 @@ autoreconf -f -v -i
 make distcheck
 fa=libarchive-$VS.tar.gz
 chmod 644 $fa
-cp $fa ../www/libarchive/src/$fa
-mv $fa ../ship/`date '+%Y-%m-%d'`-$fa
