@@ -26,9 +26,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)mtree.8       8.2 (Berkeley) 12/11/93
-.\" $FreeBSD: src/usr.sbin/mtree/mtree.5,v 1.1 2008/01/01 06:15:57 kientzle Exp $
+.\" $FreeBSD$
 .\"
-.Dd December 31, 2007
+.Dd August 20, 2007
 .Dt MTREE 5
 .Os
 .Sh NAME
@@ -121,7 +121,7 @@ separated by whitespace.
 .Ss Keywords
 After the filename, a full or relative entry consists of zero
 or more whitespace-separated keyword definitions.
-Each such definitions consists of a key from the following
+Each such definition consists of a key from the following
 list immediately followed by an '=' sign
 and a value.
 Software programs reading mtree files should warn about
@@ -145,17 +145,36 @@ for information on these names.
 If no flags are to be set the string
 .Dq none
 may be used to override the current default.
-.It Cm ignore
-Ignore any file hierarchy below this file.
 .It Cm gid
 The file group as a numeric value.
 .It Cm gname
 The file group as a symbolic name.
+.It Cm ignore
+Ignore any file hierarchy below this file.
+.It Cm link
+The file the symbolic link is expected to reference.
 .It Cm md5
 The MD5 message digest of the file.
 .It Cm md5digest
 A synonym for
 .Cm md5 .
+.It Cm mode
+The current file's permissions as a numeric (octal) or symbolic
+value.
+.It Cm nlink
+The number of hard links the file is expected to have.
+.It Cm nochange
+Make sure this file or directory exists but otherwise ignore all attributes.
+.It Cm ripemd160digest
+The
+.Tn RIPEMD160
+message digest of the file.
+.It Cm rmd160
+A synonym for
+.Cm ripemd160digest .
+.It Cm rmd160digest
+A synonym for
+.Cm ripemd160digest .
 .It Cm sha1
 The
 .Tn FIPS
@@ -174,31 +193,8 @@ message digest of the file.
 .It Cm sha256digest
 A synonym for
 .Cm sha256 .
-.It Cm ripemd160digest
-The
-.Tn RIPEMD160
-message digest of the file.
-.It Cm rmd160
-A synonym for
-.Cm ripemd160digest .
-.It Cm rmd160digest
-A synonym for
-.Cm ripemd160digest .
-.It Cm mode
-The current file's permissions as a numeric (octal) or symbolic
-value.
-.It Cm nlink
-The number of hard links the file is expected to have.
-.It Cm nochange
-Make sure this file or directory exists but otherwise ignore all attributes.
-.It Cm uid
-The file owner as a numeric value.
-.It Cm uname
-The file owner as a symbolic name.
 .It Cm size
 The size, in bytes, of the file.
-.It Cm link
-The file the symbolic link is expected to reference.
 .It Cm time
 The last modification time of the file.
 .It Cm type
@@ -220,6 +216,10 @@ symbolic link
 .It Cm socket
 socket
 .El
+.It Cm uid
+The file owner as a numeric value.
+.It Cm uname
+The file owner as a symbolic name.
 .El
 .Pp
 .Sh SEE ALSO

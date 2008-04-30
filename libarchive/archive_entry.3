@@ -48,6 +48,7 @@
 .Nm archive_entry_copy_link ,
 .Nm archive_entry_copy_link_w ,
 .Nm archive_entry_copy_pathname_w ,
+.Nm archive_entry_copy_sourcepath ,
 .Nm archive_entry_copy_stat ,
 .Nm archive_entry_copy_symlink ,
 .Nm archive_entry_copy_symlink_w ,
@@ -95,6 +96,7 @@
 .Nm archive_entry_set_uid ,
 .Nm archive_entry_set_uname ,
 .Nm archive_entry_size ,
+.Nm archive_entry_sourcepath ,
 .Nm archive_entry_stat ,
 .Nm archive_entry_symlink ,
 .Nm archive_entry_uid ,
@@ -166,6 +168,8 @@
 .Fn archive_entry_copy_hardlink "struct archive_entry *" "const char *"
 .Ft void
 .Fn archive_entry_copy_hardlink_w "struct archive_entry *" "const wchar_t *"
+.Ft void
+.Fn archive_entry_copy_sourcepath "struct archive_entry *" "const char *"
 .Ft void
 .Fn archive_entry_copy_pathname_w "struct archive_entry *" "const wchar_t *"
 .Ft void
@@ -270,6 +274,8 @@
 .Fn archive_entry_set_uname "struct archive_entry *" "const char *"
 .Ft int64_t
 .Fn archive_entry_size "struct archive_entry *"
+.Ft const char *
+.Fn archive_entry_sourcepath "struct archive_entry *"
 .Ft const struct stat *
 .Fn archive_entry_stat "struct archive_entry *"
 .Ft const char *
