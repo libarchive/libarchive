@@ -30,7 +30,7 @@ __FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_format_ar.c,v 1.6 2008/03
 
 char buff[4096];
 char buff2[64];
-static unsigned char strtab[] = "abcdefghijklmn.o/\nggghhhjjjrrrttt.o/\niiijjjdddsssppp.o/\n";
+static char strtab[] = "abcdefghijklmn.o/\nggghhhjjjrrrttt.o/\niiijjjdddsssppp.o/\n";
 
 DEFINE_TEST(test_write_format_ar)
 {

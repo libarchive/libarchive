@@ -294,7 +294,7 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 	archive_clear_error(&a->archive);
 	if (a->archive.state & ARCHIVE_STATE_DATA) {
 		r = _archive_write_finish_entry(&a->archive);
-		if (r != ARCHIVE_OK)
+		if (r == ARCHIVE_FATAL)
 			return (r);
 	}
 
@@ -485,10 +485,12 @@ _archive_write_data_block(struct archive *_a,
 	/* Write the data. */
 	while (size > 0 && a->offset < a->filesize) {
 		if ((off_t)(a->offset + size) > a->filesize) {
-			size = (size_t)(a->filesize - a->offset);
-			archive_set_error(&a->archive, errno,
-			    "Write request too large");
+			archive_set_error(&a->archive, 0,
+			    "Write request too large (tried to write %u bytes, but only %u bytes remain)",
+			    (unsigned int)size,
+			    (unsigned int)(a->filesize - a->offset));
 			r = ARCHIVE_WARN;
+			size = (size_t)(a->filesize - a->offset);
 		}
 		bytes_written = write(a->fd, buff, size);
 		if (bytes_written < 0) {

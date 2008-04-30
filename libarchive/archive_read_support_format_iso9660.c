@@ -908,6 +908,11 @@ fprintf(stderr, " *** Discarding CE data.\n");
 			file->ce_size = 0;
 		}
 
+		/* Don't waste time seeking for zero-length bodies. */
+		if (file->size == 0) {
+			file->offset = iso9660->current_position;
+		}
+
 		/* If CE exists, find and read it now. */
 		if (file->ce_offset > 0)
 			offset = file->ce_offset;

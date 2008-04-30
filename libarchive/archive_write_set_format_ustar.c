@@ -206,7 +206,7 @@ archive_write_ustar_header(struct archive_write *a, struct archive_entry *entry)
 	    !(archive_entry_filetype(entry) == AE_IFREG))
 		archive_entry_set_size(entry, 0);
 
-	if (AE_IFDIR == archive_entry_mode(entry)) {
+	if (AE_IFDIR == archive_entry_filetype(entry)) {
 		const char *p;
 		char *t;
 		/*
@@ -282,24 +282,30 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 		/* Store in two pieces, splitting at a '/'. */
 		p = strchr(pp + strlen(pp) - USTAR_name_size - 1, '/');
 		/*
-		 * If the separator we found is the first '/', find
-		 * the next one.  (This is a pathological case that
-		 * occurs for paths of exactly 101 bytes that start with
-		 * '/'; it occurs because the separating '/' is not
-		 * stored explicitly and the reconstruction assumes that
-		 * an empty prefix means there is no '/' separator.)
+		 * Look for the next '/' if we chose the first character
+		 * as the separator.  (ustar format doesn't permit
+		 * an empty prefix.)
 		 */
 		if (p == pp)
 			p = strchr(p + 1, '/');
-		/*
-		 * If there is no path separator, or the prefix or
-		 * remaining name are too large, return an error.
-		 */
+		/* Fail if the name won't fit. */
 		if (!p) {
+			/* No separator. */
+			archive_set_error(&a->archive, ENAMETOOLONG,
+			    "Pathname too long");
+			ret = ARCHIVE_WARN;
+		} else if (p[1] == '\0') {
+			/*
+			 * The only feasible separator is a final '/';
+			 * this would result in a non-empty prefix and
+			 * an empty name, which POSIX doesn't
+			 * explicity forbid, but it just feels wrong.
+			 */
 			archive_set_error(&a->archive, ENAMETOOLONG,
 			    "Pathname too long");
 			ret = ARCHIVE_WARN;
 		} else if (p  > pp + USTAR_prefix_size) {
+			/* Prefix is too long. */
 			archive_set_error(&a->archive, ENAMETOOLONG,
 			    "Pathname too long");
 			ret = ARCHIVE_WARN;

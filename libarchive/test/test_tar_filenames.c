@@ -40,19 +40,22 @@ test_filename(const char *prefix, int dlen, int flen)
 	struct archive_entry *ae;
 	struct archive *a;
 	size_t used;
-	size_t prefix_length = 0;
-	unsigned i = 0;
+	char *p;
+	int i;
 
+	p = filename;
 	if (prefix) {
 		strcpy(filename, prefix);
-		i = prefix_length = strlen(prefix);
+		p += strlen(p);
 	}
-	for (; i < prefix_length + dlen; i++)
-		filename[i] = 'a';
-	filename[i++] = '/';
-	for (; i < prefix_length + dlen + flen + 1; i++)
-		filename[i] = 'b';
-	filename[i++] = '\0';
+	if (dlen > 0) {
+		for (i = 0; i < dlen; i++)
+			*p++ = 'a';
+		*p++ = '/';
+	}
+	for (i = 0; i < flen; i++)
+		*p++ = 'b';
+	*p = '\0';
 
 	strcpy(dirname, filename);
 
@@ -160,15 +163,22 @@ DEFINE_TEST(test_tar_filenames)
 	int dlen, flen;
 
 	/* Repeat the following for a variety of dir/file lengths. */
-	for (dlen = 40; dlen < 60; dlen++) {
-		for (flen = 40; flen < 60; flen++) {
+	for (dlen = 45; dlen < 55; dlen++) {
+		for (flen = 45; flen < 55; flen++) {
+			test_filename(NULL, dlen, flen);
+			test_filename("/", dlen, flen);
+		}
+	}
+
+	for (dlen = 0; dlen < 140; dlen += 10) {
+		for (flen = 98; flen < 102; flen++) {
 			test_filename(NULL, dlen, flen);
 			test_filename("/", dlen, flen);
 		}
 	}
 
 	for (dlen = 140; dlen < 160; dlen++) {
-		for (flen = 90; flen < 110; flen++) {
+		for (flen = 95; flen < 105; flen++) {
 			test_filename(NULL, dlen, flen);
 			test_filename("/", dlen, flen);
 		}

@@ -8,12 +8,12 @@ LDADD=	-lbz2 -lz
 # Version is three numbers:
 #  Major: Bumped ONLY when API/ABI breakage happens (see SHLIB_MAJOR)
 #  Minor: Bumped when significant new features are added
-#  Revision: Bumped on any notable change
+#  Revision: Bumped frequently.
 
 # The useful version number (one integer, easy to compare)
-LIBARCHIVE_VERSION= 2004012
+LIBARCHIVE_VERSION_NUMBER=2005001
 # The pretty version string
-LIBARCHIVE_VERSION_STRING!= echo $$((${LIBARCHIVE_VERSION} / 1000000)).$$((${LIBARCHIVE_VERSION} / 1000 % 1000)).$$((${LIBARCHIVE_VERSION} % 1000))
+LIBARCHIVE_VERSION_STRING=2.5.1b
 
 # FreeBSD SHLIB_MAJOR value is managed as part of the FreeBSD system.
 # It has no real relation to the version number above.
@@ -31,10 +31,8 @@ INCS=	archive.h archive_entry.h
 # Note: FreeBSD has inttypes.h, so enable that include in archive.h.in
 archive.h:	archive.h.in Makefile
 	cat ${.CURDIR}/archive.h.in | sed				\
-		-e 's/@LIBARCHIVE_VERSION@/${LIBARCHIVE_VERSION}/g'	\
-		-e 's/@LIBARCHIVE_VERSION_STRING@/${LIBARCHIVE_VERSION_STRING}/g' \
-		-e 's/@SHLIB_MAJOR@/${SHLIB_MAJOR}/g'			\
-		-e 's|@ARCHIVE_H_INCLUDE_INTTYPES_H@|#include <inttypes.h>  /* For int64_t */|g' \
+	   -e 's/@LIBARCHIVE_VERSION_NUMBER@/${LIBARCHIVE_VERSION_NUMBER}/g' \
+	   -e 's/@LIBARCHIVE_VERSION_STRING@/${LIBARCHIVE_VERSION_STRING}/g' \
 		> archive.h
 
 # archive.h needs to be cleaned
