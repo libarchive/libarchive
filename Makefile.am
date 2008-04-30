@@ -317,9 +317,6 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_stdio.c					\
 	tar/test/test_version.c
 
-bsdtar_test_EXTRA_DIST=						\
-	tar/test/old
-
 bsdtar_test_CPPFLAGS= -I$(top_builddir)/tar/test
 
 tar/test/list.h: Makefile
