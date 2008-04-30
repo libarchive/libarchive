@@ -11,7 +11,9 @@ LDADD+=	-larchive -lz -lbz2
 SYMLINKS=bsdcpio ${BINDIR}/cpio
 MLINKS= bsdcpio.1 cpio.1
 
-check: $(PROG)
+.PHONY: check test
+
+check test: $(PROG) bsdcpio.1.gz
 	cd ${.CURDIR}/test && make clean test
 
 .include <bsd.prog.mk>

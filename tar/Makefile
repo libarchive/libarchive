@@ -12,7 +12,8 @@ CFLAGS+=	-I${.CURDIR}
 SYMLINKS=	bsdtar ${BINDIR}/tar
 MLINKS=	bsdtar.1 tar.1
 
-check: $(PROG)
+.PHONY: check test
+check test: $(PROG) bsdtar.1.gz
 	cd ${.CURDIR}/test && make clean test
 
 .include <bsd.prog.mk>

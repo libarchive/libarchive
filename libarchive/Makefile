@@ -244,7 +244,8 @@ MLINKS+=	archive_write_disk.3 archive_write_disk_set_standard_lookup.3
 MLINKS+=	archive_write_disk.3 archive_write_disk_set_user_lookup.3
 MLINKS+=	libarchive.3 archive.3
 
-check:
+.PHONY: check test
+check test:
 	cd ${.CURDIR}/test && make test
 
 .include <bsd.lib.mk>
