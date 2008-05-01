@@ -14,6 +14,7 @@ TESTS=	\
 	test_copy.c				\
 	test_getdate.c				\
 	test_help.c				\
+	test_option_T.c				\
 	test_stdio.c				\
 	test_version.c
 

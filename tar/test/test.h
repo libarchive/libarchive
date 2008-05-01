@@ -102,6 +102,12 @@
 /* Assert that a file is empty; supports printf-style arguments. */
 #define assertEmptyFile		\
   test_setup(__FILE__, __LINE__);test_assert_empty_file
+/* Assert that a file exists; supports printf-style arguments. */
+#define assertFileExists		\
+  test_setup(__FILE__, __LINE__);test_assert_file_exists
+/* Assert that a file exists; supports printf-style arguments. */
+#define assertFileNotExists		\
+  test_setup(__FILE__, __LINE__);test_assert_file_not_exists
 
 /*
  * This would be simple with C99 variadic macros, but I don't want to
@@ -124,6 +130,8 @@ int test_assert_equal_string(const char *, int, const char *v1, const char *, co
 int test_assert_equal_wstring(const char *, int, const wchar_t *v1, const char *, const wchar_t *v2, const char *, void *);
 int test_assert_equal_mem(const char *, int, const char *, const char *, const char *, const char *, size_t, const char *, void *);
 int test_assert_file_contents(const void *, int, const char *, ...);
+int test_assert_file_exists(const char *, ...);
+int test_assert_file_not_exists(const char *, ...);
 
 /* Like sprintf, then system() */
 int systemf(const char * fmt, ...);
