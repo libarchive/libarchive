@@ -346,14 +346,14 @@ DIST_ARCHIVES = $(distdir).tar.gz
 GZIP_ENV = --best
 distuninstallcheck_listfiles = find . -type f -print
 distcleancheck_listfiles = find . -type f -print
-ACLOCAL = ${SHELL} /home/tim/projects/tar/trunk/config.aux/missing --run aclocal-1.10
-AMTAR = ${SHELL} /home/tim/projects/tar/trunk/config.aux/missing --run tar
+ACLOCAL = ${SHELL} /home/tim/projects/p4/libarchive-portable/config.aux/missing --run aclocal-1.10
+AMTAR = ${SHELL} /home/tim/projects/p4/libarchive-portable/config.aux/missing --run tar
 AR = ar
 ARCHIVE_H_INCLUDE_INTTYPES_H = #include <inttypes.h> /* For int64_t */
 ARCHIVE_LIBTOOL_VERSION = 7:1:5
-AUTOCONF = ${SHELL} /home/tim/projects/tar/trunk/config.aux/missing --run autoconf
-AUTOHEADER = ${SHELL} /home/tim/projects/tar/trunk/config.aux/missing --run autoheader
-AUTOMAKE = ${SHELL} /home/tim/projects/tar/trunk/config.aux/missing --run automake-1.10
+AUTOCONF = ${SHELL} /home/tim/projects/p4/libarchive-portable/config.aux/missing --run autoconf
+AUTOHEADER = ${SHELL} /home/tim/projects/p4/libarchive-portable/config.aux/missing --run autoheader
+AUTOMAKE = ${SHELL} /home/tim/projects/p4/libarchive-portable/config.aux/missing --run automake-1.10
 AWK = nawk
 BSDCPIO_VERSION_STRING = 0.9.9a
 BSDTAR_VERSION_STRING = 2.5.1b
@@ -391,7 +391,7 @@ LIBS = -lz -lbz2
 LIBTOOL = $(SHELL) $(top_builddir)/libtool
 LN_S = ln -s
 LTLIBOBJS =  ${LIBOBJDIR}lstat$U.lo
-MAKEINFO = ${SHELL} /home/tim/projects/tar/trunk/config.aux/missing --run makeinfo
+MAKEINFO = ${SHELL} /home/tim/projects/p4/libarchive-portable/config.aux/missing --run makeinfo
 MKDIR_P = /usr/local/bin/gmkdir -p
 OBJEXT = o
 PACKAGE = libarchive
@@ -408,10 +408,10 @@ STRIP = strip
 VERSION = 2.5.1b
 YACC = bison -y
 YFLAGS = 
-abs_builddir = /home/tim/projects/tar/trunk
-abs_srcdir = /home/tim/projects/tar/trunk
-abs_top_builddir = /home/tim/projects/tar/trunk
-abs_top_srcdir = /home/tim/projects/tar/trunk
+abs_builddir = /home/tim/projects/p4/libarchive-portable
+abs_srcdir = /home/tim/projects/p4/libarchive-portable
+abs_top_builddir = /home/tim/projects/p4/libarchive-portable
+abs_top_srcdir = /home/tim/projects/p4/libarchive-portable
 ac_ct_CC = gcc
 ac_ct_CXX = g++
 ac_ct_F77 = f77
@@ -440,7 +440,7 @@ host_vendor = unknown
 htmldir = ${docdir}
 includedir = ${prefix}/include
 infodir = ${datarootdir}/info
-install_sh = $(SHELL) /home/tim/projects/tar/trunk/config.aux/install-sh
+install_sh = $(SHELL) /home/tim/projects/p4/libarchive-portable/config.aux/install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localedir = ${datarootdir}/locale
@@ -731,9 +731,6 @@ bsdtar_test_SOURCES = \
 	tar/test/test_help.c					\
 	tar/test/test_stdio.c					\
 	tar/test/test_version.c
-
-bsdtar_test_EXTRA_DIST = \
-	tar/test/old
 
 bsdtar_test_CPPFLAGS = -I$(top_builddir)/tar/test
 #bsdtar_test_programs = 

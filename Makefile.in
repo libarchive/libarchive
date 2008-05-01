@@ -732,9 +732,6 @@ bsdtar_test_SOURCES = \
 	tar/test/test_stdio.c					\
 	tar/test/test_version.c
 
-bsdtar_test_EXTRA_DIST = \
-	tar/test/old
-
 bsdtar_test_CPPFLAGS = -I$(top_builddir)/tar/test
 @BUILD_BSDTAR_FALSE@bsdtar_test_programs = 
 @BUILD_BSDTAR_TRUE@bsdtar_test_programs = bsdtar_test
