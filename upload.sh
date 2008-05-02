@@ -19,9 +19,9 @@ echo $VN$MARKER > version
 # Build out the string.
 VS="$(($VN/1000000)).$(( ($VN/1000)%1000 )).$(( $VN%1000 ))$MARKER"
 
-# Substitute the integer version into Libarchive's Makefile
-perl -p -i -e "s/^(LIBARCHIVE_VERSION_NUMBER)=.*/\$1=$VN/" libarchive/Makefile
-perl -p -i -e "s/^(LIBARCHIVE_VERSION_STRING)=.*/\$1=$VS/" libarchive/Makefile
+# Substitute the integer version into Libarchive's archive.h
+perl -p -i -e "s/^(#define\tARCHIVE_VERSION_NUMBER).*/\$1 $VN/" libarchive/archive.h
+perl -p -i -e "s/^(#define\tARCHIVE_VERSION_STRING).*/\$1 \"libarchive $VS\"/" libarchive/archive.h
 # Substitute the string version into tar and cpio Makefiles
 perl -p -i -e "s/^(BSDTAR_VERSION_STRING)=.*/\$1=$VS/" tar/Makefile
 #perl -p -i -e "s/^(BSDCPIO_VERSION_STRING)=.*/\$1=$VS/" cpio/Makefile
@@ -41,15 +41,6 @@ rm -rf /usr/obj`pwd`
 (cd libarchive && make cleandir && make clean)
 (cd libarchive/test && make cleandir && make clean && make list.h)
 (cd tar && make cleandir && make clean)
-
-# Update all of the man pages
-for d in libarchive tar cpio
-do
-  for f in $d/*.[135]
-  do
-    nroff -mdoc $f | col -b >../www/libarchive/man/`basename $f`.txt
-  done
-done
 
 # Build the libarchive distfile and drop it in the right place.
 autoreconf -f -v -i

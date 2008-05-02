@@ -43,7 +43,7 @@ dist-hook:
 	rm -f `find $(distdir) -name '*.out'`
 	rm -f `find $(distdir) -name '*.core'`
 	-rm -f $(distdir)/*/Makefile $(distdir)/*/*/Makefile
-	cd $(distdir)/doc && ./update.sh
+	cd $(distdir)/doc && /bin/sh update.sh
 
 #
 # Extra rules for cleanup
@@ -69,10 +69,7 @@ distclean-local:
 #
 #
 
-include_HEADERS= libarchive/archive_entry.h
-# Note: archive.h is built from archive.h.in, so don't
-# include archive.h in the distfile, but do install it.
-nodist_include_HEADERS= libarchive/archive.h
+include_HEADERS= libarchive/archive.h libarchive/archive_entry.h
 
 libarchive_la_SOURCES=						\
 	libarchive/archive_check_magic.c			\
@@ -140,8 +137,6 @@ libarchive_la_SOURCES=						\
 	libarchive/filter_fork.c				\
 	libarchive/filter_fork.h
 
-# archive.h ends up in the build directory, so make sure we can find it.
-libarchive_la_CPPFLAGS= -I$(top_builddir)/libarchive
 # cygwin barfs without -no-undefined; I don't know what it does or
 # whether it helps or hurts other platforms...
 libarchive_la_LDFLAGS= -no-undefined -version-info $(ARCHIVE_LIBTOOL_VERSION)
@@ -277,9 +272,7 @@ bsdtar_SOURCES=				\
 		tar/util.c		\
 		tar/write.c
 
-bsdtar_DEPENDENCIES= libarchive.la		\
-		libarchive/archive_entry.h	\
-		libarchive/archive.h
+bsdtar_DEPENDENCIES= libarchive.la
 
 if STATIC_BSDTAR
 bsdtar_static= -static
@@ -348,9 +341,7 @@ bsdcpio_SOURCES=			\
 		cpio/pathmatch.c	\
 		cpio/pathmatch.h
 
-bsdcpio_DEPENDENCIES = libarchive.la		\
-		libarchive/archive_entry.h	\
-		libarchive/archive.h
+bsdcpio_DEPENDENCIES = libarchive.la
 
 
 if STATIC_BSDCPIO

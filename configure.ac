@@ -4,8 +4,8 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[2.5.1b])
-m4_define([LIBARCHIVE_VERSION_N],[2005001])
+m4_define([LIBARCHIVE_VERSION_S],[2.5.5b])
+m4_define([LIBARCHIVE_VERSION_N],[2005005])
 
 dnl bsdtar versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
@@ -63,7 +63,6 @@ AC_SUBST(LIBARCHIVE_VERSION_NUMBER)
 
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile])
-AC_CONFIG_FILES([libarchive/archive.h])
 
 # Checks for programs.
 AC_PROG_CC
