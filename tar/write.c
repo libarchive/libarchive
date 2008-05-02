@@ -24,7 +24,7 @@
  */
 
 #include "bsdtar_platform.h"
-__FBSDID("$FreeBSD: src/usr.bin/tar/write.c,v 1.65 2008/03/15 02:41:44 kientzle Exp $");
+__FBSDID("$FreeBSD: src/usr.bin/tar/write.c,v 1.66 2008/05/02 05:14:58 kientzle Exp $");
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
