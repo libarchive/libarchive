@@ -4,19 +4,8 @@ LIB=	archive
 DPADD=	${LIBBZ2} ${LIBZ}
 LDADD=	-lbz2 -lz
 
-# The libarchive version stamp.
-# Version is three numbers:
-#  Major: Bumped ONLY when API/ABI breakage happens (see SHLIB_MAJOR)
-#  Minor: Bumped when significant new features are added
-#  Revision: Bumped frequently.
-
-# The useful version number (one integer, easy to compare)
-LIBARCHIVE_VERSION_NUMBER=2005001
-# The pretty version string
-LIBARCHIVE_VERSION_STRING=2.5.1b
-
 # FreeBSD SHLIB_MAJOR value is managed as part of the FreeBSD system.
-# It has no real relation to the version number above.
+# It has no real relation to the libarchive version number.
 SHLIB_MAJOR= 4
 
 CFLAGS+=	-DPLATFORM_CONFIG_H=\"config_freebsd.h\"
@@ -27,20 +16,8 @@ WARNS?=	6
 # Headers to be installed in /usr/include
 INCS=	archive.h archive_entry.h
 
-# Build archive.h from archive.h.in by substituting version information.
-# Note: FreeBSD has inttypes.h, so enable that include in archive.h.in
-archive.h:	archive.h.in Makefile
-	cat ${.CURDIR}/archive.h.in | sed				\
-	   -e 's/@LIBARCHIVE_VERSION_NUMBER@/${LIBARCHIVE_VERSION_NUMBER}/g' \
-	   -e 's/@LIBARCHIVE_VERSION_STRING@/${LIBARCHIVE_VERSION_STRING}/g' \
-		> archive.h
-
-# archive.h needs to be cleaned
-CLEANFILES+=	archive.h
-
 # Sources to be compiled.
-SRCS=	archive.h					\
-	archive_check_magic.c				\
+SRCS=	archive_check_magic.c				\
 	archive_entry.c					\
 	archive_entry_copy_stat.c			\
 	archive_entry_stat.c				\
