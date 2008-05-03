@@ -73,11 +73,8 @@ TESTS= \
 SRCS= ${LA_SRCS}				\
 	${TESTS}				\
 	${.OBJDIR}/list.h			\
-	${.OBJDIR}/archive.h			\
 	main.c					\
 	read_open_memory.c
-
-CLEANFILES+= list.h archive.h
 
 NO_MAN=yes
 
@@ -87,12 +84,7 @@ DPADD=${LIBBZ2} ${LIBZ}
 CFLAGS+= -DPLATFORM_CONFIG_H=\"config_freebsd.h\"
 LDADD= -lz -lbz2
 CFLAGS+= -static -g
-CFLAGS+= -I${.OBJDIR}
-CFLAGS+= -I${.CURDIR}
 CFLAGS+= -I${LA_SRCDIR}
-# Without this, libarchive source files find archive.h in LA_SRCDIR,
-# which may not be the same as archive.h in the test dir.
-CFLAGS+= -I-
 
 # Uncomment to link against dmalloc
 LDADD+= -L/usr/local/lib -ldmalloc
@@ -103,16 +95,11 @@ WARNS=6
 check test: libarchive_test
 	./libarchive_test -v -r ${.CURDIR}
 
-# Build archive.h, but in our .OBJDIR, not libarchive's
-# This keeps libarchive_test and libarchive builds completely separate.
-${.OBJDIR}/archive.h: ${LA_SRCDIR}/archive.h.in ${LA_SRCDIR}/Makefile
-	cd ${LA_SRCDIR} && unset MAKEOBJDIRPREFIX && MAKEOBJDIR=${.OBJDIR} make archive.h
-
 # list.h is just a list of all tests, as indicated by DEFINE_TEST macro lines
 ${.OBJDIR}/list.h: ${TESTS} Makefile
 	(cd ${.CURDIR}; cat ${TESTS}) | grep DEFINE_TEST > list.h
 
-CLEANFILES += *.out *.o *.core *~ list.h archive.h
+CLEANFILES += *.out *.o *.core *~ list.h
 
 cleantest:
 	-chmod -R +w /tmp/libarchive_test.*
