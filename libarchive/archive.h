@@ -386,9 +386,11 @@ __LA_DECL int		 archive_read_data_into_fd(struct archive *, int fd);
 /* Default: Overwrite files, even if one on disk is newer. */
 #define	ARCHIVE_EXTRACT_NO_OVERWRITE_NEWER (2048)
 
-__LA_DECL int		 archive_read_extract(struct archive *, struct archive_entry *,
+__LA_DECL int	 archive_read_extract(struct archive *, struct archive_entry *,
 		     int flags);
-__LA_DECL void		 archive_read_extract_set_progress_callback(struct archive *,
+__LA_DECL int	 archive_read_extract2(struct archive *, struct archive_entry *,
+		     struct archive * /* dest */);
+__LA_DECL void	 archive_read_extract_set_progress_callback(struct archive *,
 		     void (*_progress_func)(void *), void *_user_data);
 
 /* Record the dev/ino of a file that will not be written.  This is
