@@ -327,6 +327,7 @@ insert_entry(struct archive_entry_linkresolver *res,
 	le = malloc(sizeof(struct links_entry));
 	if (le == NULL)
 		return (NULL);
+	memset(le, 0, sizeof(*le));
 	le->canonical = archive_entry_clone(entry);
 
 	/* If the links cache is getting too full, enlarge the hash table. */
