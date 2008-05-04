@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	bsdcpio
-BSDCPIO_VERSION_STRING=0.9.9a
+BSDCPIO_VERSION_STRING=0.9.10a
 SRCS=	cpio.c cmdline.c err.c matching.c pathmatch.c
 WARNS?=	6
 DPADD=	${LIBARCHIVE} ${LIBZ} ${LIBBZ2}

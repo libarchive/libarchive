@@ -1,5 +1,22 @@
 
-May 02, 2008: libarchive 2.5.2b released
+May 04, 2008: libarchive 2.5.3b released
+	* libarchive: Several fixes to link resolver to address bsdcpio crashes
+	* bsdcpio: -p hardlink handling fixes
+	* tar/pax: Ensure ustar dirnames end in '/'; be more careful about
+	  measuring filenames when deciding what pathname fields to use
+	* libarchive: Mark which entry strings are set; be accurate about
+	  distinguishing empty strings ("") from unset ones (NULL)
+	* tar: Don't crash reading entries with empty filenames
+	* libarchive_test, bsdtar_test, bsdcpio_test:  Better detaults:
+	  run all tests, delete temp dirs, summarize repeated failures
+	* -no-undefined to libtool for Cygwin
+	* libarchive_test: Skip large file tests on systems with 32-bit off_t
+	* iso9660: Don't bother trying to find the body of an empty file;
+	  this works around strange behavior from some ISO9660 writers
+	* tar: allow -r -T to be used together
+	* tar: allow --format with -r or -u
+	* libarchive: Don't build archive.h
+
 Mar 30, 2008: libarchive 2.5.1b released
 
 Mar 15, 2008: libarchive 2.5.0b released
