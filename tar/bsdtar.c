@@ -150,6 +150,7 @@ enum {
 	OPTION_NO_SAME_OWNER,
 	OPTION_NO_SAME_PERMISSIONS,
 	OPTION_NULL,
+	OPTION_NUMERIC_OWNER,
 	OPTION_ONE_FILE_SYSTEM,
 	OPTION_POSIX,
 	OPTION_STRIP_COMPONENTS,
@@ -205,6 +206,7 @@ static const struct option tar_longopts[] = {
 	{ "no-same-owner",	no_argument,	   NULL, OPTION_NO_SAME_OWNER },
 	{ "no-same-permissions",no_argument,	   NULL, OPTION_NO_SAME_PERMISSIONS },
 	{ "null",		no_argument,	   NULL, OPTION_NULL },
+	{ "numeric-owner",	no_argument,	   NULL, OPTION_NUMERIC_OWNER },
 	{ "one-file-system",	no_argument,	   NULL, OPTION_ONE_FILE_SYSTEM },
 	{ "posix",		no_argument,	   NULL, OPTION_POSIX },
 	{ "preserve-permissions", no_argument,     NULL, 'p' },
@@ -454,6 +456,9 @@ main(int argc, char **argv)
 			break;
 		case OPTION_NULL: /* GNU tar */
 			bsdtar->option_null++;
+			break;
+		case OPTION_NUMERIC_OWNER: /* GNU tar */
+			bsdtar->option_numeric_owner++;
 			break;
 		case 'O': /* GNU tar */
 			bsdtar->option_stdout = 1;

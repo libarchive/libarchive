@@ -274,6 +274,10 @@ This is often used to read filenames output by the
 .Fl print0
 option to
 .Xr find 1 .
+.It Fl -numeric-owner
+(x mode only)
+Ignore symbolic user and group names when restoring archives to disk,
+only numeric uid and gid values will be obeyed.
 .It Fl O
 (x, t modes only)
 In extract (-x) mode, files will be written to standard out rather than

@@ -150,6 +150,11 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		if (r == ARCHIVE_FATAL)
 			break;
 
+		if (bsdtar->option_numeric_owner) {
+			archive_entry_set_uname(entry, NULL);
+			archive_entry_set_gname(entry, NULL);
+		}
+
 		/*
 		 * Exclude entries that are too old.
 		 */

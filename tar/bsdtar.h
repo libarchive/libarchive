@@ -65,6 +65,7 @@ struct bsdtar {
 	char		  option_no_owner; /* -o */
 	char		  option_no_subdirs; /* -n */
 	char		  option_null; /* --null */
+	char		  option_numeric_owner; /* --numeric-owner */
 	char		  option_stdout; /* -O */
 	char		  option_totals; /* --totals */
 	char		  option_unlink_first; /* -U */
