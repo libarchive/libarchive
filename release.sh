@@ -15,6 +15,8 @@ MARKER=`cat version | sed 's/[0-9.]//g'`
 VN=`cat version | sed 's/[^0-9.]//g'`
 # Reassemble and write back out
 VN=$(($VN + 1))
+rm -f version.old
+mv version version.old
 echo $VN$MARKER > version
 # Build out the string.
 VS="$(($VN/1000000)).$(( ($VN/1000)%1000 )).$(( $VN%1000 ))$MARKER"
