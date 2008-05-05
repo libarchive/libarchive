@@ -28,9 +28,19 @@
 #ifndef ARCHIVE_H_INCLUDED
 #define	ARCHIVE_H_INCLUDED
 
+/*
+ * Note: archive.h is for use outside of libarchive; the configuration
+ * headers (config.h, archive_platform.h, etc.) are purely internal.
+ * Do NOT use HAVE_XXX configuration macros to control the behavior of
+ * this header!  If you must conditionalize, use predefined compiler and/or
+ * platform macros.
+ */
+
 #include <sys/types.h>  /* Linux requires this for off_t */
-/* TODO: Conditionalize this include on platforms that don't support it. */
+#if !defined(__WATCOMC__) && !defined(_MSC_VER)
+/* Header unavailable on Watcom C or MS Visual C++. */
 #include <inttypes.h> /* int64_t, etc. */
+#endif
 #include <stdio.h> /* For FILE * */
 
 /* Get appropriate definitions of standard POSIX-style types. */

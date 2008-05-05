@@ -28,6 +28,14 @@
 #ifndef ARCHIVE_ENTRY_H_INCLUDED
 #define	ARCHIVE_ENTRY_H_INCLUDED
 
+/*
+ * Note: archive_entry.h is for use outside of libarchive; the
+ * configuration headers (config.h, archive_platform.h, etc.) are
+ * purely internal.  Do NOT use HAVE_XXX configuration macros to
+ * control the behavior of this header!  If you must conditionalize,
+ * use predefined compiler and/or platform macros.
+ */
+
 #include <sys/types.h>
 #include <stddef.h>  /* for wchar_t */
 #include <time.h>
@@ -37,17 +45,24 @@
 #ifdef _WIN32
 #define	__LA_UID_T	unsigned int
 #define	__LA_GID_T	unsigned int
-#define	__LA_INO_T	unsigned int
 #define	__LA_DEV_T	unsigned int
 #define	__LA_MODE_T	unsigned short
 #else
 #include <unistd.h>
 #define	__LA_UID_T	uid_t
 #define	__LA_GID_T	gid_t
-#define	__LA_INO_T	ino_t
 #define	__LA_DEV_T	dev_t
 #define	__LA_MODE_T	mode_t
 #endif
+
+/*
+ * XXX Is this defined for all Windows compilers?  If so, in what
+ * header?  It would be nice to remove the __LA_INO_T indirection and
+ * just use plain ino_t everywhere.  Likewise for the other types just
+ * above.
+ */
+#define	__LA_INO_T	ino_t
+
 
 /*
  * On Windows, define LIBARCHIVE_STATIC if you're building or using a
