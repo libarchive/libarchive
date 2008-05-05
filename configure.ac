@@ -239,13 +239,13 @@ AC_FUNC_STAT
 AC_FUNC_STRERROR_R
 AC_FUNC_STRFTIME
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS([chflags chown fchdir fchflags fchmod fchown fstat])
+AC_CHECK_FUNCS([chflags chown fchdir fchflags fchmod fchown fcntl fstat])
 AC_CHECK_FUNCS([ftruncate futimes geteuid getopt_long getpid])
 AC_CHECK_FUNCS([lchflags lchmod lchown])
 AC_CHECK_FUNCS([lutimes memmove memset mkdir mkfifo mknod])
-AC_CHECK_FUNCS([nl_langinfo poll select setenv setlocale])
+AC_CHECK_FUNCS([nl_langinfo pipe poll select setenv setlocale])
 AC_CHECK_FUNCS([strchr strdup strerror strrchr timegm])
-AC_CHECK_FUNCS([tzset unsetenv utime utimes])
+AC_CHECK_FUNCS([tzset unsetenv utime utimes vfork])
 AC_CHECK_FUNCS([wcscpy wcslen wmemcmp wmemcpy])
 
 # FreeBSD's nl_langinfo supports an option to specify whether the
