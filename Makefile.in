@@ -176,6 +176,7 @@ am_bsdtar_test_OBJECTS = tar/bsdtar_test-getdate.$(OBJEXT) \
 	tar/test/bsdtar_test-test_copy.$(OBJEXT) \
 	tar/test/bsdtar_test-test_getdate.$(OBJEXT) \
 	tar/test/bsdtar_test-test_help.$(OBJEXT) \
+	tar/test/bsdtar_test-test_option_T.$(OBJEXT) \
 	tar/test/bsdtar_test-test_stdio.$(OBJEXT) \
 	tar/test/bsdtar_test-test_version.$(OBJEXT)
 bsdtar_test_OBJECTS = $(am_bsdtar_test_OBJECTS)
@@ -714,6 +715,7 @@ bsdtar_test_SOURCES = \
 	tar/test/test_copy.c					\
 	tar/test/test_getdate.c					\
 	tar/test/test_help.c					\
+	tar/test/test_option_T.c				\
 	tar/test/test_stdio.c					\
 	tar/test/test_version.c
 
@@ -1176,6 +1178,8 @@ tar/test/bsdtar_test-test_getdate.$(OBJEXT): tar/test/$(am__dirstamp) \
 	tar/test/$(DEPDIR)/$(am__dirstamp)
 tar/test/bsdtar_test-test_help.$(OBJEXT): tar/test/$(am__dirstamp) \
 	tar/test/$(DEPDIR)/$(am__dirstamp)
+tar/test/bsdtar_test-test_option_T.$(OBJEXT):  \
+	tar/test/$(am__dirstamp) tar/test/$(DEPDIR)/$(am__dirstamp)
 tar/test/bsdtar_test-test_stdio.$(OBJEXT): tar/test/$(am__dirstamp) \
 	tar/test/$(DEPDIR)/$(am__dirstamp)
 tar/test/bsdtar_test-test_version.$(OBJEXT): tar/test/$(am__dirstamp) \
@@ -1794,6 +1798,7 @@ mostlyclean-compile:
 	-rm -f tar/test/bsdtar_test-test_copy.$(OBJEXT)
 	-rm -f tar/test/bsdtar_test-test_getdate.$(OBJEXT)
 	-rm -f tar/test/bsdtar_test-test_help.$(OBJEXT)
+	-rm -f tar/test/bsdtar_test-test_option_T.$(OBJEXT)
 	-rm -f tar/test/bsdtar_test-test_stdio.$(OBJEXT)
 	-rm -f tar/test/bsdtar_test-test_version.$(OBJEXT)
 
@@ -2008,6 +2013,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@tar/test/$(DEPDIR)/bsdtar_test-test_copy.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@tar/test/$(DEPDIR)/bsdtar_test-test_getdate.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@tar/test/$(DEPDIR)/bsdtar_test-test_help.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tar/test/$(DEPDIR)/bsdtar_test-test_option_T.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@tar/test/$(DEPDIR)/bsdtar_test-test_stdio.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@tar/test/$(DEPDIR)/bsdtar_test-test_version.Po@am__quote@
 
@@ -2636,6 +2642,20 @@ tar/test/bsdtar_test-test_help.obj: tar/test/test_help.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='tar/test/test_help.c' object='tar/test/bsdtar_test-test_help.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bsdtar_test_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tar/test/bsdtar_test-test_help.obj `if test -f 'tar/test/test_help.c'; then $(CYGPATH_W) 'tar/test/test_help.c'; else $(CYGPATH_W) '$(srcdir)/tar/test/test_help.c'; fi`
+
+tar/test/bsdtar_test-test_option_T.o: tar/test/test_option_T.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bsdtar_test_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tar/test/bsdtar_test-test_option_T.o -MD -MP -MF tar/test/$(DEPDIR)/bsdtar_test-test_option_T.Tpo -c -o tar/test/bsdtar_test-test_option_T.o `test -f 'tar/test/test_option_T.c' || echo '$(srcdir)/'`tar/test/test_option_T.c
+@am__fastdepCC_TRUE@	mv -f tar/test/$(DEPDIR)/bsdtar_test-test_option_T.Tpo tar/test/$(DEPDIR)/bsdtar_test-test_option_T.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='tar/test/test_option_T.c' object='tar/test/bsdtar_test-test_option_T.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bsdtar_test_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tar/test/bsdtar_test-test_option_T.o `test -f 'tar/test/test_option_T.c' || echo '$(srcdir)/'`tar/test/test_option_T.c
+
+tar/test/bsdtar_test-test_option_T.obj: tar/test/test_option_T.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bsdtar_test_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tar/test/bsdtar_test-test_option_T.obj -MD -MP -MF tar/test/$(DEPDIR)/bsdtar_test-test_option_T.Tpo -c -o tar/test/bsdtar_test-test_option_T.obj `if test -f 'tar/test/test_option_T.c'; then $(CYGPATH_W) 'tar/test/test_option_T.c'; else $(CYGPATH_W) '$(srcdir)/tar/test/test_option_T.c'; fi`
+@am__fastdepCC_TRUE@	mv -f tar/test/$(DEPDIR)/bsdtar_test-test_option_T.Tpo tar/test/$(DEPDIR)/bsdtar_test-test_option_T.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='tar/test/test_option_T.c' object='tar/test/bsdtar_test-test_option_T.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bsdtar_test_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tar/test/bsdtar_test-test_option_T.obj `if test -f 'tar/test/test_option_T.c'; then $(CYGPATH_W) 'tar/test/test_option_T.c'; else $(CYGPATH_W) '$(srcdir)/tar/test/test_option_T.c'; fi`
 
 tar/test/bsdtar_test-test_stdio.o: tar/test/test_stdio.c
 @am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bsdtar_test_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tar/test/bsdtar_test-test_stdio.o -MD -MP -MF tar/test/$(DEPDIR)/bsdtar_test-test_stdio.Tpo -c -o tar/test/bsdtar_test-test_stdio.o `test -f 'tar/test/test_stdio.c' || echo '$(srcdir)/'`tar/test/test_stdio.c
