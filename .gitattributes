@@ -1,3 +1,4 @@
 .git*            export-ignore
 
+*.nt            -crlf
 *.sh             crlf=input
