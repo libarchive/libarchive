@@ -294,7 +294,7 @@ is specified, and the program is being run by the root user.
 In this case, the file modes and flags from
 the archive will be restored, but ACLs or owner information in
 the archive will be discarded.
-.Pp
+.It Fl o
 (c, r, u mode)
 A synonym for
 .Fl -format Ar ustar
@@ -511,6 +511,16 @@ Finally, it will switch to the
 directory and add
 .Pa foo2
 to the output archive.
+.Pp
+An input file in
+.Xr mtree 5
+format can be used to create an output archive with arbitrary ownership,
+permissions, or names that differ from existing data on disk:
+.Pp
+.Dl $ cat input.mtree
+.Dl usr/bin uid=0 gid=0 mode=0755 type=dir
+.Dl usr/bin/ls uid=0 gid=0 mode=0755 type=file content=myls
+.Dl $ tar -cvf output.tar @input.mtree
 .Pp
 The
 .Fl -newer
