@@ -1,3 +1,48 @@
+/*-
+ * Copyright (c) 2003-2007 Kees Zeelenberg
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+/*
+ * A set of compatibility glue for building libarchive on Windows platforms.
+ *
+ * Originally created as "libarchive-nonposix.c" by Kees Zeelenberg
+ * for the GnuWin32 project, trimmed significantly by Tim Kientzle.
+ *
+ * Much of the original file was unnecessary for libarchive, because
+ * many of the features it emulated were not strictly necessary for
+ * libarchive.  I hope for this to shrink further as libarchive
+ * internals are gradually reworked to sit more naturally on both
+ * POSIX and Windows.  Any ideas for this are greatly appreciated.
+ *
+ * The biggest remaining issue is the dev/ino emulation; libarchive
+ * has a couple of public APIs that rely on dev/ino uniquely
+ * identifying a file.  This doesn't match well with Windows.  I'm
+ * considering alternative APIs.
+ */
+
 #ifdef _WIN32
 
 #include <errno.h>
@@ -8,7 +53,6 @@
 #include <stdlib.h>
 #include <windows.h>
 #include "archive_platform.h"
-#include "libarchive-nonposix.h"
 
 /* Make a link to FROM called TO.  */
 int link (from, to)
@@ -90,7 +134,7 @@ static int get_dev_ino (HANDLE hFile, dev_t *dev, ino_t *ino)
 	ino64 = (uint64_t) MAKEDWORDLONG (
 		FileInformation.nFileIndexLow, FileInformation.nFileIndexHigh);
 	FileReferenceNumber = ino64 & ((~(0ULL)) >> SEQNUMSIZE); /* remove sequence number */
-	/* transform 64-bits ino into 32-bits by hashing */ 
+	/* transform 64-bits ino into 32-bits by hashing */
 	resino = (ino_t) (
 			( (LODWORD(FileReferenceNumber)) ^ ((LODWORD(FileReferenceNumber)) >> INOSIZE) )
 //		^
@@ -103,12 +147,12 @@ static int get_dev_ino (HANDLE hFile, dev_t *dev, ino_t *ino)
 	*dev = resdev;
 //printf ("get_dev_ino: dev = %d; ino = %u\n", resdev, resino);
 	return 0;
-} 
+}
 
 int get_dev_ino_fd (int fd, dev_t *dev, ino_t *ino)
 {
 	HANDLE hFile;
-	hFile = (HANDLE) _get_osfhandle (fd); 
+	hFile = (HANDLE) _get_osfhandle (fd);
 	return get_dev_ino (hFile, dev, ino);
 }
 
@@ -121,8 +165,8 @@ int get_dev_ino_filename (char *path, dev_t *dev, ino_t *ino)
 	if (_access (path, F_OK)) /* path does not exist */
 		return -1;
 /* obtain handle to file "name"; FILE_FLAG_BACKUP_SEMANTICS is used to open directories */
-	hFile = CreateFile (path, 0, 0, NULL, OPEN_EXISTING, 
-		FILE_FLAG_BACKUP_SEMANTICS | FILE_ATTRIBUTE_READONLY, 
+	hFile = CreateFile (path, 0, 0, NULL, OPEN_EXISTING,
+		FILE_FLAG_BACKUP_SEMANTICS | FILE_ATTRIBUTE_READONLY,
 		NULL);
 	res = get_dev_ino (hFile, dev, ino);
 	CloseHandle (hFile);
@@ -135,70 +179,10 @@ int fstati64 (int fd, struct _stati64 *st)
 	res = _fstati64 (fd, st);
 	if (res < 0)
 		return -1;
-	if (st->st_ino == 0) 
+	if (st->st_ino == 0)
 		res = get_dev_ino_fd (fd, &st->st_dev, &st->st_ino);
 //	printf ("fstat: dev = %u; ino = %u\n", st->st_dev, st->st_ino);
 	return res;
-}
-
-int
-setenv (name, value, replace)
-     const char *name;
-     const char *value;
-     int replace;
-{
-  char *string;
-  int res;
-  
-  if (name == NULL || *name == '\0' || strchr (name, '=') != NULL)
-    {
-      set_errno (EINVAL);
-      return -1;
-    }
-  if (getenv (name) && !replace)
-  	return -1;
-
-  string = (char *) malloc (strlen(name) + strlen(value) + 2);
-  if (!string)
-  	return -1;
-  strcpy (string, name);
-  strcat (string, "=");
-  strcat (string, value);
-  res = _putenv (string);
-  free (string);
-  return res;
-}
-
-int
-unsetenv (name)
-     const char *name;
-{
-  char *string;
-  int res;
-  
-  if (name == NULL || *name == '\0' || strchr (name, '=') != NULL)
-    {
-      set_errno (EINVAL);
-      return -1;
-    }
-  string = (char *) malloc (strlen(name) + 2);
-  if (!string)
-  	return -1;
-  strcpy (string, name);
-  strcat (string, "=");
-  res = _putenv (string);
-  free (string);
-  return res;
-}
-
-int mkstemp(char *template)
-{
-	char *tmpfilename;
-	
-//	fprintf (stderr, "mkstemp: template = %s\n", template);
-	tmpfilename = mktemp (template);
-//	fprintf (stderr, "mkstemp: tmpfilename = %s\n", tmpfilename);
-	return open (tmpfilename, O_CREAT | O_EXCL | O_RDWR | O_BINARY);
 }
 
 #endif /* _WIN32 */
