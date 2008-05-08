@@ -25,8 +25,9 @@ DISTCHECK_CONFIGURE_FLAGS = --enable-bsdtar --enable-bsdcpio
 #
 EXTRA_DIST= version			\
 	contrib				\
+	doc				\
 	examples			\
-        doc				\
+	windows				\
 	$(libarchive_EXTRA_DIST)	\
 	$(libarchive_test_EXTRA_DIST)	\
 	$(bsdtar_EXTRA_DIST)		\
