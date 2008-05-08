@@ -470,8 +470,9 @@ DISTCHECK_CONFIGURE_FLAGS = --enable-bsdtar --enable-bsdcpio
 #
 EXTRA_DIST = version			\
 	contrib				\
+	doc				\
 	examples			\
-        doc				\
+	windows				\
 	$(libarchive_EXTRA_DIST)	\
 	$(libarchive_test_EXTRA_DIST)	\
 	$(bsdtar_EXTRA_DIST)		\
@@ -582,7 +583,9 @@ libarchive_man_MANS = \
 
 # Additional libarchive files to include in the distribution
 libarchive_EXTRA_DIST = \
-	libarchive/test/list.h	\
+	libarchive/test/list.h		\
+	libarchive/archive_windows.c	\
+	libarchive/archive_windows.h	\
 	$(libarchive_man_MANS)
 
 
