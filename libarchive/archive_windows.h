@@ -78,13 +78,9 @@
 #define	chdir		_chdir
 #define	chmod		_chmod
 #define	close		_close
-#define	dup			_dup
-#define	dup2			_dup2
-#define	execlp		_execlp
 #define	fileno		_fileno
 #define	fstat		_fstat
 #define	lseek		_lseek
-#define	lstat		_stat
 #define	open			_open
 #define	stat			_stat
 #define	mkdir(d,m)	_mkdir(d)
@@ -92,7 +88,6 @@
 #define	read			_read
 #define	rmdir		_rmdir
 #define	strdup		_strdup
-#define	stricmp		_stricmp
 #define	tzset		_tzset
 #define	umask		_umask
 #define	write		_write
@@ -124,8 +119,6 @@
 /* replace stat and seek by their large-file equivalents */
 #undef	stat
 #define   stat		_stati64
-#undef	lstat
-#define   lstat	_stati64
 #undef	fstat
 #define   fstat	_fstati64
 
@@ -151,7 +144,6 @@ extern "C" {
 
 extern int link (const char *from, const char *to);
 extern int symlink (const char *from, const char *to);
-extern int fcntl (int fd, int cmd, ...);
 
 #ifdef __cplusplus
 }

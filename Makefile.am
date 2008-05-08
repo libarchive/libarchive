@@ -156,8 +156,10 @@ libarchive_man_MANS=						\
 	libarchive/tar.5
 
 # Additional libarchive files to include in the distribution
-libarchive_EXTRA_DIST=		\
-	libarchive/test/list.h	\
+libarchive_EXTRA_DIST=			\
+	libarchive/test/list.h		\
+	libarchive/archive_windows.c	\
+	libarchive/archive_windows.h	\
 	$(libarchive_man_MANS)
 
 #
