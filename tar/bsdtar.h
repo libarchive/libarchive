@@ -121,6 +121,7 @@ void	tar_mode_t(struct bsdtar *bsdtar);
 void	tar_mode_u(struct bsdtar *bsdtar);
 void	tar_mode_x(struct bsdtar *bsdtar);
 int	unmatched_inclusions(struct bsdtar *bsdtar);
+int	unmatched_inclusions_warn(struct bsdtar *bsdtar, const char *msg);
 void	usage(struct bsdtar *);
 int	yes(const char *fmt, ...);
 

@@ -77,12 +77,14 @@ void
 tar_mode_t(struct bsdtar *bsdtar)
 {
 	read_archive(bsdtar, 't');
+	unmatched_inclusions_warn(bsdtar, "Not found in archive");
 }
 
 void
 tar_mode_x(struct bsdtar *bsdtar)
 {
 	read_archive(bsdtar, 'x');
+	unmatched_inclusions_warn(bsdtar, "Not found in archive");
 }
 
 /*
