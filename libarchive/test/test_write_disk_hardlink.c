@@ -29,6 +29,10 @@ __FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_disk_hardlink.c,v 1.1 200
 
 /*
  * Exercise hardlink recreation.
+ *
+ * File permissions are chosen so that the authoritive entry
+ * has the correct permission and the non-authoritive versions
+ * are just writeable files.
  */
 DEFINE_TEST(test_write_disk_hardlink)
 {
@@ -64,7 +68,7 @@ DEFINE_TEST(test_write_disk_hardlink)
 	/* Link. */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "link1b");
-	archive_entry_set_mode(ae, S_IFREG | 0755);
+	archive_entry_set_mode(ae, S_IFREG | 0600);
 	archive_entry_set_size(ae, 0);
 	archive_entry_copy_hardlink(ae, "link1a");
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
@@ -80,7 +84,7 @@ DEFINE_TEST(test_write_disk_hardlink)
 	/* Regular file. */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "link2a");
-	archive_entry_set_mode(ae, S_IFREG | 0755);
+	archive_entry_set_mode(ae, S_IFREG | 0600);
 	archive_entry_set_size(ae, sizeof(data));
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
 	assertEqualInt(sizeof(data), archive_write_data(ad, data, sizeof(data)));
@@ -106,7 +110,7 @@ DEFINE_TEST(test_write_disk_hardlink)
 	/* Regular file. */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "link3a");
-	archive_entry_set_mode(ae, S_IFREG | 0755);
+	archive_entry_set_mode(ae, S_IFREG | 0600);
 	archive_entry_set_size(ae, 0);
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
 	assertEqualInt(0, archive_write_data(ad, data, sizeof(data)));

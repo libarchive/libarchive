@@ -868,8 +868,18 @@ create_filesystem_object(struct archive_write_disk *a)
 		 * New cpio and pax formats allow hardlink entries
 		 * to carry data, so we may have to open the file
 		 * for hardlink entries.
+		 *
+		 * If the hardlink was successfully created and
+		 * the archive doesn't have carry data for it,
+		 * consider it to be non-authoritive for meta data.
+		 * This is consistent with GNU tar and BSD pax.
+		 * If the hardlink does carry data, let the last
+		 * archive entry decide ownership.
 		 */
-		if (r == 0 && a->filesize > 0) {
+		if (r == 0 && a->filesize == 0) {
+			a->todo = 0;
+			a->deferred = 0;
+		} if (r == 0 && a->filesize > 0) {
 			a->fd = open(a->name, O_WRONLY | O_TRUNC | O_BINARY);
 			if (a->fd < 0)
 				r = errno;
