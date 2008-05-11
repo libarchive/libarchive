@@ -207,6 +207,7 @@ MLINKS+=	archive_write.3 archive_write_set_bytes_in_last_block.3
 MLINKS+=	archive_write.3 archive_write_set_bytes_per_block.3
 MLINKS+=	archive_write.3 archive_write_set_callbacks.3
 MLINKS+=	archive_write.3 archive_write_set_compression_bzip2.3
+MLINKS+=	archive_write.3 archive_write_set_compression_compress.3
 MLINKS+=	archive_write.3 archive_write_set_compression_gzip.3
 MLINKS+=	archive_write.3 archive_write_set_compression_none.3
 MLINKS+=	archive_write.3 archive_write_set_compression_program.3
