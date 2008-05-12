@@ -242,6 +242,31 @@ static int	_archive_write_finish_entry(struct archive *);
 static ssize_t	_archive_write_data(struct archive *, const void *, size_t);
 static ssize_t	_archive_write_data_block(struct archive *, const void *, size_t, off_t);
 
+static int
+_archive_write_disk_lazy_stat(struct archive_write_disk *a)
+{
+	if (a->pst != NULL) {
+		/* Already have stat() data available. */
+		return (ARCHIVE_OK);
+	}
+#ifdef HAVE_FSTAT
+	if (a->fd >= 0 && fstat(a->fd, &a->st) == 0) {
+		a->pst = &a->st;
+		return (ARCHIVE_OK);
+	}
+#endif
+	/*
+	 * XXX At this point, symlinks should not be hit, otherwise
+	 * XXX a race occured.  Do we want to check explicitly for that?
+	 */
+	if (lstat(a->name, &a->st) == 0) {
+		a->pst = &a->st;
+		return (ARCHIVE_OK);
+	}
+	archive_set_error(&a->archive, errno, "Couldn't stat file");
+	return (ARCHIVE_WARN);
+}
+
 static struct archive_vtable *
 archive_write_disk_vtable(void)
 {
@@ -725,11 +750,13 @@ restore_entry(struct archive_write_disk *a)
 		 * object isn't a dir.
 		 */
 		if (unlink(a->name) == 0) {
-			/* We removed it, we're done. */
+			/* We removed it, reset cached stat. */
+			a->pst = NULL;
 		} else if (errno == ENOENT) {
 			/* File didn't exist, that's just as good. */
 		} else if (rmdir(a->name) == 0) {
 			/* It was a dir, but now it's gone. */
+			a->pst = NULL;
 		} else {
 			/* We tried, but couldn't get rid of it. */
 			archive_set_error(&a->archive, errno,
@@ -770,6 +797,7 @@ restore_entry(struct archive_write_disk *a)
 			    "Can't remove already-existing dir");
 			return (ARCHIVE_WARN);
 		}
+		a->pst = NULL;
 		/* Try again. */
 		en = create_filesystem_object(a);
 	} else if (en == EEXIST) {
@@ -809,6 +837,7 @@ restore_entry(struct archive_write_disk *a)
 				    "Can't unlink already-existing object");
 				return (ARCHIVE_WARN);
 			}
+			a->pst = NULL;
 			/* Try again. */
 			en = create_filesystem_object(a);
 		} else if (!S_ISDIR(a->mode)) {
@@ -1215,6 +1244,7 @@ check_symlinks(struct archive_write_disk *a)
 					pn[0] = c;
 					return (ARCHIVE_WARN);
 				}
+				a->pst = NULL;
 				/*
 				 * Even if we did remove it, a warning
 				 * is in order.  The warning is silly,
@@ -1238,6 +1268,7 @@ check_symlinks(struct archive_write_disk *a)
 					pn[0] = c;
 					return (ARCHIVE_WARN);
 				}
+				a->pst = NULL;
 			} else {
 				archive_set_error(&a->archive, 0,
 				    "Cannot extract through symlink %s",
@@ -1620,19 +1651,8 @@ set_mode(struct archive_write_disk *a, int mode)
 		 * process, since systems sometimes set GID from
 		 * the enclosing dir or based on ACLs.
 		 */
-		if (a->pst != NULL) {
-			/* Already have stat() data available. */
-#ifdef HAVE_FSTAT
-		} else if (a->fd >= 0 && fstat(a->fd, &a->st) == 0) {
-			a->pst = &a->st;
-#endif
-		} else if (stat(a->name, &a->st) == 0) {
-			a->pst = &a->st;
-		} else {
-			archive_set_error(&a->archive, errno,
-			    "Couldn't stat file");
-			return (ARCHIVE_WARN);
-		}
+		if ((r = _archive_write_disk_lazy_stat(a)) != ARCHIVE_OK)
+			return (r);
 		if (a->pst->st_gid != a->gid) {
 			mode &= ~ S_ISGID;
 			if (a->flags & ARCHIVE_EXTRACT_OWNER) {
@@ -1795,6 +1815,8 @@ static int
 set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
     mode_t mode, unsigned long set, unsigned long clear)
 {
+	int r;
+
 	(void)mode; /* UNUSED */
 	if (set == 0  && clear == 0)
 		return (ARCHIVE_OK);
@@ -1805,15 +1827,8 @@ set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
 	 * about the correct approach if we're overwriting an existing
 	 * file that already has flags on it. XXX
 	 */
-	if (fd >= 0 && fstat(fd, &a->st) == 0)
-		a->pst = &a->st;
-	else if (lstat(name, &a->st) == 0)
-		a->pst = &a->st;
-	else {
-		archive_set_error(&a->archive, errno,
-		    "Couldn't stat file");
-		return (ARCHIVE_WARN);
-	}
+	if ((r = _archive_write_disk_lazy_stat(a)) != ARCHIVE_OK)
+		return (r);
 
 	a->st.st_flags &= ~clear;
 	a->st.st_flags |= set;
