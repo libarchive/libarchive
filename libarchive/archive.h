@@ -371,30 +371,30 @@ __LA_DECL int		 archive_read_data_into_fd(struct archive *, int fd);
 /* The "flags" argument selects optional behavior, 'OR' the flags you want. */
 
 /* Default: Do not try to set owner/group. */
-#define	ARCHIVE_EXTRACT_OWNER	(1)
+#define	ARCHIVE_EXTRACT_OWNER			(0x0001)
 /* Default: Do obey umask, do not restore SUID/SGID/SVTX bits. */
-#define	ARCHIVE_EXTRACT_PERM	(2)
+#define	ARCHIVE_EXTRACT_PERM			(0x0002)
 /* Default: Do not restore mtime/atime. */
-#define	ARCHIVE_EXTRACT_TIME	(4)
+#define	ARCHIVE_EXTRACT_TIME			(0x0004)
 /* Default: Replace existing files. */
-#define	ARCHIVE_EXTRACT_NO_OVERWRITE (8)
+#define	ARCHIVE_EXTRACT_NO_OVERWRITE 		(0x0008)
 /* Default: Try create first, unlink only if create fails with EEXIST. */
-#define	ARCHIVE_EXTRACT_UNLINK	(16)
+#define	ARCHIVE_EXTRACT_UNLINK			(0x0010)
 /* Default: Do not restore ACLs. */
-#define	ARCHIVE_EXTRACT_ACL	(32)
+#define	ARCHIVE_EXTRACT_ACL			(0x0020)
 /* Default: Do not restore fflags. */
-#define	ARCHIVE_EXTRACT_FFLAGS	(64)
+#define	ARCHIVE_EXTRACT_FFLAGS			(0x0040)
 /* Default: Do not restore xattrs. */
-#define	ARCHIVE_EXTRACT_XATTR   (128)
+#define	ARCHIVE_EXTRACT_XATTR 			(0x0080)
 /* Default: Do not try to guard against extracts redirected by symlinks. */
 /* Note: With ARCHIVE_EXTRACT_UNLINK, will remove any intermediate symlink. */
-#define	ARCHIVE_EXTRACT_SECURE_SYMLINKS (256)
+#define	ARCHIVE_EXTRACT_SECURE_SYMLINKS		(0x0100)
 /* Default: Do not reject entries with '..' as path elements. */
-#define	ARCHIVE_EXTRACT_SECURE_NODOTDOT (512)
+#define	ARCHIVE_EXTRACT_SECURE_NODOTDOT		(0x0200)
 /* Default: Create parent directories as needed. */
-#define	ARCHIVE_EXTRACT_NO_AUTODIR (1024)
+#define	ARCHIVE_EXTRACT_NO_AUTODIR		(0x0400)
 /* Default: Overwrite files, even if one on disk is newer. */
-#define	ARCHIVE_EXTRACT_NO_OVERWRITE_NEWER (2048)
+#define	ARCHIVE_EXTRACT_NO_OVERWRITE_NEWER	(0x0800)
 
 __LA_DECL int	 archive_read_extract(struct archive *, struct archive_entry *,
 		     int flags);
