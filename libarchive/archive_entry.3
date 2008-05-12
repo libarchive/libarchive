@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD: src/lib/libarchive/archive_entry.3,v 1.17 2008/03/14 23:00:53 kientzle Exp $
 .\"
-.Dd December 15, 2003
+.Dd May 12, 2008
 .Dt archive_entry 3
 .Os
 .Sh NAME
@@ -40,6 +40,7 @@
 .Nm archive_entry_atime_nsec ,
 .Nm archive_entry_clear ,
 .Nm archive_entry_clone ,
+.Nm archive_entry_copy_fflags_text ,
 .Nm archive_entry_copy_fflags_text_w ,
 .Nm archive_entry_copy_gname ,
 .Nm archive_entry_copy_gname_w ,
@@ -158,6 +159,8 @@
 .Fn archive_entry_clear "struct archive_entry *"
 .Ft struct archive_entry *
 .Fn archive_entry_clone "struct archive_entry *"
+.Ft const char * *
+.Fn archive_entry_copy_fflags_text_w "struct archive_entry *" "const char *"
 .Ft const wchar_t *
 .Fn archive_entry_copy_fflags_text_w "struct archive_entry *" "const wchar_t *"
 .Ft void
@@ -382,8 +385,10 @@ will be ignored.
 .Pp
 The canonical text format is a comma-separated list of flag names.
 The
+.Fn archive_entry_copy_fflags_text
+and
 .Fn archive_entry_copy_fflags_text_w
-function parses the provided text and sets the internal bitmap values.
+functions parse the provided text and sets the internal bitmap values.
 This is a platform-specific operation; names that are not meaningful
 on the current platform will be ignored.
 The function returns a pointer to the start of the first name that was not

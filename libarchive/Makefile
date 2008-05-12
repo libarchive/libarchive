@@ -92,6 +92,7 @@ MLINKS+=	archive_entry.3 archive_entry_acl_reset.3
 MLINKS+=	archive_entry.3 archive_entry_acl_text_w.3
 MLINKS+=	archive_entry.3 archive_entry_clear.3
 MLINKS+=	archive_entry.3 archive_entry_clone.3
+MLINKS+=	archive_entry.3 archive_entry_copy_fflags_text.3
 MLINKS+=	archive_entry.3 archive_entry_copy_fflags_text_w.3
 MLINKS+=	archive_entry.3 archive_entry_copy_gname.3
 MLINKS+=	archive_entry.3 archive_entry_copy_gname_w.3
