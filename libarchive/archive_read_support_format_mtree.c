@@ -483,6 +483,18 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			archive_strcpy(&mtree->contents_name, val);
 			break;
 		}
+		if (strcmp(key, "cksum") == 0)
+			break;
+	case 'd':
+#if 0
+		if (strcmp(key, "device") == 0)
+			break;
+#endif
+	case 'f':
+		if (strcmp(key, "flags") == 0) {
+			archive_entry_copy_fflags_text(entry, val);
+			break;
+		}
 	case 'g':
 		if (strcmp(key, "gid") == 0) {
 			archive_entry_set_gid(entry, mtree_atol10(&val));
@@ -492,12 +504,20 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			archive_entry_copy_gname(entry, val);
 			break;
 		}
+	case 'i':
+#if 0
+		if (strcmp(key, "ignore") == 0) {
+			/* Ignore under this. */
+			break;
+#endif
 	case 'l':
 		if (strcmp(key, "link") == 0) {
 			archive_entry_set_link(entry, val);
 			break;
 		}
 	case 'm':
+		if (strcmp(key, "md5") == 0 || strcmp(key, "md5digest") == 0)
+			break;
 		if (strcmp(key, "mode") == 0) {
 			if (val[0] == '0') {
 				archive_entry_set_perm(entry,
@@ -508,12 +528,53 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 				    "Symbolic mode \"%s\" unsupported", val);
 			break;
 		}
+	case 'n':
+		if (strcmp(key, "nlink") == 0) {
+			archive_entry_set_nlink(entry, mtree_atol10(&val));
+			break;
+		}
+	case 'o':
+#if 0
+		if (strcmp(key, "optional") == 0) {
+			/*
+			 * This file may or may not exist.
+			 * Just ignore the keyword?
+			 */
+			break;
+#endif
+	case 'r':
+		if (strcmp(key, "rmd160") == 0 ||
+		    strcmp(key, "rmd160digest") == 0)
+			break;
 	case 's':
+		if (strcmp(key, "sha1") == 0 || strcmp(key, "sha1digest") == 0)
+			break;
+		if (strcmp(key, "sha256") == 0 ||
+		    strcmp(key, "sha256digest") == 0)
+			break;
+		if (strcmp(key, "sha384") == 0 ||
+		    strcmp(key, "sha384digest") == 0)
+			break;
+		if (strcmp(key, "sha512") == 0 ||
+		    strcmp(key, "sha512digest") == 0)
+			break;
 		if (strcmp(key, "size") == 0) {
 			archive_entry_set_size(entry, mtree_atol10(&val));
 			break;
 		}
 	case 't':
+		if (strcmp(key, "tags") == 0) {
+			/*
+			 * Comma delimited list of tags.
+			 * Ignore the tags for now, but the interface
+			 * should be extended to allow inclusion/exclusion.
+			 */
+			break;
+		}
+		if (strcmp(key, "time") == 0) {
+			archive_entry_set_mtime(entry, mtree_atol10(&val), 0);
+			break;
+		}
 		if (strcmp(key, "type") == 0) {
 			switch (val[0]) {
 			case 'b':
@@ -552,10 +613,6 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 				return (ARCHIVE_WARN);
 			}
 			archive_entry_set_filetype(entry, mtree->filetype);
-			break;
-		}
-		if (strcmp(key, "time") == 0) {
-			archive_entry_set_mtime(entry, mtree_atol10(&val), 0);
 			break;
 		}
 	case 'u':
