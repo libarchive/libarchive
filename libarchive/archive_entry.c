@@ -1930,13 +1930,13 @@ ae_strtofflags(const char *s, unsigned long *setp, unsigned long *clrp)
 		while (*end != '\0'  &&  *end != '\t'  &&
 		    *end != ' '  &&  *end != ',')
 			end++;
-		for (flag = flags; flag->wname != NULL; flag++) {
-			if (memcmp(start, flag->wname, end - start) == 0) {
+		for (flag = flags; flag->name != NULL; flag++) {
+			if (memcmp(start, flag->name, end - start) == 0) {
 				/* Matched "noXXXX", so reverse the sense. */
 				clear |= flag->set;
 				set |= flag->clear;
 				break;
-			} else if (memcmp(start, flag->wname + 2, end - start)
+			} else if (memcmp(start, flag->name + 2, end - start)
 			    == 0) {
 				/* Matched "XXXX", so don't reverse. */
 				set |= flag->set;
@@ -1945,7 +1945,7 @@ ae_strtofflags(const char *s, unsigned long *setp, unsigned long *clrp)
 			}
 		}
 		/* Ignore unknown flag names. */
-		if (flag->wname == NULL  &&  failed == NULL)
+		if (flag->name == NULL  &&  failed == NULL)
 			failed = start;
 
 		/* Find start of next token. */
