@@ -187,6 +187,8 @@ struct archive_write_disk {
 	/* UID/GID to use in restoring this entry. */
 	uid_t			 uid;
 	gid_t			 gid;
+	/* Last offset written to disk. */
+	off_t			 last_offset;
 };
 
 /*
@@ -333,6 +335,7 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 	}
 	a->entry = archive_entry_clone(entry);
 	a->fd = -1;
+	a->last_offset = 0;
 	a->offset = 0;
 	a->uid = a->user_uid;
 	a->mode = archive_entry_mode(a->entry);
@@ -488,6 +491,7 @@ _archive_write_data_block(struct archive *_a,
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	ssize_t bytes_written = 0;
+	ssize_t block_size, bytes_to_write;
 	int r = ARCHIVE_OK;
 
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
@@ -498,33 +502,53 @@ _archive_write_data_block(struct archive *_a,
 	}
 	archive_clear_error(&a->archive);
 
-	/* Seek if necessary to the specified offset. */
-	if (offset != a->offset) {
-		if (lseek(a->fd, offset, SEEK_SET) < 0) {
-			archive_set_error(&a->archive, errno, "Seek failed");
-			return (ARCHIVE_WARN);
-		}
-		a->offset = offset;
+	if (a->flags & ARCHIVE_EXTRACT_SPARSE) {
+		if ((r = _archive_write_disk_lazy_stat(a)) != ARCHIVE_OK)
+			return (r);
+		block_size = a->pst->st_blksize;
+	} else
+		block_size = -1;
+
+	if ((off_t)(offset + size) > a->filesize) {
+		size = (size_t)(a->filesize - a->offset);
+		archive_set_error(&a->archive, 0,
+		    "Write request too large");
+		r = ARCHIVE_WARN;
 	}
 
 	/* Write the data. */
-	while (size > 0 && a->offset < a->filesize) {
-		if ((off_t)(a->offset + size) > a->filesize) {
-			archive_set_error(&a->archive, 0,
-			    "Write request too large (tried to write %u bytes, but only %u bytes remain)",
-			    (unsigned int)size,
-			    (unsigned int)(a->filesize - a->offset));
-			r = ARCHIVE_WARN;
-			size = (size_t)(a->filesize - a->offset);
-		}
+	while (size > 0) {
+		if (block_size != -1) {
+			const char *buf;
+
+			for (buf = buff; size; ++buf, --size, ++offset) {
+				if (*buf != '\0')
+					break;
+			}
+			if (size == 0)
+				break;
+			bytes_to_write = block_size - offset % block_size;
+			buff = buf;
+		} else
+			bytes_to_write = size;
+		/* Seek if necessary to the specified offset. */
+		if (offset != a->last_offset) {
+			if (lseek(a->fd, offset, SEEK_SET) < 0) {
+				archive_set_error(&a->archive, errno, "Seek failed");
+				return (ARCHIVE_FATAL);
+			}
+ 		}
 		bytes_written = write(a->fd, buff, size);
 		if (bytes_written < 0) {
 			archive_set_error(&a->archive, errno, "Write failed");
 			return (ARCHIVE_WARN);
 		}
+		buff = (const char *)buff + bytes_written;
 		size -= bytes_written;
-		a->offset += bytes_written;
+		offset += bytes_written;
+		a->last_offset = a->offset = offset;
 	}
+	a->offset = offset;
 	return (r);
 }
 
@@ -532,7 +556,6 @@ static ssize_t
 _archive_write_data(struct archive *_a, const void *buff, size_t size)
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
-	off_t offset;
 	int r;
 
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
@@ -540,11 +563,10 @@ _archive_write_data(struct archive *_a, const void *buff, size_t size)
 	if (a->fd < 0)
 		return (ARCHIVE_OK);
 
-	offset = a->offset;
 	r = _archive_write_data_block(_a, buff, size, a->offset);
 	if (r < ARCHIVE_OK)
 		return (r);
-	return (a->offset - offset);
+	return size;
 }
 
 static int
@@ -559,6 +581,34 @@ _archive_write_finish_entry(struct archive *_a)
 	if (a->archive.state & ARCHIVE_STATE_HEADER)
 		return (ARCHIVE_OK);
 	archive_clear_error(&a->archive);
+
+	if (a->last_offset != a->filesize && a->fd >= 0) {
+		if (ftruncate(a->fd, a->filesize) == -1 &&
+		    a->filesize == 0) {
+			archive_set_error(&a->archive, errno,
+			    "File size could not be restored");
+			return (ARCHIVE_FAILED);
+		}
+		/*
+		 * Explicitly stat the file as some platforms might not
+		 * implement the XSI option to extend files via ftruncate.
+		 */
+		a->pst = NULL;
+		if ((ret = _archive_write_disk_lazy_stat(a)) != ARCHIVE_OK)
+			return (ret);
+		if (a->st.st_size != a->filesize) {
+			const char nul = '\0';
+			if (lseek(a->fd, a->st.st_size - 1, SEEK_SET) < 0) {
+				archive_set_error(&a->archive, errno, "Seek failed");
+				return (ARCHIVE_FATAL);
+			}
+			if (write(a->fd, &nul, 1) < 0) {
+				archive_set_error(&a->archive, errno,
+				    "Write to restore size failed");
+				return (ARCHIVE_FATAL);
+			}
+		}
+	}
 
 	/* Restore metadata. */
 

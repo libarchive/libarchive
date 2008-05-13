@@ -395,6 +395,8 @@ __LA_DECL int		 archive_read_data_into_fd(struct archive *, int fd);
 #define	ARCHIVE_EXTRACT_NO_AUTODIR		(0x0400)
 /* Default: Overwrite files, even if one on disk is newer. */
 #define	ARCHIVE_EXTRACT_NO_OVERWRITE_NEWER	(0x0800)
+/* Detect blocks of 0 and write holes instead. */
+#define	ARCHIVE_EXTRACT_SPARSE			(0x1000)
 
 __LA_DECL int	 archive_read_extract(struct archive *, struct archive_entry *,
 		     int flags);

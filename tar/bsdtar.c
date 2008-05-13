@@ -118,7 +118,7 @@ static void		 version(void);
  * non-option.  Otherwise, GNU getopt() permutes the arguments and
  * screws up -C processing.
  */
-static const char *tar_opts = "+Bb:C:cf:HhI:jkLlmnOoPprtT:UuvW:wX:xyZz";
+static const char *tar_opts = "+Bb:C:cf:HhI:jkLlmnOoPprtST:UuvW:wX:xyZz";
 
 /*
  * Most of these long options are deliberately not documented.  They
@@ -498,6 +498,9 @@ main(int argc, char **argv)
 			break;
 		case 'r': /* SUSv2 */
 			set_mode(bsdtar, opt);
+			break;
+		case 'S': /* NetBSD pax-as-tar */
+			bsdtar->extract_flags |= ARCHIVE_EXTRACT_SPARSE;
 			break;
 		case OPTION_STRIP_COMPONENTS: /* GNU tar 1.15 */
 			bsdtar->strip_components = atoi(optarg);
