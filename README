@@ -69,6 +69,7 @@ Currently, the library automatically detects and reads the following:
 The library can write:
   * gzip compression
   * bzip2 compression
+  * compress/LZW compression
   * POSIX ustar
   * POSIX pax interchange format
   * "restricted" pax format, which will create ustar archives except for
