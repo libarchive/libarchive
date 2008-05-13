@@ -113,7 +113,7 @@ DEFINE_TEST(test_write_disk_hardlink)
 	archive_entry_set_mode(ae, S_IFREG | 0600);
 	archive_entry_set_size(ae, 0);
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
-	assertEqualInt(0, archive_write_data(ad, data, sizeof(data)));
+	assertEqualInt(ARCHIVE_WARN, archive_write_data(ad, data, 1));
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
 	archive_entry_free(ae);
 
