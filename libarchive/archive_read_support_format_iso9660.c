@@ -1046,51 +1046,22 @@ isodate17(const unsigned char *v)
 	return (time_from_tm(&tm));
 }
 
-/*
- * timegm() converts a struct tm to a time_t, except it isn't standard,
- * so I provide my own function here that (ideally) is just a wrapper
- * for timegm().
- */
 static time_t
 time_from_tm(struct tm *t)
 {
 #if HAVE_TIMEGM
+	/* Use platform timegm() if available. */
 	return (timegm(t));
-#elif HAVE_STRUCT_TM_TM_GMTOFF
-	/*
-	 * Unfortunately, timegm() isn't standard.  The standard
-	 * mktime() function is a close match, except that it uses
-	 * local timezone instead of GMT.  You can compensate for
-	 * this by adding the timezone and DST offsets back in, at
-	 * the cost of two calls to mktime().
-	 */
-	mktime(t); /* Normalize the time and get the TZ offset. */
-	t->tm_sec += t->tm_gmtoff; /* Try to adjust for the timezone and DST.*/
-	if (t->tm_isdst)
-		t->tm_hour -= 1;
-	return (mktime(t)); /* Re-convert. */
-#elif defined(HAVE_SETENV) && defined(HAVE_UNSETENV) && defined(HAVE_TZSET)
-	/* No timegm() and no tm_gmtoff, let's try forcing mktime() to UTC. */
-	time_t ret;
-	char *tz;
-
-	/* Reset the timezone, remember the old one. */
-	tz = getenv("TZ");
-	setenv("TZ", "UTC 0", 1);
-	tzset();
-
-	ret = mktime(t);
-
-	/* Restore the previous timezone. */
-	if (tz)
-	    setenv("TZ", tz, 1);
-	else
-	    unsetenv("TZ");
-	tzset();
-	return ret;
 #else
-	/* <sigh> We have no choice but to use localtime instead of UTC. */
-	return (mktime(t));
+	/* Else use direct calculation using POSIX assumptions. */
+	/* First, fix up tm_yday based on the year/month/day. */
+	mktime(t);
+	/* Then we can compute timegm() from first principles. */
+	return (t->tm_sec + t->tm_min * 60 + t->tm_hour * 3600
+	    + t->tm_yday * 86400 + (t->tm_year - 70) * 31536000
+	    + ((t->tm_year - 69) / 4) * 86400 -
+	    ((t->tm_year - 1) / 100) * 86400
+	    + ((t->tm_year + 299) / 400) * 86400);
 #endif
 }
 
