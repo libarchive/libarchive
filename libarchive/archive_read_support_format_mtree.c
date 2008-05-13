@@ -97,6 +97,7 @@ static int	read_header(struct archive_read *,
 		    struct archive_entry *);
 static int64_t	mtree_atol10(char **);
 static int64_t	mtree_atol8(char **);
+static int64_t	mtree_atol(char **);
 
 int
 archive_read_support_format_mtree(struct archive *_a)
@@ -452,6 +453,38 @@ parse_line(struct archive_read *a, struct archive_entry *entry,
 }
 
 /*
+ * Device entries have one of the following forms:
+ * raw dev_t
+ * format,major,minor[,subdevice]
+ *
+ * Just use major and minor, no translation etc is done
+ * between formats.
+ */
+static int
+parse_device(struct archive *a, struct archive_entry *entry, char *val)
+{
+	char *comma1, *comma2;
+	dev_t dev_major, dev_minor;
+
+	comma1 = strchr(val, ',');
+	if (comma1 == NULL) {
+		archive_entry_set_dev(entry, mtree_atol10(&val));
+		return (ARCHIVE_OK);
+	}
+	++comma1;
+	comma2 = strchr(comma1, ',');
+	if (comma1 == NULL) {
+		archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Malformed device attribute");
+		return (ARCHIVE_WARN);
+	}
+	++comma2;
+	archive_entry_set_rdevmajor(entry, mtree_atol(&comma1));
+	archive_entry_set_rdevminor(entry, mtree_atol(&comma2));
+	return (ARCHIVE_OK);
+}
+
+/*
  * Parse a single keyword and its value.
  */
 static int
@@ -464,6 +497,19 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 		return (ARCHIVE_OK);
 	if (*key == '\0')
 		return (ARCHIVE_OK);
+
+	if (strcmp(key, "optional") == 0) {
+		/* We just flag an error if it doesn't exist. */
+		return (ARCHIVE_OK);
+	}
+	if (strcmp(key, "ignore") == 0) {
+		/*
+		 * The mtree processing is not recursive, so
+		 * recursion will only happen for explicitly listed
+		 * entries.
+		 */
+		return (ARCHIVE_OK);
+	}
 
 	val = strchr(key, '=');
 	if (val == NULL) {
@@ -486,10 +532,8 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 		if (strcmp(key, "cksum") == 0)
 			break;
 	case 'd':
-#if 0
 		if (strcmp(key, "device") == 0)
-			break;
-#endif
+			return parse_device(&a->archive, entry, val);
 	case 'f':
 		if (strcmp(key, "flags") == 0) {
 			archive_entry_copy_fflags_text(entry, val);
@@ -504,15 +548,9 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			archive_entry_copy_gname(entry, val);
 			break;
 		}
-	case 'i':
-#if 0
-		if (strcmp(key, "ignore") == 0) {
-			/* Ignore under this. */
-			break;
-#endif
 	case 'l':
 		if (strcmp(key, "link") == 0) {
-			archive_entry_set_link(entry, val);
+			archive_entry_set_symlink(entry, val);
 			break;
 		}
 	case 'm':
@@ -533,15 +571,6 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			archive_entry_set_nlink(entry, mtree_atol10(&val));
 			break;
 		}
-	case 'o':
-#if 0
-		if (strcmp(key, "optional") == 0) {
-			/*
-			 * This file may or may not exist.
-			 * Just ignore the keyword?
-			 */
-			break;
-#endif
 	case 'r':
 		if (strcmp(key, "rmd160") == 0 ||
 		    strcmp(key, "rmd160digest") == 0)
@@ -778,6 +807,66 @@ mtree_atol10(char **p)
 		digit = *++(*p) - '0';
 	}
 	return (sign < 0) ? -l : l;
+}
+
+/*
+ * Note that this implementation does not (and should not!) obey
+ * locale settings; you cannot simply substitute strtol here, since
+ * it does obey locale.
+ */
+static int64_t
+mtree_atol16(char **p)
+{
+	int64_t l, limit, last_digit_limit;
+	int base, digit, sign;
+
+	base = 16;
+	limit = INT64_MAX / base;
+	last_digit_limit = INT64_MAX % base;
+
+	if (**p == '-') {
+		sign = -1;
+		++(*p);
+	} else
+		sign = 1;
+
+	l = 0;
+	if (**p >= '0' && **p <= '9')
+		digit = **p - '0';
+	else if (**p >= 'a' && **p <= 'f')
+		digit = **p - 'a' + 10;
+	else if (**p >= 'A' && **p <= 'F')
+		digit = **p - 'A' + 10;
+	else
+		digit = -1;
+	while (digit >= 0 && digit < base) {
+		if (l > limit || (l == limit && digit > last_digit_limit)) {
+			l = UINT64_MAX; /* Truncate on overflow. */
+			break;
+		}
+		l = (l * base) + digit;
+		if (**p >= '0' && **p <= '9')
+			digit = **p - '0';
+		else if (**p >= 'a' && **p <= 'f')
+			digit = **p - 'a' + 10;
+		else if (**p >= 'A' && **p <= 'F')
+			digit = **p - 'A' + 10;
+		else
+			digit = -1;
+	}
+	return (sign < 0) ? -l : l;
+}
+
+static int64_t
+mtree_atol(char **p)
+{
+	if (**p != '0')
+		return mtree_atol10(p);
+	if ((*p)[1] == 'x' || (*p)[1] == 'X') {
+		*p += 2;
+		return mtree_atol16(p);
+	}
+	return mtree_atol8(p);
 }
 
 /*
