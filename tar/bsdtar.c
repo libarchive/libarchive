@@ -502,6 +502,14 @@ main(int argc, char **argv)
 		case 'S': /* NetBSD pax-as-tar */
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_SPARSE;
 			break;
+		case 's': /* NetBSD pax-as-tar */
+#if HAVE_REGEX_H
+			add_substitution(bsdtar, optarg);
+#else
+			bsdtar_warnc(bsdtar, 0, "-s is not supported by this version of bsdtar");
+			usage(bsdtar);
+#endif
+			break;
 		case OPTION_STRIP_COMPONENTS: /* GNU tar 1.15 */
 			bsdtar->strip_components = atoi(optarg);
 			break;
@@ -677,6 +685,10 @@ main(int argc, char **argv)
 	}
 
 	cleanup_exclusions(bsdtar);
+#if HAVE_REGEX_H
+	cleanup_substitution(bsdtar);
+#endif
+
 	if (bsdtar->return_value != 0)
 		bsdtar_warnc(bsdtar, 0,
 		    "Error exit delayed from previous errors.");

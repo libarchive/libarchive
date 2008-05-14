@@ -98,6 +98,7 @@ read_archive(struct bsdtar *bsdtar, char mode)
 	struct archive_entry	 *entry;
 	const struct stat	 *st;
 	int			  r;
+	char			 *subst_name;
 
 	while (*bsdtar->argv) {
 		include(bsdtar, *bsdtar->argv);
@@ -157,6 +158,18 @@ read_archive(struct bsdtar *bsdtar, char mode)
 			archive_entry_set_gname(entry, NULL);
 		}
 
+#if HAVE_REGEX_H
+		r = apply_substitution(bsdtar, archive_entry_pathname(entry), &subst_name, 0);
+		if (r == -1) {
+			bsdtar_warnc(bsdtar, 0, "Invalid substituion, skipping entry");
+			continue;
+		}
+		if (r == 1) {
+			archive_entry_set_pathname(entry, subst_name);
+			free(subst_name);
+		}
+#endif
+
 		/*
 		 * Exclude entries that are too old.
 		 */
@@ -177,6 +190,31 @@ read_archive(struct bsdtar *bsdtar, char mode)
 			    <= bsdtar->newer_mtime_nsec)
 				continue; /* Too old, skip it. */
 		}
+		
+#if HAVE_REGEX_H
+		if (archive_entry_hardlink(entry)) {
+			r = apply_substitution(bsdtar, archive_entry_hardlink(entry), &subst_name, 1);
+			if (r == -1) {
+				bsdtar_warnc(bsdtar, 0, "Invalid substituion, skipping entry");
+				continue;
+			}
+			if (r == 1) {
+				archive_entry_set_hardlink(entry, subst_name);
+				free(subst_name);
+			}
+		}
+		if (S_ISLNK(st->st_mode)) {
+			r = apply_substitution(bsdtar, archive_entry_symlink(entry), &subst_name, 1);
+			if (r == -1) {
+				bsdtar_warnc(bsdtar, 0, "Invalid substituion, skipping entry");
+				continue;
+			}
+			if (r == 1) {
+				archive_entry_set_symlink(entry, subst_name);
+				free(subst_name);
+			}
+		}
+#endif
 
 		/*
 		 * Note that pattern exclusions are checked before

@@ -97,6 +97,7 @@ struct bsdtar {
 	struct matching		*matching;	/* for matching.c */
 	struct security		*security;	/* for read.c */
 	struct name_cache	*uname_cache;	/* for write.c */
+	struct substitution	*substitution;	/* for subst.c */
 };
 
 void	bsdtar_errc(struct bsdtar *, int _eval, int _code,
@@ -125,3 +126,8 @@ int	unmatched_inclusions_warn(struct bsdtar *bsdtar, const char *msg);
 void	usage(struct bsdtar *);
 int	yes(const char *fmt, ...);
 
+#if HAVE_REGEX_H
+void	add_substitution(struct bsdtar *, const char *);
+int	apply_substitution(struct bsdtar *, const char *, char **, int);
+void	cleanup_substitution(struct bsdtar *);
+#endif

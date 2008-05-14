@@ -270,6 +270,7 @@ bsdtar_SOURCES=				\
 		tar/getdate.y		\
 		tar/matching.c		\
 		tar/read.c		\
+		tar/subst.c		\
 		tar/tree.c		\
 		tar/tree.h		\
 		tar/util.c		\

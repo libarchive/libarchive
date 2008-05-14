@@ -347,6 +347,23 @@ Remove the specified number of leading path elements.
 Pathnames with fewer elements will be silently skipped.
 Note that the pathname is edited after checking inclusion/exclusion patterns
 but before security checks.
+.It Fl s Ar pattern
+(x and t mode only)
+Modify file or archive member names according to
+.Pa pattern .
+The pattern has the format /old/new/[gps].
+old is a basic regular expression.
+If it doesn't apply, the pattern is skipped.
+new is the replacement string of the matched part.
+~ is substituted with the match, \1 to \9 with the content of
+the corresponding captured group.
+The optional trailing g specifies that matching should continue
+after the matched part and stopped on the first unmatched pattern.
+The optional trailing s specifies that the pattern applies to the value
+of symbolic links.
+The optional trailing p specifies that after a successful substitution
+the original path name and the new path name should be printed to
+standard error.
 .It Fl T Ar filename
 In x or t mode,
 .Nm
