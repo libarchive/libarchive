@@ -351,10 +351,51 @@ int
 edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 {
 	const char *name = archive_entry_pathname(entry);
+#if HAVE_REGEX_H
+	char *subst_name;
+#endif
+	int r;
+
+#if HAVE_REGEX_H
+	r = apply_substitution(bsdtar, name, &subst_name, 0);
+	if (r == -1) {
+		bsdtar_warnc(bsdtar, 0, "Invalid substituion, skipping entry");
+		return 1;
+	}
+	if (r == 1) {
+		archive_entry_set_pathname(entry, subst_name);
+		free(subst_name);
+		if (*subst_name == '\0')
+			return -1;
+		name = archive_entry_pathname(entry);
+	}
+
+	if (archive_entry_hardlink(entry)) {
+		r = apply_substitution(bsdtar, archive_entry_hardlink(entry), &subst_name, 1);
+		if (r == -1) {
+			bsdtar_warnc(bsdtar, 0, "Invalid substituion, skipping entry");
+			return 1;
+		}
+		if (r == 1) {
+			archive_entry_set_hardlink(entry, subst_name);
+			free(subst_name);
+		}
+	}
+	if (archive_entry_symlink(entry) != NULL) {
+		r = apply_substitution(bsdtar, archive_entry_symlink(entry), &subst_name, 1);
+		if (r == -1) {
+			bsdtar_warnc(bsdtar, 0, "Invalid substituion, skipping entry");
+			return 1;
+		}
+		if (r == 1) {
+			archive_entry_set_symlink(entry, subst_name);
+			free(subst_name);
+		}
+	}
+#endif
 
 	/* Strip leading dir names as per --strip-components option. */
-	if (bsdtar->strip_components > 0) {
-		int r = bsdtar->strip_components;
+	if ((r = bsdtar->strip_components) > 0) {
 		const char *p = name;
 
 		while (r > 0) {
