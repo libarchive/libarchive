@@ -72,7 +72,7 @@ test_filename(const char *prefix, int dlen, int flen)
 	archive_entry_set_mode(ae, S_IFREG | 0755);
 	failure("dlen=%d, flen=%d", dlen, flen);
 	if (flen > 100) {
-		assertEqualIntA(a, ARCHIVE_WARN, archive_write_header(a, ae));
+		assertEqualIntA(a, ARCHIVE_FAILED, archive_write_header(a, ae));
 	} else {
 		assertEqualIntA(a, 0, archive_write_header(a, ae));
 	}
@@ -86,7 +86,7 @@ test_filename(const char *prefix, int dlen, int flen)
 	archive_entry_set_mode(ae, S_IFDIR | 0755);
 	failure("dlen=%d, flen=%d", dlen, flen);
 	if (flen >= 100) {
-		assertEqualIntA(a, ARCHIVE_WARN, archive_write_header(a, ae));
+		assertEqualIntA(a, ARCHIVE_FAILED, archive_write_header(a, ae));
 	} else {
 		assertEqualIntA(a, 0, archive_write_header(a, ae));
 	}
@@ -103,7 +103,7 @@ test_filename(const char *prefix, int dlen, int flen)
 	archive_entry_set_mode(ae, S_IFDIR | 0755);
 	failure("dlen=%d, flen=%d", dlen, flen);
 	if (flen >= 100) {
-		assertEqualIntA(a, ARCHIVE_WARN, archive_write_header(a, ae));
+		assertEqualIntA(a, ARCHIVE_FAILED, archive_write_header(a, ae));
 	} else {
 		assertEqualIntA(a, 0, archive_write_header(a, ae));
 	}
