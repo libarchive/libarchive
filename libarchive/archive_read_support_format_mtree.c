@@ -464,7 +464,6 @@ static int
 parse_device(struct archive *a, struct archive_entry *entry, char *val)
 {
 	char *comma1, *comma2;
-	dev_t dev_major, dev_minor;
 
 	comma1 = strchr(val, ',');
 	if (comma1 == NULL) {
