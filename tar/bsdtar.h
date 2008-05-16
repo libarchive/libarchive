@@ -91,9 +91,9 @@ struct bsdtar {
 	 * Data for various subsystems.  Full definitions are located in
 	 * the file where they are used.
 	 */
+	struct archive_entry_linkresolver *resolver;
 	struct archive_dir	*archive_dir;	/* for write.c */
 	struct name_cache	*gname_cache;	/* for write.c */
-	struct links_cache	*links_cache;	/* for write.c */
 	struct matching		*matching;	/* for matching.c */
 	struct security		*security;	/* for read.c */
 	struct name_cache	*uname_cache;	/* for write.c */
