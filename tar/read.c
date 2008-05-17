@@ -98,7 +98,6 @@ read_archive(struct bsdtar *bsdtar, char mode)
 	struct archive_entry	 *entry;
 	const struct stat	 *st;
 	int			  r;
-	char			 *subst_name;
 
 	while (*bsdtar->argv) {
 		include(bsdtar, *bsdtar->argv);

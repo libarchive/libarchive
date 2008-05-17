@@ -817,7 +817,6 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, const struct stat *st,
     const char *pathname, const char *accpath)
 {
 	struct archive_entry	*entry, *sparse_entry;
-	int			 e;
 	int			 fd;
 #ifdef __linux
 	int			 r;
