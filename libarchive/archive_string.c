@@ -41,6 +41,14 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_string.c,v 1.11 2007/07/15 19:13:
 #include <wchar.h>
 #endif
 
+#ifdef __sgi
+/*
+ * The following prototype is missing on IRXI,
+ * even though the function is implemented in libc.
+ */
+size_t wcrtomb(char *, wchar_t, mbstate_t *);
+#endif
+
 #include "archive_private.h"
 #include "archive_string.h"
 
