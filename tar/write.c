@@ -584,9 +584,12 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 		if (e == ARCHIVE_FATAL)
 			exit(1);
 
-		if (e >= ARCHIVE_WARN)
-			if (copy_file_data(bsdtar, a, ina))
+		if (e >= ARCHIVE_WARN) {
+			if (archive_entry_size(in_entry) == 0)
+				archive_read_data_skip(ina);
+			else if (copy_file_data(bsdtar, a, ina))
 				exit(1);
+		}
 
 		if (bsdtar->verbose)
 			fprintf(stderr, "\n");
