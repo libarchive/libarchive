@@ -60,8 +60,9 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_entry_link_resolver.c,v 1.1 2007/
 
 /* Users pass us a format code, we translate that into a strategy here. */
 #define ARCHIVE_ENTRY_LINKIFY_LIKE_TAR	0
-#define ARCHIVE_ENTRY_LINKIFY_LIKE_OLD_CPIO 1
-#define ARCHIVE_ENTRY_LINKIFY_LIKE_NEW_CPIO 2
+#define ARCHIVE_ENTRY_LINKIFY_LIKE_MTREE 1
+#define ARCHIVE_ENTRY_LINKIFY_LIKE_OLD_CPIO 2
+#define ARCHIVE_ENTRY_LINKIFY_LIKE_NEW_CPIO 3
 
 /* Initial size of link cache. */
 #define	links_cache_initial_size 1024
@@ -130,6 +131,9 @@ archive_entry_linkresolver_set_strategy(struct archive_entry_linkresolver *res,
 			break;
 		}
 		break;
+	case ARCHIVE_FORMAT_MTREE:
+		res->strategy = ARCHIVE_ENTRY_LINKIFY_LIKE_MTREE;
+		break;
 	case ARCHIVE_FORMAT_TAR:
 		res->strategy = ARCHIVE_ENTRY_LINKIFY_LIKE_TAR;
 		break;
@@ -183,6 +187,14 @@ archive_entry_linkify(struct archive_entry_linkresolver *res,
 		if (le != NULL) {
 			archive_entry_set_size(*e, 0);
 			archive_entry_set_hardlink(*e,
+			    archive_entry_pathname(le->canonical));
+		} else
+			insert_entry(res, *e);
+		return;
+	case ARCHIVE_ENTRY_LINKIFY_LIKE_MTREE:
+		le = find_entry(res, *e);
+		if (le != NULL) {
+			archive_entry_copy_hardlink(*e,
 			    archive_entry_pathname(le->canonical));
 		} else
 			insert_entry(res, *e);
