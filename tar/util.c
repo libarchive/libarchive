@@ -363,7 +363,7 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 		return 1;
 	}
 	if (r == 1) {
-		archive_entry_set_pathname(entry, subst_name);
+		archive_entry_copy_pathname(entry, subst_name);
 		free(subst_name);
 		if (*subst_name == '\0')
 			return -1;
@@ -377,7 +377,7 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 			return 1;
 		}
 		if (r == 1) {
-			archive_entry_set_hardlink(entry, subst_name);
+			archive_entry_copy_hardlink(entry, subst_name);
 			free(subst_name);
 		}
 	}
@@ -388,7 +388,7 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 			return 1;
 		}
 		if (r == 1) {
-			archive_entry_set_symlink(entry, subst_name);
+			archive_entry_copy_symlink(entry, subst_name);
 			free(subst_name);
 		}
 	}
