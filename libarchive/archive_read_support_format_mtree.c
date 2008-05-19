@@ -77,6 +77,8 @@ struct mtree {
 	struct archive_string	 current_dir;
 	struct archive_string	 contents_name;
 
+	struct archive_entry_linkresolver *resolver;
+
 	off_t			 cur_size, cur_offset;
 };
 
@@ -145,6 +147,7 @@ cleanup(struct archive_read *a)
 	archive_string_free(&mtree->line);
 	archive_string_free(&mtree->current_dir);
 	archive_string_free(&mtree->contents_name);
+	archive_entry_linkresolver_free(mtree->resolver);
 	free(mtree->buff);
 	free(mtree);
 	(a->format->data) = NULL;
@@ -278,6 +281,11 @@ read_header(struct archive_read *a, struct archive_entry *entry)
 	}
 
 	if (mtree->entries == NULL) {
+		mtree->resolver = archive_entry_linkresolver_new();
+		if (mtree->resolver == NULL)
+			return ARCHIVE_FATAL;
+		archive_entry_linkresolver_set_strategy(mtree->resolver,
+		    ARCHIVE_FORMAT_MTREE);
 		r = read_mtree(a, mtree);
 		if (r != ARCHIVE_OK)
 			return (r);
@@ -322,6 +330,7 @@ parse_file(struct archive_read *a, struct archive_entry *entry,
 {
 	struct stat st;
 	struct mtree_entry *mp;
+	struct archive_entry *sparse_entry;
 	int r = ARCHIVE_OK, r1;
 
 	mentry->used = 1;
@@ -424,6 +433,7 @@ parse_file(struct archive_read *a, struct archive_entry *entry,
 			archive_entry_set_dev(entry, st.st_dev);
 			archive_entry_set_nlink(entry, st.st_nlink);
 		}
+		archive_entry_linkify(mtree->resolver, &entry, &sparse_entry);
 	}
 	mtree->cur_size = archive_entry_size(entry);
 	mtree->offset = 0;
