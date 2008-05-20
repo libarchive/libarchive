@@ -355,7 +355,7 @@ archive_read_format_ar_read_header(struct archive_read *a,
 		 * overflowing a size_t and against the filename size
 		 * being larger than the entire entry. */
 		if (number > (uint64_t)(bsd_name_length + 1)
-		    || (uint64_t)bsd_name_length > ar->entry_bytes_remaining) {
+		    || (off_t)bsd_name_length > ar->entry_bytes_remaining) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Bad input file size");
 			return (ARCHIVE_FATAL);
