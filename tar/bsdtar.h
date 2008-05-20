@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD: src/usr.bin/tar/bsdtar.h,v 1.30 2008/03/15 03:06:46 kientzle Exp $
+ * $FreeBSD: src/usr.bin/tar/bsdtar.h,v 1.31 2008/05/18 06:24:47 cperciva Exp $
  */
 
 #include "bsdtar_platform.h"
@@ -97,6 +97,7 @@ struct bsdtar {
 	struct matching		*matching;	/* for matching.c */
 	struct security		*security;	/* for read.c */
 	struct name_cache	*uname_cache;	/* for write.c */
+	struct siginfo		*siginfo;	/* for siginfo.c */
 	struct substitution	*substitution;	/* for subst.c */
 };
 
@@ -116,6 +117,11 @@ int	process_lines(struct bsdtar *bsdtar, const char *pathname,
 	    int (*process)(struct bsdtar *, const char *));
 void	safe_fprintf(FILE *, const char *fmt, ...);
 void	set_chdir(struct bsdtar *, const char *newdir);
+void	siginfo_init(struct bsdtar *);
+void	siginfo_setinfo(struct bsdtar *, const char * oper,
+	    const char * path, int64_t size);
+void	siginfo_printinfo(struct bsdtar *, off_t progress);
+void	siginfo_done(struct bsdtar *);
 void	tar_mode_c(struct bsdtar *bsdtar);
 void	tar_mode_r(struct bsdtar *bsdtar);
 void	tar_mode_t(struct bsdtar *bsdtar);

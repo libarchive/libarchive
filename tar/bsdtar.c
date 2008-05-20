@@ -24,7 +24,7 @@
  */
 
 #include "bsdtar_platform.h"
-__FBSDID("$FreeBSD: src/usr.bin/tar/bsdtar.c,v 1.88 2008/05/02 05:40:05 kientzle Exp $");
+__FBSDID("$FreeBSD: src/usr.bin/tar/bsdtar.c,v 1.90 2008/05/19 18:38:01 cperciva Exp $");
 
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
@@ -142,6 +142,7 @@ enum {
 	OPTION_FORMAT,
 	OPTION_HELP,
 	OPTION_INCLUDE,
+	OPTION_KEEP_NEWER_FILES,
 	OPTION_NEWER_CTIME,
 	OPTION_NEWER_CTIME_THAN,
 	OPTION_NEWER_MTIME,
@@ -191,6 +192,7 @@ static const struct option tar_longopts[] = {
 	{ "include",            required_argument, NULL, OPTION_INCLUDE },
 	{ "interactive",        no_argument,       NULL, 'w' },
 	{ "insecure",           no_argument,       NULL, 'P' },
+	{ "keep-newer-files",   no_argument,       NULL, OPTION_KEEP_NEWER_FILES },
 	{ "keep-old-files",     no_argument,       NULL, 'k' },
 	{ "list",               no_argument,       NULL, 't' },
 	{ "modification-time",  no_argument,       NULL, 'm' },
@@ -393,6 +395,9 @@ main(int argc, char **argv)
 			break;
 		case 'k': /* GNU tar */
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_NO_OVERWRITE;
+			break;
+		case OPTION_KEEP_NEWER_FILES: /* GNU tar */
+			bsdtar->extract_flags |= ARCHIVE_EXTRACT_NO_OVERWRITE_NEWER;
 			break;
 		case 'L': /* BSD convention */
 			bsdtar->symlink_mode = 'L';
@@ -741,8 +746,8 @@ rewrite_argv(struct bsdtar *bsdtar, int *argc, char **src_argv,
 	const char *p;
 	char *src, *dest;
 
-	if (src_argv[0] == NULL ||
-	    src_argv[1] == NULL || src_argv[1][0] == '-')
+	if (src_argv[0] == NULL || src_argv[1] == NULL ||
+	    src_argv[1][0] == '-' || src_argv[1][0] == '\0')
 		return (src_argv);
 
 	*argc += strlen(src_argv[1]) - 1;
