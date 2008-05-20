@@ -148,6 +148,9 @@ archive_entry_linkresolver_free(struct archive_entry_linkresolver *res)
 {
 	struct links_entry *le;
 
+	if (res == NULL)
+		return;
+
 	if (res->buckets != NULL) {
 		while ((le = next_entry(res)) != NULL)
 			archive_entry_free(le->entry);
