@@ -149,10 +149,8 @@ archive_entry_linkresolver_free(struct archive_entry_linkresolver *res)
 	struct links_entry *le;
 
 	if (res->buckets != NULL) {
-		while ((le = next_entry(res)) != NULL) {
+		while ((le = next_entry(res)) != NULL)
 			archive_entry_free(le->entry);
-			archive_entry_free(le->canonical);
-		}
 		free(res->buckets);
 		res->buckets = NULL;
 	}
@@ -186,7 +184,7 @@ archive_entry_linkify(struct archive_entry_linkresolver *res,
 		le = find_entry(res, *e);
 		if (le != NULL) {
 			archive_entry_set_size(*e, 0);
-			archive_entry_set_hardlink(*e,
+			archive_entry_copy_hardlink(*e,
 			    archive_entry_pathname(le->canonical));
 		} else
 			insert_entry(res, *e);
@@ -214,7 +212,7 @@ archive_entry_linkify(struct archive_entry_linkresolver *res,
 			le->entry = t;
 			/* Make the old entry into a hardlink. */
 			archive_entry_set_size(*e, 0);
-			archive_entry_set_hardlink(*e,
+			archive_entry_copy_hardlink(*e,
 			    archive_entry_pathname(le->canonical));
 			/* If we ran out of links, return the
 			 * final entry as well. */
