@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2008 Joerg Sonnenberger
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,6 +67,8 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_format_mtree.c,v 1.4
 #define	MTREE_HAS_UID		0x0200
 #define	MTREE_HAS_UNAME		0x0400
 
+#define	MTREE_HAS_OPTIONAL	0x0800
+
 struct mtree_entry {
 	struct mtree_entry *next;
 	char *name;
@@ -97,7 +100,7 @@ struct mtree {
 static int	cleanup(struct archive_read *);
 static int	mtree_bid(struct archive_read *);
 static int	parse_file(struct archive_read *, struct archive_entry *,
-		    struct mtree *, struct mtree_entry *);
+		    struct mtree *, struct mtree_entry *, int *);
 static void	parse_escapes(char *, struct mtree_entry *);
 static int	parse_line(struct archive_read *, struct archive_entry *,
 		    struct mtree *, struct mtree_entry *, int *);
@@ -285,7 +288,7 @@ read_header(struct archive_read *a, struct archive_entry *entry)
 {
 	struct mtree *mtree;
 	char *p;
-	int r;
+	int r, use_next;
 
 	mtree = (struct mtree *)(a->format->data);
 
@@ -326,8 +329,10 @@ read_header(struct archive_read *a, struct archive_entry *entry)
 			}
 		}
 		if (!mtree->this_entry->used) {
-			r = parse_file(a, entry, mtree, mtree->this_entry);
-			return (r);
+			use_next = 0;
+			r = parse_file(a, entry, mtree, mtree->this_entry, &use_next);
+			if (use_next == 0)
+				return (r);
 		}
 		mtree->this_entry = mtree->this_entry->next;
 	}
@@ -340,7 +345,7 @@ read_header(struct archive_read *a, struct archive_entry *entry)
  */
 static int
 parse_file(struct archive_read *a, struct archive_entry *entry,
-    struct mtree *mtree, struct mtree_entry *mentry)
+    struct mtree *mtree, struct mtree_entry *mentry, int *use_next)
 {
 	const char *path;
 	struct stat st_storage, *st;
@@ -471,14 +476,20 @@ parse_file(struct archive_read *a, struct archive_entry *entry,
 			mismatched_type = 1;
 
 		if (mismatched_type) {
-			archive_set_error(&a->archive, errno,
-			    "mtree specification has different type for %s",
-			    archive_entry_pathname(entry));
-			r = ARCHIVE_WARN;
+			if ((parsed_kws & MTREE_HAS_OPTIONAL) == 0) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "mtree specification has different type for %s",
+				    archive_entry_pathname(entry));
+				r = ARCHIVE_WARN;
+			} else {
+				*use_next = 1;
+			}
 			/* Don't hold a non-regular file open. */
 			close(mtree->fd);
 			mtree->fd = -1;
 			st = NULL;
+			return r;
 		}
 	}
 
@@ -512,6 +523,13 @@ parse_file(struct archive_read *a, struct archive_entry *entry,
 		archive_entry_set_dev(entry, st->st_dev);
 
 		archive_entry_linkify(mtree->resolver, &entry, &sparse_entry);
+	} else if (parsed_kws & MTREE_HAS_OPTIONAL) {
+		/*
+		 * Couldn't open the entry, stat it or the on-disk type
+		 * didn't match.  If this entry is optional, just ignore it
+		 * and read the next header entry.
+		 */
+		*use_next = 1;
 	}
 
 	mtree->cur_size = archive_entry_size(entry);
@@ -592,7 +610,7 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 		return (ARCHIVE_OK);
 
 	if (strcmp(key, "optional") == 0) {
-		/* We just flag an error if it doesn't exist. */
+		*parsed_kws |= MTREE_HAS_OPTIONAL;
 		return (ARCHIVE_OK);
 	}
 	if (strcmp(key, "ignore") == 0) {
