@@ -595,6 +595,9 @@ add_entry(struct iso9660 *iso9660, struct file_info *file)
 		struct file_info **new_pending_files;
 		int new_size = iso9660->pending_files_allocated * 2;
 
+		/* Overflow might keep us from growing the list. */
+		if (new_size <= iso9660->pending_files_allocated)
+			__archive_errx(1, "Out of memory");
 		if (new_size < 1024)
 			new_size = 1024;
 		new_pending_files = (struct file_info **)malloc(new_size * sizeof(new_pending_files[0]));

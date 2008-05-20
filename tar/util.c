@@ -178,7 +178,7 @@ yes(const char *fmt, ...)
 	fprintf(stderr, " (y/N)? ");
 	fflush(stderr);
 
-	l = read(2, buff, sizeof(buff));
+	l = read(2, buff, sizeof(buff) - 1);
 	if (l <= 0)
 		return (0);
 	buff[l] = 0;
@@ -215,7 +215,7 @@ process_lines(struct bsdtar *bsdtar, const char *pathname,
 {
 	FILE *f;
 	char *buff, *buff_end, *line_start, *line_end, *p;
-	size_t buff_length, bytes_read, bytes_wanted;
+	size_t buff_length, new_buff_length, bytes_read, bytes_wanted;
 	int separator;
 	int ret;
 
@@ -262,7 +262,12 @@ process_lines(struct bsdtar *bsdtar, const char *pathname,
 			line_start = buff;
 		} else {
 			/* Line is too big; enlarge the buffer. */
-			p = realloc(buff, buff_length *= 2);
+			new_buff_length = buff_length * 2;
+			if (new_buff_length <= buff_length)
+				bsdtar_errc(bsdtar, 1, ENOMEM,
+				    "Line too long in %s", pathname);
+			buff_length = new_buff_length;
+			p = realloc(buff, buff_length);
 			if (p == NULL)
 				bsdtar_errc(bsdtar, 1, ENOMEM,
 				    "Line too long in %s", pathname);
