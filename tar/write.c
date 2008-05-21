@@ -247,6 +247,9 @@ tar_mode_r(struct bsdtar *bsdtar)
 	/* Sanity-test some arguments and the file. */
 	test_for_append(bsdtar);
 
+	/* We want to catch SIGINFO and SIGUSR1. */
+	siginfo_init(bsdtar);
+
 	format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED;
 
 	bsdtar->fd = open(bsdtar->filename, O_RDWR | O_CREAT, 0666);
@@ -344,6 +347,9 @@ tar_mode_u(struct bsdtar *bsdtar)
 
 	/* Sanity-test some arguments and the file. */
 	test_for_append(bsdtar);
+
+	/* We want to catch SIGINFO and SIGUSR1. */
+	siginfo_init(bsdtar);
 
 	bsdtar->fd = open(bsdtar->filename, O_RDWR);
 	if (bsdtar->fd < 0)
