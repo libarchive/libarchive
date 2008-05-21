@@ -1,3 +1,31 @@
+May 21, 2008: More progress on Windows building.  Thanks to "Scott"
+        for the Windows makefiles, thanks to Kees Zeelenberg for
+        code contributions.
+
+May 21, 2008: Fix a number of non-exploitable integer and buffer overflows,
+        thanks to David Remahl at Apple for pointing these out.
+
+May 21, 2008: Colin Percival: SIGINFO or SIGUSR1 to bsdtar prints progress info
+
+May 16, 2008: bsdtar's test harness no longer depends on file ordering.
+        This was causing spurious test failures on a lot of systems.
+        Thanks to Bernhard R. Link for the diagnosis.
+
+May 14, 2008: Joerg Sonnenberger: -s substitution support for bsdtar
+
+May 13, 2008: Joerg Sonnenberger: Many mtree improvements
+
+May 11, 2008: Joerg Sonnenberger: fix hardlink extraction when
+	hardlinks have different permissions from original file
+
+May 05, 2008: Simplified building: archive.h is no longer constructed
+	This may require additional #if conditionals on some platforms.
+
+April 30, 2008: Primary libarchive work has been moved into the FreeBSD
+	project's Perforce repository: 	http://perforce.freebsd.org/
+	The libarchive project can be browsed at
+        //depot/user/kientzle/libarchive-portable
+        Direct link: http://preview.tinyurl.com/46mdgr
 
 May 04, 2008: libarchive 2.5.3b released
 	* libarchive: Several fixes to link resolver to address bsdcpio crashes
