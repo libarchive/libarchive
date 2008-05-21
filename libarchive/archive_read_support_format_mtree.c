@@ -69,11 +69,15 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_format_mtree.c,v 1.5
 
 #define	MTREE_HAS_OPTIONAL	0x0800
 
+struct mtree_option {
+	struct mtree_option *next;
+	char *value;
+};
+
 struct mtree_entry {
 	struct mtree_entry *next;
+	struct mtree_option *options;
 	char *name;
-	char *option_start;
-	char *option_end;
 	char full;
 	char used;
 };
@@ -105,7 +109,7 @@ static void	parse_escapes(char *, struct mtree_entry *);
 static int	parse_line(struct archive_read *, struct archive_entry *,
 		    struct mtree *, struct mtree_entry *, int *);
 static int	parse_keyword(struct archive_read *, struct mtree *,
-		    struct archive_entry *, char *, char *, int *);
+		    struct archive_entry *, struct mtree_option *, int *);
 static int	read_data(struct archive_read *a,
 		    const void **buff, size_t *size, off_t *offset);
 static ssize_t	readline(struct archive_read *, struct mtree *, char **, ssize_t);
@@ -115,6 +119,18 @@ static int	read_header(struct archive_read *,
 static int64_t	mtree_atol10(char **);
 static int64_t	mtree_atol8(char **);
 static int64_t	mtree_atol(char **);
+
+static void
+free_options(struct mtree_option *head)
+{
+	struct mtree_option *next;
+
+	for (; head != NULL; head = next) {
+		next = head->next;
+		free(head->value);
+		free(head);
+	}
+}
 
 int
 archive_read_support_format_mtree(struct archive *_a)
@@ -152,11 +168,7 @@ cleanup(struct archive_read *a)
 	while (p != NULL) {
 		q = p->next;
 		free(p->name);
-		/*
-		 * Note: option_start, option_end are pointers into
-		 * the block that p->name points to.  So we should
-		 * not try to free them!
-		 */
+		free_options(p->options);
 		free(p);
 		p = q;
 	}
@@ -205,21 +217,207 @@ mtree_bid(struct archive_read *a)
 
 /*
  * The extended mtree format permits multiple lines specifying
- * attributes for each file.  Practically speaking, that means we have
+ * attributes for each file.  For those entries, only the last line
+ * is actually used.  Practically speaking, that means we have
  * to read the entire mtree file into memory up front.
+ *
+ * The parsing is done in two steps.  First, it is decided if a line
+ * changes the global defaults and if it is, processed accordingly.
+ * Otherwise, the options of the line are merged with the current
+ * global options.
  */
+static int
+add_option(struct archive_read *a, struct mtree_option **global,
+    const char *value, size_t len)
+{
+	struct mtree_option *option;
+
+	if ((option = malloc(sizeof(*option))) == NULL) {
+		archive_set_error(&a->archive, errno, "Can't allocate memory");
+		return (ARCHIVE_FATAL);
+	}
+	if ((option->value = malloc(len + 1)) == NULL) {
+		free(option);
+		archive_set_error(&a->archive, errno, "Can't allocate memory");
+		return (ARCHIVE_FATAL);
+	}
+	memcpy(option->value, value, len);
+	option->value[len] = '\0';
+	option->next = *global;
+	*global = option;
+	return (ARCHIVE_OK);
+}
+
+static void
+remove_option(struct mtree_option **global, const char *value, size_t len)
+{
+	struct mtree_option *iter, *last;
+
+	last = NULL;
+	for (iter = *global; iter != NULL; last = iter, iter = iter->next) {
+		if (strncmp(iter->value, value, len) == 0 &&
+		    (iter->value[len] == '\0' ||
+		     iter->value[len] == '='))
+			break;
+	}
+	if (iter == NULL)
+		return;
+	if (last == NULL)
+		*global = iter->next;
+	else
+		last->next = iter->next;
+
+	free(iter->value);
+	free(iter);
+}
+
+static int
+process_global_set(struct archive_read *a, struct mtree *mtree,
+    struct mtree_option **global, const char *line)
+{
+	const char *next, *eq;
+	size_t len;
+	int r;
+
+	line += 4;
+	for (;;) {
+		next = line + strspn(line, " \t\r\n");
+		if (*next == '\0')
+			return (ARCHIVE_OK);
+		line = next;
+		next = line + strcspn(line, " \t\r\n");
+		eq = strchr(line, '=');
+		if (eq > next)
+			len = next - line;
+		else
+			len = eq - line;
+
+		remove_option(global, line, len);
+		r = add_option(a, global, line, next - line);
+		if (r != ARCHIVE_OK)
+			return (r);
+		line = next;
+	}
+}
+
+static int
+process_global_unset(struct archive_read *a, struct mtree *mtree,
+    struct mtree_option **global, const char *line)
+{
+	const char *next;
+	size_t len;
+	int r;
+
+	line += 6;
+	if ((next = strchr(line, '=')) != NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "/unset shall not contain `='");
+		return ARCHIVE_FATAL;
+	}
+
+	for (;;) {
+		next = line + strspn(line, " \t\r\n");
+		if (*next == '\0')
+			return (ARCHIVE_OK);
+		line = next;
+		len = strcspn(line, " \t\r\n");
+
+		if (len == 3 && strncmp(line, "all", 3) == 0) {
+			free_options(*global);
+			*global = NULL;
+		} else {
+			remove_option(global, line, len);
+		}
+
+		line += len;
+	}
+}
+
+static int
+process_add_entry(struct archive_read *a, struct mtree *mtree,
+    struct mtree_option **global, const char *line,
+    struct mtree_entry **last_entry)
+{
+	struct mtree_entry *entry;
+	struct mtree_option *iter;
+	const char *next, *eq;
+	size_t len;
+	int r;
+
+	if ((entry = malloc(sizeof(*entry))) == NULL) {
+		archive_set_error(&a->archive, errno, "Can't allocate memory");
+		return (ARCHIVE_FATAL);
+	}
+	entry->next = NULL;
+	entry->options = NULL;
+	entry->name = NULL;
+	entry->used = 0;
+	entry->full = 0;
+
+	/* Add this entry to list. */
+	if (*last_entry == NULL)
+		mtree->entries = entry;
+	else
+		(*last_entry)->next = entry;
+	*last_entry = entry;
+
+	len = strcspn(line, " \t\r\n");
+	if ((entry->name = malloc(len + 1)) == NULL) {
+		archive_set_error(&a->archive, errno, "Can't allocate memory");
+		return (ARCHIVE_FATAL);
+	}
+
+	memcpy(entry->name, line, len);
+	entry->name[len] = '\0';
+	parse_escapes(entry->name, entry);
+
+	line += len;
+	for (iter = *global; iter != NULL; iter = iter->next) {
+		r = add_option(a, &entry->options, iter->value,
+		    strlen(iter->value));
+		if (r != ARCHIVE_OK)
+			return (r);
+	}
+
+	for (;;) {
+		next = line + strspn(line, " \t\r\n");
+		if (*next == '\0')
+			return (ARCHIVE_OK);
+		line = next;
+		next = line + strcspn(line, " \t\r\n");
+		eq = strchr(line, '=');
+		if (eq > next)
+			len = next - line;
+		else
+			len = eq - line;
+
+		remove_option(&entry->options, line, len);
+		r = add_option(a, &entry->options, line, next - line);
+		if (r != ARCHIVE_OK)
+			return (r);
+		line = next;
+	}
+}
+
 static int
 read_mtree(struct archive_read *a, struct mtree *mtree)
 {
 	ssize_t len;
+	uintmax_t counter;
 	char *p;
+	struct mtree_option *global;
 	struct mtree_entry *mentry;
-	struct mtree_entry *last_mentry = NULL;
+	struct mtree_entry *last_entry;
+	int r;
 
 	mtree->archive_format = ARCHIVE_FORMAT_MTREE_V1;
 	mtree->archive_format_name = "mtree";
 
-	for (;;) {
+	global = NULL;
+	last_entry = NULL;
+	r = ARCHIVE_OK;
+
+	for (counter = 1; ; ++counter) {
 		len = readline(a, mtree, &p, 256);
 		if (len == 0) {
 			mtree->this_entry = mtree->entries;
@@ -237,46 +435,27 @@ read_mtree(struct archive_read *a, struct mtree *mtree)
 			continue;
 		if (*p == '\r' || *p == '\n' || *p == '\0')
 			continue;
-		mentry = malloc(sizeof(*mentry));
-		if (mentry == NULL) {
-			archive_set_error(&a->archive, ENOMEM,
-			    "Can't allocate memory");
-			return (ARCHIVE_FATAL);
-		}
-		memset(mentry, 0, sizeof(*mentry));
-		/* Add this entry to list. */
-		if (last_mentry == NULL) {
-			last_mentry = mtree->entries = mentry;
-		} else {
-			last_mentry->next = mentry;
-		}
-		last_mentry = mentry;
+		if (*p != '/') {
+			r = process_add_entry(a, mtree, &global, p,
+			    &last_entry);
+		} else if (strncmp(p, "/set", 4) == 0) {
+			if (p[4] != ' ' && p[4] != '\t')
+				break;
+			r = process_global_set(a, mtree, &global, p);
+		} else if (strncmp(p, "/unset", 6) == 0) {
+			if (p[6] != ' ' && p[6] != '\t')
+				break;
+			r = process_global_unset(a, mtree, &global, p);
+		} else
+			break;
 
-		/* Copy line over onto heap. */
-		mentry->name = malloc(len + 1);
-		if (mentry->name == NULL) {
-			free(mentry);
-			archive_set_error(&a->archive, ENOMEM,
-			    "Can't allocate memory");
-			return (ARCHIVE_FATAL);
-		}
-		strcpy(mentry->name, p);
-		mentry->option_end = mentry->name + len;
-		/* Find end of name. */
-		p = mentry->name;
-		while (*p != ' ' && *p != '\n' && *p != '\0')
-			++p;
-		*p++ = '\0';
-		parse_escapes(mentry->name, mentry);
-		/* Find start of options and record it. */
-		while (p < mentry->option_end && (*p == ' ' || *p == '\t'))
-			++p;
-		mentry->option_start = p;
-		/* Null terminate each separate option. */
-		while (++p < mentry->option_end)
-			if (*p == ' ' || *p == '\t' || *p == '\n')
-				*p = '\0';
+		if (r != ARCHIVE_OK)
+			return r;
 	}
+
+	archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+	    "Can't parse line %ju", counter);
+	return ARCHIVE_FATAL;
 }
 
 /*
@@ -530,6 +709,7 @@ parse_file(struct archive_read *a, struct archive_entry *entry,
 		 * and read the next header entry.
 		 */
 		*use_next = 1;
+		return ARCHIVE_OK;
 	}
 
 	mtree->cur_size = archive_entry_size(entry);
@@ -545,16 +725,13 @@ static int
 parse_line(struct archive_read *a, struct archive_entry *entry,
     struct mtree *mtree, struct mtree_entry *mp, int *parsed_kws)
 {
-	char *p, *q;
+	struct mtree_option *iter;
 	int r = ARCHIVE_OK, r1;
 
-	p = mp->option_start;
-	while (p < mp->option_end) {
-		q = p + strlen(p);
-		r1 = parse_keyword(a, mtree, entry, p, q, parsed_kws);
+	for (iter = mp->options; iter != NULL; iter = iter->next) {
+		r1 = parse_keyword(a, mtree, entry, iter, parsed_kws);
 		if (r1 < r)
 			r = r1;
-		p = q + 1;
 	}
 	if ((*parsed_kws & MTREE_HAS_TYPE) == 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
@@ -600,12 +777,12 @@ parse_device(struct archive *a, struct archive_entry *entry, char *val)
  */
 static int
 parse_keyword(struct archive_read *a, struct mtree *mtree,
-    struct archive_entry *entry, char *key, char *end, int *parsed_kws)
+    struct archive_entry *entry, struct mtree_option *option, int *parsed_kws)
 {
-	char *val;
+	char *val, *key;
 
-	if (end == key)
-		return (ARCHIVE_OK);
+	key = option->value;
+
 	if (*key == '\0')
 		return (ARCHIVE_OK);
 
@@ -673,14 +850,16 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 		if (strcmp(key, "md5") == 0 || strcmp(key, "md5digest") == 0)
 			break;
 		if (strcmp(key, "mode") == 0) {
-			if (val[0] == '0') {
+			if (val[0] >= '0' && val[0] <= '9') {
 				*parsed_kws |= MTREE_HAS_PERM;
 				archive_entry_set_perm(entry,
 				    mtree_atol8(&val));
-			} else
+			} else {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Symbolic mode \"%s\" unsupported", val);
+				return ARCHIVE_WARN;
+			}
 			break;
 		}
 	case 'n':
@@ -850,6 +1029,13 @@ parse_escapes(char *src, struct mtree_entry *mentry)
 {
 	char *dest = src;
 	char c;
+
+	/*
+	 * The current directory is somewhat special, it should be archived
+	 * only once as it will confuse extraction otherwise.
+	 */
+	if (strcmp(src, ".") == 0)
+		mentry->full = 1;
 
 	while (*src != '\0') {
 		c = *src++;
