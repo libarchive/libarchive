@@ -140,7 +140,7 @@ static void		 write_entry(struct bsdtar *, struct archive *,
 			     const struct stat *, const char *pathname,
 			     const char *accpath);
 static void		 write_entry_backend(struct bsdtar *, struct archive *,
-			     struct archive_entry *, int *);
+			     struct archive_entry *, int);
 static int		 write_file_data(struct bsdtar *, struct archive *,
 			     int fd);
 static void		 write_hierarchy(struct bsdtar *, struct archive *,
@@ -477,7 +477,7 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 	archive_entry_linkify(bsdtar->resolver, &entry, &sparse_entry);
 	while (entry != NULL) {
 		int fd = -1;
-		write_entry_backend(bsdtar, a, entry, &fd);
+		write_entry_backend(bsdtar, a, entry, fd);
 		archive_entry_free(entry);
 		entry = NULL;
 		archive_entry_linkify(bsdtar->resolver, &entry, &sparse_entry);
@@ -801,9 +801,22 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
  */
 static void
 write_entry_backend(struct bsdtar *bsdtar, struct archive *a,
-    struct archive_entry *entry, int *fd)
+    struct archive_entry *entry, int fd)
 {
 	int e;
+
+	if (fd == -1 && archive_entry_size(entry) > 0) {
+		const char *pathname = archive_entry_sourcepath(entry);
+		fd = open(pathname, O_RDONLY);
+		if (fd == -1) {
+			if (!bsdtar->verbose)
+				bsdtar_warnc(bsdtar, errno,
+				    "%s: could not open file", pathname);
+			else
+				fprintf(stderr, ": %s", strerror(errno));
+			return;
+		}
+	}
 
 	e = archive_write_header(a, entry);
 	if (e != ARCHIVE_OK) {
@@ -824,11 +837,10 @@ write_entry_backend(struct bsdtar *bsdtar, struct archive *a,
 	 * to inform us that the archive body won't get stored.  In
 	 * that case, just skip the write.
 	 */
-	if (e >= ARCHIVE_WARN && *fd >= 0 && archive_entry_size(entry) > 0) {
-		if (write_file_data(bsdtar, a, *fd))
+	if (e >= ARCHIVE_WARN && fd >= 0 && archive_entry_size(entry) > 0) {
+		if (write_file_data(bsdtar, a, fd))
 			exit(1);
-		close(*fd);
-		*fd = -1;
+		close(fd);
 	}
 }
 
@@ -840,7 +852,7 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, const struct stat *st,
     const char *pathname, const char *accpath)
 {
 	struct archive_entry	*entry, *sparse_entry;
-	int			 fd;
+	int			fd;
 #ifdef __linux
 	int			 r;
 	unsigned long		 stflags;
@@ -851,6 +863,7 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, const struct stat *st,
 	entry = archive_entry_new();
 
 	archive_entry_set_pathname(entry, pathname);
+	archive_entry_copy_sourcepath(entry, accpath);
 
 	/*
 	 * Rewrite the pathname to be archived.  If rewrite
@@ -912,23 +925,6 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, const struct stat *st,
 	setup_acls(bsdtar, entry, accpath);
 	setup_xattrs(bsdtar, entry, accpath);
 
-	/*
-	 * If it's a regular file (and non-zero in size) make sure we
-	 * can open it before we start to write.  In particular, note
-	 * that we can always archive a zero-length file, even if we
-	 * can't read it.
-	 */
-	if (S_ISREG(st->st_mode) && st->st_size > 0) {
-		fd = open(accpath, O_RDONLY);
-		if (fd < 0) {
-			if (!bsdtar->verbose)
-				bsdtar_warnc(bsdtar, errno, "%s: could not open file", pathname);
-			else
-				fprintf(stderr, ": %s", strerror(errno));
-			goto cleanup;
-		}
-	}
-
 	/* Non-regular files get archived with zero size. */
 	if (!S_ISREG(st->st_mode))
 		archive_entry_set_size(entry, 0);
@@ -942,7 +938,8 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, const struct stat *st,
 	siginfo_printinfo(bsdtar, 0);
 
 	while (entry != NULL) {
-		write_entry_backend(bsdtar, a, entry, &fd);
+		write_entry_backend(bsdtar, a, entry, fd);
+		fd = -1;
 		archive_entry_free(entry);
 		entry = sparse_entry;
 		sparse_entry = NULL;
