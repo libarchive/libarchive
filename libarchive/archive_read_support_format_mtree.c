@@ -272,7 +272,7 @@ remove_option(struct mtree_option **global, const char *value, size_t len)
 }
 
 static int
-process_global_set(struct archive_read *a, struct mtree *mtree,
+process_global_set(struct archive_read *a,
     struct mtree_option **global, const char *line)
 {
 	const char *next, *eq;
@@ -301,12 +301,11 @@ process_global_set(struct archive_read *a, struct mtree *mtree,
 }
 
 static int
-process_global_unset(struct archive_read *a, struct mtree *mtree,
+process_global_unset(struct archive_read *a,
     struct mtree_option **global, const char *line)
 {
 	const char *next;
 	size_t len;
-	int r;
 
 	line += 6;
 	if ((next = strchr(line, '=')) != NULL) {
@@ -406,7 +405,6 @@ read_mtree(struct archive_read *a, struct mtree *mtree)
 	uintmax_t counter;
 	char *p;
 	struct mtree_option *global;
-	struct mtree_entry *mentry;
 	struct mtree_entry *last_entry;
 	int r;
 
@@ -441,11 +439,11 @@ read_mtree(struct archive_read *a, struct mtree *mtree)
 		} else if (strncmp(p, "/set", 4) == 0) {
 			if (p[4] != ' ' && p[4] != '\t')
 				break;
-			r = process_global_set(a, mtree, &global, p);
+			r = process_global_set(a, &global, p);
 		} else if (strncmp(p, "/unset", 6) == 0) {
 			if (p[6] != ' ' && p[6] != '\t')
 				break;
-			r = process_global_unset(a, mtree, &global, p);
+			r = process_global_unset(a, &global, p);
 		} else
 			break;
 
