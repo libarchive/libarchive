@@ -24,7 +24,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/archive_entry_strmode.c,v 1.2 2008/02/19 05:49:02 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_entry_strmode.c,v 1.3 2008/05/23 04:57:28 cperciva Exp $");
 
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_entry_strmode.c,v 1.2 2008/02/19 
 const char *
 archive_entry_strmode(struct archive_entry *entry)
 {
-	static const char *perms = "?rwxrwxrwx ";
 	static const mode_t permbits[] =
 	    { 0400, 0200, 0100, 0040, 0020, 0010, 0004, 0002, 0001 };
 	char *bp = entry->strmode;
@@ -47,7 +46,7 @@ archive_entry_strmode(struct archive_entry *entry)
 	int i;
 
 	/* Fill in a default string, then selectively override. */
-	strcpy(bp, perms);
+	strcpy(bp, "?rwxrwxrwx ");
 
 	mode = archive_entry_mode(entry);
 	switch (archive_entry_filetype(entry)) {
