@@ -224,7 +224,7 @@ apply_substitution(struct bsdtar *bsdtar, const char *name, char **result, int s
 				break;
 			case '1' ... '9':
 				realloc_strncat(bsdtar, result, rule->result + j, i - j - 1);
-				if (c - '0' > rule->re.re_nsub) {
+				if ((size_t)(c - '0') > (size_t)(rule->re.re_nsub)) {
 					free(*result);
 					*result = NULL;
 					return -1;
