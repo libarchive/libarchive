@@ -1,3 +1,5 @@
+May 21, 2008: Joerg Sonnenberger: fix bsdtar hardlink handling for newc format
+
 May 21, 2008: More progress on Windows building.  Thanks to "Scott"
         for the Windows makefiles, thanks to Kees Zeelenberg for
         code contributions.
@@ -17,9 +19,6 @@ May 13, 2008: Joerg Sonnenberger: Many mtree improvements
 
 May 11, 2008: Joerg Sonnenberger: fix hardlink extraction when
 	hardlinks have different permissions from original file
-
-May 05, 2008: Simplified building: archive.h is no longer constructed
-	This may require additional #if conditionals on some platforms.
 
 April 30, 2008: Primary libarchive work has been moved into the FreeBSD
 	project's Perforce repository: 	http://perforce.freebsd.org/
@@ -44,6 +43,9 @@ May 04, 2008: libarchive 2.5.3b released
 	* tar: allow -r -T to be used together
 	* tar: allow --format with -r or -u
 	* libarchive: Don't build archive.h
+
+May 04, 2008: Simplified building: archive.h is no longer constructed
+	This may require additional #if conditionals on some platforms.
 
 Mar 30, 2008: libarchive 2.5.1b released
 
