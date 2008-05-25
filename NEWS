@@ -1,3 +1,5 @@
+
+May 25, 2008: libarchive 2.5.4b released
 May 21, 2008: Joerg Sonnenberger: fix bsdtar hardlink handling for newc format
 
 May 21, 2008: More progress on Windows building.  Thanks to "Scott"

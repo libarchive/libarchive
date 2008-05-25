@@ -1,7 +1,7 @@
 # $FreeBSD: src/usr.bin/tar/Makefile,v 1.35 2008/05/18 06:24:47 cperciva Exp $
 
 PROG=	bsdtar
-BSDTAR_VERSION_STRING=2.5.3b
+BSDTAR_VERSION_STRING=2.5.4b
 SRCS=	bsdtar.c getdate.y matching.c read.c siginfo.c subst.c tree.c util.c write.c
 WARNS?=	5
 DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ}
