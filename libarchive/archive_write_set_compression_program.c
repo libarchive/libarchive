@@ -180,6 +180,12 @@ restart_write:
 	if (ret == -1 && errno != EAGAIN)
 		return (-1);
 
+	if (state->child_stdout == -1) {
+		fcntl(state->child_stdin, F_SETFL, 0);
+		__archive_check_child(state->child_stdin, state->child_stdout);
+		goto restart_write;
+	}
+
 	do {
 		ret = read(state->child_stdout,
 		    state->child_buf + state->child_buf_avail,
