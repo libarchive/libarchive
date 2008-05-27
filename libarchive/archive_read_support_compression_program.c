@@ -198,7 +198,7 @@ restart_read:
 		goto restart_read;
 	} else if (ret == 0 || (ret == -1 && errno == EPIPE)) {
 		close(state->child_stdin);
-		state->child_stdout = -1;
+		state->child_stdin = -1;
 		fcntl(state->child_stdout, F_SETFL, 0);
 		goto restart_read;
 	} else {
