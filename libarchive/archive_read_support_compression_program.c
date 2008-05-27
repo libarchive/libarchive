@@ -28,7 +28,8 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_compression_program.
 
 
 /* This capability is only available on POSIX systems. */
-#if !defined(HAVE_PIPE) || !defined(HAVE_VFORK) || !defined(HAVE_FCNTL)
+#if !defined(HAVE_PIPE) || !defined(HAVE_FCNTL) || \
+    !(defined(HAVE_FORK) || defined(HAVE_VFORK))
 
 /*
  * On non-Posix systems, allow the program to build, but choke if

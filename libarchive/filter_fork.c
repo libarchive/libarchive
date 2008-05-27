@@ -26,7 +26,8 @@
 #include "archive_platform.h"
 
 /* This capability is only available on POSIX systems. */
-#if defined(HAVE_PIPE) && defined(HAVE_VFORK) && defined(HAVE_FCNTL)
+#if defined(HAVE_PIPE) && defined(HAVE_FCNTL) && \
+    (defined(HAVE_FORK) || defined(HAVE_VFORK))
 
 __FBSDID("$FreeBSD: src/lib/libarchive/filter_fork.c,v 1.2 2007/12/30 04:58:22 kientzle Exp $");
 
@@ -75,7 +76,11 @@ __archive_create_child(const char *path, int *child_stdin, int *child_stdout)
 		stdout_pipe[1] = tmp;
 	}
 
+#if HAVE_VFORK
 	switch ((child = vfork())) {
+#else
+	switch ((child = fork())) {
+#endif
 	case -1:
 		goto stdout_opened;
 	case 0:
