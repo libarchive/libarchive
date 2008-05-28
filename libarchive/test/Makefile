@@ -73,7 +73,6 @@ TESTS= \
 SRCS= ${LA_SRCS}				\
 	${TESTS}				\
 	${.OBJDIR}/list.h			\
-	${.OBJDIR}/archive.h			\
 	main.c					\
 	read_open_memory.c
 
