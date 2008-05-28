@@ -1,4 +1,4 @@
-# $FreeBSD: src/lib/libarchive/test/Makefile,v 1.18 2008/03/15 02:22:08 kientzle Exp $
+# $FreeBSD: src/lib/libarchive/test/Makefile,v 1.20 2008/05/27 04:12:17 kientzle Exp $
 
 # Where to find the libarchive sources
 LA_SRCDIR=${.CURDIR}/..
@@ -73,6 +73,7 @@ TESTS= \
 SRCS= ${LA_SRCS}				\
 	${TESTS}				\
 	${.OBJDIR}/list.h			\
+	${.OBJDIR}/archive.h			\
 	main.c					\
 	read_open_memory.c
 

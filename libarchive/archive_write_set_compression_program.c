@@ -25,7 +25,7 @@
 
 #include "archive_platform.h"
 
-__FBSDID("$FreeBSD: src/lib/libarchive/archive_write_set_compression_program.c,v 1.1 2007/05/29 01:00:19 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_write_set_compression_program.c,v 1.2 2008/05/26 17:00:23 kientzle Exp $");
 
 /* This capability is only available on POSIX systems. */
 #if !defined(HAVE_PIPE) || !defined(HAVE_FCNTL) || \

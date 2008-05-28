@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_entry.c,v 1.5 2008/03/14 23:19:46 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_entry.c,v 1.6 2008/05/26 17:00:24 kientzle Exp $");
 
 #include <locale.h>
 
