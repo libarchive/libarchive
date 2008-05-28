@@ -24,7 +24,7 @@
  */
 
 #include "bsdtar_platform.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/tar/subst.c,v 1.2 2008/05/27 04:44:07 kientzle Exp $");
 
 #if HAVE_REGEX_H
 #include "bsdtar.h"
@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
-#if !defined(REG_BASIC)
+#ifndef REG_BASIC
 #define	REG_BASIC 0
 #endif
 
