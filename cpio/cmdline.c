@@ -66,7 +66,7 @@ struct option {
  */
 
 
-static const char *cpio_opts = "AaBC:F:O:cdE:f:H:hijLlmopR:rtuvW:yZz";
+static const char *cpio_opts = "0AaBC:F:O:cdE:f:H:hijLlmopR:rtuvW:yZz";
 
 /*
  * On systems that lack getopt_long, long options can be specified
@@ -86,6 +86,7 @@ static const struct option cpio_longopts[] = {
 	{ "format",             required_argument, NULL, 'H' },
 	{ "help",		no_argument,	   NULL, 'h' },
 	{ "insecure",		no_argument,	   NULL, OPTION_INSECURE },
+	{ "null",		no_argument,	   NULL, '0' },
 	{ "owner",		required_argument, NULL, 'R' },
 	{ "quiet",		no_argument,	   NULL, OPTION_QUIET },
 	{ "verbose",            no_argument,       NULL, 'v' },
