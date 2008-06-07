@@ -180,6 +180,8 @@ my_wcrtomb_utf8(char *p, wchar_t wc, mbstate_t *s)
 	(void)s; /* UNUSED */
 
 	if (p == NULL)
+		/* Since this routine never uses shift state, we don't
+		 * need to clear it here. */
 		return (0);
 	if (wc <= 0x7f) {
 		p[0] = (char)wc;
@@ -220,12 +222,14 @@ my_wcstombs(struct archive_string *as, const wchar_t *w,
 	mbstate_t shift_state;
 	char buff[256];
 
+	/* Clear the shift state before starting. */
+	memset(&shift_state, 0, sizeof(shift_state));
+
 	/*
 	 * Convert one wide char at a time into 'buff', whenever that
 	 * fills, append it to the string.
 	 */
 	p = buff;
-	wcrtomb(NULL, L'\0', &shift_state);
 	while (*w != L'\0') {
 		/* Flush the buffer when we have <=16 bytes free. */
 		/* (No encoding has a single character >16 bytes.) */
