@@ -747,6 +747,10 @@ archive_read_format_zip_read_data_skip(struct archive_read *a)
 
 	zip = (struct zip *)(a->format->data);
 
+	/* If we've already read to end of data, we're done. */
+	if (zip->end_of_entry_cleanup)
+		return (ARCHIVE_OK);
+
 	/*
 	 * If the length is at the end, we have no choice but
 	 * to decompress all the data to find the end marker.
