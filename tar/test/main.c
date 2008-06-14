@@ -712,9 +712,11 @@ static int test_run(int i, const char *tmpdir)
 {
 	int failures_before = failures;
 
-	fflush(stdout);
-	if (!quiet_flag)
+	if (!quiet_flag) {
 		printf("%d: %s\n", i, tests[i].name);
+		fflush(stdout);
+	}
+
 	/*
 	 * Always explicitly chdir() in case the last test moved us to
 	 * a strange place.
