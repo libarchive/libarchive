@@ -41,14 +41,6 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_string.c,v 1.12 2008/05/26 17:00:
 #include <wchar.h>
 #endif
 
-#ifdef __sgi
-/*
- * The following prototype is missing on IRXI,
- * even though the function is implemented in libc.
- */
-size_t wcrtomb(char *, wchar_t, mbstate_t *);
-#endif
-
 #include "archive_private.h"
 #include "archive_string.h"
 
@@ -172,16 +164,13 @@ __archive_strappend_int(struct archive_string *as, int d, int base)
 }
 
 /*
- * Home-grown wcrtomb for UTF-8.
+ * Home-grown wctomb for UTF-8.
  */
-static size_t
-my_wcrtomb_utf8(char *p, wchar_t wc, mbstate_t *s)
+static int
+my_wctomb_utf8(char *p, wchar_t wc)
 {
-	(void)s; /* UNUSED */
-
 	if (p == NULL)
-		/* Since this routine never uses shift state, we don't
-		 * need to clear it here. */
+		/* UTF-8 doesn't use shift states. */
 		return (0);
 	if (wc <= 0x7f) {
 		p[0] = (char)wc;
@@ -215,15 +204,14 @@ my_wcrtomb_utf8(char *p, wchar_t wc, mbstate_t *s)
 
 static int
 my_wcstombs(struct archive_string *as, const wchar_t *w,
-    size_t (*func)(char *, wchar_t, mbstate_t *))
+    int (*func)(char *, wchar_t))
 {
 	size_t n;
 	char *p;
-	mbstate_t shift_state;
 	char buff[256];
 
 	/* Clear the shift state before starting. */
-	memset(&shift_state, 0, sizeof(shift_state));
+	(*func)(NULL, L'\0');
 
 	/*
 	 * Convert one wide char at a time into 'buff', whenever that
@@ -238,7 +226,7 @@ my_wcstombs(struct archive_string *as, const wchar_t *w,
 			archive_strcat(as, buff);
 			p = buff;
 		}
-		n = (*func)(p, *w++, &shift_state);
+		n = (*func)(p, *w++);
 		if (n == (size_t)-1)
 			return (-1);
 		p += n;
@@ -255,7 +243,7 @@ my_wcstombs(struct archive_string *as, const wchar_t *w,
 struct archive_string *
 __archive_strappend_w_utf8(struct archive_string *as, const wchar_t *w)
 {
-	if (my_wcstombs(as, w, my_wcrtomb_utf8))
+	if (my_wcstombs(as, w, my_wctomb_utf8))
 		return (NULL);
 	return (as);
 }
@@ -264,35 +252,33 @@ __archive_strappend_w_utf8(struct archive_string *as, const wchar_t *w)
  * Translates a wide character string into current locale character set
  * and appends to the archive_string.  Note: returns NULL if conversion
  * fails.
- *
- * TODO: use my_wcrtomb_utf8 if !HAVE_WCRTOMB (add configure logic first!)
  */
 struct archive_string *
 __archive_strappend_w_mbs(struct archive_string *as, const wchar_t *w)
 {
-	if (my_wcstombs(as, w, wcrtomb))
+#if HAVE_WCTOMB
+	if (my_wcstombs(as, w, wctomb))
 		return (NULL);
+#else
+	/* TODO: Can we do better than this?  Are there platforms
+	 * that have locale support but don't have wctomb()? */
+	if (my_wcstombs(as, w, my_wctomb_utf8))
+		return (NULL);
+#endif
 	return (as);
 }
 
 
 /*
- * Home-grown mbrtowc for UTF-8.  Some systems lack UTF-8
- * (or even lack mbrtowc()) and we need UTF-8 support for pax
+ * Home-grown mbtowc for UTF-8.  Some systems lack UTF-8
+ * (or even lack mbtowc()) and we need UTF-8 support for pax
  * format.  So please don't replace this with a call to the
- * standard mbrtowc() function!
+ * standard mbtowc() function!
  */
 static size_t
-my_mbrtowc_utf8(wchar_t *pwc, const char *s, size_t n, mbstate_t *ps)
+my_mbtowc_utf8(wchar_t *pwc, const char *s, size_t n)
 {
         int ch;
-
-	/*
-	 * This argument is here to make the prototype identical to the
-	 * standard mbrtowc(), so I can build generic string processors
-	 * that just accept a pointer to a suitable mbrtowc() function.
-	 */
-	(void)ps; /* UNUSED */
 
 	/* Standard behavior:  a NULL value for 's' just resets shift state. */
         if (s == NULL)
@@ -364,7 +350,7 @@ __archive_string_utf8_w(struct archive_string *as)
 	dest = ws;
 	src = as->s;
 	while (*src != '\0') {
-		n = my_mbrtowc_utf8(dest, src, 8, NULL);
+		n = my_mbtowc_utf8(dest, src, 8);
 		if (n == 0)
 			break;
 		if (n == (size_t)-1 || n == (size_t)-2) {

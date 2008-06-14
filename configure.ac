@@ -246,7 +246,7 @@ AC_CHECK_FUNCS([lutimes memmove memset mkdir mkfifo mknod])
 AC_CHECK_FUNCS([nl_langinfo pipe poll select setenv setlocale])
 AC_CHECK_FUNCS([strchr strdup strerror strrchr timegm])
 AC_CHECK_FUNCS([tzset unsetenv utime utimes vfork])
-AC_CHECK_FUNCS([wcscpy wcslen wmemcmp wmemcpy])
+AC_CHECK_FUNCS([wcscpy wcslen wctomb wmemcmp wmemcpy])
 
 # FreeBSD's nl_langinfo supports an option to specify whether the
 # current locale uses month/day or day/month ordering.  It makes the
