@@ -564,8 +564,8 @@ archive_read_format_zip_read_data(struct archive_read *a,
 			 */
 			r = ARCHIVE_FATAL;
 		} else {
-			/* We know compressed size; just skip it. */
-			archive_read_format_zip_read_data_skip(a);
+			/* We can't decompress this entry, but we will
+			 * be able to skip() it and try the next entry. */
 			r = ARCHIVE_WARN;
 		}
 		break;
