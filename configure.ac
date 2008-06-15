@@ -9,8 +9,8 @@ m4_define([LIBARCHIVE_VERSION_N],[2005004])
 
 dnl bsdtar versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
-dnl bsdcpio is still versioning separately
-m4_define([BSDCPIO_VERSION_S],[0.9.10a])
+dnl bsdcpio is still versioning separately, as it's less mature.
+m4_define([BSDCPIO_VERSION_S],[1.0.0])
 
 #
 # Now starts the "real" configure script.
