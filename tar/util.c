@@ -24,7 +24,7 @@
  */
 
 #include "bsdtar_platform.h"
-__FBSDID("$FreeBSD: src/usr.bin/tar/util.c,v 1.19 2008/05/26 17:10:10 kientzle Exp $");
+__FBSDID("$FreeBSD: src/usr.bin/tar/util.c,v 1.20 2008/06/09 14:03:55 cperciva Exp $");
 
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
@@ -369,9 +369,11 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 	}
 	if (r == 1) {
 		archive_entry_copy_pathname(entry, subst_name);
-		free(subst_name);
-		if (*subst_name == '\0')
+		if (*subst_name == '\0') {
+			free(subst_name);
 			return -1;
+		} else
+			free(subst_name);
 		name = archive_entry_pathname(entry);
 	}
 

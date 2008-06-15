@@ -1,4 +1,4 @@
-# $FreeBSD: src/lib/libarchive/test/Makefile,v 1.20 2008/05/27 04:12:17 kientzle Exp $
+# $FreeBSD: src/lib/libarchive/test/Makefile,v 1.21 2008/06/15 05:05:53 kientzle Exp $
 
 # Where to find the libarchive sources
 LA_SRCDIR=${.CURDIR}/..

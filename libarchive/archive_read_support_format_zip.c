@@ -24,7 +24,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_format_zip.c,v 1.23 2008/05/26 17:00:22 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_format_zip.c,v 1.24 2008/06/15 05:15:53 kientzle Exp $");
 
 #ifdef HAVE_ERRNO_H
 #include <errno.h>

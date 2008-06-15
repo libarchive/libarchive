@@ -25,7 +25,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_format_mtree.c,v 1.6 2008/05/26 17:00:22 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_format_mtree.c,v 1.7 2008/06/09 14:44:56 cperciva Exp $");
 
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
@@ -308,7 +308,7 @@ process_global_unset(struct archive_read *a,
 	size_t len;
 
 	line += 6;
-	if ((next = strchr(line, '=')) != NULL) {
+	if (strchr(line, '=') != NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "/unset shall not contain `='");
 		return ARCHIVE_FATAL;
@@ -760,7 +760,7 @@ parse_device(struct archive *a, struct archive_entry *entry, char *val)
 	}
 	++comma1;
 	comma2 = strchr(comma1, ',');
-	if (comma1 == NULL) {
+	if (comma2 == NULL) {
 		archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Malformed device attribute");
 		return (ARCHIVE_WARN);
