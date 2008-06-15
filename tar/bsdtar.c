@@ -38,6 +38,18 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/bsdtar.c,v 1.91 2008/05/26 17:10:10 kientzle
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
+#ifdef HAVE_GETOPT_LONG
+#include <getopt.h>
+#else
+struct option {
+	const char *name;
+	int has_arg;
+	int *flag;
+	int val;
+};
+#define	no_argument 0
+#define	required_argument 1
+#endif
 #ifdef HAVE_LANGINFO_H
 #include <langinfo.h>
 #endif
@@ -65,7 +77,6 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/bsdtar.c,v 1.91 2008/05/26 17:10:10 kientzle
 #endif
 
 #include "bsdtar.h"
-#include "getopt.h"
 
 #if !HAVE_DECL_OPTARG
 extern int optarg;
@@ -788,7 +799,11 @@ usage(struct bsdtar *bsdtar)
 	fprintf(stderr, "  List:    %s -tf <archive-filename>\n", p);
 	fprintf(stderr, "  Extract: %s -xf <archive-filename>\n", p);
 	fprintf(stderr, "  Create:  %s -cf <archive-filename> [filenames...]\n", p);
+#ifdef HAVE_GETOPT_LONG
 	fprintf(stderr, "  Help:    %s --help\n", p);
+#else
+	fprintf(stderr, "  Help:    %s -h\n", p);
+#endif
 	exit(1);
 }
 
@@ -813,7 +828,11 @@ static const char *long_help_msg =
 	"  <file>, <dir>  add these items to archive\n"
 	"  -z, -j  Compress archive with gzip/bzip2\n"
 	"  --format {ustar|pax|cpio|shar}  Select archive format\n"
+#ifdef HAVE_GETOPT_LONG
 	"  --exclude <pattern>  Skip files that match pattern\n"
+#else
+	"  -W exclude=<pattern>  Skip files that match pattern\n"
+#endif
 	"  -C <dir>  Change to <dir> before processing remaining files\n"
 	"  @<archive>  Add entries from <archive> to output\n"
 	"List: %p -t [options] [<patterns>]\n"
@@ -875,10 +894,14 @@ bsdtar_getopt(struct bsdtar *bsdtar, const char *optstring,
 	option_index = -1;
 	*poption = NULL;
 
+#ifdef HAVE_GETOPT_LONG
 	opt = getopt_long(bsdtar->argc, bsdtar->argv, optstring,
 	    tar_longopts, &option_index);
 	if (option_index > -1)
 		*poption = tar_longopts + option_index;
+#else
+	opt = getopt(bsdtar->argc, bsdtar->argv, optstring);
+#endif
 
 	/* Support long options through -W longopt=value */
 	if (opt == 'W') {
