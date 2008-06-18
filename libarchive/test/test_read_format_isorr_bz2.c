@@ -54,12 +54,12 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 
 	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
-	assert(0 == archive_read_support_compression_all(a));
-	assert(0 == archive_read_support_format_all(a));
-	assert(0 == archive_read_open_filename(a, refname, 10240));
+	assertEqualInt(0, archive_read_support_compression_all(a));
+	assertEqualInt(0, archive_read_support_format_all(a));
+	assertEqualInt(0, archive_read_open_filename(a, refname, 10240));
 
 	/* First entry is '.' root directory. */
-	assert(0 == archive_read_next_header(a, &ae));
+	assertEqualInt(0, archive_read_next_header(a, &ae));
 	assertEqualString(".", archive_entry_pathname(ae));
 	assert(S_ISDIR(archive_entry_stat(ae)->st_mode));
 	assertEqualInt(2048, archive_entry_size(ae));
@@ -73,66 +73,66 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 	assertEqualInt(size, 0);
 
 	/* A directory. */
-	assert(0 == archive_read_next_header(a, &ae));
+	assertEqualInt(0, archive_read_next_header(a, &ae));
 	assertEqualString("dir", archive_entry_pathname(ae));
 	assert(S_ISDIR(archive_entry_stat(ae)->st_mode));
-	assert(2048 == archive_entry_size(ae));
-	assert(1 == archive_entry_mtime(ae));
-	assert(1 == archive_entry_atime(ae));
-	assert(2 == archive_entry_stat(ae)->st_nlink);
-	assert(1 == archive_entry_uid(ae));
-	assert(2 == archive_entry_gid(ae));
+	assertEqualInt(2048, archive_entry_size(ae));
+	assertEqualInt(1, archive_entry_mtime(ae));
+	assertEqualInt(1, archive_entry_atime(ae));
+	assertEqualInt(2, archive_entry_stat(ae)->st_nlink);
+	assertEqualInt(1, archive_entry_uid(ae));
+	assertEqualInt(2, archive_entry_gid(ae));
 
 	/* A regular file. */
-	assert(0 == archive_read_next_header(a, &ae));
+	assertEqualInt(0, archive_read_next_header(a, &ae));
 	assertEqualString("file", archive_entry_pathname(ae));
 	assert(S_ISREG(archive_entry_stat(ae)->st_mode));
-	assert(6 == archive_entry_size(ae));
-	assert(0 == archive_read_data_block(a, &p, &size, &offset));
-	assert(6 == size);
-	assert(0 == offset);
-	assert(0 == memcmp(p, "hello\n", 6));
-	assert(1 == archive_entry_mtime(ae));
-	assert(1 == archive_entry_atime(ae));
-	assert(2 == archive_entry_stat(ae)->st_nlink);
-	assert(1 == archive_entry_uid(ae));
-	assert(2 == archive_entry_gid(ae));
+	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(0, archive_read_data_block(a, &p, &size, &offset));
+	assertEqualInt(6, size);
+	assertEqualInt(0, offset);
+	assertEqualInt(0, memcmp(p, "hello\n", 6));
+	assertEqualInt(1, archive_entry_mtime(ae));
+	assertEqualInt(1, archive_entry_atime(ae));
+	assertEqualInt(2, archive_entry_stat(ae)->st_nlink);
+	assertEqualInt(1, archive_entry_uid(ae));
+	assertEqualInt(2, archive_entry_gid(ae));
 
 	/* A hardlink to the regular file. */
-	assert(0 == archive_read_next_header(a, &ae));
+	assertEqualInt(0, archive_read_next_header(a, &ae));
 	assertEqualString("hardlink", archive_entry_pathname(ae));
 	assert(S_ISREG(archive_entry_stat(ae)->st_mode));
 	assertEqualString("file", archive_entry_hardlink(ae));
-	assert(6 == archive_entry_size(ae));
-	assert(1 == archive_entry_mtime(ae));
-	assert(1 == archive_entry_atime(ae));
-	assert(2 == archive_entry_stat(ae)->st_nlink);
-	assert(1 == archive_entry_uid(ae));
-	assert(2 == archive_entry_gid(ae));
+	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(1, archive_entry_mtime(ae));
+	assertEqualInt(1, archive_entry_atime(ae));
+	assertEqualInt(2, archive_entry_stat(ae)->st_nlink);
+	assertEqualInt(1, archive_entry_uid(ae));
+	assertEqualInt(2, archive_entry_gid(ae));
 
 	/* A symlink to the regular file. */
-	assert(0 == archive_read_next_header(a, &ae));
+	assertEqualInt(0, archive_read_next_header(a, &ae));
 	assertEqualString("symlink", archive_entry_pathname(ae));
 	assert(S_ISLNK(archive_entry_stat(ae)->st_mode));
 	assertEqualString("file", archive_entry_symlink(ae));
-	assert(0 == archive_entry_size(ae));
-	assert(-2 == archive_entry_mtime(ae));
-	assert(-2 == archive_entry_atime(ae));
-	assert(1 == archive_entry_stat(ae)->st_nlink);
-	assert(1 == archive_entry_uid(ae));
-	assert(2 == archive_entry_gid(ae));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertEqualInt(-2, archive_entry_mtime(ae));
+	assertEqualInt(-2, archive_entry_atime(ae));
+	assertEqualInt(1, archive_entry_stat(ae)->st_nlink);
+	assertEqualInt(1, archive_entry_uid(ae));
+	assertEqualInt(2, archive_entry_gid(ae));
 
 	/* End of archive. */
-	assert(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assert(archive_compression(a) == ARCHIVE_COMPRESSION_BZIP2);
-	assert(archive_format(a) == ARCHIVE_FORMAT_ISO9660_ROCKRIDGE);
+	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_BZIP2);
+	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_ISO9660_ROCKRIDGE);
 
 	/* Close the archive. */
-	assert(0 == archive_read_close(a));
+	assertEqualInt(0, archive_read_close(a));
 #if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_read_finish(a));
+	assertEqualInt(0, archive_read_finish(a));
 #else
 	archive_read_finish(a);
 #endif
