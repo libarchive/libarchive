@@ -35,8 +35,8 @@ mkdir /tmp/iso/dir
 echo "hello" >/tmp/iso/file
 ln /tmp/iso/file /tmp/iso/hardlink
 (cd /tmp/iso; ln -s file symlink)
-TZ=utc touch -afhm -t 197001010000.01 /tmp/iso /tmp/iso/file /tmp/iso/dir
-TZ=utc touch -afhm -t 196912312359.58 /tmp/iso/symlink
+TZ=utc touch -afhm -t 197001020000.01 /tmp/iso /tmp/iso/file /tmp/iso/dir
+TZ=utc touch -afhm -t 197001030000.02 /tmp/iso/symlink
 mkhybrid -R -uid 1 -gid 2 /tmp/iso | bzip2 > test_read_format_isorr_bz2.iso.bz2
 F=test_read_format_isorr_bz2.iso.bz2
 uuencode $F $F > $F.uu
@@ -63,9 +63,9 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 	assertEqualString(".", archive_entry_pathname(ae));
 	assert(S_ISDIR(archive_entry_stat(ae)->st_mode));
 	assertEqualInt(2048, archive_entry_size(ae));
-	assertEqualInt(1, archive_entry_mtime(ae));
+	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(0, archive_entry_mtime_nsec(ae));
-	assertEqualInt(1, archive_entry_ctime(ae));
+	assertEqualInt(86401, archive_entry_ctime(ae));
 	assertEqualInt(0, archive_entry_stat(ae)->st_nlink);
 	assertEqualInt(0, archive_entry_uid(ae));
 	assertEqualIntA(a, ARCHIVE_EOF,
@@ -77,8 +77,8 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 	assertEqualString("dir", archive_entry_pathname(ae));
 	assert(S_ISDIR(archive_entry_stat(ae)->st_mode));
 	assertEqualInt(2048, archive_entry_size(ae));
-	assertEqualInt(1, archive_entry_mtime(ae));
-	assertEqualInt(1, archive_entry_atime(ae));
+	assertEqualInt(86401, archive_entry_mtime(ae));
+	assertEqualInt(86401, archive_entry_atime(ae));
 	assertEqualInt(2, archive_entry_stat(ae)->st_nlink);
 	assertEqualInt(1, archive_entry_uid(ae));
 	assertEqualInt(2, archive_entry_gid(ae));
@@ -92,8 +92,8 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 	assertEqualInt(6, size);
 	assertEqualInt(0, offset);
 	assertEqualInt(0, memcmp(p, "hello\n", 6));
-	assertEqualInt(1, archive_entry_mtime(ae));
-	assertEqualInt(1, archive_entry_atime(ae));
+	assertEqualInt(86401, archive_entry_mtime(ae));
+	assertEqualInt(86401, archive_entry_atime(ae));
 	assertEqualInt(2, archive_entry_stat(ae)->st_nlink);
 	assertEqualInt(1, archive_entry_uid(ae));
 	assertEqualInt(2, archive_entry_gid(ae));
@@ -104,8 +104,8 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 	assert(S_ISREG(archive_entry_stat(ae)->st_mode));
 	assertEqualString("file", archive_entry_hardlink(ae));
 	assertEqualInt(6, archive_entry_size(ae));
-	assertEqualInt(1, archive_entry_mtime(ae));
-	assertEqualInt(1, archive_entry_atime(ae));
+	assertEqualInt(86401, archive_entry_mtime(ae));
+	assertEqualInt(86401, archive_entry_atime(ae));
 	assertEqualInt(2, archive_entry_stat(ae)->st_nlink);
 	assertEqualInt(1, archive_entry_uid(ae));
 	assertEqualInt(2, archive_entry_gid(ae));
@@ -116,8 +116,8 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 	assert(S_ISLNK(archive_entry_stat(ae)->st_mode));
 	assertEqualString("file", archive_entry_symlink(ae));
 	assertEqualInt(0, archive_entry_size(ae));
-	assertEqualInt(-2, archive_entry_mtime(ae));
-	assertEqualInt(-2, archive_entry_atime(ae));
+	assertEqualInt(172802, archive_entry_mtime(ae));
+	assertEqualInt(172802, archive_entry_atime(ae));
 	assertEqualInt(1, archive_entry_stat(ae)->st_nlink);
 	assertEqualInt(1, archive_entry_uid(ae));
 	assertEqualInt(2, archive_entry_gid(ae));
