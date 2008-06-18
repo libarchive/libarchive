@@ -1020,7 +1020,7 @@ skip(struct archive_read *a)
 }
 
 /*
- * Since parsing backslash sequencues always makes strings shorter,
+ * Since parsing backslash sequences always makes strings shorter,
  * we can always do this conversion in-place.
  */
 static void
