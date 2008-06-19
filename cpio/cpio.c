@@ -545,6 +545,12 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 			    archive_error_string(cpio->archive));
 		if (r == ARCHIVE_FATAL)
 			exit(1);
+#ifdef EXDEV
+		if (r != ARCHIVE_OK && archive_errno(cpio->archive) == EXDEV) {
+			cpio_warnc(0, "Copying file instead");
+			archive_entry_set_hardlink(entry, NULL);
+		} else
+#endif
 		return (0);
 	}
 
