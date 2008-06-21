@@ -1,3 +1,6 @@
+Jun 20, 2008: If a -l link fails with EXDEV, copy the file instead
+Jun 19, 2008: Add some additional long options for better GNU cpio compat
+Jun 15, 2008: Many small portability and bugfixes since 2.5.4b.
 
 May 25, 2008: libarchive 2.5.4b released
 May 21, 2008: Joerg Sonnenberger: fix bsdtar hardlink handling for newc format
