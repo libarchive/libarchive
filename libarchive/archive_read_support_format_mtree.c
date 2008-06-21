@@ -25,7 +25,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_format_mtree.c,v 1.7 2008/06/09 14:44:56 cperciva Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_format_mtree.c,v 1.8 2008/06/15 10:43:59 kientzle Exp $");
 
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>

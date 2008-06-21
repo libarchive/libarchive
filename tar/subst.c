@@ -24,7 +24,7 @@
  */
 
 #include "bsdtar_platform.h"
-__FBSDID("$FreeBSD: src/usr.bin/tar/subst.c,v 1.3 2008/06/09 14:41:28 cperciva Exp $");
+__FBSDID("$FreeBSD: src/usr.bin/tar/subst.c,v 1.4 2008/06/15 10:08:16 kientzle Exp $");
 
 #if HAVE_REGEX_H
 #include "bsdtar.h"

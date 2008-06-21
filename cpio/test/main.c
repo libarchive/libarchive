@@ -44,7 +44,7 @@
 #undef	EXTRA_DUMP	     /* How to dump extra data */
 /* How to generate extra version info. */
 #define	EXTRA_VERSION    (systemf("%s --version", testprog) ? "" : "")
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/cpio/test/main.c,v 1.2 2008/06/21 02:17:18 kientzle Exp $");
 
 /*
  * "list.h" is simply created by "grep DEFINE_TEST"; it has

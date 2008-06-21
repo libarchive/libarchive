@@ -43,7 +43,7 @@
 #define	ENVBASE "LIBARCHIVE" /* Prefix for environment variables. */
 #define	EXTRA_DUMP(x)	archive_error_string((struct archive *)(x))
 #define	EXTRA_VERSION	archive_version()
-__FBSDID("$FreeBSD: src/lib/libarchive/test/main.c,v 1.12 2008/05/26 17:00:24 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/main.c,v 1.13 2008/06/15 10:35:22 kientzle Exp $");
 
 /*
  * "list.h" is simply created by "grep DEFINE_TEST"; it has
