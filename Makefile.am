@@ -254,6 +254,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_gtar_sparse_1_17_posix01.tgz.uu \
 	libarchive/test/test_read_format_gtar_sparse_1_17_posix10.tgz.uu \
 	libarchive/test/test_read_format_gtar_sparse_1_17_posix10_modified.tar.uu \
+	libarchive/test/test_read_format_isorr_bz2.iso.bz2.uu		\
 	libarchive/test/test_read_format_tar_empty_filename.tar.uu
 
 
