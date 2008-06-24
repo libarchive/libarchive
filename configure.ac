@@ -163,7 +163,7 @@ AC_HEADER_STDC
 AC_HEADER_DIRENT
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS([bzlib.h errno.h ext2fs/ext2_fs.h fcntl.h  grp.h])
-AC_CHECK_HEADERS([inttypes.h langinfo.h limits.h linux/ext2_fs.h linux/fs.h])
+AC_CHECK_HEADERS([inttypes.h langinfo.h limits.h linux/fs.h])
 # Include inttypes.h into archive.h only if appropriate.
 # We can't use the HAVE_INTTYPES_H macro here because archive.h
 # gets installed as a system header and then included into client code

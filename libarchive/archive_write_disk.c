@@ -25,7 +25,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/archive_write_disk.c,v 1.25 2008/05/26 17:00:23 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_write_disk.c,v 1.26 2008/06/21 19:05:29 kientzle Exp $");
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -63,9 +63,6 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_write_disk.c,v 1.25 2008/05/26 17
 #endif
 #ifdef HAVE_LINUX_FS_H
 #include <linux/fs.h>	/* for Linux file flags */
-#endif
-#ifdef HAVE_LINUX_EXT2_FS_H
-#include <linux/ext2_fs.h>	/* for Linux file flags */
 #endif
 #ifdef HAVE_LIMITS_H
 #include <limits.h>

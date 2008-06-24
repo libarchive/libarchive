@@ -62,9 +62,6 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/write.c,v 1.70 2008/05/26 17:10:10 kientzle 
 #ifdef HAVE_LINUX_FS_H
 #include <linux/fs.h>	/* for Linux file flags */
 #endif
-#ifdef HAVE_LINUX_EXT2_FS_H
-#include <linux/ext2_fs.h>	/* for Linux file flags */
-#endif
 #ifdef HAVE_PWD_H
 #include <pwd.h>
 #endif
