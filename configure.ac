@@ -164,15 +164,6 @@ AC_HEADER_DIRENT
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS([bzlib.h errno.h ext2fs/ext2_fs.h fcntl.h  grp.h])
 AC_CHECK_HEADERS([inttypes.h langinfo.h limits.h linux/fs.h])
-# Include inttypes.h into archive.h only if appropriate.
-# We can't use the HAVE_INTTYPES_H macro here because archive.h
-# gets installed as a system header and then included into client code
-# that doesn't define such macros.  (And we should certainly not
-# define such macros in system headers!)
-# Hence the following:
-AC_CHECK_HEADER(inttypes.h,
-	 [AC_SUBST(ARCHIVE_H_INCLUDE_INTTYPES_H,['#include <inttypes.h> /* For int64_t */'])],
-	 [AC_SUBST(ARCHIVE_H_INCLUDE_INTTYPES_H,[''])])
 AC_CHECK_HEADERS([locale.h paths.h poll.h pwd.h regex.h stdarg.h])
 AC_CHECK_HEADERS([stdint.h stdlib.h string.h sys/acl.h sys/ioctl.h])
 AC_CHECK_HEADERS([sys/param.h sys/poll.h sys/select.h sys/time.h sys/utime.h])
@@ -199,8 +190,6 @@ AC_CHECK_TYPE(off_t, [long long])
 AC_TYPE_SIZE_T
 AC_CHECK_TYPE(id_t, [unsigned long])
 AC_CHECK_TYPE(uintptr_t, [unsigned int])
-AC_CHECK_MEMBERS([struct stat.st_rdev])
-AC_CHECK_MEMBERS([struct tm.tm_gmtoff])
 # Check for high-resolution timestamps in struct stat
 AC_CHECK_MEMBERS([struct stat.st_mtimespec.tv_nsec])
 AC_CHECK_MEMBERS([struct stat.st_mtim.tv_nsec])

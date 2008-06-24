@@ -337,12 +337,6 @@
 /* Define to 1 if `st_mtim.tv_nsec' is member of `struct stat'. */
 /* #undef HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC */
 
-/* Define to 1 if `st_rdev' is member of `struct stat'. */
-#define HAVE_STRUCT_STAT_ST_RDEV 1
-
-/* Define to 1 if `tm_gmtoff' is member of `struct tm'. */
-/* #undef HAVE_STRUCT_TM_TM_GMTOFF */
-
 /* Define to 1 if you have the <sys/acl.h> header file. */
 /* #undef HAVE_SYS_ACL_H */
 
