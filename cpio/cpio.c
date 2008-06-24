@@ -26,7 +26,7 @@
 
 
 #include "cpio_platform.h"
-__FBSDID("$FreeBSD: src/usr.bin/cpio/cpio.c,v 1.2 2008/06/21 02:20:20 kientzle Exp $");
+__FBSDID("$FreeBSD: src/usr.bin/cpio/cpio.c,v 1.4 2008/06/24 15:18:40 kientzle Exp $");
 
 #include <sys/types.h>
 #include <archive.h>
@@ -182,6 +182,7 @@ main(int argc, char *argv[])
 			break;
 		case 'p': /* POSIX 1997 */
 			cpio->mode = opt;
+			cpio->extract_flags &= ~ARCHIVE_EXTRACT_SECURE_NODOTDOT;
 			break;
 		case OPTION_QUIET: /* GNU cpio */
 			cpio->quiet = 1;
