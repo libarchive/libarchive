@@ -553,6 +553,7 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 		 * so we use archive_write_header() instead as a
 		 * convenience. */
 		archive_entry_set_hardlink(t, srcpath);
+		/* This is a straight link that carries no data. */
 		archive_entry_set_size(t, 0);
 		r = archive_write_header(cpio->archive, t);
 		archive_entry_free(t);
