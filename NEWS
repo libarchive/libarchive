@@ -1,5 +1,10 @@
-Jun 20, 2008: If a -l link fails with EXDEV, copy the file instead
-Jun 19, 2008: Add some additional long options for better GNU cpio compat
+
+Jul 02, 2008: libarchive 2.5.5 released
+
+Jul 02, 2008: libarchive 2.5.5b released
+Jul 01, 2008: bsdcpio is being used by enough people, we can call it 1.0.0 now
+Jun 20, 2008: bsdcpio: If a -l link fails with EXDEV, copy the file instead
+Jun 19, 2008: bsdcpio: additional long options for better GNU cpio compat
 Jun 15, 2008: Many small portability and bugfixes since 2.5.4b.
 
 May 25, 2008: libarchive 2.5.4b released
