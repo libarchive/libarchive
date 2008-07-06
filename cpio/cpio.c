@@ -115,6 +115,9 @@ main(int argc, char *argv[])
 	cpio->bytes_per_block = 512;
 	cpio->filename = NULL;
 
+	if (geteuid() == 0)
+		cpio->extract_flags |= ARCHIVE_EXTRACT_OWNER;
+
 	while ((opt = cpio_getopt(cpio)) != -1) {
 		switch (opt) {
 		case '0': /* GNU convention: --null, -0 */
