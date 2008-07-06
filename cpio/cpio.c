@@ -111,12 +111,10 @@ main(int argc, char *argv[])
 	cpio->extract_flags |= ARCHIVE_EXTRACT_NO_OVERWRITE_NEWER;
 	cpio->extract_flags |= ARCHIVE_EXTRACT_SECURE_SYMLINKS;
 	cpio->extract_flags |= ARCHIVE_EXTRACT_SECURE_NODOTDOT;
-	/* TODO: If run by root, set owner as well. */
-	cpio->bytes_per_block = 512;
-	cpio->filename = NULL;
-
 	if (geteuid() == 0)
 		cpio->extract_flags |= ARCHIVE_EXTRACT_OWNER;
+	cpio->bytes_per_block = 512;
+	cpio->filename = NULL;
 
 	while ((opt = cpio_getopt(cpio)) != -1) {
 		switch (opt) {
