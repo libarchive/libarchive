@@ -158,14 +158,14 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 	case AE_IFCHR:
 		archive_string_sprintf(&mtree->buf,
 		    " type=char device=native,%d,%d\n",
-		    archive_entry_devmajor(entry),
-		    archive_entry_devminor(entry));
+		    archive_entry_rdevmajor(entry),
+		    archive_entry_rdevminor(entry));
 		break;
 	case AE_IFBLK:
 		archive_string_sprintf(&mtree->buf,
 		    " type=block device=native,%d,%d\n",
-		    archive_entry_devmajor(entry),
-		    archive_entry_devminor(entry));
+		    archive_entry_rdevmajor(entry),
+		    archive_entry_rdevminor(entry));
 		break;
 	case AE_IFDIR:
 		archive_strcat(&mtree->buf, " type=dir\n");
