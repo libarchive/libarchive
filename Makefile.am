@@ -130,6 +130,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_write_set_format_by_name.c		\
 	libarchive/archive_write_set_format_cpio.c		\
 	libarchive/archive_write_set_format_cpio_newc.c		\
+	libarchive/archive_write_set_format_mtree.c		\
 	libarchive/archive_write_set_format_pax.c		\
 	libarchive/archive_write_set_format_shar.c		\
 	libarchive/archive_write_set_format_ustar.c		\

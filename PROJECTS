@@ -4,9 +4,9 @@ more feasible and more often-requested items are higher
 on the list.  If you think you have time to work on any
 of these, please let me know.
 
-* mtree format.  libarchive can now read mtree files,
-  though there are still some missing details.  The
-  ability to write mtree format is desirable.
+* NetBSD's mtree supports various checksum algorithms.
+  It would be useful if the reader could verify them and
+  the writer could compute them.
 
 * archive_entry_from_file().  This would be very useful.
   Ideally, it would accept a pathname (required) and an
