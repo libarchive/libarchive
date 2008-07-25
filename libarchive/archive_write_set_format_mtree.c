@@ -205,6 +205,8 @@ archive_write_mtree_finish(struct archive_write *a)
 static ssize_t
 archive_write_mtree_data(struct archive_write *a, const void *buff, size_t n)
 {
+	(void)a; /* UNUSED */
+	(void)buff; /* UNUSED */
 	return n;
 }
 
