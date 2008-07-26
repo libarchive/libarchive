@@ -976,6 +976,13 @@ archive_entry_set_size(struct archive_entry *entry, int64_t s)
 }
 
 void
+archive_entry_unset_size(struct archive_entry *entry)
+{
+	archive_entry_set_size(entry, 0);
+	entry->ae_set &= ~AE_SET_SIZE;
+}
+
+void
 archive_entry_copy_sourcepath(struct archive_entry *entry, const char *path)
 {
 	aes_set_mbs(&entry->ae_sourcepath, path);

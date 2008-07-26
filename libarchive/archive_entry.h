@@ -257,6 +257,7 @@ __LA_DECL void	archive_entry_set_rdev(struct archive_entry *, dev_t);
 __LA_DECL void	archive_entry_set_rdevmajor(struct archive_entry *, dev_t);
 __LA_DECL void	archive_entry_set_rdevminor(struct archive_entry *, dev_t);
 __LA_DECL void	archive_entry_set_size(struct archive_entry *, int64_t);
+__LA_DECL void	archive_entry_unset_size(struct archive_entry *);
 __LA_DECL void	archive_entry_copy_sourcepath(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_set_symlink(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_symlink(struct archive_entry *, const char *);
