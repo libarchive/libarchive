@@ -549,6 +549,8 @@ archive_write_shar_destroy(struct archive_write *a)
 	struct shar *shar;
 
 	shar = (struct shar *)a->format_data;
+	if (shar == NULL)
+		return (ARCHIVE_OK);
 	if (shar->entry != NULL)
 		archive_entry_free(shar->entry);
 	if (shar->last_dir != NULL)
