@@ -27,6 +27,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <errno.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -197,9 +199,9 @@ archive_write_mtree_finish(struct archive_write *a)
 	struct mtree_writer *mtree= a->format_data;
 	int ret;
 
-	ret = (a->compressor.write)(a, mtree->buf.s, mtree->buf.length);
-	archive_string_free(&mtree->buf);
-	return (ret);
+	archive_write_set_bytes_in_last_block(&a->archive, 1);
+
+	return (a->compressor.write)(a, mtree->buf.s, mtree->buf.length);
 }
 
 static ssize_t
@@ -208,6 +210,21 @@ archive_write_mtree_data(struct archive_write *a, const void *buff, size_t n)
 	(void)a; /* UNUSED */
 	(void)buff; /* UNUSED */
 	return n;
+}
+
+static int
+archive_write_mtree_destroy(struct archive_write *a)
+{
+	struct mtree_writer *mtree= a->format_data;
+
+	if (mtree == NULL)
+		return (ARCHIVE_OK);
+
+	archive_entry_free(mtree->entry);
+	archive_string_free(&mtree->buf);
+	free(mtree);
+	a->format_data = NULL;
+	return (ARCHIVE_OK);
 }
 
 int
@@ -229,6 +246,7 @@ archive_write_set_format_mtree(struct archive *_a)
 	mtree->first = 1;
 	archive_string_init(&mtree->buf);
 	a->format_data = mtree;
+	a->format_destroy = archive_write_mtree_destroy;
 
 	a->pad_uncompressed = 0;
 	a->format_write_header = archive_write_mtree_header;
