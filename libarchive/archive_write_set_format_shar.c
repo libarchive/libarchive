@@ -260,7 +260,7 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 			} else {
 				if (shar->dump) {
 					ret = shar_printf(a,
-					    "uudecode -o %s << 'SHAR_END'\n",
+					    "uudecode -p > %s << 'SHAR_END'\n",
 					    name);
 					if (ret != ARCHIVE_OK)
 						return (ret);
