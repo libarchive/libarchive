@@ -25,8 +25,6 @@
 #include "test.h"
 __FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_disk.c,v 1.9 2008/06/15 10:35:22 kientzle Exp $");
 
-#if ARCHIVE_VERSION_STAMP >= 1009000
-
 #define UMASK 022
 
 static void create(struct archive_entry *ae, const char *msg)
@@ -39,11 +37,7 @@ static void create(struct archive_entry *ae, const char *msg)
 	failure("%s", msg);
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
-#if ARCHIVE_API_VERSION > 1
 	assertEqualInt(0, archive_write_finish(ad));
-#else
-	archive_write_finish(ad);
-#endif
 	/* Test the entries on disk. */
 	assert(0 == stat(archive_entry_pathname(ae), &st));
 	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
@@ -126,11 +120,7 @@ static void create_reg_file2(struct archive_entry *ae, const char *msg)
 		    archive_write_data_block(ad, data + i, 1000, i));
 	}
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
-#if ARCHIVE_API_VERSION > 1
 	assertEqualInt(0, archive_write_finish(ad));
-#else
-	archive_write_finish(ad);
-#endif
 	/* Test the entries on disk. */
 	assert(0 == stat(archive_entry_pathname(ae), &st));
 	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
@@ -146,13 +136,57 @@ static void create_reg_file2(struct archive_entry *ae, const char *msg)
 	free(compare);
 	free(data);
 }
-#endif
+
+static void create_reg_file3(struct archive_entry *ae, const char *msg)
+{
+	static const char data[]="abcdefghijklmnopqrstuvwxyz";
+	struct archive *ad;
+	struct stat st;
+
+	/* Write the entry to disk. */
+	assert((ad = archive_write_disk_new()) != NULL);
+	failure("%s", msg);
+	/* Set the size smaller than the data and verify the truncation. */
+	archive_entry_set_size(ae, 5);
+	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
+	assertEqualInt(5, archive_write_data(ad, data, sizeof(data)));
+	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+	assertEqualInt(0, archive_write_finish(ad));
+	/* Test the entry on disk. */
+	assert(0 == stat(archive_entry_pathname(ae), &st));
+	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
+	    st.st_mode, archive_entry_mode(ae));
+	assertEqualInt(st.st_mode, (archive_entry_mode(ae) & ~UMASK));
+	assertEqualInt(st.st_size, 5);
+}
+
+
+static void create_reg_file4(struct archive_entry *ae, const char *msg)
+{
+	static const char data[]="abcdefghijklmnopqrstuvwxyz";
+	struct archive *ad;
+	struct stat st;
+
+	/* Write the entry to disk. */
+	assert((ad = archive_write_disk_new()) != NULL);
+	/* Leave the size unset.  The data should not be truncated. */
+	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_data_block(ad, data, sizeof(data), 0));
+	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+	assertEqualInt(0, archive_write_finish(ad));
+	/* Test the entry on disk. */
+	assert(0 == stat(archive_entry_pathname(ae), &st));
+	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
+	    st.st_mode, archive_entry_mode(ae));
+	assertEqualInt(st.st_mode, (archive_entry_mode(ae) & ~UMASK));
+	failure(msg);
+	assertEqualInt(st.st_size, sizeof(data));
+}
+
 
 DEFINE_TEST(test_write_disk)
 {
-#if ARCHIVE_VERSION_STAMP < 1009000
-	skipping("archive_write_disk interface");
-#else
 	struct archive_entry *ae;
 
 	/* Force the umask to something predictable. */
@@ -170,6 +204,20 @@ DEFINE_TEST(test_write_disk)
 	archive_entry_copy_pathname(ae, "file2");
 	archive_entry_set_mode(ae, S_IFREG | 0755);
 	create_reg_file2(ae, "Test creating another regular file");
+	archive_entry_free(ae);
+
+	/* A regular file with a size restriction */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "file3");
+	archive_entry_set_mode(ae, S_IFREG | 0755);
+	create_reg_file3(ae, "Regular file with size restriction");
+	archive_entry_free(ae);
+
+	/* A regular file with an unspecified size */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "file3");
+	archive_entry_set_mode(ae, S_IFREG | 0755);
+	create_reg_file4(ae, "Regular file with unspecified size");
 	archive_entry_free(ae);
 
 	/* A regular file over an existing file */
@@ -199,5 +247,4 @@ DEFINE_TEST(test_write_disk)
 	archive_entry_set_mode(ae, S_IFREG | 0744);
 	create(ae, "Test creating a file over an existing dir.");
 	archive_entry_free(ae);
-#endif
 }
