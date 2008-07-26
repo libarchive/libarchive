@@ -140,6 +140,7 @@ struct archive_write_disk {
 	uid_t			 user_uid;
 	dev_t			 skip_file_dev;
 	ino_t			 skip_file_ino;
+	time_t			 start_time;
 
 	gid_t (*lookup_gid)(void *private, const char *gname, gid_t gid);
 	void  (*cleanup_gid)(void *private);
@@ -443,8 +444,13 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 		fe->fixup |= TODO_TIMES;
 		fe->mtime = archive_entry_mtime(entry);
 		fe->mtime_nanos = archive_entry_mtime_nsec(entry);
-		fe->atime = archive_entry_atime(entry);
-		fe->atime_nanos = archive_entry_atime_nsec(entry);
+		if (archive_entry_atime_is_set(entry)) {
+			fe->atime = archive_entry_atime(entry);
+			fe->atime_nanos = archive_entry_atime_nsec(entry);
+		} else {
+			fe->atime = a->start_time;
+			fe->atime_nanos = 0;
+		}
 	}
 
 	if (a->deferred & TODO_FFLAGS) {
@@ -718,6 +724,7 @@ archive_write_disk_new(void)
 	a->archive.vtable = archive_write_disk_vtable();
 	a->lookup_uid = trivial_lookup_uid;
 	a->lookup_gid = trivial_lookup_gid;
+	a->start_time = time(NULL);
 #ifdef HAVE_GETEUID
 	a->user_uid = geteuid();
 #endif /* HAVE_GETEUID */
@@ -1628,8 +1635,13 @@ set_time(struct archive_write_disk *a)
 	times[1].tv_sec = archive_entry_mtime(a->entry);
 	times[1].tv_usec = archive_entry_mtime_nsec(a->entry) / 1000;
 
-	times[0].tv_sec = archive_entry_atime(a->entry);
-	times[0].tv_usec = archive_entry_atime_nsec(a->entry) / 1000;
+	if (archive_entry_atime_is_set(a->entry)) {
+		times[0].tv_sec = archive_entry_atime(a->entry);
+		times[0].tv_usec = archive_entry_atime_nsec(a->entry) / 1000;
+	} else {
+		times[0].tv_sec = a->start_time;
+		times[0].tv_usec = 0;
+	}
 
 #ifdef HAVE_FUTIMES
 	if (a->fd >= 0 && futimes(a->fd, times) == 0) {
@@ -1668,7 +1680,10 @@ set_time(struct archive_write_disk *a)
 	struct utimbuf times;
 
 	times.modtime = archive_entry_mtime(a->entry);
-	times.actime = archive_entry_atime(a->entry);
+	if (archive_entry_atime_is_set(a->entry))
+		times.actime = archive_entry_atime(a->entry);
+	else
+		times.actime = a->start_time;
 	if (!S_ISLNK(a->mode) && utime(a->name, &times) != 0) {
 		archive_set_error(&a->archive, errno,
 		    "Can't update time for %s", a->name);
