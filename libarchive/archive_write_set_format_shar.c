@@ -286,12 +286,12 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 static ssize_t
 archive_write_shar_data_sed(struct archive_write *a, const void *buff, size_t n)
 {
-	static const ensured = 65533;
+	static const size_t ensured = 65533;
 	struct shar *shar;
 	const char *src;
 	char *buf, *buf_end;
 	int ret;
-	size_t line, written = n;
+	size_t written = n;
 
 	shar = (struct shar *)a->format_data;
 	if (!shar->has_data || n == 0)
@@ -331,7 +331,7 @@ archive_write_shar_data_sed(struct archive_write *a, const void *buff, size_t n)
 			else
 				*buf++ = 'X';
 		}
-		
+
 		if (buf >= buf_end) {
 			shar->work.length = buf - shar->work.s;
 			ret = (*a->compressor.write)(a, shar->work.s,
@@ -363,7 +363,7 @@ uuencode_group(const char _in[3], char out[4])
 	out[3] = UUENC( 0x3f & t );
 }
 
-static int
+static void
 uuencode_line(struct shar *shar, const char *inbuf, size_t len)
 {
 	char tmp_buf[3], *buf;
@@ -393,7 +393,7 @@ uuencode_line(struct shar *shar, const char *inbuf, size_t len)
 		buf += 4;
 	}
 	*buf++ = '\n';
-	if (buf - shar->work.s > shar->work.length + 62)
+	if ((buf - shar->work.s) > (ptrdiff_t)(shar->work.length + 62))
 		__archive_errx(1, "Buffer overflow");
 	shar->work.length = buf - shar->work.s;
 }

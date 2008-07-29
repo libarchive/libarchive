@@ -197,7 +197,6 @@ static int
 archive_write_mtree_finish(struct archive_write *a)
 {
 	struct mtree_writer *mtree= a->format_data;
-	int ret;
 
 	archive_write_set_bytes_in_last_block(&a->archive, 1);
 
