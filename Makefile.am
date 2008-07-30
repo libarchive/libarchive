@@ -139,6 +139,7 @@ libarchive_la_SOURCES=						\
 	libarchive/filter_fork.c				\
 	libarchive/filter_fork.h
 
+libarchive_la_CPPFLAGS=-I $(top_builddir)/libarchive
 # cygwin barfs without -no-undefined; I don't know what it does or
 # whether it helps or hurts other platforms...
 libarchive_la_LDFLAGS= -no-undefined -version-info $(ARCHIVE_LIBTOOL_VERSION)
