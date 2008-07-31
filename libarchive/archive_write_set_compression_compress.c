@@ -74,8 +74,6 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_write_set_compression_compress.c,
 #include "archive_private.h"
 #include "archive_write_private.h"
 
-#define	HSIZE		69001	/* 95% occupancy */
-#define	HSHIFT		8	/* 8 - trunc(log2(HSIZE / 65536)) */
 #define	CHECK_GAP 10000		/* Ratio check interval. */
 
 #define	MAXCODE(bits)	((1 << (bits)) - 1)
@@ -93,12 +91,10 @@ struct private_data {
 	int code_len;			/* Number of bits/code. */
 	int cur_maxcode;		/* Maximum code, given n_bits. */
 	int max_maxcode;		/* Should NEVER generate this code. */
-	int hashtab [HSIZE];
-	unsigned short codetab [HSIZE];
 	int first_free;		/* First unused entry. */
 	int compress_ratio;
 
-	int cur_code, cur_fcode;
+	size_t cur_code;
 
 	int bit_offset;
 	unsigned char bit_buf;
@@ -106,6 +102,10 @@ struct private_data {
 	unsigned char	*compressed;
 	size_t		 compressed_buffer_size;
 	size_t		 compressed_offset;
+
+	uint8_t code_next[65536];
+	uint16_t code_link[65536];
+	uint16_t code_state[65536];
 };
 
 static int	archive_compressor_compress_finish(struct archive_write *);
@@ -158,7 +158,6 @@ archive_compressor_compress_init(struct archive_write *a)
 		    "Can't allocate data for compression");
 		return (ARCHIVE_FATAL);
 	}
-	memset(state, 0, sizeof(*state));
 
 	state->compressed_buffer_size = a->bytes_per_block;
 	state->compressed = malloc(state->compressed_buffer_size);
@@ -173,18 +172,23 @@ archive_compressor_compress_init(struct archive_write *a)
 	a->compressor.write = archive_compressor_compress_write;
 	a->compressor.finish = archive_compressor_compress_finish;
 
+	state->in_count = 0;
+	state->out_count = 0;
+	state->checkpoint = 0;
+
 	state->max_maxcode = 0x10000;	/* Should NEVER generate this code. */
-	state->in_count = 0;		/* Length of input. */
 	state->bit_buf = 0;
 	state->bit_offset = 0;
 	state->out_count = 3;		/* Includes 3-byte header mojo. */
 	state->compress_ratio = 0;
 	state->checkpoint = CHECK_GAP;
 	state->code_len = 9;
+	state->cur_code = 256;
 	state->cur_maxcode = MAXCODE(state->code_len);
 	state->first_free = FIRST;
 
-	memset(state->hashtab, 0xff, sizeof(state->hashtab));
+	state->first_higher = 0;
+	memset(state->code_lower, 0, sizeof(state->code_lower));
 
 	/* Prime output buffer with a gzip header. */
 	state->compressed[0] = 0x1f; /* Compress */
@@ -210,9 +214,6 @@ archive_compressor_compress_init(struct archive_write *a)
  * fit in it exactly).  Use the VAX insv instruction to insert each
  * code in turn.  When the buffer fills up empty it and start over.
  */
-
-static unsigned char rmask[9] =
-	{0x00, 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff};
 
 static int
 output_byte(struct archive_write *a, unsigned char c)
@@ -263,7 +264,7 @@ output_code(struct archive_write *a, int ocode)
 	}
 	/* Last bits. */
 	state->bit_offset += state->code_len;
-	state->bit_buf = ocode & rmask[bits];
+	state->bit_buf = ocode & ((1 << bits) - 1);
 	if (state->bit_offset == state->code_len * 8)
 		state->bit_offset = 0;
 
@@ -291,6 +292,8 @@ output_code(struct archive_write *a, int ocode)
 		if (clear_flg) {
 			state->code_len = 9;
 			state->cur_maxcode = MAXCODE(state->code_len);
+			state->first_higher = 0;
+			memset(state->code_lower, 0, sizeof(state->code_lower));
 		} else {
 			state->code_len++;
 			if (state->code_len == 16)
@@ -330,8 +333,9 @@ archive_compressor_compress_write(struct archive_write *a, const void *buff,
 	struct private_data *state;
 	int i;
 	int ratio;
-	int c, disp, ret;
+	int ret;
 	const unsigned char *bp;
+	size_t c, next1, next2;
 
 	state = (struct private_data *)a->compressor.data;
 	if (a->client_writer == NULL) {
@@ -355,40 +359,26 @@ archive_compressor_compress_write(struct archive_write *a, const void *buff,
 	while (length--) {
 		c = *bp++;
 		state->in_count++;
-		state->cur_fcode = (c << 16) + state->cur_code;
-		i = ((c << HSHIFT) ^ state->cur_code);	/* Xor hashing. */
 
-		if (state->hashtab[i] == state->cur_fcode) {
-			state->cur_code = state->codetab[i];
+		if ((next1 = state->code_lower[state->cur_code * 16 + c / 16]) != 0 &&
+		    (next2 = state->code_higher[next1 * 16 + c % 16]) != 0) {
+			state->cur_code = next2;
 			continue;
 		}
-		if (state->hashtab[i] < 0)	/* Empty slot. */
-			goto nomatch;
-		/* Secondary hash (after G. Knott). */
-		if (i == 0)
-			disp = 1;
-		else
-			disp = HSIZE - i;
- probe:		
-		if ((i -= disp) < 0)
-			i += HSIZE;
-
-		if (state->hashtab[i] == state->cur_fcode) {
-			state->cur_code = state->codetab[i];
-			continue;
-		}
-		if (state->hashtab[i] >= 0)
-			goto probe;
- nomatch:	
 		ret = output_code(a, state->cur_code);
 		if (ret != ARCHIVE_OK)
 			return ret;
-		state->cur_code = c;
 		if (state->first_free < state->max_maxcode) {
-			state->codetab[i] = state->first_free++;	/* code -> hashtable */
-			state->hashtab[i] = state->cur_fcode;
+			if (next1 == 0) {
+				next1 = ++state->first_higher;
+				state->code_lower[state->cur_code * 16 + c / 16] = next1;
+				memset(state->code_higher + next1 * 16, 0, 32);
+			}
+			state->code_higher[next1 * 16 + c % 16] = state->first_free++;
+			state->cur_code = c;
 			continue;
 		}
+		state->cur_code = c;
 		if (state->in_count < state->checkpoint)
 			continue;
 
@@ -405,7 +395,6 @@ archive_compressor_compress_write(struct archive_write *a, const void *buff,
 			state->compress_ratio = ratio;
 		else {
 			state->compress_ratio = 0;
-			memset(state->hashtab, 0xff, sizeof(state->hashtab));
 			state->first_free = FIRST;
 			ret = output_code(a, CLEAR);
 			if (ret != ARCHIVE_OK)
@@ -415,7 +404,6 @@ archive_compressor_compress_write(struct archive_write *a, const void *buff,
 
 	return (ARCHIVE_OK);
 }
-
 
 /*
  * Finish the compression...

@@ -622,23 +622,33 @@ _archive_write_finish_entry(struct archive *_a)
 		/* Last write ended at exactly the filesize; we're done. */
 		/* Hopefully, this is the common case. */
 	} else {
-		/*
-		 * The write handlers truncate long writes, so we
-		 * never have to shorten a file here.  Some systems
-		 * can lengthen files with ftruncate(), but this is
-		 * more portable:
-		 */
-		const char nul = '\0';
-		if (lseek(a->fd, a->filesize - 1, SEEK_SET) < 0) {
-			archive_set_error(&a->archive, errno, "Seek failed");
-			return (ARCHIVE_FAILED);
-		}
-		if (write(a->fd, &nul, 1) < 0) {
+		if (ftruncate(a->fd, a->filesize) == -1 &&
+		    a->filesize == 0) {
 			archive_set_error(&a->archive, errno,
-			    "Write to restore size failed");
+			    "File size could not be restored");
 			return (ARCHIVE_FAILED);
 		}
+		/*
+		 * Explicitly stat the file as some platforms might not
+		 * implement the XSI option to extend files via ftruncate.
+		 */
 		a->pst = NULL;
+		if ((ret = _archive_write_disk_lazy_stat(a)) != ARCHIVE_OK)
+			return (ret);
+		if (a->st.st_size != a->filesize) {
+			const char nul = '\0';
+			if (lseek(a->fd, a->st.st_size - 1, SEEK_SET) < 0) {
+				archive_set_error(&a->archive, errno,
+				    "Seek failed");
+				return (ARCHIVE_FATAL);
+			}
+			if (write(a->fd, &nul, 1) < 0) {
+				archive_set_error(&a->archive, errno,
+				    "Write to restore size failed");
+				return (ARCHIVE_FATAL);
+			}
+			a->pst = NULL;
+		}
 	}
 
 	/* Restore metadata. */
