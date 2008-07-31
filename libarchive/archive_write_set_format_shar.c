@@ -56,6 +56,7 @@ struct shar {
 
 	int			 wrote_header;
 	struct archive_string	 work;
+	struct archive_string	 quoted_name;
 };
 
 static int	archive_write_shar_finish(struct archive_write *);
@@ -67,6 +68,34 @@ static ssize_t	archive_write_shar_data_sed(struct archive_write *,
 static ssize_t	archive_write_shar_data_uuencode(struct archive_write *,
 		    const void * buff, size_t);
 static int	archive_write_shar_finish_entry(struct archive_write *);
+
+/*
+ * Copy the given string to the buffer, quoting all shell meta characters
+ * found.
+ */
+static void
+shar_quote(struct archive_string *buf, const char *str, int in_shell)
+{
+	static const char meta[] = "\n \t'`\";&<>()|*?{}[]\\$!#^~";
+	size_t len;
+
+	while (*str != '\0') {
+		if ((len = strcspn(str, meta)) != 0) {
+			archive_strncat(buf, str, len);
+			str += len;
+		} else if (*str == '\n') {
+			if (in_shell)
+				archive_strcat(buf, "\"\n\"");
+			else
+				archive_strcat(buf, "\\n");
+			++str;
+		} else {
+			archive_strappend_char(buf, '\\');
+			archive_strappend_char(buf, *str);
+			++str;
+		}
+	}
+}
 
 /*
  * Set output format to 'shar' format.
@@ -88,6 +117,7 @@ archive_write_set_format_shar(struct archive *_a)
 	}
 	memset(shar, 0, sizeof(*shar));
 	archive_string_init(&shar->work);
+	archive_string_init(&shar->quoted_name);
 	a->format_data = shar;
 
 	a->pad_uncompressed = 0;
@@ -170,8 +200,11 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 		}
 	}
 
+	archive_string_empty(&shar->quoted_name);
+	shar_quote(&shar->quoted_name, name, 1);
+
 	/* Stock preparation for all file types. */
-	archive_string_sprintf(&shar->work, "echo x %s\n", name);
+	archive_string_sprintf(&shar->work, "echo x %s\n", shar->quoted_name.s);
 
 	if (archive_entry_filetype(entry) != AE_IFDIR) {
 		/* Try to create the dir. */
@@ -186,8 +219,10 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 				/* Don't try to "mkdir ." */
 				free(p);
 			} else if (shar->last_dir == NULL) {
-				archive_string_sprintf(&shar->work,
-				    "mkdir -p %s > /dev/null 2>&1\n", p);
+				archive_strcat(&shar->work, "mkdir -p ");
+				shar_quote(&shar->work, p, 1);
+				archive_strcat(&shar->work,
+				    " > /dev/null 2>&1\n");
 				shar->last_dir = p;
 			} else if (strcmp(p, shar->last_dir) == 0) {
 				/* We've already created this exact dir. */
@@ -197,9 +232,10 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 				/* We've already created a subdir. */
 				free(p);
 			} else {
-				archive_string_sprintf(&shar->work,
-				    "mkdir -p %s > /dev/null 2>&1\n", p);
-				free(shar->last_dir);
+				archive_strcat(&shar->work, "mkdir -p ");
+				shar_quote(&shar->work, p, 1);
+				archive_strcat(&shar->work,
+				    " > /dev/null 2>&1\n");
 				shar->last_dir = p;
 			}
 		} else {
@@ -210,11 +246,15 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 	/* Handle file-type specific issues. */
 	shar->has_data = 0;
 	if ((linkname = archive_entry_hardlink(entry)) != NULL) {
-		archive_string_sprintf(&shar->work, "ln -f %s %s\n",
-		    linkname, name);
+		archive_strcat(&shar->work, "ln -f ");
+		shar_quote(&shar->work, linkname, 1);
+		archive_string_sprintf(&shar->work, " %s\n",
+		    shar->quoted_name.s);
 	} else if ((linkname = archive_entry_symlink(entry)) != NULL) {
-		archive_string_sprintf(&shar->work, "ln -fs %s %s\n",
-		    linkname, name);
+		archive_strcat(&shar->work, "ln -fs ");
+		shar_quote(&shar->work, linkname, 1);
+		archive_string_sprintf(&shar->work, " %s\n",
+		    shar->quoted_name.s);
 	} else {
 		switch(archive_entry_filetype(entry)) {
 		case AE_IFREG:
@@ -222,20 +262,21 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 				/* More portable than "touch." */
 				archive_string_sprintf(&shar->work,
 				    "test -e \"%s\" || :> \"%s\"\n",
-				    name, name);
+				    shar->quoted_name.s, shar->quoted_name.s);
 			} else {
 				if (shar->dump) {
 					archive_string_sprintf(&shar->work,
 					    "uudecode -p > %s << 'SHAR_END'\n",
-					    name);
+					    shar->quoted_name.s);
 					archive_string_sprintf(&shar->work,
-					    "begin %o %s\n",
-					    archive_entry_mode(entry) & 0777,
-					    name);
+					    "begin %o ",
+					    archive_entry_mode(entry) & 0777);
+					shar_quote(&shar->work, name, 0);
+					archive_strcat(&shar->work, "\n");
 				} else {
 					archive_string_sprintf(&shar->work,
 					    "sed 's/^X//' > %s << 'SHAR_END'\n",
-					    name);
+					    shar->quoted_name.s);
 				}
 				shar->has_data = 1;
 				shar->end_of_line = 1;
@@ -244,7 +285,8 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 			break;
 		case AE_IFDIR:
 			archive_string_sprintf(&shar->work,
-			    "mkdir -p %s > /dev/null 2>&1\n", name);
+			    "mkdir -p %s > /dev/null 2>&1\n",
+			    shar->quoted_name.s);
 			/* Record that we just created this directory. */
 			if (shar->last_dir != NULL)
 				free(shar->last_dir);
@@ -261,17 +303,17 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 			break;
 		case AE_IFIFO:
 			archive_string_sprintf(&shar->work,
-			    "mkfifo %s\n", name);
+			    "mkfifo %s\n", shar->quoted_name.s);
 			break;
 		case AE_IFCHR:
 			archive_string_sprintf(&shar->work,
-			    "mknod %s c %d %d\n", name,
+			    "mknod %s c %d %d\n", shar->quoted_name.s,
 			    archive_entry_rdevmajor(entry),
 			    archive_entry_rdevminor(entry));
 			break;
 		case AE_IFBLK:
 			archive_string_sprintf(&shar->work,
-			    "mknod %s b %d %d\n", name,
+			    "mknod %s b %d %d\n", shar->quoted_name.s,
 			    archive_entry_rdevmajor(entry),
 			    archive_entry_rdevminor(entry));
 			break;
@@ -473,23 +515,32 @@ archive_write_shar_finish_entry(struct archive_write *a)
 		 * TODO: Don't immediately restore mode for
 		 * directories; defer that to end of script.
 		 */
-		archive_string_sprintf(&shar->work, "chmod %o %s\n",
-		    archive_entry_mode(shar->entry) & 07777,
-		    archive_entry_pathname(shar->entry));
+		archive_string_sprintf(&shar->work, "chmod %o ",
+		    archive_entry_mode(shar->entry) & 07777);
+		shar_quote(&shar->work, archive_entry_pathname(shar->entry), 1);
+		archive_strcat(&shar->work, "\n");
 
 		u = archive_entry_uname(shar->entry);
 		g = archive_entry_gname(shar->entry);
 		if (u != NULL || g != NULL) {
-			archive_string_sprintf(&shar->work,
-			    "chown %s%s%s %s\n",
-			    (u != NULL) ? u : "",
-			    (g != NULL) ? ":" : "", (g != NULL) ? g : "",
-			    archive_entry_pathname(shar->entry));
+			archive_strcat(&shar->work, "chown ");
+			if (u != NULL)
+				shar_quote(&shar->work, u, 1);
+			if (g != NULL) {
+				archive_strcat(&shar->work, ":");
+				shar_quote(&shar->work, g, 1);
+			}
+			shar_quote(&shar->work,
+			    archive_entry_pathname(shar->entry), 1);
+			archive_strcat(&shar->work, "\n");
 		}
 
 		if ((p = archive_entry_fflags_text(shar->entry)) != NULL) {
-			archive_string_sprintf(&shar->work, "chflags %s %s\n",
+			archive_string_sprintf(&shar->work, "chflags %s ",
 			    p, archive_entry_pathname(shar->entry));
+			shar_quote(&shar->work,
+			    archive_entry_pathname(shar->entry), 1);
+			archive_strcat(&shar->work, "\n");
 		}
 
 		/* TODO: restore ACLs */
@@ -567,6 +618,7 @@ archive_write_shar_destroy(struct archive_write *a)
 	archive_entry_free(shar->entry);
 	free(shar->last_dir);
 	archive_string_free(&(shar->work));
+	archive_string_free(&(shar->quoted_name));
 	free(shar);
 	a->format_data = NULL;
 	return (ARCHIVE_OK);
