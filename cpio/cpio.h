@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD: src/usr.bin/cpio/cpio.h,v 1.2 2008/06/21 02:20:20 kientzle Exp $
+ * $FreeBSD: src/usr.bin/cpio/cpio.h,v 1.3 2008/07/29 15:23:31 kientzle Exp $
  */
 
 #ifndef CPIO_H_INCLUDED
@@ -94,6 +94,7 @@ int	owner_parse(const char *, int *, int *);
 /* Fake short equivalents for long options that otherwise lack them. */
 enum {
 	OPTION_INSECURE = 1,
+	OPTION_NO_PRESERVE_OWNER,
 	OPTION_QUIET,
 	OPTION_VERSION
 };

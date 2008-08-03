@@ -24,7 +24,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_format_tar.c,v 1.69 2008/05/27 04:46:12 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_format_tar.c,v 1.70 2008/07/10 09:50:55 cperciva Exp $");
 
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
@@ -2161,7 +2161,6 @@ utf8_decode(struct tar *tar, const char *src, size_t length)
 {
 	wchar_t *dest;
 	ssize_t n;
-	int err;
 
 	/* Ensure pax_entry buffer is big enough. */
 	if (tar->pax_entry_length <= length) {
@@ -2183,7 +2182,6 @@ utf8_decode(struct tar *tar, const char *src, size_t length)
 	}
 
 	dest = tar->pax_entry;
-	err = 0;
 	while (length > 0) {
 		n = UTF8_mbrtowc(dest, src, length);
 		if (n < 0)

@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD: src/usr.bin/tar/bsdtar.h,v 1.33 2008/05/26 17:10:10 kientzle Exp $
+ * $FreeBSD: src/usr.bin/tar/bsdtar.h,v 1.34 2008/07/05 08:03:08 cperciva Exp $
  */
 
 #include "bsdtar_platform.h"
@@ -94,6 +94,7 @@ struct bsdtar {
 	struct archive_entry_linkresolver *resolver;
 	struct archive_dir	*archive_dir;	/* for write.c */
 	struct name_cache	*gname_cache;	/* for write.c */
+	char			*buff;		/* for write.c */
 	struct matching		*matching;	/* for matching.c */
 	struct security		*security;	/* for read.c */
 	struct name_cache	*uname_cache;	/* for write.c */

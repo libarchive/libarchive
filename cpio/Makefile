@@ -1,4 +1,4 @@
-# $FreeBSD: src/usr.bin/cpio/Makefile,v 1.4 2008/06/16 07:24:05 dougb Exp $
+# $FreeBSD: src/usr.bin/cpio/Makefile,v 1.5 2008/07/05 05:17:33 kientzle Exp $
 
 .include <bsd.own.mk>
 

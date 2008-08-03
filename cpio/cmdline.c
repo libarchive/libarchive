@@ -26,7 +26,7 @@
 
 
 #include "cpio_platform.h"
-__FBSDID("$FreeBSD: src/usr.bin/cpio/cmdline.c,v 1.3 2008/06/21 02:20:20 kientzle Exp $");
+__FBSDID("$FreeBSD: src/usr.bin/cpio/cmdline.c,v 1.4 2008/07/29 15:23:31 kientzle Exp $");
 
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
@@ -91,6 +91,7 @@ static const struct option cpio_longopts[] = {
 	{ "link",		no_argument,	   NULL, 'l' },
 	{ "list",		no_argument,	   NULL, 't' },
 	{ "make-directories",	no_argument,	   NULL, 'd' },
+	{ "no-preserve-owner",	no_argument,  NULL, OPTION_NO_PRESERVE_OWNER },
 	{ "null",		no_argument,	   NULL, '0' },
 	{ "owner",		required_argument, NULL, 'R' },
 	{ "pass-through",	no_argument,	   NULL, 'p' },

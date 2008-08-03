@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/cpio/config_freebsd.h,v 1.2 2008/07/05 05:15:07 kientzle Exp $
  */
 
 /* A default configuration for FreeBSD, used if there is no config.h. */

@@ -26,7 +26,7 @@
 
 
 #include "cpio_platform.h"
-__FBSDID("$FreeBSD: src/usr.bin/cpio/cpio.c,v 1.4 2008/06/24 15:18:40 kientzle Exp $");
+__FBSDID("$FreeBSD: src/usr.bin/cpio/cpio.c,v 1.10 2008/07/30 03:35:45 kientzle Exp $");
 
 #include <sys/types.h>
 #include <archive.h>
@@ -175,6 +175,9 @@ main(int argc, char *argv[])
 			break;
 		case 'm': /* POSIX 1997 */
 			cpio->extract_flags |= ARCHIVE_EXTRACT_TIME;
+			break;
+		case OPTION_NO_PRESERVE_OWNER: /* GNU cpio */
+			cpio->extract_flags &= ~ARCHIVE_EXTRACT_OWNER;
 			break;
 		case 'O': /* GNU cpio */
 			cpio->filename = optarg;
