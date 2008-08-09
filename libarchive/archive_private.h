@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD: src/lib/libarchive/archive_private.h,v 1.29 2007/04/02 00:15:45 kientzle Exp $
+ * $FreeBSD: src/lib/libarchive/archive_private.h,v 1.30 2008/08/04 01:25:48 cperciva Exp $
  */
 
 #ifndef ARCHIVE_PRIVATE_H_INCLUDED
@@ -92,7 +92,7 @@ struct archive {
 void	__archive_check_magic(struct archive *, unsigned int magic,
 	    unsigned int state, const char *func);
 
-void	__archive_errx(int retvalue, const char *msg);
+void	__archive_errx(int retvalue, const char *msg) __dead2;
 
 #define	err_combine(a,b)	((a) < (b) ? (a) : (b))
 
