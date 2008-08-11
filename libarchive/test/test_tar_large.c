@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_tar_large.c,v 1.2 2008/05/26 17:00:24 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_tar_large.c,v 1.3 2008/08/10 21:14:26 kientzle Exp $");
 
 #include <errno.h>
 #include <stdlib.h>
@@ -179,7 +179,6 @@ memory_read_skip(struct archive *a, void *private, size_t skip)
 #else
 static off_t
 memory_read_skip(struct archive *a, void *_private, off_t skip)
-#endif
 {
 	struct memdata *private = _private;
 
@@ -198,6 +197,7 @@ memory_read_skip(struct archive *a, void *_private, off_t skip)
 	}
 	return (skip);
 }
+#endif
 
 DEFINE_TEST(test_tar_large)
 {

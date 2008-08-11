@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_compat_tar_hardlink.c,v 1.2 2008/03/12 05:12:23 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_compat_tar_hardlink.c,v 1.3 2008/08/11 01:19:36 kientzle Exp $");
 
 /*
  * Background:  There are two written standards for the tar file format.
@@ -93,7 +93,11 @@ test_compat_tar_hardlink_1(void)
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+#if ARCHIVE_VERSION_NUMBER < 2000000
+	archive_read_finish(a);
+#else
 	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+#endif
 }
 
 DEFINE_TEST(test_compat_tar_hardlink)

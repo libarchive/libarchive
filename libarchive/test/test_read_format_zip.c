@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_zip.c,v 1.5 2008/06/26 11:50:11 des Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_zip.c,v 1.6 2008/08/10 03:13:42 kientzle Exp $");
 
 DEFINE_TEST(test_read_format_zip)
 {
@@ -51,12 +51,14 @@ DEFINE_TEST(test_read_format_zip)
 	assertEqualString("file1", archive_entry_pathname(ae));
 	assertEqualInt(1179604289, archive_entry_mtime(ae));
 	assertEqualInt(18, archive_entry_size(ae));
+	failure("archive_read_data() returns number of bytes read");
 	assertEqualInt(18, archive_read_data(a, buff, 19));
 	assert(0 == memcmp(buff, "hello\nhello\nhello\n", 18));
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualString("file2", archive_entry_pathname(ae));
 	assertEqualInt(1179605932, archive_entry_mtime(ae));
 	assertEqualInt(18, archive_entry_size(ae));
+	failure("file2 has a bad CRC, so reading to end should fail");
 	assertEqualInt(ARCHIVE_WARN, archive_read_data(a, buff, 19));
 	assert(0 == memcmp(buff, "hello\nhello\nhello\n", 18));
 	assertA(archive_compression(a) == ARCHIVE_COMPRESSION_NONE);

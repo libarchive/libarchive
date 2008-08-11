@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_pax_filename_encoding.c,v 1.2 2008/05/26 17:00:24 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_pax_filename_encoding.c,v 1.3 2008/08/11 01:19:36 kientzle Exp $");
 
 #include <locale.h>
 
@@ -149,7 +149,11 @@ DEFINE_TEST(test_pax_filename_encoding_2)
 	archive_entry_free(entry);
 
 	assertEqualInt(0, archive_write_close(a));
+#if ARCHIVE_VERSION_NUMBER < 2000000
+	archive_write_finish(a);
+#else
 	assertEqualInt(0, archive_write_finish(a));
+#endif
 
 	/*
 	 * Now read the entries back.
@@ -175,7 +179,11 @@ DEFINE_TEST(test_pax_filename_encoding_2)
 	assertEqualString(longname, archive_entry_pathname(entry));
 
 	assertEqualInt(0, archive_read_close(a));
+#if ARCHIVE_VERSION_NUMBER < 2000000
+	archive_read_finish(a);
+#else
 	assertEqualInt(0, archive_read_finish(a));
+#endif
 }
 
 /*
@@ -249,7 +257,11 @@ DEFINE_TEST(test_pax_filename_encoding_3)
 	archive_entry_free(entry);
 
 	assertEqualInt(0, archive_write_close(a));
+#if ARCHIVE_VERSION_NUMBER < 2000000
+	archive_write_finish(a);
+#else
 	assertEqualInt(0, archive_write_finish(a));
+#endif
 
 	/*
 	 * Now read the entries back.
@@ -293,5 +305,9 @@ DEFINE_TEST(test_pax_filename_encoding_3)
 	assertEqualInt(ARCHIVE_EOF, archive_read_next_header(a, &entry));
 
 	assertEqualInt(0, archive_read_close(a));
+#if ARCHIVE_VERSION_NUMBER < 2000000
+	archive_read_finish(a);
+#else
 	assertEqualInt(0, archive_read_finish(a));
+#endif
 }

@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_format_tar_ustar.c,v 1.2 2008/08/11 01:19:36 kientzle Exp $");
 
 static int
 is_null(const char *p, size_t l)
@@ -188,7 +188,11 @@ DEFINE_TEST(test_write_format_tar_ustar)
 	assertEqualIntA(a, 0, archive_write_header(a, entry));
 	archive_entry_free(entry);
 
+#if ARCHIVE_VERSION_NUMBER < 2000000
+	archive_write_finish(a);
+#else
 	assert(0 == archive_write_finish(a));
+#endif
 
 	/*
 	 * Verify the archive format.

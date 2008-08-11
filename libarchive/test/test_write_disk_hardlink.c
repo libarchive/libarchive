@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_disk_hardlink.c,v 1.2 2008/05/26 17:00:24 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_disk_hardlink.c,v 1.3 2008/08/11 01:19:36 kientzle Exp $");
 
 #define UMASK 022
 
@@ -132,7 +132,11 @@ DEFINE_TEST(test_write_disk_hardlink)
 	assertEqualInt(sizeof(data), archive_write_data(ad, data, sizeof(data)));
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
 	archive_entry_free(ae);
+#if ARCHIVE_VERSION_NUMBER < 2000000
+	archive_write_finish(ad);
+#else
 	assertEqualInt(0, archive_write_finish(ad));
+#endif
 
 	/* Test the entries on disk. */
 	assert(0 == stat("link1a", &st));
