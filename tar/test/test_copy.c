@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/usr.bin/tar/test/test_copy.c,v 1.2 2008/05/26 17:10:10 kientzle Exp $");
+__FBSDID("$FreeBSD: src/usr.bin/tar/test/test_copy.c,v 1.3 2008/08/15 06:12:02 kientzle Exp $");
 
 static void
 create_tree(void)
@@ -196,6 +196,9 @@ verify_tree(int limit)
 		char dir[2];
 		dir[0] = *dp; dir[1] = '\0';
 		d = opendir(dir);
+		failure("Unable to open dir '%s'", dir);
+		if (!assert(d != NULL))
+			continue;
 		while ((de = readdir(d)) != NULL) {
 			p = de->d_name;
 			switch(dp[0]) {
