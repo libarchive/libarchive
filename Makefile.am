@@ -140,8 +140,9 @@ libarchive_la_SOURCES=						\
 	libarchive/filter_fork.h
 
 libarchive_la_CPPFLAGS=-I $(top_builddir)/libarchive
-# cygwin barfs without -no-undefined; I don't know what it does or
-# whether it helps or hurts other platforms...
+# -no-undefined marks that libarchive doesn't rely on symbols
+# defined in the application.  This is required for cygwin and
+# seems to be ignored on other platforms.
 libarchive_la_LDFLAGS= -no-undefined -version-info $(ARCHIVE_LIBTOOL_VERSION)
 
 # Manpages to install
