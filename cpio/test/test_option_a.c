@@ -24,7 +24,7 @@
  */
 #include "test.h"
 #include <utime.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_option_a.c,v 1.2 2008/08/22 02:27:06 kientzle Exp $");
 
 static struct {
 	const char *name;
@@ -118,6 +118,7 @@ DEFINE_TEST(test_option_a)
 		/* Copy the file without -a; should change the atime. */
 		r = systemf("echo %s | %s -pd copy-no-a > copy-no-a.out 2>copy-no-a.err", files[1].name, testprog);
 		assertEqualInt(r, 0);
+		/* bsdcpio writes nothing to stderr in -p mode */
 		assertEmptyFile("copy-no-a.err");
 		assertEmptyFile("copy-no-a.out");
 		assertEqualInt(0, stat(files[1].name, &st));

@@ -1,4 +1,4 @@
-# $FreeBSD: src/usr.bin/tar/Makefile,v 1.37 2008/07/05 02:09:54 kientzle Exp $
+# $FreeBSD: src/usr.bin/tar/Makefile,v 1.38 2008/08/22 01:31:13 kientzle Exp $
 
 PROG=	bsdtar
 BSDTAR_VERSION_STRING=2.5.5
@@ -14,6 +14,6 @@ MLINKS=	bsdtar.1 tar.1
 
 .PHONY: check test
 check test: $(PROG) bsdtar.1.gz
-	cd ${.CURDIR}/test && make clean test
+	cd ${.CURDIR}/test && make test
 
 .include <bsd.prog.mk>

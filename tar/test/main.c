@@ -44,7 +44,7 @@
 #undef	EXTRA_DUMP	     /* How to dump extra data */
 /* How to generate extra version info. */
 #define	EXTRA_VERSION    (systemf("%s --version", testprog) ? "" : "")
-__FBSDID("$FreeBSD: src/usr.bin/tar/test/main.c,v 1.3 2008/06/15 10:07:54 kientzle Exp $");
+__FBSDID("$FreeBSD: src/usr.bin/tar/test/main.c,v 1.4 2008/08/21 07:04:57 kientzle Exp $");
 
 /*
  * "list.h" is simply created by "grep DEFINE_TEST"; it has
@@ -498,6 +498,37 @@ test_assert_empty_file(const char *f1fmt, ...)
 		s = read(fd, buff, s);
 		hexdump(buff, NULL, s, 0);
 	}
+	report_failure(NULL);
+	return (0);
+}
+
+int
+test_assert_non_empty_file(const char *f1fmt, ...)
+{
+	char f1[1024];
+	struct stat st;
+	va_list ap;
+
+
+	va_start(ap, f1fmt);
+	vsprintf(f1, f1fmt, ap);
+	va_end(ap);
+
+	if (stat(f1, &st) != 0) {
+		fprintf(stderr, "%s:%d: Could not stat: %s\n",
+		    test_filename, test_line, f1);
+		report_failure(NULL);
+		return (0);
+	}
+	if (st.st_size != 0)
+		return (1);
+
+	failures ++;
+	if (!verbose && previous_failures(test_filename, test_line))
+		return (0);
+
+	fprintf(stderr, "%s:%d: File empty: %s\n",
+	    test_filename, test_line, f1);
 	report_failure(NULL);
 	return (0);
 }

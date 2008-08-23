@@ -1,4 +1,4 @@
-# $FreeBSD: src/usr.bin/tar/test/Makefile,v 1.2 2008/05/26 17:10:10 kientzle Exp $
+# $FreeBSD: src/usr.bin/tar/test/Makefile,v 1.3 2008/08/22 01:22:55 kientzle Exp $
 
 # Where to find the tar sources (for the internal unit tests)
 TAR_SRCDIR=${.CURDIR}/..
@@ -15,6 +15,7 @@ TESTS=	\
 	test_getdate.c				\
 	test_help.c				\
 	test_option_T.c				\
+	test_option_q.c				\
 	test_patterns.c				\
 	test_stdio.c				\
 	test_version.c

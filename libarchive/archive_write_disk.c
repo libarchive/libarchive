@@ -25,7 +25,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/archive_write_disk.c,v 1.28 2008/07/05 01:48:33 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_write_disk.c,v 1.29 2008/08/24 05:01:01 kientzle Exp $");
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -906,7 +906,11 @@ restore_entry(struct archive_write_disk *a)
 
 		/* TODO: if it's a symlink... */
 
-		if (a->flags & ARCHIVE_EXTRACT_NO_OVERWRITE_NEWER) {
+		/*
+		 * NO_OVERWRITE_NEWER doesn't apply to directories.
+		 */
+		if ((a->flags & ARCHIVE_EXTRACT_NO_OVERWRITE_NEWER)
+		    &&  !S_ISDIR(a->st.st_mode)) {
 			if (!older(&(a->st), a->entry)) {
 				archive_set_error(&a->archive, 0,
 				    "File on disk is not older; skipping.");

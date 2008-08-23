@@ -44,7 +44,7 @@
 #undef	EXTRA_DUMP	     /* How to dump extra data */
 /* How to generate extra version info. */
 #define	EXTRA_VERSION    (systemf("%s --version", testprog) ? "" : "")
-__FBSDID("$FreeBSD: src/usr.bin/cpio/test/main.c,v 1.2 2008/06/21 02:17:18 kientzle Exp $");
+__FBSDID("$FreeBSD: src/usr.bin/cpio/test/main.c,v 1.3 2008/08/24 04:58:22 kientzle Exp $");
 
 /*
  * "list.h" is simply created by "grep DEFINE_TEST"; it has
@@ -598,8 +598,8 @@ test_assert_file_contents(const void *buff, int s, const char *fpattern, ...)
 	va_end(ap);
 
 	fd = open(f, O_RDONLY);
-	contents = malloc(s * 2);
-	n = read(fd, contents, s * 2);
+	contents = malloc(s * 2 + 128);
+	n = read(fd, contents, s * 2 + 128);
 	if (n == s && memcmp(buff, contents, s) == 0) {
 		free(contents);
 		return (1);

@@ -1,4 +1,4 @@
-# $FreeBSD: src/lib/libarchive/test/Makefile,v 1.11 2007/07/13 15:14:35 kientzle Exp $
+# $FreeBSD: src/usr.bin/cpio/test/Makefile,v 1.3 2008/08/24 05:14:03 kientzle Exp $
 
 # Where to find the cpio sources (for the internal unit tests)
 CPIO_SRCDIR=${.CURDIR}/..
@@ -27,7 +27,9 @@ TESTS=	\
 	test_option_y.c				\
 	test_option_z.c				\
 	test_owner_parse.c			\
-	test_pathmatch.c			\
+	test_passthrough_dotdot.c		\
+	test_passthrough_reverse.c		\
+	test_pathmatch.c
 
 # Build the test program
 SRCS= list.h					\
