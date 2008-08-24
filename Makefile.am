@@ -141,8 +141,7 @@ libarchive_la_SOURCES=						\
 
 libarchive_la_CPPFLAGS=-I $(top_builddir)/libarchive
 # -no-undefined marks that libarchive doesn't rely on symbols
-# defined in the application.  This is required for cygwin and
-# seems to be ignored on other platforms.
+# defined in the application.  This is mandatory for cygwin.
 libarchive_la_LDFLAGS= -no-undefined -version-info $(ARCHIVE_LIBTOOL_VERSION)
 
 # Manpages to install
