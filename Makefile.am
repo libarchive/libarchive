@@ -407,6 +407,8 @@ bsdcpio_test_SOURCES=						\
 	cpio/test/test_option_y.c				\
 	cpio/test/test_option_z.c				\
 	cpio/test/test_owner_parse.c				\
+	cpio/test/test_passthrough_dotdot.c			\
+	cpio/test/test_passthrough_reverse.c			\
 	cpio/test/test_pathmatch.c
 
 bsdcpio_test_CPPFLAGS= -I$(top_builddir)/libarchive -I$(top_srcdir)/libarchive -I$(top_builddir)/cpio/test
