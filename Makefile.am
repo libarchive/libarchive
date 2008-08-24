@@ -335,6 +335,10 @@ bsdtar_test_programs=
 bsdtar_TESTS_ENVIRONMENT=
 endif
 
+bsdtar_test_EXTRA_DIST=			\
+	tar/test/test_patterns_2.tgz.uu	\
+	tar/test/test_patterns_3.tgz.uu
+
 
 #
 #
