@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_option_L.c,v 1.2 2008/08/24 06:21:00 kientzle Exp $");
 
 DEFINE_TEST(test_option_L)
 {
@@ -55,7 +55,7 @@ DEFINE_TEST(test_option_L)
 	r = systemf("cat filelist | %s -pd -L copy-L >copy-L.out 2>copy-L.err", testprog);
 	assertEqualInt(r, 0);
 	assertEmptyFile("copy-L.out");
-	assertEmptyFile("copy-L.err");
+	assertFileContents("1 block\n", 8, "copy-L.err");
 	assertEqualInt(0, lstat("copy-L/symlink", &st));
 	failure("-pdL should dereference symlinks and turn them into files.");
 	assert(!S_ISLNK(st.st_mode));

@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_basic.c,v 1.2 2008/08/22 02:27:06 kientzle Exp $");
+__FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_basic.c,v 1.3 2008/08/24 06:21:00 kientzle Exp $");
 
 static void
 verify_files(const char *target)
@@ -165,10 +165,7 @@ passthrough(const char *target)
 	/* Verify stderr. */
 	failure("Error invoking %s -p in dir %s",
 	    testprog, target);
-	/* gcpio 2.9 writes "1 block" to stderr */
-	/* assertFileContents("1 block\n", 8, "stderr"); */
-	/* bsdcpio writes nothing to stderr for passthrough mode */
-	assertFileContents("", 0, "stderr");
+	assertFileContents("1 block\n", 8, "stderr");
 
 	verify_files(target);
 	chdir("..");
@@ -221,10 +218,8 @@ DEFINE_TEST(test_basic)
 	basic_cpio("copy", "", "", "2 blocks\n");
 	basic_cpio("copy_odc", "--format=odc", "", "2 blocks\n");
 	basic_cpio("copy_newc", "-H newc", "", "2 blocks\n");
-	basic_cpio("copy_cpio", "-H odc", "", "1 block\n");
-	/* For some reason, gcpio 2.9 writes 7 blocks but only reads 6? */
-	/* bsdcpio writes 7 blocks and reads 7 blocks. */
-	basic_cpio("copy_ustar", "-H ustar", "", "7 blocks\n");
+	basic_cpio("copy_cpio", "-H odc", "", "2 blocks\n");
+	basic_cpio("copy_ustar", "-H ustar", "", "9 blocks\n");
 	/* Copy in one step using -p */
 	passthrough("passthrough");
 

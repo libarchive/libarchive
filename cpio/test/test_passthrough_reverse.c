@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_passthrough_reverse.c,v 1.1 2008/08/24 04:58:22 kientzle Exp $");
+__FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_passthrough_reverse.c,v 1.2 2008/08/24 06:21:00 kientzle Exp $");
 
 /*
  * As reported by Bernd Walter:  Some people are in the habit of
@@ -75,7 +75,8 @@ DEFINE_TEST(test_passthrough_reverse)
 	assertEqualInt(0, chdir("out"));
 
 	/* Verify stderr and stdout. */
-	assertFileContents("out/dir/file\nout/dir\n", 21, "../stderr");
+	assertFileContents("out/dir/file\nout/dir\n1 block\n", 29,
+	    "../stderr");
 	assertEmptyFile("../stdout");
 
 	/* dir */

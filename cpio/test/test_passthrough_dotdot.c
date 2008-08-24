@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_passthrough_dotdot.c,v 1.2 2008/08/24 05:24:52 kientzle Exp $");
+__FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_passthrough_dotdot.c,v 1.4 2008/08/24 06:21:00 kientzle Exp $");
 
 /*
  * Verify that "cpio -p .." works.
@@ -71,7 +71,7 @@ DEFINE_TEST(test_passthrough_dotdot)
 	assertEqualInt(0, chdir(".."));
 
 	/* Verify stderr and stdout. */
-	assertFileContents("../file\n", 8, "stderr");
+	assertFileContents("../.\n../file\n1 block\n", 21, "stderr");
 	assertEmptyFile("stdout");
 
 	/* Regular file. */

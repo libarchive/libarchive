@@ -316,6 +316,7 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_copy.c					\
 	tar/test/test_getdate.c					\
 	tar/test/test_help.c					\
+	tar/test/test_option_q.c				\
 	tar/test/test_option_T.c				\
 	tar/test/test_patterns.c				\
 	tar/test/test_stdio.c					\
@@ -395,14 +396,14 @@ bsdcpio_test_SOURCES=						\
 	cpio/test/test_basic.c					\
 	cpio/test/test_format_newc.c				\
 	cpio/test/test_gcpio_compat.c				\
-	cpio/test/test_option_a.c				\
 	cpio/test/test_option_B.c				\
+	cpio/test/test_option_L.c				\
+	cpio/test/test_option_a.c				\
 	cpio/test/test_option_c.c				\
 	cpio/test/test_option_d.c				\
+	cpio/test/test_option_ell.c				\
 	cpio/test/test_option_f.c				\
 	cpio/test/test_option_help.c				\
-	cpio/test/test_option_L.c				\
-	cpio/test/test_option_ell.c				\
 	cpio/test/test_option_m.c				\
 	cpio/test/test_option_t.c				\
 	cpio/test/test_option_u.c				\
