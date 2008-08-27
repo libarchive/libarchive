@@ -1,4 +1,4 @@
-# $FreeBSD: src/lib/libarchive/test/Makefile,v 1.23 2008/06/26 11:58:26 des Exp $
+# $FreeBSD: src/lib/libarchive/test/Makefile,v 1.24 2008/08/25 06:08:22 kientzle Exp $
 
 # Where to find the libarchive sources
 LA_SRCDIR=${.CURDIR}/..
@@ -51,21 +51,21 @@ TESTS= \
 	test_tar_filenames.c			\
 	test_tar_large.c			\
 	test_ustar_filenames.c			\
-	test_write_compress_program.c		\
 	test_write_compress.c			\
+	test_write_compress_program.c		\
 	test_write_disk.c			\
 	test_write_disk_hardlink.c		\
 	test_write_disk_perms.c			\
 	test_write_disk_secure.c		\
 	test_write_format_ar.c			\
 	test_write_format_cpio.c		\
-	test_write_format_cpio_odc.c		\
-	test_write_format_cpio_newc.c		\
 	test_write_format_cpio_empty.c		\
+	test_write_format_cpio_newc.c		\
+	test_write_format_cpio_odc.c		\
 	test_write_format_shar_empty.c		\
 	test_write_format_tar.c			\
-	test_write_format_tar_ustar.c		\
 	test_write_format_tar_empty.c		\
+	test_write_format_tar_ustar.c		\
 	test_write_open_memory.c
 
 
