@@ -445,7 +445,7 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 
 	if ((a->deferred & TODO_TIMES)
 		&& (archive_entry_mtime_is_set(entry)
-		    || archive_entry_atime_is_set(entry)))) {
+		    || archive_entry_atime_is_set(entry))) {
 		fe = current_fixup(a, archive_entry_pathname(entry));
 		fe->fixup |= TODO_TIMES;
 		if (archive_entry_mtime_is_set(entry)) {

@@ -191,6 +191,7 @@ __LA_DECL __LA_INO_T	 archive_entry_ino(struct archive_entry *);
 __LA_DECL __LA_MODE_T	 archive_entry_mode(struct archive_entry *);
 __LA_DECL time_t	 archive_entry_mtime(struct archive_entry *);
 __LA_DECL long		 archive_entry_mtime_nsec(struct archive_entry *);
+__LA_DECL int		 archive_entry_mtime_is_set(struct archive_entry *);
 __LA_DECL unsigned int	 archive_entry_nlink(struct archive_entry *);
 __LA_DECL const char	*archive_entry_pathname(struct archive_entry *);
 __LA_DECL const wchar_t	*archive_entry_pathname_w(struct archive_entry *);
@@ -278,6 +279,7 @@ __LA_DECL int	archive_entry_update_uname_utf8(struct archive_entry *, const char
  */
 __LA_DECL const struct stat	*archive_entry_stat(struct archive_entry *);
 __LA_DECL void	archive_entry_copy_stat(struct archive_entry *, const struct stat *);
+
 
 /*
  * ACL routines.  This used to simply store and return text-format ACL

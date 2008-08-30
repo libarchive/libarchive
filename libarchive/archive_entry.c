@@ -604,6 +604,12 @@ archive_entry_mtime_nsec(struct archive_entry *entry)
 	return (entry->ae_stat.aest_mtime_nsec);
 }
 
+int
+archive_entry_mtime_is_set(struct archive_entry *entry)
+{
+	return (entry->ae_set & AE_SET_MTIME);
+}
+
 unsigned int
 archive_entry_nlink(struct archive_entry *entry)
 {
@@ -822,6 +828,7 @@ void
 archive_entry_set_ctime(struct archive_entry *entry, time_t t, long ns)
 {
 	entry->stat_valid = 0;
+	entry->ae_set |= AE_SET_CTIME;
 	entry->ae_stat.aest_ctime = t;
 	entry->ae_stat.aest_ctime_nsec = ns;
 }
@@ -900,6 +907,7 @@ void
 archive_entry_set_mtime(struct archive_entry *entry, time_t m, long ns)
 {
 	entry->stat_valid = 0;
+	entry->ae_set |= AE_SET_MTIME;
 	entry->ae_stat.aest_mtime = m;
 	entry->ae_stat.aest_mtime_nsec = ns;
 }

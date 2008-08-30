@@ -140,7 +140,10 @@ struct archive_entry {
 #define	AE_SET_HARDLINK	1
 #define	AE_SET_SYMLINK	2
 #define	AE_SET_ATIME	4
-#define	AE_SET_SIZE	32
+#define	AE_SET_CTIME	8
+#define	AE_SET_MTIME	16
+#define	AE_SET_BIRTHTIME	32
+#define	AE_SET_SIZE	64
 
 	/*
 	 * Use aes here so that we get transparent mbs<->wcs conversions.
