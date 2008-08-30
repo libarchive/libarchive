@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_disk.c,v 1.9 2008/06/15 10:35:22 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_disk.c,v 1.11 2008/08/30 05:31:23 kientzle Exp $");
 
 #define UMASK 022
 
@@ -61,7 +61,7 @@ static void create_reg_file(struct archive_entry *ae, const char *msg)
 
 	/* Write the entry to disk. */
 	assert((ad = archive_write_disk_new()) != NULL);
-	archive_write_disk_set_options(ad, ARCHIVE_EXTRACT_TIME);
+        archive_write_disk_set_options(ad, ARCHIVE_EXTRACT_TIME);
 	failure("%s", msg);
 	/*
 	 * A touchy API design issue: archive_write_data() does (as of
@@ -95,10 +95,10 @@ static void create_reg_file(struct archive_entry *ae, const char *msg)
 	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
 	    st.st_mode, archive_entry_mode(ae));
 	assertEqualInt(st.st_mode, (archive_entry_mode(ae) & ~UMASK));
-	failure("Old bug: if no atime specified, atime got set to Jan 1, 1970");
-	assert(st.st_atime != 0);
 	assertEqualInt(st.st_size, sizeof(data));
-	assertEqualInt(st.st_mtime, 123456789);
+        failure("No atime was specified, so atime should get set to mtime");
+        assertEqualInt(st.st_atime, st.st_mtime);
+        assertEqualInt(st.st_mtime, 123456789);
 }
 
 static void create_reg_file2(struct archive_entry *ae, const char *msg)
