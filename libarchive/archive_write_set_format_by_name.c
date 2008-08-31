@@ -44,14 +44,14 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_write_set_format_by_name.c,v 1.7 
 static
 struct { const char *name; int (*setter)(struct archive *); } names[] =
 {
-	{ "arbsd",	archive_write_set_format_ar_bsd },
 	{ "ar",		archive_write_set_format_ar_bsd },
+	{ "arbsd",	archive_write_set_format_ar_bsd },
 	{ "argnu",	archive_write_set_format_ar_svr4 },
 	{ "arsvr4",	archive_write_set_format_ar_svr4 },
 	{ "cpio",	archive_write_set_format_cpio },
+	{ "mtree",	archive_write_set_format_mtree },
 	{ "newc",	archive_write_set_format_cpio_newc },
 	{ "odc",	archive_write_set_format_cpio },
-	{ "mtree",	archive_write_set_format_mtree },
 	{ "pax",	archive_write_set_format_pax },
 	{ "posix",	archive_write_set_format_pax },
 	{ "shar",	archive_write_set_format_shar },
