@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_format_tar.c,v 1.3 2007/05/29 01:00:21 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_format_tar.c,v 1.4 2008/09/01 05:38:33 kientzle Exp $");
 
 char buff[1000000];
 char buff2[64];
@@ -72,10 +72,10 @@ DEFINE_TEST(test_write_format_tar)
 
 		/* Close out the archive. */
 		assertA(0 == archive_write_close(a));
-#if ARCHIVE_API_VERSION > 1
-		assertA(0 == archive_write_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 		archive_write_finish(a);
+#else
+		assertA(0 == archive_write_finish(a));
 #endif
 		/* This calculation gives "the smallest multiple of
 		 * the block size that is at least 2048 bytes". */
@@ -105,10 +105,10 @@ DEFINE_TEST(test_write_format_tar)
 		/* Verify the end of the archive. */
 		assert(1 == archive_read_next_header(a, &ae));
 		assert(0 == archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-		assert(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 		archive_read_finish(a);
+#else
+		assert(0 == archive_read_finish(a));
 #endif
 	}
 }

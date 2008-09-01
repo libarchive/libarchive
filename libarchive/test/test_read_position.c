@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_position.c,v 1.3 2007/05/29 01:00:21 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_position.c,v 1.4 2008/09/01 05:38:33 kientzle Exp $");
 
 static unsigned char nulls[10000000];
 static unsigned char buff[10000000];
@@ -49,11 +49,11 @@ DEFINE_TEST(test_read_position)
 	assertA(0 == archive_write_header(a, ae));
 	archive_entry_free(ae);
 	assertA(data_size == (size_t)archive_write_data(a, nulls, sizeof(nulls)));
-#if ARCHIVE_API_VERSION > 1
-	assertA(0 == archive_write_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	assertA(0 == archive_write_close(a));
 	archive_write_finish(a);
+#else
+	assertA(0 == archive_write_finish(a));
 #endif
 	/* 512-byte header + data_size (rounded up) + 1024 end-of-archive */
 	assert(write_pos == ((512 + data_size + 1024 + 511)/512)*512);

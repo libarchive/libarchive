@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_cpio_odc.c,v 1.2 2008/01/01 22:28:04 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_cpio_odc.c,v 1.3 2008/09/01 05:38:33 kientzle Exp $");
 
 static unsigned char archive[] = {
 '0','7','0','7','0','7','0','0','2','0','2','5','0','7','4','6','6','1','0',
@@ -58,10 +58,10 @@ DEFINE_TEST(test_read_format_cpio_odc)
 	assertA(archive_compression(a) == ARCHIVE_COMPRESSION_NONE);
 	assertA(archive_format(a) == ARCHIVE_FORMAT_CPIO_POSIX);
 	assert(0 == archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assert(0 == archive_read_finish(a));
 #endif
 }
 

@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_zip.c,v 1.6 2008/08/10 03:13:42 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_zip.c,v 1.7 2008/09/01 05:38:33 kientzle Exp $");
 
 DEFINE_TEST(test_read_format_zip)
 {
@@ -65,10 +65,10 @@ DEFINE_TEST(test_read_format_zip)
 	assertA(archive_format(a) == ARCHIVE_FORMAT_ZIP);
 	assert(0 == archive_read_close(a));
 
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assert(0 == archive_read_finish(a));
 #endif
 }
 

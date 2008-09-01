@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_entry.c,v 1.6 2008/05/26 17:00:24 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_entry.c,v 1.8 2008/09/01 05:38:33 kientzle Exp $");
 
 #include <locale.h>
 
@@ -69,15 +69,26 @@ DEFINE_TEST(test_entry)
 	 * The following tests are ordered alphabetically by the
 	 * name of the field.
 	 */
+
 	/* atime */
 	archive_entry_set_atime(e, 13579, 24680);
 	assertEqualInt(archive_entry_atime(e), 13579);
 	assertEqualInt(archive_entry_atime_nsec(e), 24680);
+	archive_entry_unset_atime(e);
+	assertEqualInt(archive_entry_atime(e), 0);
+	assertEqualInt(archive_entry_atime_nsec(e), 0);
+	assert(!archive_entry_atime_is_set(e));
+
 	/* ctime */
 	archive_entry_set_ctime(e, 13580, 24681);
 	assertEqualInt(archive_entry_ctime(e), 13580);
 	assertEqualInt(archive_entry_ctime_nsec(e), 24681);
-#if ARCHIVE_VERSION_STAMP >= 1009000
+	archive_entry_unset_ctime(e);
+	assertEqualInt(archive_entry_ctime(e), 0);
+	assertEqualInt(archive_entry_ctime_nsec(e), 0);
+	assert(!archive_entry_ctime_is_set(e));
+
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	/* dev */
 	archive_entry_set_dev(e, 235);
 	assertEqualInt(archive_entry_dev(e), 235);
@@ -85,17 +96,21 @@ DEFINE_TEST(test_entry)
 	skipping("archive_entry_dev()");
 #endif
 	/* devmajor/devminor are tested specially below. */
-#if ARCHIVE_VERSION_STAMP >= 1009000
+
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	/* filetype */
 	archive_entry_set_filetype(e, AE_IFREG);
 	assertEqualInt(archive_entry_filetype(e), AE_IFREG);
 #else
 	skipping("archive_entry_filetype()");
 #endif
+
 	/* fflags are tested specially below */
+
 	/* gid */
 	archive_entry_set_gid(e, 204);
 	assertEqualInt(archive_entry_gid(e), 204);
+
 	/* gname */
 	archive_entry_set_gname(e, "group");
 	assertEqualString(archive_entry_gname(e), "group");
@@ -104,6 +119,7 @@ DEFINE_TEST(test_entry)
 	assertEqualWString(archive_entry_gname_w(e), L"wgroup");
 	memset(wbuff, 0, sizeof(wbuff));
 	assertEqualWString(archive_entry_gname_w(e), L"wgroup");
+
 	/* hardlink */
 	archive_entry_set_hardlink(e, "hardlinkname");
 	assertEqualString(archive_entry_hardlink(e), "hardlinkname");
@@ -117,7 +133,7 @@ DEFINE_TEST(test_entry)
 	assertEqualWString(archive_entry_hardlink_w(e), L"whardlink");
 	memset(wbuff, 0, sizeof(wbuff));
 	assertEqualWString(archive_entry_hardlink_w(e), L"whardlink");
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	/* ino */
 	archive_entry_set_ino(e, 8593);
 	assertEqualInt(archive_entry_ino(e), 8593);
@@ -158,17 +174,24 @@ DEFINE_TEST(test_entry)
 	/* mode */
 	archive_entry_set_mode(e, 0123456);
 	assertEqualInt(archive_entry_mode(e), 0123456);
+
 	/* mtime */
 	archive_entry_set_mtime(e, 13581, 24682);
 	assertEqualInt(archive_entry_mtime(e), 13581);
 	assertEqualInt(archive_entry_mtime_nsec(e), 24682);
-#if ARCHIVE_VERSION_STAMP >= 1009000
+	archive_entry_unset_mtime(e);
+	assertEqualInt(archive_entry_mtime(e), 0);
+	assertEqualInt(archive_entry_mtime_nsec(e), 0);
+	assert(!archive_entry_mtime_is_set(e));
+
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	/* nlink */
 	archive_entry_set_nlink(e, 736);
 	assertEqualInt(archive_entry_nlink(e), 736);
 #else
 	skipping("archive_entry_nlink()");
 #endif
+
 	/* pathname */
 	archive_entry_set_pathname(e, "path");
 	assertEqualString(archive_entry_pathname(e), "path");
@@ -184,7 +207,8 @@ DEFINE_TEST(test_entry)
 	assertEqualWString(archive_entry_pathname_w(e), L"wpath");
 	memset(wbuff, 0, sizeof(wbuff));
 	assertEqualWString(archive_entry_pathname_w(e), L"wpath");
-#if ARCHIVE_VERSION_STAMP >= 1009000
+
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	/* rdev */
 	archive_entry_set_rdev(e, 532);
 	assertEqualInt(archive_entry_rdev(e), 532);
@@ -192,13 +216,18 @@ DEFINE_TEST(test_entry)
 	skipping("archive_entry_rdev()");
 #endif
 	/* rdevmajor/rdevminor are tested specially below. */
+
 	/* size */
 	archive_entry_set_size(e, 987654321);
 	assertEqualInt(archive_entry_size(e), 987654321);
+	archive_entry_unset_size(e);
+	assertEqualInt(archive_entry_size(e), 0);
+	assert(!archive_entry_size_is_set(e));
+
 	/* symlink */
 	archive_entry_set_symlink(e, "symlinkname");
 	assertEqualString(archive_entry_symlink(e), "symlinkname");
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	strcpy(buff, "symlinkname2");
 	archive_entry_copy_symlink(e, buff);
 	assertEqualString(archive_entry_symlink(e), "symlinkname2");
@@ -207,9 +236,11 @@ DEFINE_TEST(test_entry)
 #endif
 	archive_entry_copy_symlink_w(e, L"wsymlink");
 	assertEqualWString(archive_entry_symlink_w(e), L"wsymlink");
+
 	/* uid */
 	archive_entry_set_uid(e, 83);
 	assertEqualInt(archive_entry_uid(e), 83);
+
 	/* uname */
 	archive_entry_set_uname(e, "user");
 	assertEqualString(archive_entry_uname(e), "user");
@@ -282,23 +313,23 @@ DEFINE_TEST(test_entry)
 	archive_entry_clear(e);
 	archive_entry_set_atime(e, 13579, 24680);
 	archive_entry_set_ctime(e, 13580, 24681);
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	archive_entry_set_dev(e, 235);
 #endif
 	archive_entry_set_fflags(e, 0x55, 0xAA);
 	archive_entry_set_gid(e, 204);
 	archive_entry_set_gname(e, "group");
 	archive_entry_set_hardlink(e, "hardlinkname");
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	archive_entry_set_ino(e, 8593);
 #endif
 	archive_entry_set_mode(e, 0123456);
 	archive_entry_set_mtime(e, 13581, 24682);
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	archive_entry_set_nlink(e, 736);
 #endif
 	archive_entry_set_pathname(e, "path");
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	archive_entry_set_rdev(e, 532);
 #endif
 	archive_entry_set_size(e, 987654321);
@@ -319,7 +350,7 @@ DEFINE_TEST(test_entry)
 	assertEqualInt(archive_entry_atime_nsec(e2), 24680);
 	assertEqualInt(archive_entry_ctime(e2), 13580);
 	assertEqualInt(archive_entry_ctime_nsec(e2), 24681);
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	assertEqualInt(archive_entry_dev(e2), 235);
 #endif
 	archive_entry_fflags(e, &set, &clear);
@@ -328,24 +359,24 @@ DEFINE_TEST(test_entry)
 	assertEqualInt(archive_entry_gid(e2), 204);
 	assertEqualString(archive_entry_gname(e2), "group");
 	assertEqualString(archive_entry_hardlink(e2), "hardlinkname");
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	assertEqualInt(archive_entry_ino(e2), 8593);
 #endif
 	assertEqualInt(archive_entry_mode(e2), 0123456);
 	assertEqualInt(archive_entry_mtime(e2), 13581);
 	assertEqualInt(archive_entry_mtime_nsec(e2), 24682);
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	assertEqualInt(archive_entry_nlink(e2), 736);
 #endif
 	assertEqualString(archive_entry_pathname(e2), "path");
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	assertEqualInt(archive_entry_rdev(e2), 532);
 #endif
 	assertEqualInt(archive_entry_size(e2), 987654321);
 	assertEqualString(archive_entry_symlink(e2), "symlinkname");
 	assertEqualInt(archive_entry_uid(e2), 83);
 	assertEqualString(archive_entry_uname(e2), "user");
-#if ARCHIVE_VERSION_STAMP < 1009000
+#if ARCHIVE_VERSION_NUMBER < 1009000
 	skipping("ACL preserved by archive_entry_clone()");
 #else
 	/* Verify ACL was copied. */
@@ -386,7 +417,7 @@ DEFINE_TEST(test_entry)
 	assertEqualInt(qual, 77);
 	assertEqualString(name, "user77");
 #endif
-#if ARCHIVE_VERSION_STAMP < 1009000
+#if ARCHIVE_VERSION_NUMBER < 1009000
 	skipping("xattr data preserved by archive_entry_clone");
 #else
 	/* Verify xattr was copied. */
@@ -405,26 +436,26 @@ DEFINE_TEST(test_entry)
 	/* Change the original */
 	archive_entry_set_atime(e, 13580, 24690);
 	archive_entry_set_ctime(e, 13590, 24691);
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	archive_entry_set_dev(e, 245);
 #endif
 	archive_entry_set_fflags(e, 0x85, 0xDA);
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	archive_entry_set_filetype(e, AE_IFLNK);
 #endif
 	archive_entry_set_gid(e, 214);
 	archive_entry_set_gname(e, "grouper");
 	archive_entry_set_hardlink(e, "hardlinkpath");
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	archive_entry_set_ino(e, 8763);
 #endif
 	archive_entry_set_mode(e, 0123654);
 	archive_entry_set_mtime(e, 18351, 28642);
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	archive_entry_set_nlink(e, 73);
 #endif
 	archive_entry_set_pathname(e, "pathest");
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	archive_entry_set_rdev(e, 132);
 #endif
 	archive_entry_set_size(e, 987456321);
@@ -439,7 +470,7 @@ DEFINE_TEST(test_entry)
 	assertEqualInt(archive_entry_atime_nsec(e2), 24680);
 	assertEqualInt(archive_entry_ctime(e2), 13580);
 	assertEqualInt(archive_entry_ctime_nsec(e2), 24681);
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	assertEqualInt(archive_entry_dev(e2), 235);
 #endif
 	archive_entry_fflags(e2, &set, &clear);
@@ -448,24 +479,24 @@ DEFINE_TEST(test_entry)
 	assertEqualInt(archive_entry_gid(e2), 204);
 	assertEqualString(archive_entry_gname(e2), "group");
 	assertEqualString(archive_entry_hardlink(e2), "hardlinkname");
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	assertEqualInt(archive_entry_ino(e2), 8593);
 #endif
 	assertEqualInt(archive_entry_mode(e2), 0123456);
 	assertEqualInt(archive_entry_mtime(e2), 13581);
 	assertEqualInt(archive_entry_mtime_nsec(e2), 24682);
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	assertEqualInt(archive_entry_nlink(e2), 736);
 #endif
 	assertEqualString(archive_entry_pathname(e2), "path");
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	assertEqualInt(archive_entry_rdev(e2), 532);
 #endif
 	assertEqualInt(archive_entry_size(e2), 987654321);
 	assertEqualString(archive_entry_symlink(e2), "symlinkname");
 	assertEqualInt(archive_entry_uid(e2), 83);
 	assertEqualString(archive_entry_uname(e2), "user");
-#if ARCHIVE_VERSION_STAMP < 1009000
+#if ARCHIVE_VERSION_NUMBER < 1009000
 	skipping("ACL held by clone of archive_entry");
 #else
 	/* Verify ACL was unchanged. */
@@ -514,7 +545,7 @@ DEFINE_TEST(test_entry)
 	assertEqualInt(qual, -1);
 	assertEqualString(name, NULL);
 #endif
-#if ARCHIVE_VERSION_STAMP < 1009000
+#if ARCHIVE_VERSION_NUMBER < 1009000
 	skipping("xattr preserved in archive_entry copy");
 #else
 	/* Verify xattr was unchanged. */
@@ -536,7 +567,7 @@ DEFINE_TEST(test_entry)
 	archive_entry_fflags(e, &set, &clear);
 	assertEqualInt(clear, 0);
 	assertEqualInt(set, 0);
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	assertEqualInt(archive_entry_filetype(e), 0);
 #endif
 	assertEqualInt(archive_entry_gid(e), 0);
@@ -546,7 +577,7 @@ DEFINE_TEST(test_entry)
 	assertEqualInt(archive_entry_mode(e), 0);
 	assertEqualInt(archive_entry_mtime(e), 0);
 	assertEqualInt(archive_entry_mtime_nsec(e), 0);
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	assertEqualInt(archive_entry_nlink(e), 0);
 #endif
 	assertEqualString(archive_entry_pathname(e), NULL);
@@ -592,7 +623,7 @@ DEFINE_TEST(test_entry)
 	assertEqualInt(archive_entry_ino(e), 234);
 	assertEqualInt(archive_entry_mode(e), 077777);
 	assertEqualInt(archive_entry_mtime(e), 234567);
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	assertEqualInt(archive_entry_nlink(e), 345);
 #endif
 	assertEqualInt(archive_entry_size(e), 123456789);
@@ -613,17 +644,17 @@ DEFINE_TEST(test_entry)
 	/* Set a bunch of fields individually. */
 	archive_entry_set_atime(e, 456789, 321);
 	archive_entry_set_ctime(e, 345678, 432);
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	archive_entry_set_dev(e, 123);
 #endif
 	archive_entry_set_gid(e, 34);
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	archive_entry_set_ino(e, 234);
 #endif
 	archive_entry_set_mode(e, 012345);
 	archive_entry_set_mode(e, 012345);
 	archive_entry_set_mtime(e, 234567, 543);
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	archive_entry_set_nlink(e, 345);
 #endif
 	archive_entry_set_size(e, 123456789);
@@ -633,16 +664,16 @@ DEFINE_TEST(test_entry)
 	/* Check that the values match. */
 	assertEqualInt(pst->st_atime, 456789);
 	assertEqualInt(pst->st_ctime, 345678);
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	assertEqualInt(pst->st_dev, 123);
 #endif
 	assertEqualInt(pst->st_gid, 34);
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	assertEqualInt(pst->st_ino, 234);
 #endif
 	assertEqualInt(pst->st_mode, 012345);
 	assertEqualInt(pst->st_mtime, 234567);
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	assertEqualInt(pst->st_nlink, 345);
 #endif
 	assertEqualInt(pst->st_size, 123456789);
@@ -661,7 +692,7 @@ DEFINE_TEST(test_entry)
 	archive_entry_set_ctime(e, 345677, 431);
 	assert((pst = archive_entry_stat(e)) != NULL);
 	assertEqualInt(pst->st_ctime, 345677);
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	archive_entry_set_dev(e, 122);
 	assert((pst = archive_entry_stat(e)) != NULL);
 	assertEqualInt(pst->st_dev, 122);
@@ -669,7 +700,7 @@ DEFINE_TEST(test_entry)
 	archive_entry_set_gid(e, 33);
 	assert((pst = archive_entry_stat(e)) != NULL);
 	assertEqualInt(pst->st_gid, 33);
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	archive_entry_set_ino(e, 233);
 	assert((pst = archive_entry_stat(e)) != NULL);
 	assertEqualInt(pst->st_ino, 233);
@@ -680,7 +711,7 @@ DEFINE_TEST(test_entry)
 	archive_entry_set_mtime(e, 234566, 542);
 	assert((pst = archive_entry_stat(e)) != NULL);
 	assertEqualInt(pst->st_mtime, 234566);
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	archive_entry_set_nlink(e, 344);
 	assert((pst = archive_entry_stat(e)) != NULL);
 	assertEqualInt(pst->st_nlink, 344);
@@ -708,7 +739,7 @@ DEFINE_TEST(test_entry)
 	 * the necessary definitions on every platform.
 	 */
 #if __FreeBSD__
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 	archive_entry_set_dev(e, 0x12345678);
 	assertEqualInt(archive_entry_devmajor(e), major(0x12345678));
 	assertEqualInt(archive_entry_devminor(e), minor(0x12345678));

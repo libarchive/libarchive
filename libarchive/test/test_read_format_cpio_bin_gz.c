@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_cpio_bin_gz.c,v 1.1 2007/03/03 07:37:37 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_cpio_bin_gz.c,v 1.2 2008/09/01 05:38:33 kientzle Exp $");
 
 static unsigned char archive[] = {
 31,139,8,0,244,'M','p','C',0,3,';','^','(',202,178,177,242,173,227,11,230,
@@ -43,10 +43,10 @@ DEFINE_TEST(test_read_format_cpio_bin_gz)
 	assert(archive_compression(a) == ARCHIVE_COMPRESSION_GZIP);
 	assert(archive_format(a) == ARCHIVE_FORMAT_CPIO_BIN_LE);
 	assert(0 == archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assert(0 == archive_read_finish(a));
 #endif
 }
 

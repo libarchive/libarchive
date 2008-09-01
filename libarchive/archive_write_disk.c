@@ -25,7 +25,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/archive_write_disk.c,v 1.32 2008/08/28 06:40:22 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_write_disk.c,v 1.33 2008/09/01 02:50:24 kientzle Exp $");
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -452,15 +452,15 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 			fe->mtime = archive_entry_mtime(entry);
 			fe->mtime_nanos = archive_entry_mtime_nsec(entry);
 		} else {
-			fe->mtime = archive_entry_atime(entry);
-			fe->mtime_nanos = archive_entry_atime_nsec(entry);
+			fe->mtime = a->start_time;
+			fe->mtime_nanos = 0;
 		}
 		if (archive_entry_atime_is_set(entry)) {
 			fe->atime = archive_entry_atime(entry);
 			fe->atime_nanos = archive_entry_atime_nsec(entry);
 		} else {
-			fe->atime = archive_entry_mtime(entry);
-			fe->atime_nanos = archive_entry_mtime_nsec(entry);
+			fe->atime = a->start_time;
+			fe->atime_nanos = 0;
 		}
 	}
 
@@ -1681,16 +1681,20 @@ set_time(struct archive_write_disk *a)
 		times[1].tv_sec = archive_entry_mtime(a->entry);
 		times[1].tv_usec = archive_entry_mtime_nsec(a->entry) / 1000;
 	} else {
-		times[1].tv_sec = archive_entry_atime(a->entry);
-		times[1].tv_usec = archive_entry_atime_nsec(a->entry) / 1000;
+		times[1].tv_sec = a->start_time;
+		times[1].tv_usec = 0;
 	}
 
+	/* If no atime was specified, use start time instead. */
+	/* In theory, it would be marginally more correct to use
+	 * time(NULL) here, but that would cost us an extra syscall
+	 * for little gain. */
 	if (archive_entry_atime_is_set(a->entry)) {
 		times[0].tv_sec = archive_entry_atime(a->entry);
 		times[0].tv_usec = archive_entry_atime_nsec(a->entry) / 1000;
 	} else {
-		times[0].tv_sec = archive_entry_mtime(a->entry);
-		times[0].tv_usec = archive_entry_mtime_nsec(a->entry) / 1000;
+		times[0].tv_sec = a->start_time;
+		times[0].tv_usec = 0;
 	}
 
 #ifdef HAVE_FUTIMES
@@ -1735,17 +1739,17 @@ set_time(struct archive_write_disk *a)
 		return (ARCHIVE_OK);
 
 	/* We know at least one is set, so... */
-	/* Set mtime from mtime if set, else atime. */
+	/* Set mtime from mtime if set, else start time. */
 	if (archive_entry_mtime_is_set(a->entry))
 		times.modtime = archive_entry_mtime(a->entry);
 	else
-		times.modtime = archive_entry_atime(a->entry);
+		times.modtime = a->start_time;
 
 	/* Set atime from provided atime, else mtime. */
 	if (archive_entry_atime_is_set(a->entry))
 		times.actime = archive_entry_atime(a->entry);
 	else
-		times.actime = archive_entry_mtime(a->entry);
+		times.actime = a->start_time;
 
 	if (!S_ISLNK(a->mode) && utime(a->name, &times) != 0) {
 		archive_set_error(&a->archive, errno,

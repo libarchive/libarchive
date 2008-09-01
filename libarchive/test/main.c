@@ -45,7 +45,7 @@
 #define	EXTRA_DUMP(x)	archive_error_string((struct archive *)(x))
 #define	EXTRA_VERSION	archive_version()
 #define KNOWNREF	"test_compat_gtar_1.tgz.uu"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/main.c,v 1.13 2008/06/15 10:35:22 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/main.c,v 1.14 2008/08/31 07:06:02 kientzle Exp $");
 
 /*
  * "list.h" is simply created by "grep DEFINE_TEST"; it has

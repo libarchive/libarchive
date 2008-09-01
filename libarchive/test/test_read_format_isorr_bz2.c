@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_isorr_bz2.c,v 1.4 2008/06/21 19:11:51 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_isorr_bz2.c,v 1.5 2008/09/01 05:38:33 kientzle Exp $");
 
 /*
 Execute the following to rebuild the data for this program:
@@ -131,10 +131,10 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 
 	/* Close the archive. */
 	assertEqualInt(0, archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assertEqualInt(0, archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assertEqualInt(0, archive_read_finish(a));
 #endif
 }
 

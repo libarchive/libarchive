@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_format_cpio_odc.c,v 1.1 2008/01/01 22:28:04 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_format_cpio_odc.c,v 1.2 2008/09/01 05:38:33 kientzle Exp $");
 
 
 static int
@@ -122,10 +122,10 @@ DEFINE_TEST(test_write_format_cpio_odc)
 	/* Write of data to symlink should fail == zero bytes get written. */
 	assertEqualIntA(a, 0, archive_write_data(a, "1234567890", 10));
 
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_write_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_write_finish(a);
+#else
+	assert(0 == archive_write_finish(a));
 #endif
 
 	/*

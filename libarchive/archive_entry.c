@@ -24,7 +24,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/archive_entry.c,v 1.52 2008/05/26 17:00:22 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_entry.c,v 1.53 2008/09/01 04:54:29 kientzle Exp $");
 
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
@@ -466,6 +466,12 @@ archive_entry_ctime(struct archive_entry *entry)
 	return (entry->ae_stat.aest_ctime);
 }
 
+int
+archive_entry_ctime_is_set(struct archive_entry *entry)
+{
+	return (entry->ae_set & AE_SET_CTIME);
+}
+
 long
 archive_entry_ctime_nsec(struct archive_entry *entry)
 {
@@ -825,12 +831,26 @@ archive_entry_set_atime(struct archive_entry *entry, time_t t, long ns)
 }
 
 void
+archive_entry_unset_atime(struct archive_entry *entry)
+{
+	archive_entry_set_atime(entry, 0, 0);
+	entry->ae_set &= ~AE_SET_ATIME;
+}
+
+void
 archive_entry_set_ctime(struct archive_entry *entry, time_t t, long ns)
 {
 	entry->stat_valid = 0;
 	entry->ae_set |= AE_SET_CTIME;
 	entry->ae_stat.aest_ctime = t;
 	entry->ae_stat.aest_ctime_nsec = ns;
+}
+
+void
+archive_entry_unset_ctime(struct archive_entry *entry)
+{
+	archive_entry_set_ctime(entry, 0, 0);
+	entry->ae_set &= ~AE_SET_CTIME;
 }
 
 void
@@ -910,6 +930,13 @@ archive_entry_set_mtime(struct archive_entry *entry, time_t m, long ns)
 	entry->ae_set |= AE_SET_MTIME;
 	entry->ae_stat.aest_mtime = m;
 	entry->ae_stat.aest_mtime_nsec = ns;
+}
+
+void
+archive_entry_unset_mtime(struct archive_entry *entry)
+{
+	archive_entry_set_mtime(entry, 0, 0);
+	entry->ae_set &= ~AE_SET_MTIME;
 }
 
 void

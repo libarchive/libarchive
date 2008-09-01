@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_disk_hardlink.c,v 1.3 2008/08/11 01:19:36 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_disk_hardlink.c,v 1.4 2008/09/01 05:38:33 kientzle Exp $");
 
 #define UMASK 022
 
@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_disk_hardlink.c,v 1.3 200
  */
 DEFINE_TEST(test_write_disk_hardlink)
 {
-#if ARCHIVE_VERSION_STAMP < 1009000
+#if ARCHIVE_VERSION_NUMBER < 1009000
 	skipping("archive_write_disk_hardlink tests");
 #else
 	static const char data[]="abcdefghijklmnopqrstuvwxyz";

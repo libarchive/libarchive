@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_extract.c,v 1.4 2008/06/15 10:35:22 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_extract.c,v 1.5 2008/09/01 05:38:33 kientzle Exp $");
 
 #define BUFF_SIZE 1000000
 #define FILE_BUFF_SIZE 100000
@@ -105,10 +105,10 @@ DEFINE_TEST(test_read_extract)
 	archive_entry_free(ae);
 	/* Close out the archive. */
 	assertA(0 == archive_write_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assertA(0 == archive_write_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_write_finish(a);
+#else
+	assertA(0 == archive_write_finish(a));
 #endif
 
 	/* Extract the entries to disk. */
@@ -128,10 +128,10 @@ DEFINE_TEST(test_read_extract)
 	}
 	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
 	assert(0 == archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assert(0 == archive_read_finish(a));
 #endif
 
 	/* Test the entries on disk. */

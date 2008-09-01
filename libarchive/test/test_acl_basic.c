@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_acl_basic.c,v 1.4 2007/07/06 15:43:11 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_acl_basic.c,v 1.5 2008/09/01 05:38:33 kientzle Exp $");
 
 /*
  * Exercise the system-independent portion of the ACL support.
@@ -165,7 +165,7 @@ compare_acls(struct archive_entry *ae, struct acl_t *acls, int n, int mode)
 			assert(matched == 1);
 		}
 	}
-#if ARCHIVE_VERSION_STAMP < 1009000
+#if ARCHIVE_VERSION_NUMBER < 1009000
 	/* Known broken before 1.9.0. */
 	skipping("archive_entry_acl_next() exits with ARCHIVE_EOF");
 #else

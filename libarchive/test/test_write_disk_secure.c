@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_disk_secure.c,v 1.4 2008/06/15 10:35:22 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_disk_secure.c,v 1.5 2008/09/01 05:38:33 kientzle Exp $");
 
 #define UMASK 022
 
@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_disk_secure.c,v 1.4 2008/
 
 DEFINE_TEST(test_write_disk_secure)
 {
-#if ARCHIVE_VERSION_STAMP < 1009000
+#if ARCHIVE_VERSION_NUMBER < 1009000
 	skipping("archive_write_disk interface");
 #else
 	struct archive *a;
@@ -105,11 +105,10 @@ DEFINE_TEST(test_write_disk_secure)
 	archive_entry_free(ae);
 	assert(0 == archive_write_finish_entry(a));
 
-
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_write_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_write_finish(a);
+#else
+	assert(0 == archive_write_finish(a));
 #endif
 
 	/* Test the entries on disk. */

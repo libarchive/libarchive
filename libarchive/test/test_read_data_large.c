@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_data_large.c,v 1.3 2007/05/29 01:00:20 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_data_large.c,v 1.4 2008/09/01 05:38:33 kientzle Exp $");
 
 /*
  * Test read/write of a 10M block of data in a single operation.
@@ -67,10 +67,10 @@ DEFINE_TEST(test_read_data_large)
 
 	/* Close out the archive. */
 	assertA(0 == archive_write_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assertA(0 == archive_write_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_write_finish(a);
+#else
+	assertA(0 == archive_write_finish(a));
 #endif
 
 	/* Check that archive_read_data can handle 10*10^6 at a pop. */
@@ -84,10 +84,10 @@ DEFINE_TEST(test_read_data_large)
 	failure("Read expected 10MB, but data read didn't match what was written");
 	assert(0 == memcmp(buff2, buff3, sizeof(buff3)));
 	assert(0 == archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assert(0 == archive_read_finish(a));
 #endif
 
 	/* Check archive_read_data_into_fd */
@@ -100,10 +100,10 @@ DEFINE_TEST(test_read_data_large)
 	assert(tmpfilefd != 0);
 	assertEqualIntA(a, 0, archive_read_data_into_fd(a, tmpfilefd));
 	assert(0 == archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assert(0 == archive_read_finish(a));
 #endif
 	close(tmpfilefd);
 

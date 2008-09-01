@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_cpio_svr4c_Z.c,v 1.1 2007/03/03 07:37:37 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_cpio_svr4c_Z.c,v 1.2 2008/09/01 05:38:33 kientzle Exp $");
 
 static unsigned char archive[] = {
 31,157,144,'0','n',4,132,'!',3,6,140,26,'8','n',228,16,19,195,160,'A',26,
@@ -46,10 +46,10 @@ DEFINE_TEST(test_read_format_cpio_svr4c_Z)
 	assertA(archive_compression(a) == ARCHIVE_COMPRESSION_COMPRESS);
 	assertA(archive_format(a) == ARCHIVE_FORMAT_CPIO_SVR4_CRC);
 	assert(0 == archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assert(0 == archive_read_finish(a));
 #endif
 }
 

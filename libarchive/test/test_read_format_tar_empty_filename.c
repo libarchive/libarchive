@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_tar_empty_filename.c,v 1.2 2008/09/01 05:38:33 kientzle Exp $");
 
 /*
  * Tar entries with empty filenames are unusual, but shouldn't crash us.
@@ -58,9 +58,9 @@ DEFINE_TEST(test_read_format_tar_empty_filename)
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 #endif
 }

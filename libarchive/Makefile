@@ -1,4 +1,4 @@
-# $FreeBSD: src/lib/libarchive/Makefile,v 1.87 2008/08/24 05:54:28 kientzle Exp $
+# $FreeBSD: src/lib/libarchive/Makefile,v 1.88 2008/08/31 07:21:46 kientzle Exp $
 
 LIB=	archive
 DPADD=	${LIBBZ2} ${LIBZ}

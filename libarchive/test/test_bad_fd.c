@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_bad_fd.c,v 1.1 2007/03/03 07:37:37 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_bad_fd.c,v 1.2 2008/09/01 05:38:33 kientzle Exp $");
 
 /* Verify that attempting to open an invalid fd returns correct error. */
 DEFINE_TEST(test_bad_fd)
@@ -33,9 +33,9 @@ DEFINE_TEST(test_bad_fd)
 	assertA(0 == archive_read_support_compression_all(a));
 	assertA(ARCHIVE_FATAL == archive_read_open_fd(a, -1, 1024));
 	assertA(0 == archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assertA(0 == archive_read_finish(a));
 #endif
 }

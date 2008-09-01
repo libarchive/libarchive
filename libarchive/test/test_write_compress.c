@@ -25,7 +25,7 @@
  */
 
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_compress.c,v 1.2 2008/03/15 11:05:49 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_compress.c,v 1.3 2008/09/01 05:38:33 kientzle Exp $");
 
 /*
  * A basic exercise of compress reading and writing.
@@ -68,10 +68,10 @@ DEFINE_TEST(test_write_compress)
 
 
 	archive_write_close(a);
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_write_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_write_finish(a);
+#else
+	assert(0 == archive_write_finish(a));
 #endif
 
 	/*
@@ -91,10 +91,10 @@ DEFINE_TEST(test_write_compress)
 	}
 
 	assert(0 == archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assert(0 == archive_read_finish(a));
 #endif
 
 	free(data);

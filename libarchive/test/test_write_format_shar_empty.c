@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_format_shar_empty.c,v 1.2 2007/05/29 01:00:21 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_format_shar_empty.c,v 1.3 2008/09/01 05:38:33 kientzle Exp $");
 
 /*
  * Check that an "empty" shar archive is correctly created as an empty file.
@@ -47,10 +47,10 @@ DEFINE_TEST(test_write_format_shar_empty)
 
 	/* Close out the archive. */
 	assertA(0 == archive_write_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assertA(0 == archive_write_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_write_finish(a);
+#else
+	assertA(0 == archive_write_finish(a));
 #endif
 
 	failure("Empty shar archive should be exactly 0 bytes, was %d.", used);

@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_gtar_sparse.c,v 1.8 2008/03/12 05:12:23 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_gtar_sparse.c,v 1.9 2008/09/01 05:38:33 kientzle Exp $");
 
 
 struct contents {
@@ -248,7 +248,7 @@ verify_archive_file(const char *name, struct archive_contents *ac)
 		assertEqualIntA(a, err, ARCHIVE_EOF);
 		failure("%s: Size returned at EOF must be zero", name);
 		assertEqualInt(actual.s, 0);
-#if ARCHIVE_VERSION_STAMP < 1009000
+#if ARCHIVE_VERSION_NUMBER < 1009000
 		/* libarchive < 1.9 doesn't get this right */
 		skipping("offset of final sparse chunk");
 #else
@@ -263,10 +263,10 @@ verify_archive_file(const char *name, struct archive_contents *ac)
 	assertEqualIntA(a, ARCHIVE_EOF, err);
 
 	assert(0 == archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assert(0 == archive_read_finish(a));
 #endif
 }
 
@@ -281,7 +281,7 @@ DEFINE_TEST(test_read_format_gtar_sparse)
 	 * libarchive < 1.9 doesn't support the newer --posix sparse formats
 	 * from GNU tar 1.15 and later.
 	 */
-#if ARCHIVE_VERSION_STAMP < 1009000
+#if ARCHIVE_VERSION_NUMBER < 1009000
 	skipping("read support for GNUtar --posix sparse formats");
 #else
 	/*

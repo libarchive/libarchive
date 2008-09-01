@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD: src/lib/libarchive/archive_entry.h,v 1.27 2008/05/26 17:00:22 kientzle Exp $
+ * $FreeBSD: src/lib/libarchive/archive_entry.h,v 1.28 2008/09/01 04:54:29 kientzle Exp $
  */
 
 #ifndef ARCHIVE_ENTRY_H_INCLUDED
@@ -162,8 +162,8 @@ __LA_DECL struct archive_entry	*archive_entry_new(void);
  * In addition, fields can be "set" or "unset."  Unset string fields
  * return NULL, non-string fields have _is_set() functions to test
  * whether they've been set.  You can "unset" a string field by
- * assigning NULL; there is currently no way to unset a non-string
- * field.
+ * assigning NULL; non-string fields have _unset() functions to
+ * unset them.
  *
  * Note: There is one ambiguity in the above; string fields will
  * also return NULL when implicit character set conversions fail.
@@ -174,6 +174,7 @@ __LA_DECL long		 archive_entry_atime_nsec(struct archive_entry *);
 __LA_DECL int		 archive_entry_atime_is_set(struct archive_entry *);
 __LA_DECL time_t	 archive_entry_ctime(struct archive_entry *);
 __LA_DECL long		 archive_entry_ctime_nsec(struct archive_entry *);
+__LA_DECL int		 archive_entry_ctime_is_set(struct archive_entry *);
 __LA_DECL dev_t		 archive_entry_dev(struct archive_entry *);
 __LA_DECL dev_t		 archive_entry_devmajor(struct archive_entry *);
 __LA_DECL dev_t		 archive_entry_devminor(struct archive_entry *);
@@ -220,7 +221,9 @@ __LA_DECL const wchar_t	*archive_entry_uname_w(struct archive_entry *);
  */
 
 __LA_DECL void	archive_entry_set_atime(struct archive_entry *, time_t, long);
+__LA_DECL void  archive_entry_unset_atime(struct archive_entry *);
 __LA_DECL void	archive_entry_set_ctime(struct archive_entry *, time_t, long);
+__LA_DECL void  archive_entry_unset_ctime(struct archive_entry *);
 __LA_DECL void	archive_entry_set_dev(struct archive_entry *, dev_t);
 __LA_DECL void	archive_entry_set_devmajor(struct archive_entry *, dev_t);
 __LA_DECL void	archive_entry_set_devminor(struct archive_entry *, dev_t);
@@ -248,6 +251,7 @@ __LA_DECL void	archive_entry_copy_link_w(struct archive_entry *, const wchar_t *
 __LA_DECL int	archive_entry_update_link_utf8(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_set_mode(struct archive_entry *, __LA_MODE_T);
 __LA_DECL void	archive_entry_set_mtime(struct archive_entry *, time_t, long);
+__LA_DECL void  archive_entry_unset_mtime(struct archive_entry *);
 __LA_DECL void	archive_entry_set_nlink(struct archive_entry *, unsigned int);
 __LA_DECL void	archive_entry_set_pathname(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_pathname(struct archive_entry *, const char *);

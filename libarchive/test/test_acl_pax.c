@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_acl_pax.c,v 1.5 2008/05/26 17:00:24 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_acl_pax.c,v 1.6 2008/09/01 05:38:33 kientzle Exp $");
 
 /*
  * Exercise the system-independent portion of the ACL support.
@@ -386,7 +386,7 @@ compare_acls(struct archive_entry *ae, struct acl_t *acls, int n, int mode)
 			assert(matched == 1);
 		}
 	}
-#if ARCHIVE_VERSION_STAMP < 1009000
+#if ARCHIVE_VERSION_NUMBER < 1009000
 	/* Known broken before 1.9.0. */
 	skipping("archive_entry_acl_next() exits with ARCHIVE_EOF");
 #else
@@ -446,10 +446,10 @@ DEFINE_TEST(test_acl_pax)
 
 	/* Close out the archive. */
 	assertA(0 == archive_write_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assertA(0 == archive_write_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_write_finish(a);
+#else
+	assertA(0 == archive_write_finish(a));
 #endif
 
 	/* Write out the data we generated to a file for manual inspection. */
@@ -509,9 +509,9 @@ DEFINE_TEST(test_acl_pax)
 
 	/* Close the archive. */
 	assertA(0 == archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assertA(0 == archive_read_finish(a));
 #endif
 }

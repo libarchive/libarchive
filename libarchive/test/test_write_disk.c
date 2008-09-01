@@ -23,7 +23,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_disk.c,v 1.11 2008/08/30 05:31:23 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_disk.c,v 1.13 2008/09/01 05:38:33 kientzle Exp $");
+
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 
 #define UMASK 022
 
@@ -58,6 +60,7 @@ static void create_reg_file(struct archive_entry *ae, const char *msg)
 	static const char data[]="abcdefghijklmnopqrstuvwxyz";
 	struct archive *ad;
 	struct stat st;
+	time_t now;
 
 	/* Write the entry to disk. */
 	assert((ad = archive_write_disk_new()) != NULL);
@@ -95,10 +98,11 @@ static void create_reg_file(struct archive_entry *ae, const char *msg)
 	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
 	    st.st_mode, archive_entry_mode(ae));
 	assertEqualInt(st.st_mode, (archive_entry_mode(ae) & ~UMASK));
-	assertEqualInt(st.st_size, sizeof(data));
-        failure("No atime was specified, so atime should get set to mtime");
-        assertEqualInt(st.st_atime, st.st_mtime);
+        assertEqualInt(st.st_size, sizeof(data));
         assertEqualInt(st.st_mtime, 123456789);
+        failure("No atime was specified, so atime should get set to current time");
+	now = time(NULL);
+        assert(st.st_atime <= now && st.st_atime > now - 5);
 }
 
 static void create_reg_file2(struct archive_entry *ae, const char *msg)
@@ -203,10 +207,13 @@ static void create_reg_file4(struct archive_entry *ae, const char *msg)
 	failure(msg);
 	assertEqualInt(st.st_size, sizeof(data));
 }
-
+#endif
 
 DEFINE_TEST(test_write_disk)
 {
+#if ARCHIVE_VERSION_NUMBER < 1009000
+	skipping("archive_write_disk interface");
+#else
 	struct archive_entry *ae;
 
 	/* Force the umask to something predictable. */
@@ -267,4 +274,5 @@ DEFINE_TEST(test_write_disk)
 	archive_entry_set_mode(ae, S_IFREG | 0744);
 	create(ae, "Test creating a file over an existing dir.");
 	archive_entry_free(ae);
+#endif
 }

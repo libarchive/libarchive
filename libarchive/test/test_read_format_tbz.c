@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_tbz.c,v 1.1 2007/03/03 07:37:37 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_tbz.c,v 1.2 2008/09/01 05:38:33 kientzle Exp $");
 
 static unsigned char archive[] = {
 'B','Z','h','9','1','A','Y','&','S','Y',237,7,140,'W',0,0,27,251,144,208,
@@ -45,10 +45,10 @@ DEFINE_TEST(test_read_format_tbz)
 	assert(archive_compression(a) == ARCHIVE_COMPRESSION_BZIP2);
 	assert(archive_format(a) == ARCHIVE_FORMAT_TAR_USTAR);
 	assert(0 == archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assert(0 == archive_read_finish(a));
 #endif
 }
 

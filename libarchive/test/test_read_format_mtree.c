@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_mtree.c,v 1.2 2008/05/26 17:00:24 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_mtree.c,v 1.3 2008/09/01 05:38:33 kientzle Exp $");
 
 /* Single entry with a hardlink. */
 static unsigned char archive[] = {
@@ -103,10 +103,10 @@ DEFINE_TEST(test_read_format_mtree)
 
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 #endif
 }
 
