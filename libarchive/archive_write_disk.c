@@ -25,7 +25,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/archive_write_disk.c,v 1.33 2008/09/01 02:50:24 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_write_disk.c,v 1.35 2008/09/05 06:13:11 kientzle Exp $");
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -1011,7 +1011,7 @@ create_filesystem_object(struct archive_write_disk *a)
 		 * If the hardlink does carry data, let the last
 		 * archive entry decide ownership.
 		 */
-		if (r == 0 && a->filesize == 0) {
+		if (r == 0 && a->filesize <= 0) {
 			a->todo = 0;
 			a->deferred = 0;
 		} if (r == 0 && a->filesize > 0) {
