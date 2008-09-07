@@ -1,4 +1,4 @@
-# $FreeBSD: src/lib/libarchive/test/Makefile,v 1.24 2008/08/25 06:08:22 kientzle Exp $
+# $FreeBSD: src/lib/libarchive/test/Makefile,v 1.25 2008/09/08 00:58:12 kientzle Exp $
 
 # Where to find the libarchive sources
 LA_SRCDIR=${.CURDIR}/..
@@ -89,7 +89,7 @@ CFLAGS+= -I${LA_SRCDIR} -I.
 # Uncomment to link against dmalloc
 #LDADD+= -L/usr/local/lib -ldmalloc
 #CFLAGS+= -I/usr/local/include -DUSE_DMALLOC
-#WARNS=6
+WARNS=6
 
 # Build libarchive_test and run it.
 check test: libarchive_test

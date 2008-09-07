@@ -25,7 +25,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/archive_write_disk.c,v 1.35 2008/09/05 06:13:11 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_write_disk.c,v 1.36 2008/09/07 05:22:33 kientzle Exp $");
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -907,13 +907,25 @@ restore_entry(struct archive_write_disk *a)
 		 * We know something is in the way, but we don't know what;
 		 * we need to find out before we go any further.
 		 */
-		if (lstat(a->name, &a->st) != 0) {
+		int r = 0;
+		/*
+		 * The SECURE_SYMLINK logic has already removed a
+		 * symlink to a dir if the client wants that.  So
+		 * follow the symlink if we're creating a dir.
+		 */
+		if (S_ISDIR(a->mode))
+			r = stat(a->name, &a->st);
+		/*
+		 * If it's not a dir (or it's a broken symlink),
+		 * then don't follow it.
+		 */
+		if (r != 0 || !S_ISDIR(a->mode))
+			r = lstat(a->name, &a->st);
+		if (r != 0) {
 			archive_set_error(&a->archive, errno,
 			    "Can't stat existing object");
 			return (ARCHIVE_WARN);
 		}
-
-		/* TODO: if it's a symlink... */
 
 		/*
 		 * NO_OVERWRITE_NEWER doesn't apply to directories.
