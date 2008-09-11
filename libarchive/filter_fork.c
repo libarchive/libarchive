@@ -29,7 +29,7 @@
 #if defined(HAVE_PIPE) && defined(HAVE_FCNTL) && \
     (defined(HAVE_FORK) || defined(HAVE_VFORK))
 
-__FBSDID("$FreeBSD: src/lib/libarchive/filter_fork.c,v 1.4 2008/06/15 10:45:57 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/filter_fork.c,v 1.5 2008/09/12 05:33:00 kientzle Exp $");
 
 #if defined(HAVE_POLL)
 #  if defined(HAVE_POLL_H)
@@ -61,7 +61,7 @@ __archive_create_child(const char *path, int *child_stdin, int *child_stdout)
 
 	if (pipe(stdin_pipe) == -1)
 		goto state_allocated;
-	if (stdin_pipe[0] == STDOUT_FILENO) {
+	if (stdin_pipe[0] == 1 /* stdout */) {
 		if ((tmp = dup(stdin_pipe[0])) == -1)
 			goto stdin_opened;
 		close(stdin_pipe[0]);
@@ -69,7 +69,7 @@ __archive_create_child(const char *path, int *child_stdin, int *child_stdout)
 	}
 	if (pipe(stdout_pipe) == -1)
 		goto stdin_opened;
-	if (stdout_pipe[1] == STDIN_FILENO) {
+	if (stdout_pipe[1] == 0 /* stdin */) {
 		if ((tmp = dup(stdout_pipe[1])) == -1)
 			goto stdout_opened;
 		close(stdout_pipe[1]);
@@ -86,16 +86,16 @@ __archive_create_child(const char *path, int *child_stdin, int *child_stdout)
 	case 0:
 		close(stdin_pipe[1]);
 		close(stdout_pipe[0]);
-		if (dup2(stdin_pipe[0], STDIN_FILENO) == -1)
+		if (dup2(stdin_pipe[0], 0 /* stdin */) == -1)
 			_exit(254);
-		if (stdin_pipe[0] != STDIN_FILENO)
+		if (stdin_pipe[0] != 0 /* stdin */)
 			close(stdin_pipe[0]);
-		if (dup2(stdout_pipe[1], STDOUT_FILENO) == -1)
+		if (dup2(stdout_pipe[1], 1 /* stdout */) == -1)
 			_exit(254);
-		if (stdout_pipe[1] != STDOUT_FILENO)
+		if (stdout_pipe[1] != 1 /* stdout */)
 			close(stdout_pipe[1]);
 		execlp(path, path, (char *)NULL);
-		_exit(254);		
+		_exit(254);
 	default:
 		close(stdin_pipe[0]);
 		close(stdout_pipe[1]);
