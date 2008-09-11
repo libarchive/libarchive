@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD: src/lib/libarchive/archive_platform.h,v 1.30 2008/05/26 17:00:22 kientzle Exp $
+ * $FreeBSD: src/lib/libarchive/archive_platform.h,v 1.31 2008/09/12 04:03:34 kientzle Exp $
  */
 
 /*
@@ -77,6 +77,9 @@
 /* Some platforms lack the standard *_MAX definitions. */
 #if !HAVE_DECL_SIZE_MAX
 #define	SIZE_MAX (~(size_t)0)
+#endif
+#if !HAVE_DECL_SSIZE_MAX
+#define	SSIZE_MAX ((ssize_t)(SIZE_MAX >> 1))
 #endif
 #if !HAVE_DECL_UINT32_MAX
 #define	UINT32_MAX (~(uint32_t)0)

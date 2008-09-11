@@ -25,7 +25,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/archive_write_disk.c,v 1.36 2008/09/07 05:22:33 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_write_disk.c,v 1.38 2008/09/12 04:08:11 kientzle Exp $");
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -514,9 +514,15 @@ write_data_block(struct archive_write_disk *a,
 	}
 
 	if (a->flags & ARCHIVE_EXTRACT_SPARSE) {
+#if HAVE_STRUCT_STAT_ST_BLKSIZE
 		if ((r = _archive_write_disk_lazy_stat(a)) != ARCHIVE_OK)
 			return (r);
 		block_size = a->pst->st_blksize;
+#else
+		/* XXX TODO XXX Is there a more appropriate choice here ? */
+		/* This needn't match the filesystem allocation size. */
+		block_size = 16*1024;
+#endif
 	}
 
 	if (a->filesize >= 0 && (off_t)(offset + size) > a->filesize)
@@ -631,12 +637,14 @@ _archive_write_finish_entry(struct archive *_a)
 		/* Last write ended at exactly the filesize; we're done. */
 		/* Hopefully, this is the common case. */
 	} else {
+#if HAVE_FTRUNCATE
 		if (ftruncate(a->fd, a->filesize) == -1 &&
 		    a->filesize == 0) {
 			archive_set_error(&a->archive, errno,
 			    "File size could not be restored");
 			return (ARCHIVE_FAILED);
 		}
+#endif
 		/*
 		 * Explicitly stat the file as some platforms might not
 		 * implement the XSI option to extend files via ftruncate.
