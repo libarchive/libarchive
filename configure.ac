@@ -193,6 +193,8 @@ AC_CHECK_TYPE(uintptr_t, [unsigned int])
 # Check for high-resolution timestamps in struct stat
 AC_CHECK_MEMBERS([struct stat.st_mtimespec.tv_nsec])
 AC_CHECK_MEMBERS([struct stat.st_mtim.tv_nsec])
+# Check for block size support in struct stat
+AC_CHECK_MEMBERS([struct stat.st_blksize])
 
 # If you have uintmax_t, we assume printf supports %ju
 # If you have unsigned long long, we assume printf supports %llu
@@ -206,7 +208,7 @@ AC_TYPE_UINTMAX_T
 AC_TYPE_UINT64_T
 
 # TODO: If any of these are missing, define them right here.
-AC_CHECK_DECLS([SIZE_MAX, INT64_MAX, INT64_MIN, UINT64_MAX, UINT32_MAX])
+AC_CHECK_DECLS([SIZE_MAX, SSIZE_MAX, INT64_MAX, INT64_MIN, UINT64_MAX, UINT32_MAX])
 
 AC_CHECK_DECL([EFTYPE],
 		[AC_DEFINE(HAVE_EFTYPE, 1, [A possible errno value for invalid file format errors])],
