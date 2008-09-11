@@ -27,12 +27,12 @@
  */
 
 #ifndef LIBARCHIVE_NONPOSIX_H_INCLUDED
-#define LIBARCHIVE_NONPOSIX_H_INCLUDED
+#define	LIBARCHIVE_NONPOSIX_H_INCLUDED
 
 /* Start of configuration for native Win32  */
 
 #include <errno.h>
-#define set_errno(val)	((errno)=val)
+#define	set_errno(val)	((errno)=val)
 #include <io.h>
 #include <stdlib.h>   //brings in NULL
 #include <fcntl.h>
@@ -41,19 +41,6 @@
 #include <direct.h>
 
 //#define	EFTYPE 7
-
-#if !defined(STDIN_FILENO)
-#define STDIN_FILENO 0
-#endif
-
-#if !defined(STDOUT_FILENO)
-#define STDOUT_FILENO 1
-#endif
-
-#if !defined(STDERR_FILENO)
-#define STDERR_FILENO 2
-#endif
-
 
 #if defined(_MSC_VER)
 /* TODO: Fix the code, don't suppress the warnings. */
@@ -65,9 +52,9 @@
 
 #ifndef NULL
 #ifdef  __cplusplus
-#define NULL    0
+#define	NULL    0
 #else
-#define NULL    ((void *)0)
+#define	NULL    ((void *)0)
 #endif
 #endif
 
@@ -83,7 +70,7 @@
 //#define	fileno		_fileno
 #define	fstat		_fstat
 #define	lseek		_lseek
-#define lstat		_stat
+#define	lstat		_stat
 #define	open		_open
 #define	stat		_stat
 #define	mkdir(d,m)	_mkdir(d)
@@ -95,87 +82,87 @@
 #define	umask		_umask
 #define	write		_write
 
-#define O_RDONLY	_O_RDONLY
+#define	O_RDONLY	_O_RDONLY
 #define	O_WRONLY	_O_WRONLY
 #define	O_TRUNC		_O_TRUNC
 #define	O_CREAT		_O_CREAT
 #define	O_EXCL		_O_EXCL
 
 #ifndef _S_IFIFO
-  #define _S_IFIFO        0010000   /* pipe */
+  #define	_S_IFIFO        0010000   /* pipe */
 #endif
 #ifndef _S_IFCHR
-  #define _S_IFCHR        0020000   /* character special */
+  #define	_S_IFCHR        0020000   /* character special */
 #endif
 #ifndef _S_IFDIR
-  #define _S_IFDIR        0040000   /* directory */
+  #define	_S_IFDIR        0040000   /* directory */
 #endif
 #ifndef _S_IFBLK
-  #define _S_IFBLK        0060000   /* block special */
+  #define	_S_IFBLK        0060000   /* block special */
 #endif
 #ifndef _S_IFLNK
-  #define _S_IFLNK        0120000   /* symbolic link */
+  #define	_S_IFLNK        0120000   /* symbolic link */
 #endif
 #ifndef _S_IFSOCK
-  #define _S_IFSOCK       0140000   /* socket */
+  #define	_S_IFSOCK       0140000   /* socket */
 #endif
 #ifndef	_S_IFREG
-  #define _S_IFREG        0100000   /* regular */
+  #define	_S_IFREG        0100000   /* regular */
 #endif
 #ifndef	_S_IFMT
-  #define _S_IFMT         0170000   /* file type mask */
+  #define	_S_IFMT         0170000   /* file type mask */
 #endif
 
-#define S_IFIFO     _S_IFIFO
-//#define S_IFCHR  _S_IFCHR
-//#define S_IFDIR  _S_IFDIR
-#define S_IFBLK     _S_IFBLK
-#define S_IFLNK     _S_IFLNK
-#define S_IFSOCK    _S_IFSOCK
-//#define S_IFREG  _S_IFREG
-//#define S_IFMT   _S_IFMT
+#define	S_IFIFO     _S_IFIFO
+//#define	S_IFCHR  _S_IFCHR
+//#define	S_IFDIR  _S_IFDIR
+#define	S_IFBLK     _S_IFBLK
+#define	S_IFLNK     _S_IFLNK
+#define	S_IFSOCK    _S_IFSOCK
+//#define	S_IFREG  _S_IFREG
+//#define	S_IFMT   _S_IFMT
 
 #define	S_ISBLK(m)	(((m) & S_IFMT) == S_IFBLK)	/* block special */
 #define	S_ISFIFO(m)	(((m) & S_IFMT) == S_IFIFO)	/* fifo or socket */
 #define	S_ISCHR(m)	(((m) & S_IFMT) == S_IFCHR)	/* char special */
 #define	S_ISDIR(m)	(((m) & S_IFMT) == S_IFDIR)	/* directory */
 #define	S_ISREG(m)	(((m) & S_IFMT) == S_IFREG)	/* regular file */
-#define S_ISLNK(m)  (((m) & S_IFMT) == S_IFLNK) /* Symbolic link */
-#define S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK) /* Socket */
+#define	S_ISLNK(m)  (((m) & S_IFMT) == S_IFLNK) /* Symbolic link */
+#define	S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK) /* Socket */
 
-#define  _S_ISUID        0004000   /* set user id on execution */
-#define  _S_ISGID        0002000   /* set group id on execution */
-#define  _S_ISVTX        0001000   /* save swapped text even after use */
+#define	_S_ISUID        0004000   /* set user id on execution */
+#define	_S_ISGID        0002000   /* set group id on execution */
+#define	_S_ISVTX        0001000   /* save swapped text even after use */
 
-#define   S_ISUID        _S_ISUID
-#define   S_ISGID        _S_ISGID
-#define   S_ISVTX        _S_ISVTX
+#define	S_ISUID        _S_ISUID
+#define	S_ISGID        _S_ISGID
+#define	S_ISVTX        _S_ISVTX
 
-#define	 _S_IRWXU	     (_S_IREAD | _S_IWRITE | _S_IEXEC)
-#define  _S_IXUSR	     _S_IEXEC  /* read permission, user */
-#define	 _S_IWUSR	     _S_IWRITE /* write permission, user */
-#define	 _S_IRUSR	     _S_IREAD  /* execute/search permission, user */
-#define  _S_IRWXG        (_S_IRWXU >> 3)
-#define  _S_IXGRP        (_S_IXUSR >> 3) /* read permission, group */
-#define  _S_IWGRP        (_S_IWUSR >> 3) /* write permission, group */
-#define  _S_IRGRP        (_S_IRUSR >> 3) /* execute/search permission, group */
-#define  _S_IRWXO        (_S_IRWXG >> 3) 
-#define  _S_IXOTH        (_S_IXGRP >> 3) /* read permission, other */
-#define  _S_IWOTH        (_S_IWGRP >> 3) /* write permission, other */
-#define  _S_IROTH        (_S_IRGRP  >> 3) /* execute/search permission, other */
+#define	_S_IRWXU	     (_S_IREAD | _S_IWRITE | _S_IEXEC)
+#define	_S_IXUSR	     _S_IEXEC  /* read permission, user */
+#define	_S_IWUSR	     _S_IWRITE /* write permission, user */
+#define	_S_IRUSR	     _S_IREAD  /* execute/search permission, user */
+#define	_S_IRWXG        (_S_IRWXU >> 3)
+#define	_S_IXGRP        (_S_IXUSR >> 3) /* read permission, group */
+#define	_S_IWGRP        (_S_IWUSR >> 3) /* write permission, group */
+#define	_S_IRGRP        (_S_IRUSR >> 3) /* execute/search permission, group */
+#define	_S_IRWXO        (_S_IRWXG >> 3) 
+#define	_S_IXOTH        (_S_IXGRP >> 3) /* read permission, other */
+#define	_S_IWOTH        (_S_IWGRP >> 3) /* write permission, other */
+#define	_S_IROTH        (_S_IRGRP  >> 3) /* execute/search permission, other */
 
-#define	  S_IRWXU	     _S_IRWXU
-#define   S_IXUSR	     _S_IXUSR
-#define	  S_IWUSR	     _S_IWUSR
-#define	  S_IRUSR	     _S_IRUSR
-#define   S_IRWXG        _S_IRWXG
-#define   S_IXGRP        _S_IXGRP
-#define   S_IWGRP        _S_IWGRP
-#define   S_IRGRP        _S_IRGRP
-#define   S_IRWXO        _S_IRWXO
-#define   S_IXOTH        _S_IXOTH
-#define   S_IWOTH        _S_IWOTH
-#define   S_IROTH        _S_IROTH
+#define	S_IRWXU	     _S_IRWXU
+#define	S_IXUSR	     _S_IXUSR
+#define	S_IWUSR	     _S_IWUSR
+#define	S_IRUSR	     _S_IRUSR
+#define	S_IRWXG        _S_IRWXG
+#define	S_IXGRP        _S_IXGRP
+#define	S_IWGRP        _S_IWGRP
+#define	S_IRGRP        _S_IRGRP
+#define	S_IRWXO        _S_IRWXO
+#define	S_IXOTH        _S_IXOTH
+#define	S_IWOTH        _S_IWOTH
+#define	S_IROTH        _S_IROTH
 
 #define	F_DUPFD	  	0	/* Duplicate file descriptor.  */
 #define	F_GETFD		1	/* Get file descriptor flags.  */
@@ -189,23 +176,23 @@
 #define	F_SETLKW		9	/* Set record locking info (blocking).  */
 
 /* XXX missing */
-#define F_GETLK64	7	/* Get record locking info.  */
-#define F_SETLK64	8	/* Set record locking info (non-blocking).  */
-#define F_SETLKW64	9	/* Set record locking info (blocking).  */
+#define	F_GETLK64	7	/* Get record locking info.  */
+#define	F_SETLK64	8	/* Set record locking info (non-blocking).  */
+#define	F_SETLKW64	9	/* Set record locking info (blocking).  */
 
 /* File descriptor flags used with F_GETFD and F_SETFD.  */
 #define	FD_CLOEXEC	1	/* Close on exec.  */
 
 //NOT SURE IF O_NONBLOCK is OK here but at least the 0x0004 flag is not used by anything else...
-#define O_NONBLOCK 0x0004 /* Non-blocking I/O.  */
-//#define O_NDELAY   O_NONBLOCK
+#define	O_NONBLOCK 0x0004 /* Non-blocking I/O.  */
+//#define	O_NDELAY   O_NONBLOCK
 
 /* Symbolic constants for the access() function */
 #if !defined(F_OK)
-    #define R_OK    4       /*  Test for read permission    */
-    #define W_OK    2       /*  Test for write permission   */
-    #define X_OK    1       /*  Test for execute permission */
-    #define F_OK    0       /*  Test for existence of file  */
+    #define	R_OK    4       /*  Test for read permission    */
+    #define	W_OK    2       /*  Test for write permission   */
+    #define	X_OK    1       /*  Test for execute permission */
+    #define	F_OK    0       /*  Test for existence of file  */
 #endif
 
 
@@ -220,9 +207,9 @@
 #if __USE_LARGEFILE && __USE_FILE_OFFSET64
 /* replace stat and seek by their large-file equivalents */
 #undef	stat
-#define   stat		_stati64
+#define	stat		_stati64
 #undef	fstat
-#define   fstat	_fstati64
+#define	fstat	_fstati64
 
 #undef	lseek
 #define	lseek       _lseeki64
