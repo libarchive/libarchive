@@ -195,6 +195,8 @@ AC_CHECK_MEMBERS([struct stat.st_mtimespec.tv_nsec])
 AC_CHECK_MEMBERS([struct stat.st_mtim.tv_nsec])
 # Check for block size support in struct stat
 AC_CHECK_MEMBERS([struct stat.st_blksize])
+# Check for st_flags in struct stat (BSD fflags)
+AC_CHECK_MEMBERS([struct stat.st_flags])
 
 # If you have uintmax_t, we assume printf supports %ju
 # If you have unsigned long long, we assume printf supports %llu

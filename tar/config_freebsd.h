@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD: src/usr.bin/tar/config_freebsd.h,v 1.5 2008/07/05 02:09:13 kientzle Exp $
+ * $FreeBSD: src/usr.bin/tar/config_freebsd.h,v 1.6 2008/09/14 03:49:00 kientzle Exp $
  */
 
 /* A default configuration for FreeBSD, used if there is no config.h. */
@@ -89,6 +89,7 @@
 #define	HAVE_STRINGS_H 1
 #define	HAVE_STRING_H 1
 #define	HAVE_STRRCHR 1
+#define	HAVE_STRUCT_STAT_ST_FLAGS 1
 #undef	HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC
 #define	HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC 1
 #define	HAVE_SYS_ACL_H 1
