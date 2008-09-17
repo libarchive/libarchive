@@ -230,6 +230,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_format_cpio_empty.c		\
 	libarchive/test/test_write_format_cpio_odc.c		\
 	libarchive/test/test_write_format_cpio_newc.c		\
+	libarchive/test/test_write_format_pax.c			\
 	libarchive/test/test_write_format_shar_empty.c		\
 	libarchive/test/test_write_format_tar.c			\
 	libarchive/test/test_write_format_tar_empty.c		\
@@ -321,6 +322,7 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_option_T.c				\
 	tar/test/test_patterns.c				\
 	tar/test/test_stdio.c					\
+	tar/test/test_symlink_dir.c				\
 	tar/test/test_version.c
 
 bsdtar_test_CPPFLAGS= -I$(top_builddir)/tar/test
