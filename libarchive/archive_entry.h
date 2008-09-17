@@ -43,12 +43,14 @@
 /* Get appropriate definitions of standard POSIX-style types. */
 /* These should match the types used in 'struct stat' */
 #ifdef _WIN32
+#define	__LA_INT64_T	__int64
 #define	__LA_UID_T	unsigned int
 #define	__LA_GID_T	unsigned int
 #define	__LA_DEV_T	unsigned int
 #define	__LA_MODE_T	unsigned short
 #else
 #include <unistd.h>
+#define	__LA_INT64_T	int64_t
 #define	__LA_UID_T	uid_t
 #define	__LA_GID_T	gid_t
 #define	__LA_DEV_T	dev_t

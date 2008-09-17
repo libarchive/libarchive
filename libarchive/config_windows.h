@@ -508,7 +508,7 @@
 /* Define to the type of a signed integer type of width exactly 64 bits if
    such a type exists and the standard includes do not define it. */
 #if defined(_MSC_VER)
-#define	int64_t long long
+#define	int64_t __int64
 #else
 /* #undef int64_t */
 #endif
@@ -544,7 +544,7 @@
 /* Define to the type of an unsigned integer type of width exactly 64 bits if
    such a type exists and the standard includes do not define it. */
 #if defined(_MSC_VER)
-#define	uint64_t unsigned long long
+#define	uint64_t unsigned __int64
 #else
 /* #undef uint64_t */
 #endif
