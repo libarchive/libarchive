@@ -112,6 +112,8 @@ struct archive_entry {
 		uint32_t	aest_ctime_nsec;
 		int64_t		aest_mtime;
 		uint32_t	aest_mtime_nsec;
+		int64_t		aest_birthtime;
+		uint32_t	aest_birthtime_nsec;
 		gid_t		aest_gid;
 		ino_t		aest_ino;
 		mode_t		aest_mode;

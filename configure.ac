@@ -191,7 +191,12 @@ AC_CHECK_TYPE(off_t, [long long])
 AC_TYPE_SIZE_T
 AC_CHECK_TYPE(id_t, [unsigned long])
 AC_CHECK_TYPE(uintptr_t, [unsigned int])
+
+# Check for birthtime in struct stat
+AC_CHECK_MEMBERS([struct stat.st_birthtime])
+
 # Check for high-resolution timestamps in struct stat
+AC_CHECK_MEMBERS([struct stat.st_birthtimespec.tv_nsec])
 AC_CHECK_MEMBERS([struct stat.st_mtimespec.tv_nsec])
 AC_CHECK_MEMBERS([struct stat.st_mtim.tv_nsec])
 # Check for block size support in struct stat
