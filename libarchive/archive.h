@@ -209,6 +209,7 @@ typedef int	archive_close_callback(struct archive *, void *_client_data);
 #define	ARCHIVE_COMPRESSION_BZIP2	2
 #define	ARCHIVE_COMPRESSION_COMPRESS	3
 #define	ARCHIVE_COMPRESSION_PROGRAM	4
+#define	ARCHIVE_COMPRESSION_LZMA	5
 
 /*
  * Codes returned by archive_format.

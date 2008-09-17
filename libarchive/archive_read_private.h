@@ -86,7 +86,7 @@ struct archive_read {
 			    const void **, size_t);
 		ssize_t	(*consume)(struct archive_read *, size_t);
 		off_t	(*skip)(struct archive_read *, off_t);
-	}	decompressors[4];
+	}	decompressors[5];
 
 	/* Pointer to current decompressor. */
 	struct decompressor_t *decompressor;

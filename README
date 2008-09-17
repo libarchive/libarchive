@@ -65,6 +65,7 @@ Currently, the library automatically detects and reads the following:
   * ZIP archives (with uncompressed or "deflate" compressed entries)
   * GNU and BSD 'ar' archives
   * 'mtree' format
+  * lzma compression
 
 The library can write:
   * gzip compression
