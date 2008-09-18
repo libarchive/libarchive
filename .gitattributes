@@ -2,3 +2,5 @@
 
 *.nt            -crlf
 *.sh             crlf=input
+*.sln           -crlf
+*.vcproj        -crlf
