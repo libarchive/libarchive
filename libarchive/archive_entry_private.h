@@ -144,7 +144,7 @@ struct archive_entry {
 #define	AE_SET_ATIME	4
 #define	AE_SET_CTIME	8
 #define	AE_SET_MTIME	16
-#define	AE_SET_BIRTHTIME	32
+#define	AE_SET_BIRTHTIME 32
 #define	AE_SET_SIZE	64
 
 	/*
