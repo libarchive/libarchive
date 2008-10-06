@@ -273,6 +273,7 @@ bsdtar_SOURCES=				\
 		tar/bsdtar.c		\
 		tar/bsdtar.h		\
 		tar/bsdtar_platform.h	\
+		tar/cmdline.c		\
 		tar/getdate.y		\
 		tar/matching.c		\
 		tar/read.c		\
