@@ -555,15 +555,19 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 	bytes = (a->decompressor->read_ahead)(a, &h, 512);
 	if (bytes < 0)
 		return (bytes);
-	if (bytes == 0) {
-		/*
-		 * An archive that just ends without a proper
-		 * end-of-archive marker.  Yes, there are tar programs
-		 * that do this; hold our nose and accept it.
-		 */
-		return (ARCHIVE_EOF);
-	}
-	if (bytes < 512) {
+	if (bytes < 512) {  /* Short read or EOF. */
+		/* Try requesting just one byte and see what happens. */
+		bytes = (a->decompressor->read_ahead)(a, &h, 1);
+		if (bytes == 0) {
+			/*
+			 * The archive ends at a 512-byte boundary but
+			 * without a proper end-of-archive marker.
+			 * Yes, there are tar writers that do this;
+			 * hold our nose and accept it.
+			 */
+			return (ARCHIVE_EOF);
+		}
+		/* Archive ends with a partial block; this is bad. */
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Truncated tar archive");
 		return (ARCHIVE_FATAL);
