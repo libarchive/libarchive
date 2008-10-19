@@ -339,7 +339,8 @@ find_newc_header(struct archive_read *a)
 	size_t skip, bytes, skipped = 0;
 
 	for (;;) {
-		bytes = (a->decompressor->read_ahead)(a, &h, 2048);
+		bytes = (a->decompressor->read_ahead)(a, &h,
+		    sizeof(struct cpio_newc_header));
 		if (bytes < sizeof(struct cpio_newc_header))
 			return (ARCHIVE_FATAL);
 		p = h;
@@ -404,7 +405,8 @@ header_newc(struct archive_read *a, struct cpio *cpio,
 		return (r);
 
 	/* Read fixed-size portion of header. */
-	bytes = (a->decompressor->read_ahead)(a, &h, sizeof(struct cpio_newc_header));
+	bytes = (a->decompressor->read_ahead)(a, &h,
+	    sizeof(struct cpio_newc_header));
 	if (bytes < sizeof(struct cpio_newc_header))
 	    return (ARCHIVE_FATAL);
 	(a->decompressor->consume)(a, sizeof(struct cpio_newc_header));
@@ -474,7 +476,8 @@ find_odc_header(struct archive_read *a)
 	size_t skip, bytes, skipped = 0;
 
 	for (;;) {
-		bytes = (a->decompressor->read_ahead)(a, &h, 512);
+		bytes = (a->decompressor->read_ahead)(a, &h,
+		    sizeof(struct cpio_odc_header));
 		if (bytes < sizeof(struct cpio_odc_header))
 			return (ARCHIVE_FATAL);
 		p = h;
@@ -541,7 +544,8 @@ header_odc(struct archive_read *a, struct cpio *cpio,
 		return (r);
 
 	/* Read fixed-size portion of header. */
-	bytes = (a->decompressor->read_ahead)(a, &h, sizeof(struct cpio_odc_header));
+	bytes = (a->decompressor->read_ahead)(a, &h,
+	    sizeof(struct cpio_odc_header));
 	if (bytes < sizeof(struct cpio_odc_header))
 	    return (ARCHIVE_FATAL);
 	(a->decompressor->consume)(a, sizeof(struct cpio_odc_header));
@@ -584,7 +588,8 @@ header_bin_le(struct archive_read *a, struct cpio *cpio,
 	a->archive.archive_format_name = "cpio (little-endian binary)";
 
 	/* Read fixed-size portion of header. */
-	bytes = (a->decompressor->read_ahead)(a, &h, sizeof(struct cpio_bin_header));
+	bytes = (a->decompressor->read_ahead)(a, &h,
+	    sizeof(struct cpio_bin_header));
 	if (bytes < sizeof(struct cpio_bin_header))
 	    return (ARCHIVE_FATAL);
 	(a->decompressor->consume)(a, sizeof(struct cpio_bin_header));
