@@ -60,15 +60,7 @@ struct archive_decompress_none {
 };
 
 /*
- * Size of internal buffer used for combining short reads.  This is
- * also an upper limit on the size of a read request.  Recall,
- * however, that we can (and will!) return blocks of data larger than
- * this.  The read semantics are: you ask for a minimum, I give you a
- * pointer to my best-effort match and tell you how much data is
- * there.  It could be less than you asked for, it could be much more.
- * For example, a client might use mmap() to "read" the entire file as
- * a single block.  In that case, I will return that entire block to
- * my clients.
+ * Initial size of internal buffer used for combining short reads.
  */
 #define	BUFFER_SIZE	65536
 
@@ -147,9 +139,14 @@ archive_decompressor_none_init(struct archive_read *a, const void *buff, size_t 
 }
 
 /*
- * We just pass through pointers to the client buffer if we can.
- * If the client buffer is short, then we copy stuff to our internal
- * buffer to combine reads.
+ * This is tricky.  We need to provide our clients with pointers to
+ * contiguous blocks of memory but we want to avoid copying whenever
+ * possible.
+ *
+ * Mostly, this code returns pointers directly into the block of data
+ * provided by the client_read routine.  It can do this unless the
+ * request would split across blocks.  In that case, we have to copy
+ * into an internal buffer to combine reads.
  */
 static ssize_t
 archive_decompressor_none_read_ahead(struct archive_read *a, const void **buff,
@@ -161,13 +158,6 @@ archive_decompressor_none_read_ahead(struct archive_read *a, const void **buff,
 	state = (struct archive_decompress_none *)a->decompressor->data;
 	if (state->fatal)
 		return (-1);
-
-	/*
-	 * Don't make special efforts to handle requests larger than
-	 * the copy buffer.
-	 */
-	if (min > state->buffer_size)
-		min = state->buffer_size;
 
 	/*
 	 * Keep pulling more data until we can satisfy the request.
@@ -232,13 +222,58 @@ archive_decompressor_none_read_ahead(struct archive_read *a, const void **buff,
 		}
 		else
 		{
+			/*
+			 * We can't satisfy the request from the copy
+			 * buffer or the existing client data, so we
+			 * need to copy more client data over to the
+			 * copy buffer.
+			 */
+
+			/* Ensure the buffer is big enough. */
+			if (min > state->buffer_size) {
+				size_t s, t;
+				char *p;
+
+				/* Double the buffer; watch for overflow. */
+				s = t = state->buffer_size;
+				while (s < min) {
+					t *= 2;
+					if (t <= s) { /* Integer overflow! */
+						archive_set_error(&a->archive,
+						    ENOMEM,
+						    "Unable to allocate copy buffer");
+						state->fatal = 1;
+						return (-1);
+					}
+					s = t;
+				}
+				/* Now s >= min, so allocate a new buffer. */
+				p = (char *)malloc(s);
+				if (p == NULL) {
+					archive_set_error(&a->archive, ENOMEM,
+					    "Unable to allocate copy buffer");
+					state->fatal = 1;
+					return (-1);
+				}
+				/* Move data into newly-enlarged buffer. */
+				if (state->avail > 0)
+					memmove(p, state->next, state->avail);
+				free(state->buffer);
+				state->next = state->buffer = p;
+				state->buffer_size = s;
+			}
+
 			/* We can add client data to copy buffer. */
 			/* First estimate: copy to fill rest of buffer. */
 			size_t tocopy = (state->buffer + state->buffer_size)
 			    - (state->next + state->avail);
+			/* Don't waste time buffering more than we need to. */
+			if (tocopy + state->avail > min)
+				tocopy = min - state->avail;
 			/* Don't copy more than is available. */
 			if (tocopy > state->client_avail)
 				tocopy = state->client_avail;
+
 			memcpy(state->next + state->avail, state->client_next,
 			    tocopy);
 			/* Remove this data from client buffer. */
