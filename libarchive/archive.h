@@ -82,14 +82,6 @@
 # define __LA_DECL
 #endif
 
-#if defined(__GNUC__) && (__GNUC__ > 2 || \
-			  (__GNUC__ == 2 && __GNUC_MINOR__ >= 5))
-#define	__LA_DEAD	__attribute__((__noreturn__))
-#else
-#define	__LA_DEAD
-#endif
-
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -598,5 +590,9 @@ __LA_DECL void		 archive_copy_error(struct archive *dest,
 
 /* This is meaningless outside of this header. */
 #undef __LA_DECL
+#undef __LA_GID_T
+#undef __LA_INT64_T
+#undef __LA_SSIZE_T
+#undef __LA_UID_T
 
 #endif /* !ARCHIVE_H_INCLUDED */
