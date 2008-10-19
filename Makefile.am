@@ -177,6 +177,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/read_open_memory.c			\
 	libarchive/test/test.h					\
 	libarchive/test/test_acl_basic.c			\
+	libarchive/test/test_acl_freebsd.c			\
 	libarchive/test/test_acl_pax.c				\
 	libarchive/test/test_archive_api_feature.c		\
 	libarchive/test/test_bad_fd.c				\
@@ -225,6 +226,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_disk_hardlink.c		\
 	libarchive/test/test_write_disk_perms.c			\
 	libarchive/test/test_write_disk_secure.c		\
+	libarchive/test/test_write_disk_times.c			\
 	libarchive/test/test_write_format_ar.c			\
 	libarchive/test/test_write_format_cpio.c		\
 	libarchive/test/test_write_format_cpio_empty.c		\
