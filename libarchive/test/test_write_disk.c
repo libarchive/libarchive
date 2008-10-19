@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_disk.c,v 1.14 2008/09/05 06:13:11 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_disk.c,v 1.15 2008/09/30 04:02:36 kientzle Exp $");
 
 #if ARCHIVE_VERSION_NUMBER >= 1009000
 

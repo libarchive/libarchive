@@ -1,4 +1,4 @@
-# $FreeBSD: src/lib/libarchive/test/Makefile,v 1.25 2008/09/08 00:58:12 kientzle Exp $
+# $FreeBSD: src/lib/libarchive/test/Makefile,v 1.28 2008/10/19 00:18:44 kientzle Exp $
 
 # Where to find the libarchive sources
 LA_SRCDIR=${.CURDIR}/..
@@ -9,6 +9,7 @@ LA_SRCS!=make -f ${LA_SRCDIR}/Makefile -V SRCS
 
 TESTS= \
 	test_acl_basic.c			\
+	test_acl_freebsd.c			\
 	test_acl_pax.c				\
 	test_archive_api_feature.c		\
 	test_bad_fd.c				\

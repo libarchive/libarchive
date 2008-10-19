@@ -25,7 +25,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/archive_write_disk.c,v 1.39 2008/09/14 05:51:25 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_write_disk.c,v 1.41 2008/10/19 00:18:44 kientzle Exp $");
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -710,10 +710,6 @@ _archive_write_finish_entry(struct archive *_a)
 		int r2 = set_mode(a, a->mode);
 		if (r2 < ret) ret = r2;
 	}
-	if (a->todo & TODO_TIMES) {
-		int r2 = set_times(a);
-		if (r2 < ret) ret = r2;
-	}
 	if (a->todo & TODO_ACLS) {
 		int r2 = set_acls(a);
 		if (r2 < ret) ret = r2;
@@ -724,6 +720,10 @@ _archive_write_finish_entry(struct archive *_a)
 	}
 	if (a->todo & TODO_FFLAGS) {
 		int r2 = set_fflags(a);
+		if (r2 < ret) ret = r2;
+	}
+	if (a->todo & TODO_TIMES) {
+		int r2 = set_times(a);
 		if (r2 < ret) ret = r2;
 	}
 
