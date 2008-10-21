@@ -194,9 +194,6 @@
 /* Define to 1 if you have the `geteuid' function. */
 /* #undef HAVE_GETEUID */
 
-/* Define to 1 if you have the `getopt_long' function. */
-/* #undef HAVE_GETOPT_LONG */
-
 /* Define to 1 if you have the `getxattr' function. */
 /* #undef HAVE_GETXATTR */
 

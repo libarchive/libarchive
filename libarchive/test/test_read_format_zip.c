@@ -23,7 +23,13 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_zip.c,v 1.7 2008/09/01 05:38:33 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_zip.c,v 1.8 2008/10/21 05:08:35 kientzle Exp $");
+
+/*
+ * The reference file for this has been manually tweaked so that:
+ *   * file2 has length-at-end but file1 does not
+ *   * file2 has an invalid CRC
+ */
 
 DEFINE_TEST(test_read_format_zip)
 {
@@ -57,7 +63,8 @@ DEFINE_TEST(test_read_format_zip)
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualString("file2", archive_entry_pathname(ae));
 	assertEqualInt(1179605932, archive_entry_mtime(ae));
-	assertEqualInt(18, archive_entry_size(ae));
+	failure("file2 has length-at-end, so we shouldn't see a valid size");
+	assertEqualInt(0, archive_entry_size_is_set(ae));
 	failure("file2 has a bad CRC, so reading to end should fail");
 	assertEqualInt(ARCHIVE_WARN, archive_read_data(a, buff, 19));
 	assert(0 == memcmp(buff, "hello\nhello\nhello\n", 18));

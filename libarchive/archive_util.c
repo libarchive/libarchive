@@ -24,7 +24,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/archive_util.c,v 1.18 2008/05/26 17:00:22 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_util.c,v 1.19 2008/10/21 12:10:30 des Exp $");
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -168,6 +168,7 @@ archive_set_error(struct archive *a, int error_number, const char *fmt, ...)
 
 	va_start(ap, fmt);
 	archive_string_vsprintf(&(a->error_string), fmt, ap);
+	va_end(ap);
 	if (error_number > 0) {
 		archive_strcat(&(a->error_string), ": ");
 #ifdef HAVE_STRERROR_R
@@ -184,7 +185,6 @@ archive_set_error(struct archive *a, int error_number, const char *fmt, ...)
 		archive_strcat(&(a->error_string), errp);
 	}
 	a->error = a->error_string.s;
-	va_end(ap);
 }
 
 void
