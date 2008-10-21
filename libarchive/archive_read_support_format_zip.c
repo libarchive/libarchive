@@ -167,7 +167,7 @@ archive_read_format_zip_bid(struct archive_read *a)
 {
 	const char *p;
 	const void *buff;
-	size_t bytes_avail;
+	size_t bytes_avail, offset;
 
 	if ((p = __archive_read_ahead(a, 4)) == NULL)
 		return (-1);
@@ -189,42 +189,37 @@ archive_read_format_zip_bid(struct archive_read *a)
 	/*
 	 * Attempt to handle self-extracting archives
 	 * by noting a PE header and searching forward
-	 * up to 64k for a 'PK\003\004' marker.
+	 * up to 128k for a 'PK\003\004' marker.
 	 */
 	if (p[0] == 'M' && p[1] == 'Z') {
 		/*
-		 * TODO: Additional checks that this really is a PE
-		 * file before we invoke the 128k lookahead below.
-		 * No point in allocating a bigger lookahead buffer
-		 * if we don't need to.
+		 * TODO: Optimize by initializing 'offset' to an
+		 * estimate of the likely start of the archive data
+		 * based on values in the PE header.  Note that we
+		 * don't need to be exact, but we mustn't skip too
+		 * far.  The search below will compensate if we
+		 * undershoot.
 		 */
-		/*
-		 * TODO: Of course, the compression layer lookahead
-		 * buffers aren't dynamically sized yet; they should be.
-		 */
-		bytes_avail = (a->decompressor->read_ahead)(a, &buff, 128*1024);
-		p = (const char *)buff;
-
-		/*
-		 * TODO: Optimize by jumping forward based on values
-		 * in the PE header.  Note that we don't need to be
-		 * exact, but we mustn't skip too far.  The search
-		 * below will compensate if we undershoot.  Skipping
-		 * will also reduce the chance of false positives
-		 * (which is not really all that high to begin with,
-		 * so maybe skipping isn't really necessary).
-		 */
-
-		while (p < bytes_avail + (const char *)buff) {
-			if (p[0] == 'P' && p[1] == 'K' /* "PK" signature */
-			    && p[2] == 3 && p[3] == 4 /* File entry */
-			    && p[8] == 8 /* compression == deflate */
-			    && p[9] == 0 /* High byte of compression */
-				)
-			{
-				return (30);
+		offset = 0;
+		while (offset < 124000) {
+			/* Get 4k of data beyond where we stopped. */
+			bytes_avail = (a->decompressor->read_ahead)(a, &buff,
+			    offset + 4096);
+			if (bytes_avail < offset + 1)
+				break;
+			p = (const char *)buff + offset;
+			while (p + 9 < (const char *)buff + bytes_avail) {
+				if (p[0] == 'P' && p[1] == 'K' /* signature */
+				    && p[2] == 3 && p[3] == 4 /* File entry */
+				    && p[8] == 8 /* compression == deflate */
+				    && p[9] == 0 /* High byte of compression */
+					)
+				{
+					return (30);
+				}
+				++p;
 			}
-			++p;
+			offset = p - (const char *)buff;
 		}
 	}
 
@@ -251,7 +246,7 @@ skip_sfx(struct archive_read *a)
 	 * reduce the chance of a false positive.
 	 */
 	for (;;) {
-		bytes = (a->decompressor->read_ahead)(a, &h, 4096);
+		bytes = (a->decompressor->read_ahead)(a, &h, 4);
 		if (bytes < 4)
 			return (ARCHIVE_FATAL);
 		p = h;
