@@ -161,8 +161,7 @@ restart_read:
 
 	if (state->child_in_buf_avail == 0) {
 		child_buf = state->child_in_buf;
-		ret = (a->client_reader)(&a->archive,
-		    a->client_data,&child_buf);
+		ret = (a->source->read)(a->source, &child_buf);
 		state->child_in_buf = (const char *)child_buf;
 
 		if (ret < 0) {
@@ -255,9 +254,9 @@ archive_decompressor_program_init(struct archive_read *a, const void *buff, size
 	}
 
 	a->decompressor->data = state;
-	a->decompressor->read_ahead = archive_decompressor_program_read_ahead;
-	a->decompressor->consume = archive_decompressor_program_read_consume;
-	a->decompressor->skip = NULL;
+	a->decompressor->read_ahead2 = archive_decompressor_program_read_ahead;
+	a->decompressor->consume2 = archive_decompressor_program_read_consume;
+	a->decompressor->skip2 = NULL;
 	a->decompressor->finish = archive_decompressor_program_finish;
 
 	/* XXX Check that we can read at least one byte? */

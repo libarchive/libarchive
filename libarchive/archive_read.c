@@ -108,6 +108,32 @@ archive_read_open(struct archive *a, void *client_data,
 	    client_reader, NULL, client_closer);
 }
 
+static ssize_t
+client_read_proxy(struct archive_read_source *self, const void **buff)
+{
+	return (self->archive->client.reader)((struct archive *)self->archive,
+	    self->data, buff);
+}
+
+static int64_t
+client_skip_proxy(struct archive_read_source *self, int64_t request)
+{
+	return (self->archive->client.skipper)((struct archive *)self->archive,
+	    self->data, request);
+}
+
+static ssize_t
+client_close_proxy(struct archive_read_source *self)
+{
+	int r;
+
+	r = (self->archive->client.closer)((struct archive *)self->archive,
+	    self->data);
+	free(self);
+	return (r);
+}
+
+
 int
 archive_read_open2(struct archive *_a, void *client_data,
     archive_open_callback *client_opener,
@@ -120,7 +146,8 @@ archive_read_open2(struct archive *_a, void *client_data,
 	ssize_t bytes_read;
 	int e;
 
-	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW, "archive_read_open");
+	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
+	    "archive_read_open");
 
 	if (client_reader == NULL)
 		__archive_errx(1,
@@ -132,11 +159,11 @@ archive_read_open2(struct archive *_a, void *client_data,
 	 * (In particular, this helps ensure that the closer doesn't
 	 * get called more than once.)
 	 */
-	a->client_opener = NULL;
-	a->client_reader = NULL;
-	a->client_skipper = NULL;
-	a->client_closer = NULL;
-	a->client_data = NULL;
+	a->client.opener = NULL;
+	a->client.reader = NULL;
+	a->client.skipper = NULL;
+	a->client.closer = NULL;
+	a->client.data = NULL;
 
 	/* Open data source. */
 	if (client_opener != NULL) {
@@ -161,11 +188,27 @@ archive_read_open2(struct archive *_a, void *client_data,
 	}
 
 	/* Now that the client callbacks have worked, remember them. */
-	a->client_opener = client_opener; /* Do we need to remember this? */
-	a->client_reader = client_reader;
-	a->client_skipper = client_skipper;
-	a->client_closer = client_closer;
-	a->client_data = client_data;
+	a->client.opener = client_opener; /* Do we need to remember this? */
+	a->client.reader = client_reader;
+	a->client.skipper = client_skipper;
+	a->client.closer = client_closer;
+	a->client.data = client_data;
+
+	{
+		struct archive_read_source *source;
+
+		source = calloc(1, sizeof(*source));
+		if (source == NULL)
+			return (ARCHIVE_FATAL);
+		source->reader = NULL;
+		source->source = NULL;
+		source->archive = a;
+		source->data = client_data;
+		source->read = client_read_proxy;
+		source->skip = client_skip_proxy;
+		source->close = client_close_proxy;
+		a->source = source;
+	}
 
 	/* Select a decompression routine. */
 	choose_decompressor(a, buffer, (size_t)bytes_read);
@@ -182,8 +225,8 @@ archive_read_open2(struct archive *_a, void *client_data,
 	 * If the decompressor didn't register a skip function, provide a
 	 * dummy compression-layer skip function.
 	 */
-	if (a->decompressor->skip == NULL)
-		a->decompressor->skip = dummy_skip;
+	if (a->decompressor->skip2 == NULL)
+		a->decompressor->skip2 = dummy_skip;
 
 	return (e);
 }
@@ -254,7 +297,7 @@ dummy_skip(struct archive_read * a, off_t request)
 	off_t bytes_skipped;
 
 	for (bytes_skipped = 0; request > 0;) {
-		bytes_read = (a->decompressor->read_ahead)(a, &dummy_buffer, 1);
+		bytes_read = (a->decompressor->read_ahead2)(a, &dummy_buffer, 1);
 		if (bytes_read < 0)
 			return (bytes_read);
 		if (bytes_read == 0) {
@@ -266,7 +309,7 @@ dummy_skip(struct archive_read * a, off_t request)
 		}
 		if (bytes_read > request)
 			bytes_read = (ssize_t)request;
-		(a->decompressor->consume)(a, (size_t)bytes_read);
+		(a->decompressor->consume2)(a, (size_t)bytes_read);
 		request -= bytes_read;
 		bytes_skipped += bytes_read;
 	}
@@ -609,8 +652,8 @@ archive_read_close(struct archive *_a)
 	}
 
 	/* Close the client stream. */
-	if (a->client_closer != NULL) {
-		r1 = ((a->client_closer)(&a->archive, a->client_data));
+	if (a->client.closer != NULL) {
+		r1 = ((a->client.closer)(&a->archive, a->client.data));
 		if (r1 < r)
 			r = r1;
 	}
@@ -729,11 +772,29 @@ __archive_read_register_compression(struct archive_read *a,
 
 /* used internally to simplify read-ahead */
 const void *
-__archive_read_ahead(struct archive_read *a, size_t len)
+__archive_read_ahead(struct archive_read *a, size_t len, size_t *avail)
 {
+	ssize_t av;
 	const void *h;
 
-	if ((a->decompressor->read_ahead)(a, &h, len) < (ssize_t)len)
+	av = (a->decompressor->read_ahead2)(a, &h, len);
+	/* Return # bytes avail (also error code) regardless. */
+	if (avail != NULL && av >= 0)
+		*avail = av;
+	/* If it was a short read, return NULL. */
+	if (av < (ssize_t)len)
 		return (NULL);
 	return (h);
+}
+
+ssize_t
+__archive_read_consume(struct archive_read *a, size_t s)
+{
+	return (a->decompressor->consume2)(a, s);
+}
+
+int64_t
+__archive_read_skip(struct archive_read *a, uint64_t s)
+{
+	return (a->decompressor->skip2)(a, s);
 }

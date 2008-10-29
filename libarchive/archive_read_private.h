@@ -32,6 +32,74 @@
 #include "archive_string.h"
 #include "archive_private.h"
 
+struct archive_read;
+struct archive_reader;
+struct archive_read_source;
+
+/*
+ * A "reader" knows how to provide blocks.  That can include something
+ * that reads blocks from disk or socket or a transformation layer
+ * that reads blocks from another source and transforms them.  This
+ * includes decompression and decryption filters.
+ *
+ * How bidding works:
+ *   * The bid manager reads the first block from the current source.
+ *   * It shows that block to each registered bidder.
+ *   * The winning bidder is initialized (with the block and information
+ *     about the source)
+ *   * The winning bidder becomes the new source and the process repeats
+ * This ends only when no reader provides a non-zero bid.
+ */
+struct archive_reader {
+	/* Configuration data for the reader. */
+	void *data;
+	/* Bidder is handed the initial block from its source. */
+	int (*bid)(const void *buff, size_t);
+	/* Init() is given the archive, upstream source, and the initial
+	 * block above.  It returns a populated source structure. */
+	struct archive_read_source *(*init)(struct archive_read *,
+	    struct archive_read_source *source, const void *, size_t);
+	/* Release the reader and any configuration data it allocated. */
+	void (*free)(struct archive_reader *);
+};
+
+/*
+ * A "source" is an instance of a reader.  This structure is
+ * allocated and initialized by the init() method of a reader
+ * above.
+ */
+struct archive_read_source {
+	/* Essentially all sources will need these values, so
+	 * just declare them here. */
+	struct archive_reader *reader; /* Reader that I'm an instance of. */
+	struct archive_read_source *source; /* Who I get blocks from. */
+	struct archive_read *archive; /* associated archive. */
+	/* Return next block. */
+	ssize_t (*read)(struct archive_read_source *, const void **);
+	/* Skip forward this many bytes. */
+	int64_t (*skip)(struct archive_read_source *self, int64_t request);
+	/* Close (recursively) and free(self). */
+	int (*close)(struct archive_read_source *self);
+	/* My private data. */
+	void *data;
+};
+
+/*
+ * The client source is almost the same as an internal source.
+ *
+ * TODO: Make archive_read_source and archive_read_client identical so
+ * that users of the library can easily register their own
+ * transformation filters.  This will probably break the API/ABI and
+ * so should be deferred until libarchive 3.0.
+ */
+struct archive_read_client {
+	archive_open_callback	*opener;
+	archive_read_callback	*reader;
+	archive_skip_callback	*skipper;
+	archive_close_callback	*closer;
+	void			*data;
+};
+
 struct archive_read {
 	struct archive	archive;
 
@@ -50,12 +118,14 @@ struct archive_read {
 	off_t		  read_data_output_offset;
 	size_t		  read_data_remaining;
 
-	/* Callbacks to open/read/write/close archive stream. */
-	archive_open_callback	*client_opener;
-	archive_read_callback	*client_reader;
-	archive_skip_callback	*client_skipper;
-	archive_close_callback	*client_closer;
-	void			*client_data;
+	/* Callbacks to open/read/write/close client archive stream. */
+	struct archive_read_client client;
+
+	/* Registered readers. */
+	struct archive_reader readers[8];
+
+	/* Source */
+	struct archive_read_source *source;
 
 	/* File offset of beginning of most recently-read header. */
 	off_t		  header_position;
@@ -82,10 +152,10 @@ struct archive_read {
 		int	(*init)(struct archive_read *,
 			    const void *buff, size_t);
 		int	(*finish)(struct archive_read *);
-		ssize_t	(*read_ahead)(struct archive_read *,
+		ssize_t	(*read_ahead2)(struct archive_read *,
 			    const void **, size_t);
-		ssize_t	(*consume)(struct archive_read *, size_t);
-		off_t	(*skip)(struct archive_read *, off_t);
+		ssize_t	(*consume2)(struct archive_read *, size_t);
+		off_t	(*skip2)(struct archive_read *, off_t);
 	}	decompressors[5];
 
 	/* Pointer to current decompressor. */
@@ -128,8 +198,10 @@ struct decompressor_t
 	*__archive_read_register_compression(struct archive_read *a,
 	    int (*bid)(const void *, size_t),
 	    int (*init)(struct archive_read *, const void *, size_t));
-
 const void
-	*__archive_read_ahead(struct archive_read *, size_t);
-
+	*__archive_read_ahead(struct archive_read *, size_t, size_t *);
+ssize_t
+	__archive_read_consume(struct archive_read *, size_t);
+int64_t
+	__archive_read_skip(struct archive_read *, uint64_t);
 #endif

@@ -130,9 +130,9 @@ archive_decompressor_none_init(struct archive_read *a, const void *buff, size_t 
 	state->client_avail = state->client_total;
 
 	a->decompressor->data = state;
-	a->decompressor->read_ahead = archive_decompressor_none_read_ahead;
-	a->decompressor->consume = archive_decompressor_none_read_consume;
-	a->decompressor->skip = archive_decompressor_none_skip;
+	a->decompressor->read_ahead2 = archive_decompressor_none_read_ahead;
+	a->decompressor->consume2 = archive_decompressor_none_read_consume;
+	a->decompressor->skip2 = archive_decompressor_none_skip;
 	a->decompressor->finish = archive_decompressor_none_finish;
 
 	return (ARCHIVE_OK);
@@ -205,8 +205,8 @@ archive_decompressor_none_read_ahead(struct archive_read *a, const void **buff,
 				/* TODO: Change this to return(0) consistent
 				 * with new eof handling commented below. */
 			}
-			bytes_read = (a->client_reader)(&a->archive,
-			    a->client_data, &state->client_buff);
+			bytes_read = (a->source->read)(a->source,
+			    &state->client_buff);
 			if (bytes_read < 0) {		/* Read error. */
 				state->client_total = state->client_avail = 0;
 				state->client_next = state->client_buff = NULL;
@@ -354,12 +354,11 @@ archive_decompressor_none_skip(struct archive_read *a, off_t request)
 	 * If a client_skipper was provided, try that first.
 	 */
 #if ARCHIVE_API_VERSION < 2
-	if ((a->client_skipper != NULL) && (request < SSIZE_MAX)) {
+	if ((a->source->skip != NULL) && (request < SSIZE_MAX)) {
 #else
-	if (a->client_skipper != NULL) {
+	if (a->source->skip != NULL) {
 #endif
-		bytes_skipped = (a->client_skipper)(&a->archive,
-		    a->client_data, request);
+		bytes_skipped = (a->source->skip)(a->source, request);
 		if (bytes_skipped < 0) {	/* error */
 			state->client_total = state->client_avail = 0;
 			state->client_next = state->client_buff = NULL;

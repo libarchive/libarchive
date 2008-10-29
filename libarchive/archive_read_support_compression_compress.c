@@ -199,9 +199,9 @@ init(struct archive_read *a, const void *buff, size_t n)
 	a->archive.compression_code = ARCHIVE_COMPRESSION_COMPRESS;
 	a->archive.compression_name = "compress (.Z)";
 
-	a->decompressor->read_ahead = read_ahead;
-	a->decompressor->consume = read_consume;
-	a->decompressor->skip = NULL; /* not supported */
+	a->decompressor->read_ahead2 = read_ahead;
+	a->decompressor->consume2 = read_consume;
+	a->decompressor->skip2 = NULL; /* not supported */
 	a->decompressor->finish = finish;
 
 	state = (struct private_data *)malloc(sizeof(*state));
@@ -281,13 +281,6 @@ read_ahead(struct archive_read *a, const void **p, size_t min)
 	int ret;
 
 	state = (struct private_data *)a->decompressor->data;
-	if (!a->client_reader) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
-		    "No read callback is registered?  "
-		    "This is probably an internal programming error.");
-		return (ARCHIVE_FATAL);
-	}
-
 	read_avail = state->next_out - state->read_next;
 
 	if (read_avail < min  &&  state->end_of_stream) {
@@ -469,8 +462,7 @@ getbits(struct archive_read *a, struct private_data *state, int n)
 	while (state->bits_avail < n) {
 		if (state->avail_in <= 0) {
 			read_buf = state->next_in;
-			ret = (a->client_reader)(&a->archive, a->client_data,
-			    &read_buf);
+			ret = (a->source->read)(a->source, &read_buf);
 			state->next_in = read_buf;
 			if (ret < 0)
 				return (ARCHIVE_FATAL);
