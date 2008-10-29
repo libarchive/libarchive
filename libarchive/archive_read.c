@@ -770,16 +770,72 @@ __archive_read_register_compression(struct archive_read *a,
 	return (NULL); /* Never actually executed. */
 }
 
-/* used internally to simplify read-ahead */
+/*
+ * The next three functions comprise the peek/consume internal I/O
+ * system used by archive format readers.  This system allows fairly
+ * flexible read-ahead and allows the I/O code to operate in a
+ * zero-copy manner most of the time.
+ *
+ * In the ideal case, block providers give the I/O code blocks of data
+ * and __archive_read_ahead() just returns pointers directly into
+ * those blocks.  Then __archive_read_consume() just bumps those
+ * pointers.  Only if your request would span blocks does the I/O
+ * layer use a copy buffer to provide you with a contiguous block of
+ * data.  The __archive_read_skip() is an optimization; it scans ahead
+ * very quickly (it usually translates into a seek() operation if
+ * you're reading uncompressed disk files).
+ *
+ * A couple of useful idioms:
+ *  * "I just want some data."  Ask for 1 byte and pay attention to
+ *    the "number of bytes available" from __archive_read_ahead().
+ *    You can consume more than you asked for; you just can't consume
+ *    more than is available right now.  If you consume everything that's
+ *    immediately available, the next read_ahead() call will pull
+ *    the next block.
+ *  * "I want to output a large block of data."  As above, ask for 1 byte,
+ *    emit all that's available (up to whatever limit you have), then
+ *    repeat until you're done.
+ *  * "I want to peek ahead by a large amount."  Ask for 4k or so, then
+ *    double and repeat until you get an error or have enough.  Note
+ *    that the I/O layer will likely end up expanding its copy buffer
+ *    to fit your request, so use this technique cautiously.  This
+ *    technique is used, for example, by some of the format tasting
+ *    code that has uncertain look-ahead needs.
+ *
+ * TODO: Someday, provide a more generic __archive_read_seek() for
+ * those cases where it's useful.  This is tricky because there are lots
+ * of cases where seek() is not available (reading gzip data from a
+ * network socket, for instance), so there needs to be a good way to
+ * communicate whether seek() is available and users of that interface
+ * need to use non-seeking strategies whenever seek() is not available.
+ */
+
+/*
+ * Looks ahead in the input stream:
+ *  * If 'avail' pointer is provided, that returns number of bytes available
+ *    in the current buffer, which may be much larger than requested.
+ *  * If end-of-file, *avail gets set to zero.
+ *  * If error, *avail gets error code.
+ *  * If request can be met, returns pointer to data, returns NULL
+ *    if request is not met.
+ *
+ * Note: If you just want "some data", ask for 1 byte and pay attention
+ * to *avail, which will have the actual amount available.  If you
+ * know exactly how many bytes you need, just ask for that and treat
+ * a NULL return as an error.
+ *
+ * Important:  This does NOT move the file pointer.  See
+ * __archive_read_consume() below.
+ */
 const void *
-__archive_read_ahead(struct archive_read *a, size_t len, size_t *avail)
+__archive_read_ahead(struct archive_read *a, size_t len, ssize_t *avail)
 {
 	ssize_t av;
 	const void *h;
 
 	av = (a->decompressor->read_ahead2)(a, &h, len);
 	/* Return # bytes avail (also error code) regardless. */
-	if (avail != NULL && av >= 0)
+	if (avail != NULL)
 		*avail = av;
 	/* If it was a short read, return NULL. */
 	if (av < (ssize_t)len)
@@ -787,12 +843,25 @@ __archive_read_ahead(struct archive_read *a, size_t len, size_t *avail)
 	return (h);
 }
 
+/*
+ * Move the file pointer forward.  This should be called after
+ * __archive_read_ahead() returns data to you.  Don't try to move
+ * ahead by more than the amount of data available according to
+ * __archive_read_ahead().
+ */
 ssize_t
 __archive_read_consume(struct archive_read *a, size_t s)
 {
 	return (a->decompressor->consume2)(a, s);
 }
 
+/*
+ * Move the file pointer ahead by an arbitrary amount.  If you're
+ * reading uncompressed data from a disk file, this will actually
+ * translate into a seek() operation.  Even in cases where seek()
+ * isn't feasible, this at least pushes the read-and-discard loop
+ * down closer to the data source.
+ */
 int64_t
 __archive_read_skip(struct archive_read *a, uint64_t s)
 {
