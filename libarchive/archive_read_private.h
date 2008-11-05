@@ -54,13 +54,14 @@ struct archive_reader {
 	/* Configuration data for the reader. */
 	void *data;
 	/* Bidder is handed the initial block from its source. */
-	int (*bid)(const void *buff, size_t);
+	int (*bid)(struct archive_reader *, const void *buff, size_t);
 	/* Init() is given the archive, upstream source, and the initial
 	 * block above.  It returns a populated source structure. */
 	struct archive_read_source *(*init)(struct archive_read *,
-	    struct archive_read_source *source, const void *, size_t);
+	    struct archive_reader *, struct archive_read_source *source,
+	    const void *, size_t);
 	/* Release the reader and any configuration data it allocated. */
-	void (*free)(struct archive_reader *);
+	int (*free)(struct archive_reader *);
 };
 
 /*
@@ -72,7 +73,7 @@ struct archive_read_source {
 	/* Essentially all sources will need these values, so
 	 * just declare them here. */
 	struct archive_reader *reader; /* Reader that I'm an instance of. */
-	struct archive_read_source *source; /* Who I get blocks from. */
+	struct archive_read_source *upstream; /* Who I get blocks from. */
 	struct archive_read *archive; /* associated archive. */
 	/* Return next block. */
 	ssize_t (*read)(struct archive_read_source *, const void **);
@@ -130,36 +131,18 @@ struct archive_read {
 	/* File offset of beginning of most recently-read header. */
 	off_t		  header_position;
 
-	/*
-	 * Decompressors have a very specific lifecycle:
-	 *    public setup function initializes a slot in this table
-	 *    'config' holds minimal configuration data
-	 *    bid() examines a block of data and returns a bid [1]
-	 *    init() is called for successful bidder
-	 *    'data' is initialized by init()
-	 *    read() returns a pointer to the next block of data
-	 *    consume() indicates how much data is used
-	 *    skip() ignores bytes of data
-	 *    finish() cleans up and frees 'data' and 'config'
-	 *
-	 * [1] General guideline: bid the number of bits that you actually
-	 * test, e.g., 16 if you test a 2-byte magic value.
-	 */
-	struct decompressor_t {
-		void *config;
-		void *data;
-		int	(*bid)(const void *buff, size_t);
-		int	(*init)(struct archive_read *,
-			    const void *buff, size_t);
-		int	(*finish)(struct archive_read *);
-		ssize_t	(*read_ahead2)(struct archive_read *,
-			    const void **, size_t);
-		ssize_t	(*consume2)(struct archive_read *, size_t);
-		off_t	(*skip2)(struct archive_read *, off_t);
-	}	decompressors[5];
 
-	/* Pointer to current decompressor. */
-	struct decompressor_t *decompressor;
+	/* Used by reblocking logic. */
+	char		*buffer;
+	size_t		 buffer_size;
+	char		*next;		/* Current read location. */
+	size_t		 avail;		/* Bytes in my buffer. */
+	const void	*client_buff;	/* Client buffer information. */
+	size_t		 client_total;
+	const char	*client_next;
+	size_t		 client_avail;
+	char		 end_of_file;
+	char		 fatal;
 
 	/*
 	 * Format detection is mostly the same as compression
@@ -194,14 +177,13 @@ int	__archive_read_register_format(struct archive_read *a,
 	    int (*read_data_skip)(struct archive_read *),
 	    int (*cleanup)(struct archive_read *));
 
-struct decompressor_t
-	*__archive_read_register_compression(struct archive_read *a,
-	    int (*bid)(const void *, size_t),
-	    int (*init)(struct archive_read *, const void *, size_t));
+struct archive_reader
+	*__archive_read_get_reader(struct archive_read *a);
+
 const void
-	*__archive_read_ahead(struct archive_read *, size_t, size_t *);
+	*__archive_read_ahead(struct archive_read *, size_t, ssize_t *);
 ssize_t
 	__archive_read_consume(struct archive_read *, size_t);
 int64_t
-	__archive_read_skip(struct archive_read *, uint64_t);
+	__archive_read_skip(struct archive_read *, int64_t);
 #endif

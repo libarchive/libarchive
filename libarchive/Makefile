@@ -16,6 +16,9 @@ WARNS?=	6
 # Headers to be installed in /usr/include
 INCS=	archive.h archive_entry.h
 
+# TODO: LZMA reader needs to be converted to the new filter architecture...
+#	archive_read_support_compression_lzma.c		\
+
 # Sources to be compiled.
 SRCS=	archive_check_magic.c				\
 	archive_entry.c					\
@@ -34,7 +37,6 @@ SRCS=	archive_check_magic.c				\
 	archive_read_support_compression_bzip2.c	\
 	archive_read_support_compression_compress.c	\
 	archive_read_support_compression_gzip.c		\
-	archive_read_support_compression_lzma.c		\
 	archive_read_support_compression_none.c		\
 	archive_read_support_compression_program.c	\
 	archive_read_support_format_all.c		\

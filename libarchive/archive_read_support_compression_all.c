@@ -40,7 +40,7 @@ archive_read_support_compression_all(struct archive *a)
 	archive_read_support_compression_gzip(a);
 #endif
 #if HAVE_LZMADEC_H
-	archive_read_support_compression_lzma(a);
+//	archive_read_support_compression_lzma(a);
 #endif
 	return (ARCHIVE_OK);
 }
