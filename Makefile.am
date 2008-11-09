@@ -202,6 +202,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_format_cpio_svr4c_Z.c		\
 	libarchive/test/test_read_format_empty.c		\
 	libarchive/test/test_read_format_gtar_gz.c		\
+	libarchive/test/test_read_format_gtar_lzma.c		\
 	libarchive/test/test_read_format_gtar_sparse.c		\
 	libarchive/test/test_read_format_iso_gz.c		\
 	libarchive/test/test_read_format_isorr_bz2.c		\

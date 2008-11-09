@@ -34,6 +34,7 @@ TESTS= \
 	test_read_format_cpio_svr4c_Z.c		\
 	test_read_format_empty.c		\
 	test_read_format_gtar_gz.c		\
+	test_read_format_gtar_lzma.c		\
 	test_read_format_gtar_sparse.c		\
 	test_read_format_iso_gz.c		\
 	test_read_format_isorr_bz2.c		\

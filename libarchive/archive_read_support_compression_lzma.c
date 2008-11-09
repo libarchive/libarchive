@@ -102,6 +102,15 @@ lzma_reader_free(struct archive_reader *self){
  * This logic returns zero if any part of the signature fails.  It
  * also tries to Do The Right Thing if a very short buffer prevents us
  * from verifying as much as we would like.
+ *
+ * <sigh> LZMA has a rather poor file signature.  Zeros do not
+ * make good signature bytes as a rule, and the only non-zero byte
+ * here is an ASCII character.  For example, an uncompressed tar
+ * archive whose first file is ']' would satisfy this check.  It may
+ * be necessary to exclude LZMA from compression_all() because of
+ * this.  Clients of libarchive would then have to explicitly enable
+ * LZMA checking instead of (or in addition to) compression_all() when
+ * they have other evidence (file name, command-line option) to go on.
  */
 static int
 lzma_reader_bid(struct archive_reader *self, const void *buff, size_t len)
@@ -111,14 +120,41 @@ lzma_reader_bid(struct archive_reader *self, const void *buff, size_t len)
 
 	(void)self; /* UNUSED */
 
+	buffer = (const unsigned char *)buff;
+
+
+	/* First byte of raw LZMA stream is always 0x5d. */
 	if (len < 1)
 		return (0);
-
-	buffer = (const unsigned char *)buff;
 	bits_checked = 0;
-	if (buffer[0] != 0x5d)	/* Verify first ID byte. */
+	if (buffer[0] != 0x5d)
 		return (0);
 	bits_checked += 8;
+
+	/* Second through fifth bytes are dictionary code, stored in
+	 * little-endian order.  The two least-significant bytes are
+	 * always zero. */
+	if (len < 2)
+		return (bits_checked);
+	if (buffer[1] != 0)
+		return (0);
+	bits_checked += 8;
+
+	if (len < 3)
+		return (bits_checked);
+	if (buffer[2] != 0)
+		return (0);
+	bits_checked += 8;
+
+	/* ??? TODO:  Explain this.  ??? */
+	if (len < 6)
+		return (bits_checked);
+	if (buffer[5] != 0)
+		return (0);
+	bits_checked += 8;
+
+	/* TODO: The above test is still very weak.  It would be
+	 * good to do better. */
 
 	return (bits_checked);
 }
