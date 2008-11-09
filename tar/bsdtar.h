@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD: src/usr.bin/tar/bsdtar.h,v 1.35 2008/08/04 01:25:48 cperciva Exp $
+ * $FreeBSD: src/usr.bin/tar/bsdtar.h,v 1.36 2008/11/08 04:43:24 kientzle Exp $
  */
 
 #include "bsdtar_platform.h"

@@ -1,4 +1,4 @@
-# $FreeBSD: src/usr.bin/tar/Makefile,v 1.38 2008/08/22 01:31:13 kientzle Exp $
+# $FreeBSD: src/usr.bin/tar/Makefile,v 1.39 2008/11/08 04:43:24 kientzle Exp $
 
 PROG=	bsdtar
 BSDTAR_VERSION_STRING=2.5.902a
@@ -11,6 +11,7 @@ CFLAGS+=	-DPLATFORM_CONFIG_H=\"config_freebsd.h\"
 CFLAGS+=	-I${.CURDIR}
 SYMLINKS=	bsdtar ${BINDIR}/tar
 MLINKS=	bsdtar.1 tar.1
+DEBUG_FLAGS=-g
 
 .PHONY: check test
 check test: $(PROG) bsdtar.1.gz
