@@ -1,24 +1,30 @@
+Nov 09, 2008: libarchive 2.5.902a released
+Nov 08, 2008: libarchive 2.5.901a released
+Nov 08, 2008: Start of pre-release testing for libarchive 2.6
 
-Nov 08, 2008: libarchive 2.5.901 released
-Nov 07, 2008: Decompression refactor completed: The decompression
-	routines have been simplified; they now consume and produce
-	arbitrarily-sized blocks.  The reblocking which used to be in
-	read_support_compression_none() has been pulled into the read
-	core.  Of course, there are still some opportunities for
-	eliminating common code across the decompressors, but this is
-	a step in the right direction.  This also changes the
-	decompression bid to multi-pass so that archive_read now
-	builds out a filter pipeline.  This opens the door to
-	automatic uudecode and decryption support.  (I have some ideas
-	for encryption support that I'd like to explore soon.)
-Nov 01, 2008: lzma reader contributed by Miklos Vajna.  I still have
+Nov 07, 2008: Read filter refactor: The decompression routines just
+	consume and produce arbitrarily-sized blocks.  The reblocking
+	from read_support_compression_none() has been pulled into the
+	read core.  Also, the decompression bid now makes multiple
+	passes and stacks read filters.
+Oct 21, 2008: bsdcpio: New command-line parser.
+Oct 19, 2008: Internal read_ahead change: short reads are now an error
+Oct 06, 2008: bsdtar: option parser no longer uses getopt_long(),
+	gives consistent option parsing on all platforms.
+Sep 19, 2008: Jaakko Heinonen: shar utility built on libarchive
+Sep 17, 2008: Pedro Giffuni: birthtime support
+Sep 17, 2008: Miklos Vajna: lzma reader and test.  Note:  I still have
 	some concerns about the auto-detection (LZMA file format
 	doesn't support auto-detection well), so this is not yet
 	enabled under archive_read_support_compression_all().  For
 	now, you must call archive_read_support_compression_lzma() if
 	you want LZMA read support.
-Oct 15, 2008: bsdtar and bsdcpio have custom command-line parsers now,
-	so we now have consistent long-option support on all platforms.
+Sep 11, 2008: Ivailo Petrov: Many fixes to Windows build, new solution files
+Jul 26, 2008: archive_entry now tracks which values have not been set.
+	This helps zip extraction (file size is often "unknown") and
+	time restores (tar usually doesn't know atime).
+Jul 26, 2008: Joerg Sonnenberger: Performance improvements to shar writer
+Jul 25, 2008: Joerg Sonnenberger: mtree write support
 
 Jul 02, 2008: libarchive 2.5.5 released
 
