@@ -36,6 +36,10 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_format_zip.c,v 1.27 
 #include <time.h>
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>
+#else
+/* Hmmm... This is necessary, but means that we can't correctly extract
+ * even uncompressed entries on platforms that lack zlib. */
+#define	crc32(crc, buf, len) (unsigned long)0
 #endif
 
 #include "archive.h"
