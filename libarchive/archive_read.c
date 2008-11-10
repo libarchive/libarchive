@@ -790,6 +790,7 @@ const void *
 __archive_read_ahead(struct archive_read *a, size_t min, ssize_t *avail)
 {
 	ssize_t bytes_read;
+	size_t tocopy;
 
 	if (a->fatal) {
 		*avail = ARCHIVE_FATAL;
@@ -919,7 +920,7 @@ __archive_read_ahead(struct archive_read *a, size_t min, ssize_t *avail)
 
 			/* We can add client data to copy buffer. */
 			/* First estimate: copy to fill rest of buffer. */
-			size_t tocopy = (a->buffer + a->buffer_size)
+			tocopy = (a->buffer + a->buffer_size)
 			    - (a->next + a->avail);
 			/* Don't waste time buffering more than we need to. */
 			if (tocopy + a->avail > min)
