@@ -17,6 +17,7 @@ VN=`cat version | sed 's/[^0-9.]//g'`
 VN=$(($VN + 1))
 rm -f version.old
 mv version version.old
+chmod +w version.old
 echo $VN$MARKER > version
 # Build out the string.
 VS="$(($VN/1000000)).$(( ($VN/1000)%1000 )).$(( $VN%1000 ))$MARKER"
@@ -33,6 +34,7 @@ perl -p -i -e 's/(m4_define\(\[LIBARCHIVE_VERSION_N\]),.*\)/$1,['"$VN"'])/' conf
 
 # Add a version notice to NEWS
 mv NEWS NEWS.bak
+chmod +w NEWS.bak
 echo > NEWS
 echo `date +"%b %d, %Y:"` libarchive $VS released >> NEWS
 cat NEWS.bak >> NEWS
