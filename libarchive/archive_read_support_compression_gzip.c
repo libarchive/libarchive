@@ -163,9 +163,9 @@ gzip_reader_bid(struct archive_reader *self, const void *buff, size_t len)
  * decompression.  We can, however, still detect compressed archives
  * and emit a useful message.
  */
-static int
-gzip_reader_init(struct archive_read *a, struct archive_read_source *upstream,
-    const void *buff, size_t n)
+static struct archive_read_source *
+gzip_reader_init(struct archive_read *a, struct archive_reader *reader,
+    struct archive_read_source *upstream, const void *buff, size_t n)
 {
 	(void)a;	/* UNUSED */
 	(void)buff;	/* UNUSED */
@@ -173,7 +173,7 @@ gzip_reader_init(struct archive_read *a, struct archive_read_source *upstream,
 
 	archive_set_error(&a->archive, -1,
 	    "This version of libarchive was compiled without gzip support");
-	return (ARCHIVE_FATAL);
+	return (NULL);
 }
 
 #else
