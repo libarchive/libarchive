@@ -147,11 +147,15 @@ lzma_reader_bid(struct archive_reader *self, const void *buff, size_t len)
 	bits_checked += 8;
 
 	/* ??? TODO:  Explain this.  ??? */
+	/* NSIS format check uses this, but I've seen tar.lzma
+	 * archives where this byte is 0xff, not 0. */
+#if 0
 	if (len < 6)
 		return (bits_checked);
 	if (buffer[5] != 0)
 		return (0);
 	bits_checked += 8;
+#endif
 
 	/* TODO: The above test is still very weak.  It would be
 	 * good to do better. */
