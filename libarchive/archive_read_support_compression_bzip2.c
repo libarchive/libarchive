@@ -53,7 +53,7 @@ struct private_data {
 	bz_stream	 stream;
 	char		*out_block;
 	size_t		 out_block_size;
-	int64_t		 total_out;
+	char		 valid; /* True = decompressor is initialized */
 	char		 eof; /* True = found end of compressed data. */
 };
 
@@ -200,7 +200,6 @@ bzip2_reader_init(struct archive_read *a, struct archive_reader *reader,
 	void *out_block;
 	struct archive_read_source *self;
 	struct private_data *state;
-	int ret;
 
 	(void)reader; /* UNUSED */
 
@@ -242,49 +241,7 @@ bzip2_reader_init(struct archive_read *a, struct archive_reader *reader,
 	state->stream.next_out = state->out_block;
 	state->stream.avail_out = state->out_block_size;
 
-	/* Initialize compression library. */
-	ret = BZ2_bzDecompressInit(&(state->stream),
-	    0 /* library verbosity */,
-	    0 /* don't use slow low-mem algorithm */);
-
-	/* If init fails, try using low-memory algorithm instead. */
-	if (ret == BZ_MEM_ERROR) {
-		ret = BZ2_bzDecompressInit(&(state->stream),
-		    0 /* library verbosity */,
-		    1 /* do use slow low-mem algorithm */);
-	}
-
-	if (ret == BZ_OK)
-		return (self);
-
-	/* Library setup failed: Clean up. */
-	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-	    "Internal error initializing %s library",
-	    a->archive.compression_name);
-
-	/* Override the error message if we know what really went wrong. */
-	switch (ret) {
-	case BZ_PARAM_ERROR:
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Internal error initializing compression library: "
-		    "invalid setup parameter");
-		break;
-	case BZ_MEM_ERROR:
-		archive_set_error(&a->archive, ENOMEM,
-		    "Internal error initializing compression library: "
-		    "out of memory");
-		break;
-	case BZ_CONFIG_ERROR:
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Internal error initializing compression library: "
-		    "mis-compiled library");
-		break;
-	}
-
-	free(state->out_block);
-	free(state);
-	free(self);
-	return (NULL);
+	return (self);
 }
 
 /*
@@ -300,6 +257,11 @@ bzip2_source_read(struct archive_read_source *self, const void **p)
 
 	state = (struct private_data *)self->data;
 	read_avail = 0;
+
+	if (state->eof) {
+		*p = NULL;
+		return (0);
+	}
 
 	/* Empty our output buffer. */
 	state->stream.next_out = state->out_block;
@@ -319,39 +281,85 @@ bzip2_source_read(struct archive_read_source *self, const void **p)
 				return (ARCHIVE_FATAL);
 			/* There is no more data, return whatever we have. */
 			if (ret == 0) {
+				state->eof = 1;
 				*p = state->out_block;
 				decompressed = state->stream.next_out
 				    - state->out_block;
-				state->total_out += decompressed;
 				return (decompressed);
 			}
 			state->stream.avail_in = ret;
+		}
+
+		if (!state->valid) {
+			if (state->stream.next_in[0] != 'B') {
+				state->eof = 1;
+				*p = state->out_block;
+				decompressed = state->stream.next_out
+				    - state->out_block;
+				return (decompressed);
+			}
+			/* Initialize compression library. */
+			ret = BZ2_bzDecompressInit(&(state->stream),
+					   0 /* library verbosity */,
+					   0 /* don't use low-mem algorithm */);
+
+			/* If init fails, try low-memory algorithm instead. */
+			if (ret == BZ_MEM_ERROR)
+				ret = BZ2_bzDecompressInit(&(state->stream),
+					   0 /* library verbosity */,
+					   1 /* do use low-mem algo */);
+
+			if (ret != BZ_OK) {
+				const char *detail = NULL;
+				int err = ARCHIVE_ERRNO_MISC;
+				switch (ret) {
+				case BZ_PARAM_ERROR:
+					detail = "invalid setup parameter";
+					break;
+				case BZ_MEM_ERROR:
+					err = ENOMEM;
+					detail = "out of memory";
+					break;
+				case BZ_CONFIG_ERROR:
+					detail = "mis-compiled library";
+					break;
+				}
+				archive_set_error(&self->archive->archive, err,
+				    "Internal error initializing decompressor%s%s",
+				    detail == NULL ? "" : ": ",
+				    detail);
+				return (ARCHIVE_FATAL);
+			}
+			state->valid = 1;
 		}
 
 		/* Decompress as much as we can in one pass. */
 		ret = BZ2_bzDecompress(&(state->stream));
 		switch (ret) {
 		case BZ_STREAM_END: /* Found end of stream. */
-			/* TODO: Peek ahead to see if there's another
-			 * stream so we can mimic the behavior of gunzip
-			 * on concatenated streams. */
-			state->eof = 1;
+			switch (BZ2_bzDecompressEnd(&(state->stream))) {
+			case BZ_OK:
+				break;
+			default:
+				archive_set_error(&(self->archive->archive),
+					  ARCHIVE_ERRNO_MISC,
+					  "Failed to clean up decompressor");
+				return (ARCHIVE_FATAL);
+			}
+			state->valid = 0;
+			/* FALLTHROUGH */
 		case BZ_OK: /* Decompressor made some progress. */
 			/* If we filled our buffer, update stats and return. */
-			if (state->eof || state->stream.avail_out == 0) {
+			if (state->stream.avail_out == 0) {
 				*p = state->out_block;
 				decompressed = state->stream.next_out
 				    - state->out_block;
-				state->total_out += decompressed;
 				return (decompressed);
 			}
 			break;
-		default:
-			/* Return an error. */
+		default: /* Return an error. */
 			archive_set_error(&self->archive->archive,
-			    ARCHIVE_ERRNO_MISC,
-			    "%s decompression failed",
-			    self->archive->archive.compression_name);
+			    ARCHIVE_ERRNO_MISC, "bzip decompression failed");
 			return (ARCHIVE_FATAL);
 		}
 	}
@@ -364,25 +372,26 @@ static int
 bzip2_source_close(struct archive_read_source *self)
 {
 	struct private_data *state;
-	int ret;
+	int ret = ARCHIVE_OK;
 
 	state = (struct private_data *)self->data;
-	ret = ARCHIVE_OK;
-	switch (BZ2_bzDecompressEnd(&(state->stream))) {
-	case BZ_OK:
-		break;
-	default:
-		archive_set_error(&(self->archive->archive),
-		    ARCHIVE_ERRNO_MISC,
-		    "Failed to clean up %s compressor",
-		    self->archive->archive.compression_name);
-		ret = ARCHIVE_FATAL;
+
+	if (state->valid) {
+		switch (BZ2_bzDecompressEnd(&state->stream)) {
+		case BZ_OK:
+			break;
+		default:
+			archive_set_error(&self->archive->archive,
+					  ARCHIVE_ERRNO_MISC,
+					  "Failed to clean up decompressor");
+			ret = ARCHIVE_FATAL;
+		}
 	}
 
 	free(state->out_block);
 	free(state);
 	free(self);
-	return (ret);
+	return (ARCHIVE_OK);
 }
 
 #endif /* HAVE_BZLIB_H */
