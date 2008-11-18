@@ -793,7 +793,8 @@ __archive_read_ahead(struct archive_read *a, size_t min, ssize_t *avail)
 	size_t tocopy;
 
 	if (a->fatal) {
-		*avail = ARCHIVE_FATAL;
+		if (avail)
+			*avail = ARCHIVE_FATAL;
 		return (NULL);
 	}
 
