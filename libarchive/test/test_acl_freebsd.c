@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_acl_freebsd.c,v 1.1 2008/10/19 00:18:44 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_acl_freebsd.c,v 1.2 2008/11/17 21:06:17 kientzle Exp $");
 
 #if defined(__FreeBSD__) && __FreeBSD__ > 4
 #include <sys/acl.h>
@@ -200,19 +200,19 @@ DEFINE_TEST(test_acl_freebsd)
 	/* Create a test file and try to set an ACL on it. */
 	fd = open("pretest", O_WRONLY | O_CREAT | O_EXCL, 0777);
 	failure("Could not create test file?!");
-	n = -1;
-	if (assert(fd >= 0)) {
-		n = acl_set_fd(fd, acl);
-		failure("acl_set_fd(): errno = %d (%s)",
-		    errno, strerror(errno));
-		assertEqualInt(0, n);
-		close(fd);
-	}
+	if (!assert(fd >= 0))
+		return;
 
-	if (fd < 0 || n != 0) {
+	n = acl_set_fd(fd, acl);
+	if (n != 0 && errno == EOPNOTSUPP) {
+		close(fd);
 		skipping("ACL tests require that ACL support be enabled on the filesystem");
 		return;
 	}
+	failure("acl_set_fd(): errno = %d (%s)",
+	    errno, strerror(errno));
+	assertEqualInt(0, n);
+	close(fd);
 
 	/* Create a write-to-disk object. */
 	assert(NULL != (a = archive_write_disk_new()));
