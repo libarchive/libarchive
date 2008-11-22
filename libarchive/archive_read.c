@@ -862,10 +862,7 @@ __archive_read_ahead(struct archive_read *a, size_t min, ssize_t *avail)
 				/* Return whatever we do have. */
 				if (avail != NULL)
 					*avail = a->avail;
-				return (a->next);
-				/* TODO: I want to change this to
-				 * return(0) as an eof marker, but a little
-				 * more work is needed first. */
+				return (NULL);
 			}
 			a->archive.raw_position += bytes_read;
 			a->client_total = bytes_read;

@@ -20,6 +20,7 @@ TESTS= \
 	test_empty_write.c			\
 	test_entry.c				\
 	test_entry_strmode.c			\
+	test_fuzz.c				\
 	test_link_resolver.c			\
 	test_pax_filename_encoding.c		\
 	test_read_compress_program.c		\

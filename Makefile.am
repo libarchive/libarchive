@@ -181,11 +181,13 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_acl_pax.c				\
 	libarchive/test/test_archive_api_feature.c		\
 	libarchive/test/test_bad_fd.c				\
+	libarchive/test/test_compat_bzip2.c			\
 	libarchive/test/test_compat_gtar.c			\
 	libarchive/test/test_compat_tar_hardlink.c		\
 	libarchive/test/test_compat_zip.c			\
 	libarchive/test/test_empty_write.c			\
 	libarchive/test/test_entry.c				\
+	libarchive/test/test_fuzz.c				\
 	libarchive/test/test_entry_strmode.c			\
 	libarchive/test/test_link_resolver.c			\
 	libarchive/test/test_pax_filename_encoding.c		\
@@ -251,9 +253,12 @@ libarchive/test/list.h: Makefile
 libarchive_TESTS_ENVIRONMENT= LIBARCHIVE_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/libarchive/test
 
 libarchive_test_EXTRA_DIST=\
+	libarchive/test/test_compat_bzip2_1.tbz.uu			\
+	libarchive/test/test_compat_bzip2_2.tbz.uu			\
 	libarchive/test/test_compat_gtar_1.tgz.uu			\
 	libarchive/test/test_compat_tar_hardlink_1.tar.uu		\
 	libarchive/test/test_compat_zip_1.zip.uu			\
+	libarchive/test/test_fuzz_1.iso.uu				\
 	libarchive/test/test_pax_filename_encoding.tar.gz.uu		\
 	libarchive/test/test_read_format_gtar_sparse_1_13.tgz.uu	\
 	libarchive/test/test_read_format_gtar_sparse_1_17.tgz.uu	\
@@ -326,6 +331,7 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_option_T.c				\
 	tar/test/test_patterns.c				\
 	tar/test/test_stdio.c					\
+	tar/test/test_strip_components.c			\
 	tar/test/test_symlink_dir.c				\
 	tar/test/test_version.c
 
