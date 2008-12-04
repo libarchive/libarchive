@@ -183,6 +183,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_bad_fd.c				\
 	libarchive/test/test_compat_bzip2.c			\
 	libarchive/test/test_compat_gtar.c			\
+	libarchive/test/test_compat_gzip.c			\
 	libarchive/test/test_compat_tar_hardlink.c		\
 	libarchive/test/test_compat_zip.c			\
 	libarchive/test/test_empty_write.c			\
@@ -256,6 +257,8 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_bzip2_1.tbz.uu			\
 	libarchive/test/test_compat_bzip2_2.tbz.uu			\
 	libarchive/test/test_compat_gtar_1.tgz.uu			\
+	libarchive/test/test_compat_gzip_1.tgz.uu			\
+	libarchive/test/test_compat_gzip_2.tgz.uu			\
 	libarchive/test/test_compat_tar_hardlink_1.tar.uu		\
 	libarchive/test/test_compat_zip_1.zip.uu			\
 	libarchive/test/test_fuzz_1.iso.uu				\

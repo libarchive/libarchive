@@ -15,6 +15,7 @@ TESTS= \
 	test_bad_fd.c				\
 	test_compat_bzip2.c			\
 	test_compat_gtar.c			\
+	test_compat_gzip.c			\
 	test_compat_tar_hardlink.c		\
 	test_compat_zip.c			\
 	test_empty_write.c			\
