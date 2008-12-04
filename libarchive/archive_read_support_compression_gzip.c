@@ -253,13 +253,18 @@ header(struct archive_read_source *self)
 	 * please let me know. ;-)
 	 */
 	switch (state->header_state) {
-	case 0: case 1: /* First two bytes of signature. */
+	case 0: /* First byte of signature. */
+		/* We only return EOF for a failure here. */
+		if (b != 037)
+			return (ARCHIVE_EOF);
+		state->header_state = 1;
+		break;
+	case 1: /* Second byte of signature. */
 	case 2: /* Compression type must be 8 == deflate. */
 		if (b != (0xff & "\037\213\010"[(int)state->header_state])) {
 			archive_set_error(&self->archive->archive,
 			    ARCHIVE_ERRNO_MISC,
 			    "Invalid GZip header (saw %d at offset %d)",
-			    self->archive->archive.compression_name,
 			    b, state->header_state);
 			return (ARCHIVE_FATAL);
 		}
@@ -377,29 +382,12 @@ gzip_source_read(struct archive_read_source *self, const void **p)
 	state = (struct private_data *)self->data;
 	read_avail = 0;
 
-	/* If we're still parsing header bytes, walk through those. */
-	while (!state->header_done) {
-		ret = header(self);
-		if (ret < ARCHIVE_OK)
-			return (ret);
-		/* Fetch another block from upstream if necessary. */
-		if (state->stream.avail_in == 0) {
-			ret = (self->upstream->read)(self->upstream,
-			    &read_buf);
-			state->stream.next_in
-			    = (unsigned char *)(uintptr_t)read_buf;
-			if (ret <= 0)
-				return (ARCHIVE_FATAL);
-			state->stream.avail_in = ret;
-		}
-	}
-
 	/* Empty our output buffer. */
 	state->stream.next_out = state->out_block;
 	state->stream.avail_out = state->out_block_size;
 
 	/* Try to fill the output buffer. */
-	for (;;) {
+	while (state->stream.avail_out > 0 && !state->eof) {
 		/* If the last upstream block is done, get another one. */
 		if (state->stream.avail_in == 0) {
 			ret = (self->upstream->read)(self->upstream,
@@ -410,46 +398,62 @@ gzip_source_read(struct archive_read_source *self, const void **p)
 			    = (unsigned char *)(uintptr_t)read_buf;
 			if (ret < 0)
 				return (ARCHIVE_FATAL);
+			state->stream.avail_in = ret;
 			/* There is no more data, return whatever we have. */
 			if (ret == 0) {
-				*p = state->out_block;
-				decompressed = state->stream.next_out
-				    - state->out_block;
-				state->total_out += decompressed;
-				return (decompressed);
+				state->eof = 1;
+				break;
 			}
-			state->stream.avail_in = ret;
 		}
 
-		/* Decompress as much as we can in one pass. */
-		ret = inflate(&(state->stream), 0);
-		switch (ret) {
-		case Z_STREAM_END: /* Found end of stream. */
-			/* TODO: Peek ahead to see if there's another
-			 * stream so we can mimic the behavior of gunzip
-			 * on concatenated streams. */
-			state->eof = 1;
-		case Z_OK: /* Decompressor made some progress. */
-			/* If we filled our buffer, update stats and return. */
-			if (state->eof || state->stream.avail_out == 0) {
-				*p = state->out_block;
-				decompressed = state->stream.next_out
-				    - state->out_block;
-				state->crc = crc32(state->crc,
-				    state->out_block, decompressed);
-				state->total_out += decompressed;
-				return (decompressed);
+		/* If we're still parsing header bytes, walk through those. */
+		if (!state->header_done) {
+			ret = header(self);
+			if (ret < ARCHIVE_OK)
+				return (ret);
+			if (ret == ARCHIVE_EOF)
+				state->eof = 1;
+		} else {
+			/* Decompress as much as we can in one pass. */
+			/* XXX Skip trailer XXX */
+			ret = inflate(&(state->stream), 0);
+			switch (ret) {
+			case Z_STREAM_END: /* Found end of stream. */
+				switch (inflateEnd(&(state->stream))) {
+				case Z_OK:
+					break;
+				default:
+					archive_set_error(&self->archive->archive,
+						ARCHIVE_ERRNO_MISC,
+						"Failed to clean up gzip decompressor");
+					return (ARCHIVE_FATAL);
+				}
+				/* Restart header parser with the next block. */
+				state->header_state = state->header_done = 0;
+				/* FALL THROUGH */
+			case Z_OK: /* Decompressor made some progress. */
+				/* If we filled our buffer, update stats and return. */
+				break;
+			default:
+				/* Return an error. */
+				archive_set_error(&self->archive->archive,
+						  ARCHIVE_ERRNO_MISC,
+						  "%s decompression failed",
+						  self->archive->archive.compression_name);
+				return (ARCHIVE_FATAL);
 			}
-			break;
-		default:
-			/* Return an error. */
-			archive_set_error(&self->archive->archive,
-			    ARCHIVE_ERRNO_MISC,
-			    "%s decompression failed",
-			    self->archive->archive.compression_name);
-			return (ARCHIVE_FATAL);
 		}
 	}
+
+	/* We've read as much as we can. */
+	decompressed = state->stream.next_out - state->out_block;
+	state->total_out += decompressed;
+	if (decompressed == 0)
+		*p = NULL;
+	else
+		*p = state->out_block;
+	return (decompressed);
+
 }
 
 /*
@@ -463,15 +467,18 @@ gzip_source_close(struct archive_read_source *self)
 
 	state = (struct private_data *)self->data;
 	ret = ARCHIVE_OK;
-	switch (inflateEnd(&(state->stream))) {
-	case Z_OK:
-		break;
-	default:
-		archive_set_error(&(self->archive->archive),
-		    ARCHIVE_ERRNO_MISC,
-		    "Failed to clean up %s compressor",
-		    self->archive->archive.compression_name);
-		ret = ARCHIVE_FATAL;
+
+	if (state->header_done) {
+		switch (inflateEnd(&(state->stream))) {
+		case Z_OK:
+			break;
+		default:
+			archive_set_error(&(self->archive->archive),
+					  ARCHIVE_ERRNO_MISC,
+					  "Failed to clean up %s compressor",
+					  self->archive->archive.compression_name);
+			ret = ARCHIVE_FATAL;
+		}
 	}
 
 	free(state->out_block);
