@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD: src/usr.bin/tar/config_freebsd.h,v 1.7 2008/11/08 04:43:24 kientzle Exp $
+ * $FreeBSD: src/usr.bin/tar/config_freebsd.h,v 1.8 2008/11/29 20:06:53 kientzle Exp $
  */
 
 /* A default configuration for FreeBSD, used if there is no config.h. */
@@ -101,6 +101,7 @@
 #define	HAVE_UNISTD_H 1
 #define	HAVE_UNSIGNED_LONG_LONG
 #define	HAVE_VPRINTF 1
+#define	HAVE_WCTYPE_H 1
 #define	HAVE_ZLIB_H 1
 #undef	MAJOR_IN_MKDEV
 #define	STDC_HEADERS 1

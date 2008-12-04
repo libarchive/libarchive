@@ -24,7 +24,7 @@
  */
 
 #include "bsdtar_platform.h"
-__FBSDID("$FreeBSD: src/usr.bin/tar/write.c,v 1.77 2008/09/14 03:49:00 kientzle Exp $");
+__FBSDID("$FreeBSD: src/usr.bin/tar/write.c,v 1.79 2008/11/27 05:49:52 kientzle Exp $");
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -655,8 +655,15 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		const struct stat *st = NULL, *lst = NULL;
 		int descend;
 
-		if (tree_ret == TREE_ERROR_DIR)
-			bsdtar_warnc(bsdtar, errno, "%s: Couldn't visit directory", name);
+		if (tree_ret == TREE_ERROR_FATAL)
+			bsdtar_errc(bsdtar, 1, tree_errno(tree),
+			    "%s: Unable to continue traversing directory tree",
+			    name);
+		if (tree_ret == TREE_ERROR_DIR) {
+			bsdtar_warnc(bsdtar, errno,
+			    "%s: Couldn't visit directory", name);
+			bsdtar->return_value = 1;
+		}
 		if (tree_ret != TREE_REGULAR)
 			continue;
 		lst = tree_current_lstat(tree);
