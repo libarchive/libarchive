@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_fuzz.c,v 1.1 2008/12/06 07:08:08 kientzle Exp $");
 
 /*
  * This was inspired by an ISO fuzz tester written by Michal Zalewski

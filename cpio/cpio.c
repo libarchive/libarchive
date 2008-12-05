@@ -26,7 +26,7 @@
 
 
 #include "cpio_platform.h"
-__FBSDID("$FreeBSD: src/usr.bin/cpio/cpio.c,v 1.14 2008/11/29 20:22:02 kientzle Exp $");
+__FBSDID("$FreeBSD: src/usr.bin/cpio/cpio.c,v 1.15 2008/12/06 07:30:40 kientzle Exp $");
 
 #include <sys/types.h>
 #include <archive.h>

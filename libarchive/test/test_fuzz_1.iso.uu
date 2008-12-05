@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/lib/libarchive/test/test_fuzz_1.iso.uu,v 1.1 2008/12/06 07:08:08 kientzle Exp $
 begin 644 test_fuzz_1.iso
 M````````````````````````````````````````````````````````````
 M````````````````````````````````````````````````````````````
