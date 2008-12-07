@@ -162,17 +162,37 @@ AM_CONDITIONAL([STATIC_BSDCPIO], [ test "$static_bsdcpio" = yes ])
 AC_HEADER_STDC
 AC_HEADER_DIRENT
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS([bzlib.h errno.h ext2fs/ext2_fs.h fcntl.h  grp.h])
+AC_CHECK_HEADERS([errno.h ext2fs/ext2_fs.h fcntl.h  grp.h])
 AC_CHECK_HEADERS([inttypes.h langinfo.h limits.h linux/fs.h])
-AC_CHECK_HEADERS([locale.h lzmadec.h paths.h poll.h pwd.h regex.h stdarg.h])
+AC_CHECK_HEADERS([locale.h paths.h poll.h pwd.h regex.h stdarg.h])
 AC_CHECK_HEADERS([stdint.h stdlib.h string.h sys/acl.h sys/ioctl.h])
 AC_CHECK_HEADERS([sys/param.h sys/poll.h sys/select.h sys/time.h sys/utime.h])
-AC_CHECK_HEADERS([time.h unistd.h utime.h wchar.h zlib.h])
+AC_CHECK_HEADERS([time.h unistd.h utime.h wchar.h])
 
 # Checks for libraries.
-AC_CHECK_LIB(bz2,BZ2_bzDecompressInit)
-AC_CHECK_LIB(z,inflate)
-AC_CHECK_LIB(lzmadec,lzmadec_decode)
+AC_ARG_WITH([zlib],
+  AS_HELP_STRING([--without-zlib], [Don't build support for gzip through zlib]))
+
+if test "x$with_zlib" != "xno"; then
+  AC_CHECK_HEADERS([zlib.h])
+  AC_CHECK_LIB(z,inflate)
+fi
+
+AC_ARG_WITH([bz2lib],
+  AS_HELP_STRING([--without-bz2lib], [Don't build support for bzip2 through bz2lib]))
+
+if test "x$with_bz2lib" != "xno"; then
+  AC_CHECK_HEADERS([bzlib.h])
+  AC_CHECK_LIB(bz2,BZ2_bzDecompressInit)
+fi
+
+AC_ARG_WITH([lzmadec],
+  AS_HELP_STRING([--without-lzmadec], [Don't build support for lzma through lzmadec]))
+
+if test "x$with_lzmadec" != "xno"; then
+  AC_CHECK_HEADERS([lzmadec.h])
+  AC_CHECK_LIB(lzmadec,lzmadec_decode)
+fi
 
 # TODO: Give the user the option of using a pre-existing system
 # libarchive.  This will define HAVE_LIBARCHIVE which will cause
