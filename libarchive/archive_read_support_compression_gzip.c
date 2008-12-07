@@ -168,6 +168,8 @@ gzip_reader_init(struct archive_read *a, struct archive_reader *reader,
     struct archive_read_source *upstream, const void *buff, size_t n)
 {
 	(void)a;	/* UNUSED */
+	(void)reader;	/* UNUSED */
+	(void)upstream; /* UNUSED */
 	(void)buff;	/* UNUSED */
 	(void)n;	/* UNUSED */
 
