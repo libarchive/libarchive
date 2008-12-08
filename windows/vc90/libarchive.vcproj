@@ -106,6 +106,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				InlineFunctionExpansion="1"
 				AdditionalIncludeDirectories=""
 				PreprocessorDefinitions="WIN32;NDEBUG;_LIB;PLATFORM_CONFIG_H=&quot;\&quot;config_windows.h\&quot;&quot;"
 				RuntimeLibrary="2"
@@ -346,6 +347,10 @@
 			</File>
 			<File
 				RelativePath="..\..\libarchive\archive_write_set_format_cpio_newc.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\libarchive\archive_write_set_format_mtree.c"
 				>
 			</File>
 			<File
