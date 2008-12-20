@@ -442,6 +442,9 @@
 /* Define to 1 if you have the `wcslen' function. */
 #define	HAVE_WCSLEN 1
 
+/* Define to 1 if you have the `wctomb' function. */
+#define	HAVE_WCTOMB 1
+
 /* Define to 1 if you have the `wmemcmp' function. */
 /* #undef HAVE_WMEMCMP */
 
