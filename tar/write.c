@@ -44,7 +44,8 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/write.c,v 1.79 2008/11/27 05:49:52 kientzle 
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
-#ifdef HAVE_EXT2FS_EXT2_FS_H
+#if defined(HAVE_EXT2FS_EXT2_FS_H) && !defined(__CYGWIN__)
+/* This header exists but is broken on Cygwin. */
 #include <ext2fs/ext2_fs.h>
 #endif
 #ifdef HAVE_FCNTL_H
