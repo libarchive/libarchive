@@ -703,6 +703,23 @@ struct { void (*func)(void); const char *name; } tests[] = {
 	#include "list.h"
 };
 
+static void
+close_descriptors(int warn)
+{
+	int i;
+	int left_open = 0;
+
+	for (i = 3; i < 100; ++i) {
+		if (close(i) == 0)
+			++left_open;
+	}
+	if (warn && left_open > 0) {
+		fprintf(stderr, " ** %d descriptors unclosed\n", left_open);
+		failures += left_open;
+		report_failure(NULL);
+	}
+}
+
 /*
  * Each test is run in a private work dir.  Those work dirs
  * do have consistent and predictable names, in case a group
@@ -744,8 +761,12 @@ static int test_run(int i, const char *tmpdir)
 	}
 	/* Explicitly reset the locale before each test. */
 	setlocale(LC_ALL, "C");
+	/* Make sure there are no stray descriptors going into the test. */
+	close_descriptors(0);
 	/* Run the actual test. */
 	(*tests[i].func)();
+	/* Close stray descriptors, record as errors against this test. */
+	close_descriptors(1);
 	/* Summarize the results of this test. */
 	summarize();
 	/* If there were no failures, we can remove the work dir. */
@@ -897,7 +918,7 @@ int main(int argc, char **argv)
 	time_t now;
 	char *refdir_alloc = NULL;
 	char *progname, *p;
-	char *tmp;
+	const char *tmp;
 	char tmpdir[256];
 	char tmpdir_timestamp[256];
 
