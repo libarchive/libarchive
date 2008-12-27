@@ -26,7 +26,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_format_ar.c,v 1.11 2008/12/06 06:45:15 kientzle Exp $");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_format_ar.c,v 1.12 2008/12/17 19:02:42 kientzle Exp $");
 
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
@@ -192,7 +192,7 @@ archive_read_format_ar_read_header(struct archive_read *a,
 	/* Verify the magic signature on the file header. */
 	if (strncmp(h + AR_fmag_offset, "`\n", 2) != 0) {
 		archive_set_error(&a->archive, EINVAL,
-		    "Consistency check failed");
+		    "Incorrect file header signature");
 		return (ARCHIVE_WARN);
 	}
 
