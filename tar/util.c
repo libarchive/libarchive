@@ -24,7 +24,7 @@
  */
 
 #include "bsdtar_platform.h"
-__FBSDID("$FreeBSD: src/usr.bin/tar/util.c,v 1.22 2008/11/29 20:06:53 kientzle Exp $");
+__FBSDID("$FreeBSD: src/usr.bin/tar/util.c,v 1.23 2008/12/15 06:00:25 kientzle Exp $");
 
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
@@ -459,7 +459,7 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 #if HAVE_REGEX_H
 	r = apply_substitution(bsdtar, name, &subst_name, 0);
 	if (r == -1) {
-		bsdtar_warnc(bsdtar, 0, "Invalid substituion, skipping entry");
+		bsdtar_warnc(bsdtar, 0, "Invalid substitution, skipping entry");
 		return 1;
 	}
 	if (r == 1) {
@@ -475,7 +475,7 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 	if (archive_entry_hardlink(entry)) {
 		r = apply_substitution(bsdtar, archive_entry_hardlink(entry), &subst_name, 1);
 		if (r == -1) {
-			bsdtar_warnc(bsdtar, 0, "Invalid substituion, skipping entry");
+			bsdtar_warnc(bsdtar, 0, "Invalid substitution, skipping entry");
 			return 1;
 		}
 		if (r == 1) {
@@ -486,7 +486,7 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 	if (archive_entry_symlink(entry) != NULL) {
 		r = apply_substitution(bsdtar, archive_entry_symlink(entry), &subst_name, 1);
 		if (r == -1) {
-			bsdtar_warnc(bsdtar, 0, "Invalid substituion, skipping entry");
+			bsdtar_warnc(bsdtar, 0, "Invalid substitution, skipping entry");
 			return 1;
 		}
 		if (r == 1) {
