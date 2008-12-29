@@ -34,7 +34,7 @@ DEFINE_TEST(test_read_large)
 {
 	unsigned int i;
 	int tmpfilefd;
-	char tmpfilename[] = "/tmp/test-read_large.XXXXXX";
+	char tmpfilename[] = "test-read_large.XXXXXX";
 	size_t used;
 	struct archive *a;
 	struct archive_entry *entry;
