@@ -42,12 +42,13 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories=""
-				PreprocessorDefinitions="WIN32;_DEBUG;_LIB;PLATFORM_CONFIG_H=&quot;\&quot;config_windows.h\&quot;&quot;"
+				PreprocessorDefinitions="WIN32;_DEBUG;_LIB;PLATFORM_CONFIG_H=&quot;\&quot;config_windows.h\&quot;&quot;;LIBARCHIVE_STATIC"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
+				Detect64BitPortabilityProblems="false"
 				DebugInformationFormat="4"
 				DisableSpecificWarnings="4996"
 			/>
@@ -106,7 +107,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				AdditionalIncludeDirectories=""
-				PreprocessorDefinitions="WIN32;NDEBUG;_LIB;PLATFORM_CONFIG_H=&quot;\&quot;config_windows.h\&quot;&quot;"
+				PreprocessorDefinitions="WIN32;NDEBUG;_LIB;PLATFORM_CONFIG_H=&quot;\&quot;config_windows.h\&quot;&quot;;LIBARCHIVE_STATIC"
 				RuntimeLibrary="2"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
@@ -217,6 +218,10 @@
 			</File>
 			<File
 				RelativePath="..\..\libarchive\archive_read_support_compression_gzip.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\libarchive\archive_read_support_compression_lzma.c"
 				>
 			</File>
 			<File
