@@ -81,7 +81,7 @@ static int skips = 0;
 static int assertions = 0;
 
 /* Directory where uuencoded reference files can be found. */
-static char *refdir;
+static const char *refdir;
 
 
 #ifdef _WIN32
@@ -941,11 +941,11 @@ success:
 int main(int argc, char **argv)
 {
 	static const int limit = sizeof(tests) / sizeof(tests[0]);
-	int i, tests_run = 0, tests_failed = 0, opt;
+	int i, tests_run = 0, tests_failed = 0, option;
 	time_t now;
 	char *refdir_alloc = NULL;
 	const char *progname = LIBRARY "_test";
-	const char *tmp;
+	const char *tmp, *option_arg, *p;
 	char tmpdir[256];
 	char tmpdir_timestamp[256];
 
@@ -982,39 +982,60 @@ int main(int argc, char **argv)
 	refdir = getenv(ENVBASE "_TEST_FILES");
 
 	/*
-	 * Parse options.
+	 * Parse options, without using getopt(), which isn't available
+	 * on all platforms.
 	 */
-	while ((opt = getopt(argc, argv, "dkp:qr:v")) != -1) {
-		switch (opt) {
-		case 'd':
-			dump_on_failure = 1;
-			break;
-		case 'k':
-			keep_temp_files = 1;
-			break;
-		case 'p':
+	++argv; /* Skip program name */
+	while (*argv != NULL) {
+		p = *argv++;
+		if (*p++ != '-')
+			usage(progname);
+		while (*p != '\0') {
+			option = *p++;
+			option_arg = NULL;
+			/* If 'opt' takes an argument, parse that. */
+			if (option == 'p' || option == 'r') {
+				if (*p != '\0')
+					option_arg = p;
+				else if (*argv == NULL) {
+					fprintf(stderr,
+					    "Option -%c requires argument.\n",
+					    option);
+					usage(progname);
+				} else
+					option_arg = *argv++;
+				p = ""; /* End of this option word. */
+			}
+
+			/* Now, handle the option. */
+			switch (option) {
+			case 'd':
+				dump_on_failure = 1;
+				break;
+			case 'k':
+				keep_temp_files = 1;
+				break;
+			case 'p':
 #ifdef PROGRAM
-			testprog = optarg;
+				testprog = option_arg;
 #else
-			usage(progname);
+				usage(progname);
 #endif
-			break;
-		case 'q':
-			quiet_flag++;
-			break;
-		case 'r':
-			refdir = optarg;
-			break;
-		case 'v':
-			verbose = 1;
-			break;
-		case '?':
-		default:
-			usage(progname);
+				break;
+			case 'q':
+				quiet_flag++;
+				break;
+			case 'r':
+				refdir = option_arg;
+				break;
+			case 'v':
+				verbose = 1;
+				break;
+			default:
+				usage(progname);
+			}
 		}
 	}
-	argc -= optind;
-	argv += optind;
 
 	/*
 	 * Sanity-check that our options make sense.
