@@ -189,7 +189,7 @@
 /* #undef HAVE_FTRUNCATE */
 
 /* Define to 1 if you have the `futimes' function. */
-/* #undef HAVE_FUTIMES */
+#define HAVE_FUTIMES 1
 
 /* Define to 1 if you have the `geteuid' function. */
 /* #undef HAVE_GETEUID */
@@ -425,7 +425,7 @@
 #define	HAVE_UTIME 1
 
 /* Define to 1 if you have the `utimes' function. */
-/* #undef HAVE_UTIMES */
+#define HAVE_UTIMES 1
 
 /* Define to 1 if you have the <utime.h> header file. */
 /* #undef HAVE_UTIME_H */
@@ -570,7 +570,11 @@
 #if defined(_MSC_VER)
 #define	uint32_t unsigned long
 #define	uint16_t unsigned short
-#define	ssize_t long
+  #ifdef _WIN64
+    #define	ssize_t __int64
+  #else
+    #define	ssize_t long
+  #endif
 #endif
 
 #include "archive_windows.h"
