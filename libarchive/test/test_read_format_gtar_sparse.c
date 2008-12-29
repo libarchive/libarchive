@@ -270,7 +270,6 @@ verify_archive_file(const char *name, struct archive_contents *ac)
 
 DEFINE_TEST(test_read_format_gtar_sparse)
 {
-#if HAVE_ZLIB_H
 	/* Two archives that use the "GNU tar sparse format". */
 	verify_archive_file("test_read_format_gtar_sparse_1_13.tar", files);
 	verify_archive_file("test_read_format_gtar_sparse_1_17.tar", files);
@@ -314,9 +313,6 @@ DEFINE_TEST(test_read_format_gtar_sparse)
 		"test_read_format_gtar_sparse_1_17_posix10_modified.tar",
 		files);
 #endif
-#else /* !HAVE_ZLIB_H */
-	skipping("Need zlib");
-#endif /* HAVE_ZLIB_H */
 }
 
 
