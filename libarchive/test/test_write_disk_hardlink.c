@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_disk_hardlink.c,v 1.5 200
  */
 DEFINE_TEST(test_write_disk_hardlink)
 {
-#if ARCHIVE_VERSION_NUMBER < 1009000
+#if ARCHIVE_VERSION_NUMBER < 1009000 || defined(_WIN32)
 	skipping("archive_write_disk_hardlink tests");
 #else
 	static const char data[]="abcdefghijklmnopqrstuvwxyz";
