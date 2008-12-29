@@ -44,7 +44,7 @@
 #define	ENVBASE "LIBARCHIVE" /* Prefix for environment variables. */
 #define	EXTRA_DUMP(x)	archive_error_string((struct archive *)(x))
 #define	EXTRA_VERSION	archive_version()
-#define KNOWNREF	"test_compat_gtar_1.tgz.uu"
+#define KNOWNREF	"test_compat_gtar_1.tar.uu"
 __FBSDID("$FreeBSD: src/lib/libarchive/test/main.c,v 1.17 2008/12/21 00:13:50 kientzle Exp $");
 
 /*
@@ -82,6 +82,19 @@ static int assertions = 0;
 
 /* Directory where uuencoded reference files can be found. */
 static char *refdir;
+
+
+#ifdef _WIN32
+
+static void
+invalid_paramter_handler(const wchar_t * expression,
+    const wchar_t * function, const wchar_t * file,
+    unsigned int line, uintptr_t pReserved)
+{
+	/* nop */
+}
+
+#endif
 
 /*
  * My own implementation of the standard assert() macro emits the
@@ -772,7 +785,11 @@ static int test_run(int i, const char *tmpdir)
 	/* If there were no failures, we can remove the work dir. */
 	if (failures == failures_before) {
 		if (!keep_temp_files && chdir(tmpdir) == 0) {
+#ifndef _WIN32
 			systemf("rm -rf %s", tests[i].name);
+#else
+			systemf("rmdir /S /Q %s", tests[i].name);
+#endif
 		}
 	}
 	/* Return appropriate status. */
@@ -865,19 +882,18 @@ extract_reference_file(const char *name)
 }
 
 static char *
-get_refdir(const char *tmpdir)
+get_refdir(void)
 {
 	char tried[512] = { '\0' };
 	char buff[128];
 	char *pwd, *p;
 
 	/* Get the current dir. */
-	systemf("/bin/pwd > %s/refdir", tmpdir);
-	pwd = slurpfile(NULL, "%s/refdir", tmpdir);
+	/* XXX Visual C++ uses _getcwd() XXX */
+	pwd = getcwd(NULL, 0);
 	while (pwd[strlen(pwd) - 1] == '\n')
 		pwd[strlen(pwd) - 1] = '\0';
 	printf("PWD: %s\n", pwd);
-	systemf("rm %s/refdir", tmpdir);
 
 	/* Look for a known file. */
 	snprintf(buff, sizeof(buff), "%s", pwd);
@@ -928,21 +944,19 @@ int main(int argc, char **argv)
 	int i, tests_run = 0, tests_failed = 0, opt;
 	time_t now;
 	char *refdir_alloc = NULL;
-	char *progname, *p;
+	const char *progname = LIBRARY "_test";
 	const char *tmp;
 	char tmpdir[256];
 	char tmpdir_timestamp[256];
 
-	/*
-	 * Name of this program, used to build root of our temp directory
-	 * tree.
-	 */
-	progname = p = argv[0];
-	while (*p != '\0') {
-		if (*p == '/')
-			progname = p + 1;
-		++p;
-	}
+#ifdef _WIN32
+	/* To stop to run the default invalid parameter handler. */
+	_set_invalid_parameter_handler(invalid_paramter_handler);
+	/* for open() to a binary mode. */
+	_set_fmode(_O_BINARY);
+	/* Disable annoying assertion message box. */
+	_CrtSetReportMode(_CRT_ASSERT, 0);
+#endif
 
 #ifdef PROGRAM
 	/* Get the target program from environment, if available. */
@@ -1037,7 +1051,7 @@ int main(int argc, char **argv)
 	 * the "usual places."
 	 */
 	if (refdir == NULL)
-		refdir = refdir_alloc = get_refdir(tmpdir);
+		refdir = refdir_alloc = get_refdir();
 
 	/*
 	 * Banner with basic information.
