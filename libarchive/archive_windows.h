@@ -239,6 +239,17 @@
 #endif /* __MINGW32__ */
 #endif /* LARGE_FILES */
 
+#ifdef USE_WINSOCK_TIMEVAL
+/* Winsock timeval has long size tv_sec. */
+#define __timeval timeval
+#else
+struct _timeval64i32 {
+	time_t		tv_sec;
+	long		tv_usec;
+};
+#define __timeval _timeval64i32
+#endif
+
 /* End of Win32 definitions. */
 
 #ifdef __cplusplus
@@ -247,6 +258,9 @@ extern "C" {
 
 extern int link (const char *from, const char *to);
 extern int symlink (const char *from, const char *to);
+extern int _dosmaperr(unsigned long);
+extern int futimes(int fd, const struct __timeval *times);
+extern int utimes(const char *name, const struct __timeval *times);
 
 #ifdef __cplusplus
 }

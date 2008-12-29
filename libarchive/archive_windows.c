@@ -185,4 +185,50 @@ int fstati64 (int fd, struct _stati64 *st)
 	return res;
 }
 
+#define WINTIME(sec, usec)	((Int32x32To64(sec, 10000000) + 116444736000000000) + (usec * 10))
+static int
+__hutimes(HANDLE handle, const struct __timeval *times)
+{
+	uint64_t wintm;
+	FILETIME fatime, fmtime;
+
+	wintm = WINTIME(times[0].tv_sec, times[0].tv_usec);
+	fatime.dwLowDateTime = (DWORD)wintm;
+	fatime.dwHighDateTime = wintm >> 32;
+	wintm = WINTIME(times[1].tv_sec, times[1].tv_usec);
+	fmtime.dwLowDateTime = (DWORD)wintm;
+	fmtime.dwHighDateTime = wintm >> 32;
+	if (SetFileTime(handle, NULL, &fatime, &fmtime) == 0) {
+		errno = EINVAL;
+		return (-1);
+	}
+	return (0);
+}
+
+int
+futimes(int fd, const struct __timeval *times)
+{
+
+	return (__hutimes((HANDLE)_get_osfhandle(fd), times));
+}
+
+int
+utimes(const char *name, const struct __timeval *times)
+{
+	int ret;
+	HANDLE handle;
+
+	handle = CreateFile(name, GENERIC_READ | GENERIC_WRITE,
+	    FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
+	    0, NULL);
+	if (handle == INVALID_HANDLE_VALUE) {
+		errno = EINVAL;
+		return (-1);
+	}
+	ret = __hutimes(handle, times);
+	CloseHandle(handle);
+	return (ret);
+}
+
+
 #endif /* _WIN32 */
