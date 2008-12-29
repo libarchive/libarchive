@@ -12,7 +12,9 @@ of these, please let me know.
   Ideally, it would accept a pathname (required) and an
   optional fd.  This will allow it to optimize by using
   fstat() and friends to eliminate races on platforms that
-  support those interfaces.
+  support those interfaces.  This would also eliminate a lot
+  of messy platform-specific trickery from tar and cpio
+  to properly handle ACLs and extended attributes.
 
 * cpio front-end.  The basic bsdcpio front-end is now
   working.  I'm looking for feedback about what additional
@@ -28,6 +30,16 @@ of these, please let me know.
   to port to Visual Studio pretty quickly (large parts of
   archive_write_disk will have to be customized or replaced,
   but that's only about five percent of the entire library).
+  Making this really clean would require reworking the public
+  API to not use dev/ino; I think I know how to do this but
+  could use advice from someone knowledgable about Windows
+  file-management APIs.
+
+* Linux large-file/small-file dance.  libarchive always
+  builds with 64-bit off_t and stat structures; client programs
+  don't always do this.  Supporting client programs built
+  with 32-bit off_t requires a little trickery.  I know how
+  to do this but haven't had time to work through it.
 
 * bsdtar on Windows.  After libarchive is working on Windows,
   this should be much simpler.  At worst, you can just disable

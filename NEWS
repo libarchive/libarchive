@@ -1,8 +1,14 @@
+Dec 28, 2008: Many Windows/Visual Studio fixes from Michihiro NAKAJIMA.
+	Michihiro is the first person I know of to build and run
+	the libarchive test suite in this environment.
 
+Dec 28, 2008: Main libarchive development moved from FreeBSD Perforce
+	server to Google Code.  This should make it easier for more
+	people to participate in libarchive development.
+
+Dec 28, 2008: libarchive 2.6.0 released
 Dec 25, 2008: libarchive 2.5.905a released
-
 Dec 10, 2008: libarchive 2.5.904a released
-
 Dec 04, 2008: libarchive 2.5.903a released
 Nov 09, 2008: libarchive 2.5.902a released
 Nov 08, 2008: libarchive 2.5.901a released
