@@ -994,7 +994,7 @@ int main(int argc, char **argv)
 	 */
 	++argv; --argc;/* Skip program name */
 	while (*argv != NULL) {
-		p = *argv++;
+		p = *argv++; --argc;
 		if (*p++ != '-')
 			usage(progname);
 		while (*p != '\0') {
@@ -1010,7 +1010,7 @@ int main(int argc, char **argv)
 					    option);
 					usage(progname);
 				} else
-					option_arg = *argv++;
+					option_arg = *argv++; --argc;
 				p = ""; /* End of this option word. */
 			}
 
