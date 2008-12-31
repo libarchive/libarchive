@@ -956,6 +956,8 @@ int main(int argc, char **argv)
 	char tmpdir[256];
 	char tmpdir_timestamp[256];
 
+	(void)argc; /* UNUSED */
+
 #ifdef _WIN32
 	/* To stop to run the default invalid parameter handler. */
 	_set_invalid_parameter_handler(invalid_paramter_handler);
@@ -992,9 +994,9 @@ int main(int argc, char **argv)
 	 * Parse options, without using getopt(), which isn't available
 	 * on all platforms.
 	 */
-	++argv; --argc;/* Skip program name */
+	++argv; /* Skip program name */
 	while (*argv != NULL) {
-		p = *argv++; --argc;
+		p = *argv++;
 		if (*p++ != '-')
 			usage(progname);
 		while (*p != '\0') {
@@ -1010,7 +1012,7 @@ int main(int argc, char **argv)
 					    option);
 					usage(progname);
 				} else
-					option_arg = *argv++; --argc;
+					option_arg = *argv++;
 				p = ""; /* End of this option word. */
 			}
 
@@ -1098,7 +1100,7 @@ int main(int argc, char **argv)
 	/*
 	 * Run some or all of the individual tests.
 	 */
-	if (argc == 0) {
+	if (*argv == NULL) {
 		/* Default: Run all tests. */
 		for (i = 0; i < limit; i++) {
 			if (test_run(i, tmpdir))
