@@ -82,7 +82,7 @@
 #define	close		_close
 //#define	fileno		_fileno
 #define	fstat		_fstat
-#define	lseek		_lseek
+#define	lseek		la_lseek
 #define	lstat		_stat
 #define	open		_open
 #define	stat		_stat
@@ -93,7 +93,7 @@
 #define	strdup		_strdup
 #define	tzset		_tzset
 #define	umask		_umask
-#define	write		_write
+#define	write		la_write
 
 #define	O_RDONLY	_O_RDONLY
 #define	O_WRONLY	_O_WRONLY
@@ -258,9 +258,11 @@ extern "C" {
 
 extern int link (const char *from, const char *to);
 extern int symlink (const char *from, const char *to);
-extern int _dosmaperr(unsigned long);
 extern int futimes(int fd, const struct __timeval *times);
 extern int utimes(const char *name, const struct __timeval *times);
+extern __int64 la_lseek(int fd, __int64 offset, int whence);
+extern ssize_t la_write(int fd, const void *buf, size_t nbytes);
+extern int _dosmaperr(unsigned long);
 
 #ifdef __cplusplus
 }

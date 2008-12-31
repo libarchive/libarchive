@@ -220,7 +220,7 @@ utimes(const char *name, const struct __timeval *times)
 
 	handle = CreateFile(name, GENERIC_READ | GENERIC_WRITE,
 	    FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
-	    0, NULL);
+	    FILE_FLAG_BACKUP_SEMANTICS, NULL);
 	if (handle == INVALID_HANDLE_VALUE) {
 		errno = EINVAL;
 		return (-1);
@@ -230,5 +230,46 @@ utimes(const char *name, const struct __timeval *times)
 	return (ret);
 }
 
+__int64
+la_lseek(int fd, __int64 offset, int whence)
+{
+	LARGE_INTEGER distance;
+	LARGE_INTEGER newpointer;
+
+	if (fd < 0) {
+		errno = EBADF;
+		return (-1);
+	}
+	distance.QuadPart = offset;
+	if (!SetFilePointerEx((HANDLE)_get_osfhandle(fd), distance,
+	    &newpointer, whence)) {
+		errno = _dosmaperr(GetLastError());
+		return (-1);
+	}
+	return (newpointer.QuadPart);
+}
+
+ssize_t
+la_write(int fd, const void *buf, size_t nbytes)
+{
+	uint32_t bytes_written;
+
+#ifdef _WIN64
+	if (nbytes > UINT32_MAX) {
+		errno = EINVAL;
+		return (-1);
+	}
+#endif
+	if (fd < 0) {
+		errno = EBADF;
+		return (-1);
+	}
+	if (!WriteFile((HANDLE)_get_osfhandle(fd), buf, (uint32_t)nbytes,
+	    &bytes_written, NULL)) {
+		errno = _dosmaperr(GetLastError());
+		return (-1);
+	}
+	return (bytes_written);
+}
 
 #endif /* _WIN32 */
