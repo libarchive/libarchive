@@ -50,7 +50,7 @@ DEFINE_TEST(test_read_format_gtar_lzma)
 	    archive_read_support_compression_lzma(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_all(a));
-	r = archive_read_open_memory(a, archive, sizeof(archive));
+	r = archive_read_open_memory2(a, archive, sizeof(archive), 3);
 	if (r != ARCHIVE_OK) {
 		skipping("Skipping LZMA compression check: %s",
 		    archive_error_string(a));
