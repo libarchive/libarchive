@@ -197,10 +197,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\libarchive\test\platform.c"
-				>
-			</File>
-			<File
 				RelativePath="..\..\..\libarchive\test\read_open_memory.c"
 				>
 			</File>
