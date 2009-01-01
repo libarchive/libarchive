@@ -476,7 +476,9 @@ test_assert_empty_file(const char *f1fmt, ...)
 	va_end(ap);
 
 	if (stat(f1, &st) != 0) {
-		fprintf(stderr, "%s:%d: Could not stat: %s\n", test_filename, test_line, f1);
+		fprintf(stderr, "%s:%d: Could not stat: %s\n",
+		    test_filename, test_line, f1);
+		failures ++;
 		report_failure(NULL);
 		return (0);
 	}
@@ -519,6 +521,7 @@ test_assert_non_empty_file(const char *f1fmt, ...)
 		fprintf(stderr, "%s:%d: Could not stat: %s\n",
 		    test_filename, test_line, f1);
 		report_failure(NULL);
+		failures++;
 		return (0);
 	}
 	if (st.st_size != 0)
@@ -630,6 +633,15 @@ test_assert_file_contents(const void *buff, int s, const char *fpattern, ...)
 	va_end(ap);
 
 	fd = open(f, O_RDONLY);
+	if (fd < 0) {
+		failures ++;
+		if (!previous_failures(test_filename, test_line)) {
+			fprintf(stderr, "%s:%d: File doesn't exist: %s\n",
+			    test_filename, test_line, f);
+			report_failure(test_extra);
+		}
+		return (0);
+	}
 	contents = malloc(s * 2);
 	n = read(fd, contents, s * 2);
 	if (n == s && memcmp(buff, contents, s) == 0) {
