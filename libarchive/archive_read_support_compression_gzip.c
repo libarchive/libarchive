@@ -432,6 +432,7 @@ gzip_source_read(struct archive_read_source *self, const void **p)
 				}
 				/* Restart header parser with the next block. */
 				state->header_state = state->header_done = 0;
+				state->eof = 1;
 				/* FALL THROUGH */
 			case Z_OK: /* Decompressor made some progress. */
 				/* If we filled our buffer, update stats and return. */
