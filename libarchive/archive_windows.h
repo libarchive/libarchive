@@ -89,7 +89,7 @@
 #define	mbstowcs	la_mbstowcs
 #define	mkdir(d,m)	_mkdir(d)
 #define	mktemp		_mktemp
-#define	read		_read
+#define	read		la_read
 #define	rmdir		_rmdir
 #define	strdup		_strdup
 #define	tzset		_tzset
@@ -259,10 +259,12 @@ extern "C" {
 
 extern int link (const char *from, const char *to);
 extern int symlink (const char *from, const char *to);
+extern int	 ftruncate(int fd, off_t length);
 extern int futimes(int fd, const struct __timeval *times);
 extern int utimes(const char *name, const struct __timeval *times);
 extern __int64 la_lseek(int fd, __int64 offset, int whence);
 extern size_t la_mbstowcs(wchar_t *wcstr, const char *mbstr, size_t nwchars);
+extern ssize_t	 la_read(int fd, void *buf, size_t nbytes);
 extern ssize_t la_write(int fd, const void *buf, size_t nbytes);
 extern int _dosmaperr(unsigned long);
 

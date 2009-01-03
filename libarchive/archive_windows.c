@@ -304,6 +304,26 @@ la_mbstowcs(wchar_t *wcstr, const char *mbstr, size_t nwchars)
 }
 
 ssize_t
+la_read(int fd, void *buf, size_t nbytes)
+{
+	DWORD bytes_read, lasterr;
+	int r;
+
+	r = ReadFile((HANDLE)_get_osfhandle(fd), buf, nbytes, &bytes_read, NULL);
+	if (r == 0) {
+		lasterr = GetLastError();
+		if (lasterr == ERROR_BROKEN_PIPE)
+			return (0);
+		if (lasterr == ERROR_ACCESS_DENIED)
+			errno = EBADF;
+		else
+			_dosmaperr(lasterr);
+		return (-1);
+	}
+	return ((ssize_t)bytes_read);
+}
+
+ssize_t
 la_write(int fd, const void *buf, size_t nbytes)
 {
 	uint32_t bytes_written;
