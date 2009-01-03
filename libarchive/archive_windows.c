@@ -185,6 +185,33 @@ int fstati64 (int fd, struct _stati64 *st)
 	return res;
 }
 
+int
+ftruncate(int fd, off_t length)
+{
+	LARGE_INTEGER distance;
+	HANDLE handle;
+
+	if (fd < 0) {
+		errno = EBADF;
+		return (-1);
+	}
+	handle = (HANDLE)_get_osfhandle(fd);
+	if (GetFileType(handle) != FILE_TYPE_DISK) {
+		errno = EBADF;
+		return (-1);
+	}
+	distance.QuadPart = length;
+	if (!SetFilePointerEx(handle, distance, NULL, FILE_BEGIN)) {
+		_dosmaperr(GetLastError());
+		return (-1);
+	}
+	if (!SetEndOfFile(handle)) {
+		_dosmaperr(GetLastError());
+		return (-1);
+	}
+	return (0);
+}
+
 #define WINTIME(sec, usec)	((Int32x32To64(sec, 10000000) + 116444736000000000) + (usec * 10))
 static int
 __hutimes(HANDLE handle, const struct __timeval *times)

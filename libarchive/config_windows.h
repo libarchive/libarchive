@@ -186,7 +186,7 @@
 /* #undef HAVE_FSETXATTR */
 
 /* Define to 1 if you have the `ftruncate' function. */
-/* #undef HAVE_FTRUNCATE */
+#define HAVE_FTRUNCATE 1
 
 /* Define to 1 if you have the `futimes' function. */
 #define HAVE_FUTIMES 1
