@@ -235,15 +235,28 @@ la_lseek(int fd, __int64 offset, int whence)
 {
 	LARGE_INTEGER distance;
 	LARGE_INTEGER newpointer;
+	HANDLE handle;
 
 	if (fd < 0) {
 		errno = EBADF;
 		return (-1);
 	}
+	handle = (HANDLE)_get_osfhandle(fd);
+	if (GetFileType(handle) != FILE_TYPE_DISK) {
+		errno = EBADF;
+		return (-1);
+	}
 	distance.QuadPart = offset;
-	if (!SetFilePointerEx((HANDLE)_get_osfhandle(fd), distance,
-	    &newpointer, whence)) {
-		errno = _dosmaperr(GetLastError());
+	if (!SetFilePointerEx(handle, distance, &newpointer, whence)) {
+		DWORD lasterr;
+
+		lasterr = GetLastError();
+		if (lasterr == ERROR_BROKEN_PIPE)
+			return (0);
+		if (lasterr == ERROR_ACCESS_DENIED)
+			errno = EBADF;
+		else
+			_dosmaperr(lasterr);
 		return (-1);
 	}
 	return (newpointer.QuadPart);
@@ -280,7 +293,13 @@ la_write(int fd, const void *buf, size_t nbytes)
 	}
 	if (!WriteFile((HANDLE)_get_osfhandle(fd), buf, (uint32_t)nbytes,
 	    &bytes_written, NULL)) {
-		errno = _dosmaperr(GetLastError());
+		DWORD lasterr;
+
+		lasterr = GetLastError();
+		if (lasterr == ERROR_ACCESS_DENIED)
+			errno = EBADF;
+		else
+			_dosmaperr(lasterr);
 		return (-1);
 	}
 	return (bytes_written);
