@@ -249,6 +249,20 @@ la_lseek(int fd, __int64 offset, int whence)
 	return (newpointer.QuadPart);
 }
 
+/* Windows' mbstowcs is differrent error handling from other unix mbstowcs.
+ * That one is using MultiByteToWideChar faunction with MB_PRECOMPOSED and
+ * MB_ERR_INVALID_CHARS flags.
+ * This implements for only to pass libarchive_test.
+ */
+size_t
+la_mbstowcs(wchar_t *wcstr, const char *mbstr, size_t nwchars)
+{
+
+	return (MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS,
+	    mbstr, (int)strlen(mbstr), wcstr,
+	    (int)nwchars));
+}
+
 ssize_t
 la_write(int fd, const void *buf, size_t nbytes)
 {

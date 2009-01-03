@@ -86,6 +86,7 @@
 #define	lstat		_stat
 #define	open		_open
 #define	stat		_stat
+#define	mbstowcs	la_mbstowcs
 #define	mkdir(d,m)	_mkdir(d)
 #define	mktemp		_mktemp
 #define	read		_read
@@ -261,6 +262,7 @@ extern int symlink (const char *from, const char *to);
 extern int futimes(int fd, const struct __timeval *times);
 extern int utimes(const char *name, const struct __timeval *times);
 extern __int64 la_lseek(int fd, __int64 offset, int whence);
+extern size_t la_mbstowcs(wchar_t *wcstr, const char *mbstr, size_t nwchars);
 extern ssize_t la_write(int fd, const void *buf, size_t nbytes);
 extern int _dosmaperr(unsigned long);
 
