@@ -330,8 +330,9 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_copy.c					\
 	tar/test/test_getdate.c					\
 	tar/test/test_help.c					\
-	tar/test/test_option_q.c				\
 	tar/test/test_option_T.c				\
+	tar/test/test_option_q.c				\
+	tar/test/test_option_s.c				\
 	tar/test/test_patterns.c				\
 	tar/test/test_stdio.c					\
 	tar/test/test_strip_components.c			\
