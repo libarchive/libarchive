@@ -321,7 +321,12 @@ static const char *long_help_msg =
 	"Common Options:\n"
 	"  -v    Verbose\n"
 	"Create: %p -o [options]  < [list of files] > [archive]\n"
-	"  -z, -y  Compress archive with gzip/bzip2\n"
+#ifdef HAVE_BZLIB_H
+	"  -y  Compress archive with bzip2\n"
+#endif
+#ifdef HAVE_ZLIB_H
+	"  -z  Compress archive with gzip\n"
+#endif
 	"  --format {odc|newc|ustar}  Select archive format\n"
 	"List: %p -it < [archive]\n"
 	"Extract: %p -i [options] < [archive]\n";
@@ -387,12 +392,16 @@ mode_out(struct cpio *cpio)
 	if (cpio->archive == NULL)
 		cpio_errc(1, 0, "Failed to allocate archive object");
 	switch (cpio->compress) {
+#ifdef HAVE_BZLIB_H
 	case 'j': case 'y':
 		archive_write_set_compression_bzip2(cpio->archive);
 		break;
+#endif
+#ifdef HAVE_ZLIB_H
 	case 'z':
 		archive_write_set_compression_gzip(cpio->archive);
 		break;
+#endif
 	case 'Z':
 		archive_write_set_compression_compress(cpio->archive);
 		break;
