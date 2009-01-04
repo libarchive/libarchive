@@ -256,18 +256,18 @@ libarchive_TESTS_ENVIRONMENT= LIBARCHIVE_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/
 libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_bzip2_1.tbz.uu			\
 	libarchive/test/test_compat_bzip2_2.tbz.uu			\
-	libarchive/test/test_compat_gtar_1.tgz.uu			\
+	libarchive/test/test_compat_gtar_1.tar.uu			\
 	libarchive/test/test_compat_gzip_1.tgz.uu			\
 	libarchive/test/test_compat_gzip_2.tgz.uu			\
 	libarchive/test/test_compat_tar_hardlink_1.tar.uu		\
 	libarchive/test/test_compat_zip_1.zip.uu			\
 	libarchive/test/test_fuzz_1.iso.uu				\
-	libarchive/test/test_pax_filename_encoding.tar.gz.uu		\
-	libarchive/test/test_read_format_gtar_sparse_1_13.tgz.uu	\
-	libarchive/test/test_read_format_gtar_sparse_1_17.tgz.uu	\
-	libarchive/test/test_read_format_gtar_sparse_1_17_posix00.tgz.uu \
-	libarchive/test/test_read_format_gtar_sparse_1_17_posix01.tgz.uu \
-	libarchive/test/test_read_format_gtar_sparse_1_17_posix10.tgz.uu \
+	libarchive/test/test_pax_filename_encoding.tar.uu		\
+	libarchive/test/test_read_format_gtar_sparse_1_13.tar.uu	\
+	libarchive/test/test_read_format_gtar_sparse_1_17.tar.uu	\
+	libarchive/test/test_read_format_gtar_sparse_1_17_posix00.tar.uu \
+	libarchive/test/test_read_format_gtar_sparse_1_17_posix01.tar.uu \
+	libarchive/test/test_read_format_gtar_sparse_1_17_posix10.tar.uu \
 	libarchive/test/test_read_format_gtar_sparse_1_17_posix10_modified.tar.uu \
 	libarchive/test/test_read_format_isorr_bz2.iso.bz2.uu		\
 	libarchive/test/test_read_format_tar_empty_filename.tar.uu	\
