@@ -57,9 +57,9 @@ struct private_data {
 	char		 eof; /* True = found end of compressed data. */
 };
 
-/* Lzma source */
-static ssize_t	lzma_source_read(struct archive_read_source *, const void **);
-static int	lzma_source_close(struct archive_read_source *);
+/* Lzma filter */
+static ssize_t	lzma_filter_read(struct archive_read_filter *, const void **);
+static int	lzma_filter_close(struct archive_read_filter *);
 #endif
 
 /*
@@ -68,30 +68,28 @@ static int	lzma_source_close(struct archive_read_source *);
  * error messages.)  So the bid framework here gets compiled even
  * if lzmadec is unavailable.
  */
-static int	lzma_reader_bid(struct archive_reader *, const void *, size_t);
-static struct archive_read_source *lzma_reader_init(struct archive_read *,
-    struct archive_reader *, struct archive_read_source *,
-    const void *, size_t);
-static int	lzma_reader_free(struct archive_reader *);
+static int	lzma_bidder_bid(struct archive_read_filter_bidder *, struct archive_read_filter *);
+static int	lzma_bidder_init(struct archive_read_filter *);
+static int	lzma_bidder_free(struct archive_read_filter_bidder *);
 
 int
 archive_read_support_compression_lzma(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	struct archive_reader *reader = __archive_read_get_reader(a);
+	struct archive_read_filter_bidder *bidder = __archive_read_get_bidder(a);
 
-	if (reader == NULL)
+	if (bidder == NULL)
 		return (ARCHIVE_FATAL);
 
-	reader->data = NULL;
-	reader->bid = lzma_reader_bid;
-	reader->init = lzma_reader_init;
-	reader->free = lzma_reader_free;
+	bidder->data = NULL;
+	bidder->bid = lzma_bidder_bid;
+	bidder->init = lzma_bidder_init;
+	bidder->free = lzma_bidder_free;
 	return (ARCHIVE_OK);
 }
 
 static int
-lzma_reader_free(struct archive_reader *self){
+lzma_bidder_free(struct archive_read_filter_bidder *self){
 	(void)self; /* UNUSED */
 	return (ARCHIVE_OK);
 }
@@ -113,19 +111,20 @@ lzma_reader_free(struct archive_reader *self){
  * they have other evidence (file name, command-line option) to go on.
  */
 static int
-lzma_reader_bid(struct archive_reader *self, const void *buff, size_t len)
+lzma_bidder_bid(struct archive_read_filter_bidder *self,
+    struct archive_read_filter *filter)
 {
 	const unsigned char *buffer;
+	size_t avail;
 	int bits_checked;
 
 	(void)self; /* UNUSED */
 
-	buffer = (const unsigned char *)buff;
-
+	buffer = __archive_read_filter_ahead(filter, 6, &avail);
+	if (buffer == NULL)
+		return (0);
 
 	/* First byte of raw LZMA stream is always 0x5d. */
-	if (len < 1)
-		return (0);
 	bits_checked = 0;
 	if (buffer[0] != 0x5d)
 		return (0);
@@ -134,24 +133,16 @@ lzma_reader_bid(struct archive_reader *self, const void *buff, size_t len)
 	/* Second through fifth bytes are dictionary code, stored in
 	 * little-endian order.  The two least-significant bytes are
 	 * always zero. */
-	if (len < 2)
-		return (bits_checked);
-	if (buffer[1] != 0)
+	if (buffer[1] != 0 || buffer[2] != 0)
 		return (0);
-	bits_checked += 8;
+	bits_checked += 16;
 
-	if (len < 3)
-		return (bits_checked);
-	if (buffer[2] != 0)
-		return (0);
-	bits_checked += 8;
-
-	/* ??? TODO:  Explain this.  ??? */
+	/* ??? TODO:  Fix this. ??? */
 	/* NSIS format check uses this, but I've seen tar.lzma
-	 * archives where this byte is 0xff, not 0. */
+	 * archives where this byte is 0xff, not 0.  Can it
+	 * ever be anything other than 0 or 0xff?
+	 */
 #if 0
-	if (len < 6)
-		return (bits_checked);
 	if (buffer[5] != 0)
 		return (0);
 	bits_checked += 8;
@@ -170,19 +161,14 @@ lzma_reader_bid(struct archive_reader *self, const void *buff, size_t len)
  * decompression.  We can, however, still detect compressed archives
  * and emit a useful message.
  */
-static struct archive_read_source *
-lzma_reader_init(struct archive_read *a, struct archive_reader *reader,
-    struct archive_read_source *upstream, const void *buff, size_t n)
+static int
+lzma_bidder_init(struct archive_read_filter *filter)
 {
-	(void)a;	/* UNUSED */
-	(void)reader;	/* UNUSED */
-	(void)upstream; /* UNUSED */
-	(void)buff;	/* UNUSED */
-	(void)n;	/* UNUSED */
+	(void)filter;	/* UNUSED */
 
-	archive_set_error(&a->archive, -1,
+	archive_set_error(&filter->archive->archive, -1,
 	    "This version of libarchive was compiled without lzma support");
-	return (NULL);
+	return (ARCHIVE_FATAL);
 }
 
 
@@ -191,52 +177,50 @@ lzma_reader_init(struct archive_read *a, struct archive_reader *reader,
 /*
  * Setup the callbacks.
  */
-static struct archive_read_source *
-lzma_reader_init(struct archive_read *a, struct archive_reader *reader,
-    struct archive_read_source *upstream, const void *buff, size_t n)
+static int
+lzma_bidder_init(struct archive_read_filter *self)
 {
 	static const size_t out_block_size = 64 * 1024;
 	void *out_block;
-	struct archive_read_source *self;
+	const char *buff;
 	struct private_data *state;
 	int ret;
 
-	(void)reader; /* UNUSED */
+	self->code = ARCHIVE_COMPRESSION_LZMA;
+	self->name = "lzma";
 
-	a->archive.compression_code = ARCHIVE_COMPRESSION_LZMA;
-	a->archive.compression_name = "lzma";
-
-	self = calloc(sizeof(*self), 1);
 	state = (struct private_data *)calloc(sizeof(*state), 1);
 	out_block = (unsigned char *)malloc(out_block_size);
-	if (self == NULL || state == NULL || out_block == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate data for %s decompression",
-		    a->archive.compression_name);
+	if (state == NULL || out_block == NULL) {
+		archive_set_error(&self->archive->archive, ENOMEM,
+		    "Can't allocate data for lzma decompression");
 		free(out_block);
 		free(state);
-		free(self);
-		return (NULL);
+		return (ARCHIVE_FATAL);
 	}
 
-
-	self->archive = a;
 	self->data = state;
 	state->out_block_size = out_block_size;
 	state->out_block = out_block;
-	self->upstream = upstream;
-	self->read = lzma_source_read;
+	self->read = lzma_filter_read;
 	self->skip = NULL; /* not supported */
-	self->close = lzma_source_close;
+	self->close = lzma_filter_close;
 
 	/*
-	 * A bug in lzmadec.h: stream.next_in should be marked 'const'
-	 * but isn't (the library never alters data through the
-	 * next_in pointer, only reads it).  The result: this ugly
-	 * cast to remove 'const'.
+	 * Prime the lzma library with at least 18 bytes
+	 * of input.  (But give it as much as is available.)
 	 */
-	state->stream.next_in = (char *)(uintptr_t)(const void *)buff;
-	state->stream.avail_in = n;
+	buff = __archive_read_filter_ahead(self->upstream, 18, &ret);
+	if (buff == NULL)
+		return (ARCHIVE_FATAL);
+	__archive_read_filter_consume(self->upstream, ret);
+	/*
+	 * zlib.h made this mistake and people keep copying it.  <sigh>
+	 * stream.next_in should be const but isn't, hence this very
+	 * ugly cast.
+	 */
+	state->stream.next_in = (unsigned char *)(uintptr_t)buff;
+	state->stream.avail_in = ret;
 
 	state->stream.next_out = state->out_block;
 	state->stream.avail_out = state->out_block_size;
@@ -245,22 +229,22 @@ lzma_reader_init(struct archive_read *a, struct archive_reader *reader,
 	ret = lzmadec_init(&(state->stream));
 
 	if (ret == LZMADEC_OK)
-		return (self);
+		return (ARCHIVE_OK);
 
 	/* Library setup failed: Clean up. */
-	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-	    "Internal error initializing %s library",
-	    a->archive.compression_name);
+	archive_set_error(&self->archive->archive, ARCHIVE_ERRNO_MISC,
+	    "Internal error initializing lzma library");
 
 	/* Override the error message if we know what really went wrong. */
 	switch (ret) {
 	case LZMADEC_HEADER_ERROR:
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		archive_set_error(&self->archive->archive,
+		    ARCHIVE_ERRNO_MISC,
 		    "Internal error initializing compression library: "
 		    "invalid header");
 		break;
 	case LZMADEC_MEM_ERROR:
-		archive_set_error(&a->archive, ENOMEM,
+		archive_set_error(&self->archive->archive, ENOMEM,
 		    "Internal error initializing compression library: "
 		    "out of memory");
 		break;
@@ -268,15 +252,15 @@ lzma_reader_init(struct archive_read *a, struct archive_reader *reader,
 
 	free(state->out_block);
 	free(state);
-	free(self);
-	return (NULL);
+	self->data = NULL;
+	return (ARCHIVE_FATAL);
 }
 
 /*
  * Return the next block of decompressed data.
  */
 static ssize_t
-lzma_source_read(struct archive_read_source *self, const void **p)
+lzma_filter_read(struct archive_read_filter *self, const void **p)
 {
 	struct private_data *state;
 	size_t read_avail, decompressed;
@@ -291,26 +275,23 @@ lzma_source_read(struct archive_read_source *self, const void **p)
 	state->stream.avail_out = state->out_block_size;
 
 	/* Try to fill the output buffer. */
-	for (;;) {
+	while (state->stream.avail_out > 0 && !state->eof) {
 		/* If the last upstream block is done, get another one. */
 		if (state->stream.avail_in == 0) {
-			ret = (self->upstream->read)(self->upstream,
-			    &read_buf);
+			read_buf = __archive_read_filter_ahead(self->upstream,
+			    1, &ret);
+			if (ret == 0) {
+				state->eof = 1;
+				break;
+			}
+			if (read_buf == NULL || ret < 0)
+				return (ARCHIVE_FATAL);
 			/* stream.next_in is really const, but lzmadec
 			 * doesn't declare it so. <sigh> */
 			state->stream.next_in
 			    = (unsigned char *)(uintptr_t)read_buf;
-			if (ret < 0)
-				return (ARCHIVE_FATAL);
-			/* There is no more data, return whatever we have. */
-			if (ret == 0) {
-				*p = state->out_block;
-				decompressed = state->stream.next_out
-				    - state->out_block;
-				state->total_out += decompressed;
-				return (decompressed);
-			}
 			state->stream.avail_in = ret;
+			__archive_read_filter_consume(self->upstream, ret);
 		}
 
 		/* Decompress as much as we can in one pass. */
@@ -318,20 +299,14 @@ lzma_source_read(struct archive_read_source *self, const void **p)
 		    state->stream.avail_in == 0);
 		switch (ret) {
 		case LZMADEC_STREAM_END: /* Found end of stream. */
-			/* TODO: Peek ahead to see if there's another
-			 * stream so we can mimic the behavior of gunzip
-			 * on concatenated streams. */
 			state->eof = 1;
 		case LZMADEC_OK: /* Decompressor made some progress. */
-			/* If we filled our buffer, update stats and return. */
-			if (state->eof || state->stream.avail_out == 0) {
-				*p = state->out_block;
-				decompressed = state->stream.next_out
-				    - state->out_block;
-				state->total_out += decompressed;
-				return (decompressed);
-			}
 			break;
+		case LZMADEC_BUF_ERROR: /* Insufficient input data? */
+			archive_set_error(&self->archive->archive,
+			    ARCHIVE_ERRNO_MISC,
+			    "Insufficient compressed data");
+			return (ARCHIVE_FATAL);
 		default:
 			/* Return an error. */
 			archive_set_error(&self->archive->archive,
@@ -341,13 +316,18 @@ lzma_source_read(struct archive_read_source *self, const void **p)
 			return (ARCHIVE_FATAL);
 		}
 	}
+
+	*p = state->out_block;
+	decompressed = state->stream.next_out - state->out_block;
+	state->total_out += decompressed;
+	return (decompressed);
 }
 
 /*
  * Clean up the decompressor.
  */
 static int
-lzma_source_close(struct archive_read_source *self)
+lzma_filter_close(struct archive_read_filter *self)
 {
 	struct private_data *state;
 	int ret;
@@ -367,7 +347,6 @@ lzma_source_close(struct archive_read_source *self)
 
 	free(state->out_block);
 	free(state);
-	free(self);
 	return (ret);
 }
 
