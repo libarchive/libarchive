@@ -1,3 +1,5 @@
+Jan 04, 2008: Major refactoring of read filter support.
+
 Dec 28, 2008: Many Windows/Visual Studio fixes from Michihiro NAKAJIMA.
 	Michihiro is the first person I know of to build and run
 	the libarchive test suite in this environment.
