@@ -158,11 +158,10 @@ gzip_bidder_bid(struct archive_read_filter_bidder *self,
 static int
 gzip_bidder_init(struct archive_read_filter *filter)
 {
-	(void)filter;	/* UNUSED */
 
-	archive_set_error(&a->archive, -1,
+	archive_set_error(&filter->archive->archive, -1,
 	    "This version of libarchive was compiled without gzip support");
-	return (NULL);
+	return (ARCHIVE_FATAL);
 }
 
 #else

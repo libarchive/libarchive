@@ -149,11 +149,10 @@ bzip2_reader_bid(struct archive_read_filter_bidder *self, struct archive_read_fi
 static int
 bzip2_reader_init(struct archive_read_filter *self)
 {
-	(void)self;	/* UNUSED */
 
-	archive_set_error(&a->archive, -1,
+	archive_set_error(&self->archive->archive, -1,
 	    "This version of libarchive was compiled without bzip2 support");
-	return (NULL);
+	return (ARCHIVE_FATAL);
 }
 
 
