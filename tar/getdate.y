@@ -32,6 +32,8 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/getdate.y,v 1.9 2007/07/20 01:27:50 kientzle
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+/* Bison tries to redefine malloc() and free() without the next define. */
+#define	YYINCLUDED_STDLIB_H
 #include <string.h>
 #include <time.h>
 
