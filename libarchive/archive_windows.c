@@ -329,10 +329,8 @@ la_write(int fd, const void *buf, size_t nbytes)
 	uint32_t bytes_written;
 
 #ifdef _WIN64
-	if (nbytes > UINT32_MAX) {
-		errno = EINVAL;
-		return (-1);
-	}
+	if (nbytes > UINT32_MAX)
+		nbytes = UINT32_MAX;
 #endif
 	if (fd < 0) {
 		errno = EBADF;
