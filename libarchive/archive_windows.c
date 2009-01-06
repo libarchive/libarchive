@@ -290,7 +290,7 @@ la_lseek(int fd, __int64 offset, int whence)
 }
 
 /* Windows' mbstowcs is differrent error handling from other unix mbstowcs.
- * That one is using MultiByteToWideChar faunction with MB_PRECOMPOSED and
+ * That one is using MultiByteToWideChar function with MB_PRECOMPOSED and
  * MB_ERR_INVALID_CHARS flags.
  * This implements for only to pass libarchive_test.
  */
