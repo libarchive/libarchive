@@ -317,7 +317,8 @@ la_read(int fd, void *buf, size_t nbytes)
 		errno = EBADF;
 		return (-1);
 	}
-	r = ReadFile((HANDLE)_get_osfhandle(fd), buf, nbytes, &bytes_read, NULL);
+	r = ReadFile((HANDLE)_get_osfhandle(fd), buf, (uint32_t)nbytes,
+	    &bytes_read, NULL);
 	if (r == 0) {
 		lasterr = GetLastError();
 		if (lasterr == ERROR_BROKEN_PIPE)
