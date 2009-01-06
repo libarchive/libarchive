@@ -28,7 +28,7 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/test/test_strip_components.c,v 1.2 2008/11/1
 static int
 touch(const char *fn)
 {
-	int fd = open(fn, O_RDWR | O_CREAT | 0644);
+	int fd = open(fn, O_RDWR | O_CREAT, 0644);
 	failure("Couldn't create file '%s', fd=%d, errno=%d (%s)\n",
 	    fn, fd, errno, strerror(errno));
 	if (!assert(fd > 0))
