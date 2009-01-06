@@ -223,8 +223,6 @@
 /* replace stat and seek by their large-file equivalents */
 #undef	stat
 #define	stat		_stati64
-#undef	fstat
-#define	fstat	_fstati64
 
 #undef	lseek
 #define	lseek       _lseeki64
