@@ -156,7 +156,7 @@ gzip_bidder_bid(struct archive_read_filter_bidder *self,
  * and emit a useful message.
  */
 static int
-gzip_reader_init(struct archive_read_filter *filter)
+gzip_bidder_init(struct archive_read_filter *filter)
 {
 	(void)filter;	/* UNUSED */
 

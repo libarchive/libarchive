@@ -146,16 +146,10 @@ bzip2_reader_bid(struct archive_read_filter_bidder *self, struct archive_read_fi
  * decompression.  We can, however, still detect compressed archives
  * and emit a useful message.
  */
-static struct archive_read_filter *
-bzip2_reader_init(struct archive_read *a,
-    struct archive_read_filter_bidder *reader,
-    struct archive_read_filter *upstream, const void *buff, size_t n)
+static int
+bzip2_reader_init(struct archive_read_filter *self)
 {
-	(void)a;	/* UNUSED */
-	(void)reader;	/* UNUSED */
-	(void)upstream; /* UNUSED */
-	(void)buff;	/* UNUSED */
-	(void)n;	/* UNUSED */
+	(void)self;	/* UNUSED */
 
 	archive_set_error(&a->archive, -1,
 	    "This version of libarchive was compiled without bzip2 support");
