@@ -77,23 +77,24 @@
 #define	makedev(maj,min) ((0xff00 & ((maj)<<8))|(0xffff00ff & (min)))
 
 /* Alias the Windows _function to the POSIX equivalent. */
-#define	chdir		_chdir
-#define	chmod		_chmod
+#define	chdir		la_chdir
+#define	chmod		la_chmod
 #define	close		_close
 //#define	fileno		_fileno
-#define	fstat		_fstat
+#define	fstat		la_fstat
 #define	lseek		la_lseek
-#define	lstat		_stat
-#define	open		_open
+#define	lstat		la_stat
+#define	open		la_open
 #define	stat		_stat
 #define	mbstowcs	la_mbstowcs
-#define	mkdir(d,m)	_mkdir(d)
+#define	mkdir(d,m)	la_mkdir(d, m)
 #define	mktemp		_mktemp
 #define	read		la_read
-#define	rmdir		_rmdir
+#define	rmdir		la_rmdir
 #define	strdup		_strdup
 #define	tzset		_tzset
 #define	umask		_umask
+#define	unlink		la_unlink
 #define	write		la_write
 
 #define	O_RDONLY	_O_RDONLY
@@ -265,10 +266,21 @@ extern int	 futimes(int fd, const struct __timeval *times);
 extern int	 utimes(const char *name, const struct __timeval *times);
 
 /* Replacement POSIX function */
+extern int	 la_chdir(const char *path);
+extern int	 la_chmod(const char *path, mode_t mode);
+extern int	 la_fstat(int fd, struct stat *st);
 extern __int64	 la_lseek(int fd, __int64 offset, int whence);
+extern int	 la_mkdir(const char *path, mode_t mode);
 extern size_t	 la_mbstowcs(wchar_t *wcstr, const char *mbstr, size_t nwchars);
+extern int	 la_open(const char *path, int flags, ...);
 extern ssize_t	 la_read(int fd, void *buf, size_t nbytes);
+extern int	 la_rmdir(const char *path);
+extern int	 la_stat(const char *path, struct stat *st);
+extern int	 la_unlink(const char *path);
 extern ssize_t	 la_write(int fd, const void *buf, size_t nbytes);
+
+#define _stat64i32(path, st)	la_stat(path, st)
+#define _stat64(path, st)	la_stat(path, st)
 
 /* Convertion a Win32 API error code */
 extern int _dosmaperr(unsigned long);
