@@ -35,6 +35,8 @@
 #include <time.h>
 #ifdef _WIN32
 #include <crtdbg.h>
+#include <windows.h>
+#include <winbase.h>
 #endif
 
 /*
@@ -931,10 +933,13 @@ get_refdir(void)
 		strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
 	}
 
+#if defined(_WIN32) && defined(_DEBUG)
 	/* You should have to add "$(TargetDir)" to
 	 * Properties > Configuration Properties > Debugging > Working Directory,
 	 * if you are running libarchive_test.exe on Visual Studio.
 	 */
+	DebugBreak();
+#endif
 	printf("Unable to locate known reference file %s\n", KNOWNREF);
 	printf("  Checked following directories:\n%s\n", tried);
 	exit(1);
@@ -1141,5 +1146,9 @@ int main(int argc, char **argv)
 	/* This should be the usual case when all tests succeed. */
 	rmdir(tmpdir);
 
+#if defined(_WIN32) && defined(_DEBUG)
+	/* Cause a breakpoint exception  */
+	DebugBreak();
+#endif
 	return (tests_failed);
 }
