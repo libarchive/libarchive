@@ -309,6 +309,14 @@ la_read(int fd, void *buf, size_t nbytes)
 	DWORD bytes_read, lasterr;
 	int r;
 
+#ifdef _WIN64
+	if (nbytes > UINT32_MAX)
+		nbytes = UINT32_MAX;
+#endif
+	if (fd < 0) {
+		errno = EBADF;
+		return (-1);
+	}
 	r = ReadFile((HANDLE)_get_osfhandle(fd), buf, nbytes, &bytes_read, NULL);
 	if (r == 0) {
 		lasterr = GetLastError();
