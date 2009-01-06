@@ -216,15 +216,15 @@ ftruncate(int fd, off_t length)
 static int
 __hutimes(HANDLE handle, const struct __timeval *times)
 {
-	uint64_t wintm;
+	ULARGE_INTEGER wintm;
 	FILETIME fatime, fmtime;
 
-	wintm = WINTIME(times[0].tv_sec, times[0].tv_usec);
-	fatime.dwLowDateTime = (DWORD)wintm;
-	fatime.dwHighDateTime = wintm >> 32;
-	wintm = WINTIME(times[1].tv_sec, times[1].tv_usec);
-	fmtime.dwLowDateTime = (DWORD)wintm;
-	fmtime.dwHighDateTime = wintm >> 32;
+	wintm.QuadPart = WINTIME(times[0].tv_sec, times[0].tv_usec);
+	fatime.dwLowDateTime = wintm.LowPart;
+	fatime.dwHighDateTime = wintm.HighPart;
+	wintm.QuadPart = WINTIME(times[1].tv_sec, times[1].tv_usec);
+	fmtime.dwLowDateTime = wintm.LowPart;
+	fmtime.dwHighDateTime = wintm.HighPart;
 	if (SetFileTime(handle, NULL, &fatime, &fmtime) == 0) {
 		errno = EINVAL;
 		return (-1);
