@@ -186,6 +186,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\libarchive\archive_read_disk.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\libarchive\archive_read_extract.c"
 				>
 			</File>
@@ -401,6 +405,10 @@
 			</File>
 			<File
 				RelativePath="..\..\libarchive\archive_private.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\libarchive\archive_read_disk_private.h"
 				>
 			</File>
 			<File
