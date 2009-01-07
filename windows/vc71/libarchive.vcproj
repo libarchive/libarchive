@@ -125,6 +125,9 @@
 				RelativePath="..\..\libarchive\archive_read_disk.c">
 			</File>
 			<File
+				RelativePath="..\..\libarchive\archive_read_disk_set_standard_lookup.c">
+			</File>
+			<File
 				RelativePath="..\..\libarchive\archive_read_extract.c">
 			</File>
 			<File

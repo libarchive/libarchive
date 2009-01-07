@@ -94,13 +94,13 @@ DEFINE_TEST(test_read_disk)
 	    archive_read_disk_set_uname_lookup(a, NULL, NULL, NULL));
 	assertEqualInt(umagic, 0x2345);
 
-#ifndef _WIN32
 	/* Try the standard lookup functions. */
-	assertEqualInt(ARCHIVE_OK,
-	    archive_read_disk_set_standard_lookup(a));
-#endif
-	assertEqualString(archive_read_disk_uname(a, 0), "root");
-	assertEqualString(archive_read_disk_gname(a, 0), "wheel");
+	if (archive_read_disk_set_standard_lookup(a) != ARCHIVE_OK) {
+		skipping("standard uname/gname lookup");
+	} else {
+		assertEqualString(archive_read_disk_uname(a, 0), "root");
+		assertEqualString(archive_read_disk_gname(a, 0), "wheel");
+	}
 
 	/* Deregister again and verify the default lookups again. */
 	assertEqualInt(ARCHIVE_OK,

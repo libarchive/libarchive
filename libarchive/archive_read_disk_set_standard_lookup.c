@@ -47,6 +47,14 @@ __FBSDID("$FreeBSD$");
 
 #include "archive.h"
 
+#ifdef _WIN32
+int
+archive_read_disk_set_standard_lookup(struct archive *a)
+{
+	archive_set_error(a, -1, "Standard lookups not available on Windows");
+	return (ARCHIVE_FATAL);
+}
+#else
 #define	name_cache_size 127
 
 static const char * const NO_NAME = "(noname)";
@@ -218,3 +226,4 @@ lookup_gname_helper(struct archive *a, id_t id)
 
 	return strdup(grent.gr_name);
 }
+#endif /* _WIN32 */
