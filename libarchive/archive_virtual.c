@@ -33,21 +33,21 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_virtual.c,v 1.1 2007/03/03 07:37:
 int
 archive_write_close(struct archive *a)
 {
-	return ((a->vtable->archive_write_close)(a));
+	return ((a->vtable->archive_close)(a));
 }
 
 #if ARCHIVE_API_VERSION > 1
 int
 archive_write_finish(struct archive *a)
 {
-	return ((a->vtable->archive_write_finish)(a));
+	return ((a->vtable->archive_finish)(a));
 }
 #else
 /* Temporarily allow library to compile with either 1.x or 2.0 API. */
 void
 archive_write_finish(struct archive *a)
 {
-	(void)(a->vtable->archive_write_finish)(a);
+	(void)(a->vtable->archive_finish)(a);
 }
 #endif
 
