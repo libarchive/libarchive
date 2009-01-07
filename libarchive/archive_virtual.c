@@ -60,7 +60,7 @@ archive_write_finish(struct archive *a)
 int
 archive_read_finish(struct archive *a)
 {
-	return ((a->vtable->archive_close)(a));
+	return ((a->vtable->archive_finish)(a));
 }
 
 int
