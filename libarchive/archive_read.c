@@ -594,9 +594,13 @@ _archive_read_close(struct archive *_a)
 	/* Clean up the filter pipeline. */
 	while (a->filter != NULL) {
 		struct archive_read_filter *t = a->filter->upstream;
-		r1 = (a->filter->close)(a->filter);
-		if (r1 < r)
-			r = r1;
+		if (a->filter->close != NULL) {
+			r1 = (a->filter->close)(a->filter);
+			if (r1 < r)
+				r = r1;
+		}
+		free(a->filter->buffer);
+		free(a->filter);
 		a->filter = t;
 	}
 

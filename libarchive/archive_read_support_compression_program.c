@@ -129,6 +129,8 @@ archive_read_support_compression_program(struct archive *_a, const char *cmd)
 static int
 program_bidder_free(struct archive_read_filter_bidder *self)
 {
+	struct program_bidder *state = (struct program_bidder *)self->data;
+	free(state->cmd);
 	free(self->data);
 	return (ARCHIVE_OK);
 }

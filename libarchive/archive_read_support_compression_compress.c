@@ -308,7 +308,6 @@ compress_filter_close(struct archive_read_filter *self)
 
 	free(state->out_block);
 	free(state);
-	free(self);
 	return (ARCHIVE_OK);
 }
 
