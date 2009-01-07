@@ -606,6 +606,22 @@ __LA_DECL int	 archive_write_disk_set_user_lookup(struct archive *,
 			    void (* /* cleanup */)(void *));
 
 /*
+ * ARCHIVE_READ_DISK API
+ */
+__LA_DECL struct archive *archive_read_disk_new(void);
+__LA_DECL int	archive_read_disk_set_standard_lookup(struct archive *);
+__LA_DECL const char *archive_read_disk_gname(struct archive *, __LA_GID_T);
+__LA_DECL const char *archive_read_disk_uname(struct archive *, __LA_UID_T);
+__LA_DECL int	archive_read_disk_set_gname_lookup(struct archive *,
+    void * /* private_data */,
+    const char *(* /* lookup_fn */)(void *, __LA_GID_T),
+    void (* /* cleanup_fn */)(void *));
+__LA_DECL int	archive_read_disk_set_uname_lookup(struct archive *,
+    void * /* private_data */,
+    const char *(* /* lookup_fn */)(void *, __LA_UID_T),
+    void (* /* cleanup_fn */)(void *));
+
+/*
  * Accessor functions to read/set various information in
  * the struct archive object:
  */
