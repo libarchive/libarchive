@@ -41,6 +41,7 @@
 #define	ARCHIVE_WRITE_MAGIC	(0xb0c5c0deU)
 #define	ARCHIVE_READ_MAGIC	(0xdeb0c5U)
 #define	ARCHIVE_WRITE_DISK_MAGIC (0xc001b0c5U)
+#define	ARCHIVE_READ_DISK_MAGIC (0xbadb0c5U)
 
 #define	ARCHIVE_STATE_ANY	0xFFFFU
 #define	ARCHIVE_STATE_NEW	1U
@@ -52,8 +53,8 @@
 #define	ARCHIVE_STATE_FATAL	0x8000U
 
 struct archive_vtable {
-	int	(*archive_write_close)(struct archive *);
-	int	(*archive_write_finish)(struct archive *);
+	int	(*archive_close)(struct archive *);
+	int	(*archive_finish)(struct archive *);
 	int	(*archive_write_header)(struct archive *,
 	    struct archive_entry *);
 	int	(*archive_write_finish_entry)(struct archive *);
