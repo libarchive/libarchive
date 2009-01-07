@@ -1118,6 +1118,7 @@ int main(int argc, char **argv)
 			i = atoi(*argv);
 			if (**argv < '0' || **argv > '9' || i < 0 || i >= limit) {
 				printf("*** INVALID Test %s\n", *argv);
+				free(refdir_alloc);
 				usage(progname);
 			} else {
 				if (test_run(i, tmpdir))
