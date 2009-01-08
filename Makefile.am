@@ -86,6 +86,9 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_private.h				\
 	libarchive/archive_read.c				\
 	libarchive/archive_read_data_into_fd.c			\
+	libarchive/archive_read_disk.c				\
+	libarchive/archive_read_disk_private.h			\
+	libarchive/archive_read_disk_set_standard_lookup.c	\
 	libarchive/archive_read_extract.c			\
 	libarchive/archive_read_open_fd.c			\
 	libarchive/archive_read_open_file.c			\
@@ -194,6 +197,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_pax_filename_encoding.c		\
 	libarchive/test/test_read_compress_program.c		\
 	libarchive/test/test_read_data_large.c			\
+	libarchive/test/test_read_disk.c			\
 	libarchive/test/test_read_extract.c			\
 	libarchive/test/test_read_format_ar.c			\
 	libarchive/test/test_read_format_cpio_bin.c		\
