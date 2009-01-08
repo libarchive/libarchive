@@ -254,6 +254,9 @@
 				RelativePath="..\..\libarchive\archive_write_set_format_cpio_newc.c">
 			</File>
 			<File
+				RelativePath="..\..\libarchive\archive_write_set_format_mtree.c">
+			</File>
+			<File
 				RelativePath="..\..\libarchive\archive_write_set_format_pax.c">
 			</File>
 			<File
