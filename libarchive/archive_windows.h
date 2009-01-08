@@ -250,6 +250,8 @@ struct _timeval64i32 {
 #define __timeval _timeval64i32
 #endif
 
+#define SYSTEM_PATH_CHAR	'\\'
+
 /* End of Win32 definitions. */
 
 #ifdef __cplusplus

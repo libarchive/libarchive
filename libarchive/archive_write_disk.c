@@ -1438,6 +1438,61 @@ check_symlinks(struct archive_write_disk *a)
 	return (ARCHIVE_OK);
 }
 
+#if defined(SYSTEM_PATH_CHAR) && SYSTEM_PATH_CHAR != '/'
+/* Convert a path separator of the running system to '/' .
+ * We shouldn't check multi-byte character directly because some charsets
+ * are using a character of the path separator for a part of their charset.
+ */
+static void
+cleanup_path_separator(struct archive_write_disk *a)
+{
+	wchar_t *ws, wpath_char;
+	size_t alen, i, l;
+	int replaced;
+	char path_char;
+
+	if ((alen = strlen(a->name)) == 0)
+		return;
+	/* pre-check to reduce malloc and free */
+	if (strchr(a->name, SYSTEM_PATH_CHAR) == NULL)
+		return;
+	path_char = SYSTEM_PATH_CHAR;
+	if (mbtowc(&wpath_char, &path_char, 1) != 1)
+		return;
+	ws = malloc((alen + 1)* sizeof(wchar_t));
+	if (ws == NULL)
+		__archive_errx(1, "Out of memory");
+	l = mbstowcs(ws, a->name, alen);
+	if (l == (size_t)-1) {
+		/* We cannot check path separator */
+		free(ws);
+		return;
+	}
+	ws[l] = L'\0';
+	replaced = 0;
+	for (i = 0; i < l; i++) {
+		if (ws[i] == wpath_char) {
+			ws[i] = L'/';
+			replaced = 1;
+		}
+	}
+	if (replaced) {
+		char *p;
+
+		p = malloc(alen + 1);
+		if (p == NULL)
+			__archive_errx(1, "Out of memory");
+		l = wcstombs(p, ws, alen);
+		if (l == alen)
+			memcpy(a->name, p, l);
+		free(p);
+	}
+	free(ws);
+}
+#else
+#define cleanup_path_separator(a)	/* nothing */
+#endif
+
 /*
  * Canonicalize the pathname.  In particular, this strips duplicate
  * '/' characters, '.' elements, and trailing '/'.  It also raises an
@@ -1450,6 +1505,7 @@ cleanup_pathname(struct archive_write_disk *a)
 	char *dest, *src;
 	char separator = '\0';
 
+	cleanup_path_separator(a);
 	dest = src = a->name;
 	if (*src == '\0') {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
