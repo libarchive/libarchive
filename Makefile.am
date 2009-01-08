@@ -87,6 +87,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_read.c				\
 	libarchive/archive_read_data_into_fd.c			\
 	libarchive/archive_read_disk.c				\
+	libarchive/archive_read_disk_entry_from_file.c		\
 	libarchive/archive_read_disk_private.h			\
 	libarchive/archive_read_disk_set_standard_lookup.c	\
 	libarchive/archive_read_extract.c			\

@@ -36,6 +36,7 @@
  * platform macros.
  */
 
+#include <sys/stat.h>
 #include <sys/types.h>  /* Linux requires this for off_t */
 #if !defined(__WATCOMC__) && !defined(_MSC_VER)
 /* Header unavailable on Watcom C or MS Visual C++. */
@@ -607,11 +608,29 @@ __LA_DECL int	 archive_write_disk_set_user_lookup(struct archive *,
 
 /*
  * ARCHIVE_READ_DISK API
+ *
+ * This is still evolving and somewhat experimental.
  */
 __LA_DECL struct archive *archive_read_disk_new(void);
-__LA_DECL int	archive_read_disk_set_standard_lookup(struct archive *);
+/* The names for symlink modes here correspond to an old BSD
+ * command-line argument convention: -L, -P, -H */
+/* Follow all symlinks. */
+__LA_DECL int archive_read_disk_set_symlink_logical(struct archive *);
+/* Follow no symlinks. */
+__LA_DECL int archive_read_disk_set_symlink_physical(struct archive *);
+/* Follow symlink initially, then not. */
+__LA_DECL int archive_read_disk_set_symlink_hybrid(struct archive *);
+/* TODO: Handle Linux stat32/stat64 ugliness. <sigh> */
+__LA_DECL int archive_read_disk_entry_from_file(struct archive *,
+    struct archive_entry *, int /* fd */, const struct stat *);
+/* Look up gname for gid or uname for uid. */
+/* Default implementations are very, very stupid. */
 __LA_DECL const char *archive_read_disk_gname(struct archive *, __LA_GID_T);
 __LA_DECL const char *archive_read_disk_uname(struct archive *, __LA_UID_T);
+/* "Standard" implementation uses getpwuid_r, getgrgid_r and caches the
+ * results for performance. */
+__LA_DECL int	archive_read_disk_set_standard_lookup(struct archive *);
+/* You can install your own lookups if you like. */
 __LA_DECL int	archive_read_disk_set_gname_lookup(struct archive *,
     void * /* private_data */,
     const char *(* /* lookup_fn */)(void *, __LA_GID_T),

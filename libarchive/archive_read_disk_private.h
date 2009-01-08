@@ -32,6 +32,21 @@
 struct archive_read_disk {
 	struct archive	archive;
 
+	/*
+	 * Symlink mode is one of 'L'ogical, 'P'hysical, or 'H'ybrid,
+	 * following an old BSD convention.  'L' follows all symlinks,
+	 * 'P' follows none, 'H' follows symlinks only for the first
+	 * item.
+	 */
+	char	symlink_mode;
+
+	/*
+	 * Since symlink interaction changes, we need to track whether
+	 * we're following symlinks for the current item.  'L' mode above
+	 * sets this true, 'P' sets it false, 'H' changes it as we traverse.
+	 */
+	char	follow_symlinks;  /* Either 'L' or 'P'. */
+
 	const char * (*lookup_gname)(void *private, gid_t gid);
 	void	(*cleanup_gname)(void *private);
 	void	 *lookup_gname_data;

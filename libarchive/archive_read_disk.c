@@ -140,6 +140,33 @@ _archive_read_finish(struct archive *_a)
 	return (ARCHIVE_OK);
 }
 
+int
+archive_read_disk_set_symlink_logical(struct archive *_a)
+{
+	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+	a->symlink_mode = 'L';
+	a->follow_symlinks = 1;
+	return (ARCHIVE_OK);
+}
+
+int
+archive_read_disk_set_symlink_physical(struct archive *_a)
+{
+	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+	a->symlink_mode = 'P';
+	a->follow_symlinks = 0;
+	return (ARCHIVE_OK);
+}
+
+int
+archive_read_disk_set_symlink_hybrid(struct archive *_a)
+{
+	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+	a->symlink_mode = 'H';
+	a->follow_symlinks = 1; /* Follow symlinks initially. */
+	return (ARCHIVE_OK);
+}
+
 /*
  * Trivial implementations of gname/uname lookup functions.
  * These are normally overridden by the client, but these stub
