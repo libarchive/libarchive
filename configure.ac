@@ -165,7 +165,8 @@ AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS([errno.h ext2fs/ext2_fs.h fcntl.h  grp.h])
 AC_CHECK_HEADERS([inttypes.h langinfo.h limits.h linux/fs.h])
 AC_CHECK_HEADERS([locale.h paths.h poll.h pwd.h regex.h stdarg.h])
-AC_CHECK_HEADERS([stdint.h stdlib.h string.h sys/acl.h sys/ioctl.h])
+AC_CHECK_HEADERS([stdint.h stdlib.h string.h])
+AC_CHECK_HEADERS([sys/acl.h sys/extattr.h sys/ioctl.h])
 AC_CHECK_HEADERS([sys/param.h sys/poll.h sys/select.h sys/time.h sys/utime.h])
 AC_CHECK_HEADERS([time.h unistd.h utime.h wchar.h wctype.h])
 
@@ -258,7 +259,8 @@ AC_FUNC_STAT
 AC_FUNC_STRERROR_R
 AC_FUNC_STRFTIME
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS([chflags chown chroot fchdir fchflags fchmod fchown fcntl fork])
+AC_CHECK_FUNCS([chflags chown chroot extattr_set_fd extattr_set_file])
+AC_CHECK_FUNCS([fchdir fchflags fchmod fchown fcntl fork])
 AC_CHECK_FUNCS([fstat ftruncate futimes geteuid getpid])
 AC_CHECK_FUNCS([lchflags lchmod lchown])
 AC_CHECK_FUNCS([lutimes memmove memset mkdir mkfifo mknod])
