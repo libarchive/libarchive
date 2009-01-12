@@ -192,6 +192,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_compat_zip.c			\
 	libarchive/test/test_empty_write.c			\
 	libarchive/test/test_entry.c				\
+	libarchive/test/test_extattr_freebsd.c			\
 	libarchive/test/test_fuzz.c				\
 	libarchive/test/test_entry_strmode.c			\
 	libarchive/test/test_link_resolver.c			\
