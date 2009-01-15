@@ -500,7 +500,7 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 	}
 
 	/* We've created the object and are ready to pour data into it. */
-	if (ret == ARCHIVE_OK)
+	if (ret >= ARCHIVE_WARN)
 		a->archive.state = ARCHIVE_STATE_DATA;
 	/*
 	 * If it's not open, tell our client not to try writing.
@@ -865,7 +865,7 @@ edit_deep_directories(struct archive_write_disk *a)
 		*tail = '\0'; /* Terminate dir portion */
 		ret = create_dir(a, a->name);
 		if (ret == ARCHIVE_OK && chdir(a->name) != 0)
-			ret = ARCHIVE_WARN;
+			ret = ARCHIVE_FAILED;
 		*tail = '/'; /* Restore the / we removed. */
 		if (ret != ARCHIVE_OK)
 			return;
@@ -906,7 +906,7 @@ restore_entry(struct archive_write_disk *a)
 			/* We tried, but couldn't get rid of it. */
 			archive_set_error(&a->archive, errno,
 			    "Could not unlink");
-			return(ARCHIVE_WARN);
+			return(ARCHIVE_FAILED);
 		}
 	}
 
@@ -925,7 +925,7 @@ restore_entry(struct archive_write_disk *a)
 	    && (a->flags & ARCHIVE_EXTRACT_NO_OVERWRITE)) {
 		/* If we're not overwriting, we're done. */
 		archive_set_error(&a->archive, en, "Already exists");
-		return (ARCHIVE_WARN);
+		return (ARCHIVE_FAILED);
 	}
 
 	/*
@@ -940,7 +940,7 @@ restore_entry(struct archive_write_disk *a)
 		if (rmdir(a->name) != 0) {
 			archive_set_error(&a->archive, errno,
 			    "Can't remove already-existing dir");
-			return (ARCHIVE_WARN);
+			return (ARCHIVE_FAILED);
 		}
 		a->pst = NULL;
 		/* Try again. */
@@ -967,7 +967,7 @@ restore_entry(struct archive_write_disk *a)
 		if (r != 0) {
 			archive_set_error(&a->archive, errno,
 			    "Can't stat existing object");
-			return (ARCHIVE_WARN);
+			return (ARCHIVE_FAILED);
 		}
 
 		/*
@@ -996,7 +996,7 @@ restore_entry(struct archive_write_disk *a)
 			if (unlink(a->name) != 0) {
 				archive_set_error(&a->archive, errno,
 				    "Can't unlink already-existing object");
-				return (ARCHIVE_WARN);
+				return (ARCHIVE_FAILED);
 			}
 			a->pst = NULL;
 			/* Try again. */
@@ -1006,7 +1006,7 @@ restore_entry(struct archive_write_disk *a)
 			if (rmdir(a->name) != 0) {
 				archive_set_error(&a->archive, errno,
 				    "Can't remove already-existing dir");
-				return (ARCHIVE_WARN);
+				return (ARCHIVE_FAILED);
 			}
 			/* Try again. */
 			en = create_filesystem_object(a);
@@ -1030,7 +1030,7 @@ restore_entry(struct archive_write_disk *a)
 		/* Everything failed; give up here. */
 		archive_set_error(&a->archive, en, "Can't create '%s'",
 		    a->name);
-		return (ARCHIVE_WARN);
+		return (ARCHIVE_FAILED);
 	}
 
 	a->pst = NULL; /* Cached stat data no longer valid. */
@@ -1420,7 +1420,7 @@ check_symlinks(struct archive_write_disk *a)
 					    "Could not remove symlink %s",
 					    a->name);
 					pn[0] = c;
-					return (ARCHIVE_WARN);
+					return (ARCHIVE_FAILED);
 				}
 				a->pst = NULL;
 				/*
@@ -1444,7 +1444,7 @@ check_symlinks(struct archive_write_disk *a)
 					    "Cannot remove intervening symlink %s",
 					    a->name);
 					pn[0] = c;
-					return (ARCHIVE_WARN);
+					return (ARCHIVE_FAILED);
 				}
 				a->pst = NULL;
 			} else {
@@ -1452,7 +1452,7 @@ check_symlinks(struct archive_write_disk *a)
 				    "Cannot extract through symlink %s",
 				    a->name);
 				pn[0] = c;
-				return (ARCHIVE_WARN);
+				return (ARCHIVE_FAILED);
 			}
 		}
 	}
@@ -1634,7 +1634,7 @@ create_parent_dir(struct archive_write_disk *a, char *path)
  * Create the specified dir, recursing to create parents as necessary.
  *
  * Returns ARCHIVE_OK if the path exists when we're done here.
- * Otherwise, returns ARCHIVE_WARN.
+ * Otherwise, returns ARCHIVE_FAILED.
  * Assumes path is in mutable storage; path is unchanged on exit.
  */
 static int
@@ -1679,18 +1679,18 @@ create_dir(struct archive_write_disk *a, char *path)
 		if ((a->flags & ARCHIVE_EXTRACT_NO_OVERWRITE)) {
 			archive_set_error(&a->archive, EEXIST,
 			    "Can't create directory '%s'", path);
-			return (ARCHIVE_WARN);
+			return (ARCHIVE_FAILED);
 		}
 		if (unlink(path) != 0) {
 			archive_set_error(&a->archive, errno,
 			    "Can't create directory '%s': "
 			    "Conflicting file cannot be removed");
-			return (ARCHIVE_WARN);
+			return (ARCHIVE_FAILED);
 		}
 	} else if (errno != ENOENT && errno != ENOTDIR) {
 		/* Stat failed? */
 		archive_set_error(&a->archive, errno, "Can't test directory '%s'", path);
-		return (ARCHIVE_WARN);
+		return (ARCHIVE_FAILED);
 	} else if (slash != NULL) {
 		*slash = '\0';
 		r = create_dir(a, path);
@@ -1732,7 +1732,7 @@ create_dir(struct archive_write_disk *a, char *path)
 
 	archive_set_error(&a->archive, errno, "Failed to create dir '%s'",
 	    path);
-	return (ARCHIVE_WARN);
+	return (ARCHIVE_FAILED);
 }
 
 /*
