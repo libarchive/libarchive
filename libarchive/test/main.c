@@ -1138,7 +1138,7 @@ int main(int argc, char **argv)
 		    tests_failed, tests_run);
 		printf(" Total of %d assertions checked.\n", assertions);
 		printf(" Total of %d assertions failed.\n", failures);
-		printf(" Total of %d assertions skipped.\n", skips);
+		printf(" Total of %d reported skips.\n", skips);
 	}
 
 	free(refdir_alloc);
