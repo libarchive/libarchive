@@ -121,11 +121,11 @@ AM_CONDITIONAL([STATIC_BSDTAR], [ test "$static_bsdtar" = yes ])
 # Default is not to build bsdcpio, but that can be overridden.
 #
 AC_ARG_ENABLE([bsdcpio],
-	[AS_HELP_STRING([--enable-bsdcpio], [enable build of bsdcpio])
+	[AS_HELP_STRING([--enable-bsdcpio], [enable build of bsdcpio (default)])
 	AS_HELP_STRING([--enable-bsdcpio=static], [static build of bsdcpio])
 	AS_HELP_STRING([--enable-bsdcpio=shared], [dynamic build of bsdcpio])
-AS_HELP_STRING([--disable-bsdcpio], [disable build of bsdcpio (default)])],
-	[], [enable_bsdcpio=no])
+AS_HELP_STRING([--disable-bsdcpio], [disable build of bsdcpio])],
+	[], [enable_bsdcpio=yes])
 
 case "$enable_bsdcpio" in
 yes)
