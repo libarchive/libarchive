@@ -1,0 +1,604 @@
+/* config.h.  Generated from config.h.cmake by cmake configure */
+
+/* Version number of bsdcpio */
+#cmakedefine BSDCPIO_VERSION_STRING "${BSDCPIO_VERSION_STRING}"
+
+/* Version number of bsdtar */
+#cmakedefine BSDTAR_VERSION_STRING "${BSDTAR_VERSION_STRING}"
+
+/* Define to 1 if you have the `acl_create_entry' function. */
+#cmakedefine HAVE_ACL_CREATE_ENTRY 1
+
+/* Define to 1 if you have the `acl_get_perm' function. */
+#cmakedefine HAVE_ACL_GET_PERM 1
+
+/* Define to 1 if you have the `acl_get_perm_np' function. */
+#cmakedefine HAVE_ACL_GET_PERM_NP 1
+
+/* Define to 1 if you have the `acl_init' function. */
+#cmakedefine HAVE_ACL_INIT 1
+
+/* Define to 1 if the system has the type `acl_permset_t'. */
+#cmakedefine HAVE_ACL_PERMSET_T 1
+
+/* Define to 1 if you have the `acl_set_fd' function. */
+#cmakedefine HAVE_ACL_SET_FD 1
+
+/* Define to 1 if you have the `acl_set_fd_np' function. */
+#cmakedefine HAVE_ACL_SET_FD_NP 1
+
+/* Define to 1 if you have the `acl_set_file' function. */
+#cmakedefine HAVE_ACL_SET_FILE 1
+
+/* True for systems with POSIX ACL support */
+#cmakedefine HAVE_ACL_USER 1
+
+/* Define to 1 if you have the <attr/xattr.h> header file. */
+#cmakedefine HAVE_ATTR_XATTR_H 1
+
+/* Define to 1 if you have the <bzlib.h> header file. */
+#cmakedefine HAVE_BZLIB_H 1
+
+/* Define to 1 if you have the `chflags' function. */
+#cmakedefine HAVE_CHFLAGS 1
+
+/* Define to 1 if you have the `chown' function. */
+#cmakedefine HAVE_CHOWN 1
+
+/* Define to 1 if you have the `chroot' function. */
+#cmakedefine HAVE_CHROOT 1
+
+/* Define to 1 if you have the declaration of `INT64_MAX', and to 0 if you
+   don't. */
+#cmakedefine HAVE_DECL_INT64_MAX 1
+
+/* Define to 1 if you have the declaration of `INT64_MIN', and to 0 if you
+   don't. */
+#cmakedefine HAVE_DECL_INT64_MIN 1
+
+/* Define to 1 if you have the declaration of `optarg', and to 0 if you don't.
+   */
+#cmakedefine HAVE_DECL_OPTARG 1
+
+/* Define to 1 if you have the declaration of `optind', and to 0 if you don't.
+   */
+#cmakedefine HAVE_DECL_OPTIND 1
+
+/* Define to 1 if you have the declaration of `SIZE_MAX', and to 0 if you
+   don't. */
+#cmakedefine HAVE_DECL_SIZE_MAX 1
+
+/* Define to 1 if you have the declaration of `SSIZE_MAX', and to 0 if you
+   don't. */
+#cmakedefine HAVE_DECL_SSIZE_MAX 1
+
+/* Define to 1 if you have the declaration of `strerror_r', and to 0 if you
+   don't. */
+#cmakedefine HAVE_DECL_STRERROR_R 1
+
+/* Define to 1 if you have the declaration of `UINT32_MAX', and to 0 if you
+   don't. */
+#cmakedefine HAVE_DECL_UINT32_MAX 1
+
+/* Define to 1 if you have the declaration of `UINT64_MAX', and to 0 if you
+   don't. */
+#cmakedefine HAVE_DECL_UINT64_MAX 1
+
+/* Define to 1 if you have the <direct.h> header file. */
+#cmakedefine HAVE_DIRECT_H 1
+
+/* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
+   */
+#cmakedefine HAVE_DIRENT_H 1
+
+/* Define to 1 if you have the <dlfcn.h> header file. */
+#cmakedefine HAVE_DLFCN_H 1
+
+/* Define to 1 if you don't have `vprintf' but do have `_doprnt.' */
+#cmakedefine HAVE_DOPRNT 1
+
+/* Define to 1 if nl_langinfo supports D_MD_ORDER */
+#cmakedefine HAVE_D_MD_ORDER 1
+
+/* A possible errno value for invalid file format errors */
+#cmakedefine HAVE_EFTYPE 1
+
+/* A possible errno value for invalid file format errors */
+#cmakedefine HAVE_EILSEQ 1
+
+/* Define to 1 if you have the <errno.h> header file. */
+#cmakedefine HAVE_ERRNO_H 1
+
+/* Define to 1 if you have the <ext2fs/ext2_fs.h> header file. */
+#cmakedefine HAVE_EXT2FS_EXT2_FS_H 1
+
+/* Define to 1 if you have the `extattr_set_fd' function. */
+#cmakedefine HAVE_EXTATTR_SET_FD 1
+
+/* Define to 1 if you have the `extattr_set_file' function. */
+#cmakedefine HAVE_EXTATTR_SET_FILE 1
+
+/* Define to 1 if you have the `fchdir' function. */
+#cmakedefine HAVE_FCHDIR 1
+
+/* Define to 1 if you have the `fchflags' function. */
+#cmakedefine HAVE_FCHFLAGS 1
+
+/* Define to 1 if you have the `fchmod' function. */
+#cmakedefine HAVE_FCHMOD 1
+
+/* Define to 1 if you have the `fchown' function. */
+#cmakedefine HAVE_FCHOWN 1
+
+/* Define to 1 if you have the `fcntl' function. */
+#cmakedefine HAVE_FCNTL 1
+
+/* Define to 1 if you have the <fcntl.h> header file. */
+#cmakedefine HAVE_FCNTL_H 1
+
+/* Define to 1 if your system has a working POSIX `fnmatch' function. */
+#cmakedefine HAVE_FNMATCH 1
+
+/* Define to 1 if fnmatch(3) supports the FNM_LEADING_DIR flag */
+#cmakedefine HAVE_FNM_LEADING_DIR 1
+
+/* Define to 1 if you have the `fork' function. */
+#cmakedefine HAVE_FORK 1
+
+/* Define to 1 if fseeko (and presumably ftello) exists and is declared. */
+#cmakedefine HAVE_FSEEKO 1
+
+/* Define to 1 if you have the `fsetxattr' function. */
+#cmakedefine HAVE_FSETXATTR 1
+
+/* Define to 1 if you have the `fstat' function. */
+#cmakedefine HAVE_FSTAT 1
+
+/* Define to 1 if you have the `ftruncate' function. */
+#cmakedefine HAVE_FTRUNCATE 1
+
+/* Define to 1 if you have the `futimes' function. */
+#cmakedefine HAVE_FUTIMES 1
+
+/* Define to 1 if you have the `geteuid' function. */
+#cmakedefine HAVE_GETEUID 1
+
+/* Define to 1 if you have the `getpid' function. */
+#cmakedefine HAVE_GETPID 1
+
+/* Define to 1 if you have the `getxattr' function. */
+#cmakedefine HAVE_GETXATTR 1
+
+/* Define to 1 if you have the <grp.h> header file. */
+#cmakedefine HAVE_GRP_H 1
+
+/* Define to 1 if the system has the type `intmax_t'. */
+#cmakedefine HAVE_INTMAX_T 1
+
+/* Define to 1 if you have the <inttypes.h> header file. */
+#cmakedefine HAVE_INTTYPES_H 1
+
+/* Define to 1 if you have the <langinfo.h> header file. */
+#cmakedefine HAVE_LANGINFO_H 1
+
+/* Define to 1 if you have the `lchflags' function. */
+#cmakedefine HAVE_LCHFLAGS 1
+
+/* Define to 1 if you have the `lchmod' function. */
+#cmakedefine HAVE_LCHMOD 1
+
+/* Define to 1 if you have the `lchown' function. */
+#cmakedefine HAVE_LCHOWN 1
+
+/* Define to 1 if you have the `lgetxattr' function. */
+#cmakedefine HAVE_LGETXATTR 1
+
+/* Define to 1 if you have the `acl' library (-lacl). */
+#cmakedefine HAVE_LIBACL 1
+
+/* Define to 1 if you have the `attr' library (-lattr). */
+#cmakedefine HAVE_LIBATTR 1
+
+/* Define to 1 if you have the `bz2' library (-lbz2). */
+#cmakedefine HAVE_LIBBZ2 1
+
+/* Define to 1 if you have the `lzmadec' library (-llzmadec). */
+#cmakedefine HAVE_LIBLZMADEC 1
+
+/* Define to 1 if you have the `z' library (-lz). */
+#cmakedefine HAVE_LIBZ 1
+
+/* Define to 1 if you have the <limits.h> header file. */
+#cmakedefine HAVE_LIMITS_H 1
+
+/* Define to 1 if you have the <linux/fs.h> header file. */
+#cmakedefine HAVE_LINUX_FS_H 1
+
+/* Define to 1 if you have the `listxattr' function. */
+#cmakedefine HAVE_LISTXATTR 1
+
+/* Define to 1 if you have the `llistxattr' function. */
+#cmakedefine HAVE_LLISTXATTR 1
+
+/* Define to 1 if you have the <locale.h> header file. */
+#cmakedefine HAVE_LOCALE_H 1
+
+/* Define to 1 if the system has the type `long long int'. */
+#cmakedefine HAVE_LONG_LONG_INT 1
+
+/* Define to 1 if you have the `lsetxattr' function. */
+#cmakedefine HAVE_LSETXATTR 1
+
+/* Define to 1 if `lstat' has the bug that it succeeds when given the
+   zero-length file name argument. */
+#cmakedefine HAVE_LSTAT_EMPTY_STRING_BUG 1
+
+/* Define to 1 if you have the `lutimes' function. */
+#cmakedefine HAVE_LUTIMES 1
+
+/* Define to 1 if you have the <lzmadec.h> header file. */
+#cmakedefine HAVE_LZMADEC_H 1
+
+/* Define to 1 if you have the `memmove' function. */
+#cmakedefine HAVE_MEMMOVE 1
+
+/* Define to 1 if you have the <memory.h> header file. */
+#cmakedefine HAVE_MEMORY_H 1
+
+/* Define to 1 if you have the `memset' function. */
+#cmakedefine HAVE_MEMSET 1
+
+/* Define to 1 if you have the `mkdir' function. */
+#cmakedefine HAVE_MKDIR 1
+
+/* Define to 1 if you have the `mkfifo' function. */
+#cmakedefine HAVE_MKFIFO 1
+
+/* Define to 1 if you have the `mknod' function. */
+#cmakedefine HAVE_MKNOD 1
+
+/* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
+#cmakedefine HAVE_NDIR_H 1
+
+/* Define to 1 if you have the `nl_langinfo' function. */
+#cmakedefine HAVE_NL_LANGINFO 1
+
+/* Define to 1 if you have the <paths.h> header file. */
+#cmakedefine HAVE_PATHS_H 1
+
+/* Define to 1 if you have the `pipe' function. */
+#cmakedefine HAVE_PIPE 1
+
+/* Define to 1 if you have the `poll' function. */
+#cmakedefine HAVE_POLL 1
+
+/* Define to 1 if you have the <poll.h> header file. */
+#cmakedefine HAVE_POLL_H 1
+
+/* Define to 1 if you have the <process.h> header file. */
+#cmakedefine HAVE_PROCESS_H 1
+
+/* Define to 1 if you have the <pwd.h> header file. */
+#cmakedefine HAVE_PWD_H 1
+
+/* Define to 1 if you have the <regex.h> header file. */
+#cmakedefine HAVE_REGEX_H 1
+
+/* Define to 1 if you have the `select' function. */
+#cmakedefine HAVE_SELECT 1
+
+/* Define to 1 if you have the `setenv' function. */
+#cmakedefine HAVE_SETENV 1
+
+/* Define to 1 if you have the `setlocale' function. */
+#cmakedefine HAVE_SETLOCALE 1
+
+/* Define to 1 if `stat' has the bug that it succeeds when given the
+   zero-length file name argument. */
+#cmakedefine HAVE_STAT_EMPTY_STRING_BUG 1
+
+/* Define to 1 if you have the <stdarg.h> header file. */
+#cmakedefine HAVE_STDARG_H 1
+
+/* Define to 1 if you have the <stdint.h> header file. */
+#cmakedefine HAVE_STDINT_H 1
+
+/* Define to 1 if you have the <stdlib.h> header file. */
+#cmakedefine HAVE_STDLIB_H 1
+
+/* Define to 1 if you have the `strchr' function. */
+#cmakedefine HAVE_STRCHR 1
+
+/* Define to 1 if you have the `strdup' function. */
+#cmakedefine HAVE_STRDUP 1
+
+/* Define to 1 if you have the `strerror' function. */
+#cmakedefine HAVE_STRERROR 1
+
+/* Define to 1 if you have the `strerror_r' function. */
+#cmakedefine HAVE_STRERROR_R 1
+
+/* Define to 1 if you have the `strftime' function. */
+#cmakedefine HAVE_STRFTIME 1
+
+/* Define to 1 if you have the <strings.h> header file. */
+#cmakedefine HAVE_STRINGS_H 1
+
+/* Define to 1 if you have the <string.h> header file. */
+#cmakedefine HAVE_STRING_H 1
+
+/* Define to 1 if you have the `strrchr' function. */
+#cmakedefine HAVE_STRRCHR 1
+
+/* Define to 1 if `st_birthtime' is member of `struct stat'. */
+#cmakedefine HAVE_STRUCT_STAT_ST_BIRTHTIME 1
+
+/* Define to 1 if `st_birthtimespec.tv_nsec' is member of `struct stat'. */
+#cmakedefine HAVE_STRUCT_STAT_ST_BIRTHTIMESPEC_TV_NSEC 1
+
+/* Define to 1 if `st_blksize' is member of `struct stat'. */
+#cmakedefine HAVE_STRUCT_STAT_ST_BLKSIZE 1
+
+/* Define to 1 if `st_flags' is member of `struct stat'. */
+#cmakedefine HAVE_STRUCT_STAT_ST_FLAGS 1
+
+/* Define to 1 if `st_mtimespec.tv_nsec' is member of `struct stat'. */
+#cmakedefine HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC 1
+
+/* Define to 1 if `st_mtim.tv_nsec' is member of `struct stat'. */
+#cmakedefine HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC 1
+
+/* Define to 1 if you have the <sys/acl.h> header file. */
+#cmakedefine HAVE_SYS_ACL_H 1
+
+/* Define to 1 if you have the <sys/dir.h> header file, and it defines `DIR'.
+   */
+#cmakedefine HAVE_SYS_DIR_H 1
+
+/* Define to 1 if you have the <sys/extattr.h> header file. */
+#cmakedefine HAVE_SYS_EXTATTR_H 1
+
+/* Define to 1 if you have the <sys/ioctl.h> header file. */
+#cmakedefine HAVE_SYS_IOCTL_H 1
+
+/* Define to 1 if you have the <sys/ndir.h> header file, and it defines `DIR'.
+   */
+#cmakedefine HAVE_SYS_NDIR_H 1
+
+/* Define to 1 if you have the <sys/param.h> header file. */
+#cmakedefine HAVE_SYS_PARAM_H 1
+
+/* Define to 1 if you have the <sys/poll.h> header file. */
+#cmakedefine HAVE_SYS_POLL_H 1
+
+/* Define to 1 if you have the <sys/select.h> header file. */
+#cmakedefine HAVE_SYS_SELECT_H 1
+
+/* Define to 1 if you have the <sys/stat.h> header file. */
+#cmakedefine HAVE_SYS_STAT_H 1
+
+/* Define to 1 if you have the <sys/time.h> header file. */
+#cmakedefine HAVE_SYS_TIME_H 1
+
+/* Define to 1 if you have the <sys/types.h> header file. */
+#cmakedefine HAVE_SYS_TYPES_H 1
+
+/* Define to 1 if you have the <sys/utime.h> header file. */
+#cmakedefine HAVE_SYS_UTIME_H 1
+
+/* Define to 1 if you have <sys/wait.h> that is POSIX.1 compatible. */
+#cmakedefine HAVE_SYS_WAIT_H 1
+
+/* Define to 1 if you have the `timegm' function. */
+#cmakedefine HAVE_TIMEGM 1
+
+/* Define to 1 if you have the <time.h> header file. */
+#cmakedefine HAVE_TIME_H 1
+
+/* Define to 1 if you have the `tzset' function. */
+#cmakedefine HAVE_TZSET 1
+
+/* Define to 1 if the system has the type `uintmax_t'. */
+#cmakedefine HAVE_UINTMAX_T 1
+
+/* Define to 1 if you have the <unistd.h> header file. */
+#cmakedefine HAVE_UNISTD_H 1
+
+/* Define to 1 if you have the `unsetenv' function. */
+#cmakedefine HAVE_UNSETENV 1
+
+/* Define to 1 if the system has the type `unsigned long long'. */
+#cmakedefine HAVE_UNSIGNED_LONG_LONG 1
+
+/* Define to 1 if the system has the type `unsigned long long int'. */
+#cmakedefine HAVE_UNSIGNED_LONG_LONG_INT 1
+
+/* Define to 1 if you have the `utime' function. */
+#cmakedefine HAVE_UTIME 1
+
+/* Define to 1 if you have the `utimes' function. */
+#cmakedefine HAVE_UTIMES 1
+
+/* Define to 1 if you have the <utime.h> header file. */
+#cmakedefine HAVE_UTIME_H 1
+
+/* Define to 1 if you have the `vfork' function. */
+#cmakedefine HAVE_VFORK 1
+
+/* Define to 1 if you have the `vprintf' function. */
+#cmakedefine HAVE_VPRINTF 1
+
+/* Define to 1 if you have the <wchar.h> header file. */
+#cmakedefine HAVE_WCHAR_H 1
+
+/* Define to 1 if you have the `wcscpy' function. */
+#cmakedefine HAVE_WCSCPY 1
+
+/* Define to 1 if you have the `wcslen' function. */
+#cmakedefine HAVE_WCSLEN 1
+
+/* Define to 1 if you have the `wctomb' function. */
+#cmakedefine HAVE_WCTOMB 1
+
+/* Define to 1 if you have the <wctype.h> header file. */
+#cmakedefine HAVE_WCTYPE_H 1
+
+/* Define to 1 if you have the `wmemcmp' function. */
+#cmakedefine HAVE_WMEMCMP 1
+
+/* Define to 1 if you have the `wmemcpy' function. */
+#cmakedefine HAVE_WMEMCPY 1
+
+/* Define to 1 if you have the <zlib.h> header file. */
+#cmakedefine HAVE_ZLIB_H 1
+
+/* Version number of libarchive as a single integer */
+#cmakedefine LIBARCHIVE_VERSION_NUMBER "${LIBARCHIVE_VERSION_NUMBER}"
+
+/* Version number of libarchive */
+#cmakedefine LIBARCHIVE_VERSION_STRING "${LIBARCHIVE_VERSION_STRING}"
+
+/* Define to 1 if `lstat' dereferences a symlink specified with a trailing
+   slash. */
+#cmakedefine LSTAT_FOLLOWS_SLASHED_SYMLINK 1
+
+/* Define to 1 if `major', `minor', and `makedev' are declared in <mkdev.h>.
+   */
+#cmakedefine MAJOR_IN_MKDEV 1
+
+/* Define to 1 if `major', `minor', and `makedev' are declared in
+   <sysmacros.h>. */
+#cmakedefine MAJOR_IN_SYSMACROS 1
+
+/* Define to 1 if your C compiler doesn't accept -c and -o together. */
+#cmakedefine NO_MINUS_C_MINUS_O 1
+
+/* Name of package */
+#cmakedefine PACKAGE "${PACKAGE}"
+
+/* Define to the address where bug reports for this package should be sent. */
+#cmakedefine PACKAGE_BUGREPORT "${PACKAGE_BUGREPORT}"
+
+/* Define to the full name of this package. */
+#cmakedefine PACKAGE_NAME "${PACKAGE_NAME}"
+
+/* Define to the full name and version of this package. */
+#cmakedefine PACKAGE_STRING "${PACKAGE_STRING}"
+
+/* Define to the one symbol short name of this package. */
+#cmakedefine PACKAGE_TARNAME "${PACKAGE_TARNAME}"
+
+/* Define to the version of this package. */
+#cmakedefine PACKAGE_VERSION "${PACKAGE_VERSION}"
+
+/* Define to 1 if you have the ANSI C header files. */
+#cmakedefine STDC_HEADERS 1
+
+/* Define to 1 if strerror_r returns char *. */
+#cmakedefine STRERROR_R_CHAR_P 1
+
+/* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
+#cmakedefine TIME_WITH_SYS_TIME 1
+
+/* Version number of package */
+#cmakedefine VERSION "${VERSION}"
+
+/* Number of bits in a file offset, on hosts where this is settable. */
+#cmakedefine _FILE_OFFSET_BITS ${_FILE_OFFSET_BITS}
+
+/* Define to 1 to make fseeko visible on some hosts (e.g. glibc 2.2). */
+#cmakedefine _LARGEFILE_SOURCE 1
+
+/* Define for large files, on AIX-style hosts. */
+#cmakedefine _LARGE_FILES ${_LARGE_FILES}
+
+/* Define for Solaris 2.5.1 so the uint64_t typedef from <sys/synch.h>,
+   <pthread.h>, or <semaphore.h> is not used. If the typedef ware allowed, the
+   #define below would cause a syntax error. */
+#cmakedefine _UINT64_T
+
+/* Define to empty if `const' does not conform to ANSI C. */
+#cmakedefine const ${const}
+
+/* Define to `int' if <sys/types.h> doesn't define. */
+#cmakedefine gid_t ${gid_t}
+
+/* Define to `unsigned long' if <sys/types.h> does not define. */
+#cmakedefine id_t ${id_t}
+
+/* Define to the type of a signed integer type of width exactly 64 bits if
+   such a type exists and the standard includes do not define it. */
+#cmakedefine int64_t ${int64_t}
+
+/* Define to the widest signed integer type if <stdint.h> and <inttypes.h> do
+   not define. */
+#cmakedefine intmax_t ${intmax_t}
+
+/* Define to `int' if <sys/types.h> does not define. */
+#cmakedefine mode_t ${mode_t}
+
+/* Define to `long long' if <sys/types.h> does not define. */
+#cmakedefine off_t ${off_t}
+
+/* Define to `unsigned int' if <sys/types.h> does not define. */
+#cmakedefine size_t ${size_t}
+
+/* Define to `int' if <sys/types.h> does not define. */
+#cmakedefine ssize_t ${ssize_t}
+
+/* Define to `int' if <sys/types.h> doesn't define. */
+#cmakedefine uid_t ${uid_t}
+
+/* Define to `unsigned short' if <sys/types.h> doesn't define. */
+#cmakedefine uint16_t ${uint16_t}
+
+/* Define to `unsigned int' if <sys/types.h> doesn't define. */
+#cmakedefine uint32_t ${uint32_t}
+
+/* Define to the type of an unsigned integer type of width exactly 64 bits if
+   such a type exists and the standard includes do not define it. */
+#cmakedefine uint64_t ${uint64_t}
+
+/* Define to the widest unsigned integer type if <stdint.h> and <inttypes.h>
+   do not define. */
+#cmakedefine uintmax_t ${uintmax_t}
+
+/* Define to `unsigned int' if <sys/types.h> does not define. */
+#cmakedefine uintptr_t  ${uintptr_t }
+
+
+/*
+ *  Check for Watcom and Microsoft Visual C compilers (WIN32 only)
+ */
+#if defined(__WIN32__) || defined(_WIN32) || defined(__WIN32)
+  #define	IS_WIN32  1
+
+  #if defined(__TURBOC__) || defined(__BORLANDC__) /* Borland compilers */
+  #elif defined( __WATCOMC__ ) || defined(__WATCOMCPP__) /* Watcom compilers */
+    #define	IS_WATCOM  1
+    /* Define to 1 if __INT64 is defined */
+  #elif defined(__IBMC__) || defined(__IBMCPP__) /* IBM compilers */
+  #elif defined( __SC__ ) /* Symantec C++ compilers */
+  #elif defined( M_I86 ) && defined( MSDOS ) /* Microsoft DOS/Win 16 compilers */
+  #elif defined( _M_IX86 ) || defined( _68K_ ) /* Microsoft Win32 compilers */
+    #define	IS_VISUALC 1
+    /* Define to 1 if __INT64 is defined */
+  #else
+  #endif
+
+  /*
+   * libarchvie has ftruncate(),futimes(),utimes() functions.
+   */
+  #ifndef HAVE_FTRUNCATE 
+    #define HAVE_FTRUNCATE 1
+  #endif
+  #ifndef HAVE_FUTIMES 
+    #define HAVE_FUTIMES 1
+  #endif
+  #ifndef HAVE_UTIMES 
+    #define HAVE_UTIMES 1
+  #endif
+
+  #include "archive_windows.h"
+#endif
+
