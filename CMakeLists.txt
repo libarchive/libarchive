@@ -110,12 +110,6 @@ IF(WIN32)
   #SET(CMAKE_PREFIX_PATH "C:/Program Files/GnuWin32/lib" $(CMAKE_PREFIX_PATH))
   #SET(ZLIB_INCLUDE_DIR "C:/Program Files/GnuWin32/include")
   #SET(BZIP2_INCLUDE_DIR "C:/Program Files/GnuWin32/include")
-ELSE(WIN32)
-  # TODO
-  SET(CMAKE_PREFIX_PATH "/usr/local/lib" $(CMAKE_PREFIX_PATH))
-  SET(ZLIB_INCLUDE_DIR "/usr/local/include")
-  SET(BZIP2_INCLUDE_DIR "/usr/local/include")
-  SET(LZMA_INCLUDE_DIR "/usr/local/include")
 ENDIF(WIN32)
 
 SET(ADDITIONAL_LIBS "")
