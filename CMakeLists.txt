@@ -370,14 +370,12 @@ ENDIF(NOT HAVE_UINTMAX_T)
 # Check for Extended Attributes support
 #
 IF(ENABLE_XATTR)
-
   CHECK_INCLUDE_FILE(attr/xattr.h     HAVE_ATTR_XATTR_H)
   CHECK_LIBRARY_EXISTS(attr "setxattr" "" HAVE_ATTR_LIB)
   IF(HAVE_ATTR_LIB)
     SET(CMAKE_REQUIRED_LIBRARIES "attr")
   ENDIF(HAVE_ATTR_LIB)
   CHECK_FUNCS(getxattr lgetxattr listxattr llistxattr fsetxattr lsetxattr)
-
 ENDIF(ENABLE_XATTR)
 
 #
@@ -389,7 +387,6 @@ ENDIF(ENABLE_XATTR)
 # which makes the following checks rather more complex than I would like.
 #
 IF(ENABLE_ACL)
-
   CHECK_LIBRARY_EXISTS(acl "acl_get_file" "" HAVE_ACL_LIB)
   IF(HAVE_ACL_LIB)
     SET(CMAKE_REQUIRED_LIBRARIES "acl")
@@ -748,6 +745,7 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     ${bsdcpio_test_SOURCES})
   ADD_EXECUTABLE(bsdcpio_test ${bsdcpio_test_SOURCES})
   ADD_TEST(bsdcpio_test bsdcpio_test
+   -v
    -p ${CMAKE_CURRENT_BINARY_DIR}/bsdcpio
    -r ${CMAKE_CURRENT_SOURCE_DIR}/cpio/test)
 
