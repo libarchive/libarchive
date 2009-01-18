@@ -20,17 +20,11 @@ SET(_version_number ${_major}${_minor}${_revision})
 STRING(REGEX REPLACE ".*([^0][0-9]*)$" "\\1" _minor ${_minor})
 STRING(REGEX REPLACE ".*([^0][0-9]*)$" "\\1" _revision ${_revision})
 #
-SET(PACKAGE                    "libarchive")
 SET(VERSION                    "${_major}.${_minor}.${_revision}${_quality}")
-SET(PACKAGE_BUGREPORT          "kientzle@freebsd.org")
 SET(BSDCPIO_VERSION_STRING     "1.1.0")
 SET(BSDTAR_VERSION_STRING      "${VERSION}")
 SET(LIBARCHIVE_VERSION_NUMBER  "${_version_number}")
 SET(LIBARCHIVE_VERSION_STRING  "${VERSION}")
-SET(PACKAGE_NAME               "${PACKAGE}")
-SET(PACKAGE_STRING             "${PACKAGE} ${LIBARCHIVE_VERSION_STRING}")
-SET(PACKAGE_TARNAME            "${PACKAGE}")
-SET(PACKAGE_VERSION            "${LIBARCHIVE_VERSION_STRING}")
 #
 # On Windows, currently, bsdtar and bsdcpio are not supported.
 #
