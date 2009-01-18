@@ -32,7 +32,12 @@ SET(PACKAGE_STRING             "${PACKAGE} ${LIBARCHIVE_VERSION_STRING}")
 SET(PACKAGE_TARNAME            "${PACKAGE}")
 SET(PACKAGE_VERSION            "${LIBARCHIVE_VERSION_STRING}")
 #
+# On Windows, currently, bsdtar and bsdcpio are not supported.
 #
+IF (WIN32)
+  SET(NOBUILD_TAR 1)
+  SET(NOBUILD_CPIO 1)
+ENDIF (WIN32)
 #
 INCLUDE(CheckLibraryExists)
 INCLUDE(CheckFuncs)
@@ -619,7 +624,7 @@ SET_PROPERTY(TARGET libarchive_test PROPERTY ENVIRONMENT
 #
 # bsdtar
 #
-IF (NOT WIN32 AND NOT NOBUILD_TAR)
+IF (NOT NOBUILD_TAR)
   YACC_FILE(tar/getdate.y)
   SET(bsdtar_SOURCES
     tar/bsdtar.c
@@ -682,7 +687,7 @@ IF (NOT WIN32 AND NOT NOBUILD_TAR)
     "BSDTAR=${CMAKE_CURRENT_BINARY_DIR}/bsdtar"
     "BSDTAR_TEST_FILES=${CMAKE_CURRENT_SOURCE_DIR}/tar/test")
 
-ENDIF (NOT WIN32 AND NOT NOBUILD_TAR)
+ENDIF (NOT NOBUILD_TAR)
 
 #
 # bsdcpio
