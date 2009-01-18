@@ -168,7 +168,7 @@ AC_CHECK_HEADERS([locale.h paths.h poll.h pwd.h regex.h stdarg.h])
 AC_CHECK_HEADERS([stdint.h stdlib.h string.h])
 AC_CHECK_HEADERS([sys/acl.h sys/extattr.h sys/ioctl.h])
 AC_CHECK_HEADERS([sys/param.h sys/poll.h sys/select.h sys/time.h sys/utime.h])
-AC_CHECK_HEADERS([time.h unistd.h utime.h wchar.h wctype.h])
+AC_CHECK_HEADERS([time.h unistd.h utime.h wchar.h wctype.h windows.h])
 
 # Checks for libraries.
 AC_ARG_WITH([zlib],
@@ -259,12 +259,14 @@ AC_FUNC_STAT
 AC_FUNC_STRERROR_R
 AC_FUNC_STRFTIME
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS([chflags chown chroot extattr_set_fd extattr_set_file])
+AC_CHECK_FUNCS([chflags chown chroot])
+AC_CHECK_FUNCS([extattr_get_file extattr_list_file])
+AC_CHECK_FUNCS([extattr_set_fd extattr_set_file])
 AC_CHECK_FUNCS([fchdir fchflags fchmod fchown fcntl fork])
 AC_CHECK_FUNCS([fstat ftruncate futimes geteuid getpid])
 AC_CHECK_FUNCS([lchflags lchmod lchown])
 AC_CHECK_FUNCS([lutimes memmove memset mkdir mkfifo mknod])
-AC_CHECK_FUNCS([nl_langinfo pipe poll select setenv setlocale])
+AC_CHECK_FUNCS([nl_langinfo pipe poll readlink select setenv setlocale])
 AC_CHECK_FUNCS([strchr strdup strerror strrchr timegm])
 AC_CHECK_FUNCS([tzset unsetenv utime utimes vfork])
 AC_CHECK_FUNCS([wcscpy wcslen wctomb wmemcmp wmemcpy])

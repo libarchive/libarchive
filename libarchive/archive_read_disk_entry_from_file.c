@@ -26,14 +26,23 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
 #ifdef HAVE_SYS_ACL_H
 #include <sys/acl.h>
 #endif
+#ifdef HAVE_SYS_PARAM_H
+#include <sys/param.h>
+#endif
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
+#ifdef HAVE_WINDOWS_H
+#include <windows.h>
 #endif
 
 #include "archive.h"
@@ -62,10 +71,10 @@ archive_read_disk_entry_from_file(struct archive *_a,
     int fd, const struct stat *st)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
-	static char linkbuffer[PATH_MAX + 1];
 	const char *path;
 	struct stat s;
 	int initial_fd = fd;
+	int r, r1;
 
 	path = archive_entry_sourcepath(entry);
 	if (path == NULL)
@@ -113,7 +122,9 @@ archive_read_disk_entry_from_file(struct archive *_a,
 		archive_entry_set_fflags(entry, st->st_flags, 0);
 #endif
 
+#ifdef HAVE_READLINK
 	if (S_ISLNK(st->st_mode)) {
+		char linkbuffer[PATH_MAX + 1];
 		int lnklen = readlink(path, linkbuffer, PATH_MAX);
 		if (lnklen < 0) {
 			archive_set_error(&a->archive, errno,
@@ -123,14 +134,16 @@ archive_read_disk_entry_from_file(struct archive *_a,
 		linkbuffer[lnklen] = 0;
 		archive_entry_set_symlink(entry, linkbuffer);
 	}
+#endif
 
-	/* TODO: collect errors here. */
-	setup_acls_posix1e(a, entry, fd);
-	setup_xattrs(a, entry, fd);
+	r = setup_acls_posix1e(a, entry, fd);
+	r1 = setup_xattrs(a, entry, fd);
+	if (r1 < r)
+		r = r1;
 	/* If we opened the file earlier in this function, close it. */
 	if (initial_fd != fd)
 		close(fd);
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 #ifdef HAVE_POSIX_ACL
@@ -174,6 +187,7 @@ setup_acls_posix1e(struct archive_read_disk *a,
 			acl_free(acl);
 		}
 	}
+	return (ARCHIVE_OK);
 }
 
 /*
@@ -237,7 +251,7 @@ setup_acl_posix1e(struct archive_read_disk *a,
 	}
 }
 #else
-static void
+static int
 setup_acls_posix1e(struct archive_read_disk *a,
     struct archive_entry *entry, int fd)
 {
@@ -374,6 +388,7 @@ setup_xattrs(struct archive_read_disk *a,
 	(void)a;     /* UNUSED */
 	(void)entry; /* UNUSED */
 	(void)fd;    /* UNUSED */
+	return (ARCHIVE_OK);
 }
 
 #else
@@ -388,6 +403,7 @@ setup_xattrs(struct archive_read_disk *a,
 	(void)a;     /* UNUSED */
 	(void)entry; /* UNUSED */
 	(void)fd;    /* UNUSED */
+	return (ARCHIVE_OK);
 }
 
 #endif
