@@ -416,8 +416,8 @@ IF(ENABLE_ACL)
 
 ENDIF(ENABLE_ACL)
 
-# Generate "config.h" from "config.h.cmake"
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/config.h.cmake
+# Generate "config.h" from "cmake/config.h.in"
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.h.in
 	${CMAKE_CURRENT_BINARY_DIR}/config.h)
 
 ############################################
