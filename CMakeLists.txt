@@ -3,11 +3,11 @@
 PROJECT(libarchive)
 #
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6.1)
-SET(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+SET(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 #
 # Version - read from 'version' file.
 #
-FILE(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/version _version)
+FILE(STRINGS ${CMAKE_SOURCE_DIR}/version _version)
 STRING(REGEX REPLACE
  "^([0-9])[0-9][0-9][0-9][0-9][0-9][0-9][a-z]?$" "\\1" _major ${_version})
 STRING(REGEX REPLACE
@@ -66,10 +66,11 @@ MACRO (YACC_FILE _yaccfile)
   GET_FILENAME_COMPONENT(_path ${_yaccfile} PATH)
   GET_FILENAME_COMPONENT(_name ${_yaccfile} NAME_WE)
   SET(_basename "${_path}/${_name}")
+  FILE(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${_path}")
   ADD_CUSTOM_COMMAND(
-    OUTPUT ${_basename}.c
-    COMMAND ${YACC} -o ${_basename}.c ${_yaccfile}
-    DEPENDS ${_yaccfile}
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.c ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.h
+    COMMAND ${YACC} -o ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.c ${CMAKE_CURRENT_SOURCE_DIR}/${_yaccfile}
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${_yaccfile}
     COMMENT "Generating ${_basename}.c from ${_yaccfile}"
   )
 ENDMACRO (YACC_FILE)
@@ -413,6 +414,8 @@ ENDIF(ENABLE_ACL)
 # Generate "config.h" from "cmake/config.h.in"
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.h.in
 	${CMAKE_CURRENT_BINARY_DIR}/config.h)
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
+ADD_DEFINITIONS(-DHAVE_CONFIG_H)
 
 ############################################
 #
@@ -514,7 +517,6 @@ IF(WIN32)
 ENDIF(WIN32)
 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/libarchive)
-ADD_DEFINITIONS(-DHAVE_CONFIG_H)
 #
 IF(MSVC)
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE)
