@@ -54,6 +54,7 @@ INCLUDE(CheckStructMember)
 INCLUDE(CheckSymbolExists)
 INCLUDE(CheckTypeExists)
 INCLUDE(CheckTypeSize)
+
 #
 # For yacc file, generate *.c from *.y
 #
@@ -101,6 +102,8 @@ ENDMACRO (GENERATE_LIST_H)
 
 #
 # Check compress/decompress libraries
+#
+# XXX Is this really necessary? XXX
 #
 IF(WIN32)
 # TODO
@@ -248,7 +251,9 @@ CHECK_STRUCT_MEMBER("struct tm" tm_sec
     "sys/types.h;sys/time.h;time.h" TIME_WITH_SYS_TIME)
 
 #
-# Check types
+# Check for integer types
+#
+# XXX There must be a way to make this simpler <sigh> XXXX
 #
 CHECK_TYPE_SIZE("long long int"            LONG_LONG_INT)
 CHECK_TYPE_SIZE("unsigned long long"       UNSIGNED_LONG_LONG)
@@ -367,7 +372,7 @@ IF(NOT HAVE_UINTMAX_T)
 ENDIF(NOT HAVE_UINTMAX_T)
 
 #
-# Check for Extended Attributes support
+# Check for Extended Attribute libraries, headers, and functions
 #
 IF(ENABLE_XATTR)
   CHECK_INCLUDE_FILE(attr/xattr.h     HAVE_ATTR_XATTR_H)
@@ -379,7 +384,7 @@ IF(ENABLE_XATTR)
 ENDIF(ENABLE_XATTR)
 
 #
-# Check for ACL support
+# Check for ACL libraries, headers, and functions
 #
 # The ACL support in libarchive is written against the POSIX1e draft,
 # which was never officially approved and varies quite a bit across
@@ -411,15 +416,15 @@ IF(ENABLE_ACL)
 
 ENDIF(ENABLE_ACL)
 
-#
 # Generate "config.h" from "config.h.cmake"
-#
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/config.h.cmake
 	${CMAKE_CURRENT_BINARY_DIR}/config.h)
 
+############################################
 #
-# libarchive
+# How to build libarchive
 #
+############################################
 SET(include_HEADERS
   libarchive/archive.h
   libarchive/archive_write_private.h
@@ -514,24 +519,23 @@ IF(WIN32)
   LIST(APPEND libarchive_SOURCES libarchive/archive_windows.h)
 ENDIF(WIN32)
 
-#
-# For all targets, must read local include files.
-#
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/libarchive)
-#
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
 #
 IF(MSVC)
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE)
 ENDIF(MSVC)
-#
-# Register target
-#
+# Libarchive is a library
 ADD_LIBRARY(archive SHARED ${libarchive_SOURCES} ${include_HEADERS})
 TARGET_LINK_LIBRARIES(archive ${ADDITIONAL_LIBS})
 SET_PROPERTY(TARGET archive PROPERTY RUNTIME_OUTPUT_DIRECTORY
   "${CMAKE_CURRENT_BINARY_DIR}/lib")
 
+############################################
+#
+# How to build libarchive_test
+#
+############################################
 IF(ENABLE_TEST)
   SET(libarchive_test_SOURCES
     ${libarchive_SOURCES}
@@ -619,9 +623,11 @@ IF(ENABLE_TEST)
     -r ${CMAKE_CURRENT_SOURCE_DIR}/libarchive/test)
 ENDIF(ENABLE_TEST)
 
+############################################
 #
-# bsdtar
+# How to build bsdtar
 #
+############################################
 IF (ENABLE_TAR)
   YACC_FILE(tar/getdate.y)
   SET(bsdtar_SOURCES
@@ -649,6 +655,11 @@ IF (ENABLE_TAR)
   TARGET_LINK_LIBRARIES(bsdtar archive ${ADDITIONAL_LIBS})
 ENDIF(ENABLE_TAR)
 
+############################################
+#
+# How to build bsdtar_test
+#
+############################################
 IF(ENABLE_TAR AND ENABLE_TEST)
   SET(bsdtar_test_SOURCES
     tar/getdate.c
@@ -685,9 +696,11 @@ IF(ENABLE_TAR AND ENABLE_TEST)
 
 ENDIF (ENABLE_TAR AND ENABLE_TEST)
 
+############################################
 #
-# bsdcpio
+# How to build bsdcpio
 #
+############################################
 IF(ENABLE_CPIO)
   SET(bsdcpio_SOURCES
     cpio/cmdline.c
@@ -708,6 +721,11 @@ IF(ENABLE_CPIO)
   TARGET_LINK_LIBRARIES(bsdcpio archive ${ADDITIONAL_LIBS})
 ENDIF(ENABLE_CPIO)
 
+############################################
+#
+# How to build bsdcpio_test
+#
+############################################
 IF(ENABLE_CPIO AND ENABLE_TEST)
   SET(bsdcpio_test_SOURCES
     cpio/cmdline.c
@@ -751,8 +769,12 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
 
 ENDIF(ENABLE_CPIO AND ENABLE_TEST)
 
+############################################
 #
-# check-TESTS
+# check-TESTS for Windows
+#
+# XXXXX Is this really needed?  Why is the ADD_TEST(), etc, setup
+# above not sufficient?
 #
 IF (WIN32)
   #
