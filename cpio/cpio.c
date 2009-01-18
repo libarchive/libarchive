@@ -469,6 +469,8 @@ file_to_archive(struct cpio *cpio, const char *srcpath)
 
 	/*
 	 * Create an archive_entry describing the source file.
+	 *
+	 * XXX TODO: rework to use archive_read_disk_entry_from_file()
 	 */
 	entry = archive_entry_new();
 	if (entry == NULL)
