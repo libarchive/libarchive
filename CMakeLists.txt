@@ -613,6 +613,8 @@ IF(ENABLE_TEST)
     ${libarchive_test_SOURCES})
   ADD_EXECUTABLE(libarchive_test ${libarchive_test_SOURCES})
   TARGET_LINK_LIBRARIES(libarchive_test ${ADDITIONAL_LIBS})
+  SET_PROPERTY(TARGET libarchive_test PROPERTY COMPILE_DEFINITIONS
+    LIBARCHIVE_STATIC)
   ADD_TEST(libarchive_test libarchive_test
     -r ${CMAKE_CURRENT_SOURCE_DIR}/libarchive/test)
 ENDIF(ENABLE_TEST)
