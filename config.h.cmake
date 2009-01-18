@@ -281,6 +281,9 @@
 /* Define to 1 if you have the <pwd.h> header file. */
 #cmakedefine HAVE_PWD_H 1
 
+/* Define to 1 if you have the `readlink' function. */
+#cmakedefine HAVE_READLINK 1
+
 /* Define to 1 if you have the <regex.h> header file. */
 #cmakedefine HAVE_REGEX_H 1
 

@@ -21,16 +21,27 @@ STRING(REGEX REPLACE ".*([^0][0-9]*)$" "\\1" _minor ${_minor})
 STRING(REGEX REPLACE ".*([^0][0-9]*)$" "\\1" _revision ${_revision})
 #
 SET(VERSION                    "${_major}.${_minor}.${_revision}${_quality}")
-SET(BSDCPIO_VERSION_STRING     "1.1.0")
+SET(BSDCPIO_VERSION_STRING     "${VERSION}")
 SET(BSDTAR_VERSION_STRING      "${VERSION}")
 SET(LIBARCHIVE_VERSION_NUMBER  "${_version_number}")
 SET(LIBARCHIVE_VERSION_STRING  "${VERSION}")
+
+OPTION(ENABLE_TAR "Enable tar building" ON)
+OPTION(ENABLE_CPIO "Enable cpio building" ON)
+OPTION(ENABLE_XATTR "Enable extended attribute support" ON)
+OPTION(ENABLE_ACL "Enable ACL support" ON)
+OPTION(ENABLE_TEST "Enable unit and regression tests" ON)
+
+IF(ENABLE_TEST)
+	ENABLE_TESTING()
+ENDIF(ENABLE_TEST)
+
 #
 # On Windows, currently, bsdtar and bsdcpio are not supported.
 #
 IF (WIN32)
-  SET(NOBUILD_TAR 1)
-  SET(NOBUILD_CPIO 1)
+  SET(ENABLE_TAR 0)
+  SET(ENABLE_CPIO 0)
 ENDIF (WIN32)
 #
 INCLUDE(CheckLibraryExists)
@@ -358,7 +369,7 @@ ENDIF(NOT HAVE_UINTMAX_T)
 #
 # Check for Extended Attributes support
 #
-IF(NOT DISABLE_XATTR)
+IF(ENABLE_XATTR)
 
   CHECK_INCLUDE_FILE(attr/xattr.h     HAVE_ATTR_XATTR_H)
   CHECK_LIBRARY_EXISTS(attr "setxattr" "" HAVE_ATTR_LIB)
@@ -367,7 +378,7 @@ IF(NOT DISABLE_XATTR)
   ENDIF(HAVE_ATTR_LIB)
   CHECK_FUNCS(getxattr lgetxattr listxattr llistxattr fsetxattr lsetxattr)
 
-ENDIF(NOT DISABLE_XATTR)
+ENDIF(ENABLE_XATTR)
 
 #
 # Check for ACL support
@@ -377,7 +388,7 @@ ENDIF(NOT DISABLE_XATTR)
 # platforms.  Worse, some systems have completely non-POSIX acl functions,
 # which makes the following checks rather more complex than I would like.
 #
-IF(NOT DISABLE_ACL)
+IF(ENABLE_ACL)
 
   CHECK_LIBRARY_EXISTS(acl "acl_get_file" "" HAVE_ACL_LIB)
   IF(HAVE_ACL_LIB)
@@ -401,13 +412,13 @@ IF(NOT DISABLE_ACL)
   # checking for ACL_USER
   CHECK_SYMBOL_EXISTS(ACL_USER         "sys/acl.h" HAVE_ACL_USER)
 
-ENDIF(NOT DISABLE_ACL)
+ENDIF(ENABLE_ACL)
 
 #
 # Generate "config.h" from "config.h.cmake"
 #
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/config.h.cmake
-	${CMAKE_CURRENT_SOURCE_DIR}/config.h)
+	${CMAKE_CURRENT_BINARY_DIR}/config.h)
 
 #
 # libarchive
@@ -507,7 +518,7 @@ IF(WIN32)
 ENDIF(WIN32)
 
 #
-# For all targes, must read local include files.
+# For all targets, must read local include files.
 #
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/libarchive)
 #
@@ -524,103 +535,97 @@ TARGET_LINK_LIBRARIES(archive ${ADDITIONAL_LIBS})
 SET_PROPERTY(TARGET archive PROPERTY RUNTIME_OUTPUT_DIRECTORY
   "${CMAKE_CURRENT_BINARY_DIR}/lib")
 
-SET(libarchive_test_SOURCES
-  ${libarchive_SOURCES}
-  libarchive/test/main.c
-  libarchive/test/read_open_memory.c
-  libarchive/test/test.h
-  libarchive/test/test_acl_basic.c
-  libarchive/test/test_acl_freebsd.c
-  libarchive/test/test_acl_pax.c
-  libarchive/test/test_archive_api_feature.c
-  libarchive/test/test_bad_fd.c
-  libarchive/test/test_compat_bzip2.c
-  libarchive/test/test_compat_gtar.c
-  libarchive/test/test_compat_gzip.c
-  libarchive/test/test_compat_tar_hardlink.c
-  libarchive/test/test_compat_zip.c
-  libarchive/test/test_empty_write.c
-  libarchive/test/test_entry.c
-  libarchive/test/test_extattr_freebsd.c
-  libarchive/test/test_fuzz.c
-  libarchive/test/test_link_resolver.c
-  libarchive/test/test_pax_filename_encoding.c
-  libarchive/test/test_read_compress_program.c
-  libarchive/test/test_read_data_large.c
-  libarchive/test/test_read_disk.c
-  libarchive/test/test_read_extract.c
-  libarchive/test/test_read_format_ar.c
-  libarchive/test/test_read_format_cpio_bin.c
-  libarchive/test/test_read_format_cpio_bin_Z.c
-  libarchive/test/test_read_format_cpio_bin_bz2.c
-  libarchive/test/test_read_format_cpio_bin_gz.c
-  libarchive/test/test_read_format_cpio_odc.c
-  libarchive/test/test_read_format_cpio_svr4_gzip.c
-  libarchive/test/test_read_format_cpio_svr4c_Z.c
-  libarchive/test/test_read_format_empty.c
-  libarchive/test/test_read_format_gtar_gz.c
-  libarchive/test/test_read_format_gtar_lzma.c
-  libarchive/test/test_read_format_gtar_sparse.c
-  libarchive/test/test_read_format_iso_gz.c
-  libarchive/test/test_read_format_isorr_bz2.c
-  libarchive/test/test_read_format_mtree.c
-  libarchive/test/test_read_format_pax_bz2.c
-  libarchive/test/test_read_format_tar.c
-  libarchive/test/test_read_format_tar_empty_filename.c
-  libarchive/test/test_read_format_tbz.c
-  libarchive/test/test_read_format_tgz.c
-  libarchive/test/test_read_format_tz.c
-  libarchive/test/test_read_format_zip.c
-  libarchive/test/test_read_large.c
-  libarchive/test/test_read_pax_truncated.c
-  libarchive/test/test_read_position.c
-  libarchive/test/test_read_truncated.c
-  libarchive/test/test_tar_filenames.c
-  libarchive/test/test_tar_large.c
-  libarchive/test/test_ustar_filenames.c
-  libarchive/test/test_write_compress.c
-  libarchive/test/test_write_compress_program.c
-  libarchive/test/test_write_disk.c
-  libarchive/test/test_write_disk_failures.c
-  libarchive/test/test_write_disk_hardlink.c
-  libarchive/test/test_write_disk_perms.c
-  libarchive/test/test_write_disk_secure.c
-  libarchive/test/test_write_disk_times.c
-  libarchive/test/test_write_format_ar.c
-  libarchive/test/test_write_format_cpio.c
-  libarchive/test/test_write_format_cpio_empty.c
-  libarchive/test/test_write_format_cpio_odc.c
-  libarchive/test/test_write_format_cpio_newc.c
-  libarchive/test/test_write_format_pax.c
-  libarchive/test/test_write_format_shar_empty.c
-  libarchive/test/test_write_format_tar.c
-  libarchive/test/test_write_format_tar_empty.c
-  libarchive/test/test_write_format_tar_ustar.c
-  libarchive/test/test_write_open_memory.c
-)
+IF(ENABLE_TEST)
+  SET(libarchive_test_SOURCES
+    ${libarchive_SOURCES}
+    libarchive/test/main.c
+    libarchive/test/read_open_memory.c
+    libarchive/test/test.h
+    libarchive/test/test_acl_basic.c
+    libarchive/test/test_acl_freebsd.c
+    libarchive/test/test_acl_pax.c
+    libarchive/test/test_archive_api_feature.c
+    libarchive/test/test_bad_fd.c
+    libarchive/test/test_compat_bzip2.c
+    libarchive/test/test_compat_gtar.c
+    libarchive/test/test_compat_gzip.c
+    libarchive/test/test_compat_tar_hardlink.c
+    libarchive/test/test_compat_zip.c
+    libarchive/test/test_empty_write.c
+    libarchive/test/test_entry.c
+    libarchive/test/test_extattr_freebsd.c
+    libarchive/test/test_fuzz.c
+    libarchive/test/test_link_resolver.c
+    libarchive/test/test_pax_filename_encoding.c
+    libarchive/test/test_read_compress_program.c
+    libarchive/test/test_read_data_large.c
+    libarchive/test/test_read_disk.c
+    libarchive/test/test_read_extract.c
+    libarchive/test/test_read_format_ar.c
+    libarchive/test/test_read_format_cpio_bin.c
+    libarchive/test/test_read_format_cpio_bin_Z.c
+    libarchive/test/test_read_format_cpio_bin_bz2.c
+    libarchive/test/test_read_format_cpio_bin_gz.c
+    libarchive/test/test_read_format_cpio_odc.c
+    libarchive/test/test_read_format_cpio_svr4_gzip.c
+    libarchive/test/test_read_format_cpio_svr4c_Z.c
+    libarchive/test/test_read_format_empty.c
+    libarchive/test/test_read_format_gtar_gz.c
+    libarchive/test/test_read_format_gtar_lzma.c
+    libarchive/test/test_read_format_gtar_sparse.c
+    libarchive/test/test_read_format_iso_gz.c
+    libarchive/test/test_read_format_isorr_bz2.c
+    libarchive/test/test_read_format_mtree.c
+    libarchive/test/test_read_format_pax_bz2.c
+    libarchive/test/test_read_format_tar.c
+    libarchive/test/test_read_format_tar_empty_filename.c
+    libarchive/test/test_read_format_tbz.c
+    libarchive/test/test_read_format_tgz.c
+    libarchive/test/test_read_format_tz.c
+    libarchive/test/test_read_format_zip.c
+    libarchive/test/test_read_large.c
+    libarchive/test/test_read_pax_truncated.c
+    libarchive/test/test_read_position.c
+    libarchive/test/test_read_truncated.c
+    libarchive/test/test_tar_filenames.c
+    libarchive/test/test_tar_large.c
+    libarchive/test/test_ustar_filenames.c
+    libarchive/test/test_write_compress.c
+    libarchive/test/test_write_compress_program.c
+    libarchive/test/test_write_disk.c
+    libarchive/test/test_write_disk_failures.c
+    libarchive/test/test_write_disk_hardlink.c
+    libarchive/test/test_write_disk_perms.c
+    libarchive/test/test_write_disk_secure.c
+    libarchive/test/test_write_disk_times.c
+    libarchive/test/test_write_format_ar.c
+    libarchive/test/test_write_format_cpio.c
+    libarchive/test/test_write_format_cpio_empty.c
+    libarchive/test/test_write_format_cpio_odc.c
+    libarchive/test/test_write_format_cpio_newc.c
+    libarchive/test/test_write_format_pax.c
+    libarchive/test/test_write_format_shar_empty.c
+    libarchive/test/test_write_format_tar.c
+    libarchive/test/test_write_format_tar_empty.c
+    libarchive/test/test_write_format_tar_ustar.c
+    libarchive/test/test_write_open_memory.c
+  )
 
-#
-# Generate the list.h
-#
-GENERATE_LIST_H(libarchive/test/list.h ${libarchive_test_SOURCES})
-#
-# Register target
-#
-ADD_EXECUTABLE(libarchive_test EXCLUDE_FROM_ALL
-    ${libarchive_test_SOURCES} ${include_HEADERS})
-TARGET_LINK_LIBRARIES(libarchive_test ${ADDITIONAL_LIBS})
-#
-# Setting for check-TESTS
-#
-LIST(APPEND check_program libarchive_test)
-SET_PROPERTY(TARGET libarchive_test PROPERTY ENVIRONMENT
-  "LIBARCHIVE_TEST_FILES=${CMAKE_CURRENT_SOURCE_DIR}/libarchive/test")
-
+  #
+  # Generate the list.h
+  #
+  GENERATE_LIST_H(${CMAKE_CURRENT_BINARY_DIR}/libarchive/test/list.h
+    ${libarchive_test_SOURCES})
+  ADD_EXECUTABLE(libarchive_test ${libarchive_test_SOURCES})
+  TARGET_LINK_LIBRARIES(libarchive_test ${ADDITIONAL_LIBS})
+  ADD_TEST(libarchive_test libarchive_test
+    -r ${CMAKE_CURRENT_SOURCE_DIR}/libarchive/test)
+ENDIF(ENABLE_TEST)
 
 #
 # bsdtar
 #
-IF (NOT NOBUILD_TAR)
+IF (ENABLE_TAR)
   YACC_FILE(tar/getdate.y)
   SET(bsdtar_SOURCES
     tar/bsdtar.c
@@ -645,8 +650,9 @@ IF (NOT NOBUILD_TAR)
   #
   ADD_EXECUTABLE(bsdtar ${bsdtar_SOURCES} ${include_HEADERS})
   TARGET_LINK_LIBRARIES(bsdtar archive ${ADDITIONAL_LIBS})
-  ADD_DEPENDENCIES(bsdtar archive)
+ENDIF(ENABLE_TAR)
 
+IF(ENABLE_TAR AND ENABLE_TEST)
   SET(bsdtar_test_SOURCES
     tar/getdate.c
     tar/test/main.c
@@ -669,26 +675,23 @@ IF (NOT NOBUILD_TAR)
   #
   # Generate the list.h
   #
-  GENERATE_LIST_H(tar/test/list.h ${bsdtar_test_SOURCES})
+  GENERATE_LIST_H(${CMAKE_CURRENT_BINARY_DIR}/tar/test/list.h
+    ${bsdtar_test_SOURCES})
   #
   # Register target
   #
-  ADD_EXECUTABLE(bsdtar_test EXCLUDE_FROM_ALL ${bsdtar_test_SOURCES})
-  ADD_DEPENDENCIES(bsdtar_test bsdtar)
-  #
-  # Setting for check-TESTS
-  #
-  LIST(APPEND check_program bsdtar_test)
-  SET_PROPERTY(TARGET bsdtar_test PROPERTY ENVIRONMENT
-    "BSDTAR=${CMAKE_CURRENT_BINARY_DIR}/bsdtar"
-    "BSDTAR_TEST_FILES=${CMAKE_CURRENT_SOURCE_DIR}/tar/test")
+  ADD_EXECUTABLE(bsdtar_test ${bsdtar_test_SOURCES})
+  ADD_TEST(bsdtar_test bsdtar_test
+    -v
+    -p ${CMAKE_CURRENT_BINARY_DIR}/bsdtar
+    -r ${CMAKE_CURRENT_SOURCE_DIR}/tar/test)
 
-ENDIF (NOT NOBUILD_TAR)
+ENDIF (ENABLE_TAR AND ENABLE_TEST)
 
 #
 # bsdcpio
 #
-IF(NOT NOBUILD_CPIO)
+IF(ENABLE_CPIO)
   SET(bsdcpio_SOURCES
     cpio/cmdline.c
     cpio/cpio.c
@@ -706,8 +709,9 @@ IF(NOT NOBUILD_CPIO)
   #
   ADD_EXECUTABLE(bsdcpio ${bsdcpio_SOURCES} ${include_HEADERS})
   TARGET_LINK_LIBRARIES(bsdcpio archive ${ADDITIONAL_LIBS})
-  ADD_DEPENDENCIES(bsdcpio archive)
+ENDIF(ENABLE_CPIO)
 
+IF(ENABLE_CPIO AND ENABLE_TEST)
   SET(bsdcpio_test_SOURCES
     cpio/cmdline.c
     cpio/err.c
@@ -740,44 +744,19 @@ IF(NOT NOBUILD_CPIO)
 
   SET(bsdcpio_MANS cpio/bsdcpio.1)
 
-  #
-  # Generate the list.h
-  #
-  GENERATE_LIST_H(cpio/test/list.h ${bsdcpio_test_SOURCES})
-  #
-  # Register target
-  #
-  ADD_EXECUTABLE(bsdcpio_test EXCLUDE_FROM_ALL ${bsdcpio_test_SOURCES})
-  ADD_DEPENDENCIES(bsdcpio_test bsdcpio)
-  #
-  # Setting for check-TESTS
-  #
-  LIST(APPEND check_program bsdcpio_test)
-  SET_PROPERTY(TARGET bsdcpio_test PROPERTY ENVIRONMENT
-    "BSDCPIO=${CMAKE_CURRENT_BINARY_DIR}/bsdcpio"
-    "BSDCPIO_TEST_FILES=${CMAKE_CURRENT_SOURCE_DIR}/cpio/test")
+  GENERATE_LIST_H(${CMAKE_CURRENT_BINARY_DIR}/cpio/test/list.h
+    ${bsdcpio_test_SOURCES})
+  ADD_EXECUTABLE(bsdcpio_test ${bsdcpio_test_SOURCES})
+  ADD_TEST(bsdcpio_test bsdcpio_test
+   -p ${CMAKE_CURRENT_BINARY_DIR}/bsdcpio
+   -r ${CMAKE_CURRENT_SOURCE_DIR}/cpio/test)
 
-ENDIF(NOT NOBUILD_CPIO)
+ENDIF(ENABLE_CPIO AND ENABLE_TEST)
 
 #
 # check-TESTS
 #
-IF (NOT WIN32)
-  #
-  # make check-TESTS
-  #
-  ADD_CUSTOM_TARGET(check-TESTS VERBATIM)
-  FOREACH(_test_prog ${check_program})
-    ADD_DEPENDENCIES(check-TESTS ${_test_prog})
-    GET_PROPERTY(_test_envs TARGET ${_test_prog} PROPERTY ENVIRONMENT)
-    FOREACH(_test_env ${_test_envs})
-      ADD_CUSTOM_COMMAND(TARGET check-TESTS POST_BUILD
-          COMMAND export ${_test_env} ";\\") 
-    ENDFOREACH(_test_env)
-    ADD_CUSTOM_COMMAND(TARGET check-TESTS POST_BUILD
-        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${_test_prog})
-  ENDFOREACH(_test_prog)
-ELSE (NOT WIN32)
+IF (WIN32)
   #
   # On Windows, we should make a command script for running test programs.
   #
@@ -801,7 +780,7 @@ ELSE (NOT WIN32)
       GET_PROPERTY(_test_envs TARGET ${_test_prog} PROPERTY ENVIRONMENT)
       FILE(APPEND ${_testcmd} "setlocal\n")
       FOREACH(_test_env ${_test_envs})
-        FILE(APPEND ${_testcmd} "SET ${_test_env}\n") 
+        FILE(APPEND ${_testcmd} "SET ${_test_env}\n")
       ENDFOREACH(_test_env)
       FILE(APPEND ${_testcmd}
           "${CMAKE_CURRENT_BINARY_DIR}/%1/${_test_prog}.exe\n")
@@ -813,5 +792,5 @@ ELSE (NOT WIN32)
     FILE(APPEND ${_testcmd} ":end\n")
   ENDIF (NOT EXISTS "${_testcmd}" OR
      ${CMAKE_CURRENT_LIST_FILE} IS_NEWER_THAN "${_testcmd}")
-ENDIF (NOT WIN32)
+ENDIF (WIN32)
 
