@@ -258,6 +258,7 @@ setup_acls_posix1e(struct archive_read_disk *a,
 	(void)a;      /* UNUSED */
 	(void)entry;  /* UNUSED */
 	(void)fd;     /* UNUSED */
+	return (ARCHIVE_OK);
 }
 #endif
 
