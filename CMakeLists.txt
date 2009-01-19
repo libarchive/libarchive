@@ -104,13 +104,31 @@ ENDMACRO (GENERATE_LIST_H)
 #
 # Check compress/decompress libraries
 #
-# XXX Is this really necessary? XXX
-#
 IF(WIN32)
-# TODO
-  #SET(CMAKE_PREFIX_PATH "C:/Program Files/GnuWin32/lib" $(CMAKE_PREFIX_PATH))
-  #SET(ZLIB_INCLUDE_DIR "C:/Program Files/GnuWin32/include")
-  #SET(BZIP2_INCLUDE_DIR "C:/Program Files/GnuWin32/include")
+  # You need to add a path availabel DLL file into PATH environment variable.
+  # Maybe DLL path is "C:/Program Files/GnuWin32/bin".
+  # The zlib and the bzip2 Setup program install programs and DLLs into
+  # "C:/Program Files/GnuWin32" which is default.
+  # If you do not use Setup program or install into different path, You change
+  # path from "C:/Program Files/GnuWin32" to where you installed the one.
+  SET(GNUWIN32PATH "C:/Program Files/GnuWin32")
+  # After add DLL path, You still need 'lib' directory to detecte libraries
+  # by cmake.
+  SET(CMAKE_PREFIX_PATH "${GNUWIN32PATH}/lib" $(CMAKE_PREFIX_PATH))
+  # If compiling error occured in zconf.h, maybe you need patch to zconf.h.
+  #--- zconf.h.orig	2005-07-21 00:40:26.000000000 +0900
+  #+++ zconf.h	2009-01-19 11:39:10.093750000 +0900
+  #@@ -286,7 +286,7 @@
+  # 
+  # #if 1           /* HAVE_UNISTD_H -- this line is updated by ./configure */
+  # #  include <sys/types.h> /* for off_t */
+  #-#  include <unistd.h>    /* for SEEK_* and off_t */
+  #+#  include <stdio.h>    /* for SEEK_* and off_t */
+  # #  ifdef VMS
+  # #    include <unixio.h>   /* for off_t */
+  # #  endif
+  SET(ZLIB_INCLUDE_DIR "${GNUWIN32PATH}/include")
+  SET(BZIP2_INCLUDE_DIR "${GNUWIN32PATH}/include")
 ENDIF(WIN32)
 
 SET(ADDITIONAL_LIBS "")
