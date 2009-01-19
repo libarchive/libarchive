@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include "archive_read_disk_private.h"
 
 static int	_archive_read_finish(struct archive *);
+static int	_archive_read_close(struct archive *);
 static const char *trivial_lookup_gname(void *, gid_t gid);
 static const char *trivial_lookup_uname(void *, uid_t uid);
 
@@ -45,6 +46,7 @@ archive_read_disk_vtable(void)
 
 	if (!inited) {
 		av.archive_finish = _archive_read_finish;
+		av.archive_close = _archive_read_close;
 	}
 	return (&av);
 }
@@ -137,6 +139,13 @@ _archive_read_finish(struct archive *_a)
 		(a->cleanup_uname)(a->lookup_uname_data);
 	archive_string_free(&a->archive.error_string);
 	free(a);
+	return (ARCHIVE_OK);
+}
+
+static int
+_archive_read_close(struct archive *_a)
+{
+	(void)_a; /* UNUSED */
 	return (ARCHIVE_OK);
 }
 
