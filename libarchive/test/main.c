@@ -1147,9 +1147,5 @@ int main(int argc, char **argv)
 	/* This should be the usual case when all tests succeed. */
 	rmdir(tmpdir);
 
-#if defined(_WIN32) && defined(_DEBUG)
-	/* Cause a breakpoint exception  */
-	DebugBreak();
-#endif
 	return (tests_failed);
 }
