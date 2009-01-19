@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_disk.c,v 1.15 2008/09/30 
 
 DEFINE_TEST(test_write_disk_failures)
 {
-#if ARCHIVE_VERSION_NUMBER < 1009000
+#if ARCHIVE_VERSION_NUMBER < 1009000 || defined(_WIN32)
 	skipping("archive_write_disk interface");
 #else
 	struct archive_entry *ae;
