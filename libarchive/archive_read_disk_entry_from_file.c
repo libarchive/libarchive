@@ -160,9 +160,9 @@ setup_acls_posix1e(struct archive_read_disk *a,
 	const char	*accpath;
 	acl_t		 acl;
 
-	accpath = archive_entry_pathname(entry);
+	accpath = archive_entry_sourcepath(entry);
 	if (accpath == NULL)
-		accpath = archive_entry_sourcepath(entry);
+		accpath = archive_entry_pathname(entry);
 
 	archive_entry_acl_clear(entry);
 
@@ -447,9 +447,9 @@ setup_xattrs(struct archive_read_disk *a,
 	const char *path;
 	int namespace = EXTATTR_NAMESPACE_USER;
 
-	path = archive_entry_pathname(entry);
+	path = archive_entry_sourcepath(entry);
 	if (path == NULL)
-		path = archive_entry_sourcepath(entry);
+		path = archive_entry_pathname(entry);
 
 	if (!a->follow_symlinks)
 		list_size = extattr_list_link(path, namespace, NULL, 0);
