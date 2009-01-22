@@ -639,7 +639,7 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 	if (r != ARCHIVE_OK)
 		cpio_warnc(archive_errno(cpio->archive),
 		    "%s: %s",
-		    destpath,
+		    srcpath,
 		    archive_error_string(cpio->archive));
 
 	if (r == ARCHIVE_FATAL)
