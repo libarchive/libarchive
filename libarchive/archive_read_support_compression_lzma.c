@@ -84,6 +84,7 @@ archive_read_support_compression_lzma(struct archive *_a)
 	bidder->data = NULL;
 	bidder->bid = lzma_bidder_bid;
 	bidder->init = lzma_bidder_init;
+	bidder->options = NULL;
 	bidder->free = lzma_bidder_free;
 	return (ARCHIVE_OK);
 }

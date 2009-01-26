@@ -248,6 +248,7 @@ archive_write_set_format_mtree(struct archive *_a)
 	a->format_destroy = archive_write_mtree_destroy;
 
 	a->pad_uncompressed = 0;
+	a->format_name = "mtree";
 	a->format_write_header = archive_write_mtree_header;
 	a->format_finish = archive_write_mtree_finish;
 	a->format_write_data = archive_write_mtree_data;

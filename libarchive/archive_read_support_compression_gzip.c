@@ -89,6 +89,7 @@ archive_read_support_compression_gzip(struct archive *_a)
 	bidder->data = NULL;
 	bidder->bid = gzip_bidder_bid;
 	bidder->init = gzip_bidder_init;
+	bidder->options = NULL;
 	bidder->free = gzip_bidder_free;
 	return (ARCHIVE_OK);
 }
