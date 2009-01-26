@@ -27,6 +27,9 @@
 
 __FBSDID("$FreeBSD: src/lib/libarchive/archive_write_set_compression_gzip.c,v 1.16 2008/02/21 03:21:50 kientzle Exp $");
 
+#ifdef HAVE_CTYPE_H
+#include <ctype.h>
+#endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -61,6 +64,8 @@ struct private_data {
 	unsigned char	*compressed;
 	size_t		 compressed_buffer_size;
 	unsigned long	 crc;
+	/* Options */
+	int		 compression_level;
 };
 
 
@@ -73,6 +78,8 @@ struct private_data {
 
 static int	archive_compressor_gzip_finish(struct archive_write *);
 static int	archive_compressor_gzip_init(struct archive_write *);
+static int	archive_compressor_gzip_options(struct archive_write *,
+		    const char *, const char *);
 static int	archive_compressor_gzip_write(struct archive_write *,
 		    const void *, size_t);
 static int	drive_compressor(struct archive_write *, struct private_data *,
@@ -143,6 +150,7 @@ archive_compressor_gzip_init(struct archive_write *a)
 	state->compressed_buffer_size = a->bytes_per_block;
 	state->compressed = (unsigned char *)malloc(state->compressed_buffer_size);
 	state->crc = crc32(0L, NULL, 0);
+	state->compression_level = Z_DEFAULT_COMPRESSION;
 
 	if (state->compressed == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
@@ -169,12 +177,13 @@ archive_compressor_gzip_init(struct archive_write *a)
 	state->stream.next_out += 10;
 	state->stream.avail_out -= 10;
 
+	a->compressor.options = archive_compressor_gzip_options;
 	a->compressor.write = archive_compressor_gzip_write;
 	a->compressor.finish = archive_compressor_gzip_finish;
 
 	/* Initialize compression library. */
 	ret = deflateInit2(&(state->stream),
-	    Z_DEFAULT_COMPRESSION,
+	    state->compression_level,
 	    Z_DEFLATED,
 	    -15 /* < 0 to suppress zlib header */,
 	    8,
@@ -210,6 +219,56 @@ archive_compressor_gzip_init(struct archive_write *a)
 	}
 
 	return (ARCHIVE_FATAL);
+}
+
+/*
+ * Set write options.
+ */
+static int
+archive_compressor_gzip_options(struct archive_write *a, const char *key,
+    const char *value)
+{
+	struct private_data *state;
+	int ret;
+
+	state = (struct private_data *)a->compressor.data;
+	if (strcmp(key, "compression-level") == 0) {
+		int level;
+
+		if (value == NULL || !isdigit(value[0]) || value[1] != '\0')
+			return (ARCHIVE_WARN);
+		level = value[0] - '0';
+		if (level == state->compression_level)
+			return (ARCHIVE_OK);
+		
+		ret = deflateParams(&(state->stream), level,
+		    Z_DEFAULT_STRATEGY);
+		if (ret == Z_OK) {
+			state->compression_level = level;
+			return (ARCHIVE_OK);
+		}
+		switch (ret) {
+		case Z_STREAM_ERROR:
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Internal error updating params "
+			    "compression library: state was inconsistent "
+			    "or parameter was invalid");
+			break;
+		case Z_BUF_ERROR:
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Internal error updating params "
+			    "compression library: out buffer was zero");
+			break;
+		default:
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Internal error updatng params "
+			    "compression library");
+			break;
+		}
+		return (ARCHIVE_FATAL);
+	}
+
+	return (ARCHIVE_WARN);
 }
 
 /*
