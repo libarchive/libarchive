@@ -635,6 +635,8 @@ IF(ENABLE_TEST)
   TARGET_LINK_LIBRARIES(libarchive_test ${ADDITIONAL_LIBS})
   SET_PROPERTY(TARGET libarchive_test PROPERTY COMPILE_DEFINITIONS
     LIBARCHIVE_STATIC)
+  SET_PROPERTY(TARGET libarchive_test APPEND PROPERTY COMPILE_DEFINITIONS
+    LIST_H="${CMAKE_CURRENT_BINARY_DIR}/libarchive/test/list.h")
   ADD_TEST(libarchive_test libarchive_test
     -r ${CMAKE_CURRENT_SOURCE_DIR}/libarchive/test)
 ENDIF(ENABLE_TEST)
@@ -705,6 +707,8 @@ IF(ENABLE_TAR AND ENABLE_TEST)
   # Register target
   #
   ADD_EXECUTABLE(bsdtar_test ${bsdtar_test_SOURCES})
+  SET_PROPERTY(TARGET bsdtar_test PROPERTY COMPILE_DEFINITIONS
+    LIST_H="${CMAKE_CURRENT_BINARY_DIR}/tar/test/list.h")
   ADD_TEST(bsdtar_test bsdtar_test
     -v
     -p ${CMAKE_CURRENT_BINARY_DIR}/bsdtar
@@ -778,6 +782,8 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
   GENERATE_LIST_H(${CMAKE_CURRENT_BINARY_DIR}/cpio/test/list.h
     ${bsdcpio_test_SOURCES})
   ADD_EXECUTABLE(bsdcpio_test ${bsdcpio_test_SOURCES})
+  SET_PROPERTY(TARGET bsdcpio_test PROPERTY COMPILE_DEFINITIONS
+    LIST_H="${CMAKE_CURRENT_BINARY_DIR}/cpio/test/list.h")
   ADD_TEST(bsdcpio_test bsdcpio_test
    -v
    -p ${CMAKE_CURRENT_BINARY_DIR}/bsdcpio
