@@ -115,6 +115,12 @@
 /* Define to 1 if you have the <ext2fs/ext2_fs.h> header file. */
 #cmakedefine HAVE_EXT2FS_EXT2_FS_H 1
 
+/* Define to 1 if you have the `extattr_get_file' function. */
+#cmakedefine HAVE_EXTATTR_GET_FILE 1
+
+/* Define to 1 if you have the `extattr_list_file' function. */
+#cmakedefine HAVE_EXTATTR_LIST_FILE 1
+
 /* Define to 1 if you have the `extattr_set_fd' function. */
 #cmakedefine HAVE_EXTATTR_SET_FD 1
 
