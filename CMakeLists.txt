@@ -607,6 +607,7 @@ IF(ENABLE_TEST)
     libarchive/test/test_write_disk_hardlink.c
     libarchive/test/test_write_disk_perms.c
     libarchive/test/test_write_disk_secure.c
+    libarchive/test/test_write_disk_sparse.c
     libarchive/test/test_write_disk_times.c
     libarchive/test/test_write_format_ar.c
     libarchive/test/test_write_format_cpio.c
