@@ -77,12 +77,7 @@ ENDMACRO (YACC_FILE)
 #
 # Generate list.h
 #
-MACRO (GENERATE_LIST_H __listfile __list_sources)
-  IF (NOT "${__listfile}" MATCHES "^${CMAKE_CURRENT_SOURCE_DIR}")
-    SET(_listfile "${CMAKE_CURRENT_SOURCE_DIR}/${__listfile}")
-  ELSE (NOT "${__listfile}" MATCHES "^${CMAKE_CURRENT_SOURCE_DIR}")
-    SET(_listfile "${__listfile}")
-  ENDIF (NOT "${__listfile}" MATCHES "^${CMAKE_CURRENT_SOURCE_DIR}")
+MACRO (GENERATE_LIST_H _listfile __list_sources)
   IF (NOT EXISTS "${_listfile}" OR
      ${CMAKE_CURRENT_LIST_FILE} IS_NEWER_THAN "${_listfile}")
 
