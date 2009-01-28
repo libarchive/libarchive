@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2009 Michihiro NAKAJIMA
  * Copyright (c) 2008 Joerg Sonnenberger
  * All rights reserved.
  *
@@ -39,7 +40,39 @@ struct mtree_writer {
 	struct archive_entry *entry;
 	struct archive_string buf;
 	int first;
+	int keys;
+#define	F_CKSUM		0x00000001		/* check sum */
+#define	F_DEV		0x00000002		/* device type */
+#define	F_DONE		0x00000004		/* directory done */
+#define	F_FLAGS		0x00000008		/* file flags */
+#define	F_GID		0x00000010		/* gid */
+#define	F_GNAME		0x00000020		/* group name */
+#define	F_IGN		0x00000040		/* ignore */
+#define	F_MAGIC		0x00000080		/* name has magic chars */
+#define	F_MD5		0x00000100		/* MD5 digest */
+#define	F_MODE		0x00000200		/* mode */
+#define	F_NLINK		0x00000400		/* number of links */
+#define	F_NOCHANGE 	0x00000800		/* If owner/mode "wrong", do
+						 * not change */
+#define	F_OPT		0x00001000		/* existence optional */
+#define	F_RMD160 	0x00002000		/* RIPEMD160 digest */
+#define	F_SHA1		0x00004000		/* SHA-1 digest */
+#define	F_SIZE		0x00008000		/* size */
+#define	F_SLINK		0x00010000		/* symbolic link */
+#define	F_TAGS		0x00020000		/* tags */
+#define	F_TIME		0x00040000		/* modification time */
+#define	F_TYPE		0x00080000		/* file type */
+#define	F_UID		0x00100000		/* uid */
+#define	F_UNAME		0x00200000		/* user name */
+#define	F_VISIT		0x00400000		/* file visited */
+#define	F_SHA256	0x00800000		/* SHA-256 digest */
+#define	F_SHA384	0x01000000		/* SHA-384 digest */
+#define	F_SHA512	0x02000000		/* SHA-512 digest */
 };
+
+#define DEFAULT_KEYS	(F_DEV | F_FLAGS | F_GID | F_GNAME | F_SLINK | F_MODE\
+			 | F_NLINK | F_SIZE | F_TIME | F_TYPE | F_UID\
+			 | F_UNAME)
 
 static int
 mtree_safe_char(char c)
@@ -123,64 +156,91 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 	}
 	mtree->entry = NULL;
 
-	if (archive_entry_nlink(entry) != 1 && 
+	if ((mtree->keys & F_NLINK) != 0 &&
+	    archive_entry_nlink(entry) != 1 && 
 	    archive_entry_filetype(entry) != AE_IFDIR)
 		archive_string_sprintf(&mtree->buf,
 		    " nlink=%u", archive_entry_nlink(entry));
 
-	if ((name = archive_entry_gname(entry)) != NULL) {
+	if ((mtree->keys & F_GNAME) != 0 &&
+	    (name = archive_entry_gname(entry)) != NULL) {
 		archive_strcat(&mtree->buf, " gname=");
 		mtree_quote(mtree, name);
 	}
-	if ((name = archive_entry_uname(entry)) != NULL) {
+	if ((mtree->keys & F_UNAME) != 0 &&
+	    (name = archive_entry_uname(entry)) != NULL) {
 		archive_strcat(&mtree->buf, " uname=");
 		mtree_quote(mtree, name);
 	}
-	if ((name = archive_entry_fflags_text(entry)) != NULL) {
+	if ((mtree->keys & F_FLAGS) != 0 &&
+	    (name = archive_entry_fflags_text(entry)) != NULL) {
 		archive_strcat(&mtree->buf, " flags=");
 		mtree_quote(mtree, name);
 	}
-
-	archive_string_sprintf(&mtree->buf,
-	    " time=%jd mode=%o gid=%jd uid=%jd",
-	    (intmax_t)archive_entry_mtime(entry),
-	    archive_entry_mode(entry) & 07777,
-	    (intmax_t)archive_entry_gid(entry),
-	    (intmax_t)archive_entry_uid(entry));
+	if ((mtree->keys & F_TIME) != 0)
+		archive_string_sprintf(&mtree->buf, " time=%jd",
+		    (intmax_t)archive_entry_mtime(entry));
+	if ((mtree->keys & F_MODE) != 0)
+		archive_string_sprintf(&mtree->buf, " mode=%o",
+		    archive_entry_mode(entry) & 07777);
+	if ((mtree->keys & F_GID) != 0)
+		archive_string_sprintf(&mtree->buf, " gid=%jd",
+		    (intmax_t)archive_entry_gid(entry));
+	if ((mtree->keys & F_UID) != 0)
+		archive_string_sprintf(&mtree->buf, " uid=%jd",
+		    (intmax_t)archive_entry_uid(entry));
 
 	switch (archive_entry_filetype(entry)) {
 	case AE_IFLNK:
-		archive_strcat(&mtree->buf, " type=link link=");
-		mtree_quote(mtree, archive_entry_symlink(entry));
-		archive_strcat(&mtree->buf, "\n");
+		if ((mtree->keys & F_TYPE) != 0)
+			archive_strcat(&mtree->buf, " type=link");
+		if ((mtree->keys & F_SLINK) != 0) {
+			archive_strcat(&mtree->buf, " link=");
+			mtree_quote(mtree, archive_entry_symlink(entry));
+		}
 		break;
 	case AE_IFSOCK:
-		archive_strcat(&mtree->buf, " type=socket\n");
+		if ((mtree->keys & F_TYPE) != 0)
+			archive_strcat(&mtree->buf, " type=socket");
 		break;
 	case AE_IFCHR:
-		archive_string_sprintf(&mtree->buf,
-		    " type=char device=native,%d,%d\n",
-		    archive_entry_rdevmajor(entry),
-		    archive_entry_rdevminor(entry));
+		if ((mtree->keys & F_TYPE) != 0)
+			archive_strcat(&mtree->buf, " type=char");
+		if ((mtree->keys & F_DEV) != 0) {
+			archive_string_sprintf(&mtree->buf,
+			    " device=native,%d,%d",
+			    archive_entry_rdevmajor(entry),
+			    archive_entry_rdevminor(entry));
+		}
 		break;
 	case AE_IFBLK:
-		archive_string_sprintf(&mtree->buf,
-		    " type=block device=native,%d,%d\n",
-		    archive_entry_rdevmajor(entry),
-		    archive_entry_rdevminor(entry));
+		if ((mtree->keys & F_TYPE) != 0)
+			archive_strcat(&mtree->buf, " type=block");
+		if ((mtree->keys & F_DEV) != 0) {
+			archive_string_sprintf(&mtree->buf,
+			    " device=native,%d,%d",
+			    archive_entry_rdevmajor(entry),
+			    archive_entry_rdevminor(entry));
+		}
 		break;
 	case AE_IFDIR:
-		archive_strcat(&mtree->buf, " type=dir\n");
+		if ((mtree->keys & F_TYPE) != 0)
+			archive_strcat(&mtree->buf, " type=dir");
 		break;
 	case AE_IFIFO:
-		archive_strcat(&mtree->buf, " type=fifo\n");
+		if ((mtree->keys & F_TYPE) != 0)
+			archive_strcat(&mtree->buf, " type=fifo");
 		break;
 	case AE_IFREG:
 	default:	/* Handle unknown file types as regular files. */
-		archive_string_sprintf(&mtree->buf, " type=file size=%jd\n",
-		    (intmax_t)archive_entry_size(entry));
+		if ((mtree->keys & F_TYPE) != 0)
+			archive_strcat(&mtree->buf, " type=file");
+		if ((mtree->keys & F_SIZE) != 0)
+			archive_string_sprintf(&mtree->buf, " size=%jd",
+			    (intmax_t)archive_entry_size(entry));
 		break;
 	}
+	archive_strcat(&mtree->buf, "\n");
 
 	archive_entry_free(entry);
 
@@ -226,6 +286,72 @@ archive_write_mtree_destroy(struct archive_write *a)
 	return (ARCHIVE_OK);
 }
 
+static int
+archive_write_mtree_options(struct archive_write *a, const char *key,
+    const char *value)
+{
+	struct mtree_writer *mtree= a->format_data;
+	int keybit = 0;
+
+	switch (key[0]) {
+	case 'a':
+		if (strcmp(key, "all") == 0)
+			keybit = -1;
+		break;
+	case 'd':
+		if (strcmp(key, "device") == 0)
+			keybit = F_DEV;
+		break;
+	case 'f':
+		if (strcmp(key, "flags") == 0)
+			keybit = F_FLAGS;
+		break;
+	case 'g':
+		if (strcmp(key, "gid") == 0)
+			keybit = F_GID;
+		else if (strcmp(key, "gname") == 0)
+			keybit = F_GNAME;
+		break;
+	case 'l':
+		if (strcmp(key, "link") == 0)
+			keybit = F_SLINK;
+		break;
+	case 'm':
+		if (strcmp(key, "mode") == 0)
+			keybit = F_MODE;
+		break;
+	case 'n':
+		if (strcmp(key, "nlink") == 0)
+			keybit = F_NLINK;
+		break;
+	case 's':
+		if (strcmp(key, "size") == 0)
+			keybit = F_SIZE;
+		break;
+	case 't':
+		if (strcmp(key, "time") == 0)
+			keybit = F_TIME;
+		else if (strcmp(key, "type") == 0)
+			keybit = F_TYPE;
+		break;
+	case 'u':
+		if (strcmp(key, "uid") == 0)
+			keybit = F_UID;
+		else if (strcmp(key, "uname") == 0)
+			keybit = F_UNAME;
+		break;
+	}
+	if (keybit != 0) {
+		if (value != NULL)
+			mtree->keys |= keybit;
+		else
+			mtree->keys &= ~keybit;
+		return (ARCHIVE_OK);
+	}
+
+	return (ARCHIVE_WARN);
+}
+
 int
 archive_write_set_format_mtree(struct archive *_a)
 {
@@ -243,12 +369,14 @@ archive_write_set_format_mtree(struct archive *_a)
 
 	mtree->entry = NULL;
 	mtree->first = 1;
+	mtree->keys = DEFAULT_KEYS;
 	archive_string_init(&mtree->buf);
 	a->format_data = mtree;
 	a->format_destroy = archive_write_mtree_destroy;
 
 	a->pad_uncompressed = 0;
 	a->format_name = "mtree";
+	a->format_options = archive_write_mtree_options;
 	a->format_write_header = archive_write_mtree_header;
 	a->format_finish = archive_write_mtree_finish;
 	a->format_write_data = archive_write_mtree_data;
