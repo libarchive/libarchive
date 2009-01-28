@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2009 Michihiro NAKAJIMA
  * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
  *
@@ -249,8 +250,8 @@ __archive_parse_options(const char *p, const char *fn, int keysize, char *key,
 			break;
 		case F_BOTH:
 		case F_NAME:
-			if (islower(*p) || *p == '-') {
-				if (kidx == 0 && *p == '-')
+			if (islower(*p) || isnumber(*p) || *p == '-') {
+				if (kidx == 0 && !islower(*p))
 					/* Illegal sequence. */
 					return (-1);
 				if (kidx >= keysize -1)
