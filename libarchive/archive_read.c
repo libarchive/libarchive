@@ -156,6 +156,7 @@ archive_read_set_filter_options(struct archive *_a, const char *s)
 
 	a = (struct archive_read *)_a;
 	filter = a->filter;
+	len = 0;
 	for (filter = a->filter; filter != NULL; filter = filter->upstream) {
 		bidder = filter->bidder;
 		if (bidder->options == NULL)

@@ -303,6 +303,7 @@ archive_write_mtree_header(struct archive_write *a,
 	return (ARCHIVE_OK);
 }
 
+#if defined(HAVE_MD5) || defined(HAVE_SHA1) || defined(HAVE_SHA256) || defined(HAVE_SHA384) || defined(HAVE_SHA512)
 static void
 strappend_bin(struct archive_string *s, const unsigned char *bin, int n)
 {
@@ -314,6 +315,7 @@ strappend_bin(struct archive_string *s, const unsigned char *bin, int n)
 		archive_strappend_char(s, hex[bin[i] & 0x0f]);
 	}
 }
+#endif
 
 static int
 archive_write_mtree_finish_entry(struct archive_write *a)

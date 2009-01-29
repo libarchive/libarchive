@@ -366,6 +366,8 @@ __archive_parse_options(const char *p, const char *fn, int keysize, char *key,
 			 * variable indicate. */
 			goto complete;
 		break;
+	case INIT:/* nothing */
+		break;
 	}
 
 	/* End of Option string. */
