@@ -195,8 +195,9 @@ if test "x$with_lzmadec" != "xno"; then
   AC_CHECK_LIB(lzmadec,lzmadec_decode)
 fi
 
-AC_CHECK_HEADERS([openssl/md5.h openssl/sha.h])
+AC_CHECK_HEADERS([openssl/md5.h openssl/ripemd.h openssl/sha.h])
 AC_CHECK_HEADERS([md5.h md5global.h])
+AC_CHECK_HEADERS([ripemd.h rmd160.h])
 AC_CHECK_HEADERS([sha.h sha1.h sha2.h sha256.h])
 AC_SEARCH_LIBS(SHA1_Init, crypto ssl md)
 AC_CHECK_FUNC(MD5_Init)
@@ -212,6 +213,20 @@ if test "x$ac_cv_func_MD5_Init" != "xyes"; then
 fi
 if test "x$ac_cv_func_MD5_Init" = "xyes" -o "x$ac_cv_func_MD5Init" = "xyes" ; then
   AC_DEFINE(HAVE_MD5, 1, [Define to 1 if you have the `MD5' functions.])
+fi
+AC_CHECK_FUNC(RIPEMD160_Init)
+if test "x$ac_cv_func_RIPEMD160_Init" != "xyes"; then
+  AC_CHECK_FUNC(RMD160Init,
+	[AC_DEFINE(RIPEMD160_Init, RMD160Init,
+	    [Define to the initializes RIPEMD160 context function.])
+	 AC_DEFINE(RIPEMD160_Update, RMD160Update,
+	    [Define to the updates RIPEMD160 context function.])
+	 AC_DEFINE(RIPEMD160_Final, RMD160Final,
+	    [Define to the generates final RIPEMD160 hash function.])
+	])
+fi
+if test "x$ac_cv_func_RIPEMD160_Init" = "xyes" -o "x$ac_cv_func_RMD160Init" = "xyes" ; then
+  AC_DEFINE(HAVE_RMD160, 1, [Define to 1 if you have the `RIPEMD160' functions.])
 fi
 AC_CHECK_FUNC(SHA1_Init)
 if test "x$ac_cv_func_SHA1_Init" != "xyes"; then

@@ -43,6 +43,16 @@ __FBSDID("$FreeBSD$");
 #include <md5.h>
 #endif
 #endif /* HAVE_OPENSSL_MD5_H */
+#ifdef HAVE_OPENSSL_RIPEMD_H
+#include <openssl/ripemd.h>
+#else /* HAVE_OPENSSL_RIPEMD_H */
+#ifdef HAVE_RIPEMD_H
+#include <ripemd.h>
+#endif
+#ifdef HAVE_RMD160_H
+#include <rmd160.h>
+#endif
+#endif /* HAVE_OPENSSL_RIPEMD_H */
 #ifdef HAVE_OPENSSL_SHA_H
 #include <openssl/sha.h>
 #else /* HAVE_OPENSSL_SHA_H */
@@ -76,6 +86,11 @@ struct mtree_writer {
 	uint64_t crc_len;
 #ifdef HAVE_MD5
 	MD5_CTX md5ctx;
+#endif
+#if !defined(HAVE_OPENSSL_RIPEMD_H) && defined(HAVE_RMD160_H)
+	RMD160_CTX rmd160ctx;
+#else
+	RIPEMD160_CTX rmd160ctx;
 #endif
 #ifdef HAVE_SHA1
 #if defined(HAVE_OPENSSL_SHA_H) || defined(HAVE_SHA_H)
@@ -267,6 +282,14 @@ archive_write_mtree_header(struct archive_write *a,
 	} else
 		mtree->compute_sum &= ~F_MD5;
 #endif
+#ifdef HAVE_RMD160
+	if ((mtree->keys & F_RMD160) != 0 &&
+	    archive_entry_filetype(entry) == AE_IFREG) {
+		mtree->compute_sum |= F_RMD160;
+		RIPEMD160_Init(&mtree->rmd160ctx);
+	} else
+		mtree->compute_sum &= ~F_RMD160;
+#endif
 #ifdef HAVE_SHA1
 	if ((mtree->keys & F_SHA1) != 0 &&
 	    archive_entry_filetype(entry) == AE_IFREG) {
@@ -303,7 +326,7 @@ archive_write_mtree_header(struct archive_write *a,
 	return (ARCHIVE_OK);
 }
 
-#if defined(HAVE_MD5) || defined(HAVE_SHA1) || defined(HAVE_SHA256) || defined(HAVE_SHA384) || defined(HAVE_SHA512)
+#if defined(HAVE_MD5) || defined(HAVE_RMD160) || defined(HAVE_SHA1) || defined(HAVE_SHA256) || defined(HAVE_SHA384) || defined(HAVE_SHA512)
 static void
 strappend_bin(struct archive_string *s, const unsigned char *bin, int n)
 {
@@ -437,6 +460,15 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 		strappend_bin(&mtree->buf, buf, sizeof(buf));
 	}
 #endif
+#ifdef HAVE_RMD160
+	if (mtree->compute_sum & F_RMD160) {
+		unsigned char buf[20];
+
+		RIPEMD160_Final(buf, &mtree->rmd160ctx);
+		archive_strcat(&mtree->buf, " rmd160digest=");
+		strappend_bin(&mtree->buf, buf, sizeof(buf));
+	}
+#endif
 #ifdef HAVE_SHA1
 	if (mtree->compute_sum & F_SHA1) {
 		unsigned char buf[20];
@@ -517,6 +549,10 @@ archive_write_mtree_data(struct archive_write *a, const void *buff, size_t n)
 #ifdef HAVE_MD5
 	if (mtree->compute_sum & F_MD5)
 		MD5_Update(&mtree->md5ctx, buff, n);
+#endif
+#ifdef HAVE_RMD160
+	if (mtree->compute_sum & F_RMD160)
+		RIPEMD160_Update(&mtree->rmd160ctx, buff, n);
 #endif
 #ifdef HAVE_SHA1
 	if (mtree->compute_sum & F_SHA1)
@@ -599,6 +635,14 @@ archive_write_mtree_options(struct archive_write *a, const char *key,
 		if (strcmp(key, "nlink") == 0)
 			keybit = F_NLINK;
 		break;
+#ifdef HAVE_RMD160
+	case 'r':
+		if (strcmp(key, "ripemd160digest") == 0 ||
+		    strcmp(key, "rmd160") == 0 ||
+		    strcmp(key, "rmd160digest") == 0)
+			keybit = F_RMD160;
+		break;
+#endif
 	case 's':
 #ifdef HAVE_SHA1
 		if (strcmp(key, "sha1") == 0 ||

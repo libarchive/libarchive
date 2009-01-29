@@ -284,6 +284,9 @@
 /* Define to 1 if you have the <openssl/md5.h> header file. */
 #cmakedefine HAVE_OPENSSL_MD5_H 1
 
+/* Define to 1 if you have the <openssl/ripemd.h> header file. */
+#cmakedefine HAVE_OPENSSL_RIPEMD_H 1
+
 /* Define to 1 if you have the <openssl/sha.h> header file. */
 #cmakedefine HAVE_OPENSSL_SHA_H 1
 
@@ -310,6 +313,15 @@
 
 /* Define to 1 if you have the <regex.h> header file. */
 #cmakedefine HAVE_REGEX_H 1
+
+/* Define to 1 if you have the <ripemd.h> header file. */
+#cmakedefine HAVE_RIPEMD_H 1
+
+/* Define to 1 if you have the `RIPEMD160' functions. */
+#cmakedefine HAVE_RMD160 1
+
+/* Define to 1 if you have the <rmd160.h> header file. */
+#cmakedefine HAVE_RMD160_H 1
 
 /* Define to 1 if you have the `select' function. */
 #cmakedefine HAVE_SELECT 1
@@ -532,6 +544,15 @@
 
 /* Define to 1 if your C compiler doesn't accept -c and -o together. */
 #cmakedefine NO_MINUS_C_MINUS_O 1
+
+/* Define to the generates final RIPEMD160 hash function. */
+#cmakedefine RIPEMD160_Final ${RIPEMD160_Final}
+
+/* Define to the initializes RIPEMD160 context function. */
+#cmakedefine RIPEMD160_Init ${RIPEMD160_Init}
+
+/* Define to the updates RIPEMD160 context function. */
+#cmakedefine RIPEMD160_Update ${RIPEMD160_Update}
 
 /* Define to the generates final SHA1 hash function. */
 #cmakedefine SHA1_Final ${SHA1_Final}
