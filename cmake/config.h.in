@@ -214,9 +214,6 @@
 /* Define to 1 if you have the `lzmadec' library (-llzmadec). */
 #cmakedefine HAVE_LIBLZMADEC 1
 
-/* Define to 1 if you have the `md' library (-lmd). */
-#cmakedefine HAVE_LIBMD 1
-
 /* Define to 1 if you have the `z' library (-lz). */
 #cmakedefine HAVE_LIBZ 1
 
@@ -251,6 +248,9 @@
 /* Define to 1 if you have the <lzmadec.h> header file. */
 #cmakedefine HAVE_LZMADEC_H 1
 
+/* Define to 1 if you have the `MD5' functions. */
+#cmakedefine HAVE_MD5 1
+
 /* Define to 1 if you have the <md5global.h> header file. */
 #cmakedefine HAVE_MD5GLOBAL_H 1
 
@@ -280,6 +280,12 @@
 
 /* Define to 1 if you have the `nl_langinfo' function. */
 #cmakedefine HAVE_NL_LANGINFO 1
+
+/* Define to 1 if you have the <openssl/md5.h> header file. */
+#cmakedefine HAVE_OPENSSL_MD5_H 1
+
+/* Define to 1 if you have the <openssl/sha.h> header file. */
+#cmakedefine HAVE_OPENSSL_SHA_H 1
 
 /* Define to 1 if you have the <paths.h> header file. */
 #cmakedefine HAVE_PATHS_H 1
@@ -314,14 +320,26 @@
 /* Define to 1 if you have the `setlocale' function. */
 #cmakedefine HAVE_SETLOCALE 1
 
+/* Define to 1 if you have the `SHA1' functions. */
+#cmakedefine HAVE_SHA1 1
+
 /* Define to 1 if you have the <sha1.h> header file. */
 #cmakedefine HAVE_SHA1_H 1
+
+/* Define to 1 if you have the `SHA256' functions. */
+#cmakedefine HAVE_SHA256 1
 
 /* Define to 1 if you have the <sha256.h> header file. */
 #cmakedefine HAVE_SHA256_H 1
 
 /* Define to 1 if you have the <sha2.h> header file. */
 #cmakedefine HAVE_SHA2_H 1
+
+/* Define to 1 if you have the `SHA384' functions. */
+#cmakedefine HAVE_SHA384 1
+
+/* Define to 1 if you have the `SHA512' functions. */
+#cmakedefine HAVE_SHA512 1
 
 /* Define to 1 if you have the <sha.h> header file. */
 #cmakedefine HAVE_SHA_H 1
@@ -503,8 +521,26 @@
    <sysmacros.h>. */
 #cmakedefine MAJOR_IN_SYSMACROS 1
 
+/* Define to the generates final MD5 hash function. */
+#cmakedefine MD5_Final ${MD5_Final}
+
+/* Define to the initializes MD5 context function. */
+#cmakedefine MD5_Init ${MD5_Init}
+
+/* Define to the updates MD5 context function. */
+#cmakedefine MD5_Update ${MD5_Update}
+
 /* Define to 1 if your C compiler doesn't accept -c and -o together. */
 #cmakedefine NO_MINUS_C_MINUS_O 1
+
+/* Define to the generates final SHA1 hash function. */
+#cmakedefine SHA1_Final ${SHA1_Final}
+
+/* Define to the initializes SHA1 context function. */
+#cmakedefine SHA1_Init ${SHA1_Init}
+
+/* Define to the updates SHA1 context function. */
+#cmakedefine SHA1_Update ${SHA1_Update}
 
 /* Define to 1 if you have the ANSI C header files. */
 #cmakedefine STDC_HEADERS 1
