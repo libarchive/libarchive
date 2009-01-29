@@ -202,9 +202,9 @@ IF(MD_LIBRARY)
   LIST(APPEND ADDITIONAL_LIBS ${MD_LIBRARY})
 ENDIF(MD_LIBRARY)
 #
-# Find SHA1 headers
+# Find SHA headers
 #
-CHECK_HEADERS(sha.h sha1.h)
+CHECK_HEADERS(sha.h sha1.h sha2.h sha256.h)
 
 #
 # Check functions

@@ -45,6 +45,12 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_SHA1_H
 #include <sha1.h>
 #endif
+#ifdef HAVE_SHA2_H
+#include <sha2.h>
+#endif
+#ifdef HAVE_SHA256_H
+#include <sha256.h>
+#endif
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -65,6 +71,13 @@ struct mtree_writer {
 #endif
 #if defined(HAVE_SHA_H) || defined(HAVE_SHA1_H)
 	SHA_CTX sha1ctx;
+#endif
+#if defined(HAVE_SHA2_H) || defined(HAVE_SHA256_H)
+	SHA256_CTX sha256ctx;
+#endif
+#ifdef HAVE_SHA2_H
+	SHA384_CTX sha384ctx;
+	SHA512_CTX sha512ctx;
 #endif
 	/* Keyword options */
 	int keys;
@@ -244,6 +257,28 @@ archive_write_mtree_header(struct archive_write *a,
 	} else
 		mtree->compute_sum &= ~F_SHA1;
 #endif
+#if defined(HAVE_SHA2_H) || defined(HAVE_SHA256_H)
+	if ((mtree->keys & F_SHA256) != 0 &&
+	    archive_entry_filetype(entry) == AE_IFREG) {
+		mtree->compute_sum |= F_SHA256;
+		SHA256_Init(&mtree->sha256ctx);
+	} else
+		mtree->compute_sum &= ~F_SHA256;
+#endif
+#ifdef HAVE_SHA2_H
+	if ((mtree->keys & F_SHA384) != 0 &&
+	    archive_entry_filetype(entry) == AE_IFREG) {
+		mtree->compute_sum |= F_SHA384;
+		SHA384_Init(&mtree->sha384ctx);
+	} else
+		mtree->compute_sum &= ~F_SHA384;
+	if ((mtree->keys & F_SHA512) != 0 &&
+	    archive_entry_filetype(entry) == AE_IFREG) {
+		mtree->compute_sum |= F_SHA512;
+		SHA512_Init(&mtree->sha512ctx);
+	} else
+		mtree->compute_sum &= ~F_SHA512;
+#endif
 
 	return (ARCHIVE_OK);
 }
@@ -388,6 +423,31 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 		strappend_bin(&mtree->buf, buf, sizeof(buf));
 	}
 #endif
+#if defined(HAVE_SHA2_H) || defined(HAVE_SHA256_H)
+	if (mtree->compute_sum & F_SHA256) {
+		unsigned char buf[32];
+
+		SHA256_Final(buf, &mtree->sha256ctx);
+		archive_strcat(&mtree->buf, " sha256digest=");
+		strappend_bin(&mtree->buf, buf, sizeof(buf));
+	}
+#endif
+#if defined(HAVE_SHA2_H)
+	if (mtree->compute_sum & F_SHA384) {
+		unsigned char buf[48];
+
+		SHA384_Final(buf, &mtree->sha384ctx);
+		archive_strcat(&mtree->buf, " sha384digest=");
+		strappend_bin(&mtree->buf, buf, sizeof(buf));
+	}
+	if (mtree->compute_sum & F_SHA512) {
+		unsigned char buf[64];
+
+		SHA512_Final(buf, &mtree->sha512ctx);
+		archive_strcat(&mtree->buf, " sha512digest=");
+		strappend_bin(&mtree->buf, buf, sizeof(buf));
+	}
+#endif
 	archive_strcat(&mtree->buf, "\n");
 
 	archive_entry_free(entry);
@@ -436,6 +496,16 @@ archive_write_mtree_data(struct archive_write *a, const void *buff, size_t n)
 #if defined(HAVE_SHA_H) || defined(HAVE_SHA1_H)
 	if (mtree->compute_sum & F_SHA1)
 		SHA1_Update(&mtree->sha1ctx, buff, n);
+#endif
+#if defined(HAVE_SHA2_H) || defined(HAVE_SHA256_H)
+	if (mtree->compute_sum & F_SHA256)
+		SHA256_Update(&mtree->sha256ctx, buff, n);
+#endif
+#ifdef HAVE_SHA2_H
+	if (mtree->compute_sum & F_SHA384)
+		SHA384_Update(&mtree->sha384ctx, buff, n);
+	if (mtree->compute_sum & F_SHA512)
+		SHA384_Update(&mtree->sha512ctx, buff, n);
 #endif
 	return n;
 }
@@ -507,6 +577,19 @@ archive_write_mtree_options(struct archive_write *a, const char *key,
 		if (strcmp(key, "sha1") == 0 ||
 		    strcmp(key, "sha1digest") == 0)
 			keybit = F_SHA1;
+#endif
+#if defined(HAVE_SHA2_H) || defined(HAVE_SHA256_H)
+		if (strcmp(key, "sha256") == 0 ||
+		    strcmp(key, "sha256digest") == 0)
+			keybit = F_SHA256;
+#endif
+#ifdef HAVE_SHA2_H
+		if (strcmp(key, "sha384") == 0 ||
+		    strcmp(key, "sha384digest") == 0)
+			keybit = F_SHA384;
+		if (strcmp(key, "sha512") == 0 ||
+		    strcmp(key, "sha512digest") == 0)
+			keybit = F_SHA512;
 #endif
 		if (strcmp(key, "size") == 0)
 			keybit = F_SIZE;

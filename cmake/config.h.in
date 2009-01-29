@@ -317,6 +317,12 @@
 /* Define to 1 if you have the <sha1.h> header file. */
 #cmakedefine HAVE_SHA1_H 1
 
+/* Define to 1 if you have the <sha256.h> header file. */
+#cmakedefine HAVE_SHA256_H 1
+
+/* Define to 1 if you have the <sha2.h> header file. */
+#cmakedefine HAVE_SHA2_H 1
+
 /* Define to 1 if you have the <sha.h> header file. */
 #cmakedefine HAVE_SHA_H 1
 
