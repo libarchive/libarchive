@@ -250,7 +250,7 @@ __archive_parse_options(const char *p, const char *fn, int keysize, char *key,
 			break;
 		case F_BOTH:
 		case F_NAME:
-			if (islower(*p) || isnumber(*p) || *p == '-') {
+			if (islower(*p) || isdigit(*p) || *p == '-') {
 				if (kidx == 0 && !islower(*p))
 					/* Illegal sequence. */
 					return (-1);
