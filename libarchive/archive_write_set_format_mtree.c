@@ -27,9 +27,18 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef HAVE_MD5GLOBAL_H
+#include <md5global.h>
+#endif
+#ifdef HAVE_MD5_H
+#include <md5.h>
+#endif
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -45,6 +54,9 @@ struct mtree_writer {
 	int compute_sum;
 	uint32_t crc;
 	uint64_t crc_len;
+#ifdef HAVE_MD5_H
+	MD5_CTX md5ctx;
+#endif
 	/* Keyword options */
 	int keys;
 #define	F_CKSUM		0x00000001		/* check sum */
@@ -207,8 +219,28 @@ archive_write_mtree_header(struct archive_write *a,
 		mtree->crc_len = 0;
 	} else
 		mtree->compute_sum &= ~F_CKSUM;
+#ifdef HAVE_MD5_H
+	if ((mtree->keys & F_MD5) != 0 &&
+	    archive_entry_filetype(entry) == AE_IFREG) {
+		mtree->compute_sum |= F_MD5;
+		MD5Init(&mtree->md5ctx);
+	} else
+		mtree->compute_sum &= ~F_MD5;
+#endif
 
 	return (ARCHIVE_OK);
+}
+
+static void
+strappend_bin(struct archive_string *s, const unsigned char *bin, int n)
+{
+	static const char hex[] = "0123456789abcdef";
+	int i;
+
+	for (i = 0; i < n; i++) {
+		archive_strappend_char(s, hex[bin[i] >> 4]);
+		archive_strappend_char(s, hex[bin[i] & 0x0f]);
+	}
 }
 
 static int
@@ -321,6 +353,15 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 		archive_string_sprintf(&mtree->buf, " cksum=%ju",
 		    (uintmax_t)mtree->crc);
 	}
+#ifdef HAVE_MD5_H
+	if (mtree->compute_sum & F_MD5) {
+		unsigned char buf[16];
+
+		MD5Final(buf, &mtree->md5ctx);
+		archive_strcat(&mtree->buf, " md5digest=");
+		strappend_bin(&mtree->buf, buf, sizeof(buf));
+	}
+#endif
 	archive_strcat(&mtree->buf, "\n");
 
 	archive_entry_free(entry);
@@ -362,6 +403,10 @@ archive_write_mtree_data(struct archive_write *a, const void *buff, size_t n)
 			COMPUTE_CRC(mtree->crc, *p);
 		mtree->crc_len += n;
 	}
+#ifdef HAVE_MD5_H
+	if (mtree->compute_sum & F_MD5)
+		MD5Update(&mtree->md5ctx, buff, n);
+#endif
 	return n;
 }
 
@@ -415,6 +460,11 @@ archive_write_mtree_options(struct archive_write *a, const char *key,
 			keybit = F_SLINK;
 		break;
 	case 'm':
+#ifdef HAVE_MD5_H
+		if (strcmp(key, "md5") == 0 ||
+		    strcmp(key, "md5digest") == 0)
+			keybit = F_MD5;
+#endif
 		if (strcmp(key, "mode") == 0)
 			keybit = F_MODE;
 		break;
@@ -484,4 +534,3 @@ archive_write_set_format_mtree(struct archive *_a)
 
 	return (ARCHIVE_OK);
 }
-

@@ -195,6 +195,9 @@ if test "x$with_lzmadec" != "xno"; then
   AC_CHECK_LIB(lzmadec,lzmadec_decode)
 fi
 
+AC_CHECK_HEADERS([md5.h md5global.h])
+AC_CHECK_LIB(md,MD5Init)
+
 # TODO: Give the user the option of using a pre-existing system
 # libarchive.  This will define HAVE_LIBARCHIVE which will cause
 # bsdtar_platform.h to use #include <...> for the libarchive headers.

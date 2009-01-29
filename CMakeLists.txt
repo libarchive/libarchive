@@ -183,6 +183,26 @@ CHECK_INCLUDE_FILE(sys/stat.h       HAVE_SYS_STAT_H)
 CHECK_INCLUDE_FILE(sys/types.h      HAVE_SYS_TYPES_H)
 
 #
+# Find MD5 headers and library
+#
+SET(_files "")
+IF(HAVE_SYS_TYPES_H)
+  SET(_files "sys/types.h")
+ENDIF(HAVE_SYS_TYPES_H)
+CHECK_INCLUDE_FILE(md5global.h   HAVE_MD5GLOBAL_H)
+IF(HAVE_MD5GLOBAL_H)
+  SET(_files ${_files} "md5global.h")
+ENDIF(HAVE_MD5GLOBAL_H)
+SET(_files ${_files} "md5.h")
+CHECK_INCLUDE_FILES("${_files}" HAVE_MD5_H)
+# libmd
+FIND_LIBRARY(MD_LIBRARY NAMES md)
+IF(MD_LIBRARY)
+  SET(HAVE_LIBMD 1)
+  LIST(APPEND ADDITIONAL_LIBS ${MD_LIBRARY})
+ENDIF(MD_LIBRARY)
+
+#
 # Check functions
 #
 CHECK_FUNCS(chflags chown chroot)

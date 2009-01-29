@@ -214,6 +214,9 @@
 /* Define to 1 if you have the `lzmadec' library (-llzmadec). */
 #cmakedefine HAVE_LIBLZMADEC 1
 
+/* Define to 1 if you have the `md' library (-lmd). */
+#cmakedefine HAVE_LIBMD 1
+
 /* Define to 1 if you have the `z' library (-lz). */
 #cmakedefine HAVE_LIBZ 1
 
@@ -247,6 +250,12 @@
 
 /* Define to 1 if you have the <lzmadec.h> header file. */
 #cmakedefine HAVE_LZMADEC_H 1
+
+/* Define to 1 if you have the <md5global.h> header file. */
+#cmakedefine HAVE_MD5GLOBAL_H 1
+
+/* Define to 1 if you have the <md5.h> header file. */
+#cmakedefine HAVE_MD5_H 1
 
 /* Define to 1 if you have the `memmove' function. */
 #cmakedefine HAVE_MEMMOVE 1
