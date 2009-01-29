@@ -355,8 +355,9 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 		mtree_quote(mtree, name);
 	}
 	if ((mtree->keys & F_TIME) != 0)
-		archive_string_sprintf(&mtree->buf, " time=%jd",
-		    (intmax_t)archive_entry_mtime(entry));
+		archive_string_sprintf(&mtree->buf, " time=%jd.%jd",
+		    (intmax_t)archive_entry_mtime(entry),
+		    (intmax_t)archive_entry_mtime_nsec(entry));
 	if ((mtree->keys & F_MODE) != 0)
 		archive_string_sprintf(&mtree->buf, " mode=%o",
 		    archive_entry_mode(entry) & 07777);

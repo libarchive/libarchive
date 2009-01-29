@@ -882,8 +882,17 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			break;
 		}
 		if (strcmp(key, "time") == 0) {
+			time_t m;
+			long ns;
+
 			*parsed_kws |= MTREE_HAS_MTIME;
-			archive_entry_set_mtime(entry, mtree_atol10(&val), 0);
+			m = (time_t)mtree_atol10(&val);
+			if (*val == '.') {
+				++val;
+				ns = (long)mtree_atol10(&val);
+			} else
+				ns = 0;
+			archive_entry_set_mtime(entry, m, ns);
 			break;
 		}
 		if (strcmp(key, "type") == 0) {
