@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 
 static int setup_acls_posix1e(struct archive_read_disk *,
     struct archive_entry *, int fd);
-int setup_xattrs(struct archive_read_disk *,
+static int setup_xattrs(struct archive_read_disk *,
     struct archive_entry *, int fd);
 
 int
@@ -437,7 +437,7 @@ setup_xattr(struct archive_read_disk *a, struct archive_entry *entry,
 	return (ARCHIVE_OK);
 }
 
-int
+static int
 setup_xattrs(struct archive_read_disk *a,
     struct archive_entry *entry, int fd)
 {
