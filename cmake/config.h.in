@@ -314,6 +314,12 @@
 /* Define to 1 if you have the `setlocale' function. */
 #cmakedefine HAVE_SETLOCALE 1
 
+/* Define to 1 if you have the <sha1.h> header file. */
+#cmakedefine HAVE_SHA1_H 1
+
+/* Define to 1 if you have the <sha.h> header file. */
+#cmakedefine HAVE_SHA_H 1
+
 /* Define to 1 if `stat' has the bug that it succeeds when given the
    zero-length file name argument. */
 #cmakedefine HAVE_STAT_EMPTY_STRING_BUG 1

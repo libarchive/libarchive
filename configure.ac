@@ -197,6 +197,7 @@ fi
 
 AC_CHECK_HEADERS([md5.h md5global.h])
 AC_CHECK_LIB(md,MD5Init)
+AC_CHECK_HEADERS([sha.h sha1.h])
 
 # TODO: Give the user the option of using a pre-existing system
 # libarchive.  This will define HAVE_LIBARCHIVE which will cause

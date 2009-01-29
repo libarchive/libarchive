@@ -39,6 +39,12 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_MD5_H
 #include <md5.h>
 #endif
+#ifdef HAVE_SHA_H
+#include <sha.h>
+#endif
+#ifdef HAVE_SHA1_H
+#include <sha1.h>
+#endif
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -56,6 +62,9 @@ struct mtree_writer {
 	uint64_t crc_len;
 #ifdef HAVE_MD5_H
 	MD5_CTX md5ctx;
+#endif
+#if defined(HAVE_SHA_H) || defined(HAVE_SHA1_H)
+	SHA_CTX sha1ctx;
 #endif
 	/* Keyword options */
 	int keys;
@@ -227,6 +236,14 @@ archive_write_mtree_header(struct archive_write *a,
 	} else
 		mtree->compute_sum &= ~F_MD5;
 #endif
+#if defined(HAVE_SHA_H) || defined(HAVE_SHA1_H)
+	if ((mtree->keys & F_SHA1) != 0 &&
+	    archive_entry_filetype(entry) == AE_IFREG) {
+		mtree->compute_sum |= F_SHA1;
+		SHA1_Init(&mtree->sha1ctx);
+	} else
+		mtree->compute_sum &= ~F_SHA1;
+#endif
 
 	return (ARCHIVE_OK);
 }
@@ -362,6 +379,15 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 		strappend_bin(&mtree->buf, buf, sizeof(buf));
 	}
 #endif
+#if defined(HAVE_SHA_H) || defined(HAVE_SHA1_H)
+	if (mtree->compute_sum & F_SHA1) {
+		unsigned char buf[20];
+
+		SHA1_Final(buf, &mtree->sha1ctx);
+		archive_strcat(&mtree->buf, " sha1digest=");
+		strappend_bin(&mtree->buf, buf, sizeof(buf));
+	}
+#endif
 	archive_strcat(&mtree->buf, "\n");
 
 	archive_entry_free(entry);
@@ -406,6 +432,10 @@ archive_write_mtree_data(struct archive_write *a, const void *buff, size_t n)
 #ifdef HAVE_MD5_H
 	if (mtree->compute_sum & F_MD5)
 		MD5Update(&mtree->md5ctx, buff, n);
+#endif
+#if defined(HAVE_SHA_H) || defined(HAVE_SHA1_H)
+	if (mtree->compute_sum & F_SHA1)
+		SHA1_Update(&mtree->sha1ctx, buff, n);
 #endif
 	return n;
 }
@@ -473,6 +503,11 @@ archive_write_mtree_options(struct archive_write *a, const char *key,
 			keybit = F_NLINK;
 		break;
 	case 's':
+#if defined(HAVE_SHA_H) || defined(HAVE_SHA1_H)
+		if (strcmp(key, "sha1") == 0 ||
+		    strcmp(key, "sha1digest") == 0)
+			keybit = F_SHA1;
+#endif
 		if (strcmp(key, "size") == 0)
 			keybit = F_SIZE;
 		break;

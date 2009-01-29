@@ -201,6 +201,10 @@ IF(MD_LIBRARY)
   SET(HAVE_LIBMD 1)
   LIST(APPEND ADDITIONAL_LIBS ${MD_LIBRARY})
 ENDIF(MD_LIBRARY)
+#
+# Find SHA1 headers
+#
+CHECK_HEADERS(sha.h sha1.h)
 
 #
 # Check functions
