@@ -152,6 +152,11 @@ struct mtree_writer {
 #define	F_SHA256	0x00800000		/* SHA-256 digest */
 #define	F_SHA384	0x01000000		/* SHA-384 digest */
 #define	F_SHA512	0x02000000		/* SHA-512 digest */
+
+	/* Options */
+	int dironly;		/* if the dironly is 1, ignore everything except
+				 * directory type files. like mtree(8) -d option.
+				 */
 };
 
 #define DEFAULT_KEYS	(F_DEV | F_FLAGS | F_GID | F_GNAME | F_SLINK | F_MODE\
@@ -324,15 +329,21 @@ archive_write_mtree_header(struct archive_write *a,
 		mtree->first = 0;
 		archive_strcat(&mtree->buf, "#mtree\n");
 	}
-	if (mtree->need_global_set && archive_entry_filetype(entry) == AE_IFREG) {
+	if (mtree->need_global_set &&
+	    ((mtree->dironly && archive_entry_filetype(entry) == AE_IFDIR) ||
+	    (!mtree->dironly && archive_entry_filetype(entry) == AE_IFREG))) {
 		mtree->need_global_set = 0;
 		if (mtree->keys & (F_FLAGS | F_GID | F_GNAME | F_NLINK | F_MODE |
 		    F_TYPE | F_UID | F_UNAME)) {
 			struct archive_string setstr;
 
 			archive_string_init(&setstr);
-			if ((mtree->keys & F_TYPE) != 0)
-				archive_strcat(&setstr, " type=file");
+			if ((mtree->keys & F_TYPE) != 0) {
+				if (mtree->dironly)
+					archive_strcat(&setstr, " type=dir");
+				else
+					archive_strcat(&setstr, " type=file");
+			}
 			if ((mtree->keys & F_UNAME) != 0 &&
 			    (name = archive_entry_uname(entry)) != NULL) {
 				archive_strcat(&setstr, " uname=");
@@ -373,7 +384,8 @@ archive_write_mtree_header(struct archive_write *a,
 	}
 
 	archive_string_empty(&mtree->ebuf);
-	mtree_quote(&mtree->ebuf, path);
+	if (!mtree->dironly || archive_entry_filetype(entry) == AE_IFDIR)
+		mtree_quote(&mtree->ebuf, path);
 	mtree_ensure_indent(mtree, 0);
 
 	mtree->entry_bytes_remaining = archive_entry_size(entry);
@@ -466,6 +478,11 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 	}
 	mtree->entry = NULL;
 
+	if (mtree->dironly && archive_entry_filetype(entry) != AE_IFDIR) {
+		archive_entry_free(entry);
+		return (ARCHIVE_OK);
+	}
+
 	if ((mtree->keys & F_NLINK) != 0 &&
 	    archive_entry_nlink(entry) != 1 && 
 	    archive_entry_filetype(entry) != AE_IFDIR)
@@ -546,7 +563,7 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 		}
 		break;
 	case AE_IFDIR:
-		if ((mtree->keys & F_TYPE) != 0)
+		if ((mtree->keys & F_TYPE) != 0 && !mtree->dironly)
 			archive_strcat(&mtree->ebuf, " type=dir");
 		break;
 	case AE_IFIFO:
@@ -555,10 +572,8 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 		break;
 	case AE_IFREG:
 	default:	/* Handle unknown file types as regular files. */
-#if 0
-		if ((mtree->keys & F_TYPE) != 0)
+		if ((mtree->keys & F_TYPE) != 0 && mtree->dironly)
 			archive_strcat(&mtree->ebuf, " type=file");
-#endif
 		if ((mtree->keys & F_SIZE) != 0)
 			archive_string_sprintf(&mtree->ebuf, " size=%jd",
 			    (intmax_t)archive_entry_size(entry));
@@ -659,6 +674,9 @@ archive_write_mtree_data(struct archive_write *a, const void *buff, size_t n)
 
 	if (n > mtree->entry_bytes_remaining)
 		n = mtree->entry_bytes_remaining;
+	if (mtree->dironly)
+		/* We don't need compute a regular file sum */
+		return (n);
 	if (mtree->compute_sum & F_CKSUM) {
 		/*
 		 * Compute a POSIX 1003.2 checksum
@@ -694,7 +712,7 @@ archive_write_mtree_data(struct archive_write *a, const void *buff, size_t n)
 	if (mtree->compute_sum & F_SHA512)
 		SHA512_Update(&mtree->sha512ctx, buff, n);
 #endif
-	return n;
+	return (n);
 }
 
 static int
@@ -732,6 +750,8 @@ archive_write_mtree_options(struct archive_write *a, const char *key,
 	case 'd':
 		if (strcmp(key, "device") == 0)
 			keybit = F_DEV;
+		else if (strcmp(key, "dironly") == 0)
+			mtree->dironly = (value != NULL)? 1: 0;
 		break;
 	case 'f':
 		if (strcmp(key, "flags") == 0)
@@ -835,6 +855,7 @@ archive_write_set_format_mtree(struct archive *_a)
 	mtree->first = 1;
 	mtree->need_global_set = 1;
 	mtree->keys = DEFAULT_KEYS;
+	mtree->dironly = 0;
 	archive_string_init(&mtree->ebuf);
 	archive_string_init(&mtree->buf);
 	a->format_data = mtree;
