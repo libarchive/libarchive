@@ -266,29 +266,32 @@ mtree_quote(struct archive_string *s, const char *str)
 }
 
 static void
-mtree_ensure_indent(struct mtree_writer *mtree, int final)
+mtree_indent(struct mtree_writer *mtree)
 {
-	int i;
+	int i, fn;
 	const char *r, *s, *x;
 
-	if (!final) {
-		if (mtree->ebuf.length > INDENTNAMELEN) {
-			archive_string_concat(&mtree->buf, &mtree->ebuf);
-			archive_strncat(&mtree->buf, " \\\n", 3);
-			archive_string_empty(&mtree->ebuf);
-		}
-		for (i = mtree->ebuf.length; i < INDENTNAMELEN; i++)
-			archive_strappend_char(&mtree->ebuf, ' ');
-		return;
-	}
-
-	s = mtree->ebuf.s;
+	fn = 1;
+	s = r = mtree->ebuf.s;
 	x = NULL;
-	if (mtree->ebuf.length <= INDENTNAMELEN)
-		r = NULL;
-	else
-		r = strchr(s + INDENTNAMELEN + 1, ' ');
-	while (r != NULL) {
+	while (*r == ' ')
+		r++;
+	while ((r = strchr(r, ' ')) != NULL) {
+		if (fn) {
+			fn = 0;
+			archive_strncat(&mtree->buf, s, r - s);
+			if (r -s > INDENTNAMELEN) {
+				archive_strncat(&mtree->buf, " \\\n", 3);
+				for (i = 0; i < (INDENTNAMELEN + 1); i++)
+					archive_strappend_char(&mtree->buf, ' ');
+			} else {
+				for (i = r -s; i < (INDENTNAMELEN + 1); i++)
+					archive_strappend_char(&mtree->buf, ' ');
+			}
+			s = ++r;
+			x = NULL;
+			continue;
+		}
 		if (r - s <= MAXLINELEN - 3)
 			x = r++;
 		else {
@@ -301,9 +304,9 @@ mtree_ensure_indent(struct mtree_writer *mtree, int final)
 			s = r = ++x;
 			x = NULL;
 		}
-		r = strchr(r, ' ');
 	}
 	if (x != NULL && strlen(s) > MAXLINELEN - 3) {
+		/* Last keyword is longer. */
 		archive_strncat(&mtree->buf, s, x - s);
 		archive_strncat(&mtree->buf, " \\\n", 3);
 		for (i = 0; i < (INDENTNAMELEN + 1); i++)
@@ -386,7 +389,6 @@ archive_write_mtree_header(struct archive_write *a,
 	archive_string_empty(&mtree->ebuf);
 	if (!mtree->dironly || archive_entry_filetype(entry) == AE_IFDIR)
 		mtree_quote(&mtree->ebuf, path);
-	mtree_ensure_indent(mtree, 0);
 
 	mtree->entry_bytes_remaining = archive_entry_size(entry);
 	if ((mtree->keys & F_CKSUM) != 0 &&
@@ -644,7 +646,7 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 	}
 #endif
 	archive_strcat(&mtree->ebuf, "\n");
-	mtree_ensure_indent(mtree, 1);
+	mtree_indent(mtree);
 
 	archive_entry_free(entry);
 
