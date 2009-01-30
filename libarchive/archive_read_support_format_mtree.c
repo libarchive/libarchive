@@ -1225,6 +1225,7 @@ readline(struct archive_read *a, struct mtree *mtree, char **start, ssize_t limi
 {
 	ssize_t bytes_read;
 	ssize_t total_size = 0;
+	ssize_t find_off;
 	const void *t;
 	const char *s;
 	void *p;
@@ -1258,13 +1259,14 @@ readline(struct archive_read *a, struct mtree *mtree, char **start, ssize_t limi
 		}
 		memcpy(mtree->line.s + total_size, t, bytes_read);
 		__archive_read_consume(a, bytes_read);
+		find_off = total_size;
 		total_size += bytes_read;
 		/* Null terminate. */
 		mtree->line.s[total_size] = '\0';
 		/* If we found an unescaped '\n', clean up and return. */
 		if (p == NULL)
 			continue;
-		for (u = mtree->line.s; *u; ++u) {
+		for (u = mtree->line.s + find_off; *u; ++u) {
 			if (u[0] == '\n') {
 				*start = mtree->line.s;
 				return total_size;
@@ -1285,7 +1287,7 @@ readline(struct archive_read *a, struct mtree *mtree, char **start, ssize_t limi
 				memmove(u, u + 1,
 				    total_size - (u - mtree->line.s) + 1);
 				--total_size;
-				continue;    
+				break;
 			}
 		}
 	}
