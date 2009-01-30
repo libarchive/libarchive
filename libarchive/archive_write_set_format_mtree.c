@@ -743,7 +743,7 @@ archive_write_mtree_options(struct archive_write *a, const char *key,
 	switch (key[0]) {
 	case 'a':
 		if (strcmp(key, "all") == 0)
-			keybit = -1;
+			keybit = ~0;
 		break;
 	case 'c':
 		if (strcmp(key, "cksum") == 0)
