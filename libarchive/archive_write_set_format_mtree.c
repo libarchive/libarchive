@@ -98,10 +98,10 @@ struct mtree_writer {
 #ifdef HAVE_MD5
 	MD5_CTX md5ctx;
 #endif
-#if !defined(HAVE_OPENSSL_RIPEMD_H) && defined(HAVE_RMD160_H)
-	RMD160_CTX rmd160ctx;
-#else
+#if defined(HAVE_OPENSSL_RIPEMD_H) || defined(HAVE_RIPEMD_H)
 	RIPEMD160_CTX rmd160ctx;
+#elif defined(HAVE_RMD160_H)
+	RMD160_CTX rmd160ctx;
 #endif
 #ifdef HAVE_SHA1
 #if defined(HAVE_OPENSSL_SHA_H) || defined(HAVE_SHA_H)
