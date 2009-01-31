@@ -126,7 +126,7 @@ IF(WIN32 AND EXISTS "${__GNUWIN32PATH}")
   # #  ifdef VMS
   # #    include <unixio.h>   /* for off_t */
   # #  endif
-ENDIF(WIN32)
+ENDIF(WIN32 AND EXISTS "${__GNUWIN32PATH}")
 
 SET(ADDITIONAL_LIBS "")
 #
