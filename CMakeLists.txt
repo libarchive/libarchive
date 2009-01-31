@@ -99,20 +99,24 @@ ENDMACRO (GENERATE_LIST_H)
 #
 # Check compress/decompress libraries
 #
-IF(WIN32)
-  # You need to add a path availabel DLL file into PATH environment variable.
+SET(__GNUWIN32PATH "C:/Program Files/GnuWin32")
+IF(WIN32 AND EXISTS "${__GNUWIN32PATH}")
+  # You have to add a path availabel DLL file into PATH environment variable.
   # Maybe DLL path is "C:/Program Files/GnuWin32/bin".
-  # The zlib and the bzip2 Setup program install programs and DLLs into
-  # "C:/Program Files/GnuWin32" which is default.
-  # If you do not use Setup program or install into different path, You change
-  # path from "C:/Program Files/GnuWin32" to where you installed the one.
-  SET(GNUWIN32PATH "C:/Program Files/GnuWin32")
-  # After add DLL path, You still need 'lib' directory to detecte libraries
-  # by cmake.
-  SET(CMAKE_PREFIX_PATH "${GNUWIN32PATH}/lib" $(CMAKE_PREFIX_PATH))
-  # If compiling error occured in zconf.h, maybe you need patch to zconf.h.
-  #--- zconf.h.orig	2005-07-21 00:40:26.000000000 +0900
-  #+++ zconf.h	2009-01-19 11:39:10.093750000 +0900
+  # The zlib and the bzip2 Setup program have installed programs and DLLs into
+  # "C:/Program Files/GnuWin32" by default.
+  # This is convenience setting for Windows.
+  SET(CMAKE_PREFIX_PATH ${__GNUWIN32PATH} $(CMAKE_PREFIX_PATH))
+  #
+  # If you didn't use Setup program or installed into nonstandard path,
+  # cmake cannot find out your zlib or bzip2 libraries and include files,
+  # you should execute cmake with  -DCMAKE_PREFIX_PATH option.
+  #   e.g.
+  #     cmake <path-to-source> -DCMAKE_PREFIX_PATH=<your-GnuWin32-path>
+  #
+  # If compiling error occured in zconf.h, You may need patch to zconf.h.
+  #--- zconf.h.orig	2005-07-21 00:40:26.000000000
+  #+++ zconf.h	2009-01-19 11:39:10.093750000
   #@@ -286,7 +286,7 @@
   # 
   # #if 1           /* HAVE_UNISTD_H -- this line is updated by ./configure */
@@ -122,8 +126,6 @@ IF(WIN32)
   # #  ifdef VMS
   # #    include <unixio.h>   /* for off_t */
   # #  endif
-  SET(ZLIB_INCLUDE_DIR "${GNUWIN32PATH}/include")
-  SET(BZIP2_INCLUDE_DIR "${GNUWIN32PATH}/include")
 ENDIF(WIN32)
 
 SET(ADDITIONAL_LIBS "")
