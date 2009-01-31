@@ -97,7 +97,7 @@ archive_read_support_compression_xz(struct archive *_a)
 	return (ARCHIVE_OK);
 }
 
-#ifndef HAVE_LZMADEC_H
+#ifdef HAVE_LZMA_H
 int
 archive_read_support_compression_lzma(struct archive *_a)
 {
