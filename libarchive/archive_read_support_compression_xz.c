@@ -314,7 +314,7 @@ xz_lzma_bidder_init(struct archive_read_filter *self, int code)
 		    (1U << 23) + (1U << 21),/* memlimit */
 		    LZMA_CONCATENATED);
 	else
-		lzma_alone_decoder(&(state->stream),
+		ret = lzma_alone_decoder(&(state->stream),
 		    (1U << 23) + (1U << 21));/* memlimit */
 
 	if (ret == LZMA_OK)
