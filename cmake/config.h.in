@@ -211,6 +211,9 @@
 /* Define to 1 if you have the `bz2' library (-lbz2). */
 #cmakedefine HAVE_LIBBZ2 1
 
+/* Define to 1 if you have the `lzma' library (-llzma). */
+#cmakedefine HAVE_LIBLZMA 1
+
 /* Define to 1 if you have the `lzmadec' library (-llzmadec). */
 #cmakedefine HAVE_LIBLZMADEC 1
 
@@ -247,6 +250,9 @@
 
 /* Define to 1 if you have the <lzmadec.h> header file. */
 #cmakedefine HAVE_LZMADEC_H 1
+
+/* Define to 1 if you have the <lzma.h> header file. */
+#cmakedefine HAVE_LZMA_H 1
 
 /* Define to 1 if you have the `MD5' functions. */
 #cmakedefine HAVE_MD5 1

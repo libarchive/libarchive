@@ -231,6 +231,7 @@ typedef int	archive_close_callback(struct archive *, void *_client_data);
 #define	ARCHIVE_COMPRESSION_COMPRESS	3
 #define	ARCHIVE_COMPRESSION_PROGRAM	4
 #define	ARCHIVE_COMPRESSION_LZMA	5
+#define	ARCHIVE_COMPRESSION_XZ		6
 
 /*
  * Codes returned by archive_format.
@@ -301,6 +302,7 @@ __LA_DECL int		 archive_read_support_compression_lzma(struct archive *);
 __LA_DECL int		 archive_read_support_compression_none(struct archive *);
 __LA_DECL int		 archive_read_support_compression_program(struct archive *,
 		     const char *command);
+__LA_DECL int		 archive_read_support_compression_xz(struct archive *);
 
 __LA_DECL int		 archive_read_support_format_all(struct archive *);
 __LA_DECL int		 archive_read_support_format_ar(struct archive *);
@@ -496,9 +498,11 @@ __LA_DECL int		 archive_write_set_skip_file(struct archive *, dev_t, ino_t);
 __LA_DECL int		 archive_write_set_compression_bzip2(struct archive *);
 __LA_DECL int		 archive_write_set_compression_compress(struct archive *);
 __LA_DECL int		 archive_write_set_compression_gzip(struct archive *);
+__LA_DECL int		 archive_write_set_compression_lzma(struct archive *);
 __LA_DECL int		 archive_write_set_compression_none(struct archive *);
 __LA_DECL int		 archive_write_set_compression_program(struct archive *,
 		     const char *cmd);
+__LA_DECL int		 archive_write_set_compression_xz(struct archive *);
 /* A convenience function to set the format based on the code or name. */
 __LA_DECL int		 archive_write_set_format(struct archive *, int format_code);
 __LA_DECL int		 archive_write_set_format_by_name(struct archive *,

@@ -103,6 +103,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_read_support_compression_none.c	\
 	libarchive/archive_read_support_compression_program.c	\
 	libarchive/archive_read_support_compression_lzma.c	\
+	libarchive/archive_read_support_compression_xz.c	\
 	libarchive/archive_read_support_format_all.c		\
 	libarchive/archive_read_support_format_ar.c		\
 	libarchive/archive_read_support_format_cpio.c		\
@@ -130,6 +131,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_write_set_compression_gzip.c		\
 	libarchive/archive_write_set_compression_none.c		\
 	libarchive/archive_write_set_compression_program.c	\
+	libarchive/archive_write_set_compression_xz.c		\
 	libarchive/archive_write_set_format.c			\
 	libarchive/archive_write_set_format_ar.c		\
 	libarchive/archive_write_set_format_by_name.c		\

@@ -45,5 +45,8 @@ archive_read_support_compression_all(struct archive *a)
 	 * may not be feasible to include LZMA detection here. */
 	/* archive_read_support_compression_lzma(a); */
 #endif
+#if HAVE_LZMA_H
+	archive_read_support_compression_xz(a);
+#endif
 	return (ARCHIVE_OK);
 }

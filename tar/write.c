@@ -182,6 +182,14 @@ tar_mode_c(struct bsdtar *bsdtar)
 			archive_write_set_compression_bzip2(a);
 			break;
 #endif
+#ifdef HAVE_LIBLZMA
+		case 'J':
+			archive_write_set_compression_lzma(a);
+			break;
+		case OPTION_XZ:
+			archive_write_set_compression_xz(a);
+			break;
+#endif
 #ifdef HAVE_LIBZ
 		case 'z':
 			archive_write_set_compression_gzip(a);

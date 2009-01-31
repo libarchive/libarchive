@@ -195,6 +195,14 @@ if test "x$with_lzmadec" != "xno"; then
   AC_CHECK_LIB(lzmadec,lzmadec_decode)
 fi
 
+AC_ARG_WITH([lzma],
+  AS_HELP_STRING([--without-lzma], [Don't build support for xz through lzma]))
+
+if test "x$with_lzma" != "xno"; then
+  AC_CHECK_HEADERS([lzma.h])
+  AC_CHECK_LIB(lzma,lzma_stream_decoder)
+fi
+
 AC_CHECK_HEADERS([openssl/md5.h openssl/ripemd.h openssl/sha.h])
 AC_CHECK_HEADERS([md5.h md5global.h])
 AC_CHECK_HEADERS([ripemd.h rmd160.h])

@@ -251,6 +251,19 @@ main(int argc, char **argv)
 			usage(bsdtar);
 #endif
 			break;
+		case 'J': /* GNU tar 1.21 and later */
+#if HAVE_LIBLZMA
+			if (bsdtar->create_compression != '\0')
+				bsdtar_errc(bsdtar, 1, 0,
+				    "Can't specify both -%c and -%c", opt,
+				    bsdtar->create_compression);
+			bsdtar->create_compression = opt;
+#else
+			bsdtar_warnc(bsdtar, 0,
+			    "lzma compression not supported by this version of bsdtar");
+			usage(bsdtar);
+#endif
+			break;
 		case 'k': /* GNU tar */
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_NO_OVERWRITE;
 			break;
@@ -419,6 +432,19 @@ main(int argc, char **argv)
 			break;
 		case 'x': /* SUSv2 */
 			set_mode(bsdtar, opt);
+			break;
+		case OPTION_XZ:
+#if HAVE_LIBLZMA
+			if (bsdtar->create_compression != '\0')
+				bsdtar_errc(bsdtar, 1, 0,
+				    "Can't specify both -%c and -%c", opt,
+				    bsdtar->create_compression);
+			bsdtar->create_compression = opt;
+#else
+			bsdtar_warnc(bsdtar, 0,
+			    "xz compression not supported by this version of bsdtar");
+			usage(bsdtar);
+#endif
 			break;
 		case 'y': /* FreeBSD version of GNU tar */
 #if HAVE_LIBBZ2
