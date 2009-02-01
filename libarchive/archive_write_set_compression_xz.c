@@ -119,12 +119,10 @@ archive_compressor_lzma_init(struct archive_write *a)
 }
 
 static int
-archive_compressor_xz_init_stream(struct archive_write *a)
+archive_compressor_xz_init_stream(struct archive_write *a,
+    struct private_data *state)
 {
-	struct private_data *state;
 	int ret;
-
-	state = (struct private_data *)a->compressor.data;
 
 	state->stream = (lzma_stream)LZMA_STREAM_INIT;
 	state->stream.next_out = state->compressed;
@@ -208,7 +206,7 @@ archive_compressor_xz_lzma_init(struct archive_write *a, int code)
 	state->lzmafilters[0].id = LZMA_FILTER_LZMA2;
 	state->lzmafilters[0].options = &state->lzma_opt;
 	state->lzmafilters[1].id = LZMA_VLI_UNKNOWN;/* Terminate */
-	ret = archive_compressor_xz_init_stream(a);
+	ret = archive_compressor_xz_init_stream(a, state);
 	if (ret == LZMA_OK) {
 		a->compressor.data = state;
 		return (0);
@@ -251,7 +249,7 @@ archive_compressor_xz_options(struct archive_write *a, const char *key,
 		 * Reinitialize
 		 */
 		lzma_end(&(state->stream));
-		ret = archive_compressor_xz_init_stream(a);
+		ret = archive_compressor_xz_init_stream(a, state);
 		if (ret == LZMA_OK) {
 			state->compression_level = level;
 			return (ARCHIVE_OK);
