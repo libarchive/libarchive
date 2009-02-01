@@ -30,9 +30,6 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_util.c,v 1.19 2008/10/21 12:10:30
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
-#ifdef HAVE_CTYPE_H
-#include <ctype.h>
-#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -250,8 +247,9 @@ __archive_parse_options(const char *p, const char *fn, int keysize, char *key,
 			break;
 		case F_BOTH:
 		case F_NAME:
-			if (islower(*p) || isdigit(*p) || *p == '-') {
-				if (kidx == 0 && !islower(*p))
+			if ((*p >= 'a' && *p <= 'z') ||
+			    (*p >= '0' && *p <= '9') || *p == '-') {
+				if (kidx == 0 && !(*p >= 'a' && *p <= 'z'))
 					/* Illegal sequence. */
 					return (-1);
 				if (kidx >= keysize -1)
@@ -308,7 +306,7 @@ __archive_parse_options(const char *p, const char *fn, int keysize, char *key,
 					return (-1);
 				++p;
 				state = G_VALUE;
-			} else if (isspace(*p)) {
+			} else if (*p == ' ') {
 				/* Pass the space character */
 				++p;
 			} else {
@@ -330,7 +328,7 @@ __archive_parse_options(const char *p, const char *fn, int keysize, char *key,
 					 * format which the fn variable
 					 * indicate. */
 					state = INIT;
-			} else if (isspace(*p)) {
+			} else if (*p == ' ') {
 				/* Pass the space character */
 				++p;
 			} else {

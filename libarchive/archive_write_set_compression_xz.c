@@ -28,9 +28,6 @@
 
 __FBSDID("$FreeBSD$");
 
-#ifdef HAVE_CTYPE_H
-#include <ctype.h>
-#endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -235,7 +232,8 @@ archive_compressor_xz_options(struct archive_write *a, const char *key,
 		 */
 		int level;
 
-		if (value == NULL || !isdigit(value[0]) || value[1] != '\0')
+		if (value == NULL || !(value[0] >= '0' && value[0] <= '9') ||
+		    value[1] != '\0')
 			return (ARCHIVE_WARN);
 		level = value[0] - '0';
 		if (level == state->compression_level)

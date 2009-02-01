@@ -27,9 +27,6 @@
 
 __FBSDID("$FreeBSD: src/lib/libarchive/archive_write_set_compression_gzip.c,v 1.16 2008/02/21 03:21:50 kientzle Exp $");
 
-#ifdef HAVE_CTYPE_H
-#include <ctype.h>
-#endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -235,7 +232,8 @@ archive_compressor_gzip_options(struct archive_write *a, const char *key,
 	if (strcmp(key, "compression-level") == 0) {
 		int level;
 
-		if (value == NULL || !isdigit(value[0]) || value[1] != '\0')
+		if (value == NULL || !(value[0] >= '0' && value[0] <= '9') ||
+		    value[1] != '\0')
 			return (ARCHIVE_WARN);
 		level = value[0] - '0';
 		if (level == state->compression_level)
