@@ -257,9 +257,6 @@
 /* Define to 1 if you have the `MD5' functions. */
 #cmakedefine HAVE_MD5 1
 
-/* Define to 1 if you have the <md5global.h> header file. */
-#cmakedefine HAVE_MD5GLOBAL_H 1
-
 /* Define to 1 if you have the <md5.h> header file. */
 #cmakedefine HAVE_MD5_H 1
 

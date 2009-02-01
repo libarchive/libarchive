@@ -36,9 +36,6 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_OPENSSL_MD5_H
 #include <openssl/md5.h>
 #else /* HAVE_OPENSSL_MD5_H */
-#ifdef HAVE_MD5GLOBAL_H
-#include <md5global.h>
-#endif
 #ifdef HAVE_MD5_H
 #include <md5.h>
 #endif

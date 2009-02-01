@@ -204,7 +204,7 @@ if test "x$with_lzma" != "xno"; then
 fi
 
 AC_CHECK_HEADERS([openssl/md5.h openssl/ripemd.h openssl/sha.h])
-AC_CHECK_HEADERS([md5.h md5global.h])
+AC_CHECK_HEADERS([md5.h])
 AC_CHECK_HEADERS([ripemd.h rmd160.h])
 AC_CHECK_HEADERS([sha.h sha1.h sha2.h sha256.h])
 AC_SEARCH_LIBS(SHA1_Init, crypto ssl md)
