@@ -70,11 +70,9 @@ static int	xz_filter_close(struct archive_read_filter *);
  * if lzma is unavailable.
  */
 static int	xz_lzma_bidder_init(struct archive_read_filter *, int code);
-#ifndef HAVE_LZMADEC_H
 static int	lzma_bidder_bid(struct archive_read_filter_bidder *,
 		    struct archive_read_filter *);
 static int	lzma_bidder_init(struct archive_read_filter *);
-#endif
 static int	xz_bidder_bid(struct archive_read_filter_bidder *,
 		    struct archive_read_filter *);
 static int	xz_bidder_init(struct archive_read_filter *);
@@ -170,7 +168,7 @@ xz_bidder_bid(struct archive_read_filter_bidder *self,
 	return (bits_checked);
 }
 
-#ifndef HAVE_LZMADEC_H
+#ifdef HAVE_LZMA_H
 /*
  * Test whether we can handle this data.
  *
@@ -250,7 +248,7 @@ xz_bidder_init(struct archive_read_filter *filter)
 }
 
 
-#else
+#else /* HAVE_LZMA_H */
 
 static int
 xz_bidder_init(struct archive_read_filter *self)
@@ -258,13 +256,11 @@ xz_bidder_init(struct archive_read_filter *self)
 	return (xz_lzma_bidder_init(self, ARCHIVE_COMPRESSION_XZ));
 }
 
-#ifndef HAVE_LZMADEC_H
 static int
 lzma_bidder_init(struct archive_read_filter *self)
 {
 	return (xz_lzma_bidder_init(self, ARCHIVE_COMPRESSION_LZMA));
 }
-#endif
 
 /*
  * Setup the callbacks.
