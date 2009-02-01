@@ -295,7 +295,7 @@ xz_lzma_bidder_init(struct archive_read_filter *self, int code)
 	self->close = xz_filter_close;
 
 	state->stream.next_in = buff;
-	state->stream.avail_in = ret;
+	state->stream.avail_in = 0;
 
 	state->stream.next_out = state->out_block;
 	state->stream.avail_out = state->out_block_size;
@@ -391,30 +391,30 @@ xz_filter_read(struct archive_read_filter *self, const void **p)
 			archive_set_error(&self->archive->archive, ENOMEM,
 			    "Internal error decompressing compression library: "
 			    "Cannot allocate memory");
-			break;
+			return (ARCHIVE_FATAL);
 		case LZMA_MEMLIMIT_ERROR:
 			archive_set_error(&self->archive->archive, ENOMEM,
 			    "Internal error decompressing compression library: "
 			    "Memory usage limit was reached");
-			break;
+			return (ARCHIVE_FATAL);
 		case LZMA_FORMAT_ERROR:
 			archive_set_error(&self->archive->archive,
 			    ARCHIVE_ERRNO_MISC,
 			    "Internal error decompressing compression library: "
 			    "File format not recognized");
-			break;
+			return (ARCHIVE_FATAL);
 		case LZMA_OPTIONS_ERROR:
 			archive_set_error(&self->archive->archive,
 			    ARCHIVE_ERRNO_MISC,
 			    "Internal error decompressing compression library: "
 			    "Invalid or unsupported options");
-			break;
+			return (ARCHIVE_FATAL);
 		case LZMA_DATA_ERROR:
 			archive_set_error(&self->archive->archive,
 			    ARCHIVE_ERRNO_MISC,
 			    "Internal error decompressing compression library: "
 			    "Data is corrupt");
-			break;
+			return (ARCHIVE_FATAL);
 		case LZMA_BUF_ERROR:
 			archive_set_error(&self->archive->archive,
 			    ARCHIVE_ERRNO_MISC,
