@@ -51,10 +51,6 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_write_disk.c,v 1.42 2008/12/06 05
 #ifdef HAVE_SYS_UTIME_H
 #include <sys/utime.h>
 #endif
-
-#if defined(HAVE_EXT2FS_EXT2_FS_H) && !defined(__CYGWIN__)
-#include <ext2fs/ext2_fs.h>	/* Linux file flags, broken on Cygwin */
-#endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -66,6 +62,16 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_write_disk.c,v 1.42 2008/12/06 05
 #endif
 #ifdef HAVE_LINUX_FS_H
 #include <linux/fs.h>	/* for Linux file flags */
+#endif
+/*
+ * Some Linux distributions have both linux/ext2_fs.h and ext2fs/ext2_fs.h.
+ * As the include guards don't agree, the order of include is important.
+ */
+#ifdef HAVE_LINUX_EXT2_FS_H
+#include <linux/ext2_fs.h>	/* for Linux file flags */
+#endif
+#if defined(HAVE_EXT2FS_EXT2_FS_H) && !defined(__CYGWIN__)
+#include <ext2fs/ext2_fs.h>	/* Linux file flags, broken on Cygwin */
 #endif
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
