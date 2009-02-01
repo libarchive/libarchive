@@ -83,14 +83,7 @@ struct mtree_writer {
 	struct archive_string ebuf;
 	struct archive_string buf;
 	int first;
-	int need_global_set;
 	uint64_t entry_bytes_remaining;
-	/* /set value */
-	uid_t	set_uid;
-	gid_t	set_gid;
-	mode_t	set_mode;
-	unsigned long set_fflags_set;
-	unsigned long set_fflags_clear;
 	/* chekc sum */
 	int compute_sum;
 	uint32_t crc;
@@ -157,6 +150,7 @@ struct mtree_writer {
 	int dironly;		/* if the dironly is 1, ignore everything except
 				 * directory type files. like mtree(8) -d option.
 				 */
+	int indent;		/* if the indent is 1, indent writing data. */
 };
 
 #define DEFAULT_KEYS	(F_DEV | F_FLAGS | F_GID | F_GNAME | F_SLINK | F_MODE\
@@ -332,59 +326,6 @@ archive_write_mtree_header(struct archive_write *a,
 		mtree->first = 0;
 		archive_strcat(&mtree->buf, "#mtree\n");
 	}
-	if (mtree->need_global_set &&
-	    ((mtree->dironly && archive_entry_filetype(entry) == AE_IFDIR) ||
-	    (!mtree->dironly && archive_entry_filetype(entry) == AE_IFREG))) {
-		mtree->need_global_set = 0;
-		if (mtree->keys & (F_FLAGS | F_GID | F_GNAME | F_NLINK | F_MODE |
-		    F_TYPE | F_UID | F_UNAME)) {
-			struct archive_string setstr;
-
-			archive_string_init(&setstr);
-			if ((mtree->keys & F_TYPE) != 0) {
-				if (mtree->dironly)
-					archive_strcat(&setstr, " type=dir");
-				else
-					archive_strcat(&setstr, " type=file");
-			}
-			if ((mtree->keys & F_UNAME) != 0 &&
-			    (name = archive_entry_uname(entry)) != NULL) {
-				archive_strcat(&setstr, " uname=");
-				mtree_quote(&setstr, name);
-			}
-			mtree->set_uid = archive_entry_uid(entry);
-			if ((mtree->keys & F_UID) != 0)
-				archive_string_sprintf(&setstr, " uid=%jd",
-				    (intmax_t)mtree->set_uid);
-			if ((mtree->keys & F_GNAME) != 0 &&
-			    (name = archive_entry_gname(entry)) != NULL) {
-				archive_strcat(&setstr, " gname=");
-				mtree_quote(&setstr, name);
-			}
-			mtree->set_gid = archive_entry_gid(entry);
-			if ((mtree->keys & F_GID) != 0)
-				archive_string_sprintf(&setstr, " gid=%jd",
-				    (intmax_t)mtree->set_gid);
-			mtree->set_mode = archive_entry_mode(entry) & 07777;
-			if ((mtree->keys & F_MODE) != 0)
-				archive_string_sprintf(&setstr, " mode=%o",
-				    mtree->set_mode);
-			if ((mtree->keys & F_NLINK) != 0)
-				archive_strcat(&setstr, " nlink=1");
-			if ((mtree->keys & F_FLAGS) != 0 &&
-			    (name = archive_entry_fflags_text(entry)) != NULL) {
-				archive_strcat(&setstr, " flags=");
-				mtree_quote(&setstr, name);
-			}
-			archive_entry_fflags(entry, &mtree->set_fflags_set,
-			    &mtree->set_fflags_clear);
-
-			if (setstr.length > 0)
-				archive_string_sprintf(&mtree->buf, "/set%s\n",
-				    setstr.s);
-			archive_string_free(&setstr);
-		}
-	}
 
 	archive_string_empty(&mtree->ebuf);
 	if (!mtree->dironly || archive_entry_filetype(entry) == AE_IFDIR)
@@ -492,42 +433,31 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 		    " nlink=%u", archive_entry_nlink(entry));
 
 	if ((mtree->keys & F_GNAME) != 0 &&
-	    mtree->set_gid != archive_entry_gid(entry) &&
 	    (name = archive_entry_gname(entry)) != NULL) {
 		archive_strcat(&mtree->ebuf, " gname=");
 		mtree_quote(&mtree->ebuf, name);
 	}
 	if ((mtree->keys & F_UNAME) != 0 &&
-	    mtree->set_uid != archive_entry_uid(entry) &&
 	    (name = archive_entry_uname(entry)) != NULL) {
 		archive_strcat(&mtree->ebuf, " uname=");
 		mtree_quote(&mtree->ebuf, name);
 	}
-	if ((mtree->keys & F_FLAGS) != 0) {
-		unsigned long set, clear;
-
-		archive_entry_fflags(entry, &set, &clear);
-		if ((mtree->set_fflags_set != set ||
-		    mtree->set_fflags_clear != clear) &&
-		    (name = archive_entry_fflags_text(entry)) != NULL) {
-			archive_strcat(&mtree->ebuf, " flags=");
-			mtree_quote(&mtree->ebuf, name);
-		}
+	if ((mtree->keys & F_FLAGS) != 0 &&
+	    (name = archive_entry_fflags_text(entry)) != NULL) {
+		archive_strcat(&mtree->ebuf, " flags=");
+		mtree_quote(&mtree->ebuf, name);
 	}
 	if ((mtree->keys & F_TIME) != 0)
 		archive_string_sprintf(&mtree->ebuf, " time=%jd.%jd",
 		    (intmax_t)archive_entry_mtime(entry),
 		    (intmax_t)archive_entry_mtime_nsec(entry));
-	if ((mtree->keys & F_MODE) != 0 &&
-	    mtree->set_mode != (archive_entry_mode(entry) & 07777))
+	if ((mtree->keys & F_MODE) != 0)
 		archive_string_sprintf(&mtree->ebuf, " mode=%o",
 		    archive_entry_mode(entry) & 07777);
-	if ((mtree->keys & F_GID) != 0 &&
-	    mtree->set_gid != archive_entry_gid(entry))
+	if ((mtree->keys & F_GID) != 0)
 		archive_string_sprintf(&mtree->ebuf, " gid=%jd",
 		    (intmax_t)archive_entry_gid(entry));
-	if ((mtree->keys & F_UID) != 0 &&
-	    mtree->set_uid != archive_entry_uid(entry))
+	if ((mtree->keys & F_UID) != 0)
 		archive_string_sprintf(&mtree->ebuf, " uid=%jd",
 		    (intmax_t)archive_entry_uid(entry));
 
@@ -646,7 +576,12 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 	}
 #endif
 	archive_strcat(&mtree->ebuf, "\n");
-	mtree_indent(mtree);
+	if (mtree->indent)
+		mtree_indent(mtree);
+	else {
+		archive_string_concat(&mtree->buf, &mtree->ebuf);
+		archive_string_empty(&mtree->ebuf);
+	}
 
 	archive_entry_free(entry);
 
@@ -765,6 +700,10 @@ archive_write_mtree_options(struct archive_write *a, const char *key,
 		else if (strcmp(key, "gname") == 0)
 			keybit = F_GNAME;
 		break;
+	case 'i':
+		if (strcmp(key, "indent") == 0)
+			mtree->indent = (value != NULL)? 1: 0;
+		break;
 	case 'l':
 		if (strcmp(key, "link") == 0)
 			keybit = F_SLINK;
@@ -855,9 +794,9 @@ archive_write_set_format_mtree(struct archive *_a)
 
 	mtree->entry = NULL;
 	mtree->first = 1;
-	mtree->need_global_set = 1;
 	mtree->keys = DEFAULT_KEYS;
 	mtree->dironly = 0;
+	mtree->indent = 0;
 	archive_string_init(&mtree->ebuf);
 	archive_string_init(&mtree->buf);
 	a->format_data = mtree;
