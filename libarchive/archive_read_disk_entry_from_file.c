@@ -456,6 +456,8 @@ setup_xattrs(struct archive_read_disk *a,
 	else
 		list_size = extattr_list_file(path, namespace, NULL, 0);
 
+	if (list_size == -1 && errno == EOPNOTSUPP)
+		return (ARCHIVE_OK);
 	if (list_size == -1) {
 		archive_set_error(&a->archive, errno,
 			"Couldn't list extended attributes");
