@@ -314,7 +314,6 @@ archive_write_mtree_header(struct archive_write *a,
 {
 	struct mtree_writer *mtree= a->format_data;
 	const char *path;
-	const char *name;
 
 	mtree->entry = archive_entry_clone(entry);
 	path = archive_entry_pathname(mtree->entry);
