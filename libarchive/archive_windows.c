@@ -918,4 +918,103 @@ la_write(int fd, const void *buf, size_t nbytes)
 	return (bytes_written);
 }
 
+#if !defined(HAVE_OPENSSL_MD5_H) && !defined(HAVE_OPENSSL_SHA_H)
+/*
+ * Message digest functions.
+ */
+static void
+Digest_Init(Digest_CTX *ctx, ALG_ID algId)
+{
+
+	ctx->valid = 0;
+	if (!CryptAcquireContext(&ctx->cryptProv, NULL, NULL,
+	    PROV_RSA_FULL, 0)) {
+		if (GetLastError() != NTE_BAD_KEYSET)
+			return;
+		if (!CryptAcquireContext(&ctx->cryptProv, NULL, NULL,
+		    PROV_RSA_FULL, CRYPT_NEWKEYSET))
+			return;
+	}
+
+	if (!CryptCreateHash(ctx->cryptProv, algId, 0, 0, &ctx->hash)) {
+		CryptReleaseContext(ctx->cryptProv, 0);
+		return;
+	}
+
+	ctx->valid = 1;
+}
+
+static void
+Digest_Update(Digest_CTX *ctx, const unsigned char *buf, size_t len)
+{
+
+	if (!ctx->valid)
+	return;
+
+	CryptHashData(ctx->hash, buf, (DWORD)len, 0);
+}
+
+static void
+Digest_Final(unsigned char *buf, int bufsize, Digest_CTX *ctx)
+{
+	DWORD siglen = bufsize;
+
+	if (!ctx->valid)
+		return;
+
+	CryptGetHashParam(ctx->hash, HP_HASHVAL, buf, &siglen, 0);
+	CryptDestroyHash(ctx->hash);
+	CryptReleaseContext(ctx->cryptProv, 0);
+	ctx->valid = 0;
+}
+
+#define DIGEST_INIT(name, algid) \
+void name ## _Init(Digest_CTX *ctx)\
+{\
+	Digest_Init(ctx, algid);\
+}
+
+#define DIGEST_UPDATE(name) \
+void name ## _Update(Digest_CTX *ctx, const unsigned char *buf, size_t len)\
+{\
+	Digest_Update(ctx, buf, len);\
+}
+
+#define DIGEST_FINAL(name, size) \
+void name ## _Final(unsigned char buf[size], Digest_CTX *ctx)\
+{\
+	Digest_Final(buf, size, ctx);\
+}
+
+DIGEST_INIT(MD5, CALG_MD5)
+DIGEST_UPDATE(MD5)
+DIGEST_FINAL(MD5, MD5_DIGEST_LENGTH)
+
+DIGEST_INIT(SHA1, CALG_SHA1)
+DIGEST_UPDATE(SHA1)
+DIGEST_FINAL(SHA1, SHA1_DIGEST_LENGTH)
+
+/*
+ * SHA256 nor SHA384 nor SHA512 are not supported on Windows XP and Windows 2000.
+ */
+#ifdef CALG_SHA256
+DIGEST_INIT(SHA256, CALG_SHA256)
+DIGEST_UPDATE(SHA256)
+DIGEST_FINAL(SHA256, SHA256_DIGEST_LENGTH)
+#endif
+
+#ifdef CALG_SHA384
+DIGEST_INIT(SHA384, CALG_SHA384)
+DIGEST_UPDATE(SHA384)
+DIGEST_FINAL(SHA384, SHA384_DIGEST_LENGTH)
+#endif
+
+#ifdef CALG_SHA512
+DIGEST_INIT(SHA512, CALG_SHA512)
+DIGEST_UPDATE(SHA512)
+DIGEST_FINAL(SHA512, SHA384_DIGEST_LENGTH)
+#endif
+
+#endif /* !HAVE_OPENSSL_MD5_H && !HAVE_OPENSSL_SHA_H */
+
 #endif /* _WIN32 */

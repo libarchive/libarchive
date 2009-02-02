@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2009 Michihiro NAKAJIMA
  * Copyright (c) 2003-2006 Tim Kientzle
  * All rights reserved.
  *
@@ -39,7 +40,7 @@
 #include <sys/stat.h>
 #include <process.h>
 #include <direct.h>
-
+#include <windows.h>
 //#define	EFTYPE 7
 
 #if !defined(STDIN_FILENO)
@@ -252,6 +253,43 @@ struct _timeval64i32 {
 
 #define SYSTEM_PATH_CHAR	'\\'
 
+/* Message digest define */
+#if !defined(HAVE_OPENSSL_MD5_H) && !defined(HAVE_OPENSSL_SHA_H)
+typedef struct {
+	int		valid;
+	HCRYPTPROV cryptProv;
+	HCRYPTHASH hash;
+} Digest_CTX;
+#endif
+
+#if !defined(HAVE_OPENSSL_MD5_H) && defined(CALG_MD5)
+#define MD5_DIGEST_LENGTH	16
+#define HAVE_MD5 1
+#define MD5_CTX Digest_CTX
+#endif
+#ifndef HAVE_OPENSSL_SHA_H
+#ifdef CALG_SHA1
+#define SHA1_DIGEST_LENGTH	20
+#define HAVE_SHA1 1
+#define SHA1_CTX Digest_CTX
+#endif
+#ifdef CALG_SHA256
+#define SHA256_DIGEST_LENGTH	32
+#define HAVE_SHA256 1
+#define SHA256_CTX Digest_CTX
+#endif
+#ifdef CALG_SHA384
+#define SHA384_DIGEST_LENGTH	48
+#define HAVE_SHA384 1
+#define SHA384_CTX Digest_CTX
+#endif
+#ifdef CALG_SHA512
+#define SHA512_DIGEST_LENGTH	64
+#define HAVE_SHA512 1
+#define SHA512_CTX Digest_CTX
+#endif
+#endif /* HAVE_OPENSSL_SHA_H */
+
 /* End of Win32 definitions. */
 
 #ifdef __cplusplus
@@ -284,6 +322,45 @@ extern ssize_t	 la_write(int fd, const void *buf, size_t nbytes);
 
 /* Convertion a Win32 API error code */
 extern int _dosmaperr(unsigned long);
+
+/* Message digest function */
+#if !defined(HAVE_OPENSSL_MD5_H) && !defined(HAVE_OPENSSL_SHA_H)
+#ifdef MD5_DIGEST_LENGTH
+extern void	 MD5_Init(Digest_CTX *ctx);
+extern void	 MD5_Update(Digest_CTX *ctx, const unsigned char *buf,
+		     size_t len);
+extern void	 MD5_Final(unsigned char buf[MD5_DIGEST_LENGTH],
+		     Digest_CTX *ctx);
+#endif
+#ifdef SHA1_DIGEST_LENGTH
+extern void	 SHA1_Init(Digest_CTX *ctx);
+extern void	 SHA1_Update(Digest_CTX *ctx, const unsigned char *buf,
+		     size_t len);
+extern void	 SHA1_Final(unsigned char buf[SHA1_DIGEST_LENGTH],
+		     Digest_CTX *ctx);
+#endif
+#ifdef SHA256_DIGEST_LENGTH
+extern void	 SHA256_Init(Digest_CTX *ctx);
+extern void	 SHA256_Update(Digest_CTX *ctx, const unsigned char *buf,
+		     size_t len);
+extern void	 SHA256_Final(unsigned char buf[SHA256_DIGEST_LENGTH],
+		     Digest_CTX *ctx);
+#endif
+#ifdef SHA384_DIGEST_LENGTH
+extern void	 SHA384_Init(Digest_CTX *ctx);
+extern void	 SHA384_Update(Digest_CTX *ctx, const unsigned char *buf,
+		     size_t len);
+extern void	 SHA384_Final(unsigned char buf[SHA384_DIGEST_LENGTH],
+		     Digest_CTX *ctx);
+#endif
+#ifdef SHA512_DIGEST_LENGTH
+extern void	 SHA512_Init(Digest_CTX *ctx);
+extern void	 SHA512_Update(Digest_CTX *ctx, const unsigned char *buf,
+		     size_t len);
+extern void	 SHA512_Final(unsigned char buf[SHA512_DIGEST_LENGTH],
+		     Digest_CTX *ctx);
+#endif
+#endif
 
 #ifdef __cplusplus
 }
