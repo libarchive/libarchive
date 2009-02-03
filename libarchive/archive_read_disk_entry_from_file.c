@@ -330,15 +330,22 @@ static int
 setup_xattrs(struct archive_read_disk *a,
     struct archive_entry *entry, int fd)
 {
-	char *list, *p;
+	char *list, *p, *path;
 	ssize_t list_size;
 
+
+	path = archive_entry_sourcepath(entry);
+	if (path == NULL)
+		path = archive_entry_pathname(entry);
+
 	if (!a->follow_symlinks)
-		list_size = llistxattr(NULL, 0);
+		list_size = llistxattr(path, NULL, 0);
 	else
-		list_size = listxattr(NULL, 0);
+		list_size = listxattr(path, NULL, 0);
 
 	if (list_size == -1) {
+		if (errno == ENOTSUP)
+			return (ARCHIVE_OK);
 		archive_set_error(&a->archive, errno,
 			"Couldn't list extended attributes");
 		return (ARCHIVE_WARN);
@@ -353,9 +360,9 @@ setup_xattrs(struct archive_read_disk *a,
 	}
 
 	if (!a->follow_symlinks)
-		list_size = llistxattr(list, list_size);
+		list_size = llistxattr(path, list, list_size);
 	else
-		list_size = listxattr(list, list_size);
+		list_size = listxattr(path, list, list_size);
 
 	if (list_size == -1) {
 		archive_set_error(&a->archive, errno,
