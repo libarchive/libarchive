@@ -133,7 +133,7 @@ xz_bidder_bid(struct archive_read_filter_bidder *self,
     struct archive_read_filter *filter)
 {
 	const unsigned char *buffer;
-	size_t avail;
+	ssize_t avail;
 	int bits_checked;
 
 	(void)self; /* UNUSED */
