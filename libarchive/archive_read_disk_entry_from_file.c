@@ -38,6 +38,12 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
+#ifdef HAVE_ACL_LIBACL_H
+#include <acl/libacl.h>
+#endif
+#ifdef HAVE_ATTR_XATTR_H
+#include <attr/xattr.h>
+#endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -330,7 +336,8 @@ static int
 setup_xattrs(struct archive_read_disk *a,
     struct archive_entry *entry, int fd)
 {
-	char *list, *p, *path;
+	char *list, *p;
+	const char *path;
 	ssize_t list_size;
 
 
