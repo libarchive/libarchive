@@ -237,6 +237,8 @@ __archive_parse_options(const char *p, const char *fn, int keysize, char *key,
 
 	p_org = p;
 	state = INIT;
+	kidx = vidx = negative = 0;
+	apply = 1;
 	while (*p) {
 		switch (state) {
 		case INIT:
