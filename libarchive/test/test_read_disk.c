@@ -61,10 +61,23 @@ uname_lookup(void *d, uid_t u)
 	return ("NOTFOO");
 }
 
+/* We test GID lookup by looking up the name of group number zero and
+ * checking it against the following list.  If your system uses a
+ * different conventional name for group number zero, please extend
+ * this array and send us a patch.  As always, please keep this list
+ * sorted alphabetically.
+ */
+static const char *zero_groups[] = {
+	"root",   /* Linux */
+	"wheel"  /* BSD */
+};
+
 DEFINE_TEST(test_read_disk)
 {
 	struct archive *a;
 	int gmagic = 0x13579, umagic = 0x1234;
+	const char *p;
+	size_t i;
 
 	assert((a = archive_read_disk_new()) != NULL);
 
@@ -98,8 +111,30 @@ DEFINE_TEST(test_read_disk)
 	if (archive_read_disk_set_standard_lookup(a) != ARCHIVE_OK) {
 		skipping("standard uname/gname lookup");
 	} else {
+		/* XXX Someday, we may need to generalize this the
+		 * same way we generalized the group name check below.
+		 * That's needed only if we encounter a system where
+		 * uid 0 is not "root". XXX */
 		assertEqualString(archive_read_disk_uname(a, 0), "root");
-		assertEqualString(archive_read_disk_gname(a, 0), "wheel");
+
+		/* Get the group name for group 0 and see if it makes sense. */
+		p = archive_read_disk_gname(a, 0);
+		i = 0;
+		while (i < sizeof(zero_groups)/sizeof(zero_groups[0])) {
+			if (strcmp(zero_groups[i], p) == 0)
+				break;
+			++i;
+		}
+		if (i == sizeof(zero_groups)/sizeof(zero_groups[0])) {
+			/* If you get a failure here, either
+			 * archive_read_disk_gname() isn't working or
+			 * your system uses a different name for group
+			 * number zero.  If the latter, please add a
+			 * new entry to the zero_groups[] array above.
+			 */
+			failure("group 0 didn't have any of the expected names");
+			assertEqualString(p, zero_groups[0]);
+		}
 	}
 
 	/* Deregister again and verify the default lookups again. */
