@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2009 Andreas Henriksson <andreas@fatal.se>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -148,6 +149,28 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_format_iso9660.c,v 1
 #error PVD offset and size definitions are wrong.
 #endif
 
+
+/* Structure of optional on-disk supplementary volume descriptor. */
+#define SVD_type_offset 0
+#define SVD_type_size 1
+#define SVD_id_offset (SVD_type_offset + SVD_type_size)
+#define SVD_id_size 5
+#define SVD_version_offset (SVD_id_offset + SVD_id_size)
+#define SVD_version_size 1
+/* ... */
+#define SVD_volume_space_size_offset 80
+#define SVD_volume_space_size_size 8
+#define SVD_escape_sequences_offset (SVD_volume_space_size_offset + SVD_volume_space_size_size)
+#define SVD_escape_sequences_size 32
+/* ... */
+#define SVD_logical_block_size_offset 128
+#define SVD_logical_block_size_size 4
+/* ... */
+#define SVD_root_directory_record_offset 156
+#define SVD_root_directory_record_size 34
+/* ... */
+/* FIXME: validate correctness of last SVD entry offset. */
+
 /* Structure of an on-disk directory record. */
 /* Note:  ISO9660 stores each multi-byte integer twice, once in
  * each byte order.  The sizes here are the size of just one
@@ -210,6 +233,7 @@ struct iso9660 {
 	struct archive_string pathname;
 	char	seenRockridge; /* Set true if RR extensions are used. */
 	unsigned char	suspOffset;
+	char	seenJoliet;
 
 	uint64_t	previous_offset;
 	uint64_t	previous_size;
@@ -243,6 +267,7 @@ static void	dump_isodirrec(FILE *, const unsigned char *isodirrec);
 static time_t	time_from_tm(struct tm *);
 static time_t	isodate17(const unsigned char *);
 static time_t	isodate7(const unsigned char *);
+static int	isJolietSVD(struct iso9660 *, const unsigned char *);
 static int	isPVD(struct iso9660 *, const unsigned char *);
 static struct file_info *next_entry(struct iso9660 *);
 static int	next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
@@ -299,9 +324,9 @@ static int
 archive_read_format_iso9660_bid(struct archive_read *a)
 {
 	struct iso9660 *iso9660;
-	ssize_t bytes_read;
+	ssize_t bytes_read, brsvd;
 	const void *h;
-	const unsigned char *p;
+	const unsigned char *p, *psvd;
 	int bid;
 
 	iso9660 = (struct iso9660 *)(a->format->data);
@@ -320,6 +345,16 @@ archive_read_format_iso9660_bid(struct archive_read *a)
 	bytes_read -= 32768;
 	p += 32768;
 
+	/* Check each volume descriptor to locate possible SVD with Joliet. */
+	for (brsvd = bytes_read, psvd = p; brsvd > 2048;
+			brsvd -= 2048, psvd += 2048) {
+		bid = isJolietSVD(iso9660, psvd);
+		if (bid > 0)
+			return (bid);
+		if (*p == '\177') /* End-of-volume-descriptor marker. */
+			break;
+	}
+
 	/* Check each volume descriptor to locate the PVD. */
 	for (; bytes_read > 2048; bytes_read -= 2048, p += 2048) {
 		bid = isPVD(iso9660, p);
@@ -331,6 +366,63 @@ archive_read_format_iso9660_bid(struct archive_read *a)
 
 	/* We didn't find a valid PVD; return a bid of zero. */
 	return (0);
+}
+
+static int
+isJolietSVD(struct iso9660 *iso9660, const unsigned char *h)
+{
+	struct file_info *file;
+	const unsigned char *p;
+
+	/* Type 2 means it's a SVD. */
+	if (h[SVD_type_offset] != 2)
+		return (0);
+
+	/* ID must be "CD001" */
+	if (memcmp(h + SVD_id_offset, "CD001", 5) != 0)
+		return (0);
+
+	/* FIXME: do more validations according to joliet spec. */
+
+	/* check if this SVD contains joliet extension! */
+	p = h + SVD_escape_sequences_offset;
+	/* N.B. Joliet spec says p[1] == '\\', but.... */
+	if (p[0] == '%' && p[1] == '/') {
+		int level = 0;
+
+		if (p[2] == '@')
+			level = 1;
+		else if (p[2] == 'C')
+			level = 2;
+		else if (p[2] == 'E')
+			level = 3;
+		else /* not joliet */
+			return (0);
+
+		iso9660->seenJoliet = level;
+
+	} else /* not joliet */
+		return (0);
+
+	iso9660->logical_block_size = toi(h + SVD_logical_block_size_offset, 2);
+	if (iso9660->logical_block_size <= 0)
+		return (0);
+
+	iso9660->volume_size = iso9660->logical_block_size
+	    * (uint64_t)toi(h + SVD_volume_space_size_offset, 4);
+
+#if DEBUG
+	fprintf(stderr, "Joliet UCS-2 level %d with "
+			"logical block size:%d, volume size:%d\n",
+			iso9660->seenJoliet,
+			iso9660->logical_block_size, iso9660->volume_size);
+#endif
+
+	/* Store the root directory in the pending list. */
+	file = parse_file_info(iso9660, NULL, h + SVD_root_directory_record_offset);
+	add_entry(iso9660, file);
+
+	return (48);
 }
 
 static int
@@ -507,6 +599,11 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 			     p += *p) {
 				struct file_info *child;
 
+				/* N.B.: these special directory identifiers
+				 * are 8 bit "values" even on a 
+				 * Joliet CD with UCS-2 (16bit) encoding.
+				 */
+
 				/* Skip '.' entry. */
 				if (*(p + DR_name_len_offset) == 1
 				    && *(p + DR_name_offset) == '\0')
@@ -628,13 +725,59 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 	rr_end = (const unsigned char *)isodirrec
 	    + *(isodirrec + DR_length_offset);
 
-	/* Chop off trailing ';1' from files. */
-	if (name_len > 2 && p[name_len - 1] == '1' && p[name_len - 2] == ';')
-		name_len -= 2;
-	/* Chop off trailing '.' from filenames. */
-	if (name_len > 1 && p[name_len - 1] == '.')
-		--name_len;
-	archive_strncpy(&file->name, p, name_len);
+	if (iso9660->seenJoliet) {
+		/* Joliet names are max 64 chars (128 bytes) according to spec,
+		 * but genisoimage (and others?) will allow you to have more.
+		 */
+		wchar_t wbuff[64+1], *wp;
+		char *c;
+
+		/* TODO: warn when name_len > 128 ? */
+
+		/* convert BE UTF-16 to wchar_t */
+		for (c = p, wp = wbuff;
+				c < (p + name_len) &&
+				wp < (wbuff + sizeof(wbuff)/sizeof(*wbuff));
+				c += 2) {
+			*wp++ = (((255 & (int)c[0]) << 8) | (255 & (int)c[1]));
+		}
+		*wp = L'\0';
+
+#if 0 /* untested code, is it at all useful on Joliet? */
+		/* trim trailing first version and dot from filename.
+		 *
+		 * Remember we where in UTF-16BE land!
+		 * SEPARATOR 1 (.) and SEPARATOR 2 (;) are both
+		 * 16 bits big endian characters on Joliet.
+		 *
+		 * TODO: sanitize filename?
+		 *       Joliet allows any UCS-2 char except:
+		 *       *, /, :, ;, ? and \.
+		 */
+		/* Chop off trailing ';1' from files. */
+		if (*(wp-2) == ';' && *(wp-1) == '1') {
+			wp-=2;
+			*wp = L'\0';
+		}
+
+		/* Chop off trailing '.' from filenames. */
+		if (*(wp-1) == '.')
+			*(--wp) = L'\0';
+#endif
+
+		/* store the result in the file name field. */
+		archive_strappend_w_utf8(&file->name, wbuff);
+	} else {
+		/* Chop off trailing ';1' from files. */
+		if (name_len > 2 && p[name_len - 2] == ';' &&
+				p[name_len - 1] == '1')
+			name_len -= 2;
+		/* Chop off trailing '.' from filenames. */
+		if (name_len > 1 && p[name_len - 1] == '.')
+			--name_len;
+
+		archive_strncpy(&file->name, p, name_len);
+	}
 
 	flags = *(isodirrec + DR_flags_offset);
 	if (flags & 0x02)
