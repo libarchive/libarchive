@@ -289,6 +289,8 @@ AC_CHECK_MEMBERS([struct stat.st_birthtime])
 AC_CHECK_MEMBERS([struct stat.st_birthtimespec.tv_nsec])
 AC_CHECK_MEMBERS([struct stat.st_mtimespec.tv_nsec])
 AC_CHECK_MEMBERS([struct stat.st_mtim.tv_nsec])
+AC_CHECK_MEMBERS([struct stat.st_mtime_n]) # AIX
+AC_CHECK_MEMBERS([struct stat.st_umtime]) # Tru64
 # Check for block size support in struct stat
 AC_CHECK_MEMBERS([struct stat.st_blksize])
 # Check for st_flags in struct stat (BSD fflags)
