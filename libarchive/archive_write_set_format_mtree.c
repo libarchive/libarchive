@@ -81,6 +81,16 @@ struct mtree_writer {
 	struct archive_string buf;
 	int first;
 	uint64_t entry_bytes_remaining;
+	struct {
+		int		processed;
+		mode_t		type;
+		int		keys;
+		uid_t		uid;
+		gid_t		gid;
+		mode_t		mode;
+		unsigned long	fflags_set;
+		unsigned long	fflags_clear;
+	} set;
 	/* chekc sum */
 	int compute_sum;
 	uint32_t crc;
@@ -308,6 +318,130 @@ mtree_indent(struct mtree_writer *mtree)
 	archive_string_empty(&mtree->ebuf);
 }
 
+static void
+set_global(struct mtree_writer *mtree, struct archive_entry *entry)
+{
+	struct archive_string setstr;
+	const char *name;
+	int keys;
+	mode_t set_type = 0;
+
+	switch (archive_entry_filetype(entry)) {
+	case AE_IFLNK: case AE_IFSOCK: case AE_IFCHR:
+	case AE_IFBLK: case AE_IFIFO:
+		break;
+	case AE_IFDIR:
+		if (mtree->dironly)
+			set_type = AE_IFDIR;
+		break;
+	case AE_IFREG:
+	default:	/* Handle unknown file types as regular files. */
+		if (!mtree->dironly)
+			set_type = AE_IFREG;
+		break;
+	}
+	if (set_type == 0)
+		return;
+
+	archive_string_init(&setstr);
+	keys = mtree->keys & (F_FLAGS | F_GID | F_GNAME | F_NLINK | F_MODE
+	    | F_TYPE | F_UID | F_UNAME);
+
+	if ((keys & F_TYPE) != 0) {
+		mtree->set.type = set_type;
+		if (set_type == AE_IFDIR)
+			archive_strcat(&setstr, " type=dir");
+		else
+			archive_strcat(&setstr, " type=file");
+	}
+	if ((keys & F_UNAME) != 0) {
+		if ((name = archive_entry_uname(entry)) != NULL) {
+			archive_strcat(&setstr, " uname=");
+			mtree_quote(&setstr, name);
+		} else
+			keys &= ~F_UNAME;
+	}
+	if ((keys & F_UID) != 0) {
+		mtree->set.uid = archive_entry_uid(entry);
+		archive_string_sprintf(&setstr, " uid=%jd",
+		    (intmax_t)mtree->set.uid);
+	}
+	if ((keys & F_GNAME) != 0) {
+		if ((name = archive_entry_gname(entry)) != NULL) {
+			archive_strcat(&setstr, " gname=");
+			mtree_quote(&setstr, name);
+		} else
+			keys &= ~F_GNAME;
+	}
+	if ((keys & F_GID) != 0) {
+		mtree->set.gid = archive_entry_gid(entry);
+		archive_string_sprintf(&setstr, " gid=%jd",
+		    (intmax_t)mtree->set.gid);
+	}
+	if ((keys & F_MODE) != 0) {
+		mtree->set.mode = archive_entry_mode(entry) & 07777;
+		archive_string_sprintf(&setstr, " mode=%o", mtree->set.mode);
+	}
+	if ((keys & F_FLAGS) != 0) {
+		if ((name = archive_entry_fflags_text(entry)) != NULL) {
+			archive_strcat(&setstr, " flags=");
+			mtree_quote(&setstr, name);
+			archive_entry_fflags(entry, &mtree->set.fflags_set,
+			    &mtree->set.fflags_clear);
+		} else
+			keys &= ~F_FLAGS;
+	}
+	if (setstr.length > 0)
+		archive_string_sprintf(&mtree->buf, "/set%s\n", setstr.s);
+	archive_string_free(&setstr);
+	mtree->set.processed = 1;
+	mtree->set.keys = keys;
+}
+
+static int
+get_keys(struct mtree_writer *mtree, struct archive_entry *entry)
+{
+	int keys;
+
+	keys = mtree->keys;
+	if ((mtree->set.keys & (F_GNAME | F_GID)) != 0 &&
+	     mtree->set.gid == archive_entry_gid(entry))
+		keys &= ~(F_GNAME | F_GID);
+	if ((mtree->set.keys & (F_UNAME | F_UID)) != 0 &&
+	     mtree->set.uid == archive_entry_uid(entry))
+		keys &= ~(F_UNAME | F_UID);
+	if (mtree->set.keys & F_FLAGS) {
+		unsigned long set, clear;
+
+		archive_entry_fflags(entry, &set, &clear);
+		if (mtree->set.fflags_set == set &&
+		    mtree->set.fflags_clear == clear)
+			keys &= ~F_FLAGS;
+	}
+	if ((mtree->set.keys & F_MODE) != 0 &&
+	     mtree->set.mode == (archive_entry_mode(entry) & 07777))
+		keys &= ~F_MODE;
+
+	switch (archive_entry_filetype(entry)) {
+	case AE_IFLNK: case AE_IFSOCK: case AE_IFCHR:
+	case AE_IFBLK: case AE_IFIFO:
+		break;
+	case AE_IFDIR:
+		if ((mtree->set.keys & F_TYPE) != 0 &&
+		    mtree->set.type == AE_IFDIR)
+			keys &= ~F_TYPE;
+		break;
+	case AE_IFREG:
+	default:	/* Handle unknown file types as regular files. */
+		if ((mtree->set.keys & F_TYPE) != 0 &&
+		    mtree->set.type == AE_IFREG)
+			keys &= ~F_TYPE;
+		break;
+	}
+
+	return (keys);
+}
+
 static int
 archive_write_mtree_header(struct archive_write *a,
     struct archive_entry *entry)
@@ -322,6 +456,8 @@ archive_write_mtree_header(struct archive_write *a,
 		mtree->first = 0;
 		archive_strcat(&mtree->buf, "#mtree\n");
 	}
+	if (!mtree->set.processed)
+		set_global(mtree, entry);
 
 	archive_string_empty(&mtree->ebuf);
 	if (!mtree->dironly || archive_entry_filetype(entry) == AE_IFDIR)
@@ -422,7 +558,7 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 		return (ARCHIVE_OK);
 	}
 
-	keys = mtree->keys;
+	keys = get_keys(mtree, entry);
 	if ((keys & F_NLINK) != 0 &&
 	    archive_entry_nlink(entry) != 1 && 
 	    archive_entry_filetype(entry) != AE_IFDIR)
@@ -791,6 +927,7 @@ archive_write_set_format_mtree(struct archive *_a)
 
 	mtree->entry = NULL;
 	mtree->first = 1;
+	memset(&(mtree->set), 0, sizeof(mtree->set));
 	mtree->keys = DEFAULT_KEYS;
 	mtree->dironly = 0;
 	mtree->indent = 0;
