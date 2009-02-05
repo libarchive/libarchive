@@ -173,11 +173,12 @@ CHECK_HEADER_DIRENT()
 # TODO : AC_HEADER_SYS_WAIT
 CHECK_INCLUDE_FILE(sys/wait.h       HAVE_SYS_WAIT_H)
 
-CHECK_HEADERS(ctype.h errno.h ext2fs/ext2_fs.h fcntl.h grp.h)
+CHECK_HEADERS(acl/libacl.h attr/xattr.h ctype.h errno.h)
+CHECK_HEADERS(ext2fs/ext2_fs.h fcntl.h grp.h)
 CHECK_HEADERS(inttypes.h langinfo.h limits.h linux/fs.h)
 CHECK_HEADERS(locale.h paths.h poll.h pwd.h regex.h stdarg.h)
 CHECK_HEADERS(stdint.h stdlib.h string.h)
-CHECK_HEADERS(sys/acl.h sys/extattr.h sys/ioctl.h)
+CHECK_HEADERS(sys/acl.h sys/extattr.h sys/ioctl.h sys/mkdev.h)
 CHECK_HEADERS(sys/param.h sys/poll.h sys/select.h sys/time.h sys/utime.h)
 CHECK_HEADERS(time.h unistd.h utime.h wchar.h wctype.h windows.h)
 
@@ -330,6 +331,10 @@ CHECK_STRUCT_MEMBER("struct stat" st_mtimespec.tv_nsec
     "sys/types.h;sys/stat.h" HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC)
 CHECK_STRUCT_MEMBER("struct stat" st_mtim.tv_nsec
     "sys/types.h;sys/stat.h" HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC)
+CHECK_STRUCT_MEMBER("struct stat" st_mtime_n
+    "sys/types.h;sys/stat.h" HAVE_STRUCT_STAT_ST_MTIME_N)
+CHECK_STRUCT_MEMBER("struct stat" st_umtime
+    "sys/types.h;sys/stat.h" HAVE_STRUCT_STAT_ST_UMTIME)
 # Check for block size support in struct stat
 CHECK_STRUCT_MEMBER("struct stat" st_blksize
     "sys/types.h;sys/stat.h" HAVE_STRUCT_STAT_ST_BLKSIZE)
