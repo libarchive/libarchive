@@ -146,6 +146,9 @@
 #elif HAVE_STRUCT_STAT_ST_UMTIME
 #define	ARCHIVE_STAT_CTIME_NANOS(st)	(st)->st_uctime * 1000
 #define	ARCHIVE_STAT_MTIME_NANOS(st)	(st)->st_umtime * 1000
+#elif HAVE_STRUCT_STAT_ST_MTIME_USEC
+#define	ARCHIVE_STAT_CTIME_NANOS(st)	(st)->st_ctime_usec * 1000
+#define	ARCHIVE_STAT_MTIME_NANOS(st)	(st)->st_mtime_usec * 1000
 #else
 #define	ARCHIVE_STAT_CTIME_NANOS(st)	(0)
 #define	ARCHIVE_STAT_MTIME_NANOS(st)	(0)

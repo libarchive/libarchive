@@ -2549,6 +2549,10 @@ older(struct stat *st, struct archive_entry *entry)
 	/* older. */
 	if (st->st_umtime * 1000 < archive_entry_mtime_nsec(entry))
 		return (1);
+#elif HAVE_STRUCT_STAT_ST_MTIME_USEC
+	/* older. */
+	if (st->st_mtime_usec * 1000 < archive_entry_mtime_nsec(entry))
+		return (1);
 #else
 	/* This system doesn't have high-res timestamps. */
 #endif

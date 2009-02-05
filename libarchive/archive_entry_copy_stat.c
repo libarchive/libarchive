@@ -51,6 +51,10 @@ archive_entry_copy_stat(struct archive_entry *entry, const struct stat *st)
 	archive_entry_set_atime(entry, st->st_atime, st->st_uatime * 1000);
 	archive_entry_set_ctime(entry, st->st_ctime, st->st_uctime * 1000);
 	archive_entry_set_mtime(entry, st->st_mtime, st->st_umtime * 1000);
+#elif HAVE_STRUCT_STAT_ST_MTIME_USEC
+	archive_entry_set_atime(entry, st->st_atime, st->st_atime_usec * 1000);
+	archive_entry_set_ctime(entry, st->st_ctime, st->st_ctime_usec * 1000);
+	archive_entry_set_mtime(entry, st->st_mtime, st->st_mtime_usec * 1000);
 #else
 	archive_entry_set_atime(entry, st->st_atime, 0);
 	archive_entry_set_ctime(entry, st->st_ctime, 0);

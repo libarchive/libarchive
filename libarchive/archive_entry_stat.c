@@ -98,6 +98,10 @@ archive_entry_stat(struct archive_entry *entry)
 	st->st_uatime = archive_entry_atime_nsec(entry) / 1000;
 	st->st_uctime = archive_entry_ctime_nsec(entry) / 1000;
 	st->st_umtime = archive_entry_mtime_nsec(entry) / 1000;
+#elif HAVE_STRUCT_STAT_ST_MTIME_USEC
+	st->st_atime_usec = archive_entry_atime_nsec(entry) / 1000;
+	st->st_ctime_usec = archive_entry_ctime_nsec(entry) / 1000;
+	st->st_mtime_usec = archive_entry_mtime_nsec(entry) / 1000;
 #endif
 #if HAVE_STRUCT_STAT_ST_BIRTHTIMESPEC_TV_NSEC
 	st->st_birthtimespec.tv_nsec = archive_entry_birthtime_nsec(entry);
