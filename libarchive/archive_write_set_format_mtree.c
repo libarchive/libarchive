@@ -491,7 +491,7 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 		}
 		break;
 	case AE_IFDIR:
-		if ((mtree->keys & F_TYPE) != 0 && !mtree->dironly)
+		if ((mtree->keys & F_TYPE) != 0)
 			archive_strcat(&mtree->ebuf, " type=dir");
 		break;
 	case AE_IFIFO:
@@ -500,7 +500,7 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 		break;
 	case AE_IFREG:
 	default:	/* Handle unknown file types as regular files. */
-		if ((mtree->keys & F_TYPE) != 0 && mtree->dironly)
+		if ((mtree->keys & F_TYPE) != 0)
 			archive_strcat(&mtree->ebuf, " type=file");
 		if ((mtree->keys & F_SIZE) != 0)
 			archive_string_sprintf(&mtree->ebuf, " size=%jd",
