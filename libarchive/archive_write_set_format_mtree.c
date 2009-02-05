@@ -293,7 +293,7 @@ mtree_indent(struct mtree_writer *mtree)
 			x = NULL;
 			continue;
 		}
-		if (r - s <= MAXLINELEN - 3)
+		if (r - s <= MAXLINELEN - 3 - INDENTNAMELEN)
 			x = r++;
 		else {
 			if (x == NULL)
@@ -306,7 +306,7 @@ mtree_indent(struct mtree_writer *mtree)
 			x = NULL;
 		}
 	}
-	if (x != NULL && strlen(s) > MAXLINELEN - 3) {
+	if (x != NULL && strlen(s) > MAXLINELEN - 3 - INDENTNAMELEN) {
 		/* Last keyword is longer. */
 		archive_strncat(&mtree->buf, s, x - s);
 		archive_strncat(&mtree->buf, " \\\n", 3);
