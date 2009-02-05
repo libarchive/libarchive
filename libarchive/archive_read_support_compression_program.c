@@ -256,7 +256,7 @@ program_bidder_init(struct archive_read_filter *self)
 
 	bidder_state = (struct program_bidder *)self->bidder->data;
 
-	state = (struct program_filter *)malloc(sizeof(*state));
+	state = (struct program_filter *)calloc(1, sizeof(*state));
 	out_buf = (char *)malloc(out_buf_len);
 	description = (char *)malloc(strlen(prefix) + strlen(bidder_state->cmd) + 1);
 	if (state == NULL || out_buf == NULL || description == NULL) {
