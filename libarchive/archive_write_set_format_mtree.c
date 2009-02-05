@@ -407,7 +407,7 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 	struct mtree_writer *mtree = a->format_data;
 	struct archive_entry *entry;
 	const char *name;
-	int ret;
+	int keys, ret;
 
 	entry = mtree->entry;
 	if (entry == NULL) {
@@ -422,58 +422,59 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 		return (ARCHIVE_OK);
 	}
 
-	if ((mtree->keys & F_NLINK) != 0 &&
+	keys = mtree->keys;
+	if ((keys & F_NLINK) != 0 &&
 	    archive_entry_nlink(entry) != 1 && 
 	    archive_entry_filetype(entry) != AE_IFDIR)
 		archive_string_sprintf(&mtree->ebuf,
 		    " nlink=%u", archive_entry_nlink(entry));
 
-	if ((mtree->keys & F_GNAME) != 0 &&
+	if ((keys & F_GNAME) != 0 &&
 	    (name = archive_entry_gname(entry)) != NULL) {
 		archive_strcat(&mtree->ebuf, " gname=");
 		mtree_quote(&mtree->ebuf, name);
 	}
-	if ((mtree->keys & F_UNAME) != 0 &&
+	if ((keys & F_UNAME) != 0 &&
 	    (name = archive_entry_uname(entry)) != NULL) {
 		archive_strcat(&mtree->ebuf, " uname=");
 		mtree_quote(&mtree->ebuf, name);
 	}
-	if ((mtree->keys & F_FLAGS) != 0 &&
+	if ((keys & F_FLAGS) != 0 &&
 	    (name = archive_entry_fflags_text(entry)) != NULL) {
 		archive_strcat(&mtree->ebuf, " flags=");
 		mtree_quote(&mtree->ebuf, name);
 	}
-	if ((mtree->keys & F_TIME) != 0)
+	if ((keys & F_TIME) != 0)
 		archive_string_sprintf(&mtree->ebuf, " time=%jd.%jd",
 		    (intmax_t)archive_entry_mtime(entry),
 		    (intmax_t)archive_entry_mtime_nsec(entry));
-	if ((mtree->keys & F_MODE) != 0)
+	if ((keys & F_MODE) != 0)
 		archive_string_sprintf(&mtree->ebuf, " mode=%o",
 		    archive_entry_mode(entry) & 07777);
-	if ((mtree->keys & F_GID) != 0)
+	if ((keys & F_GID) != 0)
 		archive_string_sprintf(&mtree->ebuf, " gid=%jd",
 		    (intmax_t)archive_entry_gid(entry));
-	if ((mtree->keys & F_UID) != 0)
+	if ((keys & F_UID) != 0)
 		archive_string_sprintf(&mtree->ebuf, " uid=%jd",
 		    (intmax_t)archive_entry_uid(entry));
 
 	switch (archive_entry_filetype(entry)) {
 	case AE_IFLNK:
-		if ((mtree->keys & F_TYPE) != 0)
+		if ((keys & F_TYPE) != 0)
 			archive_strcat(&mtree->ebuf, " type=link");
-		if ((mtree->keys & F_SLINK) != 0) {
+		if ((keys & F_SLINK) != 0) {
 			archive_strcat(&mtree->ebuf, " link=");
 			mtree_quote(&mtree->ebuf, archive_entry_symlink(entry));
 		}
 		break;
 	case AE_IFSOCK:
-		if ((mtree->keys & F_TYPE) != 0)
+		if ((keys & F_TYPE) != 0)
 			archive_strcat(&mtree->ebuf, " type=socket");
 		break;
 	case AE_IFCHR:
-		if ((mtree->keys & F_TYPE) != 0)
+		if ((keys & F_TYPE) != 0)
 			archive_strcat(&mtree->ebuf, " type=char");
-		if ((mtree->keys & F_DEV) != 0) {
+		if ((keys & F_DEV) != 0) {
 			archive_string_sprintf(&mtree->ebuf,
 			    " device=native,%d,%d",
 			    archive_entry_rdevmajor(entry),
@@ -481,9 +482,9 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 		}
 		break;
 	case AE_IFBLK:
-		if ((mtree->keys & F_TYPE) != 0)
+		if ((keys & F_TYPE) != 0)
 			archive_strcat(&mtree->ebuf, " type=block");
-		if ((mtree->keys & F_DEV) != 0) {
+		if ((keys & F_DEV) != 0) {
 			archive_string_sprintf(&mtree->ebuf,
 			    " device=native,%d,%d",
 			    archive_entry_rdevmajor(entry),
@@ -491,18 +492,18 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 		}
 		break;
 	case AE_IFDIR:
-		if ((mtree->keys & F_TYPE) != 0)
+		if ((keys & F_TYPE) != 0)
 			archive_strcat(&mtree->ebuf, " type=dir");
 		break;
 	case AE_IFIFO:
-		if ((mtree->keys & F_TYPE) != 0)
+		if ((keys & F_TYPE) != 0)
 			archive_strcat(&mtree->ebuf, " type=fifo");
 		break;
 	case AE_IFREG:
 	default:	/* Handle unknown file types as regular files. */
-		if ((mtree->keys & F_TYPE) != 0)
+		if ((keys & F_TYPE) != 0)
 			archive_strcat(&mtree->ebuf, " type=file");
-		if ((mtree->keys & F_SIZE) != 0)
+		if ((keys & F_SIZE) != 0)
 			archive_string_sprintf(&mtree->ebuf, " size=%jd",
 			    (intmax_t)archive_entry_size(entry));
 		break;
