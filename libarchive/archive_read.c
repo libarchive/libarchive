@@ -117,7 +117,8 @@ archive_read_set_format_options(struct archive *_a, const char *s)
 	struct archive_read *a;
 	struct archive_format_descriptor *format;
 	char key[64], val[64];
-	int i, len, r;
+	size_t i;
+	int len, r;
 
 	a = (struct archive_read *)_a;
 	len = 0;
