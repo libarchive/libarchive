@@ -82,7 +82,7 @@ struct mtree_writer {
 	int first;
 	uint64_t entry_bytes_remaining;
 	struct {
-		int		processed;
+		int		unprocessed;
 		mode_t		type;
 		int		keys;
 		uid_t		uid;
@@ -394,7 +394,7 @@ set_global(struct mtree_writer *mtree, struct archive_entry *entry)
 	if (setstr.length > 0)
 		archive_string_sprintf(&mtree->buf, "/set%s\n", setstr.s);
 	archive_string_free(&setstr);
-	mtree->set.processed = 1;
+	mtree->set.unprocessed = 0;
 	mtree->set.keys = keys;
 }
 
@@ -404,6 +404,8 @@ get_keys(struct mtree_writer *mtree, struct archive_entry *entry)
 	int keys;
 
 	keys = mtree->keys;
+	if (mtree->set.keys == 0)
+		return (keys);
 	if ((mtree->set.keys & (F_GNAME | F_GID)) != 0 &&
 	     mtree->set.gid == archive_entry_gid(entry))
 		keys &= ~(F_GNAME | F_GID);
@@ -456,7 +458,7 @@ archive_write_mtree_header(struct archive_write *a,
 		mtree->first = 0;
 		archive_strcat(&mtree->buf, "#mtree\n");
 	}
-	if (!mtree->set.processed)
+	if (mtree->set.unprocessed)
 		set_global(mtree, entry);
 
 	archive_string_empty(&mtree->ebuf);
@@ -897,6 +899,8 @@ archive_write_mtree_options(struct archive_write *a, const char *key,
 			keybit = F_UID;
 		else if (strcmp(key, "uname") == 0)
 			keybit = F_UNAME;
+		else if (strcmp(key, "use-set") == 0)
+			mtree->set.unprocessed = (value != NULL)? 1: 0;
 		break;
 	}
 	if (keybit != 0) {
