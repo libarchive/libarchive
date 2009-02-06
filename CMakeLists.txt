@@ -335,6 +335,8 @@ CHECK_STRUCT_MEMBER("struct stat" st_mtime_n
     "sys/types.h;sys/stat.h" HAVE_STRUCT_STAT_ST_MTIME_N)
 CHECK_STRUCT_MEMBER("struct stat" st_umtime
     "sys/types.h;sys/stat.h" HAVE_STRUCT_STAT_ST_UMTIME)
+CHECK_STRUCT_MEMBER("struct stat" st_mtime_usec
+    "sys/types.h;sys/stat.h" HAVE_STRUCT_STAT_ST_MTIME_USEC)
 # Check for block size support in struct stat
 CHECK_STRUCT_MEMBER("struct stat" st_blksize
     "sys/types.h;sys/stat.h" HAVE_STRUCT_STAT_ST_BLKSIZE)
@@ -674,6 +676,8 @@ IF(ENABLE_TEST)
     libarchive/test/test_read_format_gtar_lzma.c
     libarchive/test/test_read_format_gtar_sparse.c
     libarchive/test/test_read_format_iso_gz.c
+    libarchive/test/test_read_format_isojoliet_bz2.c
+    libarchive/test/test_read_format_isojolietrr_bz2.c
     libarchive/test/test_read_format_isorr_bz2.c
     libarchive/test/test_read_format_mtree.c
     libarchive/test/test_read_format_pax_bz2.c

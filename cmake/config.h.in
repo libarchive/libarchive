@@ -417,6 +417,9 @@
 /* Define to 1 if `st_mtime_n' is member of `struct stat'. */
 #cmakedefine HAVE_STRUCT_STAT_ST_MTIME_N 1
 
+/* Define to 1 if `st_mtime_usec' is member of `struct stat'. */
+#cmakedefine HAVE_STRUCT_STAT_ST_MTIME_USEC 1
+
 /* Define to 1 if `st_mtim.tv_nsec' is member of `struct stat'. */
 #cmakedefine HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC 1
 
