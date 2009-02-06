@@ -106,8 +106,7 @@ static int
 peek_at_header(struct archive_read_filter *filter, int *pbits)
 {
 	const unsigned char *p;
-	ssize_t avail;
-	size_t len;
+	ssize_t avail, len;
 	int bits = 0;
 	int header_flags;
 
@@ -147,7 +146,10 @@ peek_at_header(struct archive_read_filter *filter, int *pbits)
 	/* Null-terminated optional filename. */
 	if (header_flags & 8) {
 		do {
-			p = __archive_read_filter_ahead(filter, ++len, &avail);
+			++len;
+			if (avail < len)
+				p = __archive_read_filter_ahead(filter,
+				    len, &avail);
 			if (p == NULL)
 				return (0);
 		} while (p[len - 1] != 0);
@@ -156,7 +158,10 @@ peek_at_header(struct archive_read_filter *filter, int *pbits)
 	/* Null-terminated optional comment. */
 	if (header_flags & 16) {
 		do {
-			p = __archive_read_filter_ahead(filter, ++len, &avail);
+			++len;
+			if (avail < len)
+				p = __archive_read_filter_ahead(filter,
+				    len, &avail);
 			if (p == NULL)
 				return (0);
 		} while (p[len - 1] != 0);
@@ -169,7 +174,7 @@ peek_at_header(struct archive_read_filter *filter, int *pbits)
 			return (0);
 #if 0
 	int hcrc = ((int)p[len + 1] << 8) | (int)p[len];
-	/* XXX TODO: Compute header CRC. */
+	int crc = /* XXX TODO: Compute header CRC. */;
 	if (crc != hcrc)
 		return (0);
 	bits += 16;
