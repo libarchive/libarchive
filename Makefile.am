@@ -248,6 +248,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_format_cpio_empty.c		\
 	libarchive/test/test_write_format_cpio_odc.c		\
 	libarchive/test/test_write_format_cpio_newc.c		\
+	libarchive/test/test_write_format_mtree.c		\
 	libarchive/test/test_write_format_pax.c			\
 	libarchive/test/test_write_format_shar_empty.c		\
 	libarchive/test/test_write_format_tar.c			\
