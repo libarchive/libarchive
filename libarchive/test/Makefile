@@ -34,6 +34,7 @@ TESTS= \
 	test_read_format_cpio_bin_Z.c		\
 	test_read_format_cpio_bin_bz2.c		\
 	test_read_format_cpio_bin_gz.c		\
+	test_read_format_cpio_bin_xz.c		\
 	test_read_format_cpio_odc.c		\
 	test_read_format_cpio_svr4_gzip.c	\
 	test_read_format_cpio_svr4c_Z.c		\
@@ -42,6 +43,7 @@ TESTS= \
 	test_read_format_gtar_lzma.c		\
 	test_read_format_gtar_sparse.c		\
 	test_read_format_iso_gz.c		\
+	test_read_format_isojoliet_bz2.c	\
 	test_read_format_isorr_bz2.c		\
 	test_read_format_mtree.c		\
 	test_read_format_pax_bz2.c		\
@@ -72,6 +74,7 @@ TESTS= \
 	test_write_format_cpio_empty.c		\
 	test_write_format_cpio_newc.c		\
 	test_write_format_cpio_odc.c		\
+	test_write_format_mtree.c		\
 	test_write_format_pax.c			\
 	test_write_format_shar_empty.c		\
 	test_write_format_tar.c			\
