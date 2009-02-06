@@ -737,7 +737,7 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 		/* convert BE UTF-16 to wchar_t */
 		for (c = p, wp = wbuff;
 				c < (p + name_len) &&
-				wp < (wbuff + sizeof(wbuff)/sizeof(*wbuff));
+				wp < (wbuff + sizeof(wbuff)/sizeof(*wbuff) - 1);
 				c += 2) {
 			*wp++ = (((255 & (int)c[0]) << 8) | (255 & (int)c[1]));
 		}
