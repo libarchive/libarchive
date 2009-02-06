@@ -730,7 +730,7 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 		 * but genisoimage (and others?) will allow you to have more.
 		 */
 		wchar_t wbuff[64+1], *wp;
-		char *c;
+		const char *c;
 
 		/* TODO: warn when name_len > 128 ? */
 
