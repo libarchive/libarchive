@@ -208,6 +208,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_format_cpio_bin_Z.c		\
 	libarchive/test/test_read_format_cpio_bin_bz2.c		\
 	libarchive/test/test_read_format_cpio_bin_gz.c		\
+	libarchive/test/test_read_format_cpio_bin_xz.c		\
 	libarchive/test/test_read_format_cpio_odc.c		\
 	libarchive/test/test_read_format_cpio_svr4_gzip.c	\
 	libarchive/test/test_read_format_cpio_svr4c_Z.c		\
