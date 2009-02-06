@@ -51,11 +51,8 @@ uuencode $F $F > $F.uu
 exit 1
  */
 
-#ifdef ONLY_IN_JOLIET_WITH_RR_TEST
-DEFINE_TEST(test_read_format_isojolietrr_bz2)
-#else
-DEFINE_TEST(test_read_format_isojoliet_bz2)
-#endif
+static void
+joliettest(int withrr)
 {
 	const char *refname = "test_read_format_isojoliet_bz2.iso.bz2";
 	struct archive_entry *ae;
@@ -65,9 +62,9 @@ DEFINE_TEST(test_read_format_isojoliet_bz2)
 	off_t offset;
 	int r;
 
-#ifdef ONLY_IN_JOLIET_WITH_RR_TEST
-	refname = "test_read_format_isojolietrr_bz2.iso.bz2";
-#endif
+	if (withrr) {
+		refname = "test_read_format_isojolietrr_bz2.iso.bz2";
+	}
 
 	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
@@ -102,69 +99,72 @@ DEFINE_TEST(test_read_format_isojoliet_bz2)
 	assertEqualInt(2048, archive_entry_size(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(86401, archive_entry_atime(ae));
-#ifdef ONLY_IN_JOLIET_WITH_RR_TEST
-	assertEqualInt(2, archive_entry_stat(ae)->st_nlink);
-	assertEqualInt(1, archive_entry_uid(ae));
-	assertEqualInt(2, archive_entry_gid(ae));
-#endif
+	if (withrr) {
+		assertEqualInt(2, archive_entry_stat(ae)->st_nlink);
+		assertEqualInt(1, archive_entry_uid(ae));
+		assertEqualInt(2, archive_entry_gid(ae));
+	}
 
 	/* A hardlink to the regular file. */
 	assertEqualInt(0, archive_read_next_header(a, &ae));
 	assertEqualString("hardlink", archive_entry_pathname(ae));
 	assert(S_ISREG(archive_entry_stat(ae)->st_mode));
-#ifdef ONLY_IN_JOLIET_WITH_RR_TEST
-	assertEqualString("long-joliet-file-name.textfile", archive_entry_hardlink(ae));
-#endif
+	if (withrr) {
+		assertEqualString("long-joliet-file-name.textfile",
+		    archive_entry_hardlink(ae));
+	}
 	assertEqualInt(6, archive_entry_size(ae));
 	assertEqualInt(0, archive_read_data_block(a, &p, &size, &offset));
 	assertEqualInt(6, (int)size);
 	assertEqualInt(0, offset);
 	assertEqualInt(0, memcmp(p, "hello\n", 6));
-#ifdef ONLY_IN_JOLIET_WITH_RR_TEST
-	assertEqualInt(86401, archive_entry_mtime(ae));
-	assertEqualInt(86401, archive_entry_atime(ae));
-	assertEqualInt(2, archive_entry_stat(ae)->st_nlink);
-	assertEqualInt(1, archive_entry_uid(ae));
-	assertEqualInt(2, archive_entry_gid(ae));
-#endif
+	if (withrr) {
+		assertEqualInt(86401, archive_entry_mtime(ae));
+		assertEqualInt(86401, archive_entry_atime(ae));
+		assertEqualInt(2, archive_entry_stat(ae)->st_nlink);
+		assertEqualInt(1, archive_entry_uid(ae));
+		assertEqualInt(2, archive_entry_gid(ae));
+	}
 
 	/* A regular file. */
 	assertEqualInt(0, archive_read_next_header(a, &ae));
 	assertEqualString("long-joliet-file-name.textfile", archive_entry_pathname(ae));
 	assert(S_ISREG(archive_entry_stat(ae)->st_mode));
 	assertEqualInt(6, archive_entry_size(ae));
-#ifdef ONLY_IN_JOLIET_WITH_RR_TEST
-	assertEqualInt(86401, archive_entry_mtime(ae));
-	assertEqualInt(86401, archive_entry_atime(ae));
-	assertEqualInt(2, archive_entry_stat(ae)->st_nlink);
-	assertEqualInt(1, archive_entry_uid(ae));
-	assertEqualInt(2, archive_entry_gid(ae));
-#endif
+	if (withrr) {
+		assertEqualInt(86401, archive_entry_mtime(ae));
+		assertEqualInt(86401, archive_entry_atime(ae));
+		assertEqualInt(2, archive_entry_stat(ae)->st_nlink);
+		assertEqualInt(1, archive_entry_uid(ae));
+		assertEqualInt(2, archive_entry_gid(ae));
+	}
 
 	/* A symlink to the regular file. */
 	assertEqualInt(0, archive_read_next_header(a, &ae));
 	assertEqualString("symlink", archive_entry_pathname(ae));
-#ifdef ONLY_IN_JOLIET_WITH_RR_TEST
-	assert(S_ISLNK(archive_entry_stat(ae)->st_mode));
-	assertEqualString("long-joliet-file-name.textfile", archive_entry_symlink(ae));
-#endif
+	if (withrr) {
+		assert(S_ISLNK(archive_entry_stat(ae)->st_mode));
+		assertEqualString("long-joliet-file-name.textfile",
+		    archive_entry_symlink(ae));
+	}
 	assertEqualInt(0, archive_entry_size(ae));
 	assertEqualInt(172802, archive_entry_mtime(ae));
 	assertEqualInt(172802, archive_entry_atime(ae));
-#ifdef ONLY_IN_JOLIET_WITH_RR_TEST
-	assertEqualInt(1, archive_entry_stat(ae)->st_nlink);
-	assertEqualInt(1, archive_entry_uid(ae));
-	assertEqualInt(2, archive_entry_gid(ae));
-#endif
+	if (withrr) {
+		assertEqualInt(1, archive_entry_stat(ae)->st_nlink);
+		assertEqualInt(1, archive_entry_uid(ae));
+		assertEqualInt(2, archive_entry_gid(ae));
+	}
 
 	/* End of archive. */
 	assertEqualInt(ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
 	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_BZIP2);
-#ifdef ONLY_IN_JOLIET_WITH_RR_TEST
-	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_ISO9660_ROCKRIDGE);
-#endif
+	if (withrr) {
+		assertEqualInt(archive_format(a),
+		    ARCHIVE_FORMAT_ISO9660_ROCKRIDGE);
+	}
 
 	/* Close the archive. */
 	assertEqualInt(0, archive_read_close(a));
@@ -174,5 +174,24 @@ DEFINE_TEST(test_read_format_isojoliet_bz2)
 	assertEqualInt(0, archive_read_finish(a));
 #endif
 }
+
+
+DEFINE_TEST(test_read_format_isojoliet_bz2)
+{
+	joliettest(0);
+}
+
+
+DEFINE_TEST(test_read_format_isojolietrr_bz2)
+{
+	/* XXXX This doesn't work today; can it be made to work? */
+#if 0
+	joliettest(1);
+#else
+	skipping("Mixed Joliet/RR not fully supported yet.");
+#endif
+}
+
+
 
 
