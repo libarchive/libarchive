@@ -45,7 +45,7 @@ static struct {
 	{ "./subdir2",		S_IFDIR | 0755, 1233504586, 1001, 1001 },
 	{ "./subdir3",		S_IFDIR | 0755, 1233504586, 1001, 1001 },
 	{ "./subdir3/mtree",	S_IFREG | 0664, 1232266273, 1003, 1003 },
-	{ NULL,}
+	{ NULL, 0, 0, 0, 0 }
 };
 
 static void
@@ -96,7 +96,8 @@ test_write_format_mtree_sub(int use_set, int dironly)
 		buff[used] = '\0';
 		assert(NULL != (p = strstr(buff, "\n/set ")));
 		if (p != NULL) {
-			char *r, *o;
+			char *r;
+			const char *o;
 			p++;
 			r = strchr(p, '\n');
 			if (r != NULL)
