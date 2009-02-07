@@ -61,6 +61,10 @@ struct private_data {
 /* Lzma filter */
 static ssize_t	xz_filter_read(struct archive_read_filter *, const void **);
 static int	xz_filter_close(struct archive_read_filter *);
+static int	xz_lzma_bidder_init(struct archive_read_filter *, int code);
+static int	lzma_bidder_bid(struct archive_read_filter_bidder *,
+		    struct archive_read_filter *);
+static int	lzma_bidder_init(struct archive_read_filter *);
 #endif
 
 /*
@@ -69,10 +73,6 @@ static int	xz_filter_close(struct archive_read_filter *);
  * error messages.)  So the bid framework here gets compiled even
  * if lzma is unavailable.
  */
-static int	xz_lzma_bidder_init(struct archive_read_filter *, int code);
-static int	lzma_bidder_bid(struct archive_read_filter_bidder *,
-		    struct archive_read_filter *);
-static int	lzma_bidder_init(struct archive_read_filter *);
 static int	xz_bidder_bid(struct archive_read_filter_bidder *,
 		    struct archive_read_filter *);
 static int	xz_bidder_init(struct archive_read_filter *);
