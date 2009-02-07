@@ -218,7 +218,6 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_format_gtar_sparse.c		\
 	libarchive/test/test_read_format_iso_gz.c		\
 	libarchive/test/test_read_format_isojoliet_bz2.c	\
-	libarchive/test/test_read_format_isojolietrr_bz2.c	\
 	libarchive/test/test_read_format_isorr_bz2.c		\
 	libarchive/test/test_read_format_mtree.c		\
 	libarchive/test/test_read_format_pax_bz2.c		\
