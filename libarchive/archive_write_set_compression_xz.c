@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 int
 archive_write_set_compression_xz(struct archive *_a)
 {
+	(void)_a; /* UNUSED */
 	/* Unsupported xz compression, we don't have liblzma */
 	return (ARCHIVE_FATAL);
 }
