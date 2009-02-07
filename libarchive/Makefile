@@ -40,6 +40,7 @@ SRCS=	archive_check_magic.c				\
 	archive_read_support_compression_lzma.c		\
 	archive_read_support_compression_none.c		\
 	archive_read_support_compression_program.c	\
+	archive_read_support_compression_xz.c	\
 	archive_read_support_format_all.c		\
 	archive_read_support_format_ar.c		\
 	archive_read_support_format_cpio.c		\
@@ -64,6 +65,7 @@ SRCS=	archive_check_magic.c				\
 	archive_write_set_compression_gzip.c		\
 	archive_write_set_compression_none.c		\
 	archive_write_set_compression_program.c		\
+	archive_write_set_compression_xz.c		\
 	archive_write_set_format.c			\
 	archive_write_set_format_ar.c			\
 	archive_write_set_format_by_name.c		\
