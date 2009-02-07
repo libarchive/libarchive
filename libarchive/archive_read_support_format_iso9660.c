@@ -201,6 +201,7 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_format_iso9660.c,v 1
 /*
  * Our private data.
  */
+static int option_ignore_joliet;
 
 /* In-memory storage for a directory record. */
 struct file_info {
@@ -254,6 +255,8 @@ struct iso9660 {
 
 static void	add_entry(struct iso9660 *iso9660, struct file_info *file);
 static int	archive_read_format_iso9660_bid(struct archive_read *);
+static int	archive_read_format_iso9660_options(struct archive_read *,
+		    const char *, const char *);
 static int	archive_read_format_iso9660_cleanup(struct archive_read *);
 static int	archive_read_format_iso9660_read_data(struct archive_read *,
 		    const void **, size_t *, off_t *);
@@ -306,7 +309,7 @@ archive_read_support_format_iso9660(struct archive *_a)
 	    iso9660,
 	    "iso9660",
 	    archive_read_format_iso9660_bid,
-	    NULL,
+	    archive_read_format_iso9660_options,
 	    archive_read_format_iso9660_read_header,
 	    archive_read_format_iso9660_read_data,
 	    archive_read_format_iso9660_read_data_skip,
@@ -346,7 +349,8 @@ archive_read_format_iso9660_bid(struct archive_read *a)
 	p += 32768;
 
 	/* Check each volume descriptor to locate possible SVD with Joliet. */
-	for (brsvd = bytes_read, psvd = p; brsvd > 2048;
+	for (brsvd = bytes_read, psvd = p;
+			!option_ignore_joliet && brsvd > 2048;
 			brsvd -= 2048, psvd += 2048) {
 		bid = isJolietSVD(iso9660, psvd);
 		if (bid > 0)
@@ -366,6 +370,25 @@ archive_read_format_iso9660_bid(struct archive_read *a)
 
 	/* We didn't find a valid PVD; return a bid of zero. */
 	return (0);
+}
+
+static int
+archive_read_format_iso9660_options(struct archive_read *a,
+		const char *key, const char *val)
+{
+	if (strcmp(key, "joliet") == 0) {
+		if (val == NULL || strcmp(val, "off") == 0 ||
+				strcmp(val, "ignore") == 0 ||
+				strcmp(val, "disable") == 0 ||
+				strcmp(val, "0") == 0)
+			option_ignore_joliet = 1;
+		else
+			option_ignore_joliet = 0;
+		return (ARCHIVE_OK);
+	}
+
+	/* TODO: issue a warning about the unknown option? */
+	return (ARCHIVE_WARN);
 }
 
 static int
