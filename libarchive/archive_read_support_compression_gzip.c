@@ -212,12 +212,14 @@ gzip_bidder_bid(struct archive_read_filter_bidder *self,
  * and emit a useful message.
  */
 static int
-gzip_bidder_init(struct archive_read_filter *filter)
+gzip_bidder_init(struct archive_read_filter *self)
 {
+	int r;
 
-	archive_set_error(&filter->archive->archive, -1,
-	    "This version of libarchive was compiled without gzip support");
-	return (ARCHIVE_FATAL);
+	r = __archive_read_program(self, "gunzip");
+	self->code = ARCHIVE_COMPRESSION_GZIP;
+	self->name = "gzip";
+	return (r);
 }
 
 #else
