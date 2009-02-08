@@ -198,11 +198,6 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_format_iso9660.c,v 1
 #define DR_name_len_size 1
 #define DR_name_offset 33
 
-/*
- * Our private data.
- */
-static int option_ignore_joliet;
-
 /* In-memory storage for a directory record. */
 struct file_info {
 	struct file_info	*parent;
@@ -231,6 +226,9 @@ struct file_info {
 struct iso9660 {
 	int	magic;
 #define ISO9660_MAGIC   0x96609660
+
+	int option_ignore_joliet;
+
 	struct archive_string pathname;
 	char	seenRockridge; /* Set true if RR extensions are used. */
 	unsigned char	suspOffset;
@@ -350,7 +348,7 @@ archive_read_format_iso9660_bid(struct archive_read *a)
 
 	/* Check each volume descriptor to locate possible SVD with Joliet. */
 	for (brsvd = bytes_read, psvd = p;
-			!option_ignore_joliet && brsvd > 2048;
+			!iso9660->option_ignore_joliet && brsvd > 2048;
 			brsvd -= 2048, psvd += 2048) {
 		bid = isJolietSVD(iso9660, psvd);
 		if (bid > 0)
@@ -376,18 +374,24 @@ static int
 archive_read_format_iso9660_options(struct archive_read *a,
 		const char *key, const char *val)
 {
+	struct iso9660 *iso9660;
+
+	iso9660 = (struct iso9660 *)(a->format->data);
+
 	if (strcmp(key, "joliet") == 0) {
 		if (val == NULL || strcmp(val, "off") == 0 ||
 				strcmp(val, "ignore") == 0 ||
 				strcmp(val, "disable") == 0 ||
 				strcmp(val, "0") == 0)
-			option_ignore_joliet = 1;
+			iso9660->option_ignore_joliet = 1;
 		else
-			option_ignore_joliet = 0;
+			iso9660->option_ignore_joliet = 0;
 		return (ARCHIVE_OK);
 	}
 
-	/* TODO: issue a warning about the unknown option? */
+	/* Note: The "warn" return is just to inform the options
+	 * supervisor that we didn't handle it.  It will generate
+	 * a suitable error if noone used this option. */
 	return (ARCHIVE_WARN);
 }
 
