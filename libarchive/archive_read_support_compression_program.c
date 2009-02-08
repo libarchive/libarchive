@@ -26,27 +26,6 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_compression_program.c,v 1.6 2008/12/06 06:45:15 kientzle Exp $");
 
-
-/* This capability is only available on POSIX systems. */
-#if !defined(HAVE_PIPE) || !defined(HAVE_FCNTL) || \
-    !(defined(HAVE_FORK) || defined(HAVE_VFORK))
-
-#include "archive.h"
-
-/*
- * On non-Posix systems, allow the program to build, but choke if
- * this function is actually invoked.
- */
-int
-archive_read_support_compression_program(struct archive *_a, const char *cmd)
-{
-	archive_set_error(_a, -1,
-	    "External compression programs not supported on this platform");
-	return (ARCHIVE_FATAL);
-}
-
-#else
-
 #ifdef HAVE_SYS_WAIT_H
 #  include <sys/wait.h>
 #endif
@@ -73,25 +52,50 @@ archive_read_support_compression_program(struct archive *_a, const char *cmd)
 #include "archive_private.h"
 #include "archive_read_private.h"
 
+int
+archive_read_support_compression_program(struct archive *a, const char *cmd)
+{
+	return (archive_read_support_compression_program_signature(a, cmd, NULL, 0));
+}
+
+
+/* This capability is only available on POSIX systems. */
+#if !defined(HAVE_PIPE) || !defined(HAVE_FCNTL) || \
+    !(defined(HAVE_FORK) || defined(HAVE_VFORK))
+
+/*
+ * On non-Posix systems, allow the program to build, but choke if
+ * this function is actually invoked.
+ */
+int
+archive_read_support_compression_program_signature(struct archive *_a,
+    const char *cmd, void *signature, size_t signature_len)
+{
+	(void)_a; /* UNUSED */
+	(void)cmd; /* UNUSED */
+	(void)signature; /* UNUSED */
+	(void)signature_len; /* UNUSED */
+
+	archive_set_error(_a, -1,
+	    "External compression programs not supported on this platform");
+	return (ARCHIVE_FATAL);
+}
+
+
+#else
+
 #include "filter_fork.h"
 
+/*
+ * The bidder object stores the command and the signature to watch for.
+ * The 'inhibit' entry here is used to ensure that unchecked filters never
+ * bid twice in the same pipeline.
+ */
 struct program_bidder {
 	char *cmd;
-	void *match;
-	size_t match_len;
-	int bid;
-};
-
-struct program_filter {
-	char		*description;
-	pid_t		 child;
-	int		 child_stdin, child_stdout;
-
-	char		*out_buf;
-	size_t		 out_buf_len;
-
-	const char	*child_in_buf;
-	size_t		 child_in_buf_avail;
+	void *signature;
+	size_t signature_len;
+	int inhibit;
 };
 
 static int	program_bidder_bid(struct archive_read_filter_bidder *,
@@ -99,41 +103,53 @@ static int	program_bidder_bid(struct archive_read_filter_bidder *,
 static int	program_bidder_init(struct archive_read_filter *);
 static int	program_bidder_free(struct archive_read_filter_bidder *);
 
+/*
+ * The actual filter needs to track input and output data.
+ */
+struct program_filter {
+	char		*description;
+	pid_t		 child;
+	int		 child_stdin, child_stdout;
+
+	char		*out_buf;
+	size_t		 out_buf_len;
+};
+
 static ssize_t	program_filter_read(struct archive_read_filter *,
 		    const void **);
 static int	program_filter_close(struct archive_read_filter *);
 
 int
-archive_read_support_compression_program(struct archive *a, const char *cmd)
-{
-	return (archive_read_support_compression_program_bid(a, cmd, NULL, 0));
-}
-
-int
-archive_read_support_compression_program_bid(struct archive *_a,
-    const char *cmd, void *match, size_t match_len)
+archive_read_support_compression_program_signature(struct archive *_a,
+    const char *cmd, void *signature, size_t signature_len)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	struct archive_read_filter_bidder *bidder = __archive_read_get_bidder(a);
+	struct archive_read_filter_bidder *bidder;
 	struct program_bidder *state;
 
+	/*
+	 * Get a bidder object from the read core.
+	 */
+	bidder = __archive_read_get_bidder(a);
 	if (bidder == NULL)
 		return (ARCHIVE_FATAL);
 
+	/*
+	 * Allocate our private state.
+	 */
 	state = (struct program_bidder *)calloc(sizeof (*state), 1);
 	if (state == NULL)
 		return (ARCHIVE_FATAL);
-
 	state->cmd = strdup(cmd);
-	state->bid = INT_MAX;
-
-	if (match != NULL && match_len > 0) {
-		state->match_len = match_len;
-		state->match = malloc(match_len);
-		memcpy(state->match, match, match_len);
-		state->bid = match_len * 8;
+	if (signature != NULL && signature_len > 0) {
+		state->signature_len = signature_len;
+		state->signature = malloc(signature_len);
+		memcpy(state->signature, signature, signature_len);
 	}
 
+	/*
+	 * Fill in the bidder object.
+	 */
 	bidder->data = state;
 	bidder->bid = program_bidder_bid;
 	bidder->init = program_bidder_init;
@@ -147,15 +163,16 @@ program_bidder_free(struct archive_read_filter_bidder *self)
 {
 	struct program_bidder *state = (struct program_bidder *)self->data;
 	free(state->cmd);
+	free(state->signature);
 	free(self->data);
 	return (ARCHIVE_OK);
 }
 
 /*
- * If the user used us to register, they must really want us to
- * handle it, so we always bid INT_MAX the first time we're called.
- * After that, we always return zero, lest we end up instantiating
- * an infinite pipeline.
+ * If we do have a signature, bid only if that matches.
+ *
+ * If there's no signature, we bid INT_MAX the first time
+ * we're called, then never bid again.
  */
 static int
 program_bidder_bid(struct archive_read_filter_bidder *self,
@@ -163,26 +180,24 @@ program_bidder_bid(struct archive_read_filter_bidder *self,
 {
 	struct program_bidder *state = self->data;
 	const char *p;
-	int bid = state->bid;
 
-	/* This filter will never bid a second time in the same pipeline. */
-	if (bid == 0)
-		return (0);
-
-	/* If there's a match, check that. */
-	if (state->match_len > 0) {
+	/* If we have a signature, use that to match. */
+	if (state->signature_len > 0) {
 		p = __archive_read_filter_ahead(upstream,
-		    state->match_len, NULL);
+		    state->signature_len, NULL);
 		if (p == NULL)
 			return (0);
 		/* No match, so don't bid. */
-		if (memcmp(p, state->match, state->match_len) != 0)
+		if (memcmp(p, state->signature, state->signature_len) != 0)
 			return (0);
+		return (state->signature_len * 8);
 	}
 
-	/* We'll take it. */
-	state->bid = 0; /* Don't bid again on this pipeline. */
-	return (bid);
+	/* Otherwise, bid once and then never bid again. */
+	if (state->inhibit)
+		return (0);
+	state->inhibit = 1;
+	return (INT_MAX);
 }
 
 /*
@@ -192,82 +207,66 @@ static ssize_t
 child_read(struct archive_read_filter *self, char *buf, size_t buf_len)
 {
 	struct program_filter *state = self->data;
-	ssize_t ret, requested;
-	const void *child_buf;
+	ssize_t ret, requested, avail;
+	const char *p;
 
-	if (state->child_stdout == -1)
-		return (-1);
-
-	if (buf_len == 0)
-		return (-1);
-
-restart_read:
 	requested = buf_len > SSIZE_MAX ? SSIZE_MAX : buf_len;
 
-	do {
-		ret = read(state->child_stdout, buf, requested);
-	} while (ret == -1 && errno == EINTR);
+	for (;;) {
+		do {
+			ret = read(state->child_stdout, buf, requested);
+		} while (ret == -1 && errno == EINTR);
 
-	if (ret > 0)
-		return (ret);
-	if (ret == 0 || (ret == -1 && errno == EPIPE)) {
-		close(state->child_stdout);
-		state->child_stdout = -1;
-		return (0);
-	}
-	if (ret == -1 && errno != EAGAIN)
-		return (-1);
-
-	if (state->child_in_buf_avail == 0) {
-		child_buf = state->child_in_buf;
-		child_buf = __archive_read_filter_ahead(self->upstream,
-			    1, &ret);
-		state->child_in_buf = (const char *)child_buf;
-
-		if (ret < 0) {
-			close(state->child_stdin);
-			state->child_stdin = -1;
-			fcntl(state->child_stdout, F_SETFL, 0);
+		if (ret > 0)
+			return (ret);
+		if (ret == 0 || (ret == -1 && errno == EPIPE)) {
+			close(state->child_stdout);
+			state->child_stdout = -1;
+			return (0);
+		}
+		if (ret == -1 && errno != EAGAIN)
 			return (-1);
+
+		if (state->child_stdin == -1) {
+			/* Block until child has some I/O ready. */
+			__archive_check_child(state->child_stdin,
+			    state->child_stdout);
+			continue;
 		}
-		if (ret == 0) {
+
+		/* Get some more data from upstream. */
+		p = __archive_read_filter_ahead(self->upstream, 1, &avail);
+		if (p == NULL) {
 			close(state->child_stdin);
 			state->child_stdin = -1;
 			fcntl(state->child_stdout, F_SETFL, 0);
-			goto restart_read;
+			if (avail < 0)
+				return (avail);
+			continue;
 		}
-		__archive_read_filter_consume(self->upstream, ret);
-		state->child_in_buf_avail = ret;
-	}
 
-	if (state->child_stdin == -1) {
-		fcntl(state->child_stdout, F_SETFL, 0);
-		__archive_check_child(state->child_stdin, state->child_stdout);
-		goto restart_read;
-	}
+		do {
+			ret = write(state->child_stdin, p, avail);
+		} while (ret == -1 && errno == EINTR);
 
-	do {
-		ret = write(state->child_stdin, state->child_in_buf,
-		    state->child_in_buf_avail);
-	} while (ret == -1 && errno == EINTR);
-
-	if (ret > 0) {
-		state->child_in_buf += ret;
-		state->child_in_buf_avail -= ret;
-		goto restart_read;
-	} else if (ret == -1 && errno == EAGAIN) {
-		__archive_check_child(state->child_stdin, state->child_stdout);
-		goto restart_read;
-	} else if (ret == 0 || (ret == -1 && errno == EPIPE)) {
-		close(state->child_stdin);
-		state->child_stdin = -1;
-		fcntl(state->child_stdout, F_SETFL, 0);
-		goto restart_read;
-	} else {
-		close(state->child_stdin);
-		state->child_stdin = -1;
-		fcntl(state->child_stdout, F_SETFL, 0);
-		return (-1);
+		if (ret > 0) {
+			/* Consume whatever we managed to write. */
+			__archive_read_filter_consume(self->upstream, ret);
+		} else if (ret == -1 && errno == EAGAIN) {
+			/* Block until child has some I/O ready. */
+			__archive_check_child(state->child_stdin,
+			    state->child_stdout);
+		} else {
+			/* Write failed. */
+			close(state->child_stdin);
+			state->child_stdin = -1;
+			fcntl(state->child_stdout, F_SETFL, 0);
+			/* If it was a bad error, we're done; otherwise
+			 * it was EPIPE or EOF, and we can still read
+			 * from the child. */
+			if (ret == -1 && errno != EPIPE)
+				return (-1);
+		}
 	}
 }
 

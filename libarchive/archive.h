@@ -302,7 +302,7 @@ __LA_DECL int		 archive_read_support_compression_lzma(struct archive *);
 __LA_DECL int		 archive_read_support_compression_none(struct archive *);
 __LA_DECL int		 archive_read_support_compression_program(struct archive *,
 		     const char *command);
-__LA_DECL int		 archive_read_support_compression_program_bid
+__LA_DECL int		 archive_read_support_compression_program_signature
 				(struct archive *, const char *,
 				    void * /* match */, size_t);
 
