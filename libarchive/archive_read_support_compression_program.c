@@ -77,6 +77,8 @@ archive_read_support_compression_program(struct archive *_a, const char *cmd)
 
 struct program_bidder {
 	char *cmd;
+	void *match;
+	size_t match_len;
 	int bid;
 };
 
@@ -101,9 +103,15 @@ static ssize_t	program_filter_read(struct archive_read_filter *,
 		    const void **);
 static int	program_filter_close(struct archive_read_filter *);
 
+int
+archive_read_support_compression_program(struct archive *a, const char *cmd)
+{
+	return (archive_read_support_compression_program_bid(a, cmd, NULL, 0));
+}
 
 int
-archive_read_support_compression_program(struct archive *_a, const char *cmd)
+archive_read_support_compression_program_bid(struct archive *_a,
+    const char *cmd, void *match, size_t match_len)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 	struct archive_read_filter_bidder *bidder = __archive_read_get_bidder(a);
@@ -118,6 +126,13 @@ archive_read_support_compression_program(struct archive *_a, const char *cmd)
 
 	state->cmd = strdup(cmd);
 	state->bid = INT_MAX;
+
+	if (match != NULL && match_len > 0) {
+		state->match_len = match_len;
+		state->match = malloc(match_len);
+		memcpy(state->match, match, match_len);
+		state->bid = match_len * 8;
+	}
 
 	bidder->data = state;
 	bidder->bid = program_bidder_bid;
@@ -147,19 +162,32 @@ program_bidder_bid(struct archive_read_filter_bidder *self,
     struct archive_read_filter *upstream)
 {
 	struct program_bidder *state = self->data;
+	const char *p;
 	int bid = state->bid;
 
-	(void)upstream; /* UNUSED */
+	/* This filter will never bid a second time in the same pipeline. */
+	if (bid == 0)
+		return (0);
 
+	/* If there's a match, check that. */
+	if (state->match_len > 0) {
+		p = __archive_read_filter_ahead(upstream,
+		    state->match_len, NULL);
+		if (p == NULL)
+			return (0);
+		/* No match, so don't bid. */
+		if (memcmp(p, state->match, state->match_len) != 0)
+			return (0);
+	}
+
+	/* We'll take it. */
 	state->bid = 0; /* Don't bid again on this pipeline. */
-
-	return (bid); /* Default: We'll take it if we haven't yet bid. */
+	return (bid);
 }
 
 /*
  * Use select() to decide whether the child is ready for read or write.
  */
-
 static ssize_t
 child_read(struct archive_read_filter *self, char *buf, size_t buf_len)
 {
@@ -243,22 +271,18 @@ restart_read:
 	}
 }
 
-static int
-program_bidder_init(struct archive_read_filter *self)
+int
+__archive_read_program(struct archive_read_filter *self, const char *cmd)
 {
 	struct program_filter	*state;
-	struct program_bidder   *bidder_state;
 	static const size_t out_buf_len = 65536;
 	char *out_buf;
 	char *description;
 	const char *prefix = "Program: ";
 
-
-	bidder_state = (struct program_bidder *)self->bidder->data;
-
 	state = (struct program_filter *)calloc(1, sizeof(*state));
 	out_buf = (char *)malloc(out_buf_len);
-	description = (char *)malloc(strlen(prefix) + strlen(bidder_state->cmd) + 1);
+	description = (char *)malloc(strlen(prefix) + strlen(cmd) + 1);
 	if (state == NULL || out_buf == NULL || description == NULL) {
 		archive_set_error(&self->archive->archive, ENOMEM,
 		    "Can't allocate input data");
@@ -271,13 +295,13 @@ program_bidder_init(struct archive_read_filter *self)
 	self->code = ARCHIVE_COMPRESSION_PROGRAM;
 	state->description = description;
 	strcpy(state->description, prefix);
-	strcat(state->description, bidder_state->cmd);
+	strcat(state->description, cmd);
 	self->name = state->description;
 
 	state->out_buf = out_buf;
 	state->out_buf_len = out_buf_len;
 
-	if ((state->child = __archive_create_child(bidder_state->cmd,
+	if ((state->child = __archive_create_child(cmd,
 		 &state->child_stdin, &state->child_stdout)) == -1) {
 		free(state->out_buf);
 		free(state);
@@ -295,24 +319,35 @@ program_bidder_init(struct archive_read_filter *self)
 	return (ARCHIVE_OK);
 }
 
+static int
+program_bidder_init(struct archive_read_filter *self)
+{
+	struct program_bidder   *bidder_state;
+
+	bidder_state = (struct program_bidder *)self->bidder->data;
+	return (__archive_read_program(self, bidder_state->cmd));
+}
+
 static ssize_t
 program_filter_read(struct archive_read_filter *self, const void **buff)
 {
 	struct program_filter *state;
-	ssize_t bytes, total;
+	ssize_t bytes;
+	size_t total;
 	char *p;
 
 	state = (struct program_filter *)self->data;
 
 	total = 0;
 	p = state->out_buf;
-	while (state->child_stdout != -1) {
+	while (state->child_stdout != -1 && total < state->out_buf_len) {
 		bytes = child_read(self, p, state->out_buf_len - total);
 		if (bytes < 0)
 			return (bytes);
 		if (bytes == 0)
 			break;
 		total += bytes;
+		p += bytes;
 	}
 
 	*buff = state->out_buf;

@@ -302,6 +302,10 @@ __LA_DECL int		 archive_read_support_compression_lzma(struct archive *);
 __LA_DECL int		 archive_read_support_compression_none(struct archive *);
 __LA_DECL int		 archive_read_support_compression_program(struct archive *,
 		     const char *command);
+__LA_DECL int		 archive_read_support_compression_program_bid
+				(struct archive *, const char *,
+				    void * /* match */, size_t);
+
 __LA_DECL int		 archive_read_support_compression_xz(struct archive *);
 
 __LA_DECL int		 archive_read_support_format_all(struct archive *);
