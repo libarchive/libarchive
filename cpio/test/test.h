@@ -65,6 +65,7 @@
 #ifdef __FreeBSD__
 #include <sys/cdefs.h>  /* For __FBSDID */
 #else
+#undef __FBSDID
 #define	__FBSDID(a)     struct _undefined_hack
 #endif
 
