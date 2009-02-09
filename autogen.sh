@@ -5,5 +5,8 @@ mkdir -p config.aux
 aclocal
 autoheader
 autoconf
-libtoolize --automake -c
+case `uname` in
+Darwin) glibtoolize --automake -c;;
+*) libtoolize --automake -c;;
+esac
 automake -a -c
