@@ -36,6 +36,7 @@
 #define	set_errno(val)	((errno)=val)
 #include <io.h>
 #include <stdlib.h>   //brings in NULL
+#include <stdio.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <process.h>
@@ -60,7 +61,6 @@
 /* TODO: Fix the code, don't suppress the warnings. */
 #pragma warning(disable:4244)   /* 'conversion' conversion from 'type1' to 'type2', possible loss of data */
 #pragma warning(disable:4146)   /* unary minus operator applied to unsigned type, result still unsigned */
-//#pragma warning(disable:4996)	/* 'function': was declared deprecated */
 //#pragma warning(disable:4267)   /* Conversion, possible loss of data */
 #endif
 
@@ -78,11 +78,13 @@
 #define	makedev(maj,min) ((0xff00 & ((maj)<<8))|(0xffff00ff & (min)))
 
 /* Alias the Windows _function to the POSIX equivalent. */
+#define	access		_access
 #define	chdir		la_chdir
 #define	chmod		la_chmod
 #define	close		_close
-//#define	fileno		_fileno
+#define	fileno		_fileno
 #define	fstat		la_fstat
+#define	getcwd		_getcwd
 #define	lseek		la_lseek
 #define	lstat		la_stat
 #define	open		la_open

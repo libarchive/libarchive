@@ -902,7 +902,6 @@ get_refdir(void)
 	char *pwd, *p;
 
 	/* Get the current dir. */
-	/* XXX Visual C++ uses _getcwd() XXX */
 	pwd = getcwd(NULL, 0);
 	while (pwd[strlen(pwd) - 1] == '\n')
 		pwd[strlen(pwd) - 1] = '\0';
