@@ -626,6 +626,12 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/libarchive)
 IF(MSVC)
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_DEPRECATE)
 ENDIF(MSVC)
+# Especially for early development, we want to be a little
+# aggressive about diagnosing build problems; this can get
+# relaxed somewhat in final shipping versions.
+IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
+  ADD_DEFINITIONS(-Wall -Werror)
+ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
 # Libarchive is a library
 ADD_LIBRARY(archive SHARED ${libarchive_SOURCES} ${include_HEADERS})
 TARGET_LINK_LIBRARIES(archive ${ADDITIONAL_LIBS})
