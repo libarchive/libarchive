@@ -24,6 +24,12 @@ MACRO (CHECK_HEADERS _HEADERS)
       IF("${_files}" MATCHES "^sys/extattr[.]h$")
 	SET(_files "sys/types.h" ${header})
       ENDIF("${_files}" MATCHES "^sys/extattr[.]h$")
+      IF(CMAKE_HOST_APPLE)
+        # Mac OSX requires sys/types.h before sys/acl.h
+        IF("${_files}" MATCHES "^sys/acl[.]h$")
+  	  SET(_files "sys/types.h" ${header})
+        ENDIF("${_files}" MATCHES "^sys/acl[.]h$")
+      ENDIF(CMAKE_HOST_APPLE)
 
       STRING(TOUPPER ${header} headervar)
       SET(headervar "HAVE_${headervar}")
