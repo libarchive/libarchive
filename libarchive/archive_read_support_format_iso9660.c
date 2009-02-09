@@ -725,7 +725,7 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 	struct file_info *file;
 	size_t name_len;
 	const unsigned char *rr_start, *rr_end;
-	const char *p;
+	const unsigned char *p;
 	int flags;
 
 	/* TODO: Sanity check that name_len doesn't exceed length, etc. */
@@ -744,20 +744,19 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 	file->mtime = isodate7(isodirrec + DR_date_offset);
 	file->ctime = file->atime = file->mtime;
 
-	name_len = (size_t)*(const unsigned char *)(isodirrec + DR_name_len_offset);
+	name_len = (size_t)isodirrec[DR_name_len_offset];
 	p = isodirrec + DR_name_offset;
 	/* Rockridge extensions (if any) follow name.  Compute this
 	 * before fidgeting the name_len below. */
 	rr_start = p + name_len + (name_len & 1 ? 0 : 1) + iso9660->suspOffset;
-	rr_end = (const unsigned char *)isodirrec
-	    + *(isodirrec + DR_length_offset);
+	rr_end = isodirrec + isodirrec[DR_length_offset];
 
 	if (iso9660->seenJoliet) {
 		/* Joliet names are max 64 chars (128 bytes) according to spec,
 		 * but genisoimage (and others?) will allow you to have more.
 		 */
 		wchar_t wbuff[64+1], *wp;
-		const char *c;
+		const unsigned char *c;
 
 		/* TODO: warn when name_len > 128 ? */
 
@@ -803,10 +802,10 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 		if (name_len > 1 && p[name_len - 1] == '.')
 			--name_len;
 
-		archive_strncpy(&file->name, p, name_len);
+		archive_strncpy(&file->name, (const char *)p, name_len);
 	}
 
-	flags = *(isodirrec + DR_flags_offset);
+	flags = isodirrec[DR_flags_offset];
 	if (flags & 0x02)
 		file->mode = AE_IFDIR | 0700;
 	else
@@ -1054,8 +1053,8 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
 }
 
 static void
-parse_rockridge_NM1(struct file_info *file, const unsigned char *data,
-    int data_length)
+parse_rockridge_NM1(struct file_info *file,
+		    const unsigned char *data, int data_length)
 {
 	if (!file->name_continues)
 		archive_string_empty(&file->name);
@@ -1076,12 +1075,12 @@ parse_rockridge_NM1(struct file_info *file, const unsigned char *data,
 	case 0:
 		if (data_length < 2)
 			return;
-		archive_strncat(&file->name, data + 1, data_length - 1);
+		archive_strncat(&file->name, (const char *)data + 1, data_length - 1);
 		break;
 	case 1:
 		if (data_length < 2)
 			return;
-		archive_strncat(&file->name, data + 1, data_length - 1);
+		archive_strncat(&file->name, (const char *)data + 1, data_length - 1);
 		file->name_continues = 1;
 		break;
 	case 2:
