@@ -26,6 +26,10 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_SYS_TYPES_H
+/* Mac OSX requires sys/types.h before sys/acl.h. */
+#include <sys/types.h>
+#endif
 #ifdef HAVE_SYS_ACL_H
 #include <sys/acl.h>
 #endif
@@ -271,7 +275,7 @@ setup_acls_posix1e(struct archive_read_disk *a,
 }
 #endif
 
-#if HAVE_LISTXATTR && HAVE_GETXATTR
+#if HAVE_LISTXATTR && HAVE_LLISTXATTR && HAVE_GETXATTR && HAVE_LGETXATTR
 
 /*
  * Linux extended attribute support.
