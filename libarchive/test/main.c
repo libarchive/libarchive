@@ -347,10 +347,10 @@ test_assert_equal_string(const char *file, int line,
 	    file, line);
 	fprintf(stderr, "      %s = ", e1);
 	strdump(v1);
-	fprintf(stderr, " (length %d)\n", v1 == NULL ? 0 : strlen(v1));
+	fprintf(stderr, " (length %d)\n", v1 == NULL ? 0 : (int)strlen(v1));
 	fprintf(stderr, "      %s = ", e2);
 	strdump(v2);
-	fprintf(stderr, " (length %d)\n", v2 == NULL ? 0 : strlen(v2));
+	fprintf(stderr, " (length %d)\n", v2 == NULL ? 0 : (int)strlen(v2));
 	report_failure(extra);
 	return (0);
 }
@@ -425,7 +425,7 @@ hexdump(const char *p, const char *ref, size_t l, size_t offset)
 	char sep;
 
 	for(i=0; i < l; i+=16) {
-		fprintf(stderr, "%04x", i + offset);
+		fprintf(stderr, "%04x", (unsigned)(i + offset));
 		sep = ' ';
 		for (j = 0; j < 16 && i + j < l; j++) {
 			if (ref != NULL && p[i + j] != ref[i + j])
