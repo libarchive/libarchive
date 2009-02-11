@@ -283,6 +283,7 @@ __link(const char *src, const char *dst, int sym)
 {
 	wchar_t *wsrc, *wdst;
 	int res, retval;
+	DWORD attr;
 
 	if (src == NULL || dst == NULL) {
 		set_errno (EINVAL);
@@ -300,7 +301,12 @@ __link(const char *src, const char *dst, int sym)
 		return -1;
 	}
 
-	if (!_waccess_s(wsrc, F_OK)) {
+	if ((attr = GetFileAttributesW(wsrc)) != -1) {
+		if ((attr & FILE_ATTRIBUTE_DIRECTORY) != 0) {
+			errno = EPERM;
+			retval = -1;
+			goto exit;
+		}
 		if (!sym && canHardLinkW(wsrc, wdst))
 			res = CreateHardLinkW(wdst, wsrc, NULL);
 		else
@@ -347,7 +353,12 @@ __link(const char *src, const char *dst, int sym)
 				wsrc[i] = L'\\';
 		wcsncat(wnewsrc, wsrc, n);
 		/* Check again */
-		if (_waccess_s(wnewsrc, R_OK)) {
+		attr = GetFileAttributesW(wnewsrc);
+		if (attr == -1 || (attr & FILE_ATTRIBUTE_DIRECTORY) != 0) {
+			if (attr == -1)
+				_dosmaperr(GetLastError());
+			else
+				errno = EPERM;
 			free (wnewsrc);
 			retval = -1;
 			goto exit;
