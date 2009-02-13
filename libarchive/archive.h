@@ -304,7 +304,7 @@ __LA_DECL int		 archive_read_support_compression_program(struct archive *,
 		     const char *command);
 __LA_DECL int		 archive_read_support_compression_program_signature
 				(struct archive *, const char *,
-				    void * /* match */, size_t);
+				    const void * /* match */, size_t);
 
 __LA_DECL int		 archive_read_support_compression_xz(struct archive *);
 

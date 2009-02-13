@@ -121,7 +121,7 @@ static int	program_filter_close(struct archive_read_filter *);
 
 int
 archive_read_support_compression_program_signature(struct archive *_a,
-    const char *cmd, void *signature, size_t signature_len)
+    const char *cmd, const void *signature, size_t signature_len)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 	struct archive_read_filter_bidder *bidder;
