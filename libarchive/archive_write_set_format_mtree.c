@@ -82,7 +82,9 @@ struct mtree_writer {
 	int first;
 	uint64_t entry_bytes_remaining;
 	struct {
-		int		unprocessed;
+		int		output;
+		int		processed;
+		struct archive_string parent;
 		mode_t		type;
 		int		keys;
 		uid_t		uid;
@@ -318,12 +320,94 @@ mtree_indent(struct mtree_writer *mtree)
 	archive_string_empty(&mtree->ebuf);
 }
 
+static size_t
+dir_len(struct archive_entry *entry)
+{
+	const char *path, *r;
+
+	path = archive_entry_pathname(entry);
+	r = strrchr(path, '/');
+	if (r == NULL)
+		return (0);
+	/* Include a separator size */
+	return (r - path + 1);
+}
+
+#ifdef _WIN32
+/*
+ * Note: We should use wide-character for findng '\' character,
+ * a directory separator on Windows, because some character-set have
+ * been using the '\' character for a part of its multibyte character
+ * code.
+ */
+static size_t
+dir_len_win(struct archive_entry *entry)
+{
+	const wchar_t *wp, *r;
+	const char *path;
+	size_t l;
+
+	path = archive_entry_pathname(entry);
+	if (strchr(path, '\\') == NULL)
+		return (dir_len(entry));
+	if ((wp = archive_entry_pathname_w(entry)) == NULL)
+		return (dir_len(entry));
+	for (r = NULL; *wp != L'\0'; wp++) {
+		if (*wp == L'\\' || *wp == L'/')
+			r = wp;
+	}
+	if (r == NULL)
+		return (0);
+	if ((l = wcstombs(NULL, ++r, 0)) == -1)
+		return (dir_len(entry));
+	return (strlen(path) - l);
+}
+#endif /* _WIN32 */
+
+static int
+parent_dir_changed(struct archive_string *dir, struct archive_entry *entry)
+{
+	const char *path;
+	size_t l;
+
+#ifdef _WIN32
+	l = dir_len_win(entry);
+#else
+	l = dir_len(entry);
+#endif
+	path = archive_entry_pathname(entry);
+	if (archive_strlen(dir) > 0) {
+		if (l == 0) {
+			archive_string_empty(dir);
+			return (1);
+		}
+		if (strncmp(dir->s, path, l) == 0)
+			return (0); /* The parent directory is the same. */
+	} else if (l == 0)
+		return (0);	    /* The parent directory is the same. */
+	archive_strncpy(dir, path, l);
+	return (1);
+}
+
+/*
+ * Write /set keyword. It means set global datas.
+ * [directory-only mode]
+ *   - It is only once to write /set keyword. It is using values of the
+ *     first entry.
+ * [normal mode]
+ *   - Write /set keyword. It is using values of the first entry whose
+ *     filetype is a regular file.
+ *   - When a parent directory of the entry whose filetype is the regular
+ *     file is changed, check the global datas and write it again if its
+ *     values are different from the entry's.
+ */
 static void
 set_global(struct mtree_writer *mtree, struct archive_entry *entry)
 {
 	struct archive_string setstr;
+	struct archive_string unsetstr;
 	const char *name;
-	int keys;
+	int keys, oldkeys, effkeys;
 	mode_t set_type = 0;
 
 	switch (archive_entry_filetype(entry)) {
@@ -342,60 +426,105 @@ set_global(struct mtree_writer *mtree, struct archive_entry *entry)
 	}
 	if (set_type == 0)
 		return;
+	if (mtree->set.processed &&
+	    !parent_dir_changed(&mtree->set.parent, entry))
+		return;
+	/* At first, save a parent directory of the entry for following
+	 * entries. */
+	if (!mtree->set.processed && set_type == AE_IFREG)
+		parent_dir_changed(&mtree->set.parent, entry);
 
 	archive_string_init(&setstr);
+	archive_string_init(&unsetstr);
 	keys = mtree->keys & (F_FLAGS | F_GID | F_GNAME | F_NLINK | F_MODE
 	    | F_TYPE | F_UID | F_UNAME);
+	oldkeys = mtree->set.keys;
+	effkeys = keys;
+	if (mtree->set.processed) {
+		/*
+		 * Check the global datas for whether it needs updating.
+		 */
+		effkeys &= ~F_TYPE;
+		if ((oldkeys & (F_UNAME | F_UID)) != 0 &&
+		    mtree->set.uid == archive_entry_uid(entry))
+			effkeys &= ~(F_UNAME | F_UID);
+		if ((oldkeys & (F_GNAME | F_GID)) != 0 &&
+		    mtree->set.gid == archive_entry_gid(entry))
+			effkeys &= ~(F_GNAME | F_GID);
+		if ((oldkeys & F_MODE) != 0 &&
+		    mtree->set.mode == (archive_entry_mode(entry) & 07777))
+			effkeys &= ~F_MODE;
+		if ((oldkeys & F_FLAGS) != 0) {
+			unsigned long	fflags_set;
+			unsigned long	fflags_clear;
 
-	if ((keys & F_TYPE) != 0) {
+			archive_entry_fflags(entry, &fflags_set, &fflags_clear);
+			if (fflags_set == mtree->set.fflags_set &&
+			    fflags_clear == mtree->set.fflags_clear)
+				effkeys &= ~F_FLAGS;
+		}
+	}
+	if ((keys & effkeys & F_TYPE) != 0) {
 		mtree->set.type = set_type;
 		if (set_type == AE_IFDIR)
 			archive_strcat(&setstr, " type=dir");
 		else
 			archive_strcat(&setstr, " type=file");
 	}
-	if ((keys & F_UNAME) != 0) {
+	if ((keys & effkeys & F_UNAME) != 0) {
 		if ((name = archive_entry_uname(entry)) != NULL) {
 			archive_strcat(&setstr, " uname=");
 			mtree_quote(&setstr, name);
-		} else
+		} else if ((oldkeys & F_UNAME) != 0)
+			archive_strcat(&unsetstr, " uname");
+		else
 			keys &= ~F_UNAME;
 	}
-	if ((keys & F_UID) != 0) {
+	if ((keys & effkeys & F_UID) != 0) {
 		mtree->set.uid = archive_entry_uid(entry);
 		archive_string_sprintf(&setstr, " uid=%jd",
 		    (intmax_t)mtree->set.uid);
 	}
-	if ((keys & F_GNAME) != 0) {
+	if ((keys & effkeys & F_GNAME) != 0) {
 		if ((name = archive_entry_gname(entry)) != NULL) {
 			archive_strcat(&setstr, " gname=");
 			mtree_quote(&setstr, name);
-		} else
+		} else if ((oldkeys & F_GNAME) != 0)
+			archive_strcat(&unsetstr, " gname");
+		else
 			keys &= ~F_GNAME;
 	}
-	if ((keys & F_GID) != 0) {
+	if ((keys & effkeys & F_GID) != 0) {
 		mtree->set.gid = archive_entry_gid(entry);
 		archive_string_sprintf(&setstr, " gid=%jd",
 		    (intmax_t)mtree->set.gid);
 	}
-	if ((keys & F_MODE) != 0) {
+	if ((keys & effkeys & F_MODE) != 0) {
 		mtree->set.mode = archive_entry_mode(entry) & 07777;
 		archive_string_sprintf(&setstr, " mode=%o", mtree->set.mode);
 	}
-	if ((keys & F_FLAGS) != 0) {
+	if ((keys & effkeys & F_FLAGS) != 0) {
 		if ((name = archive_entry_fflags_text(entry)) != NULL) {
 			archive_strcat(&setstr, " flags=");
 			mtree_quote(&setstr, name);
 			archive_entry_fflags(entry, &mtree->set.fflags_set,
 			    &mtree->set.fflags_clear);
-		} else
+		} else if ((oldkeys & F_FLAGS) != 0)
+			archive_strcat(&unsetstr, " flags");
+		else
 			keys &= ~F_FLAGS;
 	}
+	if (unsetstr.length > 0)
+		archive_string_sprintf(&mtree->buf, "/unset%s\n", unsetstr.s);
+	archive_string_free(&unsetstr);
 	if (setstr.length > 0)
 		archive_string_sprintf(&mtree->buf, "/set%s\n", setstr.s);
 	archive_string_free(&setstr);
-	mtree->set.unprocessed = 0;
 	mtree->set.keys = keys;
+	mtree->set.processed = 1;
+	/* On directory-only mode, it is only once to write /set keyword. */
+	if (mtree->dironly)
+		mtree->set.output = 0;
 }
 
 static int
@@ -459,7 +588,7 @@ archive_write_mtree_header(struct archive_write *a,
 		mtree->first = 0;
 		archive_strcat(&mtree->buf, "#mtree\n");
 	}
-	if (mtree->set.unprocessed)
+	if (mtree->set.output)
 		set_global(mtree, entry);
 
 	archive_string_empty(&mtree->ebuf);
@@ -798,6 +927,7 @@ archive_write_mtree_destroy(struct archive_write *a)
 	archive_entry_free(mtree->entry);
 	archive_string_free(&mtree->ebuf);
 	archive_string_free(&mtree->buf);
+	archive_string_free(&mtree->set.parent);
 	free(mtree);
 	a->format_data = NULL;
 	return (ARCHIVE_OK);
@@ -900,7 +1030,7 @@ archive_write_mtree_options(struct archive_write *a, const char *key,
 		else if (strcmp(key, "uname") == 0)
 			keybit = F_UNAME;
 		else if (strcmp(key, "use-set") == 0)
-			mtree->set.unprocessed = (value != NULL)? 1: 0;
+			mtree->set.output = (value != NULL)? 1: 0;
 		break;
 	}
 	if (keybit != 0) {
@@ -932,6 +1062,7 @@ archive_write_set_format_mtree(struct archive *_a)
 	mtree->entry = NULL;
 	mtree->first = 1;
 	memset(&(mtree->set), 0, sizeof(mtree->set));
+	archive_string_init(&mtree->set.parent);
 	mtree->keys = DEFAULT_KEYS;
 	mtree->dironly = 0;
 	mtree->indent = 0;
