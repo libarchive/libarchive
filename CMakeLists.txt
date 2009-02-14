@@ -3,7 +3,7 @@
 PROJECT(libarchive)
 #
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6.1)
-SET(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+SET(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/build/cmake")
 #
 # Version - read from 'version' file.
 #
@@ -515,7 +515,7 @@ IF(ENABLE_ACL)
 ENDIF(ENABLE_ACL)
 
 # Generate "config.h" from "cmake/config.h.in"
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.h.in
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/build/cmake/config.h.in
 	${CMAKE_CURRENT_BINARY_DIR}/config.h)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
