@@ -27,11 +27,14 @@ AM_CFLAGS=-Wall -Werror
 #
 # What to include in the distribution
 #
-EXTRA_DIST= version			\
+EXTRA_DIST= \
+	build/cmake			\
+	build/version			\
+	build/windows			\
 	contrib				\
 	doc				\
 	examples			\
-	windows				\
+	CMakeLists.txt			\
 	$(libarchive_EXTRA_DIST)	\
 	$(libarchive_test_EXTRA_DIST)	\
 	$(bsdtar_EXTRA_DIST)		\
