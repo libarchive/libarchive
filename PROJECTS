@@ -4,17 +4,12 @@ more feasible and more often-requested items are higher
 on the list.  If you think you have time to work on any
 of these, please let me know.
 
-* NetBSD's mtree supports various checksum algorithms.
-  It would be useful if the reader could verify them and
-  the writer could compute them.
-
-* archive_entry_from_file().  This would be very useful.
-  Ideally, it would accept a pathname (required) and an
-  optional fd.  This will allow it to optimize by using
-  fstat() and friends to eliminate races on platforms that
-  support those interfaces.  This would also eliminate a lot
-  of messy platform-specific trickery from tar and cpio
-  to properly handle ACLs and extended attributes.
+* More compression options:  Recent improvements to the
+  read bidding system and external program support should
+  make it very simple to add support for lzo, lzf, and
+  many other command-line decompression programs.
+  I've even written up a Wiki page describing how to
+  do this.
 
 * cpio front-end.  The basic bsdcpio front-end is now
   working.  I'm looking for feedback about what additional
@@ -26,14 +21,11 @@ of these, please let me know.
   from POSIX 2001 'pax', which will require some changes to
   the libarchive API.
 
-* libarchive on Windows.  Recent changes should allow libarchive
-  to port to Visual Studio pretty quickly (large parts of
-  archive_write_disk will have to be customized or replaced,
-  but that's only about five percent of the entire library).
-  Making this really clean would require reworking the public
-  API to not use dev/ino; I think I know how to do this but
-  could use advice from someone knowledgable about Windows
-  file-management APIs.
+* libarchive on Windows.  libarchive mostly builds cleanly
+  on Windows and Visual Studio.  Making this really clean
+  requires reworking the public API to not use dev/ino; I
+  think I know how to do this but could use advice from
+  someone knowledgable about Windows file-management APIs.
 
 * Linux large-file/small-file dance.  libarchive always
   builds with 64-bit off_t and stat structures; client programs
@@ -45,7 +37,7 @@ of these, please let me know.
   this should be much simpler.  At worst, you can just disable
   features.
 
-* Writing tar sparse entries.  The GNU "1.0" format mentioned above
+* Writing tar sparse entries.  The GNU "1.0" sparse format
   sucks a lot less than the old GNU sparse format, so I'm finally
   dropping my objections to sparse file writing.  This requires
   extending archive_entry to support a block list, and will
@@ -59,16 +51,6 @@ of these, please let me know.
   append file bodies (properly padded to 2k sector boundaries)
   to a temp file, then format the directory section and copy
   the file data through at format close.
-
-* Augmenting bsdtar's archive-copy feature:  Being able to "update"
-  one archive with the contents of another would be a very
-  useful feature, especially for building software packages.
-  Consider being able to generate a tar archive of a directory,
-  then "fixing" the ownership and permissions based on an
-  mtree file.  (Equivalently, reading a tar archive and
-  replacing the file contents while retaining the metadata.)
-  mtree format, which represents file and directory metadata
-  in an easily-editable format, is a natural counterpart to this.
 
 * archive_read_disk:  Currently, libarchive can generate a stream
   of entries from an archive file and can feed entries to an
