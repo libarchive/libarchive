@@ -9,12 +9,11 @@ the build setting, use
     ./configure --help
 to list the configure options.
 
-To build and install only libarchive:
-    ./configure
-    make
-    cd libarchive && make install
+If you are developing libarchive and need to update the
+configure script and other build files:
+    /bin/sh build/autogen.sh
 
-To build and install only bsdtar (assumes a suitable
-libarchive is already installed on the system):
-    ./configure
-    cd tar && make && make install
+On non-Unix-like systems, you should be able to create
+build files suitable for your system by using "cmake".
+You may need to first obtain a suitable version of cmake
+for your system from http://cmake.org/
