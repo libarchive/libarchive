@@ -28,7 +28,6 @@ The following files in the top-level directory are used by the
        - used to build this distribution, only needed by maintainers
    * Makefile.in, config.h.in
 	- templates used by configure script
-   * config.aux/* - auxiliary scripts used by build system
 
 Guide to Documentation installed by this system:
  * bsdtar.1 explains the use of the bsdtar program
@@ -52,6 +51,7 @@ Currently, the library automatically detects and reads the following:
   * gzip compression
   * bzip2 compression
   * compress/LZW compression
+  * lzma and xz compression
   * GNU tar format (including GNU long filenames, long link names, and
     sparse files)
   * Solaris 9 extended tar format (including ACLs)
@@ -61,16 +61,16 @@ Currently, the library automatically detects and reads the following:
   * POSIX octet-oriented cpio
   * SVR4 ASCII cpio
   * Binary cpio (big-endian or little-endian)
-  * ISO9660 CD-ROM images (with optional Rockridge extensions)
+  * ISO9660 CD-ROM images (with optional Rockridge or Joliet extensions)
   * ZIP archives (with uncompressed or "deflate" compressed entries)
   * GNU and BSD 'ar' archives
   * 'mtree' format
-  * lzma compression
 
 The library can write:
   * gzip compression
   * bzip2 compression
   * compress/LZW compression
+  * lzma and xz compression
   * POSIX ustar
   * POSIX pax interchange format
   * "restricted" pax format, which will create ustar archives except for
@@ -104,7 +104,7 @@ Notes about the library architecture:
    environments where that matters.
 
  * On read, the library accepts whatever blocks you hand it.
-   Your read callback is free to pass the library a byte at a time[1]
+   Your read callback is free to pass the library a byte at a time
    or mmap the entire archive and give it to the library at once.
    On write, the library always produces correctly-blocked output.
 
@@ -126,11 +126,3 @@ Notes about the library architecture:
 
  * Note: "pax interchange format" is really an extended tar format,
    despite what the name says.
-
-[1]  Gzip and compress formats are identical in the first byte.
-For that reason, the first block must be at least two bytes if
-you have both of these formats enabled at read time.  This is
-currently the only restriction on block size.  (This restriction
-could be lifted by buffering the initial blocks prior to the
-compression tasting step, but it doesn't really seem worth the
-effort.)
