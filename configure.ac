@@ -20,7 +20,7 @@ AC_INIT([libarchive],LIBARCHIVE_VERSION_S(),[kientzle@freebsd.org])
 # Make sure the srcdir contains "libarchive" directory
 AC_CONFIG_SRCDIR([libarchive])
 # Use auxiliary subscripts from this subdirectory (cleans up root)
-AC_CONFIG_AUX_DIR([config.aux])
+AC_CONFIG_AUX_DIR([build/autoconf])
 # Must follow AC_CONFIG macros above...
 AM_INIT_AUTOMAKE()
 
