@@ -1,12 +1,21 @@
-#!/bin/sh -x
+#!/bin/sh +v
 
 PATH=/usr/local/gnu-autotools/bin/:$PATH
 export PATH
 
-dt=`date`
 # BSD make's "OBJDIR" support freaks out the automake-generated
 # Makefile.  Effectively disable it.
 export MAKEOBJDIRPREFIX=/junk
+
+# Start from the build directory, where the version file is located
+if [ -f build/version ]; then
+    cd build
+fi
+
+if [ \! -f version ]; then
+    echo "Can't find version file"
+    exit 1
+fi
 
 # Update the build number in the 'version' file.
 # Separate number from additional alpha/beta/etc marker
@@ -21,6 +30,8 @@ chmod +w version.old
 echo $VN$MARKER > version
 # Build out the string.
 VS="$(($VN/1000000)).$(( ($VN/1000)%1000 )).$(( $VN%1000 ))$MARKER"
+
+cd ..
 
 # Substitute the integer version into Libarchive's archive.h
 perl -p -i -e "s/^(#define\tARCHIVE_VERSION_NUMBER).*/\$1 $VN/" libarchive/archive.h
@@ -46,9 +57,7 @@ rm -rf /usr/obj`pwd`
 (cd libarchive/test && make cleandir && make clean && make list.h)
 (cd tar && make cleandir && make clean)
 
-# Build the libarchive distfile and drop it in the right place.
-autoreconf -f -v -i
+# Build the libarchive distfile
+/bin/sh build/autogen.sh
 ./configure
 make distcheck
-fa=libarchive-$VS.tar.gz
-chmod 644 $fa
