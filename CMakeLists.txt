@@ -59,7 +59,11 @@ INCLUDE(CheckTypeSize)
 # For yacc file, generate *.c from *.y
 #
 MACRO (YACC_FILE _yaccfile)
-  FIND_PROGRAM(YACC NAMES yacc bison)
+  IF (WIN32)
+    FIND_PROGRAM(YACC NAMES bison yacc)
+  ELSE (WIN32)
+    FIND_PROGRAM(YACC NAMES yacc bison)
+  ENDIF (WIN32)
   IF ("YACC" MATCHES "^YACC-NOTFOUND$")
     MESSAGE(FATAL_ERROR "You need a parser geerator such as yacc.")
   ENDIF ("YACC" MATCHES "^YACC-NOTFOUND$")
