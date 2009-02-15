@@ -81,7 +81,7 @@
 #define	access		_access
 #define	chdir		la_chdir
 #define	chmod		la_chmod
-#define	close		la_close
+#define	close		_close
 #define	fileno		_fileno
 #define	fstat		la_fstat
 #define	getcwd		_getcwd
@@ -308,7 +308,6 @@ extern int	 utimes(const char *name, const struct __timeval *times);
 /* Replacement POSIX function */
 extern int	 la_chdir(const char *path);
 extern int	 la_chmod(const char *path, mode_t mode);
-extern int	 la_close(int fd);
 extern int	 la_fstat(int fd, struct stat *st);
 extern __int64	 la_lseek(int fd, __int64 offset, int whence);
 extern int	 la_mkdir(const char *path, mode_t mode);
