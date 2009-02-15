@@ -514,6 +514,16 @@ la_chmod(const char *path, mode_t mode)
 	return (r);
 }
 
+int
+la_close(int fd)
+{
+
+	/* Avoid assertion */
+	if (fd < 0)
+		return (0);
+	return _close(fd);
+}
+
 __int64
 la_lseek(int fd, __int64 offset, int whence)
 {
