@@ -56,7 +56,6 @@
 #include <wchar.h>
 #include <windows.h>
 #include "archive_platform.h"
-#include "archive_private.h"
 
 #define EPOC_TIME	(116444736000000000ULL)
 
@@ -109,7 +108,7 @@ permissive_name(const char *name)
 	len = strlen(name);
 	wn = wnp = malloc((len + 1) * sizeof(wchar_t));
 	if (wn == NULL)
-		__archive_errx(1, "Out of memory");
+		return (NULL);
 	n = MultiByteToWideChar(CP_ACP, 0, name, len, wn, len);
 	if (n == 0) {
 		free(wn);
@@ -143,14 +142,18 @@ permissive_name(const char *name)
 
 		/* getting a full path name */
 		full = malloc((len + MAX_PATH) * sizeof(wchar_t));
-		if (full == NULL)
-			__archive_errx(1, "Out of memory");
+		if (full == NULL) {
+			free(wn);
+			return (NULL);
+		}
 		l = GetFullPathNameW(wnp, len + MAX_PATH, full, NULL);
 		if (l >= len + MAX_PATH) {
 			/* buffer size is smaller */
 			full = realloc(full, l * sizeof(wchar_t));
-			if (full == NULL)
-				__archive_errx(1, "Out of memory");
+			if (full == NULL) {
+				free(wn);
+				return (NULL);
+			}
 			l = GetFullPathNameW(wnp, l, full, NULL);
 		}
 		if (l != 0) {
@@ -164,8 +167,10 @@ permissive_name(const char *name)
 	
 	slen = 4 + (unc * 4) + len + 1;
 	ws = wsp = malloc(slen * sizeof(wchar_t));
-	if (ws == NULL)
-		__archive_errx(1, "Out of memory");
+	if (ws == NULL) {
+		free(wn);
+		return (NULL);
+	}
 
 	/* prepend "\\?\" */
 	wcsncpy(wsp, L"\\\\?\\", 4);
@@ -330,8 +335,11 @@ __link(const char *src, const char *dst, int sym)
 		}
 
 		wnewsrc = malloc ((wcslen(wsrc) + wcslen(wdst) + 1) * sizeof(wchar_t));
-		if (wnewsrc == NULL)
-			__archive_errx(1, "Out of memory");
+		if (wnewsrc == NULL) {
+			errno = ENOMEM;
+			retval = -1;
+			goto exit;
+		}
 		/* Copying a dirname of wdst */
 		wcscpy(wnewsrc, wdst);
 		slash = wcsrchr(wnewsrc, L'\\');
