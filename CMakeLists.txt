@@ -635,8 +635,6 @@ ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
 # Libarchive is a library
 ADD_LIBRARY(archive SHARED ${libarchive_SOURCES} ${include_HEADERS})
 TARGET_LINK_LIBRARIES(archive ${ADDITIONAL_LIBS})
-SET_PROPERTY(TARGET archive PROPERTY RUNTIME_OUTPUT_DIRECTORY
-  "${CMAKE_CURRENT_BINARY_DIR}/lib")
 
 ############################################
 #
