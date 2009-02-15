@@ -37,6 +37,10 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/getdate.y,v 1.9 2007/07/20 01:27:50 kientzle
 #include <string.h>
 #include <time.h>
 
+#ifdef _MSC_VER
+#define __STDC__	/* for a bug of bison 2.1 on Windows */
+#endif
+
 #define yyparse getdate_yyparse
 #define yylex getdate_yylex
 #define yyerror getdate_yyerror

@@ -40,7 +40,6 @@ ENDIF(ENABLE_TEST)
 # On Windows, currently, bsdtar and bsdcpio are not supported.
 #
 IF (WIN32)
-  SET(ENABLE_TAR 0)
   SET(ENABLE_CPIO 0)
 ENDIF (WIN32)
 #
@@ -762,6 +761,10 @@ IF (ENABLE_TAR)
     tar/util.c
     tar/write.c
   )
+  IF(WIN32)
+    LIST(APPEND bsdtar_SOURCES tar/bsdtar_windows.c)
+    LIST(APPEND bsdtar_SOURCES tar/bsdtar_windows.h)
+  ENDIF(WIN32)
 
   SET(bsdtar_MANS tar/bsdtar.1)
 
@@ -796,6 +799,10 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     tar/test/test_symlink_dir.c
     tar/test/test_version.c
   )
+  IF(WIN32)
+    LIST(APPEND bsdtar_test_SOURCES tar/bsdtar_windows.c)
+    LIST(APPEND bsdtar_test_SOURCES tar/bsdtar_windows.h)
+  ENDIF(WIN32)
 
   #
   # Generate the list.h
@@ -808,10 +815,17 @@ IF(ENABLE_TAR AND ENABLE_TEST)
   ADD_EXECUTABLE(bsdtar_test ${bsdtar_test_SOURCES})
   SET_PROPERTY(TARGET bsdtar_test PROPERTY COMPILE_DEFINITIONS
     LIST_H="${CMAKE_CURRENT_BINARY_DIR}/tar/test/list.h")
-  ADD_TEST(bsdtar_test bsdtar_test
-    -v
-    -p ${CMAKE_CURRENT_BINARY_DIR}/bsdtar
-    -r ${CMAKE_CURRENT_SOURCE_DIR}/tar/test)
+  IF(WIN32)
+    ADD_TEST(bsdtar_test bsdtar_test
+      -v
+      -p ${CMAKE_CURRENT_BINARY_DIR}/debug/bsdtar.exe
+      -r ${CMAKE_CURRENT_SOURCE_DIR}/tar/test)
+  ELSE(WIN32)
+    ADD_TEST(bsdtar_test bsdtar_test
+      -v
+      -p ${CMAKE_CURRENT_BINARY_DIR}/bsdtar
+      -r ${CMAKE_CURRENT_SOURCE_DIR}/tar/test)
+  ENDIF(WIN32)
 
 ENDIF (ENABLE_TAR AND ENABLE_TEST)
 

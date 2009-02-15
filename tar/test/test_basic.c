@@ -30,7 +30,9 @@ static void
 basic_tar(const char *target, const char *pack_options, const char *unpack_options)
 {
 	struct stat st, st2;
+#ifndef _WIN32
 	char buff[128];
+#endif
 	int r;
 
 	assertEqualInt(0, mkdir(target, 0775));
@@ -87,6 +89,7 @@ basic_tar(const char *target, const char *pack_options, const char *unpack_optio
 		assertEqualInt(st.st_ino, st2.st_ino);
 	}
 
+#ifndef _WIN32
 	/* Symlink */
 	r = lstat("symlink", &st);
 	failure("Failed to stat file %s/symlink, errno=%d", target, errno);
@@ -102,6 +105,7 @@ basic_tar(const char *target, const char *pack_options, const char *unpack_optio
 			assertEqualString(buff, "file");
 		}
 	}
+#endif
 
 	/* dir */
 	r = lstat("dir", &st);
