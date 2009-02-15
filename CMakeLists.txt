@@ -7,7 +7,7 @@ SET(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/build/cmake")
 #
 # Version - read from 'version' file.
 #
-FILE(STRINGS ${CMAKE_SOURCE_DIR}/version _version)
+FILE(STRINGS ${CMAKE_SOURCE_DIR}/build/version _version)
 STRING(REGEX REPLACE
  "^([0-9])[0-9][0-9][0-9][0-9][0-9][0-9][a-z]?$" "\\1" _major ${_version})
 STRING(REGEX REPLACE
