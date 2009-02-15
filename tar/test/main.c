@@ -84,7 +84,7 @@ static int skips = 0;
 static int assertions = 0;
 
 /* Directory where uuencoded reference files can be found. */
-static char *refdir;
+static const char *refdir;
 
 /*
  * My own implementation of the standard assert() macro emits the
@@ -901,9 +901,11 @@ int main(int argc, char **argv)
 	int i, tests_run = 0, tests_failed = 0, opt;
 	time_t now;
 	char *refdir_alloc = NULL;
-	char *opt_arg, *progname, *p;
+	const char *opt_arg, *progname, *p;
 	char tmpdir[256];
 	char tmpdir_timestamp[256];
+
+	(void)argc; /* UNUSED */
 
 	/*
 	 * Name of this program, used to build root of our temp directory
@@ -1019,12 +1021,14 @@ int main(int argc, char **argv)
 	 * reference files, use the current directory for that.
 	 */
 	if (refdir == NULL) {
+		char *q;
 		systemf("/bin/pwd > %s/refdir", tmpdir);
-		refdir = refdir_alloc = slurpfile(NULL, "%s/refdir", tmpdir);
-		p = refdir + strlen(refdir);
-		while (p[-1] == '\n') {
-			--p;
-			*p = '\0';
+		q = slurpfile(NULL, "%s/refdir", tmpdir);
+		refdir = refdir_alloc = q;
+		q += strlen(refdir);
+		while (q[-1] == '\n') {
+			--q;
+			*q = '\0';
 		}
 		systemf("rm %s/refdir", tmpdir);
 	}
