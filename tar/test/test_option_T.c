@@ -146,7 +146,7 @@ DEFINE_TEST(test_option_T)
 		    testprog, testprog);
 		assertEmptyFile("test4_out2/test4/d1/bar");
 	} else {
-		skipping("bsdtar does not support -s option on thie platform");
+		skipping("bsdtar does not support -s option on this platform");
 	}
 	/* TODO: Include some use of -C directory-changing within the filelist. */
 	/* I'm pretty sure -C within the filelist is broken on extract. */

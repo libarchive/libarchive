@@ -55,7 +55,7 @@ DEFINE_TEST(test_option_s)
 	    testprog);
 	assertEqualInt(0, stat("check.err", &st));
 	if (st.st_size != 0) {
-		skipping("bsdtar does not support -s option on thie platform");
+		skipping("bsdtar does not support -s option on this platform");
 		return;
 	}
 
