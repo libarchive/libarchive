@@ -921,8 +921,13 @@ int main(int argc, char **argv)
 	 */
 	progname = p = argv[0];
 	while (*p != '\0') {
+#ifdef _WIN32
+		if (*p == '/' || *p == '\\')
+			progname = p + 1;
+#else
 		if (*p == '/')
 			progname = p + 1;
+#endif
 		++p;
 	}
 
