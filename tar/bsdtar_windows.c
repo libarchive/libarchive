@@ -818,7 +818,7 @@ __hstat(HANDLE handle, struct ustat *st)
 	if ((info.dwFileAttributes & FILE_ATTRIBUTE_READONLY) == 0)
 		mode |= S_IWUSR | S_IWGRP | S_IWOTH;
 	if (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-		mode |= S_IFDIR;
+		mode |= S_IFDIR | S_IXUSR | S_IXGRP | S_IXOTH;
 	else
 		mode |= S_IFREG;
 	st->st_mode = mode;
