@@ -802,10 +802,10 @@ static int test_run(int i, const char *tmpdir)
 	/* If there were no failures, we can remove the work dir. */
 	if (failures == failures_before) {
 		if (!keep_temp_files && chdir(tmpdir) == 0) {
-#ifndef _WIN32
-			systemf("rm -rf %s", tests[i].name);
-#else
+#ifdef _WIN32
 			systemf("rmdir /S /Q %s", tests[i].name);
+#else
+			systemf("rm -rf %s", tests[i].name);
 #endif
 		}
 	}
@@ -921,13 +921,9 @@ int main(int argc, char **argv)
 	 */
 	progname = p = argv[0];
 	while (*p != '\0') {
-#ifdef _WIN32
+		/* Support \ or / dir separators for Windows compat. */
 		if (*p == '/' || *p == '\\')
 			progname = p + 1;
-#else
-		if (*p == '/')
-			progname = p + 1;
-#endif
 		++p;
 	}
 
