@@ -29,6 +29,11 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/test/test_0.c,v 1.2 2008/05/26 17:10:10 kien
  * This first test does basic sanity checks on the environment.  For
  * most of these, we just exit on failure.
  */
+#ifndef _WIN32
+#define DEV_NULL "/dev/null"
+#else
+#define DEV_NULL "NUL"
+#endif
 
 DEFINE_TEST(test_0)
 {
@@ -46,9 +51,9 @@ DEFINE_TEST(test_0)
 	 * Try to succesfully run the program; this requires that
 	 * we know some option that will succeed.
 	 */
-	if (0 == systemf("%s --version >/dev/null", testprog)) {
+	if (0 == systemf("%s --version >" DEV_NULL, testprog)) {
 		/* This worked. */
-	} else if (0 == systemf("%s -W version >/dev/null", testprog)) {
+	} else if (0 == systemf("%s -W version >" DEV_NULL, testprog)) {
 		/* This worked. */
 	} else {
 		failure("Unable to successfully run any of the following:\n"
