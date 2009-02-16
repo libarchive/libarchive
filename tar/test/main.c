@@ -911,6 +911,10 @@ int main(int argc, char **argv)
 
 	(void)argc; /* UNUSED */
 
+#ifdef _WIN32
+	/* open() function is always used with a binary mode. */
+	_set_fmode(_O_BINARY);
+#endif
 	/*
 	 * Name of this program, used to build root of our temp directory
 	 * tree.
