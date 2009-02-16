@@ -27,7 +27,8 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/test/test_basic.c,v 1.2 2008/05/26 17:10:10 
 
 
 static void
-basic_tar(const char *target, const char *pack_options, const char *unpack_options)
+basic_tar(const char *target, const char *pack_options,
+    const char *unpack_options, const char *flist)
 {
 	struct stat st, st2;
 #ifndef _WIN32
@@ -38,7 +39,11 @@ basic_tar(const char *target, const char *pack_options, const char *unpack_optio
 	assertEqualInt(0, mkdir(target, 0775));
 
 	/* Use the tar program to create an archive. */
-	r = systemf("%s cf - %s `cat filelist` >%s/archive 2>%s/pack.err", testprog, pack_options, target, target);
+#ifndef _WIN32
+	r = systemf("%s cf - %s `cat %s` >%s/archive 2>%s/pack.err", testprog, pack_options, flist, target, target);
+#else
+	r = systemf("%s cf - %s %s >%s/archive 2>%s/pack.err", testprog, pack_options, flist, target, target);
+#endif
 	failure("Error invoking %s cf -", testprog, pack_options);
 	assertEqualInt(r, 0);
 
@@ -123,6 +128,7 @@ DEFINE_TEST(test_basic)
 	int fd;
 	int filelist;
 	int oldumask;
+	const char *flist;
 
 	oldumask = umask(0);
 
@@ -152,11 +158,16 @@ DEFINE_TEST(test_basic)
 	/* All done. */
 	close(filelist);
 
+#ifndef _WIN32
+	flist = "filelist";
+#else
+	flist = "file linkfile symlink dir";
+#endif
 	/* Archive/dearchive with a variety of options. */
-	basic_tar("copy", "", "");
+	basic_tar("copy", "", "", flist);
 	/* tar doesn't handle cpio symlinks correctly */
 	/* basic_tar("copy_odc", "--format=odc", ""); */
-	basic_tar("copy_ustar", "--format=ustar", "");
+	basic_tar("copy_ustar", "--format=ustar", "", flist);
 
 	umask(oldumask);
 }
