@@ -47,7 +47,10 @@ mkfile(const char *name, int mode, const char *contents, ssize_t size)
 
 DEFINE_TEST(test_symlink_dir)
 {
-	struct stat st, st2;
+	struct stat st;
+#ifndef _WIN32
+	struct stat st2;
+#endif
 	int oldumask;
 
 	oldumask = umask(0);
