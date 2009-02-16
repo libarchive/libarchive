@@ -213,6 +213,17 @@ la_CreateFile(const char *path, DWORD dwDesiredAccess, DWORD dwShareMode,
 	return (handle);
 }
 
+static size_t
+wequallen(const wchar_t *s1, const wchar_t *s2)
+{
+	size_t i = 0;
+
+	while (*s1 != L'\0' && *s2 != L'\0' && *s1 == *s2) {
+		++s1; ++s2; ++i;
+	}
+	return (i);
+}
+
 /* Check that path1 and path2 can be hard-linked by each other.
  * Both arguments must be made by permissive_name function. 
  */
@@ -224,7 +235,7 @@ canHardLinkW(const wchar_t *path1, const wchar_t *path2)
 	const wchar_t *s;
 	int r;
 
-	r = wcsncmp(path1, path2, MAX_PATH);
+	r = wequallen(path1, path2);
 	/* Is volume-name the same? */
 	if (r < 7)
 		return (0);
