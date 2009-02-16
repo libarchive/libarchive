@@ -88,6 +88,10 @@ DEFINE_TEST(test_version)
 		++q;
 	/* All terminated by a newline. */
 	assert(s >= 1);
+#ifndef _WIN32
 	assertEqualMem(q, "\n", 1);
+#else
+	assertEqualMem(q, "\r\n", 2);
+#endif
 	free(p);
 }

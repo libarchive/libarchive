@@ -59,7 +59,11 @@ DEFINE_TEST(test_patterns)
 	r = systemf("%s tf %s /tmp/foo/bar > tar2a.out 2> tar2a.err",
 	    testprog, reffile2);
 	assertEqualInt(r, 0);
+#ifndef _WIN32
 	p = "/tmp/foo/bar/\n/tmp/foo/bar/baz\n";
+#else
+	p = "/tmp/foo/bar/\r\n/tmp/foo/bar/baz\r\n";
+#endif
 	assertFileContents(p, strlen(p), "tar2a.out");
 	assertEmptyFile("tar2a.err");
 
