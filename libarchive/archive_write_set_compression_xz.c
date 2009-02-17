@@ -156,7 +156,6 @@ archive_compressor_xz_lzma_init(struct archive_write *a, int code)
 {
 	int ret;
 	struct private_data *state;
-	time_t t;
 
 	a->archive.compression_code = code;
 	a->archive.compression_name =
@@ -301,7 +300,6 @@ archive_compressor_xz_finish(struct archive_write *a)
 	int ret;
 	struct private_data *state;
 	unsigned tocopy;
-	unsigned char trailer[8];
 
 	state = (struct private_data *)a->compressor.data;
 	ret = 0;

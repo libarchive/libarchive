@@ -190,7 +190,7 @@ lzma_bidder_bid(struct archive_read_filter_bidder *self,
     struct archive_read_filter *filter)
 {
 	const unsigned char *buffer;
-	size_t avail;
+	ssize_t avail;
 	int bits_checked;
 
 	(void)self; /* UNUSED */
@@ -270,7 +270,6 @@ xz_lzma_bidder_init(struct archive_read_filter *self, int code)
 {
 	static const size_t out_block_size = 64 * 1024;
 	void *out_block;
-	const char *buff;
 	struct private_data *state;
 	int ret;
 
@@ -294,7 +293,6 @@ xz_lzma_bidder_init(struct archive_read_filter *self, int code)
 	self->skip = NULL; /* not supported */
 	self->close = xz_filter_close;
 
-	state->stream.next_in = buff;
 	state->stream.avail_in = 0;
 
 	state->stream.next_out = state->out_block;
