@@ -659,6 +659,7 @@ IF(ENABLE_TEST)
     libarchive/test/test_compat_gtar.c
     libarchive/test/test_compat_gzip.c
     libarchive/test/test_compat_tar_hardlink.c
+    libarchive/test/test_compat_xz.c
     libarchive/test/test_compat_zip.c
     libarchive/test/test_empty_write.c
     libarchive/test/test_entry.c
