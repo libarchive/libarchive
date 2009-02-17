@@ -61,8 +61,7 @@ DEFINE_TEST(test_read_format_cpio_bin_xz)
 		    "Unrecognized archive format") == 0) {
 			skipping("Skipping XZ compression check: "
 			    "This version of libarchive was compiled "
-			    "without xz support",
-			    archive_error_string(a));
+			    "without xz support");
 			goto finish;
 		}
 	}
