@@ -198,6 +198,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_compat_gtar.c			\
 	libarchive/test/test_compat_gzip.c			\
 	libarchive/test/test_compat_tar_hardlink.c		\
+	libarchive/test/test_compat_xz.c			\
 	libarchive/test/test_compat_zip.c			\
 	libarchive/test/test_empty_write.c			\
 	libarchive/test/test_entry.c				\
@@ -281,6 +282,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_gzip_1.tgz.uu			\
 	libarchive/test/test_compat_gzip_2.tgz.uu			\
 	libarchive/test/test_compat_tar_hardlink_1.tar.uu		\
+	libarchive/test/test_compat_xz_1.txz.uu				\
 	libarchive/test/test_compat_zip_1.zip.uu			\
 	libarchive/test/test_fuzz_1.iso.uu				\
 	libarchive/test/test_pax_filename_encoding.tar.uu		\
