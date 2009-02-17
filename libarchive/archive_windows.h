@@ -62,6 +62,9 @@
 #pragma warning(disable:4244)   /* 'conversion' conversion from 'type1' to 'type2', possible loss of data */
 #pragma warning(disable:4146)   /* unary minus operator applied to unsigned type, result still unsigned */
 //#pragma warning(disable:4267)   /* Conversion, possible loss of data */
+#pragma warning(default: 4061)  /* The enumerate has no associated handler in a switch statement */
+#pragma warning(default: 4296)  /* An unsigned variable was used in a comparison operation with zero */ 
+#pragma warning(default: 4365)  /* 'action':conversion from 'type_1' to 'type_2', signed/unsigned mismatch */
 #endif
 
 #ifndef NULL
