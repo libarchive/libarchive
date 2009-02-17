@@ -28,8 +28,8 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/test/test_patterns.c,v 1.6 2008/08/21 22:28:
 DEFINE_TEST(test_patterns)
 {
 	int fd, r;
-	const char *reffile2 = "test_patterns_2.tgz";
-	const char *reffile3 = "test_patterns_3.tgz";
+	const char *reffile2 = "test_patterns_2.tar";
+	const char *reffile3 = "test_patterns_3.tar";
 	const char *p;
 
 	/*
@@ -45,9 +45,9 @@ DEFINE_TEST(test_patterns)
 	fd = open("foo", O_CREAT | O_WRONLY, 0644);
 	assert(fd >= 0);
 	close(fd);
-	r = systemf("%s zcfv tar1.tgz foo > tar1a.out 2> tar1a.err", testprog);
+	r = systemf("%s cfv tar1.tgz foo > tar1a.out 2> tar1a.err", testprog);
 	assertEqualInt(r, 0);
-	r = systemf("%s zxfv tar1.tgz foo bar > tar1b.out 2> tar1b.err", testprog);
+	r = systemf("%s xfv tar1.tgz foo bar > tar1b.out 2> tar1b.err", testprog);
 	failure("tar should return non-zero because a file was given on the command line that's not in the archive");
 	assert(r != 0);
 
