@@ -232,6 +232,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_format_tar_empty_filename.c	\
 	libarchive/test/test_read_format_tbz.c			\
 	libarchive/test/test_read_format_tgz.c			\
+	libarchive/test/test_read_format_txz.c			\
 	libarchive/test/test_read_format_tz.c			\
 	libarchive/test/test_read_format_zip.c			\
 	libarchive/test/test_read_large.c			\
