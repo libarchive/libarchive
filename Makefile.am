@@ -378,8 +378,8 @@ bsdtar_TESTS_ENVIRONMENT=
 endif
 
 bsdtar_test_EXTRA_DIST=			\
-	tar/test/test_patterns_2.tgz.uu	\
-	tar/test/test_patterns_3.tgz.uu
+	tar/test/test_patterns_2.tar.uu	\
+	tar/test/test_patterns_3.tar.uu
 
 
 #
