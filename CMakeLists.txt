@@ -671,6 +671,7 @@ IF(ENABLE_TEST)
     libarchive/test/test_read_data_large.c
     libarchive/test/test_read_disk.c
     libarchive/test/test_read_extract.c
+    libarchive/test/test_read_file_nonexistent.c
     libarchive/test/test_read_format_ar.c
     libarchive/test/test_read_format_cpio_bin.c
     libarchive/test/test_read_format_cpio_bin_Z.c
