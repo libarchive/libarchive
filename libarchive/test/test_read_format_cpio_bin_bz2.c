@@ -45,14 +45,11 @@ DEFINE_TEST(test_read_format_cpio_bin_bz2)
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_open_memory(a, archive, sizeof(archive)));
 	r = archive_read_next_header(a, &ae);
-	if (r != ARCHIVE_OK) {
-		if (strcmp(archive_error_string(a),
-		    "Unrecognized archive format") == 0) {
-			skipping("Skipping BZ2 compression check: "
-			    "This version of libarchive was compiled "
-			    "without bz2 support");
-			goto finish;
-		}
+	if (UnsupportedCompress(r, a)) {
+		skipping("Skipping BZ2 compression check: "
+		    "This version of libarchive was compiled "
+		    "without bz2 support");
+		goto finish;
 	}
 	assertEqualIntA(a, ARCHIVE_OK, r);
 	assert(archive_compression(a) == ARCHIVE_COMPRESSION_BZIP2);

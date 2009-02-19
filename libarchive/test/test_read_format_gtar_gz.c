@@ -43,14 +43,11 @@ DEFINE_TEST(test_read_format_gtar_gz)
 	assert(0 == archive_read_support_format_all(a));
 	assert(0 == archive_read_open_memory(a, archive, sizeof(archive)));
 	r = archive_read_next_header(a, &ae);
-	if (r != ARCHIVE_OK) {
-		if (strcmp(archive_error_string(a),
-		    "Unrecognized archive format") == 0) {
-			skipping("Skipping GZIP compression check: "
-			    "This version of libarchive was compiled "
-			    "without gzip support");
-			goto finish;
-		}
+	if (UnsupportedCompress(r, a)) {
+		skipping("Skipping GZIP compression check: "
+		    "This version of libarchive was compiled "
+		    "without gzip support");
+		goto finish;
 	}
 	assert(0 == r);
 	assert(archive_compression(a) == ARCHIVE_COMPRESSION_GZIP);

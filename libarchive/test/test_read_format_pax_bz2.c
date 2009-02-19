@@ -51,14 +51,11 @@ DEFINE_TEST(test_read_format_pax_bz2)
 	assert(0 == archive_read_support_format_all(a));
 	assert(0 == archive_read_open_memory(a, archive, sizeof(archive)));
 	r = archive_read_next_header(a, &ae);
-	if (r != ARCHIVE_OK) {
-		if (strcmp(archive_error_string(a),
-		    "Unrecognized archive format") == 0) {
-			skipping("Skipping BZIP2 compression check: "
-			    "This version of libarchive was compiled "
-			    "without bzip2 support");
-			goto finish;
-		}
+	if (UnsupportedCompress(r, a)) {
+		skipping("Skipping BZIP2 compression check: "
+		    "This version of libarchive was compiled "
+		    "without bzip2 support");
+		goto finish;
 	}
 	assert(0 == r);
 	assert(archive_compression(a) == ARCHIVE_COMPRESSION_BZIP2);

@@ -49,15 +49,11 @@ DEFINE_TEST(test_read_format_txz)
 	assert(0 == archive_read_support_format_all(a));
 	assert(0 == archive_read_open_memory(a, archive, sizeof(archive)));
 	r = archive_read_next_header(a, &ae);
-	if (r != ARCHIVE_OK) {
-		if (strcmp(archive_error_string(a),
-		    "Unrecognized archive format") == 0) {
-			skipping("Skipping XZ compression check: "
-			    "This version of libarchive was compiled "
-			    "without xz support",
-			    archive_error_string(a));
-			goto finish;
-		}
+	if (UnsupportedCompress(r, a)) {
+		skipping("Skipping XZ compression check: "
+		    "This version of libarchive was compiled "
+		    "without xz support");
+		goto finish;
 	}
 	assert(0 == r);
 	assert(archive_compression(a) == ARCHIVE_COMPRESSION_XZ);

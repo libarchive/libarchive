@@ -84,29 +84,26 @@ DEFINE_TEST(test_fuzz)
 		assert(0 == archive_read_support_format_all(a));
 		assert(0 == archive_read_open_memory(a, rawimage, size));
 		r = archive_read_next_header(a, &ae);
-		if (r != ARCHIVE_OK) {
-			if (strcmp(archive_error_string(a),
-			    "Unrecognized archive format") == 0) {
-				skipping("Skipping GZIP/BZIP2 compression check: "
-				    "This version of libarchive was compiled "
-				    "without gzip/bzip2 support");
-				assert(0 == archive_read_close(a));
-				assert(0 == archive_read_finish(a));
-				continue;
-			}
-		} else {
+		if (UnsupportedCompress(r, a)) {
+			skipping("Skipping GZIP/BZIP2 compression check: "
+			    "This version of libarchive was compiled "
+			    "without gzip/bzip2 support");
+			assert(0 == archive_read_close(a));
+			assert(0 == archive_read_finish(a));
+			continue;
+		}
+		assert(0 == r);
+		if (r == ARCHIVE_OK) {
 			char buff[20];
 
 			r = archive_read_data(a, buff, 19);
-			if (r < ARCHIVE_OK) {
-				if (strcmp(archive_error_string(a),
-				    "libarchive compiled without deflate support (no libz)") == 0) {
-					skipping("Skipping ZIP compression check: %s",
-					    archive_error_string(a));
-					assert(0 == archive_read_close(a));
-					assert(0 == archive_read_finish(a));
-					continue;
-				}
+			if (r < ARCHIVE_OK && strcmp(archive_error_string(a),
+			    "libarchive compiled without deflate support (no libz)") == 0) {
+				skipping("Skipping ZIP compression check: %s",
+				    archive_error_string(a));
+				assert(0 == archive_read_close(a));
+				assert(0 == archive_read_finish(a));
+				continue;
 			}
 		}
 		assert(0 == archive_read_close(a));

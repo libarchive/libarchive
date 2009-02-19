@@ -55,14 +55,11 @@ verify(const char *name)
 	/* Read entries, match up names with list above. */
 	for (i = 0; i < 6; ++i) {
 		r = archive_read_next_header(a, &ae);
-		if (r != ARCHIVE_OK) {
-			if (strcmp(archive_error_string(a),
-			    "Unrecognized archive format") == 0) {
-				skipping("Skipping GZIP compression check: "
-					"This version of libarchive was compiled "
-				    "without gzip support");
-				goto finish;
-			}
+		if (UnsupportedCompress(r, a)) {
+			skipping("Skipping GZIP compression check: "
+				"This version of libarchive was compiled "
+			    "without gzip support");
+			goto finish;
 		}
 		failure("Could not read file %d (%s) from %s", i, n[i], name);
 		assertEqualIntA(a, ARCHIVE_OK, r);
