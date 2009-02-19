@@ -85,6 +85,7 @@
 #define	chdir		la_chdir
 #define	chmod		la_chmod
 #define	close		_close
+#define	fcntl		la_fcntl
 #define	fileno		_fileno
 #define	fstat		la_fstat
 #define	getcwd		_getcwd
@@ -101,6 +102,7 @@
 #define	tzset		_tzset
 #define	umask		_umask
 #define	unlink		la_unlink
+#define	waitpid		la_waitpid
 #define	write		la_write
 
 #define	O_RDONLY	_O_RDONLY
@@ -256,6 +258,8 @@ struct _timeval64i32 {
 #define __timeval _timeval64i32
 #endif
 
+typedef int pid_t;
+
 #define SYSTEM_PATH_CHAR	'\\'
 
 /* Message digest define */
@@ -311,6 +315,7 @@ extern int	 utimes(const char *name, const struct __timeval *times);
 /* Replacement POSIX function */
 extern int	 la_chdir(const char *path);
 extern int	 la_chmod(const char *path, mode_t mode);
+extern int	 la_fcntl(int fd, int cmd, int val);
 extern int	 la_fstat(int fd, struct stat *st);
 extern __int64	 la_lseek(int fd, __int64 offset, int whence);
 extern int	 la_mkdir(const char *path, mode_t mode);
@@ -320,6 +325,7 @@ extern ssize_t	 la_read(int fd, void *buf, size_t nbytes);
 extern int	 la_rmdir(const char *path);
 extern int	 la_stat(const char *path, struct stat *st);
 extern int	 la_unlink(const char *path);
+extern pid_t	 la_waitpid(pid_t wpid, int *status, int option);
 extern ssize_t	 la_write(int fd, const void *buf, size_t nbytes);
 
 #define _stat64i32(path, st)	la_stat(path, st)

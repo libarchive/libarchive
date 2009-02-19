@@ -533,6 +533,27 @@ la_chmod(const char *path, mode_t mode)
 	return (r);
 }
 
+/*
+ * This fcntl is limited implemention.
+ */
+int
+la_fcntl(int fd, int cmd, int val)
+{
+	HANDLE handle;
+
+	handle = (HANDLE)_get_osfhandle(fd);
+	if (GetFileType(handle) == FILE_TYPE_PIPE) {
+		if (cmd == F_SETFL && val == 0) {
+			DWORD mode = PIPE_WAIT;
+			if (SetNamedPipeHandleState(
+			    handle, &mode, NULL, NULL) != 0)
+				return (0);
+		}
+	}
+	errno = EINVAL;
+	return (-1);
+}
+
 __int64
 la_lseek(int fd, __int64 offset, int whence)
 {
@@ -658,6 +679,7 @@ la_open(const char *path, int flags, ...)
 ssize_t
 la_read(int fd, void *buf, size_t nbytes)
 {
+	HANDLE handle;
 	DWORD bytes_read, lasterr;
 	int r;
 
@@ -669,10 +691,31 @@ la_read(int fd, void *buf, size_t nbytes)
 		errno = EBADF;
 		return (-1);
 	}
-	r = ReadFile((HANDLE)_get_osfhandle(fd), buf, (uint32_t)nbytes,
+	handle = (HANDLE)_get_osfhandle(fd);
+	if (GetFileType(handle) == FILE_TYPE_PIPE) {
+		DWORD sta;
+		if (GetNamedPipeHandleState(
+		    handle, &sta, NULL, NULL, NULL, NULL, 0) != 0 &&
+		    (sta & PIPE_NOWAIT) == 0) {
+			DWORD avail = -1;
+			int cnt = 3;
+
+			while (PeekNamedPipe(
+			    handle, NULL, 0, NULL, &avail, NULL) != 0 &&
+			    avail == 0 && --cnt)
+				Sleep(100);
+			if (avail == 0)
+				return (0);
+		}
+	}
+	r = ReadFile(handle, buf, (uint32_t)nbytes,
 	    &bytes_read, NULL);
 	if (r == 0) {
 		lasterr = GetLastError();
+		if (lasterr == ERROR_NO_DATA) {
+			errno = EAGAIN;
+			return (-1);
+		}
 		if (lasterr == ERROR_BROKEN_PIPE)
 			return (0);
 		if (lasterr == ERROR_ACCESS_DENIED)
@@ -919,6 +962,36 @@ la_unlink(const char *path)
 	r = _wunlink(ws);
 	free(ws);
 	return (r);
+}
+
+/*
+ * This waitpid is limited implemention.
+ */
+pid_t
+la_waitpid(pid_t wpid, int *status, int option)
+{
+	HANDLE child;
+	DWORD cs, ret;
+
+	(void)option;/* UNUSED */
+	child = OpenProcess(PROCESS_ALL_ACCESS, FALSE, wpid);
+	if (child == NULL)
+		return (-1);
+	ret = WaitForSingleObject(child, INFINITE);
+	if (ret == WAIT_FAILED) {
+		CloseHandle(child);
+		return (-1);
+	}
+	if (GetExitCodeProcess(child, &cs) == 0) {
+		CloseHandle(child);
+		return (-1);
+	}
+	if (cs == STILL_ACTIVE)
+		*status = 0x100;
+	else
+		*status = (int)(cs & 0xff);
+	CloseHandle(child);
+	return (wpid);
 }
 
 ssize_t

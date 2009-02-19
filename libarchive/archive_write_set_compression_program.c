@@ -28,8 +28,8 @@
 __FBSDID("$FreeBSD: src/lib/libarchive/archive_write_set_compression_program.c,v 1.3 2008/06/15 10:45:57 kientzle Exp $");
 
 /* This capability is only available on POSIX systems. */
-#if !defined(HAVE_PIPE) || !defined(HAVE_FCNTL) || \
-    !(defined(HAVE_FORK) || defined(HAVE_VFORK))
+#if (!defined(HAVE_PIPE) || !defined(HAVE_FCNTL) || \
+    !(defined(HAVE_FORK) || defined(HAVE_VFORK))) && !defined(_WIN32)
 #include "archive.h"
 
 /*

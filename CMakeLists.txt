@@ -622,6 +622,7 @@ SET(libarchive_MANS
 IF(WIN32)
   LIST(APPEND libarchive_SOURCES libarchive/archive_windows.c)
   LIST(APPEND libarchive_SOURCES libarchive/archive_windows.h)
+  LIST(APPEND libarchive_SOURCES libarchive/filter_fork_windows.c)
 ENDIF(WIN32)
 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/libarchive)

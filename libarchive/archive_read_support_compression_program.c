@@ -60,8 +60,8 @@ archive_read_support_compression_program(struct archive *a, const char *cmd)
 
 
 /* This capability is only available on POSIX systems. */
-#if !defined(HAVE_PIPE) || !defined(HAVE_FCNTL) || \
-    !(defined(HAVE_FORK) || defined(HAVE_VFORK))
+#if (!defined(HAVE_PIPE) || !defined(HAVE_FCNTL) || \
+    !(defined(HAVE_FORK) || defined(HAVE_VFORK))) && !defined(_WIN32)
 
 /*
  * On non-Posix systems, allow the program to build, but choke if
