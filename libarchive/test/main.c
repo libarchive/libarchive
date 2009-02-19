@@ -894,6 +894,32 @@ extract_reference_file(const char *name)
 	fclose(in);
 }
 
+#ifdef _WIN32
+#define DEV_NULL "NUL"
+#else
+#define DEV_NULL "/dev/null"
+#endif
+
+const char *
+external_gzip_program(int un)
+{
+	char *extprog;
+
+	if (un) {
+		extprog = "gunzip";
+		if (systemf("%s -V >" DEV_NULL " 2>" DEV_NULL, extprog) == 0)
+			return (extprog);
+		extprog = "gzip -d";
+		if (systemf("%s -V >" DEV_NULL " 2>" DEV_NULL, extprog) == 0)
+			return (extprog);
+	} else {
+		extprog = "gzip";
+		if (systemf("%s -V >" DEV_NULL " 2>" DEV_NULL, extprog) == 0)
+			return (extprog);
+	}
+	return (NULL);
+}
+
 static char *
 get_refdir(void)
 {
