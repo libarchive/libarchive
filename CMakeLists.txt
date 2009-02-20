@@ -57,25 +57,26 @@ INCLUDE(CheckTypeSize)
 #
 # For yacc file, generate *.c from *.y
 #
-MACRO (YACC_FILE _yaccfile)
+MACRO (YACC_FILE _yaccfile _cfile)
   IF (WIN32)
     FIND_PROGRAM(YACC NAMES bison yacc)
   ELSE (WIN32)
     FIND_PROGRAM(YACC NAMES yacc bison)
   ENDIF (WIN32)
   IF ("YACC" MATCHES "^YACC-NOTFOUND$")
-    MESSAGE(FATAL_ERROR "You need a parser geerator such as yacc.")
+    MESSAGE(STATUS "yacc/bison not found; you will not be able to regenerate " ${_cfile} " from " ${_yaccfile})
+  ELSE ("YACC" MATCHES "^YACC-NOTFOUND$")
+    GET_FILENAME_COMPONENT(_path ${_yaccfile} PATH)
+    GET_FILENAME_COMPONENT(_name ${_yaccfile} NAME_WE)
+    SET(_basename "${_path}/${_name}")
+    FILE(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${_path}")
+    ADD_CUSTOM_COMMAND(
+      OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.c ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.h
+      COMMAND ${YACC} -o ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.c ${CMAKE_CURRENT_SOURCE_DIR}/${_yaccfile}
+      DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${_yaccfile}
+      COMMENT "Generating ${_basename}.c from ${_yaccfile}"
+    )
   ENDIF ("YACC" MATCHES "^YACC-NOTFOUND$")
-  GET_FILENAME_COMPONENT(_path ${_yaccfile} PATH)
-  GET_FILENAME_COMPONENT(_name ${_yaccfile} NAME_WE)
-  SET(_basename "${_path}/${_name}")
-  FILE(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${_path}")
-  ADD_CUSTOM_COMMAND(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.c ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.h
-    COMMAND ${YACC} -o ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.c ${CMAKE_CURRENT_SOURCE_DIR}/${_yaccfile}
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${_yaccfile}
-    COMMENT "Generating ${_basename}.c from ${_yaccfile}"
-  )
 ENDMACRO (YACC_FILE)
 #
 # Generate list.h
@@ -749,7 +750,7 @@ ENDIF(ENABLE_TEST)
 #
 ############################################
 IF (ENABLE_TAR)
-  YACC_FILE(tar/getdate.y)
+  YACC_FILE(tar/getdate.y tar/getdate.c)
   SET(bsdtar_SOURCES
     tar/bsdtar.c
     tar/bsdtar.h
