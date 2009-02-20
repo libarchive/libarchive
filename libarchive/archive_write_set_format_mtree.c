@@ -320,6 +320,7 @@ mtree_indent(struct mtree_writer *mtree)
 	archive_string_empty(&mtree->ebuf);
 }
 
+#ifndef _WIN32
 static size_t
 dir_len(struct archive_entry *entry)
 {
@@ -333,7 +334,7 @@ dir_len(struct archive_entry *entry)
 	return (r - path + 1);
 }
 
-#ifdef _WIN32
+#else
 /*
  * Note: We should use wide-character for findng '\' character,
  * a directory separator on Windows, because some character-set have
@@ -341,26 +342,35 @@ dir_len(struct archive_entry *entry)
  * code.
  */
 static size_t
-dir_len_win(struct archive_entry *entry)
+dir_len(struct archive_entry *entry)
 {
 	const wchar_t *wp, *r;
 	const char *path;
-	size_t l;
+	const char *p;
+	size_t al, l;
 
 	path = archive_entry_pathname(entry);
-	if (strchr(path, '\\') == NULL)
-		return (dir_len(entry));
-	if ((wp = archive_entry_pathname_w(entry)) == NULL)
-		return (dir_len(entry));
-	for (r = NULL; *wp != L'\0'; wp++) {
-		if (*wp == L'\\' || *wp == L'/')
-			r = wp;
+	al = l = -1;
+	for (p = path; *p != '\0'; ++p) {
+		if (*p == '\\')
+			al = l = p - path;
+		else if (*p == '/')
+			al = p - path;
 	}
-	if (r == NULL)
+	if (l == -1)
+		goto alen;
+	if ((wp = archive_entry_pathname_w(entry)) == NULL)
+		goto alen;
+	r = wp + wcslen(wp);
+	while (--r >= wp && *r != L'/' && *r != L'\\')
+		;
+	l = wcstombs(NULL, ++r, 0);
+	if (l != -1)
+		return (p - path - l);
+alen:
+	if (al == -1)
 		return (0);
-	if ((l = wcstombs(NULL, ++r, 0)) == -1)
-		return (dir_len(entry));
-	return (strlen(path) - l);
+	return (al + 1);
 }
 #endif /* _WIN32 */
 
@@ -370,11 +380,7 @@ parent_dir_changed(struct archive_string *dir, struct archive_entry *entry)
 	const char *path;
 	size_t l;
 
-#ifdef _WIN32
-	l = dir_len_win(entry);
-#else
 	l = dir_len(entry);
-#endif
 	path = archive_entry_pathname(entry);
 	if (archive_strlen(dir) > 0) {
 		if (l == 0) {
