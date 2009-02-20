@@ -434,7 +434,7 @@ ftruncate(int fd, off_t length)
 }
 
 DIR *
-opendir(const char *path)
+__opendir(const char *path, int ff)
 {
 	DIR *dir;
 	wchar_t *wpath, *wfname;
@@ -452,31 +452,47 @@ opendir(const char *path)
 		free(dir);
 		return (NULL);
 	}
-	wlen = wcslen(wpath);
-	wfname = malloc((wlen + 3) * sizeof(wchar_t));
-	if (wfname == NULL) {
-		errno = ENOMEM;
-		free(dir);
+	if (ff) {
+		wfname = wpath;
+		wpath = NULL;
+	} else {
+		wlen = wcslen(wpath);
+		wfname = malloc((wlen + 3) * sizeof(wchar_t));
+		if (wfname == NULL) {
+			errno = ENOMEM;
+			free(dir);
+			free(wpath);
+			return (NULL);
+		}
+		wcscpy(wfname, wpath);
+		wcscat(wfname, L"\\*");
 		free(wpath);
-		return (NULL);
 	}
-	wcscpy(wfname, wpath);
-	wcscat(wfname, L"\\*");
 
 	dir->handle = FindFirstFileW(wfname, &dir->fileData);
 	if (dir->handle == INVALID_HANDLE_VALUE) {
 		_dosmaperr(GetLastError());
 		free(dir);
-		free(wpath);
 		free(wfname);
 		return (NULL);
 	}
 	dir->first = 1;
 	dir->finished = FALSE;
-	free(wpath);
 	free(wfname);
 
 	return (dir);
+}
+
+static DIR *
+opendir_findfile(const char *path)
+{
+	return (__opendir(path, 1));
+}
+
+DIR *
+opendir(const char *path)
+{
+	return (__opendir(path, 0));
 }
 
 struct dirent *
@@ -620,6 +636,20 @@ la_mkdir(const char *path, mode_t mode)
 		return (-1);
 	}
 	return (0);
+}
+
+/* Windows' mbstowcs is differrent error handling from other unix mbstowcs.
+ * That one is using MultiByteToWideChar function with MB_PRECOMPOSED and
+ * MB_ERR_INVALID_CHARS flags.
+ * This implements for only to pass libarchive_test.
+ */
+size_t
+la_mbstowcs(wchar_t *wcstr, const char *mbstr, size_t nwchars)
+{
+
+	return (MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS,
+	    mbstr, (int)strlen(mbstr), wcstr,
+	    (int)nwchars));
 }
 
 int
@@ -1045,6 +1075,95 @@ bsdtar_is_privileged(struct bsdtar *bsdtar)
 		return (0);
 	}
 	return (ret);
+}
+
+/*
+ * Note: We should use wide-character for findng '\' character,
+ * a directory separator on Windows, because some character-set have
+ * been using the '\' character for a part of its multibyte character
+ * code.
+ */
+static size_t
+dir_len_w(const char *path)
+{
+	const wchar_t *r;
+	wchar_t *wp;
+	const char *p;
+	size_t al, l;
+
+	al = l = -1;
+	for (p = path; *p != '\0'; ++p) {
+		if (*p == '\\')
+			al = l = p - path;
+		else if (*p == '/')
+			al = p - path;
+	}
+	if (l == -1)
+		goto alen;
+	l = p - path;
+	if ((wp = malloc((l + 1) * sizeof(wchar_t))) == NULL)
+		goto alen;
+	if ((l = mbstowcs(wp, path, l)) == -1) {
+		free(wp);
+		goto alen;
+	}
+	wp[l] = L'\0';
+	r = wp + l;
+	while (--r >= wp && *r != L'/' && *r != L'\\')
+		;
+	l = wcstombs(NULL, ++r, 0);
+	free(wp);
+	if (l != -1)
+		return (p - path - l);
+alen:
+	if (al == -1)
+		return (0);
+	return (al + 1);
+}
+
+/*
+ * Find file names and call write_hierarchy function.
+ */
+void
+write_hierarchy_win(struct bsdtar *bsdtar, struct archive *a,
+    const char *path, void (*write_hierarchy)(struct bsdtar *bsdtar,
+    struct archive *a, const char *path))
+{
+	DIR *dir;
+	struct dirent *ent;
+	const char *r;
+	char *xpath;
+	size_t dl;
+
+	r = path;
+	while (*r != '\0' && *r != '*' && *r != '?')
+		++r;
+	if (*r == '\0')
+		/* There aren't meta-characters '*' and '?' in path */
+		goto try_plain;
+	dir = opendir_findfile(path);
+	if (dir == NULL)
+		goto try_plain;
+	dl = dir_len_w(path);
+	xpath = malloc(dl + MAX_PATH);
+	if (xpath == NULL)
+		goto try_plain;
+	strncpy(xpath, path, dl);
+	while ((ent = readdir(dir)) != NULL) {
+		if (ent->d_name[0] == '.' && ent->d_name[1] == '\0')
+			continue;
+		if (ent->d_name[0] == '.' && ent->d_name[1] == '.' &&
+		    ent->d_name[2] == '\0')
+			continue;
+		strcpy(&xpath[dl], ent->d_name);
+		write_hierarchy(bsdtar, a, xpath);
+	}
+	free(xpath);
+	closedir(dir);
+	return;
+
+try_plain:
+	write_hierarchy(bsdtar, a, path);
 }
 
 #endif /* LIST_H */

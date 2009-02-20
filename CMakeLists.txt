@@ -807,6 +807,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
   IF(WIN32)
     LIST(APPEND bsdtar_test_SOURCES tar/bsdtar_windows.c)
     LIST(APPEND bsdtar_test_SOURCES tar/bsdtar_windows.h)
+    LIST(APPEND bsdtar_test_SOURCES tar/test/test_windows.c)
   ENDIF(WIN32)
 
   #
