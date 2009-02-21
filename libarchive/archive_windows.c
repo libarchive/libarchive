@@ -642,24 +642,70 @@ la_open(const char *path, int flags, ...)
 	va_start(ap, flags);
 	pmode = va_arg(ap, int);
 	va_end(ap);
-	r = _open(path, flags, pmode);
-	if (r < 0 && errno == EACCES && (flags & O_CREAT) != 0) {
-		/* simular other POSIX system action to pass a test */
+	ws = NULL;
+	if ((flags & ~O_BINARY) == O_RDONLY) {
+		/*
+		 * When we open a directory, _open function returns 
+		 * "Permission denied" error.
+		 */
 		attr = GetFileAttributesA(path);
-		if (attr == -1)
+		if (attr == -1 && GetLastError() == ERROR_PATH_NOT_FOUND) {
+			ws = permissive_name(path);
+			if (ws == NULL) {
+				errno = EINVAL;
+				return (-1);
+			}
+			attr = GetFileAttributesW(ws);
+		}
+		if (attr == -1) {
 			_dosmaperr(GetLastError());
-		else if (attr & FILE_ATTRIBUTE_DIRECTORY)
-			errno = EISDIR;
-		else
-			errno = EACCES;
-		return (-1);
+			free(ws);
+			return (-1);
+		}
+		if (attr & FILE_ATTRIBUTE_DIRECTORY) {
+			HANDLE handle;
+
+			if (ws != NULL)
+				handle = CreateFileW(ws, 0, 0, NULL,
+				    OPEN_EXISTING,
+				    FILE_FLAG_BACKUP_SEMANTICS |
+				    FILE_ATTRIBUTE_READONLY,
+					NULL);
+			else
+				handle = CreateFileA(path, 0, 0, NULL,
+				    OPEN_EXISTING,
+				    FILE_FLAG_BACKUP_SEMANTICS |
+				    FILE_ATTRIBUTE_READONLY,
+					NULL);
+			free(ws);
+			if (handle == INVALID_HANDLE_VALUE) {
+				_dosmaperr(GetLastError());
+				return (-1);
+			}
+			r = _open_osfhandle((intptr_t)handle, _O_RDONLY);
+			return (r);
+		}
 	}
-	if (r >= 0 || errno != ENOENT)
-		return (r);
-	ws = permissive_name(path);
 	if (ws == NULL) {
-		errno = EINVAL;
-		return (-1);
+		r = _open(path, flags, pmode);
+		if (r < 0 && errno == EACCES && (flags & O_CREAT) != 0) {
+			/* simular other POSIX system action to pass a test */
+			attr = GetFileAttributesA(path);
+			if (attr == -1)
+				_dosmaperr(GetLastError());
+			else if (attr & FILE_ATTRIBUTE_DIRECTORY)
+				errno = EISDIR;
+			else
+				errno = EACCES;
+			return (-1);
+		}
+		if (r >= 0 || errno != ENOENT)
+			return (r);
+		ws = permissive_name(path);
+		if (ws == NULL) {
+			errno = EINVAL;
+			return (-1);
+		}
 	}
 	r = _wopen(ws, flags, pmode);
 	if (r < 0 && errno == EACCES && (flags & O_CREAT) != 0) {
