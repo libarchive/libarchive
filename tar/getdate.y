@@ -63,11 +63,6 @@ typedef enum _DSTMODE {
 } DSTMODE;
 
 /*
-**  Meridian:  am or pm.
-*/
-enum { tAM, tPM };
-
-/*
 **  Global variables.  We could get rid of most of these by using a good
 **  union as the yacc stack.  (This routine was originally written before
 **  yacc had the %union construct.)  Maybe someday; right now we only use
@@ -99,11 +94,11 @@ static time_t	yyRelSeconds;
     time_t		Number;
 }
 
-%token	tAGO tDAY tDAYZONE tAMPM tMONTH tMONTH_UNIT tSEC_UNIT tUNUMBER
+%token	tAGO tDAY tDAYZONE tAM tPM tMONTH tMONTH_UNIT tSEC_UNIT tUNUMBER
 %token  tZONE tDST
 
 %type	<Number>	tDAY tDAYZONE tMONTH tMONTH_UNIT
-%type	<Number>	tSEC_UNIT tUNUMBER tZONE tAMPM
+%type	<Number>	tSEC_UNIT tUNUMBER tZONE
 
 %%
 
@@ -119,24 +114,33 @@ item	: time { yyHaveTime++; }
 	| number
 	;
 
-time	: tUNUMBER tAMPM {
+time	: tUNUMBER tAM {
 		/* "7am" */
 		yyHour = $1;
-		if (yyHour == 12)
-			yyHour = 0;
 		yyMinutes = 0;
 		yySeconds = 0;
-		if ($2 == tPM)
+		if (yyHour == 12)
+			yyHour = 0;
+	}
+	| tUNUMBER tPM {
+		/* "7pm" */
+		yyHour = $1;
+		yyMinutes = 0;
+		yySeconds = 0;
+		if (yyHour < 12)
 			yyHour += 12;
 	}
 	| bare_time {
 		/* "7:12:18" "19:17" */
 	}
-	| bare_time tAMPM {
-		/* "7:12pm", "12:20:13am" */
+	| bare_time tAM {
+		/* "12:20:13am" */
 		if (yyHour == 12)
 			yyHour = 0;
-		if ($2 == tPM)
+	}
+	| bare_time tPM {
+		/* "7:12pm" */
+		if (yyHour < 12)
 			yyHour += 12;
 	}
 	| bare_time  '+' tUNUMBER {
@@ -339,8 +343,8 @@ static struct TABLE {
 	time_t		value;
 } const TimeWords[] = {
 	/* am/pm */
-	{ 0, "am",		tAMPM,	tAM },
-	{ 0, "pm",		tAMPM,	tPM },
+	{ 0, "am",		tAM,	0 },
+	{ 0, "pm",		tPM,	0 },
 
 	/* Month names. */
 	{ 3, "january",		tMONTH,  1 },
