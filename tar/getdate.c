@@ -115,7 +115,7 @@ static time_t	yyRelSeconds;
 
 struct token { int token; time_t value; };
 static struct token tokens[256];
-struct token *tokenp;
+struct token *tokenp, *lasttoken;
 
 #line 100 "getdate.y"
 typedef union {
@@ -775,10 +775,10 @@ get_date(char *p)
 	yyHaveTime = 0;
 	yyHaveZone = 0;
 
-	tokenp = tokens;
-	while ((tokenp->token = nexttoken(&p, &tokenp->value)) != 0) {
-		++tokenp;
-		if (tokenp > tokens + 255)
+	lasttoken = tokens;
+	while ((lasttoken->token = nexttoken(&p, &lasttoken->value)) != 0) {
+		++lasttoken;
+		if (lasttoken > tokens + 255)
 			return -1;
 	}
 	tokenp = tokens;
