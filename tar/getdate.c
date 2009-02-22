@@ -95,8 +95,6 @@ enum { tAM, tPM };
 **  yacc had the %union construct.)  Maybe someday; right now we only use
 **  the %union very rarely.
 */
-static char	*yyInput;
-
 static DSTMODE	yyDSTmode;
 static time_t	yyDayOrdinal;
 static time_t	yyDayNumber;
@@ -115,17 +113,15 @@ static time_t	yyYear;
 static time_t	yyRelMonth;
 static time_t	yyRelSeconds;
 
-/*
-struct token { int token, time_t value };
+struct token { int token; time_t value; };
 static struct token tokens[256];
 struct token *tokenp;
-*/
 
-#line 104 "getdate.y"
+#line 100 "getdate.y"
 typedef union {
     time_t		Number;
 } YYSTYPE;
-#line 129 "getdate.c"
+#line 125 "getdate.c"
 #define YYERRCODE 256
 #define tAGO 257
 #define tDAY 258
@@ -337,7 +333,7 @@ short *yyss;
 short *yysslim;
 YYSTYPE *yyvs;
 int yystacksize;
-#line 367 "getdate.y"
+#line 363 "getdate.y"
 
 static struct LEXICON {
 	size_t		abbrev;
@@ -703,7 +699,10 @@ nexttoken(char **in, time_t *value)
 static int
 yylex(void)
 {
-	return nexttoken(&yyInput, &yylval.Number);
+	int t = tokenp->token;
+	yylval.Number = tokenp->value;
+	++tokenp;
+	return t;
 }
 
 #define TM_YEAR_ORIGIN 1900
@@ -740,7 +739,6 @@ get_date(char *p)
 	long		tzone;
 
 	memset(&gmt, 0, sizeof(gmt));
-	yyInput = p;
 
 	(void)time (&nowtime);
 
@@ -776,6 +774,14 @@ get_date(char *p)
 	yyHaveRel = 0;
 	yyHaveTime = 0;
 	yyHaveZone = 0;
+
+	tokenp = tokens;
+	while ((tokenp->token = nexttoken(&p, &tokenp->value)) != 0) {
+		++tokenp;
+		if (tokenp > tokens + 255)
+			return -1;
+	}
+	tokenp = tokens;
 
 	if (yyparse())
 		return -1;
@@ -830,7 +836,7 @@ main(int argc, char **argv)
     /* NOTREACHED */
 }
 #endif	/* defined(TEST) */
-#line 834 "getdate.c"
+#line 840 "getdate.c"
 /* allocate initial stack or double stack size, up to YYMAXDEPTH */
 static int yygrowstack()
 {
@@ -1026,7 +1032,7 @@ yyreduce:
     switch (yyn)
     {
 case 9:
-#line 128 "getdate.y"
+#line 124 "getdate.y"
 {
 		/* "7am" */
 		yyHaveTime++;
@@ -1040,14 +1046,14 @@ case 9:
 	}
 break;
 case 10:
-#line 139 "getdate.y"
+#line 135 "getdate.y"
 {
 		/* "7:12:18" "19:17" */
 		yyHaveTime++;
 	}
 break;
 case 11:
-#line 143 "getdate.y"
+#line 139 "getdate.y"
 {
 		/* "7:12pm", "12:20:13am" */
 		yyHaveTime++;
@@ -1058,7 +1064,7 @@ case 11:
 	}
 break;
 case 12:
-#line 151 "getdate.y"
+#line 147 "getdate.y"
 {
 		/* "7:14+0700" */
 		yyHaveTime++;
@@ -1067,7 +1073,7 @@ case 12:
 	}
 break;
 case 13:
-#line 157 "getdate.y"
+#line 153 "getdate.y"
 {
 		/* "19:14:12-0530" */
 		yyHaveTime++;
@@ -1076,7 +1082,7 @@ case 13:
 	}
 break;
 case 14:
-#line 165 "getdate.y"
+#line 161 "getdate.y"
 {
 		yyHour = yyvsp[-2].Number;
 		yyMinutes = yyvsp[0].Number;
@@ -1084,7 +1090,7 @@ case 14:
 	}
 break;
 case 15:
-#line 170 "getdate.y"
+#line 166 "getdate.y"
 {
 		yyHour = yyvsp[-4].Number;
 		yyMinutes = yyvsp[-2].Number;
@@ -1092,7 +1098,7 @@ case 15:
 	}
 break;
 case 16:
-#line 177 "getdate.y"
+#line 173 "getdate.y"
 {
 		yyHaveZone++;
 		yyTimezone = yyvsp[0].Number;
@@ -1100,7 +1106,7 @@ case 16:
 	}
 break;
 case 17:
-#line 182 "getdate.y"
+#line 178 "getdate.y"
 {
 		yyHaveZone++;
 		yyTimezone = yyvsp[0].Number;
@@ -1108,7 +1114,7 @@ case 17:
 	}
 break;
 case 18:
-#line 187 "getdate.y"
+#line 183 "getdate.y"
 {
 		yyHaveZone++;
 		yyTimezone = yyvsp[-1].Number;
@@ -1116,7 +1122,7 @@ case 18:
 	}
 break;
 case 19:
-#line 194 "getdate.y"
+#line 190 "getdate.y"
 {
 		yyHaveDay++;
 		yyDayOrdinal = 1;
@@ -1124,7 +1130,7 @@ case 19:
 	}
 break;
 case 20:
-#line 199 "getdate.y"
+#line 195 "getdate.y"
 {
 		/* "tue," "wednesday," */
 		yyHaveDay++;
@@ -1133,7 +1139,7 @@ case 20:
 	}
 break;
 case 21:
-#line 205 "getdate.y"
+#line 201 "getdate.y"
 {
 		/* "second tues" "3 wed" */
 		yyHaveDay++;
@@ -1142,7 +1148,7 @@ case 21:
 	}
 break;
 case 22:
-#line 213 "getdate.y"
+#line 209 "getdate.y"
 {
 		/* "1/15" */
 		yyHaveDate++;
@@ -1151,7 +1157,7 @@ case 22:
 	}
 break;
 case 23:
-#line 219 "getdate.y"
+#line 215 "getdate.y"
 {
 		yyHaveDate++;
 		if (yyvsp[-4].Number >= 13) {
@@ -1174,7 +1180,7 @@ case 23:
 	}
 break;
 case 24:
-#line 239 "getdate.y"
+#line 235 "getdate.y"
 {
 		/* ISO 8601 format.  yyyy-mm-dd.  */
 		yyHaveDate++;
@@ -1184,7 +1190,7 @@ case 24:
 	}
 break;
 case 25:
-#line 246 "getdate.y"
+#line 242 "getdate.y"
 {
 		yyHaveDate++;
 		if (yyvsp[-4].Number > 31) {
@@ -1201,7 +1207,7 @@ case 25:
 	}
 break;
 case 26:
-#line 260 "getdate.y"
+#line 256 "getdate.y"
 {
 		/* "May 3" */
 		yyHaveDate++;
@@ -1210,7 +1216,7 @@ case 26:
 	}
 break;
 case 27:
-#line 266 "getdate.y"
+#line 262 "getdate.y"
 {
 		/* "June 17, 2001" */
 		yyHaveDate++;
@@ -1220,7 +1226,7 @@ case 27:
 	}
 break;
 case 28:
-#line 273 "getdate.y"
+#line 269 "getdate.y"
 {
 		/* "12 Sept" */
 		yyHaveDate++;
@@ -1229,7 +1235,7 @@ case 28:
 	}
 break;
 case 29:
-#line 279 "getdate.y"
+#line 275 "getdate.y"
 {
 		/* "12 Sept 1997" */
 		yyHaveDate++;
@@ -1239,14 +1245,14 @@ case 29:
 	}
 break;
 case 30:
-#line 288 "getdate.y"
+#line 284 "getdate.y"
 {
 		yyRelSeconds = -yyRelSeconds;
 		yyRelMonth = -yyRelMonth;
 	}
 break;
 case 32:
-#line 295 "getdate.y"
+#line 291 "getdate.y"
 {
 		/* "-3 hours" */
 		yyHaveRel++;
@@ -1254,7 +1260,7 @@ case 32:
 	}
 break;
 case 33:
-#line 300 "getdate.y"
+#line 296 "getdate.y"
 {
 		/* "+1 minute" */
 		yyHaveRel++;
@@ -1262,7 +1268,7 @@ case 33:
 	}
 break;
 case 34:
-#line 305 "getdate.y"
+#line 301 "getdate.y"
 {
 		/* "1 day" */
 		yyHaveRel++;
@@ -1270,7 +1276,7 @@ case 34:
 	}
 break;
 case 35:
-#line 310 "getdate.y"
+#line 306 "getdate.y"
 {
 		/* "hour" */
 		yyHaveRel++;
@@ -1278,7 +1284,7 @@ case 35:
 	}
 break;
 case 36:
-#line 315 "getdate.y"
+#line 311 "getdate.y"
 {
 		/* "-3 months" */
 		yyHaveRel++;
@@ -1286,7 +1292,7 @@ case 36:
 	}
 break;
 case 37:
-#line 320 "getdate.y"
+#line 316 "getdate.y"
 {
 		/* "+5 years" */
 		yyHaveRel++;
@@ -1294,7 +1300,7 @@ case 37:
 	}
 break;
 case 38:
-#line 325 "getdate.y"
+#line 321 "getdate.y"
 {
 		/* "2 years" */
 		yyHaveRel++;
@@ -1302,7 +1308,7 @@ case 38:
 	}
 break;
 case 39:
-#line 330 "getdate.y"
+#line 326 "getdate.y"
 {
 		/* "6 months" */
 		yyHaveRel++;
@@ -1310,7 +1316,7 @@ case 39:
 	}
 break;
 case 40:
-#line 337 "getdate.y"
+#line 333 "getdate.y"
 {
 		if (yyHaveTime && yyHaveDate && !yyHaveRel)
 			yyYear = yyvsp[0].Number;
@@ -1338,7 +1344,7 @@ case 40:
 		}
 	}
 break;
-#line 1342 "getdate.c"
+#line 1348 "getdate.c"
     }
     yyssp -= yym;
     yystate = *yyssp;

@@ -73,8 +73,6 @@ enum { tAM, tPM };
 **  yacc had the %union construct.)  Maybe someday; right now we only use
 **  the %union very rarely.
 */
-static char	*yyInput;
-
 static DSTMODE	yyDSTmode;
 static time_t	yyDayOrdinal;
 static time_t	yyDayNumber;
@@ -93,11 +91,9 @@ static time_t	yyYear;
 static time_t	yyRelMonth;
 static time_t	yyRelSeconds;
 
-/*
-struct token { int token, time_t value };
+struct token { int token; time_t value; };
 static struct token tokens[256];
 struct token *tokenp;
-*/
 
 %}
 
@@ -729,7 +725,10 @@ nexttoken(char **in, time_t *value)
 static int
 yylex(void)
 {
-	return nexttoken(&yyInput, &yylval.Number);
+	int t = tokenp->token;
+	yylval.Number = tokenp->value;
+	++tokenp;
+	return t;
 }
 
 #define TM_YEAR_ORIGIN 1900
@@ -766,7 +765,6 @@ get_date(char *p)
 	long		tzone;
 
 	memset(&gmt, 0, sizeof(gmt));
-	yyInput = p;
 
 	(void)time (&nowtime);
 
@@ -802,6 +800,14 @@ get_date(char *p)
 	yyHaveRel = 0;
 	yyHaveTime = 0;
 	yyHaveZone = 0;
+
+	tokenp = tokens;
+	while ((tokenp->token = nexttoken(&p, &tokenp->value)) != 0) {
+		++tokenp;
+		if (tokenp > tokens + 255)
+			return -1;
+	}
+	tokenp = tokens;
 
 	if (yyparse())
 		return -1;
