@@ -5,14 +5,13 @@
 #define tAGO 257
 #define tDAY 258
 #define tDAYZONE 259
-#define tAM 260
-#define tPM 261
-#define tMONTH 262
-#define tMONTH_UNIT 263
-#define tSEC_UNIT 264
-#define tUNUMBER 265
-#define tZONE 266
-#define tDST 267
+#define tAMPM 260
+#define tMONTH 261
+#define tMONTH_UNIT 262
+#define tSEC_UNIT 263
+#define tUNUMBER 264
+#define tZONE 265
+#define tDST 266
 typedef union {
     time_t		Number;
 } YYSTYPE;

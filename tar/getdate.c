@@ -85,6 +85,11 @@ typedef enum _DSTMODE {
 } DSTMODE;
 
 /*
+**  Meridian:  am or pm.
+*/
+enum { tAM, tPM };
+
+/*
 **  Global variables.  We could get rid of most of these by using a good
 **  union as the yacc stack.  (This routine was originally written before
 **  yacc had the %union construct.)  Maybe someday; right now we only use
@@ -110,80 +115,83 @@ static time_t	yyYear;
 static time_t	yyRelMonth;
 static time_t	yyRelSeconds;
 
-#line 93 "getdate.y"
+/*
+struct token { int token, time_t value };
+static struct token tokens[256];
+struct token *tokenp;
+*/
+
+#line 104 "getdate.y"
 typedef union {
     time_t		Number;
 } YYSTYPE;
-#line 118 "getdate.c"
+#line 129 "getdate.c"
 #define YYERRCODE 256
 #define tAGO 257
 #define tDAY 258
 #define tDAYZONE 259
-#define tAM 260
-#define tPM 261
-#define tMONTH 262
-#define tMONTH_UNIT 263
-#define tSEC_UNIT 264
-#define tUNUMBER 265
-#define tZONE 266
-#define tDST 267
+#define tAMPM 260
+#define tMONTH 261
+#define tMONTH_UNIT 262
+#define tSEC_UNIT 263
+#define tUNUMBER 264
+#define tZONE 265
+#define tDST 266
 const short yylhs[] = {                                        -1,
     0,    0,    1,    1,    1,    1,    1,    1,    2,    2,
-    2,    2,    2,    2,    2,    8,    8,    3,    3,    3,
-    5,    5,    5,    4,    4,    4,    4,    4,    4,    4,
-    4,    6,    6,    9,    9,    9,    9,    9,    9,    9,
-    9,    7,
+    2,    2,    2,    8,    8,    3,    3,    3,    5,    5,
+    5,    4,    4,    4,    4,    4,    4,    4,    4,    6,
+    6,    9,    9,    9,    9,    9,    9,    9,    9,    7,
 };
 const short yylen[] = {                                         2,
-    0,    2,    1,    1,    1,    1,    1,    1,    2,    2,
-    1,    2,    2,    3,    3,    3,    5,    1,    1,    2,
-    1,    2,    2,    3,    5,    5,    5,    2,    4,    2,
-    3,    2,    1,    3,    3,    2,    1,    3,    3,    2,
-    1,    1,
+    0,    2,    1,    1,    1,    1,    1,    1,    2,    1,
+    2,    3,    3,    3,    5,    1,    1,    2,    1,    2,
+    2,    3,    5,    5,    5,    2,    4,    2,    3,    2,
+    1,    3,    3,    2,    1,    3,    3,    2,    1,    1,
 };
 const short yydefred[] = {                                      1,
-    0,    0,   19,    0,   41,   37,    0,    0,    0,    0,
-    2,    3,    4,    5,    6,    7,    8,    0,    0,   22,
-    0,   23,    9,   10,    0,   40,   36,    0,    0,    0,
-   20,    0,    0,   12,   13,    0,    0,   32,    0,   31,
-    0,    0,    0,    0,   39,   35,   38,   34,   14,   15,
-   29,    0,    0,    0,    0,   27,   26,   17,   25,
+    0,    0,   17,    0,   39,   35,    0,    0,    0,    0,
+    2,    3,    4,    5,    6,    7,    8,    0,    0,   20,
+    0,   21,    9,    0,   38,   34,    0,    0,    0,   18,
+    0,    0,   11,    0,    0,   30,    0,   29,    0,    0,
+    0,    0,   37,   33,   36,   32,   12,   13,   27,    0,
+    0,    0,    0,   25,   24,   15,   23,
 };
 const short yydgoto[] = {                                       1,
    11,   12,   13,   14,   15,   16,   17,   18,   19,
 };
 const short yysindex[] = {                                      0,
-  -43,  -40,    0, -260,    0,    0,  -34, -258, -253, -250,
-    0,    0,    0,    0,    0,    0,    0,  -29, -237,    0,
-  -23,    0,    0,    0, -243,    0,    0, -259, -242, -240,
-    0, -256, -246,    0,    0, -239, -238,    0, -236,    0,
-  -15,  -14,  -26,  -13,    0,    0,    0,    0,    0,    0,
-    0, -232, -230, -229, -227,    0,    0,    0,    0,
+  -43,  -40,    0, -259,    0,    0,  -35, -252, -253, -248,
+    0,    0,    0,    0,    0,    0,    0,  -30, -237,    0,
+  -23,    0,    0, -242,    0,    0, -258, -240, -238,    0,
+ -255, -244,    0, -236, -235,    0, -234,    0,  -18,  -14,
+  -26,  -13,    0,    0,    0,    0,    0,    0,    0, -229,
+ -228, -227, -226,    0,    0,    0,    0,
 };
 const short yyrindex[] = {                                      0,
-    0,   10,    0,    0,    0,    0,   67,   19,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,   65,   28,    0,
-   37,    0,    0,    0,   56,    0,    0,    0,    0,    0,
+    0,    9,    0,    0,    0,    0,   64,   17,    0,    0,
+    0,    0,    0,    0,    0,    0,    0,   57,   25,    0,
+   33,    0,    0,   49,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    1,   47,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,    0,
+    1,   41,    0,    0,    0,    0,    0,    0,    0,    0,
+    0,    0,    0,    0,    0,    0,    0,
 };
 const short yygindex[] = {                                      0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,
 };
-#define YYTABLESIZE 333
+#define YYTABLESIZE 329
 const short yytable[] = {                                       9,
-   16,   10,   41,   20,   21,   42,   45,   46,   31,   21,
-   28,   32,   30,   36,   33,   37,   47,   48,   18,   38,
-   39,   40,   43,   29,   44,   49,   50,   33,   51,   52,
-   53,   54,   56,   55,   57,   58,   28,   59,    0,    0,
-    0,    0,    0,   16,    0,   16,   24,    0,    0,    0,
-    0,    0,   21,    0,   21,   30,    0,    0,    0,    0,
-    0,   18,    0,   18,   11,    0,   42,    0,    0,    0,
-   33,    0,   33,    0,    0,    0,    0,    0,    0,   28,
-    0,   28,    0,    0,    0,    0,    0,    0,    0,   24,
-    0,   24,    0,    0,    0,    0,    0,    0,   30,    0,
-   30,    0,    0,    0,    0,    0,    0,    0,    0,   42,
+   14,   10,   39,   20,   21,   40,   43,   44,   19,   27,
+   31,   29,   34,   30,   35,   32,   16,   45,   46,   36,
+   37,   38,   28,   41,   31,   42,   50,   47,   48,   49,
+   51,   52,   26,   53,   54,   55,   56,   57,    0,    0,
+   22,    0,    0,   14,    0,   14,    0,    0,   28,    0,
+    0,   19,    0,   19,    0,    0,   10,    0,    0,   16,
+    0,   16,    0,   40,    0,    0,    0,   31,    0,   31,
+    0,    0,    0,    0,    0,   26,    0,   26,    0,    0,
+    0,    0,    0,   22,    0,   22,    0,    0,    0,    0,
+    0,   28,    0,   28,    0,    0,    0,    0,    0,    0,
+    0,    0,    0,    0,    0,    0,   40,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
@@ -194,32 +202,31 @@ const short yytable[] = {                                       9,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    2,    3,    0,    0,    4,    5,
-    6,    7,    8,   22,    0,   23,   24,   25,   26,   27,
-   34,   35,    0,    0,    0,    0,    0,    0,    0,    0,
+    0,    0,    0,    0,    2,    3,    0,    4,    5,    6,
+    7,    8,   22,    0,   23,   24,   25,   26,    0,   33,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,   16,   16,
-   16,   16,   16,   16,   16,   16,   16,   21,   21,    0,
-    0,   21,   21,   21,   21,   21,   18,   18,    0,    0,
-   18,   18,   18,   18,   18,   33,   33,    0,    0,   33,
-   33,   33,   33,   33,   28,   28,    0,    0,   28,   28,
-   28,   28,   28,    0,   24,   24,    0,    0,   24,   24,
-   24,   24,   24,   30,   30,    0,    0,   30,   30,   30,
-    0,   30,   11,   11,    0,   42,   11,   11,   11,   11,
-   11,   42,   42,
+    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
+    0,    0,    0,    0,    0,    0,    0,    0,   14,   14,
+   14,   14,   14,   14,   14,   14,   19,   19,    0,   19,
+   19,   19,   19,   19,   16,   16,    0,   16,   16,   16,
+   16,   16,   31,   31,    0,   31,   31,   31,   31,   31,
+   26,   26,    0,   26,   26,   26,   26,   26,   22,   22,
+    0,   22,   22,   22,   22,   22,   28,   28,    0,   28,
+   28,   28,    0,   28,   10,   10,    0,   10,   10,   10,
+   10,   10,   40,    0,    0,    0,    0,   40,   40,
 };
 const short yycheck[] = {                                      43,
-    0,   45,  262,   44,  265,  265,  263,  264,  267,    0,
-   45,  265,   47,   43,  265,   45,  263,  264,    0,  257,
-   44,  265,  265,   58,  265,  265,  265,    0,  265,   45,
-   45,   58,  265,   47,  265,  265,    0,  265,   -1,   -1,
-   -1,   -1,   -1,   43,   -1,   45,    0,   -1,   -1,   -1,
-   -1,   -1,   43,   -1,   45,    0,   -1,   -1,   -1,   -1,
-   -1,   43,   -1,   45,    0,   -1,    0,   -1,   -1,   -1,
-   43,   -1,   45,   -1,   -1,   -1,   -1,   -1,   -1,   43,
-   -1,   45,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   43,
-   -1,   45,   -1,   -1,   -1,   -1,   -1,   -1,   43,   -1,
-   45,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   43,
+    0,   45,  261,   44,  264,  264,  262,  263,    0,   45,
+  264,   47,   43,  266,   45,  264,    0,  262,  263,  257,
+   44,  264,   58,  264,    0,  264,   45,  264,  264,  264,
+   45,   58,    0,   47,  264,  264,  264,  264,   -1,   -1,
+    0,   -1,   -1,   43,   -1,   45,   -1,   -1,    0,   -1,
+   -1,   43,   -1,   45,   -1,   -1,    0,   -1,   -1,   43,
+   -1,   45,   -1,    0,   -1,   -1,   -1,   43,   -1,   45,
+   -1,   -1,   -1,   -1,   -1,   43,   -1,   45,   -1,   -1,
+   -1,   -1,   -1,   43,   -1,   45,   -1,   -1,   -1,   -1,
+   -1,   43,   -1,   45,   -1,   -1,   -1,   -1,   -1,   -1,
+   -1,   -1,   -1,   -1,   -1,   -1,   43,   -1,   -1,   -1,
    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
@@ -230,25 +237,24 @@ const short yycheck[] = {                                      43,
    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
-   -1,   -1,   -1,   -1,  258,  259,   -1,   -1,  262,  263,
-  264,  265,  266,  258,   -1,  260,  261,  262,  263,  264,
-  260,  261,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
+   -1,   -1,   -1,   -1,  258,  259,   -1,  261,  262,  263,
+  264,  265,  258,   -1,  260,  261,  262,  263,   -1,  260,
+   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,  258,  259,
-  260,  261,  262,  263,  264,  265,  266,  258,  259,   -1,
-   -1,  262,  263,  264,  265,  266,  258,  259,   -1,   -1,
-  262,  263,  264,  265,  266,  258,  259,   -1,   -1,  262,
-  263,  264,  265,  266,  258,  259,   -1,   -1,  262,  263,
-  264,  265,  266,   -1,  258,  259,   -1,   -1,  262,  263,
-  264,  265,  266,  258,  259,   -1,   -1,  262,  263,  264,
-   -1,  266,  258,  259,   -1,  259,  262,  263,  264,  265,
-  266,  265,  266,
+  260,  261,  262,  263,  264,  265,  258,  259,   -1,  261,
+  262,  263,  264,  265,  258,  259,   -1,  261,  262,  263,
+  264,  265,  258,  259,   -1,  261,  262,  263,  264,  265,
+  258,  259,   -1,  261,  262,  263,  264,  265,  258,  259,
+   -1,  261,  262,  263,  264,  265,  258,  259,   -1,  261,
+  262,  263,   -1,  265,  258,  259,   -1,  261,  262,  263,
+  264,  265,  259,   -1,   -1,   -1,   -1,  264,  265,
 };
 #define YYFINAL 1
 #ifndef YYDEBUG
 #define YYDEBUG 0
 #endif
-#define YYMAXTOKEN 267
+#define YYMAXTOKEN 266
 #if YYDEBUG
 const char * const yyname[] = {
 "end-of-file",0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -258,24 +264,21 @@ const char * const yyname[] = {
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"tAGO","tDAY",
-"tDAYZONE","tAM","tPM","tMONTH","tMONTH_UNIT","tSEC_UNIT","tUNUMBER","tZONE",
-"tDST",
+"tDAYZONE","tAMPM","tMONTH","tMONTH_UNIT","tSEC_UNIT","tUNUMBER","tZONE","tDST",
 };
 const char * const yyrule[] = {
 "$accept : spec",
 "spec :",
-"spec : spec item",
-"item : time",
-"item : zone",
-"item : date",
-"item : day",
-"item : rel",
-"item : number",
-"time : tUNUMBER tAM",
-"time : tUNUMBER tPM",
+"spec : spec phrase",
+"phrase : time",
+"phrase : zone",
+"phrase : date",
+"phrase : day",
+"phrase : rel",
+"phrase : number",
+"time : tUNUMBER tAMPM",
 "time : bare_time",
-"time : bare_time tAM",
-"time : bare_time tPM",
+"time : bare_time tAMPM",
 "time : bare_time '+' tUNUMBER",
 "time : bare_time '-' tUNUMBER",
 "bare_time : tUNUMBER ':' tUNUMBER",
@@ -334,17 +337,17 @@ short *yyss;
 short *yysslim;
 YYSTYPE *yyvs;
 int yystacksize;
-#line 338 "getdate.y"
+#line 367 "getdate.y"
 
-static struct TABLE {
+static struct LEXICON {
 	size_t		abbrev;
 	const char	*name;
 	int		type;
 	time_t		value;
 } const TimeWords[] = {
 	/* am/pm */
-	{ 0, "am",		tAM,	0 },
-	{ 0, "pm",		tPM,	0 },
+	{ 0, "am",		tAMPM,	tAM },
+	{ 0, "pm",		tAMPM,	tPM },
 
 	/* Month names. */
 	{ 3, "january",		tMONTH,  1 },
@@ -615,20 +618,20 @@ RelativeMonth(time_t Start, time_t RelMonth)
 }
 
 static int
-yylex(void)
+nexttoken(char **in, time_t *value)
 {
 	char	c;
 	char	buff[64];
 
 	for ( ; ; ) {
-		while (isspace((unsigned char)*yyInput))
-			yyInput++;
+		while (isspace((unsigned char)**in))
+			++*in;
 
 		/* Skip parenthesized comments. */
-		if (*yyInput == '(') {
+		if (**in == '(') {
 			int Count = 0;
 			do {
-				c = *yyInput++;
+				c = *(*in)++;
 				if (c == '\0')
 					return c;
 				if (c == '(')
@@ -642,8 +645,8 @@ yylex(void)
 		/* Try the next token in the word table first. */
 		/* This allows us to match "2nd", for example. */
 		{
-			char *src = yyInput;
-			const struct TABLE *tp;
+			char *src = *in;
+			const struct LEXICON *tp;
 			unsigned i = 0;
 
 			/* Force to lowercase and strip '.' characters. */
@@ -673,9 +676,9 @@ yylex(void)
 				    && strncmp(tp->name, buff, strlen(buff))
 				    	== 0) {
 					/* Skip over token. */
-					yyInput = src;
+					*in = src;
 					/* Return the match. */
-					yylval.Number = tp->value;
+					*value = tp->value;
 					return tp->type;
 				}
 			}
@@ -686,15 +689,21 @@ yylex(void)
 		 * Because '-' and '+' have other special meanings, I
 		 * don't deal with signed numbers here.
 		 */
-		if (isdigit((unsigned char)(c = *yyInput))) {
-			for (yylval.Number = 0; isdigit((unsigned char)(c = *yyInput++)); )
-				yylval.Number = 10 * yylval.Number + c - '0';
-			yyInput--;
+		if (isdigit((unsigned char)(c = **in))) {
+			for (*value = 0; isdigit((unsigned char)(c = *(*in)++)); )
+				*value = 10 * *value + c - '0';
+			(*in)--;
 			return (tUNUMBER);
 		}
 
-		return (*yyInput++);
+		return *(*in)++;
 	}
+}
+
+static int
+yylex(void)
+{
+	return nexttoken(&yyInput, &yylval.Number);
 }
 
 #define TM_YEAR_ORIGIN 1900
@@ -768,8 +777,10 @@ get_date(char *p)
 	yyHaveTime = 0;
 	yyHaveZone = 0;
 
-	if (yyparse()
-	    || yyHaveTime > 1 || yyHaveZone > 1
+	if (yyparse())
+		return -1;
+
+	if (yyHaveTime > 1 || yyHaveZone > 1
 	    || yyHaveDate > 1 || yyHaveDay > 1)
 		return -1;
 
@@ -819,7 +830,7 @@ main(int argc, char **argv)
     /* NOTREACHED */
 }
 #endif	/* defined(TEST) */
-#line 823 "getdate.c"
+#line 834 "getdate.c"
 /* allocate initial stack or double stack size, up to YYMAXDEPTH */
 static int yygrowstack()
 {
@@ -1014,157 +1025,135 @@ yyreduce:
     yyval = yyvsp[1-yym];
     switch (yyn)
     {
-case 3:
-#line 109 "getdate.y"
-{ yyHaveTime++; }
-break;
-case 4:
-#line 110 "getdate.y"
-{ yyHaveZone++; }
-break;
-case 5:
-#line 111 "getdate.y"
-{ yyHaveDate++; }
-break;
-case 6:
-#line 112 "getdate.y"
-{ yyHaveDay++; }
-break;
-case 7:
-#line 113 "getdate.y"
-{ yyHaveRel++; }
-break;
 case 9:
-#line 117 "getdate.y"
+#line 128 "getdate.y"
 {
 		/* "7am" */
+		yyHaveTime++;
 		yyHour = yyvsp[-1].Number;
-		yyMinutes = 0;
-		yySeconds = 0;
 		if (yyHour == 12)
 			yyHour = 0;
+		yyMinutes = 0;
+		yySeconds = 0;
+		if (yyvsp[0].Number == tPM)
+			yyHour += 12;
 	}
 break;
 case 10:
-#line 125 "getdate.y"
+#line 139 "getdate.y"
 {
-		/* "7pm" */
-		yyHour = yyvsp[-1].Number;
-		yyMinutes = 0;
-		yySeconds = 0;
-		if (yyHour < 12)
-			yyHour += 12;
+		/* "7:12:18" "19:17" */
+		yyHaveTime++;
 	}
 break;
 case 11:
-#line 133 "getdate.y"
+#line 143 "getdate.y"
 {
-		/* "7:12:18" "19:17" */
-	}
-break;
-case 12:
-#line 136 "getdate.y"
-{
-		/* "12:20:13am" */
+		/* "7:12pm", "12:20:13am" */
+		yyHaveTime++;
 		if (yyHour == 12)
 			yyHour = 0;
-	}
-break;
-case 13:
-#line 141 "getdate.y"
-{
-		/* "7:12pm" */
-		if (yyHour < 12)
+		if (yyvsp[0].Number == tPM)
 			yyHour += 12;
 	}
 break;
-case 14:
-#line 146 "getdate.y"
+case 12:
+#line 151 "getdate.y"
 {
 		/* "7:14+0700" */
+		yyHaveTime++;
 		yyDSTmode = DSToff;
 		yyTimezone = - (yyvsp[0].Number % 100 + (yyvsp[0].Number / 100) * 60);
 	}
 break;
-case 15:
-#line 151 "getdate.y"
+case 13:
+#line 157 "getdate.y"
 {
 		/* "19:14:12-0530" */
+		yyHaveTime++;
 		yyDSTmode = DSToff;
 		yyTimezone = + (yyvsp[0].Number % 100 + (yyvsp[0].Number / 100) * 60);
 	}
 break;
-case 16:
-#line 158 "getdate.y"
+case 14:
+#line 165 "getdate.y"
 {
 		yyHour = yyvsp[-2].Number;
 		yyMinutes = yyvsp[0].Number;
 		yySeconds = 0;
 	}
 break;
-case 17:
-#line 163 "getdate.y"
+case 15:
+#line 170 "getdate.y"
 {
 		yyHour = yyvsp[-4].Number;
 		yyMinutes = yyvsp[-2].Number;
 		yySeconds = yyvsp[0].Number;
 	}
 break;
-case 18:
-#line 170 "getdate.y"
+case 16:
+#line 177 "getdate.y"
 {
+		yyHaveZone++;
 		yyTimezone = yyvsp[0].Number;
 		yyDSTmode = DSToff;
 	}
 break;
-case 19:
-#line 174 "getdate.y"
+case 17:
+#line 182 "getdate.y"
 {
+		yyHaveZone++;
 		yyTimezone = yyvsp[0].Number;
 		yyDSTmode = DSTon;
 	}
 break;
-case 20:
-#line 178 "getdate.y"
+case 18:
+#line 187 "getdate.y"
 {
+		yyHaveZone++;
 		yyTimezone = yyvsp[-1].Number;
 		yyDSTmode = DSTon;
 	}
 break;
-case 21:
-#line 184 "getdate.y"
+case 19:
+#line 194 "getdate.y"
 {
+		yyHaveDay++;
 		yyDayOrdinal = 1;
 		yyDayNumber = yyvsp[0].Number;
 	}
 break;
-case 22:
-#line 188 "getdate.y"
+case 20:
+#line 199 "getdate.y"
 {
 		/* "tue," "wednesday," */
+		yyHaveDay++;
 		yyDayOrdinal = 1;
 		yyDayNumber = yyvsp[-1].Number;
 	}
 break;
-case 23:
-#line 193 "getdate.y"
+case 21:
+#line 205 "getdate.y"
 {
 		/* "second tues" "3 wed" */
+		yyHaveDay++;
 		yyDayOrdinal = yyvsp[-1].Number;
 		yyDayNumber = yyvsp[0].Number;
 	}
 break;
-case 24:
-#line 200 "getdate.y"
+case 22:
+#line 213 "getdate.y"
 {
 		/* "1/15" */
+		yyHaveDate++;
 		yyMonth = yyvsp[-2].Number;
 		yyDay = yyvsp[0].Number;
 	}
 break;
-case 25:
-#line 205 "getdate.y"
+case 23:
+#line 219 "getdate.y"
 {
+		yyHaveDate++;
 		if (yyvsp[-4].Number >= 13) {
 			/* First number is big:  2004/01/29, 99/02/17 */
 			yyYear = yyvsp[-4].Number;
@@ -1184,18 +1173,20 @@ case 25:
 		}
 	}
 break;
-case 26:
-#line 224 "getdate.y"
+case 24:
+#line 239 "getdate.y"
 {
 		/* ISO 8601 format.  yyyy-mm-dd.  */
+		yyHaveDate++;
 		yyYear = yyvsp[-4].Number;
 		yyMonth = yyvsp[-2].Number;
 		yyDay = yyvsp[0].Number;
 	}
 break;
-case 27:
-#line 230 "getdate.y"
+case 25:
+#line 246 "getdate.y"
 {
+		yyHaveDate++;
 		if (yyvsp[-4].Number > 31) {
 			/* e.g. 1992-Jun-17 */
 			yyYear = yyvsp[-4].Number;
@@ -1209,105 +1200,117 @@ case 27:
 		}
 	}
 break;
-case 28:
-#line 243 "getdate.y"
+case 26:
+#line 260 "getdate.y"
 {
 		/* "May 3" */
+		yyHaveDate++;
 		yyMonth = yyvsp[-1].Number;
 		yyDay = yyvsp[0].Number;
 	}
 break;
-case 29:
-#line 248 "getdate.y"
+case 27:
+#line 266 "getdate.y"
 {
 		/* "June 17, 2001" */
+		yyHaveDate++;
 		yyMonth = yyvsp[-3].Number;
 		yyDay = yyvsp[-2].Number;
 		yyYear = yyvsp[0].Number;
 	}
 break;
-case 30:
-#line 254 "getdate.y"
+case 28:
+#line 273 "getdate.y"
 {
 		/* "12 Sept" */
+		yyHaveDate++;
 		yyDay = yyvsp[-1].Number;
 		yyMonth = yyvsp[0].Number;
 	}
 break;
-case 31:
-#line 259 "getdate.y"
+case 29:
+#line 279 "getdate.y"
 {
 		/* "12 Sept 1997" */
+		yyHaveDate++;
 		yyDay = yyvsp[-2].Number;
 		yyMonth = yyvsp[-1].Number;
 		yyYear = yyvsp[0].Number;
 	}
 break;
-case 32:
-#line 267 "getdate.y"
+case 30:
+#line 288 "getdate.y"
 {
 		yyRelSeconds = -yyRelSeconds;
 		yyRelMonth = -yyRelMonth;
 	}
 break;
-case 34:
-#line 274 "getdate.y"
+case 32:
+#line 295 "getdate.y"
 {
 		/* "-3 hours" */
+		yyHaveRel++;
 		yyRelSeconds -= yyvsp[-1].Number * yyvsp[0].Number;
 	}
 break;
-case 35:
-#line 278 "getdate.y"
+case 33:
+#line 300 "getdate.y"
 {
 		/* "+1 minute" */
+		yyHaveRel++;
 		yyRelSeconds += yyvsp[-1].Number * yyvsp[0].Number;
 	}
 break;
-case 36:
-#line 282 "getdate.y"
+case 34:
+#line 305 "getdate.y"
 {
 		/* "1 day" */
+		yyHaveRel++;
 		yyRelSeconds += yyvsp[-1].Number * yyvsp[0].Number;
 	}
 break;
-case 37:
-#line 286 "getdate.y"
+case 35:
+#line 310 "getdate.y"
 {
 		/* "hour" */
+		yyHaveRel++;
 		yyRelSeconds += yyvsp[0].Number;
 	}
 break;
-case 38:
-#line 290 "getdate.y"
+case 36:
+#line 315 "getdate.y"
 {
 		/* "-3 months" */
+		yyHaveRel++;
 		yyRelMonth -= yyvsp[-1].Number * yyvsp[0].Number;
 	}
 break;
-case 39:
-#line 294 "getdate.y"
+case 37:
+#line 320 "getdate.y"
 {
 		/* "+5 years" */
+		yyHaveRel++;
 		yyRelMonth += yyvsp[-1].Number * yyvsp[0].Number;
 	}
 break;
-case 40:
-#line 298 "getdate.y"
+case 38:
+#line 325 "getdate.y"
 {
 		/* "2 years" */
+		yyHaveRel++;
 		yyRelMonth += yyvsp[-1].Number * yyvsp[0].Number;
 	}
 break;
-case 41:
-#line 302 "getdate.y"
+case 39:
+#line 330 "getdate.y"
 {
 		/* "6 months" */
+		yyHaveRel++;
 		yyRelMonth += yyvsp[0].Number;
 	}
 break;
-case 42:
-#line 308 "getdate.y"
+case 40:
+#line 337 "getdate.y"
 {
 		if (yyHaveTime && yyHaveDate && !yyHaveRel)
 			yyYear = yyvsp[0].Number;
@@ -1335,7 +1338,7 @@ case 42:
 		}
 	}
 break;
-#line 1339 "getdate.c"
+#line 1342 "getdate.c"
     }
     yyssp -= yym;
     yystate = *yyssp;

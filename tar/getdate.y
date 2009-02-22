@@ -63,6 +63,11 @@ typedef enum _DSTMODE {
 } DSTMODE;
 
 /*
+**  Meridian:  am or pm.
+*/
+enum { tAM, tPM };
+
+/*
 **  Global variables.  We could get rid of most of these by using a good
 **  union as the yacc stack.  (This routine was originally written before
 **  yacc had the %union construct.)  Maybe someday; right now we only use
@@ -88,68 +93,70 @@ static time_t	yyYear;
 static time_t	yyRelMonth;
 static time_t	yyRelSeconds;
 
+/*
+struct token { int token, time_t value };
+static struct token tokens[256];
+struct token *tokenp;
+*/
+
 %}
 
 %union {
     time_t		Number;
 }
 
-%token	tAGO tDAY tDAYZONE tAM tPM tMONTH tMONTH_UNIT tSEC_UNIT tUNUMBER
+%token	tAGO tDAY tDAYZONE tAMPM tMONTH tMONTH_UNIT tSEC_UNIT tUNUMBER
 %token  tZONE tDST
 
 %type	<Number>	tDAY tDAYZONE tMONTH tMONTH_UNIT
-%type	<Number>	tSEC_UNIT tUNUMBER tZONE
+%type	<Number>	tSEC_UNIT tUNUMBER tZONE tAMPM
 
 %%
 
 spec	: /* NULL */
-	| spec item
+	| spec phrase
 	;
 
-item	: time { yyHaveTime++; }
-	| zone { yyHaveZone++; }
-	| date { yyHaveDate++; }
-	| day { yyHaveDay++; }
-	| rel { yyHaveRel++; }
+phrase	: time
+	| zone
+	| date
+	| day
+	| rel
 	| number
 	;
 
-time	: tUNUMBER tAM {
+time	: tUNUMBER tAMPM {
 		/* "7am" */
+		yyHaveTime++;
 		yyHour = $1;
-		yyMinutes = 0;
-		yySeconds = 0;
 		if (yyHour == 12)
 			yyHour = 0;
-	}
-	| tUNUMBER tPM {
-		/* "7pm" */
-		yyHour = $1;
 		yyMinutes = 0;
 		yySeconds = 0;
-		if (yyHour < 12)
+		if ($2 == tPM)
 			yyHour += 12;
 	}
 	| bare_time {
 		/* "7:12:18" "19:17" */
+		yyHaveTime++;
 	}
-	| bare_time tAM {
-		/* "12:20:13am" */
+	| bare_time tAMPM {
+		/* "7:12pm", "12:20:13am" */
+		yyHaveTime++;
 		if (yyHour == 12)
 			yyHour = 0;
-	}
-	| bare_time tPM {
-		/* "7:12pm" */
-		if (yyHour < 12)
+		if ($2 == tPM)
 			yyHour += 12;
 	}
 	| bare_time  '+' tUNUMBER {
 		/* "7:14+0700" */
+		yyHaveTime++;
 		yyDSTmode = DSToff;
 		yyTimezone = - ($3 % 100 + ($3 / 100) * 60);
 	}
 	| bare_time '-' tUNUMBER {
 		/* "19:14:12-0530" */
+		yyHaveTime++;
 		yyDSTmode = DSToff;
 		yyTimezone = + ($3 % 100 + ($3 / 100) * 60);
 	}
@@ -168,30 +175,36 @@ bare_time : tUNUMBER ':' tUNUMBER {
 	;
 
 zone	: tZONE {
+		yyHaveZone++;
 		yyTimezone = $1;
 		yyDSTmode = DSToff;
 	}
 	| tDAYZONE {
+		yyHaveZone++;
 		yyTimezone = $1;
 		yyDSTmode = DSTon;
 	}
 	| tZONE tDST {
+		yyHaveZone++;
 		yyTimezone = $1;
 		yyDSTmode = DSTon;
 	}
 	;
 
 day	: tDAY {
+		yyHaveDay++;
 		yyDayOrdinal = 1;
 		yyDayNumber = $1;
 	}
 	| tDAY ',' {
 		/* "tue," "wednesday," */
+		yyHaveDay++;
 		yyDayOrdinal = 1;
 		yyDayNumber = $1;
 	}
 	| tUNUMBER tDAY {
 		/* "second tues" "3 wed" */
+		yyHaveDay++;
 		yyDayOrdinal = $1;
 		yyDayNumber = $2;
 	}
@@ -199,10 +212,12 @@ day	: tDAY {
 
 date	: tUNUMBER '/' tUNUMBER {
 		/* "1/15" */
+		yyHaveDate++;
 		yyMonth = $1;
 		yyDay = $3;
 	}
 	| tUNUMBER '/' tUNUMBER '/' tUNUMBER {
+		yyHaveDate++;
 		if ($1 >= 13) {
 			/* First number is big:  2004/01/29, 99/02/17 */
 			yyYear = $1;
@@ -223,11 +238,13 @@ date	: tUNUMBER '/' tUNUMBER {
 	}
 	| tUNUMBER '-' tUNUMBER '-' tUNUMBER {
 		/* ISO 8601 format.  yyyy-mm-dd.  */
+		yyHaveDate++;
 		yyYear = $1;
 		yyMonth = $3;
 		yyDay = $5;
 	}
 	| tUNUMBER '-' tMONTH '-' tUNUMBER {
+		yyHaveDate++;
 		if ($1 > 31) {
 			/* e.g. 1992-Jun-17 */
 			yyYear = $1;
@@ -242,22 +259,26 @@ date	: tUNUMBER '/' tUNUMBER {
 	}
 	| tMONTH tUNUMBER {
 		/* "May 3" */
+		yyHaveDate++;
 		yyMonth = $1;
 		yyDay = $2;
 	}
 	| tMONTH tUNUMBER ',' tUNUMBER {
 		/* "June 17, 2001" */
+		yyHaveDate++;
 		yyMonth = $1;
 		yyDay = $2;
 		yyYear = $4;
 	}
 	| tUNUMBER tMONTH {
 		/* "12 Sept" */
+		yyHaveDate++;
 		yyDay = $1;
 		yyMonth = $2;
 	}
 	| tUNUMBER tMONTH tUNUMBER {
 		/* "12 Sept 1997" */
+		yyHaveDate++;
 		yyDay = $1;
 		yyMonth = $2;
 		yyYear = $3;
@@ -273,34 +294,42 @@ rel	: relunit tAGO {
 
 relunit	: '-' tUNUMBER tSEC_UNIT {
 		/* "-3 hours" */
+		yyHaveRel++;
 		yyRelSeconds -= $2 * $3;
 	}
 	| '+' tUNUMBER tSEC_UNIT {
 		/* "+1 minute" */
+		yyHaveRel++;
 		yyRelSeconds += $2 * $3;
 	}
 	| tUNUMBER tSEC_UNIT {
 		/* "1 day" */
+		yyHaveRel++;
 		yyRelSeconds += $1 * $2;
 	}
 	| tSEC_UNIT {
 		/* "hour" */
+		yyHaveRel++;
 		yyRelSeconds += $1;
 	}
 	| '-' tUNUMBER tMONTH_UNIT {
 		/* "-3 months" */
+		yyHaveRel++;
 		yyRelMonth -= $2 * $3;
 	}
 	| '+' tUNUMBER tMONTH_UNIT {
 		/* "+5 years" */
+		yyHaveRel++;
 		yyRelMonth += $2 * $3;
 	}
 	| tUNUMBER tMONTH_UNIT {
 		/* "2 years" */
+		yyHaveRel++;
 		yyRelMonth += $1 * $2;
 	}
 	| tMONTH_UNIT {
 		/* "6 months" */
+		yyHaveRel++;
 		yyRelMonth += $1;
 	}
 	;
@@ -336,15 +365,15 @@ number	: tUNUMBER {
 
 %%
 
-static struct TABLE {
+static struct LEXICON {
 	size_t		abbrev;
 	const char	*name;
 	int		type;
 	time_t		value;
 } const TimeWords[] = {
 	/* am/pm */
-	{ 0, "am",		tAM,	0 },
-	{ 0, "pm",		tPM,	0 },
+	{ 0, "am",		tAMPM,	tAM },
+	{ 0, "pm",		tAMPM,	tPM },
 
 	/* Month names. */
 	{ 3, "january",		tMONTH,  1 },
@@ -615,20 +644,20 @@ RelativeMonth(time_t Start, time_t RelMonth)
 }
 
 static int
-yylex(void)
+nexttoken(char **in, time_t *value)
 {
 	char	c;
 	char	buff[64];
 
 	for ( ; ; ) {
-		while (isspace((unsigned char)*yyInput))
-			yyInput++;
+		while (isspace((unsigned char)**in))
+			++*in;
 
 		/* Skip parenthesized comments. */
-		if (*yyInput == '(') {
+		if (**in == '(') {
 			int Count = 0;
 			do {
-				c = *yyInput++;
+				c = *(*in)++;
 				if (c == '\0')
 					return c;
 				if (c == '(')
@@ -642,8 +671,8 @@ yylex(void)
 		/* Try the next token in the word table first. */
 		/* This allows us to match "2nd", for example. */
 		{
-			char *src = yyInput;
-			const struct TABLE *tp;
+			char *src = *in;
+			const struct LEXICON *tp;
 			unsigned i = 0;
 
 			/* Force to lowercase and strip '.' characters. */
@@ -673,9 +702,9 @@ yylex(void)
 				    && strncmp(tp->name, buff, strlen(buff))
 				    	== 0) {
 					/* Skip over token. */
-					yyInput = src;
+					*in = src;
 					/* Return the match. */
-					yylval.Number = tp->value;
+					*value = tp->value;
 					return tp->type;
 				}
 			}
@@ -686,15 +715,21 @@ yylex(void)
 		 * Because '-' and '+' have other special meanings, I
 		 * don't deal with signed numbers here.
 		 */
-		if (isdigit((unsigned char)(c = *yyInput))) {
-			for (yylval.Number = 0; isdigit((unsigned char)(c = *yyInput++)); )
-				yylval.Number = 10 * yylval.Number + c - '0';
-			yyInput--;
+		if (isdigit((unsigned char)(c = **in))) {
+			for (*value = 0; isdigit((unsigned char)(c = *(*in)++)); )
+				*value = 10 * *value + c - '0';
+			(*in)--;
 			return (tUNUMBER);
 		}
 
-		return (*yyInput++);
+		return *(*in)++;
 	}
+}
+
+static int
+yylex(void)
+{
+	return nexttoken(&yyInput, &yylval.Number);
 }
 
 #define TM_YEAR_ORIGIN 1900
@@ -768,8 +803,10 @@ get_date(char *p)
 	yyHaveTime = 0;
 	yyHaveZone = 0;
 
-	if (yyparse()
-	    || yyHaveTime > 1 || yyHaveZone > 1
+	if (yyparse())
+		return -1;
+
+	if (yyHaveTime > 1 || yyHaveZone > 1
 	    || yyHaveDate > 1 || yyHaveDay > 1)
 		return -1;
 
