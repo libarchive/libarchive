@@ -1,36 +1,19 @@
-#include <stdlib.h>
-#ifndef lint
-#ifdef __unused
-__unused
-#endif
-static char const 
-yyrcsid[] = "$FreeBSD: src/usr.bin/yacc/skeleton.c,v 1.37 2003/02/12 18:03:55 davidc Exp $";
-#endif
-#define YYBYACC 1
-#define YYMAJOR 1
-#define YYMINOR 9
-#define YYLEX yylex()
-#define YYEMPTY -1
-#define yyclearin (yychar=(YYEMPTY))
-#define yyerrok (yyerrflag=0)
-#define YYRECOVERING() (yyerrflag!=0)
-#if defined(__cplusplus) || __STDC__
-static int yygrowstack(void);
-#else
-static int yygrowstack();
-#endif
-#define YYPREFIX "yy"
-#line 2 "getdate.y"
 /*
- * March 2005: Further modified and simplified by Tim Kientzle:
- * Eliminate minutes-based calculations (just do everything in
- * seconds), have lexer only recognize unsigned integers (handle '+'
- * and '-' characters in grammar), combine tables into one table with
- * explicit abbreviation notes, do am/pm adjustments in the grammar
- * (eliminate some state variables and post-processing).  Among other
- * things, these changes eliminated two shift/reduce conflicts.  (Went
- * from 10 to 8.)
- * All of Tim Kientzle's changes to this file are public domain.
+ * This code is in the public domain and has no copyright.
+ *
+ * This is a plain C recursive-descent translation of an old
+ * public-domain YACC grammar that has been used for parsing dates in
+ * very many open-source projects.
+ *
+ * Since the original authors were generous enough to donate their
+ * work to the public domain, I feel compelled to match their
+ * generosity.
+ *
+ * Tim Kientzle, February 2009.
+ */
+
+/*
+ * Header comment from original getdate.y:
  */
 
 /*
@@ -43,8 +26,6 @@ static int yygrowstack();
 **
 **  This code is in the public domain and has no copyright.
 */
-/* SUPPRESS 287 on yaccpar_sccsid *//* Unused static variable */
-/* SUPPRESS 288 on yyerrlab *//* Label unused */
 
 #ifdef __FreeBSD__
 #include <sys/cdefs.h>
@@ -54,22 +35,8 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/getdate.y,v 1.9 2007/07/20 01:27:50 kientzle
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
-/* Bison tries to redefine malloc() and free() without the next define. */
-#define	YYINCLUDED_STDLIB_H
 #include <string.h>
 #include <time.h>
-
-#ifdef _MSC_VER
-#define __STDC__	/* for a bug of bison 2.1 on Windows */
-#endif
-
-#define yyparse getdate_yyparse
-#define yylex getdate_yylex
-#define yyerror getdate_yyerror
-
-static int yyparse(void);
-static int yylex(void);
-static int yyerror(const char *);
 
 time_t get_date(char *);
 
@@ -117,223 +84,409 @@ struct token { int token; time_t value; };
 static struct token tokens[256];
 struct token *tokenp, *lasttoken;
 
-#line 100 "getdate.y"
-typedef union {
-    time_t		Number;
-} YYSTYPE;
-#line 125 "getdate.c"
-#define YYERRCODE 256
-#define tAGO 257
-#define tDAY 258
-#define tDAYZONE 259
-#define tAMPM 260
-#define tMONTH 261
-#define tMONTH_UNIT 262
-#define tSEC_UNIT 263
-#define tUNUMBER 264
-#define tZONE 265
-#define tDST 266
-const short yylhs[] = {                                        -1,
-    0,    0,    1,    1,    1,    1,    1,    1,    2,    2,
-    2,    2,    2,    8,    8,    3,    3,    3,    5,    5,
-    5,    4,    4,    4,    4,    4,    4,    4,    4,    6,
-    6,    9,    9,    9,    9,    9,    9,    9,    9,    7,
-};
-const short yylen[] = {                                         2,
-    0,    2,    1,    1,    1,    1,    1,    1,    2,    1,
-    2,    3,    3,    3,    5,    1,    1,    2,    1,    2,
-    2,    3,    5,    5,    5,    2,    4,    2,    3,    2,
-    1,    3,    3,    2,    1,    3,    3,    2,    1,    1,
-};
-const short yydefred[] = {                                      1,
-    0,    0,   17,    0,   39,   35,    0,    0,    0,    0,
-    2,    3,    4,    5,    6,    7,    8,    0,    0,   20,
-    0,   21,    9,    0,   38,   34,    0,    0,    0,   18,
-    0,    0,   11,    0,    0,   30,    0,   29,    0,    0,
-    0,    0,   37,   33,   36,   32,   12,   13,   27,    0,
-    0,    0,    0,   25,   24,   15,   23,
-};
-const short yydgoto[] = {                                       1,
-   11,   12,   13,   14,   15,   16,   17,   18,   19,
-};
-const short yysindex[] = {                                      0,
-  -43,  -40,    0, -259,    0,    0,  -35, -252, -253, -248,
-    0,    0,    0,    0,    0,    0,    0,  -30, -237,    0,
-  -23,    0,    0, -242,    0,    0, -258, -240, -238,    0,
- -255, -244,    0, -236, -235,    0, -234,    0,  -18,  -14,
-  -26,  -13,    0,    0,    0,    0,    0,    0,    0, -229,
- -228, -227, -226,    0,    0,    0,    0,
-};
-const short yyrindex[] = {                                      0,
-    0,    9,    0,    0,    0,    0,   64,   17,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,   57,   25,    0,
-   33,    0,    0,   49,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    1,   41,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,
-};
-const short yygindex[] = {                                      0,
-    0,    0,    0,    0,    0,    0,    0,    0,    0,
-};
-#define YYTABLESIZE 329
-const short yytable[] = {                                       9,
-   14,   10,   39,   20,   21,   40,   43,   44,   19,   27,
-   31,   29,   34,   30,   35,   32,   16,   45,   46,   36,
-   37,   38,   28,   41,   31,   42,   50,   47,   48,   49,
-   51,   52,   26,   53,   54,   55,   56,   57,    0,    0,
-   22,    0,    0,   14,    0,   14,    0,    0,   28,    0,
-    0,   19,    0,   19,    0,    0,   10,    0,    0,   16,
-    0,   16,    0,   40,    0,    0,    0,   31,    0,   31,
-    0,    0,    0,    0,    0,   26,    0,   26,    0,    0,
-    0,    0,    0,   22,    0,   22,    0,    0,    0,    0,
-    0,   28,    0,   28,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,   40,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    2,    3,    0,    4,    5,    6,
-    7,    8,   22,    0,   23,   24,   25,   26,    0,   33,
-    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,   14,   14,
-   14,   14,   14,   14,   14,   14,   19,   19,    0,   19,
-   19,   19,   19,   19,   16,   16,    0,   16,   16,   16,
-   16,   16,   31,   31,    0,   31,   31,   31,   31,   31,
-   26,   26,    0,   26,   26,   26,   26,   26,   22,   22,
-    0,   22,   22,   22,   22,   22,   28,   28,    0,   28,
-   28,   28,    0,   28,   10,   10,    0,   10,   10,   10,
-   10,   10,   40,    0,    0,    0,    0,   40,   40,
-};
-const short yycheck[] = {                                      43,
-    0,   45,  261,   44,  264,  264,  262,  263,    0,   45,
-  264,   47,   43,  266,   45,  264,    0,  262,  263,  257,
-   44,  264,   58,  264,    0,  264,   45,  264,  264,  264,
-   45,   58,    0,   47,  264,  264,  264,  264,   -1,   -1,
-    0,   -1,   -1,   43,   -1,   45,   -1,   -1,    0,   -1,
-   -1,   43,   -1,   45,   -1,   -1,    0,   -1,   -1,   43,
-   -1,   45,   -1,    0,   -1,   -1,   -1,   43,   -1,   45,
-   -1,   -1,   -1,   -1,   -1,   43,   -1,   45,   -1,   -1,
-   -1,   -1,   -1,   43,   -1,   45,   -1,   -1,   -1,   -1,
-   -1,   43,   -1,   45,   -1,   -1,   -1,   -1,   -1,   -1,
-   -1,   -1,   -1,   -1,   -1,   -1,   43,   -1,   -1,   -1,
-   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
-   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
-   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
-   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
-   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
-   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
-   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
-   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
-   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
-   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
-   -1,   -1,   -1,   -1,  258,  259,   -1,  261,  262,  263,
-  264,  265,  258,   -1,  260,  261,  262,  263,   -1,  260,
-   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
-   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
-   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,  258,  259,
-  260,  261,  262,  263,  264,  265,  258,  259,   -1,  261,
-  262,  263,  264,  265,  258,  259,   -1,  261,  262,  263,
-  264,  265,  258,  259,   -1,  261,  262,  263,  264,  265,
-  258,  259,   -1,  261,  262,  263,  264,  265,  258,  259,
-   -1,  261,  262,  263,  264,  265,  258,  259,   -1,  261,
-  262,  263,   -1,  265,  258,  259,   -1,  261,  262,  263,
-  264,  265,  259,   -1,   -1,   -1,   -1,  264,  265,
-};
-#define YYFINAL 1
-#ifndef YYDEBUG
-#define YYDEBUG 0
-#endif
-#define YYMAXTOKEN 266
-#if YYDEBUG
-const char * const yyname[] = {
-"end-of-file",0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,"'+'","','","'-'",0,"'/'",0,0,0,0,0,0,0,0,0,0,"':'",0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"tAGO","tDAY",
-"tDAYZONE","tAMPM","tMONTH","tMONTH_UNIT","tSEC_UNIT","tUNUMBER","tZONE","tDST",
-};
-const char * const yyrule[] = {
-"$accept : spec",
-"spec :",
-"spec : spec phrase",
-"phrase : time",
-"phrase : zone",
-"phrase : date",
-"phrase : day",
-"phrase : rel",
-"phrase : number",
-"time : tUNUMBER tAMPM",
-"time : bare_time",
-"time : bare_time tAMPM",
-"time : bare_time '+' tUNUMBER",
-"time : bare_time '-' tUNUMBER",
-"bare_time : tUNUMBER ':' tUNUMBER",
-"bare_time : tUNUMBER ':' tUNUMBER ':' tUNUMBER",
-"zone : tZONE",
-"zone : tDAYZONE",
-"zone : tZONE tDST",
-"day : tDAY",
-"day : tDAY ','",
-"day : tUNUMBER tDAY",
-"date : tUNUMBER '/' tUNUMBER",
-"date : tUNUMBER '/' tUNUMBER '/' tUNUMBER",
-"date : tUNUMBER '-' tUNUMBER '-' tUNUMBER",
-"date : tUNUMBER '-' tMONTH '-' tUNUMBER",
-"date : tMONTH tUNUMBER",
-"date : tMONTH tUNUMBER ',' tUNUMBER",
-"date : tUNUMBER tMONTH",
-"date : tUNUMBER tMONTH tUNUMBER",
-"rel : relunit tAGO",
-"rel : relunit",
-"relunit : '-' tUNUMBER tSEC_UNIT",
-"relunit : '+' tUNUMBER tSEC_UNIT",
-"relunit : tUNUMBER tSEC_UNIT",
-"relunit : tSEC_UNIT",
-"relunit : '-' tUNUMBER tMONTH_UNIT",
-"relunit : '+' tUNUMBER tMONTH_UNIT",
-"relunit : tUNUMBER tMONTH_UNIT",
-"relunit : tMONTH_UNIT",
-"number : tUNUMBER",
-};
-#endif
-#if YYDEBUG
-#include <stdio.h>
-#endif
-#ifdef YYSTACKSIZE
-#undef YYMAXDEPTH
-#define YYMAXDEPTH YYSTACKSIZE
-#else
-#ifdef YYMAXDEPTH
-#define YYSTACKSIZE YYMAXDEPTH
-#else
-#define YYSTACKSIZE 10000
-#define YYMAXDEPTH 10000
-#endif
-#endif
-#define YYINITSTACKSIZE 200
-int yydebug;
-int yynerrs;
-int yyerrflag;
-int yychar;
-short *yyssp;
-YYSTYPE *yyvsp;
-YYSTYPE yyval;
-YYSTYPE yylval;
-short *yyss;
-short *yysslim;
-YYSTYPE *yyvs;
-int yystacksize;
-#line 363 "getdate.y"
+enum { tAGO = 260, tDAY, tDAYZONE, tAMPM, tMONTH, tMONTH_UNIT, tSEC_UNIT,
+       tUNUMBER, tZONE, tDST };
+
+/*
+ * A series of functions that recognize certain common time phrases.
+ * Each function returns 1 if it managed to make sense of some of the
+ * tokens, zero otherwise.
+ */
+
+static int
+baretimephrase(void)
+{
+	if (tokenp[0].token == tUNUMBER
+	    && tokenp[1].token == ':'
+	    && tokenp[2].token == tUNUMBER
+	    && tokenp[3].token == ':'
+	    && tokenp[4].token == tUNUMBER) {
+		++yyHaveTime;
+		yyHour = tokenp[0].value;
+		yyMinutes = tokenp[2].value;
+		yySeconds = tokenp[4].value;
+		tokenp += 5;
+		return 1;
+	}
+
+	if (tokenp[0].token == tUNUMBER
+	    && tokenp[1].token == ':'
+	    && tokenp[2].token == tUNUMBER) {
+		++yyHaveTime;
+		yyHour = tokenp[0].value;
+		yyMinutes = tokenp[2].value;
+		yySeconds = 0;
+		tokenp += 3;
+		return 1;
+	}
+
+	return 0;
+}
+
+static int
+timephrase(void)
+{
+	if (baretimephrase()) {
+		if (tokenp[0].token == tAMPM) {
+			/* "7:12pm", "12:20:13am" */
+			if (yyHour == 12)
+				yyHour = 0;
+			if (tokenp[0].value == tPM)
+				yyHour += 12;
+			tokenp += 1;
+			return 1;
+		}
+		if (tokenp[0].token == '+' && tokenp[1].token == tUNUMBER) {
+			/* "7:14+0700" */
+			yyDSTmode = DSToff;
+			yyTimezone = - (tokenp[1].value % 100
+			    + (tokenp[1].value / 100) * 60);
+			tokenp += 2;
+			return 1;
+		}
+		if (tokenp[0].token == '-' && tokenp[1].token == tUNUMBER) {
+			/* "19:14:12-0530" */
+			yyDSTmode = DSToff;
+			yyTimezone = + (tokenp[1].value % 100
+			    + (tokenp[1].value / 100) * 60);
+			tokenp += 2;
+			return 1;
+		}
+		/* "7:12:18" "19:17" */
+		return 1;
+	}
+
+	if (tokenp[0].token == tUNUMBER && tokenp[1].token == tAMPM) {
+		/* "7am" */
+		yyHaveTime++;
+		yyHour = tokenp[0].value;
+		if (yyHour == 12)
+			yyHour = 0;
+		yyMinutes = 0;
+		yySeconds = 0;
+		if (tokenp[1].value == tPM)
+			yyHour += 12;
+		tokenp += 2;
+		return 1;
+	}
+
+	return 0;
+}
+
+static int
+zonephrase(void)
+{
+	if (tokenp[0].token == tZONE
+	    && tokenp[1].token == tDST) {
+		yyHaveZone++;
+		yyTimezone = tokenp[0].value;
+		yyDSTmode = DSTon;
+		tokenp += 1;
+		return 1;
+	}
+
+	if (tokenp[0].token == tZONE) {
+		yyHaveZone++;
+		yyTimezone = tokenp[0].value;
+		yyDSTmode = DSToff;
+		tokenp += 1;
+		return 1;
+	}
+
+	if (tokenp[0].token == tDAYZONE) {
+		yyHaveZone++;
+		yyTimezone = tokenp[0].value;
+		yyDSTmode = DSTon;
+		tokenp += 1;
+		return 1;
+	}
+	return 0;
+}
+
+
+static int
+datephrase(void)
+{
+	if (tokenp[0].token == tUNUMBER
+	    && tokenp[1].token == '/'
+	    && tokenp[2].token == tUNUMBER
+	    && tokenp[3].token == '/'
+	    && tokenp[4].token == tUNUMBER) {
+		yyHaveDate++;
+		if (tokenp[0].value >= 13) {
+			/* First number is big:  2004/01/29, 99/02/17 */
+			yyYear = tokenp[0].value;
+			yyMonth = tokenp[2].value;
+			yyDay = tokenp[4].value;
+		} else if ((tokenp[4].value >= 13) || (tokenp[2].value >= 13)) {
+			/* Last number is big:  01/07/98 */
+			/* Middle number is big:  01/29/04 */
+			yyMonth = tokenp[0].value;
+			yyDay = tokenp[2].value;
+			yyYear = tokenp[4].value;
+		} else {
+			/* No significant clues: 02/03/04 */
+			yyMonth = tokenp[0].value;
+			yyDay = tokenp[2].value;
+			yyYear = tokenp[4].value;
+		}
+		tokenp += 5;
+		return 1;
+	}
+
+	if (tokenp[0].token == tUNUMBER
+	    && tokenp[1].token == '/'
+	    && tokenp[2].token == tUNUMBER) {
+		/* "1/15" */
+		yyHaveDate++;
+		yyMonth = tokenp[0].value;
+		yyDay = tokenp[2].value;
+		tokenp += 3;
+		return 1;
+	}
+
+	if (tokenp[0].token == tUNUMBER
+	    && tokenp[1].token == '-'
+	    && tokenp[2].token == tUNUMBER
+	    && tokenp[3].token == '-'
+	    && tokenp[4].token == tUNUMBER) {
+		/* ISO 8601 format.  yyyy-mm-dd.  */
+		yyHaveDate++;
+		yyYear = tokenp[0].value;
+		yyMonth = tokenp[2].value;
+		yyDay = tokenp[4].value;
+		tokenp += 5;
+		return 1;
+	}
+
+
+	if (tokenp[0].token == tUNUMBER
+	    && tokenp[1].token == '-'
+	    && tokenp[2].token == tMONTH
+	    && tokenp[3].token == '-'
+	    && tokenp[4].token == tUNUMBER) {
+		yyHaveDate++;
+		if (tokenp[0].value > 31) {
+			/* e.g. 1992-Jun-17 */
+			yyYear = tokenp[0].value;
+			yyMonth = tokenp[2].value;
+			yyDay = tokenp[4].value;
+		} else {
+			/* e.g. 17-JUN-1992.  */
+			yyDay = tokenp[0].value;
+			yyMonth = tokenp[2].value;
+			yyYear = tokenp[4].value;
+		}
+		tokenp += 5;
+		return 1;
+	}
+
+	if (tokenp[0].token == tMONTH
+	    && tokenp[1].token == tUNUMBER
+	    && tokenp[2].token == ','
+	    && tokenp[3].token == tUNUMBER) {
+		/* "June 17, 2001" */
+		yyHaveDate++;
+		yyMonth = tokenp[0].value;
+		yyDay = tokenp[1].value;
+		yyYear = tokenp[3].value;
+		tokenp += 4;
+		return 1;
+	}
+
+	if (tokenp[0].token == tMONTH
+	    && tokenp[1].token == tUNUMBER) {
+		/* "May 3" */
+		yyHaveDate++;
+		yyMonth = tokenp[0].value;
+		yyDay = tokenp[1].value;
+		tokenp += 2;
+		return 1;
+	}
+
+	if (tokenp[0].token == tUNUMBER
+	    && tokenp[1].token == tMONTH
+	    && tokenp[2].token == tUNUMBER) {
+		/* "12 Sept 1997" */
+		yyHaveDate++;
+		yyDay = tokenp[0].value;
+		yyMonth = tokenp[1].value;
+		yyYear = tokenp[2].value;
+		tokenp += 3;
+		return 1;
+	}
+
+	if (tokenp[0].token == tUNUMBER
+	    && tokenp[1].token == tMONTH) {
+		/* "12 Sept" */
+		yyHaveDate++;
+		yyDay = tokenp[0].value;
+		yyMonth = tokenp[1].value;
+		tokenp += 2;
+		return 1;
+	}
+
+
+	return 0;
+}
+
+static int
+relunitphrase(void)
+{
+	if (tokenp[0].token == '-'
+	    && tokenp[1].token == tUNUMBER
+	    && tokenp[2].token == tSEC_UNIT) {
+		/* "-3 hours" */
+		yyHaveRel++;
+		yyRelSeconds -= tokenp[1].value * tokenp[2].value;
+		tokenp += 3;
+		return 1;
+	}
+	if (tokenp[0].token == '+'
+	    && tokenp[1].token == tUNUMBER
+	    && tokenp[2].token == tSEC_UNIT) {
+		/* "+1 minute" */
+		yyHaveRel++;
+		yyRelSeconds += tokenp[1].value * tokenp[2].value;
+		tokenp += 3;
+		return 1;
+	}
+	if (tokenp[0].token == tUNUMBER
+	    && tokenp[1].token == tSEC_UNIT) {
+		/* "1 day" */
+		yyHaveRel++;
+		yyRelSeconds += tokenp[1].value * tokenp[2].value;
+		tokenp += 3;
+		return 1;
+	}
+	if (tokenp[0].token == '-'
+	    && tokenp[1].token == tUNUMBER
+	    && tokenp[2].token == tMONTH_UNIT) {
+		/* "-3 months" */
+		yyHaveRel++;
+		yyRelMonth -= tokenp[1].value * tokenp[2].value;
+		tokenp += 3;
+		return 1;
+	}
+	if (tokenp[0].token == '+'
+	    && tokenp[1].token == tUNUMBER
+	    && tokenp[2].token == tMONTH_UNIT) {
+		/* "+5 years" */
+		yyHaveRel++;
+		yyRelMonth += tokenp[1].value * tokenp[2].value;
+		tokenp += 3;
+		return 1;
+	}
+	if (tokenp[0].token == tUNUMBER
+	    && tokenp[1].token == tMONTH_UNIT) {
+		/* "2 years" */
+		yyHaveRel++;
+		yyRelMonth += tokenp[0].value * tokenp[1].value;
+		tokenp += 2;
+		return 1;
+	}
+	if (tokenp[0].token == tSEC_UNIT) {
+		/* "now", "tomorrow" */
+		yyHaveRel++;
+		yyRelSeconds += tokenp[0].value;
+		++tokenp;
+		return 1;
+	}
+	if (tokenp[0].token == tMONTH_UNIT) {
+		/* "month" */
+		yyHaveRel++;
+		yyRelMonth += tokenp[0].value;
+		tokenp += 1;
+		return 1;
+	}
+	return 0;
+}
+
+static int
+dayphrase(void)
+{
+	if (tokenp[0].token == tDAY) {
+		/* "tues", "wednesday," */
+		yyHaveDay++;
+		yyDayOrdinal = 1;
+		yyDayNumber = tokenp[0].value;
+		tokenp += 1;
+		if (tokenp[0].token == ',')
+			tokenp += 1;
+		return 1;
+	}
+	if (tokenp[0].token == tUNUMBER
+		&& tokenp[1].token == tDAY) {
+		/* "second tues" "3 wed" */
+		yyHaveDay++;
+		yyDayOrdinal = tokenp[0].value;
+		yyDayNumber = tokenp[1].value;
+		tokenp += 2;
+		return 1;
+	}
+	return 0;
+}
+
+static int
+phrase(void)
+{
+	if (timephrase())
+		return 1;
+	if (zonephrase())
+		return 1;
+	if (datephrase())
+		return 1;
+	if (dayphrase())
+		return 1;
+	if (relunitphrase()) {
+		if (tokenp[0].token == tAGO) {
+			yyRelSeconds = -yyRelSeconds;
+			yyRelMonth = -yyRelMonth;
+			tokenp += 1;
+		}
+		return 1;
+	}
+
+	/* Bare numbers sometimes have meaning. */
+	if (tokenp[0].token == tUNUMBER) {
+		if (yyHaveTime && yyHaveDate && !yyHaveRel) {
+			yyYear = tokenp[0].value;
+			tokenp += 1;
+			return 1;
+		}
+
+		if(tokenp[0].value > 10000) {
+			/* "20040301" */
+			yyHaveDate++;
+			yyDay= (tokenp[0].value)%100;
+			yyMonth= (tokenp[0].value/100)%100;
+			yyYear = tokenp[0].value/10000;
+			tokenp += 1;
+			return 1;
+		}
+
+		if (tokenp[0].value < 24) {
+			yyHaveTime++;
+			yyHour = tokenp[0].value;
+			yyMinutes = 0;
+			yySeconds = 0;
+			tokenp += 1;
+			return 1;
+		}
+
+		if ((tokenp[0].value / 100 < 24)
+		    && (tokenp[0].value % 100 < 60)) {
+			/* "513" is same as "5:13" */
+			yyHour = tokenp[0].value / 100;
+			yyMinutes = tokenp[0].value % 100;
+			yySeconds = 0;
+			tokenp += 1;
+			return 1;
+		}
+	}
+
+	return 0;
+}
 
 static struct LEXICON {
 	size_t		abbrev;
@@ -500,17 +653,6 @@ static struct LEXICON {
 	/* End of table. */
 	{ 0, NULL,	0,	0 }
 };
-
-
-
-
-/* ARGSUSED */
-static int
-yyerror(const char *s)
-{
-	(void)s;
-	return 0;
-}
 
 static time_t
 ToSeconds(time_t Hours, time_t Minutes, time_t Seconds)
@@ -696,15 +838,6 @@ nexttoken(char **in, time_t *value)
 	}
 }
 
-static int
-yylex(void)
-{
-	int t = tokenp->token;
-	yylval.Number = tokenp->value;
-	++tokenp;
-	return t;
-}
-
 #define TM_YEAR_ORIGIN 1900
 
 /* Yield A - B, measured in seconds.  */
@@ -783,8 +916,10 @@ get_date(char *p)
 	}
 	tokenp = tokens;
 
-	if (yyparse())
-		return -1;
+	while (tokenp < lasttoken) {
+		if (!phrase())
+			return -1;
+	}
 
 	if (yyHaveTime > 1 || yyHaveZone > 1
 	    || yyHaveDate > 1 || yyHaveDay > 1)
@@ -836,568 +971,3 @@ main(int argc, char **argv)
     /* NOTREACHED */
 }
 #endif	/* defined(TEST) */
-#line 840 "getdate.c"
-/* allocate initial stack or double stack size, up to YYMAXDEPTH */
-static int yygrowstack()
-{
-    int newsize, i;
-    short *newss;
-    YYSTYPE *newvs;
-
-    if ((newsize = yystacksize) == 0)
-        newsize = YYINITSTACKSIZE;
-    else if (newsize >= YYMAXDEPTH)
-        return -1;
-    else if ((newsize *= 2) > YYMAXDEPTH)
-        newsize = YYMAXDEPTH;
-    i = yyssp - yyss;
-    newss = yyss ? (short *)realloc(yyss, newsize * sizeof *newss) :
-      (short *)malloc(newsize * sizeof *newss);
-    if (newss == NULL)
-        return -1;
-    yyss = newss;
-    yyssp = newss + i;
-    newvs = yyvs ? (YYSTYPE *)realloc(yyvs, newsize * sizeof *newvs) :
-      (YYSTYPE *)malloc(newsize * sizeof *newvs);
-    if (newvs == NULL)
-        return -1;
-    yyvs = newvs;
-    yyvsp = newvs + i;
-    yystacksize = newsize;
-    yysslim = yyss + newsize - 1;
-    return 0;
-}
-
-#define YYABORT goto yyabort
-#define YYREJECT goto yyabort
-#define YYACCEPT goto yyaccept
-#define YYERROR goto yyerrlab
-
-#ifndef YYPARSE_PARAM
-#if defined(__cplusplus) || __STDC__
-#define YYPARSE_PARAM_ARG void
-#define YYPARSE_PARAM_DECL
-#else	/* ! ANSI-C/C++ */
-#define YYPARSE_PARAM_ARG
-#define YYPARSE_PARAM_DECL
-#endif	/* ANSI-C/C++ */
-#else	/* YYPARSE_PARAM */
-#ifndef YYPARSE_PARAM_TYPE
-#define YYPARSE_PARAM_TYPE void *
-#endif
-#if defined(__cplusplus) || __STDC__
-#define YYPARSE_PARAM_ARG YYPARSE_PARAM_TYPE YYPARSE_PARAM
-#define YYPARSE_PARAM_DECL
-#else	/* ! ANSI-C/C++ */
-#define YYPARSE_PARAM_ARG YYPARSE_PARAM
-#define YYPARSE_PARAM_DECL YYPARSE_PARAM_TYPE YYPARSE_PARAM;
-#endif	/* ANSI-C/C++ */
-#endif	/* ! YYPARSE_PARAM */
-
-int
-yyparse (YYPARSE_PARAM_ARG)
-    YYPARSE_PARAM_DECL
-{
-    int yym, yyn, yystate;
-#if YYDEBUG
-    const char *yys;
-
-    if ((yys = getenv("YYDEBUG")))
-    {
-        yyn = *yys;
-        if (yyn >= '0' && yyn <= '9')
-            yydebug = yyn - '0';
-    }
-#endif
-
-    yynerrs = 0;
-    yyerrflag = 0;
-    yychar = (-1);
-
-    if (yyss == NULL && yygrowstack()) goto yyoverflow;
-    yyssp = yyss;
-    yyvsp = yyvs;
-    *yyssp = yystate = 0;
-
-yyloop:
-    if ((yyn = yydefred[yystate])) goto yyreduce;
-    if (yychar < 0)
-    {
-        if ((yychar = yylex()) < 0) yychar = 0;
-#if YYDEBUG
-        if (yydebug)
-        {
-            yys = 0;
-            if (yychar <= YYMAXTOKEN) yys = yyname[yychar];
-            if (!yys) yys = "illegal-symbol";
-            printf("%sdebug: state %d, reading %d (%s)\n",
-                    YYPREFIX, yystate, yychar, yys);
-        }
-#endif
-    }
-    if ((yyn = yysindex[yystate]) && (yyn += yychar) >= 0 &&
-            yyn <= YYTABLESIZE && yycheck[yyn] == yychar)
-    {
-#if YYDEBUG
-        if (yydebug)
-            printf("%sdebug: state %d, shifting to state %d\n",
-                    YYPREFIX, yystate, yytable[yyn]);
-#endif
-        if (yyssp >= yysslim && yygrowstack())
-        {
-            goto yyoverflow;
-        }
-        *++yyssp = yystate = yytable[yyn];
-        *++yyvsp = yylval;
-        yychar = (-1);
-        if (yyerrflag > 0)  --yyerrflag;
-        goto yyloop;
-    }
-    if ((yyn = yyrindex[yystate]) && (yyn += yychar) >= 0 &&
-            yyn <= YYTABLESIZE && yycheck[yyn] == yychar)
-    {
-        yyn = yytable[yyn];
-        goto yyreduce;
-    }
-    if (yyerrflag) goto yyinrecovery;
-#if defined(lint) || defined(__GNUC__)
-    goto yynewerror;
-#endif
-yynewerror:
-    yyerror("syntax error");
-#if defined(lint) || defined(__GNUC__)
-    goto yyerrlab;
-#endif
-yyerrlab:
-    ++yynerrs;
-yyinrecovery:
-    if (yyerrflag < 3)
-    {
-        yyerrflag = 3;
-        for (;;)
-        {
-            if ((yyn = yysindex[*yyssp]) && (yyn += YYERRCODE) >= 0 &&
-                    yyn <= YYTABLESIZE && yycheck[yyn] == YYERRCODE)
-            {
-#if YYDEBUG
-                if (yydebug)
-                    printf("%sdebug: state %d, error recovery shifting\
- to state %d\n", YYPREFIX, *yyssp, yytable[yyn]);
-#endif
-                if (yyssp >= yysslim && yygrowstack())
-                {
-                    goto yyoverflow;
-                }
-                *++yyssp = yystate = yytable[yyn];
-                *++yyvsp = yylval;
-                goto yyloop;
-            }
-            else
-            {
-#if YYDEBUG
-                if (yydebug)
-                    printf("%sdebug: error recovery discarding state %d\n",
-                            YYPREFIX, *yyssp);
-#endif
-                if (yyssp <= yyss) goto yyabort;
-                --yyssp;
-                --yyvsp;
-            }
-        }
-    }
-    else
-    {
-        if (yychar == 0) goto yyabort;
-#if YYDEBUG
-        if (yydebug)
-        {
-            yys = 0;
-            if (yychar <= YYMAXTOKEN) yys = yyname[yychar];
-            if (!yys) yys = "illegal-symbol";
-            printf("%sdebug: state %d, error recovery discards token %d (%s)\n",
-                    YYPREFIX, yystate, yychar, yys);
-        }
-#endif
-        yychar = (-1);
-        goto yyloop;
-    }
-yyreduce:
-#if YYDEBUG
-    if (yydebug)
-        printf("%sdebug: state %d, reducing by rule %d (%s)\n",
-                YYPREFIX, yystate, yyn, yyrule[yyn]);
-#endif
-    yym = yylen[yyn];
-    yyval = yyvsp[1-yym];
-    switch (yyn)
-    {
-case 9:
-#line 124 "getdate.y"
-{
-		/* "7am" */
-		yyHaveTime++;
-		yyHour = yyvsp[-1].Number;
-		if (yyHour == 12)
-			yyHour = 0;
-		yyMinutes = 0;
-		yySeconds = 0;
-		if (yyvsp[0].Number == tPM)
-			yyHour += 12;
-	}
-break;
-case 10:
-#line 135 "getdate.y"
-{
-		/* "7:12:18" "19:17" */
-		yyHaveTime++;
-	}
-break;
-case 11:
-#line 139 "getdate.y"
-{
-		/* "7:12pm", "12:20:13am" */
-		yyHaveTime++;
-		if (yyHour == 12)
-			yyHour = 0;
-		if (yyvsp[0].Number == tPM)
-			yyHour += 12;
-	}
-break;
-case 12:
-#line 147 "getdate.y"
-{
-		/* "7:14+0700" */
-		yyHaveTime++;
-		yyDSTmode = DSToff;
-		yyTimezone = - (yyvsp[0].Number % 100 + (yyvsp[0].Number / 100) * 60);
-	}
-break;
-case 13:
-#line 153 "getdate.y"
-{
-		/* "19:14:12-0530" */
-		yyHaveTime++;
-		yyDSTmode = DSToff;
-		yyTimezone = + (yyvsp[0].Number % 100 + (yyvsp[0].Number / 100) * 60);
-	}
-break;
-case 14:
-#line 161 "getdate.y"
-{
-		yyHour = yyvsp[-2].Number;
-		yyMinutes = yyvsp[0].Number;
-		yySeconds = 0;
-	}
-break;
-case 15:
-#line 166 "getdate.y"
-{
-		yyHour = yyvsp[-4].Number;
-		yyMinutes = yyvsp[-2].Number;
-		yySeconds = yyvsp[0].Number;
-	}
-break;
-case 16:
-#line 173 "getdate.y"
-{
-		yyHaveZone++;
-		yyTimezone = yyvsp[0].Number;
-		yyDSTmode = DSToff;
-	}
-break;
-case 17:
-#line 178 "getdate.y"
-{
-		yyHaveZone++;
-		yyTimezone = yyvsp[0].Number;
-		yyDSTmode = DSTon;
-	}
-break;
-case 18:
-#line 183 "getdate.y"
-{
-		yyHaveZone++;
-		yyTimezone = yyvsp[-1].Number;
-		yyDSTmode = DSTon;
-	}
-break;
-case 19:
-#line 190 "getdate.y"
-{
-		yyHaveDay++;
-		yyDayOrdinal = 1;
-		yyDayNumber = yyvsp[0].Number;
-	}
-break;
-case 20:
-#line 195 "getdate.y"
-{
-		/* "tue," "wednesday," */
-		yyHaveDay++;
-		yyDayOrdinal = 1;
-		yyDayNumber = yyvsp[-1].Number;
-	}
-break;
-case 21:
-#line 201 "getdate.y"
-{
-		/* "second tues" "3 wed" */
-		yyHaveDay++;
-		yyDayOrdinal = yyvsp[-1].Number;
-		yyDayNumber = yyvsp[0].Number;
-	}
-break;
-case 22:
-#line 209 "getdate.y"
-{
-		/* "1/15" */
-		yyHaveDate++;
-		yyMonth = yyvsp[-2].Number;
-		yyDay = yyvsp[0].Number;
-	}
-break;
-case 23:
-#line 215 "getdate.y"
-{
-		yyHaveDate++;
-		if (yyvsp[-4].Number >= 13) {
-			/* First number is big:  2004/01/29, 99/02/17 */
-			yyYear = yyvsp[-4].Number;
-			yyMonth = yyvsp[-2].Number;
-			yyDay = yyvsp[0].Number;
-		} else if ((yyvsp[0].Number >= 13) || (yyvsp[-2].Number >= 13)) {
-			/* Last number is big:  01/07/98 */
-			/* Middle number is big:  01/29/04 */
-			yyMonth = yyvsp[-4].Number;
-			yyDay = yyvsp[-2].Number;
-			yyYear = yyvsp[0].Number;
-		} else {
-			/* No significant clues: 02/03/04 */
-			yyMonth = yyvsp[-4].Number;
-			yyDay = yyvsp[-2].Number;
-			yyYear = yyvsp[0].Number;
-		}
-	}
-break;
-case 24:
-#line 235 "getdate.y"
-{
-		/* ISO 8601 format.  yyyy-mm-dd.  */
-		yyHaveDate++;
-		yyYear = yyvsp[-4].Number;
-		yyMonth = yyvsp[-2].Number;
-		yyDay = yyvsp[0].Number;
-	}
-break;
-case 25:
-#line 242 "getdate.y"
-{
-		yyHaveDate++;
-		if (yyvsp[-4].Number > 31) {
-			/* e.g. 1992-Jun-17 */
-			yyYear = yyvsp[-4].Number;
-			yyMonth = yyvsp[-2].Number;
-			yyDay = yyvsp[0].Number;
-		} else {
-			/* e.g. 17-JUN-1992.  */
-			yyDay = yyvsp[-4].Number;
-			yyMonth = yyvsp[-2].Number;
-			yyYear = yyvsp[0].Number;
-		}
-	}
-break;
-case 26:
-#line 256 "getdate.y"
-{
-		/* "May 3" */
-		yyHaveDate++;
-		yyMonth = yyvsp[-1].Number;
-		yyDay = yyvsp[0].Number;
-	}
-break;
-case 27:
-#line 262 "getdate.y"
-{
-		/* "June 17, 2001" */
-		yyHaveDate++;
-		yyMonth = yyvsp[-3].Number;
-		yyDay = yyvsp[-2].Number;
-		yyYear = yyvsp[0].Number;
-	}
-break;
-case 28:
-#line 269 "getdate.y"
-{
-		/* "12 Sept" */
-		yyHaveDate++;
-		yyDay = yyvsp[-1].Number;
-		yyMonth = yyvsp[0].Number;
-	}
-break;
-case 29:
-#line 275 "getdate.y"
-{
-		/* "12 Sept 1997" */
-		yyHaveDate++;
-		yyDay = yyvsp[-2].Number;
-		yyMonth = yyvsp[-1].Number;
-		yyYear = yyvsp[0].Number;
-	}
-break;
-case 30:
-#line 284 "getdate.y"
-{
-		yyRelSeconds = -yyRelSeconds;
-		yyRelMonth = -yyRelMonth;
-	}
-break;
-case 32:
-#line 291 "getdate.y"
-{
-		/* "-3 hours" */
-		yyHaveRel++;
-		yyRelSeconds -= yyvsp[-1].Number * yyvsp[0].Number;
-	}
-break;
-case 33:
-#line 296 "getdate.y"
-{
-		/* "+1 minute" */
-		yyHaveRel++;
-		yyRelSeconds += yyvsp[-1].Number * yyvsp[0].Number;
-	}
-break;
-case 34:
-#line 301 "getdate.y"
-{
-		/* "1 day" */
-		yyHaveRel++;
-		yyRelSeconds += yyvsp[-1].Number * yyvsp[0].Number;
-	}
-break;
-case 35:
-#line 306 "getdate.y"
-{
-		/* "hour" */
-		yyHaveRel++;
-		yyRelSeconds += yyvsp[0].Number;
-	}
-break;
-case 36:
-#line 311 "getdate.y"
-{
-		/* "-3 months" */
-		yyHaveRel++;
-		yyRelMonth -= yyvsp[-1].Number * yyvsp[0].Number;
-	}
-break;
-case 37:
-#line 316 "getdate.y"
-{
-		/* "+5 years" */
-		yyHaveRel++;
-		yyRelMonth += yyvsp[-1].Number * yyvsp[0].Number;
-	}
-break;
-case 38:
-#line 321 "getdate.y"
-{
-		/* "2 years" */
-		yyHaveRel++;
-		yyRelMonth += yyvsp[-1].Number * yyvsp[0].Number;
-	}
-break;
-case 39:
-#line 326 "getdate.y"
-{
-		/* "6 months" */
-		yyHaveRel++;
-		yyRelMonth += yyvsp[0].Number;
-	}
-break;
-case 40:
-#line 333 "getdate.y"
-{
-		if (yyHaveTime && yyHaveDate && !yyHaveRel)
-			yyYear = yyvsp[0].Number;
-		else {
-			if(yyvsp[0].Number>10000) {
-				/* "20040301" */
-				yyHaveDate++;
-				yyDay= (yyvsp[0].Number)%100;
-				yyMonth= (yyvsp[0].Number/100)%100;
-				yyYear = yyvsp[0].Number/10000;
-			}
-			else {
-				/* "513" is same as "5:13" */
-				yyHaveTime++;
-				if (yyvsp[0].Number < 100) {
-					yyHour = yyvsp[0].Number;
-					yyMinutes = 0;
-				}
-				else {
-					yyHour = yyvsp[0].Number / 100;
-					yyMinutes = yyvsp[0].Number % 100;
-				}
-				yySeconds = 0;
-			}
-		}
-	}
-break;
-#line 1348 "getdate.c"
-    }
-    yyssp -= yym;
-    yystate = *yyssp;
-    yyvsp -= yym;
-    yym = yylhs[yyn];
-    if (yystate == 0 && yym == 0)
-    {
-#if YYDEBUG
-        if (yydebug)
-            printf("%sdebug: after reduction, shifting from state 0 to\
- state %d\n", YYPREFIX, YYFINAL);
-#endif
-        yystate = YYFINAL;
-        *++yyssp = YYFINAL;
-        *++yyvsp = yyval;
-        if (yychar < 0)
-        {
-            if ((yychar = yylex()) < 0) yychar = 0;
-#if YYDEBUG
-            if (yydebug)
-            {
-                yys = 0;
-                if (yychar <= YYMAXTOKEN) yys = yyname[yychar];
-                if (!yys) yys = "illegal-symbol";
-                printf("%sdebug: state %d, reading %d (%s)\n",
-                        YYPREFIX, YYFINAL, yychar, yys);
-            }
-#endif
-        }
-        if (yychar == 0) goto yyaccept;
-        goto yyloop;
-    }
-    if ((yyn = yygindex[yym]) && (yyn += yystate) >= 0 &&
-            yyn <= YYTABLESIZE && yycheck[yyn] == yystate)
-        yystate = yytable[yyn];
-    else
-        yystate = yydgoto[yym];
-#if YYDEBUG
-    if (yydebug)
-        printf("%sdebug: after reduction, shifting from state %d \
-to state %d\n", YYPREFIX, *yyssp, yystate);
-#endif
-    if (yyssp >= yysslim && yygrowstack())
-    {
-        goto yyoverflow;
-    }
-    *++yyssp = yystate;
-    *++yyvsp = yyval;
-    goto yyloop;
-yyoverflow:
-    yyerror("yacc stack overflow");
-yyabort:
-    return (1);
-yyaccept:
-    return (0);
-}

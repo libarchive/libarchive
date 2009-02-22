@@ -56,7 +56,7 @@ dist-hook:
 #
 # Extra rules for cleanup
 #
-DISTCLEANFILES= tar/getdate.c tar/getdate.h	\
+DISTCLEANFILES=					\
 	libarchive/test/list.h			\
 	tar/test/list.h				\
 	cpio/test/list.h
@@ -311,7 +311,7 @@ bsdtar_SOURCES=				\
 		tar/bsdtar.h		\
 		tar/bsdtar_platform.h	\
 		tar/cmdline.c		\
-		tar/getdate.y		\
+		tar/getdate.c		\
 		tar/matching.c		\
 		tar/read.c		\
 		tar/siginfo.c		\
