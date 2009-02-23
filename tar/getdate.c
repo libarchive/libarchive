@@ -51,17 +51,14 @@ enum DSTMODE { DSTon, DSToff, DSTmaybe };
 /* Meridian:  am or pm. */
 enum { tAM, tPM };
 /* Token types returned by nexttoken() */
-enum TOKEN { tAGO = 260, tDAY, tDAYZONE, tAMPM, tMONTH, tMONTH_UNIT, tSEC_UNIT,
+enum { tAGO = 260, tDAY, tDAYZONE, tAMPM, tMONTH, tMONTH_UNIT, tSEC_UNIT,
        tUNUMBER, tZONE, tDST };
 /* nexttoken() returns a token and an optional value. */
-struct token { enum TOKEN token; time_t value; };
+struct token { int token; time_t value; };
 
 /*
-**  Global variables.  We could get rid of most of these by using a good
-**  union as the yacc stack.  (This routine was originally written before
-**  yacc had the %union construct.)  Maybe someday; right now we only use
-**  the %union very rarely.
-*/
+ * Parser state.
+ */
 struct gdstate {
 	struct token *tokenp;
 	enum DSTMODE	DSTmode;
@@ -81,7 +78,7 @@ struct gdstate {
 	time_t	Year;
 	time_t	RelMonth;
 	time_t	RelSeconds;
-} global;
+};
 
 /*
  * A series of functions that recognize certain common time phrases.
@@ -90,29 +87,29 @@ struct gdstate {
  */
 
 static int
-baretimephrase(void)
+baretimephrase(struct gdstate *gds)
 {
-	if (global.tokenp[0].token == tUNUMBER
-	    && global.tokenp[1].token == ':'
-	    && global.tokenp[2].token == tUNUMBER
-	    && global.tokenp[3].token == ':'
-	    && global.tokenp[4].token == tUNUMBER) {
-		++global.HaveTime;
-		global.Hour = global.tokenp[0].value;
-		global.Minutes = global.tokenp[2].value;
-		global.Seconds = global.tokenp[4].value;
-		global.tokenp += 5;
+	if (gds->tokenp[0].token == tUNUMBER
+	    && gds->tokenp[1].token == ':'
+	    && gds->tokenp[2].token == tUNUMBER
+	    && gds->tokenp[3].token == ':'
+	    && gds->tokenp[4].token == tUNUMBER) {
+		++gds->HaveTime;
+		gds->Hour = gds->tokenp[0].value;
+		gds->Minutes = gds->tokenp[2].value;
+		gds->Seconds = gds->tokenp[4].value;
+		gds->tokenp += 5;
 		return 1;
 	}
 
-	if (global.tokenp[0].token == tUNUMBER
-	    && global.tokenp[1].token == ':'
-	    && global.tokenp[2].token == tUNUMBER) {
-		++global.HaveTime;
-		global.Hour = global.tokenp[0].value;
-		global.Minutes = global.tokenp[2].value;
-		global.Seconds = 0;
-		global.tokenp += 3;
+	if (gds->tokenp[0].token == tUNUMBER
+	    && gds->tokenp[1].token == ':'
+	    && gds->tokenp[2].token == tUNUMBER) {
+		++gds->HaveTime;
+		gds->Hour = gds->tokenp[0].value;
+		gds->Minutes = gds->tokenp[2].value;
+		gds->Seconds = 0;
+		gds->tokenp += 3;
 		return 1;
 	}
 
@@ -120,49 +117,49 @@ baretimephrase(void)
 }
 
 static int
-timephrase(void)
+timephrase(struct gdstate *gds)
 {
-	if (baretimephrase()) {
-		if (global.tokenp[0].token == tAMPM) {
+	if (baretimephrase(gds)) {
+		if (gds->tokenp[0].token == tAMPM) {
 			/* "7:12pm", "12:20:13am" */
-			if (global.Hour == 12)
-				global.Hour = 0;
-			if (global.tokenp[0].value == tPM)
-				global.Hour += 12;
-			global.tokenp += 1;
+			if (gds->Hour == 12)
+				gds->Hour = 0;
+			if (gds->tokenp[0].value == tPM)
+				gds->Hour += 12;
+			gds->tokenp += 1;
 			return 1;
 		}
-		if (global.tokenp[0].token == '+' && global.tokenp[1].token == tUNUMBER) {
+		if (gds->tokenp[0].token == '+' && gds->tokenp[1].token == tUNUMBER) {
 			/* "7:14+0700" */
-			global.DSTmode = DSToff;
-			global.Timezone = - (global.tokenp[1].value % 100
-			    + (global.tokenp[1].value / 100) * 60);
-			global.tokenp += 2;
+			gds->DSTmode = DSToff;
+			gds->Timezone = - (gds->tokenp[1].value % 100
+			    + (gds->tokenp[1].value / 100) * 60);
+			gds->tokenp += 2;
 			return 1;
 		}
-		if (global.tokenp[0].token == '-' && global.tokenp[1].token == tUNUMBER) {
+		if (gds->tokenp[0].token == '-' && gds->tokenp[1].token == tUNUMBER) {
 			/* "19:14:12-0530" */
-			global.DSTmode = DSToff;
-			global.Timezone = + (global.tokenp[1].value % 100
-			    + (global.tokenp[1].value / 100) * 60);
-			global.tokenp += 2;
+			gds->DSTmode = DSToff;
+			gds->Timezone = + (gds->tokenp[1].value % 100
+			    + (gds->tokenp[1].value / 100) * 60);
+			gds->tokenp += 2;
 			return 1;
 		}
 		/* "7:12:18" "19:17" */
 		return 1;
 	}
 
-	if (global.tokenp[0].token == tUNUMBER && global.tokenp[1].token == tAMPM) {
+	if (gds->tokenp[0].token == tUNUMBER && gds->tokenp[1].token == tAMPM) {
 		/* "7am" */
-		global.HaveTime++;
-		global.Hour = global.tokenp[0].value;
-		if (global.Hour == 12)
-			global.Hour = 0;
-		global.Minutes = 0;
-		global.Seconds = 0;
-		if (global.tokenp[1].value == tPM)
-			global.Hour += 12;
-		global.tokenp += 2;
+		gds->HaveTime++;
+		gds->Hour = gds->tokenp[0].value;
+		if (gds->Hour == 12)
+			gds->Hour = 0;
+		gds->Minutes = 0;
+		gds->Seconds = 0;
+		if (gds->tokenp[1].value == tPM)
+			gds->Hour += 12;
+		gds->tokenp += 2;
 		return 1;
 	}
 
@@ -170,30 +167,30 @@ timephrase(void)
 }
 
 static int
-zonephrase(void)
+zonephrase(struct gdstate *gds)
 {
-	if (global.tokenp[0].token == tZONE
-	    && global.tokenp[1].token == tDST) {
-		global.HaveZone++;
-		global.Timezone = global.tokenp[0].value;
-		global.DSTmode = DSTon;
-		global.tokenp += 1;
+	if (gds->tokenp[0].token == tZONE
+	    && gds->tokenp[1].token == tDST) {
+		gds->HaveZone++;
+		gds->Timezone = gds->tokenp[0].value;
+		gds->DSTmode = DSTon;
+		gds->tokenp += 1;
 		return 1;
 	}
 
-	if (global.tokenp[0].token == tZONE) {
-		global.HaveZone++;
-		global.Timezone = global.tokenp[0].value;
-		global.DSTmode = DSToff;
-		global.tokenp += 1;
+	if (gds->tokenp[0].token == tZONE) {
+		gds->HaveZone++;
+		gds->Timezone = gds->tokenp[0].value;
+		gds->DSTmode = DSToff;
+		gds->tokenp += 1;
 		return 1;
 	}
 
-	if (global.tokenp[0].token == tDAYZONE) {
-		global.HaveZone++;
-		global.Timezone = global.tokenp[0].value;
-		global.DSTmode = DSTon;
-		global.tokenp += 1;
+	if (gds->tokenp[0].token == tDAYZONE) {
+		gds->HaveZone++;
+		gds->Timezone = gds->tokenp[0].value;
+		gds->DSTmode = DSTon;
+		gds->tokenp += 1;
 		return 1;
 	}
 	return 0;
@@ -201,124 +198,124 @@ zonephrase(void)
 
 
 static int
-datephrase(void)
+datephrase(struct gdstate *gds)
 {
-	if (global.tokenp[0].token == tUNUMBER
-	    && global.tokenp[1].token == '/'
-	    && global.tokenp[2].token == tUNUMBER
-	    && global.tokenp[3].token == '/'
-	    && global.tokenp[4].token == tUNUMBER) {
-		global.HaveDate++;
-		if (global.tokenp[0].value >= 13) {
+	if (gds->tokenp[0].token == tUNUMBER
+	    && gds->tokenp[1].token == '/'
+	    && gds->tokenp[2].token == tUNUMBER
+	    && gds->tokenp[3].token == '/'
+	    && gds->tokenp[4].token == tUNUMBER) {
+		gds->HaveDate++;
+		if (gds->tokenp[0].value >= 13) {
 			/* First number is big:  2004/01/29, 99/02/17 */
-			global.Year = global.tokenp[0].value;
-			global.Month = global.tokenp[2].value;
-			global.Day = global.tokenp[4].value;
-		} else if ((global.tokenp[4].value >= 13) || (global.tokenp[2].value >= 13)) {
+			gds->Year = gds->tokenp[0].value;
+			gds->Month = gds->tokenp[2].value;
+			gds->Day = gds->tokenp[4].value;
+		} else if ((gds->tokenp[4].value >= 13) || (gds->tokenp[2].value >= 13)) {
 			/* Last number is big:  01/07/98 */
 			/* Middle number is big:  01/29/04 */
-			global.Month = global.tokenp[0].value;
-			global.Day = global.tokenp[2].value;
-			global.Year = global.tokenp[4].value;
+			gds->Month = gds->tokenp[0].value;
+			gds->Day = gds->tokenp[2].value;
+			gds->Year = gds->tokenp[4].value;
 		} else {
 			/* No significant clues: 02/03/04 */
-			global.Month = global.tokenp[0].value;
-			global.Day = global.tokenp[2].value;
-			global.Year = global.tokenp[4].value;
+			gds->Month = gds->tokenp[0].value;
+			gds->Day = gds->tokenp[2].value;
+			gds->Year = gds->tokenp[4].value;
 		}
-		global.tokenp += 5;
+		gds->tokenp += 5;
 		return 1;
 	}
 
-	if (global.tokenp[0].token == tUNUMBER
-	    && global.tokenp[1].token == '/'
-	    && global.tokenp[2].token == tUNUMBER) {
+	if (gds->tokenp[0].token == tUNUMBER
+	    && gds->tokenp[1].token == '/'
+	    && gds->tokenp[2].token == tUNUMBER) {
 		/* "1/15" */
-		global.HaveDate++;
-		global.Month = global.tokenp[0].value;
-		global.Day = global.tokenp[2].value;
-		global.tokenp += 3;
+		gds->HaveDate++;
+		gds->Month = gds->tokenp[0].value;
+		gds->Day = gds->tokenp[2].value;
+		gds->tokenp += 3;
 		return 1;
 	}
 
-	if (global.tokenp[0].token == tUNUMBER
-	    && global.tokenp[1].token == '-'
-	    && global.tokenp[2].token == tUNUMBER
-	    && global.tokenp[3].token == '-'
-	    && global.tokenp[4].token == tUNUMBER) {
+	if (gds->tokenp[0].token == tUNUMBER
+	    && gds->tokenp[1].token == '-'
+	    && gds->tokenp[2].token == tUNUMBER
+	    && gds->tokenp[3].token == '-'
+	    && gds->tokenp[4].token == tUNUMBER) {
 		/* ISO 8601 format.  yyyy-mm-dd.  */
-		global.HaveDate++;
-		global.Year = global.tokenp[0].value;
-		global.Month = global.tokenp[2].value;
-		global.Day = global.tokenp[4].value;
-		global.tokenp += 5;
+		gds->HaveDate++;
+		gds->Year = gds->tokenp[0].value;
+		gds->Month = gds->tokenp[2].value;
+		gds->Day = gds->tokenp[4].value;
+		gds->tokenp += 5;
 		return 1;
 	}
 
 
-	if (global.tokenp[0].token == tUNUMBER
-	    && global.tokenp[1].token == '-'
-	    && global.tokenp[2].token == tMONTH
-	    && global.tokenp[3].token == '-'
-	    && global.tokenp[4].token == tUNUMBER) {
-		global.HaveDate++;
-		if (global.tokenp[0].value > 31) {
+	if (gds->tokenp[0].token == tUNUMBER
+	    && gds->tokenp[1].token == '-'
+	    && gds->tokenp[2].token == tMONTH
+	    && gds->tokenp[3].token == '-'
+	    && gds->tokenp[4].token == tUNUMBER) {
+		gds->HaveDate++;
+		if (gds->tokenp[0].value > 31) {
 			/* e.g. 1992-Jun-17 */
-			global.Year = global.tokenp[0].value;
-			global.Month = global.tokenp[2].value;
-			global.Day = global.tokenp[4].value;
+			gds->Year = gds->tokenp[0].value;
+			gds->Month = gds->tokenp[2].value;
+			gds->Day = gds->tokenp[4].value;
 		} else {
 			/* e.g. 17-JUN-1992.  */
-			global.Day = global.tokenp[0].value;
-			global.Month = global.tokenp[2].value;
-			global.Year = global.tokenp[4].value;
+			gds->Day = gds->tokenp[0].value;
+			gds->Month = gds->tokenp[2].value;
+			gds->Year = gds->tokenp[4].value;
 		}
-		global.tokenp += 5;
+		gds->tokenp += 5;
 		return 1;
 	}
 
-	if (global.tokenp[0].token == tMONTH
-	    && global.tokenp[1].token == tUNUMBER
-	    && global.tokenp[2].token == ','
-	    && global.tokenp[3].token == tUNUMBER) {
+	if (gds->tokenp[0].token == tMONTH
+	    && gds->tokenp[1].token == tUNUMBER
+	    && gds->tokenp[2].token == ','
+	    && gds->tokenp[3].token == tUNUMBER) {
 		/* "June 17, 2001" */
-		global.HaveDate++;
-		global.Month = global.tokenp[0].value;
-		global.Day = global.tokenp[1].value;
-		global.Year = global.tokenp[3].value;
-		global.tokenp += 4;
+		gds->HaveDate++;
+		gds->Month = gds->tokenp[0].value;
+		gds->Day = gds->tokenp[1].value;
+		gds->Year = gds->tokenp[3].value;
+		gds->tokenp += 4;
 		return 1;
 	}
 
-	if (global.tokenp[0].token == tMONTH
-	    && global.tokenp[1].token == tUNUMBER) {
+	if (gds->tokenp[0].token == tMONTH
+	    && gds->tokenp[1].token == tUNUMBER) {
 		/* "May 3" */
-		global.HaveDate++;
-		global.Month = global.tokenp[0].value;
-		global.Day = global.tokenp[1].value;
-		global.tokenp += 2;
+		gds->HaveDate++;
+		gds->Month = gds->tokenp[0].value;
+		gds->Day = gds->tokenp[1].value;
+		gds->tokenp += 2;
 		return 1;
 	}
 
-	if (global.tokenp[0].token == tUNUMBER
-	    && global.tokenp[1].token == tMONTH
-	    && global.tokenp[2].token == tUNUMBER) {
+	if (gds->tokenp[0].token == tUNUMBER
+	    && gds->tokenp[1].token == tMONTH
+	    && gds->tokenp[2].token == tUNUMBER) {
 		/* "12 Sept 1997" */
-		global.HaveDate++;
-		global.Day = global.tokenp[0].value;
-		global.Month = global.tokenp[1].value;
-		global.Year = global.tokenp[2].value;
-		global.tokenp += 3;
+		gds->HaveDate++;
+		gds->Day = gds->tokenp[0].value;
+		gds->Month = gds->tokenp[1].value;
+		gds->Year = gds->tokenp[2].value;
+		gds->tokenp += 3;
 		return 1;
 	}
 
-	if (global.tokenp[0].token == tUNUMBER
-	    && global.tokenp[1].token == tMONTH) {
+	if (gds->tokenp[0].token == tUNUMBER
+	    && gds->tokenp[1].token == tMONTH) {
 		/* "12 Sept" */
-		global.HaveDate++;
-		global.Day = global.tokenp[0].value;
-		global.Month = global.tokenp[1].value;
-		global.tokenp += 2;
+		gds->HaveDate++;
+		gds->Day = gds->tokenp[0].value;
+		gds->Month = gds->tokenp[1].value;
+		gds->tokenp += 2;
 		return 1;
 	}
 
@@ -327,156 +324,156 @@ datephrase(void)
 }
 
 static int
-relunitphrase(void)
+relunitphrase(struct gdstate *gds)
 {
-	if (global.tokenp[0].token == '-'
-	    && global.tokenp[1].token == tUNUMBER
-	    && global.tokenp[2].token == tSEC_UNIT) {
+	if (gds->tokenp[0].token == '-'
+	    && gds->tokenp[1].token == tUNUMBER
+	    && gds->tokenp[2].token == tSEC_UNIT) {
 		/* "-3 hours" */
-		global.HaveRel++;
-		global.RelSeconds -= global.tokenp[1].value * global.tokenp[2].value;
-		global.tokenp += 3;
+		gds->HaveRel++;
+		gds->RelSeconds -= gds->tokenp[1].value * gds->tokenp[2].value;
+		gds->tokenp += 3;
 		return 1;
 	}
-	if (global.tokenp[0].token == '+'
-	    && global.tokenp[1].token == tUNUMBER
-	    && global.tokenp[2].token == tSEC_UNIT) {
+	if (gds->tokenp[0].token == '+'
+	    && gds->tokenp[1].token == tUNUMBER
+	    && gds->tokenp[2].token == tSEC_UNIT) {
 		/* "+1 minute" */
-		global.HaveRel++;
-		global.RelSeconds += global.tokenp[1].value * global.tokenp[2].value;
-		global.tokenp += 3;
+		gds->HaveRel++;
+		gds->RelSeconds += gds->tokenp[1].value * gds->tokenp[2].value;
+		gds->tokenp += 3;
 		return 1;
 	}
-	if (global.tokenp[0].token == tUNUMBER
-	    && global.tokenp[1].token == tSEC_UNIT) {
+	if (gds->tokenp[0].token == tUNUMBER
+	    && gds->tokenp[1].token == tSEC_UNIT) {
 		/* "1 day" */
-		global.HaveRel++;
-		global.RelSeconds += global.tokenp[1].value * global.tokenp[2].value;
-		global.tokenp += 3;
+		gds->HaveRel++;
+		gds->RelSeconds += gds->tokenp[1].value * gds->tokenp[2].value;
+		gds->tokenp += 3;
 		return 1;
 	}
-	if (global.tokenp[0].token == '-'
-	    && global.tokenp[1].token == tUNUMBER
-	    && global.tokenp[2].token == tMONTH_UNIT) {
+	if (gds->tokenp[0].token == '-'
+	    && gds->tokenp[1].token == tUNUMBER
+	    && gds->tokenp[2].token == tMONTH_UNIT) {
 		/* "-3 months" */
-		global.HaveRel++;
-		global.RelMonth -= global.tokenp[1].value * global.tokenp[2].value;
-		global.tokenp += 3;
+		gds->HaveRel++;
+		gds->RelMonth -= gds->tokenp[1].value * gds->tokenp[2].value;
+		gds->tokenp += 3;
 		return 1;
 	}
-	if (global.tokenp[0].token == '+'
-	    && global.tokenp[1].token == tUNUMBER
-	    && global.tokenp[2].token == tMONTH_UNIT) {
+	if (gds->tokenp[0].token == '+'
+	    && gds->tokenp[1].token == tUNUMBER
+	    && gds->tokenp[2].token == tMONTH_UNIT) {
 		/* "+5 years" */
-		global.HaveRel++;
-		global.RelMonth += global.tokenp[1].value * global.tokenp[2].value;
-		global.tokenp += 3;
+		gds->HaveRel++;
+		gds->RelMonth += gds->tokenp[1].value * gds->tokenp[2].value;
+		gds->tokenp += 3;
 		return 1;
 	}
-	if (global.tokenp[0].token == tUNUMBER
-	    && global.tokenp[1].token == tMONTH_UNIT) {
+	if (gds->tokenp[0].token == tUNUMBER
+	    && gds->tokenp[1].token == tMONTH_UNIT) {
 		/* "2 years" */
-		global.HaveRel++;
-		global.RelMonth += global.tokenp[0].value * global.tokenp[1].value;
-		global.tokenp += 2;
+		gds->HaveRel++;
+		gds->RelMonth += gds->tokenp[0].value * gds->tokenp[1].value;
+		gds->tokenp += 2;
 		return 1;
 	}
-	if (global.tokenp[0].token == tSEC_UNIT) {
+	if (gds->tokenp[0].token == tSEC_UNIT) {
 		/* "now", "tomorrow" */
-		global.HaveRel++;
-		global.RelSeconds += global.tokenp[0].value;
-		++global.tokenp;
+		gds->HaveRel++;
+		gds->RelSeconds += gds->tokenp[0].value;
+		++gds->tokenp;
 		return 1;
 	}
-	if (global.tokenp[0].token == tMONTH_UNIT) {
+	if (gds->tokenp[0].token == tMONTH_UNIT) {
 		/* "month" */
-		global.HaveRel++;
-		global.RelMonth += global.tokenp[0].value;
-		global.tokenp += 1;
+		gds->HaveRel++;
+		gds->RelMonth += gds->tokenp[0].value;
+		gds->tokenp += 1;
 		return 1;
 	}
 	return 0;
 }
 
 static int
-dayphrase(void)
+dayphrase(struct gdstate *gds)
 {
-	if (global.tokenp[0].token == tDAY) {
+	if (gds->tokenp[0].token == tDAY) {
 		/* "tues", "wednesday," */
-		global.HaveDay++;
-		global.DayOrdinal = 1;
-		global.DayNumber = global.tokenp[0].value;
-		global.tokenp += 1;
-		if (global.tokenp[0].token == ',')
-			global.tokenp += 1;
+		gds->HaveDay++;
+		gds->DayOrdinal = 1;
+		gds->DayNumber = gds->tokenp[0].value;
+		gds->tokenp += 1;
+		if (gds->tokenp[0].token == ',')
+			gds->tokenp += 1;
 		return 1;
 	}
-	if (global.tokenp[0].token == tUNUMBER
-		&& global.tokenp[1].token == tDAY) {
+	if (gds->tokenp[0].token == tUNUMBER
+		&& gds->tokenp[1].token == tDAY) {
 		/* "second tues" "3 wed" */
-		global.HaveDay++;
-		global.DayOrdinal = global.tokenp[0].value;
-		global.DayNumber = global.tokenp[1].value;
-		global.tokenp += 2;
+		gds->HaveDay++;
+		gds->DayOrdinal = gds->tokenp[0].value;
+		gds->DayNumber = gds->tokenp[1].value;
+		gds->tokenp += 2;
 		return 1;
 	}
 	return 0;
 }
 
 static int
-phrase(void)
+phrase(struct gdstate *gds)
 {
-	if (timephrase())
+	if (timephrase(gds))
 		return 1;
-	if (zonephrase())
+	if (zonephrase(gds))
 		return 1;
-	if (datephrase())
+	if (datephrase(gds))
 		return 1;
-	if (dayphrase())
+	if (dayphrase(gds))
 		return 1;
-	if (relunitphrase()) {
-		if (global.tokenp[0].token == tAGO) {
-			global.RelSeconds = -global.RelSeconds;
-			global.RelMonth = -global.RelMonth;
-			global.tokenp += 1;
+	if (relunitphrase(gds)) {
+		if (gds->tokenp[0].token == tAGO) {
+			gds->RelSeconds = -gds->RelSeconds;
+			gds->RelMonth = -gds->RelMonth;
+			gds->tokenp += 1;
 		}
 		return 1;
 	}
 
 	/* Bare numbers sometimes have meaning. */
-	if (global.tokenp[0].token == tUNUMBER) {
-		if (global.HaveTime && global.HaveDate && !global.HaveRel) {
-			global.Year = global.tokenp[0].value;
-			global.tokenp += 1;
+	if (gds->tokenp[0].token == tUNUMBER) {
+		if (gds->HaveTime && gds->HaveDate && !gds->HaveRel) {
+			gds->Year = gds->tokenp[0].value;
+			gds->tokenp += 1;
 			return 1;
 		}
 
-		if(global.tokenp[0].value > 10000) {
+		if(gds->tokenp[0].value > 10000) {
 			/* "20040301" */
-			global.HaveDate++;
-			global.Day= (global.tokenp[0].value)%100;
-			global.Month= (global.tokenp[0].value/100)%100;
-			global.Year = global.tokenp[0].value/10000;
-			global.tokenp += 1;
+			gds->HaveDate++;
+			gds->Day= (gds->tokenp[0].value)%100;
+			gds->Month= (gds->tokenp[0].value/100)%100;
+			gds->Year = gds->tokenp[0].value/10000;
+			gds->tokenp += 1;
 			return 1;
 		}
 
-		if (global.tokenp[0].value < 24) {
-			global.HaveTime++;
-			global.Hour = global.tokenp[0].value;
-			global.Minutes = 0;
-			global.Seconds = 0;
-			global.tokenp += 1;
+		if (gds->tokenp[0].value < 24) {
+			gds->HaveTime++;
+			gds->Hour = gds->tokenp[0].value;
+			gds->Minutes = 0;
+			gds->Seconds = 0;
+			gds->tokenp += 1;
 			return 1;
 		}
 
-		if ((global.tokenp[0].value / 100 < 24)
-		    && (global.tokenp[0].value % 100 < 60)) {
+		if ((gds->tokenp[0].value / 100 < 24)
+		    && (gds->tokenp[0].value % 100 < 60)) {
 			/* "513" is same as "5:13" */
-			global.Hour = global.tokenp[0].value / 100;
-			global.Minutes = global.tokenp[0].value % 100;
-			global.Seconds = 0;
-			global.tokenp += 1;
+			gds->Hour = gds->tokenp[0].value / 100;
+			gds->Minutes = gds->tokenp[0].value % 100;
+			gds->Seconds = 0;
+			gds->tokenp += 1;
 			return 1;
 		}
 	}
@@ -666,7 +663,8 @@ ToSeconds(time_t Hours, time_t Minutes, time_t Seconds)
  * The actual year (>=100).  */
 static time_t
 Convert(time_t Month, time_t Day, time_t Year,
-	time_t Hours, time_t Minutes, time_t Seconds, enum DSTMODE DSTmode)
+	time_t Hours, time_t Minutes, time_t Seconds,
+	time_t Timezone, enum DSTMODE DSTmode)
 {
 	static int DaysInMonth[12] = {
 		31, 0, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
@@ -695,7 +693,7 @@ Convert(time_t Month, time_t Day, time_t Year,
 	for (i = EPOCH; i < Year; i++)
 		Julian += 365 + (i % 4 == 0);
 	Julian *= SECSPERDAY;
-	Julian += global.Timezone * 60L;
+	Julian += Timezone * 60L;
 	if ((tod = ToSeconds(Hours, Minutes, Seconds)) < 0)
 		return -1;
 	Julian += tod;
@@ -733,7 +731,7 @@ RelativeDate(time_t Start, time_t DayOrdinal, time_t DayNumber)
 
 
 static time_t
-RelativeMonth(time_t Start, time_t RelMonth)
+RelativeMonth(time_t Start, time_t Timezone, time_t RelMonth)
 {
 	struct tm	*tm;
 	time_t	Month;
@@ -748,7 +746,7 @@ RelativeMonth(time_t Start, time_t RelMonth)
 	return DSTcorrect(Start,
 	    Convert(Month, (time_t)tm->tm_mday, Year,
 		(time_t)tm->tm_hour, (time_t)tm->tm_min, (time_t)tm->tm_sec,
-		DSTmaybe));
+		Timezone, DSTmaybe));
 }
 
 static int
@@ -861,90 +859,98 @@ time_t
 get_date(char *p)
 {
 	struct token	tokens[256];
+	struct gdstate	_gds;
 	struct token	*lasttoken;
-	struct tm	*tm;
+	struct gdstate	*gds;
+	struct tm	local, *tm;
 	struct tm	gmt, *gmt_ptr;
 	time_t		Start;
 	time_t		tod;
 	time_t		nowtime;
 	long		tzone;
 
-	memset(&gmt, 0, sizeof(gmt));
+	/* Clear out the parsed token array. */
+	memset(tokens, 0, sizeof(tokens));
+	/* Initialize the parser state. */
+	memset(&_gds, 0, sizeof(_gds));
+	gds = &_gds;
 
 	(void)time (&nowtime);
 
+	/* Look up the current time. */
+	memset(&local, 0, sizeof(local));
+	tm = localtime (&nowtime);
+	if (tm == NULL)
+		return -1;
+	local = *tm;
+
+	/* Look up UTC if we can and use that to determine the current
+	 * timezone offset. */
+	memset(&gmt, 0, sizeof(gmt));
 	gmt_ptr = gmtime (&nowtime);
 	if (gmt_ptr != NULL) {
 		/* Copy, in case localtime and gmtime use the same buffer. */
 		gmt = *gmt_ptr;
 	}
-
-	if (! (tm = localtime (&nowtime)))
-		return -1;
-
 	if (gmt_ptr != NULL)
-		tzone = difftm (&gmt, tm) / 60;
+		tzone = difftm (&gmt, &local) / 60;
 	else
 		/* This system doesn't understand timezones; fake it. */
 		tzone = 0;
-	if(tm->tm_isdst)
+	if(local.tm_isdst)
 		tzone += 60;
 
-	global.Year = tm->tm_year + 1900;
-	global.Month = tm->tm_mon + 1;
-	global.Day = tm->tm_mday;
-	global.Timezone = tzone;
-	global.DSTmode = DSTmaybe;
-	global.Hour = 0;
-	global.Minutes = 0;
-	global.Seconds = 0;
-	global.RelSeconds = 0;
-	global.RelMonth = 0;
-	global.HaveDate = 0;
-	global.HaveDay = 0;
-	global.HaveRel = 0;
-	global.HaveTime = 0;
-	global.HaveZone = 0;
+	/* Initialize the year/month/day and timezone fields. */
+	gds->Year = local.tm_year + 1900;
+	gds->Month = local.tm_mon + 1;
+	gds->Day = local.tm_mday;
+	gds->Timezone = tzone;
+	gds->DSTmode = DSTmaybe;
 
+	/* Tokenize the input string. */
 	lasttoken = tokens;
 	while ((lasttoken->token = nexttoken(&p, &lasttoken->value)) != 0) {
 		++lasttoken;
 		if (lasttoken > tokens + 255)
 			return -1;
 	}
-	global.tokenp = tokens;
+	gds->tokenp = tokens;
 
-	while (global.tokenp < lasttoken) {
-		if (!phrase())
+	/* Match phrases until we run out of input tokens. */
+	while (gds->tokenp < lasttoken) {
+		if (!phrase(gds))
 			return -1;
 	}
 
-	if (global.HaveTime > 1 || global.HaveZone > 1
-	    || global.HaveDate > 1 || global.HaveDay > 1)
+	/* If we saw more than one time, timezone, date, or day, then
+	 * give up. */
+	if (gds->HaveTime > 1 || gds->HaveZone > 1
+	    || gds->HaveDate > 1 || gds->HaveDay > 1)
 		return -1;
 
-	if (global.HaveDate || global.HaveTime || global.HaveDay) {
-		Start = Convert(global.Month, global.Day, global.Year,
-		    global.Hour, global.Minutes, global.Seconds, global.DSTmode);
+	if (gds->HaveDate || gds->HaveTime || gds->HaveDay) {
+		Start = Convert(gds->Month, gds->Day, gds->Year,
+		    gds->Hour, gds->Minutes, gds->Seconds,
+		    gds->Timezone, gds->DSTmode);
 		if (Start < 0)
 			return -1;
 	} else {
 		Start = nowtime;
-		if (!global.HaveRel)
-			Start -= ((tm->tm_hour * 60L + tm->tm_min) * 60L) + tm->tm_sec;
+		if (!gds->HaveRel)
+			Start -= ((local.tm_hour * 60L + local.tm_min) * 60L)
+			    + local.tm_sec;
 	}
 
-	Start += global.RelSeconds;
-	Start += RelativeMonth(Start, global.RelMonth);
+	Start += gds->RelSeconds;
+	Start += RelativeMonth(Start, gds->Timezone, gds->RelMonth);
 
-	if (global.HaveDay && !global.HaveDate) {
-		tod = RelativeDate(Start, global.DayOrdinal, global.DayNumber);
+	if (gds->HaveDay && !gds->HaveDate) {
+		tod = RelativeDate(Start, gds->DayOrdinal, gds->DayNumber);
 		Start += tod;
 	}
 
-	/* Have to do *something* with a legitimate -1 so it's
-	 * distinguishable from the error return value.  (Alternately
-	 * could set errno on error.) */
+	/* -1 is an error indicator, so return 0 instead of -1 if
+	 * that's the actual time. */
 	return Start == -1 ? 0 : Start;
 }
 
