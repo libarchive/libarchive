@@ -45,17 +45,23 @@ DEFINE_TEST(test_getdate)
 	assertEqualInt(get_date("2004/01/29 513 mest"), 1075345980);
 	assertEqualInt(get_date("99/02/17 7pm utc"), 919278000);
 	assertEqualInt(get_date("02/17/99 7:11am est"), 919253460);
+	/* It's important that we handle ctime() format. */
+	assertEqualInt(get_date("Sun Feb 22 17:38:26 PST 2009"), 1235353106);
+	/* Basic relative offsets. */
 	assertEqualInt(get_date("tomorrow"), now + 24 * 60 * 60);
 	assertEqualInt(get_date("yesterday"), now - 24 * 60 * 60);
 	assertEqualInt(get_date("now + 1 hour"), now + 60 * 60);
 	assertEqualInt(get_date("now + 1 hour + 1 minute"),
 	    now + 60 * 60 + 60);
-	/* "tuesday" is the start of the first tuesday after today */
+	/* "tuesday" is the start of the first tuesday today or later */
 	assertEqualInt(get_date("tuesday"),
 	    dayStart + ((2 - tm.tm_wday + 7) % 7) * 24 * 60 * 60);
 	/* "next tuesday" is one week after "tuesday" */
 	assertEqualInt(get_date("next tuesday"),
 	    dayStart + (((2 - tm.tm_wday + 7) % 7) + 7) * 24 * 60 * 60);
+	/* "last tuesday" is one week before "tuesday" */
+	assertEqualInt(get_date("last tuesday"),
+	    dayStart + (((2 - tm.tm_wday + 7) % 7) - 7) * 24 * 60 * 60);
 	assertEqualInt(get_date("tomorrow 5:16am"),
 	    dayStart + 24 * 60 * 60 + 5 * 60 * 60 + 16 * 60);
 	assertEqualInt(get_date("5:16am tomorrow"),
