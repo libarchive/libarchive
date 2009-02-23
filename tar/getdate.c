@@ -41,10 +41,11 @@ __FBSDID("$FreeBSD$");
 /* This file defines a single public function. */
 time_t get_date(char *);
 
-
-#define EPOCH		1970
-#define HOUR(x)		((time_t)(x) * 60)
-#define SECSPERDAY	(24L * 60L * 60L)
+/* Basic time units. */
+#define	EPOCH		1970
+#define	MINUTE		(60L)
+#define	HOUR		(60L * MINUTE)
+#define	DAY		(24L * HOUR)
 
 /* Daylight-savings mode:  on, off, or not yet known. */
 enum DSTMODE { DSTon, DSToff, DSTmaybe };
@@ -53,29 +54,36 @@ enum { tAM, tPM };
 /* Token types returned by nexttoken() */
 enum { tAGO = 260, tDAY, tDAYZONE, tAMPM, tMONTH, tMONTH_UNIT, tSEC_UNIT,
        tUNUMBER, tZONE, tDST };
-/* nexttoken() returns a token and an optional value. */
 struct token { int token; time_t value; };
 
 /*
  * Parser state.
  */
 struct gdstate {
-	struct token *tokenp;
-	enum DSTMODE	DSTmode;
-	time_t	DayOrdinal;
-	time_t	DayNumber;
-	int	HaveDate;
-	int	HaveDay;
-	int	HaveRel;
-	int	HaveTime;
-	int	HaveZone;
-	time_t	Timezone;
+	struct token *tokenp; /* Pointer to next token. */
+	/* HaveXxxx counts how many of this kind of phrase we've seen;
+	 * it's a fatal error to have more than one time, zone, day,
+	 * or date phrase. */
+	int	HaveDate; /* year/month/day information */
+	int	HaveDay; /* Day of week */
+	int	HaveTime; /* Hour/minute/second */
+	int	HaveZone; /* timezone and/or DST info */
+	int	HaveRel; /* time offset; we can have more than one */
+	/* Absolute time values. */
+	time_t	Timezone;  /* Seconds offset from GMT */
 	time_t	Day;
 	time_t	Hour;
 	time_t	Minutes;
 	time_t	Month;
 	time_t	Seconds;
 	time_t	Year;
+	/* DST selection */
+	enum DSTMODE	DSTmode;
+	/* Day of week accounting, e.g., "3rd Tuesday" */
+	time_t	DayOrdinal; /* "3" in "3rd Tuesday" */
+	time_t	DayNumber; /* "Tuesday" in "3rd Tuesday" */
+	/* Relative time values: hour/day/week offsets are measured in
+	 * seconds, month/year are counted in months. */
 	time_t	RelMonth;
 	time_t	RelSeconds;
 };
@@ -86,86 +94,78 @@ struct gdstate {
  * tokens, zero otherwise.
  */
 
+/*
+ *  hour:minute or hour:minute:second with optional AM, PM, or numeric
+ *  timezone offset
+ */
 static int
-baretimephrase(struct gdstate *gds)
+timephrase(struct gdstate *gds)
 {
 	if (gds->tokenp[0].token == tUNUMBER
 	    && gds->tokenp[1].token == ':'
 	    && gds->tokenp[2].token == tUNUMBER
 	    && gds->tokenp[3].token == ':'
 	    && gds->tokenp[4].token == tUNUMBER) {
+		/* "12:14:18" or "22:08:07" */
 		++gds->HaveTime;
 		gds->Hour = gds->tokenp[0].value;
 		gds->Minutes = gds->tokenp[2].value;
 		gds->Seconds = gds->tokenp[4].value;
 		gds->tokenp += 5;
-		return 1;
 	}
-
-	if (gds->tokenp[0].token == tUNUMBER
+	else if (gds->tokenp[0].token == tUNUMBER
 	    && gds->tokenp[1].token == ':'
 	    && gds->tokenp[2].token == tUNUMBER) {
+		/* "12:14" or "22:08" */
 		++gds->HaveTime;
 		gds->Hour = gds->tokenp[0].value;
 		gds->Minutes = gds->tokenp[2].value;
 		gds->Seconds = 0;
 		gds->tokenp += 3;
-		return 1;
 	}
-
-	return 0;
-}
-
-static int
-timephrase(struct gdstate *gds)
-{
-	if (baretimephrase(gds)) {
-		if (gds->tokenp[0].token == tAMPM) {
-			/* "7:12pm", "12:20:13am" */
-			if (gds->Hour == 12)
-				gds->Hour = 0;
-			if (gds->tokenp[0].value == tPM)
-				gds->Hour += 12;
-			gds->tokenp += 1;
-			return 1;
-		}
-		if (gds->tokenp[0].token == '+' && gds->tokenp[1].token == tUNUMBER) {
-			/* "7:14+0700" */
-			gds->DSTmode = DSToff;
-			gds->Timezone = - (gds->tokenp[1].value % 100
-			    + (gds->tokenp[1].value / 100) * 60);
-			gds->tokenp += 2;
-			return 1;
-		}
-		if (gds->tokenp[0].token == '-' && gds->tokenp[1].token == tUNUMBER) {
-			/* "19:14:12-0530" */
-			gds->DSTmode = DSToff;
-			gds->Timezone = + (gds->tokenp[1].value % 100
-			    + (gds->tokenp[1].value / 100) * 60);
-			gds->tokenp += 2;
-			return 1;
-		}
-		/* "7:12:18" "19:17" */
-		return 1;
-	}
-
-	if (gds->tokenp[0].token == tUNUMBER && gds->tokenp[1].token == tAMPM) {
-		/* "7am" */
-		gds->HaveTime++;
+	else if (gds->tokenp[0].token == tUNUMBER
+	    && gds->tokenp[1].token == tAMPM) {
+		/* "7" is a time if it's followed by "am" or "pm" */
+		++gds->HaveTime;
 		gds->Hour = gds->tokenp[0].value;
+		gds->Minutes = gds->Seconds = 0;
+		/* We'll handle the AM/PM below. */
+		gds->tokenp += 1;
+	} else {
+		/* We can't handle this. */
+		return 0;
+	}
+
+	if (gds->tokenp[0].token == tAMPM) {
+		/* "7:12pm", "12:20:13am" */
 		if (gds->Hour == 12)
 			gds->Hour = 0;
-		gds->Minutes = 0;
-		gds->Seconds = 0;
-		if (gds->tokenp[1].value == tPM)
+		if (gds->tokenp[0].value == tPM)
 			gds->Hour += 12;
-		gds->tokenp += 2;
-		return 1;
+		gds->tokenp += 1;
 	}
-
-	return 0;
+	if (gds->tokenp[0].token == '+'
+	    && gds->tokenp[1].token == tUNUMBER) {
+		/* "7:14+0700" */
+		gds->DSTmode = DSToff;
+		gds->Timezone = - ((gds->tokenp[1].value / 100) * HOUR
+		    + (gds->tokenp[1].value % 100) * MINUTE);
+		gds->tokenp += 2;
+	}
+	if (gds->tokenp[0].token == '-'
+	    && gds->tokenp[1].token == tUNUMBER) {
+		/* "19:14:12-0530" */
+		gds->DSTmode = DSToff;
+		gds->Timezone = + ((gds->tokenp[1].value / 100) * HOUR
+		    + (gds->tokenp[1].value % 100) * MINUTE);
+		gds->tokenp += 2;
+	}
+	return 1;
 }
 
+/*
+ * Timezone name, possibly including DST.
+ */
 static int
 zonephrase(struct gdstate *gds)
 {
@@ -196,7 +196,9 @@ zonephrase(struct gdstate *gds)
 	return 0;
 }
 
-
+/*
+ * Year/month/day in various combinations.
+ */
 static int
 datephrase(struct gdstate *gds)
 {
@@ -251,7 +253,6 @@ datephrase(struct gdstate *gds)
 		gds->tokenp += 5;
 		return 1;
 	}
-
 
 	if (gds->tokenp[0].token == tUNUMBER
 	    && gds->tokenp[1].token == '-'
@@ -319,10 +320,12 @@ datephrase(struct gdstate *gds)
 		return 1;
 	}
 
-
 	return 0;
 }
 
+/*
+ * Relative time phrase: "tomorrow", "yesterday", "+1 hour", etc.
+ */
 static int
 relunitphrase(struct gdstate *gds)
 {
@@ -395,6 +398,9 @@ relunitphrase(struct gdstate *gds)
 	return 0;
 }
 
+/*
+ * Day of the week specification.
+ */
 static int
 dayphrase(struct gdstate *gds)
 {
@@ -420,6 +426,10 @@ dayphrase(struct gdstate *gds)
 	return 0;
 }
 
+/*
+ * Try to match a phrase using one of the above functions.
+ * This layer also deals with a couple of generic issues.
+ */
 static int
 phrase(struct gdstate *gds)
 {
@@ -481,6 +491,9 @@ phrase(struct gdstate *gds)
 	return 0;
 }
 
+/*
+ * A dictionary of time words.
+ */
 static struct LEXICON {
 	size_t		abbrev;
 	const char	*name;
@@ -514,84 +527,84 @@ static struct LEXICON {
 	{ 2, "friday",		tDAY, 5 },
 	{ 2, "saturday",	tDAY, 6 },
 
-	/* Timezones: Offsets are in minutes. */
-	{ 0, "gmt",  tZONE,     HOUR( 0) }, /* Greenwich Mean */
-	{ 0, "ut",   tZONE,     HOUR( 0) }, /* Universal (Coordinated) */
-	{ 0, "utc",  tZONE,     HOUR( 0) },
-	{ 0, "wet",  tZONE,     HOUR( 0) }, /* Western European */
-	{ 0, "bst",  tDAYZONE,  HOUR( 0) }, /* British Summer */
-	{ 0, "wat",  tZONE,     HOUR( 1) }, /* West Africa */
-	{ 0, "at",   tZONE,     HOUR( 2) }, /* Azores */
-	/* { 0, "bst", tZONE, HOUR( 3) }, */ /* Brazil Standard: Conflict */
-	/* { 0, "gst", tZONE, HOUR( 3) }, */ /* Greenland Standard: Conflict*/
-	{ 0, "nft",  tZONE,     HOUR(3)+30 }, /* Newfoundland */
-	{ 0, "nst",  tZONE,     HOUR(3)+30 }, /* Newfoundland Standard */
-	{ 0, "ndt",  tDAYZONE,  HOUR(3)+30 }, /* Newfoundland Daylight */
-	{ 0, "ast",  tZONE,     HOUR( 4) }, /* Atlantic Standard */
-	{ 0, "adt",  tDAYZONE,  HOUR( 4) }, /* Atlantic Daylight */
-	{ 0, "est",  tZONE,     HOUR( 5) }, /* Eastern Standard */
-	{ 0, "edt",  tDAYZONE,  HOUR( 5) }, /* Eastern Daylight */
-	{ 0, "cst",  tZONE,     HOUR( 6) }, /* Central Standard */
-	{ 0, "cdt",  tDAYZONE,  HOUR( 6) }, /* Central Daylight */
-	{ 0, "mst",  tZONE,     HOUR( 7) }, /* Mountain Standard */
-	{ 0, "mdt",  tDAYZONE,  HOUR( 7) }, /* Mountain Daylight */
-	{ 0, "pst",  tZONE,     HOUR( 8) }, /* Pacific Standard */
-	{ 0, "pdt",  tDAYZONE,  HOUR( 8) }, /* Pacific Daylight */
-	{ 0, "yst",  tZONE,     HOUR( 9) }, /* Yukon Standard */
-	{ 0, "ydt",  tDAYZONE,  HOUR( 9) }, /* Yukon Daylight */
-	{ 0, "hst",  tZONE,     HOUR(10) }, /* Hawaii Standard */
-	{ 0, "hdt",  tDAYZONE,  HOUR(10) }, /* Hawaii Daylight */
-	{ 0, "cat",  tZONE,     HOUR(10) }, /* Central Alaska */
-	{ 0, "ahst", tZONE,     HOUR(10) }, /* Alaska-Hawaii Standard */
-	{ 0, "nt",   tZONE,     HOUR(11) }, /* Nome */
-	{ 0, "idlw", tZONE,     HOUR(12) }, /* Intl Date Line West */
-	{ 0, "cet",  tZONE,     -HOUR(1) }, /* Central European */
-	{ 0, "met",  tZONE,     -HOUR(1) }, /* Middle European */
-	{ 0, "mewt", tZONE,     -HOUR(1) }, /* Middle European Winter */
-	{ 0, "mest", tDAYZONE,  -HOUR(1) }, /* Middle European Summer */
-	{ 0, "swt",  tZONE,     -HOUR(1) }, /* Swedish Winter */
-	{ 0, "sst",  tDAYZONE,  -HOUR(1) }, /* Swedish Summer */
-	{ 0, "fwt",  tZONE,     -HOUR(1) }, /* French Winter */
-	{ 0, "fst",  tDAYZONE,  -HOUR(1) }, /* French Summer */
-	{ 0, "eet",  tZONE,     -HOUR(2) }, /* Eastern Eur, USSR Zone 1 */
-	{ 0, "bt",   tZONE,     -HOUR(3) }, /* Baghdad, USSR Zone 2 */
-	{ 0, "it",   tZONE,     -HOUR(3)-30 },/* Iran */
-	{ 0, "zp4",  tZONE,     -HOUR(4) }, /* USSR Zone 3 */
-	{ 0, "zp5",  tZONE,     -HOUR(5) }, /* USSR Zone 4 */
-	{ 0, "ist",  tZONE,     -HOUR(5)-30 },/* Indian Standard */
-	{ 0, "zp6",  tZONE,     -HOUR(6) }, /* USSR Zone 5 */
-	/* { 0, "nst",  tZONE, -HOUR(6.5) }, */ /* North Sumatra: Conflict */
-	/* { 0, "sst", tZONE, -HOUR(7) }, */ /* So Sumatra, USSR 6: Conflict */
-	{ 0, "wast", tZONE,     -HOUR(7) }, /* West Australian Standard */
-	{ 0, "wadt", tDAYZONE,  -HOUR(7) }, /* West Australian Daylight */
-	{ 0, "jt",   tZONE,     -HOUR(7)-30 },/* Java (3pm in Cronusland!)*/
-	{ 0, "cct",  tZONE,     -HOUR(8) }, /* China Coast, USSR Zone 7 */
-	{ 0, "jst",  tZONE,     -HOUR(9) }, /* Japan Std, USSR Zone 8 */
-	{ 0, "cast", tZONE,     -HOUR(9)-30 },/* Central Australian Std */
-	{ 0, "cadt", tDAYZONE,  -HOUR(9)-30 },/* Central Australian Daylt */
-	{ 0, "east", tZONE,     -HOUR(10) }, /* Eastern Australian Std */
-	{ 0, "eadt", tDAYZONE,  -HOUR(10) }, /* Eastern Australian Daylt */
-	{ 0, "gst",  tZONE,     -HOUR(10) }, /* Guam Std, USSR Zone 9 */
-	{ 0, "nzt",  tZONE,     -HOUR(12) }, /* New Zealand */
-	{ 0, "nzst", tZONE,     -HOUR(12) }, /* New Zealand Standard */
-	{ 0, "nzdt", tDAYZONE,  -HOUR(12) }, /* New Zealand Daylight */
-	{ 0, "idle", tZONE,     -HOUR(12) }, /* Intl Date Line East */
+	/* Timezones: Offsets are in seconds. */
+	{ 0, "gmt",  tZONE,     0*HOUR }, /* Greenwich Mean */
+	{ 0, "ut",   tZONE,     0*HOUR }, /* Universal (Coordinated) */
+	{ 0, "utc",  tZONE,     0*HOUR },
+	{ 0, "wet",  tZONE,     0*HOUR }, /* Western European */
+	{ 0, "bst",  tDAYZONE,  0*HOUR }, /* British Summer */
+	{ 0, "wat",  tZONE,     1*HOUR }, /* West Africa */
+	{ 0, "at",   tZONE,     2*HOUR }, /* Azores */
+	/* { 0, "bst", tZONE, 3*HOUR }, */ /* Brazil Standard: Conflict */
+	/* { 0, "gst", tZONE, 3*HOUR }, */ /* Greenland Standard: Conflict*/
+	{ 0, "nft",  tZONE,     3*HOUR+30*MINUTE }, /* Newfoundland */
+	{ 0, "nst",  tZONE,     3*HOUR+30*MINUTE }, /* Newfoundland Standard */
+	{ 0, "ndt",  tDAYZONE,  3*HOUR+30*MINUTE }, /* Newfoundland Daylight */
+	{ 0, "ast",  tZONE,     4*HOUR }, /* Atlantic Standard */
+	{ 0, "adt",  tDAYZONE,  4*HOUR }, /* Atlantic Daylight */
+	{ 0, "est",  tZONE,     5*HOUR }, /* Eastern Standard */
+	{ 0, "edt",  tDAYZONE,  5*HOUR }, /* Eastern Daylight */
+	{ 0, "cst",  tZONE,     6*HOUR }, /* Central Standard */
+	{ 0, "cdt",  tDAYZONE,  6*HOUR }, /* Central Daylight */
+	{ 0, "mst",  tZONE,     7*HOUR }, /* Mountain Standard */
+	{ 0, "mdt",  tDAYZONE,  7*HOUR }, /* Mountain Daylight */
+	{ 0, "pst",  tZONE,     8*HOUR }, /* Pacific Standard */
+	{ 0, "pdt",  tDAYZONE,  8*HOUR }, /* Pacific Daylight */
+	{ 0, "yst",  tZONE,     9*HOUR }, /* Yukon Standard */
+	{ 0, "ydt",  tDAYZONE,  9*HOUR }, /* Yukon Daylight */
+	{ 0, "hst",  tZONE,     10*HOUR }, /* Hawaii Standard */
+	{ 0, "hdt",  tDAYZONE,  10*HOUR }, /* Hawaii Daylight */
+	{ 0, "cat",  tZONE,     10*HOUR }, /* Central Alaska */
+	{ 0, "ahst", tZONE,     10*HOUR }, /* Alaska-Hawaii Standard */
+	{ 0, "nt",   tZONE,     11*HOUR }, /* Nome */
+	{ 0, "idlw", tZONE,     12*HOUR }, /* Intl Date Line West */
+	{ 0, "cet",  tZONE,     -1*HOUR }, /* Central European */
+	{ 0, "met",  tZONE,     -1*HOUR }, /* Middle European */
+	{ 0, "mewt", tZONE,     -1*HOUR }, /* Middle European Winter */
+	{ 0, "mest", tDAYZONE,  -1*HOUR }, /* Middle European Summer */
+	{ 0, "swt",  tZONE,     -1*HOUR }, /* Swedish Winter */
+	{ 0, "sst",  tDAYZONE,  -1*HOUR }, /* Swedish Summer */
+	{ 0, "fwt",  tZONE,     -1*HOUR }, /* French Winter */
+	{ 0, "fst",  tDAYZONE,  -1*HOUR }, /* French Summer */
+	{ 0, "eet",  tZONE,     -2*HOUR }, /* Eastern Eur, USSR Zone 1 */
+	{ 0, "bt",   tZONE,     -3*HOUR }, /* Baghdad, USSR Zone 2 */
+	{ 0, "it",   tZONE,     -3*HOUR-30*MINUTE },/* Iran */
+	{ 0, "zp4",  tZONE,     -4*HOUR }, /* USSR Zone 3 */
+	{ 0, "zp5",  tZONE,     -5*HOUR }, /* USSR Zone 4 */
+	{ 0, "ist",  tZONE,     -5*HOUR-30*MINUTE },/* Indian Standard */
+	{ 0, "zp6",  tZONE,     -6*HOUR }, /* USSR Zone 5 */
+	/* { 0, "nst",  tZONE, -6.5*HOUR }, */ /* North Sumatra: Conflict */
+	/* { 0, "sst", tZONE, -7*HOUR }, */ /* So Sumatra, USSR 6: Conflict */
+	{ 0, "wast", tZONE,     -7*HOUR }, /* West Australian Standard */
+	{ 0, "wadt", tDAYZONE,  -7*HOUR }, /* West Australian Daylight */
+	{ 0, "jt",   tZONE,     -7*HOUR-30*MINUTE },/* Java (3pm in Cronusland!)*/
+	{ 0, "cct",  tZONE,     -8*HOUR }, /* China Coast, USSR Zone 7 */
+	{ 0, "jst",  tZONE,     -9*HOUR }, /* Japan Std, USSR Zone 8 */
+	{ 0, "cast", tZONE,     -9*HOUR-30*MINUTE },/* Ctrl Australian Std */
+	{ 0, "cadt", tDAYZONE,  -9*HOUR-30*MINUTE },/* Ctrl Australian Daylt */
+	{ 0, "east", tZONE,     -10*HOUR }, /* Eastern Australian Std */
+	{ 0, "eadt", tDAYZONE,  -10*HOUR }, /* Eastern Australian Daylt */
+	{ 0, "gst",  tZONE,     -10*HOUR }, /* Guam Std, USSR Zone 9 */
+	{ 0, "nzt",  tZONE,     -12*HOUR }, /* New Zealand */
+	{ 0, "nzst", tZONE,     -12*HOUR }, /* New Zealand Standard */
+	{ 0, "nzdt", tDAYZONE,  -12*HOUR }, /* New Zealand Daylight */
+	{ 0, "idle", tZONE,     -12*HOUR }, /* Intl Date Line East */
 
 	{ 0, "dst",  tDST,		0 },
 
 	/* Time units. */
 	{ 4, "years",		tMONTH_UNIT,	12 },
 	{ 5, "months",		tMONTH_UNIT,	1 },
-	{ 9, "fortnights",	tSEC_UNIT,	14 * 24 * 60 * 60 },
-	{ 4, "weeks",		tSEC_UNIT,	7 * 24 * 60 * 60 },
-	{ 3, "days",		tSEC_UNIT,	1 * 24 * 60 * 60 },
-	{ 4, "hours",		tSEC_UNIT,	60 * 60 },
-	{ 3, "minutes",		tSEC_UNIT,	60 },
+	{ 9, "fortnights",	tSEC_UNIT,	14 * DAY },
+	{ 4, "weeks",		tSEC_UNIT,	7 * DAY },
+	{ 3, "days",		tSEC_UNIT,	DAY },
+	{ 4, "hours",		tSEC_UNIT,	HOUR },
+	{ 3, "minutes",		tSEC_UNIT,	MINUTE },
 	{ 3, "seconds",		tSEC_UNIT,	1 },
 
 	/* Relative-time words. */
-	{ 0, "tomorrow",	tSEC_UNIT,	1 * 24 * 60 * 60 },
-	{ 0, "yesterday",	tSEC_UNIT,	-1 * 24 * 60 * 60 },
+	{ 0, "tomorrow",	tSEC_UNIT,	DAY },
+	{ 0, "yesterday",	tSEC_UNIT,	-DAY },
 	{ 0, "today",		tSEC_UNIT,	0 },
 	{ 0, "now",		tSEC_UNIT,	0 },
 	{ 0, "last",		tUNUMBER,	-1 },
@@ -617,36 +630,39 @@ static struct LEXICON {
 	{ 0, "ago",		tAGO,		1 },
 
 	/* Military timezones. */
-	{ 0, "a",	tZONE,	HOUR(  1) },
-	{ 0, "b",	tZONE,	HOUR(  2) },
-	{ 0, "c",	tZONE,	HOUR(  3) },
-	{ 0, "d",	tZONE,	HOUR(  4) },
-	{ 0, "e",	tZONE,	HOUR(  5) },
-	{ 0, "f",	tZONE,	HOUR(  6) },
-	{ 0, "g",	tZONE,	HOUR(  7) },
-	{ 0, "h",	tZONE,	HOUR(  8) },
-	{ 0, "i",	tZONE,	HOUR(  9) },
-	{ 0, "k",	tZONE,	HOUR( 10) },
-	{ 0, "l",	tZONE,	HOUR( 11) },
-	{ 0, "m",	tZONE,	HOUR( 12) },
-	{ 0, "n",	tZONE,	HOUR(- 1) },
-	{ 0, "o",	tZONE,	HOUR(- 2) },
-	{ 0, "p",	tZONE,	HOUR(- 3) },
-	{ 0, "q",	tZONE,	HOUR(- 4) },
-	{ 0, "r",	tZONE,	HOUR(- 5) },
-	{ 0, "s",	tZONE,	HOUR(- 6) },
-	{ 0, "t",	tZONE,	HOUR(- 7) },
-	{ 0, "u",	tZONE,	HOUR(- 8) },
-	{ 0, "v",	tZONE,	HOUR(- 9) },
-	{ 0, "w",	tZONE,	HOUR(-10) },
-	{ 0, "x",	tZONE,	HOUR(-11) },
-	{ 0, "y",	tZONE,	HOUR(-12) },
-	{ 0, "z",	tZONE,	HOUR(  0) },
+	{ 0, "a",	tZONE,	1*HOUR },
+	{ 0, "b",	tZONE,	2*HOUR },
+	{ 0, "c",	tZONE,	3*HOUR },
+	{ 0, "d",	tZONE,	4*HOUR },
+	{ 0, "e",	tZONE,	5*HOUR },
+	{ 0, "f",	tZONE,	6*HOUR },
+	{ 0, "g",	tZONE,	7*HOUR },
+	{ 0, "h",	tZONE,	8*HOUR },
+	{ 0, "i",	tZONE,	9*HOUR },
+	{ 0, "k",	tZONE,	10*HOUR },
+	{ 0, "l",	tZONE,	11*HOUR },
+	{ 0, "m",	tZONE,	12*HOUR },
+	{ 0, "n",	tZONE,	-1*HOUR },
+	{ 0, "o",	tZONE,	-2*HOUR },
+	{ 0, "p",	tZONE,	-3*HOUR },
+	{ 0, "q",	tZONE,	-4*HOUR },
+	{ 0, "r",	tZONE,	-5*HOUR },
+	{ 0, "s",	tZONE,	-6*HOUR },
+	{ 0, "t",	tZONE,	-7*HOUR },
+	{ 0, "u",	tZONE,	-8*HOUR },
+	{ 0, "v",	tZONE,	-9*HOUR },
+	{ 0, "w",	tZONE,	-10*HOUR },
+	{ 0, "x",	tZONE,	-11*HOUR },
+	{ 0, "y",	tZONE,	-12*HOUR },
+	{ 0, "z",	tZONE,	0*HOUR },
 
 	/* End of table. */
 	{ 0, NULL,	0,	0 }
 };
 
+/*
+ * Convert hour/minute/second to count of seconds.
+ */
 static time_t
 ToSeconds(time_t Hours, time_t Minutes, time_t Seconds)
 {
@@ -654,13 +670,15 @@ ToSeconds(time_t Hours, time_t Minutes, time_t Seconds)
 		return -1;
 	if (Hours < 0 || Hours > 23)
 		return -1;
-	return (Hours * 60L + Minutes) * 60L + Seconds;
+	return Hours * HOUR + Minutes * MINUTE + Seconds;
 }
 
 
-/* Year is either
- * A number from 0 to 99, which means a year from 1970 to 2069, or
- * The actual year (>=100).  */
+/*
+ * Year is either:
+ *  = A number from 0 to 99, which means a year from 1970 to 2069, or
+ *  = The actual year (>=100).
+ */
 static time_t
 Convert(time_t Month, time_t Day, time_t Year,
 	time_t Hours, time_t Minutes, time_t Seconds,
@@ -692,14 +710,14 @@ Convert(time_t Month, time_t Day, time_t Year,
 		Julian += DaysInMonth[i];
 	for (i = EPOCH; i < Year; i++)
 		Julian += 365 + (i % 4 == 0);
-	Julian *= SECSPERDAY;
-	Julian += Timezone * 60L;
+	Julian *= DAY;
+	Julian += Timezone;
 	if ((tod = ToSeconds(Hours, Minutes, Seconds)) < 0)
 		return -1;
 	Julian += tod;
 	if (DSTmode == DSTon
 	    || (DSTmode == DSTmaybe && localtime(&Julian)->tm_isdst))
-		Julian -= 60 * 60;
+		Julian -= HOUR;
 	return Julian;
 }
 
@@ -712,7 +730,7 @@ DSTcorrect(time_t Start, time_t Future)
 
 	StartDay = (localtime(&Start)->tm_hour + 1) % 24;
 	FutureDay = (localtime(&Future)->tm_hour + 1) % 24;
-	return (Future - Start) + (StartDay - FutureDay) * 60L * 60L;
+	return (Future - Start) + (StartDay - FutureDay) * HOUR;
 }
 
 
@@ -724,8 +742,8 @@ RelativeDate(time_t Start, time_t DayOrdinal, time_t DayNumber)
 
 	now = Start;
 	tm = localtime(&now);
-	now += SECSPERDAY * ((DayNumber - tm->tm_wday + 7) % 7);
-	now += 7 * SECSPERDAY * (DayOrdinal <= 0 ? DayOrdinal : DayOrdinal - 1);
+	now += DAY * ((DayNumber - tm->tm_wday + 7) % 7);
+	now += 7 * DAY * (DayOrdinal <= 0 ? DayOrdinal : DayOrdinal - 1);
 	return DSTcorrect(Start, now);
 }
 
@@ -749,6 +767,9 @@ RelativeMonth(time_t Start, time_t Timezone, time_t RelMonth)
 		Timezone, DSTmaybe));
 }
 
+/*
+ * Tokenizer.
+ */
 static int
 nexttoken(char **in, time_t *value)
 {
@@ -850,11 +871,17 @@ difftm (struct tm *a, struct tm *b)
 		/* + difference in years * 365 */
 		+  (long)(ay-by) * 365
 		);
-	return (60*(60*(24*days + (a->tm_hour - b->tm_hour))
-	    + (a->tm_min - b->tm_min))
+	return (days * DAY + (a->tm_hour - b->tm_hour) * HOUR
+	    + (a->tm_min - b->tm_min) * MINUTE
 	    + (a->tm_sec - b->tm_sec));
 }
 
+/*
+ *
+ * The public function.
+ *
+ * TODO: tokens[] array should be dynamically sized.
+ */
 time_t
 get_date(char *p)
 {
@@ -893,12 +920,12 @@ get_date(char *p)
 		gmt = *gmt_ptr;
 	}
 	if (gmt_ptr != NULL)
-		tzone = difftm (&gmt, &local) / 60;
+		tzone = difftm (&gmt, &local);
 	else
 		/* This system doesn't understand timezones; fake it. */
 		tzone = 0;
 	if(local.tm_isdst)
-		tzone += 60;
+		tzone += HOUR;
 
 	/* Initialize the year/month/day and timezone fields. */
 	gds->Year = local.tm_year + 1900;
@@ -928,6 +955,8 @@ get_date(char *p)
 	    || gds->HaveDate > 1 || gds->HaveDay > 1)
 		return -1;
 
+	/* Compute an absolute time based on whatever absolute information
+	 * we collected. */
 	if (gds->HaveDate || gds->HaveTime || gds->HaveDay) {
 		Start = Convert(gds->Month, gds->Day, gds->Year,
 		    gds->Hour, gds->Minutes, gds->Seconds,
@@ -937,13 +966,15 @@ get_date(char *p)
 	} else {
 		Start = nowtime;
 		if (!gds->HaveRel)
-			Start -= ((local.tm_hour * 60L + local.tm_min) * 60L)
+			Start -= local.tm_hour * HOUR + local.tm_min * MINUTE
 			    + local.tm_sec;
 	}
 
+	/* Add the relative offset. */
 	Start += gds->RelSeconds;
 	Start += RelativeMonth(Start, gds->Timezone, gds->RelMonth);
 
+	/* Adjust for day-of-week offsets. */
 	if (gds->HaveDay && !gds->HaveDate) {
 		tod = RelativeDate(Start, gds->DayOrdinal, gds->DayNumber);
 		Start += tod;
