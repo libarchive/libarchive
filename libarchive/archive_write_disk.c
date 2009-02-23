@@ -1593,6 +1593,22 @@ cleanup_pathname(struct archive_write_disk *a)
 			*dest++ = '/';
 		while (*src != '\0' && *src != '/') {
 			*dest++ = *src++;
+#if defined(__WIN32__) || defined(_WIN32) || defined(__WIN32)
+			// If compiled for a MS-Windows platform,
+			// rewrite characters that are unusable.
+			//
+			// See also:
+			// http://msdn.microsoft.com/library/?url=/library/en-us/fileio/fs/naming_a_file.asp
+			if (
+				(*dest == ':') ||
+				(*dest == '*') ||
+				(*dest == '?') ||
+				(*dest == '"') ||
+				(*dest == '<') ||
+				(*dest == '>') ||
+				(*dest == '|')
+			) *dest = '_';
+#endif
 		}
 
 		if (*src == '\0')
