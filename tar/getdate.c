@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <time.h>
 
 /* This file defines a single public function. */
-time_t get_date(char *);
+time_t get_date(time_t now, char *);
 
 /* Basic time units. */
 #define	EPOCH		1970
@@ -883,7 +883,7 @@ difftm (struct tm *a, struct tm *b)
  * TODO: tokens[] array should be dynamically sized.
  */
 time_t
-get_date(char *p)
+get_date(time_t now, char *p)
 {
 	struct token	tokens[256];
 	struct gdstate	_gds;
@@ -893,7 +893,6 @@ get_date(char *p)
 	struct tm	gmt, *gmt_ptr;
 	time_t		Start;
 	time_t		tod;
-	time_t		nowtime;
 	long		tzone;
 
 	/* Clear out the parsed token array. */
@@ -902,11 +901,9 @@ get_date(char *p)
 	memset(&_gds, 0, sizeof(_gds));
 	gds = &_gds;
 
-	(void)time (&nowtime);
-
 	/* Look up the current time. */
 	memset(&local, 0, sizeof(local));
-	tm = localtime (&nowtime);
+	tm = localtime (&now);
 	if (tm == NULL)
 		return -1;
 	local = *tm;
@@ -914,7 +911,7 @@ get_date(char *p)
 	/* Look up UTC if we can and use that to determine the current
 	 * timezone offset. */
 	memset(&gmt, 0, sizeof(gmt));
-	gmt_ptr = gmtime (&nowtime);
+	gmt_ptr = gmtime (&now);
 	if (gmt_ptr != NULL) {
 		/* Copy, in case localtime and gmtime use the same buffer. */
 		gmt = *gmt_ptr;
@@ -964,7 +961,7 @@ get_date(char *p)
 		if (Start < 0)
 			return -1;
 	} else {
-		Start = nowtime;
+		Start = now;
 		if (!gds->HaveRel)
 			Start -= local.tm_hour * HOUR + local.tm_min * MINUTE
 			    + local.tm_sec;

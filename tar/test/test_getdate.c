@@ -31,7 +31,7 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/test/test_getdate.c,v 1.2 2008/05/26 17:10:1
  * Verify that the getdate() function works.
  */
 
-time_t get_date(const char *);
+time_t get_date(time_t, const char *);
 
 DEFINE_TEST(test_getdate)
 {
@@ -40,31 +40,32 @@ DEFINE_TEST(test_getdate)
 	time_t dayStart = now
 	    - ((tm.tm_hour * 60L + tm.tm_min) * 60L + tm.tm_sec);
 
-	assertEqualInt(get_date("Jan 1, 1970 UTC"), 0);
-	assertEqualInt(get_date("7:12:18-0530 4 May 1983"), 420900138);
-	assertEqualInt(get_date("2004/01/29 513 mest"), 1075345980);
-	assertEqualInt(get_date("99/02/17 7pm utc"), 919278000);
-	assertEqualInt(get_date("02/17/99 7:11am est"), 919253460);
+	assertEqualInt(get_date(now, "Jan 1, 1970 UTC"), 0);
+	assertEqualInt(get_date(now, "7:12:18-0530 4 May 1983"), 420900138);
+	assertEqualInt(get_date(now, "2004/01/29 513 mest"), 1075345980);
+	assertEqualInt(get_date(now, "99/02/17 7pm utc"), 919278000);
+	assertEqualInt(get_date(now, "02/17/99 7:11am est"), 919253460);
 	/* It's important that we handle ctime() format. */
-	assertEqualInt(get_date("Sun Feb 22 17:38:26 PST 2009"), 1235353106);
+	assertEqualInt(get_date(now, "Sun Feb 22 17:38:26 PST 2009"),
+	    1235353106);
 	/* Basic relative offsets. */
-	assertEqualInt(get_date("tomorrow"), now + 24 * 60 * 60);
-	assertEqualInt(get_date("yesterday"), now - 24 * 60 * 60);
-	assertEqualInt(get_date("now + 1 hour"), now + 60 * 60);
-	assertEqualInt(get_date("now + 1 hour + 1 minute"),
+	assertEqualInt(get_date(now, "tomorrow"), now + 24 * 60 * 60);
+	assertEqualInt(get_date(now, "yesterday"), now - 24 * 60 * 60);
+	assertEqualInt(get_date(now, "now + 1 hour"), now + 60 * 60);
+	assertEqualInt(get_date(now, "now + 1 hour + 1 minute"),
 	    now + 60 * 60 + 60);
 	/* "tuesday" is the start of the first tuesday today or later */
-	assertEqualInt(get_date("tuesday"),
+	assertEqualInt(get_date(now, "tuesday"),
 	    dayStart + ((2 - tm.tm_wday + 7) % 7) * 24 * 60 * 60);
 	/* "next tuesday" is one week after "tuesday" */
-	assertEqualInt(get_date("next tuesday"),
+	assertEqualInt(get_date(now, "next tuesday"),
 	    dayStart + (((2 - tm.tm_wday + 7) % 7) + 7) * 24 * 60 * 60);
 	/* "last tuesday" is one week before "tuesday" */
-	assertEqualInt(get_date("last tuesday"),
+	assertEqualInt(get_date(now, "last tuesday"),
 	    dayStart + (((2 - tm.tm_wday + 7) % 7) - 7) * 24 * 60 * 60);
-	assertEqualInt(get_date("tomorrow 5:16am"),
+	assertEqualInt(get_date(now, "tomorrow 5:16am"),
 	    dayStart + 24 * 60 * 60 + 5 * 60 * 60 + 16 * 60);
-	assertEqualInt(get_date("5:16am tomorrow"),
+	assertEqualInt(get_date(now, "5:16am tomorrow"),
 	    dayStart + 24 * 60 * 60 + 5 * 60 * 60 + 16 * 60);
 	/* TODO: Lots more tests here. */
 }
