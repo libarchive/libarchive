@@ -380,7 +380,8 @@ endif
 
 bsdtar_test_EXTRA_DIST=			\
 	tar/test/test_patterns_2.tar.uu	\
-	tar/test/test_patterns_3.tar.uu
+	tar/test/test_patterns_3.tar.uu	\
+	tar/test/test_patterns_4.tar.uu
 
 
 #
