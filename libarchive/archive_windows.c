@@ -102,90 +102,91 @@ permissive_name(const char *name)
 {
 	wchar_t *wn, *wnp;
 	wchar_t *ws, *wsp;
-	size_t len, slen;
-	int i, n, unc;
+	size_t l, len, slen;
+	int unc;
 
 	len = strlen(name);
-	wn = wnp = malloc((len + 1) * sizeof(wchar_t));
+	wn = malloc((len + 1) * sizeof(wchar_t));
 	if (wn == NULL)
 		return (NULL);
-	n = MultiByteToWideChar(CP_ACP, 0, name, len, wn, len);
-	if (n == 0) {
+	l = MultiByteToWideChar(CP_ACP, 0, name, len, wn, len);
+	if (l == 0) {
 		free(wn);
 		return (NULL);
 	}
-	wn[n] = L'\0';
+	wn[l] = L'\0';
 
-	/* When we use "\\?\" prefix, a path name cannot be used with '/'. */
-	for (i = 0; i < n; i++)
-		if (wn[i] == L'/')
-			wn[i] = L'\\';
-	unc = 0;
-	if (wnp[0] == L'\\' && wnp[1] == L'\\') {
-		/* UNC: start characters are "\\"*/
-		wnp += 2;
-		len -= 2;
-		if (wnp[0] == L'.' && wnp[1] == L'\\' && iswalpha(wnp[2])
-			&& wnp[3] == L':' && wnp[4] == L'\\') {
-			/* start characters are "\\.\[drive]:\", feed a pointer more */
-			wnp += 2;
-			len -= 2;
-			/* now start characters of wnp are "C:" or "D:" or.... */
-		} else
-			unc = 1;
-	} else if (wnp[1] == L':' && iswalpha(wnp[0]))
-		/* start characters are "C:","D:"...: already full path */
-		;
-	else {
-		size_t l;
-		wchar_t *full;
-
-		/* getting a full path name */
-		full = malloc((len + MAX_PATH) * sizeof(wchar_t));
-		if (full == NULL) {
-			free(wn);
-			return (NULL);
-		}
-		l = GetFullPathNameW(wnp, len + MAX_PATH, full, NULL);
-		if (l >= len + MAX_PATH) {
-			/* buffer size is smaller */
-			full = realloc(full, l * sizeof(wchar_t));
-			if (full == NULL) {
-				free(wn);
-				return (NULL);
-			}
-			l = GetFullPathNameW(wnp, l, full, NULL);
-		}
-		if (l != 0) {
-			full[l] = L'\0';
-			free(wn);
-			wn = wnp = full;
-			len = l;
-		} else
-			free(full);
+	/* Get a full path names */
+	l = GetFullPathNameW(wn, 0, NULL, NULL);
+	if (l == 0) {
+		free(wn);
+		return (NULL);
 	}
-	
+	wnp = malloc(l * sizeof(wchar_t));
+	if (wnp == NULL) {
+		free(wn);
+		return (NULL);
+	}
+	len = GetFullPathNameW(wn, l, wnp, NULL);
+	free(wn);
+	wn = wnp;
+
+	if (wnp[0] == L'\\' && wnp[1] == L'\\' &&
+	    wnp[2] == L'?' && wnp[3] == L'\\')
+		/* We have already permissive names. */
+		return (wn);
+
+	if (wnp[0] == L'\\' && wnp[1] == L'\\' &&
+		wnp[2] == L'.' && wnp[3] == L'\\') {
+		/* Device names */
+		if (((wnp[4] >= L'a' && wnp[4] <= L'z') ||
+		     (wnp[4] >= L'A' && wnp[4] <= L'Z')) &&
+		    wnp[5] == L':' && wnp[6] == L'\\')
+			wnp[2] = L'?';/* Not device names. */
+		return (wn);
+	}
+
+	unc = 0;
+	if (wnp[0] == L'\\' && wnp[1] == L'\\' && wnp[2] != L'\\') {
+		wchar_t *p = &wnp[2];
+
+		/* Skip server-name letters. */
+		while (*p != L'\\' && *p != L'\0')
+			++p;
+		if (*p == L'\\') {
+			wchar_t *rp = ++p;
+			/* Skip share-name letters. */
+			while (*p != L'\\' && *p != L'\0')
+				++p;
+			if (*p == L'\\' && p != rp) {
+				/* Now, match patterns such as
+				 * "\\server-name\share-name\" */
+				wnp += 2;
+				len -= 2;
+				unc = 1;
+			}
+		}
+	}
+
 	slen = 4 + (unc * 4) + len + 1;
 	ws = wsp = malloc(slen * sizeof(wchar_t));
 	if (ws == NULL) {
 		free(wn);
 		return (NULL);
 	}
-
 	/* prepend "\\?\" */
 	wcsncpy(wsp, L"\\\\?\\", 4);
 	wsp += 4;
 	slen -= 4;
 	if (unc) {
-		/* append "UNC\" ---> "\\?\UNC\"*/
+		/* append "UNC\" ---> "\\?\UNC\" */
 		wcsncpy(wsp, L"UNC\\", 4);
 		wsp += 4;
 		slen -= 4;
 	}
-	wcsncpy_s(wsp, slen, wnp, len);
+	wcsncpy_s(wsp, slen, wnp, _TRUNCATE);
 	free(wn);
-	wn = ws;
-	return (wn);
+	return (ws);
 }
 
 static HANDLE
