@@ -363,7 +363,8 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_stdio.c					\
 	tar/test/test_strip_components.c			\
 	tar/test/test_symlink_dir.c				\
-	tar/test/test_version.c
+	tar/test/test_version.c					\
+	tar/test/test_windows.c
 
 bsdtar_test_CPPFLAGS= -I$(top_builddir)/tar/test
 

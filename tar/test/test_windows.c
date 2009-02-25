@@ -23,8 +23,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-#ifdef _WIN32
 
+#ifdef _WIN32
 static void
 mkfile(const char *name)
 {
@@ -54,10 +54,11 @@ static const char list5[] =
 static const char list6[] =
     "fff\\\\abca\r\nfff\\\\acca\r\naaa\\\\xxa/\r\naaa\\\\xxa/file1\r\n"
     "aaa\\\\xxb/\r\naaa\\\\xxb/file1\r\n";
+#endif /* _WIN32 */
 
 DEFINE_TEST(test_windows)
 {
-
+#ifdef _WIN32
 	/*
 	 * Create directories and files.
 	 */
@@ -142,6 +143,7 @@ DEFINE_TEST(test_windows)
 	assertEqualInt(0,
 	    systemf("%s -tf ../archive.tar > ../list", testprog));
 	assertFileContents(list6, sizeof(list6)-1, "../list");
-
-}
+#else
+	skipping("Windows specific test");
 #endif /* _WIN32 */
+}
