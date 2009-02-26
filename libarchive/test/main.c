@@ -903,7 +903,7 @@ extract_reference_file(const char *name)
 const char *
 external_gzip_program(int un)
 {
-	char *extprog;
+	const char *extprog;
 
 	if (un) {
 		extprog = "gunzip";
