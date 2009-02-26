@@ -169,6 +169,8 @@ const char *external_gzip_program(int un);
 
 /* Special customized read-from-memory interface. */
 int read_open_memory(struct archive *, void *, size_t, size_t);
+/* "2" version exercises a slightly different set of libarchive APIs. */
+int read_open_memory2(struct archive *, void *, size_t, size_t);
 
 /*
  * ARCHIVE_VERSION_STAMP first appeared in 1.9 and libarchive 2.2.4.
