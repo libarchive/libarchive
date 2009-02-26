@@ -126,6 +126,8 @@ client_read_proxy(struct archive_read_source *self, const void **buff)
 static int64_t
 client_skip_proxy(struct archive_read_source *self, int64_t request)
 {
+	if (self->archive->client.skipper == NULL)
+		return (0);
 	return (self->archive->client.skipper)((struct archive *)self->archive,
 	    self->data, request);
 }
