@@ -36,6 +36,77 @@ mkfile(const char *name)
 	close(fd);
 }
 
+static void
+mkfullpath(char **path1, char **path2, const char *tpath, int type)
+{
+	char *fp1, *fp2, *p1, *p2;
+	size_t l;
+
+	/*
+	 * Get full path name of "tpath"
+	 */
+	l = GetFullPathNameA(tpath, 0, NULL, NULL);
+	assert(0 != l);
+	fp1 = malloc(l);
+	assert(NULL != fp1);
+	fp2 = malloc(l*2);
+	assert(NULL != fp2);
+	l = GetFullPathNameA(tpath, l, fp1, NULL);
+	if ((type & 0x01) == 0) {
+		for (p1 = fp1; *p1 != '\0'; p1++) 
+			if (*p1 == '\\')
+				*p1 = '/';
+	}
+
+	switch(type) {
+	case 0: /* start with "/" */
+	case 1: /* start with "\" */
+		/* strip "c:" */
+		memmove(fp1, fp1 + 2, l - 2);
+		fp1[l -2] = '\0';
+		p1 = fp1 + 1;
+		break;
+	case 2: /* start with "c:/" */
+	case 3: /* start with "c:\" */
+		p1 = fp1 + 3;
+		break;
+	case 4: /* start with "//./c:/" */
+	case 5: /* start with "\\.\c:\" */
+	case 6: /* start with "//?/c:/" */
+	case 7: /* start with "\\?\c:\" */
+		p1 = malloc(l + 4 + 1);
+		assert(NULL != p1);
+		if (type & 0x1)
+			memcpy(p1, "\\\\.\\", 4);
+		else
+			memcpy(p1, "//./", 4);
+		if (type == 6 || type == 7)
+			p1[2] = '?';
+		memcpy(p1 + 4, fp1, l);
+		p1[l + 4] = '\0';
+		free(fp1);
+		fp1 = p1;
+		p1 = fp1 + 7;
+		break;
+	}
+
+	/*
+	 * Strip leading drive names and converting "\" to "\\"
+	 */
+	p2 = fp2;
+	while (*p1 != '\0') {
+		if (*p1 == '\\')
+			*p2++ = *p1;
+		*p2++ = *p1++;
+	}
+	*p2++ = '\r';
+	*p2++ = '\n';
+	*p2 = '\0';
+
+	*path1 = fp1;
+	*path2 = fp2;
+}
+
 static const char list1[] =
     "aaa/\r\naaa/file1\r\naaa/xxa/\r\naaa/xxb/\r\naaa/zzc/\r\n"
     "aaa/zzc/file1\r\naaa/xxb/file1\r\naaa/xxa/file1\r\naab/\r\n"
@@ -59,7 +130,10 @@ static const char list6[] =
 DEFINE_TEST(test_windows)
 {
 #ifdef _WIN32
+	char *fp1, *fp2;
+
 	/*
+	 * Preparre tests.
 	 * Create directories and files.
 	 */
 	assertEqualInt(0, mkdir("tmp", 0775));
@@ -100,7 +174,7 @@ DEFINE_TEST(test_windows)
 	mkfile("fff/acca");
 
 	/*
-	 * command line pattern matching tests
+	 * Test1: Command line pattern matching.
 	 */
 	assertEqualInt(0,
 	    systemf("%s -cf ../archive.tar a*", testprog));
@@ -143,6 +217,105 @@ DEFINE_TEST(test_windows)
 	assertEqualInt(0,
 	    systemf("%s -tf ../archive.tar > ../list", testprog));
 	assertFileContents(list6, sizeof(list6)-1, "../list");
+
+	/*
+	 * Test2: Archive the file start with drive letters.
+	 */
+	/* Test2a: start with "/" */
+	mkfullpath(&fp1, &fp2, "aaa/file1", 0);
+	assertEqualInt(0,
+	    systemf("%s -cf ../archive.tar %s > ../out 2> ../err",
+	        testprog, fp1));
+	assertEqualInt(0,
+	    systemf("%s -tf ../archive.tar > ../list", testprog));
+	/* Check drive letters have been striped. */
+	assertFileContents(fp2, strlen(fp2), "../list");
+	free(fp1);
+	free(fp2);
+
+	/* Test2b: start with "\" */
+	mkfullpath(&fp1, &fp2, "aaa/file1", 1);
+	assertEqualInt(0,
+	    systemf("%s -cf ../archive.tar %s > ../out 2> ../err",
+	        testprog, fp1));
+	assertEqualInt(0,
+	    systemf("%s -tf ../archive.tar > ../list", testprog));
+	/* Check drive letters have been striped. */
+	assertFileContents(fp2, strlen(fp2), "../list");
+	free(fp1);
+	free(fp2);
+
+	/* Test2c: start with "c:/" */
+	mkfullpath(&fp1, &fp2, "aaa/file1", 2);
+	assertEqualInt(0,
+	    systemf("%s -cf ../archive.tar %s > ../out 2> ../err",
+	        testprog, fp1));
+	assertEqualInt(0,
+	    systemf("%s -tf ../archive.tar > ../list", testprog));
+	/* Check drive letters have been striped. */
+	assertFileContents(fp2, strlen(fp2), "../list");
+	free(fp1);
+	free(fp2);
+
+	/* Test2d: start with "c:\" */
+	mkfullpath(&fp1, &fp2, "aaa/file1", 3);
+	assertEqualInt(0,
+	    systemf("%s -cf ../archive.tar %s > ../out 2> ../err",
+	        testprog, fp1));
+	assertEqualInt(0,
+	    systemf("%s -tf ../archive.tar > ../list", testprog));
+	/* Check drive letters have been striped. */
+	assertFileContents(fp2, strlen(fp2), "../list");
+	free(fp1);
+	free(fp2);
+
+	/* Test2e: start with "//./c:/" */
+	mkfullpath(&fp1, &fp2, "aaa/file1", 4);
+	assertEqualInt(0,
+	    systemf("%s -cf ../archive.tar %s > ../out 2> ../err",
+	        testprog, fp1));
+	assertEqualInt(0,
+	    systemf("%s -tf ../archive.tar > ../list", testprog));
+	/* Check drive letters have been striped. */
+	assertFileContents(fp2, strlen(fp2), "../list");
+	free(fp1);
+	free(fp2);
+
+	/* Test2f: start with "\\.\c:\" */
+	mkfullpath(&fp1, &fp2, "aaa/file1", 5);
+	assertEqualInt(0,
+	    systemf("%s -cf ../archive.tar %s > ../out 2> ../err",
+	        testprog, fp1));
+	assertEqualInt(0,
+	    systemf("%s -tf ../archive.tar > ../list", testprog));
+	/* Check drive letters have been striped. */
+	assertFileContents(fp2, strlen(fp2), "../list");
+	free(fp1);
+	free(fp2);
+
+	/* Test2g: start with "//?/c:/" */
+	mkfullpath(&fp1, &fp2, "aaa/file1", 6);
+	assertEqualInt(0,
+	    systemf("%s -cf ../archive.tar %s > ../out 2> ../err",
+	        testprog, fp1));
+	assertEqualInt(0,
+	    systemf("%s -tf ../archive.tar > ../list", testprog));
+	/* Check drive letters have been striped. */
+	assertFileContents(fp2, strlen(fp2), "../list");
+	free(fp1);
+	free(fp2);
+
+	/* Test2h: start with "\\?\c:\" */
+	mkfullpath(&fp1, &fp2, "aaa/file1", 7);
+	assertEqualInt(0,
+	    systemf("%s -cf ../archive.tar %s > ../out 2> ../err",
+	        testprog, fp1));
+	assertEqualInt(0,
+	    systemf("%s -tf ../archive.tar > ../list", testprog));
+	/* Check drive letters have been striped. */
+	assertFileContents(fp2, strlen(fp2), "../list");
+	free(fp1);
+	free(fp2);
 #else
 	skipping("Windows specific test");
 #endif /* _WIN32 */
