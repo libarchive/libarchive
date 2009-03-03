@@ -64,8 +64,10 @@ struct gdstate {
 	/* HaveXxxx counts how many of this kind of phrase we've seen;
 	 * it's a fatal error to have more than one time, zone, day,
 	 * or date phrase. */
-	int	HaveDate; /* year/month/day information */
-	int	HaveDay; /* Day of week */
+	int	HaveYear;
+	int	HaveMonth;
+	int	HaveDay;
+	int	HaveWeekDay; /* Day of week */
 	int	HaveTime; /* Hour/minute/second */
 	int	HaveZone; /* timezone and/or DST info */
 	int	HaveRel; /* time offset; we can have more than one */
@@ -147,6 +149,7 @@ timephrase(struct gdstate *gds)
 	if (gds->tokenp[0].token == '+'
 	    && gds->tokenp[1].token == tUNUMBER) {
 		/* "7:14+0700" */
+		gds->HaveZone++;
 		gds->DSTmode = DSToff;
 		gds->Timezone = - ((gds->tokenp[1].value / 100) * HOUR
 		    + (gds->tokenp[1].value % 100) * MINUTE);
@@ -155,6 +158,7 @@ timephrase(struct gdstate *gds)
 	if (gds->tokenp[0].token == '-'
 	    && gds->tokenp[1].token == tUNUMBER) {
 		/* "19:14:12-0530" */
+		gds->HaveZone++;
 		gds->DSTmode = DSToff;
 		gds->Timezone = + ((gds->tokenp[1].value / 100) * HOUR
 		    + (gds->tokenp[1].value % 100) * MINUTE);
@@ -207,7 +211,9 @@ datephrase(struct gdstate *gds)
 	    && gds->tokenp[2].token == tUNUMBER
 	    && gds->tokenp[3].token == '/'
 	    && gds->tokenp[4].token == tUNUMBER) {
-		gds->HaveDate++;
+		gds->HaveYear++;
+		gds->HaveMonth++;
+		gds->HaveDay++;
 		if (gds->tokenp[0].value >= 13) {
 			/* First number is big:  2004/01/29, 99/02/17 */
 			gds->Year = gds->tokenp[0].value;
@@ -233,7 +239,8 @@ datephrase(struct gdstate *gds)
 	    && gds->tokenp[1].token == '/'
 	    && gds->tokenp[2].token == tUNUMBER) {
 		/* "1/15" */
-		gds->HaveDate++;
+		gds->HaveMonth++;
+		gds->HaveDay++;
 		gds->Month = gds->tokenp[0].value;
 		gds->Day = gds->tokenp[2].value;
 		gds->tokenp += 3;
@@ -246,7 +253,9 @@ datephrase(struct gdstate *gds)
 	    && gds->tokenp[3].token == '-'
 	    && gds->tokenp[4].token == tUNUMBER) {
 		/* ISO 8601 format.  yyyy-mm-dd.  */
-		gds->HaveDate++;
+		gds->HaveYear++;
+		gds->HaveMonth++;
+		gds->HaveDay++;
 		gds->Year = gds->tokenp[0].value;
 		gds->Month = gds->tokenp[2].value;
 		gds->Day = gds->tokenp[4].value;
@@ -259,7 +268,9 @@ datephrase(struct gdstate *gds)
 	    && gds->tokenp[2].token == tMONTH
 	    && gds->tokenp[3].token == '-'
 	    && gds->tokenp[4].token == tUNUMBER) {
-		gds->HaveDate++;
+		gds->HaveYear++;
+		gds->HaveMonth++;
+		gds->HaveDay++;
 		if (gds->tokenp[0].value > 31) {
 			/* e.g. 1992-Jun-17 */
 			gds->Year = gds->tokenp[0].value;
@@ -280,7 +291,9 @@ datephrase(struct gdstate *gds)
 	    && gds->tokenp[2].token == ','
 	    && gds->tokenp[3].token == tUNUMBER) {
 		/* "June 17, 2001" */
-		gds->HaveDate++;
+		gds->HaveYear++;
+		gds->HaveMonth++;
+		gds->HaveDay++;
 		gds->Month = gds->tokenp[0].value;
 		gds->Day = gds->tokenp[1].value;
 		gds->Year = gds->tokenp[3].value;
@@ -291,7 +304,8 @@ datephrase(struct gdstate *gds)
 	if (gds->tokenp[0].token == tMONTH
 	    && gds->tokenp[1].token == tUNUMBER) {
 		/* "May 3" */
-		gds->HaveDate++;
+		gds->HaveMonth++;
+		gds->HaveDay++;
 		gds->Month = gds->tokenp[0].value;
 		gds->Day = gds->tokenp[1].value;
 		gds->tokenp += 2;
@@ -302,7 +316,9 @@ datephrase(struct gdstate *gds)
 	    && gds->tokenp[1].token == tMONTH
 	    && gds->tokenp[2].token == tUNUMBER) {
 		/* "12 Sept 1997" */
-		gds->HaveDate++;
+		gds->HaveYear++;
+		gds->HaveMonth++;
+		gds->HaveDay++;
 		gds->Day = gds->tokenp[0].value;
 		gds->Month = gds->tokenp[1].value;
 		gds->Year = gds->tokenp[2].value;
@@ -313,7 +329,8 @@ datephrase(struct gdstate *gds)
 	if (gds->tokenp[0].token == tUNUMBER
 	    && gds->tokenp[1].token == tMONTH) {
 		/* "12 Sept" */
-		gds->HaveDate++;
+		gds->HaveMonth++;
+		gds->HaveDay++;
 		gds->Day = gds->tokenp[0].value;
 		gds->Month = gds->tokenp[1].value;
 		gds->tokenp += 2;
@@ -406,7 +423,7 @@ dayphrase(struct gdstate *gds)
 {
 	if (gds->tokenp[0].token == tDAY) {
 		/* "tues", "wednesday," */
-		gds->HaveDay++;
+		gds->HaveWeekDay++;
 		gds->DayOrdinal = 1;
 		gds->DayNumber = gds->tokenp[0].value;
 		gds->tokenp += 1;
@@ -417,7 +434,7 @@ dayphrase(struct gdstate *gds)
 	if (gds->tokenp[0].token == tUNUMBER
 		&& gds->tokenp[1].token == tDAY) {
 		/* "second tues" "3 wed" */
-		gds->HaveDay++;
+		gds->HaveWeekDay++;
 		gds->DayOrdinal = gds->tokenp[0].value;
 		gds->DayNumber = gds->tokenp[1].value;
 		gds->tokenp += 2;
@@ -452,7 +469,8 @@ phrase(struct gdstate *gds)
 
 	/* Bare numbers sometimes have meaning. */
 	if (gds->tokenp[0].token == tUNUMBER) {
-		if (gds->HaveTime && gds->HaveDate && !gds->HaveRel) {
+		if (gds->HaveTime && !gds->HaveYear && !gds->HaveRel) {
+			gds->HaveYear++;
 			gds->Year = gds->tokenp[0].value;
 			gds->tokenp += 1;
 			return 1;
@@ -460,7 +478,9 @@ phrase(struct gdstate *gds)
 
 		if(gds->tokenp[0].value > 10000) {
 			/* "20040301" */
-			gds->HaveDate++;
+			gds->HaveYear++;
+			gds->HaveMonth++;
+			gds->HaveDay++;
 			gds->Day= (gds->tokenp[0].value)%100;
 			gds->Month= (gds->tokenp[0].value/100)%100;
 			gds->Year = gds->tokenp[0].value/10000;
@@ -735,16 +755,20 @@ DSTcorrect(time_t Start, time_t Future)
 
 
 static time_t
-RelativeDate(time_t Start, time_t DayOrdinal, time_t DayNumber)
+RelativeDate(time_t Start, time_t zone, int dstmode,
+    time_t DayOrdinal, time_t DayNumber)
 {
 	struct tm	*tm;
-	time_t	now;
+	time_t	t, now;
 
+	t = Start - zone;
+	tm = gmtime(&t);
 	now = Start;
-	tm = localtime(&now);
 	now += DAY * ((DayNumber - tm->tm_wday + 7) % 7);
 	now += 7 * DAY * (DayOrdinal <= 0 ? DayOrdinal : DayOrdinal - 1);
-	return DSTcorrect(Start, now);
+	if (dstmode == DSTmaybe)
+		return DSTcorrect(Start, now);
+	return now - Start;
 }
 
 
@@ -924,13 +948,6 @@ get_date(time_t now, char *p)
 	if(local.tm_isdst)
 		tzone += HOUR;
 
-	/* Initialize the year/month/day and timezone fields. */
-	gds->Year = local.tm_year + 1900;
-	gds->Month = local.tm_mon + 1;
-	gds->Day = local.tm_mday;
-	gds->Timezone = tzone;
-	gds->DSTmode = DSTmaybe;
-
 	/* Tokenize the input string. */
 	lasttoken = tokens;
 	while ((lasttoken->token = nexttoken(&p, &lasttoken->value)) != 0) {
@@ -946,15 +963,41 @@ get_date(time_t now, char *p)
 			return -1;
 	}
 
-	/* If we saw more than one time, timezone, date, or day, then
-	 * give up. */
-	if (gds->HaveTime > 1 || gds->HaveZone > 1
-	    || gds->HaveDate > 1 || gds->HaveDay > 1)
+	/* Use current local timezone if none was specified. */
+	if (!gds->HaveZone) {
+		gds->Timezone = tzone;
+		gds->DSTmode = DSTmaybe;
+	}
+
+	/* If a timezone was specified, use that for generating the default
+	 * time components instead of the local timezone. */
+	if (gds->HaveZone && gmt_ptr != NULL) {
+		now -= gds->Timezone;
+		gmt_ptr = gmtime (&now);
+		if (gmt_ptr != NULL)
+			local = *gmt_ptr;
+		now += gds->Timezone;
+	}
+
+	if (!gds->HaveYear)
+		gds->Year = local.tm_year + 1900;
+	if (!gds->HaveMonth)
+		gds->Month = local.tm_mon + 1;
+	if (!gds->HaveDay)
+		gds->Day = local.tm_mday;
+	/* Note: No default for hour/min/sec; a specifier that just
+	 * gives date always refers to 00:00 on that date. */
+
+	/* If we saw more than one time, timezone, weekday, year, month,
+	 * or day, then give up. */
+	if (gds->HaveTime > 1 || gds->HaveZone > 1 || gds->HaveWeekDay > 1
+	    || gds->HaveYear > 1 || gds->HaveMonth > 1 || gds->HaveDay > 1)
 		return -1;
 
 	/* Compute an absolute time based on whatever absolute information
 	 * we collected. */
-	if (gds->HaveDate || gds->HaveTime || gds->HaveDay) {
+	if (gds->HaveYear || gds->HaveMonth || gds->HaveDay
+	    || gds->HaveTime || gds->HaveWeekDay) {
 		Start = Convert(gds->Month, gds->Day, gds->Year,
 		    gds->Hour, gds->Minutes, gds->Seconds,
 		    gds->Timezone, gds->DSTmode);
@@ -972,8 +1015,10 @@ get_date(time_t now, char *p)
 	Start += RelativeMonth(Start, gds->Timezone, gds->RelMonth);
 
 	/* Adjust for day-of-week offsets. */
-	if (gds->HaveDay && !gds->HaveDate) {
-		tod = RelativeDate(Start, gds->DayOrdinal, gds->DayNumber);
+	if (gds->HaveWeekDay
+	    && !(gds->HaveYear || gds->HaveMonth || gds->HaveDay)) {
+		tod = RelativeDate(Start, gds->Timezone,
+		    gds->DSTmode, gds->DayOrdinal, gds->DayNumber);
 		Start += tod;
 	}
 
