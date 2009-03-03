@@ -1472,59 +1472,55 @@ check_symlinks(struct archive_write_disk *a)
 	return (ARCHIVE_OK);
 }
 
-#if defined(SYSTEM_PATH_CHAR) && SYSTEM_PATH_CHAR != '/'
-/* Convert a path separator of the running system to '/' .
- * We shouldn't check multi-byte character directly because some charsets
- * are using a character of the path separator for a part of their charset.
+#ifdef _WIN32
+/*
+ * 1. Convert a path separator from '\' to '/' .
+ *    We shouldn't check multi-byte character directly because some
+ *    character-set have been using the '\' character for a part of
+ *    its multibyte character code.
+ * 2. Replace unusable characters in Windows with underscore('_').
+ * See also : http://msdn.microsoft.com/en-us/library/aa365247.aspx
  */
 static void
-cleanup_path_separator(struct archive_write_disk *a)
+cleanup_pathname_win(struct archive_write_disk *a)
 {
-	wchar_t *ws, wpath_char;
-	size_t alen, i, l;
-	int replaced;
-	char path_char;
+	wchar_t wc;
+	char *p;
+	size_t alen, l;
 
-	if ((alen = strlen(a->name)) == 0)
-		return;
-	/* pre-check to reduce malloc and free */
-	if (strchr(a->name, SYSTEM_PATH_CHAR) == NULL)
-		return;
-	path_char = SYSTEM_PATH_CHAR;
-	if (mbtowc(&wpath_char, &path_char, 1) != 1)
-		return;
-	ws = malloc((alen + 1)* sizeof(wchar_t));
-	if (ws == NULL)
-		__archive_errx(1, "Out of memory");
-	l = mbstowcs(ws, a->name, alen);
-	if (l == (size_t)-1) {
-		/* We cannot check path separator */
-		free(ws);
-		return;
+	alen = 0;
+	l = 0;
+	for (p = a->name; *p != '\0'; p++) {
+		++alen;
+		if (*p == '\\')
+			l = 1;
+		/* Rewrite the path name if its character is a unusable. */
+		if (*p == ':' || *p == '*' || *p == '?' || *p == '"' ||
+		    *p == '<' || *p == '>' || *p == '|')
+			*p = '_';
 	}
-	ws[l] = L'\0';
-	replaced = 0;
-	for (i = 0; i < l; i++) {
-		if (ws[i] == wpath_char) {
-			ws[i] = L'/';
-			replaced = 1;
+	if (alen == 0 || l == 0)
+		return;
+	/*
+	 * Convert path separator.
+	 */
+	p = a->name;
+	while (*p != '\0' && alen) {
+		l = mbtowc(&wc, p, alen);
+		if (l == -1) {
+			while (*p != '\0') {
+				if (*p == '\\')
+					*p = '/';
+				++p;
+			}
+			break;
 		}
+		if (l == 1 && wc == L'\\')
+			*p = '/';
+		p += l;
+		alen -= l;
 	}
-	if (replaced) {
-		char *p;
-
-		p = malloc(alen + 1);
-		if (p == NULL)
-			__archive_errx(1, "Out of memory");
-		l = wcstombs(p, ws, alen);
-		if (l == alen)
-			memcpy(a->name, p, l);
-		free(p);
-	}
-	free(ws);
 }
-#else
-#define cleanup_path_separator(a)	/* nothing */
 #endif
 
 /*
@@ -1539,7 +1535,6 @@ cleanup_pathname(struct archive_write_disk *a)
 	char *dest, *src;
 	char separator = '\0';
 
-	cleanup_path_separator(a);
 	dest = src = a->name;
 	if (*src == '\0') {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -1547,6 +1542,9 @@ cleanup_pathname(struct archive_write_disk *a)
 		return (ARCHIVE_FAILED);
 	}
 
+#ifdef _WIN32
+	cleanup_pathname_win(a);
+#endif
 	/* Skip leading '/'. */
 	if (*src == '/')
 		separator = *src++;
@@ -1593,22 +1591,6 @@ cleanup_pathname(struct archive_write_disk *a)
 			*dest++ = '/';
 		while (*src != '\0' && *src != '/') {
 			*dest++ = *src++;
-#if defined(__WIN32__) || defined(_WIN32) || defined(__WIN32)
-			// If compiled for a MS-Windows platform,
-			// rewrite characters that are unusable.
-			//
-			// See also:
-			// http://msdn.microsoft.com/library/?url=/library/en-us/fileio/fs/naming_a_file.asp
-			if (
-				(*dest == ':') ||
-				(*dest == '*') ||
-				(*dest == '?') ||
-				(*dest == '"') ||
-				(*dest == '<') ||
-				(*dest == '>') ||
-				(*dest == '|')
-			) *dest = '_';
-#endif
 		}
 
 		if (*src == '\0')

@@ -260,8 +260,6 @@ struct _timeval64i32 {
 
 typedef int pid_t;
 
-#define SYSTEM_PATH_CHAR	'\\'
-
 /* Message digest define */
 #if !defined(HAVE_OPENSSL_MD5_H) && !defined(HAVE_OPENSSL_SHA_H)
 typedef struct {
