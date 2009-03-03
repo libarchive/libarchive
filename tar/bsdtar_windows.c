@@ -1119,10 +1119,9 @@ bsdtar_is_privileged(struct bsdtar *bsdtar)
 static size_t
 dir_len_w(const char *path)
 {
-	const wchar_t *r;
-	wchar_t *wp;
-	const char *p;
-	size_t al, l;
+	wchar_t wc;
+	const char *p, *rp;
+	size_t al, l, size;
 
 	al = l = -1;
 	for (p = path; *p != '\0'; ++p) {
@@ -1133,21 +1132,18 @@ dir_len_w(const char *path)
 	}
 	if (l == -1)
 		goto alen;
-	l = p - path;
-	if ((wp = malloc((l + 1) * sizeof(wchar_t))) == NULL)
-		goto alen;
-	if ((l = mbstowcs(wp, path, l)) == -1) {
-		free(wp);
-		goto alen;
+	size = p - path;
+	rp = p = path;
+	while (*p != '\0') {
+		l = mbtowc(&wc, p, size);
+		if (l == -1)
+			goto alen;
+		if (l == 1 && (wc == L'/' || wc == L'\\'))
+			rp = p;
+		p += l;
+		size -= l;
 	}
-	wp[l] = L'\0';
-	r = wp + l;
-	while (--r >= wp && *r != L'/' && *r != L'\\')
-		;
-	l = wcstombs(NULL, ++r, 0);
-	free(wp);
-	if (l != -1)
-		return (p - path - l);
+	return (rp - path + 1);
 alen:
 	if (al == -1)
 		return (0);

@@ -344,10 +344,10 @@ dir_len(struct archive_entry *entry)
 static size_t
 dir_len(struct archive_entry *entry)
 {
-	const wchar_t *wp, *r;
+	wchar_t wc;
 	const char *path;
-	const char *p;
-	size_t al, l;
+	const char *p, *rp;
+	size_t al, l, size;
 
 	path = archive_entry_pathname(entry);
 	al = l = -1;
@@ -359,14 +359,18 @@ dir_len(struct archive_entry *entry)
 	}
 	if (l == -1)
 		goto alen;
-	if ((wp = archive_entry_pathname_w(entry)) == NULL)
-		goto alen;
-	r = wp + wcslen(wp);
-	while (--r >= wp && *r != L'/' && *r != L'\\')
-		;
-	l = wcstombs(NULL, ++r, 0);
-	if (l != -1)
-		return (p - path - l);
+	size = p - path;
+	rp = p = path;
+	while (*p != '\0') {
+		l = mbtowc(&wc, p, size);
+		if (l == -1)
+			goto alen;
+		if (l == 1 && (wc == L'/' || wc == L'\\'))
+			rp = p;
+		p += l;
+		size -= l;
+	}
+	return (rp - path + 1);
 alen:
 	if (al == -1)
 		return (0);
