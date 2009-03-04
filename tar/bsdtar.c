@@ -166,10 +166,6 @@ main(int argc, char **argv)
 		bsdtar->extract_flags |= ARCHIVE_EXTRACT_XATTR;
 		bsdtar->extract_flags |= ARCHIVE_EXTRACT_FFLAGS;
 	}
-#ifdef _WIN32
-	/* Windows cannot set UNIX like uid/gid. */
-	bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_OWNER;
-#endif
 
 	bsdtar->argv = argv;
 	bsdtar->argc = argc;
