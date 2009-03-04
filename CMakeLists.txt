@@ -37,7 +37,7 @@ IF(ENABLE_TEST)
 ENDIF(ENABLE_TEST)
 
 #
-# On Windows, currently, bsdtar and bsdcpio are not supported.
+# On Windows, currently, bsdcpio is not supported.
 #
 IF (WIN32)
   SET(ENABLE_CPIO 0)
