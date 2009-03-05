@@ -566,16 +566,6 @@ la_chdir(const char *path)
 	return (0);
 }
 
-/*
- * This function will be removed.
- * Only use for debugging.
- */
-void
-la_exit(int status)
-{
-	_exit(status);
-}
-
 __int64
 la_lseek(int fd, __int64 offset, int whence)
 {

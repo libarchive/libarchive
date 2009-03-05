@@ -29,7 +29,6 @@
 #define BSDTAR_WINDOWS_H 1
 
 #define PRId64 "I64"
-#define exit		la_exit
 #define geteuid()	0
 
 struct __DIR;
@@ -42,8 +41,6 @@ struct direct {
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-extern void	la_exit(int status);
 
 extern DIR	*opendir(const char *path);
 extern struct dirent *readdir(DIR *dirp);
