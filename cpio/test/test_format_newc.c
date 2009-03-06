@@ -112,7 +112,8 @@ DEFINE_TEST(test_format_newc)
 		return;
 
 	/* Verify that nothing went to stderr. */
-	assertFileContents("2 blocks\n", 9, "newc.err");
+	p = "2 blocks" NL;
+	assertFileContents(p, strlen(p), "newc.err");
 
 	/* Verify that stdout is a well-formed cpio file in "newc" format. */
 	p = slurpfile(&s, "newc.out");
@@ -128,7 +129,12 @@ DEFINE_TEST(test_format_newc)
 	assert(is_hex(e, 110)); /* Entire header is octal digits. */
 	assertEqualMem(e + 0, "070701", 6); /* Magic */
 	ino = from_hex(e + 6, 8); /* ino */
+#ifdef _WIN32
+	/* Group members bits and others bits do not work. */ 
+	assertEqualInt(0x8180, from_hex(e + 14, 8) & 0xffc0); /* Mode */
+#else
 	assertEqualInt(0x81a4, from_hex(e + 14, 8)); /* Mode */
+#endif
 	assertEqualInt(from_hex(e + 22, 8), getuid()); /* uid */
 	gid = from_hex(e + 30, 8); /* gid */
 	assertEqualMem(e + 38, "00000003", 8); /* nlink */
@@ -160,14 +166,23 @@ DEFINE_TEST(test_format_newc)
 	assert(is_hex(e, 110));
 	assertEqualMem(e + 0, "070701", 6); /* Magic */
 	assert(is_hex(e + 6, 8)); /* ino */
+#ifndef _WIN32
+	/* On Windows, symbolic link and group members bits and 
+	 * others bits do not work. */ 
 	assertEqualInt(0xa1ff, from_hex(e + 14, 8)); /* Mode */
+#endif
 	assertEqualInt(from_hex(e + 22, 8), getuid()); /* uid */
 	assertEqualInt(gid, from_hex(e + 30, 8)); /* gid */
 	assertEqualMem(e + 38, "00000001", 8); /* nlink */
 	t2 = from_hex(e + 46, 8); /* mtime */
 	failure("First entry created at t=0x%08x this entry created at t2=0x%08x", t, t2);
 	assert(t2 == t || t2 == t + 1); /* Almost same as first entry. */
+#ifdef _WIN32
+	/* Symbolic link does not work. */
+	assertEqualMem(e + 54, "0000000a", 8); /* File size */
+#else
 	assertEqualMem(e + 54, "00000005", 8); /* File size */
+#endif
 	fs = from_hex(e + 54, 8);
 	fs += 3 & -fs;
 	assertEqualInt(devmajor, from_hex(e + 62, 8)); /* devmajor */
@@ -179,14 +194,21 @@ DEFINE_TEST(test_format_newc)
 	ns += 3 & (-ns - 2);
 	assertEqualInt(0, from_hex(e + 102, 8)); /* check field */
 	assertEqualMem(e + 110, "symlink\0\0\0", 10); /* Name contents */
+#ifndef _WIN32
 	assertEqualMem(e + 110 + ns, "file1\0\0\0", 8); /* symlink target */
+#endif
 	e += 110 + fs + ns;
 
 	/* "dir" */
 	assert(is_hex(e, 110));
 	assertEqualMem(e + 0, "070701", 6); /* Magic */
 	assert(is_hex(e + 6, 8)); /* ino */
+#ifdef _WIN32
+	/* Group members bits and others bits do not work. */ 
+	assertEqualInt(0x41c0, from_hex(e + 14, 8) & 0xffc0); /* Mode */
+#else
 	assertEqualInt(0x41fd, from_hex(e + 14, 8)); /* Mode */
+#endif
 	assertEqualInt(from_hex(e + 22, 8), getuid()); /* uid */
 	assertEqualInt(gid, from_hex(e + 30, 8)); /* gid */
 	assertEqualMem(e + 38, "00000002", 8); /* nlink */
@@ -214,7 +236,12 @@ DEFINE_TEST(test_format_newc)
 	assertEqualMem(e + 0, "070701", 6); /* Magic */
 	failure("If these aren't the same, then the hardlink detection failed to match them.");
 	assertEqualInt(ino, from_hex(e + 6, 8)); /* ino */
+#ifdef _WIN32
+	/* Group members bits and others bits do not work. */ 
+	assertEqualInt(0x8180, from_hex(e + 14, 8) & 0xffc0); /* Mode */
+#else
 	assertEqualInt(0x81a4, from_hex(e + 14, 8)); /* Mode */
+#endif
 	assertEqualInt(from_hex(e + 22, 8), getuid()); /* uid */
 	assertEqualInt(gid, from_hex(e + 30, 8)); /* gid */
 	assertEqualMem(e + 38, "00000003", 8); /* nlink */

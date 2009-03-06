@@ -155,3 +155,11 @@ void extract_reference_file(const char *);
 
 /* Pathname of exe to be tested. */
 const char *testprog;
+
+/* New Line code. */
+#ifdef _WIN32
+#define NL	"\r\n"
+#else
+#define NL	"\n"
+#endif
+

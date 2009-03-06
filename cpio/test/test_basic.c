@@ -25,12 +25,6 @@
 #include "test.h"
 __FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_basic.c,v 1.4 2008/08/25 06:39:29 kientzle Exp $");
 
-#ifdef _WIN32
-#define NL	"\r\n"
-#else
-#define NL	"\n"
-#endif
-
 static void
 verify_files(const char *target)
 {
