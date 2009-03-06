@@ -922,7 +922,7 @@ int main(int argc, char **argv)
 	(void)argc; /* UNUSED */
 
 #ifdef _WIN32
-	/* open() function is always used with a binary mode. */
+	/* Make sure open() function will be used with a binary mode. */
 	_set_fmode(_O_BINARY);
 #endif
 	/*
