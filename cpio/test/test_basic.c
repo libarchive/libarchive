@@ -25,6 +25,12 @@
 #include "test.h"
 __FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_basic.c,v 1.4 2008/08/25 06:39:29 kientzle Exp $");
 
+#ifdef _WIN32
+#define NL	"\r\n"
+#else
+#define NL	"\n"
+#endif
+
 static void
 verify_files(const char *target)
 {
@@ -44,7 +50,12 @@ verify_files(const char *target)
 	assertEqualInt(r, 0);
 	if (r == 0) {
 		assert(S_ISREG(st.st_mode));
+#ifdef _WIN32
+		/* Group members bits and others bits do not work. */
+		assertEqualInt(0600, st.st_mode & 0700);
+#else
 		assertEqualInt(0644, st.st_mode & 0777);
+#endif
 		assertEqualInt(10, st.st_size);
 		failure("file %s/file should have 2 links", target);
 		assertEqualInt(2, st.st_nlink);
@@ -56,7 +67,12 @@ verify_files(const char *target)
 	assertEqualInt(r, 0);
 	if (r == 0) {
 		assert(S_ISREG(st2.st_mode));
+#ifdef _WIN32
+		/* Group members bits and others bits do not work. */
+		assertEqualInt(0600, st2.st_mode & 0700);
+#else
 		assertEqualInt(0644, st2.st_mode & 0777);
+#endif
 		assertEqualInt(10, st2.st_size);
 		failure("file %s/linkfile should have 2 links", target);
 		assertEqualInt(2, st2.st_nlink);
@@ -92,7 +108,13 @@ verify_files(const char *target)
 	if (r == 0) {
 		assert(S_ISREG(st.st_mode));
 		failure("%s/file2: st.st_mode = %o", target, st.st_mode);
+#ifdef _WIN32
+		/* Execution bit and group members bits and others
+		 * bits do not work. */
+		assertEqualInt(0600, st.st_mode & 0700);
+#else
 		assertEqualInt(0777, st.st_mode & 0777);
+#endif
 		assertEqualInt(10, st.st_size);
 		failure("file %s/file2 should have 1 link", target);
 		assertEqualInt(1, st.st_nlink);
@@ -104,7 +126,11 @@ verify_files(const char *target)
 		assertEqualInt(r, 0);
 		assert(S_ISDIR(st.st_mode));
 		failure("%s/dir: st.st_mode = %o", target, st.st_mode);
+#ifdef _WIN32
+		assertEqualInt(0700, st.st_mode & 0700);
+#else
 		assertEqualInt(0775, st.st_mode & 0777);
+#endif
 	}
 }
 
@@ -149,7 +175,7 @@ basic_cpio(const char *target,
 }
 
 static void
-passthrough(const char *target)
+passthrough(const char *target, const char *se)
 {
 	int r;
 
@@ -169,7 +195,7 @@ passthrough(const char *target)
 	/* Verify stderr. */
 	failure("Error invoking %s -p in dir %s",
 	    testprog, target);
-	assertFileContents("1 block\n", 8, "stderr");
+	assertFileContents(se, strlen(se), "stderr");
 
 	verify_files(target);
 	chdir("..");
@@ -219,13 +245,22 @@ DEFINE_TEST(test_basic)
 	umask(022);
 
 	/* Archive/dearchive with a variety of options. */
-	basic_cpio("copy", "", "", "2 blocks\n");
-	basic_cpio("copy_odc", "--format=odc", "", "2 blocks\n");
-	basic_cpio("copy_newc", "-H newc", "", "2 blocks\n");
-	basic_cpio("copy_cpio", "-H odc", "", "2 blocks\n");
-	basic_cpio("copy_ustar", "-H ustar", "", "9 blocks\n");
+	basic_cpio("copy", "", "", "2 blocks" NL);
+	basic_cpio("copy_odc", "--format=odc", "", "2 blocks" NL);
+	basic_cpio("copy_newc", "-H newc", "", "2 blocks" NL);
+	basic_cpio("copy_cpio", "-H odc", "", "2 blocks" NL);
+#ifdef _WIN32
+	/*
+	 * On Windows, symbolic link does not work.
+	 * Currentry copying file instead. therefore block size is
+	 * different.
+	 */
+	basic_cpio("copy_ustar", "-H ustar", "", "10 blocks" NL);
+#else
+	basic_cpio("copy_ustar", "-H ustar", "", "9 blocks" NL);
+#endif
 	/* Copy in one step using -p */
-	passthrough("passthrough");
+	passthrough("passthrough", "1 block" NL);
 
 	umask(oldumask);
 }
