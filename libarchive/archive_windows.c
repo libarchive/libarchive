@@ -910,6 +910,8 @@ __hstat(HANDLE handle, struct ustat *st)
 	ino64.LowPart  = info.nFileIndexLow;
 	st->st_ino = ino64.QuadPart;
 	st->st_nlink = info.nNumberOfLinks;
+	if (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+		++st->st_nlink;/* Add parent directory. */
 	st->st_dev = info.dwVolumeSerialNumber;
 #endif
 	st->st_uid = 0;
