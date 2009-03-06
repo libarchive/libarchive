@@ -758,7 +758,11 @@ static int test_run(int i, const char *tmpdir)
 	/* If there were no failures, we can remove the work dir. */
 	if (failures == failures_before) {
 		if (!keep_temp_files && chdir(tmpdir) == 0) {
+#ifdef _WIN32
+			systemf("rmdir /S /Q %s", tests[i].name);
+#else
 			systemf("rm -rf %s", tests[i].name);
+#endif
 		}
 	}
 	/* Return appropriate status. */
