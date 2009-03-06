@@ -84,7 +84,7 @@ static int skips = 0;
 static int assertions = 0;
 
 /* Directory where uuencoded reference files can be found. */
-static char *refdir;
+static const char *refdir;
 
 /*
  * My own implementation of the standard assert() macro emits the
@@ -857,7 +857,7 @@ int main(int argc, char **argv)
 	int i, tests_run = 0, tests_failed = 0, opt;
 	time_t now;
 	char *refdir_alloc = NULL;
-	char *progname, *p;
+	const char *opt_arg, *progname, *p;
 	char tmpdir[256];
 	char tmpdir_timestamp[256];
 
@@ -885,39 +885,61 @@ int main(int argc, char **argv)
 	refdir = getenv(ENVBASE "_TEST_FILES");
 
 	/*
-	 * Parse options.
+	 * Parse options, without using getopt(), which isn't available
+	 * on all platforms.
 	 */
-	while ((opt = getopt(argc, argv, "dkp:qr:v")) != -1) {
-		switch (opt) {
-		case 'd':
-			dump_on_failure = 1;
+	++argv; /* Skip program name */
+	while (*argv != NULL) {
+		if (**argv != '-')
 			break;
-		case 'k':
-			keep_temp_files = 1;
-			break;
-		case 'p':
+		p = *argv++;
+		++p; /* Skip '-' */
+		while (*p != '\0') {
+			opt = *p++;
+			opt_arg = NULL;
+			/* If 'opt' takes an argument, parse that. */
+			if (opt == 'p' || opt == 'r') {
+				if (*p != '\0')
+					opt_arg = p;
+				else if (*argv == NULL) {
+					fprintf(stderr,
+					    "Option -%c requires argument.\n",
+					    opt);
+					usage(progname);
+				} else
+					opt_arg = *argv++;
+				p = ""; /* End of this option word. */
+			}
+
+			switch (opt) {
+			case 'd':
+				dump_on_failure = 1;
+				break;
+			case 'k':
+				keep_temp_files = 1;
+				break;
+			case 'p':
 #ifdef PROGRAM
-			testprog = optarg;
+				testprog = opt_arg;
 #else
-			usage(progname);
+				usage(progname);
 #endif
-			break;
-		case 'q':
-			quiet_flag++;
-			break;
-		case 'r':
-			refdir = optarg;
-			break;
-		case 'v':
-			verbose = 1;
-			break;
-		case '?':
-		default:
-			usage(progname);
+				break;
+			case 'q':
+				quiet_flag++;
+				break;
+			case 'r':
+				refdir = opt_arg;
+				break;
+			case 'v':
+				verbose = 1;
+				break;
+			case '?':
+			default:
+				usage(progname);
+			}
 		}
 	}
-	argc -= optind;
-	argv += optind;
 
 	/*
 	 * Sanity-check that our options make sense.
@@ -952,12 +974,14 @@ int main(int argc, char **argv)
 	 * reference files, use the current directory for that.
 	 */
 	if (refdir == NULL) {
+		char *q;
 		systemf("/bin/pwd > %s/refdir", tmpdir);
-		refdir = refdir_alloc = slurpfile(NULL, "%s/refdir", tmpdir);
-		p = refdir + strlen(refdir);
-		while (p[-1] == '\n') {
-			--p;
-			*p = '\0';
+		q = slurpfile(NULL, "%s/refdir", tmpdir);
+		refdir = refdir_alloc = q;
+		q += strlen(refdir);
+		while (q[-1] == '\n') {
+			--q;
+			*q = '\0';
 		}
 		systemf("rm %s/refdir", tmpdir);
 	}
@@ -979,7 +1003,7 @@ int main(int argc, char **argv)
 	/*
 	 * Run some or all of the individual tests.
 	 */
-	if (argc == 0) {
+	if (*argv == NULL) {
 		/* Default: Run all tests. */
 		for (i = 0; i < limit; i++) {
 			if (test_run(i, tmpdir))

@@ -148,4 +148,4 @@ void extract_reference_file(const char *);
  */
 
 /* Pathname of exe to be tested. */
-char *testprog;
+const char *testprog;
