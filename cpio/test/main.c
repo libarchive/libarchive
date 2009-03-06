@@ -868,6 +868,9 @@ int main(int argc, char **argv)
 	int i, tests_run = 0, tests_failed = 0, opt;
 	time_t now;
 	char *refdir_alloc = NULL;
+#ifdef _WIN32
+	char *testprg;
+#endif
 	const char *opt_arg, *progname, *p;
 	char tmpdir[256];
 	char tmpdir_timestamp[256];
@@ -965,6 +968,18 @@ int main(int argc, char **argv)
 #ifdef PROGRAM
 	if (testprog == NULL)
 		usage(progname);
+#endif
+#ifdef _WIN32
+	/*
+	 * Command.exe cannot accept the command used '/' with drive
+	 * name such as c:/xxx/command.exe when use '|' pipe handling.
+	 */
+	testprg = strdup(testprog);
+	for (i = 0; testprg[i] != '\0'; i++) {
+		if (testprg[i] == '/')
+			testprg[i] = '\\';
+	}
+	testprog = testprg;
 #endif
 
 	/*
