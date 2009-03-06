@@ -45,7 +45,11 @@
 #error Oops: No config.h and no pre-built configuration in test.h.
 #endif
 
+#ifndef _WIN32
 #include <dirent.h>
+#else
+#include "../cpio_windows.h"
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -54,6 +58,8 @@
 #include <sys/stat.h>
 #ifndef _WIN32
 #include <unistd.h>
+#else
+#include <time.h>
 #endif
 #include <wchar.h>
 

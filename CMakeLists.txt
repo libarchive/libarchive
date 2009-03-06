@@ -27,7 +27,11 @@ SET(LIBARCHIVE_VERSION_NUMBER  "${_version_number}")
 SET(LIBARCHIVE_VERSION_STRING  "${VERSION}")
 
 OPTION(ENABLE_TAR "Enable tar building" ON)
+IF(WIN32)
+OPTION(ENABLE_CPIO "Enable cpio building" OFF)
+ELSE(WIN32)
 OPTION(ENABLE_CPIO "Enable cpio building" ON)
+ENDIF(WIN32)
 OPTION(ENABLE_XATTR "Enable extended attribute support" ON)
 OPTION(ENABLE_ACL "Enable ACL support" ON)
 OPTION(ENABLE_TEST "Enable unit and regression tests" ON)
@@ -36,12 +40,6 @@ IF(ENABLE_TEST)
 	ENABLE_TESTING()
 ENDIF(ENABLE_TEST)
 
-#
-# On Windows, currently, bsdcpio is not supported.
-#
-IF (WIN32)
-  SET(ENABLE_CPIO 0)
-ENDIF (WIN32)
 #
 INCLUDE(CheckLibraryExists)
 INCLUDE(CheckFuncs)
@@ -827,6 +825,10 @@ IF(ENABLE_CPIO)
     cpio/pathmatch.c
     cpio/pathmatch.h
   )
+  IF(WIN32)
+    LIST(APPEND bsdcpio_SOURCES cpio/cpio_windows.c)
+    LIST(APPEND bsdcpio_SOURCES cpio/cpio_windows.h)
+  ENDIF(WIN32)
 
   #
   # Register target
@@ -870,6 +872,10 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     cpio/test/test_passthrough_reverse.c
     cpio/test/test_pathmatch.c
   )
+  IF(WIN32)
+    LIST(APPEND bsdcpio_test_SOURCES cpio/cpio_windows.c)
+    LIST(APPEND bsdcpio_test_SOURCES cpio/cpio_windows.h)
+  ENDIF(WIN32)
 
   SET(bsdcpio_MANS cpio/bsdcpio.1)
 
@@ -878,10 +884,17 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
   ADD_EXECUTABLE(bsdcpio_test ${bsdcpio_test_SOURCES})
   SET_PROPERTY(TARGET bsdcpio_test PROPERTY COMPILE_DEFINITIONS
     LIST_H="${CMAKE_CURRENT_BINARY_DIR}/cpio/test/list.h")
-  ADD_TEST(bsdcpio_test bsdcpio_test
-   -v
-   -p ${CMAKE_CURRENT_BINARY_DIR}/bsdcpio
-   -r ${CMAKE_CURRENT_SOURCE_DIR}/cpio/test)
+  IF(WIN32)
+    ADD_TEST(bsdcpio_test bsdcpio_test
+     -v
+     -p ${CMAKE_CURRENT_BINARY_DIR}/debug/bsdcpio
+     -r ${CMAKE_CURRENT_SOURCE_DIR}/cpio/test)
+  ELSE(WIN32)
+    ADD_TEST(bsdcpio_test bsdcpio_test
+     -v
+     -p ${CMAKE_CURRENT_BINARY_DIR}/bsdcpio
+     -r ${CMAKE_CURRENT_SOURCE_DIR}/cpio/test)
+  ENDIF(WIN32)
 
 ENDIF(ENABLE_CPIO AND ENABLE_TEST)
 

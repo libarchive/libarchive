@@ -118,12 +118,20 @@ main(int argc, char *argv[])
 	memset(cpio, 0, sizeof(*cpio));
 	cpio->buff = buff;
 	cpio->buff_size = sizeof(buff);
+#ifdef _WIN32
+	/* open() function is always with a binary mode. */
+	_set_fmode(_O_BINARY);
+#endif
 
 	/* Need cpio_progname before calling cpio_warnc. */
 	if (*argv == NULL)
 		cpio_progname = "bsdcpio";
 	else {
+#ifdef _WIN32
+		cpio_progname = strrchr(*argv, '\\');
+#else
 		cpio_progname = strrchr(*argv, '/');
+#endif
 		if (cpio_progname != NULL)
 			cpio_progname++;
 		else
@@ -147,7 +155,11 @@ main(int argc, char *argv[])
 	cpio->extract_flags |= ARCHIVE_EXTRACT_PERM;
 	cpio->extract_flags |= ARCHIVE_EXTRACT_FFLAGS;
 	cpio->extract_flags |= ARCHIVE_EXTRACT_ACL;
+#ifdef _WIN32
+	if (bsdcpio_is_privileged())
+#else
 	if (geteuid() == 0)
+#endif
 		cpio->extract_flags |= ARCHIVE_EXTRACT_OWNER;
 	cpio->bytes_per_block = 512;
 	cpio->filename = NULL;
@@ -470,7 +482,9 @@ file_to_archive(struct cpio *cpio, const char *srcpath)
 	struct archive_entry *entry, *spare;
 	size_t len;
 	const char *p;
+#ifndef _WIN32
 	int lnklen;
+#endif
 	int r;
 
 	/*
@@ -500,6 +514,7 @@ file_to_archive(struct cpio *cpio, const char *srcpath)
 		st.st_gid = cpio->uid_override;
 	archive_entry_copy_stat(entry, &st);
 
+#ifndef _WIN32
 	/* If its a symlink, pull the target. */
 	if (S_ISLNK(st.st_mode)) {
 		lnklen = readlink(srcpath, cpio->buff, cpio->buff_size);
@@ -512,6 +527,7 @@ file_to_archive(struct cpio *cpio, const char *srcpath)
 		cpio->buff[lnklen] = 0;
 		archive_entry_set_symlink(entry, cpio->buff);
 	}
+#endif
 
 	/*
 	 * Generate a destination path for this entry.
@@ -691,7 +707,11 @@ restore_time(struct cpio *cpio, struct archive_entry *entry,
 	warned = 1;
 	return;
 #else
+#ifdef __timeval
+	struct __timeval times[2];
+#else
 	struct timeval times[2];
+#endif
 
 	if (!cpio->option_atime_restore)
 		return;

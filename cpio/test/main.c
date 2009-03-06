@@ -867,7 +867,8 @@ int main(int argc, char **argv)
 	 */
 	progname = p = argv[0];
 	while (*p != '\0') {
-		if (*p == '/')
+		/* Support \ or / dir separators for Windows compat. */
+		if (*p == '/' || *p == '\\')
 			progname = p + 1;
 		++p;
 	}

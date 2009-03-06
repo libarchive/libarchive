@@ -23,7 +23,11 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
+#ifdef _WIN32
+#include <sys/utime.h>
+#else
 #include <utime.h>
+#endif
 __FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_option_a.c,v 1.3 2008/08/24 06:21:00 kientzle Exp $");
 
 static struct {

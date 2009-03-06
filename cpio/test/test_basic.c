@@ -29,7 +29,9 @@ static void
 verify_files(const char *target)
 {
 	struct stat st, st2;
+#ifndef _WIN32
 	char buff[128];
+#endif
 	int r;
 
 	/*
@@ -69,6 +71,7 @@ verify_files(const char *target)
 	r = lstat("symlink", &st);
 	failure("Failed to stat file %s/symlink, errno=%d", target, errno);
 	assertEqualInt(r, 0);
+#ifndef _WIN32
 	if (r == 0) {
 		failure("symlink should be a symlink; actual mode is %o",
 		    st.st_mode);
@@ -80,6 +83,7 @@ verify_files(const char *target)
 			assertEqualString(buff, "file");
 		}
 	}
+#endif
 
 	/* Another file with 1 link and different permissions. */
 	r = lstat("file2", &st);

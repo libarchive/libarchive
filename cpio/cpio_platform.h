@@ -89,4 +89,8 @@
 #define __LA_DEAD
 #endif
 
+#ifdef _WIN32
+#include "cpio_windows.h"
+#endif
+
 #endif /* !CPIO_PLATFORM_H_INCLUDED */

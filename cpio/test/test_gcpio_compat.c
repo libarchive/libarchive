@@ -29,7 +29,9 @@ static void
 unpack_test(const char *from, const char *options, const char *se)
 {
 	struct stat st, st2;
+#ifndef _WIN32
 	char buff[128];
+#endif
 	int r;
 
 	/* Create a work dir named after the file we're unpacking. */
@@ -88,6 +90,7 @@ unpack_test(const char *from, const char *options, const char *se)
 	r = lstat("symlink", &st);
 	failure("Failed to stat file %s/symlink, errno=%d", from, errno);
 	assertEqualInt(r, 0);
+#ifndef _WIN32
 	if (r == 0) {
 		failure("symlink should be a symlink; actual mode is %o",
 		    st.st_mode);
@@ -99,6 +102,7 @@ unpack_test(const char *from, const char *options, const char *se)
 			assertEqualString(buff, "file");
 		}
 	}
+#endif
 
 	/* dir */
 	r = lstat("dir", &st);
