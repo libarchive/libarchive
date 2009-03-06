@@ -872,6 +872,8 @@ int main(int argc, char **argv)
 	char tmpdir[256];
 	char tmpdir_timestamp[256];
 
+	(void)argc; /* UNUSED */
+
 	/*
 	 * Name of this program, used to build root of our temp directory
 	 * tree.
