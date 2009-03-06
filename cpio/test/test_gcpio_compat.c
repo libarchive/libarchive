@@ -62,7 +62,11 @@ unpack_test(const char *from, const char *options, const char *se)
 	assertEqualInt(r, 0);
 	if (r == 0) {
 		assert(S_ISREG(st.st_mode));
+#ifdef _WIN32
+		assertEqualInt(0600, st.st_mode & 0700);
+#else
 		assertEqualInt(0644, st.st_mode & 0777);
+#endif
 		failure("file %s/file", from);
 		assertEqualInt(10, st.st_size);
 		failure("file %s/file", from);
@@ -75,7 +79,11 @@ unpack_test(const char *from, const char *options, const char *se)
 	assertEqualInt(r, 0);
 	if (r == 0) {
 		assert(S_ISREG(st2.st_mode));
+#ifdef _WIN32
+		assertEqualInt(0600, st2.st_mode & 0700);
+#else
 		assertEqualInt(0644, st2.st_mode & 0777);
+#endif
 		failure("file %s/file", from);
 		assertEqualInt(10, st2.st_size);
 		failure("file %s/file", from);
@@ -109,7 +117,11 @@ unpack_test(const char *from, const char *options, const char *se)
 	if (r == 0) {
 		assertEqualInt(r, 0);
 		assert(S_ISDIR(st.st_mode));
+#ifdef _WIN32
+		assertEqualInt(0700, st.st_mode & 0700);
+#else
 		assertEqualInt(0775, st.st_mode & 0777);
+#endif
 	}
 
 	chdir("..");
@@ -122,11 +134,11 @@ DEFINE_TEST(test_gcpio_compat)
 	oldumask = umask(0);
 
 	/* Dearchive sample files with a variety of options. */
-	unpack_test("test_gcpio_compat_ref.bin", "", "1 block\n");
-	unpack_test("test_gcpio_compat_ref.crc", "", "2 blocks\n");
-	unpack_test("test_gcpio_compat_ref.newc", "", "2 blocks\n");
+	unpack_test("test_gcpio_compat_ref.bin", "", "1 block" NL);
+	unpack_test("test_gcpio_compat_ref.crc", "", "2 blocks" NL);
+	unpack_test("test_gcpio_compat_ref.newc", "", "2 blocks" NL);
 	/* gcpio-2.9 only reads 6 blocks here */
-	unpack_test("test_gcpio_compat_ref.ustar", "", "7 blocks\n");
+	unpack_test("test_gcpio_compat_ref.ustar", "", "7 blocks" NL);
 
 	umask(oldumask);
 }
