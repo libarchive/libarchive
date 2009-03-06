@@ -887,7 +887,7 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
   IF(WIN32)
     ADD_TEST(bsdcpio_test bsdcpio_test
      -v
-     -p ${CMAKE_CURRENT_BINARY_DIR}/debug/bsdcpio
+     -p ${CMAKE_CURRENT_BINARY_DIR}/debug/bsdcpio.exe
      -r ${CMAKE_CURRENT_SOURCE_DIR}/cpio/test)
   ELSE(WIN32)
     ADD_TEST(bsdcpio_test bsdcpio_test
