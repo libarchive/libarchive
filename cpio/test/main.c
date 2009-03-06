@@ -501,6 +501,7 @@ test_assert_empty_file(const char *f1fmt, ...)
 		s = sizeof(buff) < st.st_size ? sizeof(buff) : st.st_size;
 		s = read(fd, buff, s);
 		hexdump(buff, NULL, s, 0);
+		close(fd);
 	}
 	report_failure(NULL);
 	return (0);
@@ -529,11 +530,16 @@ test_assert_equal_file(const char *f1, const char *f2pattern, ...)
 		n2 = read(fd2, buff2, sizeof(buff2));
 		if (n1 != n2)
 			break;
-		if (n1 == 0 && n2 == 0)
+		if (n1 == 0 && n2 == 0) {
+			close(fd1);
+			close(fd2);
 			return (1);
+		}
 		if (memcmp(buff1, buff2, n1) != 0)
 			break;
 	}
+	close(fd1);
+	close(fd2);
 	failures ++;
 	if (!verbose && previous_failures(test_filename, test_line))
 		return (0);
@@ -604,6 +610,7 @@ test_assert_file_contents(const void *buff, int s, const char *fpattern, ...)
 	fd = open(f, O_RDONLY);
 	contents = malloc(s * 2 + 128);
 	n = read(fd, contents, s * 2 + 128);
+	close(fd);
 	if (n == s && memcmp(buff, contents, s) == 0) {
 		free(contents);
 		return (1);
