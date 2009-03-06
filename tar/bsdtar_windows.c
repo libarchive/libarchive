@@ -1096,8 +1096,6 @@ _is_privileged(HANDLE thandle, const char *sidlist[])
 	return (member);
 }
 
-int print_sid(HANDLE thandle);
-
 int
 bsdtar_is_privileged(struct bsdtar *bsdtar)
 {
