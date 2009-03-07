@@ -45,7 +45,6 @@
 #define	HAVE_BZLIB_H 1
 #define	HAVE_CHFLAGS 1
 #define	HAVE_CHOWN 1
-#define	HAVE_CTYPE_H 1
 #define	HAVE_DECL_INT64_MAX 1
 #define	HAVE_DECL_INT64_MIN 1
 #define	HAVE_DECL_SIZE_MAX 1
