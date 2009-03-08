@@ -524,12 +524,8 @@ lzma_filter_read(struct archive_read_filter *self, const void **p)
 	while (state->stream.avail_out > 0 && !state->eof) {
 		state->stream.next_in = (unsigned char *)(uintptr_t)
 		    __archive_read_filter_ahead(self->upstream, 1, &avail_in);
-		if (state->stream.next_in == NULL) {
-			if (avail_in < 0)
-				return (ARCHIVE_FATAL);
-			state->eof = 1;
-//			break;
-		}
+		if (state->stream.next_in == NULL && avail_in < 0)
+			return (ARCHIVE_FATAL);
 		state->stream.avail_in = avail_in;
 
 		/* Decompress as much as we can in one pass. */
