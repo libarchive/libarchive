@@ -538,7 +538,6 @@ SET(libarchive_SOURCES
   libarchive/archive_read_support_compression_gzip.c
   libarchive/archive_read_support_compression_none.c
   libarchive/archive_read_support_compression_program.c
-  libarchive/archive_read_support_compression_lzma.c
   libarchive/archive_read_support_compression_xz.c
   libarchive/archive_read_support_format_all.c
   libarchive/archive_read_support_format_ar.c
