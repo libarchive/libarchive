@@ -4,13 +4,12 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[2.6.900a])
-m4_define([LIBARCHIVE_VERSION_N],[2006900])
+m4_define([LIBARCHIVE_VERSION_S],[2.6.901a])
+m4_define([LIBARCHIVE_VERSION_N],[2006901])
 
-dnl bsdtar versioning tracks libarchive
+dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
-dnl bsdcpio is still versioning separately, as it's less mature.
-m4_define([BSDCPIO_VERSION_S],[1.1.0])
+m4_define([BSDCPIO_VERSION_S],LIBARCHIVE_VERSION_S())
 
 #
 # Now starts the "real" configure script.

@@ -38,7 +38,7 @@ perl -p -i -e "s/^(#define\tARCHIVE_VERSION_NUMBER).*/\$1 $VN/" libarchive/archi
 perl -p -i -e "s/^(#define\tARCHIVE_VERSION_STRING).*/\$1 \"libarchive $VS\"/" libarchive/archive.h
 # Substitute the string version into tar and cpio Makefiles
 perl -p -i -e "s/^(BSDTAR_VERSION_STRING)=.*/\$1=$VS/" tar/Makefile
-#perl -p -i -e "s/^(BSDCPIO_VERSION_STRING)=.*/\$1=$VS/" cpio/Makefile
+perl -p -i -e "s/^(BSDCPIO_VERSION_STRING)=.*/\$1=$VS/" cpio/Makefile
 # Substitute versions into configure.ac as well
 perl -p -i -e 's/(m4_define\(\[LIBARCHIVE_VERSION_S\]),.*\)/$1,['"$VS"'])/' configure.ac
 perl -p -i -e 's/(m4_define\(\[LIBARCHIVE_VERSION_N\]),.*\)/$1,['"$VN"'])/' configure.ac
