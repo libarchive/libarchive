@@ -354,10 +354,8 @@ xz_filter_read(struct archive_read_filter *self, const void **p)
 		    (state->stream.avail_in == 0)? LZMA_FINISH: LZMA_RUN);
 		switch (ret) {
 		case LZMA_STREAM_END: /* Found end of stream. */
-			__archive_read_filter_consume(self->upstream,
-			    avail_in - state->stream.avail_in);
 			state->eof = 1;
-			break;
+			/* FALL THROUGH */
 		case LZMA_OK: /* Decompressor made some progress. */
 			__archive_read_filter_consume(self->upstream,
 			    avail_in - state->stream.avail_in);
@@ -532,10 +530,8 @@ lzma_filter_read(struct archive_read_filter *self, const void **p)
 		ret = lzmadec_decode(&(state->stream), avail_in == 0);
 		switch (ret) {
 		case LZMADEC_STREAM_END: /* Found end of stream. */
-			__archive_read_filter_consume(self->upstream,
-			    avail_in - state->stream.avail_in);
 			state->eof = 1;
-			break;
+			/* FALL THROUGH */
 		case LZMADEC_OK: /* Decompressor made some progress. */
 			__archive_read_filter_consume(self->upstream,
 			    avail_in - state->stream.avail_in);
