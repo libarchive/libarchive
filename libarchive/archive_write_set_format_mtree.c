@@ -705,7 +705,7 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 	str = (mtree->indent)? &mtree->ebuf : &mtree->buf;
 	keys = get_keys(mtree, entry);
 	if ((keys & F_NLINK) != 0 &&
-	    archive_entry_nlink(entry) != 1 && 
+	    archive_entry_nlink(entry) != 1 &&
 	    archive_entry_filetype(entry) != AE_IFDIR)
 		archive_string_sprintf(str,
 		    " nlink=%u", archive_entry_nlink(entry));
