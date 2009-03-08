@@ -317,8 +317,8 @@ __link(const char *src, const char *dst, int sym)
 		wchar_t *wnewsrc, *slash;
 		int i, n, slen, wlen;
 
-		if (strlen(src) >= 3 && isalpha(src[0]) && src[1] == ':'
-		    && src[2] == '\\') {
+		if (strlen(src) >= 3 && isalpha((unsigned char )src[0]) &&
+		    src[1] == ':' && src[2] == '\\') {
 			/* Original src name is already full-path */
 			retval = -1;
 			goto exit;
