@@ -76,7 +76,6 @@ static int	lzma_bidder_init(struct archive_read_filter *);
 static int	xz_bidder_bid(struct archive_read_filter_bidder *,
 		    struct archive_read_filter *);
 static int	xz_bidder_init(struct archive_read_filter *);
-static int	xz_bidder_free(struct archive_read_filter_bidder *);
 
 int
 archive_read_support_compression_xz(struct archive *_a)
@@ -91,7 +90,7 @@ archive_read_support_compression_xz(struct archive *_a)
 	bidder->bid = xz_bidder_bid;
 	bidder->init = xz_bidder_init;
 	bidder->options = NULL;
-	bidder->free = xz_bidder_free;
+	bidder->free = NULL;
 	return (ARCHIVE_OK);
 }
 
@@ -109,16 +108,10 @@ archive_read_support_compression_lzma(struct archive *_a)
 	bidder->bid = lzma_bidder_bid;
 	bidder->init = lzma_bidder_init;
 	bidder->options = NULL;
-	bidder->free = xz_bidder_free;
+	bidder->free = NULL;
 	return (ARCHIVE_OK);
 }
 #endif
-
-static int
-xz_bidder_free(struct archive_read_filter_bidder *self){
-	(void)self; /* UNUSED */
-	return (ARCHIVE_OK);
-}
 
 /*
  * Test whether we can handle this data.
@@ -300,7 +293,7 @@ xz_lzma_bidder_init(struct archive_read_filter *self, int code)
 
 	/* Initialize compression library.
 	 * TODO: I don't know what value is best for memlimit.
-	 *       maybe, it needs to check memory size which 
+	 *       maybe, it needs to check memory size which
 	 *       running system has.
 	 */
 	if (code == ARCHIVE_COMPRESSION_XZ)
