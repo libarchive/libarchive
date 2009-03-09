@@ -142,10 +142,12 @@ __archive_string_ensure(struct archive_string *as, size_t s)
 }
 
 struct archive_string *
-__archive_strncat(struct archive_string *as, const char *p, size_t n)
+__archive_strncat(struct archive_string *as, const void *_p, size_t n)
 {
 	size_t s;
-	const char *pp;
+	const char *p, *pp;
+
+	p = (const char *)_p;
 
 	/* Like strlen(p), except won't examine positions beyond p[n]. */
 	s = 0;
