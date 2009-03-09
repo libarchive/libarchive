@@ -115,11 +115,11 @@ __archive_string_ensure(struct archive_string *as, size_t s)
 		as->buffer_length = 32;
 	else if (as->buffer_length < 8192)
 		/* Buffers under 8k are doubled for speed. */
-		as->buffer_length *= 2;
+		as->buffer_length += as->buffer_length;
 	else {
 		/* Buffers 8k and over grow by at least 25% each time. */
 		size_t old_length = as->buffer_length;
-		as->buffer_length = (as->buffer_length * 5) / 4;
+		as->buffer_length += as->buffer_length / 4;
 		/* Be safe: If size wraps, release buffer and return NULL. */
 		if (as->buffer_length < old_length) {
 			free(as->s);
