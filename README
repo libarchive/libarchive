@@ -1,5 +1,10 @@
 README for libarchive bundle.
 
+Questions?  Issues?
+   * http://libarchive.googlecode.com/ is the home for ongoing
+     libarchive development, including issue tracker, additional
+     documentation, and links to the libarchive mailing lists.
+
 This distribution bundle includes the following components:
 
    * libarchive: a library for reading and writing streaming archives
@@ -20,6 +25,7 @@ The top-level directory contains the following information files:
    * INSTALL - installation instructions
    * README - this file
    * configure - configuration script, see INSTALL for details.
+   * CMakeLists.txt - input for "cmake" build tool, see INSTALL
 
 The following files in the top-level directory are used by the
 'configure' script:
@@ -79,6 +85,7 @@ The library can write:
   * SVR4 "newc" cpio
   * shar archives
   * GNU and BSD 'ar' archives
+  * 'mtree' format
 
 Notes about the library architecture:
 
