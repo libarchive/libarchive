@@ -707,7 +707,7 @@ restore_time(struct cpio *cpio, struct archive_entry *entry,
 	warned = 1;
 	return;
 #else
-#ifdef __timeval
+#ifdef _WIN32
 	struct __timeval times[2];
 #else
 	struct timeval times[2];

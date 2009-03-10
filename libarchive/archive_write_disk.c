@@ -1217,7 +1217,7 @@ _archive_write_close(struct archive *_a)
 		if (p->fixup & TODO_TIMES) {
 #ifdef HAVE_UTIMES
 			/* {f,l,}utimes() are preferred, when available. */
-#ifdef __timeval
+#ifdef _WIN32
 			struct __timeval times[2];
 #else
 			struct timeval times[2];
@@ -1807,7 +1807,7 @@ set_time(int fd, int mode, const char *name,
     time_t atime, long atime_nsec,
     time_t mtime, long mtime_nsec)
 {
-#ifdef __timeval
+#ifdef _WIN32
 	struct __timeval times[2];
 #else
 	struct timeval times[2];
