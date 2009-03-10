@@ -582,6 +582,7 @@ SET(libarchive_SOURCES
 SET(libarchive_MANS
   libarchive/archive_entry.3
   libarchive/archive_read.3
+  libarchive/archive_read_disk.3
   libarchive/archive_util.3
   libarchive/archive_write.3
   libarchive/archive_write_disk.3
