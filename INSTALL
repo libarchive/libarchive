@@ -13,7 +13,11 @@ If you are developing libarchive and need to update the
 configure script and other build files:
     /bin/sh build/autogen.sh
 
-On non-Unix-like systems, you should be able to create
-build files suitable for your system by using "cmake".
-You may need to first obtain a suitable version of cmake
-for your system from http://cmake.org/
+On non-Unix-like systems, use the "cmake" utility (available from
+http://cmake.org/) to generate suitable build files for your platform.
+Cmake requires the name of the directory containing CmakeLists.txt and
+the "generator" to use for your build environment.  For example, to
+build with Xcode on Mac OS, you can use the following command:
+    cmake -G "Xcode" ~/libarchive-download-dir/
+
+
