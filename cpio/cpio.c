@@ -100,7 +100,7 @@ static void	mode_in(struct cpio *);
 static void	mode_list(struct cpio *);
 static void	mode_out(struct cpio *);
 static void	mode_pass(struct cpio *, const char *);
-static void	restore_time(struct cpio *, struct archive_entry *,
+static int	restore_time(struct cpio *, struct archive_entry *,
 		    const char *, int fd);
 static void	usage(void);
 static void	version(void);
@@ -680,7 +680,7 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 		}
 	}
 
-	restore_time(cpio, entry, srcpath, fd);
+	fd = restore_time(cpio, entry, srcpath, fd);
 
 cleanup:
 	if (cpio->verbose)
@@ -690,7 +690,7 @@ cleanup:
 	return (0);
 }
 
-static void
+static int
 restore_time(struct cpio *cpio, struct archive_entry *entry,
     const char *name, int fd)
 {
@@ -700,12 +700,11 @@ restore_time(struct cpio *cpio, struct archive_entry *entry,
 	(void)cpio; /* UNUSED */
 	(void)entry; /* UNUSED */
 	(void)name; /* UNUSED */
-	(void)fd; /* UNUSED */
 
 	if (!warned)
 		cpio_warnc(0, "Can't restore access times on this platform");
 	warned = 1;
-	return;
+	return (fd);
 #else
 #ifdef _WIN32
 	struct __timeval times[2];
@@ -714,7 +713,7 @@ restore_time(struct cpio *cpio, struct archive_entry *entry,
 #endif
 
 	if (!cpio->option_atime_restore)
-		return;
+		return (fd);
 
         times[1].tv_sec = archive_entry_mtime(entry);
         times[1].tv_usec = archive_entry_mtime_nsec(entry) / 1000;
@@ -724,8 +723,16 @@ restore_time(struct cpio *cpio, struct archive_entry *entry,
 
 #ifdef HAVE_FUTIMES
         if (fd >= 0 && futimes(fd, times) == 0)
-		return;
+		return (fd);
 #endif
+	/*
+	 * Some platform cannot restore access times if the file descriptor
+	 * is still opened.
+	 */
+	if (fd >= 0) {
+		close(fd);
+		fd = -1;
+	}
 
 #ifdef HAVE_LUTIMES
         if (lutimes(name, times) != 0)
@@ -734,6 +741,7 @@ restore_time(struct cpio *cpio, struct archive_entry *entry,
 #endif
                 cpio_warnc(errno, "Can't update time for %s", name);
 #endif
+	return (fd);
 }
 
 
