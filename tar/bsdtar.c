@@ -274,7 +274,7 @@ main(int argc, char **argv)
 			bsdtar->create_compression = opt;
 #else
 			bsdtar_warnc(bsdtar, 0,
-			    "lzma compression not supported by this version of bsdtar");
+			    "xz compression not supported by this version of bsdtar");
 			usage(bsdtar);
 #endif
 			break;
@@ -290,6 +290,19 @@ main(int argc, char **argv)
 	        case 'l': /* SUSv2 and GNU tar beginning with 1.16 */
 			/* GNU tar 1.13  used -l for --one-file-system */
 			bsdtar->option_warn_links = 1;
+			break;
+		case OPTION_LZMA:
+#if HAVE_LIBLZMA
+			if (bsdtar->create_compression != '\0')
+				bsdtar_errc(bsdtar, 1, 0,
+				    "Can't specify both -%c and -%c", opt,
+				    bsdtar->create_compression);
+			bsdtar->create_compression = opt;
+#else
+			bsdtar_warnc(bsdtar, 0,
+			    "lzma compression not supported by this version of bsdtar");
+			usage(bsdtar);
+#endif
 			break;
 		case 'm': /* SUSv2 */
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_TIME;
@@ -446,19 +459,6 @@ main(int argc, char **argv)
 			break;
 		case 'x': /* SUSv2 */
 			set_mode(bsdtar, opt);
-			break;
-		case OPTION_XZ:
-#if HAVE_LIBLZMA
-			if (bsdtar->create_compression != '\0')
-				bsdtar_errc(bsdtar, 1, 0,
-				    "Can't specify both -%c and -%c", opt,
-				    bsdtar->create_compression);
-			bsdtar->create_compression = opt;
-#else
-			bsdtar_warnc(bsdtar, 0,
-			    "xz compression not supported by this version of bsdtar");
-			usage(bsdtar);
-#endif
 			break;
 		case 'y': /* FreeBSD version of GNU tar */
 #if HAVE_LIBBZ2

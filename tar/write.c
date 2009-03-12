@@ -191,10 +191,10 @@ tar_mode_c(struct bsdtar *bsdtar)
 #endif
 #ifdef HAVE_LIBLZMA
 		case 'J':
-			archive_write_set_compression_lzma(a);
-			break;
-		case OPTION_XZ:
 			archive_write_set_compression_xz(a);
+			break;
+		case OPTION_LZMA:
+			archive_write_set_compression_lzma(a);
 			break;
 #endif
 #ifdef HAVE_LIBZ

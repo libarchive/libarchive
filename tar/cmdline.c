@@ -93,7 +93,7 @@ static struct option {
 	{ "keep-newer-files",     0, OPTION_KEEP_NEWER_FILES },
 	{ "keep-old-files",       0, 'k' },
 	{ "list",                 0, 't' },
-	{ "lzma",                 0, 'J' },
+	{ "lzma",                 0, OPTION_LZMA },
 	{ "modification-time",    0, 'm' },
 	{ "newer",		  1, OPTION_NEWER_CTIME },
 	{ "newer-ctime",	  1, OPTION_NEWER_CTIME },
@@ -123,7 +123,7 @@ static struct option {
 	{ "use-compress-program", 1, OPTION_USE_COMPRESS_PROGRAM },
 	{ "verbose",              0, 'v' },
 	{ "version",              0, OPTION_VERSION },
-	{ "xz",                   0, OPTION_XZ },
+	{ "xz",                   0, 'J' },
 	{ NULL, 0, 0 }
 };
 
