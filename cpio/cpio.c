@@ -937,10 +937,18 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 
 	/* Format the time using 'ls -l' conventions. */
 	tim = (time_t)st->st_mtime;
+#ifdef _WIN32
+	/* Windows' strftime function does not support %e format. */
+	if (abs(tim - now) > (365/2)*86400)
+		fmt = cpio->day_first ? "%d %b  %Y" : "%b %d  %Y";
+	else
+		fmt = cpio->day_first ? "%d %b %H:%M" : "%b %d %H:%M";
+#else
 	if (abs(tim - now) > (365/2)*86400)
 		fmt = cpio->day_first ? "%e %b  %Y" : "%b %e  %Y";
 	else
 		fmt = cpio->day_first ? "%e %b %H:%M" : "%b %e %H:%M";
+#endif
 	strftime(date, sizeof(date), fmt, localtime(&tim));
 
 	fprintf(out, "%s%3d %-8s %-8s %8s %12s %s",

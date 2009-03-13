@@ -28,20 +28,23 @@ __FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_option_t)
 {
+	char *p;
 	int r;
 
 	/* List reference archive, make sure the TOC is correct. */
 	extract_reference_file("test_option_t.cpio");
 	r = systemf("%s -it < test_option_t.cpio >t.out 2>t.err", testprog);
 	assertEqualInt(r, 0);
-	assertFileContents("1 block\n", 8, "t.err");
+	assertTextFileContents("1 block\n", "t.err");
 	extract_reference_file("test_option_t.stdout");
-	assertEqualFile("t.out", "test_option_t.stdout");
+	p = slurpfile(NULL, "test_option_t.stdout");
+	assertTextFileContents(p, "t.out");
+	free(p);
 
 	/* List reference archive verbosely, make sure the TOC is correct. */
 	r = systemf("%s -itv < test_option_t.cpio >tv.out 2>tv.err", testprog);
 	assertEqualInt(r, 0);
-	assertFileContents("1 block\n", 8, "tv.err");
+	assertTextFileContents("1 block\n", "tv.err");
 	extract_reference_file("test_option_tv.stdout");
 
 	/* This doesn't work because the usernames on different systems
