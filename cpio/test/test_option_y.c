@@ -43,7 +43,7 @@ DEFINE_TEST(test_option_y)
 	    testprog);
 	failure("-y (bzip) option seems to be broken");
 	if (assertEqualInt(r, 0)) {
-		assertFileContents("1 block\n", 8, "archive.err");
+		assertTextFileContents("1 block\n", "archive.err");
 		/* Check that the archive file has a bzip2 signature. */
 		p = slurpfile(&s, "archive.out");
 		assert(s > 2);
