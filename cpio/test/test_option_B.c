@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 DEFINE_TEST(test_option_B)
 {
 	struct stat st;
-	const char *p;
 	int r, fd;
 
 	/*
@@ -42,15 +41,14 @@ DEFINE_TEST(test_option_B)
 	/* Create an archive without -B; this should be 512 bytes. */
 	r = systemf("echo file | %s -o > small.cpio 2>small.err", testprog);
 	assertEqualInt(r, 0);
-	p = "1 block" NL;
-	assertFileContents(p, strlen(p), "small.err");
+	assertTextFileContents("1 block\n", "small.err");
 	assertEqualInt(0, stat("small.cpio", &st));
 	assertEqualInt(512, st.st_size);
 
 	/* Create an archive with -B; this should be 5120 bytes. */
 	r = systemf("echo file | %s -oB > large.cpio 2>large.err", testprog);
 	assertEqualInt(r, 0);
-	assertFileContents(p, strlen(p), "large.err");
+	assertTextFileContents("1 block\n", "large.err");
 	assertEqualInt(0, stat("large.cpio", &st));
 	assertEqualInt(5120, st.st_size);
 }

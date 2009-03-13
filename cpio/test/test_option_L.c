@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_option_L.c,v 1.2 2008/08/24 06:21
 DEFINE_TEST(test_option_L)
 {
 	struct stat st;
-	const char *p;
 	int fd, filelist;
 	int r;
 
@@ -64,8 +63,7 @@ DEFINE_TEST(test_option_L)
 	r = systemf(CAT " filelist | %s -pd -L copy-L >copy-L.out 2>copy-L.err", testprog);
 	assertEqualInt(r, 0);
 	assertEmptyFile("copy-L.out");
-	p = "1 block" NL;
-	assertFileContents(p, strlen(p), "copy-L.err");
+	assertTextFileContents("1 block\n", "copy-L.err");
 	assertEqualInt(0, lstat("copy-L/symlink", &st));
 	failure("-pdL should dereference symlinks and turn them into files.");
 	assert(!S_ISLNK(st.st_mode));

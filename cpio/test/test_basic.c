@@ -149,7 +149,7 @@ basic_cpio(const char *target,
 
 	/* Verify stderr. */
 	failure("Expected: %s, options=%s", se, pack_options);
-	assertFileContents(se, strlen(se), "pack.err");
+	assertTextFileContents(se, "pack.err");
 
 	/*
 	 * Use cpio to unpack the archive into another directory.
@@ -161,7 +161,7 @@ basic_cpio(const char *target,
 
 	/* Verify stderr. */
 	failure("Error invoking %s -i %s in dir %s", testprog, unpack_options, target);
-	assertFileContents(se, strlen(se), "unpack.err");
+	assertTextFileContents(se, "unpack.err");
 
 	verify_files(target);
 
@@ -169,7 +169,7 @@ basic_cpio(const char *target,
 }
 
 static void
-passthrough(const char *target, const char *se)
+passthrough(const char *target)
 {
 	int r;
 
@@ -189,7 +189,7 @@ passthrough(const char *target, const char *se)
 	/* Verify stderr. */
 	failure("Error invoking %s -p in dir %s",
 	    testprog, target);
-	assertFileContents(se, strlen(se), "stderr");
+	assertTextFileContents("1 block\n", "stderr");
 
 	verify_files(target);
 	chdir("..");
@@ -239,22 +239,22 @@ DEFINE_TEST(test_basic)
 	umask(022);
 
 	/* Archive/dearchive with a variety of options. */
-	basic_cpio("copy", "", "", "2 blocks" NL);
-	basic_cpio("copy_odc", "--format=odc", "", "2 blocks" NL);
-	basic_cpio("copy_newc", "-H newc", "", "2 blocks" NL);
-	basic_cpio("copy_cpio", "-H odc", "", "2 blocks" NL);
+	basic_cpio("copy", "", "", "2 blocks\n");
+	basic_cpio("copy_odc", "--format=odc", "", "2 blocks\n");
+	basic_cpio("copy_newc", "-H newc", "", "2 blocks\n");
+	basic_cpio("copy_cpio", "-H odc", "", "2 blocks\n");
 #ifdef _WIN32
 	/*
 	 * On Windows, symbolic link does not work.
 	 * Currentry copying file instead. therefore block size is
 	 * different.
 	 */
-	basic_cpio("copy_ustar", "-H ustar", "", "10 blocks" NL);
+	basic_cpio("copy_ustar", "-H ustar", "", "10 blocks\n");
 #else
-	basic_cpio("copy_ustar", "-H ustar", "", "9 blocks" NL);
+	basic_cpio("copy_ustar", "-H ustar", "", "9 blocks\n");
 #endif
 	/* Copy in one step using -p */
-	passthrough("passthrough", "1 block" NL);
+	passthrough("passthrough");
 
 	umask(oldumask);
 }

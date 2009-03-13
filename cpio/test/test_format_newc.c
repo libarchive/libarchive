@@ -112,8 +112,7 @@ DEFINE_TEST(test_format_newc)
 		return;
 
 	/* Verify that nothing went to stderr. */
-	p = "2 blocks" NL;
-	assertFileContents(p, strlen(p), "newc.err");
+	assertTextFileContents("2 blocks\n", "newc.err");
 
 	/* Verify that stdout is a well-formed cpio file in "newc" format. */
 	p = slurpfile(&s, "newc.out");

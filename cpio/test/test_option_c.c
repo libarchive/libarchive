@@ -90,8 +90,7 @@ DEFINE_TEST(test_option_c)
 	close(filelist);
 	r = systemf("%s -oc <filelist >basic.out 2>basic.err", testprog);
 	/* Verify that nothing went to stderr. */
-	p = "1 block" NL;
-	assertFileContents(p, strlen(p), "basic.err");
+	assertTextFileContents("1 block\n", "basic.err");
 
 	/* Assert that the program finished. */
 	failure("%s -oc crashed", testprog);

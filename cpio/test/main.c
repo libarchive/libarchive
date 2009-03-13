@@ -632,6 +632,60 @@ test_assert_file_contents(const void *buff, int s, const char *fpattern, ...)
 	return (0);
 }
 
+/* assertTextFileContents() asserts the contents of a text file. */
+int
+test_assert_text_file_contents(const char *buff, const char *f)
+{
+	char *contents;
+	const char *btxt, *ftxt;
+	int fd;
+	int n, s;
+
+	fd = open(f, O_RDONLY);
+	s = strlen(buff);
+	contents = malloc(s * 2 + 128);
+	n = read(fd, contents, s * 2 + 128 -1);
+	if (n >= 0)
+		contents[n] = '\0';
+	close(fd);
+	/* Compare texts. */
+	btxt = buff;
+	ftxt = (const char *)contents;
+	while (*btxt != '\0' && *ftxt != '\0') {
+		if (*btxt == *ftxt) {
+			++btxt;
+			++ftxt;
+			continue;
+		}
+		if (btxt[0] == '\n' && ftxt[0] == '\r' && ftxt[1] == '\n') {
+			/* Pass over different new line characters. */
+			++btxt;
+			ftxt += 2;
+			continue;
+		}
+		break;
+	}
+	if (*btxt == '\0' && *ftxt == '\0') {
+		free(contents);
+		return (1);
+	}
+	failures ++;
+	if (!previous_failures(test_filename, test_line)) {
+		fprintf(stderr, "%s:%d: File contents don't match\n",
+		    test_filename, test_line);
+		fprintf(stderr, "  file=\"%s\"\n", f);
+		if (n > 0)
+			hexdump(contents, buff, n, 0);
+		else {
+			fprintf(stderr, "  File empty, contents should be:\n");
+			hexdump(buff, NULL, s, 0);
+		}
+		report_failure(test_extra);
+	}
+	free(contents);
+	return (0);
+}
+
 /*
  * Call standard system() call, but build up the command line using
  * sprintf() conventions.
