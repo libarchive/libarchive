@@ -73,6 +73,15 @@ MACRO (GENERATE_LIST_H _listfile __list_sources)
   ENDIF (NOT EXISTS "${_listfile}" OR
      ${CMAKE_CURRENT_LIST_FILE} IS_NEWER_THAN "${_listfile}")
 ENDMACRO (GENERATE_LIST_H)
+#
+# Generate installation rules for man pages.
+#
+MACRO (INSTALL_MAN __mans)
+  FOREACH (_man ${ARGV})
+    STRING(REGEX REPLACE "^.+[.]([1-9])" "\\1" _mansect ${_man})
+    INSTALL(FILES ${_man} DESTINATION "share/man/man${_mansect}")
+  ENDFOREACH (_man)
+ENDMACRO (INSTALL_MAN __mans)
 
 #
 # Check compress/decompress libraries
@@ -505,7 +514,7 @@ ADD_DEFINITIONS(-DHAVE_CONFIG_H)
 ############################################
 SET(include_HEADERS
   libarchive/archive.h
-  libarchive/archive_write_private.h
+  libarchive/archive_entry.h
 )
 
 SET(libarchive_SOURCES
@@ -556,6 +565,7 @@ SET(libarchive_SOURCES
   libarchive/archive_write_disk.c
   libarchive/archive_write_disk_private.h
   libarchive/archive_write_disk_set_standard_lookup.c
+  libarchive/archive_write_private.h
   libarchive/archive_write_open_fd.c
   libarchive/archive_write_open_file.c
   libarchive/archive_write_open_filename.c
@@ -614,6 +624,11 @@ ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
 # Libarchive is a library
 ADD_LIBRARY(archive SHARED ${libarchive_SOURCES} ${include_HEADERS})
 TARGET_LINK_LIBRARIES(archive ${ADDITIONAL_LIBS})
+INSTALL(TARGETS archive RUNTIME DESTINATION bin
+                        LIBRARY DESTINATION lib
+                        ARCHIVE DESTINATION lib)
+INSTALL_MAN(${libarchive_MANS})
+INSTALL(FILES ${include_HEADERS} DESTINATION include)
 
 ############################################
 #
@@ -751,6 +766,8 @@ IF (ENABLE_TAR)
   #
   ADD_EXECUTABLE(bsdtar ${bsdtar_SOURCES} ${include_HEADERS})
   TARGET_LINK_LIBRARIES(bsdtar archive ${ADDITIONAL_LIBS})
+  INSTALL(TARGETS bsdtar RUNTIME DESTINATION bin)
+  INSTALL_MAN(${bsdtar_MANS})
 ENDIF(ENABLE_TAR)
 
 ############################################
@@ -830,11 +847,15 @@ IF(ENABLE_CPIO)
     LIST(APPEND bsdcpio_SOURCES cpio/cpio_windows.h)
   ENDIF(WIN32)
 
+  SET(bsdcpio_MANS cpio/bsdcpio.1)
+
   #
   # Register target
   #
   ADD_EXECUTABLE(bsdcpio ${bsdcpio_SOURCES} ${include_HEADERS})
   TARGET_LINK_LIBRARIES(bsdcpio archive ${ADDITIONAL_LIBS})
+  INSTALL(TARGETS bsdcpio RUNTIME DESTINATION bin)
+  INSTALL_MAN(${bsdcpio_MANS})
 ENDIF(ENABLE_CPIO)
 
 ############################################
@@ -876,8 +897,6 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     LIST(APPEND bsdcpio_test_SOURCES cpio/cpio_windows.c)
     LIST(APPEND bsdcpio_test_SOURCES cpio/cpio_windows.h)
   ENDIF(WIN32)
-
-  SET(bsdcpio_MANS cpio/bsdcpio.1)
 
   GENERATE_LIST_H(${CMAKE_CURRENT_BINARY_DIR}/cpio/test/list.h
     ${bsdcpio_test_SOURCES})
