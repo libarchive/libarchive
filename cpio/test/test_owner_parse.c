@@ -29,6 +29,10 @@ __FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_owner_parse)
 {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/* TODO: Does this need cygwin style handling of uid/gid ? */
+	skipping("Windows cannot handle uid/gid as UNIX like system");
+#else
 	int uid, gid;
 
 	cpio_progname = "Ignore this message";
@@ -65,4 +69,5 @@ DEFINE_TEST(test_owner_parse)
 	assertEqualInt(1, owner_parse("root:nonexistentgroup", &uid, &gid));
 	assertEqualInt(1,
 	    owner_parse("nonexistentuser:nonexistentgroup", &uid, &gid));
+#endif
 }
