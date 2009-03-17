@@ -775,7 +775,7 @@ IF (ENABLE_TAR)
   # Register target
   #
   ADD_EXECUTABLE(bsdtar ${bsdtar_SOURCES} ${include_HEADERS})
-  TARGET_LINK_LIBRARIES(bsdtar archive ${ADDITIONAL_LIBS})
+  TARGET_LINK_LIBRARIES(bsdtar archive_static ${ADDITIONAL_LIBS})
   INSTALL(TARGETS bsdtar RUNTIME DESTINATION bin)
   INSTALL_MAN(${bsdtar_MANS})
 ENDIF(ENABLE_TAR)
@@ -863,7 +863,7 @@ IF(ENABLE_CPIO)
   # Register target
   #
   ADD_EXECUTABLE(bsdcpio ${bsdcpio_SOURCES} ${include_HEADERS})
-  TARGET_LINK_LIBRARIES(bsdcpio archive ${ADDITIONAL_LIBS})
+  TARGET_LINK_LIBRARIES(bsdcpio archive_static ${ADDITIONAL_LIBS})
   INSTALL(TARGETS bsdcpio RUNTIME DESTINATION bin)
   INSTALL_MAN(${bsdcpio_MANS})
 ENDIF(ENABLE_CPIO)
