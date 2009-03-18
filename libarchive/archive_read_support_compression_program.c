@@ -368,6 +368,7 @@ program_filter_close(struct archive_read_filter *self)
 {
 	struct program_filter	*state;
 	int status;
+	int r, e = ARCHIVE_OK;
 
 	state = (struct program_filter *)self->data;
 
@@ -376,15 +377,36 @@ program_filter_close(struct archive_read_filter *self)
 		close(state->child_stdin);
 	if (state->child_stdout != -1)
 		close(state->child_stdout);
-	while (waitpid(state->child, &status, 0) == -1 && errno == EINTR)
-		continue;
+
+	r = waitpid(state->child, &status, 0);
+	while (r == -1 && errno == EINTR)
+		r = waitpid(state->child, &status, 0);
 
 	/* Release our private data. */
 	free(state->out_buf);
 	free(state->description);
 	free(state);
 
-	return (ARCHIVE_OK);
+	if (r < 0) {
+		archive_set_error(&self->archive->archive, ARCHIVE_ERRNO_MISC,
+		    "Child process exited badly");
+		e = ARCHIVE_WARN;
+	} else if (WIFSIGNALED(status)) {
+		archive_set_error(&self->archive->archive, ARCHIVE_ERRNO_MISC,
+		    "Child process exited with signal %d", WTERMSIG(status));
+		e = ARCHIVE_WARN;
+	} else if (WIFEXITED(status)) {
+		if (WEXITSTATUS(status) != 0) {
+			archive_set_error(&self->archive->archive,
+			    ARCHIVE_ERRNO_MISC,
+			    "Child process exited with status %d",
+			    WEXITSTATUS(status));
+			e = ARCHIVE_WARN;
+		}
+	} else {
+		e = ARCHIVE_WARN;
+	}
+	return (e);
 }
 
 #endif /* !defined(HAVE_PIPE) || !defined(HAVE_VFORK) || !defined(HAVE_FCNTL) */
