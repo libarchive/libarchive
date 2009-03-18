@@ -29,7 +29,7 @@ static void
 unpack_test(const char *from, const char *options, const char *se)
 {
 	struct stat st, st2;
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	char buff[128];
 #endif
 	int r;
@@ -62,7 +62,7 @@ unpack_test(const char *from, const char *options, const char *se)
 	assertEqualInt(r, 0);
 	if (r == 0) {
 		assert(S_ISREG(st.st_mode));
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 		assertEqualInt(0600, st.st_mode & 0700);
 #else
 		assertEqualInt(0644, st.st_mode & 0777);
@@ -79,7 +79,7 @@ unpack_test(const char *from, const char *options, const char *se)
 	assertEqualInt(r, 0);
 	if (r == 0) {
 		assert(S_ISREG(st2.st_mode));
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 		assertEqualInt(0600, st2.st_mode & 0700);
 #else
 		assertEqualInt(0644, st2.st_mode & 0777);
@@ -98,7 +98,7 @@ unpack_test(const char *from, const char *options, const char *se)
 	r = lstat("symlink", &st);
 	failure("Failed to stat file %s/symlink, errno=%d", from, errno);
 	assertEqualInt(r, 0);
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	if (r == 0) {
 		failure("symlink should be a symlink; actual mode is %o",
 		    st.st_mode);
@@ -117,7 +117,7 @@ unpack_test(const char *from, const char *options, const char *se)
 	if (r == 0) {
 		assertEqualInt(r, 0);
 		assert(S_ISDIR(st.st_mode));
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 		assertEqualInt(0700, st.st_mode & 0700);
 #else
 		assertEqualInt(0775, st.st_mode & 0777);

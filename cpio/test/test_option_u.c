@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 #include <sys/utime.h>
 #else
 #include <utime.h>

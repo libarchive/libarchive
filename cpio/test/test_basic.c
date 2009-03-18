@@ -29,7 +29,7 @@ static void
 verify_files(const char *target)
 {
 	struct stat st, st2;
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	char buff[128];
 #endif
 	int r;
@@ -44,7 +44,7 @@ verify_files(const char *target)
 	assertEqualInt(r, 0);
 	if (r == 0) {
 		assert(S_ISREG(st.st_mode));
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 		/* Group members bits and others bits do not work. */
 		assertEqualInt(0600, st.st_mode & 0700);
 #else
@@ -61,7 +61,7 @@ verify_files(const char *target)
 	assertEqualInt(r, 0);
 	if (r == 0) {
 		assert(S_ISREG(st2.st_mode));
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 		/* Group members bits and others bits do not work. */
 		assertEqualInt(0600, st2.st_mode & 0700);
 #else
@@ -81,7 +81,7 @@ verify_files(const char *target)
 	r = lstat("symlink", &st);
 	failure("Failed to stat file %s/symlink, errno=%d", target, errno);
 	assertEqualInt(r, 0);
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	if (r == 0) {
 		failure("symlink should be a symlink; actual mode is %o",
 		    st.st_mode);
@@ -102,7 +102,7 @@ verify_files(const char *target)
 	if (r == 0) {
 		assert(S_ISREG(st.st_mode));
 		failure("%s/file2: st.st_mode = %o", target, st.st_mode);
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 		/* Execution bit and group members bits and others
 		 * bits do not work. */
 		assertEqualInt(0600, st.st_mode & 0700);
@@ -120,7 +120,7 @@ verify_files(const char *target)
 		assertEqualInt(r, 0);
 		assert(S_ISDIR(st.st_mode));
 		failure("%s/dir: st.st_mode = %o", target, st.st_mode);
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 		assertEqualInt(0700, st.st_mode & 0700);
 #else
 		assertEqualInt(0775, st.st_mode & 0777);
@@ -243,7 +243,7 @@ DEFINE_TEST(test_basic)
 	basic_cpio("copy_odc", "--format=odc", "", "2 blocks\n");
 	basic_cpio("copy_newc", "-H newc", "", "2 blocks\n");
 	basic_cpio("copy_cpio", "-H odc", "", "2 blocks\n");
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	/*
 	 * On Windows, symbolic link does not work.
 	 * Currentry copying file instead. therefore block size is

@@ -118,8 +118,10 @@ main(int argc, char *argv[])
 	memset(cpio, 0, sizeof(*cpio));
 	cpio->buff = buff;
 	cpio->buff_size = sizeof(buff);
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	/* Make sure open() function will be used with a binary mode. */
+	/* on cygwin, we need something similar, but instead link against */
+	/* a special startup object, binmode.o */
 	_set_fmode(_O_BINARY);
 #endif
 
@@ -127,7 +129,7 @@ main(int argc, char *argv[])
 	if (*argv == NULL)
 		cpio_progname = "bsdcpio";
 	else {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 		cpio_progname = strrchr(*argv, '\\');
 #else
 		cpio_progname = strrchr(*argv, '/');
@@ -155,7 +157,7 @@ main(int argc, char *argv[])
 	cpio->extract_flags |= ARCHIVE_EXTRACT_PERM;
 	cpio->extract_flags |= ARCHIVE_EXTRACT_FFLAGS;
 	cpio->extract_flags |= ARCHIVE_EXTRACT_ACL;
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	if (bsdcpio_is_privileged())
 #else
 	if (geteuid() == 0)
@@ -482,7 +484,7 @@ file_to_archive(struct cpio *cpio, const char *srcpath)
 	struct archive_entry *entry, *spare;
 	size_t len;
 	const char *p;
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	int lnklen;
 #endif
 	int r;
@@ -514,7 +516,7 @@ file_to_archive(struct cpio *cpio, const char *srcpath)
 		st.st_gid = cpio->uid_override;
 	archive_entry_copy_stat(entry, &st);
 
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	/* If its a symlink, pull the target. */
 	if (S_ISLNK(st.st_mode)) {
 		lnklen = readlink(srcpath, cpio->buff, cpio->buff_size);
@@ -706,7 +708,7 @@ restore_time(struct cpio *cpio, struct archive_entry *entry,
 	warned = 1;
 	return (fd);
 #else
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	struct __timeval times[2];
 #else
 	struct timeval times[2];
@@ -937,7 +939,7 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 
 	/* Format the time using 'ls -l' conventions. */
 	tim = (time_t)st->st_mtime;
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	/* Windows' strftime function does not support %e format. */
 	if (abs(tim - now) > (365/2)*86400)
 		fmt = cpio->day_first ? "%d %b  %Y" : "%b %d  %Y";

@@ -25,7 +25,7 @@
 #include "test.h"
 __FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_option_L.c,v 1.2 2008/08/24 06:21:00 kientzle Exp $");
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 #define CAT "type"
 #else
 #define CAT "cat"
@@ -55,7 +55,7 @@ DEFINE_TEST(test_option_L)
 	r = systemf(CAT " filelist | %s -pd copy >copy.out 2>copy.err", testprog);
 	assertEqualInt(r, 0);
 	assertEqualInt(0, lstat("copy/symlink", &st));
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	failure("Regular -p without -L should preserve symlinks.");
 	assert(S_ISLNK(st.st_mode));
 #endif
@@ -73,7 +73,7 @@ DEFINE_TEST(test_option_L)
 	assertEqualInt(r, 0);
 
 	assertEqualInt(0, mkdir("unpack", 0755));
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	assertEqualInt(0, chdir("unpack"));
 	r = systemf("type ..\\archive.out | %s -i >unpack.out 2>unpack.err", testprog);
 	assertEqualInt(0, chdir(".."));
@@ -83,7 +83,7 @@ DEFINE_TEST(test_option_L)
 	failure("Error invoking %s -i", testprog);
 	assertEqualInt(r, 0);
 	assertEqualInt(0, lstat("unpack/symlink", &st));
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	assert(S_ISLNK(st.st_mode));
 #endif
 
@@ -92,7 +92,7 @@ DEFINE_TEST(test_option_L)
 	assertEqualInt(r, 0);
 
 	assertEqualInt(0, mkdir("unpack-L", 0755));
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	assertEqualInt(0, chdir("unpack-L"));
 	r = systemf("type ..\\archive-L.out | %s -i >unpack-L.out 2>unpack-L.err", testprog);
 	assertEqualInt(0, chdir(".."));

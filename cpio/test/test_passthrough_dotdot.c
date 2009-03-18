@@ -80,7 +80,7 @@ DEFINE_TEST(test_passthrough_dotdot)
 	assertEqualInt(r, 0);
 	if (r == 0) {
 		assert(S_ISREG(st.st_mode));
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 		assertEqualInt(0600, st.st_mode & 0700);
 #else
 		assertEqualInt(0642, st.st_mode & 0777);

@@ -89,7 +89,7 @@
 #define __LA_DEAD
 #endif
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 #include "cpio_windows.h"
 #endif
 

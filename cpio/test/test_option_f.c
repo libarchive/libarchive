@@ -51,7 +51,7 @@ DEFINE_TEST(test_option_f)
 	assertEqualInt(0, access("t0/b234", F_OK));
 
 	/* Don't extract 'a*' files. */
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	/* Single quotes isn't used by command.exe. */
 	unpack("t1", "-f a*");
 #else
@@ -63,7 +63,7 @@ DEFINE_TEST(test_option_f)
 	assertEqualInt(0, access("t1/b234", F_OK));
 
 	/* Don't extract 'b*' files. */
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	/* Single quotes isn't used by command.exe. */
 	unpack("t2", "-f b*");
 #else

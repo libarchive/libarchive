@@ -114,7 +114,7 @@ DEFINE_TEST(test_option_c)
 	dev = from_octal(e + 6, 6);
 	assert(is_octal(e + 12, 6)); /* ino */
 	ino = from_octal(e + 12, 6);
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	/* Group members bits and others bits do not work. */ 
 	assertEqualMem(e + 18, "100666", 6); /* Mode */
 #else
@@ -141,7 +141,7 @@ DEFINE_TEST(test_option_c)
 	assertEqualMem(e + 0, "070707", 6); /* Magic */
 	assertEqualInt(dev, from_octal(e + 6, 6)); /* dev */
 	assert(dev != from_octal(e + 12, 6)); /* ino */
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	/* On Windows, symbolic link and group members bits and 
 	 * others bits do not work. */ 
 	assertEqualMem(e + 18, "120777", 6); /* Mode */
@@ -156,14 +156,14 @@ DEFINE_TEST(test_option_c)
 	assert(t <= now); /* File wasn't created in future. */
 	assert(t >= now - 2); /* File was created w/in last 2 secs. */
 	assertEqualMem(e + 59, "000010", 6); /* Name size */
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	/* On Windows, symbolic link does not work. */
 	assertEqualMem(e + 65, "00000000012", 11); /* File size */
 #else
 	assertEqualMem(e + 65, "00000000004", 11); /* File size */
 #endif
 	assertEqualMem(e + 76, "symlink\0", 8); /* Name contents */
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	/* On Windows, symbolic link does not work. */
 	assertEqualMem(e + 84, "123456789\0", 10); /* File contents. */
 	e += 94;
@@ -181,7 +181,7 @@ DEFINE_TEST(test_option_c)
 	/* Ino must be different from first entry. */
 	assert(is_octal(e + 12, 6)); /* ino */
 	assert(dev != from_octal(e + 12, 6));
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	/* Group members bits and others bits do not work. */ 
 	assertEqualMem(e + 18, "040777", 6); /* Mode */
 #else
