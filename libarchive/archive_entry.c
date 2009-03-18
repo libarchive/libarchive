@@ -399,6 +399,7 @@ archive_entry_clone(struct archive_entry *entry)
 	aes_copy(&entry2->ae_gname, &entry->ae_gname);
 	aes_copy(&entry2->ae_hardlink, &entry->ae_hardlink);
 	aes_copy(&entry2->ae_pathname, &entry->ae_pathname);
+	aes_copy(&entry2->ae_sourcepath, &entry->ae_sourcepath);
 	aes_copy(&entry2->ae_symlink, &entry->ae_symlink);
 	entry2->ae_set = entry->ae_set;
 	aes_copy(&entry2->ae_uname, &entry->ae_uname);
