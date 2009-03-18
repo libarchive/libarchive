@@ -335,7 +335,7 @@ extern ssize_t	 la_write(int fd, const void *buf, size_t nbytes);
 #define WEXITSTATUS(sts)	(sts & 0x0FF)
 
 /* Convertion a Win32 API error code */
-extern int _dosmaperr(unsigned long);
+extern void _dosmaperr(unsigned long);
 
 /* Message digest function */
 #if !defined(HAVE_OPENSSL_MD5_H) && !defined(HAVE_OPENSSL_SHA_H)
