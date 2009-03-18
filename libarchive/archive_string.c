@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_string.c,v 1.17 2008/12/06 05:56:
 #ifdef HAVE_WCHAR_H
 #include <wchar.h>
 #endif
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 #include <windows.h>
 #endif
 
@@ -165,7 +165,7 @@ __archive_strappend_char(struct archive_string *as, char c)
 	return (__archive_string_append(as, &c, 1));
 }
 
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 /*
  * Home-grown wctomb for UTF-8.
  */
@@ -445,4 +445,4 @@ __archive_string_utf8_w(struct archive_string *as)
 	return (ws);
 }
 
-#endif /* !_WIN32 */
+#endif /* !_WIN32 || __CYGWIN__ */

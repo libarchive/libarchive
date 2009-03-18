@@ -44,7 +44,7 @@
  * considering alternative APIs.
  */
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 
 #include "archive_platform.h"
 #include <errno.h>
@@ -1168,4 +1168,4 @@ DIGEST_FINAL(SHA512, SHA384_DIGEST_LENGTH)
 
 #endif /* !HAVE_OPENSSL_MD5_H && !HAVE_OPENSSL_SHA_H */
 
-#endif /* _WIN32 */
+#endif /* _WIN32 && !__CYGWIN__ */

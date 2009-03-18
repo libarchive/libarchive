@@ -414,7 +414,7 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 		a->mode &= ~S_ISVTX;
 		a->mode &= ~a->user_umask;
 	}
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	if (a->flags & ARCHIVE_EXTRACT_OWNER)
 		a->todo |= TODO_OWNER;
 #endif
@@ -1217,7 +1217,7 @@ _archive_write_close(struct archive *_a)
 		if (p->fixup & TODO_TIMES) {
 #ifdef HAVE_UTIMES
 			/* {f,l,}utimes() are preferred, when available. */
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 			struct __timeval times[2];
 #else
 			struct timeval times[2];
@@ -1474,7 +1474,7 @@ check_symlinks(struct archive_write_disk *a)
 	return (ARCHIVE_OK);
 }
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__CYGWIN__)
 /*
  * 1. Convert a path separator from '\' to '/' .
  *    We shouldn't check multi-byte character directly because some
@@ -1544,7 +1544,7 @@ cleanup_pathname(struct archive_write_disk *a)
 		return (ARCHIVE_FAILED);
 	}
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__CYGWIN__)
 	cleanup_pathname_win(a);
 #endif
 	/* Skip leading '/'. */
@@ -1807,7 +1807,7 @@ set_time(int fd, int mode, const char *name,
     time_t atime, long atime_nsec,
     time_t mtime, long mtime_nsec)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	struct __timeval times[2];
 #else
 	struct timeval times[2];
@@ -1944,7 +1944,7 @@ set_mode(struct archive_write_disk *a, int mode)
 			return (r);
 		if (a->pst->st_gid != a->gid) {
 			mode &= ~ S_ISGID;
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 			if (a->flags & ARCHIVE_EXTRACT_OWNER) {
 				/*
 				 * This is only an error if you
@@ -1963,7 +1963,7 @@ set_mode(struct archive_write_disk *a, int mode)
 		if (a->pst->st_uid != a->uid
 		    && (a->todo & TODO_SUID)) {
 			mode &= ~ S_ISUID;
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 			if (a->flags & ARCHIVE_EXTRACT_OWNER) {
 				archive_set_error(&a->archive, -1,
 				    "Can't restore SUID bit");
@@ -1981,7 +1981,7 @@ set_mode(struct archive_write_disk *a, int mode)
 		 */
 		if (a->user_uid != a->uid) {
 			mode &= ~ S_ISUID;
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 			if (a->flags & ARCHIVE_EXTRACT_OWNER) {
 				archive_set_error(&a->archive, -1,
 				    "Can't make file SUID");

@@ -6,7 +6,7 @@
 ///////////////////////////////////////////////////////////////////////////
 //  Check for Watcom and Microsoft Visual C compilers (WIN32 only)  ///////
 ///////////////////////////////////////////////////////////////////////////
-#if defined(__WIN32__) || defined(_WIN32) || defined(__WIN32)
+#if (defined(__WIN32__) || defined(_WIN32) || defined(__WIN32)) && !defined(__CYGWIN__)
   #define	IS_WIN32  1
 
   #if defined(__TURBOC__) || defined(__BORLANDC__) /* Borland compilers */

@@ -83,7 +83,7 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_entry.c,v 1.55 2008/12/23 05:01:4
 #elif defined makedev
 /* There's a "makedev" macro. */
 #define ae_makedev(maj, min) makedev((maj), (min))
-#elif defined mkdev || defined _WIN32 || defined __WIN32__
+#elif defined mkdev || ((defined _WIN32 || defined __WIN32__) && !defined(__CYGWIN__))
 /* Windows. <sigh> */
 #define ae_makedev(maj, min) mkdev((maj), (min))
 #else

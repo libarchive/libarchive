@@ -25,7 +25,7 @@
 
 #include "archive_platform.h"
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 
 #include "filter_fork.h"
 
@@ -108,4 +108,4 @@ __archive_check_child(int in, int out)
 	Sleep(100);
 }
 
-#endif /* _WIN32 */
+#endif /* _WIN32 && !__CYGWIN__ */

@@ -37,7 +37,7 @@
 #elif defined(__FreeBSD__)
 /* Building as part of FreeBSD system requires a pre-built config.h. */
 #include "config_freebsd.h"
-#elif defined(_WIN32)
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 /* Win32 can't run the 'configure' script. */
 #include "config_windows.h"
 #else
@@ -45,7 +45,7 @@
 #error Oops: No config.h and no pre-built configuration in test.h.
 #endif
 
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 #include <dirent.h>
 #else
 #include <direct.h>
@@ -56,7 +56,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 #include <unistd.h>
 #endif
 #include <wchar.h>
@@ -72,7 +72,7 @@
 #define	__FBSDID(a)     /* null */
 #endif
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 #define snprintf	sprintf_s
 #define LOCALE_DE	"deu"
 #else
