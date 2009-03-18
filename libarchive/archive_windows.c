@@ -1023,15 +1023,19 @@ la_waitpid(pid_t wpid, int *status, int option)
 
 	(void)option;/* UNUSED */
 	child = OpenProcess(PROCESS_ALL_ACCESS, FALSE, wpid);
-	if (child == NULL)
+	if (child == NULL) {
+		_dosmaperr(GetLastError());
 		return (-1);
+	}
 	ret = WaitForSingleObject(child, INFINITE);
 	if (ret == WAIT_FAILED) {
 		CloseHandle(child);
+		_dosmaperr(GetLastError());
 		return (-1);
 	}
 	if (GetExitCodeProcess(child, &cs) == 0) {
 		CloseHandle(child);
+		_dosmaperr(GetLastError());
 		return (-1);
 	}
 	if (cs == STILL_ACTIVE)
