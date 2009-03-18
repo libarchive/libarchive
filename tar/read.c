@@ -298,6 +298,13 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		}
 	}
 
+
+	r = archive_read_close(a);
+	if (r != ARCHIVE_OK)
+		bsdtar_warnc(bsdtar, 0, "%s", archive_error_string(a));
+	if (r <= ARCHIVE_WARN)
+		bsdtar->return_value = 1;
+
 	if (bsdtar->verbose > 2)
 		fprintf(stdout, "Archive Format: %s,  Compression: %s\n",
 		    archive_format_name(a), archive_compression_name(a));
