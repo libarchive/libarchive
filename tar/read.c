@@ -390,7 +390,7 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 
 	/* Format the time using 'ls -l' conventions. */
 	tim = (time_t)st->st_mtime;
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	/* Windows' strftime function does not support %e format. */
 	if (abs(tim - now) > (365/2)*86400)
 		fmt = bsdtar->day_first ? "%d %b  %Y" : "%b %d  %Y";

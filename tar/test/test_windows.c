@@ -24,7 +24,7 @@
  */
 #include "test.h"
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 static void
 mkfile(const char *name)
 {
@@ -125,11 +125,11 @@ static const char list5[] =
 static const char list6[] =
     "fff\\\\abca\r\nfff\\\\acca\r\naaa\\\\xxa/\r\naaa\\\\xxa/file1\r\n"
     "aaa\\\\xxb/\r\naaa\\\\xxb/file1\r\n";
-#endif /* _WIN32 */
+#endif /* _WIN32 && !__CYGWIN__ */
 
 DEFINE_TEST(test_windows)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	char *fp1, *fp2;
 
 	/*
@@ -318,5 +318,5 @@ DEFINE_TEST(test_windows)
 	free(fp2);
 #else
 	skipping("Windows specific test");
-#endif /* _WIN32 */
+#endif /* _WIN32 && !__CYGWIN__ */
 }

@@ -809,7 +809,7 @@ static int test_run(int i, const char *tmpdir)
 	/* If there were no failures, we can remove the work dir. */
 	if (failures == failures_before) {
 		if (!keep_temp_files && chdir(tmpdir) == 0) {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 			systemf("rmdir /S /Q %s", tests[i].name);
 #else
 			systemf("rm -rf %s", tests[i].name);
@@ -912,7 +912,7 @@ int main(int argc, char **argv)
 	int i, tests_run = 0, tests_failed = 0, opt;
 	time_t now;
 	char *refdir_alloc = NULL;
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	char *testprg;
 #endif
 	const char *opt_arg, *progname, *p;
@@ -921,8 +921,10 @@ int main(int argc, char **argv)
 
 	(void)argc; /* UNUSED */
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	/* Make sure open() function will be used with a binary mode. */
+	/* on cygwin, we need something similar, but instead link against */
+	/* a special startup object, binmode.o */
 	_set_fmode(_O_BINARY);
 #endif
 	/*
@@ -1014,7 +1016,7 @@ int main(int argc, char **argv)
 	if (testprog == NULL)
 		usage(progname);
 #endif
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	/*
 	 * command.com cannot accept the command used '/' with drive
 	 * name such as c:/xxx/command.exe when use '|' pipe handling.

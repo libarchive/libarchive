@@ -73,7 +73,7 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/bsdtar.c,v 1.93 2008/11/08 04:43:24 kientzle
 #ifdef __linux
 #define	_PATH_DEFTAPE "/dev/st0"
 #endif
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 #define	_PATH_DEFTAPE "\\\\.\\tape0"
 #endif
 
@@ -113,8 +113,10 @@ main(int argc, char **argv)
 	memset(bsdtar, 0, sizeof(*bsdtar));
 	bsdtar->fd = -1; /* Mark as "unused" */
 	option_o = 0;
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	/* Make sure open() function will be used with a binary mode. */
+	/* on cygwin, we need something similar, but instead link against */
+	/* a special startup object, binmode.o */
 	_set_fmode(_O_BINARY);
 #endif
 
@@ -122,7 +124,7 @@ main(int argc, char **argv)
 	if (*argv == NULL)
 		bsdtar->progname = "bsdtar";
 	else {
-#if _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 		bsdtar->progname = strrchr(*argv, '\\');
 #else
 		bsdtar->progname = strrchr(*argv, '/');

@@ -29,7 +29,7 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/test/test_0.c,v 1.2 2008/05/26 17:10:10 kien
  * This first test does basic sanity checks on the environment.  For
  * most of these, we just exit on failure.
  */
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 #define DEV_NULL "/dev/null"
 #else
 #define DEV_NULL "NUL"

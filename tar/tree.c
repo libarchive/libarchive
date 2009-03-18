@@ -84,7 +84,7 @@ struct tree_entry {
 	ino_t ino;
 #ifdef HAVE_FCHDIR
 	int fd;
-#elif defined(_WIN32)
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 	char *fullpath;
 #else
 #error fchdir function required.
@@ -107,7 +107,7 @@ struct tree {
 	DIR	*d;
 #ifdef HAVE_FCHDIR
 	int	 initialDirFd;
-#elif defined(_WIN32)
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 	char	*initialDir;
 #endif
 	int	 flags;
@@ -175,7 +175,7 @@ tree_push(struct tree *t, const char *path)
 	t->stack = te;
 #ifdef HAVE_FCHDIR
 	te->fd = -1;
-#elif defined(_WIN32)
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 	te->fullpath = NULL;
 #endif
 	te->name = strdup(path);
@@ -229,7 +229,7 @@ tree_open(const char *path)
 	tree_append(t, path, strlen(path));
 #ifdef HAVE_FCHDIR
 	t->initialDirFd = open(".", O_RDONLY);
-#elif defined(_WIN32)
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 	t->initialDir = getcwd(NULL, 0);
 #endif
 	/*
@@ -260,7 +260,7 @@ tree_ascend(struct tree *t)
 			r = TREE_ERROR_FATAL;
 		}
 		close(te->fd);
-#elif defined(_WIN32)
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 		if (chdir(te->fullpath) != 0) {
 			t->tree_errno = errno;
 			r = TREE_ERROR_FATAL;
@@ -360,7 +360,7 @@ tree_next(struct tree *t)
 			if (t->stack->flags & isDirLink) {
 #ifdef HAVE_FCHDIR
 				t->stack->fd = open(".", O_RDONLY);
-#elif defined(_WIN32)
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 				t->stack->fullpath = getcwd(NULL, 0);
 #endif
 				t->openCount++;
@@ -591,7 +591,7 @@ tree_close(struct tree *t)
 		close(t->initialDirFd);
 		t->initialDirFd = -1;
 	}
-#elif defined(_WIN32)
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 	if (t->initialDir != NULL) {
 		chdir(t->initialDir);
 		free(t->initialDir);
