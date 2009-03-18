@@ -88,8 +88,11 @@ ENDMACRO (INSTALL_MAN __mans)
 #
 # Check compress/decompress libraries
 #
-SET(__GNUWIN32PATH "C:/Program Files/GnuWin32")
-IF(WIN32 AND EXISTS "${__GNUWIN32PATH}")
+IF(WIN32 AND NOT CMAKE_CL_64 AND NOT CYGWIN)
+  # GnuWin32 is only for Win32, not Win64.
+  SET(__GNUWIN32PATH "C:/Program Files/GnuWin32")
+ENDIF(WIN32 AND NOT CMAKE_CL_64 AND NOT CYGWIN)
+IF(DEFINED __GNUWIN32PATH AND EXISTS "${__GNUWIN32PATH}")
   # You have to add a path availabel DLL file into PATH environment variable.
   # Maybe DLL path is "C:/Program Files/GnuWin32/bin".
   # The zlib and the bzip2 Setup program have installed programs and DLLs into
@@ -115,7 +118,7 @@ IF(WIN32 AND EXISTS "${__GNUWIN32PATH}")
   # #  ifdef VMS
   # #    include <unixio.h>   /* for off_t */
   # #  endif
-ENDIF(WIN32 AND EXISTS "${__GNUWIN32PATH}")
+ENDIF(DEFINED __GNUWIN32PATH AND EXISTS "${__GNUWIN32PATH}")
 
 SET(ADDITIONAL_LIBS "")
 #
