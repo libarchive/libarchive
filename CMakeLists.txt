@@ -101,7 +101,7 @@ IF(WIN32 AND EXISTS "${__GNUWIN32PATH}")
   # cmake cannot find out your zlib or bzip2 libraries and include files,
   # you should execute cmake with  -DCMAKE_PREFIX_PATH option.
   #   e.g.
-  #     cmake <path-to-source> -DCMAKE_PREFIX_PATH=<your-GnuWin32-path>
+  #     cmake -DCMAKE_PREFIX_PATH=<your-GnuWin32-path> <path-to-source>
   #
   # If compiling error occured in zconf.h, You may need patch to zconf.h.
   #--- zconf.h.orig	2005-07-21 00:40:26.000000000
