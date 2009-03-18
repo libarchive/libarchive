@@ -26,7 +26,6 @@
  */
 
 #ifdef _WIN32
-#define _WIN32_WINNT	0x500
 
 #include "cpio_platform.h"
 #include <errno.h>

@@ -45,8 +45,8 @@
  */
 
 #ifdef _WIN32
-#define _WIN32_WINNT	0x500	/* needs to use CreateHardLink() API */
 
+#include "archive_platform.h"
 #include <errno.h>
 #include <stddef.h>
 #include <sys/utime.h>
@@ -55,7 +55,6 @@
 #include <stdlib.h>
 #include <wchar.h>
 #include <windows.h>
-#include "archive_platform.h"
 
 #define EPOC_TIME	(116444736000000000ULL)
 
