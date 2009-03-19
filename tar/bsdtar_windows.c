@@ -26,6 +26,7 @@
  */
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
+#define _WIN32_WINNT 0x0500
 
 #include "bsdtar_platform.h"
 #include <errno.h>

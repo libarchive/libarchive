@@ -665,8 +665,6 @@
  */
 #if (defined(__WIN32__) || defined(_WIN32) || defined(__WIN32)) && !defined(__CYGWIN__)
   #define	IS_WIN32  1
-  #define	WINVER 0x0500
-  #define	_WIN32_WINNT 0x0500
 
   #if defined(__TURBOC__) || defined(__BORLANDC__) /* Borland compilers */
   #elif defined( __WATCOMC__ ) || defined(__WATCOMCPP__) /* Watcom compilers */
