@@ -589,10 +589,12 @@ __LA_DECL int		archive_write_set_options(struct archive *_a,
 
 
 /*-
+ * ARCHIVE_WRITE_DISK API
+ *
  * To create objects on disk:
  *   1) Ask archive_write_disk_new for a new archive_write_disk object.
- *   2) Set any global properties.  In particular, you should set
- *      the compression and format to use.
+ *   2) Set any global properties.  In particular, you probably
+ *      want to set the options.
  *   3) For each entry:
  *      - construct an appropriate struct archive_entry structure
  *      - archive_write_header to create the file/dir/etc on disk
@@ -606,7 +608,8 @@ __LA_DECL struct archive	*archive_write_disk_new(void);
 /* This file will not be overwritten. */
 __LA_DECL int		 archive_write_disk_set_skip_file(struct archive *,
 		     dev_t, ino_t);
-/* Set flags to control how the next item gets created. */
+/* Set flags to control how the next item gets created.
+ * This accepts a bitmask of ARCHIVE_EXTRACT_XXX flags defined above. */
 __LA_DECL int		 archive_write_disk_set_options(struct archive *,
 		     int flags);
 /*
