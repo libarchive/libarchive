@@ -148,8 +148,6 @@ main(int argc, char *argv[])
 	cpio->mode = '\0';
 	cpio->verbose = 0;
 	cpio->compress = '\0';
-	/* TODO: Implement old binary format in libarchive, use that here. */
-	cpio->format = "odc"; /* Default format */
 	cpio->extract_flags = ARCHIVE_EXTRACT_NO_AUTODIR;
 	cpio->extract_flags |= ARCHIVE_EXTRACT_NO_OVERWRITE_NEWER;
 	cpio->extract_flags |= ARCHIVE_EXTRACT_SECURE_SYMLINKS;
@@ -210,6 +208,9 @@ main(int argc, char *argv[])
 			cpio->filename = cpio->optarg;
 			break;
 		case 'i': /* POSIX 1997 */
+			if (cpio->mode != '\0')
+				cpio_errc(1, 0,
+				    "Cannot use both -i and -%c", cpio->mode);
 			cpio->mode = opt;
 			break;
 		case OPTION_INSECURE:
@@ -235,9 +236,15 @@ main(int argc, char *argv[])
 			cpio->filename = cpio->optarg;
 			break;
 		case 'o': /* POSIX 1997 */
+			if (cpio->mode != '\0')
+				cpio_errc(1, 0,
+				    "Cannot use both -o and -%c", cpio->mode);
 			cpio->mode = opt;
 			break;
 		case 'p': /* POSIX 1997 */
+			if (cpio->mode != '\0')
+				cpio_errc(1, 0,
+				    "Cannot use both -p and -%c", cpio->mode);
 			cpio->mode = opt;
 			cpio->extract_flags &= ~ARCHIVE_EXTRACT_SECURE_NODOTDOT;
 			break;
@@ -300,10 +307,33 @@ main(int argc, char *argv[])
 		}
 	}
 
-	/* TODO: Sanity-check args, error out on nonsensical combinations. */
+	/*
+	 * Sanity-check args, error out on nonsensical combinations.
+	 */
+	/* -t implies -i if no mode was specified. */
+	if (cpio->option_list && cpio->mode == '\0')
+		cpio->mode = 'i';
+	/* -t requires -i */
+	if (cpio->option_list && cpio->mode != 'i')
+		cpio_errc(1, 0, "Option -t requires -i", cpio->mode);
+	/* -n requires -it */
+	if (cpio->option_numeric_uid_gid && !cpio->option_list)
+		cpio_errc(1, 0, "Option -n requires -it");
+	/* Can only specify format when writing */
+	if (cpio->format != NULL && cpio->mode != 'o')
+		cpio_errc(1, 0, "Option --format requires -o");
+	/* -l requires -p */
+	if (cpio->option_link && cpio->mode != 'p')
+		cpio_errc(1, 0, "Option -l requires -p");
+	/* TODO: Flag other nonsensical combinations. */
 
 	switch (cpio->mode) {
 	case 'o':
+		/* TODO: Implement old binary format in libarchive,
+		   use that here. */
+		if (cpio->format == NULL)
+			cpio->format = "odc"; /* Default format */
+
 		mode_out(cpio);
 		break;
 	case 'i':
