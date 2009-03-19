@@ -70,6 +70,7 @@
 #include <sys/stat.h>
 #if !defined(_WIN32) || defined(__CYGWIN__)
 #include <unistd.h>
+#include <time.h>
 #else
 #include <time.h>
 #endif

@@ -51,6 +51,9 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_write_disk.c,v 1.42 2008/12/06 05
 #ifdef HAVE_SYS_UTIME_H
 #include <sys/utime.h>
 #endif
+#ifdef HAVE_SYS_XATTR_H
+#include <sys/xattr.h>
+#endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif

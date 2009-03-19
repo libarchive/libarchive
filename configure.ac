@@ -382,6 +382,7 @@ AC_ARG_ENABLE([xattr],
 
 if test "x$enable_xattr" != "xno"; then
 	AC_CHECK_HEADERS([attr/xattr.h])
+	AC_CHECK_HEADERS([sys/xattr.h])
 	AC_CHECK_LIB(attr,setxattr)
 	AC_CHECK_FUNCS([getxattr lgetxattr listxattr llistxattr fsetxattr lsetxattr])
 fi
