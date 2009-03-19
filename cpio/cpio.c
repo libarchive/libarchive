@@ -274,13 +274,23 @@ main(int argc, char *argv[])
 			break;
 #endif
 		case 'y': /* tar convention */
+#if HAVE_LIBBZ2
 			cpio->compress = opt;
+#else
+			cpio_warnc(0, "bzip2 compression not supported by "
+			    "this version of bsdcpio");
+#endif
 			break;
 		case 'Z': /* tar convention */
 			cpio->compress = opt;
 			break;
 		case 'z': /* tar convention */
+#if HAVE_LIBZ
 			cpio->compress = opt;
+#else
+			cpio_warnc(0, "gzip compression not supported by "
+			    "this version of bsdcpio");
+#endif
 			break;
 		default:
 			usage();
