@@ -50,6 +50,18 @@
 #else
 #include "../cpio_windows.h"
 #endif
+#if defined(__CYGWIN__)
+/* In cygwin-1.7.x, the .nlinks field of directories is
+ * deliberately inaccurate, because to populate it requires
+ * stat'ing every file in the directory, which is slow.
+ * So, as an optimization cygwin doesn't do that in newer
+ * releases; all correct applications on any platform should
+ * never rely on it being > 1, so this optimization doesn't
+ * impact the operation of correctly coded applications.
+ * Therefore, the cpio test should not check its accuracy
+ */
+# define NLINKS_INACCURATE_FOR_DIRS
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>

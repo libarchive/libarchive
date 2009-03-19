@@ -191,7 +191,9 @@ DEFINE_TEST(test_option_c)
 	/* Gid should be same as first entry. */
 	assert(is_octal(e + 30, 6)); /* gid */
 	assertEqualInt(gid, from_octal(e + 30, 6));
+#ifndef NLINKS_INACCURATE_FOR_DIRS
 	assertEqualMem(e + 36, "000002", 6); /* Nlink */
+#endif
 	t = from_octal(e + 48, 11); /* mtime */
 	assert(t <= now); /* File wasn't created in future. */
 	assert(t >= now - 2); /* File was created w/in last 2 secs. */

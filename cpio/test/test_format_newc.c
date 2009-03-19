@@ -210,7 +210,9 @@ DEFINE_TEST(test_format_newc)
 #endif
 	assertEqualInt(from_hex(e + 22, 8), getuid()); /* uid */
 	assertEqualInt(gid, from_hex(e + 30, 8)); /* gid */
+#ifndef NLINKS_INACCURATE_FOR_DIRS
 	assertEqualMem(e + 38, "00000002", 8); /* nlink */
+#endif
 	t2 = from_hex(e + 46, 8); /* mtime */
 	failure("First entry created at t=0x%08x this entry created at t2=0x%08x", t, t2);
 	assert(t2 == t || t2 == t + 1); /* Almost same as first entry. */
