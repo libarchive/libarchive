@@ -17,8 +17,8 @@ STRING(REGEX REPLACE
 STRING(REGEX REPLACE
  "^[0-9][0-9][0-9][0-9][0-9][0-9][0-9]([a-z]?)$" "\\1" _quality ${_version})
 SET(_version_number ${_major}${_minor}${_revision})
-STRING(REGEX REPLACE ".*([^0][0-9]*)$" "\\1" _minor ${_minor})
-STRING(REGEX REPLACE ".*([^0][0-9]*)$" "\\1" _revision ${_revision})
+STRING(REGEX REPLACE "[0]*([^0][0-9]*)$" "\\1" _minor ${_minor})
+STRING(REGEX REPLACE "[0]*([^0][0-9]*)$" "\\1" _revision ${_revision})
 #
 SET(VERSION                    "${_major}.${_minor}.${_revision}${_quality}")
 SET(BSDCPIO_VERSION_STRING     "${VERSION}")
