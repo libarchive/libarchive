@@ -53,6 +53,7 @@ INCLUDE(CheckStructMember)
 INCLUDE(CheckSymbolExists)
 INCLUDE(CheckTypeExists)
 INCLUDE(CheckTypeSize)
+INCLUDE(CheckFileOffsetBits)
 
 #
 # Generate list.h
@@ -465,6 +466,10 @@ IF(NOT HAVE_UINTMAX_T)
     SET(uintmax_t "unsigned long long")
   ENDIF(MSVC)
 ENDIF(NOT HAVE_UINTMAX_T)
+#
+# Check if _FILE_OFFSET_BITS macro needed for large files
+#
+CHECK_FILE_OFFSET_BITS()
 
 #
 # Check for Extended Attribute libraries, headers, and functions
