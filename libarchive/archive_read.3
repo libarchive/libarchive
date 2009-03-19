@@ -29,6 +29,9 @@
 .Os
 .Sh NAME
 .Nm archive_read_new ,
+.Nm archive_read_set_filter_options ,
+.Nm archive_read_set_format_options ,
+.Nm archive_read_set_options ,
 .Nm archive_read_support_compression_all ,
 .Nm archive_read_support_compression_bzip2 ,
 .Nm archive_read_support_compression_compress ,
@@ -92,6 +95,12 @@
 .Fn archive_read_support_format_tar "struct archive *"
 .Ft int
 .Fn archive_read_support_format_zip "struct archive *"
+.Ft int
+.Fn archive_read_set_filter_options "struct archive *" "const char *"
+.Ft int
+.Fn archive_read_set_format_options "struct archive *" "const char *"
+.Ft int
+.Fn archive_read_set_options "struct archive *" "const char *"
 .Ft int
 .Fo archive_read_open
 .Fa "struct archive *"
@@ -214,6 +223,48 @@ For convenience,
 .Fn archive_read_support_format_all
 enables support for all available formats.
 Only empty archives are supported by default.
+.It Xo
+.Fn archive_read_set_filter_options ,
+.Fn archive_read_set_format_options ,
+.Fn archive_read_set_options
+.Xc
+Specifies options that will be passed to currently-registered
+filters (including decompression filters) and/or format readers.
+The argument is a comma-separated list of individual options.
+Individual options have one of the following forms:
+.Bl -tag -compact -width indent
+.It Ar option=value
+The option/value pair will be provided to every module.
+Modules that do not accept an option with this name will ignore it.
+.It Ar option
+The option will be provided to every module with a value of
+.Dq 1 .
+.It Ar !option
+The option will be provided to every module with a NULL value.
+.It Ar module:option=value , Ar module:option , Ar module:!option
+As above, but the corresponding option and value will be provided
+only to modules whose name matches
+.Ar module .
+.El
+The return value will be
+.Cn ARCHIVE_OK
+if any module accepts the option, or
+.Cn ARCHIVE_WARN
+if no module accepted the option, or
+.Cn ARCHIVE_FATAL
+if there was a fatal error while attempting to process the option.
+.Pp
+The currently supported options are:
+.Bl -tag -compact -width indent
+.It Format iso9660
+.Bl -tag -compact -width indent
+.It Cm joliet
+Support Joliet extensions.
+Defaults to enabled, use
+.Cm !joliet
+to disable.
+.El
+.El
 .It Fn archive_read_open
 The same as
 .Fn archive_read_open2 ,
