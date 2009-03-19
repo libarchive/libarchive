@@ -225,6 +225,9 @@ main(int argc, char *argv[])
 		case 'm': /* POSIX 1997 */
 			cpio->extract_flags |= ARCHIVE_EXTRACT_TIME;
 			break;
+		case 'n': /* GNU cpio */
+			cpio->option_numeric_uid_gid = 1;
+			break;
 		case OPTION_NO_PRESERVE_OWNER: /* GNU cpio */
 			cpio->extract_flags &= ~ARCHIVE_EXTRACT_OWNER;
 			break;
@@ -915,6 +918,7 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 {
 	char			 size[32];
 	char			 date[32];
+	char			 uids[16], gids[16];
 	const char 		*uname, *gname;
 	FILE			*out = stdout;
 	const struct stat	*st;
@@ -927,15 +931,24 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 	if (!now)
 		time(&now);
 
-	/* Use uname if it's present, else uid. */
-	uname = archive_entry_uname(entry);
-	if (uname == NULL)
-		uname = lookup_uname(cpio, archive_entry_uid(entry));
-
-	/* Use gname if it's present, else gid. */
-	gname = archive_entry_gname(entry);
-	if (gname == NULL)
-		gname = lookup_gname(cpio, archive_entry_gid(entry));
+	if (cpio->option_numeric_uid_gid) {
+		/* Format numeric uid/gid for display. */
+		snprintf(uids, sizeof(uids), "%jd",
+		    (intmax_t)archive_entry_uid(entry));
+		uname = uids;
+		snprintf(gids, sizeof(gids), "%jd",
+		    (intmax_t)archive_entry_gid(entry));
+		gname = gids;
+	} else {
+		/* Use uname if it's present, else lookup name from uid. */
+		uname = archive_entry_uname(entry);
+		if (uname == NULL)
+			uname = lookup_uname(cpio, archive_entry_uid(entry));
+		/* Use gname if it's present, else lookup name from gid. */
+		gname = archive_entry_gname(entry);
+		if (gname == NULL)
+			gname = lookup_gname(cpio, archive_entry_gid(entry));
+	}
 
 	/* Print device number or file size. */
 	if (S_ISCHR(st->st_mode) || S_ISBLK(st->st_mode)) {
