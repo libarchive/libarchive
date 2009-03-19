@@ -416,6 +416,9 @@ main(int argc, char **argv)
 			usage(bsdtar);
 #endif
 			break;
+		case OPTION_SAME_OWNER: /* GNU tar */
+			bsdtar->extract_flags |= ARCHIVE_EXTRACT_OWNER;
+			break;
 		case OPTION_STRIP_COMPONENTS: /* GNU tar 1.15 */
 			bsdtar->strip_components = atoi(bsdtar->optarg);
 			break;

@@ -112,6 +112,7 @@ static struct option {
 	{ "posix",		  0, OPTION_POSIX },
 	{ "preserve-permissions", 0, 'p' },
 	{ "read-full-blocks",	  0, 'B' },
+	{ "same-owner",	          0, OPTION_SAME_OWNER },
 	{ "same-permissions",     0, 'p' },
 	{ "strip-components",	  1, OPTION_STRIP_COMPONENTS },
 	{ "to-stdout",            0, 'O' },
