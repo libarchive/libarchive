@@ -26,8 +26,8 @@
  */
 
 #if defined(__CYGWIN__)
-#define _WIN32_WINNT	0x500
-#define WINVER		0x500
+#define _WIN32_WINNT	0x0500
+#define WINVER		0x0500
 
 #include "cpio_platform.h"
 #include <errno.h>
