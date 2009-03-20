@@ -1761,12 +1761,17 @@ create_dir(struct archive_write_disk *a, char *path)
 static int
 set_ownership(struct archive_write_disk *a)
 {
+#ifndef __CYGWIN__
+/* unfortunately, on win32 there is no 'root' user with uid 0,
+   so we just have to try the chown and see if it works */
+
 	/* If we know we can't change it, don't bother trying. */
 	if (a->user_uid != 0  &&  a->user_uid != a->uid) {
 		archive_set_error(&a->archive, errno,
 		    "Can't set UID=%d", a->uid);
 		return (ARCHIVE_WARN);
 	}
+#endif
 
 #ifdef HAVE_FCHOWN
 	/* If we have an fd, we can avoid a race. */
