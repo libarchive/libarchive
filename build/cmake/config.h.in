@@ -515,6 +515,9 @@
 /* Define to 1 if you have the <wchar.h> header file. */
 #cmakedefine HAVE_WCHAR_H 1
 
+/* Define to 1 if the system has the type `wchar_t'. */
+#cmakedefine HAVE_WCHAR_T 1
+
 /* Define to 1 if you have the `wcscpy' function. */
 #cmakedefine HAVE_WCSCPY 1
 
@@ -586,6 +589,9 @@
 
 /* Define to the updates SHA1 context function. */
 #cmakedefine SHA1_Update ${SHA1_Update}
+
+/* The size of `wchar_t', as computed by sizeof. */
+#cmakedefine SIZEOF_WCHAR_T ${SIZEOF_WCHAR_T}
 
 /* Define to 1 if you have the ANSI C header files. */
 #cmakedefine STDC_HEADERS 1
