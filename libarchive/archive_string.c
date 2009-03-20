@@ -184,6 +184,7 @@ my_wctomb_utf8(char *p, wchar_t wc)
 		p[1] = 0x80 | (wc & 0x3f);
 		return (2);
 	}
+#if SIZEOF_WCHAR_T > 2
 	if (wc <= 0xffff) {
 		p[0] = 0xe0 | ((wc >> 12) & 0x0f);
 		p[1] = 0x80 | ((wc >> 6) & 0x3f);
@@ -203,6 +204,15 @@ my_wctomb_utf8(char *p, wchar_t wc)
 	 * can actually fail.
 	 */
 	return (-1);
+#else
+	/* is this the right thing to do when wchar_t is
+	 * limited to 16 bits?
+	 */
+	p[0] = 0xe0 | ((wc >> 12) & 0x0f);
+	p[1] = 0x80 | ((wc >> 6) & 0x3f);
+	p[2] = 0x80 | (wc & 0x3f);
+	return (3);
+#endif
 }
 
 static int

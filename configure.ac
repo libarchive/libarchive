@@ -318,6 +318,11 @@ AC_CHECK_DECL([EILSEQ],
 		[AC_DEFINE(HAVE_EILSEQ, 1, [A possible errno value for invalid file format errors])],
 		[],
 		[#include <errno.h>])
+AC_CHECK_TYPE([wchar_t],
+	        [AC_DEFINE_UNQUOTED(AS_TR_CPP(HAVE_[]wchar_t), 1, [Define to 1 if the system has the type `wchar_t'.])dnl
+		AC_CHECK_SIZEOF([wchar_t])],
+		[])
+
 AC_HEADER_TIME
 
 # Checks for library functions.
