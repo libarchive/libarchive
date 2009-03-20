@@ -43,17 +43,17 @@ IF(ENABLE_TEST)
 ENDIF(ENABLE_TEST)
 
 #
-INCLUDE(CheckLibraryExists)
+INCLUDE(CheckFileOffsetBits)
 INCLUDE(CheckFuncs)
 INCLUDE(CheckHeaders)
 INCLUDE(CheckHeaderDirent)
 INCLUDE(CheckHeaderSTDC)
 INCLUDE(CheckIncludeFile)
+INCLUDE(CheckLibraryExists)
 INCLUDE(CheckStructMember)
 INCLUDE(CheckSymbolExists)
 INCLUDE(CheckTypeExists)
 INCLUDE(CheckTypeSize)
-INCLUDE(CheckFileOffsetBits)
 
 #
 # Generate list.h
@@ -65,12 +65,12 @@ MACRO (GENERATE_LIST_H _listfile __list_sources)
     MESSAGE(STATUS "Generating ${_listfile}")
     FILE(WRITE ${_listfile} "")
     FOREACH (testfile ${ARGV})
-      IF (testfile MATCHES ".+/test_[^/]+[.]c$")
+      IF (testfile MATCHES "^test_[^/]+[.]c$")
         FILE(STRINGS ${testfile} testvar REGEX "^DEFINE_TEST")
         FOREACH (deftest ${testvar})
           FILE(APPEND ${_listfile} "${deftest}\n")
         ENDFOREACH (deftest)
-      ENDIF (testfile MATCHES ".+/test_[^/]+[.]c$")
+      ENDIF (testfile MATCHES "^test_[^/]+[.]c$")
     ENDFOREACH (testfile)
 
   ENDIF (NOT EXISTS "${_listfile}" OR
@@ -522,115 +522,15 @@ IF(ENABLE_ACL)
 
 ENDIF(ENABLE_ACL)
 
-# Generate "config.h" from "cmake/config.h.in"
+# Generate "config.h" from "build/cmake/config.h.in"
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/build/cmake/config.h.in
 	${CMAKE_CURRENT_BINARY_DIR}/config.h)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
 
-############################################
 #
-# How to build libarchive
 #
-############################################
-SET(include_HEADERS
-  libarchive/archive.h
-  libarchive/archive_entry.h
-)
-
-SET(libarchive_SOURCES
-  libarchive/archive_check_magic.c
-  libarchive/archive_endian.h
-  libarchive/archive_entry.c
-  libarchive/archive_entry.h
-  libarchive/archive_entry_copy_stat.c
-  libarchive/archive_entry_link_resolver.c
-  libarchive/archive_entry_private.h
-  libarchive/archive_entry_stat.c
-  libarchive/archive_entry_strmode.c
-  libarchive/archive_platform.h
-  libarchive/archive_private.h
-  libarchive/archive_read.c
-  libarchive/archive_read_data_into_fd.c
-  libarchive/archive_read_disk.c
-  libarchive/archive_read_disk_entry_from_file.c
-  libarchive/archive_read_disk_private.h
-  libarchive/archive_read_disk_set_standard_lookup.c
-  libarchive/archive_read_extract.c
-  libarchive/archive_read_open_fd.c
-  libarchive/archive_read_open_file.c
-  libarchive/archive_read_open_filename.c
-  libarchive/archive_read_open_memory.c
-  libarchive/archive_read_private.h
-  libarchive/archive_read_support_compression_all.c
-  libarchive/archive_read_support_compression_bzip2.c
-  libarchive/archive_read_support_compression_compress.c
-  libarchive/archive_read_support_compression_gzip.c
-  libarchive/archive_read_support_compression_none.c
-  libarchive/archive_read_support_compression_program.c
-  libarchive/archive_read_support_compression_xz.c
-  libarchive/archive_read_support_format_all.c
-  libarchive/archive_read_support_format_ar.c
-  libarchive/archive_read_support_format_cpio.c
-  libarchive/archive_read_support_format_empty.c
-  libarchive/archive_read_support_format_iso9660.c
-  libarchive/archive_read_support_format_mtree.c
-  libarchive/archive_read_support_format_tar.c
-  libarchive/archive_read_support_format_zip.c
-  libarchive/archive_string.c
-  libarchive/archive_string.h
-  libarchive/archive_string_sprintf.c
-  libarchive/archive_util.c
-  libarchive/archive_virtual.c
-  libarchive/archive_write.c
-  libarchive/archive_write_disk.c
-  libarchive/archive_write_disk_private.h
-  libarchive/archive_write_disk_set_standard_lookup.c
-  libarchive/archive_write_private.h
-  libarchive/archive_write_open_fd.c
-  libarchive/archive_write_open_file.c
-  libarchive/archive_write_open_filename.c
-  libarchive/archive_write_open_memory.c
-  libarchive/archive_write_set_compression_bzip2.c
-  libarchive/archive_write_set_compression_compress.c
-  libarchive/archive_write_set_compression_gzip.c
-  libarchive/archive_write_set_compression_none.c
-  libarchive/archive_write_set_compression_program.c
-  libarchive/archive_write_set_compression_xz.c
-  libarchive/archive_write_set_format.c
-  libarchive/archive_write_set_format_ar.c
-  libarchive/archive_write_set_format_by_name.c
-  libarchive/archive_write_set_format_cpio.c
-  libarchive/archive_write_set_format_cpio_newc.c
-  libarchive/archive_write_set_format_mtree.c
-  libarchive/archive_write_set_format_pax.c
-  libarchive/archive_write_set_format_shar.c
-  libarchive/archive_write_set_format_ustar.c
-  libarchive/filter_fork.c
-  libarchive/filter_fork.h
-)
-
-SET(libarchive_MANS
-  libarchive/archive_entry.3
-  libarchive/archive_read.3
-  libarchive/archive_read_disk.3
-  libarchive/archive_util.3
-  libarchive/archive_write.3
-  libarchive/archive_write_disk.3
-  libarchive/cpio.5
-  libarchive/libarchive.3
-  libarchive/libarchive_internals.3
-  libarchive/libarchive-formats.5
-  libarchive/mtree.5
-  libarchive/tar.5
-)
-
-IF(WIN32)
-  LIST(APPEND libarchive_SOURCES libarchive/archive_windows.c)
-  LIST(APPEND libarchive_SOURCES libarchive/archive_windows.h)
-  LIST(APPEND libarchive_SOURCES libarchive/filter_fork_windows.c)
-ENDIF(WIN32)
-
+#
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/libarchive)
 #
 IF(MSVC)
@@ -642,316 +542,8 @@ ENDIF(MSVC)
 IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
   ADD_DEFINITIONS(-Wall -Werror)
 ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
-# Libarchive is a library
-ADD_LIBRARY(archive SHARED ${libarchive_SOURCES} ${include_HEADERS})
-TARGET_LINK_LIBRARIES(archive ${ADDITIONAL_LIBS})
-SET_TARGET_PROPERTIES(archive PROPERTIES SOVERSION ${SOVERSION})
-ADD_LIBRARY(archive_static STATIC ${libarchive_SOURCES} ${include_HEADERS})
-SET_TARGET_PROPERTIES(archive_static PROPERTIES COMPILE_DEFINITIONS
-  LIBARCHIVE_STATIC)
-IF(NOT WIN32 OR CYGWIN)
-  SET_TARGET_PROPERTIES(archive_static PROPERTIES OUTPUT_NAME archive)
-ENDIF(NOT WIN32 OR CYGWIN)
-INSTALL(TARGETS archive archive_static
-        RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)
-INSTALL_MAN(${libarchive_MANS})
-INSTALL(FILES ${include_HEADERS} DESTINATION include)
 
-############################################
-#
-# How to build libarchive_test
-#
-############################################
-IF(ENABLE_TEST)
-  SET(libarchive_test_SOURCES
-    ${libarchive_SOURCES}
-    libarchive/test/main.c
-    libarchive/test/read_open_memory.c
-    libarchive/test/test.h
-    libarchive/test/test_acl_basic.c
-    libarchive/test/test_acl_freebsd.c
-    libarchive/test/test_acl_pax.c
-    libarchive/test/test_archive_api_feature.c
-    libarchive/test/test_bad_fd.c
-    libarchive/test/test_compat_bzip2.c
-    libarchive/test/test_compat_gtar.c
-    libarchive/test/test_compat_gzip.c
-    libarchive/test/test_compat_tar_hardlink.c
-    libarchive/test/test_compat_xz.c
-    libarchive/test/test_compat_zip.c
-    libarchive/test/test_empty_write.c
-    libarchive/test/test_entry.c
-    libarchive/test/test_entry_strmode.c
-    libarchive/test/test_extattr_freebsd.c
-    libarchive/test/test_fuzz.c
-    libarchive/test/test_link_resolver.c
-    libarchive/test/test_pax_filename_encoding.c
-    libarchive/test/test_read_compress_program.c
-    libarchive/test/test_read_data_large.c
-    libarchive/test/test_read_disk.c
-    libarchive/test/test_read_extract.c
-    libarchive/test/test_read_file_nonexistent.c
-    libarchive/test/test_read_format_ar.c
-    libarchive/test/test_read_format_cpio_bin.c
-    libarchive/test/test_read_format_cpio_bin_Z.c
-    libarchive/test/test_read_format_cpio_bin_bz2.c
-    libarchive/test/test_read_format_cpio_bin_gz.c
-    libarchive/test/test_read_format_cpio_bin_xz.c
-    libarchive/test/test_read_format_cpio_odc.c
-    libarchive/test/test_read_format_cpio_svr4_gzip.c
-    libarchive/test/test_read_format_cpio_svr4c_Z.c
-    libarchive/test/test_read_format_empty.c
-    libarchive/test/test_read_format_gtar_gz.c
-    libarchive/test/test_read_format_gtar_lzma.c
-    libarchive/test/test_read_format_gtar_sparse.c
-    libarchive/test/test_read_format_iso_gz.c
-    libarchive/test/test_read_format_isojoliet_bz2.c
-    libarchive/test/test_read_format_isorr_bz2.c
-    libarchive/test/test_read_format_mtree.c
-    libarchive/test/test_read_format_pax_bz2.c
-    libarchive/test/test_read_format_tar.c
-    libarchive/test/test_read_format_tar_empty_filename.c
-    libarchive/test/test_read_format_tbz.c
-    libarchive/test/test_read_format_tgz.c
-    libarchive/test/test_read_format_txz.c
-    libarchive/test/test_read_format_tz.c
-    libarchive/test/test_read_format_zip.c
-    libarchive/test/test_read_large.c
-    libarchive/test/test_read_pax_truncated.c
-    libarchive/test/test_read_position.c
-    libarchive/test/test_read_truncated.c
-    libarchive/test/test_tar_filenames.c
-    libarchive/test/test_tar_large.c
-    libarchive/test/test_ustar_filenames.c
-    libarchive/test/test_write_compress.c
-    libarchive/test/test_write_compress_program.c
-    libarchive/test/test_write_disk.c
-    libarchive/test/test_write_disk_failures.c
-    libarchive/test/test_write_disk_hardlink.c
-    libarchive/test/test_write_disk_perms.c
-    libarchive/test/test_write_disk_secure.c
-    libarchive/test/test_write_disk_sparse.c
-    libarchive/test/test_write_disk_times.c
-    libarchive/test/test_write_format_ar.c
-    libarchive/test/test_write_format_cpio.c
-    libarchive/test/test_write_format_cpio_empty.c
-    libarchive/test/test_write_format_cpio_odc.c
-    libarchive/test/test_write_format_cpio_newc.c
-    libarchive/test/test_write_format_mtree.c
-    libarchive/test/test_write_format_pax.c
-    libarchive/test/test_write_format_shar_empty.c
-    libarchive/test/test_write_format_tar.c
-    libarchive/test/test_write_format_tar_empty.c
-    libarchive/test/test_write_format_tar_ustar.c
-    libarchive/test/test_write_open_memory.c
-  )
-
-  #
-  # Generate the list.h
-  #
-  GENERATE_LIST_H(${CMAKE_CURRENT_BINARY_DIR}/libarchive/test/list.h
-    ${libarchive_test_SOURCES})
-  ADD_EXECUTABLE(libarchive_test ${libarchive_test_SOURCES})
-  TARGET_LINK_LIBRARIES(libarchive_test ${ADDITIONAL_LIBS})
-  SET_PROPERTY(TARGET libarchive_test PROPERTY COMPILE_DEFINITIONS
-    LIBARCHIVE_STATIC)
-  SET_PROPERTY(TARGET libarchive_test APPEND PROPERTY COMPILE_DEFINITIONS
-    LIST_H="${CMAKE_CURRENT_BINARY_DIR}/libarchive/test/list.h")
-  ADD_TEST(libarchive_test libarchive_test
-    -r ${CMAKE_CURRENT_SOURCE_DIR}/libarchive/test)
-ENDIF(ENABLE_TEST)
-
-############################################
-#
-# How to build bsdtar
-#
-############################################
-IF (ENABLE_TAR)
-  SET(bsdtar_SOURCES
-    tar/bsdtar.c
-    tar/bsdtar.h
-    tar/bsdtar_platform.h
-    tar/cmdline.c
-    tar/getdate.c
-    tar/matching.c
-    tar/read.c
-    tar/siginfo.c
-    tar/subst.c
-    tar/tree.c
-    tar/tree.h
-    tar/util.c
-    tar/write.c
-  )
-  IF(WIN32)
-    LIST(APPEND bsdtar_SOURCES tar/bsdtar_windows.c)
-    LIST(APPEND bsdtar_SOURCES tar/bsdtar_windows.h)
-  ENDIF(WIN32)
-
-  SET(bsdtar_MANS tar/bsdtar.1)
-
-  #
-  # Register target
-  #
-  ADD_EXECUTABLE(bsdtar ${bsdtar_SOURCES} ${include_HEADERS})
-  IF(WIN32 AND NOT CYGWIN)
-    TARGET_LINK_LIBRARIES(bsdtar archive ${ADDITIONAL_LIBS})
-  ELSE(WIN32 AND NOT CYGWIN)
-    TARGET_LINK_LIBRARIES(bsdtar archive_static ${ADDITIONAL_LIBS})
-  ENDIF(WIN32 AND NOT CYGWIN)
-  INSTALL(TARGETS bsdtar RUNTIME DESTINATION bin)
-  INSTALL_MAN(${bsdtar_MANS})
-ENDIF(ENABLE_TAR)
-
-############################################
-#
-# How to build bsdtar_test
-#
-############################################
-IF(ENABLE_TAR AND ENABLE_TEST)
-  SET(bsdtar_test_SOURCES
-    tar/getdate.c
-    tar/test/main.c
-    tar/test/test.h
-    tar/test/test_0.c
-    tar/test/test_basic.c
-    tar/test/test_copy.c
-    tar/test/test_getdate.c
-    tar/test/test_help.c
-    tar/test/test_option_T.c
-    tar/test/test_option_q.c
-    tar/test/test_option_s.c
-    tar/test/test_patterns.c
-    tar/test/test_stdio.c
-    tar/test/test_strip_components.c
-    tar/test/test_symlink_dir.c
-    tar/test/test_version.c
-  )
-  IF(WIN32)
-    LIST(APPEND bsdtar_test_SOURCES tar/bsdtar_windows.c)
-    LIST(APPEND bsdtar_test_SOURCES tar/bsdtar_windows.h)
-    LIST(APPEND bsdtar_test_SOURCES tar/test/test_windows.c)
-  ENDIF(WIN32)
-
-  #
-  # Generate the list.h
-  #
-  GENERATE_LIST_H(${CMAKE_CURRENT_BINARY_DIR}/tar/test/list.h
-    ${bsdtar_test_SOURCES})
-  #
-  # Register target
-  #
-  ADD_EXECUTABLE(bsdtar_test ${bsdtar_test_SOURCES})
-  SET_PROPERTY(TARGET bsdtar_test PROPERTY COMPILE_DEFINITIONS
-    LIST_H="${CMAKE_CURRENT_BINARY_DIR}/tar/test/list.h")
-  IF(WIN32)
-    ADD_TEST(bsdtar_test bsdtar_test
-      -v
-      -p ${CMAKE_CURRENT_BINARY_DIR}/debug/bsdtar.exe
-      -r ${CMAKE_CURRENT_SOURCE_DIR}/tar/test)
-  ELSE(WIN32)
-    ADD_TEST(bsdtar_test bsdtar_test
-      -v
-      -p ${CMAKE_CURRENT_BINARY_DIR}/bsdtar
-      -r ${CMAKE_CURRENT_SOURCE_DIR}/tar/test)
-  ENDIF(WIN32)
-
-ENDIF (ENABLE_TAR AND ENABLE_TEST)
-
-############################################
-#
-# How to build bsdcpio
-#
-############################################
-IF(ENABLE_CPIO)
-  SET(bsdcpio_SOURCES
-    cpio/cmdline.c
-    cpio/cpio.c
-    cpio/cpio.h
-    cpio/cpio_platform.h
-    cpio/err.c
-    cpio/matching.c
-    cpio/matching.h
-    cpio/pathmatch.c
-    cpio/pathmatch.h
-  )
-  IF(WIN32)
-    LIST(APPEND bsdcpio_SOURCES cpio/cpio_windows.c)
-    LIST(APPEND bsdcpio_SOURCES cpio/cpio_windows.h)
-  ENDIF(WIN32)
-
-  SET(bsdcpio_MANS cpio/bsdcpio.1)
-
-  #
-  # Register target
-  #
-  ADD_EXECUTABLE(bsdcpio ${bsdcpio_SOURCES} ${include_HEADERS})
-  IF(WIN32 AND NOT CYGWIN)
-    TARGET_LINK_LIBRARIES(bsdcpio archive ${ADDITIONAL_LIBS})
-  ELSE(WIN32 AND NOT CYGWIN)
-    TARGET_LINK_LIBRARIES(bsdcpio archive_static ${ADDITIONAL_LIBS})
-  ENDIF(WIN32 AND NOT CYGWIN)
-  INSTALL(TARGETS bsdcpio RUNTIME DESTINATION bin)
-  INSTALL_MAN(${bsdcpio_MANS})
-ENDIF(ENABLE_CPIO)
-
-############################################
-#
-# How to build bsdcpio_test
-#
-############################################
-IF(ENABLE_CPIO AND ENABLE_TEST)
-  SET(bsdcpio_test_SOURCES
-    cpio/cmdline.c
-    cpio/err.c
-    cpio/pathmatch.c
-    cpio/test/main.c
-    cpio/test/test.h
-    cpio/test/test_0.c
-    cpio/test/test_basic.c
-    cpio/test/test_format_newc.c
-    cpio/test/test_gcpio_compat.c
-    cpio/test/test_option_B.c
-    cpio/test/test_option_L.c
-    cpio/test/test_option_a.c
-    cpio/test/test_option_c.c
-    cpio/test/test_option_d.c
-    cpio/test/test_option_ell.c
-    cpio/test/test_option_f.c
-    cpio/test/test_option_help.c
-    cpio/test/test_option_m.c
-    cpio/test/test_option_t.c
-    cpio/test/test_option_u.c
-    cpio/test/test_option_version.c
-    cpio/test/test_option_y.c
-    cpio/test/test_option_z.c
-    cpio/test/test_owner_parse.c
-    cpio/test/test_passthrough_dotdot.c
-    cpio/test/test_passthrough_reverse.c
-    cpio/test/test_pathmatch.c
-  )
-  IF(WIN32)
-    LIST(APPEND bsdcpio_test_SOURCES cpio/cpio_windows.c)
-    LIST(APPEND bsdcpio_test_SOURCES cpio/cpio_windows.h)
-  ENDIF(WIN32)
-
-  GENERATE_LIST_H(${CMAKE_CURRENT_BINARY_DIR}/cpio/test/list.h
-    ${bsdcpio_test_SOURCES})
-  ADD_EXECUTABLE(bsdcpio_test ${bsdcpio_test_SOURCES})
-  SET_PROPERTY(TARGET bsdcpio_test PROPERTY COMPILE_DEFINITIONS
-    LIST_H="${CMAKE_CURRENT_BINARY_DIR}/cpio/test/list.h")
-  IF(WIN32)
-    ADD_TEST(bsdcpio_test bsdcpio_test
-     -v
-     -p ${CMAKE_CURRENT_BINARY_DIR}/debug/bsdcpio.exe
-     -r ${CMAKE_CURRENT_SOURCE_DIR}/cpio/test)
-  ELSE(WIN32)
-    ADD_TEST(bsdcpio_test bsdcpio_test
-     -v
-     -p ${CMAKE_CURRENT_BINARY_DIR}/bsdcpio
-     -r ${CMAKE_CURRENT_SOURCE_DIR}/cpio/test)
-  ENDIF(WIN32)
-
-ENDIF(ENABLE_CPIO AND ENABLE_TEST)
+add_subdirectory(libarchive)
+add_subdirectory(tar)
+add_subdirectory(cpio)
 

@@ -56,11 +56,7 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/test/main.c,v 1.3 2008/08/24 04:58:22 kient
  */
 #undef DEFINE_TEST
 #define	DEFINE_TEST(name) void name(void);
-#ifdef LIST_H
-#include LIST_H
-#else
 #include "list.h"
-#endif
 
 /* Interix doesn't define these in a standard header. */
 #if __INTERIX__
@@ -764,11 +760,7 @@ slurpfile(size_t * sizep, const char *fmt, ...)
 #undef DEFINE_TEST
 #define	DEFINE_TEST(n) { n, #n },
 struct { void (*func)(void); const char *name; } tests[] = {
-#ifdef LIST_H
-	#include LIST_H
-#else
 	#include "list.h"
-#endif
 };
 
 /*
