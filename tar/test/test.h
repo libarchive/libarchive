@@ -67,11 +67,15 @@
 #include <dmalloc.h>
 #endif
 
-/* No non-FreeBSD platform will have __FBSDID, so just define it here. */
 #ifdef __FreeBSD__
 #include <sys/cdefs.h>  /* For __FBSDID */
 #else
+/* Some non-FreeBSD platforms such as newlib-derived ones like
+ * cygwin, have __FBSDID, so this definition must be guarded.
+ */
+#ifndef __FBSDID
 #define	__FBSDID(a)     /* null */
+#endif
 #endif
 
 /*
