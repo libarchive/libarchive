@@ -29,7 +29,9 @@ SET(LIBARCHIVE_VERSION_STRING  "${VERSION}")
 SET(SOVERSION                   8)
 
 OPTION(ENABLE_TAR "Enable tar building" ON)
+OPTION(ENABLE_TAR_SHARED "Enable dynamic build of tar" OFF)
 OPTION(ENABLE_CPIO "Enable cpio building" ON)
+OPTION(ENABLE_CPIO_SHARED "Enable dynamic build of cpio" OFF)
 OPTION(ENABLE_XATTR "Enable extended attribute support" ON)
 OPTION(ENABLE_ACL "Enable ACL support" ON)
 OPTION(ENABLE_TEST "Enable unit and regression tests" ON)
@@ -37,6 +39,11 @@ OPTION(ENABLE_TEST "Enable unit and regression tests" ON)
 IF(ENABLE_TEST)
 	ENABLE_TESTING()
 ENDIF(ENABLE_TEST)
+IF(WIN32 AND NOT CYGWIN)
+  # Currently, dynamic build only.
+  SET(ENABLE_TAR_SHARED ON)
+  SET(ENABLE_CPIO_SHARED ON)
+ENDIF(WIN32 AND NOT CYGWIN)
 
 #
 INCLUDE(CheckFileOffsetBits)
