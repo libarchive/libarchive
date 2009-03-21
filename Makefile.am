@@ -1,6 +1,7 @@
 ## Process this file with automake to produce Makefile.in
 
 AUTOMAKE_OPTIONS= foreign subdir-objects
+ACLOCAL_AMFLAGS = -I build/m4
 
 #
 # What to build and install
@@ -152,6 +153,14 @@ libarchive_la_SOURCES=						\
 	libarchive/filter_fork.c				\
 	libarchive/filter_fork.h
 
+if INC_WINDOWS_FILES
+libarchive_la_SOURCES+=						\
+	libarchive/archive_windows.h				\
+	libarchive/archive_windows.c				\
+	libarchive/filter_fork_windows.c
+endif
+
+
 libarchive_la_CPPFLAGS=-I $(top_builddir)/libarchive
 # -no-undefined marks that libarchive doesn't rely on symbols
 # defined in the application.  This is mandatory for cygwin.
@@ -177,6 +186,10 @@ libarchive_EXTRA_DIST=			\
 	libarchive/test/list.h		\
 	libarchive/archive_windows.c	\
 	libarchive/archive_windows.h	\
+	libarchive/filter_fork_windows.c	\
+	libarchive/CMakeLists.txt	\
+	libarchive/COPYING		\
+	libarchive/README		\
 	$(libarchive_man_MANS)
 
 #
@@ -266,7 +279,9 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_format_tar_ustar.c		\
 	libarchive/test/test_write_open_memory.c
 
-libarchive_test_CPPFLAGS= -I$(top_builddir)/libarchive -I$(top_srcdir)/libarchive -I$(top_builddir)/libarchive/test
+libarchive_test_CPPFLAGS= -I$(top_builddir)/libarchive -I$(top_srcdir)/libarchive -I$(top_builddir)/libarchive/test -DLIBARCHIVE_STATIC
+
+libarchive_test_LDADD=@PROG_LDADD_EXTRA@
 
 # The "list.h" file just lists all of the tests defined in all of the sources.
 # Building it automatically provides a sanity-check on libarchive_test_SOURCES
@@ -297,7 +312,9 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_isojolietrr_bz2.iso.bz2.uu	\
 	libarchive/test/test_read_format_isorr_bz2.iso.bz2.uu		\
 	libarchive/test/test_read_format_tar_empty_filename.tar.uu	\
-	libarchive/test/test_read_format_zip.zip.uu
+	libarchive/test/test_read_format_zip.zip.uu			\
+	libarchive/test/CMakeLists.txt					\
+	libarchive/test/README
 
 
 #
@@ -321,6 +338,17 @@ bsdtar_SOURCES=				\
 		tar/util.c		\
 		tar/write.c
 
+if INC_WINDOWS_FILES
+bsdtar_SOURCES+=			\
+		tar/bsdtar_windows.h	\
+		tar/bsdtar_windows.c
+endif
+if INC_CYGWIN_FILES
+bsdtar_SOURCES+=			\
+		tar/bsdtar_cygwin.h	\
+		tar/bsdtar_cygwin.c
+endif
+
 bsdtar_DEPENDENCIES= libarchive.la
 
 if STATIC_BSDTAR
@@ -329,11 +357,19 @@ else
 bsdtar_static=
 endif
 
-bsdtar_LDADD= libarchive.la
+bsdtar_LDADD= libarchive.la @PROG_LDADD_EXTRA@
 bsdtar_CPPFLAGS= -I$(top_builddir)/libarchive -I$(top_srcdir)/libarchive
 bsdtar_LDFLAGS= $(bsdtar_static)
 bsdtar_EXTRA_DIST=		\
-	tar/bsdtar.1
+	tar/bsdtar.1		\
+	tar/bsdtar_windows.h	\
+	tar/bsdtar_windows.c	\
+	tar/bsdtar_cygwin.h	\
+	tar/bsdtar_cygwin.c	\
+	tar/CMakeLists.txt	\
+	tar/config_freebsd.h	\
+	tar/COPYING
+
 
 if BUILD_BSDTAR
 bsdtar_man_MANS= tar/bsdtar.1
@@ -366,7 +402,9 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_version.c					\
 	tar/test/test_windows.c
 
+
 bsdtar_test_CPPFLAGS= -I$(top_builddir)/tar/test
+bsdtar_test_LDADD=@PROG_LDADD_EXTRA@
 
 tar/test/list.h: Makefile
 	cat $(top_srcdir)/tar/test/test_*.c | grep DEFINE_TEST > tar/test/list.h
@@ -382,7 +420,8 @@ endif
 bsdtar_test_EXTRA_DIST=			\
 	tar/test/test_patterns_2.tar.uu	\
 	tar/test/test_patterns_3.tar.uu	\
-	tar/test/test_patterns_4.tar.uu
+	tar/test/test_patterns_4.tar.uu	\
+	tar/test/CMakeLists.txt
 
 
 #
@@ -402,6 +441,17 @@ bsdcpio_SOURCES=			\
 		cpio/pathmatch.c	\
 		cpio/pathmatch.h
 
+if INC_WINDOWS_FILES
+bsdcpio_SOURCES+=			\
+		cpio/cpio_windows.h	\
+		cpio/cpio_windows.c
+endif
+if INC_CYGWIN_FILES
+bsdcpio_SOURCES+=			\
+		cpio/cpio_cygwin.h	\
+		cpio/cpio_cygwin.c
+endif
+
 bsdcpio_DEPENDENCIES = libarchive.la
 
 
@@ -411,12 +461,19 @@ else
 bsdcpio_static=
 endif
 
-bsdcpio_LDADD= libarchive.la
+bsdcpio_LDADD= libarchive.la @PROG_LDADD_EXTRA@
 bsdcpio_CPPFLAGS= -I$(top_builddir)/libarchive -I$(top_srcdir)/libarchive
 bsdcpio_LDFLAGS= $(bsdcpio_static)
 bsdcpio_EXTRA_DIST=		\
 	cpio/test/list.h	\
-	cpio/bsdcpio.1
+	cpio/bsdcpio.1		\
+	cpio/cpio_cygwin.h	\
+	cpio/cpio_cygwin.c	\
+	cpio/cpio_windows.h	\
+	cpio/cpio_windows.c	\
+	cpio/CMakeLists.txt	\
+	cpio/config_freebsd.h
+
 
 if BUILD_BSDCPIO
 # Manpages to install
@@ -461,6 +518,7 @@ bsdcpio_test_SOURCES=						\
 	cpio/test/test_pathmatch.c
 
 bsdcpio_test_CPPFLAGS= -I$(top_builddir)/libarchive -I$(top_srcdir)/libarchive -I$(top_builddir)/cpio/test
+bsdcpio_test_LDADD=@PROG_LDADD_EXTRA@
 
 cpio/test/list.h: Makefile
 	cat $(top_srcdir)/cpio/test/test_*.c | grep DEFINE_TEST > cpio/test/list.h
@@ -482,4 +540,5 @@ bsdcpio_test_EXTRA_DIST=			\
 	cpio/test/test_option_m.cpio.uu		\
 	cpio/test/test_option_t.cpio.uu		\
 	cpio/test/test_option_t.stdout.uu	\
-	cpio/test/test_option_tv.stdout.uu
+	cpio/test/test_option_tv.stdout.uu	\
+	cpio/test/CMakeLists.txt

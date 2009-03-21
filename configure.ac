@@ -20,6 +20,8 @@ AC_INIT([libarchive],LIBARCHIVE_VERSION_S(),[kientzle@freebsd.org])
 AC_CONFIG_SRCDIR([libarchive])
 # Use auxiliary subscripts from this subdirectory (cleans up root)
 AC_CONFIG_AUX_DIR([build/autoconf])
+# M4 scripts
+AC_CONFIG_MACRO_DIR([build/m4])
 # Must follow AC_CONFIG macros above...
 AM_INIT_AUTOMAKE()
 
@@ -63,12 +65,44 @@ AC_SUBST(LIBARCHIVE_VERSION_NUMBER)
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile])
 
+# Check for host type
+AC_CANONICAL_HOST
+
+dnl Compilation on mingw and Cygwin needs special Makefile rules
+inc_windows_files=no
+inc_cygwin_files=no
+case "$host_os" in
+  *mingw* ) inc_windows_files=yes ;;
+  *cygwin*) inc_cygwin_files=yes ;;
+esac
+AM_CONDITIONAL([INC_WINDOWS_FILES], [test $inc_windows_files = yes])
+AM_CONDITIONAL([INC_CYGWIN_FILES], [test $inc_cygwin_files = yes])
+
 # Checks for programs.
 AC_PROG_CC
 AM_PROG_CC_C_O
 AC_PROG_YACC
+AC_LIBTOOL_WIN32_DLL
 AC_PROG_LIBTOOL
 AC_CHECK_TOOL([STRIP],[strip])
+
+#
+# Locate some specific link objects for cygwin
+#
+LA_SYS_LIB_SEARCH_PATH
+prog_ldadd_extra=
+case "$host_os" in
+*cygwin*)
+  for la_sys_path in $la_sys_lib_search_path_spec; do
+    if test -f $la_sys_path/binmode.o ; then
+      prog_ldadd_extra=$la_sys_path/binmode.o
+      break
+    fi
+  done
+  ;;
+esac
+PROG_LDADD_EXTRA=$prog_ldadd_extra
+AC_SUBST(PROG_LDADD_EXTRA)
 
 #
 # Options for building bsdtar.
