@@ -41,7 +41,26 @@ for d in libarchive tar cpio; do
 done
 cd ..
 
+# Rebuild Makefile in 'pdf' directory
+cd pdf
+echo > Makefile
+echo "default: all" >>Makefile
+echo >>Makefile
+all="all:"
+for d in libarchive tar cpio; do
+    for f in ../../$d/*.[135]; do
+	echo >> Makefile
+	echo `basename $f`.pdf: $f >> Makefile
+	echo "	groff -mdoc -T ps $f | ps2pdf - - > `basename $f`.pdf" >> Makefile
+        all="$all `basename $f`.pdf"
+    done
+done
+echo $all >>Makefile
+cd ..
+
 # Convert all of the manpages to -man format.
 (cd man && make)
 # Format all of the manpages to text
 (cd text && make)
+# Format all of the manpages in PDF directory.
+(cd pdf && make)
