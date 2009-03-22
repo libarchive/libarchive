@@ -370,8 +370,6 @@ AC_FUNC_STRERROR_R
 AC_FUNC_STRFTIME
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([chflags chown chroot])
-AC_CHECK_FUNCS([extattr_get_file extattr_list_file])
-AC_CHECK_FUNCS([extattr_set_fd extattr_set_file])
 AC_CHECK_FUNCS([fchdir fchflags fchmod fchown fcntl fork])
 AC_CHECK_FUNCS([fstat ftruncate futimes geteuid getpid])
 AC_CHECK_FUNCS([lchflags lchmod lchown])
@@ -379,7 +377,7 @@ AC_CHECK_FUNCS([lutimes memmove memset mkdir mkfifo mknod])
 AC_CHECK_FUNCS([nl_langinfo pipe poll readlink select setenv setlocale])
 AC_CHECK_FUNCS([strchr strdup strerror strrchr timegm])
 AC_CHECK_FUNCS([tzset unsetenv utime utimes vfork])
-AC_CHECK_FUNCS([wcscpy wcslen wctomb wmemcmp wmemcpy])
+AC_CHECK_FUNCS([wcrtomb wcscpy wcslen wctomb wmemcmp wmemcpy])
 
 # FreeBSD's nl_langinfo supports an option to specify whether the
 # current locale uses month/day or day/month ordering.  It makes the
@@ -423,7 +421,10 @@ if test "x$enable_xattr" != "xno"; then
 	AC_CHECK_HEADERS([attr/xattr.h])
 	AC_CHECK_HEADERS([sys/xattr.h])
 	AC_CHECK_LIB(attr,setxattr)
-	AC_CHECK_FUNCS([getxattr lgetxattr listxattr llistxattr fsetxattr lsetxattr])
+	AC_CHECK_FUNCS([extattr_get_file extattr_list_file])
+	AC_CHECK_FUNCS([extattr_set_fd extattr_set_file])
+	AC_CHECK_FUNCS([fsetxattr getxattr])
+	AC_CHECK_FUNCS([lgetxattr listxattr llistxattr lsetxattr])
 fi
 
 # Check for ACL support
