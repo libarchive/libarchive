@@ -21,7 +21,7 @@ AC_CONFIG_SRCDIR([libarchive])
 # Use auxiliary subscripts from this subdirectory (cleans up root)
 AC_CONFIG_AUX_DIR([build/autoconf])
 # M4 scripts
-AC_CONFIG_MACRO_DIR([build/m4])
+AC_CONFIG_MACRO_DIR([build/autoconf])
 # Must follow AC_CONFIG macros above...
 AM_INIT_AUTOMAKE()
 
