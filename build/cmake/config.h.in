@@ -518,6 +518,9 @@
 /* Define to 1 if the system has the type `wchar_t'. */
 #cmakedefine HAVE_WCHAR_T 1
 
+/* Define to 1 if you have the `wcrtomb' function. */
+#cmakedefine HAVE_WCRTOMB 1
+
 /* Define to 1 if you have the `wcscpy' function. */
 #cmakedefine HAVE_WCSCPY 1
 

@@ -271,8 +271,6 @@ CHECK_FUNCTION_EXISTS(SHA512_Init HAVE_SHA512)
 # Check functions
 #
 CHECK_FUNCS(chflags chown chroot)
-CHECK_FUNCS(extattr_get_file extattr_list_file)
-CHECK_FUNCS(extattr_set_fd extattr_set_file)
 CHECK_FUNCS(fchdir fchflags fchmod fchown fcntl fork)
 CHECK_FUNCS(fstat ftruncate futimes geteuid getpid)
 CHECK_FUNCS(lchflags lchmod lchown)
@@ -280,7 +278,7 @@ CHECK_FUNCS(lutimes memmove memset mkdir mkfifo mknod)
 CHECK_FUNCS(nl_langinfo pipe poll readlink select setenv setlocale)
 CHECK_FUNCS(strchr strdup strerror strrchr timegm)
 CHECK_FUNCS(tzset unsetenv utime utimes vfork)
-CHECK_FUNCS(wcscpy wcslen wctomb wmemcmp wmemcpy)
+CHECK_FUNCS(wcrtomb wcscpy wcslen wctomb wmemcmp wmemcpy)
 
 
 SET(CMAKE_REQUIRED_LIBRARIES "")
@@ -489,7 +487,10 @@ IF(ENABLE_XATTR)
   IF(HAVE_ATTR_LIB)
     SET(CMAKE_REQUIRED_LIBRARIES "attr")
   ENDIF(HAVE_ATTR_LIB)
-  CHECK_FUNCS(getxattr lgetxattr listxattr llistxattr fsetxattr lsetxattr)
+  CHECK_FUNCS(extattr_get_file extattr_list_file)
+  CHECK_FUNCS(extattr_set_fd extattr_set_file)
+  CHECK_FUNCS(fsetxattr getxattr)
+  CHECK_FUNCS(lgetxattr listxattr llistxattr lsetxattr)
 ENDIF(ENABLE_XATTR)
 
 #
