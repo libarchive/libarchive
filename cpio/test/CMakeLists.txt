@@ -50,9 +50,14 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
   #
   ADD_EXECUTABLE(bsdcpio_test ${bsdcpio_test_SOURCES})
   SET_PROPERTY(TARGET bsdcpio_test PROPERTY COMPILE_DEFINITIONS LIST_H)
-  ADD_TEST(bsdcpio_test bsdcpio_test
-   -v
-   -p ${BSDCPIO}
-   -r ${CMAKE_CURRENT_SOURCE_DIR})
+  SET(num 0)
+  FOREACH(test ${bsdcpio_test_SOURCES})
+    IF(test MATCHES "^test_[^/]+[.]c$")
+      STRING(REGEX REPLACE "^(test_[^/]+)[.]c$" "\\1" testname ${test})
+      ADD_TEST("bsdcpio_${testname}" bsdcpio_test
+        -q -v -p ${BSDCPIO} -r ${CMAKE_CURRENT_SOURCE_DIR} ${num})
+      MATH(EXPR num "${num} + 1")
+    ENDIF(test MATCHES "^test_[^/]+[.]c$")
+  ENDFOREACH(test)
 ENDIF(ENABLE_CPIO AND ENABLE_TEST)
 

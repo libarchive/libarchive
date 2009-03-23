@@ -105,7 +105,14 @@ IF(ENABLE_TEST)
   TARGET_LINK_LIBRARIES(libarchive_test ${ADDITIONAL_LIBS})
   SET_PROPERTY(TARGET libarchive_test PROPERTY COMPILE_DEFINITIONS
     LIBARCHIVE_STATIC LIST_H)
-  ADD_TEST(libarchive_test libarchive_test
-    -r ${CMAKE_CURRENT_SOURCE_DIR})
+  SET(num 0)
+  FOREACH(test ${libarchive_test_SOURCES})
+    IF(test MATCHES "^test_[^/]+[.]c$")
+      STRING(REGEX REPLACE "^(test_[^/]+)[.]c$" "\\1" testname ${test})
+      ADD_TEST("libarchive_${testname}" libarchive_test
+        -q -r ${CMAKE_CURRENT_SOURCE_DIR} ${num})
+      MATH(EXPR num "${num} + 1")
+    ENDIF(test MATCHES "^test_[^/]+[.]c$")
+  ENDFOREACH(test)
 ENDIF(ENABLE_TEST)
 

@@ -40,8 +40,13 @@ IF(ENABLE_TAR AND ENABLE_TEST)
   #
   ADD_EXECUTABLE(bsdtar_test ${bsdtar_test_SOURCES})
   SET_PROPERTY(TARGET bsdtar_test PROPERTY COMPILE_DEFINITIONS LIST_H)
-  ADD_TEST(bsdtar_test bsdtar_test
-    -v
-    -p ${BSDTAR}
-    -r ${CMAKE_CURRENT_SOURCE_DIR})
+  SET(num 0)
+  FOREACH(test ${bsdtar_test_SOURCES})
+    IF(test MATCHES "^test_[^/]+[.]c$")
+      STRING(REGEX REPLACE "^(test_[^/]+)[.]c$" "\\1" testname ${test})
+      ADD_TEST("bsdtar_${testname}" bsdtar_test
+        -q -v -p ${BSDTAR} -r ${CMAKE_CURRENT_SOURCE_DIR} ${num})
+      MATH(EXPR num "${num} + 1")
+    ENDIF(test MATCHES "^test_[^/]+[.]c$")
+  ENDFOREACH(test)
 ENDIF (ENABLE_TAR AND ENABLE_TEST)
