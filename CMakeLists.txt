@@ -533,6 +533,22 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
 
 #
+# Register installation of PDF documents.
+#
+IF(WIN32 AND NOT CYGWIN)
+  #
+  # On Windows platform, It's better that we install PDF documents
+  # on one's computer.
+  # These PDF documents are available in the release package.
+  #
+  IF(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/doc/pdf)
+    INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doc/pdf
+            DESTINATION share/man
+            FILES_MATCHING PATTERN "*.pdf"
+    )
+  ENDIF(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/doc/pdf)
+ENDIF(WIN32 AND NOT CYGWIN)
+#
 #
 #
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/libarchive)
