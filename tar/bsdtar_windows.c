@@ -42,7 +42,6 @@
 
 #include "bsdtar.h"
 
-#ifndef LIST_H
 int
 bsdtar_is_privileged(struct bsdtar *bsdtar)
 {
@@ -140,7 +139,5 @@ write_hierarchy_win(struct bsdtar *bsdtar, struct archive *a,
 try_plain:
 	write_hierarchy(bsdtar, a, path);
 }
-
-#endif /* LIST_H */
 
 #endif

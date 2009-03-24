@@ -42,7 +42,6 @@
 
 #include "cpio.h"
 
-#ifndef LIST_H
 int
 bsdcpio_is_privileged()
 {
@@ -55,7 +54,5 @@ bsdcpio_is_privileged()
 	}
 	return (ret);
 }
-
-#endif /* LIST_H */
 
 #endif

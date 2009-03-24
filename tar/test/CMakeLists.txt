@@ -38,7 +38,6 @@ IF(ENABLE_TAR AND ENABLE_TEST)
   # Register target
   #
   ADD_EXECUTABLE(bsdtar_test ${bsdtar_test_SOURCES})
-  SET_PROPERTY(TARGET bsdtar_test PROPERTY COMPILE_DEFINITIONS LIST_H)
   SET(num 0)
   FOREACH(test ${bsdtar_test_SOURCES})
     IF(test MATCHES "^test_[^/]+[.]c$")

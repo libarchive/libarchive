@@ -42,7 +42,6 @@
 
 #include "bsdtar.h"
 
-#ifndef LIST_H
 static int
 _is_privileged(HANDLE thandle, const char *sidlist[])
 {
@@ -134,8 +133,5 @@ bsdtar_is_privileged(struct bsdtar *bsdtar)
 	}
 	return (ret);
 }
-
-
-#endif /* LIST_H */
 
 #endif

@@ -42,7 +42,6 @@
 
 #include "cpio.h"
 
-#ifndef LIST_H
 static int
 _is_privileged(HANDLE thandle, const char *sidlist[])
 {
@@ -133,7 +132,5 @@ bsdcpio_is_privileged()
 	}
 	return (ret);
 }
-
-#endif /* LIST_H */
 
 #endif
