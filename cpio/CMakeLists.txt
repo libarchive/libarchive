@@ -18,6 +18,7 @@ IF(ENABLE_CPIO)
   IF(WIN32 AND NOT CYGWIN)
     LIST(APPEND bsdcpio_SOURCES cpio_windows.c)
     LIST(APPEND bsdcpio_SOURCES cpio_windows.h)
+    LIST(APPEND bsdcpio_SOURCES ../libarchive/archive_windows.c)
   ENDIF(WIN32 AND NOT CYGWIN)
 
   SET(bsdcpio_MANS bsdcpio.1)

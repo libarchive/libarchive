@@ -51,7 +51,6 @@ struct group {
 extern "C" {
 #endif
 
-extern unsigned int	sleep(unsigned int seconds);
 extern int		bsdcpio_is_privileged();
 
 #ifdef __cplusplus

@@ -297,6 +297,13 @@ typedef struct {
 #endif
 #endif /* HAVE_OPENSSL_SHA_H */
 
+struct __DIR;
+typedef struct __DIR DIR;
+struct direct {
+	unsigned char	d_nameln;
+	char		d_name[MAX_PATH];
+};
+
 /* End of Win32 definitions. */
 
 #ifdef __cplusplus
@@ -309,6 +316,11 @@ extern int	 symlink (const char *from, const char *to);
 extern int	 ftruncate(int fd, off_t length);
 extern int	 futimes(int fd, const struct __timeval *times);
 extern int	 utimes(const char *name, const struct __timeval *times);
+extern DIR	*opendir_findfile(const char *path);
+extern DIR	*opendir(const char *path);
+extern struct direct *readdir(DIR *dirp);
+extern int	 closedir(DIR *dirp);
+extern unsigned int	sleep(unsigned int seconds);
 
 /* Replacement POSIX function */
 extern int	 la_chdir(const char *path);
@@ -375,6 +387,9 @@ extern void	 SHA512_Final(unsigned char buf[SHA512_DIGEST_LENGTH],
 		     Digest_CTX *ctx);
 #endif
 #endif
+
+/* */
+extern int	 la_is_privileged();
 
 #ifdef __cplusplus
 }

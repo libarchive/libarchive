@@ -22,6 +22,7 @@ IF (ENABLE_TAR)
   IF(WIN32 AND NOT CYGWIN)
     LIST(APPEND bsdtar_SOURCES bsdtar_windows.c)
     LIST(APPEND bsdtar_SOURCES bsdtar_windows.h)
+    LIST(APPEND bsdtar_SOURCES ../libarchive/archive_windows.c)
   ENDIF(WIN32 AND NOT CYGWIN)
 
   SET(bsdtar_MANS bsdtar.1)

@@ -23,8 +23,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_version.c
   )
   IF(WIN32 AND NOT CYGWIN)
-    LIST(APPEND bsdtar_test_SOURCES ../bsdtar_windows.c)
-    LIST(APPEND bsdtar_test_SOURCES ../bsdtar_windows.h)
+    LIST(APPEND bsdtar_test_SOURCES ../../libarchive/archive_windows.c)
     LIST(APPEND bsdtar_test_SOURCES test_windows.c)
   ENDIF(WIN32 AND NOT CYGWIN)
 

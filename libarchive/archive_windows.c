@@ -48,7 +48,12 @@
 #define _WIN32_WINNT 0x0500
 #define WINVER       0x0500
 
-#include "archive_platform.h"
+#if defined(HAVE_CONFIG_H)
+#include "config.h"
+#else
+/* Warn if the library hasn't been (automatically or manually) configured. */
+#error Oops: No config.h and no pre-built configuration in archive_platform.h.
+#endif
 #include <errno.h>
 #include <stddef.h>
 #include <sys/utime.h>
@@ -57,6 +62,7 @@
 #include <stdlib.h>
 #include <wchar.h>
 #include <windows.h>
+#include <sddl.h>
 
 #define EPOC_TIME	(116444736000000000ULL)
 
@@ -76,6 +82,14 @@ struct ustat {
 	uid_t		st_uid;
 	dev_t		st_dev;
 	dev_t		st_rdev;
+};
+
+struct __DIR {
+	HANDLE			handle;
+	WIN32_FIND_DATAW	fileData;
+	struct direct		de;
+	int			first;
+	BOOL			finished;
 };
 
 /* Transform 64-bits ino into 32-bits by hashing.
@@ -486,6 +500,117 @@ utimes(const char *name, const struct __timeval *times)
 	ret = __hutimes(handle, times);
 	CloseHandle(handle);
 	return (ret);
+}
+
+static DIR *
+__opendir(const char *path, int ff)
+{
+	DIR *dir;
+	wchar_t *wpath, *wfname;
+	size_t wlen;
+
+	dir = malloc(sizeof(*dir));
+	if (dir == NULL) {
+		errno = ENOMEM;
+		return (NULL);
+	}
+
+	wpath = permissive_name(path);
+	if (wpath == NULL) {
+		errno = EINVAL;
+		free(dir);
+		return (NULL);
+	}
+	if (ff) {
+		wfname = wpath;
+		wpath = NULL;
+	} else {
+		wlen = wcslen(wpath);
+		wfname = malloc((wlen + 3) * sizeof(wchar_t));
+		if (wfname == NULL) {
+			errno = ENOMEM;
+			free(dir);
+			free(wpath);
+			return (NULL);
+		}
+		wcscpy(wfname, wpath);
+		wcscat(wfname, L"\\*");
+		free(wpath);
+	}
+
+	dir->handle = FindFirstFileW(wfname, &dir->fileData);
+	if (dir->handle == INVALID_HANDLE_VALUE) {
+		_dosmaperr(GetLastError());
+		free(dir);
+		free(wfname);
+		return (NULL);
+	}
+	dir->first = 1;
+	dir->finished = FALSE;
+	free(wfname);
+
+	return (dir);
+}
+
+DIR *
+opendir_findfile(const char *path)
+{
+	return (__opendir(path, 1));
+}
+
+DIR *
+opendir(const char *path)
+{
+	return (__opendir(path, 0));
+}
+
+struct direct *
+readdir(DIR *dirp)
+{
+	size_t len;
+
+	while (!dirp->finished) {
+		if (!dirp->first && !FindNextFileW(dirp->handle, &dirp->fileData)) {
+			if (GetLastError() != ERROR_NO_MORE_FILES)
+				_dosmaperr(GetLastError());
+			dirp->finished = TRUE;
+			break;
+		}
+		dirp->first = 0;
+		len = wcstombs(dirp->de.d_name, dirp->fileData.cFileName,
+		    sizeof(dirp->de.d_name) -1);
+		if (len == -1) {
+			errno = EINVAL;
+			dirp->finished = TRUE;
+			break;
+		}
+		dirp->de.d_name[len] = '\0';
+		dirp->de.d_nameln = strlen(dirp->de.d_name);
+		return (&dirp->de);
+	}
+
+	return (NULL);
+}
+
+int
+closedir(DIR *dirp)
+{
+	BOOL ret;
+
+	ret = FindClose(dirp->handle);
+	free(dirp);
+	if (ret == 0) {
+		_dosmaperr(GetLastError());
+		return (-1);
+	}
+	return (0);
+}
+
+unsigned int
+sleep(unsigned int seconds)
+{
+	Sleep(seconds * 1000);
+	return (0);
 }
 
 int
@@ -1173,5 +1298,96 @@ DIGEST_FINAL(SHA512, SHA384_DIGEST_LENGTH)
 #endif
 
 #endif /* !HAVE_OPENSSL_MD5_H && !HAVE_OPENSSL_SHA_H */
+
+static int
+_is_privileged(HANDLE thandle, const char *sidlist[])
+{
+	TOKEN_USER *tuser;
+	TOKEN_GROUPS  *tgrp;
+	DWORD bytes;
+	PSID psid;
+	DWORD i, g;
+	int member;
+
+	psid = NULL;
+	tuser = NULL;
+	tgrp = NULL;
+	member = 0;
+	for (i = 0; sidlist[i] != NULL && member == 0; i++) {
+		if (psid != NULL)
+			LocalFree(psid);
+		if (ConvertStringSidToSidA(sidlist[i], &psid) == 0) {
+			errno = EPERM;
+			return (-1);
+		}
+		if (tuser == NULL) {
+			GetTokenInformation(thandle, TokenUser, NULL, 0,
+			    &bytes);
+			tuser = malloc(bytes);
+			if (tuser == NULL) {
+				errno = ENOMEM;
+				member = -1;
+				break;
+			}
+			if (GetTokenInformation(thandle, TokenUser, tuser,
+			    bytes, &bytes) == 0) {
+				errno = EPERM;
+				member = -1;
+				break;
+			}
+		}
+		member = EqualSid(tuser->User.Sid, psid);
+		if (member)
+			break;
+		if (tgrp == NULL) {
+			GetTokenInformation(thandle, TokenGroups, NULL, 0,
+			    &bytes);
+			tgrp = malloc(bytes);
+			if (tgrp == NULL) {
+				errno = ENOMEM;
+				member = -1;
+				break;
+			}
+			if (GetTokenInformation(thandle, TokenGroups, tgrp,
+			    bytes, &bytes) == 0) {
+				errno = EPERM;
+				member = -1;
+				break;
+			}
+		}
+		for (g = 0; g < tgrp->GroupCount; g++) {
+			member = EqualSid(tgrp->Groups[g].Sid, psid);
+			if (member)
+				break;
+		}
+	}
+	LocalFree(psid);
+	free(tuser);
+	free(tgrp);
+
+	return (member);
+}
+
+int
+la_is_privileged()
+{
+	HANDLE thandle;
+	int ret;
+	const char *sidlist[] = {
+		"S-1-5-32-544",	/* Administrators */
+		"S-1-5-32-551", /* Backup Operators */
+		NULL
+	};
+
+	if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &thandle) == 0) {
+		errno = EPERM;
+		return (-1);
+	}
+	ret = _is_privileged(thandle, sidlist);
+	if (ret < 0) {
+		return (-1);
+	}
+	return (ret);
+}
 
 #endif /* _WIN32 && !__CYGWIN__ */
