@@ -23,7 +23,6 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_version.c
   )
   IF(WIN32 AND NOT CYGWIN)
-    LIST(APPEND bsdtar_test_SOURCES ../../libarchive/archive_windows.c)
     LIST(APPEND bsdtar_test_SOURCES test_windows.c)
   ENDIF(WIN32 AND NOT CYGWIN)
 
@@ -38,6 +37,9 @@ IF(ENABLE_TAR AND ENABLE_TEST)
   # Register target
   #
   ADD_EXECUTABLE(bsdtar_test ${bsdtar_test_SOURCES})
+  IF(WIN32 AND NOT CYGWIN)
+    ADD_DEPENDENCIES(bsdtar_test archive_windows_static)
+  ENDIF(WIN32 AND NOT CYGWIN)
   SET(num 0)
   FOREACH(test ${bsdtar_test_SOURCES})
     IF(test MATCHES "^test_[^/]+[.]c$")

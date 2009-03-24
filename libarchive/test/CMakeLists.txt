@@ -103,6 +103,9 @@ IF(ENABLE_TEST)
   #
   ADD_EXECUTABLE(libarchive_test ${libarchive_test_SOURCES})
   TARGET_LINK_LIBRARIES(libarchive_test ${ADDITIONAL_LIBS})
+  IF(WIN32 AND NOT CYGWIN)
+    ADD_DEPENDENCIES(libarchive_test archive_windows_static)
+  ENDIF(WIN32 AND NOT CYGWIN)
   SET_PROPERTY(TARGET libarchive_test PROPERTY COMPILE_DEFINITIONS
     LIBARCHIVE_STATIC)
   SET(num 0)
