@@ -51,6 +51,7 @@
 .Nm archive_read_open_filename ,
 .Nm archive_read_open_memory ,
 .Nm archive_read_next_header ,
+.Nm archive_read_next_header2 ,
 .Nm archive_read_data ,
 .Nm archive_read_data_block ,
 .Nm archive_read_data_skip ,
@@ -132,6 +133,8 @@
 .Fn archive_read_open_memory "struct archive *" "void *buff" "size_t size"
 .Ft int
 .Fn archive_read_next_header "struct archive *" "struct archive_entry **"
+.Ft int
+.Fn archive_read_next_header2 "struct archive *" "struct archive_entry *"
 .Ft ssize_t
 .Fn archive_read_data "struct archive *" "void *buff" "size_t len"
 .Ft int
@@ -316,6 +319,14 @@ memory containing the archive data.
 .It Fn archive_read_next_header
 Read the header for the next entry and return a pointer to
 a
+.Tn struct archive_entry .
+This is a convenience wrapper around
+.Fn archive_read_next_header2
+that uses an internal
+.Tn struct archive_entry
+object.
+.It Fn archive_read_next_header2
+Read the header for the next entry and populate the provided
 .Tn struct archive_entry .
 .It Fn archive_read_data
 Read data associated with the header just read.

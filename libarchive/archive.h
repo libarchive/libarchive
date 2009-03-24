@@ -355,6 +355,10 @@ __LA_DECL int		 archive_read_open_FILE(struct archive *, FILE *_file);
 __LA_DECL int		 archive_read_next_header(struct archive *,
 		     struct archive_entry **);
 
+/* Parses and returns next entry header using the archive_entry passed in */
+__LA_DECL int		 archive_read_next_header2(struct archive *,
+		     struct archive_entry *);
+
 /*
  * Retrieve the byte offset in UNCOMPRESSED data where last-read
  * header started.

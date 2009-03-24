@@ -368,18 +368,15 @@ build_stream(struct archive_read *a)
  * Read header of next entry.
  */
 int
-archive_read_next_header(struct archive *_a, struct archive_entry **entryp)
+archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	struct archive_entry *entry;
 	int slot, ret;
 
 	__archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
 	    "archive_read_next_header");
 
-	*entryp = NULL;
-	entry = a->entry;
 	archive_entry_clear(entry);
 	archive_clear_error(&a->archive);
 
@@ -437,10 +434,20 @@ archive_read_next_header(struct archive *_a, struct archive_entry **entryp)
 		break;
 	}
 
-	*entryp = entry;
 	a->read_data_output_offset = 0;
 	a->read_data_remaining = 0;
 	return (ret);
+}
+
+int
+archive_read_next_header(struct archive *_a, struct archive_entry **entryp)
+{
+	int ret;
+	struct archive_read *a = (struct archive_read *)_a;
+	*entryp = NULL;
+	ret = archive_read_next_header2(_a, a->entry);
+	*entryp = a->entry;
+	return ret;
 }
 
 /*
