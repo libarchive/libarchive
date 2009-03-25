@@ -61,13 +61,16 @@ INCLUDE(CheckTypeSize)
 #
 # Generate list.h
 #
-MACRO (GENERATE_LIST_H _listfile __list_sources)
+MACRO (GENERATE_LIST_H _listfile _cmlist __list_sources)
+  SET(_argv ${ARGV})
+  # Remove _listfile and _cmlist from _argv
+  LIST(REMOVE_AT _argv 0 1)
   IF (NOT EXISTS "${_listfile}" OR
-     ${CMAKE_CURRENT_LIST_FILE} IS_NEWER_THAN "${_listfile}")
+     ${_cmlist} IS_NEWER_THAN "${_listfile}")
 
     MESSAGE(STATUS "Generating ${_listfile}")
     FILE(WRITE ${_listfile} "")
-    FOREACH (testfile ${ARGV})
+    FOREACH (testfile ${_argv})
       IF (testfile MATCHES "^test_[^/]+[.]c$")
         FILE(STRINGS ${testfile} testvar REGEX "^DEFINE_TEST")
         FOREACH (deftest ${testvar})
@@ -77,7 +80,7 @@ MACRO (GENERATE_LIST_H _listfile __list_sources)
     ENDFOREACH (testfile)
 
   ENDIF (NOT EXISTS "${_listfile}" OR
-     ${CMAKE_CURRENT_LIST_FILE} IS_NEWER_THAN "${_listfile}")
+     ${_cmlist} IS_NEWER_THAN "${_listfile}")
 ENDMACRO (GENERATE_LIST_H)
 #
 # Generate installation rules for man pages.
