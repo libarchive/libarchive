@@ -1,22 +1,3 @@
-############################################
-#
-# How to build libarchive_windows_static
-#
-# This library is internal library and is used for libarchive programs
-# on Windows platform only.
-# We don't install this one anywhere.
-#
-############################################
-IF(WIN32 AND NOT CYGWIN)
-  SET(libarchive_windows_SOURCES
-    archive_windows.c
-    archive_windows.h
-  )
-  #
-  # Register target
-  #
-  ADD_LIBRARY(archive_windows_static STATIC ${libarchive_windows_SOURCES})
-ENDIF(WIN32 AND NOT CYGWIN)
 
 ############################################
 #
@@ -116,6 +97,8 @@ SET(libarchive_MANS
 )
 
 IF(WIN32 AND NOT CYGWIN)
+  LIST(APPEND libarchive_SOURCES archive_windows.c)
+  LIST(APPEND libarchive_SOURCES archive_windows.h)
   LIST(APPEND libarchive_SOURCES filter_fork_windows.c)
 ENDIF(WIN32 AND NOT CYGWIN)
 
@@ -126,17 +109,10 @@ ENDIF(WIN32 AND NOT CYGWIN)
 # Libarchive is a library
 ADD_LIBRARY(archive SHARED ${libarchive_SOURCES} ${include_HEADERS})
 TARGET_LINK_LIBRARIES(archive ${ADDITIONAL_LIBS})
-IF(WIN32 AND NOT CYGWIN)
-  ADD_DEPENDENCIES(archive archive_windows_static)
-ENDIF(WIN32 AND NOT CYGWIN)
 SET_TARGET_PROPERTIES(archive PROPERTIES SOVERSION ${SOVERSION})
 SET_TARGET_PROPERTIES(archive PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 ADD_LIBRARY(archive_static STATIC ${libarchive_SOURCES} ${include_HEADERS})
-TARGET_LINK_LIBRARIES(archive_static ${ADDITIONAL_LIBS})
-IF(WIN32 AND NOT CYGWIN)
-  ADD_DEPENDENCIES(archive_static archive_windows_static)
-ENDIF(WIN32 AND NOT CYGWIN)
 SET_TARGET_PROPERTIES(archive_static PROPERTIES COMPILE_DEFINITIONS
   LIBARCHIVE_STATIC)
 SET_TARGET_PROPERTIES(archive_static PROPERTIES

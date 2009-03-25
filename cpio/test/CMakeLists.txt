@@ -33,6 +33,10 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     test_passthrough_reverse.c
     test_pathmatch.c
   )
+  IF(WIN32 AND NOT CYGWIN)
+    LIST(APPEND bsdcpio_test_SOURCES ../cpio_windows.c)
+    LIST(APPEND bsdcpio_test_SOURCES ../cpio_windows.h)
+  ENDIF(WIN32 AND NOT CYGWIN)
 
   #
   # Generate the list.h
@@ -45,9 +49,7 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
   # Register target
   #
   ADD_EXECUTABLE(bsdcpio_test ${bsdcpio_test_SOURCES})
-  IF(WIN32 AND NOT CYGWIN)
-    ADD_DEPENDENCIES(bsdcpio_test archive_windows_static)
-  ENDIF(WIN32 AND NOT CYGWIN)
+  SET_PROPERTY(TARGET bsdcpio_test PROPERTY COMPILE_DEFINITIONS LIST_H)
   SET(num 0)
   FOREACH(test ${bsdcpio_test_SOURCES})
     IF(test MATCHES "^test_[^/]+[.]c$")

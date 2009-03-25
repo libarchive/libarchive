@@ -342,8 +342,7 @@ bsdtar_SOURCES=				\
 if INC_WINDOWS_FILES
 bsdtar_SOURCES+=			\
 		tar/bsdtar_windows.h	\
-		tar/bsdtar_windows.c	\
-		libarchive/archive_windows.c
+		tar/bsdtar_windows.c
 endif
 if INC_CYGWIN_FILES
 bsdtar_SOURCES+=			\
@@ -446,8 +445,7 @@ bsdcpio_SOURCES=			\
 if INC_WINDOWS_FILES
 bsdcpio_SOURCES+=			\
 		cpio/cpio_windows.h	\
-		cpio/cpio_windows.c	\
-		libarchive/archive_windows.c
+		cpio/cpio_windows.c
 endif
 if INC_CYGWIN_FILES
 bsdcpio_SOURCES+=			\

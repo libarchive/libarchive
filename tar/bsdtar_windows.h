@@ -31,9 +31,20 @@
 #define PRId64 "I64"
 #define geteuid()	0
 
+struct __DIR;
+typedef struct __DIR DIR;
+struct direct {
+	unsigned char	d_nameln;
+	char		d_name[MAX_PATH];
+};
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+extern DIR	*opendir(const char *path);
+extern struct dirent *readdir(DIR *dirp);
+extern int	closedir(DIR *dirp);
 
 extern int	bsdtar_is_privileged(struct bsdtar *bsdtar);
 extern void	write_hierarchy_win(struct bsdtar *bsdtar, struct archive *a,
