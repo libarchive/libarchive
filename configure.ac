@@ -89,16 +89,13 @@ AC_CHECK_TOOL([STRIP],[strip])
 #
 # Locate some specific link objects for cygwin
 #
-LA_SYS_LIB_SEARCH_PATH
 prog_ldadd_extra=
 case "$host_os" in
 *cygwin*)
-  for la_sys_path in $la_sys_lib_search_path_spec; do
-    if test -f $la_sys_path/binmode.o ; then
-      prog_ldadd_extra=$la_sys_path/binmode.o
-      break
-    fi
-  done
+  binmode_path=`$CC -print-file-name=binmode.o`
+  if test -n "$binmode_path" && test -f "$binmode_path" ; then
+    prog_ldadd_extra="$binmode_path"
+  fi
   ;;
 esac
 PROG_LDADD_EXTRA=$prog_ldadd_extra
