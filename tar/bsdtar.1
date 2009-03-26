@@ -615,7 +615,7 @@ and
 .Dq 19:14 PST May 1 .
 .Pp
 The
-.Fl -option
+.Fl -options
 argument can be used to control various details of archive generation
 or reading.
 For example, you can generate mtree output which only contains
@@ -623,9 +623,9 @@ For example, you can generate mtree output which only contains
 and
 .Cm uid
 keywords:
-.Dl Nm Fl cf Pa file.tar Fl -format=mtree Fl -option='!all,type,time,uid' Pa dir
+.Dl Nm Fl cf Pa file.tar Fl -format=mtree Fl -options='!all,type,time,uid' Pa dir
 or you can set the compression level used by gzip or xz compression:
-.Dl Nm Fl czf Pa file.tar Fl -option='compression-level=9' .
+.Dl Nm Fl czf Pa file.tar Fl -options='compression-level=9' .
 For more details, see the explanation of the
 .Fn archive_read_set_options
 and
