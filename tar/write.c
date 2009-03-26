@@ -212,16 +212,10 @@ tar_mode_c(struct bsdtar *bsdtar)
 		}
 	}
 
-	r = archive_write_open_file(a, bsdtar->filename);
-	if (r != ARCHIVE_OK)
+	if (ARCHIVE_OK != archive_write_set_options(a, bsdtar->option_options))
 		bsdtar_errc(bsdtar, 1, 0, archive_error_string(a));
-
-	if (bsdtar->option_format_options != NULL) {
-		r = archive_write_set_options(a, bsdtar->option_format_options);
-		if (r != ARCHIVE_OK)
-			bsdtar_errc(bsdtar, 1, 0, archive_error_string(a));
-	}
-
+	if (ARCHIVE_OK != archive_write_open_file(a, bsdtar->filename))
+		bsdtar_errc(bsdtar, 1, 0, archive_error_string(a));
 	write_archive(a, bsdtar);
 }
 
@@ -307,12 +301,10 @@ tar_mode_r(struct bsdtar *bsdtar)
 		archive_write_set_format(a, format);
 	}
 	lseek(bsdtar->fd, end_offset, SEEK_SET); /* XXX check return val XXX */
-	archive_write_open_fd(a, bsdtar->fd); /* XXX check return val XXX */
-	if (bsdtar->option_format_options != NULL) {
-		r = archive_write_set_options(a, bsdtar->option_format_options);
-		if (r != ARCHIVE_OK)
-			bsdtar_errc(bsdtar, 1, 0, archive_error_string(a));
-	}
+	if (ARCHIVE_OK != archive_write_set_options(a, bsdtar->option_options))
+		bsdtar_errc(bsdtar, 1, 0, archive_error_string(a));
+	if (ARCHIVE_OK != archive_write_open_fd(a, bsdtar->fd))
+		bsdtar_errc(bsdtar, 1, 0, archive_error_string(a));
 
 	write_archive(a, bsdtar); /* XXX check return val XXX */
 
@@ -393,12 +385,10 @@ tar_mode_u(struct bsdtar *bsdtar)
 		archive_write_set_bytes_per_block(a, DEFAULT_BYTES_PER_BLOCK);
 	lseek(bsdtar->fd, end_offset, SEEK_SET);
 	ftruncate(bsdtar->fd, end_offset);
-	archive_write_open_fd(a, bsdtar->fd);
-	if (bsdtar->option_format_options != NULL) {
-		r = archive_write_set_options(a, bsdtar->option_format_options);
-		if (r != ARCHIVE_OK)
-			bsdtar_errc(bsdtar, 1, 0, archive_error_string(a));
-	}
+	if (ARCHIVE_OK != archive_write_set_options(a, bsdtar->option_options))
+		bsdtar_errc(bsdtar, 1, 0, archive_error_string(a));
+	if (ARCHIVE_OK != archive_write_open_fd(a, bsdtar->fd))
+		bsdtar_errc(bsdtar, 1, 0, archive_error_string(a));
 
 	write_archive(a, bsdtar);
 
