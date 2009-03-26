@@ -976,8 +976,10 @@ archive_write_mtree_options(struct archive_write *a, const char *key,
 			keybit = F_GNAME;
 		break;
 	case 'i':
-		if (strcmp(key, "indent") == 0)
+		if (strcmp(key, "indent") == 0) {
 			mtree->indent = (value != NULL)? 1: 0;
+			return (ARCHIVE_OK);
+		}
 		break;
 	case 'l':
 		if (strcmp(key, "link") == 0)
@@ -1039,8 +1041,10 @@ archive_write_mtree_options(struct archive_write *a, const char *key,
 			keybit = F_UID;
 		else if (strcmp(key, "uname") == 0)
 			keybit = F_UNAME;
-		else if (strcmp(key, "use-set") == 0)
+		else if (strcmp(key, "use-set") == 0) {
 			mtree->set.output = (value != NULL)? 1: 0;
+			return (ARCHIVE_OK);
+		}
 		break;
 	}
 	if (keybit != 0) {
