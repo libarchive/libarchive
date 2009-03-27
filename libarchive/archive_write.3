@@ -76,10 +76,7 @@
 .Ft int
 .Fn archive_write_set_compression_none "struct archive *"
 .Ft int
-.Fo archive_write_set_compression_program
-.Fa "struct archive *"
-.Fa "const char * cmd"
-.Fc
+.Fn archive_write_set_compression_program "struct archive *" "const char * cmd"
 .Ft int
 .Fn archive_write_set_format_cpio "struct archive *"
 .Ft int
