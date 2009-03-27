@@ -31,6 +31,9 @@ AM_CFLAGS=-Wall -Werror
 EXTRA_DIST= \
 	CMakeLists.txt			\
 	PROJECTS			\
+	build/autoconf/la_syslibsearchpath.m4	\
+	build/autogen.sh		\
+	build/release.sh		\
 	build/cmake			\
 	build/version			\
 	build/windows			\
@@ -369,7 +372,8 @@ bsdtar_EXTRA_DIST=		\
 	tar/bsdtar_cygwin.c	\
 	tar/CMakeLists.txt	\
 	tar/config_freebsd.h	\
-	tar/COPYING
+	tar/COPYING		\
+	tar/test/list.h
 
 
 if BUILD_BSDTAR
