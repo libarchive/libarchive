@@ -85,7 +85,7 @@ function breakline() {
 
 # Start an indented display
 function dispstart() {
-  linecmd(".RS")
+  linecmd(".RS 4")
 }
 
 # End an indented display
@@ -104,6 +104,37 @@ function wtail() {
   return retval
 }
 
+function splitwords(l, dest, n, o, w) {
+  n = 1
+  delete dest
+  while (length(l) > 0) {
+    sub("^[ \t]*", "", l)
+    if (match(l, "^\"")) {
+      l = substr(l, 2)
+      o = index(l, "\"")
+      if (o > 0) {
+	w = substr(l, 1, o-1)
+	l = substr(l, o+1)
+	dest[n++] = w
+      } else {
+	dest[n++] = l
+	l = ""
+      }
+    } else {
+      o = match(l, "[ \t]")
+      if (o > 0) {
+	w = substr(l, 1, o-1)
+	l = substr(l, o+1)
+	dest[n++] = w
+      } else {
+	dest[n++] = l
+	l = ""
+      }
+    }
+  }
+  return n-1
+}
+
 ! /^\./ {
   out = $0
   endline()
@@ -114,7 +145,7 @@ function wtail() {
 
 {
   sub("^\\.","")
-  nwords=split($0,words)
+  nwords=splitwords($0, words)
   # TODO: Instead of iterating 'w' over the array, have a separate
   # function that returns 'next word' and use that.  This will allow
   # proper handling of double-quoted arguments as well.
@@ -128,6 +159,7 @@ function wtail() {
     } else if(match(words[w],"^Bd$")) { # Begin display
       if(match(words[w+1],"-literal")) {
         dispstart()
+	linecmd(".nf")
 	displaylines=10000
 	w=nwords
       }
@@ -143,6 +175,10 @@ function wtail() {
       add(words[++w])
       while(w<nwords&&!match(words[w+1],"^[\\.,]"))
 	add(words[++w])
+      addclose("''")
+    } else if(match(words[w],"^Do$")) {
+      addopen("``")
+    } else if(match(words[w],"^Dc$")) {
       addclose("''")
     } else if(match(words[w],"^Oo$")) {
       addopen("[")
@@ -189,15 +225,20 @@ function wtail() {
     } else if(match(words[w],"^Os$")) {
       add(".TH " id " \"" date "\" \"" wtail() "\"")
     } else if(match(words[w],"^Sh$")) {
-      add(".SH")
-      section=words[w+1]
+      section=wtail()
+      add(".SH " section)
+      linecmd(".ad l")
     } else if(match(words[w],"^Xr$")) {
       add("\\fB" words[++w] "\\fP(" words[++w] ")" words[++w])
     } else if(match(words[w],"^Nm$")) {
       if(match(section,"SYNOPSIS"))
         breakline()
-      if(w>1)
-        n=name
+      if(w >= nwords)
+	n=name
+      else if (match(words[w+1], "^[A-Z][a-z]$"))
+	n=name
+      else if (match(words[w+1], "^[.,;:]$"))
+	n=name
       else {
         n=words[++w]
         if(!length(name))
@@ -205,7 +246,7 @@ function wtail() {
       }
       if(!length(n))
         n=name
-      add("\\fB" n "\\fP")
+      add("\\fB\\%" n "\\fP")
     } else if(match(words[w],"^Nd$")) {
       add("\\- " wtail())
     } else if(match(words[w],"^Fl$")) {
@@ -214,11 +255,8 @@ function wtail() {
       addopen("\\fI")
       if(w==nwords)
 	add("file ...\\fP")
-      else {
+      else
 	add(words[++w] "\\fP")
-	while(match(words[w+1],"^\\|$"))
-	  add(words[++w] " \\fI" words[++w] "\\fP")
-      }
     } else if(match(words[w],"^Cm$")) {
       add("\\fB" words[++w] "\\fP")
     } else if(match(words[w],"^Op$")) {
@@ -226,38 +264,57 @@ function wtail() {
       option=1
       trailer="]" trailer
     } else if(match(words[w],"^Pp$")) {
-      endline()
+      linecmd(".PP")
     } else if(match(words[w],"^An$")) {
       endline()
     } else if(match(words[w],"^Ss$")) {
       add(".SS")
     } else if(match(words[w],"^Ft$")) {
-      addopen("\\fI")
-      trailer = "\\fP" trailer
-      displaylines = 1
+      if (match(section, "SYNOPSIS")) {
+	breakline()
+      }
+      add("\\fI" wtail() "\\fP")
+      if (match(section, "SYNOPSIS")) {
+	breakline()
+      }
     } else if(match(words[w],"^Fn$")) {
-      # Using '.nh' to suppress hyphenation doesn't really work...
-      # TODO: Fix this.
-      add(".nh")
-      endline()
-      addopen("\\fB")
+      ++w
+      F = "\\fB\\%" words[w] "\\fP("
+      Fsep = ""
+      while(w<nwords) {
+	++w
+	if (match(words[w], "^[.,:]$")) {
+	  --w
+	  break
+	}
+	gsub(" ", "\\ ", words[w])
+	F = F Fsep "\\fI\\%"  words[w] "\\fP"
+	Fsep = ", "
+      }
+      add(F ")")
+      if (match(section, "SYNOPSIS")) {
+	addclose(";")
+      }
+    } else if(match(words[w],"^Fo$")) {
       w++
-      add(words[w])
-      addclose("\\fP")
-      endline()
-      add(".hy")
-      endline()
-      addpunct("(")
-      # This is broken; Fn should peek ahead and put each double-quoted
-      # arg in .Ty and be smarter about following punct.
-      trailer = ");" trailer
+      F = "\\fB\\%" words[w] "\\fP("
+      Fsep = ""
+    } else if(match(words[w],"^Fa$")) {
+      w++
+      gsub(" ", "\\ ", words[w])
+      F = F Fsep "\\fI\\%"  words[w] "\\fP"
+      Fsep = ", "
+    } else if(match(words[w],"^Fc$")) {
+      add(F ")")
+      if (match(section, "SYNOPSIS")) {
+	addclose(";")
+      }
     } else if(match(words[w],"^Va$")) {
       w++
       add("\\fI" words[w] "\\fP")
     } else if(match(words[w],"^In$")) {
       w++
       add("\\fB#include <" words[w] ">\\fP")
-      breakline()
     } else if(match(words[w],"^Pa$")) {
       addopen("\\fI")
       w++
@@ -272,7 +329,7 @@ function wtail() {
       addopen("(")
       trailer=")" trailer
     } else if(match(words[w],"^Aq$")) {
-      addopen("<")
+      addopen("\\%<")
       trailer=">" trailer
     } else if(match(words[w],"^Brq$")) {
       addopen("{")
@@ -284,6 +341,7 @@ function wtail() {
       trailer="\\fP" trailer
     } else if(match(words[w],"^Bl$")) {
       oldoptlist=optlist
+      linecmd(".RS 5")
       if(match(words[w+1],"-bullet"))
 	optlist=1
       else if(match(words[w+1],"-enum")) {
@@ -297,6 +355,7 @@ function wtail() {
 	optlist=1
       w=nwords
     } else if(match(words[w],"^El$")) {
+      linecmd(".RE")
       optlist=oldoptlist
     } else if(match(words[w],"^It$")&&optlist) {
       if(optlist==1)
@@ -312,6 +371,10 @@ function wtail() {
 	}
       } else if(optlist==4)
 	add(".IP")
+    } else if(match(words[w],"^Xo$")) {
+      # TODO: Figure out how to handle this
+    } else if(match(words[w],"^Xc$")) {
+      # TODO: Figure out how to handle this
     } else if(match(words[w],"^[=]$")) {
       addpunct(words[w])
     } else if(match(words[w],"^[\[{(]$")) {
