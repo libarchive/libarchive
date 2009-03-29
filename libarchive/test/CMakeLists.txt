@@ -72,6 +72,7 @@ IF(ENABLE_TEST)
     test_tar_large.c
     test_ustar_filenames.c
     test_write_compress.c
+    test_write_compress_bzip2.c
     test_write_compress_gzip.c
     test_write_compress_program.c
     test_write_disk.c

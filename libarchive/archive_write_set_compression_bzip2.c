@@ -62,6 +62,9 @@ struct private_data {
 	size_t		 compressed_buffer_size;
 };
 
+struct private_config {
+	int		 compression_level;
+};
 
 /*
  * Yuck.  bzlib.h is not const-correct, so I need this one bit
@@ -72,6 +75,8 @@ struct private_data {
 
 static int	archive_compressor_bzip2_finish(struct archive_write *);
 static int	archive_compressor_bzip2_init(struct archive_write *);
+static int	archive_compressor_bzip2_options(struct archive_write *,
+		    const char *, const char *);
 static int	archive_compressor_bzip2_write(struct archive_write *,
 		    const void *, size_t);
 static int	drive_compressor(struct archive_write *, struct private_data *,
@@ -84,9 +89,20 @@ int
 archive_write_set_compression_bzip2(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;
+	struct private_config *config;
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_set_compression_bzip2");
+	config = malloc(sizeof(*config));
+	if (config == NULL) {
+		archive_set_error(&a->archive, ENOMEM, "Out of memory");
+		return (ARCHIVE_FATAL);
+	}
+	a->compressor.config = config;
+	config->compression_level = 9; /* default */
 	a->compressor.init = &archive_compressor_bzip2_init;
+	a->compressor.options = &archive_compressor_bzip2_options;
+	a->archive.compression_code = ARCHIVE_COMPRESSION_BZIP2;
+	a->archive.compression_name = "bzip2";
 	return (ARCHIVE_OK);
 }
 
@@ -98,10 +114,9 @@ archive_compressor_bzip2_init(struct archive_write *a)
 {
 	int ret;
 	struct private_data *state;
+	struct private_config *config;
 
-	a->archive.compression_code = ARCHIVE_COMPRESSION_BZIP2;
-	a->archive.compression_name = "bzip2";
-
+	config = (struct private_config *)a->compressor.config;
 	if (a->client_opener != NULL) {
 		ret = (a->client_opener)(&a->archive, a->client_data);
 		if (ret != 0)
@@ -132,7 +147,8 @@ archive_compressor_bzip2_init(struct archive_write *a)
 	a->compressor.finish = archive_compressor_bzip2_finish;
 
 	/* Initialize compression library */
-	ret = BZ2_bzCompressInit(&(state->stream), 9, 0, 30);
+	ret = BZ2_bzCompressInit(&(state->stream),
+	    config->compression_level, 0, 30);
 	if (ret == BZ_OK) {
 		a->compressor.data = state;
 		return (ARCHIVE_OK);
@@ -165,6 +181,32 @@ archive_compressor_bzip2_init(struct archive_write *a)
 
 	return (ARCHIVE_FATAL);
 
+}
+
+/*
+ * Set write options.
+ */
+static int
+archive_compressor_bzip2_options(struct archive_write *a, const char *key,
+    const char *value)
+{
+	struct private_config *config;
+
+	config = (struct private_config *)a->compressor.config;
+	if (strcmp(key, "compression-level") == 0) {
+		if (value == NULL || !(value[0] >= '0' && value[0] <= '9') ||
+		    value[1] != '\0')
+			return (ARCHIVE_WARN);
+		config->compression_level = value[0] - '0';
+		/* Make '0' be a synonym for '1'. */
+		/* This way, bzip2 compressor supports the same 0..9
+		 * range of levels as gzip. */
+		if (config->compression_level < 1)
+			config->compression_level = 1;
+		return (ARCHIVE_OK);
+	}
+
+	return (ARCHIVE_WARN);
 }
 
 /*
