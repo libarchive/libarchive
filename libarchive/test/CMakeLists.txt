@@ -30,6 +30,9 @@ IF(ENABLE_TEST)
     test_extattr_freebsd.c
     test_fuzz.c
     test_link_resolver.c
+    test_open_fd.c
+    test_open_file.c
+    test_open_filename.c
     test_pax_filename_encoding.c
     test_read_compress_program.c
     test_read_data_large.c
