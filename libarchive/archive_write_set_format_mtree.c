@@ -962,8 +962,10 @@ archive_write_mtree_options(struct archive_write *a, const char *key,
 	case 'd':
 		if (strcmp(key, "device") == 0)
 			keybit = F_DEV;
-		else if (strcmp(key, "dironly") == 0)
+		else if (strcmp(key, "dironly") == 0) {
 			mtree->dironly = (value != NULL)? 1: 0;
+			return (ARCHIVE_OK);
+		}
 		break;
 	case 'f':
 		if (strcmp(key, "flags") == 0)
