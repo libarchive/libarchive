@@ -136,6 +136,7 @@ archive_write_set_format_options(struct archive *_a, const char *s)
 
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_set_format_options");
+	archive_clear_error(a);
 
 	if (s == NULL || *s == '\0')
 		return (ARCHIVE_OK);
@@ -179,12 +180,16 @@ archive_write_set_compressor_options(struct archive *_a, const char *s)
 
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_set_compressor_options");
+	archive_clear_error(a);
 
 	if (s == NULL || *s == '\0')
 		return (ARCHIVE_OK);
-	if (a->compressor.options == NULL)
+	if (a->compressor.options == NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Unsupported option ``%s''", s);
 		/* This compressor does not support option. */
-		return (ARCHIVE_OK);
+		return (ARCHIVE_WARN);
+	}
 
 	while ((len = __archive_parse_options(s, a->archive.compression_name,
 	    sizeof(key), key, sizeof(val), val)) > 0) {
@@ -215,14 +220,16 @@ archive_write_set_compressor_options(struct archive *_a, const char *s)
 int
 archive_write_set_options(struct archive *_a, const char *s)
 {
-	int r;
+	int r1, r2;
 
-	r = archive_write_set_format_options(_a, s);
-	if (r != ARCHIVE_OK)
-		return (r);
-	r = archive_write_set_compressor_options(_a, s);
-	if (r != ARCHIVE_OK)
-		return (r);
+	r1 = archive_write_set_format_options(_a, s);
+	if (r1 < ARCHIVE_WARN)
+		return (r1);
+	r2 = archive_write_set_compressor_options(_a, s);
+	if (r2 < ARCHIVE_WARN)
+		return (r2);
+	if (r1 == ARCHIVE_WARN && r2 == ARCHIVE_WARN)
+		return (ARCHIVE_WARN);
 	return (ARCHIVE_OK);
 }
 
