@@ -61,7 +61,6 @@ struct read_file_data {
 };
 
 static int	file_close(struct archive *, void *);
-static int	file_open(struct archive *, void *);
 static ssize_t	file_read(struct archive *, void *, const void **buff);
 #if ARCHIVE_API_VERSION < 2
 static ssize_t	file_skip(struct archive *, void *, size_t request);
