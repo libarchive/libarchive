@@ -59,11 +59,11 @@ test_write_format_mtree_sub(int use_set, int dironly)
 	/* Create a mtree format archive. */
 	assert((a = archive_write_new()) != NULL);
 	assertA(0 == archive_write_set_format_mtree(a));
-	assertA(0 == archive_write_open_memory(a, buff, sizeof(buff)-1, &used));
 	if (use_set)
 		assertA(0 == archive_write_set_options(a, "use-set"));
 	if (dironly)
 		assertA(0 == archive_write_set_options(a, "dironly"));
+	assertA(0 == archive_write_open_memory(a, buff, sizeof(buff)-1, &used));
 
 	/* Write entries */
 	for (i = 0; entries[i].path != NULL; i++) {

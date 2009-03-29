@@ -120,6 +120,9 @@ archive_read_set_format_options(struct archive *_a, const char *s)
 	size_t i;
 	int len, r;
 
+	__archive_check_magic(&a->archive, ARCHIVE_READ_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_read_set_format_options");
+
 	if (s == NULL || *s == '\0')
 		return (ARCHIVE_OK);
 	a = (struct archive_read *)_a;
@@ -161,6 +164,9 @@ archive_read_set_filter_options(struct archive *_a, const char *s)
 	struct archive_read_filter_bidder *bidder;
 	char key[64], val[64];
 	int len, r;
+
+	__archive_check_magic(&a->archive, ARCHIVE_READ_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_read_set_filter_options");
 
 	if (s == NULL || *s == '\0')
 		return (ARCHIVE_OK);
