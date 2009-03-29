@@ -58,7 +58,11 @@ DEFINE_TEST(test_write_compress_gzip)
 	assertA(0 == archive_write_set_compression_gzip(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_bytes_per_block(a, 10));
+	assertEqualInt(ARCHIVE_COMPRESSION_GZIP, archive_compression(a));
+	assertEqualString("gzip", archive_compression_name(a));
 	assertA(0 == archive_write_open_memory(a, buff, buffsize, &used1));
+	assertEqualInt(ARCHIVE_COMPRESSION_GZIP, archive_compression(a));
+	assertEqualString("gzip", archive_compression_name(a));
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_set_filetype(ae, AE_IFREG);
 	archive_entry_set_size(ae, datasize);
