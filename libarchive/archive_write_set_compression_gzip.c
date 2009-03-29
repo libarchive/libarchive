@@ -187,7 +187,6 @@ archive_compressor_gzip_init(struct archive_write *a)
 	state->stream.next_out += 10;
 	state->stream.avail_out -= 10;
 
-	a->compressor.options = archive_compressor_gzip_options;
 	a->compressor.write = archive_compressor_gzip_write;
 	a->compressor.finish = archive_compressor_gzip_finish;
 
