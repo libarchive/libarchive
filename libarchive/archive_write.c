@@ -136,7 +136,7 @@ archive_write_set_format_options(struct archive *_a, const char *s)
 
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_set_format_options");
-	archive_clear_error(a);
+	archive_clear_error(&a->archive);
 
 	if (s == NULL || *s == '\0')
 		return (ARCHIVE_OK);
@@ -180,7 +180,7 @@ archive_write_set_compressor_options(struct archive *_a, const char *s)
 
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_set_compressor_options");
-	archive_clear_error(a);
+	archive_clear_error(&a->archive);
 
 	if (s == NULL || *s == '\0')
 		return (ARCHIVE_OK);
