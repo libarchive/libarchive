@@ -46,8 +46,14 @@ DEFINE_TEST(test_read_format_gtar_lzma)
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_compression_all(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_compression_lzma(a));
+	r = archive_read_support_compression_lzma(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("lzma reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+		return;
+	}
+
+	assertEqualIntA(a, ARCHIVE_OK, r);
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_all(a));
 	r = archive_read_open_memory2(a, archive, sizeof(archive), 3);
