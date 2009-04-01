@@ -79,8 +79,6 @@ struct private_data {
 /* Lzma-only filter */
 static ssize_t	lzma_filter_read(struct archive_read_filter *, const void **);
 static int	lzma_filter_close(struct archive_read_filter *);
-static int	lzma_bidder_init(struct archive_read_filter *);
-
 #endif
 
 /*
@@ -110,7 +108,13 @@ archive_read_support_compression_xz(struct archive *_a)
 	bidder->init = xz_bidder_init;
 	bidder->options = NULL;
 	bidder->free = NULL;
+#if HAVE_LZMA_H && HAVE_LIBLZMA
 	return (ARCHIVE_OK);
+#else
+	archive_set_error(_a, ARCHIVE_ERRNO_MISC,
+	    "Using external unxz program for xz decompression");
+	return (ARCHIVE_WARN);
+#endif
 }
 
 int
@@ -127,7 +131,15 @@ archive_read_support_compression_lzma(struct archive *_a)
 	bidder->init = lzma_bidder_init;
 	bidder->options = NULL;
 	bidder->free = NULL;
+#if HAVE_LZMA_H && HAVE_LIBLZMA
 	return (ARCHIVE_OK);
+#elif HAVE_LZMADEC_H && HAVE_LIBLZMADEC
+	return (ARCHIVE_OK);
+#else
+	archive_set_error(_a, ARCHIVE_ERRNO_MISC,
+	    "Using external unlzma program for lzma decompression");
+	return (ARCHIVE_WARN);
+#endif
 }
 
 /*
@@ -596,22 +608,34 @@ lzma_filter_close(struct archive_read_filter *self)
  *
  */
 static int
-lzma_bidder_init(struct archive_read_filter *filter)
+lzma_bidder_init(struct archive_read_filter *self)
 {
-	archive_set_error(&filter->archive->archive, -1,
-	    "This version of libarchive was compiled without lzma support");
-	return (ARCHIVE_FATAL);
+	int r;
+
+	r = __archive_read_program(self, "unlzma");
+	/* Note: We set the format here even if __archive_read_program()
+	 * above fails.  We do, after all, know what the format is
+	 * even if we weren't able to read it. */
+	self->code = ARCHIVE_COMPRESSION_LZMA;
+	self->name = "lzma";
+	return (r);
 }
 
 #endif /* HAVE_LZMADEC_H */
 
 
 static int
-xz_bidder_init(struct archive_read_filter *filter)
+xz_bidder_init(struct archive_read_filter *self)
 {
-	archive_set_error(&filter->archive->archive, -1,
-	    "This version of libarchive was compiled without xz support");
-	return (ARCHIVE_FATAL);
+	int r;
+
+	r = __archive_read_program(self, "unxz");
+	/* Note: We set the format here even if __archive_read_program()
+	 * above fails.  We do, after all, know what the format is
+	 * even if we weren't able to read it. */
+	self->code = ARCHIVE_COMPRESSION_XZ;
+	self->name = "xz";
+	return (r);
 }
 
 
