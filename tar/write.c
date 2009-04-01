@@ -321,7 +321,6 @@ tar_mode_u(struct bsdtar *bsdtar)
 	int			 format;
 	struct archive_dir_entry	*p;
 	struct archive_dir	 archive_dir;
-	int			 r;
 
 	bsdtar->archive_dir = &archive_dir;
 	memset(&archive_dir, 0, sizeof(archive_dir));
