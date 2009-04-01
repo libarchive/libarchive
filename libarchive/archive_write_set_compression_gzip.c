@@ -24,6 +24,7 @@
  */
 
 #include "archive_platform.h"
+#undef HAVE_ZLIB_H
 
 __FBSDID("$FreeBSD: src/lib/libarchive/archive_write_set_compression_gzip.c,v 1.16 2008/02/21 03:21:50 kientzle Exp $");
 
@@ -47,9 +48,10 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_write_set_compression_gzip.c,v 1.
 
 #ifndef HAVE_ZLIB_H
 int
-archive_write_set_compression_gzip(struct archive *_a)
+archive_write_set_compression_gzip(struct archive *a)
 {
-	/* Unsupported gzip compression, we don't have zlib */
+	archive_set_error(a, ARCHIVE_ERRNO_MISC,
+	    "gzip compression not supported on this platform");
 	return (ARCHIVE_FATAL);
 }
 #else
@@ -121,9 +123,6 @@ archive_compressor_gzip_init(struct archive_write *a)
 	time_t t;
 
 	config = (struct private_config *)a->compressor.config;
-
-	a->archive.compression_code = ARCHIVE_COMPRESSION_GZIP;
-	a->archive.compression_name = "gzip";
 
 	if (a->client_opener != NULL) {
 		ret = (a->client_opener)(&a->archive, a->client_data);

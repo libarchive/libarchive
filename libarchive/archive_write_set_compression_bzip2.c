@@ -24,6 +24,7 @@
  */
 
 #include "archive_platform.h"
+#undef HAVE_BZLIB_H
 
 __FBSDID("$FreeBSD: src/lib/libarchive/archive_write_set_compression_bzip2.c,v 1.13 2007/12/30 04:58:21 kientzle Exp $");
 
@@ -47,9 +48,10 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_write_set_compression_bzip2.c,v 1
 
 #ifndef HAVE_BZLIB_H
 int
-archive_write_set_compression_bzip2(struct archive *_a)
+archive_write_set_compression_bzip2(struct archive *a)
 {
-	/* Unsupported bzip2 compression, we don't have bzlib */
+	archive_set_error(a, ARCHIVE_ERRNO_MISC,
+	    "bzip2 compression not supported on this platform");
 	return (ARCHIVE_FATAL);
 }
 #else

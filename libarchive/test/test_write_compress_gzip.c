@@ -55,7 +55,12 @@ DEFINE_TEST(test_write_compress_gzip)
 	 */
 	assert((a = archive_write_new()) != NULL);
 	assertA(0 == archive_write_set_format_ustar(a));
-	assertA(0 == archive_write_set_compression_gzip(a));
+	r = archive_write_set_compression_gzip(a);
+	if (r == ARCHIVE_FATAL) {
+		skipping("gzip writing not supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+		return;
+	}
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_bytes_per_block(a, 10));
 	assertEqualInt(ARCHIVE_COMPRESSION_GZIP, archive_compression(a));
@@ -82,7 +87,7 @@ DEFINE_TEST(test_write_compress_gzip)
 	r = archive_read_support_compression_gzip(a);
 	if (r == ARCHIVE_WARN) {
 		skipping("Can't verify gzip writing by reading back;"
-		    " gzip reading not fully supported");
+		    " gzip reading not fully supported on this platform");
 	} else {
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_support_compression_all(a));
@@ -143,7 +148,7 @@ DEFINE_TEST(test_write_compress_gzip)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	r = archive_read_support_compression_gzip(a);
 	if (r == ARCHIVE_WARN) {
-		skipping("gzip decompression not fully supported");
+		skipping("gzip reading not fully supported on this platform");
 	} else {
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_support_compression_all(a));
@@ -197,7 +202,7 @@ DEFINE_TEST(test_write_compress_gzip)
 	assertA(0 == archive_read_support_compression_all(a));
 	r = archive_read_support_compression_gzip(a);
 	if (r == ARCHIVE_WARN) {
-		skipping("gzip decompression not fully supported");
+		skipping("gzip reading not fully supported on this platform");
 	} else {
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_open_memory(a, buff, used2));

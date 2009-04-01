@@ -41,7 +41,7 @@ DEFINE_TEST(test_write_compress_bzip2)
 	size_t buffsize, datasize;
 	char path[16];
 	size_t used1, used2;
-	int i;
+	int i, r;
 
 	buffsize = 2000000;
 	assert(NULL != (buff = (char *)malloc(buffsize)));
@@ -55,7 +55,12 @@ DEFINE_TEST(test_write_compress_bzip2)
 	 */
 	assert((a = archive_write_new()) != NULL);
 	assertA(0 == archive_write_set_format_ustar(a));
-	assertA(0 == archive_write_set_compression_bzip2(a));
+	r = archive_write_set_compression_bzip2(a);
+	if (r == ARCHIVE_FATAL) {
+		skipping("bzip2 writing not supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+		return;
+	}
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_bytes_per_block(a, 10));
 	assertEqualInt(ARCHIVE_COMPRESSION_BZIP2, archive_compression(a));
