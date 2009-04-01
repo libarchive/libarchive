@@ -57,7 +57,7 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 	assert((a = archive_read_new()) != NULL);
 	r = archive_read_support_compression_bzip2(a);
 	if (r == ARCHIVE_WARN) {
-		skipping("bzip2 decompression not fully supported");
+		skipping("bzip2 reading not fully supported on this platform");
 		assertEqualInt(0, archive_read_finish(a));
 		return;
 	}
