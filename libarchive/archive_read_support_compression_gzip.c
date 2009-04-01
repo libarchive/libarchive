@@ -92,7 +92,14 @@ archive_read_support_compression_gzip(struct archive *_a)
 	bidder->init = gzip_bidder_init;
 	bidder->options = NULL;
 	bidder->free = NULL; /* No data, so no cleanup necessary. */
+	/* Signal the extent of gzip support with the return value here. */
+#if HAVE_ZLIB_H
 	return (ARCHIVE_OK);
+#else
+	archive_set_error(_a, ARCHIVE_ERRNO_MISC,
+	    "Using external gunzip program");
+	return (ARCHIVE_WARN);
+#endif
 }
 
 /*

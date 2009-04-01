@@ -37,22 +37,21 @@ DEFINE_TEST(test_read_format_iso_gz)
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_compression_all(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_open_filename(a, name, 512));
-	r = archive_read_next_header(a, &ae);
-	if (UnsupportedCompress(r, a)) {
-		skipping("Skipping GZIP compression check: "
-		    "This version of libarchive was compiled "
-		    "without gzip support");
-		goto finish;
+	r = archive_read_support_compression_gzip(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("gzip not fully supported");
+	} else {
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_support_format_all(a));
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_open_filename(a, name, 512));
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_next_header(a, &ae));
+		assertEqualInt(archive_compression(a),
+		    ARCHIVE_COMPRESSION_GZIP);
+		assertEqualInt(archive_format(a), ARCHIVE_FORMAT_ISO9660);
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	}
-	assertEqualIntA(a, ARCHIVE_OK, r);
-	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_GZIP);
-	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_ISO9660);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-finish:
 	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 }
 

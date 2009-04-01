@@ -47,7 +47,12 @@ verify(const char *name)
 	int i,r;
 
 	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	r = archive_read_support_compression_gzip(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("gzip not fully supported");
+		return;
+	}
+	assertEqualIntA(a, ARCHIVE_OK, r);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	extract_reference_file(name);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, name, 200));

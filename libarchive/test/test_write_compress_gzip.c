@@ -41,7 +41,7 @@ DEFINE_TEST(test_write_compress_gzip)
 	size_t buffsize, datasize;
 	char path[16];
 	size_t used1, used2;
-	int i;
+	int i, r;
 
 	buffsize = 2000000;
 	assert(NULL != (buff = (char *)malloc(buffsize)));
@@ -79,17 +79,26 @@ DEFINE_TEST(test_write_compress_gzip)
 
 	assert((a = archive_read_new()) != NULL);
 	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_support_compression_all(a));
-	assertA(0 == archive_read_open_memory(a, buff, used1));
-	for (i = 0; i < 100; i++) {
-		sprintf(path, "file%03d", i);
-		if (!assertEqualInt(0, archive_read_next_header(a, &ae)))
-			break;
-		assertEqualString(path, archive_entry_pathname(ae));
-		assertEqualInt((int)datasize, archive_entry_size(ae));
+	r = archive_read_support_compression_gzip(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("Can't verify gzip writing by reading back;"
+		    " gzip reading not fully supported");
+	} else {
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_support_compression_all(a));
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_open_memory(a, buff, used1));
+		for (i = 0; i < 100; i++) {
+			sprintf(path, "file%03d", i);
+			if (!assertEqualInt(ARCHIVE_OK,
+				archive_read_next_header(a, &ae)))
+				break;
+			assertEqualString(path, archive_entry_pathname(ae));
+			assertEqualInt((int)datasize, archive_entry_size(ae));
+		}
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	}
-	assert(0 == archive_read_close(a));
-	assert(0 == archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 
 	/*
 	 * Repeat the cycle again, this time setting some compression
@@ -131,18 +140,26 @@ DEFINE_TEST(test_write_compress_gzip)
 	*/
 
 	assert((a = archive_read_new()) != NULL);
-	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_support_compression_all(a));
-	assertA(0 == archive_read_open_memory(a, buff, used2));
-	for (i = 0; i < 100; i++) {
-		sprintf(path, "file%03d", i);
-		if (!assertEqualInt(0, archive_read_next_header(a, &ae)))
-			break;
-		assertEqualString(path, archive_entry_pathname(ae));
-		assertEqualInt((int)datasize, archive_entry_size(ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	r = archive_read_support_compression_gzip(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("gzip decompression not fully supported");
+	} else {
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_support_compression_all(a));
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_open_memory(a, buff, used2));
+		for (i = 0; i < 100; i++) {
+			sprintf(path, "file%03d", i);
+			if (!assertEqualInt(ARCHIVE_OK,
+				archive_read_next_header(a, &ae)))
+				break;
+			assertEqualString(path, archive_entry_pathname(ae));
+			assertEqualInt((int)datasize, archive_entry_size(ae));
+		}
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	}
-	assert(0 == archive_read_close(a));
-	assert(0 == archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 
 	/*
 	 * Repeat again, with much lower compression.
@@ -178,16 +195,23 @@ DEFINE_TEST(test_write_compress_gzip)
 	assert((a = archive_read_new()) != NULL);
 	assertA(0 == archive_read_support_format_all(a));
 	assertA(0 == archive_read_support_compression_all(a));
-	assertA(0 == archive_read_open_memory(a, buff, used2));
-	for (i = 0; i < 100; i++) {
-		sprintf(path, "file%03d", i);
-		if (!assertEqualInt(0, archive_read_next_header(a, &ae)))
-			break;
-		assertEqualString(path, archive_entry_pathname(ae));
-		assertEqualInt((int)datasize, archive_entry_size(ae));
+	r = archive_read_support_compression_gzip(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("gzip decompression not fully supported");
+	} else {
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_open_memory(a, buff, used2));
+		for (i = 0; i < 100; i++) {
+			sprintf(path, "file%03d", i);
+			if (!assertEqualInt(ARCHIVE_OK,
+				archive_read_next_header(a, &ae)))
+				break;
+			assertEqualString(path, archive_entry_pathname(ae));
+			assertEqualInt((int)datasize, archive_entry_size(ae));
+		}
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	}
-	assert(0 == archive_read_close(a));
-	assert(0 == archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 
 	/*
 	 * Clean up.

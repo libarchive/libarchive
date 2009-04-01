@@ -124,13 +124,14 @@ static const char *failed_filename = NULL;
 static struct line {
 	int line;
 	int count;
+	int critical;
 }  failed_lines[1000];
 
 /*
  * Count this failure; return the number of previous failures.
  */
 static int
-previous_failures(const char *filename, int line)
+previous_failures(const char *filename, int line, int critical)
 {
 	unsigned int i;
 	int count;
@@ -148,6 +149,7 @@ previous_failures(const char *filename, int line)
 		if (failed_lines[i].line == 0) {
 			failed_lines[i].line = line;
 			failed_lines[i].count = 1;
+			failed_lines[i].critical = critical;
 			return (0);
 		}
 	}
@@ -174,7 +176,7 @@ test_skipping(const char *fmt, ...)
 {
 	va_list ap;
 
-	if (previous_failures(test_filename, test_line))
+	if (previous_failures(test_filename, test_line, 0))
 		return;
 
 	va_start(ap, fmt);
@@ -237,7 +239,7 @@ summarize(void)
 	for (i = 0; i < sizeof(failed_lines)/sizeof(failed_lines[0]); i++) {
 		if (failed_lines[i].line == 0)
 			break;
-		if (failed_lines[i].count > 1)
+		if (failed_lines[i].count > 1 && failed_lines[i].critical)
 			fprintf(stderr, "%s:%d: Failed %d times\n",
 			    failed_filename, failed_lines[i].line,
 			    failed_lines[i].count);
@@ -266,7 +268,7 @@ test_assert(const char *file, int line, int value, const char *condition, void *
 		return (value);
 	}
 	failures ++;
-	if (!verbose && previous_failures(file, line))
+	if (!verbose && previous_failures(file, line, 1))
 		return (value);
 	fprintf(stderr, "%s:%d: Assertion failed\n", file, line);
 	fprintf(stderr, "   Condition: %s\n", condition);
@@ -285,7 +287,7 @@ test_assert_equal_int(const char *file, int line,
 		return (1);
 	}
 	failures ++;
-	if (!verbose && previous_failures(file, line))
+	if (!verbose && previous_failures(file, line, 1))
 		return (0);
 	fprintf(stderr, "%s:%d: Assertion failed: Ints not equal\n",
 	    file, line);
@@ -337,7 +339,7 @@ test_assert_equal_string(const char *file, int line,
 		return (1);
 	}
 	failures ++;
-	if (!verbose && previous_failures(file, line))
+	if (!verbose && previous_failures(file, line, 1))
 		return (0);
 	fprintf(stderr, "%s:%d: Assertion failed: Strings not equal\n",
 	    file, line);
@@ -395,7 +397,7 @@ test_assert_equal_wstring(const char *file, int line,
 		return (1);
 	}
 	failures ++;
-	if (!verbose && previous_failures(file, line))
+	if (!verbose && previous_failures(file, line, 1))
 		return (0);
 	fprintf(stderr, "%s:%d: Assertion failed: Unicode strings not equal\n",
 	    file, line);
@@ -465,7 +467,7 @@ test_assert_equal_mem(const char *file, int line,
 		return (1);
 	}
 	failures ++;
-	if (!verbose && previous_failures(file, line))
+	if (!verbose && previous_failures(file, line, 1))
 		return (0);
 	fprintf(stderr, "%s:%d: Assertion failed: memory not equal\n",
 	    file, line);
@@ -503,7 +505,7 @@ test_assert_empty_file(const char *f1fmt, ...)
 		return (1);
 
 	failures ++;
-	if (!verbose && previous_failures(test_filename, test_line))
+	if (!verbose && previous_failures(test_filename, test_line, 1))
 		return (0);
 
 	fprintf(stderr, "%s:%d: File not empty: %s\n", test_filename, test_line, f1);
@@ -550,7 +552,7 @@ test_assert_equal_file(const char *f1, const char *f2pattern, ...)
 			break;
 	}
 	failures ++;
-	if (!verbose && previous_failures(test_filename, test_line))
+	if (!verbose && previous_failures(test_filename, test_line, 1))
 		return (0);
 	fprintf(stderr, "%s:%d: Files are not identical\n",
 	    test_filename, test_line);
@@ -572,7 +574,7 @@ test_assert_file_exists(const char *fpattern, ...)
 
 	if (!access(f, F_OK))
 		return (1);
-	if (!previous_failures(test_filename, test_line)) {
+	if (!previous_failures(test_filename, test_line, 1)) {
 		fprintf(stderr, "%s:%d: File doesn't exist\n",
 		    test_filename, test_line);
 		fprintf(stderr, "  file=\"%s\"\n", f);
@@ -593,7 +595,7 @@ test_assert_file_not_exists(const char *fpattern, ...)
 
 	if (access(f, F_OK))
 		return (1);
-	if (!previous_failures(test_filename, test_line)) {
+	if (!previous_failures(test_filename, test_line, 1)) {
 		fprintf(stderr, "%s:%d: File exists and shouldn't\n",
 		    test_filename, test_line);
 		fprintf(stderr, "  file=\"%s\"\n", f);
@@ -624,7 +626,7 @@ test_assert_file_contents(const void *buff, int s, const char *fpattern, ...)
 		return (1);
 	}
 	failures ++;
-	if (!previous_failures(test_filename, test_line)) {
+	if (!previous_failures(test_filename, test_line, 1)) {
 		fprintf(stderr, "%s:%d: File contents don't match\n",
 		    test_filename, test_line);
 		fprintf(stderr, "  file=\"%s\"\n", f);
@@ -886,30 +888,34 @@ extract_reference_file(const char *name)
 	fclose(in);
 }
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
-#define DEV_NULL "NUL"
-#else
-#define DEV_NULL "/dev/null"
-#endif
 
+/* Since gzip is by far the most popular external compression program
+ * available, we try to use it in the read_program and write_program
+ * tests.  But if it's not available, then we can't use it.  This
+ * function just tries to run gzip/gunzip to see if they're available.
+ * If not, some of the external compression program tests will be
+ * skipped. */
 const char *
 external_gzip_program(int un)
 {
-	const char *extprog;
+	static int tested = 0;
+	static const char *compress_prog = NULL;
+	static const char *decompress_prog = NULL;
+	/* Args vary depending on the command interpreter we're using. */
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	static const char *args = "-V >NUL 2>NUL"; /* Win32 cmd.exe */
+#else
+	static const char *args = "-V >/dev/null 2>/dev/null"; /* POSIX 'sh' */
+#endif
 
-	if (un) {
-		extprog = "gunzip";
-		if (systemf("%s -V >" DEV_NULL " 2>" DEV_NULL, extprog) == 0)
-			return (extprog);
-		extprog = "gzip -d";
-		if (systemf("%s -V >" DEV_NULL " 2>" DEV_NULL, extprog) == 0)
-			return (extprog);
-	} else {
-		extprog = "gzip";
-		if (systemf("%s -V >" DEV_NULL " 2>" DEV_NULL, extprog) == 0)
-			return (extprog);
+	if (!tested) {
+		if (systemf("gunzip %s", args) == 0)
+			decompress_prog = "gunzip";
+		if (systemf("gzip %s", args) == 0)
+			compress_prog = "gzip";
+		tested = 1;
 	}
-	return (NULL);
+	return (un ? decompress_prog : compress_prog);
 }
 
 static char *
