@@ -72,7 +72,7 @@ archive_write_open_filename(struct archive *a, const char *filename)
 	struct write_file_data *mine;
 
 	if (filename == NULL || filename[0] == '\0')
-		return (archive_write_open_fd(a, 0));
+		return (archive_write_open_fd(a, 1));
 
 	mine = (struct write_file_data *)malloc(sizeof(*mine) + strlen(filename));
 	if (mine == NULL) {
