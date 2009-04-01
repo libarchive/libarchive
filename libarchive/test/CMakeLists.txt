@@ -37,6 +37,7 @@ IF(ENABLE_TEST)
     test_read_compress_program.c
     test_read_data_large.c
     test_read_disk.c
+    test_read_disk_entry_from_file.c
     test_read_extract.c
     test_read_file_nonexistent.c
     test_read_format_ar.c
@@ -74,7 +75,9 @@ IF(ENABLE_TEST)
     test_write_compress.c
     test_write_compress_bzip2.c
     test_write_compress_gzip.c
+    test_write_compress_lzma.c
     test_write_compress_program.c
+    test_write_compress_xz.c
     test_write_disk.c
     test_write_disk_failures.c
     test_write_disk_hardlink.c
