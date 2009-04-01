@@ -695,7 +695,9 @@ _archive_read_close(struct archive *_a)
 
 	__archive_check_magic(&a->archive, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_ANY, "archive_read_close");
+	archive_clear_error(&a->archive);
 	a->archive.state = ARCHIVE_STATE_CLOSED;
+
 
 	/* Call cleanup functions registered by optional components. */
 	if (a->cleanup_archive_extract != NULL)
