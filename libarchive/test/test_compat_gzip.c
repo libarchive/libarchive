@@ -49,7 +49,8 @@ verify(const char *name)
 	assert((a = archive_read_new()) != NULL);
 	r = archive_read_support_compression_gzip(a);
 	if (r == ARCHIVE_WARN) {
-		skipping("gzip not fully supported");
+		skipping("gzip reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 		return;
 	}
 	assertEqualIntA(a, ARCHIVE_OK, r);
@@ -59,15 +60,9 @@ verify(const char *name)
 
 	/* Read entries, match up names with list above. */
 	for (i = 0; i < 6; ++i) {
-		r = archive_read_next_header(a, &ae);
-		if (UnsupportedCompress(r, a)) {
-			skipping("Skipping GZIP compression check: "
-				"This version of libarchive was compiled "
-			    "without gzip support");
-			goto finish;
-		}
 		failure("Could not read file %d (%s) from %s", i, n[i], name);
-		assertEqualIntA(a, ARCHIVE_OK, r);
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_next_header(a, &ae));
 		if (r != ARCHIVE_OK) {
 			archive_read_finish(a);
 			return;
@@ -84,12 +79,7 @@ verify(const char *name)
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
-finish:
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
 	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
-#endif
 }
 
 

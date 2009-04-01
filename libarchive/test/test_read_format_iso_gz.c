@@ -39,19 +39,20 @@ DEFINE_TEST(test_read_format_iso_gz)
 	    archive_read_support_compression_all(a));
 	r = archive_read_support_compression_gzip(a);
 	if (r == ARCHIVE_WARN) {
-		skipping("gzip not fully supported");
-	} else {
-		assertEqualIntA(a, ARCHIVE_OK,
-		    archive_read_support_format_all(a));
-		assertEqualIntA(a, ARCHIVE_OK,
-		    archive_read_open_filename(a, name, 512));
-		assertEqualIntA(a, ARCHIVE_OK,
-		    archive_read_next_header(a, &ae));
-		assertEqualInt(archive_compression(a),
-		    ARCHIVE_COMPRESSION_GZIP);
-		assertEqualInt(archive_format(a), ARCHIVE_FORMAT_ISO9660);
-		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+		skipping("gzip reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+		return;
 	}
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, name, 512));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_next_header(a, &ae));
+	assertEqualInt(archive_compression(a),
+	    ARCHIVE_COMPRESSION_GZIP);
+	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_ISO9660);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 }
 

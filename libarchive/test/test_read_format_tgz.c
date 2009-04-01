@@ -42,17 +42,18 @@ DEFINE_TEST(test_read_format_tgz)
 	assertEqualInt(ARCHIVE_OK, archive_read_support_compression_all(a));
 	r = archive_read_support_compression_gzip(a);
 	if (r == ARCHIVE_WARN) {
-		skipping("gzip not fully supported");
-	} else {
-		assertEqualInt(ARCHIVE_OK, archive_read_support_format_all(a));
-		assertEqualInt(ARCHIVE_OK,
-		    archive_read_open_memory(a, archive, sizeof(archive)));
-		assertEqualInt(ARCHIVE_OK, archive_read_next_header(a, &ae));
-		assertEqualInt(archive_compression(a),
-		    ARCHIVE_COMPRESSION_GZIP);
-		assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
-		assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+		skipping("gzip reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+		return;
 	}
+	assertEqualInt(ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_read_open_memory(a, archive, sizeof(archive)));
+	assertEqualInt(ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(archive_compression(a),
+	    ARCHIVE_COMPRESSION_GZIP);
+	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK,archive_read_finish(a));
 }
 
