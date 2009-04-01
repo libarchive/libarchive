@@ -24,7 +24,6 @@
  */
 
 #include "archive_platform.h"
-#undef HAVE_BZLIB_H
 
 __FBSDID("$FreeBSD: src/lib/libarchive/archive_write_set_compression_bzip2.c,v 1.13 2007/12/30 04:58:21 kientzle Exp $");
 
