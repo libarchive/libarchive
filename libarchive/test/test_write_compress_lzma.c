@@ -120,7 +120,7 @@ DEFINE_TEST(test_write_compress_lzma)
 	assertEqualIntA(a, ARCHIVE_WARN,
 	    archive_write_set_compressor_options(a, "compression-level=99"));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_compressor_options(a, "compression-level=6"));
+	    archive_write_set_compressor_options(a, "compression-level=9"));
 	assertA(0 == archive_write_open_memory(a, buff, buffsize, &used2));
 	for (i = 0; i < 100; i++) {
 		sprintf(path, "file%03d", i);

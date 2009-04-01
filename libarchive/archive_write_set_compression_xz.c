@@ -236,6 +236,8 @@ archive_compressor_xz_options(struct archive_write *a, const char *key,
 		    value[1] != '\0')
 			return (ARCHIVE_WARN);
 		config->compression_level = value[0] - '0';
+		if (config->compression_level > 6)
+			config->compression_level = 6;
 		return (ARCHIVE_OK);
 	}
 
