@@ -17,6 +17,7 @@ TESTS= \
 	test_compat_gtar.c			\
 	test_compat_gzip.c			\
 	test_compat_tar_hardlink.c		\
+	test_compat_xz.c			\
 	test_compat_zip.c			\
 	test_empty_write.c			\
 	test_entry.c				\
@@ -24,6 +25,9 @@ TESTS= \
 	test_extattr_freebsd.c			\
 	test_fuzz.c				\
 	test_link_resolver.c			\
+	test_open_fd.c				\
+	test_open_file.c			\
+	test_open_filename.c			\
 	test_pax_filename_encoding.c		\
 	test_read_compress_program.c		\
 	test_read_data_large.c			\
@@ -52,6 +56,7 @@ TESTS= \
 	test_read_format_tar_empty_filename.c	\
 	test_read_format_tbz.c			\
 	test_read_format_tgz.c			\
+	test_read_format_txz.c			\
 	test_read_format_tz.c			\
 	test_read_format_zip.c			\
 	test_read_large.c			\
@@ -62,6 +67,8 @@ TESTS= \
 	test_tar_large.c			\
 	test_ustar_filenames.c			\
 	test_write_compress.c			\
+	test_write_compress_bzip2.c		\
+	test_write_compress_gzip.c		\
 	test_write_compress_program.c		\
 	test_write_disk.c			\
 	test_write_disk_failures.c		\
@@ -97,7 +104,7 @@ PROG=libarchive_test
 INTERNALPROG=yes  # Don't install this; it's just for testing
 DPADD=${LIBBZ2} ${LIBZ}
 CFLAGS+= -DPLATFORM_CONFIG_H=\"config_freebsd.h\"
-LDADD= -lz -lbz2
+LDADD= -lz -lbz2 -lmd -lcrypto
 CFLAGS+= -static -g
 CFLAGS+= -I${LA_SRCDIR} -I.
 
@@ -114,7 +121,8 @@ check test: libarchive_test
 list.h: ${TESTS} Makefile
 	(cd ${.CURDIR}; cat ${TESTS}) | grep DEFINE_TEST > list.h
 
-CLEANFILES += *.out *.o *.core *~ list.h
+CLEANFILES += *.out *.o *.core *~ list.h .dirstamp .depend
+CLEANDIRS += .deps .libs
 
 cleantest:
 	-chmod -R +w /tmp/libarchive_test.*
