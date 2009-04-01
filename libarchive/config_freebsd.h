@@ -99,6 +99,7 @@
 #define	HAVE_SHA256_H 1
 #define	HAVE_SHA384 1
 #define	HAVE_SHA512 1
+#define	HAVE_SIGNAL_H 1
 #define	HAVE_STDINT_H 1
 #define	HAVE_STDLIB_H 1
 #define	HAVE_STRCHR 1

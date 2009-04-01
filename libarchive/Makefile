@@ -76,6 +76,9 @@ SRCS=	archive_check_magic.c				\
 	archive_write_set_format_ustar.c		\
 	filter_fork.c
 
+CLEANFILES += *.o *.lo *~ .dirstamp
+CLEANDIRS += .deps .libs
+
 # Man pages to be installed.
 MAN=	archive_entry.3					\
 	archive_read.3					\
