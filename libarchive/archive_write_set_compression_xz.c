@@ -48,10 +48,18 @@ __FBSDID("$FreeBSD$");
 
 #ifndef HAVE_LZMA_H
 int
-archive_write_set_compression_xz(struct archive *_a)
+archive_write_set_compression_xz(struct archive *a)
 {
-	(void)_a; /* UNUSED */
-	/* Unsupported xz compression, we don't have liblzma */
+	archive_set_error(a, ARCHIVE_ERRNO_MISC,
+	    "xz compression not supported on this platform");
+	return (ARCHIVE_FATAL);
+}
+
+int
+archive_write_set_compression_lzma(struct archive *a)
+{
+	archive_set_error(a, ARCHIVE_ERRNO_MISC,
+	    "lzma compression not supported on this platform");
 	return (ARCHIVE_FATAL);
 }
 #else
@@ -64,17 +72,16 @@ struct private_data {
 	int64_t		 total_in;
 	unsigned char	*compressed;
 	size_t		 compressed_buffer_size;
-	/* Options */
-	uint32_t	 compression_level;
 };
 
+struct private_config {
+	int		 compression_level;
+};
 
-static int	archive_compressor_xz_lzma_init(struct archive_write *, int);
-static int	archive_compressor_lzma_init(struct archive_write *);
-static int	archive_compressor_xz_finish(struct archive_write *);
 static int	archive_compressor_xz_init(struct archive_write *);
 static int	archive_compressor_xz_options(struct archive_write *,
 		    const char *, const char *);
+static int	archive_compressor_xz_finish(struct archive_write *);
 static int	archive_compressor_xz_write(struct archive_write *,
 		    const void *, size_t);
 static int	drive_compressor(struct archive_write *, struct private_data *,
@@ -87,33 +94,37 @@ static int	drive_compressor(struct archive_write *, struct private_data *,
 int
 archive_write_set_compression_xz(struct archive *_a)
 {
+	struct private_config *config;
 	struct archive_write *a = (struct archive_write *)_a;
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_set_compression_xz");
+	config = calloc(1, sizeof(*config));
+	if (config == NULL) {
+		archive_set_error(&a->archive, ENOMEM, "Out of memory");
+		return (ARCHIVE_FATAL);
+	}
+	a->compressor.config = config;
+	config->compression_level = LZMA_PRESET_DEFAULT;
 	a->compressor.init = &archive_compressor_xz_init;
+	a->compressor.options = &archive_compressor_xz_options;
+	a->archive.compression_code = ARCHIVE_COMPRESSION_XZ;
+	a->archive.compression_name = "xz";
 	return (ARCHIVE_OK);
 }
 
+/* LZMA is handled identically, we just need a different compression
+ * code set.  (The liblzma setup looks at the code to determine
+ * the one place that XZ and LZMA require different handling.) */
 int
 archive_write_set_compression_lzma(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;
-	__archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_write_set_compression_lzma");
-	a->compressor.init = &archive_compressor_lzma_init;
+	int r = archive_write_set_compression_xz(_a);
+	if (r != ARCHIVE_OK)
+		return (r);
+	a->archive.compression_code = ARCHIVE_COMPRESSION_LZMA;
+	a->archive.compression_name = "lzma";
 	return (ARCHIVE_OK);
-}
-
-static int
-archive_compressor_xz_init(struct archive_write *a)
-{
-	return (archive_compressor_xz_lzma_init(a, ARCHIVE_COMPRESSION_XZ));
-}
-
-static int
-archive_compressor_lzma_init(struct archive_write *a)
-{
-	return (archive_compressor_xz_lzma_init(a, ARCHIVE_COMPRESSION_LZMA));
 }
 
 static int
@@ -152,14 +163,11 @@ archive_compressor_xz_init_stream(struct archive_write *a,
  * Setup callback.
  */
 static int
-archive_compressor_xz_lzma_init(struct archive_write *a, int code)
+archive_compressor_xz_init(struct archive_write *a)
 {
 	int ret;
 	struct private_data *state;
-
-	a->archive.compression_code = code;
-	a->archive.compression_name =
-	    (code == ARCHIVE_COMPRESSION_XZ)? "xz" : "lzma";
+	struct private_config *config;
 
 	if (a->client_opener != NULL) {
 		ret = (a->client_opener)(&a->archive, a->client_data);
@@ -174,6 +182,7 @@ archive_compressor_xz_lzma_init(struct archive_write *a, int code)
 		return (ARCHIVE_FATAL);
 	}
 	memset(state, 0, sizeof(*state));
+	config = a->compressor.config;
 
 	/*
 	 * See comment above.  We should set compressed_buffer_size to
@@ -181,20 +190,17 @@ archive_compressor_xz_lzma_init(struct archive_write *a, int code)
 	 */
 	state->compressed_buffer_size = a->bytes_per_block;
 	state->compressed = (unsigned char *)malloc(state->compressed_buffer_size);
-	state->compression_level = LZMA_PRESET_DEFAULT;
-
 	if (state->compressed == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate data for compression buffer");
 		free(state);
 		return (ARCHIVE_FATAL);
 	}
-	a->compressor.options = archive_compressor_xz_options;
 	a->compressor.write = archive_compressor_xz_write;
 	a->compressor.finish = archive_compressor_xz_finish;
 
 	/* Initialize compression library. */
-	if (lzma_lzma_preset(&state->lzma_opt, state->compression_level)) {
+	if (lzma_lzma_preset(&state->lzma_opt, config->compression_level)) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Internal error initializing compression library");
 		free(state->compressed);
@@ -222,37 +228,15 @@ static int
 archive_compressor_xz_options(struct archive_write *a, const char *key,
     const char *value)
 {
-	struct private_data *state;
-	int ret;
+	struct private_config *config;
 
-	state = (struct private_data *)a->compressor.data;
+	config = (struct private_config *)a->compressor.config;
 	if (strcmp(key, "compression-level") == 0) {
-		/*
-		 * compression level : 0 .. 9
-		 */
-		int level;
-
 		if (value == NULL || !(value[0] >= '0' && value[0] <= '9') ||
 		    value[1] != '\0')
 			return (ARCHIVE_WARN);
-		level = value[0] - '0';
-		if (level == state->compression_level)
-			return (ARCHIVE_OK);
-		if (lzma_lzma_preset(&state->lzma_opt, level)) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "Internal error compression library");
-			return (ARCHIVE_FATAL);
-		}
-		/*
-		 * Reinitialize
-		 */
-		lzma_end(&(state->stream));
-		ret = archive_compressor_xz_init_stream(a, state);
-		if (ret == LZMA_OK) {
-			state->compression_level = level;
-			return (ARCHIVE_OK);
-		}
-		return (ARCHIVE_FATAL);
+		config->compression_level = value[0] - '0';
+		return (ARCHIVE_OK);
 	}
 
 	return (ARCHIVE_WARN);
