@@ -182,7 +182,7 @@ lookup_uname(void *data, uid_t uid)
 static const char *
 lookup_uname_helper(struct archive *a, id_t id)
 {
-	char buffer[64];
+	char buffer[128];
 	struct passwd	pwent, *result;
 	int r;
 
@@ -196,7 +196,7 @@ lookup_uname_helper(struct archive *a, id_t id)
 	if (result == NULL)
 		return (NULL);
 
-	return strdup(pwent.pw_name);
+	return strdup(result->pw_name);
 }
 
 static const char *
@@ -210,7 +210,7 @@ lookup_gname(void *data, gid_t gid)
 static const char *
 lookup_gname_helper(struct archive *a, id_t id)
 {
-	char buffer[64];
+	char buffer[128];
 	struct group	grent, *result;
 	int r;
 
@@ -224,6 +224,6 @@ lookup_gname_helper(struct archive *a, id_t id)
 	if (result == NULL)
 		return (NULL);
 
-	return strdup(grent.gr_name);
+	return strdup(result->gr_name);
 }
 #endif /* ! (_WIN32 && !__CYGWIN__) */
