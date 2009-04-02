@@ -31,7 +31,6 @@ AM_CFLAGS=-Wall -Werror
 EXTRA_DIST= \
 	CMakeLists.txt			\
 	PROJECTS			\
-	build/autoconf/la_syslibsearchpath.m4	\
 	build/autogen.sh		\
 	build/release.sh		\
 	build/cmake			\
