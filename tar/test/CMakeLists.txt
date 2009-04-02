@@ -21,11 +21,11 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_strip_components.c
     test_symlink_dir.c
     test_version.c
+    test_windows.c
   )
   IF(WIN32 AND NOT CYGWIN)
     LIST(APPEND bsdtar_test_SOURCES ../bsdtar_windows.c)
     LIST(APPEND bsdtar_test_SOURCES ../bsdtar_windows.h)
-    LIST(APPEND bsdtar_test_SOURCES test_windows.c)
   ENDIF(WIN32 AND NOT CYGWIN)
 
   #
