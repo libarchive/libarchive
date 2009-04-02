@@ -32,6 +32,7 @@ TESTS= \
 	test_read_compress_program.c		\
 	test_read_data_large.c			\
 	test_read_disk.c			\
+	test_read_disk_entry_from_file.c	\
 	test_read_extract.c			\
 	test_read_file_nonexistent.c		\
 	test_read_format_ar.c			\
@@ -69,7 +70,9 @@ TESTS= \
 	test_write_compress.c			\
 	test_write_compress_bzip2.c		\
 	test_write_compress_gzip.c		\
+	test_write_compress_lzma.c		\
 	test_write_compress_program.c		\
+	test_write_compress_xz.c		\
 	test_write_disk.c			\
 	test_write_disk_failures.c		\
 	test_write_disk_hardlink.c		\
@@ -105,8 +108,16 @@ INTERNALPROG=yes  # Don't install this; it's just for testing
 DPADD=${LIBBZ2} ${LIBZ}
 CFLAGS+= -DPLATFORM_CONFIG_H=\"config_freebsd.h\"
 LDADD= -lz -lbz2 -lmd -lcrypto
-CFLAGS+= -static -g
+CFLAGS+= -g
 CFLAGS+= -I${LA_SRCDIR} -I.
+
+# Uncomment to build and test lzma support via liblzmadec
+#CFLAGS+= -I/usr/local/include -DHAVE_LIBLZMADEC=1 -DHAVE_LZMADEC_H=1
+#LDADD+= -L/usr/local/lib -llzmadec
+
+# Uncomment to build and test lzma and xz support via liblzma
+CFLAGS+= -I/usr/local/include -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
+LDADD+= -L/usr/local/lib -llzma
 
 # Uncomment to link against dmalloc
 #LDADD+= -L/usr/local/lib -ldmalloc
@@ -119,7 +130,7 @@ check test: libarchive_test
 
 # list.h is just a list of all tests, as indicated by DEFINE_TEST macro lines
 list.h: ${TESTS} Makefile
-	(cd ${.CURDIR}; cat ${TESTS}) | grep DEFINE_TEST > list.h
+	(cd ${.CURDIR}; cat test_*.c) | grep DEFINE_TEST > list.h
 
 CLEANFILES += *.out *.o *.core *~ list.h .dirstamp .depend
 CLEANDIRS += .deps .libs
