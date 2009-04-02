@@ -267,7 +267,9 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_compress.c			\
 	libarchive/test/test_write_compress_bzip2.c		\
 	libarchive/test/test_write_compress_gzip.c		\
+	libarchive/test/test_write_compress_lzma.c		\
 	libarchive/test/test_write_compress_program.c		\
+	libarchive/test/test_write_compress_xz.c		\
 	libarchive/test/test_write_disk.c			\
 	libarchive/test/test_write_disk_failures.c		\
 	libarchive/test/test_write_disk_hardlink.c		\
@@ -320,6 +322,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_isojoliet_bz2.iso.bz2.uu	\
 	libarchive/test/test_read_format_isojolietrr_bz2.iso.bz2.uu	\
 	libarchive/test/test_read_format_isorr_bz2.iso.bz2.uu		\
+	libarchive/test/test_read_format_iso_gz.iso.gz.uu		\
 	libarchive/test/test_read_format_tar_empty_filename.tar.uu	\
 	libarchive/test/test_read_format_zip.zip.uu			\
 	libarchive/test/CMakeLists.txt					\
