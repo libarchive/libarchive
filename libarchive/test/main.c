@@ -1142,16 +1142,30 @@ int main(int argc, char **argv)
 		}
 	} else {
 		while (*(argv) != NULL) {
-			i = atoi(*argv);
-			if (**argv < '0' || **argv > '9' || i < 0 || i >= limit) {
-				printf("*** INVALID Test %s\n", *argv);
-				free(refdir_alloc);
-				usage(progname);
+			if (**argv >= '0' && **argv <= '9') {
+				i = atoi(*argv);
+				if (i < 0 || i >= limit) {
+					printf("*** INVALID Test %s\n", *argv);
+					free(refdir_alloc);
+					usage(progname);
+					/* usage() never returns */
+				}
 			} else {
-				if (test_run(i, tmpdir))
-					tests_failed++;
-				tests_run++;
+				for (i = 0; i < limit; ++i) {
+					if (strcmp(*argv, tests[i].name) == 0)
+						break;
+				}
+				if (i >= limit) {
+					printf("*** INVALID Test ``%s''\n",
+					       *argv);
+					free(refdir_alloc);
+					usage(progname);
+					/* usage() never returns */
+				}
 			}
+			if (test_run(i, tmpdir))
+				tests_failed++;
+			tests_run++;
 			argv++;
 		}
 	}
