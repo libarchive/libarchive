@@ -73,8 +73,8 @@ struct name_cache {
 static const char *	lookup_gname(void *, gid_t);
 static const char *	lookup_uname(void *, uid_t);
 static void	cleanup(void *);
-static const char *	lookup_gname_helper(struct archive *, id_t gid);
-static const char *	lookup_uname_helper(struct archive *, id_t uid);
+static const char *	lookup_gname_helper(struct name_cache *, id_t gid);
+static const char *	lookup_uname_helper(struct name_cache *, id_t uid);
 
 /*
  * Installs functions that use getpwuid()/getgrgid()---along with
@@ -137,7 +137,7 @@ cleanup(void *data)
  */
 static const char *
 lookup_name(struct name_cache *cache,
-    const char * (*lookup_fn)(struct archive *, id_t), id_t id)
+    const char * (*lookup_fn)(struct name_cache *, id_t), id_t id)
 {
 	const char *name;
 	int slot;
@@ -158,7 +158,7 @@ lookup_name(struct name_cache *cache,
 		cache->cache[slot].name = NULL;
 	}
 
-	name = (lookup_fn)(cache->archive, id);
+	name = (lookup_fn)(cache, id);
 	if (name == NULL) {
 		/* Cache and return the negative response. */
 		cache->cache[slot].name = NO_NAME;
@@ -180,16 +180,16 @@ lookup_uname(void *data, uid_t uid)
 }
 
 static const char *
-lookup_uname_helper(struct archive *a, id_t id)
+lookup_uname_helper(struct name_cache *cache, id_t id)
 {
-	char buffer[128];
+	char buffer[2];
 	struct passwd	pwent, *result;
 	int r;
 
 	errno = 0;
 	r = getpwuid_r((uid_t)id, &pwent, buffer, sizeof(buffer), &result);
 	if (r != 0) {
-		archive_set_error(a, errno,
+		archive_set_error(cache->archive, errno,
 		    "Can't lookup user for id %d", (int)id);
 		return (NULL);
 	}
@@ -208,16 +208,16 @@ lookup_gname(void *data, gid_t gid)
 }
 
 static const char *
-lookup_gname_helper(struct archive *a, id_t id)
+lookup_gname_helper(struct name_cache *cache, id_t id)
 {
-	char buffer[128];
+	char buffer[2];
 	struct group	grent, *result;
 	int r;
 
 	errno = 0;
 	r = getgrgid_r((gid_t)id, &grent, buffer, sizeof(buffer), &result);
 	if (r != 0) {
-		archive_set_error(a, errno,
+		archive_set_error(cache->archive, errno,
 		    "Can't lookup group for id %d", (int)id);
 		return (NULL);
 	}
