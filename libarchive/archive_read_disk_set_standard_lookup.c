@@ -61,6 +61,8 @@ static const char * const NO_NAME = "(noname)";
 
 struct name_cache {
 	struct archive *archive;
+	char   *buff;
+	size_t  buff_size;
 	int	probes;
 	int	hits;
 	size_t	size;
@@ -128,6 +130,7 @@ cleanup(void *data)
 			    cache->cache[i].name != NO_NAME)
 				free((void *)(uintptr_t)cache->cache[i].name);
 		}
+		free(cache->buff);
 		free(cache);
 	}
 }
@@ -182,12 +185,32 @@ lookup_uname(void *data, uid_t uid)
 static const char *
 lookup_uname_helper(struct name_cache *cache, id_t id)
 {
-	char buffer[2];
 	struct passwd	pwent, *result;
 	int r;
 
-	errno = 0;
-	r = getpwuid_r((uid_t)id, &pwent, buffer, sizeof(buffer), &result);
+	if (cache->buff_size == 0) {
+		cache->buff_size = 256;
+		cache->buff = malloc(cache->buff_size);
+	}
+	if (cache->buff == NULL)
+		return (NULL);
+	for (;;) {
+		r = getpwuid_r((uid_t)id, &pwent,
+			       cache->buff, cache->buff_size, &result);
+		if (r == 0)
+			break;
+		if (r != ERANGE)
+			break;
+		/* ERANGE means our buffer was too small, but POSIX
+		 * doesn't tell us how big the buffer should be, so
+		 * we just double it and try again.  Because the buffer
+		 * is kept around in the cache object, we shouldn't
+		 * have to do this very often. */
+		cache->buff_size *= 2;
+		cache->buff = realloc(cache->buff, cache->buff_size);
+		if (cache->buff == NULL)
+			break;
+	}
 	if (r != 0) {
 		archive_set_error(cache->archive, errno,
 		    "Can't lookup user for id %d", (int)id);
@@ -210,12 +233,30 @@ lookup_gname(void *data, gid_t gid)
 static const char *
 lookup_gname_helper(struct name_cache *cache, id_t id)
 {
-	char buffer[2];
 	struct group	grent, *result;
 	int r;
 
-	errno = 0;
-	r = getgrgid_r((gid_t)id, &grent, buffer, sizeof(buffer), &result);
+	if (cache->buff_size == 0) {
+		cache->buff_size = 256;
+		cache->buff = malloc(cache->buff_size);
+	}
+	if (cache->buff == NULL)
+		return (NULL);
+	for (;;) {
+		r = getgrgid_r((gid_t)id, &grent,
+			       cache->buff, cache->buff_size, &result);
+		if (r == 0)
+			break;
+		if (r != ERANGE)
+			break;
+		/* ERANGE means our buffer was too small, but POSIX
+		 * doesn't tell us how big the buffer should be, so
+		 * we just double it and try again. */
+		cache->buff_size *= 2;
+		cache->buff = realloc(cache->buff, cache->buff_size);
+		if (cache->buff == NULL)
+			break;
+	}
 	if (r != 0) {
 		archive_set_error(cache->archive, errno,
 		    "Can't lookup group for id %d", (int)id);
