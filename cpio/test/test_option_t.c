@@ -50,6 +50,11 @@ DEFINE_TEST(test_option_t)
 	assertTextFileContents(p, "t.out");
 	free(p);
 
+	/* But "-ot" is an error. */
+	assert(0 != systemf("%s -ot < test_option_t.cpio >ot.out 2>ot.err",
+			    testprog));
+	assertEmptyFile("ot.out");
+
 	/* List reference archive verbosely, make sure the TOC is correct. */
 	r = systemf("%s -itv < test_option_t.cpio >tv.out 2>tv.err", testprog);
 	assertEqualInt(r, 0);
@@ -61,7 +66,7 @@ DEFINE_TEST(test_option_t)
 	 * the local system. */
 	/* assertEqualFile("tv.out", "test_option_tv.stdout"); */
 
-	/* List reference archive verbosely, make sure the TOC is correct. */
+	/* List reference archive with numeric IDs, verify TOC is correct. */
 	r = systemf("%s -itnv < test_option_t.cpio >itnv.out 2>itnv.err",
 		    testprog);
 	assertEqualInt(r, 0);
@@ -69,4 +74,9 @@ DEFINE_TEST(test_option_t)
 	extract_reference_file("test_option_tnv.stdout");
 	/* This does work because numeric IDs come from archive. */
 	assertEqualFile("itnv.out", "test_option_tnv.stdout");
+
+	/* But "-n" without "-t" is an error. */
+	assert(0 != systemf("%s -in < test_option_t.cpio >in.out 2>in.err",
+			    testprog));
+	assertEmptyFile("in.out");
 }
