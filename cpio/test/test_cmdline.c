@@ -69,4 +69,35 @@ DEFINE_TEST(test_cmdline)
 	failure("--create forbids an argument");
 	assert(0 != systemf("%s --create=arg <empty >8.out 2>8.err", testprog));
 	assertEmptyFile("8.out");
+
+	failure("-i with empty input should succeed");
+	assert(0 == systemf("%s -i <empty >9.out 2>9.err", testprog));
+	assertEmptyFile("9.out");
+
+	failure("-o with empty input should succeed");
+	assert(0 == systemf("%s -o <empty >10.out 2>10.err", testprog));
+
+	failure("-i -p is nonsense");
+	assert(0 != systemf("%s -i -p <empty >11.out 2>11.err", testprog));
+	assertEmptyFile("11.out");
+
+	failure("-p -i is nonsense");
+	assert(0 != systemf("%s -p -i <empty >12.out 2>12.err", testprog));
+	assertEmptyFile("12.out");
+
+	failure("-i -o is nonsense");
+	assert(0 != systemf("%s -i -o <empty >13.out 2>13.err", testprog));
+	assertEmptyFile("13.out");
+
+	failure("-o -i is nonsense");
+	assert(0 != systemf("%s -o -i <empty >14.out 2>14.err", testprog));
+	assertEmptyFile("14.out");
+
+	failure("-o -p is nonsense");
+	assert(0 != systemf("%s -o -p <empty >15.out 2>15.err", testprog));
+	assertEmptyFile("15.out");
+
+	failure("-p -o is nonsense");
+	assert(0 != systemf("%s -p -o <empty >16.out 2>16.err", testprog));
+	assertEmptyFile("16.out");
 }
