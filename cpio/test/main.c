@@ -44,6 +44,7 @@
 #undef	EXTRA_DUMP	     /* How to dump extra data */
 /* How to generate extra version info. */
 #define	EXTRA_VERSION    (systemf("%s --version", testprog) ? "" : "")
+#define KNOWNREF	"test_option_f.cpio.uu"
 __FBSDID("$FreeBSD: src/usr.bin/cpio/test/main.c,v 1.3 2008/08/24 04:58:22 kientzle Exp $");
 
 /*
@@ -908,6 +909,65 @@ extract_reference_file(const char *name)
 }
 
 
+static char *
+get_refdir(void)
+{
+	char tried[512] = { '\0' };
+	char buff[128];
+	char *pwd, *p;
+
+	/* Get the current dir. */
+	pwd = getcwd(NULL, 0);
+	while (pwd[strlen(pwd) - 1] == '\n')
+		pwd[strlen(pwd) - 1] = '\0';
+	printf("PWD: %s\n", pwd);
+
+	/* Look for a known file. */
+	snprintf(buff, sizeof(buff), "%s", pwd);
+	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
+	if (p != NULL) goto success;
+	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
+	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+
+	snprintf(buff, sizeof(buff), "%s/test", pwd);
+	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
+	if (p != NULL) goto success;
+	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
+	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+
+	snprintf(buff, sizeof(buff), "%s/%s/test", pwd, PROGRAM);
+	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
+	if (p != NULL) goto success;
+	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
+	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+
+	if (memcmp(pwd, "/usr/obj", 8) == 0) {
+		snprintf(buff, sizeof(buff), "%s", pwd + 8);
+		p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
+		if (p != NULL) goto success;
+		strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
+		strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+
+		snprintf(buff, sizeof(buff), "%s/test", pwd + 8);
+		p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
+		if (p != NULL) goto success;
+		strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
+		strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+	}
+
+#if defined(_WIN32) && !defined(__CYGWIN__) && defined(_DEBUG)
+	DebugBreak();
+#endif
+	printf("Unable to locate known reference file %s\n", KNOWNREF);
+	printf("  Checked following directories:\n%s\n", tried);
+	exit(1);
+
+success:
+	free(p);
+	free(pwd);
+	return strdup(buff);
+}
+
 int main(int argc, char **argv)
 {
 	static const int limit = sizeof(tests) / sizeof(tests[0]);
@@ -1054,18 +1114,8 @@ int main(int argc, char **argv)
 	 * If the user didn't specify a directory for locating
 	 * reference files, use the current directory for that.
 	 */
-	if (refdir == NULL) {
-		char *q;
-		systemf("/bin/pwd > %s/refdir", tmpdir);
-		q = slurpfile(NULL, "%s/refdir", tmpdir);
-		refdir = refdir_alloc = q;
-		q += strlen(refdir);
-		while (q[-1] == '\n') {
-			--q;
-			*q = '\0';
-		}
-		systemf("rm %s/refdir", tmpdir);
-	}
+	if (refdir == NULL)
+		refdir = refdir_alloc = get_refdir();
 
 	/*
 	 * Banner with basic information.
