@@ -26,7 +26,7 @@
 __FBSDID("$FreeBSD$");
 
 
-DEFINE_TEST(test_option_upper_C)
+DEFINE_TEST(test_option_C_upper)
 {
 	struct stat st;
 	int r, fd;
