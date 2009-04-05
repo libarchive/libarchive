@@ -25,13 +25,7 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-/*
- * This is called "test_option_ell" instead of "test_option_l" to
- * avoid any conflicts with "test_option_L" on case-insensitive
- * filesystems.
- */
-
-DEFINE_TEST(test_option_ell)
+DEFINE_TEST(test_option_l)
 {
 	struct stat st, st2;
 	int fd;

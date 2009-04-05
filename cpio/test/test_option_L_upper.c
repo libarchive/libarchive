@@ -31,7 +31,7 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_option_L.c,v 1.2 2008/08/24 06:21
 #define CAT "cat"
 #endif
 
-DEFINE_TEST(test_option_L)
+DEFINE_TEST(test_option_L_upper)
 {
 	struct stat st;
 	int fd, filelist;

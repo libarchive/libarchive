@@ -512,15 +512,15 @@ bsdcpio_test_SOURCES=						\
 	cpio/test/test_cmdline.c				\
 	cpio/test/test_format_newc.c				\
 	cpio/test/test_gcpio_compat.c				\
-	cpio/test/test_option_B.c				\
+	cpio/test/test_option_B_upper.c				\
 	cpio/test/test_option_C_upper.c				\
-	cpio/test/test_option_L.c				\
+	cpio/test/test_option_L_upper.c				\
 	cpio/test/test_option_a.c				\
 	cpio/test/test_option_c.c				\
 	cpio/test/test_option_d.c				\
-	cpio/test/test_option_ell.c				\
 	cpio/test/test_option_f.c				\
 	cpio/test/test_option_help.c				\
+	cpio/test/test_option_l.c				\
 	cpio/test/test_option_m.c				\
 	cpio/test/test_option_t.c				\
 	cpio/test/test_option_u.c				\
