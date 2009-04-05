@@ -33,7 +33,16 @@ DEFINE_TEST(test_option_t)
 
 	/* List reference archive, make sure the TOC is correct. */
 	extract_reference_file("test_option_t.cpio");
-	r = systemf("%s -it < test_option_t.cpio >t.out 2>t.err", testprog);
+	r = systemf("%s -it < test_option_t.cpio >it.out 2>it.err", testprog);
+	assertEqualInt(r, 0);
+	assertTextFileContents("1 block\n", "it.err");
+	extract_reference_file("test_option_t.stdout");
+	p = slurpfile(NULL, "test_option_t.stdout");
+	assertTextFileContents(p, "it.out");
+	free(p);
+
+	/* We accept plain "-t" as a synonym for "-it" */
+	r = systemf("%s -t < test_option_t.cpio >t.out 2>t.err", testprog);
 	assertEqualInt(r, 0);
 	assertTextFileContents("1 block\n", "t.err");
 	extract_reference_file("test_option_t.stdout");
@@ -51,4 +60,13 @@ DEFINE_TEST(test_option_t)
 	 * are different and cpio now looks up numeric UIDs on
 	 * the local system. */
 	/* assertEqualFile("tv.out", "test_option_tv.stdout"); */
+
+	/* List reference archive verbosely, make sure the TOC is correct. */
+	r = systemf("%s -itnv < test_option_t.cpio >itnv.out 2>itnv.err",
+		    testprog);
+	assertEqualInt(r, 0);
+	assertTextFileContents("1 block\n", "itnv.err");
+	extract_reference_file("test_option_tnv.stdout");
+	/* This does work because numeric IDs come from archive. */
+	assertEqualFile("itnv.out", "test_option_tnv.stdout");
 }

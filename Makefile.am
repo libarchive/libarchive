@@ -556,4 +556,5 @@ bsdcpio_test_EXTRA_DIST=			\
 	cpio/test/test_option_t.cpio.uu		\
 	cpio/test/test_option_t.stdout.uu	\
 	cpio/test/test_option_tv.stdout.uu	\
+	cpio/test/test_option_tnv.stdout.uu	\
 	cpio/test/CMakeLists.txt
