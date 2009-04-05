@@ -515,6 +515,7 @@ bsdcpio_test_SOURCES=						\
 	cpio/test/test_option_B_upper.c				\
 	cpio/test/test_option_C_upper.c				\
 	cpio/test/test_option_L_upper.c				\
+	cpio/test/test_option_Z_upper.c				\
 	cpio/test/test_option_a.c				\
 	cpio/test/test_option_c.c				\
 	cpio/test/test_option_d.c				\
