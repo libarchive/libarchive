@@ -31,35 +31,42 @@ __FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_cmdline)
 {
+	int fd;
+
+	/* Create an empty file. */
+	fd = open("empty", O_WRONLY | O_CREAT, 0555);
+	assert(fd >= 0);
+	close(fd);
+
 	failure("-Q is an invalid option on every cpio program I know of");
-	assert(0 != systemf("%s -i -Q >1.stdout 2>1.stderr", testprog));
-	assertEmptyFile("1.stdout");
+	assert(0 != systemf("%s -i -Q <empty >1.out 2>1.err", testprog));
+	assertEmptyFile("1.out");
 
 	failure("-f requires an argument");
-	assert(0 != systemf("%s -if >2.stdout 2>2.stderr", testprog));
-	assertEmptyFile("2.stdout");
+	assert(0 != systemf("%s -if <empty >2.out 2>2.err", testprog));
+	assertEmptyFile("2.out");
 
 	failure("-f requires an argument");
-	assert(0 != systemf("%s -i -f >3.stdout 2>3.stderr", testprog));
-	assertEmptyFile("3.stdout");
+	assert(0 != systemf("%s -i -f <empty >3.out 2>3.err", testprog));
+	assertEmptyFile("3.out");
 
 	failure("--format requires an argument");
-	assert(0 != systemf("%s -i --format >4.stdout 2>4.stderr", testprog));
-	assertEmptyFile("4.stdout");
+	assert(0 != systemf("%s -i --format <empty >4.out 2>4.err", testprog));
+	assertEmptyFile("4.out");
 
 	failure("--badopt is an invalid option");
-	assert(0 != systemf("%s -i --badop >5.stdout 2>5.stderr", testprog));
-	assertEmptyFile("5.stdout");
+	assert(0 != systemf("%s -i --badop <empty >5.out 2>5.err", testprog));
+	assertEmptyFile("5.out");
 
 	failure("--badopt is an invalid option");
-	assert(0 != systemf("%s -i --badopt >6.stdout 2>6.stderr", testprog));
-	assertEmptyFile("6.stdout");
+	assert(0 != systemf("%s -i --badopt <empty >6.out 2>6.err", testprog));
+	assertEmptyFile("6.out");
 
 	failure("--n is ambiguous");
-	assert(0 != systemf("%s -i --n >7.stdout 2>7.stderr", testprog));
-	assertEmptyFile("7.stdout");
+	assert(0 != systemf("%s -i --n <empty >7.out 2>7.err", testprog));
+	assertEmptyFile("7.out");
 
 	failure("--create forbids an argument");
-	assert(0 != systemf("%s --create=arg >8.stdout 2>8.stderr", testprog));
-	assertEmptyFile("8.stdout");
+	assert(0 != systemf("%s --create=arg <empty >8.out 2>8.err", testprog));
+	assertEmptyFile("8.out");
 }
