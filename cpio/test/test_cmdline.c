@@ -100,4 +100,8 @@ DEFINE_TEST(test_cmdline)
 	failure("-p -o is nonsense");
 	assert(0 != systemf("%s -p -o <empty >16.out 2>16.err", testprog));
 	assertEmptyFile("16.out");
+
+	failure("-p with empty input should fail");
+	assert(0 != systemf("%s -p <empty >17.out 2>17.err", testprog));
+	assertEmptyFile("17.out");
 }
