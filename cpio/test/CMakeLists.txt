@@ -12,9 +12,11 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     test.h
     test_0.c
     test_basic.c
+    test_cmdline.c
     test_format_newc.c
     test_gcpio_compat.c
     test_option_B.c
+    test_option_C_upper.c
     test_option_L.c
     test_option_a.c
     test_option_c.c

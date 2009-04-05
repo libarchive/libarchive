@@ -509,9 +509,11 @@ bsdcpio_test_SOURCES=						\
 	cpio/test/test.h					\
 	cpio/test/test_0.c					\
 	cpio/test/test_basic.c					\
+	cpio/test/test_cmdline.c				\
 	cpio/test/test_format_newc.c				\
 	cpio/test/test_gcpio_compat.c				\
 	cpio/test/test_option_B.c				\
+	cpio/test/test_option_C_upper.c				\
 	cpio/test/test_option_L.c				\
 	cpio/test/test_option_a.c				\
 	cpio/test/test_option_c.c				\
