@@ -1,4 +1,6 @@
 
+Apr 08, 2009: libarchive 2.6.991a released
+
 Apr 01, 2009: libarchive 2.6.990a released
 Apr 01, 2009: Use command-line gunzip, bunzip2, unxz, unlzma for
 	decompression if the library is built without suitable
