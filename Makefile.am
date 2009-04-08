@@ -58,6 +58,11 @@ dist-hook:
 	cd $(distdir)/doc && /bin/sh update.sh
 
 #
+# Support 'make test' as a synonym for 'make check'
+#
+test: check
+
+#
 # Extra rules for cleanup
 #
 DISTCLEANFILES=					\
