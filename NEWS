@@ -1,10 +1,32 @@
 
 Apr 01, 2009: libarchive 2.6.990a released
-Jan 04, 2008: Major refactoring of read filter support.
-
+Apr 01, 2009: Use command-line gunzip, bunzip2, unxz, unlzma for
+	decompression if the library is built without suitable
+	libraries.  The setup functions return ARCHIVE_WARN
+	in this case so clients can adapt if necessary.
+Apr 01, 2009: Use getpw*_r and getgr*_r functions for thread-safety.
+Mar 24, 2009: Add archive_read_next_header2(), which is up to 25%
+	more efficient for some clients; from Brian Harring.
+Mar 22, 2009: PDF versions of manpages are now included in the distribution.
+Mar, 2009: Major work to improve Cygwin build by Charles Wilson.
+Feb/Mar, 2009: Major work on cmake build support, mostly by Michihiro NAKAJIMA.
+Feb/Mar, 2009: Major work on Visual Studio support by Michihiro NAKAJIMA.
+	All tests now pass.
+Feb 25, 2009: Fix Debian Bug #516577
+Feb 21, 2009: Yacc is no longer needed to build; date parser rewritten in C.
+Jan/Feb, 2009: Mtree work by Michihiro.
+Feb, 2009: Joliet support by Andreas Henriksson.
+Jan/Feb, 2009: New options framework by Michihiro.
+Feb, 2009: High-res timestamps on Tru64, AIX, and GNU Hurd, by Björn Jacke.
+Jan 18, 2009: Extended attributes work on FreeBSD and Linux now	with pax format.
+Jan 07, 2009: New archive_read_disk_entry_from_file() knows about ACLs,
+	extended attributes, etc so that bsdtar and bsdcpio don't require
+	such system-specific knowledge.
+Jan 03, 2009: Read filter system extensively refactored.  In particular,
+	read filter pipelines are now built out automatically and individual
+	filters should be much easier to implement.  Documentation on the
+	Googlecode Wiki explains how to implement new filters.
 Dec 28, 2008: Many Windows/Visual Studio fixes from Michihiro NAKAJIMA.
-	Michihiro is the first person I know of to build and run
-	the libarchive test suite in this environment.
 
 Dec 28, 2008: Main libarchive development moved from FreeBSD Perforce
 	server to Google Code.  This should make it easier for more
@@ -366,7 +388,7 @@ Feb 27, 2007: Make the GID restore checks more robust by checking
 
 Feb 26, 2007: libarchive 2.0b15 released
 Feb 26, 2007: Don't lose symlinks when extracting from ISOs.
-    Thanks to Diego "Flameeyes" Petten� for telling me about the
+    Thanks to Diego "Flameeyes" Pettenò for telling me about the
     broken testcase on Gentoo that (finally!) led me to the cause
     of this long-standing bug.
 
