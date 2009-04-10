@@ -1,5 +1,10 @@
 
+Apr 10, 2009: libarchive 2.6.992a released
+Apr 09, 2009: Fix SIGPIPE issue building with MSVC.
+Apr 09, 2009: Fix several minor memory leaks in libarchive and libarchive_test
+
 Apr 08, 2009: libarchive 2.6.991a released
+Apr 07, 2009: Additional tests added to bsdcpio_test
 
 Apr 01, 2009: libarchive 2.6.990a released
 Apr 01, 2009: Use command-line gunzip, bunzip2, unxz, unlzma for
