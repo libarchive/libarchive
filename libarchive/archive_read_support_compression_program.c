@@ -252,6 +252,7 @@ child_stop(struct archive_read_filter *self, struct program_filter *state)
 	}
 
 	if (WIFSIGNALED(state->exit_status)) {
+#ifdef SIGPIPE
 		/* If the child died because we stopped reading before
 		 * it was done, that's okay.  Some archive formats
 		 * have padding at the end that we routinely ignore. */
@@ -260,6 +261,7 @@ child_stop(struct archive_read_filter *self, struct program_filter *state)
 		 * child until the child has no more to write. */
 		if (WTERMSIG(state->exit_status) == SIGPIPE)
 			return (ARCHIVE_OK);
+#endif
 		archive_set_error(&self->archive->archive, ARCHIVE_ERRNO_MISC,
 		    "Child process exited with signal %d",
 		    WTERMSIG(state->exit_status));
