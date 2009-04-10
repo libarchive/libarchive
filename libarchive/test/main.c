@@ -128,6 +128,20 @@ static struct line {
 }  failed_lines[1000];
 
 /*
+ * Called at the beginning of each assert() function.
+ */
+static void
+count_assertion(const char *file, int line)
+{
+	(void)file; /* UNUSED */
+	(void)line; /* UNUSED */
+	++assertions;
+	/* Uncomment to print file:line after every assertion.
+	 * Verbose, but occasionally useful in tracking down crashes. */
+	/* printf("Checked %s:%d\n", file, line); */
+}
+
+/*
  * Count this failure; return the number of previous failures.
  */
 static int
@@ -262,7 +276,7 @@ failure(const char *fmt, ...)
 int
 test_assert(const char *file, int line, int value, const char *condition, void *extra)
 {
-	++assertions;
+	count_assertion(file, line);
 	if (value) {
 		msg[0] = '\0';
 		return (value);
@@ -281,7 +295,7 @@ int
 test_assert_equal_int(const char *file, int line,
     int v1, const char *e1, int v2, const char *e2, void *extra)
 {
-	++assertions;
+	count_assertion(file, line);
 	if (v1 == v2) {
 		msg[0] = '\0';
 		return (1);
@@ -328,7 +342,7 @@ test_assert_equal_string(const char *file, int line,
     const char *v2, const char *e2,
     void *extra)
 {
-	++assertions;
+	count_assertion(file, line);
 	if (v1 == NULL || v2 == NULL) {
 		if (v1 == v2) {
 			msg[0] = '\0';
@@ -381,7 +395,7 @@ test_assert_equal_wstring(const char *file, int line,
     const wchar_t *v2, const char *e2,
     void *extra)
 {
-	++assertions;
+	count_assertion(file, line);
 	if (v1 == NULL) {
 		if (v2 == NULL) {
 			msg[0] = '\0';
@@ -456,7 +470,7 @@ test_assert_equal_mem(const char *file, int line,
     const char *v2, const char *e2,
     size_t l, const char *ld, void *extra)
 {
-	++assertions;
+	count_assertion(file, line);
 	if (v1 == NULL || v2 == NULL) {
 		if (v1 == v2) {
 			msg[0] = '\0';
@@ -723,6 +737,16 @@ struct { void (*func)(void); const char *name; } tests[] = {
 	#include "list.h"
 };
 
+/*
+ * This is well-intentioned, but sometimes the standard libraries
+ * leave open file descriptors and expect to be able to come back to
+ * them (e.g., for username lookups or logging).  Closing these
+ * descriptors out from under those libraries creates havoc.
+ *
+ * Maybe there's some reasonably portable way to tell if a descriptor
+ * is open without using close()?
+ */
+#if 0
 static void
 close_descriptors(int warn)
 {
@@ -739,6 +763,7 @@ close_descriptors(int warn)
 		report_failure(NULL);
 	}
 }
+#endif
 
 /*
  * Each test is run in a private work dir.  Those work dirs
@@ -782,11 +807,12 @@ static int test_run(int i, const char *tmpdir)
 	/* Explicitly reset the locale before each test. */
 	setlocale(LC_ALL, "C");
 	/* Make sure there are no stray descriptors going into the test. */
-	close_descriptors(0);
+	/* TODO: Find a better way to identify file descriptor leaks. */
+	//close_descriptors(0);
 	/* Run the actual test. */
 	(*tests[i].func)();
 	/* Close stray descriptors, record as errors against this test. */
-	close_descriptors(1);
+	//close_descriptors(1);
 	/* Summarize the results of this test. */
 	summarize();
 	/* If there were no failures, we can remove the work dir. */

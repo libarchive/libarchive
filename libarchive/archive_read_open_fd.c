@@ -66,6 +66,11 @@ archive_read_open_fd(struct archive *a, int fd, size_t block_size)
 	struct read_fd_data *mine;
 	void *b;
 
+	if (fstat(fd, &st) != 0) {
+		archive_set_error(a, errno, "Can't stat fd %d", fd);
+		return (ARCHIVE_FATAL);
+	}
+
 	mine = (struct read_fd_data *)malloc(sizeof(*mine));
 	b = malloc(block_size);
 	if (mine == NULL || b == NULL) {
@@ -77,11 +82,6 @@ archive_read_open_fd(struct archive *a, int fd, size_t block_size)
 	mine->block_size = block_size;
 	mine->buffer = b;
 	mine->fd = fd;
-	/* lseek() hardly ever works, so disable it by default.  See below. */
-	if (fstat(mine->fd, &st) != 0) {
-		archive_set_error(a, errno, "Can't stat fd %d", mine->fd);
-		return (ARCHIVE_FATAL);
-	}
 	/*
 	 * Skip support is a performance optimization for anything
 	 * that supports lseek().  On FreeBSD, only regular files and

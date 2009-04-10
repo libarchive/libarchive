@@ -82,9 +82,20 @@ archive_read_open_filename(struct archive *a, const char *filename,
 	struct stat st;
 	struct read_file_data *mine;
 	void *b;
+	int fd;
 
 	if (filename == NULL || filename[0] == '\0')
 		return (archive_read_open_fd(a, 0, block_size));
+
+	fd = open(filename, O_RDONLY | O_BINARY);
+	if (fd < 0) {
+		archive_set_error(a, errno, "Failed to open '%s'", filename);
+		return (ARCHIVE_FATAL);
+	}
+	if (fstat(fd, &st) != 0) {
+		archive_set_error(a, errno, "Can't stat '%s'", filename);
+		return (ARCHIVE_FATAL);
+	}
 
 	mine = (struct read_file_data *)malloc(sizeof(*mine) + strlen(filename));
 	b = malloc(block_size);
@@ -97,17 +108,7 @@ archive_read_open_filename(struct archive *a, const char *filename,
 	strcpy(mine->filename, filename);
 	mine->block_size = block_size;
 	mine->buffer = b;
-	mine->fd = open(mine->filename, O_RDONLY | O_BINARY);
-	if (mine->fd < 0) {
-		archive_set_error(a, errno, "Failed to open '%s'",
-		    mine->filename);
-		return (ARCHIVE_FATAL);
-	}
-	if (fstat(mine->fd, &st) != 0) {
-		archive_set_error(a, errno, "Can't stat '%s'",
-		    mine->filename);
-		return (ARCHIVE_FATAL);
-	}
+	mine->fd = fd;
 	/* Remember mode so close can decide whether to flush. */
 	mine->st_mode = st.st_mode;
 	/* If we're reading a file from disk, ensure that we don't
