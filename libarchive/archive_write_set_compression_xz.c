@@ -104,6 +104,7 @@ archive_write_set_compression_xz(struct archive *_a)
 		return (ARCHIVE_FATAL);
 	}
 	a->compressor.config = config;
+	a->compressor.finish = archive_compressor_xz_finish;
 	config->compression_level = LZMA_PRESET_DEFAULT;
 	a->compressor.init = &archive_compressor_xz_init;
 	a->compressor.options = &archive_compressor_xz_options;
@@ -197,7 +198,6 @@ archive_compressor_xz_init(struct archive_write *a)
 		return (ARCHIVE_FATAL);
 	}
 	a->compressor.write = archive_compressor_xz_write;
-	a->compressor.finish = archive_compressor_xz_finish;
 
 	/* Initialize compression library. */
 	if (lzma_lzma_preset(&state->lzma_opt, config->compression_level)) {
@@ -287,71 +287,76 @@ archive_compressor_xz_finish(struct archive_write *a)
 	struct private_data *state;
 	unsigned tocopy;
 
+	ret = ARCHIVE_OK;
 	state = (struct private_data *)a->compressor.data;
-	ret = 0;
-	if (a->client_writer == NULL) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
-		    "No write callback is registered?  "
-		    "This is probably an internal programming error.");
-		ret = ARCHIVE_FATAL;
-		goto cleanup;
-	}
-
-	/* By default, always pad the uncompressed data. */
-	if (a->pad_uncompressed) {
-		tocopy = a->bytes_per_block -
-		    (state->total_in % a->bytes_per_block);
-		while (tocopy > 0 && tocopy < (unsigned)a->bytes_per_block) {
-			state->stream.next_in = a->nulls;
-			state->stream.avail_in = tocopy < a->null_length ?
-			    tocopy : a->null_length;
-			state->total_in += state->stream.avail_in;
-			tocopy -= state->stream.avail_in;
-			ret = drive_compressor(a, state, 0);
-			if (ret != ARCHIVE_OK)
-				goto cleanup;
+	if (state != NULL) {
+		if (a->client_writer == NULL) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_PROGRAMMER,
+			    "No write callback is registered?  "
+			    "This is probably an internal programming error.");
+			ret = ARCHIVE_FATAL;
+			goto cleanup;
 		}
+
+		/* By default, always pad the uncompressed data. */
+		if (a->pad_uncompressed) {
+			tocopy = a->bytes_per_block -
+			    (state->total_in % a->bytes_per_block);
+			while (tocopy > 0 && tocopy < (unsigned)a->bytes_per_block) {
+				state->stream.next_in = a->nulls;
+				state->stream.avail_in = tocopy < a->null_length ?
+				    tocopy : a->null_length;
+				state->total_in += state->stream.avail_in;
+				tocopy -= state->stream.avail_in;
+				ret = drive_compressor(a, state, 0);
+				if (ret != ARCHIVE_OK)
+					goto cleanup;
+			}
+		}
+
+		/* Finish compression cycle */
+		if (((ret = drive_compressor(a, state, 1))) != ARCHIVE_OK)
+			goto cleanup;
+
+		/* Optionally, pad the final compressed block. */
+		block_length = state->stream.next_out - state->compressed;
+
+		/* Tricky calculation to determine size of last block. */
+		target_block_length = block_length;
+		if (a->bytes_in_last_block <= 0)
+			/* Default or Zero: pad to full block */
+			target_block_length = a->bytes_per_block;
+		else
+			/* Round length to next multiple of bytes_in_last_block. */
+			target_block_length = a->bytes_in_last_block *
+			    ( (block_length + a->bytes_in_last_block - 1) /
+				a->bytes_in_last_block);
+		if (target_block_length > a->bytes_per_block)
+			target_block_length = a->bytes_per_block;
+		if (block_length < target_block_length) {
+			memset(state->stream.next_out, 0,
+			    target_block_length - block_length);
+			block_length = target_block_length;
+		}
+
+		/* Write the last block */
+		bytes_written = (a->client_writer)(&a->archive, a->client_data,
+		    state->compressed, block_length);
+		if (bytes_written <= 0) {
+			ret = ARCHIVE_FATAL;
+			goto cleanup;
+		}
+		a->archive.raw_position += bytes_written;
+
+		/* Cleanup: shut down compressor, release memory, etc. */
+	cleanup:
+		lzma_end(&(state->stream));
+		free(state->compressed);
+		free(state);
 	}
-
-	/* Finish compression cycle */
-	if (((ret = drive_compressor(a, state, 1))) != ARCHIVE_OK)
-		goto cleanup;
-
-	/* Optionally, pad the final compressed block. */
-	block_length = state->stream.next_out - state->compressed;
-
-	/* Tricky calculation to determine size of last block. */
-	target_block_length = block_length;
-	if (a->bytes_in_last_block <= 0)
-		/* Default or Zero: pad to full block */
-		target_block_length = a->bytes_per_block;
-	else
-		/* Round length to next multiple of bytes_in_last_block. */
-		target_block_length = a->bytes_in_last_block *
-		    ( (block_length + a->bytes_in_last_block - 1) /
-			a->bytes_in_last_block);
-	if (target_block_length > a->bytes_per_block)
-		target_block_length = a->bytes_per_block;
-	if (block_length < target_block_length) {
-		memset(state->stream.next_out, 0,
-		    target_block_length - block_length);
-		block_length = target_block_length;
-	}
-
-	/* Write the last block */
-	bytes_written = (a->client_writer)(&a->archive, a->client_data,
-	    state->compressed, block_length);
-	if (bytes_written <= 0) {
-		ret = ARCHIVE_FATAL;
-		goto cleanup;
-	}
-	a->archive.raw_position += bytes_written;
-
-	/* Cleanup: shut down compressor, release memory, etc. */
-cleanup:
-	lzma_end(&(state->stream));
-	free(state->compressed);
-	free(state);
+	free(a->compressor.config);
+	a->compressor.config = NULL;
 	return (ret);
 }
 

@@ -370,6 +370,7 @@ archive_entry_clear(struct archive_entry *entry)
 	aes_clean(&entry->ae_gname);
 	aes_clean(&entry->ae_hardlink);
 	aes_clean(&entry->ae_pathname);
+	aes_clean(&entry->ae_sourcepath);
 	aes_clean(&entry->ae_symlink);
 	aes_clean(&entry->ae_uname);
 	archive_entry_acl_clear(entry);

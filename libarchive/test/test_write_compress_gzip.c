@@ -219,6 +219,32 @@ DEFINE_TEST(test_write_compress_gzip)
 	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 
 	/*
+	 * Test various premature shutdown scenarios to make sure we
+	 * don't crash or leak memory.
+	 */
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_gzip(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_gzip(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_gzip(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_gzip(a));
+	assertA(0 == archive_write_open_memory(a, buff, buffsize, &used2));
+	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+
+	/*
 	 * Clean up.
 	 */
 	free(data);

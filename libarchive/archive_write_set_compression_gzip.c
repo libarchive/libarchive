@@ -102,6 +102,7 @@ archive_write_set_compression_gzip(struct archive *_a)
 		return (ARCHIVE_FATAL);
 	}
 	a->compressor.config = config;
+	a->compressor.finish = &archive_compressor_gzip_finish;
 	config->compression_level = Z_DEFAULT_COMPRESSION;
 	a->compressor.init = &archive_compressor_gzip_init;
 	a->compressor.options = &archive_compressor_gzip_options;
@@ -186,7 +187,6 @@ archive_compressor_gzip_init(struct archive_write *a)
 	state->stream.avail_out -= 10;
 
 	a->compressor.write = archive_compressor_gzip_write;
-	a->compressor.finish = archive_compressor_gzip_finish;
 
 	/* Initialize compression library. */
 	ret = deflateInit2(&(state->stream),
@@ -281,7 +281,6 @@ archive_compressor_gzip_write(struct archive_write *a, const void *buff,
 	return (ARCHIVE_OK);
 }
 
-
 /*
  * Finish the compression...
  */
@@ -296,113 +295,118 @@ archive_compressor_gzip_finish(struct archive_write *a)
 
 	state = (struct private_data *)a->compressor.data;
 	ret = 0;
-	if (a->client_writer == NULL) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
-		    "No write callback is registered?  "
-		    "This is probably an internal programming error.");
-		ret = ARCHIVE_FATAL;
-		goto cleanup;
-	}
-
-	/* By default, always pad the uncompressed data. */
-	if (a->pad_uncompressed) {
-		tocopy = a->bytes_per_block -
-		    (state->total_in % a->bytes_per_block);
-		while (tocopy > 0 && tocopy < (unsigned)a->bytes_per_block) {
-			SET_NEXT_IN(state, a->nulls);
-			state->stream.avail_in = tocopy < a->null_length ?
-			    tocopy : a->null_length;
-			state->crc = crc32(state->crc, a->nulls,
-			    state->stream.avail_in);
-			state->total_in += state->stream.avail_in;
-			tocopy -= state->stream.avail_in;
-			ret = drive_compressor(a, state, 0);
-			if (ret != ARCHIVE_OK)
-				goto cleanup;
+	if (state != NULL) {
+		if (a->client_writer == NULL) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_PROGRAMMER,
+			    "No write callback is registered?  "
+			    "This is probably an internal programming error.");
+			ret = ARCHIVE_FATAL;
+			goto cleanup;
 		}
-	}
 
-	/* Finish compression cycle */
-	if (((ret = drive_compressor(a, state, 1))) != ARCHIVE_OK)
-		goto cleanup;
+		/* By default, always pad the uncompressed data. */
+		if (a->pad_uncompressed) {
+			tocopy = a->bytes_per_block -
+			    (state->total_in % a->bytes_per_block);
+			while (tocopy > 0 && tocopy < (unsigned)a->bytes_per_block) {
+				SET_NEXT_IN(state, a->nulls);
+				state->stream.avail_in = tocopy < a->null_length ?
+				    tocopy : a->null_length;
+				state->crc = crc32(state->crc, a->nulls,
+				    state->stream.avail_in);
+				state->total_in += state->stream.avail_in;
+				tocopy -= state->stream.avail_in;
+				ret = drive_compressor(a, state, 0);
+				if (ret != ARCHIVE_OK)
+					goto cleanup;
+			}
+		}
 
-	/* Build trailer: 4-byte CRC and 4-byte length. */
-	trailer[0] = (state->crc)&0xff;
-	trailer[1] = (state->crc >> 8)&0xff;
-	trailer[2] = (state->crc >> 16)&0xff;
-	trailer[3] = (state->crc >> 24)&0xff;
-	trailer[4] = (state->total_in)&0xff;
-	trailer[5] = (state->total_in >> 8)&0xff;
-	trailer[6] = (state->total_in >> 16)&0xff;
-	trailer[7] = (state->total_in >> 24)&0xff;
+		/* Finish compression cycle */
+		if (((ret = drive_compressor(a, state, 1))) != ARCHIVE_OK)
+			goto cleanup;
 
-	/* Add trailer to current block. */
-	tocopy = 8;
-	if (tocopy > state->stream.avail_out)
-		tocopy = state->stream.avail_out;
-	memcpy(state->stream.next_out, trailer, tocopy);
-	state->stream.next_out += tocopy;
-	state->stream.avail_out -= tocopy;
+		/* Build trailer: 4-byte CRC and 4-byte length. */
+		trailer[0] = (state->crc)&0xff;
+		trailer[1] = (state->crc >> 8)&0xff;
+		trailer[2] = (state->crc >> 16)&0xff;
+		trailer[3] = (state->crc >> 24)&0xff;
+		trailer[4] = (state->total_in)&0xff;
+		trailer[5] = (state->total_in >> 8)&0xff;
+		trailer[6] = (state->total_in >> 16)&0xff;
+		trailer[7] = (state->total_in >> 24)&0xff;
 
-	/* If it overflowed, flush and start a new block. */
-	if (tocopy < 8) {
+		/* Add trailer to current block. */
+		tocopy = 8;
+		if (tocopy > state->stream.avail_out)
+			tocopy = state->stream.avail_out;
+		memcpy(state->stream.next_out, trailer, tocopy);
+		state->stream.next_out += tocopy;
+		state->stream.avail_out -= tocopy;
+
+		/* If it overflowed, flush and start a new block. */
+		if (tocopy < 8) {
+			bytes_written = (a->client_writer)(&a->archive, a->client_data,
+			    state->compressed, state->compressed_buffer_size);
+			if (bytes_written <= 0) {
+				ret = ARCHIVE_FATAL;
+				goto cleanup;
+			}
+			a->archive.raw_position += bytes_written;
+			state->stream.next_out = state->compressed;
+			state->stream.avail_out = state->compressed_buffer_size;
+			memcpy(state->stream.next_out, trailer + tocopy, 8-tocopy);
+			state->stream.next_out += 8-tocopy;
+			state->stream.avail_out -= 8-tocopy;
+		}
+
+		/* Optionally, pad the final compressed block. */
+		block_length = state->stream.next_out - state->compressed;
+
+		/* Tricky calculation to determine size of last block. */
+		target_block_length = block_length;
+		if (a->bytes_in_last_block <= 0)
+			/* Default or Zero: pad to full block */
+			target_block_length = a->bytes_per_block;
+		else
+			/* Round length to next multiple of bytes_in_last_block. */
+			target_block_length = a->bytes_in_last_block *
+			    ( (block_length + a->bytes_in_last_block - 1) /
+				a->bytes_in_last_block);
+		if (target_block_length > a->bytes_per_block)
+			target_block_length = a->bytes_per_block;
+		if (block_length < target_block_length) {
+			memset(state->stream.next_out, 0,
+			    target_block_length - block_length);
+			block_length = target_block_length;
+		}
+
+		/* Write the last block */
 		bytes_written = (a->client_writer)(&a->archive, a->client_data,
-		    state->compressed, state->compressed_buffer_size);
+		    state->compressed, block_length);
 		if (bytes_written <= 0) {
 			ret = ARCHIVE_FATAL;
 			goto cleanup;
 		}
 		a->archive.raw_position += bytes_written;
-		state->stream.next_out = state->compressed;
-		state->stream.avail_out = state->compressed_buffer_size;
-		memcpy(state->stream.next_out, trailer + tocopy, 8-tocopy);
-		state->stream.next_out += 8-tocopy;
-		state->stream.avail_out -= 8-tocopy;
+
+		/* Cleanup: shut down compressor, release memory, etc. */
+	cleanup:
+		switch (deflateEnd(&(state->stream))) {
+		case Z_OK:
+			break;
+		default:
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Failed to clean up compressor");
+			ret = ARCHIVE_FATAL;
+		}
+		free(state->compressed);
+		free(state);
 	}
-
-	/* Optionally, pad the final compressed block. */
-	block_length = state->stream.next_out - state->compressed;
-
-
-	/* Tricky calculation to determine size of last block. */
-	target_block_length = block_length;
-	if (a->bytes_in_last_block <= 0)
-		/* Default or Zero: pad to full block */
-		target_block_length = a->bytes_per_block;
-	else
-		/* Round length to next multiple of bytes_in_last_block. */
-		target_block_length = a->bytes_in_last_block *
-		    ( (block_length + a->bytes_in_last_block - 1) /
-			a->bytes_in_last_block);
-	if (target_block_length > a->bytes_per_block)
-		target_block_length = a->bytes_per_block;
-	if (block_length < target_block_length) {
-		memset(state->stream.next_out, 0,
-		    target_block_length - block_length);
-		block_length = target_block_length;
-	}
-
-	/* Write the last block */
-	bytes_written = (a->client_writer)(&a->archive, a->client_data,
-	    state->compressed, block_length);
-	if (bytes_written <= 0) {
-		ret = ARCHIVE_FATAL;
-		goto cleanup;
-	}
-	a->archive.raw_position += bytes_written;
-
-	/* Cleanup: shut down compressor, release memory, etc. */
-cleanup:
-	switch (deflateEnd(&(state->stream))) {
-	case Z_OK:
-		break;
-	default:
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Failed to clean up compressor");
-		ret = ARCHIVE_FATAL;
-	}
-	free(state->compressed);
-	free(state);
+	/* Clean up config area even if we never initialized. */
+	free(a->compressor.config);
+	a->compressor.config = NULL;
 	return (ret);
 }
 
