@@ -437,6 +437,7 @@ function splitwords(l, dest, n, o, w) {
     } else if(match(words[w],"^[\\\])}.,;:]$")) {
       addclose(words[w])
     } else {
+      sub("\\\\&", "", words[w])
       add(words[w])
     }
   }
