@@ -74,6 +74,7 @@ SRCS=	archive_check_magic.c				\
 	archive_write_set_format_pax.c			\
 	archive_write_set_format_shar.c			\
 	archive_write_set_format_ustar.c		\
+	archive_write_set_format_zip.c			\
 	filter_fork.c
 
 CLEANFILES += *.o *.lo *~ .dirstamp
