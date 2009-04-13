@@ -345,7 +345,9 @@ function splitwords(l, dest, n, o, w) {
     } else if(match(words[w],"^S[xy]$")) {
       add(".B " wtail())
     } else if(match(words[w],"^Tn$")) {
-      add("*" wtail() "*")
+      n=wtail()
+      gsub("\\*$", "`*`", n)
+      add("*" n "*")
     } else if(match(words[w],"^Ic$")) {
       add("\\fB")
       trailer="\\fP" trailer
