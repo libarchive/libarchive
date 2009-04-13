@@ -199,6 +199,8 @@ function splitwords(l, dest, n, o, w) {
       add("OpenBSD")
     } else if(match(words[w],"^Fx$")) {
       add("FreeBSD")
+    } else if(match(words[w],"^Bx$")) {
+      add("BSD")
     } else if(match(words[w],"^Nx$")) {
       add("NetBSD")
     } else if(match(words[w],"^St$")) {
@@ -269,6 +271,7 @@ function splitwords(l, dest, n, o, w) {
       endline()
     } else if(match(words[w],"^Ss$")) {
       add("===")
+      trailer="==="
     } else if(match(words[w],"^Ft$")) {
       if (match(section, "SYNOPSIS")) {
 	breakline()
