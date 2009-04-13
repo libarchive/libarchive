@@ -151,6 +151,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_write_set_format_pax.c		\
 	libarchive/archive_write_set_format_shar.c		\
 	libarchive/archive_write_set_format_ustar.c		\
+	libarchive/archive_write_set_format_zip.c		\
 	libarchive/config_freebsd.h				\
 	libarchive/config_windows.h				\
 	libarchive/filter_fork.c				\
@@ -288,6 +289,9 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_format_tar.c			\
 	libarchive/test/test_write_format_tar_empty.c		\
 	libarchive/test/test_write_format_tar_ustar.c		\
+	libarchive/test/test_write_format_zip.c			\
+	libarchive/test/test_write_format_zip_empty.c		\
+	libarchive/test/test_write_format_zip_no_compression.c	\
 	libarchive/test/test_write_open_memory.c
 
 libarchive_test_CPPFLAGS= -I$(top_builddir)/libarchive -I$(top_srcdir)/libarchive -I$(top_builddir)/libarchive/test -DLIBARCHIVE_STATIC
