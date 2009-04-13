@@ -248,11 +248,17 @@ function splitwords(l, dest, n, o, w) {
       }
       if(!length(n))
         n=name
-      add("*" n "*")
+      if (displaylines == 0)
+	add("*" n "*")
+      else
+	add(n)
     } else if(match(words[w],"^Nd$")) {
       add("- " wtail())
     } else if(match(words[w],"^Fl$")) {
-      add("*-" words[++w] "*")
+      if (displaylines == 0)
+	add("*-" words[++w] "*")
+      else
+	add("-" words[++w])
     } else if(match(words[w],"^Ar$")) {
       if(w==nwords)
 	add("_file ..._")
@@ -263,9 +269,12 @@ function splitwords(l, dest, n, o, w) {
       }
     } else if(match(words[w],"^Cm$")) {
       ++w
-      gsub("^_", "`_`", words[w])
-      gsub("\\*$", "`*`", words[w])
-      add("*" words[w] "*")
+      if (displaylines == 0) {
+	gsub("^_", "`_`", words[w])
+	gsub("\\*$", "`*`", words[w])
+	add("*" words[w] "*")
+      } else
+	add(words[w])
     } else if(match(words[w],"^Op$")) {
       addopen("`[`")
       option=1
@@ -331,11 +340,13 @@ function splitwords(l, dest, n, o, w) {
       w++
       add("*#include <" words[w] ">*")
     } else if(match(words[w],"^Pa$")) {
-      addopen("_")
       w++
-      if(match(words[w],"^\\."))
-	add("\\&")
-      add(words[w] "_")
+#      if(match(words[w],"^\\."))
+#	add("\\&")
+      if (displaylines == 0)
+	add("_" words[w] "_")
+      else
+	add(words[w])
     } else if(match(words[w],"^Dv$")) {
       linecmd()
     } else if(match(words[w],"^Em|Ev$")) {
