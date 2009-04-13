@@ -5,8 +5,6 @@
 # the mdoc man pages stored in each project.
 #
 
-if false; then
-
 # Build Makefile in 'man' directory
 cd man
 rm -f *.[135]
@@ -82,8 +80,6 @@ for d in libarchive tar cpio; do
 done
 echo $all >>Makefile
 cd ..
-
-fi
 
 # Build Makefile in 'wiki' directory
 cd wiki
