@@ -357,9 +357,11 @@ function splitwords(l, dest, n, o, w) {
     } else if(match(words[w],"^Bl$")) {
       ++listdepth
       listnext[listdepth]=""
-      if(match(words[w+1],"-bullet"))
+      if(match(words[w+1],"-bullet")) {
 	optlist[listdepth]=1
-      else if(match(words[w+1],"-enum")) {
+	addopen("<ul>")
+	listclose[listdepth]="</ul>"
+      } else if(match(words[w+1],"-enum")) {
 	optlist[listdepth]=2
 	enum=0
 	addopen("<ol>")
@@ -370,10 +372,6 @@ function splitwords(l, dest, n, o, w) {
 	listclose[listdepth]="</dl>"
       } else if(match(words[w+1],"-item")) {
 	optlist[listdepth]=4
-	addopen("<ul>")
-	listclose[listdepth]="</ul>"
-      } else if(match(words[w+1],"-bullet")) {
-	optlist[listdepth]=1
 	addopen("<ul>")
 	listclose[listdepth]="</ul>"
       }
