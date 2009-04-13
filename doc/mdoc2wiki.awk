@@ -182,13 +182,13 @@ function splitwords(l, dest, n, o, w) {
     } else if(match(words[w],"^Dc$")) {
       addclose("\"")
     } else if(match(words[w],"^Oo$")) {
-      addopen("[")
+      addopen("`[`")
     } else if(match(words[w],"^Oc$")) {
-      addclose("]")
+      addclose("`]`")
     } else if(match(words[w],"^Ao$")) {
-      addopen("<")
+      addopen("`<`")
     } else if(match(words[w],"^Ac$")) {
-      addclose(">")
+      addclose("`>`")
     } else if(match(words[w],"^Dd$")) {
       date=wtail()
       next
@@ -254,22 +254,26 @@ function splitwords(l, dest, n, o, w) {
     } else if(match(words[w],"^Fl$")) {
       add("*-" words[++w] "*")
     } else if(match(words[w],"^Ar$")) {
-      addopen("_")
       if(w==nwords)
-	add("file ..._")
-      else
-	add(words[++w] "_")
+	add("_file ..._")
+      else {
+	++w
+	gsub("<", "`<`", words[w])
+	add("_" words[w] "_")
+      }
     } else if(match(words[w],"^Cm$")) {
       ++w
       gsub("^_", "`_`", words[w])
       gsub("\\*$", "`*`", words[w])
       add("*" words[w] "*")
     } else if(match(words[w],"^Op$")) {
-      addopen("[")
+      addopen("`[`")
       option=1
-      trailer="]" trailer
+      trailer="`]`" trailer
     } else if(match(words[w],"^Pp$")) {
-      linecmd("")
+      ++w
+      endline()
+      print ""
     } else if(match(words[w],"^An$")) {
       if (match(words[w+1],"-nosplit"))
 	++w
