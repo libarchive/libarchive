@@ -270,6 +270,8 @@ function splitwords(l, dest, n, o, w) {
     } else if(match(words[w],"^Pp$")) {
       linecmd("")
     } else if(match(words[w],"^An$")) {
+      if (match(words[w+1],"-nosplit"))
+	++w
       endline()
     } else if(match(words[w],"^Ss$")) {
       add("===")
