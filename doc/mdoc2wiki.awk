@@ -262,6 +262,7 @@ function splitwords(l, dest, n, o, w) {
     } else if(match(words[w],"^Cm$")) {
       ++w
       gsub("^_", "`_`", words[w])
+      gsub("\\*$", "`*`", words[w])
       add("*" words[w] "*")
     } else if(match(words[w],"^Op$")) {
       addopen("[")
