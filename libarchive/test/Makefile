@@ -53,6 +53,7 @@ TESTS= \
 	test_read_format_isorr_bz2.c		\
 	test_read_format_mtree.c		\
 	test_read_format_pax_bz2.c		\
+	test_read_format_raw.c			\
 	test_read_format_tar.c			\
 	test_read_format_tar_empty_filename.c	\
 	test_read_format_tbz.c			\

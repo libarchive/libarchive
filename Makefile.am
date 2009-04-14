@@ -120,6 +120,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_read_support_format_empty.c		\
 	libarchive/archive_read_support_format_iso9660.c	\
 	libarchive/archive_read_support_format_mtree.c		\
+	libarchive/archive_read_support_format_raw.c		\
 	libarchive/archive_read_support_format_tar.c		\
 	libarchive/archive_read_support_format_zip.c		\
 	libarchive/archive_string.c				\
