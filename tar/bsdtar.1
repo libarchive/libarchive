@@ -412,10 +412,20 @@ but before security checks.
 .It Fl s Ar pattern
 Modify file or archive member names according to
 .Pa pattern .
-The pattern has the format /old/new/[gps].
-old is a basic regular expression.
-If it doesn't apply, the pattern is skipped.
-new is the replacement string of the matched part.
+The pattern has the format
+.Ar /old/new/ Op gps
+where
+.Ar old
+is a basic regular expression,
+.Ar new
+is the replacement string of the matched part,
+and the optional trailing letters modify
+how the replacement is handled.
+If
+.Ar old
+is not matched, the pattern is skipped.
+Within
+.Ar new ,
 ~ is substituted with the match, \1 to \9 with the content of
 the corresponding captured group.
 The optional trailing g specifies that matching should continue
