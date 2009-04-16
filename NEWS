@@ -1,4 +1,6 @@
 
+Apr 16, 2009: libarchive 2.7.0 released
+
 Apr 10, 2009: libarchive 2.6.992a released
 Apr 09, 2009: Fix SIGPIPE issue building with MSVC.
 Apr 09, 2009: Fix several minor memory leaks in libarchive and libarchive_test
