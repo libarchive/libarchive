@@ -1,7 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 
 AUTOMAKE_OPTIONS= foreign subdir-objects
-ACLOCAL_AMFLAGS = -I build/autoconf
 
 #
 # What to build and install
