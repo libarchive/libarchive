@@ -37,13 +37,10 @@
 #if defined(PLATFORM_CONFIG_H)
 /* Use hand-built config.h in environments that need it. */
 #include PLATFORM_CONFIG_H
-#elif defined(HAVE_CONFIG_H)
-/* Most POSIX platforms use the 'configure' script to build config.h */
-#include "config.h"
 #else
-/* Warn if bsdtar hasn't been (automatically or manually) configured. */
-#error Oops: No config.h and no built-in configuration in bsdtar_platform.h.
-#endif /* !HAVE_CONFIG_H */
+/* Not having a config.h of some sort is a serious problem. */
+#include "config.h"
+#endif
 
 /* No non-FreeBSD platform will have __FBSDID, so just define it here. */
 #ifdef __FreeBSD__
@@ -63,27 +60,8 @@
 #include "archive_entry.h"
 #endif
 
-/*
- * Does this platform have complete-looking POSIX-style ACL support,
- * including some variant of the acl_get_perm() function (which was
- * omitted from the POSIX.1e draft)?
- */
-#if HAVE_SYS_ACL_H && HAVE_ACL_PERMSET_T && HAVE_ACL_USER
-#if HAVE_ACL_GET_PERM || HAVE_ACL_GET_PERM_NP
-#define	HAVE_POSIX_ACL	1
-#endif
-#endif
-
 #ifdef HAVE_LIBACL
 #include <acl/libacl.h>
-#endif
-
-#if HAVE_ACL_GET_PERM
-#define	ACL_GET_PERM acl_get_perm
-#else
-#if HAVE_ACL_GET_PERM_NP
-#define	ACL_GET_PERM acl_get_perm_np
-#endif
 #endif
 
 /*
