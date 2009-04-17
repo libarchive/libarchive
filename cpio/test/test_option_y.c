@@ -41,19 +41,21 @@ DEFINE_TEST(test_option_y)
 	/* Archive it with bzip2 compression. */
 	r = systemf("echo f | %s -oy >archive.out 2>archive.err",
 	    testprog);
-	failure("-y (bzip) option seems to be broken");
-	if (assertEqualInt(r, 0)) {
-		p = slurpfile(&s, "archive.err");
-		p[s] = '\0';
-		if (strstr(p, "bzip2 compression not supported") != NULL) {
+	p = slurpfile(&s, "archive.err");
+	p[s] = '\0';
+	if (r != 0) {
+		if (strstr(p, "compression not available") != NULL) {
 			skipping("This version of bsdcpio was compiled "
 			    "without bzip2 support");
-		} else {
-			assertTextFileContents("1 block\n", "archive.err");
-			/* Check that the archive file has a bzip2 signature. */
-			p = slurpfile(&s, "archive.out");
-			assert(s > 2);
-			assertEqualMem(p, "BZh9", 4);
+			return;
 		}
+		failure("-y option is broken");
+		assertEqualInt(r, 0);
+		return;
 	}
+	assertTextFileContents("1 block\n", "archive.err");
+	/* Check that the archive file has a bzip2 signature. */
+	p = slurpfile(&s, "archive.out");
+	assert(s > 2);
+	assertEqualMem(p, "BZh9", 4);
 }

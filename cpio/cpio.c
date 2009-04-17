@@ -219,6 +219,12 @@ main(int argc, char *argv[])
 				    "Cannot use both -i and -%c", cpio->mode);
 			cpio->mode = opt;
 			break;
+		case 'J': /* GNU tar, others */
+			cpio->compress = opt;
+			break;
+		case 'j': /* GNU tar, others */
+			cpio->compress = opt;
+			break;
 		case OPTION_INSECURE:
 			cpio->extract_flags &= ~ARCHIVE_EXTRACT_SECURE_SYMLINKS;
 			cpio->extract_flags &= ~ARCHIVE_EXTRACT_SECURE_NODOTDOT;
@@ -228,6 +234,9 @@ main(int argc, char *argv[])
 			break;
 		case 'l': /* POSIX 1997 */
 			cpio->option_link = 1;
+			break;
+		case OPTION_LZMA: /* GNU tar, others */
+			cpio->compress = opt;
 			break;
 		case 'm': /* POSIX 1997 */
 			cpio->extract_flags |= ARCHIVE_EXTRACT_TIME;
@@ -380,7 +389,7 @@ static const char *long_help_msg =
 	"Common Options:\n"
 	"  -v    Verbose\n"
 	"Create: %p -o [options]  < [list of files] > [archive]\n"
-	"  -y,-z  Compress archive with bzip2/gzip\n"
+	"  -J,-y,-z,--lzma  Compress archive with xz/bzip2/gzip/lzma\n"
 	"  --format {odc|newc|ustar}  Select archive format\n"
 	"List: %p -it < [archive]\n"
 	"Extract: %p -i [options] < [archive]\n";
@@ -446,6 +455,12 @@ mode_out(struct cpio *cpio)
 	if (cpio->archive == NULL)
 		cpio_errc(1, 0, "Failed to allocate archive object");
 	switch (cpio->compress) {
+	case 'J':
+		r = archive_write_set_compression_xz(cpio->archive);
+		break;
+	case OPTION_LZMA:
+		r = archive_write_set_compression_lzma(cpio->archive);
+		break;
 	case 'j': case 'y':
 		r = archive_write_set_compression_bzip2(cpio->archive);
 		break;
@@ -460,7 +475,7 @@ mode_out(struct cpio *cpio)
 		break;
 	}
 	if (r < ARCHIVE_WARN)
-		cpio_errc(1, 0, "Requested compression not supported");
+		cpio_errc(1, 0, "Requested compression not available");
 	r = archive_write_set_format_by_name(cpio->archive, cpio->format);
 	if (r != ARCHIVE_OK)
 		cpio_errc(1, 0, archive_error_string(cpio->archive));

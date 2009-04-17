@@ -12,14 +12,18 @@ TESTS=	\
 	test_basic.c				\
 	test_format_newc.c			\
 	test_gcpio_compat.c			\
+	test_option_B_upper.c			\
+	test_option_C_upper.c			\
+	test_option_J_upper.c			\
+	test_option_L_upper.c			\
+	test_option_Z_upper.c			\
 	test_option_a.c				\
-	test_option_B.c				\
 	test_option_c.c				\
 	test_option_d.c				\
 	test_option_f.c				\
 	test_option_help.c			\
-	test_option_L.c				\
-	test_option_ell.c			\
+	test_option_l.c				\
+	test_option_lzma.c			\
 	test_option_m.c				\
 	test_option_t.c				\
 	test_option_u.c				\

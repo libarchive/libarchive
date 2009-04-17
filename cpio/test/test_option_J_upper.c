@@ -25,7 +25,7 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-DEFINE_TEST(test_option_Z_upper)
+DEFINE_TEST(test_option_J_upper)
 {
 	char *p;
 	int fd;
@@ -38,23 +38,23 @@ DEFINE_TEST(test_option_Z_upper)
 	assertEqualInt(1, write(fd, "a", 1));
 	close(fd);
 
-	/* Archive it with compress compression. */
-	r = systemf("echo f | %s -oZ >archive.out 2>archive.err",
+	/* Archive it with xz compression. */
+	r = systemf("echo f | %s -o -J >archive.out 2>archive.err",
 	    testprog);
 	p = slurpfile(&s, "archive.err");
 	p[s] = '\0';
 	if (r != 0) {
 		if (strstr(p, "compression not available") != NULL) {
 			skipping("This version of bsdcpio was compiled "
-			    "without compress support");
+			    "without xz support");
 			return;
 		}
-		failure("-Z option is broken");
+		failure("-J option is broken");
 		assertEqualInt(r, 0);
 		return;
 	}
-	/* Check that the archive file has a compress signature. */
+	/* Check that the archive file has an lzma signature. */
 	p = slurpfile(&s, "archive.out");
 	assert(s > 2);
-	assertEqualMem(p, "\x1f\x9d", 2);
+	assertEqualMem(p, "xxxxx", 5);
 }

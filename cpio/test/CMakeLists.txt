@@ -17,6 +17,7 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     test_gcpio_compat.c
     test_option_B_upper.c
     test_option_C_upper.c
+    test_option_J_upper.c
     test_option_L_upper.c
     test_option_Z_upper.c
     test_option_a.c
@@ -25,6 +26,7 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     test_option_f.c
     test_option_help.c
     test_option_l.c
+    test_option_lzma.c
     test_option_m.c
     test_option_t.c
     test_option_u.c

@@ -518,6 +518,7 @@ bsdcpio_test_SOURCES=						\
 	cpio/test/test_gcpio_compat.c				\
 	cpio/test/test_option_B_upper.c				\
 	cpio/test/test_option_C_upper.c				\
+	cpio/test/test_option_J_upper.c				\
 	cpio/test/test_option_L_upper.c				\
 	cpio/test/test_option_Z_upper.c				\
 	cpio/test/test_option_a.c				\
@@ -526,6 +527,7 @@ bsdcpio_test_SOURCES=						\
 	cpio/test/test_option_f.c				\
 	cpio/test/test_option_help.c				\
 	cpio/test/test_option_l.c				\
+	cpio/test/test_option_lzma.c				\
 	cpio/test/test_option_m.c				\
 	cpio/test/test_option_t.c				\
 	cpio/test/test_option_u.c				\
