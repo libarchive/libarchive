@@ -37,13 +37,10 @@
 #if defined(PLATFORM_CONFIG_H)
 /* Use hand-built config.h in environments that need it. */
 #include PLATFORM_CONFIG_H
-#elif defined(HAVE_CONFIG_H)
-/* Most POSIX platforms use the 'configure' script to build config.h */
-#include "config.h"
 #else
-/* Warn if cpio hasn't been (automatically or manually) configured. */
-#error Oops: No config.h and no built-in configuration in cpio_platform.h.
-#endif /* !HAVE_CONFIG_H */
+/* Read config.h or die trying. */
+#include "config.h"
+#endif
 
 /* No non-FreeBSD platform will have __FBSDID, so just define it here. */
 #ifdef __FreeBSD__
