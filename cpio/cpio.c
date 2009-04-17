@@ -290,23 +290,13 @@ main(int argc, char *argv[])
 			break;
 #endif
 		case 'y': /* tar convention */
-#if HAVE_LIBBZ2
 			cpio->compress = opt;
-#else
-			cpio_warnc(0, "bzip2 compression not supported by "
-			    "this version of bsdcpio");
-#endif
 			break;
 		case 'Z': /* tar convention */
 			cpio->compress = opt;
 			break;
 		case 'z': /* tar convention */
-#if HAVE_LIBZ
 			cpio->compress = opt;
-#else
-			cpio_warnc(0, "gzip compression not supported by "
-			    "this version of bsdcpio");
-#endif
 			break;
 		default:
 			usage();
@@ -390,12 +380,7 @@ static const char *long_help_msg =
 	"Common Options:\n"
 	"  -v    Verbose\n"
 	"Create: %p -o [options]  < [list of files] > [archive]\n"
-#ifdef HAVE_BZLIB_H
-	"  -y  Compress archive with bzip2\n"
-#endif
-#ifdef HAVE_ZLIB_H
-	"  -z  Compress archive with gzip\n"
-#endif
+	"  -y,-z  Compress archive with bzip2/gzip\n"
 	"  --format {odc|newc|ustar}  Select archive format\n"
 	"List: %p -it < [archive]\n"
 	"Extract: %p -i [options] < [archive]\n";
@@ -461,23 +446,21 @@ mode_out(struct cpio *cpio)
 	if (cpio->archive == NULL)
 		cpio_errc(1, 0, "Failed to allocate archive object");
 	switch (cpio->compress) {
-#ifdef HAVE_BZLIB_H
 	case 'j': case 'y':
-		archive_write_set_compression_bzip2(cpio->archive);
+		r = archive_write_set_compression_bzip2(cpio->archive);
 		break;
-#endif
-#ifdef HAVE_ZLIB_H
 	case 'z':
-		archive_write_set_compression_gzip(cpio->archive);
+		r = archive_write_set_compression_gzip(cpio->archive);
 		break;
-#endif
 	case 'Z':
-		archive_write_set_compression_compress(cpio->archive);
+		r = archive_write_set_compression_compress(cpio->archive);
 		break;
 	default:
-		archive_write_set_compression_none(cpio->archive);
+		r = archive_write_set_compression_none(cpio->archive);
 		break;
 	}
+	if (r < ARCHIVE_WARN)
+		cpio_errc(1, 0, "Requested compression not supported");
 	r = archive_write_set_format_by_name(cpio->archive, cpio->format);
 	if (r != ARCHIVE_OK)
 		cpio_errc(1, 0, archive_error_string(cpio->archive));
