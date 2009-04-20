@@ -122,7 +122,7 @@ archive_read_format_raw_read_data(struct archive_read *a,
     const void **buff, size_t *size, off_t *offset)
 {
 	struct raw_info *info;
-	size_t avail;
+	ssize_t avail;
 
 	info = (struct raw_info *)(a->format->data);
 	if (info->end_of_file)
