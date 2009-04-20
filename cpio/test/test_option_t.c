@@ -71,9 +71,15 @@ DEFINE_TEST(test_option_t)
 		    testprog);
 	assertEqualInt(r, 0);
 	assertTextFileContents("1 block\n", "itnv.err");
-	extract_reference_file("test_option_tnv.stdout");
-	/* This does work because numeric IDs come from archive. */
-	assertEqualFile("itnv.out", "test_option_tnv.stdout");
+	p = slurpfile(NULL, "itnv.out");
+	/* Since -n uses numeric UID/GID, this part should be the
+	 * same on every system. */
+	assertEqualMem(p, "-rw-r--r--   1 1000     1000            0 ",42);
+	/* The date might vary depending on what timezone we're in.
+	 * 1 second past the Epoch can only be one of two dates. */
+	if (strcmp(p + 42, "Dec 31  1969 file\n") != 0)
+		assertEqualString(p + 42, "Jan  1  1970  file\n");
+	free(p);
 
 	/* But "-n" without "-t" is an error. */
 	assert(0 != systemf("%s -in < test_option_t.cpio >in.out 2>in.err",
