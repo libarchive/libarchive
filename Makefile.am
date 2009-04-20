@@ -251,6 +251,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_format_isorr_bz2.c		\
 	libarchive/test/test_read_format_mtree.c		\
 	libarchive/test/test_read_format_pax_bz2.c		\
+	libarchive/test/test_read_format_raw.c			\
 	libarchive/test/test_read_format_tar.c			\
 	libarchive/test/test_read_format_tar_empty_filename.c	\
 	libarchive/test/test_read_format_tbz.c			\
