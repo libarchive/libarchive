@@ -234,14 +234,18 @@ if test "x$with_lzma" != "xno"; then
   AC_CHECK_LIB(lzma,lzma_stream_decoder)
 fi
 
-AC_CHECK_HEADERS([openssl/md5.h openssl/ripemd.h openssl/sha.h])
-AC_CHECK_HEADERS([md5.h])
-AC_CHECK_HEADERS([ripemd.h rmd160.h])
-AC_CHECK_HEADERS([sha.h sha1.h sha2.h sha256.h])
-AC_SEARCH_LIBS(SHA1_Init, crypto ssl md)
-AC_CHECK_FUNC(MD5_Init)
-if test "x$ac_cv_func_MD5_Init" != "xyes"; then
-  AC_CHECK_FUNC(MD5Init,
+AC_ARG_WITH([openssl],
+  AS_HELP_STRING([--without-openssl], [Don't build support for mtree hashes through openssl]))
+
+if test "x$with_openssl" != "xno"; then
+  AC_CHECK_HEADERS([openssl/md5.h openssl/ripemd.h openssl/sha.h])
+  AC_CHECK_HEADERS([md5.h])
+  AC_CHECK_HEADERS([ripemd.h rmd160.h])
+  AC_CHECK_HEADERS([sha.h sha1.h sha2.h sha256.h])
+  AC_SEARCH_LIBS(SHA1_Init, crypto ssl md)
+  AC_CHECK_FUNC(MD5_Init)
+  if test "x$ac_cv_func_MD5_Init" != "xyes"; then
+    AC_CHECK_FUNC(MD5Init,
 	[AC_DEFINE(MD5_Init, MD5Init,
 	    [Define to the initializes MD5 context function.])
 	 AC_DEFINE(MD5_Update, MD5Update,
@@ -249,13 +253,13 @@ if test "x$ac_cv_func_MD5_Init" != "xyes"; then
 	 AC_DEFINE(MD5_Final, MD5Final,
 	    [Define to the generates final MD5 hash function.])
 	])
-fi
-if test "x$ac_cv_func_MD5_Init" = "xyes" -o "x$ac_cv_func_MD5Init" = "xyes" ; then
-  AC_DEFINE(HAVE_MD5, 1, [Define to 1 if you have the `MD5' functions.])
-fi
-AC_CHECK_FUNC(RIPEMD160_Init)
-if test "x$ac_cv_func_RIPEMD160_Init" != "xyes"; then
-  AC_CHECK_FUNC(RMD160Init,
+  fi
+  if test "x$ac_cv_func_MD5_Init" = "xyes" -o "x$ac_cv_func_MD5Init" = "xyes" ; then
+    AC_DEFINE(HAVE_MD5, 1, [Define to 1 if you have the `MD5' functions.])
+  fi
+  AC_CHECK_FUNC(RIPEMD160_Init)
+  if test "x$ac_cv_func_RIPEMD160_Init" != "xyes"; then
+    AC_CHECK_FUNC(RMD160Init,
 	[AC_DEFINE(RIPEMD160_Init, RMD160Init,
 	    [Define to the initializes RIPEMD160 context function.])
 	 AC_DEFINE(RIPEMD160_Update, RMD160Update,
@@ -263,13 +267,13 @@ if test "x$ac_cv_func_RIPEMD160_Init" != "xyes"; then
 	 AC_DEFINE(RIPEMD160_Final, RMD160Final,
 	    [Define to the generates final RIPEMD160 hash function.])
 	])
-fi
-if test "x$ac_cv_func_RIPEMD160_Init" = "xyes" -o "x$ac_cv_func_RMD160Init" = "xyes" ; then
-  AC_DEFINE(HAVE_RMD160, 1, [Define to 1 if you have the `RIPEMD160' functions.])
-fi
-AC_CHECK_FUNC(SHA1_Init)
-if test "x$ac_cv_func_SHA1_Init" != "xyes"; then
-  AC_CHECK_FUNC(SHA1Init,
+  fi
+  if test "x$ac_cv_func_RIPEMD160_Init" = "xyes" -o "x$ac_cv_func_RMD160Init" = "xyes" ; then
+    AC_DEFINE(HAVE_RMD160, 1, [Define to 1 if you have the `RIPEMD160' functions.])
+  fi
+  AC_CHECK_FUNC(SHA1_Init)
+  if test "x$ac_cv_func_SHA1_Init" != "xyes"; then
+    AC_CHECK_FUNC(SHA1Init,
 	[AC_DEFINE(SHA1_Init, SHA1Init,
 	    [Define to the initializes SHA1 context function.])
 	 AC_DEFINE(SHA1_Update, SHA1Update,
@@ -277,22 +281,23 @@ if test "x$ac_cv_func_SHA1_Init" != "xyes"; then
 	 AC_DEFINE(SHA1_Final, SHA1Final,
 	    [Define to the generates final SHA1 hash function.])
 	])
-fi
-if test "x$ac_cv_func_SHA1_Init" = "xyes" -o "x$ac_cv_func_SHA1Init" = "xyes" ; then
-  AC_DEFINE(HAVE_SHA1, 1, [Define to 1 if you have the `SHA1' functions.])
-fi
-AC_CHECK_FUNC(SHA256_Init)
-if test "x$ac_cv_func_SHA256_Init" = "xyes" ; then
-  AC_DEFINE(HAVE_SHA256, 1, [Define to 1 if you have the `SHA256' functions.])
-fi
-AC_CHECK_FUNC(SHA384_Init)
-if test "x$ac_cv_func_SHA384_Init" = "xyes" ; then
-  AC_DEFINE(HAVE_SHA384, 1, [Define to 1 if you have the `SHA384' functions.])
-fi
-AC_CHECK_FUNC(SHA512_Init)
-if test "x$ac_cv_func_SHA512_Init" = "xyes" ; then
-  AC_DEFINE(HAVE_SHA512, 1, [Define to 1 if you have the `SHA512' functions.])
-fi
+  fi
+  if test "x$ac_cv_func_SHA1_Init" = "xyes" -o "x$ac_cv_func_SHA1Init" = "xyes" ; then
+    AC_DEFINE(HAVE_SHA1, 1, [Define to 1 if you have the `SHA1' functions.])
+  fi
+  AC_CHECK_FUNC(SHA256_Init)
+  if test "x$ac_cv_func_SHA256_Init" = "xyes" ; then
+    AC_DEFINE(HAVE_SHA256, 1, [Define to 1 if you have the `SHA256' functions.])
+  fi
+  AC_CHECK_FUNC(SHA384_Init)
+  if test "x$ac_cv_func_SHA384_Init" = "xyes" ; then
+    AC_DEFINE(HAVE_SHA384, 1, [Define to 1 if you have the `SHA384' functions.])
+  fi
+  AC_CHECK_FUNC(SHA512_Init)
+  if test "x$ac_cv_func_SHA512_Init" = "xyes" ; then
+    AC_DEFINE(HAVE_SHA512, 1, [Define to 1 if you have the `SHA512' functions.])
+  fi
+fi # with_openssl
 
 # TODO: Give the user the option of using a pre-existing system
 # libarchive.  This will define HAVE_LIBARCHIVE which will cause
