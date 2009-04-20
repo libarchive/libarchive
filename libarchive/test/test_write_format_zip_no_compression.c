@@ -146,8 +146,8 @@ DEFINE_TEST(test_write_format_zip_no_compression)
 	assertEqualInt(i2(p + 10), 0); /* Compression method */
 	assertEqualInt(i2(p + 12), (tm->tm_hour * 2048) + (tm->tm_min * 32) + (tm->tm_sec / 2)); /* File time */
 	assertEqualInt(i2(p + 14), ((tm->tm_year - 80) * 512) + ((tm->tm_mon + 1) * 32) + tm->tm_mday); /* File date */
-	crc = crc32(0, file_data1, sizeof(file_data1));
-	crc = crc32(crc, file_data2, sizeof(file_data2));
+	crc = crc32(0, (void *)file_data1, sizeof(file_data1));
+	crc = crc32(crc, (void *)file_data2, sizeof(file_data2));
 	assertEqualInt(i4(p + 16), crc); /* CRC-32 */
 	assertEqualInt(i4(p + 20), sizeof(file_data1) + sizeof(file_data2)); /* Compressed size */
 	assertEqualInt(i4(p + 24), sizeof(file_data1) + sizeof(file_data2)); /* Uncompressed size */
