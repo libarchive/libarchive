@@ -203,10 +203,11 @@ DEFINE_TEST(test_format_newc)
 	assertEqualMem(e + 0, "070701", 6); /* Magic */
 	assert(is_hex(e + 6, 8)); /* ino */
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	/* Group members bits and others bits do not work. */ 
+	/* Group members bits and others bits do not work. */
 	assertEqualInt(0x41c0, from_hex(e + 14, 8) & 0xffc0); /* Mode */
 #else
-	assertEqualInt(0x41fd, from_hex(e + 14, 8)); /* Mode */
+	/* Mode: sgid bit sometimes propagates from parent dirs, ignore it. */
+	assertEqualInt(040775, from_hex(e + 14, 8) & ~02000);
 #endif
 	assertEqualInt(from_hex(e + 22, 8), getuid()); /* uid */
 	assertEqualInt(gid, from_hex(e + 30, 8)); /* gid */

@@ -182,10 +182,12 @@ DEFINE_TEST(test_option_c)
 	assert(is_octal(e + 12, 6)); /* ino */
 	assert(dev != from_octal(e + 12, 6));
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	/* Group members bits and others bits do not work. */ 
+	/* Group members bits and others bits do not work. */
 	assertEqualMem(e + 18, "040777", 6); /* Mode */
 #else
-	assertEqualMem(e + 18, "040775", 6); /* Mode */
+	/* Accept 042775 to accomodate systems where sgid bit propagates. */
+	if (memcmp(e + 18, "042775", 6) != 0)
+		assertEqualMem(e + 18, "040775", 6); /* Mode */
 #endif
 	assertEqualInt(from_octal(e + 24, 6), getuid()); /* uid */
 	/* Gid should be same as first entry. */
