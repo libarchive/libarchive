@@ -208,6 +208,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test.h					\
 	libarchive/test/test_acl_basic.c			\
 	libarchive/test/test_acl_freebsd.c			\
+	libarchive/test/test_acl_solaris.c			\
 	libarchive/test/test_acl_pax.c				\
 	libarchive/test/test_archive_api_feature.c		\
 	libarchive/test/test_bad_fd.c				\
@@ -308,6 +309,7 @@ libarchive/test/list.h: Makefile
 libarchive_TESTS_ENVIRONMENT= LIBARCHIVE_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/libarchive/test
 
 libarchive_test_EXTRA_DIST=\
+	libarchive/test/test_acl_solaris.tar.uu				\
 	libarchive/test/test_compat_bzip2_1.tbz.uu			\
 	libarchive/test/test_compat_bzip2_2.tbz.uu			\
 	libarchive/test/test_compat_gtar_1.tar.uu			\

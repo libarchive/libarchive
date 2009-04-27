@@ -15,6 +15,7 @@ IF(ENABLE_TEST)
     test.h
     test_acl_basic.c
     test_acl_freebsd.c
+    test_acl_solaris.c
     test_acl_pax.c
     test_archive_api_feature.c
     test_bad_fd.c
