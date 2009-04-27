@@ -33,11 +33,11 @@ __FBSDID("$FreeBSD$");
  * filesystems support ACLs or not.
  */
 
-DEFINE_TEST(test_acl_solaris)
+DEFINE_TEST(test_compat_solaris_tar_acl)
 {
 	struct archive *a;
 	struct archive_entry *ae;
-	const char *reference1 = "test_acl_solaris.tar";
+	const char *reference1 = "test_compat_solaris_tar_acl.tar";
 	int type, permset, tag, qual;
 	const char *name;
 
