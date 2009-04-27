@@ -257,6 +257,11 @@ archive_read_format_cpio_read_header(struct archive_read *a,
 		cpio->entry_bytes_remaining = 0;
 	}
 
+	/* XXX TODO: If the full mode is 0160200, then this is a Solaris
+	 * ACL description for the following entry.  Read this body
+	 * and parse it as a Solaris-style ACL, then read the next
+	 * header.  XXX */
+
 	/* Compare name to "TRAILER!!!" to test for end-of-archive. */
 	if (namelength == 11 && strcmp((const char *)h, "TRAILER!!!") == 0) {
 	    /* TODO: Store file location of start of block. */
