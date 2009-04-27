@@ -669,7 +669,7 @@ le4(const unsigned char *p)
 static int
 be4(const unsigned char *p)
 {
-	return (p[0] + (p[1]<<8) + (p[2]<<16) + (p[3]<<24));
+	return ((p[0]<<24) + (p[1]<<16) + (p[2]<<8) + (p[3]));
 }
 
 /*
