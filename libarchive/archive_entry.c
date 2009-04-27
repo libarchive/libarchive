@@ -1635,20 +1635,16 @@ __archive_entry_acl_parse_w(struct archive_entry *entry,
 
 		name.start = name.end = NULL;
 		if (prefix_w(field[0].start, field[0].end, L"user")) {
-			if (!ismode_w(field[2].start, field[2].end, &permset)) {
-				printf("Invalid mode for user\n");
+			if (!ismode_w(field[2].start, field[2].end, &permset))
 				return (ARCHIVE_WARN);
-			}
 			if (id != -1 || field[1].start < field[1].end) {
 				tag = ARCHIVE_ENTRY_ACL_USER;
 				name = field[1];
 			} else
 				tag = ARCHIVE_ENTRY_ACL_USER_OBJ;
 		} else if (prefix_w(field[0].start, field[0].end, L"group")) {
-			if (!ismode_w(field[2].start, field[2].end, &permset)) {
-				printf("Invalid mode for group\n");
+			if (!ismode_w(field[2].start, field[2].end, &permset))
 				return (ARCHIVE_WARN);
-			}
 			if (id != -1 || field[1].start < field[1].end) {
 				tag = ARCHIVE_ENTRY_ACL_GROUP;
 				name = field[1];
@@ -1664,10 +1660,8 @@ __archive_entry_acl_parse_w(struct archive_entry *entry,
 			    && field[2].start < field[2].end
 			    && ismode_w(field[2].start, field[2].end, &permset)) {
 				/* This is FreeBSD-style "other::rwx" */
-			} else {
-				printf("Invalid 'other' line\n");
+			} else
 				return (ARCHIVE_WARN);
-			}
 			tag = ARCHIVE_ENTRY_ACL_OTHER;
 		} else if (prefix_w(field[0].start, field[0].end, L"mask")) {
 			if (fields == 2
@@ -1679,15 +1673,11 @@ __archive_entry_acl_parse_w(struct archive_entry *entry,
 			    && field[2].start < field[2].end
 			    && ismode_w(field[2].start, field[2].end, &permset)) {
 				/* This is FreeBSD-style "mask::rwx" */
-			} else {
-				printf("Invalid 'mask' line\n");
+			} else
 				return (ARCHIVE_WARN);
-			}
 			tag = ARCHIVE_ENTRY_ACL_MASK;
-		} else {
-			printf("Invalid ACL tag\n");
+		} else
 			return (ARCHIVE_WARN);
-		}
 
 		/* Add entry to the internal list. */
 		archive_entry_acl_add_entry_w_len(entry, type, permset,
