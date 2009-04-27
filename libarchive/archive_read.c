@@ -1112,9 +1112,7 @@ __archive_read_filter_consume(struct archive_read_filter * filter,
 int64_t
 __archive_read_skip(struct archive_read *a, int64_t request)
 {
-	int64_t skipped = __archive_read_filter_skip(a->filter, request);
-	if (skipped > 0)
-		a->archive.file_position += skipped;
+	int64_t skipped = __archive_read_skip_lenient(a, request);
 	if (skipped == request)
 		return (skipped);
 	/* We hit EOF before we satisfied the skip request. */
