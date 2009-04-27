@@ -745,12 +745,17 @@ header_Solaris_ACL(struct archive_read *a, struct tar *tar,
 	err = read_body_to_string(a, tar, &(tar->acl_text), h);
 	if (err != ARCHIVE_OK)
 		return (err);
+	/* Recursively read next header */
 	err = tar_read_header(a, tar, entry);
 	if ((err != ARCHIVE_OK) && (err != ARCHIVE_WARN))
 		return (err);
 
-	/* Skip leading octal number. */
-	/* XXX TODO: Parse the octal number and sanity-check it. */
+	/* TODO: Examine the first characters to see if this
+	 * is an AIX ACL descriptor.  We'll likely never support
+	 * them, but it would be polite to recognize and warn when
+	 * we do see them. */
+
+	/* Leading octal number indicates ACL type and number of entries. */
 	p = acl = tar->acl_text.s;
 	type = 0;
 	while (*p != '\0' && p < acl + size) {
@@ -790,7 +795,7 @@ header_Solaris_ACL(struct archive_read *a, struct tar *tar,
 		return(ARCHIVE_WARN);
 	}
 
-	/* Skip leading octal number. */
+	/* ACL text is null-terminated; find the end. */
 	size -= (p - acl);
 	acl = p;
 
