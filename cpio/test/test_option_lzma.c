@@ -56,5 +56,5 @@ DEFINE_TEST(test_option_lzma)
 	/* Check that the archive file has an lzma signature. */
 	p = slurpfile(&s, "archive.out");
 	assert(s > 2);
-	assertEqualMem(p, "\x5b", 1);
+	assertEqualMem(p, "\x5d\00\00", 3);
 }

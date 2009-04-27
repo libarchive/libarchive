@@ -53,8 +53,8 @@ DEFINE_TEST(test_option_J_upper)
 		assertEqualInt(r, 0);
 		return;
 	}
-	/* Check that the archive file has an lzma signature. */
+	/* Check that the archive file has an xz signature. */
 	p = slurpfile(&s, "archive.out");
 	assert(s > 2);
-	assertEqualMem(p, "xxxxx", 5);
+	assertEqualMem(p, "\3757zXZ", 5);
 }
