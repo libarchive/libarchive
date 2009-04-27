@@ -797,8 +797,6 @@ header_Solaris_ACL(struct archive_read *a, struct tar *tar,
 	while (*p != '\0' && p < acl + size)
 		p++;
 
-	printf("ACL: ``%s''\n", acl);
-
 	wp = utf8_decode(tar, acl, p - acl);
 	err = __archive_entry_acl_parse_w(entry, wp,
 	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
