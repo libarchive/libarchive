@@ -470,6 +470,8 @@ test_assert_equal_mem(const char *file, int line,
     const char *v2, const char *e2,
     size_t l, const char *ld, void *extra)
 {
+	size_t offset;
+
 	count_assertion(file, line);
 	if (v1 == NULL || v2 == NULL) {
 		if (v1 == v2) {
@@ -486,10 +488,20 @@ test_assert_equal_mem(const char *file, int line,
 	fprintf(stderr, "%s:%d: Assertion failed: memory not equal\n",
 	    file, line);
 	fprintf(stderr, "      size %s = %d\n", ld, (int)l);
+	/* Dump 48 bytes (3 lines) so that the first difference is
+	 * in the second line. */
+	offset = 0;
+	while (l > 64 && memcmp(v1, v2, 32) == 0) {
+		/* The first two lines agree, so step forward one line. */
+		v1 += 16;
+		v2 += 16;
+		l -= 16;
+		offset += 16;
+	}
 	fprintf(stderr, "      Dump of %s\n", e1);
-	hexdump(v1, v2, l < 32 ? l : 32, 0);
+	hexdump(v1, v2, l < 64 ? l : 64, offset);
 	fprintf(stderr, "      Dump of %s\n", e2);
-	hexdump(v2, v1, l < 32 ? l : 32, 0);
+	hexdump(v2, v1, l < 64 ? l : 64, offset);
 	fprintf(stderr, "\n");
 	report_failure(extra);
 	return (0);
