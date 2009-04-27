@@ -463,13 +463,14 @@ hexdump(const char *p, const char *ref, size_t l, size_t offset)
 }
 
 /* assertEqualMem() displays the values of the two memory blocks. */
-/* TODO: For long blocks, hexdump the first bytes that actually differ. */
 int
 test_assert_equal_mem(const char *file, int line,
-    const char *v1, const char *e1,
-    const char *v2, const char *e2,
+    const void *_v1, const char *e1,
+    const void *_v2, const char *e2,
     size_t l, const char *ld, void *extra)
 {
+	const char *v1 = (const char *)_v1;
+	const char *v2 = (const char *)_v2;
 	size_t offset;
 
 	count_assertion(file, line);
