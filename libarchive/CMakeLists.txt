@@ -19,6 +19,7 @@ SET(libarchive_SOURCES
   archive_entry_private.h
   archive_entry_stat.c
   archive_entry_strmode.c
+  archive_entry_xattr.c
   archive_platform.h
   archive_private.h
   archive_read.c

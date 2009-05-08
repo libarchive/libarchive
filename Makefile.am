@@ -92,6 +92,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_entry_private.h			\
 	libarchive/archive_entry_stat.c				\
 	libarchive/archive_entry_strmode.c			\
+	libarchive/archive_entry_xattr.c			\
 	libarchive/archive_platform.h				\
 	libarchive/archive_private.h				\
 	libarchive/archive_read.c				\
