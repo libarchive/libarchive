@@ -13,7 +13,7 @@
 # For details see the accompanying COPYING-CMAKE-SCRIPTS file.
 
 
-INCLUDE(CheckCXXSourceCompiles)
+#INCLUDE(CheckCXXSourceCompiles)
 
 MACRO (CHECK_FILE_OFFSET_BITS)
 

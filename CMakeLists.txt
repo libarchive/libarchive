@@ -1,6 +1,6 @@
 #
 #
-PROJECT(libarchive)
+PROJECT(libarchive C)
 #
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6.1)
 SET(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/build/cmake")
