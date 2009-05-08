@@ -59,7 +59,11 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_STRING_H
 #include <string.h>
 #endif
+#ifdef HAVE_ZLIB_H
 #include <zlib.h>
+#else
+#define crc32(a,b,c) (0)
+#endif
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -156,7 +160,7 @@ struct zip_file_header_link {
 	struct zip_file_header_link *next;
 	struct archive_entry *entry;
 	off_t offset;
-	uLong crc32;
+	unsigned long crc32;
 	enum compression compression;
 };
 
@@ -344,9 +348,11 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 	int ret;
 	struct zip *zip = a->format_data;
 	struct zip_file_header_link *l = zip->central_directory_end;
+#if HAVE_ZLIB_H
 	z_stream stream;
 	size_t buff_out_size = 32768;
 	unsigned char buff_out[buff_out_size];
+#endif
 
 	if (s > zip->remaining_data_bytes)
 		s = zip->remaining_data_bytes;
@@ -361,6 +367,7 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 			zip->remaining_data_bytes -= s;
 			l->crc32 = crc32(l->crc32, buff, s);
 			return (ret);
+#if HAVE_ZLIB_H
 		case COMPRESSION_DEFLATE:
 			stream.zalloc = Z_NULL;
 			stream.zfree = Z_NULL;
@@ -388,6 +395,7 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 			l->crc32 = crc32(l->crc32, buff, s);
 			deflateEnd(&stream);
 			return (s);
+#endif
 		default:
 
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
