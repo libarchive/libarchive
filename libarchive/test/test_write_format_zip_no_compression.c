@@ -28,8 +28,22 @@
  */
 
 #include "test.h"
-#include <zlib.h>
 __FBSDID("$FreeBSD$");
+
+/* #include <zlib.h> */
+static unsigned long
+crc32(unsigned long c, void *p, size_t s)
+{
+	/* TODO: drop in a compact (but slow) bitwise CRC here to
+	 * break the dependency on zlib.h; libarchive proper should be
+	 * able to generate uncompressed zip archives correctly
+	 * (including proper CRC even without zlib. */
+	(void)c;
+	(void)p;
+	(void)s;
+	return (0);
+}
+
 
 /* Quick and dirty: Read 2-byte and 4-byte integers from Zip file. */
 static int i2(const char *p) { return ((p[0] & 0xff) | ((p[1] & 0xff) << 8)); }
