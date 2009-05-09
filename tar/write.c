@@ -378,8 +378,10 @@ tar_mode_u(struct bsdtar *bsdtar)
 		    bsdtar->bytes_per_block);
 	} else
 		archive_write_set_bytes_per_block(a, DEFAULT_BYTES_PER_BLOCK);
-	lseek(bsdtar->fd, end_offset, SEEK_SET);
-	ftruncate(bsdtar->fd, end_offset);
+	if (0 != lseek(bsdtar->fd, end_offset, SEEK_SET))
+		bsdtar_errc(bsdtar, 1, 0, "Could not seek to archive end");
+	if (0 != ftruncate(bsdtar->fd, end_offset))
+		bsdtar_errc(bsdtar, 1, 0, "Could not truncate archive");
 	if (ARCHIVE_OK != archive_write_set_options(a, bsdtar->option_options))
 		bsdtar_errc(bsdtar, 1, 0, archive_error_string(a));
 	if (ARCHIVE_OK != archive_write_open_fd(a, bsdtar->fd))

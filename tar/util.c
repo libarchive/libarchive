@@ -88,7 +88,7 @@ safe_fprintf(FILE *f, const char *fmt, ...)
 	char *fmtbuff_heap; /* If fmtbuff_stack is too small, we use malloc */
 	char *fmtbuff;  /* Pointer to fmtbuff_stack or fmtbuff_heap. */
 	int fmtbuff_length;
-	int length;
+	int length, n;
 	va_list ap;
 	const char *p;
 	unsigned i;
@@ -125,14 +125,13 @@ safe_fprintf(FILE *f, const char *fmt, ...)
 
 	/* Note: mbrtowc() has a cleaner API, but mbtowc() seems a bit
 	 * more portable, so we use that here instead. */
-	mbtowc(NULL, NULL, 0); /* Reset the shift state. */
+	n = mbtowc(NULL, NULL, 1); /* Reset the shift state. */
 
 	/* Write data, expanding unprintable characters. */
 	p = fmtbuff;
 	i = 0;
 	try_wc = 1;
 	while (*p != '\0') {
-		int n;
 
 		/* Convert to wide char, test if the wide
 		 * char is printable in the current locale. */

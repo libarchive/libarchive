@@ -314,7 +314,8 @@ tree_next(struct tree *t)
 	if (t->visit_type == TREE_ERROR_FATAL) {
 		const char *msg = "Unable to continue traversing"
 		    " directory heirarchy after a fatal error.";
-		write(2, msg, strlen(msg));
+		size_t s = write(2, msg, strlen(msg));
+		(void)s; /* UNUSED */
 		*(int *)0 = 1; /* Deliberate SEGV; NULL pointer dereference. */
 		exit(1); /* In case the SEGV didn't work. */
 	}
@@ -587,7 +588,8 @@ tree_close(struct tree *t)
 	/* chdir() back to where we started. */
 #ifdef HAVE_FCHDIR
 	if (t->initialDirFd >= 0) {
-		fchdir(t->initialDirFd);
+		int s = fchdir(t->initialDirFd);
+		(void)s; /* UNUSED */
 		close(t->initialDirFd);
 		t->initialDirFd = -1;
 	}

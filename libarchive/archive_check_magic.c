@@ -50,7 +50,8 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_check_magic.c,v 1.9 2008/12/06 05
 static void
 errmsg(const char *m)
 {
-	write(2, m, strlen(m));
+	size_t s = write(2, m, strlen(m));
+	(void)s; /* UNUSED */
 }
 
 static void
