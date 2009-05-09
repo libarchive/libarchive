@@ -76,10 +76,8 @@ DEFINE_TEST(test_write_format_zip_no_compression)
 	short folder_gid = 40;
 
 	/* Time data */
-	time_t t;
-	struct tm *tm;
-	t = time(NULL);
-	tm = localtime(&t);
+	time_t t = time(NULL);
+	struct tm *tm = localtime(&t);
 
 	/* Misc variables */
 	int crc;
