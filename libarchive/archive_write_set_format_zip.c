@@ -61,8 +61,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>
-#else
-#define crc32(a,b,c) (0)
 #endif
 
 #include "archive.h"
@@ -90,6 +88,7 @@ static int archive_write_zip_finish(struct archive_write *);
 static int archive_write_zip_destroy(struct archive_write *);
 static int archive_write_zip_finish_entry(struct archive_write *);
 static int archive_write_zip_header(struct archive_write *, struct archive_entry *);
+static unsigned bytecrc32(unsigned, const void *, size_t);
 static void zip_encode(uint64_t, void *, size_t);
 static unsigned int dos_time(const time_t);
 static size_t path_length(struct archive_entry *);
@@ -279,7 +278,8 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		return (ARCHIVE_FATAL);
 	}
 	l->entry = archive_entry_clone(entry);
-	l->crc32 = crc32(0, NULL, 0);
+	/* Initialize the CRC variable and initialize bytecrc32(). */
+	l->crc32 = bytecrc32(0, NULL, 0);
 	l->compression = zip->compression;
 	l->next = NULL;
 	if (zip->central_directory == NULL) {
@@ -365,7 +365,7 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 			if (ret < 0) return (ret);
 			zip->written_bytes += s;
 			zip->remaining_data_bytes -= s;
-			l->crc32 = crc32(l->crc32, buff, s);
+			l->crc32 = bytecrc32(l->crc32, buff, s);
 			return (ret);
 #if HAVE_ZLIB_H
 		case COMPRESSION_DEFLATE:
@@ -392,6 +392,7 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 				zip->written_bytes += ret;
 			} while (stream.avail_out == 0);
 			zip->remaining_data_bytes -= s;
+			/* If we have it, use zlib's fast crc32() */
 			l->crc32 = crc32(l->crc32, buff, s);
 			deflateEnd(&stream);
 			return (s);
@@ -608,4 +609,42 @@ write_path(struct archive_entry *entry, struct archive_write *archive)
 	}
 
 	return written_bytes;
+}
+
+/*
+ * When zlib is unavailable, we should still be able to write
+ * uncompressed zip archives.  That requires us to be able to compute
+ * the CRC32 check value.  This is a drop-in compatible replacement
+ * for crc32() from zlib.  It's slower than the zlib implementation,
+ * but still pretty fast: This runs about 300MB/s on my 3GHz P4
+ * compared to about 800MB/s for the zlib implementation.
+ */
+static unsigned
+bytecrc32(unsigned c, const void *_p, size_t s)
+{
+	unsigned b, i;
+	const unsigned char *p = _p;
+	volatile static int bytecrc_table_inited = 0;
+	static unsigned bytecrc_table[256];
+
+	if (p == NULL) return (0);
+
+	if (!bytecrc_table_inited) {
+		for (b = 0; b < 256; ++b) {
+			c = b;
+			for (i = 8; i > 0; --i) {
+				if (c & 1) c = (c >> 1);
+				else       c = (c >> 1) ^ 0xedb88320;
+				c ^= 0x80000000;
+			}
+			bytecrc_table[b] = c;
+		}
+		bytecrc_table_inited = 1;
+	}
+
+	for (; s > 0; --s) {
+		c ^= *p++;
+		c = bytecrc_table[c & 0xff] ^ (c >> 8);
+	}
+	return (c);
 }
