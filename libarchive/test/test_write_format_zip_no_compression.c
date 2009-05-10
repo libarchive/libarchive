@@ -30,20 +30,33 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-/* #include <zlib.h> */
 static unsigned long
-crc32(unsigned long c, void *p, size_t s)
+bitcrc32(unsigned long c, void *_p, size_t s)
 {
-	/* TODO: drop in a compact (but slow) bitwise CRC here to
-	 * break the dependency on zlib.h; libarchive proper should be
-	 * able to generate uncompressed zip archives correctly
-	 * (including proper CRC even without zlib. */
-	(void)c;
-	(void)p;
-	(void)s;
-	return (0);
-}
+	/* This is a drop-in replacement for crc32() from zlib.
+	 * Libarchive should be able to correctly generate
+	 * uncompressed zip archives (including correct CRCs) even
+	 * when zlib is unavailable, and this function helps us verify
+	 * that.  Yes, this is very, very slow and unsuitable for
+	 * production use, but it's correct, compact, and works well
+	 * enough for this particular usage.  Libarchive internally
+	 * uses a much more efficient implementation.  */
+	const unsigned char *p = _p;
+	int bitctr;
 
+	if (p == NULL)
+		return (0);
+
+	for (; s > 0; --s) {
+		c ^= *p++;
+		for (bitctr = 8; bitctr > 0; --bitctr) {
+			if (c & 1) c = (c >> 1);
+			else	   c = (c >> 1) ^ 0xedb88320;
+			c ^= 0x80000000;
+		}
+	}
+	return (c);
+}
 
 /* Quick and dirty: Read 2-byte and 4-byte integers from Zip file. */
 static int i2(const char *p) { return ((p[0] & 0xff) | ((p[1] & 0xff) << 8)); }
@@ -158,8 +171,8 @@ DEFINE_TEST(test_write_format_zip_no_compression)
 	assertEqualInt(i2(p + 10), 0); /* Compression method */
 	assertEqualInt(i2(p + 12), (tm->tm_hour * 2048) + (tm->tm_min * 32) + (tm->tm_sec / 2)); /* File time */
 	assertEqualInt(i2(p + 14), ((tm->tm_year - 80) * 512) + ((tm->tm_mon + 1) * 32) + tm->tm_mday); /* File date */
-	crc = crc32(0, (void *)file_data1, sizeof(file_data1));
-	crc = crc32(crc, (void *)file_data2, sizeof(file_data2));
+	crc = bitcrc32(0, (void *)file_data1, sizeof(file_data1));
+	crc = bitcrc32(crc, (void *)file_data2, sizeof(file_data2));
 	assertEqualInt(i4(p + 16), crc); /* CRC-32 */
 	assertEqualInt(i4(p + 20), sizeof(file_data1) + sizeof(file_data2)); /* Compressed size */
 	assertEqualInt(i4(p + 24), sizeof(file_data1) + sizeof(file_data2)); /* Uncompressed size */
