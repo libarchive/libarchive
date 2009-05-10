@@ -737,17 +737,38 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		}
 
 		/*
-		 * If user has asked us not to cross mount points,
-		 * then don't descend into into a dir on a different
-		 * device.
+		 * Are we about to cross to a new filesystem?
 		 */
 		if (!dev_recorded) {
+			/* This is the initial file system. */
 			first_dev = lst->st_dev;
 			dev_recorded = 1;
-		}
-		if (bsdtar->option_dont_traverse_mounts) {
-			if (lst->st_dev != first_dev)
-				descend = 0;
+		} else if (lst->st_dev == first_dev) {
+			/* The starting file system is always acceptable. */
+		} else if (descend == 0) {
+			/* We're not descending, so no need to check. */
+		} else if (bsdtar->option_dont_traverse_mounts) {
+			/* User has asked us not to cross mount points. */
+			descend = 0;
+		} else {
+			/* We're prepared to cross a mount point. */
+
+			/* XXX TODO: check whether this filesystem is
+			 * synthetic and/or local.  Add a new
+			 * --local-only option to skip non-local
+			 * filesystems.  Skip synthetic filesystems
+			 * regardless.
+			 *
+			 * The results should be cached, since
+			 * tree.c doesn't usually visit a directory
+			 * and the directory contents together.  A simple
+			 * move-to-front list should perform quite well.
+			 *
+			 * This is going to be heavily OS dependent:
+			 * FreeBSD's statfs() in conjunction with getvfsbyname()
+			 * provides all of this; NetBSD's statvfs() does
+			 * most of it; other systems will vary.
+			 */
 		}
 
 		/*
