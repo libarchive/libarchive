@@ -86,7 +86,9 @@
 #define	chmod		la_chmod
 #define	close		_close
 #define	fcntl		la_fcntl
+#ifndef fileno
 #define	fileno		_fileno
+#endif
 #define	fstat		la_fstat
 #define	getcwd		_getcwd
 #define	lseek		la_lseek
@@ -262,6 +264,7 @@ typedef int pid_t;
 
 /* Message digest define */
 #if !defined(HAVE_OPENSSL_MD5_H) && !defined(HAVE_OPENSSL_SHA_H)
+#include <wincrypt.h>
 typedef struct {
 	int		valid;
 	HCRYPTPROV cryptProv;

@@ -49,6 +49,7 @@
 #define WINVER       0x0500
 
 #include "archive_platform.h"
+#include <ctype.h>
 #include <errno.h>
 #include <stddef.h>
 #include <sys/utime.h>
@@ -185,7 +186,8 @@ permissive_name(const char *name)
 		wsp += 4;
 		slen -= 4;
 	}
-	wcsncpy_s(wsp, slen, wnp, _TRUNCATE);
+	wcsncpy(wsp, wnp, slen);
+	wsp[slen - 1] = L'\0'; /* Ensure null termination. */
 	free(wn);
 	return (ws);
 }
@@ -1051,7 +1053,7 @@ la_waitpid(pid_t wpid, int *status, int option)
 ssize_t
 la_write(int fd, const void *buf, size_t nbytes)
 {
-	uint32_t bytes_written;
+	DWORD bytes_written;
 
 #ifdef _WIN64
 	if (nbytes > UINT32_MAX)
@@ -1108,7 +1110,9 @@ Digest_Update(Digest_CTX *ctx, const unsigned char *buf, size_t len)
 	if (!ctx->valid)
 	return;
 
-	CryptHashData(ctx->hash, buf, (DWORD)len, 0);
+	CryptHashData(ctx->hash,
+		      (unsigned char *)(uintptr_t)buf,
+		      (DWORD)len, 0);
 }
 
 static void
