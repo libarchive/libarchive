@@ -624,7 +624,7 @@ bytecrc32(unsigned c, const void *_p, size_t s)
 {
 	unsigned b, i;
 	const unsigned char *p = _p;
-	volatile static int bytecrc_table_inited = 0;
+	static volatile int bytecrc_table_inited = 0;
 	static unsigned bytecrc_table[256];
 
 	if (p == NULL) return (0);
