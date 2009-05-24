@@ -219,7 +219,8 @@ datephrase(struct gdstate *gds)
 			gds->Year = gds->tokenp[0].value;
 			gds->Month = gds->tokenp[2].value;
 			gds->Day = gds->tokenp[4].value;
-		} else if ((gds->tokenp[4].value >= 13) || (gds->tokenp[2].value >= 13)) {
+		} else if ((gds->tokenp[4].value >= 13)
+		    || (gds->tokenp[2].value >= 13)) {
 			/* Last number is big:  01/07/98 */
 			/* Middle number is big:  01/29/04 */
 			gds->Month = gds->tokenp[0].value;
