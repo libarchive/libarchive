@@ -588,8 +588,7 @@ parse_file(struct archive_read *a, struct archive_entry *entry,
 
 	if (archive_entry_filetype(entry) == AE_IFREG ||
 	    archive_entry_filetype(entry) == AE_IFDIR) {
-		mtree->fd = open(path,
-		    O_RDONLY | O_BINARY);
+		mtree->fd = open(path, O_RDONLY | O_BINARY);
 		if (mtree->fd == -1 &&
 		    (errno != ENOENT ||
 		     archive_strlen(&mtree->contents_name) > 0)) {
