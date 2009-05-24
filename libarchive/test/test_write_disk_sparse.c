@@ -78,7 +78,7 @@ verify_write_data(struct archive *a, int sparse)
 	/* Test the entry on disk. */
 	assert(0 == stat(archive_entry_pathname(ae), &st));
         assertEqualInt(st.st_size, 8 * buff_size);
-	fd = open(archive_entry_pathname(ae), O_RDONLY);
+	fd = open(archive_entry_pathname(ae), O_RDONLY | O_BINARY);
 	if (!assert(fd >= 0))
 		return;
 
@@ -174,7 +174,7 @@ verify_write_data_block(struct archive *a, int sparse)
 	/* Test the entry on disk. */
 	assert(0 == stat(archive_entry_pathname(ae), &st));
         assertEqualInt(st.st_size, 8 * buff_size);
-	fd = open(archive_entry_pathname(ae), O_RDONLY);
+	fd = open(archive_entry_pathname(ae), O_RDONLY | O_BINARY);
 	if (!assert(fd >= 0))
 		return;
 

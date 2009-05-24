@@ -135,7 +135,7 @@ DEFINE_TEST(test_fuzz)
 			 * If we crash, that file will be useful. */
 			fd = open("after.test.failure.send.this.file."
 			    "to.libarchive.maintainers.with.system.details",
-			    O_WRONLY | O_CREAT | O_TRUNC, 0744);
+			    O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0744);
 			write(fd, image, (off_t)size);
 			close(fd);
 

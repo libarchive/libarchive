@@ -453,12 +453,14 @@ DEFINE_TEST(test_acl_pax)
 #endif
 
 	/* Write out the data we generated to a file for manual inspection. */
-	assert(-1 < (fd = open("testout", O_WRONLY | O_CREAT | O_TRUNC, 0775)));
+	assert(-1 < (fd = open("testout",
+		    O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0775)));
 	assert(used == (size_t)write(fd, buff, (unsigned int)used));
 	close(fd);
 
 	/* Write out the reference data to a file for manual inspection. */
-	assert(-1 < (fd = open("reference", O_WRONLY | O_CREAT | O_TRUNC, 0775)));
+	assert(-1 < (fd = open("reference",
+		    O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0775)));
 	assert(sizeof(reference) == write(fd, reference, sizeof(reference)));
 	close(fd);
 

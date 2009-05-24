@@ -154,7 +154,7 @@ DEFINE_TEST(test_read_extract)
 	assertEqualInt(st.st_mode, S_IFREG | 0755);
 	failure("The file extracted to disk is the wrong size.");
 	assert(st.st_size == FILE_BUFF_SIZE);
-	fd = open("file", O_RDONLY);
+	fd = open("file", O_RDONLY | O_BINARY);
 	failure("The file on disk could not be opened.");
 	assert(fd != 0);
 	bytes_read = read(fd, buff, FILE_BUFF_SIZE);

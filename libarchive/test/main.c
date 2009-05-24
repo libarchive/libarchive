@@ -538,7 +538,7 @@ test_assert_empty_file(const char *f1fmt, ...)
 	fprintf(stderr, "%s:%d: File not empty: %s\n", test_filename, test_line, f1);
 	fprintf(stderr, "    File size: %d\n", (int)st.st_size);
 	fprintf(stderr, "    Contents:\n");
-	fd = open(f1, O_RDONLY);
+	fd = open(f1, O_RDONLY | O_BINARY);
 	if (fd < 0) {
 		fprintf(stderr, "    Unable to open %s\n", f1);
 	} else {
@@ -566,8 +566,8 @@ test_assert_equal_file(const char *f1, const char *f2pattern, ...)
 	vsprintf(f2, f2pattern, ap);
 	va_end(ap);
 
-	fd1 = open(f1, O_RDONLY);
-	fd2 = open(f2, O_RDONLY);
+	fd1 = open(f1, O_RDONLY | O_BINARY);
+	fd2 = open(f2, O_RDONLY | O_BINARY);
 	for (;;) {
 		n1 = read(fd1, buff1, sizeof(buff1));
 		n2 = read(fd2, buff2, sizeof(buff2));
@@ -645,7 +645,7 @@ test_assert_file_contents(const void *buff, int s, const char *fpattern, ...)
 	vsprintf(f, fpattern, ap);
 	va_end(ap);
 
-	fd = open(f, O_RDONLY);
+	fd = open(f, O_RDONLY | O_BINARY);
 	contents = malloc(s * 2);
 	n = read(fd, contents, s * 2);
 	if (n == s && memcmp(buff, contents, s) == 0) {
@@ -707,7 +707,7 @@ slurpfile(size_t * sizep, const char *fmt, ...)
 	vsprintf(filename, fmt, ap);
 	va_end(ap);
 
-	fd = open(filename, O_RDONLY);
+	fd = open(filename, O_RDONLY | O_BINARY);
 	if (fd < 0) {
 		/* Note: No error; non-existent file is okay here. */
 		return (NULL);
@@ -893,7 +893,7 @@ extract_reference_file(const char *name)
 	}
 	/* Now, decode the rest and write it. */
 	/* Not a lot of error checking here; the input better be right. */
-	out = fopen(name, "w");
+	out = fopen(name, "wb");
 	while (fgets(buff, sizeof(buff), in) != NULL) {
 		char *p = buff;
 		int bytes;
@@ -1033,7 +1033,10 @@ int main(int argc, char **argv)
 	/* To stop to run the default invalid parameter handler. */
 	_set_invalid_parameter_handler(invalid_parameter_handler);
 	/* for open() to a binary mode. */
-	_set_fmode(_O_BINARY);
+	/* This shouldn't be needed, because all tests should
+	 * explicitly use O_BINARY flag to open() and "b" to
+	 * fopen(): */
+	/* _set_fmode(_O_BINARY); */
 	/* Disable annoying assertion message box. */
 	_CrtSetReportMode(_CRT_ASSERT, 0);
 #endif

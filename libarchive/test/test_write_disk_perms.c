@@ -60,7 +60,7 @@ searchgid(void)
 	_searched = 1;
 
 	/* Create a file on disk in the current default dir. */
-	fd = open("test_gid", O_CREAT, 0664);
+	fd = open("test_gid", O_CREAT | O_BINARY, 0664);
 	failure("Couldn't create a file for gid testing.");
 	assert(fd > 0);
 

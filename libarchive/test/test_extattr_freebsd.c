@@ -56,7 +56,7 @@ DEFINE_TEST(test_extattr_freebsd)
 	 * doesn't, we'll simply skip the remaining tests.
 	 */
 	/* Create a test file and try to set an ACL on it. */
-	fd = open("pretest", O_RDWR | O_CREAT, 0777);
+	fd = open("pretest", O_RDWR | O_CREAT | O_BINARY, 0777);
 	failure("Could not create test file?!");
 	if (!assert(fd >= 0))
 		return;
@@ -78,7 +78,7 @@ DEFINE_TEST(test_extattr_freebsd)
 	 * permissions, not file permissions), but is known broken on
 	 * some versions of FreeBSD.
 	 */
-	fd = open("pretest2", O_RDWR | O_CREAT, 00000);
+	fd = open("pretest2", O_RDWR | O_CREAT | O_BINARY, 00000);
 	failure("Could not create test file?!");
 	if (!assert(fd >= 0))
 		return;

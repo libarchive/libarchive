@@ -77,7 +77,8 @@ DEFINE_TEST(test_read_large)
 	assertA(0 == archive_read_support_compression_all(a));
 	assertA(0 == archive_read_open_memory(a, buff, sizeof(buff)));
 	assertA(0 == archive_read_next_header(a, &entry));
-	assert(0 < (tmpfilefd = open(tmpfilename, O_WRONLY | O_CREAT | O_BINARY, 0755)));
+	assert(0 < (tmpfilefd = open(tmpfilename,
+		    O_WRONLY | O_CREAT | O_BINARY, 0755)));
 	assertA(0 == archive_read_data_into_fd(a, tmpfilefd));
 	close(tmpfilefd);
 #if ARCHIVE_VERSION_NUMBER < 2000000
@@ -85,7 +86,7 @@ DEFINE_TEST(test_read_large)
 #else
 	assertA(0 == archive_read_finish(a));
 #endif
-	tmpfilefd = open(tmpfilename, O_RDONLY);
+	tmpfilefd = open(tmpfilename, O_RDONLY | O_BINARY);
 	read(tmpfilefd, testdatacopy, sizeof(testdatacopy));
 	close(tmpfilefd);
 	assert(0 == memcmp(testdata, testdatacopy, sizeof(testdata)));

@@ -74,7 +74,7 @@ DEFINE_TEST(test_read_format_mtree)
 	/*
 	 * Read "file", whose data is available on disk.
 	 */
-	fd = open("file", O_WRONLY | O_CREAT, 0777);
+	fd = open("file", O_WRONLY | O_CREAT | O_BINARY, 0777);
 	assert(fd >= 0);
 	assertEqualInt(3, write(fd, "hi\n", 3));
 	close(fd);

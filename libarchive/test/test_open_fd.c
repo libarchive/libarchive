@@ -33,7 +33,7 @@ DEFINE_TEST(test_open_fd)
 	struct archive *a;
 	int fd;
 
-	fd = open("test.tar", O_RDWR | O_CREAT, 0777);
+	fd = open("test.tar", O_RDWR | O_CREAT | O_BINARY, 0777);
 	assert(fd >= 0);
 	if (fd < 0)
 		return;

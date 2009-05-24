@@ -57,7 +57,7 @@ DEFINE_TEST(test_read_disk_entry_from_file)
 	assertEqualString(archive_read_disk_gname(a, 0), "FOOGROUP");
 
 	/* Create a file on disk. */
-	fd = open("foo", O_WRONLY | O_CREAT, 0777);
+	fd = open("foo", O_WRONLY | O_CREAT | O_BINARY, 0777);
 	assert(fd >= 0);
 	assertEqualInt(4, write(fd, "1234", 4));
 	close(fd);

@@ -96,7 +96,7 @@ DEFINE_TEST(test_read_data_large)
 	assertA(0 == archive_read_support_compression_all(a));
 	assertA(0 == archive_read_open_memory(a, buff1, sizeof(buff1)));
 	assertA(0 == archive_read_next_header(a, &ae));
-	tmpfilefd = open(tmpfilename, O_WRONLY | O_CREAT, 0777);
+	tmpfilefd = open(tmpfilename, O_WRONLY | O_CREAT | O_BINARY, 0777);
 	assert(tmpfilefd != 0);
 	assertEqualIntA(a, 0, archive_read_data_into_fd(a, tmpfilefd));
 	assert(0 == archive_read_close(a));
@@ -107,7 +107,7 @@ DEFINE_TEST(test_read_data_large)
 #endif
 	close(tmpfilefd);
 
-	tmpfilefd = open(tmpfilename, O_RDONLY);
+	tmpfilefd = open(tmpfilename, O_RDONLY | O_BINARY);
 	assert(tmpfilefd != 0);
 	assertEqualIntA(NULL, sizeof(buff3), read(tmpfilefd, buff3, sizeof(buff3)));
 	close(tmpfilefd);

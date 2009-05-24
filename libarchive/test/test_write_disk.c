@@ -152,7 +152,7 @@ static void create_reg_file2(struct archive_entry *ae, const char *msg)
 	assertEqualInt(st.st_size, i);
 
 	compare = malloc(datasize);
-	fd = open(archive_entry_pathname(ae), O_RDONLY);
+	fd = open(archive_entry_pathname(ae), O_RDONLY | O_BINARY);
 	assertEqualInt(datasize, read(fd, compare, datasize));
 	close(fd);
 	assert(memcmp(compare, data, datasize) == 0);

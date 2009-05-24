@@ -96,6 +96,9 @@ archive_read_open_filename(struct archive *a, const char *filename,
 		 */
 		filename = ""; /* Normalize NULL to "" */
 		fd = 0;
+#if defined(_WIN32_)
+		_setmode(0, _O_BINARY);
+#endif
 	} else {
 		fd = open(filename, O_RDONLY | O_BINARY);
 		if (fd < 0) {
