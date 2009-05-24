@@ -102,7 +102,7 @@ archive_read_disk_entry_from_file(struct archive *_a,
 	 * open file descriptor which we can use in the subsequent lookups. */
 	if ((S_ISREG(st->st_mode) || S_ISDIR(st->st_mode))) {
 		if (fd < 0)
-			fd = open(pathname, O_RDONLY | O_NONBLOCK);
+			fd = open(pathname, O_RDONLY | O_NONBLOCK | O_BINARY);
 		if (fd >= 0) {
 			unsigned long stflags;
 			int r = ioctl(fd, EXT2_IOC_GETFLAGS, &stflags);
