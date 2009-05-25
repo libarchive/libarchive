@@ -93,6 +93,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_entry_stat.c				\
 	libarchive/archive_entry_strmode.c			\
 	libarchive/archive_entry_xattr.c			\
+	libarchive/archive_hash.h				\
 	libarchive/archive_platform.h				\
 	libarchive/archive_private.h				\
 	libarchive/archive_read.c				\
@@ -193,8 +194,6 @@ libarchive_EXTRA_DIST=			\
 	libarchive/archive_windows.h	\
 	libarchive/filter_fork_windows.c	\
 	libarchive/CMakeLists.txt	\
-	libarchive/COPYING		\
-	libarchive/README		\
 	$(libarchive_man_MANS)
 
 #
@@ -209,13 +208,13 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test.h					\
 	libarchive/test/test_acl_basic.c			\
 	libarchive/test/test_acl_freebsd.c			\
-	libarchive/test/test_acl_solaris.c			\
 	libarchive/test/test_acl_pax.c				\
 	libarchive/test/test_archive_api_feature.c		\
 	libarchive/test/test_bad_fd.c				\
 	libarchive/test/test_compat_bzip2.c			\
 	libarchive/test/test_compat_gtar.c			\
 	libarchive/test/test_compat_gzip.c			\
+	libarchive/test/test_compat_solaris_tar_acl.c		\
 	libarchive/test/test_compat_tar_hardlink.c		\
 	libarchive/test/test_compat_xz.c			\
 	libarchive/test/test_compat_zip.c			\
@@ -311,26 +310,30 @@ libarchive/test/list.h: Makefile
 libarchive_TESTS_ENVIRONMENT= LIBARCHIVE_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/libarchive/test
 
 libarchive_test_EXTRA_DIST=\
-	libarchive/test/test_acl_solaris.tar.uu				\
 	libarchive/test/test_compat_bzip2_1.tbz.uu			\
 	libarchive/test/test_compat_bzip2_2.tbz.uu			\
 	libarchive/test/test_compat_gtar_1.tar.uu			\
 	libarchive/test/test_compat_gzip_1.tgz.uu			\
 	libarchive/test/test_compat_gzip_2.tgz.uu			\
+	libarchive/test/test_compat_solaris_tar_acl.tar.uu		\
 	libarchive/test/test_compat_tar_hardlink_1.tar.uu		\
 	libarchive/test/test_compat_xz_1.txz.uu				\
 	libarchive/test/test_compat_zip_1.zip.uu			\
 	libarchive/test/test_fuzz_1.iso.uu				\
 	libarchive/test/test_pax_filename_encoding.tar.uu		\
+	libarchive/test/test_read_format_cpio_bin_be.cpio.uu		\
 	libarchive/test/test_read_format_gtar_sparse_1_13.tar.uu	\
 	libarchive/test/test_read_format_gtar_sparse_1_17.tar.uu	\
 	libarchive/test/test_read_format_gtar_sparse_1_17_posix00.tar.uu \
 	libarchive/test/test_read_format_gtar_sparse_1_17_posix01.tar.uu \
 	libarchive/test/test_read_format_gtar_sparse_1_17_posix10.tar.uu \
 	libarchive/test/test_read_format_gtar_sparse_1_17_posix10_modified.tar.uu \
+	libarchive/test/test_read_format_iso_gz.iso.gz.uu		\
 	libarchive/test/test_read_format_isojoliet_bz2.iso.bz2.uu	\
 	libarchive/test/test_read_format_isojolietrr_bz2.iso.bz2.uu	\
 	libarchive/test/test_read_format_isorr_bz2.iso.bz2.uu		\
+	libarchive/test/test_read_format_raw.data.Z.uu			\
+	libarchive/test/test_read_format_raw.data.uu			\
 	libarchive/test/test_read_format_iso_gz.iso.gz.uu		\
 	libarchive/test/test_read_format_tar_empty_filename.tar.uu	\
 	libarchive/test/test_read_format_zip.zip.uu			\
@@ -389,7 +392,6 @@ bsdtar_EXTRA_DIST=		\
 	tar/bsdtar_cygwin.c	\
 	tar/CMakeLists.txt	\
 	tar/config_freebsd.h	\
-	tar/COPYING		\
 	tar/test/list.h
 
 
@@ -568,5 +570,4 @@ bsdcpio_test_EXTRA_DIST=			\
 	cpio/test/test_option_t.cpio.uu		\
 	cpio/test/test_option_t.stdout.uu	\
 	cpio/test/test_option_tv.stdout.uu	\
-	cpio/test/test_option_tnv.stdout.uu	\
 	cpio/test/CMakeLists.txt

@@ -81,7 +81,6 @@ AM_CONDITIONAL([INC_CYGWIN_FILES], [test $inc_cygwin_files = yes])
 # Checks for programs.
 AC_PROG_CC
 AM_PROG_CC_C_O
-AC_PROG_YACC
 AC_LIBTOOL_WIN32_DLL
 AC_PROG_LIBTOOL
 AC_CHECK_TOOL([STRIP],[strip])
