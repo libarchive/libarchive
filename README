@@ -6,7 +6,6 @@ Questions?  Issues?
      documentation, and links to the libarchive mailing lists.
 
 This distribution bundle includes the following components:
-
    * libarchive: a library for reading and writing streaming archives
    * tar: the 'bsdtar' program is a full-featured 'tar'
           replacement built on libarchive
@@ -29,7 +28,6 @@ The top-level directory contains the following information files:
 
 The following files in the top-level directory are used by the
 'configure' script:
-
    * Makefile.am, aclocal.m4, configure.ac
        - used to build this distribution, only needed by maintainers
    * Makefile.in, config.h.in
@@ -39,19 +37,22 @@ Guide to Documentation installed by this system:
  * bsdtar.1 explains the use of the bsdtar program
  * bsdcpio.1 explains the use of the bsdcpio program
  * libarchive.3 gives an overview of the library as a whole
- * archive_read.3, archive_write.3, and archive_write_disk.3 provide
-   detailed calling sequences for the read and write APIs
+ * archive_read.3, archive_write.3, archive_write_disk.3, and
+   archive_read_disk.3 provide detailed calling sequences for the read
+   and write APIs
  * archive_entry.3 details the "struct archive_entry" utility class
  * archive_internals.3 provides some insight into libarchive's
    internal structure and operation.
  * libarchive-formats.5 documents the file formats supported by the library
- * cpio.5, mtree.5, and tar.5 provide detailed information about a
-   variety of different archive formats, including hard-to-find details
-   about modern cpio and tar variants.
+ * cpio.5, mtree.5, and tar.5 provide detailed information about these
+   popular archive formats, including hard-to-find details about
+   modern cpio and tar variants.
+The manual pages above are provided in the 'doc' directory in
+a number of different formats.
 
-You should also read the copious comments in "archive.h" and the source
-code for the sample "bsdtar" program for more details.  Please let me know
-about any errors or omissions you find.
+You should also read the copious comments in "archive.h" and the
+source code for the sample programs for more details.  Please let me
+know about any errors or omissions you find.
 
 Currently, the library automatically detects and reads the following:
   * gzip compression
@@ -66,6 +67,7 @@ Currently, the library automatically detects and reads the following:
   * POSIX pax interchange format
   * POSIX octet-oriented cpio
   * SVR4 ASCII cpio
+  * POSIX octet-oriented cpio
   * Binary cpio (big-endian or little-endian)
   * ISO9660 CD-ROM images (with optional Rockridge or Joliet extensions)
   * ZIP archives (with uncompressed or "deflate" compressed entries)
@@ -90,14 +92,13 @@ The library can write:
 Notes about the library architecture:
 
  * This is a heavily stream-oriented system.  There is no direct
-   support for in-place modification or random access and no intention
-   of ever adding such support.  Adding such support would require
-   sacrificing a lot of other features, so don't bother asking.
+   support for in-place modification or random access.
 
  * The library is designed to be extended with new compression and
    archive formats.  The only requirement is that the format be
    readable or writable as a stream and that each archive entry be
-   independent.
+   independent.  There are articles on the libarchive Wiki explaining
+   how to extend libarchive.
 
  * On read, compression and format are always detected automatically.
 

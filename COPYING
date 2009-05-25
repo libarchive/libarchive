@@ -22,7 +22,7 @@ the actual statements in the files are controlling.
    tar/matching.c
 
 * The following source files are in the public domain:
-   tar/getdate.y
+   tar/getdate.c
 
 * The build files---including Makefiles, configure scripts,
   and auxiliary scripts used as part of the compile process---have
