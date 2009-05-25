@@ -56,6 +56,12 @@ dist-hook:
 	-rm -f $(distdir)/*/Makefile $(distdir)/*/*/Makefile
 	cd $(distdir)/doc && /bin/sh update.sh
 
+# Verify cmake builds as part of the acceptance
+distcheck-hook:
+	mkdir $(distdir)/_build/cmtest
+	cd $(distdir)/_build/cmtest && cmake ../.. && make && make test
+	rm -rf $(distdir)/_build/cmtest
+
 #
 # Extra rules for cleanup
 #
