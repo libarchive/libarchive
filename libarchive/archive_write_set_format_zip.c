@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2008 Anselm Strauss
+ * Copyright (c) 2009 Joerg Sonnenberger
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +31,6 @@
 /*
  * The current implementation is very limited:
  *
- *   - No compression support.
  *   - No encryption support.
  *   - No ZIP64 support.
  *   - No support for splitting and spanning.
@@ -79,8 +79,11 @@ __FBSDID("$FreeBSD$");
 #define ZIP_FLAGS 0x08 /* Flagging bit 3 (count from 0) for using data descriptor. */
 
 enum compression {
-	COMPRESSION_STORE = 0,
+	COMPRESSION_STORE = 0
+#ifdef HAVE_ZLIB_H
+	,
 	COMPRESSION_DEFLATE = 8
+#endif
 };
 
 static ssize_t archive_write_zip_data(struct archive_write *, const void *buff, size_t s);
@@ -89,7 +92,7 @@ static int archive_write_zip_destroy(struct archive_write *);
 static int archive_write_zip_finish_entry(struct archive_write *);
 static int archive_write_zip_header(struct archive_write *, struct archive_entry *);
 #ifndef HAVE_ZLIB_H
-static unsigned crc32(unsigned, const void *, size_t);
+static unsigned long crc32(unsigned long, const void *, size_t);
 #endif
 static void zip_encode(uint64_t, void *, size_t);
 static unsigned int dos_time(const time_t);
@@ -172,8 +175,14 @@ struct zip {
 	struct zip_file_header_link *central_directory_end;
 	off_t offset;
 	size_t written_bytes;
-	size_t remaining_data_bytes;
+	off_t remaining_data_bytes;
 	enum compression compression;
+
+#ifdef HAVE_ZLIB_H
+	z_stream stream;
+	size_t len_buf;
+	unsigned char *buf;
+#endif
 };
 
 struct zip_central_directory_end {
@@ -207,7 +216,15 @@ archive_write_set_format_zip(struct archive *_a)
 	zip->offset = 0;
 	zip->written_bytes = 0;
 	zip->remaining_data_bytes = 0;
+
+#ifdef HAVE_ZLIB_H
+	zip->compression = COMPRESSION_DEFLATE;
+	zip->len_buf = 64 * 1024;
+	zip->buf = malloc(64 * 1024);
+#else
 	zip->compression = COMPRESSION_STORE;
+#endif
+
 	a->format_data = zip;
 
 	a->pad_uncompressed = 0; /* Actually not needed for now, since no compression support yet. */
@@ -240,10 +257,15 @@ archive_write_zip_set_store(struct archive *_a)
 int
 archive_write_zip_set_deflate(struct archive *_a)
 {
+#ifdef HAVE_ZLIB_H
 	struct archive_write *a = (struct archive_write *)_a;
 	struct zip *zip = a->format_data;
 	zip->compression = COMPRESSION_DEFLATE;
 	return (ARCHIVE_OK);
+#else
+	archive_set_error(_a, ARCHIVE_ERRNO_MISC, "Filetype not supported");
+	return ARCHIVE_FATAL;
+#endif
 }
 
 static int
@@ -261,7 +283,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	/* Entries other than a regular file or a folder are skipped. */
 	type = archive_entry_filetype(entry);
 	if ((type != AE_IFREG) & (type != AE_IFDIR)) {
-		archive_set_error(&a->archive, 0, "Filetype not supported");
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC, "Filetype not supported");
 		return ARCHIVE_FAILED;
 	};
 
@@ -305,12 +327,30 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	zip_encode(path_length(entry), &h.filename_length, sizeof(h.filename_length));
 	zip_encode(sizeof(e), &h.extra_length, sizeof(h.extra_length));
 
-	if (zip->compression == COMPRESSION_STORE) {
+	switch (zip->compression) {
+	case COMPRESSION_STORE:
 		/* Setting compressed and uncompressed sizes even when specification says
 		 * to set to zero when using data descriptors. Otherwise the end of the
 		 * data for an entry is rather difficult to find. */
 		zip_encode(size, &h.compressed_size, sizeof(h.compressed_size));
 		zip_encode(size, &h.uncompressed_size, sizeof(h.uncompressed_size));
+		break;
+#ifdef HAVE_ZLIB_H
+	case COMPRESSION_DEFLATE:
+		zip_encode(size, &h.uncompressed_size, sizeof(h.uncompressed_size));
+
+		zip->stream.zalloc = Z_NULL;
+		zip->stream.zfree = Z_NULL;
+		zip->stream.opaque = Z_NULL;
+		zip->stream.next_out = zip->buf;
+		zip->stream.avail_out = zip->len_buf;
+		if (deflateInit2(&zip->stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED,
+		    -15, 8, Z_DEFAULT_STRATEGY) != Z_OK) {
+			archive_set_error(&a->archive, ENOMEM, "Can't init deflate compressor");
+			return (ARCHIVE_FATAL);
+		}
+		break;
+#endif
 	}
 
 	/* Formatting extra data. */
@@ -352,11 +392,6 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 	int ret;
 	struct zip *zip = a->format_data;
 	struct zip_file_header_link *l = zip->central_directory_end;
-#if HAVE_ZLIB_H
-	z_stream stream;
-	size_t buff_out_size = 32768;
-	unsigned char buff_out[buff_out_size];
-#endif
 
 	if (s > zip->remaining_data_bytes)
 		s = zip->remaining_data_bytes;
@@ -374,33 +409,25 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 		return (s);
 #if HAVE_ZLIB_H
 	case COMPRESSION_DEFLATE:
-		stream.zalloc = Z_NULL;
-		stream.zfree = Z_NULL;
-		stream.opaque = Z_NULL;
-		ret = deflateInit(&stream, Z_DEFAULT_COMPRESSION);
-		if (ret != Z_OK) return (ARCHIVE_FATAL);
-		stream.next_in = (unsigned char*)(uintptr_t)buff;
-		stream.avail_in = s;
+		zip->stream.next_in = (unsigned char*)(uintptr_t)buff;
+		zip->stream.avail_in = s;
 		do {
-			stream.next_out = buff_out;
-			stream.avail_out = buff_out_size;
-			ret = deflate(&stream, Z_FINISH);
-			if (ret == Z_STREAM_ERROR) {
-				deflateEnd(&stream);
+			ret = deflate(&zip->stream, Z_NO_FLUSH);
+			if (ret == Z_STREAM_ERROR)
 				return (ARCHIVE_FATAL);
+			if (zip->stream.avail_out == 0) {
+				ret = (a->compressor.write)(a, zip->buf, zip->len_buf);
+				if (ret != ARCHIVE_OK)
+					return (ret);
+				l->compressed_size += zip->len_buf;
+				zip->written_bytes += zip->len_buf;
+				zip->stream.next_out = zip->buf;
+				zip->stream.avail_out = zip->len_buf;
 			}
-			ret = (a->compressor.write)(a, buff_out, stream.avail_out);
-			if (ret != ARCHIVE_OK) {
-				deflateEnd(&stream);
-				return (ret);
-			}
-			l->compressed_size += stream.avail_out;
-			zip->written_bytes += stream.avail_out;
-		} while (stream.avail_out == 0);
+		} while (zip->stream.avail_in != 0);
 		zip->remaining_data_bytes -= s;
 		/* If we have it, use zlib's fast crc32() */
 		l->crc32 = crc32(l->crc32, buff, s);
-		deflateEnd(&stream);
 		return (s);
 #endif
 
@@ -409,7 +436,6 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 		    "Invalid ZIP compression type");
 		return ARCHIVE_FATAL;
 	}
-	/* TODO: set compressed size in data descriptor and local file header link */
 }
 
 static int
@@ -420,6 +446,34 @@ archive_write_zip_finish_entry(struct archive_write *a)
 	struct zip *zip = a->format_data;
 	struct zip_data_descriptor *d = &zip->data_descriptor;
 	struct zip_file_header_link *l = zip->central_directory_end;
+#if HAVE_ZLIB_H
+	size_t reminder;
+#endif
+
+	switch(zip->compression) {
+	case COMPRESSION_STORE:
+		break;
+#if HAVE_ZLIB_H
+	case COMPRESSION_DEFLATE:
+		for (;;) {
+			ret = deflate(&zip->stream, Z_FINISH);
+			if (ret == Z_STREAM_ERROR)
+				return (ARCHIVE_FATAL);
+			reminder = zip->len_buf - zip->stream.avail_out;
+			ret = (a->compressor.write)(a, zip->buf, reminder);
+			if (ret != ARCHIVE_OK)
+				return (ret);
+			l->compressed_size += reminder;
+			zip->written_bytes += reminder;
+			zip->stream.next_out = zip->buf;
+			if (zip->stream.avail_out != 0)
+				break;
+			zip->stream.avail_out = zip->len_buf;
+		}
+		deflateEnd(&zip->stream);
+		break;
+#endif
+	}
 
 	zip_encode(l->crc32, &d->crc32, sizeof(d->crc32));
 	zip_encode(l->compressed_size, &d->compressed_size, sizeof(d->compressed_size));
@@ -536,6 +590,9 @@ archive_write_zip_destroy(struct archive_write *a)
 	}
 	free(zip);
 	a->format_data = NULL;
+#ifdef HAVE_ZLIB_H
+	free(zip->buf);
+#endif
 	return (ARCHIVE_OK);
 }
 
@@ -627,15 +684,13 @@ write_path(struct archive_entry *entry, struct archive_write *archive)
  * but still pretty fast: This runs about 300MB/s on my 3GHz P4
  * compared to about 800MB/s for the zlib implementation.
  */
-static unsigned
-crc32(unsigned c, const void *_p, size_t s)
+static unsigned long
+crc32(unsigned long c, const void *_p, size_t s)
 {
 	unsigned b, i;
 	const unsigned char *p = _p;
 	static volatile int bytecrc_table_inited = 0;
 	static unsigned bytecrc_table[256];
-
-	if (p == NULL) return (0);
 
 	if (!bytecrc_table_inited) {
 		for (b = 0; b < 256; ++b) {
