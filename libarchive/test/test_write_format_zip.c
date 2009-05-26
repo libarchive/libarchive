@@ -47,6 +47,11 @@ DEFINE_TEST(test_write_format_zip)
 	/* Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_zip(a));
+#ifdef HAVE_ZLIB_H
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_zip_set_deflate(a));
+#else
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_zip_set_store(a));
+#endif
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_none(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used));
@@ -127,8 +132,8 @@ DEFINE_TEST(test_write_format_zip)
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("file", archive_entry_pathname(ae));
 	//assertEqualInt((S_IFREG | 0755), archive_entry_mode(ae));
-	assertEqualInt(8, archive_entry_size(ae));
-	assertEqualIntA(a, archive_entry_size(ae),
+	assertEqualInt(0, archive_entry_size(ae));
+	assertEqualIntA(a, 8,
 	    archive_read_data(a, filedata, sizeof(filedata)));
 	assertEqualMem(filedata, "12345678", 8);
 
@@ -146,8 +151,8 @@ DEFINE_TEST(test_write_format_zip)
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("file2", archive_entry_pathname(ae));
 	//assert((S_IFREG | 0755) == archive_entry_mode(ae));
-	assertEqualInt(4, archive_entry_size(ae));
-	assertEqualIntA(a, archive_entry_size(ae),
+	assertEqualInt(0, archive_entry_size(ae));
+	assertEqualIntA(a, 4,
 	    archive_read_data(a, filedata, sizeof(filedata)));
 	assertEqualMem(filedata, "1234", 4);
 
