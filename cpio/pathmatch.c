@@ -230,8 +230,11 @@ pathmatch(const char *p, const char *s, int flags)
 	}
 
 	/* Certain patterns anchor implicitly. */
-	if (*p == '*' || *p == '/')
+	if (*p == '*' || *p == '/') {
+		while (*p == '/')
+			++p;
 		return (pm(p, s, flags));
+	}
 
 	/* If start is unanchored, try to match start of each path element. */
 	if (flags & PATHMATCH_NO_ANCHOR_START) {

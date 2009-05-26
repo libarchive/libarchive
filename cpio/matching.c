@@ -123,15 +123,15 @@ static void
 add_pattern(struct match **list, const char *pattern)
 {
 	struct match *match;
+	size_t len;
 
-	match = malloc(sizeof(*match) + strlen(pattern) + 1);
+	len = strlen(pattern);
+	match = malloc(sizeof(*match) + len + 1);
 	if (match == NULL)
 		cpio_errc(1, errno, "Out of memory");
-	if (pattern[0] == '/')
-		pattern++;
 	strcpy(match->pattern, pattern);
 	/* Both "foo/" and "foo" should match "foo/bar". */
-	if (match->pattern[strlen(match->pattern)-1] == '/')
+	if (len && match->pattern[len - 1] == '/')
 		match->pattern[strlen(match->pattern)-1] = '\0';
 	match->next = *list;
 	*list = match;
