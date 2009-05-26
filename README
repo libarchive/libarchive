@@ -86,6 +86,7 @@ The library can write:
   * POSIX octet-oriented cpio
   * SVR4 "newc" cpio
   * shar archives
+  * ZIP archives (with uncompressed or "deflate" compressed entries)
   * GNU and BSD 'ar' archives
   * 'mtree' format
 
