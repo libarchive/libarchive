@@ -360,48 +360,48 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 	if (s == 0) return 0;
 
 	switch (zip->compression) {
-		case COMPRESSION_STORE:
-			ret = (a->compressor.write)(a, buff, s);
-			if (ret < 0) return (ret);
-			zip->written_bytes += s;
-			zip->remaining_data_bytes -= s;
-			l->crc32 = bytecrc32(l->crc32, buff, s);
-			return (ret);
+	case COMPRESSION_STORE:
+		ret = (a->compressor.write)(a, buff, s);
+		if (ret < 0) return (ret);
+		zip->written_bytes += s;
+		zip->remaining_data_bytes -= s;
+		l->crc32 = bytecrc32(l->crc32, buff, s);
+		return (ret);
 #if HAVE_ZLIB_H
-		case COMPRESSION_DEFLATE:
-			stream.zalloc = Z_NULL;
-			stream.zfree = Z_NULL;
-			stream.opaque = Z_NULL;
-			ret = deflateInit(&stream, Z_DEFAULT_COMPRESSION);
-			if (ret != Z_OK) return (ARCHIVE_FATAL);
-			stream.next_in = (unsigned char*)(uintptr_t)buff;
-			stream.avail_in = s;
-			do {
-				stream.next_out = buff_out;
-				stream.avail_out = buff_out_size;
-				ret = deflate(&stream, Z_FINISH);
-				if (ret == Z_STREAM_ERROR) {
-					deflateEnd(&stream);
-					return (ARCHIVE_FATAL);
-				}
-				ret = (a->compressor.write)(a, buff_out, stream.avail_out);
-				if (ret < 0) {
-					deflateEnd(&stream);
-					return (ret);
-				}
-				zip->written_bytes += ret;
-			} while (stream.avail_out == 0);
-			zip->remaining_data_bytes -= s;
-			/* If we have it, use zlib's fast crc32() */
-			l->crc32 = crc32(l->crc32, buff, s);
-			deflateEnd(&stream);
-			return (s);
+	case COMPRESSION_DEFLATE:
+		stream.zalloc = Z_NULL;
+		stream.zfree = Z_NULL;
+		stream.opaque = Z_NULL;
+		ret = deflateInit(&stream, Z_DEFAULT_COMPRESSION);
+		if (ret != Z_OK) return (ARCHIVE_FATAL);
+		stream.next_in = (unsigned char*)(uintptr_t)buff;
+		stream.avail_in = s;
+		do {
+			stream.next_out = buff_out;
+			stream.avail_out = buff_out_size;
+			ret = deflate(&stream, Z_FINISH);
+			if (ret == Z_STREAM_ERROR) {
+				deflateEnd(&stream);
+				return (ARCHIVE_FATAL);
+			}
+			ret = (a->compressor.write)(a, buff_out, stream.avail_out);
+			if (ret < 0) {
+				deflateEnd(&stream);
+				return (ret);
+			}
+			zip->written_bytes += ret;
+		} while (stream.avail_out == 0);
+		zip->remaining_data_bytes -= s;
+		/* If we have it, use zlib's fast crc32() */
+		l->crc32 = crc32(l->crc32, buff, s);
+		deflateEnd(&stream);
+		return (s);
 #endif
-		default:
 
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "Invalid ZIP compression type");
-			return ARCHIVE_FATAL;
+	default:
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Invalid ZIP compression type");
+		return ARCHIVE_FATAL;
 	}
 	/* TODO: set compressed size in data descriptor and local file header link */
 }
