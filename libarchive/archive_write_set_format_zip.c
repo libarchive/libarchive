@@ -80,7 +80,7 @@ __FBSDID("$FreeBSD$");
 
 enum compression {
 	COMPRESSION_STORE = 0,
-	COMPRESSION_DEFLATE = 6
+	COMPRESSION_DEFLATE = 8
 };
 
 static ssize_t archive_write_zip_data(struct archive_write *, const void *buff, size_t s);
