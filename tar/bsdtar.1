@@ -361,6 +361,11 @@ lines in the output.
 .It Cm mtree:indent
 Produce human-readable output by indenting options and splitting lines
 to fit into 80 columns.
+.It Cm zip:compression Ns = Ns Ar type
+Use
+.Ar type
+as compression method.
+Supported values are store (uncompressed) and deflate (gzip algorithm).
 .El
 If a provided option is not supported by any module, that
 is a fatal error.

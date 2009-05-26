@@ -41,6 +41,7 @@ DEFINE_TEST(test_write_format_zip)
 	size_t used;
 	size_t buffsize = 1000000;
 	char *buff;
+	const char *compression_type;
 
 	buff = malloc(buffsize);
 
@@ -48,10 +49,12 @@ DEFINE_TEST(test_write_format_zip)
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_zip(a));
 #ifdef HAVE_ZLIB_H
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_zip_set_deflate(a));
+	compression_type = "zip:compression=deflate";
 #else
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_zip_set_store(a));
+	compression_type = "zip:compression=store";
 #endif
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_format_options(a, compression_type));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_none(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used));

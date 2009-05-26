@@ -197,6 +197,29 @@ struct zip_central_directory_end {
 	char comment_length[2];
 };
 
+static int
+archive_write_zip_options(struct archive_write *a, const char *key,
+    const char *value)
+{
+	struct zip *zip = a->format_data;
+
+	if (strcmp(key, "compression") == 0) {
+		if (strcmp(value, "deflate") == 0) {
+#ifdef HAVE_ZLIB_H
+			zip->compression = COMPRESSION_DEFLATE;
+#else
+			archive_set_error(_a, ARCHIVE_ERRNO_MISC, "deflate compression not supported");
+			return ARCHIVE_WARN;
+#endif
+		} else if (strcmp(value, "store") == 0)
+			zip->compression = COMPRESSION_STORE;
+		else
+			return (ARCHIVE_WARN);
+		return (ARCHIVE_OK);
+	}
+	return (ARCHIVE_WARN);
+}
+
 int
 archive_write_set_format_zip(struct archive *_a)
 {
@@ -233,6 +256,8 @@ archive_write_set_format_zip(struct archive *_a)
 	a->format_data = zip;
 
 	a->pad_uncompressed = 0; /* Actually not needed for now, since no compression support yet. */
+	a->format_name = "zip";
+	a->format_options = archive_write_zip_options;
 	a->format_write_header = archive_write_zip_header;
 	a->format_write_data = archive_write_zip_data;
 	a->format_finish_entry = archive_write_zip_finish_entry;
@@ -248,29 +273,6 @@ archive_write_set_format_zip(struct archive *_a)
 	);
 
 	return (ARCHIVE_OK);
-}
-
-int
-archive_write_zip_set_store(struct archive *_a)
-{
-	struct archive_write *a = (struct archive_write *)_a;
-	struct zip *zip = a->format_data;
-	zip->compression = COMPRESSION_STORE;
-	return (ARCHIVE_OK);
-}
-
-int
-archive_write_zip_set_deflate(struct archive *_a)
-{
-#ifdef HAVE_ZLIB_H
-	struct archive_write *a = (struct archive_write *)_a;
-	struct zip *zip = a->format_data;
-	zip->compression = COMPRESSION_DEFLATE;
-	return (ARCHIVE_OK);
-#else
-	archive_set_error(_a, ARCHIVE_ERRNO_MISC, "Filetype not supported");
-	return ARCHIVE_FATAL;
-#endif
 }
 
 static int
