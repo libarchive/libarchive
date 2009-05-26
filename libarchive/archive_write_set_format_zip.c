@@ -68,6 +68,10 @@ __FBSDID("$FreeBSD$");
 #include "archive_private.h"
 #include "archive_write_private.h"
 
+#ifndef HAVE_ZLIB_H
+#include "archive_crc32.h"
+#endif
+
 #define ZIP_SIGNATURE_LOCAL_FILE_HEADER 0x04034b50
 #define ZIP_SIGNATURE_DATA_DESCRIPTOR 0x08074b50
 #define ZIP_SIGNATURE_FILE_HEADER 0x02014b50
@@ -91,9 +95,6 @@ static int archive_write_zip_finish(struct archive_write *);
 static int archive_write_zip_destroy(struct archive_write *);
 static int archive_write_zip_finish_entry(struct archive_write *);
 static int archive_write_zip_header(struct archive_write *, struct archive_entry *);
-#ifndef HAVE_ZLIB_H
-static unsigned long crc32(unsigned long, const void *, size_t);
-#endif
 static void zip_encode(uint64_t, void *, size_t);
 static unsigned int dos_time(const time_t);
 static size_t path_length(struct archive_entry *);
@@ -674,41 +675,3 @@ write_path(struct archive_entry *entry, struct archive_write *archive)
 
 	return written_bytes;
 }
-
-#ifndef HAVE_ZLIB_H
-/*
- * When zlib is unavailable, we should still be able to write
- * uncompressed zip archives.  That requires us to be able to compute
- * the CRC32 check value.  This is a drop-in compatible replacement
- * for crc32() from zlib.  It's slower than the zlib implementation,
- * but still pretty fast: This runs about 300MB/s on my 3GHz P4
- * compared to about 800MB/s for the zlib implementation.
- */
-static unsigned long
-crc32(unsigned long c, const void *_p, size_t s)
-{
-	unsigned b, i;
-	const unsigned char *p = _p;
-	static volatile int bytecrc_table_inited = 0;
-	static unsigned bytecrc_table[256];
-
-	if (!bytecrc_table_inited) {
-		for (b = 0; b < 256; ++b) {
-			c = b;
-			for (i = 8; i > 0; --i) {
-				if (c & 1) c = (c >> 1);
-				else       c = (c >> 1) ^ 0xedb88320;
-				c ^= 0x80000000;
-			}
-			bytecrc_table[b] = c;
-		}
-		bytecrc_table_inited = 1;
-	}
-
-	for (; s > 0; --s) {
-		c ^= *p++;
-		c = bytecrc_table[c & 0xff] ^ (c >> 8);
-	}
-	return (c);
-}
-#endif
