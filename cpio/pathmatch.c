@@ -229,10 +229,15 @@ pathmatch(const char *p, const char *s, int flags)
 		flags &= ~PATHMATCH_NO_ANCHOR_START;
 	}
 
-	/* Certain patterns anchor implicitly. */
-	if (*p == '*' || *p == '/') {
+	if (*p == '/' && *s != '/')
+		return (0);
+
+	/* Certain patterns and file names anchor implicitly. */
+	if (*p == '*' || *p == '/' || *p == '/') {
 		while (*p == '/')
 			++p;
+		while (*s == '/')
+			++s;
 		return (pm(p, s, flags));
 	}
 
