@@ -93,7 +93,7 @@ DEFINE_TEST(test_write_format_zip_no_compression)
 	struct tm *tm = localtime(&t);
 
 	/* Misc variables */
-	int crc;
+	unsigned long crc;
 
 	/* Create new ZIP archive in memory without padding. */
 	assert((a = archive_write_new()) != NULL);
