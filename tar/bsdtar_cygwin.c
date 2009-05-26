@@ -41,6 +41,7 @@
 #include <sddl.h>
 
 #include "bsdtar.h"
+#include "err.h"
 
 #ifndef LIST_H
 static int
@@ -124,12 +125,12 @@ bsdtar_is_privileged(struct bsdtar *bsdtar)
 
 	(void)bsdtar;/* UNUSED */
 	if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &thandle) == 0) {
-		bsdtar_warnc(bsdtar, EPERM, "Failed to check privilege");
+		lafe_warnc(EPERM, "Failed to check privilege");
 		return (0);
 	}
 	ret = _is_privileged(thandle, sidlist);
 	if (ret < 0) {
-		bsdtar_warnc(bsdtar, errno, "Failed to check privilege");
+		lafe_warnc(errno, "Failed to check privilege");
 		return (0);
 	}
 	return (ret);

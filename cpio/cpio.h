@@ -31,6 +31,8 @@
 #include "cpio_platform.h"
 #include <stdio.h>
 
+#include "matching.h"
+
 /*
  * The internal state for the "cpio" program.
  *
@@ -83,16 +85,10 @@ struct cpio {
 	struct name_cache *gname_cache;
 
 	/* Work data. */
-	struct matching  *matching;
+	struct lafe_matching  *matching;
 	char		 *buff;
 	size_t		  buff_size;
 };
-
-/* Name of this program; used in error reporting, initialized in main(). */
-const char *cpio_progname;
-
-void	cpio_errc(int _eval, int _code, const char *fmt, ...) __LA_DEAD;
-void	cpio_warnc(int _code, const char *fmt, ...);
 
 int	owner_parse(const char *, int *, int *);
 
@@ -106,13 +102,6 @@ enum {
 	OPTION_VERSION
 };
 
-struct line_reader;
-
-struct line_reader *process_lines_init(const char *, char separator);
-const char *process_lines_next(struct line_reader *);
-void	process_lines_free(struct line_reader *);
-
 int	cpio_getopt(struct cpio *cpio);
-int	include_from_file(struct cpio *, const char *);
 
 #endif

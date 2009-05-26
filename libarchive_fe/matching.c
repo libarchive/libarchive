@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "cpio_platform.h"
+#include "lafe_platform.h"
 __FBSDID("$FreeBSD: src/usr.bin/cpio/matching.c,v 1.2 2008/06/21 02:20:20 kientzle Exp $");
 
 #ifdef HAVE_ERRNO_H
@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/matching.c,v 1.2 2008/06/21 02:20:20 kientz
 #include <string.h>
 #endif
 
+#include "err.h"
+#include "line_reader.h"
 #include "matching.h"
 #include "pathmatch.h"
 
@@ -45,7 +47,7 @@ struct match {
 	char		  pattern[1];
 };
 
-struct matching {
+struct lafe_matching {
 	struct match	 *exclusions;
 	int		  exclusions_count;
 	struct match	 *inclusions;
@@ -54,7 +56,7 @@ struct matching {
 };
 
 static void	add_pattern(struct match **list, const char *pattern);
-static void	initialize_matching(struct cpio *);
+static void	initialize_matching(struct lafe_matching **);
 static int	match_exclusion(struct match *, const char *pathname);
 static int	match_inclusion(struct match *, const char *pathname);
 
@@ -70,52 +72,57 @@ static int	match_inclusion(struct match *, const char *pathname);
  */
 
 int
-exclude(struct cpio *cpio, const char *pattern)
+lafe_exclude(struct lafe_matching **matching, const char *pattern)
 {
-	struct matching *matching;
 
-	if (cpio->matching == NULL)
-		initialize_matching(cpio);
-	matching = cpio->matching;
-	add_pattern(&(matching->exclusions), pattern);
-	matching->exclusions_count++;
-	return (0);
-}
-
-#if 0
-int
-exclude_from_file(struct cpio *cpio, const char *pathname)
-{
-	return (process_lines(cpio, pathname, &exclude));
-}
-#endif
-
-int
-include(struct cpio *cpio, const char *pattern)
-{
-	struct matching *matching;
-
-	if (cpio->matching == NULL)
-		initialize_matching(cpio);
-	matching = cpio->matching;
-	add_pattern(&(matching->inclusions), pattern);
-	matching->inclusions_count++;
-	matching->inclusions_unmatched_count++;
+	if (*matching == NULL)
+		initialize_matching(matching);
+	add_pattern(&((*matching)->exclusions), pattern);
+	(*matching)->exclusions_count++;
 	return (0);
 }
 
 int
-include_from_file(struct cpio *cpio, const char *pathname)
+lafe_exclude_from_file(struct lafe_matching **matching, const char *pathname)
 {
-	struct line_reader *lr;
+	struct lafe_line_reader *lr;
 	const char *p;
 	int ret = 0;
 
-	lr = process_lines_init(pathname, '\n');
-	while ((p = process_lines_next(lr)) != NULL)
-		if (include(cpio, p) != 0)
+	lr = lafe_line_reader(pathname, '\n');
+	while ((p = lafe_line_reader_next(lr)) != NULL) {
+		if (lafe_exclude(matching, p) != 0)
 			ret = -1;
-	process_lines_free(lr);
+	}
+	lafe_line_reader_free(lr);
+	return (ret);
+}
+
+int
+lafe_include(struct lafe_matching **matching, const char *pattern)
+{
+
+	if (*matching == NULL)
+		initialize_matching(matching);
+	add_pattern(&((*matching)->inclusions), pattern);
+	(*matching)->inclusions_count++;
+	(*matching)->inclusions_unmatched_count++;
+	return (0);
+}
+
+int
+lafe_include_from_file(struct lafe_matching **matching, const char *pathname)
+{
+	struct lafe_line_reader *lr;
+	const char *p;
+	int ret = 0;
+
+	lr = lafe_line_reader(pathname, '\n');
+	while ((p = lafe_line_reader_next(lr)) != NULL) {
+		if (lafe_include(matching, p) != 0)
+			ret = -1;
+	}
+	lafe_line_reader_free(lr);
 	return (ret);
 }
 
@@ -128,7 +135,7 @@ add_pattern(struct match **list, const char *pattern)
 	len = strlen(pattern);
 	match = malloc(sizeof(*match) + len + 1);
 	if (match == NULL)
-		cpio_errc(1, errno, "Out of memory");
+		lafe_errc(1, errno, "Out of memory");
 	strcpy(match->pattern, pattern);
 	/* Both "foo/" and "foo" should match "foo/bar". */
 	if (len && match->pattern[len - 1] == '/')
@@ -140,13 +147,11 @@ add_pattern(struct match **list, const char *pattern)
 
 
 int
-excluded(struct cpio *cpio, const char *pathname)
+lafe_excluded(struct lafe_matching *matching, const char *pathname)
 {
-	struct matching *matching;
 	struct match *match;
 	struct match *matched;
 
-	matching = cpio->matching;
 	if (matching == NULL)
 		return (0);
 
@@ -198,10 +203,10 @@ excluded(struct cpio *cpio, const char *pathname)
  * gtar.  In particular, 'a*b' will match 'foo/a1111/222b/bar'
  *
  */
-int
+static int
 match_exclusion(struct match *match, const char *pathname)
 {
-	return (pathmatch(match->pattern,
+	return (lafe_pathmatch(match->pattern,
 		    pathname,
 		    PATHMATCH_NO_ANCHOR_START | PATHMATCH_NO_ANCHOR_END));
 }
@@ -210,50 +215,69 @@ match_exclusion(struct match *match, const char *pathname)
  * Again, mimic gtar:  inclusions are always anchored (have to match
  * the beginning of the path) even though exclusions are not anchored.
  */
-int
+static int
 match_inclusion(struct match *match, const char *pathname)
 {
-	return (pathmatch(match->pattern, pathname, 0));
+#if 0
+	return (lafe_pathmatch(match->pattern, pathname, 0));
+#else
+	return (lafe_pathmatch(match->pattern, pathname, PATHMATCH_NO_ANCHOR_END));
+#endif	
 }
 
 void
-cleanup_exclusions(struct cpio *cpio)
+lafe_cleanup_exclusions(struct lafe_matching **matching)
 {
 	struct match *p, *q;
 
-	if (cpio->matching) {
-		p = cpio->matching->inclusions;
-		while (p != NULL) {
-			q = p;
-			p = p->next;
-			free(q);
-		}
-		p = cpio->matching->exclusions;
-		while (p != NULL) {
-			q = p;
-			p = p->next;
-			free(q);
-		}
-		free(cpio->matching);
+	if (*matching == NULL)
+		return;
+
+	for (p = (*matching)->inclusions; p != NULL; ) {
+		q = p;
+		p = p->next;
+		free(q);
 	}
+
+	for (p = (*matching)->exclusions; p != NULL; ) {
+		q = p;
+		p = p->next;
+		free(q);
+	}
+
+	free(*matching);
+	*matching = NULL;
 }
 
 static void
-initialize_matching(struct cpio *cpio)
+initialize_matching(struct lafe_matching **matching)
 {
-	cpio->matching = malloc(sizeof(*cpio->matching));
-	if (cpio->matching == NULL)
-		cpio_errc(1, errno, "No memory");
-	memset(cpio->matching, 0, sizeof(*cpio->matching));
+	*matching = calloc(sizeof(**matching), 1);
+	if (*matching == NULL)
+		lafe_errc(1, errno, "No memory");
 }
 
 int
-unmatched_inclusions(struct cpio *cpio)
+lafe_unmatched_inclusions(struct lafe_matching *matching)
 {
-	struct matching *matching;
 
-	matching = cpio->matching;
 	if (matching == NULL)
 		return (0);
+	return (matching->inclusions_unmatched_count);
+}
+
+int
+lafe_unmatched_inclusions_warn(struct lafe_matching *matching, const char *msg)
+{
+	struct match *p;
+
+	if (matching == NULL)
+		return (0);
+
+	for (p = matching->inclusions; p != NULL; p = p->next) {
+		if (p->matches == 0)
+			lafe_warnc(0, "%s: %s", p->pattern, msg);
+	}
+
 	return (matching->inclusions_unmatched_count);
 }

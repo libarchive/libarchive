@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/cmdline.c,v 1.5 2008/12/06 07:30:40 kientzl
 #endif
 
 #include "cpio.h"
+#include "err.h"
 
 /*
  * Short options for cpio.  Please keep this sorted.
@@ -173,7 +174,7 @@ cpio_getopt(struct cpio *cpio)
 				/* Otherwise, pick up the next word. */
 				opt_word = *cpio->argv;
 				if (opt_word == NULL) {
-					cpio_warnc(0,
+					lafe_warnc(0,
 					    "Option -%c requires an argument",
 					    opt);
 					return ('?');
@@ -224,13 +225,13 @@ cpio_getopt(struct cpio *cpio)
 
 		/* Fail if there wasn't a unique match. */
 		if (match == NULL) {
-			cpio_warnc(0,
+			lafe_warnc(0,
 			    "Option %s%s is not supported",
 			    long_prefix, opt_word);
 			return ('?');
 		}
 		if (match2 != NULL) {
-			cpio_warnc(0,
+			lafe_warnc(0,
 			    "Ambiguous option %s%s (matches --%s and --%s)",
 			    long_prefix, opt_word, match->name, match2->name);
 			return ('?');
@@ -242,7 +243,7 @@ cpio_getopt(struct cpio *cpio)
 			if (cpio->optarg == NULL) {
 				cpio->optarg = *cpio->argv;
 				if (cpio->optarg == NULL) {
-					cpio_warnc(0,
+					lafe_warnc(0,
 					    "Option %s%s requires an argument",
 					    long_prefix, match->name);
 					return ('?');
@@ -253,7 +254,7 @@ cpio_getopt(struct cpio *cpio)
 		} else {
 			/* Argument forbidden: fail if there is one. */
 			if (cpio->optarg != NULL) {
-				cpio_warnc(0,
+				lafe_warnc(0,
 				    "Option %s%s does not allow an argument",
 				    long_prefix, match->name);
 				return ('?');
@@ -315,14 +316,14 @@ owner_parse(const char *spec, int *uid, int *gid)
 
 		user = (char *)malloc(ue - u + 1);
 		if (user == NULL) {
-			cpio_warnc(errno, "Couldn't allocate memory");
+			lafe_warnc(errno, "Couldn't allocate memory");
 			return (1);
 		}
 		memcpy(user, u, ue - u);
 		user[ue - u] = '\0';
 		pwent = getpwnam(user);
 		if (pwent == NULL) {
-			cpio_warnc(errno, "Couldn't lookup user ``%s''", user);
+			lafe_warnc(errno, "Couldn't lookup user ``%s''", user);
 			return (1);
 		}
 		free(user);
@@ -336,7 +337,7 @@ owner_parse(const char *spec, int *uid, int *gid)
 		if (grp != NULL)
 			*gid = grp->gr_gid;
 		else {
-			cpio_warnc(errno, "Couldn't look up group ``%s''", g);
+			lafe_warnc(errno, "Couldn't look up group ``%s''", g);
 			return (1);
 		}
 	}

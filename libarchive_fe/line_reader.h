@@ -1,13 +1,12 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2009 Joerg Sonnenberger
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -22,21 +21,15 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef PATHMATCH_H
-#define PATHMATCH_H
+#ifndef LAFE_LINE_READER_H
+#define LAFE_LINE_READER_H
 
-/* Don't anchor at beginning unless the pattern starts with "^" */
-#define PATHMATCH_NO_ANCHOR_START	1
-/* Don't anchor at end unless the pattern ends with "$" */
-#define PATHMATCH_NO_ANCHOR_END	2
+struct lafe_line_reader;
 
-/* Note that "^" and "$" are not special unless you set the corresponding
- * flag above. */
-
-int pathmatch(const char *p, const char *s, int flags);
+struct lafe_line_reader *lafe_line_reader(const char *, char separator);
+const char *lafe_line_reader_next(struct lafe_line_reader *);
+void	lafe_line_reader_free(struct lafe_line_reader *);
 
 #endif

@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "cpio_platform.h"
+#include "lafe_platform.h"
 __FBSDID("$FreeBSD$");
 
 #ifdef HAVE_STRING_H
@@ -145,7 +145,7 @@ pm(const char *p, const char *s, int flags)
 			if (*p == '\0')
 				return (1);
 			while (*s) {
-				if (pathmatch(p, s, flags))
+				if (lafe_pathmatch(p, s, flags))
 					return (1);
 				++s;
 			}
@@ -217,7 +217,7 @@ pm(const char *p, const char *s, int flags)
 
 /* Main entry point. */
 int
-pathmatch(const char *p, const char *s, int flags)
+lafe_pathmatch(const char *p, const char *s, int flags)
 {
 	/* Empty pattern only matches the empty string. */
 	if (p == NULL || *p == '\0')

@@ -6,6 +6,7 @@ AUTOMAKE_OPTIONS= foreign subdir-objects
 # What to build and install
 #
 lib_LTLIBRARIES=	libarchive.la
+noinst_LTLIBRARIES=	libarchive_fe.la
 bin_PROGRAMS=	$(bsdtar_programs) $(bsdcpio_programs)
 man_MANS= $(libarchive_man_MANS) $(bsdtar_man_MANS) $(bsdcpio_man_MANS)
 BUILT_SOURCES= libarchive/test/list.h tar/test/list.h cpio/test/list.h
@@ -172,8 +173,6 @@ libarchive_la_SOURCES+=						\
 	libarchive/filter_fork_windows.c
 endif
 
-
-libarchive_la_CPPFLAGS=-I $(top_builddir)/libarchive
 # -no-undefined marks that libarchive doesn't rely on symbols
 # defined in the application.  This is mandatory for cygwin.
 libarchive_la_LDFLAGS= -no-undefined -version-info $(ARCHIVE_LIBTOOL_VERSION)
@@ -303,7 +302,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_format_zip_no_compression.c	\
 	libarchive/test/test_write_open_memory.c
 
-libarchive_test_CPPFLAGS= -I$(top_builddir)/libarchive -I$(top_srcdir)/libarchive -I$(top_builddir)/libarchive/test -DLIBARCHIVE_STATIC
+libarchive_test_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_builddir)/libarchive/test -DLIBARCHIVE_STATIC
 
 libarchive_test_LDADD=@PROG_LDADD_EXTRA@
 
@@ -346,6 +345,15 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/CMakeLists.txt					\
 	libarchive/test/README
 
+#
+# Common code for libarchive frontends (cpio, tar)
+#
+libarchive_fe_la_SOURCES=			\
+	libarchive_fe/err.c			\
+	libarchive_fe/line_reader.c		\
+	libarchive_fe/matching.c		\
+	libarchive_fe/pathmatch.c
+
 
 #
 #
@@ -359,7 +367,6 @@ bsdtar_SOURCES=				\
 		tar/bsdtar_platform.h	\
 		tar/cmdline.c		\
 		tar/getdate.c		\
-		tar/matching.c		\
 		tar/read.c		\
 		tar/siginfo.c		\
 		tar/subst.c		\
@@ -379,7 +386,7 @@ bsdtar_SOURCES+=			\
 		tar/bsdtar_cygwin.c
 endif
 
-bsdtar_DEPENDENCIES= libarchive.la
+bsdtar_DEPENDENCIES= libarchive.la libarchive_fe.la
 
 if STATIC_BSDTAR
 bsdtar_static= -static
@@ -387,8 +394,9 @@ else
 bsdtar_static=
 endif
 
-bsdtar_LDADD= libarchive.la @PROG_LDADD_EXTRA@
-bsdtar_CPPFLAGS= -I$(top_builddir)/libarchive -I$(top_srcdir)/libarchive
+bsdtar_LDADD= libarchive.la libarchive_fe.la @PROG_LDADD_EXTRA@
+bsdtar_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe
+
 bsdtar_LDFLAGS= $(bsdtar_static)
 bsdtar_EXTRA_DIST=		\
 	tar/bsdtar.1		\
@@ -464,12 +472,7 @@ bsdcpio_SOURCES=			\
 		cpio/cmdline.c		\
 		cpio/cpio.c		\
 		cpio/cpio.h		\
-		cpio/cpio_platform.h	\
-		cpio/err.c		\
-		cpio/matching.c		\
-		cpio/matching.h		\
-		cpio/pathmatch.c	\
-		cpio/pathmatch.h
+		cpio/cpio_platform.h
 
 if INC_WINDOWS_FILES
 bsdcpio_SOURCES+=			\
@@ -482,7 +485,7 @@ bsdcpio_SOURCES+=			\
 		cpio/cpio_cygwin.c
 endif
 
-bsdcpio_DEPENDENCIES = libarchive.la
+bsdcpio_DEPENDENCIES = libarchive.la libarchive_fe.la
 
 
 if STATIC_BSDCPIO
@@ -491,8 +494,8 @@ else
 bsdcpio_static=
 endif
 
-bsdcpio_LDADD= libarchive.la @PROG_LDADD_EXTRA@
-bsdcpio_CPPFLAGS= -I$(top_builddir)/libarchive -I$(top_srcdir)/libarchive
+bsdcpio_LDADD= libarchive_fe.la libarchive.la @PROG_LDADD_EXTRA@
+bsdcpio_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe
 bsdcpio_LDFLAGS= $(bsdcpio_static)
 bsdcpio_EXTRA_DIST=		\
 	cpio/test/list.h	\
@@ -520,8 +523,6 @@ endif
 
 bsdcpio_test_SOURCES=						\
 	cpio/cmdline.c						\
-	cpio/err.c						\
-	cpio/pathmatch.c					\
 	cpio/test/main.c					\
 	cpio/test/test.h					\
 	cpio/test/test_0.c					\
@@ -552,8 +553,10 @@ bsdcpio_test_SOURCES=						\
 	cpio/test/test_passthrough_reverse.c			\
 	cpio/test/test_pathmatch.c
 
-bsdcpio_test_CPPFLAGS= -I$(top_builddir)/libarchive -I$(top_srcdir)/libarchive -I$(top_builddir)/cpio/test
-bsdcpio_test_LDADD=@PROG_LDADD_EXTRA@
+bsdcpio_test_CPPFLAGS= \
+	-I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe \
+	-I$(top_srcdir)/cpio -I$(top_builddir)/cpio/test
+bsdcpio_test_LDADD=libarchive_fe.la @PROG_LDADD_EXTRA@
 
 cpio/test/list.h: Makefile
 	cat $(top_srcdir)/cpio/test/test_*.c | grep DEFINE_TEST > cpio/test/list.h

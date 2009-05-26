@@ -26,6 +26,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "../cpio.h"
+#include "err.h"
 
 #if defined(__CYGWIN__)
 /* On cygwin, the Administrator user most likely exists (unless
@@ -47,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #define ROOT_GID 0
 #endif
 
-
 DEFINE_TEST(test_owner_parse)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -56,7 +56,7 @@ DEFINE_TEST(test_owner_parse)
 #else
 	int uid, gid;
 
-	cpio_progname = "Ignore this message";
+	lafe_progname = "Ignore this message";
 
 	assertEqualInt(0, owner_parse(ROOT, &uid, &gid));
 	assertEqualInt(ROOT_UID, uid);

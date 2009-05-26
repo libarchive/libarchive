@@ -41,6 +41,7 @@
 #include <sddl.h>
 
 #include "cpio.h"
+#include "err.h"
 
 #ifndef LIST_H
 static int
@@ -123,12 +124,12 @@ bsdcpio_is_privileged()
 	};
 
 	if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &thandle) == 0) {
-		cpio_warnc(EPERM, "Failed to check privilege");
+		lafe_warnc(EPERM, "Failed to check privilege");
 		return (0);
 	}
 	ret = _is_privileged(thandle, sidlist);
 	if (ret < 0) {
-		cpio_warnc(errno, "Failed to check privilege");
+		lafe_warnc(errno, "Failed to check privilege");
 		return (0);
 	}
 	return (ret);

@@ -22,52 +22,25 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
+#ifndef MATCHING_H
+#define MATCHING_H
 
-#include "cpio_platform.h"
-__FBSDID("$FreeBSD$");
+struct lafe_matching;
 
-#ifdef HAVE_STDARG_H
-#include <stdarg.h>
+int	lafe_exclude(struct lafe_matching **matching, const char *pattern);
+int	lafe_exclude_from_file(struct lafe_matching **matching,
+			       const char *pathname);
+int	lafe_include(struct lafe_matching **matching, const char *pattern);
+int	lafe_include_from_file(struct lafe_matching **matching,
+			       const char *pathname);
+
+int	lafe_excluded(struct lafe_matching *, const char *pathname);
+void	lafe_cleanup_exclusions(struct lafe_matching **);
+int	lafe_unmatched_inclusions(struct lafe_matching *);
+int	lafe_unmatched_inclusions_warn(struct lafe_matching *, const char *msg);
+
 #endif
-#include <stdio.h>
-#ifdef HAVE_STDLIB_H
-#include <stdlib.h>
-#endif
-#ifdef HAVE_STRING_H
-#include <string.h>
-#endif
-
-#include "cpio.h"
-
-static void
-cpio_vwarnc(int code, const char *fmt, va_list ap)
-{
-	fprintf(stderr, "%s: ", cpio_progname);
-	vfprintf(stderr, fmt, ap);
-	if (code != 0)
-		fprintf(stderr, ": %s", strerror(code));
-	fprintf(stderr, "\n");
-}
-
-void
-cpio_warnc(int code, const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	cpio_vwarnc(code, fmt, ap);
-	va_end(ap);
-}
-
-void
-cpio_errc(int eval, int code, const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	cpio_vwarnc(code, fmt, ap);
-	va_end(ap);
-	exit(eval);
-}
