@@ -220,8 +220,12 @@ archive_write_set_format_zip(struct archive *_a)
 
 #ifdef HAVE_ZLIB_H
 	zip->compression = COMPRESSION_DEFLATE;
-	zip->len_buf = 64 * 1024;
-	zip->buf = malloc(64 * 1024);
+	zip->len_buf = 65536;
+	zip->buf = malloc(zip->len_buf);
+	if (zip->buf == NULL) {
+		archive_set_error(&a->archive, ENOMEM, "Can't allocate compression buffer");
+		return (ARCHIVE_FATAL);
+	}
 #else
 	zip->compression = COMPRESSION_STORE;
 #endif
