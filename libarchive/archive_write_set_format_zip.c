@@ -623,7 +623,7 @@ write_path(struct archive_entry *entry, struct archive_write *archive)
  * compared to about 800MB/s for the zlib implementation.
  */
 static unsigned
-bytecrc32(unsigned c, const void *_p, size_t s)
+crc32(unsigned c, const void *_p, size_t s)
 {
 	unsigned b, i;
 	const unsigned char *p = _p;
