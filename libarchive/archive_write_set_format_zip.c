@@ -162,6 +162,7 @@ struct zip_file_header_link {
 	struct archive_entry *entry;
 	off_t offset;
 	unsigned long crc32;
+	off_t compressed_size;
 	enum compression compression;
 };
 
@@ -172,7 +173,6 @@ struct zip {
 	off_t offset;
 	size_t written_bytes;
 	size_t remaining_data_bytes;
-	off_t cur_compressed_size;
 	enum compression compression;
 };
 
@@ -284,6 +284,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	/* Initialize the CRC variable and potentially the local crc32(). */
 	l->crc32 = crc32(0, NULL, 0);
 	l->compression = zip->compression;
+	l->compressed_size = 0;
 	l->next = NULL;
 	if (zip->central_directory == NULL) {
 		zip->central_directory = l;
@@ -291,7 +292,6 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		zip->central_directory_end->next = l;
 	}
 	zip->central_directory_end = l;
-	zip->cur_compressed_size = 0;
 
 	/* Store the offset of this header for later use in central directory. */
 	l->offset = zip->written_bytes;
@@ -368,8 +368,8 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 		ret = (a->compressor.write)(a, buff, s);
 		if (ret != ARCHIVE_OK) return (ret);
 		zip->written_bytes += s;
-		zip->cur_compressed_size += s;
 		zip->remaining_data_bytes -= s;
+		l->compressed_size += s;
 		l->crc32 = crc32(l->crc32, buff, s);
 		return (s);
 #if HAVE_ZLIB_H
@@ -394,7 +394,7 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 				deflateEnd(&stream);
 				return (ret);
 			}
-			zip->cur_compressed_size += stream.avail_out;
+			l->compressed_size += stream.avail_out;
 			zip->written_bytes += stream.avail_out;
 		} while (stream.avail_out == 0);
 		zip->remaining_data_bytes -= s;
@@ -422,7 +422,7 @@ archive_write_zip_finish_entry(struct archive_write *a)
 	struct zip_file_header_link *l = zip->central_directory_end;
 
 	zip_encode(l->crc32, &d->crc32, sizeof(d->crc32));
-	zip_encode(zip->cur_compressed_size, &d->compressed_size, sizeof(d->compressed_size));
+	zip_encode(l->compressed_size, &d->compressed_size, sizeof(d->compressed_size));
 	ret = (a->compressor.write)(a, d, sizeof(*d));
 	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
@@ -469,7 +469,7 @@ archive_write_zip_finish(struct archive_write *a)
 		zip_encode(l->compression, &h.compression, sizeof(h.compression));
 		zip_encode(dos_time(archive_entry_mtime(l->entry)), &h.timedate, sizeof(h.timedate));
 		zip_encode(l->crc32, &h.crc32, sizeof(h.crc32));
-		/* TODO: write compressed size */
+		zip_encode(l->compressed_size, &h.compressed_size, sizeof(h.compressed_size));
 		zip_encode(archive_entry_size(l->entry), &h.uncompressed_size, sizeof(h.uncompressed_size));
 		zip_encode(path_length(l->entry), &h.filename_length, sizeof(h.filename_length));
 		zip_encode(sizeof(e), &h.extra_length, sizeof(h.extra_length));
