@@ -78,7 +78,7 @@ DEFINE_TEST(test_option_t)
 	/* The date might vary depending on what timezone we're in.
 	 * 1 second past the Epoch can only be one of two dates. */
 	if (strcmp(p + 42, "Dec 31  1969 file\n") != 0)
-		assertEqualString(p + 42, "Jan  1  1970  file\n");
+		assertEqualString(p + 42, "Jan  1  1970 file\n");
 	free(p);
 
 	/* But "-n" without "-t" is an error. */
