@@ -36,10 +36,6 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_format_zip.c,v 1.28 
 #include <time.h>
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>
-#else
-/* Hmmm... This is necessary, but means that we can't correctly extract
- * even uncompressed entries on platforms that lack zlib. */
-#define	crc32(crc, buf, len) (unsigned long)0
 #endif
 
 #include "archive.h"
@@ -47,6 +43,44 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_format_zip.c,v 1.28 
 #include "archive_private.h"
 #include "archive_read_private.h"
 #include "archive_endian.h"
+
+#ifndef HAVE_ZLIB_H
+/*
+ * When zlib is unavailable, we should still be able to validate
+ * uncompressed zip archives.  That requires us to be able to compute
+ * the CRC32 check value.  This is a drop-in compatible replacement
+ * for crc32() from zlib.  It's slower than the zlib implementation,
+ * but still pretty fast: This runs about 300MB/s on my 3GHz P4
+ * compared to about 800MB/s for the zlib implementation.
+ */
+static unsigned long
+crc32(unsigned long c, const void *_p, size_t s)
+{
+	unsigned b, i;
+	const unsigned char *p = _p;
+	static volatile int bytecrc_table_inited = 0;
+	static unsigned long bytecrc_table[256];
+
+	if (!bytecrc_table_inited) {
+		for (b = 0; b < 256; ++b) {
+			c = b;
+			for (i = 8; i > 0; --i) {
+				if (c & 1) c = (c >> 1);
+				else       c = (c >> 1) ^ 0xedb88320;
+				c ^= 0x80000000;
+			}
+			bytecrc_table[b] = c;
+		}
+		bytecrc_table_inited = 1;
+	}
+
+	for (; s > 0; --s) {
+		c ^= *p++;
+		c = bytecrc_table[c & 0xff] ^ (c >> 8);
+	}
+	return (c);
+}
+#endif
 
 struct zip {
 	/* entry_bytes_remaining is the number of bytes we expect. */
@@ -540,8 +574,7 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		return (r);
 	/* Update checksum */
 	if (*size)
-		zip->entry_crc32 =
-		    crc32(zip->entry_crc32, *buff, *size);
+		zip->entry_crc32 = crc32(zip->entry_crc32, *buff, *size);
 	/* If we hit the end, swallow any end-of-data marker. */
 	if (zip->end_of_entry) {
 		if (zip->flags & ZIP_LENGTH_AT_END) {
