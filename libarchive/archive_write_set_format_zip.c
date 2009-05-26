@@ -88,7 +88,9 @@ static int archive_write_zip_finish(struct archive_write *);
 static int archive_write_zip_destroy(struct archive_write *);
 static int archive_write_zip_finish_entry(struct archive_write *);
 static int archive_write_zip_header(struct archive_write *, struct archive_entry *);
-static unsigned bytecrc32(unsigned, const void *, size_t);
+#ifndef HAVE_ZLIB_H
+static unsigned crc32(unsigned, const void *, size_t);
+#endif
 static void zip_encode(uint64_t, void *, size_t);
 static unsigned int dos_time(const time_t);
 static size_t path_length(struct archive_entry *);
@@ -278,8 +280,8 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		return (ARCHIVE_FATAL);
 	}
 	l->entry = archive_entry_clone(entry);
-	/* Initialize the CRC variable and initialize bytecrc32(). */
-	l->crc32 = bytecrc32(0, NULL, 0);
+	/* Initialize the CRC variable and potentially the local crc32(). */
+	l->crc32 = crc32(0, NULL, 0);
 	l->compression = zip->compression;
 	l->next = NULL;
 	if (zip->central_directory == NULL) {
@@ -365,7 +367,7 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 		if (ret < 0) return (ret);
 		zip->written_bytes += s;
 		zip->remaining_data_bytes -= s;
-		l->crc32 = bytecrc32(l->crc32, buff, s);
+		l->crc32 = crc32(l->crc32, buff, s);
 		return (ret);
 #if HAVE_ZLIB_H
 	case COMPRESSION_DEFLATE:
@@ -611,6 +613,7 @@ write_path(struct archive_entry *entry, struct archive_write *archive)
 	return written_bytes;
 }
 
+#ifndef HAVE_ZLIB_H
 /*
  * When zlib is unavailable, we should still be able to write
  * uncompressed zip archives.  That requires us to be able to compute
@@ -648,3 +651,4 @@ bytecrc32(unsigned c, const void *_p, size_t s)
 	}
 	return (c);
 }
+#endif
