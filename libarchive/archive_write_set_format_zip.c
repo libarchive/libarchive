@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include "archive.h"
+#include "archive_endian.h"
 #include "archive_entry.h"
 #include "archive_private.h"
 #include "archive_write_private.h"
@@ -95,7 +96,6 @@ static int archive_write_zip_finish(struct archive_write *);
 static int archive_write_zip_destroy(struct archive_write *);
 static int archive_write_zip_finish_entry(struct archive_write *);
 static int archive_write_zip_header(struct archive_write *, struct archive_entry *);
-static void zip_encode(uint64_t, void *, size_t);
 static unsigned int dos_time(const time_t);
 static size_t path_length(struct archive_entry *);
 static int write_path(struct archive_entry *, struct archive_write *);
@@ -266,11 +266,8 @@ archive_write_set_format_zip(struct archive *_a)
 	a->archive.archive_format = ARCHIVE_FORMAT_ZIP;
 	a->archive.archive_format_name = "ZIP";
 
-	zip_encode(
-		ZIP_SIGNATURE_DATA_DESCRIPTOR,
-		&zip->data_descriptor.signature,
-		sizeof(zip->data_descriptor.signature)
-	);
+	archive_le32enc(&zip->data_descriptor.signature,
+	    ZIP_SIGNATURE_DATA_DESCRIPTOR);
 
 	return (ARCHIVE_OK);
 }
@@ -326,25 +323,24 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	l->offset = zip->written_bytes;
 
 	memset(&h, 0, sizeof(h));
-	zip_encode(ZIP_SIGNATURE_LOCAL_FILE_HEADER, &h.signature, sizeof(h.signature));
-	zip_encode(ZIP_VERSION_EXTRACT, &h.version, sizeof(h.version));
-	zip_encode(ZIP_FLAGS, &h.flags, sizeof(h.flags));
-	zip_encode(zip->compression, &h.compression, sizeof(h.compression));
-	zip_encode(dos_time(archive_entry_mtime(entry)), &h.timedate, sizeof(h.timedate));
-	zip_encode(path_length(entry), &h.filename_length, sizeof(h.filename_length));
-	zip_encode(sizeof(e), &h.extra_length, sizeof(h.extra_length));
+	archive_le32enc(&h.signature, ZIP_SIGNATURE_LOCAL_FILE_HEADER);
+	archive_le16enc(&h.version, ZIP_VERSION_EXTRACT);
+	archive_le16enc(&h.flags, ZIP_FLAGS);
+	archive_le16enc(&h.compression, zip->compression);
+	archive_le32enc(&h.timedate, dos_time(archive_entry_mtime(entry)));
+	archive_le16enc(&h.filename_length, path_length(entry));
 
 	switch (zip->compression) {
 	case COMPRESSION_STORE:
 		/* Setting compressed and uncompressed sizes even when specification says
 		 * to set to zero when using data descriptors. Otherwise the end of the
 		 * data for an entry is rather difficult to find. */
-		zip_encode(size, &h.compressed_size, sizeof(h.compressed_size));
-		zip_encode(size, &h.uncompressed_size, sizeof(h.uncompressed_size));
+		archive_le32enc(&h.compressed_size, size);
+		archive_le32enc(&h.uncompressed_size, size);
 		break;
 #ifdef HAVE_ZLIB_H
 	case COMPRESSION_DEFLATE:
-		zip_encode(size, &h.uncompressed_size, sizeof(h.uncompressed_size));
+		archive_le32enc(&h.uncompressed_size, size);
 
 		zip->stream.zalloc = Z_NULL;
 		zip->stream.zfree = Z_NULL;
@@ -361,19 +357,21 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	}
 
 	/* Formatting extra data. */
-	zip_encode(sizeof(e), &h.extra_length, sizeof(h.extra_length));
-	zip_encode(ZIP_SIGNATURE_EXTRA_TIMESTAMP, &e.time_id, sizeof(e.time_id));
-	zip_encode(sizeof(e.atime) + sizeof(e.mtime) + sizeof(e.ctime) + sizeof(e.time_flag), &e.time_size, sizeof(e.time_size));
-	zip_encode(0x07, &e.time_flag, sizeof(e.time_flag));
-	zip_encode(archive_entry_mtime(entry), &e.mtime, sizeof(e.mtime));
-	zip_encode(archive_entry_atime(entry), &e.atime, sizeof(e.atime));
-	zip_encode(archive_entry_ctime(entry), &e.ctime, sizeof(e.ctime));
-	zip_encode(ZIP_SIGNATURE_EXTRA_UNIX, &e.unix_id, sizeof(e.unix_id));
-	zip_encode(sizeof(e.unix_uid) + sizeof(e.unix_gid), &e.unix_size, sizeof(e.unix_size));
-	zip_encode(archive_entry_uid(entry), &e.unix_uid, sizeof(e.unix_uid));
-	zip_encode(archive_entry_gid(entry), &e.unix_gid, sizeof(e.unix_gid));
+	archive_le16enc(&h.extra_length, sizeof(e));
+	archive_le16enc(&e.time_id, ZIP_SIGNATURE_EXTRA_TIMESTAMP);
+	archive_le16enc(&e.time_size, sizeof(e.time_flag) +
+	    sizeof(e.mtime) + sizeof(e.atime) + sizeof(e.ctime));
+	e.time_flag[0] = 0x07;
+	archive_le32enc(&e.mtime, archive_entry_mtime(entry));
+	archive_le32enc(&e.atime, archive_entry_atime(entry));
+	archive_le32enc(&e.ctime, archive_entry_ctime(entry));
+	    
+	archive_le16enc(&e.unix_id, ZIP_SIGNATURE_EXTRA_UNIX);
+	archive_le16enc(&e.unix_size, sizeof(e.unix_uid) + sizeof(e.unix_gid));
+	archive_le16enc(&e.unix_uid, archive_entry_uid(entry));
+	archive_le16enc(&e.unix_gid, archive_entry_gid(entry));
 
-	zip_encode(size, &d->uncompressed_size, sizeof(d->uncompressed_size));
+	archive_le32enc(&d->uncompressed_size, size);
 
 	ret = (a->compressor.write)(a, &h, sizeof(h));
 	if (ret != ARCHIVE_OK)
@@ -482,8 +480,8 @@ archive_write_zip_finish_entry(struct archive_write *a)
 #endif
 	}
 
-	zip_encode(l->crc32, &d->crc32, sizeof(d->crc32));
-	zip_encode(l->compressed_size, &d->compressed_size, sizeof(d->compressed_size));
+	archive_le32enc(&d->crc32, l->crc32);
+	archive_le32enc(&d->compressed_size, l->compressed_size);
 	ret = (a->compressor.write)(a, d, sizeof(*d));
 	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
@@ -502,7 +500,6 @@ archive_write_zip_finish(struct archive_write *a)
 	off_t offset_start, offset_end;
 	int entries;
 	int ret;
-	mode_t mode;
 
 	zip = a->format_data;
 	l = zip->central_directory;
@@ -516,10 +513,10 @@ archive_write_zip_finish(struct archive_write *a)
 	 *   - attributes_internal
 	 */
 	memset(&h, 0, sizeof(h));
-	zip_encode(ZIP_SIGNATURE_FILE_HEADER, &h.signature, sizeof(h.signature));
-	zip_encode(ZIP_VERSION_BY, &h.version_by, sizeof(h.version_by));
-	zip_encode(ZIP_VERSION_EXTRACT, &h.version_extract, sizeof(h.version_extract));
-	zip_encode(ZIP_FLAGS, &h.flags, sizeof(h.flags));
+	archive_le32enc(&h.signature, ZIP_SIGNATURE_FILE_HEADER);
+	archive_le16enc(&h.version_by, ZIP_VERSION_BY);
+	archive_le16enc(&h.version_extract, ZIP_VERSION_EXTRACT);
+	archive_le16enc(&h.flags, ZIP_FLAGS);
 
 	entries = 0;
 	offset_start = zip->written_bytes;
@@ -527,24 +524,23 @@ archive_write_zip_finish(struct archive_write *a)
 	/* Formatting individual header fields per entry and
 	 * writing each entry. */
 	while (l != NULL) {
-		zip_encode(l->compression, &h.compression, sizeof(h.compression));
-		zip_encode(dos_time(archive_entry_mtime(l->entry)), &h.timedate, sizeof(h.timedate));
-		zip_encode(l->crc32, &h.crc32, sizeof(h.crc32));
-		zip_encode(l->compressed_size, &h.compressed_size, sizeof(h.compressed_size));
-		zip_encode(archive_entry_size(l->entry), &h.uncompressed_size, sizeof(h.uncompressed_size));
-		zip_encode(path_length(l->entry), &h.filename_length, sizeof(h.filename_length));
-		zip_encode(sizeof(e), &h.extra_length, sizeof(h.extra_length));
-		mode = archive_entry_mode(l->entry);
-		zip_encode(mode, &h.attributes_external[2], sizeof(mode));
-		zip_encode(l->offset, &h.offset, sizeof(h.offset));
+		archive_le16enc(&h.compression, l->compression);
+		archive_le32enc(&h.timedate, dos_time(archive_entry_mtime(l->entry)));
+		archive_le32enc(&h.crc32, l->crc32);
+		archive_le32enc(&h.compressed_size, l->compressed_size);
+		archive_le32enc(&h.uncompressed_size, archive_entry_size(l->entry));
+		archive_le16enc(&h.filename_length, path_length(l->entry));
+		archive_le16enc(&h.extra_length, sizeof(e));
+		archive_le16enc(&h.attributes_external[2], archive_entry_mode(l->entry));
+		archive_le32enc(&h.offset, l->offset);
 
 		/* Formatting extra data. */
-		zip_encode(ZIP_SIGNATURE_EXTRA_TIMESTAMP, &e.time_id, sizeof(e.time_id));
-		zip_encode(sizeof(e.mtime) + sizeof(e.time_flag), &e.time_size, sizeof(e.time_size));
-		zip_encode(0x07, &e.time_flag, sizeof(e.time_flag));
-		zip_encode(archive_entry_mtime(l->entry), &e.mtime, sizeof(e.mtime));
-		zip_encode(ZIP_SIGNATURE_EXTRA_UNIX, &e.unix_id, sizeof(e.unix_id));
-		zip_encode(0x0000, &e.unix_size, sizeof(e.unix_size));
+		archive_le16enc(&e.time_id, ZIP_SIGNATURE_EXTRA_TIMESTAMP);
+		archive_le16enc(&e.time_size, sizeof(e.mtime) + sizeof(e.time_flag));
+		e.time_flag[0] = 0x07;
+		archive_le32enc(&e.mtime, archive_entry_mtime(l->entry));
+		archive_le16enc(&e.unix_id, ZIP_SIGNATURE_EXTRA_UNIX);
+		archive_le16enc(&e.unix_size, 0x0000);
 
 		ret = (a->compressor.write)(a, &h, sizeof(h));
 		if (ret != ARCHIVE_OK)
@@ -568,11 +564,11 @@ archive_write_zip_finish(struct archive_write *a)
 
 	/* Formatting end of central directory. */
 	memset(&end, 0, sizeof(end));
-	zip_encode(ZIP_SIGNATURE_CENTRAL_DIRECTORY_END, &end.signature, sizeof(end.signature));
-	zip_encode(entries, &end.entries, sizeof(end.entries));
-	zip_encode(entries, &end.entries_disk, sizeof(end.entries_disk));
-	zip_encode(offset_end - offset_start, &end.size, sizeof(end.size));
-	zip_encode(offset_start, &end.offset, sizeof(end.offset));
+	archive_le32enc(&end.signature, ZIP_SIGNATURE_CENTRAL_DIRECTORY_END);
+	archive_le16enc(&end.entries_disk, entries);
+	archive_le16enc(&end.entries, entries);
+	archive_le32enc(&end.size, offset_end - offset_start);
+	archive_le32enc(&end.offset, offset_start);
 
 	/* Writing end of central directory. */
 	ret = (a->compressor.write)(a, &end, sizeof(end));
@@ -601,19 +597,6 @@ archive_write_zip_destroy(struct archive_write *a)
 	free(zip->buf);
 #endif
 	return (ARCHIVE_OK);
-}
-
-/* Encode data in little-endian for writing it to a ZIP file. */
-static void
-zip_encode(uint64_t value, void *_p, size_t size)
-{
-	unsigned char *p = (unsigned char *) _p;
-	size_t i;
-	for (i = 0; i < size; i++) {
-		*p = value & 0xff;
-		value >>= 8;
-		p++;
-	}
 }
 
 /* Convert into MSDOS-style date/time. */
