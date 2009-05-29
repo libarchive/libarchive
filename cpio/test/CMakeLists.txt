@@ -6,8 +6,8 @@
 IF(ENABLE_CPIO AND ENABLE_TEST)
   SET(bsdcpio_test_SOURCES
     ../cmdline.c
-    ../err.c
-    ../pathmatch.c
+    ../../libarchive_fe/err.c
+    ../../libarchive_fe/pathmatch.c
     main.c
     test.h
     test_0.c
