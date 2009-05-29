@@ -591,11 +591,11 @@ archive_write_zip_destroy(struct archive_write *a)
 	   archive_entry_free(l->entry);
 	   free(l);
 	}
-	free(zip);
-	a->format_data = NULL;
 #ifdef HAVE_ZLIB_H
 	free(zip->buf);
 #endif
+	free(zip);
+	a->format_data = NULL;
 	return (ARCHIVE_OK);
 }
 
