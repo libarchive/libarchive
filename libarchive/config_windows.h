@@ -173,12 +173,6 @@
 /* Define to 1 if you have the fcntl() function. */
 /* #undef HAVE_FCNTL_FN */
 
-/* Define to 1 if your system has a working POSIX `fnmatch' function. */
-/* #undef HAVE_FNMATCH */
-
-/* Define to 1 if fnmatch(3) supports the FNM_LEADING_DIR flag */
-/* #undef HAVE_FNM_LEADING_DIR */
-
 /* Define to 1 if fseeko (and presumably ftello) exists and is declared. */
 /* #undef HAVE_FSEEKO */
 

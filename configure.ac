@@ -362,19 +362,6 @@ AC_CHECK_DECL([D_MD_ORDER],
 #endif
 ])
 
-# If fnmatch() exists and supports FNM_LEADING_DIR, then bsdtar uses that,
-# otherwise it uses some usable (but less featureful) built-in code for
-# filename pattern matching.
-AC_FUNC_FNMATCH
-AC_CHECK_DECL([FNM_LEADING_DIR],
-[AC_DEFINE(HAVE_FNM_LEADING_DIR, 1, [Define to 1 if fnmatch(3) supports the FNM_LEADING_DIR flag])],
-[],
-[#if HAVE_FNMATCH
-#define _GNU_SOURCE /* Required on Linux to get GNU extensions */
-#include <fnmatch.h>
-#endif
-])
-
 # Check for dirent.d_namlen field explicitly
 # (This is a bit more straightforward than, if not quite as portable as,
 # the recipe given by the autoconf maintainers.)

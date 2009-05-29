@@ -148,12 +148,6 @@
 /* Define to 1 if you have the <fcntl.h> header file. */
 #cmakedefine HAVE_FCNTL_H 1
 
-/* Define to 1 if your system has a working POSIX `fnmatch' function. */
-#cmakedefine HAVE_FNMATCH 1
-
-/* Define to 1 if fnmatch(3) supports the FNM_LEADING_DIR flag */
-#cmakedefine HAVE_FNM_LEADING_DIR 1
-
 /* Define to 1 if you have the `fork' function. */
 #cmakedefine HAVE_FORK 1
 

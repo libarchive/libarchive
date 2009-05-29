@@ -38,9 +38,6 @@
 #undef	HAVE_EXT2FS_EXT2_FS_H
 #define	HAVE_FCHDIR 1
 #define	HAVE_FCNTL_H 1
-#define	HAVE_FNMATCH 1
-#define	HAVE_FNMATCH_H 1
-#define	HAVE_FNM_LEADING_DIR 1
 #define	HAVE_GRP_H 1
 #define	HAVE_LANGINFO_H 1
 #undef	HAVE_LIBACL

@@ -44,9 +44,6 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/write.c,v 1.79 2008/11/27 05:49:52 kientzle 
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
-#ifdef HAVE_FNMATCH_H
-#include <fnmatch.h>
-#endif
 #ifdef HAVE_GRP_H
 #include <grp.h>
 #endif
