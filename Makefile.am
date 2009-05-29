@@ -30,7 +30,6 @@ AM_CFLAGS=-Wall -Werror
 #
 EXTRA_DIST= \
 	CMakeLists.txt			\
-	PROJECTS			\
 	build/autogen.sh		\
 	build/release.sh		\
 	build/cmake			\
