@@ -1,14 +1,23 @@
 /*
- * "untar" is a minimal tar extractor.  It should work with
- * most ustar tar archives.  It is intended to be sufficient
- * to extract the distribution for a full-featured tar program.
- *
- * This is a single-file C program that compiles into a standalone
- * executable.
+ * "untar" is an extremely simple tar extractor:
+ *  * A single C source file, so it should be easy to compile
+ *    and run on any system with a C compiler.
+ *  * Extremely portable standard C.  The only non-ANSI function
+ *    used is mkdir().
+ *  * Reads basic ustar tar archives.
+ *  * Does not require libarchive or any other special library.
  *
  * To compile: cc -o untar untar.c
  *
  * Usage:  untar <archive>
+ *
+ * In particular, this program should be sufficient to extract the
+ * distribution for libarchive, allowing people to bootstrap
+ * libarchive on systems that do not already have a tar program.
+ *
+ * To unpack libarchive-x.y.z.tar.gz:
+ *    * gunzip libarchive-x.y.z.tar.gz
+ *    * untar libarchive-x.y.z.tar
  *
  * Written by Tim Kientzle, March 2009.
  *
@@ -117,7 +126,7 @@ verify_checksum(const char *p)
 }
 
 /* Extract a tar archive. */
-static int
+static void
 untar(FILE *a, const char *path)
 {
 	char buff[512];
@@ -151,8 +160,7 @@ untar(FILE *a, const char *path)
 			printf(" Ignoring symlink %s\n", buff);
 			break;
 		case '3':
-			printf(" Ignoring character device %s\n",
-			    buff);
+			printf(" Ignoring character device %s\n", buff);
 				break;
 		case '4':
 			printf(" Ignoring block device %s\n", buff);
@@ -160,6 +168,7 @@ untar(FILE *a, const char *path)
 		case '5':
 			printf(" Extracting dir %s\n", buff);
 			create_dir(buff, parseoct(buff + 100, 8));
+			filesize = 0;
 			break;
 		case '6':
 			printf(" Ignoring FIFO %s\n", buff);
