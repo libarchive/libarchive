@@ -4,15 +4,16 @@
  */
 
 /*
- * This is a compact tar extraction program whose primary goal is
- * small size.  Statically linked, it can be under 64k, depending on
- * how cleanly factored your system libraries are.  Note that this
- * uses the standard libarchive, without any special recompilation.
- * The only functional concession is that this program uses the
- * uid/gid from the archive instead of doing uname/gname lookups.
- * (Call archive_write_disk_set_standard_lookup() to enable
- * uname/gname lookups, but be aware that this can add 500k or more to
- * a static executable, depending on the system libraries.)
+ * This is a compact tar extraction program using libarchive whose
+ * primary goal is small executable size.  Statically linked, it can
+ * be under 64k, depending on how cleanly factored your system
+ * libraries are.  Note that this uses the standard libarchive,
+ * without any special recompilation.  The only functional concession
+ * is that this program uses the uid/gid from the archive instead of
+ * doing uname/gname lookups.  (Call
+ * archive_write_disk_set_standard_lookup() to enable uname/gname
+ * lookups, but be aware that this can add 500k or more to a static
+ * executable, depending on the system libraries.)
  *
  * To build:
  * gcc -static -Wall -o untar untar.c -larchive
