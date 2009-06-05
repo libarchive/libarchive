@@ -50,9 +50,9 @@ struct siginfo_data {
 
 	/* Old signal handlers. */
 #ifdef SIGINFO
-	void (*siginfo_old)(int);
+	struct sigaction siginfo_old;
 #endif
-	void (*sigusr1_old)(int);
+	struct sigaction sigusr1_old;
 };
 
 static void		 siginfo_handler(int sig);
@@ -71,6 +71,7 @@ siginfo_handler(int sig)
 void
 siginfo_init(struct bsdtar *bsdtar)
 {
+	struct sigaction sa;
 
 	/* Allocate space for internal structure. */
 	if ((bsdtar->siginfo = malloc(sizeof(struct siginfo_data))) == NULL)
@@ -79,13 +80,18 @@ siginfo_init(struct bsdtar *bsdtar)
 	/* Set the strings to NULL so that free() is safe. */
 	bsdtar->siginfo->path = bsdtar->siginfo->oper = NULL;
 
-#ifdef SIGINFO
 	/* We want to catch SIGINFO, if it exists. */
-	bsdtar->siginfo->siginfo_old = signal(SIGINFO, siginfo_handler);
+	sa.sa_handler = siginfo_handler;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = 0;
+#ifdef SIGINFO
+	if (sigaction(SIGINFO, &sa, &bsdtar->siginfo->siginfo_old))
+		bsdtar_errc(bsdtar, 1, errno, "sigaction(SIGINFO) failed");
 #endif
 #ifdef SIGUSR1
 	/* ... and treat SIGUSR1 the same way as SIGINFO. */
-	bsdtar->siginfo->sigusr1_old = signal(SIGUSR1, siginfo_handler);
+	if (sigaction(SIGUSR1, &sa, &bsdtar->siginfo->sigusr1_old))
+		bsdtar_errc(bsdtar, 1, errno, "sigaction(SIGUSR1) failed");
 #endif
 }
 
@@ -136,11 +142,11 @@ siginfo_done(struct bsdtar *bsdtar)
 
 #ifdef SIGINFO
 	/* Restore old SIGINFO handler. */
-	signal(SIGINFO, bsdtar->siginfo->siginfo_old);
+	sigaction(SIGINFO, &bsdtar->siginfo->siginfo_old, NULL);
 #endif
 #ifdef SIGUSR1
 	/* And the old SIGUSR1 handler, too. */
-	signal(SIGUSR1, bsdtar->siginfo->sigusr1_old);
+	sigaction(SIGUSR1, &bsdtar->siginfo->sigusr1_old, NULL);
 #endif
 
 	/* Free strings. */
