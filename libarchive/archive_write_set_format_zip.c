@@ -208,7 +208,8 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 #ifdef HAVE_ZLIB_H
 			zip->compression = COMPRESSION_DEFLATE;
 #else
-			archive_set_error(_a, ARCHIVE_ERRNO_MISC, "deflate compression not supported");
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "deflate compression not supported");
 			return ARCHIVE_WARN;
 #endif
 		} else if (strcmp(value, "store") == 0)
