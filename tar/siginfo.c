@@ -52,7 +52,9 @@ struct siginfo_data {
 #ifdef SIGINFO
 	struct sigaction siginfo_old;
 #endif
+#ifdef SIGUSR1
 	struct sigaction sigusr1_old;
+#endif
 };
 
 #if defined(SIGINFO) || defined(SIGUSR1)
@@ -68,7 +70,6 @@ siginfo_handler(int sig)
 	/* Record that SIGINFO or SIGUSR1 has been received. */
 	siginfo_received = 1;
 }
-#endif
 
 void
 siginfo_init(struct bsdtar *bsdtar)
@@ -96,6 +97,14 @@ siginfo_init(struct bsdtar *bsdtar)
 		lafe_errc(1, errno, "sigaction(SIGUSR1) failed");
 #endif
 }
+#else
+void
+siginfo_init(struct bsdtar *bsdtar)
+{
+	/* Set the strings to NULL so that free() is safe. */
+	bsdtar->siginfo->path = bsdtar->siginfo->oper = NULL;
+}
+#endif
 
 void
 siginfo_setinfo(struct bsdtar *bsdtar, const char * oper, const char * path,
