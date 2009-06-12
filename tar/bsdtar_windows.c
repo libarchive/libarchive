@@ -30,6 +30,7 @@
 #define WINVER       0x0500
 
 #include "bsdtar_platform.h"
+#include <ctype.h>
 #include <errno.h>
 #include <stddef.h>
 #include <sys/utime.h>
@@ -96,7 +97,7 @@ permissive_name(const char *name)
 {
 	wchar_t *wn, *wnp;
 	wchar_t *ws, *wsp;
-	size_t l, len, slen;
+	size_t l, len, slen, alloclen;
 	int unc;
 
 	len = strlen(name);
@@ -162,7 +163,7 @@ permissive_name(const char *name)
 		}
 	}
 
-	slen = 4 + (unc * 4) + len + 1;
+	alloclen = slen = 4 + (unc * 4) + len + 1;
 	ws = wsp = malloc(slen * sizeof(wchar_t));
 	if (ws == NULL) {
 		free(wn);
@@ -178,7 +179,8 @@ permissive_name(const char *name)
 		wsp += 4;
 		slen -= 4;
 	}
-	wcsncpy_s(wsp, slen, wnp, _TRUNCATE);
+	wcsncpy(wsp, wnp, slen);
+	wsp[alloclen - 1] = L'\0';
 	free(wn);
 	return (ws);
 }
@@ -1010,7 +1012,7 @@ la_stat(const char *path, struct stat *st)
 ssize_t
 la_write(int fd, const void *buf, size_t nbytes)
 {
-	uint32_t bytes_written;
+	DWORD bytes_written;
 
 #ifdef _WIN64
 	if (nbytes > UINT32_MAX)
