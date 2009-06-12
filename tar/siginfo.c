@@ -86,12 +86,12 @@ siginfo_init(struct bsdtar *bsdtar)
 	sa.sa_flags = 0;
 #ifdef SIGINFO
 	if (sigaction(SIGINFO, &sa, &bsdtar->siginfo->siginfo_old))
-		bsdtar_errc(bsdtar, 1, errno, "sigaction(SIGINFO) failed");
+		lafe_errc(1, errno, "sigaction(SIGINFO) failed");
 #endif
 #ifdef SIGUSR1
 	/* ... and treat SIGUSR1 the same way as SIGINFO. */
 	if (sigaction(SIGUSR1, &sa, &bsdtar->siginfo->sigusr1_old))
-		bsdtar_errc(bsdtar, 1, errno, "sigaction(SIGUSR1) failed");
+		lafe_errc(1, errno, "sigaction(SIGUSR1) failed");
 #endif
 }
 
