@@ -55,6 +55,7 @@ struct siginfo_data {
 	struct sigaction sigusr1_old;
 };
 
+#if defined(SIGINFO) || defined(SIGUSR1)
 static void		 siginfo_handler(int sig);
 
 /* Handler for SIGINFO / SIGUSR1. */
@@ -67,6 +68,7 @@ siginfo_handler(int sig)
 	/* Record that SIGINFO or SIGUSR1 has been received. */
 	siginfo_received = 1;
 }
+#endif
 
 void
 siginfo_init(struct bsdtar *bsdtar)
