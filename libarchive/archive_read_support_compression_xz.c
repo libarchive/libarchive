@@ -302,11 +302,11 @@ xz_lzma_bidder_init(struct archive_read_filter *self)
 	 */
 	if (self->code == ARCHIVE_COMPRESSION_XZ)
 		ret = lzma_stream_decoder(&(state->stream),
-		    (1U << 23) + (1U << 21),/* memlimit */
+		    (1U << 30),/* memlimit */
 		    LZMA_CONCATENATED);
 	else
 		ret = lzma_alone_decoder(&(state->stream),
-		    (1U << 23) + (1U << 21));/* memlimit */
+		    (1U << 30));/* memlimit */
 
 	if (ret == LZMA_OK)
 		return (ARCHIVE_OK);
