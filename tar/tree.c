@@ -312,10 +312,8 @@ tree_next(struct tree *t)
 	/* If we're called again after a fatal error, that's an API
 	 * violation.  Just crash now. */
 	if (t->visit_type == TREE_ERROR_FATAL) {
-		const char *msg = "Unable to continue traversing"
-		    " directory heirarchy after a fatal error.";
-		size_t s = write(2, msg, strlen(msg));
-		(void)s; /* UNUSED */
+		fprintf(stderr, "Unable to continue traversing"
+		    " directory heirarchy after a fatal error.");
 		*(int *)0 = 1; /* Deliberate SEGV; NULL pointer dereference. */
 		exit(1); /* In case the SEGV didn't work. */
 	}
