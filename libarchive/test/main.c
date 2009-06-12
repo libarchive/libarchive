@@ -34,7 +34,9 @@
 #include <stdarg.h>
 #include <time.h>
 #if defined(_WIN32) && !defined(__CYGWIN__)
+#if !defined(__GNUC__)
 #include <crtdbg.h>
+#endif
 #include <windows.h>
 #include <winbase.h>
 #endif
@@ -89,7 +91,7 @@ static int assertions = 0;
 static const char *refdir;
 
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
+#if defined(_WIN32) && !defined(__CYGWIN__) && !defined(__GNUC__)
 
 static void
 invalid_parameter_handler(const wchar_t * expression,
@@ -970,6 +972,8 @@ get_refdir(void)
 		pwd[strlen(pwd) - 1] = '\0';
 	printf("PWD: %s\n", pwd);
 
+#undef snprintf
+
 	/* Look for a known file. */
 	snprintf(buff, sizeof(buff), "%s", pwd);
 	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
@@ -1029,7 +1033,7 @@ int main(int argc, char **argv)
 
 	(void)argc; /* UNUSED */
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
+#if defined(_WIN32) && !defined(__CYGWIN__) && !defined(__GNUC__)
 	/* To stop to run the default invalid parameter handler. */
 	_set_invalid_parameter_handler(invalid_parameter_handler);
 	/* for open() to a binary mode. */
