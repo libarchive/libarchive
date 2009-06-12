@@ -174,9 +174,9 @@ struct zip {
 	struct zip_data_descriptor data_descriptor;
 	struct zip_file_header_link *central_directory;
 	struct zip_file_header_link *central_directory_end;
-	off_t offset;
-	size_t written_bytes;
-	off_t remaining_data_bytes;
+	int64_t offset;
+	int64_t written_bytes;
+	int64_t remaining_data_bytes;
 	enum compression compression;
 
 #ifdef HAVE_ZLIB_H
