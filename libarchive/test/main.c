@@ -960,19 +960,27 @@ external_gzip_program(int un)
 }
 
 static char *
-get_refdir(void)
+get_refdir(const char *d)
 {
 	char tried[512] = { '\0' };
 	char buff[128];
 	char *pwd, *p;
+
+	/* If a dir was specified, try that */
+	if (d != NULL) {
+		pwd = NULL;
+		strcpy(buff, d);
+		p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
+		if (p != NULL) goto success;
+		strcat(tried, d);
+		goto failure;
+	}
 
 	/* Get the current dir. */
 	pwd = getcwd(NULL, 0);
 	while (pwd[strlen(pwd) - 1] == '\n')
 		pwd[strlen(pwd) - 1] = '\0';
 	printf("PWD: %s\n", pwd);
-
-#undef snprintf
 
 	/* Look for a known file. */
 	snprintf(buff, sizeof(buff), "%s", pwd);
@@ -1007,6 +1015,7 @@ get_refdir(void)
 		strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
 	}
 
+failure:
 #if defined(_WIN32) && !defined(__CYGWIN__) && defined(_DEBUG)
 	DebugBreak();
 #endif
@@ -1159,8 +1168,7 @@ int main(int argc, char **argv)
 	 * reference files, try to find the reference files in
 	 * the "usual places."
 	 */
-	if (refdir == NULL)
-		refdir = refdir_alloc = get_refdir();
+	refdir = refdir_alloc = get_refdir(refdir);
 
 	/*
 	 * Banner with basic information.
