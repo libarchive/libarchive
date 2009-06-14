@@ -32,16 +32,18 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/test/test_symlink_dir.c,v 1.1 2008/09/14 02:
  */
 
 static int
-mkfile(const char *name, int mode, const char *contents, ssize_t size)
+mkfile(const char *name, int mode, const char *contents, size_t size)
 {
-	int fd = open(name, O_CREAT | O_WRONLY, mode);
-	if (fd < 0)
+	FILE *f = fopen(name, "wb");
+	size_t written;
+
+	(void)mode; /* UNUSED */
+	if (f == NULL)
 		return (-1);
-	if (size != write(fd, contents, size)) {
-		close(fd);
+	written = fwrite(contents, 1, size, f);
+	fclose(f);
+	if (size != written)
 		return (-1);
-	}
-	close(fd);
 	return (0);
 }
 

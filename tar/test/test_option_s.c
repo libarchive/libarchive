@@ -28,15 +28,15 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/test/test_option_T.c,v 1.3 2008/08/15 06:12:
 static int
 mkfile(const char *fn, const char *contents)
 {
-	int fd = open(fn, O_RDWR | O_CREAT, 0644);
-	failure("Couldn't create file '%s', fd=%d, errno=%d (%s)\n",
-	    fn, fd, errno, strerror(errno));
-	if (!assert(fd > 0))
+	FILE *f = fopen(fn, "w");
+	failure("Couldn't create file '%s', errno=%d (%s)\n",
+	    fn, errno, strerror(errno));
+	if (!assert(f != NULL))
 		return (1); /* Failure. */
 	if (contents != NULL)
 		assertEqualInt(strlen(contents),
-		    write(fd, contents, strlen(contents)));
-	assertEqualInt(0, close(fd));
+		    fwrite(contents, 1, strlen(contents), f));
+	assertEqualInt(0, fclose(f));
 	return (0); /* Success */
 }
 

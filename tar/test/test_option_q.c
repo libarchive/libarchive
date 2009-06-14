@@ -27,7 +27,7 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/test/test_option_q.c,v 1.3 2008/08/22 01:35:
 
 DEFINE_TEST(test_option_q)
 {
-	int fd;
+	FILE *f;
 
 	/*
 	 * Create an archive with several different versions of the
@@ -39,38 +39,38 @@ DEFINE_TEST(test_option_q)
 	 * what we use to build up the test archive.
 	 */
 
-	fd = open("foo", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	assertEqualInt(4, write(fd, "foo1", 4));
-	close(fd);
+	f = fopen("foo", "w");
+	assert(f != NULL);
+	fprintf(f, "foo1");
+	fclose(f);
 
 	assertEqualInt(0, systemf("%s -cf archive.tar foo", testprog));
 
-	fd = open("foo", O_TRUNC | O_WRONLY, 0644);
-	assert(fd >= 0);
-	assertEqualInt(4, write(fd, "foo2", 4));
-	close(fd);
+	f = fopen("foo", "w");
+	assert(f != NULL);
+	fprintf(f, "foo2");
+	fclose(f);
 
 	assertEqualInt(0, systemf("%s -rf archive.tar foo", testprog));
 
-	fd = open("bar", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	assertEqualInt(4, write(fd, "bar1", 4));
-	close(fd);
+	f = fopen("bar", "w");
+	assert(f != NULL);
+	fprintf(f, "bar1");
+	fclose(f);
 
 	assertEqualInt(0, systemf("%s -rf archive.tar bar", testprog));
 
-	fd = open("foo", O_TRUNC | O_WRONLY, 0644);
-	assert(fd >= 0);
-	assertEqualInt(4, write(fd, "foo3", 4));
-	close(fd);
+	f = fopen("foo", "w");
+	assert(f != NULL);
+	fprintf(f, "foo3");
+	fclose(f);
 
 	assertEqualInt(0, systemf("%s -rf archive.tar foo", testprog));
 
-	fd = open("bar", O_TRUNC | O_WRONLY, 0644);
-	assert(fd >= 0);
-	assertEqualInt(4, write(fd, "bar2", 4));
-	close(fd);
+	f = fopen("bar", "w");
+	assert(f != NULL);
+	fprintf(f, "bar2");
+	fclose(f);
 
 	assertEqualInt(0, systemf("%s -rf archive.tar bar", testprog));
 

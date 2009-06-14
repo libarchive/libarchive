@@ -27,8 +27,8 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/test/test_stdio.c,v 1.2 2008/05/26 17:10:10 
 
 DEFINE_TEST(test_stdio)
 {
-	int fd;
-	int filelist;
+	FILE *f;
+	FILE *filelist;
 	int oldumask;
 	int r;
 
@@ -37,17 +37,18 @@ DEFINE_TEST(test_stdio)
 	/*
 	 * Create a couple of files on disk.
 	 */
-	filelist = open("filelist", O_CREAT | O_WRONLY, 0644);
+	filelist = fopen("filelist", "w");
+	assert(filelist != NULL);
 	/* File */
-	fd = open("f", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	write(fd, "f\n", 2);
-	close(fd);
-	write(filelist, "f\n", 2);
+	f = fopen("f", "w");
+	assert(f != NULL);
+	fprintf(f, "f\n");
+	fclose(f);
+	fprintf(filelist, "f\n");
 	/* Link to above file. */
 	assertEqualInt(0, link("f", "l"));
-	write(filelist, "l\n", 2);
-	close(filelist);
+	fprintf(filelist, "l\n");
+	fclose(filelist);
 
 	/*
 	 * Archive/dearchive with a variety of options, verifying

@@ -28,12 +28,12 @@
 static void
 mkfile(const char *name)
 {
-	int fd;
+	FILE *f;
 
-	fd = open(name, O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	assertEqualInt(5, write(fd, "01234", 5));
-	close(fd);
+	f = fopen(name, "wb");
+	assert(f != NULL);
+	assertEqualInt(5, fwrite("01234", 1, 5, f));
+	fclose(f);
 }
 
 static void

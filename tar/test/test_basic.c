@@ -31,19 +31,12 @@ basic_tar(const char *target, const char *pack_options,
     const char *unpack_options, const char *flist)
 {
 	struct stat st, st2;
-#if !defined(_WIN32) || defined(__CYGWIN__)
-	char buff[128];
-#endif
 	int r;
 
 	assertEqualInt(0, mkdir(target, 0775));
 
 	/* Use the tar program to create an archive. */
-#if !defined(_WIN32) || defined(__CYGWIN__)
-	r = systemf("%s cf - %s `cat %s` >%s/archive 2>%s/pack.err", testprog, pack_options, flist, target, target);
-#else
 	r = systemf("%s cf - %s %s >%s/archive 2>%s/pack.err", testprog, pack_options, flist, target, target);
-#endif
 	failure("Error invoking %s cf -", testprog, pack_options);
 	assertEqualInt(r, 0);
 
@@ -72,11 +65,6 @@ basic_tar(const char *target, const char *pack_options,
 	assertEqualInt(r, 0);
 	if (r == 0) {
 		assert(S_ISREG(st.st_mode));
-#if !defined(_WIN32) || defined(__CYGWIN__)
-		assertEqualInt(0644, st.st_mode & 0777);
-#else
-		assertEqualInt(0600, st.st_mode & 0700);
-#endif
 		assertEqualInt(10, st.st_size);
 		failure("file %s/file", target);
 		assertEqualInt(2, st.st_nlink);
@@ -88,11 +76,6 @@ basic_tar(const char *target, const char *pack_options,
 	assertEqualInt(r, 0);
 	if (r == 0) {
 		assert(S_ISREG(st2.st_mode));
-#if !defined(_WIN32) || defined(__CYGWIN__)
-		assertEqualInt(0644, st2.st_mode & 0777);
-#else
-		assertEqualInt(0600, st2.st_mode & 0700);
-#endif
 		assertEqualInt(10, st2.st_size);
 		failure("file %s/linkfile", target);
 		assertEqualInt(2, st2.st_nlink);
@@ -112,6 +95,7 @@ basic_tar(const char *target, const char *pack_options,
 		    st.st_mode);
 		assert(S_ISLNK(st.st_mode));
 		if (S_ISLNK(st.st_mode)) {
+			char buff[128];
 			r = readlink("symlink", buff, sizeof(buff));
 			assertEqualInt(r, 4);
 			buff[r] = '\0';
@@ -137,44 +121,28 @@ basic_tar(const char *target, const char *pack_options,
 
 DEFINE_TEST(test_basic)
 {
-	int fd;
-	int filelist;
+	FILE *f;
 	int oldumask;
 	const char *flist;
 
 	oldumask = umask(0);
 
-	/*
-	 * Create an assortment of files on disk.
-	 */
-	filelist = open("filelist", O_CREAT | O_WRONLY, 0644);
-
 	/* File with 10 bytes content. */
-	fd = open("file", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	assertEqualInt(10, write(fd, "123456789", 10));
-	close(fd);
-	write(filelist, "file\n", 5);
+	f = fopen("file", "wb");
+	assert(f != NULL);
+	assertEqualInt(10, fwrite("123456789", 1, 10, f));
+	fclose(f);
 
 	/* hardlink to above file. */
 	assertEqualInt(0, link("file", "linkfile"));
-	write(filelist, "linkfile\n", 9);
 
 	/* Symlink to above file. */
 	assertEqualInt(0, symlink("file", "symlink"));
-	write(filelist, "symlink\n", 8);
 
 	/* Directory. */
 	assertEqualInt(0, mkdir("dir", 0775));
-	write(filelist, "dir\n", 4);
-	/* All done. */
-	close(filelist);
 
-#if !defined(_WIN32) || defined(__CYGWIN__)
-	flist = "filelist";
-#else
 	flist = "file linkfile symlink dir";
-#endif
 	/* Archive/dearchive with a variety of options. */
 	basic_tar("copy", "", "", flist);
 	/* tar doesn't handle cpio symlinks correctly */

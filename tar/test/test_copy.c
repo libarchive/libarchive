@@ -33,7 +33,7 @@ create_tree(void)
 	char buff[260];
 	char buff2[260];
 	int i;
-	int fd;
+	FILE *f;
 
 	assertEqualInt(0, mkdir("original", 0775));
 	chdir("original");
@@ -49,10 +49,10 @@ create_tree(void)
 		/* Create a file named "f/abcdef..." */
 		buff[i + 2] = 'a' + (i % 26);
 		buff[i + 3] = '\0';
-		fd = open(buff, O_CREAT | O_WRONLY, 0644);
-		assert(fd >= 0);
-		assertEqualInt(i + 3, write(fd, buff, strlen(buff)));
-		close(fd);
+		f = fopen(buff, "w+");
+		assert(f != NULL);
+		fprintf(f, buff);
+		fclose(f);
 
 		/* Create a link named "l/abcdef..." to the above. */
 		strcpy(buff2, buff);
@@ -95,7 +95,7 @@ verify_tree(int limit)
 	char name2[260];
 	char contents[260];
 	int i, j, r;
-	int fd;
+	FILE *f;
 	int len;
 	const char *p, *dp;
 	DIR *d;
@@ -116,12 +116,12 @@ verify_tree(int limit)
 		strcpy(name1, "f/");
 		strcat(name1, filename);
 		if (limit != LIMIT_USTAR || strlen(filename) <= 100) {
-			fd = open(name1, O_RDONLY);
+			f = fopen(name1, "rb");
 			failure("Couldn't open \"%s\": %s",
 			    name1, strerror(errno));
-			if (assert(fd >= 0)) {
-				len = read(fd, contents, i + 10);
-				close(fd);
+			if (assert(f != NULL)) {
+				len = fread(contents, 1, i + 10, f);
+				fclose(f);
 				assertEqualInt(len, i + 2);
 				/* Verify contents of 'contents' */
 				contents[len] = '\0';

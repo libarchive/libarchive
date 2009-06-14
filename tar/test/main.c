@@ -468,7 +468,7 @@ test_assert_empty_file(const char *f1fmt, ...)
 	struct stat st;
 	va_list ap;
 	ssize_t s;
-	int fd;
+	FILE *f;
 
 
 	va_start(ap, f1fmt);
@@ -492,15 +492,15 @@ test_assert_empty_file(const char *f1fmt, ...)
 	fprintf(stderr, "%s:%d: File not empty: %s\n", test_filename, test_line, f1);
 	fprintf(stderr, "    File size: %d\n", (int)st.st_size);
 	fprintf(stderr, "    Contents:\n");
-	fd = open(f1, O_RDONLY);
-	if (fd < 0) {
+	f = fopen(f1, "rb");
+	if (f != NULL) {
 		fprintf(stderr, "    Unable to open %s\n", f1);
 	} else {
 		s = ((off_t)sizeof(buff) < st.st_size) ?
 		    (ssize_t)sizeof(buff) : (ssize_t)st.st_size;
-		s = read(fd, buff, s);
+		s = fread(buff, 1, s, f);
 		hexdump(buff, NULL, s, 0);
-		close(fd);
+		fclose(f);
 	}
 	report_failure(NULL);
 	return (0);
@@ -541,43 +541,43 @@ test_assert_non_empty_file(const char *f1fmt, ...)
 /* assertEqualFile() asserts that two files have the same contents. */
 /* TODO: hexdump the first bytes that actually differ. */
 int
-test_assert_equal_file(const char *f1, const char *f2pattern, ...)
+test_assert_equal_file(const char *fn1, const char *f2pattern, ...)
 {
-	char f2[1024];
+	char fn2[1024];
 	va_list ap;
 	char buff1[1024];
 	char buff2[1024];
-	int fd1, fd2;
+	FILE *f1, *f2;
 	int n1, n2;
 
 	va_start(ap, f2pattern);
-	vsprintf(f2, f2pattern, ap);
+	vsprintf(fn2, f2pattern, ap);
 	va_end(ap);
 
-	fd1 = open(f1, O_RDONLY);
-	fd2 = open(f2, O_RDONLY);
+	f1 = fopen(fn1, "rb");
+	f2 = fopen(fn2, "rb");
 	for (;;) {
-		n1 = read(fd1, buff1, sizeof(buff1));
-		n2 = read(fd2, buff2, sizeof(buff2));
+		n1 = fread(buff1, 1, sizeof(buff1), f1);
+		n2 = fread(buff2, 1, sizeof(buff2), f2);
 		if (n1 != n2)
 			break;
 		if (n1 == 0 && n2 == 0) {
-			close(fd1);
-			close(fd2);
+			fclose(f1);
+			fclose(f2);
 			return (1);
 		}
 		if (memcmp(buff1, buff2, n1) != 0)
 			break;
 	}
-	close(fd1);
-	close(fd2);
+	fclose(f1);
+	fclose(f2);
 	failures ++;
 	if (!verbose && previous_failures(test_filename, test_line))
 		return (0);
 	fprintf(stderr, "%s:%d: Files are not identical\n",
 	    test_filename, test_line);
-	fprintf(stderr, "  file1=\"%s\"\n", f1);
-	fprintf(stderr, "  file2=\"%s\"\n", f2);
+	fprintf(stderr, "  file1=\"%s\"\n", fn1);
+	fprintf(stderr, "  file2=\"%s\"\n", fn2);
 	report_failure(test_extra);
 	return (0);
 }
@@ -628,29 +628,29 @@ test_assert_file_not_exists(const char *fpattern, ...)
 int
 test_assert_file_contents(const void *buff, int s, const char *fpattern, ...)
 {
-	char f[1024];
+	char fn[1024];
 	va_list ap;
 	char *contents;
-	int fd;
+	FILE *f;
 	int n;
 
 	va_start(ap, fpattern);
-	vsprintf(f, fpattern, ap);
+	vsprintf(fn, fpattern, ap);
 	va_end(ap);
 
-	fd = open(f, O_RDONLY);
-	if (fd < 0) {
+	f = fopen(fn, "rb");
+	if (f == NULL) {
 		failures ++;
 		if (!previous_failures(test_filename, test_line)) {
 			fprintf(stderr, "%s:%d: File doesn't exist: %s\n",
-			    test_filename, test_line, f);
+			    test_filename, test_line, fn);
 			report_failure(test_extra);
 		}
 		return (0);
 	}
 	contents = malloc(s * 2);
-	n = read(fd, contents, s * 2);
-	close(fd);
+	n = fread(contents, 1, s * 2, f);
+	fclose(f);
 	if (n == s && memcmp(buff, contents, s) == 0) {
 		free(contents);
 		return (1);
@@ -659,7 +659,7 @@ test_assert_file_contents(const void *buff, int s, const char *fpattern, ...)
 	if (!previous_failures(test_filename, test_line)) {
 		fprintf(stderr, "%s:%d: File contents don't match\n",
 		    test_filename, test_line);
-		fprintf(stderr, "  file=\"%s\"\n", f);
+		fprintf(stderr, "  file=\"%s\"\n", fn);
 		if (n > 0)
 			hexdump(contents, buff, n, 0);
 		else {
@@ -703,41 +703,41 @@ slurpfile(size_t * sizep, const char *fmt, ...)
 	va_list ap;
 	char *p;
 	ssize_t bytes_read;
-	int fd;
+	FILE *f;
 	int r;
 
 	va_start(ap, fmt);
 	vsprintf(filename, fmt, ap);
 	va_end(ap);
 
-	fd = open(filename, O_RDONLY);
-	if (fd < 0) {
+	f = fopen(filename, "rb");
+	if (f == NULL) {
 		/* Note: No error; non-existent file is okay here. */
 		return (NULL);
 	}
-	r = fstat(fd, &st);
+	r = fstat(fileno(f), &st);
 	if (r != 0) {
 		fprintf(stderr, "Can't stat file %s\n", filename);
-		close(fd);
+		fclose(f);
 		return (NULL);
 	}
 	p = malloc(st.st_size + 1);
 	if (p == NULL) {
 		fprintf(stderr, "Can't allocate %ld bytes of memory to read file %s\n", (long int)st.st_size, filename);
-		close(fd);
+		fclose(f);
 		return (NULL);
 	}
-	bytes_read = read(fd, p, st.st_size);
+	bytes_read = fread(p, 1, st.st_size, f);
 	if (bytes_read < st.st_size) {
 		fprintf(stderr, "Can't read file %s\n", filename);
-		close(fd);
+		fclose(f);
 		free(p);
 		return (NULL);
 	}
 	p[st.st_size] = '\0';
 	if (sizep != NULL)
 		*sizep = (size_t)st.st_size;
-	close(fd);
+	fclose(f);
 	return (p);
 }
 
