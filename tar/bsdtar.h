@@ -152,7 +152,7 @@ void	tar_mode_r(struct bsdtar *bsdtar);
 void	tar_mode_t(struct bsdtar *bsdtar);
 void	tar_mode_u(struct bsdtar *bsdtar);
 void	tar_mode_x(struct bsdtar *bsdtar);
-void	usage(struct bsdtar *);
+void	usage(void);
 int	yes(const char *fmt, ...);
 
 #if HAVE_REGEX_H

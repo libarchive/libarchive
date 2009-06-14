@@ -85,7 +85,7 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/bsdtar.c,v 1.93 2008/11/08 04:43:24 kientzle
 /* External function to parse a date/time string (from getdate.y) */
 time_t get_date(time_t, const char *);
 
-static void		 long_help(struct bsdtar *);
+static void		 long_help(void);
 static void		 only_mode(struct bsdtar *, const char *opt,
 			     const char *valid);
 static void		 set_mode(struct bsdtar *, char opt);
@@ -230,7 +230,7 @@ main(int argc, char **argv)
 			possible_help_request = 1;
 			break;
 		case OPTION_HELP: /* GNU tar, others */
-			long_help(bsdtar);
+			long_help();
 			exit(0);
 			break;
 		case 'I': /* GNU tar */
@@ -475,7 +475,7 @@ main(int argc, char **argv)
 			bsdtar->compress_program = bsdtar->optarg;
 			break;
 		default:
-			usage(bsdtar);
+			usage();
 		}
 	}
 
@@ -485,7 +485,7 @@ main(int argc, char **argv)
 
 	/* If no "real" mode was specified, treat -h as --help. */
 	if ((bsdtar->mode == '\0') && possible_help_request) {
-		long_help(bsdtar);
+		long_help();
 		exit(0);
 	}
 
@@ -599,7 +599,7 @@ only_mode(struct bsdtar *bsdtar, const char *opt, const char *valid_modes)
 
 
 void
-usage(struct bsdtar *bsdtar)
+usage(void)
 {
 	const char	*p;
 
@@ -658,7 +658,7 @@ static const char *long_help_msg =
  *          echo bsdtar; else echo not bsdtar; fi
  */
 static void
-long_help(struct bsdtar *bsdtar)
+long_help(void)
 {
 	const char	*prog;
 	const char	*p;

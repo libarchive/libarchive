@@ -155,7 +155,7 @@ tar_mode_c(struct bsdtar *bsdtar)
 		fprintf(stderr, "Can't use format %s: %s\n",
 		    bsdtar->create_format,
 		    archive_error_string(a));
-		usage(bsdtar);
+		usage();
 	}
 
 	/*

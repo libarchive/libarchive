@@ -142,7 +142,7 @@ add_substitution(struct bsdtar *bsdtar, const char *rule_text)
 }
 
 static void
-realloc_strncat(struct bsdtar *bsdtar, char **str, const char *append, size_t len)
+realloc_strncat(char **str, const char *append, size_t len)
 {
 	char *new_str;
 	size_t old_len;
@@ -163,7 +163,7 @@ realloc_strncat(struct bsdtar *bsdtar, char **str, const char *append, size_t le
 }
 
 static void
-realloc_strcat(struct bsdtar *bsdtar, char **str, const char *append)
+realloc_strcat(char **str, const char *append)
 {
 	char *new_str;
 	size_t old_len;
@@ -208,12 +208,12 @@ apply_substitution(struct bsdtar *bsdtar, const char *name, char **result, int s
 
 		got_match = 1;
 		print_match |= rule->print;
-		realloc_strncat(bsdtar, result, name, matches[0].rm_so);
+		realloc_strncat(result, name, matches[0].rm_so);
 
 		for (i = 0, j = 0; rule->result[i] != '\0'; ++i) {
 			if (rule->result[i] == '~') {
-				realloc_strncat(bsdtar, result, rule->result + j, i - j);
-				realloc_strncat(bsdtar, result, name, matches[0].rm_eo);
+				realloc_strncat(result, rule->result + j, i - j);
+				realloc_strncat(result, name, matches[0].rm_eo);
 				j = i + 1;
 				continue;
 			}
@@ -225,7 +225,7 @@ apply_substitution(struct bsdtar *bsdtar, const char *name, char **result, int s
 			switch (c) {
 			case '~':
 			case '\\':
-				realloc_strncat(bsdtar, result, rule->result + j, i - j - 1);
+				realloc_strncat(result, rule->result + j, i - j - 1);
 				j = i;
 				break;
 			case '1':
@@ -237,13 +237,13 @@ apply_substitution(struct bsdtar *bsdtar, const char *name, char **result, int s
 			case '7':
 			case '8':
 			case '9':
-				realloc_strncat(bsdtar, result, rule->result + j, i - j - 1);
+				realloc_strncat(result, rule->result + j, i - j - 1);
 				if ((size_t)(c - '0') > (size_t)(rule->re.re_nsub)) {
 					free(*result);
 					*result = NULL;
 					return -1;
 				}
-				realloc_strncat(bsdtar, result, name + matches[c - '0'].rm_so, matches[c - '0'].rm_eo - matches[c - '0'].rm_so);
+				realloc_strncat(result, name + matches[c - '0'].rm_so, matches[c - '0'].rm_eo - matches[c - '0'].rm_so);
 				j = i + 1;
 				break;
 			default:
@@ -253,7 +253,7 @@ apply_substitution(struct bsdtar *bsdtar, const char *name, char **result, int s
 
 		}
 
-		realloc_strcat(bsdtar, result, rule->result + j);
+		realloc_strcat(result, rule->result + j);
 
 		name += matches[0].rm_eo;
 
@@ -262,7 +262,7 @@ apply_substitution(struct bsdtar *bsdtar, const char *name, char **result, int s
 	}
 
 	if (got_match)
-		realloc_strcat(bsdtar, result, name);
+		realloc_strcat(result, name);
 
 	if (print_match)
 		fprintf(stderr, "%s >> %s\n", path, *result);
