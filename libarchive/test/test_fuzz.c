@@ -79,7 +79,7 @@ DEFINE_TEST(test_fuzz)
 		struct archive *a;
 		char *rawimage, *image;
 		size_t size;
-		int i, r;
+		int i;
 
 		extract_reference_file(*filep);
 		rawimage = slurpfile(&size, *filep);
