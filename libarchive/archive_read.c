@@ -384,7 +384,8 @@ build_stream(struct archive_read *a)
 		}
 		/* Verify the filter by asking it for some data. */
 		__archive_read_filter_ahead(filter, 1, &avail);
-		if (avail < ARCHIVE_OK) {
+		if (avail < 0) {
+			/* If the read failed, bail out now. */
 			free(filter);
 			return (avail);
 		}
