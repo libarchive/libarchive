@@ -159,10 +159,10 @@ struct tar {
 	wchar_t 		*pax_entry;
 	size_t			 pax_entry_length;
 	int			 header_recursion_depth;
-	off_t			 entry_bytes_remaining;
-	off_t			 entry_offset;
-	off_t			 entry_padding;
-	off_t			 realsize;
+	int64_t			 entry_bytes_remaining;
+	int64_t			 entry_offset;
+	int64_t			 entry_padding;
+	int64_t			 realsize;
 	struct sparse_block	*sparse_list;
 	struct sparse_block	*sparse_last;
 	int64_t			 sparse_offset;
@@ -509,7 +509,7 @@ archive_read_format_tar_read_data(struct archive_read *a,
 static int
 archive_read_format_tar_skip(struct archive_read *a)
 {
-	off_t bytes_skipped;
+	int64_t bytes_skipped;
 	struct tar* tar;
 
 	tar = (struct tar *)(a->format->data);
