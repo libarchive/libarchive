@@ -518,7 +518,7 @@ test_assert_empty_file(const char *f1fmt, ...)
 	struct stat st;
 	va_list ap;
 	ssize_t s;
-	int fd;
+	FILE *f;
 
 
 	va_start(ap, f1fmt);
@@ -540,14 +540,48 @@ test_assert_empty_file(const char *f1fmt, ...)
 	fprintf(stderr, "%s:%d: File not empty: %s\n", test_filename, test_line, f1);
 	fprintf(stderr, "    File size: %d\n", (int)st.st_size);
 	fprintf(stderr, "    Contents:\n");
-	fd = open(f1, O_RDONLY | O_BINARY);
-	if (fd < 0) {
+	f = fopen(f1, "rb");
+	if (f != NULL) {
 		fprintf(stderr, "    Unable to open %s\n", f1);
 	} else {
-		s = sizeof(buff) < st.st_size ? sizeof(buff) : st.st_size;
-		s = read(fd, buff, s);
+		s = ((off_t)sizeof(buff) < st.st_size) ?
+		    (ssize_t)sizeof(buff) : (ssize_t)st.st_size;
+		s = fread(buff, 1, s, f);
 		hexdump(buff, NULL, s, 0);
+		fclose(f);
 	}
+	report_failure(NULL);
+	return (0);
+}
+
+int
+test_assert_non_empty_file(const char *f1fmt, ...)
+{
+	char f1[1024];
+	struct stat st;
+	va_list ap;
+
+
+	va_start(ap, f1fmt);
+	vsprintf(f1, f1fmt, ap);
+	va_end(ap);
+
+	if (stat(f1, &st) != 0) {
+		fprintf(stderr, "%s:%d: Could not stat: %s\n",
+		    test_filename, test_line, f1);
+		report_failure(NULL);
+		failures++;
+		return (0);
+	}
+	if (st.st_size != 0)
+		return (1);
+
+	failures ++;
+	if (!verbose && previous_failures(test_filename, test_line, 1))
+		return (0);
+
+	fprintf(stderr, "%s:%d: File empty: %s\n",
+	    test_filename, test_line, f1);
 	report_failure(NULL);
 	return (0);
 }
@@ -555,38 +589,43 @@ test_assert_empty_file(const char *f1fmt, ...)
 /* assertEqualFile() asserts that two files have the same contents. */
 /* TODO: hexdump the first bytes that actually differ. */
 int
-test_assert_equal_file(const char *f1, const char *f2pattern, ...)
+test_assert_equal_file(const char *fn1, const char *f2pattern, ...)
 {
-	char f2[1024];
+	char fn2[1024];
 	va_list ap;
 	char buff1[1024];
 	char buff2[1024];
-	int fd1, fd2;
+	FILE *f1, *f2;
 	int n1, n2;
 
 	va_start(ap, f2pattern);
-	vsprintf(f2, f2pattern, ap);
+	vsprintf(fn2, f2pattern, ap);
 	va_end(ap);
 
-	fd1 = open(f1, O_RDONLY | O_BINARY);
-	fd2 = open(f2, O_RDONLY | O_BINARY);
+	f1 = fopen(fn1, "rb");
+	f2 = fopen(fn2, "rb");
 	for (;;) {
-		n1 = read(fd1, buff1, sizeof(buff1));
-		n2 = read(fd2, buff2, sizeof(buff2));
+		n1 = fread(buff1, 1, sizeof(buff1), f1);
+		n2 = fread(buff2, 1, sizeof(buff2), f2);
 		if (n1 != n2)
 			break;
-		if (n1 == 0 && n2 == 0)
+		if (n1 == 0 && n2 == 0) {
+			fclose(f1);
+			fclose(f2);
 			return (1);
+		}
 		if (memcmp(buff1, buff2, n1) != 0)
 			break;
 	}
+	fclose(f1);
+	fclose(f2);
 	failures ++;
 	if (!verbose && previous_failures(test_filename, test_line, 1))
 		return (0);
 	fprintf(stderr, "%s:%d: Files are not identical\n",
 	    test_filename, test_line);
-	fprintf(stderr, "  file1=\"%s\"\n", f1);
-	fprintf(stderr, "  file2=\"%s\"\n", f2);
+	fprintf(stderr, "  file1=\"%s\"\n", fn1);
+	fprintf(stderr, "  file2=\"%s\"\n", fn2);
 	report_failure(test_extra);
 	return (0);
 }
@@ -637,19 +676,29 @@ test_assert_file_not_exists(const char *fpattern, ...)
 int
 test_assert_file_contents(const void *buff, int s, const char *fpattern, ...)
 {
-	char f[1024];
+	char fn[1024];
 	va_list ap;
 	char *contents;
-	int fd;
+	FILE *f;
 	int n;
 
 	va_start(ap, fpattern);
-	vsprintf(f, fpattern, ap);
+	vsprintf(fn, fpattern, ap);
 	va_end(ap);
 
-	fd = open(f, O_RDONLY | O_BINARY);
+	f = fopen(fn, "rb");
+	if (f == NULL) {
+		failures ++;
+		if (!previous_failures(test_filename, test_line, 1)) {
+			fprintf(stderr, "%s:%d: File doesn't exist: %s\n",
+			    test_filename, test_line, fn);
+			report_failure(test_extra);
+		}
+		return (0);
+	}
 	contents = malloc(s * 2);
-	n = read(fd, contents, s * 2);
+	n = fread(contents, 1, s * 2, f);
+	fclose(f);
 	if (n == s && memcmp(buff, contents, s) == 0) {
 		free(contents);
 		return (1);
@@ -658,7 +707,7 @@ test_assert_file_contents(const void *buff, int s, const char *fpattern, ...)
 	if (!previous_failures(test_filename, test_line, 1)) {
 		fprintf(stderr, "%s:%d: File contents don't match\n",
 		    test_filename, test_line);
-		fprintf(stderr, "  file=\"%s\"\n", f);
+		fprintf(stderr, "  file=\"%s\"\n", fn);
 		if (n > 0)
 			hexdump(contents, buff, n, 0);
 		else {
@@ -702,41 +751,41 @@ slurpfile(size_t * sizep, const char *fmt, ...)
 	va_list ap;
 	char *p;
 	ssize_t bytes_read;
-	int fd;
+	FILE *f;
 	int r;
 
 	va_start(ap, fmt);
 	vsprintf(filename, fmt, ap);
 	va_end(ap);
 
-	fd = open(filename, O_RDONLY | O_BINARY);
-	if (fd < 0) {
+	f = fopen(filename, "rb");
+	if (f == NULL) {
 		/* Note: No error; non-existent file is okay here. */
 		return (NULL);
 	}
-	r = fstat(fd, &st);
+	r = fstat(fileno(f), &st);
 	if (r != 0) {
 		fprintf(stderr, "Can't stat file %s\n", filename);
-		close(fd);
+		fclose(f);
 		return (NULL);
 	}
 	p = malloc(st.st_size + 1);
 	if (p == NULL) {
 		fprintf(stderr, "Can't allocate %ld bytes of memory to read file %s\n", (long int)st.st_size, filename);
-		close(fd);
+		fclose(f);
 		return (NULL);
 	}
-	bytes_read = read(fd, p, st.st_size);
+	bytes_read = fread(p, 1, st.st_size, f);
 	if (bytes_read < st.st_size) {
 		fprintf(stderr, "Can't read file %s\n", filename);
-		close(fd);
+		fclose(f);
 		free(p);
 		return (NULL);
 	}
 	p[st.st_size] = '\0';
 	if (sizep != NULL)
 		*sizep = (size_t)st.st_size;
-	close(fd);
+	fclose(f);
 	return (p);
 }
 
@@ -751,34 +800,6 @@ slurpfile(size_t * sizep, const char *fmt, ...)
 struct { void (*func)(void); const char *name; } tests[] = {
 	#include "list.h"
 };
-
-/*
- * This is well-intentioned, but sometimes the standard libraries
- * leave open file descriptors and expect to be able to come back to
- * them (e.g., for username lookups or logging).  Closing these
- * descriptors out from under those libraries creates havoc.
- *
- * Maybe there's some reasonably portable way to tell if a descriptor
- * is open without using close()?
- */
-#if 0
-static void
-close_descriptors(int warn)
-{
-	int i;
-	int left_open = 0;
-
-	for (i = 3; i < 100; ++i) {
-		if (close(i) == 0)
-			++left_open;
-	}
-	if (warn && left_open > 0) {
-		fprintf(stderr, " ** %d descriptors unclosed\n", left_open);
-		failures += left_open;
-		report_failure(NULL);
-	}
-}
-#endif
 
 /*
  * Each test is run in a private work dir.  Those work dirs
@@ -821,22 +842,17 @@ static int test_run(int i, const char *tmpdir)
 	}
 	/* Explicitly reset the locale before each test. */
 	setlocale(LC_ALL, "C");
-	/* Make sure there are no stray descriptors going into the test. */
-	/* TODO: Find a better way to identify file descriptor leaks. */
-	//close_descriptors(0);
 	/* Run the actual test. */
 	(*tests[i].func)();
-	/* Close stray descriptors, record as errors against this test. */
-	//close_descriptors(1);
 	/* Summarize the results of this test. */
 	summarize();
 	/* If there were no failures, we can remove the work dir. */
 	if (failures == failures_before) {
 		if (!keep_temp_files && chdir(tmpdir) == 0) {
-#if !defined(_WIN32) || defined(__CYGWIN__)
-			systemf("rm -rf %s", tests[i].name);
-#else
+#if defined(_WIN32) && !defined(__CYGWIN__)
 			systemf("rmdir /S /Q %s", tests[i].name);
+#else
+			systemf("rm -rf %s", tests[i].name);
 #endif
 		}
 	}
@@ -895,7 +911,7 @@ extract_reference_file(const char *name)
 	}
 	/* Now, decode the rest and write it. */
 	/* Not a lot of error checking here; the input better be right. */
-	out = fopen(name, "wb");
+	out = fopen(name, "w");
 	while (fgets(buff, sizeof(buff), in) != NULL) {
 		char *p = buff;
 		int bytes;
@@ -1035,7 +1051,10 @@ int main(int argc, char **argv)
 	int i, tests_run = 0, tests_failed = 0, option;
 	time_t now;
 	char *refdir_alloc = NULL;
-	const char *progname = LIBRARY "_test";
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	char *testprg;
+#endif
+	const char *progname;
 	const char *tmp, *option_arg, *p;
 	char tmpdir[256];
 	char tmpdir_timestamp[256];
@@ -1053,6 +1072,18 @@ int main(int argc, char **argv)
 	/* Disable annoying assertion message box. */
 	_CrtSetReportMode(_CRT_ASSERT, 0);
 #endif
+
+	/*
+	 * Name of this program, used to build root of our temp directory
+	 * tree.
+	 */
+	progname = p = argv[0];
+	while (*p != '\0') {
+		/* Support \ or / dir separators for Windows compat. */
+		if (*p == '/' || *p == '\\')
+			progname = p + 1;
+		++p;
+	}
 
 #ifdef PROGRAM
 	/* Get the target program from environment, if available. */
@@ -1140,6 +1171,18 @@ int main(int argc, char **argv)
 #ifdef PROGRAM
 	if (testprog == NULL)
 		usage(progname);
+#endif
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/*
+	 * command.com cannot accept the command used '/' with drive
+	 * name such as c:/xxx/command.exe when use '|' pipe handling.
+	 */
+	testprg = strdup(testprog);
+	for (i = 0; testprg[i] != '\0'; i++) {
+		if (testprg[i] == '/')
+			testprg[i] = '\\';
+	}
+	testprog = testprg;
 #endif
 
 	/*
