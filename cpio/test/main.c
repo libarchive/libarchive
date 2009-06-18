@@ -990,6 +990,7 @@ int main(int argc, char **argv)
 	char *testprg;
 #endif
 	const char *opt_arg, *progname, *p;
+	char *tmp;
 	char tmpdir[256];
 	char tmpdir_timestamp[256];
 
@@ -1017,6 +1018,17 @@ int main(int argc, char **argv)
 	/* Get the target program from environment, if available. */
 	testprog = getenv(ENVBASE);
 #endif
+
+	if (getenv("TMPDIR") != NULL)
+		tmp = getenv("TMPDIR");
+	else if (getenv("TMP") != NULL)
+		tmp = getenv("TMP");
+	else if (getenv("TEMP") != NULL)
+		tmp = getenv("TEMP");
+	else if (getenv("TEMPDIR") != NULL)
+		tmp = getenv("TEMPDIR");
+	else
+		tmp = "/tmp";
 
 	/* Allow -d to be controlled through the environment. */
 	if (getenv(ENVBASE "_DEBUG") != NULL)
@@ -1112,7 +1124,8 @@ int main(int argc, char **argv)
 		strftime(tmpdir_timestamp, sizeof(tmpdir_timestamp),
 		    "%Y-%m-%dT%H.%M.%S",
 		    localtime(&now));
-		sprintf(tmpdir, "/tmp/%s.%s-%03d", progname, tmpdir_timestamp, i);
+		sprintf(tmpdir, "%s/%s.%s-%03d", tmp, progname,
+		    tmpdir_timestamp, i);
 		if (mkdir(tmpdir,0755) == 0)
 			break;
 		if (errno == EEXIST)
