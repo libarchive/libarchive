@@ -2,9 +2,7 @@
 
 LIB=	archive
 DPADD=	${LIBBZ2} ${LIBZ}
-LDADD=	-lbz2 -lz -L/usr/local/lib -llzma
-CFLAGS+= -DHAVE_LZMA_H -DHAVE_LIBLZMA -static -I/usr/local/include
-DEBUG_FLAGS+=-g
+LDADD=	-lbz2 -lz
 
 # FreeBSD SHLIB_MAJOR value is managed as part of the FreeBSD system.
 # It has no real relation to the libarchive version number.
