@@ -121,6 +121,9 @@ archive_read_set_format_options(struct archive *_a, const char *s)
 	size_t i;
 	int len, r;
 
+	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
+	    "archive_read_set_format_options");
+
 	if (s == NULL || *s == '\0')
 		return (ARCHIVE_OK);
 	a = (struct archive_read *)_a;
@@ -165,6 +168,9 @@ archive_read_set_filter_options(struct archive *_a, const char *s)
 	char key[64], val[64];
 	int len, r;
 
+	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
+	    "archive_read_set_filter_options");
+
 	if (s == NULL || *s == '\0')
 		return (ARCHIVE_OK);
 	a = (struct archive_read *)_a;
@@ -205,6 +211,10 @@ int
 archive_read_set_options(struct archive *_a, const char *s)
 {
 	int r;
+
+	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
+	    "archive_read_set_options");
+	archive_clear_error(&a->archive);
 
 	r = archive_read_set_format_options(_a, s);
 	if (r != ARCHIVE_OK)
@@ -290,6 +300,7 @@ archive_read_open2(struct archive *_a, void *client_data,
 
 	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
 	    "archive_read_open");
+	archive_clear_error(&a->archive);
 
 	if (client_reader == NULL)
 		__archive_errx(1,
