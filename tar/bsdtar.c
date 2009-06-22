@@ -398,7 +398,7 @@ main(int argc, char **argv)
 #else
 			lafe_warnc(0,
 			    "-s is not supported by this version of bsdtar");
-			usage(bsdtar);
+			usage();
 #endif
 			break;
 		case OPTION_SAME_OWNER: /* GNU tar */
