@@ -214,7 +214,7 @@ archive_read_set_options(struct archive *_a, const char *s)
 
 	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
 	    "archive_read_set_options");
-	archive_clear_error(&a->archive);
+	archive_clear_error(_a);
 
 	r = archive_read_set_format_options(_a, s);
 	if (r != ARCHIVE_OK)
