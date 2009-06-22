@@ -886,7 +886,7 @@ extract_reference_file(const char *name)
 	}
 	/* Now, decode the rest and write it. */
 	/* Not a lot of error checking here; the input better be right. */
-	out = fopen(name, "w");
+	out = fopen(name, "wb");
 	while (fgets(buff, sizeof(buff), in) != NULL) {
 		char *p = buff;
 		int bytes;
