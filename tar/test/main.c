@@ -1026,9 +1026,7 @@ int main(int argc, char **argv)
 	int i, tests_run = 0, tests_failed = 0, option;
 	time_t now;
 	char *refdir_alloc = NULL;
-#if defined(_WIN32) && !defined(__CYGWIN__)
 	char *testprg;
-#endif
 	const char *progname;
 	const char *tmp, *option_arg, *p;
 	char tmpdir[256];
@@ -1120,7 +1118,7 @@ int main(int argc, char **argv)
 				break;
 			case 'p':
 #ifdef PROGRAM
-				testprog = option_arg;
+				testprogfile = option_arg;
 #else
 				usage(progname);
 #endif
@@ -1144,7 +1142,7 @@ int main(int argc, char **argv)
 	 * Sanity-check that our options make sense.
 	 */
 #ifdef PROGRAM
-	if (testprog == NULL)
+	if (testprogfile == NULL)
 		usage(progname);
 #endif
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -1152,13 +1150,18 @@ int main(int argc, char **argv)
 	 * command.com cannot accept the command used '/' with drive
 	 * name such as c:/xxx/command.exe when use '|' pipe handling.
 	 */
-	testprg = strdup(testprog);
+	testprg = strdup(testprogfile);
 	for (i = 0; testprg[i] != '\0'; i++) {
 		if (testprg[i] == '/')
 			testprg[i] = '\\';
 	}
-	testprog = testprg;
+	testprogfile = testprg;
 #endif
+	testprg = malloc(strlen(testprogfile) + 3);
+	strcpy(testprg, "\"");
+	strcat(testprg, testprogfile);
+	strcat(testprg, "\"");
+	testprog = testprg;
 
 	/*
 	 * Create a temp directory for the following tests.

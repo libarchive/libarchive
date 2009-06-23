@@ -172,4 +172,7 @@ void extract_reference_file(const char *);
  */
 
 /* Pathname of exe to be tested. */
+const char *testprogfile;
+/* Name of exe to use in printf-formatted command strings. */
+/* On Windows, this includes leading/trailing quotes. */
 const char *testprog;
