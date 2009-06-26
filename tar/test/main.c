@@ -734,6 +734,8 @@ systemf(const char *fmt, ...)
 
 	va_start(ap, fmt);
 	vsprintf(buff, fmt, ap);
+	if (verbose > 1)
+		printf("Cmd: %s\n", buff);
 	r = system(buff);
 	va_end(ap);
 	return (r);
@@ -1007,11 +1009,11 @@ get_refdir(const char *d)
 	}
 
 failure:
+	printf("Unable to locate known reference file %s\n", KNOWNREF);
+	printf("  Checked following directories:\n%s\n", tried);
 #if defined(_WIN32) && !defined(__CYGWIN__) && defined(_DEBUG)
 	DebugBreak();
 #endif
-	printf("Unable to locate known reference file %s\n", KNOWNREF);
-	printf("  Checked following directories:\n%s\n", tried);
 	exit(1);
 
 success:
@@ -1130,7 +1132,7 @@ int main(int argc, char **argv)
 				refdir = option_arg;
 				break;
 			case 'v':
-				verbose = 1;
+				verbose ++;
 				break;
 			default:
 				usage(progname);
