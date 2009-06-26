@@ -102,7 +102,7 @@ void
 siginfo_init(struct bsdtar *bsdtar)
 {
 	/* Set the strings to NULL so that free() is safe. */
-	bsdtar->siginfo->path = bsdtar->siginfo->oper = NULL;
+	bsdtar->siginfo = NULL;
 }
 #endif
 
@@ -112,6 +112,8 @@ siginfo_setinfo(struct bsdtar *bsdtar, const char * oper, const char * path,
 {
 
 	/* Free old operation and path strings. */
+	if (bsdtar->siginfo == NULL)
+		return;
 	free(bsdtar->siginfo->oper);
 	free(bsdtar->siginfo->path);
 
@@ -160,10 +162,12 @@ siginfo_done(struct bsdtar *bsdtar)
 	sigaction(SIGUSR1, &bsdtar->siginfo->sigusr1_old, NULL);
 #endif
 
-	/* Free strings. */
-	free(bsdtar->siginfo->path);
-	free(bsdtar->siginfo->oper);
+	if (bsdtar->siginfo) {
+		/* Free strings. */
+		free(bsdtar->siginfo->path);
+		free(bsdtar->siginfo->oper);
 
-	/* Free internal data structure. */
-	free(bsdtar->siginfo);
+		/* Free internal data structure. */
+		free(bsdtar->siginfo);
+	}
 }
