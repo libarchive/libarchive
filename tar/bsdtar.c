@@ -114,12 +114,6 @@ main(int argc, char **argv)
 	memset(bsdtar, 0, sizeof(*bsdtar));
 	bsdtar->fd = -1; /* Mark as "unused" */
 	option_o = 0;
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	/* Make sure open() function will be used with a binary mode. */
-	/* on cygwin, we need something similar, but instead link against */
-	/* a special startup object, binmode.o */
-	_set_fmode(_O_BINARY);
-#endif
 
 	/* Need lafe_progname before calling lafe_warnc. */
 	if (*argv == NULL)
