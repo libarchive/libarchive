@@ -96,7 +96,7 @@ archive_read_open_filename(struct archive *a, const char *filename,
 		 */
 		filename = ""; /* Normalize NULL to "" */
 		fd = 0;
-#if defined(_WIN32_)
+#if defined(_WIN32)
 		_setmode(0, _O_BINARY);
 #endif
 	} else {

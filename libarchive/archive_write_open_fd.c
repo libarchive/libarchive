@@ -64,6 +64,9 @@ archive_write_open_fd(struct archive *a, int fd)
 		return (ARCHIVE_FATAL);
 	}
 	mine->fd = fd;
+#if defined(_WIN32)
+	_setmode(mine->fd, _O_BINARY);
+#endif
 	return (archive_write_open(a, mine,
 		    file_open, file_write, file_close));
 }
