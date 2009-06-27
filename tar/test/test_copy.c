@@ -50,6 +50,7 @@ create_tree(void)
 		buff[i + 2] = 'a' + (i % 26);
 		buff[i + 3] = '\0';
 		f = fopen(buff, "w+");
+		failure("f = fopen(\"%s\", \"w+\")", buff);
 		assert(f != NULL);
 		fprintf(f, buff);
 		fclose(f);
@@ -71,12 +72,14 @@ create_tree(void)
 		buff2[0] = '.';
 		buff2[1] = '.';
 		buff2[2] = '/';
+		failure("buff=\"%s\" buff2=\"%s\"", buff, buff2);
 		assertEqualInt(0, symlink(buff2, buff));
 #else
 		skipping("create a symlink to the above");
 #endif
 		/* Create a dir named "d/abcdef...". */
 		buff[0] = 'd';
+		failure("buff=\"%s\"", buff);
 		assertEqualInt(0, mkdir(buff, 0775));
 	}
 
