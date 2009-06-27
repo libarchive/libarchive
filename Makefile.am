@@ -303,8 +303,6 @@ libarchive_test_SOURCES=					\
 
 libarchive_test_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_builddir)/libarchive/test -DLIBARCHIVE_STATIC
 
-libarchive_test_LDADD=@PROG_LDADD_EXTRA@
-
 # The "list.h" file just lists all of the tests defined in all of the sources.
 # Building it automatically provides a sanity-check on libarchive_test_SOURCES
 # above.
@@ -397,7 +395,7 @@ else
 bsdtar_static=
 endif
 
-bsdtar_LDADD= libarchive.la libarchive_fe.la @PROG_LDADD_EXTRA@
+bsdtar_LDADD= libarchive.la libarchive_fe.la
 bsdtar_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe
 
 bsdtar_LDFLAGS= $(bsdtar_static)
@@ -445,7 +443,6 @@ bsdtar_test_SOURCES=						\
 
 
 bsdtar_test_CPPFLAGS= -I$(top_builddir)/tar/test
-bsdtar_test_LDADD=@PROG_LDADD_EXTRA@
 
 tar/test/list.h: Makefile
 	cat $(top_srcdir)/tar/test/test_*.c | grep DEFINE_TEST > tar/test/list.h
@@ -497,7 +494,7 @@ else
 bsdcpio_static=
 endif
 
-bsdcpio_LDADD= libarchive_fe.la libarchive.la @PROG_LDADD_EXTRA@
+bsdcpio_LDADD= libarchive_fe.la libarchive.la
 bsdcpio_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe
 bsdcpio_LDFLAGS= $(bsdcpio_static)
 bsdcpio_EXTRA_DIST=		\
@@ -559,7 +556,7 @@ bsdcpio_test_SOURCES=						\
 bsdcpio_test_CPPFLAGS= \
 	-I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe \
 	-I$(top_srcdir)/cpio -I$(top_builddir)/cpio/test
-bsdcpio_test_LDADD=libarchive_fe.la @PROG_LDADD_EXTRA@
+bsdcpio_test_LDADD=libarchive_fe.la
 
 cpio/test/list.h: Makefile
 	cat $(top_srcdir)/cpio/test/test_*.c | grep DEFINE_TEST > cpio/test/list.h

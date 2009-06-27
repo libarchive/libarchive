@@ -86,21 +86,6 @@ AC_PROG_LIBTOOL
 AC_CHECK_TOOL([STRIP],[strip])
 
 #
-# Locate some specific link objects for cygwin
-#
-prog_ldadd_extra=
-case "$host_os" in
-*cygwin*)
-  binmode_path=`$CC -print-file-name=binmode.o`
-  if test -n "$binmode_path" && test -f "$binmode_path" ; then
-    prog_ldadd_extra="$binmode_path"
-  fi
-  ;;
-esac
-PROG_LDADD_EXTRA=$prog_ldadd_extra
-AC_SUBST(PROG_LDADD_EXTRA)
-
-#
 # Options for building bsdtar.
 #
 # Default is to build bsdtar, but allow people to override that.
