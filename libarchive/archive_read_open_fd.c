@@ -95,8 +95,9 @@ archive_read_open_fd(struct archive *a, int fd, size_t block_size)
 		mine->can_skip = 1;
 	} else
 		mine->can_skip = 0;
-
-#if defined(_WIN32)
+#if defined(__CYGWIN__)
+	setmode(mine->fd, O_BINARY);
+#elif defined(_WIN32)
 	_setmode(mine->fd, _O_BINARY);
 #endif
 

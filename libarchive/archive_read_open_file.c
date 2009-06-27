@@ -94,7 +94,9 @@ archive_read_open_FILE(struct archive *a, FILE *f)
 	} else
 		mine->can_skip = 0;
 
-#if defined(_WIN32)
+#if defined(__CYGWIN__)
+	setmode(_fileno(mine->f), O_BINARY);
+#elif defined(_WIN32)
 	_setmode(_fileno(mine->f), _O_BINARY);
 #endif
 
