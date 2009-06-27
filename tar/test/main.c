@@ -1062,7 +1062,7 @@ int main(int argc, char **argv)
 
 #ifdef PROGRAM
 	/* Get the target program from environment, if available. */
-	testprog = getenv(ENVBASE);
+	testprogfile = getenv(ENVBASE);
 #endif
 
 	if (getenv("TMPDIR") != NULL)
