@@ -34,7 +34,10 @@
 #define getpwnam(name)	NULL
 #define getpwuid(id)	NULL
 #define getuid()	0
+
+#ifdef _MSC_VER
 #define snprintf	sprintf_s
+#endif
 
 struct passwd {
 	char	*pw_name;

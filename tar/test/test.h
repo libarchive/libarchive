@@ -78,8 +78,11 @@
 #endif
 #endif
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
+#ifdef _MSC_VER
 #define snprintf	sprintf_s
+#endif
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
 #define LOCALE_DE	"deu"
 #else
 #define LOCALE_DE	"de_DE.UTF-8"
