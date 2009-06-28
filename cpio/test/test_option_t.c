@@ -75,10 +75,17 @@ DEFINE_TEST(test_option_t)
 	/* Since -n uses numeric UID/GID, this part should be the
 	 * same on every system. */
 	assertEqualMem(p, "-rw-r--r--   1 1000     1000            0 ",42);
-	/* The date might vary depending on what timezone we're in.
-	 * 1 second past the Epoch can only be one of two dates. */
-	if (strcmp(p + 42, "Dec 31  1969 file\n") != 0)
-		assertEqualString(p + 42, "Jan  1  1970 file\n");
+	/* Date varies depending on local timezone. */
+	if (memcmp(p + 42, "Dec 31  1969", 12) == 0) {
+		/* East of Greenwich we get Dec 31, 1969. */
+	} else {
+		/* West of Greenwich get Jan 1, 1970 */
+		assertEqualMem(p + 42, "Jan ", 4);
+		/* Some systems format "Jan 01", some "Jan  1" */
+		assert(p[46] == ' ' || p[46] == '0');
+		assertEqualMem(p + 47, "1  1970 ", 8);
+	}
+	assertEqualMem(p + 54, " file", 5);
 	free(p);
 
 	/* But "-n" without "-t" is an error. */
