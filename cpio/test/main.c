@@ -986,9 +986,7 @@ int main(int argc, char **argv)
 	int i, tests_run = 0, tests_failed = 0, opt;
 	time_t now;
 	char *refdir_alloc = NULL;
-#if defined(_WIN32) && !defined(__CYGWIN__)
 	char *testprg;
-#endif
 	const char *opt_arg, *progname, *p;
 	char *tmp;
 	char tmpdir[256];
