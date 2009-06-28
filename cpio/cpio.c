@@ -126,12 +126,6 @@ main(int argc, char *argv[])
 	memset(cpio, 0, sizeof(*cpio));
 	cpio->buff = buff;
 	cpio->buff_size = sizeof(buff);
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	/* Make sure open() function will be used with a binary mode. */
-	/* on cygwin, we need something similar, but instead link against */
-	/* a special startup object, binmode.o */
-	_set_fmode(_O_BINARY);
-#endif
 
 	/* Need lafe_progname before calling lafe_warnc. */
 	if (*argv == NULL)
@@ -693,7 +687,7 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 	 */
 	if (archive_entry_filetype(entry) == AE_IFREG) {
 		if (archive_entry_size(entry) > 0) {
-			fd = open(srcpath, O_RDONLY);
+			fd = open(srcpath, O_RDONLY | O_BINARY);
 			if (fd < 0) {
 				lafe_warnc(errno,
 				    "%s: could not open file", srcpath);
@@ -969,11 +963,11 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 
 	if (cpio->option_numeric_uid_gid) {
 		/* Format numeric uid/gid for display. */
-		snprintf(uids, sizeof(uids), "%jd",
-		    (intmax_t)archive_entry_uid(entry));
+		snprintf(uids, sizeof(uids), CPIO_FILESIZE_PRINTF,
+		    (CPIO_FILESIZE_TYPE)archive_entry_uid(entry));
 		uname = uids;
-		snprintf(gids, sizeof(gids), "%jd",
-		    (intmax_t)archive_entry_gid(entry));
+		snprintf(gids, sizeof(gids), CPIO_FILESIZE_PRINTF,
+		    (CPIO_FILESIZE_TYPE)archive_entry_gid(entry));
 		gname = gids;
 	} else {
 		/* Use uname if it's present, else lookup name from uid. */
