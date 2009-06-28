@@ -1039,11 +1039,6 @@ int main(int argc, char **argv)
 #if defined(_WIN32) && !defined(__CYGWIN__) && !defined(__GNUC__)
 	/* To stop to run the default invalid parameter handler. */
 	_set_invalid_parameter_handler(invalid_parameter_handler);
-	/* for open() to a binary mode. */
-	/* This shouldn't be needed, because all tests should
-	 * explicitly use O_BINARY flag to open() and "b" to
-	 * fopen(): */
-	/* _set_fmode(_O_BINARY); */
 	/* Disable annoying assertion message box. */
 	_CrtSetReportMode(_CRT_ASSERT, 0);
 #endif

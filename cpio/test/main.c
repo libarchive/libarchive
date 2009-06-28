@@ -994,12 +994,6 @@ int main(int argc, char **argv)
 
 	(void)argc; /* UNUSED */
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	/* Make sure open() function will be used with a binary mode. */
-	/* on cygwin, we need something similar, but instead link against */
-	/* a special startup object, binmode.o */
-	_set_fmode(_O_BINARY);
-#endif
 	/*
 	 * Name of this program, used to build root of our temp directory
 	 * tree.
