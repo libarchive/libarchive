@@ -6,7 +6,7 @@ TAR_SRCDIR=${.CURDIR}/..
 
 # Some tar sources are pulled in for white-box tests
 TAR_SRCS=					\
-	../getdate.c
+	getdate.c
 
 TESTS=	\
 	test_0.c				\
