@@ -32,6 +32,12 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_read_open_fd.c,v 1.13 2007/06/26 
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
+#ifdef HAVE_FCNTL_H
+#include <fcntl.h>
+#endif
+#ifdef HAVE_IO_H
+#include <io.h>
+#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif

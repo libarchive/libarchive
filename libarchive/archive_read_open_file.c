@@ -35,6 +35,9 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_read_open_file.c,v 1.20 2007/06/2
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
+#ifdef HAVE_IO_H
+#include <io.h>
+#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -95,7 +98,7 @@ archive_read_open_FILE(struct archive *a, FILE *f)
 		mine->can_skip = 0;
 
 #if defined(__CYGWIN__)
-	setmode(_fileno(mine->f), O_BINARY);
+	setmode(fileno(mine->f), O_BINARY);
 #elif defined(_WIN32)
 	_setmode(_fileno(mine->f), _O_BINARY);
 #endif

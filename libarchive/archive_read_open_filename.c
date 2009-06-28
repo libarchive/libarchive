@@ -35,6 +35,9 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_read_open_filename.c,v 1.21 2008/
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
+#ifdef HAVE_IO_H
+#include <io.h>
+#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif

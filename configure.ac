@@ -178,7 +178,7 @@ AC_HEADER_DIRENT
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS([acl/libacl.h attr/xattr.h ctype.h errno.h])
 AC_CHECK_HEADERS([ext2fs/ext2_fs.h fcntl.h grp.h])
-AC_CHECK_HEADERS([inttypes.h langinfo.h limits.h linux/fs.h])
+AC_CHECK_HEADERS([inttypes.h io.h langinfo.h limits.h linux/fs.h])
 AC_CHECK_HEADERS([locale.h paths.h poll.h pwd.h regex.h signal.h stdarg.h])
 AC_CHECK_HEADERS([stdint.h stdlib.h string.h])
 AC_CHECK_HEADERS([sys/acl.h sys/extattr.h sys/ioctl.h sys/mkdev.h])
