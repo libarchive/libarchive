@@ -1016,7 +1016,7 @@ int main(int argc, char **argv)
 
 #ifdef PROGRAM
 	/* Get the target program from environment, if available. */
-	testprog = getenv(ENVBASE);
+	testprogfile = getenv(ENVBASE);
 #endif
 
 	if (getenv("TMPDIR") != NULL)
@@ -1073,7 +1073,7 @@ int main(int argc, char **argv)
 				break;
 			case 'p':
 #ifdef PROGRAM
-				testprog = opt_arg;
+				testprogfile = opt_arg;
 #else
 				usage(progname);
 #endif
@@ -1098,21 +1098,26 @@ int main(int argc, char **argv)
 	 * Sanity-check that our options make sense.
 	 */
 #ifdef PROGRAM
-	if (testprog == NULL)
+	if (testprogfile == NULL)
 		usage(progname);
 #endif
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	/*
-	 * Command.exe cannot accept the command used '/' with drive
+	 * command.com cannot accept the command used '/' with drive
 	 * name such as c:/xxx/command.exe when use '|' pipe handling.
 	 */
-	testprg = strdup(testprog);
+	testprg = strdup(testprogfile);
 	for (i = 0; testprg[i] != '\0'; i++) {
 		if (testprg[i] == '/')
 			testprg[i] = '\\';
 	}
-	testprog = testprg;
+	testprogfile = testprg;
 #endif
+	testprg = malloc(strlen(testprogfile) + 3);
+	strcpy(testprg, "\"");
+	strcat(testprg, testprogfile);
+	strcat(testprg, "\"");
+	testprog = testprg;
 
 	/*
 	 * Create a temp directory for the following tests.

@@ -167,5 +167,7 @@ void extract_reference_file(const char *);
  * Special interfaces for program test harness.
  */
 
-/* Pathname of exe to be tested. */
+/* Pathname of exe to be tested, with suitable quoting for building shell cmd lines. */
 const char *testprog;
+/* Raw pathname of exe to be tested. */
+const char *testprogfile; 
