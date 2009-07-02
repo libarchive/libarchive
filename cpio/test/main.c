@@ -988,7 +988,7 @@ int main(int argc, char **argv)
 	char *refdir_alloc = NULL;
 	char *testprg;
 	const char *opt_arg, *progname, *p;
-	char *tmp;
+	const char *tmp;
 	char tmpdir[256];
 	char tmpdir_timestamp[256];
 
