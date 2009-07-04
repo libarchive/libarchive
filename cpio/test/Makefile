@@ -2,7 +2,7 @@
 
 # Where to find the cpio sources (for the internal unit tests)
 CPIO_SRCDIR=${.CURDIR}/..
-.PATH: ${CPIO_SRCDIR}
+.PATH: ${CPIO_SRCDIR} ${CPIO_SRCDIR}/../libarchive_fe
 
 # Some cpio sources are pulled in for white-box tests
 CPIO_SRCS= cmdline.c err.c pathmatch.c
@@ -48,7 +48,7 @@ NO_MAN=yes
 PROG=bsdcpio_test
 DPADD=${LIBARCHIVE} ${LIBBZ2} ${LIBZ}
 CFLAGS+=	-DPLATFORM_CONFIG_H=\"config_freebsd.h\"
-CFLAGS+=	-I..
+CFLAGS+=	-I.. -I../../libarchive_fe
 LDADD= -larchive -lz -lbz2
 CFLAGS+= -static -g -O2 -Wall
 CFLAGS+= -I${.OBJDIR}
