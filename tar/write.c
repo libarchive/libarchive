@@ -47,6 +47,9 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/write.c,v 1.79 2008/11/27 05:49:52 kientzle 
 #ifdef HAVE_GRP_H
 #include <grp.h>
 #endif
+#ifdef HAVE_IO_H
+#include <io.h>
+#endif
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif
@@ -219,7 +222,7 @@ tar_mode_c(struct bsdtar *bsdtar)
 void
 tar_mode_r(struct bsdtar *bsdtar)
 {
-	off_t	end_offset;
+	int64_t	end_offset;
 	int	format;
 	struct archive *a;
 	struct archive_entry *entry;
@@ -308,7 +311,7 @@ tar_mode_r(struct bsdtar *bsdtar)
 void
 tar_mode_u(struct bsdtar *bsdtar)
 {
-	off_t			 end_offset;
+	int64_t			 end_offset;
 	struct archive		*a;
 	struct archive_entry	*entry;
 	int			 format;
