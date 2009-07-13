@@ -411,33 +411,6 @@ int symlink (from, to)
 	return __link (from, to, 1);
 }
 
-int
-ftruncate(int fd, off_t length)
-{
-	LARGE_INTEGER distance;
-	HANDLE handle;
-
-	if (fd < 0) {
-		errno = EBADF;
-		return (-1);
-	}
-	handle = (HANDLE)_get_osfhandle(fd);
-	if (GetFileType(handle) != FILE_TYPE_DISK) {
-		errno = EBADF;
-		return (-1);
-	}
-	distance.QuadPart = length;
-	if (!SetFilePointerEx(handle, distance, NULL, FILE_BEGIN)) {
-		_dosmaperr(GetLastError());
-		return (-1);
-	}
-	if (!SetEndOfFile(handle)) {
-		_dosmaperr(GetLastError());
-		return (-1);
-	}
-	return (0);
-}
-
 DIR *
 __opendir(const char *path, int ff)
 {
@@ -568,38 +541,6 @@ la_chdir(const char *path)
 		return (-1);
 	}
 	return (0);
-}
-
-__int64
-la_lseek(int fd, __int64 offset, int whence)
-{
-	LARGE_INTEGER distance;
-	LARGE_INTEGER newpointer;
-	HANDLE handle;
-
-	if (fd < 0) {
-		errno = EBADF;
-		return (-1);
-	}
-	handle = (HANDLE)_get_osfhandle(fd);
-	if (GetFileType(handle) != FILE_TYPE_DISK) {
-		errno = EBADF;
-		return (-1);
-	}
-	distance.QuadPart = offset;
-	if (!SetFilePointerEx(handle, distance, &newpointer, whence)) {
-		DWORD lasterr;
-
-		lasterr = GetLastError();
-		if (lasterr == ERROR_BROKEN_PIPE)
-			return (0);
-		if (lasterr == ERROR_ACCESS_DENIED)
-			errno = EBADF;
-		else
-			_dosmaperr(lasterr);
-		return (-1);
-	}
-	return (newpointer.QuadPart);
 }
 
 int
