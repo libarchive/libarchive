@@ -37,7 +37,7 @@ touch(const char *fn)
 	return (1); /* Success */
 }
 
-DEFINE_TEST(test_option_T)
+DEFINE_TEST(test_option_T_upper)
 {
 	FILE *f;
 	int r;

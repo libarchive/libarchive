@@ -13,7 +13,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_copy.c
     test_getdate.c
     test_help.c
-    test_option_T.c
+    test_option_T_upper.c
     test_option_q.c
     test_option_s.c
     test_patterns.c
