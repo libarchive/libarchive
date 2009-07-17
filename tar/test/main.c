@@ -542,7 +542,7 @@ test_assert_empty_file(const char *f1fmt, ...)
 	fprintf(stderr, "    File size: %d\n", (int)st.st_size);
 	fprintf(stderr, "    Contents:\n");
 	f = fopen(f1, "rb");
-	if (f != NULL) {
+	if (f == NULL) {
 		fprintf(stderr, "    Unable to open %s\n", f1);
 	} else {
 		s = ((off_t)sizeof(buff) < st.st_size) ?
