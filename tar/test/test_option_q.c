@@ -28,6 +28,7 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/test/test_option_q.c,v 1.3 2008/08/22 01:35:
 DEFINE_TEST(test_option_q)
 {
 	FILE *f;
+	int r;
 
 	/*
 	 * Create an archive with several different versions of the
@@ -82,9 +83,12 @@ DEFINE_TEST(test_option_q)
 	/* Test 1: -q foo should only extract the first foo. */
 	assertEqualInt(0, mkdir("test1", 0755));
 	assertEqualInt(0, chdir("test1"));
-	assertEqualInt(0,
-	    systemf("%s -xf ../archive.tar -q foo >test.out 2>test.err",
-		testprog));
+	r = systemf("%s -xf ../archive.tar -q foo >test.out 2>test.err",
+	    testprog);
+	failure("Fatal error trying to use -q option");
+	if (!assertEqualInt(0, r))
+		return;
+
 	assertFileContents("foo1", 4, "foo");
 	assertEmptyFile("test.out");
 	assertEmptyFile("test.err");
