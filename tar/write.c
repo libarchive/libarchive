@@ -912,7 +912,7 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 			    archive_entry_pathname(entry));
 
 		/* Non-regular files get archived with zero size. */
-		if (!S_ISREG(st->st_mode))
+		if (archive_entry_filetype(entry) != AE_IFREG)
 			archive_entry_set_size(entry, 0);
 
 		archive_entry_linkify(bsdtar->resolver, &entry, &spare_entry);

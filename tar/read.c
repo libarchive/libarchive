@@ -402,7 +402,8 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 	 * total width of group and devnum/filesize fields be gs_width.
 	 * If gs_width is too small, grow it.
 	 */
-	if (S_ISCHR(st->st_mode) || S_ISBLK(st->st_mode)) {
+	if (archive_entry_filetype(entry) == AE_IFCHR
+	    || archive_entry_filetype(entry) == AE_IFBLK) {
 		sprintf(tmp, "%lu,%lu",
 		    (unsigned long)major(st->st_rdev),
 		    (unsigned long)minor(st->st_rdev)); /* ls(1) also casts here. */
@@ -441,6 +442,6 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 	if (archive_entry_hardlink(entry)) /* Hard link */
 		safe_fprintf(out, " link to %s",
 		    archive_entry_hardlink(entry));
-	else if (S_ISLNK(st->st_mode)) /* Symbolic link */
+	else if (archive_entry_symlink(entry)) /* Symbolic link */
 		safe_fprintf(out, " -> %s", archive_entry_symlink(entry));
 }
