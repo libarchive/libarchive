@@ -140,64 +140,38 @@ static void		 write_hierarchy(struct bsdtar *, struct archive *,
 
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
-static __int64
-la_lseek(int fd, __int64 offset, int whence)
-{
-	LARGE_INTEGER distance;
-	LARGE_INTEGER newpointer;
-	HANDLE handle;
+#include <windows.h>
+#include <io.h>
 
-	if (fd < 0) {
-		errno = EBADF;
-		return (-1);
-	}
-	handle = (HANDLE)_get_osfhandle(fd);
-	if (GetFileType(handle) != FILE_TYPE_DISK) {
-		errno = EBADF;
-		return (-1);
-	}
-	distance.QuadPart = offset;
-	if (!SetFilePointerEx(handle, distance, &newpointer, whence)) {
-		DWORD lasterr;
+#define open _open
+#define close _close
+#define read _read
 
-		lasterr = GetLastError();
-		if (lasterr == ERROR_BROKEN_PIPE)
-			return (0);
-		if (lasterr == ERROR_ACCESS_DENIED)
-			errno = EBADF;
-		else
-			_dosmaperr(lasterr);
-		return (-1);
-	}
-	return (newpointer.QuadPart);
-}
-#define lseek la_lseek
-
-static int
-ftruncate(int fd, off_t length)
+static void
+truncate_file(int fd, int64_t length)
 {
 	LARGE_INTEGER distance;
 	HANDLE handle;
 
-	if (fd < 0) {
-		errno = EBADF;
-		return (-1);
-	}
+	if (fd < 0)
+		lafe_errc(1, 0, "Could not seek to archive end");
 	handle = (HANDLE)_get_osfhandle(fd);
-	if (GetFileType(handle) != FILE_TYPE_DISK) {
-		errno = EBADF;
-		return (-1);
-	}
+	if (GetFileType(handle) != FILE_TYPE_DISK)
+		lafe_errc(1, 0, "Could not seek to archive end");
 	distance.QuadPart = length;
-	if (!SetFilePointerEx(handle, distance, NULL, FILE_BEGIN)) {
-		_dosmaperr(GetLastError());
-		return (-1);
-	}
-	if (!SetEndOfFile(handle)) {
-		_dosmaperr(GetLastError());
-		return (-1);
-	}
-	return (0);
+	if (!SetFilePointerEx(handle, distance, NULL, FILE_BEGIN))
+		lafe_errc(1, 0, "Could not seek to archive end");
+	if (!SetEndOfFile(handle))
+		lafe_errc(1, 0, "Could not truncate archive");
+}
+#else
+static void
+truncate_file(int fd, int64_t length)
+{
+	if (lseek(fd, length, SEEK_SET) < 0)
+		lafe_errc(1, errno, "Could not seek to archive end");
+	if (ftruncate(fd, length))
+		lafe_errc(1, errno, "Could not truncate archive");
 }
 #endif
 
@@ -362,7 +336,7 @@ tar_mode_r(struct bsdtar *bsdtar)
 			format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED;
 		archive_write_set_format(a, format);
 	}
-	lseek(bsdtar->fd, end_offset, SEEK_SET); /* XXX check return val XXX */
+	truncate_file(bsdtar->fd, end_offset);
 	if (ARCHIVE_OK != archive_write_set_options(a, bsdtar->option_options))
 		lafe_errc(1, 0, archive_error_string(a));
 	if (ARCHIVE_OK != archive_write_open_fd(a, bsdtar->fd))
@@ -444,10 +418,7 @@ tar_mode_u(struct bsdtar *bsdtar)
 		    bsdtar->bytes_per_block);
 	} else
 		archive_write_set_bytes_per_block(a, DEFAULT_BYTES_PER_BLOCK);
-	if (0 != lseek(bsdtar->fd, end_offset, SEEK_SET))
-		lafe_errc(1, 0, "Could not seek to archive end");
-	if (0 != ftruncate(bsdtar->fd, end_offset))
-		lafe_errc(1, 0, "Could not truncate archive");
+	truncate_file(bsdtar->fd, end_offset);
 	if (ARCHIVE_OK != archive_write_set_options(a, bsdtar->option_options))
 		lafe_errc(1, 0, archive_error_string(a));
 	if (ARCHIVE_OK != archive_write_open_fd(a, bsdtar->fd))
