@@ -370,7 +370,6 @@ bsdtar_SOURCES=				\
 		tar/cmdline.c		\
 		tar/getdate.c		\
 		tar/read.c		\
-		tar/siginfo.c		\
 		tar/subst.c		\
 		tar/tree.c		\
 		tar/tree.h		\

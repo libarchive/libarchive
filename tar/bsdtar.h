@@ -79,7 +79,6 @@ struct bsdtar {
 	int		  fd;
 
 	/* Miscellaneous state information */
-	struct archive	 *archive;
 	int		  argc;
 	char		**argv;
 	const char	 *optarg;
@@ -139,14 +138,10 @@ enum {
 int	bsdtar_getopt(struct bsdtar *);
 void	do_chdir(struct bsdtar *);
 int	edit_pathname(struct bsdtar *, struct archive_entry *);
+int	need_report(void);
 int	pathcmp(const char *a, const char *b);
 void	safe_fprintf(FILE *, const char *fmt, ...);
 void	set_chdir(struct bsdtar *, const char *newdir);
-void	siginfo_init(struct bsdtar *);
-void	siginfo_setinfo(struct bsdtar *, const char * oper,
-	    const char * path, int64_t size);
-void	siginfo_printinfo(struct bsdtar *, off_t progress);
-void	siginfo_done(struct bsdtar *);
 void	tar_mode_c(struct bsdtar *bsdtar);
 void	tar_mode_r(struct bsdtar *bsdtar);
 void	tar_mode_t(struct bsdtar *bsdtar);

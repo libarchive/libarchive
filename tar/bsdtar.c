@@ -47,6 +47,9 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/bsdtar.c,v 1.93 2008/11/08 04:43:24 kientzle
 #ifdef HAVE_PATHS_H
 #include <paths.h>
 #endif
+#ifdef HAVE_SIGNAL_H
+#include <signal.h>
+#endif
 #include <stdio.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
@@ -82,7 +85,34 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/bsdtar.c,v 1.93 2008/11/08 04:43:24 kientzle
 #define	_PATH_DEFTAPE "/dev/tape"
 #endif
 
-/* External function to parse a date/time string (from getdate.y) */
+static struct bsdtar *_bsdtar;
+
+#if defined(SIGINFO) || defined(SIGUSR1)
+static volatile int siginfo_occurred;
+
+static void
+siginfo_handler(int sig)
+{
+	(void)sig; /* UNUSED */
+	siginfo_occurred = 1;
+}
+
+int
+need_report(void)
+{
+	int r = siginfo_occurred;
+	siginfo_occurred = 0;
+	return (r);
+}
+#else
+int
+need_report(void)
+{
+	return (0);
+}
+#endif
+
+/* External function to parse a date/time string */
 time_t get_date(time_t, const char *);
 
 static void		 long_help(void);
@@ -110,10 +140,29 @@ main(int argc, char **argv)
 	 * Use a pointer for consistency, but stack-allocated storage
 	 * for ease of cleanup.
 	 */
-	bsdtar = &bsdtar_storage;
+	_bsdtar = bsdtar = &bsdtar_storage;
 	memset(bsdtar, 0, sizeof(*bsdtar));
 	bsdtar->fd = -1; /* Mark as "unused" */
 	option_o = 0;
+
+#if defined(SIGINFO) || defined(SIGUSR1)
+	{ /* Catch SIGINFO and SIGUSR1, if they exist. */
+		struct sigaction sa;
+		sa.sa_handler = siginfo_handler;
+		sigemptyset(&sa.sa_mask);
+		sa.sa_flags = 0;
+#ifdef SIGINFO
+		if (sigaction(SIGINFO, &sa, NULL))
+			lafe_errc(1, errno, "sigaction(SIGINFO) failed");
+#endif
+#ifdef SIGUSR1
+		/* ... and treat SIGUSR1 the same way as SIGINFO. */
+		if (sigaction(SIGUSR1, &sa, NULL))
+			lafe_errc(1, errno, "sigaction(SIGUSR1) failed");
+#endif
+	}
+#endif
+
 
 	/* Need lafe_progname before calling lafe_warnc. */
 	if (*argv == NULL)

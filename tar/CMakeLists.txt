@@ -11,7 +11,6 @@ IF (ENABLE_TAR)
     cmdline.c
     getdate.c
     read.c
-    siginfo.c
     subst.c
     tree.c
     tree.h

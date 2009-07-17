@@ -123,10 +123,12 @@ static int		 append_archive_filename(struct bsdtar *,
 			     struct archive *, const char *fname);
 static void		 archive_names_from_file(struct bsdtar *bsdtar,
 			     struct archive *a);
-static int		 copy_file_data(struct bsdtar *bsdtar,
-			     struct archive *a, struct archive *ina);
+static int		 copy_file_data(struct bsdtar *, struct archive *a,
+			     struct archive *ina, struct archive_entry *);
 static int		 new_enough(struct bsdtar *, const char *path,
 			     const struct stat *);
+static void		 report_write(struct bsdtar *, struct archive *,
+			     struct archive_entry *, int64_t progress);
 static void		 test_for_append(struct bsdtar *);
 static void		 write_archive(struct archive *, struct bsdtar *);
 static void		 write_entry_backend(struct bsdtar *, struct archive *,
@@ -475,9 +477,6 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 	const char *arg;
 	struct archive_entry *entry, *sparse_entry;
 
-	/* We want to catch SIGINFO and SIGUSR1. */
-	siginfo_init(bsdtar);
-
 	/* Allocate a buffer for file data. */
 	if ((bsdtar->buff = malloc(FILEDATABUFLEN)) == NULL)
 		lafe_errc(1, 0, "cannot allocate memory");
@@ -554,9 +553,6 @@ cleanup:
 	}
 
 	archive_write_finish(a);
-
-	/* Restore old SIGINFO + SIGUSR1 handlers. */
-	siginfo_done(bsdtar);
 }
 
 /*
@@ -572,8 +568,6 @@ archive_names_from_file(struct bsdtar *bsdtar, struct archive *a)
 	struct lafe_line_reader *lr;
 	const char *line;
 
-	bsdtar->archive = a;
-
 	bsdtar->next_line_is_dir = 0;
 
 	lr = lafe_line_reader(bsdtar->names_from_file, '\n');
@@ -586,7 +580,7 @@ archive_names_from_file(struct bsdtar *bsdtar, struct archive *a)
 		else {
 			if (*line != '/')
 				do_chdir(bsdtar); /* Handle a deferred -C */
-			write_hierarchy(bsdtar, bsdtar->archive, line);
+			write_hierarchy(bsdtar, a, line);
 		}
 	}
 	lafe_line_reader_free(lr);
@@ -652,10 +646,8 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 		if (bsdtar->verbose)
 			safe_fprintf(stderr, "a %s",
 			    archive_entry_pathname(in_entry));
-		siginfo_setinfo(bsdtar, "copying",
-		    archive_entry_pathname(in_entry),
-		    archive_entry_size(in_entry));
-		siginfo_printinfo(bsdtar, 0);
+		if (need_report())
+			report_write(bsdtar, a, in_entry, 0);
 
 		e = archive_write_header(a, in_entry);
 		if (e != ARCHIVE_OK) {
@@ -672,7 +664,7 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 		if (e >= ARCHIVE_WARN) {
 			if (archive_entry_size(in_entry) == 0)
 				archive_read_data_skip(ina);
-			else if (copy_file_data(bsdtar, a, ina))
+			else if (copy_file_data(bsdtar, a, ina, in_entry))
 				exit(1);
 		}
 
@@ -686,15 +678,17 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 
 /* Helper function to copy data between archives. */
 static int
-copy_file_data(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
+copy_file_data(struct bsdtar *bsdtar, struct archive *a,
+    struct archive *ina, struct archive_entry *entry)
 {
 	ssize_t	bytes_read;
 	ssize_t	bytes_written;
-	off_t	progress = 0;
+	int64_t	progress = 0;
 
 	bytes_read = archive_read_data(ina, bsdtar->buff, FILEDATABUFLEN);
 	while (bytes_read > 0) {
-		siginfo_printinfo(bsdtar, progress);
+		if (need_report())
+			report_write(bsdtar, a, entry, progress);
 
 		bytes_written = archive_write_data(a, bsdtar->buff,
 		    bytes_read);
@@ -921,13 +915,7 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		if (!S_ISREG(st->st_mode))
 			archive_entry_set_size(entry, 0);
 
-		/* Record what we're doing, for SIGINFO / SIGUSR1. */
-		siginfo_setinfo(bsdtar, "adding",
-		    archive_entry_pathname(entry), archive_entry_size(entry));
 		archive_entry_linkify(bsdtar->resolver, &entry, &spare_entry);
-
-		/* Handle SIGINFO / SIGUSR1 request if one was made. */
-		siginfo_printinfo(bsdtar, 0);
 
 		while (entry != NULL) {
 			write_entry_backend(bsdtar, a, entry);
@@ -998,6 +986,27 @@ write_entry_backend(struct bsdtar *bsdtar, struct archive *a,
 		close(fd);
 }
 
+static void
+report_write(struct bsdtar *bsdtar, struct archive *a,
+    struct archive_entry *entry, int64_t progress)
+{
+	uintmax_t comp, uncomp;
+	if (bsdtar->verbose)
+		fprintf(stderr, "\n");
+	comp = archive_position_compressed(a);
+	uncomp = archive_position_uncompressed(a);
+	fprintf(stderr, "In: %d files, %ju bytes;",
+	    archive_file_count(a), uncomp);
+	fprintf(stderr,
+	    " Out: %ju bytes, compression %d%%\n",
+	    comp, (int)((uncomp - comp) * 100 / uncomp));
+	safe_fprintf(stderr, "Current: %s (%ju/%ju bytes)",
+	    archive_entry_pathname(entry),
+	    (uintmax_t)progress,
+	    (uintmax_t)archive_entry_size(entry));
+	fprintf(stderr, "\n");
+}
+
 
 /* Helper function to copy file to archive. */
 static int
@@ -1006,11 +1015,12 @@ write_file_data(struct bsdtar *bsdtar, struct archive *a,
 {
 	ssize_t	bytes_read;
 	ssize_t	bytes_written;
-	off_t	progress = 0;
+	int64_t	progress = 0;
 
 	bytes_read = read(fd, bsdtar->buff, FILEDATABUFLEN);
 	while (bytes_read > 0) {
-		siginfo_printinfo(bsdtar, progress);
+		if (need_report())
+			report_write(bsdtar, a, entry, progress);
 
 		bytes_written = archive_write_data(a, bsdtar->buff,
 		    bytes_read);

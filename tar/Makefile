@@ -4,7 +4,7 @@
 
 PROG=	bsdtar
 BSDTAR_VERSION_STRING=2.7.900a
-SRCS=	bsdtar.c cmdline.c getdate.c read.c siginfo.c subst.c tree.c util.c write.c
+SRCS=	bsdtar.c cmdline.c getdate.c read.c subst.c tree.c util.c write.c
 SRCS+=  err.c line_reader.c matching.c pathmatch.c
 WARNS?=	5
 DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ}
