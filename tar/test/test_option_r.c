@@ -23,12 +23,16 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/usr.bin/tar/test/test_basic.c,v 1.2 2008/05/26 17:10:10 kientzle Exp $");
+__FBSDID("$FreeBSD$");
 
-
+/*
+ * Also see test_option_q for additional validation of -r support.
+ */
 DEFINE_TEST(test_option_r)
 {
 	char buff[15];
+	char *p0, *p1;
+	size_t s;
 	FILE *f;
 	int r;
 
@@ -48,6 +52,20 @@ DEFINE_TEST(test_option_r)
 	assertEmptyFile("step1.out");
 	assertEmptyFile("step1.err");
 
+
+	/* Do some basic validation of the constructed archive. */
+	p0 = slurpfile(&s, "archive.tar");
+	if (!assert(p0 != NULL))
+		return;
+	if (!assert(s >= 2048)) {
+		free(p0);
+		return;
+	}
+	assertEqualMem(p0 + 0, "f1", 3);
+	assertEqualMem(p0 + 512, "abc", 3);
+	assertEqualMem(p0 + 1024, "\0\0\0\0\0\0\0\0", 8);
+	assertEqualMem(p0 + 1536, "\0\0\0\0\0\0\0\0", 8);
+
 	/* Edit that file */
 	f = fopen("f1", "w");
 	if (!assert(f != NULL))
@@ -60,9 +78,27 @@ DEFINE_TEST(test_option_r)
 	failure("Error invoking %s rf archive.tar f1", testprog);
 	assertEqualInt(r, 0);
 
-	/* Verify that nothing went to stderr. */
+	/* Verify that nothing went to stdout or stderr. */
 	assertEmptyFile("step2.out");
 	assertEmptyFile("step2.err");
+
+	/* Do some basic validation of the constructed archive. */
+	p1 = slurpfile(&s, "archive.tar");
+	if (!assert(p1 != NULL)) {
+		free(p0);
+		return;
+	}
+	assert(s >= 3072);
+	/* Verify first entry is unchanged. */
+	assertEqualMem(p0, p1, 1024);
+	/* Verify that second entry is correct. */
+	assertEqualMem(p1 + 1024, "f1", 3);
+	assertEqualMem(p1 + 1536, "123", 3);
+	/* Verify end-of-archive marker. */
+	assertEqualMem(p1 + 2048, "\0\0\0\0\0\0\0\0", 8);
+	assertEqualMem(p1 + 2560, "\0\0\0\0\0\0\0\0", 8);
+	free(p0);
+	free(p1);
 
 	/* Unpack both items */
 	assertEqualInt(0, mkdir("step3", 0775));
@@ -78,22 +114,4 @@ DEFINE_TEST(test_option_r)
 		assertEqualMem(buff, "123", 3);
 		fclose(f);
 	}
-
-	/* Unpack just the first item.  (This also verifies that the
-	* 'r' update actually appended and didn't just overwrite.) */
-	assertEqualInt(0, chdir(".."));
-	assertEqualInt(0, mkdir("step4", 0775));
-	assertEqualInt(0, chdir("step4"));
-	r = systemf("%s xqf ../archive.tar f1", testprog);
-	failure("Error invoking %s xqf archive.tar f1", testprog);
-	assertEqualInt(r, 0);
-
-	/* Verify the first file got extracted. */
-	f = fopen("f1", "r");
-	if (assert(f != NULL)) {
-		assertEqualInt(3, fread(buff, 1, 3, f));
-		assertEqualMem(buff, "abc", 3);
-		fclose(f);
-	}
-
 }
