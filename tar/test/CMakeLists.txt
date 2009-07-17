@@ -15,6 +15,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_help.c
     test_option_T_upper.c
     test_option_q.c
+    test_option_r.c
     test_option_s.c
     test_patterns.c
     test_stdio.c
