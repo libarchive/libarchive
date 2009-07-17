@@ -29,6 +29,8 @@ DEFINE_TEST(test_stdio)
 {
 	FILE *f;
 	FILE *filelist;
+	char *p;
+	size_t s;
 	int oldumask;
 	int r;
 
@@ -112,7 +114,11 @@ DEFINE_TEST(test_stdio)
 	/* 'xvOf' should generate list on stderr, file contents on stdout. */
 	r = systemf("%s xvOf archive >xvOf.out 2>xvOf.err", testprog);
 	assertEqualInt(r, 0);
-	/* TODO: Verify xvOf.out */
+	/* Verify xvOf.out is the file contents */
+	p = slurpfile(&s, "xvOf.out");
+	assert(p != NULL);
+	assert(s = 2);
+	assertEqualMem(p, "f\n", 2);
 	/* TODO: Verify xvf.err */
 
 	/* 'xvf -' should generate list on stderr, empty stdout. */
