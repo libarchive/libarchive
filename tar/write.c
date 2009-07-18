@@ -80,6 +80,9 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/write.c,v 1.79 2008/11/27 05:49:52 kientzle 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#ifdef HAVE_WINDOWS_H
+#include <windows.h>
+#endif
 
 #include "bsdtar.h"
 #include "err.h"
@@ -138,43 +141,28 @@ static int		 write_file_data(struct bsdtar *, struct archive *,
 static void		 write_hierarchy(struct bsdtar *, struct archive *,
 			     const char *);
 
-
 #if defined(_WIN32) && !defined(__CYGWIN__)
-#include <windows.h>
-#include <io.h>
-
 #define open _open
 #define close _close
 #define read _read
 
 static void
-truncate_file(int fd, int64_t length)
+seek_file(int fd, int64_t length)
 {
 	LARGE_INTEGER distance;
-	HANDLE handle;
-
-	if (fd < 0)
-		lafe_errc(1, 0, "Could not seek to archive end");
-	handle = (HANDLE)_get_osfhandle(fd);
-	if (GetFileType(handle) != FILE_TYPE_DISK)
-		lafe_errc(1, 0, "Could not seek to archive end");
 	distance.QuadPart = length;
-	if (!SetFilePointerEx(handle, distance, NULL, FILE_BEGIN))
+	if (!SetFilePointerEx((HANDLE)_get_osfhandle(fd),
+		distance, NULL, FILE_BEGIN))
 		lafe_errc(1, 0, "Could not seek to archive end");
-	if (!SetEndOfFile(handle))
-		lafe_errc(1, 0, "Could not truncate archive");
 }
 #else
 static void
-truncate_file(int fd, int64_t length)
+seek_file(int fd, int64_t length)
 {
 	if (lseek(fd, length, SEEK_SET) < 0)
 		lafe_errc(1, errno, "Could not seek to archive end");
-	if (ftruncate(fd, length))
-		lafe_errc(1, errno, "Could not truncate archive");
 }
 #endif
-
 
 void
 tar_mode_c(struct bsdtar *bsdtar)
@@ -336,7 +324,7 @@ tar_mode_r(struct bsdtar *bsdtar)
 			format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED;
 		archive_write_set_format(a, format);
 	}
-	truncate_file(bsdtar->fd, end_offset);
+	seek_file(bsdtar->fd, end_offset);
 	if (ARCHIVE_OK != archive_write_set_options(a, bsdtar->option_options))
 		lafe_errc(1, 0, archive_error_string(a));
 	if (ARCHIVE_OK != archive_write_open_fd(a, bsdtar->fd))
@@ -418,7 +406,7 @@ tar_mode_u(struct bsdtar *bsdtar)
 		    bsdtar->bytes_per_block);
 	} else
 		archive_write_set_bytes_per_block(a, DEFAULT_BYTES_PER_BLOCK);
-	truncate_file(bsdtar->fd, end_offset);
+	seek_file(bsdtar->fd, end_offset);
 	if (ARCHIVE_OK != archive_write_set_options(a, bsdtar->option_options))
 		lafe_errc(1, 0, archive_error_string(a));
 	if (ARCHIVE_OK != archive_write_open_fd(a, bsdtar->fd))
@@ -1124,4 +1112,11 @@ test_for_append(struct bsdtar *bsdtar)
 		lafe_errc(1, 0,
 		    "Cannot append to %s: not a regular file.",
 		    bsdtar->filename);
+
+/* Is this an appropriate check here on Windows? */
+/*
+	if (GetFileType(handle) != FILE_TYPE_DISK)
+		lafe_errc(1, 0, "Cannot append");
+*/
+
 }
