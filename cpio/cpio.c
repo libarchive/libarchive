@@ -261,6 +261,9 @@ main(int argc, char *argv[])
 			cpio->mode = opt;
 			cpio->extract_flags &= ~ARCHIVE_EXTRACT_SECURE_NODOTDOT;
 			break;
+		case OPTION_PRESERVE_OWNER:
+			cpio->extract_flags |= ARCHIVE_EXTRACT_OWNER;
+			break;
 		case OPTION_QUIET: /* GNU cpio */
 			cpio->quiet = 1;
 			break;
