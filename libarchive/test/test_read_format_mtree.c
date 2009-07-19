@@ -32,7 +32,7 @@ static unsigned char archive[] = {
 	"dir type=dir\n"
 	" file\\040with\\040space type=file uid=18\n"
 	" ..\n"
-	"file\\04with\\040space type=file\n"
+	"file\\040with\\040space type=file\n"
 	"dir2 type=dir\n"
 	" dir3a type=dir\n"
 	"  indir3a type=file\n"
@@ -96,7 +96,7 @@ DEFINE_TEST(test_read_format_mtree)
 	assertEqualString(archive_entry_pathname(ae), "dir/file with space");
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualString(archive_entry_pathname(ae), "file\\04with space");
+	assertEqualString(archive_entry_pathname(ae), "file with space");
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString(archive_entry_pathname(ae), "dir2");

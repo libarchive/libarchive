@@ -134,11 +134,11 @@ DEFINE_TEST(test_gcpio_compat)
 	oldumask = umask(0);
 
 	/* Dearchive sample files with a variety of options. */
-	unpack_test("test_gcpio_compat_ref.bin", "", "1 block\n");
-	unpack_test("test_gcpio_compat_ref.crc", "", "2 blocks\n");
-	unpack_test("test_gcpio_compat_ref.newc", "", "2 blocks\n");
+	unpack_test("test_gcpio_compat_ref.bin", "--no-preserve-owner", "1 block\n");
+	unpack_test("test_gcpio_compat_ref.crc", "--no-preserve-owner", "2 blocks\n");
+	unpack_test("test_gcpio_compat_ref.newc", "--no-preserve-owner", "2 blocks\n");
 	/* gcpio-2.9 only reads 6 blocks here */
-	unpack_test("test_gcpio_compat_ref.ustar", "", "7 blocks\n");
+	unpack_test("test_gcpio_compat_ref.ustar", "--no-preserve-owner", "7 blocks\n");
 
 	umask(oldumask);
 }

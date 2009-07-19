@@ -44,7 +44,7 @@ unpack(const char *dirname, const char *option)
 DEFINE_TEST(test_option_f)
 {
 	/* Calibrate:  No -f option, so everything should be extracted. */
-	unpack("t0", "");
+	unpack("t0", "--no-preserve-owner");
 	assertEqualInt(0, access("t0/a123", F_OK));
 	assertEqualInt(0, access("t0/a234", F_OK));
 	assertEqualInt(0, access("t0/b123", F_OK));
@@ -53,9 +53,9 @@ DEFINE_TEST(test_option_f)
 	/* Don't extract 'a*' files. */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	/* Single quotes isn't used by command.exe. */
-	unpack("t1", "-f a*");
+	unpack("t1", "--no-preserve-owner -f a*");
 #else
-	unpack("t1", "-f 'a*'");
+	unpack("t1", "--no-preserve-owner -f 'a*'");
 #endif
 	assert(0 != access("t1/a123", F_OK));
 	assert(0 != access("t1/a234", F_OK));
@@ -65,9 +65,9 @@ DEFINE_TEST(test_option_f)
 	/* Don't extract 'b*' files. */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	/* Single quotes isn't used by command.exe. */
-	unpack("t2", "-f b*");
+	unpack("t2", "--no-preserve-owner -f b*");
 #else
-	unpack("t2", "-f 'b*'");
+	unpack("t2", "--no-preserve-owner -f 'b*'");
 #endif
 	assertEqualInt(0, access("t2/a123", F_OK));
 	assertEqualInt(0, access("t2/a234", F_OK));

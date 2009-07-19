@@ -41,7 +41,7 @@ DEFINE_TEST(test_option_m)
 	assertEqualInt(0, mkdir("without-m", 0755));
 	assertEqualInt(0, chdir("without-m"));
 	extract_reference_file("test_option_m.cpio");
-	r = systemf("%s -i < test_option_m.cpio >out 2>err", testprog);
+	r = systemf("%s --no-preserve-owner -i < test_option_m.cpio >out 2>err", testprog);
 	now = time(NULL);
 	assertEqualInt(r, 0);
 	assertEmptyFile("out");
@@ -56,7 +56,7 @@ DEFINE_TEST(test_option_m)
 	assertEqualInt(0, mkdir("with-m", 0755));
 	assertEqualInt(0, chdir("with-m"));
 	extract_reference_file("test_option_m.cpio");
-	r = systemf("%s -im < test_option_m.cpio >out 2>err", testprog);
+	r = systemf("%s --no-preserve-owner -im < test_option_m.cpio >out 2>err", testprog);
 	now = time(NULL);
 	assertEqualInt(r, 0);
 	assertEmptyFile("out");

@@ -49,7 +49,7 @@ DEFINE_TEST(test_patterns)
 	close(fd);
 	r = systemf("%s cfv tar1.tgz foo > tar1a.out 2> tar1a.err", testprog);
 	assertEqualInt(r, 0);
-	r = systemf("%s xfv tar1.tgz foo bar > tar1b.out 2> tar1b.err", testprog);
+	r = systemf("%s xv --no-same-owner -f tar1.tgz foo bar > tar1b.out 2> tar1b.err", testprog);
 	failure("tar should return non-zero because a file was given on the command line that's not in the archive");
 	assert(r != 0);
 
@@ -75,7 +75,7 @@ DEFINE_TEST(test_patterns)
 	extract_reference_file(reffile3);
 
 	/* Test 3a:  Pattern tmp/foo/bar should not match /tmp/foo/bar */
-	r = systemf("%s xf %s tmp/foo/bar > tar3a.out 2> tar3a.err",
+	r = systemf("%s x --no-same-owner -f %s tmp/foo/bar > tar3a.out 2> tar3a.err",
 	    testprog, reffile3);
 	assert(r != 0);
 	assertEmptyFile("tar3a.out");
@@ -83,21 +83,21 @@ DEFINE_TEST(test_patterns)
 	/* Test 3b:  Pattern /tmp/foo/baz should not match tmp/foo/baz */
 	assertNonEmptyFile("tar3a.err");
 	/* Again, with the '/' */
-	r = systemf("%s xf %s /tmp/foo/baz > tar3b.out 2> tar3b.err",
+	r = systemf("%s x --no-same-owner -f %s /tmp/foo/baz > tar3b.out 2> tar3b.err",
 	    testprog, reffile3);
 	assert(r != 0);
 	assertEmptyFile("tar3b.out");
 	assertNonEmptyFile("tar3b.err");
 
 	/* Test 3c: ./tmp/foo/bar should not match /tmp/foo/bar */
-	r = systemf("%s xf %s ./tmp/foo/bar > tar3c.out 2> tar3c.err",
+	r = systemf("%s x --no-same-owner -f %s ./tmp/foo/bar > tar3c.out 2> tar3c.err",
 	    testprog, reffile3);
 	assert(r != 0);
 	assertEmptyFile("tar3c.out");
 	assertNonEmptyFile("tar3c.err");
 
 	/* Test 3d: ./tmp/foo/baz should match tmp/foo/baz */
-	r = systemf("%s xf %s ./tmp/foo/baz > tar3d.out 2> tar3d.err",
+	r = systemf("%s x --no-same-owner -f %s ./tmp/foo/baz > tar3d.out 2> tar3d.err",
 	    testprog, reffile3);
 	assertEqualInt(r, 0);
 	assertEmptyFile("tar3d.out");
@@ -110,7 +110,7 @@ DEFINE_TEST(test_patterns)
 	 */
 	extract_reference_file(reffile4);
 
-	r = systemf("%s xf %s -C tmp > tar4.out 2> tar4.err",
+	r = systemf("%s x --no-same-owner -f %s -C tmp > tar4.out 2> tar4.err",
 	    testprog, reffile4);
 	assert(r != 0);
 	assertEmptyFile("tar4.out");
