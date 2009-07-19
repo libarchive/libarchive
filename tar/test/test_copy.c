@@ -25,7 +25,73 @@
 #include "test.h"
 __FBSDID("$FreeBSD: src/usr.bin/tar/test/test_copy.c,v 1.3 2008/08/15 06:12:02 kientzle Exp $");
 
-#define	LOOP_MAX	170
+#if defined(__CYGWIN__)
+# include <limits.h>
+# include <sys/cygwin.h>
+#endif
+
+/* assumes that cwd is the top of the test tree. Furthermore,
+ * assumes that this function is first called with the "longest"
+ * cwd involved in the tests.  That is, from
+ *  <testdir>/original
+ * as opposed to
+ *  <testdir>/plain or <testdir>/ustar
+ */
+static int
+compute_loop_max(void)
+{
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	static int LOOP_MAX = 0;
+	char buf[MAX_PATH];
+	size_t cwdlen;
+
+	if (LOOP_MAX == 0) {
+		assert(_getcwd(buf, MAX_PATH) != NULL);
+		cwdlen = strlen(buf);
+		/* on windows, can't create a directory in which there is not
+		 * enough room left in MAX_PATH to /also/ create an 8.3 file.
+		 * Thus, max path len for mkdir is MAX_PATH - 12 ("12345678.123")
+		 * It is possible also that windows counts the length of cwd against
+		 * the MAX_PATH maximum, so account for that. Next, account also for
+		 * "/".  And lastly, account for the fact that the relative path
+		 * has 4 characters when the loop count i = 0.
+		 */
+		 LOOP_MAX = MAX_PATH - 12 - (int)cwdlen - 1 - 4;
+	}
+	return LOOP_MAX;
+#elif defined(__CYGWIN__) && !defined(HAVE_CYGWIN_CONV_PATH)
+	static int LOOP_MAX = 0;
+	if (LOOP_MAX == 0) {
+		char wbuf[PATH_MAX];
+		char pbuf[PATH_MAX];
+		size_t wcwdlen;
+		size_t pcwdlen;
+	        size_t cwdlen;
+		assert(getcwd(pbuf, PATH_MAX) != NULL);
+		pcwdlen = strlen(pbuf);
+		cygwin_conv_to_full_win32_path(pbuf, wbuf);
+		wcwdlen = strlen(wbuf);
+		cwdlen = ((wcwdlen > pcwdlen) ? wcwdlen : pcwdlen);
+		/* on windows, can't create a directory in which there is not
+		 * enough room left in PATH_MAX to /also/ create an 8.3 file.
+		 * Thus, max path len for mkdir is PATH_MAX - 12 ("12345678.123")
+		 * Then, because cygwin treats even relative paths as if they were
+		 * absolute, and cwd counts against the PATH_MAX maximum, we must
+		 * account for that (using worst case of posix or win32 equivalents).
+		 * Next, account also for "/../" (as used in symlink creation test).
+		 * And lastly, account for the fact that the relative path has 4
+		 * characters when the loop count i = 0. These calculations do not
+		 * apply to cygwin-1.7, because unlike older cygwin, it uses the "wide"
+		 * functions of the win32 system for all file and directory access.
+		 */
+		LOOP_MAX = PATH_MAX - 12 - (int)cwdlen - 4 - 4;
+	}
+	return LOOP_MAX;
+#else
+	/* cygwin-1.7 ends up here, along with "normal" unix */
+	return 200; /* restore pre-r278 depth */
+#endif
+}
 
 static void
 create_tree(void)
@@ -34,9 +100,12 @@ create_tree(void)
 	char buff2[260];
 	int i;
 	int fd;
+	int LOOP_MAX;
 
 	assertEqualInt(0, mkdir("original", 0775));
 	chdir("original");
+	LOOP_MAX = compute_loop_max();
+
 	assertEqualInt(0, mkdir("f", 0775));
 	assertEqualInt(0, mkdir("l", 0775));
 	assertEqualInt(0, mkdir("m", 0775));
@@ -94,12 +163,14 @@ verify_tree(int limit)
 	char name1[260];
 	char name2[260];
 	char contents[260];
-	int i, j, r;
+	int i, j, r, LOOP_MAX;
 	int fd;
 	int len;
 	const char *p, *dp;
 	DIR *d;
 	struct dirent *de;
+
+	LOOP_MAX = compute_loop_max();
 
 	/* Generate the names we know should be there and verify them. */
 	for (i = 1; i < LOOP_MAX; i++) {
@@ -251,6 +322,12 @@ copy_basic(void)
 {
 	int r;
 
+	/* NOTE: for proper operation on cygwin-1.5 and windows, the
+	 * length of the name of the directory below, "plain", must be
+	 * less than or equal to the lengthe of the name of the original
+	 * directory, "original"  This restriction derives from the
+	 * extremely limited pathname lengths on those platforms.
+	 */
 	assertEqualInt(0, mkdir("plain", 0775));
 	assertEqualInt(0, chdir("plain"));
 
@@ -287,6 +364,12 @@ copy_ustar(void)
 	const char *target = "ustar";
 	int r;
 
+	/* NOTE: for proper operation on cygwin-1.5 and windows, the
+	 * length of the name of the directory below, "ustar", must be
+	 * less than or equal to the lengthe of the name of the original
+	 * directory, "original"  This restriction derives from the
+	 * extremely limited pathname lengths on those platforms.
+	 */
 	assertEqualInt(0, mkdir(target, 0775));
 	assertEqualInt(0, chdir(target));
 

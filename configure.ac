@@ -380,6 +380,8 @@ AC_CHECK_FUNCS([nl_langinfo pipe poll readlink select setenv setlocale])
 AC_CHECK_FUNCS([strchr strdup strerror strrchr timegm])
 AC_CHECK_FUNCS([tzset unsetenv utime utimes vfork])
 AC_CHECK_FUNCS([wcrtomb wcscpy wcslen wctomb wmemcmp wmemcpy])
+# detects cygwin-1.7, as opposed to older versions
+AC_CHECK_FUNCS([cygwin_conv_path])
 
 # FreeBSD's nl_langinfo supports an option to specify whether the
 # current locale uses month/day or day/month ordering.  It makes the
