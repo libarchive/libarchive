@@ -309,8 +309,17 @@ extern "C" {
 /* Implementation POSIX function */
 extern int	 link (const char *from, const char *to);
 extern int	 symlink (const char *from, const char *to);
+#ifndef HAVE_FTRUNCATE
+#define HAVE_FTRUNCATE 1
+#endif
 extern int	 ftruncate(int fd, off_t length);
+#ifndef HAVE_FUTIMES 
+#define HAVE_FUTIMES 1
+#endif
 extern int	 futimes(int fd, const struct __timeval *times);
+#ifndef HAVE_UTIMES 
+#define HAVE_UTIMES 1
+#endif
 extern int	 utimes(const char *name, const struct __timeval *times);
 
 /* Replacement POSIX function */

@@ -50,6 +50,14 @@
 #error Oops: No config.h and no pre-built configuration in archive_platform.h.
 #endif
 
+/* It should be possible to get rid of this by extending the feature-test
+ * macros to cover Windows API functions, probably along with non-trivial
+ * refactoring of code to find structures that sit more cleanly on top of
+ * either Windows or Posix APIs. */
+#if (defined(__WIN32__) || defined(_WIN32) || defined(__WIN32)) && !defined(__CYGWIN__)
+#include "archive_windows.h"
+#endif
+
 /*
  * The config files define a lot of feature macros.  The following
  * uses those macros to select/define replacements and include key
