@@ -52,6 +52,7 @@ int_in_list(int i, int *l, size_t n)
 	while (n-- > 0)
 		if (*l++ == i)
 			return (1);
+	failure("%d", i);
 	return (0);
 }
 
@@ -62,8 +63,6 @@ DEFINE_TEST(test_owner_parse)
 	skipping("Windows cannot handle uid/gid as UNIX like system");
 #else
 	int uid, gid;
-
-	lafe_progname = "cpio";
 
 	assertEqualInt(0, owner_parse(ROOT, &uid, &gid));
 	assert(int_in_list(uid, root_uids,
