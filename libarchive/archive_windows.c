@@ -78,6 +78,9 @@ struct ustat {
 	dev_t		st_rdev;
 };
 
+/* Local replacement for undocumented Windows CRT function. */
+static void la_dosmaperr(unsigned long e);
+
 /* Transform 64-bits ino into 32-bits by hashing.
  * You do not forget that really unique number size is 64-bits.
  */
@@ -377,7 +380,7 @@ __link(const char *src, const char *dst, int sym)
 		attr = GetFileAttributesW(wnewsrc);
 		if (attr == -1 || (attr & FILE_ATTRIBUTE_DIRECTORY) != 0) {
 			if (attr == -1)
-				_dosmaperr(GetLastError());
+				la_dosmaperr(GetLastError());
 			else
 				errno = EPERM;
 			free (wnewsrc);
@@ -391,7 +394,7 @@ __link(const char *src, const char *dst, int sym)
 		free (wnewsrc);
 	}
 	if (res == 0) {
-		_dosmaperr(GetLastError());
+		la_dosmaperr(GetLastError());
 		retval = -1;
 	} else
 		retval = 0;
@@ -433,11 +436,11 @@ ftruncate(int fd, off_t length)
 	}
 	distance.QuadPart = length;
 	if (!SetFilePointerEx(handle, distance, NULL, FILE_BEGIN)) {
-		_dosmaperr(GetLastError());
+		la_dosmaperr(GetLastError());
 		return (-1);
 	}
 	if (!SetEndOfFile(handle)) {
-		_dosmaperr(GetLastError());
+		la_dosmaperr(GetLastError());
 		return (-1);
 	}
 	return (0);
@@ -480,7 +483,7 @@ utimes(const char *name, const struct __timeval *times)
 	    FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
 	    FILE_FLAG_BACKUP_SEMANTICS, NULL);
 	if (handle == INVALID_HANDLE_VALUE) {
-		_dosmaperr(GetLastError());
+		la_dosmaperr(GetLastError());
 		return (-1);
 	}
 	ret = __hutimes(handle, times);
@@ -497,7 +500,7 @@ la_chdir(const char *path)
 	r = SetCurrentDirectoryA(path);
 	if (r == 0) {
 		if (GetLastError() != ERROR_FILE_NOT_FOUND) {
-			_dosmaperr(GetLastError());
+			la_dosmaperr(GetLastError());
 			return (-1);
 		}
 	} else
@@ -510,7 +513,7 @@ la_chdir(const char *path)
 	r = SetCurrentDirectoryW(ws);
 	free(ws);
 	if (r == 0) {
-		_dosmaperr(GetLastError());
+		la_dosmaperr(GetLastError());
 		return (-1);
 	}
 	return (0);
@@ -582,7 +585,7 @@ la_lseek(int fd, __int64 offset, int whence)
 		if (lasterr == ERROR_ACCESS_DENIED)
 			errno = EBADF;
 		else
-			_dosmaperr(lasterr);
+			la_dosmaperr(lasterr);
 		return (-1);
 	}
 	return (newpointer.QuadPart);
@@ -600,7 +603,7 @@ la_mkdir(const char *path, mode_t mode)
 		DWORD lasterr = GetLastError();
 		if (lasterr != ERROR_FILENAME_EXCED_RANGE &&
 			lasterr != ERROR_PATH_NOT_FOUND) {
-			_dosmaperr(GetLastError());
+			la_dosmaperr(GetLastError());
 			return (-1);
 		}
 	} else
@@ -613,7 +616,7 @@ la_mkdir(const char *path, mode_t mode)
 	r = CreateDirectoryW(ws, NULL);
 	free(ws);
 	if (r == 0) {
-		_dosmaperr(GetLastError());
+		la_dosmaperr(GetLastError());
 		return (-1);
 	}
 	return (0);
@@ -660,7 +663,7 @@ la_open(const char *path, int flags, ...)
 			attr = GetFileAttributesW(ws);
 		}
 		if (attr == -1) {
-			_dosmaperr(GetLastError());
+			la_dosmaperr(GetLastError());
 			free(ws);
 			return (-1);
 		}
@@ -681,7 +684,7 @@ la_open(const char *path, int flags, ...)
 					NULL);
 			free(ws);
 			if (handle == INVALID_HANDLE_VALUE) {
-				_dosmaperr(GetLastError());
+				la_dosmaperr(GetLastError());
 				return (-1);
 			}
 			r = _open_osfhandle((intptr_t)handle, _O_RDONLY);
@@ -694,7 +697,7 @@ la_open(const char *path, int flags, ...)
 			/* simular other POSIX system action to pass a test */
 			attr = GetFileAttributesA(path);
 			if (attr == -1)
-				_dosmaperr(GetLastError());
+				la_dosmaperr(GetLastError());
 			else if (attr & FILE_ATTRIBUTE_DIRECTORY)
 				errno = EISDIR;
 			else
@@ -714,7 +717,7 @@ la_open(const char *path, int flags, ...)
 		/* simular other POSIX system action to pass a test */
 		attr = GetFileAttributesW(ws);
 		if (attr == -1)
-			_dosmaperr(GetLastError());
+			la_dosmaperr(GetLastError());
 		else if (attr & FILE_ATTRIBUTE_DIRECTORY)
 			errno = EISDIR;
 		else
@@ -769,7 +772,7 @@ la_read(int fd, void *buf, size_t nbytes)
 		if (lasterr == ERROR_ACCESS_DENIED)
 			errno = EBADF;
 		else
-			_dosmaperr(lasterr);
+			la_dosmaperr(lasterr);
 		return (-1);
 	}
 	return ((ssize_t)bytes_read);
@@ -869,13 +872,13 @@ __hstat(HANDLE handle, struct ustat *st)
 		break;
 	default:
 		/* This ftype is undocumented type. */
-		_dosmaperr(GetLastError());
+		la_dosmaperr(GetLastError());
 		return (-1);
 	}
 
 	ZeroMemory(&info, sizeof(info));
 	if (!GetFileInformationByHandle (handle, &info)) {
-		_dosmaperr(GetLastError());
+		la_dosmaperr(GetLastError());
 		return (-1);
 	}
 
@@ -969,7 +972,7 @@ la_stat(const char *path, struct stat *st)
 		FILE_FLAG_BACKUP_SEMANTICS | FILE_ATTRIBUTE_READONLY,
 		NULL);
 	if (handle == INVALID_HANDLE_VALUE) {
-		_dosmaperr(GetLastError());
+		la_dosmaperr(GetLastError());
 		return (-1);
 	}
 	ret = __hstat(handle, &u);
@@ -1026,18 +1029,18 @@ la_waitpid(pid_t wpid, int *status, int option)
 	(void)option;/* UNUSED */
 	child = OpenProcess(PROCESS_ALL_ACCESS, FALSE, wpid);
 	if (child == NULL) {
-		_dosmaperr(GetLastError());
+		la_dosmaperr(GetLastError());
 		return (-1);
 	}
 	ret = WaitForSingleObject(child, INFINITE);
 	if (ret == WAIT_FAILED) {
 		CloseHandle(child);
-		_dosmaperr(GetLastError());
+		la_dosmaperr(GetLastError());
 		return (-1);
 	}
 	if (GetExitCodeProcess(child, &cs) == 0) {
 		CloseHandle(child);
-		_dosmaperr(GetLastError());
+		la_dosmaperr(GetLastError());
 		return (-1);
 	}
 	if (cs == STILL_ACTIVE)
@@ -1069,10 +1072,130 @@ la_write(int fd, const void *buf, size_t nbytes)
 		if (lasterr == ERROR_ACCESS_DENIED)
 			errno = EBADF;
 		else
-			_dosmaperr(lasterr);
+			la_dosmaperr(lasterr);
 		return (-1);
 	}
 	return (bytes_written);
+}
+
+/*
+ * The following function was modified from PostgreSQL sources and is
+ * subject to the copyright below.
+ */
+/*-------------------------------------------------------------------------
+ *
+ * win32error.c
+ *	  Map win32 error codes to errno values
+ *
+ * Portions Copyright (c) 1996-2008, PostgreSQL Global Development Group
+ *
+ * IDENTIFICATION
+ *	  $PostgreSQL: pgsql/src/port/win32error.c,v 1.4 2008/01/01 19:46:00 momjian Exp $
+ *
+ *-------------------------------------------------------------------------
+ */
+/*
+PostgreSQL Database Management System
+(formerly known as Postgres, then as Postgres95)
+
+Portions Copyright (c) 1996-2008, PostgreSQL Global Development Group
+
+Portions Copyright (c) 1994, The Regents of the University of California
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose, without fee, and without a written agreement
+is hereby granted, provided that the above copyright notice and this
+paragraph and the following two paragraphs appear in all copies.
+
+IN NO EVENT SHALL THE UNIVERSITY OF CALIFORNIA BE LIABLE TO ANY PARTY FOR
+DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING
+LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS
+DOCUMENTATION, EVEN IF THE UNIVERSITY OF CALIFORNIA HAS BEEN ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+THE UNIVERSITY OF CALIFORNIA SPECIFICALLY DISCLAIMS ANY WARRANTIES,
+INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS FOR A PARTICULAR PURPOSE.  THE SOFTWARE PROVIDED HEREUNDER IS
+ON AN "AS IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATIONS TO
+PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+*/
+
+static const struct {
+	DWORD		winerr;
+	int		doserr;
+} doserrors[] =
+{
+	{	ERROR_INVALID_FUNCTION, EINVAL	},
+	{	ERROR_FILE_NOT_FOUND, ENOENT	},
+	{	ERROR_PATH_NOT_FOUND, ENOENT	},
+	{	ERROR_TOO_MANY_OPEN_FILES, EMFILE	},
+	{	ERROR_ACCESS_DENIED, EACCES	},
+	{	ERROR_INVALID_HANDLE, EBADF	},
+	{	ERROR_ARENA_TRASHED, ENOMEM	},
+	{	ERROR_NOT_ENOUGH_MEMORY, ENOMEM	},
+	{	ERROR_INVALID_BLOCK, ENOMEM	},
+	{	ERROR_BAD_ENVIRONMENT, E2BIG	},
+	{	ERROR_BAD_FORMAT, ENOEXEC	},
+	{	ERROR_INVALID_ACCESS, EINVAL	},
+	{	ERROR_INVALID_DATA, EINVAL	},
+	{	ERROR_INVALID_DRIVE, ENOENT	},
+	{	ERROR_CURRENT_DIRECTORY, EACCES	},
+	{	ERROR_NOT_SAME_DEVICE, EXDEV	},
+	{	ERROR_NO_MORE_FILES, ENOENT	},
+	{	ERROR_LOCK_VIOLATION, EACCES	},
+	{	ERROR_SHARING_VIOLATION, EACCES	},
+	{	ERROR_BAD_NETPATH, ENOENT	},
+	{	ERROR_NETWORK_ACCESS_DENIED, EACCES	},
+	{	ERROR_BAD_NET_NAME, ENOENT	},
+	{	ERROR_FILE_EXISTS, EEXIST	},
+	{	ERROR_CANNOT_MAKE, EACCES	},
+	{	ERROR_FAIL_I24, EACCES	},
+	{	ERROR_INVALID_PARAMETER, EINVAL	},
+	{	ERROR_NO_PROC_SLOTS, EAGAIN	},
+	{	ERROR_DRIVE_LOCKED, EACCES	},
+	{	ERROR_BROKEN_PIPE, EPIPE	},
+	{	ERROR_DISK_FULL, ENOSPC	},
+	{	ERROR_INVALID_TARGET_HANDLE, EBADF	},
+	{	ERROR_INVALID_HANDLE, EINVAL	},
+	{	ERROR_WAIT_NO_CHILDREN, ECHILD	},
+	{	ERROR_CHILD_NOT_COMPLETE, ECHILD	},
+	{	ERROR_DIRECT_ACCESS_HANDLE, EBADF	},
+	{	ERROR_NEGATIVE_SEEK, EINVAL	},
+	{	ERROR_SEEK_ON_DEVICE, EACCES	},
+	{	ERROR_DIR_NOT_EMPTY, ENOTEMPTY	},
+	{	ERROR_NOT_LOCKED, EACCES	},
+	{	ERROR_BAD_PATHNAME, ENOENT	},
+	{	ERROR_MAX_THRDS_REACHED, EAGAIN	},
+	{	ERROR_LOCK_FAILED, EACCES	},
+	{	ERROR_ALREADY_EXISTS, EEXIST	},
+	{	ERROR_FILENAME_EXCED_RANGE, ENOENT	},
+	{	ERROR_NESTING_NOT_ALLOWED, EAGAIN	},
+	{	ERROR_NOT_ENOUGH_QUOTA, ENOMEM	}
+};
+
+static void
+la_dosmaperr(unsigned long e)
+{
+	int			i;
+
+	if (e == 0)
+	{
+		errno = 0;
+		return;
+	}
+
+	for (i = 0; i < lengthof(doserrors); i++)
+	{
+		if (doserrors[i].winerr == e)
+		{
+			errno = doserrors[i].doserr;
+			return;
+		}
+	}
+
+	/* fprintf(stderr, "unrecognized win32 error code: %lu", e); */
+	errno = EINVAL;
+	return;
 }
 
 #if !defined(HAVE_OPENSSL_MD5_H) && !defined(HAVE_OPENSSL_SHA_H)
