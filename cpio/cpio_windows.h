@@ -28,12 +28,10 @@
 #ifndef CPIO_WINDOWS_H
 #define CPIO_WINDOWS_H 1
 
-#define geteuid()	0
 #define getgrgid(id)	NULL
 #define getgrnam(name)	NULL
 #define getpwnam(name)	NULL
 #define getpwuid(id)	NULL
-#define getuid()	0
 
 #ifdef _MSC_VER
 #define snprintf	sprintf_s
@@ -55,7 +53,6 @@ extern "C" {
 #endif
 
 extern unsigned int	sleep(unsigned int seconds);
-extern int		bsdcpio_is_privileged();
 
 #ifdef __cplusplus
 }

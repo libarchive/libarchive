@@ -161,12 +161,10 @@ main(int argc, char *argv[])
 	cpio->extract_flags |= ARCHIVE_EXTRACT_PERM;
 	cpio->extract_flags |= ARCHIVE_EXTRACT_FFLAGS;
 	cpio->extract_flags |= ARCHIVE_EXTRACT_ACL;
-#if defined(_WIN32) || defined(__CYGWIN__)
-	if (bsdcpio_is_privileged())
-#else
+#if !defined(_WIN32) && !defined(__CYGWIN__)
 	if (geteuid() == 0)
-#endif
 		cpio->extract_flags |= ARCHIVE_EXTRACT_OWNER;
+#endif
 	cpio->bytes_per_block = 512;
 	cpio->filename = NULL;
 

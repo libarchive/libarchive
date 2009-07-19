@@ -473,11 +473,6 @@ bsdcpio_SOURCES+=			\
 		cpio/cpio_windows.h	\
 		cpio/cpio_windows.c
 endif
-if INC_CYGWIN_FILES
-bsdcpio_SOURCES+=			\
-		cpio/cpio_cygwin.h	\
-		cpio/cpio_cygwin.c
-endif
 
 bsdcpio_DEPENDENCIES = libarchive.la libarchive_fe.la
 
@@ -494,8 +489,6 @@ bsdcpio_LDFLAGS= $(bsdcpio_static)
 bsdcpio_EXTRA_DIST=		\
 	cpio/test/list.h	\
 	cpio/bsdcpio.1		\
-	cpio/cpio_cygwin.h	\
-	cpio/cpio_cygwin.c	\
 	cpio/cpio_windows.h	\
 	cpio/cpio_windows.c	\
 	cpio/CMakeLists.txt	\
