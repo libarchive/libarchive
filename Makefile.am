@@ -381,11 +381,6 @@ bsdtar_SOURCES+=			\
 		tar/bsdtar_windows.h	\
 		tar/bsdtar_windows.c
 endif
-if INC_CYGWIN_FILES
-bsdtar_SOURCES+=			\
-		tar/bsdtar_cygwin.h	\
-		tar/bsdtar_cygwin.c
-endif
 
 bsdtar_DEPENDENCIES= libarchive.la libarchive_fe.la
 
@@ -403,8 +398,6 @@ bsdtar_EXTRA_DIST=		\
 	tar/bsdtar.1		\
 	tar/bsdtar_windows.h	\
 	tar/bsdtar_windows.c	\
-	tar/bsdtar_cygwin.h	\
-	tar/bsdtar_cygwin.c	\
 	tar/CMakeLists.txt	\
 	tar/config_freebsd.h	\
 	tar/test/list.h

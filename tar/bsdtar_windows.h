@@ -46,7 +46,6 @@ extern DIR	*opendir(const char *path);
 extern struct dirent *readdir(DIR *dirp);
 extern int	closedir(DIR *dirp);
 
-extern int	bsdtar_is_privileged(struct bsdtar *bsdtar);
 extern void	write_hierarchy_win(struct bsdtar *bsdtar, struct archive *a,
 		const char *path,
 		void (*write_hierarchy)(struct bsdtar *bsdtar,
