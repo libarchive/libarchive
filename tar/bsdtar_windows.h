@@ -45,6 +45,9 @@ struct direct {
 extern "C" {
 #endif
 
+struct bsdtar;
+struct archive;
+
 extern DIR	*opendir(const char *path);
 extern struct dirent *readdir(DIR *dirp);
 extern int	closedir(DIR *dirp);
