@@ -897,12 +897,12 @@ archive_write_pax_header(struct archive_write *a,
 		    archive_strlen(&(pax->pax_header)));
 		/* Copy uid/gid (but clip to ustar limits). */
 		uid = archive_entry_uid(entry_main);
-		if (uid >= 1 << 18)
-			uid = (1 << 18) - 1;
+		if ((long long)uid >= 1 << 18)
+			uid = (uid_t)(1 << 18) - 1;
 		archive_entry_set_uid(pax_attr_entry, uid);
 		gid = archive_entry_gid(entry_main);
-		if (gid >= 1 << 18)
-			gid = (1 << 18) - 1;
+		if ((long long)gid >= 1 << 18)
+			gid = (gid_t)(1 << 18) - 1;
 		archive_entry_set_gid(pax_attr_entry, gid);
 		/* Copy mode over (but not setuid/setgid bits) */
 		mode = archive_entry_mode(entry_main);

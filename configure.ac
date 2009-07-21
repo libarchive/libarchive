@@ -263,7 +263,9 @@ fi
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
-AC_TYPE_UID_T
+# AC_TYPE_UID_T defaults to "int", which is incorrect for MinGW
+# and MSVC. Use a customized version.
+la_TYPE_UID_T
 AC_TYPE_MODE_T
 # AC_TYPE_OFF_T defaults to "long", which limits us to 4GB files on
 # most systems... default to "long long" instead.
