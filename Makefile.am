@@ -369,14 +369,17 @@ endif
 bsdtar_DEPENDENCIES= libarchive.la
 
 if STATIC_BSDTAR
-bsdtar_static= -static
+bsdtar_ldstatic= -static
+bsdtar_ccstatic= -DLIBARCHIVE_STATIC
 else
-bsdtar_static=
+bsdtar_ldstatic=
+bsdtar_ccstatic=
 endif
 
 bsdtar_LDADD= libarchive.la @PROG_LDADD_EXTRA@
-bsdtar_CPPFLAGS= -I$(top_builddir)/libarchive -I$(top_srcdir)/libarchive
-bsdtar_LDFLAGS= $(bsdtar_static)
+bsdtar_CPPFLAGS= -I$(top_builddir)/libarchive -I$(top_srcdir)/libarchive $(bsdtar_ccstatic)
+bsdtar_LDFLAGS= $(bsdtar_ldstatic)
+
 bsdtar_EXTRA_DIST=		\
 	tar/bsdtar.1		\
 	tar/bsdtar_windows.h	\
@@ -474,14 +477,17 @@ bsdcpio_DEPENDENCIES = libarchive.la
 
 
 if STATIC_BSDCPIO
-bsdcpio_static= -static
+bsdcpio_ldstatic= -static
+bsdcpio_ccstatic= -DLIBARCHIVE_STATIC
 else
-bsdcpio_static=
+bsdcpio_ldstatic=
+bsdcpio_ccstatic=
 endif
 
 bsdcpio_LDADD= libarchive.la @PROG_LDADD_EXTRA@
-bsdcpio_CPPFLAGS= -I$(top_builddir)/libarchive -I$(top_srcdir)/libarchive
-bsdcpio_LDFLAGS= $(bsdcpio_static)
+bsdcpio_CPPFLAGS= -I$(top_builddir)/libarchive -I$(top_srcdir)/libarchive $(bsdcpio_ccstatic)
+bsdcpio_LDFLAGS= $(bsdcpio_ldstatic)
+
 bsdcpio_EXTRA_DIST=		\
 	cpio/test/list.h	\
 	cpio/bsdcpio.1		\
