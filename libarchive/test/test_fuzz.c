@@ -70,7 +70,7 @@ DEFINE_TEST(test_fuzz)
 		struct archive *a;
 		char *rawimage, *image;
 		size_t size;
-		int i, r;
+		int i;
 
 		extract_reference_file(*filep);
 		rawimage = slurpfile(&size, *filep);
@@ -79,38 +79,9 @@ DEFINE_TEST(test_fuzz)
 		assert(image != NULL);
 		srand(time(NULL));
 
-		assert((a = archive_read_new()) != NULL);
-		assert(0 == archive_read_support_compression_all(a));
-		assert(0 == archive_read_support_format_all(a));
-		assert(0 == archive_read_open_memory(a, rawimage, size));
-		r = archive_read_next_header(a, &ae);
-		if (UnsupportedCompress(r, a)) {
-			skipping("Skipping GZIP/BZIP2 compression check: "
-			    "This version of libarchive was compiled "
-			    "without gzip/bzip2 support");
-			assert(0 == archive_read_close(a));
-			assert(0 == archive_read_finish(a));
-			continue;
-		}
-		assert(0 == r);
-		if (r == ARCHIVE_OK) {
-			char buff[20];
-
-			r = archive_read_data(a, buff, 19);
-			if (r < ARCHIVE_OK && strcmp(archive_error_string(a),
-			    "libarchive compiled without deflate support (no libz)") == 0) {
-				skipping("Skipping ZIP compression check: %s",
-				    archive_error_string(a));
-				assert(0 == archive_read_close(a));
-				assert(0 == archive_read_finish(a));
-				continue;
-			}
-		}
-		assert(0 == archive_read_close(a));
-		assert(0 == archive_read_finish(a));
-
 		for (i = 0; i < 100; ++i) {
-			int j, fd, numbytes;
+			FILE *f;
+			int j, numbytes;
 
 			/* Fuzz < 1% of the bytes in the archive. */
 			memcpy(image, rawimage, size);
@@ -120,11 +91,10 @@ DEFINE_TEST(test_fuzz)
 
 			/* Save the messed-up image to a file.
 			 * If we crash, that file will be useful. */
-			fd = open("after.test.failure.send.this.file."
-			    "to.libarchive.maintainers.with.system.details",
-			    O_WRONLY | O_CREAT | O_TRUNC, 0744);
-			write(fd, image, (off_t)size);
-			close(fd);
+			f = fopen("after.test.failure.send.this.file."
+			    "to.libarchive.maintainers.with.system.details", "wb");
+			fwrite(image, 1, (size_t)size, f);
+			fclose(f);
 
 			assert((a = archive_read_new()) != NULL);
 			assertEqualIntA(a, ARCHIVE_OK,
