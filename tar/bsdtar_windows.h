@@ -27,8 +27,11 @@
 
 #ifndef BSDTAR_WINDOWS_H
 #define BSDTAR_WINDOWS_H 1
+#include <windows.h>
 
+#ifndef PRId64
 #define PRId64 "I64"
+#endif
 #define geteuid()	0
 
 struct __DIR;
