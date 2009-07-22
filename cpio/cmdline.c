@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/cmdline.c,v 1.5 2008/12/06 07:30:40 kientzl
 /*
  * Short options for cpio.  Please keep this sorted.
  */
-static const char *short_options = "0AaBC:F:O:cdE:f:H:hijLlmnopR:rtuvW:yZz";
+static const char *short_options = "0AaBC:F:O:cdE:f:H:hI:ijLlmnopR:rtuvW:yZz";
 
 /*
  * Long options for cpio.  Please keep this sorted.
