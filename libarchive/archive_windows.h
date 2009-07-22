@@ -27,8 +27,8 @@
  * $FreeBSD$
  */
 
-#ifndef LIBARCHIVE_NONPOSIX_H_INCLUDED
-#define	LIBARCHIVE_NONPOSIX_H_INCLUDED
+#ifndef LIBARCHIVE_ARCHIVE_WINDOWS_H_INCLUDED
+#define	LIBARCHIVE_ARCHIVE_WINDOWS_H_INCLUDED
 
 /* Start of configuration for native Win32  */
 
@@ -302,10 +302,6 @@ typedef struct {
 
 /* End of Win32 definitions. */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* Implementation POSIX function */
 extern int	 link (const char *from, const char *to);
 extern int	 symlink (const char *from, const char *to);
@@ -388,8 +384,4 @@ extern void	 SHA512_Final(unsigned char buf[SHA512_DIGEST_LENGTH],
 #endif
 #endif
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* LIBARCHIVE_NONPOSIX_H_INCLUDED  */
+#endif /* LIBARCHIVE_ARCHIVE_WINDOWS_H_INCLUDED */

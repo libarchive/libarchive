@@ -48,14 +48,6 @@ struct group {
 	gid_t	 gr_gid;
 };
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 extern unsigned int	sleep(unsigned int seconds);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* CPIO_WINDOWS_H */

@@ -41,10 +41,6 @@ struct direct {
 	char		d_name[MAX_PATH];
 };
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct bsdtar;
 struct archive;
 
@@ -56,9 +52,5 @@ extern void	write_hierarchy_win(struct bsdtar *bsdtar, struct archive *a,
 		const char *path,
 		void (*write_hierarchy)(struct bsdtar *bsdtar,
 		struct archive *a, const char *path));
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* BSDTAR_WINDOWS_H */
