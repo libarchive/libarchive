@@ -969,11 +969,11 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 
 	if (cpio->option_numeric_uid_gid) {
 		/* Format numeric uid/gid for display. */
-		snprintf(uids, sizeof(uids), "%jd",
-		    (intmax_t)archive_entry_uid(entry));
+		snprintf(uids, sizeof(uids), "%d",
+		    (int)archive_entry_uid(entry));
 		uname = uids;
-		snprintf(gids, sizeof(gids), "%jd",
-		    (intmax_t)archive_entry_gid(entry));
+		snprintf(gids, sizeof(gids), "%d",
+		    (int)archive_entry_gid(entry));
 		gname = gids;
 	} else {
 		/* Use uname if it's present, else lookup name from uid. */
