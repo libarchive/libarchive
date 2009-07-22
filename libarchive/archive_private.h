@@ -87,9 +87,9 @@ struct archive {
 	const char *compression_name;
 
 	/* Position in UNCOMPRESSED data stream. */
-	off_t		  file_position;
+	int64_t		  file_position;
 	/* Position in COMPRESSED data stream. */
-	off_t		  raw_position;
+	int64_t		  raw_position;
 
 	int		  archive_error_number;
 	const char	 *error;

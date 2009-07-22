@@ -242,13 +242,26 @@ client_read_proxy(struct archive_read_filter *self, const void **buff)
 static int64_t
 client_skip_proxy(struct archive_read_filter *self, int64_t request)
 {
-	int64_t r;
+	int64_t ask, get, total;
+	/* Limit our maximum seek request to 1GB on platforms
+	* with 32-bit off_t (such as Windows). */
+	int64_t skip_limit = ((int64_t)1) << (sizeof(off_t) * 8 - 2);
+
 	if (self->archive->client.skipper == NULL)
 		return (0);
-	r = (self->archive->client.skipper)(&self->archive->archive,
-	    self->data, request);
-	self->archive->archive.raw_position += r;
-	return (r);
+	total = 0;
+	for (;;) {
+		ask = request;
+		if (ask > skip_limit)
+			ask = skip_limit;
+		get = (self->archive->client.skipper)(&self->archive->archive,
+			self->data, ask);
+		if (get == 0)
+			return (total);
+		request -= get;
+		self->archive->archive.raw_position += get;
+		total += get;
+	}
 }
 
 static int
@@ -1119,7 +1132,7 @@ __archive_read_skip(struct archive_read *a, int64_t request)
 int64_t
 __archive_read_filter_skip(struct archive_read_filter *filter, int64_t request)
 {
-	off_t bytes_skipped, total_bytes_skipped = 0;
+	int64_t bytes_skipped, total_bytes_skipped = 0;
 	size_t min;
 
 	if (filter->fatal)
@@ -1134,7 +1147,7 @@ __archive_read_filter_skip(struct archive_read_filter *filter, int64_t request)
 		total_bytes_skipped += bytes_skipped;
 	}
 	if (filter->client_avail > 0) {
-		min = minimum(request, (off_t)filter->client_avail);
+		min = minimum(request, (int64_t)filter->client_avail);
 		bytes_skipped = __archive_read_consume(filter->archive, min);
 		request -= bytes_skipped;
 		total_bytes_skipped += bytes_skipped;
