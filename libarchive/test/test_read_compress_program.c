@@ -62,7 +62,11 @@ DEFINE_TEST(test_read_compress_program)
 		assertEqualIntA(a, ARCHIVE_FATAL,
 		   archive_read_next_header(a, &ae));
 	}
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	/* TODO: Align Windows and Posix ports to behave the same here. */
+	failure("ARCHIVE_WARN is expected on POSIX, ARCHIVE_OK on Windows; both are reasonable here");
+	r = archive_read_finish(a);
+	if (r != ARCHIVE_OK)
+		assertEqualInt(ARCHIVE_WARN, r);
 
 	/*
 	 * If we have "gzip -d", try using that.
