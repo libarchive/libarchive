@@ -6,7 +6,7 @@
 #
 
 # Remove existing manpages from the doc tree
-chmod -R +w man text
+chmod -R +w man text pdf
 rm -f man/*.[135]
 rm -f text/*.txt
 rm -f pdf/*.pdf
