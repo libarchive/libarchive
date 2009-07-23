@@ -53,11 +53,15 @@ DEFINE_TEST(test_read_compress_program)
 	assertEqualIntA(a, ARCHIVE_OK, r);
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_open_memory(a, archive, sizeof(archive)));
-	assertEqualIntA(a, ARCHIVE_FATAL,
-	    archive_read_next_header(a, &ae));
-	assertEqualIntA(a, ARCHIVE_WARN, archive_read_close(a));
+	/* On Windows, archive_read_open_memory() fails if we try
+	 * to run a nonexistent filter program; POSIX platforms
+	 * don't return failure until the first read_next_header.
+	 */
+	r = archive_read_open_memory(a, archive, sizeof(archive));
+	if (r == ARCHIVE_OK) {
+		assertEqualIntA(a, ARCHIVE_FATAL,
+		   archive_read_next_header(a, &ae));
+	}
 	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 
 	/*
