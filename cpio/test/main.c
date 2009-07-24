@@ -825,9 +825,9 @@ static int test_run(int i, const char *tmpdir)
 	if (failures == failures_before) {
 		if (!keep_temp_files && chdir(tmpdir) == 0) {
 #if defined(_WIN32) && !defined(__CYGWIN__)
-			systemf("rmdir /S /Q %s", tests[i].name);
+			systemf("rmdir /S /Q \"%s\"", tests[i].name);
 #else
-			systemf("rm -rf %s", tests[i].name);
+			systemf("rm -rf \"%s\"", tests[i].name);
 #endif
 		}
 	}
@@ -1194,6 +1194,7 @@ int main(int argc, char **argv)
 
 	/* If the final tmpdir is empty, we can remove it. */
 	/* This should be the usual case when all tests succeed. */
+	chdir("..");
 	rmdir(tmpdir);
 
 	return (tests_failed);
