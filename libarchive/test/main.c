@@ -1212,6 +1212,7 @@ int main(int argc, char **argv)
 
 	/* If the final tmpdir is empty, we can remove it. */
 	/* This should be the usual case when all tests succeed. */
+	chdir("..");
 	rmdir(tmpdir);
 
 	return (tests_failed);
