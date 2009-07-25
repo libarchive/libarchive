@@ -108,14 +108,10 @@ joliettest(int withrr)
 		assertEqualInt(2, archive_entry_gid(ae));
 	}
 
-	/* A hardlink to the regular file. */
+	/* A regular file with a hardlink. */
 	assertEqualInt(0, archive_read_next_header(a, &ae));
 	assertEqualString("hardlink", archive_entry_pathname(ae));
 	assert(S_ISREG(archive_entry_stat(ae)->st_mode));
-	if (withrr) {
-		assertEqualString("long-joliet-file-name.textfile",
-		    archive_entry_hardlink(ae));
-	}
 	assertEqualInt(6, archive_entry_size(ae));
 	assertEqualInt(0, archive_read_data_block(a, &p, &size, &offset));
 	assertEqualInt(6, (int)size);
@@ -129,11 +125,11 @@ joliettest(int withrr)
 		assertEqualInt(2, archive_entry_gid(ae));
 	}
 
-	/* A regular file. */
+	/* Another link to the regular file. */
 	assertEqualInt(0, archive_read_next_header(a, &ae));
 	assertEqualString("long-joliet-file-name.textfile", archive_entry_pathname(ae));
 	assert(S_ISREG(archive_entry_stat(ae)->st_mode));
-	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(0, archive_entry_size(ae));
 	if (withrr) {
 		assertEqualInt(86401, archive_entry_mtime(ae));
 		assertEqualInt(86401, archive_entry_atime(ae));
