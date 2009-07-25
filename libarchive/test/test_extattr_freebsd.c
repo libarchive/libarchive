@@ -85,7 +85,7 @@ DEFINE_TEST(test_extattr_freebsd)
 
 	n = extattr_set_fd(fd, EXTATTR_NAMESPACE_USER, "testattr", "1234", 4);
 	if (n != 4) {
-		skipping("Restoring xattr to an unwritable file (broken in some versions of FreeBSD");
+		skipping("Restoring xattr to an unwritable file seems to be broken on this platform");
 		extattr_privilege_bug = 1;
 	}
 	close(fd);
