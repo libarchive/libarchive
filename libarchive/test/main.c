@@ -720,6 +720,30 @@ test_assert_file_contents(const void *buff, int s, const char *fpattern, ...)
 	return (0);
 }
 
+int
+test_assert_make_dir(const char *file, int line, const char *dirname, int mode)
+{
+	int r;
+
+	count_assertion(file, line);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	r = mkdir(dirname);
+#else
+	r = mkdir(dirname, mode);
+#endif
+	if (r == 0) {
+		msg[0] = '\0';
+		return (1);
+	}
+	failures++;
+	if (!verbose && previous_failures(file, line, 1))
+		return (0);
+	fprintf(stderr, "%s:%d: Could not create directory\n",
+		file, line);
+	fprintf(stderr, "     Dirname: %s\n", dirname);
+	return(0);
+}
+
 /*
  * Call standard system() call, but build up the command line using
  * sprintf() conventions.
@@ -827,7 +851,7 @@ static int test_run(int i, const char *tmpdir)
 		exit(1);
 	}
 	/* Create a temp directory for this specific test. */
-	if (mkdir(tests[i].name, 0755)) {
+	if (!assertMakeDir(tests[i].name, 0755)) {
 		fprintf(stderr,
 		    "ERROR: Couldn't create temp dir ``%s''\n",
 		    tests[i].name);
@@ -1191,13 +1215,12 @@ int main(int argc, char **argv)
 		    localtime(&now));
 		sprintf(tmpdir, "%s/%s.%s-%03d", tmp, progname,
 		    tmpdir_timestamp, i);
-		if (mkdir(tmpdir,0755) == 0)
-			break;
-		if (errno == EEXIST)
-			continue;
-		fprintf(stderr, "ERROR: Unable to create temp directory %s\n",
-		    tmpdir);
-		exit(1);
+		if (!assertMakeDir(tmpdir,0755)) {
+			fprintf(stderr,
+				"ERROR: Unable to create temp directory %s\n",
+				tmpdir);
+			exit(1);
+		}
 	}
 
 	/*

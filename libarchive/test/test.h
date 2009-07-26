@@ -132,6 +132,9 @@
 /* Assert that file contents match a string; supports printf-style arguments. */
 #define assertFileContents             \
   test_setup(__FILE__, __LINE__);test_assert_file_contents
+/* Create a directory, report error if it fails. */
+#define assertMakeDir(dirname, mode)	\
+  test_assert_make_dir(__FILE__, __LINE__, dirname, mode)
 
 /*
  * This would be simple with C99 variadic macros, but I don't want to
@@ -157,6 +160,7 @@ int test_assert_equal_mem(const char *, int, const void *, const char *, const v
 int test_assert_file_contents(const void *, int, const char *, ...);
 int test_assert_file_exists(const char *, ...);
 int test_assert_file_not_exists(const char *, ...);
+int test_assert_make_dir(const char *, int, const char *, int);
 
 /* Like sprintf, then system() */
 int systemf(const char * fmt, ...);
