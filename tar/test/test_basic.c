@@ -30,17 +30,16 @@ static void
 basic_tar(const char *target, const char *pack_options,
     const char *unpack_options, const char *flist)
 {
-	struct stat st, st2;
 	int r;
 
-	assertEqualInt(0, mkdir(target, 0775));
+	assertMakeDir(target, 0775);
 
 	/* Use the tar program to create an archive. */
 	r = systemf("%s cf - %s %s >%s/archive 2>%s/pack.err", testprog, pack_options, flist, target, target);
 	failure("Error invoking %s cf -", testprog, pack_options);
 	assertEqualInt(r, 0);
 
-	chdir(target);
+	assertChdir(target);
 
 	/* Verify that nothing went to stderr. */
 	assertEmptyFile("pack.err");
@@ -60,30 +59,15 @@ basic_tar(const char *target, const char *pack_options,
 	 */
 
 	/* Regular file with 2 links. */
-	r = lstat("file", &st);
-	failure("Failed to stat file %s/file, errno=%d", target, errno);
-	assertEqualInt(r, 0);
-	if (r == 0) {
-		assert(S_ISREG(st.st_mode));
-		assertEqualInt(10, st.st_size);
-		failure("file %s/file", target);
-		assertEqualInt(2, st.st_nlink);
-	}
+	assertIsReg("file", -1);
+	assertFileSize("file", 10);
+	assertFileNLinks("file", 2);
 
 	/* Another name for the same file. */
-	r = lstat("linkfile", &st2);
-	failure("Failed to stat file %s/linkfile, errno=%d", target, errno);
-	assertEqualInt(r, 0);
-	if (r == 0) {
-		assert(S_ISREG(st2.st_mode));
-		assertEqualInt(10, st2.st_size);
-		failure("file %s/linkfile", target);
-		assertEqualInt(2, st2.st_nlink);
-		/* Verify that the two are really hardlinked. */
-		assertEqualInt(st.st_dev, st2.st_dev);
-		failure("%s/linkfile and %s/file aren't really hardlinks", target, target);
-		assertEqualInt(st.st_ino, st2.st_ino);
-	}
+	assertIsReg("linkfile", -1);
+	assertFileSize("linkfile", 10);
+	assertFileNLinks("linkfile", 2);
+	assertFileHardlinks("file", "linkfile");
 
 #if !defined(_WIN32) || defined(__CYGWIN__)
 	/* Symlink */
@@ -105,27 +89,16 @@ basic_tar(const char *target, const char *pack_options,
 #endif
 
 	/* dir */
-	r = lstat("dir", &st);
-	if (r == 0) {
-		assertEqualInt(r, 0);
-		assert(S_ISDIR(st.st_mode));
-#if !defined(_WIN32) || defined(__CYGWIN__)
-		assertEqualInt(0775, st.st_mode & 0777);
-#else
-		assertEqualInt(0700, st.st_mode & 0700);
-#endif
-	}
-
-	chdir("..");
+	assertIsDir("dir", 0775);
+	assertChdir("..");
 }
 
 DEFINE_TEST(test_basic)
 {
 	FILE *f;
-	int oldumask;
 	const char *flist;
 
-	oldumask = umask(0);
+	assertUmask(0);
 
 	/* File with 10 bytes content. */
 	f = fopen("file", "wb");
@@ -134,13 +107,13 @@ DEFINE_TEST(test_basic)
 	fclose(f);
 
 	/* hardlink to above file. */
-	assertEqualInt(0, link("file", "linkfile"));
+	assertMakeHardlink("linkfile", "file");
 
 	/* Symlink to above file. */
-	assertEqualInt(0, symlink("file", "symlink"));
+	assertMakeSymlink("symlink", "file");
 
 	/* Directory. */
-	assertEqualInt(0, mkdir("dir", 0775));
+	assertMakeDir("dir", 0775);
 
 	flist = "file linkfile symlink dir";
 	/* Archive/dearchive with a variety of options. */
@@ -148,6 +121,4 @@ DEFINE_TEST(test_basic)
 	/* tar doesn't handle cpio symlinks correctly */
 	/* basic_tar("copy_odc", "--format=odc", ""); */
 	basic_tar("copy_ustar", "--format=ustar", "", flist);
-
-	umask(oldumask);
 }

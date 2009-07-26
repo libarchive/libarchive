@@ -28,7 +28,8 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/test/test_patterns.c,v 1.6 2008/08/21 22:28:
 
 DEFINE_TEST(test_patterns)
 {
-	int fd, r;
+	FILE *f;
+	int r;
 	const char *reffile2 = "test_patterns_2.tar";
 	const char *reffile3 = "test_patterns_3.tar";
 	const char *reffile4 = "test_patterns_4.tar";
@@ -44,9 +45,9 @@ DEFINE_TEST(test_patterns)
 	 *
 	 * John Baldwin reported this problem in PR bin/121598
 	 */
-	fd = open("foo", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	close(fd);
+	f = fopen("foo", "w");
+	assert(f != NULL);
+	fclose(f);
 	r = systemf("%s cfv tar1.tgz foo > tar1a.out 2> tar1a.err", testprog);
 	assertEqualInt(r, 0);
 	r = systemf("%s xv --no-same-owner -f tar1.tgz foo bar > tar1b.out 2> tar1b.err", testprog);
@@ -102,7 +103,7 @@ DEFINE_TEST(test_patterns)
 	assertEqualInt(r, 0);
 	assertEmptyFile("tar3d.out");
 	assertEmptyFile("tar3d.err");
-	assertEqualInt(0, access("tmp/foo/baz/bar", F_OK));
+	assertFileExists("tmp/foo/baz/bar");
 
 	/*
 	 * Test 4 archive has some entries starting with windows drive letters
@@ -167,16 +168,16 @@ DEFINE_TEST(test_patterns)
 			 * c:../..\file43
 			 * \/?\UnC\../file54
 			 */
-			assertEqualInt(-1, access(filex, F_OK));
+			assertFileNotExists(filex);
 			filex = file_c;
 			xsize = sizeof(file_c);
 			filex[xsize-3] = '0' + r / 10;
 			filex[xsize-2] = '0' + r % 10;
-			assertEqualInt(-1, access(filex, F_OK));
+			assertFileNotExists(filex);
 			break;
 		default:
 			/* Extracted patterns. */
-			assertEqualInt(0, access(filex, F_OK));
+			assertFileExists(filex);
 			break;
 		}
 	}

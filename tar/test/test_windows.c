@@ -25,6 +25,8 @@
 #include "test.h"
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
+#include <windows.h>
+
 static void
 mkfile(const char *name)
 {
@@ -136,37 +138,37 @@ DEFINE_TEST(test_windows)
 	 * Preparre tests.
 	 * Create directories and files.
 	 */
-	assertEqualInt(0, mkdir("tmp", 0775));
-	assertEqualInt(0, chdir("tmp"));
+	assertMakeDir("tmp", 0775);
+	assertChdir("tmp");
 
-	assertEqualInt(0, mkdir("aaa", 0775));
-	assertEqualInt(0, mkdir("aaa/xxa", 0775));
-	assertEqualInt(0, mkdir("aaa/xxb", 0775));
-	assertEqualInt(0, mkdir("aaa/zzc", 0775));
+	assertMakeDir("aaa", 0775);
+	assertMakeDir("aaa/xxa", 0775);
+	assertMakeDir("aaa/xxb", 0775);
+	assertMakeDir("aaa/zzc", 0775);
 	mkfile("aaa/file1");
 	mkfile("aaa/xxa/file1");
 	mkfile("aaa/xxb/file1");
 	mkfile("aaa/zzc/file1");
-	assertEqualInt(0, mkdir("aab", 0775));
-	assertEqualInt(0, mkdir("aac", 0775));
-	assertEqualInt(0, mkdir("abb", 0775));
-	assertEqualInt(0, mkdir("abc", 0775));
-	assertEqualInt(0, mkdir("abd", 0775));
-	assertEqualInt(0, mkdir("bbb", 0775));
-	assertEqualInt(0, mkdir("bbb/xxa", 0775));
-	assertEqualInt(0, mkdir("bbb/xxb", 0775));
-	assertEqualInt(0, mkdir("bbb/zzc", 0775));
+	assertMakeDir("aab", 0775);
+	assertMakeDir("aac", 0775);
+	assertMakeDir("abb", 0775);
+	assertMakeDir("abc", 0775);
+	assertMakeDir("abd", 0775);
+	assertMakeDir("bbb", 0775);
+	assertMakeDir("bbb/xxa", 0775);
+	assertMakeDir("bbb/xxb", 0775);
+	assertMakeDir("bbb/zzc", 0775);
 	mkfile("bbb/file1");
 	mkfile("bbb/xxa/file1");
 	mkfile("bbb/xxb/file1");
 	mkfile("bbb/zzc/file1");
-	assertEqualInt(0, mkdir("bbc", 0775));
-	assertEqualInt(0, mkdir("bbd", 0775));
-	assertEqualInt(0, mkdir("bcc", 0775));
-	assertEqualInt(0, mkdir("bcd", 0775));
-	assertEqualInt(0, mkdir("bce", 0775));
-	assertEqualInt(0, mkdir("ccc", 0775));
-	assertEqualInt(0, mkdir("fff", 0775));
+	assertMakeDir("bbc", 0775);
+	assertMakeDir("bbd", 0775);
+	assertMakeDir("bcc", 0775);
+	assertMakeDir("bcd", 0775);
+	assertEqualInt(0, _mkdir("bce"));
+	assertEqualInt(0, _mkdir("ccc"));
+	assertEqualInt(0, _mkdir("fff"));
 	mkfile("fff/aaaa");
 	mkfile("fff/abba");
 	mkfile("fff/abca");

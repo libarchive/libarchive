@@ -45,8 +45,8 @@ DEFINE_TEST(test_option_s)
 	struct stat st;
 
 	/* Create a sample file heirarchy. */
-	assertEqualInt(0, mkdir("in", 0755));
-	assertEqualInt(0, mkdir("in/d1", 0755));
+	assertMakeDir("in", 0755);
+	assertMakeDir("in/d1", 0755);
 	assertEqualInt(0, mkfile("in/d1/foo", "foo"));
 	assertEqualInt(0, mkfile("in/d1/bar", "bar"));
 
@@ -63,7 +63,7 @@ DEFINE_TEST(test_option_s)
 	/*
 	 * Test 1: Filename substitution when creating archives.
 	 */
-	assertEqualInt(0, mkdir("test1", 0755));
+	assertMakeDir("test1", 0755);
 	systemf("%s -cf - -s /foo/bar/ in/d1/foo | %s -xf - -C test1",
 	    testprog, testprog);
 	assertFileContents("foo", 3, "test1/in/d1/bar");
@@ -75,7 +75,7 @@ DEFINE_TEST(test_option_s)
 	/*
 	 * Test 2: Basic substitution when extracting archive.
 	 */
-	assertEqualInt(0, mkdir("test2", 0755));
+	assertMakeDir("test2", 0755);
 	systemf("%s -cf - in/d1/foo | %s -xf - -s /foo/bar/ -C test2",
 	    testprog, testprog);
 	assertFileContents("foo", 3, "test2/in/d1/bar");
@@ -90,7 +90,7 @@ DEFINE_TEST(test_option_s)
 	/*
 	 * Test 4: Multiple substitutions when extracting archive.
 	 */
-	assertEqualInt(0, mkdir("test4", 0755));
+	assertMakeDir("test4", 0755);
 	systemf("%s -cf - in/d1/foo in/d1/bar | %s -xf - -s /foo/bar/ -s }bar}baz} -C test4",
 	    testprog, testprog);
 	assertFileContents("foo", 3, "test4/in/d1/bar");
@@ -99,7 +99,7 @@ DEFINE_TEST(test_option_s)
 	/*
 	 * Test 5: Name-switching substitutions when extracting archive.
 	 */
-	assertEqualInt(0, mkdir("test5", 0755));
+	assertMakeDir("test5", 0755);
 	systemf("%s -cf - in/d1/foo in/d1/bar | %s -xf - -s /foo/bar/ -s }bar}foo} -C test5",
 	    testprog, testprog);
 	assertFileContents("foo", 3, "test5/in/d1/bar");

@@ -28,12 +28,12 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/test/test_option_T.c,v 1.3 2008/08/15 06:12:
 static int
 touch(const char *fn)
 {
-	int fd = open(fn, O_RDWR | O_CREAT, 0644);
-	failure("Couldn't create file '%s', fd=%d, errno=%d (%s)\n",
-	    fn, fd, errno, strerror(errno));
-	if (!assert(fd > 0))
+	FILE *f = fopen(fn, "w");
+	failure("Couldn't create file '%s', errno=%d (%s)\n",
+	    fn, errno, strerror(errno));
+	if (!assert(f != NULL))
 		return (0); /* Failure. */
-	close(fd);
+	fclose(f);
 	return (1); /* Success */
 }
 
@@ -44,8 +44,8 @@ DEFINE_TEST(test_option_T_upper)
 	struct stat st;
 
 	/* Create a simple dir heirarchy; bail if anything fails. */
-	if (!assertEqualInt(0, mkdir("d1", 0755))) return;
-	if (!assertEqualInt(0, mkdir("d1/d2", 0755)))	return;
+	if (!assertMakeDir("d1", 0755)) return;
+	if (!assertMakeDir("d1/d2", 0755))	return;
 	if (!touch("d1/f1")) return;
 	if (!touch("d1/f2")) return;
 	if (!touch("d1/d2/f3")) return;
@@ -77,7 +77,7 @@ DEFINE_TEST(test_option_T_upper)
 	assertEmptyFile("test1.err");
 
 	/* Use -x -T to dearchive the files */
-	if (!assertEqualInt(0, mkdir("test1", 0755))) return;
+	if (!assertMakeDir("test1", 0755)) return;
 	systemf("%s -x -f test1.tar -T filelist -C test1"
 	    " > test1b.out 2> test1b.err", testprog);
 	assertEmptyFile("test1b.out");
@@ -97,7 +97,7 @@ DEFINE_TEST(test_option_T_upper)
 	assertEmptyFile("test2.err");
 
 	/* Use -x without -T to dearchive the files (ensure -r worked) */
-	if (!assertEqualInt(0, mkdir("test3", 0755))) return;
+	if (!assertMakeDir("test3", 0755)) return;
 	systemf("%s -x -f test1.tar -C test3"
 	    " > test3.out 2> test3.err", testprog);
 	assertEmptyFile("test3.out");
@@ -110,7 +110,7 @@ DEFINE_TEST(test_option_T_upper)
 	assertFileExists("test3/d1/d2/f5");
 
 	/* Use -x -T to dearchive the files (verify -x -T together) */
-	if (!assertEqualInt(0, mkdir("test2", 0755))) return;
+	if (!assertMakeDir("test2", 0755)) return;
 	systemf("%s -x -f test1.tar -T filelist -C test2"
 	    " > test2b.out 2> test2b.err", testprog);
 	assertEmptyFile("test2b.out");
@@ -122,10 +122,10 @@ DEFINE_TEST(test_option_T_upper)
 	assertFileExists("test2/d1/d2/f4");
 	assertFileNotExists("test2/d1/d2/f5");
 
-	assertEqualInt(0, mkdir("test4", 0755));
-	assertEqualInt(0, mkdir("test4_out", 0755));
-	assertEqualInt(0, mkdir("test4_out2", 0755));
-	assertEqualInt(0, mkdir("test4/d1", 0755));
+	assertMakeDir("test4", 0755);
+	assertMakeDir("test4_out", 0755);
+	assertMakeDir("test4_out2", 0755);
+	assertMakeDir("test4/d1", 0755);
 	assertEqualInt(1, touch("test4/d1/foo"));
 
 	/* Does bsdtar support -s option ? */

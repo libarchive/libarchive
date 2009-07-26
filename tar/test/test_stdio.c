@@ -31,10 +31,9 @@ DEFINE_TEST(test_stdio)
 	FILE *filelist;
 	char *p;
 	size_t s;
-	int oldumask;
 	int r;
 
-	oldumask = umask(0);
+	assertUmask(0);
 
 	/*
 	 * Create a couple of files on disk.
@@ -48,7 +47,7 @@ DEFINE_TEST(test_stdio)
 	fclose(f);
 	fprintf(filelist, "f\n");
 	/* Link to above file. */
-	assertEqualInt(0, link("f", "l"));
+	assertMakeHardlink("l", "f");
 	fprintf(filelist, "l\n");
 	fclose(filelist);
 
@@ -126,6 +125,4 @@ DEFINE_TEST(test_stdio)
 	assertEqualInt(r, 0);
 	assertEmptyFile("xvf-.out");
 	/* TODO: Verify xvf-.err */
-
-	umask(oldumask);
 }

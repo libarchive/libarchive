@@ -102,15 +102,15 @@ create_tree(void)
 	FILE *f;
 	int LOOP_MAX;
 
-	assertEqualInt(0, mkdir("original", 0775));
+	assertMakeDir("original", 0775);
 	chdir("original");
 	LOOP_MAX = compute_loop_max();
 
-	assertEqualInt(0, mkdir("f", 0775));
-	assertEqualInt(0, mkdir("l", 0775));
-	assertEqualInt(0, mkdir("m", 0775));
-	assertEqualInt(0, mkdir("s", 0775));
-	assertEqualInt(0, mkdir("d", 0775));
+	assertMakeDir("f", 0775);
+	assertMakeDir("l", 0775);
+	assertMakeDir("m", 0775);
+	assertMakeDir("s", 0775);
+	assertMakeDir("d", 0775);
 
 	for (i = 0; i < LOOP_MAX; i++) {
 		buff[0] = 'f';
@@ -127,12 +127,12 @@ create_tree(void)
 		/* Create a link named "l/abcdef..." to the above. */
 		strcpy(buff2, buff);
 		buff2[0] = 'l';
-		assertEqualInt(0, link(buff, buff2));
+		assertMakeHardlink(buff2, buff);
 
 		/* Create a link named "m/abcdef..." to the above. */
 		strcpy(buff2, buff);
 		buff2[0] = 'm';
-		assertEqualInt(0, link(buff, buff2));
+		assertMakeHardlink(buff2, buff);
 
 #if !defined(_WIN32) || defined(__CYGWIN__)
 		/* Create a symlink named "s/abcdef..." to the above. */
@@ -142,14 +142,14 @@ create_tree(void)
 		buff2[1] = '.';
 		buff2[2] = '/';
 		failure("buff=\"%s\" buff2=\"%s\"", buff, buff2);
-		assertEqualInt(0, symlink(buff2, buff));
+		assertMakeSymlink(buff, buff2);
 #else
 		skipping("create a symlink to the above");
 #endif
 		/* Create a dir named "d/abcdef...". */
 		buff[0] = 'd';
 		failure("buff=\"%s\"", buff);
-		assertEqualInt(0, mkdir(buff, 0775));
+		assertMakeDir(buff, 0775);
 	}
 
 	chdir("..");
@@ -161,17 +161,13 @@ create_tree(void)
 static void
 verify_tree(int limit)
 {
-	struct stat st, st2;
 	char filename[260];
 	char name1[260];
 	char name2[260];
 	char contents[260];
-	int i, j, r, LOOP_MAX;
+	int i, j, LOOP_MAX;
 	FILE *f;
 	int len;
-	const char *p, *dp;
-	DIR *d;
-	struct dirent *de;
 
 	LOOP_MAX = compute_loop_max();
 
@@ -201,8 +197,6 @@ verify_tree(int limit)
 				contents[len] = '\0';
 				failure("Each test file contains its own name");
 				assertEqualString(name1, contents);
-				/* stat() for dev/ino for next check */
-				assertEqualInt(0, lstat(name1, &st));
 			}
 		}
 
@@ -215,19 +209,10 @@ verify_tree(int limit)
 		strcat(name2, filename);
 		if (limit != LIMIT_USTAR || strlen(name2) <= 100) {
 			/* Verify hardlink "l/abcdef..." */
-			assertEqualInt(0, (r = lstat(name2, &st2)));
-			if (r == 0) {
-				assertEqualInt(st2.st_dev, st.st_dev);
-				assertEqualInt(st2.st_ino, st.st_ino);
-			}
-
+			assertFileHardlinks(name1, name2);
 			/* Verify hardlink "m_abcdef..." */
 			name2[0] = 'm';
-			assertEqualInt(0, (r = lstat(name2, &st2)));
-			if (r == 0) {
-				assertEqualInt(st2.st_dev, st.st_dev);
-				assertEqualInt(st2.st_ino, st.st_ino);
-			}
+			assertFileHardlinks(name1, name2);
 		}
 
 #if !defined(_WIN32) || defined(__CYGWIN__)
@@ -259,65 +244,66 @@ verify_tree(int limit)
 		strcpy(name1, "d/");
 		strcat(name1, filename);
 		if (limit != LIMIT_USTAR || strlen(filename) < 100) {
-			/* This is a dir. */
-			failure("Couldn't stat %s (length %d)",
-			    name1, strlen(filename));
-			if (assertEqualInt(0, lstat(name1, &st2))) {
-				if (assert(S_ISDIR(st2.st_mode))) {
-					/* TODO: opendir/readdir this
-					 * directory and make sure
-					 * it's empty.
-					 */
-				}
+			if (assertIsDir(name1, -1)) {
+				/* TODO: opendir/readdir this
+				 * directory and make sure
+				 * it's empty.
+				 */
 			}
 		}
 	}
 
-	/* Now make sure nothing is there that shouldn't be. */
-	for (dp = "dflms"; *dp != '\0'; ++dp) {
-		char dir[2];
-		dir[0] = *dp; dir[1] = '\0';
-		d = opendir(dir);
-		failure("Unable to open dir '%s'", dir);
-		if (!assert(d != NULL))
-			continue;
-		while ((de = readdir(d)) != NULL) {
-			p = de->d_name;
-			switch(dp[0]) {
-			case 'l': case 'm':
-				if (limit == LIMIT_USTAR) {
-					failure("strlen(p) = %d", strlen(p));
-					assert(strlen(p) <= 100);
-				}
-			case 'd':
-				if (limit == LIMIT_USTAR) {
-					failure("strlen(p)=%d", strlen(p));
-					assert(strlen(p) < 100);
-				}
-			case 'f': case 's':
-				if (limit == LIMIT_USTAR) {
-					failure("strlen(p)=%d", strlen(p));
-					assert(strlen(p) < 101);
-				}
-				/* Our files have very particular filename patterns. */
-				if (p[0] != '.' || (p[1] != '.' && p[1] != '\0')) {
-					for (i = 0; p[i] != '\0' && i < LOOP_MAX; i++) {
-						failure("i=%d, p[i]='%c' 'a'+(i%%26)='%c'", i, p[i], 'a' + (i % 26));
-						assertEqualInt(p[i], 'a' + (i % 26));
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	{
+		char *dp;
+		/* Now make sure nothing is there that shouldn't be. */
+		for (dp = "dflms"; *dp != '\0'; ++dp) {
+			DIR *d;
+			char dir[2];
+			dir[0] = *dp; dir[1] = '\0';
+			d = opendir(dir);
+			failure("Unable to open dir '%s'", dir);
+			if (!assert(d != NULL))
+				continue;
+			while ((de = readdir(d)) != NULL) {
+				char *p = de->d_name;
+				switch(dp[0]) {
+				case 'l': case 'm':
+					if (limit == LIMIT_USTAR) {
+						failure("strlen(p) = %d", strlen(p));
+						assert(strlen(p) <= 100);
 					}
-					assert(p[i] == '\0');
+				case 'd':
+					if (limit == LIMIT_USTAR) {
+						failure("strlen(p)=%d", strlen(p));
+						assert(strlen(p) < 100);
+					}
+				case 'f': case 's':
+					if (limit == LIMIT_USTAR) {
+						failure("strlen(p)=%d", strlen(p));
+						assert(strlen(p) < 101);
+					}
+					/* Our files have very particular filename patterns. */
+					if (p[0] != '.' || (p[1] != '.' && p[1] != '\0')) {
+						for (i = 0; p[i] != '\0' && i < LOOP_MAX; i++) {
+							failure("i=%d, p[i]='%c' 'a'+(i%%26)='%c'", i, p[i], 'a' + (i % 26));
+							assertEqualInt(p[i], 'a' + (i % 26));
+						}
+						assert(p[i] == '\0');
+					}
+					break;
+				case '.':
+					assert(p[1] == '\0' || (p[1] == '.' && p[2] == '\0'));
+					break;
+				default:
+					failure("File %s shouldn't be here", p);
+					assert(0);
 				}
-				break;
-			case '.':
-				assert(p[1] == '\0' || (p[1] == '.' && p[2] == '\0'));
-				break;
-			default:
-				failure("File %s shouldn't be here", p);
-				assert(0);
 			}
+			closedir(d);
 		}
-		closedir(d);
 	}
+#endif
 }
 
 static void
@@ -331,7 +317,7 @@ copy_basic(void)
 	 * directory, "original"  This restriction derives from the
 	 * extremely limited pathname lengths on those platforms.
 	 */
-	assertEqualInt(0, mkdir("plain", 0775));
+	assertMakeDir("plain", 0775);
 	assertEqualInt(0, chdir("plain"));
 
 	/*
@@ -373,7 +359,7 @@ copy_ustar(void)
 	 * directory, "original"  This restriction derives from the
 	 * extremely limited pathname lengths on those platforms.
 	 */
-	assertEqualInt(0, mkdir(target, 0775));
+	assertMakeDir(target, 0775);
 	assertEqualInt(0, chdir(target));
 
 	/*
@@ -407,9 +393,7 @@ copy_ustar(void)
 
 DEFINE_TEST(test_copy)
 {
-	int oldumask;
-
-	oldumask = umask(0);
+	assertUmask(0);
 
 	create_tree(); /* Create sample files in "original" dir. */
 
@@ -418,6 +402,4 @@ DEFINE_TEST(test_copy)
 
 	/* Same, but constrain to ustar format. */
 	copy_ustar();
-
-	umask(oldumask);
 }

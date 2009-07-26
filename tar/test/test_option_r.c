@@ -101,8 +101,8 @@ DEFINE_TEST(test_option_r)
 	free(p1);
 
 	/* Unpack both items */
-	assertEqualInt(0, mkdir("step3", 0775));
-	assertEqualInt(0, chdir("step3"));
+	assertMakeDir("step3", 0775);
+	assertChdir("step3");
 	r = systemf("%s xf ../archive.tar", testprog);
 	failure("Error invoking %s xf archive.tar", testprog);
 	assertEqualInt(r, 0);
