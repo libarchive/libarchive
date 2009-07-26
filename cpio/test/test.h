@@ -48,7 +48,9 @@
 #if !defined(_WIN32) || defined(__CYGWIN__)
 #include <dirent.h>
 #else
+#define dirent direct
 #include "../cpio_windows.h"
+#include <direct.h>
 #endif
 #if defined(__CYGWIN__)
 /* In cygwin-1.7.x, the .nlinks field of directories is
@@ -78,12 +80,25 @@
 #include <dmalloc.h>
 #endif
 
-/* No non-FreeBSD platform will have __FBSDID, so just define it here. */
 #ifdef __FreeBSD__
 #include <sys/cdefs.h>  /* For __FBSDID */
 #else
-#undef __FBSDID
+/* Some non-FreeBSD platforms such as newlib-derived ones like
+ * cygwin, have __FBSDID, so this definition must be guarded.
+ */
+#ifndef __FBSDID
 #define	__FBSDID(a)     struct _undefined_hack
+#endif
+#endif
+
+#ifdef _MSC_VER
+#define snprintf	sprintf_s
+#endif
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#define LOCALE_DE	"deu"
+#else
+#define LOCALE_DE	"de_DE.UTF-8"
 #endif
 
 /*
@@ -116,6 +131,9 @@
 /* Assert that a file is empty; supports printf-style arguments. */
 #define assertEmptyFile		\
   test_setup(__FILE__, __LINE__);test_assert_empty_file
+/* Assert that a file is not empty; supports printf-style arguments. */
+#define assertNonEmptyFile		\
+  test_setup(__FILE__, __LINE__);test_assert_non_empty_file
 /* Assert that a file exists; supports printf-style arguments. */
 #define assertFileExists		\
   test_setup(__FILE__, __LINE__);test_assert_file_exists
@@ -127,6 +145,9 @@
   test_setup(__FILE__, __LINE__);test_assert_file_contents
 #define assertTextFileContents         \
   test_setup(__FILE__, __LINE__);test_assert_text_file_contents
+/* Create a directory, report error if it fails. */
+#define assertMakeDir(dirname, mode)	\
+  test_assert_make_dir(__FILE__, __LINE__, dirname, mode)
 
 /*
  * This would be simple with C99 variadic macros, but I don't want to
@@ -143,15 +164,17 @@ void test_setup(const char *, int);
 void test_skipping(const char *fmt, ...);
 int test_assert(const char *, int, int, const char *, void *);
 int test_assert_empty_file(const char *, ...);
+int test_assert_non_empty_file(const char *, ...);
 int test_assert_equal_file(const char *, const char *, ...);
 int test_assert_equal_int(const char *, int, int, const char *, int, const char *, void *);
 int test_assert_equal_string(const char *, int, const char *v1, const char *, const char *v2, const char *, void *);
 int test_assert_equal_wstring(const char *, int, const wchar_t *v1, const char *, const wchar_t *v2, const char *, void *);
-int test_assert_equal_mem(const char *, int, const char *, const char *, const char *, const char *, size_t, const char *, void *);
+int test_assert_equal_mem(const char *, int, const void *, const char *, const void *, const char *, size_t, const char *, void *);
 int test_assert_file_contents(const void *, int, const char *, ...);
 int test_assert_text_file_contents(const char *buff, const char *f);
 int test_assert_file_exists(const char *, ...);
 int test_assert_file_not_exists(const char *, ...);
+int test_assert_make_dir(const char *, int, const char *, int);
 
 /* Like sprintf, then system() */
 int systemf(const char * fmt, ...);
@@ -167,7 +190,8 @@ void extract_reference_file(const char *);
  * Special interfaces for program test harness.
  */
 
-/* Pathname of exe to be tested, with suitable quoting for building shell cmd lines. */
-const char *testprog;
-/* Raw pathname of exe to be tested. */
+/* Pathname of exe to be tested. */
 const char *testprogfile;
+/* Name of exe to use in printf-formatted command strings. */
+/* On Windows, this includes leading/trailing quotes. */
+const char *testprog;

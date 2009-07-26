@@ -46,9 +46,9 @@
  *
  * The next few lines are the only differences.
  */
-#define	PROGRAM "bsdtar" /* Name of program being tested. */
-#undef LIBRARY		 /* Not testing a library. */
-#define ENVBASE "BSDTAR" /* Prefix for environment variables. */
+#define	PROGRAM "bsdtar"  /* Name of program being tested. */
+#undef LIBRARY		  /* Not testing a library. */
+#define ENVBASE "BSDTAR"  /* Prefix for environment variables. */
 #undef	EXTRA_DUMP	     /* How to dump extra data */
 /* How to generate extra version info. */
 #define	EXTRA_VERSION    (systemf("%s --version", testprog) ? "" : "")
@@ -721,6 +721,84 @@ test_assert_file_contents(const void *buff, int s, const char *fpattern, ...)
 	return (0);
 }
 
+/* assertTextFileContents() asserts the contents of a text file. */
+int
+test_assert_text_file_contents(const char *buff, const char *f)
+{
+	char *contents;
+	const char *btxt, *ftxt;
+	int fd;
+	int n, s;
+
+	fd = open(f, O_RDONLY);
+	s = strlen(buff);
+	contents = malloc(s * 2 + 128);
+	n = read(fd, contents, s * 2 + 128 -1);
+	if (n >= 0)
+		contents[n] = '\0';
+	close(fd);
+	/* Compare texts. */
+	btxt = buff;
+	ftxt = (const char *)contents;
+	while (*btxt != '\0' && *ftxt != '\0') {
+		if (*btxt == *ftxt) {
+			++btxt;
+			++ftxt;
+			continue;
+		}
+		if (btxt[0] == '\n' && ftxt[0] == '\r' && ftxt[1] == '\n') {
+			/* Pass over different new line characters. */
+			++btxt;
+			ftxt += 2;
+			continue;
+		}
+		break;
+	}
+	if (*btxt == '\0' && *ftxt == '\0') {
+		free(contents);
+		return (1);
+	}
+	failures ++;
+	if (!previous_failures(test_filename, test_line, 1)) {
+		fprintf(stderr, "%s:%d: File contents don't match\n",
+		    test_filename, test_line);
+		fprintf(stderr, "  file=\"%s\"\n", f);
+		if (n > 0)
+			hexdump(contents, buff, n, 0);
+		else {
+			fprintf(stderr, "  File empty, contents should be:\n");
+			hexdump(buff, NULL, s, 0);
+		}
+		report_failure(test_extra);
+	}
+	free(contents);
+	return (0);
+}
+
+int
+test_assert_make_dir(const char *file, int line, const char *dirname, int mode)
+{
+	int r;
+
+	count_assertion(file, line);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	r = mkdir(dirname);
+#else
+	r = mkdir(dirname, mode);
+#endif
+	if (r == 0) {
+		msg[0] = '\0';
+		return (1);
+	}
+	failures++;
+	if (!verbose && previous_failures(file, line, 1))
+		return (0);
+	fprintf(stderr, "%s:%d: Could not create directory\n",
+		file, line);
+	fprintf(stderr, "     Dirname: %s\n", dirname);
+	return(0);
+}
+
 /*
  * Call standard system() call, but build up the command line using
  * sprintf() conventions.
@@ -830,7 +908,7 @@ static int test_run(int i, const char *tmpdir)
 		exit(1);
 	}
 	/* Create a temp directory for this specific test. */
-	if (mkdir(tests[i].name, 0755)) {
+	if (!assertMakeDir(tests[i].name, 0755)) {
 		fprintf(stderr,
 		    "ERROR: Couldn't create temp dir ``%s''\n",
 		    tests[i].name);
@@ -1028,7 +1106,6 @@ int main(int argc, char **argv)
 	int i, tests_run = 0, tests_failed = 0, option;
 	time_t now;
 	char *refdir_alloc = NULL;
-	char *testprg;
 	const char *progname;
 	const char *tmp, *option_arg, *p;
 	char tmpdir[256];
@@ -1141,24 +1218,25 @@ int main(int argc, char **argv)
 #ifdef PROGRAM
 	if (testprogfile == NULL)
 		usage(progname);
-#endif
+	{
+		char *testprg;
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	/*
-	 * command.com cannot accept the command used '/' with drive
-	 * name such as c:/xxx/command.exe when use '|' pipe handling.
-	 */
-	testprg = strdup(testprogfile);
-	for (i = 0; testprg[i] != '\0'; i++) {
-		if (testprg[i] == '/')
-			testprg[i] = '\\';
-	}
-	testprogfile = testprg;
+		/* Command.com sometimes rejects '/' separators. */
+		testprg = strdup(testprogfile);
+		for (i = 0; testprg[i] != '\0'; i++) {
+			if (testprg[i] == '/')
+				testprg[i] = '\\';
+		}
+		testprogfile = testprg;
 #endif
-	testprg = malloc(strlen(testprogfile) + 3);
-	strcpy(testprg, "\"");
-	strcat(testprg, testprogfile);
-	strcat(testprg, "\"");
-	testprog = testprg;
+		/* Quote the name that gets put into shell command lines. */
+		testprg = malloc(strlen(testprogfile) + 3);
+		strcpy(testprg, "\"");
+		strcat(testprg, testprogfile);
+		strcat(testprg, "\"");
+		testprog = testprg;
+	}
+#endif
 
 	/*
 	 * Create a temp directory for the following tests.
@@ -1166,19 +1244,20 @@ int main(int argc, char **argv)
 	 * to make it easier to track the results of multiple tests.
 	 */
 	now = time(NULL);
-	for (i = 0; i < 1000; i++) {
+	for (i = 0; ; i++) {
 		strftime(tmpdir_timestamp, sizeof(tmpdir_timestamp),
 		    "%Y-%m-%dT%H.%M.%S",
 		    localtime(&now));
 		sprintf(tmpdir, "%s/%s.%s-%03d", tmp, progname,
 		    tmpdir_timestamp, i);
-		if (mkdir(tmpdir,0755) == 0)
+		if (assertMakeDir(tmpdir,0755))
 			break;
-		if (errno == EEXIST)
-			continue;
-		fprintf(stderr, "ERROR: Unable to create temp directory %s\n",
-		    tmpdir);
-		exit(1);
+		if (i >= 999) {
+			fprintf(stderr,
+			    "ERROR: Unable to create temp directory %s\n",
+			    tmpdir);
+			exit(1);
+		}
 	}
 
 	/*

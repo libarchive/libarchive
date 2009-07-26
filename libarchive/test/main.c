@@ -541,7 +541,7 @@ test_assert_empty_file(const char *f1fmt, ...)
 	fprintf(stderr, "    File size: %d\n", (int)st.st_size);
 	fprintf(stderr, "    Contents:\n");
 	f = fopen(f1, "rb");
-	if (f != NULL) {
+	if (f == NULL) {
 		fprintf(stderr, "    Unable to open %s\n", f1);
 	} else {
 		s = ((off_t)sizeof(buff) < st.st_size) ?
@@ -757,6 +757,8 @@ systemf(const char *fmt, ...)
 
 	va_start(ap, fmt);
 	vsprintf(buff, fmt, ap);
+	if (verbose > 1)
+		printf("Cmd: %s\n", buff);
 	r = system(buff);
 	va_end(ap);
 	return (r);
@@ -1035,7 +1037,11 @@ get_refdir(const char *d)
 	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
 	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
 
+#if defined(LIBRARY)
 	snprintf(buff, sizeof(buff), "%s/%s/test", pwd, LIBRARY);
+#else
+	snprintf(buff, sizeof(buff), "%s/%s/test", pwd, PROGRAM);
+#endif
 	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
 	if (p != NULL) goto success;
 	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
@@ -1056,11 +1062,11 @@ get_refdir(const char *d)
 	}
 
 failure:
+	printf("Unable to locate known reference file %s\n", KNOWNREF);
+	printf("  Checked following directories:\n%s\n", tried);
 #if defined(_WIN32) && !defined(__CYGWIN__) && defined(_DEBUG)
 	DebugBreak();
 #endif
-	printf("Unable to locate known reference file %s\n", KNOWNREF);
-	printf("  Checked following directories:\n%s\n", tried);
 	exit(1);
 
 success:
@@ -1103,7 +1109,7 @@ int main(int argc, char **argv)
 
 #ifdef PROGRAM
 	/* Get the target program from environment, if available. */
-	testprog = getenv(ENVBASE);
+	testprogfile = getenv(ENVBASE);
 #endif
 
 	if (getenv("TMPDIR") != NULL)
@@ -1161,7 +1167,7 @@ int main(int argc, char **argv)
 				break;
 			case 'p':
 #ifdef PROGRAM
-				testprog = option_arg;
+				testprogfile = option_arg;
 #else
 				usage(progname);
 #endif
@@ -1173,7 +1179,7 @@ int main(int argc, char **argv)
 				refdir = option_arg;
 				break;
 			case 'v':
-				verbose = 1;
+				verbose ++;
 				break;
 			default:
 				usage(progname);
@@ -1185,22 +1191,26 @@ int main(int argc, char **argv)
 	 * Sanity-check that our options make sense.
 	 */
 #ifdef PROGRAM
-	if (testprog == NULL)
+	if (testprogfile == NULL)
 		usage(progname);
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	/*
-	 * command.com cannot accept the command used '/' with drive
-	 * name such as c:/xxx/command.exe when use '|' pipe handling.
-	 */
 	{
-		char *testprg = strdup(testprog);
+		char *testprg;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		/* Command.com sometimes rejects '/' separators. */
+		testprg = strdup(testprogfile);
 		for (i = 0; testprg[i] != '\0'; i++) {
 			if (testprg[i] == '/')
 				testprg[i] = '\\';
 		}
+		testprogfile = testprg;
+#endif
+		/* Quote the name that gets put into shell command lines. */
+		testprg = malloc(strlen(testprogfile) + 3);
+		strcpy(testprg, "\"");
+		strcat(testprg, testprogfile);
+		strcat(testprg, "\"");
 		testprog = testprg;
 	}
-#endif
 #endif
 
 	/*
@@ -1209,16 +1219,18 @@ int main(int argc, char **argv)
 	 * to make it easier to track the results of multiple tests.
 	 */
 	now = time(NULL);
-	for (i = 0; i < 1000; i++) {
+	for (i = 0; ; i++) {
 		strftime(tmpdir_timestamp, sizeof(tmpdir_timestamp),
 		    "%Y-%m-%dT%H.%M.%S",
 		    localtime(&now));
 		sprintf(tmpdir, "%s/%s.%s-%03d", tmp, progname,
 		    tmpdir_timestamp, i);
-		if (!assertMakeDir(tmpdir,0755)) {
+		if (assertMakeDir(tmpdir,0755))
+			break;
+		if (i >= 999) {
 			fprintf(stderr,
-				"ERROR: Unable to create temp directory %s\n",
-				tmpdir);
+			    "ERROR: Unable to create temp directory %s\n",
+			    tmpdir);
 			exit(1);
 		}
 	}

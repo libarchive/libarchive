@@ -59,6 +59,7 @@
 #if !defined(_WIN32) || defined(__CYGWIN__)
 #include <unistd.h>
 #endif
+#include <time.h>
 #include <wchar.h>
 
 #ifdef USE_DMALLOC
@@ -72,7 +73,7 @@
  * cygwin, have __FBSDID, so this definition must be guarded.
  */
 #ifndef __FBSDID
-#define	__FBSDID(a)     /* null */
+#define	__FBSDID(a)     struct _undefined_hack
 #endif
 #endif
 
