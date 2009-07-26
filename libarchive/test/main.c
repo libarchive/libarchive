@@ -37,8 +37,30 @@
 #if !defined(__GNUC__)
 #include <crtdbg.h>
 #endif
+#include <io.h>
 #include <windows.h>
 #include <winbase.h>
+#ifndef F_OK
+#define F_OK (0)
+#endif
+#ifndef S_ISDIR
+#define S_ISDIR(m)  ((m) & _S_IFDIR)
+#endif
+#ifndef S_ISREG
+#define S_ISREG(m)  ((m) & _S_IFREG)
+#endif
+#define access _access
+#ifndef fileno
+#define fileno _fileno
+#endif
+//#define fstat _fstat64
+#define getcwd _getcwd
+#define lstat stat
+//#define lstat _stat64
+//#define stat _stat64
+#define rmdir _rmdir
+#define strdup _strdup
+#define umask _umask
 #endif
 
 /*
@@ -283,7 +305,7 @@ test_assert(const char *file, int line, int value, const char *condition, void *
 		msg[0] = '\0';
 		return (value);
 	}
-	failures ++;
+	++failures;
 	if (!verbose && previous_failures(file, line, 1))
 		return (value);
 	fprintf(stderr, "%s:%d: Assertion failed\n", file, line);
@@ -292,23 +314,38 @@ test_assert(const char *file, int line, int value, const char *condition, void *
 	return (value);
 }
 
+int
+test_assert_chdir(const char *file, int line, const char *pathname)
+{
+	count_assertion(file, line);
+	if (chdir(pathname) == 0)
+		return (1);
+	++failures;
+	if (!verbose && previous_failures(file, line, 1))
+		return (0);
+	fprintf(stderr, "%s:%d: chdir(\"%s\") failed\n",
+		file, line, pathname);
+	return (0);
+
+}
+
 /* assertEqualInt() displays the values of the two integers. */
 int
 test_assert_equal_int(const char *file, int line,
-    int v1, const char *e1, int v2, const char *e2, void *extra)
+    long long v1, const char *e1, long long v2, const char *e2, void *extra)
 {
 	count_assertion(file, line);
 	if (v1 == v2) {
 		msg[0] = '\0';
 		return (1);
 	}
-	failures ++;
+	++failures;
 	if (!verbose && previous_failures(file, line, 1))
 		return (0);
 	fprintf(stderr, "%s:%d: Assertion failed: Ints not equal\n",
 	    file, line);
-	fprintf(stderr, "      %s=%d\n", e1, v1);
-	fprintf(stderr, "      %s=%d\n", e2, v2);
+	fprintf(stderr, "      %s=%lld\n", e1, v1);
+	fprintf(stderr, "      %s=%lld\n", e2, v2);
 	report_failure(extra);
 	return (0);
 }
@@ -354,7 +391,7 @@ test_assert_equal_string(const char *file, int line,
 		msg[0] = '\0';
 		return (1);
 	}
-	failures ++;
+	++failures;
 	if (!verbose && previous_failures(file, line, 1))
 		return (0);
 	fprintf(stderr, "%s:%d: Assertion failed: Strings not equal\n",
@@ -412,7 +449,7 @@ test_assert_equal_wstring(const char *file, int line,
 		msg[0] = '\0';
 		return (1);
 	}
-	failures ++;
+	++failures;
 	if (!verbose && previous_failures(file, line, 1))
 		return (0);
 	fprintf(stderr, "%s:%d: Assertion failed: Unicode strings not equal\n",
@@ -485,7 +522,7 @@ test_assert_equal_mem(const char *file, int line,
 		msg[0] = '\0';
 		return (1);
 	}
-	failures ++;
+	++failures;
 	if (!verbose && previous_failures(file, line, 1))
 		return (0);
 	fprintf(stderr, "%s:%d: Assertion failed: memory not equal\n",
@@ -533,7 +570,7 @@ test_assert_empty_file(const char *f1fmt, ...)
 	if (st.st_size == 0)
 		return (1);
 
-	failures ++;
+	++failures;
 	if (!verbose && previous_failures(test_filename, test_line, 1))
 		return (0);
 
@@ -570,13 +607,13 @@ test_assert_non_empty_file(const char *f1fmt, ...)
 		fprintf(stderr, "%s:%d: Could not stat: %s\n",
 		    test_filename, test_line, f1);
 		report_failure(NULL);
-		failures++;
+		++failures;
 		return (0);
 	}
 	if (st.st_size != 0)
 		return (1);
 
-	failures ++;
+	++failures;
 	if (!verbose && previous_failures(test_filename, test_line, 1))
 		return (0);
 
@@ -619,7 +656,7 @@ test_assert_equal_file(const char *fn1, const char *f2pattern, ...)
 	}
 	fclose(f1);
 	fclose(f2);
-	failures ++;
+	++failures;
 	if (!verbose && previous_failures(test_filename, test_line, 1))
 		return (0);
 	fprintf(stderr, "%s:%d: Files are not identical\n",
@@ -636,12 +673,19 @@ test_assert_file_exists(const char *fpattern, ...)
 	char f[1024];
 	va_list ap;
 
+	count_assertion(test_filename, test_line);
 	va_start(ap, fpattern);
 	vsprintf(f, fpattern, ap);
 	va_end(ap);
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	if (!_access(f, 0))
+		return (1);
+#else
 	if (!access(f, F_OK))
 		return (1);
+#endif
+	++failures;
 	if (!previous_failures(test_filename, test_line, 1)) {
 		fprintf(stderr, "%s:%d: File doesn't exist\n",
 		    test_filename, test_line);
@@ -657,12 +701,19 @@ test_assert_file_not_exists(const char *fpattern, ...)
 	char f[1024];
 	va_list ap;
 
+	count_assertion(test_filename, test_line);
 	va_start(ap, fpattern);
 	vsprintf(f, fpattern, ap);
 	va_end(ap);
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	if (_access(f, 0))
+		return (1);
+#else
 	if (access(f, F_OK))
 		return (1);
+#endif
+	++failures;
 	if (!previous_failures(test_filename, test_line, 1)) {
 		fprintf(stderr, "%s:%d: File exists and shouldn't\n",
 		    test_filename, test_line);
@@ -682,13 +733,14 @@ test_assert_file_contents(const void *buff, int s, const char *fpattern, ...)
 	FILE *f;
 	int n;
 
+	count_assertion(test_filename, test_line);
 	va_start(ap, fpattern);
 	vsprintf(fn, fpattern, ap);
 	va_end(ap);
 
 	f = fopen(fn, "rb");
 	if (f == NULL) {
-		failures ++;
+		++failures;
 		if (!previous_failures(test_filename, test_line, 1)) {
 			fprintf(stderr, "%s:%d: File doesn't exist: %s\n",
 			    test_filename, test_line, fn);
@@ -703,7 +755,62 @@ test_assert_file_contents(const void *buff, int s, const char *fpattern, ...)
 		free(contents);
 		return (1);
 	}
-	failures ++;
+	++failures;
+	if (!previous_failures(test_filename, test_line, 1)) {
+		fprintf(stderr, "%s:%d: File contents don't match\n",
+		    test_filename, test_line);
+		fprintf(stderr, "  file=\"%s\"\n", fn);
+		if (n > 0)
+			hexdump(contents, buff, n > 512 ? 512 : 0, 0);
+		else {
+			fprintf(stderr, "  File empty, contents should be:\n");
+			hexdump(buff, NULL, s > 512 ? 512 : 0, 0);
+		}
+		report_failure(test_extra);
+	}
+	free(contents);
+	return (0);
+}
+
+/* assertTextFileContents() asserts the contents of a text file. */
+int
+test_assert_text_file_contents(const char *buff, const char *fn)
+{
+	char *contents;
+	const char *btxt, *ftxt;
+	FILE *f;
+	int n, s;
+
+	count_assertion(test_filename, test_line);
+	f = fopen(fn, "r");
+	s = strlen(buff);
+	contents = malloc(s * 2 + 128);
+	n = fread(contents, 1, s * 2 + 128 - 1, f);
+	if (n >= 0)
+		contents[n] = '\0';
+	fclose(f);
+	/* Compare texts. */
+	btxt = buff;
+	ftxt = (const char *)contents;
+	while (*btxt != '\0' && *ftxt != '\0') {
+		if (*btxt == *ftxt) {
+			++btxt;
+			++ftxt;
+			continue;
+		}
+		if (btxt[0] == '\n' && ftxt[0] == '\r' && ftxt[1] == '\n') {
+			/* Pass over different new line characters. */
+			++btxt;
+			ftxt += 2;
+			continue;
+		}
+		break;
+	}
+	if (*btxt == '\0' && *ftxt == '\0') {
+		free(contents);
+		return (1);
+	}
+	++failures;
 	if (!previous_failures(test_filename, test_line, 1)) {
 		fprintf(stderr, "%s:%d: File contents don't match\n",
 		    test_filename, test_line);
@@ -721,13 +828,215 @@ test_assert_file_contents(const void *buff, int s, const char *fpattern, ...)
 }
 
 int
+test_assert_file_hardlinks(const char *file, int line,
+						   const char *path1, const char *path2)
+{
+	struct stat st1, st2;
+	int r;
+
+	count_assertion(file, line);
+	r = lstat(path1, &st1);
+	if (r != 0) {
+		++failures;
+		if (!previous_failures(file, line, 1))
+			fprintf(stderr, "%s:%d: File ``%s'' should exist\n",
+			    file, line, path1);
+		return (0);
+	}
+	r = lstat(path2, &st2);
+	if (r != 0) {
+		++failures;
+		if (!previous_failures(file, line, 1))
+			fprintf(stderr, "%s:%d: File ``%s'' should exist\n",
+			    file, line, path2);
+		return (0);
+	}
+	if (st1.st_ino != st2.st_ino || st1.st_dev != st2.st_dev) {
+		++failures;
+		if (!previous_failures(file, line, 1)) {
+			fprintf(stderr,
+				"%s:%d: Files ``%s'' and ``%s'' are not hardlinked\n",
+			    file, line, path1, path2);
+			report_failure(NULL);
+		}
+		return (0);
+	}
+	return (1);
+}
+
+int
+test_assert_file_nlinks(const char *file, int line,
+    const char *pathname, int nlinks)
+{
+	struct stat st;
+	int r;
+
+	count_assertion(file, line);
+	r = lstat(pathname, &st);
+	if (r == 0 && st.st_nlink == nlinks)
+			return (1);
+	++failures;
+	if (!previous_failures(file, line, 1)) {
+		fprintf(stderr, "%s:%d: File ``%s'' has %d links, expected %d\n",
+		    file, line, pathname, st.st_nlink, nlinks);
+		report_failure(NULL);
+	}
+	return (0);
+}
+
+int
+test_assert_file_size(const char *file, int line,
+    const char *pathname, long size)
+{
+	struct stat st;
+	int r;
+
+	count_assertion(file, line);
+	r = lstat(pathname, &st);
+	if (r == 0 && st.st_size == size)
+			return (1);
+	++failures;
+	if (!previous_failures(file, line, 1)) {
+		fprintf(stderr, "%s:%d: File ``%s'' has size %ld, expected %ld\n",
+		    file, line, pathname, (long)st.st_size, (long)size);
+		report_failure(NULL);
+	}
+	return (0);
+}
+
+int
+test_assert_is_dir(const char *file, int line, const char *pathname, int mode)
+{
+	struct stat st;
+	int r;
+
+	count_assertion(file, line);
+	r = lstat(pathname, &st);
+	if (r != 0 || !S_ISDIR(st.st_mode)) {
+		++failures;
+		if (!previous_failures(file, line, 1)) {
+			fprintf(stderr, "%s:%d: Dir ``%s'' doesn't exist\n",
+			    file, line, pathname);
+			report_failure(NULL);
+		}
+		return (0);
+	}
+	if (mode < 0) {
+		msg[0] = '\0';
+		return (1);
+	}
+	if (mode != (st.st_mode & 07777)) {
+		++failures;
+		if (!previous_failures(file, line, 1)) {
+			fprintf(stderr, "%s:%d: Dir ``%s'' has wrong mode\n",
+			    file, line, pathname);
+			fprintf(stderr, "  Expected: 0%3o\n", mode);
+			fprintf(stderr, "  Found: 0%3o\n", st.st_mode & 07777);
+			report_failure(NULL);
+		}
+		return (0);
+	}
+	msg[0] = '\0';
+	return (1);
+}
+
+int
+test_assert_is_symlink(const char *file, int line,
+    const char *pathname, const char *contents)
+{
+	char buff[300];
+	struct stat st;
+	ssize_t linklen;
+	int r;
+
+	count_assertion(file, line);
+	r = lstat(pathname, &st);
+	if (r != 0) {
+		++failures;
+		if (!previous_failures(file, line, 1)) {
+			fprintf(stderr, "%s:%d: Symlink ``%s'' doesn't exist\n",
+			    file, line, pathname);
+			report_failure(NULL);
+		}
+		return (0);
+	}
+	if (!S_ISLNK(st.st_mode)) {
+		++failures;
+		if (!previous_failures(file, line, 1)) {
+			fprintf(stderr, "%s:%d:  ``%s'' should be a symlink\n",
+			    file, line, pathname);
+			report_failure(NULL);
+		}
+		return (0);
+	}
+	if (contents == NULL)
+		return (1);
+	linklen = readlink(pathname, buff, sizeof(buff));
+	if (linklen < 0) {
+		++failures;
+		if (!previous_failures(file, line, 1)) {
+			fprintf(stderr, "%s:%d: symlink ``%s'' can't be read\n",
+			    file, line, pathname);
+			report_failure(NULL);
+		}
+		return (0);
+	}
+	buff[linklen] = '\0';
+	if (strcmp(buff, contents) != 0) {
+		++failures;
+		if (!previous_failures(file, line, 1)) {
+			fprintf(stderr, "%s:%d: Wrong symlink ``%s''\n",
+			    file, line, pathname);
+			fprintf(stderr, "   Expected: %s\n", contents);
+			fprintf(stderr, "   Found: %s\n", buff);
+			report_failure(NULL);
+		}
+		return (0);
+	}
+	return (1);
+}
+
+int
+test_assert_is_reg(const char *file, int line, const char *pathname, int mode)
+{
+	struct stat st;
+	int r;
+
+	count_assertion(file, line);
+	r = lstat(pathname, &st);
+	if (r != 0 || !S_ISREG(st.st_mode)) {
+		++failures;
+		if (!previous_failures(file, line, 1)) {
+			fprintf(stderr, "%s:%d: File ``%s'' doesn't exist\n",
+			    file, line, pathname);
+			report_failure(NULL);
+		}
+		return (0);
+	}
+	if (mode < 0)
+		return (1);
+	if (mode != (st.st_mode & 07777)) {
+		++failures;
+		if (!previous_failures(file, line, 1)) {
+			fprintf(stderr, "%s:%d: Dir ``%s'' has wrong mode\n",
+			    file, line, pathname);
+			fprintf(stderr, "  Expected: 0%3o\n", mode);
+			fprintf(stderr, "  Found: 0%3o\n", st.st_mode & 07777);
+			report_failure(NULL);
+		}
+		return (0);
+	}
+	return (1);
+}
+
+int
 test_assert_make_dir(const char *file, int line, const char *dirname, int mode)
 {
 	int r;
 
 	count_assertion(file, line);
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	r = mkdir(dirname);
+	r = _mkdir(dirname);
 #else
 	r = mkdir(dirname, mode);
 #endif
@@ -735,13 +1044,77 @@ test_assert_make_dir(const char *file, int line, const char *dirname, int mode)
 		msg[0] = '\0';
 		return (1);
 	}
-	failures++;
+	++failures;
 	if (!verbose && previous_failures(file, line, 1))
 		return (0);
 	fprintf(stderr, "%s:%d: Could not create directory\n",
 		file, line);
 	fprintf(stderr, "     Dirname: %s\n", dirname);
 	return(0);
+}
+
+int
+test_assert_make_hardlink(const char *file, int line,
+						  const char *newpath, const char *linkto)
+{
+	int succeeded;
+
+	count_assertion(file, line);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	succeeded = CreateHardLink(newpath, linkto, NULL);
+#else
+	succeeded = !link(linkto, newpath);
+#endif
+	if (succeeded) {
+		msg[0] = '\0';
+		return (1);
+	}
+	++failures;
+	if (verbose || !previous_failures(file, line, 1)) {
+		fprintf(stderr, "%s:%d: Could not create new hardlink\n",
+			file, line);
+		fprintf(stderr, "   New link: %s\n", newpath);
+		fprintf(stderr, "   Old name: %s\n", linkto);
+	}
+	return(0);
+}
+
+
+int
+test_assert_make_symlink(const char *file, int line,
+						  const char *newpath, const char *linkto)
+{
+	int succeeded;
+
+	count_assertion(file, line);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	int targetIsDir = 0; /* TODO: Fix this. */
+	succeeded = CreateSymbolicLink(newpath, linkto, targetIsDir);
+#else
+	succeeded = !symlink(linkto, newpath);
+#endif
+	if (succeeded) {
+		msg[0] = '\0';
+		return (1);
+	}
+	++failures;
+	if (verbose || !previous_failures(file, line, 1)) {
+		fprintf(stderr, "%s:%d: Could not create new symlink\n",
+			file, line);
+		fprintf(stderr, "   New link: %s\n", newpath);
+		fprintf(stderr, "   Old name: %s\n", linkto);
+	}
+	return(0);
+}
+
+int
+test_assert_umask(const char *file, int line, int mask)
+{
+	count_assertion(file, line);
+	(void)file; /* UNUSED */
+	(void)line; /* UNUSED */
+	umask(mask);
+	return (1);
 }
 
 /*
@@ -795,13 +1168,13 @@ slurpfile(size_t * sizep, const char *fmt, ...)
 		fclose(f);
 		return (NULL);
 	}
-	p = malloc(st.st_size + 1);
+	p = malloc((size_t)st.st_size + 1);
 	if (p == NULL) {
 		fprintf(stderr, "Can't allocate %ld bytes of memory to read file %s\n", (long int)st.st_size, filename);
 		fclose(f);
 		return (NULL);
 	}
-	bytes_read = fread(p, 1, st.st_size, f);
+	bytes_read = fread(p, 1, (size_t)st.st_size, f);
 	if (bytes_read < st.st_size) {
 		fprintf(stderr, "Can't read file %s\n", filename);
 		fclose(f);
@@ -836,6 +1209,7 @@ struct { void (*func)(void); const char *name; } tests[] = {
 static int test_run(int i, const char *tmpdir)
 {
 	int failures_before = failures;
+	int oldumask;
 
 	if (!quiet_flag) {
 		printf("%d: %s\n", i, tests[i].name);
@@ -846,7 +1220,7 @@ static int test_run(int i, const char *tmpdir)
 	 * Always explicitly chdir() in case the last test moved us to
 	 * a strange place.
 	 */
-	if (chdir(tmpdir)) {
+	if (!assertChdir(tmpdir)) {
 		fprintf(stderr,
 		    "ERROR: Couldn't chdir to temp dir %s\n",
 		    tmpdir);
@@ -860,7 +1234,7 @@ static int test_run(int i, const char *tmpdir)
 		exit(1);
 	}
 	/* Chdir() to that work directory. */
-	if (chdir(tests[i].name)) {
+	if (!assertChdir(tests[i].name)) {
 		fprintf(stderr,
 		    "ERROR: Couldn't chdir to temp dir ``%s''\n",
 		    tests[i].name);
@@ -868,13 +1242,17 @@ static int test_run(int i, const char *tmpdir)
 	}
 	/* Explicitly reset the locale before each test. */
 	setlocale(LC_ALL, "C");
+	/* Record the umask before we run the test. */
+	umask(oldumask = umask(0));
 	/* Run the actual test. */
 	(*tests[i].func)();
+	/* Restore umask */
+	umask(oldumask);
 	/* Summarize the results of this test. */
 	summarize();
 	/* If there were no failures, we can remove the work dir. */
 	if (failures == failures_before) {
-		if (!keep_temp_files && chdir(tmpdir) == 0) {
+		if (!keep_temp_files && assertChdir(tmpdir)) {
 #if defined(_WIN32) && !defined(__CYGWIN__)
 			systemf("rmdir /S /Q %s", tests[i].name);
 #else
@@ -969,36 +1347,6 @@ extract_reference_file(const char *name)
 	}
 	fclose(out);
 	fclose(in);
-}
-
-
-/* Since gzip is by far the most popular external compression program
- * available, we try to use it in the read_program and write_program
- * tests.  But if it's not available, then we can't use it.  This
- * function just tries to run gzip/gunzip to see if they're available.
- * If not, some of the external compression program tests will be
- * skipped. */
-const char *
-external_gzip_program(int un)
-{
-	static int tested = 0;
-	static const char *compress_prog = NULL;
-	static const char *decompress_prog = NULL;
-	/* Args vary depending on the command interpreter we're using. */
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	static const char *args = "-V >NUL 2>NUL"; /* Win32 cmd.exe */
-#else
-	static const char *args = "-V >/dev/null 2>/dev/null"; /* POSIX 'sh' */
-#endif
-
-	if (!tested) {
-		if (systemf("gunzip %s", args) == 0)
-			decompress_prog = "gunzip";
-		if (systemf("gzip %s", args) == 0)
-			compress_prog = "gzip";
-		tested = 1;
-	}
-	return (un ? decompress_prog : compress_prog);
 }
 
 static char *
@@ -1312,8 +1660,41 @@ int main(int argc, char **argv)
 
 	/* If the final tmpdir is empty, we can remove it. */
 	/* This should be the usual case when all tests succeed. */
-	chdir("..");
+	assertChdir("..");
 	rmdir(tmpdir);
 
 	return (tests_failed);
+}
+
+/*
+ * Special support specifically for libarchive.
+ */
+
+/* Since gzip is by far the most popular external compression program
+ * available, we try to use it in the read_program and write_program
+ * tests.  But if it's not available, then we can't use it.  This
+ * function just tries to run gzip/gunzip to see if they're available.
+ * If not, some of the external compression program tests will be
+ * skipped. */
+const char *
+external_gzip_program(int un)
+{
+	static int tested = 0;
+	static const char *compress_prog = NULL;
+	static const char *decompress_prog = NULL;
+	/* Args vary depending on the command interpreter we're using. */
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	static const char *args = "-V >NUL 2>NUL"; /* Win32 cmd.exe */
+#else
+	static const char *args = "-V >/dev/null 2>/dev/null"; /* POSIX 'sh' */
+#endif
+
+	if (!tested) {
+		if (systemf("gunzip %s", args) == 0)
+			decompress_prog = "gunzip";
+		if (systemf("gzip %s", args) == 0)
+			compress_prog = "gzip";
+		tested = 1;
+	}
+	return (un ? decompress_prog : compress_prog);
 }

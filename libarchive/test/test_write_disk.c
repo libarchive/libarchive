@@ -96,14 +96,10 @@ static void create_reg_file(struct archive_entry *ae, const char *msg)
 	assertEqualInt(0, archive_write_finish(ad));
 #endif
 	/* Test the entries on disk. */
-	assert(0 == stat(archive_entry_pathname(ae), &st));
-	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
-	    st.st_mode, archive_entry_mode(ae));
-#if !defined(_WIN32) || defined(__CYGWIN__)
-	assertEqualInt(st.st_mode, (archive_entry_mode(ae) & ~UMASK));
-#endif
-	assertEqualInt(st.st_size, sizeof(data));
+	assertIsReg(archive_entry_pathname(ae), archive_entry_mode(ae) & 0777);
+	assertFileSize(archive_entry_pathname(ae), sizeof(data));
 	/* test_write_disk_times has more detailed tests of this area. */
+	assert(0 == stat(archive_entry_pathname(ae), &st));
         assertEqualInt(st.st_mtime, 123456789);
         failure("No atime was specified, so atime should get set to current time");
 	now = time(NULL);
@@ -114,10 +110,8 @@ static void create_reg_file2(struct archive_entry *ae, const char *msg)
 {
 	const int datasize = 100000;
 	char *data;
-	char *compare;
 	struct archive *ad;
-	struct stat st;
-	int i, fd;
+	int i;
 
 	data = malloc(datasize);
 	for (i = 0; i < datasize; i++)
@@ -137,26 +131,12 @@ static void create_reg_file2(struct archive_entry *ae, const char *msg)
 		    archive_write_data_block(ad, data + i, 1000, i));
 	}
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(ad);
-#else
 	assertEqualInt(0, archive_write_finish(ad));
-#endif
-	/* Test the entries on disk. */
-	assert(0 == stat(archive_entry_pathname(ae), &st));
-	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
-	    st.st_mode, archive_entry_mode(ae));
-#if !defined(_WIN32) || defined(__CYGWIN__)
-	assertEqualInt(st.st_mode, (archive_entry_mode(ae) & ~UMASK));
-#endif
-	assertEqualInt(st.st_size, i);
 
-	compare = malloc(datasize);
-	fd = open(archive_entry_pathname(ae), O_RDONLY | O_BINARY);
-	assertEqualInt(datasize, read(fd, compare, datasize));
-	close(fd);
-	assert(memcmp(compare, data, datasize) == 0);
-	free(compare);
+	/* Test the entries on disk. */
+	assertIsReg(archive_entry_pathname(ae), archive_entry_mode(ae) & 0777);
+	assertFileSize(archive_entry_pathname(ae), i);
+	assertFileContents(data, datasize, archive_entry_pathname(ae));
 	free(data);
 }
 

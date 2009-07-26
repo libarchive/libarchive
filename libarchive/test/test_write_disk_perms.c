@@ -182,7 +182,7 @@ DEFINE_TEST(test_write_disk_perms)
 
 	/* Overwrite an existing dir. */
 	/* For dir, the first perms should get left. */
-	assert(mkdir("dir_overwrite_0744", 0744) == 0);
+	assertMakeDir("dir_overwrite_0744", 0744);
 	/* Check original perms. */
 	assert(0 == stat("dir_overwrite_0744", &st));
 	failure("dir_overwrite_0744: st.st_mode=%o", st.st_mode);

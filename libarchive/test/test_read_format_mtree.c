@@ -60,8 +60,8 @@ DEFINE_TEST(test_read_format_mtree)
 	 * the routine which open a directory that we create
 	 * "dir" and "dir2" directories.
 	 */
-	assertEqualInt(0, mkdir("dir", 0775));
-	assertEqualInt(0, mkdir("dir2", 0775));
+	assertMakeDir("dir", 0775);
+	assertMakeDir("dir2", 0775);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK,

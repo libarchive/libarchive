@@ -32,16 +32,9 @@ DEFINE_TEST(test_read_extract)
 {
 	struct archive_entry *ae;
 	struct archive *a;
-#if !defined(_WIN32) || defined(__CYGWIN__)
-	struct stat st;
-#endif
 	size_t used;
 	int i;
 	char *buff, *file_buff;
-#if !defined(_WIN32) || defined(__CYGWIN__)
-	int fd;
-	ssize_t bytes_read;
-#endif
 
 	buff = malloc(BUFF_SIZE);
 	file_buff = malloc(FILE_BUFF_SIZE);
@@ -144,55 +137,27 @@ DEFINE_TEST(test_read_extract)
 	 * so the permissions should have been restored exactly,
 	 * including resetting the gid bit on those platforms
 	 * where gid is inherited by subdirs. */
-	assert(0 == stat("dir_0775", &st));
 	failure("This was 0775 in archive, and should be 0775 on disk");
-	assertEqualInt(st.st_mode, S_IFDIR | 0775);
+	assertIsDir("dir_0775", 0775);
 	/* Everything else was extracted without ARCHIVE_EXTRACT_PERM,
 	 * so there may be some sloppiness about gid bits on directories. */
-	assert(0 == stat("file", &st));
-	failure("st.st_mode=%o should be %o", st.st_mode, S_IFREG | 0755);
-	assertEqualInt(st.st_mode, S_IFREG | 0755);
-	failure("The file extracted to disk is the wrong size.");
-	assert(st.st_size == FILE_BUFF_SIZE);
-	fd = open("file", O_RDONLY | O_BINARY);
-	failure("The file on disk could not be opened.");
-	assert(fd != 0);
-	bytes_read = read(fd, buff, FILE_BUFF_SIZE);
-	close(fd);
-	failure("The file contents read from disk are the wrong size");
-	assert(bytes_read == FILE_BUFF_SIZE);
-	failure("The file contents on disk do not match the file contents that were put into the archive.");
-	assert(memcmp(buff, file_buff, FILE_BUFF_SIZE) == 0);
-	assert(0 == stat("dir", &st));
-	failure("This was 0777 in archive, but umask should make it 0755");
+	assertIsReg("file", 0755);
+	assertFileSize("file", FILE_BUFF_SIZE);
+	assertFileContents(file_buff, FILE_BUFF_SIZE, "file");
 	/* If EXTRACT_PERM wasn't used, be careful to ignore sgid bit
 	 * when checking dir modes, as some systems inherit sgid bit
 	 * from the parent dir. */
-	assertEqualInt(0755, st.st_mode & 0777);
-	assert(0 == stat("dir/file", &st));
-	assert(st.st_mode == (S_IFREG | 0700));
-	assert(0 == stat("dir2", &st));
-	assertEqualInt(0755, st.st_mode & 0777);
-	assert(0 == stat("dir2/file", &st));
-	assert(st.st_mode == (S_IFREG | 0000));
-	assert(0 == stat("dir3", &st));
-	assertEqualInt(0710, st.st_mode & 0777);
-	assert(0 == stat("dir4", &st));
-	assertEqualInt(0755, st.st_mode & 0777);
-	assert(0 == stat("dir4/a", &st));
-	assertEqualInt(0755, st.st_mode & 0777);
-	assert(0 == stat("dir4/b", &st));
-	assertEqualInt(0755, st.st_mode & 0777);
-	assert(0 == stat("dir4/c", &st));
-	assertEqualInt(0711, st.st_mode & 0777);
-	assert(0 == lstat("symlink", &st));
-	assert(S_ISLNK(st.st_mode));
-#if HAVE_LCHMOD
-	/* Systems that lack lchmod() can't set symlink perms, so skip this. */
-	assert((st.st_mode & 07777) == 0755);
-#endif
-	assert(0 == stat("symlink", &st));
-	assert(st.st_mode == (S_IFREG | 0755));
+	failure("This was 0777 in archive, but umask should make it 0755");
+	assertIsDir("dir", 0755);
+	assertIsReg("dir/file", 0700);
+	assertIsDir("dir2", 0755);
+	assertIsReg("dir2/file", 0000);
+	assertIsDir("dir3", 0710);
+	assertIsDir("dir4", 0755);
+	assertIsDir("dir4/a", 0755);
+	assertIsDir("dir4/b", 0755);
+	assertIsDir("dir4/c", 0711);
+	assertIsSymlink("symlink", NULL); /* TODO: Assert value of symlink */
 #endif
 
 	free(buff);

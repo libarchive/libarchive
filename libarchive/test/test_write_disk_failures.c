@@ -45,7 +45,7 @@ DEFINE_TEST(test_write_disk_failures)
 	umask(UMASK);
 
 	/* A directory that we can't write to. */
-	assertEqualInt(0, mkdir("dir", 0555));
+	assertMakeDir("dir", 0555);
 
 	/* Can we? */
 	fd = open("dir/testfile", O_WRONLY | O_CREAT | O_BINARY, 0777);
