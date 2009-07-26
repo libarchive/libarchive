@@ -416,18 +416,16 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 
 	/* Format the time using 'ls -l' conventions. */
 	tim = archive_entry_mtime(entry);
+#define HALF_YEAR (time_t)365 * 86400 / 2
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	/* Windows' strftime function does not support %e format. */
-	if (abs(tim - now) > (365/2)*86400)
-		fmt = bsdtar->day_first ? "%d %b  %Y" : "%b %d  %Y";
-	else
-		fmt = bsdtar->day_first ? "%d %b %H:%M" : "%b %d %H:%M";
+#define DAY_FMT  "%d"  /* Windows' strftime function does not support %e format. */
 #else
-	if (abs(tim - now) > (365/2)*86400)
-		fmt = bsdtar->day_first ? "%e %b  %Y" : "%b %e  %Y";
-	else
-		fmt = bsdtar->day_first ? "%e %b %H:%M" : "%b %e %H:%M";
+#define DAY_FMT  "%e"  /* Day number without leading zeros */
 #endif
+	if (tim < now - HALF_YEAR || tim > now + HALF_YEAR)
+		fmt = bsdtar->day_first ? DAY_FMT " %b  %Y" : "%b " DAY_FMT "  %Y";
+	else
+		fmt = bsdtar->day_first ? DAY_FMT " %b %H:%M" : "%b " DAY_FMT " %H:%M";
 	strftime(tmp, sizeof(tmp), fmt, localtime(&tim));
 	fprintf(out, " %s ", tmp);
 	safe_fprintf(out, "%s", archive_entry_pathname(entry));
