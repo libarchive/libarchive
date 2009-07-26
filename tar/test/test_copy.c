@@ -216,30 +216,17 @@ verify_tree(int limit)
 		}
 
 #if !defined(_WIN32) || defined(__CYGWIN__)
-		/*
-		 * Symlink text doesn't include the 'original/' prefix,
-		 * so the limit here is 100 characters.
-		 */
 		/* Verify symlink "s/abcdef..." */
-		strcpy(name2, "../s/");
+		strcpy(name1, "s/");
+		strcat(name1, filename);
+		strcpy(name2, "../f/");
 		strcat(name2, filename);
-		if (limit != LIMIT_USTAR || strlen(name2) <= 100) {
-			/* This is a symlink. */
-			failure("Couldn't stat %s (length %d)",
-			    filename, strlen(filename));
-			if (assertEqualInt(0, lstat(name2 + 3, &st2))) {
-				assert(S_ISLNK(st2.st_mode));
-				/* This is a symlink to the file above. */
-				failure("Couldn't stat %s", name2 + 3);
-				if (assertEqualInt(0, stat(name2 + 3, &st2))) {
-					assertEqualInt(st2.st_dev, st.st_dev);
-					assertEqualInt(st2.st_ino, st.st_ino);
-				}
-			}
-		}
+		if (limit != LIMIT_USTAR || strlen(name2) <= 100)
+			assertIsLink(name1, name2);
 #else
 		skipping("verify symlink");
 #endif
+
 		/* Verify dir "d/abcdef...". */
 		strcpy(name1, "d/");
 		strcat(name1, filename);
@@ -255,10 +242,11 @@ verify_tree(int limit)
 
 #if !defined(_WIN32) || defined(__CYGWIN__)
 	{
-		char *dp;
+		const char *dp;
 		/* Now make sure nothing is there that shouldn't be. */
 		for (dp = "dflms"; *dp != '\0'; ++dp) {
 			DIR *d;
+			struct dirent *de;
 			char dir[2];
 			dir[0] = *dp; dir[1] = '\0';
 			d = opendir(dir);

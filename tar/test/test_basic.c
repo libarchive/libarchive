@@ -71,21 +71,7 @@ basic_tar(const char *target, const char *pack_options,
 
 #if !defined(_WIN32) || defined(__CYGWIN__)
 	/* Symlink */
-	r = lstat("symlink", &st);
-	failure("Failed to stat file %s/symlink, errno=%d", target, errno);
-	assertEqualInt(r, 0);
-	if (r == 0) {
-		failure("symlink should be a symlink; actual mode is %o",
-		    st.st_mode);
-		assert(S_ISLNK(st.st_mode));
-		if (S_ISLNK(st.st_mode)) {
-			char buff[128];
-			r = readlink("symlink", buff, sizeof(buff));
-			assertEqualInt(r, 4);
-			buff[r] = '\0';
-			assertEqualString(buff, "file");
-		}
-	}
+	assertIsLink("symlink", "file");
 #endif
 
 	/* dir */

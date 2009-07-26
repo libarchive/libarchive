@@ -306,7 +306,7 @@ test_assert(const char *file, int line, int value, const char *condition, void *
 		msg[0] = '\0';
 		return (value);
 	}
-	failures ++;
+	++failures;
 	if (!verbose && previous_failures(file, line, 1))
 		return (value);
 	fprintf(stderr, "%s:%d: Assertion failed\n", file, line);
@@ -340,7 +340,7 @@ test_assert_equal_int(const char *file, int line,
 		msg[0] = '\0';
 		return (1);
 	}
-	failures ++;
+	++failures;
 	if (!verbose && previous_failures(file, line, 1))
 		return (0);
 	fprintf(stderr, "%s:%d: Assertion failed: Ints not equal\n",
@@ -392,7 +392,7 @@ test_assert_equal_string(const char *file, int line,
 		msg[0] = '\0';
 		return (1);
 	}
-	failures ++;
+	++failures;
 	if (!verbose && previous_failures(file, line, 1))
 		return (0);
 	fprintf(stderr, "%s:%d: Assertion failed: Strings not equal\n",
@@ -450,7 +450,7 @@ test_assert_equal_wstring(const char *file, int line,
 		msg[0] = '\0';
 		return (1);
 	}
-	failures ++;
+	++failures;
 	if (!verbose && previous_failures(file, line, 1))
 		return (0);
 	fprintf(stderr, "%s:%d: Assertion failed: Unicode strings not equal\n",
@@ -523,7 +523,7 @@ test_assert_equal_mem(const char *file, int line,
 		msg[0] = '\0';
 		return (1);
 	}
-	failures ++;
+	++failures;
 	if (!verbose && previous_failures(file, line, 1))
 		return (0);
 	fprintf(stderr, "%s:%d: Assertion failed: memory not equal\n",
@@ -571,7 +571,7 @@ test_assert_empty_file(const char *f1fmt, ...)
 	if (st.st_size == 0)
 		return (1);
 
-	failures ++;
+	++failures;
 	if (!verbose && previous_failures(test_filename, test_line, 1))
 		return (0);
 
@@ -608,13 +608,13 @@ test_assert_non_empty_file(const char *f1fmt, ...)
 		fprintf(stderr, "%s:%d: Could not stat: %s\n",
 		    test_filename, test_line, f1);
 		report_failure(NULL);
-		failures++;
+		++failures;
 		return (0);
 	}
 	if (st.st_size != 0)
 		return (1);
 
-	failures ++;
+	++failures;
 	if (!verbose && previous_failures(test_filename, test_line, 1))
 		return (0);
 
@@ -657,7 +657,7 @@ test_assert_equal_file(const char *fn1, const char *f2pattern, ...)
 	}
 	fclose(f1);
 	fclose(f2);
-	failures ++;
+	++failures;
 	if (!verbose && previous_failures(test_filename, test_line, 1))
 		return (0);
 	fprintf(stderr, "%s:%d: Files are not identical\n",
@@ -674,6 +674,7 @@ test_assert_file_exists(const char *fpattern, ...)
 	char f[1024];
 	va_list ap;
 
+	count_assertion(test_filename, test_line);
 	va_start(ap, fpattern);
 	vsprintf(f, fpattern, ap);
 	va_end(ap);
@@ -685,6 +686,7 @@ test_assert_file_exists(const char *fpattern, ...)
 	if (!access(f, F_OK))
 		return (1);
 #endif
+	++failures;
 	if (!previous_failures(test_filename, test_line, 1)) {
 		fprintf(stderr, "%s:%d: File doesn't exist\n",
 		    test_filename, test_line);
@@ -700,6 +702,7 @@ test_assert_file_not_exists(const char *fpattern, ...)
 	char f[1024];
 	va_list ap;
 
+	count_assertion(test_filename, test_line);
 	va_start(ap, fpattern);
 	vsprintf(f, fpattern, ap);
 	va_end(ap);
@@ -711,6 +714,7 @@ test_assert_file_not_exists(const char *fpattern, ...)
 	if (access(f, F_OK))
 		return (1);
 #endif
+	++failures;
 	if (!previous_failures(test_filename, test_line, 1)) {
 		fprintf(stderr, "%s:%d: File exists and shouldn't\n",
 		    test_filename, test_line);
@@ -730,13 +734,14 @@ test_assert_file_contents(const void *buff, int s, const char *fpattern, ...)
 	FILE *f;
 	int n;
 
+	count_assertion(test_filename, test_line);
 	va_start(ap, fpattern);
 	vsprintf(fn, fpattern, ap);
 	va_end(ap);
 
 	f = fopen(fn, "rb");
 	if (f == NULL) {
-		failures ++;
+		++failures;
 		if (!previous_failures(test_filename, test_line, 1)) {
 			fprintf(stderr, "%s:%d: File doesn't exist: %s\n",
 			    test_filename, test_line, fn);
@@ -751,7 +756,7 @@ test_assert_file_contents(const void *buff, int s, const char *fpattern, ...)
 		free(contents);
 		return (1);
 	}
-	failures ++;
+	++failures;
 	if (!previous_failures(test_filename, test_line, 1)) {
 		fprintf(stderr, "%s:%d: File contents don't match\n",
 		    test_filename, test_line);
@@ -777,6 +782,7 @@ test_assert_text_file_contents(const char *buff, const char *fn)
 	FILE *f;
 	int n, s;
 
+	count_assertion(test_filename, test_line);
 	f = fopen(fn, "r");
 	s = strlen(buff);
 	contents = malloc(s * 2 + 128);
@@ -805,7 +811,7 @@ test_assert_text_file_contents(const char *buff, const char *fn)
 		free(contents);
 		return (1);
 	}
-	failures ++;
+	++failures;
 	if (!previous_failures(test_filename, test_line, 1)) {
 		fprintf(stderr, "%s:%d: File contents don't match\n",
 		    test_filename, test_line);
@@ -829,8 +835,10 @@ test_assert_file_hardlinks(const char *file, int line,
 	struct stat st1, st2;
 	int r;
 
+	count_assertion(file, line);
 	r = lstat(path1, &st1);
 	if (r != 0) {
+		++failures;
 		if (!previous_failures(file, line, 1))
 			fprintf(stderr, "%s:%d: File ``%s'' should exist\n",
 			    file, line, path1);
@@ -838,12 +846,14 @@ test_assert_file_hardlinks(const char *file, int line,
 	}
 	r = lstat(path2, &st2);
 	if (r != 0) {
+		++failures;
 		if (!previous_failures(file, line, 1))
 			fprintf(stderr, "%s:%d: File ``%s'' should exist\n",
 			    file, line, path2);
 		return (0);
 	}
 	if (st1.st_ino != st2.st_ino || st1.st_dev != st2.st_dev) {
+		++failures;
 		if (!previous_failures(file, line, 1)) {
 			fprintf(stderr,
 				"%s:%d: Files ``%s'' and ``%s'' are not hardlinked\n",
@@ -856,14 +866,17 @@ test_assert_file_hardlinks(const char *file, int line,
 }
 
 int
-test_assert_file_nlinks(const char *file, int line, const char *pathname, int nlinks)
+test_assert_file_nlinks(const char *file, int line,
+    const char *pathname, int nlinks)
 {
 	struct stat st;
 	int r;
 
+	count_assertion(file, line);
 	r = lstat(pathname, &st);
 	if (r == 0 && st.st_nlink == nlinks)
 			return (1);
+	++failures;
 	if (!previous_failures(file, line, 1)) {
 		fprintf(stderr, "%s:%d: File ``%s'' has %d links, expected %d\n",
 		    file, line, pathname, st.st_nlink, nlinks);
@@ -873,17 +886,20 @@ test_assert_file_nlinks(const char *file, int line, const char *pathname, int nl
 }
 
 int
-test_assert_file_size(const char *file, int line, const char *pathname, long size)
+test_assert_file_size(const char *file, int line,
+    const char *pathname, long size)
 {
 	struct stat st;
 	int r;
 
+	count_assertion(file, line);
 	r = lstat(pathname, &st);
 	if (r == 0 && st.st_size == size)
 			return (1);
+	++failures;
 	if (!previous_failures(file, line, 1)) {
 		fprintf(stderr, "%s:%d: File ``%s'' has size %ld, expected %ld\n",
-		    file, line, pathname, st.st_size, size);
+		    file, line, pathname, (long)st.st_size, (long)size);
 		report_failure(NULL);
 	}
 	return (0);
@@ -895,15 +911,87 @@ test_assert_is_dir(const char *file, int line, const char *pathname, int mode)
 	struct stat st;
 	int r;
 
+	count_assertion(file, line);
 	r = lstat(pathname, &st);
-	if (r == 0 && S_ISDIR(st.st_mode))
-			return (1);
-	if (!previous_failures(test_filename, test_line, 1)) {
-		fprintf(stderr, "%s:%d: Dir ``%s'' doesn't exist\n",
-		    test_filename, test_line, pathname);
-		report_failure(NULL);
+	if (r != 0 || !S_ISDIR(st.st_mode)) {
+		++failures;
+		if (!previous_failures(file, line, 1)) {
+			fprintf(stderr, "%s:%d: Dir ``%s'' doesn't exist\n",
+			    file, line, pathname);
+			report_failure(NULL);
+		}
+		return (0);
 	}
-	return (0);
+	if (mode < 0)
+		return (1);
+	if (mode != (st.st_mode & 07777)) {
+		++failures;
+		if (!previous_failures(file, line, 1)) {
+			fprintf(stderr, "%s:%d: Dir ``%s'' has wrong mode\n",
+			    file, line, pathname);
+			fprintf(stderr, "  Expected: 0%3o\n", mode);
+			fprintf(stderr, "  Found: 0%3o\n", st.st_mode & 07777);
+			report_failure(NULL);
+		}
+		return (0);
+	}
+	return (1);
+}
+
+int
+test_assert_is_link(const char *file, int line,
+    const char *pathname, const char *contents)
+{
+	char buff[300];
+	struct stat st;
+	ssize_t linklen;
+	int r;
+
+	count_assertion(file, line);
+	r = lstat(pathname, &st);
+	if (r != 0) {
+		++failures;
+		if (!previous_failures(file, line, 1)) {
+			fprintf(stderr, "%s:%d: Symlink ``%s'' doesn't exist\n",
+			    file, line, pathname);
+			report_failure(NULL);
+		}
+		return (0);
+	}
+	if (!S_ISLNK(st.st_mode)) {
+		++failures;
+		if (!previous_failures(file, line, 1)) {
+			fprintf(stderr, "%s:%d:  ``%s'' should be a symlink\n",
+			    file, line, pathname);
+			report_failure(NULL);
+		}
+		return (0);
+	}
+	if (contents == NULL)
+		return (1);
+	linklen = readlink(pathname, buff, sizeof(buff));
+	if (linklen < 0) {
+		++failures;
+		if (!previous_failures(file, line, 1)) {
+			fprintf(stderr, "%s:%d: symlink ``%s'' can't be read\n",
+			    file, line, pathname);
+			report_failure(NULL);
+		}
+		return (0);
+	}
+	buff[linklen] = '\0';
+	if (strcmp(buff, contents) != 0) {
+		++failures;
+		if (!previous_failures(file, line, 1)) {
+			fprintf(stderr, "%s:%d: Wrong symlink ``%s''\n",
+			    file, line, pathname);
+			fprintf(stderr, "   Expected: %s\n", contents);
+			fprintf(stderr, "   Found: %s\n", buff);
+			report_failure(NULL);
+		}
+		return (0);
+	}
+	return (1);
 }
 
 int
@@ -912,15 +1000,31 @@ test_assert_is_reg(const char *file, int line, const char *pathname, int mode)
 	struct stat st;
 	int r;
 
+	count_assertion(file, line);
 	r = lstat(pathname, &st);
-	if (r == 0 && S_ISREG(st.st_mode))
-			return (1);
-	if (!previous_failures(test_filename, test_line, 1)) {
-		fprintf(stderr, "%s:%d: File ``%s'' doesn't exist\n",
-		    test_filename, test_line, pathname);
-		report_failure(NULL);
+	if (r != 0 || !S_ISREG(st.st_mode)) {
+		++failures;
+		if (!previous_failures(file, line, 1)) {
+			fprintf(stderr, "%s:%d: File ``%s'' doesn't exist\n",
+			    file, line, pathname);
+			report_failure(NULL);
+		}
+		return (0);
 	}
-	return (0);
+	if (mode < 0)
+		return (1);
+	if (mode != (st.st_mode & 07777)) {
+		++failures;
+		if (!previous_failures(file, line, 1)) {
+			fprintf(stderr, "%s:%d: Dir ``%s'' has wrong mode\n",
+			    file, line, pathname);
+			fprintf(stderr, "  Expected: 0%3o\n", mode);
+			fprintf(stderr, "  Found: 0%3o\n", st.st_mode & 07777);
+			report_failure(NULL);
+		}
+		return (0);
+	}
+	return (1);
 }
 
 int
@@ -938,7 +1042,7 @@ test_assert_make_dir(const char *file, int line, const char *dirname, int mode)
 		msg[0] = '\0';
 		return (1);
 	}
-	failures++;
+	++failures;
 	if (!verbose && previous_failures(file, line, 1))
 		return (0);
 	fprintf(stderr, "%s:%d: Could not create directory\n",
@@ -953,6 +1057,7 @@ test_assert_make_hardlink(const char *file, int line,
 {
 	int succeeded;
 
+	count_assertion(file, line);
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	succeeded = CreateHardLink(newpath, linkto, NULL);
 #else
@@ -962,7 +1067,7 @@ test_assert_make_hardlink(const char *file, int line,
 		msg[0] = '\0';
 		return (1);
 	}
-	failures++;
+	++failures;
 	if (verbose || !previous_failures(file, line, 1)) {
 		fprintf(stderr, "%s:%d: Could not create new hardlink\n",
 			file, line);
@@ -979,6 +1084,7 @@ test_assert_make_symlink(const char *file, int line,
 {
 	int succeeded;
 
+	count_assertion(file, line);
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	int targetIsDir = 0; /* TODO: Fix this. */
 	succeeded = CreateSymbolicLink(newpath, linkto, targetIsDir);
@@ -989,7 +1095,7 @@ test_assert_make_symlink(const char *file, int line,
 		msg[0] = '\0';
 		return (1);
 	}
-	failures++;
+	++failures;
 	if (verbose || !previous_failures(file, line, 1)) {
 		fprintf(stderr, "%s:%d: Could not create new symlink\n",
 			file, line);
@@ -1002,6 +1108,9 @@ test_assert_make_symlink(const char *file, int line,
 int
 test_assert_umask(const char *file, int line, int mask)
 {
+	count_assertion(file, line);
+	(void)file; /* UNUSED */
+	(void)line; /* UNUSED */
 	umask(mask);
 	return (1);
 }
