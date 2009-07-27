@@ -45,21 +45,20 @@
 #error Oops: No config.h and no pre-built configuration in test.h.
 #endif
 
+#include <sys/types.h>  /* Windows requires this before sys/stat.h */
+#include <sys/stat.h>
+
+#ifdef USE_DMALLOC
+#include <dmalloc.h>
+#endif
 #if !defined(_WIN32) || defined(__CYGWIN__)
 #include <dirent.h>
 #else
 #include <direct.h>
 #endif
 #if defined(__CYGWIN__)
-/* In cygwin-1.7.x, the .nlinks field of directories is
- * deliberately inaccurate, because to populate it requires
- * stat'ing every file in the directory, which is slow.
- * So, as an optimization cygwin doesn't do that in newer
- * releases; all correct applications on any platform should
- * never rely on it being > 1, so this optimization doesn't
- * impact the operation of correctly coded applications.
- * Therefore, the cpio test should not check its accuracy
- */
+/* Cygwin-1.7.x is lazy about populating nlinks, so don't
+ * expect it to be accurate. */
 # define NLINKS_INACCURATE_FOR_DIRS
 #endif
 #include <errno.h>
@@ -67,17 +66,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>  /* Windows requires this before sys/stat.h */
-#include <sys/stat.h>
+#include <time.h>
 #if !defined(_WIN32) || defined(__CYGWIN__)
 #include <unistd.h>
 #endif
-#include <time.h>
 #include <wchar.h>
 
-#ifdef USE_DMALLOC
-#include <dmalloc.h>
-#endif
 
 #ifdef __FreeBSD__
 #include <sys/cdefs.h>  /* For __FBSDID */
@@ -96,6 +90,7 @@
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #define LOCALE_DE	"deu"
+#define strdup _strdup
 #else
 #define LOCALE_DE	"de_DE.UTF-8"
 #endif
