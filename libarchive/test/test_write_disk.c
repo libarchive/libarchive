@@ -50,9 +50,9 @@ static void create(struct archive_entry *ae, const char *msg)
 	    st.st_mode, archive_entry_mode(ae));
 	/* When verifying a dir, ignore the S_ISGID bit, as some systems set
 	 * that automatically. */
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	if (archive_entry_filetype(ae) == AE_IFDIR)
 		st.st_mode &= ~S_ISGID;
-#if !defined(_WIN32) || defined(__CYGWIN__)
 	assertEqualInt(st.st_mode, archive_entry_mode(ae) & ~UMASK);
 #endif
 }
