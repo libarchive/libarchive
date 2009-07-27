@@ -942,6 +942,16 @@ int
 test_assert_is_link(const char *file, int line,
     const char *pathname, const char *contents)
 {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	// TODO: Vista supports symlinks
+	++failures;
+	if (!previous_failures(file, line, 1)) {
+		fprintf(stderr, "%s:%d: Symlink ``%s'' not supported\n",
+			file, line, pathname);
+		report_failure(NULL);
+	}
+	return (0);
+#else
 	char buff[300];
 	struct stat st;
 	ssize_t linklen;
@@ -992,6 +1002,7 @@ test_assert_is_link(const char *file, int line,
 		return (0);
 	}
 	return (1);
+#endif
 }
 
 int
@@ -1084,11 +1095,12 @@ test_assert_make_symlink(const char *file, int line,
 {
 	int succeeded;
 
-	count_assertion(file, line);
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	int targetIsDir = 0; /* TODO: Fix this. */
+	count_assertion(file, line);
 	succeeded = CreateSymbolicLink(newpath, linkto, targetIsDir);
 #else
+	count_assertion(file, line);
 	succeeded = !symlink(linkto, newpath);
 #endif
 	if (succeeded) {
