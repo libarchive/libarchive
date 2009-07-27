@@ -44,8 +44,8 @@
 /* These should match the types used in 'struct stat' */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #define	__LA_INT64_T	__int64
-#define	__LA_UID_T	short
-#define	__LA_GID_T	short
+#define	__LA_UID_T	unsigned int
+#define	__LA_GID_T	unsigned int
 #define	__LA_DEV_T	unsigned int
 #define	__LA_MODE_T	unsigned short
 #else
