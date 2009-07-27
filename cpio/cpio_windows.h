@@ -28,6 +28,9 @@
 #ifndef CPIO_WINDOWS_H
 #define CPIO_WINDOWS_H 1
 
+#include <direct.h>
+#include <io.h>
+
 #define getgrgid(id)	NULL
 #define getgrnam(name)	NULL
 #define getpwnam(name)	NULL
