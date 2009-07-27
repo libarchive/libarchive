@@ -50,6 +50,7 @@
 #define S_ISREG(m)  ((m) & _S_IFREG)
 #endif
 #define access _access
+#define chdir _chdir
 #ifndef fileno
 #define fileno _fileno
 #endif
@@ -1082,15 +1083,16 @@ test_assert_make_hardlink(const char *file, int line,
 
 int
 test_assert_make_symlink(const char *file, int line,
-						  const char *newpath, const char *linkto)
+    const char *newpath, const char *linkto)
 {
 	int succeeded;
 
-	count_assertion(file, line);
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	int targetIsDir = 0; /* TODO: Fix this. */
+	count_assertion(file, line);
 	succeeded = CreateSymbolicLink(newpath, linkto, targetIsDir);
 #else
+	count_assertion(file, line);
 	succeeded = !symlink(linkto, newpath);
 #endif
 	if (succeeded) {

@@ -86,7 +86,7 @@ DEFINE_TEST(test_fuzz)
 		assert(rawimage != NULL);
 		image = malloc(size);
 		assert(image != NULL);
-		srand(time(NULL));
+		srand((unsigned)time(NULL));
 
 		for (i = 0; i < 100; ++i) {
 			FILE *f;
