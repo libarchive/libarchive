@@ -58,6 +58,32 @@ DEFINE_TEST(test_entry)
 	assert((e = archive_entry_new()) != NULL);
 
 	/*
+	 * Verify that the AE_IF* defines match S_IF* defines
+	 * on this platform. See comments in archive_entry.h.
+	 */
+#ifdef S_IFREG
+	assertEqualInt(S_IFREG, AE_IFREG);
+#endif
+#ifdef S_IFLNK
+	assertEqualInt(S_IFLNK, AE_IFLNK);
+#endif
+#ifdef S_IFSOCK
+	assertEqualInt(S_IFSOCK, AE_IFSOCK);
+#endif
+#ifdef S_IFCHR
+	assertEqualInt(S_IFCHR, AE_IFCHR);
+#endif
+#ifdef S_IFBLK
+	assertEqualInt(S_IFBLK, AE_IFBLK);
+#endif
+#ifdef S_IFDIR
+	assertEqualInt(S_IFDIR, AE_IFDIR);
+#endif
+#ifdef S_IFIFO
+	assertEqualInt(S_IFIFO, AE_IFIFO);
+#endif
+
+	/*
 	 * Basic set/read tests for all fields.
 	 * We should be able to set any field and read
 	 * back the same value.

@@ -43,6 +43,7 @@ DEFINE_TEST(test_read_data_large)
 	struct archive *a;
 	char tmpfilename[] = "largefile";
 	int tmpfilefd;
+	FILE *f;
 	unsigned int i;
 	size_t used;
 
@@ -107,11 +108,9 @@ DEFINE_TEST(test_read_data_large)
 #endif
 	close(tmpfilefd);
 
-	tmpfilefd = open(tmpfilename, O_RDONLY | O_BINARY);
-	assert(tmpfilefd != 0);
-	assertEqualIntA(NULL, sizeof(buff3), read(tmpfilefd, buff3, sizeof(buff3)));
-	close(tmpfilefd);
+	f = fopen(tmpfilename, "rb");
+	assert(f != NULL);
+	assertEqualInt(sizeof(buff3), fread(buff3, 1, sizeof(buff3), f));
+	fclose(f);
 	assert(0 == memcmp(buff2, buff3, sizeof(buff3)));
-
-	unlink(tmpfilename);
 }

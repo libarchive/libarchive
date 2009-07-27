@@ -84,7 +84,7 @@ joliettest(int withrr)
 	/* First entry is '.' root directory. */
 	assertEqualInt(0, archive_read_next_header(a, &ae));
 	assertEqualString(".", archive_entry_pathname(ae));
-	assert(S_ISDIR(archive_entry_stat(ae)->st_mode));
+	assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
 	assertEqualInt(2048, archive_entry_size(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(0, archive_entry_mtime_nsec(ae));
@@ -98,7 +98,7 @@ joliettest(int withrr)
 	/* A directory. */
 	assertEqualInt(0, archive_read_next_header(a, &ae));
 	assertEqualString("dir", archive_entry_pathname(ae));
-	assert(S_ISDIR(archive_entry_stat(ae)->st_mode));
+	assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
 	assertEqualInt(2048, archive_entry_size(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(86401, archive_entry_atime(ae));
@@ -111,7 +111,7 @@ joliettest(int withrr)
 	/* A regular file with a hardlink. */
 	assertEqualInt(0, archive_read_next_header(a, &ae));
 	assertEqualString("hardlink", archive_entry_pathname(ae));
-	assert(S_ISREG(archive_entry_stat(ae)->st_mode));
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
 	assertEqualInt(6, archive_entry_size(ae));
 	assertEqualInt(0, archive_read_data_block(a, &p, &size, &offset));
 	assertEqualInt(6, (int)size);
@@ -128,7 +128,7 @@ joliettest(int withrr)
 	/* Another link to the regular file. */
 	assertEqualInt(0, archive_read_next_header(a, &ae));
 	assertEqualString("long-joliet-file-name.textfile", archive_entry_pathname(ae));
-	assert(S_ISREG(archive_entry_stat(ae)->st_mode));
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
 	assertEqualInt(0, archive_entry_size(ae));
 	if (withrr) {
 		assertEqualInt(86401, archive_entry_mtime(ae));
@@ -142,7 +142,7 @@ joliettest(int withrr)
 	assertEqualInt(0, archive_read_next_header(a, &ae));
 	assertEqualString("symlink", archive_entry_pathname(ae));
 	if (withrr) {
-		assert(S_ISLNK(archive_entry_stat(ae)->st_mode));
+		assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
 		assertEqualString("long-joliet-file-name.textfile",
 		    archive_entry_symlink(ae));
 	}
