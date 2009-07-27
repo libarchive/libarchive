@@ -40,7 +40,7 @@ DEFINE_TEST(test_read_extract)
 	file_buff = malloc(FILE_BUFF_SIZE);
 
 	/* Force the umask to something predictable. */
-	umask(022);
+	assertUmask(022);
 
 	/* Create a new archive in memory containing various types of entries. */
 	assert((a = archive_write_new()) != NULL);

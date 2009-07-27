@@ -52,7 +52,7 @@ DEFINE_TEST(test_write_disk_hardlink)
 	struct stat st, st2;
 
 	/* Force the umask to something predictable. */
-	umask(UMASK);
+	assertUmask(UMASK);
 
 	/* Write entries to disk. */
 	assert((ad = archive_write_disk_new()) != NULL);

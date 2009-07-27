@@ -42,7 +42,7 @@ DEFINE_TEST(test_write_disk_secure)
 	struct stat st;
 
 	/* Start with a known umask. */
-	umask(UMASK);
+	assertUmask(UMASK);
 
 	/* Create an archive_write_disk object. */
 	assert((a = archive_write_disk_new()) != NULL);

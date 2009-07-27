@@ -248,7 +248,7 @@ DEFINE_TEST(test_write_disk)
 	struct archive_entry *ae;
 
 	/* Force the umask to something predictable. */
-	umask(UMASK);
+	assertUmask(UMASK);
 
 	/* A regular file. */
 	assert((ae = archive_entry_new()) != NULL);
