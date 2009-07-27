@@ -185,7 +185,7 @@ CHECK_INCLUDE_FILE(sys/wait.h       HAVE_SYS_WAIT_H)
 
 CHECK_HEADERS(acl/libacl.h attr/xattr.h ctype.h errno.h)
 CHECK_HEADERS(ext2fs/ext2_fs.h fcntl.h grp.h)
-CHECK_HEADERS(inttypes.h langinfo.h limits.h linux/fs.h)
+CHECK_HEADERS(inttypes.h io.h langinfo.h limits.h linux/fs.h)
 CHECK_HEADERS(locale.h paths.h poll.h pwd.h regex.h signal.h stdarg.h)
 CHECK_HEADERS(stdint.h stdlib.h string.h)
 CHECK_HEADERS(sys/acl.h sys/extattr.h sys/ioctl.h sys/mkdev.h)
