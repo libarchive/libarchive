@@ -215,7 +215,7 @@ yes(const char *fmt, ...)
 	fprintf(stderr, " (y/N)? ");
 	fflush(stderr);
 
-	l = read(2, buff, sizeof(buff) - 1);
+	l = fread(buff, 1, sizeof(buff) - 1, stderr);
 	if (l <= 0)
 		return (0);
 	buff[l] = 0;
