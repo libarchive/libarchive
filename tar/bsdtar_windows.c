@@ -32,6 +32,8 @@
 #include "bsdtar_platform.h"
 #include <ctype.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <io.h>
 #include <stddef.h>
 #include <sys/utime.h>
 #include <sys/stat.h>
@@ -64,13 +66,7 @@ struct ustat {
 	dev_t		st_rdev;
 };
 
-struct __DIR {
-	HANDLE			handle;
-	WIN32_FIND_DATAW	fileData;
-	struct dirent		de;
-	int			first;
-	BOOL			finished;
-};
+static void tar_dosmaperr(unsigned long);
 
 /* Transform 64-bits ino into 32-bits by hashing.
  * You do not forget that really unique number size is 64-bits.
@@ -83,7 +79,7 @@ getino(struct ustat *ub)
 
 	ino64.QuadPart = ub->st_ino;
 	/* I don't know this hashing is correct way */
-	return (ino64.LowPart ^ (ino64.LowPart >> INOSIZE));
+	return (ino_t)(ino64.LowPart ^ (ino64.LowPart >> INOSIZE));
 }
 
 /*
@@ -180,8 +176,8 @@ permissive_name(const char *name)
 		slen -= 4;
 	}
 	wcsncpy(wsp, wnp, slen);
-	wsp[alloclen - 1] = L'\0';
 	free(wn);
+	ws[alloclen - 1] = L'\0';
 	return (ws);
 }
 
@@ -299,7 +295,7 @@ __link(const char *src, const char *dst, int sym)
 	DWORD attr;
 
 	if (src == NULL || dst == NULL) {
-		set_errno (EINVAL);
+		errno = EINVAL;
 		return -1;
 	}
 
@@ -310,7 +306,7 @@ __link(const char *src, const char *dst, int sym)
 			free(wsrc);
 		if (wdst != NULL)
 			free(wdst);
-		set_errno (EINVAL);
+		errno = EINVAL;
 		return -1;
 	}
 
@@ -372,7 +368,7 @@ __link(const char *src, const char *dst, int sym)
 		attr = GetFileAttributesW(wnewsrc);
 		if (attr == -1 || (attr & FILE_ATTRIBUTE_DIRECTORY) != 0) {
 			if (attr == -1)
-				_dosmaperr(GetLastError());
+				tar_dosmaperr(GetLastError());
 			else
 				errno = EPERM;
 			free (wnewsrc);
@@ -386,7 +382,7 @@ __link(const char *src, const char *dst, int sym)
 		free (wnewsrc);
 	}
 	if (res == 0) {
-		_dosmaperr(GetLastError());
+		tar_dosmaperr(GetLastError());
 		retval = -1;
 	} else
 		retval = 0;
@@ -411,110 +407,6 @@ int symlink (from, to)
 	return __link (from, to, 1);
 }
 
-DIR *
-__opendir(const char *path, int ff)
-{
-	DIR *dir;
-	wchar_t *wpath, *wfname;
-	size_t wlen;
-
-	dir = malloc(sizeof(*dir));
-	if (dir == NULL) {
-		errno = ENOMEM;
-		return (NULL);
-	}
-
-	wpath = permissive_name(path);
-	if (wpath == NULL) {
-		errno = EINVAL;
-		free(dir);
-		return (NULL);
-	}
-	if (ff) {
-		wfname = wpath;
-		wpath = NULL;
-	} else {
-		wlen = wcslen(wpath);
-		wfname = malloc((wlen + 3) * sizeof(wchar_t));
-		if (wfname == NULL) {
-			errno = ENOMEM;
-			free(dir);
-			free(wpath);
-			return (NULL);
-		}
-		wcscpy(wfname, wpath);
-		wcscat(wfname, L"\\*");
-		free(wpath);
-	}
-
-	dir->handle = FindFirstFileW(wfname, &dir->fileData);
-	if (dir->handle == INVALID_HANDLE_VALUE) {
-		_dosmaperr(GetLastError());
-		free(dir);
-		free(wfname);
-		return (NULL);
-	}
-	dir->first = 1;
-	dir->finished = FALSE;
-	free(wfname);
-
-	return (dir);
-}
-
-static DIR *
-opendir_findfile(const char *path)
-{
-	return (__opendir(path, 1));
-}
-
-DIR *
-opendir(const char *path)
-{
-	return (__opendir(path, 0));
-}
-
-struct dirent *
-readdir(DIR *dirp)
-{
-	size_t len;
-
-	while (!dirp->finished) {
-		if (!dirp->first && !FindNextFileW(dirp->handle, &dirp->fileData)) {
-			if (GetLastError() != ERROR_NO_MORE_FILES)
-				_dosmaperr(GetLastError());
-			dirp->finished = TRUE;
-			break;
-		}
-		dirp->first = 0;
-		len = wcstombs(dirp->de.d_name, dirp->fileData.cFileName,
-		    sizeof(dirp->de.d_name) -1);
-		if (len == -1) {
-			errno = EINVAL;
-			dirp->finished = TRUE;
-			break;
-		}
-		dirp->de.d_name[len] = '\0';
-		dirp->de.d_nameln = strlen(dirp->de.d_name);
-		return (&dirp->de);
-	}
-
-	return (NULL);
-}
-
-int
-closedir(DIR *dirp)
-{
-	BOOL ret;
-
-	ret = FindClose(dirp->handle);
-	free(dirp);
-	if (ret == 0) {
-		_dosmaperr(GetLastError());
-		return (-1);
-	}
-	return (0);
-}
-
 int
 la_chdir(const char *path)
 {
@@ -524,7 +416,7 @@ la_chdir(const char *path)
 	r = SetCurrentDirectoryA(path);
 	if (r == 0) {
 		if (GetLastError() != ERROR_FILE_NOT_FOUND) {
-			_dosmaperr(GetLastError());
+			tar_dosmaperr(GetLastError());
 			return (-1);
 		}
 	} else
@@ -537,38 +429,7 @@ la_chdir(const char *path)
 	r = SetCurrentDirectoryW(ws);
 	free(ws);
 	if (r == 0) {
-		_dosmaperr(GetLastError());
-		return (-1);
-	}
-	return (0);
-}
-
-int
-la_mkdir(const char *path, mode_t mode)
-{
-	wchar_t *ws;
-	int r;
-
-	(void)mode;/* UNUSED */
-	r = CreateDirectoryA(path, NULL);
-	if (r == 0) {
-		DWORD lasterr = GetLastError();
-		if (lasterr != ERROR_FILENAME_EXCED_RANGE &&
-			lasterr != ERROR_PATH_NOT_FOUND) {
-			_dosmaperr(GetLastError());
-			return (-1);
-		}
-	} else
-		return (0);
-	ws = permissive_name(path);
-	if (ws == NULL) {
-		errno = EINVAL;
-		return (-1);
-	}
-	r = CreateDirectoryW(ws, NULL);
-	free(ws);
-	if (r == 0) {
-		_dosmaperr(GetLastError());
+		tar_dosmaperr(GetLastError());
 		return (-1);
 	}
 	return (0);
@@ -615,7 +476,7 @@ la_open(const char *path, int flags, ...)
 			attr = GetFileAttributesW(ws);
 		}
 		if (attr == -1) {
-			_dosmaperr(GetLastError());
+			tar_dosmaperr(GetLastError());
 			free(ws);
 			return (-1);
 		}
@@ -636,7 +497,7 @@ la_open(const char *path, int flags, ...)
 					NULL);
 			free(ws);
 			if (handle == INVALID_HANDLE_VALUE) {
-				_dosmaperr(GetLastError());
+				tar_dosmaperr(GetLastError());
 				return (-1);
 			}
 			r = _open_osfhandle((intptr_t)handle, _O_RDONLY);
@@ -649,7 +510,7 @@ la_open(const char *path, int flags, ...)
 			/* simular other POSIX system action to pass a test */
 			attr = GetFileAttributesA(path);
 			if (attr == -1)
-				_dosmaperr(GetLastError());
+				tar_dosmaperr(GetLastError());
 			else if (attr & FILE_ATTRIBUTE_DIRECTORY)
 				errno = EISDIR;
 			else
@@ -669,83 +530,12 @@ la_open(const char *path, int flags, ...)
 		/* simular other POSIX system action to pass a test */
 		attr = GetFileAttributesW(ws);
 		if (attr == -1)
-			_dosmaperr(GetLastError());
+			tar_dosmaperr(GetLastError());
 		else if (attr & FILE_ATTRIBUTE_DIRECTORY)
 			errno = EISDIR;
 		else
 			errno = EACCES;
 	}
-	free(ws);
-	return (r);
-}
-
-ssize_t
-la_read(int fd, void *buf, size_t nbytes)
-{
-	HANDLE handle;
-	DWORD bytes_read, lasterr;
-	int r;
-
-#ifdef _WIN64
-	if (nbytes > UINT32_MAX)
-		nbytes = UINT32_MAX;
-#endif
-	if (fd < 0) {
-		errno = EBADF;
-		return (-1);
-	}
-	handle = (HANDLE)_get_osfhandle(fd);
-	if (GetFileType(handle) == FILE_TYPE_PIPE) {
-		DWORD sta;
-		if (GetNamedPipeHandleState(
-		    handle, &sta, NULL, NULL, NULL, NULL, 0) != 0 &&
-		    (sta & PIPE_NOWAIT) == 0) {
-			DWORD avail = -1;
-			int cnt = 3;
-
-			while (PeekNamedPipe(
-			    handle, NULL, 0, NULL, &avail, NULL) != 0 &&
-			    avail == 0 && --cnt)
-				Sleep(100);
-			if (avail == 0)
-				return (0);
-		}
-	}
-	r = ReadFile(handle, buf, (uint32_t)nbytes,
-	    &bytes_read, NULL);
-	if (r == 0) {
-		lasterr = GetLastError();
-		if (lasterr == ERROR_NO_DATA) {
-			errno = EAGAIN;
-			return (-1);
-		}
-		if (lasterr == ERROR_BROKEN_PIPE)
-			return (0);
-		if (lasterr == ERROR_ACCESS_DENIED)
-			errno = EBADF;
-		else
-			_dosmaperr(lasterr);
-		return (-1);
-	}
-	return ((ssize_t)bytes_read);
-}
-
-/* Remove directory */
-int
-la_rmdir(const char *path)
-{
-	wchar_t *ws;
-	int r;
-
-	r = _rmdir(path);
-	if (r >= 0 || errno != ENOENT)
-		return (r);
-	ws = permissive_name(path);
-	if (ws == NULL) {
-		errno = EINVAL;
-		return (-1);
-	}
-	r = _wrmdir(ws);
 	free(ws);
 	return (r);
 }
@@ -824,21 +614,21 @@ __hstat(HANDLE handle, struct ustat *st)
 		break;
 	default:
 		/* This ftype is undocumented type. */
-		_dosmaperr(GetLastError());
+		tar_dosmaperr(GetLastError());
 		return (-1);
 	}
 
 	ZeroMemory(&info, sizeof(info));
 	if (!GetFileInformationByHandle (handle, &info)) {
-		_dosmaperr(GetLastError());
+		tar_dosmaperr(GetLastError());
 		return (-1);
 	}
 
-	mode = S_IRUSR | S_IRGRP | S_IROTH;
+	mode = 0444;
 	if ((info.dwFileAttributes & FILE_ATTRIBUTE_READONLY) == 0)
-		mode |= S_IWUSR | S_IWGRP | S_IWOTH;
+		mode |= 0222;
 	if (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-		mode |= S_IFDIR | S_IXUSR | S_IXGRP | S_IXOTH;
+		mode |= S_IFDIR | 0111;
 	else
 		mode |= S_IFREG;
 	st->st_mode = mode;
@@ -924,7 +714,7 @@ la_stat(const char *path, struct stat *st)
 		FILE_FLAG_BACKUP_SEMANTICS | FILE_ATTRIBUTE_READONLY,
 		NULL);
 	if (handle == INVALID_HANDLE_VALUE) {
-		_dosmaperr(GetLastError());
+		tar_dosmaperr(GetLastError());
 		return (-1);
 	}
 	ret = __hstat(handle, &u);
@@ -944,124 +734,127 @@ la_stat(const char *path, struct stat *st)
 			exttype[3] = '\0';
 			if (!strcmp(exttype, "EXE") || !strcmp(exttype, "CMD") ||
 				!strcmp(exttype, "BAT") || !strcmp(exttype, "COM"))
-				st->st_mode |= S_IXUSR | S_IXGRP | S_IXOTH;
+				st->st_mode |= 0111;
 		}
 	}
 	return (ret);
 }
 
-ssize_t
-la_write(int fd, const void *buf, size_t nbytes)
-{
-	DWORD bytes_written;
 
-#ifdef _WIN64
-	if (nbytes > UINT32_MAX)
-		nbytes = UINT32_MAX;
 #endif
-	if (fd < 0) {
-		errno = EBADF;
-		return (-1);
-	}
-	if (!WriteFile((HANDLE)_get_osfhandle(fd), buf, (uint32_t)nbytes,
-	    &bytes_written, NULL)) {
-		DWORD lasterr;
-
-		lasterr = GetLastError();
-		if (lasterr == ERROR_ACCESS_DENIED)
-			errno = EBADF;
-		else
-			_dosmaperr(lasterr);
-		return (-1);
-	}
-	return (bytes_written);
-}
-
 /*
- * Note: We should use wide-character for findng '\' character,
- * a directory separator on Windows, because some character-set have
- * been using the '\' character for a part of its multibyte character
- * code.
+ * The following function was modified from PostgreSQL sources and is
+ * subject to the copyright below.
  */
-static size_t
-dir_len_w(const char *path)
-{
-	wchar_t wc;
-	const char *p, *rp;
-	size_t al, l, size;
-
-	al = l = -1;
-	for (p = path; *p != '\0'; ++p) {
-		if (*p == '\\')
-			al = l = p - path;
-		else if (*p == '/')
-			al = p - path;
-	}
-	if (l == -1)
-		goto alen;
-	size = p - path;
-	rp = p = path;
-	while (*p != '\0') {
-		l = mbtowc(&wc, p, size);
-		if (l == -1)
-			goto alen;
-		if (l == 1 && (wc == L'/' || wc == L'\\'))
-			rp = p;
-		p += l;
-		size -= l;
-	}
-	return (rp - path + 1);
-alen:
-	if (al == -1)
-		return (0);
-	return (al + 1);
-}
-
+/*-------------------------------------------------------------------------
+ *
+ * win32error.c
+ *	  Map win32 error codes to errno values
+ *
+ * Portions Copyright (c) 1996-2008, PostgreSQL Global Development Group
+ *
+ * IDENTIFICATION
+ *	  $PostgreSQL: pgsql/src/port/win32error.c,v 1.4 2008/01/01 19:46:00 momjian Exp $
+ *
+ *-------------------------------------------------------------------------
+ */
 /*
- * Find file names and call write_hierarchy function.
- */
-void
-write_hierarchy_win(struct bsdtar *bsdtar, struct archive *a,
-    const char *path, void (*write_hierarchy)(struct bsdtar *bsdtar,
-    struct archive *a, const char *path))
-{
-	DIR *dir;
-	struct dirent *ent;
-	const char *r;
-	char *xpath;
-	size_t dl;
+PostgreSQL Database Management System
+(formerly known as Postgres, then as Postgres95)
 
-	r = path;
-	while (*r != '\0' && *r != '*' && *r != '?')
-		++r;
-	if (*r == '\0')
-		/* There aren't meta-characters '*' and '?' in path */
-		goto try_plain;
-	dir = opendir_findfile(path);
-	if (dir == NULL)
-		goto try_plain;
-	dl = dir_len_w(path);
-	xpath = malloc(dl + MAX_PATH);
-	if (xpath == NULL)
-		goto try_plain;
-	strncpy(xpath, path, dl);
-	while ((ent = readdir(dir)) != NULL) {
-		if (ent->d_name[0] == '.' && ent->d_name[1] == '\0')
-			continue;
-		if (ent->d_name[0] == '.' && ent->d_name[1] == '.' &&
-		    ent->d_name[2] == '\0')
-			continue;
-		strcpy(&xpath[dl], ent->d_name);
-		write_hierarchy(bsdtar, a, xpath);
+Portions Copyright (c) 1996-2008, PostgreSQL Global Development Group
+
+Portions Copyright (c) 1994, The Regents of the University of California
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose, without fee, and without a written agreement
+is hereby granted, provided that the above copyright notice and this
+paragraph and the following two paragraphs appear in all copies.
+
+IN NO EVENT SHALL THE UNIVERSITY OF CALIFORNIA BE LIABLE TO ANY PARTY FOR
+DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING
+LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS
+DOCUMENTATION, EVEN IF THE UNIVERSITY OF CALIFORNIA HAS BEEN ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+THE UNIVERSITY OF CALIFORNIA SPECIFICALLY DISCLAIMS ANY WARRANTIES,
+INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS FOR A PARTICULAR PURPOSE.  THE SOFTWARE PROVIDED HEREUNDER IS
+ON AN "AS IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATIONS TO
+PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+*/
+
+static const struct {
+	DWORD		winerr;
+	int		doserr;
+} doserrors[] =
+{
+	{	ERROR_INVALID_FUNCTION, EINVAL	},
+	{	ERROR_FILE_NOT_FOUND, ENOENT	},
+	{	ERROR_PATH_NOT_FOUND, ENOENT	},
+	{	ERROR_TOO_MANY_OPEN_FILES, EMFILE	},
+	{	ERROR_ACCESS_DENIED, EACCES	},
+	{	ERROR_INVALID_HANDLE, EBADF	},
+	{	ERROR_ARENA_TRASHED, ENOMEM	},
+	{	ERROR_NOT_ENOUGH_MEMORY, ENOMEM	},
+	{	ERROR_INVALID_BLOCK, ENOMEM	},
+	{	ERROR_BAD_ENVIRONMENT, E2BIG	},
+	{	ERROR_BAD_FORMAT, ENOEXEC	},
+	{	ERROR_INVALID_ACCESS, EINVAL	},
+	{	ERROR_INVALID_DATA, EINVAL	},
+	{	ERROR_INVALID_DRIVE, ENOENT	},
+	{	ERROR_CURRENT_DIRECTORY, EACCES	},
+	{	ERROR_NOT_SAME_DEVICE, EXDEV	},
+	{	ERROR_NO_MORE_FILES, ENOENT	},
+	{	ERROR_LOCK_VIOLATION, EACCES	},
+	{	ERROR_SHARING_VIOLATION, EACCES	},
+	{	ERROR_BAD_NETPATH, ENOENT	},
+	{	ERROR_NETWORK_ACCESS_DENIED, EACCES	},
+	{	ERROR_BAD_NET_NAME, ENOENT	},
+	{	ERROR_FILE_EXISTS, EEXIST	},
+	{	ERROR_CANNOT_MAKE, EACCES	},
+	{	ERROR_FAIL_I24, EACCES	},
+	{	ERROR_INVALID_PARAMETER, EINVAL	},
+	{	ERROR_NO_PROC_SLOTS, EAGAIN	},
+	{	ERROR_DRIVE_LOCKED, EACCES	},
+	{	ERROR_BROKEN_PIPE, EPIPE	},
+	{	ERROR_DISK_FULL, ENOSPC	},
+	{	ERROR_INVALID_TARGET_HANDLE, EBADF	},
+	{	ERROR_INVALID_HANDLE, EINVAL	},
+	{	ERROR_WAIT_NO_CHILDREN, ECHILD	},
+	{	ERROR_CHILD_NOT_COMPLETE, ECHILD	},
+	{	ERROR_DIRECT_ACCESS_HANDLE, EBADF	},
+	{	ERROR_NEGATIVE_SEEK, EINVAL	},
+	{	ERROR_SEEK_ON_DEVICE, EACCES	},
+	{	ERROR_DIR_NOT_EMPTY, ENOTEMPTY	},
+	{	ERROR_NOT_LOCKED, EACCES	},
+	{	ERROR_BAD_PATHNAME, ENOENT	},
+	{	ERROR_MAX_THRDS_REACHED, EAGAIN	},
+	{	ERROR_LOCK_FAILED, EACCES	},
+	{	ERROR_ALREADY_EXISTS, EEXIST	},
+	{	ERROR_FILENAME_EXCED_RANGE, ENOENT	},
+	{	ERROR_NESTING_NOT_ALLOWED, EAGAIN	},
+	{	ERROR_NOT_ENOUGH_QUOTA, ENOMEM	}
+};
+
+static void
+tar_dosmaperr(unsigned long e)
+{
+	int			i;
+
+	if (e == 0)	{
+		errno = 0;
+		return;
 	}
-	free(xpath);
-	closedir(dir);
+
+	for (i = 0; i < sizeof(doserrors); i++) {
+		if (doserrors[i].winerr == e) {
+			errno = doserrors[i].doserr;
+			return;
+		}
+	}
+
+	/* fprintf(stderr, "unrecognized win32 error code: %lu", e); */
+	errno = EINVAL;
 	return;
-
-try_plain:
-	write_hierarchy(bsdtar, a, path);
 }
-
-#endif /* LIST_H */
-
-#endif

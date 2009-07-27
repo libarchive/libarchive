@@ -27,6 +27,7 @@
 
 #ifndef BSDTAR_WINDOWS_H
 #define BSDTAR_WINDOWS_H 1
+#include <direct.h>
 #include <windows.h>
 
 #ifndef PRId64
@@ -34,23 +35,21 @@
 #endif
 #define geteuid()	0
 
-struct __DIR;
-typedef struct __DIR DIR;
-struct direct {
-	unsigned char	d_nameln;
-	char		d_name[MAX_PATH];
-};
+#ifndef S_IFIFO
+#define S_IFIFO	0010000 /* pipe */
+#endif
 
-struct bsdtar;
-struct archive;
+#include <string.h>  /* Must include before redefining 'strdup' */
+#define strdup _strdup
 
-extern DIR	*opendir(const char *path);
-extern struct dirent *readdir(DIR *dirp);
-extern int	closedir(DIR *dirp);
+#define chdir la_chdir
+int la_chdir(const char *);
 
-extern void	write_hierarchy_win(struct bsdtar *bsdtar, struct archive *a,
-		const char *path,
-		void (*write_hierarchy)(struct bsdtar *bsdtar,
-		struct archive *a, const char *path));
+#ifndef S_ISREG
+#define S_ISREG(a)	(a & _S_IFREG)
+#endif
+#ifndef S_ISBLK
+#define S_ISBLK(a)	(0)
+#endif
 
 #endif /* BSDTAR_WINDOWS_H */
