@@ -96,7 +96,7 @@ DEFINE_TEST(test_read_extract)
 	/* A symlink. */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "symlink");
-	archive_entry_set_mode(ae, S_IFLNK | 0755);
+	archive_entry_set_mode(ae, AE_IFLNK | 0755);
 	archive_entry_set_symlink(ae, "file");
 	assertA(0 == archive_write_header(a, ae));
 	archive_entry_free(ae);

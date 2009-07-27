@@ -99,7 +99,8 @@ DEFINE_TEST(test_write_format_cpio_newc)
 	assert((entry = archive_entry_new()) != NULL);
 	archive_entry_set_mtime(entry, 3, 30);
 	archive_entry_set_pathname(entry, "lnk");
-	archive_entry_set_mode(entry, S_IFLNK | 0664);
+	archive_entry_set_mode(entry, 0664);
+	archive_entry_set_filetype(entry, AE_IFLNK);
 	archive_entry_set_size(entry, 0);
 	archive_entry_set_uid(entry, 83);
 	archive_entry_set_gid(entry, 93);
