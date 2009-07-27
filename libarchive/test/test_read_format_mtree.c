@@ -52,7 +52,7 @@ DEFINE_TEST(test_read_format_mtree)
 	char buff[16];
 	struct archive_entry *ae;
 	struct archive *a;
-	int fd;
+	FILE *f;
 
 	/*
 	 * An access error occurred on some platform when mtree
@@ -74,15 +74,15 @@ DEFINE_TEST(test_read_format_mtree)
 	/*
 	 * Read "file", whose data is available on disk.
 	 */
-	fd = open("file", O_WRONLY | O_CREAT | O_BINARY, 0777);
-	assert(fd >= 0);
-	assertEqualInt(3, write(fd, "hi\n", 3));
-	close(fd);
+	f = fopen("file", "wb");
+	assert(f != NULL);
+	assertEqualInt(3, fwrite("hi\n", 1, 3, f));
+	fclose(f);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_MTREE);
 	assertEqualString(archive_entry_pathname(ae), "file");
 	assertEqualInt(archive_entry_uid(ae), 18);
-	assert(S_ISREG(archive_entry_mode(ae)));
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
 	assertEqualInt(archive_entry_mode(ae), AE_IFREG | 0123);
 	assertEqualInt(archive_entry_size(ae), 3);
 	assertEqualInt(3, archive_read_data(a, buff, 3));
@@ -90,7 +90,7 @@ DEFINE_TEST(test_read_format_mtree)
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString(archive_entry_pathname(ae), "dir");
-	assert(S_ISDIR(archive_entry_mode(ae)));
+	assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString(archive_entry_pathname(ae), "dir/file with space");

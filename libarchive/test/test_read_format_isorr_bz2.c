@@ -78,7 +78,7 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 
 		if (strcmp(".", archive_entry_pathname(ae)) == 0) {
 			/* '.' root directory. */
-			assert(S_ISDIR(archive_entry_stat(ae)->st_mode));
+			assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
 			assertEqualInt(2048, archive_entry_size(ae));
 			assertEqualInt(86401, archive_entry_mtime(ae));
 			assertEqualInt(0, archive_entry_mtime_nsec(ae));
@@ -91,7 +91,7 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 		} else if (strcmp("dir", archive_entry_pathname(ae)) == 0) {
 			/* A directory. */
 			assertEqualString("dir", archive_entry_pathname(ae));
-			assert(S_ISDIR(archive_entry_stat(ae)->st_mode));
+			assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
 			assertEqualInt(2048, archive_entry_size(ae));
 			assertEqualInt(86401, archive_entry_mtime(ae));
 			assertEqualInt(86401, archive_entry_atime(ae));
@@ -101,7 +101,7 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 		} else if (strcmp("file", archive_entry_pathname(ae)) == 0) {
 			/* A regular file. */
 			assertEqualString("file", archive_entry_pathname(ae));
-			assert(S_ISREG(archive_entry_stat(ae)->st_mode));
+			assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
 			assertEqualInt(12345684, archive_entry_size(ae));
 			assertEqualInt(0,
 			    archive_read_data_block(a, &p, &size, &offset));
@@ -120,7 +120,7 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 			 * This test should tolerate that, since it's a
 			 * perfectly permissible thing for libarchive to do. */
 			assertEqualString("hardlink", archive_entry_pathname(ae));
-			assert(S_ISREG(archive_entry_stat(ae)->st_mode));
+			assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
 			assertEqualString("file", archive_entry_hardlink(ae));
 			assertEqualInt(0, archive_entry_size_is_set(ae));
 			assertEqualInt(0, archive_entry_size(ae));
@@ -131,7 +131,7 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 			assertEqualInt(2, archive_entry_gid(ae));
 		} else if (strcmp("symlink", archive_entry_pathname(ae)) == 0) {
 			/* A symlink to the regular file. */
-			assert(S_ISLNK(archive_entry_stat(ae)->st_mode));
+			assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
 			assertEqualString("file", archive_entry_symlink(ae));
 			assertEqualInt(0, archive_entry_size(ae));
 			assertEqualInt(172802, archive_entry_mtime(ae));
@@ -141,7 +141,7 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 			assertEqualInt(2, archive_entry_gid(ae));
 		} else if (strcmp("symlink2", archive_entry_pathname(ae)) == 0) {
 			/* A symlink to /tmp (an absolute path) */
-			assert(S_ISLNK(archive_entry_stat(ae)->st_mode));
+			assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
 			assertEqualString("/tmp", archive_entry_symlink(ae));
 			assertEqualInt(0, archive_entry_size(ae));
 			assertEqualInt(1, archive_entry_stat(ae)->st_nlink);
@@ -149,7 +149,7 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 			assertEqualInt(2, archive_entry_gid(ae));
 		} else if (strcmp("symlink3", archive_entry_pathname(ae)) == 0) {
 			/* A symlink to /tmp/.. (with a ".." component) */
-			assert(S_ISLNK(archive_entry_stat(ae)->st_mode));
+			assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
 			assertEqualString("/tmp/..", archive_entry_symlink(ae));
 			assertEqualInt(0, archive_entry_size(ae));
 			assertEqualInt(1, archive_entry_stat(ae)->st_nlink);
@@ -157,7 +157,7 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 			assertEqualInt(2, archive_entry_gid(ae));
 		} else if (strcmp("symlink4", archive_entry_pathname(ae)) == 0) {
 			/* A symlink to a path with ".." and "." components */
-			assert(S_ISLNK(archive_entry_stat(ae)->st_mode));
+			assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
 			assertEqualString(".././../tmp",
 			    archive_entry_symlink(ae));
 			assertEqualInt(0, archive_entry_size(ae));

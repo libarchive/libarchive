@@ -38,6 +38,7 @@ DEFINE_TEST(test_read_large)
 	size_t used;
 	struct archive *a;
 	struct archive_entry *entry;
+	FILE *f;
 
 	for (i = 0; i < sizeof(testdata); i++)
 		testdata[i] = (unsigned char)(rand());
@@ -52,11 +53,7 @@ DEFINE_TEST(test_read_large)
 	assertA(0 == archive_write_header(a, entry));
 	archive_entry_free(entry);
 	assertA(sizeof(testdata) == archive_write_data(a, testdata, sizeof(testdata)));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(a);
-#else
 	assertA(0 == archive_write_finish(a));
-#endif
 
 	assert(NULL != (a = archive_read_new()));
 	assertA(0 == archive_read_support_format_all(a));
@@ -64,11 +61,7 @@ DEFINE_TEST(test_read_large)
 	assertA(0 == archive_read_open_memory(a, buff, sizeof(buff)));
 	assertA(0 == archive_read_next_header(a, &entry));
 	assertA(0 == archive_read_data_into_buffer(a, testdatacopy, sizeof(testdatacopy)));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
 	assertA(0 == archive_read_finish(a));
-#endif
 	assert(0 == memcmp(testdata, testdatacopy, sizeof(testdata)));
 
 
@@ -77,19 +70,15 @@ DEFINE_TEST(test_read_large)
 	assertA(0 == archive_read_support_compression_all(a));
 	assertA(0 == archive_read_open_memory(a, buff, sizeof(buff)));
 	assertA(0 == archive_read_next_header(a, &entry));
+	// TODO: Provide a Windows-friendly version of this?
 	assert(0 < (tmpfilefd = open(tmpfilename,
 		    O_WRONLY | O_CREAT | O_BINARY, 0755)));
 	assertA(0 == archive_read_data_into_fd(a, tmpfilefd));
 	close(tmpfilefd);
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
 	assertA(0 == archive_read_finish(a));
-#endif
-	tmpfilefd = open(tmpfilename, O_RDONLY | O_BINARY);
-	read(tmpfilefd, testdatacopy, sizeof(testdatacopy));
-	close(tmpfilefd);
-	assert(0 == memcmp(testdata, testdatacopy, sizeof(testdata)));
 
-	unlink(tmpfilename);
+	f = fopen(tmpfilename, "rb");
+	fread(testdatacopy, 1, sizeof(testdatacopy), f);
+	fclose(f);
+	assert(0 == memcmp(testdata, testdatacopy, sizeof(testdata)));
 }
