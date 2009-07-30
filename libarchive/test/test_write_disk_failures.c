@@ -42,7 +42,7 @@ DEFINE_TEST(test_write_disk_failures)
 	int fd;
 
 	/* Force the umask to something predictable. */
-	umask(UMASK);
+	assertUmask(UMASK);
 
 	/* A directory that we can't write to. */
 	assertMakeDir("dir", 0555);
