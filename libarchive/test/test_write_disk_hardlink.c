@@ -50,6 +50,7 @@ DEFINE_TEST(test_write_disk_hardlink)
 	struct archive *ad;
 	struct archive_entry *ae;
 	struct stat st, st2;
+	int r;
 
 	/* Force the umask to something predictable. */
 	assertUmask(UMASK);
@@ -79,10 +80,12 @@ DEFINE_TEST(test_write_disk_hardlink)
 	archive_entry_set_mode(ae, S_IFREG | 0642);
 	archive_entry_set_size(ae, 0);
 	archive_entry_copy_hardlink(ae, "link1a");
-	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
-	assertEqualInt(ARCHIVE_WARN,
-	    archive_write_data(ad, data, sizeof(data)));
-	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+	assertEqualIntA(ad, 0, r = archive_write_header(ad, ae));
+	if (r >= ARCHIVE_WARN) {
+		assertEqualInt(ARCHIVE_WARN,
+		    archive_write_data(ad, data, sizeof(data)));
+		assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+	}
 	archive_entry_free(ae);
 
 	/*
@@ -107,10 +110,12 @@ DEFINE_TEST(test_write_disk_hardlink)
 	archive_entry_set_mode(ae, S_IFREG | 0642);
 	archive_entry_unset_size(ae);
 	archive_entry_copy_hardlink(ae, "link2a");
-	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
-	assertEqualInt(ARCHIVE_WARN,
-	    archive_write_data(ad, data, sizeof(data)));
-	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+	assertEqualIntA(ad, 0, r = archive_write_header(ad, ae));
+	if (r >= ARCHIVE_WARN) {
+		assertEqualInt(ARCHIVE_WARN,
+		    archive_write_data(ad, data, sizeof(data)));
+		assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+	}
 	archive_entry_free(ae);
 
 	/*
@@ -134,9 +139,12 @@ DEFINE_TEST(test_write_disk_hardlink)
 	archive_entry_set_mode(ae, S_IFREG | 0755);
 	archive_entry_set_size(ae, sizeof(data));
 	archive_entry_copy_hardlink(ae, "link3a");
-	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
-	assertEqualInt(sizeof(data), archive_write_data(ad, data, sizeof(data)));
-	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+	assertEqualIntA(ad, 0, r = archive_write_header(ad, ae));
+	if (r > ARCHIVE_WARN) {
+		assertEqualInt(sizeof(data),
+		    archive_write_data(ad, data, sizeof(data)));
+		assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+	}
 	archive_entry_free(ae);
 
 	/*
@@ -164,9 +172,12 @@ DEFINE_TEST(test_write_disk_hardlink)
 	archive_entry_set_mode(ae, S_IFREG | 0755);
 	archive_entry_set_size(ae, sizeof(data));
 	archive_entry_copy_hardlink(ae, "link4a");
-	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
-	assertEqualInt(sizeof(data), archive_write_data(ad, data, sizeof(data)));
-	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+	assertEqualIntA(ad, 0, r = archive_write_header(ad, ae));
+	if (r > ARCHIVE_FAILED) {
+		assertEqualInt(sizeof(data),
+		    archive_write_data(ad, data, sizeof(data)));
+		assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+	}
 	archive_entry_free(ae);
 #if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_write_finish(ad);
