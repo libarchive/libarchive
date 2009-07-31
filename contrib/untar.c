@@ -56,7 +56,7 @@ static int
 is_end_of_archive(const char *p)
 {
 	int n;
-	for (n = 512; n > 0; --n)
+	for (n = 511; n >= 0; --n)
 		if (p[n] != '\0')
 			return (0);
 	return (1);
