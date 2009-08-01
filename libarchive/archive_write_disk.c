@@ -1073,6 +1073,9 @@ create_filesystem_object(struct archive_write_disk *a)
 	/* Since link(2) and symlink(2) don't handle modes, we're done here. */
 	linkname = archive_entry_hardlink(a->entry);
 	if (linkname != NULL) {
+#if !HAVE_LINK
+		return (EPERM);
+#else
 		r = link(linkname, a->name) ? errno : 0;
 		/*
 		 * New cpio and pax formats allow hardlink entries
@@ -1095,10 +1098,16 @@ create_filesystem_object(struct archive_write_disk *a)
 				r = errno;
 		}
 		return (r);
+#endif
 	}
 	linkname = archive_entry_symlink(a->entry);
-	if (linkname != NULL)
+	if (linkname != NULL) {
+#if HAVE_SYMLINK
 		return symlink(linkname, a->name) ? errno : 0;
+#else
+		return (EPERM);
+#endif
+	}
 
 	/*
 	 * The remaining system calls all set permissions, so let's
@@ -1398,9 +1407,15 @@ current_fixup(struct archive_write_disk *a, const char *pathname)
  * scan the path and both can be optimized by comparing against other
  * recent paths.
  */
+/* TODO: Extend this to support symlinks on Windows Vista and later. */
 static int
 check_symlinks(struct archive_write_disk *a)
 {
+#if !defined(HAVE_LSTAT)
+	/* Platform doesn't have lstat, so we can't look for symlinks. */
+	(void)a; /* UNUSED */
+	return (ARCHIVE_OK);
+#else
 	char *pn, *p;
 	char c;
 	int r;
@@ -1481,6 +1496,7 @@ check_symlinks(struct archive_write_disk *a)
 	/* We've checked and/or cleaned the whole path, so remember it. */
 	archive_strcpy(&a->path_safe, a->name);
 	return (ARCHIVE_OK);
+#endif
 }
 
 #if defined(_WIN32) || defined(__CYGWIN__)

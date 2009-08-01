@@ -331,10 +331,10 @@ AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([chflags chown chroot])
 AC_CHECK_FUNCS([fchdir fchflags fchmod fchown fcntl fork])
 AC_CHECK_FUNCS([fstat ftruncate futimes geteuid getpid])
-AC_CHECK_FUNCS([lchflags lchmod lchown])
+AC_CHECK_FUNCS([lchflags lchmod lchown link])
 AC_CHECK_FUNCS([lutimes memmove memset mkdir mkfifo mknod])
 AC_CHECK_FUNCS([nl_langinfo pipe poll readlink select setenv setlocale])
-AC_CHECK_FUNCS([strchr strdup strerror strrchr timegm])
+AC_CHECK_FUNCS([strchr strdup strerror strrchr symlink timegm])
 AC_CHECK_FUNCS([tzset unsetenv utime utimes vfork])
 AC_CHECK_FUNCS([wcrtomb wcscpy wcslen wctomb wmemcmp wmemcpy])
 # detects cygwin-1.7, as opposed to older versions

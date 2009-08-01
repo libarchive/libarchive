@@ -223,6 +223,9 @@
 /* Define to 1 if you have the <limits.h> header file. */
 #cmakedefine HAVE_LIMITS_H 1
 
+/* Define to 1 if you have the link() function. */
+#cmakedefine HAVE_LINK 1
+
 /* Define to 1 if you have the <linux/fs.h> header file. */
 #cmakedefine HAVE_LINUX_FS_H 1
 
@@ -240,6 +243,9 @@
 
 /* Define to 1 if you have the `lsetxattr' function. */
 #cmakedefine HAVE_LSETXATTR 1
+
+/* Define to 1 if you have the `lstat' function. */
+#cmakedefine HAVE_LSTAT 1
 
 /* Define to 1 if `lstat' has the bug that it succeeds when given the
    zero-length file name argument. */
@@ -425,6 +431,9 @@
 
 /* Define to 1 if `st_umtime' is member of `struct stat'. */
 #cmakedefine HAVE_STRUCT_STAT_ST_UMTIME 1
+
+/* Define to 1 if you have the symlink() function. */
+#cmakedefine HAVE_SYMLINK 1
 
 /* Define to 1 if you have the <sys/acl.h> header file. */
 #cmakedefine HAVE_SYS_ACL_H 1
