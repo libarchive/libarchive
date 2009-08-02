@@ -222,7 +222,7 @@ verify_tree(int limit)
 		strcpy(name2, "../f/");
 		strcat(name2, filename);
 		if (limit != LIMIT_USTAR || strlen(name2) <= 100)
-			assertIsLink(name1, name2);
+			assertIsSymlink(name1, name2);
 #else
 		skipping("verify symlink");
 #endif

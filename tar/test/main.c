@@ -50,6 +50,7 @@
 #define S_ISREG(m)  ((m) & _S_IFREG)
 #endif
 #define access _access
+#define chdir _chdir
 #ifndef fileno
 #define fileno _fileno
 #endif
@@ -762,10 +763,10 @@ test_assert_file_contents(const void *buff, int s, const char *fpattern, ...)
 		    test_filename, test_line);
 		fprintf(stderr, "  file=\"%s\"\n", fn);
 		if (n > 0)
-			hexdump(contents, buff, n, 0);
+			hexdump(contents, buff, n > 512 ? 512 : 0, 0);
 		else {
 			fprintf(stderr, "  File empty, contents should be:\n");
-			hexdump(buff, NULL, s, 0);
+			hexdump(buff, NULL, s > 512 ? 512 : 0, 0);
 		}
 		report_failure(test_extra);
 	}
@@ -913,7 +914,7 @@ test_assert_is_dir(const char *file, int line, const char *pathname, int mode)
 
 	count_assertion(file, line);
 	r = lstat(pathname, &st);
-	if (r != 0 || !S_ISDIR(st.st_mode)) {
+	if (r != 0) {
 		++failures;
 		if (!previous_failures(file, line, 1)) {
 			fprintf(stderr, "%s:%d: Dir ``%s'' doesn't exist\n",
@@ -922,8 +923,19 @@ test_assert_is_dir(const char *file, int line, const char *pathname, int mode)
 		}
 		return (0);
 	}
-	if (mode < 0)
+	if (!S_ISDIR(st.st_mode)) {
+		++failures;
+		if (!previous_failures(file, line, 1)) {
+			fprintf(stderr, "%s:%d: ``%s'' is not a dir\n",
+			    file, line, pathname);
+			report_failure(NULL);
+		}
+		return (0);
+	}
+	if (mode < 0) {
+		msg[0] = '\0';
 		return (1);
+	}
 	if (mode != (st.st_mode & 07777)) {
 		++failures;
 		if (!previous_failures(file, line, 1)) {
@@ -935,11 +947,12 @@ test_assert_is_dir(const char *file, int line, const char *pathname, int mode)
 		}
 		return (0);
 	}
+	msg[0] = '\0';
 	return (1);
 }
 
 int
-test_assert_is_link(const char *file, int line,
+test_assert_is_symlink(const char *file, int line,
     const char *pathname, const char *contents)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -1093,7 +1106,7 @@ test_assert_make_hardlink(const char *file, int line,
 
 int
 test_assert_make_symlink(const char *file, int line,
-						  const char *newpath, const char *linkto)
+    const char *newpath, const char *linkto)
 {
 	int succeeded;
 

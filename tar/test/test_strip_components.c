@@ -64,7 +64,7 @@ DEFINE_TEST(test_strip_components)
 	failure("d0/d1/s2 is a symlink to something that won't be extracted");
 #if !defined(_WIN32) || defined(__CYGWIN__)
 	assertFileNotExists("target/s2");
-	assertIsLink("target/s2", "d2/f1");
+	assertIsSymlink("target/s2", "d2/f1");
 #else
 	skipping("symlink");
 #endif

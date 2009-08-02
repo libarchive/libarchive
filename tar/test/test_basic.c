@@ -71,7 +71,7 @@ basic_tar(const char *target, const char *pack_options,
 
 #if !defined(_WIN32) || defined(__CYGWIN__)
 	/* Symlink */
-	assertIsLink("symlink", "file");
+	assertIsSymlink("symlink", "file");
 #endif
 
 	/* dir */

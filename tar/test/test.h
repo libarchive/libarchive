@@ -156,10 +156,10 @@
   test_setup(__FILE__, __LINE__);test_assert_text_file_contents
 #define assertIsDir(pathname, mode)		\
   test_assert_is_dir(__FILE__, __LINE__, pathname, mode)
-#define assertIsLink(pathname, contents)	\
-  test_assert_is_link(__FILE__, __LINE__, pathname, contents)
 #define assertIsReg(pathname, mode)		\
   test_assert_is_reg(__FILE__, __LINE__, pathname, mode)
+#define assertIsSymlink(pathname, contents)	\
+  test_assert_is_symlink(__FILE__, __LINE__, pathname, contents)
 /* Create a directory, report error if it fails. */
 #define assertMakeDir(dirname, mode)	\
   test_assert_make_dir(__FILE__, __LINE__, dirname, mode)
@@ -200,8 +200,8 @@ int test_assert_file_not_exists(const char *, ...);
 int test_assert_file_nlinks(const char *, int, const char *, int);
 int test_assert_file_size(const char *, int, const char *, long);
 int test_assert_is_dir(const char *, int, const char *, int);
-int test_assert_is_link(const char *, int, const char *, const char *);
 int test_assert_is_reg(const char *, int, const char *, int);
+int test_assert_is_symlink(const char *, int, const char *, const char *);
 int test_assert_make_dir(const char *, int, const char *, int);
 int test_assert_make_hardlink(const char *, int, const char *newpath, const char *);
 int test_assert_make_symlink(const char *, int, const char *newpath, const char *);

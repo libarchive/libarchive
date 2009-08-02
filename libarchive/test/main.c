@@ -946,6 +946,13 @@ test_assert_is_symlink(const char *file, int line,
     const char *pathname, const char *contents)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
+	// TODO: Vista supports symlinks
+	++failures;
+	if (!previous_failures(file, line, 1)) {
+		fprintf(stderr, "%s:%d: Symlink ``%s'' not supported\n",
+			file, line, pathname);
+		report_failure(NULL);
+	}
 	return (0);
 #else
 	char buff[300];
