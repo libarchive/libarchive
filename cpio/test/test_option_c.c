@@ -77,7 +77,7 @@ DEFINE_TEST(test_option_c)
 	assertEqualInt(5, write(filelist, "file\n", 5));
 
 	/* "symlink" */
-	assertEqualInt(0, symlink("file", "symlink"));
+	assertMakeSymlink("symlink", "file");
 	assertEqualInt(8, write(filelist, "symlink\n", 8));
 
 	/* "dir" */

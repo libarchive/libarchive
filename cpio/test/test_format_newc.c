@@ -91,10 +91,10 @@ DEFINE_TEST(test_format_newc)
 	assertEqualInt(9, write(list, "hardlink\n", 9));
 
 	/* Another hardlink, but this one won't be archived. */
-	assertEqualInt(0, link("file1", "hardlink2"));
+	assertMakeHardlink("hardlink2", "file1");
 
 	/* "symlink" */
-	assertEqualInt(0, symlink("file1", "symlink"));
+	assertMakeSymlink("symlink", "file1");
 	assertEqualInt(8, write(list, "symlink\n", 8));
 
 	/* "dir" */

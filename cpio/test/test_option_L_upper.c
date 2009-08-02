@@ -47,17 +47,17 @@ DEFINE_TEST(test_option_L_upper)
 	write(filelist, "file\n", 5);
 
 	/* Symlink to above file. */
-	assertEqualInt(0, symlink("file", "symlink"));
+	assertMakeSymlink("symlink", "file");
 	write(filelist, "symlink\n", 8);
 
 	close(filelist);
 
 	r = systemf(CAT " filelist | %s -pd copy >copy.out 2>copy.err", testprog);
 	assertEqualInt(r, 0);
-	assertEqualInt(0, lstat("copy/symlink", &st));
+
 #if !defined(_WIN32) || defined(__CYGWIN__)
 	failure("Regular -p without -L should preserve symlinks.");
-	assert(S_ISLNK(st.st_mode));
+	assertIsSymlink("copy/symlink", NULL);
 #endif
 
 	r = systemf(CAT " filelist | %s -pd -L copy-L >copy-L.out 2>copy-L.err", testprog);
@@ -82,9 +82,9 @@ DEFINE_TEST(test_option_L_upper)
 #endif
 	failure("Error invoking %s -i", testprog);
 	assertEqualInt(r, 0);
-	assertEqualInt(0, lstat("unpack/symlink", &st));
+
 #if !defined(_WIN32) || defined(__CYGWIN__)
-	assert(S_ISLNK(st.st_mode));
+	assertIsSymlink("unpack/symlink", NULL);
 #endif
 
 	r = systemf(CAT " filelist | %s -oL >archive-L.out 2>archive-L.err", testprog);

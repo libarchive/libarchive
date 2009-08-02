@@ -200,11 +200,11 @@ DEFINE_TEST(test_basic)
 	write(filelist, "file\n", 5);
 
 	/* hardlink to above file. */
-	assertEqualInt(0, link("file", "linkfile"));
+	assertMakeHardlink("linkfile", "file");
 	write(filelist, "linkfile\n", 9);
 
 	/* Symlink to above file. */
-	assertEqualInt(0, symlink("file", "symlink"));
+	assertMakeSymlink("symlink", "file");
 	write(filelist, "symlink\n", 8);
 
 	/* Another file with different permissions. */
