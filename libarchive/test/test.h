@@ -51,15 +51,11 @@
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
 #endif
-#if !defined(_WIN32) || defined(__CYGWIN__)
+#if HAVE_DIRENT_H
 #include <dirent.h>
 #else
 #include <direct.h>
-#endif
-#if defined(__CYGWIN__)
-/* Cygwin-1.7.x is lazy about populating nlinks, so don't
- * expect it to be accurate. */
-# define NLINKS_INACCURATE_FOR_DIRS
+#define dirent direct
 #endif
 #include <errno.h>
 #include <fcntl.h>
@@ -78,6 +74,29 @@
 #include <windows.h>
 #endif
 
+/*
+ * System-specific tweaks.  We really want to minimize these
+ * as much as possible, since they make it harder to understand
+ * the mainline code.
+ */
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#include "../bsdtar_windows.h"
+#define strdup _strdup
+#define LOCALE_DE	"deu"
+#else
+#define LOCALE_DE	"de_DE.UTF-8"
+#endif
+
+#ifdef _MSC_VER
+#define snprintf	sprintf_s
+#endif
+
+#if defined(__CYGWIN__)
+/* Cygwin-1.7.x is lazy about populating nlinks, so don't
+ * expect it to be accurate. */
+# define NLINKS_INACCURATE_FOR_DIRS
+#endif
 
 #ifdef __FreeBSD__
 #include <sys/cdefs.h>  /* For __FBSDID */
@@ -88,17 +107,6 @@
 #ifndef __FBSDID
 #define	__FBSDID(a)     struct _undefined_hack
 #endif
-#endif
-
-#ifdef _MSC_VER
-#define snprintf	sprintf_s
-#endif
-
-#if defined(_WIN32) && !defined(__CYGWIN__)
-#define LOCALE_DE	"deu"
-#define strdup _strdup
-#else
-#define LOCALE_DE	"de_DE.UTF-8"
 #endif
 
 #ifndef O_BINARY
@@ -159,10 +167,10 @@
   test_setup(__FILE__, __LINE__);test_assert_text_file_contents
 #define assertIsDir(pathname, mode)		\
   test_assert_is_dir(__FILE__, __LINE__, pathname, mode)
-#define assertIsSymlink(pathname, contents)	\
-  test_assert_is_symlink(__FILE__, __LINE__, pathname, contents)
 #define assertIsReg(pathname, mode)		\
   test_assert_is_reg(__FILE__, __LINE__, pathname, mode)
+#define assertIsSymlink(pathname, contents)	\
+  test_assert_is_symlink(__FILE__, __LINE__, pathname, contents)
 /* Create a directory, report error if it fails. */
 #define assertMakeDir(dirname, mode)	\
   test_assert_make_dir(__FILE__, __LINE__, dirname, mode)
@@ -203,8 +211,8 @@ int test_assert_file_not_exists(const char *, ...);
 int test_assert_file_nlinks(const char *, int, const char *, int);
 int test_assert_file_size(const char *, int, const char *, long);
 int test_assert_is_dir(const char *, int, const char *, int);
-int test_assert_is_symlink(const char *, int, const char *, const char *);
 int test_assert_is_reg(const char *, int, const char *, int);
+int test_assert_is_symlink(const char *, int, const char *, const char *);
 int test_assert_make_dir(const char *, int, const char *, int);
 int test_assert_make_hardlink(const char *, int, const char *newpath, const char *);
 int test_assert_make_symlink(const char *, int, const char *newpath, const char *);

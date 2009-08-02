@@ -45,40 +45,57 @@
 #error Oops: No config.h and no pre-built configuration in test.h.
 #endif
 
-#if !defined(_WIN32) || defined(__CYGWIN__)
-#include <dirent.h>
-#else
-#define dirent direct
-#include "../bsdtar_windows.h"
-#include <direct.h>
-#endif
-#if defined(__CYGWIN__)
-/* In cygwin-1.7.x, the .nlinks field of directories is
- * deliberately inaccurate, because to populate it requires
- * stat'ing every file in the directory, which is slow.
- * So, as an optimization cygwin doesn't do that in newer
- * releases; all correct applications on any platform should
- * never rely on it being > 1, so this optimization doesn't
- * impact the operation of correctly coded applications.
- * Therefore, the cpio test should not check its accuracy
- */
-# define NLINKS_INACCURATE_FOR_DIRS
-#endif
-#include <errno.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/types.h>  /* Windows requires this before sys/stat.h */
 #include <sys/stat.h>
-#if !defined(_WIN32) || defined(__CYGWIN__)
-#include <unistd.h>
-#endif
-#include <time.h>
-#include <wchar.h>
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
+#endif
+#if HAVE_DIRENT_H
+#include <dirent.h>
+#else
+#include <direct.h>
+#define dirent direct
+#endif
+#include <errno.h>
+#include <fcntl.h>
+#ifdef HAVE_IO_H
+#include <io.h>
+#endif
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#include <wchar.h>
+#ifdef HAVE_WINDOWS_H
+#include <windows.h>
+#endif
+
+/*
+ * System-specific tweaks.  We really want to minimize these
+ * as much as possible, since they make it harder to understand
+ * the mainline code.
+ */
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#include "../bsdtar_windows.h"
+#define strdup _strdup
+#define LOCALE_DE	"deu"
+#else
+#define LOCALE_DE	"de_DE.UTF-8"
+#endif
+
+#ifdef _MSC_VER
+#define snprintf	sprintf_s
+#endif
+
+#if defined(__CYGWIN__)
+/* Cygwin-1.7.x is lazy about populating nlinks, so don't
+ * expect it to be accurate. */
+# define NLINKS_INACCURATE_FOR_DIRS
 #endif
 
 #ifdef __FreeBSD__
@@ -90,16 +107,6 @@
 #ifndef __FBSDID
 #define	__FBSDID(a)     struct _undefined_hack
 #endif
-#endif
-
-#ifdef _MSC_VER
-#define snprintf	sprintf_s
-#endif
-
-#if defined(_WIN32) && !defined(__CYGWIN__)
-#define LOCALE_DE	"deu"
-#else
-#define LOCALE_DE	"de_DE.UTF-8"
 #endif
 
 /*
