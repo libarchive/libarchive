@@ -33,6 +33,11 @@ __FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_data_large.c,v 1.4 2008/09
  * had a bug relating to this, fixed in Nov 2006).
  */
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#define open _open
+#define close _close
+#endif
+
 char buff1[11000000];
 char buff2[10000000];
 char buff3[10000000];

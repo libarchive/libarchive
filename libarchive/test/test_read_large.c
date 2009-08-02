@@ -29,6 +29,11 @@ static unsigned char testdata[10 * 1024 * 1024];
 static unsigned char testdatacopy[10 * 1024 * 1024];
 static unsigned char buff[11 * 1024 * 1024];
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#define open _open
+#define close _close
+#endif
+
 /* Check correct behavior on large reads. */
 DEFINE_TEST(test_read_large)
 {

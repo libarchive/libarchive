@@ -284,6 +284,8 @@ CHECK_FUNCTION_EXISTS(SHA512_Init HAVE_SHA512)
 #
 # Check functions
 #
+CHECK_SYMBOL_EXISTS(CreateHardLink "windows.h" HAVE_CREATEHARDLINK)
+CHECK_SYMBOL_EXISTS(CreateSymbolicLink "windows.h" HAVE_CREATESYMBOLICLINK)
 CHECK_FUNCS(chflags chown chroot)
 CHECK_FUNCS(fchdir fchflags fchmod fchown fcntl fork)
 CHECK_FUNCS(fstat ftruncate futimes geteuid getpid)

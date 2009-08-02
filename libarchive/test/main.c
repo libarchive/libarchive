@@ -945,6 +945,9 @@ int
 test_assert_is_symlink(const char *file, int line,
     const char *pathname, const char *contents)
 {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	return (0);
+#else
 	char buff[300];
 	struct stat st;
 	ssize_t linklen;
@@ -995,6 +998,7 @@ test_assert_is_symlink(const char *file, int line,
 		return (0);
 	}
 	return (1);
+#endif
 }
 
 int
@@ -1061,10 +1065,12 @@ test_assert_make_hardlink(const char *file, int line,
 	int succeeded;
 
 	count_assertion(file, line);
-#if defined(_WIN32) && !defined(__CYGWIN__)
+#if HAVE_CREATEHARDLINK
 	succeeded = CreateHardLink(newpath, linkto, NULL);
-#else
+#elif HAVE_LINK
 	succeeded = !link(linkto, newpath);
+#else
+	succeeded = 0;
 #endif
 	if (succeeded) {
 		msg[0] = '\0';
@@ -1087,13 +1093,15 @@ test_assert_make_symlink(const char *file, int line,
 {
 	int succeeded;
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
+#if HAVE_CREATESYMBOLICLINK
 	int targetIsDir = 0; /* TODO: Fix this. */
 	count_assertion(file, line);
 	succeeded = CreateSymbolicLink(newpath, linkto, targetIsDir);
-#else
+#elif HAVE_SYMLINK
 	count_assertion(file, line);
 	succeeded = !symlink(linkto, newpath);
+#else
+	succeeded = 0;
 #endif
 	if (succeeded) {
 		msg[0] = '\0';

@@ -25,6 +25,11 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#define open _open
+#define lseek _lseek
+#define close _close
+#endif
 
 DEFINE_TEST(test_open_fd)
 {
