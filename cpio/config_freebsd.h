@@ -29,6 +29,7 @@
 
 #include <sys/param.h>  /* __FreeBSD_version */
 
+#define	HAVE_DIRENT_H 1
 #define	HAVE_ERRNO_H 1
 #define	HAVE_FCNTL_H 1
 #define	HAVE_FUTIMES 1
@@ -39,7 +40,6 @@
 #define	HAVE_STDARG_H 1
 #define	HAVE_STDLIB_H 1
 #define	HAVE_STRING_H 1
-#undef	HAVE_SYS_MKDEV_H
 #define	HAVE_SYS_STAT_H 1
 #define	HAVE_SYS_TIME_H 1
 #define	HAVE_TIME_H 1

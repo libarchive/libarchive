@@ -10,6 +10,7 @@ CPIO_SRCS= cmdline.c err.c pathmatch.c
 TESTS=	\
 	test_0.c				\
 	test_basic.c				\
+	test_cmdline.c				\
 	test_format_newc.c			\
 	test_gcpio_compat.c			\
 	test_option_B_upper.c			\
