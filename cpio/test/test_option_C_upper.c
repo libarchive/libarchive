@@ -28,38 +28,32 @@ __FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_option_C_upper)
 {
-	struct stat st;
-	int r, fd;
+	int r;
 
 	/*
 	 * Create a file on disk.
 	 */
-	fd = open("file", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	close(fd);
+	assertMakeFile("file", 0644, NULL);
 
 	/* Create an archive without -C; this should be 512 bytes. */
 	r = systemf("echo file | %s -o > small.cpio 2>small.err", testprog);
 	assertEqualInt(r, 0);
 	assertTextFileContents("1 block\n", "small.err");
-	assertEqualInt(0, stat("small.cpio", &st));
-	assertEqualInt(512, st.st_size);
+	assertFileSize("small.cpio", 512);
 
 	/* Create an archive with -C 513; this should be 513 bytes. */
 	r = systemf("echo file | %s -o -C 513 > 513.cpio 2>513.err",
 		    testprog);
 	assertEqualInt(r, 0);
 	assertTextFileContents("1 block\n", "513.err");
-	assertEqualInt(0, stat("513.cpio", &st));
-	assertEqualInt(513, st.st_size);
+	assertFileSize("513.cpio", 513);
 
 	/* Create an archive with -C 12345; this should be 12345 bytes. */
 	r = systemf("echo file | %s -o -C12345 > 12345.cpio 2>12345.err",
 		    testprog);
 	assertEqualInt(r, 0);
 	assertTextFileContents("1 block\n", "12345.err");
-	assertEqualInt(0, stat("12345.cpio", &st));
-	assertEqualInt(12345, st.st_size);
+	assertFileSize("12345.cpio", 12345);
 
 	/* Create an archive with invalid -C request */
 	assert(0 != systemf("echo file | %s -o -C > bad.cpio 2>bad.err",

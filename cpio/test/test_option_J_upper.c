@@ -28,15 +28,11 @@ __FBSDID("$FreeBSD$");
 DEFINE_TEST(test_option_J_upper)
 {
 	char *p;
-	int fd;
 	int r;
 	size_t s;
 
 	/* Create a file. */
-	fd = open("f", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	assertEqualInt(1, write(fd, "a", 1));
-	close(fd);
+	assertMakeFile("f", 0644, "a");
 
 	/* Archive it with xz compression. */
 	r = systemf("echo f | %s -o -J >archive.out 2>archive.err",

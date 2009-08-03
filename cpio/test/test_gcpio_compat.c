@@ -28,7 +28,6 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_gcpio_compat.c,v 1.2 2008/08/22 0
 static void
 unpack_test(const char *from, const char *options, const char *se)
 {
-	struct stat st, st2;
 	int r;
 
 	/* Create a work dir named after the file we're unpacking. */
@@ -54,57 +53,18 @@ unpack_test(const char *from, const char *options, const char *se)
 	 */
 
 	/* Regular file with 2 links. */
-	r = lstat("file", &st);
-	failure("Failed to stat file %s/file, errno=%d", from, errno);
-	assertEqualInt(r, 0);
-	if (r == 0) {
-		assert(S_ISREG(st.st_mode));
-#if defined(_WIN32) && !defined(__CYGWIN__)
-		assertEqualInt(0600, st.st_mode & 0700);
-#else
-		assertEqualInt(0644, st.st_mode & 0777);
-#endif
-		failure("file %s/file", from);
-		assertEqualInt(10, st.st_size);
-		failure("file %s/file", from);
-		assertEqualInt(2, st.st_nlink);
-	}
+	assertIsReg("file", 0644);
+	assertFileSize("file", 10);
+	assertFileNLinks("file", 2);
 
 	/* Another name for the same file. */
-	r = lstat("linkfile", &st2);
-	failure("Failed to stat file %s/linkfile, errno=%d", from, errno);
-	assertEqualInt(r, 0);
-	if (r == 0) {
-		assert(S_ISREG(st2.st_mode));
-#if defined(_WIN32) && !defined(__CYGWIN__)
-		assertEqualInt(0600, st2.st_mode & 0700);
-#else
-		assertEqualInt(0644, st2.st_mode & 0777);
-#endif
-		failure("file %s/file", from);
-		assertEqualInt(10, st2.st_size);
-		failure("file %s/file", from);
-		assertEqualInt(2, st2.st_nlink);
-		failure("file and linkfile should be hardlinked");
-		assertEqualInt(st.st_dev, st2.st_dev);
-		failure("file %s/file", from);
-		assertEqualInt(st.st_ino, st2.st_ino);
-	}
+	assertFileHardlinks("linkfile", "file");
 
 	/* Symlink */
 	assertIsSymlink("symlink", "file");
 
 	/* dir */
-	r = lstat("dir", &st);
-	if (r == 0) {
-		assertEqualInt(r, 0);
-		assert(S_ISDIR(st.st_mode));
-#if defined(_WIN32) && !defined(__CYGWIN__)
-		assertEqualInt(0700, st.st_mode & 0700);
-#else
-		assertEqualInt(0775, st.st_mode & 0777);
-#endif
-	}
+	assertIsDir("dir", 0775);
 
 	assertChdir("..");
 }

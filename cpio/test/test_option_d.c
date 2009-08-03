@@ -28,23 +28,19 @@ __FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_option_d)
 {
-	struct stat st;
-	int r, fd;
+	int r;
 
 	/*
 	 * Create a file in a directory.
 	 */
 	assertMakeDir("dir", 0755);
-	fd = open("dir/file", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	close(fd);
+	assertMakeFile("dir/file", 0644, NULL);
 
 	/* Create an archive. */
 	r = systemf("echo dir/file | %s -o > archive.cpio 2>archive.err", testprog);
 	assertEqualInt(r, 0);
 	assertTextFileContents("1 block\n", "archive.err");
-	assertEqualInt(0, stat("archive.cpio", &st));
-	assertEqualInt(512, st.st_size);
+	assertFileSize("archive.cpio", 512);
 
 	/* Dearchive without -d, this should fail. */
 	assertMakeDir("without-d", 0755);
@@ -53,7 +49,7 @@ DEFINE_TEST(test_option_d)
 	assertEqualInt(r, 0);
 	assertEmptyFile("out");
 	/* And the file should not be restored. */
-	assert(0 != stat("dir/file", &st));
+	assertFileNotExists("dir/file");
 
 	/* Dearchive with -d, this should succeed. */
 	assertChdir("..");
@@ -64,5 +60,5 @@ DEFINE_TEST(test_option_d)
 	assertEmptyFile("out");
 	assertTextFileContents("1 block\n", "err");
 	/* And the file should be restored. */
-	assertEqualInt(0, stat("dir/file", &st));
+	assertFileExists("dir/file");
 }

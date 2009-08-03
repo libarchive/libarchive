@@ -29,14 +29,12 @@ __FBSDID("$FreeBSD$");
 DEFINE_TEST(test_option_B_upper)
 {
 	struct stat st;
-	int r, fd;
+	int r;
 
 	/*
 	 * Create a file on disk.
 	 */
-	fd = open("file", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	close(fd);
+	assertMakeFile("file", 0644, NULL);
 
 	/* Create an archive without -B; this should be 512 bytes. */
 	r = systemf("echo file | %s -o > small.cpio 2>small.err", testprog);

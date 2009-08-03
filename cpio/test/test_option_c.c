@@ -53,7 +53,7 @@ from_octal(const char *p, size_t l)
 
 DEFINE_TEST(test_option_c)
 {
-	int fd, filelist;
+	FILE *filelist;
 	int r;
 	int dev, ino, gid;
 	time_t t, now;
@@ -66,27 +66,24 @@ DEFINE_TEST(test_option_c)
 	 * Create an assortment of files.
 	 * TODO: Extend this to cover more filetypes.
 	 */
-	filelist = open("filelist", O_CREAT | O_WRONLY, 0644);
+	filelist = fopen("filelist", "w");
 
 	/* "file" */
-	fd = open("file", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	assertEqualInt(10, write(fd, "123456789", 10));
-	close(fd);
-	assertEqualInt(5, write(filelist, "file\n", 5));
+	assertMakeFile("file", 0644, "1234567890");
+	fprintf(filelist, "file\n");
 
 	/* "symlink" */
 	assertMakeSymlink("symlink", "file");
-	assertEqualInt(8, write(filelist, "symlink\n", 8));
+	fprintf(filelist, "symlink\n");
 
 	/* "dir" */
 	assertMakeDir("dir", 0775);
 	/* Record some facts about what we just created: */
 	now = time(NULL); /* They were all created w/in last two seconds. */
-	assertEqualInt(4, write(filelist, "dir\n", 4));
+	fprintf(filelist, "dir\n");
 
 	/* Use the cpio program to create an archive. */
-	close(filelist);
+	fclose(filelist);
 	r = systemf("%s -oc <filelist >basic.out 2>basic.err", testprog);
 	/* Verify that nothing went to stderr. */
 	assertTextFileContents("1 block\n", "basic.err");
@@ -132,7 +129,7 @@ DEFINE_TEST(test_option_c)
 	assertEqualMem(e + 59, "000005", 6); /* Name size */
 	assertEqualMem(e + 65, "00000000012", 11); /* File size */
 	assertEqualMem(e + 76, "file\0", 5); /* Name contents */
-	assertEqualMem(e + 81, "123456789\0", 10); /* File contents */
+	assertEqualMem(e + 81, "1234567890", 10); /* File contents */
 	e += 91;
 
 	/* Second entry is "symlink" pointing to "file" */

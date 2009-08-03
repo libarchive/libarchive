@@ -33,24 +33,20 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_option_L.c,v 1.2 2008/08/24 06:21
 
 DEFINE_TEST(test_option_L_upper)
 {
-	struct stat st;
-	int fd, filelist;
+	FILE *filelist;
 	int r;
 
-	filelist = open("filelist", O_CREAT | O_WRONLY, 0644);
+	filelist = fopen("filelist", "w");
 
 	/* Create a file and a symlink to the file. */
-	fd = open("file", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	assertEqualInt(10, write(fd, "123456789", 10));
-	close(fd);
-	write(filelist, "file\n", 5);
+	assertMakeFile("file", 0644, "1234567890");
+	fprintf(filelist, "file\n");
 
 	/* Symlink to above file. */
 	assertMakeSymlink("symlink", "file");
-	write(filelist, "symlink\n", 8);
+	fprintf(filelist, "symlink\n");
 
-	close(filelist);
+	fclose(filelist);
 
 	r = systemf(CAT " filelist | %s -pd copy >copy.out 2>copy.err", testprog);
 	assertEqualInt(r, 0);
@@ -64,9 +60,8 @@ DEFINE_TEST(test_option_L_upper)
 	assertEqualInt(r, 0);
 	assertEmptyFile("copy-L.out");
 	assertTextFileContents("1 block\n", "copy-L.err");
-	assertEqualInt(0, lstat("copy-L/symlink", &st));
 	failure("-pdL should dereference symlinks and turn them into files.");
-	assert(!S_ISLNK(st.st_mode));
+	assertIsReg("copy-L/symlink", -1);
 
 	r = systemf(CAT " filelist | %s -o >archive.out 2>archive.err", testprog);
 	failure("Error invoking %s -o ", testprog);
@@ -101,6 +96,5 @@ DEFINE_TEST(test_option_L_upper)
 #endif
 	failure("Error invoking %s -i < archive-L.out", testprog);
 	assertEqualInt(r, 0);
-	assertEqualInt(0, lstat("unpack-L/symlink", &st));
-	assert(!S_ISLNK(st.st_mode));
+	assertIsReg("unpack-L/symlink", -1);
 }
