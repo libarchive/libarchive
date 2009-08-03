@@ -66,11 +66,16 @@ DEFINE_TEST(test_format_newc)
 	FILE *list;
 	int r;
 	int devmajor, devminor, ino, gid;
+	int uid = -1;
 	time_t t, t2, now;
 	char *p, *e;
 	size_t s, fs, ns;
 
 	assertUmask(0);
+
+#if !defined(_WIN32)
+	uid = getuid();
+#endif
 
 	/*
 	 * Create an assortment of files.
@@ -130,7 +135,9 @@ DEFINE_TEST(test_format_newc)
 #else
 	assertEqualInt(0x81a4, from_hex(e + 14, 8)); /* Mode */
 #endif
-	assertEqualInt(from_hex(e + 22, 8), getuid()); /* uid */
+	if (uid < 0)
+		uid = from_hex(e + 22, 8);
+	assertEqualInt(from_hex(e + 22, 8), uid); /* uid */
 	gid = from_hex(e + 30, 8); /* gid */
 	assertEqualMem(e + 38, "00000003", 8); /* nlink */
 	t = from_hex(e + 46, 8); /* mtime */
@@ -166,7 +173,7 @@ DEFINE_TEST(test_format_newc)
 	 * others bits do not work. */ 
 	assertEqualInt(0xa1ff, from_hex(e + 14, 8)); /* Mode */
 #endif
-	assertEqualInt(from_hex(e + 22, 8), getuid()); /* uid */
+	assertEqualInt(from_hex(e + 22, 8), uid); /* uid */
 	assertEqualInt(gid, from_hex(e + 30, 8)); /* gid */
 	assertEqualMem(e + 38, "00000001", 8); /* nlink */
 	t2 = from_hex(e + 46, 8); /* mtime */
@@ -205,7 +212,7 @@ DEFINE_TEST(test_format_newc)
 	/* Mode: sgid bit sometimes propagates from parent dirs, ignore it. */
 	assertEqualInt(040775, from_hex(e + 14, 8) & ~02000);
 #endif
-	assertEqualInt(from_hex(e + 22, 8), getuid()); /* uid */
+	assertEqualInt(from_hex(e + 22, 8), uid); /* uid */
 	assertEqualInt(gid, from_hex(e + 30, 8)); /* gid */
 #ifndef NLINKS_INACCURATE_FOR_DIRS
 	assertEqualMem(e + 38, "00000002", 8); /* nlink */
@@ -240,7 +247,7 @@ DEFINE_TEST(test_format_newc)
 #else
 	assertEqualInt(0x81a4, from_hex(e + 14, 8)); /* Mode */
 #endif
-	assertEqualInt(from_hex(e + 22, 8), getuid()); /* uid */
+	assertEqualInt(from_hex(e + 22, 8), uid); /* uid */
 	assertEqualInt(gid, from_hex(e + 30, 8)); /* gid */
 	assertEqualMem(e + 38, "00000003", 8); /* nlink */
 	t2 = from_hex(e + 46, 8); /* mtime */
