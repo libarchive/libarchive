@@ -31,12 +31,12 @@ __FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_cmdline)
 {
-	int fd;
+	FILE *f;
 
 	/* Create an empty file. */
-	fd = open("empty", O_WRONLY | O_CREAT, 0555);
-	assert(fd >= 0);
-	close(fd);
+	f = fopen("empty", "wb");
+	assert(f != NULL);
+	fclose(f);
 
 	failure("-Q is an invalid option on every cpio program I know of");
 	assert(0 != systemf("%s -i -Q <empty >1.out 2>1.err", testprog));

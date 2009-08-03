@@ -1040,7 +1040,7 @@ test_assert_is_reg(const char *file, int line, const char *pathname, int mode)
 	if (mode != (st.st_mode & 07777)) {
 		++failures;
 		if (!previous_failures(file, line, 1)) {
-			fprintf(stderr, "%s:%d: Dir ``%s'' has wrong mode\n",
+			fprintf(stderr, "%s:%d: File ``%s'' has wrong mode\n",
 			    file, line, pathname);
 			fprintf(stderr, "  Expected: 0%3o\n", mode);
 			fprintf(stderr, "  Found: 0%3o\n", st.st_mode & 07777);
@@ -1076,8 +1076,69 @@ test_assert_make_dir(const char *file, int line, const char *dirname, int mode)
 }
 
 int
+test_assert_make_file(const char *file, int line,
+    const char *path, int mode, const char *contents)
+{
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/* TODO: Rework this to set file mode as well. */
+	FILE *f;
+	f = fopen(path, "wb");
+	if (f == NULL) {
+		++failures;
+		if (!verbose && previous_failures(file, line, 1))
+			return (0);
+		fprintf(stderr, "%s:%d: Could not create file ``%s''\n",
+		    file, line, path);
+		return (0);
+	}
+	if (contents != NULL) {
+		if (strlen(contents)
+		    != fwrite(contents, 1, strlen(contents), f)) {
+			fclose(f);
+			++failures;
+			if (!verbose && previous_failures(file, line, 1))
+				return (0);
+			fprintf(stderr, "%s:%d: Could not write file ``%s''\n",
+			    file, line, path);
+			return (0);
+		}
+	}
+	fclose(f);
+	msg[0] = '\0';
+	return (1);
+#else
+	int fd;
+	count_assertion(file, line);
+	fd = open(path, O_CREAT | O_WRONLY, mode >= 0 ? mode : 0644);
+	if (fd < 0) {
+		++failures;
+		if (!verbose && previous_failures(file, line, 1))
+			return (0);
+		fprintf(stderr, "%s:%d: Could not create file ``%s''\n",
+		    file, line, path);
+		return (0);
+	}
+	if (contents != NULL) {
+		if ((ssize_t)strlen(contents)
+		    != write(fd, contents, strlen(contents))) {
+			close(fd);
+			++failures;
+			if (!verbose && previous_failures(file, line, 1))
+				return (0);
+			fprintf(stderr, "%s:%d: Could not write file ``%s''\n",
+			    file, line, path);
+			return (0);
+		}
+	}
+	close(fd);
+	msg[0] = '\0';
+	return (1);
+#endif
+}
+
+int
 test_assert_make_hardlink(const char *file, int line,
-						  const char *newpath, const char *linkto)
+    const char *newpath, const char *linkto)
 {
 	int succeeded;
 

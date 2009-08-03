@@ -171,6 +171,8 @@
 /* Create a directory, report error if it fails. */
 #define assertMakeDir(dirname, mode)	\
   test_assert_make_dir(__FILE__, __LINE__, dirname, mode)
+#define assertMakeFile(path, mode, contents) \
+  test_assert_make_file(__FILE__, __LINE__, path, mode, contents)
 #define assertMakeHardlink(newfile, oldfile)	\
   test_assert_make_hardlink(__FILE__, __LINE__, newfile, oldfile)
 #define assertMakeSymlink(newfile, linkto)	\
@@ -207,6 +209,7 @@ int test_assert_is_dir(const char *, int, const char *, int);
 int test_assert_is_reg(const char *, int, const char *, int);
 int test_assert_is_symlink(const char *, int, const char *, const char *);
 int test_assert_make_dir(const char *, int, const char *, int);
+int test_assert_make_file(const char *, int, const char *, int, const char *);
 int test_assert_make_hardlink(const char *, int, const char *newpath, const char *);
 int test_assert_make_symlink(const char *, int, const char *newpath, const char *);
 int test_assert_non_empty_file(const char *, ...);

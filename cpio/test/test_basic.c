@@ -26,53 +26,19 @@
 __FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_basic.c,v 1.4 2008/08/25 06:39:29 kientzle Exp $");
 
 static void
-verify_files(const char *target)
+verify_files(void)
 {
-	struct stat st, st2;
-	int r;
-
 	/*
 	 * Verify unpacked files.
 	 */
 
 	/* Regular file with 2 links. */
-	r = lstat("file", &st);
-	failure("Failed to stat file %s/file, errno=%d", target, errno);
-	assertEqualInt(r, 0);
-	if (r == 0) {
-		assert(S_ISREG(st.st_mode));
-#if defined(_WIN32) && !defined(__CYGWIN__)
-		/* Group members bits and others bits do not work. */
-		assertEqualInt(0600, st.st_mode & 0700);
-#else
-		assertEqualInt(0644, st.st_mode & 0777);
-#endif
-		assertEqualInt(10, st.st_size);
-		failure("file %s/file should have 2 links", target);
-		assertEqualInt(2, st.st_nlink);
-	}
+	assertIsReg("file", 0644);
+	assertFileSize("file", 10);
+	assertFileNLinks("file", 2);
 
 	/* Another name for the same file. */
-	r = lstat("linkfile", &st2);
-	failure("Failed to stat file %s/linkfile, errno=%d", target, errno);
-	assertEqualInt(r, 0);
-	if (r == 0) {
-		assert(S_ISREG(st2.st_mode));
-#if defined(_WIN32) && !defined(__CYGWIN__)
-		/* Group members bits and others bits do not work. */
-		assertEqualInt(0600, st2.st_mode & 0700);
-#else
-		assertEqualInt(0644, st2.st_mode & 0777);
-#endif
-		assertEqualInt(10, st2.st_size);
-		failure("file %s/linkfile should have 2 links", target);
-		assertEqualInt(2, st2.st_nlink);
-		/* Verify that the two are really hardlinked. */
-		assertEqualInt(st.st_dev, st2.st_dev);
-		failure("%s/linkfile and %s/file should be hardlinked",
-		    target, target);
-		assertEqualInt(st.st_ino, st2.st_ino);
-	}
+	assertFileHardlinks("linkfile", "file");
 
 	/* Symlink */
 #if !defined(_WIN32) || defined(__CYGWIN__)
@@ -80,36 +46,12 @@ verify_files(const char *target)
 #endif
 
 	/* Another file with 1 link and different permissions. */
-	r = lstat("file2", &st);
-	failure("Failed to stat file %s/file2, errno=%d", target, errno);
-	assertEqualInt(r, 0);
-	if (r == 0) {
-		assert(S_ISREG(st.st_mode));
-		failure("%s/file2: st.st_mode = %o", target, st.st_mode);
-#if defined(_WIN32) && !defined(__CYGWIN__)
-		/* Execution bit and group members bits and others
-		 * bits do not work. */
-		assertEqualInt(0600, st.st_mode & 0700);
-#else
-		assertEqualInt(0777, st.st_mode & 0777);
-#endif
-		assertEqualInt(10, st.st_size);
-		failure("file %s/file2 should have 1 link", target);
-		assertEqualInt(1, st.st_nlink);
-	}
+	assertIsReg("file2", 0777);
+	assertFileSize("file2", 10);
+	assertFileNLinks("file2", 1);
 
 	/* dir */
-	r = lstat("dir", &st);
-	if (r == 0) {
-		assertEqualInt(r, 0);
-		assert(S_ISDIR(st.st_mode));
-		failure("%s/dir: st.st_mode = %o", target, st.st_mode);
-#if defined(_WIN32) && !defined(__CYGWIN__)
-		assertEqualInt(0700, st.st_mode & 0700);
-#else
-		assertEqualInt(0775, st.st_mode & 0777);
-#endif
-	}
+	assertIsDir("dir", 0775);
 }
 
 static void
@@ -147,7 +89,7 @@ basic_cpio(const char *target,
 	failure("Error invoking %s -i %s in dir %s", testprog, unpack_options, target);
 	assertTextFileContents(se, "unpack.err");
 
-	verify_files(target);
+	verify_files();
 
 	assertChdir("..");
 }
@@ -175,49 +117,42 @@ passthrough(const char *target)
 	    testprog, target);
 	assertTextFileContents("1 block\n", "stderr");
 
-	verify_files(target);
+	verify_files();
 	assertChdir("..");
 }
 
 DEFINE_TEST(test_basic)
 {
-	int fd;
-	int filelist;
+	FILE *filelist;
 
 	assertUmask(0);
 
 	/*
 	 * Create an assortment of files on disk.
 	 */
-	filelist = open("filelist", O_CREAT | O_WRONLY, 0644);
+	filelist = fopen("filelist", "w");
 
 	/* File with 10 bytes content. */
-	fd = open("file", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	assertEqualInt(10, write(fd, "123456789", 10));
-	close(fd);
-	write(filelist, "file\n", 5);
+	assertMakeFile("file", 0644, "1234567890");
+	fprintf(filelist, "file\n");
 
 	/* hardlink to above file. */
 	assertMakeHardlink("linkfile", "file");
-	write(filelist, "linkfile\n", 9);
+	fprintf(filelist, "linkfile\n");
 
 	/* Symlink to above file. */
 	assertMakeSymlink("symlink", "file");
-	write(filelist, "symlink\n", 8);
+	fprintf(filelist, "symlink\n");
 
 	/* Another file with different permissions. */
-	fd = open("file2", O_CREAT | O_WRONLY, 0777);
-	assert(fd >= 0);
-	assertEqualInt(10, write(fd, "123456789", 10));
-	close(fd);
-	write(filelist, "file2\n", 6);
+	assertMakeFile("file2", 0777, "1234567890");
+	fprintf(filelist, "file2\n");
 
 	/* Directory. */
 	assertMakeDir("dir", 0775);
-	write(filelist, "dir\n", 4);
+	fprintf(filelist, "dir\n");
 	/* All done. */
-	close(filelist);
+	fclose(filelist);
 
 	assertUmask(022);
 
