@@ -81,7 +81,6 @@
  */
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
-#include "../bsdtar_windows.h"
 #define strdup _strdup
 #define LOCALE_DE	"deu"
 #else
