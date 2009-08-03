@@ -45,10 +45,10 @@ DEFINE_TEST(test_option_f)
 {
 	/* Calibrate:  No -f option, so everything should be extracted. */
 	unpack("t0", "--no-preserve-owner");
-	assertEqualInt(0, access("t0/a123", F_OK));
-	assertEqualInt(0, access("t0/a234", F_OK));
-	assertEqualInt(0, access("t0/b123", F_OK));
-	assertEqualInt(0, access("t0/b234", F_OK));
+	assertFileExists("t0/a123");
+	assertFileExists("t0/a234");
+	assertFileExists("t0/b123");
+	assertFileExists("t0/b234");
 
 	/* Don't extract 'a*' files. */
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -57,10 +57,10 @@ DEFINE_TEST(test_option_f)
 #else
 	unpack("t1", "--no-preserve-owner -f 'a*'");
 #endif
-	assert(0 != access("t1/a123", F_OK));
-	assert(0 != access("t1/a234", F_OK));
-	assertEqualInt(0, access("t1/b123", F_OK));
-	assertEqualInt(0, access("t1/b234", F_OK));
+	assertFileNotExists("t1/a123");
+	assertFileNotExists("t1/a234");
+	assertFileExists("t1/b123");
+	assertFileExists("t1/b234");
 
 	/* Don't extract 'b*' files. */
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -69,8 +69,8 @@ DEFINE_TEST(test_option_f)
 #else
 	unpack("t2", "--no-preserve-owner -f 'b*'");
 #endif
-	assertEqualInt(0, access("t2/a123", F_OK));
-	assertEqualInt(0, access("t2/a234", F_OK));
-	assert(0 != access("t2/b123", F_OK));
-	assert(0 != access("t2/b234", F_OK));
+	assertFileExists("t2/a123");
+	assertFileExists("t2/a234");
+	assertFileNotExists("t2/b123");
+	assertFileNotExists("t2/b234");
 }
