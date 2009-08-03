@@ -625,7 +625,7 @@ archive_write_pax_header(struct archive_write *a,
 	}
 
 	/* If numeric GID is too large, add 'gid' to pax extended attrs. */
-	if (archive_entry_gid(entry_main) >= (1 << 18)) {
+	if ((unsigned int)archive_entry_gid(entry_main) >= (1 << 18)) {
 		add_pax_attr_int(&(pax->pax_header), "gid",
 		    archive_entry_gid(entry_main));
 		need_extension = 1;
@@ -650,7 +650,7 @@ archive_write_pax_header(struct archive_write *a,
 	}
 
 	/* If numeric UID is too large, add 'uid' to pax extended attrs. */
-	if (archive_entry_uid(entry_main) >= (1 << 18)) {
+	if ((unsigned int)archive_entry_uid(entry_main) >= (1 << 18)) {
 		add_pax_attr_int(&(pax->pax_header), "uid",
 		    archive_entry_uid(entry_main));
 		need_extension = 1;
@@ -897,11 +897,11 @@ archive_write_pax_header(struct archive_write *a,
 		    archive_strlen(&(pax->pax_header)));
 		/* Copy uid/gid (but clip to ustar limits). */
 		uid = archive_entry_uid(entry_main);
-		if ((long long)uid >= 1 << 18)
+		if ((unsigned int)uid >= 1 << 18)
 			uid = (uid_t)(1 << 18) - 1;
 		archive_entry_set_uid(pax_attr_entry, uid);
 		gid = archive_entry_gid(entry_main);
-		if ((long long)gid >= 1 << 18)
+		if ((unsigned int)gid >= 1 << 18)
 			gid = (gid_t)(1 << 18) - 1;
 		archive_entry_set_gid(pax_attr_entry, gid);
 		/* Copy mode over (but not setuid/setgid bits) */
