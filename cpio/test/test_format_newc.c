@@ -63,7 +63,7 @@ from_hex(const char *p, size_t l)
 
 DEFINE_TEST(test_format_newc)
 {
-	int fd, list;
+	FILE *list;
 	int r;
 	int devmajor, devminor, ino, gid;
 	time_t t, t2, now;
@@ -76,35 +76,32 @@ DEFINE_TEST(test_format_newc)
 	 * Create an assortment of files.
 	 * TODO: Extend this to cover more filetypes.
 	 */
-	list = open("list", O_CREAT | O_WRONLY, 0644);
+	list = fopen("list", "w");
 
 	/* "file1" */
-	fd = open("file1", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	assertEqualInt(10, write(fd, "123456789", 10));
-	close(fd);
-	assertEqualInt(6, write(list, "file1\n", 6));
+	assertMakeFile("file1", 0644, "1234567890");
+	fprintf(list, "file1\n");
 
 	/* "hardlink" */
-	assertEqualInt(0, link("file1", "hardlink"));
-	assertEqualInt(9, write(list, "hardlink\n", 9));
+	assertMakeHardlink("hardlink", "file1");
+	fprintf(list, "hardlink\n");
 
 	/* Another hardlink, but this one won't be archived. */
 	assertMakeHardlink("hardlink2", "file1");
 
 	/* "symlink" */
 	assertMakeSymlink("symlink", "file1");
-	assertEqualInt(8, write(list, "symlink\n", 8));
+	fprintf(list, "symlink\n");
 
 	/* "dir" */
 	assertMakeDir("dir", 0775);
-	assertEqualInt(4, write(list, "dir\n", 4));
+	fprintf(list, "dir\n");
 
 	/* Record some facts about what we just created: */
 	now = time(NULL); /* They were all created w/in last two seconds. */
 
 	/* Use the cpio program to create an archive. */
-	close(list);
+	fclose(list);
 	r = systemf("%s -o --format=newc <list >newc.out 2>newc.err",
 	    testprog);
 	if (!assertEqualInt(r, 0))
@@ -261,7 +258,7 @@ DEFINE_TEST(test_format_newc)
 	ns += 3 & (-ns - 2);
 	assertEqualInt(0, from_hex(e + 102, 8)); /* check field */
 	assertEqualMem(e + 110, "hardlink\0\0", 10); /* Name contents */
-	assertEqualMem(e + 110 + ns, "123456789\0\0\0", 12); /* File contents */
+	assertEqualMem(e + 110 + ns, "1234567890\0\0", 12); /* File contents */
 	e += 110 + ns + fs;
 
 	/* Last entry is end-of-archive marker. */
