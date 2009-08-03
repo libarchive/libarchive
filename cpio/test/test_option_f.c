@@ -34,11 +34,11 @@ unpack(const char *dirname, const char *option)
 	int r;
 
 	assertEqualInt(0, mkdir(dirname, 0755));
-	assertEqualInt(0, chdir(dirname));
+	assertChdir(dirname);
 	extract_reference_file("test_option_f.cpio");
 	r = systemf("%s -i %s < test_option_f.cpio > copy-no-a.out 2>copy-no-a.err", testprog, option);
 	assertEqualInt(0, r);
-	assertEqualInt(0, chdir(".."));
+	assertChdir("..");
 }
 
 DEFINE_TEST(test_option_f)

@@ -72,7 +72,7 @@ DEFINE_TEST(test_passthrough_reverse)
 	failure("Error invoking %s -pd out", testprog);
 	assertEqualInt(r, 0);
 
-	assertEqualInt(0, chdir("out"));
+	assertChdir("out");
 
 	/* Verify stderr and stdout. */
 	assertTextFileContents("out/dir/file\nout/dir\n1 block\n",

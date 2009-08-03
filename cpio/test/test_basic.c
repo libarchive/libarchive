@@ -129,7 +129,7 @@ basic_cpio(const char *target,
 	failure("Error invoking %s -o %s", testprog, pack_options);
 	assertEqualInt(r, 0);
 
-	chdir(target);
+	assertChdir(target);
 
 	/* Verify stderr. */
 	failure("Expected: %s, options=%s", se, pack_options);
@@ -149,7 +149,7 @@ basic_cpio(const char *target,
 
 	verify_files(target);
 
-	chdir("..");
+	assertChdir("..");
 }
 
 static void
@@ -168,7 +168,7 @@ passthrough(const char *target)
 	failure("Error invoking %s -p", testprog);
 	assertEqualInt(r, 0);
 
-	chdir(target);
+	assertChdir(target);
 
 	/* Verify stderr. */
 	failure("Error invoking %s -p in dir %s",
@@ -176,7 +176,7 @@ passthrough(const char *target)
 	assertTextFileContents("1 block\n", "stderr");
 
 	verify_files(target);
-	chdir("..");
+	assertChdir("..");
 }
 
 DEFINE_TEST(test_basic)

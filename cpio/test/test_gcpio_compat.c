@@ -33,7 +33,7 @@ unpack_test(const char *from, const char *options, const char *se)
 
 	/* Create a work dir named after the file we're unpacking. */
 	assertEqualInt(0, mkdir(from, 0775));
-	chdir(from);
+	assertChdir(from);
 
 	/*
 	 * Use cpio to unpack the sample archive
@@ -106,7 +106,7 @@ unpack_test(const char *from, const char *options, const char *se)
 #endif
 	}
 
-	chdir("..");
+	assertChdir("..");
 }
 
 DEFINE_TEST(test_gcpio_compat)

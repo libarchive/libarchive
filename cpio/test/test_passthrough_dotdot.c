@@ -45,7 +45,7 @@ DEFINE_TEST(test_passthrough_dotdot)
 
 	/* Directory. */
 	assertEqualInt(0, mkdir("dir", 0755));
-	assertEqualInt(0, chdir("dir"));
+	assertChdir("dir");
 
 	write(filelist, ".\n", 2);
 
@@ -68,7 +68,7 @@ DEFINE_TEST(test_passthrough_dotdot)
 	failure("Error invoking %s -pd ..", testprog);
 	assertEqualInt(r, 0);
 
-	assertEqualInt(0, chdir(".."));
+	assertChdir("..");
 
 	/* Verify stderr and stdout. */
 	assertTextFileContents("../.\n../file\n1 block\n", "stderr");

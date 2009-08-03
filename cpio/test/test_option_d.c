@@ -48,7 +48,7 @@ DEFINE_TEST(test_option_d)
 
 	/* Dearchive without -d, this should fail. */
 	assertEqualInt(0, mkdir("without-d", 0755));
-	assertEqualInt(0, chdir("without-d"));
+	assertChdir("without-d");
 	r = systemf("%s -i < ../archive.cpio >out 2>err", testprog);
 	assertEqualInt(r, 0);
 	assertEmptyFile("out");
@@ -56,9 +56,9 @@ DEFINE_TEST(test_option_d)
 	assert(0 != stat("dir/file", &st));
 
 	/* Dearchive with -d, this should succeed. */
-	assertEqualInt(0, chdir(".."));
+	assertChdir("..");
 	assertEqualInt(0, mkdir("with-d", 0755));
-	assertEqualInt(0, chdir("with-d"));
+	assertChdir("with-d");
 	r = systemf("%s -id < ../archive.cpio >out 2>err", testprog);
 	assertEqualInt(r, 0);
 	assertEmptyFile("out");

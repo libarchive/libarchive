@@ -74,9 +74,9 @@ DEFINE_TEST(test_option_L_upper)
 
 	assertEqualInt(0, mkdir("unpack", 0755));
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	assertEqualInt(0, chdir("unpack"));
+	assertChdir("unpack");
 	r = systemf("type ..\\archive.out | %s -i >unpack.out 2>unpack.err", testprog);
-	assertEqualInt(0, chdir(".."));
+	assertChdir("..");
 #else
 	r = systemf("cat archive.out | (cd unpack ; %s -i >unpack.out 2>unpack.err)", testprog);
 #endif
@@ -93,9 +93,9 @@ DEFINE_TEST(test_option_L_upper)
 
 	assertEqualInt(0, mkdir("unpack-L", 0755));
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	assertEqualInt(0, chdir("unpack-L"));
+	assertChdir("unpack-L");
 	r = systemf("type ..\\archive-L.out | %s -i >unpack-L.out 2>unpack-L.err", testprog);
-	assertEqualInt(0, chdir(".."));
+	assertChdir("..");
 #else
 	r = systemf("cat archive-L.out | (cd unpack-L ; %s -i >unpack-L.out 2>unpack-L.err)", testprog);
 #endif
