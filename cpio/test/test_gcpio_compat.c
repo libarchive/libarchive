@@ -111,9 +111,7 @@ unpack_test(const char *from, const char *options, const char *se)
 
 DEFINE_TEST(test_gcpio_compat)
 {
-	int oldumask;
-
-	oldumask = umask(0);
+	assertUmask(0);
 
 	/* Dearchive sample files with a variety of options. */
 	unpack_test("test_gcpio_compat_ref.bin", "--no-preserve-owner", "1 block\n");
@@ -121,6 +119,4 @@ DEFINE_TEST(test_gcpio_compat)
 	unpack_test("test_gcpio_compat_ref.newc", "--no-preserve-owner", "2 blocks\n");
 	/* gcpio-2.9 only reads 6 blocks here */
 	unpack_test("test_gcpio_compat_ref.ustar", "--no-preserve-owner", "7 blocks\n");
-
-	umask(oldumask);
 }

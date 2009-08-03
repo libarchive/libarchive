@@ -34,9 +34,8 @@ DEFINE_TEST(test_passthrough_dotdot)
 	struct stat st;
 	int fd, r;
 	int filelist;
-	int oldumask;
 
-	oldumask = umask(0);
+	assertUmask(0);
 
 	/*
 	 * Create an assortment of files on disk.
@@ -88,6 +87,4 @@ DEFINE_TEST(test_passthrough_dotdot)
 		assertEqualInt(10, st.st_size);
 		assertEqualInt(1, st.st_nlink);
 	}
-
-	umask(oldumask);
 }

@@ -59,9 +59,8 @@ DEFINE_TEST(test_option_c)
 	time_t t, now;
 	char *p, *e;
 	size_t s;
-	mode_t oldmask;
 
-	oldmask = umask(0);
+	assertUmask(0);
 
 	/*
 	 * Create an assortment of files.
@@ -222,6 +221,4 @@ DEFINE_TEST(test_option_c)
 	assertEqualMem(e + 76, "TRAILER!!!\0", 11); /* Name */
 
 	free(p);
-
-	umask(oldmask);
 }

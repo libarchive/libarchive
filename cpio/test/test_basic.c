@@ -183,9 +183,8 @@ DEFINE_TEST(test_basic)
 {
 	int fd;
 	int filelist;
-	int oldumask;
 
-	oldumask = umask(0);
+	assertUmask(0);
 
 	/*
 	 * Create an assortment of files on disk.
@@ -220,7 +219,7 @@ DEFINE_TEST(test_basic)
 	/* All done. */
 	close(filelist);
 
-	umask(022);
+	assertUmask(022);
 
 	/* Archive/dearchive with a variety of options. */
 	basic_cpio("copy", "", "", "2 blocks\n");
@@ -239,6 +238,4 @@ DEFINE_TEST(test_basic)
 #endif
 	/* Copy in one step using -p */
 	passthrough("passthrough");
-
-	umask(oldumask);
 }
