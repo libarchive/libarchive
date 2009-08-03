@@ -50,6 +50,7 @@
 #define S_ISREG(m)  ((m) & _S_IFREG)
 #endif
 #define access _access
+#undef chdir
 #define chdir _chdir
 #ifndef fileno
 #define fileno _fileno
