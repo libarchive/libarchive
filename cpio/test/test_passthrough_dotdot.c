@@ -44,7 +44,7 @@ DEFINE_TEST(test_passthrough_dotdot)
 	filelist = open("filelist", O_CREAT | O_WRONLY, 0644);
 
 	/* Directory. */
-	assertEqualInt(0, mkdir("dir", 0755));
+	assertMakeDir("dir", 0755);
 	assertChdir("dir");
 
 	write(filelist, ".\n", 2);

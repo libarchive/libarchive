@@ -34,7 +34,7 @@ DEFINE_TEST(test_option_d)
 	/*
 	 * Create a file in a directory.
 	 */
-	assertEqualInt(0, mkdir("dir", 0755));
+	assertMakeDir("dir", 0755);
 	fd = open("dir/file", O_CREAT | O_WRONLY, 0644);
 	assert(fd >= 0);
 	close(fd);
@@ -47,7 +47,7 @@ DEFINE_TEST(test_option_d)
 	assertEqualInt(512, st.st_size);
 
 	/* Dearchive without -d, this should fail. */
-	assertEqualInt(0, mkdir("without-d", 0755));
+	assertMakeDir("without-d", 0755);
 	assertChdir("without-d");
 	r = systemf("%s -i < ../archive.cpio >out 2>err", testprog);
 	assertEqualInt(r, 0);
@@ -57,7 +57,7 @@ DEFINE_TEST(test_option_d)
 
 	/* Dearchive with -d, this should succeed. */
 	assertChdir("..");
-	assertEqualInt(0, mkdir("with-d", 0755));
+	assertMakeDir("with-d", 0755);
 	assertChdir("with-d");
 	r = systemf("%s -id < ../archive.cpio >out 2>err", testprog);
 	assertEqualInt(r, 0);

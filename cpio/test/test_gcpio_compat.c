@@ -32,7 +32,7 @@ unpack_test(const char *from, const char *options, const char *se)
 	int r;
 
 	/* Create a work dir named after the file we're unpacking. */
-	assertEqualInt(0, mkdir(from, 0775));
+	assertMakeDir(from, 0775);
 	assertChdir(from);
 
 	/*

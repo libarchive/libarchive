@@ -49,7 +49,7 @@ DEFINE_TEST(test_passthrough_reverse)
 	filelist = open("filelist", O_CREAT | O_WRONLY, 0644);
 
 	/* Directory. */
-	assertEqualInt(0, mkdir("dir", 0743));
+	assertMakeDir("dir", 0743);
 
 	/* File with 10 bytes content. */
 	fd = open("dir/file", O_CREAT | O_WRONLY, 0644);

@@ -120,7 +120,7 @@ basic_cpio(const char *target,
 {
 	int r;
 
-	if (!assertEqualInt(0, mkdir(target, 0775)))
+	if (!assertMakeDir(target, 0775))
 	    return;
 
 	/* Use the cpio program to create an archive. */
@@ -157,7 +157,7 @@ passthrough(const char *target)
 {
 	int r;
 
-	if (!assertEqualInt(0, mkdir(target, 0775)))
+	if (!assertMakeDir(target, 0775))
 		return;
 
 	/*
@@ -215,7 +215,7 @@ DEFINE_TEST(test_basic)
 	write(filelist, "file2\n", 6);
 
 	/* Directory. */
-	assertEqualInt(0, mkdir("dir", 0775));
+	assertMakeDir("dir", 0775);
 	write(filelist, "dir\n", 4);
 	/* All done. */
 	close(filelist);

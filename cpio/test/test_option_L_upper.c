@@ -72,7 +72,7 @@ DEFINE_TEST(test_option_L_upper)
 	failure("Error invoking %s -o ", testprog);
 	assertEqualInt(r, 0);
 
-	assertEqualInt(0, mkdir("unpack", 0755));
+	assertMakeDir("unpack", 0755);
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	assertChdir("unpack");
 	r = systemf("type ..\\archive.out | %s -i >unpack.out 2>unpack.err", testprog);
@@ -91,7 +91,7 @@ DEFINE_TEST(test_option_L_upper)
 	failure("Error invoking %s -oL", testprog);
 	assertEqualInt(r, 0);
 
-	assertEqualInt(0, mkdir("unpack-L", 0755));
+	assertMakeDir("unpack-L", 0755);
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	assertChdir("unpack-L");
 	r = systemf("type ..\\archive-L.out | %s -i >unpack-L.out 2>unpack-L.err", testprog);

@@ -38,7 +38,7 @@ DEFINE_TEST(test_option_m)
 	 */
 
 	/* Restored without -m, the result should have a current mtime. */
-	assertEqualInt(0, mkdir("without-m", 0755));
+	assertMakeDir("without-m", 0755);
 	assertChdir("without-m");
 	extract_reference_file("test_option_m.cpio");
 	r = systemf("%s --no-preserve-owner -i < test_option_m.cpio >out 2>err", testprog);
@@ -53,7 +53,7 @@ DEFINE_TEST(test_option_m)
 
 	/* With -m, it should have an mtime in 1970. */
 	assertChdir("..");
-	assertEqualInt(0, mkdir("with-m", 0755));
+	assertMakeDir("with-m", 0755);
 	assertChdir("with-m");
 	extract_reference_file("test_option_m.cpio");
 	r = systemf("%s --no-preserve-owner -im < test_option_m.cpio >out 2>err", testprog);

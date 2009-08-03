@@ -98,7 +98,7 @@ DEFINE_TEST(test_format_newc)
 	assertEqualInt(8, write(list, "symlink\n", 8));
 
 	/* "dir" */
-	assertEqualInt(0, mkdir("dir", 0775));
+	assertMakeDir("dir", 0775);
 	assertEqualInt(4, write(list, "dir\n", 4));
 
 	/* Record some facts about what we just created: */

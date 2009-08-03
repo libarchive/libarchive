@@ -33,7 +33,7 @@ unpack(const char *dirname, const char *option)
 {
 	int r;
 
-	assertEqualInt(0, mkdir(dirname, 0755));
+	assertMakeDir(dirname, 0755);
 	assertChdir(dirname);
 	extract_reference_file("test_option_f.cpio");
 	r = systemf("%s -i %s < test_option_f.cpio > copy-no-a.out 2>copy-no-a.err", testprog, option);

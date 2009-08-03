@@ -81,7 +81,7 @@ DEFINE_TEST(test_option_c)
 	assertEqualInt(8, write(filelist, "symlink\n", 8));
 
 	/* "dir" */
-	assertEqualInt(0, mkdir("dir", 0775));
+	assertMakeDir("dir", 0775);
 	/* Record some facts about what we just created: */
 	now = time(NULL); /* They were all created w/in last two seconds. */
 	assertEqualInt(4, write(filelist, "dir\n", 4));
