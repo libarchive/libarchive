@@ -55,12 +55,17 @@ DEFINE_TEST(test_option_c)
 {
 	FILE *filelist;
 	int r;
+	int uid = -1;
 	int dev, ino, gid;
 	time_t t, now;
 	char *p, *e;
 	size_t s;
 
 	assertUmask(0);
+
+#if !defined(_WIN32)
+	uid = getuid();
+#endif
 
 	/*
 	 * Create an assortment of files.
@@ -116,7 +121,9 @@ DEFINE_TEST(test_option_c)
 #else
 	assertEqualMem(e + 18, "100644", 6); /* Mode */
 #endif
-	assertEqualInt(from_octal(e + 24, 6), getuid()); /* uid */
+	if (uid < 0)
+		uid = from_octal(e + 24, 6);
+	assertEqualInt(from_octal(e + 24, 6), uid); /* uid */
 	assert(is_octal(e + 30, 6)); /* gid */
 	gid = from_octal(e + 30, 6);
 	assertEqualMem(e + 36, "000001", 6); /* nlink */
@@ -142,7 +149,7 @@ DEFINE_TEST(test_option_c)
 	 * others bits do not work. */ 
 	assertEqualMem(e + 18, "120777", 6); /* Mode */
 #endif
-	assertEqualInt(from_octal(e + 24, 6), getuid()); /* uid */
+	assertEqualInt(from_octal(e + 24, 6), uid); /* uid */
 	assertEqualInt(gid, from_octal(e + 30, 6)); /* gid */
 	assertEqualMem(e + 36, "000001", 6); /* nlink */
 	failure("file entries should have rdev == 0 (dev was 0%o)",
@@ -185,7 +192,7 @@ DEFINE_TEST(test_option_c)
 	if (memcmp(e + 18, "042775", 6) != 0)
 		assertEqualMem(e + 18, "040775", 6); /* Mode */
 #endif
-	assertEqualInt(from_octal(e + 24, 6), getuid()); /* uid */
+	assertEqualInt(from_octal(e + 24, 6), uid); /* uid */
 	/* Gid should be same as first entry. */
 	assert(is_octal(e + 30, 6)); /* gid */
 	assertEqualInt(gid, from_octal(e + 30, 6));
