@@ -25,6 +25,13 @@
 #include "test.h"
 __FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_format_newc.c,v 1.2 2008/08/22 02:09:10 kientzle Exp $");
 
+/* Number of bytes needed to pad 'n' to multiple of 'block', assuming
+ * that 'block' is a power of two. This trick can be more easily
+ * remembered as -n & (block - 1), but many compilers quite reasonably
+ * warn about "-n" when n is an unsigned value.  (~(n) + 1) is the
+ * same thing, but written in a way that won't offend anyone. */
+#define PAD(n, block)  ((~(n) + 1) & ((block) - 1))
+
 static int
 is_hex(const char *p, size_t l)
 {
@@ -150,14 +157,14 @@ DEFINE_TEST(test_format_newc)
 	    "       field should be zero");
 	assertEqualInt(0, from_hex(e + 54, 8)); /* File size */
 	fs = from_hex(e + 54, 8);
-	fs += 3 & -fs;
+	fs += PAD(fs, 4);
 	devmajor = from_hex(e + 62, 8); /* devmajor */
 	devminor = from_hex(e + 70, 8); /* devminor */
 	assert(is_hex(e + 78, 8)); /* rdevmajor */
 	assert(is_hex(e + 86, 8)); /* rdevminor */
 	assertEqualMem(e + 94, "00000006", 8); /* Name size */
 	ns = from_hex(e + 94, 8);
-	ns += 3 & (-ns - 2);
+	ns += PAD(ns + 2, 4);
 	assertEqualInt(0, from_hex(e + 102, 8)); /* check field */
 	assertEqualMem(e + 110, "file1\0", 6); /* Name contents */
 	/* Since there's another link, no file contents here. */
@@ -186,14 +193,14 @@ DEFINE_TEST(test_format_newc)
 	assertEqualMem(e + 54, "00000005", 8); /* File size */
 #endif
 	fs = from_hex(e + 54, 8);
-	fs += 3 & -fs;
+	fs += PAD(fs, 4);
 	assertEqualInt(devmajor, from_hex(e + 62, 8)); /* devmajor */
 	assertEqualInt(devminor, from_hex(e + 70, 8)); /* devminor */
 	assert(is_hex(e + 78, 8)); /* rdevmajor */
 	assert(is_hex(e + 86, 8)); /* rdevminor */
 	assertEqualMem(e + 94, "00000008", 8); /* Name size */
 	ns = from_hex(e + 94, 8);
-	ns += 3 & (-ns - 2);
+	ns += PAD(ns + 2, 4);
 	assertEqualInt(0, from_hex(e + 102, 8)); /* check field */
 	assertEqualMem(e + 110, "symlink\0\0\0", 10); /* Name contents */
 #if !defined(_WIN32) || defined(__CYGWIN__)
@@ -222,14 +229,14 @@ DEFINE_TEST(test_format_newc)
 	assert(t2 == t || t2 == t + 1); /* Almost same as first entry. */
 	assertEqualMem(e + 54, "00000000", 8); /* File size */
 	fs = from_hex(e + 54, 8);
-	fs += 3 & -fs;
+	fs += PAD(fs, 4);
 	assertEqualInt(devmajor, from_hex(e + 62, 8)); /* devmajor */
 	assertEqualInt(devminor, from_hex(e + 70, 8)); /* devminor */
 	assert(is_hex(e + 78, 8)); /* rdevmajor */
 	assert(is_hex(e + 86, 8)); /* rdevminor */
 	assertEqualMem(e + 94, "00000004", 8); /* Name size */
 	ns = from_hex(e + 94, 8);
-	ns += 3 & (-ns - 2);
+	ns += PAD(ns + 2, 4);
 	assertEqualInt(0, from_hex(e + 102, 8)); /* check field */
 	assertEqualMem(e + 110, "dir\0\0\0", 6); /* Name contents */
 	e += 110 + fs + ns;
@@ -255,14 +262,14 @@ DEFINE_TEST(test_format_newc)
 	assert(t2 == t || t2 == t + 1); /* Almost same as first entry. */
 	assertEqualInt(10, from_hex(e + 54, 8)); /* File size */
 	fs = from_hex(e + 54, 8);
-	fs += 3 & -fs;
+	fs += PAD(fs, 4);
 	assertEqualInt(devmajor, from_hex(e + 62, 8)); /* devmajor */
 	assertEqualInt(devminor, from_hex(e + 70, 8)); /* devminor */
 	assert(is_hex(e + 78, 8)); /* rdevmajor */
 	assert(is_hex(e + 86, 8)); /* rdevminor */
 	assertEqualMem(e + 94, "00000009", 8); /* Name size */
 	ns = from_hex(e + 94, 8);
-	ns += 3 & (-ns - 2);
+	ns += PAD(ns + 2, 4);
 	assertEqualInt(0, from_hex(e + 102, 8)); /* check field */
 	assertEqualMem(e + 110, "hardlink\0\0", 10); /* Name contents */
 	assertEqualMem(e + 110 + ns, "1234567890\0\0", 12); /* File contents */
