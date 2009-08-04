@@ -78,6 +78,13 @@ esac
 AM_CONDITIONAL([INC_WINDOWS_FILES], [test $inc_windows_files = yes])
 AM_CONDITIONAL([INC_CYGWIN_FILES], [test $inc_cygwin_files = yes])
 
+dnl Defines that are required for specific platforms (e.g. -D_POSIX_SOURCE, etc)
+PLATFORMCPPFLAGS=
+case "$host_os" in
+  *mingw* ) PLATFORMCPPFLAGS=-D__USE_MINGW_ANSI_STDIO ;;
+esac
+AC_SUBST(PLATFORMCPPFLAGS)
+
 # Checks for programs.
 AC_PROG_CC
 AM_PROG_CC_C_O

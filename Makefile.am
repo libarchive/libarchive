@@ -25,6 +25,8 @@ DISTCHECK_CONFIGURE_FLAGS = --enable-bsdtar --enable-bsdcpio
 # aggressive about diagnosing build problems; this can get
 # relaxed somewhat in final shipping versions.
 AM_CFLAGS=-Wall -Werror
+PLATFORMCPPFLAGS = @PLATFORMCPPFLAGS@
+AM_CPPFLAGS=$(PLATFORMCPPFLAGS)
 
 #
 # What to include in the distribution
@@ -302,7 +304,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_format_zip_no_compression.c	\
 	libarchive/test/test_write_open_memory.c
 
-libarchive_test_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_builddir)/libarchive/test -DLIBARCHIVE_STATIC
+libarchive_test_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_builddir)/libarchive/test -DLIBARCHIVE_STATIC $(PLATFORMCPPFLAGS)
 
 # The "list.h" file just lists all of the tests defined in all of the sources.
 # Building it automatically provides a sanity-check on libarchive_test_SOURCES
@@ -393,7 +395,7 @@ bsdtar_ccstatic=
 endif
 
 bsdtar_LDADD= libarchive.la libarchive_fe.la
-bsdtar_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe $(bsdtar_ccstatic)
+bsdtar_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe $(bsdtar_ccstatic) $(PLATFORMCPPFLAGS)
 bsdtar_LDFLAGS= $(bsdtar_ldstatic)
 
 bsdtar_EXTRA_DIST=		\
@@ -444,7 +446,10 @@ bsdtar_test_SOURCES+=			\
 		tar/bsdtar_windows.c
 endif
 
-bsdtar_test_CPPFLAGS= -I$(top_builddir)/tar/test
+bsdtar_test_CPPFLAGS=\
+	-I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe \
+	-I$(top_srcdir)/tar -I$(top_builddir)/tar/test \
+	$(PLATFORMCPPFLAGS)
 
 tar/test/list.h: Makefile
 	cat $(top_srcdir)/tar/test/test_*.c | grep DEFINE_TEST > tar/test/list.h
@@ -494,7 +499,7 @@ bsdcpio_ccstatic=
 endif
 
 bsdcpio_LDADD= libarchive_fe.la libarchive.la
-bsdcpio_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe $(bsdcpio_ccstatic)
+bsdcpio_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe $(bsdcpio_ccstatic) $(PLATFORMCPPFLAGS)
 bsdcpio_LDFLAGS= $(bsdcpio_ldstatic)
 
 bsdcpio_EXTRA_DIST=		\
@@ -553,7 +558,8 @@ bsdcpio_test_SOURCES=						\
 
 bsdcpio_test_CPPFLAGS= \
 	-I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe \
-	-I$(top_srcdir)/cpio -I$(top_builddir)/cpio/test
+	-I$(top_srcdir)/cpio -I$(top_builddir)/cpio/test \
+	$(PLATFORMCPPFLAGS)
 bsdcpio_test_LDADD=libarchive_fe.la
 
 cpio/test/list.h: Makefile
