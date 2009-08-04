@@ -41,7 +41,7 @@ mkfile(const char *name)
 static void
 mkfullpath(char **path1, char **path2, const char *tpath, int type)
 {
-	char *fp1, *fp2, *p1, *p2;
+	char *fp1 = NULL, *fp2 = NULL, *p1 = NULL, *p2 = NULL;
 	size_t l;
 
 	/*
