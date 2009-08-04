@@ -32,31 +32,28 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_passthrough_dotdot.c,v 1.4 2008/0
 DEFINE_TEST(test_passthrough_dotdot)
 {
 	struct stat st;
-	int fd, r;
-	int filelist;
+	int r;
+	FILE *filelist;
 
 	assertUmask(0);
 
 	/*
 	 * Create an assortment of files on disk.
 	 */
-	filelist = open("filelist", O_CREAT | O_WRONLY, 0644);
+	filelist = fopen("filelist", "w");
 
 	/* Directory. */
 	assertMakeDir("dir", 0755);
 	assertChdir("dir");
 
-	write(filelist, ".\n", 2);
+	fprintf(filelist, ".\n");
 
 	/* File with 10 bytes content. */
-	fd = open("file", O_CREAT | O_WRONLY, 0642);
-	assert(fd >= 0);
-	assertEqualInt(10, write(fd, "123456789", 10));
-	close(fd);
-	write(filelist, "file\n", 5);
+	assertMakeFile("file", 0642, "1234567890");
+	fprintf(filelist, "file\n");
 
 	/* All done. */
-	close(filelist);
+	fclose(filelist);
 
 
 	/*

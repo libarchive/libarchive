@@ -28,15 +28,11 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_option_y.c,v 1.2 2008/08/24 06:21
 DEFINE_TEST(test_option_y)
 {
 	char *p;
-	int fd;
 	int r;
 	size_t s;
 
 	/* Create a file. */
-	fd = open("f", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	assertEqualInt(1, write(fd, "a", 1));
-	close(fd);
+	assertMakeFile("f", 0644, "a");
 
 	/* Archive it with bzip2 compression. */
 	r = systemf("echo f | %s -oy >archive.out 2>archive.err",

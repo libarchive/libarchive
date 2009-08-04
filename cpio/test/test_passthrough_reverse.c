@@ -37,31 +37,28 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_passthrough_reverse.c,v 1.2 2008/
 DEFINE_TEST(test_passthrough_reverse)
 {
 	struct stat st;
-	int fd, r;
-	int filelist;
+	int r;
+	FILE *filelist;
 
 	assertUmask(0);
 
 	/*
 	 * Create an assortment of files on disk.
 	 */
-	filelist = open("filelist", O_CREAT | O_WRONLY, 0644);
+	filelist = fopen("filelist", "w");
 
 	/* Directory. */
 	assertMakeDir("dir", 0743);
 
 	/* File with 10 bytes content. */
-	fd = open("dir/file", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	assertEqualInt(10, write(fd, "123456789", 10));
-	close(fd);
-	write(filelist, "dir/file\n", 9);
+	assertMakeFile("dir/file", 0644, "1234567890");
+	fprintf(filelist, "dir/file\n");
 
 	/* Write dir last. */
-	write(filelist, "dir\n", 4);
+	fprintf(filelist, "dir\n");
 
 	/* All done. */
-	close(filelist);
+	fclose(filelist);
 
 
 	/*

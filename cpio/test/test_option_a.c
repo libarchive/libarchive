@@ -57,19 +57,15 @@ test_create(void)
 	struct utimbuf times;
 	static const int numfiles = sizeof(files) / sizeof(files[0]);
 	int i;
-	int fd;
 
 	for (i = 0; i < numfiles; ++i) {
-		fd = open(files[i].name, O_CREAT | O_WRONLY, 0644);
-		assert(fd >= 0);
 		/*
 		 * Note: Have to write at least one byte to the file.
 		 * cpio doesn't bother reading the file if it's zero length,
 		 * so the atime never gets changed in that case, which
 		 * makes the tests below rather pointless.
 		 */
-		assertEqualInt(1, write(fd, "a", 1));
-		close(fd);
+		assertMakeFile(files[i].name, 0644, "a");
 
 		/* If utime() isn't supported on your platform, just
 		 * #ifdef this section out.  Most of the test below is
@@ -97,16 +93,14 @@ DEFINE_TEST(test_option_a)
 {
 	struct stat st;
 	int r;
-	int f;
-	char buff[64];
+	char *p;
 
 	/* Create all of the test files. */
 	test_create();
 
 	/* Sanity check; verify that atimes really do get modified. */
-	f = open(files[0].name, O_RDONLY);
-	assertEqualInt(1, read(f,buff, 1));
-	assertEqualInt(0, close(f));
+	assert((p = slurpfile(NULL, "f0")) != NULL);
+	free(p);
 	assertEqualInt(0, stat("f0", &st));
 	if (st.st_atime == files[0].atime_sec) {
 		skipping("Cannot verify -a option\n"

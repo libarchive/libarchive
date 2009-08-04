@@ -28,14 +28,10 @@ __FBSDID("$FreeBSD$");
 DEFINE_TEST(test_option_l)
 {
 	struct stat st, st2;
-	int fd;
 	int r;
 
 	/* Create a file. */
-	fd = open("f", O_CREAT | O_WRONLY, 0644);
-	assert(fd >= 0);
-	assertEqualInt(1, write(fd, "a", 1));
-	close(fd);
+	assertMakeFile("f", 0644, "a");
 
 	/* Stat it. */
 	assertEqualInt(0, stat("f", &st));
