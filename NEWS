@@ -1,4 +1,12 @@
 
+Aug 04, 2009: libarchive 2.7.1 released
+
+Jul 20, 2009: Suppress bogus warning about unxz
+Jul 19, 2009: Support Cygwin 1.7
+Jun 11, 2009: Support lzma/xz files compressed with larger buffer sizes.
+May 24, 2009: Handle gzip files signed with OpenBSD "gzsig" program.
+May 07, 2009: Avoid false failures when reading from pipe.
+
 Apr 16, 2009: libarchive 2.7.0 released
 
 Apr 10, 2009: libarchive 2.6.992a released
