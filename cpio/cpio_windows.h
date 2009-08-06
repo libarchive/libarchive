@@ -51,6 +51,4 @@ struct group {
 	gid_t	 gr_gid;
 };
 
-extern unsigned int	sleep(unsigned int seconds);
-
 #endif /* CPIO_WINDOWS_H */

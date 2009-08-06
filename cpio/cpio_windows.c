@@ -407,13 +407,6 @@ int symlink (from, to)
 	return __link (from, to, 1);
 }
 
-unsigned int
-sleep(unsigned int seconds)
-{
-	Sleep(seconds * 1000);
-	return (0);
-}
-
 #define WINTIME(sec, usec)	((Int32x32To64(sec, 10000000) + EPOC_TIME) + (usec * 10))
 static int
 __hutimes(HANDLE handle, const struct __timeval *times)
