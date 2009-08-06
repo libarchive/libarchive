@@ -973,7 +973,8 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 	}
 
 	/* Print device number or file size. */
-	if (S_ISCHR(st->st_mode) || S_ISBLK(st->st_mode)) {
+	if (archive_entry_filetype(entry) == AE_IFCHR
+	    || archive_entry_filetype(entry) == AE_IFBLK) {
 		snprintf(size, sizeof(size), "%lu,%lu",
 		    (unsigned long)archive_entry_rdevmajor(entry),
 		    (unsigned long)archive_entry_rdevminor(entry));
