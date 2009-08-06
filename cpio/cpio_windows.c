@@ -492,7 +492,7 @@ la_open(const char *path, int flags, ...)
 	pmode = va_arg(ap, int);
 	va_end(ap);
 	ws = NULL;
-	if ((flags & ~O_BINARY) == O_RDONLY) {
+	if ((flags & ~_O_BINARY) == _O_RDONLY) {
 		/*
 		 * When we open a directory, _open function returns 
 		 * "Permission denied" error.
@@ -622,26 +622,6 @@ la_read(int fd, void *buf, size_t nbytes)
 	return ((ssize_t)bytes_read);
 }
 
-/* Remove directory */
-int
-la_rmdir(const char *path)
-{
-	wchar_t *ws;
-	int r;
-
-	r = _rmdir(path);
-	if (r >= 0 || errno != ENOENT)
-		return (r);
-	ws = permissive_name(path);
-	if (ws == NULL) {
-		errno = EINVAL;
-		return (-1);
-	}
-	r = _wrmdir(ws);
-	free(ws);
-	return (r);
-}
-
 /* Convert Windows FILETIME to UTC */
 __inline static void
 fileTimeToUTC(const FILETIME *filetime, time_t *time, long *ns)
@@ -693,7 +673,7 @@ __hstat(HANDLE handle, struct ustat *st)
 		} else {
 			DWORD avail;
 
-			st->st_mode = S_IFIFO;
+			st->st_mode = AE_IFIFO;
 			if (PeekNamedPipe(handle, NULL, 0, NULL, &avail, NULL))
 				st->st_size = avail;
 			else
@@ -797,7 +777,8 @@ la_fstat(int fd, struct stat *st)
 	ret = __hstat((HANDLE)_get_osfhandle(fd), &u);
 	if (ret >= 0) {
 		copy_stat(st, &u);
-		if (u.st_mode & (S_IFCHR | S_IFIFO)) {
+		if ((u.st_mode & AE_IFMT) == AE_IFCHR
+			|| (u.st_mode & AE_IFMT) == AE_IFIFO) {
 			st->st_dev = fd;
 			st->st_rdev = fd;
 		}
@@ -869,7 +850,7 @@ la_write(int fd, const void *buf, size_t nbytes)
 	return (bytes_written);
 }
 
-#endif
+//#endif
 /*
  * The following function was modified from PostgreSQL sources and is
  * subject to the copyright below.
@@ -986,3 +967,4 @@ cpio_dosmaperr(unsigned long e)
 	errno = EINVAL;
 	return;
 }
+#endif

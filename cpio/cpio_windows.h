@@ -24,11 +24,9 @@
  *
  * $FreeBSD$
  */
-
 #ifndef CPIO_WINDOWS_H
 #define CPIO_WINDOWS_H 1
 
-#include <direct.h>
 #include <io.h>
 
 #define getgrgid(id)	NULL
@@ -38,6 +36,7 @@
 
 #ifdef _MSC_VER
 #define snprintf	sprintf_s
+#define strdup		_strdup
 #endif
 
 struct passwd {
@@ -50,5 +49,20 @@ struct group {
 	char	*gr_name;
 	gid_t	 gr_gid;
 };
+
+struct _timeval64i32 {
+	time_t		tv_sec;
+	long		tv_usec;
+};
+#define __timeval _timeval64i32
+
+extern int futimes(int fd, const struct __timeval *times);
+#ifndef HAVE_FUTIMES
+#define HAVE_FUTIMES 1
+#endif
+extern int utimes(const char *name, const struct __timeval *times);
+#ifndef HAVE_UTIMES
+#define HAVE_UTIMES 1
+#endif
 
 #endif /* CPIO_WINDOWS_H */
