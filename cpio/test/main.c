@@ -810,6 +810,7 @@ test_assert_text_file_contents(const char *buff, const char *fn)
 	}
 	if (*btxt == '\0' && *ftxt == '\0') {
 		free(contents);
+		msg[0] = '\0';
 		return (1);
 	}
 	++failures;
@@ -826,6 +827,7 @@ test_assert_text_file_contents(const char *buff, const char *fn)
 		report_failure(test_extra);
 	}
 	free(contents);
+	msg[0] = '\0';
 	return (0);
 }
 
