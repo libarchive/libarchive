@@ -83,10 +83,7 @@ test_create(void)
 	}
 
 	/* Wait until the atime on the last file is actually in the past. */
-	/* If utime() is supported above, there's no sleep here which
-	 * makes the test faster. */
-	while (files[numfiles - 1].atime_sec >= time(NULL))
-		sleep(1);
+	sleepUntilAfter(files[numfiles - 1].atime_sec);
 }
 
 DEFINE_TEST(test_option_a)

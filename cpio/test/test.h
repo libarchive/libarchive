@@ -221,6 +221,9 @@ void test_skipping(const char *fmt, ...);
 /* Like sprintf, then system() */
 int systemf(const char * fmt, ...);
 
+/* Delay until time() returns a value after this. */
+void sleepUntilAfter(time_t);
+
 /* Suck file into string allocated via malloc(). Call free() when done. */
 /* Supports printf-style args: slurpfile(NULL, "%s/myfile", refdir); */
 char *slurpfile(size_t *, const char *fmt, ...);

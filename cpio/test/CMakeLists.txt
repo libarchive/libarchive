@@ -39,7 +39,6 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     test_pathmatch.c
   )
   IF(WIN32 AND NOT CYGWIN)
-    LIST(APPEND bsdcpio_test_SOURCES ../cpio_windows.c)
     LIST(APPEND bsdcpio_test_SOURCES ../cpio_windows.h)
   ENDIF(WIN32 AND NOT CYGWIN)
 

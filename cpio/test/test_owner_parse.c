@@ -28,7 +28,11 @@ __FBSDID("$FreeBSD$");
 #include "../cpio.h"
 #include "err.h"
 
-#if defined(__CYGWIN__)
+#if !defined(_WIN32)
+#define ROOT "root"
+static int root_uids[] = { 0 };
+static int root_gids[] = { 0 };
+#elif defined(__CYGWIN__)
 /* On cygwin, the Administrator user most likely exists (unless
  * it has been renamed or is in a non-English localization), but
  * its primary group membership depends on how the user set up
@@ -40,12 +44,9 @@ __FBSDID("$FreeBSD$");
 #define ROOT "Administrator"
 static int root_uids[] = { 500 };
 static int root_gids[] = { 513, 545, 544 };
-#else
-#define ROOT "root"
-static int root_uids[] = { 0 };
-static int root_gids[] = { 0 };
 #endif
 
+#if defined(ROOT)
 static int
 int_in_list(int i, int *l, size_t n)
 {
@@ -55,12 +56,12 @@ int_in_list(int i, int *l, size_t n)
 	failure("%d", i);
 	return (0);
 }
+#endif
 
 DEFINE_TEST(test_owner_parse)
 {
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	/* TODO: Does this need cygwin style handling of uid/gid ? */
-	skipping("Windows cannot handle uid/gid as UNIX like system");
+#if !defined(ROOT)
+	skipping("No uid/gid configuration for this OS");
 #else
 	int uid, gid;
 

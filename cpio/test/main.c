@@ -1753,3 +1753,16 @@ int main(int argc, char **argv)
 
 	return (tests_failed);
 }
+
+void
+sleepUntilAfter(time_t t)
+{
+	/* If utime() is supported above, there's no sleep here which
+	 * makes the test faster. */
+	while (t >= time(NULL))
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		Sleep(500);
+#else
+		sleep(1);
+#endif
+}
