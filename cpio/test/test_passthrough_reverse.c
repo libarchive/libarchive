@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_passthrough_reverse.c,v 1.2 2008/
 
 DEFINE_TEST(test_passthrough_reverse)
 {
-	struct stat st;
 	int r;
 	FILE *filelist;
 
@@ -76,31 +75,11 @@ DEFINE_TEST(test_passthrough_reverse)
 	assertEmptyFile("../stdout");
 
 	/* dir */
-	r = lstat("dir", &st);
-	if (r == 0) {
-		assertEqualInt(r, 0);
-		assert(S_ISDIR(st.st_mode));
-		failure("st.st_mode=0%o",  st.st_mode);
-#if defined(_WIN32) && !defined(__CYGWIN__)
-		assertEqualInt(0700, st.st_mode & 0700);
-#else
-		assertEqualInt(0743, st.st_mode & 0777);
-#endif
-	}
+	assertIsDir("dir", 0743);
 
 
 	/* Regular file. */
-	r = lstat("dir/file", &st);
-	failure("Failed to stat dir/file, errno=%d", errno);
-	assertEqualInt(r, 0);
-	if (r == 0) {
-		assert(S_ISREG(st.st_mode));
-#if defined(_WIN32) && !defined(__CYGWIN__)
-		assertEqualInt(0600, st.st_mode & 0700);
-#else
-		assertEqualInt(0644, st.st_mode & 0777);
-#endif
-		assertEqualInt(10, st.st_size);
-		assertEqualInt(1, st.st_nlink);
-	}
+	assertIsReg("dir/file", 0644);
+	assertFileSize("dir/file", 10);
+	assertFileNLinks("dir/file", 1);
 }

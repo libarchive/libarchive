@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_passthrough_dotdot.c,v 1.4 2008/0
 
 DEFINE_TEST(test_passthrough_dotdot)
 {
-	struct stat st;
 	int r;
 	FILE *filelist;
 
@@ -71,17 +70,7 @@ DEFINE_TEST(test_passthrough_dotdot)
 	assertEmptyFile("stdout");
 
 	/* Regular file. */
-	r = lstat("file", &st);
-	failure("Failed to stat file, errno=%d", errno);
-	assertEqualInt(r, 0);
-	if (r == 0) {
-		assert(S_ISREG(st.st_mode));
-#if defined(_WIN32) && !defined(__CYGWIN__)
-		assertEqualInt(0600, st.st_mode & 0700);
-#else
-		assertEqualInt(0642, st.st_mode & 0777);
-#endif
-		assertEqualInt(10, st.st_size);
-		assertEqualInt(1, st.st_nlink);
-	}
+	assertIsReg("file", 0642);
+	assertFileSize("file", 10);
+	assertFileNLinks("file", 1);
 }
