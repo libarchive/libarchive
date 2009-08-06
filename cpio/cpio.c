@@ -444,7 +444,6 @@ version(void)
 static void
 mode_out(struct cpio *cpio)
 {
-	unsigned long blocks;
 	struct archive_entry *entry, *spare;
 	struct lafe_line_reader *lr;
 	const char *p;
@@ -524,9 +523,10 @@ mode_out(struct cpio *cpio)
 		lafe_errc(1, 0, archive_error_string(cpio->archive));
 
 	if (!cpio->quiet) {
-		blocks = (archive_position_uncompressed(cpio->archive) + 511)
-			      / 512;
-		fprintf(stderr, "%lu %s\n", blocks,
+		int64_t blocks =
+			(archive_position_uncompressed(cpio->archive) + 511)
+			/ 512;
+		fprintf(stderr, "%lu %s\n", (unsigned long)blocks,
 		    blocks == 1 ? "block" : "blocks");
 	}
 	archive_write_finish(cpio->archive);
@@ -774,7 +774,8 @@ restore_time(struct cpio *cpio, struct archive_entry *entry,
 #ifdef HAVE_LUTIMES
         if (lutimes(name, times) != 0)
 #else
-        if (!S_ISLNK(archive_entry_mode(entry)) && utimes(name, times) != 0)
+        if ((AE_IFLNK != archive_entry_filetype(entry))
+			&& utimes(name, times) != 0)
 #endif
                 lafe_warnc(errno, "Can't update time for %s", name);
 #endif
@@ -789,7 +790,6 @@ mode_in(struct cpio *cpio)
 	struct archive_entry *entry;
 	struct archive *ext;
 	const char *destpath;
-	unsigned long blocks;
 	int r;
 
 	ext = archive_write_disk_new();
@@ -846,9 +846,9 @@ mode_in(struct cpio *cpio)
 	if (r != ARCHIVE_OK)
 		lafe_errc(1, 0, archive_error_string(ext));
 	if (!cpio->quiet) {
-		blocks = (archive_position_uncompressed(a) + 511)
+		int64_t blocks = (archive_position_uncompressed(a) + 511)
 			      / 512;
-		fprintf(stderr, "%lu %s\n", blocks,
+		fprintf(stderr, "%lu %s\n", (unsigned long)blocks,
 		    blocks == 1 ? "block" : "blocks");
 	}
 	archive_read_finish(a);
@@ -887,7 +887,6 @@ mode_list(struct cpio *cpio)
 {
 	struct archive *a;
 	struct archive_entry *entry;
-	unsigned long blocks;
 	int r;
 
 	a = archive_read_new();
@@ -918,9 +917,9 @@ mode_list(struct cpio *cpio)
 	if (r != ARCHIVE_OK)
 		lafe_errc(1, 0, archive_error_string(a));
 	if (!cpio->quiet) {
-		blocks = (archive_position_uncompressed(a) + 511)
+		int64_t blocks = (archive_position_uncompressed(a) + 511)
 			      / 512;
-		fprintf(stderr, "%lu %s\n", blocks,
+		fprintf(stderr, "%lu %s\n", (unsigned long)blocks,
 		    blocks == 1 ? "block" : "blocks");
 	}
 	archive_read_finish(a);
@@ -1016,7 +1015,6 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 static void
 mode_pass(struct cpio *cpio, const char *destdir)
 {
-	unsigned long blocks;
 	struct lafe_line_reader *lr;
 	const char *p;
 	int r;
@@ -1056,9 +1054,10 @@ mode_pass(struct cpio *cpio, const char *destdir)
 		lafe_errc(1, 0, archive_error_string(cpio->archive));
 
 	if (!cpio->quiet) {
-		blocks = (archive_position_uncompressed(cpio->archive) + 511)
-			      / 512;
-		fprintf(stderr, "%lu %s\n", blocks,
+		int64_t blocks =
+			(archive_position_uncompressed(cpio->archive) + 511)
+			/ 512;
+		fprintf(stderr, "%lu %s\n", (unsigned long)blocks,
 		    blocks == 1 ? "block" : "blocks");
 	}
 
