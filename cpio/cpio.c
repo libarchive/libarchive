@@ -452,6 +452,16 @@ mode_out(struct cpio *cpio)
 
 	if (cpio->option_append)
 		lafe_errc(1, 0, "Append mode not yet supported.");
+
+	cpio->archive_read_disk = archive_read_disk_new();
+	if (cpio->archive_read_disk == NULL)
+		lafe_errc(1, 0, "Failed to allocate archive object");
+	if (cpio->option_follow_links)
+		archive_read_disk_set_symlink_logical(cpio->archive_read_disk);
+	else
+		archive_read_disk_set_symlink_physical(cpio->archive_read_disk);
+	archive_read_disk_set_standard_lookup(cpio->archive_read_disk);
+
 	cpio->archive = archive_write_new();
 	if (cpio->archive == NULL)
 		lafe_errc(1, 0, "Failed to allocate archive object");
@@ -485,6 +495,9 @@ mode_out(struct cpio *cpio)
 	archive_entry_linkresolver_set_strategy(cpio->linkresolver,
 	    archive_format(cpio->archive));
 
+	/*
+	 * The main loop:  Copy each file into the output archive.
+	 */
 	r = archive_write_open_file(cpio->archive, cpio->filename);
 	if (r != ARCHIVE_OK)
 		lafe_errc(1, 0, archive_error_string(cpio->archive));
@@ -527,57 +540,31 @@ mode_out(struct cpio *cpio)
 static int
 file_to_archive(struct cpio *cpio, const char *srcpath)
 {
-	struct stat st;
 	const char *destpath;
 	struct archive_entry *entry, *spare;
 	size_t len;
 	const char *p;
-#if !defined(_WIN32) || defined(__CYGWIN__)
-	int lnklen;
-#endif
 	int r;
 
 	/*
 	 * Create an archive_entry describing the source file.
 	 *
-	 * XXX TODO: rework to use archive_read_disk_entry_from_file()
 	 */
 	entry = archive_entry_new();
 	if (entry == NULL)
 		lafe_errc(1, 0, "Couldn't allocate entry");
 	archive_entry_copy_sourcepath(entry, srcpath);
-
-	/* Get stat information. */
-	if (cpio->option_follow_links)
-		r = stat(srcpath, &st);
-	else
-		r = lstat(srcpath, &st);
-	if (r != 0) {
-		lafe_warnc(errno, "Couldn't stat \"%s\"", srcpath);
-		archive_entry_free(entry);
-		return (0);
-	}
+	r = archive_read_disk_entry_from_file(cpio->archive_read_disk,
+	    entry, -1, NULL);
+	if (r < ARCHIVE_WARN)
+		lafe_errc(1, 0, archive_error_string(cpio->archive));
+	if (r < ARCHIVE_OK)
+		lafe_warnc(0, archive_error_string(cpio->archive));
 
 	if (cpio->uid_override >= 0)
-		st.st_uid = cpio->uid_override;
+		archive_entry_set_uid(entry, cpio->uid_override);
 	if (cpio->gid_override >= 0)
-		st.st_gid = cpio->uid_override;
-	archive_entry_copy_stat(entry, &st);
-
-#if !defined(_WIN32) || defined(__CYGWIN__)
-	/* If its a symlink, pull the target. */
-	if (S_ISLNK(st.st_mode)) {
-		lnklen = readlink(srcpath, cpio->buff, cpio->buff_size);
-		if (lnklen < 0) {
-			lafe_warnc(errno,
-			    "%s: Couldn't read symbolic link", srcpath);
-			archive_entry_free(entry);
-			return (0);
-		}
-		cpio->buff[lnklen] = 0;
-		archive_entry_set_symlink(entry, cpio->buff);
-	}
-#endif
+		archive_entry_set_gid(entry, cpio->gid_override);
 
 	/*
 	 * Generate a destination path for this entry.
@@ -617,18 +604,18 @@ file_to_archive(struct cpio *cpio, const char *srcpath)
 	 */
 	spare = NULL;
 	if (cpio->linkresolver != NULL
-	    && !S_ISDIR(st.st_mode)) {
+	    && archive_entry_filetype(entry) != AE_IFDIR) {
 		archive_entry_linkify(cpio->linkresolver, &entry, &spare);
 	}
 
 	if (entry != NULL) {
 		r = entry_to_archive(cpio, entry);
 		archive_entry_free(entry);
-	}
-	if (spare != NULL) {
-		if (r == 0)
-			r = entry_to_archive(cpio, spare);
-		archive_entry_free(spare);
+		if (spare != NULL) {
+			if (r == 0)
+				r = entry_to_archive(cpio, spare);
+			archive_entry_free(spare);
+		}
 	}
 	return (r);
 }
@@ -1047,6 +1034,16 @@ mode_pass(struct cpio *cpio, const char *destdir)
 		lafe_errc(1, 0, archive_error_string(cpio->archive));
 	cpio->linkresolver = archive_entry_linkresolver_new();
 	archive_write_disk_set_standard_lookup(cpio->archive);
+
+	cpio->archive_read_disk = archive_read_disk_new();
+	if (cpio->archive_read_disk == NULL)
+		lafe_errc(1, 0, "Failed to allocate archive object");
+	if (cpio->option_follow_links)
+		archive_read_disk_set_symlink_logical(cpio->archive_read_disk);
+	else
+		archive_read_disk_set_symlink_physical(cpio->archive_read_disk);
+	archive_read_disk_set_standard_lookup(cpio->archive_read_disk);
+
 	lr = lafe_line_reader("-", cpio->line_separator);
 	while ((p = lafe_line_reader_next(lr)) != NULL)
 		file_to_archive(cpio, p);

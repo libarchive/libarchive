@@ -76,6 +76,7 @@ struct cpio {
 
 	/* Miscellaneous state information */
 	struct archive	 *archive;
+	struct archive	 *archive_read_disk;
 	int		  argc;
 	char		**argv;
 	int		  return_value; /* Value returned by main() */
