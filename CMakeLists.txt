@@ -46,6 +46,7 @@ IF(WIN32 AND NOT CYGWIN)
 ENDIF(WIN32 AND NOT CYGWIN)
 
 #
+INCLUDE(CheckCSourceRuns)
 INCLUDE(CheckFileOffsetBits)
 INCLUDE(CheckFuncs)
 INCLUDE(CheckHeaders)
@@ -527,6 +528,8 @@ ENDIF(HAVE_SIZEOF_WCHAR_T)
 #
 CHECK_FILE_OFFSET_BITS()
 
+
+
 #
 # Check for Extended Attribute libraries, headers, and functions
 #
@@ -583,8 +586,33 @@ IF(ENABLE_ACL)
   # MacOS has an acl.h that isn't POSIX.  It can be detected by
   # checking for ACL_USER
   CHECK_SYMBOL_EXISTS(ACL_USER         "sys/acl.h" HAVE_ACL_USER)
-
 ENDIF(ENABLE_ACL)
+
+# Check whether printf() supports "%jd"
+CHECK_C_SOURCE_RUNS("
+   #include <stdint.h>
+   #include <stdio.h>
+   #include <string.h>
+   static char buf[100];
+   int main() {
+     sprintf(buf, \"%jd\", (intmax_t)7);
+     if (strcmp(buf, \"7\")) return 1;
+     sprintf(buf, \"%ju\", (uintmax_t)7);
+     return (strcmp(buf, \"7\"));
+   }" HAVE_PRINTF_JD)
+
+# Check whether printf() supports "%lld"
+CHECK_C_SOURCE_RUNS("
+   #include <stdint.h>
+   #include <stdio.h>
+   #include <string.h>
+   static char buf[100];
+   int main() {
+     sprintf(buf, \"%lld\", (long long)7);
+     if (strcmp(buf, \"7\")) return 1;
+     sprintf(buf, \"%llu\", (long long)7);
+     return (strcmp(buf, \"7\"));
+   }" HAVE_PRINTF_LLD)
 
 # Generate "config.h" from "build/cmake/config.h.in"
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/build/cmake/config.h.in
