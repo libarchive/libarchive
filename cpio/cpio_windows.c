@@ -826,7 +826,7 @@ la_stat(const char *path, struct stat *st)
 ssize_t
 la_write(int fd, const void *buf, size_t nbytes)
 {
-	uint32_t bytes_written;
+	DWORD bytes_written;
 
 #ifdef _WIN64
 	if (nbytes > UINT32_MAX)
