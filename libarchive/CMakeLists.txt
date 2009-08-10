@@ -4,11 +4,14 @@
 # How to build libarchive
 #
 ############################################
+
+# Public headers
 SET(include_HEADERS
   archive.h
   archive_entry.h
 )
 
+# Sources and private headers
 SET(libarchive_SOURCES
   archive_check_magic.c
   archive_endian.h
@@ -84,6 +87,7 @@ SET(libarchive_SOURCES
   filter_fork.h
 )
 
+# Man pages
 SET(libarchive_MANS
   archive_entry.3
   archive_read.3
@@ -106,23 +110,25 @@ IF(WIN32 AND NOT CYGWIN)
 ENDIF(WIN32 AND NOT CYGWIN)
 
 
-#
-# Register target
-#
-# Libarchive is a library
+# Libarchive is a shared library
 ADD_LIBRARY(archive SHARED ${libarchive_SOURCES} ${include_HEADERS})
 TARGET_LINK_LIBRARIES(archive ${ADDITIONAL_LIBS})
 SET_TARGET_PROPERTIES(archive PROPERTIES SOVERSION ${SOVERSION})
 SET_TARGET_PROPERTIES(archive PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+
+# archive_static is a static library
 ADD_LIBRARY(archive_static STATIC ${libarchive_SOURCES} ${include_HEADERS})
 SET_TARGET_PROPERTIES(archive_static PROPERTIES COMPILE_DEFINITIONS
   LIBARCHIVE_STATIC)
 SET_TARGET_PROPERTIES(archive_static PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+# On Posix systems, libarchive.so and libarchive.a can co-exist.
 IF(NOT WIN32 OR CYGWIN)
   SET_TARGET_PROPERTIES(archive_static PROPERTIES OUTPUT_NAME archive)
 ENDIF(NOT WIN32 OR CYGWIN)
+
+# How to install the libraries
 INSTALL(TARGETS archive archive_static
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib
