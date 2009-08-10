@@ -59,7 +59,7 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     IF(test MATCHES "^test_[^/]+[.]c$")
       STRING(REGEX REPLACE "^(test_[^/]+)[.]c$" "\\1" testname ${test})
       ADD_TEST("bsdcpio_${testname}" bsdcpio_test
-        -q -v -p ${BSDCPIO} -r ${CMAKE_CURRENT_SOURCE_DIR} ${num})
+        -v -p ${BSDCPIO} -r ${CMAKE_CURRENT_SOURCE_DIR} ${num})
       MATH(EXPR num "${num} + 1")
     ENDIF(test MATCHES "^test_[^/]+[.]c$")
   ENDFOREACH(test)
