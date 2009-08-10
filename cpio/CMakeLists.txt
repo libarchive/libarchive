@@ -36,13 +36,14 @@ IF(ENABLE_CPIO)
   ELSE(ENABLE_CPIO_SHARED)
     TARGET_LINK_LIBRARIES(bsdcpio archive_static ${ADDITIONAL_LIBS})
   ENDIF(ENABLE_CPIO_SHARED)
+  # On Windows, DLL must end up in same dir with EXEs, so put them all
+  # in the top-level build dir.
   IF(WIN32 AND NOT CYGWIN)
     SET_TARGET_PROPERTIES(bsdcpio PROPERTIES
       RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-    SET(BSDCPIO ${CMAKE_BINARY_DIR}/debug/bsdcpio.exe)
-  ELSE(WIN32 AND NOT CYGWIN)
-    SET(BSDCPIO ${CMAKE_CURRENT_BINARY_DIR}/bsdcpio)
   ENDIF(WIN32 AND NOT CYGWIN)
+  # Full path to the compiled executable
+  GET_TARGET_PROPERTY(BSDCPIO bsdcpio LOCATION)
   #
   INSTALL(TARGETS bsdcpio RUNTIME DESTINATION bin)
   INSTALL_MAN(${bsdcpio_MANS})
