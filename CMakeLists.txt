@@ -233,10 +233,11 @@ ELSE(HAVE_SYS_TYPES_H)
   UNSET(_sys_types_h)
 ENDIF(HAVE_SYS_TYPES_H)
 
+
 #
 # Some headers require extra includes when they're available.
 #
-CHECK_INCLUDE_FILES(${_sys_types_h} "sys/extattr.h" HAVE_SYS_EXTATTR_H)
+CHECK_INCLUDE_FILES("${_sys_types_h};sys/extattr.h" HAVE_SYS_EXTATTR_H)
 
 #
 # Find OpenSSL
