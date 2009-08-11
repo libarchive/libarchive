@@ -413,7 +413,7 @@ if test "x$enable_acl" != "xno"; then
     # test for specific permissions in a permset.)  Linux uses the obvious
     # name, FreeBSD adds _np to mark it as "non-Posix extension."
     # Test for both as a double-check that we really have POSIX-style ACL support.
-    AC_CHECK_FUNCS(acl_get_perm_np acl_get_perm,,,
+    AC_CHECK_FUNCS(acl_get_perm_np acl_get_perm acl_get_link acl_get_link_np,,,
 	[#if HAVE_SYS_TYPES_H
 	#include <sys/types.h>
 	#endif
