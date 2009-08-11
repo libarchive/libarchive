@@ -621,6 +621,10 @@ IF(ENABLE_ACL)
       "sys/types.h;sys/acl.h" HAVE_ACL_GET_PERM)
   CHECK_SYMBOL_EXISTS(acl_get_perm_np
       "sys/types.h;sys/acl.h" HAVE_ACL_GET_PERM_NP)
+  CHECK_SYMBOL_EXISTS(acl_get_link
+      "sys/types.h;sys/acl.h" HAVE_ACL_GET_LINK)
+  CHECK_SYMBOL_EXISTS(acl_get_link_np
+      "sys/types.h;sys/acl.h" HAVE_ACL_GET_LINK_NP)
 
   # MacOS has an acl.h that isn't POSIX.  It can be detected by
   # checking for ACL_USER
