@@ -64,6 +64,47 @@
 #define umask _umask
 #endif
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+void *GetFunctionKernel32(const char *name)
+{
+	static HINSTANCE lib;
+	static int set;
+	if (!set) {
+		set = 1;
+		lib = LoadLibrary("kernel32.dll");
+	}
+	if (lib == NULL) {
+		fprintf(stderr, "Can't load kernel32.dll?!\n");
+		return NULL;
+	}
+	return (void *)GetProcAddress(lib, name);
+}
+
+int __CreateSymbolicLinkA(const char *linkname, const char *target, int flags)
+{
+	static BOOLEAN WINAPI (*f)(LPSTR, LPSTR, DWORD);
+	static int set;
+	if (!set) {
+		set = 1;
+		f = GetFunctionKernel32("CreateSymbolicLinkA");
+	}
+	return f == NULL ? 0 : (*f)(linkname, target, flags);
+}
+
+int __CreateHardLinkA(const char *linkname, const char *target)
+{
+	static BOOLEAN WINAPI (*f)(LPCSTR, LPCSTR, LPSECURITY_ATTRIBUTES);
+	static int set;
+	if (!set) {
+		set = 1;
+		f = GetFunctionKernel32("CreateHardLinkA");
+	}
+	if (f == NULL)
+		return 0;
+	return (*f)(linkname, target, NULL);
+}
+#endif
+
 /*
  * This same file is used pretty much verbatim for all test harnesses.
  *
@@ -1072,8 +1113,8 @@ test_assert_make_hardlink(const char *file, int line,
 	int succeeded;
 
 	count_assertion(file, line);
-#if HAVE_CREATEHARDLINK
-	succeeded = CreateHardLink(newpath, linkto, NULL);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	succeeded = __CreateHardLinkA(newpath, linkto, NULL);
 #elif HAVE_LINK
 	succeeded = !link(linkto, newpath);
 #else
@@ -1100,10 +1141,10 @@ test_assert_make_symlink(const char *file, int line,
 {
 	int succeeded;
 
-#if HAVE_CREATESYMBOLICLINK
-	int targetIsDir = 0; /* TODO: Fix this. */
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	int targetIsDir = 0;
 	count_assertion(file, line);
-	succeeded = CreateSymbolicLink(newpath, linkto, targetIsDir);
+	succeeded = __CreateSymbolicLinkA(newpath, linkto, targetIsDir);
 #elif HAVE_SYMLINK
 	count_assertion(file, line);
 	succeeded = !symlink(linkto, newpath);
