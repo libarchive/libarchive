@@ -39,7 +39,6 @@
 #endif
 #include <io.h>
 #include <windows.h>
-#include <winbase.h>
 #ifndef F_OK
 #define F_OK (0)
 #endif
@@ -82,7 +81,7 @@ void *GetFunctionKernel32(const char *name)
 
 int __CreateSymbolicLinkA(const char *linkname, const char *target, int flags)
 {
-	static BOOLEAN WINAPI (*f)(LPSTR, LPSTR, DWORD);
+	static BOOLEAN (*f)(LPCSTR, LPCSTR, DWORD);
 	static int set;
 	if (!set) {
 		set = 1;
@@ -93,7 +92,7 @@ int __CreateSymbolicLinkA(const char *linkname, const char *target, int flags)
 
 int __CreateHardLinkA(const char *linkname, const char *target)
 {
-	static BOOLEAN WINAPI (*f)(LPCSTR, LPCSTR, LPSECURITY_ATTRIBUTES);
+	static BOOLEAN (*f)(LPCSTR, LPCSTR, LPSECURITY_ATTRIBUTES);
 	static int set;
 	if (!set) {
 		set = 1;
@@ -1114,7 +1113,7 @@ test_assert_make_hardlink(const char *file, int line,
 
 	count_assertion(file, line);
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	succeeded = __CreateHardLinkA(newpath, linkto, NULL);
+	succeeded = __CreateHardLinkA(newpath, linkto);
 #elif HAVE_LINK
 	succeeded = !link(linkto, newpath);
 #else
