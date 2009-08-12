@@ -1,5 +1,10 @@
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.ac by autoheader.  */
+
+#ifndef __LIBARCHIVE_BUILD
+#error This header is only to be used internally to libarchive.
+#endif
+
 #ifndef CONFIG_H_INCLUDED
 #define	CONFIG_H_INCLUDED
 

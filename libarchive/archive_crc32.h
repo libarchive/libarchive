@@ -23,6 +23,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef __LIBARCHIVE_BUILD
+#error This header is only to be used internally to libarchive.
+#endif
+
 /*
  * When zlib is unavailable, we should still be able to validate
  * uncompressed zip archives.  That requires us to be able to compute

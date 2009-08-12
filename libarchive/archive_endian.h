@@ -28,6 +28,10 @@
  * Borrowed from FreeBSD's <sys/endian.h>
  */
 
+#ifndef __LIBARCHIVE_BUILD
+#error This header is only to be used internally to libarchive.
+#endif
+
 /* Note:  This is a purely internal header! */
 /* Do not use this outside of libarchive internal code! */
 

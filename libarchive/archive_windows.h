@@ -27,6 +27,10 @@
  * $FreeBSD$
  */
 
+#ifndef __LIBARCHIVE_BUILD
+#error This header is only to be used internally to libarchive.
+#endif
+
 #ifndef LIBARCHIVE_ARCHIVE_WINDOWS_H_INCLUDED
 #define	LIBARCHIVE_ARCHIVE_WINDOWS_H_INCLUDED
 

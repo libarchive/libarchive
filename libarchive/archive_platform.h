@@ -25,6 +25,8 @@
  * $FreeBSD: src/lib/libarchive/archive_platform.h,v 1.32 2008/12/06 05:53:05 kientzle Exp $
  */
 
+/* !!ONLY FOR USE INTERNALLY TO LIBARCHIVE!! */
+
 /*
  * This header is the first thing included in any of the libarchive
  * source files.  As far as possible, platform-specific issues should

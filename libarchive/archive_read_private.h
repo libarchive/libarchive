@@ -25,6 +25,10 @@
  * $FreeBSD: src/lib/libarchive/archive_read_private.h,v 1.7 2008/12/06 06:45:15 kientzle Exp $
  */
 
+#ifndef __LIBARCHIVE_BUILD
+#error This header is only to be used internally to libarchive.
+#endif
+
 #ifndef ARCHIVE_READ_PRIVATE_H_INCLUDED
 #define	ARCHIVE_READ_PRIVATE_H_INCLUDED
 

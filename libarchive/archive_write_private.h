@@ -25,6 +25,10 @@
  * $FreeBSD: src/lib/libarchive/archive_write_private.h,v 1.3 2008/03/15 11:04:45 kientzle Exp $
  */
 
+#ifndef __LIBARCHIVE_BUILD
+#error This header is only to be used internally to libarchive.
+#endif
+
 #ifndef ARCHIVE_WRITE_PRIVATE_H_INCLUDED
 #define	ARCHIVE_WRITE_PRIVATE_H_INCLUDED
 
