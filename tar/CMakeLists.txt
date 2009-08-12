@@ -4,6 +4,7 @@
 #
 ############################################
 IF (ENABLE_TAR)
+
   SET(bsdtar_SOURCES
     bsdtar.c
     bsdtar.h
@@ -32,24 +33,24 @@ IF (ENABLE_TAR)
     LIST(APPEND bsdtar_SOURCES bsdtar_windows.h)
   ENDIF(WIN32 AND NOT CYGWIN)
 
+  # bsdtar documentation
   SET(bsdtar_MANS bsdtar.1)
-  #
-  # Register target
-  #
+
+  # How to build bsdtar
   ADD_EXECUTABLE(bsdtar ${bsdtar_SOURCES})
   IF(ENABLE_TAR_SHARED)
     TARGET_LINK_LIBRARIES(bsdtar archive ${ADDITIONAL_LIBS})
   ELSE(ENABLE_TAR_SHARED)
     TARGET_LINK_LIBRARIES(bsdtar archive_static ${ADDITIONAL_LIBS})
   ENDIF(ENABLE_TAR_SHARED)
+  # On Windows, DLL must end up in same dir with EXEs
   IF(WIN32 AND NOT CYGWIN)
     SET_TARGET_PROPERTIES(bsdtar PROPERTIES
       RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-    SET(BSDTAR ${CMAKE_BINARY_DIR}/debug/bsdtar.exe)
-  ELSE(WIN32 AND NOT CYGWIN)
-    SET(BSDTAR ${CMAKE_CURRENT_BINARY_DIR}/bsdtar)
   ENDIF(WIN32 AND NOT CYGWIN)
-  #
+  GET_TARGET_PROPERTY(BSDTAR bsdtar LOCATION)
+
+  # Installation rules
   INSTALL(TARGETS bsdtar RUNTIME DESTINATION bin)
   INSTALL_MAN(${bsdtar_MANS})
 ENDIF(ENABLE_TAR)
