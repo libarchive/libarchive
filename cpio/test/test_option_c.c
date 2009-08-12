@@ -116,7 +116,7 @@ DEFINE_TEST(test_option_c)
 	assert(is_octal(e + 12, 6)); /* ino */
 	ino = from_octal(e + 12, 6);
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	/* Group members bits and others bits do not work. */ 
+	/* Group members bits and others bits do not work. */
 	assertEqualMem(e + 18, "100666", 6); /* Mode */
 #else
 	assertEqualMem(e + 18, "100644", 6); /* Mode */
@@ -145,8 +145,8 @@ DEFINE_TEST(test_option_c)
 	assertEqualInt(dev, from_octal(e + 6, 6)); /* dev */
 	assert(dev != from_octal(e + 12, 6)); /* ino */
 #if !defined(_WIN32) || defined(__CYGWIN__)
-	/* On Windows, symbolic link and group members bits and 
-	 * others bits do not work. */ 
+	/* On Windows, symbolic link and group members bits and
+	 * others bits do not work. */
 	assertEqualMem(e + 18, "120777", 6); /* Mode */
 #endif
 	assertEqualInt(from_octal(e + 24, 6), uid); /* uid */
