@@ -85,7 +85,6 @@
 #define	HAVE_MD5 1
 #define	HAVE_MD5_H 1
 #define	HAVE_MEMMOVE 1
-#define	HAVE_MEMSET 1
 #define	HAVE_MKDIR 1
 #define	HAVE_MKFIFO 1
 #define	HAVE_MKNOD 1
