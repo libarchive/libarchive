@@ -41,6 +41,8 @@ IF(ENABLE_TAR AND ENABLE_TEST)
   #
   ADD_EXECUTABLE(bsdtar_test ${bsdtar_test_SOURCES})
   SET_PROPERTY(TARGET bsdtar_test PROPERTY COMPILE_DEFINITIONS LIST_H)
+
+  # ADD_TEST() for each separate test
   SET(num 0)
   FOREACH(test ${bsdtar_test_SOURCES})
     IF(test MATCHES "^test_[^/]+[.]c$")
@@ -50,4 +52,13 @@ IF(ENABLE_TAR AND ENABLE_TEST)
       MATH(EXPR num "${num} + 1")
     ENDIF(test MATCHES "^test_[^/]+[.]c$")
   ENDFOREACH(test)
+
+  #
+  # Experimental new test handling
+  #
+  ADD_CUSTOM_TARGET(run_bsdtar_test
+	DEPENDS bsdtar_test bsdtar
+	COMMAND	bsdtar_test -v -p ${BSDTAR} -r ${CMAKE_CURRENT_SOURCE_DIR})
+
+  SET_PROPERTY(GLOBAL APPEND PROPERTY ALL_TESTS run_bsdtar_test)
 ENDIF (ENABLE_TAR AND ENABLE_TEST)
