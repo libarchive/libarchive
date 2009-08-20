@@ -53,12 +53,9 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     ENDIF(test MATCHES "^test_[^/]+[.]c$")
   ENDFOREACH(test)
 
-  #
   # Experimental new test handling
-  #
   ADD_CUSTOM_TARGET(run_bsdtar_test
-	DEPENDS bsdtar_test bsdtar
 	COMMAND	bsdtar_test -v -p ${BSDTAR} -r ${CMAKE_CURRENT_SOURCE_DIR})
+  ADD_DEPENDENCIES(run_all_tests run_bsdtar_test)
 
-  SET_PROPERTY(GLOBAL APPEND PROPERTY ALL_TESTS run_bsdtar_test)
 ENDIF (ENABLE_TAR AND ENABLE_TEST)

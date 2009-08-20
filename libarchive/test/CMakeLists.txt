@@ -132,13 +132,9 @@ IF(ENABLE_TEST)
   ENDFOREACH(test)
 
 
-  #
   # Experimental new test handling
-  #
   ADD_CUSTOM_TARGET(run_libarchive_test
-	DEPENDS libarchive_test
 	COMMAND	libarchive_test -v -r ${CMAKE_CURRENT_SOURCE_DIR})
-
-  SET_PROPERTY(GLOBAL APPEND PROPERTY ALL_TESTS run_libarchive_test)
+  ADD_DEPENDENCIES(run_all_tests run_libarchive_test)
 ENDIF(ENABLE_TEST)
 

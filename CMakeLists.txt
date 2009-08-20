@@ -698,20 +698,10 @@ IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
   ADD_DEFINITIONS(-Wall -Werror)
 ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
 
-DEFINE_PROPERTY(GLOBAL
-                PROPERTY ALL_TESTS
-                BRIEF_DOCS "Test targets to be run by run_all_tests"
-                FULL_DOCS "Test targets to be run by run_all_tests")
+IF(ENABLE_TEST)
+ADD_CUSTOM_TARGET(run_all_tests)
+ENDIF(ENABLE_TEST)
 
 add_subdirectory(libarchive)
 add_subdirectory(tar)
 add_subdirectory(cpio)
-
-# This doesn't quite work and I don't understand why: the dependent
-# tests do get run, but the final invocation of run_all_tests chokes.
-# (At least on FreeBSD; I'll have to test on VS and MinGW and see what
-# happens there.)
-IF(ENABLE_TEST)
-GET_PROPERTY(TESTS GLOBAL PROPERTY ALL_TESTS)
-ADD_CUSTOM_TARGET(run_all_tests DEPENDS ${TESTS})
-ENDIF(ENABLE_TEST)

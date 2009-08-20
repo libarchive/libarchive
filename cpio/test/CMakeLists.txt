@@ -66,13 +66,9 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     ENDIF(test MATCHES "^test_[^/]+[.]c$")
   ENDFOREACH(test)
 
-  #
   # Experimental new test handling
-  #
   ADD_CUSTOM_TARGET(run_bsdcpio_test
-	DEPENDS bsdcpio_test bsdcpio
 	COMMAND	bsdcpio_test -v -p ${BSDCPIO} -r ${CMAKE_CURRENT_SOURCE_DIR})
-
-  SET_PROPERTY(GLOBAL APPEND PROPERTY ALL_TESTS run_bsdcpio_test)
+  ADD_DEPENDENCIES(run_all_tests run_bsdcpio_test)
 ENDIF(ENABLE_CPIO AND ENABLE_TEST)
 
