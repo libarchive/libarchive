@@ -39,7 +39,6 @@
 #endif
 #include <io.h>
 #include <windows.h>
-#include <winbase.h>
 #ifndef F_OK
 #define F_OK (0)
 #endif
@@ -62,6 +61,47 @@
 #define rmdir _rmdir
 #define strdup _strdup
 #define umask _umask
+#endif
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+void *GetFunctionKernel32(const char *name)
+{
+	static HINSTANCE lib;
+	static int set;
+	if (!set) {
+		set = 1;
+		lib = LoadLibrary("kernel32.dll");
+	}
+	if (lib == NULL) {
+		fprintf(stderr, "Can't load kernel32.dll?!\n");
+		return NULL;
+	}
+	return (void *)GetProcAddress(lib, name);
+}
+
+int __CreateSymbolicLinkA(const char *linkname, const char *target, int flags)
+{
+	static BOOLEAN (*f)(LPCSTR, LPCSTR, DWORD);
+	static int set;
+	if (!set) {
+		set = 1;
+		f = GetFunctionKernel32("CreateSymbolicLinkA");
+	}
+	return f == NULL ? 0 : (*f)(linkname, target, flags);
+}
+
+int __CreateHardLinkA(const char *linkname, const char *target)
+{
+	static BOOLEAN (*f)(LPCSTR, LPCSTR, LPSECURITY_ATTRIBUTES);
+	static int set;
+	if (!set) {
+		set = 1;
+		f = GetFunctionKernel32("CreateHardLinkA");
+	}
+	if (f == NULL)
+		return 0;
+	return (*f)(linkname, target, NULL);
+}
 #endif
 
 /*
@@ -975,8 +1015,8 @@ test_assert_make_hardlink(const char *file, int line,
 	int succeeded;
 
 	count_assertion(file, line);
-#if HAVE_CREATEHARDLINK
-	succeeded = CreateHardLink(newpath, linkto, NULL);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	succeeded = __CreateHardLinkA(newpath, linkto);
 #elif HAVE_LINK
 	succeeded = !link(linkto, newpath);
 #else
@@ -997,10 +1037,10 @@ int
 test_assert_make_symlink(const char *file, int line,
     const char *newpath, const char *linkto)
 {
-#if HAVE_CREATESYMBOLICLINK
-	int targetIsDir = 0; /* TODO: Fix this. */
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	int targetIsDir = 0;  /* TODO: Fix this */
 	count_assertion(file, line);
-	if (CreateSymbolicLink(newpath, linkto, targetIsDir))
+	if (__CreateSymbolicLinkA(newpath, linkto, targetIsDir))
 		return (1);
 #elif HAVE_SYMLINK
 	count_assertion(file, line);
