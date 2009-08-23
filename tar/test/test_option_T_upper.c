@@ -46,6 +46,7 @@ DEFINE_TEST(test_option_T_upper)
 	/* Create a simple dir heirarchy; bail if anything fails. */
 	if (!assertMakeDir("d1", 0755)) return;
 	if (!assertMakeDir("d1/d2", 0755))	return;
+	if (!touch("f")) return;
 	if (!touch("d1/f1")) return;
 	if (!touch("d1/f2")) return;
 	if (!touch("d1/d2/f3")) return;
@@ -59,6 +60,7 @@ DEFINE_TEST(test_option_T_upper)
 	if (!assert(f != NULL))
 		return;
 	/* Use a variety of text line endings. */
+	fprintf(f, "f\x0d"); /* CR */
 	fprintf(f, "d1/f1\x0d\x0a"); /* CRLF */
 	fprintf(f, "d1/d2/f4\x0a"); /* NL */
 	fprintf(f, "d1/d2/f6"); /* EOF */
@@ -92,6 +94,7 @@ DEFINE_TEST(test_option_T_upper)
 	assertEmptyFile("test1b.err");
 
 	/* Verify the files were extracted. */
+	assertFileExists("test1/f");
 	assertFileExists("test1/d1/f1");
 	assertFileNotExists("test1/d1/f2");
 	assertFileNotExists("test1/d1/d2/f3");
@@ -113,6 +116,7 @@ DEFINE_TEST(test_option_T_upper)
 	assertEmptyFile("test3.out");
 	assertEmptyFile("test3.err");
 	/* Verify the files were extracted.*/
+	assertFileExists("test3/f");
 	assertFileExists("test3/d1/f1");
 	assertFileNotExists("test3/d1/f2");
 	assertFileExists("test3/d1/d2/f3");
@@ -128,6 +132,7 @@ DEFINE_TEST(test_option_T_upper)
 	assertEmptyFile("test2b.out");
 	assertEmptyFile("test2b.err");
 	/* Verify the files were extracted.*/
+	assertFileExists("test2/f");
 	assertFileExists("test2/d1/f1");
 	assertFileNotExists("test2/d1/f2");
 	assertFileNotExists("test2/d1/d2/f3");
@@ -143,7 +148,7 @@ DEFINE_TEST(test_option_T_upper)
 	assertEqualInt(1, touch("test4/d1/foo"));
 
 	/* Does bsdtar support -s option ? */
-	systemf("%s -cf - -s /foo/bar/ test4/d1/foo > NUL 2> check.err",
+	systemf("%s -cf - -s /foo/bar/ test4/d1/foo > check.out 2> check.err",
 	    testprog);
 	assertEqualInt(0, stat("check.err", &st));
 	if (st.st_size == 0) {
