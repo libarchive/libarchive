@@ -25,10 +25,6 @@
  * $FreeBSD: src/lib/libarchive/config_freebsd.h,v 1.15 2008/09/30 03:53:03 kientzle Exp $
  */
 
-#ifndef __LIBARCHIVE_BUILD
-#error This header is only to be used internally to libarchive.
-#endif
-
 /* FreeBSD 5.0 and later have ACL and extattr support. */
 #if __FreeBSD__ > 4
 #define	HAVE_ACL_CREATE_ENTRY 1
@@ -57,6 +53,7 @@
 #define	HAVE_DECL_STRERROR_R 1
 #define	HAVE_DECL_UINT32_MAX 1
 #define	HAVE_DECL_UINT64_MAX 1
+#define	HAVE_DIRENT_H 1
 #define	HAVE_EFTYPE 1
 #define	HAVE_EILSEQ 1
 #define	HAVE_ERRNO_H 1

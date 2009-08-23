@@ -80,6 +80,7 @@
  * the mainline code.
  */
 
+/* Windows (including Visual Studio and MinGW but not Cygwin) */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #include "../bsdtar_windows.h"
 #define strdup _strdup
@@ -88,25 +89,30 @@
 #define LOCALE_DE	"de_DE.UTF-8"
 #endif
 
+/* Visual Studio */
 #ifdef _MSC_VER
 #define snprintf	sprintf_s
 #endif
 
+/* Cygwin */
 #if defined(__CYGWIN__)
 /* Cygwin-1.7.x is lazy about populating nlinks, so don't
  * expect it to be accurate. */
 # define NLINKS_INACCURATE_FOR_DIRS
 #endif
 
+/* FreeBSD */
 #ifdef __FreeBSD__
 #include <sys/cdefs.h>  /* For __FBSDID */
 #else
-/* Some non-FreeBSD platforms such as newlib-derived ones like
- * cygwin, have __FBSDID, so this definition must be guarded.
- */
+/* Surprisingly, some non-FreeBSD platforms define __FBSDID. */
 #ifndef __FBSDID
 #define	__FBSDID(a)     struct _undefined_hack
 #endif
+#endif
+
+#ifndef O_BINARY
+#define	O_BINARY 0
 #endif
 
 /*
@@ -117,13 +123,12 @@
 
 /* An implementation of the standard assert() macro */
 #define assert(e)   test_assert(__FILE__, __LINE__, (e), #e, NULL)
-
+/* chdir() and error if it fails */
 #define assertChdir(path)	\
 	test_assert_chdir(__FILE__, __LINE__, path)
 /* Assert two integers are the same.  Reports value of each one if not. */
 #define assertEqualInt(v1,v2)   \
   test_assert_equal_int(__FILE__, __LINE__, (v1), #v1, (v2), #v2, NULL)
-
 /* Assert two strings are the same.  Reports value of each one if not. */
 #define assertEqualString(v1,v2)   \
   test_assert_equal_string(__FILE__, __LINE__, (v1), #v1, (v2), #v2, NULL)
@@ -170,6 +175,8 @@
 /* Create a directory, report error if it fails. */
 #define assertMakeDir(dirname, mode)	\
   test_assert_make_dir(__FILE__, __LINE__, dirname, mode)
+#define assertMakeFile(path, mode, contents) \
+  test_assert_make_file(__FILE__, __LINE__, path, mode, contents)
 #define assertMakeHardlink(newfile, oldfile)	\
   test_assert_make_hardlink(__FILE__, __LINE__, newfile, oldfile)
 #define assertMakeSymlink(newfile, linkto)	\
@@ -188,34 +195,38 @@
 
 /* Function declarations.  These are defined in test_utility.c. */
 void failure(const char *fmt, ...);
-void test_setup(const char *, int);
-void test_skipping(const char *fmt, ...);
 int test_assert(const char *, int, int, const char *, void *);
 int test_assert_chdir(const char *, int, const char *);
 int test_assert_empty_file(const char *, ...);
-int test_assert_non_empty_file(const char *, ...);
 int test_assert_equal_file(const char *, const char *, ...);
 int test_assert_equal_int(const char *, int, long long, const char *, long long, const char *, void *);
+int test_assert_equal_mem(const char *, int, const void *, const char *, const void *, const char *, size_t, const char *, void *);
 int test_assert_equal_string(const char *, int, const char *v1, const char *, const char *v2, const char *, void *);
 int test_assert_equal_wstring(const char *, int, const wchar_t *v1, const char *, const wchar_t *v2, const char *, void *);
-int test_assert_equal_mem(const char *, int, const void *, const char *, const void *, const char *, size_t, const char *, void *);
 int test_assert_file_contents(const void *, int, const char *, ...);
-int test_assert_text_file_contents(const char *buff, const char *f);
 int test_assert_file_exists(const char *, ...);
 int test_assert_file_hardlinks(const char *, int, const char *, const char *);
-int test_assert_file_not_exists(const char *, ...);
 int test_assert_file_nlinks(const char *, int, const char *, int);
+int test_assert_file_not_exists(const char *, ...);
 int test_assert_file_size(const char *, int, const char *, long);
 int test_assert_is_dir(const char *, int, const char *, int);
 int test_assert_is_reg(const char *, int, const char *, int);
 int test_assert_is_symlink(const char *, int, const char *, const char *);
 int test_assert_make_dir(const char *, int, const char *, int);
+int test_assert_make_file(const char *, int, const char *, int, const char *);
 int test_assert_make_hardlink(const char *, int, const char *newpath, const char *);
 int test_assert_make_symlink(const char *, int, const char *newpath, const char *);
+int test_assert_non_empty_file(const char *, ...);
+int test_assert_text_file_contents(const char *buff, const char *f);
 int test_assert_umask(const char *, int, int);
+void test_setup(const char *, int);
+void test_skipping(const char *fmt, ...);
 
 /* Like sprintf, then system() */
 int systemf(const char * fmt, ...);
+
+/* Delay until time() returns a value after this. */
+void sleepUntilAfter(time_t);
 
 /* Suck file into string allocated via malloc(). Call free() when done. */
 /* Supports printf-style args: slurpfile(NULL, "%s/myfile", refdir); */

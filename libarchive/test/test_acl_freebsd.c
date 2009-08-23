@@ -206,7 +206,7 @@ DEFINE_TEST(test_acl_freebsd)
 	acl = acl_from_text("u::rwx,u:1:rw,g::rwx,g:15:rx,o::rwx,m::rwx");
 	assert((void *)acl != NULL);
 	/* Create a test file and try to set an ACL on it. */
-	fd = open("pretest", O_WRONLY | O_CREAT | O_EXCL | O_BINARY, 0777);
+	fd = open("pretest", O_WRONLY | O_CREAT | O_EXCL, 0777);
 	failure("Could not create test file?!");
 	if (!assert(fd >= 0)) {
 		acl_free(acl);

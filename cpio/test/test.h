@@ -111,6 +111,10 @@
 #endif
 #endif
 
+#ifndef O_BINARY
+#define	O_BINARY 0
+#endif
+
 /*
  * Redefine DEFINE_TEST for use in defining the test functions.
  */
