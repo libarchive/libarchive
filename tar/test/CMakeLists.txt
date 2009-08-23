@@ -56,6 +56,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
   # Experimental new test handling
   ADD_CUSTOM_TARGET(run_bsdtar_test
 	COMMAND	bsdtar_test -v -p ${BSDTAR} -r ${CMAKE_CURRENT_SOURCE_DIR})
+  ADD_DEPENDENCIES(run_bsdtar_test bsdtar)
   ADD_DEPENDENCIES(run_all_tests run_bsdtar_test)
 
 ENDIF (ENABLE_TAR AND ENABLE_TEST)
