@@ -142,7 +142,8 @@ read_archive(struct bsdtar *bsdtar, char mode)
 	}
 
 	if (bsdtar->names_from_file != NULL)
-		lafe_include_from_file(&bsdtar->matching, bsdtar->names_from_file);
+		lafe_include_from_file(&bsdtar->matching,
+		    bsdtar->names_from_file, bsdtar->option_null);
 
 	a = archive_read_new();
 	if (bsdtar->compress_program != NULL)

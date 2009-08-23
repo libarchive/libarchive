@@ -520,7 +520,7 @@ archive_names_from_file(struct bsdtar *bsdtar, struct archive *a)
 
 	bsdtar->next_line_is_dir = 0;
 
-	lr = lafe_line_reader(bsdtar->names_from_file, '\n');
+	lr = lafe_line_reader(bsdtar->names_from_file, bsdtar->option_null);
 	while ((line = lafe_line_reader_next(lr)) != NULL) {
 		if (bsdtar->next_line_is_dir) {
 			set_chdir(bsdtar, line);

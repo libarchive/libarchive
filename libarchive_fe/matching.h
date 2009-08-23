@@ -36,7 +36,7 @@ int	lafe_exclude_from_file(struct lafe_matching **matching,
 			       const char *pathname);
 int	lafe_include(struct lafe_matching **matching, const char *pattern);
 int	lafe_include_from_file(struct lafe_matching **matching,
-			       const char *pathname);
+			       const char *pathname, int nullSeparator);
 
 int	lafe_excluded(struct lafe_matching *, const char *pathname);
 void	lafe_cleanup_exclusions(struct lafe_matching **);

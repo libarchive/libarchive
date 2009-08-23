@@ -111,13 +111,14 @@ lafe_include(struct lafe_matching **matching, const char *pattern)
 }
 
 int
-lafe_include_from_file(struct lafe_matching **matching, const char *pathname)
+lafe_include_from_file(struct lafe_matching **matching, const char *pathname,
+    int nullSeparator)
 {
 	struct lafe_line_reader *lr;
 	const char *p;
 	int ret = 0;
 
-	lr = lafe_line_reader(pathname, '\n');
+	lr = lafe_line_reader(pathname, nullSeparator);
 	while ((p = lafe_line_reader_next(lr)) != NULL) {
 		if (lafe_include(matching, p) != 0)
 			ret = -1;

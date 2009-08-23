@@ -51,12 +51,12 @@ struct lafe_line_reader {
 	char *buff, *buff_end, *line_start, *line_end, *p;
 	char *pathname;
 	size_t buff_length;
-	int separator;
+	int nullSeparator; /* Lines separated by null, not CR/CRLF/etc. */
 	int ret;
 };
 
 struct lafe_line_reader *
-lafe_line_reader(const char *pathname, char separator)
+lafe_line_reader(const char *pathname, int nullSeparator)
 {
 	struct lafe_line_reader *lr;
 
@@ -64,7 +64,7 @@ lafe_line_reader(const char *pathname, char separator)
 	if (lr == NULL)
 		lafe_errc(1, ENOMEM, "Can't open %s", pathname);
 
-	lr->separator = separator;
+	lr->nullSeparator = nullSeparator;
 	lr->pathname = strdup(pathname);
 
 	if (strcmp(pathname, "-") == 0)
@@ -91,14 +91,22 @@ lafe_line_reader_next(struct lafe_line_reader *lr)
 	for (;;) {
 		/* If there's a line in the buffer, return it immediately. */
 		while (lr->line_end < lr->buff_end) {
-			if (*lr->line_end == lr->separator) {
+			if (lr->nullSeparator) {
+				if (*lr->line_end == '\0') {
+					line_start = lr->line_start;
+					lr->line_start = lr->line_end + 1;
+					lr->line_end = lr->line_start;
+					return (line_start);
+				}
+			} else if (*lr->line_end == '\x0a' || *lr->line_end == '\x0d') {
 				*lr->line_end = '\0';
 				line_start = lr->line_start;
 				lr->line_start = lr->line_end + 1;
 				lr->line_end = lr->line_start;
-				return (line_start);
-			} else
-				lr->line_end++;
+				if (line_start[0] != '\0')
+					return (line_start);
+			}
+			lr->line_end++;
 		}
 
 		/* If we're at end-of-file, process the final data. */
