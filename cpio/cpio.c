@@ -150,7 +150,6 @@ main(int argc, char *argv[])
 	cpio->gid_override = -1;
 	cpio->argv = argv;
 	cpio->argc = argc;
-	cpio->line_separator = '\n';
 	cpio->mode = '\0';
 	cpio->verbose = 0;
 	cpio->compress = '\0';
@@ -171,7 +170,7 @@ main(int argc, char *argv[])
 	while ((opt = cpio_getopt(cpio)) != -1) {
 		switch (opt) {
 		case '0': /* GNU convention: --null, -0 */
-			cpio->line_separator = '\0';
+			cpio->option_null = 1;
 			break;
 		case 'A': /* NetBSD/OpenBSD */
 			cpio->option_append = 1;
@@ -194,7 +193,8 @@ main(int argc, char *argv[])
 			cpio->extract_flags &= ~ARCHIVE_EXTRACT_NO_AUTODIR;
 			break;
 		case 'E': /* NetBSD/OpenBSD */
-			lafe_include_from_file(&cpio->matching, cpio->optarg);
+			lafe_include_from_file(&cpio->matching,
+			    cpio->optarg, cpio->option_null);
 			break;
 		case 'F': /* NetBSD/OpenBSD/GNU cpio */
 			cpio->filename = cpio->optarg;
@@ -500,7 +500,7 @@ mode_out(struct cpio *cpio)
 	r = archive_write_open_file(cpio->archive, cpio->filename);
 	if (r != ARCHIVE_OK)
 		lafe_errc(1, 0, archive_error_string(cpio->archive));
-	lr = lafe_line_reader("-", cpio->line_separator);
+	lr = lafe_line_reader("-", cpio->option_null);
 	while ((p = lafe_line_reader_next(lr)) != NULL)
 		file_to_archive(cpio, p);
 	lafe_line_reader_free(lr);
@@ -1043,7 +1043,7 @@ mode_pass(struct cpio *cpio, const char *destdir)
 		archive_read_disk_set_symlink_physical(cpio->archive_read_disk);
 	archive_read_disk_set_standard_lookup(cpio->archive_read_disk);
 
-	lr = lafe_line_reader("-", cpio->line_separator);
+	lr = lafe_line_reader("-", cpio->option_null);
 	while ((p = lafe_line_reader_next(lr)) != NULL)
 		file_to_archive(cpio, p);
 	lafe_line_reader_free(lr);
