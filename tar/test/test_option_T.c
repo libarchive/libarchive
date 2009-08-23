@@ -51,21 +51,30 @@ DEFINE_TEST(test_option_T)
 	if (!touch("d1/d2/f3")) return;
 	if (!touch("d1/d2/f4")) return;
 	if (!touch("d1/d2/f5")) return;
+	if (!touch("d1/d2/f6")) return;
+	if (!touch("d1/d2/f\x0a")) return;
 
 	/* Populate a file list */
 	f = fopen("filelist", "w+");
 	if (!assert(f != NULL))
 		return;
-	fprintf(f, "d1/f1\n");
-	fprintf(f, "d1/d2/f4\n");
+	/* Use a variety of text line endings. */
+	fprintf(f, "d1/f1\x0d\x0a"); /* CRLF */
+	fprintf(f, "d1/d2/f4\x0a"); /* NL */
+	fprintf(f, "d1/d2/f6"); /* EOF */
 	fclose(f);
 
 	/* Populate a second file list */
 	f = fopen("filelist2", "w+");
 	if (!assert(f != NULL))
 		return;
-	fprintf(f, "d1/d2/f3\n");
-	fprintf(f, "d1/d2/f5\n");
+	/* Use null-terminated names. */
+	fprintf(f, "d1/d2/f3");
+	fwrite("\0", 1, 1, f);
+	fprintf(f, "d1/d2/f5");
+	fwrite("\0", 1, 1, f);
+	fprintf(f, "d1/d2/f\x0a");
+	fwrite("\0", 1, 1, f);
 	fclose(f);
 
 	/* Use -c -T to archive up the files. */
@@ -89,9 +98,11 @@ DEFINE_TEST(test_option_T)
 	assertFileNotExists("test1/d1/d2/f3");
 	assertFileExists("test1/d1/d2/f4");
 	assertFileNotExists("test1/d1/d2/f5");
+	assertFileExists("test1/d1/d2/f6");
+	assertFileNotExists("test1/d1/d2/f\x0a");
 
 	/* Use -r -T to add more files to the archive. */
-	systemf("%s -r -f test1.tar -T filelist2 > test2.out 2> test2.err",
+	systemf("%s -r -f test1.tar --null -T filelist2 > test2.out 2> test2.err",
 	    testprog);
 	assertEmptyFile("test2.out");
 	assertEmptyFile("test2.err");
@@ -108,6 +119,8 @@ DEFINE_TEST(test_option_T)
 	assertFileExists("test3/d1/d2/f3");
 	assertFileExists("test3/d1/d2/f4");
 	assertFileExists("test3/d1/d2/f5");
+	assertFileExists("test3/d1/d2/f6");
+	assertFileExists("test3/d1/d2/f\x0a");
 
 	/* Use -x -T to dearchive the files (verify -x -T together) */
 	if (!assertEqualInt(0, mkdir("test2", 0755))) return;
@@ -121,6 +134,8 @@ DEFINE_TEST(test_option_T)
 	assertFileNotExists("test2/d1/d2/f3");
 	assertFileExists("test2/d1/d2/f4");
 	assertFileNotExists("test2/d1/d2/f5");
+	assertFileExists("test2/d1/d2/f6");
+	assertFileNotExists("test2/d1/d2/f\x0a");
 
 	assertEqualInt(0, mkdir("test4", 0755));
 	assertEqualInt(0, mkdir("test4_out", 0755));
@@ -148,6 +163,7 @@ DEFINE_TEST(test_option_T)
 	} else {
 		skipping("bsdtar does not support -s option on this platform");
 	}
+
 	/* TODO: Include some use of -C directory-changing within the filelist. */
 	/* I'm pretty sure -C within the filelist is broken on extract. */
 }

@@ -286,10 +286,8 @@ process_lines(struct bsdtar *bsdtar, const char *pathname,
 	FILE *f;
 	char *buff, *buff_end, *line_start, *line_end, *p;
 	size_t buff_length, new_buff_length, bytes_read, bytes_wanted;
-	int separator;
 	int ret;
 
-	separator = bsdtar->option_null ? '\0' : '\n';
 	ret = 0;
 
 	if (strcmp(pathname, "-") == 0)
@@ -310,10 +308,20 @@ process_lines(struct bsdtar *bsdtar, const char *pathname,
 		buff_end += bytes_read;
 		/* Process all complete lines in the buffer. */
 		while (line_end < buff_end) {
-			if (*line_end == separator) {
+			if (bsdtar->option_null) {
+				if (*line_end == '\0') {
+					if ((*process)(bsdtar, line_start) != 0)
+						ret = -1;
+					line_start = line_end + 1;
+					line_end = line_start;
+				} else
+					line_end++;
+			} else if (*line_end == '\r' || *line_end == '\n') {
 				*line_end = '\0';
-				if ((*process)(bsdtar, line_start) != 0)
-					ret = -1;
+				if (line_end - line_start > 1) {
+					if ((*process)(bsdtar, line_start) != 0)
+						ret = -1;
+				}
 				line_start = line_end + 1;
 				line_end = line_start;
 			} else
