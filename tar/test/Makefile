@@ -21,7 +21,8 @@ TESTS=	\
 	test_stdio.c				\
 	test_strip_components.c			\
 	test_symlink_dir.c			\
-	test_version.c
+	test_version.c				\
+	test_windows.c
 
 # Build the test program
 SRCS= ${TAR_SRCS}				\
