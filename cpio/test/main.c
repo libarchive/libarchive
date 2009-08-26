@@ -220,7 +220,7 @@ report_failure(const char *filename, int line, const char *fmt, ...)
 	if (failed_lines[line].count++ == 0 || verbose) {
 		va_list ap;
 		va_start(ap, fmt);
-		fprintf(stderr, "%s(%d): ", filename, line);
+		fprintf(stderr, "%s:%d: ", filename, line);
 		vfprintf(stderr, fmt, ap);
 		va_end(ap);
 		fprintf(stderr, "\n");
