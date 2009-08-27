@@ -692,15 +692,18 @@ _archive_write_finish_entry(struct archive *_a)
 		}
 #endif
 		/*
-		 * Explicitly stat the file as some platforms might not
-		 * implement the XSI option to extend files via ftruncate.
+		 * Not all platforms implement the XSI option to
+		 * extend files via ftruncate.  Stat() the file again
+		 * to see what happened.
 		 */
 		a->pst = NULL;
 		if ((ret = _archive_write_disk_lazy_stat(a)) != ARCHIVE_OK)
 			return (ret);
-		if (a->st.st_size != a->filesize) {
+		/* We can use lseek()/write() to extend the file if
+		 * ftruncate didn't work or isn't available. */
+		if (a->st.st_size < a->filesize) {
 			const char nul = '\0';
-			if (lseek(a->fd, a->st.st_size - 1, SEEK_SET) < 0) {
+			if (lseek(a->fd, a->filesize - 1, SEEK_SET) < 0) {
 				archive_set_error(&a->archive, errno,
 				    "Seek failed");
 				return (ARCHIVE_FATAL);
