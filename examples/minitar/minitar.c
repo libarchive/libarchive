@@ -1,59 +1,42 @@
 /*-
- * Copyright (c) 2003-2004 Tim Kientzle
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * This file is in the public domain.
+ * Do with it as you will.
  */
 
 /*-
  * This is a compact "tar" program whose primary goal is small size.
- * Statically linked, it can be under 64k.  This serves a number
+ * Statically linked, it can be very small indeed.  This serves a number
  * of goals:
  *   o a testbed for libarchive (to check for link pollution),
  *   o a useful tool for space-constrained systems (boot floppies, etc),
  *   o a place to experiment with new implementation ideas for bsdtar,
  *   o a small program to demonstrate libarchive usage.
  *
- * Use the following macros to control what features get incorporated:
+ * Use the following macros to suppress features:
  *   NO_BZIP2 - Implies NO_BZIP2_CREATE and NO_BZIP2_EXTRACT
  *   NO_BZIP2_CREATE - Suppress bzip2 compression support.
  *   NO_BZIP2_EXTRACT - Suppress bzip2 auto-detection and decompression.
+ *   NO_COMPRESS - Implies NO_COMPRESS_CREATE and NO_COMPRESS_EXTRACT
+ *   NO_COMPRESS_CREATE - Suppress compress(1) compression support
  *   NO_COMPRESS_EXTRACT - Suppress compress(1) auto-detect and decompression.
- *   NO_COMPRESS - Implies NO_COMPRESS_EXTRACT
  *   NO_CREATE - Suppress all archive creation support.
  *   NO_CPIO_EXTRACT - Suppress auto-detect and dearchiving of cpio archives.
  *   NO_GZIP - Implies NO_GZIP_CREATE and NO_GZIP_EXTRACT
  *   NO_GZIP_CREATE - Suppress gzip compression support.
  *   NO_GZIP_EXTRACT - Suppress gzip auto-detection and decompression.
+ *   NO_LOOKUP - Try to avoid getpw/getgr routines, which can be very large
  *   NO_TAR_EXTRACT - Suppress tar extraction
  *
- * With all of the above options (except NO_TAR_EXTRACT), you get a
- * very small program that can recognize and extract essentially any
- * uncompressed tar archive.  On FreeBSD 5.1, this minimal program is
- * under 64k, statically linked.  Without any of the above options,
- * you get a static executable of about 180k with a lot of very
- * sophisticated modern features.
- *
- * Compare this to over 60k for: main(){printf("hello, world!");}
+ * With all of the above macros defined (except NO_TAR_EXTRACT), you
+ * get a very small program that can recognize and extract essentially
+ * any uncompressed tar archive.  On FreeBSD 5.1, this minimal program
+ * is under 64k, statically linked, which compares rather favorably to
+ *         main(){printf("hello, world");}
+ * which is over 60k statically linked on the same operating system.
+ * Without any of the above macros, you get a static executable of
+ * about 180k with a lot of very sophisticated modern features.
+ * Obviously, it's trivial to add support for ISO, Zip, mtree,
+ * lzma/xz, etc.  Just fill in the appropriate setup calls.
  */
 
 #include <sys/types.h>
@@ -74,29 +57,13 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /*
- * NO_CREATE implies NO_BZIP2_CREATE and NO_GZIP_CREATE.
+ * NO_CREATE implies NO_BZIP2_CREATE and NO_GZIP_CREATE and NO_COMPRESS_CREATE.
  */
 #ifdef NO_CREATE
 #undef NO_BZIP2_CREATE
 #define NO_BZIP2_CREATE
-#undef NO_GZIP_CREATE
-#define NO_GZIP_CREATE
-#endif
-
-/*
- * The combination of NO_GZIP_CREATE and NO_GZIP_EXTRACT is
- * equivalent to NO_GZIP.
- */
-#ifdef NO_GZIP_CREATE
-#ifdef NO_GZIP_EXTRACT
-#undef NO_GZIP
-#define NO_GZIP
-#endif
-#endif
-
-#ifdef NO_GZIP
-#undef NO_GZIP_EXTRACT
-#define NO_GZIP_EXTRACT
+#undef NO_COMPRESS_CREATE
+#define	NO_COMPRESS_CREATE
 #undef NO_GZIP_CREATE
 #define NO_GZIP_CREATE
 #endif
@@ -120,18 +87,40 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /*
- * NO_COMPRESS_EXTRACT and NO_COMPRESS are equivalent.
+ * The combination of NO_COMPRESS_CREATE and NO_COMPRESS_EXTRACT is
+ * equivalent to NO_COMPRESS.
  */
+#ifdef NO_COMPRESS_CREATE
 #ifdef NO_COMPRESS_EXTRACT
 #undef NO_COMPRESS
 #define NO_COMPRESS
+#endif
 #endif
 
 #ifdef NO_COMPRESS
 #undef NO_COMPRESS_EXTRACT
 #define NO_COMPRESS_EXTRACT
+#undef NO_COMPRESS_CREATE
+#define NO_COMPRESS_CREATE
 #endif
 
+/*
+ * The combination of NO_GZIP_CREATE and NO_GZIP_EXTRACT is
+ * equivalent to NO_GZIP.
+ */
+#ifdef NO_GZIP_CREATE
+#ifdef NO_GZIP_EXTRACT
+#undef NO_GZIP
+#define NO_GZIP
+#endif
+#endif
+
+#ifdef NO_GZIP
+#undef NO_GZIP_EXTRACT
+#define NO_GZIP_EXTRACT
+#undef NO_GZIP_CREATE
+#define NO_GZIP_CREATE
+#endif
 
 #ifndef NO_CREATE
 static void	create(const char *filename, int compress, const char **argv);
@@ -198,6 +187,11 @@ main(int argc, const char **argv)
 				compress = opt;
 				break;
 #endif
+#ifndef NO_COMPRESS_CREATE
+			case 'Z':
+				compress = opt;
+				break;
+#endif
 #ifndef NO_GZIP_CREATE
 			case 'z':
 				compress = opt;
@@ -234,6 +228,7 @@ static void
 create(const char *filename, int compress, const char **argv)
 {
 	struct archive *a;
+	struct archive *disk;
 	struct archive_entry *entry;
 	ssize_t len;
 	int fd;
@@ -243,6 +238,11 @@ create(const char *filename, int compress, const char **argv)
 #ifndef NO_BZIP2_CREATE
 	case 'j': case 'y':
 		archive_write_set_compression_bzip2(a);
+		break;
+#endif
+#ifndef NO_COMPRESS_CREATE
+	case 'Z':
+		archive_write_set_compression_compress(a);
 		break;
 #endif
 #ifndef NO_GZIP_CREATE
@@ -258,12 +258,18 @@ create(const char *filename, int compress, const char **argv)
 	if (strcmp(filename, "-") == 0)
 		filename = NULL;
 	archive_write_open_file(a, filename);
+
+	disk = archive_read_disk_new();
+#ifndef NO_LOOKUP
+	archive_read_disk_set_standard_lookup(disk);
+#endif
 	while (*argv != NULL) {
 		struct tree *t = tree_open(*argv);
 		while (tree_next(t)) {
 			entry = archive_entry_new();
-			archive_entry_copy_stat(entry, tree_current_stat(t));
 			archive_entry_set_pathname(entry, tree_current_path(t));
+			archive_read_disk_entry_from_file(disk, entry, -1,
+			    tree_current_stat(t));
 			if (verbose) {
 				msg("a ");
 				msg(tree_current_path(t));
@@ -312,6 +318,9 @@ extract(const char *filename, int do_extract, int flags)
 #endif
 #ifndef NO_CPIO_EXTRACT
 	archive_read_support_format_cpio(a);
+#endif
+#ifndef NO_LOOKUP
+	archive_write_disk_set_standard_lookup(ext);
 #endif
 	if (filename != NULL && strcmp(filename, "-") == 0)
 		filename = NULL;
@@ -399,6 +408,9 @@ usage(void)
 #ifndef NO_BZIP2
 	    "y"
 #endif
+#ifndef NO_COMPRESS
+	    "Z"
+#endif
 #ifndef NO_GZIP
 	    "z"
 #endif
@@ -407,27 +419,3 @@ usage(void)
 	errmsg(m);
 	exit(1);
 }
-
-#if 0
-/*
- * These override functions in libc (which are called by libarchive).
- * The libc functions are pretty large; this bit of subterfuge
- * reduces the size of the executable by about 70%.
- */
-struct passwd *getpwnam(const char *);
-struct group *getgrnam(const char *);
-
-struct passwd *
-getpwnam(const char *login)
-{
-        (void)login;
-        return (NULL);
-}
-
-struct group *
-getgrnam(const char *name)
-{
-        (void)name;
-        return (NULL);
-}
-#endif
