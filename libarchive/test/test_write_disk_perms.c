@@ -132,6 +132,8 @@ DEFINE_TEST(test_write_disk_perms)
 	struct archive_entry *ae;
 	struct stat st;
 
+	umask(UMASK);
+
 	/*
 	 * Set ownership of the current directory to the group of this
 	 * process.  Otherwise, the SGID tests below fail if the
