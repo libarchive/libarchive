@@ -92,6 +92,8 @@ int __CreateSymbolicLinkA(const char *linkname, const char *target, int flags)
 
 int __CreateHardLinkA(const char *linkname, const char *target)
 {
+	return CreateHardLinkA(linkname, target, NULL);
+#if 0
 	static BOOLEAN (*f)(LPCSTR, LPCSTR, LPSECURITY_ATTRIBUTES);
 	static int set;
 	if (!set) {
@@ -101,6 +103,7 @@ int __CreateHardLinkA(const char *linkname, const char *target)
 	if (f == NULL)
 		return 0;
 	return (*f)(linkname, target, NULL);
+#endif
 }
 #endif
 
