@@ -43,32 +43,8 @@
  * indicating how to get back to the parent (via chdir("..") for a
  * regular dir or via fchdir(2) for a symlink).
  */
-//#include "bsdtar_platform.h"
-//__FBSDID("$FreeBSD: src/usr.bin/tar/tree.c,v 1.9 2008/11/27 05:49:52 kientzle Exp $");
-
-#if defined(_WIN32)
-#define HAVE_SYS_STAT_H 1
-#define HAVE_DIRECT_H 1
-//#define HAVE_DIRENT_H 1
-#define HAVE_ERRNO_H 1
-#define HAVE_FCNTL_H 1
-#define HAVE_STDLIB_H 1
-#define HAVE_STRING_H 1
-//#define HAVE_UNISTD_H 1
-#define HAVE_WINDOWS_H 1
-
-#elif defined(__FreeBSD__)
-#define HAVE_SYS_STAT_H 1
-//#define HAVE_DIRECT_H 1
-#define HAVE_DIRENT_H 1
-#define HAVE_ERRNO_H 1
-#define	HAVE_FCHDIR 1
-#define HAVE_FCNTL_H 1
-#define HAVE_STDLIB_H 1
-#define HAVE_STRING_H 1
-#define HAVE_UNISTD_H 1
-//#define HAVE_WINDOWS_H 1
-#endif
+#include "bsdtar_platform.h"
+__FBSDID("$FreeBSD: src/usr.bin/tar/tree.c,v 1.9 2008/11/27 05:49:52 kientzle Exp $");
 
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
