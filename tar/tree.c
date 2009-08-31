@@ -410,7 +410,7 @@ tree_next(struct tree *t)
 			/* Top stack item needs a regular visit. */
 			t->current = t->stack;
 			tree_append(t, t->stack->name, strlen(t->stack->name));
-			t->dirname_length = t->path_length;
+			//t->dirname_length = t->path_length;
 			//tree_pop(t);
 			t->stack->flags &= ~needsFirstVisit;
 			return (t->visit_type = TREE_REGULAR);

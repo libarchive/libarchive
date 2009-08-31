@@ -164,10 +164,7 @@ verify_tree(int limit)
 	char filename[260];
 	char name1[260];
 	char name2[260];
-	char contents[260];
 	int i, j, LOOP_MAX;
-	FILE *f;
-	int len;
 
 	LOOP_MAX = compute_loop_max();
 
@@ -186,18 +183,8 @@ verify_tree(int limit)
 		strcpy(name1, "f/");
 		strcat(name1, filename);
 		if (limit != LIMIT_USTAR || strlen(filename) <= 100) {
-			f = fopen(name1, "rb");
-			failure("Couldn't open \"%s\": %s",
-			    name1, strerror(errno));
-			if (assert(f != NULL)) {
-				len = fread(contents, 1, i + 10, f);
-				fclose(f);
-				assertEqualInt(len, i + 2);
-				/* Verify contents of 'contents' */
-				contents[len] = '\0';
-				failure("Each test file contains its own name");
-				assertEqualString(name1, contents);
-			}
+			assertFileExists(name1);
+			assertFileContents(name1, strlen(name1), name1);
 		}
 
 		/*
@@ -210,7 +197,7 @@ verify_tree(int limit)
 		if (limit != LIMIT_USTAR || strlen(name2) <= 100) {
 			/* Verify hardlink "l/abcdef..." */
 			assertFileHardlinks(name1, name2);
-			/* Verify hardlink "m_abcdef..." */
+			/* Verify hardlink "m/abcdef..." */
 			name2[0] = 'm';
 			assertFileHardlinks(name1, name2);
 		}
