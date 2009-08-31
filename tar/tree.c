@@ -128,7 +128,8 @@ struct tree {
 #ifdef HAVE_WINDOWS_H
 	HANDLE d;
 #define INVALID_DIR_HANDLE INVALID_HANDLE_VALUE
-	WIN32_FIND_DATA findData;
+	WIN32_FIND_DATA _findData;
+	WIN32_FIND_DATA *findData;
 #else
 	DIR	*d;
 #define INVALID_DIR_HANDLE NULL
@@ -150,13 +151,17 @@ struct tree {
 	int	 openCount;
 	int	 maxOpenCount;
 
+#ifdef HAVE_WINDOWS_H
+	BY_HANDLE_FILE_INFORMATION fileInfo;
+#endif
 	struct stat	lst;
 	struct stat	st;
 };
 
 /* Definitions for tree.flags bitmap. */
-#define hasStat 16  /* The st entry is set. */
-#define hasLstat 32 /* The lst entry is set. */
+#define hasStat 16  /* The st entry is valid. */
+#define hasLstat 32 /* The lst entry is valid. */
+#define	hasFileInfo 64 /* The Windows fileInfo entry is valid. */
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 static int
@@ -480,7 +485,7 @@ tree_dir_next_windows(struct tree *t, const char *pattern)
 
 	for (;;) {
 		if (pattern != NULL) {
-			t->d = FindFirstFile(pattern, &t->findData);
+			t->d = FindFirstFile(pattern, &t->_findData);
 			if (t->d == INVALID_DIR_HANDLE) {
 				r = tree_ascend(t); /* Undo "chdir" */
 				tree_pop(t);
@@ -488,13 +493,15 @@ tree_dir_next_windows(struct tree *t, const char *pattern)
 				t->visit_type = r != 0 ? r : TREE_ERROR_DIR;
 				return (t->visit_type);
 			}
+			t->findData = &t->_findData;
 			pattern = NULL;
-		} else if (!FindNextFile(t->d, &t->findData)) {
+		} else if (!FindNextFile(t->d, &t->_findData)) {
 			FindClose(t->d);
 			t->d = INVALID_DIR_HANDLE;
+			t->findData = NULL;
 			return (0);
 		}
-		name = t->findData.cFileName;
+		name = t->findData->cFileName;
 		namelen = strlen(name);
 		t->flags &= ~hasLstat;
 		t->flags &= ~hasStat;
@@ -586,6 +593,28 @@ tree_current_stat(struct tree *t)
 	return (&t->st);
 }
 
+#if HAVE_WINDOWS_H
+const BY_HANDLE_FILE_INFORMATION *
+tree_current_file_information(struct tree *t)
+{
+	if (!(t->flags & hasFileInfo)) {
+		HANDLE h = CreateFile(tree_current_access_path(t),
+			0, 0, NULL,
+			OPEN_EXISTING,
+			FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT,
+			NULL);
+		if (h == INVALID_HANDLE_VALUE)
+			return NULL;
+		if (!GetFileInformationByHandle(h, &t->fileInfo)) {
+			CloseHandle(h);
+			return NULL;
+		}
+		CloseHandle(h);
+		t->flags |= hasFileInfo;
+	}
+	return (&t->fileInfo);
+}
+#endif
 /*
  * Get the lstat() data for the entry just returned from tree_next().
  */
@@ -611,7 +640,11 @@ int
 tree_current_is_dir(struct tree *t)
 {
 #if defined(_WIN32)
-	return (t->findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
+	if (t->findData)
+		return (t->findData->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
+	if (tree_current_file_information(t))
+		return (t->fileInfo.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
+	return (0);
 #else
 	const struct stat *st;
 	/*
@@ -687,8 +720,10 @@ int
 tree_current_is_physical_link(struct tree *t)
 {
 #if defined(_WIN32)
-	return ((t->findData.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
-			&& (t->findData.dwReserved0 == IO_REPARSE_TAG_SYMLINK));
+	if (t->findData)
+		return ((t->findData->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
+				&& (t->findData->dwReserved0 == IO_REPARSE_TAG_SYMLINK));
+	return (0);
 #else
 	const struct stat *st = tree_current_lstat(t);
 	if (st == NULL)
