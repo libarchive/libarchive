@@ -386,28 +386,34 @@ tree_next(struct tree *t)
 #if defined(_WIN32) && !defined(__CYGWIN__)
 			char *d = strdup(t->stack->name);
 			char *p, *pattern;
-			tree_pop(t);
-			if ((p = strrchr(d, '\\')) != NULL) {
-				pattern = strdup(p + 1);
-				p[1] = '\0';
-				chdir(d);
-				tree_append(t, d, strlen(d));
-			} else {
-				abort();
+			//tree_pop(t);
+			t->stack->flags &= ~needsFirstVisit;
+			if (strchr(d, '*') || strchr(d, '?')) {
+				// It has a wildcard in it...
+				if ((p = strrchr(d, '\\')) != NULL) {
+					pattern = strdup(p + 1);
+					p[1] = '\0';
+					chdir(d);
+					tree_append(t, d, strlen(d));
+					free(d);
+				} else {
+					pattern = d;
+				}
+				r = tree_dir_next_windows(t, pattern);
+				free(pattern);
+				if (r == 0)
+					continue;
+				return (r);
 			}
-			r = tree_dir_next_windows(t, pattern);
-			free(pattern);
-			if (r == 0)
-				continue;
-			return (r);
-#else
+			// Not a pattern, handle it as-is...
+#endif
 			/* Top stack item needs a regular visit. */
 			t->current = t->stack;
 			tree_append(t, t->stack->name, strlen(t->stack->name));
 			t->dirname_length = t->path_length;
-			tree_pop(t);
+			//tree_pop(t);
+			t->stack->flags &= ~needsFirstVisit;
 			return (t->visit_type = TREE_REGULAR);
-#endif
 		} else if (t->stack->flags & needsDescent) {
 			/* Top stack item is dir to descend into. */
 			t->current = t->stack;
