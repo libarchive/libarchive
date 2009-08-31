@@ -176,7 +176,7 @@ extract(const char *filename, int do_extract, int flags)
 			r = archive_write_header(ext, entry);
 			if (r != ARCHIVE_OK)
 				warn("archive_write_header()",
-				    archive_error_string(a));
+				    archive_error_string(ext));
 			else {
 				copy_data(a, ext);
 				r = archive_write_finish_entry(ext);
