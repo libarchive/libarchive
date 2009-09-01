@@ -335,7 +335,7 @@ AC_FUNC_STAT
 AC_FUNC_STRERROR_R
 AC_FUNC_STRFTIME
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS([CreateHardLink CreateSymbolicLink])
+AC_CHECK_FUNCS([CreateHardLinkA CreateSymbolicLink])
 AC_CHECK_FUNCS([chflags chown chroot])
 AC_CHECK_FUNCS([fchdir fchflags fchmod fchown fcntl fork])
 AC_CHECK_FUNCS([fstat ftruncate futimes geteuid getpid])

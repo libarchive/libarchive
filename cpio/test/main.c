@@ -90,18 +90,6 @@ int __CreateSymbolicLinkA(const char *linkname, const char *target, int flags)
 	return f == NULL ? 0 : (*f)(linkname, target, flags);
 }
 
-int __CreateHardLinkA(const char *linkname, const char *target)
-{
-	static BOOLEAN (*f)(LPCSTR, LPCSTR, LPSECURITY_ATTRIBUTES);
-	static int set;
-	if (!set) {
-		set = 1;
-		f = GetFunctionKernel32("CreateHardLinkA");
-	}
-	if (f == NULL)
-		return 0;
-	return (*f)(linkname, target, NULL);
-}
 #endif
 
 /*
@@ -1015,10 +1003,10 @@ test_assert_make_hardlink(const char *file, int line,
 	int succeeded;
 
 	count_assertion(file, line);
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	succeeded = __CreateHardLinkA(newpath, linkto);
-#elif HAVE_LINK
+#if HAVE_LINK
 	succeeded = !link(linkto, newpath);
+#elif HAVE_CREATEHARDLINKA
+	succeeded = CreateHardLinkA(newpath, linkto, NULL);
 #else
 	succeeded = 0;
 #endif
