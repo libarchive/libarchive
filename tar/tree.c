@@ -125,7 +125,7 @@ struct tree_entry {
 struct tree {
 	struct tree_entry	*stack;
 	struct tree_entry	*current;
-#ifdef HAVE_WINDOWS_H
+#if defined(HAVE_WINDOWS_H) && !defined(__CYGWIN__)
 	HANDLE d;
 #define INVALID_DIR_HANDLE INVALID_HANDLE_VALUE
 	WIN32_FIND_DATA _findData;
@@ -261,7 +261,7 @@ tree_append(struct tree *t, const char *name, size_t name_length)
 		*p++ = DIRSEP;
 		t->path_length ++;
 	}
-#if defined(_WIN32) && !defined(__CYGWIN__)
+#if HAVE_STRNCPY_S
 	strncpy_s(p, t->buff_length - (p - t->buff), name, name_length);
 #else
 	strncpy(p, name, name_length);
@@ -639,7 +639,7 @@ tree_current_lstat(struct tree *t)
 int
 tree_current_is_dir(struct tree *t)
 {
-#if defined(_WIN32)
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	if (t->findData)
 		return (t->findData->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
 	if (tree_current_file_information(t))
@@ -682,7 +682,7 @@ tree_current_is_dir(struct tree *t)
 int
 tree_current_is_physical_dir(struct tree *t)
 {
-#if defined(_WIN32)
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	if (tree_current_is_physical_link(t))
 		return (0);
 	return (tree_current_is_dir(t));
@@ -719,7 +719,7 @@ tree_current_is_physical_dir(struct tree *t)
 int
 tree_current_is_physical_link(struct tree *t)
 {
-#if defined(_WIN32)
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	if (t->findData)
 		return ((t->findData->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
 				&& (t->findData->dwReserved0 == IO_REPARSE_TAG_SYMLINK));

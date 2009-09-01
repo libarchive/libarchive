@@ -456,7 +456,7 @@ tar/test/list.h: Makefile
 
 if BUILD_BSDTAR
 bsdtar_test_programs= bsdtar_test
-bsdtar_TESTS_ENVIRONMENT= BSDTAR=`cd $(top_builddir);/bin/pwd`/bsdtar BSDTAR_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/tar/test
+bsdtar_TESTS_ENVIRONMENT= BSDTAR=`cd $(top_builddir);/bin/pwd`/bsdtar$(EXEEXT) BSDTAR_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/tar/test
 else
 bsdtar_test_programs=
 bsdtar_TESTS_ENVIRONMENT=
@@ -567,7 +567,7 @@ cpio/test/list.h: Makefile
 
 if BUILD_BSDCPIO
 bsdcpio_test_programs= bsdcpio_test
-bsdcpio_TESTS_ENVIRONMENT= BSDCPIO=`cd $(top_builddir);/bin/pwd`/bsdcpio BSDCPIO_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/cpio/test
+bsdcpio_TESTS_ENVIRONMENT= BSDCPIO=`cd $(top_builddir);/bin/pwd`/bsdcpio$(EXEEXT) BSDCPIO_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/cpio/test
 else
 bsdcpio_test_programs=
 bsdcpio_TESTS_ENVIRONMENT=
