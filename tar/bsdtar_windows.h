@@ -42,8 +42,8 @@
 #include <string.h>  /* Must include before redefining 'strdup' */
 #define strdup _strdup
 
-#define chdir la_chdir
-int la_chdir(const char *);
+#define chdir __tar_chdir
+int __tar_chdir(const char *);
 
 #ifndef S_ISREG
 #define S_ISREG(a)	(a & _S_IFREG)

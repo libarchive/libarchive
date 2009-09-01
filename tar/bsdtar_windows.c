@@ -66,7 +66,7 @@ struct ustat {
 	dev_t		st_rdev;
 };
 
-static void tar_dosmaperr(unsigned long);
+static void __tar_dosmaperr(unsigned long);
 
 /* Transform 64-bits ino into 32-bits by hashing.
  * You do not forget that really unique number size is 64-bits.
@@ -182,7 +182,7 @@ permissive_name(const char *name)
 }
 
 static HANDLE
-la_CreateFile(const char *path, DWORD dwDesiredAccess, DWORD dwShareMode,
+__tar_CreateFile(const char *path, DWORD dwDesiredAccess, DWORD dwShareMode,
     LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition,
     DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
 {
@@ -368,7 +368,7 @@ __link(const char *src, const char *dst, int sym)
 		attr = GetFileAttributesW(wnewsrc);
 		if (attr == -1 || (attr & FILE_ATTRIBUTE_DIRECTORY) != 0) {
 			if (attr == -1)
-				tar_dosmaperr(GetLastError());
+				__tar_dosmaperr(GetLastError());
 			else
 				errno = EPERM;
 			free (wnewsrc);
@@ -382,7 +382,7 @@ __link(const char *src, const char *dst, int sym)
 		free (wnewsrc);
 	}
 	if (res == 0) {
-		tar_dosmaperr(GetLastError());
+		__tar_dosmaperr(GetLastError());
 		retval = -1;
 	} else
 		retval = 0;
@@ -408,7 +408,7 @@ int symlink (from, to)
 }
 
 int
-la_chdir(const char *path)
+__tar_chdir(const char *path)
 {
 	wchar_t *ws;
 	int r;
@@ -416,7 +416,7 @@ la_chdir(const char *path)
 	r = SetCurrentDirectoryA(path);
 	if (r == 0) {
 		if (GetLastError() != ERROR_FILE_NOT_FOUND) {
-			tar_dosmaperr(GetLastError());
+			__tar_dosmaperr(GetLastError());
 			return (-1);
 		}
 	} else
@@ -429,7 +429,7 @@ la_chdir(const char *path)
 	r = SetCurrentDirectoryW(ws);
 	free(ws);
 	if (r == 0) {
-		tar_dosmaperr(GetLastError());
+		__tar_dosmaperr(GetLastError());
 		return (-1);
 	}
 	return (0);
@@ -441,7 +441,7 @@ la_chdir(const char *path)
  * This implements for only to pass libarchive_test.
  */
 size_t
-la_mbstowcs(wchar_t *wcstr, const char *mbstr, size_t nwchars)
+__tar_mbstowcs(wchar_t *wcstr, const char *mbstr, size_t nwchars)
 {
 
 	return (MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS,
@@ -450,7 +450,7 @@ la_mbstowcs(wchar_t *wcstr, const char *mbstr, size_t nwchars)
 }
 
 int
-la_open(const char *path, int flags, ...)
+__tar_open(const char *path, int flags, ...)
 {
 	va_list ap;
 	wchar_t *ws;
@@ -476,7 +476,7 @@ la_open(const char *path, int flags, ...)
 			attr = GetFileAttributesW(ws);
 		}
 		if (attr == -1) {
-			tar_dosmaperr(GetLastError());
+			__tar_dosmaperr(GetLastError());
 			free(ws);
 			return (-1);
 		}
@@ -497,7 +497,7 @@ la_open(const char *path, int flags, ...)
 					NULL);
 			free(ws);
 			if (handle == INVALID_HANDLE_VALUE) {
-				tar_dosmaperr(GetLastError());
+				__tar_dosmaperr(GetLastError());
 				return (-1);
 			}
 			r = _open_osfhandle((intptr_t)handle, _O_RDONLY);
@@ -510,7 +510,7 @@ la_open(const char *path, int flags, ...)
 			/* simular other POSIX system action to pass a test */
 			attr = GetFileAttributesA(path);
 			if (attr == -1)
-				tar_dosmaperr(GetLastError());
+				__tar_dosmaperr(GetLastError());
 			else if (attr & FILE_ATTRIBUTE_DIRECTORY)
 				errno = EISDIR;
 			else
@@ -530,7 +530,7 @@ la_open(const char *path, int flags, ...)
 		/* simular other POSIX system action to pass a test */
 		attr = GetFileAttributesW(ws);
 		if (attr == -1)
-			tar_dosmaperr(GetLastError());
+			__tar_dosmaperr(GetLastError());
 		else if (attr & FILE_ATTRIBUTE_DIRECTORY)
 			errno = EISDIR;
 		else
@@ -614,13 +614,13 @@ __hstat(HANDLE handle, struct ustat *st)
 		break;
 	default:
 		/* This ftype is undocumented type. */
-		tar_dosmaperr(GetLastError());
+		__tar_dosmaperr(GetLastError());
 		return (-1);
 	}
 
 	ZeroMemory(&info, sizeof(info));
 	if (!GetFileInformationByHandle (handle, &info)) {
-		tar_dosmaperr(GetLastError());
+		__tar_dosmaperr(GetLastError());
 		return (-1);
 	}
 
@@ -683,7 +683,7 @@ copy_stat(struct stat *st, struct ustat *us)
 }
 
 int
-la_fstat(int fd, struct stat *st)
+__tar_fstat(int fd, struct stat *st)
 {
 	struct ustat u;
 	int ret;
@@ -704,17 +704,17 @@ la_fstat(int fd, struct stat *st)
 }
 
 int
-la_stat(const char *path, struct stat *st)
+__tar_stat(const char *path, struct stat *st)
 {
 	HANDLE handle;
 	struct ustat u;
 	int ret;
 
-	handle = la_CreateFile(path, 0, 0, NULL, OPEN_EXISTING,
+	handle = __tar_CreateFile(path, 0, 0, NULL, OPEN_EXISTING,
 		FILE_FLAG_BACKUP_SEMANTICS | FILE_ATTRIBUTE_READONLY,
 		NULL);
 	if (handle == INVALID_HANDLE_VALUE) {
-		tar_dosmaperr(GetLastError());
+		__tar_dosmaperr(GetLastError());
 		return (-1);
 	}
 	ret = __hstat(handle, &u);
@@ -838,7 +838,7 @@ static const struct {
 };
 
 static void
-tar_dosmaperr(unsigned long e)
+__tar_dosmaperr(unsigned long e)
 {
 	int			i;
 
