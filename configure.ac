@@ -433,8 +433,4 @@ fi
 # Additional requirements
 AC_SYS_LARGEFILE
 
-# Interix doesn't provide optarg and optind
-AC_CHECK_DECLS([optarg])
-AC_CHECK_DECLS([optind])
-
 AC_OUTPUT
