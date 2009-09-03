@@ -286,127 +286,6 @@ canHardLinkW(const wchar_t *path1, const wchar_t *path2)
 		return (0);
 }
 
-/* Make a link to src called dst.  */
-static int
-__link(const char *src, const char *dst, int sym)
-{
-	wchar_t *wsrc, *wdst;
-	int res, retval;
-	DWORD attr;
-
-	if (src == NULL || dst == NULL) {
-		errno = EINVAL;
-		return -1;
-	}
-
-	wsrc = permissive_name(src);
-	wdst = permissive_name(dst);
-	if (wsrc == NULL || wdst == NULL) {
-		if (wsrc != NULL)
-			free(wsrc);
-		if (wdst != NULL)
-			free(wdst);
-		errno = EINVAL;
-		return -1;
-	}
-
-	if ((attr = GetFileAttributesW(wsrc)) != -1) {
-		if ((attr & FILE_ATTRIBUTE_DIRECTORY) != 0) {
-			errno = EPERM;
-			retval = -1;
-			goto exit;
-		}
-		if (!sym && canHardLinkW(wsrc, wdst))
-			res = CreateHardLinkW(wdst, wsrc, NULL);
-		else
-			res = CopyFileW(wsrc, wdst, FALSE);
-	} else {
-		/* wsrc does not exist; try src prepend it with the dirname of wdst */
-		wchar_t *wnewsrc, *slash;
-		int i, n, slen, wlen;
-
-		if (strlen(src) >= 3 && isalpha((unsigned char)src[0]) &&
-		    src[1] == ':' && src[2] == '\\') {
-			/* Original src name is already full-path */
-			retval = -1;
-			goto exit;
-		}
-		if (src[0] == '\\') {
-			/* Original src name is almost full-path
-			 * (maybe src name is without drive) */
-			retval = -1;
-			goto exit;
-		}
-
-		wnewsrc = malloc ((wcslen(wsrc) + wcslen(wdst) + 1) * sizeof(wchar_t));
-		if (wnewsrc == NULL) {
-			errno = ENOMEM;
-			retval = -1;
-			goto exit;
-		}
-		/* Copying a dirname of wdst */
-		wcscpy(wnewsrc, wdst);
-		slash = wcsrchr(wnewsrc, L'\\');
-		if (slash != NULL)
-			*++slash = L'\0';
-		else
-			wcscat(wnewsrc, L"\\");
-		/* Converting multi-byte src to wide-char src */
-		wlen = wcslen(wsrc);
-		slen = strlen(src);
-		n = MultiByteToWideChar(CP_ACP, 0, src, slen, wsrc, slen);
-		if (n == 0) {
-			free (wnewsrc);
-			retval = -1;
-			goto exit;
-		}
-		for (i = 0; i < n; i++)
-			if (wsrc[i] == L'/')
-				wsrc[i] = L'\\';
-		wcsncat(wnewsrc, wsrc, n);
-		/* Check again */
-		attr = GetFileAttributesW(wnewsrc);
-		if (attr == -1 || (attr & FILE_ATTRIBUTE_DIRECTORY) != 0) {
-			if (attr == -1)
-				__tar_dosmaperr(GetLastError());
-			else
-				errno = EPERM;
-			free (wnewsrc);
-			retval = -1;
-			goto exit;
-		}
-		if (!sym && canHardLinkW(wnewsrc, wdst))
-			res = CreateHardLinkW(wdst, wnewsrc, NULL);
-		else
-			res = CopyFileW(wnewsrc, wdst, FALSE);
-		free (wnewsrc);
-	}
-	if (res == 0) {
-		__tar_dosmaperr(GetLastError());
-		retval = -1;
-	} else
-		retval = 0;
-exit:
-	free(wsrc);
-	free(wdst);
-	return (retval);
-}
-
-/* Make a hard link to src called dst.  */
-int
-link(const char *src, const char *dst)
-{
-	return __link (src, dst, 0);
-}
-
-/* Make a symbolic link to FROM called TO.  */
-int symlink (from, to)
-     const char *from;
-     const char *to;
-{
-	return __link (from, to, 1);
-}
-
 int
 __tar_chdir(const char *path)
 {
@@ -741,7 +620,6 @@ __tar_stat(const char *path, struct stat *st)
 }
 
 
-#endif
 /*
  * The following function was modified from PostgreSQL sources and is
  * subject to the copyright below.
@@ -858,3 +736,5 @@ __tar_dosmaperr(unsigned long e)
 	errno = EINVAL;
 	return;
 }
+
+#endif
