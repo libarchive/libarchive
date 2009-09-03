@@ -408,21 +408,20 @@ exit:
 
 /* Make a hard link to src called dst.  */
 int
-link(const char *src, const char *dst)
+__la_link(const char *src, const char *dst)
 {
 	return __link (src, dst, 0);
 }
 
 /* Make a symbolic link to FROM called TO.  */
-int symlink (from, to)
-     const char *from;
-     const char *to;
+int
+__la_symlink (const char *from, const char *to)
 {
 	return __link (from, to, 1);
 }
 
 int
-ftruncate(int fd, off_t length)
+__la_ftruncate(int fd, off_t length)
 {
 	LARGE_INTEGER distance;
 	HANDLE handle;
@@ -469,14 +468,14 @@ __hutimes(HANDLE handle, const struct __timeval *times)
 }
 
 int
-futimes(int fd, const struct __timeval *times)
+__la_futimes(int fd, const struct __timeval *times)
 {
 
 	return (__hutimes((HANDLE)_get_osfhandle(fd), times));
 }
 
 int
-utimes(const char *name, const struct __timeval *times)
+__la_utimes(const char *name, const struct __timeval *times)
 {
 	int ret;
 	HANDLE handle;
@@ -494,7 +493,7 @@ utimes(const char *name, const struct __timeval *times)
 }
 
 int
-la_chdir(const char *path)
+__la_chdir(const char *path)
 {
 	wchar_t *ws;
 	int r;
@@ -522,7 +521,7 @@ la_chdir(const char *path)
 }
 
 int
-la_chmod(const char *path, mode_t mode)
+__la_chmod(const char *path, mode_t mode)
 {
 	wchar_t *ws;
 	int r;
@@ -544,7 +543,7 @@ la_chmod(const char *path, mode_t mode)
  * This fcntl is limited implemention.
  */
 int
-la_fcntl(int fd, int cmd, int val)
+__la_fcntl(int fd, int cmd, int val)
 {
 	HANDLE handle;
 
@@ -562,7 +561,7 @@ la_fcntl(int fd, int cmd, int val)
 }
 
 __int64
-la_lseek(int fd, __int64 offset, int whence)
+__la_lseek(int fd, __int64 offset, int whence)
 {
 	LARGE_INTEGER distance;
 	LARGE_INTEGER newpointer;
@@ -594,7 +593,7 @@ la_lseek(int fd, __int64 offset, int whence)
 }
 
 int
-la_mkdir(const char *path, mode_t mode)
+__la_mkdir(const char *path, mode_t mode)
 {
 	wchar_t *ws;
 	int r;
@@ -630,7 +629,7 @@ la_mkdir(const char *path, mode_t mode)
  * This implements for only to pass libarchive_test.
  */
 size_t
-la_mbstowcs(wchar_t *wcstr, const char *mbstr, size_t nwchars)
+__la_mbstowcs(wchar_t *wcstr, const char *mbstr, size_t nwchars)
 {
 
 	return (MultiByteToWideChar(CP_THREAD_ACP, MB_ERR_INVALID_CHARS,
@@ -639,7 +638,7 @@ la_mbstowcs(wchar_t *wcstr, const char *mbstr, size_t nwchars)
 }
 
 int
-la_open(const char *path, int flags, ...)
+__la_open(const char *path, int flags, ...)
 {
 	va_list ap;
 	wchar_t *ws;
@@ -730,7 +729,7 @@ la_open(const char *path, int flags, ...)
 }
 
 ssize_t
-la_read(int fd, void *buf, size_t nbytes)
+__la_read(int fd, void *buf, size_t nbytes)
 {
 	HANDLE handle;
 	DWORD bytes_read, lasterr;
@@ -782,7 +781,7 @@ la_read(int fd, void *buf, size_t nbytes)
 
 /* Remove directory */
 int
-la_rmdir(const char *path)
+__la_rmdir(const char *path)
 {
 	wchar_t *ws;
 	int r;
@@ -943,7 +942,7 @@ copy_stat(struct stat *st, struct ustat *us)
 }
 
 int
-la_fstat(int fd, struct stat *st)
+__la_fstat(int fd, struct stat *st)
 {
 	struct ustat u;
 	int ret;
@@ -964,7 +963,7 @@ la_fstat(int fd, struct stat *st)
 }
 
 int
-la_stat(const char *path, struct stat *st)
+__la_stat(const char *path, struct stat *st)
 {
 	HANDLE handle;
 	struct ustat u;
@@ -1001,7 +1000,7 @@ la_stat(const char *path, struct stat *st)
 }
 
 int
-la_unlink(const char *path)
+__la_unlink(const char *path)
 {
 	wchar_t *ws;
 	int r;
@@ -1023,7 +1022,7 @@ la_unlink(const char *path)
  * This waitpid is limited implemention.
  */
 pid_t
-la_waitpid(pid_t wpid, int *status, int option)
+__la_waitpid(pid_t wpid, int *status, int option)
 {
 	HANDLE child;
 	DWORD cs, ret;
@@ -1054,7 +1053,7 @@ la_waitpid(pid_t wpid, int *status, int option)
 }
 
 ssize_t
-la_write(int fd, const void *buf, size_t nbytes)
+__la_write(int fd, const void *buf, size_t nbytes)
 {
 	DWORD bytes_written;
 

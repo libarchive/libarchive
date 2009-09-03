@@ -31,6 +31,20 @@
 #error This header is only to be used internally to libarchive.
 #endif
 
+/*
+ * TODO: A lot of stuff in here isn't actually used by libarchive and
+ * can be trimmed out.  Note that this file is used by libarchive and
+ * libarchive_test but nowhere else.  (But note that it gets compiled
+ * with many different Windows environments, including MinGW, Visual
+ * Studio, and Cygwin.  Significant changes should be tested in all three.)
+ */
+
+/*
+ * TODO: Don't use off_t in here.  Use __int64 instead.  Note that
+ * Visual Studio and the Windows SDK define off_t as 32 bits; Win32's
+ * more modern file handling APIs all use __int64 instead of off_t.
+ */
+
 #ifndef LIBARCHIVE_ARCHIVE_WINDOWS_H_INCLUDED
 #define	LIBARCHIVE_ARCHIVE_WINDOWS_H_INCLUDED
 
@@ -67,7 +81,7 @@
 #pragma warning(disable:4146)   /* unary minus operator applied to unsigned type, result still unsigned */
 //#pragma warning(disable:4267)   /* Conversion, possible loss of data */
 #pragma warning(default: 4061)  /* The enumerate has no associated handler in a switch statement */
-#pragma warning(default: 4296)  /* An unsigned variable was used in a comparison operation with zero */ 
+#pragma warning(default: 4296)  /* An unsigned variable was used in a comparison operation with zero */
 #pragma warning(default: 4365)  /* 'action':conversion from 'type_1' to 'type_2', signed/unsigned mismatch */
 #endif
 
@@ -86,30 +100,35 @@
 
 /* Alias the Windows _function to the POSIX equivalent. */
 #define	access		_access
-#define	chdir		la_chdir
-#define	chmod		la_chmod
+#define	chdir		__la_chdir
+#define	chmod		__la_chmod
 #define	close		_close
-#define	fcntl		la_fcntl
+#define	fcntl		__la_fcntl
 #ifndef fileno
 #define	fileno		_fileno
 #endif
-#define	fstat		la_fstat
+#define	fstat		__la_fstat
+#define	ftruncate	__la_ftruncate
+#define	futimes		__la_futimes
 #define	getcwd		_getcwd
-#define	lseek		la_lseek
-#define	lstat		la_stat
-#define	open		la_open
-#define	stat		_stat
-#define	mbstowcs	la_mbstowcs
-#define	mkdir(d,m)	la_mkdir(d, m)
+#define link		__la_link
+#define	lseek		__la_lseek
+#define	lstat		__la_stat
+#define	mbstowcs	__la_mbstowcs
+#define	mkdir(d,m)	__la_mkdir(d, m)
 #define	mktemp		_mktemp
-#define	read		la_read
-#define	rmdir		la_rmdir
+#define	open		__la_open
+#define	read		__la_read
+#define	rmdir		__la_rmdir
+#define	stat		__la_stat
 #define	strdup		_strdup
+#define	symlink		__la_symlink
 #define	tzset		_tzset
 #define	umask		_umask
-#define	unlink		la_unlink
-#define	waitpid		la_waitpid
-#define	write		la_write
+#define	unlink		__la_unlink
+#define	utimes		__la_utimes
+#define	waitpid		__la_waitpid
+#define	write		__la_write
 
 #define	O_RDONLY	_O_RDONLY
 #define	O_WRONLY	_O_WRONLY
@@ -306,48 +325,45 @@ typedef struct {
 
 /* End of Win32 definitions. */
 
-/* Implementation POSIX function */
-extern int	 link (const char *from, const char *to);
-extern int	 symlink (const char *from, const char *to);
+/* Tell libarchive code that we have simulations for these. */
 #ifndef HAVE_FTRUNCATE
 #define HAVE_FTRUNCATE 1
 #endif
-extern int	 ftruncate(int fd, off_t length);
-#ifndef HAVE_FUTIMES 
+#ifndef HAVE_FUTIMES
 #define HAVE_FUTIMES 1
 #endif
-extern int	 futimes(int fd, const struct __timeval *times);
-#ifndef HAVE_UTIMES 
+#ifndef HAVE_UTIMES
 #define HAVE_UTIMES 1
 #endif
-extern int	 utimes(const char *name, const struct __timeval *times);
 
 /* Replacement POSIX function */
-extern int	 la_chdir(const char *path);
-extern int	 la_chmod(const char *path, mode_t mode);
-extern int	 la_fcntl(int fd, int cmd, int val);
-extern int	 la_fstat(int fd, struct stat *st);
-extern __int64	 la_lseek(int fd, __int64 offset, int whence);
-extern int	 la_mkdir(const char *path, mode_t mode);
-extern size_t	 la_mbstowcs(wchar_t *wcstr, const char *mbstr, size_t nwchars);
-extern int	 la_open(const char *path, int flags, ...);
-extern ssize_t	 la_read(int fd, void *buf, size_t nbytes);
-extern int	 la_rmdir(const char *path);
-extern int	 la_stat(const char *path, struct stat *st);
-extern int	 la_unlink(const char *path);
-extern pid_t	 la_waitpid(pid_t wpid, int *status, int option);
-extern ssize_t	 la_write(int fd, const void *buf, size_t nbytes);
+extern int	 __la_chdir(const char *path);
+extern int	 __la_chmod(const char *path, mode_t mode);
+extern int	 __la_fcntl(int fd, int cmd, int val);
+extern int	 __la_fstat(int fd, struct stat *st);
+extern int	 __la_ftruncate(int fd, off_t length);
+extern int	 __la_futimes(int fd, const struct __timeval *times);
+extern int	 __la_link(const char *src, const char *dst);
+extern __int64	 __la_lseek(int fd, __int64 offset, int whence);
+extern size_t	 __la_mbstowcs(wchar_t *wcstr, const char *mbstr, size_t nwchars);
+extern int	 __la_mkdir(const char *path, mode_t mode);
+extern int	 __la_open(const char *path, int flags, ...);
+extern ssize_t	 __la_read(int fd, void *buf, size_t nbytes);
+extern int	 __la_rmdir(const char *path);
+extern int	 __la_stat(const char *path, struct stat *st);
+extern int	 __la_symlink(const char *from, const char *to);
+extern int	 __la_unlink(const char *path);
+extern int	 __la_utimes(const char *name, const struct __timeval *times);
+extern pid_t	 __la_waitpid(pid_t wpid, int *status, int option);
+extern ssize_t	 __la_write(int fd, const void *buf, size_t nbytes);
 
-#define _stat64i32(path, st)	la_stat(path, st)
-#define _stat64(path, st)	la_stat(path, st)
+#define _stat64i32(path, st)	__la_stat(path, st)
+#define _stat64(path, st)	__la_stat(path, st)
 /* for status returned by la_waitpid */
 #define WIFSIGNALED(sts)	0
 #define WTERMSIG(sts)		0
 #define WIFEXITED(sts)		((sts & 0x100) == 0)
 #define WEXITSTATUS(sts)	(sts & 0x0FF)
-
-/* Convertion a Win32 API error code */
-extern void _dosmaperr(unsigned long);
 
 /* Message digest function */
 #if !defined(HAVE_OPENSSL_MD5_H) && !defined(HAVE_OPENSSL_SHA_H)
