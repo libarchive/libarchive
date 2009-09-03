@@ -120,7 +120,7 @@
 #define	open		__la_open
 #define	read		__la_read
 #define	rmdir		__la_rmdir
-#define	stat(f)		__la_stat(f)
+#define	stat(path,stref)		__la_stat(path,stref)
 #define	strdup		_strdup
 #define	symlink		__la_symlink
 #define	tzset		_tzset
