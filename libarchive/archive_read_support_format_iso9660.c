@@ -1158,6 +1158,9 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 static void
 add_entry(struct iso9660 *iso9660, struct file_info *file)
 {
+	uint64_t file_offset, parent_offset;
+	int hole, parent;
+
 	/* Expand our pending files list as necessary. */
 	if (iso9660->pending_files_used >= iso9660->pending_files_allocated) {
 		struct file_info **new_pending_files;
@@ -1179,7 +1182,25 @@ add_entry(struct iso9660 *iso9660, struct file_info *file)
 		iso9660->pending_files_allocated = new_size;
 	}
 
-	iso9660->pending_files[iso9660->pending_files_used++] = file;
+	file_offset = file->offset + file->size;
+
+	/*
+	 * Start with hole at end, walk it up tree to find insertion point.
+	 */
+	hole = iso9660->pending_files_used++;
+	while (hole > 0) {
+		parent = (hole - 1)/2;
+		parent_offset = iso9660->pending_files[parent]->offset
+		    + iso9660->pending_files[parent]->size;
+		if (file_offset >= parent_offset) {
+			iso9660->pending_files[hole] = file;
+			return;
+		}
+		// Move parent into hole <==> move hole up tree.
+		iso9660->pending_files[hole] = iso9660->pending_files[parent];
+		hole = parent;
+	}
+	iso9660->pending_files[0] = file;
 }
 
 static void
@@ -1685,37 +1706,52 @@ next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
 static struct file_info *
 next_entry(struct iso9660 *iso9660)
 {
-	int least_index;
-	uint64_t least_end_offset;
-	int i;
-	struct file_info *r;
+	uint64_t a_offset, b_offset, c_offset;
+	int a, b, c;
+	struct file_info *r, *tmp;
 
 	if (iso9660->pending_files_used < 1)
 		return (NULL);
 
-	/* Assume the first file in the list is the earliest on disk. */
-	least_index = 0;
-	least_end_offset = iso9660->pending_files[0]->offset
-	    + iso9660->pending_files[0]->size;
+	/*
+	 * The first file in the list is the earliest; we'll return this.
+	 */
+	r = iso9660->pending_files[0];
 
-	/* Now, try to find an earlier one. */
-	for (i = 0; i < iso9660->pending_files_used; i++) {
-		/* Use the position of the file *end* as our comparison. */
-		uint64_t end_offset = iso9660->pending_files[i]->offset
-		    + iso9660->pending_files[i]->size;
-		if (iso9660->pending_files[i]->ce_offset > 0
-		    && iso9660->pending_files[i]->ce_offset < iso9660->pending_files[i]->offset)
-			end_offset = iso9660->pending_files[i]->ce_offset
-		    + iso9660->pending_files[i]->ce_size;
-		if (least_end_offset > end_offset) {
-			least_index = i;
-			least_end_offset = end_offset;
-		}
-	}
-	r = iso9660->pending_files[least_index];
-	iso9660->pending_files[least_index]
+	/*
+	 * Move the last item in the heap to the root of the tree
+	 */
+	iso9660->pending_files[0]
 	    = iso9660->pending_files[--iso9660->pending_files_used];
-	return (r);
+
+	/*
+	 * Rebalance the heap.
+	 */
+	a = 0; // Starting element and its offset
+	a_offset = iso9660->pending_files[a]->offset
+	    + iso9660->pending_files[a]->size;
+	for (;;) {
+		b = a + a + 1; // First child
+		if (b >= iso9660->pending_files_used)
+			return (r);
+		b_offset = iso9660->pending_files[b]->offset
+		    + iso9660->pending_files[b]->size;
+		c = b + 1; // Use second child if it is smaller.
+		if (c < iso9660->pending_files_used) {
+			c_offset = iso9660->pending_files[c]->offset
+			    + iso9660->pending_files[c]->size;
+			if (c_offset < b_offset) {
+				b = c;
+				b_offset = c_offset;
+			}
+		}
+		if (a_offset <= b_offset)
+			return (r);
+		tmp = iso9660->pending_files[a];
+		iso9660->pending_files[a] = iso9660->pending_files[b];
+		iso9660->pending_files[b] = tmp;
+		a = b;
+	}
 }
 
 static unsigned int
