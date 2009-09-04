@@ -179,6 +179,14 @@ esac
 AM_CONDITIONAL([BUILD_BSDCPIO], [ test "$build_bsdcpio" = yes ])
 AM_CONDITIONAL([STATIC_BSDCPIO], [ test "$static_bsdcpio" = yes ])
 
+# Set up defines needed before including any headers
+case $host in
+  *mingw* | *cygwin* )
+  AC_DEFINE([_WIN32_WINNT], 0x0500, [Define to '0x0500' for Windows 2000 APIs.])
+  AC_DEFINE([WINVER], 0x0500, [Define to '0x0500' for Windows 2000 APIs.])
+  ;;
+esac
+
 # Checks for header files.
 AC_HEADER_STDC
 AC_HEADER_DIRENT
@@ -335,7 +343,11 @@ AC_FUNC_STAT
 AC_FUNC_STRERROR_R
 AC_FUNC_STRFTIME
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS([CreateHardLinkA CreateSymbolicLink])
+# check for:
+#   CreateHardLinkA(LPCSTR, LPCSTR, LPSECURITY_ATTRIBUTES)
+# To avoid necessity for including windows.h or special forward declaration
+# workarounds, we use 'void *' for 'struct SECURITY_ATTRIBUTES *'
+AC_CHECK_STDCALL_FUNC([CreateHardLinkA],[const char *, const char *, void *])
 AC_CHECK_FUNCS([chflags chown chroot])
 AC_CHECK_FUNCS([fchdir fchflags fchmod fchown fcntl fork])
 AC_CHECK_FUNCS([fstat ftruncate futimes geteuid getpid])

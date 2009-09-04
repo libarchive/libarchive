@@ -26,8 +26,6 @@
  */
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
-#define _WIN32_WINNT 0x0500
-#define WINVER       0x0500
 
 #include "bsdtar_platform.h"
 #include <ctype.h>
@@ -204,86 +202,6 @@ __tar_CreateFile(const char *path, DWORD dwDesiredAccess, DWORD dwShareMode,
 	    hTemplateFile);
 	free(wpath);
 	return (handle);
-}
-
-static size_t
-wequallen(const wchar_t *s1, const wchar_t *s2)
-{
-	size_t i = 0;
-
-	while (*s1 != L'\0' && *s2 != L'\0' && *s1 == *s2) {
-		++s1; ++s2; ++i;
-	}
-	return (i);
-}
-
-/* Check that path1 and path2 can be hard-linked by each other.
- * Both arguments must be made by permissive_name function. 
- */
-static int
-canHardLinkW(const wchar_t *path1, const wchar_t *path2)
-{
-	wchar_t root[MAX_PATH];
-	wchar_t fs[32];
-	const wchar_t *s;
-	int r;
-
-	r = wequallen(path1, path2);
-	/* Is volume-name the same? */
-	if (r < 7)
-		return (0);
-	if (wcsncmp(path1, L"\\\\?\\UNC\\", 8) == 0) {
-		int len;
-
-		s = path1 + 8;
-		if (*s == L'\\')
-			return (0);
-		/*         012345678
-		 * Name : "\\?\UNC\Server\Share\"
-		 *                       ^ search
-		 */
-		s = wcschr(++s, L'\\');
-		if (s == NULL)
-			return (0);
-		if (*++s == L'\\')
-			return (0);
-		/*         012345678
-		 * Name : "\\?\UNC\Server\Share\"
-		 *                             ^ search
-		 */
-		s = wcschr(++s, L'\\');
-		if (s == NULL)
-			return (0);
-		s++;
-		/*         012345678
-		 * Name : "\\?\UNC\Server\Share\xxxx"
-		 *                 ^--- len ----^
-		 */
-		len = (int)(s - path1 - 8);
-		/* Is volume-name the same? */
-		if (r < len + 8)
-			return (0);
-		/* Is volume-name too long? */
-		if (sizeof(root) -3 < len)
-			return (0);
-		root[0] = root[1] = L'\\';
-		wcsncpy(root + 2, path1 + 8 , len);
-		/* root : "\\Server\Share\" */
-		root[2 + len] = L'\0';
-	} else if (wcsncmp(path1, L"\\\\?\\", 4) == 0) {
-		s = path1 + 4;
-		if ((!iswalpha(*s)) || s[1] != L':' || s[2] != L'\\')
-			return (0);
-		wcsncpy(root, path1 + 4, 3);
-		root[3] = L'\0';
-	} else
-		return (0);
-	if (!GetVolumeInformationW(root, NULL, 0, NULL, NULL, NULL, fs, sizeof(fs)))
-		return (0);
-	if (wcscmp(fs, L"NTFS") == 0)
-		return (1);
-	else
-		return (0);
 }
 
 int
