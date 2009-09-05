@@ -191,6 +191,19 @@ count_assertion(const char *file, int line)
 }
 
 /*
+ * Print a suitable leader for an error message.
+ */
+static void
+error_leader(const char *filename, int line)
+{
+#if _MSC_VER
+	return ("%s (%d): ", filename, line);
+#else
+	printf ("%s:%d: ", filename, line);
+#endif
+}
+
+/*
  * Count this failure; return true if this failure is being reported.
  */
 static int
@@ -207,7 +220,7 @@ report_failure(const char *filename, int line, const char *fmt, ...)
 	if (failed_lines[line].count++ == 0 || verbose) {
 		va_list ap;
 		va_start(ap, fmt);
-		fprintf(stderr, "%s:%d: ", filename, line);
+		error_leader(filename, line);
 		vfprintf(stderr, fmt, ap);
 		va_end(ap);
 		fprintf(stderr, "\n");
@@ -918,6 +931,10 @@ test_assert_is_reg(const char *file, int line, const char *pathname, int mode)
 			finish_failure(NULL);
 		return (0);
 	}
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	/* Windows doesn't handle permissions the same way as POSIX,
+	 * so just ignore the mode tests. */
+	/* TODO: Can we do better here? */
 	if (mode < 0)
 		return (1);
 	if (mode != (st.st_mode & 07777)) {
@@ -928,6 +945,7 @@ test_assert_is_reg(const char *file, int line, const char *pathname, int mode)
 		}
 		return (0);
 	}
+#endif
 	return (1);
 }
 
