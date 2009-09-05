@@ -57,11 +57,11 @@
 /* Define to 1 if you have the `chroot' function. */
 #cmakedefine HAVE_CHROOT 1
 
-/* Define to 1 if you have the `CreateSymbolicLink function. */
-#cmakedefine HAVE_CREATESYMBOLICLINK 1
+/* Define to 1 if you have the `CreateHardLinkA' function. */
+#cmakedefine HAVE_CREATEHARDLINKA 1
 
-/* Define to 1 if you have the `CreateHardLink function. */
-#cmakedefine HAVE_CREATEHARDLINK 1
+/* Define to 1 if you have the `CreateHardLinkW' function. */
+#cmakedefine HAVE_CREATEHARDLINKW 1
 
 /* Define to 1 if you have the <ctype.h> header file. */
 #cmakedefine HAVE_CTYPE_H 1

@@ -218,6 +218,10 @@ la_CreateFile(const char *path, DWORD dwDesiredAccess, DWORD dwShareMode,
 	return (handle);
 }
 
+#if HAVE_CREATEHARDLINKW
+/* Check that path1 and path2 can be hard-linked by each other.
+ * Both arguments must be made by permissive_name function. 
+ */
 static size_t
 wequallen(const wchar_t *s1, const wchar_t *s2)
 {
@@ -229,9 +233,6 @@ wequallen(const wchar_t *s1, const wchar_t *s2)
 	return (i);
 }
 
-/* Check that path1 and path2 can be hard-linked by each other.
- * Both arguments must be made by permissive_name function. 
- */
 static int
 canHardLinkW(const wchar_t *path1, const wchar_t *path2)
 {
@@ -297,6 +298,7 @@ canHardLinkW(const wchar_t *path1, const wchar_t *path2)
 	else
 		return (0);
 }
+#endif
 
 /* Make a link to src called dst.  */
 static int
@@ -328,9 +330,11 @@ __link(const char *src, const char *dst, int sym)
 			retval = -1;
 			goto exit;
 		}
+#if HAVE_CREATEHARDLINKW
 		if (!sym && canHardLinkW(wsrc, wdst))
 			res = CreateHardLinkW(wdst, wsrc, NULL);
 		else
+#endif
 			res = CopyFileW(wsrc, wdst, FALSE);
 	} else {
 		/* wsrc does not exist; try src prepend it with the dirname of wdst */
@@ -387,9 +391,11 @@ __link(const char *src, const char *dst, int sym)
 			retval = -1;
 			goto exit;
 		}
+#if HAVE_CREATEHARDLINKW
 		if (!sym && canHardLinkW(wnewsrc, wdst))
 			res = CreateHardLinkW(wdst, wnewsrc, NULL);
 		else
+#endif
 			res = CopyFileW(wnewsrc, wdst, FALSE);
 		free (wnewsrc);
 	}
