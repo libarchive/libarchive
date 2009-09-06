@@ -819,6 +819,7 @@ assertion_file_time(const char *file, int line,
 	int r;
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
+#define EPOC_TIME	(116444736000000000ULL)
 	FILETIME ftime, fbirthtime, fatime, fmtime;
 	ULARGE_INTEGER wintm;
 	HANDLE h;
@@ -834,8 +835,8 @@ assertion_file_time(const char *file, int line,
 	r = GetFileTime(h, &fbirthtime, &fatime, &fmtime);
 	switch (type) {
 	case 'a': ftime = fatime; break;
-	case 'm': ftime = fmtime; break;
 	case 'b': ftime = fbirthtime; break;
+	case 'm': ftime = fmtime; break;
 	}
 	CloseHandle(h);
 	if (r == 0) {
@@ -843,8 +844,8 @@ assertion_file_time(const char *file, int line,
 		failure_finish(NULL);
 		return (0);
 	}
-	wintm.LowPart = fmtime.dwLowDateTime;
-	wintm.HighPart = fmtime.dwHighDateTime;
+	wintm.LowPart = ftime.dwLowDateTime;
+	wintm.HighPart = ftime.dwHighDateTime;
 	filet = (wintm.QuadPart - EPOC_TIME) / 10000000;
 	filet_nsec = ((wintm.QuadPart - EPOC_TIME) % 10000000) * 100;
 	nsec = (nsec / 100) * 100; /* Round the request */
