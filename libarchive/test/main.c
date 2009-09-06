@@ -244,6 +244,8 @@ static struct line {
 static void
 failure_start(const char *filename, int line, const char *fmt, ...)
 {
+	va_list ap;
+
 	/* Record another failure for this line. */
 	++failures;
 	test_filename = filename;
@@ -262,10 +264,9 @@ failure_start(const char *filename, int line, const char *fmt, ...)
 	}
 
 	/* Log file:line header for this failure */
-	va_list ap;
 	va_start(ap, fmt);
 #if _MSC_VER
-	logprintf("%s (%d): ", filename, line);
+	logprintf("%s(%d): ", filename, line);
 #else
 	logprintf("%s:%d: ", filename, line);
 #endif
@@ -273,14 +274,14 @@ failure_start(const char *filename, int line, const char *fmt, ...)
 	va_end(ap);
 	logprintf("\n");
 
-	/* Determine whether to log details to console. */
-	if (verbosity == VERBOSITY_LIGHT_REPORT)
-		log_console = 0;
-
 	if (msg != NULL && msg[0] != '\0') {
 		logprintf("   Description: %s\n", msg);
 		msg = NULL;
 	}
+
+	/* Determine whether to log details to console. */
+	if (verbosity == VERBOSITY_LIGHT_REPORT)
+		log_console = 0;
 }
 
 /* Complete reporting of failed tests. */
@@ -815,7 +816,7 @@ static int
 assertion_file_time(const char *file, int line,
     const char *pathname, long t, long nsec, char type, int recent)
 {
-	long filet, filet_nsec;
+	long long filet, filet_nsec;
 	int r;
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
