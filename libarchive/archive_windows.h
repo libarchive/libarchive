@@ -335,6 +335,9 @@ typedef struct {
 #ifndef HAVE_UTIMES
 #define HAVE_UTIMES 1
 #endif
+#ifndef HAVE_SYMLINK
+#define HAVE_SYMLINK 1
+#endif
 
 /* Replacement POSIX function */
 extern int	 __la_chdir(const char *path);
