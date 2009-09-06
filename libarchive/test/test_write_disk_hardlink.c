@@ -49,7 +49,6 @@ DEFINE_TEST(test_write_disk_hardlink)
 	static const char data[]="abcdefghijklmnopqrstuvwxyz";
 	struct archive *ad;
 	struct archive_entry *ae;
-	struct stat st, st2;
 	int r;
 
 	/* Force the umask to something predictable. */
@@ -188,21 +187,14 @@ DEFINE_TEST(test_write_disk_hardlink)
 	/* Test the entries on disk. */
 
 	/* Test #1 */
-	assert(0 == stat("link1a", &st));
 	/* If the hardlink was successfully created and the archive
 	 * doesn't carry data for it, we consider it to be
 	 * non-authoritive for meta data as well.  This is consistent
 	 * with GNU tar and BSD pax.  */
-	assertEqualInt(st.st_mode & E_MASK, (S_IFREG | 0755) & ~UMASK);
-	assertEqualInt(st.st_size, sizeof(data));
-	assertEqualInt(st.st_nlink, 2);
-
-	assert(0 == stat("link1b", &st2));
-	assertEqualInt(st.st_mode, st2.st_mode);
-	assertEqualInt(st.st_size, st2.st_size);
-	assertEqualInt(st.st_nlink, st2.st_nlink);
-	assertEqualInt(st.st_ino, st2.st_ino);
-	assertEqualInt(st.st_dev, st2.st_dev);
+	assertIsReg("link1a", 0755 & ~UMASK);
+	assertFileSize("link1a", sizeof(data));
+	assertFileNLinks("link1a", 2);
+	assertFileHardlinks("link1a", "link1b");
 
 	/* Test #2: Should produce identical results to test #1 */
 	/* Note that marking a hardlink with size = 0 is treated the
@@ -211,42 +203,21 @@ DEFINE_TEST(test_write_disk_hardlink)
 	 * relied on size == 0) and partly to match the model used by
 	 * common file formats that store a size of zero for
 	 * hardlinks. */
-	assert(0 == stat("link2a", &st));
-	assertEqualInt(st.st_mode & E_MASK, (S_IFREG | 0755) & ~UMASK);
-	assertEqualInt(st.st_size, sizeof(data));
-	assertEqualInt(st.st_nlink, 2);
-
-	assert(0 == stat("link2b", &st2));
-	assertEqualInt(st.st_mode, st2.st_mode);
-	assertEqualInt(st.st_size, st2.st_size);
-	assertEqualInt(st.st_nlink, st2.st_nlink);
-	assertEqualInt(st.st_ino, st2.st_ino);
-	assertEqualInt(st.st_dev, st2.st_dev);
+	assertIsReg("link2a", 0755 & ~UMASK);
+	assertFileSize("link2a", sizeof(data));
+	assertFileNLinks("link2a", 2);
+	assertFileHardlinks("link2a", "link2b");
 
 	/* Test #3 */
-	assert(0 == stat("link3a", &st));
-	assertEqualInt(st.st_mode & E_MASK, (S_IFREG | 0755) & ~UMASK);
-	assertEqualInt(st.st_size, sizeof(data));
-	assertEqualInt(st.st_nlink, 2);
-
-	assert(0 == stat("link3b", &st2));
-	assertEqualInt(st2.st_mode & E_MASK, (S_IFREG | 0755) & ~UMASK);
-	assertEqualInt(st2.st_size, sizeof(data));
-	assertEqualInt(st2.st_nlink, 2);
-	assertEqualInt(st.st_ino, st2.st_ino);
-	assertEqualInt(st.st_dev, st2.st_dev);
+	assertIsReg("link3a", 0755 & ~UMASK);
+	assertFileSize("link3a", sizeof(data));
+	assertFileNLinks("link3a", 2);
+	assertFileHardlinks("link3a", "link3b");
 
 	/* Test #4 */
-	assert(0 == stat("link4a", &st));
-	assertEqualInt(st.st_mode & E_MASK, (S_IFREG | 0755) & ~UMASK);
-	assertEqualInt(st.st_size, sizeof(data));
-	assertEqualInt(st.st_nlink, 2);
-
-	assert(0 == stat("link4b", &st2));
-	assertEqualInt(st2.st_mode & E_MASK, (S_IFREG | 0755) & ~UMASK);
-	assertEqualInt(st2.st_size, sizeof(data));
-	assertEqualInt(st2.st_nlink, 2);
-	assertEqualInt(st.st_ino, st2.st_ino);
-	assertEqualInt(st.st_dev, st2.st_dev);
+	assertIsReg("link4a", 0755 & ~UMASK);
+	assertFileNLinks("link4a", 2);
+	assertFileSize("link4a", sizeof(data));
+	assertFileHardlinks("link4a", "link4b");
 #endif
 }
