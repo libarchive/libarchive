@@ -763,8 +763,10 @@ zisofs_read_data(struct archive_read *a,
 		size_t ceil, xsize;
 
 		/* Allocate block pointers buffer. */
-		ceil = zisofs->pz_uncompressed_size >> zisofs->pz_log2_bs;
-		xsize = (ceil + 1 + 1) * 4;
+		ceil = (zisofs->pz_uncompressed_size +
+			(1UL << zisofs->pz_log2_bs) - 1)
+			>> zisofs->pz_log2_bs;
+		xsize = (ceil + 1) * 4;
 		if (zisofs->block_pointers_alloc < xsize) {
 			size_t alloc;
 
