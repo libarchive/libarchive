@@ -53,6 +53,7 @@ TESTS= \
 	test_read_format_iso_gz.c		\
 	test_read_format_isojoliet_bz2.c	\
 	test_read_format_isorr_bz2.c		\
+	test_read_format_isozisofs_bz2.c	\
 	test_read_format_mtree.c		\
 	test_read_format_pax_bz2.c		\
 	test_read_format_raw.c			\
@@ -132,7 +133,7 @@ WARNS=6
 
 # Build libarchive_test and run it.
 check test: libarchive_test
-	./libarchive_test -v -r ${.CURDIR}
+	./libarchive_test -r ${.CURDIR}
 
 # list.h is just a list of all tests, as indicated by DEFINE_TEST macro lines
 list.h: ${TESTS} Makefile
