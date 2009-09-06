@@ -335,6 +335,9 @@ typedef struct {
 #ifndef HAVE_UTIMES
 #define HAVE_UTIMES 1
 #endif
+#ifndef HAVE_LINK
+#define HAVE_LINK 1
+#endif
 #ifndef HAVE_SYMLINK
 #define HAVE_SYMLINK 1
 #endif
