@@ -119,8 +119,10 @@ DEFINE_TEST(test_read_extract)
 	assertA(0 == archive_read_extract(a, ae, ARCHIVE_EXTRACT_PERM));
 	/* Rest of entries get restored with no flags. */
 	for (i = 0; i < 7; i++) {
-		failure("Error reading entry %d", i+1);
+		failure("Error reading entry %d", i);
 		assertA(0 == archive_read_next_header(a, &ae));
+		failure("Failed to extract entry %d: %s", i,
+			archive_entry_pathname(ae));
 		assertA(0 == archive_read_extract(a, ae, 0));
 	}
 	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
