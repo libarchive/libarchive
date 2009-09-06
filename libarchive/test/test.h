@@ -148,6 +148,14 @@
 /* Assert that a file is not empty; supports printf-style arguments. */
 #define assertNonEmptyFile		\
   assertion_setup(__FILE__, __LINE__);assertion_non_empty_file
+#define assertFileAtime(pathname, sec, nsec)	\
+  assertion_file_atime(__FILE__, __LINE__, pathname, sec, nsec)
+#define assertFileAtimeRecent(pathname)	\
+  assertion_file_atime_recent(__FILE__, __LINE__, pathname)
+#define assertFileBirthtime(pathname, sec, nsec)	\
+  assertion_file_birthtime(__FILE__, __LINE__, pathname, sec, nsec)
+#define assertFileBirthtimeRecent(pathname) \
+  assertion_file_birthtime_recent(__FILE__, __LINE__, pathname)
 /* Assert that a file exists; supports printf-style arguments. */
 #define assertFileExists		\
   assertion_setup(__FILE__, __LINE__);assertion_file_exists
@@ -159,6 +167,10 @@
   assertion_setup(__FILE__, __LINE__);assertion_file_contents
 #define assertFileHardlinks(path1, path2)	\
   assertion_file_hardlinks(__FILE__, __LINE__, path1, path2)
+#define assertFileMtime(pathname, sec, nsec)	\
+  assertion_file_mtime(__FILE__, __LINE__, pathname, sec, nsec)
+#define assertFileMtimeRecent(pathname) \
+  assertion_file_mtime_recent(__FILE__, __LINE__, pathname)
 #define assertFileNLinks(pathname, nlinks)  \
   assertion_file_nlinks(__FILE__, __LINE__, pathname, nlinks)
 #define assertFileSize(pathname, size)  \
@@ -202,9 +214,15 @@ int assertion_equal_int(const char *, int, long long, const char *, long long, c
 int assertion_equal_mem(const char *, int, const void *, const char *, const void *, const char *, size_t, const char *, void *);
 int assertion_equal_string(const char *, int, const char *v1, const char *, const char *v2, const char *, void *);
 int assertion_equal_wstring(const char *, int, const wchar_t *v1, const char *, const wchar_t *v2, const char *, void *);
+int assertion_file_atime(const char *, int, const char *, long, long);
+int assertion_file_atime_recent(const char *, int, const char *);
+int assertion_file_birthtime(const char *, int, const char *, long, long);
+int assertion_file_birthtime_recent(const char *, int, const char *);
 int assertion_file_contents(const void *, int, const char *, ...);
 int assertion_file_exists(const char *, ...);
 int assertion_file_hardlinks(const char *, int, const char *, const char *);
+int assertion_file_mtime(const char *, int, const char *, long, long);
+int assertion_file_mtime_recent(const char *, int, const char *);
 int assertion_file_nlinks(const char *, int, const char *, int);
 int assertion_file_not_exists(const char *, ...);
 int assertion_file_size(const char *, int, const char *, long);

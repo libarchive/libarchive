@@ -61,8 +61,6 @@ static void create_reg_file(struct archive_entry *ae, const char *msg)
 {
 	static const char data[]="abcdefghijklmnopqrstuvwxyz";
 	struct archive *ad;
-	struct stat st;
-	time_t now;
 
 	/* Write the entry to disk. */
 	assert((ad = archive_write_disk_new()) != NULL);
@@ -99,11 +97,9 @@ static void create_reg_file(struct archive_entry *ae, const char *msg)
 	assertIsReg(archive_entry_pathname(ae), archive_entry_mode(ae) & 0777);
 	assertFileSize(archive_entry_pathname(ae), sizeof(data));
 	/* test_write_disk_times has more detailed tests of this area. */
-	assert(0 == stat(archive_entry_pathname(ae), &st));
-        assertEqualInt(st.st_mtime, 123456789);
-        failure("No atime was specified, so atime should get set to current time");
-	now = time(NULL);
-        assert(st.st_atime <= now && st.st_atime > now - 5);
+	assertFileMtime(archive_entry_pathname(ae), 123456789, 0);
+        failure("No atime given, so atime should get set to current time");
+	assertFileAtimeRecent(archive_entry_pathname(ae));
 }
 
 static void create_reg_file2(struct archive_entry *ae, const char *msg)

@@ -809,6 +809,145 @@ assertion_file_hardlinks(const char *file, int line,
 	return (1);
 }
 
+/* Verify a/b/mtime of 'pathname'. */
+/* If 'recent', verify that it's within last 10 seconds. */
+static int
+assertion_file_time(const char *file, int line,
+    const char *pathname, long t, long nsec, char type, int recent)
+{
+	long filet, filet_nsec;
+	int r;
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	FILETIME ftime, fbirthtime, fatime, fmtime;
+	ULARGE_INTEGER wintm;
+	HANDLE h;
+
+	assertion_count(file, line);
+	h = CreateFile(pathname, FILE_READ_ATTRIBUTES, 0, NULL,
+	    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (h == INVALID_HANDLE_VALUE) {
+		failure_start(file, line, "Can't access %s\n", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+	r = GetFileTime(h, &fbirthtime, &fatime, &fmtime);
+	switch (type) {
+	case 'a': ftime = fatime; break;
+	case 'm': ftime = fmtime; break;
+	case 'b': ftime = fbirthtime; break;
+	}
+	CloseHandle(h);
+	if (r == 0) {
+		failure_start(file, line, "Can't GetFileTime %s\n", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+	wintm.LowPart = fmtime.dwLowDateTime;
+	wintm.HighPart = fmtime.dwHighDateTime;
+	filet = (wintm.QuadPart - EPOC_TIME) / 10000000;
+	filet_nsec = ((wintm.QuadPart - EPOC_TIME) % 10000000) * 100;
+	nsec = (nsec / 100) * 100; /* Round the request */
+#else
+	struct stat st;
+
+	assertion_count(file, line);
+	r = lstat(pathname, &st);
+	if (r != 0) {
+		failure_start(file, line, "Can't stat %s\n", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+	switch (type) {
+	case 'a': filet = st.st_atime; break;
+	case 'm': filet = st.st_mtime; break;
+	case 'b': filet = 0; break;
+	default: fprintf(stderr, "INTERNAL: Bad type %c for file time", type);
+		exit(1);
+	}
+#if defined(__FreeBSD__)
+	switch (type) {
+	case 'a': filet_nsec = st.st_atimespec.tv_nsec; break;
+	case 'b': filet = st.st_birthtime;
+		filet_nsec = st.st_birthtimespec.tv_nsec; break;
+	case 'm': filet_nsec = st.st_mtimespec.tv_nsec; break;
+	default: fprintf(stderr, "INTERNAL: Bad type %c for file time", type);
+		exit(1);
+	}
+	/* FreeBSD generally only stores to microsecond res, so round. */
+	filet_nsec = (filet_nsec / 1000) * 1000;
+	nsec = (nsec / 1000) * 1000;
+#else
+	filet_nsec = nsec = 0;	/* Generic POSIX only has whole seconds. */
+	if (type == 'b') return (1); /* Generic POSIX doesn't have birthtime */
+#endif
+#endif
+	if (recent) {
+		/* Check that requested time is up-to-date. */
+		time_t now = time(NULL);
+		if (filet < now - 10 || filet > now + 1) {
+			failure_start(file, line,
+			    "File %s has %ctime %ld, %ld seconds ago\n",
+			    pathname, type, filet, now - filet);
+			failure_finish(NULL);
+			return (0);
+		}
+	} else if (filet != t || filet_nsec != nsec) {
+		failure_start(file, line,
+		    "File %s has %ctime %ld.%09ld, expected %ld.%09ld",
+		    pathname, type, filet, filet_nsec, t, nsec);
+		failure_finish(NULL);
+		return (0);
+	}
+	return (1);
+}
+
+/* Verify atime of 'pathname'. */
+int
+assertion_file_atime(const char *file, int line,
+    const char *pathname, long t, long nsec)
+{
+	return assertion_file_time(file, line, pathname, t, nsec, 'a', 0);
+}
+
+/* Verify atime of 'pathname' is up-to-date. */
+int
+assertion_file_atime_recent(const char *file, int line, const char *pathname)
+{
+	return assertion_file_time(file, line, pathname, 0, 0, 'a', 1);
+}
+
+/* Verify birthtime of 'pathname'. */
+int
+assertion_file_birthtime(const char *file, int line,
+    const char *pathname, long t, long nsec)
+{
+	return assertion_file_time(file, line, pathname, t, nsec, 'b', 0);
+}
+
+/* Verify birthtime of 'pathname' is up-to-date. */
+int
+assertion_file_birthtime_recent(const char *file, int line,
+    const char *pathname)
+{
+	return assertion_file_time(file, line, pathname, 0, 0, 'b', 1);
+}
+
+/* Verify mtime of 'pathname'. */
+int
+assertion_file_mtime(const char *file, int line,
+    const char *pathname, long t, long nsec)
+{
+	return assertion_file_time(file, line, pathname, t, nsec, 'm', 0);
+}
+
+/* Verify mtime of 'pathname' is up-to-date. */
+int
+assertion_file_mtime_recent(const char *file, int line, const char *pathname)
+{
+	return assertion_file_time(file, line, pathname, 0, 0, 'm', 1);
+}
+
 /* Verify number of links to 'pathname'. */
 int
 assertion_file_nlinks(const char *file, int line,
