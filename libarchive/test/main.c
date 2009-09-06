@@ -367,20 +367,20 @@ assertion_equal_int(const char *file, int line,
 	if (v1 == v2)
 		return (1);
 	failure_start(file, line, "%s != %s", e1, e2);
-	printf("      %s=%lld (0x%llx, 0%llo)\n", e1, v1, v1, v1);
-	printf("      %s=%lld (0x%llx, 0%llo)\n", e2, v2, v2, v2);
+	logprintf("      %s=%lld (0x%llx, 0%llo)\n", e1, v1, v1, v1);
+	logprintf("      %s=%lld (0x%llx, 0%llo)\n", e2, v2, v2, v2);
 	failure_finish(extra);
 	return (0);
 }
 
 static void strdump(const char *e, const char *p)
 {
-	printf("      %s = ", e);
+	logprintf("      %s = ", e);
 	if (p == NULL) {
-		printf("(null)");
+		logprintf("(null)");
 		return;
 	}
-	printf("\"");
+	logprintf("\"");
 	while (*p != '\0') {
 		unsigned int c = 0xff & *p++;
 		switch (c) {
@@ -390,13 +390,13 @@ static void strdump(const char *e, const char *p)
 		case '\r': printf("\r"); break;
 		default:
 			if (c >= 32 && c < 127)
-				printf("%c", c);
+				logprintf("%c", c);
 			else
-				printf("\\x%02X", c);
+				logprintf("\\x%02X", c);
 		}
 	}
-	printf("\"");
-	printf(" (length %d)\n", p == NULL ? 0 : (int)strlen(p));
+	logprintf("\"");
+	logprintf(" (length %d)\n", p == NULL ? 0 : (int)strlen(p));
 }
 
 /* Verify two strings are equal, dump them if not. */
@@ -419,24 +419,24 @@ assertion_equal_string(const char *file, int line,
 static void
 wcsdump(const char *e, const wchar_t *w)
 {
-	printf("      %s = ", e);
+	logprintf("      %s = ", e);
 	if (w == NULL) {
-		printf("(null)");
+		logprintf("(null)");
 		return;
 	}
-	printf("\"");
+	logprintf("\"");
 	while (*w != L'\0') {
 		unsigned int c = *w++;
 		if (c >= 32 && c < 127)
-			printf("%c", c);
+			logprintf("%c", c);
 		else if (c < 256)
-			printf("\\x%02X", c);
+			logprintf("\\x%02X", c);
 		else if (c < 0x10000)
-			printf("\\u%04X", c);
+			logprintf("\\u%04X", c);
 		else
-			printf("\\U%08X", c);
+			logprintf("\\U%08X", c);
 	}
-	printf("\"\n");
+	logprintf("\"\n");
 }
 
 /* Verify that two wide strings are equal, dump them if not. */
@@ -468,28 +468,28 @@ hexdump(const char *p, const char *ref, size_t l, size_t offset)
 	char sep;
 
 	for(i=0; i < l; i+=16) {
-		printf("%04x", (unsigned)(i + offset));
+		logprintf("%04x", (unsigned)(i + offset));
 		sep = ' ';
 		for (j = 0; j < 16 && i + j < l; j++) {
 			if (ref != NULL && p[i + j] != ref[i + j])
 				sep = '_';
-			printf("%c%02x", sep, 0xff & (int)p[i+j]);
+			logprintf("%c%02x", sep, 0xff & (int)p[i+j]);
 			if (ref != NULL && p[i + j] == ref[i + j])
 				sep = ' ';
 		}
 		for (; j < 16; j++) {
-			printf("%c  ", sep);
+			logprintf("%c  ", sep);
 			sep = ' ';
 		}
-		printf("%c", sep);
+		logprintf("%c", sep);
 		for (j=0; j < 16 && i + j < l; j++) {
 			int c = p[i + j];
 			if (c >= ' ' && c <= 126)
-				printf("%c", c);
+				logprintf("%c", c);
 			else
-				printf(".");
+				logprintf(".");
 		}
-		printf("\n");
+		logprintf("\n");
 	}
 }
 
@@ -1119,7 +1119,7 @@ systemf(const char *fmt, ...)
 	va_start(ap, fmt);
 	vsprintf(buff, fmt, ap);
 	if (verbosity > VERBOSITY_FULL)
-		printf("Cmd: %s\n", buff);
+		logprintf("Cmd: %s\n", buff);
 	r = system(buff);
 	va_end(ap);
 	return (r);
@@ -1152,20 +1152,20 @@ slurpfile(size_t * sizep, const char *fmt, ...)
 	}
 	r = fstat(fileno(f), &st);
 	if (r != 0) {
-		printf("Can't stat file %s\n", filename);
+		logprintf("Can't stat file %s\n", filename);
 		fclose(f);
 		return (NULL);
 	}
 	p = malloc((size_t)st.st_size + 1);
 	if (p == NULL) {
-		printf("Can't allocate %ld bytes of memory to read file %s\n",
+		logprintf("Can't allocate %ld bytes of memory to read file %s\n",
 		    (long int)st.st_size, filename);
 		fclose(f);
 		return (NULL);
 	}
 	bytes_read = fread(p, 1, (size_t)st.st_size, f);
 	if (bytes_read < st.st_size) {
-		printf("Can't read file %s\n", filename);
+		logprintf("Can't read file %s\n", filename);
 		fclose(f);
 		free(p);
 		return (NULL);
