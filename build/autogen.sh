@@ -12,11 +12,14 @@ if [ \! -f build/version ]; then
 fi
 
 set -xe
-aclocal
-autoheader
-autoconf
+aclocal -I build/autoconf
+
+# Note: --automake flag needed only for libtoolize from
+# libtool 1.5.x; in libtool 2.2.x it is a synonym for --quiet
 case `uname` in
 Darwin) glibtoolize --automake -c;;
 *) libtoolize --automake -c;;
 esac
+autoconf
+autoheader
 automake -a -c
