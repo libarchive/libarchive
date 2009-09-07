@@ -955,6 +955,27 @@ int
 assertion_file_nlinks(const char *file, int line,
     const char *pathname, int nlinks)
 {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	HANDLE h;
+	BY_HANDLE_FILE_INFORMATION bhfi;
+	int r;
+
+	assertion_count(file, line);
+	h = CreateFile(pathname, FILE_READ_ATTRIBUTES, 0, NULL,
+		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (h == INVALID_HANDLE_VALUE) {
+		failure_start(file, line, "Can't access %s", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+	r = GetFileInformationByHandle(h, &bhfi);
+	if (r != 0 && bhfi.nNumberOfLinks == nlinks)
+		return (1);
+	failure_start(file, line, "File %s has %d links, expected %d",
+	    pathname, bhfi.nNumberOfLinks, nlinks);
+	failure_finish(NULL);
+	return (0);
+#else
 	struct stat st;
 	int r;
 
@@ -966,6 +987,7 @@ assertion_file_nlinks(const char *file, int line,
 	    pathname, st.st_nlink, nlinks);
 	failure_finish(NULL);
 	return (0);
+#endif
 }
 
 /* Verify size of 'pathname'. */
