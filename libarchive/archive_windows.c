@@ -218,7 +218,34 @@ la_CreateFile(const char *path, DWORD dwDesiredAccess, DWORD dwShareMode,
 	return (handle);
 }
 
-#if HAVE_CREATEHARDLINKW
+static void *
+la_GetFunctionKernel32(const char *name)
+{
+	static HINSTANCE lib;
+	static int set;
+	if (!set) {
+		set = 1;
+		lib = LoadLibrary("kernel32.dll");
+	}
+	if (lib == NULL) {
+		fprintf(stderr, "Can't load kernel32.dll?!\n");
+		exit(1);
+	}
+	return (void *)GetProcAddress(lib, name);
+}
+
+static int
+la_CreateHardLinkW(wchar_t *linkname, wchar_t *target)
+{
+	static BOOLEAN (WINAPI *f)(LPWSTR, LPWSTR, LPSECURITY_ATTRIBUTES);
+	static int set;
+	if (!set) {
+		set = 1;
+		f = la_GetFunctionKernel32("CreateHardLinkW");
+	}
+	return f == NULL ? 0 : (*f)(linkname, target, NULL);
+}
+
 /* Check that path1 and path2 can be hard-linked by each other.
  * Both arguments must be made by permissive_name function. 
  */
@@ -298,7 +325,6 @@ canHardLinkW(const wchar_t *path1, const wchar_t *path2)
 	else
 		return (0);
 }
-#endif
 
 /* Make a link to src called dst.  */
 static int
@@ -330,12 +356,11 @@ __link(const char *src, const char *dst, int sym)
 			retval = -1;
 			goto exit;
 		}
-#if HAVE_CREATEHARDLINKW
-		if (!sym && canHardLinkW(wsrc, wdst))
-			res = CreateHardLinkW(wdst, wsrc, NULL);
-		else
-#endif
+		if (!sym && canHardLinkW(wsrc, wdst)) {
+			res = la_CreateHardLinkW(wdst, wsrc);
+		} else {
 			res = CopyFileW(wsrc, wdst, FALSE);
+		}
 	} else {
 		/* wsrc does not exist; try src prepend it with the dirname of wdst */
 		wchar_t *wnewsrc, *slash;
@@ -391,11 +416,9 @@ __link(const char *src, const char *dst, int sym)
 			retval = -1;
 			goto exit;
 		}
-#if HAVE_CREATEHARDLINKW
 		if (!sym && canHardLinkW(wnewsrc, wdst))
-			res = CreateHardLinkW(wdst, wnewsrc, NULL);
+			res = la_CreateHardLinkW(wdst, wnewsrc);
 		else
-#endif
 			res = CopyFileW(wnewsrc, wdst, FALSE);
 		free (wnewsrc);
 	}

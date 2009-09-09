@@ -109,15 +109,28 @@ void *GetFunctionKernel32(const char *name)
 	return (void *)GetProcAddress(lib, name);
 }
 
-int __CreateSymbolicLinkA(const char *linkname, const char *target, int flags)
+static int
+my_CreateSymbolicLinkA(const char *linkname, const char *target, int flags)
 {
-	static BOOLEAN (*f)(LPCSTR, LPCSTR, DWORD);
+	static BOOLEAN (WINAPI *f)(LPCSTR, LPCSTR, DWORD);
 	static int set;
 	if (!set) {
 		set = 1;
 		f = GetFunctionKernel32("CreateSymbolicLinkA");
 	}
 	return f == NULL ? 0 : (*f)(linkname, target, flags);
+}
+
+static int
+my_CreateHardLinkA(const char *linkname, const char *target)
+{
+	static BOOLEAN (WINAPI *f)(LPCSTR, LPCSTR, LPSECURITY_ATTRIBUTES);
+	static int set;
+	if (!set) {
+		set = 1;
+		f = GetFunctionKernel32("CreateHardLinkA");
+	}
+	return f == NULL ? 0 : (*f)(linkname, target, NULL);
 }
 #endif
 
@@ -316,7 +329,7 @@ test_skipping(const char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	sprintf(buff, fmt, ap);
+	vsprintf(buff, fmt, ap);
 	va_end(ap);
 	/* failure_start() isn't quite right, but is awfully convenient. */
 	failure_start(test_filename, test_line, "SKIPPING: %s", buff);
@@ -1197,10 +1210,10 @@ assertion_make_hardlink(const char *file, int line,
 	int succeeded;
 
 	assertion_count(file, line);
-#if HAVE_LINK
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	succeeded = my_CreateHardLinkA(newpath, linkto);
+#elif HAVE_LINK
 	succeeded = !link(linkto, newpath);
-#elif HAVE_CREATEHARDLINKA
-	succeeded = CreateHardLinkA(newpath, linkto, NULL);
 #else
 	succeeded = 0;
 #endif
@@ -1221,7 +1234,7 @@ assertion_make_symlink(const char *file, int line,
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	int targetIsDir = 0;  /* TODO: Fix this */
 	assertion_count(file, line);
-	if (__CreateSymbolicLinkA(newpath, linkto, targetIsDir))
+	if (my_CreateSymbolicLinkA(newpath, linkto, targetIsDir))
 		return (1);
 #elif HAVE_SYMLINK
 	assertion_count(file, line);
