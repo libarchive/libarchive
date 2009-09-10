@@ -286,17 +286,20 @@ cpio_getopt(struct cpio *cpio)
  *
  * Sets uid/gid return as appropriate, -1 indicates uid/gid not specified.
  *
+ * Returns NULL if no error, otherwise returns error string for display.
+ *
  */
-int
+const char *
 owner_parse(const char *spec, int *uid, int *gid)
 {
+	static char errbuff[128];
 	const char *u, *ue, *g;
 
 	*uid = -1;
 	*gid = -1;
 
 	if (spec[0] == '\0')
-		return (1);
+		return ("Invalid empty user/group spec");
 
 	/*
 	 * Split spec into [user][:.][group]
@@ -324,10 +327,8 @@ owner_parse(const char *spec, int *uid, int *gid)
 		struct passwd *pwent;
 
 		user = (char *)malloc(ue - u + 1);
-		if (user == NULL) {
-			lafe_warnc(errno, "Couldn't allocate memory");
-			return (1);
-		}
+		if (user == NULL)
+			return ("Couldn't allocate memory");
 		memcpy(user, u, ue - u);
 		user[ue - u] = '\0';
 		if ((pwent = getpwnam(user)) != NULL) {
@@ -339,9 +340,10 @@ owner_parse(const char *spec, int *uid, int *gid)
 			errno = 0;
 			*uid = strtoul(user, &end, 10);
 			if (errno || *end != '\0') {
-				lafe_warnc(errno,
+				snprintf(errbuff, sizeof(errbuff),
 				    "Couldn't lookup user ``%s''", user);
-				return (1);
+				errbuff[sizeof(errbuff) - 1] = '\0';
+				return (errbuff);
 			}
 		}
 		free(user);
@@ -356,11 +358,12 @@ owner_parse(const char *spec, int *uid, int *gid)
 			errno = 0;
 			*gid = strtoul(g, &end, 10);
 			if (errno || *end != '\0') {
-				lafe_warnc(errno,
+				snprintf(errbuff, sizeof(errbuff),
 				    "Couldn't lookup group ``%s''", g);
-				return (1);
+				errbuff[sizeof(errbuff) - 1] = '\0';
+				return (errbuff);
 			}
 		}
 	}
-	return (0);
+	return (NULL);
 }
