@@ -838,6 +838,8 @@ assertion_file_time(const char *file, int line,
 	FILETIME ftime, fbirthtime, fatime, fmtime;
 	ULARGE_INTEGER wintm;
 	HANDLE h;
+	ftime.dwLowDateTime = 0;
+	ftime.dwHighDateTime = 0;
 
 	assertion_count(file, line);
 	h = CreateFile(pathname, FILE_READ_ATTRIBUTES, 0, NULL,

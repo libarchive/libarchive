@@ -80,7 +80,6 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/test/main.c,v 1.6 2008/11/05 06:40:53 kientz
 #define S_ISREG(m)  ((m) & _S_IFREG)
 #endif
 #define access _access
-#define chdir _chdir
 #ifndef fileno
 #define fileno _fileno
 #endif
@@ -838,6 +837,8 @@ assertion_file_time(const char *file, int line,
 	FILETIME ftime, fbirthtime, fatime, fmtime;
 	ULARGE_INTEGER wintm;
 	HANDLE h;
+	ftime.dwLowDateTime = 0;
+	ftime.dwHighDateTime = 0;
 
 	assertion_count(file, line);
 	h = CreateFile(pathname, FILE_READ_ATTRIBUTES, 0, NULL,
