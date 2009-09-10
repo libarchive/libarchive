@@ -135,7 +135,7 @@ IF(ENABLE_TEST)
 
   # Experimental new test handling
   ADD_CUSTOM_TARGET(run_libarchive_test
-	COMMAND	libarchive_test -v -r ${CMAKE_CURRENT_SOURCE_DIR})
+	COMMAND	libarchive_test -r ${CMAKE_CURRENT_SOURCE_DIR})
   ADD_DEPENDENCIES(run_all_tests run_libarchive_test)
 ENDIF(ENABLE_TEST)
 

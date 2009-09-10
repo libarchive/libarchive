@@ -122,67 +122,79 @@
 #define DEFINE_TEST(name) void name(void); void name(void)
 
 /* An implementation of the standard assert() macro */
-#define assert(e)   test_assert(__FILE__, __LINE__, (e), #e, NULL)
+#define assert(e)   assertion_assert(__FILE__, __LINE__, (e), #e, NULL)
 /* chdir() and error if it fails */
-#define assertChdir(path)	\
-	test_assert_chdir(__FILE__, __LINE__, path)
+#define assertChdir(path)  \
+  assertion_chdir(__FILE__, __LINE__, path)
 /* Assert two integers are the same.  Reports value of each one if not. */
-#define assertEqualInt(v1,v2)   \
-  test_assert_equal_int(__FILE__, __LINE__, (v1), #v1, (v2), #v2, NULL)
+#define assertEqualInt(v1,v2) \
+  assertion_equal_int(__FILE__, __LINE__, (v1), #v1, (v2), #v2, NULL)
 /* Assert two strings are the same.  Reports value of each one if not. */
 #define assertEqualString(v1,v2)   \
-  test_assert_equal_string(__FILE__, __LINE__, (v1), #v1, (v2), #v2, NULL)
+  assertion_equal_string(__FILE__, __LINE__, (v1), #v1, (v2), #v2, NULL)
 /* As above, but v1 and v2 are wchar_t * */
 #define assertEqualWString(v1,v2)   \
-  test_assert_equal_wstring(__FILE__, __LINE__, (v1), #v1, (v2), #v2, NULL)
+  assertion_equal_wstring(__FILE__, __LINE__, (v1), #v1, (v2), #v2, NULL)
 /* As above, but raw blocks of bytes. */
 #define assertEqualMem(v1, v2, l)	\
-  test_assert_equal_mem(__FILE__, __LINE__, (v1), #v1, (v2), #v2, (l), #l, NULL)
+  assertion_equal_mem(__FILE__, __LINE__, (v1), #v1, (v2), #v2, (l), #l, NULL)
 /* Assert two files are the same; allow printf-style expansion of second name.
  * See below for comments about variable arguments here...
  */
 #define assertEqualFile		\
-  test_setup(__FILE__, __LINE__);test_assert_equal_file
+  assertion_setup(__FILE__, __LINE__);assertion_equal_file
 /* Assert that a file is empty; supports printf-style arguments. */
 #define assertEmptyFile		\
-  test_setup(__FILE__, __LINE__);test_assert_empty_file
+  assertion_setup(__FILE__, __LINE__);assertion_empty_file
 /* Assert that a file is not empty; supports printf-style arguments. */
 #define assertNonEmptyFile		\
-  test_setup(__FILE__, __LINE__);test_assert_non_empty_file
+  assertion_setup(__FILE__, __LINE__);assertion_non_empty_file
+#define assertFileAtime(pathname, sec, nsec)	\
+  assertion_file_atime(__FILE__, __LINE__, pathname, sec, nsec)
+#define assertFileAtimeRecent(pathname)	\
+  assertion_file_atime_recent(__FILE__, __LINE__, pathname)
+#define assertFileBirthtime(pathname, sec, nsec)	\
+  assertion_file_birthtime(__FILE__, __LINE__, pathname, sec, nsec)
+#define assertFileBirthtimeRecent(pathname) \
+  assertion_file_birthtime_recent(__FILE__, __LINE__, pathname)
 /* Assert that a file exists; supports printf-style arguments. */
 #define assertFileExists		\
-  test_setup(__FILE__, __LINE__);test_assert_file_exists
+  assertion_setup(__FILE__, __LINE__);assertion_file_exists
 /* Assert that a file exists; supports printf-style arguments. */
 #define assertFileNotExists		\
-  test_setup(__FILE__, __LINE__);test_assert_file_not_exists
+  assertion_setup(__FILE__, __LINE__);assertion_file_not_exists
 /* Assert that file contents match a string; supports printf-style arguments. */
 #define assertFileContents             \
-  test_setup(__FILE__, __LINE__);test_assert_file_contents
+  assertion_setup(__FILE__, __LINE__);assertion_file_contents
 #define assertFileHardlinks(path1, path2)	\
-  test_assert_file_hardlinks(__FILE__, __LINE__, path1, path2)
+  assertion_file_hardlinks(__FILE__, __LINE__, path1, path2)
+#define assertFileMtime(pathname, sec, nsec)	\
+  assertion_file_mtime(__FILE__, __LINE__, pathname, sec, nsec)
+#define assertFileMtimeRecent(pathname) \
+  assertion_file_mtime_recent(__FILE__, __LINE__, pathname)
 #define assertFileNLinks(pathname, nlinks)  \
-  test_assert_file_nlinks(__FILE__, __LINE__, pathname, nlinks)
+  assertion_file_nlinks(__FILE__, __LINE__, pathname, nlinks)
 #define assertFileSize(pathname, size)  \
-  test_assert_file_size(__FILE__, __LINE__, pathname, size)
+  assertion_file_size(__FILE__, __LINE__, pathname, size)
 #define assertTextFileContents         \
-  test_setup(__FILE__, __LINE__);test_assert_text_file_contents
+  assertion_setup(__FILE__, __LINE__);assertion_text_file_contents
 #define assertIsDir(pathname, mode)		\
-  test_assert_is_dir(__FILE__, __LINE__, pathname, mode)
+  assertion_is_dir(__FILE__, __LINE__, pathname, mode)
 #define assertIsReg(pathname, mode)		\
-  test_assert_is_reg(__FILE__, __LINE__, pathname, mode)
+  assertion_is_reg(__FILE__, __LINE__, pathname, mode)
 #define assertIsSymlink(pathname, contents)	\
-  test_assert_is_symlink(__FILE__, __LINE__, pathname, contents)
+  assertion_is_symlink(__FILE__, __LINE__, pathname, contents)
 /* Create a directory, report error if it fails. */
 #define assertMakeDir(dirname, mode)	\
-  test_assert_make_dir(__FILE__, __LINE__, dirname, mode)
+  assertion_make_dir(__FILE__, __LINE__, dirname, mode)
 #define assertMakeFile(path, mode, contents) \
-  test_assert_make_file(__FILE__, __LINE__, path, mode, contents)
+  assertion_make_file(__FILE__, __LINE__, path, mode, contents)
 #define assertMakeHardlink(newfile, oldfile)	\
-  test_assert_make_hardlink(__FILE__, __LINE__, newfile, oldfile)
+  assertion_make_hardlink(__FILE__, __LINE__, newfile, oldfile)
 #define assertMakeSymlink(newfile, linkto)	\
-  test_assert_make_symlink(__FILE__, __LINE__, newfile, linkto)
+  assertion_make_symlink(__FILE__, __LINE__, newfile, linkto)
 #define assertUmask(mask)	\
-  test_assert_umask(__FILE__, __LINE__, mask)
+  assertion_umask(__FILE__, __LINE__, mask)
 
 /*
  * This would be simple with C99 variadic macros, but I don't want to
@@ -191,35 +203,41 @@
  * but effective.
  */
 #define skipping	\
-  test_setup(__FILE__, __LINE__);test_skipping
+  assertion_setup(__FILE__, __LINE__);test_skipping
 
 /* Function declarations.  These are defined in test_utility.c. */
 void failure(const char *fmt, ...);
-int test_assert(const char *, int, int, const char *, void *);
-int test_assert_chdir(const char *, int, const char *);
-int test_assert_empty_file(const char *, ...);
-int test_assert_equal_file(const char *, const char *, ...);
-int test_assert_equal_int(const char *, int, long long, const char *, long long, const char *, void *);
-int test_assert_equal_mem(const char *, int, const void *, const char *, const void *, const char *, size_t, const char *, void *);
-int test_assert_equal_string(const char *, int, const char *v1, const char *, const char *v2, const char *, void *);
-int test_assert_equal_wstring(const char *, int, const wchar_t *v1, const char *, const wchar_t *v2, const char *, void *);
-int test_assert_file_contents(const void *, int, const char *, ...);
-int test_assert_file_exists(const char *, ...);
-int test_assert_file_hardlinks(const char *, int, const char *, const char *);
-int test_assert_file_nlinks(const char *, int, const char *, int);
-int test_assert_file_not_exists(const char *, ...);
-int test_assert_file_size(const char *, int, const char *, long);
-int test_assert_is_dir(const char *, int, const char *, int);
-int test_assert_is_reg(const char *, int, const char *, int);
-int test_assert_is_symlink(const char *, int, const char *, const char *);
-int test_assert_make_dir(const char *, int, const char *, int);
-int test_assert_make_file(const char *, int, const char *, int, const char *);
-int test_assert_make_hardlink(const char *, int, const char *newpath, const char *);
-int test_assert_make_symlink(const char *, int, const char *newpath, const char *);
-int test_assert_non_empty_file(const char *, ...);
-int test_assert_text_file_contents(const char *buff, const char *f);
-int test_assert_umask(const char *, int, int);
-void test_setup(const char *, int);
+int assertion_assert(const char *, int, int, const char *, void *);
+int assertion_chdir(const char *, int, const char *);
+int assertion_empty_file(const char *, ...);
+int assertion_equal_file(const char *, const char *, ...);
+int assertion_equal_int(const char *, int, long long, const char *, long long, const char *, void *);
+int assertion_equal_mem(const char *, int, const void *, const char *, const void *, const char *, size_t, const char *, void *);
+int assertion_equal_string(const char *, int, const char *v1, const char *, const char *v2, const char *, void *);
+int assertion_equal_wstring(const char *, int, const wchar_t *v1, const char *, const wchar_t *v2, const char *, void *);
+int assertion_file_atime(const char *, int, const char *, long, long);
+int assertion_file_atime_recent(const char *, int, const char *);
+int assertion_file_birthtime(const char *, int, const char *, long, long);
+int assertion_file_birthtime_recent(const char *, int, const char *);
+int assertion_file_contents(const void *, int, const char *, ...);
+int assertion_file_exists(const char *, ...);
+int assertion_file_hardlinks(const char *, int, const char *, const char *);
+int assertion_file_mtime(const char *, int, const char *, long, long);
+int assertion_file_mtime_recent(const char *, int, const char *);
+int assertion_file_nlinks(const char *, int, const char *, int);
+int assertion_file_not_exists(const char *, ...);
+int assertion_file_size(const char *, int, const char *, long);
+int assertion_is_dir(const char *, int, const char *, int);
+int assertion_is_reg(const char *, int, const char *, int);
+int assertion_is_symlink(const char *, int, const char *, const char *);
+int assertion_make_dir(const char *, int, const char *, int);
+int assertion_make_file(const char *, int, const char *, int, const char *);
+int assertion_make_hardlink(const char *, int, const char *newpath, const char *);
+int assertion_make_symlink(const char *, int, const char *newpath, const char *);
+int assertion_non_empty_file(const char *, ...);
+int assertion_text_file_contents(const char *buff, const char *f);
+int assertion_umask(const char *, int, int);
+void assertion_setup(const char *, int);
 void test_skipping(const char *fmt, ...);
 
 /* Like sprintf, then system() */
