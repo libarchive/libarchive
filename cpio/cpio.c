@@ -123,6 +123,7 @@ main(int argc, char *argv[])
 	static char buff[16384];
 	struct cpio _cpio; /* Allocated on stack. */
 	struct cpio *cpio;
+	const char *errmsg;
 	int uid, gid;
 	int opt;
 
@@ -268,8 +269,11 @@ main(int argc, char *argv[])
 			cpio->quiet = 1;
 			break;
 		case 'R': /* GNU cpio, also --owner */
-			if (owner_parse(cpio->optarg, &uid, &gid))
+			errmsg = owner_parse(cpio->optarg, &uid, &gid);
+			if (errmsg) {
+				lafe_warnc(-1, "%s", errmsg);
 				usage();
+			}
 			if (uid != -1)
 				cpio->uid_override = uid;
 			if (gid != -1)

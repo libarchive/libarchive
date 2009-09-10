@@ -91,7 +91,7 @@ struct cpio {
 	size_t		  buff_size;
 };
 
-int	owner_parse(const char *, int *, int *);
+const char *owner_parse(const char *, int *, int *);
 
 
 /* Fake short equivalents for long options that otherwise lack them. */
