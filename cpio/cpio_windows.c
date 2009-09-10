@@ -180,7 +180,7 @@ permissive_name(const char *name)
 }
 
 static HANDLE
-la_CreateFile(const char *path, DWORD dwDesiredAccess, DWORD dwShareMode,
+cpio_CreateFile(const char *path, DWORD dwDesiredAccess, DWORD dwShareMode,
     LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition,
     DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
 {
@@ -237,7 +237,7 @@ utimes(const char *name, const struct __timeval *times)
 	int ret;
 	HANDLE handle;
 
-	handle = la_CreateFile(name, GENERIC_READ | GENERIC_WRITE,
+	handle = cpio_CreateFile(name, GENERIC_READ | GENERIC_WRITE,
 	    FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
 	    FILE_FLAG_BACKUP_SEMANTICS, NULL);
 	if (handle == INVALID_HANDLE_VALUE) {
@@ -250,7 +250,7 @@ utimes(const char *name, const struct __timeval *times)
 }
 
 int
-la_chdir(const char *path)
+cpio_chdir(const char *path)
 {
 	wchar_t *ws;
 	int r;
@@ -278,7 +278,7 @@ la_chdir(const char *path)
 }
 
 int
-la_open(const char *path, int flags, ...)
+cpio_open(const char *path, int flags, ...)
 {
 	va_list ap;
 	wchar_t *ws;
@@ -369,7 +369,7 @@ la_open(const char *path, int flags, ...)
 }
 
 ssize_t
-la_read(int fd, void *buf, size_t nbytes)
+cpio_read(int fd, void *buf, size_t nbytes)
 {
 	HANDLE handle;
 	DWORD bytes_read, lasterr;
@@ -438,7 +438,7 @@ fileTimeToUTC(const FILETIME *filetime, time_t *time, long *ns)
 }
 
 ssize_t
-la_write(int fd, const void *buf, size_t nbytes)
+cpio_write(int fd, const void *buf, size_t nbytes)
 {
 	DWORD bytes_written;
 
