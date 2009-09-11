@@ -26,13 +26,18 @@
 __FBSDID("$FreeBSD: src/usr.bin/tar/test/test_option_T.c,v 1.3 2008/08/15 06:12:02 kientzle Exp $");
 
 static int
-touch(const char *fn)
+touch(const char *fn, int fail)
 {
 	FILE *f = fopen(fn, "w");
-	failure("Couldn't create file '%s', errno=%d (%s)\n",
-	    fn, errno, strerror(errno));
-	if (!assert(f != NULL))
-		return (0); /* Failure. */
+	if (fail) {
+		failure("Couldn't create file '%s', errno=%d (%s)\n",
+		    fn, errno, strerror(errno));
+		if (!assert(f != NULL))
+			return (0); /* Failure. */
+	} else {
+		if (f == NULL)
+			return (0); /* Soft failure. */
+	}
 	fclose(f);
 	return (1); /* Success */
 }
@@ -42,18 +47,20 @@ DEFINE_TEST(test_option_T_upper)
 	FILE *f;
 	int r;
 	struct stat st;
+	int gnarlyFilesSupported;
 
 	/* Create a simple dir heirarchy; bail if anything fails. */
 	if (!assertMakeDir("d1", 0755)) return;
 	if (!assertMakeDir("d1/d2", 0755))	return;
-	if (!touch("f")) return;
-	if (!touch("d1/f1")) return;
-	if (!touch("d1/f2")) return;
-	if (!touch("d1/d2/f3")) return;
-	if (!touch("d1/d2/f4")) return;
-	if (!touch("d1/d2/f5")) return;
-	if (!touch("d1/d2/f6")) return;
-	if (!touch("d1/d2/f\x0a")) return;
+	if (!touch("f", 1)) return;
+	if (!touch("d1/f1", 1)) return;
+	if (!touch("d1/f2", 1)) return;
+	if (!touch("d1/d2/f3", 1)) return;
+	if (!touch("d1/d2/f4", 1)) return;
+	if (!touch("d1/d2/f5", 1)) return;
+	if (!touch("d1/d2/f6", 1)) return;
+	/* Some platforms don't permit such things; just skip it. */
+	gnarlyFilesSupported = touch("d1/d2/f\x0a", 0);
 
 	/* Populate a file list */
 	f = fopen("filelist", "w+");
@@ -75,8 +82,10 @@ DEFINE_TEST(test_option_T_upper)
 	fwrite("\0", 1, 1, f);
 	fprintf(f, "d1/d2/f5");
 	fwrite("\0", 1, 1, f);
-	fprintf(f, "d1/d2/f\x0a");
-	fwrite("\0", 1, 1, f);
+	if (gnarlyFilesSupported) {
+		fprintf(f, "d1/d2/f\x0a");
+		fwrite("\0", 1, 1, f);
+	}
 	fclose(f);
 
 	/* Use -c -T to archive up the files. */
@@ -101,7 +110,9 @@ DEFINE_TEST(test_option_T_upper)
 	assertFileExists("test1/d1/d2/f4");
 	assertFileNotExists("test1/d1/d2/f5");
 	assertFileExists("test1/d1/d2/f6");
-	assertFileNotExists("test1/d1/d2/f\x0a");
+	if (gnarlyFilesSupported) {
+		assertFileNotExists("test1/d1/d2/f\x0a");
+	}
 
 	/* Use -r -T to add more files to the archive. */
 	systemf("%s -r -f test1.tar --null -T filelist2 > test2.out 2> test2.err",
@@ -123,7 +134,9 @@ DEFINE_TEST(test_option_T_upper)
 	assertFileExists("test3/d1/d2/f4");
 	assertFileExists("test3/d1/d2/f5");
 	assertFileExists("test3/d1/d2/f6");
-	assertFileExists("test3/d1/d2/f\x0a");
+	if (gnarlyFilesSupported) {
+		assertFileExists("test3/d1/d2/f\x0a");
+	}
 
 	/* Use -x -T to dearchive the files (verify -x -T together) */
 	if (!assertMakeDir("test2", 0755)) return;
@@ -139,13 +152,15 @@ DEFINE_TEST(test_option_T_upper)
 	assertFileExists("test2/d1/d2/f4");
 	assertFileNotExists("test2/d1/d2/f5");
 	assertFileExists("test2/d1/d2/f6");
-	assertFileNotExists("test2/d1/d2/f\x0a");
+	if (gnarlyFilesSupported) {
+		assertFileNotExists("test2/d1/d2/f\x0a");
+	}
 
 	assertMakeDir("test4", 0755);
 	assertMakeDir("test4_out", 0755);
 	assertMakeDir("test4_out2", 0755);
 	assertMakeDir("test4/d1", 0755);
-	assertEqualInt(1, touch("test4/d1/foo"));
+	assertEqualInt(1, touch("test4/d1/foo", 0));
 
 	/* Does bsdtar support -s option ? */
 	systemf("%s -cf - -s /foo/bar/ test4/d1/foo > check.out 2> check.err",
