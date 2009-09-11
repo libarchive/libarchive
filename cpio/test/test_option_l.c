@@ -27,14 +27,10 @@ __FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_option_l)
 {
-	struct stat st, st2;
 	int r;
 
 	/* Create a file. */
 	assertMakeFile("f", 0644, "a");
-
-	/* Stat it. */
-	assertEqualInt(0, stat("f", &st));
 
 	/* Copy the file to the "copy" dir. */
 	r = systemf("echo f | %s -pd copy >copy.out 2>copy.err",
@@ -42,8 +38,7 @@ DEFINE_TEST(test_option_l)
 	assertEqualInt(r, 0);
 
 	/* Check that the copy is a true copy and not a link. */
-	assertEqualInt(0, stat("copy/f", &st2));
-	assert(st2.st_ino != st.st_ino);
+	assert(!isFileHardlinks("f", "copy/f"));
 
 	/* Copy the file to the "link" dir with the -l option. */
 	r = systemf("echo f | %s -pld link >link.out 2>link.err",
@@ -51,6 +46,5 @@ DEFINE_TEST(test_option_l)
 	assertEqualInt(r, 0);
 
 	/* Check that this is a link and not a copy. */
-	assertEqualInt(0, stat("link/f", &st2));
-	assert(st2.st_ino == st.st_ino);
+	assertFileHardlinks("f", "link/f");
 }

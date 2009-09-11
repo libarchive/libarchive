@@ -197,6 +197,11 @@
   assertion_umask(__FILE__, __LINE__, mask)
 
 /*
+ */
+#define isFileHardlinks(path1, path2)	\
+  is_file_hardlinks(__FILE__, __LINE__, path1, path2)
+
+/*
  * This would be simple with C99 variadic macros, but I don't want to
  * require that.  Instead, I insert a function call before each
  * skipping() call to pass the file and line information down.  Crude,
@@ -238,6 +243,8 @@ int assertion_non_empty_file(const char *, ...);
 int assertion_text_file_contents(const char *buff, const char *f);
 int assertion_umask(const char *, int, int);
 void assertion_setup(const char *, int);
+
+int is_file_hardlinks(const char *, int, const char *, const char *);
 void test_skipping(const char *fmt, ...);
 
 /* Like sprintf, then system() */

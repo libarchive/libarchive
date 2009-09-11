@@ -133,6 +133,21 @@ my_CreateHardLinkA(const char *linkname, const char *target)
 	}
 	return f == NULL ? 0 : (*f)(linkname, target, NULL);
 }
+
+int
+my_GetFileInformationByName(const char *path, BY_HANDLE_FILE_INFORMATION *bhfi)
+{
+	HANDLE h;
+	int r;
+
+	h = CreateFile(path, FILE_READ_ATTRIBUTES, 0, NULL,
+		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (h == INVALID_HANDLE_VALUE)
+		return (0);
+	r = GetFileInformationByHandle(h, bhfi);
+	CloseHandle(h);
+	return (r);
+}
 #endif
 
 #if defined(_WIN32) && !defined(__CYGWIN__) && !defined(__GNUC__)
@@ -794,11 +809,32 @@ assertion_text_file_contents(const char *buff, const char *fn)
 	return (0);
 }
 
-/* Verify that two paths point to the same file. */
+/* Test that two paths point to the same file. */
+/* As a side-effect, asserts that both files exist. */
 int
-assertion_file_hardlinks(const char *file, int line,
+is_file_hardlinks(const char *file, int line,
     const char *path1, const char *path2)
 {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	BY_HANDLE_FILE_INFORMATION bhfi1, bhfi2;
+	int r;
+
+	assertion_count(file, line);
+	r = my_GetFileInformationByName(path1, &bhfi1);
+	if (r == 0) {
+		failure_start(file, line, "File %s can't be inspected?", path1);
+		failure_finish(NULL);
+		return (0);
+	}
+	r = my_GetFileInformationByName(path2, &bhfi2);
+	if (r == 0) {
+		failure_start(file, line, "File %s can't be inspected?", path2);
+		failure_finish(NULL);
+		return (0);
+	}
+	return (bhfi1.nFileIndexHigh == bhfi2.nFileIndexHigh
+		&& bhfi1.nFileIndexLow == bhfi2.nFileIndexLow);
+#else
 	struct stat st1, st2;
 	int r;
 
@@ -815,13 +851,20 @@ assertion_file_hardlinks(const char *file, int line,
 		failure_finish(NULL);
 		return (0);
 	}
-	if (st1.st_ino != st2.st_ino || st1.st_dev != st2.st_dev) {
-		failure_start(file, line,
-		    "Files %s and %s are not hardlinked", path1, path2);
-		failure_finish(NULL);
-		return (0);
-	}
-	return (1);
+	return (st1.st_ino == st2.st_ino && st1.st_dev == st2.st_dev);
+#endif
+}
+
+int
+assertion_file_hardlinks(const char *file, int line,
+						 const char *path1, const char *path2)
+{ 
+	if (is_file_hardlinks(file, line, path1, path2))
+		return (1);
+	failure_start(file, line,
+	    "Files %s and %s are not hardlinked", path1, path2);
+	failure_finish(NULL);
+	return (0);
 }
 
 /* Verify a/b/mtime of 'pathname'. */
@@ -972,19 +1015,11 @@ assertion_file_nlinks(const char *file, int line,
     const char *pathname, int nlinks)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	HANDLE h;
 	BY_HANDLE_FILE_INFORMATION bhfi;
 	int r;
 
 	assertion_count(file, line);
-	h = CreateFile(pathname, FILE_READ_ATTRIBUTES, 0, NULL,
-		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	if (h == INVALID_HANDLE_VALUE) {
-		failure_start(file, line, "Can't access %s", pathname);
-		failure_finish(NULL);
-		return (0);
-	}
-	r = GetFileInformationByHandle(h, &bhfi);
+	r = my_GetFileInformationByName(pathname, &bhfi);
 	if (r != 0 && bhfi.nNumberOfLinks == nlinks)
 		return (1);
 	failure_start(file, line, "File %s has %d links, expected %d",
