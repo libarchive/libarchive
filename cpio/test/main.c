@@ -36,14 +36,14 @@
  * TODO: Move this into a separate configuration header, have all test
  * suites share one copy of this file.
  */
+__FBSDID("$FreeBSD: src/usr.bin/cpio/test/main.c,v 1.3 2008/08/24 04:58:22 kientzle Exp $");
+#define KNOWNREF	"test_option_f.cpio.uu"
+#define ENVBASE "BSDCPIO" /* Prefix for environment variables. */
 #define	PROGRAM "bsdcpio" /* Name of program being tested. */
 #undef LIBRARY		  /* Not testing a library. */
-#define ENVBASE "BSDCPIO" /* Prefix for environment variables. */
 #undef	EXTRA_DUMP	     /* How to dump extra data */
 /* How to generate extra version info. */
 #define	EXTRA_VERSION    (systemf("%s --version", testprog) ? "" : "")
-#define KNOWNREF	"test_option_f.cpio.uu"
-__FBSDID("$FreeBSD: src/usr.bin/cpio/test/main.c,v 1.3 2008/08/24 04:58:22 kientzle Exp $");
 
 /*
  *
@@ -1344,6 +1344,42 @@ canSymlink(void)
 	value = (0 == symlink("canSymlink.0", "canSymlink.1"))
 	    && is_symlink(__FILE__, __LINE__, "canSymlink.1","canSymlink.0");
 #endif
+	return (value);
+}
+
+/*
+ * Can this platform run the gzip program?
+ */
+/* Platform-dependent options for hiding the output of a subcommand. */
+#if defined(_WIN32) && !defined(__CYGWIN__)
+static const char *redirectArgs = ">NUL 2>NUL"; /* Win32 cmd.exe */
+#else
+static const char *redirectArgs = ">/dev/null 2>/dev/null"; /* POSIX 'sh' */
+#endif
+int
+canGzip(void)
+{
+	static int tested = 0, value = 0;
+	if (!tested) {
+		tested = 1;
+		if (systemf("gzip -V %s", redirectArgs) == 0)
+			value = 1;
+	}
+	return (value);
+}
+
+/*
+ * Can this platform run the gunzip program?
+ */
+int
+canGunzip(void)
+{
+	static int tested = 0, value = 0;
+	if (!tested) {
+		tested = 1;
+		if (systemf("gunzip -V %s", redirectArgs) == 0)
+			value = 1;
+	}
 	return (value);
 }
 

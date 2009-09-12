@@ -253,6 +253,12 @@ void sleepUntilAfter(time_t);
 /* Return true if this platform can create symlinks. */
 int canSymlink(void);
 
+/* Return true if this platform can run the "gzip" program. */
+int canGzip(void);
+
+/* Return true if this platform can run the "gunzip" program. */
+int canGunzip(void);
+
 /* Suck file into string allocated via malloc(). Call free() when done. */
 /* Supports printf-style args: slurpfile(NULL, "%s/myfile", refdir); */
 char *slurpfile(size_t *, const char *fmt, ...);

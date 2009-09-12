@@ -165,8 +165,6 @@
 /* Assert that file contents match a string; supports printf-style arguments. */
 #define assertFileContents             \
   assertion_setup(__FILE__, __LINE__);assertion_file_contents
-#define assertFileHardlinks(path1, path2)	\
-  assertion_file_hardlinks(__FILE__, __LINE__, path1, path2)
 #define assertFileMtime(pathname, sec, nsec)	\
   assertion_file_mtime(__FILE__, __LINE__, pathname, sec, nsec)
 #define assertFileMtimeRecent(pathname) \
@@ -179,6 +177,10 @@
   assertion_setup(__FILE__, __LINE__);assertion_text_file_contents
 #define assertIsDir(pathname, mode)		\
   assertion_is_dir(__FILE__, __LINE__, pathname, mode)
+#define assertIsHardlink(path1, path2)	\
+  assertion_is_hardlink(__FILE__, __LINE__, path1, path2)
+#define assertIsNotHardlink(path1, path2)	\
+  assertion_is_not_hardlink(__FILE__, __LINE__, path1, path2)
 #define assertIsReg(pathname, mode)		\
   assertion_is_reg(__FILE__, __LINE__, pathname, mode)
 #define assertIsSymlink(pathname, contents)	\
@@ -220,13 +222,14 @@ int assertion_file_birthtime(const char *, int, const char *, long, long);
 int assertion_file_birthtime_recent(const char *, int, const char *);
 int assertion_file_contents(const void *, int, const char *, ...);
 int assertion_file_exists(const char *, ...);
-int assertion_file_hardlinks(const char *, int, const char *, const char *);
 int assertion_file_mtime(const char *, int, const char *, long, long);
 int assertion_file_mtime_recent(const char *, int, const char *);
 int assertion_file_nlinks(const char *, int, const char *, int);
 int assertion_file_not_exists(const char *, ...);
 int assertion_file_size(const char *, int, const char *, long);
 int assertion_is_dir(const char *, int, const char *, int);
+int assertion_is_hardlink(const char *, int, const char *, const char *);
+int assertion_is_not_hardlink(const char *, int, const char *, const char *);
 int assertion_is_reg(const char *, int, const char *, int);
 int assertion_is_symlink(const char *, int, const char *, const char *);
 int assertion_make_dir(const char *, int, const char *, int);
@@ -237,6 +240,7 @@ int assertion_non_empty_file(const char *, ...);
 int assertion_text_file_contents(const char *buff, const char *f);
 int assertion_umask(const char *, int, int);
 void assertion_setup(const char *, int);
+
 void test_skipping(const char *fmt, ...);
 
 /* Like sprintf, then system() */
@@ -244,6 +248,15 @@ int systemf(const char * fmt, ...);
 
 /* Delay until time() returns a value after this. */
 void sleepUntilAfter(time_t);
+
+/* Return true if this platform can create symlinks. */
+int canSymlink(void);
+
+/* Return true if this platform can run the "gzip" program. */
+int canGzip(void);
+
+/* Return true if this platform can run the "gunzip" program. */
+int canGunzip(void);
 
 /* Suck file into string allocated via malloc(). Call free() when done. */
 /* Supports printf-style args: slurpfile(NULL, "%s/myfile", refdir); */
@@ -256,9 +269,6 @@ void extract_reference_file(const char *);
  * Special interfaces for libarchive test harness.
  */
 
-/* Get external gzip program name */
-const char *external_gzip_program(int un);
-
 #include "archive.h"
 #include "archive_entry.h"
 
@@ -266,17 +276,6 @@ const char *external_gzip_program(int un);
 int read_open_memory(struct archive *, void *, size_t, size_t);
 /* "2" version exercises a slightly different set of libarchive APIs. */
 int read_open_memory2(struct archive *, void *, size_t, size_t);
-
-/*
- * ARCHIVE_VERSION_STAMP first appeared in 1.9 and libarchive 2.2.4.
- * We can approximate it for earlier versions, though.
- * This is used to disable tests of features not present in the current
- * version.
- */
-#ifndef ARCHIVE_VERSION_STAMP
-#define ARCHIVE_VERSION_STAMP	\
-		(ARCHIVE_API_VERSION * 1000000 + ARCHIVE_API_FEATURE * 1000)
-#endif
 
 /* Versions of above that accept an archive argument for additional info. */
 #define assertA(e)   assertion_assert(__FILE__, __LINE__, (e), #e, (a))

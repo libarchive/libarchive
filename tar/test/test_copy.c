@@ -30,12 +30,27 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/test/test_copy.c,v 1.3 2008/08/15 06:12:02 k
 # include <sys/cygwin.h>
 #endif
 
-/* assumes that cwd is the top of the test tree. Furthermore,
- * assumes that this function is first called with the "longest"
- * cwd involved in the tests.  That is, from
- *  <testdir>/original
- * as opposed to
- *  <testdir>/plain or <testdir>/ustar
+/*
+ * Try to figure out how deep we can go in our tests.  Assumes that
+ * the first call to this function has the longest starting cwd (which
+ * is currently "<testdir>/original").  This is mostly to work around
+ * limits in our Win32 support.
+ *
+ * Background: On Posix systems, PATH_MAX is merely a limit on the
+ * length of the string passed into a system call.  By repeatedly
+ * calling chdir(), you can work with arbitrarily long paths on such
+ * systems.  In contrast, Win32 APIs apply PATH_MAX limits to the full
+ * absolute path, so the permissible length of a system call argument
+ * varies with the cwd. Some APIs actually enforce limits
+ * significantly less than PATH_MAX to ensure that you can create
+ * files within the current working directory.  The Win32 limits also
+ * apply to Cygwin before 1.7.
+ *
+ * Someday, I want to convert the Win32 support to use newer
+ * wide-character paths with '\\?\' prefix, which has a 32k PATH_MAX
+ * instead of the rather anemic 260 character limit of the older
+ * system calls.  Then we can drop this mess (unless we want to
+ * continue to special-case Cygwin 1.5 and earlier).
  */
 static int
 compute_loop_max(void)
@@ -48,15 +63,10 @@ compute_loop_max(void)
 	if (LOOP_MAX == 0) {
 		assert(_getcwd(buf, MAX_PATH) != NULL);
 		cwdlen = strlen(buf);
-		/* on windows, can't create a directory in which there is not
-		 * enough room left in MAX_PATH to /also/ create an 8.3 file.
-		 * Thus, max path len for mkdir is MAX_PATH - 12 ("12345678.123")
-		 * It is possible also that windows counts the length of cwd against
-		 * the MAX_PATH maximum, so account for that. Next, account also for
-		 * "/".  And lastly, account for the fact that the relative path
-		 * has 4 characters when the loop count i = 0.
-		 */
-		 LOOP_MAX = MAX_PATH - 12 - (int)cwdlen - 1 - 4;
+		/* 12 characters = length of 8.3 filename */
+		/* 4 characters = length of "/../" used in symlink tests */
+		/* 1 character = length of extra "/" separator */
+		LOOP_MAX = MAX_PATH - (int)cwdlen - 12 - 4 - 1;
 	}
 	return LOOP_MAX;
 #elif defined(__CYGWIN__) && !defined(HAVE_CYGWIN_CONV_PATH)
@@ -72,19 +82,8 @@ compute_loop_max(void)
 		cygwin_conv_to_full_win32_path(pbuf, wbuf);
 		wcwdlen = strlen(wbuf);
 		cwdlen = ((wcwdlen > pcwdlen) ? wcwdlen : pcwdlen);
-		/* on windows, can't create a directory in which there is not
-		 * enough room left in PATH_MAX to /also/ create an 8.3 file.
-		 * Thus, max path len for mkdir is PATH_MAX - 12 ("12345678.123")
-		 * Then, because cygwin treats even relative paths as if they were
-		 * absolute, and cwd counts against the PATH_MAX maximum, we must
-		 * account for that (using worst case of posix or win32 equivalents).
-		 * Next, account also for "/../" (as used in symlink creation test).
-		 * And lastly, account for the fact that the relative path has 4
-		 * characters when the loop count i = 0. These calculations do not
-		 * apply to cygwin-1.7, because unlike older cygwin, it uses the "wide"
-		 * functions of the win32 system for all file and directory access.
-		 */
-		LOOP_MAX = PATH_MAX - 12 - (int)cwdlen - 4 - 4;
+		/* Cygwin helper needs an extra few characters. */
+		LOOP_MAX = PATH_MAX - (int)cwdlen - 12 - 4 - 4;
 	}
 	return LOOP_MAX;
 #else
@@ -134,18 +133,18 @@ create_tree(void)
 		buff2[0] = 'm';
 		assertMakeHardlink(buff2, buff);
 
-#if !defined(_WIN32) || defined(__CYGWIN__)
-		/* Create a symlink named "s/abcdef..." to the above. */
-		strcpy(buff2 + 3, buff);
-		buff[0] = 's';
-		buff2[0] = '.';
-		buff2[1] = '.';
-		buff2[2] = '/';
-		failure("buff=\"%s\" buff2=\"%s\"", buff, buff2);
-		assertMakeSymlink(buff, buff2);
-#else
-		skipping("create a symlink to the above");
-#endif
+		if (canSymlink()) {
+			/* Create a symlink named "s/abcdef..." to the above. */
+			strcpy(buff2 + 3, buff);
+			buff[0] = 's';
+			buff2[0] = '.';
+			buff2[1] = '.';
+			buff2[2] = '/';
+			failure("buff=\"%s\" buff2=\"%s\"", buff, buff2);
+			assertMakeSymlink(buff, buff2);
+		} else {
+			skipping("Symlink tests");
+		}
 		/* Create a dir named "d/abcdef...". */
 		buff[0] = 'd';
 		failure("buff=\"%s\"", buff);
@@ -196,23 +195,21 @@ verify_tree(int limit)
 		strcat(name2, filename);
 		if (limit != LIMIT_USTAR || strlen(name2) <= 100) {
 			/* Verify hardlink "l/abcdef..." */
-			assertFileHardlinks(name1, name2);
+			assertIsHardlink(name1, name2);
 			/* Verify hardlink "m/abcdef..." */
 			name2[0] = 'm';
-			assertFileHardlinks(name1, name2);
+			assertIsHardlink(name1, name2);
 		}
 
-#if !defined(_WIN32) || defined(__CYGWIN__)
-		/* Verify symlink "s/abcdef..." */
-		strcpy(name1, "s/");
-		strcat(name1, filename);
-		strcpy(name2, "../f/");
-		strcat(name2, filename);
-		if (limit != LIMIT_USTAR || strlen(name2) <= 100)
-			assertIsSymlink(name1, name2);
-#else
-		skipping("verify symlink");
-#endif
+		if (canSymlink()) {
+			/* Verify symlink "s/abcdef..." */
+			strcpy(name1, "s/");
+			strcat(name1, filename);
+			strcpy(name2, "../f/");
+			strcat(name2, filename);
+			if (limit != LIMIT_USTAR || strlen(name2) <= 100)
+				assertIsSymlink(name1, name2);
+		}
 
 		/* Verify dir "d/abcdef...". */
 		strcpy(name1, "d/");

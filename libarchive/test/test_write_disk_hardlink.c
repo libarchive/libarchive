@@ -194,7 +194,7 @@ DEFINE_TEST(test_write_disk_hardlink)
 	assertIsReg("link1a", 0755 & ~UMASK);
 	assertFileSize("link1a", sizeof(data));
 	assertFileNLinks("link1a", 2);
-	assertFileHardlinks("link1a", "link1b");
+	assertIsHardlink("link1a", "link1b");
 
 	/* Test #2: Should produce identical results to test #1 */
 	/* Note that marking a hardlink with size = 0 is treated the
@@ -206,18 +206,18 @@ DEFINE_TEST(test_write_disk_hardlink)
 	assertIsReg("link2a", 0755 & ~UMASK);
 	assertFileSize("link2a", sizeof(data));
 	assertFileNLinks("link2a", 2);
-	assertFileHardlinks("link2a", "link2b");
+	assertIsHardlink("link2a", "link2b");
 
 	/* Test #3 */
 	assertIsReg("link3a", 0755 & ~UMASK);
 	assertFileSize("link3a", sizeof(data));
 	assertFileNLinks("link3a", 2);
-	assertFileHardlinks("link3a", "link3b");
+	assertIsHardlink("link3a", "link3b");
 
 	/* Test #4 */
 	assertIsReg("link4a", 0755 & ~UMASK);
 	assertFileNLinks("link4a", 2);
 	assertFileSize("link4a", sizeof(data));
-	assertFileHardlinks("link4a", "link4b");
+	assertIsHardlink("link4a", "link4b");
 #endif
 }

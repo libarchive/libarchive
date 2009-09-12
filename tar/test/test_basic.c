@@ -67,12 +67,11 @@ basic_tar(const char *target, const char *pack_options,
 	assertIsReg("linkfile", -1);
 	assertFileSize("linkfile", 10);
 	assertFileNLinks("linkfile", 2);
-	assertFileHardlinks("file", "linkfile");
+	assertIsHardlink("file", "linkfile");
 
-#if !defined(_WIN32) || defined(__CYGWIN__)
 	/* Symlink */
-	assertIsSymlink("symlink", "file");
-#endif
+	if (canSymlink())
+		assertIsSymlink("symlink", "file");
 
 	/* dir */
 	assertIsDir("dir", 0775);
@@ -96,12 +95,16 @@ DEFINE_TEST(test_basic)
 	assertMakeHardlink("linkfile", "file");
 
 	/* Symlink to above file. */
-	assertMakeSymlink("symlink", "file");
+	if (canSymlink())
+		assertMakeSymlink("symlink", "file");
 
 	/* Directory. */
 	assertMakeDir("dir", 0775);
 
-	flist = "file linkfile symlink dir";
+	if (canSymlink())
+		flist = "file linkfile symlink dir";
+	else
+		flist = "file linkfile dir";
 	/* Archive/dearchive with a variety of options. */
 	basic_tar("copy", "", "", flist);
 	/* tar doesn't handle cpio symlinks correctly */
