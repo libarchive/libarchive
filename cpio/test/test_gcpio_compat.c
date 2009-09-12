@@ -58,7 +58,7 @@ unpack_test(const char *from, const char *options, const char *se)
 	assertFileNLinks("file", 2);
 
 	/* Another name for the same file. */
-	assertFileHardlinks("linkfile", "file");
+	assertIsHardlink("linkfile", "file");
 
 	/* Symlink */
 	assertIsSymlink("symlink", "file");

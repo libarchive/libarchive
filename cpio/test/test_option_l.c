@@ -38,7 +38,7 @@ DEFINE_TEST(test_option_l)
 	assertEqualInt(r, 0);
 
 	/* Check that the copy is a true copy and not a link. */
-	assert(!isFileHardlinks("f", "copy/f"));
+	assertIsNotHardlink("f", "copy/f");
 
 	/* Copy the file to the "link" dir with the -l option. */
 	r = systemf("echo f | %s -pld link >link.out 2>link.err",
@@ -46,5 +46,5 @@ DEFINE_TEST(test_option_l)
 	assertEqualInt(r, 0);
 
 	/* Check that this is a link and not a copy. */
-	assertFileHardlinks("f", "link/f");
+	assertIsHardlink("f", "link/f");
 }

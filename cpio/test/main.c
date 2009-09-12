@@ -811,8 +811,8 @@ assertion_text_file_contents(const char *buff, const char *fn)
 
 /* Test that two paths point to the same file. */
 /* As a side-effect, asserts that both files exist. */
-int
-is_file_hardlinks(const char *file, int line,
+static int
+is_hardlink(const char *file, int line,
     const char *path1, const char *path2)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -856,13 +856,25 @@ is_file_hardlinks(const char *file, int line,
 }
 
 int
-assertion_file_hardlinks(const char *file, int line,
-						 const char *path1, const char *path2)
-{ 
-	if (is_file_hardlinks(file, line, path1, path2))
+assertion_is_hardlink(const char *file, int line,
+    const char *path1, const char *path2)
+{
+	if (is_hardlink(file, line, path1, path2))
 		return (1);
 	failure_start(file, line,
 	    "Files %s and %s are not hardlinked", path1, path2);
+	failure_finish(NULL);
+	return (0);
+}
+
+int
+assertion_is_not_hardlink(const char *file, int line,
+    const char *path1, const char *path2)
+{
+	if (!is_hardlink(file, line, path1, path2))
+		return (1);
+	failure_start(file, line,
+	    "Files %s and %s should not be hardlinked", path1, path2);
 	failure_finish(NULL);
 	return (0);
 }
@@ -1122,17 +1134,14 @@ assertion_is_reg(const char *file, int line, const char *pathname, int mode)
 	return (1);
 }
 
-/* Verify that 'pathname' is a symbolic link.  If 'contents' is
+/* Check whether 'pathname' is a symbolic link.  If 'contents' is
  * non-NULL, verify that the symlink has those contents. */
-int
-assertion_is_symlink(const char *file, int line,
+static int
+is_symlink(const char *file, int line,
     const char *pathname, const char *contents)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	assertion_count(file, line);
-	/* TODO: Vista supports symlinks */
-	failure_start(file, line, "Symlink %s not supported", pathname);
-	failure_finish(NULL);
 	return (0);
 #else
 	char buff[300];
@@ -1148,11 +1157,8 @@ assertion_is_symlink(const char *file, int line,
 		failure_finish(NULL);
 		return (0);
 	}
-	if (!S_ISLNK(st.st_mode)) {
-		failure_start(file, line, "%s should be a symlink", pathname);
-		failure_finish(NULL);
+	if (!S_ISLNK(st.st_mode))
 		return (0);
-	}
 	if (contents == NULL)
 		return (1);
 	linklen = readlink(pathname, buff, sizeof(buff));
@@ -1162,16 +1168,28 @@ assertion_is_symlink(const char *file, int line,
 		return (0);
 	}
 	buff[linklen] = '\0';
-	if (strcmp(buff, contents) != 0) {
-		failure_start(file, line, "Wrong symlink %s", pathname);
-		logprintf("   Expected: %s\n", contents);
-		logprintf("   Found: %s\n", buff);
-		failure_finish(NULL);
+	if (strcmp(buff, contents) != 0)
 		return (0);
-	}
 	return (1);
 #endif
 }
+
+/* Assert that path is a symlink that (optionally) contains contents. */
+int
+assertion_is_symlink(const char *file, int line,
+    const char *path, const char *contents)
+{
+	if (is_symlink(file, line, path, contents))
+		return (1);
+	if (contents)
+		failure_start(file, line, "File %s is not a symlink to %s",
+		    path, contents);
+	else
+		failure_start(file, line, "File %s is not a symlink", path);
+	failure_finish(NULL);
+	return (0);
+}
+
 
 /* Create a directory and report any errors. */
 int
@@ -1302,6 +1320,32 @@ assertion_umask(const char *file, int line, int mask)
  *  UTILITIES for use by tests.
  *
  */
+
+/*
+ * Check whether platform supports symlinks.  This is intended
+ * for tests to use in deciding whether to bother testing symlink
+ * support; if the platform doesn't support symlinks, there's no point
+ * in checking whether the program being tested can create them.
+ */
+int
+canSymlink(void)
+{
+	/* Remember the test result */
+	static int value = 0, tested = 1;
+	if (tested)
+		return (value);
+
+	++tested;
+	assertion_make_file(__FILE__, __LINE__, "canSymlink.0", 0644, "a");
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	value = my_CreateSymbolicLinkA("canSymlink.1", "canSymlink.0", 0)
+	    && is_symlink(__FILE__, __LINE__, "canSymlink.1", "canSymlink.0");
+#elif HAVE_SYMLINK
+	value = (0 == symlink("canSymlink.0", "canSymlink.1"))
+	    && is_symlink(__FILE__, __LINE__, "canSymlink.1","canSymlink.0");
+#endif
+	return (value);
+}
 
 /*
  * Sleep as needed; useful for verifying disk timestamp changes by

@@ -38,12 +38,11 @@ verify_files(void)
 	assertFileNLinks("file", 2);
 
 	/* Another name for the same file. */
-	assertFileHardlinks("linkfile", "file");
+	assertIsHardlink("linkfile", "file");
 
 	/* Symlink */
-#if !defined(_WIN32) || defined(__CYGWIN__)
-	assertIsSymlink("symlink", "file");
-#endif
+	if (canSymlink())
+		assertIsSymlink("symlink", "file");
 
 	/* Another file with 1 link and different permissions. */
 	assertIsReg("file2", 0777);
@@ -124,6 +123,7 @@ passthrough(const char *target)
 DEFINE_TEST(test_basic)
 {
 	FILE *filelist;
+	const char *msg;
 
 	assertUmask(0);
 
@@ -141,8 +141,10 @@ DEFINE_TEST(test_basic)
 	fprintf(filelist, "linkfile\n");
 
 	/* Symlink to above file. */
-	assertMakeSymlink("symlink", "file");
-	fprintf(filelist, "symlink\n");
+	if (canSymlink()) {
+		assertMakeSymlink("symlink", "file");
+		fprintf(filelist, "symlink\n");
+	}
 
 	/* Another file with different permissions. */
 	assertMakeFile("file2", 0777, "1234567890");
@@ -157,20 +159,14 @@ DEFINE_TEST(test_basic)
 	assertUmask(022);
 
 	/* Archive/dearchive with a variety of options. */
-	basic_cpio("copy", "", "", "2 blocks\n");
-	basic_cpio("copy_odc", "--format=odc", "", "2 blocks\n");
+	msg = canSymlink() ? "2 blocks\n" : "1 block\n";
+	basic_cpio("copy", "", "", msg);
+	basic_cpio("copy_odc", "--format=odc", "", msg);
 	basic_cpio("copy_newc", "-H newc", "", "2 blocks\n");
-	basic_cpio("copy_cpio", "-H odc", "", "2 blocks\n");
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	/*
-	 * On Windows, symbolic link does not work.
-	 * Currentry copying file instead. therefore block size is
-	 * different.
-	 */
-	basic_cpio("copy_ustar", "-H ustar", "", "10 blocks\n");
-#else
-	basic_cpio("copy_ustar", "-H ustar", "", "9 blocks\n");
-#endif
+	basic_cpio("copy_cpio", "-H odc", "", msg);
+	msg = canSymlink() ? "9 blocks\n" : "8 blocks\n";
+	basic_cpio("copy_ustar", "-H ustar", "", msg);
+
 	/* Copy in one step using -p */
 	passthrough("passthrough");
 }

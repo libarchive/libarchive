@@ -166,8 +166,6 @@
 /* Assert that file contents match a string; supports printf-style arguments. */
 #define assertFileContents             \
   assertion_setup(__FILE__, __LINE__);assertion_file_contents
-#define assertFileHardlinks(path1, path2)	\
-  assertion_file_hardlinks(__FILE__, __LINE__, path1, path2)
 #define assertFileMtime(pathname, sec, nsec)	\
   assertion_file_mtime(__FILE__, __LINE__, pathname, sec, nsec)
 #define assertFileMtimeRecent(pathname) \
@@ -180,6 +178,10 @@
   assertion_setup(__FILE__, __LINE__);assertion_text_file_contents
 #define assertIsDir(pathname, mode)		\
   assertion_is_dir(__FILE__, __LINE__, pathname, mode)
+#define assertIsHardlink(path1, path2)	\
+  assertion_is_hardlink(__FILE__, __LINE__, path1, path2)
+#define assertIsNotHardlink(path1, path2)	\
+  assertion_is_not_hardlink(__FILE__, __LINE__, path1, path2)
 #define assertIsReg(pathname, mode)		\
   assertion_is_reg(__FILE__, __LINE__, pathname, mode)
 #define assertIsSymlink(pathname, contents)	\
@@ -195,11 +197,6 @@
   assertion_make_symlink(__FILE__, __LINE__, newfile, linkto)
 #define assertUmask(mask)	\
   assertion_umask(__FILE__, __LINE__, mask)
-
-/*
- */
-#define isFileHardlinks(path1, path2)	\
-  is_file_hardlinks(__FILE__, __LINE__, path1, path2)
 
 /*
  * This would be simple with C99 variadic macros, but I don't want to
@@ -226,13 +223,14 @@ int assertion_file_birthtime(const char *, int, const char *, long, long);
 int assertion_file_birthtime_recent(const char *, int, const char *);
 int assertion_file_contents(const void *, int, const char *, ...);
 int assertion_file_exists(const char *, ...);
-int assertion_file_hardlinks(const char *, int, const char *, const char *);
 int assertion_file_mtime(const char *, int, const char *, long, long);
 int assertion_file_mtime_recent(const char *, int, const char *);
 int assertion_file_nlinks(const char *, int, const char *, int);
 int assertion_file_not_exists(const char *, ...);
 int assertion_file_size(const char *, int, const char *, long);
 int assertion_is_dir(const char *, int, const char *, int);
+int assertion_is_hardlink(const char *, int, const char *, const char *);
+int assertion_is_not_hardlink(const char *, int, const char *, const char *);
 int assertion_is_reg(const char *, int, const char *, int);
 int assertion_is_symlink(const char *, int, const char *, const char *);
 int assertion_make_dir(const char *, int, const char *, int);
@@ -244,7 +242,6 @@ int assertion_text_file_contents(const char *buff, const char *f);
 int assertion_umask(const char *, int, int);
 void assertion_setup(const char *, int);
 
-int is_file_hardlinks(const char *, int, const char *, const char *);
 void test_skipping(const char *fmt, ...);
 
 /* Like sprintf, then system() */
@@ -252,6 +249,9 @@ int systemf(const char * fmt, ...);
 
 /* Delay until time() returns a value after this. */
 void sleepUntilAfter(time_t);
+
+/* Return true if this platform can create symlinks. */
+int canSymlink(void);
 
 /* Suck file into string allocated via malloc(). Call free() when done. */
 /* Supports printf-style args: slurpfile(NULL, "%s/myfile", refdir); */
