@@ -621,7 +621,7 @@ tree_current_file_information(struct tree *t)
 const struct stat *
 tree_current_lstat(struct tree *t)
 {
-#if defined(_WIN32)
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	return (tree_current_stat(t));
 #else
 	if (!(t->flags & hasLstat)) {
