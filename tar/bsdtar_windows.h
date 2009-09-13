@@ -41,6 +41,8 @@
 
 #include <string.h>  /* Must include before redefining 'strdup' */
 #define strdup _strdup
+#define	read _read
+#define getcwd _getcwd
 
 #define chdir __tar_chdir
 int __tar_chdir(const char *);

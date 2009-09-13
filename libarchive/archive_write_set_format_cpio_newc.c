@@ -75,6 +75,9 @@ struct cpio_header_newc {
 	char	c_checksum[8];
 };
 
+/* Logic trick: difference between 'n' and next multiple of 4 */
+#define PAD4(n)	(3 & (1 + ~(n)))
+
 /*
  * Set output format to 'cpio' format.
  */
@@ -169,21 +172,21 @@ archive_write_newc_header(struct archive_write *a, struct archive_entry *entry)
 	ret = (a->compressor.write)(a, path, pathlength);
 	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
-	pad = 0x3 & - (pathlength + sizeof(struct cpio_header_newc));
+	pad = PAD4(pathlength + sizeof(struct cpio_header_newc));
 	if (pad)
 		ret = (a->compressor.write)(a, "\0\0\0", pad);
 	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
 	cpio->entry_bytes_remaining = archive_entry_size(entry);
-	cpio->padding = 3 & (-cpio->entry_bytes_remaining);
+	cpio->padding = PAD4(cpio->entry_bytes_remaining);
 
 	/* Write the symlink now. */
 	if (p != NULL  &&  *p != '\0') {
 		ret = (a->compressor.write)(a, p, strlen(p));
 		if (ret != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
-		pad = 0x3 & -strlen(p);
+		pad = PAD4(strlen(p));
 		ret = (a->compressor.write)(a, "\0\0\0", pad);
 	}
 

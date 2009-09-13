@@ -28,6 +28,7 @@
 #define CPIO_WINDOWS_H 1
 
 #include <io.h>
+#include <string.h>
 
 #define getgrgid(id)	NULL
 #define getgrnam(name)	NULL
@@ -37,6 +38,9 @@
 #ifdef _MSC_VER
 #define snprintf	sprintf_s
 #define strdup		_strdup
+#define open	_open
+#define read	_read
+#define close	_close
 #endif
 
 struct passwd {

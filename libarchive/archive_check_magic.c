@@ -94,7 +94,7 @@ write_all_states(unsigned int states)
 	unsigned int lowbit;
 
 	/* A trick for computing the lowest set bit. */
-	while ((lowbit = states & (-states)) != 0) {
+	while ((lowbit = states & (1 + ~states)) != 0) {
 		states &= ~lowbit;		/* Clear the low bit. */
 		errmsg(state_name(lowbit));
 		if (states != 0)

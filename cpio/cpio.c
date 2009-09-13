@@ -990,7 +990,8 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 	tim = (time_t)st->st_mtime;
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	/* Windows' strftime function does not support %e format. */
-	if (abs(tim - now) > (365/2)*86400)
+	if (tim - now > 365*86400/2
+		|| tim - now < -365*86400/2)
 		fmt = cpio->day_first ? "%d %b  %Y" : "%b %d  %Y";
 	else
 		fmt = cpio->day_first ? "%d %b %H:%M" : "%b %d %H:%M";
