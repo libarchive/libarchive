@@ -25,6 +25,9 @@
 #include "test.h"
 __FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_option_L.c,v 1.2 2008/08/24 06:21:00 kientzle Exp $");
 
+/* This is a little pointless, as Windows doesn't support symlinks
+ * (except for the seriously crippled CreateSymbolicLink API) so these
+ * tests won't run on Windows. */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #define CAT "type"
 #else
@@ -35,6 +38,11 @@ DEFINE_TEST(test_option_L_upper)
 {
 	FILE *filelist;
 	int r;
+
+	if (!canSymlink()) {
+		skipping("Symlink tests");
+		return;
+	}
 
 	filelist = fopen("filelist", "w");
 
@@ -51,10 +59,8 @@ DEFINE_TEST(test_option_L_upper)
 	r = systemf(CAT " filelist | %s -pd copy >copy.out 2>copy.err", testprog);
 	assertEqualInt(r, 0);
 
-#if !defined(_WIN32) || defined(__CYGWIN__)
 	failure("Regular -p without -L should preserve symlinks.");
 	assertIsSymlink("copy/symlink", NULL);
-#endif
 
 	r = systemf(CAT " filelist | %s -pd -L copy-L >copy-L.out 2>copy-L.err", testprog);
 	assertEqualInt(r, 0);
@@ -68,32 +74,22 @@ DEFINE_TEST(test_option_L_upper)
 	assertEqualInt(r, 0);
 
 	assertMakeDir("unpack", 0755);
-#if defined(_WIN32) && !defined(__CYGWIN__)
 	assertChdir("unpack");
-	r = systemf("type ..\\archive.out | %s -i >unpack.out 2>unpack.err", testprog);
+	r = systemf(CAT " ../archive.out | %s -i >unpack.out 2>unpack.err", testprog);
 	assertChdir("..");
-#else
-	r = systemf("cat archive.out | (cd unpack ; %s -i >unpack.out 2>unpack.err)", testprog);
-#endif
 	failure("Error invoking %s -i", testprog);
 	assertEqualInt(r, 0);
 
-#if !defined(_WIN32) || defined(__CYGWIN__)
 	assertIsSymlink("unpack/symlink", NULL);
-#endif
 
 	r = systemf(CAT " filelist | %s -oL >archive-L.out 2>archive-L.err", testprog);
 	failure("Error invoking %s -oL", testprog);
 	assertEqualInt(r, 0);
 
 	assertMakeDir("unpack-L", 0755);
-#if defined(_WIN32) && !defined(__CYGWIN__)
 	assertChdir("unpack-L");
-	r = systemf("type ..\\archive-L.out | %s -i >unpack-L.out 2>unpack-L.err", testprog);
+	r = systemf(CAT " ../archive-L.out | %s -i >unpack-L.out 2>unpack-L.err", testprog);
 	assertChdir("..");
-#else
-	r = systemf("cat archive-L.out | (cd unpack-L ; %s -i >unpack-L.out 2>unpack-L.err)", testprog);
-#endif
 	failure("Error invoking %s -i < archive-L.out", testprog);
 	assertEqualInt(r, 0);
 	assertIsReg("unpack-L/symlink", -1);

@@ -47,8 +47,10 @@ DEFINE_TEST(test_strip_components)
 	assertEqualInt(1, touch("d1/d2/f1"));
 	assertMakeHardlink("l1", "d1/d2/f1");
 	assertMakeHardlink("d1/l2", "d1/d2/f1");
-	assertMakeSymlink("s1", "d1/d2/f1");
-	assertMakeSymlink("d1/s2", "d2/f1");
+	if (canSymlink()) {
+		assertMakeSymlink("s1", "d1/d2/f1");
+		assertMakeSymlink("d1/s2", "d2/f1");
+	}
 	assertChdir("..");
 
 	assertEqualInt(0, systemf("%s -cf test.tar d0", testprog));
@@ -62,12 +64,11 @@ DEFINE_TEST(test_strip_components)
 	failure("d0/d1/ is too short and should not get restored");
 	assertFileNotExists("target/d1");
 	failure("d0/d1/s2 is a symlink to something that won't be extracted");
-#if !defined(_WIN32) || defined(__CYGWIN__)
+	/* If platform supports symlinks, target/s2 is a broken symlink. */
+	/* If platform does not support symlink, target/s2 doesn't exist. */
 	assertFileNotExists("target/s2");
-	assertIsSymlink("target/s2", "d2/f1");
-#else
-	skipping("symlink");
-#endif
+	if (canSymlink())
+		assertIsSymlink("target/s2", "d2/f1");
 	failure("d0/d1/d2 should be extracted");
 	assertIsDir("target/d2", -1);
 

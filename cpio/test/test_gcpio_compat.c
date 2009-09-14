@@ -45,8 +45,11 @@ unpack_test(const char *from, const char *options, const char *se)
 	assertEqualInt(r, 0);
 
 	/* Verify that nothing went to stderr. */
-	failure("Error invoking %s -i %s < %s", testprog, options, from);
-	assertTextFileContents(se, "unpack.err");
+	if (canSymlink()) {
+		failure("Error invoking %s -i %s < %s",
+		    testprog, options, from);
+		assertTextFileContents(se, "unpack.err");
+	}
 
 	/*
 	 * Verify unpacked files.
@@ -61,7 +64,8 @@ unpack_test(const char *from, const char *options, const char *se)
 	assertIsHardlink("linkfile", "file");
 
 	/* Symlink */
-	assertIsSymlink("symlink", "file");
+	if (canSymlink())
+		assertIsSymlink("symlink", "file");
 
 	/* dir */
 	assertIsDir("dir", 0775);
@@ -74,9 +78,25 @@ DEFINE_TEST(test_gcpio_compat)
 	assertUmask(0);
 
 	/* Dearchive sample files with a variety of options. */
-	unpack_test("test_gcpio_compat_ref.bin", "--no-preserve-owner", "1 block\n");
-	unpack_test("test_gcpio_compat_ref.crc", "--no-preserve-owner", "2 blocks\n");
-	unpack_test("test_gcpio_compat_ref.newc", "--no-preserve-owner", "2 blocks\n");
-	/* gcpio-2.9 only reads 6 blocks here */
-	unpack_test("test_gcpio_compat_ref.ustar", "--no-preserve-owner", "7 blocks\n");
+	if (canSymlink()) {
+		unpack_test("test_gcpio_compat_ref.bin",
+		    "--no-preserve-owner", "1 block\n");
+		unpack_test("test_gcpio_compat_ref.crc",
+		    "--no-preserve-owner", "2 blocks\n");
+		unpack_test("test_gcpio_compat_ref.newc",
+		    "--no-preserve-owner", "2 blocks\n");
+		/* gcpio-2.9 only reads 6 blocks here */
+		unpack_test("test_gcpio_compat_ref.ustar",
+		    "--no-preserve-owner", "7 blocks\n");
+	} else {
+		unpack_test("test_gcpio_compat_ref_nosym.bin",
+		    "--no-preserve-owner", "1 block\n");
+		unpack_test("test_gcpio_compat_ref_nosym.crc",
+		    "--no-preserve-owner", "2 blocks\n");
+		unpack_test("test_gcpio_compat_ref_nosym.newc",
+		    "--no-preserve-owner", "2 blocks\n");
+		/* gcpio-2.9 only reads 6 blocks here */
+		unpack_test("test_gcpio_compat_ref_nosym.ustar",
+		    "--no-preserve-owner", "7 blocks\n");
+	}
 }

@@ -1331,7 +1331,7 @@ int
 canSymlink(void)
 {
 	/* Remember the test result */
-	static int value = 0, tested = 1;
+	static int value = 0, tested = 0;
 	if (tested)
 		return (value);
 

@@ -1141,6 +1141,9 @@ is_symlink(const char *file, int line,
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	assertion_count(file, line);
+	/* Windows sort-of has real symlinks, but they're only usable
+	 * by privileged users and are crippled even then, so there's
+	 * really not much point in bothering with this. */
 	return (0);
 #else
 	char buff[300];
@@ -1330,7 +1333,7 @@ int
 canSymlink(void)
 {
 	/* Remember the test result */
-	static int value = 0, tested = 1;
+	static int value = 0, tested = 0;
 	if (tested)
 		return (value);
 

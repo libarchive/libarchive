@@ -49,10 +49,6 @@ mkfile(const char *name, int mode, const char *contents, size_t size)
 
 DEFINE_TEST(test_symlink_dir)
 {
-#if !defined(_WIN32) || defined(__CYGWIN__)
-	struct stat st;
-	struct stat st2;
-#endif
 	assertUmask(0);
 
 	assertMakeDir("source", 0755);
@@ -76,27 +72,25 @@ DEFINE_TEST(test_symlink_dir)
 	 * Extract with -x and without -P.
 	 */
 	assertMakeDir("dest1", 0755);
-	/* "dir" is a symlink to an existing "real_dir" */
+	/* "dir" is a symlink to an existing "dest1/real_dir" */
 	assertMakeDir("dest1/real_dir", 0755);
-#if !defined(_WIN32) || defined(__CYGWIN__)
-	assertEqualInt(0, symlink("real_dir", "dest1/dir"));
-	/* "dir2" is a symlink to a non-existing "real_dir2" */
-	assertEqualInt(0, symlink("real_dir2", "dest1/dir2"));
-#else
-	skipping("symlink does not work on this platform");
-#endif
+	if (canSymlink()) {
+		assertMakeSymlink("dest1/dir", "real_dir");
+		/* "dir2" is a symlink to a non-existing "real_dir2" */
+		assertMakeSymlink("dest1/dir2", "real_dir2");
+	} else {
+		skipping("some symlink checks");
+	}
 	/* "dir3" is a symlink to an existing "non_dir3" */
 	assertEqualInt(0, mkfile("dest1/non_dir3", 0755, "abcdef", 6));
 	assertMakeSymlink("dest1/dir3", "non_dir3");
 	/* "file" is a symlink to existing "real_file" */
 	assertEqualInt(0, mkfile("dest1/real_file", 0755, "abcdefg", 7));
-	assertMakeSymlink("dest1/file", "real_file");
-#if !defined(_WIN32) || defined(__CYGWIN__)
-	/* "file2" is a symlink to non-existing "real_file2" */
-	assertMakeSymlink("dest1/file2", "real_file2");
-#else
-	skipping("symlink does not work on this platform");
-#endif
+	if (canSymlink()) {
+		assertMakeSymlink("dest1/file", "real_file");
+		/* "file2" is a symlink to non-existing "real_file2" */
+		assertMakeSymlink("dest1/file2", "real_file2");
+	}
 	assertEqualInt(0, systemf("%s -xf test.tar -C dest1", testprog));
 
 	/* dest1/dir symlink should be replaced */
@@ -121,47 +115,25 @@ DEFINE_TEST(test_symlink_dir)
 	assertMakeDir("dest2", 0755);
 	/* "dir" is a symlink to existing "real_dir" */
 	assertMakeDir("dest2/real_dir", 0755);
-#if !defined(_WIN32) || defined(__CYGWIN__)
 	assertMakeSymlink("dest2/dir", "real_dir");
 	/* "dir2" is a symlink to a non-existing "real_dir2" */
 	assertMakeSymlink("dest2/dir2", "real_dir2");
-#else
-	skipping("symlink does not work on this platform");
-#endif
 	/* "dir3" is a symlink to an existing "non_dir3" */
 	assertEqualInt(0, mkfile("dest2/non_dir3", 0755, "abcdefgh", 8));
 	assertMakeSymlink("dest2/dir3", "non_dir3");
 	/* "file" is a symlink to existing "real_file" */
 	assertEqualInt(0, mkfile("dest2/real_file", 0755, "abcdefghi", 9));
 	assertMakeSymlink("dest2/file", "real_file");
-#if !defined(_WIN32) || defined(__CYGWIN__)
 	/* "file2" is a symlink to non-existing "real_file2" */
 	assertMakeSymlink("dest2/file2", "real_file2");
-#else
-	skipping("symlink does not work on this platform");
-#endif
 	assertEqualInt(0, systemf("%s -xPf test.tar -C dest2", testprog));
 
 	/* dest2/dir symlink should be followed */
-#if !defined(_WIN32) || defined(__CYGWIN__)
-	assertEqualInt(0, lstat("dest2/dir", &st));
-	failure("tar -xP removed symlink instead of following it");
-	if (assert(S_ISLNK(st.st_mode))) {
-		/* Only verify what the symlink points to if it
-		 * really is a symlink. */
-		failure("The symlink should point to a directory");
-		assertEqualInt(0, stat("dest2/dir", &st));
-		assert(S_ISDIR(st.st_mode));
-		failure("The pre-existing directory should still be there");
-		assertEqualInt(0, lstat("dest2/real_dir", &st2));
-		assert(S_ISDIR(st2.st_mode));
-		assertEqualInt(st.st_dev, st2.st_dev);
-		failure("symlink should still point to the existing directory");
-		assertEqualInt(st.st_ino, st2.st_ino);
+	if (canSymlink()) {
+		assertIsSymlink("dest2/dir", "real_dir");
+		assertIsDir("dest2/real_dir", -1);
 	}
-#else
-	skipping("symlink does not work on this platform");
-#endif
+
 	/* Contents of 'dir' should be restored */
 	assertIsDir("dest2/dir/d", -1);
 	assertIsReg("dest2/dir/f", -1);
