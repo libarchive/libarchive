@@ -92,6 +92,7 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/test/main.c,v 1.3 2008/08/24 04:58:22 kient
 #define rmdir _rmdir
 #define strdup _strdup
 #define umask _umask
+#define int64_t __int64
 #endif
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -140,6 +141,7 @@ my_GetFileInformationByName(const char *path, BY_HANDLE_FILE_INFORMATION *bhfi)
 	HANDLE h;
 	int r;
 
+	memset(bhfi, 0, sizeof(*bhfi));
 	h = CreateFile(path, FILE_READ_ATTRIBUTES, 0, NULL,
 		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (h == INVALID_HANDLE_VALUE)
@@ -832,7 +834,8 @@ is_hardlink(const char *file, int line,
 		failure_finish(NULL);
 		return (0);
 	}
-	return (bhfi1.nFileIndexHigh == bhfi2.nFileIndexHigh
+	return (bhfi1.dwVolumeSerialNumber == bhfi2.dwVolumeSerialNumber
+		&& bhfi1.nFileIndexHigh == bhfi2.nFileIndexHigh
 		&& bhfi1.nFileIndexLow == bhfi2.nFileIndexLow);
 #else
 	struct stat st1, st2;
@@ -1057,15 +1060,27 @@ assertion_file_nlinks(const char *file, int line,
 int
 assertion_file_size(const char *file, int line, const char *pathname, long size)
 {
-	struct stat st;
+	int64_t filesize;
 	int r;
 
 	assertion_count(file, line);
-	r = lstat(pathname, &st);
-	if (r == 0 && st.st_size == size)
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	{
+		BY_HANDLE_FILE_INFORMATION bhfi;
+		r = !my_GetFileInformationByName(pathname, &bhfi);
+		filesize = ((int64_t)bhfi.nFileSizeHigh << 32) + bhfi.nFileSizeLow;
+	}
+#else
+	{
+		struct stat st;
+		r = lstat(pathname, &st);
+		filesize = st.st_size;
+	}
+#endif
+	if (r == 0 && filesize == size)
 			return (1);
 	failure_start(file, line, "File %s has size %ld, expected %ld",
-	    pathname, (long)st.st_size, (long)size);
+	    pathname, (long)filesize, (long)size);
 	failure_finish(NULL);
 	return (0);
 }
