@@ -57,11 +57,17 @@ unpack_test(const char *from, const char *options, const char *se)
 
 	/* Regular file with 2 links. */
 	assertIsReg("file", 0644);
+	failure("%s", from);
 	assertFileSize("file", 10);
+	assertFileSize("linkfile", 10);
+	failure("%s", from);
 	assertFileNLinks("file", 2);
 
 	/* Another name for the same file. */
+	failure("%s", from);
 	assertIsHardlink("linkfile", "file");
+	assertFileSize("file", 10);
+	assertFileSize("linkfile", 10);
 
 	/* Symlink */
 	if (canSymlink())
