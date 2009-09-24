@@ -26,7 +26,7 @@
 __FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_basic.c,v 1.4 2008/08/25 06:39:29 kientzle Exp $");
 
 static void
-verify_files(void)
+verify_files(const char *msg)
 {
 	/*
 	 * Verify unpacked files.
@@ -34,6 +34,7 @@ verify_files(void)
 
 	/* Regular file with 2 links. */
 	assertIsReg("file", 0644);
+	failure(msg);
 	assertFileSize("file", 10);
 	assertFileNLinks("file", 2);
 
@@ -88,7 +89,7 @@ basic_cpio(const char *target,
 	failure("Error invoking %s -i %s in dir %s", testprog, unpack_options, target);
 	assertTextFileContents(se, "unpack.err");
 
-	verify_files();
+	verify_files(pack_options);
 
 	assertChdir("..");
 }
@@ -116,7 +117,7 @@ passthrough(const char *target)
 	    testprog, target);
 	assertTextFileContents("1 block\n", "stderr");
 
-	verify_files();
+	verify_files("passthrough");
 	assertChdir("..");
 }
 
