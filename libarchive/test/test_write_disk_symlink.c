@@ -35,6 +35,11 @@ DEFINE_TEST(test_write_disk_symlink)
 	struct archive_entry *ae;
 	int r;
 
+	if (!canSymlink()) {
+		skipping("Symlinks not supported");
+		return;
+	}
+
 	/* Write entries to disk. */
 	assert((ad = archive_write_disk_new()) != NULL);
 
@@ -45,7 +50,7 @@ DEFINE_TEST(test_write_disk_symlink)
 	/* Regular file: link1a */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "link1a");
-	archive_entry_set_mode(ae, S_IFREG | 0755);
+	archive_entry_set_mode(ae, AE_IFREG | 0755);
 	archive_entry_set_size(ae, sizeof(data));
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
 	assertEqualInt(sizeof(data),
@@ -56,15 +61,12 @@ DEFINE_TEST(test_write_disk_symlink)
 	/* Symbolic Link: link1b -> link1a */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "link1b");
-	archive_entry_set_mode(ae, S_IFREG | 0642);
+	archive_entry_set_mode(ae, AE_IFLNK | 0642);
 	archive_entry_set_size(ae, 0);
 	archive_entry_copy_symlink(ae, "link1a");
 	assertEqualIntA(ad, 0, r = archive_write_header(ad, ae));
-	if (r >= ARCHIVE_WARN) {
-		assertEqualInt(ARCHIVE_WARN,
-		    archive_write_data(ad, data, sizeof(data)));
+	if (r >= ARCHIVE_WARN)
 		assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
-	}
 	archive_entry_free(ae);
 
 	/*
@@ -75,7 +77,7 @@ DEFINE_TEST(test_write_disk_symlink)
 	/* Symbolic link: link2b -> link2a */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "link2b");
-	archive_entry_set_mode(ae, S_IFLNK | 0642);
+	archive_entry_set_mode(ae, AE_IFLNK | 0642);
 	archive_entry_unset_size(ae);
 	archive_entry_copy_symlink(ae, "link2a");
 	assertEqualIntA(ad, 0, r = archive_write_header(ad, ae));
@@ -89,7 +91,7 @@ DEFINE_TEST(test_write_disk_symlink)
 	/* File: link2a */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "link2a");
-	archive_entry_set_mode(ae, S_IFREG | 0755);
+	archive_entry_set_mode(ae, AE_IFREG | 0755);
 	archive_entry_set_size(ae, sizeof(data));
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
 	assertEqualInt(sizeof(data),
