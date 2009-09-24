@@ -102,8 +102,10 @@ DEFINE_TEST(test_format_newc)
 	assertMakeHardlink("hardlink2", "file1");
 
 	/* "symlink" */
-	assertMakeSymlink("symlink", "file1");
-	fprintf(list, "symlink\n");
+	if (canSymlink()) {
+		assertMakeSymlink("symlink", "file1");
+		fprintf(list, "symlink\n");
+	}
 
 	/* "dir" */
 	assertMakeDir("dir", 0775);
@@ -120,11 +122,15 @@ DEFINE_TEST(test_format_newc)
 		return;
 
 	/* Verify that nothing went to stderr. */
-	assertTextFileContents("2 blocks\n", "newc.err");
+	if (canSymlink()) {
+		assertTextFileContents("2 blocks\n", "newc.err");
+	} else {
+		assertTextFileContents("1 block\n", "newc.err");
+	}
 
 	/* Verify that stdout is a well-formed cpio file in "newc" format. */
 	p = slurpfile(&s, "newc.out");
-	assertEqualInt(s, 1024);
+	assertEqualInt(s, canSymlink() ? 1024 : 512);
 	e = p;
 
 	/*
@@ -141,7 +147,7 @@ DEFINE_TEST(test_format_newc)
 	assertEqualInt(0x8180, from_hex(e + 14, 8) & 0xffc0); /* Mode */
 #else
 	assertEqualInt(0x81a4, from_hex(e + 14, 8)); /* Mode */
-#endif
+#endif	
 	if (uid < 0)
 		uid = from_hex(e + 22, 8);
 	assertEqualInt(from_hex(e + 22, 8), uid); /* uid */
@@ -171,42 +177,33 @@ DEFINE_TEST(test_format_newc)
 	/* But add in file size so that an error here doesn't cascade. */
 	e += 110 + fs + ns;
 
-	/* "symlink" pointing to "file1" */
-	assert(is_hex(e, 110));
-	assertEqualMem(e + 0, "070701", 6); /* Magic */
-	assert(is_hex(e + 6, 8)); /* ino */
-#if !defined(_WIN32) || defined(__CYGWIN__)
-	/* On Windows, symbolic link and group members bits and
-	 * others bits do not work. */
-	assertEqualInt(0xa1ff, from_hex(e + 14, 8)); /* Mode */
-#endif
-	assertEqualInt(from_hex(e + 22, 8), uid); /* uid */
-	assertEqualInt(gid, from_hex(e + 30, 8)); /* gid */
-	assertEqualMem(e + 38, "00000001", 8); /* nlink */
-	t2 = from_hex(e + 46, 8); /* mtime */
-	failure("First entry created at t=0x%08x this entry created at t2=0x%08x", t, t2);
-	assert(t2 == t || t2 == t + 1); /* Almost same as first entry. */
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	/* Symbolic link does not work. */
-	assertEqualMem(e + 54, "0000000a", 8); /* File size */
-#else
-	assertEqualMem(e + 54, "00000005", 8); /* File size */
-#endif
-	fs = from_hex(e + 54, 8);
-	fs += PAD(fs, 4);
-	assertEqualInt(devmajor, from_hex(e + 62, 8)); /* devmajor */
-	assertEqualInt(devminor, from_hex(e + 70, 8)); /* devminor */
-	assert(is_hex(e + 78, 8)); /* rdevmajor */
-	assert(is_hex(e + 86, 8)); /* rdevminor */
-	assertEqualMem(e + 94, "00000008", 8); /* Name size */
-	ns = from_hex(e + 94, 8);
-	ns += PAD(ns + 2, 4);
-	assertEqualInt(0, from_hex(e + 102, 8)); /* check field */
-	assertEqualMem(e + 110, "symlink\0\0\0", 10); /* Name contents */
-#if !defined(_WIN32) || defined(__CYGWIN__)
-	assertEqualMem(e + 110 + ns, "file1\0\0\0", 8); /* symlink target */
-#endif
-	e += 110 + fs + ns;
+	if (canSymlink()) {
+		/* "symlink" pointing to "file1" */
+		assert(is_hex(e, 110));
+		assertEqualMem(e + 0, "070701", 6); /* Magic */
+		assert(is_hex(e + 6, 8)); /* ino */
+		assertEqualInt(0xa1ff, from_hex(e + 14, 8)); /* Mode */
+		assertEqualInt(from_hex(e + 22, 8), uid); /* uid */
+		assertEqualInt(gid, from_hex(e + 30, 8)); /* gid */
+		assertEqualMem(e + 38, "00000001", 8); /* nlink */
+		t2 = from_hex(e + 46, 8); /* mtime */
+		failure("First entry created at t=0x%08x this entry created at t2=0x%08x", t, t2);
+		assert(t2 == t || t2 == t + 1); /* Almost same as first entry. */
+		assertEqualMem(e + 54, "00000005", 8); /* File size */
+		fs = from_hex(e + 54, 8);
+		fs += PAD(fs, 4);
+		assertEqualInt(devmajor, from_hex(e + 62, 8)); /* devmajor */
+		assertEqualInt(devminor, from_hex(e + 70, 8)); /* devminor */
+		assert(is_hex(e + 78, 8)); /* rdevmajor */
+		assert(is_hex(e + 86, 8)); /* rdevminor */
+		assertEqualMem(e + 94, "00000008", 8); /* Name size */
+		ns = from_hex(e + 94, 8);
+		ns += PAD(ns + 2, 4);
+		assertEqualInt(0, from_hex(e + 102, 8)); /* check field */
+		assertEqualMem(e + 110, "symlink\0\0\0", 10); /* Name contents */
+		assertEqualMem(e + 110 + ns, "file1\0\0\0", 8); /* symlink target */
+		e += 110 + fs + ns;
+	}
 
 	/* "dir" */
 	assert(is_hex(e, 110));
