@@ -88,7 +88,6 @@ static __inline ino_t
 getino(struct ustat *ub)
 {
 	ULARGE_INTEGER ino64;
-
 	ino64.QuadPart = ub->st_ino;
 	/* I don't know this hashing is correct way */
 	return (ino64.LowPart ^ (ino64.LowPart >> INOSIZE));
@@ -246,85 +245,6 @@ la_CreateHardLinkW(wchar_t *linkname, wchar_t *target)
 	return f == NULL ? 0 : (*f)(linkname, target, NULL);
 }
 
-/* Check that path1 and path2 can be hard-linked by each other.
- * Both arguments must be made by permissive_name function. 
- */
-static size_t
-wequallen(const wchar_t *s1, const wchar_t *s2)
-{
-	size_t i = 0;
-
-	while (*s1 != L'\0' && *s2 != L'\0' && *s1 == *s2) {
-		++s1; ++s2; ++i;
-	}
-	return (i);
-}
-
-static int
-canHardLinkW(const wchar_t *path1, const wchar_t *path2)
-{
-	wchar_t root[MAX_PATH];
-	wchar_t fs[32];
-	const wchar_t *s;
-	int r;
-
-	r = wequallen(path1, path2);
-	/* Is volume-name the same? */
-	if (r < 7)
-		return (0);
-	if (wcsncmp(path1, L"\\\\?\\UNC\\", 8) == 0) {
-		int len;
-
-		s = path1 + 8;
-		if (*s == L'\\')
-			return (0);
-		/*         012345678
-		 * Name : "\\?\UNC\Server\Share\"
-		 *                       ^ search
-		 */
-		s = wcschr(++s, L'\\');
-		if (s == NULL)
-			return (0);
-		if (*++s == L'\\')
-			return (0);
-		/*         012345678
-		 * Name : "\\?\UNC\Server\Share\"
-		 *                             ^ search
-		 */
-		s = wcschr(++s, L'\\');
-		if (s == NULL)
-			return (0);
-		s++;
-		/*         012345678
-		 * Name : "\\?\UNC\Server\Share\xxxx"
-		 *                 ^--- len ----^
-		 */
-		len = (int)(s - path1 - 8);
-		/* Is volume-name the same? */
-		if (r < len + 8)
-			return (0);
-		/* Is volume-name too long? */
-		if (sizeof(root) -3 < len)
-			return (0);
-		root[0] = root[1] = L'\\';
-		wcsncpy(root + 2, path1 + 8 , len);
-		/* root : "\\Server\Share\" */
-		root[2 + len] = L'\0';
-	} else if (wcsncmp(path1, L"\\\\?\\", 4) == 0) {
-		s = path1 + 4;
-		if ((!iswalpha(*s)) || s[1] != L':' || s[2] != L'\\')
-			return (0);
-		wcsncpy(root, path1 + 4, 3);
-		root[3] = L'\0';
-	} else
-		return (0);
-	if (!GetVolumeInformationW(root, NULL, 0, NULL, NULL, NULL, fs, sizeof(fs)))
-		return (0);
-	if (wcscmp(fs, L"NTFS") == 0)
-		return (1);
-	else
-		return (0);
-}
 
 /* Make a link to src called dst.  */
 static int
@@ -342,25 +262,14 @@ __link(const char *src, const char *dst, int sym)
 	wsrc = permissive_name(src);
 	wdst = permissive_name(dst);
 	if (wsrc == NULL || wdst == NULL) {
-		if (wsrc != NULL)
-			free(wsrc);
-		if (wdst != NULL)
-			free(wdst);
+		free(wsrc);
+		free(wdst);
 		set_errno (EINVAL);
 		return -1;
 	}
 
 	if ((attr = GetFileAttributesW(wsrc)) != -1) {
-		if ((attr & FILE_ATTRIBUTE_DIRECTORY) != 0) {
-			errno = EPERM;
-			retval = -1;
-			goto exit;
-		}
-		if (!sym && canHardLinkW(wsrc, wdst)) {
-			res = la_CreateHardLinkW(wdst, wsrc);
-		} else {
-			res = CopyFileW(wsrc, wdst, FALSE);
-		}
+		res = la_CreateHardLinkW(wdst, wsrc);
 	} else {
 		/* wsrc does not exist; try src prepend it with the dirname of wdst */
 		wchar_t *wnewsrc, *slash;
@@ -416,10 +325,7 @@ __link(const char *src, const char *dst, int sym)
 			retval = -1;
 			goto exit;
 		}
-		if (!sym && canHardLinkW(wnewsrc, wdst))
-			res = la_CreateHardLinkW(wdst, wnewsrc);
-		else
-			res = CopyFileW(wnewsrc, wdst, FALSE);
+		res = la_CreateHardLinkW(wdst, wnewsrc);
 		free (wnewsrc);
 	}
 	if (res == 0) {
@@ -438,13 +344,6 @@ int
 __la_link(const char *src, const char *dst)
 {
 	return __link (src, dst, 0);
-}
-
-/* Make a symbolic link to FROM called TO.  */
-int
-__la_symlink (const char *from, const char *to)
-{
-	return __link (from, to, 1);
 }
 
 int

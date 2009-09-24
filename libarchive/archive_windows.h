@@ -78,10 +78,6 @@
 #if defined(_MSC_VER)
 /* TODO: Fix the code, don't suppress the warnings. */
 #pragma warning(disable:4244)   /* 'conversion' conversion from 'type1' to 'type2', possible loss of data */
-#pragma warning(disable:4146)   /* unary minus operator applied to unsigned type, result still unsigned */
-//#pragma warning(disable:4267)   /* Conversion, possible loss of data */
-#pragma warning(default: 4061)  /* The enumerate has no associated handler in a switch statement */
-#pragma warning(default: 4296)  /* An unsigned variable was used in a comparison operation with zero */
 #pragma warning(default: 4365)  /* 'action':conversion from 'type_1' to 'type_2', signed/unsigned mismatch */
 #endif
 
@@ -122,7 +118,6 @@
 #define	rmdir		__la_rmdir
 #define	stat(path,stref)		__la_stat(path,stref)
 #define	strdup		_strdup
-#define	symlink		__la_symlink
 #define	tzset		_tzset
 #define	umask		_umask
 #define	unlink		__la_unlink
@@ -338,9 +333,6 @@ typedef struct {
 #ifndef HAVE_LINK
 #define HAVE_LINK 1
 #endif
-#ifndef HAVE_SYMLINK
-#define HAVE_SYMLINK 1
-#endif
 
 /* Replacement POSIX function */
 extern int	 __la_chdir(const char *path);
@@ -357,7 +349,6 @@ extern int	 __la_open(const char *path, int flags, ...);
 extern ssize_t	 __la_read(int fd, void *buf, size_t nbytes);
 extern int	 __la_rmdir(const char *path);
 extern int	 __la_stat(const char *path, struct stat *st);
-extern int	 __la_symlink(const char *from, const char *to);
 extern int	 __la_unlink(const char *path);
 extern int	 __la_utimes(const char *name, const struct __timeval *times);
 extern pid_t	 __la_waitpid(pid_t wpid, int *status, int option);
