@@ -114,6 +114,11 @@ archive_read_disk_entry_from_file(struct archive *_a,
 #endif
 
 	if (st == NULL) {
+		/* TODO: On Windows, use GetFileInfoByHandle() here.
+		 * Using Windows stat() call is badly broken, but
+		 * even the stat() wrapper has problems because
+		 * 'struct stat' is broken on Windows.
+		 */
 #if HAVE_FSTAT
 		if (fd >= 0) {
 			if (fstat(fd, &s) != 0)
