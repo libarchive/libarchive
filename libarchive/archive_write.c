@@ -423,7 +423,7 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 	if (a->skip_file_dev != 0 &&
 	    archive_entry_dev(entry) == a->skip_file_dev &&
 	    a->skip_file_ino != 0 &&
-	    archive_entry_ino(entry) == a->skip_file_ino) {
+	    archive_entry_ino64(entry) == a->skip_file_ino) {
 		archive_set_error(&a->archive, 0,
 		    "Can't add archive to itself");
 		return (ARCHIVE_FAILED);

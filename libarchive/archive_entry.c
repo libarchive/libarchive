@@ -618,6 +618,12 @@ archive_entry_ino(struct archive_entry *entry)
 	return (entry->ae_stat.aest_ino);
 }
 
+int64_t
+archive_entry_ino64(struct archive_entry *entry)
+{
+	return (entry->ae_stat.aest_ino);
+}
+
 mode_t
 archive_entry_mode(struct archive_entry *entry)
 {
@@ -812,6 +818,13 @@ archive_entry_update_gname_utf8(struct archive_entry *entry, const char *name)
 
 void
 archive_entry_set_ino(struct archive_entry *entry, unsigned long ino)
+{
+	entry->stat_valid = 0;
+	entry->ae_stat.aest_ino = ino;
+}
+
+void
+archive_entry_set_ino64(struct archive_entry *entry, int64_t ino)
 {
 	entry->stat_valid = 0;
 	entry->ae_stat.aest_ino = ino;

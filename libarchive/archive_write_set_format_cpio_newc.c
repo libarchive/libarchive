@@ -130,12 +130,12 @@ archive_write_newc_header(struct archive_write *a, struct archive_entry *entry)
 	format_hex(0x070701, &h.c_magic, sizeof(h.c_magic));
 	format_hex(archive_entry_devmajor(entry), &h.c_devmajor, sizeof(h.c_devmajor));
 	format_hex(archive_entry_devminor(entry), &h.c_devminor, sizeof(h.c_devminor));
-	if (archive_entry_ino(entry) > 0xffffffff) {
+	if (archive_entry_ino64(entry) > 0xffffffff) {
 		archive_set_error(&a->archive, ERANGE, "large inode number truncated");
 		ret = ARCHIVE_WARN;
 	}
 
-	format_hex(archive_entry_ino(entry) & 0xffffffff, &h.c_ino, sizeof(h.c_ino));
+	format_hex(archive_entry_ino64(entry) & 0xffffffff, &h.c_ino, sizeof(h.c_ino));
 	format_hex(archive_entry_mode(entry), &h.c_mode, sizeof(h.c_mode));
 	format_hex(archive_entry_uid(entry), &h.c_uid, sizeof(h.c_uid));
 	format_hex(archive_entry_gid(entry), &h.c_gid, sizeof(h.c_gid));

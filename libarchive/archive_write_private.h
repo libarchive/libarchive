@@ -41,7 +41,7 @@ struct archive_write {
 
 	/* Dev/ino of the archive being written. */
 	dev_t		  skip_file_dev;
-	ino_t		  skip_file_ino;
+	int64_t		  skip_file_ino;
 
 	/* Utility:  Pointer to a block of nulls. */
 	const unsigned char	*nulls;

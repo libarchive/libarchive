@@ -119,7 +119,7 @@ struct archive_entry {
 		int64_t		aest_birthtime;
 		uint32_t	aest_birthtime_nsec;
 		gid_t		aest_gid;
-		ino_t		aest_ino;
+		int64_t		aest_ino;
 		mode_t		aest_mode;
 		uint32_t	aest_nlink;
 		uint64_t	aest_size;
