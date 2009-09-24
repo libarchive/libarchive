@@ -798,6 +798,22 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		 * calling this so we can pass in an fd and shorten
 		 * the race to query metadata.  The linkify dance
 		 * makes this more complex than it might sound. */
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		/* TODO: tree.c uses stat(), which is badly broken
+		 * on Windows.  To fix this, we should
+		 * deprecate tree_current_stat() and provide a new
+		 * call tree_populate_entry(t, entry).  This call
+		 * would use stat() internally on POSIX and
+		 * GetInfoByFileHandle() internally on Windows.
+		 * This would be another step towards a tree-walker
+		 * that can be integrated deep into libarchive.
+		 * For now, just set st to NULL on Windows;
+		 * archive_read_disk_entry_from_file() should
+		 * be smart enough to use platform-appropriate
+		 * ways to probe file information.
+		 */
+		st = NULL;
+#endif
 		r = archive_read_disk_entry_from_file(bsdtar->diskreader,
 		    entry, -1, st);
 		if (r != ARCHIVE_OK)
