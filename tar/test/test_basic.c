@@ -61,6 +61,7 @@ basic_tar(const char *target, const char *pack_options,
 	/* Regular file with 2 links. */
 	assertIsReg("file", -1);
 	assertFileSize("file", 10);
+	failure("%s", target);
 	assertFileNLinks("file", 2);
 
 	/* Another name for the same file. */
@@ -93,6 +94,7 @@ DEFINE_TEST(test_basic)
 
 	/* hardlink to above file. */
 	assertMakeHardlink("linkfile", "file");
+	assertIsHardlink("file", "linkfile");
 
 	/* Symlink to above file. */
 	if (canSymlink())
