@@ -83,7 +83,8 @@ DEFINE_TEST(test_symlink_dir)
 	}
 	/* "dir3" is a symlink to an existing "non_dir3" */
 	assertEqualInt(0, mkfile("dest1/non_dir3", 0755, "abcdef", 6));
-	assertMakeSymlink("dest1/dir3", "non_dir3");
+	if (canSymlink())
+		assertMakeSymlink("dest1/dir3", "non_dir3");
 	/* "file" is a symlink to existing "real_file" */
 	assertEqualInt(0, mkfile("dest1/real_file", 0755, "abcdefg", 7));
 	if (canSymlink()) {
@@ -115,17 +116,22 @@ DEFINE_TEST(test_symlink_dir)
 	assertMakeDir("dest2", 0755);
 	/* "dir" is a symlink to existing "real_dir" */
 	assertMakeDir("dest2/real_dir", 0755);
-	assertMakeSymlink("dest2/dir", "real_dir");
+	if (canSymlink())
+		assertMakeSymlink("dest2/dir", "real_dir");
 	/* "dir2" is a symlink to a non-existing "real_dir2" */
-	assertMakeSymlink("dest2/dir2", "real_dir2");
+	if (canSymlink())
+		assertMakeSymlink("dest2/dir2", "real_dir2");
 	/* "dir3" is a symlink to an existing "non_dir3" */
 	assertEqualInt(0, mkfile("dest2/non_dir3", 0755, "abcdefgh", 8));
-	assertMakeSymlink("dest2/dir3", "non_dir3");
+	if (canSymlink())
+		assertMakeSymlink("dest2/dir3", "non_dir3");
 	/* "file" is a symlink to existing "real_file" */
 	assertEqualInt(0, mkfile("dest2/real_file", 0755, "abcdefghi", 9));
-	assertMakeSymlink("dest2/file", "real_file");
+	if (canSymlink())
+		assertMakeSymlink("dest2/file", "real_file");
 	/* "file2" is a symlink to non-existing "real_file2" */
-	assertMakeSymlink("dest2/file2", "real_file2");
+	if (canSymlink())
+		assertMakeSymlink("dest2/file2", "real_file2");
 	assertEqualInt(0, systemf("%s -xPf test.tar -C dest2", testprog));
 
 	/* dest2/dir symlink should be followed */
