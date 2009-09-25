@@ -78,8 +78,10 @@ DEFINE_TEST(test_option_c)
 	fprintf(filelist, "file\n");
 
 	/* "symlink" */
-	assertMakeSymlink("symlink", "file");
-	fprintf(filelist, "symlink\n");
+	if (canSymlink()) {
+		assertMakeSymlink("symlink", "file");
+		fprintf(filelist, "symlink\n");
+	}
 
 	/* "dir" */
 	assertMakeDir("dir", 0775);
@@ -139,43 +141,34 @@ DEFINE_TEST(test_option_c)
 	assertEqualMem(e + 81, "1234567890", 10); /* File contents */
 	e += 91;
 
-	/* Second entry is "symlink" pointing to "file" */
-	assert(is_octal(e, 76)); /* Entire header is octal digits. */
-	assertEqualMem(e + 0, "070707", 6); /* Magic */
-	assertEqualInt(dev, from_octal(e + 6, 6)); /* dev */
-	assert(dev != from_octal(e + 12, 6)); /* ino */
+	/* "symlink" pointing to "file" */
+	if (canSymlink()) {
+		assert(is_octal(e, 76)); /* Entire header is octal digits. */
+		assertEqualMem(e + 0, "070707", 6); /* Magic */
+		assertEqualInt(dev, from_octal(e + 6, 6)); /* dev */
+		assert(dev != from_octal(e + 12, 6)); /* ino */
 #if !defined(_WIN32) || defined(__CYGWIN__)
-	/* On Windows, symbolic link and group members bits and
-	 * others bits do not work. */
-	assertEqualMem(e + 18, "120777", 6); /* Mode */
+		/* On Windows, symbolic link and group members bits and
+		 * others bits do not work. */
+		assertEqualMem(e + 18, "120777", 6); /* Mode */
 #endif
-	assertEqualInt(from_octal(e + 24, 6), uid); /* uid */
-	assertEqualInt(gid, from_octal(e + 30, 6)); /* gid */
-	assertEqualMem(e + 36, "000001", 6); /* nlink */
-	failure("file entries should have rdev == 0 (dev was 0%o)",
-	    from_octal(e + 6, 6));
-	assertEqualMem(e + 42, "000000", 6); /* rdev */
-	t = from_octal(e + 48, 11); /* mtime */
-	assert(t <= now); /* File wasn't created in future. */
-	assert(t >= now - 2); /* File was created w/in last 2 secs. */
-	assertEqualMem(e + 59, "000010", 6); /* Name size */
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	/* On Windows, symbolic link does not work. */
-	assertEqualMem(e + 65, "00000000012", 11); /* File size */
-#else
-	assertEqualMem(e + 65, "00000000004", 11); /* File size */
-#endif
-	assertEqualMem(e + 76, "symlink\0", 8); /* Name contents */
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	/* On Windows, symbolic link does not work. */
-	assertEqualMem(e + 84, "123456789\0", 10); /* File contents. */
-	e += 94;
-#else
-	assertEqualMem(e + 84, "file", 4); /* Symlink target. */
-	e += 88;
-#endif
+		assertEqualInt(from_octal(e + 24, 6), uid); /* uid */
+		assertEqualInt(gid, from_octal(e + 30, 6)); /* gid */
+		assertEqualMem(e + 36, "000001", 6); /* nlink */
+		failure("file entries should have rdev == 0 (dev was 0%o)",
+		    from_octal(e + 6, 6));
+		assertEqualMem(e + 42, "000000", 6); /* rdev */
+		t = from_octal(e + 48, 11); /* mtime */
+		assert(t <= now); /* File wasn't created in future. */
+		assert(t >= now - 2); /* File was created w/in last 2 secs. */
+		assertEqualMem(e + 59, "000010", 6); /* Name size */
+		assertEqualMem(e + 65, "00000000004", 11); /* File size */
+		assertEqualMem(e + 76, "symlink\0", 8); /* Name contents */
+		assertEqualMem(e + 84, "file", 4); /* Symlink target. */
+		e += 88;
+	}
 
-	/* Second entry is "dir" */
+	/* "dir" */
 	assert(is_octal(e, 76));
 	assertEqualMem(e + 0, "070707", 6); /* Magic */
 	/* Dev should be same as first entry. */
