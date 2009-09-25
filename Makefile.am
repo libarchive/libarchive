@@ -170,6 +170,7 @@ libarchive_la_SOURCES=						\
 
 if INC_WINDOWS_FILES
 libarchive_la_SOURCES+=						\
+	libarchive/archive_entry_copy_bhfi.c			\
 	libarchive/archive_windows.h				\
 	libarchive/archive_windows.c				\
 	libarchive/filter_fork_windows.c

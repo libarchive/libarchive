@@ -105,11 +105,11 @@ SET(libarchive_MANS
 )
 
 IF(WIN32 AND NOT CYGWIN)
+  LIST(APPEND libarchive_SOURCES archive_entry_copy_bhfi.c)
   LIST(APPEND libarchive_SOURCES archive_windows.c)
   LIST(APPEND libarchive_SOURCES archive_windows.h)
   LIST(APPEND libarchive_SOURCES filter_fork_windows.c)
 ENDIF(WIN32 AND NOT CYGWIN)
-
 
 # Libarchive is a shared library
 ADD_LIBRARY(archive SHARED ${libarchive_SOURCES} ${include_HEADERS})

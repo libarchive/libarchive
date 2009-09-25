@@ -28,6 +28,8 @@ __FBSDID("$FreeBSD$");
 
 #include "archive_entry.h"
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+
 #define EPOC_TIME	(116444736000000000ULL)
 
 __inline static void
@@ -68,3 +70,4 @@ archive_entry_copy_bhfi(struct archive_entry *entry,
 		+ bhfi->nFileSizeLow);
 //	archive_entry_set_mode(entry, st->st_mode);
 }
+#endif
