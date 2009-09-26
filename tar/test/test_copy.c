@@ -92,14 +92,56 @@ compute_loop_max(void)
 #endif
 }
 
+/* filenames[i] is a distinctive filename of length i. */
+/* To simplify interpreting failures, each filename ends with a
+ * decimal integer which is the length of the filename.  E.g., A
+ * filename ending in "_92" is 92 characters long.  To detect errors
+ * which drop or misplace characters, the filenames use a repeating
+ * "abcdefghijklmnopqrstuvwxyz..." pattern. */
+static char *filenames[201];
+
+static void
+compute_filenames(void)
+{
+	char buff[250];
+	size_t i,j;
+
+	filenames[0] = strdup("");
+	filenames[1] = strdup("1");
+	filenames[2] = strdup("a2");
+	for (i = 3; i < sizeof(filenames)/sizeof(filenames[0]); ++i) {
+		/* Fill with "abcdefghij..." */
+		for (j = 0; j < i; ++j)
+			buff[j] = 'a' + (j % 26);
+		buff[j--] = '\0';
+		/* Work from the end to fill in the number portion. */
+		buff[j--] = '0' + (i % 10);
+		if (i > 9) {
+			buff[j--] = '0' + ((i / 10) % 10);
+			if (i > 99)
+				buff[j--] = '0' + (i / 100);
+		}
+		buff[j] = '_';
+		/* Guard against obvious screwups in the above code. */
+		assertEqualInt(strlen(buff), i);
+		filenames[i] = strdup(buff);
+	}
+}
+
 static void
 create_tree(void)
 {
 	char buff[260];
 	char buff2[260];
 	int i;
-	FILE *f;
 	int LOOP_MAX;
+
+	compute_filenames();
+
+	/* Log that we'll be omitting some checks. */
+	if (!canSymlink()) {
+		skipping("Symlink checks");
+	}
 
 	assertMakeDir("original", 0775);
 	chdir("original");
@@ -111,39 +153,27 @@ create_tree(void)
 	assertMakeDir("s", 0775);
 	assertMakeDir("d", 0775);
 
-	for (i = 0; i < LOOP_MAX; i++) {
-		buff[0] = 'f';
-		buff[1] = '/';
-		/* Create a file named "f/abcdef..." */
-		buff[i + 2] = 'a' + (i % 26);
-		buff[i + 3] = '\0';
-		f = fopen(buff, "w+");
-		failure("f = fopen(\"%s\", \"w+\")", buff);
-		assert(f != NULL);
-		fprintf(f, buff);
-		fclose(f);
+	for (i = 1; i < LOOP_MAX; i++) {
+		failure("Internal sanity check failed: i = %d", i);
+		assert(filenames[i] != NULL);
+
+		sprintf(buff, "f/%s", filenames[i]);
+		assertMakeFile(buff, 0777, buff);
 
 		/* Create a link named "l/abcdef..." to the above. */
-		strcpy(buff2, buff);
-		buff2[0] = 'l';
+		sprintf(buff2, "l/%s", filenames[i]);
 		assertMakeHardlink(buff2, buff);
 
 		/* Create a link named "m/abcdef..." to the above. */
-		strcpy(buff2, buff);
-		buff2[0] = 'm';
+		sprintf(buff2, "m/%s", filenames[i]);
 		assertMakeHardlink(buff2, buff);
 
 		if (canSymlink()) {
 			/* Create a symlink named "s/abcdef..." to the above. */
-			strcpy(buff2 + 3, buff);
-			buff[0] = 's';
-			buff2[0] = '.';
-			buff2[1] = '.';
-			buff2[2] = '/';
+			sprintf(buff, "s/%s", filenames[i]);
+			sprintf(buff2, "../f/%s", filenames[i]);
 			failure("buff=\"%s\" buff2=\"%s\"", buff, buff2);
 			assertMakeSymlink(buff, buff2);
-		} else {
-			skipping("Symlink tests");
 		}
 		/* Create a dir named "d/abcdef...". */
 		buff[0] = 'd';
@@ -154,46 +184,29 @@ create_tree(void)
 	chdir("..");
 }
 
-#define LIMIT_NONE 0
-#define LIMIT_USTAR 1
+#define LIMIT_NONE 200
+#define LIMIT_USTAR 100
 
 static void
-verify_tree(int limit)
+verify_tree(size_t limit)
 {
-	char filename[260];
 	char name1[260];
 	char name2[260];
-	int i, j, LOOP_MAX;
+	size_t i, LOOP_MAX;
 
 	LOOP_MAX = compute_loop_max();
 
 	/* Generate the names we know should be there and verify them. */
 	for (i = 1; i < LOOP_MAX; i++) {
-		/* Generate a base name of the correct length. */
-		for (j = 0; j < i; ++j)
-			filename[j] = 'a' + (j % 26);
-#if 0
-		for (n = i; n > 0; n /= 10)
-			filename[--j] = '0' + (n % 10);
-#endif
-		filename[i] = '\0';
-
 		/* Verify a file named "f/abcdef..." */
-		strcpy(name1, "f/");
-		strcat(name1, filename);
-		if (limit != LIMIT_USTAR || strlen(filename) <= 100) {
+		sprintf(name1, "f/%s", filenames[i]);
+		if (i <= limit) {
 			assertFileExists(name1);
 			assertFileContents(name1, strlen(name1), name1);
 		}
 
-		/*
-		 * ustar allows 100 chars for links, and we have
-		 * "original/" as part of the name, so the link
-		 * names here can't exceed 91 chars.
-		 */
-		strcpy(name2, "l/");
-		strcat(name2, filename);
-		if (limit != LIMIT_USTAR || strlen(name2) <= 100) {
+		sprintf(name2, "l/%s", filenames[i]);
+		if (i + 2 <= limit) {
 			/* Verify hardlink "l/abcdef..." */
 			assertIsHardlink(name1, name2);
 			/* Verify hardlink "m/abcdef..." */
@@ -203,18 +216,15 @@ verify_tree(int limit)
 
 		if (canSymlink()) {
 			/* Verify symlink "s/abcdef..." */
-			strcpy(name1, "s/");
-			strcat(name1, filename);
-			strcpy(name2, "../f/");
-			strcat(name2, filename);
-			if (limit != LIMIT_USTAR || strlen(name2) <= 100)
+			sprintf(name1, "s/%s", filenames[i]);
+			sprintf(name2, "../f/%s", filenames[i]);
+			if (strlen(name2) <= limit)
 				assertIsSymlink(name1, name2);
 		}
 
 		/* Verify dir "d/abcdef...". */
-		strcpy(name1, "d/");
-		strcat(name1, filename);
-		if (limit != LIMIT_USTAR || strlen(filename) < 100) {
+		sprintf(name1, "d/%s", filenames[i]);
+		if (i + 1 <= limit) { /* +1 for trailing slash */
 			if (assertIsDir(name1, -1)) {
 				/* TODO: opendir/readdir this
 				 * directory and make sure
@@ -239,33 +249,20 @@ verify_tree(int limit)
 				continue;
 			while ((de = readdir(d)) != NULL) {
 				char *p = de->d_name;
+				if (p[0] == '.')
+					continue;
 				switch(dp[0]) {
-				case 'l': case 'm':
-					if (limit == LIMIT_USTAR) {
-						failure("strlen(p) = %d", strlen(p));
-						assert(strlen(p) <= 100);
-					}
-				case 'd':
-					if (limit == LIMIT_USTAR) {
-						failure("strlen(p)=%d", strlen(p));
-						assert(strlen(p) < 100);
-					}
-				case 'f': case 's':
-					if (limit == LIMIT_USTAR) {
-						failure("strlen(p)=%d", strlen(p));
-						assert(strlen(p) < 101);
-					}
-					/* Our files have very particular filename patterns. */
-					if (p[0] != '.' || (p[1] != '.' && p[1] != '\0')) {
-						for (i = 0; p[i] != '\0' && i < LOOP_MAX; i++) {
-							failure("i=%d, p[i]='%c' 'a'+(i%%26)='%c'", i, p[i], 'a' + (i % 26));
-							assertEqualInt(p[i], 'a' + (i % 26));
-						}
-						assert(p[i] == '\0');
-					}
+				case 'l': case 'm': case 'd':
+					failure("strlen(p)=%d", strlen(p));
+					assert(strlen(p) < limit);
+					assertEqualString(p,
+					    filenames[strlen(p)]);
 					break;
-				case '.':
-					assert(p[1] == '\0' || (p[1] == '.' && p[2] == '\0'));
+				case 'f': case 's':
+					failure("strlen(p)=%d", strlen(p));
+					assert(strlen(p) < limit + 1);
+					assertEqualString(p,
+					    filenames[strlen(p)]);
 					break;
 				default:
 					failure("File %s shouldn't be here", p);
@@ -366,7 +363,6 @@ copy_ustar(void)
 DEFINE_TEST(test_copy)
 {
 	assertUmask(0);
-
 	create_tree(); /* Create sample files in "original" dir. */
 
 	/* Test simple "tar -c | tar -x" pipeline copy. */
