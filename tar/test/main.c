@@ -276,7 +276,7 @@ failure_start(const char *filename, int line, const char *fmt, ...)
 
 	/* Record another failure for this line. */
 	++failures;
-	test_filename = filename;
+	/* test_filename = filename; */
 	failed_lines[line].count++;
 
 	/* Determine whether to log header to console. */
@@ -404,9 +404,11 @@ assertion_equal_int(const char *file, int line,
 
 static void strdump(const char *e, const char *p)
 {
+	const char *q = p;
+
 	logprintf("      %s = ", e);
 	if (p == NULL) {
-		logprintf("(null)");
+		logprintf("NULL");
 		return;
 	}
 	logprintf("\"");
@@ -425,7 +427,7 @@ static void strdump(const char *e, const char *p)
 		}
 	}
 	logprintf("\"");
-	logprintf(" (length %d)\n", p == NULL ? 0 : (int)strlen(p));
+	logprintf(" (length %d)\n", q == NULL ? -1 : (int)strlen(q));
 }
 
 /* Verify two strings are equal, dump them if not. */
@@ -1328,6 +1330,13 @@ assertion_umask(const char *file, int line, int mask)
  * for tests to use in deciding whether to bother testing symlink
  * support; if the platform doesn't support symlinks, there's no point
  * in checking whether the program being tested can create them.
+ *
+ * Note that the first time this test is called, we actually go out to
+ * disk to create and verify a symlink.  This is necessary because
+ * symlink support is actually a property of a particular filesystem
+ * and can thus vary between directories on a single system.  After
+ * the first call, this returns the cached result from memory, so it's
+ * safe to call it as often as you wish.
  */
 int
 canSymlink(void)
@@ -1339,6 +1348,8 @@ canSymlink(void)
 
 	++tested;
 	assertion_make_file(__FILE__, __LINE__, "canSymlink.0", 0644, "a");
+	/* Note: Cygwin has its own symlink() emulation that does not
+	 * use the Win32 CreateSymbolicLink() function. */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	value = my_CreateSymbolicLinkA("canSymlink.1", "canSymlink.0", 0)
 	    && is_symlink(__FILE__, __LINE__, "canSymlink.1", "canSymlink.0");
