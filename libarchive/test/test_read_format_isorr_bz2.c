@@ -39,6 +39,8 @@ ln /tmp/iso/file /tmp/iso/hardlink
 (cd /tmp/iso; ln -s /tmp/ symlink2)
 (cd /tmp/iso; ln -s /tmp/../ symlink3)
 (cd /tmp/iso; ln -s .././../tmp/ symlink4)
+(cd /tmp/iso; ln -s .///file symlink5)
+(cd /tmp/iso; ln -s /tmp//../ symlink6)
 TZ=utc touch -afhm -t 197001020000.01 /tmp/iso /tmp/iso/file /tmp/iso/dir
 TZ=utc touch -afhm -t 197001030000.02 /tmp/iso/symlink
 mkhybrid -R -uid 1 -gid 2 /tmp/iso | bzip2 > test_read_format_isorr_bz2.iso.bz2
@@ -73,7 +75,7 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 
 	/* Retrieve each of the 8 files on the ISO image and
 	 * verify that each one is what we expect. */
-	for (i = 0; i < 8; ++i) {
+	for (i = 0; i < 10; ++i) {
 		assertEqualInt(0, archive_read_next_header(a, &ae));
 
 		if (strcmp(".", archive_entry_pathname(ae)) == 0) {
@@ -160,6 +162,25 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 			assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
 			assertEqualString(".././../tmp",
 			    archive_entry_symlink(ae));
+			assertEqualInt(0, archive_entry_size(ae));
+			assertEqualInt(1, archive_entry_stat(ae)->st_nlink);
+			assertEqualInt(1, archive_entry_uid(ae));
+			assertEqualInt(2, archive_entry_gid(ae));
+		} else if (strcmp("symlink5", archive_entry_pathname(ae)) == 0) {
+			/* A symlink to the regular file with "/" components. */
+			assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
+			assertEqualString(".///file", archive_entry_symlink(ae));
+			assertEqualInt(0, archive_entry_size(ae));
+			assertEqualInt(172802, archive_entry_mtime(ae));
+			assertEqualInt(172802, archive_entry_atime(ae));
+			assertEqualInt(1, archive_entry_stat(ae)->st_nlink);
+			assertEqualInt(1, archive_entry_uid(ae));
+			assertEqualInt(2, archive_entry_gid(ae));
+		} else if (strcmp("symlink6", archive_entry_pathname(ae)) == 0) {
+			/* A symlink to /tmp//..
+			 * (with "/" and ".." components) */
+			assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
+			assertEqualString("/tmp//..", archive_entry_symlink(ae));
 			assertEqualInt(0, archive_entry_size(ae));
 			assertEqualInt(1, archive_entry_stat(ae)->st_nlink);
 			assertEqualInt(1, archive_entry_uid(ae));

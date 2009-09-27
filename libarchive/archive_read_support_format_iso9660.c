@@ -1602,7 +1602,6 @@ parse_rockridge_SL1(struct file_info *file, const unsigned char *data,
 			archive_strcat(&file->symlink, "..");
 			break;
 		case 0x08: /* Root of filesystem. */
-			archive_string_empty(&file->symlink);
 			archive_strcat(&file->symlink, "/");
 			separator = "";
 			break;
