@@ -23,14 +23,13 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_isorr_bz2.c,v 1.5 2008/09/01 05:38:33 kientzle Exp $");
 
 /*
-PLEASE use old cdrtools; mkisofs verion is 2.01.
-This version mkisofs made wrong "SL" System Use Entry of RRIP.
+PLEASE use latest cdrtools at least mkisofs version is 2.01.01a63 or later.
+Old version mkisofs made wrong "SL" System Use Entry of RRIP.
 
 Execute the following command to rebuild the data for this program:
-   tail -n +32 test_read_format_isorr_bz2.c | /bin/sh
+   tail -n +32 test_read_format_isorr_new_bz2.c | /bin/sh
 
 rm -rf /tmp/iso
 mkdir /tmp/iso
@@ -46,15 +45,15 @@ ln /tmp/iso/file /tmp/iso/hardlink
 (cd /tmp/iso; ln -s /tmp//../ symlink6)
 TZ=utc touch -afhm -t 197001020000.01 /tmp/iso /tmp/iso/file /tmp/iso/dir
 TZ=utc touch -afhm -t 197001030000.02 /tmp/iso/symlink
-mkhybrid -R -uid 1 -gid 2 /tmp/iso | bzip2 > test_read_format_isorr_bz2.iso.bz2
-F=test_read_format_isorr_bz2.iso.bz2
+F=test_read_format_isorr_new_bz2.iso.bz2
+mkhybrid -R -uid 1 -gid 2 /tmp/iso | bzip2 > $F
 uuencode $F $F > $F.uu
 exit 1
  */
 
-DEFINE_TEST(test_read_format_isorr_bz2)
+DEFINE_TEST(test_read_format_isorr_new_bz2)
 {
-	const char *refname = "test_read_format_isorr_bz2.iso.bz2";
+	const char *refname = "test_read_format_isorr_new_bz2.iso.bz2";
 	struct archive_entry *ae;
 	struct archive *a;
 	const void *p;
@@ -145,17 +144,17 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 			assertEqualInt(1, archive_entry_uid(ae));
 			assertEqualInt(2, archive_entry_gid(ae));
 		} else if (strcmp("symlink2", archive_entry_pathname(ae)) == 0) {
-			/* A symlink to /tmp (an absolute path) */
+			/* A symlink to /tmp/ (an absolute path) */
 			assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
-			assertEqualString("/tmp", archive_entry_symlink(ae));
+			assertEqualString("/tmp/", archive_entry_symlink(ae));
 			assertEqualInt(0, archive_entry_size(ae));
 			assertEqualInt(1, archive_entry_stat(ae)->st_nlink);
 			assertEqualInt(1, archive_entry_uid(ae));
 			assertEqualInt(2, archive_entry_gid(ae));
 		} else if (strcmp("symlink3", archive_entry_pathname(ae)) == 0) {
-			/* A symlink to /tmp/.. (with a ".." component) */
+			/* A symlink to /tmp/../ (with a ".." component) */
 			assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
-			assertEqualString("/tmp/..", archive_entry_symlink(ae));
+			assertEqualString("/tmp/../", archive_entry_symlink(ae));
 			assertEqualInt(0, archive_entry_size(ae));
 			assertEqualInt(1, archive_entry_stat(ae)->st_nlink);
 			assertEqualInt(1, archive_entry_uid(ae));
@@ -163,7 +162,7 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 		} else if (strcmp("symlink4", archive_entry_pathname(ae)) == 0) {
 			/* A symlink to a path with ".." and "." components */
 			assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
-			assertEqualString(".././../tmp",
+			assertEqualString(".././../tmp/",
 			    archive_entry_symlink(ae));
 			assertEqualInt(0, archive_entry_size(ae));
 			assertEqualInt(1, archive_entry_stat(ae)->st_nlink);
@@ -180,10 +179,10 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 			assertEqualInt(1, archive_entry_uid(ae));
 			assertEqualInt(2, archive_entry_gid(ae));
 		} else if (strcmp("symlink6", archive_entry_pathname(ae)) == 0) {
-			/* A symlink to /tmp//..
+			/* A symlink to /tmp//../
 			 * (with "/" and ".." components) */
 			assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
-			assertEqualString("/tmp//..", archive_entry_symlink(ae));
+			assertEqualString("/tmp//../", archive_entry_symlink(ae));
 			assertEqualInt(0, archive_entry_size(ae));
 			assertEqualInt(1, archive_entry_stat(ae)->st_nlink);
 			assertEqualInt(1, archive_entry_uid(ae));
