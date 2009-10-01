@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/tree.c,v 1.9 2008/11/27 05:49:52 kientzle Ex
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#ifdef HAVE_WINDOWS_H
+#if defined(HAVE_WINDOWS_H) && !defined(__CYGWIN__)
 #include <windows.h>
 #define DIRSEP '\\'
 #else
@@ -127,6 +127,7 @@ struct tree {
 	struct tree_entry	*current;
 #if defined(HAVE_WINDOWS_H) && !defined(__CYGWIN__)
 	HANDLE d;
+	BY_HANDLE_FILE_INFORMATION fileInfo;
 #define INVALID_DIR_HANDLE INVALID_HANDLE_VALUE
 	WIN32_FIND_DATA _findData;
 	WIN32_FIND_DATA *findData;
@@ -151,9 +152,6 @@ struct tree {
 	int	 openCount;
 	int	 maxOpenCount;
 
-#ifdef HAVE_WINDOWS_H
-	BY_HANDLE_FILE_INFORMATION fileInfo;
-#endif
 	struct stat	lst;
 	struct stat	st;
 };
@@ -593,7 +591,7 @@ tree_current_stat(struct tree *t)
 	return (&t->st);
 }
 
-#if HAVE_WINDOWS_H
+#if defined(HAVE_WINDOWS_H) && !defined(__CYGWIN__)
 const BY_HANDLE_FILE_INFORMATION *
 tree_current_file_information(struct tree *t)
 {
