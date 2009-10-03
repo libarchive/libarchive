@@ -298,15 +298,16 @@ do_chdir(struct bsdtar *bsdtar)
 }
 
 const char *
-strip_components(const char *path, int elements)
+strip_components(const char *p, int elements)
 {
-	const char *p = path;
-
+	/* Skip as many elements as necessary. */
 	while (elements > 0) {
 		switch (*p++) {
 		case '/':
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		case '\\': /* Support \ path sep on Windows ONLY. */
+#endif
 			elements--;
-			path = p;
 			break;
 		case '\0':
 			/* Path is too short, skip it. */
@@ -314,12 +315,25 @@ strip_components(const char *path, int elements)
 		}
 	}
 
-	while (*path == '/')
-	       ++path;
-	if (*path == '\0')
-	       return (NULL);
-
-	return (path);
+	/* Skip any / characters.  This handles short paths that have
+	 * additional / termination.  This also handles the case where
+	 * the logic above stops in the middle of a duplicate //
+	 * sequence (which would otherwise get converted to an
+	 * absolute path). */
+	for (;;) {
+		switch (*p) {
+		case '/':
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		case '\\': /* Support \ path sep on Windows ONLY. */
+#endif
+			++p;
+			break;
+		case '\0':
+			return (NULL);
+		default:
+			return (p);
+		}
+	}
 }
 
 /*

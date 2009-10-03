@@ -72,9 +72,6 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/tree.c,v 1.9 2008/11/27 05:49:52 kientzle Ex
 #endif
 #if defined(HAVE_WINDOWS_H) && !defined(__CYGWIN__)
 #include <windows.h>
-#define DIRSEP '\\'
-#else
-#define DIRSEP '/'
 #endif
 
 #include "tree.h"
@@ -255,8 +252,8 @@ tree_append(struct tree *t, const char *name, size_t name_length)
 	p = t->buff + t->dirname_length;
 	t->path_length = t->dirname_length + name_length;
 	/* Add a separating '/' if it's needed. */
-	if (t->dirname_length > 0 && p[-1] != '/' && p[-1] != '\\') {
-		*p++ = DIRSEP;
+	if (t->dirname_length > 0 && p[-1] != '/') {
+		*p++ = '/';
 		t->path_length ++;
 	}
 #if HAVE_STRNCPY_S
@@ -349,7 +346,7 @@ tree_pop(struct tree *t)
 	t->dirname_length = te->dirname_length;
 	if (t->buff) {
 		t->basename = t->buff + t->dirname_length;
-		while (t->basename[0] == '/' || t->basename[0] == '\\')
+		while (t->basename[0] == '/')
 			t->basename++;
 	}
 	free(te->name);
