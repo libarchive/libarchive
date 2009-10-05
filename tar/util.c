@@ -255,6 +255,8 @@ yes(const char *fmt, ...)
  * This way, programs that build tar command lines don't have to worry
  * about -C with non-existent directories; such requests will only
  * fail if the directory must be accessed.
+ *
+ * TODO: Make this handle Windows paths correctly.
  */
 void
 set_chdir(struct bsdtar *bsdtar, const char *newdir)
@@ -495,6 +497,9 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
  * TODO: Publish the path normalization routines in libarchive so
  * that bsdtar can normalize paths and use fast strcmp() instead
  * of this.
+ *
+ * Note: This is currently only used within write.c, so should
+ * not handle \ path separators.
  */
 
 int
