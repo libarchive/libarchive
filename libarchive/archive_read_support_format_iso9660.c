@@ -1086,13 +1086,15 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 
 	if (iso9660->seenJoliet) {
 		/* Joliet names are max 64 chars (128 bytes) according to spec,
-		 * but genisoimage (and others?) will allow you to have more.
+		 * but genisoimage/mkisofs allows recording longer Joliet
+		 * names which are 103 UCS2 characters(206 bytes) by their
+		 * option '-joliet-long'.
 		 */
-		wchar_t wbuff[64+1], *wp;
+		wchar_t wbuff[103+1], *wp;
 		const unsigned char *c;
 
-		/* TODO: warn when name_len > 128 ? */
-
+		if (name_len > 206)
+			name_len = 206;
 		/* convert BE UTF-16 to wchar_t */
 		for (c = p, wp = wbuff;
 				c < (p + name_len) &&
