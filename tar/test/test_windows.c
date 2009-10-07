@@ -55,7 +55,7 @@ mkfullpath(char **path1, char **path2, const char *tpath, int type)
 	assert(NULL != fp2);
 	l = GetFullPathNameA(tpath, l, fp1, NULL);
 	if ((type & 0x01) == 0) {
-		for (p1 = fp1; *p1 != '\0'; p1++) 
+		for (p1 = fp1; *p1 != '\0'; p1++)
 			if (*p1 == '\\')
 				*p1 = '/';
 	}
@@ -122,11 +122,11 @@ static const char list3[] =
 static const char list4[] =
     "fff/abca\r\nfff/acca\r\n";
 static const char list5[] =
-    "aaa\\\\file1\r\naaa\\\\xxa/\r\naaa\\\\xxa/file1\r\naaa\\\\xxb/\r\n"
-    "aaa\\\\xxb/file1\r\naaa\\\\zzc/\r\naaa\\\\zzc/file1\r\n";
+    "aaa/file1\r\naaa/xxa/\r\naaa/xxa/file1\r\naaa/xxb/\r\n"
+    "aaa/xxb/file1\r\naaa/zzc/\r\naaa/zzc/file1\r\n";
 static const char list6[] =
-    "fff\\\\abca\r\nfff\\\\acca\r\naaa\\\\xxa/\r\naaa\\\\xxa/file1\r\n"
-    "aaa\\\\xxb/\r\naaa\\\\xxb/file1\r\n";
+    "fff/abca\r\nfff/acca\r\naaa/xxa/\r\naaa/xxa/file1\r\n"
+    "aaa/xxb/\r\naaa/xxb/file1\r\n";
 #endif /* _WIN32 && !__CYGWIN__ */
 
 DEFINE_TEST(test_windows)
@@ -182,43 +182,43 @@ DEFINE_TEST(test_windows)
 	    systemf("%s -cf ../archive1.tar a*", testprog));
 	assertEqualInt(0,
 	    systemf("%s -tf ../archive1.tar > ../list1", testprog));
-	assertFileContents(list1, sizeof(list1)-1, "../list1");
+	assertFileContents(list1, strlen(list1), "../list1");
 
 	assertEqualInt(0,
 	    systemf("%s -cf ../archive2.tar b*", testprog));
 	assertEqualInt(0,
 	    systemf("%s -tf ../archive2.tar > ../list2", testprog));
-	assertFileContents(list2, sizeof(list2)-1, "../list2");
+	assertFileContents(list2, strlen(list2), "../list2");
 
 	assertEqualInt(0,
 	    systemf("%s -cf ../archive3.tar ??c", testprog));
 	assertEqualInt(0,
 	    systemf("%s -tf ../archive3.tar > ../list3", testprog));
-	assertFileContents(list3, sizeof(list3)-1, "../list3");
+	assertFileContents(list3, strlen(list3), "../list3");
 
 	assertEqualInt(0,
 	    systemf("%s -cf ../archive3b.tar *c", testprog));
 	assertEqualInt(0,
 	    systemf("%s -tf ../archive3b.tar > ../list3b", testprog));
-	assertFileContents(list3, sizeof(list3)-1, "../list3b");
+	assertFileContents(list3, strlen(list3), "../list3b");
 
 	assertEqualInt(0,
 	    systemf("%s -cf ../archive4.tar fff/a?ca", testprog));
 	assertEqualInt(0,
 	    systemf("%s -tf ../archive4.tar > ../list4", testprog));
-	assertFileContents(list4, sizeof(list4)-1, "../list4");
+	assertFileContents(list4, strlen(list4), "../list4");
 
 	assertEqualInt(0,
 	    systemf("%s -cf ../archive5.tar aaa\\*", testprog));
 	assertEqualInt(0,
 	    systemf("%s -tf ../archive5.tar > ../list5", testprog));
-	assertFileContents(list5, sizeof(list5)-1, "../list5");
+	assertFileContents(list5, strlen(list5), "../list5");
 
 	assertEqualInt(0,
 	    systemf("%s -cf ../archive6.tar fff\\a?ca aaa\\xx*", testprog));
 	assertEqualInt(0,
 	    systemf("%s -tf ../archive6.tar > ../list6", testprog));
-	assertFileContents(list6, sizeof(list6)-1, "../list6");
+	assertFileContents(list6, strlen(list6), "../list6");
 
 	/*
 	 * Test2: Archive the file start with drive letters.
@@ -230,7 +230,7 @@ DEFINE_TEST(test_windows)
 	        testprog, fp1));
 	assertEqualInt(0,
 	    systemf("%s -tf ../archive10.tar > ../list10", testprog));
-	/* Check drive letters have been striped. */
+	/* Check drive letters have been stripped. */
 	assertFileContents(fp2, strlen(fp2), "../list10");
 	free(fp1);
 	free(fp2);
@@ -242,7 +242,7 @@ DEFINE_TEST(test_windows)
 	        testprog, fp1));
 	assertEqualInt(0,
 	    systemf("%s -tf ../archive11.tar > ../list11", testprog));
-	/* Check drive letters have been striped. */
+	/* Check drive letters have been stripped. */
 	assertFileContents(fp2, strlen(fp2), "../list11");
 	free(fp1);
 	free(fp2);
@@ -254,7 +254,7 @@ DEFINE_TEST(test_windows)
 	        testprog, fp1));
 	assertEqualInt(0,
 	    systemf("%s -tf ../archive12.tar > ../list12", testprog));
-	/* Check drive letters have been striped. */
+	/* Check drive letters have been stripped. */
 	assertFileContents(fp2, strlen(fp2), "../list12");
 	free(fp1);
 	free(fp2);
@@ -266,7 +266,7 @@ DEFINE_TEST(test_windows)
 	        testprog, fp1));
 	assertEqualInt(0,
 	    systemf("%s -tf ../archive13.tar > ../list13", testprog));
-	/* Check drive letters have been striped. */
+	/* Check drive letters have been stripped. */
 	assertFileContents(fp2, strlen(fp2), "../list13");
 	free(fp1);
 	free(fp2);
@@ -278,7 +278,7 @@ DEFINE_TEST(test_windows)
 	        testprog, fp1));
 	assertEqualInt(0,
 	    systemf("%s -tf ../archive14.tar > ../list14", testprog));
-	/* Check drive letters have been striped. */
+	/* Check drive letters have been stripped. */
 	assertFileContents(fp2, strlen(fp2), "../list14");
 	free(fp1);
 	free(fp2);
@@ -290,7 +290,7 @@ DEFINE_TEST(test_windows)
 	        testprog, fp1));
 	assertEqualInt(0,
 	    systemf("%s -tf ../archive15.tar > ../list15", testprog));
-	/* Check drive letters have been striped. */
+	/* Check drive letters have been stripped. */
 	assertFileContents(fp2, strlen(fp2), "../list15");
 	free(fp1);
 	free(fp2);
@@ -302,7 +302,7 @@ DEFINE_TEST(test_windows)
 	        testprog, fp1));
 	assertEqualInt(0,
 	    systemf("%s -tf ../archive16.tar > ../list16", testprog));
-	/* Check drive letters have been striped. */
+	/* Check drive letters have been stripped. */
 	assertFileContents(fp2, strlen(fp2), "../list16");
 	free(fp1);
 	free(fp2);
@@ -314,7 +314,7 @@ DEFINE_TEST(test_windows)
 	        testprog, fp1));
 	assertEqualInt(0,
 	    systemf("%s -tf ../archive17.tar > ../list17", testprog));
-	/* Check drive letters have been striped. */
+	/* Check drive letters have been stripped. */
 	assertFileContents(fp2, strlen(fp2), "../list17");
 	free(fp1);
 	free(fp2);

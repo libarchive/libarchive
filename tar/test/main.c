@@ -749,10 +749,10 @@ assertion_file_contents(const void *buff, int s, const char *fpattern, ...)
 	failure_start(test_filename, test_line, "File contents don't match");
 	logprintf("  file=\"%s\"\n", fn);
 	if (n > 0)
-		hexdump(contents, buff, n > 512 ? 512 : 0, 0);
+		hexdump(contents, buff, n > 512 ? 512 : n, 0);
 	else {
 		logprintf("  File empty, contents should be:\n");
-		hexdump(buff, NULL, s > 512 ? 512 : 0, 0);
+		hexdump(buff, NULL, s > 512 ? 512 : n, 0);
 	}
 	failure_finish(test_extra);
 	free(contents);
