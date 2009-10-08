@@ -78,6 +78,8 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_format_iso9660.c,v 1
  * the file body.  This strategy allows us to read most compliant
  * CDs with a single pass through the data, as required by libarchive.
  */
+#define	LOGICAL_BLOCK_SIZE	2048
+#define	SYSTEM_AREA_BLOCK	16
 
 /* Structure of on-disk primary volume descriptor. */
 #define PVD_type_offset 0
@@ -163,6 +165,8 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_format_iso9660.c,v 1
 #define SVD_version_offset (SVD_id_offset + SVD_id_size)
 #define SVD_version_size 1
 /* ... */
+#define SVD_reserved1_offset	72
+#define SVD_reserved1_size	8
 #define SVD_volume_space_size_offset 80
 #define SVD_volume_space_size_size 8
 #define SVD_escape_sequences_offset (SVD_volume_space_size_offset + SVD_volume_space_size_size)
@@ -173,6 +177,10 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_format_iso9660.c,v 1
 /* ... */
 #define SVD_root_directory_record_offset 156
 #define SVD_root_directory_record_size 34
+#define SVD_reserved2_offset	882
+#define SVD_reserved2_size	1
+#define SVD_reserved3_offset	1395
+#define SVD_reserved3_size	653
 /* ... */
 /* FIXME: validate correctness of last SVD entry offset. */
 
@@ -273,6 +281,7 @@ struct iso9660 {
 #define ISO9660_MAGIC   0x96609660
 
 	int option_ignore_joliet;
+	int option_ignore_rockridge;
 
 	struct archive_string pathname;
 	char	seenRockridge; /* Set true if RR extensions are used. */
@@ -291,6 +300,11 @@ struct iso9660 {
 	uint64_t current_position;
 	ssize_t	logical_block_size;
 	uint64_t volume_size; /* Total size of volume in bytes. */
+
+	struct vd {
+		int		sector_number;	/* Logical Sector Number. */
+		uint32_t	block_size;
+	} primary, joliet;
 
 	off_t	entry_sparse_offset;
 	int64_t	entry_bytes_remaining;
@@ -314,6 +328,8 @@ static void	dump_isodirrec(FILE *, const unsigned char *isodirrec);
 static time_t	time_from_tm(struct tm *);
 static time_t	isodate17(const unsigned char *);
 static time_t	isodate7(const unsigned char *);
+static int	isVDSetTerminator(struct iso9660 *iso9660,
+		    const unsigned char *h);
 static int	isJolietSVD(struct iso9660 *, const unsigned char *);
 static int	isPVD(struct iso9660 *, const unsigned char *);
 static struct file_info *next_entry(struct iso9660 *);
@@ -373,10 +389,10 @@ static int
 archive_read_format_iso9660_bid(struct archive_read *a)
 {
 	struct iso9660 *iso9660;
-	ssize_t bytes_read, brsvd;
+	ssize_t bytes_read;
 	const void *h;
-	const unsigned char *p, *psvd;
-	int bid;
+	const unsigned char *p;
+	int seenTerminator;
 
 	iso9660 = (struct iso9660 *)(a->format->data);
 
@@ -385,34 +401,46 @@ archive_read_format_iso9660_bid(struct archive_read *a)
 	 * 8 sectors of the volume descriptor table.  Of course,
 	 * if the I/O layer gives us more, we'll take it.
 	 */
-	h = __archive_read_ahead(a, 32768 + 8*2048, &bytes_read);
+#define RESERVED_AREA	(SYSTEM_AREA_BLOCK * LOGICAL_BLOCK_SIZE)
+	h = __archive_read_ahead(a,
+	    RESERVED_AREA + 8 * LOGICAL_BLOCK_SIZE,
+	    &bytes_read);
 	if (h == NULL)
 	    return (-1);
 	p = (const unsigned char *)h;
 
 	/* Skip the reserved area. */
-	bytes_read -= 32768;
-	p += 32768;
+	bytes_read -= RESERVED_AREA;
+	p += RESERVED_AREA;
 
-	/* Check each volume descriptor to locate possible SVD with Joliet. */
-	for (brsvd = bytes_read, psvd = p;
-			!iso9660->option_ignore_joliet && brsvd > 2048;
-			brsvd -= 2048, psvd += 2048) {
-		bid = isJolietSVD(iso9660, psvd);
-		if (bid > 0)
-			return (bid);
-		if (*p == '\177') /* End-of-volume-descriptor marker. */
-			break;
-	}
+	/* Check each volume descriptor. */
+	seenTerminator = 0;
+	for (; bytes_read > LOGICAL_BLOCK_SIZE;
+	    bytes_read -= LOGICAL_BLOCK_SIZE, p += LOGICAL_BLOCK_SIZE) {
+		int bid = 0;
 
-	/* Check each volume descriptor to locate the PVD. */
-	for (; bytes_read > 2048; bytes_read -= 2048, p += 2048) {
-		bid = isPVD(iso9660, p);
-		if (bid > 0)
-			return (bid);
-		if (*p == '\177') /* End-of-volume-descriptor marker. */
-			break;
+		/* Do not handle undefined Volume Descriptor Type. */
+		if (p[0] >= 4 && p[0] <= 254)
+			return (0);
+		/* Standard Identifier must be "CD001" */
+		if (memcmp(p + 1, "CD001", 5) != 0)
+			return (0);
+		bid += isPVD(iso9660, p);
+		bid += isJolietSVD(iso9660, p);
+		if (bid == 0) {
+			if (isVDSetTerminator(iso9660, p)) {
+				seenTerminator = 1;
+				break;
+			}
+			return (0);
+		}
 	}
+	/*
+	 * ISO 9660 format must have Primary Volume Descriptor and
+	 * Volume Descriptor Set Terminator.
+	 */
+	if (seenTerminator && iso9660->primary.sector_number > 16)
+		return (48);
 
 	/* We didn't find a valid PVD; return a bid of zero. */
 	return (0);
@@ -436,6 +464,10 @@ archive_read_format_iso9660_options(struct archive_read *a,
 			iso9660->option_ignore_joliet = 0;
 		return (ARCHIVE_OK);
 	}
+	if (strcmp(key, "rock-ridge") == 0) {
+		iso9660->option_ignore_rockridge = val == NULL;
+		return (ARCHIVE_OK);
+	}
 
 	/* Note: The "warn" return is just to inform the options
 	 * supervisor that we didn't handle it.  It will generate
@@ -444,10 +476,31 @@ archive_read_format_iso9660_options(struct archive_read *a,
 }
 
 static int
+isVDSetTerminator(struct iso9660 *iso9660, const unsigned char *h)
+{
+	int i;
+
+	/* Type of the Volume Descriptor Set Terminator must be 255. */
+	if (h[0] != 255)
+		return (0);
+
+	/* Volume Descriptor Version must be 1. */
+	if (h[6] != 1)
+		return (0);
+
+	/* Reserved field must be 0. */
+	for (i = 7; i < 2048; ++i)
+		if (h[i] != 0)
+			return (0);
+
+	return (1);
+}
+
+static int
 isJolietSVD(struct iso9660 *iso9660, const unsigned char *h)
 {
-	struct file_info *file;
 	const unsigned char *p;
+	int i;
 
 	/* Type 2 means it's a SVD. */
 	if (h[SVD_type_offset] != 2)
@@ -456,6 +509,17 @@ isJolietSVD(struct iso9660 *iso9660, const unsigned char *h)
 	/* ID must be "CD001" */
 	if (memcmp(h + SVD_id_offset, "CD001", 5) != 0)
 		return (0);
+
+	/* Reserved field must be 0. */
+	for (i = 0; i < SVD_reserved1_size; ++i)
+		if (h[SVD_reserved1_offset + i] != 0)
+			return (0);
+	for (i = 0; i < SVD_reserved2_size; ++i)
+		if (h[SVD_reserved2_offset + i] != 0)
+			return (0);
+	for (i = 0; i < SVD_reserved3_size; ++i)
+		if (h[SVD_reserved3_offset + i] != 0)
+			return (0);
 
 	/* FIXME: do more validations according to joliet spec. */
 
@@ -486,16 +550,12 @@ isJolietSVD(struct iso9660 *iso9660, const unsigned char *h)
 	iso9660->volume_size = iso9660->logical_block_size
 	    * (uint64_t)toi(h + SVD_volume_space_size_offset, 4);
 
-#if DEBUG
-	fprintf(stderr, "Joliet UCS-2 level %d with "
-			"logical block size:%d, volume size:%d\n",
-			iso9660->seenJoliet,
-			iso9660->logical_block_size, iso9660->volume_size);
-#endif
-
-	/* Store the root directory in the pending list. */
-	file = parse_file_info(iso9660, NULL, h + SVD_root_directory_record_offset);
-	add_entry(iso9660, file);
+	/* Read Root Directory Record in Volume Descriptor. */
+	p = h + SVD_root_directory_record_offset;
+	if (p[DR_length_offset] != 34)
+		return (0);
+	iso9660->joliet.sector_number = archive_le32dec(p + DR_extent_offset);
+	iso9660->joliet.block_size = archive_le32dec(p + DR_size_offset);
 
 	return (48);
 }
@@ -503,7 +563,7 @@ isJolietSVD(struct iso9660 *iso9660, const unsigned char *h)
 static int
 isPVD(struct iso9660 *iso9660, const unsigned char *h)
 {
-	struct file_info *file;
+	const unsigned char *p;
 	int i;
 
 	/* Type of the Primary Volume Descriptor must be 1. */
@@ -560,9 +620,13 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 	/* XXX TODO: Check other values for sanity; reject more
 	 * malformed PVDs. XXX */
 
-	/* Store the root directory in the pending list. */
-	file = parse_file_info(iso9660, NULL, h + PVD_root_directory_record_offset);
-	add_entry(iso9660, file);
+	/* Read Root Directory Record in Volume Descriptor. */
+	p = h + PVD_root_directory_record_offset;
+	if (p[DR_length_offset] != 34)
+		return (0);
+	iso9660->primary.sector_number = archive_le32dec(p + DR_extent_offset);
+	iso9660->primary.block_size = archive_le32dec(p + DR_size_offset);
+
 	return (48);
 }
 
@@ -579,6 +643,79 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 	if (!a->archive.archive_format) {
 		a->archive.archive_format = ARCHIVE_FORMAT_ISO9660;
 		a->archive.archive_format_name = "ISO9660";
+	}
+
+	if (iso9660->current_position == 0) {
+		int64_t skipsize;
+		struct vd *vd;
+		const void *block;
+		char seenJoliet;
+
+		vd = &(iso9660->primary);
+		if (iso9660->seenJoliet &&
+			vd->sector_number > iso9660->joliet.sector_number)
+			/* This condition is unlikely; by way of caution. */
+			vd = &(iso9660->joliet);
+
+		skipsize = LOGICAL_BLOCK_SIZE * vd->sector_number;
+		skipsize = __archive_read_skip(a, skipsize);
+		if (skipsize < 0)
+			return ((int)skipsize);
+		iso9660->current_position = skipsize;
+
+		block = __archive_read_ahead(a, vd->block_size, NULL);
+		if (block == NULL) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_MISC,
+			    "Failed to read full block when scanning "
+			    "ISO9660 directory list");
+			return (ARCHIVE_FATAL);
+		}
+
+		/*
+		 * While reading Root Directory, flag seenJoliet
+		 * must be zero to avoid converting special name
+		 * 0x00(Current Directory) and next byte to UCS2.
+		 */
+		seenJoliet = iso9660->seenJoliet;/* Save flag. */
+		iso9660->seenJoliet = 0;
+		file = parse_file_info(iso9660, NULL, block);
+		iso9660->seenJoliet = seenJoliet;
+		if (vd == &(iso9660->primary) && iso9660->seenRockridge
+		    && iso9660->seenJoliet)
+			/*
+			 * If iso image has RockRidge and Joliet,
+			 * we use rockRidge Extention.
+			 */
+			iso9660->seenJoliet = 0;
+		if (vd == &(iso9660->primary) && !iso9660->seenRockridge
+		    && iso9660->seenJoliet) {
+			/* Switch reading data from primary to joliet. */ 
+			release_file(iso9660, file);
+			vd = &(iso9660->joliet);
+			skipsize = LOGICAL_BLOCK_SIZE * vd->sector_number;
+			skipsize -= LOGICAL_BLOCK_SIZE *
+			    iso9660->primary.sector_number;
+			skipsize = __archive_read_skip(a, skipsize);
+			if (skipsize < 0)
+				return ((int)skipsize);
+			iso9660->current_position += skipsize;
+
+			block = __archive_read_ahead(a, vd->block_size, NULL);
+			if (block == NULL) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "Failed to read full block when scanning "
+				    "ISO9660 directory list");
+				return (ARCHIVE_FATAL);
+			}
+			seenJoliet = iso9660->seenJoliet;/* Save flag. */
+			iso9660->seenJoliet = 0;
+			file = parse_file_info(iso9660, NULL, block);
+			iso9660->seenJoliet = seenJoliet;
+		}
+		/* Store the root directory in the pending list. */
+		add_entry(iso9660, file);
 	}
 
 	/* Get the next entry that appears after the current offset. */
@@ -1146,8 +1283,9 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 	else
 		file->mode = AE_IFREG | 0400;
 
-	/* Rockridge extensions overwrite information from above. */
-	parse_rockridge(iso9660, file, rr_start, rr_end);
+	if (!iso9660->option_ignore_rockridge)
+		/* Rockridge extensions overwrite information from above. */
+		parse_rockridge(iso9660, file, rr_start, rr_end);
 
 #if DEBUG
 	/* DEBUGGING: Warn about attributes I don't yet fully support. */
