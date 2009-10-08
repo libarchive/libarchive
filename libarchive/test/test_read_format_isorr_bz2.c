@@ -45,9 +45,9 @@ ln /tmp/iso/file /tmp/iso/hardlink
 (cd /tmp/iso; ln -s .///file symlink5)
 (cd /tmp/iso; ln -s /tmp//../ symlink6)
 TZ=utc touch -afhm -t 197001020000.01 /tmp/iso /tmp/iso/file /tmp/iso/dir
-TZ=utc touch -afhm -t 197001030000.02 /tmp/iso/symlink
-mkhybrid -R -uid 1 -gid 2 /tmp/iso | bzip2 > test_read_format_isorr_bz2.iso.bz2
+TZ=utc touch -afhm -t 197001030000.02 /tmp/iso/symlink /tmp/iso/symlink5
 F=test_read_format_isorr_bz2.iso.bz2
+mkhybrid -R -uid 1 -gid 2 /tmp/iso | bzip2 > $F
 uuencode $F $F > $F.uu
 exit 1
  */
@@ -85,11 +85,12 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 			/* '.' root directory. */
 			assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
 			assertEqualInt(2048, archive_entry_size(ae));
+			/* Now, we read timestamp recorded by RRIP "TF". */ 
 			assertEqualInt(86401, archive_entry_mtime(ae));
 			assertEqualInt(0, archive_entry_mtime_nsec(ae));
-			assertEqualInt(86401, archive_entry_ctime(ae));
-			assertEqualInt(0, archive_entry_stat(ae)->st_nlink);
-			assertEqualInt(0, archive_entry_uid(ae));
+			/* Now, we read links recorded by RRIP "PX". */ 
+			assertEqualInt(3, archive_entry_stat(ae)->st_nlink);
+			assertEqualInt(1, archive_entry_uid(ae));
 			assertEqualIntA(a, ARCHIVE_EOF,
 			    archive_read_data_block(a, &p, &size, &offset));
 			assertEqualInt((int)size, 0);
