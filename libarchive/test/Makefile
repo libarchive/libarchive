@@ -53,6 +53,7 @@ TESTS= \
 	test_read_format_iso_gz.c		\
 	test_read_format_isojoliet_bz2.c	\
 	test_read_format_isojoliet_long.c	\
+	test_read_format_isojoliet_rr.c		\
 	test_read_format_isorr_bz2.c		\
 	test_read_format_isorr_new_bz2.c	\
 	test_read_format_isozisofs_bz2.c	\
