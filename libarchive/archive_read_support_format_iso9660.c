@@ -696,7 +696,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 		    && iso9660->seenJoliet)
 			/*
 			 * If iso image has RockRidge and Joliet,
-			 * we use rockRidge Extention.
+			 * we use RockRidge Extensions.
 			 */
 			iso9660->seenJoliet = 0;
 		if (vd == &(iso9660->primary) && !iso9660->seenRockridge
