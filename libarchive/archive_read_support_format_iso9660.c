@@ -300,6 +300,7 @@ struct iso9660 {
 	uint64_t current_position;
 	ssize_t	logical_block_size;
 	uint64_t volume_size; /* Total size of volume in bytes. */
+	int32_t  volume_block;/* Total size of volume in logical blocks. */
 
 	struct vd {
 		int		sector_number;	/* Logical Sector Number. */
@@ -336,7 +337,7 @@ static struct file_info *next_entry(struct iso9660 *);
 static int	next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
 		    struct file_info **pfile);
 static struct file_info *
-		parse_file_info(struct iso9660 *iso9660,
+		parse_file_info(struct archive_read *a,
 		    struct file_info *parent, const unsigned char *isodirrec);
 static void	parse_rockridge(struct iso9660 *iso9660,
 		    struct file_info *file, const unsigned char *start,
@@ -547,8 +548,12 @@ isJolietSVD(struct iso9660 *iso9660, const unsigned char *h)
 	if (iso9660->logical_block_size <= 0)
 		return (0);
 
+	iso9660->volume_block =
+	    archive_le32dec(h + SVD_volume_space_size_offset);
+	if (iso9660->volume_block <= SYSTEM_AREA_BLOCK+4)
+		return (0);
 	iso9660->volume_size = iso9660->logical_block_size
-	    * (uint64_t)toi(h + SVD_volume_space_size_offset, 4);
+	    * (uint64_t)iso9660->volume_block;
 
 	/* Read Root Directory Record in Volume Descriptor. */
 	p = h + SVD_root_directory_record_offset;
@@ -599,8 +604,12 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 	if (iso9660->logical_block_size <= 0)
 		return (0);
 
+	iso9660->volume_block =
+	    archive_le32dec(h + PVD_volume_space_size_offset);
+	if (iso9660->volume_block <= SYSTEM_AREA_BLOCK+4)
+		return (0);
 	iso9660->volume_size = iso9660->logical_block_size
-	    * (uint64_t)toi(h + PVD_volume_space_size_offset, 4);
+	    * (uint64_t)iso9660->volume_block;
 
 	/* File structure version must be 1 for ISO9660/ECMA119. */
 	if (h[PVD_file_structure_version_offset] != 1)
@@ -679,7 +688,9 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 		 */
 		seenJoliet = iso9660->seenJoliet;/* Save flag. */
 		iso9660->seenJoliet = 0;
-		file = parse_file_info(iso9660, NULL, block);
+		file = parse_file_info(a, NULL, block);
+		if (file == NULL)
+			return (ARCHIVE_FATAL);
 		iso9660->seenJoliet = seenJoliet;
 		if (vd == &(iso9660->primary) && iso9660->seenRockridge
 		    && iso9660->seenJoliet)
@@ -711,7 +722,9 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 			}
 			seenJoliet = iso9660->seenJoliet;/* Save flag. */
 			iso9660->seenJoliet = 0;
-			file = parse_file_info(iso9660, NULL, block);
+			file = parse_file_info(a, NULL, block);
+			if (file == NULL)
+				return (ARCHIVE_FATAL);
 			iso9660->seenJoliet = seenJoliet;
 		}
 		/* Store the root directory in the pending list. */
@@ -860,7 +873,11 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 				if (*(p + DR_name_len_offset) == 1
 				    && *(p + DR_name_offset) == '\001')
 					continue;
-				child = parse_file_info(iso9660, file, p);
+				child = parse_file_info(a, file, p);
+				if (child == NULL) {
+					release_file(iso9660, file);
+					return (ARCHIVE_FATAL);
+				}
 				add_entry(iso9660, child);
 				if (iso9660->seenRockridge) {
 					a->archive.archive_format =
@@ -1189,32 +1206,62 @@ archive_read_format_iso9660_cleanup(struct archive_read *a)
  * of any extensions, and stores the result in memory.
  */
 static struct file_info *
-parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
+parse_file_info(struct archive_read *a, struct file_info *parent,
     const unsigned char *isodirrec)
 {
+	struct iso9660 *iso9660;
 	struct file_info *file;
 	size_t name_len;
 	const unsigned char *rr_start, *rr_end;
 	const unsigned char *p;
+	size_t dr_len;
+	int32_t offset;
 	int flags;
 
-	/* TODO: Sanity check that name_len doesn't exceed length, etc. */
+	iso9660 = (struct iso9660 *)(a->format->data);
+
+	dr_len = (size_t)isodirrec[DR_length_offset];
+	name_len = (size_t)isodirrec[DR_name_len_offset];
+	offset = archive_le32dec(isodirrec + DR_extent_offset);
+	/* Sanity check that dr_len needs at least 34. */
+	if (dr_len < 34) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Invalid length of directory record");
+		return (NULL);
+	}
+	/* Sanity check that name_len doesn't exceed dr_len. */
+	if (dr_len - 33 < name_len) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Invalid length of file identifier");
+		return (NULL);
+	}
+	/* Sanity check that offset doesn't exceed volume block.
+	 * Don't check lower limit of offset; it's possibillty the offset
+	 * has negative value when file type is symbolic link or
+	 * file size is zero. As far as I know latest mkisofs do that.
+	 */
+	if (offset >= iso9660->volume_block) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Invalid location of extent of file");
+		return (NULL);
+	}
 
 	/* Create a new file entry and copy data from the ISO dir record. */
 	file = (struct file_info *)malloc(sizeof(*file));
-	if (file == NULL)
+	if (file == NULL) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "No memory for file entry");
 		return (NULL);
+	}
 	memset(file, 0, sizeof(*file));
 	file->parent = parent;
 	if (parent != NULL)
 		parent->refcount++;
-	file->offset = (uint64_t)toi(isodirrec + DR_extent_offset, DR_extent_size)
-	    * iso9660->logical_block_size;
+	file->offset = iso9660->logical_block_size * (uint64_t)offset;
 	file->size = toi(isodirrec + DR_size_offset, DR_size_size);
 	file->mtime = isodate7(isodirrec + DR_date_offset);
 	file->ctime = file->atime = file->mtime;
 
-	name_len = (size_t)isodirrec[DR_name_len_offset];
 	p = isodirrec + DR_name_offset;
 	/* Rockridge extensions (if any) follow name.  Compute this
 	 * before fidgeting the name_len below. */
