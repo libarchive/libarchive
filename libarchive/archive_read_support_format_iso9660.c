@@ -729,6 +729,12 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 		}
 		/* Store the root directory in the pending list. */
 		add_entry(iso9660, file);
+		if (iso9660->seenRockridge) {
+			a->archive.archive_format =
+			    ARCHIVE_FORMAT_ISO9660_ROCKRIDGE;
+			a->archive.archive_format_name =
+			    "ISO9660 with Rockridge extensions";
+		}
 	}
 
 	/* Get the next entry that appears after the current offset. */
@@ -879,12 +885,6 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 					return (ARCHIVE_FATAL);
 				}
 				add_entry(iso9660, child);
-				if (iso9660->seenRockridge) {
-					a->archive.archive_format =
-					    ARCHIVE_FORMAT_ISO9660_ROCKRIDGE;
-					a->archive.archive_format_name =
-					    "ISO9660 with Rockridge extensions";
-				}
 			}
 		}
 	}
