@@ -280,8 +280,8 @@ struct iso9660 {
 	int	magic;
 #define ISO9660_MAGIC   0x96609660
 
-	int option_ignore_joliet;
-	int option_ignore_rockridge;
+	int opt_support_joliet;
+	int opt_support_rockridge;
 
 	struct archive_string pathname;
 	char	seenRockridge;	/* Set true if RR extensions are used. */
@@ -368,6 +368,10 @@ archive_read_support_format_iso9660(struct archive *_a)
 	}
 	memset(iso9660, 0, sizeof(*iso9660));
 	iso9660->magic = ISO9660_MAGIC;
+	/* Enable to support Joliet extensions by default.	*/
+	iso9660->opt_support_joliet = 1;
+	/* Enable to support Rock Ridge extensions by default.	*/
+	iso9660->opt_support_rockridge = 1;
 
 	r = __archive_read_register_format(a,
 	    iso9660,
@@ -461,13 +465,13 @@ archive_read_format_iso9660_options(struct archive_read *a,
 				strcmp(val, "ignore") == 0 ||
 				strcmp(val, "disable") == 0 ||
 				strcmp(val, "0") == 0)
-			iso9660->option_ignore_joliet = 1;
+			iso9660->opt_support_joliet = 0;
 		else
-			iso9660->option_ignore_joliet = 0;
+			iso9660->opt_support_joliet = 1;
 		return (ARCHIVE_OK);
 	}
 	if (strcmp(key, "rock-ridge") == 0) {
-		iso9660->option_ignore_rockridge = val == NULL;
+		iso9660->opt_support_rockridge = val != NULL;
 		return (ARCHIVE_OK);
 	}
 
@@ -662,7 +666,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 		char seenJoliet;
 
 		vd = &(iso9660->primary);
-		if (iso9660->option_ignore_joliet)
+		if (!iso9660->opt_support_joliet)
 			iso9660->seenJoliet = 0;
 		if (iso9660->seenJoliet &&
 			vd->sector_number > iso9660->joliet.sector_number)
@@ -1334,7 +1338,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 		file->mode = AE_IFREG | 0400;
 
 	/* Rockridge extensions overwrite information from above. */
-	if (!iso9660->option_ignore_rockridge) {
+	if (iso9660->opt_support_rockridge) {
 		if (parent == NULL && rr_end - rr_start >= 7) {
 			p = rr_start;
 			if (p[0] == 'S' && p[1] == 'P'
@@ -1367,7 +1371,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 		} else
 			/* If there isn't SUSP, disable parsing
 			 * rock ridge extensions. */
-			iso9660->option_ignore_rockridge = 1;
+			iso9660->opt_support_rockridge = 0;
 	}
 
 #if DEBUG
