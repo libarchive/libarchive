@@ -330,6 +330,10 @@ static void	dump_isodirrec(FILE *, const unsigned char *isodirrec);
 static time_t	time_from_tm(struct tm *);
 static time_t	isodate17(const unsigned char *);
 static time_t	isodate7(const unsigned char *);
+static int	isBootRecord(struct iso9660 *iso9660,
+		    const unsigned char *h);
+static int	isVolumePartition(struct iso9660 *iso9660,
+		    const unsigned char *h);
 static int	isVDSetTerminator(struct iso9660 *iso9660,
 		    const unsigned char *h);
 static int	isJolietSVD(struct iso9660 *, const unsigned char *);
@@ -433,6 +437,8 @@ archive_read_format_iso9660_bid(struct archive_read *a)
 			return (0);
 		bid += isPVD(iso9660, p);
 		bid += isJolietSVD(iso9660, p);
+		bid += isBootRecord(iso9660, p);
+		bid += isVolumePartition(iso9660, p);
 		if (bid == 0) {
 			if (isVDSetTerminator(iso9660, p)) {
 				seenTerminator = 1;
@@ -479,6 +485,47 @@ archive_read_format_iso9660_options(struct archive_read *a,
 	 * supervisor that we didn't handle it.  It will generate
 	 * a suitable error if noone used this option. */
 	return (ARCHIVE_WARN);
+}
+
+static int
+isBootRecord(struct iso9660 *iso9660, const unsigned char *h)
+{
+
+	/* Type of the Volume Descriptor Boot Record must be 0. */
+	if (h[0] != 0)
+		return (0);
+
+	/* Volume Descriptor Version must be 1. */
+	if (h[6] != 1)
+		return (0);
+
+	return (1);
+}
+
+static int
+isVolumePartition(struct iso9660 *iso9660, const unsigned char *h)
+{
+	uint32_t location;
+
+	/* Type of the Volume Partition Descriptor must be 3. */
+	if (h[0] != 3)
+		return (0);
+
+	/* Volume Descriptor Version must be 1. */
+	if (h[6] != 1)
+		return (0);
+	/* Unused Field */
+	if (h[7] != 0)
+		return (0);
+
+	location = archive_le32dec(h + 72);
+	if (location <= SYSTEM_AREA_BLOCK ||
+	    location >= iso9660->volume_block)
+		return (0);
+	if (location != archive_be32dec(h + 76))
+		return (0);
+
+	return (1);
 }
 
 static int
