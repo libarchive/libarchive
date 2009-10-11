@@ -662,6 +662,8 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 		char seenJoliet;
 
 		vd = &(iso9660->primary);
+		if (iso9660->option_ignore_joliet)
+			iso9660->seenJoliet = 0;
 		if (iso9660->seenJoliet &&
 			vd->sector_number > iso9660->joliet.sector_number)
 			/* This condition is unlikely; by way of caution. */
