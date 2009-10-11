@@ -284,7 +284,8 @@ struct iso9660 {
 	int option_ignore_rockridge;
 
 	struct archive_string pathname;
-	char	seenRockridge; /* Set true if RR extensions are used. */
+	char	seenRockridge;	/* Set true if RR extensions are used. */
+	char	seenSUSP;	/* Set true if SUSP is beging used. */
 	unsigned char	suspOffset;
 	char	seenJoliet;
 
@@ -1265,7 +1266,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	p = isodirrec + DR_name_offset;
 	/* Rockridge extensions (if any) follow name.  Compute this
 	 * before fidgeting the name_len below. */
-	rr_start = p + name_len + (name_len & 1 ? 0 : 1) + iso9660->suspOffset;
+	rr_start = p + name_len + (name_len & 1 ? 0 : 1);
 	rr_end = isodirrec + isodirrec[DR_length_offset];
 
 	if (iso9660->seenJoliet) {
@@ -1330,9 +1331,42 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	else
 		file->mode = AE_IFREG | 0400;
 
-	if (!iso9660->option_ignore_rockridge)
-		/* Rockridge extensions overwrite information from above. */
-		parse_rockridge(iso9660, file, rr_start, rr_end);
+	/* Rockridge extensions overwrite information from above. */
+	if (!iso9660->option_ignore_rockridge) {
+		if (parent == NULL && rr_end - rr_start >= 7) {
+			p = rr_start;
+			if (p[0] == 'S' && p[1] == 'P'
+			    && p[2] == 7 && p[3] == 1
+			    && p[4] == 0xBE && p[5] == 0xEF) {
+				/*
+				 * SP extension stores the suspOffset
+				 * (Number of bytes to skip between
+				 * filename and SUSP records.)
+				 * It is mandatory by the SUSP standard
+				 * (IEEE 1281).
+				 *
+				 * It allows SUSP to coexist with
+				 * non-SUSP uses of the System
+				 * Use Area by placing non-SUSP data
+				 * before SUSP data.
+				 *
+				 * SP extension must be in the root
+				 * directory entry, disable all SUSP
+				 * processing if not found.
+				 */
+				iso9660->suspOffset = p[6];
+				iso9660->seenSUSP = 1;
+				rr_start += 7;
+			}
+		}
+		if (iso9660->seenSUSP) {
+			rr_start += iso9660->suspOffset;
+			parse_rockridge(iso9660, file, rr_start, rr_end);
+		} else
+			/* If there isn't SUSP, disable parsing
+			 * rock ridge extensions. */
+			iso9660->option_ignore_rockridge = 1;
+	}
 
 #if DEBUG
 	/* DEBUGGING: Warn about attributes I don't yet fully support. */
@@ -1527,29 +1561,6 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
 					    data, data_length);
 				break;
 			}
-			if (p[0] == 'S' && p[1] == 'P'
-			    && version == 1 && data_length == 3
-			    && data[0] == (unsigned char)'\xbe'
-			    && data[1] == (unsigned char)'\xef') {
-				/*
-				 * SP extension stores the suspOffset
-				 * (Number of bytes to skip between
-				 * filename and SUSP records.)
-				 * It is mandatory by the SUSP standard
-				 * (IEEE 1281).
-				 *
-				 * It allows SUSP to coexist with
-				 * non-SUSP uses of the System
-				 * Use Area by placing non-SUSP data
-				 * before SUSP data.
-				 *
-				 * TODO: Add a check for 'SP' in
-				 * first directory entry, disable all SUSP
-				 * processing if not found.
-				 */
-				iso9660->suspOffset = data[2];
-				break;
-			}
 			if (p[0] == 'S' && p[1] == 'T'
 			    && data_length == 0 && version == 1) {
 				/*
@@ -1561,6 +1572,7 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
 				 * Use Area by placing non-SUSP data
 				 * after SUSP data.
 				 */
+				iso9660->seenSUSP = 0;
 				return;
 			}
 		case 'T':
