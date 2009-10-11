@@ -768,7 +768,6 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 	archive_entry_set_uid(entry, file->uid);
 	archive_entry_set_gid(entry, file->gid);
 	archive_entry_set_nlink(entry, file->nlinks);
-	archive_entry_set_ino(entry, file->inode);
 	archive_entry_set_birthtime(entry, file->birthtime, 0);
 	archive_entry_set_mtime(entry, file->mtime, 0);
 	archive_entry_set_ctime(entry, file->ctime, 0);
