@@ -1497,9 +1497,11 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
 			/* FALLTHROUGH */
 		case 'N':
 			if (p[0] == 'N' && p[1] == 'M') {
-				if (version == 1)
+				if (version == 1) {
 					parse_rockridge_NM1(file,
 					    data, data_length);
+					iso9660->seenRockridge = 1;
+				}
 				break;
 			}
 			/* FALLTHROUGH */
@@ -1516,6 +1518,7 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
 					file->rdev = toi(data,4);
 					file->rdev <<= 32;
 					file->rdev |= toi(data + 8, 4);
+					iso9660->seenRockridge = 1;
 				}
 				break;
 			}
@@ -1544,26 +1547,29 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
 					if (data_length >= 40)
 						file->inode
 						    = toi(data + 32, 4);
+					iso9660->seenRockridge = 1;
 				}
 				break;
 			}
 			/* FALLTHROUGH */
 		case 'R':
 			if (p[0] == 'R' && p[1] == 'R' && version == 1) {
-				iso9660->seenRockridge = 1;
 				/*
 				 * RR extension comprises:
 				 *    one byte flag value
+				 * This extension is obsolete,
+				 * so contents are always ignored.
 				 */
-				/* TODO: Handle RR extension. */
 				break;
 			}
 			/* FALLTHROUGH */
 		case 'S':
 			if (p[0] == 'S' && p[1] == 'L') {
-				if (version == 1)
+				if (version == 1) {
 					parse_rockridge_SL1(file,
 					    data, data_length);
+					iso9660->seenRockridge = 1;
+				}
 				break;
 			}
 			if (p[0] == 'S' && p[1] == 'T'
@@ -1578,13 +1584,16 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
 				 * after SUSP data.
 				 */
 				iso9660->seenSUSP = 0;
+				iso9660->seenRockridge = 0;
 				return;
 			}
 		case 'T':
 			if (p[0] == 'T' && p[1] == 'F') {
-				if (version == 1)
+				if (version == 1) {
 					parse_rockridge_TF1(file,
 					    data, data_length);
+					iso9660->seenRockridge = 1;
+				}
 				break;
 			}
 			/* FALLTHROUGH */
