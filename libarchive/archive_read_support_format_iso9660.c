@@ -263,7 +263,7 @@ struct file_info {
 	mode_t		 mode;
 	uid_t		 uid;
 	gid_t		 gid;
-	ino_t		 inode;
+	int64_t		 number;
 	int		 nlinks;
 	struct archive_string name; /* Pathname */
 	char		 name_continues; /* Non-zero if name continues */
@@ -289,7 +289,7 @@ struct iso9660 {
 	unsigned char	suspOffset;
 	char	seenJoliet;
 
-	uint64_t	previous_offset;
+	int64_t		previous_number;
 	uint64_t	previous_size;
 	struct archive_string previous_pathname;
 
@@ -836,9 +836,9 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 	/* TODO: We have enough information here to compute an
 	 * accurate value for nlinks.  We should do so and ignore
 	 * nlinks from the RR extensions. */
-	if (file->offset == iso9660->previous_offset
-	    && file->size == iso9660->previous_size
-	    && file->size > 0) {
+	if (file->number != -1 &&
+	    file->number == iso9660->previous_number
+	    && file->size == iso9660->previous_size) {
 		archive_entry_set_hardlink(entry,
 		    iso9660->previous_pathname.s);
 		archive_entry_unset_size(entry);
@@ -894,7 +894,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 	}
 
 	iso9660->previous_size = file->size;
-	iso9660->previous_offset = file->offset;
+	iso9660->previous_number = file->number;
 	archive_strcpy(&iso9660->previous_pathname, iso9660->pathname.s);
 
 	/* If this is a directory, read in all of the entries right now. */
@@ -1383,6 +1383,21 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 		file->mode = AE_IFDIR | 0700;
 	else
 		file->mode = AE_IFREG | 0400;
+	/*
+	 * Use offset(location of ISO image) for file number.
+	 * File number is treated as inode number to find out harlink
+	 * target. If Rockridge extensions is being used, file number
+	 * will be overwritten by FILE SERIAL NUMBER of RRIP "PX"
+	 * extension.
+	 * NOTE: Older mkisofs did not record that FILE SERIAL NUMBER
+	 * in ISO images.
+	 */
+	if (file->size == 0)
+		/* If file->size is zero, its offset points wrong place.
+		 * Dot not use it for file number. */
+		file->number = -1;
+	else
+		file->number = (int64_t)(uint32_t)offset;
 
 	/* Rockridge extensions overwrite information from above. */
 	if (iso9660->opt_support_rockridge) {
@@ -1593,7 +1608,7 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
 						file->gid
 						    = toi(data + 24, 4);
 					if (data_length >= 40)
-						file->inode
+						file->number
 						    = toi(data + 32, 4);
 					iso9660->seenRockridge = 1;
 				}
