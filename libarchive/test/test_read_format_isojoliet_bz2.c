@@ -84,7 +84,7 @@ DEFINE_TEST(test_read_format_isojoliet_bz2)
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(0, archive_entry_mtime_nsec(ae));
 	assertEqualInt(86401, archive_entry_ctime(ae));
-	assertEqualInt(0, archive_entry_stat(ae)->st_nlink);
+	assertEqualInt(3, archive_entry_stat(ae)->st_nlink);
 	assertEqualInt(0, archive_entry_uid(ae));
 	assertEqualIntA(a, ARCHIVE_EOF,
 	    archive_read_data_block(a, &p, &size, &offset));

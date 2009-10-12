@@ -251,6 +251,7 @@ struct zisofs {
 struct file_info {
 	struct file_info	*parent;
 	int		 refcount;
+	int		 subdirs;
 	uint64_t	 offset;  /* Offset on disk. */
 	uint64_t	 size;	/* File size in bytes. */
 	uint64_t	 ce_offset; /* Offset of CE */
@@ -297,6 +298,12 @@ struct iso9660 {
 	struct file_info **pending_files;
 	int	pending_files_allocated;
 	int	pending_files_used;
+	struct cache_files {
+		struct file_info	**files;
+		int			 allocated;
+		int			 count;
+		int			 index;
+	}	cache_files;
 
 	uint64_t current_position;
 	ssize_t	logical_block_size;
@@ -338,6 +345,7 @@ static int	isVDSetTerminator(struct iso9660 *iso9660,
 		    const unsigned char *h);
 static int	isJolietSVD(struct iso9660 *, const unsigned char *);
 static int	isPVD(struct iso9660 *, const unsigned char *);
+static struct file_info *next_cache_entry(struct iso9660 *iso9660);
 static struct file_info *next_entry(struct iso9660 *);
 static int	next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
 		    struct file_info **pfile);
@@ -833,9 +841,6 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 	 * return the same body again, so if the next entry refers to
 	 * the same data, we have to return it as a hardlink to the
 	 * original entry. */
-	/* TODO: We have enough information here to compute an
-	 * accurate value for nlinks.  We should do so and ignore
-	 * nlinks from the RR extensions. */
 	if (file->number != -1 &&
 	    file->number == iso9660->previous_number
 	    && file->size == iso9660->previous_size) {
@@ -941,6 +946,9 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 				add_entry(iso9660, child);
 			}
 		}
+		/* Overwrite nlinks by proper link number which is
+		 * calculated from number of sub directories. */
+		archive_entry_set_nlink(entry, 2 + file->subdirs);
 	}
 
 	release_file(iso9660, file);
@@ -1233,6 +1241,10 @@ archive_read_format_iso9660_cleanup(struct archive_read *a)
 	int r = ARCHIVE_OK;
 
 	iso9660 = (struct iso9660 *)(a->format->data);
+	while (iso9660->cache_files.index < iso9660->cache_files.count)
+		release_file(iso9660,
+		    iso9660->cache_files.files[iso9660->cache_files.index++]);
+	free(iso9660->cache_files.files);
 	while ((file = next_entry(iso9660)) != NULL)
 		release_file(iso9660, file);
 	archive_string_free(&iso9660->pathname);
@@ -1379,9 +1391,11 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	}
 
 	flags = isodirrec[DR_flags_offset];
-	if (flags & 0x02)
+	if (flags & 0x02) {
 		file->mode = AE_IFDIR | 0700;
-	else
+		if (parent != NULL)
+			parent->subdirs++;
+	} else
 		file->mode = AE_IFREG | 0400;
 	/*
 	 * Use offset(location of ISO image) for file number.
@@ -1940,7 +1954,7 @@ next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
 
 	*pfile = NULL;
 	for (;;) {
-		*pfile = file = next_entry(iso9660);
+		*pfile = file = next_cache_entry(iso9660);
 		if (file == NULL)
 			return (ARCHIVE_EOF);
 
@@ -1995,6 +2009,61 @@ next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
 			add_entry(iso9660, file);
 		}
 	}
+}
+
+static struct file_info *
+next_cache_entry(struct iso9660 *iso9660)
+{
+	struct cache_files *cf = &(iso9660->cache_files);
+	struct file_info *file;
+
+	if (cf->index < cf->count)
+		return (cf->files[cf->index++]);
+
+	file = next_entry(iso9660);
+	if (file == NULL)
+		return (NULL);
+
+	if ((file->mode & AE_IFMT) != AE_IFREG)
+		return (file);
+
+	/* Collect files which has the same file serial number. */
+	cf->index = cf->count = 0;
+	while (file != NULL && file->number != -1 &&
+	    iso9660->pending_files_used > 0 &&
+	    file->number == iso9660->pending_files[0]->number) {
+		if (cf->count + 1 >= cf->allocated) {
+			struct file_info **pp;
+			int size;
+
+			if (cf->allocated == 0)
+				size = 32;
+			else
+				size = cf->allocated << 1;
+			pp = malloc(size);
+			if (pp == NULL)
+				__archive_errx(1, "Out of memory");
+			if (cf->count)
+				memcpy(pp, cf->files,
+				    cf->count * sizeof(cf->files[0]));
+			free(cf->files);
+			cf->files = pp;
+		}
+		cf->files[cf->count++] = file;
+		file = next_entry(iso9660);
+	}
+	if (cf->count) {
+		int i;
+
+		cf->files[cf->count++] = file;
+		/* cf->count is the same as number of hardlink,
+		 * so much so that it overwrite nlinks by value
+		 * of cf->count. */
+		for (i = 0; i < cf->count; i++)
+			cf->files[i]->nlinks = cf->count;
+		return (cf->files[cf->index++]);
+	} else
+		return (file);
 }
 
 static struct file_info *
