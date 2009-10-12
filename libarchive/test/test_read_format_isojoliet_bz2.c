@@ -72,7 +72,7 @@ DEFINE_TEST(test_read_format_isojoliet_bz2)
 	assertEqualInt(0, r);
 	assertEqualInt(0, archive_read_support_format_all(a));
 	assertEqualInt(ARCHIVE_OK,
-	    archive_read_set_options(a, "iso9660:!rock-ridge"));
+	    archive_read_set_options(a, "iso9660:!rockridge"));
 	assertEqualInt(ARCHIVE_OK,
 	    archive_read_open_filename(a, refname, 10240));
 
