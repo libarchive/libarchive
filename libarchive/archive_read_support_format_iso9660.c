@@ -476,7 +476,8 @@ archive_read_format_iso9660_options(struct archive_read *a,
 			iso9660->opt_support_joliet = 1;
 		return (ARCHIVE_OK);
 	}
-	if (strcmp(key, "rock-ridge") == 0) {
+	if (strcmp(key, "rockridge") == 0 ||
+	    strcmp(key, "Rockridge") == 0) {
 		iso9660->opt_support_rockridge = val != NULL;
 		return (ARCHIVE_OK);
 	}
