@@ -254,8 +254,8 @@ struct file_info {
 	int		 subdirs;
 	uint64_t	 offset;  /* Offset on disk. */
 	uint64_t	 size;	/* File size in bytes. */
-	uint64_t	 ce_offset; /* Offset of CE */
-	uint64_t	 ce_size; /* Size of CE */
+	uint32_t	 ce_offset; /* Offset of CE */
+	uint32_t	 ce_size; /* Size of CE */
 	time_t		 birthtime; /* File created time. */
 	time_t		 mtime;	/* File last modified time. */
 	time_t		 atime;	/* File last accessed time. */
@@ -287,9 +287,17 @@ struct iso9660 {
 	struct archive_string pathname;
 	char	seenRockridge;	/* Set true if RR extensions are used. */
 	char	seenSUSP;	/* Set true if SUSP is beging used. */
-	unsigned char	suspOffset;
 	char	seenJoliet;
 
+	unsigned char	suspOffset;
+	struct {
+		struct read_ce_req {
+			int64_t		 location;/* Location of CE */
+			struct file_info *file;
+		}		*reqs;
+		int		 cnt;
+		int		 allocated;
+	}	read_ce_req;
 	int64_t		previous_number;
 	uint64_t	previous_size;
 	struct archive_string previous_pathname;
@@ -355,6 +363,8 @@ static struct file_info *
 static void	parse_rockridge(struct iso9660 *iso9660,
 		    struct file_info *file, const unsigned char *start,
 		    const unsigned char *end);
+static int	register_CE(struct iso9660 *iso9660, int32_t location,
+		    struct file_info *file);
 static void	parse_rockridge_NM1(struct file_info *,
 		    const unsigned char *, int);
 static void	parse_rockridge_SL1(struct file_info *,
@@ -1247,6 +1257,7 @@ archive_read_format_iso9660_cleanup(struct archive_read *a)
 	free(iso9660->cache_files.files);
 	while ((file = next_entry(iso9660)) != NULL)
 		release_file(iso9660, file);
+	free(iso9660->read_ce_req.reqs);
 	archive_string_free(&iso9660->pathname);
 	archive_string_free(&iso9660->previous_pathname);
 	if (iso9660->pending_files)
@@ -1442,6 +1453,8 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 			}
 		}
 		if (iso9660->seenSUSP) {
+			file->name_continues = 0;
+			file->symlink_continues = 0;
 			rr_start += iso9660->suspOffset;
 			parse_rockridge(iso9660, file, rr_start, rr_end);
 		} else
@@ -1530,8 +1543,6 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
     const unsigned char *p, const unsigned char *end)
 {
 	(void)iso9660; /* UNUSED */
-	file->name_continues = 0;
-	file->symlink_continues = 0;
 
 	while (p + 4 < end  /* Enough space for another entry. */
 	    && p[0] >= 'A' && p[0] <= 'Z' /* Sanity-check 1st char of name. */
@@ -1557,17 +1568,13 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
 					 *   8 byte offset w/in above sector
 					 *   8 byte length of continuation
 					 */
-					file->ce_offset = (uint64_t)toi(data, 4)
-					    * iso9660->logical_block_size
-					    + toi(data + 8, 4);
-					file->ce_size = toi(data + 16, 4);
-					/* If the result is rediculous,
-					 * ignore it. */
-					if (file->ce_offset + file->ce_size
-					    > iso9660->volume_size) {
-						file->ce_offset = 0;
-						file->ce_size = 0;
-					}
+					int32_t location =
+					    archive_le32dec(data);
+					file->ce_offset =
+					    archive_le32dec(data+8);
+					file->ce_size =
+					    archive_le32dec(data+16);
+					register_CE(iso9660, location, file);
 				}
 				break;
 			}
@@ -1704,6 +1711,58 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
 	}
 }
 
+static int
+register_CE(struct iso9660 *iso9660, int32_t location,
+    struct file_info *file)
+{
+	struct read_ce_req *p;
+	int64_t offset;
+	int i;
+
+	offset = location * iso9660->logical_block_size;
+	if (((file->mode & AE_IFMT) == AE_IFREG &&
+	    offset >= file->offset) ||
+	    offset < iso9660->current_position) {
+		/*archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Invalid location in RRIP \"CE\"");*/
+		return (ARCHIVE_FATAL);
+	}
+	if (iso9660->read_ce_req.cnt + 1 > iso9660->read_ce_req.allocated) {
+		int alloc = iso9660->read_ce_req.allocated;
+
+		if (alloc == 0)
+			alloc = 8;
+		else
+			alloc *= 2;
+		p = malloc(alloc * sizeof(*p));
+		if (p == NULL)
+			__archive_errx(1, "Out of memory");
+		iso9660->read_ce_req.allocated = alloc;
+		if (iso9660->read_ce_req.reqs != NULL) {
+			memcpy(p, iso9660->read_ce_req.reqs,
+			    iso9660->read_ce_req.cnt * sizeof(*p));
+			free(iso9660->read_ce_req.reqs);
+		}
+		iso9660->read_ce_req.reqs = p;
+	}
+	for (i = 0; i < iso9660->read_ce_req.cnt; i++) {
+		if (iso9660->read_ce_req.reqs[i].location > location) {
+			p = &iso9660->read_ce_req.reqs[i];
+			memmove(p+1, p,
+			    (iso9660->read_ce_req.cnt -i) * sizeof(*p));
+			p->location = offset;
+			p->file = file;
+			iso9660->read_ce_req.cnt++;
+			return (ARCHIVE_OK);
+		}
+	}
+	p = &iso9660->read_ce_req.reqs[iso9660->read_ce_req.cnt];
+	p->location = offset;
+	p->file = file;
+	iso9660->read_ce_req.cnt++;
+	return (ARCHIVE_OK);
+}
+
 static void
 parse_rockridge_NM1(struct file_info *file,
 		    const unsigned char *data, int data_length)
@@ -1830,7 +1889,8 @@ parse_rockridge_SL1(struct file_info *file, const unsigned char *data,
 
 	if (!file->symlink_continues || file->symlink.length < 1)
 		archive_string_empty(&file->symlink);
-	else if (file->symlink.s[file->symlink.length - 1] != '/')
+	else if (!file->symlink_continues &&
+	    file->symlink.s[file->symlink.length - 1] != '/')
 		separator = "/";
 	file->symlink_continues = 0;
 
@@ -1952,63 +2012,59 @@ next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
 	struct file_info *file;
 	uint64_t offset;
 
-	*pfile = NULL;
-	for (;;) {
-		*pfile = file = next_cache_entry(iso9660);
-		if (file == NULL)
-			return (ARCHIVE_EOF);
+	*pfile = file = next_cache_entry(iso9660);
+	if (file == NULL)
+		return (ARCHIVE_EOF);
 
-		/* CE area precedes actual file data? Ignore it. */
-		if (file->ce_offset > file->offset) {
-			/* fprintf(stderr, " *** Discarding CE data.\n"); */
-			file->ce_offset = 0;
-			file->ce_size = 0;
+	/* Read RRIP "CE" System Use Entry. */
+	while (iso9660->read_ce_req.cnt &&
+	    iso9660->read_ce_req.reqs[0].location ==
+		iso9660->current_position) {
+		struct read_ce_req *ce;
+		const unsigned char *b, *p, *end;
+		size_t step;
+
+		step = iso9660->logical_block_size;
+		b = __archive_read_ahead(a, step, NULL);
+		if (b == NULL) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_MISC,
+			    "Failed to read full block when scanning "
+			    "ISO9660 directory list");
+			return (ARCHIVE_FATAL);
 		}
-
-		/* Don't waste time seeking for zero-length bodies. */
-		if (file->size == 0) {
-			file->offset = iso9660->current_position;
-		}
-
-		/* If CE exists, find and read it now. */
-		if (file->ce_offset > 0)
-			offset = file->ce_offset;
-		else
-			offset = file->offset;
-
-		/* Seek forward to the start of the entry. */
-		if (iso9660->current_position < offset) {
-			off_t step = offset - iso9660->current_position;
-			off_t bytes_read;
-			bytes_read = __archive_read_skip(a, step);
-			if (bytes_read < 0)
-				return (bytes_read);
-			iso9660->current_position = offset;
-		}
-
-		/* We found body of file; handle it now. */
-		if (offset == file->offset)
-			return (ARCHIVE_OK);
-
-		/* Found CE?  Process it and push the file back onto list. */
-		if (offset == file->ce_offset) {
-			const void *p;
-			ssize_t size = file->ce_size;
-			const unsigned char *rr_start;
-
-			file->ce_offset = 0;
-			file->ce_size = 0;
-			p = __archive_read_ahead(a, size, NULL);
-			if (p == NULL)
-				return (ARCHIVE_FATAL);
-			rr_start = (const unsigned char *)p;
-			parse_rockridge(iso9660, file, rr_start,
-			    rr_start + size);
-			__archive_read_consume(a, size);
-			iso9660->current_position += size;
-			add_entry(iso9660, file);
-		}
+		ce = iso9660->read_ce_req.reqs;
+		do {
+			p = b + ce->file->ce_offset;
+			end = p + ce->file->ce_size;
+			parse_rockridge(iso9660, ce->file, p, end);
+			memmove(ce, ce+1, sizeof(*ce) *
+			    (iso9660->read_ce_req.cnt -1));
+			iso9660->read_ce_req.cnt--;
+		} while (iso9660->read_ce_req.cnt &&
+		    ce->location == iso9660->current_position);
+		__archive_read_consume(a, step);
+		iso9660->current_position += step;
 	}
+
+	/* Don't waste time seeking for zero-length bodies. */
+	if (file->size == 0)
+		file->offset = iso9660->current_position;
+
+	offset = file->offset;
+
+	/* Seek forward to the start of the entry. */
+	if (iso9660->current_position < offset) {
+		off_t step = offset - iso9660->current_position;
+		off_t bytes_read;
+		bytes_read = __archive_read_skip(a, step);
+		if (bytes_read < 0)
+			return (bytes_read);
+		iso9660->current_position = offset;
+	}
+
+	/* We found body of file; handle it now. */
+	return (ARCHIVE_OK);
 }
 
 static struct file_info *
