@@ -1307,7 +1307,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 		return (NULL);
 	}
 	/* Sanity check that name_len doesn't exceed dr_len. */
-	if (dr_len - 33 < name_len) {
+	if (dr_len - 33 < name_len || name_len == 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Invalid length of file identifier");
 		return (NULL);
