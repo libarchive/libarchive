@@ -319,8 +319,8 @@ struct iso9660 {
 	int32_t  volume_block;/* Total size of volume in logical blocks. */
 
 	struct vd {
-		int		sector_number;	/* Logical Sector Number. */
-		uint32_t	block_size;
+		int		location;	/* Location of Extent.	*/
+		uint32_t	size;
 	} primary, joliet;
 
 	off_t	entry_sparse_offset;
@@ -469,7 +469,7 @@ archive_read_format_iso9660_bid(struct archive_read *a)
 	 * ISO 9660 format must have Primary Volume Descriptor and
 	 * Volume Descriptor Set Terminator.
 	 */
-	if (seenTerminator && iso9660->primary.sector_number > 16)
+	if (seenTerminator && iso9660->primary.location > 16)
 		return (48);
 
 	/* We didn't find a valid PVD; return a bid of zero. */
@@ -630,8 +630,8 @@ isJolietSVD(struct iso9660 *iso9660, const unsigned char *h)
 	p = h + SVD_root_directory_record_offset;
 	if (p[DR_length_offset] != 34)
 		return (0);
-	iso9660->joliet.sector_number = archive_le32dec(p + DR_extent_offset);
-	iso9660->joliet.block_size = archive_le32dec(p + DR_size_offset);
+	iso9660->joliet.location = archive_le32dec(p + DR_extent_offset);
+	iso9660->joliet.size = archive_le32dec(p + DR_size_offset);
 
 	return (48);
 }
@@ -704,8 +704,8 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 	p = h + PVD_root_directory_record_offset;
 	if (p[DR_length_offset] != 34)
 		return (0);
-	iso9660->primary.sector_number = archive_le32dec(p + DR_extent_offset);
-	iso9660->primary.block_size = archive_le32dec(p + DR_size_offset);
+	iso9660->primary.location = archive_le32dec(p + DR_extent_offset);
+	iso9660->primary.size = archive_le32dec(p + DR_size_offset);
 
 	return (48);
 }
@@ -735,17 +735,17 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 		if (!iso9660->opt_support_joliet)
 			iso9660->seenJoliet = 0;
 		if (iso9660->seenJoliet &&
-			vd->sector_number > iso9660->joliet.sector_number)
+			vd->location > iso9660->joliet.location)
 			/* This condition is unlikely; by way of caution. */
 			vd = &(iso9660->joliet);
 
-		skipsize = LOGICAL_BLOCK_SIZE * vd->sector_number;
+		skipsize = LOGICAL_BLOCK_SIZE * vd->location;
 		skipsize = __archive_read_skip(a, skipsize);
 		if (skipsize < 0)
 			return ((int)skipsize);
 		iso9660->current_position = skipsize;
 
-		block = __archive_read_ahead(a, vd->block_size, NULL);
+		block = __archive_read_ahead(a, vd->size, NULL);
 		if (block == NULL) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_MISC,
@@ -777,15 +777,15 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 			/* Switch reading data from primary to joliet. */ 
 			release_file(iso9660, file);
 			vd = &(iso9660->joliet);
-			skipsize = LOGICAL_BLOCK_SIZE * vd->sector_number;
+			skipsize = LOGICAL_BLOCK_SIZE * vd->location;
 			skipsize -= LOGICAL_BLOCK_SIZE *
-			    iso9660->primary.sector_number;
+			    iso9660->primary.location;
 			skipsize = __archive_read_skip(a, skipsize);
 			if (skipsize < 0)
 				return ((int)skipsize);
 			iso9660->current_position += skipsize;
 
-			block = __archive_read_ahead(a, vd->block_size, NULL);
+			block = __archive_read_ahead(a, vd->size, NULL);
 			if (block == NULL) {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
