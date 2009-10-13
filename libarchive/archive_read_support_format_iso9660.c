@@ -252,15 +252,15 @@ struct file_info {
 	struct file_info	*parent;
 	int		 refcount;
 	int		 subdirs;
-	uint64_t	 offset;  /* Offset on disk. */
-	uint64_t	 size;	/* File size in bytes. */
-	uint32_t	 ce_offset; /* Offset of CE */
-	uint32_t	 ce_size; /* Size of CE */
-	time_t		 birthtime; /* File created time. */
-	time_t		 mtime;	/* File last modified time. */
-	time_t		 atime;	/* File last accessed time. */
-	time_t		 ctime;	/* File attribute change time. */
-	uint64_t	 rdev; /* Device number */
+	uint64_t	 offset;	/* Offset on disk.		*/
+	uint64_t	 size;		/* File size in bytes.		*/
+	uint32_t	 ce_offset;	/* Offset of CE.		*/
+	uint32_t	 ce_size;	/* Size of CE.			*/
+	time_t		 birthtime;	/* File created time.		*/
+	time_t		 mtime;		/* File last modified time.	*/
+	time_t		 atime;		/* File last accessed time.	*/
+	time_t		 ctime;		/* File attribute change time.	*/
+	uint64_t	 rdev;		/* Device number.		*/
 	mode_t		 mode;
 	uid_t		 uid;
 	gid_t		 gid;
