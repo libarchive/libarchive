@@ -711,6 +711,55 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 }
 
 static int
+read_children(struct archive_read *a, struct file_info *parent)
+{
+	struct iso9660 *iso9660;
+
+	iso9660 = (struct iso9660 *)(a->format->data);
+	while (iso9660->entry_bytes_remaining > 0) {
+		const void *block;
+		const unsigned char *p;
+		ssize_t step = iso9660->logical_block_size;
+		if (step > iso9660->entry_bytes_remaining)
+			step = iso9660->entry_bytes_remaining;
+		block = __archive_read_ahead(a, step, NULL);
+		if (block == NULL) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Failed to read full block when scanning "
+			    "ISO9660 directory list");
+			return (ARCHIVE_FATAL);
+		}
+		__archive_read_consume(a, step);
+		iso9660->current_position += step;
+		iso9660->entry_bytes_remaining -= step;
+		for (p = (const unsigned char *)block;
+		     *p != 0 && p < (const unsigned char *)block + step;
+		     p += *p) {
+			struct file_info *child;
+
+			/* N.B.: these special directory identifiers
+			 * are 8 bit "values" even on a
+			 * Joliet CD with UCS-2 (16bit) encoding.
+			 */
+
+			/* Skip '.' entry. */
+			if (*(p + DR_name_len_offset) == 1
+			    && *(p + DR_name_offset) == '\0')
+				continue;
+			/* Skip '..' entry. */
+			if (*(p + DR_name_len_offset) == 1
+			    && *(p + DR_name_offset) == '\001')
+				continue;
+			child = parse_file_info(a, parent, p);
+			if (child == NULL)
+				return (ARCHIVE_FATAL);
+			add_entry(iso9660, child);
+		}
+	}
+	return (ARCHIVE_OK);
+}
+
+static int
 archive_read_format_iso9660_read_header(struct archive_read *a,
     struct archive_entry *entry)
 {
@@ -914,47 +963,10 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 
 	/* If this is a directory, read in all of the entries right now. */
 	if (archive_entry_filetype(entry) == AE_IFDIR) {
-		while (iso9660->entry_bytes_remaining > 0) {
-			const void *block;
-			const unsigned char *p;
-			ssize_t step = iso9660->logical_block_size;
-			if (step > iso9660->entry_bytes_remaining)
-				step = iso9660->entry_bytes_remaining;
-			block = __archive_read_ahead(a, step, NULL);
-			if (block == NULL) {
-				archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-	    "Failed to read full block when scanning ISO9660 directory list");
-				release_file(iso9660, file);
-				return (ARCHIVE_FATAL);
-			}
-			__archive_read_consume(a, step);
-			iso9660->current_position += step;
-			iso9660->entry_bytes_remaining -= step;
-			for (p = (const unsigned char *)block;
-			     *p != 0 && p < (const unsigned char *)block + step;
-			     p += *p) {
-				struct file_info *child;
-
-				/* N.B.: these special directory identifiers
-				 * are 8 bit "values" even on a
-				 * Joliet CD with UCS-2 (16bit) encoding.
-				 */
-
-				/* Skip '.' entry. */
-				if (*(p + DR_name_len_offset) == 1
-				    && *(p + DR_name_offset) == '\0')
-					continue;
-				/* Skip '..' entry. */
-				if (*(p + DR_name_len_offset) == 1
-				    && *(p + DR_name_offset) == '\001')
-					continue;
-				child = parse_file_info(a, file, p);
-				if (child == NULL) {
-					release_file(iso9660, file);
-					return (ARCHIVE_FATAL);
-				}
-				add_entry(iso9660, child);
-			}
+		r = read_children(a, file);
+		if (r != ARCHIVE_OK) {
+			release_file(iso9660, file);
+			return (ARCHIVE_FATAL);
 		}
 		/* Overwrite nlinks by proper link number which is
 		 * calculated from number of sub directories. */
