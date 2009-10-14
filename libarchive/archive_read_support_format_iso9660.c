@@ -828,8 +828,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 			release_file(iso9660, file);
 			vd = &(iso9660->joliet);
 			skipsize = LOGICAL_BLOCK_SIZE * vd->location;
-			skipsize -= LOGICAL_BLOCK_SIZE *
-			    iso9660->primary.location;
+			skipsize -= iso9660->current_position;
 			skipsize = __archive_read_skip(a, skipsize);
 			if (skipsize < 0)
 				return ((int)skipsize);
@@ -2051,7 +2050,6 @@ next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
     struct file_info **pfile)
 {
 	struct file_info *file;
-	uint64_t offset;
 
 	*pfile = file = next_cache_entry(iso9660);
 	if (file == NULL)
@@ -2065,16 +2063,15 @@ next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
 	if (file->size == 0)
 		file->offset = iso9660->current_position;
 
-	offset = file->offset;
-
 	/* Seek forward to the start of the entry. */
-	if (iso9660->current_position < offset) {
-		off_t step = offset - iso9660->current_position;
-		off_t bytes_read;
-		bytes_read = __archive_read_skip(a, step);
-		if (bytes_read < 0)
-			return (bytes_read);
-		iso9660->current_position = offset;
+	if (iso9660->current_position < file->offset) {
+		int64_t step;
+
+		step = file->offset - iso9660->current_position;
+		step = __archive_read_skip(a, step);
+		if (step < 0)
+			return ((int)step);
+		iso9660->current_position = file->offset;
 	}
 
 	/* We found body of file; handle it now. */
