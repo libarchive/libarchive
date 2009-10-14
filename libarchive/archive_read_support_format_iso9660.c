@@ -360,10 +360,10 @@ static int	next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
 static struct file_info *
 		parse_file_info(struct archive_read *a,
 		    struct file_info *parent, const unsigned char *isodirrec);
-static void	parse_rockridge(struct iso9660 *iso9660,
+static int	parse_rockridge(struct archive_read *a,
 		    struct file_info *file, const unsigned char *start,
 		    const unsigned char *end);
-static int	register_CE(struct iso9660 *iso9660, int32_t location,
+static int	register_CE(struct archive_read *a, int32_t location,
 		    struct file_info *file);
 static int	read_CE(struct archive_read *a, struct iso9660 *iso9660);
 static void	parse_rockridge_NM1(struct file_info *,
@@ -1464,10 +1464,18 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 			}
 		}
 		if (iso9660->seenSUSP) {
+			int r;
+
 			file->name_continues = 0;
 			file->symlink_continues = 0;
 			rr_start += iso9660->suspOffset;
-			parse_rockridge(iso9660, file, rr_start, rr_end);
+			r = parse_rockridge(a, file, rr_start, rr_end);
+			if(r != ARCHIVE_OK) {
+				if (parent != NULL)
+					parent->refcount--;
+				free(file);
+				return (NULL);
+			}
 		} else
 			/* If there isn't SUSP, disable parsing
 			 * rock ridge extensions. */
@@ -1553,10 +1561,13 @@ add_entry(struct iso9660 *iso9660, struct file_info *file)
 	iso9660->pending_files[0] = file;
 }
 
-static void
-parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
+static int
+parse_rockridge(struct archive_read *a, struct file_info *file,
     const unsigned char *p, const unsigned char *end)
 {
+	struct iso9660 *iso9660;
+
+	iso9660 = (struct iso9660 *)(a->format->data);
 
 	while (p + 4 < end  /* Enough space for another entry. */
 	    && p[0] >= 'A' && p[0] <= 'Z' /* Sanity-check 1st char of name. */
@@ -1588,7 +1599,9 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
 					    archive_le32dec(data+8);
 					file->ce_size =
 					    archive_le32dec(data+16);
-					register_CE(iso9660, location, file);
+					if (register_CE(a, location, file)
+					    != ARCHIVE_OK)
+						return (ARCHIVE_FATAL);
 				}
 				break;
 			}
@@ -1683,7 +1696,7 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
 				 */
 				iso9660->seenSUSP = 0;
 				iso9660->seenRockridge = 0;
-				return;
+				return (ARCHIVE_OK);
 			}
 		case 'T':
 			if (p[0] == 'T' && p[1] == 'F') {
@@ -1713,22 +1726,25 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
 
 		p += p[2];
 	}
+	return (ARCHIVE_OK);
 }
 
 static int
-register_CE(struct iso9660 *iso9660, int32_t location,
+register_CE(struct archive_read *a, int32_t location,
     struct file_info *file)
 {
+	struct iso9660 *iso9660;
 	struct read_ce_req *p;
 	uint64_t offset;
 	int i;
 
+	iso9660 = (struct iso9660 *)(a->format->data);
 	offset = ((uint64_t)location) * (uint64_t)iso9660->logical_block_size;
 	if (((file->mode & AE_IFMT) == AE_IFREG &&
 	    offset >= file->offset) ||
 	    offset < iso9660->current_position) {
-		/*archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Invalid location in RRIP \"CE\"");*/
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Invalid location in SUSP \"CE\" extension");
 		return (ARCHIVE_FATAL);
 	}
 	if (iso9660->read_ce_req.cnt + 1 > iso9660->read_ce_req.allocated) {
@@ -1773,6 +1789,7 @@ read_CE(struct archive_read *a, struct iso9660 *iso9660)
 	struct read_ce_req *ce;
 	const unsigned char *b, *p, *end;
 	size_t step;
+	int r;
 
 	/* Read RRIP "CE" System Use Entry. */
 	while (iso9660->read_ce_req.cnt &&
@@ -1791,7 +1808,9 @@ read_CE(struct archive_read *a, struct iso9660 *iso9660)
 		do {
 			p = b + ce->file->ce_offset;
 			end = p + ce->file->ce_size;
-			parse_rockridge(iso9660, ce->file, p, end);
+			r = parse_rockridge(a, ce->file, p, end);
+			if (r != ARCHIVE_OK)
+				return (ARCHIVE_FATAL);
 			memmove(ce, ce+1, sizeof(*ce) *
 			    (iso9660->read_ce_req.cnt -1));
 			iso9660->read_ce_req.cnt--;
