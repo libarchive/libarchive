@@ -1723,7 +1723,7 @@ register_CE(struct iso9660 *iso9660, int32_t location,
 	uint64_t offset;
 	int i;
 
-	offset = location * iso9660->logical_block_size;
+	offset = ((uint64_t)location) * (uint64_t)iso9660->logical_block_size;
 	if (((file->mode & AE_IFMT) == AE_IFREG &&
 	    offset >= file->offset) ||
 	    offset < iso9660->current_position) {
