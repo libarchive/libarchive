@@ -655,6 +655,9 @@
 /* Define to `unsigned long' if <sys/types.h> does not define. */
 #cmakedefine id_t ${id_t}
 
+/* Define to `int' if <sys/types.h> doesn't define. */
+#cmakedefine int32_t ${int32_t}
+
 /* Define to the type of a signed integer type of width exactly 64 bits if
    such a type exists and the standard includes do not define it. */
 #cmakedefine int64_t ${int64_t}
