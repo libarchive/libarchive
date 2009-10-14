@@ -292,7 +292,7 @@ struct iso9660 {
 	unsigned char	suspOffset;
 	struct {
 		struct read_ce_req {
-			int64_t		 location;/* Location of CE */
+			uint64_t	 offset;/* Offset of CE on disk. */
 			struct file_info *file;
 		}		*reqs;
 		int		 cnt;
@@ -1750,18 +1750,18 @@ register_CE(struct iso9660 *iso9660, int32_t location,
 		iso9660->read_ce_req.reqs = p;
 	}
 	for (i = 0; i < iso9660->read_ce_req.cnt; i++) {
-		if (iso9660->read_ce_req.reqs[i].location > location) {
+		if (iso9660->read_ce_req.reqs[i].offset > offset) {
 			p = &iso9660->read_ce_req.reqs[i];
 			memmove(p+1, p,
 			    (iso9660->read_ce_req.cnt -i) * sizeof(*p));
-			p->location = offset;
+			p->offset = offset;
 			p->file = file;
 			iso9660->read_ce_req.cnt++;
 			return (ARCHIVE_OK);
 		}
 	}
 	p = &iso9660->read_ce_req.reqs[iso9660->read_ce_req.cnt];
-	p->location = offset;
+	p->offset = offset;
 	p->file = file;
 	iso9660->read_ce_req.cnt++;
 	return (ARCHIVE_OK);
@@ -2022,7 +2022,7 @@ next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
 
 	/* Read RRIP "CE" System Use Entry. */
 	while (iso9660->read_ce_req.cnt &&
-	    iso9660->read_ce_req.reqs[0].location ==
+	    iso9660->read_ce_req.reqs[0].offset ==
 		iso9660->current_position) {
 		struct read_ce_req *ce;
 		const unsigned char *b, *p, *end;
@@ -2046,7 +2046,7 @@ next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
 			    (iso9660->read_ce_req.cnt -1));
 			iso9660->read_ce_req.cnt--;
 		} while (iso9660->read_ce_req.cnt &&
-		    ce->location == iso9660->current_position);
+		    ce->offset == iso9660->current_position);
 		__archive_read_consume(a, step);
 		iso9660->current_position += step;
 	}
