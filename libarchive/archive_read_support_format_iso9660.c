@@ -1304,14 +1304,14 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	const unsigned char *rr_start, *rr_end;
 	const unsigned char *p;
 	size_t dr_len;
-	int32_t offset;
+	int32_t location;
 	int flags;
 
 	iso9660 = (struct iso9660 *)(a->format->data);
 
 	dr_len = (size_t)isodirrec[DR_length_offset];
 	name_len = (size_t)isodirrec[DR_name_len_offset];
-	offset = archive_le32dec(isodirrec + DR_extent_offset);
+	location = archive_le32dec(isodirrec + DR_extent_offset);
 	/* Sanity check that dr_len needs at least 34. */
 	if (dr_len < 34) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -1324,12 +1324,13 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 		    "Invalid length of file identifier");
 		return (NULL);
 	}
-	/* Sanity check that offset doesn't exceed volume block.
-	 * Don't check lower limit of offset; it's possibillty the offset
-	 * has negative value when file type is symbolic link or
-	 * file size is zero. As far as I know latest mkisofs do that.
+	/* Sanity check that location doesn't exceed volume block.
+	 * Don't check lower limit of location; it's possibility
+	 * the location has negative value when file type is symbolic
+	 * link or file size is zero. As far as I know latest mkisofs
+	 * do that.
 	 */
-	if (offset >= iso9660->volume_block) {
+	if (location >= iso9660->volume_block) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Invalid location of extent of file");
 		return (NULL);
@@ -1346,7 +1347,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	file->parent = parent;
 	if (parent != NULL)
 		parent->refcount++;
-	file->offset = iso9660->logical_block_size * (uint64_t)offset;
+	file->offset = iso9660->logical_block_size * (uint64_t)location;
 	file->size = toi(isodirrec + DR_size_offset, DR_size_size);
 	file->mtime = isodate7(isodirrec + DR_date_offset);
 	file->ctime = file->atime = file->mtime;
@@ -1355,7 +1356,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	/* Rockridge extensions (if any) follow name.  Compute this
 	 * before fidgeting the name_len below. */
 	rr_start = p + name_len + (name_len & 1 ? 0 : 1);
-	rr_end = isodirrec + isodirrec[DR_length_offset];
+	rr_end = isodirrec + dr_len;
 
 	if (iso9660->seenJoliet) {
 		/* Joliet names are max 64 chars (128 bytes) according to spec,
@@ -1414,14 +1415,12 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	}
 
 	flags = isodirrec[DR_flags_offset];
-	if (flags & 0x02) {
+	if (flags & 0x02)
 		file->mode = AE_IFDIR | 0700;
-		if (parent != NULL)
-			parent->subdirs++;
-	} else
+	else
 		file->mode = AE_IFREG | 0400;
 	/*
-	 * Use offset(location of ISO image) for file number.
+	 * Use location for file number.
 	 * File number is treated as inode number to find out harlink
 	 * target. If Rockridge extensions is being used, file number
 	 * will be overwritten by FILE SERIAL NUMBER of RRIP "PX"
@@ -1430,11 +1429,11 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	 * in ISO images.
 	 */
 	if (file->size == 0)
-		/* If file->size is zero, its offset points wrong place.
+		/* If file->size is zero, its location points wrong place.
 		 * Dot not use it for file number. */
 		file->number = -1;
 	else
-		file->number = (int64_t)(uint32_t)offset;
+		file->number = (int64_t)(uint32_t)location;
 
 	/* Rockridge extensions overwrite information from above. */
 	if (iso9660->opt_support_rockridge) {
@@ -1474,6 +1473,10 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 			 * rock ridge extensions. */
 			iso9660->opt_support_rockridge = 0;
 	}
+
+	/* Tell file's parent how many children that parent has. */
+	if (parent != NULL && (flags & 0x02))
+		parent->subdirs++;
 
 #if DEBUG
 	/* DEBUGGING: Warn about attributes I don't yet fully support. */
@@ -1554,7 +1557,6 @@ static void
 parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
     const unsigned char *p, const unsigned char *end)
 {
-	(void)iso9660; /* UNUSED */
 
 	while (p + 4 < end  /* Enough space for another entry. */
 	    && p[0] >= 'A' && p[0] <= 'Z' /* Sanity-check 1st char of name. */
@@ -1704,16 +1706,6 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
 		default:
 			/* The FALLTHROUGHs above leave us here for
 			 * any unsupported extension. */
-#if DEBUG
-			{
-				const unsigned char *t;
-				fprintf(stderr, "\nUnsupported RRIP extension for %s\n", file->name.s);
-				fprintf(stderr, " %c%c(%d):", p[0], p[1], data_length);
-				for (t = data; t < data + data_length && t < data + 16; t++)
-					fprintf(stderr, " %02x", *t);
-				fprintf(stderr, "\n");
-			}
-#endif
 			break;
 		}
 
