@@ -524,7 +524,7 @@ isBootRecord(struct iso9660 *iso9660, const unsigned char *h)
 static int
 isVolumePartition(struct iso9660 *iso9660, const unsigned char *h)
 {
-	uint32_t location;
+	int32_t location;
 
 	/* Type of the Volume Partition Descriptor must be 3. */
 	if (h[0] != 3)
@@ -1728,7 +1728,7 @@ register_CE(struct iso9660 *iso9660, int32_t location,
     struct file_info *file)
 {
 	struct read_ce_req *p;
-	int64_t offset;
+	uint64_t offset;
 	int i;
 
 	offset = location * iso9660->logical_block_size;
