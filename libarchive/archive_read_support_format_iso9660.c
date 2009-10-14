@@ -1470,7 +1470,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 			file->symlink_continues = 0;
 			rr_start += iso9660->suspOffset;
 			r = parse_rockridge(a, file, rr_start, rr_end);
-			if(r != ARCHIVE_OK) {
+			if (r != ARCHIVE_OK) {
 				if (parent != NULL)
 					parent->refcount--;
 				free(file);
