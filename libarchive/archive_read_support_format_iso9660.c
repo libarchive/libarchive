@@ -365,6 +365,7 @@ static void	parse_rockridge(struct iso9660 *iso9660,
 		    const unsigned char *end);
 static int	register_CE(struct iso9660 *iso9660, int32_t location,
 		    struct file_info *file);
+static int	read_CE(struct archive_read *a, struct iso9660 *iso9660);
 static void	parse_rockridge_NM1(struct file_info *,
 		    const unsigned char *, int);
 static void	parse_rockridge_SL1(struct file_info *,
@@ -1767,6 +1768,42 @@ register_CE(struct iso9660 *iso9660, int32_t location,
 	return (ARCHIVE_OK);
 }
 
+static int
+read_CE(struct archive_read *a, struct iso9660 *iso9660)
+{
+	struct read_ce_req *ce;
+	const unsigned char *b, *p, *end;
+	size_t step;
+
+	/* Read RRIP "CE" System Use Entry. */
+	while (iso9660->read_ce_req.cnt &&
+	    iso9660->read_ce_req.reqs[0].offset ==
+	    iso9660->current_position) {
+		step = iso9660->logical_block_size;
+		b = __archive_read_ahead(a, step, NULL);
+		if (b == NULL) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_MISC,
+			    "Failed to read full block when scanning "
+			    "ISO9660 directory list");
+			return (ARCHIVE_FATAL);
+		}
+		ce = iso9660->read_ce_req.reqs;
+		do {
+			p = b + ce->file->ce_offset;
+			end = p + ce->file->ce_size;
+			parse_rockridge(iso9660, ce->file, p, end);
+			memmove(ce, ce+1, sizeof(*ce) *
+			    (iso9660->read_ce_req.cnt -1));
+			iso9660->read_ce_req.cnt--;
+		} while (iso9660->read_ce_req.cnt &&
+		    ce->offset == iso9660->current_position);
+		__archive_read_consume(a, step);
+		iso9660->current_position += step;
+	}
+	return (ARCHIVE_OK);
+}
+
 static void
 parse_rockridge_NM1(struct file_info *file,
 		    const unsigned char *data, int data_length)
@@ -2020,36 +2057,9 @@ next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
 	if (file == NULL)
 		return (ARCHIVE_EOF);
 
-	/* Read RRIP "CE" System Use Entry. */
-	while (iso9660->read_ce_req.cnt &&
-	    iso9660->read_ce_req.reqs[0].offset ==
-		iso9660->current_position) {
-		struct read_ce_req *ce;
-		const unsigned char *b, *p, *end;
-		size_t step;
-
-		step = iso9660->logical_block_size;
-		b = __archive_read_ahead(a, step, NULL);
-		if (b == NULL) {
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_MISC,
-			    "Failed to read full block when scanning "
-			    "ISO9660 directory list");
-			return (ARCHIVE_FATAL);
-		}
-		ce = iso9660->read_ce_req.reqs;
-		do {
-			p = b + ce->file->ce_offset;
-			end = p + ce->file->ce_size;
-			parse_rockridge(iso9660, ce->file, p, end);
-			memmove(ce, ce+1, sizeof(*ce) *
-			    (iso9660->read_ce_req.cnt -1));
-			iso9660->read_ce_req.cnt--;
-		} while (iso9660->read_ce_req.cnt &&
-		    ce->offset == iso9660->current_position);
-		__archive_read_consume(a, step);
-		iso9660->current_position += step;
-	}
+	/* Read data which recorded by RRIP "CE" extension. */
+	if (read_CE(a, iso9660) != ARCHIVE_OK)
+		return (ARCHIVE_FATAL);
 
 	/* Don't waste time seeking for zero-length bodies. */
 	if (file->size == 0)
