@@ -406,7 +406,7 @@ static void strdump(const char *e, const char *p)
 {
 	logprintf("      %s = ", e);
 	if (p == NULL) {
-		logprintf("(null)");
+		logprintf("(null)\n");
 		return;
 	}
 	logprintf("\"");
@@ -436,7 +436,7 @@ assertion_equal_string(const char *file, int line,
     void *extra)
 {
 	assertion_count(file, line);
-	if (v1 == v2 || strcmp(v1, v2) == 0)
+	if (v1 == v2 || (v1 != NULL && v2 != NULL && strcmp(v1, v2) == 0))
 		return (1);
 	failure_start(file, line, "%s != %s", e1, e2);
 	strdump(e1, v1);
@@ -496,6 +496,10 @@ hexdump(const char *p, const char *ref, size_t l, size_t offset)
 	size_t i, j;
 	char sep;
 
+	if (p == NULL) {
+		logprintf("(null)\n");
+		return;
+	}
 	for(i=0; i < l; i+=16) {
 		logprintf("%04x", (unsigned)(i + offset));
 		sep = ' ';
@@ -535,7 +539,7 @@ assertion_equal_mem(const char *file, int line,
 	size_t offset;
 
 	assertion_count(file, line);
-	if (v1 == v2 || memcmp(v1, v2, l) == 0)
+	if (v1 == v2 || (v1 != NULL && v2 != NULL && memcmp(v1, v2, l) == 0))
 		return (1);
 
 	failure_start(file, line, "%s != %s", e1, e2);
