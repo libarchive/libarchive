@@ -279,6 +279,11 @@ struct file_info {
 	uint64_t	 pz_uncompressed_size;
 };
 
+struct heap_queue {
+	struct file_info **files;
+	int		 allocated;
+	int		 used;
+};
 
 struct iso9660 {
 	int	magic;
@@ -294,14 +299,8 @@ struct iso9660 {
 
 	unsigned char	suspOffset;
 	struct file_info *rr_moved;
-	struct {
-		struct file_info	*first;
-		struct file_info	**last;
-	} re_dirs;
-	struct {
-		struct file_info	*first;
-		struct file_info	**last;
-	} cl_files;
+	struct heap_queue		 re_dirs;
+	struct heap_queue		 cl_files;
 	struct {
 		struct read_ce_req {
 			uint64_t	 offset;/* Offset of CE on disk. */
@@ -315,10 +314,7 @@ struct iso9660 {
 	uint64_t	previous_size;
 	struct archive_string previous_pathname;
 
-	/* TODO: Make this a heap for fast inserts and deletions. */
-	struct file_info **pending_files;
-	int	pending_files_allocated;
-	int	pending_files_used;
+	struct heap_queue		 pending_files;
 	struct cache_files {
 		struct file_info	**files;
 		int			 allocated;
@@ -346,7 +342,6 @@ struct iso9660 {
 	struct zisofs	 entry_zisofs;
 };
 
-static void	add_entry(struct iso9660 *iso9660, struct file_info *file);
 static int	archive_read_format_iso9660_bid(struct archive_read *);
 static int	archive_read_format_iso9660_options(struct archive_read *,
 		    const char *, const char *);
@@ -394,6 +389,12 @@ static void	parse_rockridge_ZF1(struct file_info *,
 		    const unsigned char *, int);
 static void	release_file(struct iso9660 *, struct file_info *);
 static unsigned	toi(const void *p, int n);
+static void	heap_add_entry(struct iso9660 *iso9660,
+		    struct heap_queue *heap, struct file_info *file);
+static struct file_info *heap_get_entry(struct heap_queue *heap);
+
+#define add_entry(iso9660, file)	\
+	heap_add_entry(iso9660, &((iso9660)->pending_files), file)
 
 int
 archive_read_support_format_iso9660(struct archive *_a)
@@ -411,10 +412,6 @@ archive_read_support_format_iso9660(struct archive *_a)
 	iso9660->magic = ISO9660_MAGIC;
 	iso9660->pending_dirs.first = NULL;
 	iso9660->pending_dirs.last = &(iso9660->pending_dirs.first);
-	iso9660->re_dirs.first = NULL;
-	iso9660->re_dirs.last = &(iso9660->re_dirs.first);
-	iso9660->cl_files.first = NULL;
-	iso9660->cl_files.last = &(iso9660->cl_files.first);
 	/* Enable to support Joliet extensions by default.	*/
 	iso9660->opt_support_joliet = 1;
 	/* Enable to support Rock Ridge extensions by default.	*/
@@ -801,11 +798,10 @@ read_children(struct archive_read *a, struct file_info *parent)
 			child = parse_file_info(a, parent, p);
 			if (child == NULL)
 				return (ARCHIVE_FATAL);
-			if (child->cl_offset) {
-				child->next = NULL;
-				*iso9660->cl_files.last = child;
-				iso9660->cl_files.last = &(child->next);
-			} else
+			if (child->cl_offset)
+				heap_add_entry(iso9660,
+				    &(iso9660->cl_files), child);
+			else
 				add_entry(iso9660, child);
 		}
 	}
@@ -820,26 +816,29 @@ read_children(struct archive_read *a, struct file_info *parent)
 static int
 relocate_dir(struct iso9660 *iso9660, struct file_info *file)
 {
-	struct file_info **cl;
-	struct file_info *tmp;
+	struct file_info *re;
 
-	for (cl = &iso9660->re_dirs.first; *cl != NULL;
-	    cl = &((*cl)->next)) {
-		if ((*cl)->offset == file->cl_offset) {
-			tmp = *cl;
-			(*cl)->parent->refcount--;
-			file->parent->refcount++;
-			file->parent->subdirs++;
-			(*cl)->parent = file->parent;
-			*cl = (*cl)->next;
-			iso9660->rr_moved->subdirs--;
-			tmp->next = NULL;
-			tmp->refcount++;
-			*iso9660->pending_dirs.last = tmp;
-			iso9660->pending_dirs.last = &(tmp->next);
-			return (1);
-		}
-	}
+	re = heap_get_entry(&(iso9660->re_dirs));
+	while (re != NULL && re->offset < file->cl_offset)
+		/* This case is wrong pattern. */
+		re = heap_get_entry(&(iso9660->re_dirs));
+	if (re == NULL)
+		/* This case is wrong pattern. */
+		return (0);
+	if (re->offset == file->cl_offset) {
+		re->parent->refcount--;
+		re->parent->subdirs--;
+		re->parent = file->parent;
+		re->parent->refcount++;
+		re->parent->subdirs++;
+		re->next = NULL;
+		re->refcount++;
+		*iso9660->pending_dirs.last = re;
+		iso9660->pending_dirs.last = &(re->next);
+		return (1);
+	} else
+		/* This case is wrong pattern. */
+		heap_add_entry(iso9660, &(iso9660->re_dirs), re);
 	return (0);
 }
 
@@ -865,11 +864,10 @@ read_entries(struct archive_read *a)
 		    (strcmp(file->name.s, "rr_moved") == 0 ||
 		     strcmp(file->name.s, ".rr_moved") == 0)) {
 			iso9660->rr_moved = file;
-		} else if (file->re) {
-			file->next = NULL;
-			*iso9660->re_dirs.last = file;
-			iso9660->re_dirs.last = &(file->next);
-		} else {
+		} else if (file->re)
+			heap_add_entry(iso9660, &(iso9660->re_dirs),
+			    file);
+		else {
 			file->next = NULL;
 			file->refcount++;
 			*iso9660->pending_dirs.last = file;
@@ -880,15 +878,10 @@ read_entries(struct archive_read *a)
 		add_entry(iso9660, file);
 
 	if (iso9660->rr_moved != NULL) {
-		struct file_info *next;
-
 		/*
 		 * Relocate directory which rr_moved has.
 		 */
-		for (file = iso9660->cl_files.first; file != NULL;
-		    file = next) {
-			next = file->next;
-
+		while ((file = heap_get_entry(&(iso9660->cl_files))) != NULL) {
 			relocate_dir(iso9660, file);
 			release_file(iso9660, file);
 		}
@@ -1425,8 +1418,12 @@ archive_read_format_iso9660_cleanup(struct archive_read *a)
 	free(iso9660->read_ce_req.reqs);
 	archive_string_free(&iso9660->pathname);
 	archive_string_free(&iso9660->previous_pathname);
-	if (iso9660->pending_files)
-		free(iso9660->pending_files);
+	if (iso9660->pending_files.files)
+		free(iso9660->pending_files.files);
+	if (iso9660->re_dirs.files)
+		free(iso9660->re_dirs.files);
+	if (iso9660->cl_files.files)
+		free(iso9660->cl_files.files);
 #ifdef HAVE_ZLIB_H
 	free(iso9660->entry_zisofs.uncompressed_buffer);
 	free(iso9660->entry_zisofs.block_pointers);
@@ -1664,55 +1661,6 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	}
 #endif
 	return (file);
-}
-
-static void
-add_entry(struct iso9660 *iso9660, struct file_info *file)
-{
-	uint64_t file_offset, parent_offset;
-	int hole, parent;
-
-	/* Expand our pending files list as necessary. */
-	if (iso9660->pending_files_used >= iso9660->pending_files_allocated) {
-		struct file_info **new_pending_files;
-		int new_size = iso9660->pending_files_allocated * 2;
-
-		if (iso9660->pending_files_allocated < 1024)
-			new_size = 1024;
-		/* Overflow might keep us from growing the list. */
-		if (new_size <= iso9660->pending_files_allocated)
-			__archive_errx(1, "Out of memory");
-		new_pending_files = (struct file_info **)malloc(new_size * sizeof(new_pending_files[0]));
-		if (new_pending_files == NULL)
-			__archive_errx(1, "Out of memory");
-		memcpy(new_pending_files, iso9660->pending_files,
-		    iso9660->pending_files_allocated * sizeof(new_pending_files[0]));
-		if (iso9660->pending_files != NULL)
-			free(iso9660->pending_files);
-		iso9660->pending_files = new_pending_files;
-		iso9660->pending_files_allocated = new_size;
-	}
-
-	file_offset = file->offset + file->size;
-	file->refcount++;
-
-	/*
-	 * Start with hole at end, walk it up tree to find insertion point.
-	 */
-	hole = iso9660->pending_files_used++;
-	while (hole > 0) {
-		parent = (hole - 1)/2;
-		parent_offset = iso9660->pending_files[parent]->offset
-		    + iso9660->pending_files[parent]->size;
-		if (file_offset >= parent_offset) {
-			iso9660->pending_files[hole] = file;
-			return;
-		}
-		// Move parent into hole <==> move hole up tree.
-		iso9660->pending_files[hole] = iso9660->pending_files[parent];
-		hole = parent;
-	}
-	iso9660->pending_files[0] = file;
 }
 
 static int
@@ -2280,8 +2228,8 @@ next_cache_entry(struct iso9660 *iso9660)
 	/* Collect files which has the same file serial number. */
 	cf->index = cf->count = 0;
 	while (file != NULL && file->number != -1 &&
-	    iso9660->pending_files_used > 0 &&
-	    file->number == iso9660->pending_files[0]->number) {
+	    iso9660->pending_files.used > 0 &&
+	    file->number == iso9660->pending_files.files[0]->number) {
 		if (cf->count + 1 >= cf->allocated) {
 			struct file_info **pp;
 			int size;
@@ -2319,9 +2267,7 @@ next_cache_entry(struct iso9660 *iso9660)
 static struct file_info *
 next_entry(struct iso9660 *iso9660)
 {
-	uint64_t a_offset, b_offset, c_offset;
-	int a, b, c;
-	struct file_info *r, *tmp;
+	struct file_info *r;
 
 	if (iso9660->read_pending_dirs) {
 		
@@ -2334,37 +2280,96 @@ next_entry(struct iso9660 *iso9660)
 			iso9660->read_pending_dirs = 0;
 	}
 
-	if (iso9660->pending_files_used < 1)
+	return (heap_get_entry(&(iso9660->pending_files)));
+}
+
+static void
+heap_add_entry(struct iso9660 *iso9660, struct heap_queue *heap,
+    struct file_info *file)
+{
+	uint64_t file_offset, parent_offset;
+	int hole, parent;
+
+	/* Expand our pending files list as necessary. */
+	if (heap->used >= heap->allocated) {
+		struct file_info **new_pending_files;
+		int new_size = heap->allocated * 2;
+
+		if (heap->allocated < 1024)
+			new_size = 1024;
+		/* Overflow might keep us from growing the list. */
+		if (new_size <= heap->allocated)
+			__archive_errx(1, "Out of memory");
+		new_pending_files = (struct file_info **)
+		    malloc(new_size * sizeof(new_pending_files[0]));
+		if (new_pending_files == NULL)
+			__archive_errx(1, "Out of memory");
+		memcpy(new_pending_files, heap->files,
+		    heap->allocated * sizeof(new_pending_files[0]));
+		if (heap->files != NULL)
+			free(heap->files);
+		heap->files = new_pending_files;
+		heap->allocated = new_size;
+	}
+
+	file_offset = file->offset + file->size;
+	file->refcount++;
+
+	/*
+	 * Start with hole at end, walk it up tree to find insertion point.
+	 */
+	hole = heap->used++;
+	while (hole > 0) {
+		parent = (hole - 1)/2;
+		parent_offset = heap->files[parent]->offset
+		    + heap->files[parent]->size;
+		if (file_offset >= parent_offset) {
+			heap->files[hole] = file;
+			return;
+		}
+		// Move parent into hole <==> move hole up tree.
+		heap->files[hole] = heap->files[parent];
+		hole = parent;
+	}
+	heap->files[0] = file;
+}
+
+static struct file_info *
+heap_get_entry(struct heap_queue *heap)
+{
+	uint64_t a_offset, b_offset, c_offset;
+	int a, b, c;
+	struct file_info *r, *tmp;
+
+	if (heap->used < 1)
 		return (NULL);
 
 	/*
 	 * The first file in the list is the earliest; we'll return this.
 	 */
-	r = iso9660->pending_files[0];
+	r = heap->files[0];
 	r->refcount--;
 
 	/*
 	 * Move the last item in the heap to the root of the tree
 	 */
-	iso9660->pending_files[0]
-	    = iso9660->pending_files[--iso9660->pending_files_used];
+	heap->files[0] = heap->files[--(heap->used)];
 
 	/*
 	 * Rebalance the heap.
 	 */
 	a = 0; // Starting element and its offset
-	a_offset = iso9660->pending_files[a]->offset
-	    + iso9660->pending_files[a]->size;
+	a_offset = heap->files[a]->offset + heap->files[a]->size;
 	for (;;) {
 		b = a + a + 1; // First child
-		if (b >= iso9660->pending_files_used)
+		if (b >= heap->used)
 			return (r);
-		b_offset = iso9660->pending_files[b]->offset
-		    + iso9660->pending_files[b]->size;
+		b_offset = heap->files[b]->offset
+		    + heap->files[b]->size;
 		c = b + 1; // Use second child if it is smaller.
-		if (c < iso9660->pending_files_used) {
-			c_offset = iso9660->pending_files[c]->offset
-			    + iso9660->pending_files[c]->size;
+		if (c < heap->used) {
+			c_offset = heap->files[c]->offset
+			    + heap->files[c]->size;
 			if (c_offset < b_offset) {
 				b = c;
 				b_offset = c_offset;
@@ -2372,9 +2377,9 @@ next_entry(struct iso9660 *iso9660)
 		}
 		if (a_offset <= b_offset)
 			return (r);
-		tmp = iso9660->pending_files[a];
-		iso9660->pending_files[a] = iso9660->pending_files[b];
-		iso9660->pending_files[b] = tmp;
+		tmp = heap->files[a];
+		heap->files[a] = heap->files[b];
+		heap->files[b] = tmp;
 		a = b;
 	}
 }
