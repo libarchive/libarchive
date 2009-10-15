@@ -263,6 +263,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_format_isorr_bz2.c		\
 	libarchive/test/test_read_format_isorr_ce.c		\
 	libarchive/test/test_read_format_isorr_new_bz2.c	\
+	libarchive/test/test_read_format_isorr_rr_moved.c	\
 	libarchive/test/test_read_format_isozisofs_bz2.c	\
 	libarchive/test/test_read_format_mtree.c		\
 	libarchive/test/test_read_format_pax_bz2.c		\
@@ -347,6 +348,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_isorr_bz2.iso.bz2.uu		\
 	libarchive/test/test_read_format_isorr_ce.iso.bz2.uu		\
 	libarchive/test/test_read_format_isorr_new_bz2.iso.bz2.uu	\
+	libarchive/test/test_read_format_isorr_rr_moved.iso.bz2.uu	\
 	libarchive/test/test_read_format_isozisofs_bz2.iso.bz2.uu	\
 	libarchive/test/test_read_format_raw.data.Z.uu			\
 	libarchive/test/test_read_format_raw.data.uu			\

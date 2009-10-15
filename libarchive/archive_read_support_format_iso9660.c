@@ -250,12 +250,15 @@ struct zisofs {
 /* In-memory storage for a directory record. */
 struct file_info {
 	struct file_info	*parent;
+	struct file_info	*next;
 	int		 refcount;
 	int		 subdirs;
 	uint64_t	 offset;	/* Offset on disk.		*/
 	uint64_t	 size;		/* File size in bytes.		*/
 	uint32_t	 ce_offset;	/* Offset of CE.		*/
 	uint32_t	 ce_size;	/* Size of CE.			*/
+	char		 re;		/* Having RRIP "RE" extension.	*/
+	uint64_t	 cl_offset;	/* Having RRIP "CL" extension.	*/
 	time_t		 birthtime;	/* File created time.		*/
 	time_t		 mtime;		/* File last modified time.	*/
 	time_t		 atime;		/* File last accessed time.	*/
@@ -290,6 +293,15 @@ struct iso9660 {
 	char	seenJoliet;
 
 	unsigned char	suspOffset;
+	struct file_info *rr_moved;
+	struct {
+		struct file_info	*first;
+		struct file_info	**last;
+	} re_dirs;
+	struct {
+		struct file_info	*first;
+		struct file_info	**last;
+	} cl_files;
 	struct {
 		struct read_ce_req {
 			uint64_t	 offset;/* Offset of CE on disk. */
@@ -298,6 +310,7 @@ struct iso9660 {
 		int		 cnt;
 		int		 allocated;
 	}	read_ce_req;
+
 	int64_t		previous_number;
 	uint64_t	previous_size;
 	struct archive_string previous_pathname;
@@ -312,6 +325,11 @@ struct iso9660 {
 		int			 count;
 		int			 index;
 	}	cache_files;
+	struct {
+		struct file_info	*first;
+		struct file_info	**last;
+	} pending_dirs;
+	int	read_pending_dirs;
 
 	uint64_t current_position;
 	ssize_t	logical_block_size;
@@ -391,6 +409,12 @@ archive_read_support_format_iso9660(struct archive *_a)
 	}
 	memset(iso9660, 0, sizeof(*iso9660));
 	iso9660->magic = ISO9660_MAGIC;
+	iso9660->pending_dirs.first = NULL;
+	iso9660->pending_dirs.last = &(iso9660->pending_dirs.first);
+	iso9660->re_dirs.first = NULL;
+	iso9660->re_dirs.last = &(iso9660->re_dirs.first);
+	iso9660->cl_files.first = NULL;
+	iso9660->cl_files.last = &(iso9660->cl_files.first);
 	/* Enable to support Joliet extensions by default.	*/
 	iso9660->opt_support_joliet = 1;
 	/* Enable to support Rock Ridge extensions by default.	*/
@@ -719,6 +743,29 @@ read_children(struct archive_read *a, struct file_info *parent)
 	size_t step;
 
 	iso9660 = (struct iso9660 *)(a->format->data);
+	if (iso9660->current_position > parent->offset) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Ignoring out-of-order directory (%s) %jd > %jd",
+		    parent->name.s,
+		    iso9660->current_position,
+		    parent->offset);
+		return (ARCHIVE_WARN);
+	}
+	if (parent->offset + parent->size > iso9660->volume_size) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Directory is beyond end-of-media: %s",
+		    parent->name);
+		return (ARCHIVE_WARN);
+	}
+	if (iso9660->current_position < parent->offset) {
+		int64_t skipsize;
+
+		skipsize = parent->offset - iso9660->current_position;
+		skipsize = __archive_read_skip(a, skipsize);
+		if (skipsize < 0)
+			return ((int)skipsize);
+		iso9660->current_position = parent->offset;
+	}
 
 	step = ((parent->size + iso9660->logical_block_size -1) /
 	    iso9660->logical_block_size) * iso9660->logical_block_size;
@@ -754,9 +801,110 @@ read_children(struct archive_read *a, struct file_info *parent)
 			child = parse_file_info(a, parent, p);
 			if (child == NULL)
 				return (ARCHIVE_FATAL);
-			add_entry(iso9660, child);
+			if (child->cl_offset) {
+				child->next = NULL;
+				*iso9660->cl_files.last = child;
+				iso9660->cl_files.last = &(child->next);
+			} else
+				add_entry(iso9660, child);
 		}
 	}
+
+	/* Read data which recorded by RRIP "CE" extension. */
+	if (read_CE(a, iso9660) != ARCHIVE_OK)
+		return (ARCHIVE_FATAL);
+
+	return (ARCHIVE_OK);
+}
+
+static int
+relocate_dir(struct iso9660 *iso9660, struct file_info *file)
+{
+	struct file_info **cl;
+	struct file_info *tmp;
+
+	for (cl = &iso9660->re_dirs.first; *cl != NULL;
+	    cl = &((*cl)->next)) {
+		if ((*cl)->offset == file->cl_offset) {
+			tmp = *cl;
+			(*cl)->parent->refcount--;
+			file->parent->refcount++;
+			file->parent->subdirs++;
+			(*cl)->parent = file->parent;
+			*cl = (*cl)->next;
+			iso9660->rr_moved->subdirs--;
+			tmp->next = NULL;
+			tmp->refcount++;
+			*iso9660->pending_dirs.last = tmp;
+			iso9660->pending_dirs.last = &(tmp->next);
+			return (1);
+		}
+	}
+	return (0);
+}
+
+static int
+read_entries(struct archive_read *a)
+{
+	struct iso9660 *iso9660;
+	struct file_info *file;
+	int r;
+
+	iso9660 = (struct iso9660 *)(a->format->data);
+
+	while ((file = next_entry(iso9660)) != NULL &&
+	    (file->mode & AE_IFMT) == AE_IFDIR) {
+		r = read_children(a, file);
+		if (r != ARCHIVE_OK)
+			return (r);
+
+		if (iso9660->seenRockridge &&
+		    file->parent != NULL &&
+		    file->parent->parent == NULL &&
+		    iso9660->rr_moved == NULL &&
+		    (strcmp(file->name.s, "rr_moved") == 0 ||
+		     strcmp(file->name.s, ".rr_moved") == 0)) {
+			iso9660->rr_moved = file;
+		} else if (file->re) {
+			file->next = NULL;
+			*iso9660->re_dirs.last = file;
+			iso9660->re_dirs.last = &(file->next);
+		} else {
+			file->next = NULL;
+			file->refcount++;
+			*iso9660->pending_dirs.last = file;
+			iso9660->pending_dirs.last = &(file->next);
+		}
+	}
+	if (file != NULL)
+		add_entry(iso9660, file);
+
+	if (iso9660->rr_moved != NULL) {
+		struct file_info *next;
+
+		/*
+		 * Relocate directory which rr_moved has.
+		 */
+		for (file = iso9660->cl_files.first; file != NULL;
+		    file = next) {
+			next = file->next;
+
+			relocate_dir(iso9660, file);
+			release_file(iso9660, file);
+		}
+
+		/* If rr_moved directory still has children,
+		 * Add rr_moved into pending_files to show
+		 */
+		if (iso9660->rr_moved->subdirs)
+			add_entry(iso9660, iso9660->rr_moved);
+		else {
+			iso9660->rr_moved->parent->subdirs--;
+			release_file(iso9660, iso9660->rr_moved);
+		}
+	}
+	iso9660->read_pending_dirs = 1;
+
 	return (ARCHIVE_OK);
 }
 
@@ -766,7 +914,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 {
 	struct iso9660 *iso9660;
 	struct file_info *file;
-	int r;
+	int r, rd_r;
 
 	iso9660 = (struct iso9660 *)(a->format->data);
 
@@ -857,7 +1005,11 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 			a->archive.archive_format_name =
 			    "ISO9660 with Rockridge extensions";
 		}
-	}
+		rd_r = read_entries(a);
+		if (rd_r == ARCHIVE_FATAL)
+			return (ARCHIVE_FATAL);
+	} else
+		rd_r = ARCHIVE_OK;
 
 	/* Get the next entry that appears after the current offset. */
 	r = next_entry_seek(a, iso9660, &file);
@@ -927,7 +1079,8 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 	 * will give us support for whacky ISO images that require
 	 * seeking while retaining the ability to read almost all ISO
 	 * images in a streaming fashion. */
-	if (file->offset < iso9660->current_position) {
+	if ((file->mode & AE_IFMT) != AE_IFDIR &&
+	    file->offset < iso9660->current_position) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Ignoring out-of-order file @%x (%s) %jd < %jd",
 		    file,
@@ -961,13 +1114,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 	iso9660->previous_number = file->number;
 	archive_strcpy(&iso9660->previous_pathname, iso9660->pathname.s);
 
-	/* If this is a directory, read in all of the entries right now. */
 	if (archive_entry_filetype(entry) == AE_IFDIR) {
-		r = read_children(a, file);
-		if (r != ARCHIVE_OK) {
-			release_file(iso9660, file);
-			return (ARCHIVE_FATAL);
-		}
 		/* Overwrite nlinks by proper link number which is
 		 * calculated from number of sub directories. */
 		archive_entry_set_nlink(entry, 2 + file->subdirs);
@@ -977,6 +1124,9 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 	}
 
 	release_file(iso9660, file);
+
+	if (rd_r != ARCHIVE_OK)
+		return (rd_r);
 	return (ARCHIVE_OK);
 }
 
@@ -1486,7 +1636,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	}
 
 	/* Tell file's parent how many children that parent has. */
-	if (parent != NULL && (flags & 0x02))
+	if (parent != NULL && (flags & 0x02) && file->cl_offset == 0)
 		parent->subdirs++;
 
 #if DEBUG
@@ -1544,6 +1694,7 @@ add_entry(struct iso9660 *iso9660, struct file_info *file)
 	}
 
 	file_offset = file->offset + file->size;
+	file->refcount++;
 
 	/*
 	 * Start with hole at end, walk it up tree to find insertion point.
@@ -1572,7 +1723,7 @@ parse_rockridge(struct archive_read *a, struct file_info *file,
 
 	iso9660 = (struct iso9660 *)(a->format->data);
 
-	while (p + 4 < end  /* Enough space for another entry. */
+	while (p + 4 <= end  /* Enough space for another entry. */
 	    && p[0] >= 'A' && p[0] <= 'Z' /* Sanity-check 1st char of name. */
 	    && p[1] >= 'A' && p[1] <= 'Z' /* Sanity-check 2nd char of name. */
 	    && p[2] >= 4 /* Sanity-check length. */
@@ -1605,6 +1756,15 @@ parse_rockridge(struct archive_read *a, struct file_info *file,
 					if (register_CE(a, location, file)
 					    != ARCHIVE_OK)
 						return (ARCHIVE_FATAL);
+				}
+				break;
+			}
+			if (p[0] == 'C' && p[1] == 'L') {
+				if (version == 1 && data_length == 8) {
+					file->cl_offset = (uint64_t)
+					    iso9660->logical_block_size *
+					    (uint64_t)archive_le32dec(data);
+					iso9660->seenRockridge = 1;
 				}
 				break;
 			}
@@ -1667,6 +1827,11 @@ parse_rockridge(struct archive_read *a, struct file_info *file,
 			}
 			/* FALLTHROUGH */
 		case 'R':
+			if (p[0] == 'R' && p[1] == 'E' && version == 1) {
+				file->re = 1;
+				iso9660->seenRockridge = 1;
+				break;
+			}
 			if (p[0] == 'R' && p[1] == 'R' && version == 1) {
 				/*
 				 * RR extension comprises:
@@ -2077,10 +2242,6 @@ next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
 	if (file == NULL)
 		return (ARCHIVE_EOF);
 
-	/* Read data which recorded by RRIP "CE" extension. */
-	if (read_CE(a, iso9660) != ARCHIVE_OK)
-		return (ARCHIVE_FATAL);
-
 	/* Don't waste time seeking for zero-length bodies. */
 	if (file->size == 0)
 		file->offset = iso9660->current_position;
@@ -2162,6 +2323,17 @@ next_entry(struct iso9660 *iso9660)
 	int a, b, c;
 	struct file_info *r, *tmp;
 
+	if (iso9660->read_pending_dirs) {
+		
+		r = iso9660->pending_dirs.first;
+		if (r != NULL) {
+			iso9660->pending_dirs.first = r->next;
+			r->refcount--;
+			return (r);
+		} else
+			iso9660->read_pending_dirs = 0;
+	}
+
 	if (iso9660->pending_files_used < 1)
 		return (NULL);
 
@@ -2169,6 +2341,7 @@ next_entry(struct iso9660 *iso9660)
 	 * The first file in the list is the earliest; we'll return this.
 	 */
 	r = iso9660->pending_files[0];
+	r->refcount--;
 
 	/*
 	 * Move the last item in the heap to the root of the tree
