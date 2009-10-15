@@ -715,27 +715,27 @@ static int
 read_children(struct archive_read *a, struct file_info *parent)
 {
 	struct iso9660 *iso9660;
+	const unsigned char *b, *p;
+	size_t step;
 
 	iso9660 = (struct iso9660 *)(a->format->data);
-	while (iso9660->entry_bytes_remaining > 0) {
-		const void *block;
-		const unsigned char *p;
-		ssize_t step = iso9660->logical_block_size;
-		if (step > iso9660->entry_bytes_remaining)
-			step = iso9660->entry_bytes_remaining;
-		block = __archive_read_ahead(a, step, NULL);
-		if (block == NULL) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "Failed to read full block when scanning "
-			    "ISO9660 directory list");
-			return (ARCHIVE_FATAL);
-		}
-		__archive_read_consume(a, step);
-		iso9660->current_position += step;
-		iso9660->entry_bytes_remaining -= step;
-		for (p = (const unsigned char *)block;
-		     *p != 0 && p < (const unsigned char *)block + step;
-		     p += *p) {
+
+	step = ((parent->size + iso9660->logical_block_size -1) /
+	    iso9660->logical_block_size) * iso9660->logical_block_size;
+	b = __archive_read_ahead(a, step, NULL);
+	if (b == NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Failed to read full block when scanning "
+		    "ISO9660 directory list");
+		return (ARCHIVE_FATAL);
+	}
+	__archive_read_consume(a, step);
+	iso9660->current_position += step;
+	while (step) {
+		p = b;
+		b += iso9660->logical_block_size;
+		step -= iso9660->logical_block_size;
+		for (; *p != 0 && p < b && p + *p <= b; p += *p) {
 			struct file_info *child;
 
 			/* N.B.: these special directory identifiers
@@ -971,6 +971,9 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 		/* Overwrite nlinks by proper link number which is
 		 * calculated from number of sub directories. */
 		archive_entry_set_nlink(entry, 2 + file->subdirs);
+		/* Directory data has been read completely. */
+		iso9660->entry_bytes_remaining = 0;
+		iso9660->entry_sparse_offset = 0;
 	}
 
 	release_file(iso9660, file);
