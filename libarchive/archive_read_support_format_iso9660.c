@@ -315,17 +315,10 @@ struct iso9660 {
 	struct archive_string previous_pathname;
 
 	struct heap_queue		 pending_files;
-	struct cache_files {
-		struct file_info	**files;
-		int			 allocated;
-		int			 count;
-		int			 index;
-	}	cache_files;
 	struct {
 		struct file_info	*first;
 		struct file_info	**last;
-	} pending_dirs;
-	int	read_pending_dirs;
+	}	cache_files;
 
 	uint64_t current_position;
 	ssize_t	logical_block_size;
@@ -367,7 +360,6 @@ static int	isVDSetTerminator(struct iso9660 *iso9660,
 static int	isJolietSVD(struct iso9660 *, const unsigned char *);
 static int	isPVD(struct iso9660 *, const unsigned char *);
 static struct file_info *next_cache_entry(struct iso9660 *iso9660);
-static struct file_info *next_entry(struct iso9660 *);
 static int	next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
 		    struct file_info **pfile);
 static struct file_info *
@@ -389,12 +381,17 @@ static void	parse_rockridge_ZF1(struct file_info *,
 		    const unsigned char *, int);
 static void	release_file(struct iso9660 *, struct file_info *);
 static unsigned	toi(const void *p, int n);
+static inline void cache_add_entry(struct iso9660 *iso9660,
+		    struct file_info *file);
+static inline struct file_info *cache_get_entry(struct iso9660 *iso9660);
 static void	heap_add_entry(struct iso9660 *iso9660,
 		    struct heap_queue *heap, struct file_info *file);
 static struct file_info *heap_get_entry(struct heap_queue *heap);
 
 #define add_entry(iso9660, file)	\
 	heap_add_entry(iso9660, &((iso9660)->pending_files), file)
+#define next_entry(iso9660)		\
+	heap_get_entry(&((iso9660)->pending_files))
 
 int
 archive_read_support_format_iso9660(struct archive *_a)
@@ -410,8 +407,8 @@ archive_read_support_format_iso9660(struct archive *_a)
 	}
 	memset(iso9660, 0, sizeof(*iso9660));
 	iso9660->magic = ISO9660_MAGIC;
-	iso9660->pending_dirs.first = NULL;
-	iso9660->pending_dirs.last = &(iso9660->pending_dirs.first);
+	iso9660->cache_files.first = NULL;
+	iso9660->cache_files.last = &(iso9660->cache_files.first);
 	/* Enable to support Joliet extensions by default.	*/
 	iso9660->opt_support_joliet = 1;
 	/* Enable to support Rock Ridge extensions by default.	*/
@@ -831,10 +828,7 @@ relocate_dir(struct iso9660 *iso9660, struct file_info *file)
 		re->parent = file->parent;
 		re->parent->refcount++;
 		re->parent->subdirs++;
-		re->next = NULL;
-		re->refcount++;
-		*iso9660->pending_dirs.last = re;
-		iso9660->pending_dirs.last = &(re->next);
+		cache_add_entry(iso9660, re);
 		return (1);
 	} else
 		/* This case is wrong pattern. */
@@ -867,12 +861,8 @@ read_entries(struct archive_read *a)
 		} else if (file->re)
 			heap_add_entry(iso9660, &(iso9660->re_dirs),
 			    file);
-		else {
-			file->next = NULL;
-			file->refcount++;
-			*iso9660->pending_dirs.last = file;
-			iso9660->pending_dirs.last = &(file->next);
-		}
+		else
+			cache_add_entry(iso9660, file);
 	}
 	if (file != NULL)
 		add_entry(iso9660, file);
@@ -896,7 +886,6 @@ read_entries(struct archive_read *a)
 			release_file(iso9660, iso9660->rr_moved);
 		}
 	}
-	iso9660->read_pending_dirs = 1;
 
 	return (ARCHIVE_OK);
 }
@@ -1409,10 +1398,8 @@ archive_read_format_iso9660_cleanup(struct archive_read *a)
 	int r = ARCHIVE_OK;
 
 	iso9660 = (struct iso9660 *)(a->format->data);
-	while (iso9660->cache_files.index < iso9660->cache_files.count)
-		release_file(iso9660,
-		    iso9660->cache_files.files[iso9660->cache_files.index++]);
-	free(iso9660->cache_files.files);
+	while ((file = cache_get_entry(iso9660)) != NULL)
+		release_file(iso9660, file);
 	while ((file = next_entry(iso9660)) != NULL)
 		release_file(iso9660, file);
 	free(iso9660->read_ce_req.reqs);
@@ -2212,11 +2199,12 @@ next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
 static struct file_info *
 next_cache_entry(struct iso9660 *iso9660)
 {
-	struct cache_files *cf = &(iso9660->cache_files);
 	struct file_info *file;
+	int count;
 
-	if (cf->index < cf->count)
-		return (cf->files[cf->index++]);
+	file = cache_get_entry(iso9660);
+	if (file != NULL)
+		return (file);
 
 	file = next_entry(iso9660);
 	if (file == NULL)
@@ -2226,61 +2214,49 @@ next_cache_entry(struct iso9660 *iso9660)
 		return (file);
 
 	/* Collect files which has the same file serial number. */
-	cf->index = cf->count = 0;
+	count = 0;
+	iso9660->cache_files.first = NULL;
+	iso9660->cache_files.last = &(iso9660->cache_files.first);
 	while (file != NULL && file->number != -1 &&
 	    iso9660->pending_files.used > 0 &&
 	    file->number == iso9660->pending_files.files[0]->number) {
-		if (cf->count + 1 >= cf->allocated) {
-			struct file_info **pp;
-			int size;
-
-			if (cf->allocated == 0)
-				size = 32;
-			else
-				size = cf->allocated << 1;
-			pp = malloc(size);
-			if (pp == NULL)
-				__archive_errx(1, "Out of memory");
-			if (cf->count)
-				memcpy(pp, cf->files,
-				    cf->count * sizeof(cf->files[0]));
-			free(cf->files);
-			cf->files = pp;
-		}
-		cf->files[cf->count++] = file;
+		count++;
+		cache_add_entry(iso9660, file);
 		file = next_entry(iso9660);
 	}
-	if (cf->count) {
-		int i;
-
-		cf->files[cf->count++] = file;
-		/* cf->count is the same as number of hardlink,
+	if (count) {
+		count++;
+		cache_add_entry(iso9660, file);
+		/* the count is the same as number of hardlink,
 		 * so much so that it overwrite nlinks by value
-		 * of cf->count. */
-		for (i = 0; i < cf->count; i++)
-			cf->files[i]->nlinks = cf->count;
-		return (cf->files[cf->index++]);
-	} else
-		return (file);
+		 * of the count. */
+		for (file = iso9660->cache_files.first;
+		    file != NULL; file = file->next)
+			file->nlinks = count;
+		file = cache_get_entry(iso9660);
+	}
+	return (file);
 }
 
-static struct file_info *
-next_entry(struct iso9660 *iso9660)
+static inline void
+cache_add_entry(struct iso9660 *iso9660, struct file_info *file)
 {
-	struct file_info *r;
+	file->next = NULL;
+	file->refcount++;
+	*iso9660->cache_files.last = file;
+	iso9660->cache_files.last = &(file->next);
+}
 
-	if (iso9660->read_pending_dirs) {
-		
-		r = iso9660->pending_dirs.first;
-		if (r != NULL) {
-			iso9660->pending_dirs.first = r->next;
-			r->refcount--;
-			return (r);
-		} else
-			iso9660->read_pending_dirs = 0;
+static inline struct file_info *
+cache_get_entry(struct iso9660 *iso9660)
+{
+	struct file_info *file;
+
+	if ((file = iso9660->cache_files.first) != NULL) {
+		iso9660->cache_files.first = file->next;
+		file->refcount--;
 	}
-
-	return (heap_get_entry(&(iso9660->pending_files)));
+	return (file);
 }
 
 static void
