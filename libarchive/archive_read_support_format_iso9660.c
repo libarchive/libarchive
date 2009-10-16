@@ -323,7 +323,6 @@ struct iso9660 {
 	}	read_ce_req;
 
 	int64_t		previous_number;
-	uint64_t	previous_size;
 	struct archive_string previous_pathname;
 
 	struct heap_queue		 pending_files;
@@ -1083,8 +1082,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 	 * the same data, we have to return it as a hardlink to the
 	 * original entry. */
 	if (file->number != -1 &&
-	    file->number == iso9660->previous_number
-	    && file->size == iso9660->previous_size) {
+	    file->number == iso9660->previous_number) {
 		archive_entry_set_hardlink(entry,
 		    iso9660->previous_pathname.s);
 		archive_entry_unset_size(entry);
@@ -1140,7 +1138,6 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 		archive_entry_set_size(entry, file->pz_uncompressed_size);
 	}
 
-	iso9660->previous_size = file->size;
 	iso9660->previous_number = file->number;
 	archive_strcpy(&iso9660->previous_pathname, iso9660->pathname.s);
 
