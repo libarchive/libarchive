@@ -2203,6 +2203,11 @@ static struct file_info *
 next_cache_entry(struct iso9660 *iso9660)
 {
 	struct file_info *file;
+	struct {
+		struct file_info	*first;
+		struct file_info	**last;
+	}	empty_files;
+	int64_t number;
 	int count;
 
 	file = cache_get_entry(iso9660);
@@ -2213,32 +2218,67 @@ next_cache_entry(struct iso9660 *iso9660)
 	if (file == NULL)
 		return (NULL);
 
-	if ((file->mode & AE_IFMT) != AE_IFREG)
+	if ((file->mode & AE_IFMT) != AE_IFREG || file->number == -1)
 		return (file);
 
-	/* Collect files which has the same file serial number. */
 	count = 0;
+	number = file->number;
 	iso9660->cache_files.first = NULL;
 	iso9660->cache_files.last = &(iso9660->cache_files.first);
-	while (file != NULL && file->number != -1 &&
-	    iso9660->pending_files.used > 0 &&
-	    file->number == iso9660->pending_files.files[0]->number) {
-		count++;
-		cache_add_entry(iso9660, file);
+	empty_files.first = NULL;
+	empty_files.last = &empty_files.first;
+	/* Collect files which has the same file serial number.
+	 * Peek pending_files so that file which number is different
+	 * is not put bak. */
+	while (iso9660->pending_files.used > 0 &&
+	    (iso9660->pending_files.files[0]->number == -1 ||
+	     iso9660->pending_files.files[0]->number == number)) {
+		if (file->number == -1) {
+			/* This file has the same offset
+			 * but it's wrong offset which empty files
+			 * and symlink files have.
+			 * NOTE: This wrong offse was recorded by
+			 * old mkisofs utility. If ISO images is
+			 * created by latest mkisofs, this does not
+			 * happen.
+			 */
+			file->next = NULL;
+			*empty_files.last = file;
+			empty_files.last = &(file->next);
+		} else {
+			count++;
+			cache_add_entry(iso9660, file);
+		}
 		file = next_entry(iso9660);
 	}
-	if (count) {
+
+	if (count == 0)
+		return (file);
+	if (file->number == -1) {
+		file->next = NULL;
+		*empty_files.last = file;
+		empty_files.last = &(file->next);
+	} else {
 		count++;
 		cache_add_entry(iso9660, file);
-		/* the count is the same as number of hardlink,
-		 * so much so that it overwrite nlinks by value
-		 * of the count. */
+	}
+
+	if (count > 1) {
+		/* The count is the same as number of hardlink,
+		 * so much so that each nlinks of files in cache_file
+		 * is overwritten by value of the count.
+		 */
 		for (file = iso9660->cache_files.first;
 		    file != NULL; file = file->next)
 			file->nlinks = count;
-		file = cache_get_entry(iso9660);
 	}
-	return (file);
+	/* If there are empty files, that files are added
+	 * to the tail of the cache_files. */
+	if (empty_files.first != NULL) {
+		*iso9660->cache_files.last = empty_files.first;
+		iso9660->cache_files.last = empty_files.last;
+	}
+	return (cache_get_entry(iso9660));
 }
 
 static inline void
@@ -2291,7 +2331,7 @@ heap_add_entry(struct iso9660 *iso9660, struct heap_queue *heap,
 		heap->allocated = new_size;
 	}
 
-	file_offset = file->offset + file->size;
+	file_offset = file->offset;
 	file->refcount++;
 
 	/*
@@ -2300,8 +2340,7 @@ heap_add_entry(struct iso9660 *iso9660, struct heap_queue *heap,
 	hole = heap->used++;
 	while (hole > 0) {
 		parent = (hole - 1)/2;
-		parent_offset = heap->files[parent]->offset
-		    + heap->files[parent]->size;
+		parent_offset = heap->files[parent]->offset;
 		if (file_offset >= parent_offset) {
 			heap->files[hole] = file;
 			return;
@@ -2338,17 +2377,15 @@ heap_get_entry(struct heap_queue *heap)
 	 * Rebalance the heap.
 	 */
 	a = 0; // Starting element and its offset
-	a_offset = heap->files[a]->offset + heap->files[a]->size;
+	a_offset = heap->files[a]->offset;
 	for (;;) {
 		b = a + a + 1; // First child
 		if (b >= heap->used)
 			return (r);
-		b_offset = heap->files[b]->offset
-		    + heap->files[b]->size;
+		b_offset = heap->files[b]->offset;
 		c = b + 1; // Use second child if it is smaller.
 		if (c < heap->used) {
-			c_offset = heap->files[c]->offset
-			    + heap->files[c]->size;
+			c_offset = heap->files[c]->offset;
 			if (c_offset < b_offset) {
 				b = c;
 				b_offset = c_offset;
