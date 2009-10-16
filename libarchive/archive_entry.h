@@ -198,7 +198,7 @@ __LA_DECL const wchar_t	*archive_entry_gname_w(struct archive_entry *);
 __LA_DECL const char	*archive_entry_hardlink(struct archive_entry *);
 __LA_DECL const wchar_t	*archive_entry_hardlink_w(struct archive_entry *);
 __LA_DECL __LA_INO_T	 archive_entry_ino(struct archive_entry *);
-__LA_DECL int64_t		 archive_entry_ino64(struct archive_entry *);
+__LA_DECL __LA_INT64_T	 archive_entry_ino64(struct archive_entry *);
 __LA_DECL __LA_MODE_T	 archive_entry_mode(struct archive_entry *);
 __LA_DECL time_t	 archive_entry_mtime(struct archive_entry *);
 __LA_DECL long		 archive_entry_mtime_nsec(struct archive_entry *);
@@ -262,11 +262,11 @@ __LA_DECL void	archive_entry_copy_hardlink(struct archive_entry *, const char *)
 __LA_DECL void	archive_entry_copy_hardlink_w(struct archive_entry *, const wchar_t *);
 #if ARCHIVE_VERSION_NUMBER >= 3000000
 /* Starting with libarchive 3.0, this will be synonym for ino64. */
-__LA_DECL void	archive_entry_set_ino(struct archive_entry *, int64_t);
+__LA_DECL void	archive_entry_set_ino(struct archive_entry *, __LA_INT64_T);
 #else
 __LA_DECL void	archive_entry_set_ino(struct archive_entry *, unsigned long);
 #endif
-__LA_DECL void	archive_entry_set_ino64(struct archive_entry *, int64_t);
+__LA_DECL void	archive_entry_set_ino64(struct archive_entry *, __LA_INT64_T);
 __LA_DECL void	archive_entry_set_link(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_link(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_link_w(struct archive_entry *, const wchar_t *);
