@@ -247,6 +247,12 @@ struct zisofs {
 };
 #endif
 
+struct content {
+	uint64_t	 offset;/* Offset on disk.		*/
+	uint64_t	 size;	/* File size in bytes.		*/
+	struct content	*next;
+};
+
 /* In-memory storage for a directory record. */
 struct file_info {
 	struct file_info	*parent;
@@ -277,6 +283,12 @@ struct file_info {
 	int		 pz;
 	int		 pz_log2_bs; /* Log2 of block size */
 	uint64_t	 pz_uncompressed_size;
+	/* Set 1 if this file is multi extent. */
+	int		 multi_extent;
+	struct {
+		struct content	*first;
+		struct content	**last;
+	} contents;
 };
 
 struct heap_queue {
@@ -333,6 +345,7 @@ struct iso9660 {
 	off_t	entry_sparse_offset;
 	int64_t	entry_bytes_remaining;
 	struct zisofs	 entry_zisofs;
+	struct content	*entry_content;
 };
 
 static int	archive_read_format_iso9660_bid(struct archive_read *);
@@ -734,6 +747,7 @@ read_children(struct archive_read *a, struct file_info *parent)
 {
 	struct iso9660 *iso9660;
 	const unsigned char *b, *p;
+	struct file_info *multi;
 	size_t step;
 
 	iso9660 = (struct iso9660 *)(a->format->data);
@@ -772,6 +786,7 @@ read_children(struct archive_read *a, struct file_info *parent)
 	}
 	__archive_read_consume(a, step);
 	iso9660->current_position += step;
+	multi = NULL;
 	while (step) {
 		p = b;
 		b += iso9660->logical_block_size;
@@ -798,8 +813,41 @@ read_children(struct archive_read *a, struct file_info *parent)
 			if (child->cl_offset)
 				heap_add_entry(iso9660,
 				    &(iso9660->cl_files), child);
-			else
-				add_entry(iso9660, child);
+			else {
+				if (child->multi_extent || multi != NULL) {
+					struct content *con;
+
+					if (multi == NULL) {
+						multi = child;
+						multi->contents.first = NULL;
+						multi->contents.last =
+						    &(multi->contents.first);
+					}
+					con = malloc(sizeof(struct content));
+					if (con == NULL) {
+						release_file(iso9660, child);
+						archive_set_error(
+						    &a->archive, ENOMEM,
+						    "No memory for "
+						    "multi extent");
+						return (ARCHIVE_FATAL);
+					}
+					con->offset = child->offset;
+					con->size = child->size;
+					con->next = NULL;
+					*multi->contents.last = con;
+					multi->contents.last = &(con->next);
+					if (multi == child)
+						add_entry(iso9660, child);
+					else {
+						multi->size += child->size;
+						if (!child->multi_extent)
+							multi = NULL;
+						release_file(iso9660, child);
+					}
+				} else
+					add_entry(iso9660, child);
+			}
 		}
 	}
 
@@ -1096,6 +1144,11 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 	iso9660->previous_number = file->number;
 	archive_strcpy(&iso9660->previous_pathname, iso9660->pathname.s);
 
+	/* Reset entry_bytes_remaining if the file is multi extent. */
+	iso9660->entry_content = file->contents.first;
+	if (iso9660->entry_content != NULL)
+		iso9660->entry_bytes_remaining = iso9660->entry_content->size;
+
 	if (archive_entry_filetype(entry) == AE_IFDIR) {
 		/* Overwrite nlinks by proper link number which is
 		 * calculated from number of sub directories. */
@@ -1365,10 +1418,37 @@ archive_read_format_iso9660_read_data(struct archive_read *a,
 
 	iso9660 = (struct iso9660 *)(a->format->data);
 	if (iso9660->entry_bytes_remaining <= 0) {
-		*buff = NULL;
-		*size = 0;
-		*offset = iso9660->entry_sparse_offset;
-		return (ARCHIVE_EOF);
+		if (iso9660->entry_content != NULL)
+			iso9660->entry_content = iso9660->entry_content->next;
+		if (iso9660->entry_content == NULL) {
+			*buff = NULL;
+			*size = 0;
+			*offset = iso9660->entry_sparse_offset;
+			return (ARCHIVE_EOF);
+		}
+		/* Seek forward to the start of the entry. */
+		if (iso9660->current_position < iso9660->entry_content->offset) {
+			int64_t step;
+
+			step = iso9660->entry_content->offset -
+			    iso9660->current_position;
+			step = __archive_read_skip(a, step);
+			if (step < 0)
+				return ((int)step);
+			iso9660->current_position =
+			    iso9660->entry_content->offset;
+		}
+		if (iso9660->entry_content->offset < iso9660->current_position) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Ignoring out-of-order file (%s) %jd < %jd",
+			    iso9660->pathname.s,
+			    iso9660->entry_content->offset,
+			    iso9660->current_position);
+			iso9660->entry_bytes_remaining = 0;
+			iso9660->entry_sparse_offset = 0;
+			return (ARCHIVE_WARN);
+		}
+		iso9660->entry_bytes_remaining = iso9660->entry_content->size;
 	}
 	if (iso9660->entry_zisofs.pz)
 		return (zisofs_read_data(a, buff, size, offset));
@@ -1556,6 +1636,10 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 		file->mode = AE_IFDIR | 0700;
 	else
 		file->mode = AE_IFREG | 0400;
+	if (flags & 0x80)
+		file->multi_extent = 1;
+	else
+		file->multi_extent = 0;
 	/*
 	 * Use location for file number.
 	 * File number is treated as inode number to find out harlink
@@ -2154,6 +2238,7 @@ static void
 release_file(struct iso9660 *iso9660, struct file_info *file)
 {
 	struct file_info *parent;
+	struct content *con, *connext;
 
 	if (file == NULL)
 		return;
@@ -2162,6 +2247,12 @@ release_file(struct iso9660 *iso9660, struct file_info *file)
 		parent = file->parent;
 		archive_string_free(&file->name);
 		archive_string_free(&file->symlink);
+		con = file->contents.first;
+		while (con != NULL) {
+			connext = con->next;
+			free(con);
+			con = connext;
+		}
 		free(file);
 		if (parent != NULL) {
 			parent->refcount--;
