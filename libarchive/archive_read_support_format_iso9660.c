@@ -313,7 +313,7 @@ struct iso9660 {
 	struct file_info *rr_moved;
 	struct heap_queue		 re_dirs;
 	struct heap_queue		 cl_files;
-	struct {
+	struct read_ce_queue {
 		struct read_ce_req {
 			uint64_t	 offset;/* Offset of CE on disk. */
 			struct file_info *file;
@@ -1921,9 +1921,10 @@ register_CE(struct archive_read *a, int32_t location,
     struct file_info *file)
 {
 	struct iso9660 *iso9660;
+	struct read_ce_queue *heap;
 	struct read_ce_req *p;
-	uint64_t offset;
-	int i;
+	uint64_t offset, parent_offset;
+	int hole, parent;
 
 	iso9660 = (struct iso9660 *)(a->format->data);
 	offset = ((uint64_t)location) * (uint64_t)iso9660->logical_block_size;
@@ -1934,55 +1935,108 @@ register_CE(struct archive_read *a, int32_t location,
 		    "Invalid location in SUSP \"CE\" extension");
 		return (ARCHIVE_FATAL);
 	}
-	if (iso9660->read_ce_req.cnt + 1 > iso9660->read_ce_req.allocated) {
-		int alloc = iso9660->read_ce_req.allocated;
 
-		if (alloc == 0)
-			alloc = 8;
+	/* Expand our CE list as necessary. */
+	heap = &(iso9660->read_ce_req);
+	if (heap->cnt >= heap->allocated) {
+		int new_size;
+
+		if (heap->allocated < 16)
+			new_size = 16;
 		else
-			alloc *= 2;
-		p = malloc(alloc * sizeof(*p));
+			new_size = heap->allocated * 2;
+		/* Overflow might keep us from growing the list. */
+		if (new_size <= heap->allocated)
+			__archive_errx(1, "Out of memory");
+		p = malloc(new_size * sizeof(p[0]));
 		if (p == NULL)
 			__archive_errx(1, "Out of memory");
-		iso9660->read_ce_req.allocated = alloc;
-		if (iso9660->read_ce_req.reqs != NULL) {
-			memcpy(p, iso9660->read_ce_req.reqs,
-			    iso9660->read_ce_req.cnt * sizeof(*p));
-			free(iso9660->read_ce_req.reqs);
+		if (heap->reqs != NULL) {
+			memcpy(p, heap->reqs, heap->cnt * sizeof(*p));
+			free(heap->reqs);
 		}
-		iso9660->read_ce_req.reqs = p;
+		heap->reqs = p;
+		heap->allocated = new_size;
 	}
-	for (i = 0; i < iso9660->read_ce_req.cnt; i++) {
-		if (iso9660->read_ce_req.reqs[i].offset > offset) {
-			p = &iso9660->read_ce_req.reqs[i];
-			memmove(p+1, p,
-			    (iso9660->read_ce_req.cnt -i) * sizeof(*p));
-			p->offset = offset;
-			p->file = file;
-			iso9660->read_ce_req.cnt++;
+
+	/*
+	 * Start with hole at end, walk it up tree to find insertion point.
+	 */
+	hole = heap->cnt++;
+	while (hole > 0) {
+		parent = (hole - 1)/2;
+		parent_offset = heap->reqs[parent].offset;
+		if (offset >= parent_offset) {
+			heap->reqs[hole].offset = offset;
+			heap->reqs[hole].file = file;
 			return (ARCHIVE_OK);
 		}
+		// Move parent into hole <==> move hole up tree.
+		heap->reqs[hole] = heap->reqs[parent];
+		hole = parent;
 	}
-	p = &iso9660->read_ce_req.reqs[iso9660->read_ce_req.cnt];
-	p->offset = offset;
-	p->file = file;
-	iso9660->read_ce_req.cnt++;
+	heap->reqs[0].offset = offset;
+	heap->reqs[0].file = file;
 	return (ARCHIVE_OK);
 }
+
+static void
+next_CE(struct read_ce_queue *heap)
+{
+	uint64_t a_offset, b_offset, c_offset;
+	int a, b, c;
+	struct read_ce_req tmp;
+
+	if (heap->cnt < 1)
+		return;
+
+	/*
+	 * Move the last item in the heap to the root of the tree
+	 */
+	heap->reqs[0] = heap->reqs[--(heap->cnt)];
+
+	/*
+	 * Rebalance the heap.
+	 */
+	a = 0; // Starting element and its offset
+	a_offset = heap->reqs[a].offset;
+	for (;;) {
+		b = a + a + 1; // First child
+		if (b >= heap->cnt)
+			return;
+		b_offset = heap->reqs[b].offset;
+		c = b + 1; // Use second child if it is smaller.
+		if (c < heap->cnt) {
+			c_offset = heap->reqs[c].offset;
+			if (c_offset < b_offset) {
+				b = c;
+				b_offset = c_offset;
+			}
+		}
+		if (a_offset <= b_offset)
+			return;
+		tmp = heap->reqs[a];
+		heap->reqs[a] = heap->reqs[b];
+		heap->reqs[b] = tmp;
+		a = b;
+	}
+}
+
 
 static int
 read_CE(struct archive_read *a, struct iso9660 *iso9660)
 {
-	struct read_ce_req *ce;
+	struct read_ce_queue *heap;
 	const unsigned char *b, *p, *end;
+	struct file_info *file;
 	size_t step;
 	int r;
 
-	/* Read RRIP "CE" System Use Entry. */
-	while (iso9660->read_ce_req.cnt &&
-	    iso9660->read_ce_req.reqs[0].offset ==
-	    iso9660->current_position) {
-		step = iso9660->logical_block_size;
+	/* Read data which RRIP "CE" extension points. */
+	heap = &(iso9660->read_ce_req);
+	step = iso9660->logical_block_size;
+	while (heap->cnt &&
+	    heap->reqs[0].offset == iso9660->current_position) {
 		b = __archive_read_ahead(a, step, NULL);
 		if (b == NULL) {
 			archive_set_error(&a->archive,
@@ -1991,18 +2045,19 @@ read_CE(struct archive_read *a, struct iso9660 *iso9660)
 			    "ISO9660 directory list");
 			return (ARCHIVE_FATAL);
 		}
-		ce = iso9660->read_ce_req.reqs;
 		do {
-			p = b + ce->file->ce_offset;
-			end = p + ce->file->ce_size;
-			r = parse_rockridge(a, ce->file, p, end);
+			file = heap->reqs[0].file;
+			p = b + file->ce_offset;
+			end = p + file->ce_size;
+			next_CE(heap);
+			r = parse_rockridge(a, file, p, end);
 			if (r != ARCHIVE_OK)
 				return (ARCHIVE_FATAL);
-			memmove(ce, ce+1, sizeof(*ce) *
-			    (iso9660->read_ce_req.cnt -1));
-			iso9660->read_ce_req.cnt--;
-		} while (iso9660->read_ce_req.cnt &&
-		    ce->offset == iso9660->current_position);
+		} while (heap->cnt &&
+		    heap->reqs[0].offset == iso9660->current_position);
+		/* NOTE: Do not move this consume's code to fron of
+		 * do-while loop. Registration of nested CE extension
+		 * might cause error because of current position. */
 		__archive_read_consume(a, step);
 		iso9660->current_position += step;
 	}
