@@ -1441,8 +1441,9 @@ archive_read_format_iso9660_read_data(struct archive_read *a,
 			    iso9660->pathname.s,
 			    iso9660->entry_content->offset,
 			    iso9660->current_position);
-			iso9660->entry_bytes_remaining = 0;
-			iso9660->entry_sparse_offset = 0;
+			*buff = NULL;
+			*size = 0;
+			*offset = iso9660->entry_sparse_offset;
 			return (ARCHIVE_WARN);
 		}
 		iso9660->entry_bytes_remaining = iso9660->entry_content->size;
