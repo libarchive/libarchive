@@ -2386,6 +2386,7 @@ next_cache_entry(struct iso9660 *iso9660)
 			 * happen.
 			 */
 			file->next = NULL;
+			file->refcount++;
 			*empty_files.last = file;
 			empty_files.last = &(file->next);
 		} else {
