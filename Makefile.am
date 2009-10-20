@@ -123,6 +123,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_read_support_compression_gzip.c	\
 	libarchive/archive_read_support_compression_none.c	\
 	libarchive/archive_read_support_compression_program.c	\
+	libarchive/archive_read_support_compression_uu.c	\
 	libarchive/archive_read_support_compression_xz.c	\
 	libarchive/archive_read_support_format_all.c		\
 	libarchive/archive_read_support_format_ar.c		\
@@ -280,6 +281,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_pax_truncated.c		\
 	libarchive/test/test_read_position.c			\
 	libarchive/test/test_read_truncated.c			\
+	libarchive/test/test_read_uu.c				\
 	libarchive/test/test_tar_filenames.c			\
 	libarchive/test/test_tar_large.c			\
 	libarchive/test/test_ustar_filenames.c			\
