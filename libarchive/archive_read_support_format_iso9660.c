@@ -174,9 +174,12 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_format_iso9660.c,v 1
 /* ... */
 #define SVD_logical_block_size_offset 128
 #define SVD_logical_block_size_size 4
+#define SVD_type_L_path_table_offset 140
+#define SVD_type_M_path_table_offset 148
 /* ... */
 #define SVD_root_directory_record_offset 156
 #define SVD_root_directory_record_size 34
+#define SVD_file_structure_version_offset 881
 #define SVD_reserved2_offset	882
 #define SVD_reserved2_size	1
 #define SVD_reserved3_offset	1395
@@ -370,6 +373,8 @@ static int	isVolumePartition(struct iso9660 *iso9660,
 static int	isVDSetTerminator(struct iso9660 *iso9660,
 		    const unsigned char *h);
 static int	isJolietSVD(struct iso9660 *, const unsigned char *);
+static int	isSVD(struct iso9660 *iso9660, const unsigned char *h);
+static int	isEVD(struct iso9660 *iso9660, const unsigned char *h);
 static int	isPVD(struct iso9660 *, const unsigned char *);
 static struct file_info *next_cache_entry(struct iso9660 *iso9660);
 static int	next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
@@ -484,9 +489,13 @@ archive_read_format_iso9660_bid(struct archive_read *a)
 		/* Standard Identifier must be "CD001" */
 		if (memcmp(p + 1, "CD001", 5) != 0)
 			return (0);
-		bid += isPVD(iso9660, p);
-		bid += isJolietSVD(iso9660, p);
+		if (!iso9660->primary.location)
+			bid += isPVD(iso9660, p);
+		if (!iso9660->joliet.location)
+			bid += isJolietSVD(iso9660, p);
 		bid += isBootRecord(iso9660, p);
+		bid += isEVD(iso9660, p);
+		bid += isSVD(iso9660, p);
 		bid += isVolumePartition(iso9660, p);
 		if (bid == 0) {
 			if (isVDSetTerminator(iso9660, p)) {
@@ -603,6 +612,9 @@ static int
 isJolietSVD(struct iso9660 *iso9660, const unsigned char *h)
 {
 	const unsigned char *p;
+	ssize_t logical_block_size;
+	int32_t volume_block;
+	int32_t location;
 	int i;
 
 	/* Type 2 means it's a SVD. */
@@ -646,23 +658,190 @@ isJolietSVD(struct iso9660 *iso9660, const unsigned char *h)
 	} else /* not joliet */
 		return (0);
 
-	iso9660->logical_block_size = toi(h + SVD_logical_block_size_offset, 2);
-	if (iso9660->logical_block_size <= 0)
+	/* File structure version must be 1 for ISO9660/ECMA119. */
+	if (h[SVD_file_structure_version_offset] != 1)
 		return (0);
 
-	iso9660->volume_block =
-	    archive_le32dec(h + SVD_volume_space_size_offset);
-	if (iso9660->volume_block <= SYSTEM_AREA_BLOCK+4)
+	logical_block_size =
+	    archive_le16dec(h + SVD_logical_block_size_offset);
+	if (logical_block_size <= 0)
 		return (0);
-	iso9660->volume_size = iso9660->logical_block_size
-	    * (uint64_t)iso9660->volume_block;
+
+	volume_block = archive_le32dec(h + SVD_volume_space_size_offset);
+	if (volume_block <= SYSTEM_AREA_BLOCK+4)
+		return (0);
+
+	/* Location of Occurrence of Type L Path Table must be
+	 * available location,
+	 * > SYSTEM_AREA_BLOCK(16) + 2 and < Volume Space Size. */
+	location = archive_le32dec(h+SVD_type_L_path_table_offset);
+	if (location <= SYSTEM_AREA_BLOCK+2 || location >= volume_block)
+		return (0);
+
+	/* Location of Occurrence of Type M Path Table must be
+	 * available location,
+	 * > SYSTEM_AREA_BLOCK(16) + 2 and < Volume Space Size. */
+	location = archive_be32dec(h+SVD_type_M_path_table_offset);
+	if (location <= SYSTEM_AREA_BLOCK+2 || location >= volume_block)
+		return (0);
 
 	/* Read Root Directory Record in Volume Descriptor. */
 	p = h + SVD_root_directory_record_offset;
 	if (p[DR_length_offset] != 34)
 		return (0);
+
+	iso9660->logical_block_size = logical_block_size;
+	iso9660->volume_block = volume_block;
+	iso9660->volume_size = logical_block_size * (uint64_t)volume_block;
 	iso9660->joliet.location = archive_le32dec(p + DR_extent_offset);
 	iso9660->joliet.size = archive_le32dec(p + DR_size_offset);
+
+	return (48);
+}
+
+static int
+isSVD(struct iso9660 *iso9660, const unsigned char *h)
+{
+	const unsigned char *p;
+	ssize_t logical_block_size;
+	int32_t volume_block;
+	int32_t location;
+	int i;
+
+	/* Type 2 means it's a SVD. */
+	if (h[SVD_type_offset] != 2)
+		return (0);
+
+	/* ID must be "CD001" */
+	if (memcmp(h + SVD_id_offset, "CD001", 5) != 0)
+		return (0);
+
+	/* Reserved field must be 0. */
+	for (i = 0; i < SVD_reserved1_size; ++i)
+		if (h[SVD_reserved1_offset + i] != 0)
+			return (0);
+	for (i = 0; i < SVD_reserved2_size; ++i)
+		if (h[SVD_reserved2_offset + i] != 0)
+			return (0);
+	for (i = 0; i < SVD_reserved3_size; ++i)
+		if (h[SVD_reserved3_offset + i] != 0)
+			return (0);
+
+	/* File structure version must be 1 for ISO9660/ECMA119. */
+	if (h[SVD_file_structure_version_offset] != 1)
+		return (0);
+
+	logical_block_size =
+	    archive_le16dec(h + SVD_logical_block_size_offset);
+	if (logical_block_size <= 0)
+		return (0);
+
+	volume_block = archive_le32dec(h + SVD_volume_space_size_offset);
+	if (volume_block <= SYSTEM_AREA_BLOCK+4)
+		return (0);
+
+	/* Location of Occurrence of Type L Path Table must be
+	 * available location,
+	 * > SYSTEM_AREA_BLOCK(16) + 2 and < Volume Space Size. */
+	location = archive_le32dec(h+SVD_type_L_path_table_offset);
+	if (location <= SYSTEM_AREA_BLOCK+2 || location >= volume_block)
+		return (0);
+
+	/* Location of Occurrence of Type M Path Table must be
+	 * available location,
+	 * > SYSTEM_AREA_BLOCK(16) + 2 and < Volume Space Size. */
+	location = archive_be32dec(h+SVD_type_M_path_table_offset);
+	if (location <= SYSTEM_AREA_BLOCK+2 || location >= volume_block)
+		return (0);
+
+	/* Read Root Directory Record in Volume Descriptor. */
+	p = h + SVD_root_directory_record_offset;
+	if (p[DR_length_offset] != 34)
+		return (0);
+
+	return (48);
+}
+
+static int
+isEVD(struct iso9660 *iso9660, const unsigned char *h)
+{
+	const unsigned char *p;
+	ssize_t logical_block_size;
+	int32_t volume_block;
+	int32_t location;
+	int i;
+
+	/* Type of the Enhanced Volume Descriptor must be 2. */
+	if (h[PVD_type_offset] != 2)
+		return (0);
+
+	/* ID must be "CD001" */
+	if (memcmp(h + PVD_id_offset, "CD001", 5) != 0)
+		return (0);
+
+	/* EVD version must be 2. */
+	if (h[PVD_version_offset] != 2)
+		return (0);
+
+	/* Reserved field must be 0. */
+	if (h[PVD_reserved1_offset] != 0)
+		return (0);
+
+	/* Reserved field must be 0. */
+	for (i = 0; i < PVD_reserved2_size; ++i)
+		if (h[PVD_reserved2_offset + i] != 0)
+			return (0);
+
+	/* Reserved field must be 0. */
+	for (i = 0; i < PVD_reserved3_size; ++i)
+		if (h[PVD_reserved3_offset + i] != 0)
+			return (0);
+
+	/* Logical block size must be > 0. */
+	/* I've looked at Ecma 119 and can't find any stronger
+	 * restriction on this field. */
+	logical_block_size =
+	    archive_le16dec(h + PVD_logical_block_size_offset);
+	if (logical_block_size <= 0)
+		return (0);
+
+	volume_block =
+	    archive_le32dec(h + PVD_volume_space_size_offset);
+	if (volume_block <= SYSTEM_AREA_BLOCK+4)
+		return (0);
+
+	/* File structure version must be 2 for ISO9660:1999. */
+	if (h[PVD_file_structure_version_offset] != 2)
+		return (0);
+
+	/* Location of Occurrence of Type L Path Table must be
+	 * available location,
+	 * > SYSTEM_AREA_BLOCK(16) + 2 and < Volume Space Size. */
+	location = archive_le32dec(h+PVD_type_1_path_table_offset);
+	if (location <= SYSTEM_AREA_BLOCK+2 || location >= volume_block)
+		return (0);
+
+	/* Location of Occurrence of Type M Path Table must be
+	 * available location,
+	 * > SYSTEM_AREA_BLOCK(16) + 2 and < Volume Space Size. */
+	location = archive_be32dec(h+PVD_type_m_path_table_offset);
+	if (location <= SYSTEM_AREA_BLOCK+2 || location >= volume_block)
+		return (0);
+
+	/* Reserved field must be 0. */
+	for (i = 0; i < PVD_reserved4_size; ++i)
+		if (h[PVD_reserved4_offset + i] != 0)
+			return (0);
+
+	/* Reserved field must be 0. */
+	for (i = 0; i < PVD_reserved5_size; ++i)
+		if (h[PVD_reserved5_offset + i] != 0)
+			return (0);
+
+	/* Read Root Directory Record in Volume Descriptor. */
+	p = h + PVD_root_directory_record_offset;
+	if (p[DR_length_offset] != 34)
+		return (0);
 
 	return (48);
 }
@@ -671,6 +850,9 @@ static int
 isPVD(struct iso9660 *iso9660, const unsigned char *h)
 {
 	const unsigned char *p;
+	ssize_t logical_block_size;
+	int32_t volume_block;
+	int32_t location;
 	int i;
 
 	/* Type of the Primary Volume Descriptor must be 1. */
@@ -702,21 +884,32 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 	/* Logical block size must be > 0. */
 	/* I've looked at Ecma 119 and can't find any stronger
 	 * restriction on this field. */
-	iso9660->logical_block_size = toi(h + PVD_logical_block_size_offset, 2);
-	if (iso9660->logical_block_size <= 0)
+	logical_block_size =
+	    archive_le16dec(h + PVD_logical_block_size_offset);
+	if (logical_block_size <= 0)
 		return (0);
 
-	iso9660->volume_block =
-	    archive_le32dec(h + PVD_volume_space_size_offset);
-	if (iso9660->volume_block <= SYSTEM_AREA_BLOCK+4)
+	volume_block = archive_le32dec(h + PVD_volume_space_size_offset);
+	if (volume_block <= SYSTEM_AREA_BLOCK+4)
 		return (0);
-	iso9660->volume_size = iso9660->logical_block_size
-	    * (uint64_t)iso9660->volume_block;
 
 	/* File structure version must be 1 for ISO9660/ECMA119. */
 	if (h[PVD_file_structure_version_offset] != 1)
 		return (0);
 
+	/* Location of Occurrence of Type L Path Table must be
+	 * available location,
+	 * > SYSTEM_AREA_BLOCK(16) + 2 and < Volume Space Size. */
+	location = archive_le32dec(h+PVD_type_1_path_table_offset);
+	if (location <= SYSTEM_AREA_BLOCK+2 || location >= volume_block)
+		return (0);
+
+	/* Location of Occurrence of Type M Path Table must be
+	 * available location,
+	 * > SYSTEM_AREA_BLOCK(16) + 2 and < Volume Space Size. */
+	location = archive_be32dec(h+PVD_type_m_path_table_offset);
+	if (location <= SYSTEM_AREA_BLOCK+2 || location >= volume_block)
+		return (0);
 
 	/* Reserved field must be 0. */
 	for (i = 0; i < PVD_reserved4_size; ++i)
@@ -735,6 +928,10 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 	p = h + PVD_root_directory_record_offset;
 	if (p[DR_length_offset] != 34)
 		return (0);
+
+	iso9660->logical_block_size = logical_block_size;
+	iso9660->volume_block = volume_block;
+	iso9660->volume_size = logical_block_size * (uint64_t)volume_block;
 	iso9660->primary.location = archive_le32dec(p + DR_extent_offset);
 	iso9660->primary.size = archive_le32dec(p + DR_size_offset);
 
