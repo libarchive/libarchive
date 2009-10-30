@@ -2355,7 +2355,7 @@ parse_rockridge_TF1(struct file_info *file, const unsigned char *data,
 		/* Use 7-byte time format. */
 		if ((flag & 1) && data_length >= 7) {
 			/* Create time. */
-			file->birthtime = isodate17(data);
+			file->birthtime = isodate7(data);
 			data += 7;
 			data_length -= 7;
 		}
