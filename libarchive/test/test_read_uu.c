@@ -63,7 +63,7 @@ DEFINE_TEST(test_read_uu)
 	    archive_read_support_compression_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_open_memory(a, archive, sizeof(archive)));
+	    read_open_memory(a, archive, sizeof(archive), 2));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	failure("archive_compression_name(a)=\"%s\"",
 	    archive_compression_name(a));

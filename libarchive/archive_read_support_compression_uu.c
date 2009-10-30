@@ -191,6 +191,37 @@ get_line(const unsigned char *b, ssize_t avail, ssize_t *nlsize)
 	return (avail);
 }
 
+static ssize_t
+bid_get_line(struct archive_read_filter *filter,
+    const unsigned char **b, ssize_t *avail, ssize_t *ravail, ssize_t *nl)
+{
+	ssize_t len;
+	int quit;
+	
+	quit = 0;
+	len = get_line(*b, *avail, nl);
+	/*
+	 * Read bytes more while it does not reach the end of line.
+	 */
+	while (*nl == 0 && len == *avail && !quit) {
+		ssize_t diff = *ravail - *avail;
+
+		*b = __archive_read_filter_ahead(filter, 160 + *ravail, avail);
+		if (*b == NULL) {
+			if (*ravail >= *avail)
+				return (0);
+			/* Reading bytes reaches the end of file. */
+			*b = __archive_read_filter_ahead(filter, *avail, avail);
+			quit = 1;
+		}
+		*ravail = *avail;
+		*b += diff;
+		*avail -= diff;
+		len = get_line(*b, *avail, nl);
+	}
+	return (len);
+}
+
 #define UUDECODE(c) (((c) - 0x20) & 0x3f)
 
 static int
@@ -198,7 +229,7 @@ uudecode_bidder_bid(struct archive_read_filter_bidder *self,
     struct archive_read_filter *filter)
 {
 	const unsigned char *b;
-	ssize_t avail;
+	ssize_t avail, ravail;
 	ssize_t len, nl;
 	int l;
 	int firstline;
@@ -211,6 +242,7 @@ uudecode_bidder_bid(struct archive_read_filter_bidder *self,
 
 	l = 0;
 	firstline = 20;
+	ravail = avail;
 	while (avail) {
 		if (memcmp(b, "begin ", 6) == 0 && avail > 11)
 			l = 6;
@@ -224,7 +256,7 @@ uudecode_bidder_bid(struct archive_read_filter_bidder *self,
 		    b[l+2] < '0' || b[l+2] > '7' || b[l+3] != ' '))
 			l = 0;
 
-		len = get_line(b, avail, &nl);
+		len = bid_get_line(filter, &b, &avail, &ravail, &nl);
 		if (len < 0 || nl == 0)
 			return (0);/* Binary data. */
 		b += len;
@@ -235,7 +267,7 @@ uudecode_bidder_bid(struct archive_read_filter_bidder *self,
 	}
 	if (!avail)
 		return (0);
-	len = get_line(b, avail, &nl);
+	len = bid_get_line(filter, &b, &avail, &ravail, &nl);
 	if (len < 0 || nl == 0)
 		return (0);/* There are non-ascii characters. */
 	avail -= len;
@@ -371,19 +403,35 @@ uudecode_filter_read(struct archive_read_filter *self, const void **buff)
 	struct uudecode *uudecode;
 	const unsigned char *b, *d;
 	unsigned char *out;
-	ssize_t avail_in;
+	ssize_t avail_in, ravail;
 	ssize_t used;
 	ssize_t total;
 	ssize_t len, llen, nl;
 
 	uudecode = (struct uudecode *)self->data;
 
+read_more:
 	d = __archive_read_filter_ahead(self->upstream, 1, &avail_in);
 	if (d == NULL && avail_in < 0)
 		return (ARCHIVE_FATAL);
 	used = 0;
 	total = 0;
 	out = uudecode->out_buff;
+	ravail = avail_in;
+	if (uudecode->in_cnt) {
+		/*
+		 * If there is remaining data which is saved by
+		 * previous calling, use it first.
+		 */
+		if (ensure_in_buff_size(self, uudecode,
+		    avail_in + uudecode->in_cnt) != ARCHIVE_OK)
+			return (ARCHIVE_FATAL);
+		memcpy(uudecode->in_buff + uudecode->in_cnt,
+		    d, avail_in);
+		d = uudecode->in_buff;
+		avail_in += uudecode->in_cnt;
+		uudecode->in_cnt = 0;
+	}
 	for (;used < avail_in; d += llen, used += llen) {
 		int l, body;
 
@@ -405,24 +453,18 @@ uudecode_filter_read(struct archive_read_filter *self, const void **buff)
 			if (ensure_in_buff_size(self, uudecode, len)
 			    != ARCHIVE_OK)
 				return (ARCHIVE_FATAL);
-			memcpy(uudecode->in_buff, b, len);
+			if (uudecode->in_buff != b)
+				memmove(uudecode->in_buff, b, len);
 			uudecode->in_cnt = len;
 			used += len;
+			if (total == 0) {
+				/* Do not return 0; it means end-of-file.
+				 * We should try to read bytes more. */
+				__archive_read_filter_consume(
+				    self->upstream, ravail);
+				goto read_more;
+			}
 			break;
-		}
-		if (uudecode->in_cnt) {
-			/*
-			 * If there is remaining data which is saved by
-			 * previous calling, use it first.
-			 */
-			if (ensure_in_buff_size(self, uudecode,
-			    len + uudecode->in_cnt) != ARCHIVE_OK)
-				return (ARCHIVE_FATAL);
-			memcpy(uudecode->in_buff + uudecode->in_cnt,
-			    b, len);
-			b = uudecode->in_buff;
-			len += uudecode->in_cnt;
-			uudecode->in_cnt = 0;
 		}
 		if (total + len * 2 > OUT_BUFF_SIZE)
 			break;
@@ -556,7 +598,7 @@ uudecode_filter_read(struct archive_read_filter *self, const void **buff)
 		}
 	}
 
-	__archive_read_filter_consume(self->upstream, used);
+	__archive_read_filter_consume(self->upstream, ravail);
 
 	*buff = uudecode->out_buff;
 	uudecode->total += total;
