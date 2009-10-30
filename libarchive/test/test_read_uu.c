@@ -54,7 +54,16 @@ static unsigned char archive[] = {
 0x0a,0x65,0x6e,0x64,0x0a
 };
 
-DEFINE_TEST(test_read_uu)
+static unsigned char archive64[] = {
+"begin-base64 644 test_read_uu.Z\n"
+"H52QLgAIHEiwoMGDCBMqXMiwIUIYEG/UqAECAMQYEmFUvJhxI8SPIDXGgDFjBg0YNDDOsAECxsga\n"
+"NmIAAFHDoc2bOHPqBFBnDp0wcizCoJOmzc6ERI0ePRhSo1CQFZdKnUq1qtWrWLNq3cq1q9evYMOK\n"
+"HUu2rNmzaNOqXcu2rdu3ZwE=\n"
+"====\n"
+};
+
+static void
+test_read_uu_sub(unsigned char *uudata, size_t uusize)
 {
 	struct archive_entry *ae;
 	struct archive *a;
@@ -63,7 +72,7 @@ DEFINE_TEST(test_read_uu)
 	    archive_read_support_compression_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    read_open_memory(a, archive, sizeof(archive), 2));
+	    read_open_memory(a, uudata, uusize, 2));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	failure("archive_compression_name(a)=\"%s\"",
 	    archive_compression_name(a));
@@ -78,4 +87,11 @@ DEFINE_TEST(test_read_uu)
 #endif
 }
 
+DEFINE_TEST(test_read_uu)
+{
+	/* Read the traditional uuencoded data. */
+	test_read_uu_sub(archive, sizeof(archive));
+	/* Read the Base64 encoding data. */
+	test_read_uu_sub(archive64, sizeof(archive64)-1);
+}
 
