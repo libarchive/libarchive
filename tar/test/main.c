@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/test/main.c,v 1.6 2008/11/05 06:40:53 kientz
 #define S_ISREG(m)  ((m) & _S_IFREG)
 #endif
 #define access _access
+#undef chdir
 #define chdir _chdir
 #ifndef fileno
 #define fileno _fileno
