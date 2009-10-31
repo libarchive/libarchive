@@ -367,15 +367,13 @@ static void	dump_isodirrec(FILE *, const unsigned char *isodirrec);
 static time_t	time_from_tm(struct tm *);
 static time_t	isodate17(const unsigned char *);
 static time_t	isodate7(const unsigned char *);
-static int	isBootRecord(struct iso9660 *iso9660,
-		    const unsigned char *h);
+static int	isBootRecord(const unsigned char *h);
 static int	isVolumePartition(struct iso9660 *iso9660,
 		    const unsigned char *h);
-static int	isVDSetTerminator(struct iso9660 *iso9660,
-		    const unsigned char *h);
+static int	isVDSetTerminator(const unsigned char *h);
 static int	isJolietSVD(struct iso9660 *, const unsigned char *);
-static int	isSVD(struct iso9660 *iso9660, const unsigned char *h);
-static int	isEVD(struct iso9660 *iso9660, const unsigned char *h);
+static int	isSVD(const unsigned char *h);
+static int	isEVD(const unsigned char *h);
 static int	isPVD(struct iso9660 *, const unsigned char *);
 static struct file_info *next_cache_entry(struct iso9660 *iso9660);
 static int	next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
@@ -404,12 +402,12 @@ static inline void cache_add_entry(struct iso9660 *iso9660,
 static inline void cache_add_to_next_of_parent(struct iso9660 *iso9660,
 		    struct file_info *file);
 static inline struct file_info *cache_get_entry(struct iso9660 *iso9660);
-static void	heap_add_entry(struct iso9660 *iso9660,
-		    struct heap_queue *heap, struct file_info *file);
+static void	heap_add_entry(struct heap_queue *heap,
+		    struct file_info *file);
 static struct file_info *heap_get_entry(struct heap_queue *heap);
 
 #define add_entry(iso9660, file)	\
-	heap_add_entry(iso9660, &((iso9660)->pending_files), file)
+	heap_add_entry(&((iso9660)->pending_files), file)
 #define next_entry(iso9660)		\
 	heap_get_entry(&((iso9660)->pending_files))
 
@@ -496,12 +494,12 @@ archive_read_format_iso9660_bid(struct archive_read *a)
 			bid += isPVD(iso9660, p);
 		if (!iso9660->joliet.location)
 			bid += isJolietSVD(iso9660, p);
-		bid += isBootRecord(iso9660, p);
-		bid += isEVD(iso9660, p);
-		bid += isSVD(iso9660, p);
+		bid += isBootRecord(p);
+		bid += isEVD(p);
+		bid += isSVD(p);
 		bid += isVolumePartition(iso9660, p);
 		if (bid == 0) {
-			if (isVDSetTerminator(iso9660, p)) {
+			if (isVDSetTerminator(p)) {
 				seenTerminator = 1;
 				break;
 			}
@@ -550,7 +548,7 @@ archive_read_format_iso9660_options(struct archive_read *a,
 }
 
 static int
-isBootRecord(struct iso9660 *iso9660, const unsigned char *h)
+isBootRecord(const unsigned char *h)
 {
 
 	/* Type of the Volume Descriptor Boot Record must be 0. */
@@ -584,14 +582,14 @@ isVolumePartition(struct iso9660 *iso9660, const unsigned char *h)
 	if (location <= SYSTEM_AREA_BLOCK ||
 	    location >= iso9660->volume_block)
 		return (0);
-	if (location != archive_be32dec(h + 76))
+	if ((uint32_t)location != archive_be32dec(h + 76))
 		return (0);
 
 	return (1);
 }
 
 static int
-isVDSetTerminator(struct iso9660 *iso9660, const unsigned char *h)
+isVDSetTerminator(const unsigned char *h)
 {
 	int i;
 
@@ -703,7 +701,7 @@ isJolietSVD(struct iso9660 *iso9660, const unsigned char *h)
 }
 
 static int
-isSVD(struct iso9660 *iso9660, const unsigned char *h)
+isSVD(const unsigned char *h)
 {
 	const unsigned char *p;
 	ssize_t logical_block_size;
@@ -766,7 +764,7 @@ isSVD(struct iso9660 *iso9660, const unsigned char *h)
 }
 
 static int
-isEVD(struct iso9660 *iso9660, const unsigned char *h)
+isEVD(const unsigned char *h)
 {
 	const unsigned char *p;
 	ssize_t logical_block_size;
@@ -1010,8 +1008,8 @@ read_children(struct archive_read *a, struct file_info *parent)
 			if (child == NULL)
 				return (ARCHIVE_FATAL);
 			if (child->cl_offset)
-				heap_add_entry(iso9660,
-				    &(iso9660->cl_files), child);
+				heap_add_entry(&(iso9660->cl_files),
+				    child);
 			else {
 				if (child->multi_extent || multi != NULL) {
 					struct content *con;
@@ -1079,7 +1077,7 @@ relocate_dir(struct iso9660 *iso9660, struct file_info *file)
 		return (1);
 	} else
 		/* This case is wrong pattern. */
-		heap_add_entry(iso9660, &(iso9660->re_dirs), re);
+		heap_add_entry(&(iso9660->re_dirs), re);
 	return (0);
 }
 
@@ -1106,8 +1104,7 @@ read_entries(struct archive_read *a)
 		     strcmp(file->name.s, ".rr_moved") == 0)) {
 			iso9660->rr_moved = file;
 		} else if (file->re)
-			heap_add_entry(iso9660, &(iso9660->re_dirs),
-			    file);
+			heap_add_entry(&(iso9660->re_dirs), file);
 		else
 			cache_add_entry(iso9660, file);
 	}
@@ -2666,8 +2663,7 @@ cache_get_entry(struct iso9660 *iso9660)
 }
 
 static void
-heap_add_entry(struct iso9660 *iso9660, struct heap_queue *heap,
-    struct file_info *file)
+heap_add_entry(struct heap_queue *heap, struct file_info *file)
 {
 	uint64_t file_offset, parent_offset;
 	int hole, parent;
