@@ -43,8 +43,8 @@ __FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_disk_hardlink.c,v 1.5 200
  */
 DEFINE_TEST(test_write_disk_hardlink)
 {
-#if ARCHIVE_VERSION_NUMBER < 1009000
-	skipping("archive_write_disk_hardlink tests");
+#if defined(__HAIKU__)
+	skipping("archive_write_disk_hardlink; hardlinks are not supported on bfs");
 #else
 	static const char data[]="abcdefghijklmnopqrstuvwxyz";
 	struct archive *ad;
@@ -178,11 +178,7 @@ DEFINE_TEST(test_write_disk_hardlink)
 		assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
 	}
 	archive_entry_free(ae);
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(ad);
-#else
 	assertEqualInt(0, archive_write_finish(ad));
-#endif
 
 	/* Test the entries on disk. */
 
