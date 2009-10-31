@@ -292,6 +292,7 @@ struct file_info {
 		struct content	*first;
 		struct content	**last;
 	} contents;
+	char		 exposed;
 };
 
 struct heap_queue {
@@ -399,6 +400,8 @@ static void	parse_rockridge_ZF1(struct file_info *,
 static void	release_file(struct iso9660 *, struct file_info *);
 static unsigned	toi(const void *p, int n);
 static inline void cache_add_entry(struct iso9660 *iso9660,
+		    struct file_info *file);
+static inline void cache_add_to_next_of_parent(struct iso9660 *iso9660,
 		    struct file_info *file);
 static inline struct file_info *cache_get_entry(struct iso9660 *iso9660);
 static void	heap_add_entry(struct iso9660 *iso9660,
@@ -1072,7 +1075,7 @@ relocate_dir(struct iso9660 *iso9660, struct file_info *file)
 		re->parent = file->parent;
 		re->parent->refcount++;
 		re->parent->subdirs++;
-		cache_add_entry(iso9660, re);
+		cache_add_to_next_of_parent(iso9660, re);
 		return (1);
 	} else
 		/* This case is wrong pattern. */
@@ -1350,6 +1353,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 		/* Directory data has been read completely. */
 		iso9660->entry_bytes_remaining = 0;
 		iso9660->entry_sparse_offset = 0;
+		file->exposed = 1;
 	}
 
 	release_file(iso9660, file);
@@ -2552,8 +2556,15 @@ next_cache_entry(struct iso9660 *iso9660)
 	int count;
 
 	file = cache_get_entry(iso9660);
-	if (file != NULL)
+	if (file != NULL) {
+		while (file->parent != NULL && !file->parent->exposed) {
+			/* If file's parent is not exposed, it's moved
+			 * to next entry of its parent. */
+			cache_add_to_next_of_parent(iso9660, file);
+			file = cache_get_entry(iso9660);
+		}
 		return (file);
+	}
 
 	file = next_entry(iso9660);
 	if (file == NULL)
@@ -2630,6 +2641,16 @@ cache_add_entry(struct iso9660 *iso9660, struct file_info *file)
 	file->refcount++;
 	*iso9660->cache_files.last = file;
 	iso9660->cache_files.last = &(file->next);
+}
+
+static inline void
+cache_add_to_next_of_parent(struct iso9660 *iso9660, struct file_info *file)
+{
+	file->next = file->parent->next;
+	file->parent->next = file;
+	file->refcount++;
+	if (iso9660->cache_files.last == &(file->parent->next))
+		iso9660->cache_files.last = &(file->next);
 }
 
 static inline struct file_info *
