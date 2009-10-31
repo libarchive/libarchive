@@ -199,7 +199,11 @@ bid_get_line(struct archive_read_filter *filter,
 	int quit;
 	
 	quit = 0;
-	len = get_line(*b, *avail, nl);
+	if (*avail == 0) {
+		*nl = 0;
+		len = 0;
+	} else
+		len = get_line(*b, *avail, nl);
 	/*
 	 * Read bytes more while it does not reach the end of line.
 	 */
@@ -243,13 +247,13 @@ uudecode_bidder_bid(struct archive_read_filter_bidder *self,
 	l = 0;
 	firstline = 20;
 	ravail = avail;
-	while (avail) {
+	for (;;) {
 		len = bid_get_line(filter, &b, &avail, &ravail, &nl);
 		if (len < 0 || nl == 0)
 			return (0);/* Binary data. */
-		if (memcmp(b, "begin ", 6) == 0 && len >= 11)
+		if (memcmp(b, "begin ", 6) == 0 && len - nl >= 11)
 			l = 6;
-		else if (memcmp(b, "begin-base64 ", 13) == 0 && len >= 18)
+		else if (memcmp(b, "begin-base64 ", 13) == 0 && len - nl >= 18)
 			l = 13;
 		else
 			l = 0;
