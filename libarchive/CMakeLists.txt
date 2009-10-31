@@ -18,7 +18,6 @@ SET(libarchive_SOURCES
   archive_entry.c
   archive_entry.h
   archive_entry_copy_stat.c
-  archive_entry_copy_bhfi.c
   archive_entry_link_resolver.c
   archive_entry_private.h
   archive_entry_stat.c
