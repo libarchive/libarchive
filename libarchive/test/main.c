@@ -91,6 +91,7 @@ __FBSDID("$FreeBSD: src/lib/libarchive/test/main.c,v 1.17 2008/12/21 00:13:50 ki
 #define rmdir _rmdir
 #define strdup _strdup
 #define umask _umask
+#define int64_t __int64
 #endif
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -139,6 +140,7 @@ my_GetFileInformationByName(const char *path, BY_HANDLE_FILE_INFORMATION *bhfi)
 	HANDLE h;
 	int r;
 
+	memset(bhfi, 0, sizeof(*bhfi));
 	h = CreateFile(path, FILE_READ_ATTRIBUTES, 0, NULL,
 		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (h == INVALID_HANDLE_VALUE)
@@ -276,7 +278,7 @@ failure_start(const char *filename, int line, const char *fmt, ...)
 
 	/* Record another failure for this line. */
 	++failures;
-	test_filename = filename;
+	/* test_filename = filename; */
 	failed_lines[line].count++;
 
 	/* Determine whether to log header to console. */
@@ -404,9 +406,11 @@ assertion_equal_int(const char *file, int line,
 
 static void strdump(const char *e, const char *p)
 {
+	const char *q = p;
+
 	logprintf("      %s = ", e);
 	if (p == NULL) {
-		logprintf("(null)\n");
+		logprintf("NULL");
 		return;
 	}
 	logprintf("\"");
@@ -425,7 +429,7 @@ static void strdump(const char *e, const char *p)
 		}
 	}
 	logprintf("\"");
-	logprintf(" (length %d)\n", p == NULL ? 0 : (int)strlen(p));
+	logprintf(" (length %d)\n", q == NULL ? -1 : (int)strlen(q));
 }
 
 /* Verify two strings are equal, dump them if not. */
@@ -751,10 +755,10 @@ assertion_file_contents(const void *buff, int s, const char *fpattern, ...)
 	failure_start(test_filename, test_line, "File contents don't match");
 	logprintf("  file=\"%s\"\n", fn);
 	if (n > 0)
-		hexdump(contents, buff, n > 512 ? 512 : 0, 0);
+		hexdump(contents, buff, n > 512 ? 512 : n, 0);
 	else {
 		logprintf("  File empty, contents should be:\n");
-		hexdump(buff, NULL, s > 512 ? 512 : 0, 0);
+		hexdump(buff, NULL, s > 512 ? 512 : n, 0);
 	}
 	failure_finish(test_extra);
 	free(contents);
@@ -835,7 +839,8 @@ is_hardlink(const char *file, int line,
 		failure_finish(NULL);
 		return (0);
 	}
-	return (bhfi1.nFileIndexHigh == bhfi2.nFileIndexHigh
+	return (bhfi1.dwVolumeSerialNumber == bhfi2.dwVolumeSerialNumber
+		&& bhfi1.nFileIndexHigh == bhfi2.nFileIndexHigh
 		&& bhfi1.nFileIndexLow == bhfi2.nFileIndexLow);
 #else
 	struct stat st1, st2;
@@ -956,6 +961,9 @@ assertion_file_time(const char *file, int line,
 #else
 	filet_nsec = nsec = 0;	/* Generic POSIX only has whole seconds. */
 	if (type == 'b') return (1); /* Generic POSIX doesn't have birthtime */
+#if defined(__HAIKU__)
+	if (type == 'a') return (1); /* Haiku doesn't have atime. */
+#endif
 #endif
 #endif
 	if (recent) {
@@ -1060,15 +1068,27 @@ assertion_file_nlinks(const char *file, int line,
 int
 assertion_file_size(const char *file, int line, const char *pathname, long size)
 {
-	struct stat st;
+	int64_t filesize;
 	int r;
 
 	assertion_count(file, line);
-	r = lstat(pathname, &st);
-	if (r == 0 && st.st_size == size)
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	{
+		BY_HANDLE_FILE_INFORMATION bhfi;
+		r = !my_GetFileInformationByName(pathname, &bhfi);
+		filesize = ((int64_t)bhfi.nFileSizeHigh << 32) + bhfi.nFileSizeLow;
+	}
+#else
+	{
+		struct stat st;
+		r = lstat(pathname, &st);
+		filesize = st.st_size;
+	}
+#endif
+	if (r == 0 && filesize == size)
 			return (1);
 	failure_start(file, line, "File %s has size %ld, expected %ld",
-	    pathname, (long)st.st_size, (long)size);
+	    pathname, (long)filesize, (long)size);
 	failure_finish(NULL);
 	return (0);
 }
@@ -1145,6 +1165,9 @@ is_symlink(const char *file, int line,
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	assertion_count(file, line);
+	/* Windows sort-of has real symlinks, but they're only usable
+	 * by privileged users and are crippled even then, so there's
+	 * really not much point in bothering with this. */
 	return (0);
 #else
 	char buff[300];
@@ -1329,6 +1352,13 @@ assertion_umask(const char *file, int line, int mask)
  * for tests to use in deciding whether to bother testing symlink
  * support; if the platform doesn't support symlinks, there's no point
  * in checking whether the program being tested can create them.
+ *
+ * Note that the first time this test is called, we actually go out to
+ * disk to create and verify a symlink.  This is necessary because
+ * symlink support is actually a property of a particular filesystem
+ * and can thus vary between directories on a single system.  After
+ * the first call, this returns the cached result from memory, so it's
+ * safe to call it as often as you wish.
  */
 int
 canSymlink(void)
@@ -1340,6 +1370,8 @@ canSymlink(void)
 
 	++tested;
 	assertion_make_file(__FILE__, __LINE__, "canSymlink.0", 0644, "a");
+	/* Note: Cygwin has its own symlink() emulation that does not
+	 * use the Win32 CreateSymbolicLink() function. */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	value = my_CreateSymbolicLinkA("canSymlink.1", "canSymlink.0", 0)
 	    && is_symlink(__FILE__, __LINE__, "canSymlink.1", "canSymlink.0");

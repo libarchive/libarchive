@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/test/main.c,v 1.6 2008/11/05 06:40:53 kientz
 #define S_ISREG(m)  ((m) & _S_IFREG)
 #endif
 #define access _access
+#define chdir _chdir
 #ifndef fileno
 #define fileno _fileno
 #endif
@@ -91,6 +92,7 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/test/main.c,v 1.6 2008/11/05 06:40:53 kientz
 #define rmdir _rmdir
 #define strdup _strdup
 #define umask _umask
+#define int64_t __int64
 #endif
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -139,6 +141,7 @@ my_GetFileInformationByName(const char *path, BY_HANDLE_FILE_INFORMATION *bhfi)
 	HANDLE h;
 	int r;
 
+	memset(bhfi, 0, sizeof(*bhfi));
 	h = CreateFile(path, FILE_READ_ATTRIBUTES, 0, NULL,
 		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (h == INVALID_HANDLE_VALUE)
@@ -438,7 +441,7 @@ assertion_equal_string(const char *file, int line,
     void *extra)
 {
 	assertion_count(file, line);
-	if (v1 == v2 || strcmp(v1, v2) == 0)
+	if (v1 == v2 || (v1 != NULL && v2 != NULL && strcmp(v1, v2) == 0))
 		return (1);
 	failure_start(file, line, "%s != %s", e1, e2);
 	strdump(e1, v1);
@@ -498,6 +501,10 @@ hexdump(const char *p, const char *ref, size_t l, size_t offset)
 	size_t i, j;
 	char sep;
 
+	if (p == NULL) {
+		logprintf("(null)\n");
+		return;
+	}
 	for(i=0; i < l; i+=16) {
 		logprintf("%04x", (unsigned)(i + offset));
 		sep = ' ';
@@ -537,7 +544,7 @@ assertion_equal_mem(const char *file, int line,
 	size_t offset;
 
 	assertion_count(file, line);
-	if (v1 == v2 || memcmp(v1, v2, l) == 0)
+	if (v1 == v2 || (v1 != NULL && v2 != NULL && memcmp(v1, v2, l) == 0))
 		return (1);
 
 	failure_start(file, line, "%s != %s", e1, e2);
@@ -833,7 +840,8 @@ is_hardlink(const char *file, int line,
 		failure_finish(NULL);
 		return (0);
 	}
-	return (bhfi1.nFileIndexHigh == bhfi2.nFileIndexHigh
+	return (bhfi1.dwVolumeSerialNumber == bhfi2.dwVolumeSerialNumber
+		&& bhfi1.nFileIndexHigh == bhfi2.nFileIndexHigh
 		&& bhfi1.nFileIndexLow == bhfi2.nFileIndexLow);
 #else
 	struct stat st1, st2;
@@ -954,6 +962,9 @@ assertion_file_time(const char *file, int line,
 #else
 	filet_nsec = nsec = 0;	/* Generic POSIX only has whole seconds. */
 	if (type == 'b') return (1); /* Generic POSIX doesn't have birthtime */
+#if defined(__HAIKU__)
+	if (type == 'a') return (1); /* Haiku doesn't have atime. */
+#endif
 #endif
 #endif
 	if (recent) {
@@ -1058,15 +1069,27 @@ assertion_file_nlinks(const char *file, int line,
 int
 assertion_file_size(const char *file, int line, const char *pathname, long size)
 {
-	struct stat st;
+	int64_t filesize;
 	int r;
 
 	assertion_count(file, line);
-	r = lstat(pathname, &st);
-	if (r == 0 && st.st_size == size)
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	{
+		BY_HANDLE_FILE_INFORMATION bhfi;
+		r = !my_GetFileInformationByName(pathname, &bhfi);
+		filesize = ((int64_t)bhfi.nFileSizeHigh << 32) + bhfi.nFileSizeLow;
+	}
+#else
+	{
+		struct stat st;
+		r = lstat(pathname, &st);
+		filesize = st.st_size;
+	}
+#endif
+	if (r == 0 && filesize == size)
 			return (1);
 	failure_start(file, line, "File %s has size %ld, expected %ld",
-	    pathname, (long)st.st_size, (long)size);
+	    pathname, (long)filesize, (long)size);
 	failure_finish(NULL);
 	return (0);
 }
