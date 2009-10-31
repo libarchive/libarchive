@@ -28,6 +28,14 @@ __FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_disk.c,v 1.15 2008/09/30 
 #if ARCHIVE_VERSION_NUMBER >= 1009000
 
 #define UMASK 022
+/*
+ * When comparing mode values, ignore high-order bits
+ * that are set on some OSes.  This should cover the bits
+ * we're interested in (standard mode bits + file type bits)
+ * while ignoring extra markers such as Haiku/BeOS index
+ * flags.
+ */
+#define MODE_MASK 0777777
 
 static void create(struct archive_entry *ae, const char *msg)
 {
@@ -46,14 +54,15 @@ static void create(struct archive_entry *ae, const char *msg)
 #endif
 	/* Test the entries on disk. */
 	assert(0 == stat(archive_entry_pathname(ae), &st));
-	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
-	    st.st_mode, archive_entry_mode(ae));
+	failure("%s", msg);
+
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	/* When verifying a dir, ignore the S_ISGID bit, as some systems set
 	 * that automatically. */
-#if !defined(_WIN32) || defined(__CYGWIN__)
 	if (archive_entry_filetype(ae) == AE_IFDIR)
 		st.st_mode &= ~S_ISGID;
-	assertEqualInt(st.st_mode, archive_entry_mode(ae) & ~UMASK);
+	assertEqualInt(st.st_mode & MODE_MASK,
+	    archive_entry_mode(ae) & ~UMASK & MODE_MASK);
 #endif
 }
 
