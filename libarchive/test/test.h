@@ -100,6 +100,12 @@
 # define NLINKS_INACCURATE_FOR_DIRS
 #endif
 
+/* Haiku OS */
+#if defined(__HAIKU__)
+/* Haiku has typedefs in stdint.h (needed for int64_t) */
+#include <stdint.h>
+#endif
+
 /* FreeBSD */
 #ifdef __FreeBSD__
 #include <sys/cdefs.h>  /* For __FBSDID */
