@@ -345,7 +345,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_gtar_sparse_1_17_posix10.tar.uu \
 	libarchive/test/test_read_format_gtar_sparse_1_17_posix10_modified.tar.uu \
 	libarchive/test/test_read_format_iso_gz.iso.gz.uu		\
-	libarchive/test/test_read_format_iso_multi_extent.iso.gz.uu	\
+	libarchive/test/test_read_format_iso_multi_extent.iso.bz2.uu	\
 	libarchive/test/test_read_format_isojoliet_bz2.iso.bz2.uu	\
 	libarchive/test/test_read_format_isojoliet_long.iso.bz2.uu	\
 	libarchive/test/test_read_format_isojoliet_rr.iso.bz2.uu	\
