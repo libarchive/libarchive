@@ -1062,9 +1062,12 @@ relocate_dir(struct iso9660 *iso9660, struct file_info *file)
 	struct file_info *re;
 
 	re = heap_get_entry(&(iso9660->re_dirs));
-	while (re != NULL && re->offset < file->cl_offset)
-		/* This case is wrong pattern. */
+	while (re != NULL && re->offset < file->cl_offset) {
+		/* This case is wrong pattern.
+		 * But dont't reject this directory entry to be robust. */
+		cache_add_entry(iso9660, re);
 		re = heap_get_entry(&(iso9660->re_dirs));
+	}
 	if (re == NULL)
 		/* This case is wrong pattern. */
 		return (0);
@@ -1126,7 +1129,7 @@ read_entries(struct archive_read *a)
 		 * Add rr_moved into pending_files to show
 		 */
 		if (iso9660->rr_moved->subdirs)
-			add_entry(iso9660, iso9660->rr_moved);
+			cache_add_entry(iso9660, iso9660->rr_moved);
 		else {
 			iso9660->rr_moved->parent->subdirs--;
 			release_file(iso9660, iso9660->rr_moved);
