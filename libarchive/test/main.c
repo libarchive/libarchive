@@ -283,14 +283,11 @@ failure_start(const char *filename, int line, const char *fmt, ...)
 
 	/* Determine whether to log header to console. */
 	switch (verbosity) {
-	case VERBOSITY_FULL:
-		log_console = 1;
-		break;
 	case VERBOSITY_LIGHT_REPORT:
 		log_console = (failed_lines[line].count < 2);
 		break;
 	default:
-		log_console = 0;
+		log_console = (verbosity >= VERBOSITY_FULL);
 	}
 
 	/* Log file:line header for this failure */
