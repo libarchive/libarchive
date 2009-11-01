@@ -25,34 +25,15 @@
 #include "test.h"
 __FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_mtree.c,v 1.4 2008/09/18 04:13:36 kientzle Exp $");
 
-/* Single entry with a hardlink. */
-static unsigned char archive[] = {
-	"#mtree\n"
-	"file type=file uid=18 mode=0123 size=3\n"
-	"dir type=dir\n"
-	" file\\040with\\040space type=file uid=18\n"
-	" ..\n"
-	"file\\040with\\040space type=file\n"
-	"dir2 type=dir\n"
-	" dir3a type=dir\n"
-	"  indir3a type=file\n"
-	"dir2/fullindir2 type=file mode=0777\n"
-	"  ..\n"
-	" indir2 type=file\n"
-	" dir3b type=dir\n"
-	"  indir3b type=file\n"
-	"  ..\n"
-	" ..\n"
-	"notindir type=file\n"
-	"dir2/fullindir2 mode=0644\n"
-};
-
 DEFINE_TEST(test_read_format_mtree)
 {
+	const char reffile[] = "test_read_format_mtree.mtree";
 	char buff[16];
 	struct archive_entry *ae;
 	struct archive *a;
 	FILE *f;
+
+	extract_reference_file(reffile);
 
 	/*
 	 * An access error occurred on some platform when mtree
@@ -68,8 +49,7 @@ DEFINE_TEST(test_read_format_mtree)
 	    archive_read_support_compression_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_open_memory(a, archive, sizeof(archive)));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_file(a, reffile, 11));
 
 	/*
 	 * Read "file", whose data is available on disk.
