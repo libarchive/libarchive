@@ -93,25 +93,6 @@
 # endif
 #endif
 
-
-/*
- * We need to be able to display a filesize using printf().  The type
- * and format string here must be compatible with one another and
- * large enough for any file.
- */
-#if HAVE_UINTMAX_T
-#define	BSDTAR_FILESIZE_TYPE	uintmax_t
-#define	BSDTAR_FILESIZE_PRINTF	"%ju"
-#else
-#if HAVE_UNSIGNED_LONG_LONG
-#define	BSDTAR_FILESIZE_TYPE	unsigned long long
-#define	BSDTAR_FILESIZE_PRINTF	"%llu"
-#else
-#define	BSDTAR_FILESIZE_TYPE	unsigned long
-#define	BSDTAR_FILESIZE_PRINTF	"%lu"
-#endif
-#endif
-
 #if HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC
 #define	ARCHIVE_STAT_CTIME_NANOS(st)	(st)->st_ctimespec.tv_nsec
 #define	ARCHIVE_STAT_MTIME_NANOS(st)	(st)->st_mtimespec.tv_nsec

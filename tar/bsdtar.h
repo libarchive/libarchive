@@ -142,6 +142,7 @@ int	need_report(void);
 int	pathcmp(const char *a, const char *b);
 void	safe_fprintf(FILE *, const char *fmt, ...);
 void	set_chdir(struct bsdtar *, const char *newdir);
+const char *tar_i64toa(int64_t);
 void	tar_mode_c(struct bsdtar *bsdtar);
 void	tar_mode_r(struct bsdtar *bsdtar);
 void	tar_mode_t(struct bsdtar *bsdtar);

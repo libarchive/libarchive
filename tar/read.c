@@ -99,7 +99,7 @@ progress_func(void *cookie)
 	struct bsdtar *bsdtar = progress_data->bsdtar;
 	struct archive *a = progress_data->archive;
 	struct archive_entry *entry = progress_data->entry;
-	uintmax_t comp, uncomp;
+	uint64_t comp, uncomp;
 
 	if (!need_report())
 		return;
@@ -110,16 +110,16 @@ progress_func(void *cookie)
 		comp = archive_position_compressed(a);
 		uncomp = archive_position_uncompressed(a);
 		fprintf(stderr,
-		    "In: %ju bytes, compression %d%%;",
-		    comp, (int)((uncomp - comp) * 100 / uncomp));
-		fprintf(stderr, "  Out: %d files, %ju bytes\n",
-		    archive_file_count(a), uncomp);
+		    "In: %s bytes, compression %d%%;",
+		    tar_i64toa(comp), (int)((uncomp - comp) * 100 / uncomp));
+		fprintf(stderr, "  Out: %d files, %s bytes\n",
+		    archive_file_count(a), tar_i64toa(uncomp));
 	}
 	if (entry != NULL) {
-		safe_fprintf(stderr, "Current: %s (%ju bytes)",
-		    archive_entry_pathname(entry),
-		    (uintmax_t)archive_entry_size(entry));
-		fprintf(stderr, "\n");
+		safe_fprintf(stderr, "Current: %s",
+		    archive_entry_pathname(entry));
+		fprintf(stderr, " (%s bytes)\n",
+		    tar_i64toa(archive_entry_size(entry)));
 	}
 }
 
@@ -403,13 +403,7 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 		    (unsigned long)archive_entry_rdevmajor(entry),
 		    (unsigned long)archive_entry_rdevminor(entry));
 	} else {
-		/*
-		 * Note the use of platform-dependent macros to format
-		 * the filesize here.  We need the format string and the
-		 * corresponding type for the cast.
-		 */
-		sprintf(tmp, BSDTAR_FILESIZE_PRINTF,
-		    (BSDTAR_FILESIZE_TYPE)archive_entry_size(entry));
+		strcpy(tmp, tar_i64toa(archive_entry_size(entry)));
 	}
 	if (w + strlen(tmp) >= bsdtar->gs_width)
 		bsdtar->gs_width = w+strlen(tmp)+1;
