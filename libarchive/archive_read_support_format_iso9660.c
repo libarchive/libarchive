@@ -262,6 +262,7 @@ struct file_info {
 	struct file_info	*next;
 	int		 refcount;
 	int		 subdirs;
+	uint64_t	 key;		/* Heap Key.			*/
 	uint64_t	 offset;	/* Offset on disk.		*/
 	uint64_t	 size;		/* File size in bytes.		*/
 	uint32_t	 ce_offset;	/* Offset of CE.		*/
@@ -403,11 +404,11 @@ static inline void cache_add_to_next_of_parent(struct iso9660 *iso9660,
 		    struct file_info *file);
 static inline struct file_info *cache_get_entry(struct iso9660 *iso9660);
 static void	heap_add_entry(struct heap_queue *heap,
-		    struct file_info *file);
+		    struct file_info *file, uint64_t key);
 static struct file_info *heap_get_entry(struct heap_queue *heap);
 
 #define add_entry(iso9660, file)	\
-	heap_add_entry(&((iso9660)->pending_files), file)
+	heap_add_entry(&((iso9660)->pending_files), file, file->offset)
 #define next_entry(iso9660)		\
 	heap_get_entry(&((iso9660)->pending_files))
 
@@ -1009,7 +1010,7 @@ read_children(struct archive_read *a, struct file_info *parent)
 				return (ARCHIVE_FATAL);
 			if (child->cl_offset)
 				heap_add_entry(&(iso9660->cl_files),
-				    child);
+				    child, child->cl_offset);
 			else {
 				if (child->multi_extent || multi != NULL) {
 					struct content *con;
@@ -1077,7 +1078,7 @@ relocate_dir(struct iso9660 *iso9660, struct file_info *file)
 		return (1);
 	} else
 		/* This case is wrong pattern. */
-		heap_add_entry(&(iso9660->re_dirs), re);
+		heap_add_entry(&(iso9660->re_dirs), re, re->offset);
 	return (0);
 }
 
@@ -1104,7 +1105,8 @@ read_entries(struct archive_read *a)
 		     strcmp(file->name.s, ".rr_moved") == 0)) {
 			iso9660->rr_moved = file;
 		} else if (file->re)
-			heap_add_entry(&(iso9660->re_dirs), file);
+			heap_add_entry(&(iso9660->re_dirs), file,
+			    file->offset);
 		else
 			cache_add_entry(iso9660, file);
 	}
@@ -2663,9 +2665,9 @@ cache_get_entry(struct iso9660 *iso9660)
 }
 
 static void
-heap_add_entry(struct heap_queue *heap, struct file_info *file)
+heap_add_entry(struct heap_queue *heap, struct file_info *file, uint64_t key)
 {
-	uint64_t file_offset, parent_offset;
+	uint64_t file_key, parent_key;
 	int hole, parent;
 
 	/* Expand our pending files list as necessary. */
@@ -2690,7 +2692,7 @@ heap_add_entry(struct heap_queue *heap, struct file_info *file)
 		heap->allocated = new_size;
 	}
 
-	file_offset = file->offset;
+	file_key = file->key = key;
 	file->refcount++;
 
 	/*
@@ -2699,8 +2701,8 @@ heap_add_entry(struct heap_queue *heap, struct file_info *file)
 	hole = heap->used++;
 	while (hole > 0) {
 		parent = (hole - 1)/2;
-		parent_offset = heap->files[parent]->offset;
-		if (file_offset >= parent_offset) {
+		parent_key = heap->files[parent]->key;
+		if (file_key >= parent_key) {
 			heap->files[hole] = file;
 			return;
 		}
@@ -2714,7 +2716,7 @@ heap_add_entry(struct heap_queue *heap, struct file_info *file)
 static struct file_info *
 heap_get_entry(struct heap_queue *heap)
 {
-	uint64_t a_offset, b_offset, c_offset;
+	uint64_t a_key, b_key, c_key;
 	int a, b, c;
 	struct file_info *r, *tmp;
 
@@ -2735,22 +2737,22 @@ heap_get_entry(struct heap_queue *heap)
 	/*
 	 * Rebalance the heap.
 	 */
-	a = 0; // Starting element and its offset
-	a_offset = heap->files[a]->offset;
+	a = 0; // Starting element and its heap key
+	a_key = heap->files[a]->key;
 	for (;;) {
 		b = a + a + 1; // First child
 		if (b >= heap->used)
 			return (r);
-		b_offset = heap->files[b]->offset;
+		b_key = heap->files[b]->key;
 		c = b + 1; // Use second child if it is smaller.
 		if (c < heap->used) {
-			c_offset = heap->files[c]->offset;
-			if (c_offset < b_offset) {
+			c_key = heap->files[c]->key;
+			if (c_key < b_key) {
 				b = c;
-				b_offset = c_offset;
+				b_key = c_key;
 			}
 		}
-		if (a_offset <= b_offset)
+		if (a_key <= b_key)
 			return (r);
 		tmp = heap->files[a];
 		heap->files[a] = heap->files[b];
