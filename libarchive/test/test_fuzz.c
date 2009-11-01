@@ -50,12 +50,14 @@ static struct {
 	int uncompress; /* If 1, decompress the file before fuzzing. */
 	const char *name;
 } files[] = {
-	{0, "test_fuzz_1.iso"},
+	{0, "test_fuzz_1.iso.Z"},
+	{1, "test_fuzz_1.iso.Z"},
 	{0, "test_compat_bzip2_1.tbz"}, /* Fuzz the compressed file. */
 	{1, "test_compat_bzip2_1.tbz"}, /* Fuzz the uncompressed file. */
 	{0, "test_compat_gtar_1.tar"},
 	{0, "test_compat_tar_hardlink_1.tar"},
 	{0, "test_compat_zip_1.zip"},
+	{0, "test_read_format_ar.ar"},
 	{0, "test_read_format_gtar_sparse_1_17_posix10_modified.tar"},
 	{0, "test_read_format_tar_empty_filename.tar"},
 	{0, "test_read_format_zip.zip"},
