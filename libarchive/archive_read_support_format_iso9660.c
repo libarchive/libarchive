@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_format_iso9660.c,v 1
 #endif
 #include <time.h>
 #ifdef HAVE_ZLIB_H
-#include <zlib.h>       
+#include <zlib.h>
 #endif
 
 #include "archive.h"
