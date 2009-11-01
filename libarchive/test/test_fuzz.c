@@ -55,9 +55,13 @@ static struct {
 	{0, "test_compat_bzip2_1.tbz"}, /* Fuzz the compressed file. */
 	{1, "test_compat_bzip2_1.tbz"}, /* Fuzz the uncompressed file. */
 	{0, "test_compat_gtar_1.tar"},
+	{0, "test_compat_gzip_1.tgz"},
+	{0, "test_compat_gzip_2.tgz"},
 	{0, "test_compat_tar_hardlink_1.tar"},
+	{0, "test_compat_xz_1.txz"},
 	{0, "test_compat_zip_1.zip"},
 	{0, "test_read_format_ar.ar"},
+	{0, "test_read_format_cpio_bin_be.cpio"},
 	{0, "test_read_format_gtar_sparse_1_17_posix10_modified.tar"},
 	{0, "test_read_format_tar_empty_filename.tar"},
 	{0, "test_read_format_zip.zip"},
