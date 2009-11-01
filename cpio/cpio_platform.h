@@ -42,11 +42,13 @@
 #include "config.h"
 #endif
 
-/* No non-FreeBSD platform will have __FBSDID, so just define it here. */
-#ifdef __FreeBSD__
-#include <sys/cdefs.h>  /* For __FBSDID */
-#elif !defined(__FBSDID)
-/* Just leaving this macro replacement empty leads to a dangling semicolon. */
+/* Get a real definition for __FBSDID if we can */
+#if HAVE_SYS_CDEFS_H
+#include <sys/cdefs.h>
+#endif
+
+/* If not, define it so as to avoid dangling semicolons. */
+#ifndef __FBSDID
 #define	__FBSDID(a)     struct _undefined_hack
 #endif
 

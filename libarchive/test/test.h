@@ -106,14 +106,14 @@
 #include <stdint.h>
 #endif
 
-/* FreeBSD */
-#ifdef __FreeBSD__
-#include <sys/cdefs.h>  /* For __FBSDID */
-#else
-/* Surprisingly, some non-FreeBSD platforms define __FBSDID. */
+/* Get a real definition for __FBSDID if we can */
+#if HAVE_SYS_CDEFS_H
+#include <sys/cdefs.h>
+#endif
+
+/* If not, define it so as to avoid dangling semicolons. */
 #ifndef __FBSDID
 #define	__FBSDID(a)     struct _undefined_hack
-#endif
 #endif
 
 #ifndef O_BINARY
