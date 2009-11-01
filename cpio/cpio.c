@@ -96,6 +96,7 @@ struct name_cache {
 };
 
 static int	copy_data(struct archive *, struct archive *);
+const char *	cpio_i64toa(int64_t);
 static const char *cpio_rename(const char *name);
 static int	entry_to_archive(struct cpio *, struct archive_entry *);
 static int	file_to_archive(struct cpio *, const char *);
@@ -946,23 +947,18 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 	char			 uids[16], gids[16];
 	const char 		*uname, *gname;
 	FILE			*out = stdout;
-	const struct stat	*st;
 	const char		*fmt;
-	time_t			 tim;
+	time_t			 mtime;
 	static time_t		 now;
-
-	st = archive_entry_stat(entry);
 
 	if (!now)
 		time(&now);
 
 	if (cpio->option_numeric_uid_gid) {
 		/* Format numeric uid/gid for display. */
-		snprintf(uids, sizeof(uids), CPIO_FILESIZE_PRINTF,
-		    (CPIO_FILESIZE_TYPE)archive_entry_uid(entry));
+		strcpy(uids, cpio_i64toa(archive_entry_uid(entry)));
 		uname = uids;
-		snprintf(gids, sizeof(gids), CPIO_FILESIZE_PRINTF,
-		    (CPIO_FILESIZE_TYPE)archive_entry_gid(entry));
+		strcpy(gids, cpio_i64toa(archive_entry_gid(entry)));
 		gname = gids;
 	} else {
 		/* Use uname if it's present, else lookup name from uid. */
@@ -982,26 +978,25 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 		    (unsigned long)archive_entry_rdevmajor(entry),
 		    (unsigned long)archive_entry_rdevminor(entry));
 	} else {
-		snprintf(size, sizeof(size), CPIO_FILESIZE_PRINTF,
-		    (CPIO_FILESIZE_TYPE)st->st_size);
+		strcpy(size, cpio_i64toa(archive_entry_size(entry)));
 	}
 
 	/* Format the time using 'ls -l' conventions. */
-	tim = (time_t)st->st_mtime;
+	mtime = archive_entry_mtime(entry);
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	/* Windows' strftime function does not support %e format. */
-	if (tim - now > 365*86400/2
-		|| tim - now < -365*86400/2)
+	if (mtime - now > 365*86400/2
+		|| mtime - now < -365*86400/2)
 		fmt = cpio->day_first ? "%d %b  %Y" : "%b %d  %Y";
 	else
 		fmt = cpio->day_first ? "%d %b %H:%M" : "%b %d %H:%M";
 #else
-	if (abs(tim - now) > (365/2)*86400)
+	if (abs(mtime - now) > (365/2)*86400)
 		fmt = cpio->day_first ? "%e %b  %Y" : "%b %e  %Y";
 	else
 		fmt = cpio->day_first ? "%e %b %H:%M" : "%b %e %H:%M";
 #endif
-	strftime(date, sizeof(date), fmt, localtime(&tim));
+	strftime(date, sizeof(date), fmt, localtime(&mtime));
 
 	fprintf(out, "%s%3d %-8s %-8s %8s %12s %s",
 	    archive_entry_strmode(entry),
@@ -1230,4 +1225,28 @@ lookup_gname_helper(struct cpio *cpio, const char **name, id_t id)
 
 	*name = grent->gr_name;
 	return (0);
+}
+
+/*
+ * It would be nice to just use printf() for formatting large numbers,
+ * but the compatibility problems are a big headache.  Hence the
+ * following simple utility function.
+ */
+const char *
+cpio_i64toa(int64_t n0)
+{
+	// 2^64 =~ 1.8 * 10^19, so 20 decimal digits suffice.
+	// We also need 1 byte for '-' and 1 for '\0'.
+	static char buff[22];
+	int64_t n = n0 < 0 ? -n0 : n0;
+	char *p = buff + sizeof(buff);
+
+	*--p = '\0';
+	do {
+		*--p = '0' + (n % 10);
+		n /= 10;
+	} while (n > 0);
+	if (n0 < 0)
+		*--p = '-';
+	return p;
 }

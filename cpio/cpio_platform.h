@@ -60,26 +60,6 @@
 #include "archive_entry.h"
 #endif
 
-/*
- * We need to be able to display a filesize using printf().  The type
- * and format string here must be compatible with one another and
- * large enough for any file.
- */
-#if defined(_WIN32) && !defined(__CYGWIN__)
-#define	CPIO_FILESIZE_TYPE	__int64
-#define	CPIO_FILESIZE_PRINTF	"%I64u"
-#elif HAVE_UINTMAX_T
-#define	CPIO_FILESIZE_TYPE	uintmax_t
-#define	CPIO_FILESIZE_PRINTF	"%ju"
-#elif HAVE_UNSIGNED_LONG_LONG
-#define	CPIO_FILESIZE_TYPE	unsigned long long
-#define	CPIO_FILESIZE_PRINTF	"%llu"
-#else
-#define	CPIO_FILESIZE_TYPE	unsigned long
-#define	CPIO_FILESIZE_PRINTF	"%lu"
-#endif
-
-
 /* How to mark functions that don't return. */
 #if defined(__GNUC__) && (__GNUC__ > 2 || \
                           (__GNUC__ == 2 && __GNUC_MINOR__ >= 5))
