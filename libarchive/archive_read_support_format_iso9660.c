@@ -1128,12 +1128,25 @@ read_entries(struct archive_read *a)
 		/* If rr_moved directory still has children,
 		 * Add rr_moved into pending_files to show
 		 */
-		if (iso9660->rr_moved->subdirs)
+		if (iso9660->rr_moved->subdirs) {
 			cache_add_entry(iso9660, iso9660->rr_moved);
-		else {
+			/* If entries which have "RE" extension are still
+			 * remaining(this case is unlikely except ISO image
+			 * is broken), the entries won't be exposed. */
+			while ((file = heap_get_entry(&(iso9660->re_dirs))) != NULL)
+				cache_add_entry(iso9660, file);
+		} else {
 			iso9660->rr_moved->parent->subdirs--;
 			release_file(iso9660, iso9660->rr_moved);
 		}
+	} else {
+		/*
+		 * In case ISO image is broken. If the name of rr_moved
+		 * directory has been changed by damage, subdirectories
+		 * of rr_moved entry won't be exposed.
+		 */
+		while ((file = heap_get_entry(&(iso9660->re_dirs))) != NULL)
+			cache_add_entry(iso9660, file);
 	}
 
 	return (ARCHIVE_OK);
@@ -2663,6 +2676,8 @@ cache_get_entry(struct iso9660 *iso9660)
 	if ((file = iso9660->cache_files.first) != NULL) {
 		iso9660->cache_files.first = file->next;
 		file->refcount--;
+		if (iso9660->cache_files.first == NULL)
+			iso9660->cache_files.last = &(iso9660->cache_files.first);
 	}
 	return (file);
 }
