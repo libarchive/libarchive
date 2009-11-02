@@ -83,9 +83,9 @@
 /* Windows (including Visual Studio and MinGW but not Cygwin) */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #define strdup _strdup
-#define LOCALE_DE	"deu"
+#define	LOCALE_UTF8	NULL
 #else
-#define LOCALE_DE	"de_DE.UTF-8"
+#define LOCALE_UTF8	"de_DE.UTF-8"
 #endif
 
 /* Visual Studio */
