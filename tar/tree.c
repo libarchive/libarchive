@@ -186,7 +186,7 @@ tree_dump(struct tree *t, FILE *out)
 	fprintf(out, "\tbasename: %s\n", t->basename);
 	fprintf(out, "\tstack:\n");
 	for (te = t->stack; te != NULL; te = te->next) {
-		fprintf(out, "\t\t%s%d:\"%s\" %s%s%s%s%s\n",
+		fprintf(out, "\t\t%s%d:\"%s\" %s%s%s%s%s%s\n",
 		    t->current == te ? "*" : " ",
 		    te->depth,
 		    te->name,
@@ -194,6 +194,7 @@ tree_dump(struct tree *t, FILE *out)
 		    te->flags & needsDescent ? "D" : "",
 		    te->flags & needsOpen ? "O" : "",
 		    te->flags & needsAscent ? "A" : "",
+		    te->flags & isDirLink ? "L" : "",
 		    (t->current == te && t->d) ? "+" : ""
 		);
 	}
@@ -271,22 +272,57 @@ tree_append(struct tree *t, const char *name, size_t name_length)
 struct tree *
 tree_open(const char *path)
 {
+#ifdef HAVE_FCHDIR
 	struct tree *t;
 
 	t = malloc(sizeof(*t));
 	memset(t, 0, sizeof(*t));
-//	tree_append(t, path, strlen(path));
 	/* First item is set up a lot like a symlink traversal. */
 	tree_push(t, path);
-	t->stack->flags = needsFirstVisit | isDirLink;
-#ifdef HAVE_FCHDIR
+	t->stack->flags = needsFirstVisit | isDirLink | needsAscent;
 	t->stack->symlink_parent_fd = open(".", O_RDONLY);
 	t->openCount++;
-#elif defined(_WIN32) && !defined(__CYGWIN__)
-	t->stack->symlink_parent_path = _getcwd(NULL, 0);
-#endif
 	t->d = INVALID_DIR_HANDLE;
 	return (t);
+#elif defined(_WIN32) && !defined(__CYGWIN__)
+	struct tree *t;
+	char *cwd = _getcwd(NULL, 0);
+	char *pattern = NULL;
+
+	t = malloc(sizeof(*t));
+	memset(t, 0, sizeof(*t));
+	/* First item is set up a lot like a symlink traversal. */
+	/* printf("Looking for wildcard in %s\n", path); */
+	if (strchr(path, '*') || strchr(path, '?')) {
+		// It has a wildcard in it...
+		// Separate the last element.
+		const char *bs = strrchr(path, '\\');
+		const char *s = strrchr(path, '/');
+		const char *sep;
+		if (s != NULL) {
+			if (bs != NULL)
+				sep = s > bs ? s : bs;
+			else 
+				sep = s;
+		} else
+			sep = bs;
+		if (sep != NULL) {
+			char *base = strdup(path);
+			pattern = strdup(sep + 1);
+			base[sep - path + 1] = '\0';
+			chdir(base);
+			tree_append(t, base, strlen(base));
+			free(base);
+			path = pattern;
+		}
+	}
+	tree_push(t, path);
+	free(pattern);
+	t->stack->flags = needsFirstVisit | isDirLink | needsAscent;
+	t->stack->symlink_parent_path = cwd;
+	t->d = INVALID_DIR_HANDLE;
+	return (t);
+#endif
 }
 
 /*
@@ -384,23 +420,10 @@ tree_next(struct tree *t)
 
 		if (t->stack->flags & needsFirstVisit) {
 #if defined(_WIN32) && !defined(__CYGWIN__)
-			char *d = strdup(t->stack->name);
-			char *p, *pattern;
-			//tree_pop(t);
+			char *d = t->stack->name;
 			t->stack->flags &= ~needsFirstVisit;
 			if (strchr(d, '*') || strchr(d, '?')) {
-				// It has a wildcard in it...
-				if ((p = strrchr(d, '\\')) != NULL) {
-					pattern = strdup(p + 1);
-					p[1] = '\0';
-					chdir(d);
-					tree_append(t, d, strlen(d));
-					free(d);
-				} else {
-					pattern = d;
-				}
-				r = tree_dir_next_windows(t, pattern);
-				free(pattern);
+				r = tree_dir_next_windows(t, d);
 				if (r == 0)
 					continue;
 				return (r);
