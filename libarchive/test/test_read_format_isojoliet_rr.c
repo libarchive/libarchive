@@ -48,31 +48,24 @@ TZ=utc touch -afhm -t 197001020000.01 /tmp/iso/hardlink /tmp/iso/$file /tmp/iso/
 TZ=utc touch -afhm -t 197001030000.02 /tmp/iso/symlink
 TZ=utc touch -afhm -t 197001020000.01 /tmp/iso
 fi
-F=test_read_format_isojoliet_rr.iso.bz2
-mkhybrid -J -uid 1 -gid 2 /tmp/iso | bzip2 > $F
+F=test_read_format_iso_joliet_rockridge.iso.Z
+mkhybrid -J -uid 1 -gid 2 /tmp/iso | compress > $F
 uuencode $F $F > $F.uu
 exit 1
  */
 
 DEFINE_TEST(test_read_format_isojoliet_rr)
 {
-	const char *refname = "test_read_format_isojoliet_rr.iso.bz2";
+	const char *refname = "test_read_format_iso_joliet_rockridge.iso.Z";
 	struct archive_entry *ae;
 	struct archive *a;
 	const void *p;
 	size_t size;
 	off_t offset;
-	int r;
 
 	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
-	r = archive_read_support_compression_bzip2(a);
-	if (r == ARCHIVE_WARN) {
-		skipping("bzip2 reading not fully supported on this platform");
-		assertEqualInt(0, archive_read_finish(a));
-		return;
-	}
-	assertEqualInt(0, r);
+	assertEqualInt(0, archive_read_support_compression_all(a));
 	assertEqualInt(0, archive_read_support_format_all(a));
 	assertEqualInt(ARCHIVE_OK,
 	    archive_read_open_filename(a, refname, 10240));
@@ -155,7 +148,7 @@ DEFINE_TEST(test_read_format_isojoliet_rr)
 	assertEqualInt(ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_BZIP2);
+	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_COMPRESS);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_ISO9660_ROCKRIDGE);
 
 	/* Close the archive. */

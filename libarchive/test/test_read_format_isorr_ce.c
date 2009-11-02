@@ -60,8 +60,8 @@ TZ=utc touch -afhm -t $time1 $dirname/dir $dirname/aaaa*
 TZ=utc touch -afhm -t $time2 $dirname/sym*
 TZ=utc touch -afhm -t $time1 $dirname
 #
-F=test_read_format_isorr_ce.iso.bz2
-mkisofs -R -uid 1 -gid 2 $dirname | bzip2 > $F
+F=test_read_format_iso_rockridge_ce.iso.Z
+mkisofs -R -uid 1 -gid 2 $dirname | compress > $F
 uuencode $F $F > $F.uu
 rm -rf $dirname
 exit 1
@@ -83,7 +83,7 @@ mkpath(char *p, int len)
 
 DEFINE_TEST(test_read_format_isorr_ce)
 {
-	const char *refname = "test_read_format_isorr_ce.iso.bz2";
+	const char *refname = "test_read_format_iso_rockridge_ce.iso.Z";
 	char path1[160];
 	char path2[160];
 	char path3[160];
@@ -93,20 +93,13 @@ DEFINE_TEST(test_read_format_isorr_ce)
 	size_t size;
 	off_t offset;
 	int i;
-	int r;
 
 	mkpath(path1, 151);
 	mkpath(path2, 152);
 	mkpath(path3, 153);
 	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
-	r = archive_read_support_compression_bzip2(a);
-	if (r == ARCHIVE_WARN) {
-		skipping("bzip2 reading not fully supported on this platform");
-		assertEqualInt(0, archive_read_finish(a));
-		return;
-	}
-	assertEqualInt(0, r);
+	assertEqualInt(0, archive_read_support_compression_all(a));
 	assertEqualInt(0, archive_read_support_format_all(a));
 	assertEqualInt(ARCHIVE_OK,
 	    archive_read_open_filename(a, refname, 10240));
@@ -218,7 +211,7 @@ DEFINE_TEST(test_read_format_isorr_ce)
 	assertEqualInt(ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_BZIP2);
+	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_COMPRESS);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_ISO9660_ROCKRIDGE);
 
 	/* Close the archive. */

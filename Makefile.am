@@ -344,16 +344,16 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_gtar_sparse_1_17_posix01.tar.uu \
 	libarchive/test/test_read_format_gtar_sparse_1_17_posix10.tar.uu \
 	libarchive/test/test_read_format_gtar_sparse_1_17_posix10_modified.tar.uu \
-	libarchive/test/test_read_format_iso_gz.iso.gz.uu		\
-	libarchive/test/test_read_format_iso_multi_extent.iso.bz2.uu	\
-	libarchive/test/test_read_format_isojoliet_bz2.iso.bz2.uu	\
-	libarchive/test/test_read_format_isojoliet_long.iso.bz2.uu	\
-	libarchive/test/test_read_format_isojoliet_rr.iso.bz2.uu	\
-	libarchive/test/test_read_format_isorr_bz2.iso.bz2.uu		\
-	libarchive/test/test_read_format_isorr_ce.iso.bz2.uu		\
-	libarchive/test/test_read_format_isorr_new_bz2.iso.bz2.uu	\
-	libarchive/test/test_read_format_isorr_rr_moved.iso.bz2.uu	\
-	libarchive/test/test_read_format_isozisofs_bz2.iso.bz2.uu	\
+	libarchive/test/test_read_format_iso.iso.Z.uu			\
+	libarchive/test/test_read_format_iso_joliet.iso.Z.uu		\
+	libarchive/test/test_read_format_iso_joliet_long.iso.Z.uu	\
+	libarchive/test/test_read_format_iso_joliet_rockridge.iso.Z.uu	\
+	libarchive/test/test_read_format_iso_multi_extent.iso.Z.uu	\
+	libarchive/test/test_read_format_iso_rockridge.iso.Z.uu		\
+	libarchive/test/test_read_format_iso_rockridge_ce.iso.Z.uu	\
+	libarchive/test/test_read_format_iso_rockridge_new.iso.Z.uu	\
+	libarchive/test/test_read_format_iso_rockridge_rr_moved.iso.Z.uu\
+	libarchive/test/test_read_format_iso_zisofs.iso.Z.uu		\
 	libarchive/test/test_read_format_raw.data.Z.uu			\
 	libarchive/test/test_read_format_raw.data.uu			\
 	libarchive/test/test_read_format_iso_gz.iso.gz.uu		\

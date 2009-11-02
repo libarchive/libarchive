@@ -30,7 +30,7 @@ PLEASE use old cdrtools; mkisofs verion is 2.01.
 This version mkisofs made wrong "SL" System Use Entry of RRIP.
 
 Execute the following command to rebuild the data for this program:
-   tail -n +32 test_read_format_isorr_bz2.c | /bin/sh
+   tail -n +34 test_read_format_isorr_bz2.c | /bin/sh
 
 rm -rf /tmp/iso
 mkdir /tmp/iso
@@ -46,32 +46,25 @@ ln /tmp/iso/file /tmp/iso/hardlink
 (cd /tmp/iso; ln -s /tmp//../ symlink6)
 TZ=utc touch -afhm -t 197001020000.01 /tmp/iso /tmp/iso/file /tmp/iso/dir
 TZ=utc touch -afhm -t 197001030000.02 /tmp/iso/symlink /tmp/iso/symlink5
-F=test_read_format_isorr_bz2.iso.bz2
-mkhybrid -R -uid 1 -gid 2 /tmp/iso | bzip2 > $F
+F=test_read_format_iso_rockridge.iso.Z
+mkhybrid -R -uid 1 -gid 2 /tmp/iso | compress > $F
 uuencode $F $F > $F.uu
 exit 1
  */
 
 DEFINE_TEST(test_read_format_isorr_bz2)
 {
-	const char *refname = "test_read_format_isorr_bz2.iso.bz2";
+	const char *refname = "test_read_format_iso_rockridge.iso.Z";
 	struct archive_entry *ae;
 	struct archive *a;
 	const void *p;
 	size_t size;
 	off_t offset;
 	int i;
-	int r;
 
 	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
-	r = archive_read_support_compression_bzip2(a);
-	if (r == ARCHIVE_WARN) {
-		skipping("bzip2 reading not fully supported on this platform");
-		assertEqualInt(0, archive_read_finish(a));
-		return;
-	}
-	assertEqualInt(0, r);
+	assertEqualInt(0, archive_read_support_compression_all(a));
 	assertEqualInt(0, archive_read_support_format_all(a));
 	assertEqualInt(ARCHIVE_OK,
 	    archive_read_open_filename(a, refname, 10240));
@@ -199,7 +192,7 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 	assertEqualInt(ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_BZIP2);
+	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_COMPRESS);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_ISO9660_ROCKRIDGE);
 
 	/* Close the archive. */
