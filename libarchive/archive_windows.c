@@ -558,7 +558,7 @@ size_t
 __la_mbstowcs(wchar_t *wcstr, const char *mbstr, size_t nwchars)
 {
 
-	return (MultiByteToWideChar(CP_THREAD_ACP, MB_ERR_INVALID_CHARS,
+	return (MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS,
 	    mbstr, (int)strlen(mbstr), wcstr,
 	    (int)nwchars));
 }
