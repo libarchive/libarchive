@@ -302,7 +302,7 @@ tree_open(const char *path)
 		if (s != NULL) {
 			if (bs != NULL)
 				sep = s > bs ? s : bs;
-			else 
+			else
 				sep = s;
 		} else
 			sep = bs;
