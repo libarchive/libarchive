@@ -249,6 +249,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_format_cpio_bin_be.c		\
 	libarchive/test/test_read_format_cpio_bin_bz2.c		\
 	libarchive/test/test_read_format_cpio_bin_gz.c		\
+	libarchive/test/test_read_format_cpio_bin_lzma.c	\
 	libarchive/test/test_read_format_cpio_bin_xz.c		\
 	libarchive/test/test_read_format_cpio_odc.c		\
 	libarchive/test/test_read_format_cpio_svr4_gzip.c	\
@@ -274,6 +275,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_format_tar_empty_filename.c	\
 	libarchive/test/test_read_format_tbz.c			\
 	libarchive/test/test_read_format_tgz.c			\
+	libarchive/test/test_read_format_tlz.c			\
 	libarchive/test/test_read_format_txz.c			\
 	libarchive/test/test_read_format_tz.c			\
 	libarchive/test/test_read_format_zip.c			\

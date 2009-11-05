@@ -47,6 +47,7 @@ IF(ENABLE_TEST)
     test_read_format_cpio_bin_be.c
     test_read_format_cpio_bin_bz2.c
     test_read_format_cpio_bin_gz.c
+    test_read_format_cpio_bin_lzma.c
     test_read_format_cpio_bin_xz.c
     test_read_format_cpio_odc.c
     test_read_format_cpio_svr4_gzip.c
@@ -72,6 +73,7 @@ IF(ENABLE_TEST)
     test_read_format_tar_empty_filename.c
     test_read_format_tbz.c
     test_read_format_tgz.c
+    test_read_format_tlz.c
     test_read_format_txz.c
     test_read_format_tz.c
     test_read_format_zip.c
