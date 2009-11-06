@@ -1829,11 +1829,31 @@ set_ownership(struct archive_write_disk *a)
 	return (ARCHIVE_WARN);
 }
 
-#ifdef HAVE_UTIMES
+
+#if defined(HAVE_UTIMENSAT) && defined(HAVE_FUTIMENS)
+/* 
+ * utimensat() and futimens() are defined in POSIX.1-2008. They provide ns
+ * resolution and setting times on fd and on symlinks, too.
+ */
+static int
+set_time(int fd, int mode, const char *name,
+    time_t atime, long atime_nsec,
+    time_t mtime, long mtime_nsec)
+{
+	struct timespec ts[2];
+	ts[0].tv_sec = atime;
+	ts[0].tv_nsec = atime_nsec;
+	ts[1].tv_sec = mtime;
+	ts[1].tv_nsec = mtime_nsec;
+	if (fd >= 0)
+		return futimens(fd, ts);
+	return utimensat(AT_FDCWD, name, ts, AT_SYMLINK_NOFOLLOW);
+}
+#elif HAVE_UTIMES
 /*
- * The utimes()-family functions provide high resolution and
+ * The utimes()-family functions provide µs-resolution and
  * a way to set time on an fd or a symlink.  We prefer them
- * when they're available.
+ * when they're available and utimensat/futimens aren't there.
  */
 static int
 set_time(int fd, int mode, const char *name,
