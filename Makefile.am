@@ -223,6 +223,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_compat_bzip2.c			\
 	libarchive/test/test_compat_gtar.c			\
 	libarchive/test/test_compat_gzip.c			\
+	libarchive/test/test_compat_lzma.c			\
 	libarchive/test/test_compat_solaris_tar_acl.c		\
 	libarchive/test/test_compat_tar_hardlink.c		\
 	libarchive/test/test_compat_xz.c			\
@@ -333,6 +334,9 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_gtar_1.tar.uu			\
 	libarchive/test/test_compat_gzip_1.tgz.uu			\
 	libarchive/test/test_compat_gzip_2.tgz.uu			\
+	libarchive/test/test_compat_lzma_1.tlz.uu			\
+	libarchive/test/test_compat_lzma_2.tlz.uu			\
+	libarchive/test/test_compat_lzma_3.tlz.uu			\
 	libarchive/test/test_compat_solaris_tar_acl.tar.uu		\
 	libarchive/test/test_compat_tar_hardlink_1.tar.uu		\
 	libarchive/test/test_compat_xz_1.txz.uu				\
