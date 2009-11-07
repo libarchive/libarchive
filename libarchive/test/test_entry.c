@@ -73,7 +73,9 @@ DEFINE_TEST(test_entry)
 #ifdef S_IFCHR
 	assertEqualInt(S_IFCHR, AE_IFCHR);
 #endif
-#ifdef S_IFBLK
+/* Work around MinGW, which defines S_IFBLK wrong. */
+/* sourceforge.net/tracker/?func=detail&atid=102435&aid=1942809&group_id=2435 */
+#if defined(S_IFBLK) && !defined(_WIN32)
 	assertEqualInt(S_IFBLK, AE_IFBLK);
 #endif
 #ifdef S_IFDIR
