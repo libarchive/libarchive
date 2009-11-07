@@ -118,13 +118,6 @@ IF(ENABLE_TEST)
   )
 
   #
-  # Generate the list.h
-  #
-  GENERATE_LIST_H(${CMAKE_CURRENT_BINARY_DIR}/list.h
-    ${CMAKE_CURRENT_LIST_FILE} ${libarchive_test_SOURCES})
-  SET_PROPERTY(DIRECTORY APPEND PROPERTY INCLUDE_DIRECTORIES
-    ${CMAKE_CURRENT_BINARY_DIR})
-  #
   # Register target
   #
   ADD_EXECUTABLE(libarchive_test ${libarchive_test_SOURCES})
@@ -132,17 +125,25 @@ IF(ENABLE_TEST)
   SET_PROPERTY(TARGET libarchive_test PROPERTY COMPILE_DEFINITIONS
     LIBARCHIVE_STATIC LIST_H)
 
-  # Register ADD_TEST() for each separate test
-  SET(num 0)
-  FOREACH(test ${libarchive_test_SOURCES})
-    IF(test MATCHES "^test_[^/]+[.]c$")
-      STRING(REGEX REPLACE "^(test_[^/]+)[.]c$" "\\1" testname ${test})
-      ADD_TEST("libarchive_${testname}" libarchive_test
-        -q -r ${CMAKE_CURRENT_SOURCE_DIR} ${num})
-      MATH(EXPR num "${num} + 1")
-    ENDIF(test MATCHES "^test_[^/]+[.]c$")
-  ENDFOREACH(test)
+  #
+  # Generate list.h by grepping DEFINE_TEST() lines out of the C sources.
+  #
+  GENERATE_LIST_H(${CMAKE_CURRENT_BINARY_DIR}/list.h
+    ${CMAKE_CURRENT_LIST_FILE} ${libarchive_test_SOURCES})
+  SET_PROPERTY(DIRECTORY APPEND PROPERTY INCLUDE_DIRECTORIES
+    ${CMAKE_CURRENT_BINARY_DIR})
 
+  # list.h has a line DEFINE_TEST(testname) for every
+  # test.  We can use that to define the tests for cmake by
+  # defining a DEFINE_TEST macro and reading list.h in.
+  MACRO (DEFINE_TEST _testname)
+  ADD_TEST("libarchive_${_testname}"
+                 libarchive_test -vv
+                              -r ${CMAKE_CURRENT_SOURCE_DIR}
+                              ${_testname})
+  ENDMACRO (DEFINE_TEST _testname)
+
+  INCLUDE(${CMAKE_CURRENT_BINARY_DIR}/list.h)
 
   # Experimental new test handling
   ADD_CUSTOM_TARGET(run_libarchive_test
