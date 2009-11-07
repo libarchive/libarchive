@@ -28,6 +28,9 @@ SET(LIBARCHIVE_VERSION_STRING  "${VERSION}")
 # Shared library number
 SET(SOVERSION                   8)
 
+# Enable CTest/CDash support
+include(CTest)
+
 OPTION(ENABLE_TAR "Enable tar building" ON)
 OPTION(ENABLE_TAR_SHARED "Enable dynamic build of tar" OFF)
 OPTION(ENABLE_CPIO "Enable cpio building" ON)
