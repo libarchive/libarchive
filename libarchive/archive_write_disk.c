@@ -442,15 +442,14 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 	ret = restore_entry(a);
 
 	/*
-	 * On the GNU tar mailing list, some people working with new
-	 * Linux filesystems observed that system xattrs used as
-	 * layout hints need to be restored before the file contents
-	 * are written, so this can't be done at file close.
+	 * TODO: There are rumours that some extended attributes must
+	 * be restored before file data is written.  If this is true,
+	 * then we either need to write all extended attributes both
+	 * before and after restoring the data, or find some rule for
+	 * determining which must go first and which last.  Due to the
+	 * many ways people are using xattrs, this may prove to be an
+	 * intractable problem.
 	 */
-	if (a->todo & TODO_XATTR) {
-		int r2 = set_xattrs(a);
-		if (r2 < ret) ret = r2;
-	}
 
 #ifdef HAVE_FCHDIR
 	/* If we changed directory above, restore it here. */
@@ -754,6 +753,17 @@ _archive_write_finish_entry(struct archive *_a)
 		int r2 = set_acls(a);
 		if (r2 < ret) ret = r2;
 	}
+
+	/*
+	 * Security-related extended attributes (such as
+	 * security.capability on Linux) have to be restored last,
+	 * since they're implicitly removed by other file changes.
+	 */
+	if (a->todo & TODO_XATTR) {
+		int r2 = set_xattrs(a);
+		if (r2 < ret) ret = r2;
+	}
+
 	/*
 	 * Some flags prevent file modification; they must be restored after
 	 * file contents are written.
