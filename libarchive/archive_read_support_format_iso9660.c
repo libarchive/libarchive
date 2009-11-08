@@ -483,29 +483,33 @@ archive_read_format_iso9660_bid(struct archive_read *a)
 	seenTerminator = 0;
 	for (; bytes_read > LOGICAL_BLOCK_SIZE;
 	    bytes_read -= LOGICAL_BLOCK_SIZE, p += LOGICAL_BLOCK_SIZE) {
-		int bid = 0;
-
 		/* Do not handle undefined Volume Descriptor Type. */
 		if (p[0] >= 4 && p[0] <= 254)
 			return (0);
 		/* Standard Identifier must be "CD001" */
 		if (memcmp(p + 1, "CD001", 5) != 0)
 			return (0);
-		if (!iso9660->primary.location)
-			bid += isPVD(iso9660, p);
-		if (!iso9660->joliet.location)
-			bid += isJolietSVD(iso9660, p);
-		bid += isBootRecord(p);
-		bid += isEVD(p);
-		bid += isSVD(p);
-		bid += isVolumePartition(iso9660, p);
-		if (bid == 0) {
-			if (isVDSetTerminator(p)) {
-				seenTerminator = 1;
-				break;
-			}
-			return (0);
+		if (!iso9660->primary.location) {
+			if (isPVD(iso9660, p))
+				continue;
 		}
+		if (!iso9660->joliet.location) {
+			if (isJolietSVD(iso9660, p))
+				continue;
+		}
+		if (isBootRecord(p))
+			continue;
+		if (isEVD(p))
+			continue;
+		if (isSVD(p))
+			continue;
+		if (isVolumePartition(iso9660, p))
+			continue;
+		if (isVDSetTerminator(p)) {
+			seenTerminator = 1;
+			break;
+		}
+		return (0);
 	}
 	/*
 	 * ISO 9660 format must have Primary Volume Descriptor and
