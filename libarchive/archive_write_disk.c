@@ -1694,8 +1694,6 @@ create_dir(struct archive_write_disk *a, char *path)
 	mode_t mode_final, mode;
 	int r;
 
-	r = ARCHIVE_OK;
-
 	/* Check for special names and just skip them. */
 	slash = strrchr(path, '/');
 	if (slash == NULL)
