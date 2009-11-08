@@ -243,7 +243,6 @@ output_code(struct archive_write *a, int ocode)
 	int bits, ret, clear_flg, bit_offset;
 
 	clear_flg = ocode == CLEAR;
-	bits = state->code_len;
 
 	/*
 	 * Since ocode is always >= 8 bits, only need to mask the first
@@ -429,7 +428,6 @@ archive_compressor_compress_finish(struct archive_write *a)
 	unsigned tocopy;
 
 	state = (struct private_data *)a->compressor.data;
-	ret = 0;
 	if (a->client_writer == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
 		    "No write callback is registered?  "
