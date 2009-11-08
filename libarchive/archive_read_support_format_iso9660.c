@@ -368,13 +368,12 @@ static void	dump_isodirrec(FILE *, const unsigned char *isodirrec);
 static time_t	time_from_tm(struct tm *);
 static time_t	isodate17(const unsigned char *);
 static time_t	isodate7(const unsigned char *);
-static int	isBootRecord(const unsigned char *h);
-static int	isVolumePartition(struct iso9660 *iso9660,
-		    const unsigned char *h);
-static int	isVDSetTerminator(const unsigned char *h);
+static int	isBootRecord(struct iso9660 *, const unsigned char *);
+static int	isVolumePartition(struct iso9660 *, const unsigned char *);
+static int	isVDSetTerminator(struct iso9660 *, const unsigned char *);
 static int	isJolietSVD(struct iso9660 *, const unsigned char *);
-static int	isSVD(const unsigned char *h);
-static int	isEVD(const unsigned char *h);
+static int	isSVD(struct iso9660 *, const unsigned char *);
+static int	isEVD(struct iso9660 *, const unsigned char *);
 static int	isPVD(struct iso9660 *, const unsigned char *);
 static struct file_info *next_cache_entry(struct iso9660 *iso9660);
 static int	next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
@@ -497,15 +496,15 @@ archive_read_format_iso9660_bid(struct archive_read *a)
 			if (isJolietSVD(iso9660, p))
 				continue;
 		}
-		if (isBootRecord(p))
+		if (isBootRecord(iso9660, p))
 			continue;
-		if (isEVD(p))
+		if (isEVD(iso9660, p))
 			continue;
-		if (isSVD(p))
+		if (isSVD(iso9660, p))
 			continue;
 		if (isVolumePartition(iso9660, p))
 			continue;
-		if (isVDSetTerminator(p)) {
+		if (isVDSetTerminator(iso9660, p)) {
 			seenTerminator = 1;
 			break;
 		}
@@ -553,8 +552,9 @@ archive_read_format_iso9660_options(struct archive_read *a,
 }
 
 static int
-isBootRecord(const unsigned char *h)
+isBootRecord(struct iso9660 *iso9660, const unsigned char *h)
 {
+	(void)iso9660; /* UNUSED */
 
 	/* Type of the Volume Descriptor Boot Record must be 0. */
 	if (h[0] != 0)
@@ -594,9 +594,11 @@ isVolumePartition(struct iso9660 *iso9660, const unsigned char *h)
 }
 
 static int
-isVDSetTerminator(const unsigned char *h)
+isVDSetTerminator(struct iso9660 *iso9660, const unsigned char *h)
 {
 	int i;
+
+	(void)iso9660; /* UNUSED */
 
 	/* Type of the Volume Descriptor Set Terminator must be 255. */
 	if (h[0] != 255)
@@ -706,13 +708,15 @@ isJolietSVD(struct iso9660 *iso9660, const unsigned char *h)
 }
 
 static int
-isSVD(const unsigned char *h)
+isSVD(struct iso9660 *iso9660, const unsigned char *h)
 {
 	const unsigned char *p;
 	ssize_t logical_block_size;
 	int32_t volume_block;
 	int32_t location;
 	int i;
+
+	(void)iso9660; /* UNUSED */
 
 	/* Type 2 means it's a SVD. */
 	if (h[SVD_type_offset] != 2)
@@ -769,13 +773,15 @@ isSVD(const unsigned char *h)
 }
 
 static int
-isEVD(const unsigned char *h)
+isEVD(struct iso9660 *iso9660, const unsigned char *h)
 {
 	const unsigned char *p;
 	ssize_t logical_block_size;
 	int32_t volume_block;
 	int32_t location;
 	int i;
+
+	(void)iso9660; /* UNUSED */
 
 	/* Type of the Enhanced Volume Descriptor must be 2. */
 	if (h[PVD_type_offset] != 2)
