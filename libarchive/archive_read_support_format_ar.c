@@ -134,15 +134,12 @@ archive_read_format_ar_cleanup(struct archive_read *a)
 static int
 archive_read_format_ar_bid(struct archive_read *a)
 {
-	struct ar *ar;
 	const void *h;
 
 	if (a->archive.archive_format != 0 &&
 	    (a->archive.archive_format & ARCHIVE_FORMAT_BASE_MASK) !=
 	    ARCHIVE_FORMAT_AR)
 		return(0);
-
-	ar = (struct ar *)(a->format->data);
 
 	/*
 	 * Verify the 8-byte file signature.
