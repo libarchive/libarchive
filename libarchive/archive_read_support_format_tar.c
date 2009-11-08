@@ -552,7 +552,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 		return (bytes);
 	if (bytes < 512) {  /* Short read or EOF. */
 		/* Try requesting just one byte and see what happens. */
-		h = __archive_read_ahead(a, 1, &bytes);
+		(void)__archive_read_ahead(a, 1, &bytes);
 		if (bytes == 0) {
 			/*
 			 * The archive ends at a 512-byte boundary but
@@ -1196,7 +1196,7 @@ pax_header(struct archive_read *a, struct tar *tar,
     struct archive_entry *entry, char *attr)
 {
 	size_t attr_length, l, line_length;
-	char *line, *p;
+	char *p;
 	char *key, *value;
 	int err, err2;
 
@@ -1212,7 +1212,7 @@ pax_header(struct archive_read *a, struct tar *tar,
 		/* Parse decimal length field at start of line. */
 		line_length = 0;
 		l = attr_length;
-		line = p = attr; /* Record start of line. */
+		p = attr; /* Record start of line. */
 		while (l>0) {
 			if (*p == ' ') {
 				p++;
@@ -2189,7 +2189,7 @@ utf8_decode(struct tar *tar, const char *src, size_t length)
 
 	/* Ensure pax_entry buffer is big enough. */
 	if (tar->pax_entry_length <= length) {
-		wchar_t *old_entry = tar->pax_entry;
+		wchar_t *old_entry;
 
 		if (tar->pax_entry_length <= 0)
 			tar->pax_entry_length = 1024;
@@ -2217,7 +2217,7 @@ utf8_decode(struct tar *tar, const char *src, size_t length)
 		src += n;
 		length -= n;
 	}
-	*dest++ = L'\0';
+	*dest = L'\0';
 	return (tar->pax_entry);
 }
 
