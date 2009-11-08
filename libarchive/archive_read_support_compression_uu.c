@@ -244,7 +244,6 @@ uudecode_bidder_bid(struct archive_read_filter_bidder *self,
 	if (b == NULL)
 		return (0);
 
-	l = 0;
 	firstline = 20;
 	ravail = avail;
 	for (;;) {
