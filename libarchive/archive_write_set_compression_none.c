@@ -225,7 +225,6 @@ archive_compressor_none_finish(struct archive_write *a)
 		block_length = state->buffer_size - state->avail;
 
 		/* Tricky calculation to determine size of last block */
-		target_block_length = block_length;
 		if (a->bytes_in_last_block <= 0)
 			/* Default or Zero: pad to full block */
 			target_block_length = a->bytes_per_block;
