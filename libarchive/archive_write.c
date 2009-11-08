@@ -312,7 +312,6 @@ archive_write_open(struct archive *_a, void *client_data,
 	struct archive_write *a = (struct archive_write *)_a;
 	int ret;
 
-	ret = ARCHIVE_OK;
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_open");
 	archive_clear_error(&a->archive);
