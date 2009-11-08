@@ -228,11 +228,9 @@ format_octal_recursive(int64_t v, char *p, int s)
 static int
 archive_write_cpio_finish(struct archive_write *a)
 {
-	struct cpio *cpio;
 	int er;
 	struct archive_entry *trailer;
 
-	cpio = (struct cpio *)a->format_data;
 	trailer = archive_entry_new();
 	/* nlink = 1 here for GNU cpio compat. */
 	archive_entry_set_nlink(trailer, 1);
