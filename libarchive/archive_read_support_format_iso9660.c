@@ -622,27 +622,11 @@ isJolietSVD(struct iso9660 *iso9660, const unsigned char *h)
 	const unsigned char *p;
 	ssize_t logical_block_size;
 	int32_t volume_block;
-	int32_t location;
-	int i;
 
-	/* Type 2 means it's a SVD. */
-	if (h[SVD_type_offset] != 2)
+	/* Check if current sector is a kind of Supplementary Volume
+	 * Descriptor. */
+	if (!isSVD(iso9660, h))
 		return (0);
-
-	/* ID must be "CD001" */
-	if (memcmp(h + SVD_id_offset, "CD001", 5) != 0)
-		return (0);
-
-	/* Reserved field must be 0. */
-	for (i = 0; i < SVD_reserved1_size; ++i)
-		if (h[SVD_reserved1_offset + i] != 0)
-			return (0);
-	for (i = 0; i < SVD_reserved2_size; ++i)
-		if (h[SVD_reserved2_offset + i] != 0)
-			return (0);
-	for (i = 0; i < SVD_reserved3_size; ++i)
-		if (h[SVD_reserved3_offset + i] != 0)
-			return (0);
 
 	/* FIXME: do more validations according to joliet spec. */
 
@@ -666,41 +650,15 @@ isJolietSVD(struct iso9660 *iso9660, const unsigned char *h)
 	} else /* not joliet */
 		return (0);
 
-	/* File structure version must be 1 for ISO9660/ECMA119. */
-	if (h[SVD_file_structure_version_offset] != 1)
-		return (0);
-
 	logical_block_size =
 	    archive_le16dec(h + SVD_logical_block_size_offset);
-	if (logical_block_size <= 0)
-		return (0);
-
 	volume_block = archive_le32dec(h + SVD_volume_space_size_offset);
-	if (volume_block <= SYSTEM_AREA_BLOCK+4)
-		return (0);
-
-	/* Location of Occurrence of Type L Path Table must be
-	 * available location,
-	 * > SYSTEM_AREA_BLOCK(16) + 2 and < Volume Space Size. */
-	location = archive_le32dec(h+SVD_type_L_path_table_offset);
-	if (location <= SYSTEM_AREA_BLOCK+2 || location >= volume_block)
-		return (0);
-
-	/* Location of Occurrence of Type M Path Table must be
-	 * available location,
-	 * > SYSTEM_AREA_BLOCK(16) + 2 and < Volume Space Size. */
-	location = archive_be32dec(h+SVD_type_M_path_table_offset);
-	if (location <= SYSTEM_AREA_BLOCK+2 || location >= volume_block)
-		return (0);
-
-	/* Read Root Directory Record in Volume Descriptor. */
-	p = h + SVD_root_directory_record_offset;
-	if (p[DR_length_offset] != 34)
-		return (0);
 
 	iso9660->logical_block_size = logical_block_size;
 	iso9660->volume_block = volume_block;
 	iso9660->volume_size = logical_block_size * (uint64_t)volume_block;
+	/* Read Root Directory Record in Volume Descriptor. */
+	p = h + SVD_root_directory_record_offset;
 	iso9660->joliet.location = archive_le32dec(p + DR_extent_offset);
 	iso9660->joliet.size = archive_le32dec(p + DR_size_offset);
 
@@ -720,10 +678,6 @@ isSVD(struct iso9660 *iso9660, const unsigned char *h)
 
 	/* Type 2 means it's a SVD. */
 	if (h[SVD_type_offset] != 2)
-		return (0);
-
-	/* ID must be "CD001" */
-	if (memcmp(h + SVD_id_offset, "CD001", 5) != 0)
 		return (0);
 
 	/* Reserved field must be 0. */
@@ -785,10 +739,6 @@ isEVD(struct iso9660 *iso9660, const unsigned char *h)
 
 	/* Type of the Enhanced Volume Descriptor must be 2. */
 	if (h[PVD_type_offset] != 2)
-		return (0);
-
-	/* ID must be "CD001" */
-	if (memcmp(h + PVD_id_offset, "CD001", 5) != 0)
 		return (0);
 
 	/* EVD version must be 2. */
@@ -869,10 +819,6 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 
 	/* Type of the Primary Volume Descriptor must be 1. */
 	if (h[PVD_type_offset] != 1)
-		return (0);
-
-	/* ID must be "CD001" */
-	if (memcmp(h + PVD_id_offset, "CD001", 5) != 0)
 		return (0);
 
 	/* PVD version must be 1. */
