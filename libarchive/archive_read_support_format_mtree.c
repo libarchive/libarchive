@@ -398,7 +398,6 @@ read_mtree(struct archive_read *a, struct mtree *mtree)
 
 	global = NULL;
 	last_entry = NULL;
-	r = ARCHIVE_OK;
 
 	for (counter = 1; ; ++counter) {
 		len = readline(a, mtree, &p, 256);
