@@ -1159,7 +1159,7 @@ mtree_atol10(char **p)
 	digit = **p - '0';
 	while (digit >= 0 && digit < base) {
 		if (l > limit || (l == limit && digit > last_digit_limit)) {
-			l = UINT64_MAX; /* Truncate on overflow. */
+			l = INT64_MAX; /* Truncate on overflow. */
 			break;
 		}
 		l = (l * base) + digit;
@@ -1200,7 +1200,7 @@ mtree_atol16(char **p)
 		digit = -1;
 	while (digit >= 0 && digit < base) {
 		if (l > limit || (l == limit && digit > last_digit_limit)) {
-			l = UINT64_MAX; /* Truncate on overflow. */
+			l = INT64_MAX; /* Truncate on overflow. */
 			break;
 		}
 		l = (l * base) + digit;
