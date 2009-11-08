@@ -132,21 +132,30 @@ This name is limited to 100 bytes.
 Extended attributes, file flags, and other extended
 security information cannot be stored.
 .It
-Archive entries are limited to 2 gigabytes in size.
+Archive entries are limited to 8 gigabytes in size.
 .El
 Note that the pax interchange format has none of these restrictions.
 .El
+.Pp
+The libarchive library also reads a variety of commonly-used extensions to
+the basic tar format.
+These extensions are recognized automatically whenever they appear.
+.Bl -tag -width indent
+.It Numeric extensions.
+The POSIX standards require fixed-length numeric fields to be written with
+some character position reserved for terminators.
+Libarchive allows these fields to be written without terminator characters.
+This extends the allowable range; in particular, ustar archives with this
+extension can support entries up to 64 gigabytes in size.
+Libarchive also recognizes base-256 values in most numeric fields.
+This essentially removes all limitations on file size, modification time,
+and device numbers.
 .It Solaris extensions
 Libarchive recognizes ACL and extended attribute records written
 by Solaris tar.
 Currently, libarchive only has support for old-style ACLs; the
 newer NFSv4 ACLs are recognized but discarded.
-.Pp
-The libarchive library can also read a variety of commonly-used extensions to
-the basic tar format.
-In particular, it supports base-256 values in certain numeric fields.
-This essentially removes the limitations on file size, modification time,
-and device numbers.
+.El
 .Pp
 The first tar program appeared in Seventh Edition Unix in 1979.
 The first official standard for the tar file format was the
