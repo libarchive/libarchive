@@ -176,7 +176,6 @@ archive_read_set_filter_options(struct archive *_a, const char *s)
 	a = (struct archive_read *)_a;
 	__archive_check_magic(&a->archive, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_set_filter_options");
-	filter = a->filter;
 	len = 0;
 	for (filter = a->filter; filter != NULL; filter = filter->upstream) {
 		bidder = filter->bidder;
@@ -1223,10 +1222,8 @@ __archive_read_filter_skip(struct archive_read_filter *filter, int64_t request)
 	 * have to use ordinary reads to finish out the request.
 	 */
 	while (request > 0) {
-		const void* dummy_buffer;
 		ssize_t bytes_read;
-		dummy_buffer = __archive_read_filter_ahead(filter,
-		    1, &bytes_read);
+		(void)__archive_read_filter_ahead(filter, 1, &bytes_read);
 		if (bytes_read < 0)
 			return (bytes_read);
 		if (bytes_read == 0) {
