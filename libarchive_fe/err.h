@@ -26,9 +26,16 @@
 #ifndef LAFE_ERR_H
 #define LAFE_ERR_H
 
+#if defined(__GNUC__) && (__GNUC__ > 2 || \
+                          (__GNUC__ == 2 && __GNUC_MINOR__ >= 5))
+#define __LA_DEAD       __attribute__((__noreturn__))
+#else
+#define __LA_DEAD
+#endif
+
 extern const char *lafe_progname;
 
 void	lafe_warnc(int code, const char *fmt, ...);
-void	lafe_errc(int eval, int code, const char *fmt, ...);
+void	lafe_errc(int eval, int code, const char *fmt, ...) __LA_DEAD;
 
 #endif
