@@ -116,12 +116,12 @@ archive_write_newc_header(struct archive_write *a, struct archive_entry *entry)
 {
 	struct cpio *cpio;
 	const char *p, *path;
-	int pathlength, ret;
+	int pathlength, ret, ret2;
 	struct cpio_header_newc	 h;
 	int pad;
 
 	cpio = (struct cpio *)a->format_data;
-	ret = 0;
+	ret2 = ARCHIVE_OK;
 
 	path = archive_entry_pathname(entry);
 	pathlength = strlen(path) + 1; /* Include trailing null. */
@@ -132,7 +132,7 @@ archive_write_newc_header(struct archive_write *a, struct archive_entry *entry)
 	format_hex(archive_entry_devminor(entry), &h.c_devminor, sizeof(h.c_devminor));
 	if (archive_entry_ino64(entry) > 0xffffffff) {
 		archive_set_error(&a->archive, ERANGE, "large inode number truncated");
-		ret = ARCHIVE_WARN;
+		ret2 = ARCHIVE_WARN;
 	}
 
 	format_hex(archive_entry_ino64(entry) & 0xffffffff, &h.c_ino, sizeof(h.c_ino));
@@ -190,6 +190,8 @@ archive_write_newc_header(struct archive_write *a, struct archive_entry *entry)
 		ret = (a->compressor.write)(a, "\0\0\0", pad);
 	}
 
+	if (ret == ARCHIVE_OK)
+		ret = ret2;
 	return (ret);
 }
 
