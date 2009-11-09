@@ -1125,7 +1125,7 @@ build_ustar_entry_name(char *dest, const char *src, size_t src_length,
 	p += filename_end - filename;
 	if (need_slash)
 		*p++ = '/';
-	*p++ = '\0';
+	*p = '\0';
 
 	return (dest);
 }
@@ -1216,13 +1216,11 @@ build_pax_attribute_name(char *dest, const char *src)
 static int
 archive_write_pax_finish(struct archive_write *a)
 {
-	struct pax *pax;
 	int r;
 
 	if (a->compressor.write == NULL)
 		return (ARCHIVE_OK);
 
-	pax = (struct pax *)a->format_data;
 	r = write_nulls(a, 512 * 2);
 	return (r);
 }
@@ -1388,6 +1386,6 @@ base64_encode(const char *s, size_t len)
 		break;
 	}
 	/* Add trailing NUL character so output is a valid C string. */
-	*d++ = '\0';
+	*d = '\0';
 	return (out);
 }
