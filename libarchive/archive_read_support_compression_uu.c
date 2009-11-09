@@ -417,6 +417,10 @@ read_more:
 	d = __archive_read_filter_ahead(self->upstream, 1, &avail_in);
 	if (d == NULL && avail_in < 0)
 		return (ARCHIVE_FATAL);
+	/* Quiet a code analyzer; make sure avail_in must be zero
+	 * when d is NULL. */
+	if (d == NULL)
+		avail_in = 0;
 	used = 0;
 	total = 0;
 	out = uudecode->out_buff;
