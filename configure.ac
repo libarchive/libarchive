@@ -64,6 +64,7 @@ AC_SUBST(LIBARCHIVE_VERSION_NUMBER)
 
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([build/pkgconfig/libarchive.pc])
 
 # Check for host type
 AC_CANONICAL_HOST

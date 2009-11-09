@@ -205,6 +205,10 @@ libarchive_EXTRA_DIST=			\
 	libarchive/CMakeLists.txt	\
 	$(libarchive_man_MANS)
 
+# pkgconfig
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = build/pkgconfig/libarchive.pc
+
 #
 #
 # libarchive_test program
@@ -341,8 +345,9 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_tar_hardlink_1.tar.uu		\
 	libarchive/test/test_compat_xz_1.txz.uu				\
 	libarchive/test/test_compat_zip_1.zip.uu			\
-	libarchive/test/test_fuzz_1.iso.uu				\
+	libarchive/test/test_fuzz_1.iso.Z.uu				\
 	libarchive/test/test_pax_filename_encoding.tar.uu		\
+	libarchive/test/test_read_format_ar.ar.uu			\
 	libarchive/test/test_read_format_cpio_bin_be.cpio.uu		\
 	libarchive/test/test_read_format_gtar_sparse_1_13.tar.uu	\
 	libarchive/test/test_read_format_gtar_sparse_1_17.tar.uu	\
@@ -360,9 +365,9 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_iso_rockridge_new.iso.Z.uu	\
 	libarchive/test/test_read_format_iso_rockridge_rr_moved.iso.Z.uu\
 	libarchive/test/test_read_format_iso_zisofs.iso.Z.uu		\
+	libarchive/test/test_read_format_mtree.mtree.uu			\
 	libarchive/test/test_read_format_raw.data.Z.uu			\
 	libarchive/test/test_read_format_raw.data.uu			\
-	libarchive/test/test_read_format_iso_gz.iso.gz.uu		\
 	libarchive/test/test_read_format_tar_empty_filename.tar.uu	\
 	libarchive/test/test_read_format_zip.zip.uu			\
 	libarchive/test/CMakeLists.txt					\
