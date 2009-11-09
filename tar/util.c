@@ -158,12 +158,12 @@ safe_fprintf(FILE *f, const char *fmt, ...)
 
 		/* If our output buffer is full, dump it and keep going. */
 		if (i > (sizeof(outbuff) - 20)) {
-			outbuff[i++] = '\0';
+			outbuff[i] = '\0';
 			fprintf(f, "%s", outbuff);
 			i = 0;
 		}
 	}
-	outbuff[i++] = '\0';
+	outbuff[i] = '\0';
 	fprintf(f, "%s", outbuff);
 
 	/* If we allocated a heap-based formatting buffer, free it now. */
