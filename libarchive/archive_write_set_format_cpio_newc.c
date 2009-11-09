@@ -238,17 +238,15 @@ format_hex_recursive(int64_t v, char *p, int s)
 		return (v);
 	v = format_hex_recursive(v, p+1, s-1);
 	*p = "0123456789abcdef"[v & 0xf];
-	return (v >>= 4);
+	return (v >> 4);
 }
 
 static int
 archive_write_newc_finish(struct archive_write *a)
 {
-	struct cpio *cpio;
 	int er;
 	struct archive_entry *trailer;
 
-	cpio = (struct cpio *)a->format_data;
 	trailer = archive_entry_new();
 	archive_entry_set_nlink(trailer, 1);
 	archive_entry_set_pathname(trailer, "TRAILER!!!");
@@ -275,7 +273,6 @@ archive_write_newc_finish_entry(struct archive_write *a)
 	int to_write, ret;
 
 	cpio = (struct cpio *)a->format_data;
-	ret = ARCHIVE_OK;
 	while (cpio->entry_bytes_remaining > 0) {
 		to_write = cpio->entry_bytes_remaining < a->null_length ?
 		    cpio->entry_bytes_remaining : a->null_length;
