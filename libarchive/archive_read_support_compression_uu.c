@@ -459,7 +459,6 @@ read_more:
 			if (uudecode->in_buff != b)
 				memmove(uudecode->in_buff, b, len);
 			uudecode->in_cnt = len;
-			used += len;
 			if (total == 0) {
 				/* Do not return 0; it means end-of-file.
 				 * We should try to read bytes more. */
