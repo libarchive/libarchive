@@ -208,11 +208,10 @@ archive_compressor_none_finish(struct archive_write *a)
 	ssize_t target_block_length;
 	ssize_t bytes_written;
 	int ret;
-	int ret2;
 	struct archive_none *state;
 
 	state = (struct archive_none *)a->compressor.data;
-	ret = ret2 = ARCHIVE_OK;
+	ret = ARCHIVE_OK;
 	if (a->client_writer == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
 		    "No write callback is registered?  "
