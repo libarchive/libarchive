@@ -825,7 +825,7 @@ nexttoken(char **in, time_t *value)
 				}
 				src++;
 			}
-			buff[i++] = '\0';
+			buff[i] = '\0';
 
 			/*
 			 * Find the first match.  If the word can be
