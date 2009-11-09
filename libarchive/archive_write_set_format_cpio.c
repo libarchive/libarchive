@@ -222,7 +222,7 @@ format_octal_recursive(int64_t v, char *p, int s)
 		return (v);
 	v = format_octal_recursive(v, p+1, s-1);
 	*p = '0' + (v & 7);
-	return (v >>= 3);
+	return (v >> 3);
 }
 
 static int
