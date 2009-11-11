@@ -112,11 +112,17 @@
 #define	open		__la_open
 #define	read		__la_read
 #define	rmdir		__la_rmdir
+#if !defined(__BORLANDC__)
 #define setmode		_setmode
+#endif
 #define	stat(path,stref)		__la_stat(path,stref)
+#if !defined(__BORLANDC__)
 #define	strdup		_strdup
+#endif
 #define	tzset		_tzset
+#if !defined(__BORLANDC__)
 #define	umask		_umask
+#endif
 #define	unlink		__la_unlink
 #define	utimes		__la_utimes
 #define	waitpid		__la_waitpid
