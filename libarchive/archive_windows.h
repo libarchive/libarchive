@@ -112,6 +112,7 @@
 #define	open		__la_open
 #define	read		__la_read
 #define	rmdir		__la_rmdir
+#define setmode		_setmode
 #define	stat(path,stref)		__la_stat(path,stref)
 #define	strdup		_strdup
 #define	tzset		_tzset
@@ -126,6 +127,7 @@
 #define	O_TRUNC		_O_TRUNC
 #define	O_CREAT		_O_CREAT
 #define	O_EXCL		_O_EXCL
+#define	O_BINARY	_O_BINARY
 
 #ifndef _S_IFIFO
   #define	_S_IFIFO        0010000   /* pipe */
