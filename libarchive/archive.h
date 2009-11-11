@@ -35,12 +35,16 @@
  * this header!  If you must conditionalize, use predefined compiler and/or
  * platform macros.
  */
+#if defined(__BORLANDC__) && __BORLANDC__ >= 0x560
+# define __LA_STDINT_H <stdint.h>
+#elif !defined(__WATCOMC__) && !defined(_MSC_VER) && !defined(__INTERIX) && !defined(__BORLANDC__)
+# define __LA_STDINT_H <inttypes.h>
+#endif
 
 #include <sys/stat.h>
 #include <sys/types.h>  /* Linux requires this for off_t */
-#if !defined(__WATCOMC__) && !defined(_MSC_VER) && !defined(__INTERIX)
-/* Header unavailable on Watcom C or MS Visual C++ or SFU. */
-#include <inttypes.h> /* int64_t, etc. */
+#ifdef __LA_STDINT_H
+# include __LA_STDINT_H /* int64_t, etc. */
 #endif
 #include <stdio.h> /* For FILE * */
 
