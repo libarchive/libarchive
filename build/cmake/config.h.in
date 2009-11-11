@@ -66,6 +66,9 @@
 /* Define to 1 if you have the <ctype.h> header file. */
 #cmakedefine HAVE_CTYPE_H 1
 
+/* Define to 1 if you have the `cygwin_conv_path' function. */
+#cmakedefine HAVE_CYGWIN_CONV_PATH 1
+
 /* Define to 1 if you have the declaration of `INT64_MAX', and to 0 if you
    don't. */
 #cmakedefine HAVE_DECL_INT64_MAX 1

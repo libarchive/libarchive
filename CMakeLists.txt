@@ -399,6 +399,7 @@ CHECK_SYMBOL_EXISTS(fseeko           "stdio.h"    HAVE_FSEEKO)
 CHECK_SYMBOL_EXISTS(strerror_r       "string.h"   HAVE_STRERROR_R)
 CHECK_SYMBOL_EXISTS(strftime         "time.h"     HAVE_STRFTIME)
 CHECK_SYMBOL_EXISTS(vprintf          "stdio.h"    HAVE_VPRINTF)
+CHECK_SYMBOL_EXISTS(cygwin_conv_path "sys/cygwin.h" HAVE_CYGWIN_CONV_PATH)
 
 IF(HAVE_STRERROR_R)
   SET(HAVE_DECL_STRERROR_R 1)
