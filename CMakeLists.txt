@@ -508,9 +508,7 @@ ENDIF(NOT HAVE_INT64_T)
 #
 CHECK_TYPE_SIZE(intmax_t    INTMAX_T)
 IF(NOT HAVE_INTMAX_T)
-  IF(MSVC)
-    SET(intmax_t "long long")
-  ENDIF(MSVC)
+  SET(intmax_t "int64_t")
 ENDIF(NOT HAVE_INTMAX_T)
 #
 CHECK_TYPE_SIZE(mode_t      MODE_T)
@@ -573,9 +571,7 @@ ENDIF(NOT HAVE_UINT64_T)
 #
 CHECK_TYPE_SIZE(uintmax_t   UINTMAX_T)
 IF(NOT HAVE_UINTMAX_T)
-  IF(MSVC)
-    SET(uintmax_t "unsigned long long")
-  ENDIF(MSVC)
+  SET(uintmax_t "uint64_t")
 ENDIF(NOT HAVE_UINTMAX_T)
 #
 CHECK_TYPE_SIZE(wchar_t     SIZEOF_WCHAR_T)
