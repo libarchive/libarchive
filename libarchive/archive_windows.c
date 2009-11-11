@@ -51,7 +51,9 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stddef.h>
+#ifndef __BORLANDC__
 #include <sys/utime.h>
+#endif
 #include <sys/stat.h>
 #include <process.h>
 #include <stdlib.h>
