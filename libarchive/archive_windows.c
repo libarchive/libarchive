@@ -640,7 +640,13 @@ __la_open(const char *path, int flags, ...)
 		}
 	}
 	if (ws == NULL) {
+#if defined(__BORLANDC__)
+		/* Borland has no mode argument.
+		   TODO: Fix mode of new file.  */
+		r = _open(path, flags);
+#else
 		r = _open(path, flags, pmode);
+#endif
 		if (r < 0 && errno == EACCES && (flags & O_CREAT) != 0) {
 			/* simular other POSIX system action to pass a test */
 			attr = GetFileAttributesA(path);
