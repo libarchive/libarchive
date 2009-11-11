@@ -26,11 +26,12 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#include "archive_private.h"
 #include "archive_entry.h"
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 
-#define EPOC_TIME	(116444736000000000ULL)
+#define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
 
 __inline static void
 fileTimeToUtc(const FILETIME *filetime, time_t *time, long *ns)

@@ -244,7 +244,7 @@ lzma_bidder_bid(struct archive_read_filter_bidder *self,
 	 * size is unknown and lzma of XZ Utils always records `-1'
 	 * in this field. */
 	uncompressed_size = archive_le64dec(buffer+5);
-	if (uncompressed_size == (uint64_t)-1LL)
+	if (uncompressed_size == (uint64_t)ARCHIVE_LITERAL_LL(-1))
 		bits_checked += 64;
 
 	/* Second through fifth bytes are dictionary size, stored in

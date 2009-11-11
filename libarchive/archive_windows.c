@@ -47,6 +47,7 @@
 #if defined(_WIN32) && !defined(__CYGWIN__)
 
 #include "archive_platform.h"
+#include "archive_private.h"
 #include <ctype.h>
 #include <errno.h>
 #include <stddef.h>
@@ -57,7 +58,7 @@
 #include <wchar.h>
 #include <windows.h>
 
-#define EPOC_TIME	(116444736000000000ULL)
+#define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
 
 struct ustat {
 	int64_t		st_atime;
