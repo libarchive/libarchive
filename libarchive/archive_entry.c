@@ -1615,7 +1615,7 @@ __archive_entry_acl_parse_w(struct archive_entry *entry,
 		const wchar_t *end;
 	} field[4], name;
 
-	int fields;
+	int fields, n;
 	int type, tag, permset, id;
 	wchar_t sep;
 
@@ -1635,6 +1635,10 @@ __archive_entry_acl_parse_w(struct archive_entry *entry,
 			++fields;
 		} while (sep == L':');
 
+		/* Set remaining fields to blank. */
+		for (n = fields; n < 4; ++n)
+			field[n].start = field[n].end = NULL;
+
 		/* Check for a numeric ID in field 1 or 3. */
 		id = -1;
 		isint_w(field[1].start, field[1].end, &id);
@@ -1646,7 +1650,7 @@ __archive_entry_acl_parse_w(struct archive_entry *entry,
 		 * Solaris extension:  "defaultuser::rwx" is the
 		 * default ACL corresponding to "user::rwx", etc.
 		 */
-		if (field[0].end-field[0].start > 7
+		if (field[0].end - field[0].start > 7
 		    && wmemcmp(field[0].start, L"default", 7) == 0) {
 			type = ARCHIVE_ENTRY_ACL_TYPE_DEFAULT;
 			field[0].start += 7;
@@ -1673,7 +1677,7 @@ __archive_entry_acl_parse_w(struct archive_entry *entry,
 		} else if (prefix_w(field[0].start, field[0].end, L"other")) {
 			if (fields == 2
 			    && field[1].start < field[1].end
-			    && ismode_w(field[1].start, field[2].end, &permset)) {
+			    && ismode_w(field[1].start, field[1].end, &permset)) {
 				/* This is Solaris-style "other:rwx" */
 			} else if (fields == 3
 			    && field[1].start == field[1].end
@@ -1742,6 +1746,8 @@ ismode_w(const wchar_t *start, const wchar_t *end, int *permset)
 {
 	const wchar_t *p;
 
+	if (start >= end)
+		return (0);
 	p = start;
 	*permset = 0;
 	while (p < end) {
