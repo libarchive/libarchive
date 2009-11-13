@@ -887,7 +887,6 @@ archive_write_pax_header(struct archive_write *a,
 		uid_t uid;
 		gid_t gid;
 		mode_t mode;
-		long ns;
 
 		pax_attr_entry = archive_entry_new();
 		p = archive_entry_pathname(entry_main);
@@ -925,17 +924,12 @@ archive_write_pax_header(struct archive_write *a,
 
 		/* Copy mtime, but clip to ustar limits. */
 		s = archive_entry_mtime(entry_main);
-		ns = archive_entry_mtime_nsec(entry_main);
-		if (s < 0) { s = 0; ns = 0; }
-		if (s > 0x7fffffff) { s = 0x7fffffff; ns = 0; }
-		archive_entry_set_mtime(pax_attr_entry, s, ns);
+		if (s < 0) { s = 0; }
+		if (s >= 0x7fffffff) { s = 0x7fffffff; }
+		archive_entry_set_mtime(pax_attr_entry, s, 0);
 
-		/* Ditto for atime. */
-		s = archive_entry_atime(entry_main);
-		ns = archive_entry_atime_nsec(entry_main);
-		if (s < 0) { s = 0; ns = 0; }
-		if (s > 0x7fffffff) { s = 0x7fffffff; ns = 0; }
-		archive_entry_set_atime(pax_attr_entry, s, ns);
+		/* Standard ustar doesn't support atime. */
+		archive_entry_set_atime(pax_attr_entry, 0, 0);
 
 		/* Standard ustar doesn't support ctime. */
 		archive_entry_set_ctime(pax_attr_entry, 0, 0);
