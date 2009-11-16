@@ -23,11 +23,11 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "test.h"
 #include <errno.h>
 #include <locale.h>
 #include <stdarg.h>
 #include <time.h>
-#include "test.h"
 
 /*
  * This same file is used pretty much verbatim for all test harnesses.
