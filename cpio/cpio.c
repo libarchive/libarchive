@@ -374,7 +374,7 @@ main(int argc, char *argv[])
 	return (0);
 }
 
-void
+static void
 usage(void)
 {
 	const char	*p;

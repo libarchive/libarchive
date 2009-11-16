@@ -512,7 +512,7 @@ cleanup:
  * cause the next line to be a directory to pass to chdir().  If
  * --null is specified, then a line "-C" is just another filename.
  */
-void
+static void
 archive_names_from_file(struct bsdtar *bsdtar, struct archive *a)
 {
 	struct lafe_line_reader *lr;
@@ -1012,7 +1012,7 @@ write_file_data(struct bsdtar *bsdtar, struct archive *a,
 /*
  * Test if the specified file is new enough to include in the archive.
  */
-int
+static int
 new_enough(struct bsdtar *bsdtar, const char *path, const struct stat *st)
 {
 	struct archive_dir_entry *p;
@@ -1099,7 +1099,7 @@ add_dir_list(struct bsdtar *bsdtar, const char *path,
 	}
 }
 
-void
+static void
 test_for_append(struct bsdtar *bsdtar)
 {
 	struct stat s;

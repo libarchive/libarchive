@@ -1074,7 +1074,7 @@ restore_entry(struct archive_write_disk *a)
  * the failed system call.   Note:  This function should only ever perform
  * a single system call.
  */
-int
+static int
 create_filesystem_object(struct archive_write_disk *a)
 {
 	/* Create the entry. */

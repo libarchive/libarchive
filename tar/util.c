@@ -299,7 +299,7 @@ do_chdir(struct bsdtar *bsdtar)
 	bsdtar->pending_chdir = NULL;
 }
 
-const char *
+static const char *
 strip_components(const char *p, int elements)
 {
 	/* Skip as many elements as necessary. */
