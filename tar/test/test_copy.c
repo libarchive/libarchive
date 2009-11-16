@@ -144,7 +144,7 @@ create_tree(void)
 	}
 
 	assertMakeDir("original", 0775);
-	chdir("original");
+	assert(0 == chdir("original"));
 	LOOP_MAX = compute_loop_max();
 
 	assertMakeDir("f", 0775);
@@ -181,7 +181,7 @@ create_tree(void)
 		assertMakeDir(buff, 0775);
 	}
 
-	chdir("..");
+	assert(0 == chdir(".."));
 }
 
 #define LIMIT_NONE 200
@@ -355,9 +355,9 @@ copy_ustar(void)
 	assertEmptyFile("unpack.err");
 	assertEmptyFile("unpack.out");
 
-	chdir("original");
+	assert(0 == chdir("original"));
 	verify_tree(LIMIT_USTAR);
-	chdir("../..");
+	assert(0 == chdir("../.."));
 }
 
 DEFINE_TEST(test_copy)

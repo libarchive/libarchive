@@ -83,7 +83,7 @@ DEFINE_TEST(test_read_large)
 	assertA(0 == archive_read_finish(a));
 
 	f = fopen(tmpfilename, "rb");
-	fread(testdatacopy, 1, sizeof(testdatacopy), f);
+	assert(sizeof(testdatacopy) == fread(testdatacopy, 1, sizeof(testdatacopy), f));
 	fclose(f);
 	assert(0 == memcmp(testdata, testdatacopy, sizeof(testdata)));
 }
