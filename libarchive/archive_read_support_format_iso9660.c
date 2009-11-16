@@ -269,6 +269,7 @@ struct file_info {
 	uint32_t	 ce_size;	/* Size of CE.			*/
 	char		 re;		/* Having RRIP "RE" extension.	*/
 	uint64_t	 cl_offset;	/* Having RRIP "CL" extension.	*/
+	int		 birthtime_is_set;
 	time_t		 birthtime;	/* File created time.		*/
 	time_t		 mtime;		/* File last modified time.	*/
 	time_t		 atime;		/* File last accessed time.	*/
@@ -1235,7 +1236,10 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 	archive_entry_set_uid(entry, file->uid);
 	archive_entry_set_gid(entry, file->gid);
 	archive_entry_set_nlink(entry, file->nlinks);
-	archive_entry_set_birthtime(entry, file->birthtime, 0);
+	if (file->birthtime_is_set)
+		archive_entry_set_birthtime(entry, file->birthtime, 0);
+	else
+		archive_entry_unset_birthtime(entry);
 	archive_entry_set_mtime(entry, file->mtime, 0);
 	archive_entry_set_ctime(entry, file->ctime, 0);
 	archive_entry_set_atime(entry, file->atime, 0);
@@ -2304,6 +2308,7 @@ parse_rockridge_TF1(struct file_info *file, const unsigned char *data,
 		/* Use 17-byte time format. */
 		if ((flag & 1) && data_length >= 17) {
 			/* Create time. */
+			file->birthtime_is_set = 1;
 			file->birthtime = isodate17(data);
 			data += 17;
 			data_length -= 17;
@@ -2328,6 +2333,7 @@ parse_rockridge_TF1(struct file_info *file, const unsigned char *data,
 		/* Use 7-byte time format. */
 		if ((flag & 1) && data_length >= 7) {
 			/* Create time. */
+			file->birthtime_is_set = 1;
 			file->birthtime = isodate7(data);
 			data += 7;
 			data_length -= 7;
