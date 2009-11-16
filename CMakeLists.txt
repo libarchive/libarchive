@@ -401,6 +401,9 @@ CHECK_SYMBOL_EXISTS(strftime         "time.h"     HAVE_STRFTIME)
 CHECK_SYMBOL_EXISTS(vprintf          "stdio.h"    HAVE_VPRINTF)
 CHECK_SYMBOL_EXISTS(cygwin_conv_path "sys/cygwin.h" HAVE_CYGWIN_CONV_PATH)
 
+CHECK_SYMBOL_EXISTS(major            "sys/mkdev.h"     MAJOR_IN_MKDEV)
+CHECK_SYMBOL_EXISTS(major            "sys/sysmacros.h" MAJOR_IN_SYSMACROS)
+
 IF(HAVE_STRERROR_R)
   SET(HAVE_DECL_STRERROR_R 1)
 ENDIF(HAVE_STRERROR_R)
