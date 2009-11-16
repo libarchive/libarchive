@@ -178,6 +178,9 @@
 /* Define to 1 if you have the `ftruncate' function. */
 #cmakedefine HAVE_FTRUNCATE 1
 
+/* Define to 1 if you have the `futimens' function. */
+#cmakedefine HAVE_FUTIMENS 1
+
 /* Define to 1 if you have the `futimes' function. */
 #cmakedefine HAVE_FUTIMES 1
 
@@ -529,6 +532,9 @@
 
 /* Define to 1 if you have the `utime' function. */
 #cmakedefine HAVE_UTIME 1
+
+/* Define to 1 if you have the `utimensat' function. */
+#cmakedefine HAVE_UTIMENSAT 1
 
 /* Define to 1 if you have the `utimes' function. */
 #cmakedefine HAVE_UTIMES 1
