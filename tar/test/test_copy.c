@@ -355,7 +355,6 @@ copy_ustar(void)
 	assertEmptyFile("unpack.err");
 	assertEmptyFile("unpack.out");
 
-	assert(0 == chdir("original"));
 	verify_tree(LIMIT_USTAR);
 	assert(0 == chdir("../.."));
 }
