@@ -572,6 +572,9 @@
 /* Define to 1 if you have the <windows.h> header file. */
 #cmakedefine HAVE_WINDOWS_H 1
 
+/* Define to 1 if you have _CrtSetReportMode in <crtdbg.h>  */
+#cmakedefine HAVE__CrtSetReportMode 1
+
 /* Define to 1 if you have the `wmemcmp' function. */
 #cmakedefine HAVE_WMEMCMP 1
 

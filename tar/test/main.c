@@ -65,9 +65,6 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/test/main.c,v 1.6 2008/11/05 06:40:53 kientz
  * a symptom that some capability is missing from libarchive itself.
  */
 #if defined(_WIN32) && !defined(__CYGWIN__)
-#if !defined(__GNUC__)
-#include <crtdbg.h>
-#endif
 #include <io.h>
 #include <windows.h>
 #ifndef F_OK
@@ -94,6 +91,10 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/test/main.c,v 1.6 2008/11/05 06:40:53 kientz
 #define strdup _strdup
 #define umask _umask
 #define int64_t __int64
+#endif
+
+#if defined(HAVE__CrtSetReportMode)
+# include <crtdbg.h>
 #endif
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -1827,7 +1828,7 @@ main(int argc, char **argv)
 
 	(void)argc; /* UNUSED */
 
-#if defined(_WIN32) && !defined(__CYGWIN__) && !defined(__GNUC__)
+#if defined(HAVE__CrtSetReportMode)
 	/* To stop to run the default invalid parameter handler. */
 	_set_invalid_parameter_handler(invalid_parameter_handler);
 	/* Disable annoying assertion message box. */
