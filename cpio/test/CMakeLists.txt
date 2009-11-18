@@ -60,11 +60,12 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
   # test.  We can use that to define the tests for cmake by
   # defining a DEFINE_TEST macro and reading list.h in.
   MACRO (DEFINE_TEST _testname)
-    ADD_TEST("bsdcpio_${_testname}"
-                 bsdcpio_test -vv
-                              -p ${BSDCPIO}
-                              -r ${CMAKE_CURRENT_SOURCE_DIR}
-                              ${_testname})
+    ADD_TEST_28(
+      NAME bsdcpio_${_testname}
+      COMMAND bsdcpio_test -vv
+                           -p $<TARGET_FILE:bsdcpio>
+                           -r ${CMAKE_CURRENT_SOURCE_DIR}
+                           ${_testname})
   ENDMACRO (DEFINE_TEST _testname)
 
   INCLUDE(${CMAKE_CURRENT_BINARY_DIR}/list.h)

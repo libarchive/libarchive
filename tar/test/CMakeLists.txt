@@ -47,11 +47,12 @@ IF(ENABLE_TAR AND ENABLE_TEST)
   # test.  We can use that to define the tests for cmake by
   # defining a DEFINE_TEST macro and reading list.h in.
   MACRO (DEFINE_TEST _testname)
-    ADD_TEST("bsdtar_${_testname}"
-                 bsdtar_test -vv
-                              -p ${BSDTAR}
-                              -r ${CMAKE_CURRENT_SOURCE_DIR}
-                              ${_testname})
+    ADD_TEST_28(
+      NAME bsdtar_${_testname}
+      COMMAND bsdtar_test -vv
+                          -p $<TARGET_FILE:bsdtar>
+                          -r ${CMAKE_CURRENT_SOURCE_DIR}
+                          ${_testname})
   ENDMACRO (DEFINE_TEST _testname)
 
   INCLUDE(${CMAKE_CURRENT_BINARY_DIR}/list.h)

@@ -31,6 +31,10 @@ SET(SOVERSION                   8)
 # Enable CTest/CDash support
 include(CTest)
 
+# Provide ADD_TEST_28 macro to approximate CMake 2.8 ADD_TEST(NAME).
+# TODO: Require CMake 2.8 and drop this workaround (perhaps late 2010).
+INCLUDE(AddTest28)
+
 OPTION(ENABLE_TAR "Enable tar building" ON)
 OPTION(ENABLE_TAR_SHARED "Enable dynamic build of tar" OFF)
 OPTION(ENABLE_CPIO "Enable cpio building" ON)
