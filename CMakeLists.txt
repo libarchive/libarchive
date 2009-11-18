@@ -2,7 +2,7 @@
 #
 PROJECT(libarchive C)
 #
-CMAKE_MINIMUM_REQUIRED(VERSION 2.6.1)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.6.3 FATAL_ERROR)
 SET(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/build/cmake")
 #
 # Version - read from 'version' file.
