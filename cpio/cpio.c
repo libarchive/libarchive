@@ -95,7 +95,7 @@ struct name_cache {
 	} cache[name_cache_size];
 };
 
-static int	copy_data(struct archive *, struct archive *);
+static int	extract_data(struct archive *, struct archive *);
 const char *	cpio_i64toa(int64_t);
 static const char *cpio_rename(const char *name);
 static int	entry_to_archive(struct cpio *, struct archive_entry *);
@@ -841,7 +841,9 @@ mode_in(struct cpio *cpio)
 			    archive_entry_pathname(entry),
 			    archive_error_string(ext));
 		} else if (archive_entry_size(entry) > 0) {
-			r = copy_data(a, ext);
+			r = extract_data(a, ext);
+			if (r != ARCHIVE_OK)
+				cpio->return_value = 1;
 		}
 	}
 	r = archive_read_close(a);
@@ -858,11 +860,15 @@ mode_in(struct cpio *cpio)
 	}
 	archive_read_finish(a);
 	archive_write_finish(ext);
-	exit(0);
+	exit(cpio->return_value);
 }
 
+/*
+ * Exits if there's a fatal error.  Returns ARCHIVE_OK
+ * if everything is kosher.
+ */
 static int
-copy_data(struct archive *ar, struct archive *aw)
+extract_data(struct archive *ar, struct archive *aw)
 {
 	int r;
 	size_t size;
@@ -876,7 +882,7 @@ copy_data(struct archive *ar, struct archive *aw)
 		if (r != ARCHIVE_OK) {
 			lafe_warnc(archive_errno(ar),
 			    "%s", archive_error_string(ar));
-			return (r);
+			exit(1);
 		}
 		r = archive_write_data_block(aw, block, size, offset);
 		if (r != ARCHIVE_OK) {
