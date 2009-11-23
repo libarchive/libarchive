@@ -51,7 +51,9 @@ IF(ENABLE_TEST)
     test_read_format_cpio_bin_lzma.c
     test_read_format_cpio_bin_xz.c
     test_read_format_cpio_odc.c
+    test_read_format_cpio_svr4_bzip2_rpm.c
     test_read_format_cpio_svr4_gzip.c
+    test_read_format_cpio_svr4_gzip_rpm.c
     test_read_format_cpio_svr4c_Z.c
     test_read_format_empty.c
     test_read_format_gtar_gz.c

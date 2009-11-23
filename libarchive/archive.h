@@ -244,6 +244,7 @@ typedef int	archive_close_callback(struct archive *, void *_client_data);
 #define	ARCHIVE_COMPRESSION_LZMA	5
 #define	ARCHIVE_COMPRESSION_XZ		6
 #define	ARCHIVE_COMPRESSION_UU		7
+#define	ARCHIVE_COMPRESSION_RPM		8
 
 /*
  * Codes returned by archive_format.
@@ -319,6 +320,7 @@ __LA_DECL int		 archive_read_support_compression_program_signature
 				(struct archive *, const char *,
 				    const void * /* match */, size_t);
 
+__LA_DECL int		 archive_read_support_compression_rpm(struct archive *);
 __LA_DECL int		 archive_read_support_compression_uu(struct archive *);
 __LA_DECL int		 archive_read_support_compression_xz(struct archive *);
 

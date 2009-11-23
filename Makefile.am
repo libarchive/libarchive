@@ -123,6 +123,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_read_support_compression_gzip.c	\
 	libarchive/archive_read_support_compression_none.c	\
 	libarchive/archive_read_support_compression_program.c	\
+	libarchive/archive_read_support_compression_rpm.c	\
 	libarchive/archive_read_support_compression_uu.c	\
 	libarchive/archive_read_support_compression_xz.c	\
 	libarchive/archive_read_support_format_all.c		\
@@ -257,7 +258,9 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_format_cpio_bin_lzma.c	\
 	libarchive/test/test_read_format_cpio_bin_xz.c		\
 	libarchive/test/test_read_format_cpio_odc.c		\
+	libarchive/test/test_read_format_cpio_svr4_bzip2_rpm.c	\
 	libarchive/test/test_read_format_cpio_svr4_gzip.c	\
+	libarchive/test/test_read_format_cpio_svr4_gzip_rpm.c	\
 	libarchive/test/test_read_format_cpio_svr4c_Z.c		\
 	libarchive/test/test_read_format_empty.c		\
 	libarchive/test/test_read_format_gtar_gz.c		\
@@ -349,6 +352,8 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_pax_filename_encoding.tar.uu		\
 	libarchive/test/test_read_format_ar.ar.uu			\
 	libarchive/test/test_read_format_cpio_bin_be.cpio.uu		\
+	libarchive/test/test_read_format_cpio_svr4_bzip2_rpm.rpm.uu	\
+	libarchive/test/test_read_format_cpio_svr4_gzip_rpm.rpm.uu	\
 	libarchive/test/test_read_format_gtar_sparse_1_13.tar.uu	\
 	libarchive/test/test_read_format_gtar_sparse_1_17.tar.uu	\
 	libarchive/test/test_read_format_gtar_sparse_1_17_posix00.tar.uu \
