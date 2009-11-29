@@ -97,14 +97,19 @@ DEFINE_TEST(test_read_format_isozisofs_bz2)
 			assertEqualInt(1, archive_entry_uid(ae));
 			assertEqualInt(2, archive_entry_gid(ae));
 		} else if (strcmp("hardlink", archive_entry_pathname(ae)) == 0) {
+			int r;
 			/* A regular file. */
 			assertEqualString("hardlink", archive_entry_pathname(ae));
 			assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
 			assertEqualInt(12345684, archive_entry_size(ae));
-			assertEqualInt(0,
-			    archive_read_data_block(a, &p, &size, &offset));
-			assertEqualInt(0, offset);
-			assertEqualMem(p, "hello\n", 6);
+			r = archive_read_data_block(a, &p, &size, &offset);
+			if (r == ARCHIVE_FAILED) {
+			  skipping("Can't read body of ZISOFS entry.");
+			} else {
+			  assertEqualInt(ARCHIVE_OK, r);
+			  assertEqualInt(0, offset);
+			  assertEqualMem(p, "hello\n", 6);
+			}
 			assertEqualInt(86401, archive_entry_mtime(ae));
 			assertEqualInt(2, archive_entry_stat(ae)->st_nlink);
 			assertEqualInt(1, archive_entry_uid(ae));
