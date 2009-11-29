@@ -259,7 +259,7 @@ rpm_filter_read(struct archive_read_filter *self, const void **buff)
 			used = avail_in;
 			break;
 		}
-		if (used == avail_in) {
+		if (used == (size_t)avail_in) {
 			rpm->total_in += used;
 			__archive_read_filter_consume(self->upstream, used);
 			b = NULL;
