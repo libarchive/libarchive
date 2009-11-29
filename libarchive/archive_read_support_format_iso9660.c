@@ -1577,7 +1577,7 @@ zisofs_read_data(struct archive_read *a,
 	(void)offset;/* UNUSED */
 	archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 	    "zisofs is not supported on this platform.");
-	return (ARCHIVE_FATAL);
+	return (ARCHIVE_FAILED);
 }
 
 #endif /* HAVE_ZLIB_H */
