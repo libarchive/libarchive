@@ -98,8 +98,11 @@ mkfullpath(char **path1, char **path2, const char *tpath, int type)
 	p2 = fp2;
 	while (*p1 != '\0') {
 		if (*p1 == '\\')
-			*p2++ = *p1;
-		*p2++ = *p1++;
+			*p2 = '/';
+		else
+			*p2 = *p1;
+		++p1;
+		++p2;
 	}
 	*p2++ = '\r';
 	*p2++ = '\n';
@@ -297,6 +300,7 @@ DEFINE_TEST(test_windows)
 
 	/* Test2g: start with "//?/c:/" */
 	mkfullpath(&fp1, &fp2, "aaa/file1", 6);
+	failure("fp1=%s, fp2=%s", fp1, fp2);
 	assertEqualInt(0,
 	    systemf("%s -cf ../archive16.tar %s > ../out16 2> ../err16",
 	        testprog, fp1));
@@ -309,6 +313,7 @@ DEFINE_TEST(test_windows)
 
 	/* Test2h: start with "\\?\c:\" */
 	mkfullpath(&fp1, &fp2, "aaa/file1", 7);
+	failure("fp1=%s, fp2=%s", fp1, fp2);
 	assertEqualInt(0,
 	    systemf("%s -cf ../archive17.tar %s > ../out17 2> ../err17",
 	        testprog, fp1));
