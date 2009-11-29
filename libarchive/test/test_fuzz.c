@@ -87,14 +87,19 @@ DEFINE_TEST(test_fuzz)
 
 		extract_reference_file(filename);
 		if (files[n].uncompress) {
+			int r;
 			/* Use format_raw to decompress the data. */
 			assert((a = archive_read_new()) != NULL);
 			assertEqualIntA(a, ARCHIVE_OK,
 			    archive_read_support_compression_all(a));
 			assertEqualIntA(a, ARCHIVE_OK,
 			    archive_read_support_format_raw(a));
-			assertEqualIntA(a, ARCHIVE_OK,
-			    archive_read_open_filename(a, filename, 16384));
+			r = archive_read_open_filename(a, filename, 16384);
+			if (r != ARCHIVE_OK) {
+				archive_read_finish(a);
+				skipping("Cannot uncompress %s", filename);
+				continue;
+			}
 			assertEqualIntA(a, ARCHIVE_OK,
 			    archive_read_next_header(a, &ae));
 			rawimage = malloc(buffsize);
