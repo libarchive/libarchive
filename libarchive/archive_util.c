@@ -190,7 +190,9 @@ __archive_errx(int retvalue, const char *msg)
 	size_t s;
 
 	s = write(2, msg1, strlen(msg1));
+	(void)s; /* UNUSED */
 	s = write(2, msg, strlen(msg));
+	(void)s; /* UNUSED */
 	s = write(2, "\n", 1);
 	(void)s; /* UNUSED */
 	exit(retvalue);
