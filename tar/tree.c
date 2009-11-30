@@ -233,23 +233,25 @@ static void
 tree_append(struct tree *t, const char *name, size_t name_length)
 {
 	char *p;
+	size_t size_needed;
 
 	if (t->buff != NULL)
 		t->buff[t->dirname_length] = '\0';
 	/* Strip trailing '/' from name, unless entire name is "/". */
-	while (name_length > 1 &&
-		(name[name_length - 1] == '/' || name[name_length - 1] == '/'))
+	while (name_length > 1 && name[name_length - 1] == '/')
 		name_length--;
 
 	/* Resize pathname buffer as needed. */
-	while (name_length + 1 + t->dirname_length >= t->buff_length) {
-		t->buff_length *= 2;
+	size_needed = name_length + 1 + t->dirname_length;
+	if (t->buff_length < size_needed) {
 		if (t->buff_length < 1024)
 			t->buff_length = 1024;
+		while (t->buff_length < size_needed)
+			t->buff_length *= 2;
 		t->buff = realloc(t->buff, t->buff_length);
-		if (t->buff == NULL)
-			abort();
 	}
+	if (t->buff == NULL)
+		abort();
 	p = t->buff + t->dirname_length;
 	t->path_length = t->dirname_length + name_length;
 	/* Add a separating '/' if it's needed. */
@@ -287,37 +289,35 @@ tree_open(const char *path)
 #elif defined(_WIN32) && !defined(__CYGWIN__)
 	struct tree *t;
 	char *cwd = _getcwd(NULL, 0);
-	char *pattern = NULL;
+	char *pathname = strdup(path), *p, *base;
+
+	if (pathname == NULL)
+		abort();
+	for (p = pathname; *p != '\0'; ++p) {
+		if (*p == '\\')
+			*p = '/';
+	}
+	base = pathname;
 
 	t = malloc(sizeof(*t));
 	memset(t, 0, sizeof(*t));
 	/* First item is set up a lot like a symlink traversal. */
 	/* printf("Looking for wildcard in %s\n", path); */
-	if (strchr(path, '*') || strchr(path, '?')) {
+	/* TODO: wildcard detection here screws up on \\?\c:\ UNC names */
+	if (strchr(base, '*') || strchr(base, '?')) {
 		// It has a wildcard in it...
 		// Separate the last element.
-		const char *bs = strrchr(path, '\\');
-		const char *s = strrchr(path, '/');
-		const char *sep;
-		if (s != NULL) {
-			if (bs != NULL)
-				sep = s > bs ? s : bs;
-			else
-				sep = s;
-		} else
-			sep = bs;
-		if (sep != NULL) {
-			char *base = strdup(path);
-			pattern = strdup(sep + 1);
-			base[sep - path + 1] = '\0';
+		p = strrchr(base, '/');
+		if (p != NULL) {
+			*p = '\0';
 			chdir(base);
-			tree_append(t, base, strlen(base));
-			free(base);
-			path = pattern;
+			tree_append(t, base, p - base);
+			t->dirname_length = t->path_length;
+			base = p + 1;
 		}
 	}
-	tree_push(t, path);
-	free(pattern);
+	tree_push(t, base);
+	free(pathname);
 	t->stack->flags = needsFirstVisit | isDirLink | needsAscent;
 	t->stack->symlink_parent_path = cwd;
 	t->d = INVALID_DIR_HANDLE;
@@ -795,8 +795,7 @@ tree_close(struct tree *t)
 	/* Release anything remaining in the stack. */
 	while (t->stack != NULL)
 		tree_pop(t);
-	if (t->buff)
-		free(t->buff);
+	free(t->buff);
 	/* TODO: Ensure that premature close() resets cwd */
 #if 0
 #ifdef HAVE_FCHDIR
