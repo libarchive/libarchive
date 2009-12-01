@@ -82,4 +82,3 @@
 #define	HAVE_WCTYPE_H 1
 #define	HAVE_ZLIB_H 1
 #undef	MAJOR_IN_MKDEV
-#define	STDC_HEADERS 1
