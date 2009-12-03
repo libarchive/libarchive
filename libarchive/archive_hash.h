@@ -60,6 +60,12 @@ typedef MD5_CTX archive_md5_ctx;
 #  define archive_md5_init(ctx)			MD5_Init(ctx)
 #  define archive_md5_final(ctx, buf)		MD5_Final(buf, ctx)
 #  define archive_md5_update(ctx, buf, n)	MD5_Update(ctx, buf, n)
+#elif defined(_WIN32) && !defined(__CYGWIN__) && defined(CALG_MD5)
+#  define ARCHIVE_HAS_MD5
+typedef MD5_CTX archive_md5_ctx;
+#  define archive_md5_init(ctx)			MD5_Init(ctx)
+#  define archive_md5_final(ctx, buf)		MD5_Final(buf, ctx)
+#  define archive_md5_update(ctx, buf, n)	MD5_Update(ctx, buf, n)
 #endif
 
 #if defined(HAVE_RMD160_H) && defined(HAVE_RMD160INIT)
@@ -92,6 +98,12 @@ typedef SHA_CTX archive_sha1_ctx;
 #  define archive_sha1_init(ctx)		SHA1_Init(ctx)
 #  define archive_sha1_final(ctx, buf)		SHA1_Final(buf, ctx)
 #  define archive_sha1_update(ctx, buf, n)	SHA1_Update(ctx, buf, n)
+#elif defined(_WIN32) && !defined(__CYGWIN__) && defined(CALG_SHA1)
+#  define ARCHIVE_HAS_SHA1
+typedef SHA1_CTX archive_sha1_ctx;
+#  define archive_sha1_init(ctx)		SHA1_Init(ctx)
+#  define archive_sha1_final(ctx, buf)		SHA1_Final(buf, ctx)
+#  define archive_sha1_update(ctx, buf, n)	SHA1_Update(ctx, buf, n)
 #endif
 
 #if defined(HAVE_SHA2_H) && defined(HAVE_SHA256_INIT)
@@ -110,6 +122,12 @@ typedef SHA256_CTX archive_sha256_ctx;
 #  define archive_sha256_update(ctx, buf, n)	SHA256Update(ctx, buf, n)
 #elif defined(HAVE_OPENSSL_SHA_H) && defined(HAVE_OPENSSL_SHA256_INIT)
 #  include <openssl/sha.h>
+#  define ARCHIVE_HAS_SHA256
+typedef SHA256_CTX archive_sha256_ctx;
+#  define archive_sha256_init(ctx)		SHA256_Init(ctx)
+#  define archive_sha256_final(ctx, buf)	SHA256_Final(buf, ctx)
+#  define archive_sha256_update(ctx, buf, n)	SHA256_Update(ctx, buf, n)
+#elif defined(_WIN32) && !defined(__CYGWIN__) && defined(CALG_SHA_256)
 #  define ARCHIVE_HAS_SHA256
 typedef SHA256_CTX archive_sha256_ctx;
 #  define archive_sha256_init(ctx)		SHA256_Init(ctx)
@@ -138,6 +156,12 @@ typedef SHA512_CTX archive_sha384_ctx;
 #  define archive_sha384_init(ctx)		SHA384_Init(ctx)
 #  define archive_sha384_final(ctx, buf)	SHA384_Final(buf, ctx)
 #  define archive_sha384_update(ctx, buf, n)	SHA384_Update(ctx, buf, n)
+#elif defined(_WIN32) && !defined(__CYGWIN__) && defined(CALG_SHA_384)
+#  define ARCHIVE_HAS_SHA384
+typedef SHA512_CTX archive_sha384_ctx;
+#  define archive_sha384_init(ctx)		SHA384_Init(ctx)
+#  define archive_sha384_final(ctx, buf)	SHA384_Final(buf, ctx)
+#  define archive_sha384_update(ctx, buf, n)	SHA384_Update(ctx, buf, n)
 #endif
 
 #if defined(HAVE_SHA2_H) && defined(HAVE_SHA512_INIT)
@@ -156,6 +180,12 @@ typedef SHA512_CTX archive_sha512_ctx;
 #  define archive_sha512_update(ctx, buf, n)	SHA512Update(ctx, buf, n)
 #elif defined(HAVE_OPENSSL_SHA_H) && defined(HAVE_OPENSSL_SHA512_INIT)
 #  include <openssl/sha.h>
+#  define ARCHIVE_HAS_SHA512
+typedef SHA512_CTX archive_sha512_ctx;
+#  define archive_sha512_init(ctx)		SHA512_Init(ctx)
+#  define archive_sha512_final(ctx, buf)	SHA512_Final(buf, ctx)
+#  define archive_sha512_update(ctx, buf, n)	SHA512_Update(ctx, buf, n)
+#elif defined(_WIN32) && !defined(__CYGWIN__) && defined(CALG_SHA_512)
 #  define ARCHIVE_HAS_SHA512
 typedef SHA512_CTX archive_sha512_ctx;
 #  define archive_sha512_init(ctx)		SHA512_Init(ctx)

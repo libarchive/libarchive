@@ -389,36 +389,31 @@ extern ssize_t	 __la_write(int fd, const void *buf, size_t nbytes);
 extern void	 MD5_Init(Digest_CTX *ctx);
 extern void	 MD5_Update(Digest_CTX *ctx, const unsigned char *buf,
 		     size_t len);
-extern void	 MD5_Final(unsigned char buf[MD5_DIGEST_LENGTH],
-		     Digest_CTX *ctx);
+extern void	 MD5_Final(unsigned char *buf, Digest_CTX *ctx);
 #endif
 #ifdef SHA1_DIGEST_LENGTH
 extern void	 SHA1_Init(Digest_CTX *ctx);
 extern void	 SHA1_Update(Digest_CTX *ctx, const unsigned char *buf,
 		     size_t len);
-extern void	 SHA1_Final(unsigned char buf[SHA1_DIGEST_LENGTH],
-		     Digest_CTX *ctx);
+extern void	 SHA1_Final(unsigned char *buf, Digest_CTX *ctx);
 #endif
 #ifdef SHA256_DIGEST_LENGTH
 extern void	 SHA256_Init(Digest_CTX *ctx);
 extern void	 SHA256_Update(Digest_CTX *ctx, const unsigned char *buf,
 		     size_t len);
-extern void	 SHA256_Final(unsigned char buf[SHA256_DIGEST_LENGTH],
-		     Digest_CTX *ctx);
+extern void	 SHA256_Final(unsigned char *buf, Digest_CTX *ctx);
 #endif
 #ifdef SHA384_DIGEST_LENGTH
 extern void	 SHA384_Init(Digest_CTX *ctx);
 extern void	 SHA384_Update(Digest_CTX *ctx, const unsigned char *buf,
 		     size_t len);
-extern void	 SHA384_Final(unsigned char buf[SHA384_DIGEST_LENGTH],
-		     Digest_CTX *ctx);
+extern void	 SHA384_Final(unsigned char *buf, Digest_CTX *ctx);
 #endif
 #ifdef SHA512_DIGEST_LENGTH
 extern void	 SHA512_Init(Digest_CTX *ctx);
 extern void	 SHA512_Update(Digest_CTX *ctx, const unsigned char *buf,
 		     size_t len);
-extern void	 SHA512_Final(unsigned char buf[SHA512_DIGEST_LENGTH],
-		     Digest_CTX *ctx);
+extern void	 SHA512_Final(unsigned char *buf, Digest_CTX *ctx);
 #endif
 #endif
 

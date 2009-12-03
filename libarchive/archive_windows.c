@@ -1217,7 +1217,7 @@ void name ## _Update(Digest_CTX *ctx, const unsigned char *buf, size_t len)\
 }
 
 #define DIGEST_FINAL(name, size) \
-void name ## _Final(unsigned char buf[size], Digest_CTX *ctx)\
+void name ## _Final(unsigned char *buf, Digest_CTX *ctx)\
 {\
 	Digest_Final(buf, size, ctx);\
 }
