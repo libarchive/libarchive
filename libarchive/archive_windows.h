@@ -322,17 +322,17 @@ typedef struct {
 #define HAVE_SHA1 1
 #define SHA1_CTX Digest_CTX
 #endif
-#ifdef CALG_SHA256
+#ifdef CALG_SHA_256
 #define SHA256_DIGEST_LENGTH	32
 #define HAVE_SHA256 1
 #define SHA256_CTX Digest_CTX
 #endif
-#ifdef CALG_SHA384
+#ifdef CALG_SHA_384
 #define SHA384_DIGEST_LENGTH	48
 #define HAVE_SHA384 1
 #define SHA384_CTX Digest_CTX
 #endif
-#ifdef CALG_SHA512
+#ifdef CALG_SHA_512
 #define SHA512_DIGEST_LENGTH	64
 #define HAVE_SHA512 1
 #define SHA512_CTX Digest_CTX
