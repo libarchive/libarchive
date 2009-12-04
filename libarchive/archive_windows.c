@@ -1162,7 +1162,7 @@ Digest_Init(Digest_CTX *ctx, ALG_ID algId)
 
 	ctx->valid = 0;
 	if (!CryptAcquireContext(&ctx->cryptProv, NULL, NULL,
-	    PROV_RSA_FULL, 0)) {
+	    PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
 		if (GetLastError() != NTE_BAD_KEYSET)
 			return;
 		if (!CryptAcquireContext(&ctx->cryptProv, NULL, NULL,
