@@ -134,6 +134,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_read_support_format_mtree.c		\
 	libarchive/archive_read_support_format_raw.c		\
 	libarchive/archive_read_support_format_tar.c		\
+	libarchive/archive_read_support_format_xar.c		\
 	libarchive/archive_read_support_format_zip.c		\
 	libarchive/archive_string.c				\
 	libarchive/archive_string.h				\
@@ -286,6 +287,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_format_tlz.c			\
 	libarchive/test/test_read_format_txz.c			\
 	libarchive/test/test_read_format_tz.c			\
+	libarchive/test/test_read_format_xar.c			\
 	libarchive/test/test_read_format_zip.c			\
 	libarchive/test/test_read_large.c			\
 	libarchive/test/test_read_pax_truncated.c		\

@@ -79,6 +79,7 @@ IF(ENABLE_TEST)
     test_read_format_tlz.c
     test_read_format_txz.c
     test_read_format_tz.c
+    test_read_format_xar.c
     test_read_format_zip.c
     test_read_large.c
     test_read_pax_truncated.c

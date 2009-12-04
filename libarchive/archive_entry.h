@@ -267,6 +267,7 @@ __LA_DECL int	archive_entry_update_gname_utf8(struct archive_entry *, const char
 __LA_DECL void	archive_entry_set_hardlink(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_hardlink(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_hardlink_w(struct archive_entry *, const wchar_t *);
+__LA_DECL int	archive_entry_update_hardlink_utf8(struct archive_entry *, const char *);
 #if ARCHIVE_VERSION_NUMBER >= 3000000
 /* Starting with libarchive 3.0, this will be synonym for ino64. */
 __LA_DECL void	archive_entry_set_ino(struct archive_entry *, __LA_INT64_T);
@@ -296,6 +297,7 @@ __LA_DECL void	archive_entry_copy_sourcepath(struct archive_entry *, const char 
 __LA_DECL void	archive_entry_set_symlink(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_symlink(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_symlink_w(struct archive_entry *, const wchar_t *);
+__LA_DECL int	archive_entry_update_symlink_utf8(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_set_uid(struct archive_entry *, __LA_UID_T);
 __LA_DECL void	archive_entry_set_uname(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_uname(struct archive_entry *, const char *);

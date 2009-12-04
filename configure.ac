@@ -234,7 +234,36 @@ if test "x$with_lzma" != "xno"; then
 fi
 
 AC_ARG_WITH([openssl],
-  AS_HELP_STRING([--without-openssl], [Don't build support for mtree hashes through openssl]))
+  AS_HELP_STRING([--without-openssl], [Don't build support for mtree and xar hashes through openssl]))
+
+AC_ARG_WITH([xml2],
+  AS_HELP_STRING([--without-xml2], [Don't build support for xar through libxml2]))
+AC_ARG_WITH([expat],
+  AS_HELP_STRING([--without-expat], [Don't build support for xar through expat]))
+
+if test "x$with_xml2" != "xno"; then
+  AC_PATH_PROG([XML2_CONFIG], [xml2-config],, [${PATH}])
+  if test "x$XML2_CONFIG" != "x"; then
+    CPPFLAGS="${CPPFLAGS} `${XML2_CONFIG} --cflags`"
+  fi
+  AC_CHECK_HEADERS([libxml/xmlreader.h])
+  AC_CHECK_LIB(xml2,xmlInitParser)
+fi
+if test "x$ac_cv_header_libxml_xmlreader_h" != "xyes"; then
+  if test "x$with_expat" != "xno"; then
+    case $host in
+      # FreeBSD has ported expat as bsdxml
+      *freebsd* )
+      AC_CHECK_HEADERS([bsdxml.h])
+      AC_CHECK_LIB(bsdxml,XML_ParserCreate)
+      ;;
+      * )
+      AC_CHECK_HEADERS([expat.h])
+      AC_CHECK_LIB(expat,XML_ParserCreate)
+      ;;
+    esac
+  fi
+fi
 
 AC_CHECK_HEADERS([md5.h ripemd.h rmd160.h sha.h sha1.h sha2.h sha256.h])
 # Common names for libc implementation on NetBSD and OpenBSD

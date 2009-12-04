@@ -867,6 +867,16 @@ archive_entry_copy_hardlink_w(struct archive_entry *entry, const wchar_t *target
 		entry->ae_set &= ~AE_SET_HARDLINK;
 }
 
+int
+archive_entry_update_hardlink_utf8(struct archive_entry *entry, const char *target)
+{
+	if (target != NULL)
+		entry->ae_set |= AE_SET_HARDLINK;
+	else
+		entry->ae_set &= ~AE_SET_HARDLINK;
+	return (aes_update_utf8(&entry->ae_hardlink, target));
+}
+
 void
 archive_entry_set_atime(struct archive_entry *entry, time_t t, long ns)
 {
@@ -1113,6 +1123,16 @@ archive_entry_copy_symlink_w(struct archive_entry *entry, const wchar_t *linknam
 		entry->ae_set |= AE_SET_SYMLINK;
 	else
 		entry->ae_set &= ~AE_SET_SYMLINK;
+}
+
+int
+archive_entry_update_symlink_utf8(struct archive_entry *entry, const char *linkname)
+{
+	if (linkname != NULL)
+		entry->ae_set |= AE_SET_SYMLINK;
+	else
+		entry->ae_set &= ~AE_SET_SYMLINK;
+	return (aes_update_utf8(&entry->ae_symlink, linkname));
 }
 
 void
@@ -1922,6 +1942,18 @@ static struct flag {
 	{ "nouunlnk",	L"nouunlnk",		UF_NOUNLINK,	0 },
 	{ "nouunlink",	L"nouunlink",		UF_NOUNLINK,	0 },
 #endif
+#ifdef EXT2_UNRM_FL
+        { "nouunlink",	L"nouunlink",		EXT2_UNRM_FL,	0},
+#endif
+
+#ifdef EXT2_BTREE_FL
+        { "nobtree",	L"nobtree",       	EXT2_BTREE_FL,	0 },
+#endif
+
+#ifdef EXT2_ECOMPR_FL
+        { "nocomperr",	L"nocomperr",       	EXT2_ECOMPR_FL,	0 },
+#endif
+
 #ifdef EXT2_COMPR_FL				/* 'c' */
         { "nocompress",	L"nocompress",       	EXT2_COMPR_FL,	0 },
 #endif
@@ -1929,6 +1961,46 @@ static struct flag {
 #ifdef EXT2_NOATIME_FL				/* 'A' */
         { "noatime",	L"noatime",		0,		EXT2_NOATIME_FL},
 #endif
+
+#ifdef EXT2_DIRTY_FL
+        { "nocompdirty",L"nocompdirty",		EXT2_DIRTY_FL,		0},
+#endif
+
+#ifdef EXT2_COMPRBLK_FL
+#ifdef EXT2_NOCOMPR_FL
+        { "nocomprblk",	L"nocomprblk",		EXT2_COMPRBLK_FL, EXT2_NOCOMPR_FL},
+#else
+        { "nocomprblk",	L"nocomprblk",		EXT2_COMPRBLK_FL,	0},
+#endif
+#endif
+#ifdef EXT2_DIRSYNC_FL
+        { "nodirsync",	L"nodirsync",		EXT2_DIRSYNC_FL,	0},
+#endif
+#ifdef EXT2_INDEX_FL
+        { "nohashidx",	L"nohashidx",		EXT2_INDEX_FL,		0},
+#endif
+#ifdef EXT2_IMAGIC_FL
+        { "noimagic",	L"noimagic",		EXT2_IMAGIC_FL,		0},
+#endif
+#ifdef EXT3_JOURNAL_DATA_FL
+        { "nojournal",	L"nojournal",		EXT3_JOURNAL_DATA_FL,	0},
+#endif
+#ifdef EXT2_SECRM_FL
+        { "nosecuredeletion",L"nosecuredeletion",EXT2_SECRM_FL,		0},
+#endif
+#ifdef EXT2_SYNC_FL
+        { "nosync",	L"nosync",		EXT2_SYNC_FL,		0},
+#endif
+#ifdef EXT2_NOTAIL_FL
+        { "notail",	L"notail",		0,		EXT2_NOTAIL_FL},
+#endif
+#ifdef EXT2_TOPDIR_FL
+        { "notopdir",	L"notopdir",		EXT2_TOPDIR_FL,		0},
+#endif
+#ifdef EXT2_RESERVED_FL
+        { "noreserved",	L"noreserved",		EXT2_RESERVED_FL,	0},
+#endif
+
 	{ NULL,		NULL,			0,		0 }
 };
 

@@ -45,6 +45,9 @@
 /* Define to 1 if you have the <attr/xattr.h> header file. */
 #cmakedefine HAVE_ATTR_XATTR_H 1
 
+/* Define to 1 if you have the <bsdxml.h> header file. */
+#cmakedefine HAVE_BSDXML_H 1
+
 /* Define to 1 if you have the <bzlib.h> header file. */
 #cmakedefine HAVE_BZLIB_H 1
 
@@ -129,6 +132,9 @@
 
 /* Define to 1 if you have the <errno.h> header file. */
 #cmakedefine HAVE_ERRNO_H 1
+
+/* Define to 1 if you have the <expat.h> header file. */
+#cmakedefine HAVE_EXPAT_H 1
 
 /* Define to 1 if you have the <ext2fs/ext2_fs.h> header file. */
 #cmakedefine HAVE_EXT2FS_EXT2_FS_H 1
@@ -226,14 +232,26 @@
 /* Define to 1 if you have the `attr' library (-lattr). */
 #cmakedefine HAVE_LIBATTR 1
 
+/* Define to 1 if you have the `bsdxml' library (-lbsdxml). */
+#cmakedefine HAVE_LIBBSDXML 1
+
 /* Define to 1 if you have the `bz2' library (-lbz2). */
 #cmakedefine HAVE_LIBBZ2 1
+
+/* Define to 1 if you have the `expat' library (-lexpat). */
+#cmakedefine HAVE_LIBEXPAT 1
 
 /* Define to 1 if you have the `lzma' library (-llzma). */
 #cmakedefine HAVE_LIBLZMA 1
 
 /* Define to 1 if you have the `lzmadec' library (-llzmadec). */
 #cmakedefine HAVE_LIBLZMADEC 1
+
+/* Define to 1 if you have the `xml2' library (-lxml2). */
+#cmakedefine HAVE_LIBXML2 1
+
+/* Define to 1 if you have the <libxml/xmlreader.h> header file. */
+#cmakedefine HAVE_LIBXML_XMLREADER_H 1
 
 /* Define to 1 if you have the `z' library (-lz). */
 #cmakedefine HAVE_LIBZ 1

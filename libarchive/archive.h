@@ -286,6 +286,7 @@ typedef int	archive_close_callback(struct archive *, void *_client_data);
 #define	ARCHIVE_FORMAT_AR_BSD			(ARCHIVE_FORMAT_AR | 2)
 #define	ARCHIVE_FORMAT_MTREE			0x80000
 #define	ARCHIVE_FORMAT_RAW			0x90000
+#define	ARCHIVE_FORMAT_XAR			0xA0000
 
 /*-
  * Basic outline for reading an archive:
@@ -333,6 +334,7 @@ __LA_DECL int		 archive_read_support_format_iso9660(struct archive *);
 __LA_DECL int		 archive_read_support_format_mtree(struct archive *);
 __LA_DECL int		 archive_read_support_format_raw(struct archive *);
 __LA_DECL int		 archive_read_support_format_tar(struct archive *);
+__LA_DECL int		 archive_read_support_format_xar(struct archive *);
 __LA_DECL int		 archive_read_support_format_zip(struct archive *);
 
 
