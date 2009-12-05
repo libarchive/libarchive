@@ -245,6 +245,7 @@ if test "x$with_xml2" != "xno"; then
   AC_PATH_PROG([XML2_CONFIG], [xml2-config],, [${PATH}])
   if test "x$XML2_CONFIG" != "x"; then
     CPPFLAGS="${CPPFLAGS} `${XML2_CONFIG} --cflags`"
+    LIBS="${LIBS} `${XML2_CONFIG} --libs`"
   fi
   AC_CHECK_HEADERS([libxml/xmlreader.h])
   AC_CHECK_LIB(xml2,xmlInitParser)
