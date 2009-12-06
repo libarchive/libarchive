@@ -118,6 +118,7 @@ static void verify1(struct archive *a, struct archive_entry *ae)
 	assertEqualString(archive_entry_hardlink(ae), "f1");
 	assert(archive_entry_symlink(ae) == NULL);
 	assertEqualInt(archive_entry_mtime(ae), 86401);
+	assertEqualInt(archive_entry_nlink(ae), 2);
 }
 
 /* Verify that symlinks are read correctly.
