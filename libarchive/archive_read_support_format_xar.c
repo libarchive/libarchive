@@ -189,7 +189,7 @@ struct xar_file {
 	dev_t			 devminor;
 	int64_t			 ino64;
 	struct archive_string	 fflags_text;
-	int			 link;
+	unsigned int		 link;
 	unsigned int		 nlink;
 	struct archive_string	 hardlink;
 	struct xattr		*xattr_list;
@@ -298,9 +298,9 @@ struct unknown_tag {
 };
 
 struct xar {
-	int64_t			 offset; /* Current position in the file. */
+	uint64_t		 offset; /* Current position in the file. */
 	int64_t			 total;
-	int64_t			 h_base;
+	uint64_t		 h_base;
 	int			 end_of_file;
 	unsigned char		 buff[1024*32];
 
@@ -579,7 +579,7 @@ read_toc(struct archive_read *a)
 		b = __archive_read_ahead(a, xar->toc_chksum_size, &bytes);
 		if (bytes < 0)
 			return ((int)bytes);
-		if (bytes < xar->toc_chksum_size) {
+		if ((uint64_t)bytes < xar->toc_chksum_size) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Truncated archive file");
@@ -596,25 +596,27 @@ read_toc(struct archive_read *a)
 	 * Connect hardlinked files.
 	 */
 	for (i = 0; i < xar->file_queue.used; i++) {
-		struct hdlink *link;
+		struct hdlink *hdlink;
 		struct xar_file *file;
 
 		file = xar->file_queue.files[i];
-		if (file->link >= 0)
+		/* Check if 'file' is a target file of the hardlink. */
+		if (file->link != (unsigned int)-1)
 			continue;
-		for (link = xar->hdlink_list; link != NULL;
-		    link = link->next) {
-			if (link->id == file->id) {
+		for (hdlink = xar->hdlink_list; hdlink != NULL;
+		    hdlink = hdlink->next) {
+			if (hdlink->id == file->id) {
 				struct xar_file *f2;
-				int nlink = link->cnt + 1;
+				int nlink = hdlink->cnt + 1;
 
 				file->nlink = nlink;
-				for (f2 = link->files; f2 != NULL;
+				for (f2 = hdlink->files; f2 != NULL;
 				    f2 = f2->hdnext) {
 					f2->nlink = nlink;
 					archive_string_copy(
 					    &(f2->hardlink), &(file->pathname));
 				}
+				break;
 			}
 		}
 	}
@@ -901,7 +903,7 @@ rd_contents(struct archive_read *a, const void **buff, size_t *size,
 		    "Truncated archive file");
 		return (ARCHIVE_FATAL);
 	}
-	if (bytes > remaining)
+	if ((uint64_t)bytes > remaining)
 		bytes = (ssize_t)remaining;
 
 	/*
@@ -1168,25 +1170,25 @@ heap_get_entry(struct heap_queue *heap)
 static void
 add_link(struct xar *xar, struct xar_file *file)
 {
-	struct hdlink *link;
+	struct hdlink *hdlink;
 
-	for (link = xar->hdlink_list; link != NULL; link = link->next) {
-		if (link->id == file->link) {
-			file->hdnext = link->files;
-			link->cnt++;
-			link->files = file;
+	for (hdlink = xar->hdlink_list; hdlink != NULL; hdlink = hdlink->next) {
+		if (hdlink->id == file->link) {
+			file->hdnext = hdlink->files;
+			hdlink->cnt++;
+			hdlink->files = file;
 			return;
 		}
 	}
-	link = malloc(sizeof(*link));
-	if (link == NULL)
+	hdlink = malloc(sizeof(*hdlink));
+	if (hdlink == NULL)
 		__archive_errx(1, "No memory for add_link()");
 	file->hdnext = NULL;
-	link->id = file->link;
-	link->cnt = 1;
-	link->files = file;
-	link->next = xar->hdlink_list;
-	xar->hdlink_list = link;
+	hdlink->id = file->link;
+	hdlink->cnt = 1;
+	hdlink->files = file;
+	hdlink->next = xar->hdlink_list;
+	xar->hdlink_list = hdlink;
 }
 
 static void
@@ -1320,8 +1322,8 @@ decompression_init(struct archive_read *a, enum enctype encoding)
 		if (r == BZ_MEM_ERROR)
 			r = BZ2_bzDecompressInit(&(xar->bzstream), 0, 1);
 		if (r != BZ_OK) {
-			const char *detail = NULL;
 			int err = ARCHIVE_ERRNO_MISC;
+			detail = NULL;
 			switch (r) {
 			case BZ_PARAM_ERROR:
 				detail = "invalid setup parameter";
@@ -1335,9 +1337,8 @@ decompression_init(struct archive_read *a, enum enctype encoding)
 				break;
 			}
 			archive_set_error(&a->archive, err,
-			    "Internal error initializing decompressor%s%s",
-			    detail == NULL ? "" : ": ",
-			    detail);
+			    "Internal error initializing decompressor: %s",
+			    detail == NULL ? "??" : detail);
 			xar->bzstream_valid = 0;
 			return (ARCHIVE_FATAL);
 		}
@@ -1459,7 +1460,7 @@ decompress(struct archive_read *a, const void **buff, size_t *outbytes,
 
 	xar = (struct xar *)(a->format->data);
 	avail_in = *used;
-	outbuff = (void *)*buff;
+	outbuff = (void *)(uintptr_t)*buff;
 	if (outbuff == NULL) {
 		outbuff = xar->buff;
 		*buff = outbuff;
@@ -1916,7 +1917,7 @@ xml_start(void *userData, const char *name, struct xmlattr_list *list)
 				if (strcmp(attr->name, "link") != 0)
 					continue;
 				if (strcmp(attr->value, "original") == 0)
-					xar->file->link = xar->file->id * -1;
+					xar->file->link = (unsigned int)-1;
 				else {
 					xar->file->link = atol10(attr->value,
 					    strlen(attr->value));
@@ -2969,6 +2970,7 @@ xml2_error_hdr(void *arg, const char *msg, xmlParserSeverities severity,
 {
 	struct archive_read *a;
 
+	(void)locator; /* UNUSED */
 	a = (struct archive_read *)arg;
 	switch (severity) {
 	case XML_PARSER_SEVERITY_VALIDITY_WARNING:
