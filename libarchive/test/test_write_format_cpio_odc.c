@@ -46,7 +46,7 @@ DEFINE_TEST(test_write_format_cpio_odc)
 {
 	struct archive *a;
 	struct archive_entry *entry;
-	char *buff, *e;
+	char *buff, *e, *file;
 	size_t buffsize = 100000;
 	size_t used;
 
@@ -135,10 +135,11 @@ DEFINE_TEST(test_write_format_cpio_odc)
 	e = buff;
 
 	/* "file" */
+	file = e; /* Remember where this starts... */
 	assert(is_octal(e, 76)); /* Entire header is octal digits. */
 	assertEqualMem(e + 0, "070707", 6); /* Magic */
 	assertEqualMem(e + 6, "000014", 6); /* dev */
-	assertEqualMem(e + 12, "000131", 6); /* ino */
+	/* assertEqualMem(e + 12, "000131", 6); *//* ino */
 	assertEqualMem(e + 18, "100664", 6); /* Mode */
 	assertEqualMem(e + 24, "000120", 6); /* uid */
 	assertEqualMem(e + 30, "000132", 6); /* gid */
@@ -155,7 +156,7 @@ DEFINE_TEST(test_write_format_cpio_odc)
 	assert(is_octal(e, 76)); /* Entire header is octal digits. */
 	assertEqualMem(e + 0, "070707", 6); /* Magic */
 	assertEqualMem(e + 6, "000014", 6); /* dev */
-	assertEqualMem(e + 12, "000131", 6); /* ino */
+	assertEqualMem(e + 12, file + 12, 6); /* ino must match above */
 	assertEqualMem(e + 18, "100664", 6); /* Mode */
 	assertEqualMem(e + 24, "000120", 6); /* uid */
 	assertEqualMem(e + 30, "000132", 6); /* gid */
@@ -188,7 +189,7 @@ DEFINE_TEST(test_write_format_cpio_odc)
 	assert(is_octal(e, 76)); /* Entire header is octal digits. */
 	assertEqualMem(e + 0, "070707", 6); /* Magic */
 	assertEqualMem(e + 6, "000014", 6); /* dev */
-	assertEqualMem(e + 12, "000132", 6); /* ino */
+	assert(memcmp(e + 12, file + 12, 6) != 0); /* ino must not match */
 	assertEqualMem(e + 18, "120664", 6); /* Mode */
 	assertEqualMem(e + 24, "000130", 6); /* uid */
 	assertEqualMem(e + 30, "000142", 6); /* gid */
