@@ -834,7 +834,7 @@ xar_cleanup(struct archive_read *a)
 	struct xar *xar;
 	struct hdlink *hdlink;
 	int i;
-	int r = ARCHIVE_OK;
+	int r;
 
 	xar = (struct xar *)(a->format->data);
 	r = decompression_cleanup(a);
