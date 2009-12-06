@@ -1409,7 +1409,7 @@ decompression_init(struct archive_read *a, enum enctype encoding)
 	case LZMA:
 		if (xar->lzstream_valid)
 			lzmadec_end(&(xar->lzstream));
-		r = lzmadec_init(&(xar->lzstram));
+		r = lzmadec_init(&(xar->lzstream));
 		if (r != LZMADEC_OK) {
 			switch (r) {
 			case LZMADEC_HEADER_ERROR:
