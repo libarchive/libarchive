@@ -131,6 +131,20 @@ DEFINE_TEST(test_write_format_cpio_odc)
 
 	/*
 	 * Verify the archive format.
+	 *
+	 * Notes on the ino validation: cpio does not actually require
+	 * that the ino values written to the archive match those read
+	 * from disk.  It really requires that:
+	 *   * matching non-zero ino values be written as matching
+	 *     non-zero values
+	 *   * non-matching non-zero ino values be written as non-matching
+	 *     non-zero values
+	 * Libarchive further ensures that zero ino values get written
+	 * as zeroes.  This allows the cpio writer to generate
+	 * synthetic ino values for the archive that may be different
+	 * than those on disk in order to avoid problems due to truncation.
+	 * This is especially needed for odc (POSIX format) that
+	 * only supports 18-bit ino values.
 	 */
 	e = buff;
 
