@@ -1559,7 +1559,7 @@ decompress(struct archive_read *a, const void **buff, size_t *outbytes,
 		break;
 #elif defined(HAVE_LZMADEC_H) && defined(HAVE_LIBLZMADEC)
 	case LZMA:
-		xar->lzstream.next_in = b;
+		xar->lzstream.next_in = (unsigned char *)(uintptr_t)b;
 		xar->lzstream.avail_in = avail_in;
 		xar->lzstream.next_out = (unsigned char *)outbuff;
 		xar->lzstream.avail_out = avail_out;
