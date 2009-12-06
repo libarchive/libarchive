@@ -139,7 +139,7 @@ DEFINE_TEST(test_write_format_cpio_odc)
 	assert(is_octal(e, 76)); /* Entire header is octal digits. */
 	assertEqualMem(e + 0, "070707", 6); /* Magic */
 	assertEqualMem(e + 6, "000014", 6); /* dev */
-	/* assertEqualMem(e + 12, "000131", 6); *//* ino */
+	assert(memcmp(e + 12, "000000", 6) != 0); /* ino must be != 0 */
 	assertEqualMem(e + 18, "100664", 6); /* Mode */
 	assertEqualMem(e + 24, "000120", 6); /* uid */
 	assertEqualMem(e + 30, "000132", 6); /* gid */
@@ -189,7 +189,8 @@ DEFINE_TEST(test_write_format_cpio_odc)
 	assert(is_octal(e, 76)); /* Entire header is octal digits. */
 	assertEqualMem(e + 0, "070707", 6); /* Magic */
 	assertEqualMem(e + 6, "000014", 6); /* dev */
-	assert(memcmp(e + 12, file + 12, 6) != 0); /* ino must not match */
+	assert(memcmp(e + 12, file + 12, 6) != 0); /* ino must != file ino */
+	assert(memcmp(e + 12, "000000", 6) != 0); /* ino must != 0 */
 	assertEqualMem(e + 18, "120664", 6); /* Mode */
 	assertEqualMem(e + 24, "000130", 6); /* uid */
 	assertEqualMem(e + 30, "000142", 6); /* gid */
