@@ -832,11 +832,19 @@ static int
 xar_cleanup(struct archive_read *a)
 {
 	struct xar *xar;
+	struct hdlink *hdlink;
 	int i;
 	int r = ARCHIVE_OK;
 
 	xar = (struct xar *)(a->format->data);
 	r = decompression_cleanup(a);
+	hdlink = xar->hdlink_list;
+	while (hdlink != NULL) {
+		struct hdlink *next = hdlink->next;
+
+		free(hdlink);
+		hdlink = next;
+	}
 	for (i = 0; i < xar->file_queue.used; i++)
 		file_free(xar->file_queue.files[i]);
 	while (xar->unknowntags != NULL) {
