@@ -568,7 +568,7 @@ append_archive_filename(struct bsdtar *bsdtar, struct archive *a,
 
 	rc = append_archive(bsdtar, a, ina);
 
-	if (archive_errno(ina)) {
+	if (rc != ARCHIVE_OK) {
 		lafe_warnc(0, "Error reading archive %s: %s",
 		    filename, archive_error_string(ina));
 		bsdtar->return_value = 1;
