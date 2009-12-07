@@ -23,7 +23,8 @@ DISTCHECK_CONFIGURE_FLAGS = --enable-bsdtar --enable-bsdcpio
 # Especially for early development, we want to be a little
 # aggressive about diagnosing build problems; this can get
 # relaxed somewhat in final shipping versions.
-AM_CFLAGS=-Wall -Werror
+#AM_CFLAGS=-Wall -Werror
+AM_CFLAGS=-Wall
 
 #
 # What to include in the distribution
