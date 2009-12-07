@@ -231,9 +231,9 @@ tar_mode_c(struct bsdtar *bsdtar)
 	}
 
 	if (ARCHIVE_OK != archive_write_set_options(a, bsdtar->option_options))
-		lafe_errc(1, 0, archive_error_string(a));
+		lafe_errc(1, 0, "%s", archive_error_string(a));
 	if (ARCHIVE_OK != archive_write_open_file(a, bsdtar->filename))
-		lafe_errc(1, 0, archive_error_string(a));
+		lafe_errc(1, 0, "%s", archive_error_string(a));
 	write_archive(a, bsdtar);
 }
 
@@ -321,9 +321,9 @@ tar_mode_r(struct bsdtar *bsdtar)
 	if (lseek(bsdtar->fd, end_offset, SEEK_SET) < 0)
 		lafe_errc(1, errno, "Could not seek to archive end");
 	if (ARCHIVE_OK != archive_write_set_options(a, bsdtar->option_options))
-		lafe_errc(1, 0, archive_error_string(a));
+		lafe_errc(1, 0, "%s", archive_error_string(a));
 	if (ARCHIVE_OK != archive_write_open_fd(a, bsdtar->fd))
-		lafe_errc(1, 0, archive_error_string(a));
+		lafe_errc(1, 0, "%s", archive_error_string(a));
 
 	write_archive(a, bsdtar); /* XXX check return val XXX */
 
@@ -404,9 +404,9 @@ tar_mode_u(struct bsdtar *bsdtar)
 	if (lseek(bsdtar->fd, end_offset, SEEK_SET) < 0)
 		lafe_errc(1, errno, "Could not seek to archive end");
 	if (ARCHIVE_OK != archive_write_set_options(a, bsdtar->option_options))
-		lafe_errc(1, 0, archive_error_string(a));
+		lafe_errc(1, 0, "%s", archive_error_string(a));
 	if (ARCHIVE_OK != archive_write_open_fd(a, bsdtar->fd))
-		lafe_errc(1, 0, archive_error_string(a));
+		lafe_errc(1, 0, "%s", archive_error_string(a));
 
 	write_archive(a, bsdtar);
 
@@ -455,7 +455,7 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 				bsdtar->argv++;
 				arg = *bsdtar->argv;
 				if (arg == NULL) {
-					lafe_warnc(1, 0,
+					lafe_warnc(0, "%s",
 					    "Missing argument for -C");
 					bsdtar->return_value = 1;
 					goto cleanup;
@@ -818,7 +818,7 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		    entry, -1, st);
 		if (r != ARCHIVE_OK)
 			lafe_warnc(archive_errno(bsdtar->diskreader),
-			    archive_error_string(bsdtar->diskreader));
+			    "%s", archive_error_string(bsdtar->diskreader));
 		if (r < ARCHIVE_WARN)
 			continue;
 
