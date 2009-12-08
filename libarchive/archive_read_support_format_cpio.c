@@ -731,6 +731,9 @@ record_hardlink(struct cpio *cpio, struct archive_entry *entry)
 	dev_t dev;
 	int64_t ino;
 
+	if (archive_entry_nlink(entry) <= 1)
+		return;
+
 	dev = archive_entry_dev(entry);
 	ino = archive_entry_ino64(entry);
 

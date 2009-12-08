@@ -19,6 +19,7 @@ IF(ENABLE_TEST)
     test_archive_api_feature.c
     test_bad_fd.c
     test_compat_bzip2.c
+    test_compat_cpio.c
     test_compat_gtar.c
     test_compat_gzip.c
     test_compat_lzma.c
