@@ -1934,8 +1934,6 @@ xml_start(void *userData, const char *name, struct xmlattr_list *list)
 					    strlen(attr->value));
 					if (xar->file->link > 0)
 						add_link(xar, xar->file);
-					else
-						xar->file->link = 0;
 				}
 			}
 		}
