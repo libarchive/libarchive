@@ -343,6 +343,7 @@ struct xar {
 	struct xar_file		*file;	/* current reading file. */
 	struct xattr		*xattr; /* current reading extended attribute. */
 	struct heap_queue	 file_queue;
+	struct xar_file		*hdlink_orgs;
 	struct hdlink		*hdlink_list;
 
 	int	 		 entry_init;
@@ -499,12 +500,13 @@ static int
 read_toc(struct archive_read *a)
 {
 	struct xar *xar;
+	struct xar_file *file;
 	const unsigned char *b;
 	uint64_t toc_compressed_size;
 	uint64_t toc_uncompressed_size;
 	uint32_t toc_chksum_alg;
 	ssize_t bytes;
-	int i, r;
+	int r;
 
 	xar = (struct xar *)(a->format->data);
 
@@ -595,14 +597,9 @@ read_toc(struct archive_read *a)
 	/*
 	 * Connect hardlinked files.
 	 */
-	for (i = 0; i < xar->file_queue.used; i++) {
+	for (file = xar->hdlink_orgs; file != NULL; file = file->hdnext) {
 		struct hdlink **hdlink;
-		struct xar_file *file;
 
-		file = xar->file_queue.files[i];
-		/* Check if 'file' is a target file of the hardlink. */
-		if (file->link != (unsigned int)-1)
-			continue;
 		for (hdlink = &(xar->hdlink_list); *hdlink != NULL;
 		    hdlink = &((*hdlink)->next)) {
 			if ((*hdlink)->id == file->id) {
@@ -1929,9 +1926,10 @@ xml_start(void *userData, const char *name, struct xmlattr_list *list)
 			    attr = attr->next) {
 				if (strcmp(attr->name, "link") != 0)
 					continue;
-				if (strcmp(attr->value, "original") == 0)
-					xar->file->link = (unsigned int)-1;
-				else {
+				if (strcmp(attr->value, "original") == 0) {
+					xar->file->hdnext = xar->hdlink_orgs;
+					xar->hdlink_orgs = xar->file;
+				} else {
 					xar->file->link = atol10(attr->value,
 					    strlen(attr->value));
 					if (xar->file->link > 0)
