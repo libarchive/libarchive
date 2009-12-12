@@ -54,6 +54,12 @@ static int64_t	format_octal_recursive(int64_t, char *, int);
 
 struct cpio {
 	uint64_t	  entry_bytes_remaining;
+
+	int64_t		  ino_next;
+
+	struct		 { int64_t old; int new;} *ino_list;
+	size_t		  ino_list_size;
+	size_t		  ino_list_next;
 };
 
 struct cpio_header {
@@ -103,6 +109,71 @@ archive_write_set_format_cpio(struct archive *_a)
 	return (ARCHIVE_OK);
 }
 
+/*
+ * Ino values are as long as 64 bits on some systems; cpio format
+ * only allows 18 bits and relies on the ino values to identify hardlinked
+ * files.  So, we can't merely "hash" the ino numbers since collisions
+ * would corrupt the archive.  Instead, we generate synthetic ino values
+ * to store in the archive and maintain a map of original ino values to
+ * synthetic ones so we can preserve hardlink information.
+ *
+ * TODO: Make this more efficient.  It's not as bad as it looks (most
+ * files don't have any hardlinks and we don't do any work here for those),
+ * but it wouldn't be hard to do better.
+ *
+ * TODO: Work with dev/ino pairs here instead of just ino values.
+ */
+static int
+synthesize_ino_value(struct cpio *cpio, struct archive_entry *entry)
+{
+	int64_t ino = archive_entry_ino64(entry);
+	int ino_new;
+	size_t i;
+
+	/*
+	 * If no index number was given, don't assign one.  In
+	 * particular, this handles the end-of-archive marker
+	 * correctly by giving it a zero index value.  (This is also
+	 * why we start our synthetic index numbers with one below.)
+	 */
+	if (ino == 0)
+		return (0);
+
+	/* Don't store a mapping if we don't need to. */
+	if (archive_entry_nlink(entry) < 2) {
+		return ++cpio->ino_next;
+	}
+
+	/* Look up old ino; if we have it, this is a hardlink
+	 * and we reuse the same value. */
+	for (i = 0; i < cpio->ino_list_next; ++i) {
+		if (cpio->ino_list[i].old == ino)
+			return (cpio->ino_list[i].new);
+	}
+
+	/* Assign a new index number. */
+	ino_new = ++cpio->ino_next;
+
+	/* Ensure space for the new mapping. */
+	if (cpio->ino_list_size <= cpio->ino_list_next) {
+		size_t newsize = cpio->ino_list_size < 512
+		    ? 512 : cpio->ino_list_size * 2;
+		void *newlist = realloc(cpio->ino_list,
+		    sizeof(cpio->ino_list[0]) * newsize);
+		if (newlist == NULL)
+			return (-1);
+
+		cpio->ino_list_size = newsize;
+		cpio->ino_list = newlist;
+	}
+
+	/* Record and return the new value. */
+	cpio->ino_list[cpio->ino_list_next].old = ino;
+	cpio->ino_list[cpio->ino_list_next].new = ino_new;
+	++cpio->ino_list_next;
+	return (ino_new);
+}
+
 static int
 archive_write_cpio_header(struct archive_write *a, struct archive_entry *entry)
 {
@@ -121,19 +192,19 @@ archive_write_cpio_header(struct archive_write *a, struct archive_entry *entry)
 	memset(&h, 0, sizeof(h));
 	format_octal(070707, &h.c_magic, sizeof(h.c_magic));
 	format_octal(archive_entry_dev(entry), &h.c_dev, sizeof(h.c_dev));
-	/*
-	 * TODO: Generate artificial inode numbers rather than just
-	 * re-using the ones off the disk.  That way, the 18-bit c_ino
-	 * field only limits the number of files in the archive.
-	 */
-	ino = archive_entry_ino64(entry);
-	if (ino < 0 || ino > 0777777) {
-		archive_set_error(&a->archive, ERANGE,
-		    "large inode number truncated");
-		ret2 = ARCHIVE_WARN;
-	}
 
-	format_octal(archive_entry_ino64(entry) & 0777777, &h.c_ino, sizeof(h.c_ino));
+	ino = synthesize_ino_value(cpio, entry);
+	if (ino < 0) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "No memory for ino translation table");
+		return (ARCHIVE_FATAL);
+	} else if (ino > 0777777) {
+		archive_set_error(&a->archive, ERANGE,
+		    "Too many files for this cpio format");
+		return (ARCHIVE_FATAL);
+	}
+	format_octal(ino & 0777777, &h.c_ino, sizeof(h.c_ino));
+
 	format_octal(archive_entry_mode(entry), &h.c_mode, sizeof(h.c_mode));
 	format_octal(archive_entry_uid(entry), &h.c_uid, sizeof(h.c_uid));
 	format_octal(archive_entry_gid(entry), &h.c_gid, sizeof(h.c_gid));
@@ -246,6 +317,7 @@ archive_write_cpio_destroy(struct archive_write *a)
 	struct cpio *cpio;
 
 	cpio = (struct cpio *)a->format_data;
+	free(cpio->ino_list);
 	free(cpio);
 	a->format_data = NULL;
 	return (ARCHIVE_OK);
