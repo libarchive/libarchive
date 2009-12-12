@@ -87,7 +87,7 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/bsdtar.c,v 1.93 2008/11/08 04:43:24 kientzle
 
 static struct bsdtar *_bsdtar;
 
-#if defined(SIGINFO) || defined(SIGUSR1)
+#if defined(HAVE_SIGACTION) && (defined(SIGINFO) || defined(SIGUSR1))
 static volatile int siginfo_occurred;
 
 static void
@@ -145,7 +145,7 @@ main(int argc, char **argv)
 	bsdtar->fd = -1; /* Mark as "unused" */
 	option_o = 0;
 
-#if defined(SIGINFO) || defined(SIGUSR1)
+#if defined(HAVE_SIGACTION) && (defined(SIGINFO) || defined(SIGUSR1))
 	{ /* Catch SIGINFO and SIGUSR1, if they exist. */
 		struct sigaction sa;
 		sa.sa_handler = siginfo_handler;

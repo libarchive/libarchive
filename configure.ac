@@ -303,9 +303,12 @@ if test "x$with_openssl" != "xno"; then
       # the C code tests these macros we preserve previous behavior
       # for the autotools build by hard-coding availability.
       if test "$ac_cv_header_openssl_sha_h" = "yes"; then
-        AC_DEFINE(HAVE_OPENSSL_SHA256_INIT, 1, [Define to 1 if your openssl has the `SHA256_Init' function.])
-        AC_DEFINE(HAVE_OPENSSL_SHA384_INIT, 1, [Define to 1 if your openssl has the `SHA384_Init' function.])
-        AC_DEFINE(HAVE_OPENSSL_SHA512_INIT, 1, [Define to 1 if your openssl has the `SHA512_Init' function.])
+        AC_DEFINE(HAVE_OPENSSL_SHA256_INIT, 1,
+	  [Define to 1 if your openssl has the `SHA256_Init' function.])
+        AC_DEFINE(HAVE_OPENSSL_SHA384_INIT, 1,
+	  [Define to 1 if your openssl has the `SHA384_Init' function.])
+        AC_DEFINE(HAVE_OPENSSL_SHA512_INIT, 1,
+	  [Define to 1 if your openssl has the `SHA512_Init' function.])
       fi
     fi
   fi
@@ -395,7 +398,8 @@ AC_CHECK_FUNCS([fchdir fchflags fchmod fchown fcntl fork])
 AC_CHECK_FUNCS([fstat ftruncate futimens futimes geteuid getpid])
 AC_CHECK_FUNCS([lchflags lchmod lchown link lstat])
 AC_CHECK_FUNCS([lutimes memmove memset mkdir mkfifo mknod])
-AC_CHECK_FUNCS([nl_langinfo pipe poll readlink select setenv setlocale])
+AC_CHECK_FUNCS([nl_langinfo pipe poll readlink])
+AC_CHECK_FUNCS([select setenv setlocale sigaction])
 AC_CHECK_FUNCS([strchr strdup strerror strncpy_s strrchr symlink timegm])
 AC_CHECK_FUNCS([tzset unsetenv utime utimensat utimes vfork])
 AC_CHECK_FUNCS([wcrtomb wcscpy wcslen wctomb wmemcmp wmemcpy])
