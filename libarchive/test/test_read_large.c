@@ -30,11 +30,7 @@ static unsigned char testdatacopy[10 * 1024 * 1024];
 static unsigned char buff[11 * 1024 * 1024];
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
-#ifdef __BORLANDC__
-#define open(fn,mode,create)	_open(fn,mode)
-#else
 #define open _open
-#endif
 #define close _close
 #endif
 
@@ -79,9 +75,12 @@ DEFINE_TEST(test_read_large)
 	assertA(0 == archive_read_support_compression_all(a));
 	assertA(0 == archive_read_open_memory(a, buff, sizeof(buff)));
 	assertA(0 == archive_read_next_header(a, &entry));
-	// TODO: Provide a Windows-friendly version of this?
-	assert(0 < (tmpfilefd = open(tmpfilename,
-		    O_WRONLY | O_CREAT | O_BINARY, 0755)));
+#if defined(__BORLANDC__)
+	tmpfilefd = open(tmpfilename, O_WRONLY | O_CREAT | O_BINARY);
+#else
+	tmpfilefd = open(tmpfilename, O_WRONLY | O_CREAT | O_BINARY, 0755);
+#endif
+	assert(0 < tmpfilefd);
 	assertA(0 == archive_read_data_into_fd(a, tmpfilefd));
 	close(tmpfilefd);
 	assertA(0 == archive_read_finish(a));

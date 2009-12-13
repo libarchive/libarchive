@@ -152,11 +152,7 @@ seek_file(int fd, int64_t offset, int whence)
 	return (SetFilePointerEx((HANDLE)_get_osfhandle(fd),
 		distance, NULL, FILE_BEGIN) ? 1 : -1);
 }
-#ifdef __BORLANDC__
-#define open(fn,mode,create)	_open(fn,mode)
-#else
 #define open _open
-#endif
 #define close _close
 #define read _read
 #define lseek seek_file
@@ -259,7 +255,11 @@ tar_mode_r(struct bsdtar *bsdtar)
 
 	format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED;
 
+#if defined(__BORLANDC__)
+	bsdtar->fd = open(bsdtar->filename, O_RDWR | O_CREAT);
+#else
 	bsdtar->fd = open(bsdtar->filename, O_RDWR | O_CREAT, 0666);
+#endif
 	if (bsdtar->fd < 0)
 		lafe_errc(1, errno,
 		    "Cannot open %s", bsdtar->filename);
