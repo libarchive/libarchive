@@ -3,11 +3,11 @@
 PROJECT(libarchive C)
 #
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6.3 FATAL_ERROR)
-SET(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/build/cmake")
+SET(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/build/cmake")
 #
 # Version - read from 'version' file.
 #
-FILE(STRINGS ${CMAKE_SOURCE_DIR}/build/version _version)
+FILE(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/build/version _version)
 STRING(REGEX REPLACE
  "^([0-9])[0-9][0-9][0-9][0-9][0-9][0-9][a-z]?$" "\\1" _major ${_version})
 STRING(REGEX REPLACE
