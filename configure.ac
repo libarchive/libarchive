@@ -281,7 +281,7 @@ if test "x$with_openssl" != "xno"; then
   fi
   if test "$ac_cv_func_RMD160Init" != "yes"; then
     AC_CHECK_HEADERS([openssl/ripemd.h])
-    AC_SEARCH_LIBS([RIMEMD160_Init], [crypto])
+    AC_SEARCH_LIBS([RIPEMD160_Init], [crypto])
   fi
   if test "$ac_cv_func_SHA1Init" != "yes"; then
     AC_CHECK_HEADERS([openssl/sha.h])
