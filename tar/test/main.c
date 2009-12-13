@@ -1909,6 +1909,7 @@ main(int argc, char **argv)
 #ifdef PROGRAM
 				testprogfile = option_arg;
 #else
+				fprintf(stderr, "-p option not permitted\n");
 				usage(progname);
 #endif
 				break;
@@ -1922,6 +1923,8 @@ main(int argc, char **argv)
 				verbosity++;
 				break;
 			default:
+				fprintf(stderr, "Unrecognized option '%c'\n",
+				    option);
 				usage(progname);
 			}
 		}
@@ -1931,8 +1934,11 @@ main(int argc, char **argv)
 	 * Sanity-check that our options make sense.
 	 */
 #ifdef PROGRAM
-	if (testprogfile == NULL)
+	if (testprogfile == NULL) {
+		fprintf(stderr, "Program executable required\n");
 		usage(progname);
+	}
+
 	{
 		char *testprg;
 #if defined(_WIN32) && !defined(__CYGWIN__)
