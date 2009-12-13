@@ -33,7 +33,9 @@
 #include <fcntl.h>
 #include <io.h>
 #include <stddef.h>
+#ifdef HAVE_SYS_UTIME_H
 #include <sys/utime.h>
+#endif
 #include <sys/stat.h>
 #include <process.h>
 #include <stdlib.h>

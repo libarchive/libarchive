@@ -51,7 +51,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stddef.h>
-#ifndef __BORLANDC__
+#ifdef HAVE_SYS_UTIME_H
 #include <sys/utime.h>
 #endif
 #include <sys/stat.h>
