@@ -152,7 +152,11 @@ seek_file(int fd, int64_t offset, int whence)
 	return (SetFilePointerEx((HANDLE)_get_osfhandle(fd),
 		distance, NULL, FILE_BEGIN) ? 1 : -1);
 }
+#ifdef __BORLANDC__
+#define open(fn,mode,create)	_open(fn,mode)
+#else
 #define open _open
+#endif
 #define close _close
 #define read _read
 #define lseek seek_file

@@ -34,7 +34,11 @@ __FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_data_large.c,v 1.4 2008/09
  */
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
+#ifdef __BORLANDC__
+#define open(fn,mode,create)	_open(fn,mode)
+#else
 #define open _open
+#endif
 #define close _close
 #endif
 
