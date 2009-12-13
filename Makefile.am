@@ -463,6 +463,7 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_0.c					\
 	tar/test/test_basic.c					\
 	tar/test/test_copy.c					\
+	tar/test/test_empty_mtree.c				\
 	tar/test/test_getdate.c					\
 	tar/test/test_help.c					\
 	tar/test/test_option_T_upper.c				\

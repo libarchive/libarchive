@@ -11,6 +11,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_0.c
     test_basic.c
     test_copy.c
+    test_empty_mtree.c
     test_getdate.c
     test_help.c
     test_option_T_upper.c
