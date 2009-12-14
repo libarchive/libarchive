@@ -34,7 +34,8 @@ AM_CPPFLAGS=$(PLATFORMCPPFLAGS)
 EXTRA_DIST= \
 	CMakeLists.txt			\
 	build/autogen.sh		\
-	build/release.sh		\
+	build/bump-version.sh		\
+	build/clean.sh			\
 	build/cmake			\
 	build/version			\
 	build/windows			\
