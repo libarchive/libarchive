@@ -252,17 +252,8 @@ if test "x$with_xml2" != "xno"; then
 fi
 if test "x$ac_cv_header_libxml_xmlreader_h" != "xyes"; then
   if test "x$with_expat" != "xno"; then
-    case $host in
-      # FreeBSD has ported expat as bsdxml
-      *freebsd* )
-      AC_CHECK_HEADERS([bsdxml.h])
-      AC_CHECK_LIB(bsdxml,XML_ParserCreate)
-      ;;
-      * )
-      AC_CHECK_HEADERS([expat.h])
-      AC_CHECK_LIB(expat,XML_ParserCreate)
-      ;;
-    esac
+    AC_CHECK_HEADERS([expat.h])
+    AC_CHECK_LIB(expat,XML_ParserCreate)
   fi
 fi
 
