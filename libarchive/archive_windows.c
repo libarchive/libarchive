@@ -981,7 +981,7 @@ __la_waitpid(pid_t wpid, int *status, int option)
 	DWORD cs, ret;
 
 	(void)option;/* UNUSED */
-	child = OpenProcess(PROCESS_ALL_ACCESS, FALSE, wpid);
+	child = OpenProcess(PROCESS_QUERY_INFORMATION | SYNCHRONIZE, FALSE, wpid);
 	if (child == NULL) {
 		la_dosmaperr(GetLastError());
 		return (-1);
