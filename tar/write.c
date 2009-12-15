@@ -83,9 +83,6 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/write.c,v 1.79 2008/11/27 05:49:52 kientzle 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#ifdef HAVE_WINDOWS_H
-#include <windows.h>
-#endif
 
 #include "bsdtar.h"
 #include "err.h"
