@@ -269,7 +269,7 @@ la_CreateHardLinkW(wchar_t *linkname, wchar_t *target)
 
 /* Make a link to src called dst.  */
 static int
-__link(const char *src, const char *dst, int sym)
+__link(const char *src, const char *dst)
 {
 	wchar_t *wsrc, *wdst;
 	int res, retval;
@@ -364,7 +364,7 @@ exit:
 int
 __la_link(const char *src, const char *dst)
 {
-	return __link (src, dst, 0);
+	return __link(src, dst);
 }
 
 int
