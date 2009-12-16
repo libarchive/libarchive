@@ -208,7 +208,7 @@ vlogprintf(const char *fmt, va_list ap)
 	if (logfile != NULL)
 #ifdef va_copy
 		vfprintf(logfile, fmt, lfap);
-		va_end(lfap);
+	va_end(lfap);
 #else
 		vfprintf(logfile, fmt, ap);
 #endif
