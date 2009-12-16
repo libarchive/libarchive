@@ -200,10 +200,19 @@ static FILE *logfile;
 static void
 vlogprintf(const char *fmt, va_list ap)
 {
+#ifdef va_copy
+	va_list lfap;
+	va_copy(lfap, ap);
+#endif
 	if (log_console)
 		vfprintf(stdout, fmt, ap);
 	if (logfile != NULL)
+#ifdef va_copy
+		vfprintf(logfile, fmt, lfap);
+		va_end(lfap);
+#else
 		vfprintf(logfile, fmt, ap);
+#endif
 }
 
 static void
