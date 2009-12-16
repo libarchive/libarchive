@@ -378,8 +378,6 @@ extern ssize_t	 __la_write(int fd, const void *buf, size_t nbytes);
 #define _stat64i32(path, st)	__la_stat(path, st)
 #define _stat64(path, st)	__la_stat(path, st)
 /* for status returned by la_waitpid */
-#define WIFSIGNALED(sts)	0
-#define WTERMSIG(sts)		0
 #define WIFEXITED(sts)		((sts & 0x100) == 0)
 #define WEXITSTATUS(sts)	(sts & 0x0FF)
 
