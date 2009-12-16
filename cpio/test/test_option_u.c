@@ -23,10 +23,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-#if defined(_WIN32) && !defined(__CYGWIN__)
-#include <sys/utime.h>
-#else
+#if defined(HAVE_UTIME_H)
 #include <utime.h>
+#elif defined(HAVE_SYS_UTIME_H)
+#include <sys/utime.h>
 #endif
 __FBSDID("$FreeBSD$");
 
