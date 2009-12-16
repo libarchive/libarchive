@@ -1036,11 +1036,7 @@ parse_escapes(char *src, struct mtree_entry *mentry)
 	char *dest = src;
 	char c;
 
-	/*
-	 * The current directory is somewhat special, it should be archived
-	 * only once as it will confuse extraction otherwise.
-	 */
-	if (strcmp(src, ".") == 0)
+	if (mentry != NULL && strcmp(src, ".") == 0)
 		mentry->full = 1;
 
 	while (*src != '\0') {

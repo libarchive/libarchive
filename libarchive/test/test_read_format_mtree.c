@@ -25,7 +25,8 @@
 #include "test.h"
 __FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_mtree.c,v 1.4 2008/09/18 04:13:36 kientzle Exp $");
 
-DEFINE_TEST(test_read_format_mtree)
+static void
+test_read_format_mtree1(void)
 {
 	const char reffile[] = "test_read_format_mtree.mtree";
 	char buff[16];
@@ -105,11 +106,39 @@ DEFINE_TEST(test_read_format_mtree)
 
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
 	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
-#endif
+}
+
+static void
+test_read_format_mtree2(void)
+{
+	static char archive[] =
+	    "#mtree\n"
+	    "d type=dir content=.\n";
+	struct archive_entry *ae;
+	struct archive *a;
+	FILE *f;
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, archive, sizeof(archive)));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_MTREE);
+	assertEqualString(archive_entry_pathname(ae), "d");
+	assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 }
 
 
+
+DEFINE_TEST(test_read_format_mtree)
+{
+	test_read_format_mtree1();
+	test_read_format_mtree2();
+}
