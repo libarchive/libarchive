@@ -325,7 +325,7 @@ __link(const char *src, const char *dst, int sym)
 		/* Converting multi-byte src to wide-char src */
 		wlen = wcslen(wsrc);
 		slen = strlen(src);
-		n = MultiByteToWideChar(CP_ACP, 0, src, slen, wsrc, slen);
+		n = MultiByteToWideChar(CP_ACP, 0, src, slen, wsrc, wlen);
 		if (n == 0) {
 			free (wnewsrc);
 			retval = -1;
