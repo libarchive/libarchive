@@ -117,7 +117,6 @@ test_read_format_mtree2(void)
 	    "d type=dir content=.\n";
 	struct archive_entry *ae;
 	struct archive *a;
-	FILE *f;
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK,
