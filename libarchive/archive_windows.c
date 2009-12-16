@@ -289,7 +289,7 @@ __link(const char *src, const char *dst)
 		return -1;
 	}
 
-	if ((attr = GetFileAttributesW(wsrc)) != -1) {
+	if ((attr = GetFileAttributesW(wsrc)) != (DWORD)-1) {
 		res = la_CreateHardLinkW(wdst, wsrc);
 	} else {
 		/* wsrc does not exist; try src prepend it with the dirname of wdst */
@@ -337,8 +337,8 @@ __link(const char *src, const char *dst)
 		wcsncat(wnewsrc, wsrc, n);
 		/* Check again */
 		attr = GetFileAttributesW(wnewsrc);
-		if (attr == -1 || (attr & FILE_ATTRIBUTE_DIRECTORY) != 0) {
-			if (attr == -1)
+		if (attr == (DWORD)-1 || (attr & FILE_ATTRIBUTE_DIRECTORY) != 0) {
+			if (attr == (DWORD)-1)
 				la_dosmaperr(GetLastError());
 			else
 				errno = EPERM;
@@ -602,7 +602,7 @@ __la_open(const char *path, int flags, ...)
 		 * "Permission denied" error.
 		 */
 		attr = GetFileAttributesA(path);
-		if (attr == -1 && GetLastError() == ERROR_PATH_NOT_FOUND) {
+		if (attr == (DWORD)-1 && GetLastError() == ERROR_PATH_NOT_FOUND) {
 			ws = permissive_name(path);
 			if (ws == NULL) {
 				errno = EINVAL;
@@ -610,7 +610,7 @@ __la_open(const char *path, int flags, ...)
 			}
 			attr = GetFileAttributesW(ws);
 		}
-		if (attr == -1) {
+		if (attr == (DWORD)-1) {
 			la_dosmaperr(GetLastError());
 			free(ws);
 			return (-1);
@@ -650,7 +650,7 @@ __la_open(const char *path, int flags, ...)
 		if (r < 0 && errno == EACCES && (flags & O_CREAT) != 0) {
 			/* simular other POSIX system action to pass a test */
 			attr = GetFileAttributesA(path);
-			if (attr == -1)
+			if (attr == (DWORD)-1)
 				la_dosmaperr(GetLastError());
 			else if (attr & FILE_ATTRIBUTE_DIRECTORY)
 				errno = EISDIR;
@@ -670,7 +670,7 @@ __la_open(const char *path, int flags, ...)
 	if (r < 0 && errno == EACCES && (flags & O_CREAT) != 0) {
 		/* simular other POSIX system action to pass a test */
 		attr = GetFileAttributesW(ws);
-		if (attr == -1)
+		if (attr == (DWORD)-1)
 			la_dosmaperr(GetLastError());
 		else if (attr & FILE_ATTRIBUTE_DIRECTORY)
 			errno = EISDIR;
@@ -1163,7 +1163,7 @@ Digest_Init(Digest_CTX *ctx, ALG_ID algId)
 	ctx->valid = 0;
 	if (!CryptAcquireContext(&ctx->cryptProv, NULL, NULL,
 	    PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
-		if (GetLastError() != NTE_BAD_KEYSET)
+		if (GetLastError() != (DWORD)NTE_BAD_KEYSET)
 			return;
 		if (!CryptAcquireContext(&ctx->cryptProv, NULL, NULL,
 		    PROV_RSA_FULL, CRYPT_NEWKEYSET))
