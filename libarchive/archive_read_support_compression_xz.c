@@ -299,7 +299,6 @@ lzma_bidder_bid(struct archive_read_filter_bidder *self,
 		 * possible that someone makes lzma stream with
 		 * liblzma/LZMA SDK in one's dictionary size. */
 		return (0);
-		break;
 	}
 
 	/* TODO: The above test is still very weak.  It would be
