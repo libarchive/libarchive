@@ -79,7 +79,6 @@
 #if defined(_MSC_VER)
 /* TODO: Fix the code, don't suppress the warnings. */
 #pragma warning(disable:4244)   /* 'conversion' conversion from 'type1' to 'type2', possible loss of data */
-#pragma warning(default: 4365)  /* 'action':conversion from 'type_1' to 'type_2', signed/unsigned mismatch */
 #endif
 
 #ifndef NULL
