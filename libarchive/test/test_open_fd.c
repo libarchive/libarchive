@@ -27,7 +27,9 @@ __FBSDID("$FreeBSD$");
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #define open _open
+#if !defined(__BORLANDC__)
 #define lseek _lseek
+#endif
 #define close _close
 #endif
 

@@ -75,19 +75,25 @@ __FBSDID("$FreeBSD: src/lib/libarchive/test/main.c,v 1.17 2008/12/21 00:13:50 ki
 #ifndef S_ISREG
 #define S_ISREG(m)  ((m) & _S_IFREG)
 #endif
+#if !defined(__BORLANDC__)
 #define access _access
 #define chdir _chdir
+#endif
 #ifndef fileno
 #define fileno _fileno
 #endif
 /*#define fstat _fstat64*/
+#if !defined(__BORLANDC__)
 #define getcwd _getcwd
+#endif
 #define lstat stat
 /*#define lstat _stat64*/
 /*#define stat _stat64*/
 #define rmdir _rmdir
+#if !defined(__BORLANDC__)
 #define strdup _strdup
 #define umask _umask
+#endif
 #define int64_t __int64
 #endif
 
