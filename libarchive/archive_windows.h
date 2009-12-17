@@ -80,6 +80,10 @@
 /* TODO: Fix the code, don't suppress the warnings. */
 #pragma warning(disable:4244)   /* 'conversion' conversion from 'type1' to 'type2', possible loss of data */
 #endif
+#if defined(__BORLANDC__)
+#pragma warn -8068	/* Constant out of range in comparison. */
+#pragma warn -8072	/* Suspicious pointer arithmetic. */
+#endif
 
 #ifndef NULL
 #ifdef  __cplusplus
