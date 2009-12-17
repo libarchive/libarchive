@@ -738,6 +738,10 @@ int
 tree_current_is_physical_link(struct tree *t)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
+#ifndef IO_REPARSE_TAG_SYMLINK
+/* Old SDKs do not provide IO_REPARSE_TAG_SYMLINK */
+#define IO_REPARSE_TAG_SYMLINK 0xA000000CL
+#endif
 	if (t->findData)
 		return ((t->findData->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
 				&& (t->findData->dwReserved0 == IO_REPARSE_TAG_SYMLINK));
