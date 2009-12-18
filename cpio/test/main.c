@@ -1707,7 +1707,19 @@ test_run(int i, const char *tmpdir)
 	if (tests[i].failures == 0) {
 		if (!keep_temp_files && assertChdir(tmpdir)) {
 #if defined(_WIN32) && !defined(__CYGWIN__)
-			systemf("rmdir /S /Q %s", tests[i].name);
+			/* Make sure not to leave empty directories.
+			 * Sometimes a processing of closing files used by tests
+			 * is not done, then rmdir will be failed and it will
+			 * leave a empty test directory. So we should wait a few
+			 * seconds and retry rmdir. */
+			int r, t;
+			for (t = 0; t < 10; t++) {
+				if (t > 0)
+					Sleep(1000);
+				r = systemf("rmdir /S /Q %s", tests[i].name);
+				if (r == 0)
+					break;
+			}
 			systemf("del %s", logfilename);
 #else
 			systemf("rm -rf %s", tests[i].name);
