@@ -471,19 +471,43 @@ int
 __la_chmod(const char *path, mode_t mode)
 {
 	wchar_t *ws;
-	int r;
+	DWORD attr;
+	BOOL r;
 
-	r = _chmod(path, mode);
-	if (r >= 0 || errno != ENOENT)
-		return (r);
-	ws = permissive_name(path);
-	if (ws == NULL) {
-		errno = EINVAL;
+	ws = NULL;
+	attr = GetFileAttributesA(path);
+	if (attr == (DWORD)-1) {
+		if (GetLastError() != ERROR_FILE_NOT_FOUND) {
+			la_dosmaperr(GetLastError());
+			return (-1);
+		}
+		ws = permissive_name(path);
+		if (ws == NULL) {
+			errno = EINVAL;
+			return (-1);
+		}
+		attr = GetFileAttributesW(ws);
+		if (attr == (DWORD)-1) {
+			free(ws);
+			la_dosmaperr(GetLastError());
+			return (-1);
+		}
+	}
+	if (mode & _S_IWRITE)
+		attr &= ~FILE_ATTRIBUTE_READONLY;
+	else
+		attr |= FILE_ATTRIBUTE_READONLY;
+	if (ws == NULL)
+		r = SetFileAttributesA(path, attr);
+	else {
+		r = SetFileAttributesW(ws, attr);
+		free(ws);
+	}
+	if (r == 0) {
+		la_dosmaperr(GetLastError());
 		return (-1);
 	}
-	r = _wchmod(ws, mode);
-	free(ws);
-	return (r);
+	return (0);
 }
 
 /*
