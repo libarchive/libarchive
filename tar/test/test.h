@@ -83,7 +83,9 @@
 /* Windows (including Visual Studio and MinGW but not Cygwin) */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #include "../bsdtar_windows.h"
+#if !defined(__BORLANDC__)
 #define strdup _strdup
+#endif
 #define LOCALE_DE	"deu"
 #else
 #define LOCALE_DE	"de_DE.UTF-8"

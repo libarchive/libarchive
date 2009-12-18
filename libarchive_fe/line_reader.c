@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "err.h"
 #include "line_reader.h"
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
+#if defined(_WIN32) && !defined(__CYGWIN__) && !defined(__BORLANDC__)
 #define strdup _strdup
 #endif
 
