@@ -1152,22 +1152,22 @@ create_filesystem_object(struct archive_write_disk *a)
 		 * S_IFCHR for the mknod() call.  This is correct.  */
 		r = mknod(a->name, mode | S_IFCHR,
 		    archive_entry_rdev(a->entry));
+		break;
 #else
 		/* TODO: Find a better way to warn about our inability
 		 * to restore a char device node. */
 		return (EINVAL);
 #endif /* HAVE_MKNOD */
-		break;
 	case AE_IFBLK:
 #ifdef HAVE_MKNOD
 		r = mknod(a->name, mode | S_IFBLK,
 		    archive_entry_rdev(a->entry));
+		break;
 #else
 		/* TODO: Find a better way to warn about our inability
 		 * to restore a block device node. */
 		return (EINVAL);
 #endif /* HAVE_MKNOD */
-		break;
 	case AE_IFDIR:
 		mode = (mode | MINIMUM_DIR_MODE) & MAXIMUM_DIR_MODE;
 		r = mkdir(a->name, mode);
@@ -1187,12 +1187,12 @@ create_filesystem_object(struct archive_write_disk *a)
 	case AE_IFIFO:
 #ifdef HAVE_MKFIFO
 		r = mkfifo(a->name, mode);
+		break;
 #else
 		/* TODO: Find a better way to warn about our inability
 		 * to restore a fifo. */
 		return (EINVAL);
 #endif /* HAVE_MKFIFO */
-		break;
 	}
 
 	/* All the system calls above set errno on failure. */
