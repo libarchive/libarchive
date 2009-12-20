@@ -98,6 +98,10 @@
 #define snprintf	sprintf_s
 #endif
 
+#if defined(__BORLANDC__)
+#pragma warn -8068	/* Constant out of range in comparison. */
+#endif
+
 /* Cygwin */
 #if defined(__CYGWIN__)
 /* Cygwin-1.7.x is lazy about populating nlinks, so don't
