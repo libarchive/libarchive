@@ -220,7 +220,7 @@ tree_push(struct tree *t, const char *path)
 	te->name = strdup(path);
 #elif defined(_WIN32) && !defined(__CYGWIN__)
 	te->symlink_parent_path = NULL;
-	te->name = _strdup(path);
+	te->name = strdup(path);
 #endif
 	te->flags = needsDescent | needsOpen | needsAscent;
 	te->dirname_length = t->dirname_length;
