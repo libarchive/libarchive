@@ -1118,6 +1118,9 @@ assertion_is_dir(const char *file, int line, const char *pathname, int mode)
 	struct stat st;
 	int r;
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	(void)mode; /* UNUSED */
+#endif
 	assertion_count(file, line);
 	r = lstat(pathname, &st);
 	if (r != 0) {
@@ -1153,6 +1156,9 @@ assertion_is_reg(const char *file, int line, const char *pathname, int mode)
 	struct stat st;
 	int r;
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	(void)mode; /* UNUSED */
+#endif
 	assertion_count(file, line);
 	r = lstat(pathname, &st);
 	if (r != 0 || !S_ISREG(st.st_mode)) {
@@ -1182,6 +1188,8 @@ is_symlink(const char *file, int line,
     const char *pathname, const char *contents)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
+	(void)pathname; /* UNUSED */
+	(void)contents; /* UNUSED */
 	assertion_count(file, line);
 	/* Windows sort-of has real symlinks, but they're only usable
 	 * by privileged users and are crippled even then, so there's
@@ -1241,6 +1249,7 @@ assertion_make_dir(const char *file, int line, const char *dirname, int mode)
 {
 	assertion_count(file, line);
 #if defined(_WIN32) && !defined(__CYGWIN__)
+	(void)mode; /* UNUSED */
 	if (0 == _mkdir(dirname))
 		return (1);
 #else
@@ -1260,6 +1269,7 @@ assertion_make_file(const char *file, int line,
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	/* TODO: Rework this to set file mode as well. */
 	FILE *f;
+	(void)mode; /* UNUSED */
 	assertion_count(file, line);
 	f = fopen(path, "wb");
 	if (f == NULL) {
