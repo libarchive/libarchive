@@ -53,7 +53,8 @@
 #endif
 #if HAVE_DIRENT_H
 #include <dirent.h>
-#else
+#endif
+#ifdef HAVE_DIRECT_H
 #include <direct.h>
 #define dirent direct
 #endif
