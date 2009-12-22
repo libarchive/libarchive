@@ -146,7 +146,7 @@ DEFINE_TEST(test_option_c)
 		assert(is_octal(e, 76)); /* Entire header is octal digits. */
 		assertEqualMem(e + 0, "070707", 6); /* Magic */
 		assertEqualInt(dev, from_octal(e + 6, 6)); /* dev */
-		assert(dev != from_octal(e + 12, 6)); /* ino */
+		assert(ino != from_octal(e + 12, 6)); /* ino */
 #if !defined(_WIN32) || defined(__CYGWIN__)
 		/* On Windows, symbolic link and group members bits and
 		 * others bits do not work. */
