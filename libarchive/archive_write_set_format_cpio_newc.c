@@ -125,7 +125,7 @@ archive_write_newc_header(struct archive_write *a, struct archive_entry *entry)
 	ret2 = ARCHIVE_OK;
 
 	path = archive_entry_pathname(entry);
-	pathlength = strlen(path) + 1; /* Include trailing null. */
+	pathlength = (int)strlen(path) + 1; /* Include trailing null. */
 
 	memset(&h, 0, sizeof(h));
 	format_hex(0x070701, &h.c_magic, sizeof(h.c_magic));
@@ -278,7 +278,8 @@ static int
 archive_write_newc_finish_entry(struct archive_write *a)
 {
 	struct cpio *cpio;
-	int to_write, ret;
+	size_t to_write;
+	int ret;
 
 	cpio = (struct cpio *)a->format_data;
 	while (cpio->entry_bytes_remaining > 0) {

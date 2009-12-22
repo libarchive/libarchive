@@ -854,7 +854,7 @@ archive_write_mtree_data(struct archive_write *a, const void *buff, size_t n)
 		 * Compute a POSIX 1003.2 checksum
 		 */
 		const unsigned char *p;
-		int nn;
+		size_t nn;
 
 		for (nn = n, p = buff; nn--; ++p)
 			COMPUTE_CRC(mtree->crc, *p);

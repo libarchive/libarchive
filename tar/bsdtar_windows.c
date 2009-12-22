@@ -62,10 +62,10 @@ permissive_name(const char *name)
 {
 	wchar_t *wn, *wnp;
 	wchar_t *ws, *wsp;
-	size_t l, len, slen, alloclen;
+	DWORD l, len, slen, alloclen;
 	int unc;
 
-	len = strlen(name);
+	len = (DWORD)strlen(name);
 	wn = malloc((len + 1) * sizeof(wchar_t));
 	if (wn == NULL)
 		return (NULL);

@@ -125,14 +125,14 @@ permissive_name(const char *name)
 {
 	wchar_t *wn, *wnp;
 	wchar_t *ws, *wsp;
-	size_t l, len, slen;
+	DWORD l, len, slen;
 	int unc;
 
-	len = strlen(name);
+	len = (DWORD)strlen(name);
 	wn = malloc((len + 1) * sizeof(wchar_t));
 	if (wn == NULL)
 		return (NULL);
-	l = MultiByteToWideChar(CP_ACP, 0, name, len, wn, len);
+	l = MultiByteToWideChar(CP_ACP, 0, name, (int)len, wn, (int)len);
 	if (l == 0) {
 		free(wn);
 		return (NULL);
@@ -323,8 +323,8 @@ __link(const char *src, const char *dst)
 		else
 			wcscat(wnewsrc, L"\\");
 		/* Converting multi-byte src to wide-char src */
-		wlen = wcslen(wsrc);
-		slen = strlen(src);
+		wlen = (int)wcslen(wsrc);
+		slen = (int)strlen(src);
 		n = MultiByteToWideChar(CP_ACP, 0, src, slen, wsrc, wlen);
 		if (n == 0) {
 			free (wnewsrc);

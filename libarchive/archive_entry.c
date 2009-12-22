@@ -222,7 +222,7 @@ static const wchar_t *
 aes_get_wcs(struct aes *aes)
 {
 	wchar_t *w;
-	int r;
+	size_t r;
 
 	/* Return WCS form if we already have it. */
 	if (aes->aes_set & AES_SET_WCS)
@@ -240,7 +240,7 @@ aes_get_wcs(struct aes *aes)
 		if (w == NULL)
 			__archive_errx(1, "No memory for aes_get_wcs()");
 		r = mbstowcs(w, aes->aes_mbs.s, wcs_length);
-		if (r > 0) {
+		if (r != (size_t)-1 && r != 0) {
 			w[r] = 0;
 			aes->aes_set |= AES_SET_WCS;
 			return (aes->aes_wcs = w);

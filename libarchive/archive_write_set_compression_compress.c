@@ -425,7 +425,7 @@ archive_compressor_compress_finish(struct archive_write *a)
 	ssize_t block_length, target_block_length, bytes_written;
 	int ret;
 	struct private_data *state;
-	unsigned tocopy;
+	size_t tocopy;
 
 	state = (struct private_data *)a->compressor.data;
 	if (a->client_writer == NULL) {

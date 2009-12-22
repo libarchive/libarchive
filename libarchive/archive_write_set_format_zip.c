@@ -329,7 +329,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	archive_le16enc(&h.flags, ZIP_FLAGS);
 	archive_le16enc(&h.compression, zip->compression);
 	archive_le32enc(&h.timedate, dos_time(archive_entry_mtime(entry)));
-	archive_le16enc(&h.filename_length, path_length(entry));
+	archive_le16enc(&h.filename_length, (uint16_t)path_length(entry));
 
 	switch (zip->compression) {
 	case COMPRESSION_STORE:
@@ -530,7 +530,7 @@ archive_write_zip_finish(struct archive_write *a)
 		archive_le32enc(&h.crc32, l->crc32);
 		archive_le32enc(&h.compressed_size, l->compressed_size);
 		archive_le32enc(&h.uncompressed_size, archive_entry_size(l->entry));
-		archive_le16enc(&h.filename_length, path_length(l->entry));
+		archive_le16enc(&h.filename_length, (uint16_t)path_length(l->entry));
 		archive_le16enc(&h.extra_length, sizeof(e));
 		archive_le16enc(&h.attributes_external[2], archive_entry_mode(l->entry));
 		archive_le32enc(&h.offset, l->offset);
@@ -663,5 +663,5 @@ write_path(struct archive_entry *entry, struct archive_write *archive)
 		written_bytes += 1;
 	}
 
-	return written_bytes;
+	return ((int)written_bytes);
 }

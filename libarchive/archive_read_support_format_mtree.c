@@ -196,7 +196,7 @@ mtree_bid(struct archive_read *a)
 		return (-1);
 
 	if (strncmp(p, signature, strlen(signature)) == 0)
-		return (8 * strlen(signature));
+		return (8 * (int)strlen(signature));
 	return (0);
 }
 

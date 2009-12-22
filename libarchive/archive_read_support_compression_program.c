@@ -205,7 +205,7 @@ program_bidder_bid(struct archive_read_filter_bidder *self,
 		/* No match, so don't bid. */
 		if (memcmp(p, state->signature, state->signature_len) != 0)
 			return (0);
-		return (state->signature_len * 8);
+		return ((int)state->signature_len * 8);
 	}
 
 	/* Otherwise, bid once and then never bid again. */

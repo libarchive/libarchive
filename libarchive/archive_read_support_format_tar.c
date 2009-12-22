@@ -2318,7 +2318,7 @@ base64_decode(const char *s, size_t len, size_t *out_len)
 
 	/* If the decode table is not yet initialized, prepare it. */
 	if (decode_table[digits[1]] != 1) {
-		size_t i;
+		unsigned i;
 		memset(decode_table, 0xff, sizeof(decode_table));
 		for (i = 0; i < sizeof(digits); i++)
 			decode_table[digits[i]] = i;

@@ -149,13 +149,13 @@ safe_fprintf(FILE *f, const char *fmt, ...)
 			} else {
 				/* Not printable, format the bytes. */
 				while (n-- > 0)
-					i += bsdtar_expand_char(
+					i += (unsigned)bsdtar_expand_char(
 					    outbuff, i, *p++);
 			}
 		} else {
 			/* After any conversion failure, don't bother
 			 * trying to convert the rest. */
-			i += bsdtar_expand_char(outbuff, i, *p++);
+			i += (unsigned)bsdtar_expand_char(outbuff, i, *p++);
 			try_wc = 0;
 		}
 

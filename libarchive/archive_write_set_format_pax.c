@@ -307,7 +307,7 @@ add_pax_attr(struct archive_string *as, const char *key, const char *value)
 	 * PAX attributes have the following layout:
 	 *     <len> <space> <key> <=> <value> <nl>
 	 */
-	len = 1 + strlen(key) + 1 + strlen(value) + 1;
+	len = 1 + (int)strlen(key) + 1 + (int)strlen(value) + 1;
 
 	/*
 	 * The <len> field includes the length of the <len> field, so
@@ -362,7 +362,7 @@ archive_write_pax_header_xattrs(struct pax *pax, struct archive_entry *entry)
 		url_encoded_name = url_encode(name);
 		if (url_encoded_name != NULL) {
 			/* Convert narrow-character to wide-character. */
-			int wcs_length = strlen(url_encoded_name);
+			size_t wcs_length = strlen(url_encoded_name);
 			wcs_name = (wchar_t *)malloc((wcs_length + 1) * sizeof(wchar_t));
 			if (wcs_name == NULL)
 				__archive_errx(1, "No memory for xattr conversion");
@@ -1025,7 +1025,7 @@ build_ustar_entry_name(char *dest, const char *src, size_t src_length,
 	char *p;
 	int need_slash = 0; /* Was there a trailing slash? */
 	size_t suffix_length = 99;
-	int insert_length;
+	size_t insert_length;
 
 	/* Length of additional dir element to be added. */
 	if (insert == NULL)
@@ -1249,7 +1249,8 @@ archive_write_pax_finish_entry(struct archive_write *a)
 static int
 write_nulls(struct archive_write *a, size_t padding)
 {
-	int ret, to_write;
+	int ret;
+	size_t to_write;
 
 	while (padding > 0) {
 		to_write = padding < a->null_length ? padding : a->null_length;
