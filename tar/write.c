@@ -679,7 +679,7 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		return;
 	}
 
-	while ((tree_ret = tree_next(tree))) {
+	while ((tree_ret = tree_next(tree)) != 0) {
 		int r;
 		const char *name = tree_current_path(tree);
 		const struct stat *st = NULL; /* info to use for this entry */

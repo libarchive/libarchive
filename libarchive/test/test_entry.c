@@ -51,7 +51,6 @@ DEFINE_TEST(test_entry)
 	const char *xname; /* For xattr tests. */
 	const void *xval; /* For xattr tests. */
 	size_t xsize; /* For xattr tests. */
-	int c;
 	wchar_t wc;
 	long l;
 
@@ -442,7 +441,7 @@ DEFINE_TEST(test_entry)
 	skipping("ACL preserved by archive_entry_clone()");
 #else
 	/* Verify ACL was copied. */
-	assertEqualInt(4, c = archive_entry_acl_reset(e2,
+	assertEqualInt(4, archive_entry_acl_reset(e2,
 			   ARCHIVE_ENTRY_ACL_TYPE_ACCESS));
 	/* First three are standard permission bits. */
 	assertEqualInt(0, archive_entry_acl_next(e2,
@@ -483,7 +482,7 @@ DEFINE_TEST(test_entry)
 	skipping("xattr data preserved by archive_entry_clone");
 #else
 	/* Verify xattr was copied. */
-	assertEqualInt(1, c = archive_entry_xattr_reset(e2));
+	assertEqualInt(1, archive_entry_xattr_reset(e2));
 	assertEqualInt(0, archive_entry_xattr_next(e2, &xname, &xval, &xsize));
 	assertEqualString(xname, "xattr1");
 	assertEqualString(xval, "xattrvalue");
@@ -567,7 +566,7 @@ DEFINE_TEST(test_entry)
 	skipping("ACL held by clone of archive_entry");
 #else
 	/* Verify ACL was unchanged. */
-	assertEqualInt(4, c = archive_entry_acl_reset(e2,
+	assertEqualInt(4, archive_entry_acl_reset(e2,
 			   ARCHIVE_ENTRY_ACL_TYPE_ACCESS));
 	/* First three are standard permission bits. */
 	assertEqualInt(0, archive_entry_acl_next(e2,
