@@ -78,9 +78,9 @@ verify(const char *p, size_t s)
 	assert(s >= 1);
 	failure("Version: %s", p);
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	assertEqualMem(q, "\r\n", 2);
+	assertEqualMem(q, "\x0d\x0a", 2);
 #else
-	assertEqualMem(q, "\n", 1);
+	assertEqualMem(q, "\x0a", 1);
 #endif
 }
 
