@@ -43,7 +43,6 @@
 #if !defined(__BORLANDC__)
 #define strdup _strdup
 #endif
-#define	read _read
 #if !defined(__BORLANDC__)
 #define getcwd _getcwd
 #endif

@@ -65,6 +65,10 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/util.c,v 1.23 2008/12/15 06:00:25 kientzle E
 static size_t	bsdtar_expand_char(char *, size_t, char);
 static const char *strip_components(const char *path, int elements);
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#define read _read
+#endif
+
 /* TODO:  Hack up a version of mbtowc for platforms with no wide
  * character support at all.  I think the following might suffice,
  * but it needs careful testing.
