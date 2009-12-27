@@ -58,6 +58,7 @@ DEFINE_TEST(test_option_L_upper)
 
 	r = systemf(CAT " filelist | %s -pd copy >copy.out 2>copy.err", testprog);
 	assertEqualInt(r, 0);
+	assertTextFileContents("1 block\n", "copy.err");
 
 	failure("Regular -p without -L should preserve symlinks.");
 	assertIsSymlink("copy/symlink", NULL);
@@ -72,25 +73,29 @@ DEFINE_TEST(test_option_L_upper)
 	r = systemf(CAT " filelist | %s -o >archive.out 2>archive.err", testprog);
 	failure("Error invoking %s -o ", testprog);
 	assertEqualInt(r, 0);
+	assertTextFileContents("1 block\n", "archive.err");
 
 	assertMakeDir("unpack", 0755);
 	assertChdir("unpack");
 	r = systemf(CAT " ../archive.out | %s -i >unpack.out 2>unpack.err", testprog);
-	assertChdir("..");
 	failure("Error invoking %s -i", testprog);
 	assertEqualInt(r, 0);
+	assertTextFileContents("1 block\n", "unpack.err");
+	assertChdir("..");
 
 	assertIsSymlink("unpack/symlink", NULL);
 
 	r = systemf(CAT " filelist | %s -oL >archive-L.out 2>archive-L.err", testprog);
 	failure("Error invoking %s -oL", testprog);
 	assertEqualInt(r, 0);
+	assertTextFileContents("1 block\n", "archive-L.err");
 
 	assertMakeDir("unpack-L", 0755);
 	assertChdir("unpack-L");
 	r = systemf(CAT " ../archive-L.out | %s -i >unpack-L.out 2>unpack-L.err", testprog);
-	assertChdir("..");
 	failure("Error invoking %s -i < archive-L.out", testprog);
 	assertEqualInt(r, 0);
+	assertTextFileContents("1 block\n", "unpack-L.err");
+	assertChdir("..");
 	assertIsReg("unpack-L/symlink", -1);
 }
