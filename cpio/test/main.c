@@ -793,6 +793,12 @@ assertion_text_file_contents(const char *buff, const char *fn)
 
 	assertion_count(test_filename, test_line);
 	f = fopen(fn, "r");
+	if (f == NULL) {
+		failure_start(test_filename, test_line,
+		    "File doesn't exist: %s", fn);
+		failure_finish(test_extra);
+		return (0);
+	}
 	s = strlen(buff);
 	contents = malloc(s * 2 + 128);
 	n = fread(contents, 1, s * 2 + 128 - 1, f);
