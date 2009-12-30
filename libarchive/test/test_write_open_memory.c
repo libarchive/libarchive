@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_open_memory.c,v 1.4 2008/09/01 05:38:33 kientzle Exp $");
+__FBSDID("$FreeBSD: head/lib/libarchive/test/test_write_open_memory.c 189308 2009-03-03 17:02:51Z kientzle $");
 
 /* Try to force archive_write_open_memory.c to write past the end of an array. */
 static unsigned char buff[16384];

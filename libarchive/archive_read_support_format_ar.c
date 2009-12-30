@@ -26,7 +26,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_format_ar.c,v 1.12 2008/12/17 19:02:42 kientzle Exp $");
+__FBSDID("$FreeBSD: head/lib/libarchive/archive_read_support_format_ar.c 201101 2009-12-28 03:06:27Z kientzle $");
 
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>

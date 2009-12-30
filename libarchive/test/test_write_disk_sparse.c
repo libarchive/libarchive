@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: head/lib/libarchive/test/test_write_disk_sparse.c 201247 2009-12-30 05:59:21Z kientzle $");
 
 /*
  * Write a file using archive_write_data call, read the file

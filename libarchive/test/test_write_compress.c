@@ -25,7 +25,7 @@
  */
 
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_compress.c,v 1.4 2008/12/17 19:05:25 kientzle Exp $");
+__FBSDID("$FreeBSD: head/lib/libarchive/test/test_write_compress.c 189308 2009-03-03 17:02:51Z kientzle $");
 
 /*
  * A basic exercise of compress reading and writing.

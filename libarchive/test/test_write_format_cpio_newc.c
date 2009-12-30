@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_format_cpio_newc.c,v 1.3 2008/09/01 05:38:33 kientzle Exp $");
+__FBSDID("$FreeBSD: head/lib/libarchive/test/test_write_format_cpio_newc.c 201247 2009-12-30 05:59:21Z kientzle $");
 
 
 static int

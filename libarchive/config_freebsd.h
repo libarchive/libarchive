@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD: src/lib/libarchive/config_freebsd.h,v 1.15 2008/09/30 03:53:03 kientzle Exp $
+ * $FreeBSD: head/lib/libarchive/config_freebsd.h 201079 2009-12-28 02:01:42Z kientzle $
  */
 
 /* FreeBSD 5.0 and later have ACL and extattr support. */
@@ -41,6 +41,14 @@
 #define	HAVE_EXTATTR_SET_FILE 1
 #define	HAVE_SYS_ACL_H 1
 #define	HAVE_SYS_EXTATTR_H 1
+#endif
+
+#ifdef WITH_OPENSSL
+#define	HAVE_OPENSSL_MD5_H 1
+#define	HAVE_OPENSSL_RIPEMD_H 1
+#define	HAVE_OPENSSL_SHA_H 1
+#define	HAVE_SHA384 1
+#define	HAVE_SHA512 1
 #endif
 
 #define	HAVE_BSDXML_H 1
@@ -86,9 +94,6 @@
 #define	HAVE_MKDIR 1
 #define	HAVE_MKFIFO 1
 #define	HAVE_MKNOD 1
-#define	HAVE_OPENSSL_MD5_H 1
-#define	HAVE_OPENSSL_RIPEMD_H 1
-#define	HAVE_OPENSSL_SHA_H 1
 #define	HAVE_PIPE 1
 #define	HAVE_POLL 1
 #define	HAVE_POLL_H 1
@@ -101,8 +106,6 @@
 #define	HAVE_SHA1 1
 #define	HAVE_SHA256 1
 #define	HAVE_SHA256_H 1
-#define	HAVE_SHA384 1
-#define	HAVE_SHA512 1
 #define	HAVE_SIGNAL_H 1
 #define	HAVE_STDINT_H 1
 #define	HAVE_STDLIB_H 1

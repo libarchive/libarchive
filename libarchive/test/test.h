@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD: src/lib/libarchive/test/test.h,v 1.10 2008/06/15 10:35:22 kientzle Exp $
+ * $FreeBSD: head/lib/libarchive/test/test.h 201247 2009-12-30 05:59:21Z kientzle $
  */
 
 /* Every test program should #include "test.h" as the first thing. */

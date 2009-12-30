@@ -25,7 +25,7 @@
 
 #include "archive_platform.h"
 
-__FBSDID("$FreeBSD: src/lib/libarchive/archive_write_set_compression_bzip2.c,v 1.13 2007/12/30 04:58:21 kientzle Exp $");
+__FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_compression_bzip2.c 201091 2009-12-28 02:22:41Z kientzle $");
 
 #ifdef HAVE_ERRNO_H
 #include <errno.h>

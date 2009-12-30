@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD: src/lib/libarchive/archive_platform.h,v 1.32 2008/12/06 05:53:05 kientzle Exp $
+ * $FreeBSD: head/lib/libarchive/archive_platform.h 201090 2009-12-28 02:22:04Z kientzle $
  */
 
 /* !!ONLY FOR USE INTERNALLY TO LIBARCHIVE!! */

@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_iso_gz.c,v 1.2 2008/09/01 05:38:33 kientzle Exp $");
+__FBSDID("$FreeBSD: head/lib/libarchive/test/test_read_format_iso_gz.c 201247 2009-12-30 05:59:21Z kientzle $");
 
 DEFINE_TEST(test_read_format_iso_gz)
 {

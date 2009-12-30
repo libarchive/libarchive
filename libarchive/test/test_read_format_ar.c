@@ -26,7 +26,7 @@
  */
 
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_ar.c,v 1.6 2008/09/01 05:38:33 kientzle Exp $");
+__FBSDID("$FreeBSD: head/lib/libarchive/test/test_read_format_ar.c 201247 2009-12-30 05:59:21Z kientzle $");
 
 
 DEFINE_TEST(test_read_format_ar)

@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_format_cpio.c,v 1.6 2008/12/06 06:02:26 kientzle Exp $");
+__FBSDID("$FreeBSD: head/lib/libarchive/test/test_write_format_cpio.c 185672 2008-12-06 06:02:26Z kientzle $");
 
 /* The version stamp macro was introduced after cpio write support. */
 #if ARCHIVE_VERSION_NUMBER >= 1009000

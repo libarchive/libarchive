@@ -24,7 +24,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/archive_read_open_filename.c,v 1.21 2008/02/19 06:10:48 kientzle Exp $");
+__FBSDID("$FreeBSD: head/lib/libarchive/archive_read_open_filename.c 201093 2009-12-28 02:28:44Z kientzle $");
 
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
