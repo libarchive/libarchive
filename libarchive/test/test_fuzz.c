@@ -112,8 +112,10 @@ DEFINE_TEST(test_fuzz)
 			assert(size > 0);
 			failure("Internal buffer is not big enough for "
 			    "uncompressed test file: %s", filename);
-			if (!assert(size < buffsize))
+			if (!assert(size < buffsize)) {
+				free(rawimage);
 				continue;
+			}
 		} else {
 			rawimage = slurpfile(&size, filename);
 			if (!assert(rawimage != NULL))
@@ -153,8 +155,8 @@ DEFINE_TEST(test_fuzz)
 						continue;
 				}
 				archive_read_close(a);
-				archive_read_finish(a);
 			}
+			archive_read_finish(a);
 		}
 		free(image);
 		free(rawimage);
