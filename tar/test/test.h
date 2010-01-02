@@ -185,6 +185,8 @@
   assertion_file_size(__FILE__, __LINE__, pathname, size)
 #define assertTextFileContents         \
   assertion_setup(__FILE__, __LINE__);assertion_text_file_contents
+#define assertFileContainsLinesAnyOrder(pathname, lines)	\
+	assertion_file_contains_lines_any_order(__FILE__, __LINE__, pathname, lines)
 #define assertIsDir(pathname, mode)		\
   assertion_is_dir(__FILE__, __LINE__, pathname, mode)
 #define assertIsHardlink(path1, path2)	\
@@ -230,6 +232,7 @@ int assertion_file_atime(const char *, int, const char *, long, long);
 int assertion_file_atime_recent(const char *, int, const char *);
 int assertion_file_birthtime(const char *, int, const char *, long, long);
 int assertion_file_birthtime_recent(const char *, int, const char *);
+int assertion_file_contains_lines_any_order(const char *, int, const char *, const char **);
 int assertion_file_contents(const void *, int, const char *, ...);
 int assertion_file_exists(const char *, ...);
 int assertion_file_mtime(const char *, int, const char *, long, long);

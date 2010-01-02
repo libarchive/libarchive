@@ -112,24 +112,18 @@ mkfullpath(char **path1, char **path2, const char *tpath, int type)
 	*path2 = fp2;
 }
 
-static const char list1[] =
-    "aaa/\r\naaa/file1\r\naaa/xxa/\r\naaa/xxb/\r\naaa/zzc/\r\n"
-    "aaa/zzc/file1\r\naaa/xxb/file1\r\naaa/xxa/file1\r\naab/\r\n"
-	"aac/\r\nabb/\r\nabc/\r\nabd/\r\n";
-static const char list2[] =
-    "bbb/\r\nbbb/file1\r\nbbb/xxa/\r\nbbb/xxb/\r\nbbb/zzc/\r\n"
-    "bbb/zzc/file1\r\nbbb/xxb/file1\r\nbbb/xxa/file1\r\nbbc/\r\n"
-    "bbd/\r\nbcc/\r\nbcd/\r\nbce/\r\n";
-static const char list3[] =
-    "aac/\r\nabc/\r\nbbc/\r\nbcc/\r\nccc/\r\n";
-static const char list4[] =
-    "fff/abca\r\nfff/acca\r\n";
-static const char list5[] =
-    "aaa/file1\r\naaa/xxa/\r\naaa/xxa/file1\r\naaa/xxb/\r\n"
-    "aaa/xxb/file1\r\naaa/zzc/\r\naaa/zzc/file1\r\n";
-static const char list6[] =
-    "fff/abca\r\nfff/acca\r\naaa/xxa/\r\naaa/xxa/file1\r\n"
-    "aaa/xxb/\r\naaa/xxb/file1\r\n";
+static const char *list1[] = {"aaa/", "aaa/file1", "aaa/xxa/", "aaa/xxb/",
+	"aaa/zzc/", "aaa/zzc/file1", "aaa/xxb/file1", "aaa/xxa/file1",
+	"aab/", "aac/", "abb/", "abc/", "abd/", NULL};
+static const char *list2[] = {"bbb/", "bbb/file1", "bbb/xxa/", "bbb/xxb/",
+	"bbb/zzc/", "bbb/zzc/file1", "bbb/xxb/file1", "bbb/xxa/file1", "bbc/",
+	"bbd/", "bcc/", "bcd/", "bce/", NULL};
+static const char *list3[] = {"aac/", "abc/", "bbc/", "bcc/", "ccc/", NULL};
+static const char *list4[] = {"fff/abca", "fff/acca", NULL};
+static const char *list5[] = {"aaa/file1", "aaa/xxa/", "aaa/xxa/file1",
+	"aaa/xxb/", "aaa/xxb/file1", "aaa/zzc/", "aaa/zzc/file1", NULL};
+static const char *list6[] = {"fff/abca", "fff/acca", "aaa/xxa/",
+	"aaa/xxa/file1", "aaa/xxb/", "aaa/xxb/file1", NULL};
 #endif /* _WIN32 && !__CYGWIN__ */
 
 DEFINE_TEST(test_windows)
@@ -185,43 +179,43 @@ DEFINE_TEST(test_windows)
 	    systemf("%s -cf ../archive1.tar a*", testprog));
 	assertEqualInt(0,
 	    systemf("%s -tf ../archive1.tar > ../list1", testprog));
-	assertFileContents(list1, strlen(list1), "../list1");
+	assertFileContainsLinesAnyOrder("../list1", list1);
 
 	assertEqualInt(0,
 	    systemf("%s -cf ../archive2.tar b*", testprog));
 	assertEqualInt(0,
 	    systemf("%s -tf ../archive2.tar > ../list2", testprog));
-	assertFileContents(list2, strlen(list2), "../list2");
+	assertFileContainsLinesAnyOrder("../list2", list2);
 
 	assertEqualInt(0,
 	    systemf("%s -cf ../archive3.tar ??c", testprog));
 	assertEqualInt(0,
 	    systemf("%s -tf ../archive3.tar > ../list3", testprog));
-	assertFileContents(list3, strlen(list3), "../list3");
+	assertFileContainsLinesAnyOrder("../list3", list3);
 
 	assertEqualInt(0,
 	    systemf("%s -cf ../archive3b.tar *c", testprog));
 	assertEqualInt(0,
 	    systemf("%s -tf ../archive3b.tar > ../list3b", testprog));
-	assertFileContents(list3, strlen(list3), "../list3b");
+	assertFileContainsLinesAnyOrder("../list3b", list3);
 
 	assertEqualInt(0,
 	    systemf("%s -cf ../archive4.tar fff/a?ca", testprog));
 	assertEqualInt(0,
 	    systemf("%s -tf ../archive4.tar > ../list4", testprog));
-	assertFileContents(list4, strlen(list4), "../list4");
+	assertFileContainsLinesAnyOrder("../list4", list4);
 
 	assertEqualInt(0,
 	    systemf("%s -cf ../archive5.tar aaa\\*", testprog));
 	assertEqualInt(0,
 	    systemf("%s -tf ../archive5.tar > ../list5", testprog));
-	assertFileContents(list5, strlen(list5), "../list5");
+	assertFileContainsLinesAnyOrder("../list5", list5);
 
 	assertEqualInt(0,
 	    systemf("%s -cf ../archive6.tar fff\\a?ca aaa\\xx*", testprog));
 	assertEqualInt(0,
 	    systemf("%s -tf ../archive6.tar > ../list6", testprog));
-	assertFileContents(list6, strlen(list6), "../list6");
+	assertFileContainsLinesAnyOrder("../list6", list6);
 
 	/*
 	 * Test2: Archive the file start with drive letters.

@@ -834,6 +834,107 @@ assertion_text_file_contents(const char *buff, const char *fn)
 	return (0);
 }
 
+/* Verify that a text file contains the specified lines, regardless of order */
+/* This could be more efficient if we sorted both sets of lines, etc, but
+ * since this is used only for testing and only ever deals with a dozen or so
+ * lines at a time, this relatively crude approach is just fine. */
+int
+assertion_file_contains_lines_any_order(const char *file, int line,
+    const char *pathname, const char *lines[])
+{
+	char *buff;
+	size_t buff_size;
+	size_t expected_count, actual_count, i, j;
+	char **expected;
+	char *p, **actual;
+	char c;
+	int expected_failure = 0, actual_failure = 0;
+
+	assertion_count(file, line);
+
+	buff = slurpfile(&buff_size, "%s", pathname);
+	if (buff == NULL) {
+		failure_start(pathname, line, "Can't read file: %s", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+
+	// Make a copy of the provided lines and count up the expected file size.
+	expected_count = 0;
+	for (i = 0; lines[i] != NULL; ++i) {
+	}
+	expected_count = i;
+	expected = malloc(sizeof(char *) * expected_count);
+	for (i = 0; lines[i] != NULL; ++i) {
+		expected[i] = strdup(lines[i]);
+	}
+
+	// Break the file into lines
+	actual_count = 0;
+	for (c = '\0', p = buff; p < buff + buff_size; ++p) {
+		if (*p == '\x0d' || *p == '\x0a')
+			*p = '\0';
+		if (c == '\0' && *p != '\0')
+			++actual_count;
+		c = *p;
+	}
+	actual = malloc(sizeof(char *) * actual_count);
+	for (j = 0, p = buff; p < buff + buff_size; p += 1 + strlen(p)) {
+		if (*p != '\0') {
+			actual[j] = p;
+			++j;
+		}
+	}
+
+	// Erase matching lines from both lists
+	for (i = 0; i < expected_count; ++i) {
+		if (expected[i] == NULL)
+			continue;
+		for (j = 0; j < actual_count; ++j) {
+			if (actual[j] == NULL)
+				continue;
+			if (strcmp(expected[i], actual[j]) == 0) {
+				free(expected[i]);
+				expected[i] = NULL;
+				actual[j] = NULL;
+				break;
+			}
+		}
+	}
+
+	// If there's anything left, it's a failure
+	for (i = 0; i < expected_count; ++i) {
+		if (expected[i] != NULL)
+			++expected_failure;
+	}
+	for (j = 0; j < actual_count; ++j) {
+		if (actual[j] != NULL)
+			++actual_failure;
+	}
+	if (expected_failure == 0 && actual_failure == 0) {
+		free(buff);
+		free(expected);
+		free(actual);
+		return (1);
+	}
+	failure_start(file, line, "File doesn't match: %s", pathname);
+	for (i = 0; i < expected_count; ++i) {
+		if (expected[i] != NULL) {
+			free(expected[i]);
+			logprintf("  Expected but not present: %s\n", expected[i]);
+		}
+	}
+	for (j = 0; j < actual_count; ++j) {
+		if (actual[j] != NULL)
+			logprintf("  Present but not expected: %s\n", actual[j]);
+	}
+	failure_finish(NULL);
+	free(buff);
+	free(expected);
+	free(actual);
+	return (0);
+}
+
 /* Test that two paths point to the same file. */
 /* As a side-effect, asserts that both files exist. */
 static int
