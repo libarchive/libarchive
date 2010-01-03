@@ -1,3 +1,9 @@
+
+Jan 02, 2010: libarchive 2.7.902a released (test release for 2.8)
+Jan 02, 2010: Fix tar/test/test_windows on MinGW
+Jan 02, 2010: Fix memory leaks in libarchive tests
+Jan 01, 2010: Fix memory leak when filter startup fails
+
 Dec 27, 2009: libarchive 2.7.901a released (test release for 2.8)
 
 Aug 04, 2009: libarchive 2.7.1 released
