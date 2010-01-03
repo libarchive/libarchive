@@ -85,6 +85,10 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/bsdtar.c,v 1.93 2008/11/08 04:43:24 kientzle
 #define	_PATH_DEFTAPE "/dev/tape"
 #endif
 
+#ifdef __MINGW32__
+int _CRT_glob = 0; /* Disable broken CRT globbing. */
+#endif
+
 static struct bsdtar *_bsdtar;
 
 #if defined(HAVE_SIGACTION) && (defined(SIGINFO) || defined(SIGUSR1))
