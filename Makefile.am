@@ -168,7 +168,6 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_write_set_format_ustar.c		\
 	libarchive/archive_write_set_format_zip.c		\
 	libarchive/config_freebsd.h				\
-	libarchive/config_windows.h				\
 	libarchive/filter_fork.c				\
 	libarchive/filter_fork.h
 
