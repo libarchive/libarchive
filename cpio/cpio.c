@@ -1200,7 +1200,7 @@ lookup_uname_helper(struct cpio *cpio, const char **name, id_t id)
 	pwent = getpwuid((uid_t)id);
 	if (pwent == NULL) {
 		*name = NULL;
-		if (errno != 0)
+		if (errno != 0 && errno != ENOENT)
 			lafe_warnc(errno, "getpwuid(%d) failed", id);
 		return (errno);
 	}
