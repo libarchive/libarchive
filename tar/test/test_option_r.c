@@ -44,7 +44,7 @@ DEFINE_TEST(test_option_r)
 	fclose(f);
 
 	/* Archive that one file. */
-	r = systemf("%s cf archive.tar f1 >step1.out 2>step1.err", testprog);
+	r = systemf("%s cf archive.tar --format=ustar f1 >step1.out 2>step1.err", testprog);
 	failure("Error invoking %s cf archive.tar f1", testprog);
 	assertEqualInt(r, 0);
 
@@ -74,7 +74,7 @@ DEFINE_TEST(test_option_r)
 	fclose(f);
 
 	/* Update the archive. */
-	r = systemf("%s rf archive.tar f1 >step2.out 2>step2.err", testprog);
+	r = systemf("%s rf archive.tar --format=ustar f1 >step2.out 2>step2.err", testprog);
 	failure("Error invoking %s rf archive.tar f1", testprog);
 	assertEqualInt(r, 0);
 
