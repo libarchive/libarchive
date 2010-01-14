@@ -346,7 +346,7 @@ failure_finish(void *extra)
 	if (dump_on_failure) {
 		fprintf(stderr,
 		    " *** forcing core dump so failure can be debugged ***\n");
-		*(char *)(NULL) = 0;
+		abort();
 		exit(1);
 	}
 }
