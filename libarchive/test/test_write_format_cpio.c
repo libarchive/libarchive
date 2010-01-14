@@ -124,7 +124,7 @@ test_format(int	(*set_format)(struct archive *))
 		}
 	}
 	failure("Unable to locate the second header for damage-recovery test.");
-	assert(damaged = 1);
+	assert(damaged == 1);
 
 	/*
 	 * Now, read the data back.
