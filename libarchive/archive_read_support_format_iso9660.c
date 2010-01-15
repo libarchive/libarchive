@@ -1858,6 +1858,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 			iso9660->opt_support_rockridge = 0;
 	}
 
+	file->nlinks = 1;/* Reset nlink. we'll calculate it later. */
 	/* Tell file's parent how many children that parent has. */
 	if (parent != NULL && (flags & 0x02) && file->cl_offset == 0)
 		parent->subdirs++;
