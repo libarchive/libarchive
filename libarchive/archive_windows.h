@@ -302,8 +302,6 @@ struct _timeval64i32 {
 #define __timeval _timeval64i32
 #endif
 
-typedef int pid_t;
-
 /* Message digest define */
 #if !defined(HAVE_OPENSSL_MD5_H) && !defined(HAVE_OPENSSL_SHA_H)
 # if defined(_MSC_VER) && _MSC_VER < 1300

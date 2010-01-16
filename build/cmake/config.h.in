@@ -690,6 +690,9 @@
 /* Define to `long long' if <sys/types.h> does not define. */
 #cmakedefine off_t ${off_t}
 
+/* Define to `int' if <sys/types.h> doesn't define. */
+#cmakedefine pid_t ${pid_t}
+
 /* Define to `unsigned int' if <sys/types.h> does not define. */
 #cmakedefine size_t ${size_t}
 
