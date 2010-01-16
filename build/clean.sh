@@ -42,4 +42,7 @@ rm -f tar/*.1.gz tar/bsdtar tar/test/bsdtar_test tar/test/list.h
 rm -f cpio/*.1.gz cpio/bsdcpio cpio/test/bsdcpio_test cpio/test/list.h
 rm -f build/autoconf/compile build/autoconf/config.* build/autoconf/ltmain.sh
 rm -f build/autoconf/install-sh build/autoconf/depcomp build/autoconf/missing
+rm -f build/autoconf/libtool.m4 build/autoconf/ltoptions.m4
+rm -f build/autoconf/ltsugar.m4 build/autoconf/ltversion.m4
+rm -rf build/autoconf/lt~obsolete.m4
 rm -f build/pkgconfig/libarchive.pc
