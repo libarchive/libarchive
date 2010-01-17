@@ -920,8 +920,8 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 	failure_start(file, line, "File doesn't match: %s", pathname);
 	for (i = 0; i < expected_count; ++i) {
 		if (expected[i] != NULL) {
-			free(expected[i]);
 			logprintf("  Expected but not present: %s\n", expected[i]);
+			free(expected[i]);
 		}
 	}
 	for (j = 0; j < actual_count; ++j) {
