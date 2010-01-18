@@ -766,7 +766,7 @@ restore_time(struct cpio *cpio, struct archive_entry *entry,
         times[0].tv_sec = archive_entry_atime(entry);
         times[0].tv_usec = archive_entry_atime_nsec(entry) / 1000;
 
-#ifdef HAVE_FUTIMES
+#if defined(HAVE_FUTIMES) && !defined(__CYGWIN__)
         if (fd >= 0 && futimes(fd, times) == 0)
 		return (fd);
 #endif
