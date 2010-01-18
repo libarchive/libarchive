@@ -374,7 +374,7 @@ main(int argc, char *argv[])
 
 	free_cache(cpio->gname_cache);
 	free_cache(cpio->uname_cache);
-	return (0);
+	return (cpio->return_value);
 }
 
 static void
@@ -564,10 +564,16 @@ file_to_archive(struct cpio *cpio, const char *srcpath)
 	archive_entry_copy_sourcepath(entry, srcpath);
 	r = archive_read_disk_entry_from_file(cpio->archive_read_disk,
 	    entry, -1, NULL);
-	if (r < ARCHIVE_WARN)
-		lafe_errc(1, 0, "%s", archive_error_string(cpio->archive));
+	if (r < ARCHIVE_FAILED)
+		lafe_errc(1, 0, "%s",
+		    archive_error_string(cpio->archive_read_disk));
 	if (r < ARCHIVE_OK)
-		lafe_warnc(0, "%s", archive_error_string(cpio->archive));
+		lafe_warnc(0, "%s",
+		    archive_error_string(cpio->archive_read_disk));
+	if (r <= ARCHIVE_FAILED) {
+		cpio->return_value = 1;
+		return (r);
+	}
 
 	if (cpio->uid_override >= 0)
 		archive_entry_set_uid(entry, cpio->uid_override);
