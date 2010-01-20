@@ -1,3 +1,5 @@
+Jan 17, 2010: Fix error handling for 'echo nonexistent | cpio -o'
+Jan 17, 2010: Don't use futimes() on Cygwin
 
 Jan 02, 2010: libarchive 2.7.902a released (test release for 2.8)
 Jan 02, 2010: Fix tar/test/test_windows on MinGW
