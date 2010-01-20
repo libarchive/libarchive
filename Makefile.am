@@ -21,10 +21,10 @@ TESTS= libarchive_test $(bsdtar_test_programs) $(bsdcpio_test_programs)
 TESTS_ENVIRONMENT= $(libarchive_TESTS_ENVIRONMENT) $(bsdtar_TESTS_ENVIRONMENT) $(bsdcpio_TESTS_ENVIRONMENT)
 # Always build and test both bsdtar and bsdcpio as part of 'distcheck'
 DISTCHECK_CONFIGURE_FLAGS = --enable-bsdtar --enable-bsdcpio
-# Especially for early development, we want to be a little
-# aggressive about diagnosing build problems; this can get
-# relaxed somewhat in final shipping versions.
-AM_CFLAGS=-Wall -Werror
+# Uncommenting this line can help diagnose some errors.  This is ordinarily
+# enabled in the libarchive development branch but is disabled
+# for libarchive production releases.
+#AM_CFLAGS=-Wall -Werror
 PLATFORMCPPFLAGS = @PLATFORMCPPFLAGS@
 AM_CPPFLAGS=$(PLATFORMCPPFLAGS)
 
