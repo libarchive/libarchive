@@ -159,7 +159,7 @@ struct xar_file {
 #define HAS_GID			0x00020
 #define HAS_MODE		0x00040
 #define HAS_TYPE		0x00080
-#define HAS_RDEV		0x00100
+#define HAS_DEV			0x00100
 #define HAS_DEVMAJOR		0x00200
 #define HAS_DEVMINOR		0x00400
 #define HAS_INO			0x00800
@@ -184,7 +184,7 @@ struct xar_file {
 	struct archive_string	 gname;
 	gid_t			 gid;
 	mode_t			 mode;
-	dev_t			 rdev;
+	dev_t			 dev;
 	dev_t			 devmajor;
 	dev_t			 devminor;
 	int64_t			 ino64;
@@ -684,8 +684,8 @@ xar_read_header(struct archive_read *a, struct archive_entry *entry)
 		archive_entry_update_hardlink_utf8(entry,
 			file->hardlink.s);
 	archive_entry_set_ino64(entry, file->ino64);
-	if (file->has & HAS_RDEV)
-		archive_entry_set_rdev(entry, file->rdev);
+	if (file->has & HAS_DEV)
+		archive_entry_set_dev(entry, file->dev);
 	if (file->has & HAS_DEVMAJOR)
 		archive_entry_set_devmajor(entry, file->devmajor);
 	if (file->has & HAS_DEVMINOR)
@@ -2603,8 +2603,8 @@ xml_data(void *userData, const char *s, int len)
 		xar->file->devminor = (dev_t)atol10(s, len);
 		break;
 	case FILE_DEVICENO:
-		xar->file->has |= HAS_RDEV;
-		xar->file->rdev = (dev_t)atol10(s, len);
+		xar->file->has |= HAS_DEV;
+		xar->file->dev = (dev_t)atol10(s, len);
 		break;
 	case FILE_MODE:
 		xar->file->has |= HAS_MODE;
