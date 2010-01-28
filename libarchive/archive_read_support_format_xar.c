@@ -1030,6 +1030,7 @@ parse_time(const char *p, size_t n)
 	time_t t = 0;
 	int64_t data;
 
+	memset(&tm, 0, sizeof(tm));
 	if (n != 20)
 		return (t);
 	data = atol10(p, 4);
