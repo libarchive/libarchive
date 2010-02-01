@@ -296,6 +296,9 @@ main(int argc, char *argv[])
 		case 'v': /* POSIX 1997 */
 			cpio->verbose++;
 			break;
+		case 'V': /* GNU cpio */
+			cpio->dot++;
+			break;
 		case OPTION_VERSION: /* GNU convention */
 			version();
 			break;
@@ -339,6 +342,9 @@ main(int argc, char *argv[])
 	/* -l requires -p */
 	if (cpio->option_link && cpio->mode != 'p')
 		lafe_errc(1, 0, "Option -l requires -p");
+	/* -v overrides -V */
+	if (cpio->dot && cpio->verbose)
+		cpio->dot = 0;
 	/* TODO: Flag other nonsensical combinations. */
 
 	switch (cpio->mode) {
@@ -396,7 +402,7 @@ static const char *long_help_msg =
 	"First option must be a mode specifier:\n"
 	"  -i Input  -o Output  -p Pass\n"
 	"Common Options:\n"
-	"  -v    Verbose\n"
+	"  -v Verbose filenames     -V  one dot per file\n"
 	"Create: %p -o [options]  < [list of files] > [archive]\n"
 	"  -J,-y,-z,--lzma  Compress archive with xz/bzip2/gzip/lzma\n"
 	"  --format {odc|newc|ustar}  Select archive format\n"
@@ -527,6 +533,8 @@ mode_out(struct cpio *cpio)
 	}
 
 	r = archive_write_close(cpio->archive);
+	if (cpio->dot)
+		fprintf(stderr, "\n");
 	if (r != ARCHIVE_OK)
 		lafe_errc(1, 0, "%s", archive_error_string(cpio->archive));
 
@@ -646,6 +654,8 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 	/* Print out the destination name to the user. */
 	if (cpio->verbose)
 		fprintf(stderr,"%s", destpath);
+	if (cpio->dot)
+		fprintf(stderr, ".");
 
 	/*
 	 * Option_link only makes sense in pass mode and for
@@ -839,7 +849,9 @@ mode_in(struct cpio *cpio)
 		if (destpath == NULL)
 			continue;
 		if (cpio->verbose)
-			fprintf(stdout, "%s\n", destpath);
+			fprintf(stderr, "%s\n", destpath);
+		if (cpio->dot)
+			fprintf(stderr, ".");
 		if (cpio->uid_override >= 0)
 			archive_entry_set_uid(entry, cpio->uid_override);
 		if (cpio->gid_override >= 0)
@@ -856,6 +868,8 @@ mode_in(struct cpio *cpio)
 		}
 	}
 	r = archive_read_close(a);
+	if (cpio->dot)
+		fprintf(stderr, "\n");
 	if (r != ARCHIVE_OK)
 		lafe_errc(1, 0, "%s", archive_error_string(a));
 	r = archive_write_close(ext);
@@ -1065,6 +1079,8 @@ mode_pass(struct cpio *cpio, const char *destdir)
 
 	archive_entry_linkresolver_free(cpio->linkresolver);
 	r = archive_write_close(cpio->archive);
+	if (cpio->dot)
+		fprintf(stderr, "\n");
 	if (r != ARCHIVE_OK)
 		lafe_errc(1, 0, "%s", archive_error_string(cpio->archive));
 
