@@ -80,6 +80,9 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/bsdtar.c,v 1.93 2008/11/08 04:43:24 kientzle
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #define	_PATH_DEFTAPE "\\\\.\\tape0"
 #endif
+#if defined(__APPLE__)
+#define _PATH_DEFTAPE "-"  /* Mac OS has no tape support, default to stdio. */
+#endif
 
 #ifndef _PATH_DEFTAPE
 #define	_PATH_DEFTAPE "/dev/tape"
@@ -268,8 +271,6 @@ main(int argc, char **argv)
 			break;
 		case 'f': /* SUSv2 */
 			bsdtar->filename = bsdtar->optarg;
-			if (strcmp(bsdtar->filename, "-") == 0)
-				bsdtar->filename = NULL;
 			break;
 		case 'H': /* BSD convention */
 			bsdtar->symlink_mode = 'H';
@@ -596,6 +597,10 @@ main(int argc, char **argv)
 	}
 	if (bsdtar->strip_components != 0)
 		only_mode(bsdtar, "--strip-components", "xt");
+
+	/* Filename "-" implies stdio. */
+	if (strcmp(bsdtar->filename, "-") == 0)
+		bsdtar->filename = NULL;
 
 	switch(bsdtar->mode) {
 	case 'c':
