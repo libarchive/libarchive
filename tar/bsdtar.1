@@ -51,7 +51,7 @@
 .Nm
 creates and manipulates streaming archive files.
 This implementation can extract from tar, pax, cpio, zip, jar, ar,
-and ISO 9660 cdrom images and can create tar, pax, cpio, ar,
+xar, and ISO 9660 cdrom images and can create tar, pax, cpio, ar, zip,
 and shar archives.
 .Pp
 The first synopsis form shows a
@@ -177,11 +177,13 @@ Read the archive from or write the archive to the specified file.
 The filename can be
 .Pa -
 for standard input or standard output.
-If not specified, the default tape device will be used.
-(On
+The default varies by system;
+on
 .Fx ,
-the default tape device is
-.Pa /dev/sa0 . )
+the default is
+.Pa /dev/sa0 ;
+on Linux, the default is
+.Pa /dev/st0 .
 .It Fl H
 (c and r mode only)
 Symbolic links named on the command line will be followed; the
@@ -544,24 +546,18 @@ See
 .Xr environ 7
 for more information.
 .It Ev TAPE
-The default tape device.
+The default device.
 The
 .Fl f
 option overrides this.
+Please see the description of the
+.Fl f
+option above for more details.
 .It Ev TZ
 The timezone to use when displaying dates.
 See
 .Xr environ 7
 for more information.
-.El
-.Sh FILES
-.Bl -tag -width ".Ev BLOCKSIZE"
-.It Pa /dev/sa0
-The default tape device, if not overridden by the
-.Ev TAPE
-environment variable or the
-.Fl f
-option.
 .El
 .Sh EXIT STATUS
 .Ex -std
@@ -803,7 +799,7 @@ in
 .St -p1003.1-96
 but was dropped from
 .St -p1003.1-2001 .
-The options used by this implementation were developed by surveying a
+The options supported by this implementation were developed by surveying a
 number of existing tar implementations as well as the old POSIX specification
 for tar and the current POSIX specification for pax.
 .Pp
@@ -829,6 +825,9 @@ beginning with
 This is a complete re-implementation based on the
 .Xr libarchive 3
 library.
+It was first released with
+.Fx 5.4
+in May, 2005.
 .Sh BUGS
 This program follows
 .St -p1003.1-96
