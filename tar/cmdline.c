@@ -77,6 +77,7 @@ static struct option {
 	{ "create",               0, 'c' },
 	{ "dereference",	  0, 'L' },
 	{ "directory",            1, 'C' },
+	{ "disable-copyfile",	  0, OPTION_DISABLE_COPYFILE },
 	{ "exclude",              1, OPTION_EXCLUDE },
 	{ "exclude-from",         1, 'X' },
 	{ "extract",              0, 'x' },

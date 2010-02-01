@@ -32,6 +32,9 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/bsdtar.c,v 1.93 2008/11/08 04:43:24 kientzle
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
+#ifdef HAVE_COPYFILE_H
+#include <copyfile.h>
+#endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -225,6 +228,11 @@ main(int argc, char **argv)
 	}
 #endif
 
+#ifdef COPYFILE_DISABLE_VAR
+	if (getenv(COPYFILE_DISABLE_VAR))
+		bsdtar->disable_copyfile = 1;
+#endif
+
 	bsdtar->argv = argv;
 	bsdtar->argc = argc;
 
@@ -257,6 +265,9 @@ main(int argc, char **argv)
 			break;
 		case OPTION_CHROOT: /* NetBSD */
 			bsdtar->option_chroot = 1;
+			break;
+		case OPTION_DISABLE_COPYFILE: /* Mac OS X */
+			bsdtar->disable_copyfile = 1;
 			break;
 		case OPTION_EXCLUDE: /* GNU tar */
 			if (lafe_exclude(&bsdtar->matching, bsdtar->optarg))

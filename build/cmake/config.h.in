@@ -60,6 +60,9 @@
 /* Define to 1 if you have the `chroot' function. */
 #cmakedefine HAVE_CHROOT 1
 
+/* Define to 1 if you have the <copyfile.h> header file. */
+#cmakedefine HAVE_COPYFILE_H 1
+
 /* Define to 1 if you have the `CreateHardLinkA' function. */
 #cmakedefine HAVE_CREATEHARDLINKA 1
 
