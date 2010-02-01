@@ -139,7 +139,7 @@ archive_read_disk_entry_from_file(struct archive *_a,
 #endif
 		if (stat(path, &s) != 0) {
 			archive_set_error(&a->archive, errno,
-			    "Can't lstat %s", path);
+			    "Can't stat %s", path);
 			return (ARCHIVE_FAILED);
 		}
 		st = &s;
