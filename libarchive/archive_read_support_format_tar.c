@@ -420,6 +420,14 @@ archive_read_format_tar_read_header(struct archive_read *a,
 	 */
 	if (tar->sparse_list == NULL)
 		gnu_add_sparse_entry(tar, 0, tar->entry_bytes_remaining);
+	else {
+		struct sparse_block *sb;
+
+		for (sb = tar->sparse_list; sb != NULL; sb = sb->next) {
+			archive_entry_sparse_add_entry(entry,
+			    sb->offset, sb->remaining);
+		}
+	}
 
 	if (r == ARCHIVE_OK) {
 		/*

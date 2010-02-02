@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003-2009 Tim Kientzle
+ * Copyright (c) 2010 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,6 +37,9 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk_entry_from_file.c 2010
 #ifdef HAVE_SYS_EXTATTR_H
 #include <sys/extattr.h>
 #endif
+#ifdef HAVE_SYS_IOCTL_H
+#include <sys/ioctl.h>
+#endif
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
@@ -54,11 +58,23 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk_entry_from_file.c 2010
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
+#ifdef HAVE_FCNTL_H
+#include <fcntl.h>
+#endif
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif
-#ifdef HAVE_WINDOWS_H
-#include <windows.h>
+#ifdef HAVE_LINUX_FIEMAP_H
+#include <linux/fiemap.h>
+#endif
+#ifdef HAVE_LINUX_FS_H
+#include <linux/fs.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#ifdef HAVE_WINIOCTL_H
+#include <winioctl.h>
 #endif
 
 #include "archive.h"
@@ -79,6 +95,8 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk_entry_from_file.c 2010
 static int setup_acls_posix1e(struct archive_read_disk *,
     struct archive_entry *, int fd);
 static int setup_xattrs(struct archive_read_disk *,
+    struct archive_entry *, int fd);
+static int setup_sparse(struct archive_read_disk *,
     struct archive_entry *, int fd);
 
 int
@@ -179,6 +197,12 @@ archive_read_disk_entry_from_file(struct archive *_a,
 	r1 = setup_xattrs(a, entry, fd);
 	if (r1 < r)
 		r = r1;
+	if (S_ISREG(st->st_mode) && archive_entry_size(entry) > 0 &&
+	    archive_entry_hardlink(entry) == NULL) {
+		r1 = setup_sparse(a, entry, fd);
+		if (r1 < r)
+			r = r1;
+	}
 	/* If we opened the file earlier in this function, close it. */
 	if (initial_fd != fd)
 		close(fd);
@@ -552,6 +576,294 @@ setup_xattrs(struct archive_read_disk *a,
  */
 static int
 setup_xattrs(struct archive_read_disk *a,
+    struct archive_entry *entry, int fd)
+{
+	(void)a;     /* UNUSED */
+	(void)entry; /* UNUSED */
+	(void)fd;    /* UNUSED */
+	return (ARCHIVE_OK);
+}
+
+#endif
+
+#if defined(HAVE_LINUX_FIEMAP_H)
+
+/*
+ * Linux sparse interface.
+ */
+
+static int
+setup_sparse(struct archive_read_disk *a,
+    struct archive_entry *entry, int fd)
+{
+	char buff[4096];
+	struct fiemap *fm;
+	struct fiemap_extent *fe;
+	int64_t size;
+	int count, do_fiemap;
+	int initial_fd = fd;
+
+	if (fd < 0) {
+		const char *path;
+
+		path = archive_entry_sourcepath(entry);
+		if (path == NULL)
+			path = archive_entry_pathname(entry);
+		fd = open(path, O_RDONLY | O_NONBLOCK);
+		if (fd < 0) {
+			archive_set_error(&a->archive, errno,
+			    "Can't open `%s'", path);
+			return (ARCHIVE_FAILED);
+		}
+	}
+
+	count = (sizeof(buff) - sizeof(*fm))/sizeof(*fe);
+	fm = (struct fiemap *)buff;
+	fm->fm_start = 0;
+	fm->fm_length = ~0ULL;;
+	fm->fm_flags = FIEMAP_FLAG_SYNC;
+	fm->fm_extent_count = count;
+	do_fiemap = 1;
+	size = archive_entry_size(entry);
+	for (;;) {
+		int i, r;
+
+		r = ioctl(fd, FS_IOC_FIEMAP, fm); 
+		if (r < 0) {
+			archive_set_error(&a->archive, errno, "FIEMAP failed");
+			if (initial_fd != fd)
+				close(fd);
+			return (ARCHIVE_FAILED);
+		}
+		if (fm->fm_mapped_extents == 0)
+			break;
+		fe = fm->fm_extents;
+		for (i = 0; i < fm->fm_mapped_extents; i++, fe++) {
+			if (!(fe->fe_flags & FIEMAP_EXTENT_UNWRITTEN)) {
+				/* The fe_length of the last block does not
+				 * adjust itself to its size files. */
+				int64_t length = fe->fe_length;
+				if (fe->fe_logical + length > size)
+					length -= fe->fe_logical + length - size;
+				if (length > 0)
+					archive_entry_sparse_add_entry(entry,
+					    fe->fe_logical, length);
+			}
+			if (fe->fe_flags & FIEMAP_EXTENT_LAST)
+				do_fiemap = 0;
+		}
+		if (do_fiemap) {
+			fe = fm->fm_extents + fm->fm_mapped_extents -1;
+			fm->fm_start = fe->fe_logical + fe->fe_length;
+		} else
+			break;
+	}
+	if (initial_fd != fd)
+		close(fd);
+	return (ARCHIVE_OK);
+}
+
+#elif defined(SEEK_HOLE) && defined(SEEK_DATA) && defined(_PC_MIN_HOLE_SIZE)
+
+/*
+ * FreeBSD and Solaris sparse interface.
+ */
+
+static int
+setup_sparse(struct archive_read_disk *a,
+    struct archive_entry *entry, int fd)
+{
+	int64_t size;
+	int initial_fd = fd;
+	off_t initial_off;
+	off_t off_s, off_e;
+	int exit_sts = ARCHIVE_OK;
+
+	/* Does filesystem support the reporting of hole ? */
+	if (fd >= 0) {
+		if (fpathconf(fd, _PC_MIN_HOLE_SIZE) <= 0)
+			return (ARCHIVE_OK);
+		initial_off = lseek(fd, 0, SEEK_CUR);
+		if (initial_off != 0)
+			lseek(fd, 0, SEEK_SET);
+	} else {
+		const char *path;
+
+		path = archive_entry_sourcepath(entry);
+		if (path == NULL)
+			path = archive_entry_pathname(entry);
+		if (pathconf(path, _PC_MIN_HOLE_SIZE) <= 0)
+			return (ARCHIVE_OK);
+		fd = open(path, O_RDONLY | O_NONBLOCK);
+		if (fd < 0) {
+			archive_set_error(&a->archive, errno,
+			    "Can't open `%s'", path);
+			return (ARCHIVE_FAILED);
+		}
+		initial_off = 0;
+	}
+
+	off_s = 0;
+	size = archive_entry_size(entry);
+	while (off_s < size) {
+		off_s = lseek(fd, off_s, SEEK_DATA);
+		if (off_s == (off_t)-1) {
+			if (errno == ENXIO)
+				break;/* no more hole */
+			archive_set_error(&a->archive, errno,
+			    "lseek(SEEK_HOLE) failed");
+			exit_sts = ARCHIVE_FAILED;
+			goto exit_setup_sparse;
+		}
+		off_e = lseek(fd, off_s, SEEK_HOLE);
+		if (off_s == (off_t)-1) {
+			if (errno == ENXIO) {
+				off_e = lseek(fd, 0, SEEK_END);
+				if (off_e != (off_t)-1)
+					break;/* no more data */
+			}
+			archive_set_error(&a->archive, errno,
+			    "lseek(SEEK_DATA) failed");
+			exit_sts = ARCHIVE_FAILED;
+			goto exit_setup_sparse;
+		}
+		archive_entry_sparse_add_entry(entry, off_s,
+			off_e - off_s);
+		off_s = off_e;
+	}
+exit_setup_sparse:
+	if (initial_fd != fd)
+		close(fd);
+	else
+		lseek(fd, initial_off, SEEK_SET);
+	return (exit_sts);
+}
+
+#elif defined(_WIN32) && !defined(__CYGWIN__)
+
+/*
+ * Windows sparse interface.
+ */
+
+static int
+setup_sparse(struct archive_read_disk *a,
+    struct archive_entry *entry, int fd)
+{
+	HANDLE handle;
+	BY_HANDLE_FILE_INFORMATION info;
+	FILE_ALLOCATED_RANGE_BUFFER range, *outranges = NULL;
+	size_t outranges_size;
+	LARGE_INTEGER fsize;
+	int initial_fd = fd;
+	int exit_sts = ARCHIVE_OK;
+
+	if (fd < 0) {
+		const char *path;
+
+		path = archive_entry_sourcepath(entry);
+		if (path == NULL)
+			path = archive_entry_pathname(entry);
+		fd = open(path, O_RDONLY | O_BINARY);
+		if (fd < 0) {
+			archive_set_error(&a->archive, errno,
+			    "Can't open `%s'", path);
+			return (ARCHIVE_FAILED);
+		}
+	}
+	handle = (HANDLE)_get_osfhandle(fd);
+	ZeroMemory(&info, sizeof(info));
+	if (!GetFileInformationByHandle (handle, &info)) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			"GetFileInformationByHandle Failed: %lu",
+		    GetLastError());
+		exit_sts = ARCHIVE_FAILED;
+		goto exit_setup_sparse;
+	}
+	if ((info.dwFileAttributes & FILE_ATTRIBUTE_SPARSE_FILE) == 0)
+		goto exit_setup_sparse;/* Not sparse file */
+
+	GetFileSizeEx(handle, &fsize);
+	range.FileOffset.QuadPart = 0;
+	range.Length.QuadPart = fsize.QuadPart;
+	outranges_size = 2048;
+	outranges = (FILE_ALLOCATED_RANGE_BUFFER *)malloc(outranges_size);
+	if (outranges == NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			"Couldn't allocate memory");
+		exit_sts = ARCHIVE_FATAL;
+		goto exit_setup_sparse;
+	}
+
+	for (;;) {
+		DWORD retbytes;
+		BOOL ret;
+
+		for (;;) {
+			ret = DeviceIoControl(handle,
+			    FSCTL_QUERY_ALLOCATED_RANGES,
+			    &range, sizeof(range), outranges,
+			    outranges_size, &retbytes, NULL);
+			if (ret == 0 && GetLastError() == ERROR_MORE_DATA) {
+				free(outranges);
+				outranges_size *= 2;
+				outranges = (FILE_ALLOCATED_RANGE_BUFFER *)
+				    malloc(outranges_size);
+				if (outranges == NULL) {
+					archive_set_error(&a->archive,
+					    ARCHIVE_ERRNO_MISC,
+					    "Couldn't allocate memory");
+					exit_sts = ARCHIVE_FATAL;
+					goto exit_setup_sparse;
+				}
+				continue;
+			} else
+				break;
+		}
+		if (ret != 0) {
+			if (retbytes > 0) {
+				DWORD i, n;
+
+				n = retbytes / sizeof(outranges[0]);
+				for (i = 0; i < n; i++)
+					archive_entry_sparse_add_entry(entry,
+					    outranges[i].FileOffset.QuadPart,
+						outranges[i].Length.QuadPart);
+				range.FileOffset.QuadPart =
+				    outranges[n-1].FileOffset.QuadPart
+				    + outranges[n-1].Length.QuadPart;
+				range.Length.QuadPart =
+				    fsize.QuadPart - range.FileOffset.QuadPart;
+				if (range.Length.QuadPart > 0)
+					continue;
+			} else {
+				/* The remaining data is hole. */
+				archive_entry_sparse_add_entry(entry,
+				    range.FileOffset.QuadPart,
+				    range.Length.QuadPart);
+			}
+			break;
+		} else {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "DeviceIoControl Failed: %lu", GetLastError());
+			exit_sts = ARCHIVE_FAILED;
+			goto exit_setup_sparse;
+		}
+	}
+exit_setup_sparse:
+	if (initial_fd != fd)
+		close(fd);
+	free(outranges);
+
+	return (exit_sts);
+}
+
+#else
+
+/*
+ * Generic (stub) sparse support.
+ */
+static int
+setup_sparse(struct archive_read_disk *a,
     struct archive_entry *entry, int fd)
 {
 	(void)a;     /* UNUSED */

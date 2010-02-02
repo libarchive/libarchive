@@ -99,6 +99,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_entry_copy_stat.c			\
 	libarchive/archive_entry_link_resolver.c		\
 	libarchive/archive_entry_private.h			\
+	libarchive/archive_entry_sparse.c			\
 	libarchive/archive_entry_stat.c				\
 	libarchive/archive_entry_strmode.c			\
 	libarchive/archive_entry_xattr.c			\
@@ -294,6 +295,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_position.c			\
 	libarchive/test/test_read_truncated.c			\
 	libarchive/test/test_read_uu.c				\
+	libarchive/test/test_sparse_basic.c			\
 	libarchive/test/test_tar_filenames.c			\
 	libarchive/test/test_tar_large.c			\
 	libarchive/test/test_ustar_filenames.c			\

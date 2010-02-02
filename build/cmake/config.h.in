@@ -265,6 +265,9 @@
 /* Define to 1 if you have the link() function. */
 #cmakedefine HAVE_LINK 1
 
+/* Define to 1 if you have the <linux/fiemap.h> header file. */
+#cmakedefine HAVE_LINUX_FIEMAP_H 1
+
 /* Define to 1 if you have the <linux/fs.h> header file. */
 #cmakedefine HAVE_LINUX_FS_H 1
 
@@ -536,6 +539,9 @@
 /* Define to 1 if you have the <sys/utime.h> header file. */
 #cmakedefine HAVE_SYS_UTIME_H 1
 
+/* Define to 1 if you have the <sys/utsname.h> header file. */
+#cmakedefine HAVE_SYS_UTSNAME_H 1
+
 /* Define to 1 if you have <sys/wait.h> that is POSIX.1 compatible. */
 #cmakedefine HAVE_SYS_WAIT_H 1
 
@@ -608,6 +614,9 @@
 /* Define to 1 if you have the <windows.h> header file. */
 #cmakedefine HAVE_WINDOWS_H 1
 
+/* Define to 1 if you have the <windioctl.h> header file. */
+#cmakedefine HAVE_WINIOCTL_H 1
+
 /* Define to 1 if you have _CrtSetReportMode in <crtdbg.h>  */
 #cmakedefine HAVE__CrtSetReportMode 1
 
@@ -666,6 +675,10 @@
    <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
    #define below would cause a syntax error. */
 #cmakedefine _UINT64_T
+
+/* Define for Windows to use Windows 2000+ APIs. */
+#cmakedefine _WIN32_WINNT ${_WIN32_WINNT}
+#cmakedefine WINVER ${WINVER}
 
 /* Define to empty if `const' does not conform to ANSI C. */
 #cmakedefine const ${const}

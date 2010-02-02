@@ -87,6 +87,7 @@ IF(ENABLE_TEST)
     test_read_position.c
     test_read_truncated.c
     test_read_uu.c
+    test_sparse_basic.c
     test_tar_filenames.c
     test_tar_large.c
     test_ustar_filenames.c

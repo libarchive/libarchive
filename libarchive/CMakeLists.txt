@@ -20,6 +20,7 @@ SET(libarchive_SOURCES
   archive_entry_copy_stat.c
   archive_entry_link_resolver.c
   archive_entry_private.h
+  archive_entry_sparse.c
   archive_entry_stat.c
   archive_entry_strmode.c
   archive_entry_xattr.c
