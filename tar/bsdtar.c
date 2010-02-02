@@ -228,9 +228,14 @@ main(int argc, char **argv)
 	}
 #endif
 
+	/*
+	 * Enable Mac OS "copyfile()" extension by default.
+	 * This has no effect on other platforms.
+	 */
+	bsdtar->enable_copyfile = 1;
 #ifdef COPYFILE_DISABLE_VAR
 	if (getenv(COPYFILE_DISABLE_VAR))
-		bsdtar->disable_copyfile = 1;
+		bsdtar->enable_copyfile = 0;
 #endif
 
 	bsdtar->argv = argv;
@@ -267,7 +272,7 @@ main(int argc, char **argv)
 			bsdtar->option_chroot = 1;
 			break;
 		case OPTION_DISABLE_COPYFILE: /* Mac OS X */
-			bsdtar->disable_copyfile = 1;
+			bsdtar->enable_copyfile = 0;
 			break;
 		case OPTION_EXCLUDE: /* GNU tar */
 			if (lafe_exclude(&bsdtar->matching, bsdtar->optarg))
@@ -346,7 +351,7 @@ main(int argc, char **argv)
 			/* GNU tar 1.13  used -l for --one-file-system */
 			bsdtar->option_warn_links = 1;
 			break;
-		case OPTION_LZMA:
+		case OPTION_LZMA: /* GNU tar beginning with 1.20 */
 			if (bsdtar->create_compression != '\0')
 				lafe_errc(1, 0,
 				    "Can't specify both -%c and -%c", opt,
