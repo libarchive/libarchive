@@ -38,6 +38,9 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/write.c,v 1.79 2008/11/27 05:49:52 kientzle 
 #ifdef HAVE_ATTR_XATTR_H
 #include <attr/xattr.h>
 #endif
+#ifdef HAVE_COPYFILE_H
+#include <copyfile.h>
+#endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -49,6 +52,9 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/write.c,v 1.79 2008/11/27 05:49:52 kientzle 
 #endif
 #ifdef HAVE_IO_H
 #include <io.h>
+#endif
+#ifdef HAVE_LIBGEN_H
+#include <libgen.h>
 #endif
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
@@ -66,6 +72,9 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/write.c,v 1.79 2008/11/27 05:49:52 kientzle 
 #if defined(HAVE_EXT2FS_EXT2_FS_H) && !defined(__CYGWIN__)
 /* This header exists but is broken on Cygwin. */
 #include <ext2fs/ext2_fs.h>
+#endif
+#ifdef HAVE_PATHS_H
+#include <paths.h>
 #endif
 #ifdef HAVE_PWD_H
 #include <pwd.h>
@@ -134,7 +143,9 @@ static void		 report_write(struct bsdtar *, struct archive *,
 			     struct archive_entry *, int64_t progress);
 static void		 test_for_append(struct bsdtar *);
 static void		 write_archive(struct archive *, struct bsdtar *);
-static void		 write_entry_backend(struct bsdtar *, struct archive *,
+static void		 write_entry(struct bsdtar *, struct archive *,
+			     struct archive_entry *);
+static void		 write_file(struct bsdtar *, struct archive *,
 			     struct archive_entry *);
 static int		 write_file_data(struct bsdtar *, struct archive *,
 			     struct archive_entry *, int fd);
@@ -482,7 +493,7 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 	entry = NULL;
 	archive_entry_linkify(bsdtar->resolver, &entry, &sparse_entry);
 	while (entry != NULL) {
-		write_entry_backend(bsdtar, a, entry);
+		write_file(bsdtar, a, entry);
 		archive_entry_free(entry);
 		entry = NULL;
 		archive_entry_linkify(bsdtar->resolver, &entry, &sparse_entry);
@@ -854,6 +865,19 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		}
 #endif
 
+#ifdef __APPLE__
+		/* On Mac, ignore "._XXX" files if we're using copyfile(). */
+		if (bsdtar->enable_copyfile) {
+			const char *bname = strrchr(name, '/');
+			if (bname == NULL)
+				bname = name;
+			else
+				++bname;
+			if (bname[0] == '.' && bname[1] == '_')
+				continue;
+		}
+#endif
+
 		/*
 		 * If the user vetoes this file/directory, skip it.
 		 * We want this to be fairly late; if some other
@@ -888,7 +912,7 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		archive_entry_linkify(bsdtar->resolver, &entry, &spare_entry);
 
 		while (entry != NULL) {
-			write_entry_backend(bsdtar, a, entry);
+			write_file(bsdtar, a, entry);
 			archive_entry_free(entry);
 			entry = spare_entry;
 			spare_entry = NULL;
@@ -902,10 +926,95 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 }
 
 /*
- * Backend for write_entry.
+ * Write a single file (or directory or other filesystem object) to
+ * the archive.
  */
 static void
-write_entry_backend(struct bsdtar *bsdtar, struct archive *a,
+write_file(struct bsdtar *bsdtar, struct archive *a,
+    struct archive_entry *entry)
+{
+#ifdef __APPLE__
+	/*
+	 * Mac OS "copyfile()" API copies the extended metadata for a
+	 * file into a separate file in AppleDouble format (see RFC 1740).
+	 * Mac OS tar and cpio implementations store this extended
+	 * metadata as a separate entry just before the regular entry
+	 * with a "._" prefix added to the filename.
+	 *
+	 * XXX: Should this be suppressed for formats other than tar and cpio?
+	 * XXX: Consider how we might push this down into libarchive.
+	 */
+	if (bsdtar->enable_copyfile) {
+		const char *name = archive_entry_pathname(entry);
+		int copyfile_flags
+		    = COPYFILE_NOFOLLOW | COPYFILE_ACL | COPYFILE_XATTR;
+		int have_attrs = copyfile(archive_entry_sourcepath(entry),
+		    NULL, 0, copyfile_flags | COPYFILE_CHECK);
+		if (have_attrs) {
+			const char *tempdir = NULL;
+			char *md_p = NULL;
+
+			if (issetugid() == 0)
+				tempdir = getenv("TMPDIR");
+			if (tempdir == NULL)
+				tempdir = _PATH_TMP;
+			md_p = tempnam(tempdir, "tar.md.");
+
+			if (md_p != NULL) {
+				char *copyfile_name = malloc(strlen(name) + 3);
+				const char *bname;
+				struct stat copyfile_stat;
+				struct archive_entry *extra
+				    = archive_entry_new();
+
+				archive_entry_copy_sourcepath(extra, md_p);
+				bname = strrchr(name, '/');
+				if (bname == NULL) {
+					strcpy(copyfile_name, "._");
+					strcpy(copyfile_name + 2, name);
+				} else {
+					bname += 1;
+					strcpy(copyfile_name, name);
+					strcpy(copyfile_name + bname - name,
+					    "._");
+					strcpy(copyfile_name + bname - name + 2,
+					    bname);
+				}
+				archive_entry_copy_pathname(extra,
+				    copyfile_name);
+				free(copyfile_name);
+
+				// XXX It would be nice if copyfile() supported
+				// filename src and fd dest; then we could
+				// use mkstemp() and still support symlinks.
+				copyfile(archive_entry_sourcepath(entry), md_p,
+				    0, COPYFILE_PACK | copyfile_flags);
+				// XXX Should any other metadata be set here?
+				stat(md_p, &copyfile_stat);
+				archive_entry_set_size(extra,
+				    copyfile_stat.st_size);
+				archive_entry_set_filetype(extra, AE_IFREG);
+				archive_entry_set_perm(extra,
+				    archive_entry_perm(entry));
+				archive_entry_set_mtime(extra,
+				    archive_entry_mtime(entry),
+				    archive_entry_mtime_nsec(entry));
+				write_entry(bsdtar, a, extra);
+				unlink(md_p);
+			}
+			free(md_p);
+		}
+	}
+#endif
+
+	write_entry(bsdtar, a, entry);
+}
+
+/*
+ * Write a single entry to the archive.
+ */
+static void
+write_entry(struct bsdtar *bsdtar, struct archive *a,
     struct archive_entry *entry)
 {
 	int fd = -1;
