@@ -95,6 +95,9 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_disk.c 201159 2009-12-29 0
 #ifdef HAVE_UTIME_H
 #include <utime.h>
 #endif
+#ifdef HAVE_WINIOCTL_H
+#include <winioctl.h>
+#endif
 
 #include "archive.h"
 #include "archive_string.h"
@@ -512,6 +515,33 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 		fe->fixup |= TODO_FFLAGS;
 		/* TODO: Complete this.. defer fflags from below. */
 	}
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/*
+	 * On Windows, A creating sparse file requires a special mark.
+	 */
+	if (a->fd >= 0 && archive_entry_sparse_count(entry) > 0) {
+		int64_t base = 0, offset, length;
+		int i, cnt = archive_entry_sparse_reset(entry);
+		int sparse = 0;
+
+		for (i = 0; i < cnt; i++) {
+			archive_entry_sparse_next(entry, &offset, &length);
+			if (offset - base >= 4096) {
+				sparse = 1;/* we have a hole. */
+				break;
+			}
+			base = offset + length;
+		}
+		if (sparse) {
+			HANDLE h = (HANDLE)_get_osfhandle(a->fd);
+			DWORD dmy;
+			/* Mark this file as sparse. */
+			DeviceIoControl(h, FSCTL_SET_SPARSE,
+			    NULL, 0, NULL, 0, &dmy, NULL);
+		}
+	}
+#endif
 
 	/* We've created the object and are ready to pour data into it. */
 	if (ret >= ARCHIVE_WARN)
