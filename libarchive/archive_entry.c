@@ -383,8 +383,10 @@ archive_entry_clear(struct archive_entry *entry)
 	aes_clean(&entry->ae_uname);
 	archive_entry_acl_clear(entry);
 	archive_entry_xattr_clear(entry);
+	archive_entry_sparse_clear(entry);
 	free(entry->stat);
 	memset(entry, 0, sizeof(*entry));
+	entry->sparse_tail = &(entry->sparse_head);
 	return entry;
 }
 
@@ -394,12 +396,12 @@ archive_entry_clone(struct archive_entry *entry)
 	struct archive_entry *entry2;
 	struct ae_acl *ap, *ap2;
 	struct ae_xattr *xp;
+	struct ae_sparse *sp;
 
 	/* Allocate new structure and copy over all of the fields. */
-	entry2 = (struct archive_entry *)malloc(sizeof(*entry2));
+	entry2 = archive_entry_new();
 	if (entry2 == NULL)
 		return (NULL);
-	memset(entry2, 0, sizeof(*entry2));
 	entry2->ae_stat = entry->ae_stat;
 	entry2->ae_fflags_set = entry->ae_fflags_set;
 	entry2->ae_fflags_clear = entry->ae_fflags_clear;
@@ -431,6 +433,14 @@ archive_entry_clone(struct archive_entry *entry)
 		xp = xp->next;
 	}
 
+	/* Copy sparse data over. */
+	sp = entry->sparse_head;
+	while (sp != NULL) {
+		archive_entry_sparse_add_entry(entry2,
+		    sp->offset, sp->length);
+		sp = sp->next;
+	}
+
 	return (entry2);
 }
 
@@ -450,6 +460,7 @@ archive_entry_new(void)
 	if (entry == NULL)
 		return (NULL);
 	memset(entry, 0, sizeof(*entry));
+	entry->sparse_tail = &(entry->sparse_head);
 	return (entry);
 }
 

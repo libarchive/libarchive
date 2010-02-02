@@ -438,6 +438,24 @@ __LA_DECL int	archive_entry_xattr_next(struct archive_entry *,
 	    const char ** /* name */, const void ** /* value */, size_t *);
 
 /*
+ * sparse
+ */
+
+__LA_DECL void	 archive_entry_sparse_clear(struct archive_entry *);
+__LA_DECL void	 archive_entry_sparse_add_entry(struct archive_entry *,
+	    int64_t /* offset */, int64_t /* length */);
+
+/*
+ * To retrieve the xattr list, first "reset", then repeatedly ask for the
+ * "next" entry.
+ */
+
+__LA_DECL int	archive_entry_sparse_count(struct archive_entry *);
+__LA_DECL int	archive_entry_sparse_reset(struct archive_entry *);
+__LA_DECL int	archive_entry_sparse_next(struct archive_entry *,
+	    int64_t * /* offset */, int64_t * /* length */);
+
+/*
  * Utility to match up hardlinks.
  *
  * The 'struct archive_entry_linkresolver' is a cache of archive entries

@@ -70,6 +70,13 @@ struct ae_xattr {
 	size_t	size;
 };
 
+struct ae_sparse {
+	struct ae_sparse *next;
+
+	int64_t	 offset;
+	int64_t	 length;
+};
+
 /*
  * Description of an archive entry.
  *
@@ -175,6 +182,11 @@ struct archive_entry {
 	/* extattr support. */
 	struct ae_xattr *xattr_head;
 	struct ae_xattr *xattr_p;
+
+	/* sparse support. */
+	struct ae_sparse *sparse_head;
+	struct ae_sparse **sparse_tail;
+	struct ae_sparse *sparse_p;
 
 	/* Miscellaneous. */
 	char		 strmode[12];
