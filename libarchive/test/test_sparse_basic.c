@@ -59,7 +59,9 @@ struct sparse {
  */
 
 #define	PATH_MAX	MAX_PATH
-#define	getcwd		_getcwd
+#if !defined(__BORLANDC__)
+#define getcwd _getcwd
+#endif
 
 static int
 is_sparse_supported(const char *path)
