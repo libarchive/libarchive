@@ -667,7 +667,7 @@ setup_sparse(struct archive_read_disk *a,
 exit_setup_sparse:
 	if (initial_fd != fd)
 		close(fd);
-	return (ARCHIVE_OK);
+	return (exit_sts);
 }
 
 #elif defined(SEEK_HOLE) && defined(SEEK_DATA) && defined(_PC_MIN_HOLE_SIZE)
