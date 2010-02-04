@@ -53,12 +53,14 @@ struct sparse {
 };
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
-
+#include <winioctl.h>
 /*
  * Create a sparse file on Windows.
  */
 
+#if !defined(PATH_MAX)
 #define	PATH_MAX	MAX_PATH
+#endif
 #if !defined(__BORLANDC__)
 #define getcwd _getcwd
 #endif

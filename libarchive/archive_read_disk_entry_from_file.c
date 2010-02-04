@@ -744,6 +744,13 @@ exit_setup_sparse:
 /*
  * Windows sparse interface.
  */
+#if defined(__MINGW32__) && !defined(FSCTL_QUERY_ALLOCATED_RANGES)
+#define FSCTL_QUERY_ALLOCATED_RANGES 0x940CF
+typedef struct {
+	LARGE_INTEGER FileOffset;
+	LARGE_INTEGER Length;
+} FILE_ALLOCATED_RANGE_BUFFER;
+#endif
 
 static int
 setup_sparse(struct archive_read_disk *a,
