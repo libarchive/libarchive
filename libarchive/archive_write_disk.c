@@ -95,7 +95,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_disk.c 201159 2009-12-29 0
 #ifdef HAVE_UTIME_H
 #include <utime.h>
 #endif
-#ifdef HAVE_WINIOCTL_H
+#if defined(HAVE_WINIOCTL_H) && !defined(__CYGWIN__)
 #include <winioctl.h>
 #endif
 
