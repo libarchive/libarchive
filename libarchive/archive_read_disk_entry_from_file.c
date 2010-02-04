@@ -602,6 +602,7 @@ setup_sparse(struct archive_read_disk *a,
 	int64_t size;
 	int count, do_fiemap;
 	int initial_fd = fd;
+	int exit_sts = ARCHIVE_OK;
 
 	if (fd < 0) {
 		const char *path;
@@ -630,10 +631,15 @@ setup_sparse(struct archive_read_disk *a,
 
 		r = ioctl(fd, FS_IOC_FIEMAP, fm); 
 		if (r < 0) {
-			archive_set_error(&a->archive, errno, "FIEMAP failed");
-			if (initial_fd != fd)
-				close(fd);
-			return (ARCHIVE_FAILED);
+			/* When errno is EINVAL, it is better we should
+			 * return ARCHIVE_OK because an earlier version
+			 *(<2.6.28) cannot perfom FS_IOC_FIEMAP */
+			if (errno != EINVAL) {
+				archive_set_error(&a->archive, errno,
+				    "FIEMAP failed");
+				exit_sts = ARCHIVE_FAILED;
+			}
+			goto exit_setup_sparse;
 		}
 		if (fm->fm_mapped_extents == 0)
 			break;
@@ -658,6 +664,7 @@ setup_sparse(struct archive_read_disk *a,
 		} else
 			break;
 	}
+exit_setup_sparse:
 	if (initial_fd != fd)
 		close(fd);
 	return (ARCHIVE_OK);
