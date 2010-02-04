@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2010 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -87,6 +88,34 @@ struct cpio_newc_header {
 	char	c_crc[8];
 };
 
+/*
+ * An afio large ASCII header, which they named itself.
+ * afio utility uses this header, if a file size is larger than 2G bytes
+ * or inode/uid/gid is bigger than 65535(0xFFFF) or mtime is bigger than
+ * 0x7fffffff, which we cannot record to odc header because of its limit.
+ * If not, uses odc header.
+ */
+struct cpio_afiol_header {
+	char	c_magic[6];
+	char	c_dev[8];	/* hex */
+	char	c_ino[16];	/* hex */
+	char	c_ino_m;	/* 'm' */
+	char	c_mode[6];	/* oct */
+	char	c_uid[8];	/* hex */
+	char	c_gid[8];	/* hex */
+	char	c_nlink[8];	/* hex */
+	char	c_rdev[8];	/* hex */
+	char	c_mtime[16];	/* hex */
+	char	c_mtime_n;	/* 'n' */
+	char	c_namesize[4];	/* hex */
+	char	c_flag[4];	/* hex */
+	char	c_xsize[4];	/* hex */
+	char	c_xsize_s;	/* 's' */
+	char	c_filesize[16];	/* hex */
+	char	c_filesize_c;	/* ':' */
+};
+
+
 struct links_entry {
         struct links_entry      *next;
         struct links_entry      *previous;
@@ -127,6 +156,8 @@ static int	header_bin_le(struct archive_read *, struct cpio *,
 static int	header_newc(struct archive_read *, struct cpio *,
 		    struct archive_entry *, size_t *, size_t *);
 static int	header_odc(struct archive_read *, struct cpio *,
+		    struct archive_entry *, size_t *, size_t *);
+static int	header_afiol(struct archive_read *, struct cpio *,
 		    struct archive_entry *, size_t *, size_t *);
 static int	is_octal(const char *, size_t);
 static int	is_hex(const char *, size_t);
@@ -185,6 +216,14 @@ archive_read_format_cpio_bid(struct archive_read *a)
 		bid += 48;
 		/*
 		 * XXX TODO:  More verification; Could check that only octal
+		 * digits appear in appropriate header locations. XXX
+		 */
+	} else if (memcmp(p, "070727", 6) == 0) {
+		/* afio large ASCII cpio archive */
+		cpio->read_header = header_odc;
+		bid += 48;
+		/*
+		 * XXX TODO:  More verification; Could check that almost hex
 		 * digits appear in appropriate header locations. XXX
 		 */
 	} else if (memcmp(p, "070701", 6) == 0) {
@@ -467,6 +506,27 @@ is_octal(const char *p, size_t len)
 }
 
 static int
+is_afio_large(const char *p, size_t len)
+{
+	const struct cpio_afiol_header *h = (const struct cpio_afiol_header *)p;
+
+	if (len < sizeof(*h))
+		return (0);
+	if (h->c_ino_m != 'm' || h->c_mtime_n != 'n' ||
+	    h->c_xsize_s != 's' ||  h->c_filesize_c != ':')
+		return (0);
+	if (!is_hex(h->c_dev, &(h->c_ino_m) - h->c_dev))
+		return (0);
+	if (!is_hex(h->c_mode, &(h->c_mtime_n) - h->c_mode))
+		return (0);
+	if (!is_hex(h->c_namesize, &(h->c_xsize_s) - h->c_namesize))
+		return (0);
+	if (!is_hex(h->c_filesize, &(h->c_filesize_c) - h->c_filesize))
+		return (0);
+	return (1);
+}
+
+static int
 find_odc_header(struct archive_read *a)
 {
 	const void *h;
@@ -485,6 +545,10 @@ find_odc_header(struct archive_read *a)
 		if (memcmp("070707", p, 6) == 0
 		    && is_octal(p, sizeof(struct cpio_odc_header)))
 			return (ARCHIVE_OK);
+		if (memcmp("070727", p, 6) == 0 && is_afio_large(p, bytes)) {
+			a->archive.archive_format = ARCHIVE_FORMAT_CPIO_AFIO_LARGE;
+			return (ARCHIVE_OK);
+		}
 
 		/*
 		 * Scan ahead until we find something that looks
@@ -493,11 +557,16 @@ find_odc_header(struct archive_read *a)
 		while (p + sizeof(struct cpio_odc_header) <= q) {
 			switch (p[5]) {
 			case '7':
-				if (memcmp("070707", p, 6) == 0
-					&& is_octal(p, sizeof(struct cpio_odc_header))) {
+				if ((memcmp("070707", p, 6) == 0
+				    && is_octal(p, sizeof(struct cpio_odc_header)))
+				    || (memcmp("070727", p, 6) == 0
+				        && is_afio_large(p, q - p))) {
 					skip = p - (const char *)h;
 					__archive_read_consume(a, skip);
 					skipped += skip;
+					if (p[4] == '2')
+						a->archive.archive_format =
+						    ARCHIVE_FORMAT_CPIO_AFIO_LARGE;
 					if (skipped > 0) {
 						archive_set_error(&a->archive,
 						    0,
@@ -540,6 +609,14 @@ header_odc(struct archive_read *a, struct cpio *cpio,
 	if (r < ARCHIVE_WARN)
 		return (r);
 
+	if (a->archive.archive_format == ARCHIVE_FORMAT_CPIO_AFIO_LARGE) {
+		int r2 = (header_afiol(a, cpio, entry, namelength, name_pad));
+		if (r2 == ARCHIVE_OK)
+			return (r);
+		else
+			return (r2);
+	}
+
 	/* Read fixed-size portion of header. */
 	h = __archive_read_ahead(a, sizeof(struct cpio_odc_header), NULL);
 	if (h == NULL)
@@ -571,6 +648,51 @@ header_odc(struct archive_read *a, struct cpio *cpio,
 	cpio->entry_padding = 0;
 	return (r);
 }
+
+/*
+ * NOTE: if a filename suffix is ".z", it is the file gziped by afio.
+ * it would be nice that we can show uncompressed file size and we can
+ * uncompressed file contents automatically, unfortunately we have nothing
+ * to get a uncompressed file size while reading each header. it means
+ * we also cannot uncompressed file contens under the our framework.
+ */
+static int
+header_afiol(struct archive_read *a, struct cpio *cpio,
+    struct archive_entry *entry, size_t *namelength, size_t *name_pad)
+{
+	const void *h;
+	const struct cpio_afiol_header *header;
+
+	a->archive.archive_format = ARCHIVE_FORMAT_CPIO_AFIO_LARGE;
+	a->archive.archive_format_name = "afio large ASCII";
+
+	/* Read fixed-size portion of header. */
+	h = __archive_read_ahead(a, sizeof(struct cpio_afiol_header), NULL);
+	if (h == NULL)
+	    return (ARCHIVE_FATAL);
+	__archive_read_consume(a, sizeof(struct cpio_afiol_header));
+
+	/* Parse out octal fields. */
+	header = (const struct cpio_afiol_header *)h;
+
+	archive_entry_set_dev(entry, atol16(header->c_dev, sizeof(header->c_dev)));
+	archive_entry_set_ino(entry, atol16(header->c_ino, sizeof(header->c_ino)));
+	archive_entry_set_mode(entry, atol8(header->c_mode, sizeof(header->c_mode)));
+	archive_entry_set_uid(entry, atol16(header->c_uid, sizeof(header->c_uid)));
+	archive_entry_set_gid(entry, atol16(header->c_gid, sizeof(header->c_gid)));
+	archive_entry_set_nlink(entry, atol16(header->c_nlink, sizeof(header->c_nlink)));
+	archive_entry_set_rdev(entry, atol16(header->c_rdev, sizeof(header->c_rdev)));
+	archive_entry_set_mtime(entry, atol16(header->c_mtime, sizeof(header->c_mtime)), 0);
+	*namelength = atol16(header->c_namesize, sizeof(header->c_namesize));
+	*name_pad = 0; /* No padding of filename. */
+
+	cpio->entry_bytes_remaining =
+	    atol16(header->c_filesize, sizeof(header->c_filesize));
+	archive_entry_set_size(entry, cpio->entry_bytes_remaining);
+	cpio->entry_padding = 0;
+	return (ARCHIVE_OK);
+}
+
 
 static int
 header_bin_le(struct archive_read *a, struct cpio *cpio,
