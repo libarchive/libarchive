@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/test/main.c 201247 2009-12-30 05:59:21Z 
 #define	ENVBASE "LIBARCHIVE" /* Prefix for environment variables. */
 #undef	PROGRAM              /* Testing a library, not a program. */
 #define	LIBRARY	"libarchive"
+#define	EXTRA_ERRNO(x)	archive_errno((struct archive *)(x))
 #define	EXTRA_DUMP(x)	archive_error_string((struct archive *)(x))
 #define	EXTRA_VERSION	archive_version()
 
@@ -339,8 +340,10 @@ failure_finish(void *extra)
 {
 	(void)extra; /* UNUSED (maybe) */
 #ifdef EXTRA_DUMP
-	if (extra != NULL)
+	if (extra != NULL) {
+		logprintf("    errno: %d\n", EXTRA_ERRNO(extra));
 		logprintf("   detail: %s\n", EXTRA_DUMP(extra));
+	}
 #endif
 
 	if (dump_on_failure) {
