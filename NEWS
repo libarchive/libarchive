@@ -1,3 +1,4 @@
+Feb 04, 2010: libarchive 2.8.0 released
 Jan 17, 2010: Fix error handling for 'echo nonexistent | cpio -o'
 Jan 17, 2010: Don't use futimes() on Cygwin
 
