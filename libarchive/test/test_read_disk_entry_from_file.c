@@ -66,7 +66,7 @@ DEFINE_TEST(test_read_disk_entry_from_file)
 	entry = archive_entry_new();
 	assert(entry != NULL);
 	archive_entry_copy_pathname(entry, "foo");
-	assertEqualInt(ARCHIVE_OK,
+	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_disk_entry_from_file(a, entry, -1, NULL));
 
 	/* Verify the information we got back. */
