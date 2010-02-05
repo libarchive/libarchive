@@ -66,6 +66,15 @@ static unsigned char archive[] = {
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 };
 
+/*
+ * XXX This must be removed when we use int64_t for uid.
+ */
+static int
+uid_size(void)
+{
+	return (sizeof(uid_t));
+}
+
 DEFINE_TEST(test_read_format_cpio_afio)
 {
 	unsigned char *p;
@@ -95,7 +104,8 @@ DEFINE_TEST(test_read_format_cpio_afio)
 	 */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt(17, archive_entry_size(ae));
-	assertEqualInt(65536, archive_entry_uid(ae));
+	if (uid_size() > 4)
+		assertEqualInt(65536, archive_entry_uid(ae));
 	assertA(archive_compression(a) == ARCHIVE_COMPRESSION_NONE);
 	assertA(archive_format(a) == ARCHIVE_FORMAT_CPIO_AFIO_LARGE);
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
