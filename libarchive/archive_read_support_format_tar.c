@@ -454,24 +454,6 @@ archive_read_format_tar_read_data(struct archive_read *a,
 
 	tar = (struct tar *)(a->format->data);
 
-	if (tar->sparse_gnu_pending) {
-		if (tar->sparse_gnu_major == 1 && tar->sparse_gnu_minor == 0) {
-			tar->sparse_gnu_pending = 0;
-			/* Read initial sparse map. */
-			bytes_read = gnu_sparse_10_read(a, tar);
-			tar->entry_bytes_remaining -= bytes_read;
-			if (bytes_read < 0)
-				return (bytes_read);
-		} else {
-			*size = 0;
-			*offset = 0;
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "Unrecognized GNU sparse file format");
-			return (ARCHIVE_WARN);
-		}
-		tar->sparse_gnu_pending = 0;
-	}
-
 	/* Remove exhausted entries from sparse list. */
 	while (tar->sparse_list != NULL &&
 	    tar->sparse_list->remaining == 0) {
@@ -661,8 +643,28 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 	}
 	--tar->header_recursion_depth;
 	/* We return warnings or success as-is.  Anything else is fatal. */
-	if (err == ARCHIVE_WARN || err == ARCHIVE_OK)
+	if (err == ARCHIVE_WARN || err == ARCHIVE_OK) {
+		if (tar->sparse_gnu_pending) {
+			if (tar->sparse_gnu_major == 1 &&
+			    tar->sparse_gnu_minor == 0) {
+				ssize_t bytes_read;
+
+				tar->sparse_gnu_pending = 0;
+				/* Read initial sparse map. */
+				bytes_read = gnu_sparse_10_read(a, tar);
+				tar->entry_bytes_remaining -= bytes_read;
+				if (bytes_read < 0)
+					return (bytes_read);
+			} else {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "Unrecognized GNU sparse file format");
+				return (ARCHIVE_WARN);
+			}
+			tar->sparse_gnu_pending = 0;
+		}
 		return (err);
+	}
 	if (err == ARCHIVE_EOF)
 		/* EOF when recursively reading a header is bad. */
 		archive_set_error(&a->archive, EINVAL, "Damaged tar archive");
