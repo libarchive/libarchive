@@ -34,6 +34,9 @@ DEFINE_TEST(test_write_format_pax)
 	struct archive_entry *ae;
 	struct archive *a;
 	size_t used;
+	int i;
+	char nulls[1024];
+	int64_t offset, length;
 
 	buff = malloc(buffsize); /* million bytes of work area */
 	assert(buff != NULL);
@@ -72,6 +75,27 @@ DEFINE_TEST(test_write_format_pax)
 	archive_entry_set_size(ae, 8);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	archive_entry_free(ae);
+	assertEqualIntA(a, 8, archive_write_data(a, "12345678", 9));
+
+	/*
+	 * "file3" is sparse file and has hole size of which is
+	 * 1024000 bytes, and has 8 bytes data after the hole.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_atime(ae, 2, 20);
+	archive_entry_set_birthtime(ae, 3, 30);
+	archive_entry_set_ctime(ae, 4, 40);
+	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_copy_pathname(ae, "file3");
+	archive_entry_set_mode(ae, S_IFREG | 0755);
+	archive_entry_set_size(ae, 1024008);
+	archive_entry_sparse_add_entry(ae, 1024000, 8);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	memset(nulls, 0, sizeof(nulls));
+	for (i = 0; i < 1024000; i += 1024)
+		/* write hole data, which won't be stored into an archive file. */
+		assertEqualIntA(a, 1024, archive_write_data(a, nulls, 1024));
 	assertEqualIntA(a, 8, archive_write_data(a, "12345678", 9));
 
 	/*
@@ -132,6 +156,35 @@ DEFINE_TEST(test_write_format_pax)
 	assertEqualString("file2", archive_entry_pathname(ae));
 	assert((S_IFREG | 0755) == archive_entry_mode(ae));
 	assertEqualInt(8, archive_entry_size(ae));
+	assertEqualIntA(a, 8, archive_read_data(a, buff2, 10));
+	assertEqualMem(buff2, "12345678", 8);
+
+	/*
+	 * Read "file3"
+	 */
+	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
+	assertEqualInt(2, archive_entry_atime(ae));
+	assertEqualInt(20, archive_entry_atime_nsec(ae));
+	assertEqualInt(3, archive_entry_birthtime(ae));
+	assertEqualInt(30, archive_entry_birthtime_nsec(ae));
+	assertEqualInt(4, archive_entry_ctime(ae));
+	assertEqualInt(40, archive_entry_ctime_nsec(ae));
+	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(50, archive_entry_mtime_nsec(ae));
+	assertEqualString("file3", archive_entry_pathname(ae));
+	assert((S_IFREG | 0755) == archive_entry_mode(ae));
+	assertEqualInt(1024008, archive_entry_size(ae));
+	assertEqualInt(1, archive_entry_sparse_reset(ae));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_entry_sparse_next(ae, &offset, &length));
+	assertEqualInt(1024000, offset);
+	assertEqualInt(8, length);
+	for (i = 0; i < 1024000; i += 1024) {
+		int j;
+		assertEqualIntA(a, 1024, archive_read_data(a, nulls, 1024));
+		for (j = 0; j < 1024; j++)
+			assertEqualInt(0, nulls[j]);
+	}
 	assertEqualIntA(a, 8, archive_read_data(a, buff2, 10));
 	assertEqualMem(buff2, "12345678", 8);
 
