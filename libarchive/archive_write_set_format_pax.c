@@ -76,6 +76,7 @@ static int		 archive_write_pax_finish_entry(struct archive_write *);
 static int		 archive_write_pax_header(struct archive_write *,
 			     struct archive_entry *);
 static char		*base64_encode(const char *src, size_t len);
+static char		*build_gnu_sparse_name(char *dest, const char *src);
 static char		*build_pax_attribute_name(char *dest, const char *src);
 static char		*build_ustar_entry_name(char *dest, const char *src,
 			     size_t src_length, const char *insert);
@@ -433,6 +434,8 @@ archive_write_pax_header(struct archive_write *a,
 	char ustarbuff[512];
 	char ustar_entry_name[256];
 	char pax_entry_name[256];
+	char gnu_sparse_name[256];
+	struct archive_string entry_name;
 
 	ret = ARCHIVE_OK;
 	need_extension = 0;
@@ -641,6 +644,10 @@ archive_write_pax_header(struct archive_write *a,
 			need_extension = 1;
 		}
 	}
+	/* Save a pathname since it will be renamed if `entry_main` has
+	 * sparse blocks. */
+	archive_string_init(&entry_name);
+	archive_strcpy(&entry_name, archive_entry_pathname(entry_main));
 
 	/* If file size is too large, add 'size' to pax extended attrs. */
 	if (archive_entry_size(entry_main) >= (((int64_t)1) << 33)) {
@@ -861,10 +868,17 @@ archive_write_pax_header(struct archive_write *a,
 			add_pax_attr_int(&(pax->pax_header),
 			    "GNU.sparse.minor", 0);
 			add_pax_attr(&(pax->pax_header),
-			    "GNU.sparse.name", path);/*TODO*/
+			    "GNU.sparse.name", entry_name.s);
 			add_pax_attr_int(&(pax->pax_header),
 			    "GNU.sparse.realsize",
 			    archive_entry_size(entry_main));
+
+			/* Rename the file name which will be used for
+			 * ustar header to a special name, which GNU
+			 * PAX Format 1.0 requires */
+			archive_entry_set_pathname(entry_main,
+			    build_gnu_sparse_name(gnu_sparse_name,
+			        entry_name.s));
 
 			/*
 			 * - Make a sparse map, which will precede a file data.
@@ -883,6 +897,7 @@ archive_write_pax_header(struct archive_write *a,
 					    ENOMEM,
 					    "Can't allocate memory");
 					archive_entry_free(entry_main);
+					archive_string_free(&entry_name);
 					return (ARCHIVE_FATAL);
 				}
 			}
@@ -968,7 +983,7 @@ archive_write_pax_header(struct archive_write *a,
 		mode_t mode;
 
 		pax_attr_entry = archive_entry_new();
-		p = archive_entry_pathname(entry_main);
+		p = entry_name.s;
 		archive_entry_set_pathname(pax_attr_entry,
 		    build_pax_attribute_name(pax_entry_name, p));
 		archive_entry_set_size(pax_attr_entry,
@@ -1071,6 +1086,7 @@ archive_write_pax_header(struct archive_write *a,
 	}
 	pax->entry_padding = 0x1ff & (-(int64_t)sparse_total);
 	archive_entry_free(entry_main);
+	archive_string_free(&entry_name);
 
 	return (ret);
 }
@@ -1286,6 +1302,54 @@ build_pax_attribute_name(char *dest, const char *src)
 	strcpy(buff, "PaxHeader");
 #endif
 	/* General case: build a ustar-compatible name adding "/PaxHeader/". */
+	build_ustar_entry_name(dest, src, p - src, buff);
+
+	return (dest);
+}
+
+/*
+ * GNU PAX Format 1.0 requires the special name, which pattern is:
+ * <dir>/GNUSparseFile.<pid>/<original file name>
+ *
+ * This function is used for only Sparse file, a file type of which
+ * is regular file. 
+ */
+static char *
+build_gnu_sparse_name(char *dest, const char *src)
+{
+	char buff[64];
+	const char *p;
+
+	/* Handle the null filename case. */
+	if (src == NULL || *src == '\0') {
+		strcpy(dest, "GNUSparseFile/blank");
+		return (dest);
+	}
+
+	/* Prune final '/' and other unwanted final elements. */
+	p = src + strlen(src);
+	for (;;) {
+		/* Ends in "/", remove the '/' */
+		if (p > src && p[-1] == '/') {
+			--p;
+			continue;
+		}
+		/* Ends in "/.", remove the '.' */
+		if (p > src + 1 && p[-1] == '.'
+		    && p[-2] == '/') {
+			--p;
+			continue;
+		}
+		break;
+	}
+
+#if HAVE_GETPID && 0  /* Disable this as pax attribute name. */
+	sprintf(buff, "GNUSparseFile.%d", getpid());
+#else
+	/* If the platform can't fetch the pid, don't include it. */
+	strcpy(buff, "GNUSparseFile");
+#endif
+	/* General case: build a ustar-compatible name adding "/GNUSparseFile/". */
 	build_ustar_entry_name(dest, src, p - src, buff);
 
 	return (dest);
