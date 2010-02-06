@@ -98,6 +98,21 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_entry.c 201096 2009-12-28 02:41:
 #define ae_makedev(maj, min) makedev((maj), (min))
 #endif
 
+/*
+ * This adjustment is needed to support the following idiom for adding
+ * 1000ns to the stored time:
+ * archive_entry_set_atime(archive_entry_atime(),
+ *                         archive_entry_atime_nsec() + 1000)
+ * The additional if() here compensates for ambiguity in the C standard,
+ * which permits two possible interpretations of a % b when a is negative.
+ */
+#define FIX_NS(t,ns) \
+	do {	\
+		t += ns / 1000000000; \
+		ns %= 1000000000; \
+		if (ns < 0) { --t; ns += 1000000000; } \
+	} while (0)
+
 static void	aes_clean(struct aes *);
 static void	aes_copy(struct aes *dest, struct aes *src);
 static const char *	aes_get_mbs(struct aes *);
@@ -891,6 +906,7 @@ archive_entry_update_hardlink_utf8(struct archive_entry *entry, const char *targ
 void
 archive_entry_set_atime(struct archive_entry *entry, time_t t, long ns)
 {
+	FIX_NS(t, ns);
 	entry->stat_valid = 0;
 	entry->ae_set |= AE_SET_ATIME;
 	entry->ae_stat.aest_atime = t;
@@ -905,11 +921,12 @@ archive_entry_unset_atime(struct archive_entry *entry)
 }
 
 void
-archive_entry_set_birthtime(struct archive_entry *entry, time_t m, long ns)
+archive_entry_set_birthtime(struct archive_entry *entry, time_t t, long ns)
 {
+	FIX_NS(t, ns);
 	entry->stat_valid = 0;
 	entry->ae_set |= AE_SET_BIRTHTIME;
-	entry->ae_stat.aest_birthtime = m;
+	entry->ae_stat.aest_birthtime = t;
 	entry->ae_stat.aest_birthtime_nsec = ns;
 }
 
@@ -923,6 +940,7 @@ archive_entry_unset_birthtime(struct archive_entry *entry)
 void
 archive_entry_set_ctime(struct archive_entry *entry, time_t t, long ns)
 {
+	FIX_NS(t, ns);
 	entry->stat_valid = 0;
 	entry->ae_set |= AE_SET_CTIME;
 	entry->ae_stat.aest_ctime = t;
@@ -1007,11 +1025,12 @@ archive_entry_set_mode(struct archive_entry *entry, mode_t m)
 }
 
 void
-archive_entry_set_mtime(struct archive_entry *entry, time_t m, long ns)
+archive_entry_set_mtime(struct archive_entry *entry, time_t t, long ns)
 {
+	FIX_NS(t, ns);
 	entry->stat_valid = 0;
 	entry->ae_set |= AE_SET_MTIME;
-	entry->ae_stat.aest_mtime = m;
+	entry->ae_stat.aest_mtime = t;
 	entry->ae_stat.aest_mtime_nsec = ns;
 }
 
