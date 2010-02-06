@@ -631,10 +631,10 @@ setup_sparse(struct archive_read_disk *a,
 
 		r = ioctl(fd, FS_IOC_FIEMAP, fm); 
 		if (r < 0) {
-			/* When errno is EINVAL, it is better we should
+			/* When errno is ENOTTY, it is better we should
 			 * return ARCHIVE_OK because an earlier version
 			 *(<2.6.28) cannot perfom FS_IOC_FIEMAP */
-			if (errno != EINVAL) {
+			if (errno != ENOTTY) {
 				archive_set_error(&a->archive, errno,
 				    "FIEMAP failed");
 				exit_sts = ARCHIVE_FAILED;
