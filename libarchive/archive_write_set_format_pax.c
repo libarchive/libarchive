@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2010 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,10 +42,21 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_pax.c 201162 20
 #include "archive_private.h"
 #include "archive_write_private.h"
 
+struct sparse_block {
+	struct sparse_block	*next;
+	int		is_hole;
+	uint64_t	offset;
+	uint64_t	remaining;
+};
+
 struct pax {
 	uint64_t	entry_bytes_remaining;
 	uint64_t	entry_padding;
 	struct archive_string	pax_header;
+	struct archive_string	sparse_map;
+	size_t			sparse_map_padding;
+	struct sparse_block	*sparse_list;
+	struct sparse_block	*sparse_tail;
 };
 
 static void		 add_pax_attr(struct archive_string *, const char *key,
@@ -69,6 +81,8 @@ static char		*build_ustar_entry_name(char *dest, const char *src,
 			     size_t src_length, const char *insert);
 static char		*format_int(char *dest, int64_t);
 static int		 has_non_ASCII(const wchar_t *);
+static void		 sparse_list_clear(struct pax *);
+static int		 sparse_list_add(struct pax *, int64_t, int64_t);
 static char		*url_encode(const char *in);
 static int		 write_nulls(struct archive_write *, size_t);
 
@@ -405,6 +419,8 @@ archive_write_pax_header(struct archive_write *a,
 	const wchar_t *wp;
 	const char *suffix;
 	int need_extension, r, ret;
+	int sparse_count;
+	uint64_t sparse_total, real_size;
 	struct pax *pax;
 	const char *hdrcharset = NULL;
 	const char *hardlink;
@@ -469,6 +485,15 @@ archive_write_pax_header(struct archive_write *a,
 	/* Copy entry so we can modify it as needed. */
 	entry_main = archive_entry_clone(entry_original);
 	archive_string_empty(&(pax->pax_header)); /* Blank our work area. */
+	archive_string_empty(&(pax->sparse_map));
+	sparse_total = 0;
+	sparse_list_clear(pax);
+
+	if (hardlink == NULL &&
+	    archive_entry_filetype(entry_main) == AE_IFREG)
+		sparse_count = archive_entry_sparse_reset(entry_main);
+	else
+		sparse_count = 0;
 
 	/*
 	 * First, check the name fields and see if any of them
@@ -756,6 +781,10 @@ archive_write_pax_header(struct archive_write *a,
 	if (!need_extension && archive_entry_xattr_count(entry_original) > 0)
 		need_extension = 1;
 
+	/* If there are sparse info, we need an extension */
+	if (!need_extension && sparse_count > 0)
+		need_extension = 1;
+
 	/*
 	 * The following items are handled differently in "pax
 	 * restricted" format.  In particular, in "pax restricted"
@@ -823,6 +852,42 @@ archive_write_pax_header(struct archive_write *a,
 		add_pax_attr_int(&(pax->pax_header), "SCHILY.nlink",
 		    archive_entry_nlink(entry_main));
 
+		/* We use GNU-tar-compatible sparse attributes. */
+		if (sparse_count > 0) {
+			int64_t soffset, slength;
+
+			add_pax_attr_int(&(pax->pax_header),
+			    "GNU.sparse.major", 1);
+			add_pax_attr_int(&(pax->pax_header),
+			    "GNU.sparse.minor", 0);
+			add_pax_attr(&(pax->pax_header),
+			    "GNU.sparse.name", path);/*TODO*/
+			add_pax_attr_int(&(pax->pax_header),
+			    "GNU.sparse.realsize",
+			    archive_entry_size(entry_main));
+
+			/*
+			 * - Make a sparse map, which will precede a file data.
+			 * - Get the total size of available data of sparse.
+			 */
+			archive_string_sprintf(&(pax->sparse_map), "%d\n",
+			    sparse_count);
+			while (archive_entry_sparse_next(entry_main,
+			    &soffset, &slength) == ARCHIVE_OK) {
+				archive_string_sprintf(&(pax->sparse_map),
+				    "%jd\n%jd\n", soffset, slength);
+				sparse_total += slength;
+				if (sparse_list_add(pax, soffset, slength)
+				    != ARCHIVE_OK) {
+					archive_set_error(&a->archive,
+					    ENOMEM,
+					    "Can't allocate memory");
+					archive_entry_free(entry_main);
+					return (ARCHIVE_FATAL);
+				}
+			}
+		}
+
 		/* Store extended attributes */
 		archive_write_pax_header_xattrs(pax, entry_original);
 	}
@@ -851,6 +916,20 @@ archive_write_pax_header(struct archive_write *a,
 	 */
 	if (hardlink != NULL)
 		archive_entry_set_size(entry_main, 0);
+
+	/* Save a real file size. */
+	real_size = archive_entry_size(entry_main);
+	/*
+	 * Overwrite a file size by the total size of sparse blocks and
+	 * the size of sparse map info. That file size is the length of
+	 * the data, which we will exactly store into an archive file.
+	 */
+	if (archive_strlen(&(pax->sparse_map))) {
+		size_t mapsize = archive_strlen(&(pax->sparse_map));
+		pax->sparse_map_padding = 0x1ff & (-(ssize_t)mapsize);
+		archive_entry_set_size(entry_main,
+		    mapsize + pax->sparse_map_padding + sparse_total);
+	}
 
 	/* Format 'ustar' header for main entry.
 	 *
@@ -949,6 +1028,7 @@ archive_write_pax_header(struct archive_write *a,
 		}
 		r = (a->compressor.write)(a, paxbuff, 512);
 		if (r != ARCHIVE_OK) {
+			sparse_list_clear(pax);
 			pax->entry_bytes_remaining = 0;
 			pax->entry_padding = 0;
 			return (ARCHIVE_FATAL);
@@ -982,9 +1062,14 @@ archive_write_pax_header(struct archive_write *a,
 	 * they can avoid unnecessarily writing a body for something
 	 * that we're just going to ignore.
 	 */
-	archive_entry_set_size(entry_original, archive_entry_size(entry_main));
-	pax->entry_bytes_remaining = archive_entry_size(entry_main);
-	pax->entry_padding = 0x1ff & (-(int64_t)pax->entry_bytes_remaining);
+	archive_entry_set_size(entry_original, real_size);
+	if (pax->sparse_list == NULL && real_size > 0) {
+		/* This is not a sparse file but we handle its data as
+		 * a sparse block. */
+		sparse_list_add(pax, 0, real_size);
+		sparse_total = real_size;
+	}
+	pax->entry_padding = 0x1ff & (-(int64_t)sparse_total);
 	archive_entry_free(entry_main);
 
 	return (ret);
@@ -1229,6 +1314,8 @@ archive_write_pax_destroy(struct archive_write *a)
 		return (ARCHIVE_OK);
 
 	archive_string_free(&pax->pax_header);
+	archive_string_free(&pax->sparse_map);
+	sparse_list_clear(pax);
 	free(pax);
 	a->format_data = NULL;
 	return (ARCHIVE_OK);
@@ -1238,10 +1325,21 @@ static int
 archive_write_pax_finish_entry(struct archive_write *a)
 {
 	struct pax *pax;
+	uint64_t remaining;
 	int ret;
 
 	pax = (struct pax *)a->format_data;
-	ret = write_nulls(a, pax->entry_bytes_remaining + pax->entry_padding);
+	remaining = pax->entry_bytes_remaining;
+	if (remaining == 0) {
+		while (pax->sparse_list) {
+			struct sparse_block *sb;
+			remaining += pax->sparse_list->remaining;
+			sb = pax->sparse_list->next;
+			free(pax->sparse_list);
+			pax->sparse_list = sb;
+		}
+	}
+	ret = write_nulls(a, remaining + pax->entry_padding);
 	pax->entry_bytes_remaining = pax->entry_padding = 0;
 	return (ret);
 }
@@ -1266,18 +1364,61 @@ static ssize_t
 archive_write_pax_data(struct archive_write *a, const void *buff, size_t s)
 {
 	struct pax *pax;
+	size_t ws;
+	size_t total;
 	int ret;
 
 	pax = (struct pax *)a->format_data;
-	if (s > pax->entry_bytes_remaining)
-		s = pax->entry_bytes_remaining;
 
-	ret = (a->compressor.write)(a, buff, s);
-	pax->entry_bytes_remaining -= s;
-	if (ret == ARCHIVE_OK)
-		return (s);
-	else
-		return (ret);
+	/*
+	 * According to GNU PAX format 1.0, write a sparse map
+	 * before the body. 
+	 */
+	if (archive_strlen(&(pax->sparse_map))) {
+		ret = (a->compressor.write)(a, pax->sparse_map.s,
+		    archive_strlen(&(pax->sparse_map)));
+		if (ret != ARCHIVE_OK)
+			return (ret);
+		ret = write_nulls(a, pax->sparse_map_padding);
+		if (ret != ARCHIVE_OK)
+			return (ret);
+		archive_string_empty(&(pax->sparse_map));
+	}
+
+	total = 0;
+	while (total < s) {
+		const unsigned char *p;
+
+		while (pax->sparse_list != NULL &&
+		    pax->sparse_list->remaining == 0) {
+			struct sparse_block *sb = pax->sparse_list->next;
+			free(pax->sparse_list);
+			pax->sparse_list = sb;
+		}
+
+		if (pax->sparse_list == NULL)
+			return (total);
+
+		p = ((const unsigned char *)buff) + total;
+		ws = s;
+		if (ws > pax->sparse_list->remaining)
+			ws = pax->sparse_list->remaining;
+
+		if (pax->sparse_list->is_hole) {
+			/* Current block is hole thus we do not write
+			 * the body. */
+			pax->sparse_list->remaining -= ws;
+			total += ws;
+			continue;
+		}
+
+		ret = (a->compressor.write)(a, p, ws);
+		pax->sparse_list->remaining -= ws;
+		total += ws;
+		if (ret != ARCHIVE_OK)
+			return (ret);
+	}
+	return (total);
 }
 
 static int
@@ -1384,3 +1525,60 @@ base64_encode(const char *s, size_t len)
 	*d = '\0';
 	return (out);
 }
+
+static void
+sparse_list_clear(struct pax *pax)
+{
+	while (pax->sparse_list != NULL) {
+		struct sparse_block *sb = pax->sparse_list;
+		pax->sparse_list = sb->next;
+		free(sb);
+	}
+	pax->sparse_tail = NULL;
+}
+
+static int
+_sparse_list_add_block(struct pax *pax, int64_t offset, int64_t length,
+    int is_hole)
+{
+	struct sparse_block *sb;
+
+	sb = (struct sparse_block *)malloc(sizeof(*sb));
+	if (sb == NULL)
+		return (ARCHIVE_FATAL);
+	sb->next = NULL;
+	sb->is_hole = is_hole;
+	sb->offset = offset;
+	sb->remaining = length;
+	if (pax->sparse_list == NULL)
+		pax->sparse_list = pax->sparse_tail = sb;
+	else {
+		pax->sparse_tail->next = sb;
+		pax->sparse_tail = sb;
+	}
+	return (ARCHIVE_OK);
+}
+
+static int
+sparse_list_add(struct pax *pax, int64_t offset, int64_t length)
+{
+	int64_t last_offset;
+	int r;
+
+	if (pax->sparse_tail == NULL)
+		last_offset = 0;
+	else {
+		last_offset = pax->sparse_tail->offset +
+		    pax->sparse_tail->remaining;
+	}
+	if (last_offset < offset) {
+		/* Add a hole block. */
+		r = _sparse_list_add_block(pax, last_offset,
+		    offset - last_offset, 1);
+		if (r != ARCHIVE_OK)
+			return (r);
+	}
+	/* Add data block. */
+	return (_sparse_list_add_block(pax, offset, length, 0));
+}
+
