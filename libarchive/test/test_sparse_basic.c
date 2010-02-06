@@ -331,7 +331,7 @@ DEFINE_TEST(test_sparse_basic)
 	verify_sparse_file(a, path, sparse_file2, 20);
 
 	strcpy(p, "/file3");
-	verify_sparse_file(a, path, sparse_file3, 1);
+	verify_sparse_file(a, path, sparse_file3, 0);
 
 	archive_read_finish(a);
 }

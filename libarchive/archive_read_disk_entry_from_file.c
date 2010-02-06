@@ -651,6 +651,11 @@ setup_sparse(struct archive_read_disk *a,
 				int64_t length = fe->fe_length;
 				if (fe->fe_logical + length > size)
 					length -= fe->fe_logical + length - size;
+				if (fe->fe_logical == 0 && length == size) {
+					/* This is not sparse. */
+					do_fiemap = 0;
+					break;
+				}
 				if (length > 0)
 					archive_entry_sparse_add_entry(entry,
 					    fe->fe_logical, length);
@@ -734,6 +739,8 @@ setup_sparse(struct archive_read_disk *a,
 			exit_sts = ARCHIVE_FAILED;
 			goto exit_setup_sparse;
 		}
+		if (off_s == 0 && off_e == size)
+			break;/* This is not spase. */
 		archive_entry_sparse_add_entry(entry, off_s,
 			off_e - off_s);
 		off_s = off_e;
@@ -796,7 +803,8 @@ setup_sparse(struct archive_read_disk *a,
 	if ((info.dwFileAttributes & FILE_ATTRIBUTE_SPARSE_FILE) == 0)
 		goto exit_setup_sparse;/* Not sparse file */
 
-	GetFileSizeEx(handle, &fsize);
+	fsize.HighPart = info.nFileSizeHigh;
+	fsize.LowPart = info.nFileSizeLow;
 	range.FileOffset.QuadPart = 0;
 	range.Length.QuadPart = fsize.QuadPart;
 	outranges_size = 2048;
@@ -838,6 +846,10 @@ setup_sparse(struct archive_read_disk *a,
 				DWORD i, n;
 
 				n = retbytes / sizeof(outranges[0]);
+				if (n == 1 &&
+				    outranges[0].FileOffset.QuadPart == 0 &&
+				    outranges[0].Length.QuadPart == fsize.QuadPart)
+					break;/* This is not sparse. */
 				for (i = 0; i < n; i++)
 					archive_entry_sparse_add_entry(entry,
 					    outranges[i].FileOffset.QuadPart,
