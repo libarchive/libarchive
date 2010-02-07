@@ -67,12 +67,8 @@ DEFINE_TEST(test_write_compress)
 	}
 
 
-	archive_write_close(a);
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(a);
-#else
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assert(0 == archive_write_finish(a));
-#endif
 
 	/*
 	 * Now, read the data back.
@@ -91,11 +87,7 @@ DEFINE_TEST(test_write_compress)
 		assertEqualInt((int)datasize, archive_entry_size(ae));
 	}
 	assert(0 == archive_read_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
 	assert(0 == archive_read_finish(a));
-#endif
 
 	free(data);
 	free(buff);

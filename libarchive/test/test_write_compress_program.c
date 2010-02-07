@@ -30,9 +30,6 @@ char buff2[64];
 
 DEFINE_TEST(test_write_compress_program)
 {
-#if ARCHIVE_VERSION_NUMBER < 1009000
-	skipping("archive_write_set_compress_program()");
-#else
 	struct archive_entry *ae;
 	struct archive *a;
 	size_t used;
@@ -114,5 +111,4 @@ DEFINE_TEST(test_write_compress_program)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
-#endif
 }

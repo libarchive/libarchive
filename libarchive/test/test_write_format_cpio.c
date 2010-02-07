@@ -26,7 +26,6 @@
 __FBSDID("$FreeBSD: head/lib/libarchive/test/test_write_format_cpio.c 185672 2008-12-06 06:02:26Z kientzle $");
 
 /* The version stamp macro was introduced after cpio write support. */
-#if ARCHIVE_VERSION_NUMBER >= 1009000
 static void
 test_format(int	(*set_format)(struct archive *))
 {
@@ -104,11 +103,7 @@ test_format(int	(*set_format)(struct archive *))
 
 	/* Close out the archive. */
 	assertA(0 == archive_write_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(a);
-#else
 	assertA(0 == archive_write_finish(a));
-#endif
 
 	/*
 	 * Damage the second entry to test the search-ahead recovery.
@@ -173,22 +168,13 @@ test_format(int	(*set_format)(struct archive *))
 	/* Verify the end of the archive. */
 	assertEqualIntA(a, 1, archive_read_next_header(a, &ae));
 	assert(0 == archive_read_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
 	assert(0 == archive_read_finish(a));
-#endif
 
 	free(buff);
 }
-#endif
 
 DEFINE_TEST(test_write_format_cpio)
 {
-#if ARCHIVE_VERSION_NUMBER >= 1009000
 	test_format(archive_write_set_format_cpio);
 	test_format(archive_write_set_format_cpio_newc);
-#else
-	skipping("cpio write support");
-#endif
 }

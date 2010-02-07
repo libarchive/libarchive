@@ -82,11 +82,7 @@ DEFINE_TEST(test_read_format_zip)
 	assertA(archive_format(a) == ARCHIVE_FORMAT_ZIP);
 	assert(0 == archive_read_close(a));
 finish:
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
 	assert(0 == archive_read_finish(a));
-#endif
 }
 
 

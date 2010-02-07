@@ -204,12 +204,7 @@ typedef __LA_SSIZE_T	archive_read_callback(struct archive *,
 			    void *_client_data, const void **_buffer);
 
 /* Skips at most request bytes from archive and returns the skipped amount */
-#if ARCHIVE_VERSION_NUMBER < 2000000
-/* Libarchive 1.0 used ssize_t for the return, which is only 32 bits
- * on most 32-bit platforms; not large enough. */
-typedef __LA_SSIZE_T	archive_skip_callback(struct archive *,
-			    void *_client_data, size_t request);
-#elif ARCHIVE_VERSION_NUMBER < 3000000
+#if ARCHIVE_VERSION_NUMBER < 3000000
 /* Libarchive 2.0 used off_t here, but that is a bad idea on Linux and a
  * few other platforms where off_t varies with build settings. */
 typedef off_t		archive_skip_callback(struct archive *,
@@ -488,12 +483,7 @@ __LA_DECL void		archive_read_extract_set_skip_file(struct archive *,
 __LA_DECL int		 archive_read_close(struct archive *);
 /* Release all resources and destroy the object. */
 /* Note that archive_read_finish will call archive_read_close for you. */
-#if ARCHIVE_VERSION_NUMBER < 2000000
-/* Erroneously declared to return void in libarchive 1.x */
-__LA_DECL void		 archive_read_finish(struct archive *);
-#else
 __LA_DECL int		 archive_read_finish(struct archive *);
-#endif
 
 /*-
  * To create an archive:
@@ -567,15 +557,9 @@ __LA_DECL int		 archive_write_open_memory(struct archive *,
  */
 __LA_DECL int		 archive_write_header(struct archive *,
 		     struct archive_entry *);
-#if ARCHIVE_VERSION_NUMBER < 2000000
-/* This was erroneously declared to return "int" in libarchive 1.x. */
-__LA_DECL int		 archive_write_data(struct archive *,
-			    const void *, size_t);
-#else
 /* Libarchive 2.0 and later return ssize_t here. */
 __LA_DECL __LA_SSIZE_T	 archive_write_data(struct archive *,
 			    const void *, size_t);
-#endif
 
 #if ARCHIVE_VERSION_NUMBER < 3000000
 /* Libarchive 1.x and 2.x use off_t for the argument, but that's not
@@ -589,15 +573,10 @@ __LA_DECL __LA_SSIZE_T	 archive_write_data_block(struct archive *,
 #endif
 __LA_DECL int		 archive_write_finish_entry(struct archive *);
 __LA_DECL int		 archive_write_close(struct archive *);
-#if ARCHIVE_VERSION_NUMBER < 2000000
-/* Return value was incorrect in libarchive 1.x. */
-__LA_DECL void		 archive_write_finish(struct archive *);
-#else
 /* Libarchive 2.x and later returns an error if this fails. */
 /* It can fail if the archive wasn't already closed, in which case
  * archive_write_finish() will implicitly call archive_write_close(). */
 __LA_DECL int		 archive_write_finish(struct archive *);
-#endif
 
 /*
  * Set write options.

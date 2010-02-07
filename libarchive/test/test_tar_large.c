@@ -73,11 +73,7 @@ struct memdata {
 #define GB ((int64_t)1024 * MB)
 #define TB ((int64_t)1024 * GB)
 
-#if ARCHIVE_VERSION_NUMBER < 2000000
-static ssize_t	memory_read_skip(struct archive *, void *, size_t request);
-#else
 static off_t	memory_read_skip(struct archive *, void *, off_t request);
-#endif
 static ssize_t	memory_read(struct archive *, void *, const void **buff);
 static ssize_t	memory_write(struct archive *, void *, const void *, size_t);
 
@@ -167,16 +163,6 @@ memory_read(struct archive *a, void *_private, const void **buff)
 }
 
 
-#if ARCHIVE_VERSION_NUMBER < 2000000
-static ssize_t
-memory_read_skip(struct archive *a, void *private, size_t skip)
-{
-	(void)a;  /* UNUSED */
-	(void)private; /* UNUSED */
-	(void)skip; /* UNUSED */
-	return (0);
-}
-#else
 static off_t
 memory_read_skip(struct archive *a, void *_private, off_t skip)
 {
@@ -197,7 +183,6 @@ memory_read_skip(struct archive *a, void *_private, off_t skip)
 	}
 	return (skip);
 }
-#endif
 
 DEFINE_TEST(test_tar_large)
 {
@@ -271,11 +256,7 @@ DEFINE_TEST(test_tar_large)
 
 	/* Close out the archive. */
 	assertA(0 == archive_write_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(a);
-#else
 	assertA(0 == archive_write_finish(a));
-#endif
 
 	/*
 	 * Open the same archive for reading.
@@ -301,11 +282,7 @@ DEFINE_TEST(test_tar_large)
 
 	/* Close out the archive. */
 	assertA(0 == archive_read_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
 	assertA(0 == archive_read_finish(a));
-#endif
 
 	free(memdata.buff);
 	free(filedata);

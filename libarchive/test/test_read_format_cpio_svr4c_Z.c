@@ -52,11 +52,7 @@ DEFINE_TEST(test_read_format_cpio_svr4c_Z)
 	failure("archive_format_name(a)=\"%s\"", archive_format_name(a));
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_CPIO_SVR4_CRC);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
 	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
-#endif
 }
 
 

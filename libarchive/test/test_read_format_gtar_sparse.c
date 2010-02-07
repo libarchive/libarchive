@@ -245,13 +245,8 @@ verify_archive_file(const char *name, struct archive_contents *ac)
 		assertEqualIntA(a, err, ARCHIVE_EOF);
 		failure("%s: Size returned at EOF must be zero", name);
 		assertEqualInt((int)actual.s, 0);
-#if ARCHIVE_VERSION_NUMBER < 1009000
-		/* libarchive < 1.9 doesn't get this right */
-		skipping("offset of final sparse chunk");
-#else
 		failure("%s: Offset of final empty chunk must be same as file size", name);
 		assertEqualInt(actual.o, expect.o);
-#endif
 		/* Step to next file description. */
 		++ac;
 	}
@@ -260,11 +255,7 @@ verify_archive_file(const char *name, struct archive_contents *ac)
 	assertEqualIntA(a, ARCHIVE_EOF, err);
 
 	assert(0 == archive_read_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
 	assert(0 == archive_read_finish(a));
-#endif
 }
 
 
@@ -278,9 +269,7 @@ DEFINE_TEST(test_read_format_gtar_sparse)
 	 * libarchive < 1.9 doesn't support the newer --posix sparse formats
 	 * from GNU tar 1.15 and later.
 	 */
-#if ARCHIVE_VERSION_NUMBER < 1009000
-	skipping("read support for GNUtar --posix sparse formats");
-#else
+
 	/*
 	 * An archive created by GNU tar 1.17 using --posix --sparse-format=0.1
 	 */
@@ -312,7 +301,6 @@ DEFINE_TEST(test_read_format_gtar_sparse)
 	verify_archive_file(
 		"test_read_format_gtar_sparse_1_17_posix10_modified.tar",
 		files);
-#endif
 }
 
 

@@ -56,11 +56,7 @@ DEFINE_TEST(test_read_truncated)
 
 	/* Close out the archive. */
 	assertA(0 == archive_write_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(a);
-#else
 	assertA(0 == archive_write_finish(a));
-#endif
 
 	/* Now, read back a truncated version of the archive and
 	 * verify that we get an appropriate error. */
@@ -97,11 +93,7 @@ DEFINE_TEST(test_read_truncated)
 		}
 	wrap_up:
 		assert(0 == archive_read_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-		archive_read_finish(a);
-#else
 		assert(0 == archive_read_finish(a));
-#endif
 	}
 
 
@@ -140,10 +132,6 @@ DEFINE_TEST(test_read_truncated)
 		}
 	wrap_up2:
 		assert(0 == archive_read_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-		archive_read_finish(a);
-#else
 		assert(0 == archive_read_finish(a));
-#endif
 	}
 }

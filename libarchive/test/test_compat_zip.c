@@ -64,11 +64,7 @@ test_compat_zip_1(void)
 
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 finish:
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
 	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
-#endif
 }
 
 

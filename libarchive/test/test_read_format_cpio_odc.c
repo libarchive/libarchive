@@ -58,11 +58,7 @@ DEFINE_TEST(test_read_format_cpio_odc)
 	assertA(archive_compression(a) == ARCHIVE_COMPRESSION_NONE);
 	assertA(archive_format(a) == ARCHIVE_FORMAT_CPIO_POSIX);
 	assert(0 == archive_read_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
 	assert(0 == archive_read_finish(a));
-#endif
 }
 
 

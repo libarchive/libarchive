@@ -86,11 +86,8 @@ test_write_format_mtree_sub(int use_set, int dironly)
 		archive_entry_free(ae);
 	}
 	archive_write_close(a);
-#if ARCHIVE_VERSION_NUMBER < 2000000
-        archive_write_finish(a);
-#else
         assertEqualInt(0, archive_write_finish(a));
-#endif
+
 	if (use_set) {
 		const char *p;
 
@@ -135,11 +132,7 @@ test_write_format_mtree_sub(int use_set, int dironly)
 			assertEqualInt(8, archive_entry_size(ae));
 	}
 	assertEqualIntA(a, 0, archive_read_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
 	assertEqualInt(0, archive_read_finish(a));
-#endif
 }
 
 DEFINE_TEST(test_write_format_mtree)

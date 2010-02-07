@@ -25,8 +25,6 @@
 #include "test.h"
 __FBSDID("$FreeBSD: head/lib/libarchive/test/test_write_disk.c 201247 2009-12-30 05:59:21Z kientzle $");
 
-#if ARCHIVE_VERSION_NUMBER >= 1009000
-
 #define UMASK 022
 /*
  * When comparing mode values, ignore high-order bits
@@ -47,11 +45,8 @@ static void create(struct archive_entry *ae, const char *msg)
 	failure("%s", msg);
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(ad);
-#else
 	assertEqualInt(0, archive_write_finish(ad));
-#endif
+
 	/* Test the entries on disk. */
 	assert(0 == stat(archive_entry_pathname(ae), &st));
 	failure("%s", msg);
@@ -97,11 +92,8 @@ static void create_reg_file(struct archive_entry *ae, const char *msg)
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
 	assertEqualInt(sizeof(data), archive_write_data(ad, data, sizeof(data)));
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(ad);
-#else
 	assertEqualInt(0, archive_write_finish(ad));
-#endif
+
 	/* Test the entries on disk. */
 	assertIsReg(archive_entry_pathname(ae), archive_entry_mode(ae) & 0777);
 	assertFileSize(archive_entry_pathname(ae), sizeof(data));
@@ -159,11 +151,8 @@ static void create_reg_file3(struct archive_entry *ae, const char *msg)
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
 	assertEqualInt(5, archive_write_data(ad, data, sizeof(data)));
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(ad);
-#else
 	assertEqualInt(0, archive_write_finish(ad));
-#endif
+
 	/* Test the entry on disk. */
 	assert(0 == stat(archive_entry_pathname(ae), &st));
 	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
@@ -188,11 +177,8 @@ static void create_reg_file4(struct archive_entry *ae, const char *msg)
 	assertEqualInt(ARCHIVE_OK,
 	    archive_write_data_block(ad, data, sizeof(data), 0));
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(ad);
-#else
 	assertEqualInt(0, archive_write_finish(ad));
-#endif
+
 	/* Test the entry on disk. */
 	assert(0 == stat(archive_entry_pathname(ae), &st));
 	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
@@ -222,11 +208,8 @@ static void create_reg_file_win(struct archive_entry *ae, const char *msg)
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
 	assertEqualInt(sizeof(data), archive_write_data(ad, data, sizeof(data)));
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(ad);
-#else
 	assertEqualInt(0, archive_write_finish(ad));
-#endif
+
 	/* Test the entries on disk. */
 	l = strlen(archive_entry_pathname(ae));
 	fname = malloc(l + 1);
@@ -243,13 +226,9 @@ static void create_reg_file_win(struct archive_entry *ae, const char *msg)
 	assertEqualInt(st.st_size, sizeof(data));
 }
 #endif /* _WIN32 && !__CYGWIN__ */
-#endif
 
 DEFINE_TEST(test_write_disk)
 {
-#if ARCHIVE_VERSION_NUMBER < 1009000
-	skipping("archive_write_disk interface");
-#else
 	struct archive_entry *ae;
 
 	/* Force the umask to something predictable. */
@@ -328,5 +307,4 @@ DEFINE_TEST(test_write_disk)
 	    " with unusable characters in its file name");
 	archive_entry_free(ae);
 #endif /* _WIN32 && !__CYGWIN__ */
-#endif
 }
