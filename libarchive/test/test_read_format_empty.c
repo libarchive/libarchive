@@ -38,6 +38,6 @@ DEFINE_TEST(test_read_format_empty)
 	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
 	assertA(archive_compression(a) == ARCHIVE_COMPRESSION_NONE);
 	assertA(archive_format(a) == ARCHIVE_FORMAT_EMPTY);
-	assert(0 == archive_read_close(a));
-	assert(0 == archive_read_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 }

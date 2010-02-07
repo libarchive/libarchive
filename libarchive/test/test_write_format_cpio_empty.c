@@ -61,8 +61,8 @@ DEFINE_TEST(test_write_format_cpio_empty)
 	assertA(0 == archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	/* Close out the archive. */
-	assertA(0 == archive_write_close(a));
-	assertA(0 == archive_write_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
 
 	failure("Empty cpio archive should be exactly 87 bytes, was %d.", used);
 	assert(used == 87);

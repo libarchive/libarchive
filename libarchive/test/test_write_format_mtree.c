@@ -86,7 +86,7 @@ test_write_format_mtree_sub(int use_set, int dironly)
 		archive_entry_free(ae);
 	}
 	archive_write_close(a);
-        assertEqualInt(0, archive_write_finish(a));
+        assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
 
 	if (use_set) {
 		const char *p;
@@ -131,8 +131,8 @@ test_write_format_mtree_sub(int use_set, int dironly)
 		if ((entries[i].mode & AE_IFMT) != S_IFDIR)
 			assertEqualInt(8, archive_entry_size(ae));
 	}
-	assertEqualIntA(a, 0, archive_read_close(a));
-	assertEqualInt(0, archive_read_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 }
 
 DEFINE_TEST(test_write_format_mtree)

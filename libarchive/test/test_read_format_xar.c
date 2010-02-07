@@ -675,8 +675,8 @@ static void verify(unsigned char *d, size_t s,
 	/* End of archive. */
 	assertEqualInt(ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
-	assertA(0 == archive_read_close(a));
-	assertA(0 == archive_read_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 	free(buff);
 }
 

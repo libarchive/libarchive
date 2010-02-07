@@ -87,8 +87,8 @@ DEFINE_TEST(test_read_format_iso_multi_extent)
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_ISO9660_ROCKRIDGE);
 
 	/* Close the archive. */
-	assertEqualInt(0, archive_read_close(a));
-	assertEqualInt(0, archive_read_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 }
 
 

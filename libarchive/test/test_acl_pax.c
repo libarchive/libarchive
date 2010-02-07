@@ -440,8 +440,8 @@ DEFINE_TEST(test_acl_pax)
 	archive_entry_free(ae);
 
 	/* Close out the archive. */
-	assertA(0 == archive_write_close(a));
-	assertA(0 == archive_write_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
 
 	/* Write out the data we generated to a file for manual inspection. */
 	assert(NULL != (f = fopen("testout", "wb")));
@@ -499,6 +499,6 @@ DEFINE_TEST(test_acl_pax)
 	assert((archive_entry_mode(ae) & 0777) == 0142);
 
 	/* Close the archive. */
-	assertA(0 == archive_read_close(a));
-	assertA(0 == archive_read_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 }

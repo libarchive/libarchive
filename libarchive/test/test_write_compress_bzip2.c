@@ -80,7 +80,7 @@ DEFINE_TEST(test_write_compress_bzip2)
 	}
 	archive_entry_free(ae);
 	archive_write_close(a);
-	assert(0 == archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
 
 	assert((a = archive_read_new()) != NULL);
 	assertA(0 == archive_read_support_format_all(a));
@@ -93,8 +93,8 @@ DEFINE_TEST(test_write_compress_bzip2)
 		assertEqualString(path, archive_entry_pathname(ae));
 		assertEqualInt((int)datasize, archive_entry_size(ae));
 	}
-	assert(0 == archive_read_close(a));
-	assert(0 == archive_read_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 
 	/*
 	 * Repeat the cycle again, this time setting some compression
@@ -125,7 +125,7 @@ DEFINE_TEST(test_write_compress_bzip2)
 		archive_entry_free(ae);
 	}
 	archive_write_close(a);
-	assert(0 == archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
 
 	/* Curiously, this test fails; the test data above compresses
 	 * better at default compression than at level 9. */
@@ -146,8 +146,8 @@ DEFINE_TEST(test_write_compress_bzip2)
 		assertEqualString(path, archive_entry_pathname(ae));
 		assertEqualInt((int)datasize, archive_entry_size(ae));
 	}
-	assert(0 == archive_read_close(a));
-	assert(0 == archive_read_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 
 	/*
 	 * Repeat again, with much lower compression.
@@ -173,7 +173,7 @@ DEFINE_TEST(test_write_compress_bzip2)
 		archive_entry_free(ae);
 	}
 	archive_write_close(a);
-	assert(0 == archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
 
 	/* Level 0 really does result in larger data. */
 	failure("Compression-level=0 wrote %d bytes; default wrote %d bytes",
@@ -191,8 +191,8 @@ DEFINE_TEST(test_write_compress_bzip2)
 		assertEqualString(path, archive_entry_pathname(ae));
 		assertEqualInt((int)datasize, archive_entry_size(ae));
 	}
-	assert(0 == archive_read_close(a));
-	assert(0 == archive_read_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 
 	/*
 	 * Test various premature shutdown scenarios to make sure we

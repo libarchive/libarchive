@@ -63,8 +63,8 @@ DEFINE_TEST(test_write_open_memory)
 		if (i < 1536)
 			assertA(ARCHIVE_FATAL == archive_write_close(a));
 		else
-			assertA(0 == archive_write_close(a));
-		assert(0 == archive_write_finish(a));
+			assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+		assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
 		assert(buff[i] == 0xAE);
 		assert(s <= i);
 	}

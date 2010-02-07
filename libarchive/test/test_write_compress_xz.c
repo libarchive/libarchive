@@ -80,7 +80,7 @@ DEFINE_TEST(test_write_compress_xz)
 	}
 	archive_entry_free(ae);
 	archive_write_close(a);
-	assert(0 == archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
 
 	assert((a = archive_read_new()) != NULL);
 	assertA(0 == archive_read_support_format_all(a));
@@ -134,7 +134,7 @@ DEFINE_TEST(test_write_compress_xz)
 		archive_entry_free(ae);
 	}
 	archive_write_close(a);
-	assert(0 == archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
 
 	/* Curiously, this test fails; the test data above compresses
 	 * better at default compression than at level 9. */
@@ -191,7 +191,7 @@ DEFINE_TEST(test_write_compress_xz)
 		archive_entry_free(ae);
 	}
 	archive_write_close(a);
-	assert(0 == archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
 
 	/* Level 0 really does result in larger data. */
 	failure("Compression-level=0 wrote %d bytes; default wrote %d bytes",

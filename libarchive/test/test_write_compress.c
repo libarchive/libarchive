@@ -68,7 +68,7 @@ DEFINE_TEST(test_write_compress)
 
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assert(0 == archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
 
 	/*
 	 * Now, read the data back.
@@ -86,8 +86,8 @@ DEFINE_TEST(test_write_compress)
 		assertEqualString(path, archive_entry_pathname(ae));
 		assertEqualInt((int)datasize, archive_entry_size(ae));
 	}
-	assert(0 == archive_read_close(a));
-	assert(0 == archive_read_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 
 	free(data);
 	free(buff);

@@ -82,6 +82,6 @@ DEFINE_TEST(test_read_format_ar)
 
 	/* Test EOF */
 	assertA(1 == archive_read_next_header(a, &ae));
-	assert(0 == archive_read_close(a));
-	assert(0 == archive_read_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 }

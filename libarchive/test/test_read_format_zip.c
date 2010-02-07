@@ -80,9 +80,9 @@ DEFINE_TEST(test_read_format_zip)
 	assert(0 == memcmp(buff, "hello\nhello\nhello\n", 18));
 	assertA(archive_compression(a) == ARCHIVE_COMPRESSION_NONE);
 	assertA(archive_format(a) == ARCHIVE_FORMAT_ZIP);
-	assert(0 == archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 finish:
-	assert(0 == archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 }
 
 

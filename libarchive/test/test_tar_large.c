@@ -255,8 +255,8 @@ DEFINE_TEST(test_tar_large)
 
 
 	/* Close out the archive. */
-	assertA(0 == archive_write_close(a));
-	assertA(0 == archive_write_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
 
 	/*
 	 * Open the same archive for reading.
@@ -281,8 +281,8 @@ DEFINE_TEST(test_tar_large)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Close out the archive. */
-	assertA(0 == archive_read_close(a));
-	assertA(0 == archive_read_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 
 	free(memdata.buff);
 	free(filedata);

@@ -72,8 +72,8 @@ DEFINE_TEST(test_write_compress_program)
 	assertA(8 == archive_write_data(a, "12345678", 9));
 
 	/* Close out the archive. */
-	assertA(0 == archive_write_close(a));
-	assertA(0 == archive_write_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
 
 	/*
 	 * Now, read the data back through the built-in gzip support.

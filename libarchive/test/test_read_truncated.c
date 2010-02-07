@@ -55,8 +55,8 @@ DEFINE_TEST(test_read_truncated)
 	assertA((int)sizeof(buff2) == archive_write_data(a, buff2, sizeof(buff2)));
 
 	/* Close out the archive. */
-	assertA(0 == archive_write_close(a));
-	assertA(0 == archive_write_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
 
 	/* Now, read back a truncated version of the archive and
 	 * verify that we get an appropriate error. */
@@ -92,8 +92,8 @@ DEFINE_TEST(test_read_truncated)
 			assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
 		}
 	wrap_up:
-		assert(0 == archive_read_close(a));
-		assert(0 == archive_read_finish(a));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+		assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 	}
 
 
@@ -131,7 +131,7 @@ DEFINE_TEST(test_read_truncated)
 			assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
 		}
 	wrap_up2:
-		assert(0 == archive_read_close(a));
-		assert(0 == archive_read_finish(a));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+		assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 	}
 }

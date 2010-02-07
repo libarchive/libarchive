@@ -72,8 +72,8 @@ DEFINE_TEST(test_read_data_large)
 	assertA((int)sizeof(buff2) == archive_write_data(a, buff2, sizeof(buff2)));
 
 	/* Close out the archive. */
-	assertA(0 == archive_write_close(a));
-	assertA(0 == archive_write_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
 
 	/* Check that archive_read_data can handle 10*10^6 at a pop. */
 	assert((a = archive_read_new()) != NULL);
@@ -85,8 +85,8 @@ DEFINE_TEST(test_read_data_large)
 	assertEqualIntA(a, sizeof(buff2),archive_read_data(a, buff3, sizeof(buff3)));
 	failure("Read expected 10MB, but data read didn't match what was written");
 	assert(0 == memcmp(buff2, buff3, sizeof(buff3)));
-	assert(0 == archive_read_close(a));
-	assert(0 == archive_read_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 
 	/* Check archive_read_data_into_fd */
 	assert((a = archive_read_new()) != NULL);
@@ -101,8 +101,8 @@ DEFINE_TEST(test_read_data_large)
 #endif
 	assert(tmpfilefd != 0);
 	assertEqualIntA(a, 0, archive_read_data_into_fd(a, tmpfilefd));
-	assert(0 == archive_read_close(a));
-	assert(0 == archive_read_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 	close(tmpfilefd);
 
 	f = fopen(tmpfilename, "rb");

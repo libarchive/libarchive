@@ -195,7 +195,7 @@ verify_archive_file(const char *name, struct archive_contents *ac)
 		struct contents *cts = ac->contents;
 
 		if (!assertEqualIntA(a, 0, archive_read_next_header(a, &ae))) {
-			assert(0 == archive_read_finish(a));
+			assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 			return;
 		}
 		failure("Name mismatch in archive %s", name);
@@ -254,8 +254,8 @@ verify_archive_file(const char *name, struct archive_contents *ac)
 	err = archive_read_next_header(a, &ae);
 	assertEqualIntA(a, ARCHIVE_EOF, err);
 
-	assert(0 == archive_read_close(a));
-	assert(0 == archive_read_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 }
 
 

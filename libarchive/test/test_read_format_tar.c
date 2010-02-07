@@ -75,8 +75,8 @@ static void verifyEmpty(void)
 	failure("512 zero bytes should be recognized as a tar archive.");
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR);
 
-	assert(0 == archive_read_close(a));
-	assert(0 == archive_read_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 }
 
 /* Single entry with a hardlink. */
@@ -443,8 +443,8 @@ static void verify(unsigned char *d, size_t s,
 	/* Verify the only entry. */
 	f(ae);
 
-	assert(0 == archive_read_close(a));
-	assert(0 == archive_read_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 	free(buff);
 }
 

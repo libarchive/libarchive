@@ -100,8 +100,8 @@ test_filename(const char *prefix, int dlen, int flen)
 	archive_entry_free(ae);
 
 	/* Close out the archive. */
-	assertA(0 == archive_write_close(a));
-	assertA(0 == archive_write_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
 
 	/*
 	 * Now, read the data back.
@@ -134,8 +134,8 @@ test_filename(const char *prefix, int dlen, int flen)
 
 	/* Verify the end of the archive. */
 	assert(1 == archive_read_next_header(a, &ae));
-	assert(0 == archive_read_close(a));
-	assert(0 == archive_read_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 }
 
 DEFINE_TEST(test_tar_filenames)
