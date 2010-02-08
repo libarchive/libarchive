@@ -64,7 +64,7 @@ test_compat_zip_1(void)
 
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 finish:
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 

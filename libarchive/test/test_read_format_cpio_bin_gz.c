@@ -42,7 +42,7 @@ DEFINE_TEST(test_read_format_cpio_bin_gz)
 	r = archive_read_support_compression_gzip(a);
 	if (r == ARCHIVE_WARN) {
 		skipping("gzip reading not fully supported on this platform");
-		assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 		return;
 	}
 	failure("archive_read_support_compression_gzip");
@@ -55,7 +55,7 @@ DEFINE_TEST(test_read_format_cpio_bin_gz)
 	    ARCHIVE_COMPRESSION_GZIP);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_CPIO_BIN_LE);
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 

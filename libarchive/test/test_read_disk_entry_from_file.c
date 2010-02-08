@@ -76,5 +76,5 @@ DEFINE_TEST(test_read_disk_entry_from_file)
 
 	/* Destroy the archive. */
 	archive_entry_free(entry);
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

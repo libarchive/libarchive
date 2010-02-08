@@ -195,7 +195,7 @@ verify_archive_file(const char *name, struct archive_contents *ac)
 		struct contents *cts = ac->contents;
 
 		if (!assertEqualIntA(a, 0, archive_read_next_header(a, &ae))) {
-			assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+			assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 			return;
 		}
 		failure("Name mismatch in archive %s", name);
@@ -233,7 +233,7 @@ verify_archive_file(const char *name, struct archive_contents *ac)
 					failure("%s: Unexpected trailing data",
 					    name);
 					assert(actual.o <= expect.o);
-					archive_read_finish(a);
+					archive_read_free(a);
 					return;
 				}
 				actual.d++;
@@ -255,7 +255,7 @@ verify_archive_file(const char *name, struct archive_contents *ac)
 	assertEqualIntA(a, ARCHIVE_EOF, err);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 

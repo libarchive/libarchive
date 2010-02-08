@@ -72,7 +72,7 @@ DEFINE_TEST(test_write_format_tar)
 
 		/* Close out the archive. */
 		assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-		assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 		/* This calculation gives "the smallest multiple of
 		 * the block size that is at least 2048 bytes". */
@@ -102,6 +102,6 @@ DEFINE_TEST(test_write_format_tar)
 		/* Verify the end of the archive. */
 		assert(1 == archive_read_next_header(a, &ae));
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-		assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	}
 }

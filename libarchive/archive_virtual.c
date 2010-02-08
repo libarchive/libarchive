@@ -43,16 +43,34 @@ archive_read_close(struct archive *a)
 }
 
 int
-archive_write_finish(struct archive *a)
+archive_write_free(struct archive *a)
 {
-	return ((a->vtable->archive_finish)(a));
+	return ((a->vtable->archive_free)(a));
 }
 
+#if ARCHIVE_VERSION_NUMBER < 4000000
+/* For backwards compatibility; will be removed with libarchive 4.0. */
+int
+archive_write_finish(struct archive *a)
+{
+	return ((a->vtable->archive_free)(a));
+}
+#endif
+
+int
+archive_read_free(struct archive *a)
+{
+	return ((a->vtable->archive_free)(a));
+}
+
+#if ARCHIVE_VERSION_NUMBER < 4000000
+/* For backwards compatibility; will be removed with libarchive 4.0. */
 int
 archive_read_finish(struct archive *a)
 {
-	return ((a->vtable->archive_finish)(a));
+	return ((a->vtable->archive_free)(a));
 }
+#endif
 
 int
 archive_write_header(struct archive *a, struct archive_entry *entry)

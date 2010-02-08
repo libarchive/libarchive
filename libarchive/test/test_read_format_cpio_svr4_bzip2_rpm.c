@@ -93,7 +93,7 @@ DEFINE_TEST(test_read_format_cpio_svr4_bzip2_rpm)
         r = archive_read_support_compression_bzip2(a);
 	if (r == ARCHIVE_WARN) {
 		skipping("bzip2 reading not fully supported on this platform");
-		assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 		return;
         }
 	assertEqualIntA(a, ARCHIVE_OK, r);
@@ -122,6 +122,6 @@ DEFINE_TEST(test_read_format_cpio_svr4_bzip2_rpm)
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_CPIO_SVR4_NOCRC);
  
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 

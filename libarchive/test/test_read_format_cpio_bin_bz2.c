@@ -52,7 +52,7 @@ DEFINE_TEST(test_read_format_cpio_bin_bz2)
 	assert(archive_compression(a) == ARCHIVE_COMPRESSION_BZIP2);
 	assert(archive_format(a) == ARCHIVE_FORMAT_CPIO_BIN_LE);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 

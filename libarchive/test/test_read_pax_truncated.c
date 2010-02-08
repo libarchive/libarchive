@@ -61,7 +61,7 @@ DEFINE_TEST(test_read_pax_truncated)
 
 	/* Close out the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/* Now, read back a truncated version of the archive and
 	 * verify that we get an appropriate error. */
@@ -105,7 +105,7 @@ DEFINE_TEST(test_read_pax_truncated)
 		}
 	wrap_up:
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-		assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	}
 
 
@@ -146,7 +146,7 @@ DEFINE_TEST(test_read_pax_truncated)
 		}
 	wrap_up2:
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-		assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	}
 
 	/* Now, damage the archive in various ways and test the responses. */
@@ -162,7 +162,7 @@ DEFINE_TEST(test_read_pax_truncated)
 	assertA(0 == archive_read_open_memory(a, buff2, used));
 	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/* Damage the size field in the pax attributes. */
 	memcpy(buff2, buff, buff_size);
@@ -173,7 +173,7 @@ DEFINE_TEST(test_read_pax_truncated)
 	assertA(0 == archive_read_open_memory(a, buff2, used));
 	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/* Damage the size field in the pax attributes. */
 	memcpy(buff2, buff, buff_size);
@@ -186,7 +186,7 @@ DEFINE_TEST(test_read_pax_truncated)
 	assertA(0 == archive_read_open_memory(a, buff2, used));
 	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/* Damage the size field in the pax attributes. */
 	memcpy(buff2, buff, buff_size);
@@ -200,7 +200,7 @@ DEFINE_TEST(test_read_pax_truncated)
 	assertA(0 == archive_read_open_memory(a, buff2, used));
 	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/* Damage the size field in the pax attributes. */
 	memcpy(buff2, buff, buff_size);
@@ -212,7 +212,7 @@ DEFINE_TEST(test_read_pax_truncated)
 	assertA(0 == archive_read_open_memory(a, buff2, used));
 	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/* Damage the size field in the pax attributes. */
 	memcpy(buff2, buff, buff_size);
@@ -223,7 +223,7 @@ DEFINE_TEST(test_read_pax_truncated)
 	assertA(0 == archive_read_open_memory(a, buff2, used));
 	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/* Damage the ustar header. */
 	memcpy(buff2, buff, buff_size);
@@ -234,7 +234,7 @@ DEFINE_TEST(test_read_pax_truncated)
 	assertA(0 == archive_read_open_memory(a, buff2, used));
 	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/*
 	 * TODO: Damage the ustar header in various ways and fixup the

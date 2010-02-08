@@ -123,7 +123,7 @@ DEFINE_TEST(test_write_format_cpio_odc)
 	/* Write of data to symlink should fail == zero bytes get written. */
 	assertEqualIntA(a, 0, archive_write_data(a, "1234567890", 10));
 
-	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/*
 	 * Verify the archive format.

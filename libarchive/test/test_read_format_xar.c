@@ -636,7 +636,7 @@ static void verify(unsigned char *d, size_t s,
 		 * This filter won't be used this test.  */
 		if (ARCHIVE_OK != archive_read_support_compression_bzip2(a)) {
 			skipping("Unsupported bzip2");
-			assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+			assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 			return;
 		}
 		break;
@@ -649,7 +649,7 @@ static void verify(unsigned char *d, size_t s,
 	r = archive_read_support_format_xar(a);
 	if (r == ARCHIVE_WARN) {
 		skipping("xar reading not fully supported on this platform");
-		assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 		return;
 	}
 	assert((buff = malloc(100000)) != NULL);
@@ -676,7 +676,7 @@ static void verify(unsigned char *d, size_t s,
 	assertEqualInt(ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	free(buff);
 }
 

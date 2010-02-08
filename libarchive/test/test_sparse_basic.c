@@ -333,5 +333,5 @@ DEFINE_TEST(test_sparse_basic)
 	strcpy(p, "/file3");
 	verify_sparse_file(a, path, sparse_file3, 0);
 
-	archive_read_finish(a);
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

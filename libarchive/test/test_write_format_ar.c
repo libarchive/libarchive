@@ -98,7 +98,7 @@ DEFINE_TEST(test_write_format_ar)
 	archive_entry_free(ae);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/*
 	 * Now, read the data back.
@@ -133,7 +133,7 @@ DEFINE_TEST(test_write_format_ar)
 	assertEqualMem(buff2, "88877766", 8);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/*
 	 * Then, we try to create a BSD format archive.
@@ -162,7 +162,7 @@ DEFINE_TEST(test_write_format_ar)
 	assertEqualIntA(a, 6, archive_write_data(a, "555555", 7));
 	archive_entry_free(ae);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/* Now, Read the data back */
 	assert((a = archive_read_new()) != NULL);
@@ -185,5 +185,5 @@ DEFINE_TEST(test_write_format_ar)
 	/* Test EOF */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

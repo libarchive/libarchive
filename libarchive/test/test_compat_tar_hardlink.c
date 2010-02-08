@@ -93,7 +93,7 @@ test_compat_tar_hardlink_1(void)
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 DEFINE_TEST(test_compat_tar_hardlink)

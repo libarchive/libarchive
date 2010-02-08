@@ -106,7 +106,7 @@ DEFINE_TEST(test_write_format_pax)
 
 	/* Close out the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
 
 	/*
 	 *
@@ -193,7 +193,7 @@ DEFINE_TEST(test_write_format_pax)
 	 */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
 
 	free(buff);
 }

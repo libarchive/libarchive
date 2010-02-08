@@ -55,7 +55,7 @@ DEFINE_TEST(test_read_compress_program)
 	assertEqualIntA(a, ARCHIVE_FATAL,
 	    archive_read_open_memory(a, archive, sizeof(archive)));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/*
 	 * If we have "gzip -d", try using that.
@@ -78,7 +78,7 @@ DEFINE_TEST(test_read_compress_program)
 	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_PROGRAM);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 

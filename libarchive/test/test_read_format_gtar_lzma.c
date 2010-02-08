@@ -49,7 +49,7 @@ DEFINE_TEST(test_read_format_gtar_lzma)
 	r = archive_read_support_compression_lzma(a);
 	if (r == ARCHIVE_WARN) {
 		skipping("lzma reading not fully supported on this platform");
-		assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 		return;
 	}
 
@@ -68,7 +68,7 @@ DEFINE_TEST(test_read_format_gtar_lzma)
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_GNUTAR);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 finish:
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 

@@ -43,7 +43,7 @@ DEFINE_TEST(test_read_format_tbz)
 	r = archive_read_support_compression_bzip2(a);
 	if (r != ARCHIVE_OK) {
 		skipping("Bzip2 support");
-		archive_read_finish(a);
+		archive_read_free(a);
 		return;
 	}
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -53,7 +53,7 @@ DEFINE_TEST(test_read_format_tbz)
 	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_BZIP2);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 

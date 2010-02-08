@@ -181,7 +181,7 @@ DEFINE_TEST(test_read_format_isozisofs_bz2)
 
 	/* Close the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 

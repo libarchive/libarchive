@@ -97,7 +97,7 @@ DEFINE_TEST(test_fuzz)
 			    archive_read_support_format_raw(a));
 			r = archive_read_open_filename(a, filename, 16384);
 			if (r != ARCHIVE_OK) {
-				archive_read_finish(a);
+				archive_read_free(a);
 				skipping("Cannot uncompress %s", filename);
 				continue;
 			}
@@ -108,7 +108,7 @@ DEFINE_TEST(test_fuzz)
 			assertEqualIntA(a, ARCHIVE_EOF,
 			    archive_read_next_header(a, &ae));
 			assertEqualInt(ARCHIVE_OK,
-			    archive_read_finish(a));
+			    archive_read_free(a));
 			assert(size > 0);
 			failure("Internal buffer is not big enough for "
 			    "uncompressed test file: %s", filename);
@@ -156,7 +156,7 @@ DEFINE_TEST(test_fuzz)
 				}
 				archive_read_close(a);
 			}
-			archive_read_finish(a);
+			archive_read_free(a);
 		}
 		free(image);
 		free(rawimage);

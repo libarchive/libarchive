@@ -49,7 +49,7 @@ DEFINE_TEST(test_read_format_cpio_bin_be)
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_CPIO_BIN_BE);
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 

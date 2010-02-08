@@ -87,7 +87,7 @@ test_write_format_mtree_sub(int use_set, int dironly)
 		archive_entry_free(ae);
 	}
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-        assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+        assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	if (use_set) {
 		const char *p;
@@ -133,7 +133,7 @@ test_write_format_mtree_sub(int use_set, int dironly)
 			assertEqualInt(8, archive_entry_size(ae));
 	}
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 DEFINE_TEST(test_write_format_mtree)

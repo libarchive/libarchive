@@ -105,9 +105,9 @@ main(int argc, char **argv)
 	if (r != ARCHIVE_EOF)
 		die("Error reading archive");
 	/* Close the archives.  */
-	if (archive_read_finish(ina) != ARCHIVE_OK)
+	if (archive_read_free(ina) != ARCHIVE_OK)
 		die("Error closing input archive");
-	if (archive_write_finish(outa) != ARCHIVE_OK)
+	if (archive_write_free(outa) != ARCHIVE_OK)
 		die("Error closing output archive");
 	return (0);
 }

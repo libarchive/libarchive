@@ -365,7 +365,7 @@ DEFINE_TEST(test_write_disk_perms)
 		assertEqualIntA(a,ARCHIVE_WARN,archive_write_finish_entry(a));
 	}
 
-	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 	archive_entry_free(ae);
 
 	/* Test the entries on disk. */

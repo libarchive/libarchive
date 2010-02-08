@@ -109,7 +109,7 @@ DEFINE_TEST(test_read_format_cpio_afio)
 	assertA(archive_compression(a) == ARCHIVE_COMPRESSION_NONE);
 	assertA(archive_format(a) == ARCHIVE_FORMAT_CPIO_AFIO_LARGE);
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
-	
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
 	free(p);
 }

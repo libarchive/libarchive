@@ -545,7 +545,7 @@ mode_out(struct cpio *cpio)
 		fprintf(stderr, "%lu %s\n", (unsigned long)blocks,
 		    blocks == 1 ? "block" : "blocks");
 	}
-	archive_write_finish(cpio->archive);
+	archive_write_free(cpio->archive);
 }
 
 /*
@@ -881,8 +881,8 @@ mode_in(struct cpio *cpio)
 		fprintf(stderr, "%lu %s\n", (unsigned long)blocks,
 		    blocks == 1 ? "block" : "blocks");
 	}
-	archive_read_finish(a);
-	archive_write_finish(ext);
+	archive_read_free(a);
+	archive_write_free(ext);
 	exit(cpio->return_value);
 }
 
@@ -956,7 +956,7 @@ mode_list(struct cpio *cpio)
 		fprintf(stderr, "%lu %s\n", (unsigned long)blocks,
 		    blocks == 1 ? "block" : "blocks");
 	}
-	archive_read_finish(a);
+	archive_read_free(a);
 	exit(0);
 }
 
@@ -1092,7 +1092,7 @@ mode_pass(struct cpio *cpio, const char *destdir)
 		    blocks == 1 ? "block" : "blocks");
 	}
 
-	archive_write_finish(cpio->archive);
+	archive_write_free(cpio->archive);
 }
 
 /*

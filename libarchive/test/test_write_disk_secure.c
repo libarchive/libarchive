@@ -178,7 +178,7 @@ DEFINE_TEST(test_write_disk_secure)
 	assert(S_ISDIR(st.st_mode));
 	archive_entry_free(ae);
 
-	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/* Test the entries on disk. */
 	assert(0 == lstat("dir", &st));

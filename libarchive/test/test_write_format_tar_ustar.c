@@ -188,7 +188,7 @@ DEFINE_TEST(test_write_format_tar_ustar)
 	archive_entry_set_nlink(entry, 1);
 	assertEqualIntA(a, 0, archive_write_header(a, entry));
 	archive_entry_free(entry);
-	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/*
 	 * Verify the archive format.

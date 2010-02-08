@@ -46,7 +46,7 @@ DEFINE_TEST(test_write_format_zip_empty)
 
 	/* Close out the archive without writing anything. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/* Verify the correct format for an empy Zip archive. */
 	assertEqualInt(used, 22);

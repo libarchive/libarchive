@@ -332,7 +332,7 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		fprintf(stdout, "Archive Format: %s,  Compression: %s\n",
 		    archive_format_name(a), archive_compression_name(a));
 
-	archive_read_finish(a);
+	archive_read_free(a);
 }
 
 

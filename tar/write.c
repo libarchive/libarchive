@@ -286,7 +286,7 @@ tar_mode_r(struct bsdtar *bsdtar)
 		    archive_error_string(a));
 	while (0 == archive_read_next_header(a, &entry)) {
 		if (archive_compression(a) != ARCHIVE_COMPRESSION_NONE) {
-			archive_read_finish(a);
+			archive_read_free(a);
 			close(bsdtar->fd);
 			lafe_errc(1, 0,
 			    "Cannot append to compressed archive.");
@@ -296,7 +296,7 @@ tar_mode_r(struct bsdtar *bsdtar)
 	}
 
 	end_offset = archive_read_header_position(a);
-	archive_read_finish(a);
+	archive_read_free(a);
 
 	/* Re-open archive for writing */
 	a = archive_write_new();
@@ -384,7 +384,7 @@ tar_mode_u(struct bsdtar *bsdtar)
 	/* Build a list of all entries and their recorded mod times. */
 	while (0 == archive_read_next_header(a, &entry)) {
 		if (archive_compression(a) != ARCHIVE_COMPRESSION_NONE) {
-			archive_read_finish(a);
+			archive_read_free(a);
 			close(bsdtar->fd);
 			lafe_errc(1, 0,
 			    "Cannot append to compressed archive.");
@@ -398,7 +398,7 @@ tar_mode_u(struct bsdtar *bsdtar)
 	}
 
 	end_offset = archive_read_header_position(a);
-	archive_read_finish(a);
+	archive_read_free(a);
 
 	/* Re-open archive for writing. */
 	a = archive_write_new();
@@ -509,7 +509,7 @@ cleanup:
 	free(bsdtar->buff);
 	archive_entry_linkresolver_free(bsdtar->resolver);
 	bsdtar->resolver = NULL;
-	archive_read_finish(bsdtar->diskreader);
+	archive_read_free(bsdtar->diskreader);
 	bsdtar->diskreader = NULL;
 
 	if (bsdtar->option_totals) {
@@ -517,7 +517,7 @@ cleanup:
 		    tar_i64toa(archive_position_compressed(a)));
 	}
 
-	archive_write_finish(a);
+	archive_write_free(a);
 }
 
 /*
@@ -588,7 +588,7 @@ append_archive_filename(struct bsdtar *bsdtar, struct archive *a,
 		    filename, archive_error_string(ina));
 		bsdtar->return_value = 1;
 	}
-	archive_read_finish(ina);
+	archive_read_free(ina);
 
 	return (rc);
 }

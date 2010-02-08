@@ -47,7 +47,7 @@ DEFINE_TEST(test_write_format_shar_empty)
 
 	/* Close out the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	failure("Empty shar archive should be exactly 0 bytes, was %d.", used);
 	assert(used == 0);

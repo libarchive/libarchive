@@ -190,7 +190,7 @@ extract(const char *filename, int do_extract, int flags)
 			msg("\n");
 	}
 	archive_read_close(a);
-	archive_read_finish(a);
+	archive_read_free(a);
 	exit(0);
 }
 

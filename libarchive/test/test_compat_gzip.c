@@ -50,7 +50,7 @@ verify(const char *name)
 	r = archive_read_support_compression_gzip(a);
 	if (r == ARCHIVE_WARN) {
 		skipping("gzip reading not fully supported on this platform");
-		assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 		return;
 	}
 	assertEqualIntA(a, ARCHIVE_OK, r);
@@ -64,7 +64,7 @@ verify(const char *name)
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_next_header(a, &ae));
 		if (r != ARCHIVE_OK) {
-			archive_read_finish(a);
+			archive_read_free(a);
 			return;
 		}
 		assertEqualString(n[i], archive_entry_pathname(ae));
@@ -79,7 +79,7 @@ verify(const char *name)
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 

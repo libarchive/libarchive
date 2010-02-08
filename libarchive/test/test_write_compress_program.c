@@ -49,7 +49,7 @@ DEFINE_TEST(test_write_compress_program)
 	if (r == ARCHIVE_FATAL) {
 		skipping("Write compression via external "
 		    "program unsupported on this platform");
-		archive_write_finish(a);
+		archive_write_free(a);
 		return;
 	}
 	assertA(0 == archive_write_set_bytes_per_block(a, blocksize));
@@ -73,7 +73,7 @@ DEFINE_TEST(test_write_compress_program)
 
 	/* Close out the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/*
 	 * Now, read the data back through the built-in gzip support.
@@ -88,13 +88,13 @@ DEFINE_TEST(test_write_compress_program)
 	if (r != ARCHIVE_OK && !canGunzip()) {
 		skipping("No libz and no gunzip program, "
 		    "unable to verify gzip compression");
-		assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 		return;
 	}
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
 
 	if (!assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae))) {
-		archive_read_finish(a);
+		archive_read_free(a);
 		return;
 	}
 
@@ -110,5 +110,5 @@ DEFINE_TEST(test_write_compress_program)
 	/* Verify the end of the archive. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

@@ -77,7 +77,7 @@ test_pax_filename_encoding_1(void)
 	    " characters in it without generating a warning");
 	assertEqualInt(ARCHIVE_OK, archive_read_next_header(a, &entry));
 	assertEqualString(filename, archive_entry_pathname(entry));
-	archive_read_finish(a);
+	archive_read_free(a);
 }
 
 /*
@@ -152,7 +152,7 @@ test_pax_filename_encoding_2(void)
 	archive_entry_free(entry);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/*
 	 * Now read the entries back.
@@ -178,7 +178,7 @@ test_pax_filename_encoding_2(void)
 	assertEqualString(longname, archive_entry_pathname(entry));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 /*
@@ -278,7 +278,7 @@ test_pax_filename_encoding_3(void)
 	archive_entry_free(entry);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/*
 	 * Now read the entries back.
@@ -322,7 +322,7 @@ test_pax_filename_encoding_3(void)
 	assertEqualInt(ARCHIVE_EOF, archive_read_next_header(a, &entry));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 DEFINE_TEST(test_pax_filename_encoding)

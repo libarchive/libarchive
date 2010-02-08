@@ -103,7 +103,7 @@ test_format(int	(*set_format)(struct archive *))
 
 	/* Close out the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/*
 	 * Damage the second entry to test the search-ahead recovery.
@@ -132,7 +132,7 @@ test_format(int	(*set_format)(struct archive *))
 	assertA(0 == archive_read_open_memory(a, buff, used));
 
 	if (!assertEqualIntA(a, 0, archive_read_next_header(a, &ae))) {
-		archive_read_finish(a);
+		archive_read_free(a);
 		return;
 	}
 
@@ -168,7 +168,7 @@ test_format(int	(*set_format)(struct archive *))
 	/* Verify the end of the archive. */
 	assertEqualIntA(a, 1, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	free(buff);
 }

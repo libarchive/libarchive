@@ -59,7 +59,7 @@ DEFINE_TEST(test_write_disk_failures)
 	archive_entry_set_mtime(ae, 123456789, 0);
 	assertEqualIntA(a, ARCHIVE_FAILED, archive_write_header(a, ae));
 	assertEqualIntA(a, 0, archive_write_finish_entry(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 	archive_entry_free(ae);
 #endif
 }

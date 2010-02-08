@@ -58,7 +58,7 @@ DEFINE_TEST(test_read_large)
 	assertA(0 == archive_write_header(a, entry));
 	archive_entry_free(entry);
 	assertA((int)sizeof(testdata) == archive_write_data(a, testdata, sizeof(testdata)));
-	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert(NULL != (a = archive_read_new()));
 	assertA(0 == archive_read_support_format_all(a));
@@ -66,7 +66,7 @@ DEFINE_TEST(test_read_large)
 	assertA(0 == archive_read_open_memory(a, buff, sizeof(buff)));
 	assertA(0 == archive_read_next_header(a, &entry));
 	assertA(0 == archive_read_data_into_buffer(a, testdatacopy, sizeof(testdatacopy)));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	assert(0 == memcmp(testdata, testdatacopy, sizeof(testdata)));
 
 
@@ -83,7 +83,7 @@ DEFINE_TEST(test_read_large)
 	assert(0 < tmpfilefd);
 	assertA(0 == archive_read_data_into_fd(a, tmpfilefd));
 	close(tmpfilefd);
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	f = fopen(tmpfilename, "rb");
 	assertEqualInt(sizeof(testdatacopy),

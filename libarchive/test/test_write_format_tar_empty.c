@@ -46,7 +46,7 @@ DEFINE_TEST(test_write_format_tar_empty)
 
 	/* Close out the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert(used == 1024);
 	for (i = 0; i < used; i++) {
@@ -64,7 +64,7 @@ DEFINE_TEST(test_write_format_tar_empty)
 
 	/* Close out the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assertEqualInt((int)used, 1024);
 	for (i = 0; i < used; i++) {

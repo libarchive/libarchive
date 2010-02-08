@@ -441,7 +441,7 @@ DEFINE_TEST(test_acl_pax)
 
 	/* Close out the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/* Write out the data we generated to a file for manual inspection. */
 	assert(NULL != (f = fopen("testout", "wb")));
@@ -500,5 +500,5 @@ DEFINE_TEST(test_acl_pax)
 
 	/* Close the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

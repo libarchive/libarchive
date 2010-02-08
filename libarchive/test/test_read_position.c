@@ -59,7 +59,7 @@ DEFINE_TEST(test_read_position)
 		    == (size_t)archive_write_data(a, nulls, sizeof(nulls)));
 	}
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/* Read the archive back. */
 	assert(NULL != (a = archive_read_new()));
@@ -90,5 +90,5 @@ DEFINE_TEST(test_read_position)
 	assert(read_position == (intmax_t)archive_read_header_position(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assert(read_position == (intmax_t)archive_read_header_position(a));
-	archive_read_finish(a);
+	archive_read_free(a);
 }

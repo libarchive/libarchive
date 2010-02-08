@@ -54,7 +54,7 @@ test_compat_gtar_1(void)
 	/* Read first entry. */
 	assertEqualIntA(a, ARCHIVE_OK, r = archive_read_next_header(a, &ae));
 	if (r != ARCHIVE_OK) {
-		archive_read_finish(a);
+		archive_read_free(a);
 		return;
 	}
 	assertEqualString(
@@ -73,7 +73,7 @@ test_compat_gtar_1(void)
 	/* Read second entry. */
 	assertEqualIntA(a, ARCHIVE_OK, r = archive_read_next_header(a, &ae));
 	if (r != ARCHIVE_OK) {
-		archive_read_finish(a);
+		archive_read_free(a);
 		return;
 	}
 	assertEqualString(
@@ -103,7 +103,7 @@ test_compat_gtar_1(void)
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_GNUTAR);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 

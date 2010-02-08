@@ -76,7 +76,7 @@ static void verifyEmpty(void)
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 /* Single entry with a hardlink. */
@@ -444,7 +444,7 @@ static void verify(unsigned char *d, size_t s,
 	f(ae);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	free(buff);
 }
 

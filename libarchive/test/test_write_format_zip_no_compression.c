@@ -136,7 +136,7 @@ DEFINE_TEST(test_write_format_zip_no_compression)
 
 	/* Close the archive . */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/* Remember the end of the archive in memory. */
 	buffend = buff + used;

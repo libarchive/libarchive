@@ -43,7 +43,7 @@ DEFINE_TEST(test_read_format_gtar_gz)
 	r = archive_read_support_compression_gzip(a);
 	if (r == ARCHIVE_WARN) {
 		skipping("gzip reading not fully supported on this platform");
-		assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 		return;
 	}
 	assertEqualInt(ARCHIVE_OK, archive_read_support_format_all(a));
@@ -54,7 +54,7 @@ DEFINE_TEST(test_read_format_gtar_gz)
 	    ARCHIVE_COMPRESSION_GZIP);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_GNUTAR);
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 

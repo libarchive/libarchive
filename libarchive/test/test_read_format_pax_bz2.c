@@ -60,7 +60,7 @@ DEFINE_TEST(test_read_format_pax_bz2)
 	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_BZIP2);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE);
 	assertEqualIntA(a,ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 

@@ -45,7 +45,7 @@ static void create(struct archive_entry *ae, const char *msg)
 	failure("%s", msg);
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
-	assertEqualInt(0, archive_write_finish(ad));
+	assertEqualInt(0, archive_write_free(ad));
 
 	/* Test the entries on disk. */
 	assert(0 == stat(archive_entry_pathname(ae), &st));
@@ -92,7 +92,7 @@ static void create_reg_file(struct archive_entry *ae, const char *msg)
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
 	assertEqualInt(sizeof(data), archive_write_data(ad, data, sizeof(data)));
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
-	assertEqualInt(0, archive_write_finish(ad));
+	assertEqualInt(0, archive_write_free(ad));
 
 	/* Test the entries on disk. */
 	assertIsReg(archive_entry_pathname(ae), archive_entry_mode(ae) & 0777);
@@ -128,7 +128,7 @@ static void create_reg_file2(struct archive_entry *ae, const char *msg)
 		    archive_write_data_block(ad, data + i, 1000, i));
 	}
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
-	assertEqualInt(0, archive_write_finish(ad));
+	assertEqualInt(0, archive_write_free(ad));
 
 	/* Test the entries on disk. */
 	assertIsReg(archive_entry_pathname(ae), archive_entry_mode(ae) & 0777);
@@ -151,7 +151,7 @@ static void create_reg_file3(struct archive_entry *ae, const char *msg)
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
 	assertEqualInt(5, archive_write_data(ad, data, sizeof(data)));
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
-	assertEqualInt(0, archive_write_finish(ad));
+	assertEqualInt(0, archive_write_free(ad));
 
 	/* Test the entry on disk. */
 	assert(0 == stat(archive_entry_pathname(ae), &st));
@@ -177,7 +177,7 @@ static void create_reg_file4(struct archive_entry *ae, const char *msg)
 	assertEqualInt(ARCHIVE_OK,
 	    archive_write_data_block(ad, data, sizeof(data), 0));
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
-	assertEqualInt(0, archive_write_finish(ad));
+	assertEqualInt(0, archive_write_free(ad));
 
 	/* Test the entry on disk. */
 	assert(0 == stat(archive_entry_pathname(ae), &st));
@@ -208,7 +208,7 @@ static void create_reg_file_win(struct archive_entry *ae, const char *msg)
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
 	assertEqualInt(sizeof(data), archive_write_data(ad, data, sizeof(data)));
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
-	assertEqualInt(0, archive_write_finish(ad));
+	assertEqualInt(0, archive_write_free(ad));
 
 	/* Test the entries on disk. */
 	l = strlen(archive_entry_pathname(ae));
