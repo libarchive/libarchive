@@ -495,21 +495,12 @@ The callback functions must match the following prototypes:
 .Fa "const void **buffer"
 .Fc
 .It
-.\" #if ARCHIVE_API_VERSION < 2
-.Ft typedef int
+.Ft typedef off_t
 .Fo archive_skip_callback
 .Fa "struct archive *"
 .Fa "void *client_data"
-.Fa "size_t request"
+.Fa "off_t request"
 .Fc
-.\" #else
-.\" .Ft typedef off_t
-.\" .Fo archive_skip_callback
-.\" .Fa "struct archive *"
-.\" .Fa "void *client_data"
-.\" .Fa "off_t request"
-.\" .Fc
-.\" #endif
 .It
 .Ft typedef int
 .Fn archive_open_callback "struct archive *" "void *client_data"

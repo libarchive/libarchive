@@ -804,9 +804,7 @@ _archive_read_finish(struct archive *_a)
 		archive_entry_free(a->entry);
 	a->archive.magic = 0;
 	free(a);
-#if ARCHIVE_API_VERSION > 1
 	return (r);
-#endif
 }
 
 /*
@@ -1209,11 +1207,7 @@ __archive_read_filter_skip(struct archive_read_filter *filter, int64_t request)
 	/*
 	 * If a client_skipper was provided, try that first.
 	 */
-#if ARCHIVE_API_VERSION < 2
-	if ((filter->skip != NULL) && (request < SSIZE_MAX)) {
-#else
 	if (filter->skip != NULL) {
-#endif
 		bytes_skipped = (filter->skip)(filter, request);
 		if (bytes_skipped < 0) {	/* error */
 			filter->client_total = filter->client_avail = 0;

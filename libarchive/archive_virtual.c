@@ -42,20 +42,11 @@ archive_read_close(struct archive *a)
 	return ((a->vtable->archive_close)(a));
 }
 
-#if ARCHIVE_API_VERSION > 1
 int
 archive_write_finish(struct archive *a)
 {
 	return ((a->vtable->archive_finish)(a));
 }
-#else
-/* Temporarily allow library to compile with either 1.x or 2.0 API. */
-void
-archive_write_finish(struct archive *a)
-{
-	(void)(a->vtable->archive_finish)(a);
-}
-#endif
 
 int
 archive_read_finish(struct archive *a)
@@ -76,12 +67,7 @@ archive_write_finish_entry(struct archive *a)
 	return ((a->vtable->archive_write_finish_entry)(a));
 }
 
-#if ARCHIVE_API_VERSION > 1
 ssize_t
-#else
-/* Temporarily allow library to compile with either 1.x or 2.0 API. */
-int
-#endif
 archive_write_data(struct archive *a, const void *buff, size_t s)
 {
 	return ((a->vtable->archive_write_data)(a, buff, s));
