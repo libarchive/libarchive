@@ -59,12 +59,12 @@ test_write_format_mtree_sub(int use_set, int dironly)
 
 	/* Create a mtree format archive. */
 	assert((a = archive_write_new()) != NULL);
-	assertA(0 == archive_write_set_format_mtree(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_mtree(a));
 	if (use_set)
-		assertA(0 == archive_write_set_options(a, "use-set"));
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_set_options(a, "use-set"));
 	if (dironly)
-		assertA(0 == archive_write_set_options(a, "dironly"));
-	assertA(0 == archive_write_open_memory(a, buff, sizeof(buff)-1, &used));
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_set_options(a, "dironly"));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, sizeof(buff)-1, &used));
 
 	/* Write entries */
 	for (i = 0; entries[i].path != NULL; i++) {
@@ -80,12 +80,13 @@ test_write_format_mtree_sub(int use_set, int dironly)
 		archive_entry_copy_pathname(ae, entries[i].path);
 		if ((entries[i].mode & AE_IFMT) != S_IFDIR)
 			archive_entry_set_size(ae, 8);
-		assertA(0 == archive_write_header(a, ae));
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 		if ((entries[i].mode & AE_IFMT) != S_IFDIR)
-			assertA(8 == archive_write_data(a, "Hello012", 15));
+			assertEqualIntA(a, 8,
+			    archive_write_data(a, "Hello012", 15));
 		archive_entry_free(ae);
 	}
-	archive_write_close(a);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
         assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
 
 	if (use_set) {

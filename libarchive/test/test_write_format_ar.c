@@ -42,14 +42,14 @@ DEFINE_TEST(test_write_format_ar)
 	 * First we try to create a SVR4/GNU format archive.
 	 */
 	assert((a = archive_write_new()) != NULL);
-	assertA(0 == archive_write_set_format_ar_svr4(a));
-	assertA(0 == archive_write_open_memory(a, buff, sizeof(buff), &used));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ar_svr4(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	/* write the filename table */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "//");
 	archive_entry_set_size(ae, strlen(strtab));
-	assertA(0 == archive_write_header(a, ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	assertA(strlen(strtab) == (size_t)archive_write_data(a, strtab, strlen(strtab)));
 	archive_entry_free(ae);
 
@@ -61,7 +61,7 @@ DEFINE_TEST(test_write_format_ar)
 	assert((S_IFREG | 0755) == archive_entry_mode(ae));
 	archive_entry_copy_pathname(ae, "abcdefghijklmn.o");
 	archive_entry_set_size(ae, 8);
-	assertA(0 == archive_write_header(a, ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	assertA(8 == archive_write_data(a, "87654321", 15));
 	archive_entry_free(ae);
 
@@ -97,7 +97,7 @@ DEFINE_TEST(test_write_format_ar)
 	assertA(0 != archive_write_header(a, ae));
 	archive_entry_free(ae);
 
-	archive_write_close(a);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
 
 	/*
@@ -161,7 +161,7 @@ DEFINE_TEST(test_write_format_ar)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	assertEqualIntA(a, 6, archive_write_data(a, "555555", 7));
 	archive_entry_free(ae);
-	archive_write_close(a);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
 
 	/* Now, Read the data back */
