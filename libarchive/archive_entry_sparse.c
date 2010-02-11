@@ -46,7 +46,7 @@ archive_entry_sparse_clear(struct archive_entry *entry)
 		free(entry->sparse_head);
 		entry->sparse_head = sp;
 	}
-	entry->sparse_tail = &(entry->sparse_head);
+	entry->sparse_tail = NULL;
 }
 
 void
@@ -54,6 +54,28 @@ archive_entry_sparse_add_entry(struct archive_entry *entry,
 	int64_t offset, int64_t length)
 {
 	struct ae_sparse *sp;
+
+	if (offset < 0 || length < 0)
+		/* Invalid value */
+		return;
+	if (offset + length < 0 ||
+	    offset + length > archive_entry_size(entry))
+		/* A value of "length" parameter is too large. */
+		return;
+	if ((sp = entry->sparse_tail) != NULL) {
+		if (sp->offset + sp->length > offset)
+			/* Invalid value. */
+			return;
+		if (sp->offset + sp->length == offset) {
+			if (sp->offset + sp->length + length < 0)
+				/* A value of "length" parameter is
+				 * too large. */
+				return;
+			/* Expand existing sparse block size. */
+			sp->length += length;
+			return;
+		}
+	}
 
 	if ((sp = (struct ae_sparse *)malloc(sizeof(*sp))) == NULL)
 		/* XXX Error XXX */
@@ -63,8 +85,13 @@ archive_entry_sparse_add_entry(struct archive_entry *entry,
 	sp->length = length;
 	sp->next = NULL;
 
-	*entry->sparse_tail = sp;
-	entry->sparse_tail = &(sp->next);
+	if (entry->sparse_head == NULL)
+		entry->sparse_head = entry->sparse_tail = sp;
+	else {
+		/* Add a new sparse block to the tail of list. */
+		entry->sparse_tail->next = sp;
+		entry->sparse_tail = sp;
+	}
 }
 
 

@@ -401,7 +401,6 @@ archive_entry_clear(struct archive_entry *entry)
 	archive_entry_sparse_clear(entry);
 	free(entry->stat);
 	memset(entry, 0, sizeof(*entry));
-	entry->sparse_tail = &(entry->sparse_head);
 	return entry;
 }
 
@@ -475,7 +474,6 @@ archive_entry_new(void)
 	if (entry == NULL)
 		return (NULL);
 	memset(entry, 0, sizeof(*entry));
-	entry->sparse_tail = &(entry->sparse_head);
 	return (entry);
 }
 

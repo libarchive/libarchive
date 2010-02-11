@@ -185,7 +185,7 @@ struct archive_entry {
 
 	/* sparse support. */
 	struct ae_sparse *sparse_head;
-	struct ae_sparse **sparse_tail;
+	struct ae_sparse *sparse_tail;
 	struct ae_sparse *sparse_p;
 
 	/* Miscellaneous. */
