@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Michihiro NAKAJIMA
+ * Copyright (c) 2009,2010 Michihiro NAKAJIMA
  * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
  *
@@ -29,6 +29,12 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_util.c 201098 2009-12-28 02:58:1
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
+#endif
+#ifdef HAVE_ERRNO_H
+#include <errno.h>
+#endif
+#ifdef HAVE_FCNTL_H
+#include <fcntl.h>
 #endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
@@ -389,3 +395,160 @@ complete:
 	/* Return a size which we've consumed for detecting option */
 	return ((int)(p - p_org));
 }
+
+/*
+ * Create a temporary file
+ */
+
+#if defined(HAVE_MKSTEMP) || !defined(HAVE_TMPFILE)
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+
+static int
+get_tempdir(struct archive_string *temppath)
+{
+	size_t l;
+	char *tmp;
+
+	l = GetTempPathA(0, NULL);
+	if (l == 0)
+		return (ARCHIVE_FATAL);
+	tmp = malloc(l);
+	if (tmp == NULL)
+		return (ARCHIVE_FATAL);
+	GetTempPathA(l, tmp);
+	archive_strcpy(temppath, tmp);
+	free(tmp);
+	return (ARCHIVE_OK);
+}
+
+#else /* _WIN32 && !__CYGWIN__ */
+
+static int
+get_tempdir(struct archive_string *temppath)
+{
+	const char *tmp;
+
+	tmp = getenv("TMPDIR");
+	if (tmp == NULL)
+#ifdef _PATH_TMP
+		tmp = _PATH_TMP;
+#else
+                tmp = "/tmp";
+#endif
+	archive_strcpy(temppath, tmp);
+	if (temppath->s[temppath->length-1] != '/')
+		archive_strappend_char(temppath, '/');
+	return (ARCHIVE_OK);
+}
+
+#endif /* _WIN32 && !__CYGWIN__ */
+#endif /* HAVE_MKSTEMP || !HAVE_TMPFILE */
+
+#if defined(HAVE_MKSTEMP)
+
+/*
+ * We can use mkstemp().
+ */
+
+int
+__archive_mktemp(const char *tmpdir)
+{
+	struct archive_string temp_name;
+	int fd;
+
+	archive_string_init(&temp_name);
+	if (tmpdir == NULL) {
+		if (get_tempdir(&temp_name) != ARCHIVE_OK)
+			goto exit_tmpfile;
+	} else {
+		archive_strcpy(&temp_name, tmpdir);
+		if (temp_name.s[temp_name.length-1] != '/')
+			archive_strappend_char(&temp_name, '/');
+	}
+	archive_strcat(&temp_name, "libarchive_XXXXXX");
+	fd = mkstemp(temp_name.s);
+	if (fd < 0)
+		goto exit_tmpfile;
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	/* On Windows, the temporary file will be automatically removed
+	 * when the file is closed */
+	unlink(temp_name.s);
+#endif
+exit_tmpfile:
+	archive_string_free(&temp_name);
+	return (fd);
+}
+
+#else
+
+/*
+ * We use a private routine.
+ */
+
+int
+__archive_mktemp(const char *tmpdir)
+{
+        static const char num[] = {
+		'0', '1', '2', '3', '4', '5', '6', '7',
+		'8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
+		'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
+		'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V',
+		'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd',
+		'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l',
+		'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
+		'u', 'v', 'w', 'x', 'y', 'z'
+        };
+	struct archive_string temp_name;
+	struct stat st;
+	int fd;
+	char *tp, *ep;
+	unsigned seed;
+
+	fd = -1;
+	archive_string_init(&temp_name);
+	if (tmpdir == NULL) {
+		if (get_tempdir(&temp_name) != ARCHIVE_OK)
+			goto exit_tmpfile;
+	} else
+		archive_strcpy(&temp_name, tmpdir);
+	if (temp_name.s[temp_name.length-1] == '/') {
+		temp_name.s[temp_name.length-1] = '\0';
+		temp_name.length --;
+	}
+	if (stat(temp_name.s, &st) < 0)
+		goto exit_tmpfile;
+	if (!S_ISDIR(st.st_mode)) {
+		errno = ENOTDIR;
+		goto exit_tmpfile;
+	}
+	archive_strcat(&temp_name, "/libarchive_");
+	tp = temp_name.s + archive_strlen(&temp_name);
+	archive_strcat(&temp_name, "XXXXXXXXXX");
+	ep = temp_name.s + archive_strlen(&temp_name);
+
+	fd = open("/dev/random", O_RDONLY);
+	if (fd < 0)
+		seed = time(NULL);
+	else {
+		if (read(fd, &seed, sizeof(seed)) < 0)
+			seed = time(NULL);
+		close(fd);
+	}
+	do {
+		char *p;
+
+		p = tp;
+		while (p < ep)
+			*p++ = num[((unsigned)rand_r(&seed)) % sizeof(num)];
+		fd = open(temp_name.s, O_CREAT | O_EXCL | O_RDWR, 0600);
+	} while (fd < 0 && errno == EEXIST);
+	if (fd < 0)
+		goto exit_tmpfile;
+	unlink(temp_name.s);
+exit_tmpfile:
+	archive_string_free(&temp_name);
+	return (fd);
+}
+
+#endif

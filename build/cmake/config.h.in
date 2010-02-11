@@ -323,6 +323,9 @@
 /* Define to 1 if you have the `mknod' function. */
 #cmakedefine HAVE_MKNOD 1
 
+/* Define to 1 if you have the `mkstemp' function. */
+#cmakedefine HAVE_MKSTEMP 1
+
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
 #cmakedefine HAVE_NDIR_H 1
 

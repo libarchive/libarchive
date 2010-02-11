@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Michihiro NAKAJIMA
+ * Copyright (c) 2009,2010 Michihiro NAKAJIMA
  * Copyright (c) 2003-2007 Kees Zeelenberg
  * All rights reserved.
  *
@@ -59,6 +59,7 @@
 #include <stdlib.h>
 #include <wchar.h>
 #include <windows.h>
+#include <share.h>
 
 #define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
 
@@ -592,6 +593,83 @@ __la_mkdir(const char *path, mode_t mode)
 		return (-1);
 	}
 	return (0);
+}
+
+/*
+ * Do not use Windows tmpfile function.
+ * It will make a temporary file under the root directory
+ * and it'll cause permission error if a user who is
+ * non-Administrator creates temporary files.
+ */
+int
+__la_mkstemp(char *template)
+{
+	static const char num[] = {
+		'0', '1', '2', '3', '4', '5', '6', '7',
+		'8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
+		'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
+		'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V',
+		'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd',
+		'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l',
+		'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
+		'u', 'v', 'w', 'x', 'y', 'z'
+	};
+	HCRYPTPROV hProv;
+	wchar_t *ws;
+	int fd;
+	size_t l, tmpsize;
+	errno_t err;
+	int i, xcnt;
+
+	fd = -1;
+	hProv = (HCRYPTPROV)NULL;
+	tmpsize = l = strlen(template);
+	xcnt = 0;
+	while (l > 0 && template[--l] == 'X')
+		xcnt++;
+	if (xcnt < 6) {
+		errno = EINVAL;
+		goto exit_tmpfile;
+	}
+
+	if (!CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_FULL,
+		CRYPT_VERIFYCONTEXT)) {
+		la_dosmaperr(GetLastError());
+		goto exit_tmpfile;
+	}
+
+	ws = NULL;
+	do {
+		BYTE *p;
+
+		/* Make a random file name. */
+		p = (BYTE *)template + tmpsize - xcnt;
+		if (!CryptGenRandom(hProv, xcnt, p)) {
+			la_dosmaperr(GetLastError());
+			goto exit_tmpfile;
+		}
+		for (i = 0; i < xcnt; i++, p++)
+			*p = num[*p % sizeof(num)];
+
+		free(ws);
+		ws = permissive_name(template);
+		if (ws == NULL) {
+			errno = EINVAL;
+			goto exit_tmpfile;
+		}
+		err = _wsopen_s(&fd, ws,
+		    _O_CREAT | _O_EXCL | _O_BINARY | _O_RDWR | _O_TEMPORARY,
+		    _SH_DENYRW,
+		    _S_IREAD | _S_IWRITE);
+	} while (err == EEXIST);
+
+	if (err != 0)
+		fd = -1;
+exit_tmpfile:
+	free(ws);
+	if (hProv != (HCRYPTPROV)NULL)
+		CryptReleaseContext(hProv, 0);
+	return (fd);
 }
 
 /* Windows' mbstowcs is differrent error handling from other unix mbstowcs.

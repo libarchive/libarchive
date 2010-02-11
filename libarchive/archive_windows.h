@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Michihiro NAKAJIMA
+ * Copyright (c) 2009,2010 Michihiro NAKAJIMA
  * Copyright (c) 2003-2006 Tim Kientzle
  * All rights reserved.
  *
@@ -114,6 +114,7 @@
 #define	lstat		__la_stat
 #define	mbstowcs	__la_mbstowcs
 #define	mkdir(d,m)	__la_mkdir(d, m)
+#define	mkstemp		__la_mkstemp
 #define	mktemp		_mktemp
 #define	open		__la_open
 #define	read		__la_read
@@ -358,6 +359,9 @@ typedef struct {
 #ifndef HAVE_LINK
 #define HAVE_LINK 1
 #endif
+#ifndef HAVE_MKSTEMP
+#define HAVE_MKSTEMP 1
+#endif
 
 /* Replacement POSIX function */
 extern int	 __la_chdir(const char *path);
@@ -370,6 +374,7 @@ extern int	 __la_link(const char *src, const char *dst);
 extern __int64	 __la_lseek(int fd, __int64 offset, int whence);
 extern size_t	 __la_mbstowcs(wchar_t *wcstr, const char *mbstr, size_t nwchars);
 extern int	 __la_mkdir(const char *path, mode_t mode);
+extern int	 __la_mkstemp(char *template);
 extern int	 __la_open(const char *path, int flags, ...);
 extern ssize_t	 __la_read(int fd, void *buf, size_t nbytes);
 extern int	 __la_rmdir(const char *path);
