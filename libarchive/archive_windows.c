@@ -595,83 +595,6 @@ __la_mkdir(const char *path, mode_t mode)
 	return (0);
 }
 
-/*
- * Do not use Windows tmpfile function.
- * It will make a temporary file under the root directory
- * and it'll cause permission error if a user who is
- * non-Administrator creates temporary files.
- */
-int
-__la_mkstemp(char *template)
-{
-	static const char num[] = {
-		'0', '1', '2', '3', '4', '5', '6', '7',
-		'8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
-		'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
-		'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V',
-		'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd',
-		'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l',
-		'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
-		'u', 'v', 'w', 'x', 'y', 'z'
-	};
-	HCRYPTPROV hProv;
-	wchar_t *ws;
-	int fd;
-	size_t l, tmpsize;
-	errno_t err;
-	int i, xcnt;
-
-	fd = -1;
-	hProv = (HCRYPTPROV)NULL;
-	tmpsize = l = strlen(template);
-	xcnt = 0;
-	while (l > 0 && template[--l] == 'X')
-		xcnt++;
-	if (xcnt < 6) {
-		errno = EINVAL;
-		goto exit_tmpfile;
-	}
-
-	if (!CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_FULL,
-		CRYPT_VERIFYCONTEXT)) {
-		la_dosmaperr(GetLastError());
-		goto exit_tmpfile;
-	}
-
-	ws = NULL;
-	do {
-		BYTE *p;
-
-		/* Make a random file name. */
-		p = (BYTE *)template + tmpsize - xcnt;
-		if (!CryptGenRandom(hProv, xcnt, p)) {
-			la_dosmaperr(GetLastError());
-			goto exit_tmpfile;
-		}
-		for (i = 0; i < xcnt; i++, p++)
-			*p = num[*p % sizeof(num)];
-
-		free(ws);
-		ws = permissive_name(template);
-		if (ws == NULL) {
-			errno = EINVAL;
-			goto exit_tmpfile;
-		}
-		err = _wsopen_s(&fd, ws,
-		    _O_CREAT | _O_EXCL | _O_BINARY | _O_RDWR | _O_TEMPORARY,
-		    _SH_DENYRW,
-		    _S_IREAD | _S_IWRITE);
-	} while (err == EEXIST);
-
-	if (err != 0)
-		fd = -1;
-exit_tmpfile:
-	free(ws);
-	if (hProv != (HCRYPTPROV)NULL)
-		CryptReleaseContext(hProv, 0);
-	return (fd);
-}
-
 /* Windows' mbstowcs is differrent error handling from other unix mbstowcs.
  * That one is using MultiByteToWideChar function with MB_PRECOMPOSED and
  * MB_ERR_INVALID_CHARS flags.
@@ -1354,5 +1277,138 @@ DIGEST_FINAL(SHA512, SHA384_DIGEST_LENGTH)
 #endif
 
 #endif /* !HAVE_OPENSSL_MD5_H && !HAVE_OPENSSL_SHA_H */
+
+/*
+ * Create a temporary file.
+ *
+ * Do not use Windows tmpfile() function.
+ * It will make a temporary file under the root directory
+ * and it'll cause permission error if a user who is
+ * non-Administrator creates temporary files.
+ * Also Windows version of mktemp family including _mktemp_s
+ * are not secure.
+ */
+int
+__archive_mktemp(const char *tmpdir)
+{
+	static const char num[] = {
+		'0', '1', '2', '3', '4', '5', '6', '7',
+		'8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
+		'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
+		'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V',
+		'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd',
+		'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l',
+		'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
+		'u', 'v', 'w', 'x', 'y', 'z'
+	};
+	HCRYPTPROV hProv;
+	struct archive_string temp_name;
+	wchar_t *ws;
+	DWORD attr;
+	BYTE *xp, *ep;
+	int err;
+	int fd;
+
+	hProv = (HCRYPTPROV)NULL;
+	fd = -1;
+	ws = NULL;
+	archive_string_init(&temp_name);
+
+	/* Get a temporary directory. */
+	if (tmpdir == NULL) {
+		size_t l;
+		char *tmp;
+
+		l = GetTempPathA(0, NULL);
+		if (l == 0) {
+			la_dosmaperr(GetLastError());
+			goto exit_tmpfile;
+		}
+		tmp = malloc(l);
+		if (tmp == NULL) {
+			errno = ENOMEM;
+			goto exit_tmpfile;
+		}
+		GetTempPathA(l, tmp);
+		archive_strcpy(&temp_name, tmp);
+		free(tmp);
+	} else {
+		archive_strcpy(&temp_name, tmpdir);
+		if (temp_name.s[temp_name.length-1] != '/')
+			archive_strappend_char(&temp_name, '/');
+	}
+
+	/* Check if temp_name is a directory. */
+	attr = GetFileAttributesA(temp_name.s);
+	if (attr == (DWORD)-1) {
+		if (GetLastError() != ERROR_FILE_NOT_FOUND) {
+			la_dosmaperr(GetLastError());
+			goto exit_tmpfile;
+		}
+		ws = permissive_name(temp_name.s);
+		if (ws == NULL) {
+			errno = EINVAL;
+			goto exit_tmpfile;
+		}
+		attr = GetFileAttributesW(ws);
+		if (attr == (DWORD)-1) {
+			la_dosmaperr(GetLastError());
+			goto exit_tmpfile;
+		}
+	}
+	if (!(attr & FILE_ATTRIBUTE_DIRECTORY)) {
+		errno = ENOTDIR;
+		goto exit_tmpfile;
+	}
+
+	/*
+	 * Create a temporary file.
+	 */
+	archive_strcat(&temp_name, "libarchive_");
+	xp = temp_name.s + archive_strlen(&temp_name);
+	archive_strcat(&temp_name, "XXXXXXXXXX");
+	ep = temp_name.s + archive_strlen(&temp_name);
+
+	if (!CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_FULL,
+		CRYPT_VERIFYCONTEXT)) {
+		la_dosmaperr(GetLastError());
+		goto exit_tmpfile;
+	}
+
+	do {
+		BYTE *p;
+
+		/* Get a random file name through CryptGenRandom(). */
+		p = xp;
+		if (!CryptGenRandom(hProv, ep - p, p)) {
+			la_dosmaperr(GetLastError());
+			goto exit_tmpfile;
+		}
+		for (; p < ep; p++)
+			*p = num[*p % sizeof(num)];
+
+		free(ws);
+		ws = permissive_name(temp_name.s);
+		if (ws == NULL) {
+			errno = EINVAL;
+			goto exit_tmpfile;
+		}
+		/* Specifing _O_TEMPORARY flag automatically remove
+		 * a temporary file when the file closed. */
+		err = _wsopen_s(&fd, ws,
+		    _O_CREAT | _O_EXCL | _O_BINARY | _O_RDWR | _O_TEMPORARY,
+		    _SH_DENYRW,
+		    _S_IREAD | _S_IWRITE);
+	} while (err == EEXIST);
+
+	if (err != 0)
+		fd = -1;
+exit_tmpfile:
+	if (hProv != (HCRYPTPROV)NULL)
+		CryptReleaseContext(hProv, 0);
+	free(ws);
+	archive_string_free(&temp_name);
+	return (fd);
+}
 
 #endif /* _WIN32 && !__CYGWIN__ */

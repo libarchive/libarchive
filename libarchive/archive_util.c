@@ -399,30 +399,7 @@ complete:
 /*
  * Create a temporary file
  */
-
-#if defined(HAVE_MKSTEMP) || !defined(HAVE_TMPFILE)
-
-#if defined(_WIN32) && !defined(__CYGWIN__)
-
-static int
-get_tempdir(struct archive_string *temppath)
-{
-	size_t l;
-	char *tmp;
-
-	l = GetTempPathA(0, NULL);
-	if (l == 0)
-		return (ARCHIVE_FATAL);
-	tmp = malloc(l);
-	if (tmp == NULL)
-		return (ARCHIVE_FATAL);
-	GetTempPathA(l, tmp);
-	archive_strcpy(temppath, tmp);
-	free(tmp);
-	return (ARCHIVE_OK);
-}
-
-#else /* _WIN32 && !__CYGWIN__ */
+#if !defined(_WIN32) || defined(__CYGWIN__)
 
 static int
 get_tempdir(struct archive_string *temppath)
@@ -441,9 +418,6 @@ get_tempdir(struct archive_string *temppath)
 		archive_strappend_char(temppath, '/');
 	return (ARCHIVE_OK);
 }
-
-#endif /* _WIN32 && !__CYGWIN__ */
-#endif /* HAVE_MKSTEMP || !HAVE_TMPFILE */
 
 #if defined(HAVE_MKSTEMP)
 
@@ -470,11 +444,7 @@ __archive_mktemp(const char *tmpdir)
 	fd = mkstemp(temp_name.s);
 	if (fd < 0)
 		goto exit_tmpfile;
-#if !defined(_WIN32) || defined(__CYGWIN__)
-	/* On Windows, the temporary file will be automatically removed
-	 * when the file is closed */
 	unlink(temp_name.s);
-#endif
 exit_tmpfile:
 	archive_string_free(&temp_name);
 	return (fd);
@@ -551,4 +521,5 @@ exit_tmpfile:
 	return (fd);
 }
 
-#endif
+#endif /* HAVE_MKSTEMP */
+#endif /* !_WIN32 || __CYGWIN__ */

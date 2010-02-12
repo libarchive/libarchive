@@ -114,7 +114,6 @@
 #define	lstat		__la_stat
 #define	mbstowcs	__la_mbstowcs
 #define	mkdir(d,m)	__la_mkdir(d, m)
-#define	mkstemp		__la_mkstemp
 #define	mktemp		_mktemp
 #define	open		__la_open
 #define	read		__la_read
@@ -358,9 +357,6 @@ typedef struct {
 #endif
 #ifndef HAVE_LINK
 #define HAVE_LINK 1
-#endif
-#ifndef HAVE_MKSTEMP
-#define HAVE_MKSTEMP 1
 #endif
 
 /* Replacement POSIX function */
