@@ -1306,7 +1306,6 @@ __archive_mktemp(const char *tmpdir)
 	wchar_t *ws;
 	DWORD attr;
 	BYTE *xp, *ep;
-	int err;
 	int fd;
 
 	hProv = (HCRYPTPROV)NULL;
@@ -1375,10 +1374,11 @@ __archive_mktemp(const char *tmpdir)
 		goto exit_tmpfile;
 	}
 
-	do {
+	for (;;) {
 		BYTE *p;
+		HANDLE h;
 
-		/* Get a random file name through CryptGenRandom(). */
+		/* Generate a random file name through CryptGenRandom(). */
 		p = xp;
 		if (!CryptGenRandom(hProv, ep - p, p)) {
 			la_dosmaperr(GetLastError());
@@ -1393,16 +1393,32 @@ __archive_mktemp(const char *tmpdir)
 			errno = EINVAL;
 			goto exit_tmpfile;
 		}
-		/* Specifing _O_TEMPORARY flag automatically remove
-		 * a temporary file when the file closed. */
-		err = _wsopen_s(&fd, ws,
-		    _O_CREAT | _O_EXCL | _O_BINARY | _O_RDWR | _O_TEMPORARY,
-		    _SH_DENYRW,
-		    _S_IREAD | _S_IWRITE);
-	} while (err == EEXIST);
-
-	if (err != 0)
-		fd = -1;
+		/* Specifies FILE_FLAG_DELETE_ON_CLOSE flag is to
+		 * delete this temporary file immediately when this
+		 * file closed. */
+		h = CreateFileW(ws,
+		    GENERIC_READ | GENERIC_WRITE | DELETE,
+		    0,/* Not share */
+		    NULL,
+		    CREATE_NEW,/* Create a new file only */
+		    FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE,
+		    NULL);
+		if (h == INVALID_HANDLE_VALUE) {
+			/* The same file already exists. retry with
+			 * a new filename. */
+			if (GetLastError() == ERROR_FILE_EXISTS)
+				continue;
+			/* Otherwise, fail creation temporary file. */
+			la_dosmaperr(GetLastError());
+			goto exit_tmpfile;
+		}
+		fd = _open_osfhandle((intptr_t)h, _O_BINARY | _O_RDWR);
+		if (fd == -1) {
+			CloseHandle(h);
+			goto exit_tmpfile;
+		} else
+			break;/* success! */
+	}
 exit_tmpfile:
 	if (hProv != (HCRYPTPROV)NULL)
 		CryptReleaseContext(hProv, 0);
