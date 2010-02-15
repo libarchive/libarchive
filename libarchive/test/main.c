@@ -426,7 +426,7 @@ static void strdump(const char *e, const char *p)
 
 	logprintf("      %s = ", e);
 	if (p == NULL) {
-		logprintf("NULL");
+		logprintf("NULL\n");
 		return;
 	}
 	logprintf("\"");
