@@ -48,12 +48,12 @@ DEFINE_TEST(test_write_format_tar)
 		    archive_write_set_bytes_per_block(a, (int)blocksize));
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_write_set_bytes_in_last_block(a, (int)blocksize));
-		assertEqualIntA(a, blocksize,
+		assertEqualInt(blocksize,
 		    archive_write_get_bytes_in_last_block(a));
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_write_open_memory(a, buff, sizeof(buff), &used));
-		assertEqualIntA(a, blocksize,
-		    (size_t)archive_write_get_bytes_in_last_block(a));
+		assertEqualInt(blocksize,
+		    archive_write_get_bytes_in_last_block(a));
 
 		/*
 		 * Write a file to it.
