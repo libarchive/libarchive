@@ -212,7 +212,7 @@ tar_mode_c(struct bsdtar *bsdtar)
 	} else {
 		switch (bsdtar->create_compression) {
 		case 0:
-			r = archive_write_set_compression_none(a);
+			r = ARCHIVE_OK;
 			break;
 		case 'j': case 'y':
 			r = archive_write_set_compression_bzip2(a);
