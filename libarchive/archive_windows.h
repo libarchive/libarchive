@@ -97,7 +97,6 @@
 #endif
 
 /* Alias the Windows _function to the POSIX equivalent. */
-#define	access		_access
 #define	chdir		__la_chdir
 #define	chmod		__la_chmod
 #define	close		_close
@@ -108,13 +107,11 @@
 #define	fstat		__la_fstat
 #define	ftruncate	__la_ftruncate
 #define	futimes		__la_futimes
-#define	getcwd		_getcwd
 #define link		__la_link
 #define	lseek		__la_lseek
 #define	lstat		__la_stat
 #define	mbstowcs	__la_mbstowcs
 #define	mkdir(d,m)	__la_mkdir(d, m)
-#define	mktemp		_mktemp
 #define	open		__la_open
 #define	read		__la_read
 #define	rmdir		__la_rmdir
