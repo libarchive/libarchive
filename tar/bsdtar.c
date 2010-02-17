@@ -689,7 +689,7 @@ version(void)
 {
 	printf("bsdtar %s - %s\n",
 	    BSDTAR_VERSION_STRING,
-	    archive_version());
+	    archive_version_string());
 	exit(0);
 }
 
