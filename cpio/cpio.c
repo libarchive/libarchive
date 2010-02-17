@@ -451,7 +451,7 @@ version(void)
 {
 	fprintf(stdout,"bsdcpio %s -- %s\n",
 	    BSDCPIO_VERSION_STRING,
-	    archive_version());
+	    archive_version_string());
 	exit(0);
 }
 
