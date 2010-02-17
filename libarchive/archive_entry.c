@@ -847,12 +847,21 @@ archive_entry_update_gname_utf8(struct archive_entry *entry, const char *name)
 	return (aes_update_utf8(&entry->ae_gname, name));
 }
 
+#if ARCHIVE_VERSION_NUMBER < 3000000
 void
 archive_entry_set_ino(struct archive_entry *entry, unsigned long ino)
 {
 	entry->stat_valid = 0;
 	entry->ae_stat.aest_ino = ino;
 }
+#else
+void
+archive_entry_set_ino(struct archive_entry *entry, int64_t ino)
+{
+	entry->stat_valid = 0;
+	entry->ae_stat.aest_ino = ino;
+}
+#endif
 
 void
 archive_entry_set_ino64(struct archive_entry *entry, int64_t ino)
