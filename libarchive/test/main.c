@@ -821,9 +821,11 @@ assertion_text_file_contents(const char *buff, const char *fn)
 	}
 	failure_start(test_filename, test_line, "Contents don't match");
 	logprintf("  file=\"%s\"\n", fn);
-	if (n > 0)
+	if (n > 0) {
 		hexdump(contents, buff, n, 0);
-	else {
+		logprintf("  expected\n", fn);
+		hexdump(buff, contents, s, 0);
+	} else {
 		logprintf("  File empty, contents should be:\n");
 		hexdump(buff, NULL, s, 0);
 	}
