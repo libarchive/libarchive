@@ -204,7 +204,11 @@ __LA_DECL const char	*archive_entry_gname(struct archive_entry *);
 __LA_DECL const wchar_t	*archive_entry_gname_w(struct archive_entry *);
 __LA_DECL const char	*archive_entry_hardlink(struct archive_entry *);
 __LA_DECL const wchar_t	*archive_entry_hardlink_w(struct archive_entry *);
+#if ARCHIVE_VERSION_NUMBER < 3000000
 __LA_DECL __LA_INO_T	 archive_entry_ino(struct archive_entry *);
+#else
+__LA_DECL __LA_INT64_T	 archive_entry_ino(struct archive_entry *);
+#endif
 __LA_DECL __LA_INT64_T	 archive_entry_ino64(struct archive_entry *);
 __LA_DECL __LA_MODE_T	 archive_entry_mode(struct archive_entry *);
 __LA_DECL time_t	 archive_entry_mtime(struct archive_entry *);

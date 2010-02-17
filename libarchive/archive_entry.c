@@ -643,11 +643,19 @@ archive_entry_hardlink_w(struct archive_entry *entry)
 	return (NULL);
 }
 
+#if ARCHIVE_VERSION_NUMBER < 3000000
 ino_t
 archive_entry_ino(struct archive_entry *entry)
 {
 	return (entry->ae_stat.aest_ino);
 }
+#else
+int64_t
+archive_entry_ino(struct archive_entry *entry)
+{
+	return (entry->ae_stat.aest_ino);
+}
+#endif
 
 int64_t
 archive_entry_ino64(struct archive_entry *entry)
