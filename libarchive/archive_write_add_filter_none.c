@@ -40,10 +40,20 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_compression_none.c 201
 #include "archive_private.h"
 #include "archive_write_private.h"
 
-static int	archive_compressor_none_finish(struct archive_write *a);
-static int	archive_compressor_none_init(struct archive_write *);
-static int	archive_compressor_none_write(struct archive_write *,
+
+int
+archive_write_set_compression_none(struct archive *a)
+{
+	__archive_write_filters_free(a);
+	return (archive_write_add_filter_none(a));
+}
+
+
+static int archive_compressor_none_open(struct archive_write_filter *);
+static int archive_compressor_none_write(struct archive_write_filter *,
 		    const void *, size_t);
+static int archive_compressor_none_close(struct archive_write_filter *);
+static int archive_compressor_none_free(struct archive_write_filter *);
 
 struct archive_none {
 	char	*buffer;
@@ -52,47 +62,51 @@ struct archive_none {
 	ssize_t	 avail;		/* Free space left in buffer */
 };
 
+/*
+ * TODO: A little refactoring will turn this into a true no-op.
+ */
 int
-archive_write_set_compression_none(struct archive *_a)
+archive_write_add_filter_none(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;
+	struct archive_write_filter *f = __archive_write_allocate_filter(_a);
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_set_compression_none");
-	a->compressor.init = &archive_compressor_none_init;
-	return (0);
+	f->open = &archive_compressor_none_open;
+	f->code = ARCHIVE_COMPRESSION_NONE;
+	f->name = "none";
+
+	return (ARCHIVE_OK);
 }
 
 /*
  * Setup callback.
  */
 static int
-archive_compressor_none_init(struct archive_write *a)
+archive_compressor_none_open(struct archive_write_filter *f)
 {
 	int ret;
 	struct archive_none *state;
 
-	a->archive.compression_code = ARCHIVE_COMPRESSION_NONE;
-	a->archive.compression_name = "none";
+	ret = __archive_write_open_filter(f->next_filter);
+	if (ret != 0)
+		return (ret);
 
-	if (a->client_opener != NULL) {
-		ret = (a->client_opener)(&a->archive, a->client_data);
-		if (ret != 0)
-			return (ret);
-	}
+	f->bytes_per_block = archive_write_get_bytes_per_block(f->archive);
+	f->bytes_in_last_block = archive_write_get_bytes_in_last_block(f->archive);
 
-	state = (struct archive_none *)malloc(sizeof(*state));
+	state = (struct archive_none *)calloc(1, sizeof(*state));
 	if (state == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
+		archive_set_error(f->archive, ENOMEM,
 		    "Can't allocate data for output buffering");
 		return (ARCHIVE_FATAL);
 	}
-	memset(state, 0, sizeof(*state));
 
-	state->buffer_size = a->bytes_per_block;
+	state->buffer_size = f->bytes_per_block;
 	if (state->buffer_size != 0) {
 		state->buffer = (char *)malloc(state->buffer_size);
 		if (state->buffer == NULL) {
-			archive_set_error(&a->archive, ENOMEM,
+			archive_set_error(f->archive, ENOMEM,
 			    "Can't allocate output buffer");
 			free(state);
 			return (ARCHIVE_FATAL);
@@ -102,9 +116,10 @@ archive_compressor_none_init(struct archive_write *a)
 	state->next = state->buffer;
 	state->avail = state->buffer_size;
 
-	a->compressor.data = state;
-	a->compressor.write = archive_compressor_none_write;
-	a->compressor.finish = archive_compressor_none_finish;
+	f->data = state;
+	f->write = archive_compressor_none_write;
+	f->close = archive_compressor_none_close;
+	f->free = archive_compressor_none_free;
 	return (ARCHIVE_OK);
 }
 
@@ -112,24 +127,13 @@ archive_compressor_none_init(struct archive_write *a)
  * Write data to the stream.
  */
 static int
-archive_compressor_none_write(struct archive_write *a, const void *vbuff,
-    size_t length)
+archive_compressor_none_write(struct archive_write_filter *f,
+    const void *vbuff, size_t length)
 {
+	struct archive_none *state = (struct archive_none *)f->data;
 	const char *buff;
 	ssize_t remaining, to_copy;
-	ssize_t bytes_written;
-	struct archive_none *state;
-
-	state = (struct archive_none *)a->compressor.data;
-	buff = (const char *)vbuff;
-	if (a->client_writer == NULL) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
-		    "No write callback is registered?  "
-		    "This is probably an internal programming error.");
-		return (ARCHIVE_FATAL);
-	}
-
-	remaining = length;
+	int ret;
 
 	/*
 	 * If there is no buffer for blocking, just pass the data
@@ -137,19 +141,12 @@ archive_compressor_none_write(struct archive_write *a, const void *vbuff,
 	 * particular, this supports "no write delay" operation for
 	 * special applications.  Just set the block size to zero.
 	 */
-	if (state->buffer_size == 0) {
-		while (remaining > 0) {
-			bytes_written = (a->client_writer)(&a->archive,
-			    a->client_data, buff, remaining);
-			if (bytes_written <= 0)
-				return (ARCHIVE_FATAL);
-			a->archive.raw_position += bytes_written;
-			remaining -= bytes_written;
-			buff += bytes_written;
-		}
-		a->archive.file_position += length;
-		return (ARCHIVE_OK);
-	}
+	if (state->buffer_size == 0)
+		return (__archive_write_filter(f->next_filter,
+			vbuff, length));
+
+	buff = (const char *)vbuff;
+	remaining = length;
 
 	/* If the copy buffer isn't empty, try to fill it. */
 	if (state->avail < state->buffer_size) {
@@ -164,26 +161,23 @@ archive_compressor_none_write(struct archive_write *a, const void *vbuff,
 		remaining -= to_copy;
 		/* ... if it's full, write it out. */
 		if (state->avail == 0) {
-			bytes_written = (a->client_writer)(&a->archive,
-			    a->client_data, state->buffer, state->buffer_size);
-			if (bytes_written <= 0)
+			ret = __archive_write_filter(f->next_filter,
+			    state->buffer, state->buffer_size);
+			if (ret != ARCHIVE_OK)
 				return (ARCHIVE_FATAL);
-			/* XXX TODO: if bytes_written < state->buffer_size */
-			a->archive.raw_position += bytes_written;
 			state->next = state->buffer;
 			state->avail = state->buffer_size;
 		}
 	}
 
+	/* Write out full blocks directly to client. */
 	while (remaining > state->buffer_size) {
-		/* Write out full blocks directly to client. */
-		bytes_written = (a->client_writer)(&a->archive,
-		    a->client_data, buff, state->buffer_size);
-		if (bytes_written <= 0)
+		ret = __archive_write_filter(f->next_filter,
+		    buff, state->buffer_size);
+		if (ret != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
-		a->archive.raw_position += bytes_written;
-		buff += bytes_written;
-		remaining -= bytes_written;
+		buff += state->buffer_size;
+		remaining -= state->buffer_size;
 	}
 
 	if (remaining > 0) {
@@ -193,7 +187,6 @@ archive_compressor_none_write(struct archive_write *a, const void *vbuff,
 		state->avail -= remaining;
 	}
 
-	a->archive.file_position += length;
 	return (ARCHIVE_OK);
 }
 
@@ -202,56 +195,49 @@ archive_compressor_none_write(struct archive_write *a, const void *vbuff,
  * Finish the compression.
  */
 static int
-archive_compressor_none_finish(struct archive_write *a)
+archive_compressor_none_close(struct archive_write_filter *f)
 {
+	struct archive_none *state = (struct archive_none *)f->data;
 	ssize_t block_length;
 	ssize_t target_block_length;
-	ssize_t bytes_written;
 	int ret;
-	struct archive_none *state;
 
-	state = (struct archive_none *)a->compressor.data;
 	ret = ARCHIVE_OK;
-	if (a->client_writer == NULL) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
-		    "No write callback is registered?  "
-		    "This is probably an internal programming error.");
-		return (ARCHIVE_FATAL);
-	}
 
 	/* If there's pending data, pad and write the last block */
 	if (state->next != state->buffer) {
 		block_length = state->buffer_size - state->avail;
 
 		/* Tricky calculation to determine size of last block */
-		if (a->bytes_in_last_block <= 0)
+		if (f->bytes_in_last_block <= 0)
 			/* Default or Zero: pad to full block */
-			target_block_length = a->bytes_per_block;
+			target_block_length = f->bytes_per_block;
 		else
 			/* Round to next multiple of bytes_in_last_block. */
-			target_block_length = a->bytes_in_last_block *
-			    ( (block_length + a->bytes_in_last_block - 1) /
-				a->bytes_in_last_block);
-		if (target_block_length > a->bytes_per_block)
-			target_block_length = a->bytes_per_block;
+			target_block_length = f->bytes_in_last_block *
+			    ( (block_length + f->bytes_in_last_block - 1) /
+				f->bytes_in_last_block);
+		if (target_block_length > f->bytes_per_block)
+			target_block_length = f->bytes_per_block;
 		if (block_length < target_block_length) {
 			memset(state->next, 0,
 			    target_block_length - block_length);
 			block_length = target_block_length;
 		}
-		bytes_written = (a->client_writer)(&a->archive,
-		    a->client_data, state->buffer, block_length);
-		if (bytes_written <= 0)
-			ret = ARCHIVE_FATAL;
-		else {
-			a->archive.raw_position += bytes_written;
-			ret = ARCHIVE_OK;
-		}
+		ret = __archive_write_filter(f->next_filter,
+		    state->buffer, block_length);
 	}
 	if (state->buffer)
 		free(state->buffer);
 	free(state);
-	a->compressor.data = NULL;
+	f->data = NULL;
 
 	return (ret);
+}
+
+static int
+archive_compressor_none_free(struct archive_write_filter *f)
+{
+	(void)f; /* UNUSED */
+	return (ARCHIVE_OK);
 }

@@ -343,6 +343,7 @@ bzip2_filter_close(struct archive_read_filter *self)
 					  "Failed to clean up decompressor");
 			ret = ARCHIVE_FATAL;
 		}
+		state->valid = 0;
 	}
 
 	free(state->out_block);

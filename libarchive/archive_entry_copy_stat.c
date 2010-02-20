@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_entry_copy_stat.c 189466 2009-03
 #include <sys/stat.h>
 #endif
 
+#include "archive.h"
 #include "archive_entry.h"
 
 void

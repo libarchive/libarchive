@@ -1056,7 +1056,7 @@ archive_write_pax_header(struct archive_write *a,
 			(void)u; /* UNUSED */
 			exit(1);
 		}
-		r = (a->compressor.write)(a, paxbuff, 512);
+		r = __archive_write_output(a, paxbuff, 512);
 		if (r != ARCHIVE_OK) {
 			sparse_list_clear(pax);
 			pax->entry_bytes_remaining = 0;
@@ -1067,7 +1067,7 @@ archive_write_pax_header(struct archive_write *a,
 		pax->entry_bytes_remaining = archive_strlen(&(pax->pax_header));
 		pax->entry_padding = 0x1ff & (-(int64_t)pax->entry_bytes_remaining);
 
-		r = (a->compressor.write)(a, pax->pax_header.s,
+		r = __archive_write_output(a, pax->pax_header.s,
 		    archive_strlen(&(pax->pax_header)));
 		if (r != ARCHIVE_OK) {
 			/* If a write fails, we're pretty much toast. */
@@ -1083,7 +1083,7 @@ archive_write_pax_header(struct archive_write *a,
 	}
 
 	/* Write the header for main entry. */
-	r = (a->compressor.write)(a, ustarbuff, 512);
+	r = __archive_write_output(a, ustarbuff, 512);
 	if (r != ARCHIVE_OK)
 		return (r);
 
@@ -1327,7 +1327,7 @@ build_pax_attribute_name(char *dest, const char *src)
  * <dir>/GNUSparseFile.<pid>/<original file name>
  *
  * This function is used for only Sparse file, a file type of which
- * is regular file. 
+ * is regular file.
  */
 static char *
 build_gnu_sparse_name(char *dest, const char *src)
@@ -1374,13 +1374,7 @@ build_gnu_sparse_name(char *dest, const char *src)
 static int
 archive_write_pax_finish(struct archive_write *a)
 {
-	int r;
-
-	if (a->compressor.write == NULL)
-		return (ARCHIVE_OK);
-
-	r = write_nulls(a, 512 * 2);
-	return (r);
+	return (write_nulls(a, 512 * 2));
 }
 
 static int
@@ -1431,7 +1425,7 @@ write_nulls(struct archive_write *a, size_t padding)
 
 	while (padding > 0) {
 		to_write = padding < a->null_length ? padding : a->null_length;
-		ret = (a->compressor.write)(a, a->nulls, to_write);
+		ret = __archive_write_output(a, a->nulls, to_write);
 		if (ret != ARCHIVE_OK)
 			return (ret);
 		padding -= to_write;
@@ -1451,10 +1445,10 @@ archive_write_pax_data(struct archive_write *a, const void *buff, size_t s)
 
 	/*
 	 * According to GNU PAX format 1.0, write a sparse map
-	 * before the body. 
+	 * before the body.
 	 */
 	if (archive_strlen(&(pax->sparse_map))) {
-		ret = (a->compressor.write)(a, pax->sparse_map.s,
+		ret = __archive_write_output(a, pax->sparse_map.s,
 		    archive_strlen(&(pax->sparse_map)));
 		if (ret != ARCHIVE_OK)
 			return (ret);
@@ -1491,7 +1485,7 @@ archive_write_pax_data(struct archive_write *a, const void *buff, size_t s)
 			continue;
 		}
 
-		ret = (a->compressor.write)(a, p, ws);
+		ret = __archive_write_output(a, p, ws);
 		pax->sparse_list->remaining -= ws;
 		total += ws;
 		if (ret != ARCHIVE_OK)

@@ -48,6 +48,7 @@ struct ar_w {
 	uint64_t	 entry_padding;
 	int		 is_strtab;
 	int		 has_strtab;
+	char		 wrote_global_header;
 	char		*strtab;
 };
 
@@ -166,8 +167,10 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 	 * If we are now at the beginning of the archive,
 	 * we need first write the ar global header.
 	 */
-	if (a->archive.file_position == 0)
-		(a->compressor.write)(a, "!<arch>\n", 8);
+	if (!ar->wrote_global_header) {
+		__archive_write_output(a, "!<arch>\n", 8);
+		ar->wrote_global_header = 1;
+	}
 
 	memset(buff, ' ', 60);
 	strncpy(&buff[AR_fmag_offset], "`\n", 2);
@@ -330,7 +333,7 @@ size:
 		return (ARCHIVE_WARN);
 	}
 
-	ret = (a->compressor.write)(a, buff, 60);
+	ret = __archive_write_output(a, buff, 60);
 	if (ret != ARCHIVE_OK)
 		return (ret);
 
@@ -338,7 +341,7 @@ size:
 	ar->entry_padding = ar->entry_bytes_remaining % 2;
 
 	if (append_fn > 0) {
-		ret = (a->compressor.write)(a, filename, strlen(filename));
+		ret = __archive_write_output(a, filename, strlen(filename));
 		if (ret != ARCHIVE_OK)
 			return (ret);
 		ar->entry_bytes_remaining -= strlen(filename);
@@ -374,7 +377,7 @@ archive_write_ar_data(struct archive_write *a, const void *buff, size_t s)
 		ar->has_strtab = 1;
 	}
 
-	ret = (a->compressor.write)(a, buff, s);
+	ret = __archive_write_output(a, buff, s);
 	if (ret != ARCHIVE_OK)
 		return (ret);
 
@@ -405,14 +408,17 @@ archive_write_ar_destroy(struct archive_write *a)
 static int
 archive_write_ar_finish(struct archive_write *a)
 {
+	struct ar_w *ar;
 	int ret;
 
 	/*
 	 * If we haven't written anything yet, we need to write
 	 * the ar global header now to make it a valid ar archive.
 	 */
-	if (a->archive.file_position == 0) {
-		ret = (a->compressor.write)(a, "!<arch>\n", 8);
+	ar = (struct ar_w *)a->format_data;
+	if (!ar->wrote_global_header) {
+		ar->wrote_global_header = 1;
+		ret = __archive_write_output(a, "!<arch>\n", 8);
 		return (ret);
 	}
 
@@ -444,7 +450,7 @@ archive_write_ar_finish_entry(struct archive_write *a)
 		return (ARCHIVE_WARN);
 	}
 
-	ret = (a->compressor.write)(a, "\n", 1);
+	ret = __archive_write_output(a, "\n", 1);
 	return (ret);
 }
 

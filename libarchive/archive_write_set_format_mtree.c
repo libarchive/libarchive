@@ -821,7 +821,7 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 	archive_entry_free(entry);
 
 	if (mtree->buf.length > 32768) {
-		ret = (a->compressor.write)(a, mtree->buf.s, mtree->buf.length);
+		ret = __archive_write_output(a, mtree->buf.s, mtree->buf.length);
 		archive_string_empty(&mtree->buf);
 	} else
 		ret = ARCHIVE_OK;
@@ -836,7 +836,7 @@ archive_write_mtree_finish(struct archive_write *a)
 
 	archive_write_set_bytes_in_last_block(&a->archive, 1);
 
-	return (a->compressor.write)(a, mtree->buf.s, mtree->buf.length);
+	return __archive_write_output(a, mtree->buf.s, mtree->buf.length);
 }
 
 static ssize_t

@@ -353,7 +353,7 @@ archive_write_shar_data_sed(struct archive_write *a, const void *buff, size_t n)
 		__archive_errx(1, "Out of memory");
 
 	if (shar->work.length > ensured) {
-		ret = (*a->compressor.write)(a, shar->work.s,
+		ret = __archive_write_output(a, shar->work.s,
 		    shar->work.length);
 		if (ret != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
@@ -377,7 +377,7 @@ archive_write_shar_data_sed(struct archive_write *a, const void *buff, size_t n)
 
 		if (buf >= buf_end) {
 			shar->work.length = buf - shar->work.s;
-			ret = (*a->compressor.write)(a, shar->work.s,
+			ret = __archive_write_output(a, shar->work.s,
 			    shar->work.length);
 			if (ret != ARCHIVE_OK)
 				return (ARCHIVE_FATAL);
@@ -478,7 +478,7 @@ archive_write_shar_data_uuencode(struct archive_write *a, const void *buff,
 
 		if (shar->work.length < 65536)
 			continue;
-		ret = (*a->compressor.write)(a, shar->work.s,
+		ret = __archive_write_output(a, shar->work.s,
 		    shar->work.length);
 		if (ret != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
@@ -561,7 +561,7 @@ archive_write_shar_finish_entry(struct archive_write *a)
 	if (shar->work.length < 65536)
 		return (ARCHIVE_OK);
 
-	ret = (*a->compressor.write)(a, shar->work.s, shar->work.length);
+	ret = __archive_write_output(a, shar->work.s, shar->work.length);
 	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 	archive_string_empty(&shar->work);
@@ -593,7 +593,7 @@ archive_write_shar_finish(struct archive_write *a)
 
 	archive_strcat(&shar->work, "exit\n");
 
-	ret = (*a->compressor.write)(a, shar->work.s, shar->work.length);
+	ret = __archive_write_output(a, shar->work.s, shar->work.length);
 	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 

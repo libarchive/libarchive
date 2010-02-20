@@ -42,13 +42,18 @@ struct archive_read_filter;
 
 /*
  * How bidding works for filters:
- *   * The bid manager reads the first block from the current source.
- *   * It shows that block to each registered bidder.
+ *   * The bid manager initializes the client-provided reader as the
+ *     first filter.
+ *   * It invokes the bidder for each registered filter with the
+ *     current head filter.
+ *   * The bidders can use archive_read_filter_ahead() to peek ahead
+ *     at the incoming data to compose their bids.
  *   * The bid manager creates a new filter structure for the winning
  *     bidder and gives the winning bidder a chance to initialize it.
- *   * The new filter becomes the top filter in the archive_read structure
- *     and we repeat the process.
- * This ends only when no bidder provides a non-zero bid.
+ *   * The new filter becomes the new top filter and we repeat the
+ *     process.
+ * This ends only when no bidder provides a non-zero bid.  Then
+ * we perform a similar dance with the registered format handlers.
  */
 struct archive_read_filter_bidder {
 	/* Configuration data for the bidder. */
@@ -71,6 +76,7 @@ struct archive_read_filter_bidder {
  * corresponding bidder above.
  */
 struct archive_read_filter {
+	int64_t bytes_consumed;
 	/* Essentially all filters will need these values, so
 	 * just declare them here. */
 	struct archive_read_filter_bidder *bidder; /* My bidder. */

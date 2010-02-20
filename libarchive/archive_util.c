@@ -128,13 +128,13 @@ archive_format_name(struct archive *a)
 int
 archive_compression(struct archive *a)
 {
-	return (a->compression_code);
+	return archive_filter_code(a, 0);
 }
 
 const char *
 archive_compression_name(struct archive *a)
 {
-	return (a->compression_name);
+	return archive_filter_name(a, 0);
 }
 
 
@@ -144,7 +144,7 @@ archive_compression_name(struct archive *a)
 int64_t
 archive_position_compressed(struct archive *a)
 {
-	return (a->raw_position);
+	return archive_filter_bytes(a, -1);
 }
 
 /*
@@ -153,7 +153,7 @@ archive_position_compressed(struct archive *a)
 int64_t
 archive_position_uncompressed(struct archive *a)
 {
-	return (a->file_position);
+	return archive_filter_bytes(a, 0);
 }
 
 void

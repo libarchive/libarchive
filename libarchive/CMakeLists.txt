@@ -72,12 +72,12 @@ SET(libarchive_SOURCES
   archive_write_open_file.c
   archive_write_open_filename.c
   archive_write_open_memory.c
-  archive_write_set_compression_bzip2.c
-  archive_write_set_compression_compress.c
-  archive_write_set_compression_gzip.c
-  archive_write_set_compression_none.c
-  archive_write_set_compression_program.c
-  archive_write_set_compression_xz.c
+  archive_write_add_filter_bzip2.c
+  archive_write_add_filter_compress.c
+  archive_write_add_filter_gzip.c
+  archive_write_add_filter_none.c
+  archive_write_add_filter_program.c
+  archive_write_add_filter_xz.c
   archive_write_set_format.c
   archive_write_set_format_ar.c
   archive_write_set_format_by_name.c

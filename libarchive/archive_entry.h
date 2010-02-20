@@ -28,6 +28,11 @@
 #ifndef ARCHIVE_ENTRY_H_INCLUDED
 #define	ARCHIVE_ENTRY_H_INCLUDED
 
+/* Needed if archive_entry.h is used without archive.h */
+#ifndef ARCHIVE_VERSION_NUMBER
+#define	ARCHIVE_VERSION_NUMBER 3000000
+#endif
+
 /*
  * Note: archive_entry.h is for use outside of libarchive; the
  * configuration headers (config.h, archive_platform.h, etc.) are
@@ -272,11 +277,10 @@ __LA_DECL void	archive_entry_set_hardlink(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_hardlink(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_hardlink_w(struct archive_entry *, const wchar_t *);
 __LA_DECL int	archive_entry_update_hardlink_utf8(struct archive_entry *, const char *);
-#if ARCHIVE_VERSION_NUMBER >= 3000000
-/* Starting with libarchive 3.0, this will be synonym for ino64. */
-__LA_DECL void	archive_entry_set_ino(struct archive_entry *, __LA_INT64_T);
-#else
+#if ARCHIVE_VERSION_NUMBER < 3000000
 __LA_DECL void	archive_entry_set_ino(struct archive_entry *, unsigned long);
+#else
+__LA_DECL void	archive_entry_set_ino(struct archive_entry *, __LA_INT64_T);
 #endif
 __LA_DECL void	archive_entry_set_ino64(struct archive_entry *, __LA_INT64_T);
 __LA_DECL void	archive_entry_set_link(struct archive_entry *, const char *);

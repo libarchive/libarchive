@@ -31,6 +31,30 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_virtual.c 201098 2009-12-28 02:5
 #include "archive_private.h"
 
 int
+archive_filter_code(struct archive *a, int n)
+{
+	return ((a->vtable->archive_filter_code)(a, n));
+}
+
+int
+archive_filter_count(struct archive *a)
+{
+	return ((a->vtable->archive_filter_count)(a));
+}
+
+const char *
+archive_filter_name(struct archive *a, int n)
+{
+	return ((a->vtable->archive_filter_name)(a, n));
+}
+
+int64_t
+archive_filter_bytes(struct archive *a, int n)
+{
+	return ((a->vtable->archive_filter_bytes)(a, n));
+}
+
+int
 archive_write_close(struct archive *a)
 {
 	return ((a->vtable->archive_close)(a));

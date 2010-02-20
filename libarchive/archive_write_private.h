@@ -36,6 +36,36 @@
 #include "archive_string.h"
 #include "archive_private.h"
 
+struct archive_write;
+
+struct archive_write_filter {
+	int64_t bytes_written;
+	struct archive *archive; /* Associated archive. */
+	struct archive_write_filter *next_filter; /* Who I write to. */
+	int	(*options)(struct archive_write_filter *,
+	    const char *key, const char *value);
+	int	(*open)(struct archive_write_filter *);
+	int	(*write)(struct archive_write_filter *, const void *, size_t);
+	int	(*close)(struct archive_write_filter *);
+	int	(*free)(struct archive_write_filter *);
+	void	 *data;
+	const char *name;
+	int	  code;
+	int	  bytes_per_block;
+	int	  bytes_in_last_block;
+};
+
+#if ARCHIVE_VERSION < 4000000
+void __archive_write_filters_free(struct archive *);
+#endif
+
+struct archive_write_filter *__archive_write_allocate_filter(struct archive *);
+
+int __archive_write_output(struct archive_write *, const void *, size_t);
+int __archive_write_filter(struct archive_write_filter *, const void *, size_t);
+int __archive_write_open_filter(struct archive_write_filter *);
+int __archive_write_close_filter(struct archive_write_filter *);
+
 struct archive_write {
 	struct archive	archive;
 
@@ -71,21 +101,12 @@ struct archive_write {
 	 * effect on compression "none."
 	 */
 	int		  pad_uncompressed;
-	int		  pad_uncompressed_byte; /* TODO: Support this. */
 
 	/*
-	 * On write, the client just invokes an archive_write_set function
-	 * which sets up the data here directly.
+	 * First and last write filters in the pipeline.
 	 */
-	struct {
-		void	 *data;
-		void	 *config;
-		int	(*init)(struct archive_write *);
-		int	(*options)(struct archive_write *,
-			    const char *key, const char *value);
-		int	(*finish)(struct archive_write *);
-		int	(*write)(struct archive_write *, const void *, size_t);
-	} compressor;
+	struct archive_write_filter *filter_first;
+	struct archive_write_filter *filter_last;
 
 	/*
 	 * Pointers to format-specific functions for writing.  They're

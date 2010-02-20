@@ -51,7 +51,6 @@
 #define	ARCHIVE_STATE_NEW	1U
 #define	ARCHIVE_STATE_HEADER	2U
 #define	ARCHIVE_STATE_DATA	4U
-#define	ARCHIVE_STATE_DATA_END	8U
 #define	ARCHIVE_STATE_EOF	0x10U
 #define	ARCHIVE_STATE_CLOSED	0x20U
 #define	ARCHIVE_STATE_FATAL	0x8000U
@@ -66,6 +65,11 @@ struct archive_vtable {
 	    const void *, size_t);
 	ssize_t	(*archive_write_data_block)(struct archive *,
 	    const void *, size_t, off_t);
+
+	int	(*archive_filter_count)(struct archive *);
+	int64_t (*archive_filter_bytes)(struct archive *, int);
+	int	(*archive_filter_code)(struct archive *, int);
+	const char * (*archive_filter_name)(struct archive *, int);
 };
 
 struct archive {
@@ -90,10 +94,6 @@ struct archive {
 	int	  compression_code;	/* Currently active compression. */
 	const char *compression_name;
 
-	/* Position in UNCOMPRESSED data stream. */
-	int64_t		  file_position;
-	/* Position in COMPRESSED data stream. */
-	int64_t		  raw_position;
 	/* Number of file entries processed. */
 	int		  file_count;
 

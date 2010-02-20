@@ -192,11 +192,13 @@ struct archive_write_disk {
 	/* Handle for the file we're restoring. */
 	int			 fd;
 	/* Current offset for writing data to the file. */
-	off_t			 offset;
+	int64_t			 offset;
 	/* Last offset actually written to disk. */
-	off_t			 fd_offset;
+	int64_t			 fd_offset;
+	/* Total bytes actually written to files. */
+	int64_t			 total_bytes_written;
 	/* Maximum size of file, -1 if unknown. */
-	off_t			 filesize;
+	int64_t			 filesize;
 	/* Dir we were in before this restore; only for deep paths. */
 	int			 restore_pwd;
 	/* Mode we should use for this entry; affected by _PERM and umask. */
@@ -254,15 +256,16 @@ static ssize_t	write_data_block(struct archive_write_disk *,
 
 static struct archive_vtable *archive_write_disk_vtable(void);
 
-static int	_archive_write_close(struct archive *);
-static int	_archive_write_free(struct archive *);
-static int	_archive_write_header(struct archive *, struct archive_entry *);
-static int	_archive_write_finish_entry(struct archive *);
-static ssize_t	_archive_write_data(struct archive *, const void *, size_t);
-static ssize_t	_archive_write_data_block(struct archive *, const void *, size_t, off_t);
+static int	_archive_write_disk_close(struct archive *);
+static int	_archive_write_disk_free(struct archive *);
+static int	_archive_write_disk_header(struct archive *, struct archive_entry *);
+static int64_t	_archive_write_disk_filter_bytes(struct archive *, int);
+static int	_archive_write_disk_finish_entry(struct archive *);
+static ssize_t	_archive_write_disk_data(struct archive *, const void *, size_t);
+static ssize_t	_archive_write_disk_data_block(struct archive *, const void *, size_t, off_t);
 
 static int
-_archive_write_disk_lazy_stat(struct archive_write_disk *a)
+lazy_stat(struct archive_write_disk *a)
 {
 	if (a->pst != NULL) {
 		/* Already have stat() data available. */
@@ -293,14 +296,27 @@ archive_write_disk_vtable(void)
 	static int inited = 0;
 
 	if (!inited) {
-		av.archive_close = _archive_write_close;
-		av.archive_free = _archive_write_free;
-		av.archive_write_header = _archive_write_header;
-		av.archive_write_finish_entry = _archive_write_finish_entry;
-		av.archive_write_data = _archive_write_data;
-		av.archive_write_data_block = _archive_write_data_block;
+		av.archive_close = _archive_write_disk_close;
+		av.archive_filter_bytes = _archive_write_disk_filter_bytes;
+		av.archive_free = _archive_write_disk_free;
+		av.archive_write_header = _archive_write_disk_header;
+		av.archive_write_finish_entry
+		    = _archive_write_disk_finish_entry;
+		av.archive_write_data = _archive_write_disk_data;
+		av.archive_write_data_block = _archive_write_disk_data_block;
 	}
 	return (&av);
+}
+
+static int64_t
+_archive_write_disk_filter_bytes(struct archive *_a, int n)
+{
+	(void)n; /* UNUSED */
+	struct archive_write_disk *a = (struct archive_write_disk *)_a;
+//	fprintf(stderr, "archive_write_disk_filter_bytes(%d)=%d\n", n, (int)a->fd_offset);
+	if (n == -1 || n == 0)
+		return (a->total_bytes_written);
+	return (-1);
 }
 
 
@@ -326,7 +342,7 @@ archive_write_disk_set_options(struct archive *_a, int flags)
  *
  */
 static int
-_archive_write_header(struct archive *_a, struct archive_entry *entry)
+_archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	struct fixup_entry *fe;
@@ -337,7 +353,7 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 	    "archive_write_disk_header");
 	archive_clear_error(&a->archive);
 	if (a->archive.state & ARCHIVE_STATE_DATA) {
-		r = _archive_write_finish_entry(&a->archive);
+		r = _archive_write_disk_finish_entry(&a->archive);
 		if (r == ARCHIVE_FATAL)
 			return (r);
 	}
@@ -591,7 +607,7 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 	if (a->flags & ARCHIVE_EXTRACT_SPARSE) {
 #if HAVE_STRUCT_STAT_ST_BLKSIZE
 		int r;
-		if ((r = _archive_write_disk_lazy_stat(a)) != ARCHIVE_OK)
+		if ((r = lazy_stat(a)) != ARCHIVE_OK)
 			return (r);
 		block_size = a->pst->st_blksize;
 #else
@@ -602,7 +618,7 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 	}
 
 	/* If this write would run beyond the file size, truncate it. */
-	if (a->filesize >= 0 && (off_t)(a->offset + size) > a->filesize)
+	if (a->filesize >= 0 && (int64_t)(a->offset + size) > a->filesize)
 		start_size = size = (size_t)(a->filesize - a->offset);
 
 	/* Write the data. */
@@ -612,7 +628,7 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 		} else {
 			/* We're sparsifying the file. */
 			const char *p, *end;
-			off_t block_end;
+			int64_t block_end;
 
 			/* Skip leading zero bytes. */
 			for (p = buff, end = buff + size; p < end; ++p) {
@@ -643,8 +659,6 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 				return (ARCHIVE_FATAL);
 			}
 			a->fd_offset = a->offset;
-			a->archive.file_position = a->offset;
-			a->archive.raw_position = a->offset;
  		}
 		bytes_written = write(a->fd, buff, bytes_to_write);
 		if (bytes_written < 0) {
@@ -653,23 +667,22 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 		}
 		buff += bytes_written;
 		size -= bytes_written;
+		a->total_bytes_written += bytes_written;
 		a->offset += bytes_written;
-		a->archive.file_position += bytes_written;
-		a->archive.raw_position += bytes_written;
 		a->fd_offset = a->offset;
 	}
 	return (start_size - size);
 }
 
 static ssize_t
-_archive_write_data_block(struct archive *_a,
+_archive_write_disk_data_block(struct archive *_a,
     const void *buff, size_t size, off_t offset)
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	ssize_t r;
 
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
-	    ARCHIVE_STATE_DATA, "archive_write_disk_block");
+	    ARCHIVE_STATE_DATA, "archive_write_data_block");
 
 	a->offset = offset;
 	r = write_data_block(a, buff, size);
@@ -684,7 +697,7 @@ _archive_write_data_block(struct archive *_a,
 }
 
 static ssize_t
-_archive_write_data(struct archive *_a, const void *buff, size_t size)
+_archive_write_disk_data(struct archive *_a, const void *buff, size_t size)
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 
@@ -695,7 +708,7 @@ _archive_write_data(struct archive *_a, const void *buff, size_t size)
 }
 
 static int
-_archive_write_finish_entry(struct archive *_a)
+_archive_write_disk_finish_entry(struct archive *_a)
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	int ret = ARCHIVE_OK;
@@ -730,7 +743,7 @@ _archive_write_finish_entry(struct archive *_a)
 		 * to see what happened.
 		 */
 		a->pst = NULL;
-		if ((ret = _archive_write_disk_lazy_stat(a)) != ARCHIVE_OK)
+		if ((ret = lazy_stat(a)) != ARCHIVE_OK)
 			return (ret);
 		/* We can use lseek()/write() to extend the file if
 		 * ftruncate didn't work or isn't available. */
@@ -1257,7 +1270,7 @@ create_filesystem_object(struct archive_write_disk *a)
  * reason we set directory perms here. XXX
  */
 static int
-_archive_write_close(struct archive *_a)
+_archive_write_disk_close(struct archive *_a)
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	struct fixup_entry *next, *p;
@@ -1266,7 +1279,7 @@ _archive_write_close(struct archive *_a)
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
 	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
 	    "archive_write_disk_close");
-	ret = _archive_write_finish_entry(&a->archive);
+	ret = _archive_write_disk_finish_entry(&a->archive);
 
 	/* Sort dir list so directories are fixed up in depth-first order. */
 	p = sort_dir_list(a->fixup_list);
@@ -1325,11 +1338,11 @@ _archive_write_close(struct archive *_a)
 }
 
 static int
-_archive_write_free(struct archive *_a)
+_archive_write_disk_free(struct archive *_a)
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	int ret;
-	ret = _archive_write_close(&a->archive);
+	ret = _archive_write_disk_close(&a->archive);
 	if (a->cleanup_gid != NULL && a->lookup_gid_data != NULL)
 		(a->cleanup_gid)(a->lookup_gid_data);
 	if (a->cleanup_uid != NULL && a->lookup_uid_data != NULL)
@@ -2031,7 +2044,7 @@ set_mode(struct archive_write_disk *a, int mode)
 		 * process, since systems sometimes set GID from
 		 * the enclosing dir or based on ACLs.
 		 */
-		if ((r = _archive_write_disk_lazy_stat(a)) != ARCHIVE_OK)
+		if ((r = lazy_stat(a)) != ARCHIVE_OK)
 			return (r);
 		if (a->pst->st_gid != a->gid) {
 			mode &= ~ S_ISGID;
@@ -2216,7 +2229,7 @@ set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
 	 * about the correct approach if we're overwriting an existing
 	 * file that already has flags on it. XXX
 	 */
-	if ((r = _archive_write_disk_lazy_stat(a)) != ARCHIVE_OK)
+	if ((r = lazy_stat(a)) != ARCHIVE_OK)
 		return (r);
 
 	a->st.st_flags &= ~clear;

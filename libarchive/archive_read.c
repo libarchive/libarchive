@@ -57,8 +57,12 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read.c 201157 2009-12-29 05:30:2
 
 static int	build_stream(struct archive_read *);
 static int	choose_format(struct archive_read *);
-static int	cleanup_filters(struct archive_read *);
+static void	free_filters(struct archive_read *);
+static int	close_filters(struct archive_read *);
 static struct archive_vtable *archive_read_vtable(void);
+static int64_t	_archive_filter_bytes(struct archive *, int);
+static int	_archive_filter_code(struct archive *, int);
+static const char *_archive_filter_name(struct archive *, int);
 static int	_archive_read_close(struct archive *);
 static int	_archive_read_free(struct archive *);
 
@@ -69,6 +73,9 @@ archive_read_vtable(void)
 	static int inited = 0;
 
 	if (!inited) {
+		av.archive_filter_bytes = _archive_filter_bytes;
+		av.archive_filter_code = _archive_filter_code;
+		av.archive_filter_name = _archive_filter_name;
 		av.archive_free = _archive_read_free;
 		av.archive_close = _archive_read_close;
 	}
@@ -245,7 +252,6 @@ client_read_proxy(struct archive_read_filter *self, const void **buff)
 	ssize_t r;
 	r = (self->archive->client.reader)(&self->archive->archive,
 	    self->data, buff);
-	self->archive->archive.raw_position += r;
 	return (r);
 }
 
@@ -269,7 +275,6 @@ client_skip_proxy(struct archive_read_filter *self, int64_t request)
 		if (get == 0)
 			return (total);
 		request -= get;
-		self->archive->archive.raw_position += get;
 		total += get;
 	}
 }
@@ -398,7 +403,8 @@ build_stream(struct archive_read *a)
 		/* Verify the filter by asking it for some data. */
 		__archive_read_filter_ahead(filter, 1, &avail);
 		if (avail < 0) {
-			cleanup_filters(a);
+			close_filters(a);
+			free_filters(a);
 			return (ARCHIVE_FATAL);
 		}
 	}
@@ -448,8 +454,8 @@ archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 			return (ret);
 	}
 
-	/* Record start-of-header. */
-	a->header_position = a->archive.file_position;
+	/* Record start-of-header offset in uncompressed stream. */
+	a->header_position = a->filter->bytes_consumed;
 
 	ret = (a->format->read_header)(a, entry);
 
@@ -712,67 +718,58 @@ archive_read_data_block(struct archive *_a,
 	return (a->format->read_data)(a, buff, size, offset);
 }
 
+static int
+close_filters(struct archive_read *a)
+{
+	struct archive_read_filter *f = a->filter;
+	int r = ARCHIVE_OK;
+	/* Close each filter in the pipeline. */
+	while (f != NULL) {
+		struct archive_read_filter *t = f->upstream;
+		if (f->close != NULL) {
+			int r1 = (f->close)(f);
+			if (r1 < r)
+				r = r1;
+		}
+		free(f->buffer);
+		f->buffer = NULL;
+		f = t;
+	}
+	return r;
+}
+
+static void
+free_filters(struct archive_read *a)
+{
+	while (a->filter != NULL) {
+		struct archive_read_filter *t = a->filter->upstream;
+		free(a->filter);
+		a->filter = t;
+	}
+}
+
 /*
- * Close the file and release most resources.
- *
- * Be careful: client might just call read_new and then read_finish.
- * Don't assume we actually read anything or performed any non-trivial
- * initialization.
+ * Close the file and all I/O.
  */
 static int
 _archive_read_close(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 	int r = ARCHIVE_OK, r1 = ARCHIVE_OK;
-	size_t i, n;
 
 	__archive_check_magic(&a->archive, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_ANY, "archive_read_close");
 	archive_clear_error(&a->archive);
 	a->archive.state = ARCHIVE_STATE_CLOSED;
 
-
-	/* Call cleanup functions registered by optional components. */
-	if (a->cleanup_archive_extract != NULL)
-		r = (a->cleanup_archive_extract)(a);
-
 	/* TODO: Clean up the formatters. */
 
 	/* Release the filter objects. */
-	r1 = cleanup_filters(a);
+	r1 = close_filters(a);
 	if (r1 < r)
 		r = r1;
 
-	/* Release the bidder objects. */
-	n = sizeof(a->bidders)/sizeof(a->bidders[0]);
-	for (i = 0; i < n; i++) {
-		if (a->bidders[i].free != NULL) {
-			r1 = (a->bidders[i].free)(&a->bidders[i]);
-			if (r1 < r)
-				r = r1;
-		}
-	}
-
 	return (r);
-}
-
-static int
-cleanup_filters(struct archive_read *a)
-{
-	int r = ARCHIVE_OK;
-	/* Clean up the filter pipeline. */
-	while (a->filter != NULL) {
-		struct archive_read_filter *t = a->filter->upstream;
-		if (a->filter->close != NULL) {
-			int r1 = (a->filter->close)(a->filter);
-			if (r1 < r)
-				r = r1;
-		}
-		free(a->filter->buffer);
-		free(a->filter);
-		a->filter = t;
-	}
-	return r;
 }
 
 /*
@@ -782,7 +779,7 @@ static int
 _archive_read_free(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	int i;
+	int i, n;
 	int slots;
 	int r = ARCHIVE_OK;
 
@@ -790,6 +787,10 @@ _archive_read_free(struct archive *_a)
 	    "archive_read_free");
 	if (a->archive.state != ARCHIVE_STATE_CLOSED)
 		r = archive_read_close(&a->archive);
+
+	/* Call cleanup functions registered by optional components. */
+	if (a->cleanup_archive_extract != NULL)
+		r = (a->cleanup_archive_extract)(a);
 
 	/* Cleanup format-specific data. */
 	slots = sizeof(a->formats) / sizeof(a->formats[0]);
@@ -799,12 +800,61 @@ _archive_read_free(struct archive *_a)
 			(a->formats[i].cleanup)(a);
 	}
 
+	/* Free the filters */
+	free_filters(a);
+
+	/* Release the bidder objects. */
+	n = sizeof(a->bidders)/sizeof(a->bidders[0]);
+	for (i = 0; i < n; i++) {
+		if (a->bidders[i].free != NULL) {
+			int r1 = (a->bidders[i].free)(&a->bidders[i]);
+			if (r1 < r)
+				r = r1;
+		}
+	}
+
 	archive_string_free(&a->archive.error_string);
 	if (a->entry)
 		archive_entry_free(a->entry);
 	a->archive.magic = 0;
 	free(a);
 	return (r);
+}
+
+static struct archive_read_filter *
+get_filter(struct archive *_a, int n)
+{
+	struct archive_read *a = (struct archive_read *)_a;
+	struct archive_read_filter *f = a->filter;
+	/* XXX handle n == -1 */
+	if (n < 0)
+		return NULL;
+	while (n > 0 && f != NULL) {
+		f = f->upstream;
+		--n;
+	}
+	return (f);
+}
+
+static int
+_archive_filter_code(struct archive *_a, int n)
+{
+	struct archive_read_filter *f = get_filter(_a, n);
+	return f == NULL ? -1 : f->code;
+}
+
+static const char *
+_archive_filter_name(struct archive *_a, int n)
+{
+	struct archive_read_filter *f = get_filter(_a, n);
+	return f == NULL ? NULL : f->name;
+}
+
+static int64_t
+_archive_filter_bytes(struct archive *_a, int n)
+{
+	struct archive_read_filter *f = get_filter(_a, n);
+	return f == NULL ? -1 : f->bytes_consumed;
 }
 
 /*
@@ -1125,10 +1175,7 @@ __archive_read_filter_ahead(struct archive_read_filter *filter,
 ssize_t
 __archive_read_consume(struct archive_read *a, size_t request)
 {
-	ssize_t r;
-	r = __archive_read_filter_consume(a->filter, request);
-	a->archive.file_position += r;
-	return (r);
+	return (__archive_read_filter_consume(a->filter, request));
 }
 
 ssize_t
@@ -1144,6 +1191,7 @@ __archive_read_filter_consume(struct archive_read_filter * filter,
 		filter->client_next += request;
 		filter->client_avail -= request;
 	}
+	filter->bytes_consumed += request;
 	return (request);
 }
 
@@ -1173,10 +1221,7 @@ __archive_read_skip(struct archive_read *a, int64_t request)
 int64_t
 __archive_read_skip_lenient(struct archive_read *a, int64_t request)
 {
-	int64_t skipped = __archive_read_filter_skip(a->filter, request);
-	if (skipped > 0)
-		a->archive.file_position += skipped;
-	return (skipped);
+	return (__archive_read_filter_skip(a->filter, request));
 }
 
 int64_t
@@ -1204,6 +1249,7 @@ __archive_read_filter_skip(struct archive_read_filter *filter, int64_t request)
 	}
 	if (request == 0)
 		return (total_bytes_skipped);
+
 	/*
 	 * If a client_skipper was provided, try that first.
 	 */
@@ -1215,6 +1261,7 @@ __archive_read_filter_skip(struct archive_read_filter *filter, int64_t request)
 			filter->fatal = 1;
 			return (bytes_skipped);
 		}
+		filter->bytes_consumed += bytes_skipped;
 		total_bytes_skipped += bytes_skipped;
 		request -= bytes_skipped;
 		filter->client_next = filter->client_buff;

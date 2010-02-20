@@ -232,7 +232,7 @@ archive_write_ustar_header(struct archive_write *a, struct archive_entry *entry)
 	ret = __archive_write_format_header_ustar(a, buff, entry, -1, 1);
 	if (ret < ARCHIVE_WARN)
 		return (ret);
-	ret2 = (a->compressor.write)(a, buff, 512);
+	ret2 = __archive_write_output(a, buff, 512);
 	if (ret2 < ARCHIVE_WARN)
 		return (ret2);
 	if (ret2 < ret)
@@ -521,13 +521,7 @@ format_octal(int64_t v, char *p, int s)
 static int
 archive_write_ustar_finish(struct archive_write *a)
 {
-	int r;
-
-	if (a->compressor.write == NULL)
-		return (ARCHIVE_OK);
-
-	r = write_nulls(a, 512*2);
-	return (r);
+	return (write_nulls(a, 512*2));
 }
 
 static int
@@ -562,7 +556,7 @@ write_nulls(struct archive_write *a, size_t padding)
 
 	while (padding > 0) {
 		to_write = padding < a->null_length ? padding : a->null_length;
-		ret = (a->compressor.write)(a, a->nulls, to_write);
+		ret = __archive_write_output(a, a->nulls, to_write);
 		if (ret != ARCHIVE_OK)
 			return (ret);
 		padding -= to_write;
@@ -579,7 +573,7 @@ archive_write_ustar_data(struct archive_write *a, const void *buff, size_t s)
 	ustar = (struct ustar *)a->format_data;
 	if (s > ustar->entry_bytes_remaining)
 		s = ustar->entry_bytes_remaining;
-	ret = (a->compressor.write)(a, buff, s);
+	ret = __archive_write_output(a, buff, s);
 	ustar->entry_bytes_remaining -= s;
 	if (ret != ARCHIVE_OK)
 		return (ret);

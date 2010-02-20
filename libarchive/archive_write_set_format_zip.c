@@ -366,7 +366,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	archive_le32enc(&e.mtime, archive_entry_mtime(entry));
 	archive_le32enc(&e.atime, archive_entry_atime(entry));
 	archive_le32enc(&e.ctime, archive_entry_ctime(entry));
-	    
+
 	archive_le16enc(&e.unix_id, ZIP_SIGNATURE_EXTRA_UNIX);
 	archive_le16enc(&e.unix_size, sizeof(e.unix_uid) + sizeof(e.unix_gid));
 	archive_le16enc(&e.unix_uid, archive_entry_uid(entry));
@@ -374,7 +374,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 
 	archive_le32enc(&d->uncompressed_size, size);
 
-	ret = (a->compressor.write)(a, &h, sizeof(h));
+	ret = __archive_write_output(a, &h, sizeof(h));
 	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 	zip->written_bytes += sizeof(h);
@@ -384,7 +384,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		return (ARCHIVE_FATAL);
 	zip->written_bytes += ret;
 
-	ret = (a->compressor.write)(a, &e, sizeof(e));
+	ret = __archive_write_output(a, &e, sizeof(e));
 	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 	zip->written_bytes += sizeof(e);
@@ -406,7 +406,7 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 
 	switch (zip->compression) {
 	case COMPRESSION_STORE:
-		ret = (a->compressor.write)(a, buff, s);
+		ret = __archive_write_output(a, buff, s);
 		if (ret != ARCHIVE_OK) return (ret);
 		zip->written_bytes += s;
 		zip->remaining_data_bytes -= s;
@@ -422,7 +422,7 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 			if (ret == Z_STREAM_ERROR)
 				return (ARCHIVE_FATAL);
 			if (zip->stream.avail_out == 0) {
-				ret = (a->compressor.write)(a, zip->buf, zip->len_buf);
+				ret = __archive_write_output(a, zip->buf, zip->len_buf);
 				if (ret != ARCHIVE_OK)
 					return (ret);
 				l->compressed_size += zip->len_buf;
@@ -466,7 +466,7 @@ archive_write_zip_finish_entry(struct archive_write *a)
 			if (ret == Z_STREAM_ERROR)
 				return (ARCHIVE_FATAL);
 			reminder = zip->len_buf - zip->stream.avail_out;
-			ret = (a->compressor.write)(a, zip->buf, reminder);
+			ret = __archive_write_output(a, zip->buf, reminder);
 			if (ret != ARCHIVE_OK)
 				return (ret);
 			l->compressed_size += reminder;
@@ -483,7 +483,7 @@ archive_write_zip_finish_entry(struct archive_write *a)
 
 	archive_le32enc(&d->crc32, l->crc32);
 	archive_le32enc(&d->compressed_size, l->compressed_size);
-	ret = (a->compressor.write)(a, d, sizeof(*d));
+	ret = __archive_write_output(a, d, sizeof(*d));
 	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 	zip->written_bytes += sizeof(*d);
@@ -543,7 +543,7 @@ archive_write_zip_finish(struct archive_write *a)
 		archive_le16enc(&e.unix_id, ZIP_SIGNATURE_EXTRA_UNIX);
 		archive_le16enc(&e.unix_size, 0x0000);
 
-		ret = (a->compressor.write)(a, &h, sizeof(h));
+		ret = __archive_write_output(a, &h, sizeof(h));
 		if (ret != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
 		zip->written_bytes += sizeof(h);
@@ -553,7 +553,7 @@ archive_write_zip_finish(struct archive_write *a)
 			return (ARCHIVE_FATAL);
 		zip->written_bytes += ret;
 
-		ret = (a->compressor.write)(a, &e, sizeof(e));
+		ret = __archive_write_output(a, &e, sizeof(e));
 		if (ret != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
 		zip->written_bytes += sizeof(e);
@@ -572,7 +572,7 @@ archive_write_zip_finish(struct archive_write *a)
 	archive_le32enc(&end.offset, offset_start);
 
 	/* Writing end of central directory. */
-	ret = (a->compressor.write)(a, &end, sizeof(end));
+	ret = __archive_write_output(a, &end, sizeof(end));
 	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 	zip->written_bytes += sizeof(end);
@@ -650,14 +650,14 @@ write_path(struct archive_entry *entry, struct archive_write *archive)
 	type = archive_entry_filetype(entry);
 	written_bytes = 0;
 
-	ret = (archive->compressor.write)(archive, path, strlen(path));
+	ret = __archive_write_output(archive, path, strlen(path));
 	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 	written_bytes += strlen(path);
 
 	/* Folders are recognized by a traling slash. */
 	if ((type == AE_IFDIR) & (path[strlen(path) - 1] != '/')) {
-		ret = (archive->compressor.write)(archive, "/", 1);
+		ret = __archive_write_output(archive, "/", 1);
 		if (ret != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
 		written_bytes += 1;

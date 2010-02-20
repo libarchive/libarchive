@@ -170,17 +170,17 @@ archive_write_newc_header(struct archive_write *a, struct archive_entry *entry)
 		format_hex(archive_entry_size(entry),
 		    &h.c_filesize, sizeof(h.c_filesize));
 
-	ret = (a->compressor.write)(a, &h, sizeof(h));
+	ret = __archive_write_output(a, &h, sizeof(h));
 	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
 	/* Pad pathname to even length. */
-	ret = (a->compressor.write)(a, path, pathlength);
+	ret = __archive_write_output(a, path, pathlength);
 	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 	pad = PAD4(pathlength + sizeof(struct cpio_header_newc));
 	if (pad)
-		ret = (a->compressor.write)(a, "\0\0\0", pad);
+		ret = __archive_write_output(a, "\0\0\0", pad);
 	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
@@ -189,11 +189,11 @@ archive_write_newc_header(struct archive_write *a, struct archive_entry *entry)
 
 	/* Write the symlink now. */
 	if (p != NULL  &&  *p != '\0') {
-		ret = (a->compressor.write)(a, p, strlen(p));
+		ret = __archive_write_output(a, p, strlen(p));
 		if (ret != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
 		pad = PAD4(strlen(p));
-		ret = (a->compressor.write)(a, "\0\0\0", pad);
+		ret = __archive_write_output(a, "\0\0\0", pad);
 	}
 
 	if (ret == ARCHIVE_OK)
@@ -211,7 +211,7 @@ archive_write_newc_data(struct archive_write *a, const void *buff, size_t s)
 	if (s > cpio->entry_bytes_remaining)
 		s = cpio->entry_bytes_remaining;
 
-	ret = (a->compressor.write)(a, buff, s);
+	ret = __archive_write_output(a, buff, s);
 	cpio->entry_bytes_remaining -= s;
 	if (ret >= 0)
 		return (s);
@@ -285,11 +285,11 @@ archive_write_newc_finish_entry(struct archive_write *a)
 	while (cpio->entry_bytes_remaining > 0) {
 		to_write = cpio->entry_bytes_remaining < a->null_length ?
 		    cpio->entry_bytes_remaining : a->null_length;
-		ret = (a->compressor.write)(a, a->nulls, to_write);
+		ret = __archive_write_output(a, a->nulls, to_write);
 		if (ret != ARCHIVE_OK)
 			return (ret);
 		cpio->entry_bytes_remaining -= to_write;
 	}
-	ret = (a->compressor.write)(a, a->nulls, cpio->padding);
+	ret = __archive_write_output(a, a->nulls, cpio->padding);
 	return (ret);
 }

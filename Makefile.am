@@ -151,12 +151,12 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_write_open_filename.c		\
 	libarchive/archive_write_open_memory.c			\
 	libarchive/archive_write_private.h			\
-	libarchive/archive_write_set_compression_bzip2.c	\
-	libarchive/archive_write_set_compression_compress.c	\
-	libarchive/archive_write_set_compression_gzip.c		\
-	libarchive/archive_write_set_compression_none.c		\
-	libarchive/archive_write_set_compression_program.c	\
-	libarchive/archive_write_set_compression_xz.c		\
+	libarchive/archive_write_add_filter_bzip2.c	\
+	libarchive/archive_write_add_filter_compress.c	\
+	libarchive/archive_write_add_filter_gzip.c		\
+	libarchive/archive_write_add_filter_none.c		\
+	libarchive/archive_write_add_filter_program.c	\
+	libarchive/archive_write_add_filter_xz.c		\
 	libarchive/archive_write_set_format.c			\
 	libarchive/archive_write_set_format_ar.c		\
 	libarchive/archive_write_set_format_by_name.c		\
