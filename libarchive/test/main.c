@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/test/main.c 201247 2009-12-30 05:59:21Z 
 #define	LIBRARY	"libarchive"
 #define	EXTRA_ERRNO(x)	archive_errno((struct archive *)(x))
 #define	EXTRA_DUMP(x)	archive_error_string((struct archive *)(x))
-#define	EXTRA_VERSION	archive_version()
+#define	EXTRA_VERSION	archive_version_string()
 
 /*
  *
