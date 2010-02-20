@@ -249,8 +249,7 @@ __LA_DECL const wchar_t	*archive_entry_uname_w(struct archive_entry *);
 __LA_DECL void	archive_entry_set_atime(struct archive_entry *, time_t, long);
 __LA_DECL void  archive_entry_unset_atime(struct archive_entry *);
 #if defined(_WIN32) && !defined(__CYGWIN__)
-__LA_DECL void archive_entry_copy_bhfi(struct archive_entry *,
-									   BY_HANDLE_FILE_INFORMATION *);
+__LA_DECL void archive_entry_copy_bhfi(struct archive_entry *, BY_HANDLE_FILE_INFORMATION *);
 #endif
 __LA_DECL void	archive_entry_set_birthtime(struct archive_entry *, time_t, long);
 __LA_DECL void  archive_entry_unset_birthtime(struct archive_entry *);
