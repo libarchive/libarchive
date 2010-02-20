@@ -331,7 +331,6 @@ __archive_write_filter(struct archive_write_filter *f,
 	int r;
 	r = (f->write)(f, buff, length);
 	f->bytes_written += length;
-//	fprintf(stdout, "__archive_write_filter(%s, %d) = %d\n", f->name, (int)length, r);
 	return (r);
 }
 
@@ -360,7 +359,6 @@ __archive_write_close_filter(struct archive_write_filter *f)
 int
 __archive_write_output(struct archive_write *a, const void *buff, size_t length)
 {
-//	fprintf(stdout, "__archive_write_output(%d)\n", (int)length);
 	return (__archive_write_filter(a->filter_first, buff, length));
 }
 
@@ -383,7 +381,6 @@ archive_write_client_write(struct archive_write_filter *f,
 	while (length > 0) {
 		ssize_t written
 		    = (a->client_writer(f->archive, f->data, buff, length));
-//		fprintf(stdout, "__archive_write_client_write(%d): written=%d\n", (int)length, (int)written);
 		if (written < 0)
 			return ((int)written);
 		if (written == 0)
