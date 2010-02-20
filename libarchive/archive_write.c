@@ -184,6 +184,7 @@ archive_write_set_compressor_options(struct archive *_a, const char *s)
 
 	if (s == NULL || *s == '\0')
 		return (ARCHIVE_OK);
+	len = 0;
 	for (filter = a->filter_first; filter != NULL; filter = filter->next_filter) {
 		if (filter->options == NULL)
 			/* This filter does not have any options */
