@@ -47,6 +47,17 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_open_filename.c 201093 2009
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+#include <sys/ioctl.h>
+#include <sys/disk.h>
+#elif defined(__NetBSD__) || defined(__OpenBSD__)
+#include <sys/ioctl.h>
+#include <sys/disklabel.h>
+#include <sys/dkio.h>
+#elif defined(__DragonFly__)
+#include <sys/ioctl.h>
+#include <sys/diskslice.h>
+#endif
 
 #include "archive.h"
 
@@ -82,6 +93,13 @@ archive_read_open_filename(struct archive *a, const char *filename,
 	struct read_file_data *mine;
 	void *b;
 	int fd;
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+	off_t mediasize = 0;
+#elif defined(__NetBSD__) || defined(__OpenBSD__)
+	struct disklabel dl;
+#elif defined(__DragonFly__)
+	struct partinfo pi;
+#endif
 
 	archive_clear_error(a);
 	if (filename == NULL || filename[0] == '\0') {
@@ -132,19 +150,58 @@ archive_read_open_filename(struct archive *a, const char *filename,
 		archive_read_extract_set_skip_file(a, st.st_dev, st.st_ino);
 		/*
 		 * Enabling skip here is a performance optimization
-		 * for anything that supports lseek().  On FreeBSD
-		 * (and probably many other systems), only regular
-		 * files and raw disk devices support lseek() (on
-		 * other input types, lseek() returns success but
-		 * doesn't actually change the file pointer, which
-		 * just completely screws up the position-tracking
-		 * logic).  In addition, I've yet to find a portable
-		 * way to determine if a device is a raw disk device.
-		 * So I don't see a way to do much better than to only
-		 * enable this optimization for regular files.
+		 * for anything that supports lseek().  Unfortunately,
+		 * there's no really portable way to determine whether
+		 * a particular filehandle can support lseek().  The
+		 * danger comes from systems where lseek() always
+		 * returns success on certain devices (such as tape
+		 * drives) but actually does nothing.  This really
+		 * screws up the position-tracking logic.  We enable
+		 * skip optimizations for regular files here and
+		 * have platform-specific tests below to try to enable
+		 * it for a few special kinds of devices.
 		 */
 		mine->can_skip = 1;
 	}
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+	/*
+	 * on FreeBSD if a device supports the DIOCGMEDIASIZE ioctl
+	 * it is a disk-like device and should be seekable.
+	 */
+	else if (S_ISCHR(st.st_mode) &&
+	    ioctl(fd, DIOCGMEDIASIZE, &mediasize) == 0 && mediasize > 0) {
+		mine->can_skip = 1;
+	}
+#elif defined(__NetBSD__) || defined(__OpenBSD__)
+	/*
+	 * on Net/OpenBSD if a device supports the DIOCGDINFO ioctl
+	 * it is a disk-like device and should be seekable.
+	 */
+	else if ((S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)) &&
+	    ioctl(fd, DIOCGDINFO, &dl) == 0 &&
+	    dl.d_partitions[DISKPART(st.st_rdev)].p_size > 0) {
+		mine->can_skip = 1;
+	}
+#elif defined(__DragonFly__)
+	/*
+	 * on DragonFly BSD if a device supports the DIOCGPART ioctl
+	 * it is a disk-like device and should be seekable.
+	 */
+	else if (S_ISCHR(st.st_mode) &&
+	    ioctl(fd, DIOCGPART, &pi) == 0 && pi.media_size > 0) {
+		mine->can_skip = 1;
+	}
+#elif defined(__linux__)
+	/*
+	 * on Linux just check whether its a block device and that
+	 * lseek works.  (Tapes are character devices there.)
+	 */
+	else if (S_ISBLK(st.st_mode) &&
+	    lseek(fd, 0, SEEK_CUR) == 0 && lseek(fd, 0, SEEK_SET) == 0 &&
+	    lseek(fd, 0, SEEK_END) > 0 && lseek(fd, 0, SEEK_SET) == 0) {
+		mine->can_skip = 1;
+	}
+#endif
 	return (archive_read_open2(a, mine,
 		NULL, file_read, file_skip, file_close));
 }
