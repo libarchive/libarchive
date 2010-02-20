@@ -49,7 +49,7 @@ DEFINE_TEST(test_option_T_upper)
 	struct stat st;
 	int gnarlyFilesSupported;
 
-	/* Create a simple dir heirarchy; bail if anything fails. */
+	/* Create a simple dir hierarchy; bail if anything fails. */
 	if (!assertMakeDir("d1", 0755)) return;
 	if (!assertMakeDir("d1/d2", 0755))	return;
 	if (!touch("f", 1)) return;
