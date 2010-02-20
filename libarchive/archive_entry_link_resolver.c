@@ -120,6 +120,10 @@ archive_entry_linkresolver_set_strategy(struct archive_entry_linkresolver *res,
 	int fmtbase = fmt & ARCHIVE_FORMAT_BASE_MASK;
 
 	switch (fmtbase) {
+	case ARCHIVE_FORMAT_AR:
+	case ARCHIVE_FORMAT_ZIP:
+		res->strategy = ARCHIVE_ENTRY_LINKIFY_LIKE_OLD_CPIO;
+		break;
 	case ARCHIVE_FORMAT_CPIO:
 		switch (fmt) {
 		case ARCHIVE_FORMAT_CPIO_SVR4_NOCRC:
@@ -134,11 +138,12 @@ archive_entry_linkresolver_set_strategy(struct archive_entry_linkresolver *res,
 	case ARCHIVE_FORMAT_MTREE:
 		res->strategy = ARCHIVE_ENTRY_LINKIFY_LIKE_MTREE;
 		break;
+	case ARCHIVE_FORMAT_SHAR:
 	case ARCHIVE_FORMAT_TAR:
 		res->strategy = ARCHIVE_ENTRY_LINKIFY_LIKE_TAR;
 		break;
 	default:
-		res->strategy = ARCHIVE_ENTRY_LINKIFY_LIKE_TAR;
+		res->strategy = ARCHIVE_ENTRY_LINKIFY_LIKE_OLD_CPIO;
 		break;
 	}
 }
