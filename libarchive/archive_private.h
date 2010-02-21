@@ -64,7 +64,7 @@ struct archive_vtable {
 	ssize_t	(*archive_write_data)(struct archive *,
 	    const void *, size_t);
 	ssize_t	(*archive_write_data_block)(struct archive *,
-	    const void *, size_t, off_t);
+	    const void *, size_t, int64_t);
 
 	int	(*archive_filter_count)(struct archive *);
 	int64_t (*archive_filter_bytes)(struct archive *, int);

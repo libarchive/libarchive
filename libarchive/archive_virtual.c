@@ -115,8 +115,13 @@ archive_write_data(struct archive *a, const void *buff, size_t s)
 	return ((a->vtable->archive_write_data)(a, buff, s));
 }
 
+#if ARCHIVE_VERSION_NUMBER < 3000000
 ssize_t
 archive_write_data_block(struct archive *a, const void *buff, size_t s, off_t o)
+#else
+ssize_t
+archive_write_data_block(struct archive *a, const void *buff, size_t s, int64_t o)
+#endif
 {
 	return ((a->vtable->archive_write_data_block)(a, buff, s, o));
 }

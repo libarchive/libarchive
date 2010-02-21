@@ -106,8 +106,13 @@ archive_read_new(void)
 /*
  * Record the do-not-extract-to file. This belongs in archive_read_extract.c.
  */
+#if ARCHIVE_VERSION_NUMBER < 3000000
 void
 archive_read_extract_set_skip_file(struct archive *_a, dev_t d, ino_t i)
+#else
+void
+archive_read_extract_set_skip_file(struct archive *_a, int64_t d, int64_t i)
+#endif
 {
 	struct archive_read *a = (struct archive_read *)_a;
 	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_ANY,
@@ -700,9 +705,15 @@ archive_read_data_skip(struct archive *_a)
  * Returns ARCHIVE_OK if the operation is successful, ARCHIVE_EOF if
  * the end of entry is encountered.
  */
+#if ARCHIVE_VERSION_NUMBER < 3000000
 int
 archive_read_data_block(struct archive *_a,
     const void **buff, size_t *size, off_t *offset)
+#else
+int
+archive_read_data_block(struct archive *_a,
+    const void **buff, size_t *size, int64_t *offset)
+#endif
 {
 	struct archive_read *a = (struct archive_read *)_a;
 	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA,

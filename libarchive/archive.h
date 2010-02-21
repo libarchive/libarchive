@@ -42,7 +42,9 @@
 #endif
 
 #include <sys/stat.h>
-#include <sys/types.h>  /* Linux requires this for off_t */
+#if ARCHIVE_VERSION_NUMBER < 3000000
+#include <sys/types.h>  /* Linux needs this for off_t; 3.0+ doesn't need it */
+#endif
 #ifdef __LA_STDINT_H
 # include __LA_STDINT_H /* int64_t, etc. */
 #endif
@@ -487,8 +489,13 @@ __LA_DECL void	 archive_read_extract_set_progress_callback(struct archive *,
 
 /* Record the dev/ino of a file that will not be written.  This is
  * generally set to the dev/ino of the archive being read. */
+#if ARCHIVE_VERSION_NUMBER < 3000000
 __LA_DECL void		archive_read_extract_set_skip_file(struct archive *,
 		     dev_t, ino_t);
+#else
+__LA_DECL void		archive_read_extract_set_skip_file(struct archive *,
+		     __LA_INT64_T, __LA_INT64_T);
+#endif
 
 /* Close the file and release most resources. */
 __LA_DECL int		 archive_read_close(struct archive *);
@@ -526,7 +533,12 @@ __LA_DECL int archive_write_get_bytes_in_last_block(struct archive *);
 
 /* The dev/ino of a file that won't be archived.  This is used
  * to avoid recursively adding an archive to itself. */
+#if ARCHIVE_VERSION_NUMBER < 3000000
 __LA_DECL int archive_write_set_skip_file(struct archive *, dev_t, ino_t);
+#else
+__LA_DECL int archive_write_set_skip_file(struct archive *,
+    __LA_INT64_T, __LA_INT64_T);
+#endif
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
 __LA_DECL int archive_write_set_compression_bzip2(struct archive *);
@@ -639,8 +651,13 @@ __LA_DECL int		archive_write_set_options(struct archive *_a,
  */
 __LA_DECL struct archive	*archive_write_disk_new(void);
 /* This file will not be overwritten. */
+#if ARCHIVE_VERSION_NUMBER < 3000000
 __LA_DECL int		 archive_write_disk_set_skip_file(struct archive *,
 		     dev_t, ino_t);
+#else
+__LA_DECL int archive_write_disk_set_skip_file(struct archive *,
+    __LA_INT64_T, __LA_INT64_T);
+#endif
 /* Set flags to control how the next item gets created.
  * This accepts a bitmask of ARCHIVE_EXTRACT_XXX flags defined above. */
 __LA_DECL int		 archive_write_disk_set_options(struct archive *,
@@ -668,6 +685,7 @@ __LA_DECL int	 archive_write_disk_set_standard_lookup(struct archive *);
  * your needs, you can write your own and register them.  Be sure to
  * include a cleanup function if you have allocated private data.
  */
+#if ARCHIVE_VERSION_NUMBER < 3000000
 __LA_DECL int	 archive_write_disk_set_group_lookup(struct archive *,
 			    void * /* private_data */,
 			    __LA_GID_T (*)(void *, const char *, __LA_GID_T),
@@ -676,6 +694,16 @@ __LA_DECL int	 archive_write_disk_set_user_lookup(struct archive *,
 			    void * /* private_data */,
 			    __LA_UID_T (*)(void *, const char *, __LA_UID_T),
 			    void (* /* cleanup */)(void *));
+#else
+__LA_DECL int archive_write_disk_set_group_lookup(struct archive *,
+    void * /* private_data */,
+    __LA_INT64_T (*)(void *, const char *, __LA_INT64_T),
+    void (* /* cleanup */)(void *));
+__LA_DECL int archive_write_disk_set_user_lookup(struct archive *,
+    void * /* private_data */,
+    __LA_INT64_T (*)(void *, const char *, __LA_INT64_T),
+    void (* /* cleanup */)(void *));
+#endif
 
 /*
  * ARCHIVE_READ_DISK API
@@ -696,12 +724,18 @@ __LA_DECL int archive_read_disk_entry_from_file(struct archive *,
     struct archive_entry *, int /* fd */, const struct stat *);
 /* Look up gname for gid or uname for uid. */
 /* Default implementations are very, very stupid. */
+#if ARCHIVE_VERSION_NUMBER < 3000000
 __LA_DECL const char *archive_read_disk_gname(struct archive *, __LA_GID_T);
 __LA_DECL const char *archive_read_disk_uname(struct archive *, __LA_UID_T);
+#else
+__LA_DECL const char *archive_read_disk_gname(struct archive *, __LA_INT64_T);
+__LA_DECL const char *archive_read_disk_uname(struct archive *, __LA_INT64_T);
+#endif
 /* "Standard" implementation uses getpwuid_r, getgrgid_r and caches the
  * results for performance. */
 __LA_DECL int	archive_read_disk_set_standard_lookup(struct archive *);
 /* You can install your own lookups if you like. */
+#if ARCHIVE_VERSION_NUMBER < 3000000
 __LA_DECL int	archive_read_disk_set_gname_lookup(struct archive *,
     void * /* private_data */,
     const char *(* /* lookup_fn */)(void *, __LA_GID_T),
@@ -710,6 +744,16 @@ __LA_DECL int	archive_read_disk_set_uname_lookup(struct archive *,
     void * /* private_data */,
     const char *(* /* lookup_fn */)(void *, __LA_UID_T),
     void (* /* cleanup_fn */)(void *));
+#else
+__LA_DECL int	archive_read_disk_set_gname_lookup(struct archive *,
+    void * /* private_data */,
+    const char *(* /* lookup_fn */)(void *, __LA_INT64_T),
+    void (* /* cleanup_fn */)(void *));
+__LA_DECL int	archive_read_disk_set_uname_lookup(struct archive *,
+    void * /* private_data */,
+    const char *(* /* lookup_fn */)(void *, __LA_INT64_T),
+    void (* /* cleanup_fn */)(void *));
+#endif
 
 /*
  * Accessor functions to read/set various information in

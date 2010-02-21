@@ -154,15 +154,23 @@ struct archive_write_disk {
 	mode_t			 user_umask;
 	struct fixup_entry	*fixup_list;
 	struct fixup_entry	*current_fixup;
-	uid_t			 user_uid;
+	int64_t			 user_uid;
 	dev_t			 skip_file_dev;
 	ino_t			 skip_file_ino;
 	time_t			 start_time;
 
+#if ARCHIVE_VERSION_NUMBER < 3000000
 	gid_t (*lookup_gid)(void *private, const char *gname, gid_t gid);
+#else
+	int64_t (*lookup_gid)(void *private, const char *gname, int64_t gid);
+#endif
 	void  (*cleanup_gid)(void *private);
 	void			*lookup_gid_data;
-	uid_t (*lookup_uid)(void *private, const char *gname, gid_t gid);
+#if ARCHIVE_VERSION_NUMBER < 3000000
+	uid_t (*lookup_uid)(void *private, const char *uname, uid_t uid);
+#else
+	int64_t (*lookup_uid)(void *private, const char *uname, int64_t uid);
+#endif
 	void  (*cleanup_uid)(void *private);
 	void			*lookup_uid_data;
 
@@ -204,8 +212,8 @@ struct archive_write_disk {
 	/* Mode we should use for this entry; affected by _PERM and umask. */
 	mode_t			 mode;
 	/* UID/GID to use in restoring this entry. */
-	uid_t			 uid;
-	gid_t			 gid;
+	int64_t			 uid;
+	int64_t			 gid;
 };
 
 /*
@@ -249,8 +257,13 @@ static int	set_mode(struct archive_write_disk *, int mode);
 static int	set_time(int, int, const char *, time_t, long, time_t, long);
 static int	set_times(struct archive_write_disk *);
 static struct fixup_entry *sort_dir_list(struct fixup_entry *p);
+#if ARCHIVE_VERSION_NUMBER < 3000000
 static gid_t	trivial_lookup_gid(void *, const char *, gid_t);
 static uid_t	trivial_lookup_uid(void *, const char *, uid_t);
+#else
+static int64_t	trivial_lookup_gid(void *, const char *, int64_t);
+static int64_t	trivial_lookup_uid(void *, const char *, int64_t);
+#endif
 static ssize_t	write_data_block(struct archive_write_disk *,
 		    const char *, size_t);
 
@@ -262,7 +275,7 @@ static int	_archive_write_disk_header(struct archive *, struct archive_entry *);
 static int64_t	_archive_write_disk_filter_bytes(struct archive *, int);
 static int	_archive_write_disk_finish_entry(struct archive *);
 static ssize_t	_archive_write_disk_data(struct archive *, const void *, size_t);
-static ssize_t	_archive_write_disk_data_block(struct archive *, const void *, size_t, off_t);
+static ssize_t	_archive_write_disk_data_block(struct archive *, const void *, size_t, int64_t);
 
 static int
 lazy_stat(struct archive_write_disk *a)
@@ -576,8 +589,13 @@ done:
 	return (ret);
 }
 
+#if ARCHIVE_VERSION_NUMBER < 3000000
 int
 archive_write_disk_set_skip_file(struct archive *_a, dev_t d, ino_t i)
+#else
+int
+archive_write_disk_set_skip_file(struct archive *_a, int64_t d, int64_t i)
+#endif
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
@@ -675,7 +693,7 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 
 static ssize_t
 _archive_write_disk_data_block(struct archive *_a,
-    const void *buff, size_t size, off_t offset)
+    const void *buff, size_t size, int64_t offset)
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	ssize_t r;
@@ -837,11 +855,19 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	return (ret);
 }
 
+#if ARCHIVE_VERSION_NUMBER < 3000000
 int
 archive_write_disk_set_group_lookup(struct archive *_a,
     void *private_data,
     gid_t (*lookup_gid)(void *private, const char *gname, gid_t gid),
     void (*cleanup_gid)(void *private))
+#else
+int
+archive_write_disk_set_group_lookup(struct archive *_a,
+    void *private_data,
+    int64_t (*lookup_gid)(void *private, const char *gname, int64_t gid),
+    void (*cleanup_gid)(void *private))
+#endif
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
@@ -853,11 +879,19 @@ archive_write_disk_set_group_lookup(struct archive *_a,
 	return (ARCHIVE_OK);
 }
 
+#if ARCHIVE_VERSION_NUMBER < 3000000
 int
 archive_write_disk_set_user_lookup(struct archive *_a,
     void *private_data,
     uid_t (*lookup_uid)(void *private, const char *uname, uid_t uid),
     void (*cleanup_uid)(void *private))
+#else
+int
+archive_write_disk_set_user_lookup(struct archive *_a,
+    void *private_data,
+    int64_t (*lookup_uid)(void *private, const char *uname, int64_t uid),
+    void (*cleanup_uid)(void *private))
+#endif
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
@@ -2612,16 +2646,26 @@ set_xattrs(struct archive_write_disk *a)
  * These are normally overridden by the client, but these stub
  * versions ensure that we always have something that works.
  */
+#if ARCHIVE_VERSION_NUMBER < 3000000
 static gid_t
 trivial_lookup_gid(void *private_data, const char *gname, gid_t gid)
+#else
+static int64_t
+trivial_lookup_gid(void *private_data, const char *gname, int64_t gid)
+#endif
 {
 	(void)private_data; /* UNUSED */
 	(void)gname; /* UNUSED */
 	return (gid);
 }
 
+#if ARCHIVE_VERSION_NUMBER < 3000000
 static uid_t
 trivial_lookup_uid(void *private_data, const char *uname, uid_t uid)
+#else
+static int64_t
+trivial_lookup_uid(void *private_data, const char *uname, int64_t uid)
+#endif
 {
 	(void)private_data; /* UNUSED */
 	(void)uname; /* UNUSED */
