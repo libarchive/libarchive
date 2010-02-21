@@ -973,9 +973,9 @@ write_file(struct bsdtar *bsdtar, struct archive *a,
 				} else {
 					bname += 1;
 					strcpy(copyfile_name, name);
-					strcpy(copyfile_name + bname - name,
+					strcpy(copyfile_name + (bname - name),
 					    "._");
-					strcpy(copyfile_name + bname - name + 2,
+					strcpy(copyfile_name + (bname - name) + 2,
 					    bname);
 				}
 				archive_entry_copy_pathname(extra,
