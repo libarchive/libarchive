@@ -311,8 +311,8 @@ archive_write_disk_vtable(void)
 static int64_t
 _archive_write_disk_filter_bytes(struct archive *_a, int n)
 {
-	(void)n; /* UNUSED */
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
+	(void)n; /* UNUSED */
 //	fprintf(stderr, "archive_write_disk_filter_bytes(%d)=%d\n", n, (int)a->fd_offset);
 	if (n == -1 || n == 0)
 		return (a->total_bytes_written);
