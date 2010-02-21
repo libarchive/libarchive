@@ -186,6 +186,8 @@ libarchive_la_LDFLAGS= -no-undefined -version-info $(ARCHIVE_LIBTOOL_VERSION)
 # Manpages to install
 libarchive_man_MANS=						\
 	libarchive/archive_entry.3				\
+	libarchive/archive_entry_acl.3				\
+	libarchive/archive_entry_time.3				\
 	libarchive/archive_read.3				\
 	libarchive/archive_read_disk.3				\
 	libarchive/archive_util.3				\

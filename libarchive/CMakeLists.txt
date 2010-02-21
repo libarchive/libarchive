@@ -95,6 +95,8 @@ SET(libarchive_SOURCES
 # Man pages
 SET(libarchive_MANS
   archive_entry.3
+  archive_entry_acl.3
+  archive_entry_time.3
   archive_read.3
   archive_read_disk.3
   archive_util.3
