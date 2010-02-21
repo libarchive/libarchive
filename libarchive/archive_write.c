@@ -534,9 +534,6 @@ archive_write_open(struct archive *_a, void *client_data,
 	    ARCHIVE_STATE_NEW, "archive_write_open");
 	archive_clear_error(&a->archive);
 
-	if (a->filter_first == NULL)
-		archive_write_set_compression_none(_a);
-
 	a->client_writer = writer;
 	a->client_opener = opener;
 	a->client_closer = closer;

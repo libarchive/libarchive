@@ -300,7 +300,6 @@ tar_mode_r(struct bsdtar *bsdtar)
 
 	/* Re-open archive for writing */
 	a = archive_write_new();
-	archive_write_set_compression_none(a);
 	/*
 	 * Set the format to be used for writing.  To allow people to
 	 * extend empty files, we need to allow them to specify the format,
@@ -402,7 +401,6 @@ tar_mode_u(struct bsdtar *bsdtar)
 
 	/* Re-open archive for writing. */
 	a = archive_write_new();
-	archive_write_set_compression_none(a);
 	/*
 	 * Set format to same one auto-detected above, except that
 	 * we don't write GNU tar format, so use ustar instead.
