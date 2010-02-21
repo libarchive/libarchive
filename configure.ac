@@ -281,30 +281,34 @@ if test "x$with_openssl" != "xno"; then
     AC_CHECK_HEADERS([openssl/sha.h])
     AC_SEARCH_LIBS([SHA1_Init], [crypto])
   fi
-  if test "$ac_cv_func_SHA256Init" != "yes" ||
-     test "$ac_cv_func_SHA384Init" != "yes" ||
-     test "$ac_cv_func_SHA512Init" != "yes"; then
-    if test "$ac_cv_func_SHA256_Init" != "yes" ||
-       test "$ac_cv_func_SHA384_Init" != "yes" ||
-       test "$ac_cv_func_SHA512_Init" != "yes"; then
-      AC_CHECK_HEADERS([openssl/sha.h])
-      # TODO: Does AC_SEARCH_LIBS support more than one function at once?
-      #       This appears to always fail.
-      AC_SEARCH_LIBS([SHA256_Init SHA384_Init SHA512_Init], [crypto])
 
-      # TODO: Actually test for these.  Previously our C code did not
-      # test for these at all and just assumed availability.  Now that
-      # the C code tests these macros we preserve previous behavior
-      # for the autotools build by hard-coding availability.
-      if test "$ac_cv_header_openssl_sha_h" = "yes"; then
+  AC_CHECK_HEADERS([openssl/sha.h])
+  if test "$ac_cv_func_SHA256Init" != "yes" &&
+    test "$ac_cv_func_SHA256_Init" != "yes"; then
+      AC_SEARCH_LIBS([SHA256_Init], [crypto])
+      if test "$ac_cv_func_SHA256_Init" = "yes" &&
+        test "$ac_cv_header_openssl_sha_h" = "yes"; then
         AC_DEFINE(HAVE_OPENSSL_SHA256_INIT, 1,
 	  [Define to 1 if your openssl has the `SHA256_Init' function.])
+      fi
+  fi
+  if test "$ac_cv_func_SHA384Init" != "yes" &&
+    test "$ac_cv_func_SHA384_Init" != "yes"; then
+      AC_SEARCH_LIBS([SHA384_Init], [crypto])
+      if test "$ac_cv_func_SHA384_Init" = "yes" &&
+        test "$ac_cv_header_openssl_sha_h" = "yes"; then
         AC_DEFINE(HAVE_OPENSSL_SHA384_INIT, 1,
 	  [Define to 1 if your openssl has the `SHA384_Init' function.])
+      fi
+  fi
+  if test "$ac_cv_func_SHA512Init" != "yes" &&
+    test "$ac_cv_func_SHA512_Init" != "yes"; then
+      AC_SEARCH_LIBS([SHA512_Init], [crypto])
+      if test "$ac_cv_func_SHA512_Init" = "yes" &&
+        test "$ac_cv_header_openssl_sha_h" = "yes"; then
         AC_DEFINE(HAVE_OPENSSL_SHA512_INIT, 1,
 	  [Define to 1 if your openssl has the `SHA512_Init' function.])
       fi
-    fi
   fi
 fi
 
