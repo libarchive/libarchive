@@ -37,6 +37,9 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write.c 201099 2009-12-28 03:03:
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
+#ifdef HAVE_ERRNO_H
+#include <errno.h>
+#endif
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif
@@ -67,6 +70,13 @@ static int	_archive_write_free(struct archive *);
 static int	_archive_write_header(struct archive *, struct archive_entry *);
 static int	_archive_write_finish_entry(struct archive *);
 static ssize_t	_archive_write_data(struct archive *, const void *, size_t);
+
+struct archive_none {
+	size_t buffer_size;
+	size_t avail;
+	char *buffer;
+	char *next;
+};
 
 static struct archive_vtable *
 archive_write_vtable(void)
@@ -366,9 +376,34 @@ static int
 archive_write_client_open(struct archive_write_filter *f)
 {
 	struct archive_write *a = (struct archive_write *)f->archive;
+	struct archive_none *state;
+	void *buffer;
+	size_t buffer_size;
+
+	f->bytes_per_block = archive_write_get_bytes_per_block(f->archive);
+	f->bytes_in_last_block =
+	    archive_write_get_bytes_in_last_block(f->archive);
+	buffer_size = f->bytes_per_block;
+
+	state = (struct archive_none *)calloc(1, sizeof(*state));
+	buffer = (char *)malloc(buffer_size);
+	if (state == NULL || buffer == NULL) {
+		free(state);
+		free(buffer);
+		archive_set_error(f->archive, ENOMEM,
+		    "Can't allocate data for output buffering");
+		return (ARCHIVE_FATAL);
+	}
+
+	state->buffer_size = buffer_size;
+	state->buffer = buffer;
+	state->next = state->buffer;
+	state->avail = state->buffer_size;
+	f->data = state;
+
 	if (a->client_opener == NULL)
 		return (ARCHIVE_OK);
-	return (a->client_opener(f->archive, f->data));
+	return (a->client_opener(f->archive, a->client_data));
 }
 
 static int
@@ -376,28 +411,111 @@ archive_write_client_write(struct archive_write_filter *f,
     const void *_buff, size_t length)
 {
 	struct archive_write *a = (struct archive_write *)f->archive;
-	const char *buff = _buff;
+        struct archive_none *state = (struct archive_none *)f->data;
+        const char *buff = (const char *)_buff;
+        ssize_t remaining, to_copy;
+        ssize_t bytes_written;
 
-	while (length > 0) {
-		ssize_t written
-		    = (a->client_writer(f->archive, f->data, buff, length));
-		if (written < 0)
-			return ((int)written);
-		if (written == 0)
-			return (ARCHIVE_FATAL);
-		buff += written;
-		length -= written;
-	}
-	return (ARCHIVE_OK);
+        remaining = length;
+
+        /*
+         * If there is no buffer for blocking, just pass the data
+         * straight through to the client write callback.  In
+         * particular, this supports "no write delay" operation for
+         * special applications.  Just set the block size to zero.
+         */
+        if (state->buffer_size == 0) {
+                while (remaining > 0) {
+                        bytes_written = (a->client_writer)(&a->archive,
+                            a->client_data, buff, remaining);
+                        if (bytes_written <= 0)
+                                return (ARCHIVE_FATAL);
+                        remaining -= bytes_written;
+                        buff += bytes_written;
+                }
+                return (ARCHIVE_OK);
+        }
+
+        /* If the copy buffer isn't empty, try to fill it. */
+        if (state->avail < state->buffer_size) {
+                /* If buffer is not empty... */
+                /* ... copy data into buffer ... */
+                to_copy = (remaining > state->avail) ?
+                    state->avail : remaining;
+                memcpy(state->next, buff, to_copy);
+                state->next += to_copy;
+                state->avail -= to_copy;
+                buff += to_copy;
+                remaining -= to_copy;
+                /* ... if it's full, write it out. */
+                if (state->avail == 0) {
+                        bytes_written = (a->client_writer)(&a->archive,
+                            a->client_data, state->buffer, state->buffer_size);
+                        if (bytes_written <= 0)
+                                return (ARCHIVE_FATAL);
+                        /* XXX TODO: if bytes_written < state->buffer_size */
+                        state->next = state->buffer;
+                        state->avail = state->buffer_size;
+                }
+        }
+
+        while (remaining > state->buffer_size) {
+                /* Write out full blocks directly to client. */
+                bytes_written = (a->client_writer)(&a->archive,
+                    a->client_data, buff, state->buffer_size);
+                if (bytes_written <= 0)
+                        return (ARCHIVE_FATAL);
+                buff += bytes_written;
+                remaining -= bytes_written;
+        }
+
+        if (remaining > 0) {
+                /* Copy last bit into copy buffer. */
+                memcpy(state->next, buff, remaining);
+                state->next += remaining;
+                state->avail -= remaining;
+        }
+        return (ARCHIVE_OK);
 }
 
 static int
 archive_write_client_close(struct archive_write_filter *f)
 {
 	struct archive_write *a = (struct archive_write *)f->archive;
-	if (a->client_closer == NULL)
-		return (ARCHIVE_OK);
-	return (a->client_closer(f->archive, f->data));
+        struct archive_none *state = (struct archive_none *)f->data;
+        ssize_t block_length;
+        ssize_t target_block_length;
+        ssize_t bytes_written;
+        int ret = ARCHIVE_OK;
+
+        /* If there's pending data, pad and write the last block */
+        if (state->next != state->buffer) {
+                block_length = state->buffer_size - state->avail;
+
+                /* Tricky calculation to determine size of last block */
+                if (a->bytes_in_last_block <= 0)
+                        /* Default or Zero: pad to full block */
+                        target_block_length = a->bytes_per_block;
+                else
+                        /* Round to next multiple of bytes_in_last_block. */
+                        target_block_length = a->bytes_in_last_block *
+                            ( (block_length + a->bytes_in_last_block - 1) /
+                                a->bytes_in_last_block);
+                if (target_block_length > a->bytes_per_block)
+                        target_block_length = a->bytes_per_block;
+                if (block_length < target_block_length) {
+                        memset(state->next, 0,
+                            target_block_length - block_length);
+                        block_length = target_block_length;
+                }
+                bytes_written = (a->client_writer)(&a->archive,
+                    a->client_data, state->buffer, block_length);
+                ret = bytes_written <= 0 ? ARCHIVE_FATAL : ARCHIVE_OK;
+        }
+	free(state->buffer);
+        free(state);
+        a->client_data = NULL;
+        return (ret);
 }
 
 /*
@@ -422,9 +540,9 @@ archive_write_open(struct archive *_a, void *client_data,
 	a->client_writer = writer;
 	a->client_opener = opener;
 	a->client_closer = closer;
+	a->client_data = client_data;
 
 	client_filter = __archive_write_allocate_filter(_a);
-	client_filter->data = client_data;
 	client_filter->open = archive_write_client_open;
 	client_filter->write = archive_write_client_write;
 	client_filter->close = archive_write_client_close;

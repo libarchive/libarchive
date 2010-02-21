@@ -279,10 +279,8 @@ static int
 archive_compressor_xz_close(struct archive_write_filter *f)
 {
 	struct private_data *data = (struct private_data *)f->data;
-	int ret;
+	int ret, r1;
 
-	if (data == NULL)
-		return (ARCHIVE_OK);
 	ret = drive_compressor(f, data, 1);
 	if (ret == ARCHIVE_OK) {
 		ret = __archive_write_filter(f->next_filter,
@@ -290,7 +288,8 @@ archive_compressor_xz_close(struct archive_write_filter *f)
 		    data->compressed_buffer_size - data->stream.avail_out);
 	}
 	lzma_end(&(data->stream));
-	return (ret);
+	r1 = __archive_write_close_filter(f->next_filter);
+	return (r1 < ret ? r1 : ret);
 }
 
 static int

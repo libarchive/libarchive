@@ -430,6 +430,7 @@ archive_compressor_compress_close(struct archive_write_filter *f)
 	ret = __archive_write_filter(f->next_filter,
 	    state->compressed, state->compressed_offset);
 cleanup:
+	ret = __archive_write_close_filter(f->next_filter);
 	free(state->compressed);
 	free(state);
 	return (ret);

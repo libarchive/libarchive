@@ -259,7 +259,7 @@ static int
 archive_compressor_program_close(struct archive_write_filter *f)
 {
 	struct private_data *data = (struct private_data *)f->data;
-	int ret, status;
+	int ret, r1, status;
 	ssize_t bytes_read;
 
 	ret = 0;
@@ -308,7 +308,8 @@ cleanup:
 		    "Filter exited with failure.");
 		ret = ARCHIVE_FATAL;
 	}
-	return (ret);
+	r1 = __archive_write_close_filter(f->next_filter);
+	return (r1 < ret ? r1 : ret);
 }
 
 static int
