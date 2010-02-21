@@ -73,6 +73,7 @@
 .Nm archive_entry_new ,
 .Nm archive_entry_pathname ,
 .Nm archive_entry_pathname_w ,
+.Nm archive_entry_perm ,
 .Nm archive_entry_rdev ,
 .Nm archive_entry_rdevmajor ,
 .Nm archive_entry_rdevminor ,
@@ -90,6 +91,7 @@
 .Nm archive_entry_set_mode ,
 .Nm archive_entry_set_mtime ,
 .Nm archive_entry_set_pathname ,
+.Nm archive_entry_set_perm ,
 .Nm archive_entry_set_rdevmajor ,
 .Nm archive_entry_set_rdevminor ,
 .Nm archive_entry_set_size ,
@@ -355,6 +357,12 @@ There are a few set/get functions that merit additional description:
 .It Fn archive_entry_set_link
 This function sets the symlink field if it is already set.
 Otherwise, it sets the hardlink field.
+.It Fn archive_entry_filetype , Fn archive_entry_set_filetype
+These allow reading and writing of the file type information
+stored in the mode value without affecting the permission bits.
+.It Fn archive_entry_perm , Fn archive_entry_set_perm
+These allow reading and writing the permission bits stored
+in the mode value without affecting the file type information.
 .El
 .Ss File Flags
 File flags are transparently converted between a bitmap

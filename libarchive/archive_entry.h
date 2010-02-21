@@ -222,6 +222,7 @@ __LA_DECL int		 archive_entry_mtime_is_set(struct archive_entry *);
 __LA_DECL unsigned int	 archive_entry_nlink(struct archive_entry *);
 __LA_DECL const char	*archive_entry_pathname(struct archive_entry *);
 __LA_DECL const wchar_t	*archive_entry_pathname_w(struct archive_entry *);
+__LA_DECL __LA_MODE_T	 archive_entry_perm(struct archive_entry *);
 __LA_DECL dev_t		 archive_entry_rdev(struct archive_entry *);
 __LA_DECL dev_t		 archive_entry_rdevmajor(struct archive_entry *);
 __LA_DECL dev_t		 archive_entry_rdevminor(struct archive_entry *);

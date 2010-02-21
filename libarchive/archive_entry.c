@@ -705,6 +705,12 @@ archive_entry_pathname_w(struct archive_entry *entry)
 	return (aes_get_wcs(&entry->ae_pathname));
 }
 
+mode_t
+archive_entry_perm(struct archive_entry *entry)
+{
+	return (~AE_IFMT & entry->ae_stat.aest_mode);
+}
+
 dev_t
 archive_entry_rdev(struct archive_entry *entry)
 {
