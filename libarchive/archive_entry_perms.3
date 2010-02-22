@@ -33,6 +33,7 @@
 .Nm archive_entry_set_uid ,
 .Nm archive_entry_mode ,
 .Nm archive_entry_set_mode ,
+.Nm archive_entry_strmode ,
 .Nm archive_entry_uname
 .Nm archive_entry_uname_w
 .Nm archive_entry_set_uname ,
@@ -65,6 +66,8 @@
 .Fn archive_entry_mode "struct archive_entry *a"
 .Ft void
 .Fn archive_entry_set_mode "struct archive_entry *a" "mode_t mode"
+.Ft const char *
+.Fn archive_entry_strmode "struct archive_entry *a"
 .Ft const char *
 .Fn archive_entry_gname "struct archive_entry *a"
 .Ft const wchar_t *
@@ -121,6 +124,10 @@ The corresponding functions
 and
 .Fn archive_entry_set_mode
 store the given user id, group id and mode in the entry.
+.Pp
+.Fn archive_entry_strmode
+returns a string representation of the mode as used by the long mode of
+.Xr ls 1 .
 .Ss User and group name
 User and group names can be provided in one of three different ways:
 .Bl -tag -width "wchar_t *"
@@ -187,8 +194,8 @@ This is a platform-specific operation; names that are not meaningful
 on the current platform will be ignored.
 The function returns a pointer to the start of the first name that was not
 recognized, or NULL if every name was recognized.
-Note that every name\(emincluding names that follow an unrecognized
-name\(emwill be evaluated, and the bitmaps will be set to reflect
+Note that every name \(em including names that follow an unrecognized
+name \(em will be evaluated, and the bitmaps will be set to reflect
 every name that is recognized.
 (In particular, this differs from
 .Xr strtofflags 3 ,
