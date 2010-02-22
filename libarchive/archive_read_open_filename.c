@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2003-2010 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,6 +26,9 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_open_filename.c 201093 2009-12-28 02:28:44Z kientzle $");
 
+#ifdef HAVE_SYS_IOCTL_H
+#include <sys/ioctl.h>
+#endif
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
@@ -48,14 +51,11 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_open_filename.c 201093 2009
 #include <unistd.h>
 #endif
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
-#include <sys/ioctl.h>
 #include <sys/disk.h>
 #elif defined(__NetBSD__) || defined(__OpenBSD__)
-#include <sys/ioctl.h>
 #include <sys/disklabel.h>
 #include <sys/dkio.h>
 #elif defined(__DragonFly__)
-#include <sys/ioctl.h>
 #include <sys/diskslice.h>
 #endif
 
@@ -70,13 +70,14 @@ struct read_file_data {
 	size_t	 block_size;
 	void	*buffer;
 	mode_t	 st_mode;  /* Mode bits for opened file. */
-	char	 can_skip; /* This file supports skipping. */
+	char	 use_lseek;
 	char	 filename[1]; /* Must be last! */
 };
 
 static int	file_close(struct archive *, void *);
 static ssize_t	file_read(struct archive *, void *, const void **buff);
 static off_t	file_skip(struct archive *, void *, off_t request);
+static off_t	file_skip_lseek(struct archive *, void *, off_t request);
 
 int
 archive_read_open_file(struct archive *a, const char *filename,
@@ -91,8 +92,9 @@ archive_read_open_filename(struct archive *a, const char *filename,
 {
 	struct stat st;
 	struct read_file_data *mine;
-	void *b;
+	void *buffer;
 	int fd;
+	int is_disk_like;
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 	off_t mediasize = 0;
 #elif defined(__NetBSD__) || defined(__OpenBSD__)
@@ -103,7 +105,8 @@ archive_read_open_filename(struct archive *a, const char *filename,
 
 	archive_clear_error(a);
 	if (filename == NULL || filename[0] == '\0') {
-		/* We used to invoke archive_read_open_fd(a,0,block_size)
+		/* We used to delegate stdin support by
+		 * directly calling archive_read_open_fd(a,0,block_size)
 		 * here, but that doesn't (and shouldn't) handle the
 		 * end-of-file flush when reading stdout from a pipe.
 		 * Basically, read_open_fd() is intended for folks who
@@ -129,79 +132,88 @@ archive_read_open_filename(struct archive *a, const char *filename,
 		return (ARCHIVE_FATAL);
 	}
 
+	/*
+	 * Determine whether the input looks like a disk device or a
+	 * tape device.  The results are used below to select an I/O
+	 * strategy:
+	 *  = "disk-like" devices support arbitrary lseek() and will
+	 *    support I/O requests of any size.  So we get easy skipping
+	 *    and can cheat on block sizes to get better performance.
+	 *  = "tape-like" devices require strict blocking and sometimes
+	 *    support specialized seek ioctls.
+	 *  = "socket-like" devices cannot seek at all but can improve
+	 *    performance by using nonblocking I/O to read "whatever is
+	 *    available right now".
+	 *
+	 * Right now, we only specially recognize disk-like devices,
+	 * but it should be straightforward to add probes and strategy
+	 * here for tape-like and socket-like devices.
+	 */
+	if (S_ISREG(st.st_mode)) {
+		/* Safety:  Tell the extractor not to overwrite the input. */
+		archive_read_extract_set_skip_file(a, st.st_dev, st.st_ino);
+		/* Regular files act like disks. */
+		is_disk_like = 1;
+	}
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+	/* FreeBSD: if it supports DIOCGMEDIASIZE ioctl, it's disk-like. */
+	else if (S_ISCHR(st.st_mode) &&
+	    ioctl(fd, DIOCGMEDIASIZE, &mediasize) == 0 &&
+	    mediasize > 0) {
+		is_disk_like = 1;
+	}
+#elif defined(__NetBSD__) || defined(__OpenBSD__)
+	/* Net/OpenBSD: if it supports DIOCGDINFO ioctl, it's disk-like. */
+	else if ((S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)) &&
+	    ioctl(fd, DIOCGDINFO, &dl) == 0 &&
+	    dl.d_partitions[DISKPART(st.st_rdev)].p_size > 0) {
+		is_disk_like = 1;
+	}
+#elif defined(__DragonFly__)
+	/* DragonFly BSD:  if it supports DIOCGPART ioctl, it's disk-like. */
+	else if (S_ISCHR(st.st_mode) &&
+	    ioctl(fd, DIOCGPART, &pi) == 0 &&
+	    pi.media_size > 0) {
+		is_disk_like = 1;
+	}
+#elif defined(__linux__)
+	/* Linux:  All block devices are disk-like. */
+	else if (S_ISBLK(st.st_mode) &&
+	    lseek(fd, 0, SEEK_CUR) == 0 &&
+	    lseek(fd, 0, SEEK_SET) == 0 &&
+	    lseek(fd, 0, SEEK_END) > 0 &&
+	    lseek(fd, 0, SEEK_SET) == 0) {
+		is_disk_like = 1;
+	}
+#endif
+	/* TODO: Add an "is_tape_like" variable and appropriate tests. */
+
 	mine = (struct read_file_data *)calloc(1,
 	    sizeof(*mine) + strlen(filename));
-	b = malloc(block_size);
-	if (mine == NULL || b == NULL) {
+	/* For regular files and disks, ignore the block size passed
+	 * in and just use a fixed moderately large power of two. */
+	if (is_disk_like)
+		block_size = 64 * 1024;
+	buffer = malloc(block_size);
+	if (mine == NULL || buffer == NULL) {
 		archive_set_error(a, ENOMEM, "No memory");
 		free(mine);
-		free(b);
+		free(buffer);
 		return (ARCHIVE_FATAL);
 	}
 	strcpy(mine->filename, filename);
 	mine->block_size = block_size;
-	mine->buffer = b;
+	mine->buffer = buffer;
 	mine->fd = fd;
 	/* Remember mode so close can decide whether to flush. */
 	mine->st_mode = st.st_mode;
 	/* If we're reading a file from disk, ensure that we don't
 	   overwrite it with an extracted file. */
-	if (S_ISREG(st.st_mode)) {
-		archive_read_extract_set_skip_file(a, st.st_dev, st.st_ino);
-		/*
-		 * Enabling skip here is a performance optimization
-		 * for anything that supports lseek().  Unfortunately,
-		 * there's no really portable way to determine whether
-		 * a particular filehandle can support lseek().  The
-		 * danger comes from systems where lseek() always
-		 * returns success on certain devices (such as tape
-		 * drives) but actually does nothing.  This really
-		 * screws up the position-tracking logic.  We enable
-		 * skip optimizations for regular files here and
-		 * have platform-specific tests below to try to enable
-		 * it for a few special kinds of devices.
-		 */
-		mine->can_skip = 1;
-	}
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
-	/*
-	 * on FreeBSD if a device supports the DIOCGMEDIASIZE ioctl
-	 * it is a disk-like device and should be seekable.
-	 */
-	else if (S_ISCHR(st.st_mode) &&
-	    ioctl(fd, DIOCGMEDIASIZE, &mediasize) == 0 && mediasize > 0) {
-		mine->can_skip = 1;
-	}
-#elif defined(__NetBSD__) || defined(__OpenBSD__)
-	/*
-	 * on Net/OpenBSD if a device supports the DIOCGDINFO ioctl
-	 * it is a disk-like device and should be seekable.
-	 */
-	else if ((S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)) &&
-	    ioctl(fd, DIOCGDINFO, &dl) == 0 &&
-	    dl.d_partitions[DISKPART(st.st_rdev)].p_size > 0) {
-		mine->can_skip = 1;
-	}
-#elif defined(__DragonFly__)
-	/*
-	 * on DragonFly BSD if a device supports the DIOCGPART ioctl
-	 * it is a disk-like device and should be seekable.
-	 */
-	else if (S_ISCHR(st.st_mode) &&
-	    ioctl(fd, DIOCGPART, &pi) == 0 && pi.media_size > 0) {
-		mine->can_skip = 1;
-	}
-#elif defined(__linux__)
-	/*
-	 * on Linux just check whether its a block device and that
-	 * lseek works.  (Tapes are character devices there.)
-	 */
-	else if (S_ISBLK(st.st_mode) &&
-	    lseek(fd, 0, SEEK_CUR) == 0 && lseek(fd, 0, SEEK_SET) == 0 &&
-	    lseek(fd, 0, SEEK_END) > 0 && lseek(fd, 0, SEEK_SET) == 0) {
-		mine->can_skip = 1;
-	}
-#endif
+
+	/* Disk-like inputs can use lseek(). */
+	if (is_disk_like)
+		mine->use_lseek = 1;
+
 	return (archive_read_open2(a, mine,
 		NULL, file_read, file_skip, file_close));
 }
@@ -211,6 +223,19 @@ file_read(struct archive *a, void *client_data, const void **buff)
 {
 	struct read_file_data *mine = (struct read_file_data *)client_data;
 	ssize_t bytes_read;
+
+	/* TODO: If a recent lseek() operation has left us
+	 * mis-aligned, read and return a short block to try to get
+	 * us back in alignment. */
+
+	/* TODO: Someday, try mmap() here; if that succeeds, give
+	 * the entire file to libarchive as a single block.  That
+	 * could be a lot faster than block-by-block manual I/O. */
+
+	/* TODO: We might be able to improve performance on pipes and
+	 * sockets by setting non-blocking I/O and just accepting
+	 * whatever we get here instead of waiting for a full block
+	 * worth of data. */
 
 	*buff = mine->buffer;
 	bytes_read = read(mine->fd, mine->buffer, mine->block_size);
@@ -224,58 +249,62 @@ file_read(struct archive *a, void *client_data, const void **buff)
 	return (bytes_read);
 }
 
+/*
+ * Regular files and disk-like block devices can use simple lseek
+ * without needing to round the request to the block size.
+ *
+ * TODO: This can leave future reads mis-aligned.  Since we know the
+ * offset here, we should store it and use it in file_read() above
+ * to determine whether we should perform a short read to get back
+ * into alignment.  Long series of mis-aligned reads can negatively
+ * impact disk throughput.  (Of course, the performance impact should
+ * be carefully tested; extra code complexity is only worthwhile if
+ * it does provide measurable improvement.)
+ */
 static off_t
-file_skip(struct archive *a, void *client_data, off_t request)
+file_skip_lseek(struct archive *a, void *client_data, off_t request)
 {
 	struct read_file_data *mine = (struct read_file_data *)client_data;
 	off_t old_offset, new_offset;
 
-	if (!mine->can_skip) /* We can't skip, so ... */
-		return (0); /* ... skip zero bytes. */
+	if ((old_offset = lseek(mine->fd, 0, SEEK_CUR)) >= 0 &&
+	    (new_offset = lseek(mine->fd, request, SEEK_CUR)) >= 0)
+		return (new_offset - old_offset);
 
-	/* Reduce request to the next smallest multiple of block_size */
-	request = (request / mine->block_size) * mine->block_size;
-	if (request == 0)
+	/* If lseek() fails, don't bother trying again. */
+	mine->use_lseek = 0;
+
+	/* Let libarchive recover with read+discard */
+	if (errno == ESPIPE)
 		return (0);
 
-	/*
-	 * Hurray for lazy evaluation: if the first lseek fails, the second
-	 * one will not be executed.
-	 */
-	if (((old_offset = lseek(mine->fd, 0, SEEK_CUR)) < 0) ||
-	    ((new_offset = lseek(mine->fd, request, SEEK_CUR)) < 0))
-	{
-		/* If skip failed once, it will probably fail again. */
-		mine->can_skip = 0;
+	/* If the input is corrupted or truncated, fail. */
+	if (mine->filename[0] == '\0')
+		/* Shouldn't happen; lseek() on stdin should raise ESPIPE. */
+		archive_set_error(a, errno, "Error seeking in stdin");
+	else
+		archive_set_error(a, errno, "Error seeking in '%s'",
+		    mine->filename);
+	return (-1);
+}
 
-		if (errno == ESPIPE)
-		{
-			/*
-			 * Failure to lseek() can be caused by the file
-			 * descriptor pointing to a pipe, socket or FIFO.
-			 * Return 0 here, so the compression layer will use
-			 * read()s instead to advance the file descriptor.
-			 * It's slower of course, but works as well.
-			 */
-			return (0);
-		}
-		/*
-		 * There's been an error other than ESPIPE. This is most
-		 * likely caused by a programmer error (too large request)
-		 * or a corrupted archive file.
-		 */
-		if (mine->filename[0] == '\0')
-			/*
-			 * Should never get here, since lseek() on stdin ought
-			 * to return an ESPIPE error.
-			 */
-			archive_set_error(a, errno, "Error seeking in stdin");
-		else
-			archive_set_error(a, errno, "Error seeking in '%s'",
-			    mine->filename);
-		return (-1);
-	}
-	return (new_offset - old_offset);
+
+/*
+ * TODO: Implement another file_skip_XXXX that uses MTIO ioctls to
+ * accelerate operation on tape drives.
+ */
+
+static off_t
+file_skip(struct archive *a, void *client_data, off_t request)
+{
+	struct read_file_data *mine = (struct read_file_data *)client_data;
+
+	/* Delegate skip requests. */
+	if (mine->use_lseek)
+		return (file_skip_lseek(a, client_data, request));
+
+	/* If we can't skip, return 0; libarchive will read+discard instead. */
+	return (0);
 }
 
 static int
@@ -290,7 +319,8 @@ file_close(struct archive *a, void *client_data)
 		/*
 		 * Sometimes, we should flush the input before closing.
 		 *   Regular files: faster to just close without flush.
-		 *   Devices: must not flush (user might need to
+		 *   Disk-like devices:  Ditto.
+		 *   Tapes: must not flush (user might need to
 		 *      read the "next" item on a non-rewind device).
 		 *   Pipes and sockets:  must flush (otherwise, the
 		 *      program feeding the pipe or socket may complain).
