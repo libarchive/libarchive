@@ -31,8 +31,8 @@
 .Nm archive_entry_set_gid ,
 .Nm archive_entry_uid ,
 .Nm archive_entry_set_uid ,
-.Nm archive_entry_mode ,
-.Nm archive_entry_set_mode ,
+.Nm archive_entry_perm ,
+.Nm archive_entry_set_perm ,
 .Nm archive_entry_strmode ,
 .Nm archive_entry_uname
 .Nm archive_entry_uname_w
@@ -63,9 +63,9 @@
 .Ft void
 .Fn archive_entry_set_uid "struct archive_entry *a" "uid_t uid"
 .Ft mode_t
-.Fn archive_entry_mode "struct archive_entry *a"
+.Fn archive_entry_perm "struct archive_entry *a"
 .Ft void
-.Fn archive_entry_set_mode "struct archive_entry *a" "mode_t mode"
+.Fn archive_entry_set_perm "struct archive_entry *a" "mode_t mode"
 .Ft const char *
 .Fn archive_entry_strmode "struct archive_entry *a"
 .Ft const char *
@@ -116,17 +116,19 @@ The functions
 .Fn archive_entry_uid ,
 .Fn archive_entry_gid ,
 and
-.Fn archive_entry_mode
-can be used to extract the user id, group id and mode from the given entry.
+.Fn archive_entry_perm
+can be used to extract the user id, group id and permission from the given entry.
 The corresponding functions
 .Fn archive_entry_set_uid ,
 .Fn archive_entry_set_gid ,
 and
-.Fn archive_entry_set_mode
-store the given user id, group id and mode in the entry.
+.Fn archive_entry_set_perm
+store the given user id, group id and permission in the entry.
+The permission is also set as side effect of calling
+.Fn archive_entry_set_mode .
 .Pp
 .Fn archive_entry_strmode
-returns a string representation of the mode as used by the long mode of
+returns a string representation of the permission as used by the long mode of
 .Xr ls 1 .
 .Ss User and group name
 User and group names can be provided in one of three different ways:

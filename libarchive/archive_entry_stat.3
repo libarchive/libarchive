@@ -30,6 +30,8 @@
 .Nm archive_entry_copy_stat ,
 .Nm archive_entry_filetype ,
 .Nm archive_entry_set_filetype ,
+.Nm archive_entry_mode ,
+.Nm archive_entry_set_mode ,
 .Nm archive_entry_size ,
 .Nm archive_entry_size_is_set ,
 .Nm archive_entry_set_size ,
@@ -62,6 +64,10 @@
 .Fn archive_entry_filetype "struct archive_entry *a"
 .Ft void
 .Fn archive_entry_set_filetype "struct archive_entry *a" "unsigned int type"
+.Ft mode_t
+.Fn archive_entry_mode "struct archive_entry *a"
+.Ft void
+.Fn archive_entry_set_mode "struct archive_entry *a" "mode_t mode"
 .Ft int64_t
 .Fn archive_entry_size "struct archive_entry *a"
 .Ft int
@@ -152,6 +158,21 @@ Not all file types are supported by all platforms.
 The constants used by
 .Xr stat 2
 may have different numeric value.
+.Pp
+The functions
+.Fn archive_entry_mode
+and
+.Fn archive_entry_set_mode
+get/set a combination of file type and permissions.
+Use of
+.Fn archive_entry_filetype
+and
+.Fn archive_entry_perm
+for getting and
+.Fn archive_entry_set_filetype
+and
+.Fn archive_entry_set_perm
+for setting is recommented.
 .Pp
 The function
 .Fn archive_entry_size
