@@ -145,20 +145,9 @@ This are convience functions to update both the multibyte and wide
 character strings at the same time.
 .El
 .Pp
-.Pp
-The
 .Fn archive_entry_set_XXX
-functions store a reference to the given string internally.
-They require the caller to keep the string valid until the string
-is cleared either by setting it to a different location, by calling
-the corresponding copy function or by calling
-.Xr archive_entry_clear 3
-or
-.Xr archive_entry_free 3 .
-The
-.Fn archive_entry_copy_XXX
-functions do not have this restriction as they keep an internal
-copy of the argument.
+is an alias for 
+.Fn archive_entry_copy_XXX .
 .Ss File Flags
 File flags are transparently converted between a bitmap
 representation and a textual format.
