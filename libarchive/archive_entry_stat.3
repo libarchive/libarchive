@@ -163,7 +163,9 @@ The functions
 .Fn archive_entry_mode
 and
 .Fn archive_entry_set_mode
-get/set a combination of file type and permissions.
+get/set a combination of file type and permissions and provide the
+equivalent of
+.Va st_mode .
 Use of
 .Fn archive_entry_filetype
 and
@@ -172,7 +174,7 @@ for getting and
 .Fn archive_entry_set_filetype
 and
 .Fn archive_entry_set_perm
-for setting is recommented.
+for setting is recommended.
 .Pp
 The function
 .Fn archive_entry_size
