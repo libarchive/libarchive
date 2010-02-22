@@ -207,8 +207,6 @@ archive_read_open_filename(struct archive *a, const char *filename,
 	mine->fd = fd;
 	/* Remember mode so close can decide whether to flush. */
 	mine->st_mode = st.st_mode;
-	/* If we're reading a file from disk, ensure that we don't
-	   overwrite it with an extracted file. */
 
 	/* Disk-like inputs can use lseek(). */
 	if (is_disk_like)
