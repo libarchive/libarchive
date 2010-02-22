@@ -187,6 +187,10 @@ libarchive_la_LDFLAGS= -no-undefined -version-info $(ARCHIVE_LIBTOOL_VERSION)
 libarchive_man_MANS=						\
 	libarchive/archive_entry.3				\
 	libarchive/archive_entry_acl.3				\
+	libarchive/archive_entry_linkify.3			\
+	libarchive/archive_entry_paths.3			\
+	libarchive/archive_entry_perms.3			\
+	libarchive/archive_entry_stat.3				\
 	libarchive/archive_entry_time.3				\
 	libarchive/archive_read.3				\
 	libarchive/archive_read_disk.3				\
