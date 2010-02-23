@@ -94,7 +94,7 @@ archive_read_open_filename(struct archive *a, const char *filename,
 	struct read_file_data *mine;
 	void *buffer;
 	int fd;
-	int is_disk_like;
+	int is_disk_like = 0;
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 	off_t mediasize = 0;
 #elif defined(__NetBSD__) || defined(__OpenBSD__)
@@ -139,8 +139,8 @@ archive_read_open_filename(struct archive *a, const char *filename,
 	 *  = "disk-like" devices support arbitrary lseek() and will
 	 *    support I/O requests of any size.  So we get easy skipping
 	 *    and can cheat on block sizes to get better performance.
-	 *  = "tape-like" devices require strict blocking and sometimes
-	 *    support specialized seek ioctls.
+	 *  = "tape-like" devices require strict blocking and use
+	 *    specialized ioctls for seeking.
 	 *  = "socket-like" devices cannot seek at all but can improve
 	 *    performance by using nonblocking I/O to read "whatever is
 	 *    available right now".
@@ -190,10 +190,15 @@ archive_read_open_filename(struct archive *a, const char *filename,
 
 	mine = (struct read_file_data *)calloc(1,
 	    sizeof(*mine) + strlen(filename));
-	/* For regular files and disks, ignore the block size passed
-	 * in and just use a fixed moderately large power of two. */
-	if (is_disk_like)
-		block_size = 64 * 1024;
+	/* Disk-like devices prefer power-of-two block sizes.  */
+	/* Use provided block_size as a guide so users have some control. */
+	if (is_disk_like) {
+		size_t new_block_size = 64 * 1024;
+		while (new_block_size < block_size
+		    && new_block_size < 64 * 1024 * 1024)
+			new_block_size *= 2;
+		block_size = new_block_size;
+	}
 	buffer = malloc(block_size);
 	if (mine == NULL || buffer == NULL) {
 		archive_set_error(a, ENOMEM, "No memory");
