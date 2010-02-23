@@ -59,7 +59,11 @@ struct read_FILE_data {
 
 static int	file_close(struct archive *, void *);
 static ssize_t	file_read(struct archive *, void *, const void **buff);
+#if ARCHIVE_VERSION_NUMBER < 3000000
 static off_t	file_skip(struct archive *, void *, off_t request);
+#else
+static int64_t	file_skip(struct archive *, void *, int64_t request);
+#endif
 
 int
 archive_read_open_FILE(struct archive *a, FILE *f)
@@ -115,8 +119,13 @@ file_read(struct archive *a, void *client_data, const void **buff)
 	return (bytes_read);
 }
 
+#if ARCHIVE_VERSION_NUMBER < 3000000
 static off_t
 file_skip(struct archive *a, void *client_data, off_t request)
+#else
+static int64_t
+file_skip(struct archive *a, void *client_data, int64_t request)
+#endif
 {
 	struct read_FILE_data *mine = (struct read_FILE_data *)client_data;
 

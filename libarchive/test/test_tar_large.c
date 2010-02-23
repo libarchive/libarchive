@@ -73,7 +73,11 @@ struct memdata {
 #define GB ((int64_t)1024 * MB)
 #define TB ((int64_t)1024 * GB)
 
+#if ARCHIVE_VERSION_NUMBER < 3000000
 static off_t	memory_read_skip(struct archive *, void *, off_t request);
+#else
+static int64_t	memory_read_skip(struct archive *, void *, int64_t request);
+#endif
 static ssize_t	memory_read(struct archive *, void *, const void **buff);
 static ssize_t	memory_write(struct archive *, void *, const void *, size_t);
 
@@ -163,8 +167,13 @@ memory_read(struct archive *a, void *_private, const void **buff)
 }
 
 
+#if ARCHIVE_VERSION_NUMBER < 3000000
 static off_t
 memory_read_skip(struct archive *a, void *_private, off_t skip)
+#else
+static int64_t
+memory_read_skip(struct archive *a, void *_private, int64_t skip)
+#endif
 {
 	struct memdata *private = _private;
 
