@@ -611,6 +611,23 @@ dos_time(const time_t unix_time)
 	 * on two systems with different time zones. */
 	t = localtime(&unix_time);
 
+	/* MSDOS-style date/time is only between 1980-01-01 and 2107-12-31 */
+	if (t->tm_year < 1980 - 1900) {
+		t->tm_year = 1980 - 1900;
+		t->tm_mon = 0;
+		t->tm_mday = 1;
+		t->tm_hour = 0;
+		t->tm_min = 0;
+		t->tm_sec = 0;
+	}
+	if (t->tm_year > 2107 - 1900) {
+		t->tm_year = 2107 - 1900;
+		t->tm_mon = 11;
+		t->tm_mday = 31;
+		t->tm_hour = 23;
+		t->tm_min = 59;
+		t->tm_sec = 59;
+	}
 	dt = 0;
 	dt += ((t->tm_year - 80) & 0x7f) << 9;
 	dt += ((t->tm_mon + 1) & 0x0f) << 5;
