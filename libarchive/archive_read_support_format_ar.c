@@ -78,8 +78,13 @@ struct ar {
 
 static int	archive_read_format_ar_bid(struct archive_read *a);
 static int	archive_read_format_ar_cleanup(struct archive_read *a);
+#if ARCHIVE_VERSION_NUMBER < 3000000
 static int	archive_read_format_ar_read_data(struct archive_read *a,
 		    const void **buff, size_t *size, off_t *offset);
+#else
+static int	archive_read_format_ar_read_data(struct archive_read *a,
+		    const void **buff, size_t *size, int64_t *offset);
+#endif
 static int	archive_read_format_ar_skip(struct archive_read *a);
 static int	archive_read_format_ar_read_header(struct archive_read *a,
 		    struct archive_entry *e);
@@ -434,9 +439,15 @@ ar_parse_common_header(struct ar *ar, struct archive_entry *entry,
 	return (ARCHIVE_OK);
 }
 
+#if ARCHIVE_VERSION_NUMBER < 3000000
 static int
 archive_read_format_ar_read_data(struct archive_read *a,
     const void **buff, size_t *size, off_t *offset)
+#else
+static int
+archive_read_format_ar_read_data(struct archive_read *a,
+    const void **buff, size_t *size, int64_t *offset)
+#endif
 {
 	ssize_t bytes_read;
 	struct ar *ar;

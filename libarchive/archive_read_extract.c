@@ -137,7 +137,11 @@ archive_read_extract_set_progress_callback(struct archive *_a,
 static int
 copy_data(struct archive *ar, struct archive *aw)
 {
+#if ARCHIVE_VERSION_NUMBER < 3000000
 	off_t offset;
+#else
+	int64_t offset;
+#endif
 	const void *buff;
 	struct extract *extract;
 	size_t size;

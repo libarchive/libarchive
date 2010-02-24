@@ -59,7 +59,11 @@ DEFINE_TEST(test_read_format_isojoliet_bz2)
 	struct archive *a;
 	const void *p;
 	size_t size;
+#if ARCHIVE_VERSION_NUMBER < 3000000
 	off_t offset;
+#else
+	int64_t offset;
+#endif
 
 	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);

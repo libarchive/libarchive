@@ -27,7 +27,11 @@ __FBSDID("$FreeBSD: head/lib/libarchive/test/test_read_format_gtar_sparse.c 1893
 
 
 struct contents {
+#if ARCHIVE_VERSION_NUMBER < 3000000
 	off_t	o;
+#else
+	int64_t	o;
+#endif
 	size_t	s;
 	const char *d;
 };

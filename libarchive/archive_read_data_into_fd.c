@@ -52,7 +52,11 @@ archive_read_data_into_fd(struct archive *a, int fd)
 	const void *buff;
 	size_t size, bytes_to_write;
 	ssize_t bytes_written, total_written;
+#if ARCHIVE_VERSION_NUMBER < 3000000
 	off_t offset;
+#else
+	int64_t offset;
+#endif
 	off_t output_offset;
 
 	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA, "archive_read_data_into_fd");

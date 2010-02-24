@@ -74,7 +74,11 @@ DEFINE_TEST(test_fuzz)
 {
 	const void *blk;
 	size_t blk_size;
+#if ARCHIVE_VERSION_NUMBER < 3000000
 	off_t blk_offset;
+#else
+	int64_t blk_offset;
+#endif
 	int n;
 
 	for (n = 0; files[n].name != NULL; ++n) {

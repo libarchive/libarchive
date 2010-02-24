@@ -369,8 +369,13 @@ struct xmlattr_list {
 static int	xar_bid(struct archive_read *);
 static int	xar_read_header(struct archive_read *,
 		    struct archive_entry *);
+#if ARCHIVE_VERSION_NUMBER < 3000000
 static int	xar_read_data(struct archive_read *,
 		    const void **, size_t *, off_t *);
+#else
+static int	xar_read_data(struct archive_read *,
+		    const void **, size_t *, int64_t *);
+#endif
 static int	xar_read_data_skip(struct archive_read *);
 static int	xar_cleanup(struct archive_read *);
 static int	move_reading_point(struct archive_read *, uint64_t);
@@ -751,9 +756,15 @@ xar_read_header(struct archive_read *a, struct archive_entry *entry)
 	return (r);
 }
 
+#if ARCHIVE_VERSION_NUMBER < 3000000
 static int
 xar_read_data(struct archive_read *a,
     const void **buff, size_t *size, off_t *offset)
+#else
+static int
+xar_read_data(struct archive_read *a,
+    const void **buff, size_t *size, int64_t *offset)
+#endif
 {
 	struct xar *xar;
 	size_t used;

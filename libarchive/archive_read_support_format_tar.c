@@ -206,8 +206,13 @@ static int	header_gnutar(struct archive_read *, struct tar *,
 		    struct archive_entry *, const void *h);
 static int	archive_read_format_tar_bid(struct archive_read *);
 static int	archive_read_format_tar_cleanup(struct archive_read *);
+#if ARCHIVE_VERSION_NUMBER < 3000000
 static int	archive_read_format_tar_read_data(struct archive_read *a,
 		    const void **buff, size_t *size, off_t *offset);
+#else
+static int	archive_read_format_tar_read_data(struct archive_read *a,
+		    const void **buff, size_t *size, int64_t *offset);
+#endif
 static int	archive_read_format_tar_skip(struct archive_read *a);
 static int	archive_read_format_tar_read_header(struct archive_read *,
 		    struct archive_entry *);
@@ -444,9 +449,15 @@ archive_read_format_tar_read_header(struct archive_read *a,
 	return (r);
 }
 
+#if ARCHIVE_VERSION_NUMBER < 3000000
 static int
 archive_read_format_tar_read_data(struct archive_read *a,
     const void **buff, size_t *size, off_t *offset)
+#else
+static int
+archive_read_format_tar_read_data(struct archive_read *a,
+    const void **buff, size_t *size, int64_t *offset)
+#endif
 {
 	ssize_t bytes_read;
 	struct tar *tar;

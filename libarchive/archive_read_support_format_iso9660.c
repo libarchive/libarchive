@@ -358,8 +358,13 @@ static int	archive_read_format_iso9660_bid(struct archive_read *);
 static int	archive_read_format_iso9660_options(struct archive_read *,
 		    const char *, const char *);
 static int	archive_read_format_iso9660_cleanup(struct archive_read *);
+#if ARCHIVE_VERSION_NUMBER < 3000000
 static int	archive_read_format_iso9660_read_data(struct archive_read *,
 		    const void **, size_t *, off_t *);
+#else
+static int	archive_read_format_iso9660_read_data(struct archive_read *,
+		    const void **, size_t *, int64_t *);
+#endif
 static int	archive_read_format_iso9660_read_data_skip(struct archive_read *);
 static int	archive_read_format_iso9660_read_header(struct archive_read *,
 		    struct archive_entry *);
@@ -1335,9 +1340,15 @@ archive_read_format_iso9660_read_data_skip(struct archive_read *a)
 
 #ifdef HAVE_ZLIB_H
 
+#if ARCHIVE_VERSION_NUMBER < 3000000
 static int
 zisofs_read_data(struct archive_read *a,
     const void **buff, size_t *size, off_t *offset)
+#else
+static int
+zisofs_read_data(struct archive_read *a,
+    const void **buff, size_t *size, int64_t *offset)
+#endif
 {
 	struct iso9660 *iso9660;
 	struct zisofs  *zisofs;
@@ -1553,9 +1564,15 @@ next_data:
 
 #else /* HAVE_ZLIB_H */
 
+#if ARCHIVE_VERSION_NUMBER < 3000000
 static int
 zisofs_read_data(struct archive_read *a,
     const void **buff, size_t *size, off_t *offset)
+#else
+static int
+zisofs_read_data(struct archive_read *a,
+    const void **buff, size_t *size, int64_t *offset)
+#endif
 {
 
 	(void)buff;/* UNUSED */
@@ -1568,9 +1585,15 @@ zisofs_read_data(struct archive_read *a,
 
 #endif /* HAVE_ZLIB_H */
 
+#if ARCHIVE_VERSION_NUMBER < 3000000
 static int
 archive_read_format_iso9660_read_data(struct archive_read *a,
     const void **buff, size_t *size, off_t *offset)
+#else
+static int
+archive_read_format_iso9660_read_data(struct archive_read *a,
+    const void **buff, size_t *size, int64_t *offset)
+#endif
 {
 	ssize_t bytes_read;
 	struct iso9660 *iso9660;
