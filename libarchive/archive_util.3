@@ -100,6 +100,10 @@ Copies error information from one archive to another.
 Returns a numeric error code (see
 .Xr errno 2 )
 indicating the reason for the most recent error return.
+Note that this can not be reliably used to detect whether an
+error has occurred.
+It should be used only after another libarchive function
+has returned an error status.
 .It Fn archive_error_string
 Returns a textual error message suitable for display.
 The error message here is usually more specific than that
