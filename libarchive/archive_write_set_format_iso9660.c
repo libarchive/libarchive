@@ -5026,7 +5026,7 @@ isofile_connect_hardlink_files(struct iso9660 *iso9660)
 		    hl != NULL; hl = hl->next) {
 			target = hl->file_list.first;
 			if (archive_entry_hardlink(target->entry) != NULL)
-				break;
+				continue;
 			archive_entry_set_nlink(target->entry, hl->nlink);
 			for (nf = target->hlnext;
 			    nf != NULL; nf = nf->hlnext) {
