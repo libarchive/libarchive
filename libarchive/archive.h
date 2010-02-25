@@ -100,6 +100,13 @@
 # define __LA_DECL
 #endif
 
+#if defined(__GNUC__) && __GNUC__ >= 3
+#define	__LA_PRINTF(fmtarg, firstvararg) \
+	__attribute__((__format__ (__printf__, fmtarg, firstvararg)))
+#else
+#define	__LA_PRINTF(fmtarg, firstvararg)	/* nothing */
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -789,7 +796,7 @@ __LA_DECL const char	*archive_format_name(struct archive *);
 __LA_DECL int		 archive_format(struct archive *);
 __LA_DECL void		 archive_clear_error(struct archive *);
 __LA_DECL void		 archive_set_error(struct archive *, int _err,
-			    const char *fmt, ...);
+			    const char *fmt, ...) __LA_PRINTF(3, 4);
 __LA_DECL void		 archive_copy_error(struct archive *dest,
 			    struct archive *src);
 __LA_DECL int		 archive_file_count(struct archive *);
