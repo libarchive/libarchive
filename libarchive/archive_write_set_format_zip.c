@@ -612,30 +612,22 @@ dos_time(const time_t unix_time)
 	t = localtime(&unix_time);
 
 	/* MSDOS-style date/time is only between 1980-01-01 and 2107-12-31 */
-	if (t->tm_year < 1980 - 1900) {
-		t->tm_year = 1980 - 1900;
-		t->tm_mon = 0;
-		t->tm_mday = 1;
-		t->tm_hour = 0;
-		t->tm_min = 0;
-		t->tm_sec = 0;
+	if (t->tm_year < 1980 - 1900)
+		/* Set minimum date/time '1980-01-01 00:00:00'. */
+		dt = 0x00210000U;
+	else if (t->tm_year > 2107 - 1900)
+		/* Set maximum date/time '2107-12-31 23:59:58'. */
+		dt = 0xff9fbf7dU;
+	else {
+		dt = 0;
+		dt += ((t->tm_year - 80) & 0x7f) << 9;
+		dt += ((t->tm_mon + 1) & 0x0f) << 5;
+		dt += (t->tm_mday & 0x1f);
+		dt <<= 16;
+		dt += (t->tm_hour & 0x1f) << 11;
+		dt += (t->tm_min & 0x3f) << 5;
+		dt += (t->tm_sec & 0x3e) >> 1; /* Only counting every 2 seconds. */
 	}
-	if (t->tm_year > 2107 - 1900) {
-		t->tm_year = 2107 - 1900;
-		t->tm_mon = 11;
-		t->tm_mday = 31;
-		t->tm_hour = 23;
-		t->tm_min = 59;
-		t->tm_sec = 59;
-	}
-	dt = 0;
-	dt += ((t->tm_year - 80) & 0x7f) << 9;
-	dt += ((t->tm_mon + 1) & 0x0f) << 5;
-	dt += (t->tm_mday & 0x1f);
-	dt <<= 16;
-	dt += (t->tm_hour & 0x1f) << 11;
-	dt += (t->tm_min & 0x3f) << 5;
-	dt += (t->tm_sec & 0x3e) >> 1; /* Only counting every 2 seconds. */
 	return dt;
 }
 
