@@ -2571,8 +2571,14 @@ set_date_time(unsigned char *p, time_t t)
 {
 	struct tm tm;
 
+#if HAVE_LOCALTIME_R
 	tzset();
 	localtime_r(&t, &tm);
+#elif HAVE__LOCALTIME64_S
+	_localtime64_s(&tm, &t)
+#else
+	memcpy(&tm, localtime(&t), sizeof(tm));
+#endif
 	set_digit(p, 4, tm.tm_year + 1900);
 	set_digit(p+4, 2, tm.tm_mon + 1);
 	set_digit(p+6, 2, tm.tm_mday);
@@ -2595,8 +2601,14 @@ set_time_915(unsigned char *p, time_t t)
 {
 	struct tm tm;
 
+#if HAVE_LOCALTIME_R
 	tzset();
 	localtime_r(&t, &tm);
+#elif HAVE__LOCALTIME64_S
+	_localtime64_s(&tm, &t)
+#else
+	memcpy(&tm, localtime(&t), sizeof(tm));
+#endif
 	set_num_711(p+0, tm.tm_year);
 	set_num_711(p+1, tm.tm_mon+1);
 	set_num_711(p+2, tm.tm_mday);
