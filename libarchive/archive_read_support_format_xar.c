@@ -1021,6 +1021,8 @@ time_from_tm(struct tm *t)
 #if HAVE_TIMEGM
 	/* Use platform timegm() if available. */
 	return (timegm(t));
+#elif HAVE__MKGMTIME64
+	return (_mkgmtime64(t));
 #else
 	/* Else use direct calculation using POSIX assumptions. */
 	/* First, fix up tm_yday based on the year/month/day. */
