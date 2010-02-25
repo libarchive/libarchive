@@ -445,7 +445,7 @@ archive_write_client_write(struct archive_write_filter *f,
         if (state->avail < state->buffer_size) {
                 /* If buffer is not empty... */
                 /* ... copy data into buffer ... */
-                to_copy = (remaining > state->avail) ?
+                to_copy = ((size_t)remaining > state->avail) ?
                     state->avail : remaining;
                 memcpy(state->next, buff, to_copy);
                 state->next += to_copy;
@@ -464,7 +464,7 @@ archive_write_client_write(struct archive_write_filter *f,
                 }
         }
 
-        while (remaining > state->buffer_size) {
+        while ((size_t)remaining > state->buffer_size) {
                 /* Write out full blocks directly to client. */
                 bytes_written = (a->client_writer)(&a->archive,
                     a->client_data, buff, state->buffer_size);
