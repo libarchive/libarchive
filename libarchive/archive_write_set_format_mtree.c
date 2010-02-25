@@ -718,9 +718,9 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 			archive_strcat(str, " type=char");
 		if ((keys & F_DEV) != 0) {
 			archive_string_sprintf(str,
-			    " device=native,%d,%d",
-			    archive_entry_rdevmajor(entry),
-			    archive_entry_rdevminor(entry));
+			    " device=native,%ju,%ju",
+			    (uintmax_t)archive_entry_rdevmajor(entry),
+			    (uintmax_t)archive_entry_rdevminor(entry));
 		}
 		break;
 	case AE_IFBLK:
@@ -728,9 +728,9 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 			archive_strcat(str, " type=block");
 		if ((keys & F_DEV) != 0) {
 			archive_string_sprintf(str,
-			    " device=native,%d,%d",
-			    archive_entry_rdevmajor(entry),
-			    archive_entry_rdevminor(entry));
+			    " device=native,%ju,%ju",
+			    (uintmax_t)archive_entry_rdevmajor(entry),
+			    (uintmax_t)archive_entry_rdevminor(entry));
 		}
 		break;
 	case AE_IFDIR:

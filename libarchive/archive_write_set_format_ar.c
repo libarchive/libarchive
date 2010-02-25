@@ -445,8 +445,8 @@ archive_write_ar_finish_entry(struct archive_write *a)
 
 	if (ar->entry_padding != 1) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Padding wrong size: %d should be 1 or 0",
-		    ar->entry_padding);
+		    "Padding wrong size: %ju should be 1 or 0",
+		    (uintmax_t)ar->entry_padding);
 		return (ARCHIVE_WARN);
 	}
 

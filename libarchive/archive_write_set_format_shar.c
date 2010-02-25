@@ -308,15 +308,15 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 			break;
 		case AE_IFCHR:
 			archive_string_sprintf(&shar->work,
-			    "mknod %s c %d %d\n", shar->quoted_name.s,
-			    archive_entry_rdevmajor(entry),
-			    archive_entry_rdevminor(entry));
+			    "mknod %s c %ju %ju\n", shar->quoted_name.s,
+			    (uintmax_t)archive_entry_rdevmajor(entry),
+			    (uintmax_t)archive_entry_rdevminor(entry));
 			break;
 		case AE_IFBLK:
 			archive_string_sprintf(&shar->work,
-			    "mknod %s b %d %d\n", shar->quoted_name.s,
-			    archive_entry_rdevmajor(entry),
-			    archive_entry_rdevminor(entry));
+			    "mknod %s b %ju %ju\n", shar->quoted_name.s,
+			    (uintmax_t)archive_entry_rdevmajor(entry),
+			    (uintmax_t)archive_entry_rdevminor(entry));
 			break;
 		default:
 			return (ARCHIVE_WARN);
@@ -537,8 +537,7 @@ archive_write_shar_finish_entry(struct archive_write *a)
 		}
 
 		if ((p = archive_entry_fflags_text(shar->entry)) != NULL) {
-			archive_string_sprintf(&shar->work, "chflags %s ",
-			    p, archive_entry_pathname(shar->entry));
+			archive_string_sprintf(&shar->work, "chflags %s ", p);
 			shar_quote(&shar->work,
 			    archive_entry_pathname(shar->entry), 1);
 			archive_strcat(&shar->work, "\n");
