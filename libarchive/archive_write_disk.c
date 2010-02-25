@@ -1877,7 +1877,7 @@ set_ownership(struct archive_write_disk *a)
 	/* If we know we can't change it, don't bother trying. */
 	if (a->user_uid != 0  &&  a->user_uid != a->uid) {
 		archive_set_error(&a->archive, errno,
-		    "Can't set UID=%d", a->uid);
+		    "Can't set UID=%jd", a->uid);
 		return (ARCHIVE_WARN);
 	}
 #endif
@@ -1908,7 +1908,7 @@ set_ownership(struct archive_write_disk *a)
 #endif
 
 	archive_set_error(&a->archive, errno,
-	    "Can't set user=%d/group=%d for %s", a->uid, a->gid,
+	    "Can't set user=%jd/group=%jd for %s", a->uid, a->gid,
 	    a->name);
 	return (ARCHIVE_WARN);
 }
