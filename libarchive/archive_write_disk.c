@@ -465,7 +465,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		if (ret != ARCHIVE_OK)
 			goto done;
 	}
-#ifdef HAVE_FCHDIR
+#if defined(HAVE_FCHDIR) && defined(PATH_MAX)
 	/* If path exceeds PATH_MAX, shorten the path. */
 	edit_deep_directories(a);
 #endif
@@ -942,7 +942,7 @@ archive_write_disk_new(void)
  * object creation is likely to fail, but any error will get handled
  * at that time.
  */
-#ifdef HAVE_FCHDIR
+#if defined(HAVE_FCHDIR) && defined(PATH_MAX)
 static void
 edit_deep_directories(struct archive_write_disk *a)
 {
