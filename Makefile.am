@@ -162,6 +162,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_write_set_format_by_name.c		\
 	libarchive/archive_write_set_format_cpio.c		\
 	libarchive/archive_write_set_format_cpio_newc.c		\
+	libarchive/archive_write_set_format_iso9660.c		\
 	libarchive/archive_write_set_format_mtree.c		\
 	libarchive/archive_write_set_format_pax.c		\
 	libarchive/archive_write_set_format_shar.c		\
@@ -325,6 +326,11 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_format_cpio_empty.c		\
 	libarchive/test/test_write_format_cpio_odc.c		\
 	libarchive/test/test_write_format_cpio_newc.c		\
+	libarchive/test/test_write_format_iso9660.c		\
+	libarchive/test/test_write_format_iso9660_boot.c	\
+	libarchive/test/test_write_format_iso9660_empty.c	\
+	libarchive/test/test_write_format_iso9660_filename.c	\
+	libarchive/test/test_write_format_iso9660_zisofs.c	\
 	libarchive/test/test_write_format_mtree.c		\
 	libarchive/test/test_write_format_pax.c			\
 	libarchive/test/test_write_format_shar_empty.c		\

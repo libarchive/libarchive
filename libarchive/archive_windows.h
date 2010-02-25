@@ -58,6 +58,7 @@
 #include <stdint.h>
 #endif
 #include <stdio.h>
+#include <time.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <process.h>
@@ -110,6 +111,7 @@
 #define link		__la_link
 #define	lseek		__la_lseek
 #define	lstat		__la_stat
+#define	localtime_r(time, tm)	localtime_s(tm, time)
 #define	mbstowcs	__la_mbstowcs
 #define	mkdir(d,m)	__la_mkdir(d, m)
 #define	open		__la_open

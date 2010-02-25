@@ -332,6 +332,12 @@ AC_TYPE_SIZE_T
 AC_CHECK_TYPE(id_t, [unsigned long])
 AC_CHECK_TYPE(uintptr_t, [unsigned int])
 
+# Check for tm_gmtoff in struct tm
+AC_CHECK_MEMBERS([struct tm.tm_gmtoff, struct tm.__tm_gmtoff],,,
+[
+#include <time.h>
+])
+
 # Check for birthtime in struct stat
 AC_CHECK_MEMBERS([struct stat.st_birthtime])
 
@@ -395,7 +401,7 @@ AC_CHECK_FUNCS([chflags chown chroot])
 AC_CHECK_FUNCS([fchdir fchflags fchmod fchown fcntl fork])
 AC_CHECK_FUNCS([fstat ftruncate futimens futimes geteuid getpid])
 AC_CHECK_FUNCS([lchflags lchmod lchown link lstat])
-AC_CHECK_FUNCS([lutimes memmove memset mkdir mkfifo mknod mkstemp])
+AC_CHECK_FUNCS([lutimes mbrtowc memmove memset mkdir mkfifo mknod mkstemp])
 AC_CHECK_FUNCS([nl_langinfo pipe poll readlink])
 AC_CHECK_FUNCS([select setenv setlocale sigaction])
 AC_CHECK_FUNCS([strchr strdup strerror strncpy_s strrchr symlink timegm])

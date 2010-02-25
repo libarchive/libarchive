@@ -49,6 +49,7 @@ struct { const char *name; int (*setter)(struct archive *); } names[] =
 	{ "argnu",	archive_write_set_format_ar_svr4 },
 	{ "arsvr4",	archive_write_set_format_ar_svr4 },
 	{ "cpio",	archive_write_set_format_cpio },
+	{ "iso9660",	archive_write_set_format_iso9660 },
 	{ "mtree",	archive_write_set_format_mtree },
 	{ "newc",	archive_write_set_format_cpio_newc },
 	{ "odc",	archive_write_set_format_cpio },

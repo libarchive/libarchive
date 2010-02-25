@@ -302,6 +302,9 @@
 /* Define to 1 if you have the <lzma.h> header file. */
 #cmakedefine HAVE_LZMA_H 1
 
+/* Define to 1 if you have the `mbrtowc' function. */
+#cmakedefine HAVE_MBRTOWC 1
+
 /* Define to 1 if you have the `MD5Init' function. */
 #cmakedefine HAVE_MD5INIT 1
 
@@ -494,6 +497,12 @@
 
 /* Define to 1 if `st_umtime' is member of `struct stat'. */
 #cmakedefine HAVE_STRUCT_STAT_ST_UMTIME 1
+
+/* Define to 1 if `tm_gmtoff' is member of `struct tm'. */
+#cmakedefine HAVE_STRUCT_TM_TM_GMTOFF 1
+
+/* Define to 1 if `__tm_gmtoff' is member of `struct tm'. */
+#cmakedefine HAVE_STRUCT_TM___TM_GMTOFF 1
 
 /* Define to 1 if you have the symlink() function. */
 #cmakedefine HAVE_SYMLINK 1

@@ -138,6 +138,7 @@ archive_entry_linkresolver_set_strategy(struct archive_entry_linkresolver *res,
 	case ARCHIVE_FORMAT_MTREE:
 		res->strategy = ARCHIVE_ENTRY_LINKIFY_LIKE_MTREE;
 		break;
+	case ARCHIVE_FORMAT_ISO9660:
 	case ARCHIVE_FORMAT_SHAR:
 	case ARCHIVE_FORMAT_TAR:
 		res->strategy = ARCHIVE_ENTRY_LINKIFY_LIKE_TAR;
