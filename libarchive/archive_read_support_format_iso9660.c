@@ -924,7 +924,7 @@ read_children(struct archive_read *a, struct file_info *parent)
 	if (parent->offset + parent->size > iso9660->volume_size) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Directory is beyond end-of-media: %s",
-		    parent->name);
+		    parent->name.s);
 		return (ARCHIVE_WARN);
 	}
 	if (iso9660->current_position < parent->offset) {
@@ -1220,7 +1220,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 
 	if (file->offset + file->size > iso9660->volume_size) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "File is beyond end-of-media: %s", file->name);
+		    "File is beyond end-of-media: %s", file->name.s);
 		iso9660->entry_bytes_remaining = 0;
 		iso9660->entry_sparse_offset = 0;
 		return (ARCHIVE_WARN);
@@ -1279,8 +1279,8 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 	if ((file->mode & AE_IFMT) != AE_IFDIR &&
 	    file->offset < iso9660->current_position) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Ignoring out-of-order file @%x (%s) %jd < %jd",
-		    file,
+		    "Ignoring out-of-order file @%jx (%s) %jd < %jd",
+		    (intmax_t)file->number,
 		    iso9660->pathname.s,
 		    file->offset, iso9660->current_position);
 		iso9660->entry_bytes_remaining = 0;
