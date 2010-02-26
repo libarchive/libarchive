@@ -2548,9 +2548,9 @@ get_gmoffset(struct tm *tm)
 {
 	long offset;
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
+#if defined(HAVE__GET_TIMEZONE)
 	_get_timezone(&offset);
-#elif defined(__CYGWIN__)
+#elif defined(__CYGWIN__) || defined(__MINGW32__)
 	offset = _timezone;
 #else
 	offset = timezone;
@@ -2562,6 +2562,19 @@ get_gmoffset(struct tm *tm)
 }
 #endif
 
+static void
+get_tmfromtime(struct tm *tm, time_t *t)
+{
+#if HAVE_LOCALTIME_R
+	tzset();
+	localtime_r(t, tm);
+#elif HAVE__LOCALTIME64_S
+	_localtime64_s(tm, t);
+#else
+	memcpy(tm, localtime(t), sizeof(*tm));
+#endif
+}
+
 /*
  * Date and Time Format.
  * ISO9660 Standard 8.4.26.1
@@ -2571,14 +2584,7 @@ set_date_time(unsigned char *p, time_t t)
 {
 	struct tm tm;
 
-#if HAVE_LOCALTIME_R
-	tzset();
-	localtime_r(&t, &tm);
-#elif HAVE__LOCALTIME64_S
-	_localtime64_s(&tm, &t)
-#else
-	memcpy(&tm, localtime(&t), sizeof(tm));
-#endif
+	get_tmfromtime(&tm, &t);
 	set_digit(p, 4, tm.tm_year + 1900);
 	set_digit(p+4, 2, tm.tm_mon + 1);
 	set_digit(p+6, 2, tm.tm_mday);
@@ -2601,14 +2607,7 @@ set_time_915(unsigned char *p, time_t t)
 {
 	struct tm tm;
 
-#if HAVE_LOCALTIME_R
-	tzset();
-	localtime_r(&t, &tm);
-#elif HAVE__LOCALTIME64_S
-	_localtime64_s(&tm, &t)
-#else
-	memcpy(&tm, localtime(&t), sizeof(tm));
-#endif
+	get_tmfromtime(&tm, &t);
 	set_num_711(p+0, tm.tm_year);
 	set_num_711(p+1, tm.tm_mon+1);
 	set_num_711(p+2, tm.tm_mday);
@@ -4039,10 +4038,13 @@ write_information_block(struct archive_write *a)
 	}
 	memset(info.s, 0, info_size);
 	opt = 0;
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	ctime_s(buf, sizeof(buf), &(iso9660->birth_time));
-#else
+#if defined(HAVE__CTIME64_S)
+	_ctime64_s(buf, sizeof(buf), &(iso9660->birth_time));
+#elif defined(HAVE_CTIME_R)
 	ctime_r(&(iso9660->birth_time), buf);
+#else
+	strncpy(buf, ctime(&(iso9660->birth_time)), sizeof(buf)-1);
+	buf[sizeof(buf)-1] = '\0';
 #endif
 	archive_string_sprintf(&info,
 	    "INFO %s%s", buf, archive_version_string());
@@ -4541,8 +4543,8 @@ _write_file_descriptors(struct archive_write *a, struct isoent *isoent)
 				if (rs <= 0) {
 					archive_set_error(&a->archive,
 					    errno,
-					    "Can't read temporary file(%zd)",
-					    rs);
+					    "Can't read temporary file(%jd)",
+					    (intmax_t)rs);
 					return (ARCHIVE_FATAL);
 				}
 				size -= rs;
@@ -4597,7 +4599,8 @@ write_file_descriptors(struct archive_write *a)
 			rs = read(np->file->temp_fd, wb, rsize);
 			if (rs <= 0) {
 				archive_set_error(&a->archive, errno,
-				    "Can't read temporary file(%zd)", rs);
+				    "Can't read temporary file(%jd)",
+				    (intmax_t)rs);
 				return (ARCHIVE_FATAL);
 			}
 			size -= rs;
@@ -7300,7 +7303,8 @@ setup_boot_information(struct archive_write *a)
 		rs = read(np->file->temp_fd, iso9660->wbuff, rsize);
 		if (rs <= 0) {
 			archive_set_error(&a->archive, errno,
-			    "Can't read temporary file(%zd)", rs);
+			    "Can't read temporary file(%jd)",
+			    (intmax_t)rs);
 			return (ARCHIVE_FATAL);
 		}
 		for (i = 0; i < rs; i += 4)

@@ -69,6 +69,9 @@
 /* Define to 1 if you have the `CreateHardLinkW' function. */
 #cmakedefine HAVE_CREATEHARDLINKW 1
 
+/* Define to 1 if you have the `ctime_r' function. */
+#cmakedefine HAVE_CTIME_R 1
+
 /* Define to 1 if you have the <ctype.h> header file. */
 #cmakedefine HAVE_CTYPE_H 1
 
@@ -643,6 +646,12 @@
 
 /* Define to 1 if you have the <zlib.h> header file. */
 #cmakedefine HAVE_ZLIB_H 1
+
+/* Define to 1 if you have the `_ctime64_s' function. */
+#cmakedefine HAVE__CTIME64_S 1
+
+/* Define to 1 if you have the `_get_timezone' function. */
+#cmakedefine HAVE__GET_TIMEZONE 1
 
 /* Define to 1 if you have the `_localtime64_s' function. */
 #cmakedefine HAVE__LOCALTIME64_S 1
