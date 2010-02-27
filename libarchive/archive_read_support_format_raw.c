@@ -114,9 +114,10 @@ archive_read_format_raw_read_header(struct archive_read *a,
 		return (ARCHIVE_EOF);
 
 	a->archive.archive_format = ARCHIVE_FORMAT_RAW;
-	a->archive.archive_format_name = "Raw data";
+	a->archive.archive_format_name = "raw";
 	archive_entry_set_pathname(entry, "data");
-	/* XXX should we set mode to mimic a regular file? XXX */
+	archive_entry_set_filetype(entry, AE_IFREG);
+	archive_entry_set_perm(entry, 0644);
 	/* I'm deliberately leaving most fields unset here. */
 	return (ARCHIVE_OK);
 }
