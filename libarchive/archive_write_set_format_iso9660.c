@@ -470,7 +470,7 @@ struct iso_option {
 #define OPT_BOOT_INFO_TABLE_DEFAULT	0	/* Disabled */
 
 	/*
-	 * Usage  : boot_load_seg=<value>
+	 * Usage  : boot-load-seg=<value>
 	 * Type   : hexadecimal
 	 * Default: Not specified
 	 * COMPAT : mkisofs -boot-load-seg <value>
@@ -482,7 +482,7 @@ struct iso_option {
 #define OPT_BOOT_LOAD_SEG_DEFAULT	0	/* Not specified */
 
 	/*
-	 * Usage  : boot_load_size=<value>
+	 * Usage  : boot-load-size=<value>
 	 * Type   : decimal
 	 * Default: Not specified
 	 * COMPAT : mkisofs -boot-load-size <value>
