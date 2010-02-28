@@ -198,6 +198,7 @@ libarchive_man_MANS=						\
 	libarchive/archive_util.3				\
 	libarchive/archive_write.3				\
 	libarchive/archive_write_disk.3				\
+	libarchive/archive_write_options.3			\
 	libarchive/cpio.5					\
 	libarchive/libarchive.3					\
 	libarchive/libarchive_internals.3			\

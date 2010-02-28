@@ -107,6 +107,7 @@ SET(libarchive_MANS
   archive_util.3
   archive_write.3
   archive_write_disk.3
+  archive_write_options.3
   cpio.5
   libarchive.3
   libarchive_internals.3
