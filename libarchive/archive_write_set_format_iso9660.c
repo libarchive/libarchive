@@ -1017,8 +1017,8 @@ static int	iso9660_write_header(struct archive_write *,
 static ssize_t	iso9660_write_data(struct archive_write *,
 		    const void *, size_t);
 static int	iso9660_finish_entry(struct archive_write *);
-static int	iso9660_finish(struct archive_write *);
-static int	iso9660_destroy(struct archive_write *);
+static int	iso9660_close(struct archive_write *);
+static int	iso9660_free(struct archive_write *);
 
 static void	get_system_identitier(char *, size_t);
 static void	set_str(unsigned char *, const char *, size_t, char,
@@ -1162,8 +1162,8 @@ archive_write_set_format_iso9660(struct archive *_a)
 	    ARCHIVE_STATE_NEW, "archive_write_set_format_iso9660");
 
 	/* If another format was already registered, unregister it. */
-	if (a->format_destroy != NULL)
-		(a->format_destroy)(a);
+	if (a->format_free != NULL)
+		(a->format_free)(a);
 
 	iso9660 = malloc(sizeof(*iso9660));
 	if (iso9660 == NULL) {
@@ -1286,8 +1286,8 @@ archive_write_set_format_iso9660(struct archive *_a)
 	a->format_write_header = iso9660_write_header;
 	a->format_write_data = iso9660_write_data;
 	a->format_finish_entry = iso9660_finish_entry;
-	a->format_finish = iso9660_finish;
-	a->format_destroy = iso9660_destroy;
+	a->format_close = iso9660_close;
+	a->format_free = iso9660_free;
 	a->archive.archive_format = ARCHIVE_FORMAT_ISO9660;
 	a->archive.archive_format_name = "ISO9660";
 
@@ -1954,7 +1954,7 @@ iso9660_finish_entry(struct archive_write *a)
 }
 
 static int
-iso9660_finish(struct archive_write *a)
+iso9660_close(struct archive_write *a)
 {
 	struct iso9660 *iso9660;
 	int ret, blocks;
@@ -2168,7 +2168,7 @@ iso9660_finish(struct archive_write *a)
 }
 
 static int
-iso9660_destroy(struct archive_write *a)
+iso9660_free(struct archive_write *a)
 {
 	struct iso9660 *iso9660;
 	int i, ret;

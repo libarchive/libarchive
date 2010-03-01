@@ -59,8 +59,8 @@ struct shar {
 	struct archive_string	 quoted_name;
 };
 
-static int	archive_write_shar_finish(struct archive_write *);
-static int	archive_write_shar_destroy(struct archive_write *);
+static int	archive_write_shar_close(struct archive_write *);
+static int	archive_write_shar_free(struct archive_write *);
 static int	archive_write_shar_header(struct archive_write *,
 		    struct archive_entry *);
 static ssize_t	archive_write_shar_data_sed(struct archive_write *,
@@ -110,8 +110,8 @@ archive_write_set_format_shar(struct archive *_a)
 	    ARCHIVE_STATE_NEW, "archive_write_set_format_shar");
 
 	/* If someone else was already registered, unregister them. */
-	if (a->format_destroy != NULL)
-		(a->format_destroy)(a);
+	if (a->format_free != NULL)
+		(a->format_free)(a);
 
 	shar = (struct shar *)malloc(sizeof(*shar));
 	if (shar == NULL) {
@@ -126,8 +126,8 @@ archive_write_set_format_shar(struct archive *_a)
 	a->pad_uncompressed = 0;
 	a->format_name = "shar";
 	a->format_write_header = archive_write_shar_header;
-	a->format_finish = archive_write_shar_finish;
-	a->format_destroy = archive_write_shar_destroy;
+	a->format_close = archive_write_shar_close;
+	a->format_free = archive_write_shar_free;
 	a->format_write_data = archive_write_shar_data_sed;
 	a->format_finish_entry = archive_write_shar_finish_entry;
 	a->archive.archive_format = ARCHIVE_FORMAT_SHAR_BASE;
@@ -572,7 +572,7 @@ archive_write_shar_finish_entry(struct archive_write *a)
 }
 
 static int
-archive_write_shar_finish(struct archive_write *a)
+archive_write_shar_close(struct archive_write *a)
 {
 	struct shar *shar;
 	int ret;
@@ -610,7 +610,7 @@ archive_write_shar_finish(struct archive_write *a)
 }
 
 static int
-archive_write_shar_destroy(struct archive_write *a)
+archive_write_shar_free(struct archive_write *a)
 {
 	struct shar *shar;
 

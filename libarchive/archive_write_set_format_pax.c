@@ -70,8 +70,8 @@ static void		 add_pax_attr_w(struct archive_string *,
 			     const char *key, const wchar_t *wvalue);
 static ssize_t		 archive_write_pax_data(struct archive_write *,
 			     const void *, size_t);
-static int		 archive_write_pax_finish(struct archive_write *);
-static int		 archive_write_pax_destroy(struct archive_write *);
+static int		 archive_write_pax_close(struct archive_write *);
+static int		 archive_write_pax_free(struct archive_write *);
 static int		 archive_write_pax_finish_entry(struct archive_write *);
 static int		 archive_write_pax_header(struct archive_write *,
 			     struct archive_entry *);
@@ -121,8 +121,8 @@ archive_write_set_format_pax(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_set_format_pax");
 
-	if (a->format_destroy != NULL)
-		(a->format_destroy)(a);
+	if (a->format_free != NULL)
+		(a->format_free)(a);
 
 	pax = (struct pax *)malloc(sizeof(*pax));
 	if (pax == NULL) {
@@ -136,8 +136,8 @@ archive_write_set_format_pax(struct archive *_a)
 	a->format_name = "pax";
 	a->format_write_header = archive_write_pax_header;
 	a->format_write_data = archive_write_pax_data;
-	a->format_finish = archive_write_pax_finish;
-	a->format_destroy = archive_write_pax_destroy;
+	a->format_close = archive_write_pax_close;
+	a->format_free = archive_write_pax_free;
 	a->format_finish_entry = archive_write_pax_finish_entry;
 	a->archive.archive_format = ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE;
 	a->archive.archive_format_name = "POSIX pax interchange";
@@ -1379,13 +1379,13 @@ build_gnu_sparse_name(char *dest, const char *src)
 
 /* Write two null blocks for the end of archive */
 static int
-archive_write_pax_finish(struct archive_write *a)
+archive_write_pax_close(struct archive_write *a)
 {
 	return (write_nulls(a, 512 * 2));
 }
 
 static int
-archive_write_pax_destroy(struct archive_write *a)
+archive_write_pax_free(struct archive_write *a)
 {
 	struct pax *pax;
 

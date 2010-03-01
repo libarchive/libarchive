@@ -45,8 +45,8 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_cpio_newc.c 201
 
 static ssize_t	archive_write_newc_data(struct archive_write *,
 		    const void *buff, size_t s);
-static int	archive_write_newc_finish(struct archive_write *);
-static int	archive_write_newc_destroy(struct archive_write *);
+static int	archive_write_newc_close(struct archive_write *);
+static int	archive_write_newc_free(struct archive_write *);
 static int	archive_write_newc_finish_entry(struct archive_write *);
 static int	archive_write_newc_header(struct archive_write *,
 		    struct archive_entry *);
@@ -91,8 +91,8 @@ archive_write_set_format_cpio_newc(struct archive *_a)
 	    ARCHIVE_STATE_NEW, "archive_write_set_format_cpio_newc");
 
 	/* If someone else was already registered, unregister them. */
-	if (a->format_destroy != NULL)
-		(a->format_destroy)(a);
+	if (a->format_free != NULL)
+		(a->format_free)(a);
 
 	cpio = (struct cpio *)malloc(sizeof(*cpio));
 	if (cpio == NULL) {
@@ -107,8 +107,8 @@ archive_write_set_format_cpio_newc(struct archive *_a)
 	a->format_write_header = archive_write_newc_header;
 	a->format_write_data = archive_write_newc_data;
 	a->format_finish_entry = archive_write_newc_finish_entry;
-	a->format_finish = archive_write_newc_finish;
-	a->format_destroy = archive_write_newc_destroy;
+	a->format_close = archive_write_newc_close;
+	a->format_free = archive_write_newc_free;
 	a->archive.archive_format = ARCHIVE_FORMAT_CPIO_SVR4_NOCRC;
 	a->archive.archive_format_name = "SVR4 cpio nocrc";
 	return (ARCHIVE_OK);
@@ -253,7 +253,7 @@ format_hex_recursive(int64_t v, char *p, int s)
 }
 
 static int
-archive_write_newc_finish(struct archive_write *a)
+archive_write_newc_close(struct archive_write *a)
 {
 	int er;
 	struct archive_entry *trailer;
@@ -267,7 +267,7 @@ archive_write_newc_finish(struct archive_write *a)
 }
 
 static int
-archive_write_newc_destroy(struct archive_write *a)
+archive_write_newc_free(struct archive_write *a)
 {
 	struct cpio *cpio;
 

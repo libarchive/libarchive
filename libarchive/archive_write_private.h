@@ -117,13 +117,13 @@ struct archive_write {
 	int	(*format_init)(struct archive_write *);
 	int	(*format_options)(struct archive_write *,
 		    const char *key, const char *value);
-	int	(*format_finish)(struct archive_write *);
-	int	(*format_destroy)(struct archive_write *);
 	int	(*format_finish_entry)(struct archive_write *);
 	int 	(*format_write_header)(struct archive_write *,
 		    struct archive_entry *);
 	ssize_t	(*format_write_data)(struct archive_write *,
 		    const void *buff, size_t);
+	int	(*format_close)(struct archive_write *);
+	int	(*format_free)(struct archive_write *);
 };
 
 /*

@@ -143,8 +143,8 @@ static const char template_header[] = {
 
 static ssize_t	archive_write_ustar_data(struct archive_write *a, const void *buff,
 		    size_t s);
-static int	archive_write_ustar_destroy(struct archive_write *);
-static int	archive_write_ustar_finish(struct archive_write *);
+static int	archive_write_ustar_free(struct archive_write *);
+static int	archive_write_ustar_close(struct archive_write *);
 static int	archive_write_ustar_finish_entry(struct archive_write *);
 static int	archive_write_ustar_header(struct archive_write *,
 		    struct archive_entry *entry);
@@ -166,8 +166,8 @@ archive_write_set_format_ustar(struct archive *_a)
 	    ARCHIVE_STATE_NEW, "archive_write_set_format_ustar");
 
 	/* If someone else was already registered, unregister them. */
-	if (a->format_destroy != NULL)
-		(a->format_destroy)(a);
+	if (a->format_free != NULL)
+		(a->format_free)(a);
 
 	/* Basic internal sanity test. */
 	if (sizeof(template_header) != 512) {
@@ -187,8 +187,8 @@ archive_write_set_format_ustar(struct archive *_a)
 	a->format_name = "ustar";
 	a->format_write_header = archive_write_ustar_header;
 	a->format_write_data = archive_write_ustar_data;
-	a->format_finish = archive_write_ustar_finish;
-	a->format_destroy = archive_write_ustar_destroy;
+	a->format_close = archive_write_ustar_close;
+	a->format_free = archive_write_ustar_free;
 	a->format_finish_entry = archive_write_ustar_finish_entry;
 	a->archive.archive_format = ARCHIVE_FORMAT_TAR_USTAR;
 	a->archive.archive_format_name = "POSIX ustar";
@@ -522,13 +522,13 @@ format_octal(int64_t v, char *p, int s)
 }
 
 static int
-archive_write_ustar_finish(struct archive_write *a)
+archive_write_ustar_close(struct archive_write *a)
 {
 	return (write_nulls(a, 512*2));
 }
 
 static int
-archive_write_ustar_destroy(struct archive_write *a)
+archive_write_ustar_free(struct archive_write *a)
 {
 	struct ustar *ustar;
 

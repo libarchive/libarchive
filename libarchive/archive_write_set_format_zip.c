@@ -92,8 +92,8 @@ enum compression {
 };
 
 static ssize_t archive_write_zip_data(struct archive_write *, const void *buff, size_t s);
-static int archive_write_zip_finish(struct archive_write *);
-static int archive_write_zip_destroy(struct archive_write *);
+static int archive_write_zip_close(struct archive_write *);
+static int archive_write_zip_free(struct archive_write *);
 static int archive_write_zip_finish_entry(struct archive_write *);
 static int archive_write_zip_header(struct archive_write *, struct archive_entry *);
 static unsigned int dos_time(const time_t);
@@ -231,8 +231,8 @@ archive_write_set_format_zip(struct archive *_a)
 	    ARCHIVE_STATE_NEW, "archive_write_set_format_zip");
 
 	/* If another format was already registered, unregister it. */
-	if (a->format_destroy != NULL)
-		(a->format_destroy)(a);
+	if (a->format_free != NULL)
+		(a->format_free)(a);
 
 	zip = (struct zip *) calloc(1, sizeof(*zip));
 	if (zip == NULL) {
@@ -265,8 +265,8 @@ archive_write_set_format_zip(struct archive *_a)
 	a->format_write_header = archive_write_zip_header;
 	a->format_write_data = archive_write_zip_data;
 	a->format_finish_entry = archive_write_zip_finish_entry;
-	a->format_finish = archive_write_zip_finish;
-	a->format_destroy = archive_write_zip_destroy;
+	a->format_close = archive_write_zip_close;
+	a->format_free = archive_write_zip_free;
 	a->archive.archive_format = ARCHIVE_FORMAT_ZIP;
 	a->archive.archive_format_name = "ZIP";
 
@@ -494,7 +494,7 @@ archive_write_zip_finish_entry(struct archive_write *a)
 }
 
 static int
-archive_write_zip_finish(struct archive_write *a)
+archive_write_zip_close(struct archive_write *a)
 {
 	struct zip *zip;
 	struct zip_file_header_link *l;
@@ -583,7 +583,7 @@ archive_write_zip_finish(struct archive_write *a)
 }
 
 static int
-archive_write_zip_destroy(struct archive_write *a)
+archive_write_zip_free(struct archive_write *a)
 {
 	struct zip *zip;
 	struct zip_file_header_link *l;

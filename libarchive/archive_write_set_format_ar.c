@@ -75,8 +75,8 @@ static int		 archive_write_ar_header(struct archive_write *,
 			     struct archive_entry *);
 static ssize_t		 archive_write_ar_data(struct archive_write *,
 			     const void *buff, size_t s);
-static int		 archive_write_ar_destroy(struct archive_write *);
-static int		 archive_write_ar_finish(struct archive_write *);
+static int		 archive_write_ar_free(struct archive_write *);
+static int		 archive_write_ar_close(struct archive_write *);
 static int		 archive_write_ar_finish_entry(struct archive_write *);
 static const char	*ar_basename(const char *path);
 static int		 format_octal(int64_t v, char *p, int s);
@@ -123,8 +123,8 @@ archive_write_set_format_ar(struct archive_write *a)
 	struct ar_w *ar;
 
 	/* If someone else was already registered, unregister them. */
-	if (a->format_destroy != NULL)
-		(a->format_destroy)(a);
+	if (a->format_free != NULL)
+		(a->format_free)(a);
 
 	ar = (struct ar_w *)malloc(sizeof(*ar));
 	if (ar == NULL) {
@@ -137,8 +137,8 @@ archive_write_set_format_ar(struct archive_write *a)
 	a->format_name = "ar";
 	a->format_write_header = archive_write_ar_header;
 	a->format_write_data = archive_write_ar_data;
-	a->format_finish = archive_write_ar_finish;
-	a->format_destroy = archive_write_ar_destroy;
+	a->format_close = archive_write_ar_close;
+	a->format_free = archive_write_ar_free;
 	a->format_finish_entry = archive_write_ar_finish_entry;
 	return (ARCHIVE_OK);
 }
@@ -394,7 +394,7 @@ archive_write_ar_data(struct archive_write *a, const void *buff, size_t s)
 }
 
 static int
-archive_write_ar_destroy(struct archive_write *a)
+archive_write_ar_free(struct archive_write *a)
 {
 	struct ar_w *ar;
 
@@ -414,7 +414,7 @@ archive_write_ar_destroy(struct archive_write *a)
 }
 
 static int
-archive_write_ar_finish(struct archive_write *a)
+archive_write_ar_close(struct archive_write *a)
 {
 	struct ar_w *ar;
 	int ret;

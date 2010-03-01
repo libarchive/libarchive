@@ -582,10 +582,9 @@ _archive_write_close(struct archive *_a)
 		r = ((a->format_finish_entry)(a));
 
 	/* Finish off the archive. */
-	/* TODO: Rename format_finish to format_close, have
-	 * format closers invoke compression close. */
-	if (a->format_finish != NULL) {
-		r1 = (a->format_finish)(a);
+	/* TODO: have format closers invoke compression close. */
+	if (a->format_close != NULL) {
+		r1 = (a->format_close)(a);
 		if (r1 < r)
 			r = r1;
 	}
@@ -642,9 +641,8 @@ _archive_write_free(struct archive *_a)
 		r = archive_write_close(&a->archive);
 
 	/* Release format resources. */
-	/* TODO: Rename format_destroy to format_free */
-	if (a->format_destroy != NULL) {
-		r1 = (a->format_destroy)(a);
+	if (a->format_free != NULL) {
+		r1 = (a->format_free)(a);
 		if (r1 < r)
 			r = r1;
 	}

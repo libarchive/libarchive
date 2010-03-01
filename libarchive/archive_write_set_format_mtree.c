@@ -830,7 +830,7 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 }
 
 static int
-archive_write_mtree_finish(struct archive_write *a)
+archive_write_mtree_close(struct archive_write *a)
 {
 	struct mtree_writer *mtree= a->format_data;
 
@@ -888,7 +888,7 @@ archive_write_mtree_data(struct archive_write *a, const void *buff, size_t n)
 }
 
 static int
-archive_write_mtree_destroy(struct archive_write *a)
+archive_write_mtree_free(struct archive_write *a)
 {
 	struct mtree_writer *mtree= a->format_data;
 
@@ -1018,8 +1018,8 @@ archive_write_set_format_mtree(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_set_format_mtree");
 
-	if (a->format_destroy != NULL)
-		(a->format_destroy)(a);
+	if (a->format_free != NULL)
+		(a->format_free)(a);
 
 	if ((mtree = malloc(sizeof(*mtree))) == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
@@ -1037,13 +1037,13 @@ archive_write_set_format_mtree(struct archive *_a)
 	archive_string_init(&mtree->ebuf);
 	archive_string_init(&mtree->buf);
 	a->format_data = mtree;
-	a->format_destroy = archive_write_mtree_destroy;
+	a->format_free = archive_write_mtree_free;
 
 	a->pad_uncompressed = 0;
 	a->format_name = "mtree";
 	a->format_options = archive_write_mtree_options;
 	a->format_write_header = archive_write_mtree_header;
-	a->format_finish = archive_write_mtree_finish;
+	a->format_close = archive_write_mtree_close;
 	a->format_write_data = archive_write_mtree_data;
 	a->format_finish_entry = archive_write_mtree_finish_entry;
 	a->archive.archive_format = ARCHIVE_FORMAT_MTREE;
