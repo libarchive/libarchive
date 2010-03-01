@@ -59,7 +59,8 @@ archive_read_data_into_fd(struct archive *a, int fd)
 #endif
 	off_t output_offset;
 
-	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA, "archive_read_data_into_fd");
+	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA,
+	    "archive_read_data_into_fd");
 
 	total_written = 0;
 	output_offset = 0;

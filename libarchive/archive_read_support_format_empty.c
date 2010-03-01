@@ -47,6 +47,9 @@ archive_read_support_format_empty(struct archive *_a)
 	struct archive_read *a = (struct archive_read *)_a;
 	int r;
 
+	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_read_support_format_empty");
+
 	r = __archive_read_register_format(a,
 	    NULL,
 	    NULL,

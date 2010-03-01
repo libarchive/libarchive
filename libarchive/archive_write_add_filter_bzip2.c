@@ -100,8 +100,8 @@ archive_write_add_filter_bzip2(struct archive *_a)
 	struct archive_write_filter *f = __archive_write_allocate_filter(_a);
 	struct private_data *data;
 
-	__archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_write_set_compression_bzip2");
+	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_write_add_filter_bzip2");
 
 	data = calloc(1, sizeof(*data));
 	if (data == NULL) {

@@ -426,6 +426,9 @@ archive_read_support_format_iso9660(struct archive *_a)
 	struct iso9660 *iso9660;
 	int r;
 
+	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_read_support_format_iso9660");
+
 	iso9660 = (struct iso9660 *)malloc(sizeof(*iso9660));
 	if (iso9660 == NULL) {
 		archive_set_error(&a->archive, ENOMEM, "Can't allocate iso9660 data");

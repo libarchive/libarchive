@@ -156,6 +156,9 @@ archive_read_support_format_zip(struct archive *_a)
 	struct zip *zip;
 	int r;
 
+	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_read_support_format_zip");
+
 	zip = (struct zip *)malloc(sizeof(*zip));
 	if (zip == NULL) {
 		archive_set_error(&a->archive, ENOMEM, "Can't allocate zip data");

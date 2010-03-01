@@ -107,8 +107,6 @@ common_setup(struct archive_write_filter *f)
 {
 	struct private_data *data;
 	struct archive_write *a = (struct archive_write *)f->archive;
-	__archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_write_add_filter_xz");
 	data = calloc(1, sizeof(*data));
 	if (data == NULL) {
 		archive_set_error(&a->archive, ENOMEM, "Out of memory");
@@ -129,8 +127,13 @@ common_setup(struct archive_write_filter *f)
 int
 archive_write_add_filter_xz(struct archive *_a)
 {
-	struct archive_write_filter *f = __archive_write_allocate_filter(_a);
-	int r = common_setup(f);
+	struct archive_write_filter *f;
+	int r;
+
+	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_write_add_filter_xz");
+	f = __archive_write_allocate_filter(_a);
+	r = common_setup(f);
 	if (r == ARCHIVE_OK) {
 		f->code = ARCHIVE_COMPRESSION_XZ;
 		f->name = "xz";
@@ -144,8 +147,13 @@ archive_write_add_filter_xz(struct archive *_a)
 int
 archive_write_add_filter_lzma(struct archive *_a)
 {
-	struct archive_write_filter *f = __archive_write_allocate_filter(_a);
-	int r = common_setup(f);
+	struct archive_write_filter *f;
+	int r;
+
+	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_write_add_filter_lzma");
+	f = __archive_write_allocate_filter(_a);
+	r = common_setup(f);
 	if (r == ARCHIVE_OK) {
 		f->code = ARCHIVE_COMPRESSION_LZMA;
 		f->name = "lzma";

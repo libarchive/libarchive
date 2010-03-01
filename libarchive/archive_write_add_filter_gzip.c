@@ -101,8 +101,8 @@ archive_write_add_filter_gzip(struct archive *_a)
 	struct archive_write *a = (struct archive_write *)_a;
 	struct archive_write_filter *f = __archive_write_allocate_filter(_a);
 	struct private_data *data;
-	__archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_write_set_compression_gzip");
+	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_write_add_filter_gzip");
 
 	data = calloc(1, sizeof(*data));
 	if (data == NULL) {

@@ -1158,6 +1158,9 @@ archive_write_set_format_iso9660(struct archive *_a)
 	struct archive_write *a = (struct archive_write *)_a;
 	struct iso9660 *iso9660;
 
+	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_write_set_format_iso9660");
+
 	/* If another format was already registered, unregister it. */
 	if (a->format_destroy != NULL)
 		(a->format_destroy)(a);

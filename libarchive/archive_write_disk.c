@@ -360,7 +360,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	struct fixup_entry *fe;
 	int ret, r;
 
-	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
+	archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
 	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
 	    "archive_write_disk_header");
 	archive_clear_error(&a->archive);
@@ -598,7 +598,7 @@ archive_write_disk_set_skip_file(struct archive *_a, int64_t d, int64_t i)
 #endif
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
-	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
+	archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
 	    ARCHIVE_STATE_ANY, "archive_write_disk_set_skip_file");
 	a->skip_file_dev = d;
 	a->skip_file_ino = i;
@@ -698,7 +698,7 @@ _archive_write_disk_data_block(struct archive *_a,
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	ssize_t r;
 
-	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
+	archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
 	    ARCHIVE_STATE_DATA, "archive_write_data_block");
 
 	a->offset = offset;
@@ -718,7 +718,7 @@ _archive_write_disk_data(struct archive *_a, const void *buff, size_t size)
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 
-	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
+	archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
 	    ARCHIVE_STATE_DATA, "archive_write_data");
 
 	return (write_data_block(a, buff, size));
@@ -730,7 +730,7 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	int ret = ARCHIVE_OK;
 
-	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
+	archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
 	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
 	    "archive_write_finish_entry");
 	if (a->archive.state & ARCHIVE_STATE_HEADER)
@@ -870,7 +870,7 @@ archive_write_disk_set_group_lookup(struct archive *_a,
 #endif
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
-	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
+	archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
 	    ARCHIVE_STATE_ANY, "archive_write_disk_set_group_lookup");
 
 	a->lookup_gid = lookup_gid;
@@ -894,7 +894,7 @@ archive_write_disk_set_user_lookup(struct archive *_a,
 #endif
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
-	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
+	archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
 	    ARCHIVE_STATE_ANY, "archive_write_disk_set_user_lookup");
 
 	a->lookup_uid = lookup_uid;
@@ -1309,7 +1309,7 @@ _archive_write_disk_close(struct archive *_a)
 	struct fixup_entry *next, *p;
 	int ret;
 
-	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
+	archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
 	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
 	    "archive_write_disk_close");
 	ret = _archive_write_disk_finish_entry(&a->archive);
@@ -1373,8 +1373,13 @@ _archive_write_disk_close(struct archive *_a)
 static int
 _archive_write_disk_free(struct archive *_a)
 {
-	struct archive_write_disk *a = (struct archive_write_disk *)_a;
+	struct archive_write_disk *a;
 	int ret;
+	if (_a == NULL)
+		return (ARCHIVE_OK);
+	archive_check_magic(_a, ARCHIVE_WRITE_DISK_MAGIC,
+	    ARCHIVE_STATE_ANY | ARCHIVE_STATE_FATAL, "archive_write_disk_free");
+	a = (struct archive_write_disk *)_a;
 	ret = _archive_write_disk_close(&a->archive);
 	if (a->cleanup_gid != NULL && a->lookup_gid_data != NULL)
 		(a->cleanup_gid)(a->lookup_gid_data);
@@ -1385,6 +1390,7 @@ _archive_write_disk_free(struct archive *_a)
 	archive_string_free(&a->_name_data);
 	archive_string_free(&a->archive.error_string);
 	archive_string_free(&a->path_safe);
+	a->archive.magic = 0;
 	free(a);
 	return (ret);
 }

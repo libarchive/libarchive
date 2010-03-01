@@ -28,10 +28,8 @@
 #ifndef ARCHIVE_ENTRY_H_INCLUDED
 #define	ARCHIVE_ENTRY_H_INCLUDED
 
-/* Needed if archive_entry.h is used without archive.h */
-#ifndef ARCHIVE_VERSION_NUMBER
-#define	ARCHIVE_VERSION_NUMBER 3000000
-#endif
+/* Note: Compiler will complain if this does not match archive.h! */
+#define	ARCHIVE_VERSION_NUMBER 2008900
 
 /*
  * Note: archive_entry.h is for use outside of libarchive; the

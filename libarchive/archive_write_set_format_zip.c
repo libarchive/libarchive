@@ -227,6 +227,9 @@ archive_write_set_format_zip(struct archive *_a)
 	struct archive_write *a = (struct archive_write *)_a;
 	struct zip *zip;
 
+	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_write_set_format_zip");
+
 	/* If another format was already registered, unregister it. */
 	if (a->format_destroy != NULL)
 		(a->format_destroy)(a);

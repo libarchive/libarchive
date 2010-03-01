@@ -162,6 +162,9 @@ archive_write_set_format_ustar(struct archive *_a)
 	struct archive_write *a = (struct archive_write *)_a;
 	struct ustar *ustar;
 
+	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_write_set_format_ustar");
+
 	/* If someone else was already registered, unregister them. */
 	if (a->format_destroy != NULL)
 		(a->format_destroy)(a);

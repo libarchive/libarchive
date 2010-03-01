@@ -47,13 +47,13 @@
 #define	ARCHIVE_WRITE_DISK_MAGIC (0xc001b0c5U)
 #define	ARCHIVE_READ_DISK_MAGIC (0xbadb0c5U)
 
-#define	ARCHIVE_STATE_ANY	0xFFFFU
 #define	ARCHIVE_STATE_NEW	1U
 #define	ARCHIVE_STATE_HEADER	2U
 #define	ARCHIVE_STATE_DATA	4U
 #define	ARCHIVE_STATE_EOF	0x10U
 #define	ARCHIVE_STATE_CLOSED	0x20U
 #define	ARCHIVE_STATE_FATAL	0x8000U
+#define	ARCHIVE_STATE_ANY	(0xFFFFU & ~ARCHIVE_STATE_FATAL)
 
 struct archive_vtable {
 	int	(*archive_close)(struct archive *);
@@ -102,9 +102,16 @@ struct archive {
 	struct archive_string	error_string;
 };
 
-/* Check magic value and state; exit if it isn't valid. */
-void	__archive_check_magic(struct archive *, unsigned int magic,
+/* Check magic value and state; return(ARCHIVE_FATAL) if it isn't valid. */
+int	__archive_check_magic(struct archive *, unsigned int magic,
 	    unsigned int state, const char *func);
+#define	archive_check_magic(a, expected_magic, allowed_states, function_name) \
+	do { \
+		int magic_test = __archive_check_magic((a), (expected_magic), \
+			(allowed_states), (function_name)); \
+		if (magic_test == ARCHIVE_FATAL) \
+			return ARCHIVE_FATAL; \
+	} while (0)
 
 void	__archive_errx(int retvalue, const char *msg) __LA_DEAD;
 

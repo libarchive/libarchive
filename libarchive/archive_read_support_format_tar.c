@@ -239,6 +239,8 @@ static wchar_t	*utf8_decode(struct tar *, const char *, size_t length);
 int
 archive_read_support_format_gnutar(struct archive *a)
 {
+	archive_check_magic(a, ARCHIVE_READ_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_read_support_format_gnutar");
 	return (archive_read_support_format_tar(a));
 }
 
@@ -249,6 +251,9 @@ archive_read_support_format_tar(struct archive *_a)
 	struct archive_read *a = (struct archive_read *)_a;
 	struct tar *tar;
 	int r;
+
+	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_read_support_format_tar");
 
 	tar = (struct tar *)malloc(sizeof(*tar));
 	if (tar == NULL) {

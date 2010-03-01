@@ -99,6 +99,10 @@ archive_write_set_format_pax_restricted(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;
 	int r;
+
+	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_write_set_format_pax_restricted");
+
 	r = archive_write_set_format_pax(&a->archive);
 	a->archive.archive_format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED;
 	a->archive.archive_format_name = "restricted POSIX pax interchange";
@@ -113,6 +117,9 @@ archive_write_set_format_pax(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;
 	struct pax *pax;
+
+	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_write_set_format_pax");
 
 	if (a->format_destroy != NULL)
 		(a->format_destroy)(a);

@@ -144,6 +144,9 @@ archive_read_support_format_mtree(struct archive *_a)
 	struct mtree *mtree;
 	int r;
 
+	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_read_support_format_mtree");
+
 	mtree = (struct mtree *)malloc(sizeof(*mtree));
 	if (mtree == NULL) {
 		archive_set_error(&a->archive, ENOMEM,

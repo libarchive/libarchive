@@ -115,8 +115,11 @@ archive_read_extract_set_skip_file(struct archive *_a, int64_t d, int64_t i)
 #endif
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_ANY,
-	    "archive_read_extract_set_skip_file");
+
+	if (ARCHIVE_OK != __archive_check_magic(_a, ARCHIVE_READ_MAGIC,
+		ARCHIVE_STATE_ANY, "archive_read_extract_set_skip_file"))
+		return;
+
 	a->skip_file_dev = d;
 	a->skip_file_ino = i;
 }
@@ -134,14 +137,12 @@ archive_read_set_format_options(struct archive *_a, const char *s)
 	size_t i;
 	int len, r;
 
-	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
+	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
 	    "archive_read_set_format_options");
 
 	if (s == NULL || *s == '\0')
 		return (ARCHIVE_OK);
 	a = (struct archive_read *)_a;
-	__archive_check_magic(&a->archive, ARCHIVE_READ_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_read_set_format_options");
 	len = 0;
 	for (i = 0; i < sizeof(a->formats)/sizeof(a->formats[0]); i++) {
 		format = &a->formats[i];
@@ -181,14 +182,12 @@ archive_read_set_filter_options(struct archive *_a, const char *s)
 	char key[64], val[64];
 	int len, r;
 
-	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
+	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
 	    "archive_read_set_filter_options");
 
 	if (s == NULL || *s == '\0')
 		return (ARCHIVE_OK);
 	a = (struct archive_read *)_a;
-	__archive_check_magic(&a->archive, ARCHIVE_READ_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_read_set_filter_options");
 	len = 0;
 	for (filter = a->filter; filter != NULL; filter = filter->upstream) {
 		bidder = filter->bidder;
@@ -224,7 +223,7 @@ archive_read_set_options(struct archive *_a, const char *s)
 {
 	int r;
 
-	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
+	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
 	    "archive_read_set_options");
 	archive_clear_error(_a);
 
@@ -308,7 +307,7 @@ archive_read_open2(struct archive *_a, void *client_data,
 	struct archive_read_filter *filter;
 	int e;
 
-	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
+	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
 	    "archive_read_open");
 	archive_clear_error(&a->archive);
 
@@ -424,7 +423,7 @@ archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	struct archive_read *a = (struct archive_read *)_a;
 	int slot, ret;
 
-	__archive_check_magic(_a, ARCHIVE_READ_MAGIC,
+	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
 	    "archive_read_next_header");
 
@@ -562,7 +561,7 @@ int64_t
 archive_read_header_position(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	__archive_check_magic(_a, ARCHIVE_READ_MAGIC,
+	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_ANY, "archive_read_header_position");
 	return (a->header_position);
 }
@@ -682,7 +681,7 @@ archive_read_data_skip(struct archive *_a)
 	int64_t offset;
 #endif
 
-	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA,
+	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA,
 	    "archive_read_data_skip");
 
 	if (a->format->read_data_skip != NULL)
@@ -720,7 +719,7 @@ archive_read_data_block(struct archive *_a,
 #endif
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA,
+	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA,
 	    "archive_read_data_block");
 
 	if (a->format->read_data == NULL) {
@@ -772,10 +771,11 @@ _archive_read_close(struct archive *_a)
 	struct archive_read *a = (struct archive_read *)_a;
 	int r = ARCHIVE_OK, r1 = ARCHIVE_OK;
 
-	__archive_check_magic(&a->archive, ARCHIVE_READ_MAGIC,
-	    ARCHIVE_STATE_ANY, "archive_read_close");
+	archive_check_magic(&a->archive, ARCHIVE_READ_MAGIC,
+	    ARCHIVE_STATE_ANY | ARCHIVE_STATE_FATAL, "archive_read_close");
 	archive_clear_error(&a->archive);
-	a->archive.state = ARCHIVE_STATE_CLOSED;
+	if (a->archive.state != ARCHIVE_STATE_FATAL)
+		a->archive.state = ARCHIVE_STATE_CLOSED;
 
 	/* TODO: Clean up the formatters. */
 
@@ -798,9 +798,12 @@ _archive_read_free(struct archive *_a)
 	int slots;
 	int r = ARCHIVE_OK;
 
-	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_ANY,
-	    "archive_read_free");
-	if (a->archive.state != ARCHIVE_STATE_CLOSED)
+	if (_a == NULL)
+		return (ARCHIVE_OK);
+	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
+	    ARCHIVE_STATE_ANY | ARCHIVE_STATE_FATAL, "archive_read_free");
+	if (a->archive.state != ARCHIVE_STATE_CLOSED
+	    && a->archive.state != ARCHIVE_STATE_FATAL)
 		r = archive_read_close(&a->archive);
 
 	/* Call cleanup functions registered by optional components. */
@@ -893,7 +896,7 @@ __archive_read_register_format(struct archive_read *a,
 {
 	int i, number_slots;
 
-	__archive_check_magic(&a->archive,
+	archive_check_magic(&a->archive,
 	    ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
 	    "__archive_read_register_format");
 
@@ -927,10 +930,6 @@ struct archive_read_filter_bidder *
 __archive_read_get_bidder(struct archive_read *a)
 {
 	int i, number_slots;
-
-	__archive_check_magic(&a->archive,
-	    ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
-	    "__archive_read_get_bidder");
 
 	number_slots = sizeof(a->bidders) / sizeof(a->bidders[0]);
 

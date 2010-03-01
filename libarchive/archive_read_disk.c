@@ -64,9 +64,12 @@ archive_read_disk_gname(struct archive *_a, int64_t gid)
 #endif
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
-	if (a->lookup_gname != NULL)
-		return ((*a->lookup_gname)(a->lookup_gname_data, gid));
-	return (NULL);
+	if (ARCHIVE_OK != __archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
+		ARCHIVE_STATE_ANY, "archive_read_disk_gname"))
+		return (NULL);
+	if (a->lookup_gname == NULL)
+		return (NULL);
+	return ((*a->lookup_gname)(a->lookup_gname_data, gid));
 }
 
 #if ARCHIVE_VERSION_NUMBER < 3000000
@@ -78,9 +81,12 @@ archive_read_disk_uname(struct archive *_a, int64_t uid)
 #endif
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
-	if (a->lookup_uname != NULL)
-		return ((*a->lookup_uname)(a->lookup_uname_data, uid));
-	return (NULL);
+	if (ARCHIVE_OK != __archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
+		ARCHIVE_STATE_ANY, "archive_read_disk_uname"))
+		return (NULL);
+	if (a->lookup_uname == NULL)
+		return (NULL);
+	return ((*a->lookup_uname)(a->lookup_uname_data, uid));
 }
 
 #if ARCHIVE_VERSION_NUMBER < 3000000
@@ -98,7 +104,7 @@ archive_read_disk_set_gname_lookup(struct archive *_a,
 #endif
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
-	__archive_check_magic(&a->archive, ARCHIVE_READ_DISK_MAGIC,
+	archive_check_magic(&a->archive, ARCHIVE_READ_DISK_MAGIC,
 	    ARCHIVE_STATE_ANY, "archive_read_disk_set_gname_lookup");
 
 	if (a->cleanup_gname != NULL && a->lookup_gname_data != NULL)
@@ -125,7 +131,7 @@ archive_read_disk_set_uname_lookup(struct archive *_a,
 #endif
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
-	__archive_check_magic(&a->archive, ARCHIVE_READ_DISK_MAGIC,
+	archive_check_magic(&a->archive, ARCHIVE_READ_DISK_MAGIC,
 	    ARCHIVE_STATE_ANY, "archive_read_disk_set_uname_lookup");
 
 	if (a->cleanup_uname != NULL && a->lookup_uname_data != NULL)
@@ -163,11 +169,16 @@ _archive_read_free(struct archive *_a)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
 
+	if (_a == NULL)
+		return (ARCHIVE_OK);
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
+	    ARCHIVE_STATE_ANY | ARCHIVE_STATE_FATAL, "archive_read_free");
 	if (a->cleanup_gname != NULL && a->lookup_gname_data != NULL)
 		(a->cleanup_gname)(a->lookup_gname_data);
 	if (a->cleanup_uname != NULL && a->lookup_uname_data != NULL)
 		(a->cleanup_uname)(a->lookup_uname_data);
 	archive_string_free(&a->archive.error_string);
+	a->archive.magic = 0;
 	free(a);
 	return (ARCHIVE_OK);
 }
@@ -175,6 +186,8 @@ _archive_read_free(struct archive *_a)
 static int
 _archive_read_close(struct archive *_a)
 {
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
+	    ARCHIVE_STATE_ANY | ARCHIVE_STATE_FATAL, "archive_read_close");
 	(void)_a; /* UNUSED */
 	return (ARCHIVE_OK);
 }
@@ -183,6 +196,8 @@ int
 archive_read_disk_set_symlink_logical(struct archive *_a)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
+	    ARCHIVE_STATE_ANY, "archive_read_disk_set_symlink_logical");
 	a->symlink_mode = 'L';
 	a->follow_symlinks = 1;
 	return (ARCHIVE_OK);
@@ -192,6 +207,8 @@ int
 archive_read_disk_set_symlink_physical(struct archive *_a)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
+	    ARCHIVE_STATE_ANY, "archive_read_disk_set_symlink_physical");
 	a->symlink_mode = 'P';
 	a->follow_symlinks = 0;
 	return (ARCHIVE_OK);
@@ -201,6 +218,8 @@ int
 archive_read_disk_set_symlink_hybrid(struct archive *_a)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
+	    ARCHIVE_STATE_ANY, "archive_read_disk_set_symlink_hybrid");
 	a->symlink_mode = 'H';
 	a->follow_symlinks = 1; /* Follow symlinks initially. */
 	return (ARCHIVE_OK);
