@@ -1855,7 +1855,7 @@ int
 main(int argc, char **argv)
 {
 	static const int limit = sizeof(tests) / sizeof(tests[0]);
-	int i, tests_run = 0, tests_failed = 0, option;
+	int i, start, end, tests_run = 0, tests_failed = 0, option;
 	time_t now;
 	char *refdir_alloc = NULL;
 	const char *progname;
@@ -2052,19 +2052,41 @@ main(int argc, char **argv)
 	} else {
 		while (*(argv) != NULL) {
 			if (**argv >= '0' && **argv <= '9') {
-				i = atoi(*argv);
-				if (i < 0 || i >= limit) {
+				char *p = *argv;
+				start = 0;
+				while (*p >= '0' && *p <= '9') {
+					start *= 10;
+					start += *p - '0';
+					++p;
+				}
+				if (*p == '\0') {
+					end = start;
+				} else if (*p == '-') {
+					++p;
+					if (*p == '\0') {
+						end = limit - 1;
+					} else {
+						end = 0;
+						while (*p >= '0' && *p <= '9') {
+							end *= 10;
+							end += *p - '0';
+							++p;
+						}
+					}
+				}
+				if (start < 0 || end >= limit || start > end) {
 					printf("*** INVALID Test %s\n", *argv);
 					free(refdir_alloc);
 					usage(progname);
 					/* usage() never returns */
 				}
 			} else {
-				for (i = 0; i < limit; ++i) {
-					if (strcmp(*argv, tests[i].name) == 0)
+				for (start = 0; start < limit; ++start) {
+					if (strcmp(*argv, tests[start].name) == 0)
 						break;
 				}
-				if (i >= limit) {
+				end = start;
+				if (start >= limit) {
 					printf("*** INVALID Test ``%s''\n",
 					       *argv);
 					free(refdir_alloc);
@@ -2072,9 +2094,12 @@ main(int argc, char **argv)
 					/* usage() never returns */
 				}
 			}
-			if (test_run(i, tmpdir))
-				tests_failed++;
-			tests_run++;
+			while (start <= end) {
+				if (test_run(start, tmpdir))
+					tests_failed++;
+				tests_run++;
+				++start;
+			}
 			argv++;
 		}
 	}
