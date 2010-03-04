@@ -136,7 +136,7 @@ __archive_check_magic(struct archive *a, unsigned int magic,
 			    " should be in state '%s'",
 			    function,
 			    write_all_states(states1, a->state),
-			    write_all_states(states2, a->state));
+			    write_all_states(states2, state));
 		a->state = ARCHIVE_STATE_FATAL;
 #if ARCHIVE_VERSION_NUMBER < 3000000
 		// XXXX This should be identical to the old behavior.
