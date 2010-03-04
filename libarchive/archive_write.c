@@ -518,6 +518,8 @@ archive_write_client_close(struct archive_write_filter *f)
                     a->client_data, state->buffer, block_length);
                 ret = bytes_written <= 0 ? ARCHIVE_FATAL : ARCHIVE_OK;
         }
+	if (a->client_closer)
+		(*a->client_closer)(&a->archive, a->client_data);
 	free(state->buffer);
         free(state);
         a->client_data = NULL;
