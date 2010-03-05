@@ -349,6 +349,7 @@ IF(LIBXML2_FOUND)
   # We need a directory path of iconv.h so that it won't fail to check
   # "libxml/xmlreader.h".
   FIND_PATH(ICONV_INCLUDE_DIR iconv.h)
+  INCLUDE_DIRECTORIES(${ICONV_INCLUDE_DIR})
   SET(CMAKE_REQUIRED_INCLUDES ${ICONV_INCLUDE_DIR} ${LIBXML2_INCLUDE_DIR})
   CHECK_INCLUDE_FILES("libxml/xmlreader.h" HAVE_LIBXML_XMLREADER_H)
   SET(CMAKE_REQUIRED_INCLUDES "")
