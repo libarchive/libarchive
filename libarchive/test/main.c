@@ -2073,12 +2073,17 @@ main(int argc, char **argv)
 							++p;
 						}
 					}
+				} else {
+					printf("*** INVALID Test %s\n", *argv);
+					free(refdir_alloc);
+					usage(progname);
+					return (1);
 				}
 				if (start < 0 || end >= limit || start > end) {
 					printf("*** INVALID Test %s\n", *argv);
 					free(refdir_alloc);
 					usage(progname);
-					/* usage() never returns */
+					return (1);
 				}
 			} else {
 				for (start = 0; start < limit; ++start) {
