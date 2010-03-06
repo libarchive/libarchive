@@ -170,7 +170,7 @@ struct isofile {
 	struct archive_string	 parentdir;
 	struct archive_string	 basename;
 	struct archive_string	 symlink;
-	int			 dircnt;	/* The number of elements of 
+	int			 dircnt;	/* The number of elements of
 						 * its parent directory */
 
 	/*
@@ -504,11 +504,11 @@ struct iso_option {
 	 *        : If ths size is just 1.22M/1.44M/2.88M,
 	 *        : we assume boot_type is 'fd';
 	 *        : otherwise boot_type is 'no-emulation'.
-	 * COMPAT : 
+	 * COMPAT :
 	 *    boot=no-emulation
 	 *	mkisofs -no-emul-boot
 	 *    boot=fd
-	 *	This is a default on the mkisofs. 
+	 *	This is a default on the mkisofs.
 	 *    boot=hard-disk
 	 *	mkisofs -hard-disk-boot
 	 *
@@ -757,7 +757,7 @@ struct iso_option {
 	 *        :        is the same as or less than the number of
 	 *        :        Logical Blocks which a zisofsed file will use.
 	 *        :    Those won't reduce ISO-image size.
-	 *        :   
+	 *        :
 	 *        :    When you specify option 'boot=<boot-image>', that
 	 *        :    'boot-image' file won't be converted to zisofs file.
 	 * Type   : boolean, string
@@ -2056,7 +2056,7 @@ iso9660_close(struct archive_write *a)
 	/*
 	 * Write ISO 9660 image.
 	 */
-	/* Start using wbuff as file buffer. */ 
+	/* Start using wbuff as file buffer. */
 	iso9660->wbuff_remaining = sizeof(iso9660->wbuff);
 
 	/* Write The System Area */
@@ -2152,7 +2152,7 @@ iso9660_close(struct archive_write *a)
 		if (ret != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
 	}
-	
+
 	if (iso9660->directories_too_deep != NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "%s: Directories too deep.",
@@ -2196,7 +2196,7 @@ iso9660_free(struct archive_write *a)
 	}
 	free(iso9660->zisofs.nozf_list);
 #endif
-		
+
 	/* Remove directory entries in tree which includes file entries. */
 	isoent_free_all(iso9660->primary.rootent);
 	for (i = 0; i < iso9660->primary.max_depth; i++)
@@ -2224,7 +2224,7 @@ iso9660_free(struct archive_write *a)
 	archive_string_free(&(iso9660->el_torito.catalog_filename));
 	archive_string_free(&(iso9660->el_torito.boot_filename));
 	archive_string_free(&(iso9660->el_torito.id));
-	
+
 	free(iso9660);
 	a->format_data = NULL;
 
@@ -2630,7 +2630,7 @@ set_SUSP_CE(unsigned char *p, int location, int offset, int size)
 	unsigned char *bp = p -1;
 	/*  Extend the System Use Area
 	 *   "CE" Format:
-	 *               len  ver  
+	 *               len  ver
 	 *    +----+----+----+----+-----------+-----------+
 	 *    | 'C'| 'E'| 1C | 01 | LOCATION1 | LOCATION2 |
 	 *    +----+----+----+----+-----------+-----------+
@@ -2974,7 +2974,7 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 	if (rr_flag & RR_USE_PX) {
 		/*
 		 *   "PX" Format:
-		 *               len  ver  
+		 *               len  ver
 		 *    +----+----+----+----+-----------+-----------+
 		 *    | 'P'| 'X'| 2C | 01 | FILE MODE |   LINKS   |
 		 *    +----+----+----+----+-----------+-----------+
@@ -3048,7 +3048,7 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 		/*
 		 *   "SL" Format:
 		 *     e.g. a symbolic name is 'foo/bar'
-		 *               len  ver  flg  
+		 *               len  ver  flg
 		 *    +----+----+----+----+----+------------+
 		 *    | 'S'| 'L'| 0F | 01 | 00 | components |
 		 *    +----+----+----+----+----+-----+------+
@@ -3097,7 +3097,7 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 			while (*sl && sllen + 11 < slmax) {
 				if (sl_last == '\0' && sl[0] == '/') {
 					/*
-					 *     flg  len 
+					 *     flg  len
 					 *    +----+----+
 					 *    | 08 | 00 | ROOT component.
 					 *    +----+----+ ("/")
@@ -3123,7 +3123,7 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 				      sl[1] == '.' && sl[2] == '.' &&
 				     (sl[3] == '/' || sl[3] == '\0'))) {
 					/*
-					 *     flg  len 
+					 *     flg  len
 					 *    +----+----+
 					 *    | 04 | 00 | PARENT component.
 					 *    +----+----+ ("..")
@@ -3148,7 +3148,7 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 				    (sl[0] == '/' && sl[1] == '.' &&
 				     (sl[2] == '/' || sl[2] == '\0'))) {
 					/*
-					 *     flg  len 
+					 *     flg  len
 					 *    +----+----+
 					 *    | 02 | 00 | CURREENT component.
 					 *    +----+----+ (".")
@@ -3196,9 +3196,9 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 					 */
 					*cf |= 0x01;
 					/*
-					 *               len  ver  flg  
+					 *               len  ver  flg
 					 *    +----+----+----+----+----+-
-					 *    | 'S'| 'L'| XX | 01 | 01 | 
+					 *    | 'S'| 'L'| XX | 01 | 01 |
 					 *    +----+----+----+----+----+-
 					 *                           ^
 					 *           continues in next "SL"
@@ -3235,13 +3235,13 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 	if (rr_flag & RR_USE_TF) {
 		/*
 		 *   "TF" Format:
-		 *               len  ver 
+		 *               len  ver
 		 *    +----+----+----+----+-----+-------------+
 		 *    | 'T'| 'F'| XX | 01 |FLAGS| TIME STAMPS |
 		 *    +----+----+----+----+-----+-------------+
 		 *    0    1    2    3    4     5            XX
 		 *    TIME STAMPS : ISO 9660 Standard 9.1.5.
-		 *                  If TF_LONG_FORM FLAGS is set, 
+		 *                  If TF_LONG_FORM FLAGS is set,
 		 *                  use ISO9660 Standard 8.4.26.1.
 		 */
 #define TF_CREATION	0x01	/* Creation time recorded		*/
@@ -3317,7 +3317,7 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 	if (rr_flag & RR_USE_RE) {
 		/*
 		 *   "RE" Format:
-		 *               len  ver  
+		 *               len  ver
 		 *    +----+----+----+----+
 		 *    | 'R'| 'E'| 04 | 01 |
 		 *    +----+----+----+----+
@@ -3340,7 +3340,7 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 	if (rr_flag & RR_USE_PL) {
 		/*
 		 *   "PL" Format:
-		 *               len  ver  
+		 *               len  ver
 		 *    +----+----+----+----+------------+
 		 *    | 'P'| 'L'| 0C | 01 | *LOCATION  |
 		 *    +----+----+----+----+------------+
@@ -3366,7 +3366,7 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 	if (rr_flag & RR_USE_CL) {
 		/*
 		 *   "CL" Format:
-		 *               len  ver  
+		 *               len  ver
 		 *    +----+----+----+----+------------+
 		 *    | 'C'| 'L'| 0C | 01 | *LOCATION  |
 		 *    +----+----+----+----+------------+
@@ -3392,7 +3392,7 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 	if (rr_flag & RR_USE_PN) {
 		/*
 		 *   "PN" Format:
-		 *               len  ver  
+		 *               len  ver
 		 *    +----+----+----+----+------------+------------+
 		 *    | 'P'| 'N'| 14 | 01 | dev_t high | dev_t low  |
 		 *    +----+----+----+----+------------+------------+
@@ -3420,7 +3420,7 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 	if (file->zisofs.header_size) {
 		/*
 		 *   "ZF" Format:
-		 *               len  ver  
+		 *               len  ver
 		 *    +----+----+----+----+----+----+-------------+
 		 *    | 'Z'| 'F'| 10 | 01 | 'p'| 'z'| Header Size |
 		 *    +----+----+----+----+----+----+-------------+
@@ -4339,7 +4339,7 @@ write_path_table(struct archive_write *a, int type_m, struct vdd *vdd)
 		path_table_size += r;
 	}
 
-	/* Write padding data. */ 
+	/* Write padding data. */
 	path_table_size = path_table_size % PATH_TABLE_BLOCK_SIZE;
 	if (path_table_size > 0)
 		r = write_null(a, PATH_TABLE_BLOCK_SIZE - path_table_size);
@@ -4553,7 +4553,7 @@ _write_file_descriptors(struct archive_write *a, struct isoent *isoent)
 				size -= rs;
 				if (size == 0 && pad_size) {
 					/* All file contents must be aligned
-					 * with LOGICAL_BLOCK_SIZE */ 
+					 * with LOGICAL_BLOCK_SIZE */
 					memset(wb + rs, 0, pad_size);
 					rs += pad_size;
 				}
@@ -5179,7 +5179,7 @@ static inline void
 isoent_add_child_head(struct isoent *parent, struct isoent *child)
 {
 	if ((child->chnext = parent->children.first) == NULL)
-		parent->children.last = &(child->chnext);	
+		parent->children.last = &(child->chnext);
 	parent->children.first = child;
 	parent->children.cnt++;
 	child->parent = parent;
@@ -5207,7 +5207,7 @@ isoent_trim_root_directory(struct iso9660 *iso9660)
 
 	rootent = iso9660->primary.rootent;
 	while (rootent->virtual) {
-		if (rootent->children.cnt != 1) 
+		if (rootent->children.cnt != 1)
 			break;
 		child = rootent->children.first;
 		if (child->dir) {
@@ -6157,7 +6157,7 @@ isoent_gen_iso9660_identifier(struct archive_write *a, struct isoent *isoent,
 		idr_register(idr, np, weight, noff, 3);
 	}
 
-	/* Resolve duplicate identifier. */ 
+	/* Resolve duplicate identifier. */
 	idr_resolve(idr, 3, 1, idr_set_num);
 
 	/* Add a period and a version number to identifiers. */
@@ -6289,7 +6289,7 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 		idr_register(idr, np, weight, noff, 6);
 	}
 
-	/* Resolve duplicate identifier with Joliet Volume. */ 
+	/* Resolve duplicate identifier with Joliet Volume. */
 	idr_resolve(idr, 6, 2, idr_set_num_beutf16);
 
 	return (ARCHIVE_OK);
@@ -6680,7 +6680,7 @@ isoent_rr_move(struct archive_write *a)
 		return (ARCHIVE_OK);
 
 	rootent = iso9660->primary.rootent;
-	/* If "rr_moved" directory is already existing, 
+	/* If "rr_moved" directory is already existing,
 	 * we have to use it. */
 	rr_moved = isoent_find_entry(rootent, "rr_moved");
 	if (rr_moved != NULL &&
@@ -6989,7 +6989,7 @@ isoent_make_path_table(struct archive_write *a)
 	}
 	if (iso9660->opt.limit_dirs && dir_number > 0xffff) {
 		/*
-		 * Maximum number of directories is 65535(0xffff) 
+		 * Maximum number of directories is 65535(0xffff)
 		 * doe to size(16bit) of Parent Directory Number of
 		 * the Path Table.
 		 * See also ISO9660 Standard 9.4.
@@ -7127,13 +7127,13 @@ isoent_create_boot_catalog(struct archive_write *a, struct isoent *rootent)
 		/* Try detecting a media type of the boot image. */
 		entry = iso9660->el_torito.boot->file->entry;
 		if (archive_entry_size(entry) == FD_1_2M_SIZE)
-			iso9660->el_torito.media_type = 
+			iso9660->el_torito.media_type =
 			    BOOT_MEDIA_1_2M_DISKETTE;
 		else if (archive_entry_size(entry) == FD_1_44M_SIZE)
-			iso9660->el_torito.media_type = 
+			iso9660->el_torito.media_type =
 			    BOOT_MEDIA_1_44M_DISKETTE;
 		else if (archive_entry_size(entry) == FD_2_88M_SIZE)
-			iso9660->el_torito.media_type = 
+			iso9660->el_torito.media_type =
 			    BOOT_MEDIA_2_88M_DISKETTE;
 		else
 			/* We cannot decide whether the boot image is
@@ -7150,13 +7150,13 @@ isoent_create_boot_catalog(struct archive_write *a, struct isoent *rootent)
 	case OPT_BOOT_TYPE_FD:
 		entry = iso9660->el_torito.boot->file->entry;
 		if (archive_entry_size(entry) <= FD_1_2M_SIZE)
-			iso9660->el_torito.media_type = 
+			iso9660->el_torito.media_type =
 			    BOOT_MEDIA_1_2M_DISKETTE;
 		else if (archive_entry_size(entry) <= FD_1_44M_SIZE)
-			iso9660->el_torito.media_type = 
+			iso9660->el_torito.media_type =
 			    BOOT_MEDIA_1_44M_DISKETTE;
 		else if (archive_entry_size(entry) <= FD_2_88M_SIZE)
-			iso9660->el_torito.media_type = 
+			iso9660->el_torito.media_type =
 			    BOOT_MEDIA_2_88M_DISKETTE;
 		else {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -7606,7 +7606,7 @@ zisofs_fix_nozf(struct archive_write *a)
 
 	if (iso9660->zisofs.nozf_list == NULL)
 		return (ARCHIVE_OK);
-	
+
 	archive_string_init(&str);
 	nzf = iso9660->zisofs.nozf_list;
 	for (i = 0; i < iso9660->zisofs.nozf_cnt; i++) {
@@ -8034,7 +8034,7 @@ zisofs_finish_entry(struct archive_write *a)
 	 * Block Pointers :
 	 *   4 * (((Uncompressed file size + block_size -1) / block_size) + 1)
 	 *
-	 * Write zisofs header. 
+	 * Write zisofs header.
 	 *    Magic number
 	 * +----+----+----+----+----+----+----+----+
 	 * | 37 | E4 | 53 | 96 | C9 | DB | D6 | 07 |
