@@ -1,3 +1,9 @@
+Mar 06, 2010: libarchive 2.8.1 released
+Mar 06, 2010: Fix build when an older libarchive is already installed
+Mar 03, 2010: Use O_BINARY opening files in bsdtar
+Mar 02, 2010: Include missing archive_crc32.h
+Mar 01, 2010: Correctly include iconv.h required by libxml2.
+
 Feb 04, 2010: libarchive 2.8.0 released
 Jan 17, 2010: Fix error handling for 'echo nonexistent | cpio -o'
 Jan 17, 2010: Don't use futimes() on Cygwin
