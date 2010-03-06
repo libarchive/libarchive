@@ -89,6 +89,7 @@ SET(libarchive_SOURCES
   archive_write_set_format_shar.c
   archive_write_set_format_ustar.c
   archive_write_set_format_zip.c
+  archive_write_set_options.c
   filter_fork.c
   filter_fork.h
 )

@@ -630,17 +630,24 @@ __LA_DECL int		 archive_write_finish(struct archive *);
 #endif
 
 /*
- * Set write options.
+ * Set write options.  Note that there's really no reason to use
+ * anything but archive_write_set_options().  The others should probably
+ * all be deprecated and eventually removed.
  */
+/* Apply option string to both the format and all filters. */
+__LA_DECL int		archive_write_set_options(struct archive *_a,
+			    const char *s);
 /* Apply option string to the format only. */
 __LA_DECL int		archive_write_set_format_options(struct archive *_a,
 			    const char *s);
-/* Apply option string to the compressor only. */
+/* Apply option string to all matching filters. */
+__LA_DECL int		archive_write_set_filter_options(struct archive *_a,
+			    const char *s);
+#if ARCHIVE_VERSION_NUMBER < 4000000
+/* Deprecated synonym for archive_write_set_filter_options. */
 __LA_DECL int		archive_write_set_compressor_options(struct archive *_a,
 			    const char *s);
-/* Apply option string to both the format and the compressor. */
-__LA_DECL int		archive_write_set_options(struct archive *_a,
-			    const char *s);
+#endif
 
 /*-
  * ARCHIVE_WRITE_DISK API
