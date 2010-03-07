@@ -430,11 +430,11 @@ setup_xattrs(struct archive_read_disk *a,
  * to not include the system extattrs that hold ACLs; we handle
  * those separately.
  */
-int
+static int
 setup_xattr(struct archive_read_disk *a, struct archive_entry *entry,
     int namespace, const char *name, const char *fullname, int fd);
 
-int
+static int
 setup_xattr(struct archive_read_disk *a, struct archive_entry *entry,
     int namespace, const char *name, const char *fullname, int fd)
 {
