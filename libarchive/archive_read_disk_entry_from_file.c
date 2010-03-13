@@ -208,6 +208,12 @@ setup_acls_posix1e(struct archive_read_disk *a,
 #if HAVE_ACL_GET_LINK_NP
 	else if (!a->follow_symlinks)
 		acl = acl_get_link_np(accpath, ACL_TYPE_ACCESS);
+#else
+	else if ((!a->follow_symlinks)
+	    && (archive_entry_filetype(entry) == AE_IFLNK)))
+		/* We can't get the ACL of a symlink, so we assume it can't
+		   have one. */
+		acl = NULL;
 #endif
 	else
 		acl = acl_get_file(accpath, ACL_TYPE_ACCESS);
