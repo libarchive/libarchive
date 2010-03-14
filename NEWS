@@ -1,3 +1,10 @@
+Mar 14, 2010: libarchive 2.8.2 released
+Mar 12, 2010: Fix NULL deference for short self-extracting zip archives.
+Mar 12, 2010: Don't dereference symlinks on Linux when reading ACLs.
+Mar 07, 2010: Better detction of SHA2 support for old OpenSSL versions.
+Mar 07, 2010: Fix parsing of input files for bsdtar -T.
+Mar 07, 2010: Do not leak setup_xattr into the global namespace.
+
 Mar 06, 2010: libarchive 2.8.1 released
 Mar 06, 2010: Fix build when an older libarchive is already installed
 Mar 03, 2010: Use O_BINARY opening files in bsdtar
