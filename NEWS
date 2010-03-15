@@ -1,3 +1,6 @@
+Mar 14, 2010: libarchive 2.8.3 released
+Mar 14, 2010: Symlink dereference fix for Linux broke the build there; corrected.
+
 Mar 14, 2010: libarchive 2.8.2 released
 Mar 12, 2010: Fix NULL deference for short self-extracting zip archives.
 Mar 12, 2010: Don't dereference symlinks on Linux when reading ACLs.

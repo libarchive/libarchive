@@ -129,13 +129,13 @@ extern "C" {
  *             (ARCHIVE_API_VERSION * 1000000 + ARCHIVE_API_FEATURE * 1000)
  * #endif
  */
-#define	ARCHIVE_VERSION_NUMBER 2008002
+#define	ARCHIVE_VERSION_NUMBER 2008003
 __LA_DECL int		archive_version_number(void);
 
 /*
  * Textual name/version of the library, useful for version displays.
  */
-#define	ARCHIVE_VERSION_STRING "libarchive 2.8.2"
+#define	ARCHIVE_VERSION_STRING "libarchive 2.8.3"
 __LA_DECL const char *	archive_version_string(void);
 
 #if ARCHIVE_VERSION_NUMBER < 3000000
