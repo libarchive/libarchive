@@ -63,3 +63,4 @@ automake -a -c
 
 ./configure
 make distcheck
+make dist-zip
