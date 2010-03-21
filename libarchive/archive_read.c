@@ -1181,60 +1181,35 @@ __archive_read_filter_ahead(struct archive_read_filter *filter,
 }
 
 /*
- * Move the file pointer forward.  This should be called after
- * __archive_read_ahead() returns data to you.  Don't try to move
- * ahead by more than the amount of data available according to
- * __archive_read_ahead().
+ * Move the file pointer forward.
  */
-/*
- * Mark the appropriate data as used.  Note that the request here will
- * often be much smaller than the size of the previous read_ahead
- * request.
- */
-ssize_t
+int64_t
 __archive_read_consume(struct archive_read *a, size_t request)
 {
 	return (__archive_read_filter_consume(a->filter, request));
 }
 
-ssize_t
-__archive_read_filter_consume(struct archive_read_filter * filter,
-    size_t request)
-{
-	if (filter->avail > 0) {
-		/* Read came from copy buffer. */
-		filter->next += request;
-		filter->avail -= request;
-	} else {
-		/* Read came from client buffer. */
-		filter->client_next += request;
-		filter->client_avail -= request;
-	}
-	filter->bytes_consumed += request;
-	return (request);
-}
-
-/*
- * Move the file pointer ahead by an arbitrary amount.  If you're
- * reading uncompressed data from a disk file, this will actually
- * translate into a seek() operation.  Even in cases where seek()
- * isn't feasible, this at least pushes the read-and-discard loop
- * down closer to the data source.
- */
 int64_t
-__archive_read_skip(struct archive_read *a, int64_t request)
+__archive_read_filter_consume(struct archive_read_filter * filter,
+    int64_t request)
 {
-	int64_t skipped = _archive_read_filter_skip(a->filter, request);
+	int64_t skipped = _archive_read_filter_skip(filter, request);
 	if (skipped == request)
 		return (skipped);
 	/* We hit EOF before we satisfied the skip request. */
 	if (skipped < 0)  // Map error code to 0 for error message below.
 		skipped = 0;
-	archive_set_error(&a->archive,
+	archive_set_error(&filter->archive->archive,
 	    ARCHIVE_ERRNO_MISC,
 	    "Truncated input file (needed %jd bytes, only %jd available)",
 	    (intmax_t)request, (intmax_t)skipped);
 	return (ARCHIVE_FATAL);
+}
+
+int64_t
+__archive_read_skip(struct archive_read *a, int64_t request)
+{
+	return (__archive_read_filter_consume(a->filter, request));
 }
 
 int64_t
