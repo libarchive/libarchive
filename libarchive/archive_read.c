@@ -1259,63 +1259,78 @@ static int64_t
 _archive_read_filter_skip(struct archive_read_filter *filter, int64_t request)
 {
 	int64_t bytes_skipped, total_bytes_skipped = 0;
+	ssize_t bytes_read;
 	size_t min;
 
 	if (filter->fatal)
 		return (-1);
-	/*
-	 * If there is data in the buffers already, use that first.
-	 */
+
+	/* Use up the copy buffer first. */
 	if (filter->avail > 0) {
-		min = minimum(request, (off_t)filter->avail);
-		bytes_skipped = __archive_read_filter_consume(filter, min);
-		request -= bytes_skipped;
-		total_bytes_skipped += bytes_skipped;
+		min = minimum(request, filter->avail);
+		filter->next += min;
+		filter->avail -= min;
+		request -= min;
+		filter->bytes_consumed += min;
+		total_bytes_skipped += min;
 	}
+
+	/* Then use up the client buffer. */
 	if (filter->client_avail > 0) {
-		min = minimum(request, (int64_t)filter->client_avail);
-		bytes_skipped = __archive_read_filter_consume(filter, min);
-		request -= bytes_skipped;
-		total_bytes_skipped += bytes_skipped;
+		min = minimum(request, filter->client_avail);
+		filter->client_next += min;
+		filter->client_avail -= min;
+		request -= min;
+		filter->bytes_consumed += min;
+		total_bytes_skipped += min;
 	}
 	if (request == 0)
 		return (total_bytes_skipped);
 
-	/*
-	 * If a client_skipper was provided, try that first.
-	 */
+	filter->client_total = filter->client_avail = 0;
+	filter->client_next = filter->client_buff = NULL;
+
+	/* If there's an optimized skip function, use it. */
 	if (filter->skip != NULL) {
 		bytes_skipped = (filter->skip)(filter, request);
 		if (bytes_skipped < 0) {	/* error */
-			filter->client_total = filter->client_avail = 0;
-			filter->client_next = filter->client_buff = NULL;
 			filter->fatal = 1;
 			return (bytes_skipped);
 		}
 		filter->bytes_consumed += bytes_skipped;
 		total_bytes_skipped += bytes_skipped;
 		request -= bytes_skipped;
-		filter->client_next = filter->client_buff;
-		filter->client_avail = filter->client_total = 0;
+		if (request == 0)
+			return (total_bytes_skipped);
 	}
-	/*
-	 * Note that client_skipper will usually not satisfy the
-	 * full request (due to low-level blocking concerns),
-	 * so even if client_skipper is provided, we may still
-	 * have to use ordinary reads to finish out the request.
-	 */
-	while (request > 0) {
-		ssize_t bytes_read;
-		(void)__archive_read_filter_ahead(filter, 1, &bytes_read);
-		if (bytes_read < 0)
+
+	/* Use ordinary reads as necessary to complete the request. */
+	for (;;) {
+		bytes_read = (filter->read)(filter, &filter->client_buff);
+
+		if (bytes_read < 0) {
+			filter->client_buff = NULL;
+			filter->fatal = 1;
 			return (bytes_read);
+		}
+
 		if (bytes_read == 0) {
+			filter->client_buff = NULL;
+			filter->end_of_file = 1;
 			return (total_bytes_skipped);
 		}
-		min = (size_t)(minimum(bytes_read, request));
-		bytes_read = __archive_read_filter_consume(filter, min);
+
+		filter->position += bytes_read;
+
+		if (bytes_read >= request) {
+			filter->client_next = filter->client_buff + request;
+			filter->client_avail = bytes_read - request;
+			filter->client_total = bytes_read;
+			total_bytes_skipped += request;
+			return (total_bytes_skipped);
+		}
+
 		total_bytes_skipped += bytes_read;
 		request -= bytes_read;
 	}
-	return (total_bytes_skipped);
 }
