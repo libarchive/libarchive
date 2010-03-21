@@ -175,7 +175,7 @@ archive_read_format_raw_read_data_skip(struct archive_read *a)
 	if (info->end_of_file)
 		return (ARCHIVE_EOF);
 	info->end_of_file = 1;
-	skipped = __archive_read_skip_all(a);
+	skipped = __archive_read_consume_all(a);
 	if (skipped < 0)
 		return ((int)skipped);
 	return (ARCHIVE_OK);

@@ -834,7 +834,7 @@ xar_read_data_skip(struct archive_read *a)
 	xar = (struct xar *)(a->format->data);
 	if (xar->end_of_file)
 		return (ARCHIVE_EOF);
-	bytes_skipped = __archive_read_skip(a, xar->entry_remaining);
+	bytes_skipped = __archive_read_consume(a, xar->entry_remaining);
 	if (bytes_skipped < 0)
 		return (ARCHIVE_FATAL);
 	xar->offset += bytes_skipped;
@@ -885,7 +885,7 @@ move_reading_point(struct archive_read *a, uint64_t offset)
 
 		step = offset - (xar->offset - xar->h_base);
 		if (step > 0) {
-			step = __archive_read_skip(a, step);
+			step = __archive_read_consume(a, step);
 			if (step < 0)
 				return ((int)step);
 			xar->offset += step;

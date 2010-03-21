@@ -65,7 +65,7 @@ static int	_archive_filter_code(struct archive *, int);
 static const char *_archive_filter_name(struct archive *, int);
 static int	_archive_read_close(struct archive *);
 static int	_archive_read_free(struct archive *);
-static int64_t  _archive_read_filter_skip(struct archive_read_filter *, int64_t);
+static int64_t  advance_file_pointer(struct archive_read_filter *, int64_t);
 
 static struct archive_vtable *
 archive_read_vtable(void)
@@ -1184,7 +1184,7 @@ __archive_read_filter_ahead(struct archive_read_filter *filter,
  * Move the file pointer forward.
  */
 int64_t
-__archive_read_consume(struct archive_read *a, size_t request)
+__archive_read_consume(struct archive_read *a, int64_t request)
 {
 	return (__archive_read_filter_consume(a->filter, request));
 }
@@ -1193,7 +1193,7 @@ int64_t
 __archive_read_filter_consume(struct archive_read_filter * filter,
     int64_t request)
 {
-	int64_t skipped = _archive_read_filter_skip(filter, request);
+	int64_t skipped = advance_file_pointer(filter, request);
 	if (skipped == request)
 		return (skipped);
 	/* We hit EOF before we satisfied the skip request. */
@@ -1207,20 +1207,14 @@ __archive_read_filter_consume(struct archive_read_filter * filter,
 }
 
 int64_t
-__archive_read_skip(struct archive_read *a, int64_t request)
-{
-	return (__archive_read_filter_consume(a->filter, request));
-}
-
-int64_t
-__archive_read_skip_all(struct archive_read *a)
+__archive_read_consume_all(struct archive_read *a)
 {
 	int64_t total_bytes_skipped = 0;
 	off_t bytes_skipped;
 	int64_t request = 1024 * 1024 * 1024UL; /* Skip 1 GB at a time. */
 
 	for (;;) {
-		bytes_skipped = _archive_read_filter_skip(a->filter, request);
+		bytes_skipped = advance_file_pointer(a->filter, request);
 		if (bytes_skipped < 0)
 			return (ARCHIVE_FATAL);
 		total_bytes_skipped += bytes_skipped;
@@ -1229,9 +1223,14 @@ __archive_read_skip_all(struct archive_read *a)
 	}
 }
 
-
+/*
+ * Advance the file pointer by the amount requested.
+ * Returns the amount actually advanced, which may be less than the
+ * request if EOF is encountered first.
+ * Returns a negative value if there's an I/O error.
+ */
 static int64_t
-_archive_read_filter_skip(struct archive_read_filter *filter, int64_t request)
+advance_file_pointer(struct archive_read_filter *filter, int64_t request)
 {
 	int64_t bytes_skipped, total_bytes_skipped = 0;
 	ssize_t bytes_read;

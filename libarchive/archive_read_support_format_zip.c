@@ -825,7 +825,7 @@ archive_read_format_zip_read_data_skip(struct archive_read *a)
 	 * If the length is at the beginning, we can skip the
 	 * compressed data much more quickly.
 	 */
-	bytes_skipped = __archive_read_skip(a, zip->entry_bytes_remaining);
+	bytes_skipped = __archive_read_consume(a, zip->entry_bytes_remaining);
 	if (bytes_skipped < 0)
 		return (ARCHIVE_FATAL);
 

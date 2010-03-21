@@ -480,7 +480,7 @@ archive_read_format_tar_read_data(struct archive_read *a,
 
 	/* If we're at end of file, return EOF. */
 	if (tar->sparse_list == NULL || tar->entry_bytes_remaining == 0) {
-		if (__archive_read_skip(a, tar->entry_padding) < 0)
+		if (__archive_read_consume(a, tar->entry_padding) < 0)
 			return (ARCHIVE_FATAL);
 		tar->entry_padding = 0;
 		*buff = NULL;
@@ -520,12 +520,7 @@ archive_read_format_tar_skip(struct archive_read *a)
 
 	tar = (struct tar *)(a->format->data);
 
-	/*
-	 * Compression layer skip functions are required to either skip the
-	 * length requested or fail, so we can rely upon the entire entry
-	 * plus padding being skipped.
-	 */
-	bytes_skipped = __archive_read_skip(a,
+	bytes_skipped = __archive_read_consume(a,
 	    tar->entry_bytes_remaining + tar->entry_padding);
 	if (bytes_skipped < 0)
 		return (ARCHIVE_FATAL);
@@ -2000,7 +1995,7 @@ gnu_sparse_10_read(struct archive_read *a, struct tar *tar)
 	/* Skip rest of block... */
 	bytes_read = tar->entry_bytes_remaining - remaining;
 	to_skip = 0x1ff & -bytes_read;
-	if (to_skip != __archive_read_skip(a, to_skip))
+	if (to_skip != __archive_read_consume(a, to_skip))
 		return (ARCHIVE_FATAL);
 	return (bytes_read + to_skip);
 }

@@ -934,7 +934,7 @@ read_children(struct archive_read *a, struct file_info *parent)
 		int64_t skipsize;
 
 		skipsize = parent->offset - iso9660->current_position;
-		skipsize = __archive_read_skip(a, skipsize);
+		skipsize = __archive_read_consume(a, skipsize);
 		if (skipsize < 0)
 			return ((int)skipsize);
 		iso9660->current_position = parent->offset;
@@ -1141,7 +1141,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 			vd = &(iso9660->joliet);
 
 		skipsize = LOGICAL_BLOCK_SIZE * vd->location;
-		skipsize = __archive_read_skip(a, skipsize);
+		skipsize = __archive_read_consume(a, skipsize);
 		if (skipsize < 0)
 			return ((int)skipsize);
 		iso9660->current_position = skipsize;
@@ -1179,7 +1179,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 			vd = &(iso9660->joliet);
 			skipsize = LOGICAL_BLOCK_SIZE * vd->location;
 			skipsize -= iso9660->current_position;
-			skipsize = __archive_read_skip(a, skipsize);
+			skipsize = __archive_read_consume(a, skipsize);
 			if (skipsize < 0)
 				return ((int)skipsize);
 			iso9660->current_position += skipsize;
@@ -1617,7 +1617,7 @@ archive_read_format_iso9660_read_data(struct archive_read *a,
 
 			step = iso9660->entry_content->offset -
 			    iso9660->current_position;
-			step = __archive_read_skip(a, step);
+			step = __archive_read_consume(a, step);
 			if (step < 0)
 				return ((int)step);
 			iso9660->current_position =
@@ -2516,7 +2516,7 @@ next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
 		int64_t step;
 
 		step = file->offset - iso9660->current_position;
-		step = __archive_read_skip(a, step);
+		step = __archive_read_consume(a, step);
 		if (step < 0)
 			return ((int)step);
 		iso9660->current_position = file->offset;

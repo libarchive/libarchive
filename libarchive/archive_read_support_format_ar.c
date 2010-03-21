@@ -499,7 +499,7 @@ archive_read_format_ar_skip(struct archive_read *a)
 
 	ar = (struct ar *)(a->format->data);
 
-	bytes_skipped = __archive_read_skip(a,
+	bytes_skipped = __archive_read_consume(a,
 	    ar->entry_bytes_remaining + ar->entry_padding);
 	if (bytes_skipped < 0)
 		return (ARCHIVE_FATAL);
