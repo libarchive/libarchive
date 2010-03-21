@@ -946,30 +946,31 @@ __archive_read_get_bidder(struct archive_read *a)
 }
 
 /*
- * The next three functions comprise the peek/consume internal I/O
- * system used by archive format readers.  This system allows fairly
- * flexible read-ahead and allows the I/O code to operate in a
- * zero-copy manner most of the time.
+ * The next section implements the peek/consume internal I/O
+ * system used by archive readers.  This system allows simple
+ * read-ahead for consumers while preserving zero-copy operation
+ * most of the time.
+ *
+ * The two key operations:
+ *  * The read-ahead function returns a pointer to a block of data
+ *    that satisfies a minimum request.
+ *  * The consume function advances the file pointer.
  *
  * In the ideal case, filters generate blocks of data
  * and __archive_read_ahead() just returns pointers directly into
  * those blocks.  Then __archive_read_consume() just bumps those
  * pointers.  Only if your request would span blocks does the I/O
  * layer use a copy buffer to provide you with a contiguous block of
- * data.  The __archive_read_skip() is an optimization; it scans ahead
- * very quickly (it usually translates into a seek() operation if
- * you're reading uncompressed disk files).
+ * data.
  *
  * A couple of useful idioms:
  *  * "I just want some data."  Ask for 1 byte and pay attention to
  *    the "number of bytes available" from __archive_read_ahead().
- *    You can consume more than you asked for; you just can't consume
- *    more than is available.  If you consume everything that's
- *    immediately available, the next read_ahead() call will pull
- *    the next block.
+ *    Consume whatever you actually use.
  *  * "I want to output a large block of data."  As above, ask for 1 byte,
- *    emit all that's available (up to whatever limit you have), then
- *    repeat until you're done.
+ *    emit all that's available (up to whatever limit you have), consume
+ *    it all, then repeat until you're done.  This effectively means that
+ *    you're passing along the blocks that came from your provider.
  *  * "I want to peek ahead by a large amount."  Ask for 4k or so, then
  *    double and repeat until you get an error or have enough.  Note
  *    that the I/O layer will likely end up expanding its copy buffer
@@ -991,7 +992,8 @@ __archive_read_get_bidder(struct archive_read *a)
  *    in the current buffer, which may be much larger than requested.
  *  * If end-of-file, *avail gets set to zero.
  *  * If error, *avail gets error code.
- *  * If request can be met, returns pointer to data, returns NULL
+ *  * If request can be met, returns pointer to data.
+ *  * If minimum request cannot be met, returns NULL.
  *    if request is not met.
  *
  * Note: If you just want "some data", ask for 1 byte and pay attention
@@ -1001,17 +1003,6 @@ __archive_read_get_bidder(struct archive_read *a)
  *
  * Important:  This does NOT move the file pointer.  See
  * __archive_read_consume() below.
- */
-
-/*
- * This is tricky.  We need to provide our clients with pointers to
- * contiguous blocks of memory but we want to avoid copying whenever
- * possible.
- *
- * Mostly, this code returns pointers directly into the block of data
- * provided by the client_read routine.  It can do this unless the
- * request would split across blocks.  In that case, we have to copy
- * into an internal buffer to combine reads.
  */
 const void *
 __archive_read_ahead(struct archive_read *a, size_t min, ssize_t *avail)
@@ -1260,9 +1251,6 @@ advance_file_pointer(struct archive_read_filter *filter, int64_t request)
 	}
 	if (request == 0)
 		return (total_bytes_skipped);
-
-	filter->client_total = filter->client_avail = 0;
-	filter->client_next = filter->client_buff = NULL;
 
 	/* If there's an optimized skip function, use it. */
 	if (filter->skip != NULL) {
