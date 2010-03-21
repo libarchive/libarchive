@@ -267,6 +267,14 @@ file_read(struct archive *a, void *client_data, const void **buff)
  * impact disk throughput.  (Of course, the performance impact should
  * be carefully tested; extra code complexity is only worthwhile if
  * it does provide measurable improvement.)
+ *
+ * TODO: Be lazy about the actual seek.  There are a few pathological
+ * cases where libarchive makes a bunch of seek requests in a row
+ * without any intervening reads.  This isn't a huge performance
+ * problem, since the kernel handles seeks lazily already, but
+ * it would be very slightly faster if we simply remembered the
+ * seek request here and then actually performed the seek at the
+ * top of the read callback above.
  */
 static off_t
 file_skip_lseek(struct archive *a, void *client_data, off_t request)
