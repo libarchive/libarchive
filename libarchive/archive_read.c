@@ -65,6 +65,7 @@ static int	_archive_filter_code(struct archive *, int);
 static const char *_archive_filter_name(struct archive *, int);
 static int	_archive_read_close(struct archive *);
 static int	_archive_read_free(struct archive *);
+static int64_t  _archive_read_filter_skip(struct archive_read_filter *, int64_t);
 
 static struct archive_vtable *
 archive_read_vtable(void)
@@ -1239,11 +1240,11 @@ __archive_read_skip(struct archive_read *a, int64_t request)
 int64_t
 __archive_read_skip_lenient(struct archive_read *a, int64_t request)
 {
-	return (__archive_read_filter_skip(a->filter, request));
+	return (_archive_read_filter_skip(a->filter, request));
 }
 
-int64_t
-__archive_read_filter_skip(struct archive_read_filter *filter, int64_t request)
+static int64_t
+_archive_read_filter_skip(struct archive_read_filter *filter, int64_t request)
 {
 	int64_t bytes_skipped, total_bytes_skipped = 0;
 	size_t min;
