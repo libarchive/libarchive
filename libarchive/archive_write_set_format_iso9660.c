@@ -1023,7 +1023,7 @@ static int	iso9660_free(struct archive_write *);
 static void	get_system_identitier(char *, size_t);
 static void	set_str(unsigned char *, const char *, size_t, char,
 		    const char *);
-static inline int joliet_allowed_char(uint16_t);
+static inline int joliet_allowed_char(unsigned char, unsigned char);
 static void	set_str_beutf16(unsigned char *, const char *, size_t,
 		    uint16_t, enum vdc);
 static void	set_str_a_characters_bp(unsigned char *, int, int,
@@ -1136,9 +1136,8 @@ static size_t	fd_boot_image_size(int);
 static void	make_boot_catalog(struct iso9660 *, unsigned char *);
 static int	setup_boot_information(struct archive_write *);
 
-static void	utf16stobeutf16s(unsigned char *, size_t);
-static size_t	mbstoutf16s(unsigned char *, size_t, const char *, int);
-static size_t	mblen_of_utf16(const unsigned char *, size_t);
+static size_t	mbstobeutf16s(unsigned char *, size_t, const char *, int);
+static size_t	mblen_of_beutf16(const unsigned char *, size_t);
 
 static int	zisofs_init(struct archive_write *, struct isofile *);
 static void	zisofs_detect_magic(struct archive_write *,
@@ -2278,8 +2277,9 @@ set_str(unsigned char *p, const char *s, size_t l, char f, const char *map)
 }
 
 static inline int
-joliet_allowed_char(uint16_t utf16)
+joliet_allowed_char(unsigned char high, unsigned char low)
 {
+	int utf16 = (high << 8) | low;
 
 	if (utf16 <= 0x001F)
 		return (0);
@@ -2311,8 +2311,7 @@ set_str_beutf16(unsigned char *p, const char *s, size_t l, uint16_t uf,
 	} else
 		onepad = 0;
 	if (vdc == VDC_UCS2) {
-		size = mbstoutf16s(p, l, s, strlen(s));
-		utf16stobeutf16s(p, size);
+		size = mbstobeutf16s(p, l, s, strlen(s));
 	} else {
 		const uint16_t *u16 = (const uint16_t *)s;
 
@@ -2324,9 +2323,7 @@ set_str_beutf16(unsigned char *p, const char *s, size_t l, uint16_t uf,
 		memcpy(p, s, size);
 	}
 	for (i = 0; i < size; i += 2, p += 2) {
-		uint16_t utf16 = archive_be16dec(p);
-
-		if (!joliet_allowed_char(utf16))
+		if (!joliet_allowed_char(p[0], p[1]))
 			archive_be16enc(p, 0x005F);/* '_' */
 	}
 	l -= size;
@@ -6223,7 +6220,7 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 		int ext_off, noff, weight;
 		size_t lt;
 
-		l = mbstoutf16s(NULL, 0, np->file->basename.s,
+		l = mbstobeutf16s(NULL, 0, np->file->basename.s,
 		    np->file->basename.length);
 		p = malloc(l+6+2);
 		if (p == NULL) {
@@ -6231,7 +6228,7 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 			    "Can't allocate memory");
 			return (ARCHIVE_FATAL);
 		}
-		l = mbstoutf16s(p, l, np->file->basename.s,
+		l = mbstobeutf16s(p, l, np->file->basename.s,
 		    np->file->basename.length);
 		if ((int)l > ffmax)
 			l = ffmax;
@@ -6240,9 +6237,9 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 		dot = p + l;
 		weight = 0;
 		while (lt > 0) {
-			if (!joliet_allowed_char(*(uint16_t *)p))
-				*(uint16_t *)p = 0x005F; /* '_' */
-			else if (*(uint16_t*)p == 0x002E) /* '.' */
+			if (!joliet_allowed_char(p[0], p[1]))
+				archive_be16enc(p, 0x005F); /* '_' */
+			else if (p[0] == 0 && p[1] == 0x2E) /* '.' */
 				dot = p;
 			p += 2;
 			lt -= 2;
@@ -6256,14 +6253,12 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 		 * Check full-path name length.
 		 */
 		if ((int)l == ffmax) {
-			np->mb_len = mblen_of_utf16(
+			np->mb_len = mblen_of_beutf16(
 			    (const unsigned char *)np->identifier, l);
 			if (np->mb_len != (int)np->file->basename.length)
 				weight = np->mb_len;
 		} else
 			np->mb_len = np->file->basename.length;
-		/* Convert UTF16 to big endian UTF16. */
-		utf16stobeutf16s((unsigned char *)np->identifier, l);
 
 		/* If length of full path name is longer than 240,
 		 * it violates Joliet extensions regulation. */
@@ -7334,20 +7329,6 @@ setup_boot_information(struct archive_write *a)
 	return (write_to_temp(a, iso9660->temp_fd, iso9660->wbuff, 56));
 }
 
-static void
-utf16stobeutf16s(unsigned char *utf16, size_t utf16_size)
-{
-	uint16_t *wp = (uint16_t *)utf16;
-
-	utf16_size >>= 1;
-	while (utf16_size--) {
-		uint16_t wc;
-		wc = *wp;
-		archive_be16enc(wp, wc);
-		wp++;
-	}
-}
-
 #if defined(_WIN32) && !defined(__CYGWIN__)
 static size_t
 mbstoutf16s(unsigned char *utf16, size_t utf16_size,
@@ -7389,7 +7370,7 @@ mbstoutf16s(unsigned char *utf16, size_t utf16_size,
 }
 
 static size_t
-mblen_of_utf16(const unsigned char *utf16, size_t utf16_size)
+mblen_of_beutf16(const unsigned char *utf16, size_t utf16_size)
 {
 	int count;
 	BOOL defchar;
@@ -7405,11 +7386,11 @@ mblen_of_utf16(const unsigned char *utf16, size_t utf16_size)
 #else
 
 /*
- * NOTE: if wchar_t is not UCS4, mbstoutf16s() and mblen_of_utf16()
+ * NOTE: if wchar_t is not UCS4, mbstoutf16s() and mblen_of_beutf16()
  * couldn't work as we have expected.
  */
 static size_t
-mbstoutf16s(unsigned char *utf16, size_t utf16_size,
+mbstobeutf16s(unsigned char *utf16, size_t utf16_size,
     const char *s, int len)
 {
 	size_t utf16_avail;
@@ -7440,8 +7421,8 @@ mbstoutf16s(unsigned char *utf16, size_t utf16_size,
 		if (mlen == 0)
 			break;
 		if (utf16 != NULL) {
-			*(uint16_t *)utf16 = (uint16_t)(wc & 0xFFFF);
-			utf16 += 2;
+			*utf16++ = (wc >> 8) & 0xFF;
+			*utf16++ = wc & 0xFF;
 		}
 		utf16_avail -= 2;
 		s += mlen;
@@ -7451,7 +7432,7 @@ mbstoutf16s(unsigned char *utf16, size_t utf16_size,
 }
 
 static size_t
-mblen_of_utf16(const unsigned char *utf16, size_t utf16_size)
+mblen_of_beutf16(const unsigned char *utf16, size_t utf16_size)
 {
 	size_t mlen;
 	char mbchars[MB_LEN_MAX];
