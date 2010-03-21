@@ -1224,7 +1224,7 @@ __archive_read_filter_consume(struct archive_read_filter * filter,
 int64_t
 __archive_read_skip(struct archive_read *a, int64_t request)
 {
-	int64_t skipped = __archive_read_skip_lenient(a, request);
+	int64_t skipped = _archive_read_filter_skip(a->filter, request);
 	if (skipped == request)
 		return (skipped);
 	/* We hit EOF before we satisfied the skip request. */
@@ -1238,10 +1238,22 @@ __archive_read_skip(struct archive_read *a, int64_t request)
 }
 
 int64_t
-__archive_read_skip_lenient(struct archive_read *a, int64_t request)
+__archive_read_skip_all(struct archive_read *a)
 {
-	return (_archive_read_filter_skip(a->filter, request));
+	int64_t total_bytes_skipped = 0;
+	off_t bytes_skipped;
+	int64_t request = 1024 * 1024 * 1024UL; /* Skip 1 GB at a time. */
+
+	for (;;) {
+		bytes_skipped = _archive_read_filter_skip(a->filter, request);
+		if (bytes_skipped < 0)
+			return (ARCHIVE_FATAL);
+		total_bytes_skipped += bytes_skipped;
+		if (bytes_skipped < request)
+			return (total_bytes_skipped);
+	}
 }
+
 
 static int64_t
 _archive_read_filter_skip(struct archive_read_filter *filter, int64_t request)

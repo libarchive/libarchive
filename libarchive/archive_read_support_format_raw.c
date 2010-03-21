@@ -168,24 +168,17 @@ archive_read_format_raw_read_data(struct archive_read *a,
 static int
 archive_read_format_raw_read_data_skip(struct archive_read *a)
 {
+	int64_t skipped;
 	struct raw_info *info;
-	off_t bytes_skipped;
-	int64_t request = 1024 * 1024 * 1024UL; /* Skip 1 GB at a time. */
 
 	info = (struct raw_info *)(a->format->data);
 	if (info->end_of_file)
 		return (ARCHIVE_EOF);
 	info->end_of_file = 1;
-
-	for (;;) {
-		bytes_skipped = __archive_read_skip_lenient(a, request);
-		if (bytes_skipped < 0)
-			return (ARCHIVE_FATAL);
-		if (bytes_skipped < request)
-			return (ARCHIVE_OK);
-		/* We skipped all the bytes we asked for.  There might
-		 * be more, so try again. */
-	}
+	skipped = __archive_read_skip_all(a);
+	if (skipped < 0)
+		return ((int)skipped);
+	return (ARCHIVE_OK);
 }
 
 static int
