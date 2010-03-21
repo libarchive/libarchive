@@ -168,16 +168,7 @@ archive_read_format_raw_read_data(struct archive_read *a,
 static int
 archive_read_format_raw_read_data_skip(struct archive_read *a)
 {
-	int64_t skipped;
-	struct raw_info *info;
-
-	info = (struct raw_info *)(a->format->data);
-	if (info->end_of_file)
-		return (ARCHIVE_EOF);
-	info->end_of_file = 1;
-	skipped = __archive_read_consume_all(a);
-	if (skipped < 0)
-		return ((int)skipped);
+	(void)a; /* UNUSED */
 	return (ARCHIVE_OK);
 }
 

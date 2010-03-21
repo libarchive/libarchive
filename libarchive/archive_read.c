@@ -1197,23 +1197,6 @@ __archive_read_filter_consume(struct archive_read_filter * filter,
 	return (ARCHIVE_FATAL);
 }
 
-int64_t
-__archive_read_consume_all(struct archive_read *a)
-{
-	int64_t total_bytes_skipped = 0;
-	off_t bytes_skipped;
-	int64_t request = 1024 * 1024 * 1024UL; /* Skip 1 GB at a time. */
-
-	for (;;) {
-		bytes_skipped = advance_file_pointer(a->filter, request);
-		if (bytes_skipped < 0)
-			return (ARCHIVE_FATAL);
-		total_bytes_skipped += bytes_skipped;
-		if (bytes_skipped < request)
-			return (total_bytes_skipped);
-	}
-}
-
 /*
  * Advance the file pointer by the amount requested.
  * Returns the amount actually advanced, which may be less than the

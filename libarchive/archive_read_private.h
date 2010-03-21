@@ -210,6 +210,5 @@ const void *__archive_read_filter_ahead(struct archive_read_filter *,
     size_t, ssize_t *);
 int64_t	__archive_read_consume(struct archive_read *, int64_t);
 int64_t	__archive_read_filter_consume(struct archive_read_filter *, int64_t);
-int64_t	__archive_read_consume_all(struct archive_read *);
 int __archive_read_program(struct archive_read_filter *, const char *);
 #endif
