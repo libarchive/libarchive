@@ -4,12 +4,7 @@
 #
 ############################################
 IF(ENABLE_TEST)
-  FOREACH (_src ${libarchive_SOURCES})
-    LIST(APPEND parent_libarchive_SOURCES "../${_src}")
-  ENDFOREACH(_src)
-
   SET(libarchive_test_SOURCES
-    ${parent_libarchive_SOURCES}
     main.c
     read_open_memory.c
     test.h
@@ -132,7 +127,7 @@ IF(ENABLE_TEST)
   # Register target
   #
   ADD_EXECUTABLE(libarchive_test ${libarchive_test_SOURCES})
-  TARGET_LINK_LIBRARIES(libarchive_test ${ADDITIONAL_LIBS})
+  TARGET_LINK_LIBRARIES(libarchive_test archive_static ${ADDITIONAL_LIBS})
   SET_PROPERTY(TARGET libarchive_test PROPERTY COMPILE_DEFINITIONS
     LIBARCHIVE_STATIC LIST_H)
 
