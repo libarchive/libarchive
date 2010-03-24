@@ -95,21 +95,20 @@ struct archive_entry_linkresolver *
 archive_entry_linkresolver_new(void)
 {
 	struct archive_entry_linkresolver *res;
-	size_t i;
 
-	res = malloc(sizeof(struct archive_entry_linkresolver));
+	if (links_cache_initial_size == 0 ||
+	    (links_cache_initial_size & (links_cache_initial_size - 1)) != 0)
+		return (NULL);
+
+	res = calloc(sizeof(struct archive_entry_linkresolver), 1);
 	if (res == NULL)
 		return (NULL);
-	memset(res, 0, sizeof(struct archive_entry_linkresolver));
 	res->number_buckets = links_cache_initial_size;
-	res->buckets = malloc(res->number_buckets *
-	    sizeof(res->buckets[0]));
+	res->buckets = calloc(res->number_buckets, sizeof(res->buckets[0]));
 	if (res->buckets == NULL) {
 		free(res);
 		return (NULL);
 	}
-	for (i = 0; i < res->number_buckets; i++)
-		res->buckets[i] = NULL;
 	return (res);
 }
 
@@ -276,7 +275,7 @@ find_entry(struct archive_entry_linkresolver *res,
 	hash = (int)(dev ^ ino);
 
 	/* Try to locate this entry in the links cache. */
-	bucket = hash % res->number_buckets;
+	bucket = hash & (res->number_buckets - 1);
 	for (le = res->buckets[bucket]; le != NULL; le = le->next) {
 		if (le->hash == hash
 		    && dev == archive_entry_dev(le->canonical)
@@ -348,10 +347,9 @@ insert_entry(struct archive_entry_linkresolver *res,
 	int			 hash, bucket;
 
 	/* Add this entry to the links cache. */
-	le = malloc(sizeof(struct links_entry));
+	le = calloc(sizeof(struct links_entry), 1);
 	if (le == NULL)
 		return (NULL);
-	memset(le, 0, sizeof(*le));
 	le->canonical = archive_entry_clone(entry);
 
 	/* If the links cache is getting too full, enlarge the hash table. */
@@ -359,7 +357,7 @@ insert_entry(struct archive_entry_linkresolver *res,
 		grow_hash(res);
 
 	hash = archive_entry_dev(entry) ^ archive_entry_ino64(entry);
-	bucket = hash % res->number_buckets;
+	bucket = hash & (res->number_buckets - 1);
 
 	/* If we could allocate the entry, record it. */
 	if (res->buckets[bucket] != NULL)
@@ -382,30 +380,30 @@ grow_hash(struct archive_entry_linkresolver *res)
 
 	/* Try to enlarge the bucket list. */
 	new_size = res->number_buckets * 2;
-	new_buckets = malloc(new_size * sizeof(struct links_entry *));
+	if (new_size < res->number_buckets)
+		return;
+	new_buckets = calloc(new_size, sizeof(struct links_entry *));
 
-	if (new_buckets != NULL) {
-		memset(new_buckets, 0,
-		    new_size * sizeof(struct links_entry *));
-		for (i = 0; i < res->number_buckets; i++) {
-			while (res->buckets[i] != NULL) {
-				/* Remove entry from old bucket. */
-				le = res->buckets[i];
-				res->buckets[i] = le->next;
+	if (new_buckets == NULL)
+		return;
 
-				/* Add entry to new bucket. */
-				bucket = le->hash % new_size;
+	for (i = 0; i < res->number_buckets; i++) {
+		while (res->buckets[i] != NULL) {
+			/* Remove entry from old bucket. */
+			le = res->buckets[i];
+			res->buckets[i] = le->next;
 
-				if (new_buckets[bucket] != NULL)
-					new_buckets[bucket]->previous =
-					    le;
-				le->next = new_buckets[bucket];
-				le->previous = NULL;
-				new_buckets[bucket] = le;
-			}
+			/* Add entry to new bucket. */
+			bucket = le->hash & (new_size - 1);
+
+			if (new_buckets[bucket] != NULL)
+				new_buckets[bucket]->previous = le;
+			le->next = new_buckets[bucket];
+			le->previous = NULL;
+			new_buckets[bucket] = le;
 		}
-		free(res->buckets);
-		res->buckets = new_buckets;
-		res->number_buckets = new_size;
 	}
+	free(res->buckets);
+	res->buckets = new_buckets;
+	res->number_buckets = new_size;
 }
