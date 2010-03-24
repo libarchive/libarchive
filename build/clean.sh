@@ -10,7 +10,9 @@ fi
 # lot.  If that fails, try plain 'clean' in case we're using the cmake
 # or other makefile.  But don't worry if we can't...
 #
-make maintainer-clean || make clean || true
+if [ -e Makefile ]; then
+	make maintainer-clean || make clean || true
+fi
 
 # If we're on BSD, blow away the build dir under /usr/obj
 rm -rf /usr/obj`pwd`
