@@ -156,12 +156,9 @@ archive_entry_linkresolver_free(struct archive_entry_linkresolver *res)
 	if (res == NULL)
 		return;
 
-	if (res->buckets != NULL) {
-		while ((le = next_entry(res)) != NULL)
-			archive_entry_free(le->entry);
-		free(res->buckets);
-		res->buckets = NULL;
-	}
+	while ((le = next_entry(res)) != NULL)
+		archive_entry_free(le->entry);
+	free(res->buckets);
 	free(res);
 }
 
@@ -266,10 +263,6 @@ find_entry(struct archive_entry_linkresolver *res,
 		res->spare = NULL;
 	}
 
-	/* If the links cache overflowed and got flushed, don't bother. */
-	if (res->buckets == NULL)
-		return (NULL);
-
 	dev = archive_entry_dev(entry);
 	ino = archive_entry_ino64(entry);
 	hash = (int)(dev ^ ino);
@@ -317,10 +310,6 @@ next_entry(struct archive_entry_linkresolver *res)
 		free(res->spare);
 		res->spare = NULL;
 	}
-
-	/* If the links cache overflowed and got flushed, don't bother. */
-	if (res->buckets == NULL)
-		return (NULL);
 
 	/* Look for next non-empty bucket in the links cache. */
 	for (bucket = 0; bucket < res->number_buckets; bucket++) {
