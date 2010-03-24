@@ -70,10 +70,10 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_entry_link_resolver.c 201100 200
 struct links_entry {
 	struct links_entry	*next;
 	struct links_entry	*previous;
-	int			 links; /* # links not yet seen */
-	int			 hash;
 	struct archive_entry	*canonical;
 	struct archive_entry	*entry;
+	size_t			 hash;
+	unsigned int		 links; /* # links not yet seen */
 };
 
 struct archive_entry_linkresolver {
@@ -251,7 +251,7 @@ find_entry(struct archive_entry_linkresolver *res,
     struct archive_entry *entry)
 {
 	struct links_entry	*le;
-	int			 hash, bucket;
+	size_t			 hash, bucket;
 	dev_t			 dev;
 	int64_t			 ino;
 
@@ -265,7 +265,7 @@ find_entry(struct archive_entry_linkresolver *res,
 
 	dev = archive_entry_dev(entry);
 	ino = archive_entry_ino64(entry);
-	hash = (int)(dev ^ ino);
+	hash = (size_t)(dev ^ ino);
 
 	/* Try to locate this entry in the links cache. */
 	bucket = hash & (res->number_buckets - 1);
@@ -307,6 +307,7 @@ next_entry(struct archive_entry_linkresolver *res)
 	/* Free a held entry. */
 	if (res->spare != NULL) {
 		archive_entry_free(res->spare->canonical);
+		archive_entry_free(res->spare->entry);
 		free(res->spare);
 		res->spare = NULL;
 	}
@@ -333,7 +334,7 @@ insert_entry(struct archive_entry_linkresolver *res,
     struct archive_entry *entry)
 {
 	struct links_entry *le;
-	int			 hash, bucket;
+	size_t hash, bucket;
 
 	/* Add this entry to the links cache. */
 	le = calloc(sizeof(struct links_entry), 1);
