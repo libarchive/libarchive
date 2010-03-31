@@ -127,6 +127,7 @@ lookup_gid(void *private_data, const char *gname, int64_t gid)
 	/* Note: If strdup fails, that's okay; we just won't cache. */
 	b->hash = h;
 #if HAVE_GRP_H
+#  if HAVE_GETGRNAM_R
 	{
 		char _buffer[128];
 		size_t bufsize = 128;
@@ -153,6 +154,15 @@ lookup_gid(void *private_data, const char *gname, int64_t gid)
 		if (buffer != _buffer)
 			free(buffer);
 	}
+#  else /* HAVE_GETGRNAM_R */
+	{
+		struct group *result;
+
+		result = getgrnam(gname);
+		if (result != NULL)
+			gid = result->gr_gid;
+	}
+#  endif /* HAVE_GETGRNAM_R */
 #elif defined(_WIN32) && !defined(__CYGWIN__)
 	/* TODO: do a gname->gid lookup for Windows. */
 #else
@@ -192,6 +202,7 @@ lookup_uid(void *private_data, const char *uname, int64_t uid)
 	/* Note: If strdup fails, that's okay; we just won't cache. */
 	b->hash = h;
 #if HAVE_PWD_H
+#  if HAVE_GETPWNAM_R
 	{
 		char _buffer[128];
 		size_t bufsize = 128;
@@ -218,6 +229,15 @@ lookup_uid(void *private_data, const char *uname, int64_t uid)
 		if (buffer != _buffer)
 			free(buffer);
 	}
+#  else /* HAVE_GETPWNAM_R */
+	{
+		struct passwd *result;
+
+		result = getpwnam(uname);
+		if (result != NULL)
+			uid = result->pw_uid;
+	}
+#endif	/* HAVE_GETPWNAM_R */
 #elif defined(_WIN32) && !defined(__CYGWIN__)
 	/* TODO: do a uname->uid lookup for Windows. */
 #else
