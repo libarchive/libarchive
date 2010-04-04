@@ -79,12 +79,12 @@ DEFINE_TEST(test_option_T_upper)
 		return;
 	/* Use null-terminated names. */
 	fprintf(f, "d1/d2/f3");
-	fwrite("\0", 1, 1, f);
+	assertEqualInt(1, fwrite("\0", 1, 1, f));
 	fprintf(f, "d1/d2/f5");
-	fwrite("\0", 1, 1, f);
+	assertEqualInt(1, fwrite("\0", 1, 1, f));
 	if (gnarlyFilesSupported) {
 		fprintf(f, "d1/d2/f\x0a");
-		fwrite("\0", 1, 1, f);
+		assertEqualInt(1, fwrite("\0", 1, 1, f));
 	}
 	fclose(f);
 

@@ -143,7 +143,7 @@ DEFINE_TEST(test_fuzz)
 			 * If we crash, that file will be useful. */
 			f = fopen("after.test.failure.send.this.file."
 			    "to.libarchive.maintainers.with.system.details", "wb");
-			fwrite(image, 1, (size_t)size, f);
+			assertEqualInt((size_t)size, fwrite(image, 1, (size_t)size, f));
 			fclose(f);
 
 			assert((a = archive_read_new()) != NULL);
