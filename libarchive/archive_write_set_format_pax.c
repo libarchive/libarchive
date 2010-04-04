@@ -131,8 +131,6 @@ archive_write_set_format_pax(struct archive *_a)
 	}
 	memset(pax, 0, sizeof(*pax));
 	a->format_data = pax;
-
-	a->pad_uncompressed = 1;
 	a->format_name = "pax";
 	a->format_write_header = archive_write_pax_header;
 	a->format_write_data = archive_write_pax_data;

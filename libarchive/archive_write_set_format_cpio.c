@@ -99,8 +99,6 @@ archive_write_set_format_cpio(struct archive *_a)
 	}
 	memset(cpio, 0, sizeof(*cpio));
 	a->format_data = cpio;
-
-	a->pad_uncompressed = 1;
 	a->format_name = "cpio";
 	a->format_write_header = archive_write_cpio_header;
 	a->format_write_data = archive_write_cpio_data;

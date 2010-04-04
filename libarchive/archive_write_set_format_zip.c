@@ -258,8 +258,6 @@ archive_write_set_format_zip(struct archive *_a)
 #endif
 
 	a->format_data = zip;
-
-	a->pad_uncompressed = 0; /* Actually not needed for now, since no compression support yet. */
 	a->format_name = "zip";
 	a->format_options = archive_write_zip_options;
 	a->format_write_header = archive_write_zip_header;

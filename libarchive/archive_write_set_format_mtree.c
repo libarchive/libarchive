@@ -1038,8 +1038,6 @@ archive_write_set_format_mtree(struct archive *_a)
 	archive_string_init(&mtree->buf);
 	a->format_data = mtree;
 	a->format_free = archive_write_mtree_free;
-
-	a->pad_uncompressed = 0;
 	a->format_name = "mtree";
 	a->format_options = archive_write_mtree_options;
 	a->format_write_header = archive_write_mtree_header;

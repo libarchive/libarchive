@@ -122,8 +122,6 @@ archive_write_set_format_shar(struct archive *_a)
 	archive_string_init(&shar->work);
 	archive_string_init(&shar->quoted_name);
 	a->format_data = shar;
-
-	a->pad_uncompressed = 0;
 	a->format_name = "shar";
 	a->format_write_header = archive_write_shar_header;
 	a->format_close = archive_write_shar_close;

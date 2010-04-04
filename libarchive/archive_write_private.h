@@ -93,16 +93,6 @@ struct archive_write {
 	int		  bytes_in_last_block;
 
 	/*
-	 * These control whether data within a gzip/bzip2 compressed
-	 * stream gets padded or not.  If pad_uncompressed is set,
-	 * the data will be padded to a full block before being
-	 * compressed.  The pad_uncompressed_byte determines the value
-	 * that will be used for padding.  Note that these have no
-	 * effect on compression "none."
-	 */
-	int		  pad_uncompressed;
-
-	/*
 	 * First and last write filters in the pipeline.
 	 */
 	struct archive_write_filter *filter_first;

@@ -1278,8 +1278,6 @@ archive_write_set_format_iso9660(struct archive *_a)
 	iso9660->primary.rootent->parent = iso9660->primary.rootent;
 
 	a->format_data = iso9660;
-
-	a->pad_uncompressed = 0;
 	a->format_name = "iso9660";
 	a->format_options = iso9660_options;
 	a->format_write_header = iso9660_write_header;

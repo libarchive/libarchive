@@ -101,8 +101,6 @@ archive_write_set_format_cpio_newc(struct archive *_a)
 	}
 	memset(cpio, 0, sizeof(*cpio));
 	a->format_data = cpio;
-
-	a->pad_uncompressed = 1;
 	a->format_name = "cpio";
 	a->format_write_header = archive_write_newc_header;
 	a->format_write_data = archive_write_newc_data;
