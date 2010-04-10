@@ -485,6 +485,7 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_help.c					\
 	tar/test/test_option_T_upper.c				\
 	tar/test/test_option_X_upper.c				\
+	tar/test/test_option_b.c				\
 	tar/test/test_option_exclude.c				\
 	tar/test/test_option_q.c				\
 	tar/test/test_option_r.c				\
