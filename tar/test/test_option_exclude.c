@@ -27,19 +27,10 @@ __FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_option_exclude)
 {
-	FILE *f;
 	int r;
 
-	f = fopen("file1", "w");
-	assert(f != NULL);
-	fprintf(f, "file1");
-	fclose(f);
-
-	f = fopen("file2", "w");
-	assert(f != NULL);
-	fprintf(f, "file2");
-	fclose(f);
-
+	assertMakeFile("file1", 0644, "file1");
+	assertMakeFile("file2", 0644, "file2");
 	assertEqualInt(0, systemf("%s -cf archive.tar file1 file2", testprog));
 
 	/*
