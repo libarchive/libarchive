@@ -70,8 +70,9 @@ DEFINE_TEST(test_option_C_upper)
 	 */
 	assertMakeDir("test3", 0755);
 	assertChdir("test3");
-	r = systemf("%s -cf archive.tar -C ../XXX file1 -C ../d2 file2", testprog);
+	r = systemf("%s -cf archive.tar -C ../XXX file1 -C ../d2 file2 2>write.err", testprog);
 	assert(r != 0);
+	assertNonEmptyFile("write.err");
 	assertEqualInt(0,
 	    systemf("%s -xf archive.tar >test.out 2>test.err", testprog));
 	assertFileNotExists("file1");
@@ -95,9 +96,8 @@ DEFINE_TEST(test_option_C_upper)
 	assertEmptyFile("test.err");
 	assertChdir("..");
 
-
 	/*
-	 * Test 5: Unnecessary -C ignored
+	 * Test 5: Unnecessary -C ignored even if directory named doesn't exist
 	 */
 	assertMakeDir("test5", 0755);
 	assertChdir("test5");
@@ -107,6 +107,21 @@ DEFINE_TEST(test_option_C_upper)
 	assertEqualInt(0,
 	    systemf("%s -xf archive.tar >test.out 2>test.err", testprog));
 	assertFileContents("d1/file1", 8, "file1");
+	assertEmptyFile("test.out");
+	assertEmptyFile("test.err");
+	assertChdir("..");
+
+	/*
+	 * Test 6: Necessary -C not ignored if directory doesn't exist
+	 */
+	assertMakeDir("test6", 0755);
+	assertChdir("test6");
+	r = systemf("%s -cf archive.tar -C XXX -C ../d1 file1 2>write.err",
+	    testprog, testworkdir);
+	assert(r != 0);
+	assertNonEmptyFile("write.err");
+	assertEqualInt(0,
+	    systemf("%s -xf archive.tar >test.out 2>test.err", testprog));
 	assertEmptyFile("test.out");
 	assertEmptyFile("test.err");
 	assertChdir("..");
