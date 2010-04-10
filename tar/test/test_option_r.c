@@ -30,18 +30,12 @@ __FBSDID("$FreeBSD$");
  */
 DEFINE_TEST(test_option_r)
 {
-	char buff[15];
 	char *p0, *p1;
 	size_t s;
-	FILE *f;
 	int r;
 
 	/* Create a file */
-	f = fopen("f1", "w");
-	if (!assert(f != NULL))
-		return;
-	assertEqualInt(3, fwrite("abc", 1, 3, f));
-	fclose(f);
+	assertMakeFile("f1", 0644, "abc");
 
 	/* Archive that one file. */
 	r = systemf("%s cf archive.tar --format=ustar f1 >step1.out 2>step1.err", testprog);
@@ -67,11 +61,7 @@ DEFINE_TEST(test_option_r)
 	assertEqualMem(p0 + 1536, "\0\0\0\0\0\0\0\0", 8);
 
 	/* Edit that file */
-	f = fopen("f1", "w");
-	if (!assert(f != NULL))
-		return;
-	assertEqualInt(3, fwrite("123", 1, 3, f));
-	fclose(f);
+	assertMakeFile("f1", 0644, "123");
 
 	/* Update the archive. */
 	r = systemf("%s rf archive.tar --format=ustar f1 >step2.out 2>step2.err", testprog);
@@ -108,10 +98,5 @@ DEFINE_TEST(test_option_r)
 	assertEqualInt(r, 0);
 
 	/* Verify that the second one overwrote the first. */
-	f = fopen("f1", "r");
-	if (assert(f != NULL)) {
-		assertEqualInt(3, fread(buff, 1, 3, f));
-		assertEqualMem(buff, "123", 3);
-		fclose(f);
-	}
+	assertFileContents("123", 3, "f1");
 }

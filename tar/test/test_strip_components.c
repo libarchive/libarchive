@@ -25,18 +25,6 @@
 #include "test.h"
 __FBSDID("$FreeBSD: src/usr.bin/tar/test/test_strip_components.c,v 1.2 2008/11/10 05:24:13 kientzle Exp $");
 
-static int
-touch(const char *fn)
-{
-	FILE *f = fopen(fn, "w");
-	failure("Couldn't create file '%s', errno=%d (%s)\n",
-	    fn, errno, strerror(errno));
-	if (!assert(f != NULL))
-		return (0); /* Failure. */
-	fclose(f);
-	return (1); /* Success */
-}
-
 DEFINE_TEST(test_strip_components)
 {
 	assertMakeDir("d0", 0755);
@@ -44,7 +32,7 @@ DEFINE_TEST(test_strip_components)
 	assertMakeDir("d1", 0755);
 	assertMakeDir("d1/d2", 0755);
 	assertMakeDir("d1/d2/d3", 0755);
-	assertEqualInt(1, touch("d1/d2/f1"));
+	assertMakeFile("d1/d2/f1", 0644, "");
 	assertMakeHardlink("l1", "d1/d2/f1");
 	assertMakeHardlink("d1/l2", "d1/d2/f1");
 	if (canSymlink()) {
