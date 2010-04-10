@@ -1755,6 +1755,7 @@ test_summarize(const char *filename, int failed)
 static int
 test_run(int i, const char *tmpdir)
 {
+	char workdir[1024];
 	char logfilename[64];
 	int failures_before = failures;
 	int oldumask;
@@ -1781,11 +1782,12 @@ test_run(int i, const char *tmpdir)
 	logfile = fopen(logfilename, "w");
 	fprintf(logfile, "%s\n\n", tests[i].name);
 	/* Chdir() to a work dir for this specific test. */
-	if (!assertMakeDir(tests[i].name, 0755)
-	    || !assertChdir(tests[i].name)) {
+	snprintf(workdir, sizeof(workdir), "%s/%s", tmpdir, tests[i].name);
+	testworkdir = workdir;
+	if (!assertMakeDir(testworkdir, 0755)
+	    || !assertChdir(testworkdir)) {
 		fprintf(stderr,
-		    "ERROR: Can't chdir to work dir %s/%s\n",
-		    tmpdir, tests[i].name);
+		    "ERROR: Can't chdir to work dir %s\n", testworkdir);
 		exit(1);
 	}
 	/* Explicitly reset the locale before each test. */
@@ -1799,6 +1801,7 @@ test_run(int i, const char *tmpdir)
 	/*
 	 * Clean up and report afterwards.
 	 */
+	testworkdir = NULL;
 	/* Restore umask */
 	umask(oldumask);
 	/* Reset locale. */

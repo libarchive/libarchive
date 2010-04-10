@@ -287,3 +287,5 @@ const char *testprogfile;
 /* Name of exe to use in printf-formatted command strings. */
 /* On Windows, this includes leading/trailing quotes. */
 const char *testprog;
+/* Path to working directory for current test */
+const char *testworkdir;
