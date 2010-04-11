@@ -19,9 +19,10 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_option_L_upper.c
     test_option_T_upper.c
     test_option_X_upper.c
-    test_option_exclude.c
-    test_option_keep_newer.c
     test_option_b.c
+    test_option_exclude.c
+    test_option_k.c
+    test_option_keep_newer.c
     test_option_q.c
     test_option_r.c
     test_option_s.c

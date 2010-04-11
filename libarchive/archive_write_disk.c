@@ -1035,8 +1035,8 @@ restore_entry(struct archive_write_disk *a)
 	if ((en == EISDIR || en == EEXIST)
 	    && (a->flags & ARCHIVE_EXTRACT_NO_OVERWRITE)) {
 		/* If we're not overwriting, we're done. */
-		archive_set_error(&a->archive, en, "Already exists");
-		return (ARCHIVE_FAILED);
+		archive_entry_unset_size(a->entry);
+		return (ARCHIVE_OK);
 	}
 
 	/*
