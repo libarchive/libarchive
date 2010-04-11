@@ -725,7 +725,7 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 	if (r == ARCHIVE_FATAL)
 		exit(1);
 
-	if (r >= ARCHIVE_WARN && fd >= 0) {
+	if (r >= ARCHIVE_WARN && archive_entry_size(entry) > 0 && fd >= 0) {
 		bytes_read = read(fd, cpio->buff, cpio->buff_size);
 		while (bytes_read > 0) {
 			r = archive_write_data(cpio->archive,
