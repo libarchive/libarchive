@@ -136,7 +136,6 @@ enum {
 	OPTION_VERSION
 };
 
-
 int	bsdtar_getopt(struct bsdtar *);
 void	do_chdir(struct bsdtar *);
 int	edit_pathname(struct bsdtar *, struct archive_entry *);
