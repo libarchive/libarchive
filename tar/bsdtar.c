@@ -96,8 +96,6 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/bsdtar.c,v 1.93 2008/11/08 04:43:24 kientzle
 int _CRT_glob = 0; /* Disable broken CRT globbing. */
 #endif
 
-static struct bsdtar *_bsdtar;
-
 #if defined(HAVE_SIGACTION) && (defined(SIGINFO) || defined(SIGUSR1))
 static volatile int siginfo_occurred;
 
@@ -151,7 +149,7 @@ main(int argc, char **argv)
 	 * Use a pointer for consistency, but stack-allocated storage
 	 * for ease of cleanup.
 	 */
-	_bsdtar = bsdtar = &bsdtar_storage;
+	bsdtar = &bsdtar_storage;
 	memset(bsdtar, 0, sizeof(*bsdtar));
 	bsdtar->fd = -1; /* Mark as "unused" */
 	option_o = 0;
