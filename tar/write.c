@@ -99,13 +99,13 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/write.c,v 1.79 2008/11/27 05:49:52 kientzle 
 #include "tree.h"
 
 /* Size of buffer for holding file data prior to writing. */
-#define FILEDATABUFLEN	65536
+#define	FILEDATABUFLEN	65536
 
 /* Fixed size of uname/gname caches. */
 #define	name_cache_size 101
 
 #ifndef O_BINARY
-#define O_BINARY 0
+#define	O_BINARY 0
 #endif
 
 static const char * const NO_NAME = "(noname)";
@@ -167,10 +167,10 @@ seek_file(int fd, int64_t offset, int whence)
 	return (SetFilePointerEx((HANDLE)_get_osfhandle(fd),
 		distance, NULL, FILE_BEGIN) ? 1 : -1);
 }
-#define open _open
-#define close _close
-#define read _read
-#define lseek seek_file
+#define	open _open
+#define	close _close
+#define	read _read
+#define	lseek seek_file
 #endif
 
 void

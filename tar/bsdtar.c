@@ -85,7 +85,7 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/bsdtar.c,v 1.93 2008/11/08 04:43:24 kientzle
 #endif
 #if defined(__APPLE__)
 #undef _PATH_DEFTAPE
-#define _PATH_DEFTAPE "-"  /* Mac OS has no tape support, default to stdio. */
+#define	_PATH_DEFTAPE "-"  /* Mac OS has no tape support, default to stdio. */
 #endif
 
 #ifndef _PATH_DEFTAPE

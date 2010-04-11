@@ -104,9 +104,9 @@ struct tree_entry {
 /* Definitions for tree_entry.flags bitmap. */
 #define	isDir 1 /* This entry is a regular directory. */
 #define	isDirLink 2 /* This entry is a symbolic link to a directory. */
-#define needsFirstVisit 4 /* This is an initial entry. */
+#define	needsFirstVisit 4 /* This is an initial entry. */
 #define	needsDescent 8 /* This entry needs to be previsited. */
-#define needsOpen 16 /* This is a directory that needs to be opened. */
+#define	needsOpen 16 /* This is a directory that needs to be opened. */
 #define	needsAscent 32 /* This entry needs to be postvisited. */
 
 /*
@@ -125,12 +125,12 @@ struct tree {
 #if defined(HAVE_WINDOWS_H) && !defined(__CYGWIN__)
 	HANDLE d;
 	BY_HANDLE_FILE_INFORMATION fileInfo;
-#define INVALID_DIR_HANDLE INVALID_HANDLE_VALUE
+#define	INVALID_DIR_HANDLE INVALID_HANDLE_VALUE
 	WIN32_FIND_DATA _findData;
 	WIN32_FIND_DATA *findData;
 #else
 	DIR	*d;
-#define INVALID_DIR_HANDLE NULL
+#define	INVALID_DIR_HANDLE NULL
 	struct dirent *de;
 #endif
 	int	 flags;
@@ -154,8 +154,8 @@ struct tree {
 };
 
 /* Definitions for tree.flags bitmap. */
-#define hasStat 16  /* The st entry is valid. */
-#define hasLstat 32 /* The lst entry is valid. */
+#define	hasStat 16  /* The st entry is valid. */
+#define	hasLstat 32 /* The lst entry is valid. */
 #define	hasFileInfo 64 /* The Windows fileInfo entry is valid. */
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -168,9 +168,9 @@ tree_dir_next_posix(struct tree *t);
 
 #ifdef HAVE_DIRENT_D_NAMLEN
 /* BSD extension; avoids need for a strlen() call. */
-#define D_NAMELEN(dp)	(dp)->d_namlen
+#define	D_NAMELEN(dp)	(dp)->d_namlen
 #else
-#define D_NAMELEN(dp)	(strlen((dp)->d_name))
+#define	D_NAMELEN(dp)	(strlen((dp)->d_name))
 #endif
 
 #include <stdio.h>
@@ -740,7 +740,7 @@ tree_current_is_physical_link(struct tree *t)
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #ifndef IO_REPARSE_TAG_SYMLINK
 /* Old SDKs do not provide IO_REPARSE_TAG_SYMLINK */
-#define IO_REPARSE_TAG_SYMLINK 0xA000000CL
+#define	IO_REPARSE_TAG_SYMLINK 0xA000000CL
 #endif
 	if (t->findData)
 		return ((t->findData->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
