@@ -255,7 +255,9 @@ static int	set_fflags_platform(struct archive_write_disk *, int fd,
 static int	set_ownership(struct archive_write_disk *);
 static int	set_mode(struct archive_write_disk *, int mode);
 static int	set_time(int, int, const char *, time_t, long, time_t, long);
-static int	set_times(struct archive_write_disk *);
+static int	set_times(int, int, const char *,
+		    time_t, long, time_t, long, time_t, long);
+static int	set_times_from_entry(struct archive_write_disk *);
 static struct fixup_entry *sort_dir_list(struct fixup_entry *p);
 #if ARCHIVE_VERSION_NUMBER < 3000000
 static gid_t	trivial_lookup_gid(void *, const char *, gid_t);
@@ -511,6 +513,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		&& (archive_entry_mtime_is_set(entry)
 		    || archive_entry_atime_is_set(entry))) {
 		fe = current_fixup(a, archive_entry_pathname(entry));
+		fe->mode = a->mode;
 		fe->fixup |= TODO_TIMES;
 		if (archive_entry_atime_is_set(entry)) {
 			fe->atime = archive_entry_atime(entry);
@@ -837,7 +840,7 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	 * otherwise atime will get changed.
 	 */
 	if (a->todo & TODO_TIMES) {
-		int r2 = set_times(a);
+		int r2 = set_times_from_entry(a);
 		if (r2 < ret) ret = r2;
 	}
 
@@ -1320,39 +1323,10 @@ _archive_write_disk_close(struct archive *_a)
 	while (p != NULL) {
 		a->pst = NULL; /* Mark stat cache as out-of-date. */
 		if (p->fixup & TODO_TIMES) {
-#ifdef HAVE_UTIMES
-			/* {f,l,}utimes() are preferred, when available. */
-#if defined(_WIN32) && !defined(__CYGWIN__)
-			struct __timeval times[2];
-#else
-			struct timeval times[2];
-#endif
-			times[0].tv_sec = p->atime;
-			times[0].tv_usec = p->atime_nanos / 1000;
-#ifdef HAVE_STRUCT_STAT_ST_BIRTHTIME
-			/* if it's valid and not mtime, push the birthtime first */
-			if (((times[1].tv_sec = p->birthtime) < p->mtime) &&
-			(p->birthtime > 0))
-			{
-				times[1].tv_usec = p->birthtime_nanos / 1000;
-				utimes(p->name, times);
-			}
-#endif
-			times[1].tv_sec = p->mtime;
-			times[1].tv_usec = p->mtime_nanos / 1000;
-#ifdef HAVE_LUTIMES
-			lutimes(p->name, times);
-#else
-			utimes(p->name, times);
-#endif
-#else
-			/* utime() is more portable, but less precise. */
-			struct utimbuf times;
-			times.modtime = p->mtime;
-			times.actime = p->atime;
-
-			utime(p->name, &times);
-#endif
+			set_times(-1, p->mode, p->name,
+			    p->atime, p->atime_nanos,
+			    p->birthtime, p->birthtime_nanos,
+			    p->mtime, p->mtime_nanos);
 		}
 		if (p->fixup & TODO_MODE_BASE)
 			chmod(p->name, p->mode);
@@ -1921,16 +1895,18 @@ set_ownership(struct archive_write_disk *a)
 }
 
 
-#if defined(HAVE_UTIMENSAT) && defined(HAVE_FUTIMENS)
-/* 
- * utimensat() and futimens() are defined in POSIX.1-2008. They provide ns
- * resolution and setting times on fd and on symlinks, too.
- */
 static int
 set_time(int fd, int mode, const char *name,
     time_t atime, long atime_nsec,
     time_t mtime, long mtime_nsec)
 {
+	/* Select the best implementation for this platform. */
+#if defined(HAVE_UTIMENSAT) && defined(HAVE_FUTIMENS)
+	/*
+	 * utimensat() and futimens() are defined in
+	 * POSIX.1-2008. They support ns resolution and setting times
+	 * on fds and symlinks.
+	 */
 	struct timespec ts[2];
 	ts[0].tv_sec = atime;
 	ts[0].tv_nsec = atime_nsec;
@@ -1939,18 +1915,14 @@ set_time(int fd, int mode, const char *name,
 	if (fd >= 0)
 		return futimens(fd, ts);
 	return utimensat(AT_FDCWD, name, ts, AT_SYMLINK_NOFOLLOW);
-}
+
 #elif HAVE_UTIMES
-/*
- * The utimes()-family functions provide µs-resolution and
- * a way to set time on an fd or a symlink.  We prefer them
- * when they're available and utimensat/futimens aren't there.
- */
-static int
-set_time(int fd, int mode, const char *name,
-    time_t atime, long atime_nsec,
-    time_t mtime, long mtime_nsec)
-{
+	/*
+	 * The utimes()-family functions support µs-resolution and
+	 * setting times fds and symlinks.  utimes() is documented as
+	 * LEGACY by POSIX, futimes() and lutimes() are not described
+	 * in POSIX.
+	 */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	struct __timeval times[2];
 #else
@@ -1976,17 +1948,12 @@ set_time(int fd, int mode, const char *name,
 		return (0);
 	return (utimes(name, times));
 #endif
-}
+
 #elif defined(HAVE_UTIME)
-/*
- * utime() is an older, more standard interface that we'll use
- * if utimes() isn't available.
- */
-static int
-set_time(int fd, int mode, const char *name,
-    time_t atime, long atime_nsec,
-    time_t mtime, long mtime_nsec)
-{
+	/*
+	 * utime() is POSIX-standard but only supports 1s resolution and
+	 * does not support fds or symlinks.
+	 */
 	struct utimbuf times;
 	(void)fd; /* UNUSED */
 	(void)name; /* UNUSED */
@@ -1997,22 +1964,53 @@ set_time(int fd, int mode, const char *name,
 	if (S_ISLNK(mode))
 		return (ARCHIVE_OK);
 	return (utime(name, &times));
-}
+
 #else
-static int
-set_time(int fd, int mode, const char *name,
-    time_t atime, long atime_nsec,
-    time_t mtime, long mtime_nsec)
-{
+	/*
+	 * We don't know how to set the time on this platform.
+	 */
 	return (ARCHIVE_WARN);
-}
 #endif
+}
 
 static int
-set_times(struct archive_write_disk *a)
+set_times(int fd, int mode, const char *name,
+    time_t atime, long atime_nanos,
+    time_t birthtime, long birthtime_nanos,
+    time_t mtime, long mtime_nanos)
 {
-	time_t atime = a->start_time, mtime = a->start_time;
-	long atime_nsec = 0, mtime_nsec = 0;
+	int r1 = ARCHIVE_OK, r2 = ARCHIVE_OK;
+
+#ifdef HAVE_STRUCT_STAT_ST_BIRTHTIME
+	/*
+	 * If you have struct stat.st_birthtime, we assume BSD
+	 * birthtime semantics, in which {f,l,}utimes() updates
+	 * birthtime to earliest mtime.  So we set the time twice,
+	 * first using the birthtime, then using the mtime.  If
+	 * birthtime == mtime, this isn't necessary, so we skip it.
+	 * If birthtime > mtime, then this won't work, so we skip it.
+	 */
+	if (birthtime < mtime
+	    || (birthtime == mtime && birthtime_nanos < mtime_nanos))
+		r1 = set_time(fd, mode, name,
+			      atime, atime_nanos,
+			      birthtime, birthtime_nanos);
+#endif
+	r2 = set_time(fd, mode, name,
+		      atime, atime_nanos,
+		      mtime, mtime_nanos);
+	return (r1 < r2) ? r1 : r2;
+}
+
+static int
+set_times_from_entry(struct archive_write_disk *a)
+{
+	time_t atime, birthtime, mtime;
+	long atime_nsec, birthtime_nsec, mtime_nsec;
+
+	/* Suitable defaults. */
+	atime = birthtime = mtime = a->start_time;
+	atime_nsec = birthtime_nsec = mtime_nsec = 0;
 
 	/* If no time was provided, we're done. */
 	if (!archive_entry_atime_is_set(a->entry)
@@ -2022,53 +2020,23 @@ set_times(struct archive_write_disk *a)
 	    && !archive_entry_mtime_is_set(a->entry))
 		return (ARCHIVE_OK);
 
-	/* If no atime was specified, use start time instead. */
-	/* In theory, it would be marginally more correct to use
-	 * time(NULL) here, but that would cost us an extra syscall
-	 * for little gain. */
 	if (archive_entry_atime_is_set(a->entry)) {
 		atime = archive_entry_atime(a->entry);
 		atime_nsec = archive_entry_atime_nsec(a->entry);
 	}
-
-	/*
-	 * If you have struct stat.st_birthtime, we assume BSD birthtime
-	 * semantics, in which {f,l,}utimes() updates birthtime to earliest
-	 * mtime.  So we set the time twice, first using the birthtime,
-	 * then using the mtime.
-	 */
-#if HAVE_STRUCT_STAT_ST_BIRTHTIME
-	/* If birthtime is set, flush that through to disk first. */
-	if (archive_entry_birthtime_is_set(a->entry))
-		if (set_time(a->fd, a->mode, a->name, atime, atime_nsec,
-			archive_entry_birthtime(a->entry),
-			archive_entry_birthtime_nsec(a->entry))) {
-			archive_set_error(&a->archive, errno,
-			    "Can't update time for %s",
-			    a->name);
-			return (ARCHIVE_WARN);
-		}
-#endif
-
+	if (archive_entry_birthtime_is_set(a->entry)) {
+		birthtime = archive_entry_birthtime(a->entry);
+		birthtime_nsec = archive_entry_birthtime_nsec(a->entry);
+	}
 	if (archive_entry_mtime_is_set(a->entry)) {
 		mtime = archive_entry_mtime(a->entry);
 		mtime_nsec = archive_entry_mtime_nsec(a->entry);
 	}
-	if (set_time(a->fd, a->mode, a->name,
-		atime, atime_nsec, mtime, mtime_nsec)) {
-		archive_set_error(&a->archive, errno,
-		    "Can't update time for %s",
-		    a->name);
-		return (ARCHIVE_WARN);
-	}
 
-	/*
-	 * Note: POSIX does not provide a portable way to restore ctime.
-	 * (Apart from resetting the system clock, which is distasteful.)
-	 * So, any restoration of ctime will necessarily be OS-specific.
-	 */
-
-	return (ARCHIVE_OK);
+	return set_times(a->fd, a->mode, a->name,
+			 atime, atime_nsec,
+			 birthtime, birthtime_nsec,
+			 mtime, mtime_nsec);
 }
 
 static int
