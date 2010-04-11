@@ -37,7 +37,7 @@ DEFINE_TEST(test_option_keep_newer)
 	assertChdir("test1");
 	assertMakeFile("file", 0644, "new");
 	assertEqualInt(0,
-	    systemf("pwd;%s -xf ../%s >test.out 2>test.err", testprog, reffile));
+	    systemf("%s -xf ../%s >test.out 2>test.err", testprog, reffile));
 	assertFileContents("old\n", 4, "file");
 	assertEmptyFile("test.out");
 	assertEmptyFile("test.err");
