@@ -488,6 +488,7 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_option_X_upper.c				\
 	tar/test/test_option_b.c				\
 	tar/test/test_option_exclude.c				\
+	tar/test/test_option_keep_newer.c			\
 	tar/test/test_option_q.c				\
 	tar/test/test_option_r.c				\
 	tar/test/test_option_s.c				\
@@ -522,6 +523,7 @@ bsdtar_TESTS_ENVIRONMENT=
 endif
 
 bsdtar_test_EXTRA_DIST=			\
+	tar/test/test_option_keep_newer.tgz.uu \
 	tar/test/test_patterns_2.tar.uu	\
 	tar/test/test_patterns_3.tar.uu	\
 	tar/test/test_patterns_4.tar.uu	\

@@ -1090,7 +1090,7 @@ restore_entry(struct archive_write_disk *a)
 				archive_entry_unset_size(a->entry);
 				archive_set_error(&a->archive, 0,
 				    "File on disk is not older; skipping.");
-				return (ARCHIVE_FAILED);
+				return (ARCHIVE_OK);
 			}
 		}
 
