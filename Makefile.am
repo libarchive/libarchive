@@ -529,7 +529,7 @@ bsdtar_TESTS_ENVIRONMENT=
 endif
 
 bsdtar_test_EXTRA_DIST=			\
-	tar/test/test_option_keep_newer.tgz.uu \
+	tar/test/test_option_keep_newer_files.tgz.uu \
 	tar/test/test_patterns_2.tar.uu	\
 	tar/test/test_patterns_3.tar.uu	\
 	tar/test/test_patterns_4.tar.uu	\
