@@ -536,11 +536,14 @@ After archiving all files, print a summary to stderr.
 .It Fl U , Fl Fl unlink , Fl Fl unlink-first
 (x mode only)
 Unlink files before creating them.
-Without this option,
+This can be a minor performance optimization if most files
+already exist, but can make things slower if most files
+do not already exist.
+This flag also causes
 .Nm
-overwrites existing files, which preserves existing hardlinks.
-With this option, existing hardlinks will be broken, as will any
-symlink that would affect the location of an extracted file.
+to remove intervening directory symlinks instead of
+reporting an error.
+See the SECURITY section below for more details.
 .It Fl Fl use-compress-program Ar program
 Pipe the input (in x or t mode) or the output (in c mode) through
 .Pa program
