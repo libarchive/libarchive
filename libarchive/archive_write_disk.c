@@ -1088,8 +1088,6 @@ restore_entry(struct archive_write_disk *a)
 		    &&  !S_ISDIR(a->st.st_mode)) {
 			if (!older(&(a->st), a->entry)) {
 				archive_entry_unset_size(a->entry);
-				archive_set_error(&a->archive, 0,
-				    "File on disk is not older; skipping.");
 				return (ARCHIVE_OK);
 			}
 		}
