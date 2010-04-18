@@ -168,6 +168,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_write_set_format_pax.c		\
 	libarchive/archive_write_set_format_shar.c		\
 	libarchive/archive_write_set_format_ustar.c		\
+	libarchive/archive_write_set_format_gnutar.c		\
 	libarchive/archive_write_set_format_zip.c		\
 	libarchive/archive_write_set_options.c			\
 	libarchive/config_freebsd.h				\
@@ -329,6 +330,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_format_cpio_empty.c		\
 	libarchive/test/test_write_format_cpio_odc.c		\
 	libarchive/test/test_write_format_cpio_newc.c		\
+	libarchive/test/test_write_format_gnutar.c		\
 	libarchive/test/test_write_format_iso9660.c		\
 	libarchive/test/test_write_format_iso9660_boot.c	\
 	libarchive/test/test_write_format_iso9660_empty.c	\
