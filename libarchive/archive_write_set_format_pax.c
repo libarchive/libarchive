@@ -85,7 +85,6 @@ static int		 has_non_ASCII(const wchar_t *);
 static void		 sparse_list_clear(struct pax *);
 static int		 sparse_list_add(struct pax *, int64_t, int64_t);
 static char		*url_encode(const char *in);
-static int		 write_nulls(struct archive_write *, size_t);
 
 /*
  * Set output format to 'restricted pax' format.
@@ -1079,7 +1078,7 @@ archive_write_pax_header(struct archive_write *a,
 			return (ARCHIVE_FATAL);
 		}
 		/* Pad out the end of the entry. */
-		r = write_nulls(a, pax->entry_padding);
+		r = __archive_write_nulls(a, pax->entry_padding);
 		if (r != ARCHIVE_OK) {
 			/* If a write fails, we're pretty much toast. */
 			return (ARCHIVE_FATAL);
@@ -1379,7 +1378,7 @@ build_gnu_sparse_name(char *dest, const char *src)
 static int
 archive_write_pax_close(struct archive_write *a)
 {
-	return (write_nulls(a, 512 * 2));
+	return (__archive_write_nulls(a, 512 * 2));
 }
 
 static int
@@ -1417,25 +1416,9 @@ archive_write_pax_finish_entry(struct archive_write *a)
 			pax->sparse_list = sb;
 		}
 	}
-	ret = write_nulls(a, remaining + pax->entry_padding);
+	ret = __archive_write_nulls(a, remaining + pax->entry_padding);
 	pax->entry_bytes_remaining = pax->entry_padding = 0;
 	return (ret);
-}
-
-static int
-write_nulls(struct archive_write *a, size_t padding)
-{
-	int ret;
-	size_t to_write;
-
-	while (padding > 0) {
-		to_write = padding < a->null_length ? padding : a->null_length;
-		ret = __archive_write_output(a, a->nulls, to_write);
-		if (ret != ARCHIVE_OK)
-			return (ret);
-		padding -= to_write;
-	}
-	return (ARCHIVE_OK);
 }
 
 static ssize_t
@@ -1457,7 +1440,7 @@ archive_write_pax_data(struct archive_write *a, const void *buff, size_t s)
 		    archive_strlen(&(pax->sparse_map)));
 		if (ret != ARCHIVE_OK)
 			return (ret);
-		ret = write_nulls(a, pax->sparse_map_padding);
+		ret = __archive_write_nulls(a, pax->sparse_map_padding);
 		if (ret != ARCHIVE_OK)
 			return (ret);
 		archive_string_empty(&(pax->sparse_map));

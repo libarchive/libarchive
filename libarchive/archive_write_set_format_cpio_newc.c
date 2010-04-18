@@ -279,18 +279,7 @@ static int
 archive_write_newc_finish_entry(struct archive_write *a)
 {
 	struct cpio *cpio;
-	size_t to_write;
-	int ret;
 
 	cpio = (struct cpio *)a->format_data;
-	while (cpio->entry_bytes_remaining > 0) {
-		to_write = cpio->entry_bytes_remaining < a->null_length ?
-		    cpio->entry_bytes_remaining : a->null_length;
-		ret = __archive_write_output(a, a->nulls, to_write);
-		if (ret != ARCHIVE_OK)
-			return (ret);
-		cpio->entry_bytes_remaining -= to_write;
-	}
-	ret = __archive_write_output(a, a->nulls, cpio->padding);
-	return (ret);
+	return (__archive_write_nulls(a, cpio->entry_bytes_remaining + cpio->padding));
 }

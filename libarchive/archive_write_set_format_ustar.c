@@ -151,7 +151,6 @@ static int	archive_write_ustar_header(struct archive_write *,
 static int	format_256(int64_t, char *, int);
 static int	format_number(int64_t, char *, int size, int max, int strict);
 static int	format_octal(int64_t, char *, int);
-static int	write_nulls(struct archive_write *a, size_t);
 
 /*
  * Set output format to 'ustar' format.
@@ -522,7 +521,7 @@ format_octal(int64_t v, char *p, int s)
 static int
 archive_write_ustar_close(struct archive_write *a)
 {
-	return (write_nulls(a, 512*2));
+	return (__archive_write_nulls(a, 512*2));
 }
 
 static int
@@ -543,26 +542,10 @@ archive_write_ustar_finish_entry(struct archive_write *a)
 	int ret;
 
 	ustar = (struct ustar *)a->format_data;
-	ret = write_nulls(a,
+	ret = __archive_write_nulls(a,
 	    ustar->entry_bytes_remaining + ustar->entry_padding);
 	ustar->entry_bytes_remaining = ustar->entry_padding = 0;
 	return (ret);
-}
-
-static int
-write_nulls(struct archive_write *a, size_t padding)
-{
-	int ret;
-	size_t to_write;
-
-	while (padding > 0) {
-		to_write = padding < a->null_length ? padding : a->null_length;
-		ret = __archive_write_output(a, a->nulls, to_write);
-		if (ret != ARCHIVE_OK)
-			return (ret);
-		padding -= to_write;
-	}
-	return (ARCHIVE_OK);
 }
 
 static ssize_t
