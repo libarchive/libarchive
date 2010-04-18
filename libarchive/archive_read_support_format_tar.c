@@ -1684,6 +1684,7 @@ header_gnutar(struct archive_read *a, struct tar *tar,
     struct archive_entry *entry, const void *h)
 {
 	const struct archive_entry_header_gnutar *header;
+	int64_t t;
 
 	(void)a;
 
@@ -1726,10 +1727,13 @@ header_gnutar(struct archive_read *a, struct tar *tar,
 	tar->entry_padding = 0x1ff & (-tar->entry_bytes_remaining);
 
 	/* Grab GNU-specific fields. */
-	archive_entry_set_atime(entry,
-	    tar_atol(header->atime, sizeof(header->atime)), 0);
-	archive_entry_set_ctime(entry,
-	    tar_atol(header->ctime, sizeof(header->ctime)), 0);
+	t = tar_atol(header->atime, sizeof(header->atime));
+	if (t > 0)
+		archive_entry_set_atime(entry, t, 0);
+	t = tar_atol(header->ctime, sizeof(header->ctime));
+	if (t > 0)
+		archive_entry_set_ctime(entry, t, 0);
+
 	if (header->realsize[0] != 0) {
 		tar->realsize
 		    = tar_atol(header->realsize, sizeof(header->realsize));
