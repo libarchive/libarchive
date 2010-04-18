@@ -364,6 +364,9 @@ test_skipping(const char *fmt, ...)
 	va_start(ap, fmt);
 	vsprintf(buff, fmt, ap);
 	va_end(ap);
+	/* Use failure() message if set. */
+	msg = nextmsg;
+	nextmsg = NULL;
 	/* failure_start() isn't quite right, but is awfully convenient. */
 	failure_start(test_filename, test_line, "SKIPPING: %s", buff);
 	--failures; /* Undo failures++ in failure_start() */
