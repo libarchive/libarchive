@@ -348,7 +348,7 @@ archive_write_gnutar_header(struct archive_write *a, struct archive_entry *entry
 	ret = archive_format_gnutar_header(a, buff, entry, tartype);
 	if (ret < ARCHIVE_WARN)
 		return (ret);
-	ret = __archive_write_output(a, buff, 512);
+	ret2 = __archive_write_output(a, buff, 512);
 	if (ret2 < ARCHIVE_WARN)
 		return (ret2);
 	if (ret2 < ret)
