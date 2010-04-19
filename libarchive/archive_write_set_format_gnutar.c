@@ -141,7 +141,7 @@ static const char template_header[] = {
 static int	archive_format_gnutar_header(struct archive_write *, char h[512],
 		    struct archive_entry *, int tartype);
 static int      archive_write_gnutar_header(struct archive_write *,
-                    struct archive_entry *entry);
+		    struct archive_entry *entry);
 static ssize_t	archive_write_gnutar_data(struct archive_write *a, const void *buff,
 		    size_t s);
 static int	archive_write_gnutar_free(struct archive_write *);
@@ -157,7 +157,7 @@ static int	format_octal(int64_t, char *, int);
 int
 archive_write_set_format_gnutar(struct archive *_a)
 {
-        struct archive_write *a = (struct archive_write *)_a;
+	struct archive_write *a = (struct archive_write *)_a;
 	struct gnutar *gnutar;
 
 	gnutar = (struct gnutar *)calloc(1, sizeof(*gnutar));
@@ -226,65 +226,65 @@ archive_write_gnutar_data(struct archive_write *a, const void *buff, size_t s)
 static int
 archive_write_gnutar_header(struct archive_write *a, struct archive_entry *entry)
 {
-        char buff[512];
-        int ret, ret2;
+	char buff[512];
+	int ret, ret2;
 	int tartype;
 	const char *linkname;
-        struct gnutar *gnutar;
+	struct gnutar *gnutar;
 
-        gnutar = (struct gnutar *)a->format_data;
+	gnutar = (struct gnutar *)a->format_data;
 
-        /* Only regular files (not hardlinks) have data. */
-        if (archive_entry_hardlink(entry) != NULL ||
-            archive_entry_symlink(entry) != NULL ||
-            !(archive_entry_filetype(entry) == AE_IFREG))
-                archive_entry_set_size(entry, 0);
+	/* Only regular files (not hardlinks) have data. */
+	if (archive_entry_hardlink(entry) != NULL ||
+	    archive_entry_symlink(entry) != NULL ||
+	    !(archive_entry_filetype(entry) == AE_IFREG))
+		archive_entry_set_size(entry, 0);
 
-        if (AE_IFDIR == archive_entry_filetype(entry)) {
-                const char *p;
-                char *t;
-                /*
-                 * Ensure a trailing '/'.  Modify the entry so
-                 * the client sees the change.
-                 */
-                p = archive_entry_pathname(entry);
-                if (p[strlen(p) - 1] != '/') {
-                        t = (char *)malloc(strlen(p) + 2);
-                        if (t == NULL) {
-                                archive_set_error(&a->archive, ENOMEM,
-                                "Can't allocate gnutar data");
-                                return(ARCHIVE_FATAL);
-                        }
-                        strcpy(t, p);
-                        strcat(t, "/");
-                        archive_entry_copy_pathname(entry, t);
-                        free(t);
-                }
-        }
+	if (AE_IFDIR == archive_entry_filetype(entry)) {
+		const char *p;
+		char *t;
+		/*
+		 * Ensure a trailing '/'.  Modify the entry so
+		 * the client sees the change.
+		 */
+		p = archive_entry_pathname(entry);
+		if (p[strlen(p) - 1] != '/') {
+			t = (char *)malloc(strlen(p) + 2);
+			if (t == NULL) {
+				archive_set_error(&a->archive, ENOMEM,
+				"Can't allocate gnutar data");
+				return(ARCHIVE_FATAL);
+			}
+			strcpy(t, p);
+			strcat(t, "/");
+			archive_entry_copy_pathname(entry, t);
+			free(t);
+		}
+	}
 
-        /* If linkname is longer than 100 chars we need to add a 'K' header. */
+	/* If linkname is longer than 100 chars we need to add a 'K' header. */
 	linkname = archive_entry_hardlink(entry);
 	if (linkname == NULL)
 		linkname = archive_entry_symlink(entry);
 	if (linkname != NULL && strlen(linkname) > GNUTAR_linkname_size) {
-                size_t todo = strlen(linkname);
-                struct archive_entry *temp = archive_entry_new();
+		size_t todo = strlen(linkname);
+		struct archive_entry *temp = archive_entry_new();
 
 		/* Uname/gname here don't really matter since noone reads them;
 		 * these are the values that GNU tar happens to use on FreeBSD. */
 		archive_entry_set_uname(temp, "root");
 		archive_entry_set_gname(temp, "wheel");
 
-                archive_entry_set_pathname(temp, "././@LongLink");
-                archive_entry_set_size(temp, strlen(linkname) + 1);
-                ret = archive_format_gnutar_header(a, buff, temp, 'K');
-                if (ret < ARCHIVE_WARN)
-                        return (ret);
-                ret = __archive_write_output(a, buff, 512);
-                if(ret < ARCHIVE_WARN)
-                        return (ret);
-                archive_entry_free(temp);
-                /* Write as many 512 bytes blocks as needed to write full name. */
+		archive_entry_set_pathname(temp, "././@LongLink");
+		archive_entry_set_size(temp, strlen(linkname) + 1);
+		ret = archive_format_gnutar_header(a, buff, temp, 'K');
+		if (ret < ARCHIVE_WARN)
+			return (ret);
+		ret = __archive_write_output(a, buff, 512);
+		if(ret < ARCHIVE_WARN)
+			return (ret);
+		archive_entry_free(temp);
+		/* Write as many 512 bytes blocks as needed to write full name. */
 		ret = __archive_write_output(a, linkname, todo);
 		if(ret < ARCHIVE_WARN)
 			return (ret);
@@ -293,27 +293,27 @@ archive_write_gnutar_header(struct archive_write *a, struct archive_entry *entry
 			return (ret);
 	}
 
-        /* If pathname is longer than 100 chars we need to add an 'L' header. */
-        if (strlen(archive_entry_pathname(entry)) > GNUTAR_name_size) {
-                const char *pathname = archive_entry_pathname(entry);
-                size_t todo = strlen(pathname);
-                struct archive_entry *temp = archive_entry_new();
+	/* If pathname is longer than 100 chars we need to add an 'L' header. */
+	if (strlen(archive_entry_pathname(entry)) > GNUTAR_name_size) {
+		const char *pathname = archive_entry_pathname(entry);
+		size_t todo = strlen(pathname);
+		struct archive_entry *temp = archive_entry_new();
 
 		/* Uname/gname here don't really matter since noone reads them;
 		 * these are the values that GNU tar happens to use on FreeBSD. */
 		archive_entry_set_uname(temp, "root");
 		archive_entry_set_gname(temp, "wheel");
 
-                archive_entry_set_pathname(temp, "././@LongLink");
-                archive_entry_set_size(temp, strlen(archive_entry_pathname(entry)) + 1);
-                ret = archive_format_gnutar_header(a, buff, temp, 'L');
-                if (ret < ARCHIVE_WARN)
-                        return (ret);
-                ret = __archive_write_output(a, buff, 512);
-                if(ret < ARCHIVE_WARN)
-                        return (ret);
-                archive_entry_free(temp);
-                /* Write as many 512 bytes blocks as needed to write full name. */
+		archive_entry_set_pathname(temp, "././@LongLink");
+		archive_entry_set_size(temp, strlen(archive_entry_pathname(entry)) + 1);
+		ret = archive_format_gnutar_header(a, buff, temp, 'L');
+		if (ret < ARCHIVE_WARN)
+			return (ret);
+		ret = __archive_write_output(a, buff, 512);
+		if(ret < ARCHIVE_WARN)
+			return (ret);
+		archive_entry_free(temp);
+		/* Write as many 512 bytes blocks as needed to write full name. */
 		ret = __archive_write_output(a, pathname, todo);
 		if(ret < ARCHIVE_WARN)
 			return (ret);
@@ -345,18 +345,18 @@ archive_write_gnutar_header(struct archive_write *a, struct archive_entry *entry
 			ret = ARCHIVE_FAILED;
 		}
 
-        ret = archive_format_gnutar_header(a, buff, entry, tartype);
-        if (ret < ARCHIVE_WARN)
-                return (ret);
-        ret = __archive_write_output(a, buff, 512);
-        if (ret2 < ARCHIVE_WARN)
-                return (ret2);
-        if (ret2 < ret)
-                ret = ret2;
+	ret = archive_format_gnutar_header(a, buff, entry, tartype);
+	if (ret < ARCHIVE_WARN)
+		return (ret);
+	ret = __archive_write_output(a, buff, 512);
+	if (ret2 < ARCHIVE_WARN)
+		return (ret2);
+	if (ret2 < ret)
+		ret = ret2;
 
-        gnutar->entry_bytes_remaining = archive_entry_size(entry);
-        gnutar->entry_padding = 0x1ff & (-(int64_t)gnutar->entry_bytes_remaining);
-        return (ret);
+	gnutar->entry_bytes_remaining = archive_entry_size(entry);
+	gnutar->entry_padding = 0x1ff & (-(int64_t)gnutar->entry_bytes_remaining);
+	return (ret);
 }
 
 static int
