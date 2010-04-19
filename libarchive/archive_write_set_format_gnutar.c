@@ -342,7 +342,7 @@ archive_write_gnutar_header(struct archive_write *a, struct archive_entry *entry
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "tar format cannot archive this (mode=0%lo)",
 			    (unsigned long)archive_entry_mode(entry));
-			ret = ARCHIVE_FAILED;
+			return (ARCHIVE_FAILED);
 		}
 
 	ret = archive_format_gnutar_header(a, buff, entry, tartype);
