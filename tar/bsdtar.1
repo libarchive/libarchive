@@ -439,7 +439,7 @@ If
 is not matched, the pattern is skipped.
 Within
 .Ar new ,
-~ is substituted with the match, \1 to \9 with the content of
+~ is substituted with the match, \e1 to \e9 with the content of
 the corresponding captured group.
 The optional trailing g specifies that matching should continue
 after the matched part and stopped on the first unmatched pattern.
@@ -534,6 +534,8 @@ Note that, unlike other
 implementations, this implementation recognizes compress compression
 automatically when reading archives.
 .El
+.Sh EXIT STATUS
+.Ex -std
 .Sh ENVIRONMENT
 The following environment variables affect the execution of
 .Nm :
@@ -563,8 +565,6 @@ environment variable or the
 .Fl f
 option.
 .El
-.Sh EXIT STATUS
-.Ex -std
 .Sh EXAMPLES
 The following creates a new archive
 called
