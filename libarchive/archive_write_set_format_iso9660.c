@@ -735,15 +735,10 @@ struct iso_option {
 #define VOLUME_IDENTIFIER_SIZE		32
 
 	/*
-	 * Usage  : zisofs[=indirect|direct]
+	 * Usage  : zisofs
 	 *        : !zisofs [DEFAULT]
 	 *        :    Disable to generate RRIP 'ZF' extension.
-	 *        : zisofs=indirect
-	 *        :    Generate RRIP 'ZF' extension for special files
-	 *        :    which is made by mkzftree utility.
-	 *        :    [COMPAT: mkisofs -z]
 	 *        : zisofs
-	 *        : zisofs=direct
 	 *        :    Make files zisofs file and generate RRIP 'ZF'
  	 *        :    extension. So you do not need mkzftree utility
 	 *        :    for making zisofs.
@@ -762,14 +757,12 @@ struct iso_option {
 	 *        :    'boot-image' file won't be converted to zisofs file.
 	 * Type   : boolean, string
 	 * Default: Disabled
-	 * COMPAT : mkisofs -z
 	 *
 	 * Generates RRIP 'ZF' System Use Entry.
 	 */
 	unsigned int	 zisofs:2;
 #define OPT_ZISOFS_DISABLED		0
-#define OPT_ZISOFS_INDIRECT		1
-#define OPT_ZISOFS_DIRECT		2
+#define OPT_ZISOFS_DIRECT		1
 #define OPT_ZISOFS_DEFAULT		OPT_ZISOFS_DISABLED
 
 	/*
@@ -1647,25 +1640,18 @@ iso9660_options(struct archive_write *a, const char *key, const char *value)
 		if (strcmp(key, "zisofs") == 0) {
 			if (value == NULL)
 				iso9660->opt.zisofs = OPT_ZISOFS_DISABLED;
-			else if (strcmp(value, "1") == 0)
-				iso9660->opt.zisofs = OPT_ZISOFS_DIRECT;
-			else if (strcmp(value, "indirect") == 0)
-				iso9660->opt.zisofs = OPT_ZISOFS_INDIRECT;
+			else {
 #ifdef HAVE_ZLIB_H
-			else if (strcmp(value, "direct") == 0)
 				iso9660->opt.zisofs = OPT_ZISOFS_DIRECT;
 #else
-			else if (strcmp(value, "direct") == 0) {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
-				    "``zisofs=%s'' "
+				    "``zisofs'' "
 				    "is not supported on this platform.",
 				    value);
 				return (ARCHIVE_FATAL);
-			}
 #endif
-			else
-				goto invalid_value;
+			}
 			return (ARCHIVE_OK);
 		}
 		if (strcmp(key, "zisofs-exclude") == 0) {
@@ -4154,15 +4140,9 @@ write_information_block(struct archive_write *a)
 	if (iso9660->opt.volume_id != OPT_VOLUME_ID_DEFAULT)
 		set_option_info(&info, &opt, "volume-id",
 		    KEY_STR, iso9660->volume_identifier.s);
-	if (iso9660->opt.zisofs != OPT_ZISOFS_DEFAULT) {
-		if (iso9660->opt.zisofs == OPT_ZISOFS_DISABLED ||
-		    iso9660->opt.zisofs == OPT_ZISOFS_DIRECT)
-			set_option_info(&info, &opt, "zisofs",
-			    KEY_FLG, iso9660->opt.zisofs);
-		else if (iso9660->opt.zisofs == OPT_ZISOFS_INDIRECT)
-			set_option_info(&info, &opt, "zisofs",
-			    KEY_STR, "direct");
-	}
+	if (iso9660->opt.zisofs != OPT_ZISOFS_DEFAULT)
+		set_option_info(&info, &opt, "zisofs",
+		    KEY_FLG, iso9660->opt.zisofs);
 #ifdef HAVE_ZLIB_H
 	if (iso9660->opt.zisofs_exclude != OPT_ZISOFS_EXCLUDE_DEFAULT) {
 		int i;
@@ -7662,8 +7642,7 @@ zisofs_init(struct archive_write *a,  struct isofile *file)
 		iso9660->zisofs.detect_magic = 1;
 		iso9660->zisofs.magic_cnt = 0;
 	}
-	if (iso9660->opt.zisofs == OPT_ZISOFS_INDIRECT ||
-	    !iso9660->zisofs.detect_magic)
+	if (!iso9660->zisofs.detect_magic)
 		return (ARCHIVE_OK);
 
 #ifdef HAVE_ZLIB_H
@@ -7671,8 +7650,7 @@ zisofs_init(struct archive_write *a,  struct isofile *file)
 	 * will use in iso-image file is the same as the number of
 	 * Logical Blocks which zisofs(compressed) data will use
 	 * in ISO-image file. It won't reduce iso-image file size. */
-	if (iso9660->opt.zisofs == OPT_ZISOFS_DIRECT &&
-	    archive_entry_size(file->entry) <= LOGICAL_BLOCK_SIZE)
+	if (archive_entry_size(file->entry) <= LOGICAL_BLOCK_SIZE)
 		return (ARCHIVE_OK);
 
 	/*
@@ -7977,24 +7955,22 @@ zisofs_finish_entry(struct archive_write *a)
 	unsigned char buff[16];
 	size_t s;
 	int64_t tail;
+	int bk1, bk2;
 
-	if (iso9660->opt.zisofs == OPT_ZISOFS_DIRECT) {
-		int bk1, bk2;
+	bk1 = (file->zisofs.uncompressed_size +
+	    LOGICAL_BLOCK_SIZE -1) / LOGICAL_BLOCK_SIZE;
+	bk2 = (iso9660->zisofs.total_size +
+	    LOGICAL_BLOCK_SIZE -1) / LOGICAL_BLOCK_SIZE;
 
-		bk1 = (file->zisofs.uncompressed_size +
-		    LOGICAL_BLOCK_SIZE -1) / LOGICAL_BLOCK_SIZE;
-		bk2 = (iso9660->zisofs.total_size +
-		    LOGICAL_BLOCK_SIZE -1) / LOGICAL_BLOCK_SIZE;
-
-		/* The number of Logical Blocks which uncompressed data
-		 * will use in iso-image file is the same as the number of
-		 * Logical Blocks which zisofs(compressed) data will use
-		 * in ISO-image file. It won't reduce iso-image file size. */
-		if (bk1 == bk2) {
-			zisofs_cancel(iso9660, file);
-			return (ARCHIVE_OK);
-		}
+	/* The number of Logical Blocks which uncompressed data
+	 * will use in iso-image file is the same as the number of
+	 * Logical Blocks which zisofs(compressed) data will use
+	 * in ISO-image file. It won't reduce iso-image file size. */
+	if (bk1 == bk2) {
+		zisofs_cancel(iso9660, file);
+		return (ARCHIVE_OK);
 	}
+
 	if (file->zisofs.keep_original)
 		/* Maybe we will use the original data, which is
 		 * uncompressed but we cannot decide it now. */
