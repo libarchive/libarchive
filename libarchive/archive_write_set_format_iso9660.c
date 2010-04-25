@@ -7352,6 +7352,15 @@ mbstobeutf16s(unsigned char *utf16, size_t utf16_size,
 					free(tp);
 				}
 			}
+		} else if (count > 0) {
+			uint16_t val = 1;
+			if (archive_be16dec(&val) != 1) {
+				while (utf16_size > 0) {
+					archive_be16enc(utf16, *(uint16_t *)utf16);
+						utf16 += 2;
+						utf16_size -= 2;
+					}
+			}
 		}
 	} else
 		count = MultiByteToWideChar(CP_ACP,
