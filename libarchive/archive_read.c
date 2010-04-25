@@ -1268,7 +1268,8 @@ advance_file_pointer(struct archive_read_filter *filter, int64_t request)
 		filter->position += bytes_read;
 
 		if (bytes_read >= request) {
-			filter->client_next = filter->client_buff + request;
+			filter->client_next =
+			    ((const char *)filter->client_buff) + request;
 			filter->client_avail = bytes_read - request;
 			filter->client_total = bytes_read;
 			total_bytes_skipped += request;

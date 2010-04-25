@@ -288,7 +288,7 @@ archive_write_gnutar_header(struct archive_write *a, struct archive_entry *entry
 		ret = __archive_write_output(a, linkname, todo);
 		if(ret < ARCHIVE_WARN)
 			return (ret);
-		ret = __archive_write_nulls(a, 0x1ff & (-todo));
+		ret = __archive_write_nulls(a, 0x1ff & (-(ssize_t)todo));
 		if (ret < ARCHIVE_WARN)
 			return (ret);
 	}
@@ -317,7 +317,7 @@ archive_write_gnutar_header(struct archive_write *a, struct archive_entry *entry
 		ret = __archive_write_output(a, pathname, todo);
 		if(ret < ARCHIVE_WARN)
 			return (ret);
-		ret = __archive_write_nulls(a, 0x1ff & (-todo));
+		ret = __archive_write_nulls(a, 0x1ff & (-(ssize_t)todo));
 		if (ret < ARCHIVE_WARN)
 			return (ret);
 	}

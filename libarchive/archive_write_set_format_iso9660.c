@@ -7329,7 +7329,7 @@ setup_boot_information(struct archive_write *a)
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 static size_t
-mbstoutf16s(unsigned char *utf16, size_t utf16_size,
+mbstobeutf16s(unsigned char *utf16, size_t utf16_size,
     const char *s, int len)
 {
 	size_t count;
@@ -7353,8 +7353,21 @@ mbstoutf16s(unsigned char *utf16, size_t utf16_size,
 					    MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
 					    s, len, (LPWSTR)tp, (int)tl);
 					if (count) {
-						memcpy(utf16, tp, utf16_size);
+						uint16_t val = 1;
+
 						count = utf16_size / 2;
+						if (archive_be16dec(&val) != 1) {
+							unsigned char *xp = tp;
+							while (utf16_size > 0) {
+								archive_be16enc(
+								    utf16,
+								    *(uint16_t *)xp);
+								utf16 += 2;
+								xp += 2;
+								utf16_size -= 2;
+							}
+						} else
+							memcpy(utf16, tp, utf16_size);
 					}
 					free(tp);
 				}

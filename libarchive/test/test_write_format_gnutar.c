@@ -155,7 +155,7 @@ DEFINE_TEST(test_write_format_gnutar)
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, longlinkname);
 	archive_entry_copy_symlink(ae, longfilename);
-	archive_entry_set_mode(ae, S_IFLNK | 0755);
+	archive_entry_set_mode(ae, AE_IFLNK | 0755);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	archive_entry_free(ae);
 
