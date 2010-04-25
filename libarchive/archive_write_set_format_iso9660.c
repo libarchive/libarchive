@@ -765,21 +765,6 @@ struct iso_option {
 #define OPT_ZISOFS_DIRECT		1
 #define OPT_ZISOFS_DEFAULT		OPT_ZISOFS_DISABLED
 
-	/*
-	 * Usage  : zisofs-exclude=<value>
-	 *        :  You can specify this option as below
-	 *        :  e.g.
-	 *        :       zisofs-exclude=foo,zisofs-exclude=bar
-	 *        :   or  zisofs-exclude=foo:bar
-	 *        :       (':' character is separator)
-	 * Type   : string
-	 * Default: Not specified
-	 *
-	 * Specifies files which are excluded from converting to
-	 * zisofs. This only works on using 'zisofs=direct' option.
-	 */
-	unsigned int	 zisofs_exclude:1;
-#define OPT_ZISOFS_EXCLUDE_DEFAULT	0	/* Not specified */
 };
 
 struct iso9660 {
@@ -881,11 +866,6 @@ struct iso9660 {
 		int		 stream_valid;
 		int64_t		 remaining;
 		int		 compression_level;
-		struct nozf_file {
-			struct archive_string	 parentdir;
-			struct archive_string	 basename;
-		}		*nozf_list;
-		int		 nozf_cnt;
 #endif
 	} zisofs;
 
@@ -1140,8 +1120,7 @@ static void	zisofs_cancel(struct iso9660 *, struct isofile *);
 static int	zisofs_write_to_temp(struct archive_write *,
 		    const void *, size_t);
 static int	zisofs_finish_entry(struct archive_write *);
-static int	zisofs_add_nozf(struct archive_write *, const char *);
-static int	zisofs_fix_nozf(struct archive_write *);
+static int	zisofs_fix_bootfile(struct archive_write *);
 #endif
 
 int
@@ -1218,8 +1197,6 @@ archive_write_set_format_iso9660(struct archive *_a)
 	iso9660->zisofs.block_pointers_allocated = 0;
 	iso9660->zisofs.stream_valid = 0;
 	iso9660->zisofs.compression_level = 9;
-	iso9660->zisofs.nozf_list = NULL;
-	iso9660->zisofs.nozf_cnt = 0;
 	memset(&(iso9660->zisofs.stream), 0,
 	    sizeof(iso9660->zisofs.stream));
 #endif
@@ -1257,7 +1234,6 @@ archive_write_set_format_iso9660(struct archive *_a)
 	iso9660->opt.uid = OPT_UID_DEFAULT;
 	iso9660->opt.volume_id = OPT_VOLUME_ID_DEFAULT;
 	iso9660->opt.zisofs = OPT_ZISOFS_DEFAULT;
-	iso9660->opt.zisofs_exclude = OPT_ZISOFS_EXCLUDE_DEFAULT;
 
 	/* Create the root directory. */
 	iso9660->primary.rootent =
@@ -1413,12 +1389,6 @@ iso9660_options(struct archive_write *a, const char *key, const char *value)
 				archive_strcpy(
 				    &(iso9660->el_torito.boot_filename),
 				    value);
-#ifdef HAVE_ZLIB_H
-				r = zisofs_add_nozf(a,
-				    iso9660->el_torito.boot_filename.s);
-				if (r != ARCHIVE_OK)
-					return (r);
-#endif
 			}
 			return (ARCHIVE_OK);
 		}
@@ -1653,41 +1623,6 @@ iso9660_options(struct archive_write *a, const char *key, const char *value)
 #endif
 			}
 			return (ARCHIVE_OK);
-		}
-		if (strcmp(key, "zisofs-exclude") == 0) {
-#ifdef HAVE_ZLIB_H
-			const char *xp;
-			struct archive_string str;
-
-			if (value == NULL)
-				goto invalid_value;
-			xp = value;
-			archive_string_init(&str);
-			do {
-				p = strchr(xp, ':');
-				if (p != NULL) {
-					archive_strncpy(&str, xp, p - xp);
-					xp = p + 1;
-				} else {
-					archive_strcpy(&str, xp);
-					xp = NULL;
-				}
-				r = zisofs_add_nozf(a, str.s);
-				if (r != ARCHIVE_OK) {
-					archive_string_free(&str);
-					return (r);
-				}
-			} while (xp != NULL);
-			archive_string_free(&str);
-			iso9660->opt.zisofs_exclude = 1;
-			return (ARCHIVE_OK);
-#else
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_MISC,
-			    "Option ``%s'' "
-			    "is not supported on this platform.", key);
-			return (ARCHIVE_FATAL);
-#endif
 		}
 		break;
 	}
@@ -1959,7 +1894,7 @@ iso9660_close(struct archive_write *a)
 			return (ret);
 	}
 #ifdef HAVE_ZLIB_H
-	ret = zisofs_fix_nozf(a);
+	ret = zisofs_fix_bootfile(a);
 	if (ret < 0)
 		return (ret);
 #endif
@@ -2177,7 +2112,6 @@ iso9660_free(struct archive_write *a)
                         ret = ARCHIVE_FATAL;
                 }
 	}
-	free(iso9660->zisofs.nozf_list);
 #endif
 
 	/* Remove directory entries in tree which includes file entries. */
@@ -4143,29 +4077,6 @@ write_information_block(struct archive_write *a)
 	if (iso9660->opt.zisofs != OPT_ZISOFS_DEFAULT)
 		set_option_info(&info, &opt, "zisofs",
 		    KEY_FLG, iso9660->opt.zisofs);
-#ifdef HAVE_ZLIB_H
-	if (iso9660->opt.zisofs_exclude != OPT_ZISOFS_EXCLUDE_DEFAULT) {
-		int i;
-		struct nozf_file *nzf;
-		struct archive_string str;
-
-		nzf = iso9660->zisofs.nozf_list;
-		archive_string_init(&str);
-		for (i = 0; i < iso9660->zisofs.nozf_cnt; i++) {
-			if (i > 0)
-				archive_strappend_char(&str, ':');
-			if (nzf[i].parentdir.length > 0) {
-				archive_string_concat(&str,
-				     &nzf[i].parentdir);
-				archive_strappend_char(&str, '/');
-			}
-			archive_string_concat(&str, &nzf[i].basename);
-		}
-		set_option_info(&info, &opt, "zisofs-exclude",
-			    KEY_STR, str.s);
-		archive_string_free(&str);
-	}
-#endif
 
 	memcpy(wb_buffptr(a), info.s, info_size);
 	archive_string_free(&info);
@@ -7511,118 +7422,104 @@ zisofs_init_zstream(struct archive_write *a)
 	return (ARCHIVE_OK);
 }
 
-static int
-zisofs_add_nozf(struct archive_write *a, const char *s)
-{
-	struct iso9660 *iso9660 = a->format_data;
-	struct nozf_file *nzf;
-
-	if (iso9660->zisofs.nozf_list == NULL) {
-		iso9660->zisofs.nozf_cnt = 1;
-		nzf = malloc(sizeof(*nzf));
-	} else {
-		iso9660->zisofs.nozf_cnt++;
-		nzf = realloc(iso9660->zisofs.nozf_list,
-		    sizeof(*nzf) * iso9660->zisofs.nozf_cnt);
-	}
-	if (nzf == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate memory");
-		return (ARCHIVE_FATAL);
-	}
-	iso9660->zisofs.nozf_list = nzf;
-	nzf += iso9660->zisofs.nozf_cnt -1;
-	archive_string_init(&nzf->parentdir);
-	archive_string_init(&nzf->basename);
-	get_parent_and_base(&nzf->parentdir, &nzf->basename, s);
-	return (ARCHIVE_OK);
-}
-
 static void
-zisofs_check_nozf(struct archive_write *a, struct isofile *file)
+zisofs_check_bootfile(struct archive_write *a, struct isofile *file)
 {
 	struct iso9660 *iso9660 = a->format_data;
 	const char *np, *cp;
-	struct nozf_file *nzf;
-	int i, len, match;
+	struct archive_string	 parentdir;
+	struct archive_string	 basename;
+	int len, match;
 
-	nzf = iso9660->zisofs.nozf_list;
-	for (i = 0; i < iso9660->zisofs.nozf_cnt; i++) {
-		if (nzf[i].basename.length != file->basename.length)
-			continue;
-		if (strcmp(nzf[i].basename.s, file->basename.s) != 0)
-			continue;
-		if (nzf[i].parentdir.length > file->parentdir.length)
-			continue;
-		len = nzf[i].parentdir.length;
-		np = nzf[i].parentdir.s + nzf[i].parentdir.length;
-		cp = file->parentdir.s + file->parentdir.length;
-		match = 1;
-		while (len--) {
-			if (*--np != *--cp) {
-				match = 0;
-				break;
-			}
-		}
-		if (match) {
-			--cp;
-			if ((cp >= file->parentdir.s && *cp == '/') ||
-			    cp < file->parentdir.s) {
-				file->zisofs.keep_original = 1;
-				break;
-			}
+	if (!iso9660->opt.boot)
+		return;
+
+	archive_string_init(&parentdir);
+	archive_string_init(&basename);
+	get_parent_and_base(&parentdir, &basename,
+	    iso9660->el_torito.boot_filename.s);
+
+	if (basename.length != file->basename.length)
+		goto exit;
+	if (strcmp(basename.s, file->basename.s) != 0)
+		goto exit;
+	if (parentdir.length > file->parentdir.length)
+		goto exit;
+	len = parentdir.length;
+	np = parentdir.s + parentdir.length;
+	cp = file->parentdir.s + file->parentdir.length;
+	match = 1;
+	while (len--) {
+		if (*--np != *--cp) {
+			match = 0;
+			break;
 		}
 	}
+	if (match) {
+		--cp;
+		if ((cp >= file->parentdir.s && *cp == '/') ||
+		    cp < file->parentdir.s)
+			file->zisofs.keep_original = 1;
+	}
+exit:
+	archive_string_free(&parentdir);
+	archive_string_free(&basename);
 }
 
 static int
-zisofs_fix_nozf(struct archive_write *a)
+zisofs_fix_bootfile(struct archive_write *a)
 {
 	struct iso9660 *iso9660 = a->format_data;
 	struct isoent *isoent;
 	struct isofile *file;
-	struct nozf_file *nzf;
+	struct archive_string	 parentdir;
+	struct archive_string	 basename;
 	struct archive_string str;
-	int i;
 
-	if (iso9660->zisofs.nozf_list == NULL)
+	if (!iso9660->opt.boot)
 		return (ARCHIVE_OK);
 
 	archive_string_init(&str);
-	nzf = iso9660->zisofs.nozf_list;
-	for (i = 0; i < iso9660->zisofs.nozf_cnt; i++) {
-		archive_string_empty(&str);
-		if (nzf[i].parentdir.length) {
-			archive_string_copy(&str, &nzf[i].parentdir);
-			archive_strappend_char(&str, '/');
-		}
-		archive_string_concat(&str, &nzf[i].basename);
-		isoent = isoent_find_entry(iso9660->primary.rootent,
+	archive_string_init(&parentdir);
+	archive_string_init(&basename);
+	get_parent_and_base(&parentdir, &basename,
+	    iso9660->el_torito.boot_filename.s);
+	archive_string_empty(&str);
+	if (parentdir.length) {
+		archive_string_copy(&str, &parentdir);
+		archive_strappend_char(&str, '/');
+	}
+	archive_string_concat(&str, &basename);
+	isoent = isoent_find_entry(iso9660->primary.rootent,
+	    str.s);
+	if (isoent == NULL) {
+		archive_string_free(&str);
+		archive_string_free(&parentdir);
+		archive_string_free(&basename);
+		archive_set_error(&a->archive,
+		    ARCHIVE_ERRNO_MISC,
+		    "Specified file ``%s'' which disable to "
+		    " be zisofs is not found.",
 		    str.s);
-		if (isoent == NULL) {
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_MISC,
-			    "Specified file ``%s'' which disable to "
-			    " be zisofs is not found.",
-			    str.s);
-			return (ARCHIVE_FATAL);
-		}
-		if (isoent->file->zisofs.keep_original) {
-			file = isoent->file;
-			file->temp_fd = iso9660->temp_fd;
-			file->content.offset_of_temp =
-			    file->zisofs.original_offset_of_temp;
-			archive_entry_set_size(file->entry,
-			    file->zisofs.uncompressed_size);
-			file->content.size = file->zisofs.uncompressed_size;
-			/* Remark file->zisofs not to create
-			 * RRIP 'ZF' Use Entry. */
-			file->zisofs.header_size = 0;
-			file->zisofs.log2_bs = 0;
-			file->zisofs.uncompressed_size = 0;
-		}
+		return (ARCHIVE_FATAL);
+	}
+	if (isoent->file->zisofs.keep_original) {
+		file = isoent->file;
+		file->temp_fd = iso9660->temp_fd;
+		file->content.offset_of_temp =
+		    file->zisofs.original_offset_of_temp;
+		archive_entry_set_size(file->entry,
+		    file->zisofs.uncompressed_size);
+		file->content.size = file->zisofs.uncompressed_size;
+		/* Remark file->zisofs not to create
+		 * RRIP 'ZF' Use Entry. */
+		file->zisofs.header_size = 0;
+		file->zisofs.log2_bs = 0;
+		file->zisofs.uncompressed_size = 0;
 	}
 	archive_string_free(&str);
+	archive_string_free(&parentdir);
+	archive_string_free(&basename);
 
 	return (ARCHIVE_OK);
 }
@@ -7728,7 +7625,7 @@ zisofs_init(struct archive_write *a,  struct isofile *file)
 	iso9660->zisofs.offset_of_block = iso9660->zisofs.total_size;
 
 	/* Check if this file does not need to be zisofs. */
-	zisofs_check_nozf(a, file);
+	zisofs_check_bootfile(a, file);
 #endif
 
 	return (ARCHIVE_OK);
