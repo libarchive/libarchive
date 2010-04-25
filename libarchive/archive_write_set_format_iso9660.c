@@ -4804,6 +4804,7 @@ isofile_gen_utility_names(struct isofile *file)
 		file->dircnt ++;
 }
 
+#ifdef HAVE_ZLIB_H
 static void
 get_parent_and_base(struct archive_string *parentdir,
     struct archive_string *basename, const char *pathname)
@@ -4844,6 +4845,7 @@ get_parent_and_base(struct archive_string *parentdir,
 		archive_strcpy(basename,  slash + 1);
 	}
 }
+#endif /* HAVE_ZLIB_H */
 
 /*
  * Register a entry to get a hardlink target.
