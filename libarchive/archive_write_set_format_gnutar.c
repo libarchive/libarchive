@@ -422,15 +422,17 @@ archive_format_gnutar_header(struct archive_write *a, char h[512],
 
 	/* TODO: How does GNU tar handle large UIDs? */
 	if (format_octal(archive_entry_uid(entry), h + GNUTAR_uid_offset, GNUTAR_uid_size)) {
-		archive_set_error(&a->archive, ERANGE, "Numeric user ID %d too large",
-		    archive_entry_uid(entry));
+		archive_set_error(&a->archive, ERANGE,
+		    "Numeric user ID %jd too large",
+		    (intmax_t)archive_entry_uid(entry));
 		ret = ARCHIVE_FAILED;
 	}
 
 	/* TODO: How does GNU tar handle large GIDs? */
 	if (format_octal(archive_entry_gid(entry), h + GNUTAR_gid_offset, GNUTAR_gid_size)) {
-		archive_set_error(&a->archive, ERANGE, "Numeric group ID %d too large",
-		    archive_entry_gid(entry));
+		archive_set_error(&a->archive, ERANGE,
+		    "Numeric group ID %jd too large",
+		    (intmax_t)archive_entry_gid(entry));
 		ret = ARCHIVE_FAILED;
 	}
 
