@@ -328,18 +328,6 @@ struct iso_option {
 #define APPLICATION_IDENTIFIER_SIZE	128
 
 	/*
-	 * Usage  : allow-lowercase
-	 * Type   : boolean
-	 * Default: Disabled
-	 *	  : Violates the ISO9660 standard if enable.
-	 * COMPAT : mkisofs -allow-lowercase
-	 *
-	 * Allow filenames to use lower case characters.
-	 */
-	unsigned int	 allow_lowercase:1;
-#define OPT_ALLOW_LOWERCASE_DEFAULT	0	/* Disabled */
-
-	/*
 	 * Usage  : allow-multidot
 	 * Type   : boolean
 	 * Default: Disabled
@@ -1194,7 +1182,6 @@ archive_write_set_format_iso9660(struct archive *_a)
 	 */
 	iso9660->opt.abstract_file = OPT_ABSTRACT_FILE_DEFAULT;
 	iso9660->opt.application_id = OPT_APPLICATION_ID_DEFAULT;
-	iso9660->opt.allow_lowercase = OPT_ALLOW_LOWERCASE_DEFAULT;
 	iso9660->opt.allow_multidot = OPT_ALLOW_MULTIDOT_DEFAULT;
 	iso9660->opt.allow_period = OPT_ALLOW_PERIOD_DEFAULT;
 	iso9660->opt.allow_pvd_lowercase = OPT_ALLOW_PVD_LOWERCASE_DEFAULT;
@@ -1330,10 +1317,6 @@ iso9660_options(struct archive_write *a, const char *key, const char *value)
 			    APPLICATION_IDENTIFIER_SIZE, key, value);
 			iso9660->opt.application_id = r == ARCHIVE_OK;
 			return (r);
-		}
-		if (strcmp(key, "allow-lowercase") == 0) {
-			iso9660->opt.allow_lowercase = value != NULL;
-			return (ARCHIVE_OK);
 		}
 		if (strcmp(key, "allow-multidot") == 0) {
 			iso9660->opt.allow_multidot = value != NULL;
@@ -3955,9 +3938,6 @@ write_information_block(struct archive_write *a)
 	if (iso9660->opt.application_id != OPT_APPLICATION_ID_DEFAULT)
 		set_option_info(&info, &opt, "application-id",
 		    KEY_STR, iso9660->application_identifier.s);
-	if (iso9660->opt.allow_lowercase != OPT_ALLOW_LOWERCASE_DEFAULT)
-		set_option_info(&info, &opt, "allow-lowercase",
-		    KEY_FLG, iso9660->opt.allow_lowercase);
 	if (iso9660->opt.allow_multidot != OPT_ALLOW_MULTIDOT_DEFAULT)
 		set_option_info(&info, &opt, "allow-multidot",
 		    KEY_FLG, iso9660->opt.allow_multidot);
@@ -5502,12 +5482,8 @@ idr_init(struct iso9660 *iso9660, struct vdd *vdd, struct idr *idr)
 	idr->pool_size = 0;
 	if (vdd->vdd_type != VDD_JOLIET) {
 		if (iso9660->opt.iso_level <= 3) {
-			if (iso9660->opt.allow_lowercase)
-				memcpy(idr->char_map, d1_characters_map,
-				    sizeof(idr->char_map));
-			else
-				memcpy(idr->char_map, d_characters_map,
-				    sizeof(idr->char_map));
+			memcpy(idr->char_map, d_characters_map,
+			    sizeof(idr->char_map));
 			if (iso9660->opt.relaxed_filenames)
 				idr_relaxed_filenames(idr->char_map);
 			if (iso9660->opt.allow_sharp_tilde)
