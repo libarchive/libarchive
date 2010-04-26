@@ -26,6 +26,7 @@ IF(ENABLE_TEST)
     test_entry.c
     test_entry_strmode.c
     test_extattr_freebsd.c
+    test_filter_count.c
     test_fuzz.c
     test_link_resolver.c
     test_open_fd.c
