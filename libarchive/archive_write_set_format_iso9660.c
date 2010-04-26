@@ -4689,7 +4689,7 @@ isofile_gen_utility_names(struct isofile *file)
 		file->parentdir.length = len;
 		archive_string_copy(&(file->basename), &(file->parentdir));
 		archive_string_empty(&(file->parentdir));
-		file->parentdir.s = '\0';
+		*file->parentdir.s = '\0';
 		return;
 	}
 
