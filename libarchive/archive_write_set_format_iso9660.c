@@ -328,19 +328,6 @@ struct iso_option {
 #define APPLICATION_IDENTIFIER_SIZE	128
 
 	/*
-	 * Usage  : allow-multidot
-	 * Type   : boolean
-	 * Default: Disabled
-	 *	  : Violates the ISO9660 standard if enable.
-	 * COMPAT : mkisofs -allow-multidot
-	 *
-	 * Allow filenames to use multiple dot('.') except
-	 * begining dot(see allow_ldots).
-	 */
-	unsigned int	 allow_multidot:1;
-#define OPT_ALLOW_MULTIDOT_DEFAULT	0	/* Disabled */
-
-	/*
 	 * Usage  : !allow-period
 	 * Type   : boolean
 	 * Default: Enabled
@@ -1182,7 +1169,6 @@ archive_write_set_format_iso9660(struct archive *_a)
 	 */
 	iso9660->opt.abstract_file = OPT_ABSTRACT_FILE_DEFAULT;
 	iso9660->opt.application_id = OPT_APPLICATION_ID_DEFAULT;
-	iso9660->opt.allow_multidot = OPT_ALLOW_MULTIDOT_DEFAULT;
 	iso9660->opt.allow_period = OPT_ALLOW_PERIOD_DEFAULT;
 	iso9660->opt.allow_pvd_lowercase = OPT_ALLOW_PVD_LOWERCASE_DEFAULT;
 	iso9660->opt.allow_sharp_tilde = OPT_ALLOW_SHARP_TILDE_DEFAULT;
@@ -1317,10 +1303,6 @@ iso9660_options(struct archive_write *a, const char *key, const char *value)
 			    APPLICATION_IDENTIFIER_SIZE, key, value);
 			iso9660->opt.application_id = r == ARCHIVE_OK;
 			return (r);
-		}
-		if (strcmp(key, "allow-multidot") == 0) {
-			iso9660->opt.allow_multidot = value != NULL;
-			return (ARCHIVE_OK);
 		}
 		if (strcmp(key, "allow-period") == 0) {
 			iso9660->opt.allow_period = value != NULL;
@@ -3938,9 +3920,6 @@ write_information_block(struct archive_write *a)
 	if (iso9660->opt.application_id != OPT_APPLICATION_ID_DEFAULT)
 		set_option_info(&info, &opt, "application-id",
 		    KEY_STR, iso9660->application_identifier.s);
-	if (iso9660->opt.allow_multidot != OPT_ALLOW_MULTIDOT_DEFAULT)
-		set_option_info(&info, &opt, "allow-multidot",
-		    KEY_FLG, iso9660->opt.allow_multidot);
 	if (iso9660->opt.allow_period != OPT_ALLOW_PERIOD_DEFAULT)
 		set_option_info(&info, &opt, "allow-period",
 		    KEY_FLG, iso9660->opt.allow_period);
@@ -5804,7 +5783,7 @@ isoent_gen_iso9660_identifier(struct archive_write *a, struct isoent *isoent,
 	char_map = idr->char_map;
 	if (iso9660->opt.iso_level <= 3) {
 		allow_ldots = 0;
-		allow_multidot = iso9660->opt.allow_multidot;
+		allow_multidot = 0;
 		allow_period = iso9660->opt.allow_period;
 		allow_vernum = iso9660->opt.allow_vernum;
 		if (iso9660->opt.iso_level == 1) {
