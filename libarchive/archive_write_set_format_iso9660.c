@@ -328,18 +328,6 @@ struct iso_option {
 #define APPLICATION_IDENTIFIER_SIZE	128
 
 	/*
-	 * Usage  : !allow-period
-	 * Type   : boolean
-	 * Default: Enabled
-	 *	  : Violates the ISO9660 standard if disable.
-	 * COMPAT : mkisofs -d
-	 *
-	 * Allow trailing period from filenames.
-	 */
-	unsigned int	 allow_period:1;
-#define OPT_ALLOW_PERIOD_DEFAULT	1	/* Enabled */
-
-	/*
 	 * Usage  : allow-pvd-lowercase
 	 * Type   : boolean
 	 * Default: Disabled
@@ -1156,7 +1144,6 @@ archive_write_set_format_iso9660(struct archive *_a)
 	 */
 	iso9660->opt.abstract_file = OPT_ABSTRACT_FILE_DEFAULT;
 	iso9660->opt.application_id = OPT_APPLICATION_ID_DEFAULT;
-	iso9660->opt.allow_period = OPT_ALLOW_PERIOD_DEFAULT;
 	iso9660->opt.allow_pvd_lowercase = OPT_ALLOW_PVD_LOWERCASE_DEFAULT;
 	iso9660->opt.allow_vernum = OPT_ALLOW_VERNUM_DEFAULT;
 	iso9660->opt.biblio_file = OPT_BIBLIO_FILE_DEFAULT;
@@ -1289,10 +1276,6 @@ iso9660_options(struct archive_write *a, const char *key, const char *value)
 			    APPLICATION_IDENTIFIER_SIZE, key, value);
 			iso9660->opt.application_id = r == ARCHIVE_OK;
 			return (r);
-		}
-		if (strcmp(key, "allow-period") == 0) {
-			iso9660->opt.allow_period = value != NULL;
-			return (ARCHIVE_OK);
 		}
 		if (strcmp(key, "allow-pvd-lowercase") == 0) {
 			iso9660->opt.allow_pvd_lowercase = value != NULL;
@@ -3902,9 +3885,6 @@ write_information_block(struct archive_write *a)
 	if (iso9660->opt.application_id != OPT_APPLICATION_ID_DEFAULT)
 		set_option_info(&info, &opt, "application-id",
 		    KEY_STR, iso9660->application_identifier.s);
-	if (iso9660->opt.allow_period != OPT_ALLOW_PERIOD_DEFAULT)
-		set_option_info(&info, &opt, "allow-period",
-		    KEY_FLG, iso9660->opt.allow_period);
 	if (iso9660->opt.allow_pvd_lowercase != OPT_ALLOW_PVD_LOWERCASE_DEFAULT)
 		set_option_info(&info, &opt, "allow-pvd-lowercase",
 		    KEY_FLG, iso9660->opt.allow_pvd_lowercase);
@@ -5754,7 +5734,7 @@ isoent_gen_iso9660_identifier(struct archive_write *a, struct isoent *isoent,
 	if (iso9660->opt.iso_level <= 3) {
 		allow_ldots = 0;
 		allow_multidot = 0;
-		allow_period = iso9660->opt.allow_period;
+		allow_period = 1;
 		allow_vernum = iso9660->opt.allow_vernum;
 		if (iso9660->opt.iso_level == 1) {
 			fnmax = 8;
