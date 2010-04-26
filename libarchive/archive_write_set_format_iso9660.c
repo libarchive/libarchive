@@ -328,18 +328,6 @@ struct iso_option {
 #define APPLICATION_IDENTIFIER_SIZE	128
 
 	/*
-	 * Usage  : allow-ldots
-	 * Type   : boolean
-	 * Default: Disabled
-	 *	  : Violates the ISO9660 standard if enable.
-	 * COMPAT : mkisofs -allow-leading-dots/-ldots
-	 *
-	 * Allow filenames to begin with dot('.') character.
-	 */
-	unsigned int	 allow_ldots:1;
-#define OPT_ALLOW_LDOTS_DEFAULT		0	/* Disabled */
-
-	/*
 	 * Usage  : allow-lowercase
 	 * Type   : boolean
 	 * Default: Disabled
@@ -1206,7 +1194,6 @@ archive_write_set_format_iso9660(struct archive *_a)
 	 */
 	iso9660->opt.abstract_file = OPT_ABSTRACT_FILE_DEFAULT;
 	iso9660->opt.application_id = OPT_APPLICATION_ID_DEFAULT;
-	iso9660->opt.allow_ldots = OPT_ALLOW_LDOTS_DEFAULT;
 	iso9660->opt.allow_lowercase = OPT_ALLOW_LOWERCASE_DEFAULT;
 	iso9660->opt.allow_multidot = OPT_ALLOW_MULTIDOT_DEFAULT;
 	iso9660->opt.allow_period = OPT_ALLOW_PERIOD_DEFAULT;
@@ -1343,10 +1330,6 @@ iso9660_options(struct archive_write *a, const char *key, const char *value)
 			    APPLICATION_IDENTIFIER_SIZE, key, value);
 			iso9660->opt.application_id = r == ARCHIVE_OK;
 			return (r);
-		}
-		if (strcmp(key, "allow-dot-first") == 0) {
-			iso9660->opt.allow_ldots = value != NULL;
-			return (ARCHIVE_OK);
 		}
 		if (strcmp(key, "allow-lowercase") == 0) {
 			iso9660->opt.allow_lowercase = value != NULL;
@@ -3972,9 +3955,6 @@ write_information_block(struct archive_write *a)
 	if (iso9660->opt.application_id != OPT_APPLICATION_ID_DEFAULT)
 		set_option_info(&info, &opt, "application-id",
 		    KEY_STR, iso9660->application_identifier.s);
-	if (iso9660->opt.allow_ldots != OPT_ALLOW_LDOTS_DEFAULT)
-		set_option_info(&info, &opt, "allow-dot-first",
-		    KEY_FLG, iso9660->opt.allow_ldots);
 	if (iso9660->opt.allow_lowercase != OPT_ALLOW_LOWERCASE_DEFAULT)
 		set_option_info(&info, &opt, "allow-lowercase",
 		    KEY_FLG, iso9660->opt.allow_lowercase);
@@ -5847,7 +5827,7 @@ isoent_gen_iso9660_identifier(struct archive_write *a, struct isoent *isoent,
 	iso9660 = a->format_data;
 	char_map = idr->char_map;
 	if (iso9660->opt.iso_level <= 3) {
-		allow_ldots = iso9660->opt.allow_ldots;
+		allow_ldots = 0;
 		allow_multidot = iso9660->opt.allow_multidot;
 		allow_period = iso9660->opt.allow_period;
 		allow_vernum = iso9660->opt.allow_vernum;
