@@ -674,8 +674,7 @@ struct iso_option {
 #define VOLUME_IDENTIFIER_SIZE		32
 
 	/*
-	 * Usage  : zisofs
-	 *        : !zisofs [DEFAULT]
+	 * Usage  : !zisofs [DEFAULT] 
 	 *        :    Disable to generate RRIP 'ZF' extension.
 	 *        : zisofs
 	 *        :    Make files zisofs file and generate RRIP 'ZF'
@@ -694,12 +693,12 @@ struct iso_option {
 	 *        :
 	 *        :    When you specify option 'boot=<boot-image>', that
 	 *        :    'boot-image' file won't be converted to zisofs file.
-	 * Type   : boolean, string
+	 * Type   : boolean
 	 * Default: Disabled
 	 *
 	 * Generates RRIP 'ZF' System Use Entry.
 	 */
-	unsigned int	 zisofs:2;
+	unsigned int	 zisofs:1;
 #define OPT_ZISOFS_DISABLED		0
 #define OPT_ZISOFS_DIRECT		1
 #define OPT_ZISOFS_DEFAULT		OPT_ZISOFS_DISABLED
