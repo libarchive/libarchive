@@ -1009,6 +1009,7 @@ static int	get_path_component(char *, int, const char *);
 static struct isoent *isoent_tree_add_child(struct archive_write *,
 		    struct isoent *, struct isoent *);
 static struct isoent *isoent_tree(struct archive_write *, struct isoent *);
+static struct isoent *isoent_find_entry(struct isoent *, const char *);
 static void	idr_relaxed_filenames(char *);
 static void	idr_init(struct iso9660 *, struct vdd *, struct idr *);
 static void	idr_cleanup(struct idr *);
@@ -1040,8 +1041,6 @@ static inline struct isoent * path_table_last_entry(struct path_table *);
 static int	isoent_make_path_table(struct archive_write *);
 static int	isoent_create_boot_catalog(struct archive_write *,
 		    struct isoent *);
-static struct	isoent *isoent_find_entry(struct isoent *,
-		    const char *);
 static size_t	fd_boot_image_size(int);
 static void	make_boot_catalog(struct iso9660 *, unsigned char *);
 static int	setup_boot_information(struct archive_write *);
@@ -5383,6 +5382,59 @@ isoent_tree(struct archive_write *a, struct isoent *isoent)
 }
 
 /*
+ * Find a entry full-path of which is specified by `fn' parameter,
+ * in the tree.
+ */
+static struct isoent *
+isoent_find_entry(struct isoent *rootent, const char *fn)
+{
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	char name[_MAX_FNAME];/* Included null terminator size. */
+#else
+	char name[NAME_MAX+1];
+#endif
+	struct isoent *isoent, *np;
+	int l;
+
+	isoent = rootent;
+	l = get_path_component(name, sizeof(name), fn);
+	if (l == 0)
+		return (NULL);
+	fn += l;
+	if (fn[0] == '/')
+		fn++;
+
+	np = isoent->children.first;
+	while (np != NULL) {
+		if (fn[0] != '\0') {
+			/* Now we are finding a parent directory. */
+			if (np->dir &&
+			    strcmp(name, np->file->basename.s) == 0) {
+				/* Try sub directory. */
+				l = get_path_component(name, sizeof(name),
+				    fn);
+				if (l == 0)
+					return (NULL);
+				fn += l;
+				if (fn[0] == '/')
+					fn++;
+				isoent = np;
+				np = isoent->children.first;
+				continue;
+			}
+		} else {
+			/* Find a directory/file name. */
+			if (strcmp(name, np->file->basename.s) == 0)
+				return (np);
+		}
+		np = np->chnext;
+	}
+
+	/* Not found. */
+	return (NULL);
+}
+
+/*
  * Following idr_* functions are used for resolving duplicated filenames
  * and unreceivable filenames to generate ISO9660/Joliet Identifiers.
  */
@@ -6775,59 +6827,6 @@ isoent_make_path_table(struct archive_write *a)
 		calculate_path_table_size(&(iso9660->joliet));
 
 	return (ARCHIVE_OK);
-}
-
-/*
- * Find a entry full-path of which is specified by `fn' parameter,
- * in the tree.
- */
-static struct isoent *
-isoent_find_entry(struct isoent *rootent, const char *fn)
-{
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	char name[_MAX_FNAME];/* Included null terminator size. */
-#else
-	char name[NAME_MAX+1];
-#endif
-	struct isoent *isoent, *np;
-	int l;
-
-	isoent = rootent;
-	l = get_path_component(name, sizeof(name), fn);
-	if (l == 0)
-		return (NULL);
-	fn += l;
-	if (fn[0] == '/')
-		fn++;
-
-	np = isoent->children.first;
-	while (np != NULL) {
-		if (fn[0] != '\0') {
-			/* Now we are finding a parent directory. */
-			if (np->dir &&
-			    strcmp(name, np->file->basename.s) == 0) {
-				/* Try sub directory. */
-				l = get_path_component(name, sizeof(name),
-				    fn);
-				if (l == 0)
-					return (NULL);
-				fn += l;
-				if (fn[0] == '/')
-					fn++;
-				isoent = np;
-				np = isoent->children.first;
-				continue;
-			}
-		} else {
-			/* Find a directory/file name. */
-			if (strcmp(name, np->file->basename.s) == 0)
-				return (np);
-		}
-		np = np->chnext;
-	}
-
-	/* Not found. */
-	return (NULL);
 }
 
 static int
