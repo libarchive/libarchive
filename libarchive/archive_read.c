@@ -63,6 +63,7 @@ static struct archive_vtable *archive_read_vtable(void);
 static int64_t	_archive_filter_bytes(struct archive *, int);
 static int	_archive_filter_code(struct archive *, int);
 static const char *_archive_filter_name(struct archive *, int);
+static int  _archive_filter_count(struct archive *);
 static int	_archive_read_close(struct archive *);
 static int	_archive_read_free(struct archive *);
 static int64_t  advance_file_pointer(struct archive_read_filter *, int64_t);
@@ -77,6 +78,7 @@ archive_read_vtable(void)
 		av.archive_filter_bytes = _archive_filter_bytes;
 		av.archive_filter_code = _archive_filter_code;
 		av.archive_filter_name = _archive_filter_name;
+		av.archive_filter_count = _archive_filter_count;
 		av.archive_free = _archive_read_free;
 		av.archive_close = _archive_read_close;
 	}
@@ -763,6 +765,23 @@ free_filters(struct archive_read *a)
 	}
 }
 
+/* 
+ * return the count of # of filters in use
+ */
+static int
+_archive_filter_count(struct archive *_a)
+{
+	struct archive_read *a = (struct archive_read *)_a;
+	struct archive_read_filter *p = a->filter;
+	int count = 0;
+	while(p) {
+		count++;
+		p = p->upstream;
+	}
+	return count;
+}
+		
+	
 /*
  * Close the file and all I/O.
  */

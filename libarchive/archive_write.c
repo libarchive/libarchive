@@ -65,6 +65,7 @@ static struct archive_vtable *archive_write_vtable(void);
 static int	_archive_filter_code(struct archive *, int);
 static const char *_archive_filter_name(struct archive *, int);
 static int64_t	_archive_filter_bytes(struct archive *, int);
+static int  _archive_write_filter_count(struct archive *);
 static int	_archive_write_close(struct archive *);
 static int	_archive_write_free(struct archive *);
 static int	_archive_write_header(struct archive *, struct archive_entry *);
@@ -89,6 +90,7 @@ archive_write_vtable(void)
 		av.archive_filter_bytes = _archive_filter_bytes;
 		av.archive_filter_code = _archive_filter_code;
 		av.archive_filter_name = _archive_filter_name;
+		av.archive_filter_count = _archive_write_filter_count;
 		av.archive_free = _archive_write_free;
 		av.archive_write_header = _archive_write_header;
 		av.archive_write_finish_entry = _archive_write_finish_entry;
@@ -183,7 +185,6 @@ archive_write_get_bytes_in_last_block(struct archive *_a)
 	    ARCHIVE_STATE_ANY, "archive_write_get_bytes_in_last_block");
 	return (a->bytes_in_last_block);
 }
-
 
 /*
  * dev/ino of a file to be rejected.  Used to prevent adding
@@ -504,6 +505,19 @@ _archive_write_close(struct archive *_a)
 	if (a->archive.state != ARCHIVE_STATE_FATAL)
 		a->archive.state = ARCHIVE_STATE_CLOSED;
 	return (r);
+}
+
+static int
+_archive_write_filter_count(struct archive *_a)
+{
+	struct archive_write *a = (struct archive_write *)_a;
+	struct archive_write_filter *p = a->filter_first;
+	int count = 0;
+	while(p) {
+		count++;
+		p = p->next_filter;
+	}
+	return count;
 }
 
 void
