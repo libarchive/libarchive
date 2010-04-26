@@ -358,18 +358,6 @@ struct iso_option {
 #endif
 
 	/*
-	 * Usage  : allow-sharp-tilde
-	 * Type   : boolean
-	 * Default: Disabled
-	 *	  : Violates the ISO9660 standard if enable.
-	 * COMPAT : mkisofs -no-iso-translate
-	 *
-	 * Allow filenames to use '#' and '~'.
-	 */
-	unsigned int	 allow_sharp_tilde:1;
-#define OPT_ALLOW_SHARP_TILDE_DEFAULT	0	/* Disabled */
-
-	/*
 	 * Usage : !allow-vernum
 	 * Type  : boolean
 	 * Default: Enabled
@@ -1035,7 +1023,6 @@ static struct isoent *isoent_tree_add_child(struct archive_write *,
 		    struct isoent *, struct isoent *);
 static struct isoent *isoent_tree(struct archive_write *, struct isoent *);
 static void	idr_relaxed_filenames(char *);
-static void	idr_allow_sharp_tilde(char *);
 static void	idr_init(struct iso9660 *, struct vdd *, struct idr *);
 static void	idr_cleanup(struct idr *);
 static inline void idr_llist_insert(struct llist *, struct wlist *);
@@ -1171,7 +1158,6 @@ archive_write_set_format_iso9660(struct archive *_a)
 	iso9660->opt.application_id = OPT_APPLICATION_ID_DEFAULT;
 	iso9660->opt.allow_period = OPT_ALLOW_PERIOD_DEFAULT;
 	iso9660->opt.allow_pvd_lowercase = OPT_ALLOW_PVD_LOWERCASE_DEFAULT;
-	iso9660->opt.allow_sharp_tilde = OPT_ALLOW_SHARP_TILDE_DEFAULT;
 	iso9660->opt.allow_vernum = OPT_ALLOW_VERNUM_DEFAULT;
 	iso9660->opt.biblio_file = OPT_BIBLIO_FILE_DEFAULT;
 	iso9660->opt.boot = OPT_BOOT_DEFAULT;
@@ -1310,10 +1296,6 @@ iso9660_options(struct archive_write *a, const char *key, const char *value)
 		}
 		if (strcmp(key, "allow-pvd-lowercase") == 0) {
 			iso9660->opt.allow_pvd_lowercase = value != NULL;
-			return (ARCHIVE_OK);
-		}
-		if (strcmp(key, "allow-sharp-tilde") == 0) {
-			iso9660->opt.allow_sharp_tilde = value != NULL;
 			return (ARCHIVE_OK);
 		}
 		if (strcmp(key, "allow-vernum") == 0) {
@@ -3926,9 +3908,6 @@ write_information_block(struct archive_write *a)
 	if (iso9660->opt.allow_pvd_lowercase != OPT_ALLOW_PVD_LOWERCASE_DEFAULT)
 		set_option_info(&info, &opt, "allow-pvd-lowercase",
 		    KEY_FLG, iso9660->opt.allow_pvd_lowercase);
-	if (iso9660->opt.allow_sharp_tilde != OPT_ALLOW_SHARP_TILDE_DEFAULT)
-		set_option_info(&info, &opt, "allow-sharp-tilde",
-		    KEY_FLG, iso9660->opt.allow_sharp_tilde);
 	if (iso9660->opt.allow_vernum != OPT_ALLOW_VERNUM_DEFAULT)
 		set_option_info(&info, &opt, "allow-vernum",
 		    KEY_FLG, iso9660->opt.allow_vernum);
@@ -5446,13 +5425,6 @@ idr_relaxed_filenames(char *map)
 }
 
 static void
-idr_allow_sharp_tilde(char *map)
-{
-	map[0x23] = 1;/* Allow '#' */
-	map[0x7e] = 1;/* Allow '~' */
-}
-
-static void
 idr_init(struct iso9660 *iso9660, struct vdd *vdd, struct idr *idr)
 {
 
@@ -5465,8 +5437,6 @@ idr_init(struct iso9660 *iso9660, struct vdd *vdd, struct idr *idr)
 			    sizeof(idr->char_map));
 			if (iso9660->opt.relaxed_filenames)
 				idr_relaxed_filenames(idr->char_map);
-			if (iso9660->opt.allow_sharp_tilde)
-				idr_allow_sharp_tilde(idr->char_map);
 		} else {
 			memcpy(idr->char_map, d1_characters_map,
 			    sizeof(idr->char_map));
