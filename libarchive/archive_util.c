@@ -430,7 +430,7 @@ int
 __archive_mktemp(const char *tmpdir)
 {
 	struct archive_string temp_name;
-	int fd;
+	int fd = -1;
 
 	archive_string_init(&temp_name);
 	if (tmpdir == NULL) {
