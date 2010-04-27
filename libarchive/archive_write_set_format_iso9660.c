@@ -984,8 +984,10 @@ static void	isofile_free_all_entries(struct iso9660 *);
 static struct isofile * isofile_new(struct archive_entry *);
 static void	isofile_free(struct isofile *);
 static void	isofile_gen_utility_names(struct isofile *);
+#ifdef HAVE_ZLIB_H
 static void	get_parent_and_base(struct archive_string *,
 		    struct archive_string *, const char *);
+#endif
 static int	isofile_register_hardlink(struct archive_write *,
 		    struct isofile *);
 static void	isofile_connect_hardlink_files(struct iso9660 *);
@@ -1527,8 +1529,7 @@ iso9660_options(struct archive_write *a, const char *key, const char *value)
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
 				    "``zisofs'' "
-				    "is not supported on this platform.",
-				    value);
+				    "is not supported on this platform.");
 				return (ARCHIVE_FATAL);
 #endif
 			}
