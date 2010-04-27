@@ -328,24 +328,6 @@ struct iso_option {
 #define APPLICATION_IDENTIFIER_SIZE	128
 
 	/*
-	 * Usage  : allow-pvd-lowercase
-	 * Type   : boolean
-	 * Default: Disabled
-	 *	  : Violates the ISO9660 standard if enable.
-	 *	  : But mkisofs seems to use low-case characters
-	 *	  : in PVD.
-	 * COMPAT : NONE
-	 *
-	 * Allow Primary Volume Descriptor to use lower-case characters.
-	 */
-	unsigned int	 allow_pvd_lowercase:1;
-#ifdef COMPAT_MKISOFS
-#define OPT_ALLOW_PVD_LOWERCASE_DEFAULT	1	/* Enabled */
-#else
-#define OPT_ALLOW_PVD_LOWERCASE_DEFAULT	0	/* Disabled */
-#endif
-
-	/*
 	 * Usage : !allow-vernum
 	 * Type  : boolean
 	 * Default: Enabled
@@ -1143,7 +1125,6 @@ archive_write_set_format_iso9660(struct archive *_a)
 	 */
 	iso9660->opt.abstract_file = OPT_ABSTRACT_FILE_DEFAULT;
 	iso9660->opt.application_id = OPT_APPLICATION_ID_DEFAULT;
-	iso9660->opt.allow_pvd_lowercase = OPT_ALLOW_PVD_LOWERCASE_DEFAULT;
 	iso9660->opt.allow_vernum = OPT_ALLOW_VERNUM_DEFAULT;
 	iso9660->opt.biblio_file = OPT_BIBLIO_FILE_DEFAULT;
 	iso9660->opt.boot = OPT_BOOT_DEFAULT;
@@ -1275,10 +1256,6 @@ iso9660_options(struct archive_write *a, const char *key, const char *value)
 			    APPLICATION_IDENTIFIER_SIZE, key, value);
 			iso9660->opt.application_id = r == ARCHIVE_OK;
 			return (r);
-		}
-		if (strcmp(key, "allow-pvd-lowercase") == 0) {
-			iso9660->opt.allow_pvd_lowercase = value != NULL;
-			return (ARCHIVE_OK);
 		}
 		if (strcmp(key, "allow-vernum") == 0) {
 			iso9660->opt.allow_vernum = value != NULL;
@@ -3659,10 +3636,11 @@ write_VD(struct archive_write *a, struct vdd *vdd)
 	default:
 		vdt = VDT_PRIMARY;
 		vd_ver = fst_ver = 1;
-		if (iso9660->opt.allow_pvd_lowercase)
-			vdc = VDC_LOWERCASE;
-		else
-			vdc = VDC_STD;
+#ifdef COMPAT_MKISOFS
+		vdc = VDC_LOWERCASE;
+#else
+		vdc = VDC_STD;
+#endif
 		break;
 	}
 
@@ -3883,9 +3861,6 @@ write_information_block(struct archive_write *a)
 	if (iso9660->opt.application_id != OPT_APPLICATION_ID_DEFAULT)
 		set_option_info(&info, &opt, "application-id",
 		    KEY_STR, iso9660->application_identifier.s);
-	if (iso9660->opt.allow_pvd_lowercase != OPT_ALLOW_PVD_LOWERCASE_DEFAULT)
-		set_option_info(&info, &opt, "allow-pvd-lowercase",
-		    KEY_FLG, iso9660->opt.allow_pvd_lowercase);
 	if (iso9660->opt.allow_vernum != OPT_ALLOW_VERNUM_DEFAULT)
 		set_option_info(&info, &opt, "allow-vernum",
 		    KEY_FLG, iso9660->opt.allow_vernum);
