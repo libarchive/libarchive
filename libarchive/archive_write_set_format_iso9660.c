@@ -1006,9 +1006,8 @@ static void	isoent_setup_directory_location(struct iso9660 *,
 		    int, struct vdd *);
 static void	isoent_setup_file_location(struct iso9660 *, int);
 static int	get_path_component(char *, int, const char *);
-static struct isoent *isoent_tree_add_child(struct archive_write *,
-		    struct isoent *, struct isoent *);
 static struct isoent *isoent_tree(struct archive_write *, struct isoent *);
+static struct isoent *isoent_find_child(struct isoent *, const char *);
 static struct isoent *isoent_find_entry(struct isoent *, const char *);
 static void	idr_relaxed_filenames(char *);
 static void	idr_init(struct iso9660 *, struct vdd *, struct idr *);
@@ -5233,60 +5232,6 @@ get_path_component(char *name, int n, const char *fn)
 	return (l);
 }
 
-static struct isoent *
-isoent_tree_add_child(struct archive_write *a, struct isoent *parent,
-    struct isoent *child)
-{
-	struct isoent *np;
-
-	for (np = parent->children.first; np != NULL; np = np->chnext) {
-		struct isofile *f1 = np->file;
-		struct isofile *f2 = child->file;
-
-		if (f1->basename.length != f2->basename.length)
-			continue;
-		if (memcmp(f1->basename.s, f2->basename.s,
-		    f1->basename.length) != 0)
-			continue;
-		/*
-		 * Right now, we have two entries names of which are
-		 * the same.
-		 */
-		/* If entries' file types are different,
-		 * we cannot handle. */
-		if (archive_entry_filetype(f1->entry) !=
-		    archive_entry_filetype(f2->entry)) {
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_MISC,
-			    "Duplicate entries(`%s' and `%s') "
-			    "whose file type are different at "
-			    "`%s/%s'",
-			    archive_entry_pathname(f1->entry),
-			    archive_entry_pathname(f2->entry),
-			    f1->parentdir.s,
-			    f1->basename.s);
-			_isoent_free(child);
-			return (NULL);
-		}
-		/* Ignore a new entry which we are adding, if it's virtual.
-		 * We don't replace a being entry by a virtual entry. */
-		if (child->virtual)
-			continue;
-		if (archive_entry_mtime(f1->entry) <
-		    archive_entry_mtime(f2->entry) || np->virtual) {
-			/* Swap files. */
-			np->file = f2;
-			child->file = f1;
-			np->virtual = 0;
-		}
-		_isoent_free(child);
-		return (np);
-	}
-
-	isoent_add_child_tail(parent, child);
-	return (child);
-}
-
 /*
  * Add a new entry into the tree.
  */
@@ -5300,6 +5245,7 @@ isoent_tree(struct archive_write *a, struct isoent *isoent)
 #endif
 	struct iso9660 *iso9660 = a->format_data;
 	struct isoent *dent, *np;
+	struct isofile *f1, *f2;
 	const char *fn, *p;
 	int l;
 
@@ -5322,18 +5268,44 @@ isoent_tree(struct archive_write *a, struct isoent *isoent)
 			if (plen > 0)
 				plen++;
 			if (curdir->file->basename.length > 0 &&
-			    strcmp(p+plen, curdir->file->basename.s) == 0)
-				return (isoent_tree_add_child(a, curdir, isoent));
+			    strcmp(p+plen, curdir->file->basename.s) == 0) {
+				np = isoent_find_child(curdir,
+				    isoent->file->basename.s);
+				if (np != NULL)
+					goto same_entry;
+				isoent_add_child_tail(curdir, isoent);
+				return (isoent);
+			}
 		}
 	}
 
-	l = get_path_component(name, sizeof(name), fn);
-	np = dent->children.first;
 	for (;;) {
-		if (np == NULL && fn[0] != '\0') {
-			/*
-			 * Create a virtual directory.
-			 */
+		l = get_path_component(name, sizeof(name), fn);
+		np = isoent_find_child(dent, name);
+		if (np == NULL || fn[0] == '\0')
+			break;
+
+		/* Find next subdirectory. */
+		if (!np->dir) {
+			/* NOT Directory! */
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_MISC,
+			    "`%s' is not directory, we cannot insert `%s' ",
+			    archive_entry_pathname(np->file->entry),
+			    archive_entry_pathname(isoent->file->entry));
+			_isoent_free(isoent);
+			return (NULL);
+		}
+		fn += l;
+		if (fn[0] == '/')
+			fn++;
+		dent = np;
+	}
+	if (np == NULL) {
+		/*
+		 * Create virtual parent directories.
+		 */
+		while (fn[0] != '\0') {
 			struct isoent *vp;
 			struct archive_string as;
 
@@ -5357,28 +5329,67 @@ isoent_tree(struct archive_write *a, struct isoent *isoent)
 				iso9660->dircnt_max = vp->file->dircnt;
 			isoent_add_child_tail(dent, vp);
 			np = vp;
+
+			fn += l;
+			if (fn[0] == '/')
+				fn++;
+			l = get_path_component(name, sizeof(name), fn);
+			dent = np;
 		}
 
-		if (np != NULL && fn[0] != '\0') {
-			/* Now we are finding a parent directory. */
-			if (strcmp(name, np->file->basename.s) == 0) {
-				/* Enter sub directories. */
-				fn += l;
-				if (fn[0] == '/')
-					fn++;
-				l = get_path_component(name,
-				    sizeof(name), fn);
-				dent = np;
-				np = dent->children.first;
-				continue;
-			}
-		} else {
-			/* Found where isoent can be inserted. */
-			iso9660->cur_dirent = dent;
-			return (isoent_tree_add_child(a, dent, isoent));
-		}
-		np = np->chnext;
+		/* Found out the parent directory where isoent can be
+		 * inserted. */
+		iso9660->cur_dirent = dent;
+		isoent_add_child_tail(dent, isoent);
+		return (isoent);
 	}
+
+same_entry:
+	/*
+	 * We have already has the entry the filename of which is
+	 * the same.
+	 */
+	f1 = np->file;
+	f2 = isoent->file;
+
+	/* If the file type of entries is different,
+	 * we cannot handle it. */
+	if (archive_entry_filetype(f1->entry) !=
+	    archive_entry_filetype(f2->entry)) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Found duplicate entries `%s' and its file type is "
+		    "different",
+		    archive_entry_pathname(f1->entry));
+		_isoent_free(isoent);
+		return (NULL);
+	}
+	if (archive_entry_mtime(f1->entry) <
+	    archive_entry_mtime(f2->entry) || np->virtual) {
+		/* Swap file entries. */
+		np->file = f2;
+		isoent->file = f1;
+		np->virtual = 0;
+	}
+	_isoent_free(isoent);
+	return (np);
+}
+
+/*
+ * TODO: The approach finding a child is very slow when having many children
+ *	 (about over 100K entries).
+ */
+static struct isoent *
+isoent_find_child(struct isoent *isoent, const char *child_name)
+{
+	struct isoent *np;
+
+	for (np = isoent->children.first; np != NULL; np = np->chnext) {
+		if (strcmp(child_name, np->file->basename.s) == 0)
+			return (np);
+	}
+
+	/* Not found. */
+	return (NULL);
 }
 
 /*
@@ -5397,41 +5408,29 @@ isoent_find_entry(struct isoent *rootent, const char *fn)
 	int l;
 
 	isoent = rootent;
-	l = get_path_component(name, sizeof(name), fn);
-	if (l == 0)
-		return (NULL);
-	fn += l;
-	if (fn[0] == '/')
-		fn++;
+	np = NULL;
+	for (;;) {
+		l = get_path_component(name, sizeof(name), fn);
+		if (l == 0)
+			break;
+		fn += l;
+		if (fn[0] == '/')
+			fn++;
 
-	np = isoent->children.first;
-	while (np != NULL) {
-		if (fn[0] != '\0') {
-			/* Now we are finding a parent directory. */
-			if (np->dir &&
-			    strcmp(name, np->file->basename.s) == 0) {
-				/* Try sub directory. */
-				l = get_path_component(name, sizeof(name),
-				    fn);
-				if (l == 0)
-					return (NULL);
-				fn += l;
-				if (fn[0] == '/')
-					fn++;
-				isoent = np;
-				np = isoent->children.first;
-				continue;
-			}
-		} else {
-			/* Find a directory/file name. */
-			if (strcmp(name, np->file->basename.s) == 0)
-				return (np);
-		}
-		np = np->chnext;
+		np = isoent_find_child(isoent, name);
+		if (np == NULL)
+			break;
+		if (fn[0] == '\0')
+			break;/* We found out the entry */
+
+		/* Try sub directory. */
+		isoent = np;
+		np = NULL;
+		if (!isoent->dir)
+			break;/* Not directory */
 	}
 
-	/* Not found. */
-	return (NULL);
+	return (np);
 }
 
 /*
@@ -6504,7 +6503,7 @@ isoent_rr_move(struct archive_write *a)
 	rootent = iso9660->primary.rootent;
 	/* If "rr_moved" directory is already existing,
 	 * we have to use it. */
-	rr_moved = isoent_find_entry(rootent, "rr_moved");
+	rr_moved = isoent_find_child(rootent, "rr_moved");
 	if (rr_moved != NULL &&
 	    rr_moved != rootent->children.first) {
 		/*
