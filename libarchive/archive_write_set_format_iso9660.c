@@ -603,19 +603,6 @@ struct iso_option {
 #define PUBLISHER_IDENTIFIER_SIZE	128
 
 	/*
-	 * Usage  : relaxed-filenames
-	 * Type   : boolean
-	 * Default: Disabled
-	 *	  : Violates the ISO9660 standard if enable.
-	 * COMPAT : mkisofs -allow-lowercase
-	 *
-	 * Use all 7 bit ASCII characters except lower-case
-	 * characters.
-	 */
-	unsigned int	 relaxed_filenames:1;
-#define OPT_RELAXED_FILENAMES_DEFAULT	0	/* Disabled */
-
-	/*
 	 * Usage  : rockridge
 	 *        : !rockridge
 	 *        :    disable to generate SUSP and RR records.
@@ -1149,7 +1136,6 @@ archive_write_set_format_iso9660(struct archive *_a)
 	iso9660->opt.limit_dirs = OPT_LIMIT_DIRS_DEFAULT;
 	iso9660->opt.pad = OPT_PAD_DEFAULT;
 	iso9660->opt.publisher = OPT_PUBLISHER_DEFAULT;
-	iso9660->opt.relaxed_filenames = OPT_RELAXED_FILENAMES_DEFAULT;
 	iso9660->opt.rr = OPT_RR_DEFAULT;
 	iso9660->opt.uid = OPT_UID_DEFAULT;
 	iso9660->opt.volume_id = OPT_VOLUME_ID_DEFAULT;
@@ -1465,10 +1451,6 @@ iso9660_options(struct archive_write *a, const char *key, const char *value)
 		}
 		break;
 	case 'r':
-		if (strcmp(key, "relaxed-filenames") == 0) {
-			iso9660->opt.relaxed_filenames = value != NULL;
-			return (ARCHIVE_OK);
-		}
 		if (strcmp(key, "rockridge") == 0 ||
 		    strcmp(key, "Rockridge") == 0) {
 			if (value == NULL)
@@ -3932,9 +3914,6 @@ write_information_block(struct archive_write *a)
 	if (iso9660->opt.publisher != OPT_PUBLISHER_DEFAULT)
 		set_option_info(&info, &opt, "publisher",
 		    KEY_STR, iso9660->publisher_identifier.s);
-	if (iso9660->opt.relaxed_filenames != OPT_RELAXED_FILENAMES_DEFAULT)
-		set_option_info(&info, &opt, "relaxed-filenames",
-		    KEY_FLG, iso9660->opt.relaxed_filenames);
 	if (iso9660->opt.rr != OPT_RR_DEFAULT) {
 		if (iso9660->opt.rr == OPT_RR_DISABLED)
 			set_option_info(&info, &opt, "rockridge",
@@ -5458,8 +5437,6 @@ idr_init(struct iso9660 *iso9660, struct vdd *vdd, struct idr *idr)
 		if (iso9660->opt.iso_level <= 3) {
 			memcpy(idr->char_map, d_characters_map,
 			    sizeof(idr->char_map));
-			if (iso9660->opt.relaxed_filenames)
-				idr_relaxed_filenames(idr->char_map);
 		} else {
 			memcpy(idr->char_map, d1_characters_map,
 			    sizeof(idr->char_map));
@@ -5842,8 +5819,7 @@ isoent_gen_iso9660_identifier(struct archive_write *a, struct isoent *isoent,
 				continue;
 			}
 			if (char_map[(unsigned char)*p]) {
-				/* if relaxed-filenames option specified or
-				 * iso-level is '4', a character '.' is
+				/* if iso-level is '4', a character '.' is
 				 * allowed by char_map. */
 				if (*p == '.') {
 					xdot = dot;
