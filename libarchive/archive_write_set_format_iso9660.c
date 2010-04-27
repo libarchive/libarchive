@@ -210,16 +210,23 @@ struct isoent {
 	struct isofile		*file;
 
 	struct isoent		*parent;
-	/* A list of sub directories. */
+	/* A list of children.(use chnext) */
 	struct {
 		struct isoent	*first;
 		struct isoent	**last;
 		int		 cnt;
 	}			 children;
+	/* A list of sub directories.(use drnext) */
+	struct {
+		struct isoent	*first;
+		struct isoent	**last;
+		int		 cnt;
+	}			 subdirs;
 	/* A sorted list of sub directories. */
 	struct isoent		**children_sorted;
 	/* Used for managing struct isoent list. */
 	struct isoent		*chnext;
+	struct isoent		*drnext;
 	struct isoent		*ptnext;
 
 	/*
@@ -4205,47 +4212,44 @@ write_directory_descriptors(struct archive_write *a, struct vdd *vdd)
 	depth = 0;
 	np = vdd->rootent;
 	do {
-		if (np->dir) {
-			struct extr_rec *extr;
+		struct extr_rec *extr;
 
-			r = _write_directory_descriptors(a, vdd, np, depth);
-			if (r < 0)
-				return (r);
-			if (vdd->vdd_type != VDD_JOLIET) {
-				/*
-				 * This extract record is used by SUSP,RRIP.
-				 * Not for joliet.
-				 */
-				for (extr = np->extr_rec_list.first;
-				    extr != NULL;
-				    extr = extr->next) {
-					unsigned char *wb;
+		r = _write_directory_descriptors(a, vdd, np, depth);
+		if (r < 0)
+			return (r);
+		if (vdd->vdd_type != VDD_JOLIET) {
+			/*
+			 * This extract record is used by SUSP,RRIP.
+			 * Not for joliet.
+			 */
+			for (extr = np->extr_rec_list.first;
+			    extr != NULL;
+			    extr = extr->next) {
+				unsigned char *wb;
 
-					wb = wb_buffptr(a);
-					memcpy(wb, extr->buf, extr->offset);
-					memset(wb + extr->offset, 0,
-					    LOGICAL_BLOCK_SIZE - extr->offset);
-					r = wb_consume(a, LOGICAL_BLOCK_SIZE);
-					if (r < 0)
-						return (r);
-				}
-			}
-
-			if (np->children.first != NULL &&
-			    depth + 1 < vdd->max_depth) {
-				/* Enter to sub directories. */
-				np = np->children.first;
-				depth++;
-				continue;
+				wb = wb_buffptr(a);
+				memcpy(wb, extr->buf, extr->offset);
+				memset(wb + extr->offset, 0,
+				    LOGICAL_BLOCK_SIZE - extr->offset);
+				r = wb_consume(a, LOGICAL_BLOCK_SIZE);
+				if (r < 0)
+					return (r);
 			}
 		}
+
+		if (np->subdirs.first != NULL && depth + 1 < vdd->max_depth) {
+			/* Enter to sub directories. */
+			np = np->subdirs.first;
+			depth++;
+			continue;
+		}
 		while (np != np->parent) {
-			if (np->chnext == NULL) {
+			if (np->drnext == NULL) {
 				/* Return to the parent directory. */
 				np = np->parent;
 				depth--;
 			} else {
-				np = np->chnext;
+				np = np->drnext;
 				break;
 			}
 		}
@@ -4402,30 +4406,28 @@ write_file_descriptors(struct archive_write *a)
 		np = iso9660->primary.rootent;
 	}
 	do {
-		if (np->dir) {
-			r =  _write_file_descriptors(a, np);
-			if (r < 0)
-				return (r);
+		r =  _write_file_descriptors(a, np);
+		if (r < 0)
+			return (r);
 
-			if (np->children.first != NULL &&
-			    (joliet ||
-			    ((iso9660->opt.rr == OPT_RR_DISABLED &&
-			      depth + 2 < iso9660->primary.max_depth) ||
-			     (iso9660->opt.rr &&
-			      depth + 1 < iso9660->primary.max_depth)))) {
-				/* Enter to sub directories. */
-				np = np->children.first;
-				depth++;
-				continue;
-			}
+		if (np->subdirs.first != NULL &&
+		    (joliet ||
+		    ((iso9660->opt.rr == OPT_RR_DISABLED &&
+		      depth + 2 < iso9660->primary.max_depth) ||
+		     (iso9660->opt.rr &&
+		      depth + 1 < iso9660->primary.max_depth)))) {
+			/* Enter to sub directories. */
+			np = np->subdirs.first;
+			depth++;
+			continue;
 		}
 		while (np != np->parent) {
-			if (np->chnext == NULL) {
+			if (np->drnext == NULL) {
 				/* Return to the parent directory. */
 				np = np->parent;
 				depth--;
 			} else {
-				np = np->chnext;
+				np = np->drnext;
 				break;
 			}
 		}
@@ -4841,6 +4843,8 @@ isoent_new(struct isofile *file)
 	isoent->file = file;
 	isoent->children.first = NULL;
 	isoent->children.last = &(isoent->children.first);
+	isoent->subdirs.first = NULL;
+	isoent->subdirs.last = &(isoent->subdirs.first);
 	isoent->extr_rec_list.first = NULL;
 	isoent->extr_rec_list.last = &(isoent->extr_rec_list.first);
 	isoent->extr_rec_list.current = NULL;
@@ -4942,6 +4946,16 @@ isoent_add_child_head(struct isoent *parent, struct isoent *child)
 	parent->children.first = child;
 	parent->children.cnt++;
 	child->parent = parent;
+
+	/* Add a child to a sub-directory chain */
+	if (child->dir) {
+		if ((child->drnext = parent->subdirs.first) == NULL)
+			parent->subdirs.last = &(child->drnext);
+		parent->subdirs.first = child;
+		parent->subdirs.cnt++;
+		child->parent = parent;
+	} else
+		child->drnext = NULL;
 }
 
 static inline void
@@ -4952,6 +4966,15 @@ isoent_add_child_tail(struct isoent *parent, struct isoent *child)
 	parent->children.last = &(child->chnext);
 	parent->children.cnt++;
 	child->parent = parent;
+
+	/* Add a child to a sub-directory chain */
+	child->drnext = NULL;
+	if (child->dir) {
+		*parent->subdirs.last = child;
+		parent->subdirs.last = &(child->drnext);
+		parent->subdirs.cnt++;
+		child->parent = parent;
+	}
 }
 
 /*
@@ -5034,33 +5057,30 @@ isoent_setup_directory_location(struct iso9660 *iso9660, int location,
 	depth = 0;
 	np = vdd->rootent;
 	do {
-		if (np->dir) {
-			int block;
+		int block;
 
-			np->dir_block = calculate_directory_descriptors(
-			    iso9660, vdd, np, depth);
-			vdd->total_dir_block += np->dir_block;
-			np->dir_location = location;
-			location += np->dir_block;
-			block = extra_setup_location(np, location);
-			vdd->total_dir_block += block;
-			location += block;
+		np->dir_block = calculate_directory_descriptors(
+		    iso9660, vdd, np, depth);
+		vdd->total_dir_block += np->dir_block;
+		np->dir_location = location;
+		location += np->dir_block;
+		block = extra_setup_location(np, location);
+		vdd->total_dir_block += block;
+		location += block;
 
-			if (np->children.first != NULL &&
-			    depth + 1 < vdd->max_depth) {
-				/* Enter to sub directories. */
-				np = np->children.first;
-				depth++;
-				continue;
-			}
+		if (np->subdirs.first != NULL && depth + 1 < vdd->max_depth) {
+			/* Enter to sub directories. */
+			np = np->subdirs.first;
+			depth++;
+			continue;
 		}
 		while (np != np->parent) {
-			if (np->chnext == NULL) {
+			if (np->drnext == NULL) {
 				/* Return to the parent directory. */
 				np = np->parent;
 				depth--;
 			} else {
-				np = np->chnext;
+				np = np->drnext;
 				break;
 			}
 		}
@@ -5159,29 +5179,26 @@ isoent_setup_file_location(struct iso9660 *iso9660, int location)
 		np = iso9660->primary.rootent;
 	}
 	do {
-		if (np->dir) {
-			_isoent_file_location(iso9660, np,
-			    &location, &symlocation);
+		_isoent_file_location(iso9660, np, &location, &symlocation);
 
-			if (np->children.first != NULL &&
-			    (joliet ||
-			    ((iso9660->opt.rr == OPT_RR_DISABLED &&
-			      depth + 2 < iso9660->primary.max_depth) ||
-			     (iso9660->opt.rr &&
-			      depth + 1 < iso9660->primary.max_depth)))) {
-				/* Enter to sub directories. */
-				np = np->children.first;
-				depth++;
-				continue;
-			}
+		if (np->subdirs.first != NULL &&
+		    (joliet ||
+		    ((iso9660->opt.rr == OPT_RR_DISABLED &&
+		      depth + 2 < iso9660->primary.max_depth) ||
+		     (iso9660->opt.rr &&
+		      depth + 1 < iso9660->primary.max_depth)))) {
+			/* Enter to sub directories. */
+			np = np->subdirs.first;
+			depth++;
+			continue;
 		}
 		while (np != np->parent) {
-			if (np->chnext == NULL) {
+			if (np->drnext == NULL) {
 				/* Return to the parent directory. */
 				np = np->parent;
 				depth--;
 			} else {
-				np = np->chnext;
+				np = np->drnext;
 				break;
 			}
 		}
@@ -6294,21 +6311,18 @@ isoent_traverse_tree(struct archive_write *a, struct vdd* vdd)
 	else
 		genid = isoent_gen_iso9660_identifier;
 	do {
-		if (np->dir) {
-			if (np->virtual &&
-			    !archive_entry_mtime_is_set(np->file->entry)) {
-				/* Set properly times to virtual directory */
-				archive_entry_set_mtime(np->file->entry,
-				    iso9660->birth_time, 0);
-				archive_entry_set_atime(np->file->entry,
-				    iso9660->birth_time, 0);
-				archive_entry_set_ctime(np->file->entry,
-				    iso9660->birth_time, 0);
-			}
-			if (np->children.first == NULL)
-				;/* Next entry.
-				  * Only to reduce nesting this source. */
-			else if (vdd->vdd_type != VDD_JOLIET &&
+		if (np->virtual &&
+		    !archive_entry_mtime_is_set(np->file->entry)) {
+			/* Set properly times to virtual directory */
+			archive_entry_set_mtime(np->file->entry,
+			    iso9660->birth_time, 0);
+			archive_entry_set_atime(np->file->entry,
+			    iso9660->birth_time, 0);
+			archive_entry_set_ctime(np->file->entry,
+			    iso9660->birth_time, 0);
+		}
+		if (np->children.first != NULL) {
+			if (vdd->vdd_type != VDD_JOLIET &&
 			    !iso9660->opt.rr && depth + 1 >= vdd->max_depth) {
 				if (np->children.cnt > 0)
 					iso9660->directories_too_deep = np;
@@ -6321,21 +6335,22 @@ isoent_traverse_tree(struct archive_write *a, struct vdd* vdd)
 				if (r < 0)
 					goto exit_traverse_tree;
 
-				if (depth + 1 < vdd->max_depth) {
+				if (np->subdirs.first != NULL &&
+				    depth + 1 < vdd->max_depth) {
 					/* Enter to sub directories. */
-					np = np->children.first;
+					np = np->subdirs.first;
 					depth++;
 					continue;
 				}
 			}
 		}
 		while (np != np->parent) {
-			if (np->chnext == NULL) {
+			if (np->drnext == NULL) {
 				/* Return to the parent directory. */
 				np = np->parent;
 				depth--;
 			} else {
-				np = np->chnext;
+				np = np->drnext;
 				break;
 			}
 		}
@@ -6360,25 +6375,22 @@ isoent_collect_dirs(struct vdd *vdd, struct isoent *rootent, int depth)
 		rootent = vdd->rootent;
 	np = rootent;
 	do {
-		if (np->dir) {
-			/* Register current directory to pathtable. */
-			path_table_add_entry(&(vdd->pathtbl[depth]), np);
+		/* Register current directory to pathtable. */
+		path_table_add_entry(&(vdd->pathtbl[depth]), np);
 
-			if (np->children.first != NULL &&
-			    depth + 1 < vdd->max_depth) {
-				/* Enter to sub directories. */
-				np = np->children.first;
-				depth++;
-				continue;
-			}
+		if (np->subdirs.first != NULL && depth + 1 < vdd->max_depth) {
+			/* Enter to sub directories. */
+			np = np->subdirs.first;
+			depth++;
+			continue;
 		}
 		while (np != rootent) {
-			if (np->chnext == NULL) {
+			if (np->drnext == NULL) {
 				/* Return to the parent directory. */
 				np = np->parent;
 				depth--;
 			} else {
-				np = np->chnext;
+				np = np->drnext;
 				break;
 			}
 		}
@@ -6444,6 +6456,16 @@ isoent_rr_move_dir(struct archive_write *a, struct isoent **rr_moved,
 	isoent->children.cnt = 0;
 	isoent->children.first = NULL;
 	isoent->children.last = &isoent->children.first;
+
+	if (isoent->subdirs.first != NULL) {
+		*mvent->subdirs.last = isoent->subdirs.first;
+		mvent->subdirs.last = isoent->subdirs.last;
+	}
+	mvent->subdirs.cnt = isoent->subdirs.cnt;
+	isoent->subdirs.cnt = 0;
+	isoent->subdirs.first = NULL;
+	isoent->subdirs.last = &isoent->subdirs.first;
+
 	/*
 	 * The mvent becomes a child of the rr_moved entry.
 	 */
@@ -6487,11 +6509,23 @@ isoent_rr_move(struct archive_write *a)
 		 * of the root.
 		 */
 		struct isoent *ent = rootent->children.first;
+
+		/* Remove "rr_moved" entry from children chain. */
 		while (ent->chnext != rr_moved)
 			ent = ent->chnext;
 		if ((ent->chnext = ent->chnext->chnext) == NULL)
 			rootent->children.last = &(ent->chnext);
 		rootent->children.cnt--;
+
+		/* Remove "rr_moved" entry from sub-directory chain. */
+		ent = rootent->subdirs.first;
+		while (ent->drnext != rr_moved)
+			ent = ent->drnext;
+		if ((ent->drnext = ent->drnext->drnext) == NULL)
+			rootent->subdirs.last = &(ent->drnext);
+		rootent->subdirs.cnt--;
+
+		/* Add "rr_moved" entry into the head of children chain. */
 		isoent_add_child_head(rootent, rr_moved);
 	}
 
@@ -6508,10 +6542,8 @@ isoent_rr_move(struct archive_write *a)
 
 			if (!np->dir)
 				continue;
-			for (mvent = np->children.first;
-			    mvent != NULL; mvent = mvent->chnext) {
-				if (!mvent->dir)
-					continue;
+			for (mvent = np->subdirs.first;
+			    mvent != NULL; mvent = mvent->drnext) {
 				r = isoent_rr_move_dir(a, &rr_moved,
 				    mvent, &newent);
 				if (r < 0)
