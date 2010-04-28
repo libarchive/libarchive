@@ -5388,6 +5388,18 @@ isoent_tree(struct archive_write *a, struct isoent *isoent)
 
 	for (;;) {
 		l = get_path_component(name, sizeof(name), fn);
+		if (l == 0) {
+			np = NULL;
+			break;
+		}
+		if (l < 0) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_MISC,
+			    "A name buffer is too small");
+			_isoent_free(isoent);
+			return (NULL);
+		}
+
 		np = isoent_find_child(dent, name);
 		if (np == NULL || fn[0] == '\0')
 			break;
@@ -5441,6 +5453,14 @@ isoent_tree(struct archive_write *a, struct isoent *isoent)
 			if (fn[0] == '/')
 				fn++;
 			l = get_path_component(name, sizeof(name), fn);
+			if (l < 0) {
+				archive_string_free(&as);
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "A name buffer is too small");
+				_isoent_free(isoent);
+				return (NULL);
+			}
 			dent = np;
 		}
 
