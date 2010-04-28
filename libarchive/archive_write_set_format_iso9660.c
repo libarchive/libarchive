@@ -22,6 +22,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+/*
+ * The implemation of red black tree routine is based on
+ * /usr/include/sys/tree.h of FreeBSD
+ */
 
 #include "archive_platform.h"
 
@@ -115,6 +119,84 @@ static const unsigned char zisofs_magic[8] = {
 #define ZF_HEADER_SIZE	16	/* zisofs header size. */
 #define ZF_LOG2_BS	15	/* log2 block size; 32K bytes. */
 #define ZF_BLOCK_SIZE	(1UL << ZF_LOG2_BS)
+
+#define RB_BLACK	0
+#define RB_RED		1
+
+#define RB_LEFT(elm, field)		(elm)->field.rbe_left
+#define RB_RIGHT(elm, field)		(elm)->field.rbe_right
+#define RB_PARENT(elm, field)		(elm)->field.rbe_parent
+#define RB_COLOR(elm, field)		(elm)->field.rbe_color
+#define RB_ROOT(head)			(head)->rbh_root
+#define RB_EMPTY(head)			(RB_ROOT(head) == NULL)
+
+#define RB_SET(elm, parent, field) do {					\
+	RB_PARENT(elm, field) = parent;					\
+	RB_LEFT(elm, field) = RB_RIGHT(elm, field) = NULL;		\
+	RB_COLOR(elm, field) = RB_RED;					\
+} while (/*CONSTCOND*/ 0)
+
+#define RB_SET_BLACKRED(black, red, field) do {				\
+	RB_COLOR(black, field) = RB_BLACK;				\
+	RB_COLOR(red, field) = RB_RED;					\
+} while (/*CONSTCOND*/ 0)
+
+#ifndef RB_AUGMENT
+#define RB_AUGMENT(x)	do {} while (0)
+#endif
+
+#define RB_ROTATE_LEFT(head, elm, tmp, field) do {			\
+	(tmp) = RB_RIGHT(elm, field);					\
+	if ((RB_RIGHT(elm, field) = RB_LEFT(tmp, field)) != NULL) {	\
+		RB_PARENT(RB_LEFT(tmp, field), field) = (elm);		\
+	}								\
+	RB_AUGMENT(elm);						\
+	if ((RB_PARENT(tmp, field) = RB_PARENT(elm, field)) != NULL) {	\
+		if ((elm) == RB_LEFT(RB_PARENT(elm, field), field))	\
+			RB_LEFT(RB_PARENT(elm, field), field) = (tmp);	\
+		else							\
+			RB_RIGHT(RB_PARENT(elm, field), field) = (tmp);	\
+	} else								\
+		(head)->rbh_root = (tmp);				\
+	RB_LEFT(tmp, field) = (elm);					\
+	RB_PARENT(elm, field) = (tmp);					\
+	RB_AUGMENT(tmp);						\
+	if ((RB_PARENT(tmp, field)))					\
+		RB_AUGMENT(RB_PARENT(tmp, field));			\
+} while (/*CONSTCOND*/ 0)
+
+#define RB_ROTATE_RIGHT(head, elm, tmp, field) do {			\
+	(tmp) = RB_LEFT(elm, field);					\
+	if ((RB_LEFT(elm, field) = RB_RIGHT(tmp, field)) != NULL) {	\
+		RB_PARENT(RB_RIGHT(tmp, field), field) = (elm);		\
+	}								\
+	RB_AUGMENT(elm);						\
+	if ((RB_PARENT(tmp, field) = RB_PARENT(elm, field)) != NULL) {	\
+		if ((elm) == RB_LEFT(RB_PARENT(elm, field), field))	\
+			RB_LEFT(RB_PARENT(elm, field), field) = (tmp);	\
+		else							\
+			RB_RIGHT(RB_PARENT(elm, field), field) = (tmp);	\
+	} else								\
+		(head)->rbh_root = (tmp);				\
+	RB_RIGHT(tmp, field) = (elm);					\
+	RB_PARENT(elm, field) = (tmp);					\
+	RB_AUGMENT(tmp);						\
+	if ((RB_PARENT(tmp, field)))					\
+		RB_AUGMENT(RB_PARENT(tmp, field));			\
+} while (/*CONSTCOND*/ 0)
+
+
+#if 0
+#define RB_FOREACH(x, name, head)					\
+	for ((x) = RB_MIN(name, head);					\
+	     (x) != NULL;						\
+	     (x) = name##_RB_NEXT(x))
+
+#define RB_FOREACH_REVERSE(x, name, head)				\
+	for ((x) = RB_MAX(name, head);					\
+	     (x) != NULL;						\
+	     (x) = name##_RB_PREV(x))
+#endif
 
 /*
  * Manage extra records.
@@ -216,6 +298,10 @@ struct isoent {
 		struct isoent	**last;
 		int		 cnt;
 	}			 children;
+	struct isoent_ch {
+		struct isoent	*rbh_root; /* root of the tree */
+	}			 rb_head;
+
 	/* A list of sub directories.(use drnext) */
 	struct {
 		struct isoent	*first;
@@ -228,6 +314,12 @@ struct isoent {
 	struct isoent		*chnext;
 	struct isoent		*drnext;
 	struct isoent		*ptnext;
+	struct {
+		struct isoent	*rbe_left;	/* left element */
+		struct isoent	*rbe_right;	/* right element */
+		struct isoent	*rbe_parent;	/* parent element */
+		int		 rbe_color;	/* node color */
+	}			 rbentry;
 
 	/*
 	 * Used for making a Directory Record.
@@ -1035,6 +1127,21 @@ static int	zisofs_write_to_temp(struct archive_write *,
 static int	zisofs_finish_entry(struct archive_write *);
 static int	zisofs_fix_bootfile(struct archive_write *);
 #endif
+
+static void isoent_RB_INSERT_COLOR(struct isoent_ch *, struct isoent *);
+static void isoent_RB_REMOVE_COLOR(struct isoent_ch *, struct isoent *, struct isoent *);
+static struct isoent *isoent_RB_REMOVE(struct isoent_ch *, struct isoent *);
+static struct isoent *isoent_RB_INSERT(struct isoent_ch *, struct isoent *);
+static struct isoent *isoent_RB_FIND(struct isoent_ch *, const char *);
+#if 0
+static struct isoent *isoent_RB_NFIND(struct isoent_ch *, struct isoent *);
+static struct isoent *isoent_RB_NEXT(struct isoent *);
+static struct isoent *isoent_RB_PREV(struct isoent *);
+static struct isoent *isoent_RB_MINMAX(struct isoent_ch *, int);
+#endif
+
+
+/****************************************************************/
 
 int
 archive_write_set_format_iso9660(struct archive *_a)
@@ -4822,6 +4929,7 @@ isoent_new(struct isofile *file)
 	isoent->file = file;
 	isoent->children.first = NULL;
 	isoent->children.last = &(isoent->children.first);
+	isoent->rb_head.rbh_root = NULL;
 	isoent->subdirs.first = NULL;
 	isoent->subdirs.last = &(isoent->subdirs.first);
 	isoent->extr_rec_list.first = NULL;
@@ -4925,6 +5033,7 @@ isoent_add_child_head(struct isoent *parent, struct isoent *child)
 	parent->children.first = child;
 	parent->children.cnt++;
 	child->parent = parent;
+	isoent_RB_INSERT(&(parent->rb_head), child);
 
 	/* Add a child to a sub-directory chain */
 	if (child->dir) {
@@ -4945,6 +5054,7 @@ isoent_add_child_tail(struct isoent *parent, struct isoent *child)
 	parent->children.last = &(child->chnext);
 	parent->children.cnt++;
 	child->parent = parent;
+	isoent_RB_INSERT(&(parent->rb_head), child);
 
 	/* Add a child to a sub-directory chain */
 	child->drnext = NULL;
@@ -5355,6 +5465,9 @@ isoent_find_child(struct isoent *isoent, const char *child_name)
 {
 	struct isoent *np;
 
+	np = isoent_RB_FIND(&(isoent->rb_head), child_name);
+	return (np);
+#if 0
 	for (np = isoent->children.first; np != NULL; np = np->chnext) {
 		if (strcmp(child_name, np->file->basename.s) == 0)
 			return (np);
@@ -5362,6 +5475,7 @@ isoent_find_child(struct isoent *isoent, const char *child_name)
 
 	/* Not found. */
 	return (NULL);
+#endif
 }
 
 /*
@@ -6500,6 +6614,8 @@ isoent_rr_move(struct archive_write *a)
 		if ((ent->drnext = ent->drnext->drnext) == NULL)
 			rootent->subdirs.last = &(ent->drnext);
 		rootent->subdirs.cnt--;
+
+		isoent_RB_REMOVE(&(rootent->rb_head), rr_moved);
 
 		/* Add "rr_moved" entry into the head of children chain. */
 		isoent_add_child_head(rootent, rr_moved);
@@ -7821,3 +7937,337 @@ zisofs_finish_entry(struct archive_write *a)
 }
 
 #endif /* HAVE_ZLIB_H */
+
+static int
+isoent_cmp_basename(const struct isoent *e1, const struct isoent *e2)
+{
+	return (strcmp(e1->file->basename.s, e2->file->basename.s));
+}
+
+static int
+isoent_cmp_find_basename(const char *basename, const struct isoent *ent)
+{
+	return (strcmp(basename, ent->file->basename.s));
+}
+
+static void
+isoent_RB_INSERT_COLOR(struct isoent_ch *head, struct isoent *elm)
+{
+	struct isoent *parent, *gparent, *tmp;
+	while ((parent = RB_PARENT(elm, rbentry)) != NULL &&
+	    RB_COLOR(parent, rbentry) == RB_RED) {
+		gparent = RB_PARENT(parent, rbentry);
+		if (parent == RB_LEFT(gparent, rbentry)) {
+			tmp = RB_RIGHT(gparent, rbentry);
+			if (tmp && RB_COLOR(tmp, rbentry) == RB_RED) {
+				RB_COLOR(tmp, rbentry) = RB_BLACK;
+				RB_SET_BLACKRED(parent, gparent, rbentry);
+				elm = gparent;
+				continue;
+			}
+			if (RB_RIGHT(parent, rbentry) == elm) {
+				RB_ROTATE_LEFT(head, parent, tmp, rbentry);
+				tmp = parent;
+				parent = elm;
+				elm = tmp;
+			}
+			RB_SET_BLACKRED(parent, gparent, rbentry);
+			RB_ROTATE_RIGHT(head, gparent, tmp, rbentry);
+		} else {
+			tmp = RB_LEFT(gparent, rbentry);
+			if (tmp && RB_COLOR(tmp, rbentry) == RB_RED) {
+				RB_COLOR(tmp, rbentry) = RB_BLACK;
+				RB_SET_BLACKRED(parent, gparent, rbentry);
+				elm = gparent;
+				continue;
+			}
+			if (RB_LEFT(parent, rbentry) == elm) {
+				RB_ROTATE_RIGHT(head, parent, tmp, rbentry);
+				tmp = parent;
+				parent = elm;
+				elm = tmp;
+			}
+			RB_SET_BLACKRED(parent, gparent, rbentry);
+			RB_ROTATE_LEFT(head, gparent, tmp, rbentry);
+		}
+	}
+	RB_COLOR(head->rbh_root, rbentry) = RB_BLACK;
+}
+
+static void
+isoent_RB_REMOVE_COLOR(struct isoent_ch *head, struct isoent *parent,
+    struct isoent *elm)
+{
+	struct isoent *tmp;
+	while ((elm == NULL || RB_COLOR(elm, rbentry) == RB_BLACK) &&
+	    elm != RB_ROOT(head)) {
+		if (RB_LEFT(parent, rbentry) == elm) {
+			tmp = RB_RIGHT(parent, rbentry);
+			if (RB_COLOR(tmp, rbentry) == RB_RED) {
+				RB_SET_BLACKRED(tmp, parent, rbentry);
+				RB_ROTATE_LEFT(head, parent, tmp, rbentry);
+				tmp = RB_RIGHT(parent, rbentry);
+			}
+			if ((RB_LEFT(tmp, rbentry) == NULL ||
+			    RB_COLOR(RB_LEFT(tmp, rbentry), rbentry) == RB_BLACK) &&
+			    (RB_RIGHT(tmp, rbentry) == NULL ||
+			    RB_COLOR(RB_RIGHT(tmp, rbentry), rbentry) == RB_BLACK)) {
+				RB_COLOR(tmp, rbentry) = RB_RED;
+				elm = parent;
+				parent = RB_PARENT(elm, rbentry);
+			} else {
+				if (RB_RIGHT(tmp, rbentry) == NULL ||
+				    RB_COLOR(RB_RIGHT(tmp, rbentry), rbentry) == RB_BLACK) {
+					struct isoent *oleft;
+					if ((oleft = RB_LEFT(tmp, rbentry))
+					    != NULL)
+						RB_COLOR(oleft, rbentry) = RB_BLACK;
+					RB_COLOR(tmp, rbentry) = RB_RED;
+					RB_ROTATE_RIGHT(head, tmp, oleft, rbentry);
+					tmp = RB_RIGHT(parent, rbentry);
+				}
+				RB_COLOR(tmp, rbentry) = RB_COLOR(parent, rbentry);
+				RB_COLOR(parent, rbentry) = RB_BLACK;
+				if (RB_RIGHT(tmp, rbentry))
+					RB_COLOR(RB_RIGHT(tmp, rbentry), rbentry) = RB_BLACK;
+				RB_ROTATE_LEFT(head, parent, tmp, rbentry);
+				elm = RB_ROOT(head);
+				break;
+			}
+		} else {
+			tmp = RB_LEFT(parent, rbentry);
+			if (RB_COLOR(tmp, rbentry) == RB_RED) {
+				RB_SET_BLACKRED(tmp, parent, rbentry);
+				RB_ROTATE_RIGHT(head, parent, tmp, rbentry);
+				tmp = RB_LEFT(parent, rbentry);
+			}
+			if ((RB_LEFT(tmp, rbentry) == NULL ||
+			    RB_COLOR(RB_LEFT(tmp, rbentry), rbentry) == RB_BLACK) &&
+			    (RB_RIGHT(tmp, rbentry) == NULL ||
+			    RB_COLOR(RB_RIGHT(tmp, rbentry), rbentry) == RB_BLACK)) {
+				RB_COLOR(tmp, rbentry) = RB_RED;
+				elm = parent;
+				parent = RB_PARENT(elm, rbentry);
+			} else {
+				if (RB_LEFT(tmp, rbentry) == NULL ||
+				    RB_COLOR(RB_LEFT(tmp, rbentry), rbentry) == RB_BLACK) {
+					struct isoent *oright;
+					if ((oright = RB_RIGHT(tmp, rbentry))
+					    != NULL)
+						RB_COLOR(oright, rbentry) = RB_BLACK;
+					RB_COLOR(tmp, rbentry) = RB_RED;
+					RB_ROTATE_LEFT(head, tmp, oright, rbentry);
+					tmp = RB_LEFT(parent, rbentry);
+				}
+				RB_COLOR(tmp, rbentry) = RB_COLOR(parent, rbentry);
+				RB_COLOR(parent, rbentry) = RB_BLACK;
+				if (RB_LEFT(tmp, rbentry))
+					RB_COLOR(RB_LEFT(tmp, rbentry), rbentry) = RB_BLACK;
+				RB_ROTATE_RIGHT(head, parent, tmp, rbentry);
+				elm = RB_ROOT(head);
+				break;
+			}
+		}
+	}
+	if (elm)
+		RB_COLOR(elm, rbentry) = RB_BLACK;
+}
+
+static struct isoent *
+isoent_RB_REMOVE(struct isoent_ch *head, struct isoent *elm)
+{
+	struct isoent *child, *parent, *old = elm;
+	int color;
+	if (RB_LEFT(elm, rbentry) == NULL)
+		child = RB_RIGHT(elm, rbentry);
+	else if (RB_RIGHT(elm, rbentry) == NULL)
+		child = RB_LEFT(elm, rbentry);
+	else {
+		struct isoent *left;
+		elm = RB_RIGHT(elm, rbentry);
+		while ((left = RB_LEFT(elm, rbentry)) != NULL)
+			elm = left;
+		child = RB_RIGHT(elm, rbentry);
+		parent = RB_PARENT(elm, rbentry);
+		color = RB_COLOR(elm, rbentry);
+		if (child)
+			RB_PARENT(child, rbentry) = parent;
+		if (parent) {
+			if (RB_LEFT(parent, rbentry) == elm)
+				RB_LEFT(parent, rbentry) = child;
+			else
+				RB_RIGHT(parent, rbentry) = child;
+			RB_AUGMENT(parent);
+		} else
+			RB_ROOT(head) = child;
+		if (RB_PARENT(elm, rbentry) == old)
+			parent = elm;
+		(elm)->rbentry = (old)->rbentry;
+		if (RB_PARENT(old, rbentry)) {
+			if (RB_LEFT(RB_PARENT(old, rbentry), rbentry) == old)
+				RB_LEFT(RB_PARENT(old, rbentry), rbentry) = elm;
+			else
+				RB_RIGHT(RB_PARENT(old, rbentry), rbentry) = elm;
+			RB_AUGMENT(RB_PARENT(old, rbentry));
+		} else
+			RB_ROOT(head) = elm;
+		RB_PARENT(RB_LEFT(old, rbentry), rbentry) = elm;
+		if (RB_RIGHT(old, rbentry))
+			RB_PARENT(RB_RIGHT(old, rbentry), rbentry) = elm;
+		if (parent) {
+			left = parent;
+			do {
+				RB_AUGMENT(left);
+			} while ((left = RB_PARENT(left, rbentry)) != NULL);
+		}
+		goto color;
+	}
+	parent = RB_PARENT(elm, rbentry);
+	color = RB_COLOR(elm, rbentry);
+	if (child)
+		RB_PARENT(child, rbentry) = parent;
+	if (parent) {
+		if (RB_LEFT(parent, rbentry) == elm)
+			RB_LEFT(parent, rbentry) = child;
+		else
+			RB_RIGHT(parent, rbentry) = child;
+		RB_AUGMENT(parent);
+	} else
+		RB_ROOT(head) = child;
+color:
+	if (color == RB_BLACK)
+		isoent_RB_REMOVE_COLOR(head, parent, child);
+	return (old);
+}
+
+/* Inserts a node into the RB tree */
+static struct isoent *
+isoent_RB_INSERT(struct isoent_ch *head, struct isoent *elm)
+{
+	struct isoent *tmp;
+	struct isoent *parent = NULL;
+	int comp = 0;
+	tmp = RB_ROOT(head);
+	while (tmp) {
+		parent = tmp;
+		comp = (isoent_cmp_basename)(elm, parent);
+		if (comp < 0)
+			tmp = RB_LEFT(tmp, rbentry);
+		else if (comp > 0)
+			tmp = RB_RIGHT(tmp, rbentry);
+		else
+			return (tmp);
+	}
+	RB_SET(elm, parent, rbentry);
+	if (parent != NULL) {
+		if (comp < 0)
+			RB_LEFT(parent, rbentry) = elm;
+		else
+			RB_RIGHT(parent, rbentry) = elm;
+		RB_AUGMENT(parent);
+	} else
+		RB_ROOT(head) = elm;
+	isoent_RB_INSERT_COLOR(head, elm);
+	return (NULL);
+}
+
+/* Finds the node with the same key as id */
+static struct isoent *
+isoent_RB_FIND(struct isoent_ch *head, const char *id)
+{
+	struct isoent *tmp = RB_ROOT(head);
+	int comp;
+	while (tmp) {
+		comp = isoent_cmp_find_basename(id, tmp);
+		if (comp < 0)
+			tmp = RB_LEFT(tmp, rbentry);
+		else if (comp > 0)
+			tmp = RB_RIGHT(tmp, rbentry);
+		else
+			return (tmp);
+	}
+	return (NULL);
+}
+
+#if 0
+
+/* Finds the first node greater than or equal to the search key */
+static struct isoent *
+isoent_RB_NFIND(struct isoent_ch *head, struct isoent *elm)
+{
+	struct isoent *tmp = RB_ROOT(head);
+	struct isoent *res = NULL;
+	int comp;
+	while (tmp) {
+		comp = isoent_cmp_basename(elm, tmp);
+		if (comp < 0) {
+			res = tmp;
+			tmp = RB_LEFT(tmp, rbentry);
+		}
+		else if (comp > 0)
+			tmp = RB_RIGHT(tmp, rbentry);
+		else
+			return (tmp);
+	}
+	return (res);
+}
+
+/* ARGSUSED */
+static struct isoent *
+isoent_RB_NEXT(struct isoent *elm)
+{
+	if (RB_RIGHT(elm, rbentry)) {
+		elm = RB_RIGHT(elm, rbentry);
+		while (RB_LEFT(elm, rbentry))
+			elm = RB_LEFT(elm, rbentry);
+	} else {
+		if (RB_PARENT(elm, rbentry) &&
+		    (elm == RB_LEFT(RB_PARENT(elm, rbentry), rbentry)))
+			elm = RB_PARENT(elm, rbentry);
+		else {
+			while (RB_PARENT(elm, rbentry) &&
+			    (elm == RB_RIGHT(RB_PARENT(elm, rbentry), rbentry)))
+				elm = RB_PARENT(elm, rbentry);
+			elm = RB_PARENT(elm, rbentry);
+		}
+	}
+	return (elm);
+}
+
+/* ARGSUSED */
+static struct isoent *
+isoent_RB_PREV(struct isoent *elm)
+{
+	if (RB_LEFT(elm, rbentry)) {
+		elm = RB_LEFT(elm, rbentry);
+		while (RB_RIGHT(elm, rbentry))
+			elm = RB_RIGHT(elm, rbentry);
+	} else {
+		if (RB_PARENT(elm, rbentry) &&
+		    (elm == RB_RIGHT(RB_PARENT(elm, rbentry), rbentry)))
+			elm = RB_PARENT(elm, rbentry);
+		else {
+			while (RB_PARENT(elm, rbentry) &&
+			    (elm == RB_LEFT(RB_PARENT(elm, rbentry), rbentry)))
+				elm = RB_PARENT(elm, rbentry);
+			elm = RB_PARENT(elm, rbentry);
+		}
+	}
+	return (elm);
+}
+
+static struct isoent *
+isoent_RB_MINMAX(struct isoent_ch *head, int val)
+{
+	struct isoent *tmp = RB_ROOT(head);
+	struct isoent *parent = NULL;
+	while (tmp) {
+		parent = tmp;
+		if (val < 0)
+			tmp = RB_LEFT(tmp, rbentry);
+		else
+			tmp = RB_RIGHT(tmp, rbentry);
+	}
+	return (parent);
+}
+#endif
