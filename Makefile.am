@@ -107,6 +107,8 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_hash.h				\
 	libarchive/archive_platform.h				\
 	libarchive/archive_private.h				\
+	libarchive/archive_rb.c					\
+	libarchive/archive_rb.h					\
 	libarchive/archive_read.c				\
 	libarchive/archive_read_data_into_fd.c			\
 	libarchive/archive_read_disk.c				\
