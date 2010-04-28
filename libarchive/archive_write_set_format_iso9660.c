@@ -785,6 +785,7 @@ struct iso9660 {
 
 	struct isofile		*cur_file;
 	struct isoent		*cur_dirent;
+	struct archive_string	 cur_dirstr;
 	uint64_t		 bytes_remaining;
 	int			 need_multi_extent;
 
@@ -1159,7 +1160,6 @@ archive_write_set_format_iso9660(struct archive *_a)
 	iso9660->birth_time = 0;
 	iso9660->temp_fd = -1;
 	iso9660->cur_file = NULL;
-	iso9660->cur_dirent = NULL;
 	iso9660->primary.max_depth = 0;
 	iso9660->primary.vdd_type = VDD_PRIMARY;
 	iso9660->primary.pathtbl = NULL;
@@ -1252,6 +1252,10 @@ archive_write_set_format_iso9660(struct archive *_a)
 		return (ARCHIVE_FATAL);
 	}
 	iso9660->primary.rootent->parent = iso9660->primary.rootent;
+	iso9660->cur_dirent = iso9660->primary.rootent;
+	archive_string_init(&(iso9660->cur_dirstr));
+	archive_string_ensure(&(iso9660->cur_dirstr), 1);
+	iso9660->cur_dirstr.s[0] = 0;
 
 	a->format_data = iso9660;
 	a->format_name = "iso9660";
@@ -2109,6 +2113,7 @@ iso9660_free(struct archive_write *a)
 	isofile_free_all_entries(iso9660);
 	isofile_free_hardlinks(iso9660);
 
+	archive_string_free(&(iso9660->cur_dirstr));
 	archive_string_free(&(iso9660->volume_identifier));
 	archive_string_free(&(iso9660->publisher_identifier));
 	archive_string_free(&(iso9660->data_preparer_identifier));
@@ -5359,27 +5364,19 @@ isoent_tree(struct archive_write *a, struct isoent *isoent)
 		fn = p = isoent->file->parentdir.s;
 	else
 		fn = p = "";
-	if (iso9660->cur_dirent != NULL) {
-		/*
-		 * If isoent's parent directory is the same as a cur_dirent
-		 * path, insert isoent into the cur_dirent.
-		 */
-		struct isoent *curdir = iso9660->cur_dirent;
-		int plen = curdir->file->parentdir.length;
 
-		if (plen == 0 ||
-		     (strncmp(p, curdir->file->parentdir.s, plen) == 0 &&
-		      p[plen] == '/')) {
-			if (plen > 0)
-				plen++;
-			if (curdir->file->basename.length > 0 &&
-			    strcmp(p+plen, curdir->file->basename.s) == 0) {
-				np = isoent_add_child_tail(curdir, isoent);
-				if (np != NULL)
-					goto same_entry;
-				return (isoent);
-			}
-		}
+	/*
+	 * If the path of the parent directory of `isoent' entry is
+	 * the same as the path of `cur_dirent', add isoent to
+	 * `cur_dirent'.
+	 */
+	if (archive_strlen(&(iso9660->cur_dirstr))
+	      == archive_strlen(&(isoent->file->parentdir)) &&
+	    strcmp(iso9660->cur_dirstr.s, fn) == 0) {
+		np = isoent_add_child_tail(iso9660->cur_dirent, isoent);
+		if (np != NULL)
+			goto same_entry;
+		return (isoent);
 	}
 
 	for (;;) {
@@ -5463,6 +5460,23 @@ isoent_tree(struct archive_write *a, struct isoent *isoent)
 		/* Found out the parent directory where isoent can be
 		 * inserted. */
 		iso9660->cur_dirent = dent;
+		archive_string_empty(&(iso9660->cur_dirstr));
+		archive_string_ensure(&(iso9660->cur_dirstr),
+		    archive_strlen(&(dent->file->parentdir)) +
+		    archive_strlen(&(dent->file->basename)) + 2);
+		if (archive_strlen(&(dent->file->parentdir)) +
+		    archive_strlen(&(dent->file->basename)) == 0)
+			iso9660->cur_dirstr.s[0] = 0;
+		else {
+			if (archive_strlen(&(dent->file->parentdir)) > 0) {
+				archive_string_copy(&(iso9660->cur_dirstr),
+				    &(dent->file->parentdir));
+				archive_strappend_char(&(iso9660->cur_dirstr), '/');
+			}
+			archive_string_concat(&(iso9660->cur_dirstr),
+			    &(dent->file->basename));
+		}
+
 		np = isoent_add_child_tail(dent, isoent);
 		if (np != NULL)
 			goto same_entry;
