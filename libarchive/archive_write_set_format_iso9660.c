@@ -1070,8 +1070,8 @@ static void	_isoent_free(struct isoent *isoent);
 static void	isoent_free_all(struct isoent *);
 static struct isoent * isoent_create_virtual_dir(struct iso9660 *,
 		    const char *);
-static inline void isoent_add_child_head(struct isoent *, struct isoent *);
-static inline void isoent_add_child_tail(struct isoent *, struct isoent *);
+static struct isoent *isoent_add_child_head(struct isoent *, struct isoent *);
+static struct isoent *isoent_add_child_tail(struct isoent *, struct isoent *);
 static void	isoent_trim_root_directory(struct iso9660 *);
 static void	isoent_setup_directory_location(struct iso9660 *,
 		    int, struct vdd *);
@@ -5048,16 +5048,20 @@ isoent_cmp_key(const void *key, const struct rb_node *n)
 	return (strcmp((const char *)key, e->file->basename.s));
 }
 
-static inline void
+static struct isoent *
 isoent_add_child_head(struct isoent *parent, struct isoent *child)
 {
+	struct isoent *n;
+
+	n = (struct isoent *)rb_INSERT(&(parent->rb_head),
+	    (struct rb_node *)child, isoent_cmp_node);
+	if (n != NULL)
+		return (n);
 	if ((child->chnext = parent->children.first) == NULL)
 		parent->children.last = &(child->chnext);
 	parent->children.first = child;
 	parent->children.cnt++;
 	child->parent = parent;
-	rb_INSERT(&(parent->rb_head), (struct rb_node *)child,
-	    isoent_cmp_node);
 
 	/* Add a child to a sub-directory chain */
 	if (child->dir) {
@@ -5068,18 +5072,23 @@ isoent_add_child_head(struct isoent *parent, struct isoent *child)
 		child->parent = parent;
 	} else
 		child->drnext = NULL;
+	return (NULL);
 }
 
-static inline void
+static struct isoent *
 isoent_add_child_tail(struct isoent *parent, struct isoent *child)
 {
+	struct isoent *n;
+
+	n = (struct isoent *)rb_INSERT(&(parent->rb_head),
+	    (struct rb_node *)child, isoent_cmp_node);
+	if (n != NULL)
+		return (n);
 	child->chnext = NULL;
 	*parent->children.last = child;
 	parent->children.last = &(child->chnext);
 	parent->children.cnt++;
 	child->parent = parent;
-	rb_INSERT(&(parent->rb_head), (struct rb_node *)child,
-	    isoent_cmp_node);
 
 	/* Add a child to a sub-directory chain */
 	child->drnext = NULL;
@@ -5089,6 +5098,7 @@ isoent_add_child_tail(struct isoent *parent, struct isoent *child)
 		parent->subdirs.cnt++;
 		child->parent = parent;
 	}
+	return (NULL);
 }
 
 /*
@@ -5376,11 +5386,9 @@ isoent_tree(struct archive_write *a, struct isoent *isoent)
 				plen++;
 			if (curdir->file->basename.length > 0 &&
 			    strcmp(p+plen, curdir->file->basename.s) == 0) {
-				np = isoent_find_child(curdir,
-				    isoent->file->basename.s);
+				np = isoent_add_child_tail(curdir, isoent);
 				if (np != NULL)
 					goto same_entry;
-				isoent_add_child_tail(curdir, isoent);
 				return (isoent);
 			}
 		}
@@ -5464,19 +5472,12 @@ isoent_tree(struct archive_write *a, struct isoent *isoent)
 			dent = np;
 		}
 
-		/* If the current directory is not new,
-		 * Check whether there is the same name entry or not. */
-		if (np == NULL) {
-			np = isoent_find_child(dent,
-			    isoent->file->basename.s);
-			if (np != NULL)
-				goto same_entry;
-		}
-
 		/* Found out the parent directory where isoent can be
 		 * inserted. */
 		iso9660->cur_dirent = dent;
-		isoent_add_child_tail(dent, isoent);
+		np = isoent_add_child_tail(dent, isoent);
+		if (np != NULL)
+			goto same_entry;
 		return (isoent);
 	}
 
@@ -5673,10 +5674,9 @@ idr_register(struct idr *idr, struct isoent *isoent, int weight, int noff)
 	idrent->noff = noff;
 	idrent->rename_num = 0;
 
-	n = (struct idrent *)rb_FIND(&(idr->head), isoent, idr->cmp_key);
-	if (n == NULL)
-		rb_INSERT(&(idr->head), &(idrent->rbnode), idr->cmp_node);
-	else {
+	n = (struct idrent *)rb_INSERT(&(idr->head), &(idrent->rbnode),
+	    idr->cmp_node);
+	if (n != NULL) {
 		/* this `idrent' needs to rename. */
 		idrent->avail = n;
 		*idr->wait_list.last = idrent;
@@ -5712,9 +5712,8 @@ idr_resolve(struct idr *idr, void (*fsetnum)(unsigned char *p, int num))
 		p = (unsigned char *)n->isoent->identifier + n->noff;
 		do {
 			fsetnum(p, n->avail->rename_num++);
-		} while (rb_FIND(&(idr->head), n->isoent,
-		    idr->cmp_key) != NULL);
-		rb_INSERT(&(idr->head), &(n->rbnode), idr->cmp_node);
+		} while (rb_INSERT(&(idr->head), &(n->rbnode),
+		    idr->cmp_node) != NULL);
 	}
 }
 
