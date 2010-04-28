@@ -7385,14 +7385,14 @@ zisofs_fix_bootfile(struct archive_write *a)
 	isoent = isoent_find_entry(iso9660->primary.rootent,
 	    str.s);
 	if (isoent == NULL) {
-		archive_string_free(&str);
-		archive_string_free(&parentdir);
-		archive_string_free(&basename);
 		archive_set_error(&a->archive,
 		    ARCHIVE_ERRNO_MISC,
 		    "Specified file ``%s'' which disable to "
 		    " be zisofs is not found.",
 		    str.s);
+		archive_string_free(&str);
+		archive_string_free(&parentdir);
+		archive_string_free(&basename);
 		return (ARCHIVE_FATAL);
 	}
 	if (isoent->file->zisofs.keep_original) {
