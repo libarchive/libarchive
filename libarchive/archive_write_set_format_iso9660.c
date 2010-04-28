@@ -190,12 +190,6 @@ static const unsigned char zisofs_magic[8] = {
 	for ((x) = rb_MINMAX(head, RB_NEGINF);				\
 	     (x) != NULL;						\
 	     (x) = rb_NEXT(x))
-#if 0
-#define RB_FOREACH_REVERSE(x, name, head)				\
-	for ((x) = RB_MAX(name, head);					\
-	     (x) != NULL;						\
-	     (x) = name##_RB_PREV(x))
-#endif
 
 struct rb_node {
 	struct rb_node	*rbe_left;	/* left element */
@@ -1137,13 +1131,7 @@ static void rb_REMOVE_COLOR(struct rb_head *, struct rb_node *, struct rb_node *
 static struct rb_node *rb_REMOVE(struct rb_head *, struct rb_node *);
 static struct rb_node *rb_INSERT(struct rb_head *, struct rb_node *, rb_cmp_node);
 static struct rb_node *rb_FIND(struct rb_head *, const void *, rb_cmp_key);
-#if 0
-static struct rb_node *rb_NFIND(struct rb_head *, struct rb_node *, rb_cmp_node);
-#endif
 static struct rb_node *rb_NEXT(struct rb_node *);
-#if 0
-static struct rb_node *rb_PREV(struct rb_node *);
-#endif
 static struct rb_node *rb_MINMAX(struct rb_head *, int);
 
 
@@ -5512,8 +5500,7 @@ same_entry:
 }
 
 /*
- * TODO: The approach finding a child is very slow when having many children
- *	 (about over 100K entries).
+ * Find a entry from `isoent'
  */
 static struct isoent *
 isoent_find_child(struct isoent *isoent, const char *child_name)
@@ -5523,15 +5510,6 @@ isoent_find_child(struct isoent *isoent, const char *child_name)
 	np = (struct isoent *)rb_FIND(&(isoent->rb_head), child_name,
 	    isoent_cmp_key);
 	return (np);
-#if 0
-	for (np = isoent->children.first; np != NULL; np = np->chnext) {
-		if (strcmp(child_name, np->file->basename.s) == 0)
-			return (np);
-	}
-
-	/* Not found. */
-	return (NULL);
-#endif
 }
 
 /*
@@ -8113,30 +8091,6 @@ rb_FIND(struct rb_head *head, const void *key, rb_cmp_key rb_cmp)
 	return (NULL);
 }
 
-#if 0
-
-/* Finds the first node greater than or equal to the search key */
-static struct rb_node *
-rb_NFIND(struct rb_head *head, struct rb_node *elm, rb_cmp_node rb_cmp)
-{
-	struct rb_node *tmp = RB_ROOT(head);
-	struct rb_node *res = NULL;
-	int comp;
-	while (tmp) {
-		comp = rb_cmp(elm, tmp);
-		if (comp < 0) {
-			res = tmp;
-			tmp = RB_LEFT(tmp);
-		}
-		else if (comp > 0)
-			tmp = RB_RIGHT(tmp);
-		else
-			return (tmp);
-	}
-	return (res);
-}
-#endif
-
 /* ARGSUSED */
 static struct rb_node *
 rb_NEXT(struct rb_node *elm)
@@ -8158,30 +8112,6 @@ rb_NEXT(struct rb_node *elm)
 	}
 	return (elm);
 }
-
-#if 0
-/* ARGSUSED */
-static struct rb_node *
-rb_PREV(struct rb_node *elm)
-{
-	if (RB_LEFT(elm)) {
-		elm = RB_LEFT(elm);
-		while (RB_RIGHT(elm))
-			elm = RB_RIGHT(elm);
-	} else {
-		if (RB_PARENT(elm) &&
-		    (elm == RB_RIGHT(RB_PARENT(elm))))
-			elm = RB_PARENT(elm);
-		else {
-			while (RB_PARENT(elm) &&
-			    (elm == RB_LEFT(RB_PARENT(elm))))
-				elm = RB_PARENT(elm);
-			elm = RB_PARENT(elm);
-		}
-	}
-	return (elm);
-}
-#endif
 
 static struct rb_node *
 rb_MINMAX(struct rb_head *head, int val)
