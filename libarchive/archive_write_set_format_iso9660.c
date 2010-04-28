@@ -5464,6 +5464,15 @@ isoent_tree(struct archive_write *a, struct isoent *isoent)
 			dent = np;
 		}
 
+		/* If the current directory is not new,
+		 * Check whether there is the same name entry or not.
+		if (np == NULL) {
+			np = isoent_find_child(curdir,
+			    isoent->file->basename.s);
+			if (np != NULL)
+				goto same_entry;
+		}
+
 		/* Found out the parent directory where isoent can be
 		 * inserted. */
 		iso9660->cur_dirent = dent;
