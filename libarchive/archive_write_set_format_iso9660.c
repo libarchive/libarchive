@@ -5465,7 +5465,7 @@ isoent_tree(struct archive_write *a, struct isoent *isoent)
 		}
 
 		/* If the current directory is not new,
-		 * Check whether there is the same name entry or not.
+		 * Check whether there is the same name entry or not. */
 		if (np == NULL) {
 			np = isoent_find_child(curdir,
 			    isoent->file->basename.s);
