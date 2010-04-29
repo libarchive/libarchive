@@ -28,8 +28,8 @@
  *
  * Based on NetBSD: rb.h,v 1.13 2009/08/16 10:57:01 yamt Exp
  */
-#ifndef _SYS_RB_H_
-#define	_SYS_RB_H_
+#ifndef ARCHIVE_RB_H_
+#define	ARCHIVE_RB_H_
 
 struct archive_rb_node {
 	struct archive_rb_node *rb_nodes[2];
@@ -97,4 +97,4 @@ struct archive_rb_node *
 	__archive_rb_tree_iterate(struct archive_rb_tree *,
 	struct archive_rb_node *, const unsigned int);
 
-#endif	/* _SYS_RB_H_*/
+#endif	/* ARCHIVE_RB_H_*/
