@@ -58,6 +58,7 @@
 #include "archive_endian.h"
 #include "archive_entry.h"
 #include "archive_private.h"
+#include "archive_rb.h"
 #include "archive_write_private.h"
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -119,92 +120,6 @@ static const unsigned char zisofs_magic[8] = {
 #define ZF_HEADER_SIZE	16	/* zisofs header size. */
 #define ZF_LOG2_BS	15	/* log2 block size; 32K bytes. */
 #define ZF_BLOCK_SIZE	(1UL << ZF_LOG2_BS)
-
-#define RB_BLACK	0
-#define RB_RED		1
-
-#define RB_LEFT(elm)			(elm)->rbe_left
-#define RB_RIGHT(elm)			(elm)->rbe_right
-#define RB_PARENT(elm)			(elm)->rbe_parent
-#define RB_COLOR(elm)			(elm)->rbe_color
-#define RB_ROOT(head)			(head)->rbh_root
-#define RB_EMPTY(head)			(RB_ROOT(head) == NULL)
-
-#define RB_SET(elm, parent) do {					\
-	RB_PARENT(elm) = parent;					\
-	RB_LEFT(elm) = RB_RIGHT(elm) = NULL;				\
-	RB_COLOR(elm) = RB_RED;						\
-} while (/*CONSTCOND*/ 0)
-
-#define RB_SET_BLACKRED(black, red) do {				\
-	RB_COLOR(black) = RB_BLACK;					\
-	RB_COLOR(red) = RB_RED;						\
-} while (/*CONSTCOND*/ 0)
-
-#ifndef RB_AUGMENT
-#define RB_AUGMENT(x)	do {} while (0)
-#endif
-
-#define RB_ROTATE_LEFT(head, elm, tmp) do {				\
-	(tmp) = RB_RIGHT(elm);						\
-	if ((RB_RIGHT(elm) = RB_LEFT(tmp)) != NULL) {			\
-		RB_PARENT(RB_LEFT(tmp)) = (elm);			\
-	}								\
-	RB_AUGMENT(elm);						\
-	if ((RB_PARENT(tmp) = RB_PARENT(elm)) != NULL) {		\
-		if ((elm) == RB_LEFT(RB_PARENT(elm)))			\
-			RB_LEFT(RB_PARENT(elm)) = (tmp);		\
-		else							\
-			RB_RIGHT(RB_PARENT(elm)) = (tmp);		\
-	} else								\
-		(head)->rbh_root = (tmp);				\
-	RB_LEFT(tmp) = (elm);						\
-	RB_PARENT(elm) = (tmp);						\
-	RB_AUGMENT(tmp);						\
-	if ((RB_PARENT(tmp)))						\
-		RB_AUGMENT(RB_PARENT(tmp));				\
-} while (/*CONSTCOND*/ 0)
-
-#define RB_ROTATE_RIGHT(head, elm, tmp) do {				\
-	(tmp) = RB_LEFT(elm);						\
-	if ((RB_LEFT(elm) = RB_RIGHT(tmp)) != NULL) {			\
-		RB_PARENT(RB_RIGHT(tmp)) = (elm);			\
-	}								\
-	RB_AUGMENT(elm);						\
-	if ((RB_PARENT(tmp) = RB_PARENT(elm)) != NULL) {		\
-		if ((elm) == RB_LEFT(RB_PARENT(elm)))			\
-			RB_LEFT(RB_PARENT(elm)) = (tmp);		\
-		else							\
-			RB_RIGHT(RB_PARENT(elm)) = (tmp);		\
-	} else								\
-		(head)->rbh_root = (tmp);				\
-	RB_RIGHT(tmp) = (elm);						\
-	RB_PARENT(elm) = (tmp);						\
-	RB_AUGMENT(tmp);						\
-	if ((RB_PARENT(tmp)))						\
-		RB_AUGMENT(RB_PARENT(tmp));				\
-} while (/*CONSTCOND*/ 0)
-
-#define RB_NEGINF	-1
-#define RB_FOREACH(x, head)						\
-	for ((x) = rb_MINMAX(head, RB_NEGINF);				\
-	     (x) != NULL;						\
-	     (x) = rb_NEXT(x))
-
-struct rb_node {
-	struct rb_node	*rbe_left;	/* left element */
-	struct rb_node	*rbe_right;	/* right element */
-	struct rb_node	*rbe_parent;	/* parent element */
-	int		 rbe_color;	/* node color */
-};
-
-struct rb_head {
-	struct rb_node	*rbh_root;	 /* root of the tree */
-};
-
-typedef int (*rb_cmp_node)(const struct rb_node *, const struct rb_node *);
-typedef int (*rb_cmp_key)(const void *, const struct rb_node *);
-
 
 /*
  * Manage extra records.
@@ -298,7 +213,7 @@ struct isofile {
 
 struct isoent {
 	/* Keep `rbnode' at the first member of struct isoent. */
-	struct rb_node		 rbnode;
+	struct archive_rb_node	 rbnode;
 
 	struct isofile		*file;
 
@@ -309,7 +224,7 @@ struct isoent {
 		struct isoent	**last;
 		int		 cnt;
 	}			 children;
-	struct rb_head	 	 rb_head;
+	struct archive_rb_tree	 rbtree;
 
 	/* A list of sub directories.(use drnext) */
 	struct {
@@ -951,7 +866,7 @@ enum vdc {
  */
 struct idr {
 	struct idrent {
-		struct rb_node		rbnode;
+		struct archive_rb_node	rbnode;
 		/* Used in wait_list. */
 		struct idrent		*wnext;
 		struct idrent		*avail;
@@ -962,9 +877,7 @@ struct idr {
 		int			 rename_num;
 	} *idrent_pool;
 
-	struct rb_head			 head;
-	rb_cmp_node			 cmp_node;
-	rb_cmp_key			 cmp_key;
+	struct archive_rb_tree		 rbtree;
 
 	struct {
 		struct idrent		*first;
@@ -1065,8 +978,12 @@ static void	_isoent_free(struct isoent *isoent);
 static void	isoent_free_all(struct isoent *);
 static struct isoent * isoent_create_virtual_dir(struct iso9660 *,
 		    const char *);
-static struct isoent *isoent_add_child_head(struct isoent *, struct isoent *);
-static struct isoent *isoent_add_child_tail(struct isoent *, struct isoent *);
+static int	isoent_cmp_node(const struct archive_rb_node *,
+		    const struct archive_rb_node *);
+static int	isoent_cmp_key(const struct archive_rb_node *,
+		    const void *);
+static int	isoent_add_child_head(struct isoent *, struct isoent *);
+static int	isoent_add_child_tail(struct isoent *, struct isoent *);
 static void	isoent_trim_root_directory(struct iso9660 *);
 static void	isoent_setup_directory_location(struct iso9660 *,
 		    int, struct vdd *);
@@ -1081,7 +998,7 @@ static void	idr_cleanup(struct idr *);
 static int	idr_ensure_poolsize(struct archive_write *, struct idr *,
 		    int);
 static int	idr_start(struct archive_write *, struct idr *,
-		    int, int, int, int, rb_cmp_node, rb_cmp_key);
+		    int, int, int, int, const struct archive_rb_tree_ops *);
 static void	idr_register(struct idr *, struct isoent *, int,
 		    int);
 static void	idr_extend_identifier(struct idrent *, int, int);
@@ -1094,16 +1011,16 @@ static int	isoent_gen_joliet_identifier(struct archive_write *,
 		    struct isoent *, struct idr *);
 static int	isoent_cmp_iso9660_identifier(const struct isoent *,
 		    const struct isoent *);
-static int	isoent_cmp_node_iso9660(const struct rb_node *,
-		    const struct rb_node *);
-static int	isoent_cmp_key_iso9660(const void *,
-		    const struct rb_node *);
+static int	isoent_cmp_node_iso9660(const struct archive_rb_node *,
+		    const struct archive_rb_node *);
+static int	isoent_cmp_key_iso9660(const struct archive_rb_node *,
+		    const void *);
 static int	isoent_cmp_joliet_identifier(const struct isoent *,
 		    const struct isoent *);
-static int	isoent_cmp_node_joliet(const struct rb_node *,
-		    const struct rb_node *);
-static int	isoent_cmp_key_joliet(const void *,
-		    const struct rb_node *);
+static int	isoent_cmp_node_joliet(const struct archive_rb_node *,
+		    const struct archive_rb_node *);
+static int	isoent_cmp_key_joliet(const struct archive_rb_node *,
+		    const void *);
 static inline void path_table_add_entry(struct path_table *, struct isoent *);
 static inline struct isoent * path_table_last_entry(struct path_table *);
 static int	isoent_make_path_table(struct archive_write *);
@@ -1126,17 +1043,6 @@ static int	zisofs_write_to_temp(struct archive_write *,
 static int	zisofs_finish_entry(struct archive_write *);
 static int	zisofs_fix_bootfile(struct archive_write *);
 #endif
-
-static void rb_INSERT_COLOR(struct rb_head *, struct rb_node *);
-static void rb_REMOVE_COLOR(struct rb_head *, struct rb_node *, struct rb_node *);
-static struct rb_node *rb_REMOVE(struct rb_head *, struct rb_node *);
-static struct rb_node *rb_INSERT(struct rb_head *, struct rb_node *, rb_cmp_node);
-static struct rb_node *rb_FIND(struct rb_head *, const void *, rb_cmp_key);
-static struct rb_node *rb_NEXT(struct rb_node *);
-static struct rb_node *rb_MINMAX(struct rb_head *, int);
-
-
-/****************************************************************/
 
 int
 archive_write_set_format_iso9660(struct archive *_a)
@@ -4921,6 +4827,9 @@ static struct isoent *
 isoent_new(struct isofile *file)
 {
 	struct isoent *isoent;
+	static const struct archive_rb_tree_ops rb_ops = {
+		isoent_cmp_node, isoent_cmp_key,
+	};
 
 	isoent = calloc(1, sizeof(*isoent));
 	if (isoent == NULL)
@@ -4928,7 +4837,8 @@ isoent_new(struct isofile *file)
 	isoent->file = file;
 	isoent->children.first = NULL;
 	isoent->children.last = &(isoent->children.first);
-	isoent->rb_head.rbh_root = NULL;
+	isoent->rbtree.rbt_root = NULL;
+	isoent->rbtree.rbt_ops = &rb_ops;
 	isoent->subdirs.first = NULL;
 	isoent->subdirs.last = &(isoent->subdirs.first);
 	isoent->extr_rec_list.first = NULL;
@@ -5025,7 +4935,8 @@ isoent_create_virtual_dir(struct iso9660 *iso9660, const char *pathname)
 }
 
 static int
-isoent_cmp_node(const struct rb_node *n1, const struct rb_node *n2)
+isoent_cmp_node(const struct archive_rb_node *n1,
+    const struct archive_rb_node *n2)
 {
 	struct isoent *e1 = (struct isoent *)n1;
 	struct isoent *e2 = (struct isoent *)n2;
@@ -5034,22 +4945,20 @@ isoent_cmp_node(const struct rb_node *n1, const struct rb_node *n2)
 }
 
 static int
-isoent_cmp_key(const void *key, const struct rb_node *n)
+isoent_cmp_key(const struct archive_rb_node *n, const void *key)
 {
 	struct isoent *e = (struct isoent *)n;
 
-	return (strcmp((const char *)key, e->file->basename.s));
+	return (strcmp(e->file->basename.s, (const char *)key));
 }
 
-static struct isoent *
+static int
 isoent_add_child_head(struct isoent *parent, struct isoent *child)
 {
-	struct isoent *n;
 
-	n = (struct isoent *)rb_INSERT(&(parent->rb_head),
-	    (struct rb_node *)child, isoent_cmp_node);
-	if (n != NULL)
-		return (n);
+	if (!__archive_rb_tree_insert_node(
+	    &(parent->rbtree), (struct archive_rb_node *)child))
+		return (0);
 	if ((child->chnext = parent->children.first) == NULL)
 		parent->children.last = &(child->chnext);
 	parent->children.first = child;
@@ -5065,18 +4974,16 @@ isoent_add_child_head(struct isoent *parent, struct isoent *child)
 		child->parent = parent;
 	} else
 		child->drnext = NULL;
-	return (NULL);
+	return (1);
 }
 
-static struct isoent *
+static int
 isoent_add_child_tail(struct isoent *parent, struct isoent *child)
 {
-	struct isoent *n;
 
-	n = (struct isoent *)rb_INSERT(&(parent->rb_head),
-	    (struct rb_node *)child, isoent_cmp_node);
-	if (n != NULL)
-		return (n);
+	if (!__archive_rb_tree_insert_node(
+	    &(parent->rbtree), (struct archive_rb_node *)child))
+		return (0);
 	child->chnext = NULL;
 	*parent->children.last = child;
 	parent->children.last = &(child->chnext);
@@ -5091,7 +4998,7 @@ isoent_add_child_tail(struct isoent *parent, struct isoent *child)
 		parent->subdirs.cnt++;
 		child->parent = parent;
 	}
-	return (NULL);
+	return (1);
 }
 
 /*
@@ -5373,9 +5280,12 @@ isoent_tree(struct archive_write *a, struct isoent *isoent)
 	if (archive_strlen(&(iso9660->cur_dirstr))
 	      == archive_strlen(&(isoent->file->parentdir)) &&
 	    strcmp(iso9660->cur_dirstr.s, fn) == 0) {
-		np = isoent_add_child_tail(iso9660->cur_dirent, isoent);
-		if (np != NULL)
+		if (!isoent_add_child_tail(iso9660->cur_dirent, isoent)) {
+			np = (struct isoent *)__archive_rb_tree_find_node(
+			    &(iso9660->cur_dirent->rbtree),
+			    isoent->file->basename.s);
 			goto same_entry;
+		}
 		return (isoent);
 	}
 
@@ -5477,9 +5387,11 @@ isoent_tree(struct archive_write *a, struct isoent *isoent)
 			    &(dent->file->basename));
 		}
 
-		np = isoent_add_child_tail(dent, isoent);
-		if (np != NULL)
+		if (!isoent_add_child_tail(dent, isoent)) {
+			np = (struct isoent *)__archive_rb_tree_find_node(
+			    &(dent->rbtree), isoent->file->basename.s);
 			goto same_entry;
+		}
 		return (isoent);
 	}
 
@@ -5521,8 +5433,8 @@ isoent_find_child(struct isoent *isoent, const char *child_name)
 {
 	struct isoent *np;
 
-	np = (struct isoent *)rb_FIND(&(isoent->rb_head), child_name,
-	    isoent_cmp_key);
+	np = (struct isoent *)__archive_rb_tree_find_node(
+	    &(isoent->rbtree), child_name);
 	return (np);
 }
 
@@ -5636,21 +5548,20 @@ idr_ensure_poolsize(struct archive_write *a, struct idr *idr,
 
 static int
 idr_start(struct archive_write *a, struct idr *idr, int cnt, int ffmax,
-    int num_size, int null_size, rb_cmp_node cmp_node, rb_cmp_key cmp_key)
+    int num_size, int null_size, const struct archive_rb_tree_ops *rbt_ops)
 {
 	int r;
 
 	r = idr_ensure_poolsize(a, idr, cnt);
 	if (r != ARCHIVE_OK)
 		return (r);
-	idr->head.rbh_root = NULL;
+	idr->rbtree.rbt_root = NULL;
+	idr->rbtree.rbt_ops = rbt_ops;
 	idr->wait_list.first = NULL;
 	idr->wait_list.last = &(idr->wait_list.first);
 	idr->pool_idx = 0;
 	idr->num_size = num_size;
 	idr->null_size = null_size;
-	idr->cmp_node = cmp_node;
-	idr->cmp_key = cmp_key;
 	return (ARCHIVE_OK);
 }
 
@@ -5666,13 +5577,15 @@ idr_register(struct idr *idr, struct isoent *isoent, int weight, int noff)
 	idrent->noff = noff;
 	idrent->rename_num = 0;
 
-	n = (struct idrent *)rb_INSERT(&(idr->head), &(idrent->rbnode),
-	    idr->cmp_node);
-	if (n != NULL) {
-		/* this `idrent' needs to rename. */
-		idrent->avail = n;
-		*idr->wait_list.last = idrent;
-		idr->wait_list.last = &(idrent->wnext);
+	if (!__archive_rb_tree_insert_node(&(idr->rbtree), &(idrent->rbnode))) {
+		n = (struct idrent *)__archive_rb_tree_find_node(
+		    &(idr->rbtree), idrent->isoent);
+		if (n != NULL) {
+			/* this `idrent' needs to rename. */
+			idrent->avail = n;
+			*idr->wait_list.last = idrent;
+			idr->wait_list.last = &(idrent->wnext);
+		}
 	}
 }
 
@@ -5704,8 +5617,8 @@ idr_resolve(struct idr *idr, void (*fsetnum)(unsigned char *p, int num))
 		p = (unsigned char *)n->isoent->identifier + n->noff;
 		do {
 			fsetnum(p, n->avail->rename_num++);
-		} while (rb_INSERT(&(idr->head), &(n->rbnode),
-		    idr->cmp_node) != NULL);
+		} while (!__archive_rb_tree_insert_node(
+		    &(idr->rbtree), &(n->rbnode)));
 	}
 }
 
@@ -5763,6 +5676,9 @@ isoent_gen_iso9660_identifier(struct archive_write *a, struct isoent *isoent,
 	const char *char_map;
 	char allow_ldots, allow_multidot, allow_period, allow_vernum;
 	int fnmax, ffmax, dnmax;
+	static const struct archive_rb_tree_ops rb_ops = {
+		isoent_cmp_node_iso9660, isoent_cmp_key_iso9660
+	};
 
 	if (isoent->children.cnt == 0)
 		return (0);
@@ -5803,8 +5719,7 @@ isoent_gen_iso9660_identifier(struct archive_write *a, struct isoent *isoent,
 			fnmax = ffmax = dnmax = 207;
 	}
 
-	r = idr_start(a, idr, isoent->children.cnt, ffmax, 3, 1,
-	    isoent_cmp_node_iso9660, isoent_cmp_key_iso9660);
+	r = idr_start(a, idr, isoent->children.cnt, ffmax, 3, 1, &rb_ops);
 	if (r < 0)
 		return (r);
 
@@ -6010,6 +5925,9 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 	size_t l;
 	int r;
 	int ffmax, parent_len;
+	static const struct archive_rb_tree_ops rb_ops = {
+		isoent_cmp_node_joliet, isoent_cmp_key_joliet
+	};
 
 	if (isoent->children.cnt == 0)
 		return (0);
@@ -6020,8 +5938,7 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 	else
 		ffmax = 128;
 
-	r = idr_start(a, idr, isoent->children.cnt, ffmax, 6, 2,
-	    isoent_cmp_node_joliet, isoent_cmp_key_joliet);
+	r = idr_start(a, idr, isoent->children.cnt, ffmax, 6, 2, &rb_ops);
 	if (r < 0)
 		return (r);
 
@@ -6180,7 +6097,8 @@ isoent_cmp_iso9660_identifier(const struct isoent *p1, const struct isoent *p2)
 }
 
 static int
-isoent_cmp_node_iso9660(const struct rb_node *n1,  const struct rb_node *n2)
+isoent_cmp_node_iso9660(const struct archive_rb_node *n1,
+    const struct archive_rb_node *n2)
 {
 	struct idrent *e1 = (struct idrent *)n1;
 	struct idrent *e2 = (struct idrent *)n2;
@@ -6189,12 +6107,12 @@ isoent_cmp_node_iso9660(const struct rb_node *n1,  const struct rb_node *n2)
 }
 
 static int
-isoent_cmp_key_iso9660(const void *key,  const struct rb_node *node)
+isoent_cmp_key_iso9660(const struct archive_rb_node *node, const void *key)
 {
 	struct isoent *isoent = (struct isoent *)key;
 	struct idrent *idrent = (struct idrent *)node;
 
-	return (isoent_cmp_iso9660_identifier(isoent, idrent->isoent));
+	return (isoent_cmp_iso9660_identifier(idrent->isoent, isoent));
 }
 
 static int
@@ -6266,7 +6184,8 @@ isoent_cmp_joliet_identifier(const struct isoent *p1, const struct isoent *p2)
 }
 
 static int
-isoent_cmp_node_joliet(const struct rb_node *n1,  const struct rb_node *n2)
+isoent_cmp_node_joliet(const struct archive_rb_node *n1,
+    const struct archive_rb_node *n2)
 {
 	struct idrent *e1 = (struct idrent *)n1;
 	struct idrent *e2 = (struct idrent *)n2;
@@ -6275,19 +6194,19 @@ isoent_cmp_node_joliet(const struct rb_node *n1,  const struct rb_node *n2)
 }
 
 static int
-isoent_cmp_key_joliet(const void *key,  const struct rb_node *node)
+isoent_cmp_key_joliet(const struct archive_rb_node *node, const void *key)
 {
 	struct isoent *isoent = (struct isoent *)key;
 	struct idrent *idrent = (struct idrent *)node;
 
-	return (isoent_cmp_joliet_identifier(isoent, idrent->isoent));
+	return (isoent_cmp_joliet_identifier(idrent->isoent, isoent));
 }
 
 static int
 isoent_make_sorted_files(struct archive_write *a, struct isoent *isoent,
     struct idr *idr)
 {
-	struct rb_node *rn;
+	struct archive_rb_node *rn;
 	struct isoent **children;
 
 	children = malloc(isoent->children.cnt * sizeof(struct isoent *));
@@ -6298,7 +6217,10 @@ isoent_make_sorted_files(struct archive_write *a, struct isoent *isoent,
 	}
 	isoent->children_sorted = children;
 
-	RB_FOREACH(rn, &(idr->head)) {
+	//ARCHIVE_RB_TREE_FOREACH(rn, &(idr->rbtree)) {
+	for ((rn) = ARCHIVE_RB_TREE_MIN(&(idr->rbtree)); (rn);
+		(rn) = __archive_rb_tree_iterate((&(idr->rbtree)),
+		       (rn), ARCHIVE_RB_DIR_LEFT)) {
 		struct idrent *idrent = (struct idrent *)rn;
 		*children ++ = idrent->isoent;
 	}
@@ -6542,8 +6464,8 @@ isoent_rr_move(struct archive_write *a)
 			rootent->subdirs.last = &(ent->drnext);
 		rootent->subdirs.cnt--;
 
-		rb_REMOVE(&(rootent->rb_head),
-		    (struct rb_node *)rr_moved);
+		__archive_rb_tree_remove_node(&(rootent->rbtree),
+		    (struct archive_rb_node *)rr_moved);
 
 		/* Add "rr_moved" entry into the head of children chain. */
 		isoent_add_child_head(rootent, rr_moved);
@@ -7866,278 +7788,3 @@ zisofs_finish_entry(struct archive_write *a)
 
 #endif /* HAVE_ZLIB_H */
 
-static void
-rb_INSERT_COLOR(struct rb_head *head, struct rb_node *elm)
-{
-	struct rb_node *parent, *gparent, *tmp;
-	while ((parent = RB_PARENT(elm)) != NULL &&
-	    RB_COLOR(parent) == RB_RED) {
-		gparent = RB_PARENT(parent);
-		if (parent == RB_LEFT(gparent)) {
-			tmp = RB_RIGHT(gparent);
-			if (tmp && RB_COLOR(tmp) == RB_RED) {
-				RB_COLOR(tmp) = RB_BLACK;
-				RB_SET_BLACKRED(parent, gparent);
-				elm = gparent;
-				continue;
-			}
-			if (RB_RIGHT(parent) == elm) {
-				RB_ROTATE_LEFT(head, parent, tmp);
-				tmp = parent;
-				parent = elm;
-				elm = tmp;
-			}
-			RB_SET_BLACKRED(parent, gparent);
-			RB_ROTATE_RIGHT(head, gparent, tmp);
-		} else {
-			tmp = RB_LEFT(gparent);
-			if (tmp && RB_COLOR(tmp) == RB_RED) {
-				RB_COLOR(tmp) = RB_BLACK;
-				RB_SET_BLACKRED(parent, gparent);
-				elm = gparent;
-				continue;
-			}
-			if (RB_LEFT(parent) == elm) {
-				RB_ROTATE_RIGHT(head, parent, tmp);
-				tmp = parent;
-				parent = elm;
-				elm = tmp;
-			}
-			RB_SET_BLACKRED(parent, gparent);
-			RB_ROTATE_LEFT(head, gparent, tmp);
-		}
-	}
-	RB_COLOR(head->rbh_root) = RB_BLACK;
-}
-
-static void
-rb_REMOVE_COLOR(struct rb_head *head, struct rb_node *parent,
-    struct rb_node *elm)
-{
-	struct rb_node *tmp;
-	while ((elm == NULL || RB_COLOR(elm) == RB_BLACK) &&
-	    elm != RB_ROOT(head)) {
-		if (RB_LEFT(parent) == elm) {
-			tmp = RB_RIGHT(parent);
-			if (RB_COLOR(tmp) == RB_RED) {
-				RB_SET_BLACKRED(tmp, parent);
-				RB_ROTATE_LEFT(head, parent, tmp);
-				tmp = RB_RIGHT(parent);
-			}
-			if ((RB_LEFT(tmp) == NULL ||
-			    RB_COLOR(RB_LEFT(tmp)) == RB_BLACK) &&
-			    (RB_RIGHT(tmp) == NULL ||
-			    RB_COLOR(RB_RIGHT(tmp)) == RB_BLACK)) {
-				RB_COLOR(tmp) = RB_RED;
-				elm = parent;
-				parent = RB_PARENT(elm);
-			} else {
-				if (RB_RIGHT(tmp) == NULL ||
-				    RB_COLOR(RB_RIGHT(tmp)) == RB_BLACK) {
-					struct rb_node *oleft;
-					if ((oleft = RB_LEFT(tmp))
-					    != NULL)
-						RB_COLOR(oleft) = RB_BLACK;
-					RB_COLOR(tmp) = RB_RED;
-					RB_ROTATE_RIGHT(head, tmp, oleft);
-					tmp = RB_RIGHT(parent);
-				}
-				RB_COLOR(tmp) = RB_COLOR(parent);
-				RB_COLOR(parent) = RB_BLACK;
-				if (RB_RIGHT(tmp))
-					RB_COLOR(RB_RIGHT(tmp)) = RB_BLACK;
-				RB_ROTATE_LEFT(head, parent, tmp);
-				elm = RB_ROOT(head);
-				break;
-			}
-		} else {
-			tmp = RB_LEFT(parent);
-			if (RB_COLOR(tmp) == RB_RED) {
-				RB_SET_BLACKRED(tmp, parent);
-				RB_ROTATE_RIGHT(head, parent, tmp);
-				tmp = RB_LEFT(parent);
-			}
-			if ((RB_LEFT(tmp) == NULL ||
-			    RB_COLOR(RB_LEFT(tmp)) == RB_BLACK) &&
-			    (RB_RIGHT(tmp) == NULL ||
-			    RB_COLOR(RB_RIGHT(tmp)) == RB_BLACK)) {
-				RB_COLOR(tmp) = RB_RED;
-				elm = parent;
-				parent = RB_PARENT(elm);
-			} else {
-				if (RB_LEFT(tmp) == NULL ||
-				    RB_COLOR(RB_LEFT(tmp)) == RB_BLACK) {
-					struct rb_node *oright;
-					if ((oright = RB_RIGHT(tmp))
-					    != NULL)
-						RB_COLOR(oright) = RB_BLACK;
-					RB_COLOR(tmp) = RB_RED;
-					RB_ROTATE_LEFT(head, tmp, oright);
-					tmp = RB_LEFT(parent);
-				}
-				RB_COLOR(tmp) = RB_COLOR(parent);
-				RB_COLOR(parent) = RB_BLACK;
-				if (RB_LEFT(tmp))
-					RB_COLOR(RB_LEFT(tmp)) = RB_BLACK;
-				RB_ROTATE_RIGHT(head, parent, tmp);
-				elm = RB_ROOT(head);
-				break;
-			}
-		}
-	}
-	if (elm)
-		RB_COLOR(elm) = RB_BLACK;
-}
-
-static struct rb_node *
-rb_REMOVE(struct rb_head *head, struct rb_node *elm)
-{
-	struct rb_node *child, *parent, *old = elm;
-	int color;
-	if (RB_LEFT(elm) == NULL)
-		child = RB_RIGHT(elm);
-	else if (RB_RIGHT(elm) == NULL)
-		child = RB_LEFT(elm);
-	else {
-		struct rb_node *left;
-		elm = RB_RIGHT(elm);
-		while ((left = RB_LEFT(elm)) != NULL)
-			elm = left;
-		child = RB_RIGHT(elm);
-		parent = RB_PARENT(elm);
-		color = RB_COLOR(elm);
-		if (child)
-			RB_PARENT(child) = parent;
-		if (parent) {
-			if (RB_LEFT(parent) == elm)
-				RB_LEFT(parent) = child;
-			else
-				RB_RIGHT(parent) = child;
-			RB_AUGMENT(parent);
-		} else
-			RB_ROOT(head) = child;
-		if (RB_PARENT(elm) == old)
-			parent = elm;
-		*(elm) = *(old);
-		if (RB_PARENT(old)) {
-			if (RB_LEFT(RB_PARENT(old)) == old)
-				RB_LEFT(RB_PARENT(old)) = elm;
-			else
-				RB_RIGHT(RB_PARENT(old)) = elm;
-			RB_AUGMENT(RB_PARENT(old));
-		} else
-			RB_ROOT(head) = elm;
-		RB_PARENT(RB_LEFT(old)) = elm;
-		if (RB_RIGHT(old))
-			RB_PARENT(RB_RIGHT(old)) = elm;
-		if (parent) {
-			left = parent;
-			do {
-				RB_AUGMENT(left);
-			} while ((left = RB_PARENT(left)) != NULL);
-		}
-		goto color;
-	}
-	parent = RB_PARENT(elm);
-	color = RB_COLOR(elm);
-	if (child)
-		RB_PARENT(child) = parent;
-	if (parent) {
-		if (RB_LEFT(parent) == elm)
-			RB_LEFT(parent) = child;
-		else
-			RB_RIGHT(parent) = child;
-		RB_AUGMENT(parent);
-	} else
-		RB_ROOT(head) = child;
-color:
-	if (color == RB_BLACK)
-		rb_REMOVE_COLOR(head, parent, child);
-	return (old);
-}
-
-/* Inserts a node into the RB tree */
-static struct rb_node *
-rb_INSERT(struct rb_head *head, struct rb_node *elm, rb_cmp_node rb_cmp)
-{
-	struct rb_node *tmp;
-	struct rb_node *parent = NULL;
-	int comp = 0;
-	tmp = RB_ROOT(head);
-	while (tmp) {
-		parent = tmp;
-		comp = rb_cmp(elm, parent);
-		if (comp < 0)
-			tmp = RB_LEFT(tmp);
-		else if (comp > 0)
-			tmp = RB_RIGHT(tmp);
-		else
-			return (tmp);
-	}
-	RB_SET(elm, parent);
-	if (parent != NULL) {
-		if (comp < 0)
-			RB_LEFT(parent) = elm;
-		else
-			RB_RIGHT(parent) = elm;
-		RB_AUGMENT(parent);
-	} else
-		RB_ROOT(head) = elm;
-	rb_INSERT_COLOR(head, elm);
-	return (NULL);
-}
-
-/* Finds the node with the same key as id */
-static struct rb_node *
-rb_FIND(struct rb_head *head, const void *key, rb_cmp_key rb_cmp)
-{
-	struct rb_node *tmp = RB_ROOT(head);
-	int comp;
-	while (tmp) {
-		comp = rb_cmp(key, tmp);
-		if (comp < 0)
-			tmp = RB_LEFT(tmp);
-		else if (comp > 0)
-			tmp = RB_RIGHT(tmp);
-		else
-			return (tmp);
-	}
-	return (NULL);
-}
-
-/* ARGSUSED */
-static struct rb_node *
-rb_NEXT(struct rb_node *elm)
-{
-	if (RB_RIGHT(elm)) {
-		elm = RB_RIGHT(elm);
-		while (RB_LEFT(elm))
-			elm = RB_LEFT(elm);
-	} else {
-		if (RB_PARENT(elm) &&
-		    (elm == RB_LEFT(RB_PARENT(elm))))
-			elm = RB_PARENT(elm);
-		else {
-			while (RB_PARENT(elm) &&
-			    (elm == RB_RIGHT(RB_PARENT(elm))))
-				elm = RB_PARENT(elm);
-			elm = RB_PARENT(elm);
-		}
-	}
-	return (elm);
-}
-
-static struct rb_node *
-rb_MINMAX(struct rb_head *head, int val)
-{
-	struct rb_node *tmp = RB_ROOT(head);
-	struct rb_node *parent = NULL;
-	while (tmp) {
-		parent = tmp;
-		if (val < 0)
-			tmp = RB_LEFT(tmp);
-		else
-			tmp = RB_RIGHT(tmp);
-	}
-	return (parent);
-}
