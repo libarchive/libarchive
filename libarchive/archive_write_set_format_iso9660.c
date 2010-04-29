@@ -984,6 +984,7 @@ static int	isoent_cmp_key(const struct archive_rb_node *,
 		    const void *);
 static int	isoent_add_child_head(struct isoent *, struct isoent *);
 static int	isoent_add_child_tail(struct isoent *, struct isoent *);
+static void	isoent_remove_child(struct isoent *, struct isoent *);
 static void	isoent_trim_root_directory(struct iso9660 *);
 static void	isoent_setup_directory_location(struct iso9660 *,
 		    int, struct vdd *);
@@ -5001,6 +5002,33 @@ isoent_add_child_tail(struct isoent *parent, struct isoent *child)
 	return (1);
 }
 
+static void
+isoent_remove_child(struct isoent *parent, struct isoent *child)
+{
+	struct isoent *ent;
+
+	/* Remove a child entry from children chain. */
+	ent = parent->children.first;
+	while (ent->chnext != child)
+		ent = ent->chnext;
+	if ((ent->chnext = ent->chnext->chnext) == NULL)
+		parent->children.last = &(ent->chnext);
+	parent->children.cnt--;
+
+	if (child->dir) {
+		/* Remove a child entry from sub-directory chain. */
+		ent = parent->subdirs.first;
+		while (ent->drnext != child)
+			ent = ent->drnext;
+		if ((ent->drnext = ent->drnext->drnext) == NULL)
+			parent->subdirs.last = &(ent->drnext);
+		parent->subdirs.cnt--;
+	}
+
+	__archive_rb_tree_remove_node(&(parent->rbtree),
+	    (struct archive_rb_node *)child);
+}
+
 /*
  * Trim extra directories.
  * If the root directory is a virtual directory and has one sub-directory
@@ -6447,25 +6475,8 @@ isoent_rr_move(struct archive_write *a)
 		 * It's necessary that rr_move is the first entry
 		 * of the root.
 		 */
-		struct isoent *ent = rootent->children.first;
-
 		/* Remove "rr_moved" entry from children chain. */
-		while (ent->chnext != rr_moved)
-			ent = ent->chnext;
-		if ((ent->chnext = ent->chnext->chnext) == NULL)
-			rootent->children.last = &(ent->chnext);
-		rootent->children.cnt--;
-
-		/* Remove "rr_moved" entry from sub-directory chain. */
-		ent = rootent->subdirs.first;
-		while (ent->drnext != rr_moved)
-			ent = ent->drnext;
-		if ((ent->drnext = ent->drnext->drnext) == NULL)
-			rootent->subdirs.last = &(ent->drnext);
-		rootent->subdirs.cnt--;
-
-		__archive_rb_tree_remove_node(&(rootent->rbtree),
-		    (struct archive_rb_node *)rr_moved);
+		isoent_remove_child(rootent, rr_moved);
 
 		/* Add "rr_moved" entry into the head of children chain. */
 		isoent_add_child_head(rootent, rr_moved);
