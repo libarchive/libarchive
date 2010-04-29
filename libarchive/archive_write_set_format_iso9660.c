@@ -4838,8 +4838,7 @@ isoent_new(struct isofile *file)
 	isoent->file = file;
 	isoent->children.first = NULL;
 	isoent->children.last = &(isoent->children.first);
-	isoent->rbtree.rbt_root = NULL;
-	isoent->rbtree.rbt_ops = &rb_ops;
+	__archive_rb_tree_init(&(isoent->rbtree), &rb_ops);
 	isoent->subdirs.first = NULL;
 	isoent->subdirs.last = &(isoent->subdirs.first);
 	isoent->extr_rec_list.first = NULL;
@@ -5583,8 +5582,7 @@ idr_start(struct archive_write *a, struct idr *idr, int cnt, int ffmax,
 	r = idr_ensure_poolsize(a, idr, cnt);
 	if (r != ARCHIVE_OK)
 		return (r);
-	idr->rbtree.rbt_root = NULL;
-	idr->rbtree.rbt_ops = rbt_ops;
+	__archive_rb_tree_init(&(idr->rbtree), rbt_ops);
 	idr->wait_list.first = NULL;
 	idr->wait_list.last = &(idr->wait_list.first);
 	idr->pool_idx = 0;
