@@ -134,6 +134,38 @@ DEFINE_TEST(test_write_format_iso9660)
 		archive_entry_free(ae);
 	}
 
+	/*
+	 * "dir0/dir1/file1" has 8 bytes of data.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_atime(ae, 2, 20);
+	archive_entry_set_birthtime(ae, 3, 30);
+	archive_entry_set_ctime(ae, 4, 40);
+	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_copy_pathname(ae, "dir0/dir1/file1");
+	archive_entry_set_mode(ae, AE_IFREG | 0755);
+	archive_entry_set_size(ae, 8);
+	archive_entry_set_nlink(ae, 1);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualIntA(a, 8, archive_write_data(a, "12345678", 9));
+
+	/*
+	 * "dir0/dir1/file2" has 8 bytes of data.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_atime(ae, 2, 20);
+	archive_entry_set_birthtime(ae, 3, 30);
+	archive_entry_set_ctime(ae, 4, 40);
+	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_copy_pathname(ae, "dir0/dir1/file2");
+	archive_entry_set_mode(ae, AE_IFREG | 0755);
+	archive_entry_set_size(ae, 8);
+	archive_entry_set_nlink(ae, 1);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualIntA(a, 8, archive_write_data(a, "12345678", 9));
+
 	/* Close out the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
@@ -339,6 +371,36 @@ DEFINE_TEST(test_write_format_iso9660)
 	assertEqualMem(buff2, "12345678", 8);
 
 	/*
+	 * Read "dir0/dir1/file1"
+	 */
+	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
+	assertEqualInt(2, archive_entry_atime(ae));
+	assertEqualInt(3, archive_entry_birthtime(ae));
+	assertEqualInt(4, archive_entry_ctime(ae));
+	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualString("dir0/dir1/file1", archive_entry_pathname(ae));
+	assert((AE_IFREG | 0555) == archive_entry_mode(ae));
+	assertEqualInt(1, archive_entry_nlink(ae));
+	assertEqualInt(8, archive_entry_size(ae));
+	assertEqualIntA(a, 8, archive_read_data(a, buff2, 10));
+	assertEqualMem(buff2, "12345678", 8);
+
+	/*
+	 * Read "dir0/dir1/file2"
+	 */
+	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
+	assertEqualInt(2, archive_entry_atime(ae));
+	assertEqualInt(3, archive_entry_birthtime(ae));
+	assertEqualInt(4, archive_entry_ctime(ae));
+	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualString("dir0/dir1/file2", archive_entry_pathname(ae));
+	assert((AE_IFREG | 0555) == archive_entry_mode(ae));
+	assertEqualInt(1, archive_entry_nlink(ae));
+	assertEqualInt(8, archive_entry_size(ae));
+	assertEqualIntA(a, 8, archive_read_data(a, buff2, 10));
+	assertEqualMem(buff2, "12345678", 8);
+
+	/*
 	 * Read "symlnk"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
@@ -503,20 +565,6 @@ DEFINE_TEST(test_write_format_iso9660)
 	assertEqualInt(2048, archive_entry_size(ae));
 
 	/*
-	 * Read "hardlnk"
-	 */
-	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
-	assertEqualString("hardlnk", archive_entry_pathname(ae));
-	assert((AE_IFREG | 0400) == archive_entry_mode(ae));
-	assertEqualInt(2, archive_entry_nlink(ae));
-	assertEqualInt(8, archive_entry_size(ae));
-	assertEqualIntA(a, 8, archive_read_data(a, buff2, 10));
-	assertEqualMem(buff2, "12345678", 8);
-
-	/*
 	 * Read "file"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
@@ -524,7 +572,21 @@ DEFINE_TEST(test_write_format_iso9660)
 	assertEqualInt(5, archive_entry_ctime(ae));
 	assertEqualInt(5, archive_entry_mtime(ae));
 	assertEqualString("file", archive_entry_pathname(ae));
-	assertEqualString("hardlnk", archive_entry_hardlink(ae));
+	assert((AE_IFREG | 0400) == archive_entry_mode(ae));
+	assertEqualInt(2, archive_entry_nlink(ae));
+	assertEqualInt(8, archive_entry_size(ae));
+	assertEqualIntA(a, 8, archive_read_data(a, buff2, 10));
+	assertEqualMem(buff2, "12345678", 8);
+
+	/*
+	 * Read "hardlnk"
+	 */
+	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
+	assertEqualInt(5, archive_entry_atime(ae));
+	assertEqualInt(5, archive_entry_ctime(ae));
+	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualString("hardlnk", archive_entry_pathname(ae));
+	assertEqualString("file", archive_entry_hardlink(ae));
 	assert((AE_IFREG | 0400) == archive_entry_mode(ae));
 	assertEqualInt(0, archive_entry_size(ae));
 	assertEqualIntA(a, 0, archive_read_data(a, buff2, 10));
@@ -543,6 +605,34 @@ DEFINE_TEST(test_write_format_iso9660)
 	longname[64] = '\0';
 	assertEqualString(longname, archive_entry_pathname(ae));
 	assert((AE_IFREG | 0400) == archive_entry_mode(ae));
+	assertEqualInt(8, archive_entry_size(ae));
+	assertEqualIntA(a, 8, archive_read_data(a, buff2, 10));
+	assertEqualMem(buff2, "12345678", 8);
+
+	/*
+	 * Read "dir0/dir1/file1"
+	 */
+	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
+	assertEqualInt(5, archive_entry_atime(ae));
+	assertEqualInt(5, archive_entry_ctime(ae));
+	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualString("dir0/dir1/file1", archive_entry_pathname(ae));
+	assert((AE_IFREG | 0400) == archive_entry_mode(ae));
+	assertEqualInt(1, archive_entry_nlink(ae));
+	assertEqualInt(8, archive_entry_size(ae));
+	assertEqualIntA(a, 8, archive_read_data(a, buff2, 10));
+	assertEqualMem(buff2, "12345678", 8);
+
+	/*
+	 * Read "dir0/dir1/file2"
+	 */
+	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
+	assertEqualInt(5, archive_entry_atime(ae));
+	assertEqualInt(5, archive_entry_ctime(ae));
+	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualString("dir0/dir1/file2", archive_entry_pathname(ae));
+	assert((AE_IFREG | 0400) == archive_entry_mode(ae));
+	assertEqualInt(1, archive_entry_nlink(ae));
 	assertEqualInt(8, archive_entry_size(ae));
 	assertEqualIntA(a, 8, archive_read_data(a, buff2, 10));
 	assertEqualMem(buff2, "12345678", 8);
@@ -759,6 +849,34 @@ DEFINE_TEST(test_write_format_iso9660)
 	assertEqualInt(5, archive_entry_mtime(ae));
 	assertEqualString("LONGNAME", archive_entry_pathname(ae));
 	assert((AE_IFREG | 0400) == archive_entry_mode(ae));
+	assertEqualInt(8, archive_entry_size(ae));
+	assertEqualIntA(a, 8, archive_read_data(a, buff2, 10));
+	assertEqualMem(buff2, "12345678", 8);
+
+	/*
+	 * Read "dir0/dir1/file1"
+	 */
+	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
+	assertEqualInt(5, archive_entry_atime(ae));
+	assertEqualInt(5, archive_entry_ctime(ae));
+	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualString("DIR0/DIR1/FILE1", archive_entry_pathname(ae));
+	assert((AE_IFREG | 0400) == archive_entry_mode(ae));
+	assertEqualInt(1, archive_entry_nlink(ae));
+	assertEqualInt(8, archive_entry_size(ae));
+	assertEqualIntA(a, 8, archive_read_data(a, buff2, 10));
+	assertEqualMem(buff2, "12345678", 8);
+
+	/*
+	 * Read "dir0/dir1/file2"
+	 */
+	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
+	assertEqualInt(5, archive_entry_atime(ae));
+	assertEqualInt(5, archive_entry_ctime(ae));
+	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualString("DIR0/DIR1/FILE2", archive_entry_pathname(ae));
+	assert((AE_IFREG | 0400) == archive_entry_mode(ae));
+	assertEqualInt(1, archive_entry_nlink(ae));
 	assertEqualInt(8, archive_entry_size(ae));
 	assertEqualIntA(a, 8, archive_read_data(a, buff2, 10));
 	assertEqualMem(buff2, "12345678", 8);
