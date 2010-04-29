@@ -29,6 +29,8 @@
  * Based on: NetBSD: rb.c,v 1.4 2009/05/19 22:48:19 yamt Exp
  */
 
+#include "archive_platform.h"
+
 #include <stddef.h>
 
 #include "archive_rb.h"

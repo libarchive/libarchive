@@ -31,8 +31,6 @@
 #ifndef _SYS_RB_H_
 #define	_SYS_RB_H_
 
-#include <inttypes.h>
-
 struct archive_rb_node {
 	struct archive_rb_node *rb_nodes[2];
 	/*
