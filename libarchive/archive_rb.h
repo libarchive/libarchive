@@ -92,7 +92,7 @@ struct archive_rb_node	*
 	__archive_rb_tree_find_node_geq(struct archive_rb_tree *, const void *);
 struct archive_rb_node	*
 	__archive_rb_tree_find_node_leq(struct archive_rb_tree *, const void *);
-void	rb_tree_remove_node(struct archive_rb_tree *, struct archive_rb_node *);
+void	__archive_rb_tree_remove_node(struct archive_rb_tree *, struct archive_rb_node *);
 struct archive_rb_node *
 	__archive_rb_tree_iterate(struct archive_rb_tree *,
 	struct archive_rb_node *, const unsigned int);
