@@ -26,7 +26,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * Based on: NetBSD: rb.c,v 1.4 2009/05/19 22:48:19 yamt Exp
+ * Based on: NetBSD: rb.c,v 1.6 2010/04/30 13:58:09 joerg Exp
  */
 
 #include "archive_platform.h"
@@ -675,8 +675,8 @@ __archive_rb_tree_iterate(struct archive_rb_tree *rbt,
 		self = rbt->rbt_root;
 		if (RB_SENTINEL_P(self))
 			return NULL;
-		while (!RB_SENTINEL_P(self->rb_nodes[other]))
-			self = self->rb_nodes[other];
+		while (!RB_SENTINEL_P(self->rb_nodes[direction]))
+			self = self->rb_nodes[direction];
 		return self;
 	}
 	/*
