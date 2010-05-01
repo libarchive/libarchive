@@ -199,6 +199,27 @@ the default is
 .Pa /dev/sa0 ;
 on Linux, the default is
 .Pa /dev/st0 .
+.It Fl Fl gid Ar id
+Use the provided group id number.
+On extract, this overrides the group id in the archive;
+the group name in the archive will be ignored.
+On create, this overrides the group id read from disk;
+if
+.Fl Fl gname
+is not also specified, the group name will be set to
+match the group id.
+.It Fl Fl gname Ar name
+Use the provided group name.
+On extract, this overrides the group name in the archive;
+if the provided group name does not exist on the system,
+the group id
+(from the archive or from the
+.Fl Fl gid
+option)
+will be used instead.
+On create, this sets the group name that will be stored
+in the archive;
+the name will not be verified against the system group database.
 .It Fl H
 (c and r mode only)
 Symbolic links named on the command line will be followed; the
@@ -331,9 +352,15 @@ and the default behavior if
 .Nm
 is run as non-root.
 .It Fl Fl numeric-owner
-(x mode only)
-Ignore symbolic user and group names when restoring archives to disk,
-only numeric uid and gid values will be obeyed.
+This is equivalent to
+.Fl Fl uname
+.Qq
+.Fl Fl gname
+.Qq .
+On extract, it causes user and group names in the archive
+to be ignored in favor of the numeric user and group ids.
+On create, it causes user and group names to not be stored
+in the archive.
 .It Fl O , Fl Fl to-stdout
 (x, t modes only)
 In extract (-x) mode, files will be written to standard out rather than
@@ -543,6 +570,25 @@ This flag also causes
 to remove intervening directory symlinks instead of
 reporting an error.
 See the SECURITY section below for more details.
+.It Fl Fl uid Ar id
+Use the provided user id number and ignore the user
+name from the archive.
+On create, if
+.Fl Fl uname
+is not also specified, the user name will be set to
+match the user id.
+.It Fl Fl uname Ar name
+Use the provided user name.
+On extract, this overrides the user name in the archive;
+if the provided user name does not exist on the system,
+it will be ignored and the user id
+(from the archive or from the
+.Fl Fl uid
+option)
+will be used instead.
+On create, this sets the user name that will be stored
+in the archive;
+the name is not verified against the system user database.
 .It Fl Fl use-compress-program Ar program
 Pipe the input (in x or t mode) or the output (in c mode) through
 .Pa program
