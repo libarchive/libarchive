@@ -605,6 +605,7 @@ bsdcpio_test_SOURCES=						\
 	cpio/test/test_cmdline.c				\
 	cpio/test/test_format_newc.c				\
 	cpio/test/test_gcpio_compat.c				\
+	cpio/test/test_option_0.c				\
 	cpio/test/test_option_B_upper.c				\
 	cpio/test/test_option_C_upper.c				\
 	cpio/test/test_option_J_upper.c				\
