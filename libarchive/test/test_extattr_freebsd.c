@@ -104,6 +104,7 @@ DEFINE_TEST(test_extattr_freebsd)
 	archive_entry_set_mode(ae, 0755);
 	archive_entry_xattr_add_entry(ae, "user.foo", "12345", 5);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_finish_entry(a));
 	archive_entry_free(ae);
 
 	/* Another entry; similar but with mode = 0. */
