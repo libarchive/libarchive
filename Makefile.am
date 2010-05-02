@@ -497,12 +497,14 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_option_X_upper.c				\
 	tar/test/test_option_b.c				\
 	tar/test/test_option_exclude.c				\
+	tar/test/test_option_gid_gname.c			\
 	tar/test/test_option_k.c				\
 	tar/test/test_option_keep_newer_files.c			\
 	tar/test/test_option_n.c				\
 	tar/test/test_option_q.c				\
 	tar/test/test_option_r.c				\
 	tar/test/test_option_s.c				\
+	tar/test/test_option_uid_uname.c			\
 	tar/test/test_patterns.c				\
 	tar/test/test_stdio.c					\
 	tar/test/test_strip_components.c			\

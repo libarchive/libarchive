@@ -836,7 +836,7 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		if (bsdtar->uid >= 0) {
 			archive_entry_set_uid(entry, bsdtar->uid);
 			if (!bsdtar->uname)
-				archive_entry_set_gname(entry,
+				archive_entry_set_uname(entry,
 				    archive_read_disk_uname(bsdtar->diskreader,
 					bsdtar->uid));
 		}
@@ -850,7 +850,7 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		if (bsdtar->uname)
 			archive_entry_set_uname(entry, bsdtar->uname);
 		if (bsdtar->gname)
-			archive_entry_set_uname(entry, bsdtar->gname);
+			archive_entry_set_gname(entry, bsdtar->gname);
 		if (r != ARCHIVE_OK)
 			lafe_warnc(archive_errno(bsdtar->diskreader),
 			    "%s", archive_error_string(bsdtar->diskreader));

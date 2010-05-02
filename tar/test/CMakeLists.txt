@@ -23,12 +23,14 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_option_X_upper.c
     test_option_b.c
     test_option_exclude.c
+    test_option_gid_gname.c
     test_option_k.c
     test_option_keep_newer_files.c
     test_option_n.c
     test_option_q.c
     test_option_r.c
     test_option_s.c
+    test_option_uid_uname.c
     test_patterns.c
     test_stdio.c
     test_strip_components.c
