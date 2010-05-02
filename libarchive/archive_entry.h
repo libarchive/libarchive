@@ -408,21 +408,6 @@ __LA_DECL const wchar_t	*archive_entry_acl_text_w(struct archive_entry *,
 /* Return a count of entries matching 'want_type' */
 __LA_DECL int	 archive_entry_acl_count(struct archive_entry *, int /* want_type */);
 
-/*
- * Private ACL parser.  This is private because it handles some
- * very weird formats that clients should not be messing with.
- * Clients should only deal with their platform-native formats.
- * Because of the need to support many formats cleanly, new arguments
- * are likely to get added on a regular basis.  Clients who try to use
- * this interface are likely to be surprised when it changes.
- *
- * You were warned!
- *
- * TODO: Move this declaration out of the public header and into
- * a private header.  Warnings above are silly.
- */
-__LA_DECL int		 __archive_entry_acl_parse_w(struct archive_entry *,
-		    const wchar_t *, int /* type */);
 
 /*
  * extended attributes

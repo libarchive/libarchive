@@ -69,6 +69,7 @@ static size_t wcslen(const wchar_t *s)
 
 #include "archive.h"
 #include "archive_entry.h"
+#include "archive_entry_private.h" /* For ACL parsing routines. */
 #include "archive_private.h"
 #include "archive_read_private.h"
 
