@@ -6243,10 +6243,7 @@ isoent_make_sorted_files(struct archive_write *a, struct isoent *isoent,
 	}
 	isoent->children_sorted = children;
 
-	//ARCHIVE_RB_TREE_FOREACH(rn, &(idr->rbtree)) {
-	for ((rn) = ARCHIVE_RB_TREE_MIN(&(idr->rbtree)); (rn);
-		(rn) = __archive_rb_tree_iterate((&(idr->rbtree)),
-		       (rn), ARCHIVE_RB_DIR_LEFT)) {
+	ARCHIVE_RB_TREE_FOREACH(rn, &(idr->rbtree)) {
 		struct idrent *idrent = (struct idrent *)rn;
 		*children ++ = idrent->isoent;
 	}
