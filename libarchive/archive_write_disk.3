@@ -229,6 +229,9 @@ is called automatically by
 and
 .Fn archive_write_close
 as needed.
+However, some file attributes are written to disk only
+after the file is closed, so this can be necessary
+if you need to work with the file on disk right away.
 .It Fn archive_write_close
 Set any attributes that could not be set during the initial restore.
 For example, directory timestamps are not restored initially because
