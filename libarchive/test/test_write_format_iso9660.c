@@ -166,6 +166,21 @@ DEFINE_TEST(test_write_format_iso9660)
 	archive_entry_free(ae);
 	assertEqualIntA(a, 8, archive_write_data(a, "12345678", 9));
 
+	/*
+	 * Add a wrong path "dir0/dir1/file2/wrong"
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_atime(ae, 2, 20);
+	archive_entry_set_birthtime(ae, 3, 30);
+	archive_entry_set_ctime(ae, 4, 40);
+	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_copy_pathname(ae, "dir0/dir1/file2/wrong");
+	archive_entry_set_mode(ae, AE_IFREG | 0755);
+	archive_entry_set_size(ae, 8);
+	archive_entry_set_nlink(ae, 1);
+	assertEqualIntA(a, ARCHIVE_FAILED, archive_write_header(a, ae));
+	archive_entry_free(ae);
+
 	/* Close out the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
