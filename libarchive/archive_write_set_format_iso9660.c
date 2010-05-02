@@ -624,6 +624,10 @@ struct iso_option {
 	 *        : rockridge=useful [DEFAULT]
 	 *        :    generate SUSP and RR records.
 	 *        :    [COMPAT: mkisofs -r]
+	 *        :    NOTE  Our rockridge=useful option does not set a zero
+	 *        :          to uid and gid, you should use application
+	 *        :          option such as --gid,--gname,--uid and --uname
+	 *        :          badtar options instead.
 	 * Type   : boolean/string
 	 * Default: Enabled as rockridge=useful
 	 * COMPAT : mkisofs -r / -R
@@ -635,17 +639,6 @@ struct iso_option {
 #define OPT_RR_STRICT			1
 #define OPT_RR_USEFUL			2
 #define OPT_RR_DEFAULT			OPT_RR_USEFUL
-
-	/*
-	 * Usage  : uid=<value>
-	 * Type   : decimal
-	 * Default: Not specified
-	 * COMPAT : mkisofs -uid <value>
-	 *
-	 * Specifies a user id to rewrite the user id of all files.
-	 */
-	unsigned int	 uid:1;
-#define OPT_UID_DEFAULT			0	/* Not specified */
 
 	/*
 	 * Usage  : volume-id=<value>
@@ -754,8 +747,6 @@ struct iso9660 {
 	struct archive_string	 bibliographic_file_identifier;
 
 	/* Used for making rockridge extensions. */
-	int			 uid;
-	int			 gid;
 	int			 location_rrip_er;
 
 	/* Used for making zisofs. */
@@ -1137,7 +1128,6 @@ archive_write_set_format_iso9660(struct archive *_a)
 	iso9660->opt.boot_type = OPT_BOOT_TYPE_DEFAULT;
 	iso9660->opt.compression_level = OPT_COMPRESSION_LEVEL_DEFAULT;
 	iso9660->opt.copyright_file = OPT_COPYRIGHT_FILE_DEFAULT;
-	iso9660->opt.gid = OPT_GID_DEFAULT;
 	iso9660->opt.iso_level = OPT_ISO_LEVEL_DEFAULT;
 	iso9660->opt.joliet = OPT_JOLIET_DEFAULT;
 	iso9660->opt.limit_depth = OPT_LIMIT_DEPTH_DEFAULT;
@@ -1145,7 +1135,6 @@ archive_write_set_format_iso9660(struct archive *_a)
 	iso9660->opt.pad = OPT_PAD_DEFAULT;
 	iso9660->opt.publisher = OPT_PUBLISHER_DEFAULT;
 	iso9660->opt.rr = OPT_RR_DEFAULT;
-	iso9660->opt.uid = OPT_UID_DEFAULT;
 	iso9660->opt.volume_id = OPT_VOLUME_ID_DEFAULT;
 	iso9660->opt.zisofs = OPT_ZISOFS_DEFAULT;
 
@@ -1406,16 +1395,6 @@ iso9660_options(struct archive_write *a, const char *key, const char *value)
 		}
 #endif
 		break;
-	case 'g':
-		if (strcmp(key, "gid") == 0) {
-			r = get_num_opt(a, &num, INT_MAX, 0, key, value);
-			if (r != ARCHIVE_OK)
-				return (ARCHIVE_FATAL);
-			iso9660->gid = num;
-			iso9660->opt.gid = 1;
-			return (ARCHIVE_OK);
-		}
-		break;
 	case 'i':
 		if (strcmp(key, "iso-level") == 0) {
 			if (value != NULL && value[1] == '\0' &&
@@ -1475,16 +1454,6 @@ iso9660_options(struct archive_write *a, const char *key, const char *value)
 				iso9660->opt.rr = OPT_RR_USEFUL;
 			else
 				goto invalid_value;
-			return (ARCHIVE_OK);
-		}
-		break;
-	case 'u':
-		if (strcmp(key, "uid") == 0) {
-			r = get_num_opt(a, &num, INT_MAX, 0, key, value);
-			if (r != ARCHIVE_OK)
-				return (ARCHIVE_FATAL);
-			iso9660->uid = num;
-			iso9660->opt.uid = 1;
 			return (ARCHIVE_OK);
 		}
 		break;
@@ -2803,9 +2772,9 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 			if (iso9660->opt.rr == OPT_RR_USEFUL) {
 				/*
 				 * This action is simular mkisofs -r option
+				 * but our rockridge=useful option does not
+				 * set a zero to uid and gid.
 				 */
-				uid = 0;
-				gid = 0;
 				/* set all read bit ON */
 				mode |= 0444;
 #if !defined(_WIN32) && !defined(__CYGWIN__)
@@ -2818,10 +2787,6 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 				/* clear setuid,setgid,sticky bits. */
 				mode &= ~07000;
 			}
-			if (iso9660->opt.uid)
-				uid = iso9660->uid;
-			if (iso9660->opt.gid)
-				gid = iso9660->gid;
 
 			bp[1] = 'P';
 			bp[2] = 'X';
@@ -3901,9 +3866,6 @@ write_information_block(struct archive_write *a)
 	if (iso9660->opt.copyright_file != OPT_COPYRIGHT_FILE_DEFAULT)
 		set_option_info(&info, &opt, "copyright-file",
 		    KEY_STR, iso9660->copyright_file_identifier.s);
-	if (iso9660->opt.gid != OPT_GID_DEFAULT)
-		set_option_info(&info, &opt, "gid", KEY_INT,
-		    iso9660->gid);
 	if (iso9660->opt.iso_level != OPT_ISO_LEVEL_DEFAULT)
 		set_option_info(&info, &opt, "iso-level",
 		    KEY_INT, iso9660->opt.iso_level);
@@ -3938,9 +3900,6 @@ write_information_block(struct archive_write *a)
 			set_option_info(&info, &opt, "rockridge",
 			    KEY_STR, "useful");
 	}
-	if (iso9660->opt.uid != OPT_UID_DEFAULT)
-		set_option_info(&info, &opt, "uid", KEY_INT,
-		    iso9660->uid);
 	if (iso9660->opt.volume_id != OPT_VOLUME_ID_DEFAULT)
 		set_option_info(&info, &opt, "volume-id",
 		    KEY_STR, iso9660->volume_identifier.s);
