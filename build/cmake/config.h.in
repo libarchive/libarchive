@@ -157,6 +157,9 @@
 /* Define to 1 if you have the `extattr_set_file' function. */
 #cmakedefine HAVE_EXTATTR_SET_FILE 1
 
+/* Define to 1 if EXTATTR_NAMESPACE_USER is defined in sys/extattr.h. */
+#cmakedefine HAVE_DECL_EXTATTR_NAMESPACE_USER 1
+
 /* Define to 1 if you have the `fchdir' function. */
 #cmakedefine HAVE_FCHDIR 1
 
