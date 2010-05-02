@@ -981,7 +981,7 @@ static void	isoent_setup_directory_location(struct iso9660 *,
 		    int, struct vdd *);
 static void	isoent_setup_file_location(struct iso9660 *, int);
 static int	get_path_component(char *, int, const char *);
-static struct isoent *isoent_tree(struct archive_write *, struct isoent *);
+static int	isoent_tree(struct archive_write *, struct isoent **);
 static struct isoent *isoent_find_child(struct isoent *, const char *);
 static struct isoent *isoent_find_entry(struct isoent *, const char *);
 static void	idr_relaxed_filenames(char *);
@@ -1544,9 +1544,9 @@ iso9660_write_header(struct archive_write *a, struct archive_entry *entry)
 		iso9660->dircnt_max = isoent->file->dircnt;
 
 	/* Add the current file into tree */
-	isoent = isoent_tree(a, isoent);
-	if (isoent == NULL)
-		return (ARCHIVE_FATAL);
+	r = isoent_tree(a, &isoent);
+	if (r != ARCHIVE_OK)
+		return (r);
 
 	/* If there is the same file in tree and
 	 * the current file is older than the file in tree.
@@ -5238,8 +5238,8 @@ get_path_component(char *name, int n, const char *fn)
 /*
  * Add a new entry into the tree.
  */
-static struct isoent *
-isoent_tree(struct archive_write *a, struct isoent *isoent)
+static int
+isoent_tree(struct archive_write *a, struct isoent **isoentpp)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	char name[_MAX_FNAME];/* Included null terminator size. */
@@ -5247,11 +5247,12 @@ isoent_tree(struct archive_write *a, struct isoent *isoent)
 	char name[NAME_MAX+1];
 #endif
 	struct iso9660 *iso9660 = a->format_data;
-	struct isoent *dent, *np;
+	struct isoent *dent, *isoent, *np;
 	struct isofile *f1, *f2;
 	const char *fn, *p;
 	int l;
 
+	isoent = *isoentpp;
 	dent = iso9660->primary.rootent;
 	if (isoent->file->parentdir.length > 0)
 		fn = p = isoent->file->parentdir.s;
@@ -5272,7 +5273,7 @@ isoent_tree(struct archive_write *a, struct isoent *isoent)
 			    isoent->file->basename.s);
 			goto same_entry;
 		}
-		return (isoent);
+		return (ARCHIVE_OK);
 	}
 
 	for (;;) {
@@ -5286,7 +5287,7 @@ isoent_tree(struct archive_write *a, struct isoent *isoent)
 			    ARCHIVE_ERRNO_MISC,
 			    "A name buffer is too small");
 			_isoent_free(isoent);
-			return (NULL);
+			return (ARCHIVE_FATAL);
 		}
 
 		np = isoent_find_child(dent, name);
@@ -5302,7 +5303,8 @@ isoent_tree(struct archive_write *a, struct isoent *isoent)
 			    archive_entry_pathname(np->file->entry),
 			    archive_entry_pathname(isoent->file->entry));
 			_isoent_free(isoent);
-			return (NULL);
+			*isoentpp = NULL;
+			return (ARCHIVE_FAILED);
 		}
 		fn += l;
 		if (fn[0] == '/')
@@ -5329,7 +5331,8 @@ isoent_tree(struct archive_write *a, struct isoent *isoent)
 				archive_set_error(&a->archive, ENOMEM,
 				    "Can't allocate memory");
 				_isoent_free(isoent);
-				return (NULL);
+				*isoentpp = NULL;
+				return (ARCHIVE_FATAL);
 			}
 			archive_string_free(&as);
 
@@ -5348,7 +5351,8 @@ isoent_tree(struct archive_write *a, struct isoent *isoent)
 				    ARCHIVE_ERRNO_MISC,
 				    "A name buffer is too small");
 				_isoent_free(isoent);
-				return (NULL);
+				*isoentpp = NULL;
+				return (ARCHIVE_FATAL);
 			}
 			dent = np;
 		}
@@ -5378,7 +5382,7 @@ isoent_tree(struct archive_write *a, struct isoent *isoent)
 			    &(dent->rbtree), isoent->file->basename.s);
 			goto same_entry;
 		}
-		return (isoent);
+		return (ARCHIVE_OK);
 	}
 
 same_entry:
@@ -5398,7 +5402,8 @@ same_entry:
 		    "different",
 		    archive_entry_pathname(f1->entry));
 		_isoent_free(isoent);
-		return (NULL);
+		*isoentpp = NULL;
+		return (ARCHIVE_FAILED);
 	}
 	if (archive_entry_mtime(f1->entry) <
 	    archive_entry_mtime(f2->entry) || np->virtual) {
@@ -5408,7 +5413,8 @@ same_entry:
 		np->virtual = 0;
 	}
 	_isoent_free(isoent);
-	return (np);
+	*isoentpp = np;
+	return (ARCHIVE_OK);
 }
 
 /*
@@ -6796,8 +6802,7 @@ isoent_create_boot_catalog(struct archive_write *a, struct isoent *rootent)
 	isoent->virtual = 1;
 
 	/* Add the "boot.catalog" entry into tree */
-	isoent = isoent_tree(a, isoent);
-	if (isoent == NULL)
+	if (isoent_tree(a, &isoent) != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
 	iso9660->el_torito.catalog = isoent;
