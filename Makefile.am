@@ -37,7 +37,6 @@ EXTRA_DIST= \
 	build/clean.sh			\
 	build/cmake			\
 	build/version			\
-	build/windows			\
 	contrib				\
 	doc				\
 	examples			\
