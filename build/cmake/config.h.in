@@ -63,12 +63,6 @@
 /* Define to 1 if you have the <copyfile.h> header file. */
 #cmakedefine HAVE_COPYFILE_H 1
 
-/* Define to 1 if you have the `CreateHardLinkA' function. */
-#cmakedefine HAVE_CREATEHARDLINKA 1
-
-/* Define to 1 if you have the `CreateHardLinkW' function. */
-#cmakedefine HAVE_CREATEHARDLINKW 1
-
 /* Define to 1 if you have the `ctime_r' function. */
 #cmakedefine HAVE_CTIME_R 1
 
@@ -85,14 +79,6 @@
 /* Define to 1 if you have the declaration of `INT64_MIN', and to 0 if you
    don't. */
 #cmakedefine HAVE_DECL_INT64_MIN 1
-
-/* Define to 1 if you have the declaration of `optarg', and to 0 if you don't.
-   */
-#cmakedefine HAVE_DECL_OPTARG 1
-
-/* Define to 1 if you have the declaration of `optind', and to 0 if you don't.
-   */
-#cmakedefine HAVE_DECL_OPTIND 1
 
 /* Define to 1 if you have the declaration of `SIZE_MAX', and to 0 if you
    don't. */
@@ -201,6 +187,12 @@
 
 /* Define to 1 if you have the `geteuid' function. */
 #cmakedefine HAVE_GETEUID 1
+
+/* Define to 1 if you have the `getgrnam_r' function. */
+#cmakedefine HAVE_GETGRNAM_R
+
+/* Define to 1 if you have the `getpwnam_r' function. */
+#cmakedefine HAVE_GETPWNAM_R
 
 /* Define to 1 if you have the `getpid' function. */
 #cmakedefine HAVE_GETPID 1
