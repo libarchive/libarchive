@@ -298,10 +298,8 @@ struct isoent {
 	int			 dir:1;
 };
 
-#define HARDLINK_HASH_SIZE	(1 << 10)	/* 1024 */
-#define HARDLINK_HASH_MASK	(HARDLINK_HASH_SIZE -1)
 struct hardlink {
-	struct hardlink		*next;
+	struct archive_rb_node	 rbnode;
 	int			 nlink;
 	struct {
 		struct isofile	*first;
@@ -704,10 +702,7 @@ struct iso9660 {
 	}			 all_file_list;
 
 	/* Used for managing to find hardlinking files. */
-	struct {
-		struct hardlink	*first;
-		struct hardlink	**last;
-	}			 hardlink[HARDLINK_HASH_SIZE];
+	struct archive_rb_tree	 hardlink_rbtree;
 
 	/* Used for making the Path Table Record. */
 	struct vdd {
@@ -1568,8 +1563,6 @@ iso9660_write_header(struct archive_write *a, struct archive_entry *entry)
 		r = isofile_register_hardlink(a, file);
 		if (r != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
-		if (archive_entry_hardlink(file->entry) != NULL)
-			archive_entry_unset_size(file->entry);
 	}
 
 	/*
@@ -4679,50 +4672,38 @@ isofile_register_hardlink(struct archive_write *a, struct isofile *file)
 {
 	struct iso9660 *iso9660 = a->format_data;
 	struct hardlink *hl;
-	const char *pathname, *p;
-	uint32_t hash;
+	const char *pathname;
 
+	archive_entry_set_nlink(file->entry, 1);
 	pathname = archive_entry_hardlink(file->entry);
-	if (pathname == NULL)
+	if (pathname == NULL) {
+		/* This `file` is a hardlink target. */
 		pathname = archive_entry_pathname(file->entry);
-	hash = 0;
-	for (p = pathname; *p; p++)
-		hash =  (hash<<1) ^ *p;
-	hash &= HARDLINK_HASH_MASK;
-	for (hl = iso9660->hardlink[hash].first;
-	    hl != NULL; hl = hl->next) {
-		if (strcmp(pathname,
-		    archive_entry_pathname(hl->file_list.first->entry)) == 0)
-			break;
-	}
-	if (hl == NULL) {
 		hl = malloc(sizeof(*hl));
 		if (hl == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory");
 			return (ARCHIVE_FATAL);
 		}
-		hl->nlink = 0;
-		hl->file_list.first = NULL;
-		hl->file_list.last = &(hl->file_list.first);
-		/* Insert `hl` into the tail of iso9660->hardlink[hash] */
-		hl->next = NULL;
-		*iso9660->hardlink[hash].last = hl;
-		iso9660->hardlink[hash].last = &(hl->next);
-	}
-	if (archive_entry_hardlink(file->entry) == NULL) {
-		/* Insert `file` into the head.
-		 * A hardlink target must be the first position. */
-		if ((file->hlnext = hl->file_list.first) == NULL)
-			hl->file_list.last = &(file->hlnext);
-		hl->file_list.first = file;
-	} else {
-		/* Insert `file` into the tail. */
+		hl->nlink = 1;
+		/* A hardlink target must be the first position. */
 		file->hlnext = NULL;
-		*hl->file_list.last = file;
+		hl->file_list.first = file;
 		hl->file_list.last = &(file->hlnext);
+		__archive_rb_tree_insert_node(&(iso9660->hardlink_rbtree),
+		    (struct archive_rb_node *)hl);
+	} else {
+		hl = (struct hardlink *)__archive_rb_tree_find_node(
+		    &(iso9660->hardlink_rbtree), pathname);
+		if (hl != NULL) {
+			/* Insert `file` entry into the tail. */
+			file->hlnext = NULL;
+			*hl->file_list.last = file;
+			hl->file_list.last = &(file->hlnext);
+			hl->nlink++;
+		}
+		archive_entry_unset_size(file->entry);
 	}
-	hl->nlink++;
 
 	return (ARCHIVE_OK);
 }
@@ -4730,56 +4711,70 @@ isofile_register_hardlink(struct archive_write *a, struct isofile *file)
 /*
  * Hardlinked files have to have the same location of extent.
  * We have to find out hardlink target entries for the entries
- * which referrence that target entries.
+ * which have a hardlink target name.
  */
 static void
 isofile_connect_hardlink_files(struct iso9660 *iso9660)
 {
+	struct archive_rb_node *n;
 	struct hardlink *hl;
 	struct isofile *target, *nf;
-	int i;
 
-	for (i = 0; i < HARDLINK_HASH_SIZE; i++) {
-		for (hl = iso9660->hardlink[i].first;
-		    hl != NULL; hl = hl->next) {
-			target = hl->file_list.first;
-			if (archive_entry_hardlink(target->entry) != NULL)
-				continue;
-			archive_entry_set_nlink(target->entry, hl->nlink);
-			for (nf = target->hlnext;
-			    nf != NULL; nf = nf->hlnext) {
-				nf->hardlink_target = target;
-				archive_entry_set_nlink(
-				    nf->entry, hl->nlink);
-			}
+	ARCHIVE_RB_TREE_FOREACH(n, &(iso9660->hardlink_rbtree)) {
+		hl = (struct hardlink *)n;
+
+		/* The first entry must be a hardlink target. */
+		target = hl->file_list.first;
+		archive_entry_set_nlink(target->entry, hl->nlink);
+		/* Set a hardlink target to reference entries. */
+		for (nf = target->hlnext;
+		    nf != NULL; nf = nf->hlnext) {
+			nf->hardlink_target = target;
+			archive_entry_set_nlink(nf->entry, hl->nlink);
 		}
 	}
+}
+
+static int
+isofile_hd_cmp_node(const struct archive_rb_node *n1,
+    const struct archive_rb_node *n2)
+{
+	struct hardlink *h1 = (struct hardlink *)n1;
+	struct hardlink *h2 = (struct hardlink *)n2;
+
+	return (strcmp(archive_entry_pathname(h1->file_list.first->entry),
+		       archive_entry_pathname(h2->file_list.first->entry)));
+}
+
+static int
+isofile_hd_cmp_key(const struct archive_rb_node *n, const void *key)
+{
+	struct hardlink *h = (struct hardlink *)n;
+
+	return (strcmp(archive_entry_pathname(h->file_list.first->entry),
+		       (const char *)key));
 }
 
 static void
 isofile_init_hardlinks(struct iso9660 *iso9660)
 {
-	int i;
+	static const struct archive_rb_tree_ops rb_ops = {
+		isofile_hd_cmp_node, isofile_hd_cmp_key,
+	};
 
-	for (i = 0; i < HARDLINK_HASH_SIZE; i++) {
-		iso9660->hardlink[i].first = NULL;
-		iso9660->hardlink[i].last = &(iso9660->hardlink[i].first);
-	}
+	__archive_rb_tree_init(&(iso9660->hardlink_rbtree), &rb_ops);
 }
 
 static void
 isofile_free_hardlinks(struct iso9660 *iso9660)
 {
-	struct hardlink *hl, *hl_next;
-	int i;
+	struct archive_rb_node *n, *next;
 
-	for (i = 0; i < HARDLINK_HASH_SIZE; i++) {
-		hl = iso9660->hardlink[i].first;
-		while (hl != NULL) {
-			hl_next = hl->next;
-			free(hl);
-			hl = hl_next;
-		}
+	for (n = ARCHIVE_RB_TREE_MIN(&(iso9660->hardlink_rbtree)); n;) {
+		next = __archive_rb_tree_iterate(&(iso9660->hardlink_rbtree),
+		    n, ARCHIVE_RB_DIR_RIGHT);
+		free(n);
+		n = next;
 	}
 }
 
