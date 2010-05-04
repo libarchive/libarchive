@@ -62,14 +62,14 @@ struct private_data {
 	char		 eof; /* True = found end of compressed data. */
 	char		 in_stream;
 
-	/* Following variables is used for lzip only */
+	/* Following variables are used for lzip only. */
 	char		 lzip_ver;
 	uint32_t	 crc32;
 	int64_t		 member_in;
 	int64_t		 member_out;
 };
 
-/* Combined lzma/xz filter */
+/* Combined lzip/lzma/xz filter */
 static ssize_t	xz_filter_read(struct archive_read_filter *, const void **);
 static int	xz_filter_close(struct archive_read_filter *);
 static int	xz_lzma_bidder_init(struct archive_read_filter *);
