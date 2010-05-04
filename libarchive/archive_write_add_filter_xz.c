@@ -165,10 +165,10 @@ static int
 archive_compressor_xz_init_stream(struct archive_write_filter *f,
     struct private_data *data)
 {
-	static const lzma_stream lzma_stram_init = LZMA_STREAM_INIT;
+	static const lzma_stream lzma_stream_init_data = LZMA_STREAM_INIT;
 	int ret;
 
-	data->stream = lzma_stram_init;
+	data->stream = lzma_stream_init_data;
 	data->stream.next_out = data->compressed;
 	data->stream.avail_out = data->compressed_buffer_size;
 	if (f->code == ARCHIVE_COMPRESSION_XZ)
