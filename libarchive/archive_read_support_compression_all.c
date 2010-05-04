@@ -37,6 +37,8 @@ archive_read_support_compression_all(struct archive *a)
 	archive_read_support_compression_compress(a);
 	/* Gzip decompress falls back to "gunzip" command-line. */
 	archive_read_support_compression_gzip(a);
+	/* Lzip falls back to "unlzip" command-line program. */
+	archive_read_support_compression_lzip(a);
 	/* The LZMA file format has a very weak signature, so it
 	 * may not be feasible to keep this here, but we'll try.
 	 * This will come back out if there are problems. */

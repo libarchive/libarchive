@@ -271,6 +271,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_format_cpio_bin_be.c		\
 	libarchive/test/test_read_format_cpio_bin_bz2.c		\
 	libarchive/test/test_read_format_cpio_bin_gz.c		\
+	libarchive/test/test_read_format_cpio_bin_lzip.c	\
 	libarchive/test/test_read_format_cpio_bin_lzma.c	\
 	libarchive/test/test_read_format_cpio_bin_xz.c		\
 	libarchive/test/test_read_format_cpio_odc.c		\

@@ -247,6 +247,7 @@ typedef int	archive_close_callback(struct archive *, void *_client_data);
 #define	ARCHIVE_FILTER_XZ	6
 #define	ARCHIVE_FILTER_UU	7
 #define	ARCHIVE_FILTER_RPM	8
+#define	ARCHIVE_FILTER_LZIP	9
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
 #define	ARCHIVE_COMPRESSION_NONE	ARCHIVE_FILTER_NONE
@@ -258,6 +259,7 @@ typedef int	archive_close_callback(struct archive *, void *_client_data);
 #define	ARCHIVE_COMPRESSION_XZ		ARCHIVE_FILTER_XZ
 #define	ARCHIVE_COMPRESSION_UU		ARCHIVE_FILTER_UU
 #define	ARCHIVE_COMPRESSION_RPM		ARCHIVE_FILTER_RPM
+#define	ARCHIVE_COMPRESSION_LZIP	ARCHIVE_FILTER_LZIP
 #endif
 
 /*
@@ -331,6 +333,7 @@ __LA_DECL int archive_read_support_compression_all(struct archive *);
 __LA_DECL int archive_read_support_compression_bzip2(struct archive *);
 __LA_DECL int archive_read_support_compression_compress(struct archive *);
 __LA_DECL int archive_read_support_compression_gzip(struct archive *);
+__LA_DECL int archive_read_support_compression_lzip(struct archive *);
 __LA_DECL int archive_read_support_compression_lzma(struct archive *);
 __LA_DECL int archive_read_support_compression_none(struct archive *);
 __LA_DECL int archive_read_support_compression_program(struct archive *,
