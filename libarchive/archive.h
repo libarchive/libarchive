@@ -555,6 +555,7 @@ __LA_DECL int archive_write_set_skip_file(struct archive *,
 __LA_DECL int archive_write_set_compression_bzip2(struct archive *);
 __LA_DECL int archive_write_set_compression_compress(struct archive *);
 __LA_DECL int archive_write_set_compression_gzip(struct archive *);
+__LA_DECL int archive_write_set_compression_lzip(struct archive *);
 __LA_DECL int archive_write_set_compression_lzma(struct archive *);
 __LA_DECL int archive_write_set_compression_none(struct archive *);
 __LA_DECL int archive_write_set_compression_program(struct archive *,
@@ -565,6 +566,7 @@ __LA_DECL int archive_write_set_compression_xz(struct archive *);
 __LA_DECL int archive_write_add_filter_bzip2(struct archive *);
 __LA_DECL int archive_write_add_filter_compress(struct archive *);
 __LA_DECL int archive_write_add_filter_gzip(struct archive *);
+__LA_DECL int archive_write_add_filter_lzip(struct archive *);
 __LA_DECL int archive_write_add_filter_lzma(struct archive *);
 __LA_DECL int archive_write_add_filter_none(struct archive *);
 __LA_DECL int archive_write_add_filter_program(struct archive *,

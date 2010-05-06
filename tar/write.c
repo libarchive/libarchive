@@ -224,6 +224,9 @@ tar_mode_c(struct bsdtar *bsdtar)
 		case 'J':
 			r = archive_write_set_compression_xz(a);
 			break;
+		case OPTION_LZIP:
+			r = archive_write_set_compression_lzip(a);
+			break;
 		case OPTION_LZMA:
 			r = archive_write_set_compression_lzma(a);
 			break;

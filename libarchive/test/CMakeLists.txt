@@ -93,6 +93,7 @@ IF(ENABLE_TEST)
     test_write_compress.c
     test_write_compress_bzip2.c
     test_write_compress_gzip.c
+    test_write_compress_lzip.c
     test_write_compress_lzma.c
     test_write_compress_program.c
     test_write_compress_xz.c

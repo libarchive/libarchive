@@ -318,6 +318,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_compress.c			\
 	libarchive/test/test_write_compress_bzip2.c		\
 	libarchive/test/test_write_compress_gzip.c		\
+	libarchive/test/test_write_compress_lzip.c		\
 	libarchive/test/test_write_compress_lzma.c		\
 	libarchive/test/test_write_compress_program.c		\
 	libarchive/test/test_write_compress_xz.c		\
