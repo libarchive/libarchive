@@ -1,5 +1,59 @@
 /* config.h.  Generated from config.h.cmake by cmake configure */
 
+/* MD5 via ARCHIVE_HASH_MD5_LIBC supported. */
+#cmakedefine ARCHIVE_HASH_MD5_LIBC
+
+/* MD5 via ARCHIVE_HASH_MD5_OPENSSL supported. */
+#cmakedefine ARCHIVE_HASH_MD5_OPENSSL
+
+/* RMD160 via ARCHIVE_HASH_RMD160_LIBC supported. */
+#cmakedefine ARCHIVE_HASH_RMD160_LIBC
+
+/* RMD160 via ARCHIVE_HASH_RMD160_OPENSSL supported. */
+#cmakedefine ARCHIVE_HASH_RMD160_OPENSSL
+
+/* SHA1 via ARCHIVE_HASH_SHA1_LIBC supported. */
+#cmakedefine ARCHIVE_HASH_SHA1_LIBC
+
+/* SHA1 via ARCHIVE_HASH_SHA1_OPENSSL supported. */
+#cmakedefine ARCHIVE_HASH_SHA1_OPENSSL
+
+/* SHA256 via ARCHIVE_HASH_SHA256_LIBC supported. */
+#cmakedefine ARCHIVE_HASH_SHA256_LIBC
+
+/* SHA256 via ARCHIVE_HASH_SHA256_LIBC2 supported. */
+#cmakedefine ARCHIVE_HASH_SHA256_LIBC2
+
+/* SHA256 via ARCHIVE_HASH_SHA256_LIBC3 supported. */
+#cmakedefine ARCHIVE_HASH_SHA256_LIBC3
+
+/* SHA256 via ARCHIVE_HASH_SHA256_OPENSSL supported. */
+#cmakedefine ARCHIVE_HASH_SHA256_OPENSSL
+
+/* SHA384 via ARCHIVE_HASH_SHA384_LIBC supported. */
+#cmakedefine ARCHIVE_HASH_SHA384_LIBC
+
+/* SHA384 via ARCHIVE_HASH_SHA384_LIBC2 supported. */
+#cmakedefine ARCHIVE_HASH_SHA384_LIBC2
+
+/* SHA384 via ARCHIVE_HASH_SHA384_LIBC3 supported. */
+#cmakedefine ARCHIVE_HASH_SHA384_LIBC3
+
+/* SHA384 via ARCHIVE_HASH_SHA384_OPENSSL supported. */
+#cmakedefine ARCHIVE_HASH_SHA384_OPENSSL
+
+/* SHA512 via ARCHIVE_HASH_SHA512_LIBC supported. */
+#cmakedefine ARCHIVE_HASH_SHA512_LIBC
+
+/* SHA512 via ARCHIVE_HASH_SHA512_LIBC2 supported. */
+#cmakedefine ARCHIVE_HASH_SHA512_LIBC2
+
+/* SHA512 via ARCHIVE_HASH_SHA512_LIBC3 supported. */
+#cmakedefine ARCHIVE_HASH_SHA512_LIBC3
+
+/* SHA512 via ARCHIVE_HASH_SHA512_OPENSSL supported. */
+#cmakedefine ARCHIVE_HASH_SHA512_OPENSSL
+
 /* Version number of bsdcpio */
 #cmakedefine BSDCPIO_VERSION_STRING "${BSDCPIO_VERSION_STRING}"
 
@@ -306,12 +360,6 @@
 /* Define to 1 if you have the `mbrtowc' function. */
 #cmakedefine HAVE_MBRTOWC 1
 
-/* Define to 1 if you have the `MD5Init' function. */
-#cmakedefine HAVE_MD5INIT 1
-
-/* Define to 1 if you have the <md5.h> header file. */
-#cmakedefine HAVE_MD5_H 1
-
 /* Define to 1 if you have the `memmove' function. */
 #cmakedefine HAVE_MEMMOVE 1
 
@@ -335,24 +383,6 @@
 
 /* Define to 1 if you have the `nl_langinfo' function. */
 #cmakedefine HAVE_NL_LANGINFO 1
-
-/* Define to 1 if you have the <openssl/md5.h> header file. */
-#cmakedefine HAVE_OPENSSL_MD5_H 1
-
-/* Define to 1 if you have the <openssl/ripemd.h> header file. */
-#cmakedefine HAVE_OPENSSL_RIPEMD_H 1
-
-/* Define to 1 if you have the <openssl/sha.h> header file. */
-#cmakedefine HAVE_OPENSSL_SHA_H 1
-
-/* Define to 1 if your openssl has the `SHA256_Init' function. */
-#cmakedefine HAVE_OPENSSL_SHA256_INIT 1
-
-/* Define to 1 if your openssl has the `SHA384_Init' function. */
-#cmakedefine HAVE_OPENSSL_SHA384_INIT 1
-
-/* Define to 1 if your openssl has the `SHA512_Init' function. */
-#cmakedefine HAVE_OPENSSL_SHA512_INIT 1
 
 /* Define to 1 if you have the <paths.h> header file. */
 #cmakedefine HAVE_PATHS_H 1
@@ -378,15 +408,6 @@
 /* Define to 1 if you have the <regex.h> header file. */
 #cmakedefine HAVE_REGEX_H 1
 
-/* Define to 1 if you have the <ripemd.h> header file. */
-#cmakedefine HAVE_RIPEMD_H 1
-
-/* Define to 1 if you have the `RIPEMD160Init' function. */
-#cmakedefine HAVE_RMD160INIT 1
-
-/* Define to 1 if you have the <rmd160.h> header file. */
-#cmakedefine HAVE_RMD160_H 1
-
 /* Define to 1 if you have the `select' function. */
 #cmakedefine HAVE_SELECT 1
 
@@ -395,42 +416,6 @@
 
 /* Define to 1 if you have the `setlocale' function. */
 #cmakedefine HAVE_SETLOCALE 1
-
-/* Define to 1 if you have the `SHA1Init' function. */
-#cmakedefine HAVE_SHA1INIT 1
-
-/* Define to 1 if you have the `SHA1_Init' function. */
-#cmakedefine HAVE_SHA1_INIT 1
-
-/* Define to 1 if you have the <sha1.h> header file. */
-#cmakedefine HAVE_SHA1_H 1
-
-/* Define to 1 if you have the `SHA256Init' function. */
-#cmakedefine HAVE_SHA256INIT 1
-
-/* Define to 1 if you have the `SHA256_Init' function. */
-#cmakedefine HAVE_SHA256_INIT 1
-
-/* Define to 1 if you have the <sha256.h> header file. */
-#cmakedefine HAVE_SHA256_H 1
-
-/* Define to 1 if you have the <sha2.h> header file. */
-#cmakedefine HAVE_SHA2_H 1
-
-/* Define to 1 if you have the `SHA384Init' function. */
-#cmakedefine HAVE_SHA384INIT 1
-
-/* Define to 1 if you have the `SHA384_Init' function. */
-#cmakedefine HAVE_SHA384_INIT 1
-
-/* Define to 1 if you have the `SHA512Init' function. */
-#cmakedefine HAVE_SHA512INIT 1
-
-/* Define to 1 if you have the `SHA512_Init' function. */
-#cmakedefine HAVE_SHA512_INIT 1
-
-/* Define to 1 if you have the <sha.h> header file. */
-#cmakedefine HAVE_SHA_H 1
 
 /* Define to 1 if you have the <signal.h> header file. */
 #cmakedefine HAVE_SIGNAL_H 1

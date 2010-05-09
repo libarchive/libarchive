@@ -260,57 +260,63 @@ if test "x$ac_cv_header_libxml_xmlreader_h" != "xyes"; then
   fi
 fi
 
-AC_CHECK_HEADERS([md5.h ripemd.h rmd160.h sha.h sha1.h sha2.h sha256.h])
-# Common names for libc implementation on NetBSD and OpenBSD
-AC_CHECK_FUNCS(MD5Init RMD160Init SHA1Init)
-# SHA2 on NetBSD and older OpenBSD
-AC_CHECK_FUNCS(SHA256_Init SHA384_Init SHA512_Init)
-# SHA2 on newer OpenBSD
-AC_CHECK_FUNCS(SHA256Init SHA384Init SHA512Init)
+AC_DEFUN([MD_CHECK], [
+  if test "$found_$1" != yes; then
+    saved_LIBS="$LIBS"
+    saved_CPPFLAGS="$CPPFLAGS"
+    CPPFLAGS="$CPPFLAGS -I$srcdir/libarchive"
+    LIBS="$LIBS $4"
+    AC_MSG_CHECKING([support for ARCHIVE_HASH_$1_$2])
+    AC_LINK_IFELSE([
+#define $1_COMPILE_TEST
+#define ARCHIVE_HASH_$1_$2
+#define __LIBARCHIVE_BUILD
+#include "archive_hash.h"
+
+int
+main(int argc, char **argv)
+{
+	archive_$3_ctx ctx;
+
+	archive_$3_init(&ctx);
+	archive_$3_update(&ctx, *argv, argc);
+	archive_$3_final(&ctx, *argv);
+	return 0;
+}
+],
+    [ AC_MSG_RESULT([yes])
+      found_$1=yes
+      mdLIBS="$mdLIBS $4"
+      AC_DEFINE(ARCHIVE_HASH_$1_$2, 1, [ $1 via ARCHIVE_HASH_$1_$2 supported.])
+    ],
+    [ AC_MSG_RESULT([no])])
+    LIBS="$saved_LIBS"
+    CPPFLAGS="$saved_CPPFLAGS"
+  fi
+])
+
+MD_CHECK(MD5, LIBC, md5)
+MD_CHECK(RMD160, LIBC, rmd160)
+MD_CHECK(SHA1, LIBC, sha1)
+MD_CHECK(SHA256, LIBC, sha256)
+MD_CHECK(SHA256, LIBC2, sha256)
+MD_CHECK(SHA256, LIBC3, sha256)
+MD_CHECK(SHA384, LIBC, sha384)
+MD_CHECK(SHA384, LIBC2, sha384)
+MD_CHECK(SHA384, LIBC3, sha384)
+MD_CHECK(SHA512, LIBC, sha512)
+MD_CHECK(SHA512, LIBC2, sha512)
+MD_CHECK(SHA512, LIBC3, sha512)
 
 if test "x$with_openssl" != "xno"; then
-  if test "$ac_cv_func_MD5Init" != "yes"; then
-    AC_CHECK_HEADERS([openssl/md5.h])
-    AC_SEARCH_LIBS([MD5_Init], [crypto])
-  fi
-  if test "$ac_cv_func_RMD160Init" != "yes"; then
-    AC_CHECK_HEADERS([openssl/ripemd.h])
-    AC_SEARCH_LIBS([RIPEMD160_Init], [crypto])
-  fi
-  if test "$ac_cv_func_SHA1Init" != "yes"; then
-    AC_CHECK_HEADERS([openssl/sha.h])
-    AC_SEARCH_LIBS([SHA1_Init], [crypto])
-  fi
-
-  AC_CHECK_HEADERS([openssl/sha.h])
-  if test "$ac_cv_func_SHA256Init" != "yes" &&
-    test "$ac_cv_func_SHA256_Init" != "yes"; then
-      AC_SEARCH_LIBS([SHA256_Init], [crypto])
-      if test "$ac_cv_func_SHA256_Init" = "yes" &&
-        test "$ac_cv_header_openssl_sha_h" = "yes"; then
-        AC_DEFINE(HAVE_OPENSSL_SHA256_INIT, 1,
-	  [Define to 1 if your openssl has the `SHA256_Init' function.])
-      fi
-  fi
-  if test "$ac_cv_func_SHA384Init" != "yes" &&
-    test "$ac_cv_func_SHA384_Init" != "yes"; then
-      AC_SEARCH_LIBS([SHA384_Init], [crypto])
-      if test "$ac_cv_func_SHA384_Init" = "yes" &&
-        test "$ac_cv_header_openssl_sha_h" = "yes"; then
-        AC_DEFINE(HAVE_OPENSSL_SHA384_INIT, 1,
-	  [Define to 1 if your openssl has the `SHA384_Init' function.])
-      fi
-  fi
-  if test "$ac_cv_func_SHA512Init" != "yes" &&
-    test "$ac_cv_func_SHA512_Init" != "yes"; then
-      AC_SEARCH_LIBS([SHA512_Init], [crypto])
-      if test "$ac_cv_func_SHA512_Init" = "yes" &&
-        test "$ac_cv_header_openssl_sha_h" = "yes"; then
-        AC_DEFINE(HAVE_OPENSSL_SHA512_INIT, 1,
-	  [Define to 1 if your openssl has the `SHA512_Init' function.])
-      fi
-  fi
+    MD_CHECK(MD5, OPENSSL, md5, -lcrypto)
+    MD_CHECK(RMD160, OPENSSL, rmd160, -lcrypto)
+    MD_CHECK(SHA1, OPENSSL, sha1, -lcrypto)
+    MD_CHECK(SHA256, OPENSSL, sha256, -lcrypto)
+    MD_CHECK(SHA384, OPENSSL, sha384, -lcrypto)
+    MD_CHECK(SHA512, OPENSSL, sha512, -lcrypto)
 fi
+LIBS="$LIBS $mdLIBS"
 
 # TODO: Give the user the option of using a pre-existing system
 # libarchive.  This will define HAVE_LIBARCHIVE which will cause
