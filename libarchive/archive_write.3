@@ -449,11 +449,13 @@ write_archive(const char *outname, const char **filename)
     archive_entry_copy_stat(entry, &st);
     archive_entry_set_pathname(entry, *filename);
     archive_write_header(a, entry);
-    fd = open(*filename, O_RDONLY);
-    len = read(fd, buff, sizeof(buff));
-    while ( len > 0 ) {
-	archive_write_data(a, buff, len);
-	len = read(fd, buff, sizeof(buff));
+    if ((fd = open(*filename, O_RDONLY)) != -1) {
+        len = read(fd, buff, sizeof(buff));
+        while ( len > 0 ) {
+    	    archive_write_data(a, buff, len);
+	    len = read(fd, buff, sizeof(buff));
+        }
+        close(fd);
     }
     archive_entry_free(entry);
     filename++;
