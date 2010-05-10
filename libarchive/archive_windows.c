@@ -1177,7 +1177,9 @@ la_dosmaperr(unsigned long e)
 	return;
 }
 
-#if !defined(HAVE_OPENSSL_MD5_H) && !defined(HAVE_OPENSSL_SHA_H)
+#if defined(ARCHIVE_HASH_MD5_WIN) ||\
+    defined(ARCHIVE_HASH_SHA1)    || defined(ARCHIVE_HASH_SHA256_WIN) ||\
+    defined(ARCHIVE_HASH_SHA384)  || defined(ARCHIVE_HASH_SHA512_WIN)
 /*
  * Message digest functions.
  */
@@ -1247,36 +1249,40 @@ void name ## _Final(unsigned char *buf, Digest_CTX *ctx)\
 	Digest_Final(buf, size, ctx);\
 }
 
+#if defined(ARCHIVE_HASH_MD5_WIN)
 DIGEST_INIT(MD5, CALG_MD5)
 DIGEST_UPDATE(MD5)
 DIGEST_FINAL(MD5, MD5_DIGEST_LENGTH)
+#endif
 
+#if defined(ARCHIVE_HASH_SHA1_WIN)
 DIGEST_INIT(SHA1, CALG_SHA1)
 DIGEST_UPDATE(SHA1)
 DIGEST_FINAL(SHA1, SHA1_DIGEST_LENGTH)
+#endif
 
 /*
  * SHA256 nor SHA384 nor SHA512 are not supported on Windows XP and Windows 2000.
  */
-#ifdef CALG_SHA_256
+#if defined(ARCHIVE_HASH_SHA256_WIN) && defined(CALG_SHA_256)
 DIGEST_INIT(SHA256, CALG_SHA_256)
 DIGEST_UPDATE(SHA256)
 DIGEST_FINAL(SHA256, SHA256_DIGEST_LENGTH)
 #endif
 
-#ifdef CALG_SHA_384
+#if defined(ARCHIVE_HASH_SHA384_WIN) && defined(CALG_SHA_384)
 DIGEST_INIT(SHA384, CALG_SHA_384)
 DIGEST_UPDATE(SHA384)
 DIGEST_FINAL(SHA384, SHA384_DIGEST_LENGTH)
 #endif
 
-#ifdef CALG_SHA_512
+#if defined(ARCHIVE_HASH_SHA512_WIN) && defined(CALG_SHA_512)
 DIGEST_INIT(SHA512, CALG_SHA_512)
 DIGEST_UPDATE(SHA512)
 DIGEST_FINAL(SHA512, SHA384_DIGEST_LENGTH)
 #endif
 
-#endif /* !HAVE_OPENSSL_MD5_H && !HAVE_OPENSSL_SHA_H */
+#endif /* defined(ARCHIVE_HASH_*_WIN) */
 
 /*
  * Create a temporary file.

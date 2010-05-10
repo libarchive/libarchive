@@ -300,7 +300,9 @@ struct _timeval64i32 {
 #endif
 
 /* Message digest define */
-#if !defined(HAVE_OPENSSL_MD5_H) && !defined(HAVE_OPENSSL_SHA_H)
+#if defined(ARCHIVE_HASH_MD5_WIN)    ||\
+    defined(ARCHIVE_HASH_SHA1_WIN)   || defined(ARCHIVE_HASH_SHA256_WIN) ||\
+    defined(ARCHIVE_HASH_SHA384_WIN) || defined(ARCHIVE_HASH_SHA512_WIN)
 # if defined(_MSC_VER) && _MSC_VER < 1300
 #  define _WIN32_WINNT 0x0400
 # endif
@@ -312,33 +314,26 @@ typedef struct {
 } Digest_CTX;
 #endif
 
-#if !defined(HAVE_OPENSSL_MD5_H) && defined(CALG_MD5)
+#if defined(ARCHIVE_HASH_MD5_WIN)
 #define MD5_DIGEST_LENGTH	16
-#define HAVE_MD5 1
 #define MD5_CTX Digest_CTX
 #endif
-#ifndef HAVE_OPENSSL_SHA_H
-#ifdef CALG_SHA1
+#if defined(ARCHIVE_HASH_SHA1_WIN)
 #define SHA1_DIGEST_LENGTH	20
-#define HAVE_SHA1 1
 #define SHA1_CTX Digest_CTX
 #endif
-#ifdef CALG_SHA_256
+#if defined(ARCHIVE_HASH_SHA256_WIN)
 #define SHA256_DIGEST_LENGTH	32
-#define HAVE_SHA256 1
 #define SHA256_CTX Digest_CTX
 #endif
-#ifdef CALG_SHA_384
+#if defined(ARCHIVE_HASH_SHA384_WIN)
 #define SHA384_DIGEST_LENGTH	48
-#define HAVE_SHA384 1
 #define SHA384_CTX Digest_CTX
 #endif
-#ifdef CALG_SHA_512
+#if defined(ARCHIVE_HASH_SHA512_WIN)
 #define SHA512_DIGEST_LENGTH	64
-#define HAVE_SHA512 1
 #define SHA512_CTX Digest_CTX
 #endif
-#endif /* HAVE_OPENSSL_SHA_H */
 
 /* End of Win32 definitions. */
 
@@ -384,37 +379,35 @@ extern ssize_t	 __la_write(int fd, const void *buf, size_t nbytes);
 #define WEXITSTATUS(sts)	(sts & 0x0FF)
 
 /* Message digest function */
-#if !defined(HAVE_OPENSSL_MD5_H) && !defined(HAVE_OPENSSL_SHA_H)
-#ifdef MD5_DIGEST_LENGTH
+#if defined(ARCHIVE_HASH_MD5_WIN)
 extern void	 MD5_Init(Digest_CTX *ctx);
 extern void	 MD5_Update(Digest_CTX *ctx, const unsigned char *buf,
 		     size_t len);
 extern void	 MD5_Final(unsigned char *buf, Digest_CTX *ctx);
 #endif
-#ifdef SHA1_DIGEST_LENGTH
+#if defined(ARCHIVE_HASH_SHA1_WIN)
 extern void	 SHA1_Init(Digest_CTX *ctx);
 extern void	 SHA1_Update(Digest_CTX *ctx, const unsigned char *buf,
 		     size_t len);
 extern void	 SHA1_Final(unsigned char *buf, Digest_CTX *ctx);
 #endif
-#ifdef SHA256_DIGEST_LENGTH
+#if defined(ARCHIVE_HASH_SHA256_WIN)
 extern void	 SHA256_Init(Digest_CTX *ctx);
 extern void	 SHA256_Update(Digest_CTX *ctx, const unsigned char *buf,
 		     size_t len);
 extern void	 SHA256_Final(unsigned char *buf, Digest_CTX *ctx);
 #endif
-#ifdef SHA384_DIGEST_LENGTH
+#if defined(ARCHIVE_HASH_SHA384_WIN)
 extern void	 SHA384_Init(Digest_CTX *ctx);
 extern void	 SHA384_Update(Digest_CTX *ctx, const unsigned char *buf,
 		     size_t len);
 extern void	 SHA384_Final(unsigned char *buf, Digest_CTX *ctx);
 #endif
-#ifdef SHA512_DIGEST_LENGTH
+#if defined(ARCHIVE_HASH_SHA512_WIN)
 extern void	 SHA512_Init(Digest_CTX *ctx);
 extern void	 SHA512_Update(Digest_CTX *ctx, const unsigned char *buf,
 		     size_t len);
 extern void	 SHA512_Final(unsigned char *buf, Digest_CTX *ctx);
-#endif
 #endif
 
 #endif /* LIBARCHIVE_ARCHIVE_WINDOWS_H_INCLUDED */
