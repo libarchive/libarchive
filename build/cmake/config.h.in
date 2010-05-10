@@ -6,6 +6,9 @@
 /* MD5 via ARCHIVE_HASH_MD5_OPENSSL supported. */
 #cmakedefine ARCHIVE_HASH_MD5_OPENSSL
 
+/* MD5 via ARCHIVE_HASH_MD5_WIN supported. */
+#cmakedefine ARCHIVE_HASH_MD5_WIN
+
 /* RMD160 via ARCHIVE_HASH_RMD160_LIBC supported. */
 #cmakedefine ARCHIVE_HASH_RMD160_LIBC
 
@@ -17,6 +20,9 @@
 
 /* SHA1 via ARCHIVE_HASH_SHA1_OPENSSL supported. */
 #cmakedefine ARCHIVE_HASH_SHA1_OPENSSL
+
+/* SHA1 via ARCHIVE_HASH_SHA1_WIN supported. */
+#cmakedefine ARCHIVE_HASH_SHA1_WIN
 
 /* SHA256 via ARCHIVE_HASH_SHA256_LIBC supported. */
 #cmakedefine ARCHIVE_HASH_SHA256_LIBC
@@ -30,6 +36,9 @@
 /* SHA256 via ARCHIVE_HASH_SHA256_OPENSSL supported. */
 #cmakedefine ARCHIVE_HASH_SHA256_OPENSSL
 
+/* SHA256 via ARCHIVE_HASH_SHA256_WIN supported. */
+#cmakedefine ARCHIVE_HASH_SHA256_WIN
+
 /* SHA384 via ARCHIVE_HASH_SHA384_LIBC supported. */
 #cmakedefine ARCHIVE_HASH_SHA384_LIBC
 
@@ -42,6 +51,9 @@
 /* SHA384 via ARCHIVE_HASH_SHA384_OPENSSL supported. */
 #cmakedefine ARCHIVE_HASH_SHA384_OPENSSL
 
+/* SHA384 via ARCHIVE_HASH_SHA384_WIN supported. */
+#cmakedefine ARCHIVE_HASH_SHA384_WIN
+
 /* SHA512 via ARCHIVE_HASH_SHA512_LIBC supported. */
 #cmakedefine ARCHIVE_HASH_SHA512_LIBC
 
@@ -53,6 +65,9 @@
 
 /* SHA512 via ARCHIVE_HASH_SHA512_OPENSSL supported. */
 #cmakedefine ARCHIVE_HASH_SHA512_OPENSSL
+
+/* SHA512 via ARCHIVE_HASH_SHA512_WIN supported. */
+#cmakedefine ARCHIVE_HASH_SHA512_WIN
 
 /* Version number of bsdcpio */
 #cmakedefine BSDCPIO_VERSION_STRING "${BSDCPIO_VERSION_STRING}"
