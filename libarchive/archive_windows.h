@@ -380,34 +380,34 @@ extern ssize_t	 __la_write(int fd, const void *buf, size_t nbytes);
 
 /* Message digest function */
 #if defined(ARCHIVE_HASH_MD5_WIN)
-extern void	 MD5_Init(Digest_CTX *ctx);
-extern void	 MD5_Update(Digest_CTX *ctx, const unsigned char *buf,
+extern void	 __la_MD5_Init(Digest_CTX *ctx);
+extern void	 __la_MD5_Update(Digest_CTX *ctx, const unsigned char *buf,
 		     size_t len);
-extern void	 MD5_Final(unsigned char *buf, Digest_CTX *ctx);
+extern void	 __la_MD5_Final(unsigned char *buf, Digest_CTX *ctx);
 #endif
 #if defined(ARCHIVE_HASH_SHA1_WIN)
-extern void	 SHA1_Init(Digest_CTX *ctx);
-extern void	 SHA1_Update(Digest_CTX *ctx, const unsigned char *buf,
+extern void	 __la_SHA1_Init(Digest_CTX *ctx);
+extern void	 __la_SHA1_Update(Digest_CTX *ctx, const unsigned char *buf,
 		     size_t len);
-extern void	 SHA1_Final(unsigned char *buf, Digest_CTX *ctx);
+extern void	 __la_SHA1_Final(unsigned char *buf, Digest_CTX *ctx);
 #endif
 #if defined(ARCHIVE_HASH_SHA256_WIN)
-extern void	 SHA256_Init(Digest_CTX *ctx);
-extern void	 SHA256_Update(Digest_CTX *ctx, const unsigned char *buf,
+extern void	 __la_SHA256_Init(Digest_CTX *ctx);
+extern void	 __la_SHA256_Update(Digest_CTX *ctx, const unsigned char *buf,
 		     size_t len);
-extern void	 SHA256_Final(unsigned char *buf, Digest_CTX *ctx);
+extern void	 __la_SHA256_Final(unsigned char *buf, Digest_CTX *ctx);
 #endif
 #if defined(ARCHIVE_HASH_SHA384_WIN)
-extern void	 SHA384_Init(Digest_CTX *ctx);
-extern void	 SHA384_Update(Digest_CTX *ctx, const unsigned char *buf,
+extern void	 __la_SHA384_Init(Digest_CTX *ctx);
+extern void	 __la_SHA384_Update(Digest_CTX *ctx, const unsigned char *buf,
 		     size_t len);
-extern void	 SHA384_Final(unsigned char *buf, Digest_CTX *ctx);
+extern void	 __la_SHA384_Final(unsigned char *buf, Digest_CTX *ctx);
 #endif
 #if defined(ARCHIVE_HASH_SHA512_WIN)
-extern void	 SHA512_Init(Digest_CTX *ctx);
-extern void	 SHA512_Update(Digest_CTX *ctx, const unsigned char *buf,
+extern void	 __la_SHA512_Init(Digest_CTX *ctx);
+extern void	 __la_SHA512_Update(Digest_CTX *ctx, const unsigned char *buf,
 		     size_t len);
-extern void	 SHA512_Final(unsigned char *buf, Digest_CTX *ctx);
+extern void	 __la_SHA512_Final(unsigned char *buf, Digest_CTX *ctx);
 #endif
 
 #endif /* LIBARCHIVE_ARCHIVE_WINDOWS_H_INCLUDED */

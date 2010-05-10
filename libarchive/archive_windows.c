@@ -1232,19 +1232,19 @@ Digest_Final(unsigned char *buf, int bufsize, Digest_CTX *ctx)
 }
 
 #define DIGEST_INIT(name, algid) \
-void name ## _Init(Digest_CTX *ctx)\
+void __la_ ## name ## _Init(Digest_CTX *ctx)\
 {\
 	Digest_Init(ctx, algid);\
 }
 
 #define DIGEST_UPDATE(name) \
-void name ## _Update(Digest_CTX *ctx, const unsigned char *buf, size_t len)\
+void __la_ ## name ## _Update(Digest_CTX *ctx, const unsigned char *buf, size_t len)\
 {\
 	Digest_Update(ctx, buf, len);\
 }
 
 #define DIGEST_FINAL(name, size) \
-void name ## _Final(unsigned char *buf, Digest_CTX *ctx)\
+void __la_ ## name ## _Final(unsigned char *buf, Digest_CTX *ctx)\
 {\
 	Digest_Final(buf, size, ctx);\
 }
