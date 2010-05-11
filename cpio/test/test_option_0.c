@@ -40,18 +40,18 @@ DEFINE_TEST(test_option_0)
 
 	/* Create a file list of filenames with varying end-of-line. */
 	filelist = fopen("filelist", "wb");
-	fwrite("file1\x0a", 1, 6, filelist);
-	fwrite("file2\x0d", 1, 6, filelist);
-	fwrite("file3\x0a\x0d", 1, 7, filelist);
-	fwrite("file4", 1, 5, filelist);
+	assertEqualInt(fwrite("file1\x0a", 1, 6, filelist), 6);
+	assertEqualInt(fwrite("file2\x0d", 1, 6, filelist), 6);
+	assertEqualInt(fwrite("file3\x0a\x0d", 1, 7, filelist), 7);
+	assertEqualInt(fwrite("file4", 1, 5, filelist), 5);
 	fclose(filelist);
 
 	/* Create a file list of null-delimited names. */
 	filelist = fopen("filelistNull", "wb");
-	fwrite("file1\0", 1, 6, filelist);
-	fwrite("file2\0", 1, 6, filelist);
-	fwrite("file3\0", 1, 6, filelist);
-	fwrite("file4", 1, 5, filelist);
+	assertEqualInt(fwrite("file1\0", 1, 6, filelist), 6);
+	assertEqualInt(fwrite("file2\0", 1, 6, filelist), 6);
+	assertEqualInt(fwrite("file3\0", 1, 6, filelist), 6);
+	assertEqualInt(fwrite("file4", 1, 5, filelist), 5);
 	fclose(filelist);
 
 	assertUmask(022);
