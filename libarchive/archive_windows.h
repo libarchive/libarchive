@@ -303,9 +303,6 @@ struct _timeval64i32 {
 #if defined(ARCHIVE_HASH_MD5_WIN)    ||\
     defined(ARCHIVE_HASH_SHA1_WIN)   || defined(ARCHIVE_HASH_SHA256_WIN) ||\
     defined(ARCHIVE_HASH_SHA384_WIN) || defined(ARCHIVE_HASH_SHA512_WIN)
-# if defined(_MSC_VER) && _MSC_VER < 1300
-#  define _WIN32_WINNT 0x0400
-# endif
 #include <wincrypt.h>
 typedef struct {
 	int		valid;
