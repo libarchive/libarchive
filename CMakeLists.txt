@@ -289,6 +289,9 @@ MACRO(CHECK_MD HASH IMPLEMENTATIONS)
 #endif
 #include \"archive_hash.h\"
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+/* __la_hash_*() are defined at archive_windows.c, those appear on
+ * Windows platform only. */
 #if defined(ARCHIVE_HASH_MD5_WIN)    ||\\
     defined(ARCHIVE_HASH_SHA1_WIN)   || defined(ARCHIVE_HASH_SHA256_WIN) ||\\
     defined(ARCHIVE_HASH_SHA384_WIN) || defined(ARCHIVE_HASH_SHA512_WIN)
@@ -297,6 +300,7 @@ MACRO(CHECK_MD HASH IMPLEMENTATIONS)
 void __la_hash_Init(Digest_CTX *ctx, ALG_ID algId){ ;}
 void __la_hash_Update(Digest_CTX *ctx, const unsigned char *buf, size_t len) {;}
 void __la_hash_Final(unsigned char *buf, size_t bufsize, Digest_CTX *ctx) {;}
+#endif
 #endif
 
 int
