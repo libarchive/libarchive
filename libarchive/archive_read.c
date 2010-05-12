@@ -1111,7 +1111,6 @@ __archive_read_filter_ahead(struct archive_read_filter *filter,
 					*avail = filter->avail;
 				return (NULL);
 			}
-			filter->position += bytes_read;
 			filter->client_total = bytes_read;
 			filter->client_avail = filter->client_total;
 			filter->client_next = filter->client_buff;
@@ -1283,8 +1282,6 @@ advance_file_pointer(struct archive_read_filter *filter, int64_t request)
 			filter->end_of_file = 1;
 			return (total_bytes_skipped);
 		}
-
-		filter->position += bytes_read;
 
 		if (bytes_read >= request) {
 			filter->client_next =

@@ -103,7 +103,6 @@ struct archive_read_filter {
 	size_t		 client_total;
 	const char	*client_next;
 	size_t		 client_avail;
-	int64_t		 position;
 	char		 end_of_file;
 	char		 fatal;
 };
