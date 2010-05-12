@@ -284,7 +284,20 @@ MACRO(CHECK_MD HASH IMPLEMENTATIONS)
 	SET(SOURCE "#define ${hash}_COMPILE_TEST
 #define ARCHIVE_HASH_${hash}_${IMPLEMENTATION}
 #define __LIBARCHIVE_BUILD
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#include <windows.h>
+#endif
 #include \"archive_hash.h\"
+
+#if defined(ARCHIVE_HASH_MD5_WIN)    ||\\
+    defined(ARCHIVE_HASH_SHA1_WIN)   || defined(ARCHIVE_HASH_SHA256_WIN) ||\\
+    defined(ARCHIVE_HASH_SHA384_WIN) || defined(ARCHIVE_HASH_SHA512_WIN)
+/* avoid link error. in this case, we need to prove if CALG_*, which are 
+ * used for a parameter algId, are defined. */
+void __la_hash_Init(Digest_CTX *ctx, ALG_ID algId){ ;}
+void __la_hash_Update(Digest_CTX *ctx, const unsigned char *buf, size_t len) {;}
+void __la_hash_Final(unsigned char *buf, size_t bufsize, Digest_CTX *ctx) {;}
+#endif
 
 int
 main(int argc, char **argv)
