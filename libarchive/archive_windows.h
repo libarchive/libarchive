@@ -299,39 +299,6 @@ struct _timeval64i32 {
 #define __timeval _timeval64i32
 #endif
 
-/* Message digest define */
-#if defined(ARCHIVE_HASH_MD5_WIN)    ||\
-    defined(ARCHIVE_HASH_SHA1_WIN)   || defined(ARCHIVE_HASH_SHA256_WIN) ||\
-    defined(ARCHIVE_HASH_SHA384_WIN) || defined(ARCHIVE_HASH_SHA512_WIN)
-#include <wincrypt.h>
-typedef struct {
-	int		valid;
-	HCRYPTPROV cryptProv;
-	HCRYPTHASH hash;
-} Digest_CTX;
-#endif
-
-#if defined(ARCHIVE_HASH_MD5_WIN)
-#define MD5_DIGEST_LENGTH	16
-#define MD5_CTX Digest_CTX
-#endif
-#if defined(ARCHIVE_HASH_SHA1_WIN)
-#define SHA1_DIGEST_LENGTH	20
-#define SHA1_CTX Digest_CTX
-#endif
-#if defined(ARCHIVE_HASH_SHA256_WIN)
-#define SHA256_DIGEST_LENGTH	32
-#define SHA256_CTX Digest_CTX
-#endif
-#if defined(ARCHIVE_HASH_SHA384_WIN)
-#define SHA384_DIGEST_LENGTH	48
-#define SHA384_CTX Digest_CTX
-#endif
-#if defined(ARCHIVE_HASH_SHA512_WIN)
-#define SHA512_DIGEST_LENGTH	64
-#define SHA512_CTX Digest_CTX
-#endif
-
 /* End of Win32 definitions. */
 
 /* Tell libarchive code that we have simulations for these. */
@@ -374,37 +341,5 @@ extern ssize_t	 __la_write(int fd, const void *buf, size_t nbytes);
 /* for status returned by la_waitpid */
 #define WIFEXITED(sts)		((sts & 0x100) == 0)
 #define WEXITSTATUS(sts)	(sts & 0x0FF)
-
-/* Message digest function */
-#if defined(ARCHIVE_HASH_MD5_WIN)
-extern void	 __la_MD5_Init(Digest_CTX *ctx);
-extern void	 __la_MD5_Update(Digest_CTX *ctx, const unsigned char *buf,
-		     size_t len);
-extern void	 __la_MD5_Final(unsigned char *buf, Digest_CTX *ctx);
-#endif
-#if defined(ARCHIVE_HASH_SHA1_WIN)
-extern void	 __la_SHA1_Init(Digest_CTX *ctx);
-extern void	 __la_SHA1_Update(Digest_CTX *ctx, const unsigned char *buf,
-		     size_t len);
-extern void	 __la_SHA1_Final(unsigned char *buf, Digest_CTX *ctx);
-#endif
-#if defined(ARCHIVE_HASH_SHA256_WIN)
-extern void	 __la_SHA256_Init(Digest_CTX *ctx);
-extern void	 __la_SHA256_Update(Digest_CTX *ctx, const unsigned char *buf,
-		     size_t len);
-extern void	 __la_SHA256_Final(unsigned char *buf, Digest_CTX *ctx);
-#endif
-#if defined(ARCHIVE_HASH_SHA384_WIN)
-extern void	 __la_SHA384_Init(Digest_CTX *ctx);
-extern void	 __la_SHA384_Update(Digest_CTX *ctx, const unsigned char *buf,
-		     size_t len);
-extern void	 __la_SHA384_Final(unsigned char *buf, Digest_CTX *ctx);
-#endif
-#if defined(ARCHIVE_HASH_SHA512_WIN)
-extern void	 __la_SHA512_Init(Digest_CTX *ctx);
-extern void	 __la_SHA512_Update(Digest_CTX *ctx, const unsigned char *buf,
-		     size_t len);
-extern void	 __la_SHA512_Final(unsigned char *buf, Digest_CTX *ctx);
-#endif
 
 #endif /* LIBARCHIVE_ARCHIVE_WINDOWS_H_INCLUDED */

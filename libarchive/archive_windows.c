@@ -48,6 +48,7 @@
 
 #include "archive_platform.h"
 #include "archive_private.h"
+#include "archive_hash.h"
 #include <ctype.h>
 #include <errno.h>
 #include <stddef.h>
@@ -1177,9 +1178,9 @@ la_dosmaperr(unsigned long e)
 	return;
 }
 
-#if defined(ARCHIVE_HASH_MD5_WIN) ||\
-    defined(ARCHIVE_HASH_SHA1)    || defined(ARCHIVE_HASH_SHA256_WIN) ||\
-    defined(ARCHIVE_HASH_SHA384)  || defined(ARCHIVE_HASH_SHA512_WIN)
+#if defined(ARCHIVE_HASH_MD5_WIN)    ||\
+    defined(ARCHIVE_HASH_SHA1_WIN)   || defined(ARCHIVE_HASH_SHA256_WIN) ||\
+    defined(ARCHIVE_HASH_SHA384_WIN) || defined(ARCHIVE_HASH_SHA512_WIN)
 /*
  * Message digest functions.
  */

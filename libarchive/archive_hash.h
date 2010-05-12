@@ -50,7 +50,21 @@
  *
  * OpenSSL:
  * - MD5, SHA1 and SHA2 in libcrypto: with _ after algorithm name
+ *
+ * Windows:
+ * - MD5, SHA1 and SHA2 in archive_windows.c: with _ after algorithm name
+ *   and __la_ prefix.
  */
+#if defined(ARCHIVE_HASH_MD5_WIN)    ||\
+      defined(ARCHIVE_HASH_SHA1_WIN)   || defined(ARCHIVE_HASH_SHA256_WIN) ||\
+      defined(ARCHIVE_HASH_SHA384_WIN) || defined(ARCHIVE_HASH_SHA512_WIN)
+#include <wincrypt.h>
+typedef struct {
+	int		valid;
+	HCRYPTPROV	cryptProv;
+	HCRYPTHASH	hash;
+} Digest_CTX;
+#endif
 
 #if defined(ARCHIVE_HASH_MD5_LIBC)
 #  include <md5.h>
@@ -68,7 +82,11 @@ typedef MD5_CTX archive_md5_ctx;
 #  define archive_md5_update(ctx, buf, n)	MD5_Update(ctx, buf, n)
 #elif defined(ARCHIVE_HASH_MD5_WIN)
 #  define ARCHIVE_HAS_MD5
-typedef MD5_CTX archive_md5_ctx;
+#  define MD5_DIGEST_LENGTH	16
+typedef Digest_CTX archive_md5_ctx;
+extern void __la_MD5_Init(Digest_CTX *);
+extern void __la_MD5_Final(unsigned char *, Digest_CTX *);
+extern void __la_MD5_Update(Digest_CTX *, const unsigned char *, size_t);
 #  define archive_md5_init(ctx)			__la_MD5_Init(ctx)
 #  define archive_md5_final(ctx, buf)		__la_MD5_Final(buf, ctx)
 #  define archive_md5_update(ctx, buf, n)	__la_MD5_Update(ctx, buf, n)
@@ -106,7 +124,11 @@ typedef SHA_CTX archive_sha1_ctx;
 #  define archive_sha1_update(ctx, buf, n)	SHA1_Update(ctx, buf, n)
 #elif defined(ARCHIVE_HASH_SHA1_WIN)
 #  define ARCHIVE_HAS_SHA1
-typedef SHA1_CTX archive_sha1_ctx;
+#  define SHA1_DIGEST_LENGTH	20
+typedef Digest_CTX archive_sha1_ctx;
+extern void __la_SHA1_Init(Digest_CTX *);
+extern void __la_SHA1_Final(unsigned char *, Digest_CTX *);
+extern void __la_SHA1_Update(Digest_CTX *, const unsigned char *, size_t);
 #  define archive_sha1_init(ctx)		__la_SHA1_Init(ctx)
 #  define archive_sha1_final(ctx, buf)		__la_SHA1_Final(buf, ctx)
 #  define archive_sha1_update(ctx, buf, n)	__la_SHA1_Update(ctx, buf, n)
@@ -142,7 +164,11 @@ typedef SHA256_CTX archive_sha256_ctx;
 #  define archive_sha256_update(ctx, buf, n)	SHA256_Update(ctx, buf, n)
 #elif defined(ARCHIVE_HASH_SHA256_WIN)
 #  define ARCHIVE_HAS_SHA256
-typedef SHA256_CTX archive_sha256_ctx;
+#  define SHA256_DIGEST_LENGTH	32
+typedef Digest_CTX archive_sha256_ctx;
+extern void __la_SHA256_Init(Digest_CTX *);
+extern void __la_SHA256_Final(unsigned char *, Digest_CTX *);
+extern void __la_SHA256_Update(Digest_CTX *, const unsigned char *, size_t);
 #  define archive_sha256_init(ctx)		__la_SHA256_Init(ctx)
 #  define archive_sha256_final(ctx, buf)	__la_SHA256_Final(buf, ctx)
 #  define archive_sha256_update(ctx, buf, n)	__la_SHA256_Update(ctx, buf, n)
@@ -178,7 +204,11 @@ typedef SHA512_CTX archive_sha384_ctx;
 #  define archive_sha384_update(ctx, buf, n)	SHA384_Update(ctx, buf, n)
 #elif defined(ARCHIVE_HASH_SHA384_WIN)
 #  define ARCHIVE_HAS_SHA384
-typedef SHA512_CTX archive_sha384_ctx;
+#  define SHA384_DIGEST_LENGTH	48
+typedef Digest_CTX archive_sha384_ctx;
+extern void __la_SHA384_Init(Digest_CTX *);
+extern void __la_SHA384_Final(unsigned char *, Digest_CTX *);
+extern void __la_SHA384_Update(Digest_CTX *, const unsigned char *, size_t);
 #  define archive_sha384_init(ctx)		__la_SHA384_Init(ctx)
 #  define archive_sha384_final(ctx, buf)	__la_SHA384_Final(buf, ctx)
 #  define archive_sha384_update(ctx, buf, n)	__la_SHA384_Update(ctx, buf, n)
@@ -214,7 +244,11 @@ typedef SHA512_CTX archive_sha512_ctx;
 #  define archive_sha512_update(ctx, buf, n)	SHA512_Update(ctx, buf, n)
 #elif defined(ARCHIVE_HASH_SHA512_WIN)
 #  define ARCHIVE_HAS_SHA512
-typedef SHA512_CTX archive_sha512_ctx;
+#  define SHA512_DIGEST_LENGTH	64
+typedef Digest_CTX archive_sha512_ctx;
+extern void __la_SHA512_Init(Digest_CTX *);
+extern void __la_SHA512_Final(unsigned char *, Digest_CTX *);
+extern void __la_SHA512_Update(Digest_CTX *, const unsigned char *, size_t);
 #  define archive_sha512_init(ctx)		__la_SHA512_Init(ctx)
 #  define archive_sha512_final(ctx, buf)	__la_SHA512_Final(buf, ctx)
 #  define archive_sha512_update(ctx, buf, n)	__la_SHA512_Update(ctx, buf, n)
