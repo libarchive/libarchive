@@ -31,7 +31,8 @@ __FBSDID("$FreeBSD$");
 #if !defined(_WIN32)
 #define ROOT "root"
 static int root_uids[] = { 0 };
-static int root_gids[] = { 0 };
+/* Solaris 9 root has gid 1 (other) */
+static int root_gids[] = { 0, 1 };
 #elif defined(__CYGWIN__)
 /* On cygwin, the Administrator user most likely exists (unless
  * it has been renamed or is in a non-English localization), but
