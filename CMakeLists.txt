@@ -270,6 +270,12 @@ IF(ENABLE_OPENSSL)
   FIND_PACKAGE(OpenSSL)
 ENDIF()
 
+#
+# How to prove that HASH functions, which have several names on various
+# platforms, can be mapped to archive_{hash name}_init,
+# archive_{hash name}_update and archive_{hash name}_final through
+# archive_hash.h
+#
 MACRO(CHECK_MD HASH IMPLEMENTATIONS)
     FOREACH(IMPLEMENTATION ${IMPLEMENTATIONS})
       IF(NOT DEFINED ARCHIVE_HASH_${HASH}_${IMPLEMENTATION})
@@ -284,24 +290,7 @@ MACRO(CHECK_MD HASH IMPLEMENTATIONS)
 	SET(SOURCE "#define ${hash}_COMPILE_TEST
 #define ARCHIVE_HASH_${hash}_${IMPLEMENTATION}
 #define __LIBARCHIVE_BUILD
-#if defined(_WIN32) && !defined(__CYGWIN__)
-#include <windows.h>
-#endif
 #include \"archive_hash.h\"
-
-#if defined(_WIN32) && !defined(__CYGWIN__)
-/* __la_hash_*() are defined at archive_windows.c, those appear on
- * Windows platform only. */
-#if defined(ARCHIVE_HASH_MD5_WIN)    ||\\
-    defined(ARCHIVE_HASH_SHA1_WIN)   || defined(ARCHIVE_HASH_SHA256_WIN) ||\\
-    defined(ARCHIVE_HASH_SHA384_WIN) || defined(ARCHIVE_HASH_SHA512_WIN)
-/* avoid link error. in this case, we need to prove if CALG_*, which are 
- * used for a parameter algId, are defined. */
-void __la_hash_Init(Digest_CTX *ctx, ALG_ID algId){ ;}
-void __la_hash_Update(Digest_CTX *ctx, const unsigned char *buf, size_t len) {;}
-void __la_hash_Final(unsigned char *buf, size_t bufsize, Digest_CTX *ctx) {;}
-#endif
-#endif
 
 int
 main(int argc, char **argv)
@@ -315,12 +304,12 @@ main(int argc, char **argv)
 }
 ")
 
-	FILE(WRITE "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeTmp/src.c" "${SOURCE}")
+	FILE(WRITE "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeTmp/check_hash_md.c" "${SOURCE}")
 	MESSAGE(STATUS "Checking support for ARCHIVE_HASH_${HASH}_${IMPLEMENTATION}")
 
 	TRY_COMPILE(ARCHIVE_HASH_${HASH}_${IMPLEMENTATION}
 	  ${CMAKE_BINARY_DIR}
-	  ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeTmp/src.c
+	  ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeTmp/check_hash_md.c
 	  CMAKE_FLAGS "-DINCLUDE_DIRECTORIES:STRING=${CMAKE_CURRENT_SOURCE_DIR}/libarchive"
 	  OUTPUT_VARIABLE OUTPUT)
 
@@ -339,14 +328,86 @@ main(int argc, char **argv)
 ENDMACRO(CHECK_MD HASH IMPLEMENTATIONS)
 
 #
+# HASH functions on Windows is defined at archive_windows.c, thus we do not
+# need the test what the functions can be mapped to archive_{hash name}_init,
+# archive_{hash name}_update and archive_{hash name}_final.
+# The functions on Windows use CALG_{hash name} macro to create a crypt object
+# and then we need to know what CALG_{hash name} macros is available to show
+# ARCHIVE_HASH_{hash name}_WIN macros because Windows 2000 and earlier version
+# of Windows XP do not support SHA256, SHA384 and SHA512.
+#
+MACRO(CHECK_HASH_WIN HASH_LIST)
+  IF(WIN32 AND NOT CYGWIN)
+    FOREACH(HASH ${HASH_LIST})
+      IF(NOT DEFINED ARCHIVE_HASH_${HASH}_WIN)
+	STRING(TOUPPER "${HASH}" hash)
+	SET(ALGID "")
+	IF ("${HASH}" MATCHES "^MD5$")
+	    SET(ALGID "CALG_MD5")
+	ENDIF ("${HASH}" MATCHES "^MD5$")
+	IF ("${HASH}" MATCHES "^SHA1$")
+	    SET(ALGID "CALG_SHA1")
+	ENDIF ("${HASH}" MATCHES "^SHA1$")
+	IF ("${HASH}" MATCHES "^SHA256$")
+	    SET(ALGID "CALG_SHA_256")
+	ENDIF ("${HASH}" MATCHES "^SHA256$")
+	IF ("${HASH}" MATCHES "^SHA384$")
+	    SET(ALGID "CALG_SHA_384")
+	ENDIF ("${HASH}" MATCHES "^SHA384$")
+	IF ("${HASH}" MATCHES "^SHA512$")
+	    SET(ALGID "CALG_SHA_512")
+	ENDIF ("${HASH}" MATCHES "^SHA512$")
+
+	SET(SOURCE "#define ${hash}_COMPILE_TEST
+#define _WIN32_WINNT ${_WIN32_WINNT}
+#define WINVER ${WINVER}
+#include <windows.h>
+
+int
+main(int argc, char **argv)
+{
+	return ${ALGID};
+}
+")
+	SET(SOURCE_FILE "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeTmp/check_hash_win.c")
+
+	FILE(WRITE "${SOURCE_FILE}" "${SOURCE}")
+	MESSAGE(STATUS "Checking support for ARCHIVE_HASH_${HASH}_WIN")
+
+	TRY_COMPILE(ARCHIVE_HASH_${HASH}_WIN
+	  ${CMAKE_BINARY_DIR}
+	  ${SOURCE_FILE}
+	  CMAKE_FLAGS "-DINCLUDE_DIRECTORIES:STRING=${CMAKE_CURRENT_SOURCE_DIR}/libarchive"
+	  OUTPUT_VARIABLE OUTPUT)
+
+	IF (ARCHIVE_HASH_${HASH}_WIN)
+	    MESSAGE(STATUS
+	        "Checking support for ARCHIVE_HASH_${HASH}_WIN -- found")
+	ELSE (ARCHIVE_HASH_${HASH}_WIN)
+	    MESSAGE(STATUS
+	         "Checking support for ARCHIVE_HASH_${HASH}_WIN -- not found")
+    	    FILE(APPEND
+	        ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeOutput.log
+                "Checking support for ARCHIVE_HASH_${HASH}_WIN failed with the following output:\n"
+        	"${OUTPUT}\n"
+        	"Source file was:\n${SOURCE}\n")
+	ENDIF (ARCHIVE_HASH_${HASH}_WIN)
+
+      ENDIF(NOT DEFINED ARCHIVE_HASH_${HASH}_WIN)
+    ENDFOREACH(HASH)
+  ENDIF(WIN32 AND NOT CYGWIN)
+ENDMACRO(CHECK_HASH_WIN HASH_LIST)
+
+#
 # Check MD5/RMD160/SHA support
 #
-CHECK_MD(MD5 "LIBC;WIN;OPENSSL")
-CHECK_MD(RMD160 "LIBC;WIN;OPENSSL")
-CHECK_MD(SHA1 "LIBC;WIN;OPENSSL")
-CHECK_MD(SHA256 "LIBC;LIBC2;LIBC3;WIN;OPENSSL")
-CHECK_MD(SHA384 "LIBC;LIBC2;LIBC3;WIN;OPENSSL")
-CHECK_MD(SHA512 "LIBC;LIBC2;LIBC3;WIN;OPENSSL")
+CHECK_MD(MD5 "LIBC;OPENSSL")
+CHECK_MD(RMD160 "LIBC;OPENSSL")
+CHECK_MD(SHA1 "LIBC;OPENSSL")
+CHECK_MD(SHA256 "LIBC;LIBC2;LIBC3;OPENSSL")
+CHECK_MD(SHA384 "LIBC;LIBC2;LIBC3;OPENSSL")
+CHECK_MD(SHA512 "LIBC;LIBC2;LIBC3;OPENSSL")
+CHECK_HASH_WIN("MD5;SHA1;SHA256;SHA384;SHA512")
 
 #
 # Find Libxml2
