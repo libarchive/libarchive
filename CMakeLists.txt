@@ -362,6 +362,7 @@ MACRO(CHECK_HASH_WIN HASH_LIST)
 #define _WIN32_WINNT ${_WIN32_WINNT}
 #define WINVER ${WINVER}
 #include <windows.h>
+#include <wincrypt.h>
 
 int
 main(int argc, char **argv)
