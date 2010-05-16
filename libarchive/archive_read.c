@@ -1104,7 +1104,6 @@ __archive_read_filter_ahead(struct archive_read_filter *filter,
 			bytes_read = (filter->read)(filter,
 			    &filter->client_buff);
 			if (bytes_read < 0) {		/* Read error. */
-fprintf(stderr, "Filter read ahead saw bytes_read=%d\n", bytes_read);
 				filter->client_total = filter->client_avail = 0;
 				filter->client_next = filter->client_buff = NULL;
 				filter->fatal = 1;
@@ -1282,7 +1281,6 @@ advance_file_pointer(struct archive_read_filter *filter, int64_t request)
 		bytes_read = (filter->read)(filter, &filter->client_buff);
 
 		if (bytes_read < 0) {
-			fprintf(stderr, "Filter skip saw bytes_read=%d\n", bytes_read);
 			filter->client_buff = NULL;
 			filter->fatal = 1;
 			return (bytes_read);
