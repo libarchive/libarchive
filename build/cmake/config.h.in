@@ -432,6 +432,9 @@
 /* Define to 1 if you have the `setlocale' function. */
 #cmakedefine HAVE_SETLOCALE 1
 
+/* Define to 1 if you have the `sigaction' function. */
+#cmakedefine HAVE_SIGACTION 1
+
 /* Define to 1 if you have the <signal.h> header file. */
 #cmakedefine HAVE_SIGNAL_H 1
 
