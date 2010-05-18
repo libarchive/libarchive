@@ -323,6 +323,10 @@ main(int argc, char **argv)
     	    "Checking support for ARCHIVE_HASH_${HASH}_${IMPLEMENTATION} failed with the following output:\n"
     	    "${OUTPUT}\n"
     	    "Source file was:\n${SOURCE}\n")
+      ELSE(NOT DEFINED ARCHIVE_HASH_${HASH}_${IMPLEMENTATION})
+        IF(ARCHIVE_HASH_${HASH}_${IMPLEMENTATION})
+           BREAK()
+        ENDIF(ARCHIVE_HASH_${HASH}_${IMPLEMENTATION})
       ENDIF(NOT DEFINED ARCHIVE_HASH_${HASH}_${IMPLEMENTATION})
     ENDFOREACH(IMPLEMENTATION)
 ENDMACRO(CHECK_MD HASH IMPLEMENTATIONS)
