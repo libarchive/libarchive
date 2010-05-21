@@ -48,6 +48,9 @@
  * - MD5 and SHA1 in libmd: without _ after algorithm name
  * - SHA256: with _ after algorithm name
  *
+ * Mac OS X (10.4 and later):
+ * - MD5, SHA1 and SHA2 in libSystem: with CC_ prefix and _ after algorithm name
+ *
  * OpenSSL:
  * - MD5, SHA1 and SHA2 in libcrypto: with _ after algorithm name
  *
@@ -76,6 +79,13 @@ typedef MD5_CTX archive_md5_ctx;
 #  define archive_md5_init(ctx)			MD5Init(ctx)
 #  define archive_md5_final(ctx, buf)		MD5Final(buf, ctx)
 #  define archive_md5_update(ctx, buf, n)	MD5Update(ctx, buf, n)
+#elif defined(ARCHIVE_HASH_MD5_LIBSYSTEM)
+#  include <CommonCrypto/CommonDigest.h>
+#  define ARCHIVE_HAS_MD5
+typedef CC_MD5_CTX archive_md5_ctx;
+#  define archive_md5_init(ctx)			CC_MD5_Init(ctx)
+#  define archive_md5_final(ctx, buf)		CC_MD5_Final(buf, ctx)
+#  define archive_md5_update(ctx, buf, n)	CC_MD5_Update(ctx, buf, n)
 #elif defined(ARCHIVE_HASH_MD5_OPENSSL)
 #  include <openssl/md5.h>
 #  define ARCHIVE_HAS_MD5
@@ -115,6 +125,13 @@ typedef SHA1_CTX archive_sha1_ctx;
 #  define archive_sha1_init(ctx)		SHA1Init(ctx)
 #  define archive_sha1_final(ctx, buf)		SHA1Final(buf, ctx)
 #  define archive_sha1_update(ctx, buf, n)	SHA1Update(ctx, buf, n)
+#elif defined(ARCHIVE_HASH_SHA1_LIBSYSTEM)
+#  include <CommonCrypto/CommonDigest.h>
+#  define ARCHIVE_HAS_SHA1
+typedef CC_SHA1_CTX archive_sha1_ctx;
+#  define archive_sha1_init(ctx)		CC_SHA1_Init(ctx)
+#  define archive_sha1_final(ctx, buf)		CC_SHA1_Final(buf, ctx)
+#  define archive_sha1_update(ctx, buf, n)	CC_SHA1_Update(ctx, buf, n)
 #elif defined(ARCHIVE_HASH_SHA1_OPENSSL)
 #  include <openssl/sha.h>
 #  define ARCHIVE_HAS_SHA1
@@ -152,6 +169,13 @@ typedef SHA2_CTX archive_sha256_ctx;
 #  define archive_sha256_init(ctx)		SHA256Init(ctx)
 #  define archive_sha256_final(ctx, buf)	SHA256Final(buf, ctx)
 #  define archive_sha256_update(ctx, buf, n)	SHA256Update(ctx, buf, n)
+#elif defined(ARCHIVE_HASH_SHA256_LIBSYSTEM)
+#  include <CommonCrypto/CommonDigest.h>
+#  define ARCHIVE_HAS_SHA256
+typedef CC_SHA256_CTX archive_shs256_ctx;
+#  define archive_shs256_init(ctx)		CC_SHA256_Init(ctx)
+#  define archive_shs256_final(ctx, buf)	CC_SHA256_Final(buf, ctx)
+#  define archive_shs256_update(ctx, buf, n)	CC_SHA256_Update(ctx, buf, n)
 #elif defined(ARCHIVE_HASH_SHA256_OPENSSL)
 #  include <openssl/sha.h>
 #  define ARCHIVE_HAS_SHA256
@@ -189,6 +213,13 @@ typedef SHA2_CTX archive_sha384_ctx;
 #  define archive_sha384_init(ctx)		SHA384Init(ctx)
 #  define archive_sha384_final(ctx, buf)	SHA384Final(buf, ctx)
 #  define archive_sha384_update(ctx, buf, n)	SHA384Update(ctx, buf, n)
+#elif defined(ARCHIVE_HASH_SHA384_LIBSYSTEM)
+#  include <CommonCrypto/CommonDigest.h>
+#  define ARCHIVE_HAS_SHA384
+typedef CC_SHA512_CTX archive_shs384_ctx;
+#  define archive_shs384_init(ctx)		CC_SHA384_Init(ctx)
+#  define archive_shs384_final(ctx, buf)	CC_SHA384_Final(buf, ctx)
+#  define archive_shs384_update(ctx, buf, n)	CC_SHA384_Update(ctx, buf, n)
 #elif defined(ARCHIVE_HASH_SHA384_OPENSSL)
 #  include <openssl/sha.h>
 #  define ARCHIVE_HAS_SHA384
@@ -226,6 +257,13 @@ typedef SHA2_CTX archive_sha512_ctx;
 #  define archive_sha512_init(ctx)		SHA512Init(ctx)
 #  define archive_sha512_final(ctx, buf)	SHA512Final(buf, ctx)
 #  define archive_sha512_update(ctx, buf, n)	SHA512Update(ctx, buf, n)
+#elif defined(ARCHIVE_HASH_SHA512_LIBSYSTEM)
+#  include <CommonCrypto/CommonDigest.h>
+#  define ARCHIVE_HAS_SHA512
+typedef CC_SHA512_CTX archive_shs512_ctx;
+#  define archive_shs512_init(ctx)		CC_SHA512_Init(ctx)
+#  define archive_shs512_final(ctx, buf)	CC_SHA512_Final(buf, ctx)
+#  define archive_shs512_update(ctx, buf, n)	CC_SHA512_Update(ctx, buf, n)
 #elif defined(ARCHIVE_HASH_SHA512_OPENSSL)
 #  include <openssl/sha.h>
 #  define ARCHIVE_HAS_SHA512
