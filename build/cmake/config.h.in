@@ -269,6 +269,9 @@
 /* Define to 1 if you have the `getxattr' function. */
 #cmakedefine HAVE_GETXATTR 1
 
+/* Define to 1 if you have the `gmtime_r' function. */
+#cmakedefine HAVE_GMTIME_R 1
+
 /* Define to 1 if you have the <grp.h> header file. */
 #cmakedefine HAVE_GRP_H 1
 
@@ -322,6 +325,9 @@
 
 /* Define to 1 if you have the <libxml/xmlreader.h> header file. */
 #cmakedefine HAVE_LIBXML_XMLREADER_H 1
+
+/* Define to 1 if you have the <libxml/xmlwriter.h> header file. */
+#cmakedefine HAVE_LIBXML_XMLWRITER_H 1
 
 /* Define to 1 if you have the `z' library (-lz). */
 #cmakedefine HAVE_LIBZ 1

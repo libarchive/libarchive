@@ -250,7 +250,7 @@ if test "x$with_xml2" != "xno"; then
     CPPFLAGS="${CPPFLAGS} `${XML2_CONFIG} --cflags`"
     LIBS="${LIBS} `${XML2_CONFIG} --libs`"
   fi
-  AC_CHECK_HEADERS([libxml/xmlreader.h])
+  AC_CHECK_HEADERS([libxml/xmlreader.h libxml/xmlwriter.h])
   AC_CHECK_LIB(xml2,xmlInitParser)
 fi
 if test "x$ac_cv_header_libxml_xmlreader_h" != "xyes"; then
@@ -414,7 +414,7 @@ AC_CHECK_STDCALL_FUNC([CreateHardLinkA],[const char *, const char *, void *])
 AC_CHECK_FUNCS([chflags chown chroot ctime_r])
 AC_CHECK_FUNCS([fchdir fchflags fchmod fchown fcntl fork])
 AC_CHECK_FUNCS([fstat ftruncate futimens futimes geteuid getpid])
-AC_CHECK_FUNCS([getgrnam_r getpwnam_r])
+AC_CHECK_FUNCS([getgrnam_r getpwnam_r gmtime_r])
 AC_CHECK_FUNCS([lchflags lchmod lchown link localtime_r lstat])
 AC_CHECK_FUNCS([lutimes mbrtowc memmove memset mkdir mkfifo mknod mkstemp])
 AC_CHECK_FUNCS([nl_langinfo pipe poll readlink])

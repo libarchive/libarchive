@@ -122,6 +122,8 @@ IF(ENABLE_TEST)
     test_write_format_tar.c
     test_write_format_tar_empty.c
     test_write_format_tar_ustar.c
+    test_write_format_xar.c
+    test_write_format_xar_empty.c
     test_write_format_zip.c
     test_write_format_zip_empty.c
     test_write_format_zip_no_compression.c
