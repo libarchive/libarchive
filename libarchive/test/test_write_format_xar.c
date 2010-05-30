@@ -42,7 +42,11 @@ test_xar(const char *option)
 
 	/* Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
-	assertA(0 == archive_write_set_format_xar(a));
+	if (archive_write_set_format_xar(a) != ARCHIVE_OK) {
+		skipping("xar is not supported on this platform");
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+		return;
+	}
 	assertA(0 == archive_write_set_compression_none(a));
 	if (option != NULL &&
 	    archive_write_set_options(a, option) != ARCHIVE_OK) {
