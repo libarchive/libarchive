@@ -164,9 +164,9 @@ struct zip_extra_data_central {
 struct zip_file_header_link {
 	struct zip_file_header_link *next;
 	struct archive_entry *entry;
-	off_t offset;
+	int64_t offset;
 	unsigned long crc32;
-	off_t compressed_size;
+	int64_t compressed_size;
 	enum compression compression;
 };
 
@@ -499,7 +499,7 @@ archive_write_zip_close(struct archive_write *a)
 	struct zip_file_header h;
 	struct zip_central_directory_end end;
 	struct zip_extra_data_central e;
-	off_t offset_start, offset_end;
+	int64_t offset_start, offset_end;
 	int entries;
 	int ret;
 

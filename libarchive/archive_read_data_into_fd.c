@@ -57,7 +57,7 @@ archive_read_data_into_fd(struct archive *a, int fd)
 #else
 	int64_t offset;
 #endif
-	off_t output_offset;
+	int64_t output_offset;
 
 	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA,
 	    "archive_read_data_into_fd");

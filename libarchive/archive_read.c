@@ -67,6 +67,10 @@ static int  _archive_filter_count(struct archive *);
 static int	_archive_read_close(struct archive *);
 static int	_archive_read_free(struct archive *);
 static int64_t  advance_file_pointer(struct archive_read_filter *, int64_t);
+#if ARCHIVE_VERSION_NUMBER < 3000000
+static int	archive_read_data_block64(struct archive *,
+		    const void **, size_t *, int64_t *);
+#endif
 
 static struct archive_vtable *
 archive_read_vtable(void)
@@ -596,8 +600,13 @@ archive_read_data(struct archive *_a, void *buff, size_t s)
 	while (s > 0) {
 		if (a->read_data_remaining == 0) {
 			read_buf = a->read_data_block;
+#if ARCHIVE_VERSION_NUMBER < 3000000
+			r = archive_read_data_block64(&a->archive, &read_buf,
+			    &a->read_data_remaining, &a->read_data_offset);
+#else
 			r = archive_read_data_block(&a->archive, &read_buf,
 			    &a->read_data_remaining, &a->read_data_offset);
+#endif
 			a->read_data_block = read_buf;
 			if (r == ARCHIVE_EOF)
 				return (bytes_read);
@@ -715,8 +724,21 @@ archive_read_data_skip(struct archive *_a)
 int
 archive_read_data_block(struct archive *_a,
     const void **buff, size_t *size, off_t *offset)
+{
+	int r;
+	int64_t offset64;
+	r = archive_read_data_block64(_a, buff, size, &offset64);
+	*offset = (off_t)offset64;
+	return (r);
+}
+#endif
+
+#if ARCHIVE_VERSION_NUMBER < 3000000
+static int
+archive_read_data_block64(struct archive *_a,
+    const void **buff, size_t *size, int64_t *offset)
 #else
-int
+static int
 archive_read_data_block(struct archive *_a,
     const void **buff, size_t *size, int64_t *offset)
 #endif
@@ -734,6 +756,7 @@ archive_read_data_block(struct archive *_a,
 
 	return (a->format->read_data)(a, buff, size, offset);
 }
+#endif
 
 static int
 close_filters(struct archive_read *a)
@@ -765,7 +788,7 @@ free_filters(struct archive_read *a)
 	}
 }
 
-/* 
+/*
  * return the count of # of filters in use
  */
 static int
@@ -915,11 +938,7 @@ __archive_read_register_format(struct archive_read *a,
     int (*bid)(struct archive_read *),
     int (*options)(struct archive_read *, const char *, const char *),
     int (*read_header)(struct archive_read *, struct archive_entry *),
-#if ARCHIVE_VERSION_NUMBER < 3000000
-    int (*read_data)(struct archive_read *, const void **, size_t *, off_t *),
-#else
     int (*read_data)(struct archive_read *, const void **, size_t *, int64_t *),
-#endif
     int (*read_data_skip)(struct archive_read *),
     int (*cleanup)(struct archive_read *))
 {

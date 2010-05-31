@@ -320,7 +320,7 @@ extern int	 __la_chdir(const char *path);
 extern int	 __la_chmod(const char *path, mode_t mode);
 extern int	 __la_fcntl(int fd, int cmd, int val);
 extern int	 __la_fstat(int fd, struct stat *st);
-extern int	 __la_ftruncate(int fd, off_t length);
+extern int	 __la_ftruncate(int fd, int64_t length);
 extern int	 __la_futimes(int fd, const struct __timeval *times);
 extern int	 __la_link(const char *src, const char *dst);
 extern __int64	 __la_lseek(int fd, __int64 offset, int whence);

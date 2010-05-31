@@ -110,13 +110,8 @@ static int	parse_line(struct archive_read *, struct archive_entry *,
 		    struct mtree *, struct mtree_entry *, int *);
 static int	parse_keyword(struct archive_read *, struct mtree *,
 		    struct archive_entry *, struct mtree_option *, int *);
-#if ARCHIVE_VERSION_NUMBER < 3000000
-static int	read_data(struct archive_read *a,
-		    const void **buff, size_t *size, off_t *offset);
-#else
 static int	read_data(struct archive_read *a,
 		    const void **buff, size_t *size, int64_t *offset);
-#endif
 static ssize_t	readline(struct archive_read *, struct mtree *, char **, ssize_t);
 static int	skip(struct archive_read *a);
 static int	read_header(struct archive_read *,
@@ -976,13 +971,8 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 	return (ARCHIVE_OK);
 }
 
-#if ARCHIVE_VERSION_NUMBER < 3000000
-static int
-read_data(struct archive_read *a, const void **buff, size_t *size, off_t *offset)
-#else
 static int
 read_data(struct archive_read *a, const void **buff, size_t *size, int64_t *offset)
-#endif
 {
 	size_t bytes_to_read;
 	ssize_t bytes_read;
