@@ -133,9 +133,9 @@ struct cpio {
 	struct links_entry	 *links_head;
 	struct archive_string	  entry_name;
 	struct archive_string	  entry_linkname;
-	off_t			  entry_bytes_remaining;
-	off_t			  entry_offset;
-	off_t			  entry_padding;
+	int64_t			  entry_bytes_remaining;
+	int64_t			  entry_offset;
+	int64_t			  entry_padding;
 };
 
 static int64_t	atol16(const char *, unsigned);

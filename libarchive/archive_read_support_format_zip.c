@@ -758,7 +758,7 @@ archive_read_format_zip_read_data_skip(struct archive_read *a)
 {
 	struct zip *zip;
 	const void *buff = NULL;
-	off_t bytes_skipped;
+	int64_t bytes_skipped;
 
 	zip = (struct zip *)(a->format->data);
 

@@ -731,9 +731,8 @@ archive_read_data_block(struct archive *_a,
 	*offset = (off_t)offset64;
 	return (r);
 }
-#endif
 
-#if ARCHIVE_VERSION_NUMBER < 3000000
+
 static int
 archive_read_data_block64(struct archive *_a,
     const void **buff, size_t *size, int64_t *offset)
@@ -756,7 +755,6 @@ archive_read_data_block(struct archive *_a,
 
 	return (a->format->read_data)(a, buff, size, offset);
 }
-#endif
 
 static int
 close_filters(struct archive_read *a)

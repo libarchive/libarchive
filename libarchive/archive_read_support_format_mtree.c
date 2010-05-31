@@ -86,7 +86,7 @@ struct mtree {
 	struct archive_string	 line;
 	size_t			 buffsize;
 	char			*buff;
-	off_t			 offset;
+	int64_t			 offset;
 	int			 fd;
 	int			 filetype;
 	int			 archive_format;
@@ -98,7 +98,7 @@ struct mtree {
 
 	struct archive_entry_linkresolver *resolver;
 
-	off_t			 cur_size, cur_offset;
+	int64_t			 cur_size, cur_offset;
 };
 
 static int	cleanup(struct archive_read *);
@@ -997,7 +997,7 @@ read_data(struct archive_read *a, const void **buff, size_t *size, int64_t *offs
 
 	*buff = mtree->buff;
 	*offset = mtree->offset;
-	if ((off_t)mtree->buffsize > mtree->cur_size - mtree->offset)
+	if ((int64_t)mtree->buffsize > mtree->cur_size - mtree->offset)
 		bytes_to_read = mtree->cur_size - mtree->offset;
 	else
 		bytes_to_read = mtree->buffsize;

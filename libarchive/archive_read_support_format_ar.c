@@ -50,9 +50,9 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_support_format_ar.c 201101 
 #include "archive_read_private.h"
 
 struct ar {
-	off_t	 entry_bytes_remaining;
-	off_t	 entry_offset;
-	off_t	 entry_padding;
+	int64_t	 entry_bytes_remaining;
+	int64_t	 entry_offset;
+	int64_t	 entry_padding;
 	char	*strtab;
 	size_t	 strtab_size;
 	char	 read_global_header;
@@ -352,7 +352,7 @@ archive_read_format_ar_read_header(struct archive_read *a,
 		 * overflowing a size_t and against the filename size
 		 * being larger than the entire entry. */
 		if (number > (uint64_t)(bsd_name_length + 1)
-		    || (off_t)bsd_name_length > ar->entry_bytes_remaining) {
+		    || (int64_t)bsd_name_length > ar->entry_bytes_remaining) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Bad input file size");
 			return (ARCHIVE_FATAL);
@@ -483,7 +483,7 @@ archive_read_format_ar_read_data(struct archive_read *a,
 static int
 archive_read_format_ar_skip(struct archive_read *a)
 {
-	off_t bytes_skipped;
+	int64_t bytes_skipped;
 	struct ar* ar;
 
 	ar = (struct ar *)(a->format->data);
