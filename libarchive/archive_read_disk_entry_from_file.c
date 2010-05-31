@@ -705,8 +705,8 @@ setup_sparse(struct archive_read_disk *a,
 {
 	int64_t size;
 	int initial_fd = fd;
-	off_t initial_off;
-	off_t off_s, off_e;
+	off_t initial_off; // FreeBSD/Solaris only, so off_t okay here
+	off_t off_s, off_e; // FreeBSD/Solaris only, so off_t okay here
 	int exit_sts = ARCHIVE_OK;
 
 	/* Does filesystem support the reporting of hole ? */

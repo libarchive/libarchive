@@ -100,7 +100,7 @@ archive_read_open_filename(struct archive *a, const char *filename,
 	int fd;
 	int is_disk_like = 0;
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
-	off_t mediasize = 0;
+	off_t mediasize = 0; // FreeBSD-specific, so off_t okay here.
 #elif defined(__NetBSD__) || defined(__OpenBSD__)
 	struct disklabel dl;
 #elif defined(__DragonFly__)
