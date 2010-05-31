@@ -348,7 +348,7 @@ struct iso9660 {
 		uint32_t	size;
 	} primary, joliet;
 
-	off_t	entry_sparse_offset;
+	int64_t	entry_sparse_offset;
 	int64_t	entry_bytes_remaining;
 	struct zisofs	 entry_zisofs;
 	struct content	*entry_content;

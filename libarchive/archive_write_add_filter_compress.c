@@ -88,7 +88,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_compression_compress.c
 #define	CLEAR	256		/* Table clear output code. */
 
 struct private_data {
-	off_t in_count, out_count, checkpoint;
+	int64_t in_count, out_count, checkpoint;
 
 	int code_len;			/* Number of bits/code. */
 	int cur_maxcode;		/* Maximum code, given n_bits. */
