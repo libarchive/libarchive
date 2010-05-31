@@ -801,8 +801,7 @@ _archive_filter_count(struct archive *_a)
 	}
 	return count;
 }
-		
-	
+
 /*
  * Close the file and all I/O.
  */
