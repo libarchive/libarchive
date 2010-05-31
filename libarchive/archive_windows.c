@@ -370,7 +370,7 @@ __la_link(const char *src, const char *dst)
 }
 
 int
-__la_ftruncate(int fd, off_t length)
+__la_ftruncate(int fd, int64_t length)
 {
 	LARGE_INTEGER distance;
 	HANDLE handle;
