@@ -1729,8 +1729,8 @@ copy_out(struct archive_write *a, uint64_t offset, uint64_t length)
 		rs = read(xar->temp_fd, wb, rsize);
 		if (rs < 0) {
 			archive_set_error(&(a->archive), errno,
-			    "Can't read temporary file(%zd)",
-			    rs);
+			    "Can't read temporary file(%jd)",
+			    (intmax_t)rs);
 			return (ARCHIVE_FATAL);
 		}
 		xar->wbuff_remaining -= rs;
