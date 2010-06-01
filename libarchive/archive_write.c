@@ -368,7 +368,7 @@ archive_write_client_write(struct archive_write_filter *f,
 				    a->client_data, p, to_write);
 				if (bytes_written <= 0)
 					return (ARCHIVE_FATAL);
-				if (bytes_written > to_write) {
+				if ((size_t)bytes_written > to_write) {
 					archive_set_error(&(a->archive),
 					    -1, "write overrun");
 					return (ARCHIVE_FATAL);
