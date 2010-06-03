@@ -737,7 +737,7 @@ static int
 archive_read_data_block64(struct archive *_a,
     const void **buff, size_t *size, int64_t *offset)
 #else
-static int
+int
 archive_read_data_block(struct archive *_a,
     const void **buff, size_t *size, int64_t *offset)
 #endif
