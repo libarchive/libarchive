@@ -1228,7 +1228,7 @@ iso9660_options(struct archive_write *a, const char *key, const char *value)
 {
 	struct iso9660 *iso9660 = a->format_data;
 	const char *p;
-	int num, r;
+	int r;
 
 	switch (key[0]) {
 	case 'a':
@@ -1314,6 +1314,7 @@ iso9660_options(struct archive_write *a, const char *key, const char *value)
 			return (ARCHIVE_OK);
 		}
 		if (strcmp(key, "boot-load-size") == 0) {
+			int num = 0;
 			r = get_num_opt(a, &num, 0xffff, 1, key, value);
 			iso9660->opt.boot_load_size = r == ARCHIVE_OK;
 			if (r != ARCHIVE_OK)
