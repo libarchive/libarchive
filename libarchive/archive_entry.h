@@ -321,6 +321,15 @@ __LA_DECL int	archive_entry_update_uname_utf8(struct archive_entry *, const char
 __LA_DECL const struct stat	*archive_entry_stat(struct archive_entry *);
 __LA_DECL void	archive_entry_copy_stat(struct archive_entry *, const struct stat *);
 
+/*
+ * Storage for Mac OS-specific AppleDouble metadata information.
+ * Apple-format tar files store a separate binary blob containing
+ * encoded metadata with ACL, extended attributes, etc.
+ * This provides a place to store that blob.
+ */
+
+__LA_DECL const void * archive_entry_mac_metadata(struct archive_entry *, size_t *);
+__LA_DECL void archive_entry_copy_mac_metadata(struct archive_entry *, const void *, size_t);
 
 /*
  * ACL routines.  This used to simply store and return text-format ACL

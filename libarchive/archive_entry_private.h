@@ -173,6 +173,9 @@ struct archive_entry {
 	/* Not used within libarchive; useful for some clients. */
 	struct aes ae_sourcepath;	/* Path this entry is sourced from. */
 
+	void *mac_metadata;
+	size_t mac_metadata_size;
+
 	/* ACL support. */
 	struct ae_acl	*acl_head;
 	struct ae_acl	*acl_p;

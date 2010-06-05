@@ -396,6 +396,7 @@ archive_entry_clear(struct archive_entry *entry)
 	aes_clean(&entry->ae_sourcepath);
 	aes_clean(&entry->ae_symlink);
 	aes_clean(&entry->ae_uname);
+	archive_entry_copy_mac_metadata(entry, NULL, 0);
 	archive_entry_acl_clear(entry);
 	archive_entry_xattr_clear(entry);
 	archive_entry_sparse_clear(entry);
@@ -411,6 +412,8 @@ archive_entry_clone(struct archive_entry *entry)
 	struct ae_acl *ap, *ap2;
 	struct ae_xattr *xp;
 	struct ae_sparse *sp;
+	size_t s;
+	const void *p;
 
 	/* Allocate new structure and copy over all of the fields. */
 	entry2 = archive_entry_new();
@@ -438,6 +441,10 @@ archive_entry_clone(struct archive_entry *entry)
 			aes_copy(&ap2->name, &ap->name);
 		ap = ap->next;
 	}
+
+	/* Copy Mac OS metadata. */
+	p = archive_entry_mac_metadata(entry, &s);
+	archive_entry_copy_mac_metadata(entry2, p, s);
 
 	/* Copy xattr data over. */
 	xp = entry->xattr_head;
@@ -1215,6 +1222,30 @@ int
 archive_entry_update_uname_utf8(struct archive_entry *entry, const char *name)
 {
 	return (aes_update_utf8(&entry->ae_uname, name));
+}
+
+const void *
+archive_entry_mac_metadata(struct archive_entry *entry, size_t *s)
+{
+  *s = entry->mac_metadata_size;
+  return entry->mac_metadata;
+}
+
+void
+archive_entry_copy_mac_metadata(struct archive_entry *entry,
+    const void *p, size_t s)
+{
+  free(entry->mac_metadata);
+  if (p == NULL || s == 0) {
+    entry->mac_metadata = NULL;
+    entry->mac_metadata_size = 0;
+  } else {
+    entry->mac_metadata_size = s;
+    entry->mac_metadata = malloc(s);
+    if (entry->mac_metadata == NULL)
+      abort();
+    memcpy(entry->mac_metadata, p, s);
+  }
 }
 
 /*
