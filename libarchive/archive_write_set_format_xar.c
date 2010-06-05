@@ -1733,6 +1733,11 @@ copy_out(struct archive_write *a, uint64_t offset, uint64_t length)
 			    (intmax_t)rs);
 			return (ARCHIVE_FATAL);
 		}
+		if (rs == 0) {
+			archive_set_error(&(a->archive), 0,
+			    "Truncated xar archive");
+			return (ARCHIVE_FATAL);
+		}
 		xar->wbuff_remaining -= rs;
 		length -= rs;
 		if (xar->wbuff_remaining == 0) {
