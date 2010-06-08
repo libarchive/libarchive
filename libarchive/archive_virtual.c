@@ -146,7 +146,7 @@ archive_read_data_block(struct archive *a,
 }
 #else
 int
-archive_read_data_block(struct archive *_a,
+archive_read_data_block(struct archive *a,
     const void **buff, size_t *s, int64_t *o)
 {
 	return ((a->vtable->archive_read_data_block)(a, buff, s, o));
