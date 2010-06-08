@@ -35,6 +35,10 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk.c 189429 2009-03-06 04
 
 static int	_archive_read_free(struct archive *);
 static int	_archive_read_close(struct archive *);
+static int	_archive_read_data_block(struct archive *,
+		    const void **, size_t *, int64_t *);
+static int	_archive_read_next_header2(struct archive *,
+		    struct archive_entry *);
 #if ARCHIVE_VERSION_NUMBER < 3000000
 static const char *trivial_lookup_gname(void *, gid_t gid);
 static const char *trivial_lookup_uname(void *, uid_t uid);
@@ -51,6 +55,8 @@ archive_read_disk_vtable(void)
 	if (!inited) {
 		av.archive_free = _archive_read_free;
 		av.archive_close = _archive_read_close;
+		av.archive_read_data_block = _archive_read_data_block;
+		av.archive_read_next_header2 = _archive_read_next_header2;
 	}
 	return (&av);
 }
@@ -254,4 +260,30 @@ trivial_lookup_uname(void *private_data, int64_t uid)
 	(void)private_data; /* UNUSED */
 	(void)uid; /* UNUSED */
 	return (NULL);
+}
+
+static int
+_archive_read_data_block(struct archive *_a, const void **buff,
+    size_t *size, int64_t *offset)
+{
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC, ARCHIVE_STATE_DATA,
+	    "archive_read_data_block");
+
+	(void)buff; /* UNUSED */
+	(void)size; /* UNUSED */
+	(void)offset; /* UNUSED */
+	/* Not implemented yet. */
+	return (ARCHIVE_FAILED);
+}
+
+static int
+_archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
+{
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
+	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
+	    "archive_read_next_header2");
+
+	(void)entry; /* UNUSED */
+	/* Not implemented yet. */
+	return (ARCHIVE_FAILED);
 }

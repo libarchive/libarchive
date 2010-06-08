@@ -65,12 +65,12 @@ static int	_archive_filter_code(struct archive *, int);
 static const char *_archive_filter_name(struct archive *, int);
 static int  _archive_filter_count(struct archive *);
 static int	_archive_read_close(struct archive *);
-static int	_archive_read_free(struct archive *);
-static int64_t  advance_file_pointer(struct archive_read_filter *, int64_t);
-#if ARCHIVE_VERSION_NUMBER < 3000000
-static int	archive_read_data_block64(struct archive *,
+static int	_archive_read_data_block(struct archive *,
 		    const void **, size_t *, int64_t *);
-#endif
+static int	_archive_read_free(struct archive *);
+static int	_archive_read_next_header2(struct archive *,
+		    struct archive_entry *);
+static int64_t  advance_file_pointer(struct archive_read_filter *, int64_t);
 
 static struct archive_vtable *
 archive_read_vtable(void)
@@ -83,6 +83,8 @@ archive_read_vtable(void)
 		av.archive_filter_code = _archive_filter_code;
 		av.archive_filter_name = _archive_filter_name;
 		av.archive_filter_count = _archive_filter_count;
+		av.archive_read_data_block = _archive_read_data_block;
+		av.archive_read_next_header2 = _archive_read_next_header2;
 		av.archive_free = _archive_read_free;
 		av.archive_close = _archive_read_close;
 	}
@@ -424,8 +426,8 @@ build_stream(struct archive_read *a)
 /*
  * Read header of next entry.
  */
-int
-archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
+static int
+_archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 	int slot, ret;
@@ -503,7 +505,7 @@ archive_read_next_header(struct archive *_a, struct archive_entry **entryp)
 	int ret;
 	struct archive_read *a = (struct archive_read *)_a;
 	*entryp = NULL;
-	ret = archive_read_next_header2(_a, a->entry);
+	ret = _archive_read_next_header2(_a, a->entry);
 	*entryp = a->entry;
 	return ret;
 }
@@ -600,13 +602,8 @@ archive_read_data(struct archive *_a, void *buff, size_t s)
 	while (s > 0) {
 		if (a->read_data_remaining == 0) {
 			read_buf = a->read_data_block;
-#if ARCHIVE_VERSION_NUMBER < 3000000
-			r = archive_read_data_block64(&a->archive, &read_buf,
+			r = _archive_read_data_block(&a->archive, &read_buf,
 			    &a->read_data_remaining, &a->read_data_offset);
-#else
-			r = archive_read_data_block(&a->archive, &read_buf,
-			    &a->read_data_remaining, &a->read_data_offset);
-#endif
 			a->read_data_block = read_buf;
 			if (r == ARCHIVE_EOF)
 				return (bytes_read);
@@ -720,27 +717,9 @@ archive_read_data_skip(struct archive *_a)
  * Returns ARCHIVE_OK if the operation is successful, ARCHIVE_EOF if
  * the end of entry is encountered.
  */
-#if ARCHIVE_VERSION_NUMBER < 3000000
-int
-archive_read_data_block(struct archive *_a,
-    const void **buff, size_t *size, off_t *offset)
-{
-	int r;
-	int64_t offset64;
-	r = archive_read_data_block64(_a, buff, size, &offset64);
-	*offset = (off_t)offset64;
-	return (r);
-}
-
-
 static int
-archive_read_data_block64(struct archive *_a,
+_archive_read_data_block(struct archive *_a,
     const void **buff, size_t *size, int64_t *offset)
-#else
-int
-archive_read_data_block(struct archive *_a,
-    const void **buff, size_t *size, int64_t *offset)
-#endif
 {
 	struct archive_read *a = (struct archive_read *)_a;
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA,
