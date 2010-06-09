@@ -1063,16 +1063,12 @@ tree_current_file_information(struct tree *t)
 static const struct stat *
 tree_current_lstat(struct tree *t)
 {
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	return (tree_current_stat(t));
-#else
 	if (!(t->flags & hasLstat)) {
 		if (lstat(tree_current_access_path(t), &t->lst) != 0)
 			return NULL;
 		t->flags |= hasLstat;
 	}
 	return (&t->lst);
-#endif
 }
 
 /*

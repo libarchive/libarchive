@@ -941,15 +941,15 @@ __la_fstat(int fd, struct stat *st)
 	return (ret);
 }
 
-int
-__la_stat(const char *path, struct stat *st)
+static int
+__la_xstat(const char *path, struct stat *st, DWORD flag)
 {
 	HANDLE handle;
 	struct ustat u;
 	int ret;
 
 	handle = la_CreateFile(path, 0, 0, NULL, OPEN_EXISTING,
-		FILE_FLAG_BACKUP_SEMANTICS | FILE_ATTRIBUTE_READONLY,
+		FILE_FLAG_BACKUP_SEMANTICS | flag,
 		NULL);
 	if (handle == INVALID_HANDLE_VALUE) {
 		la_dosmaperr(GetLastError());
@@ -976,6 +976,18 @@ __la_stat(const char *path, struct stat *st)
 		}
 	}
 	return (ret);
+}
+
+int
+__la_lstat(const char *path, struct stat *st)
+{
+	return (__la_xstat(path, st, FILE_FLAG_OPEN_REPARSE_POINT));
+}
+
+int
+__la_stat(const char *path, struct stat *st)
+{
+	return (__la_xstat(path, st, 0));
 }
 
 int
