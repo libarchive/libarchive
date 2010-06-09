@@ -88,7 +88,7 @@ struct tree_entry {
 	int depth;
 	struct tree_entry *next;
 	struct tree_entry *parent;
-	char *name;
+	struct archive_string name;
 	size_t dirname_length;
 	dev_t dev;
 	ino_t ino;
@@ -140,12 +140,10 @@ struct tree {
 	int	 tree_errno; /* Error code from last failed operation. */
 
 	/* Dynamically-sized buffer for holding path */
-	char	*buff;
-	size_t	 buff_length;
+	struct archive_string path;
 
 	const char *basename; /* Last path element */
 	size_t	 dirname_length; /* Leading dir length */
-	size_t	 path_length; /* Total path length */
 
 	int	 depth;
 	int	 openCount;
@@ -692,12 +690,13 @@ tree_push(struct tree *t, const char *path)
 	if (te->parent)
 		te->depth = te->parent->depth + 1;
 	t->stack = te;
+	archive_string_init(&te->name);
 #ifdef HAVE_FCHDIR
 	te->symlink_parent_fd = -1;
-	te->name = strdup(path);
+	archive_strcpy(&te->name, path);
 #elif defined(_WIN32) && !defined(__CYGWIN__)
 	te->symlink_parent_path = NULL;
-	te->name = strdup(path);
+	archive_strcpy(&te->name, path);
 #endif
 	te->flags = needsDescent | needsOpen | needsAscent;
 	te->dirname_length = t->dirname_length;
@@ -709,40 +708,22 @@ tree_push(struct tree *t, const char *path)
 static void
 tree_append(struct tree *t, const char *name, size_t name_length)
 {
-	char *p;
 	size_t size_needed;
 
-	if (t->buff != NULL)
-		t->buff[t->dirname_length] = '\0';
+	t->path.s[t->dirname_length] = '\0';
+	t->path.length = t->dirname_length;
 	/* Strip trailing '/' from name, unless entire name is "/". */
 	while (name_length > 1 && name[name_length - 1] == '/')
 		name_length--;
 
 	/* Resize pathname buffer as needed. */
 	size_needed = name_length + 1 + t->dirname_length;
-	if (t->buff_length < size_needed) {
-		if (t->buff_length < 1024)
-			t->buff_length = 1024;
-		while (t->buff_length < size_needed)
-			t->buff_length *= 2;
-		t->buff = realloc(t->buff, t->buff_length);
-	}
-	if (t->buff == NULL)
-		abort();
-	p = t->buff + t->dirname_length;
-	t->path_length = t->dirname_length + name_length;
+	archive_string_ensure(&t->path, size_needed);
 	/* Add a separating '/' if it's needed. */
-	if (t->dirname_length > 0 && p[-1] != '/') {
-		*p++ = '/';
-		t->path_length ++;
-	}
-#if HAVE_STRNCPY_S
-	strncpy_s(p, t->buff_length - (p - t->buff), name, name_length);
-#else
-	strncpy(p, name, name_length);
-#endif
-	p[name_length] = '\0';
-	t->basename = p;
+	if (t->dirname_length > 0 && t->path.s[archive_strlen(&t->path)-1] != '/')
+		archive_strappend_char(&t->path, '/');
+	t->basename = t->path.s + archive_strlen(&t->path);
+	archive_strncat(&t->path, name, name_length);
 }
 
 /*
@@ -756,6 +737,8 @@ tree_open(const char *path)
 
 	t = malloc(sizeof(*t));
 	memset(t, 0, sizeof(*t));
+	archive_string_init(&t->path);
+	archive_string_ensure(&t->path, 31);
 	/* First item is set up a lot like a symlink traversal. */
 	tree_push(t, path);
 	t->stack->flags = needsFirstVisit | isDirLink | needsAscent;
@@ -778,6 +761,8 @@ tree_open(const char *path)
 
 	t = malloc(sizeof(*t));
 	memset(t, 0, sizeof(*t));
+	archive_string_init(&t->path);
+	archive_string_ensure(&t->path, 31);
 	/* First item is set up a lot like a symlink traversal. */
 	/* printf("Looking for wildcard in %s\n", path); */
 	/* TODO: wildcard detection here screws up on \\?\c:\ UNC names */
@@ -789,7 +774,7 @@ tree_open(const char *path)
 			*p = '\0';
 			chdir(base);
 			tree_append(t, base, p - base);
-			t->dirname_length = t->path_length;
+			t->dirname_length = archive_strlen(&t->path);
 			base = p + 1;
 		}
 	}
@@ -850,19 +835,17 @@ tree_pop(struct tree *t)
 {
 	struct tree_entry *te;
 
-	if (t->buff)
-		t->buff[t->dirname_length] = '\0';
+	t->path.s[t->dirname_length] = '\0';
+	t->path.length = t->dirname_length;
 	if (t->stack == t->current && t->current != NULL)
 		t->current = t->current->parent;
 	te = t->stack;
 	t->stack = te->next;
 	t->dirname_length = te->dirname_length;
-	if (t->buff) {
-		t->basename = t->buff + t->dirname_length;
-		while (t->basename[0] == '/')
-			t->basename++;
-	}
-	free(te->name);
+	t->basename = t->path.s + t->dirname_length;
+	while (t->basename[0] == '/')
+		t->basename++;
+	archive_string_free(&te->name);
 	free(te);
 }
 
@@ -889,7 +872,7 @@ tree_next(struct tree *t)
 
 		if (t->stack->flags & needsFirstVisit) {
 #if defined(_WIN32) && !defined(__CYGWIN__)
-			char *d = t->stack->name;
+			char *d = t->stack->name.s;
 			t->stack->flags &= ~needsFirstVisit;
 			if (strchr(d, '*') || strchr(d, '?')) {
 				r = tree_dir_next_windows(t, d);
@@ -901,7 +884,7 @@ tree_next(struct tree *t)
 #endif
 			/* Top stack item needs a regular visit. */
 			t->current = t->stack;
-			tree_append(t, t->stack->name, strlen(t->stack->name));
+			tree_append(t, t->stack->name.s, archive_strlen(&(t->stack->name)));
 			//t->dirname_length = t->path_length;
 			//tree_pop(t);
 			t->stack->flags &= ~needsFirstVisit;
@@ -909,7 +892,7 @@ tree_next(struct tree *t)
 		} else if (t->stack->flags & needsDescent) {
 			/* Top stack item is dir to descend into. */
 			t->current = t->stack;
-			tree_append(t, t->stack->name, strlen(t->stack->name));
+			tree_append(t, t->stack->name.s, archive_strlen(&(t->stack->name)));
 			t->stack->flags &= ~needsDescent;
 			/* If it is a link, set up fd for the ascent. */
 			if (t->stack->flags & isDirLink) {
@@ -922,11 +905,11 @@ tree_next(struct tree *t)
 				t->stack->symlink_parent_path = _getcwd(NULL, 0);
 #endif
 			}
-			t->dirname_length = t->path_length;
+			t->dirname_length = archive_strlen(&t->path);
 #if defined(_WIN32) && !defined(__CYGWIN__)
-			if (t->path_length == 259 || !SetCurrentDirectory(t->stack->name) != 0)
+			if (archive_strlen(&t->path) == 259 || !SetCurrentDirectory(t->stack->name.s) != 0)
 #else
-			if (chdir(t->stack->name) != 0)
+			if (chdir(t->stack->name.s) != 0)
 #endif
 			{
 				/* chdir() failed; return error */
@@ -1212,7 +1195,7 @@ tree_current_access_path(struct tree *t)
 static const char *
 tree_current_path(struct tree *t)
 {
-	return (t->buff);
+	return (t->path.s);
 }
 
 /*
@@ -1224,7 +1207,7 @@ tree_close(struct tree *t)
 	/* Release anything remaining in the stack. */
 	while (t->stack != NULL)
 		tree_pop(t);
-	free(t->buff);
+	archive_string_free(&t->path);
 	/* TODO: Ensure that premature close() resets cwd */
 #if 0
 #ifdef HAVE_FCHDIR
