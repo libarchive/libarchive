@@ -163,5 +163,49 @@ DEFINE_TEST(test_read_disk_directory_traversals)
 
 	/* Destroy the archive. */
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/*
+	 * Test for wildcard '*' or '?'
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	assert((a = archive_read_disk_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, "dir1/*1"));
+
+	/* dir1/file1 */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+	assertEqualString(archive_entry_pathname(ae), "dir1/file1");
+	assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
+	assertEqualInt(archive_entry_size(ae), 10);
+	//assertEqualInt(archive_read_data_block(a, &p, &size, &offset), 0);
+	//assertEqualInt((int)size, 10);
+	//assertEqualInt((int)offset, 0);
+	//assertEqualInt(memcmp(p, "0123456789", 10), 0);
+
+	/* dir1/sub1 */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+	assertEqualString(archive_entry_pathname(ae), "dir1/sub1");
+	assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
+
+	/* Descend into the current object */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_descend(a));
+
+	/* dir1/sub1/file1 */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+	assertEqualString(archive_entry_pathname(ae), "dir1/sub1/file1");
+	assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
+	assertEqualInt(archive_entry_size(ae), 10);
+	//assertEqualInt(archive_read_data_block(a, &p, &size, &offset), 0);
+	//assertEqualInt((int)size, 10);
+	//assertEqualInt((int)offset, 0);
+	//assertEqualInt(memcmp(p, "0123456789", 10), 0);
+
+	/* There is no entry. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
+
+	/* Destroy the archive. */
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+#endif
+
 	archive_entry_free(ae);
 }
