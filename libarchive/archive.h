@@ -777,6 +777,16 @@ __LA_DECL int	archive_read_disk_set_uname_lookup(struct archive *,
     const char *(* /* lookup_fn */)(void *, __LA_INT64_T),
     void (* /* cleanup_fn */)(void *));
 #endif
+/* Start traversal. */
+__LA_DECL int	archive_read_disk_open(struct archive *, const char *);
+/*
+ * Request that current entry be visited.  If you invoke it on every
+ * directory, you'll get a physical traversal.  This is ignored if the
+ * current entry isn't a directory or a link to a directory.  So, if
+ * you invoke this on every returned path, you'll get a full logical
+ * traversal.
+ */
+__LA_DECL int	archive_read_disk_descend(struct archive *);
 
 /*
  * Accessor functions to read/set various information in

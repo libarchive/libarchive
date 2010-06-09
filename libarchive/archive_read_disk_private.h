@@ -33,6 +33,8 @@
 #ifndef ARCHIVE_READ_DISK_PRIVATE_H_INCLUDED
 #define ARCHIVE_READ_DISK_PRIVATE_H_INCLUDED
 
+struct tree;
+
 struct archive_read_disk {
 	struct archive	archive;
 
@@ -50,6 +52,8 @@ struct archive_read_disk {
 	 * sets this true, 'P' sets it false, 'H' changes it as we traverse.
 	 */
 	char	follow_symlinks;  /* Either 'L' or 'P'. */
+
+	struct tree *tree;
 
 #if ARCHIVE_VERSION_NUMBER < 3000000
 	const char * (*lookup_gname)(void *private, gid_t gid);
