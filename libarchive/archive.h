@@ -787,6 +787,7 @@ __LA_DECL int	archive_read_disk_open(struct archive *, const char *);
  * traversal.
  */
 __LA_DECL int	archive_read_disk_descend(struct archive *);
+__LA_DECL int	archive_read_disk_current_filesystem(struct archive *);
 
 /*
  * Accessor functions to read/set various information in

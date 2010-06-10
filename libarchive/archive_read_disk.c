@@ -107,6 +107,12 @@ struct tree_entry {
 #endif
 };
 
+struct filesystem {
+	int64_t		dev;
+	int		synthetic;
+	int		remote;
+};
+
 /* Definitions for tree_entry.flags bitmap. */
 #define	isDir 1 /* This entry is a regular directory. */
 #define	isDirLink 2 /* This entry is a symbolic link to a directory. */
@@ -158,8 +164,11 @@ struct tree {
 	int	 descend;
 
 	char	 symlink_mode;
-	char	 dev_recorded;
-	dev_t	 current_dev;
+	struct filesystem *current_filesystem;
+	struct filesystem *filesystem_table;
+	int		current_filesystem_id;
+	int		max_filesystem_id;
+	int		allocated_filesytem;
 };
 
 /* Definitions for tree.flags bitmap. */
@@ -257,7 +266,8 @@ static int tree_current_is_physical_link(struct tree *);
 #endif
 /* "is_dir" is equivalent to S_ISDIR(tree_current_stat()->st_mode) */
 static int tree_current_is_dir(struct tree *);
-
+static int update_filesystem(struct archive_read_disk *a,
+		    const struct stat *st);
 
 static int	_archive_read_free(struct archive *);
 static int	_archive_read_close(struct archive *);
@@ -677,10 +687,9 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 		break;
 	}
 
-	if (!t->dev_recorded) {
-		/* This is the initial file system. */
-		t->current_dev = lst->st_dev;
-		t->dev_recorded = 1;
+	if (update_filesystem(a, lst) != ARCHIVE_OK) {
+		a->archive.state = ARCHIVE_STATE_FATAL;
+		return (ARCHIVE_FATAL);
 	}
 	t->descend = descend;
 
@@ -770,7 +779,7 @@ archive_read_disk_open(struct archive *_a, const char *pathname)
 		return (ARCHIVE_FATAL);
 	}
 	tree->symlink_mode = a->symlink_mode;
-	tree->dev_recorded = 0;
+	tree->current_filesystem_id = -1;
 	a->tree = tree;
 	a->archive.state = ARCHIVE_STATE_HEADER;
 	a->entry_eof = 0;
@@ -779,6 +788,65 @@ archive_read_disk_open(struct archive *_a, const char *pathname)
 	return (ARCHIVE_OK);
 }
 
+/*
+ * Return a current filesystem ID which is index of the filesystem entry
+ * you've visited through archive_read_disk.
+ */
+int
+archive_read_disk_current_filesystem(struct archive *_a)
+{
+	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC, ARCHIVE_STATE_DATA,
+	    "archive_read_disk_current_filesystem");
+
+	return (a->tree->current_filesystem_id);
+}
+
+static int
+update_filesystem(struct archive_read_disk *a, const struct stat *st)
+{
+	struct tree *t = a->tree;
+	int i, fid;
+
+	/* Current filesystem is not changed. */
+	if (t->current_filesystem != NULL &&
+	    t->current_filesystem->dev == st->st_dev)
+		return (ARCHIVE_OK);
+
+	for (i = 0; i < t->max_filesystem_id; i++) {
+		if (t->filesystem_table[i].dev == st->st_dev) {
+			/* There is the filesytem ID we've already generated. */
+			t->current_filesystem_id = i;
+			t->current_filesystem = &(t->filesystem_table[i]);
+			return (ARCHIVE_OK);
+		}
+	}
+
+	/*
+	 * There is a new filesytem, we generate a new ID for.
+	 */
+	fid = t->max_filesystem_id++;
+	if (t->max_filesystem_id > t->allocated_filesytem) {
+		size_t s;
+
+		s = t->max_filesystem_id * 2;
+		t->filesystem_table = realloc(t->filesystem_table,
+		    s * sizeof(*t->filesystem_table));
+		if (t->filesystem_table == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate tar data");
+			return (ARCHIVE_FATAL);
+		}
+		t->allocated_filesytem = s;
+	}
+	t->current_filesystem_id = fid;
+	t->current_filesystem = &(t->filesystem_table[fid]);
+	t->current_filesystem->dev = st->st_dev;
+	t->current_filesystem->synthetic = -1;/* Not yet supported. */
+	t->current_filesystem->remote = -1;/* Not yet supported. */
+	return (ARCHIVE_OK);
+}
 
 /*
  * Add a directory path to the current stack.
@@ -1309,6 +1377,7 @@ tree_close(struct tree *t)
 	while (t->stack != NULL)
 		tree_pop(t);
 	archive_string_free(&t->path);
+	free(t->filesystem_table);
 	/* TODO: Ensure that premature close() resets cwd */
 #if 0
 #ifdef HAVE_FCHDIR
