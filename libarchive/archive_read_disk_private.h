@@ -55,6 +55,13 @@ struct archive_read_disk {
 
 	struct tree *tree;
 
+	int		 entry_fd;
+	int		 entry_eof;
+	int64_t		 entry_remaining_bytes;
+	int64_t		 entry_total;
+	unsigned char	*entry_buff;
+	size_t		 entry_buff_size;
+
 #if ARCHIVE_VERSION_NUMBER < 3000000
 	const char * (*lookup_gname)(void *private, gid_t gid);
 #else

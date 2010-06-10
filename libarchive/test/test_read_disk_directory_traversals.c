@@ -29,13 +29,13 @@ DEFINE_TEST(test_read_disk_directory_traversals)
 {
 	struct archive *a;
 	struct archive_entry *ae;
-	//const void *p;
-	//size_t size;
-	//int64_t offset;
+	const void *p;
+	size_t size;
+	int64_t offset;
 
 	assertMakeDir("dir1", 0755);
 	assertMakeFile("dir1/file1", 0644, "0123456789");
-	assertMakeFile("dir1/file2", 0644, "0123456789");
+	assertMakeFile("dir1/file2", 0644, "hello world");
 	assertMakeDir("dir1/sub1", 0755);
 	assertMakeFile("dir1/sub1/file1", 0644, "0123456789");
 	assertMakeDir("dir1/sub2", 0755);
@@ -44,7 +44,7 @@ DEFINE_TEST(test_read_disk_directory_traversals)
 	assertMakeDir("dir1/sub2/sub1", 0755);
 	assertMakeDir("dir1/sub2/sub2", 0755);
 	assertMakeDir("dir1/sub2/sub3", 0755);
-	assertMakeFile("dir1/sub2/sub3/file", 0644, "0123456789");
+	assertMakeFile("dir1/sub2/sub3/file", 0644, "xyz");
 
 	assert((ae = archive_entry_new()) != NULL);
 	assert((a = archive_read_disk_new()) != NULL);
@@ -63,20 +63,30 @@ DEFINE_TEST(test_read_disk_directory_traversals)
 	assertEqualString(archive_entry_pathname(ae), "dir1/file1");
 	assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
 	assertEqualInt(archive_entry_size(ae), 10);
-	//assertEqualInt(archive_read_data_block(a, &p, &size, &offset), 0);
-	//assertEqualInt((int)size, 10);
-	//assertEqualInt((int)offset, 0);
-	//assertEqualInt(memcmp(p, "0123456789", 10), 0);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_data_block(a, &p, &size, &offset));
+	assertEqualInt((int)size, 10);
+	assertEqualInt((int)offset, 0);
+	assertEqualInt(memcmp(p, "0123456789", 10), 0);
+	assertEqualInt(ARCHIVE_EOF,
+	    archive_read_data_block(a, &p, &size, &offset));
+	assertEqualInt((int)size, 0);
+	assertEqualInt((int)offset, 10);
 
 	/* dir1/file2 */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
 	assertEqualString(archive_entry_pathname(ae), "dir1/file2");
 	assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
-	assertEqualInt(archive_entry_size(ae), 10);
-	//assertEqualInt(archive_read_data_block(a, &p, &size, &offset), 0);
-	//assertEqualInt((int)size, 10);
-	//assertEqualInt((int)offset, 0);
-	//assertEqualInt(memcmp(p, "0123456789", 10), 0);
+	assertEqualInt(archive_entry_size(ae), 11);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_data_block(a, &p, &size, &offset));
+	assertEqualInt((int)size, 11);
+	assertEqualInt((int)offset, 0);
+	assertEqualInt(memcmp(p, "hello world", 11), 0);
+	assertEqualInt(ARCHIVE_EOF,
+	    archive_read_data_block(a, &p, &size, &offset));
+	assertEqualInt((int)size, 0);
+	assertEqualInt((int)offset, 11);
 
 	/* dir1/sub1 */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
@@ -99,20 +109,30 @@ DEFINE_TEST(test_read_disk_directory_traversals)
 	assertEqualString(archive_entry_pathname(ae), "dir1/sub2/file1");
 	assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
 	assertEqualInt(archive_entry_size(ae), 10);
-	//assertEqualInt(archive_read_data_block(a, &p, &size, &offset), 0);
-	//assertEqualInt((int)size, 10);
-	//assertEqualInt((int)offset, 0);
-	//assertEqualInt(memcmp(p, "0123456789", 10), 0);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_data_block(a, &p, &size, &offset));
+	assertEqualInt((int)size, 10);
+	assertEqualInt((int)offset, 0);
+	assertEqualInt(memcmp(p, "0123456789", 10), 0);
+	assertEqualInt(ARCHIVE_EOF,
+	    archive_read_data_block(a, &p, &size, &offset));
+	assertEqualInt((int)size, 0);
+	assertEqualInt((int)offset, 10);
 
 	/* dir1/sub2/file2 */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
 	assertEqualString(archive_entry_pathname(ae), "dir1/sub2/file2");
 	assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
 	assertEqualInt(archive_entry_size(ae), 10);
-	//assertEqualInt(archive_read_data_block(a, &p, &size, &offset), 0);
-	//assertEqualInt((int)size, 10);
-	//assertEqualInt((int)offset, 0);
-	//assertEqualInt(memcmp(p, "0123456789", 10), 0);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_data_block(a, &p, &size, &offset));
+	assertEqualInt((int)size, 10);
+	assertEqualInt((int)offset, 0);
+	assertEqualInt(memcmp(p, "0123456789", 10), 0);
+	assertEqualInt(ARCHIVE_EOF,
+	    archive_read_data_block(a, &p, &size, &offset));
+	assertEqualInt((int)size, 0);
+	assertEqualInt((int)offset, 10);
 
 	/* dir1/sub2/sub1 */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
@@ -142,21 +162,31 @@ DEFINE_TEST(test_read_disk_directory_traversals)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
 	assertEqualString(archive_entry_pathname(ae), "dir1/sub2/sub3/file");
 	assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
-	assertEqualInt(archive_entry_size(ae), 10);
-	//assertEqualInt(archive_read_data_block(a, &p, &size, &offset), 0);
-	//assertEqualInt((int)size, 10);
-	//assertEqualInt((int)offset, 0);
-	//assertEqualInt(memcmp(p, "0123456789", 10), 0);
+	assertEqualInt(archive_entry_size(ae), 3);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_data_block(a, &p, &size, &offset));
+	assertEqualInt((int)size, 3);
+	assertEqualInt((int)offset, 0);
+	assertEqualInt(memcmp(p, "xyz", 3), 0);
+	assertEqualInt(ARCHIVE_EOF,
+	    archive_read_data_block(a, &p, &size, &offset));
+	assertEqualInt((int)size, 0);
+	assertEqualInt((int)offset, 3);
 
 	/* dir1/sub1/file1 */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
 	assertEqualString(archive_entry_pathname(ae), "dir1/sub1/file1");
 	assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
 	assertEqualInt(archive_entry_size(ae), 10);
-	//assertEqualInt(archive_read_data_block(a, &p, &size, &offset), 0);
-	//assertEqualInt((int)size, 10);
-	//assertEqualInt((int)offset, 0);
-	//assertEqualInt(memcmp(p, "0123456789", 10), 0);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_data_block(a, &p, &size, &offset));
+	assertEqualInt((int)size, 10);
+	assertEqualInt((int)offset, 0);
+	assertEqualInt(memcmp(p, "0123456789", 10), 0);
+	assertEqualInt(ARCHIVE_EOF,
+	    archive_read_data_block(a, &p, &size, &offset));
+	assertEqualInt((int)size, 0);
+	assertEqualInt((int)offset, 10);
 
 	/* There is no entry. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
@@ -176,10 +206,11 @@ DEFINE_TEST(test_read_disk_directory_traversals)
 	assertEqualString(archive_entry_pathname(ae), "dir1/file1");
 	assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
 	assertEqualInt(archive_entry_size(ae), 10);
-	//assertEqualInt(archive_read_data_block(a, &p, &size, &offset), 0);
-	//assertEqualInt((int)size, 10);
-	//assertEqualInt((int)offset, 0);
-	//assertEqualInt(memcmp(p, "0123456789", 10), 0);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_data_block(a, &p, &size, &offset));
+	assertEqualInt((int)size, 10);
+	assertEqualInt((int)offset, 0);
+	assertEqualInt(memcmp(p, "0123456789", 10), 0);
 
 	/* There is no entry. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
@@ -201,10 +232,11 @@ DEFINE_TEST(test_read_disk_directory_traversals)
 	assertEqualString(archive_entry_pathname(ae), "dir1/file1");
 	assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
 	assertEqualInt(archive_entry_size(ae), 10);
-	//assertEqualInt(archive_read_data_block(a, &p, &size, &offset), 0);
-	//assertEqualInt((int)size, 10);
-	//assertEqualInt((int)offset, 0);
-	//assertEqualInt(memcmp(p, "0123456789", 10), 0);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_data_block(a, &p, &size, &offset));
+	assertEqualInt((int)size, 10);
+	assertEqualInt((int)offset, 0);
+	assertEqualInt(memcmp(p, "0123456789", 10), 0);
 
 	/* dir1/sub1 */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
@@ -219,10 +251,11 @@ DEFINE_TEST(test_read_disk_directory_traversals)
 	assertEqualString(archive_entry_pathname(ae), "dir1/sub1/file1");
 	assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
 	assertEqualInt(archive_entry_size(ae), 10);
-	//assertEqualInt(archive_read_data_block(a, &p, &size, &offset), 0);
-	//assertEqualInt((int)size, 10);
-	//assertEqualInt((int)offset, 0);
-	//assertEqualInt(memcmp(p, "0123456789", 10), 0);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_data_block(a, &p, &size, &offset));
+	assertEqualInt((int)size, 10);
+	assertEqualInt((int)offset, 0);
+	assertEqualInt(memcmp(p, "0123456789", 10), 0);
 
 	/* There is no entry. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
