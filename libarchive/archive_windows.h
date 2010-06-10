@@ -114,7 +114,7 @@
 #define	futimes		__la_futimes
 #define link		__la_link
 #define	lseek		__la_lseek
-#define	lstat		__la_lstat
+#define	lstat		__la_stat
 #define	mbstowcs	__la_mbstowcs
 #define	mkdir(d,m)	__la_mkdir(d, m)
 #define	open		__la_open
