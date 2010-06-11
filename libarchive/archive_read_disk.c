@@ -927,10 +927,10 @@ setup_current_filesystem(struct archive_read_disk *a)
 	return (ARCHIVE_OK);
 }
 
-#elif defined(HAVE_STATVFS) && defined(MNT_LOCAL)
+#elif defined(HAVE_STATVFS) && defined(ST_LOCAL)
 
 /*
- * Get conditions of synthetic and remote on NetBSD and OpenBSD
+ * Get conditions of synthetic and remote on NetBSD
  */
 static int
 setup_current_filesystem(struct archive_read_disk *a)
@@ -946,7 +946,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 		archive_set_error(&a->archive, errno, "statfs failed");
 		return (ARCHIVE_FAILED);
 	}
-	if (sfs.f_flag & MNT_LOCAL)
+	if (sfs.f_flag & ST_LOCAL)
 		t->current_filesystem->remote = 0;
 	else
 		t->current_filesystem->remote = 1;
