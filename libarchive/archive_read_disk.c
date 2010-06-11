@@ -28,14 +28,17 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk.c 189429 2009-03-06 04:35:31Z kientzle $");
 
-#ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
 #ifdef HAVE_SYS_MOUNT_H
 #include <sys/mount.h>
+#endif
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
+#ifdef HAVE_SYS_STATVFS_H
+#include <sys/statvfs.h>
 #endif
 #ifdef HAVE_DIRECT_H
 #include <direct.h>
@@ -917,6 +920,32 @@ filesystem_information(struct archive_read_disk *a, const char *path,
 		fs->synthetic = 1;
 	else
 		fs->synthetic = 0;
+	return (ARCHIVE_OK);
+}
+
+#elif defined(HAVE_STATVFS) && defined(MNT_LOCAL)
+
+/*
+ * Get conditions of synthetic and remote on NetBSD and OpenBSD
+ */
+static int
+filesystem_information(struct archive_read_disk *a, const char *path,
+    struct filesystem *fs)
+{
+	struct statvfs sfs;
+	int r;
+
+	fs->synthetic = -1;
+	r = statvfs(path, &sfs);
+	if (r == -1) {
+		fs->remote = -1;
+		archive_set_error(&a->archive, errno, "statfs failed");
+		return (ARCHIVE_FAILED);
+	}
+	if (sfs.f_flag & MNT_LOCAL)
+		fs->remote = 0;
+	else
+		fs->remote = 1;
 	return (ARCHIVE_OK);
 }
 
