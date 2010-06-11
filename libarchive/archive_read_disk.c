@@ -283,8 +283,7 @@ static int tree_current_is_physical_link(struct tree *);
 static int tree_current_is_dir(struct tree *);
 static int update_filesystem(struct archive_read_disk *a,
 		    const struct stat *st);
-static int filesystem_information(struct archive_read_disk *, const char *,
-		    struct filesystem *);
+static int setup_current_filesystem(struct archive_read_disk *);
 
 static int	_archive_read_free(struct archive *);
 static int	_archive_read_close(struct archive *);
@@ -859,8 +858,7 @@ update_filesystem(struct archive_read_disk *a, const struct stat *st)
 	t->current_filesystem_id = fid;
 	t->current_filesystem = &(t->filesystem_table[fid]);
 	t->current_filesystem->dev = st->st_dev;
-	return (filesystem_information(a, tree_current_access_path(t),
-	    t->current_filesystem));
+	return (setup_current_filesystem(a));
 }
 
 /*
@@ -899,33 +897,33 @@ archive_read_disk_current_filesystem_is_remote(struct archive *_a)
  * Get conditions of synthetic and remote on FreeBSD.
  */
 static int
-filesystem_information(struct archive_read_disk *a, const char *path,
-    struct filesystem *fs)
+setup_current_filesystem(struct archive_read_disk *a)
 {
+	struct tree *t = a->tree;
 	struct statfs sfs;
 	struct xvfsconf vfc;
 	int r;
 
-	fs->synthetic = -1;
-	fs->remote = -1;
-	r = statfs(path, &sfs);
+	t->current_filesystem->synthetic = -1;
+	t->current_filesystem->remote = -1;
+	r = statfs(tree_current_access_path(t), &sfs);
 	if (r == -1) {
 		archive_set_error(&a->archive, errno, "statfs failed");
 		return (ARCHIVE_FAILED);
 	}
 	if (sfs.f_flags & MNT_LOCAL)
-		fs->remote = 0;
+		t->current_filesystem->remote = 0;
 	else
-		fs->remote = 1;
+		t->current_filesystem->remote = 1;
 	r = getvfsbyname(sfs.f_fstypename, &vfc);
 	if (r == -1) {
 		archive_set_error(&a->archive, errno, "getvfsbyname failed");
 		return (ARCHIVE_FAILED);
 	}
 	if (vfc.vfc_flags & VFCF_SYNTHETIC)
-		fs->synthetic = 1;
+		t->current_filesystem->synthetic = 1;
 	else
-		fs->synthetic = 0;
+		t->current_filesystem->synthetic = 0;
 	return (ARCHIVE_OK);
 }
 
@@ -935,23 +933,23 @@ filesystem_information(struct archive_read_disk *a, const char *path,
  * Get conditions of synthetic and remote on NetBSD and OpenBSD
  */
 static int
-filesystem_information(struct archive_read_disk *a, const char *path,
-    struct filesystem *fs)
+setup_current_filesystem(struct archive_read_disk *a)
 {
+	struct tree *t = a->tree;
 	struct statvfs sfs;
 	int r;
 
-	fs->synthetic = -1;
-	r = statvfs(path, &sfs);
+	t->current_filesystem->synthetic = -1;
+	r = statvfs(tree_current_access_path(t), &sfs);
 	if (r == -1) {
-		fs->remote = -1;
+		t->current_filesystem->remote = -1;
 		archive_set_error(&a->archive, errno, "statfs failed");
 		return (ARCHIVE_FAILED);
 	}
 	if (sfs.f_flag & MNT_LOCAL)
-		fs->remote = 0;
+		t->current_filesystem->remote = 0;
 	else
-		fs->remote = 1;
+		t->current_filesystem->remote = 1;
 	return (ARCHIVE_OK);
 }
 
@@ -967,16 +965,16 @@ filesystem_information(struct archive_read_disk *a, const char *path,
  * Get conditions of synthetic and remote on Linux
  */
 static int
-filesystem_information(struct archive_read_disk *a, const char *path,
-    struct filesystem *fs)
+setup_current_filesystem(struct archive_read_disk *a)
 {
+	struct tree *t = a->tree;
 	struct statfs sfs;
 	int r;
 
-	r = statfs(path, &sfs);
+	r = statfs(tree_current_access_path(t), &sfs);
 	if (r == -1) {
-		fs->synthetic = -1;
-		fs->remote = -1;
+		t->current_filesystem->synthetic = -1;
+		t->current_filesystem->remote = -1;
 		archive_set_error(&a->archive, errno, "statfs failed");
 		return (ARCHIVE_FAILED);
 	}
@@ -987,18 +985,18 @@ filesystem_information(struct archive_read_disk *a, const char *path,
 	case NCP_SUPER_MAGIC:/* NetWare */
 	case NFS_SUPER_MAGIC:
 	case SMB_SUPER_MAGIC:
-		fs->remote = 1;
-		fs->synthetic = 0;
+		t->current_filesystem->remote = 1;
+		t->current_filesystem->synthetic = 0;
 		break;
 	case DEVFS_SUPER_MAGIC:
 	case PROC_SUPER_MAGIC:
 	case USBDEVICE_SUPER_MAGIC:
-		fs->remote = 0;
-		fs->synthetic = 1;
+		t->current_filesystem->remote = 0;
+		t->current_filesystem->synthetic = 1;
 		break;
 	default:
-		fs->remote = 0;
-		fs->synthetic = 0;
+		t->current_filesystem->remote = 0;
+		t->current_filesystem->synthetic = 0;
 		break;
 	}
 	return (ARCHIVE_OK);
@@ -1010,13 +1008,11 @@ filesystem_information(struct archive_read_disk *a, const char *path,
  * Generic
  */
 static int
-filesystem_information(struct archive_read_disk *a, const char *path,
-    struct filesystem *fs)
+setup_current_filesystem(struct archive_read_disk *a)
 {
-	(void)a; /* UNUSED */
-	(void)path; /* UNUSED */
-	fs->synthetic = -1;/* Not supported */
-	fs->remote = -1;/* Not supported */
+	struct tree *t = a->tree;
+	t->current_filesystem->synthetic = -1;/* Not supported */
+	t->current_filesystem->remote = -1;/* Not supported */
 	return (ARCHIVE_OK);
 }
 
