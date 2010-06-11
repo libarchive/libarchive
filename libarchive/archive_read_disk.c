@@ -151,7 +151,6 @@ struct tree {
 	struct tree_entry	*current;
 #if defined(HAVE_WINDOWS_H) && !defined(__CYGWIN__)
 	HANDLE d;
-	BY_HANDLE_FILE_INFORMATION fileInfo;
 #define	INVALID_DIR_HANDLE INVALID_HANDLE_VALUE
 	WIN32_FIND_DATA _findData;
 	WIN32_FIND_DATA *findData;
@@ -1257,8 +1256,16 @@ tree_next(struct tree *t)
 				if (r == 0)
 					continue;
 				return (r);
+			} else {
+				HANDLE h = FindFirstFile(d, &t->_findData);
+				if (h == INVALID_DIR_HANDLE) {
+					t->tree_errno = errno;
+					t->visit_type = TREE_ERROR_DIR;
+					return (t->visit_type);
+				}
+				t->findData = &t->_findData;
+				FindClose(h);
 			}
-			// Not a pattern, handle it as-is...
 #endif
 			/* Top stack item needs a regular visit. */
 			t->current = t->stack;
@@ -1413,28 +1420,6 @@ tree_current_stat(struct tree *t)
 	return (&t->st);
 }
 
-#if defined(HAVE_WINDOWS_H) && !defined(__CYGWIN__)
-static const BY_HANDLE_FILE_INFORMATION *
-tree_current_file_information(struct tree *t)
-{
-	if (!(t->flags & hasFileInfo)) {
-		HANDLE h = CreateFile(tree_current_access_path(t),
-			0, 0, NULL,
-			OPEN_EXISTING,
-			FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT,
-			NULL);
-		if (h == INVALID_HANDLE_VALUE)
-			return NULL;
-		if (!GetFileInformationByHandle(h, &t->fileInfo)) {
-			CloseHandle(h);
-			return NULL;
-		}
-		CloseHandle(h);
-		t->flags |= hasFileInfo;
-	}
-	return (&t->fileInfo);
-}
-#endif
 /*
  * Get the lstat() data for the entry just returned from tree_next().
  */
@@ -1458,8 +1443,6 @@ tree_current_is_dir(struct tree *t)
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	if (t->findData)
 		return (t->findData->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
-	if (tree_current_file_information(t))
-		return (t->fileInfo.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
 	return (0);
 #else
 	const struct stat *st;
