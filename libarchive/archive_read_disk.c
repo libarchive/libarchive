@@ -31,6 +31,12 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk.c 189429 2009-03-06 04
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
+#ifdef HAVE_SYS_PARAM_H
+#include <sys/param.h>
+#endif
+#ifdef HAVE_SYS_MOUNT_H
+#include <sys/mount.h>
+#endif
 #ifdef HAVE_DIRECT_H
 #include <direct.h>
 #endif
@@ -268,6 +274,8 @@ static int tree_current_is_physical_link(struct tree *);
 static int tree_current_is_dir(struct tree *);
 static int update_filesystem(struct archive_read_disk *a,
 		    const struct stat *st);
+static int filesystem_information(struct archive_read_disk *, const char *,
+		    struct filesystem *);
 
 static int	_archive_read_free(struct archive *);
 static int	_archive_read_close(struct archive *);
@@ -809,7 +817,6 @@ update_filesystem(struct archive_read_disk *a, const struct stat *st)
 	struct tree *t = a->tree;
 	int i, fid;
 
-	/* Current filesystem is not changed. */
 	if (t->current_filesystem != NULL &&
 	    t->current_filesystem->dev == st->st_dev)
 		return (ARCHIVE_OK);
@@ -843,10 +850,94 @@ update_filesystem(struct archive_read_disk *a, const struct stat *st)
 	t->current_filesystem_id = fid;
 	t->current_filesystem = &(t->filesystem_table[fid]);
 	t->current_filesystem->dev = st->st_dev;
-	t->current_filesystem->synthetic = -1;/* Not yet supported. */
-	t->current_filesystem->remote = -1;/* Not yet supported. */
+	return (filesystem_information(a, tree_current_access_path(t),
+	    t->current_filesystem));
+}
+
+/*
+ * Returns 1 if current filesystem is generated filesystem, 0 if it is not
+ * or -1 if it is unknown.
+ */
+int
+archive_read_disk_current_filesystem_is_synthetic(struct archive *_a)
+{
+	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC, ARCHIVE_STATE_DATA,
+	    "archive_read_disk_current_filesystem");
+
+	return (a->tree->current_filesystem->synthetic);
+}
+
+/*
+ * Returns 1 if current filesystem is remote filesystem, 0 if it is not
+ * or -1 if it is unknown.
+ */
+int
+archive_read_disk_current_filesystem_is_remote(struct archive *_a)
+{
+	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC, ARCHIVE_STATE_DATA,
+	    "archive_read_disk_current_filesystem");
+
+	return (a->tree->current_filesystem->remote);
+}
+
+#if defined(HAVE_GETVFSBYNAME) && defined(HAVE_STATFS)
+
+/*
+ * Get conditions of synthetic and remote on FreeBSD.
+ */
+static int
+filesystem_information(struct archive_read_disk *a, const char *path,
+    struct filesystem *fs)
+{
+	struct statfs sfs;
+	struct xvfsconf vfc;
+	int r;
+
+	fs->synthetic = -1;
+	fs->remote = -1;
+	r = statfs(path, &sfs);
+	if (r == -1) {
+		archive_set_error(&a->archive, errno, "statfs failed");
+		return (ARCHIVE_FAILED);
+	}
+	if (sfs.f_flags & MNT_LOCAL)
+		fs->remote = 0;
+	else
+		fs->remote = 1;
+	r = getvfsbyname(sfs.f_fstypename, &vfc);
+	if (r == -1) {
+		archive_set_error(&a->archive, errno, "getvfsbyname failed");
+		return (ARCHIVE_FAILED);
+	}
+	if (vfc.vfc_flags & VFCF_SYNTHETIC)
+		fs->synthetic = 1;
+	else
+		fs->synthetic = 0;
 	return (ARCHIVE_OK);
 }
+
+#else
+
+/*
+ * Generic
+ */
+static int
+filesystem_information(struct archive_read_disk *a, const char *path,
+    struct filesystem *fs)
+{
+	(void)a; /* UNUSED */
+	(void)path; /* UNUSED */
+	fs->synthetic = -1;/* Not supported */
+	fs->remote = -1;/* Not supported */
+	return (ARCHIVE_OK);
+}
+
+#endif
+
 
 /*
  * Add a directory path to the current stack.

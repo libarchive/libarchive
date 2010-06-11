@@ -788,6 +788,8 @@ __LA_DECL int	archive_read_disk_open(struct archive *, const char *);
  */
 __LA_DECL int	archive_read_disk_descend(struct archive *);
 __LA_DECL int	archive_read_disk_current_filesystem(struct archive *);
+__LA_DECL int	archive_read_disk_current_filesystem_is_synthetic(struct archive *);
+__LA_DECL int	archive_read_disk_current_filesystem_is_remote(struct archive *);
 
 /*
  * Accessor functions to read/set various information in
