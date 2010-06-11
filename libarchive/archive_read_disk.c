@@ -40,6 +40,12 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk.c 189429 2009-03-06 04
 #ifdef HAVE_SYS_STATVFS_H
 #include <sys/statvfs.h>
 #endif
+#ifdef HAVE_SYS_VFS_H
+#include <sys/vfs.h>
+#endif
+#ifdef HAVE_LINUX_MAGIC_H
+#include <linux/magic.h>
+#endif
 #ifdef HAVE_DIRECT_H
 #include <direct.h>
 #endif
@@ -946,6 +952,55 @@ filesystem_information(struct archive_read_disk *a, const char *path,
 		fs->remote = 0;
 	else
 		fs->remote = 1;
+	return (ARCHIVE_OK);
+}
+
+#elif defined(HAVE_SYS_VFS_H) && defined(HAVE_LINUX_MAGIC_H)
+#ifndef CIFS_SUPER_MAGIC
+#define CIFS_SUPER_MAGIC 0xFF534D42
+#endif
+#ifndef DEVFS_SUPER_MAGIC
+#define DEVFS_SUPER_MAGIC 0x1373
+#endif
+
+/*
+ * Get conditions of synthetic and remote on Linux
+ */
+static int
+filesystem_information(struct archive_read_disk *a, const char *path,
+    struct filesystem *fs)
+{
+	struct statfs sfs;
+	int r;
+
+	r = statfs(path, &sfs);
+	if (r == -1) {
+		fs->synthetic = -1;
+		fs->remote = -1;
+		archive_set_error(&a->archive, errno, "statfs failed");
+		return (ARCHIVE_FAILED);
+	}
+	switch (sfs.f_type) {
+	case AFS_SUPER_MAGIC:
+	case CIFS_SUPER_MAGIC:
+	case CODA_SUPER_MAGIC:
+	case NCP_SUPER_MAGIC:/* NetWare */
+	case NFS_SUPER_MAGIC:
+	case SMB_SUPER_MAGIC:
+		fs->remote = 1;
+		fs->synthetic = 0;
+		break;
+	case DEVFS_SUPER_MAGIC:
+	case PROC_SUPER_MAGIC:
+	case USBDEVICE_SUPER_MAGIC:
+		fs->remote = 0;
+		fs->synthetic = 1;
+		break;
+	default:
+		fs->remote = 0;
+		fs->synthetic = 0;
+		break;
+	}
 	return (ARCHIVE_OK);
 }
 
