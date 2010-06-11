@@ -1002,6 +1002,40 @@ setup_current_filesystem(struct archive_read_disk *a)
 	return (ARCHIVE_OK);
 }
 
+#elif defined(_WIN32) && !defined(__CYGWIN__)
+
+/*
+ * Get conditions of synthetic and remote on Windows
+ */
+static int
+setup_current_filesystem(struct archive_read_disk *a)
+{
+	struct tree *t = a->tree;
+	char vol[256];
+
+	t->current_filesystem->synthetic = -1;/* Not supported */
+	if (!GetVolumePathName(tree_current_access_path(t), vol, sizeof(vol))) {
+		t->current_filesystem->remote = -1;
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			"GetVolumePathName failed: %d", GetLastError());
+		return (ARCHIVE_FAILED);
+	}
+	switch (GetDriveType(vol)) {
+	case DRIVE_UNKNOWN:
+	case DRIVE_NO_ROOT_DIR:
+		t->current_filesystem->remote = -1;
+		break;
+	case DRIVE_REMOTE:
+		t->current_filesystem->remote = 1;
+		break;
+	default:
+		t->current_filesystem->remote = 0;
+		break;
+	}
+
+	return (ARCHIVE_OK);
+}
+
 #else
 
 /*
