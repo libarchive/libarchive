@@ -115,9 +115,7 @@ struct tree_entry {
 	/* How to return back to the parent of a symlink. */
 #ifdef HAVE_FCHDIR
 	int symlink_parent_fd;
-#elif defined(_WIN32) && !defined(__CYGWIN__)
-	char *symlink_parent_path;
-#else
+#elif !defined(_WIN32) || defined(__CYGWIN__)
 #error fchdir function required.
 #endif
 };
@@ -1070,11 +1068,8 @@ tree_push(struct tree *t, const char *path)
 	archive_string_init(&te->name);
 #ifdef HAVE_FCHDIR
 	te->symlink_parent_fd = -1;
-	archive_strcpy(&te->name, path);
-#elif defined(_WIN32) && !defined(__CYGWIN__)
-	te->symlink_parent_path = NULL;
-	archive_strcpy(&te->name, path);
 #endif
+	archive_strcpy(&te->name, path);
 	te->flags = needsDescent | needsOpen | needsAscent;
 	te->dirname_length = t->dirname_length;
 }
@@ -1125,7 +1120,6 @@ tree_open(const char *path)
 	return (t);
 #elif defined(_WIN32) && !defined(__CYGWIN__)
 	struct tree *t;
-	char *cwd = _getcwd(NULL, 0);
 	char *pathname = strdup(path), *p, *base;
 
 	if (pathname == NULL)
@@ -1149,7 +1143,6 @@ tree_open(const char *path)
 		p = strrchr(base, '/');
 		if (p != NULL) {
 			*p = '\0';
-			chdir(base);
 			tree_append(t, base, p - base);
 			t->dirname_length = archive_strlen(&t->path);
 			base = p + 1;
@@ -1158,7 +1151,6 @@ tree_open(const char *path)
 	tree_push(t, base);
 	free(pathname);
 	t->stack->flags = needsFirstVisit | isDirLink | needsAscent;
-	t->stack->symlink_parent_path = cwd;
 	t->d = INVALID_DIR_HANDLE;
 	return (t);
 #endif
@@ -1182,24 +1174,15 @@ tree_ascend(struct tree *t)
 			r = TREE_ERROR_FATAL;
 		}
 		close(te->symlink_parent_fd);
-#elif defined(_WIN32) && !defined(__CYGWIN__)
-		if (SetCurrentDirectory(te->symlink_parent_path) == 0) {
-			t->tree_errno = errno;
-			r = TREE_ERROR_FATAL;
-		}
-		free(te->symlink_parent_path);
-		te->symlink_parent_path = NULL;
 #endif
 		t->openCount--;
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	} else {
-#if defined(_WIN32) && !defined(__CYGWIN__)
-		if (SetCurrentDirectory("..") == 0) {
-#else
 		if (chdir("..") != 0) {
-#endif
 			t->tree_errno = errno;
 			r = TREE_ERROR_FATAL;
 		}
+#endif
 	}
 	return (r);
 }
@@ -1279,29 +1262,25 @@ tree_next(struct tree *t)
 			t->current = t->stack;
 			tree_append(t, t->stack->name.s, archive_strlen(&(t->stack->name)));
 			t->stack->flags &= ~needsDescent;
+#ifdef HAVE_FCHDIR
 			/* If it is a link, set up fd for the ascent. */
 			if (t->stack->flags & isDirLink) {
-#ifdef HAVE_FCHDIR
 				t->stack->symlink_parent_fd = open(".", O_RDONLY);
 				t->openCount++;
 				if (t->openCount > t->maxOpenCount)
 					t->maxOpenCount = t->openCount;
-#elif defined(_WIN32) && !defined(__CYGWIN__)
-				t->stack->symlink_parent_path = _getcwd(NULL, 0);
-#endif
 			}
-			t->dirname_length = archive_strlen(&t->path);
-#if defined(_WIN32) && !defined(__CYGWIN__)
-			if (archive_strlen(&t->path) == 259 || !SetCurrentDirectory(t->stack->name.s) != 0)
-#else
-			if (chdir(t->stack->name.s) != 0)
 #endif
+			t->dirname_length = archive_strlen(&t->path);
+#if !defined(_WIN32) || defined(__CYGWIN__)
+			if (chdir(t->stack->name.s) != 0)
 			{
 				/* chdir() failed; return error */
 				tree_pop(t);
 				t->tree_errno = errno;
 				return (t->visit_type = TREE_ERROR_DIR);
 			}
+#endif
 			t->depth++;
 			return (t->visit_type = TREE_POSTDESCENT);
 		} else if (t->stack->flags & needsOpen) {
@@ -1340,7 +1319,16 @@ tree_dir_next_windows(struct tree *t, const char *pattern)
 
 	for (;;) {
 		if (pattern != NULL) {
-			t->d = FindFirstFile(pattern, &t->_findData);
+			struct archive_string pt;
+
+			archive_string_init(&pt);
+			archive_string_ensure(&pt,
+			    archive_strlen(&(t->path)) + 2 + strlen(pattern));
+			archive_string_copy(&pt, &(t->path));
+			archive_strappend_char(&pt, '/');
+			archive_strcat(&pt, pattern);
+			t->d = FindFirstFile(pt.s, &t->_findData);
+			archive_string_free(&pt);
 			if (t->d == INVALID_DIR_HANDLE) {
 				r = tree_ascend(t); /* Undo "chdir" */
 				tree_pop(t);
@@ -1543,7 +1531,11 @@ tree_current_is_physical_link(struct tree *t)
 static const char *
 tree_current_access_path(struct tree *t)
 {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	return (t->path.s);
+#else
 	return (t->basename);
+#endif
 }
 
 /*
@@ -1574,12 +1566,6 @@ tree_close(struct tree *t)
 		(void)s; /* UNUSED */
 		close(t->initialDirFd);
 		t->initialDirFd = -1;
-	}
-#elif defined(_WIN32) && !defined(__CYGWIN__)
-	if (t->initialDir != NULL) {
-		SetCurrentDir(t->initialDir);
-		free(t->initialDir);
-		t->initialDir = NULL;
 	}
 #endif
 #endif
