@@ -125,22 +125,6 @@ archive_read_disk_entry_from_file(struct archive *_a,
 	if (path == NULL)
 		path = archive_entry_pathname(entry);
 
-#ifdef EXT2_IOC_GETFLAGS
-	/* Linux requires an extra ioctl to pull the flags.  Although
-	 * this is an extra step, it has a nice side-effect: We get an
-	 * open file descriptor which we can use in the subsequent lookups. */
-	if ((S_ISREG(st->st_mode) || S_ISDIR(st->st_mode))) {
-		if (fd < 0)
-			fd = open(path, O_RDONLY | O_NONBLOCK);
-		if (fd >= 0) {
-			unsigned long stflags;
-			int r = ioctl(fd, EXT2_IOC_GETFLAGS, &stflags);
-			if (r == 0 && stflags != 0)
-				archive_entry_set_fflags(entry, stflags, 0);
-		}
-	}
-#endif
-
 	if (st == NULL) {
 		/* TODO: On Windows, use GetFileInfoByHandle() here.
 		 * Using Windows stat() call is badly broken, but
@@ -187,6 +171,22 @@ archive_read_disk_entry_from_file(struct archive *_a,
 	/* TODO: Does this belong in copy_stat()? */
 	if (st->st_flags != 0)
 		archive_entry_set_fflags(entry, st->st_flags, 0);
+#endif
+
+#ifdef EXT2_IOC_GETFLAGS
+	/* Linux requires an extra ioctl to pull the flags.  Although
+	 * this is an extra step, it has a nice side-effect: We get an
+	 * open file descriptor which we can use in the subsequent lookups. */
+	if ((S_ISREG(st->st_mode) || S_ISDIR(st->st_mode))) {
+		if (fd < 0)
+			fd = open(path, O_RDONLY | O_NONBLOCK);
+		if (fd >= 0) {
+			unsigned long stflags;
+			int r = ioctl(fd, EXT2_IOC_GETFLAGS, &stflags);
+			if (r == 0 && stflags != 0)
+				archive_entry_set_fflags(entry, stflags, 0);
+		}
+	}
 #endif
 
 #ifdef HAVE_READLINK
