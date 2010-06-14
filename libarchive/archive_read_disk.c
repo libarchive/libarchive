@@ -888,7 +888,7 @@ archive_read_disk_current_filesystem_is_remote(struct archive *_a)
 	return (a->tree->current_filesystem->remote);
 }
 
-#if defined(HAVE_GETVFSBYNAME) && defined(HAVE_STATFS)
+#if defined(__FreeBSD__)
 
 /*
  * Get conditions of synthetic and remote on FreeBSD.

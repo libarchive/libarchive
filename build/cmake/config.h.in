@@ -281,9 +281,6 @@
 /* Define to 1 if you have the `getpid' function. */
 #cmakedefine HAVE_GETPID 1
 
-/* Define to 1 if you have the `getvfsbyname' function. */
-#cmakedefine HAVE_GETVFSBYNAME 1
-
 /* Define to 1 if you have the `getxattr' function. */
 #cmakedefine HAVE_GETXATTR 1
 
@@ -464,9 +461,6 @@
 
 /* Define to 1 if you have the <signal.h> header file. */
 #cmakedefine HAVE_SIGNAL_H 1
-
-/* Define to 1 if you have the `statfs' function. */
-#cmakedefine HAVE_STATFS 1
 
 /* Define to 1 if you have the `statvfs' function. */ 
 #cmakedefine HAVE_STATVFS 1
