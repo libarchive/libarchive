@@ -450,6 +450,9 @@ if test "x$enable_xattr" != "xno"; then
 	AC_CHECK_FUNCS([extattr_set_fd extattr_set_file])
 	AC_CHECK_FUNCS([fsetxattr getxattr])
 	AC_CHECK_FUNCS([lgetxattr listxattr llistxattr lsetxattr])
+	AC_CHECK_DECLS([EXTATTR_NAMESPACE_USER], [], [], [#include <sys/types.h>
+#include <sys/extattr.h>
+])
 fi
 
 # Check for ACL support
