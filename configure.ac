@@ -11,6 +11,8 @@ dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
 m4_define([BSDCPIO_VERSION_S],LIBARCHIVE_VERSION_S())
 
+AC_PREREQ(2.65)
+
 #
 # Now starts the "real" configure script.
 #
@@ -267,9 +269,6 @@ AC_DEFUN([MD_CHECK], [
     saved_LIBS="$LIBS"
     saved_CPPFLAGS="$CPPFLAGS"
     CPPFLAGS="$CPPFLAGS -I$srcdir/libarchive"
-    if test $ac_cv_header_sys_types_h = yes; then
-      CPPFLAGS="$CPPFLAGS -DHAVE_SYS_TYPES_H=1"
-    fi
     LIBS="$LIBS $4"
     AC_MSG_CHECKING([support for ARCHIVE_HASH_$1_$2])
     AC_LINK_IFELSE([
