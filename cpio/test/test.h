@@ -104,9 +104,8 @@
 # define NLINKS_INACCURATE_FOR_DIRS
 #endif
 
-/* Haiku OS */
-#if defined(__HAIKU__)
-/* Haiku has typedefs in stdint.h (needed for int64_t) */
+#if defined(__HAIKU__) || defined(__QNXNTO__)
+/* Haiku and QNX have typedefs in stdint.h (needed for int64_t) */
 #include <stdint.h>
 #endif
 
