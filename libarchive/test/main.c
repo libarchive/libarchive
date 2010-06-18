@@ -578,9 +578,9 @@ assertion_equal_mem(const char *file, int line,
 		offset += 16;
 	}
 	logprintf("      Dump of %s\n", e1);
-	hexdump(v1, v2, l < 64 ? l : 64, offset);
+	hexdump(v1, v2, l < 128 ? l : 128, offset);
 	logprintf("      Dump of %s\n", e2);
-	hexdump(v2, v1, l < 64 ? l : 64, offset);
+	hexdump(v2, v1, l < 128 ? l : 128, offset);
 	logprintf("\n");
 	failure_finish(extra);
 	return (0);
