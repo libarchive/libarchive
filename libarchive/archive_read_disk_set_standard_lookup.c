@@ -192,6 +192,7 @@ lookup_uname(void *data, int64_t uid)
 		    &lookup_uname_helper, (id_t)uid));
 }
 
+#if HAVE_GETPWUID_R
 static const char *
 lookup_uname_helper(struct name_cache *cache, id_t id)
 {
@@ -232,6 +233,20 @@ lookup_uname_helper(struct name_cache *cache, id_t id)
 
 	return strdup(result->pw_name);
 }
+#else
+static const char *
+lookup_uname_helper(struct name_cache *cache, id_t id)
+{
+	struct passwd	*result;
+
+	result = getpwuid((uid_t)id);
+
+	if (result == NULL)
+		return (NULL);
+
+	return strdup(result->pw_name);
+}
+#endif
 
 #if ARCHIVE_VERSION_NUMBER < 3000000
 static const char *
@@ -246,6 +261,7 @@ lookup_gname(void *data, int64_t gid)
 		    &lookup_gname_helper, (id_t)gid));
 }
 
+#if HAVE_GETGRGID_R
 static const char *
 lookup_gname_helper(struct name_cache *cache, id_t id)
 {
@@ -284,4 +300,19 @@ lookup_gname_helper(struct name_cache *cache, id_t id)
 
 	return strdup(result->gr_name);
 }
+#else
+static const char *
+lookup_gname_helper(struct name_cache *cache, id_t id)
+{
+	struct group	*result;
+
+	result = getgrgid((gid_t)id);
+
+	if (result == NULL)
+		return (NULL);
+
+	return strdup(result->gr_name);
+}
+#endif
+
 #endif /* ! (_WIN32 && !__CYGWIN__) */
