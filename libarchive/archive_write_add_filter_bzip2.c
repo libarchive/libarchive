@@ -54,7 +54,7 @@ archive_write_set_compression_bzip2(struct archive *a)
 }
 #endif
 
-#ifndef HAVE_BZLIB_H
+#if !defined(HAVE_BZLIB_H) || !defined(BZ_CONFIG_ERROR)
 int
 archive_write_add_filter_bzip2(struct archive *a)
 {
@@ -341,4 +341,4 @@ drive_compressor(struct archive_write_filter *f,
 	}
 }
 
-#endif /* HAVE_BZLIB_H */
+#endif /* HAVE_BZLIB_H && BZ_CONFIG_ERROR */

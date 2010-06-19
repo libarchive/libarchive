@@ -311,7 +311,7 @@ static int	compression_code_gzip(struct archive *,
 static int	compression_end_gzip(struct archive *, struct la_zstream *);
 static int	compression_init_encoder_bzip2(struct archive *,
 		    struct la_zstream *, int);
-#if defined(HAVE_BZLIB_H)
+#if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
 static int	compression_code_bzip2(struct archive *,
 		    struct la_zstream *, enum la_zaction);
 static int	compression_end_bzip2(struct archive *, struct la_zstream *);
@@ -433,7 +433,7 @@ xar_options(struct archive_write *a, const char *key, const char *value)
 		else if (strcmp(value, "gzip") == 0)
 			xar->opt_compression = GZIP;
 		else if (strcmp(value, "bzip2") == 0)
-#ifdef HAVE_BZLIB_H
+#if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
 			xar->opt_compression = BZIP2;
 #else
 			name = "bzip2";
@@ -2516,7 +2516,7 @@ checksum_final(struct chksumwork *sumwrk, struct chksumval *sumval)
 	sumval->alg = sumwrk->alg;
 }
 
-#if !defined(HAVE_BZLIB_H) || !defined(HAVE_LZMA_H)
+#if !defined(HAVE_BZLIB_H) || !defined(BZ_CONFIG_ERROR) || !defined(HAVE_LZMA_H)
 static int
 compression_unsupported_encoder(struct archive *a,
     struct la_zstream *lastrm, const char *name)
@@ -2626,7 +2626,7 @@ compression_end_gzip(struct archive *a, struct la_zstream *lastrm)
 	return (ARCHIVE_OK);
 }
 
-#if defined(HAVE_BZLIB_H)
+#if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
 static int
 compression_init_encoder_bzip2(struct archive *a,
     struct la_zstream *lastrm, int level)
