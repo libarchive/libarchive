@@ -223,6 +223,7 @@ main(int argc, char **argv)
 		bsdtar->extract_flags |= ARCHIVE_EXTRACT_ACL;
 		bsdtar->extract_flags |= ARCHIVE_EXTRACT_XATTR;
 		bsdtar->extract_flags |= ARCHIVE_EXTRACT_FFLAGS;
+		bsdtar->extract_flags |= ARCHIVE_EXTRACT_MAC_METADATA;
 	}
 #endif
 
@@ -416,6 +417,7 @@ main(int argc, char **argv)
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_ACL;
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_XATTR;
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_FFLAGS;
+			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_MAC_METADATA;
 			break;
 		case OPTION_NULL: /* GNU tar */
 			bsdtar->option_null++;
@@ -456,6 +458,7 @@ main(int argc, char **argv)
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_ACL;
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_XATTR;
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_FFLAGS;
+			bsdtar->extract_flags |= ARCHIVE_EXTRACT_MAC_METADATA;
 			break;
 		case OPTION_POSIX: /* GNU tar */
 			bsdtar->create_format = "pax";
