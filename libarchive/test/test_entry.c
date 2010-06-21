@@ -160,11 +160,13 @@ DEFINE_TEST(test_entry)
 	/* gname */
 	archive_entry_set_gname(e, "group");
 	assertEqualString(archive_entry_gname(e), "group");
+#if HAVE_WCSCPY
 	wcscpy(wbuff, L"wgroup");
 	archive_entry_copy_gname_w(e, wbuff);
 	assertEqualWString(archive_entry_gname_w(e), L"wgroup");
 	memset(wbuff, 0, sizeof(wbuff));
 	assertEqualWString(archive_entry_gname_w(e), L"wgroup");
+#endif
 
 	/* hardlink */
 	archive_entry_set_hardlink(e, "hardlinkname");
@@ -177,6 +179,7 @@ DEFINE_TEST(test_entry)
 	archive_entry_copy_hardlink(e, NULL);
 	assertEqualString(archive_entry_hardlink(e), NULL);
 	assertEqualWString(archive_entry_hardlink_w(e), NULL);
+#if HAVE_WCSCPY
 	wcscpy(wbuff, L"whardlink");
 	archive_entry_copy_hardlink_w(e, wbuff);
 	assertEqualWString(archive_entry_hardlink_w(e), L"whardlink");
@@ -185,6 +188,7 @@ DEFINE_TEST(test_entry)
 	archive_entry_copy_hardlink_w(e, NULL);
 	assertEqualString(archive_entry_hardlink(e), NULL);
 	assertEqualWString(archive_entry_hardlink_w(e), NULL);
+#endif
 
 	/* ino */
 	archive_entry_set_ino(e, 8593);
@@ -253,11 +257,13 @@ DEFINE_TEST(test_entry)
 	assertEqualString(archive_entry_pathname(e), "path2");
 	memset(buff, 0, sizeof(buff));
 	assertEqualString(archive_entry_pathname(e), "path2");
+#if HAVE_WCSCPY
 	wcscpy(wbuff, L"wpath");
 	archive_entry_copy_pathname_w(e, wbuff);
 	assertEqualWString(archive_entry_pathname_w(e), L"wpath");
 	memset(wbuff, 0, sizeof(wbuff));
 	assertEqualWString(archive_entry_pathname_w(e), L"wpath");
+#endif
 
 	/* rdev */
 	archive_entry_set_rdev(e, 532);
@@ -299,11 +305,13 @@ DEFINE_TEST(test_entry)
 	/* uname */
 	archive_entry_set_uname(e, "user");
 	assertEqualString(archive_entry_uname(e), "user");
+#if HAVE_WCSCPY
 	wcscpy(wbuff, L"wuser");
 	archive_entry_copy_gname_w(e, wbuff);
 	assertEqualWString(archive_entry_gname_w(e), L"wuser");
 	memset(wbuff, 0, sizeof(wbuff));
 	assertEqualWString(archive_entry_gname_w(e), L"wuser");
+#endif
 
 	/* Test fflags interface. */
 	archive_entry_set_fflags(e, 0x55, 0xAA);
@@ -797,6 +805,7 @@ DEFINE_TEST(test_entry)
 		assert(NULL == archive_entry_symlink_w(e));
 	}
 
+#if HAVE_WCSCPY
 	l = 0x12345678L;
 	wc = (wchar_t)l; /* Wide character too big for UTF-8. */
 	if (NULL == setlocale(LC_ALL, "C") || (long)wc != l) {
@@ -816,6 +825,7 @@ DEFINE_TEST(test_entry)
 		failure("Converting wide characters from Unicode should fail.");
 		assertEqualString(NULL, archive_entry_pathname(e));
 	}
+#endif
 
 	/* Release the experimental entry. */
 	archive_entry_free(e);
