@@ -617,6 +617,10 @@ bsdcpio_test_EXTRA_DIST=			\
 	cpio/test/test_gcpio_compat_ref.crc.uu	\
 	cpio/test/test_gcpio_compat_ref.newc.uu	\
 	cpio/test/test_gcpio_compat_ref.ustar.uu \
+	cpio/test/test_gcpio_compat_ref_nosym.bin.uu \
+	cpio/test/test_gcpio_compat_ref_nosym.crc.uu \
+	cpio/test/test_gcpio_compat_ref_nosym.newc.uu \
+	cpio/test/test_gcpio_compat_ref_nosym.ustar.uu \
 	cpio/test/test_option_f.cpio.uu		\
 	cpio/test/test_option_m.cpio.uu		\
 	cpio/test/test_option_t.cpio.uu		\
