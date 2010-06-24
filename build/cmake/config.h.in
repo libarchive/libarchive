@@ -657,6 +657,9 @@
 /* Define to 1 if you have the `wcrtomb' function. */
 #cmakedefine HAVE_WCRTOMB 1
 
+/* Define to 1 if you have the `wcscmp' function. */
+#cmakedefine HAVE_WCSCMP 1
+
 /* Define to 1 if you have the `wcscpy' function. */
 #cmakedefine HAVE_WCSCPY 1
 
