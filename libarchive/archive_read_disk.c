@@ -1014,7 +1014,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 	if (!GetVolumePathName(tree_current_access_path(t), vol, sizeof(vol))) {
 		t->current_filesystem->remote = -1;
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			"GetVolumePathName failed: %d", GetLastError());
+                        "GetVolumePathName failed: %d", (int)GetLastError());
 		return (ARCHIVE_FAILED);
 	}
 	switch (GetDriveType(vol)) {
