@@ -3452,7 +3452,7 @@ wb_consume(struct archive_write *a, size_t size)
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Internal Program error: iso9660:wb_consume()"
 		    " size=%jd, wbuff_remaining=%jd",
-		    (int64_t)size, (int64_t)iso9660->wbuff_remaining);
+		    (intmax_t)size, (intmax_t)iso9660->wbuff_remaining);
 		return (ARCHIVE_FATAL);
 	}
 	iso9660->wbuff_remaining -= size;
@@ -6974,7 +6974,7 @@ setup_boot_information(struct archive_write *a)
 	size = archive_entry_size(np->file->entry) - 64;
 	if (size <= 0) {
 		archive_set_error(&a->archive, errno,
-		    "Boot file(%jd) is too small", size + 64);
+		    "Boot file(%jd) is too small", (intmax_t)size + 64);
 		return (ARCHIVE_FATAL);
 	}
 	sum = 0;

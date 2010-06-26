@@ -908,7 +908,9 @@ archive_write_pax_header(struct archive_write *a,
 			while (archive_entry_sparse_next(entry_main,
 			    &soffset, &slength) == ARCHIVE_OK) {
 				archive_string_sprintf(&(pax->sparse_map),
-				    "%jd\n%jd\n", soffset, slength);
+				    "%jd\n%jd\n",
+				    (intmax_t)soffset,
+				    (intmax_t)slength);
 				sparse_total += slength;
 				if (sparse_list_add(pax, soffset, slength)
 				    != ARCHIVE_OK) {
