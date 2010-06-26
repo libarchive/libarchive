@@ -206,6 +206,11 @@ main(int argc, char **argv)
 	if (bsdtar->filename == NULL)
 		bsdtar->filename = _PATH_DEFTAPE;
 
+	/* Default block size settings. */
+	bsdtar->bytes_per_block = DEFAULT_BYTES_PER_BLOCK;
+	/* Allow library to default this unless user specifies -b. */
+	bsdtar->bytes_in_last_block = -1;
+
 	/* Default: preserve mod time on extract */
 	bsdtar->extract_flags = ARCHIVE_EXTRACT_TIME;
 
@@ -257,6 +262,8 @@ main(int argc, char **argv)
 				lafe_errc(1, 0,
 				    "Argument to -b is out of range (1..8192)");
 			bsdtar->bytes_per_block = 512 * t;
+			/* Explicit -b forces last block size. */
+			bsdtar->bytes_in_last_block = bsdtar->bytes_per_block;
 			break;
 		case 'C': /* GNU tar */
 			set_chdir(bsdtar, bsdtar->optarg);

@@ -161,9 +161,7 @@ read_archive(struct bsdtar *bsdtar, char mode)
 	archive_read_support_format_all(a);
 	if (ARCHIVE_OK != archive_read_set_options(a, bsdtar->option_options))
 		lafe_errc(1, 0, "%s", archive_error_string(a));
-	if (archive_read_open_file(a, bsdtar->filename,
-	    bsdtar->bytes_per_block != 0 ? bsdtar->bytes_per_block :
-	    DEFAULT_BYTES_PER_BLOCK))
+	if (archive_read_open_file(a, bsdtar->filename, bsdtar->bytes_per_block))
 		lafe_errc(1, 0, "Error opening archive: %s",
 		    archive_error_string(a));
 

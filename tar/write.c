@@ -198,18 +198,8 @@ tar_mode_c(struct bsdtar *bsdtar)
 		usage();
 	}
 
-	/*
-	 * If user explicitly set the block size, then assume they
-	 * want the last block padded as well.  Otherwise, use the
-	 * default block size and accept archive_write_open_file()'s
-	 * default padding decisions.
-	 */
-	if (bsdtar->bytes_per_block != 0) {
-		archive_write_set_bytes_per_block(a, bsdtar->bytes_per_block);
-		archive_write_set_bytes_in_last_block(a,
-		    bsdtar->bytes_per_block);
-	} else
-		archive_write_set_bytes_per_block(a, DEFAULT_BYTES_PER_BLOCK);
+	archive_write_set_bytes_per_block(a, bsdtar->bytes_per_block);
+	archive_write_set_bytes_in_last_block(a, bsdtar->bytes_in_last_block);
 
 	if (bsdtar->compress_program) {
 		archive_write_set_compression_program(a, bsdtar->compress_program);
@@ -379,9 +369,8 @@ tar_mode_u(struct bsdtar *bsdtar)
 	archive_read_support_compression_all(a);
 	archive_read_support_format_tar(a);
 	archive_read_support_format_gnutar(a);
-	if (archive_read_open_fd(a, bsdtar->fd,
-	    bsdtar->bytes_per_block != 0 ? bsdtar->bytes_per_block :
-		DEFAULT_BYTES_PER_BLOCK) != ARCHIVE_OK) {
+	if (archive_read_open_fd(a, bsdtar->fd, bsdtar->bytes_per_block)
+	    != ARCHIVE_OK) {
 		lafe_errc(1, 0,
 		    "Can't open %s: %s", bsdtar->filename,
 		    archive_error_string(a));
@@ -415,12 +404,9 @@ tar_mode_u(struct bsdtar *bsdtar)
 	if (format == ARCHIVE_FORMAT_TAR_GNUTAR)
 		format = ARCHIVE_FORMAT_TAR_USTAR;
 	archive_write_set_format(a, format);
-	if (bsdtar->bytes_per_block != 0) {
-		archive_write_set_bytes_per_block(a, bsdtar->bytes_per_block);
-		archive_write_set_bytes_in_last_block(a,
-		    bsdtar->bytes_per_block);
-	} else
-		archive_write_set_bytes_per_block(a, DEFAULT_BYTES_PER_BLOCK);
+	archive_write_set_bytes_per_block(a, bsdtar->bytes_per_block);
+	archive_write_set_bytes_in_last_block(a, bsdtar->bytes_in_last_block);
+
 	if (lseek(bsdtar->fd, end_offset, SEEK_SET) < 0)
 		lafe_errc(1, errno, "Could not seek to archive end");
 	if (ARCHIVE_OK != archive_write_set_options(a, bsdtar->option_options))
@@ -580,7 +566,7 @@ append_archive_filename(struct bsdtar *bsdtar, struct archive *a,
 	ina = archive_read_new();
 	archive_read_support_format_all(ina);
 	archive_read_support_compression_all(ina);
-	if (archive_read_open_file(ina, filename, 10240)) {
+	if (archive_read_open_file(ina, filename, bsdtar->bytes_per_block)) {
 		lafe_warnc(0, "%s", archive_error_string(ina));
 		bsdtar->return_value = 1;
 		return (0);

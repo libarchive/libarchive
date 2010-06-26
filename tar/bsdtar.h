@@ -51,6 +51,7 @@ struct bsdtar {
 	time_t		  newer_mtime_sec; /* --newer-mtime */
 	long		  newer_mtime_nsec; /* --newer-mtime-than */
 	int		  bytes_per_block; /* -b block_size */
+	int		  bytes_in_last_block; /* See -b handling. */
 	int		  verbose;   /* -v */
 	int		  extract_flags; /* Flags for extract operation */
 	int		  strip_components; /* Remove this many leading dirs */
