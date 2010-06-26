@@ -98,9 +98,6 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/write.c,v 1.79 2008/11/27 05:49:52 kientzle 
 #include "line_reader.h"
 #include "tree.h"
 
-/* Size of buffer for holding file data prior to writing. */
-#define	FILEDATABUFLEN	65536
-
 /* Fixed size of uname/gname caches. */
 #define	name_cache_size 101
 
@@ -152,7 +149,7 @@ static void		 write_entry(struct bsdtar *, struct archive *,
 static void		 write_file(struct bsdtar *, struct archive *,
 			     struct archive_entry *);
 static int		 write_file_data(struct bsdtar *, struct archive *,
-			     struct archive_entry *, int fd);
+			     struct archive_entry *, int fd, size_t align);
 static void		 write_hierarchy(struct bsdtar *, struct archive *,
 			     const char *);
 
@@ -438,8 +435,15 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 	const char *arg;
 	struct archive_entry *entry, *sparse_entry;
 
+	/* Choose a suitable copy buffer size */
+	bsdtar->buff_size = 64 * 1024;
+	while (bsdtar->buff_size < bsdtar->bytes_per_block)
+	  bsdtar->buff_size *= 2;
+	/* Try to compensate for space we'll lose to alignment. */
+	bsdtar->buff_size += 16 * 1024;
+
 	/* Allocate a buffer for file data. */
-	if ((bsdtar->buff = malloc(FILEDATABUFLEN)) == NULL)
+	if ((bsdtar->buff = malloc(bsdtar->buff_size)) == NULL)
 		lafe_errc(1, 0, "cannot allocate memory");
 
 	if ((bsdtar->resolver = archive_entry_linkresolver_new()) == NULL)
@@ -641,7 +645,7 @@ copy_file_data(struct bsdtar *bsdtar, struct archive *a,
 	ssize_t	bytes_written;
 	int64_t	progress = 0;
 
-	bytes_read = archive_read_data(ina, bsdtar->buff, FILEDATABUFLEN);
+	bytes_read = archive_read_data(ina, bsdtar->buff, bsdtar->buff_size);
 	while (bytes_read > 0) {
 		if (need_report())
 			report_write(bsdtar, a, entry, progress);
@@ -653,8 +657,7 @@ copy_file_data(struct bsdtar *bsdtar, struct archive *a,
 			return (-1);
 		}
 		progress += bytes_written;
-		bytes_read = archive_read_data(ina, bsdtar->buff,
-		    FILEDATABUFLEN);
+		bytes_read = archive_read_data(ina, bsdtar->buff, bsdtar->buff_size);
 	}
 
 	return (0);
@@ -1028,10 +1031,17 @@ write_entry(struct bsdtar *bsdtar, struct archive *a,
 {
 	int fd = -1;
 	int e;
+	size_t align = 4096;
 
 	if (archive_entry_size(entry) > 0) {
 		const char *pathname = archive_entry_sourcepath(entry);
+		/* TODO: Use O_DIRECT here and set 'align' to the
+		 * actual filesystem block size.  As of July 2010, new
+		 * directory-traversal code is going in that will make
+		 * it much easier to track filesystem properties like
+		 * this during the traversal. */
 		fd = open(pathname, O_RDONLY | O_BINARY);
+		align = 4096;
 		if (fd == -1) {
 			if (!bsdtar->verbose)
 				lafe_warnc(errno,
@@ -1062,7 +1072,7 @@ write_entry(struct bsdtar *bsdtar, struct archive *a,
 	 * that case, just skip the write.
 	 */
 	if (e >= ARCHIVE_WARN && fd >= 0 && archive_entry_size(entry) > 0) {
-		if (write_file_data(bsdtar, a, entry, fd))
+		if (write_file_data(bsdtar, a, entry, fd, align))
 			exit(1);
 	}
 
@@ -1106,19 +1116,26 @@ report_write(struct bsdtar *bsdtar, struct archive *a,
 /* Helper function to copy file to archive. */
 static int
 write_file_data(struct bsdtar *bsdtar, struct archive *a,
-    struct archive_entry *entry, int fd)
+    struct archive_entry *entry, int fd, size_t align)
 {
 	ssize_t	bytes_read;
 	ssize_t	bytes_written;
 	int64_t	progress = 0;
+	size_t  buff_size;
+	char   *buff = bsdtar->buff;
 
-	bytes_read = read(fd, bsdtar->buff, FILEDATABUFLEN);
+	/* Round 'buff' up to the next multiple of 'align' and reduce
+	 * 'buff_size' accordingly. */
+	buff = (char *)((((uintptr_t)buff + align - 1) / align) * align);
+	buff_size = bsdtar->buff + bsdtar->buff_size - buff;
+	buff_size = (buff_size / align) * align;
+	
+	bytes_read = read(fd, buff, buff_size);
 	while (bytes_read > 0) {
 		if (need_report())
 			report_write(bsdtar, a, entry, progress);
 
-		bytes_written = archive_write_data(a, bsdtar->buff,
-		    bytes_read);
+		bytes_written = archive_write_data(a, buff, bytes_read);
 		if (bytes_written < 0) {
 			/* Write failed; this is bad */
 			lafe_warnc(0, "%s", archive_error_string(a));
@@ -1132,7 +1149,7 @@ write_file_data(struct bsdtar *bsdtar, struct archive *a,
 			return (0);
 		}
 		progress += bytes_written;
-		bytes_read = read(fd, bsdtar->buff, FILEDATABUFLEN);
+		bytes_read = read(fd, buff, buff_size);
 	}
 	return 0;
 }
