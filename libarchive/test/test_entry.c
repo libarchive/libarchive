@@ -27,6 +27,16 @@ __FBSDID("$FreeBSD: head/lib/libarchive/test/test_entry.c 201247 2009-12-30 05:5
 
 #include <locale.h>
 
+#ifndef HAVE_WCSCPY
+static wchar_t * wcscpy(wchar_t *s1, const wchar_t *s2)
+{
+	wchar_t *dest = s1;
+	while ((*s1 = *s2) != L'\0')
+		++s1, ++s2;
+	return dest;
+}
+#endif
+
 /*
  * Most of these tests are system-independent, though a few depend on
  * features of the local system.  Such tests are conditionalized on
@@ -150,13 +160,11 @@ DEFINE_TEST(test_entry)
 	/* gname */
 	archive_entry_set_gname(e, "group");
 	assertEqualString(archive_entry_gname(e), "group");
-#if HAVE_WCSCPY
 	wcscpy(wbuff, L"wgroup");
 	archive_entry_copy_gname_w(e, wbuff);
 	assertEqualWString(archive_entry_gname_w(e), L"wgroup");
 	memset(wbuff, 0, sizeof(wbuff));
 	assertEqualWString(archive_entry_gname_w(e), L"wgroup");
-#endif
 
 	/* hardlink */
 	archive_entry_set_hardlink(e, "hardlinkname");
@@ -169,7 +177,6 @@ DEFINE_TEST(test_entry)
 	archive_entry_copy_hardlink(e, NULL);
 	assertEqualString(archive_entry_hardlink(e), NULL);
 	assertEqualWString(archive_entry_hardlink_w(e), NULL);
-#if HAVE_WCSCPY
 	wcscpy(wbuff, L"whardlink");
 	archive_entry_copy_hardlink_w(e, wbuff);
 	assertEqualWString(archive_entry_hardlink_w(e), L"whardlink");
@@ -178,7 +185,6 @@ DEFINE_TEST(test_entry)
 	archive_entry_copy_hardlink_w(e, NULL);
 	assertEqualString(archive_entry_hardlink(e), NULL);
 	assertEqualWString(archive_entry_hardlink_w(e), NULL);
-#endif
 #if ARCHIVE_VERSION_NUMBER >= 1009000
 	/* ino */
 	archive_entry_set_ino(e, 8593);
@@ -248,13 +254,11 @@ DEFINE_TEST(test_entry)
 	assertEqualString(archive_entry_pathname(e), "path2");
 	memset(buff, 0, sizeof(buff));
 	assertEqualString(archive_entry_pathname(e), "path2");
-#if HAVE_WCSCPY
 	wcscpy(wbuff, L"wpath");
 	archive_entry_copy_pathname_w(e, wbuff);
 	assertEqualWString(archive_entry_pathname_w(e), L"wpath");
 	memset(wbuff, 0, sizeof(wbuff));
 	assertEqualWString(archive_entry_pathname_w(e), L"wpath");
-#endif
 
 #if ARCHIVE_VERSION_NUMBER >= 1009000
 	/* rdev */
@@ -302,13 +306,11 @@ DEFINE_TEST(test_entry)
 	/* uname */
 	archive_entry_set_uname(e, "user");
 	assertEqualString(archive_entry_uname(e), "user");
-#if HAVE_WCSCPY
 	wcscpy(wbuff, L"wuser");
 	archive_entry_copy_gname_w(e, wbuff);
 	assertEqualWString(archive_entry_gname_w(e), L"wuser");
 	memset(wbuff, 0, sizeof(wbuff));
 	assertEqualWString(archive_entry_gname_w(e), L"wuser");
-#endif
 
 	/* Test fflags interface. */
 	archive_entry_set_fflags(e, 0x55, 0xAA);
