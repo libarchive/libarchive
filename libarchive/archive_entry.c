@@ -176,10 +176,7 @@ static size_t wcslen(const wchar_t *s)
 static void
 aes_clean(struct aes *aes)
 {
-	if (aes->aes_wcs) {
-		free((wchar_t *)(uintptr_t)aes->aes_wcs);
-		aes->aes_wcs = NULL;
-	}
+	archive_wstring_free(&(aes->aes_wcs));
 	archive_string_free(&(aes->aes_mbs));
 	archive_string_free(&(aes->aes_utf8));
 	aes->aes_set = 0;
@@ -188,33 +185,10 @@ aes_clean(struct aes *aes)
 static void
 aes_copy(struct aes *dest, struct aes *src)
 {
-	wchar_t *wp;
-
 	dest->aes_set = src->aes_set;
 	archive_string_copy(&(dest->aes_mbs), &(src->aes_mbs));
 	archive_string_copy(&(dest->aes_utf8), &(src->aes_utf8));
-
-	if (src->aes_wcs != NULL) {
-		wp = (wchar_t *)malloc((wcslen(src->aes_wcs) + 1)
-		    * sizeof(wchar_t));
-		if (wp == NULL)
-			__archive_errx(1, "No memory for aes_copy()");
-		wcscpy(wp, src->aes_wcs);
-		dest->aes_wcs = wp;
-	}
-}
-
-static const char *
-aes_get_utf8(struct aes *aes)
-{
-	if (aes->aes_set & AES_SET_UTF8)
-		return (aes->aes_utf8.s);
-	if ((aes->aes_set & AES_SET_WCS)
-	    && archive_strappend_w_utf8(&(aes->aes_utf8), aes->aes_wcs) != NULL) {
-		aes->aes_set |= AES_SET_UTF8;
-		return (aes->aes_utf8.s);
-	}
-	return (NULL);
+	archive_wstring_copy(&(dest->aes_wcs), &(src->aes_wcs));
 }
 
 static const char *
@@ -225,50 +199,38 @@ aes_get_mbs(struct aes *aes)
 		return (aes->aes_mbs.s);
 	/* If there's a WCS form, try converting with the native locale. */
 	if ((aes->aes_set & AES_SET_WCS)
-	    && archive_strappend_w_mbs(&(aes->aes_mbs), aes->aes_wcs) != NULL) {
+	    && archive_strappend_w_mbs(&(aes->aes_mbs), aes->aes_wcs.s) != NULL) {
 		aes->aes_set |= AES_SET_MBS;
 		return (aes->aes_mbs.s);
 	}
 	/* We'll use UTF-8 for MBS if all else fails. */
-	return (aes_get_utf8(aes));
+	if (aes->aes_set & AES_SET_UTF8)
+		return (aes->aes_utf8.s);
+	if ((aes->aes_set & AES_SET_WCS)
+	    && archive_strappend_w_utf8(&(aes->aes_utf8), aes->aes_wcs.s) != NULL) {
+		aes->aes_set |= AES_SET_UTF8;
+		return (aes->aes_utf8.s);
+	}
+	return (NULL);
 }
 
 static const wchar_t *
 aes_get_wcs(struct aes *aes)
 {
-	wchar_t *w;
-	size_t r;
-
 	/* Return WCS form if we already have it. */
 	if (aes->aes_set & AES_SET_WCS)
-		return (aes->aes_wcs);
-
-	if (aes->aes_set & AES_SET_MBS) {
-		/* Try converting MBS to WCS using native locale. */
-		/*
-		 * No single byte will be more than one wide character,
-		 * so this length estimate will always be big enough.
-		 */
-		size_t wcs_length = aes->aes_mbs.length;
-
-		w = (wchar_t *)malloc((wcs_length + 1) * sizeof(wchar_t));
-		if (w == NULL)
-			__archive_errx(1, "No memory for aes_get_wcs()");
-		r = mbstowcs(w, aes->aes_mbs.s, wcs_length);
-		if (r != (size_t)-1 && r != 0) {
-			w[r] = 0;
-			aes->aes_set |= AES_SET_WCS;
-			return (aes->aes_wcs = w);
-		}
-		free(w);
+		return (aes->aes_wcs.s);
+	/* Try converting UTF8 to WCS. */
+	if ((aes->aes_set & AES_SET_UTF8)
+	    && !__archive_wstrappend_utf8(&(aes->aes_wcs), &(aes->aes_utf8))) {
+		aes->aes_set |= AES_SET_WCS;
+		return (aes->aes_wcs.s);
 	}
-
-	if (aes->aes_set & AES_SET_UTF8) {
-		/* Try converting UTF8 to WCS. */
-		aes->aes_wcs = __archive_string_utf8_w(&(aes->aes_utf8));
-		if (aes->aes_wcs != NULL)
-			aes->aes_set |= AES_SET_WCS;
-		return (aes->aes_wcs);
+	/* Try converting MBS to WCS using native locale. */
+	if ((aes->aes_set & AES_SET_MBS)
+	    && !__archive_wstrappend_mbs(&(aes->aes_wcs), &(aes->aes_mbs))) {
+		aes->aes_set |= AES_SET_WCS;
+		return (aes->aes_wcs.s);
 	}
 	return (NULL);
 }
@@ -289,10 +251,7 @@ aes_copy_mbs(struct aes *aes, const char *mbs)
 	aes->aes_set = AES_SET_MBS; /* Only MBS form is set now. */
 	archive_strcpy(&(aes->aes_mbs), mbs);
 	archive_string_empty(&(aes->aes_utf8));
-	if (aes->aes_wcs) {
-		free((wchar_t *)(uintptr_t)aes->aes_wcs);
-		aes->aes_wcs = NULL;
-	}
+	archive_wstring_empty(&(aes->aes_wcs));
 	return (0);
 }
 
@@ -319,10 +278,7 @@ aes_update_utf8(struct aes *aes, const char *utf8)
 
 	/* Empty the mbs and wcs strings. */
 	archive_string_empty(&(aes->aes_mbs));
-	if (aes->aes_wcs) {
-		free((wchar_t *)(uintptr_t)aes->aes_wcs);
-		aes->aes_wcs = NULL;
-	}
+	archive_wstring_empty(&(aes->aes_wcs));
 
 	aes->aes_set = AES_SET_UTF8;	/* Only UTF8 is set now. */
 
@@ -333,13 +289,12 @@ aes_update_utf8(struct aes *aes, const char *utf8)
 	 * succeed.) */
 
 	/* Try converting UTF8 to WCS, return false on failure. */
-	aes->aes_wcs = __archive_string_utf8_w(&(aes->aes_utf8));
-	if (aes->aes_wcs == NULL)
+	if (__archive_wstrappend_utf8(&(aes->aes_wcs), &(aes->aes_utf8)))
 		return (0);
 	aes->aes_set = AES_SET_UTF8 | AES_SET_WCS; /* Both UTF8 and WCS set. */
 
 	/* Try converting WCS to MBS, return false on failure. */
-	if (archive_strappend_w_mbs(&(aes->aes_mbs), aes->aes_wcs) == NULL)
+	if (archive_strappend_w_mbs(&(aes->aes_mbs), aes->aes_wcs.s) == NULL)
 		return (0);
 	aes->aes_set = AES_SET_UTF8 | AES_SET_WCS | AES_SET_MBS;
 
@@ -356,25 +311,13 @@ aes_copy_wcs(struct aes *aes, const wchar_t *wcs)
 static int
 aes_copy_wcs_len(struct aes *aes, const wchar_t *wcs, size_t len)
 {
-	wchar_t *w;
-
 	if (wcs == NULL) {
 		aes->aes_set = 0;
-		return (0);
 	}
 	aes->aes_set = AES_SET_WCS; /* Only WCS form set. */
 	archive_string_empty(&(aes->aes_mbs));
 	archive_string_empty(&(aes->aes_utf8));
-	if (aes->aes_wcs) {
-		free((wchar_t *)(uintptr_t)aes->aes_wcs);
-		aes->aes_wcs = NULL;
-	}
-	w = (wchar_t *)malloc((len + 1) * sizeof(wchar_t));
-	if (w == NULL)
-		__archive_errx(1, "No memory for aes_copy_wcs()");
-	wmemcpy(w, wcs, len);
-	w[len] = L'\0';
-	aes->aes_wcs = w;
+	archive_wstrncpy(&(aes->aes_wcs), wcs, len);
 	return (0);
 }
 

@@ -58,6 +58,17 @@ __archive_string_append(struct archive_string *as, const char *p, size_t s)
 	return (as);
 }
 
+struct archive_wstring *
+__archive_wstring_append(struct archive_wstring *as, const wchar_t *p, size_t s)
+{
+	if (__archive_wstring_ensure(as, as->length + s + 1) == NULL)
+		__archive_errx(1, "Out of memory");
+	memcpy(as->s + as->length, p, s * sizeof(wchar_t));
+	as->s[as->length + s] = 0;
+	as->length += s;
+	return (as);
+}
+
 void
 __archive_string_copy(struct archive_string *dest, struct archive_string *src)
 {
@@ -67,6 +78,20 @@ __archive_string_copy(struct archive_string *dest, struct archive_string *src)
 		if (__archive_string_ensure(dest, src->length + 1) == NULL)
 			__archive_errx(1, "Out of memory");
 		memcpy(dest->s, src->s, src->length);
+		dest->length = src->length;
+		dest->s[dest->length] = 0;
+	}
+}
+
+void
+__archive_wstring_copy(struct archive_wstring *dest, struct archive_wstring *src)
+{
+	if (src->length == 0)
+		dest->length = 0;
+	else {
+		if (__archive_wstring_ensure(dest, src->length + 1) == NULL)
+			__archive_errx(1, "Out of memory");
+		memcpy(dest->s, src->s, src->length * sizeof(wchar_t));
 		dest->length = src->length;
 		dest->s[dest->length] = 0;
 	}
@@ -93,6 +118,14 @@ __archive_string_free(struct archive_string *as)
 		free(as->s);
 		as->s = NULL;
 	}
+}
+
+struct archive_wstring *
+__archive_wstring_ensure(struct archive_wstring *as, size_t s)
+{
+	return (struct archive_wstring *)
+		__archive_string_ensure((struct archive_string *)as,
+					s * sizeof(wchar_t));
 }
 
 /* Returns NULL on any allocation failure. */
@@ -163,6 +196,12 @@ struct archive_string *
 __archive_strappend_char(struct archive_string *as, char c)
 {
 	return (__archive_string_append(as, &c, 1));
+}
+
+struct archive_wstring *
+__archive_wstrappend_wchar(struct archive_wstring *as, wchar_t c)
+{
+	return (__archive_wstring_append(as, &c, 1));
 }
 
 /*
@@ -283,38 +322,32 @@ utf8_to_unicode(int *pwc, const char *s, size_t n)
  * Return a wide-character Unicode string by converting this archive_string
  * from UTF-8.  We assume that systems with 16-bit wchar_t always use
  * UTF16 and systems with 32-bit wchar_t can accept UCS4.
+ * Returns 0 on success, non-zero if conversion fails.
  */
-wchar_t *
-__archive_string_utf8_w(struct archive_string *as)
+int
+__archive_wstrappend_utf8(struct archive_wstring *dest, struct archive_string *src)
 {
-	wchar_t *ws, *dest;
 	int wc, wc2;/* Must be large enough for a 21-bit Unicode code point. */
-	const char *src;
+	const char *p;
 	int n;
 
-	ws = (wchar_t *)malloc((as->length + 1) * sizeof(wchar_t));
-	if (ws == NULL)
-		__archive_errx(1, "Out of memory");
-	dest = ws;
-	src = as->s;
-	while (*src != '\0') {
-		n = utf8_to_unicode(&wc, src, 8);
+	p = src->s;
+	while (*p != '\0') {
+		n = utf8_to_unicode(&wc, p, 8);
 		if (n == 0)
 			break;
 		if (n < 0) {
-			free(ws);
-			return (NULL);
+			return (-1);
 		}
-		src += n;
+		p += n;
 		if (wc >= 0xDC00 && wc <= 0xDBFF) {
 			/* This is a leading surrogate; some idiot
 			 * has translated UTF16 to UTF8 without combining
 			 * surrogates; rebuild the full code point before
 			 * continuing. */
-			n = utf8_to_unicode(&wc2, src, 8);
+			n = utf8_to_unicode(&wc2, p, 8);
 			if (n < 0) {
-				free(ws);
-				return (NULL);
+				return (-1);
 			}
 			if (n == 0) /* Ignore the leading surrogate */
 				break;
@@ -323,10 +356,9 @@ __archive_string_utf8_w(struct archive_string *as)
 				 * trailing surrogate, then someone
 				 * has really screwed up and this is
 				 * invalid. */
-				free(ws);
-				return (NULL);
+				return (-1);
 			} else {
-				src += n;
+				p += n;
 				wc -= 0xD800;
 				wc *= 0x400;
 				wc += wc2 - 0xDC00;
@@ -337,13 +369,35 @@ __archive_string_utf8_w(struct archive_string *as)
 			/* We have a code point that won't fit into a
 			 * wchar_t; convert it to a surrogate pair. */
 			wc -= 0x10000;
-			*dest++ = ((wc >> 10) & 0x3ff) + 0xD800;
-			*dest++ = (wc & 0x3ff) + 0xDC00;
+			__archive_wstrappend_wchar(dest,
+						   ((wc >> 10) & 0x3ff) + 0xD800);
+			__archive_wstrappend_wchar(dest,
+						   (wc & 0x3ff) + 0xDC00);
 		} else
-			*dest++ = wc;
+			__archive_wstrappend_wchar(dest, wc);
 	}
-	*dest = L'\0';
-	return (ws);
+	return (0);
+}
+
+
+int
+__archive_wstrappend_mbs(struct archive_wstring *dest,
+			 struct archive_string *src)
+{
+	int r;
+	/*
+	 * No single byte will be more than one wide character,
+	 * so this length estimate will always be big enough.
+	 */
+	size_t wcs_length = src->length;
+	if (NULL == __archive_wstring_ensure(dest, wcs_length + 1))
+		__archive_errx(1, "No memory for aes_get_wcs()");
+	r = mbstowcs(dest->s, src->s, wcs_length);
+	if (r != (size_t)-1 && r != 0) {
+		dest->s[r] = 0;
+		return (0);
+	}
+	return (-1);
 }
 
 #if defined(_WIN32) && !defined(__CYGWIN__)

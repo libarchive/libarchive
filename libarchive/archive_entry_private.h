@@ -42,7 +42,7 @@
 struct aes {
 	struct archive_string aes_mbs;
 	struct archive_string aes_utf8;
-	const wchar_t *aes_wcs;
+	struct archive_wstring aes_wcs;
 	/* Bitmap of which of the above are valid.  Because we're lazy
 	 * about malloc-ing and reusing the underlying storage, we
 	 * can't rely on NULL pointers to indicate whether a string
