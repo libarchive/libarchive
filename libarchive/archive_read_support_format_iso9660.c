@@ -717,11 +717,13 @@ isSVD(struct iso9660 *iso9660, const unsigned char *h)
 	if (location <= SYSTEM_AREA_BLOCK+2 || location >= volume_block)
 		return (0);
 
-	/* Location of Occurrence of Type M Path Table must be
-	 * available location,
+	/* The Type M Path Table must be at a valid location (WinISO
+	 * and probably other programs omit this, so we allow zero)
+	 *
 	 * > SYSTEM_AREA_BLOCK(16) + 2 and < Volume Space Size. */
 	location = archive_be32dec(h+SVD_type_M_path_table_offset);
-	if (location <= SYSTEM_AREA_BLOCK+2 || location >= volume_block)
+	if ((location > 0 && location <= SYSTEM_AREA_BLOCK+2)
+	    || location >= volume_block)
 		return (0);
 
 	/* Read Root Directory Record in Volume Descriptor. */
@@ -793,7 +795,8 @@ isEVD(struct iso9660 *iso9660, const unsigned char *h)
 	 * available location,
 	 * > SYSTEM_AREA_BLOCK(16) + 2 and < Volume Space Size. */
 	location = archive_be32dec(h+PVD_type_m_path_table_offset);
-	if (location <= SYSTEM_AREA_BLOCK+2 || location >= volume_block)
+	if ((location > 0 && location <= SYSTEM_AREA_BLOCK+2)
+	    || location >= volume_block)
 		return (0);
 
 	/* Reserved field must be 0. */
@@ -868,11 +871,14 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 	if (location <= SYSTEM_AREA_BLOCK+2 || location >= volume_block)
 		return (0);
 
-	/* Location of Occurrence of Type M Path Table must be
-	 * available location,
+	/* The Type M Path Table must also be at a valid location
+	 * (although ECMA 119 requires a Type M Path Table, WinISO and
+	 * probably other programs omit it, so we permit a zero here)
+	 *
 	 * > SYSTEM_AREA_BLOCK(16) + 2 and < Volume Space Size. */
 	location = archive_be32dec(h+PVD_type_m_path_table_offset);
-	if (location <= SYSTEM_AREA_BLOCK+2 || location >= volume_block)
+	if ((location > 0 && location <= SYSTEM_AREA_BLOCK+2)
+	    || location >= volume_block)
 		return (0);
 
 	/* Reserved field must be 0. */
