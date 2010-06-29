@@ -1753,7 +1753,6 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 		}
 		*wp = L'\0';
 
-#if 0 /* untested code, is it at all useful on Joliet? */
 		/* trim trailing first version and dot from filename.
 		 *
 		 * Remember we where in UTF-16BE land!
@@ -1773,7 +1772,6 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 		/* Chop off trailing '.' from filenames. */
 		if (*(wp-1) == '.')
 			*(--wp) = L'\0';
-#endif
 
 		/* store the result in the file name field. */
 		archive_strappend_w_utf8(&file->name, wbuff);
