@@ -106,6 +106,7 @@ verify_file(struct archive *a, enum vtype type, struct fns *fns)
 			assert(length == 1 || length == 128 || length == 255);
 			assertEqualInt(symlink[length-1], 'x');
 		}
+		failure("Found duplicate for %s", pathname);
 		assert(strcmp(fns->names[i], pathname) != 0);
 		assert((length = strlen(pathname)) <= fns->maxlen);
 		if (length > fns->longest_len)
