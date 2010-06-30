@@ -1,3 +1,7 @@
+Jun 30, 2010: libarchive 2.8.4 released
+Jun 30, 2010: Improved reliability of hash function detection
+Jun 30, 2010: Fix issues on ancient FreeBSD, QNX, ancient NetBSD and Minux
+
 Mar 14, 2010: libarchive 2.8.3 released
 Mar 14, 2010: Symlink dereference fix for Linux broke the build there; corrected.
 
