@@ -27,6 +27,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_option_k.c
     test_option_keep_newer_files.c
     test_option_n.c
+    test_option_newer_than.c
     test_option_q.c
     test_option_r.c
     test_option_s.c
