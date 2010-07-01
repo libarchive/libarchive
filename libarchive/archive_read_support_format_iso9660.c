@@ -1770,13 +1770,13 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 		 *       *, /, :, ;, ? and \.
 		 */
 		/* Chop off trailing ';1' from files. */
-		if (*(wp-2) == ';' && *(wp-1) == '1') {
+		if (*(wp-2) == L';' && *(wp-1) == L'1') {
 			wp-=2;
 			*wp = L'\0';
 		}
 
 		/* Chop off trailing '.' from filenames. */
-		if (*(wp-1) == '.')
+		if (*(wp-1) == L'.')
 			*(--wp) = L'\0';
 
 		/* store the result in the file name field. */
