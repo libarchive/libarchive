@@ -1775,9 +1775,11 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 			*wp = L'\0';
 		}
 
+#if 0 /* XXX: this somehow manages to strip of single-character file extensions, like '.c'. */
 		/* Chop off trailing '.' from filenames. */
 		if (*(wp-1) == L'.')
 			*(--wp) = L'\0';
+#endif
 
 		/* store the result in the file name field. */
 		archive_strappend_w_utf8(&file->name, wbuff);
