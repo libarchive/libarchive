@@ -539,7 +539,7 @@ archive_write_pax_header(struct archive_write *a,
 			memmove(name, "._", 2);
 		} else {
 			bname += 1;
-			memmove(bname + 2, bname, strlen(bname));
+			memmove(bname + 2, bname, strlen(bname) + 1);
 			memmove(bname, "._", 2);
 		}
 		archive_entry_copy_pathname(extra, name);
