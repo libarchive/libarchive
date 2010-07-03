@@ -83,6 +83,9 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk_entry_from_file.c 2010
 #if defined(HAVE_EXT2FS_EXT2_FS_H) && !defined(__CYGWIN__)
 #include <ext2fs/ext2_fs.h>     /* Linux file flags, broken on Cygwin */
 #endif
+#ifdef HAVE_PATHS_H
+#include <paths.h>
+#endif
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -254,59 +257,82 @@ static int
 setup_mac_metadata(struct archive_read_disk *a,
     struct archive_entry *entry, int fd)
 {
-	int file_fd = -1;
-	FILE *ftmp = NULL;
+	int tempfd = -1;
 	int copyfile_flags = COPYFILE_NOFOLLOW | COPYFILE_ACL | COPYFILE_XATTR;
 	struct stat copyfile_stat;
 	int ret = ARCHIVE_OK;
 	void *buff;
+	int have_attrs;
+	const char *name, *tempdir, *tempfile = NULL;
 
-	if (fd >= 0)
-		file_fd = fd;
-	else {
-		const char *name = archive_entry_sourcepath(entry);
-		if (name == NULL)
-			name = archive_entry_pathname(entry);
-		if (name == NULL) {
-			// XXX error message
-			return (ARCHIVE_WARN);
-		}
-		file_fd = open(name, O_RDONLY | O_SYMLINK);
-		if (file_fd < 0) {
-			// XXX error message
-			return (ARCHIVE_WARN);
-		}
-	}
-
-	// Short-circuit if there's nothing to do.
-	if (0 == fcopyfile(file_fd, -1, 0, copyfile_flags | COPYFILE_CHECK)) {
-		// XXX error message
+	name = archive_entry_sourcepath(entry);
+	if (name == NULL)
+		name = archive_entry_pathname(entry);
+	if (name == NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Can't open file to read extended attributes: No name");
 		return (ARCHIVE_WARN);
 	}
 
-	// Get a temp file.
-	ftmp = tmpfile();
-	if (ftmp == NULL)
-		goto cleanup;
+	// Short-circuit if there's nothing to do.
+	have_attrs = copyfile(name, NULL, 0, copyfile_flags | COPYFILE_CHECK);
+	if (have_attrs == -1) {
+		archive_set_error(&a->archive, errno,
+			"Could not check extended attributes");
+		return (ARCHIVE_WARN);
+	}
+	if (have_attrs == 0)
+		return (ARCHIVE_OK);
 
-	/* XXX I wish copyfile() could pack directly to a memory buffer; that
-	 * would avoid the temp file here. */
-	if (fcopyfile(file_fd, fileno(ftmp), 0, copyfile_flags | COPYFILE_PACK))
+	if (issetugid() == 0)
+		tempdir = getenv("TMPDIR");
+	if (tempdir == NULL)
+		tempdir = _PATH_TMP;
+	tempfile = tempnam(tempdir, "tar.md.");
+
+	/* XXX I wish copyfile() could pack directly to a memory
+	 * buffer; that would avoid the temp file here.  For that
+	 * matter, it would be nice if fcopyfile() actually worked,
+	 * that would reduce the many open/close races here. */
+	if (copyfile(name, tempfile, 0, copyfile_flags | COPYFILE_PACK)) {
+		archive_set_error(&a->archive, errno,
+		    "Could not pack extended attributes");
+		ret = ARCHIVE_WARN;
 		goto cleanup;
-	if (fstat(fileno(ftmp), &copyfile_stat))
+	}
+	tempfd = open(tempfile, O_RDONLY);
+	if (tempfd < 0) {
+		archive_set_error(&a->archive, errno,
+		    "Could not open extended attribute file");
+		ret = ARCHIVE_WARN;
 		goto cleanup;
+	}
+	if (fstat(tempfd, &copyfile_stat)) {
+		archive_set_error(&a->archive, errno,
+		    "Could not check size of extended attributes");
+		ret = ARCHIVE_WARN;
+		goto cleanup;
+	}
 	buff = malloc(copyfile_stat.st_size);
-	if (buff == NULL)
+	if (buff == NULL) {
+		archive_set_error(&a->archive, errno,
+		    "Could not allocate memory for extended attributes");
+		ret = ARCHIVE_WARN;
 		goto cleanup;
-	if (copyfile_stat.st_size != fread(buff, 1, copyfile_stat.st_size, ftmp))
+	}
+	if (copyfile_stat.st_size != read(tempfd, buff, copyfile_stat.st_size)) {
+		archive_set_error(&a->archive, errno,
+		    "Could not read extended attributes into memory");
+		ret = ARCHIVE_WARN;
 		goto cleanup;
+	}
 	archive_entry_copy_mac_metadata(entry, buff, copyfile_stat.st_size);
 
 cleanup:
-	if (ftmp != NULL)
-		fclose(ftmp);
-	if (fd < 0)
-		close(file_fd);
+	if (tempfd >= 0)
+		close(tempfd);
+	if (tempfile != NULL)
+		unlink(tempfile);
 	return (ret);
 }
 
