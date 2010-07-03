@@ -559,8 +559,13 @@ archive_entry_fflags_text(struct archive_entry *entry)
 	return (f);
 }
 
+#if ARCHIVE_VERSION_NUMBER < 3000000
 gid_t
 archive_entry_gid(struct archive_entry *entry)
+#else
+int64_t
+archive_entry_gid(struct archive_entry *entry)
+#endif
 {
 	return (entry->ae_stat.aest_gid);
 }
@@ -723,8 +728,13 @@ archive_entry_symlink_w(struct archive_entry *entry)
 	return (NULL);
 }
 
+#if ARCHIVE_VERSION_NUMBER < 3000000
 uid_t
 archive_entry_uid(struct archive_entry *entry)
+#else
+int64_t
+archive_entry_uid(struct archive_entry *entry)
+#endif
 {
 	return (entry->ae_stat.aest_uid);
 }
@@ -780,8 +790,13 @@ archive_entry_copy_fflags_text_w(struct archive_entry *entry,
 		    &entry->ae_fflags_set, &entry->ae_fflags_clear));
 }
 
+#if ARCHIVE_VERSION_NUMBER < 3000000
 void
 archive_entry_set_gid(struct archive_entry *entry, gid_t g)
+#else
+void
+archive_entry_set_gid(struct archive_entry *entry, int64_t g)
+#endif
 {
 	entry->stat_valid = 0;
 	entry->ae_stat.aest_gid = g;
@@ -1136,8 +1151,13 @@ archive_entry_update_symlink_utf8(struct archive_entry *entry, const char *linkn
 	return (aes_update_utf8(&entry->ae_symlink, linkname));
 }
 
+#if ARCHIVE_VERSION_NUMBER < 3000000
 void
 archive_entry_set_uid(struct archive_entry *entry, uid_t u)
+#else
+void
+archive_entry_set_uid(struct archive_entry *entry, int64_t u)
+#endif
 {
 	entry->stat_valid = 0;
 	entry->ae_stat.aest_uid = u;

@@ -125,12 +125,12 @@ struct archive_entry {
 		uint32_t	aest_mtime_nsec;
 		int64_t		aest_birthtime;
 		uint32_t	aest_birthtime_nsec;
-		gid_t		aest_gid;
+		int64_t		aest_gid;
 		int64_t		aest_ino;
 		mode_t		aest_mode;
 		uint32_t	aest_nlink;
 		uint64_t	aest_size;
-		uid_t		aest_uid;
+		int64_t		aest_uid;
 		/*
 		 * Because converting between device codes and
 		 * major/minor values is platform-specific and

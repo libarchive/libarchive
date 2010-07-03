@@ -52,30 +52,27 @@
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #define	__LA_INT64_T	__int64
 # if defined(__BORLANDC__)
-#  define	__LA_UID_T	uid_t
-#  define	__LA_GID_T	gid_t
+#  define	__LA_UID_T	uid_t  /* Remove in libarchive 3.2 */
+#  define	__LA_GID_T	gid_t  /* Remove in libarchive 3.2 */
 #  define	__LA_DEV_T	dev_t
 #  define	__LA_MODE_T	mode_t
 # else
-#  define	__LA_UID_T	short
-#  define	__LA_GID_T	short
+#  define	__LA_UID_T	short  /* Remove in libarchive 3.2 */
+#  define	__LA_GID_T	short  /* Remove in libarchive 3.2 */
 #  define	__LA_DEV_T	unsigned int
 #  define	__LA_MODE_T	unsigned short
 # endif
 #else
 #include <unistd.h>
 #define	__LA_INT64_T	int64_t
-#define	__LA_UID_T	uid_t
-#define	__LA_GID_T	gid_t
+#define	__LA_UID_T	uid_t /* Remove in libarchive 3.2 */
+#define	__LA_GID_T	gid_t /* Remove in libarchive 3.2 */
 #define	__LA_DEV_T	dev_t
 #define	__LA_MODE_T	mode_t
 #endif
 
 /*
- * XXX Is this defined for all Windows compilers?  If so, in what
- * header?  It would be nice to remove the __LA_INO_T indirection and
- * just use plain ino_t everywhere.  Likewise for the other types just
- * above.
+ * Remove this for libarchive 3.2, since ino_t is no longer used.
  */
 #define	__LA_INO_T	ino_t
 
@@ -202,7 +199,11 @@ __LA_DECL void		 archive_entry_fflags(struct archive_entry *,
 			    unsigned long * /* set */,
 			    unsigned long * /* clear */);
 __LA_DECL const char	*archive_entry_fflags_text(struct archive_entry *);
+#if ARCHIVE_VERSION_NUMBER < 3000000
 __LA_DECL __LA_GID_T	 archive_entry_gid(struct archive_entry *);
+#else
+__LA_DECL __LA_INT64_T	 archive_entry_gid(struct archive_entry *);
+#endif
 __LA_DECL const char	*archive_entry_gname(struct archive_entry *);
 __LA_DECL const wchar_t	*archive_entry_gname_w(struct archive_entry *);
 __LA_DECL const char	*archive_entry_hardlink(struct archive_entry *);
@@ -230,7 +231,11 @@ __LA_DECL int		 archive_entry_size_is_set(struct archive_entry *);
 __LA_DECL const char	*archive_entry_strmode(struct archive_entry *);
 __LA_DECL const char	*archive_entry_symlink(struct archive_entry *);
 __LA_DECL const wchar_t	*archive_entry_symlink_w(struct archive_entry *);
+#if ARCHIVE_VERSION_NUMBER < 3000000
 __LA_DECL __LA_UID_T	 archive_entry_uid(struct archive_entry *);
+#else
+__LA_DECL __LA_INT64_T	 archive_entry_uid(struct archive_entry *);
+#endif
 __LA_DECL const char	*archive_entry_uname(struct archive_entry *);
 __LA_DECL const wchar_t	*archive_entry_uname_w(struct archive_entry *);
 
@@ -266,7 +271,11 @@ __LA_DECL const char *archive_entry_copy_fflags_text(struct archive_entry *,
 	    const char *);
 __LA_DECL const wchar_t *archive_entry_copy_fflags_text_w(struct archive_entry *,
 	    const wchar_t *);
+#if ARCHIVE_VERSION_NUMBER < 3000000
 __LA_DECL void	archive_entry_set_gid(struct archive_entry *, __LA_GID_T);
+#else
+__LA_DECL void	archive_entry_set_gid(struct archive_entry *, __LA_INT64_T);
+#endif
 __LA_DECL void	archive_entry_set_gname(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_gname(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_gname_w(struct archive_entry *, const wchar_t *);
@@ -304,7 +313,11 @@ __LA_DECL void	archive_entry_set_symlink(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_symlink(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_symlink_w(struct archive_entry *, const wchar_t *);
 __LA_DECL int	archive_entry_update_symlink_utf8(struct archive_entry *, const char *);
+#if ARCHIVE_VERSION_NUMBER < 3000000
 __LA_DECL void	archive_entry_set_uid(struct archive_entry *, __LA_UID_T);
+#else
+__LA_DECL void	archive_entry_set_uid(struct archive_entry *, __LA_INT64_T);
+#endif
 __LA_DECL void	archive_entry_set_uname(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_uname(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_uname_w(struct archive_entry *, const wchar_t *);
