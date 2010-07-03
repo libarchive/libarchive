@@ -413,6 +413,8 @@ archive_write_pax_header_xattrs(struct pax *pax, struct archive_entry *entry)
  * archive_entry so that clients can specify them.  Also, consider
  * adding generic key/value tags so clients can add arbitrary
  * key/value data.
+ *
+ * TODO: Break up this 700-line function!!!!  Yowza!
  */
 static int
 archive_write_pax_header(struct archive_write *a,
@@ -431,6 +433,8 @@ archive_write_pax_header(struct archive_write *a,
 	const char *hardlink;
 	const char *path = NULL, *linkpath = NULL;
 	const char *uname = NULL, *gname = NULL;
+	const void *mac_metadata;
+	size_t mac_metadata_size;
 	const wchar_t *path_w = NULL, *linkpath_w = NULL;
 	const wchar_t *uname_w = NULL, *gname_w = NULL;
 
@@ -444,6 +448,13 @@ archive_write_pax_header(struct archive_write *a,
 	ret = ARCHIVE_OK;
 	need_extension = 0;
 	pax = (struct pax *)a->format_data;
+
+	/* Sanity check. */
+	if (archive_entry_pathname(entry_original) == NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			  "Can't record entry in tar file without pathname");
+		return (ARCHIVE_FAILED);
+	}
 
 	hardlink = archive_entry_hardlink(entry_original);
 
@@ -479,14 +490,88 @@ archive_write_pax_header(struct archive_write *a,
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "tar format cannot archive socket");
-			return (ARCHIVE_WARN);
+			return (ARCHIVE_FAILED);
 		default:
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "tar format cannot archive this (type=0%lo)",
 			    (unsigned long)archive_entry_filetype(entry_original));
-			return (ARCHIVE_WARN);
+			return (ARCHIVE_FAILED);
 		}
+	}
+
+	/*
+	 * If Mac OS metadata blob is here, recurse to write that
+	 * as a separate entry.  This is realy a pretty poor design:
+	 * In particular, it doubles the overhead for long filenames.
+	 * TODO: Help Apple folks design something better and figure
+	 * out how to transition from this legacy format.
+	 *
+	 * Note that this code is present on every platform; clients
+	 * on non-Mac are unlikely to ever provide this data, but
+	 * applications that copy entries from one archive to another
+	 * should not lose data just because the local filesystem
+	 * can't store it.
+	 */
+	mac_metadata = archive_entry_mac_metadata(entry_original, &mac_metadata_size);
+	if (mac_metadata != NULL) {
+		const char *oname;
+		char *name, *bname;
+		size_t name_length;
+		struct archive_entry *extra = archive_entry_new();
+
+		oname = archive_entry_pathname(entry_original);
+		name_length = strlen(oname);
+		name = malloc(name_length + 3);
+		if (name == NULL) {
+			// XXX error message
+			return (ARCHIVE_FAILED);
+		}
+		strcpy(name, oname);
+		/* Find last '/'; strip trailing '/' characters */
+		bname = strrchr(name, '/');
+		while (bname != NULL && bname[1] == '\0') {
+			*bname = '\0';
+			bname = strrchr(name, '/');
+		}
+		if (bname == NULL) {
+			memmove(name + 2, name, name_length + 1);
+			memmove(name, "._", 2);
+		} else {
+			bname += 1;
+			memmove(bname + 2, bname, strlen(bname));
+			memmove(bname, "._", 2);
+		}
+		archive_entry_copy_pathname(extra, name);
+		free(name);
+
+		archive_entry_set_size(extra, mac_metadata_size);
+		archive_entry_set_filetype(extra, AE_IFREG);
+		archive_entry_set_perm(extra, archive_entry_perm(entry_original));
+		archive_entry_set_mtime(extra,
+					archive_entry_mtime(entry_original),
+					archive_entry_mtime_nsec(entry_original));
+		archive_entry_set_gid(extra, archive_entry_gid(entry_original));
+		archive_entry_set_gname(extra, archive_entry_gname(entry_original));
+		archive_entry_set_uid(extra, archive_entry_uid(entry_original));
+		archive_entry_set_uname(extra, archive_entry_uname(entry_original));
+
+		// Recurse to write the special copyfile entry.
+		r = archive_write_pax_header(a, extra);
+		if (r < ARCHIVE_WARN)
+			return (r);
+		if (r < ret)
+			ret = r;
+		r = archive_write_pax_data(a, mac_metadata, mac_metadata_size);
+		if (r < ARCHIVE_WARN)
+			return (r);
+		if (r < ret)
+			ret = r;
+		r = archive_write_pax_finish_entry(a);
+		if (r < ARCHIVE_WARN)
+			return (r);
+		if (r < ret)
+			ret = r;
 	}
 
 	/* Copy entry so we can modify it as needed. */

@@ -55,6 +55,9 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk_entry_from_file.c 2010
 #ifdef HAVE_ATTR_XATTR_H
 #include <attr/xattr.h>
 #endif
+#ifdef HAVE_COPYFILE_H
+#include <copyfile.h>
+#endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -104,6 +107,8 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk_entry_from_file.c 2010
 
 static int setup_acls_posix1e(struct archive_read_disk *,
     struct archive_entry *, int fd);
+static int setup_mac_metadata(struct archive_read_disk *,
+    struct archive_entry *, int fd);
 static int setup_xattrs(struct archive_read_disk *,
     struct archive_entry *, int fd);
 static int setup_sparse(struct archive_read_disk *,
@@ -112,7 +117,8 @@ static int setup_sparse(struct archive_read_disk *,
 int
 archive_read_disk_entry_from_file(struct archive *_a,
     struct archive_entry *entry,
-    int fd, const struct stat *st)
+    int fd,
+    const struct stat *st)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
 	const char *path, *name;
@@ -127,9 +133,8 @@ archive_read_disk_entry_from_file(struct archive *_a,
 
 	if (st == NULL) {
 		/* TODO: On Windows, use GetFileInfoByHandle() here.
-		 * Using Windows stat() call is badly broken, but
-		 * even the stat() wrapper has problems because
-		 * 'struct stat' is broken on Windows.
+		 * Windows stat() can't be fixed because 'struct stat'
+		 * is broken on Windows.
 		 */
 #if HAVE_FSTAT
 		if (fd >= 0) {
@@ -218,17 +223,109 @@ archive_read_disk_entry_from_file(struct archive *_a,
 	r1 = setup_xattrs(a, entry, fd);
 	if (r1 < r)
 		r = r1;
-	if (S_ISREG(st->st_mode) && archive_entry_size(entry) > 0 &&
-	    archive_entry_hardlink(entry) == NULL) {
-		r1 = setup_sparse(a, entry, fd);
-		if (r1 < r)
-			r = r1;
-	}
+	r1 = setup_mac_metadata(a, entry, fd);
+	if (r1 < r)
+		r = r1;
+	r1 = setup_sparse(a, entry, fd);
+	if (r1 < r)
+		r = r1;
+
 	/* If we opened the file earlier in this function, close it. */
 	if (initial_fd != fd)
 		close(fd);
 	return (r);
 }
+
+#ifdef __APPLE__
+/*
+ * The Mac OS "copyfile()" API copies the extended metadata for a
+ * file into a separate file in AppleDouble format (see RFC 1740).
+ *
+ * Mac OS tar and cpio implementations store this extended
+ * metadata as a separate entry just before the regular entry
+ * with a "._" prefix added to the filename.
+ *
+ * Note that this is currently done unconditionally; the tar program has
+ * an option to discard this information before the archive is written.
+ *
+ * TODO: If there's a failure, report it and return ARCHIVE_WARN.
+ */
+static int
+setup_mac_metadata(struct archive_read_disk *a,
+    struct archive_entry *entry, int fd)
+{
+	int file_fd = -1;
+	FILE *ftmp = NULL;
+	int copyfile_flags = COPYFILE_NOFOLLOW | COPYFILE_ACL | COPYFILE_XATTR;
+	struct stat copyfile_stat;
+	int ret = ARCHIVE_OK;
+	void *buff;
+
+	if (fd >= 0)
+		file_fd = fd;
+	else {
+		const char *name = archive_entry_sourcepath(entry);
+		if (name == NULL)
+			name = archive_entry_pathname(entry);
+		if (name == NULL) {
+			// XXX error message
+			return (ARCHIVE_WARN);
+		}
+		file_fd = open(name, O_RDONLY | O_SYMLINK);
+		if (file_fd < 0) {
+			// XXX error message
+			return (ARCHIVE_WARN);
+		}
+	}
+
+	// Short-circuit if there's nothing to do.
+	if (0 == fcopyfile(file_fd, -1, 0, copyfile_flags | COPYFILE_CHECK)) {
+		// XXX error message
+		return (ARCHIVE_WARN);
+	}
+
+	// Get a temp file.
+	ftmp = tmpfile();
+	if (ftmp == NULL)
+		goto cleanup;
+
+	/* XXX I wish copyfile() could pack directly to a memory buffer; that
+	 * would avoid the temp file here. */
+	if (fcopyfile(file_fd, fileno(ftmp), 0, copyfile_flags | COPYFILE_PACK))
+		goto cleanup;
+	if (fstat(fileno(ftmp), &copyfile_stat))
+		goto cleanup;
+	buff = malloc(copyfile_stat.st_size);
+	if (buff == NULL)
+		goto cleanup;
+	if (copyfile_stat.st_size != fread(buff, 1, copyfile_stat.st_size, ftmp))
+		goto cleanup;
+	archive_entry_copy_mac_metadata(entry, buff, copyfile_stat.st_size);
+
+cleanup:
+	if (ftmp != NULL)
+		fclose(ftmp);
+	if (fd < 0)
+		close(file_fd);
+	return (ret);
+}
+
+#else
+
+/*
+ * Stub implementation for non-Mac systems.
+ */
+static int
+setup_mac_metadata(struct archive_read_disk *a,
+    struct archive_entry *entry, int fd)
+{
+	(void)a; /* UNUSED */
+	(void)entry; /* UNUSED */
+	(void)fd; /* UNUSED */
+	return (ARCHIVE_OK);
+}
+#endif
+
 
 #ifdef HAVE_POSIX_ACL
 static void setup_acl_posix1e(struct archive_read_disk *a,
@@ -632,6 +729,11 @@ setup_sparse(struct archive_read_disk *a,
 	int initial_fd = fd;
 	int exit_sts = ARCHIVE_OK;
 
+	if (archive_entry_filetype(entry) != AE_IFREG
+	    || archive_entry_size(entry) <= 0
+	    || archive_entry_hardlink(entry) != NULL)
+		return (ARCHIVE_OK);
+
 	if (fd < 0) {
 		const char *path;
 
@@ -719,6 +821,11 @@ setup_sparse(struct archive_read_disk *a,
 	off_t off_s, off_e; // FreeBSD/Solaris only, so off_t okay here
 	int exit_sts = ARCHIVE_OK;
 
+	if (archive_entry_filetype(entry) != AE_IFREG
+	    || archive_entry_size(entry) <= 0
+	    || archive_entry_hardlink(entry) != NULL)
+		return (ARCHIVE_OK);
+
 	/* Does filesystem support the reporting of hole ? */
 	if (fd >= 0) {
 		if (fpathconf(fd, _PC_MIN_HOLE_SIZE) <= 0)
@@ -805,6 +912,11 @@ setup_sparse(struct archive_read_disk *a,
 	LARGE_INTEGER fsize;
 	int initial_fd = fd;
 	int exit_sts = ARCHIVE_OK;
+
+	if (archive_entry_filetype(entry) != AE_IFREG
+	    || archive_entry_size(entry) <= 0
+	    || archive_entry_hardlink(entry) != NULL)
+		return (ARCHIVE_OK);
 
 	if (fd < 0) {
 		const char *path;
