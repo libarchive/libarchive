@@ -152,8 +152,8 @@ __archive_strncat(struct archive_string *, const void *, size_t);
 /* Release any allocated storage resources. */
 void	__archive_string_free(struct archive_string *);
 #define	archive_string_free  __archive_string_free
-#define	archive_wstring_free(ws) \
-	__archive_string_free((struct archive_string *)(ws))
+void	__archive_wstring_free(struct archive_wstring *);
+#define	archive_wstring_free  __archive_wstring_free
 
 /* Like 'vsprintf', but resizes the underlying string as necessary. */
 void	__archive_string_vsprintf(struct archive_string *, const char *,
