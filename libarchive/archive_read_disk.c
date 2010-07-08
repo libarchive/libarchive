@@ -77,6 +77,10 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk.c 189429 2009-03-06 04
 #ifndef O_BINARY
 #define O_BINARY	0
 #endif
+#ifndef IO_REPARSE_TAG_SYMLINK
+/* Old SDKs do not provide IO_REPARSE_TAG_SYMLINK */
+#define	IO_REPARSE_TAG_SYMLINK 0xA000000CL
+#endif
 
 /*-
  * This is a new directory-walking system that addresses a number
@@ -171,8 +175,13 @@ struct tree {
 	int	 openCount;
 	int	 maxOpenCount;
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	BY_HANDLE_FILE_INFORMATION	lst;
+	BY_HANDLE_FILE_INFORMATION	st;
+#else
 	struct stat	lst;
 	struct stat	st;
+#endif
 	int	 descend;
 
 	char	 symlink_mode;
@@ -182,6 +191,12 @@ struct tree {
 	int		max_filesystem_id;
 	int		allocated_filesytem;
 };
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#define dev_no(st)	st->dwVolumeSerialNumber
+#else
+#define dev_no(st)	st->st_dev
+#endif
 
 /* Definitions for tree.flags bitmap. */
 #define	hasStat 16  /* The st entry is valid. */
@@ -265,8 +280,13 @@ static const char *tree_current_access_path(struct tree *);
  * results, you should take advantage of it here if you need it rather
  * than make a redundant stat() or lstat() call of your own.
  */
+#if defined(_WIN32) && !defined(__CYGWIN__)
+static const BY_HANDLE_FILE_INFORMATION *tree_current_stat(struct tree *);
+static const BY_HANDLE_FILE_INFORMATION *tree_current_lstat(struct tree *);
+#else
 static const struct stat *tree_current_stat(struct tree *);
 static const struct stat *tree_current_lstat(struct tree *);
+#endif
 
 /* The following functions use tricks to avoid a certain number of
  * stat()/lstat() calls. */
@@ -275,11 +295,14 @@ static int tree_current_is_physical_dir(struct tree *);
 #if defined(_WIN32) && !defined(__CYGWIN__)
 /* "is_physical_link" is equivalent to S_ISLNK(tree_current_lstat()->st_mode) */
 static int tree_current_is_physical_link(struct tree *);
+/* Instead of archive_entry_copy_stat for BY_HANDLE_FILE_INFORMATION */
+static void tree_archive_entry_copy_bhfi(struct archive_entry *,
+		    struct tree *, const BY_HANDLE_FILE_INFORMATION *);
 #endif
 /* "is_dir" is equivalent to S_ISDIR(tree_current_stat()->st_mode) */
 static int tree_current_is_dir(struct tree *);
 static int update_filesystem(struct archive_read_disk *a,
-		    const struct stat *st);
+		    int64_t dev);
 static int setup_current_filesystem(struct archive_read_disk *);
 
 static int	_archive_read_free(struct archive *);
@@ -622,8 +645,13 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
 	struct tree *t;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	const BY_HANDLE_FILE_INFORMATION *st;
+	const BY_HANDLE_FILE_INFORMATION *lst;
+#else
 	const struct stat *st; /* info to use for this entry */
 	const struct stat *lst;/* lstat() information */
+#endif
 	int descend, r;
 
 	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
@@ -700,7 +728,7 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 		break;
 	}
 
-	if (update_filesystem(a, lst) != ARCHIVE_OK) {
+	if (update_filesystem(a, dev_no(lst)) != ARCHIVE_OK) {
 		a->archive.state = ARCHIVE_STATE_FATAL;
 		return (ARCHIVE_FATAL);
 	}
@@ -710,7 +738,13 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	archive_entry_copy_sourcepath(entry, tree_current_access_path(t));
 
 	/* Populate the archive_entry with metadata from the disk. */
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	tree_archive_entry_copy_bhfi(entry, t, st);
+	r = archive_read_disk_entry_from_file(&(a->archive), entry, -1, NULL);
+#else
+	archive_entry_copy_stat(entry, st);
 	r = archive_read_disk_entry_from_file(&(a->archive), entry, -1, st);
+#endif
 
 	/*
 	 * EOF and FATAL are persistent at this layer.  By
@@ -817,17 +851,17 @@ archive_read_disk_current_filesystem(struct archive *_a)
 }
 
 static int
-update_filesystem(struct archive_read_disk *a, const struct stat *st)
+update_filesystem(struct archive_read_disk *a, int64_t dev)
 {
 	struct tree *t = a->tree;
 	int i, fid;
 
 	if (t->current_filesystem != NULL &&
-	    t->current_filesystem->dev == st->st_dev)
+	    t->current_filesystem->dev == dev)
 		return (ARCHIVE_OK);
 
 	for (i = 0; i < t->max_filesystem_id; i++) {
-		if (t->filesystem_table[i].dev == st->st_dev) {
+		if (t->filesystem_table[i].dev == dev) {
 			/* There is the filesytem ID we've already generated. */
 			t->current_filesystem_id = i;
 			t->current_filesystem = &(t->filesystem_table[i]);
@@ -854,7 +888,7 @@ update_filesystem(struct archive_read_disk *a, const struct stat *st)
 	}
 	t->current_filesystem_id = fid;
 	t->current_filesystem = &(t->filesystem_table[fid]);
-	t->current_filesystem->dev = st->st_dev;
+	t->current_filesystem->dev = dev;
 	return (setup_current_filesystem(a));
 }
 
@@ -1356,7 +1390,188 @@ tree_dir_next_windows(struct tree *t, const char *pattern)
 		return (t->visit_type = TREE_REGULAR);
 	}
 }
+
+#define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
+
+static void
+fileTimeToUtc(const FILETIME *filetime, time_t *time, long *ns)
+{
+	ULARGE_INTEGER utc;
+
+	utc.HighPart = filetime->dwHighDateTime;
+	utc.LowPart  = filetime->dwLowDateTime;
+	if (utc.QuadPart >= EPOC_TIME) {
+		utc.QuadPart -= EPOC_TIME;
+		/* milli seconds base */
+		*time = (time_t)(utc.QuadPart / 10000000);
+		/* nano seconds base */
+		*ns = (long)(utc.QuadPart % 10000000) * 100;
+	} else {
+		*time = 0;
+		*ns = 0;
+	}
+}
+
+static void
+tree_archive_entry_copy_bhfi(struct archive_entry *entry, struct tree *t,
+	const BY_HANDLE_FILE_INFORMATION *bhfi)
+{
+	time_t secs;
+	long nsecs;
+	mode_t mode;
+
+	fileTimeToUtc(&bhfi->ftLastAccessTime, &secs, &nsecs);
+	archive_entry_set_atime(entry, secs, nsecs);
+	fileTimeToUtc(&bhfi->ftLastWriteTime, &secs, &nsecs);
+	archive_entry_set_mtime(entry, secs, nsecs);
+	fileTimeToUtc(&bhfi->ftCreationTime, &secs, &nsecs);
+	archive_entry_set_birthtime(entry, secs, nsecs);
+	archive_entry_set_dev(entry, bhfi->dwVolumeSerialNumber);
+	/* Set FileIndex as i-node. We should remove a sequence number
+	 * which is high-16-bits of nFileIndexHigh. */
+	archive_entry_set_ino64(entry,
+	    (((int64_t)(bhfi->nFileIndexHigh & 0x0000FFFFUL)) << 32)
+	    + bhfi->nFileIndexLow);
+	if (bhfi->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+		archive_entry_set_nlink(entry, bhfi->nNumberOfLinks + 1);
+	else
+		archive_entry_set_nlink(entry, bhfi->nNumberOfLinks);
+	archive_entry_set_size(entry,
+	    (((int64_t)bhfi->nFileSizeHigh) << 32)
+	    + bhfi->nFileSizeLow);
+	archive_entry_set_dev(entry, bhfi->dwVolumeSerialNumber);
+	archive_entry_set_uid(entry, 0);
+	archive_entry_set_gid(entry, 0);
+	archive_entry_set_rdev(entry, 0);
+
+	mode = S_IRUSR | S_IRGRP | S_IROTH;
+	if ((bhfi->dwFileAttributes & FILE_ATTRIBUTE_READONLY) == 0)
+		mode |= S_IWUSR | S_IWGRP | S_IWOTH;
+	if ((bhfi->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) &&
+	    t->findData->dwReserved0 == IO_REPARSE_TAG_SYMLINK)
+		mode |= S_IFLNK;
+	else if (bhfi->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+		mode |= S_IFDIR | S_IXUSR | S_IXGRP | S_IXOTH;
+	else {
+		const char *p;
+
+		mode |= S_IFREG;
+		p = strrchr(tree_current_path(t), '.');
+		if (p != NULL && strlen(p) == 4) {
+			switch (p[1]) {
+			case 'B': case 'b':
+				if ((p[2] == 'A' || p[2] == 'a' ) &&
+				    (p[3] == 'T' || p[3] == 't' ))
+					mode |= S_IXUSR | S_IXGRP | S_IXOTH;
+				break;
+			case 'C': case 'c':
+				if (((p[2] == 'M' || p[2] == 'm' ) &&
+				    (p[3] == 'D' || p[3] == 'd' )) ||
+				    ((p[2] == 'M' || p[2] == 'm' ) &&
+				    (p[3] == 'D' || p[3] == 'd' )))
+					mode |= S_IXUSR | S_IXGRP | S_IXOTH;
+				break;
+			case 'E': case 'e':
+				if ((p[2] == 'X' || p[2] == 'x' ) &&
+				    (p[3] == 'E' || p[3] == 'e' ))
+					mode |= S_IXUSR | S_IXGRP | S_IXOTH;
+				break;
+			default:
+				break;
+			}
+		}
+	}
+	archive_entry_set_mode(entry, mode);
+}
+
+static int
+tree_current_file_information(struct tree *t, BY_HANDLE_FILE_INFORMATION *st,
+ int sim_lstat)
+{
+	HANDLE h;
+	int r;
+	DWORD flag = FILE_FLAG_BACKUP_SEMANTICS;
+	
+	if (sim_lstat && tree_current_is_physical_link(t))
+		flag |= FILE_FLAG_OPEN_REPARSE_POINT;
+	h = CreateFile(tree_current_access_path(t),
+		0, 0, NULL,	OPEN_EXISTING, flag, NULL);
+	if (h == INVALID_HANDLE_VALUE)
+		return (0);
+	r = GetFileInformationByHandle(h, st);
+	CloseHandle(h);
+	return (r);
+}
+
+/*
+ * Get the stat() data for the entry just returned from tree_next().
+ */
+static const BY_HANDLE_FILE_INFORMATION *
+tree_current_stat(struct tree *t)
+{
+	if (!(t->flags & hasStat)) {
+		if (!tree_current_file_information(t, &t->st, 0))
+			return NULL;
+		t->flags |= hasStat;
+	}
+	return (&t->st);
+}
+
+/*
+ * Get the lstat() data for the entry just returned from tree_next().
+ */
+static const BY_HANDLE_FILE_INFORMATION *
+tree_current_lstat(struct tree *t)
+{
+	if (!(t->flags & hasLstat)) {
+		if (!tree_current_file_information(t, &t->lst, 1))
+			return NULL;
+		t->flags |= hasLstat;
+	}
+	return (&t->lst);
+}
+
+/*
+ * Test whether current entry is a dir or link to a dir.
+ */
+static int
+tree_current_is_dir(struct tree *t)
+{
+	if (t->findData)
+		return (t->findData->dwFileAttributes
+		    & FILE_ATTRIBUTE_DIRECTORY);
+	return (0);
+}
+
+/*
+ * Test whether current entry is a physical directory.  Usually, we
+ * already have at least one of stat() or lstat() in memory, so we
+ * use tricks to try to avoid an extra trip to the disk.
+ */
+static int
+tree_current_is_physical_dir(struct tree *t)
+{
+	if (tree_current_is_physical_link(t))
+		return (0);
+	return (tree_current_is_dir(t));
+}
+
+/*
+ * Test whether current entry is a symbolic link.
+ */
+static int
+tree_current_is_physical_link(struct tree *t)
+{
+	if (t->findData)
+		return ((t->findData->dwFileAttributes
+			        & FILE_ATTRIBUTE_REPARSE_POINT) &&
+			(t->findData->dwReserved0
+			    == IO_REPARSE_TAG_SYMLINK));
+	return (0);
+}
+
 #else
+
 static int
 tree_dir_next_posix(struct tree *t)
 {
@@ -1392,7 +1607,7 @@ tree_dir_next_posix(struct tree *t)
 		return (t->visit_type = TREE_REGULAR);
 	}
 }
-#endif
+
 
 /*
  * Get the stat() data for the entry just returned from tree_next().
@@ -1428,11 +1643,6 @@ tree_current_lstat(struct tree *t)
 static int
 tree_current_is_dir(struct tree *t)
 {
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	if (t->findData)
-		return (t->findData->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
-	return (0);
-#else
 	const struct stat *st;
 	/*
 	 * If we already have lstat() info, then try some
@@ -1458,7 +1668,6 @@ tree_current_is_dir(struct tree *t)
 		return 0;
 	/* Use the definitive test.  Hopefully this is cached. */
 	return (S_ISDIR(st->st_mode));
-#endif
 }
 
 /*
@@ -1469,11 +1678,6 @@ tree_current_is_dir(struct tree *t)
 static int
 tree_current_is_physical_dir(struct tree *t)
 {
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	if (tree_current_is_physical_link(t))
-		return (0);
-	return (tree_current_is_dir(t));
-#else
 	const struct stat *st;
 
 	/*
@@ -1497,31 +1701,6 @@ tree_current_is_physical_dir(struct tree *t)
 		return 0;
 	/* Use the definitive test.  Hopefully this is cached. */
 	return (S_ISDIR(st->st_mode));
-#endif
-}
-
-#if defined(_WIN32) && !defined(__CYGWIN__)
-/*
- * Test whether current entry is a symbolic link.
- */
-static int
-tree_current_is_physical_link(struct tree *t)
-{
-#if defined(_WIN32) && !defined(__CYGWIN__)
-#ifndef IO_REPARSE_TAG_SYMLINK
-/* Old SDKs do not provide IO_REPARSE_TAG_SYMLINK */
-#define	IO_REPARSE_TAG_SYMLINK 0xA000000CL
-#endif
-	if (t->findData)
-		return ((t->findData->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
-				&& (t->findData->dwReserved0 == IO_REPARSE_TAG_SYMLINK));
-	return (0);
-#else
-	const struct stat *st = tree_current_lstat(t);
-	if (st == NULL)
-		return 0;
-	return (S_ISLNK(st->st_mode));
-#endif
 }
 #endif
 

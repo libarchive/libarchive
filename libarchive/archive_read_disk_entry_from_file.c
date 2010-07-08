@@ -134,37 +134,39 @@ archive_read_disk_entry_from_file(struct archive *_a,
 	if (path == NULL)
 		path = archive_entry_pathname(entry);
 
-	if (st == NULL) {
-		/* TODO: On Windows, use GetFileInfoByHandle() here.
-		 * Windows stat() can't be fixed because 'struct stat'
-		 * is broken on Windows.
-		 */
+	if (a->tree == NULL) {
+		if (st == NULL) {
+			/* TODO: On Windows, use GetFileInfoByHandle() here.
+			 * Windows stat() can't be fixed because 'struct stat'
+			 * is broken on Windows.
+			 */
 #if HAVE_FSTAT
-		if (fd >= 0) {
-			if (fstat(fd, &s) != 0) {
-				archive_set_error(&a->archive, errno,
-				    "Can't fstat");
-				return (ARCHIVE_FAILED);
-			}
-		} else
+			if (fd >= 0) {
+				if (fstat(fd, &s) != 0) {
+					archive_set_error(&a->archive, errno,
+					    "Can't fstat");
+					return (ARCHIVE_FAILED);
+				}
+			} else
 #endif
 #if HAVE_LSTAT
-		if (!a->follow_symlinks) {
-			if (lstat(path, &s) != 0) {
+			if (!a->follow_symlinks) {
+				if (lstat(path, &s) != 0) {
+					archive_set_error(&a->archive, errno,
+					    "Can't lstat %s", path);
+					return (ARCHIVE_FAILED);
+				}
+			} else
+#endif
+			if (stat(path, &s) != 0) {
 				archive_set_error(&a->archive, errno,
-				    "Can't lstat %s", path);
+				    "Can't stat %s", path);
 				return (ARCHIVE_FAILED);
 			}
-		} else
-#endif
-		if (stat(path, &s) != 0) {
-			archive_set_error(&a->archive, errno,
-			    "Can't stat %s", path);
-			return (ARCHIVE_FAILED);
+			st = &s;
 		}
-		st = &s;
+		archive_entry_copy_stat(entry, st);
 	}
-	archive_entry_copy_stat(entry, st);
 
 	/* Lookup uname/gname */
 	name = archive_read_disk_uname(_a, archive_entry_uid(entry));
