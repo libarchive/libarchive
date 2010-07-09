@@ -111,7 +111,12 @@ struct tree_entry {
 	int depth;
 	struct tree_entry *next;
 	struct tree_entry *parent;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	size_t full_path_dir_length;
+	struct archive_wstring name;
+#else
 	struct archive_string name;
+#endif
 	size_t dirname_length;
 	dev_t dev;
 	ino_t ino;
@@ -154,8 +159,8 @@ struct tree {
 #if defined(HAVE_WINDOWS_H) && !defined(__CYGWIN__)
 	HANDLE d;
 #define	INVALID_DIR_HANDLE INVALID_HANDLE_VALUE
-	WIN32_FIND_DATA _findData;
-	WIN32_FIND_DATA *findData;
+	WIN32_FIND_DATAW _findData;
+	WIN32_FIND_DATAW *findData;
 #else
 	DIR	*d;
 #define	INVALID_DIR_HANDLE NULL
@@ -165,10 +170,20 @@ struct tree {
 	int	 visit_type;
 	int	 tree_errno; /* Error code from last failed operation. */
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/* A full path with "\\?\" prefix. */
+	struct archive_wstring full_path;
+	size_t full_path_dir_length;
+	/* Dynamically-sized buffer for holding path */
+	struct archive_wstring path;
+
+	const wchar_t *basename; /* Last path element */
+#else
 	/* Dynamically-sized buffer for holding path */
 	struct archive_string path;
 
 	const char *basename; /* Last path element */
+#endif
 	size_t	 dirname_length; /* Leading dir length */
 
 	int	 depth;
@@ -205,7 +220,7 @@ struct tree {
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 static int
-tree_dir_next_windows(struct tree *t, const char *pattern);
+tree_dir_next_windows(struct tree *t, const wchar_t *pattern);
 #else
 static int
 tree_dir_next_posix(struct tree *t);
@@ -221,7 +236,11 @@ tree_dir_next_posix(struct tree *t);
 /* Initiate/terminate a tree traversal. */
 static struct tree *tree_open(const char *);
 static void tree_close(struct tree *);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+static void tree_push(struct tree *, const wchar_t *);
+#else
 static void tree_push(struct tree *, const char *);
+#endif
 
 /*
  * tree_next() returns Zero if there is no next entry, non-zero if
@@ -271,8 +290,13 @@ static int tree_next(struct tree *);
  * tree_current_open() that returns an open file descriptor.)
  *
  */
+#if defined(_WIN32) && !defined(__CYGWIN__)
+static const wchar_t *tree_current_path(struct tree *);
+static const wchar_t *tree_current_access_path(struct tree *);
+#else
 static const char *tree_current_path(struct tree *);
 static const char *tree_current_access_path(struct tree *);
+#endif
 
 /*
  * Request the lstat() or stat() data for the current path.  Since the
@@ -576,6 +600,7 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 		goto abort_read_data;
 	}
 
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	if (a->entry_fd < 0) {
 		a->entry_fd = open(tree_current_access_path(a->tree),
 		    O_RDONLY | O_BINARY);
@@ -586,6 +611,7 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 			goto abort_read_data;
 		}
 	}
+#endif
 	if (a->entry_buff == NULL) {
 		a->entry_buff = malloc(1024 * 64);
 		if (a->entry_buff == NULL) {
@@ -648,6 +674,9 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	const BY_HANDLE_FILE_INFORMATION *st;
 	const BY_HANDLE_FILE_INFORMATION *lst;
+	DWORD l;
+	char *mb;
+	const wchar_t *wp;
 #else
 	const struct stat *st; /* info to use for this entry */
 	const struct stat *lst;/* lstat() information */
@@ -734,15 +763,48 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	}
 	t->descend = descend;
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	archive_entry_copy_pathname_w(entry, tree_current_path(t));
+	// TODO: create and use archive_entry_copy_sourcepath_w
+	wp = tree_current_access_path(t);
+	l = WideCharToMultiByte(CP_ACP, 0, wp, wcslen(wp),
+	    NULL, 0, NULL, NULL);
+	if (l == 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "WideCharToMultiByte failed");
+		return (ARCHIVE_FAILED);
+	}
+	mb = malloc(l+1);
+	if (mb == NULL) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "Couldn't allocate memory");
+		a->archive.state = ARCHIVE_STATE_FATAL;
+		return (ARCHIVE_FATAL);
+	}
+	l = WideCharToMultiByte(CP_ACP, 0, wp, wcslen(wp),
+	    mb, l+1, NULL, NULL);
+	mb[l] = '\0';
+	archive_entry_copy_sourcepath(entry, mb);
+	free(mb);
+	tree_archive_entry_copy_bhfi(entry, t, st);
+	/* Populate the archive_entry with metadata from the disk. */
+	if (archive_entry_filetype(entry) == AE_IFREG &&
+	    archive_entry_size(entry) > 0) {
+		a->entry_fd = _wopen(tree_current_access_path(t),
+		    O_RDONLY | O_BINARY);
+		if (a->entry_fd < 0) {
+			archive_set_error(&a->archive, errno,
+			    "Couldn't open %s", tree_current_path(a->tree));
+			return (ARCHIVE_FAILED);
+		}
+	}
+	r = archive_read_disk_entry_from_file(&(a->archive), entry,
+	    a->entry_fd, NULL);
+#else
 	archive_entry_set_pathname(entry, tree_current_path(t));
 	archive_entry_copy_sourcepath(entry, tree_current_access_path(t));
-
-	/* Populate the archive_entry with metadata from the disk. */
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	tree_archive_entry_copy_bhfi(entry, t, st);
-	r = archive_read_disk_entry_from_file(&(a->archive), entry, -1, NULL);
-#else
 	archive_entry_copy_stat(entry, st);
+	/* Populate the archive_entry with metadata from the disk. */
 	r = archive_read_disk_entry_from_file(&(a->archive), entry, -1, st);
 #endif
 
@@ -757,7 +819,6 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 		break;
 	case ARCHIVE_OK:
 	case ARCHIVE_WARN:
-		a->entry_fd = -1;
 		a->entry_total = 0;
 		if (archive_entry_filetype(entry) == AE_IFREG) {
 			a->entry_remaining_bytes = archive_entry_size(entry);
@@ -1042,16 +1103,17 @@ static int
 setup_current_filesystem(struct archive_read_disk *a)
 {
 	struct tree *t = a->tree;
-	char vol[256];
+	wchar_t vol[256];
 
 	t->current_filesystem->synthetic = -1;/* Not supported */
-	if (!GetVolumePathName(tree_current_access_path(t), vol, sizeof(vol))) {
+	if (!GetVolumePathNameW(tree_current_access_path(t), vol,
+	    sizeof(vol)/sizeof(vol[0]))) {
 		t->current_filesystem->remote = -1;
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
                         "GetVolumePathName failed: %d", (int)GetLastError());
 		return (ARCHIVE_FAILED);
 	}
-	switch (GetDriveType(vol)) {
+	switch (GetDriveTypeW(vol)) {
 	case DRIVE_UNKNOWN:
 	case DRIVE_NO_ROOT_DIR:
 		t->current_filesystem->remote = -1;
@@ -1088,7 +1150,11 @@ setup_current_filesystem(struct archive_read_disk *a)
  * Add a directory path to the current stack.
  */
 static void
+#if defined(_WIN32) && !defined(__CYGWIN__)
+tree_push(struct tree *t, const wchar_t *path)
+#else
 tree_push(struct tree *t, const char *path)
+#endif
 {
 	struct tree_entry *te;
 
@@ -1103,10 +1169,200 @@ tree_push(struct tree *t, const char *path)
 #ifdef HAVE_FCHDIR
 	te->symlink_parent_fd = -1;
 #endif
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	archive_wstrcpy(&te->name, path);
+#else
 	archive_strcpy(&te->name, path);
+#endif
 	te->flags = needsDescent | needsOpen | needsAscent;
 	te->dirname_length = t->dirname_length;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	te->full_path_dir_length = t->full_path_dir_length;
+#endif
 }
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+
+/*
+ * Prepend "\\?\" to the path name and convert it to unicode to permit
+ * an extended-length path for a maximum total path length of 32767
+ * characters.
+ * see also http://msdn.microsoft.com/en-us/library/aa365247.aspx
+ */
+static wchar_t *
+permissive_name(const wchar_t *name)
+{
+	wchar_t *wn, *wnp;
+	wchar_t *ws, *wsp;
+	DWORD l, len, slen;
+	int unc;
+
+	/* Get a full path names */
+	l = GetFullPathNameW(name, 0, NULL, NULL);
+	if (l == 0)
+		return (NULL);
+	wnp = malloc(l * sizeof(wchar_t));
+	if (wnp == NULL)
+		return (NULL);
+	len = GetFullPathNameW(name, l, wnp, NULL);
+	wn = wnp;
+
+	if (wnp[0] == L'\\' && wnp[1] == L'\\' &&
+	    wnp[2] == L'?' && wnp[3] == L'\\')
+		/* We have already permissive names. */
+		return (wn);
+
+	if (wnp[0] == L'\\' && wnp[1] == L'\\' &&
+		wnp[2] == L'.' && wnp[3] == L'\\') {
+		/* Device names */
+		if (((wnp[4] >= L'a' && wnp[4] <= L'z') ||
+		     (wnp[4] >= L'A' && wnp[4] <= L'Z')) &&
+		    wnp[5] == L':' && wnp[6] == L'\\')
+			wnp[2] = L'?';/* Not device names. */
+		return (wn);
+	}
+
+	unc = 0;
+	if (wnp[0] == L'\\' && wnp[1] == L'\\' && wnp[2] != L'\\') {
+		wchar_t *p = &wnp[2];
+
+		/* Skip server-name letters. */
+		while (*p != L'\\' && *p != L'\0')
+			++p;
+		if (*p == L'\\') {
+			wchar_t *rp = ++p;
+			/* Skip share-name letters. */
+			while (*p != L'\\' && *p != L'\0')
+				++p;
+			if (*p == L'\\' && p != rp) {
+				/* Now, match patterns such as
+				 * "\\server-name\share-name\" */
+				wnp += 2;
+				len -= 2;
+				unc = 1;
+			}
+		}
+	}
+
+	slen = 4 + (unc * 4) + len + 1;
+	ws = wsp = malloc(slen * sizeof(wchar_t));
+	if (ws == NULL) {
+		free(wn);
+		return (NULL);
+	}
+	/* prepend "\\?\" */
+	wcsncpy(wsp, L"\\\\?\\", 4);
+	wsp += 4;
+	slen -= 4;
+	if (unc) {
+		/* append "UNC\" ---> "\\?\UNC\" */
+		wcsncpy(wsp, L"UNC\\", 4);
+		wsp += 4;
+		slen -= 4;
+	}
+	wcsncpy(wsp, wnp, slen);
+	wsp[slen - 1] = L'\0'; /* Ensure null termination. */
+	free(wn);
+	return (ws);
+}
+
+/*
+ * Append a name to the current dir path.
+ */
+static void
+tree_append(struct tree *t, const wchar_t *name, size_t name_length)
+{
+	size_t size_needed;
+
+	t->path.s[t->dirname_length] = L'\0';
+	t->path.length = t->dirname_length;
+	/* Strip trailing '/' from name, unless entire name is "/". */
+	while (name_length > 1 && name[name_length - 1] == L'/')
+		name_length--;
+
+	/* Resize pathname buffer as needed. */
+	size_needed = name_length + 1 + t->dirname_length;
+	archive_wstring_ensure(&t->path, size_needed);
+	/* Add a separating '/' if it's needed. */
+	if (t->dirname_length > 0 &&
+	    t->path.s[archive_strlen(&t->path)-1] != L'/')
+		archive_wstrappend_wchar(&t->path, L'/');
+	t->basename = t->path.s + archive_strlen(&t->path);
+	archive_wstrncat(&t->path, name, name_length);
+	if (t->full_path_dir_length > 0) {
+		t->full_path.s[t->full_path_dir_length] = L'\0';
+		t->full_path.length = t->full_path_dir_length;
+		size_needed = name_length + 1 + t->full_path_dir_length;
+		archive_wstring_ensure(&t->full_path, size_needed);
+		/* Add a separating '\' if it's needed. */
+		if (t->full_path.s[archive_strlen(&t->full_path)-1] != L'\\')
+			archive_wstrappend_wchar(&t->full_path, L'\\');
+		archive_wstrncat(&t->full_path, name, name_length);
+	}
+}
+
+/*
+ * Open a directory tree for traversal.
+ */
+static struct tree *
+tree_open(const char *path)
+{
+	struct tree *t;
+	wchar_t *pathname, *p, *base;
+	DWORD l;
+
+	l = MultiByteToWideChar(CP_ACP, 0, path, (int)strlen(path), NULL, 0);
+	if (l == 0)
+		return (NULL);
+	pathname = malloc((l+1) * sizeof(wchar_t));
+	if (pathname == NULL)
+		return (NULL);
+	l = MultiByteToWideChar(CP_ACP, 0, path, (int)strlen(path), pathname, l);
+	pathname[l] = L'\0';
+	for (p = pathname; *p != L'\0'; ++p) {
+		if (*p == L'\\')
+			*p = L'/';
+	}
+	base = pathname;
+
+	t = malloc(sizeof(*t));
+	memset(t, 0, sizeof(*t));
+	archive_string_init(&(t->full_path));
+	p = permissive_name(base);
+	if (p == NULL)
+		return (NULL);
+	archive_wstrcpy(&(t->full_path), p);
+	free(p);
+	archive_string_init(&t->path);
+	archive_wstring_ensure(&t->path, 15);
+	/* First item is set up a lot like a symlink traversal. */
+	/* printf("Looking for wildcard in %s\n", path); */
+	/* TODO: wildcard detection here screws up on \\?\c:\ UNC names */
+	if (wcschr(base, L'*') || wcschr(base, L'?')) {
+		// It has a wildcard in it...
+		// Separate the last element.
+		p = wcsrchr(base, L'/');
+		if (p != NULL) {
+			*p = L'\0';
+			tree_append(t, base, p - base);
+			t->dirname_length = archive_strlen(&t->path);
+			base = p + 1;
+		}
+		p = wcsrchr(t->full_path.s, L'\\');
+		if (p != NULL) {
+			*p = L'\0';
+			t->full_path.length = wcslen(t->full_path.s);
+			t->full_path_dir_length = archive_strlen(&t->full_path);
+		}
+	}
+	tree_push(t, base);
+	free(pathname);
+	t->stack->flags = needsFirstVisit | isDirLink | needsAscent;
+	t->d = INVALID_DIR_HANDLE;
+	return (t);
+}
+
+#else
 
 /*
  * Append a name to the current dir path.
@@ -1152,43 +1408,9 @@ tree_open(const char *path)
 	t->openCount++;
 	t->d = INVALID_DIR_HANDLE;
 	return (t);
-#elif defined(_WIN32) && !defined(__CYGWIN__)
-	struct tree *t;
-	char *pathname = strdup(path), *p, *base;
-
-	if (pathname == NULL)
-		abort();
-	for (p = pathname; *p != '\0'; ++p) {
-		if (*p == '\\')
-			*p = '/';
-	}
-	base = pathname;
-
-	t = malloc(sizeof(*t));
-	memset(t, 0, sizeof(*t));
-	archive_string_init(&t->path);
-	archive_string_ensure(&t->path, 31);
-	/* First item is set up a lot like a symlink traversal. */
-	/* printf("Looking for wildcard in %s\n", path); */
-	/* TODO: wildcard detection here screws up on \\?\c:\ UNC names */
-	if (strchr(base, '*') || strchr(base, '?')) {
-		// It has a wildcard in it...
-		// Separate the last element.
-		p = strrchr(base, '/');
-		if (p != NULL) {
-			*p = '\0';
-			tree_append(t, base, p - base);
-			t->dirname_length = archive_strlen(&t->path);
-			base = p + 1;
-		}
-	}
-	tree_push(t, base);
-	free(pathname);
-	t->stack->flags = needsFirstVisit | isDirLink | needsAscent;
-	t->d = INVALID_DIR_HANDLE;
-	return (t);
 #endif
 }
+#endif
 
 /*
  * We've finished a directory; ascend back to the parent.
@@ -1229,7 +1451,13 @@ tree_pop(struct tree *t)
 {
 	struct tree_entry *te;
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	t->full_path.s[t->full_path_dir_length] = L'\0';
+	t->full_path.length = t->full_path_dir_length;
+	t->path.s[t->dirname_length] = L'\0';
+#else
 	t->path.s[t->dirname_length] = '\0';
+#endif
 	t->path.length = t->dirname_length;
 	if (t->stack == t->current && t->current != NULL)
 		t->current = t->current->parent;
@@ -1237,9 +1465,16 @@ tree_pop(struct tree *t)
 	t->stack = te->next;
 	t->dirname_length = te->dirname_length;
 	t->basename = t->path.s + t->dirname_length;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	t->full_path_dir_length = te->full_path_dir_length;
+	while (t->basename[0] == L'/')
+		t->basename++;
+	archive_wstring_free(&te->name);
+#else
 	while (t->basename[0] == '/')
 		t->basename++;
 	archive_string_free(&te->name);
+#endif
 	free(te);
 }
 
@@ -1266,15 +1501,15 @@ tree_next(struct tree *t)
 
 		if (t->stack->flags & needsFirstVisit) {
 #if defined(_WIN32) && !defined(__CYGWIN__)
-			char *d = t->stack->name.s;
+			wchar_t *d = t->stack->name.s;
 			t->stack->flags &= ~needsFirstVisit;
-			if (strchr(d, '*') || strchr(d, '?')) {
+			if (wcschr(d, L'*') || wcschr(d, L'?')) {
 				r = tree_dir_next_windows(t, d);
 				if (r == 0)
 					continue;
 				return (r);
 			} else {
-				HANDLE h = FindFirstFile(d, &t->_findData);
+				HANDLE h = FindFirstFileW(d, &t->_findData);
 				if (h == INVALID_DIR_HANDLE) {
 					t->tree_errno = errno;
 					t->visit_type = TREE_ERROR_DIR;
@@ -1306,7 +1541,9 @@ tree_next(struct tree *t)
 			}
 #endif
 			t->dirname_length = archive_strlen(&t->path);
-#if !defined(_WIN32) || defined(__CYGWIN__)
+#if defined(_WIN32) && !defined(__CYGWIN__)
+			t->full_path_dir_length = archive_strlen(&t->full_path);
+#else
 			if (chdir(t->stack->name.s) != 0)
 			{
 				/* chdir() failed; return error */
@@ -1320,7 +1557,7 @@ tree_next(struct tree *t)
 		} else if (t->stack->flags & needsOpen) {
 			t->stack->flags &= ~needsOpen;
 #if defined(_WIN32) && !defined(__CYGWIN__)
-			r = tree_dir_next_windows(t, "*");
+			r = tree_dir_next_windows(t, L"*");
 #else
 			r = tree_dir_next_posix(t);
 #endif
@@ -1344,25 +1581,27 @@ tree_next(struct tree *t)
 }
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
+
 static int
-tree_dir_next_windows(struct tree *t, const char *pattern)
+tree_dir_next_windows(struct tree *t, const wchar_t *pattern)
 {
-	const char *name;
+	const wchar_t *name;
 	size_t namelen;
 	int r;
 
 	for (;;) {
 		if (pattern != NULL) {
-			struct archive_string pt;
+			struct archive_wstring pt;
 
 			archive_string_init(&pt);
-			archive_string_ensure(&pt,
-			    archive_strlen(&(t->path)) + 2 + strlen(pattern));
-			archive_string_copy(&pt, &(t->path));
-			archive_strappend_char(&pt, '/');
-			archive_strcat(&pt, pattern);
-			t->d = FindFirstFile(pt.s, &t->_findData);
-			archive_string_free(&pt);
+			archive_wstring_ensure(&pt,
+			    archive_strlen(&(t->full_path))
+			      + 2 + wcslen(pattern));
+			archive_wstring_copy(&pt, &(t->full_path));
+			archive_wstrappend_wchar(&pt, L'\\');
+			archive_wstrcat(&pt, pattern);
+			t->d = FindFirstFileW(pt.s, &t->_findData);
+			archive_wstring_free(&pt);
 			if (t->d == INVALID_DIR_HANDLE) {
 				r = tree_ascend(t); /* Undo "chdir" */
 				tree_pop(t);
@@ -1372,19 +1611,19 @@ tree_dir_next_windows(struct tree *t, const char *pattern)
 			}
 			t->findData = &t->_findData;
 			pattern = NULL;
-		} else if (!FindNextFile(t->d, &t->_findData)) {
+		} else if (!FindNextFileW(t->d, &t->_findData)) {
 			FindClose(t->d);
 			t->d = INVALID_DIR_HANDLE;
 			t->findData = NULL;
 			return (0);
 		}
 		name = t->findData->cFileName;
-		namelen = strlen(name);
+		namelen = wcslen(name);
 		t->flags &= ~hasLstat;
 		t->flags &= ~hasStat;
-		if (name[0] == '.' && name[1] == '\0')
+		if (name[0] == L'.' && name[1] == L'\0')
 			continue;
-		if (name[0] == '.' && name[1] == '.' && name[2] == '\0')
+		if (name[0] == L'.' && name[1] == L'.' && name[2] == L'\0')
 			continue;
 		tree_append(t, name, namelen);
 		return (t->visit_type = TREE_REGULAR);
@@ -1453,27 +1692,27 @@ tree_archive_entry_copy_bhfi(struct archive_entry *entry, struct tree *t,
 	else if (bhfi->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 		mode |= S_IFDIR | S_IXUSR | S_IXGRP | S_IXOTH;
 	else {
-		const char *p;
+		const wchar_t *p;
 
 		mode |= S_IFREG;
-		p = strrchr(tree_current_path(t), '.');
-		if (p != NULL && strlen(p) == 4) {
+		p = wcsrchr(tree_current_path(t), L'.');
+		if (p != NULL && wcslen(p) == 4) {
 			switch (p[1]) {
-			case 'B': case 'b':
-				if ((p[2] == 'A' || p[2] == 'a' ) &&
-				    (p[3] == 'T' || p[3] == 't' ))
+			case L'B': case L'b':
+				if ((p[2] == L'A' || p[2] == L'a' ) &&
+				    (p[3] == L'T' || p[3] == L't' ))
 					mode |= S_IXUSR | S_IXGRP | S_IXOTH;
 				break;
-			case 'C': case 'c':
-				if (((p[2] == 'M' || p[2] == 'm' ) &&
-				    (p[3] == 'D' || p[3] == 'd' )) ||
-				    ((p[2] == 'M' || p[2] == 'm' ) &&
-				    (p[3] == 'D' || p[3] == 'd' )))
+			case L'C': case L'c':
+				if (((p[2] == L'M' || p[2] == L'm' ) &&
+				    (p[3] == L'D' || p[3] == L'd' )) ||
+				    ((p[2] == L'M' || p[2] == L'm' ) &&
+				    (p[3] == L'D' || p[3] == L'd' )))
 					mode |= S_IXUSR | S_IXGRP | S_IXOTH;
 				break;
-			case 'E': case 'e':
-				if ((p[2] == 'X' || p[2] == 'x' ) &&
-				    (p[3] == 'E' || p[3] == 'e' ))
+			case L'E': case L'e':
+				if ((p[2] == L'X' || p[2] == L'x' ) &&
+				    (p[3] == L'E' || p[3] == L'e' ))
 					mode |= S_IXUSR | S_IXGRP | S_IXOTH;
 				break;
 			default:
@@ -1494,8 +1733,8 @@ tree_current_file_information(struct tree *t, BY_HANDLE_FILE_INFORMATION *st,
 	
 	if (sim_lstat && tree_current_is_physical_link(t))
 		flag |= FILE_FLAG_OPEN_REPARSE_POINT;
-	h = CreateFile(tree_current_access_path(t),
-		0, 0, NULL,	OPEN_EXISTING, flag, NULL);
+	h = CreateFileW(tree_current_access_path(t), 0, 0, NULL,
+	    OPEN_EXISTING, flag, NULL);
 	if (h == INVALID_HANDLE_VALUE)
 		return (0);
 	r = GetFileInformationByHandle(h, st);
@@ -1568,6 +1807,32 @@ tree_current_is_physical_link(struct tree *t)
 			(t->findData->dwReserved0
 			    == IO_REPARSE_TAG_SYMLINK));
 	return (0);
+}
+
+/*
+ * Return the access path for the entry just returned from tree_next().
+ */
+static const wchar_t *
+tree_current_access_path(struct tree *t)
+{
+#if defined(_DEBUG)
+	wchar_t *wp;
+
+	wp = permissive_name(t->path.s);
+	if (wcscmp(wp, t->full_path.s) != 0)
+		DebugBreak();
+	free(wp);
+#endif
+	return (t->full_path.s);
+}
+
+/*
+ * Return the full path for the entry just returned from tree_next().
+ */
+static const wchar_t *
+tree_current_path(struct tree *t)
+{
+	return (t->path.s);
 }
 
 #else
@@ -1702,7 +1967,6 @@ tree_current_is_physical_dir(struct tree *t)
 	/* Use the definitive test.  Hopefully this is cached. */
 	return (S_ISDIR(st->st_mode));
 }
-#endif
 
 /*
  * Return the access path for the entry just returned from tree_next().
@@ -1710,11 +1974,7 @@ tree_current_is_physical_dir(struct tree *t)
 static const char *
 tree_current_access_path(struct tree *t)
 {
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	return (t->path.s);
-#else
 	return (t->basename);
-#endif
 }
 
 /*
@@ -1725,6 +1985,7 @@ tree_current_path(struct tree *t)
 {
 	return (t->path.s);
 }
+#endif
 
 /*
  * Terminate the traversal and release any resources.
@@ -1735,7 +1996,12 @@ tree_close(struct tree *t)
 	/* Release anything remaining in the stack. */
 	while (t->stack != NULL)
 		tree_pop(t);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	archive_wstring_free(&t->path);
+	archive_wstring_free(&t->full_path);
+#else
 	archive_string_free(&t->path);
+#endif
 	free(t->filesystem_table);
 	/* TODO: Ensure that premature close() resets cwd */
 #if 0

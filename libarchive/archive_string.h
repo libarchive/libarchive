@@ -77,6 +77,9 @@ struct archive_wstring {
 struct archive_string *
 __archive_strappend_char(struct archive_string *, char);
 #define	archive_strappend_char __archive_strappend_char
+struct archive_wstring *
+__archive_wstrappend_wchar(struct archive_wstring *, wchar_t);
+#define	archive_wstrappend_wchar __archive_wstrappend_wchar
 
 /* Convert a wide-char string to UTF-8 and append the result. */
 struct archive_string *
@@ -128,13 +131,19 @@ __archive_wstring_ensure(struct archive_wstring *, size_t);
 struct archive_string *
 __archive_strncat(struct archive_string *, const void *, size_t);
 #define	archive_strncat  __archive_strncat
+struct archive_wstring *
+__archive_wstrncat(struct archive_wstring *, const void *, size_t);
+#define	archive_wstrncat  __archive_wstrncat
 
 /* Append a C string to an archive_string, resizing as necessary. */
 #define	archive_strcat(as,p) __archive_string_append((as),(p),strlen(p))
+#define	archive_wstrcat(as,p) __archive_wstring_append((as),(p),wcslen(p))
 
 /* Copy a C string to an archive_string, resizing as necessary. */
 #define	archive_strcpy(as,p) \
 	archive_strncpy((as), (p), ((p) == NULL ? 0 : strlen(p)))
+#define	archive_wstrcpy(as,p) \
+	archive_wstrncpy((as), (p), ((p) == NULL ? 0 : wcslen(p)))
 
 /* Copy a C string to an archive_string with limit, resizing as necessary. */
 #define	archive_strncpy(as,p,l) \

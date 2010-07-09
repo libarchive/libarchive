@@ -199,6 +199,24 @@ __archive_strncat(struct archive_string *as, const void *_p, size_t n)
 	return (__archive_string_append(as, p, s));
 }
 
+struct archive_wstring *
+__archive_wstrncat(struct archive_wstring *as, const void *_p, size_t n)
+{
+	size_t s;
+	const wchar_t *p, *pp;
+
+	p = (const wchar_t *)_p;
+
+	/* Like strlen(p), except won't examine positions beyond p[n]. */
+	s = 0;
+	pp = p;
+	while (*pp && s < n) {
+		pp++;
+		s++;
+	}
+	return (__archive_wstring_append(as, p, s));
+}
+
 struct archive_string *
 __archive_strappend_char(struct archive_string *as, char c)
 {
