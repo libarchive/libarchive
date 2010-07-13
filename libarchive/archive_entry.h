@@ -91,7 +91,7 @@
 #  endif
 # else
 #  ifdef __GNUC__
-#   define __LA_DECL	__attribute__((dllimport)) extern
+#   define __LA_DECL
 #  else
 #   define __LA_DECL	__declspec(dllimport)
 #  endif
