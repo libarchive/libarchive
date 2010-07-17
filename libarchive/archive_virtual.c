@@ -127,6 +127,12 @@ archive_write_data_block(struct archive *a, const void *buff, size_t s, int64_t 
 }
 
 int
+archive_read_next_header(struct archive *a, struct archive_entry **entry)
+{
+	return ((a->vtable->archive_read_next_header)(a, entry));
+}
+
+int
 archive_read_next_header2(struct archive *a, struct archive_entry *entry)
 {
 	return ((a->vtable->archive_read_next_header2)(a, entry));

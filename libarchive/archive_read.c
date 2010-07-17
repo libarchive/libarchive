@@ -68,6 +68,8 @@ static int	_archive_read_close(struct archive *);
 static int	_archive_read_data_block(struct archive *,
 		    const void **, size_t *, int64_t *);
 static int	_archive_read_free(struct archive *);
+static int	_archive_read_next_header(struct archive *,
+		    struct archive_entry **);
 static int	_archive_read_next_header2(struct archive *,
 		    struct archive_entry *);
 static int64_t  advance_file_pointer(struct archive_read_filter *, int64_t);
@@ -84,6 +86,7 @@ archive_read_vtable(void)
 		av.archive_filter_name = _archive_filter_name;
 		av.archive_filter_count = _archive_filter_count;
 		av.archive_read_data_block = _archive_read_data_block;
+		av.archive_read_next_header = _archive_read_next_header;
 		av.archive_read_next_header2 = _archive_read_next_header2;
 		av.archive_free = _archive_read_free;
 		av.archive_close = _archive_read_close;
@@ -500,7 +503,7 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 }
 
 int
-archive_read_next_header(struct archive *_a, struct archive_entry **entryp)
+_archive_read_next_header(struct archive *_a, struct archive_entry **entryp)
 {
 	int ret;
 	struct archive_read *a = (struct archive_read *)_a;
