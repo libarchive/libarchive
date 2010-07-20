@@ -557,7 +557,7 @@ setup_xattrs(struct archive_read_disk *a,
 		list_size = listxattr(path, NULL, 0);
 
 	if (list_size == -1) {
-		if (errno == ENOTSUP)
+		if (errno == ENOTSUP || errno == ENOSYS)
 			return (ARCHIVE_OK);
 		archive_set_error(&a->archive, errno,
 			"Couldn't list extended attributes");

@@ -2638,7 +2638,7 @@ set_xattrs(struct archive_write_disk *a)
 				    name, value, size, 0);
 			}
 			if (e == -1) {
-				if (errno == ENOTSUP) {
+				if (errno == ENOTSUP || errno == ENOSYS) {
 					if (!warning_done) {
 						warning_done = 1;
 						archive_set_error(&a->archive, errno,
@@ -2705,7 +2705,7 @@ set_xattrs(struct archive_write_disk *a)
 				    namespace, name, value, size);
 			}
 			if (e != (int)size) {
-				if (errno == ENOTSUP) {
+				if (errno == ENOTSUP || errno == ENOSYS) {
 					if (!warning_done) {
 						warning_done = 1;
 						archive_set_error(&a->archive, errno,
