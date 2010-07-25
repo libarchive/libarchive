@@ -31,6 +31,7 @@ IF(ENABLE_TEST)
     test_filter_count.c
     test_fuzz.c
     test_link_resolver.c
+    test_open_failure.c
     test_open_fd.c
     test_open_file.c
     test_open_filename.c
