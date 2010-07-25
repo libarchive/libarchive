@@ -257,9 +257,11 @@ __archive_write_open_filter(struct archive_write_filter *f)
 int
 __archive_write_close_filter(struct archive_write_filter *f)
 {
-	if (f->close == NULL)
-		return (ARCHIVE_OK);
-	return (f->close)(f);
+	if (f->close != NULL)
+		return (f->close)(f);
+	if (f->next_filter != NULL)
+		return (__archive_write_close_filter(f->next_filter));
+	return (ARCHIVE_OK);
 }
 
 int
@@ -452,7 +454,7 @@ archive_write_open(struct archive *_a, void *client_data,
 {
 	struct archive_write *a = (struct archive_write *)_a;
 	struct archive_write_filter *client_filter;
-	int ret;
+	int ret, r1;
 
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_open");
@@ -469,10 +471,13 @@ archive_write_open(struct archive *_a, void *client_data,
 	client_filter->close = archive_write_client_close;
 
 	ret = __archive_write_open_filter(a->filter_first);
+	if (ret < ARCHIVE_WARN) {
+		r1 = __archive_write_close_filter(a->filter_first);
+		return (r1 < ret ? r1 : ret);
+	}
 
 	a->archive.state = ARCHIVE_STATE_HEADER;
-
-	if (a->format_init && ret == ARCHIVE_OK)
+	if (a->format_init)
 		ret = (a->format_init)(a);
 	return (ret);
 }
