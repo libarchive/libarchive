@@ -494,10 +494,8 @@ archive_read_format_iso9660_bid(struct archive_read *a)
 		/* Standard Identifier must be "CD001" */
 		if (memcmp(p + 1, "CD001", 5) != 0)
 			return (0);
-		if (!iso9660->primary.location) {
-			if (isPVD(iso9660, p))
-				continue;
-		}
+		if (isPVD(iso9660, p))
+			continue;
 		if (!iso9660->joliet.location) {
 			if (isJolietSVD(iso9660, p))
 				continue;
@@ -899,11 +897,13 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 	if (p[DR_length_offset] != 34)
 		return (0);
 
-	iso9660->logical_block_size = logical_block_size;
-	iso9660->volume_block = volume_block;
-	iso9660->volume_size = logical_block_size * (uint64_t)volume_block;
-	iso9660->primary.location = archive_le32dec(p + DR_extent_offset);
-	iso9660->primary.size = archive_le32dec(p + DR_size_offset);
+	if (!iso9660->primary.location) {
+		iso9660->logical_block_size = logical_block_size;
+		iso9660->volume_block = volume_block;
+		iso9660->volume_size = logical_block_size * (uint64_t)volume_block;
+		iso9660->primary.location = archive_le32dec(p + DR_extent_offset);
+		iso9660->primary.size = archive_le32dec(p + DR_size_offset);
+	}
 
 	return (48);
 }
