@@ -142,7 +142,10 @@ is_sparse_supported(const char *path)
 	return (pathconf(path, _PC_MIN_HOLE_SIZE) > 0);
 }
 
-#elif defined(__linux__)
+#elif defined(__linux__) && 0 /* DISABLED FOR NOW */
+
+/* TODO: When setup_sparse is fixed for Linux in
+ * archive_read_disk_entry_from_file, re-enable this. */
 
 /*
  * FIEMAP, which can detect 'hole' of a sparse file, has

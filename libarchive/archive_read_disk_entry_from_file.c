@@ -739,10 +739,25 @@ setup_xattrs(struct archive_read_disk *a,
 
 #endif
 
-#if defined(HAVE_LINUX_FIEMAP_H)
+#if defined(HAVE_LINUX_FIEMAP_H) && 0 /* DISABLED FOR NOW */
 
 /*
  * Linux sparse interface.
+ *
+ * TODO: This needs to be fixed and then re-enabled above.
+ * When that happens, also reenable the Linux parts of
+ * test/test_sparse_basic.c.
+ *
+ * The FIEMAP ioctl returns an "extent" for each physical allocation
+ * on disk.  We need to process those to generate a more compact list
+ * of logical file blocks.  We also need to be very careful to use
+ * FIEMAP_FLAG_SYNC here, since there are reports that Linux sometimes
+ * does not report allocations for newly-written data that hasn't
+ * been synced to disk.
+ *
+ * It's important to return a minimal sparse file list because we want
+ * to not trigger sparse file extensions if we don't have to, since
+ * not all readers support them.
  */
 
 static int
