@@ -355,7 +355,7 @@ archive_write_client_write(struct archive_write_filter *f,
                 /* If buffer is not empty... */
                 /* ... copy data into buffer ... */
                 to_copy = ((size_t)remaining > state->avail) ?
-                    state->avail : remaining;
+			state->avail : (size_t)remaining;
                 memcpy(state->next, buff, to_copy);
                 state->next += to_copy;
                 state->avail -= to_copy;
