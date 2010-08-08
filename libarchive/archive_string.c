@@ -409,7 +409,7 @@ int
 __archive_wstrappend_mbs(struct archive_wstring *dest,
 			 struct archive_string *src)
 {
-	int r;
+	size_t r;
 	/*
 	 * No single byte will be more than one wide character,
 	 * so this length estimate will always be big enough.
