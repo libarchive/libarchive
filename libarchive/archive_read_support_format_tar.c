@@ -1124,6 +1124,8 @@ read_mac_metadata_blob(struct archive_read *a, struct tar *tar,
 	const void *data;
 	const char *p, *name;
 
+	(void)h; /* UNUSED */
+
 	// Find the last path element.
 	name = p = archive_entry_pathname(entry);
 	for (; *p != '\0'; ++p) {
