@@ -4740,8 +4740,8 @@ static int
 isofile_hd_cmp_node(const struct archive_rb_node *n1,
     const struct archive_rb_node *n2)
 {
-	struct hardlink *h1 = (struct hardlink *)n1;
-	struct hardlink *h2 = (struct hardlink *)n2;
+	const struct hardlink *h1 = (const struct hardlink *)n1;
+	const struct hardlink *h2 = (const struct hardlink *)n2;
 
 	return (strcmp(archive_entry_pathname(h1->file_list.first->entry),
 		       archive_entry_pathname(h2->file_list.first->entry)));
@@ -4750,7 +4750,7 @@ isofile_hd_cmp_node(const struct archive_rb_node *n1,
 static int
 isofile_hd_cmp_key(const struct archive_rb_node *n, const void *key)
 {
-	struct hardlink *h = (struct hardlink *)n;
+	const struct hardlink *h = (const struct hardlink *)n;
 
 	return (strcmp(archive_entry_pathname(h->file_list.first->entry),
 		       (const char *)key));
@@ -4893,8 +4893,8 @@ static int
 isoent_cmp_node(const struct archive_rb_node *n1,
     const struct archive_rb_node *n2)
 {
-	struct isoent *e1 = (struct isoent *)n1;
-	struct isoent *e2 = (struct isoent *)n2;
+	const struct isoent *e1 = (const struct isoent *)n1;
+	const struct isoent *e2 = (const struct isoent *)n2;
 
 	return (strcmp(e1->file->basename.s, e2->file->basename.s));
 }
@@ -4902,7 +4902,7 @@ isoent_cmp_node(const struct archive_rb_node *n1,
 static int
 isoent_cmp_key(const struct archive_rb_node *n, const void *key)
 {
-	struct isoent *e = (struct isoent *)n;
+	const struct isoent *e = (const struct isoent *)n;
 
 	return (strcmp(e->file->basename.s, (const char *)key));
 }
@@ -5540,6 +5540,8 @@ idr_start(struct archive_write *a, struct idr *idr, int cnt, int ffmax,
 {
 	int r;
 
+	(void)ffmax; /* UNUSED */
+
 	r = idr_ensure_poolsize(a, idr, cnt);
 	if (r != ARCHIVE_OK)
 		return (r);
@@ -6087,8 +6089,8 @@ static int
 isoent_cmp_node_iso9660(const struct archive_rb_node *n1,
     const struct archive_rb_node *n2)
 {
-	struct idrent *e1 = (struct idrent *)n1;
-	struct idrent *e2 = (struct idrent *)n2;
+	const struct idrent *e1 = (const struct idrent *)n1;
+	const struct idrent *e2 = (const struct idrent *)n2;
 
 	return (isoent_cmp_iso9660_identifier(e2->isoent, e1->isoent));
 }
@@ -6096,8 +6098,8 @@ isoent_cmp_node_iso9660(const struct archive_rb_node *n1,
 static int
 isoent_cmp_key_iso9660(const struct archive_rb_node *node, const void *key)
 {
-	struct isoent *isoent = (struct isoent *)key;
-	struct idrent *idrent = (struct idrent *)node;
+	const struct isoent *isoent = (const struct isoent *)key;
+	const struct idrent *idrent = (const struct idrent *)node;
 
 	return (isoent_cmp_iso9660_identifier(isoent, idrent->isoent));
 }
@@ -6174,8 +6176,8 @@ static int
 isoent_cmp_node_joliet(const struct archive_rb_node *n1,
     const struct archive_rb_node *n2)
 {
-	struct idrent *e1 = (struct idrent *)n1;
-	struct idrent *e2 = (struct idrent *)n2;
+	const struct idrent *e1 = (const struct idrent *)n1;
+	const struct idrent *e2 = (const struct idrent *)n2;
 
 	return (isoent_cmp_joliet_identifier(e2->isoent, e1->isoent));
 }
@@ -6183,8 +6185,8 @@ isoent_cmp_node_joliet(const struct archive_rb_node *n1,
 static int
 isoent_cmp_key_joliet(const struct archive_rb_node *node, const void *key)
 {
-	struct isoent *isoent = (struct isoent *)key;
-	struct idrent *idrent = (struct idrent *)node;
+	const struct isoent *isoent = (const struct isoent *)key;
+	const struct idrent *idrent = (const struct idrent *)node;
 
 	return (isoent_cmp_joliet_identifier(isoent, idrent->isoent));
 }
