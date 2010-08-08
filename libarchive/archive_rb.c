@@ -228,7 +228,7 @@ __archive_rb_tree_insert_node(struct archive_rb_tree *rbt,
  */
 /*ARGSUSED*/
 static void
-__archive_rb_tree_reparent_nodes(struct archive_rb_tree *rbt,
+__archive_rb_tree_reparent_nodes(
     struct archive_rb_node *old_father, const unsigned int which)
 {
 	const unsigned int other = which ^ RB_DIR_OTHER;
@@ -326,7 +326,7 @@ __archive_rb_tree_insert_rebalance(struct archive_rb_tree *rbt,
 		 *   becomes case 3.  Basically our parent becomes our
 		 *   child.
 		 */
-		__archive_rb_tree_reparent_nodes(rbt, father, other);
+		__archive_rb_tree_reparent_nodes(father, other);
 		self = father;
 		father = RB_FATHER(self);
 	}
@@ -336,7 +336,7 @@ __archive_rb_tree_insert_rebalance(struct archive_rb_tree *rbt,
 	 *   is black, our father will become black and our new sibling
 	 *   (former grandparent) will become red.
 	 */
-	__archive_rb_tree_reparent_nodes(rbt, grandpa, which);
+	__archive_rb_tree_reparent_nodes(grandpa, which);
 
 	/*
 	 * Final step: Set the root to black.
@@ -471,7 +471,7 @@ __archive_rb_tree_swap_prune_and_rebalance(struct archive_rb_tree *rbt,
  * But it's more efficient to just evalate and recolor the child.
  */
 static void
-__archive_rb_tree_prune_blackred_branch(struct archive_rb_tree *rbt,
+__archive_rb_tree_prune_blackred_branch(
     struct archive_rb_node *self, unsigned int which)
 {
 	struct archive_rb_node *father = RB_FATHER(self);
@@ -527,7 +527,7 @@ __archive_rb_tree_remove_node(struct archive_rb_tree *rbt,
 		 * |  r      -->    s    -->    *    |
 		 */
 		which = RB_LEFT_SENTINEL_P(self) ? RB_DIR_RIGHT : RB_DIR_LEFT;
-		__archive_rb_tree_prune_blackred_branch(rbt, self, which);
+		__archive_rb_tree_prune_blackred_branch(self, which);
 		return;
 	}
 
@@ -573,7 +573,7 @@ __archive_rb_tree_removal_rebalance(struct archive_rb_tree *rbt,
 				 *  A     d     ->    b     E
 				 *      C   E   ->  A   C
 				 */
-				__archive_rb_tree_reparent_nodes(rbt, parent, other);
+				__archive_rb_tree_reparent_nodes(parent, other);
 				brother = parent->rb_nodes[other];
 			} else {
 				/*
@@ -631,7 +631,7 @@ __archive_rb_tree_removal_rebalance(struct archive_rb_tree *rbt,
 				 *	|  x     B  -->  x   B    |
 				 *	|      n    -->        n  |
 				 */
-				__archive_rb_tree_reparent_nodes(rbt, brother, which);
+				__archive_rb_tree_reparent_nodes(brother, which);
 				brother = parent->rb_nodes[other];
 			}
 			/*
@@ -659,7 +659,7 @@ __archive_rb_tree_removal_rebalance(struct archive_rb_tree *rbt,
 			 * our former father would have a red grandson. 
 			 */
 			RB_MARK_BLACK(brother->rb_nodes[other]);
-			__archive_rb_tree_reparent_nodes(rbt, parent, other);
+			__archive_rb_tree_reparent_nodes(parent, other);
 			break;		/* We're done! */
 		}
 	}
