@@ -71,19 +71,6 @@
 #include <windows.h>
 //#define	EFTYPE 7
 
-#if !defined(STDIN_FILENO)
-#define STDIN_FILENO 0
-#endif
-
-#if !defined(STDOUT_FILENO)
-#define STDOUT_FILENO 1
-#endif
-
-#if !defined(STDERR_FILENO)
-#define STDERR_FILENO 2
-#endif
-
-
 #if defined(_MSC_VER)
 /* TODO: Fix the code, don't suppress the warnings. */
 #pragma warning(disable:4244)   /* 'conversion' conversion from 'type1' to 'type2', possible loss of data */
