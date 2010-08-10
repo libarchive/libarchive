@@ -1242,7 +1242,7 @@ advance_file_pointer(struct archive_read_filter *filter, int64_t request)
 
 	/* Use up the copy buffer first. */
 	if (filter->avail > 0) {
-		min = minimum(request, filter->avail);
+		min = minimum(request, (int64_t)filter->avail);
 		filter->next += min;
 		filter->avail -= min;
 		request -= min;
@@ -1252,7 +1252,7 @@ advance_file_pointer(struct archive_read_filter *filter, int64_t request)
 
 	/* Then use up the client buffer. */
 	if (filter->client_avail > 0) {
-		min = minimum(request, filter->client_avail);
+		min = minimum(request, (int64_t)filter->client_avail);
 		filter->client_next += min;
 		filter->client_avail -= min;
 		request -= min;
