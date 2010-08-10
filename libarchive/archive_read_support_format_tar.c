@@ -1120,7 +1120,7 @@ static int
 read_mac_metadata_blob(struct archive_read *a, struct tar *tar,
     struct archive_entry *entry, const void *h)
 {
-	size_t size, padded_size;
+	int64_t size, padded_size;
 	const void *data;
 	const char *p, *name;
 
@@ -1148,6 +1148,9 @@ read_mac_metadata_blob(struct archive_read *a, struct tar *tar,
 	 * That would reduce the risk of us mis-identifying
 	 * an ordinary file that just happened to have
 	 * a name starting with "._".
+	 *
+	 * Q: Is the above idea really possible?  Even
+	 * when there are GNU or pax extension entries?
 	 */
 	data = __archive_read_ahead(a, size, NULL);
 	if (data == NULL)
