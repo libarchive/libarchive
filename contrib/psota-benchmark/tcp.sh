@@ -3,7 +3,7 @@
 # 2007-10-25 Jan Psota
 
 n=3                                     # number of repetitions
-TAR=(bsdtar gnutar star)                # TApeArchivers to compare
+TAR="bsdtar gnutar star"                # TApeArchivers to compare
 OPT=("" "--seek" "-no-fsync")
 pax="--format=pax"                      # comment out for defaults
 OPN=(create list extract compare)       # operations
@@ -60,15 +60,21 @@ test -e /etc/gentoo-release \
         && gcc --version | head -1 && grep ^CFLAGS /etc/make.conf
 
 # tar versions
+t=
 echo
-for tar in [EMAIL PROTECTED]; do echo -ne "$tar:\t"; $tar --version | head -1; 
+for tar in $TAR; do 
+	if which $tar &> /dev/null; then
+		t="$t $tar";
+		echo -ne "$tar:\t"; $tar --version | head -1; 
+	fi
 done
+
+TAR="$t"
 
 echo -e "\nbest time of $n repetitions,\n"\
 "       src=$src, "\
 `du -sh $src | awk '{print $1}'`" in "`find $src | wc -l`" files, "\
-"avg "$((`du -sk $src | awk '{print $1}'`/`find $src -type f | wc 
--l`))"KB/file,\n"\
+"avg "$((`du -sk $src | awk '{print $1}'`/`find $src -type f | wc -l`))"KB/file,\n"\
 "       archive=$dst, extract to $dst_path"
 
 echo -e "program\toperation\treal\tuser\tsystem\t%CPU\t     speed"
@@ -77,7 +83,7 @@ let op_num=0
 for op in "cf $dst $pax -C $src ." "tf $dst" "xf $dst -C $dst_path" \
         "f $dst -C $dst_path --diff"; do
         let tar_num=0
-        for tar in [EMAIL PROTECTED]; do
+        for tar in $TAR; do
                 echo -en "$tar\t${OPN[op_num]}\t"
                 for ((i=1; i<=$n; i++)); do
                         echo $op | grep -q ^cf && rm -f $dst
