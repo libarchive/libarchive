@@ -5828,7 +5828,7 @@ isoent_gen_iso9660_identifier(struct archive_write *a, struct isoent *isoent,
 						off ++;
 						extlen --;
 					}
-					memcpy(p+off, dot, extlen);
+					memmove(p+off, dot, extlen);
 					p[ffmax] = '\0';
 					ext_off = off;
 					weight = off;
