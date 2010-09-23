@@ -134,6 +134,7 @@ struct cpio {
 	struct archive_string	  entry_name;
 	struct archive_string	  entry_linkname;
 	int64_t			  entry_bytes_remaining;
+	int64_t			  entry_bytes_unconsumed;
 	int64_t			  entry_offset;
 	int64_t			  entry_padding;
 };
@@ -282,19 +283,20 @@ archive_read_format_cpio_read_header(struct archive_read *a,
 	h = __archive_read_ahead(a, namelength + name_pad, NULL);
 	if (h == NULL)
 	    return (ARCHIVE_FATAL);
-	__archive_read_consume(a, namelength + name_pad);
 	archive_strncpy(&cpio->entry_name, (const char *)h, namelength);
 	archive_entry_set_pathname(entry, cpio->entry_name.s);
 	cpio->entry_offset = 0;
+
+	__archive_read_consume(a, namelength + name_pad);
 
 	/* If this is a symlink, read the link contents. */
 	if (archive_entry_filetype(entry) == AE_IFLNK) {
 		h = __archive_read_ahead(a, cpio->entry_bytes_remaining, NULL);
 		if (h == NULL)
 			return (ARCHIVE_FATAL);
-		__archive_read_consume(a, cpio->entry_bytes_remaining);
 		archive_strncpy(&cpio->entry_linkname, (const char *)h,
 		    cpio->entry_bytes_remaining);
+		__archive_read_consume(a, cpio->entry_bytes_remaining);
 		archive_entry_set_symlink(entry, cpio->entry_linkname.s);
 		cpio->entry_bytes_remaining = 0;
 	}
@@ -325,6 +327,12 @@ archive_read_format_cpio_read_data(struct archive_read *a,
 	struct cpio *cpio;
 
 	cpio = (struct cpio *)(a->format->data);
+
+	if (cpio->entry_bytes_unconsumed) {
+		__archive_read_consume(a, cpio->entry_bytes_unconsumed);
+		cpio->entry_bytes_unconsumed = 0;
+	}
+
 	if (cpio->entry_bytes_remaining > 0) {
 		*buff = __archive_read_ahead(a, 1, &bytes_read);
 		if (bytes_read <= 0)
@@ -332,21 +340,17 @@ archive_read_format_cpio_read_data(struct archive_read *a,
 		if (bytes_read > cpio->entry_bytes_remaining)
 			bytes_read = cpio->entry_bytes_remaining;
 		*size = bytes_read;
+		cpio->entry_bytes_unconsumed = bytes_read;
 		*offset = cpio->entry_offset;
 		cpio->entry_offset += bytes_read;
 		cpio->entry_bytes_remaining -= bytes_read;
-		__archive_read_consume(a, bytes_read);
 		return (ARCHIVE_OK);
 	} else {
-		while (cpio->entry_padding > 0) {
-			*buff = __archive_read_ahead(a, 1, &bytes_read);
-			if (bytes_read <= 0)
-				return (ARCHIVE_FATAL);
-			if (bytes_read > cpio->entry_padding)
-				bytes_read = cpio->entry_padding;
-			__archive_read_consume(a, bytes_read);
-			cpio->entry_padding -= bytes_read;
+		if (cpio->entry_padding !=
+			__archive_read_consume(a, cpio->entry_padding)) {
+			return (ARCHIVE_FATAL);
 		}
+		cpio->entry_padding = 0;
 		*buff = NULL;
 		*size = 0;
 		*offset = cpio->entry_offset;
@@ -624,10 +628,10 @@ header_odc(struct archive_read *a, struct cpio *cpio,
 	h = __archive_read_ahead(a, sizeof(struct cpio_odc_header), NULL);
 	if (h == NULL)
 	    return (ARCHIVE_FATAL);
-	__archive_read_consume(a, sizeof(struct cpio_odc_header));
 
 	/* Parse out octal fields. */
 	header = (const struct cpio_odc_header *)h;
+	__archive_read_consume(a, sizeof(struct cpio_odc_header));
 
 	archive_entry_set_dev(entry, atol8(header->c_dev, sizeof(header->c_dev)));
 	archive_entry_set_ino(entry, atol8(header->c_ino, sizeof(header->c_ino)));
@@ -673,10 +677,10 @@ header_afiol(struct archive_read *a, struct cpio *cpio,
 	h = __archive_read_ahead(a, sizeof(struct cpio_afiol_header), NULL);
 	if (h == NULL)
 	    return (ARCHIVE_FATAL);
-	__archive_read_consume(a, sizeof(struct cpio_afiol_header));
 
 	/* Parse out octal fields. */
 	header = (const struct cpio_afiol_header *)h;
+	__archive_read_consume(a, sizeof(struct cpio_afiol_header));
 
 	archive_entry_set_dev(entry, atol16(header->c_dev, sizeof(header->c_dev)));
 	archive_entry_set_ino(entry, atol16(header->c_ino, sizeof(header->c_ino)));
@@ -711,10 +715,10 @@ header_bin_le(struct archive_read *a, struct cpio *cpio,
 	h = __archive_read_ahead(a, sizeof(struct cpio_bin_header), NULL);
 	if (h == NULL)
 	    return (ARCHIVE_FATAL);
-	__archive_read_consume(a, sizeof(struct cpio_bin_header));
 
 	/* Parse out binary fields. */
 	header = (const struct cpio_bin_header *)h;
+	__archive_read_consume(a, sizeof(struct cpio_bin_header));
 
 	archive_entry_set_dev(entry, header->c_dev[0] + header->c_dev[1] * 256);
 	archive_entry_set_ino(entry, header->c_ino[0] + header->c_ino[1] * 256);
@@ -747,10 +751,11 @@ header_bin_be(struct archive_read *a, struct cpio *cpio,
 	h = __archive_read_ahead(a, sizeof(struct cpio_bin_header), NULL);
 	if (h == NULL)
 	    return (ARCHIVE_FATAL);
-	__archive_read_consume(a, sizeof(struct cpio_bin_header));
 
 	/* Parse out binary fields. */
 	header = (const struct cpio_bin_header *)h;
+	__archive_read_consume(a, sizeof(struct cpio_bin_header));
+
 	archive_entry_set_dev(entry, header->c_dev[0] * 256 + header->c_dev[1]);
 	archive_entry_set_ino(entry, header->c_ino[0] * 256 + header->c_ino[1]);
 	archive_entry_set_mode(entry, header->c_mode[0] * 256 + header->c_mode[1]);
