@@ -489,14 +489,16 @@ archive_read_format_ar_read_data(struct archive_read *a,
 		__archive_read_consume(a, (size_t)bytes_read);
 		return (ARCHIVE_OK);
 	} else {
-		while (ar->entry_padding > 0) {
-			*buff = __archive_read_ahead(a, 1, &bytes_read);
-			if (bytes_read <= 0)
-				return (ARCHIVE_FATAL);
-			if (bytes_read > ar->entry_padding)
-				bytes_read = (ssize_t)ar->entry_padding;
-			__archive_read_consume(a, (size_t)bytes_read);
-			ar->entry_padding -= bytes_read;
+		int64_t skipped = __archive_read_consume(a, ar->entry_padding);
+		if (skipped >= 0) {
+			ar->entry_padding -= skipped;
+		}
+		if (ar->entry_padding) {
+			if (skipped >= 0) {
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+					"Truncated ar archive- failed consuming padding");
+			}
+			return (ARCHIVE_FATAL);
 		}
 		*buff = NULL;
 		*size = 0;
