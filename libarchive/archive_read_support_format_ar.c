@@ -161,38 +161,15 @@ archive_read_format_ar_bid(struct archive_read *a)
 }
 
 static int
-archive_read_format_ar_read_header(struct archive_read *a,
-    struct archive_entry *entry)
+_ar_read_header(struct archive_read *a, struct archive_entry *entry,
+	struct ar *ar, const char *h, size_t *unconsumed)
 {
 	char filename[AR_name_size + 1];
-	struct ar *ar;
 	uint64_t number; /* Used to hold parsed numbers before validation. */
-	ssize_t bytes_read;
 	size_t bsd_name_length, entry_size;
 	char *p, *st;
 	const void *b;
-	const char *h;
 	int r;
-
-	ar = (struct ar*)(a->format->data);
-
-	if (!ar->read_global_header) {
-		/*
-		 * We are now at the beginning of the archive,
-		 * so we need first consume the ar global header.
-		 */
-		__archive_read_consume(a, 8);
-		ar->read_global_header = 1;
-		/* Set a default format code for now. */
-		a->archive.archive_format = ARCHIVE_FORMAT_AR;
-	}
-
-	/* Read the header for the next file entry. */
-	if ((b = __archive_read_ahead(a, 60, &bytes_read)) == NULL)
-		/* Broken header. */
-		return (ARCHIVE_EOF);
-	__archive_read_consume(a, 60);
-	h = (const char *)b;
 
 	/* Verify the magic signature on the file header. */
 	if (strncmp(h + AR_fmag_offset, "`\n", 2) != 0) {
@@ -297,6 +274,12 @@ archive_read_format_ar_read_header(struct archive_read *a,
 		}
 		ar->strtab = st;
 		ar->strtab_size = entry_size;
+
+		if (*unconsumed) {
+			__archive_read_consume(a, *unconsumed);
+			*unconsumed = 0;
+		}
+
 		if ((b = __archive_read_ahead(a, entry_size, NULL)) == NULL)
 			return (ARCHIVE_FATAL);
 		memcpy(st, b, entry_size);
@@ -361,6 +344,11 @@ archive_read_format_ar_read_header(struct archive_read *a,
 		/* Adjust file size reported to client. */
 		archive_entry_set_size(entry, ar->entry_bytes_remaining);
 
+		if (*unconsumed) {
+			__archive_read_consume(a, *unconsumed);
+			*unconsumed = 0;
+		}
+
 		/* Read the long name into memory. */
 		if ((b = __archive_read_ahead(a, bsd_name_length, NULL)) == NULL) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -413,6 +401,42 @@ archive_read_format_ar_read_header(struct archive_read *a,
 	archive_entry_copy_pathname(entry, filename);
 	return (ar_parse_common_header(ar, entry, h));
 }
+
+static int
+archive_read_format_ar_read_header(struct archive_read *a,
+    struct archive_entry *entry)
+{
+	struct ar *ar = (struct ar*)(a->format->data);
+	size_t unconsumed;
+	const void *header_data;
+	int ret;
+
+	if (!ar->read_global_header) {
+		/*
+		 * We are now at the beginning of the archive,
+		 * so we need first consume the ar global header.
+		 */
+		__archive_read_consume(a, 8);
+		ar->read_global_header = 1;
+		/* Set a default format code for now. */
+		a->archive.archive_format = ARCHIVE_FORMAT_AR;
+	}
+
+	/* Read the header for the next file entry. */
+	if ((header_data = __archive_read_ahead(a, 60, NULL)) == NULL)
+		/* Broken header. */
+		return (ARCHIVE_EOF);
+	
+	unconsumed = 60;
+	
+	ret = _ar_read_header(a, entry, ar, (const char *)header_data, &unconsumed);
+
+	if (unconsumed)
+		__archive_read_consume(a, 60);
+
+	return ret;
+}
+
 
 static int
 ar_parse_common_header(struct ar *ar, struct archive_entry *entry,
