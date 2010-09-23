@@ -147,6 +147,7 @@ static int	archive_read_format_cpio_read_data(struct archive_read *,
 		    const void **, size_t *, int64_t *);
 static int	archive_read_format_cpio_read_header(struct archive_read *,
 		    struct archive_entry *);
+static int	archive_read_format_cpio_skip(struct archive_read *);
 static int	be4(const unsigned char *);
 static int	find_odc_header(struct archive_read *);
 static int	find_newc_header(struct archive_read *);
@@ -190,7 +191,7 @@ archive_read_support_format_cpio(struct archive *_a)
 	    NULL,
 	    archive_read_format_cpio_read_header,
 	    archive_read_format_cpio_read_data,
-	    NULL,
+	    archive_read_format_cpio_skip,
 	    archive_read_format_cpio_cleanup);
 
 	if (r != ARCHIVE_OK)
@@ -356,6 +357,22 @@ archive_read_format_cpio_read_data(struct archive_read *a,
 		*offset = cpio->entry_offset;
 		return (ARCHIVE_EOF);
 	}
+}
+
+static int
+archive_read_format_cpio_skip(struct archive_read *a)
+{
+	struct cpio *cpio = (struct cpio *)(a->format->data);
+	int64_t to_skip = cpio->entry_bytes_remaining + cpio->entry_padding +
+		cpio->entry_bytes_unconsumed;
+
+	if (to_skip != __archive_read_consume(a, to_skip)) {
+		return (ARCHIVE_FATAL);
+	}
+	cpio->entry_bytes_remaining = 0;
+	cpio->entry_padding = 0;
+	cpio->entry_bytes_unconsumed = 0;
+	return (ARCHIVE_OK);
 }
 
 /*
