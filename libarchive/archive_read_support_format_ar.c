@@ -432,7 +432,7 @@ archive_read_format_ar_read_header(struct archive_read *a,
 	ret = _ar_read_header(a, entry, ar, (const char *)header_data, &unconsumed);
 
 	if (unconsumed)
-		__archive_read_consume(a, 60);
+		__archive_read_consume(a, unconsumed);
 
 	return ret;
 }
