@@ -367,8 +367,6 @@ archive_read_format_ar_read_header(struct archive_read *a,
 			    "Truncated input file");
 			return (ARCHIVE_FATAL);
 		}
-		__archive_read_consume(a, bsd_name_length);
-
 		/* Store it in the entry. */
 		p = (char *)malloc(bsd_name_length + 1);
 		if (p == NULL) {
@@ -378,6 +376,9 @@ archive_read_format_ar_read_header(struct archive_read *a,
 		}
 		strncpy(p, b, bsd_name_length);
 		p[bsd_name_length] = '\0';
+
+		__archive_read_consume(a, bsd_name_length);
+
 		archive_entry_copy_pathname(entry, p);
 		free(p);
 		return (ARCHIVE_OK);
