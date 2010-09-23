@@ -51,6 +51,11 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_support_format_ar.c 201101 
 
 struct ar {
 	int64_t	 entry_bytes_remaining;
+	/* unconsumed is purely to track data we've gotten from readahead,
+	 * but haven't yet marked as consumed.  Must be paired with
+	 * entry_bytes_remaining usage/modification.
+	 */
+	size_t   entry_bytes_unconsumed;
 	int64_t	 entry_offset;
 	int64_t	 entry_padding;
 	char	*strtab;
@@ -471,6 +476,11 @@ archive_read_format_ar_read_data(struct archive_read *a,
 
 	ar = (struct ar *)(a->format->data);
 
+	if (ar->entry_bytes_unconsumed) {
+		__archive_read_consume(a, ar->entry_bytes_unconsumed);
+		ar->entry_bytes_unconsumed = 0;
+	}
+
 	if (ar->entry_bytes_remaining > 0) {
 		*buff = __archive_read_ahead(a, 1, &bytes_read);
 		if (bytes_read == 0) {
@@ -483,10 +493,10 @@ archive_read_format_ar_read_data(struct archive_read *a,
 		if (bytes_read > ar->entry_bytes_remaining)
 			bytes_read = (ssize_t)ar->entry_bytes_remaining;
 		*size = bytes_read;
+		ar->entry_bytes_unconsumed = bytes_read;
 		*offset = ar->entry_offset;
 		ar->entry_offset += bytes_read;
 		ar->entry_bytes_remaining -= bytes_read;
-		__archive_read_consume(a, (size_t)bytes_read);
 		return (ARCHIVE_OK);
 	} else {
 		int64_t skipped = __archive_read_consume(a, ar->entry_padding);
@@ -516,11 +526,13 @@ archive_read_format_ar_skip(struct archive_read *a)
 	ar = (struct ar *)(a->format->data);
 
 	bytes_skipped = __archive_read_consume(a,
-	    ar->entry_bytes_remaining + ar->entry_padding);
+	    ar->entry_bytes_remaining + ar->entry_padding
+	    + ar->entry_bytes_unconsumed);
 	if (bytes_skipped < 0)
 		return (ARCHIVE_FATAL);
 
 	ar->entry_bytes_remaining = 0;
+	ar->entry_bytes_unconsumed = 0;
 	ar->entry_padding = 0;
 
 	return (ARCHIVE_OK);
