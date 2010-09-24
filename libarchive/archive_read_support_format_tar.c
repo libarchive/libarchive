@@ -163,6 +163,7 @@ struct tar {
 	int64_t			 entry_bytes_remaining;
 	int64_t			 entry_offset;
 	int64_t			 entry_padding;
+	int64_t 		 entry_bytes_unconsumed;
 	int64_t			 realsize;
 	struct sparse_block	*sparse_list;
 	struct sparse_block	*sparse_last;
@@ -253,13 +254,12 @@ archive_read_support_format_tar(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_tar");
 
-	tar = (struct tar *)malloc(sizeof(*tar));
+	tar = (struct tar *)calloc(1, sizeof(*tar));
 	if (tar == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate tar data");
 		return (ARCHIVE_FATAL);
 	}
-	memset(tar, 0, sizeof(*tar));
 
 	r = __archive_read_register_format(a, tar, "tar",
 	    archive_read_format_tar_bid,
@@ -470,6 +470,11 @@ archive_read_format_tar_read_data(struct archive_read *a,
 		free(p);
 	}
 
+	if (tar->entry_bytes_unconsumed) {
+		__archive_read_consume(a, tar->entry_bytes_unconsumed);
+		tar->entry_bytes_unconsumed = 0;
+	}
+
 	/* If we're at end of file, return EOF. */
 	if (tar->sparse_list == NULL || tar->entry_bytes_remaining == 0) {
 		if (__archive_read_consume(a, tar->entry_padding) < 0)
@@ -500,7 +505,7 @@ archive_read_format_tar_read_data(struct archive_read *a,
 	tar->sparse_list->remaining -= bytes_read;
 	tar->sparse_list->offset += bytes_read;
 	tar->entry_bytes_remaining -= bytes_read;
-	__archive_read_consume(a, bytes_read);
+	tar->entry_bytes_unconsumed = bytes_read;
 	return (ARCHIVE_OK);
 }
 
@@ -513,11 +518,13 @@ archive_read_format_tar_skip(struct archive_read *a)
 	tar = (struct tar *)(a->format->data);
 
 	bytes_skipped = __archive_read_consume(a,
-	    tar->entry_bytes_remaining + tar->entry_padding);
+	    tar->entry_bytes_remaining + tar->entry_padding + 
+	    tar->entry_bytes_unconsumed);
 	if (bytes_skipped < 0)
 		return (ARCHIVE_FATAL);
 
 	tar->entry_bytes_remaining = 0;
+	tar->entry_bytes_unconsumed = 0;
 	tar->entry_padding = 0;
 
 	/* Free the sparse list. */
@@ -545,6 +552,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 		return (bytes);
 	if (bytes < 512) {  /* Short read or EOF. */
 		/* Try requesting just one byte and see what happens. */
+		/* XXX: Harring notes, this should be impossible to be anything but EOF... */
 		(void)__archive_read_ahead(a, 1, &bytes);
 		if (bytes == 0) {
 			/*
@@ -560,12 +568,11 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 		    "Truncated tar archive");
 		return (ARCHIVE_FATAL);
 	}
-	__archive_read_consume(a, 512);
-
 
 	/* Check for end-of-archive mark. */
 	if (((*(const char *)h)==0) && archive_block_is_null((const unsigned char *)h)) {
 		/* Try to consume a second all-null record, as well. */
+		__archive_read_consume(a, 512);
 		h = __archive_read_ahead(a, 512, NULL);
 		if (h != NULL)
 			__archive_read_consume(a, 512);
@@ -585,17 +592,22 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 	 * TODO: Improve this by implementing a real header scan.
 	 */
 	if (!checksum(a, h)) {
+		__archive_read_consume(a, 512);
 		archive_set_error(&a->archive, EINVAL, "Damaged tar archive");
 		return (ARCHIVE_RETRY); /* Retryable: Invalid header */
 	}
 
 	if (++tar->header_recursion_depth > 32) {
+		__archive_read_consume(a, 512);
 		archive_set_error(&a->archive, EINVAL, "Too many special headers");
 		return (ARCHIVE_WARN);
 	}
 
 	/* Determine the format variant. */
 	header = (const struct archive_entry_header_ustar *)h;
+
+	__archive_read_consume(a, 512);
+
 	switch(header->typeflag[0]) {
 	case 'A': /* Solaris tar ACL */
 		a->archive.archive_format = ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE;
