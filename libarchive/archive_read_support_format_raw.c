@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_support_format_raw.c 201107
 
 struct raw_info {
 	int64_t offset; /* Current position in the file. */
+	int64_t unconsumed;
 	int     end_of_file;
 };
 
@@ -128,6 +129,12 @@ archive_read_format_raw_read_data(struct archive_read *a,
 	ssize_t avail;
 
 	info = (struct raw_info *)(a->format->data);
+
+	if (info->unconsumed) {
+		__archive_read_consume(a, info->unconsumed);
+		info->unconsumed = 0;
+	}
+
 	if (info->end_of_file)
 		return (ARCHIVE_EOF);
 
@@ -139,6 +146,7 @@ archive_read_format_raw_read_data(struct archive_read *a,
 		*size = avail;
 		*offset = info->offset;
 		info->offset += *size;
+		info->unconsumed = avail;
 		return (ARCHIVE_OK);
 	} else if (0 == avail) {
 		/* Record and return end-of-file. */
@@ -157,7 +165,13 @@ archive_read_format_raw_read_data(struct archive_read *a,
 static int
 archive_read_format_raw_read_data_skip(struct archive_read *a)
 {
-	(void)a; /* UNUSED */
+	struct raw_info *info = (struct raw_info *)(a->format->data);
+
+	if (info->unconsumed) {
+		__archive_read_consume(a, info->unconsumed);
+		info->unconsumed = 0;
+	}
+
 	return (ARCHIVE_OK);
 }
 
