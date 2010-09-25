@@ -185,7 +185,8 @@ static int	gnu_sparse_old_read(struct archive_read *, struct tar *,
 static void	gnu_sparse_old_parse(struct tar *,
 		    const struct gnu_sparse *sparse, int length);
 static int	gnu_sparse_01_parse(struct tar *, const char *);
-static ssize_t	gnu_sparse_10_read(struct archive_read *, struct tar *);
+static ssize_t	gnu_sparse_10_read(struct archive_read *, struct tar *,
+			size_t *);
 static int	header_Solaris_ACL(struct archive_read *,  struct tar *,
 		    struct archive_entry *, const void *, size_t *);
 static int	header_common(struct archive_read *,  struct tar *,
@@ -222,7 +223,7 @@ static int 	pax_header(struct archive_read *, struct tar *,
 		    struct archive_entry *, char *attr);
 static void	pax_time(const char *, int64_t *sec, long *nanos);
 static ssize_t	readline(struct archive_read *, struct tar *, const char **,
-		    ssize_t limit);
+		    ssize_t limit, size_t *);
 static int	read_body_to_string(struct archive_read *, struct tar *,
 		    struct archive_string *, const void *h, size_t *);
 static int64_t	tar_atol(const char *, unsigned);
@@ -380,12 +381,13 @@ static inline void
 tar_flush_unconsumed(struct archive_read *a, size_t *unconsumed)
 {
 	if (*unconsumed) {
-/*		
+/*
 		void *data = (void *)__archive_read_ahead(a, *unconsumed, NULL);
-		// this block of code is to poison supposedly unconsumed space, ensuring
+		// this block of code is to poison claimed unconsumed space, ensuring
 		// things break if it is in use still.
+		// currently it WILL break things, so enable it only for debugging this issue
 		if (data) {
-			memset(data, 0x15, *unconsumed);
+			memset(data, 0xff, *unconsumed);
 		}
 */
 		__archive_read_consume(a, *unconsumed);
@@ -575,7 +577,6 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 
 	/* Read 512-byte header record */
 	h = __archive_read_ahead(a, 512, &bytes);
-	*unconsumed = 512;
 	if (bytes < 0)
 		return (bytes);
 	if (bytes < 512) {  /* Short read or EOF. */
@@ -596,6 +597,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 		    "Truncated tar archive");
 		return (ARCHIVE_FATAL);
 	}
+	*unconsumed = 512;
 
 	/* Check for end-of-archive mark. */
 	if (((*(const char *)h)==0) && archive_block_is_null((const unsigned char *)h)) {
@@ -710,7 +712,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 
 				tar->sparse_gnu_pending = 0;
 				/* Read initial sparse map. */
-				bytes_read = gnu_sparse_10_read(a, tar);
+				bytes_read = gnu_sparse_10_read(a, tar, unconsumed);
 				tar->entry_bytes_remaining -= bytes_read;
 				if (bytes_read < 0)
 					return (bytes_read);
@@ -942,7 +944,7 @@ static int
 read_body_to_string(struct archive_read *a, struct tar *tar,
     struct archive_string *as, const void *h, size_t *unconsumed)
 {
-	int64_t size, padded_size;
+	int64_t size;
 	const struct archive_entry_header_ustar *header;
 	const void *src;
 
@@ -965,12 +967,13 @@ read_body_to_string(struct archive_read *a, struct tar *tar,
 	tar_flush_unconsumed(a, unconsumed);
 
  	/* Read the body into the string. */
-	padded_size = (size + 511) & ~ 511;
-	src = __archive_read_ahead(a, padded_size, NULL);
-	if (src == NULL)
+	*unconsumed = (size + 511) & ~ 511;
+	src = __archive_read_ahead(a, *unconsumed, NULL);
+	if (src == NULL) {
+		*unconsumed = 0;
 		return (ARCHIVE_FATAL);
+	}
 	memcpy(as->s, src, size);
-	__archive_read_consume(a, padded_size);
 	as->s[size] = '\0';
 	return (ARCHIVE_OK);
 }
@@ -1167,7 +1170,7 @@ static int
 read_mac_metadata_blob(struct archive_read *a, struct tar *tar,
     struct archive_entry *entry, const void *h, size_t *unconsumed)
 {
-	int64_t size, padded_size;
+	int64_t size;
 	const void *data;
 	const char *p, *name;
 
@@ -1186,7 +1189,7 @@ read_mac_metadata_blob(struct archive_read *a, struct tar *tar,
 
  	/* Read the body as a Mac OS metadata blob. */
 	size = archive_entry_size(entry);
-	padded_size = (size + 511) & ~ 511;
+	*unconsumed = (size + 511) & ~ 511;
 
 	tar_flush_unconsumed(a, unconsumed);
 	/*
@@ -1202,11 +1205,11 @@ read_mac_metadata_blob(struct archive_read *a, struct tar *tar,
 	 * when there are GNU or pax extension entries?
 	 */
 	data = __archive_read_ahead(a, size, NULL);
-	if (data == NULL)
+	if (data == NULL) {
+		*unconsumed = 0;
 		return (ARCHIVE_FATAL);
+	}
 	archive_entry_copy_mac_metadata(entry, data, size);
-	if (padded_size != __archive_read_consume(a, padded_size))
-		return (ARCHIVE_FATAL);
 	return (tar_read_header(a, tar, entry, unconsumed));
 }
 
@@ -1918,13 +1921,13 @@ gnu_sparse_old_read(struct archive_read *a, struct tar *tar,
 		data = __archive_read_ahead(a, 512, &bytes_read);
 		if (bytes_read < 0)
 			return (ARCHIVE_FATAL);
-		*unconsumed = 512;
 		if (bytes_read < 512) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Truncated tar archive "
 			    "detected while reading sparse file data");
 			return (ARCHIVE_FATAL);
 		}
+		*unconsumed = 512;
 		ext = (const struct extended *)data;
 		gnu_sparse_old_parse(tar, ext->sparse, 21);
 	} while (ext->isextended[0] != 0);
@@ -2027,7 +2030,7 @@ gnu_sparse_01_parse(struct tar *tar, const char *p)
  */
 static int64_t
 gnu_sparse_10_atol(struct archive_read *a, struct tar *tar,
-    ssize_t *remaining)
+    ssize_t *remaining, size_t *unconsumed)
 {
 	int64_t l, limit, last_digit_limit;
 	const char *p;
@@ -2043,7 +2046,7 @@ gnu_sparse_10_atol(struct archive_read *a, struct tar *tar,
 	 * don't require this, but they should.
 	 */
 	do {
-		bytes_read = readline(a, tar, &p, tar_min(*remaining, 100));
+		bytes_read = readline(a, tar, &p, tar_min(*remaining, 100), unconsumed);
 		if (bytes_read <= 0)
 			return (ARCHIVE_FATAL);
 		*remaining -= bytes_read;
@@ -2072,7 +2075,7 @@ gnu_sparse_10_atol(struct archive_read *a, struct tar *tar,
  * that was read.
  */
 static ssize_t
-gnu_sparse_10_read(struct archive_read *a, struct tar *tar)
+gnu_sparse_10_read(struct archive_read *a, struct tar *tar, size_t *unconsumed)
 {
 	ssize_t remaining, bytes_read;
 	int entries;
@@ -2084,22 +2087,23 @@ gnu_sparse_10_read(struct archive_read *a, struct tar *tar)
 	remaining = tar->entry_bytes_remaining;
 
 	/* Parse entries. */
-	entries = gnu_sparse_10_atol(a, tar, &remaining);
+	entries = gnu_sparse_10_atol(a, tar, &remaining, unconsumed);
 	if (entries < 0)
 		return (ARCHIVE_FATAL);
 	/* Parse the individual entries. */
 	while (entries-- > 0) {
 		/* Parse offset/size */
-		offset = gnu_sparse_10_atol(a, tar, &remaining);
+		offset = gnu_sparse_10_atol(a, tar, &remaining, unconsumed);
 		if (offset < 0)
 			return (ARCHIVE_FATAL);
-		size = gnu_sparse_10_atol(a, tar, &remaining);
+		size = gnu_sparse_10_atol(a, tar, &remaining, unconsumed);
 		if (size < 0)
 			return (ARCHIVE_FATAL);
 		/* Add a new sparse entry. */
 		gnu_add_sparse_entry(tar, offset, size);
 	}
 	/* Skip rest of block... */
+	tar_flush_unconsumed(a, unconsumed);
 	bytes_read = tar->entry_bytes_remaining - remaining;
 	to_skip = 0x1ff & -bytes_read;
 	if (to_skip != __archive_read_consume(a, to_skip))
@@ -2249,13 +2253,15 @@ tar_atol256(const char *_p, unsigned char_cnt)
  */
 static ssize_t
 readline(struct archive_read *a, struct tar *tar, const char **start,
-    ssize_t limit)
+    ssize_t limit, size_t *unconsumed)
 {
 	ssize_t bytes_read;
 	ssize_t total_size = 0;
 	const void *t;
 	const char *s;
 	void *p;
+
+	tar_flush_unconsumed(a, unconsumed);
 
 	t = __archive_read_ahead(a, 1, &bytes_read);
 	if (bytes_read <= 0)
@@ -2271,10 +2277,11 @@ readline(struct archive_read *a, struct tar *tar, const char **start,
 			    "Line too long");
 			return (ARCHIVE_FATAL);
 		}
-		__archive_read_consume(a, bytes_read);
+		*unconsumed = bytes_read;
 		*start = s;
 		return (bytes_read);
 	}
+	*unconsumed = bytes_read;
 	/* Otherwise, we need to accumulate in a line buffer. */
 	for (;;) {
 		if (total_size + bytes_read > limit) {
@@ -2289,7 +2296,7 @@ readline(struct archive_read *a, struct tar *tar, const char **start,
 			return (ARCHIVE_FATAL);
 		}
 		memcpy(tar->line.s + total_size, t, bytes_read);
-		__archive_read_consume(a, bytes_read);
+		tar_flush_unconsumed(a, unconsumed);
 		total_size += bytes_read;
 		/* If we found '\n', clean up and return. */
 		if (p != NULL) {
@@ -2306,6 +2313,7 @@ readline(struct archive_read *a, struct tar *tar, const char **start,
 		if (p != NULL) {
 			bytes_read = 1 + ((const char *)p) - s;
 		}
+		*unconsumed = bytes_read;
 	}
 }
 
