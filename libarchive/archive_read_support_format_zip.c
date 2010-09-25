@@ -52,6 +52,7 @@ struct zip {
 	/* entry_bytes_remaining is the number of bytes we expect. */
 	int64_t			entry_bytes_remaining;
 	int64_t			entry_offset;
+	size_t			entry_bytes_unconsumed;
 
 	/* These count the number of bytes actually read for the entry. */
 	int64_t			entry_compressed_bytes_read;
@@ -493,10 +494,15 @@ static int
 archive_read_format_zip_read_data(struct archive_read *a,
     const void **buff, size_t *size, int64_t *offset)
 {
-	int r;
+	int r, reset_buff = 0;
 	struct zip *zip;
 
 	zip = (struct zip *)(a->format->data);
+
+	if (zip->entry_bytes_unconsumed) {
+		__archive_read_consume(a, zip->entry_bytes_unconsumed);
+		zip->entry_bytes_unconsumed = 0;
+	}
 
 	/*
 	 * If we hit end-of-entry last time, clean up and return
@@ -512,9 +518,14 @@ archive_read_format_zip_read_data(struct archive_read *a,
 	switch(zip->compression) {
 	case 0:  /* No compression. */
 		r =  zip_read_data_none(a, buff, size, offset);
+		reset_buff = 1;
 		break;
 	case 8: /* Deflate compression. */
 		r =  zip_read_data_deflate(a, buff, size, offset);
+		if (zip->entry_bytes_unconsumed) {
+			__archive_read_consume(a, zip->entry_bytes_unconsumed);
+			zip->entry_bytes_unconsumed = 0;
+		}
 		break;
 	default: /* Unsupported compression. */
 		*buff = NULL;
@@ -549,16 +560,26 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		if (zip->flags & ZIP_LENGTH_AT_END) {
 			const char *p;
 
-			if ((p = __archive_read_ahead(a, 16, NULL)) == NULL) {
+			/* since we're screwing with the exposed window, it's possible this will cross 
+			 * a forced move/realloc w/in that layer... in other words, the previous read_ahead's
+			 * returned pointer isn't trustable.  thus we redo the window, and reset buff if needed.
+			 * note that decompression sidesteps this via the flushing of entry_bytes_unconsumed
+			 */
+			if (!(p = __archive_read_ahead(a, zip->entry_bytes_unconsumed + 16, NULL))) {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Truncated ZIP end-of-file record");
 				return (ARCHIVE_FATAL);
 			}
+			/* update the ptr, and set p to just the 16 bytes we care about */
+			if (reset_buff) {
+				*buff = p;
+				p += zip->entry_bytes_unconsumed;
+			}
+			zip->entry_bytes_unconsumed += 16;
 			zip->crc32 = archive_le32dec(p + 4);
 			zip->compressed_size = archive_le32dec(p + 8);
 			zip->uncompressed_size = archive_le32dec(p + 12);
-			__archive_read_consume(a, 16);
 		}
 		/* Check file size, CRC against these values. */
 		if (zip->compressed_size != zip->entry_compressed_bytes_read) {
@@ -631,13 +652,14 @@ zip_read_data_none(struct archive_read *a, const void **buff,
 	}
 	if (bytes_avail > zip->entry_bytes_remaining)
 		bytes_avail = zip->entry_bytes_remaining;
-	__archive_read_consume(a, bytes_avail);
+
 	*size = bytes_avail;
 	*offset = zip->entry_offset;
-	zip->entry_offset += *size;
-	zip->entry_bytes_remaining -= *size;
-	zip->entry_uncompressed_bytes_read += *size;
-	zip->entry_compressed_bytes_read += *size;
+	zip->entry_offset += bytes_avail;
+	zip->entry_bytes_remaining -= bytes_avail;
+	zip->entry_uncompressed_bytes_read += bytes_avail;
+	zip->entry_compressed_bytes_read += bytes_avail;
+	zip->entry_bytes_unconsumed = bytes_avail;
 	return (ARCHIVE_OK);
 }
 
@@ -728,7 +750,7 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 
 	/* Consume as much as the compressor actually used. */
 	bytes_avail = zip->stream.total_in;
-	__archive_read_consume(a, bytes_avail);
+	zip->entry_bytes_unconsumed = bytes_avail;
 	zip->entry_bytes_remaining -= bytes_avail;
 	zip->entry_compressed_bytes_read += bytes_avail;
 
@@ -762,6 +784,14 @@ archive_read_format_zip_read_data_skip(struct archive_read *a)
 
 	zip = (struct zip *)(a->format->data);
 
+	#define flush_unconsumed()	\
+	if (zip->entry_bytes_unconsumed) {							\
+		__archive_read_consume(a, zip->entry_bytes_unconsumed);	\
+		zip->entry_bytes_unconsumed = 0;						\
+	}
+
+	flush_unconsumed();
+
 	/* If we've already read to end of data, we're done. */
 	if (zip->end_of_entry)
 		return (ARCHIVE_OK);
@@ -777,9 +807,12 @@ archive_read_format_zip_read_data_skip(struct archive_read *a)
 		do {
 			r = archive_read_format_zip_read_data(a, &buff,
 			    &size, &offset);
+			flush_unconsumed();
 		} while (r == ARCHIVE_OK);
 		return (r);
 	}
+
+	#undef flush_consumed
 
 	/*
 	 * If the length is at the beginning, we can skip the
