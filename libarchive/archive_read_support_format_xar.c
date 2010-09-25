@@ -352,6 +352,7 @@ struct xar {
 	int	 		 entry_init;
 	uint64_t		 entry_total;
 	uint64_t		 entry_remaining;
+	size_t			 entry_unconsumed;
 	uint64_t		 entry_size;
 	enum enctype 		 entry_encoding;
 	struct chksumval	 entry_a_sum;
@@ -766,6 +767,12 @@ xar_read_data(struct archive_read *a,
 	int r;
 
 	xar = (struct xar *)(a->format->data);
+
+	if (xar->entry_unconsumed) {
+		__archive_read_consume(a, xar->entry_unconsumed);
+		xar->entry_unconsumed = 0;
+	}
+
 	if (xar->end_of_file || xar->entry_remaining <= 0) {
 		r = ARCHIVE_EOF;
 		goto abort_read_data;
@@ -791,7 +798,7 @@ xar_read_data(struct archive_read *a,
 	xar->total += *size;
 	xar->offset += used;
 	xar->entry_remaining -= used;
-	__archive_read_consume(a, used);
+	xar->entry_unconsumed = used;
 
 	if (xar->entry_remaining == 0) {
 		if (xar->entry_total != xar->entry_size) {
@@ -824,10 +831,12 @@ xar_read_data_skip(struct archive_read *a)
 	xar = (struct xar *)(a->format->data);
 	if (xar->end_of_file)
 		return (ARCHIVE_EOF);
-	bytes_skipped = __archive_read_consume(a, xar->entry_remaining);
+	bytes_skipped = __archive_read_consume(a, xar->entry_remaining +
+		xar->entry_unconsumed);
 	if (bytes_skipped < 0)
 		return (ARCHIVE_FATAL);
 	xar->offset += bytes_skipped;
+	xar->entry_unconsumed = 0;
 	return (ARCHIVE_OK);
 }
 
@@ -3136,13 +3145,13 @@ expat_read_toc(struct archive_read *a)
 		r = rd_contents(a, &d, &outbytes, &used, xar->toc_remaining);
 		if (r != ARCHIVE_OK)
 			return (r);
-		__archive_read_consume(a, used);
 		xar->toc_remaining -= used;
 		xar->offset += used;
 		xar->toc_total += outbytes;
 		PRINT_TOC(d, outbytes);
 
 		xr = XML_Parse(parser, d, outbytes, xar->toc_remaining == 0);
+		__archive_read_consume(a, used);
 		if (xr == XML_STATUS_ERROR) {
 			XML_ParserFree(parser);
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
