@@ -350,6 +350,7 @@ struct iso9660 {
 
 	int64_t	entry_sparse_offset;
 	int64_t	entry_bytes_remaining;
+	size_t  entry_bytes_unconsumed;
 	struct zisofs	 entry_zisofs;
 	struct content	*entry_content;
 };
@@ -1556,7 +1557,7 @@ next_data:
 	iso9660->entry_bytes_remaining -= bytes_read;
 	iso9660->current_position += bytes_read;
 	zisofs->pz_offset += bytes_read;
-	__archive_read_consume(a, bytes_read);
+	iso9660->entry_bytes_unconsumed += bytes_read;
 
 	return (ARCHIVE_OK);
 }
@@ -1586,6 +1587,12 @@ archive_read_format_iso9660_read_data(struct archive_read *a,
 	struct iso9660 *iso9660;
 
 	iso9660 = (struct iso9660 *)(a->format->data);
+
+	if (iso9660->entry_bytes_unconsumed) {
+		__archive_read_consume(a, iso9660->entry_bytes_unconsumed);
+		iso9660->entry_bytes_unconsumed = 0;
+	}
+
 	if (iso9660->entry_bytes_remaining <= 0) {
 		if (iso9660->entry_content != NULL)
 			iso9660->entry_content = iso9660->entry_content->next;
@@ -1635,8 +1642,8 @@ archive_read_format_iso9660_read_data(struct archive_read *a,
 	*offset = iso9660->entry_sparse_offset;
 	iso9660->entry_sparse_offset += bytes_read;
 	iso9660->entry_bytes_remaining -= bytes_read;
+	iso9660->entry_bytes_unconsumed = bytes_read;
 	iso9660->current_position += bytes_read;
-	__archive_read_consume(a, bytes_read);
 	return (ARCHIVE_OK);
 }
 
@@ -2494,6 +2501,12 @@ next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
 	/* Don't waste time seeking for zero-length bodies. */
 	if (file->size == 0)
 		file->offset = iso9660->current_position;
+
+	/* flush any remaining bytes from the last round to ensure we're positioned */
+	if (iso9660->entry_bytes_unconsumed) {
+		__archive_read_consume(a, iso9660->entry_bytes_unconsumed);
+		iso9660->entry_bytes_unconsumed = 0;
+	}
 
 	/* Seek forward to the start of the entry. */
 	if (iso9660->current_position < file->offset) {
