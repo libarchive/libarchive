@@ -1211,6 +1211,9 @@ int64_t
 __archive_read_filter_consume(struct archive_read_filter * filter,
     int64_t request)
 {
+	if (request == 0)
+		return 0;
+
 	int64_t skipped = advance_file_pointer(filter, request);
 	if (skipped == request)
 		return (skipped);
