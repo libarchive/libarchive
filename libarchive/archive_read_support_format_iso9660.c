@@ -915,7 +915,7 @@ read_children(struct archive_read *a, struct file_info *parent)
 	struct iso9660 *iso9660;
 	const unsigned char *b, *p;
 	struct file_info *multi;
-	size_t step;
+	size_t step, skip_size;
 
 	iso9660 = (struct iso9660 *)(a->format->data);
 	if (iso9660->current_position > parent->offset) {
@@ -951,9 +951,9 @@ read_children(struct archive_read *a, struct file_info *parent)
 		    "ISO9660 directory list");
 		return (ARCHIVE_FATAL);
 	}
-	__archive_read_consume(a, step);
 	iso9660->current_position += step;
 	multi = NULL;
+	skip_size = step;
 	while (step) {
 		p = b;
 		b += iso9660->logical_block_size;
@@ -975,8 +975,10 @@ read_children(struct archive_read *a, struct file_info *parent)
 			    && *(p + DR_name_offset) == '\001')
 				continue;
 			child = parse_file_info(a, parent, p);
-			if (child == NULL)
+			if (child == NULL) {
+				__archive_read_consume(a, skip_size);
 				return (ARCHIVE_FATAL);
+			}
 			if (child->cl_offset)
 				heap_add_entry(&(iso9660->cl_files),
 				    child, child->cl_offset);
@@ -996,6 +998,7 @@ read_children(struct archive_read *a, struct file_info *parent)
 						    &a->archive, ENOMEM,
 						    "No memory for "
 						    "multi extent");
+						__archive_read_consume(a, skip_size);
 						return (ARCHIVE_FATAL);
 					}
 					con->offset = child->offset;
@@ -1015,6 +1018,8 @@ read_children(struct archive_read *a, struct file_info *parent)
 			}
 		}
 	}
+
+	__archive_read_consume(a, skip_size);
 
 	/* Read data which recorded by RRIP "CE" extension. */
 	if (read_CE(a, iso9660) != ARCHIVE_OK)
