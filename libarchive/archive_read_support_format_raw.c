@@ -142,7 +142,6 @@ archive_read_format_raw_read_data(struct archive_read *a,
 	*buff = __archive_read_ahead(a, 1, &avail);
 	if (avail > 0) {
 		/* Consume and return the bytes we just read */
-		__archive_read_consume(a, avail);
 		*size = avail;
 		*offset = info->offset;
 		info->offset += *size;
