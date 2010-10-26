@@ -2030,7 +2030,7 @@ gnu_sparse_01_parse(struct tar *tar, const char *p)
  */
 static int64_t
 gnu_sparse_10_atol(struct archive_read *a, struct tar *tar,
-    ssize_t *remaining, size_t *unconsumed)
+    int64_t *remaining, size_t *unconsumed)
 {
 	int64_t l, limit, last_digit_limit;
 	const char *p;
@@ -2077,9 +2077,9 @@ gnu_sparse_10_atol(struct archive_read *a, struct tar *tar,
 static ssize_t
 gnu_sparse_10_read(struct archive_read *a, struct tar *tar, size_t *unconsumed)
 {
-	ssize_t remaining, bytes_read;
+	ssize_t bytes_read;
 	int entries;
-	int64_t offset, size, to_skip;
+	int64_t offset, size, to_skip, remaining;
 
 	/* Clear out the existing sparse list. */
 	gnu_clear_sparse_list(tar);
