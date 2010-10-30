@@ -426,15 +426,12 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		return (ret);
 
 	/*
-	 * Set the umask to zero so we get predictable mode settings.
+	 * Query the umask so we get predictable mode settings.
 	 * This gets done on every call to _write_header in case the
 	 * user edits their umask during the extraction for some
-	 * reason. This will be reset before we return.  Note that we
-	 * don't need to do this in _finish_entry, as the chmod(), etc,
-	 * system calls don't obey umask.
+	 * reason.
 	 */
-	a->user_umask = umask(0);
-	/* From here on, early exit requires "goto done" to clean up. */
+	umask(a->user_umask = umask(0));
 
 	/* Figure out what we need to do for this entry. */
 	a->todo = TODO_MODE_BASE;
@@ -493,7 +490,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	if (a->flags & ARCHIVE_EXTRACT_SECURE_SYMLINKS) {
 		ret = check_symlinks(a);
 		if (ret != ARCHIVE_OK)
-			goto done;
+			return (ret);
 	}
 #if defined(HAVE_FCHDIR) && defined(PATH_MAX)
 	/* If path exceeds PATH_MAX, shorten the path. */
@@ -628,9 +625,6 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		archive_entry_set_size(entry, 0);
 		a->filesize = 0;
 	}
-done:
-	/* Restore the user's umask before returning. */
-	umask(a->user_umask);
 
 	return (ret);
 }
@@ -988,6 +982,8 @@ archive_write_disk_new(void)
 	a->lookup_uid = trivial_lookup_uid;
 	a->lookup_gid = trivial_lookup_gid;
 	a->start_time = time(NULL);
+	/* Query and restore the umask. */
+	umask(a->user_umask = umask(0));
 #ifdef HAVE_GETEUID
 	a->user_uid = geteuid();
 #endif /* HAVE_GETEUID */
@@ -1275,7 +1271,7 @@ create_filesystem_object(struct archive_write_disk *a)
 	 * that SUID, SGID, etc, require additional work to ensure
 	 * security, so we never restore them at this point.
 	 */
-	mode = final_mode & 0777;
+	mode = final_mode & 0777 & a->user_umask;
 
 	switch (a->mode & AE_IFMT) {
 	default:
