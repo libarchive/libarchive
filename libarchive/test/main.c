@@ -237,10 +237,14 @@ void
 failure(const char *fmt, ...)
 {
 	va_list ap;
-	va_start(ap, fmt);
-	vsprintf(msgbuff, fmt, ap);
-	va_end(ap);
-	nextmsg = msgbuff;
+	if (fmt == NULL) {
+		nextmsg = NULL;
+	} else {
+		va_start(ap, fmt);
+		vsprintf(msgbuff, fmt, ap);
+		va_end(ap);
+		nextmsg = msgbuff;
+	}
 }
 
 /*
