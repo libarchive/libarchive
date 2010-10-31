@@ -41,8 +41,8 @@ __FBSDID("$FreeBSD: head/lib/libarchive/test/main.c 201247 2009-12-30 05:59:21Z 
 #define	ENVBASE "LIBARCHIVE" /* Prefix for environment variables. */
 #undef	PROGRAM              /* Testing a library, not a program. */
 #define	LIBRARY	"libarchive"
-#define	EXTRA_ERRNO(x)	archive_errno((struct archive *)(x))
 #define	EXTRA_DUMP(x)	archive_error_string((struct archive *)(x))
+#define	EXTRA_ERRNO(x)	archive_errno((struct archive *)(x))
 #define	EXTRA_VERSION	archive_version_string()
 
 /*
@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/test/main.c 201247 2009-12-30 05:59:21Z 
 #endif
 #if !defined(__BORLANDC__)
 #define access _access
+#undef chdir
 #define chdir _chdir
 #endif
 #ifndef fileno
@@ -253,13 +254,12 @@ failure(const char *fmt, ...)
  * would be better off just removing it entirely.  That would simplify
  * the code here noticably.
  */
-static const char *test_filename;
-static int test_line;
-static void *test_extra;
-void assertion_setup(const char *filename, int line)
+static const char *skipping_filename;
+static int skipping_line;
+void skipping_setup(const char *filename, int line)
 {
-	test_filename = filename;
-	test_line = line;
+	skipping_filename = filename;
+	skipping_line = line;
 }
 
 /* Called at the beginning of each assert() function. */
@@ -286,6 +286,7 @@ static struct line {
 	int count;
 	int skip;
 }  failed_lines[10000];
+const char *failed_filename;
 
 /* Count this failure, setup up log destination and handle initial report. */
 static void
@@ -295,7 +296,7 @@ failure_start(const char *filename, int line, const char *fmt, ...)
 
 	/* Record another failure for this line. */
 	++failures;
-	/* test_filename = filename; */
+	failed_filename = filename;
 	failed_lines[line].count++;
 
 	/* Determine whether to log header to console. */
@@ -368,11 +369,11 @@ test_skipping(const char *fmt, ...)
 	msg = nextmsg;
 	nextmsg = NULL;
 	/* failure_start() isn't quite right, but is awfully convenient. */
-	failure_start(test_filename, test_line, "SKIPPING: %s", buff);
+	failure_start(skipping_filename, skipping_line, "SKIPPING: %s", buff);
 	--failures; /* Undo failures++ in failure_start() */
 	/* Don't failure_finish() here. */
 	/* Mark as skip, so doesn't count as failed test. */
-	failed_lines[test_line].skip = 1;
+	failed_lines[skipping_line].skip = 1;
 	++skips;
 }
 
@@ -604,29 +605,24 @@ assertion_equal_mem(const char *file, int line,
 
 /* Verify that the named file exists and is empty. */
 int
-assertion_empty_file(const char *f1fmt, ...)
+assertion_empty_file(const char *filename, int line, const char *f1)
 {
 	char buff[1024];
-	char f1[1024];
 	struct stat st;
-	va_list ap;
 	ssize_t s;
 	FILE *f;
 
-	assertion_count(test_filename, test_line);
-	va_start(ap, f1fmt);
-	vsprintf(f1, f1fmt, ap);
-	va_end(ap);
+	assertion_count(filename, line);
 
 	if (stat(f1, &st) != 0) {
-		failure_start(test_filename, test_line, "Stat failed: %s", f1);
+		failure_start(filename, line, "Stat failed: %s", f1);
 		failure_finish(NULL);
 		return (0);
 	}
 	if (st.st_size == 0)
 		return (1);
 
-	failure_start(test_filename, test_line, "File should be empty: %s", f1);
+	failure_start(filename, line, "File should be empty: %s", f1);
 	logprintf("    File size: %d\n", (int)st.st_size);
 	logprintf("    Contents:\n");
 	f = fopen(f1, "rb");
@@ -645,24 +641,19 @@ assertion_empty_file(const char *f1fmt, ...)
 
 /* Verify that the named file exists and is not empty. */
 int
-assertion_non_empty_file(const char *f1fmt, ...)
+assertion_non_empty_file(const char *filename, int line, const char *f1)
 {
-	char f1[1024];
 	struct stat st;
-	va_list ap;
 
-	assertion_count(test_filename, test_line);
-	va_start(ap, f1fmt);
-	vsprintf(f1, f1fmt, ap);
-	va_end(ap);
+	assertion_count(filename, line);
 
 	if (stat(f1, &st) != 0) {
-		failure_start(test_filename, test_line, "Stat failed: %s", f1);
+		failure_start(filename, line, "Stat failed: %s", f1);
 		failure_finish(NULL);
 		return (0);
 	}
 	if (st.st_size == 0) {
-		failure_start(test_filename, test_line, "File empty: %s", f1);
+		failure_start(filename, line, "File empty: %s", f1);
 		failure_finish(NULL);
 		return (0);
 	}
@@ -672,19 +663,14 @@ assertion_non_empty_file(const char *f1fmt, ...)
 /* Verify that two files have the same contents. */
 /* TODO: hexdump the first bytes that actually differ. */
 int
-assertion_equal_file(const char *fn1, const char *f2pattern, ...)
+assertion_equal_file(const char *filename, int line, const char *fn1, const char *fn2)
 {
-	char fn2[1024];
-	va_list ap;
 	char buff1[1024];
 	char buff2[1024];
 	FILE *f1, *f2;
 	int n1, n2;
 
-	assertion_count(test_filename, test_line);
-	va_start(ap, f2pattern);
-	vsprintf(fn2, f2pattern, ap);
-	va_end(ap);
+	assertion_count(filename, line);
 
 	f1 = fopen(fn1, "rb");
 	f2 = fopen(fn2, "rb");
@@ -703,24 +689,18 @@ assertion_equal_file(const char *fn1, const char *f2pattern, ...)
 	}
 	fclose(f1);
 	fclose(f2);
-	failure_start(test_filename, test_line, "Files not identical");
+	failure_start(filename, line, "Files not identical");
 	logprintf("  file1=\"%s\"\n", fn1);
 	logprintf("  file2=\"%s\"\n", fn2);
-	failure_finish(test_extra);
+	failure_finish(NULL);
 	return (0);
 }
 
 /* Verify that the named file does exist. */
 int
-assertion_file_exists(const char *fpattern, ...)
+assertion_file_exists(const char *filename, int line, const char *f)
 {
-	char f[1024];
-	va_list ap;
-
-	assertion_count(test_filename, test_line);
-	va_start(ap, fpattern);
-	vsprintf(f, fpattern, ap);
-	va_end(ap);
+	assertion_count(filename, line);
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	if (!_access(f, 0))
@@ -729,22 +709,16 @@ assertion_file_exists(const char *fpattern, ...)
 	if (!access(f, F_OK))
 		return (1);
 #endif
-	failure_start(test_filename, test_line, "File should exist: %s", f);
-	failure_finish(test_extra);
+	failure_start(filename, line, "File should exist: %s", f);
+	failure_finish(NULL);
 	return (0);
 }
 
 /* Verify that the named file doesn't exist. */
 int
-assertion_file_not_exists(const char *fpattern, ...)
+assertion_file_not_exists(const char *filename, int line, const char *f)
 {
-	char f[1024];
-	va_list ap;
-
-	assertion_count(test_filename, test_line);
-	va_start(ap, fpattern);
-	vsprintf(f, fpattern, ap);
-	va_end(ap);
+	assertion_count(filename, line);
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	if (_access(f, 0))
@@ -753,31 +727,26 @@ assertion_file_not_exists(const char *fpattern, ...)
 	if (access(f, F_OK))
 		return (1);
 #endif
-	failure_start(test_filename, test_line, "File should not exist: %s", f);
-	failure_finish(test_extra);
+	failure_start(filename, line, "File should not exist: %s", f);
+	failure_finish(NULL);
 	return (0);
 }
 
 /* Compare the contents of a file to a block of memory. */
 int
-assertion_file_contents(const void *buff, int s, const char *fpattern, ...)
+assertion_file_contents(const char *filename, int line, const void *buff, int s, const char *fn)
 {
-	char fn[1024];
-	va_list ap;
 	char *contents;
 	FILE *f;
 	int n;
 
-	assertion_count(test_filename, test_line);
-	va_start(ap, fpattern);
-	vsprintf(fn, fpattern, ap);
-	va_end(ap);
+	assertion_count(filename, line);
 
 	f = fopen(fn, "rb");
 	if (f == NULL) {
-		failure_start(test_filename, test_line,
+		failure_start(filename, line,
 		    "File should exist: %s", fn);
-		failure_finish(test_extra);
+		failure_finish(NULL);
 		return (0);
 	}
 	contents = malloc(s * 2);
@@ -787,7 +756,7 @@ assertion_file_contents(const void *buff, int s, const char *fpattern, ...)
 		free(contents);
 		return (1);
 	}
-	failure_start(test_filename, test_line, "File contents don't match");
+	failure_start(filename, line, "File contents don't match");
 	logprintf("  file=\"%s\"\n", fn);
 	if (n > 0)
 		hexdump(contents, buff, n > 512 ? 512 : n, 0);
@@ -795,22 +764,28 @@ assertion_file_contents(const void *buff, int s, const char *fpattern, ...)
 		logprintf("  File empty, contents should be:\n");
 		hexdump(buff, NULL, s > 512 ? 512 : n, 0);
 	}
-	failure_finish(test_extra);
+	failure_finish(NULL);
 	free(contents);
 	return (0);
 }
 
 /* Check the contents of a text file, being tolerant of line endings. */
 int
-assertion_text_file_contents(const char *buff, const char *fn)
+assertion_text_file_contents(const char *filename, int line, const char *buff, const char *fn)
 {
 	char *contents;
 	const char *btxt, *ftxt;
 	FILE *f;
 	int n, s;
 
-	assertion_count(test_filename, test_line);
+	assertion_count(filename, line);
 	f = fopen(fn, "r");
+	if (f == NULL) {
+		failure_start(filename, line,
+		    "File doesn't exist: %s", fn);
+		failure_finish(NULL);
+		return (0);
+	}
 	s = strlen(buff);
 	contents = malloc(s * 2 + 128);
 	n = fread(contents, 1, s * 2 + 128 - 1, f);
@@ -838,7 +813,7 @@ assertion_text_file_contents(const char *buff, const char *fn)
 		free(contents);
 		return (1);
 	}
-	failure_start(test_filename, test_line, "Contents don't match");
+	failure_start(filename, line, "Contents don't match");
 	logprintf("  file=\"%s\"\n", fn);
 	if (n > 0) {
 		hexdump(contents, buff, n, 0);
@@ -848,8 +823,109 @@ assertion_text_file_contents(const char *buff, const char *fn)
 		logprintf("  File empty, contents should be:\n");
 		hexdump(buff, NULL, s, 0);
 	}
-	failure_finish(test_extra);
+	failure_finish(NULL);
 	free(contents);
+	return (0);
+}
+
+/* Verify that a text file contains the specified lines, regardless of order */
+/* This could be more efficient if we sorted both sets of lines, etc, but
+ * since this is used only for testing and only ever deals with a dozen or so
+ * lines at a time, this relatively crude approach is just fine. */
+int
+assertion_file_contains_lines_any_order(const char *file, int line,
+    const char *pathname, const char *lines[])
+{
+	char *buff;
+	size_t buff_size;
+	size_t expected_count, actual_count, i, j;
+	char **expected;
+	char *p, **actual;
+	char c;
+	int expected_failure = 0, actual_failure = 0;
+
+	assertion_count(file, line);
+
+	buff = slurpfile(&buff_size, "%s", pathname);
+	if (buff == NULL) {
+		failure_start(pathname, line, "Can't read file: %s", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+
+	// Make a copy of the provided lines and count up the expected file size.
+	expected_count = 0;
+	for (i = 0; lines[i] != NULL; ++i) {
+	}
+	expected_count = i;
+	expected = malloc(sizeof(char *) * expected_count);
+	for (i = 0; lines[i] != NULL; ++i) {
+		expected[i] = strdup(lines[i]);
+	}
+
+	// Break the file into lines
+	actual_count = 0;
+	for (c = '\0', p = buff; p < buff + buff_size; ++p) {
+		if (*p == '\x0d' || *p == '\x0a')
+			*p = '\0';
+		if (c == '\0' && *p != '\0')
+			++actual_count;
+		c = *p;
+	}
+	actual = malloc(sizeof(char *) * actual_count);
+	for (j = 0, p = buff; p < buff + buff_size; p += 1 + strlen(p)) {
+		if (*p != '\0') {
+			actual[j] = p;
+			++j;
+		}
+	}
+
+	// Erase matching lines from both lists
+	for (i = 0; i < expected_count; ++i) {
+		if (expected[i] == NULL)
+			continue;
+		for (j = 0; j < actual_count; ++j) {
+			if (actual[j] == NULL)
+				continue;
+			if (strcmp(expected[i], actual[j]) == 0) {
+				free(expected[i]);
+				expected[i] = NULL;
+				actual[j] = NULL;
+				break;
+			}
+		}
+	}
+
+	// If there's anything left, it's a failure
+	for (i = 0; i < expected_count; ++i) {
+		if (expected[i] != NULL)
+			++expected_failure;
+	}
+	for (j = 0; j < actual_count; ++j) {
+		if (actual[j] != NULL)
+			++actual_failure;
+	}
+	if (expected_failure == 0 && actual_failure == 0) {
+		free(buff);
+		free(expected);
+		free(actual);
+		return (1);
+	}
+	failure_start(file, line, "File doesn't match: %s", pathname);
+	for (i = 0; i < expected_count; ++i) {
+		if (expected[i] != NULL) {
+			logprintf("  Expected but not present: %s\n", expected[i]);
+			free(expected[i]);
+		}
+	}
+	for (j = 0; j < actual_count; ++j) {
+		if (actual[j] != NULL)
+			logprintf("  Present but not expected: %s\n", actual[j]);
+	}
+	failure_finish(NULL);
+	free(buff);
+	free(expected);
+	free(actual);
 	return (0);
 }
 
@@ -1642,7 +1718,7 @@ struct { void (*func)(void); const char *name; int failures; } tests[] = {
  * Summarize repeated failures in the just-completed test.
  */
 static void
-test_summarize(const char *filename, int failed)
+test_summarize(int failed)
 {
 	unsigned int i;
 
@@ -1661,9 +1737,10 @@ test_summarize(const char *filename, int failed)
 	for (i = 0; i < sizeof(failed_lines)/sizeof(failed_lines[0]); i++) {
 		if (failed_lines[i].count > 1 && !failed_lines[i].skip)
 			logprintf("%s:%d: Summary: Failed %d times\n",
-			    filename, i, failed_lines[i].count);
+			    failed_filename, i, failed_lines[i].count);
 	}
 	/* Clear the failure history for the next file. */
+	failed_filename = NULL;
 	memset(failed_lines, 0, sizeof(failed_lines));
 }
 
@@ -1673,6 +1750,7 @@ test_summarize(const char *filename, int failed)
 static int
 test_run(int i, const char *tmpdir)
 {
+	char workdir[1024];
 	char logfilename[64];
 	int failures_before = failures;
 	int oldumask;
@@ -1699,11 +1777,12 @@ test_run(int i, const char *tmpdir)
 	logfile = fopen(logfilename, "w");
 	fprintf(logfile, "%s\n\n", tests[i].name);
 	/* Chdir() to a work dir for this specific test. */
-	if (!assertMakeDir(tests[i].name, 0755)
-	    || !assertChdir(tests[i].name)) {
+	snprintf(workdir, sizeof(workdir), "%s/%s", tmpdir, tests[i].name);
+	testworkdir = workdir;
+	if (!assertMakeDir(testworkdir, 0755)
+	    || !assertChdir(testworkdir)) {
 		fprintf(stderr,
-		    "ERROR: Can't chdir to work dir %s/%s\n",
-		    tmpdir, tests[i].name);
+		    "ERROR: Can't chdir to work dir %s\n", testworkdir);
 		exit(1);
 	}
 	/* Explicitly reset the locale before each test. */
@@ -1717,6 +1796,7 @@ test_run(int i, const char *tmpdir)
 	/*
 	 * Clean up and report afterwards.
 	 */
+	testworkdir = NULL;
 	/* Restore umask */
 	umask(oldumask);
 	/* Reset locale. */
@@ -1729,7 +1809,7 @@ test_run(int i, const char *tmpdir)
 	}
 	/* Report per-test summaries. */
 	tests[i].failures = failures - failures_before;
-	test_summarize(test_filename, tests[i].failures);
+	test_summarize(tests[i].failures);
 	/* Close the per-test log file. */
 	fclose(logfile);
 	logfile = NULL;
@@ -1965,6 +2045,7 @@ main(int argc, char **argv)
 #ifdef PROGRAM
 				testprogfile = option_arg;
 #else
+				fprintf(stderr, "-p option not permitted\n");
 				usage(progname);
 #endif
 				break;
@@ -1978,6 +2059,8 @@ main(int argc, char **argv)
 				verbosity++;
 				break;
 			default:
+				fprintf(stderr, "Unrecognized option '%c'\n",
+				    option);
 				usage(progname);
 			}
 		}
@@ -1987,8 +2070,11 @@ main(int argc, char **argv)
 	 * Sanity-check that our options make sense.
 	 */
 #ifdef PROGRAM
-	if (testprogfile == NULL)
+	if (testprogfile == NULL) {
+		fprintf(stderr, "Program executable required\n");
 		usage(progname);
+	}
+
 	{
 		char *testprg;
 #if defined(_WIN32) && !defined(__CYGWIN__)

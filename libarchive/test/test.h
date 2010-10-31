@@ -107,9 +107,9 @@
 # define NLINKS_INACCURATE_FOR_DIRS
 #endif
 
-/* Haiku OS */
-#if defined(__HAIKU__)
-/* Haiku has typedefs in stdint.h (needed for int64_t) */
+/* Haiku OS and QNX */
+#if defined(__HAIKU__) || defined(__QNXNTO__)
+/* Haiku and QNX have typedefs in stdint.h (needed for int64_t) */
 #include <stdint.h>
 #endif
 
@@ -150,17 +150,15 @@
 /* As above, but raw blocks of bytes. */
 #define assertEqualMem(v1, v2, l)	\
   assertion_equal_mem(__FILE__, __LINE__, (v1), #v1, (v2), #v2, (l), #l, NULL)
-/* Assert two files are the same; allow printf-style expansion of second name.
- * See below for comments about variable arguments here...
- */
-#define assertEqualFile		\
-  assertion_setup(__FILE__, __LINE__);assertion_equal_file
-/* Assert that a file is empty; supports printf-style arguments. */
-#define assertEmptyFile		\
-  assertion_setup(__FILE__, __LINE__);assertion_empty_file
-/* Assert that a file is not empty; supports printf-style arguments. */
-#define assertNonEmptyFile		\
-  assertion_setup(__FILE__, __LINE__);assertion_non_empty_file
+/* Assert two files are the same. */
+#define assertEqualFile(f1, f2)	\
+  assertion_equal_file(__FILE__, __LINE__, (f1), (f2))
+/* Assert that a file is empty. */
+#define assertEmptyFile(pathname)	\
+  assertion_empty_file(__FILE__, __LINE__, (pathname))
+/* Assert that a file is not empty. */
+#define assertNonEmptyFile(pathname)		\
+  assertion_non_empty_file(__FILE__, __LINE__, (pathname))
 #define assertFileAtime(pathname, sec, nsec)	\
   assertion_file_atime(__FILE__, __LINE__, pathname, sec, nsec)
 #define assertFileAtimeRecent(pathname)	\
@@ -170,14 +168,14 @@
 #define assertFileBirthtimeRecent(pathname) \
   assertion_file_birthtime_recent(__FILE__, __LINE__, pathname)
 /* Assert that a file exists; supports printf-style arguments. */
-#define assertFileExists		\
-  assertion_setup(__FILE__, __LINE__);assertion_file_exists
-/* Assert that a file exists; supports printf-style arguments. */
-#define assertFileNotExists		\
-  assertion_setup(__FILE__, __LINE__);assertion_file_not_exists
-/* Assert that file contents match a string; supports printf-style arguments. */
-#define assertFileContents             \
-  assertion_setup(__FILE__, __LINE__);assertion_file_contents
+#define assertFileExists(pathname) \
+  assertion_file_exists(__FILE__, __LINE__, pathname)
+/* Assert that a file exists. */
+#define assertFileNotExists(pathname) \
+  assertion_file_not_exists(__FILE__, __LINE__, pathname)
+/* Assert that file contents match a string. */
+#define assertFileContents(data, data_size, pathname) \
+  assertion_file_contents(__FILE__, __LINE__, data, data_size, pathname)
 #define assertFileMtime(pathname, sec, nsec)	\
   assertion_file_mtime(__FILE__, __LINE__, pathname, sec, nsec)
 #define assertFileMtimeRecent(pathname) \
@@ -186,8 +184,10 @@
   assertion_file_nlinks(__FILE__, __LINE__, pathname, nlinks)
 #define assertFileSize(pathname, size)  \
   assertion_file_size(__FILE__, __LINE__, pathname, size)
-#define assertTextFileContents         \
-  assertion_setup(__FILE__, __LINE__);assertion_text_file_contents
+#define assertTextFileContents(text, pathname) \
+  assertion_text_file_contents(__FILE__, __LINE__, text, pathname)
+#define assertFileContainsLinesAnyOrder(pathname, lines)	\
+  assertion_file_contains_lines_any_order(__FILE__, __LINE__, pathname, lines)
 #define assertIsDir(pathname, mode)		\
   assertion_is_dir(__FILE__, __LINE__, pathname, mode)
 #define assertIsHardlink(path1, path2)	\
@@ -217,14 +217,14 @@
  * but effective.
  */
 #define skipping	\
-  assertion_setup(__FILE__, __LINE__);test_skipping
+  skipping_setup(__FILE__, __LINE__);test_skipping
 
 /* Function declarations.  These are defined in test_utility.c. */
 void failure(const char *fmt, ...);
 int assertion_assert(const char *, int, int, const char *, void *);
 int assertion_chdir(const char *, int, const char *);
-int assertion_empty_file(const char *, ...);
-int assertion_equal_file(const char *, const char *, ...);
+int assertion_empty_file(const char *, int, const char *);
+int assertion_equal_file(const char *, int, const char *, const char *);
 int assertion_equal_int(const char *, int, long long, const char *, long long, const char *, void *);
 int assertion_equal_mem(const char *, int, const void *, const char *, const void *, const char *, size_t, const char *, void *);
 int assertion_equal_string(const char *, int, const char *v1, const char *, const char *v2, const char *, void *);
@@ -233,12 +233,13 @@ int assertion_file_atime(const char *, int, const char *, long, long);
 int assertion_file_atime_recent(const char *, int, const char *);
 int assertion_file_birthtime(const char *, int, const char *, long, long);
 int assertion_file_birthtime_recent(const char *, int, const char *);
-int assertion_file_contents(const void *, int, const char *, ...);
-int assertion_file_exists(const char *, ...);
+int assertion_file_contains_lines_any_order(const char *, int, const char *, const char **);
+int assertion_file_contents(const char *, int, const void *, int, const char *);
+int assertion_file_exists(const char *, int, const char *);
 int assertion_file_mtime(const char *, int, const char *, long, long);
 int assertion_file_mtime_recent(const char *, int, const char *);
 int assertion_file_nlinks(const char *, int, const char *, int);
-int assertion_file_not_exists(const char *, ...);
+int assertion_file_not_exists(const char *, int, const char *);
 int assertion_file_size(const char *, int, const char *, long);
 int assertion_is_dir(const char *, int, const char *, int);
 int assertion_is_hardlink(const char *, int, const char *, const char *);
@@ -249,11 +250,11 @@ int assertion_make_dir(const char *, int, const char *, int);
 int assertion_make_file(const char *, int, const char *, int, const char *);
 int assertion_make_hardlink(const char *, int, const char *newpath, const char *);
 int assertion_make_symlink(const char *, int, const char *newpath, const char *);
-int assertion_non_empty_file(const char *, ...);
-int assertion_text_file_contents(const char *buff, const char *f);
+int assertion_non_empty_file(const char *, int, const char *);
+int assertion_text_file_contents(const char *, int, const char *buff, const char *f);
 int assertion_umask(const char *, int, int);
-void assertion_setup(const char *, int);
 
+void skipping_setup(const char *, int);
 void test_skipping(const char *fmt, ...);
 
 /* Like sprintf, then system() */
@@ -277,6 +278,9 @@ char *slurpfile(size_t *, const char *fmt, ...);
 
 /* Extracts named reference file to the current directory. */
 void extract_reference_file(const char *);
+
+/* Path to working directory for current test */
+const char *testworkdir;
 
 /*
  * Special interfaces for libarchive test harness.
