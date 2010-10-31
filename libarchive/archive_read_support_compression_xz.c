@@ -684,8 +684,12 @@ xz_filter_read(struct archive_read_filter *self, const void **p)
 		}
 		state->stream.next_in =
 		    __archive_read_filter_ahead(self->upstream, 1, &avail_in);
-		if (state->stream.next_in == NULL && avail_in < 0)
+		if (state->stream.next_in == NULL && avail_in < 0) {
+			archive_set_error(&self->archive->archive,
+			    ARCHIVE_ERRNO_MISC,
+			    "truncated input");
 			return (ARCHIVE_FATAL);
+		}
 		state->stream.avail_in = avail_in;
 
 		/* Decompress as much as we can in one pass. */
@@ -843,8 +847,12 @@ lzma_filter_read(struct archive_read_filter *self, const void **p)
 	while (state->stream.avail_out > 0 && !state->eof) {
 		state->stream.next_in = (unsigned char *)(uintptr_t)
 		    __archive_read_filter_ahead(self->upstream, 1, &avail_in);
-		if (state->stream.next_in == NULL && avail_in < 0)
+		if (state->stream.next_in == NULL && avail_in < 0) {
+			archive_set_error(&self->archive->archive,
+			    ARCHIVE_ERRNO_MISC,
+			    "truncated lzma input");
 			return (ARCHIVE_FATAL);
+		}
 		state->stream.avail_in = avail_in;
 
 		/* Decompress as much as we can in one pass. */

@@ -274,8 +274,12 @@ bzip2_filter_read(struct archive_read_filter *self, const void **p)
 		 * doesn't declare it so. <sigh> */
 		read_buf =
 		    __archive_read_filter_ahead(self->upstream, 1, &ret);
-		if (read_buf == NULL)
+		if (read_buf == NULL) {
+			archive_set_error(&self->archive->archive,
+			    ARCHIVE_ERRNO_MISC,
+			    "truncated bzip2 input");
 			return (ARCHIVE_FATAL);
+		}
 		state->stream.next_in = (char *)(uintptr_t)read_buf;
 		state->stream.avail_in = ret;
 		/* There is no more data, return whatever we have. */

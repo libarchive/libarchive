@@ -394,8 +394,12 @@ gzip_filter_read(struct archive_read_filter *self, const void **p)
 		 * it so, hence this ugly cast. */
 		state->stream.next_in = (unsigned char *)(uintptr_t)
 		    __archive_read_filter_ahead(self->upstream, 1, &avail_in);
-		if (state->stream.next_in == NULL)
+		if (state->stream.next_in == NULL) {
+			archive_set_error(&self->archive->archive,
+			    ARCHIVE_ERRNO_MISC,
+			    "truncated gzip input");
 			return (ARCHIVE_FATAL);
+		}
 		state->stream.avail_in = avail_in;
 
 		/* Decompress and consume some of that data. */
