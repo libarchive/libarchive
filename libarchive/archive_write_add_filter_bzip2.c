@@ -286,28 +286,19 @@ static int
 drive_compressor(struct archive_write_filter *f,
     struct private_data *data, int finishing)
 {
-	ssize_t	bytes_written;
 	int ret;
 
 	for (;;) {
 		if (data->stream.avail_out == 0) {
-			bytes_written = __archive_write_filter(f->next_filter,
+			ret = __archive_write_filter(f->next_filter,
 			    data->compressed,
 			    data->compressed_buffer_size);
-			if (bytes_written <= 0) {
+			if (ret != ARCHIVE_OK) {
 				/* TODO: Handle this write failure */
 				return (ARCHIVE_FATAL);
-			} else if ((size_t)bytes_written < data->compressed_buffer_size) {
-				/* Short write: Move remainder to
-				 * front and keep filling */
-				memmove(data->compressed,
-				    data->compressed + bytes_written,
-				    data->compressed_buffer_size - bytes_written);
 			}
-
-			data->stream.next_out = data->compressed +
-			    data->compressed_buffer_size - bytes_written;
-			data->stream.avail_out = bytes_written;
+			data->stream.next_out = data->compressed;
+			data->stream.avail_out = data->compressed_buffer_size;
 		}
 
 		/* If there's nothing to do, we're done. */

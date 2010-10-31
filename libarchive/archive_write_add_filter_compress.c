@@ -222,15 +222,14 @@ static int
 output_byte(struct archive_write_filter *f, unsigned char c)
 {
 	struct private_data *state = f->data;
-	ssize_t bytes_written;
 
 	state->compressed[state->compressed_offset++] = c;
 	++state->out_count;
 
 	if (state->compressed_buffer_size == state->compressed_offset) {
-		bytes_written = __archive_write_filter(f->next_filter,
+		int ret = __archive_write_filter(f->next_filter,
 		    state->compressed, state->compressed_buffer_size);
-		if (bytes_written <= 0)
+		if (ret != ARCHIVE_OK)
 			return ARCHIVE_FATAL;
 		state->compressed_offset = 0;
 	}
