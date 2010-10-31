@@ -160,10 +160,7 @@ archive_read_support_compression_compress(struct archive *_a)
 
 /*
  * Test whether we can handle this data.
- *
- * This logic returns zero if any part of the signature fails.  It
- * also tries to Do The Right Thing if a very short buffer prevents us
- * from verifying as much as we would like.
+ * This logic returns zero if any part of the signature fails.
  */
 static int
 compress_bidder_bid(struct archive_read_filter_bidder *self,
