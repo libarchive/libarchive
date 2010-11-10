@@ -52,6 +52,7 @@ static int	archive_write_newc_header(struct archive_write *,
 		    struct archive_entry *);
 static int	format_hex(int64_t, void *, int);
 static int64_t	format_hex_recursive(int64_t, char *, int);
+static int	write_header(struct archive_write *, struct archive_entry *);
 
 struct cpio {
 	uint64_t	  entry_bytes_remaining;
@@ -115,15 +116,39 @@ archive_write_set_format_cpio_newc(struct archive *_a)
 static int
 archive_write_newc_header(struct archive_write *a, struct archive_entry *entry)
 {
+	const char *path;
+
+	if (archive_entry_filetype(entry) == 0) {
+		archive_set_error(&a->archive, -1, "Filetype required");
+		return (ARCHIVE_FAILED);
+	}
+
+	path = archive_entry_pathname(entry);
+	if (path == NULL || path[0] == '\0') {
+		archive_set_error(&a->archive, -1, "Pathname required");
+		return (ARCHIVE_FAILED);
+	}
+
+	if (archive_entry_hardlink(entry) == NULL
+	    && (!archive_entry_size_is_set(entry) || archive_entry_size(entry) < 0)) {
+		archive_set_error(&a->archive, -1, "Size required");
+		return (ARCHIVE_FAILED);
+	}
+	return write_header(a, entry);
+}
+
+static int
+write_header(struct archive_write *a, struct archive_entry *entry)
+{
 	int64_t ino;
 	struct cpio *cpio;
 	const char *p, *path;
-	int pathlength, ret, ret2;
+	int pathlength, ret, ret_final;
 	struct cpio_header_newc	 h;
 	int pad;
 
 	cpio = (struct cpio *)a->format_data;
-	ret2 = ARCHIVE_OK;
+	ret_final = ARCHIVE_OK;
 
 	path = archive_entry_pathname(entry);
 	pathlength = (int)strlen(path) + 1; /* Include trailing null. */
@@ -139,9 +164,10 @@ archive_write_newc_header(struct archive_write *a, struct archive_entry *entry)
 	if (ino > 0xffffffff) {
 		archive_set_error(&a->archive, ERANGE,
 		    "large inode number truncated");
-		ret2 = ARCHIVE_WARN;
+		ret_final = ARCHIVE_WARN;
 	}
 
+	/* TODO: Set ret_final to ARCHIVE_WARN if any of these overflow. */
 	format_hex(ino & 0xffffffff, &h.c_ino, sizeof(h.c_ino));
 	format_hex(archive_entry_mode(entry), &h.c_mode, sizeof(h.c_mode));
 	format_hex(archive_entry_uid(entry), &h.c_uid, sizeof(h.c_uid));
@@ -167,9 +193,12 @@ archive_write_newc_header(struct archive_write *a, struct archive_entry *entry)
 	p = archive_entry_symlink(entry);
 	if (p != NULL  &&  *p != '\0')
 		format_hex(strlen(p), &h.c_filesize, sizeof(h.c_filesize));
-	else
-		format_hex(archive_entry_size(entry),
+	else {
+		ret = format_hex(archive_entry_size(entry),
 		    &h.c_filesize, sizeof(h.c_filesize));
+		if (ret)
+			return (ARCHIVE_FAILED);
+	}
 
 	ret = __archive_write_output(a, &h, sizeof(h));
 	if (ret != ARCHIVE_OK)
@@ -180,10 +209,11 @@ archive_write_newc_header(struct archive_write *a, struct archive_entry *entry)
 	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 	pad = PAD4(pathlength + sizeof(struct cpio_header_newc));
-	if (pad)
+	if (pad) {
 		ret = __archive_write_output(a, "\0\0\0", pad);
-	if (ret != ARCHIVE_OK)
-		return (ARCHIVE_FATAL);
+		if (ret != ARCHIVE_OK)
+			return (ARCHIVE_FATAL);
+	}
 
 	cpio->entry_bytes_remaining = archive_entry_size(entry);
 	cpio->padding = PAD4(cpio->entry_bytes_remaining);
@@ -195,11 +225,10 @@ archive_write_newc_header(struct archive_write *a, struct archive_entry *entry)
 			return (ARCHIVE_FATAL);
 		pad = PAD4(strlen(p));
 		ret = __archive_write_output(a, "\0\0\0", pad);
+		if (ret != ARCHIVE_OK)
+			return (ARCHIVE_FATAL);
 	}
-
-	if (ret == ARCHIVE_OK)
-		ret = ret2;
-	return (ret);
+	return (ret_final);
 }
 
 static ssize_t
@@ -258,8 +287,10 @@ archive_write_newc_close(struct archive_write *a)
 
 	trailer = archive_entry_new();
 	archive_entry_set_nlink(trailer, 1);
+	archive_entry_set_size(trailer, 0);
 	archive_entry_set_pathname(trailer, "TRAILER!!!");
-	er = archive_write_newc_header(a, trailer);
+	/* Bypass the required data checks. */
+	er = write_header(a, trailer);
 	archive_entry_free(trailer);
 	return (er);
 }

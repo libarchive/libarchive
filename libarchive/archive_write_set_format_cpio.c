@@ -51,6 +51,7 @@ static int	archive_write_cpio_header(struct archive_write *,
 		    struct archive_entry *);
 static int	format_octal(int64_t, void *, int);
 static int64_t	format_octal_recursive(int64_t, char *, int);
+static int	write_header(struct archive_write *, struct archive_entry *);
 
 struct cpio {
 	uint64_t	  entry_bytes_remaining;
@@ -178,14 +179,37 @@ synthesize_ino_value(struct cpio *cpio, struct archive_entry *entry)
 static int
 archive_write_cpio_header(struct archive_write *a, struct archive_entry *entry)
 {
+	const char *path;
+
+	if (archive_entry_filetype(entry) == 0) {
+		archive_set_error(&a->archive, -1, "Filetype required");
+		return (ARCHIVE_FAILED);
+	}
+
+	path = archive_entry_pathname(entry);
+	if (path == NULL || path[0] == '\0') {
+		archive_set_error(&a->archive, -1, "Pathname required");
+		return (ARCHIVE_FAILED);
+	}
+
+	if (!archive_entry_size_is_set(entry) || archive_entry_size(entry) < 0) {
+		archive_set_error(&a->archive, -1, "Size required");
+		return (ARCHIVE_FAILED);
+	}
+	return write_header(a, entry);
+}
+
+static int
+write_header(struct archive_write *a, struct archive_entry *entry)
+{
 	struct cpio *cpio;
 	const char *p, *path;
-	int pathlength, ret, ret2;
+	int pathlength, ret, ret_final;
 	int64_t	ino;
 	struct cpio_header	 h;
 
 	cpio = (struct cpio *)a->format_data;
-	ret2 = ARCHIVE_OK;
+	ret_final = ARCHIVE_OK;
 
 	path = archive_entry_pathname(entry);
 	pathlength = (int)strlen(path) + 1; /* Include trailing null. */
@@ -206,6 +230,7 @@ archive_write_cpio_header(struct archive_write *a, struct archive_entry *entry)
 	}
 	format_octal(ino & 0777777, &h.c_ino, sizeof(h.c_ino));
 
+	/* TODO: Set ret_final to ARCHIVE_WARN if any of these overflow. */
 	format_octal(archive_entry_mode(entry), &h.c_mode, sizeof(h.c_mode));
 	format_octal(archive_entry_uid(entry), &h.c_uid, sizeof(h.c_uid));
 	format_octal(archive_entry_gid(entry), &h.c_gid, sizeof(h.c_gid));
@@ -226,9 +251,13 @@ archive_write_cpio_header(struct archive_write *a, struct archive_entry *entry)
 	p = archive_entry_symlink(entry);
 	if (p != NULL  &&  *p != '\0')
 		format_octal(strlen(p), &h.c_filesize, sizeof(h.c_filesize));
-	else
-		format_octal(archive_entry_size(entry),
+	else {
+		/* If the size overflows, we're screwed. */
+		ret = format_octal(archive_entry_size(entry),
 		    &h.c_filesize, sizeof(h.c_filesize));
+		if (ret)
+			return (ARCHIVE_FAILED);
+	}
 
 	ret = __archive_write_output(a, &h, sizeof(h));
 	if (ret != ARCHIVE_OK)
@@ -241,12 +270,12 @@ archive_write_cpio_header(struct archive_write *a, struct archive_entry *entry)
 	cpio->entry_bytes_remaining = archive_entry_size(entry);
 
 	/* Write the symlink now. */
-	if (p != NULL  &&  *p != '\0')
+	if (p != NULL  &&  *p != '\0') {
 		ret = __archive_write_output(a, p, strlen(p));
-
-	if (ret == ARCHIVE_OK)
-		ret = ret2;
-	return (ret);
+		if (ret != ARCHIVE_OK)
+			return (ARCHIVE_FATAL);
+	}
+	return (ret_final);
 }
 
 static ssize_t
@@ -306,8 +335,9 @@ archive_write_cpio_close(struct archive_write *a)
 	trailer = archive_entry_new();
 	/* nlink = 1 here for GNU cpio compat. */
 	archive_entry_set_nlink(trailer, 1);
+	archive_entry_set_size(trailer, 0);
 	archive_entry_set_pathname(trailer, "TRAILER!!!");
-	er = archive_write_cpio_header(a, trailer);
+	er = write_header(a, trailer);
 	archive_entry_free(trailer);
 	return (er);
 }

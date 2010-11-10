@@ -25,7 +25,6 @@
 #include "test.h"
 __FBSDID("$FreeBSD: head/lib/libarchive/test/test_write_format_cpio.c 185672 2008-12-06 06:02:26Z kientzle $");
 
-/* The version stamp macro was introduced after cpio write support. */
 static void
 test_format(int	(*set_format)(struct archive *))
 {
@@ -85,6 +84,49 @@ test_format(int	(*set_format)(struct archive *))
 	assertA(0 == archive_write_header(a, ae));
 	archive_entry_free(ae);
 	assertA(4 == archive_write_data(a, "1234", 5));
+
+	/*
+	 * Write a file with a name, filetype, and size.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "name");
+	archive_entry_set_size(ae, 0);
+	archive_entry_set_filetype(ae, AE_IFREG);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
+	assert(archive_error_string(a) == NULL);
+	archive_entry_free(ae);
+
+	/*
+	 * Write a file with a name and filetype but no size.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "name");
+	archive_entry_unset_size(ae);
+	archive_entry_set_filetype(ae, AE_IFREG);
+	assertEqualInt(ARCHIVE_FAILED, archive_write_header(a, ae));
+	assert(archive_error_string(a) != NULL);
+	archive_entry_free(ae);
+
+	/*
+	 * Write a file with a name and size but no filetype.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "name");
+	archive_entry_set_size(ae, 0);
+	assertEqualInt(ARCHIVE_FAILED, archive_write_header(a, ae));
+	assert(archive_error_string(a) != NULL);
+	archive_entry_free(ae);
+
+
+	/*
+	 * Write a file with a size and filetype but no name.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_size(ae, 0);
+	archive_entry_set_filetype(ae, AE_IFREG);
+	assertEqualInt(ARCHIVE_FAILED, archive_write_header(a, ae));
+	assert(archive_error_string(a) != NULL);
+	archive_entry_free(ae);
 
 	/*
 	 * Write a directory to it.
@@ -152,10 +194,16 @@ test_format(int	(*set_format)(struct archive *))
 	 */
 
 	/*
-	 * Read the dir entry back.
+	 * Read the third file back.
 	 * ARCHIVE_WARN here because the damaged entry was skipped.
 	 */
 	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
+	assertEqualString("name", archive_entry_pathname(ae));
+
+	/*
+	 * Read the dir entry back.
+	 */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt(11, archive_entry_mtime(ae));
 	assert(0 == archive_entry_mtime_nsec(ae));
 	assert(0 == archive_entry_atime(ae));
@@ -173,8 +221,49 @@ test_format(int	(*set_format)(struct archive *))
 	free(buff);
 }
 
+static void
+test_big_entries(int (*set_format)(struct archive *), int64_t size, int expected)
+{
+	struct archive_entry *ae;
+	struct archive *a;
+	size_t buffsize = 1000000;
+	size_t used;
+	char *buff;
+
+	buff = malloc(buffsize);
+
+	/* Create a new archive in memory. */
+	assert((a = archive_write_new()) != NULL);
+	assertA(0 == (*set_format)(a));
+	assertA(0 == archive_write_set_compression_none(a));
+	assertA(0 == archive_write_open_memory(a, buff, buffsize, &used));
+
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "file");
+	archive_entry_set_size(ae, size);
+	archive_entry_set_filetype(ae, AE_IFREG);
+	assertEqualInt(expected, archive_write_header(a, ae));
+
+	archive_entry_free(ae);
+	archive_write_free(a);
+	free(buff);
+}
+
+
 DEFINE_TEST(test_write_format_cpio)
 {
+	int64_t size_4g = ((int64_t)1) << 32;
+	int64_t size_8g = ((int64_t)1) << 33;
+
 	test_format(archive_write_set_format_cpio);
 	test_format(archive_write_set_format_cpio_newc);
+
+	test_big_entries(archive_write_set_format_cpio,
+	    size_8g - 1, ARCHIVE_OK);
+	test_big_entries(archive_write_set_format_cpio,
+	    size_8g, ARCHIVE_FAILED);
+	test_big_entries(archive_write_set_format_cpio_newc,
+	    size_4g - 1, ARCHIVE_OK);
+	test_big_entries(archive_write_set_format_cpio_newc,
+	    size_4g, ARCHIVE_FAILED);
 }
