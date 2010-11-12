@@ -90,6 +90,7 @@ __archive_string_vsprintf(struct archive_string *as, const char *fmt,
 	intmax_t s; /* Signed integer temp. */
 	uintmax_t u; /* Unsigned integer temp. */
 	const char *p, *p2;
+	const wchar_t *pw;
 
 	if (__archive_string_ensure(as, 64) == NULL)
 		__archive_errx(1, "Out of memory");
@@ -137,8 +138,20 @@ __archive_string_vsprintf(struct archive_string *as, const char *fmt,
 		        append_int(as, s, 10);
 			break;
 		case 's':
-			p2 = va_arg(ap, char *);
-			archive_strcat(as, p2);
+			switch(long_flag) {
+			case 'l':
+				pw = va_arg(ap, wchar_t *);
+				archive_strappend_w_mbs(as, pw);
+				break;
+			default:
+				p2 = va_arg(ap, char *);
+				archive_strcat(as, p2);
+				break;
+			}
+			break;
+		case 'S':
+			pw = va_arg(ap, wchar_t *);
+			archive_strappend_w_mbs(as, pw);
 			break;
 		case 'o': case 'u': case 'x': case 'X':
 			/* Common handling for unsigned integer formats. */
