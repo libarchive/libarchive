@@ -117,7 +117,6 @@ test_format(int	(*set_format)(struct archive *))
 	assert(archive_error_string(a) != NULL);
 	archive_entry_free(ae);
 
-
 	/*
 	 * Write a file with a size and filetype but no name.
 	 */
@@ -243,6 +242,8 @@ test_big_entries(int (*set_format)(struct archive *), int64_t size, int expected
 	archive_entry_set_size(ae, size);
 	archive_entry_set_filetype(ae, AE_IFREG);
 	assertEqualInt(expected, archive_write_header(a, ae));
+	if (expected != ARCHIVE_OK)
+		assert(archive_error_string(a) != NULL);
 
 	archive_entry_free(ae);
 	archive_write_free(a);

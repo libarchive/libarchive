@@ -250,13 +250,15 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 	/* Symlinks get the link written as the body of the entry. */
 	p = archive_entry_symlink(entry);
 	if (p != NULL  &&  *p != '\0')
-		format_octal(strlen(p), &h.c_filesize, sizeof(h.c_filesize));
-	else {
-		/* If the size overflows, we're screwed. */
+		ret = format_octal(strlen(p), &h.c_filesize,
+		    sizeof(h.c_filesize));
+	else
 		ret = format_octal(archive_entry_size(entry),
 		    &h.c_filesize, sizeof(h.c_filesize));
-		if (ret)
-			return (ARCHIVE_FAILED);
+	if (ret) {
+		archive_set_error(&a->archive, ERANGE,
+		    "File is too large for cpio format.");
+		return (ARCHIVE_FAILED);
 	}
 
 	ret = __archive_write_output(a, &h, sizeof(h));
