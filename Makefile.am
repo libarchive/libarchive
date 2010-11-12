@@ -110,10 +110,11 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_rb.h					\
 	libarchive/archive_read.c				\
 	libarchive/archive_read_data_into_fd.c			\
-	libarchive/archive_read_disk.c				\
 	libarchive/archive_read_disk_entry_from_file.c		\
+	libarchive/archive_read_disk_posix.c			\
 	libarchive/archive_read_disk_private.h			\
 	libarchive/archive_read_disk_set_standard_lookup.c	\
+	libarchive/archive_read_disk_windows.c			\
 	libarchive/archive_read_extract.c			\
 	libarchive/archive_read_open_fd.c			\
 	libarchive/archive_read_open_file.c			\

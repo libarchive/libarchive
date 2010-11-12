@@ -24,6 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#if defined(_WIN32) && !defined(__CYGWIN__)
 
 #include "archive_platform.h"
 __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk.c 189429 2009-03-06 04:35:31Z kientzle $");
@@ -2017,3 +2018,4 @@ tree_close(struct tree *t)
 	free(t);
 }
 
+#endif
