@@ -134,7 +134,7 @@ static void	append_id_w(wchar_t **wp, int id);
 
 static int	acl_special(struct archive_entry *entry,
 		    int type, int permset, int tag);
-static struct ae_acl *acl_new_entry(struct archive_entry *entry,
+static struct ae_ace *acl_new_entry(struct archive_entry *entry,
 		    int type, int permset, int tag, int id);
 static int	isint_w(const wchar_t *start, const wchar_t *end, int *result);
 static int	ismode_w(const wchar_t *start, const wchar_t *end, int *result);
@@ -352,7 +352,7 @@ struct archive_entry *
 archive_entry_clone(struct archive_entry *entry)
 {
 	struct archive_entry *entry2;
-	struct ae_acl *ap, *ap2;
+	struct ae_ace *ap, *ap2;
 	struct ae_xattr *xp;
 	struct ae_sparse *sp;
 	size_t s;
@@ -376,7 +376,7 @@ archive_entry_clone(struct archive_entry *entry)
 	aes_copy(&entry2->ae_uname, &entry->ae_uname);
 
 	/* Copy ACL data over. */
-	ap = entry->acl_head;
+	ap = entry->acl.acl_head;
 	while (ap != NULL) {
 		ap2 = acl_new_entry(entry2,
 		    ap->type, ap->permset, ap->tag, ap->id);
@@ -1223,20 +1223,20 @@ archive_entry_copy_mac_metadata(struct archive_entry *entry,
 void
 archive_entry_acl_clear(struct archive_entry *entry)
 {
-	struct ae_acl	*ap;
+	struct ae_ace	*ap;
 
-	while (entry->acl_head != NULL) {
-		ap = entry->acl_head->next;
-		aes_clean(&entry->acl_head->name);
-		free(entry->acl_head);
-		entry->acl_head = ap;
+	while (entry->acl.acl_head != NULL) {
+		ap = entry->acl.acl_head->next;
+		aes_clean(&entry->acl.acl_head->name);
+		free(entry->acl.acl_head);
+		entry->acl.acl_head = ap;
 	}
-	if (entry->acl_text_w != NULL) {
-		free(entry->acl_text_w);
-		entry->acl_text_w = NULL;
+	if (entry->acl.acl_text_w != NULL) {
+		free(entry->acl.acl_text_w);
+		entry->acl.acl_text_w = NULL;
 	}
-	entry->acl_p = NULL;
-	entry->acl_state = 0; /* Not counting. */
+	entry->acl.acl_p = NULL;
+	entry->acl.acl_state = 0; /* Not counting. */
 }
 
 /*
@@ -1246,7 +1246,7 @@ void
 archive_entry_acl_add_entry(struct archive_entry *entry,
     int type, int permset, int tag, int id, const char *name)
 {
-	struct ae_acl *ap;
+	struct ae_ace *ap;
 
 	if (acl_special(entry, type, permset, tag) == 0)
 		return;
@@ -1275,7 +1275,7 @@ static void
 archive_entry_acl_add_entry_w_len(struct archive_entry *entry,
     int type, int permset, int tag, int id, const wchar_t *name, size_t len)
 {
-	struct ae_acl *ap;
+	struct ae_ace *ap;
 
 	if (acl_special(entry, type, permset, tag) == 0)
 		return;
@@ -1320,24 +1320,24 @@ acl_special(struct archive_entry *entry, int type, int permset, int tag)
  * Allocate and populate a new ACL entry with everything but the
  * name.
  */
-static struct ae_acl *
+static struct ae_ace *
 acl_new_entry(struct archive_entry *entry,
     int type, int permset, int tag, int id)
 {
-	struct ae_acl *ap, *aq;
+	struct ae_ace *ap, *aq;
 
 	if (type != ARCHIVE_ENTRY_ACL_TYPE_ACCESS &&
 	    type != ARCHIVE_ENTRY_ACL_TYPE_DEFAULT)
 		return (NULL);
-	if (entry->acl_text_w != NULL) {
-		free(entry->acl_text_w);
-		entry->acl_text_w = NULL;
+	if (entry->acl.acl_text_w != NULL) {
+		free(entry->acl.acl_text_w);
+		entry->acl.acl_text_w = NULL;
 	}
 
 	/* XXX TODO: More sanity-checks on the arguments XXX */
 
 	/* If there's a matching entry already in the list, overwrite it. */
-	ap = entry->acl_head;
+	ap = entry->acl.acl_head;
 	aq = NULL;
 	while (ap != NULL) {
 		if (ap->type == type && ap->tag == tag && ap->id == id) {
@@ -1349,12 +1349,12 @@ acl_new_entry(struct archive_entry *entry,
 	}
 
 	/* Add a new entry to the end of the list. */
-	ap = (struct ae_acl *)malloc(sizeof(*ap));
+	ap = (struct ae_ace *)malloc(sizeof(*ap));
 	if (ap == NULL)
 		return (NULL);
 	memset(ap, 0, sizeof(*ap));
 	if (aq == NULL)
-		entry->acl_head = ap;
+		entry->acl.acl_head = ap;
 	else
 		aq->next = ap;
 	ap->type = type;
@@ -1371,10 +1371,10 @@ int
 archive_entry_acl_count(struct archive_entry *entry, int want_type)
 {
 	int count;
-	struct ae_acl *ap;
+	struct ae_ace *ap;
 
 	count = 0;
-	ap = entry->acl_head;
+	ap = entry->acl.acl_head;
 	while (ap != NULL) {
 		if ((ap->type & want_type) != 0)
 			count++;
@@ -1409,10 +1409,10 @@ archive_entry_acl_reset(struct archive_entry *entry, int want_type)
 		cutoff = 0;
 
 	if (count > cutoff)
-		entry->acl_state = ARCHIVE_ENTRY_ACL_USER_OBJ;
+		entry->acl.acl_state = ARCHIVE_ENTRY_ACL_USER_OBJ;
 	else
-		entry->acl_state = 0;
-	entry->acl_p = entry->acl_head;
+		entry->acl.acl_state = 0;
+	entry->acl.acl_p = entry->acl.acl_head;
 	return (count);
 }
 
@@ -1433,40 +1433,40 @@ archive_entry_acl_next(struct archive_entry *entry, int want_type, int *type,
 	 * (reading from list), or an entry type (retrieve that type
 	 * from ae_stat.aest_mode).
 	 */
-	if (entry->acl_state == 0)
+	if (entry->acl.acl_state == 0)
 		return (ARCHIVE_WARN);
 
 	/* The first three access entries are special. */
 	if ((want_type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
-		switch (entry->acl_state) {
+		switch (entry->acl.acl_state) {
 		case ARCHIVE_ENTRY_ACL_USER_OBJ:
 			*permset = (entry->ae_stat.aest_mode >> 6) & 7;
 			*type = ARCHIVE_ENTRY_ACL_TYPE_ACCESS;
 			*tag = ARCHIVE_ENTRY_ACL_USER_OBJ;
-			entry->acl_state = ARCHIVE_ENTRY_ACL_GROUP_OBJ;
+			entry->acl.acl_state = ARCHIVE_ENTRY_ACL_GROUP_OBJ;
 			return (ARCHIVE_OK);
 		case ARCHIVE_ENTRY_ACL_GROUP_OBJ:
 			*permset = (entry->ae_stat.aest_mode >> 3) & 7;
 			*type = ARCHIVE_ENTRY_ACL_TYPE_ACCESS;
 			*tag = ARCHIVE_ENTRY_ACL_GROUP_OBJ;
-			entry->acl_state = ARCHIVE_ENTRY_ACL_OTHER;
+			entry->acl.acl_state = ARCHIVE_ENTRY_ACL_OTHER;
 			return (ARCHIVE_OK);
 		case ARCHIVE_ENTRY_ACL_OTHER:
 			*permset = entry->ae_stat.aest_mode & 7;
 			*type = ARCHIVE_ENTRY_ACL_TYPE_ACCESS;
 			*tag = ARCHIVE_ENTRY_ACL_OTHER;
-			entry->acl_state = -1;
-			entry->acl_p = entry->acl_head;
+			entry->acl.acl_state = -1;
+			entry->acl.acl_p = entry->acl.acl_head;
 			return (ARCHIVE_OK);
 		default:
 			break;
 		}
 	}
 
-	while (entry->acl_p != NULL && (entry->acl_p->type & want_type) == 0)
-		entry->acl_p = entry->acl_p->next;
-	if (entry->acl_p == NULL) {
-		entry->acl_state = 0;
+	while (entry->acl.acl_p != NULL && (entry->acl.acl_p->type & want_type) == 0)
+		entry->acl.acl_p = entry->acl.acl_p->next;
+	if (entry->acl.acl_p == NULL) {
+		entry->acl.acl_state = 0;
 		*type = 0;
 		*permset = 0;
 		*tag = 0;
@@ -1474,12 +1474,12 @@ archive_entry_acl_next(struct archive_entry *entry, int want_type, int *type,
 		*name = NULL;
 		return (ARCHIVE_EOF); /* End of ACL entries. */
 	}
-	*type = entry->acl_p->type;
-	*permset = entry->acl_p->permset;
-	*tag = entry->acl_p->tag;
-	*id = entry->acl_p->id;
-	*name = aes_get_mbs(&entry->acl_p->name);
-	entry->acl_p = entry->acl_p->next;
+	*type = entry->acl.acl_p->type;
+	*permset = entry->acl.acl_p->permset;
+	*tag = entry->acl.acl_p->tag;
+	*id = entry->acl.acl_p->id;
+	*name = aes_get_mbs(&entry->acl.acl_p->name);
+	entry->acl.acl_p = entry->acl.acl_p->next;
 	return (ARCHIVE_OK);
 }
 
@@ -1495,19 +1495,19 @@ archive_entry_acl_text_w(struct archive_entry *entry, int flags)
 	const wchar_t *wname;
 	const wchar_t *prefix;
 	wchar_t separator;
-	struct ae_acl *ap;
+	struct ae_ace *ap;
 	int id;
 	wchar_t *wp;
 
-	if (entry->acl_text_w != NULL) {
-		free (entry->acl_text_w);
-		entry->acl_text_w = NULL;
+	if (entry->acl.acl_text_w != NULL) {
+		free (entry->acl.acl_text_w);
+		entry->acl.acl_text_w = NULL;
 	}
 
 	separator = L',';
 	count = 0;
 	length = 0;
-	ap = entry->acl_head;
+	ap = entry->acl.acl_head;
 	while (ap != NULL) {
 		if ((ap->type & flags) != 0) {
 			count++;
@@ -1540,7 +1540,7 @@ archive_entry_acl_text_w(struct archive_entry *entry, int flags)
 		return (NULL);
 
 	/* Now, allocate the string and actually populate it. */
-	wp = entry->acl_text_w = (wchar_t *)malloc(length * sizeof(wchar_t));
+	wp = entry->acl.acl_text_w = (wchar_t *)malloc(length * sizeof(wchar_t));
 	if (wp == NULL)
 		__archive_errx(1, "No memory to generate the text version of the ACL");
 	count = 0;
@@ -1555,7 +1555,7 @@ archive_entry_acl_text_w(struct archive_entry *entry, int flags)
 		    entry->ae_stat.aest_mode & 0007, -1);
 		count += 3;
 
-		ap = entry->acl_head;
+		ap = entry->acl.acl_head;
 		while (ap != NULL) {
 			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
 				wname = aes_get_wcs(&ap->name);
@@ -1578,7 +1578,7 @@ archive_entry_acl_text_w(struct archive_entry *entry, int flags)
 			prefix = L"default:";
 		else
 			prefix = NULL;
-		ap = entry->acl_head;
+		ap = entry->acl.acl_head;
 		count = 0;
 		while (ap != NULL) {
 			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) != 0) {
@@ -1597,7 +1597,7 @@ archive_entry_acl_text_w(struct archive_entry *entry, int flags)
 		}
 	}
 
-	return (entry->acl_text_w);
+	return (entry->acl.acl_text_w);
 }
 
 static void

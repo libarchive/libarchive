@@ -53,13 +53,20 @@ struct aes {
 #define	AES_SET_WCS 4
 };
 
-struct ae_acl {
-	struct ae_acl *next;
+struct ae_ace {
+	struct ae_ace *next;
 	int	type;			/* E.g., access or default */
 	int	tag;			/* E.g., user/group/other/mask */
 	int	permset;		/* r/w/x bits */
 	int	id;			/* uid/gid for user/group */
 	struct aes name;		/* uname/gname */
+};
+
+struct ae_acl {
+	struct ae_ace	*acl_head;
+	struct ae_ace	*acl_p;
+	int		 acl_state;	/* See acl_next for details. */
+	wchar_t		*acl_text_w;
 };
 
 struct ae_xattr {
@@ -177,10 +184,7 @@ struct archive_entry {
 	size_t mac_metadata_size;
 
 	/* ACL support. */
-	struct ae_acl	*acl_head;
-	struct ae_acl	*acl_p;
-	int		 acl_state;	/* See acl_next for details. */
-	wchar_t		*acl_text_w;
+	struct ae_acl    acl;
 
 	/* extattr support. */
 	struct ae_xattr *xattr_head;
