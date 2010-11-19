@@ -5316,7 +5316,7 @@ isoent_tree(struct archive_write *a, struct isoent **isoentpp)
 			struct archive_string as;
 
 			archive_string_init(&as);
-			__archive_string_append(&as, p, fn - p + l);
+			archive_strncat(&as, p, fn - p + l);
 			if (as.s[as.length-1] == '/') {
 				as.s[as.length-1] = '\0';
 				as.length--;

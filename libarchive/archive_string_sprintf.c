@@ -69,7 +69,7 @@ append_int(struct archive_string *as, intmax_t d, unsigned base)
 
 
 void
-__archive_string_sprintf(struct archive_string *as, const char *fmt, ...)
+archive_string_sprintf(struct archive_string *as, const char *fmt, ...)
 {
 	va_list ap;
 
@@ -83,7 +83,7 @@ __archive_string_sprintf(struct archive_string *as, const char *fmt, ...)
  * necessary.
  */
 void
-__archive_string_vsprintf(struct archive_string *as, const char *fmt,
+archive_string_vsprintf(struct archive_string *as, const char *fmt,
     va_list ap)
 {
 	char long_flag;
@@ -92,7 +92,7 @@ __archive_string_vsprintf(struct archive_string *as, const char *fmt,
 	const char *p, *p2;
 	const wchar_t *pw;
 
-	if (__archive_string_ensure(as, 64) == NULL)
+	if (archive_string_ensure(as, 64) == NULL)
 		__archive_errx(1, "Out of memory");
 
 	if (fmt == NULL) {
@@ -122,11 +122,11 @@ __archive_string_vsprintf(struct archive_string *as, const char *fmt,
 
 		switch (*p) {
 		case '%':
-			__archive_strappend_char(as, '%');
+			archive_strappend_char(as, '%');
 			break;
 		case 'c':
 			s = va_arg(ap, int);
-			__archive_strappend_char(as, s);
+			archive_strappend_char(as, s);
 			break;
 		case 'd':
 			switch(long_flag) {

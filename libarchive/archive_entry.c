@@ -113,16 +113,6 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_entry.c 201096 2009-12-28 02:41:
 		if (ns < 0) { --t; ns += 1000000000; } \
 	} while (0)
 
-static void	aes_clean(struct aes *);
-static void	aes_copy(struct aes *dest, struct aes *src);
-static const char *	aes_get_mbs(struct aes *);
-static const wchar_t *	aes_get_wcs(struct aes *);
-static int	aes_set_mbs(struct aes *, const char *mbs);
-static int	aes_copy_mbs(struct aes *, const char *mbs);
-/* static void	aes_set_wcs(struct aes *, const wchar_t *wcs); */
-static int	aes_copy_wcs(struct aes *, const wchar_t *wcs);
-static int	aes_copy_wcs_len(struct aes *, const wchar_t *wcs, size_t);
-
 static char *	 ae_fflagstostr(unsigned long bitset, unsigned long bitclear);
 static const wchar_t	*ae_wcstofflags(const wchar_t *stringp,
 		    unsigned long *setp, unsigned long *clrp);
@@ -173,154 +163,6 @@ static size_t wcslen(const wchar_t *s)
 #define wmemcpy(a,b,i)  (wchar_t *)memcpy((a), (b), (i) * sizeof(wchar_t))
 #endif
 
-static void
-aes_clean(struct aes *aes)
-{
-	archive_wstring_free(&(aes->aes_wcs));
-	archive_string_free(&(aes->aes_mbs));
-	archive_string_free(&(aes->aes_utf8));
-	aes->aes_set = 0;
-}
-
-static void
-aes_copy(struct aes *dest, struct aes *src)
-{
-	dest->aes_set = src->aes_set;
-	archive_string_copy(&(dest->aes_mbs), &(src->aes_mbs));
-	archive_string_copy(&(dest->aes_utf8), &(src->aes_utf8));
-	archive_wstring_copy(&(dest->aes_wcs), &(src->aes_wcs));
-}
-
-static const char *
-aes_get_mbs(struct aes *aes)
-{
-	/* If we already have an MBS form, return that immediately. */
-	if (aes->aes_set & AES_SET_MBS)
-		return (aes->aes_mbs.s);
-	/* If there's a WCS form, try converting with the native locale. */
-	if ((aes->aes_set & AES_SET_WCS)
-	    && archive_strappend_w_mbs(&(aes->aes_mbs), aes->aes_wcs.s) != NULL) {
-		aes->aes_set |= AES_SET_MBS;
-		return (aes->aes_mbs.s);
-	}
-	/* We'll use UTF-8 for MBS if all else fails. */
-	if (aes->aes_set & AES_SET_UTF8)
-		return (aes->aes_utf8.s);
-	if ((aes->aes_set & AES_SET_WCS)
-	    && archive_strappend_w_utf8(&(aes->aes_utf8), aes->aes_wcs.s) != NULL) {
-		aes->aes_set |= AES_SET_UTF8;
-		return (aes->aes_utf8.s);
-	}
-	return (NULL);
-}
-
-static const wchar_t *
-aes_get_wcs(struct aes *aes)
-{
-	/* Return WCS form if we already have it. */
-	if (aes->aes_set & AES_SET_WCS)
-		return (aes->aes_wcs.s);
-	/* Try converting UTF8 to WCS. */
-	if ((aes->aes_set & AES_SET_UTF8)
-	    && !__archive_wstrappend_utf8(&(aes->aes_wcs), &(aes->aes_utf8))) {
-		aes->aes_set |= AES_SET_WCS;
-		return (aes->aes_wcs.s);
-	}
-	/* Try converting MBS to WCS using native locale. */
-	if ((aes->aes_set & AES_SET_MBS)
-	    && !__archive_wstrappend_mbs(&(aes->aes_wcs), &(aes->aes_mbs))) {
-		aes->aes_set |= AES_SET_WCS;
-		return (aes->aes_wcs.s);
-	}
-	return (NULL);
-}
-
-static int
-aes_set_mbs(struct aes *aes, const char *mbs)
-{
-	return (aes_copy_mbs(aes, mbs));
-}
-
-static int
-aes_copy_mbs(struct aes *aes, const char *mbs)
-{
-	if (mbs == NULL) {
-		aes->aes_set = 0;
-		return (0);
-	}
-	aes->aes_set = AES_SET_MBS; /* Only MBS form is set now. */
-	archive_strcpy(&(aes->aes_mbs), mbs);
-	archive_string_empty(&(aes->aes_utf8));
-	archive_wstring_empty(&(aes->aes_wcs));
-	return (0);
-}
-
-/*
- * The 'update' form tries to proactively update all forms of
- * this string (WCS and MBS) and returns an error if any of
- * them fail.  This is used by the 'pax' handler, for instance,
- * to detect and report character-conversion failures early while
- * still allowing clients to get potentially useful values from
- * the more tolerant lazy conversions.  (get_mbs and get_wcs will
- * strive to give the user something useful, so you can get hopefully
- * usable values even if some of the character conversions are failing.)
- */
-static int
-aes_update_utf8(struct aes *aes, const char *utf8)
-{
-	if (utf8 == NULL) {
-		aes->aes_set = 0;
-		return (1); /* Succeeded in clearing everything. */
-	}
-
-	/* Save the UTF8 string. */
-	archive_strcpy(&(aes->aes_utf8), utf8);
-
-	/* Empty the mbs and wcs strings. */
-	archive_string_empty(&(aes->aes_mbs));
-	archive_wstring_empty(&(aes->aes_wcs));
-
-	aes->aes_set = AES_SET_UTF8;	/* Only UTF8 is set now. */
-
-	/* TODO: We should just do a direct UTF-8 to MBS conversion
-	 * here.  That would be faster, use less space, and give the
-	 * same information.  (If a UTF-8 to MBS conversion succeeds,
-	 * then UTF-8->WCS and Unicode->MBS conversions will both
-	 * succeed.) */
-
-	/* Try converting UTF8 to WCS, return false on failure. */
-	if (__archive_wstrappend_utf8(&(aes->aes_wcs), &(aes->aes_utf8)))
-		return (0);
-	aes->aes_set = AES_SET_UTF8 | AES_SET_WCS; /* Both UTF8 and WCS set. */
-
-	/* Try converting WCS to MBS, return false on failure. */
-	if (archive_strappend_w_mbs(&(aes->aes_mbs), aes->aes_wcs.s) == NULL)
-		return (0);
-	aes->aes_set = AES_SET_UTF8 | AES_SET_WCS | AES_SET_MBS;
-
-	/* All conversions succeeded. */
-	return (1);
-}
-
-static int
-aes_copy_wcs(struct aes *aes, const wchar_t *wcs)
-{
-	return aes_copy_wcs_len(aes, wcs, wcs == NULL ? 0 : wcslen(wcs));
-}
-
-static int
-aes_copy_wcs_len(struct aes *aes, const wchar_t *wcs, size_t len)
-{
-	if (wcs == NULL) {
-		aes->aes_set = 0;
-	}
-	aes->aes_set = AES_SET_WCS; /* Only WCS form set. */
-	archive_string_empty(&(aes->aes_mbs));
-	archive_string_empty(&(aes->aes_utf8));
-	archive_wstrncpy(&(aes->aes_wcs), wcs, len);
-	return (0);
-}
-
 /****************************************************************************
  *
  * Public Interface
@@ -332,13 +174,13 @@ archive_entry_clear(struct archive_entry *entry)
 {
 	if (entry == NULL)
 		return (NULL);
-	aes_clean(&entry->ae_fflags_text);
-	aes_clean(&entry->ae_gname);
-	aes_clean(&entry->ae_hardlink);
-	aes_clean(&entry->ae_pathname);
-	aes_clean(&entry->ae_sourcepath);
-	aes_clean(&entry->ae_symlink);
-	aes_clean(&entry->ae_uname);
+	archive_mstring_clean(&entry->ae_fflags_text);
+	archive_mstring_clean(&entry->ae_gname);
+	archive_mstring_clean(&entry->ae_hardlink);
+	archive_mstring_clean(&entry->ae_pathname);
+	archive_mstring_clean(&entry->ae_sourcepath);
+	archive_mstring_clean(&entry->ae_symlink);
+	archive_mstring_clean(&entry->ae_uname);
 	archive_entry_copy_mac_metadata(entry, NULL, 0);
 	archive_entry_acl_clear(entry);
 	archive_entry_xattr_clear(entry);
@@ -366,14 +208,14 @@ archive_entry_clone(struct archive_entry *entry)
 	entry2->ae_fflags_set = entry->ae_fflags_set;
 	entry2->ae_fflags_clear = entry->ae_fflags_clear;
 
-	aes_copy(&entry2->ae_fflags_text, &entry->ae_fflags_text);
-	aes_copy(&entry2->ae_gname, &entry->ae_gname);
-	aes_copy(&entry2->ae_hardlink, &entry->ae_hardlink);
-	aes_copy(&entry2->ae_pathname, &entry->ae_pathname);
-	aes_copy(&entry2->ae_sourcepath, &entry->ae_sourcepath);
-	aes_copy(&entry2->ae_symlink, &entry->ae_symlink);
+	archive_mstring_copy(&entry2->ae_fflags_text, &entry->ae_fflags_text);
+	archive_mstring_copy(&entry2->ae_gname, &entry->ae_gname);
+	archive_mstring_copy(&entry2->ae_hardlink, &entry->ae_hardlink);
+	archive_mstring_copy(&entry2->ae_pathname, &entry->ae_pathname);
+	archive_mstring_copy(&entry2->ae_sourcepath, &entry->ae_sourcepath);
+	archive_mstring_copy(&entry2->ae_symlink, &entry->ae_symlink);
 	entry2->ae_set = entry->ae_set;
-	aes_copy(&entry2->ae_uname, &entry->ae_uname);
+	archive_mstring_copy(&entry2->ae_uname, &entry->ae_uname);
 
 	/* Copy ACL data over. */
 	ap = entry->acl.acl_head;
@@ -381,7 +223,7 @@ archive_entry_clone(struct archive_entry *entry)
 		ap2 = acl_new_entry(entry2,
 		    ap->type, ap->permset, ap->tag, ap->id);
 		if (ap2 != NULL)
-			aes_copy(&ap2->name, &ap->name);
+			archive_mstring_copy(&ap2->name, &ap->name);
 		ap = ap->next;
 	}
 
@@ -542,7 +384,7 @@ archive_entry_fflags_text(struct archive_entry *entry)
 	const char *f;
 	char *p;
 
-	f = aes_get_mbs(&entry->ae_fflags_text);
+	f = archive_mstring_get_mbs(&entry->ae_fflags_text);
 	if (f != NULL)
 		return (f);
 
@@ -553,9 +395,9 @@ archive_entry_fflags_text(struct archive_entry *entry)
 	if (p == NULL)
 		return (NULL);
 
-	aes_copy_mbs(&entry->ae_fflags_text, p);
+	archive_mstring_copy_mbs(&entry->ae_fflags_text, p);
 	free(p);
-	f = aes_get_mbs(&entry->ae_fflags_text);
+	f = archive_mstring_get_mbs(&entry->ae_fflags_text);
 	return (f);
 }
 
@@ -573,20 +415,20 @@ archive_entry_gid(struct archive_entry *entry)
 const char *
 archive_entry_gname(struct archive_entry *entry)
 {
-	return (aes_get_mbs(&entry->ae_gname));
+	return (archive_mstring_get_mbs(&entry->ae_gname));
 }
 
 const wchar_t *
 archive_entry_gname_w(struct archive_entry *entry)
 {
-	return (aes_get_wcs(&entry->ae_gname));
+	return (archive_mstring_get_wcs(&entry->ae_gname));
 }
 
 const char *
 archive_entry_hardlink(struct archive_entry *entry)
 {
 	if (entry->ae_set & AE_SET_HARDLINK)
-		return (aes_get_mbs(&entry->ae_hardlink));
+		return (archive_mstring_get_mbs(&entry->ae_hardlink));
 	return (NULL);
 }
 
@@ -594,7 +436,7 @@ const wchar_t *
 archive_entry_hardlink_w(struct archive_entry *entry)
 {
 	if (entry->ae_set & AE_SET_HARDLINK)
-		return (aes_get_wcs(&entry->ae_hardlink));
+		return (archive_mstring_get_wcs(&entry->ae_hardlink));
 	return (NULL);
 }
 
@@ -651,13 +493,13 @@ archive_entry_nlink(struct archive_entry *entry)
 const char *
 archive_entry_pathname(struct archive_entry *entry)
 {
-	return (aes_get_mbs(&entry->ae_pathname));
+	return (archive_mstring_get_mbs(&entry->ae_pathname));
 }
 
 const wchar_t *
 archive_entry_pathname_w(struct archive_entry *entry)
 {
-	return (aes_get_wcs(&entry->ae_pathname));
+	return (archive_mstring_get_wcs(&entry->ae_pathname));
 }
 
 mode_t
@@ -709,14 +551,14 @@ archive_entry_size_is_set(struct archive_entry *entry)
 const char *
 archive_entry_sourcepath(struct archive_entry *entry)
 {
-	return (aes_get_mbs(&entry->ae_sourcepath));
+	return (archive_mstring_get_mbs(&entry->ae_sourcepath));
 }
 
 const char *
 archive_entry_symlink(struct archive_entry *entry)
 {
 	if (entry->ae_set & AE_SET_SYMLINK)
-		return (aes_get_mbs(&entry->ae_symlink));
+		return (archive_mstring_get_mbs(&entry->ae_symlink));
 	return (NULL);
 }
 
@@ -724,7 +566,7 @@ const wchar_t *
 archive_entry_symlink_w(struct archive_entry *entry)
 {
 	if (entry->ae_set & AE_SET_SYMLINK)
-		return (aes_get_wcs(&entry->ae_symlink));
+		return (archive_mstring_get_wcs(&entry->ae_symlink));
 	return (NULL);
 }
 
@@ -742,13 +584,13 @@ archive_entry_uid(struct archive_entry *entry)
 const char *
 archive_entry_uname(struct archive_entry *entry)
 {
-	return (aes_get_mbs(&entry->ae_uname));
+	return (archive_mstring_get_mbs(&entry->ae_uname));
 }
 
 const wchar_t *
 archive_entry_uname_w(struct archive_entry *entry)
 {
-	return (aes_get_wcs(&entry->ae_uname));
+	return (archive_mstring_get_wcs(&entry->ae_uname));
 }
 
 /*
@@ -767,7 +609,7 @@ void
 archive_entry_set_fflags(struct archive_entry *entry,
     unsigned long set, unsigned long clear)
 {
-	aes_clean(&entry->ae_fflags_text);
+	archive_mstring_clean(&entry->ae_fflags_text);
 	entry->ae_fflags_set = set;
 	entry->ae_fflags_clear = clear;
 }
@@ -776,7 +618,7 @@ const char *
 archive_entry_copy_fflags_text(struct archive_entry *entry,
     const char *flags)
 {
-	aes_copy_mbs(&entry->ae_fflags_text, flags);
+	archive_mstring_copy_mbs(&entry->ae_fflags_text, flags);
 	return (ae_strtofflags(flags,
 		    &entry->ae_fflags_set, &entry->ae_fflags_clear));
 }
@@ -785,7 +627,7 @@ const wchar_t *
 archive_entry_copy_fflags_text_w(struct archive_entry *entry,
     const wchar_t *flags)
 {
-	aes_copy_wcs(&entry->ae_fflags_text, flags);
+	archive_mstring_copy_wcs(&entry->ae_fflags_text, flags);
 	return (ae_wcstofflags(flags,
 		    &entry->ae_fflags_set, &entry->ae_fflags_clear));
 }
@@ -805,25 +647,25 @@ archive_entry_set_gid(struct archive_entry *entry, int64_t g)
 void
 archive_entry_set_gname(struct archive_entry *entry, const char *name)
 {
-	aes_set_mbs(&entry->ae_gname, name);
+	archive_mstring_copy_mbs(&entry->ae_gname, name);
 }
 
 void
 archive_entry_copy_gname(struct archive_entry *entry, const char *name)
 {
-	aes_copy_mbs(&entry->ae_gname, name);
+	archive_mstring_copy_mbs(&entry->ae_gname, name);
 }
 
 void
 archive_entry_copy_gname_w(struct archive_entry *entry, const wchar_t *name)
 {
-	aes_copy_wcs(&entry->ae_gname, name);
+	archive_mstring_copy_wcs(&entry->ae_gname, name);
 }
 
 int
 archive_entry_update_gname_utf8(struct archive_entry *entry, const char *name)
 {
-	return (aes_update_utf8(&entry->ae_gname, name));
+	return (archive_mstring_update_utf8(&entry->ae_gname, name));
 }
 
 #if ARCHIVE_VERSION_NUMBER < 3000000
@@ -852,7 +694,7 @@ archive_entry_set_ino64(struct archive_entry *entry, int64_t ino)
 void
 archive_entry_set_hardlink(struct archive_entry *entry, const char *target)
 {
-	aes_set_mbs(&entry->ae_hardlink, target);
+	archive_mstring_copy_mbs(&entry->ae_hardlink, target);
 	if (target != NULL)
 		entry->ae_set |= AE_SET_HARDLINK;
 	else
@@ -862,7 +704,7 @@ archive_entry_set_hardlink(struct archive_entry *entry, const char *target)
 void
 archive_entry_copy_hardlink(struct archive_entry *entry, const char *target)
 {
-	aes_copy_mbs(&entry->ae_hardlink, target);
+	archive_mstring_copy_mbs(&entry->ae_hardlink, target);
 	if (target != NULL)
 		entry->ae_set |= AE_SET_HARDLINK;
 	else
@@ -872,7 +714,7 @@ archive_entry_copy_hardlink(struct archive_entry *entry, const char *target)
 void
 archive_entry_copy_hardlink_w(struct archive_entry *entry, const wchar_t *target)
 {
-	aes_copy_wcs(&entry->ae_hardlink, target);
+	archive_mstring_copy_wcs(&entry->ae_hardlink, target);
 	if (target != NULL)
 		entry->ae_set |= AE_SET_HARDLINK;
 	else
@@ -886,7 +728,7 @@ archive_entry_update_hardlink_utf8(struct archive_entry *entry, const char *targ
 		entry->ae_set |= AE_SET_HARDLINK;
 	else
 		entry->ae_set &= ~AE_SET_HARDLINK;
-	return (aes_update_utf8(&entry->ae_hardlink, target));
+	return (archive_mstring_update_utf8(&entry->ae_hardlink, target));
 }
 
 void
@@ -969,9 +811,9 @@ void
 archive_entry_set_link(struct archive_entry *entry, const char *target)
 {
 	if (entry->ae_set & AE_SET_SYMLINK)
-		aes_set_mbs(&entry->ae_symlink, target);
+		archive_mstring_copy_mbs(&entry->ae_symlink, target);
 	else
-		aes_set_mbs(&entry->ae_hardlink, target);
+		archive_mstring_copy_mbs(&entry->ae_hardlink, target);
 }
 
 /* Set symlink if symlink is already set, else set hardlink. */
@@ -979,9 +821,9 @@ void
 archive_entry_copy_link(struct archive_entry *entry, const char *target)
 {
 	if (entry->ae_set & AE_SET_SYMLINK)
-		aes_copy_mbs(&entry->ae_symlink, target);
+		archive_mstring_copy_mbs(&entry->ae_symlink, target);
 	else
-		aes_copy_mbs(&entry->ae_hardlink, target);
+		archive_mstring_copy_mbs(&entry->ae_hardlink, target);
 }
 
 /* Set symlink if symlink is already set, else set hardlink. */
@@ -989,18 +831,18 @@ void
 archive_entry_copy_link_w(struct archive_entry *entry, const wchar_t *target)
 {
 	if (entry->ae_set & AE_SET_SYMLINK)
-		aes_copy_wcs(&entry->ae_symlink, target);
+		archive_mstring_copy_wcs(&entry->ae_symlink, target);
 	else
-		aes_copy_wcs(&entry->ae_hardlink, target);
+		archive_mstring_copy_wcs(&entry->ae_hardlink, target);
 }
 
 int
 archive_entry_update_link_utf8(struct archive_entry *entry, const char *target)
 {
 	if (entry->ae_set & AE_SET_SYMLINK)
-		return (aes_update_utf8(&entry->ae_symlink, target));
+		return (archive_mstring_update_utf8(&entry->ae_symlink, target));
 	else
-		return (aes_update_utf8(&entry->ae_hardlink, target));
+		return (archive_mstring_update_utf8(&entry->ae_hardlink, target));
 }
 
 void
@@ -1037,25 +879,25 @@ archive_entry_set_nlink(struct archive_entry *entry, unsigned int nlink)
 void
 archive_entry_set_pathname(struct archive_entry *entry, const char *name)
 {
-	aes_set_mbs(&entry->ae_pathname, name);
+	archive_mstring_copy_mbs(&entry->ae_pathname, name);
 }
 
 void
 archive_entry_copy_pathname(struct archive_entry *entry, const char *name)
 {
-	aes_copy_mbs(&entry->ae_pathname, name);
+	archive_mstring_copy_mbs(&entry->ae_pathname, name);
 }
 
 void
 archive_entry_copy_pathname_w(struct archive_entry *entry, const wchar_t *name)
 {
-	aes_copy_wcs(&entry->ae_pathname, name);
+	archive_mstring_copy_wcs(&entry->ae_pathname, name);
 }
 
 int
 archive_entry_update_pathname_utf8(struct archive_entry *entry, const char *name)
 {
-	return (aes_update_utf8(&entry->ae_pathname, name));
+	return (archive_mstring_update_utf8(&entry->ae_pathname, name));
 }
 
 void
@@ -1108,13 +950,13 @@ archive_entry_unset_size(struct archive_entry *entry)
 void
 archive_entry_copy_sourcepath(struct archive_entry *entry, const char *path)
 {
-	aes_set_mbs(&entry->ae_sourcepath, path);
+	archive_mstring_copy_mbs(&entry->ae_sourcepath, path);
 }
 
 void
 archive_entry_set_symlink(struct archive_entry *entry, const char *linkname)
 {
-	aes_set_mbs(&entry->ae_symlink, linkname);
+	archive_mstring_copy_mbs(&entry->ae_symlink, linkname);
 	if (linkname != NULL)
 		entry->ae_set |= AE_SET_SYMLINK;
 	else
@@ -1124,7 +966,7 @@ archive_entry_set_symlink(struct archive_entry *entry, const char *linkname)
 void
 archive_entry_copy_symlink(struct archive_entry *entry, const char *linkname)
 {
-	aes_copy_mbs(&entry->ae_symlink, linkname);
+	archive_mstring_copy_mbs(&entry->ae_symlink, linkname);
 	if (linkname != NULL)
 		entry->ae_set |= AE_SET_SYMLINK;
 	else
@@ -1134,7 +976,7 @@ archive_entry_copy_symlink(struct archive_entry *entry, const char *linkname)
 void
 archive_entry_copy_symlink_w(struct archive_entry *entry, const wchar_t *linkname)
 {
-	aes_copy_wcs(&entry->ae_symlink, linkname);
+	archive_mstring_copy_wcs(&entry->ae_symlink, linkname);
 	if (linkname != NULL)
 		entry->ae_set |= AE_SET_SYMLINK;
 	else
@@ -1148,7 +990,7 @@ archive_entry_update_symlink_utf8(struct archive_entry *entry, const char *linkn
 		entry->ae_set |= AE_SET_SYMLINK;
 	else
 		entry->ae_set &= ~AE_SET_SYMLINK;
-	return (aes_update_utf8(&entry->ae_symlink, linkname));
+	return (archive_mstring_update_utf8(&entry->ae_symlink, linkname));
 }
 
 #if ARCHIVE_VERSION_NUMBER < 3000000
@@ -1166,25 +1008,25 @@ archive_entry_set_uid(struct archive_entry *entry, int64_t u)
 void
 archive_entry_set_uname(struct archive_entry *entry, const char *name)
 {
-	aes_set_mbs(&entry->ae_uname, name);
+	archive_mstring_copy_mbs(&entry->ae_uname, name);
 }
 
 void
 archive_entry_copy_uname(struct archive_entry *entry, const char *name)
 {
-	aes_copy_mbs(&entry->ae_uname, name);
+	archive_mstring_copy_mbs(&entry->ae_uname, name);
 }
 
 void
 archive_entry_copy_uname_w(struct archive_entry *entry, const wchar_t *name)
 {
-	aes_copy_wcs(&entry->ae_uname, name);
+	archive_mstring_copy_wcs(&entry->ae_uname, name);
 }
 
 int
 archive_entry_update_uname_utf8(struct archive_entry *entry, const char *name)
 {
-	return (aes_update_utf8(&entry->ae_uname, name));
+	return (archive_mstring_update_utf8(&entry->ae_uname, name));
 }
 
 const void *
@@ -1227,7 +1069,7 @@ archive_entry_acl_clear(struct archive_entry *entry)
 
 	while (entry->acl.acl_head != NULL) {
 		ap = entry->acl.acl_head->next;
-		aes_clean(&entry->acl.acl_head->name);
+		archive_mstring_clean(&entry->acl.acl_head->name);
 		free(entry->acl.acl_head);
 		entry->acl.acl_head = ap;
 	}
@@ -1256,9 +1098,9 @@ archive_entry_acl_add_entry(struct archive_entry *entry,
 		return;
 	}
 	if (name != NULL  &&  *name != '\0')
-		aes_copy_mbs(&ap->name, name);
+		archive_mstring_copy_mbs(&ap->name, name);
 	else
-		aes_clean(&ap->name);
+		archive_mstring_clean(&ap->name);
 }
 
 /*
@@ -1285,9 +1127,9 @@ archive_entry_acl_add_entry_w_len(struct archive_entry *entry,
 		return;
 	}
 	if (name != NULL  &&  *name != L'\0' && len > 0)
-		aes_copy_wcs_len(&ap->name, name, len);
+		archive_mstring_copy_wcs_len(&ap->name, name, len);
 	else
-		aes_clean(&ap->name);
+		archive_mstring_clean(&ap->name);
 }
 
 /*
@@ -1478,7 +1320,7 @@ archive_entry_acl_next(struct archive_entry *entry, int want_type, int *type,
 	*permset = entry->acl.acl_p->permset;
 	*tag = entry->acl.acl_p->tag;
 	*id = entry->acl.acl_p->id;
-	*name = aes_get_mbs(&entry->acl.acl_p->name);
+	*name = archive_mstring_get_mbs(&entry->acl.acl_p->name);
 	entry->acl.acl_p = entry->acl.acl_p->next;
 	return (ARCHIVE_OK);
 }
@@ -1516,7 +1358,7 @@ archive_entry_acl_text_w(struct archive_entry *entry, int flags)
 				length += 8; /* "default:" */
 			length += 5; /* tag name */
 			length += 1; /* colon */
-			wname = aes_get_wcs(&ap->name);
+			wname = archive_mstring_get_wcs(&ap->name);
 			if (wname != NULL)
 				length += wcslen(wname);
 			else
@@ -1558,7 +1400,7 @@ archive_entry_acl_text_w(struct archive_entry *entry, int flags)
 		ap = entry->acl.acl_head;
 		while (ap != NULL) {
 			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
-				wname = aes_get_wcs(&ap->name);
+				wname = archive_mstring_get_wcs(&ap->name);
 				*wp++ = separator;
 				if (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)
 					id = ap->id;
@@ -1582,7 +1424,7 @@ archive_entry_acl_text_w(struct archive_entry *entry, int flags)
 		count = 0;
 		while (ap != NULL) {
 			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) != 0) {
-				wname = aes_get_wcs(&ap->name);
+				wname = archive_mstring_get_wcs(&ap->name);
 				if (count > 0)
 					*wp++ = separator;
 				if (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)

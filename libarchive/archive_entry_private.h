@@ -34,32 +34,13 @@
 
 #include "archive_string.h"
 
-/*
- * Handle wide character (i.e., Unicode) and non-wide character
- * strings transparently.
- */
-
-struct aes {
-	struct archive_string aes_mbs;
-	struct archive_string aes_utf8;
-	struct archive_wstring aes_wcs;
-	/* Bitmap of which of the above are valid.  Because we're lazy
-	 * about malloc-ing and reusing the underlying storage, we
-	 * can't rely on NULL pointers to indicate whether a string
-	 * has been set. */
-	int aes_set;
-#define	AES_SET_MBS 1
-#define	AES_SET_UTF8 2
-#define	AES_SET_WCS 4
-};
-
 struct ae_ace {
 	struct ae_ace *next;
 	int	type;			/* E.g., access or default */
 	int	tag;			/* E.g., user/group/other/mask */
 	int	permset;		/* r/w/x bits */
 	int	id;			/* uid/gid for user/group */
-	struct aes name;		/* uname/gname */
+	struct archive_mstring name;		/* uname/gname */
 };
 
 struct ae_acl {
@@ -168,17 +149,17 @@ struct archive_entry {
 	/*
 	 * Use aes here so that we get transparent mbs<->wcs conversions.
 	 */
-	struct aes ae_fflags_text;	/* Text fflags per fflagstostr(3) */
+	struct archive_mstring ae_fflags_text;	/* Text fflags per fflagstostr(3) */
 	unsigned long ae_fflags_set;		/* Bitmap fflags */
 	unsigned long ae_fflags_clear;
-	struct aes ae_gname;		/* Name of owning group */
-	struct aes ae_hardlink;	/* Name of target for hardlink */
-	struct aes ae_pathname;	/* Name of entry */
-	struct aes ae_symlink;		/* symlink contents */
-	struct aes ae_uname;		/* Name of owner */
+	struct archive_mstring ae_gname;		/* Name of owning group */
+	struct archive_mstring ae_hardlink;	/* Name of target for hardlink */
+	struct archive_mstring ae_pathname;	/* Name of entry */
+	struct archive_mstring ae_symlink;		/* symlink contents */
+	struct archive_mstring ae_uname;		/* Name of owner */
 
 	/* Not used within libarchive; useful for some clients. */
-	struct aes ae_sourcepath;	/* Path this entry is sourced from. */
+	struct archive_mstring ae_sourcepath;	/* Path this entry is sourced from. */
 
 	void *mac_metadata;
 	size_t mac_metadata_size;
