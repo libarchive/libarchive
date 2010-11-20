@@ -235,7 +235,7 @@ static int	tar_read_header(struct archive_read *, struct tar *,
 static int	tohex(int c);
 static char	*url_decode(const char *);
 static wchar_t	*utf8_decode(struct tar *, const char *, size_t length);
-static inline void tar_flush_unconsumed(struct archive_read *, size_t *);
+static void	tar_flush_unconsumed(struct archive_read *, size_t *);
 
 
 int
