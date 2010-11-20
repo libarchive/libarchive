@@ -377,7 +377,7 @@ archive_read_format_tar_bid(struct archive_read *a)
  * how much unconsumed data we have floating around, and to consume
  * anything outstanding since we're going to do read_aheads
  */
-static inline void 
+static void 
 tar_flush_unconsumed(struct archive_read *a, size_t *unconsumed)
 {
 	if (*unconsumed) {
