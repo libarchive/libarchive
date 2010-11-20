@@ -91,6 +91,7 @@ distclean-local:
 include_HEADERS= libarchive/archive.h libarchive/archive_entry.h
 
 libarchive_la_SOURCES=						\
+	libarchive/archive_acl_private.h			\
 	libarchive/archive_check_magic.c			\
 	libarchive/archive_crc32.h				\
 	libarchive/archive_endian.h				\

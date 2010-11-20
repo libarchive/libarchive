@@ -32,23 +32,8 @@
 #ifndef ARCHIVE_ENTRY_PRIVATE_H_INCLUDED
 #define	ARCHIVE_ENTRY_PRIVATE_H_INCLUDED
 
+#include "archive_acl_private.h"
 #include "archive_string.h"
-
-struct ae_ace {
-	struct ae_ace *next;
-	int	type;			/* E.g., access or default */
-	int	tag;			/* E.g., user/group/other/mask */
-	int	permset;		/* r/w/x bits */
-	int	id;			/* uid/gid for user/group */
-	struct archive_mstring name;		/* uname/gname */
-};
-
-struct ae_acl {
-	struct ae_ace	*acl_head;
-	struct ae_ace	*acl_p;
-	int		 acl_state;	/* See acl_next for details. */
-	wchar_t		*acl_text_w;
-};
 
 struct ae_xattr {
 	struct ae_xattr *next;
@@ -115,7 +100,6 @@ struct archive_entry {
 		uint32_t	aest_birthtime_nsec;
 		int64_t		aest_gid;
 		int64_t		aest_ino;
-		mode_t		aest_mode;
 		uint32_t	aest_nlink;
 		uint64_t	aest_size;
 		int64_t		aest_uid;
@@ -165,7 +149,7 @@ struct archive_entry {
 	size_t mac_metadata_size;
 
 	/* ACL support. */
-	struct ae_acl    acl;
+	struct archive_acl    acl;
 
 	/* extattr support. */
 	struct ae_xattr *xattr_head;
@@ -179,16 +163,5 @@ struct archive_entry {
 	/* Miscellaneous. */
 	char		 strmode[12];
 };
-
-/*
- * Private ACL parser.  This is private because it handles some
- * very weird formats that clients should not be messing with.
- * Clients should only deal with their platform-native formats.
- * Because of the need to support many formats cleanly, new arguments
- * are likely to get added on a regular basis.  Clients who try to use
- * this interface are likely to be surprised when it changes.
- */
-int		 __archive_entry_acl_parse_w(struct archive_entry *,
-		    const wchar_t *, int /* type */);
 
 #endif /* ARCHIVE_ENTRY_PRIVATE_H_INCLUDED */

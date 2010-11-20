@@ -13,6 +13,7 @@ SET(include_HEADERS
 
 # Sources and private headers
 SET(libarchive_SOURCES
+  archive_acl.c
   archive_check_magic.c
   archive_endian.h
   archive_entry.c

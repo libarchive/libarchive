@@ -430,6 +430,11 @@ __LA_DECL const wchar_t	*archive_entry_acl_text_w(struct archive_entry *,
 /* Return a count of entries matching 'want_type' */
 __LA_DECL int	 archive_entry_acl_count(struct archive_entry *, int /* want_type */);
 
+/* Return an opaque ACL object. */
+/* There's not yet anything clients can actually do with this... */
+struct archive_acl;
+__LA_DECL struct archive_acl *archive_entry_acl(struct archive_entry *);
+
 
 /*
  * extended attributes

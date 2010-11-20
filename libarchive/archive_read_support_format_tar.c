@@ -68,8 +68,8 @@ static size_t wcslen(const wchar_t *s)
 #endif
 
 #include "archive.h"
+#include "archive_acl_private.h" /* For ACL parsing routines. */
 #include "archive_entry.h"
-#include "archive_entry_private.h" /* For ACL parsing routines. */
 #include "archive_private.h"
 #include "archive_read_private.h"
 
@@ -875,7 +875,7 @@ header_Solaris_ACL(struct archive_read *a, struct tar *tar,
 		p++;
 
 	wp = utf8_decode(tar, acl, p - acl);
-	err = __archive_entry_acl_parse_w(entry, wp,
+	err = archive_acl_parse_w(archive_entry_acl(entry), wp,
 	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
 	if (err != ARCHIVE_OK)
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -1610,12 +1610,12 @@ pax_attribute(struct tar *tar, struct archive_entry *entry,
 		if (strcmp(key, "SCHILY.acl.access")==0) {
 			wp = utf8_decode(tar, value, strlen(value));
 			/* TODO: if (wp == NULL) */
-			__archive_entry_acl_parse_w(entry, wp,
+			archive_acl_parse_w(archive_entry_acl(entry), wp,
 			    ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
 		} else if (strcmp(key, "SCHILY.acl.default")==0) {
 			wp = utf8_decode(tar, value, strlen(value));
 			/* TODO: if (wp == NULL) */
-			__archive_entry_acl_parse_w(entry, wp,
+			archive_acl_parse_w(archive_entry_acl(entry), wp,
 			    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT);
 		} else if (strcmp(key, "SCHILY.devmajor")==0) {
 			archive_entry_set_rdevmajor(entry,
