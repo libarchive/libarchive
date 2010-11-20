@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/test/main.c,v 1.3 2008/08/24 04:58:22 kient
 #define	PROGRAM "bsdcpio" /* Name of program being tested. */
 #undef	LIBRARY		  /* Not testing a library. */
 #undef	EXTRA_DUMP	  /* How to dump extra data */
-#undef	EXTRA_ERRNO(x)	  /* How to dump errno */
+#undef	EXTRA_ERRNO	  /* How to dump errno */
 /* How to generate extra version info. */
 #define	EXTRA_VERSION    (systemf("%s --version", testprog) ? "" : "")
 
