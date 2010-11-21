@@ -389,6 +389,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_tar_hardlink_1.tar.uu		\
 	libarchive/test/test_compat_xz_1.txz.uu				\
 	libarchive/test/test_compat_zip_1.zip.uu			\
+	libarchive/test/test_compat_zip_2.zip.uu			\
 	libarchive/test/test_fuzz_1.iso.Z.uu				\
 	libarchive/test/test_pax_filename_encoding.tar.uu		\
 	libarchive/test/test_read_format_ar.ar.uu			\
@@ -403,6 +404,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_gtar_sparse_1_17_posix10_modified.tar.uu \
 	libarchive/test/test_read_format_iso.iso.Z.uu			\
 	libarchive/test/test_read_format_iso_joliet.iso.Z.uu		\
+	libarchive/test/test_read_format_iso_joliet_by_nero.iso.Z.uu	\
 	libarchive/test/test_read_format_iso_joliet_long.iso.Z.uu	\
 	libarchive/test/test_read_format_iso_joliet_rockridge.iso.Z.uu	\
 	libarchive/test/test_read_format_iso_multi_extent.iso.Z.uu	\
