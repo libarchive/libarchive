@@ -92,7 +92,7 @@ AC_SUBST(PLATFORMCPPFLAGS)
 AC_PROG_CC
 AM_PROG_CC_C_O
 AC_USE_SYSTEM_EXTENSIONS
-#AC_LIBTOOL_WIN32_DLL
+AC_LIBTOOL_WIN32_DLL
 AC_PROG_LIBTOOL
 AC_CHECK_TOOL([STRIP],[strip])
 
@@ -271,7 +271,7 @@ AC_DEFUN([MD_CHECK], [
     CPPFLAGS="$CPPFLAGS -I$srcdir/libarchive"
     LIBS="$LIBS $4"
     AC_MSG_CHECKING([support for ARCHIVE_HASH_$1_$2])
-    AC_LINK_IFELSE([
+    AC_LINK_IFELSE([AC_LANG_SOURCE([
 #define $1_COMPILE_TEST
 #define ARCHIVE_HASH_$1_$2
 #define __LIBARCHIVE_BUILD
@@ -287,7 +287,7 @@ main(int argc, char **argv)
 	archive_$3_final(&ctx, *argv);
 	return 0;
 }
-],
+])],
     [ AC_MSG_RESULT([yes])
       found_$1=yes
       mdLIBS="$mdLIBS $4"
