@@ -91,6 +91,7 @@ distclean-local:
 include_HEADERS= libarchive/archive.h libarchive/archive_entry.h
 
 libarchive_la_SOURCES=						\
+	libarchive/archive_acl.c				\
 	libarchive/archive_acl_private.h			\
 	libarchive/archive_check_magic.c			\
 	libarchive/archive_crc32.h				\
@@ -317,6 +318,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_pax_truncated.c		\
 	libarchive/test/test_read_position.c			\
 	libarchive/test/test_read_truncated.c			\
+	libarchive/test/test_read_truncated_filter.c		\
 	libarchive/test/test_read_uu.c				\
 	libarchive/test/test_sparse_basic.c			\
 	libarchive/test/test_tar_filenames.c			\
