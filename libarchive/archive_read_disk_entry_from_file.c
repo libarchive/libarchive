@@ -286,6 +286,7 @@ setup_mac_metadata(struct archive_read_disk *a,
 	if (have_attrs == 0)
 		return (ARCHIVE_OK);
 
+	tempdir = NULL;
 	if (issetugid() == 0)
 		tempdir = getenv("TMPDIR");
 	if (tempdir == NULL)
