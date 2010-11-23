@@ -61,6 +61,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -115,6 +118,7 @@ struct tree_entry {
 	dev_t dev;
 	ino_t ino;
 	int flags;
+	int filesystem_id;
 	/* How to return back to the parent of a symlink. */
 #ifdef HAVE_FCHDIR
 	int symlink_parent_fd;
@@ -127,6 +131,7 @@ struct filesystem {
 	int64_t		dev;
 	int		synthetic;
 	int		remote;
+	size_t		name_max;
 };
 
 /* Definitions for tree_entry.flags bitmap. */
@@ -146,6 +151,8 @@ struct tree {
 	DIR	*d;
 #define	INVALID_DIR_HANDLE NULL
 	struct dirent *de;
+	struct dirent *dirent;
+	size_t	 dirent_allocated;
 	int	 flags;
 	int	 visit_type;
 	int	 tree_errno; /* Error code from last failed operation. */
@@ -190,7 +197,7 @@ tree_dir_next_posix(struct tree *t);
 /* Initiate/terminate a tree traversal. */
 static struct tree *tree_open(const char *);
 static void tree_close(struct tree *);
-static void tree_push(struct tree *, const char *);
+static void tree_push(struct tree *, const char *, int);
 
 /*
  * tree_next() returns Zero if there is no next entry, non-zero if
@@ -743,10 +750,10 @@ archive_read_disk_descend(struct archive *_a)
 	}
 
 	if (tree_current_is_physical_dir(t)) {
-		tree_push(t, t->basename);
+		tree_push(t, t->basename, t->current_filesystem_id);
 		t->stack->flags |= isDir;
 	} else if (tree_current_is_dir(t)) {
-		tree_push(t, t->basename);
+		tree_push(t, t->basename, t->current_filesystem_id);
 		t->stack->flags |= isDirLink;
 	}
 	t->descend = 0;
@@ -834,6 +841,21 @@ update_filesystem(struct archive_read_disk *a, int64_t dev)
 	t->current_filesystem_id = fid;
 	t->current_filesystem = &(t->filesystem_table[fid]);
 	t->current_filesystem->dev = dev;
+#if defined(_PC_NAME_MAX)
+	t->current_filesystem->name_max =
+	    pathconf(tree_current_access_path(t), _PC_NAME_MAX);
+	if (t->current_filesystem->name_max == (size_t)-1)
+#endif /* _PC_NAME_MAX */
+		/*
+		 * Some sysmtes (HP-UX or others?) incorrectly define NAME_MAX
+		 * macro to be a smaller value.
+		 */
+#if defined(NAME_MAX) && NAME_MAX >= 255
+		t->current_filesystem->name_max = NAME_MAX;
+#else
+		/* No way to get a trusted value of a maximum filename length. */
+		t->current_filesystem->name_max = PATH_MAX;
+#endif
 	return (setup_current_filesystem(a));
 }
 
@@ -999,7 +1021,7 @@ setup_current_filesystem(struct archive_read_disk *a)
  * Add a directory path to the current stack.
  */
 static void
-tree_push(struct tree *t, const char *path)
+tree_push(struct tree *t, const char *path, int filesystem_id)
 {
 	struct tree_entry *te;
 
@@ -1016,6 +1038,7 @@ tree_push(struct tree *t, const char *path)
 #endif
 	archive_strcpy(&te->name, path);
 	te->flags = needsDescent | needsOpen | needsAscent;
+	te->filesystem_id = filesystem_id;
 	te->dirname_length = t->dirname_length;
 }
 
@@ -1057,7 +1080,7 @@ tree_open(const char *path)
 	archive_string_init(&t->path);
 	archive_string_ensure(&t->path, 31);
 	/* First item is set up a lot like a symlink traversal. */
-	tree_push(t, path);
+	tree_push(t, path, 0);
 	t->stack->flags = needsFirstVisit | isDirLink | needsAscent;
 	t->stack->symlink_parent_fd = open(".", O_RDONLY);
 	t->openCount++;
@@ -1196,6 +1219,8 @@ tree_dir_next_posix(struct tree *t)
 	size_t namelen;
 
 	if (t->d == NULL) {
+		size_t dirent_size;
+
 		if ((t->d = opendir(".")) == NULL) {
 			r = tree_ascend(t); /* Undo "chdir" */
 			tree_pop(t);
@@ -1203,10 +1228,26 @@ tree_dir_next_posix(struct tree *t)
 			t->visit_type = r != 0 ? r : TREE_ERROR_DIR;
 			return (t->visit_type);
 		}
+		dirent_size = offsetof(struct dirent, d_name) +
+		  t->filesystem_table[t->current->filesystem_id].name_max + 1;
+		if (t->dirent == NULL || t->dirent_allocated < dirent_size) {
+			free(t->dirent);
+			t->dirent = malloc(dirent_size);
+			if (t->dirent == NULL) {
+				closedir(t->d);
+				t->d = INVALID_DIR_HANDLE;
+				(void)tree_ascend(t);
+				tree_pop(t);
+				t->tree_errno = ENOMEM;
+				t->visit_type = TREE_ERROR_DIR;
+				return (t->visit_type);
+			}
+			t->dirent_allocated = dirent_size;
+		}
 	}
 	for (;;) {
-		t->de = readdir(t->d);
-		if (t->de == NULL) {
+		r = readdir_r(t->d, t->dirent, &t->de);
+		if (r != 0 || t->de == NULL) {
 			closedir(t->d);
 			t->d = INVALID_DIR_HANDLE;
 			return (0);
@@ -1347,6 +1388,7 @@ tree_close(struct tree *t)
 	while (t->stack != NULL)
 		tree_pop(t);
 	archive_string_free(&t->path);
+	free(t->dirent);
 	free(t->filesystem_table);
 	/* TODO: Ensure that premature close() resets cwd */
 #if 0
