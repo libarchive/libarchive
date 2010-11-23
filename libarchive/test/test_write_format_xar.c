@@ -30,7 +30,7 @@ static void
 test_xar(const char *option)
 {
 	char buff2[64];
-	size_t buffsize = 1000000;
+	size_t buffsize = 1500;
 	char *buff;
 	struct archive_entry *ae;
 	struct archive *a;
@@ -55,7 +55,7 @@ test_xar(const char *option)
 		return;
 	}
 
-	buff = malloc(buffsize); /* million bytes of work area */
+	buff = malloc(buffsize);
 	assert(buff != NULL);
 
 	assertA(0 == archive_write_open_memory(a, buff, buffsize, &used));
