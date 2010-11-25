@@ -131,7 +131,9 @@ struct filesystem {
 	int64_t		dev;
 	int		synthetic;
 	int		remote;
+#if defined(HAVE_READDIR_R)
 	size_t		name_max;
+#endif
 };
 
 /* Definitions for tree_entry.flags bitmap. */
@@ -151,8 +153,10 @@ struct tree {
 	DIR	*d;
 #define	INVALID_DIR_HANDLE NULL
 	struct dirent *de;
+#if defined(HAVE_READDIR_R)
 	struct dirent *dirent;
 	size_t	 dirent_allocated;
+#endif
 	int	 flags;
 	int	 visit_type;
 	int	 tree_errno; /* Error code from last failed operation. */
@@ -841,21 +845,23 @@ update_filesystem(struct archive_read_disk *a, int64_t dev)
 	t->current_filesystem_id = fid;
 	t->current_filesystem = &(t->filesystem_table[fid]);
 	t->current_filesystem->dev = dev;
-#if defined(_PC_NAME_MAX)
+#if defined(HAVE_READDIR_R)
+# if defined(_PC_NAME_MAX)
 	t->current_filesystem->name_max =
 	    pathconf(tree_current_access_path(t), _PC_NAME_MAX);
 	if (t->current_filesystem->name_max == (size_t)-1)
-#endif /* _PC_NAME_MAX */
+# endif /* _PC_NAME_MAX */
 		/*
 		 * Some sysmtes (HP-UX or others?) incorrectly define NAME_MAX
 		 * macro to be a smaller value.
 		 */
-#if defined(NAME_MAX) && NAME_MAX >= 255
+# if defined(NAME_MAX) && NAME_MAX >= 255
 		t->current_filesystem->name_max = NAME_MAX;
-#else
+# else
 		/* No way to get a trusted value of a maximum filename length. */
 		t->current_filesystem->name_max = PATH_MAX;
-#endif
+# endif /* NAME_MAX */
+#endif /* HAVE_READDIR_R */
 	return (setup_current_filesystem(a));
 }
 
@@ -1219,7 +1225,9 @@ tree_dir_next_posix(struct tree *t)
 	size_t namelen;
 
 	if (t->d == NULL) {
+#if defined(HAVE_READDIR_R)
 		size_t dirent_size;
+#endif
 
 		if ((t->d = opendir(".")) == NULL) {
 			r = tree_ascend(t); /* Undo "chdir" */
@@ -1228,6 +1236,7 @@ tree_dir_next_posix(struct tree *t)
 			t->visit_type = r != 0 ? r : TREE_ERROR_DIR;
 			return (t->visit_type);
 		}
+#if defined(HAVE_READDIR_R)
 		dirent_size = offsetof(struct dirent, d_name) +
 		  t->filesystem_table[t->current->filesystem_id].name_max + 1;
 		if (t->dirent == NULL || t->dirent_allocated < dirent_size) {
@@ -1244,10 +1253,16 @@ tree_dir_next_posix(struct tree *t)
 			}
 			t->dirent_allocated = dirent_size;
 		}
+#endif /* HAVE_READDIR_R */
 	}
 	for (;;) {
+#if defined(HAVE_READDIR_R)
 		r = readdir_r(t->d, t->dirent, &t->de);
 		if (r != 0 || t->de == NULL) {
+#else
+		t->de = readdir(t->d);
+		if (t->de == NULL) {
+#endif
 			closedir(t->d);
 			t->d = INVALID_DIR_HANDLE;
 			return (0);
@@ -1388,7 +1403,9 @@ tree_close(struct tree *t)
 	while (t->stack != NULL)
 		tree_pop(t);
 	archive_string_free(&t->path);
+#if defined(HAVE_READDIR_R)
 	free(t->dirent);
+#endif
 	free(t->filesystem_table);
 	/* TODO: Ensure that premature close() resets cwd */
 #if 0
