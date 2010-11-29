@@ -128,6 +128,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_disk.c 201159 2009-12-29 0
 
 struct fixup_entry {
 	struct fixup_entry	*next;
+	struct archive_acl	 acl;
 	mode_t			 mode;
 	int64_t			 atime;
 	int64_t                  birthtime;
@@ -476,8 +477,12 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 #endif
 	if (a->flags & ARCHIVE_EXTRACT_TIME)
 		a->todo |= TODO_TIMES;
-	if (a->flags & ARCHIVE_EXTRACT_ACL)
-		a->todo |= TODO_ACLS;
+	if (a->flags & ARCHIVE_EXTRACT_ACL) {
+		if (archive_entry_filetype(a->entry) == AE_IFDIR)
+			a->deferred |= TODO_ACLS;
+		else
+			a->todo |= TODO_ACLS;
+	}
 	if (a->flags & ARCHIVE_EXTRACT_MAC_METADATA) {
 		if (archive_entry_filetype(a->entry) == AE_IFDIR)
 			a->deferred |= TODO_MAC_METADATA;
@@ -565,6 +570,11 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 			fe->birthtime = fe->mtime;
 			fe->birthtime_nanos = fe->mtime_nanos;
 		}
+	}
+
+	if (a->deferred & TODO_ACLS) {
+		fe = current_fixup(a, archive_entry_pathname(entry));
+		archive_acl_copy(&fe->acl, archive_entry_acl(entry));
 	}
 
 	if (a->deferred & TODO_MAC_METADATA) {
@@ -1397,7 +1407,8 @@ _archive_write_disk_close(struct archive *_a)
 		}
 		if (p->fixup & TODO_MODE_BASE)
 			chmod(p->name, p->mode);
-
+		if (p->fixup & TODO_ACLS)
+			set_acls(a, -1, p->name, &p->acl);
 		if (p->fixup & TODO_FFLAGS)
 			set_fflags_platform(a, -1, p->name,
 			    p->mode, p->fflags_set, 0);
@@ -1405,6 +1416,7 @@ _archive_write_disk_close(struct archive *_a)
 			set_mac_metadata(a, p->name, p->mac_metadata,
 					 p->mac_metadata_size);
 		next = p->next;
+		archive_acl_clear(&p->acl);
 		free(p->mac_metadata);
 		free(p->name);
 		free(p);
