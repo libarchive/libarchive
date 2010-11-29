@@ -263,10 +263,10 @@ static int	create_parent_dir(struct archive_write_disk *, char *);
 static int	older(struct stat *, struct archive_entry *);
 static int	restore_entry(struct archive_write_disk *);
 #ifdef HAVE_POSIX_ACL
-static int	set_acl(struct archive_write_disk *, int fd, struct archive_entry *,
+static int	set_acl(struct archive_write_disk *, int fd, const char *, struct archive_entry *,
 		    acl_type_t, int archive_entry_acl_type, const char *tn);
 #endif
-static int	set_acls(struct archive_write_disk *, int fd, struct archive_entry *);
+static int	set_acls(struct archive_write_disk *, int fd, const char *, struct archive_entry *);
 static int	set_mac_metadata(struct archive_write_disk *, const char *,
 				 const void *, size_t);
 static int	set_xattrs(struct archive_write_disk *);
@@ -902,7 +902,8 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	 * ACLs that prevent attribute changes (including time).
 	 */
 	if (a->todo & TODO_ACLS) {
-		int r2 = set_acls(a, a->fd, a->entry);
+		int r2 = set_acls(a, a->fd,
+				  archive_entry_pathname(a->entry), a->entry);
 		if (r2 < ret) ret = r2;
 	}
 
@@ -2496,10 +2497,12 @@ set_mac_metadata(struct archive_write_disk *a, const char *pathname,
 #ifndef HAVE_POSIX_ACL
 /* Default empty function body to satisfy mainline code. */
 static int
-set_acls(struct archive_write_disk *a, int fd, struct archive_entry *entry)
+set_acls(struct archive_write_disk *a, int fd, const char *name,
+	 struct archive_entry *entry)
 {
 	(void)a; /* UNUSED */
 	(void)fd; /* UNUSED */
+	(void)name; /* UNUSED */
 	(void)entry; /* UNUSED */
 	return (ARCHIVE_OK);
 }
@@ -2510,22 +2513,24 @@ set_acls(struct archive_write_disk *a, int fd, struct archive_entry *entry)
  * XXX TODO: What about ACL types other than ACCESS and DEFAULT?
  */
 static int
-set_acls(struct archive_write_disk *a, int fd, struct archive_entry *entry)
+set_acls(struct archive_write_disk *a, int fd, const char *name,
+	 struct archive_entry *entry)
 {
 	int		 ret;
 
-	ret = set_acl(a, fd, entry, ACL_TYPE_ACCESS,
+	ret = set_acl(a, fd, name, entry, ACL_TYPE_ACCESS,
 	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS, "access");
 	if (ret != ARCHIVE_OK)
 		return (ret);
-	ret = set_acl(a, fd, entry, ACL_TYPE_DEFAULT,
+	ret = set_acl(a, fd, name, entry, ACL_TYPE_DEFAULT,
 	    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT, "default");
 	return (ret);
 }
 
 
 static int
-set_acl(struct archive_write_disk *a, int fd, struct archive_entry *entry,
+set_acl(struct archive_write_disk *a, int fd, const char *name,
+    struct archive_entry *entry,
     acl_type_t acl_type, int ae_requested_type, const char *tname)
 {
 	acl_t		 acl;
@@ -2537,7 +2542,6 @@ set_acl(struct archive_write_disk *a, int fd, struct archive_entry *entry,
 	gid_t		 ae_gid;
 	const char	*ae_name;
 	int		 entries;
-	const char	*name;
 
 	ret = ARCHIVE_OK;
 	entries = archive_entry_acl_reset(entry, ae_requested_type);
@@ -2587,8 +2591,6 @@ set_acl(struct archive_write_disk *a, int fd, struct archive_entry *entry,
 		if (ae_permset & ARCHIVE_ENTRY_ACL_READ)
 			acl_add_perm(acl_permset, ACL_READ);
 	}
-
-	name = archive_entry_pathname(entry);
 
 	/* Try restoring the ACL through 'fd' if we can. */
 #if HAVE_ACL_SET_FD
