@@ -117,6 +117,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_disk.c 201159 2009-12-29 0
  * should investigate ways to support this generically. */
 
 #include "archive.h"
+#include "archive_acl_private.h"
 #include "archive_string.h"
 #include "archive_entry.h"
 #include "archive_private.h"
@@ -263,10 +264,10 @@ static int	create_parent_dir(struct archive_write_disk *, char *);
 static int	older(struct stat *, struct archive_entry *);
 static int	restore_entry(struct archive_write_disk *);
 #ifdef HAVE_POSIX_ACL
-static int	set_acl(struct archive_write_disk *, int fd, const char *, struct archive_entry *,
+static int	set_acl(struct archive_write_disk *, int fd, const char *, struct archive_acl *,
 		    acl_type_t, int archive_entry_acl_type, const char *tn);
 #endif
-static int	set_acls(struct archive_write_disk *, int fd, const char *, struct archive_entry *);
+static int	set_acls(struct archive_write_disk *, int fd, const char *, struct archive_acl *);
 static int	set_mac_metadata(struct archive_write_disk *, const char *,
 				 const void *, size_t);
 static int	set_xattrs(struct archive_write_disk *);
@@ -903,7 +904,8 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	 */
 	if (a->todo & TODO_ACLS) {
 		int r2 = set_acls(a, a->fd,
-				  archive_entry_pathname(a->entry), a->entry);
+				  archive_entry_pathname(a->entry),
+				  archive_entry_acl(a->entry));
 		if (r2 < ret) ret = r2;
 	}
 
@@ -2498,12 +2500,12 @@ set_mac_metadata(struct archive_write_disk *a, const char *pathname,
 /* Default empty function body to satisfy mainline code. */
 static int
 set_acls(struct archive_write_disk *a, int fd, const char *name,
-	 struct archive_entry *entry)
+	 struct archive_acl *acl)
 {
 	(void)a; /* UNUSED */
 	(void)fd; /* UNUSED */
 	(void)name; /* UNUSED */
-	(void)entry; /* UNUSED */
+	(void)acl; /* UNUSED */
 	return (ARCHIVE_OK);
 }
 
@@ -2514,15 +2516,15 @@ set_acls(struct archive_write_disk *a, int fd, const char *name,
  */
 static int
 set_acls(struct archive_write_disk *a, int fd, const char *name,
-	 struct archive_entry *entry)
+	 struct archive_acl *abstract_acl)
 {
 	int		 ret;
 
-	ret = set_acl(a, fd, name, entry, ACL_TYPE_ACCESS,
+	ret = set_acl(a, fd, name, abstract_acl, ACL_TYPE_ACCESS,
 	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS, "access");
 	if (ret != ARCHIVE_OK)
 		return (ret);
-	ret = set_acl(a, fd, name, entry, ACL_TYPE_DEFAULT,
+	ret = set_acl(a, fd, name, abstract_acl, ACL_TYPE_DEFAULT,
 	    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT, "default");
 	return (ret);
 }
@@ -2530,7 +2532,7 @@ set_acls(struct archive_write_disk *a, int fd, const char *name,
 
 static int
 set_acl(struct archive_write_disk *a, int fd, const char *name,
-    struct archive_entry *entry,
+    struct archive_acl *abstract_acl,
     acl_type_t acl_type, int ae_requested_type, const char *tname)
 {
 	acl_t		 acl;
@@ -2544,11 +2546,11 @@ set_acl(struct archive_write_disk *a, int fd, const char *name,
 	int		 entries;
 
 	ret = ARCHIVE_OK;
-	entries = archive_entry_acl_reset(entry, ae_requested_type);
+	entries = archive_acl_reset(abstract_acl, ae_requested_type);
 	if (entries == 0)
 		return (ARCHIVE_OK);
 	acl = acl_init(entries);
-	while (archive_entry_acl_next(entry, ae_requested_type, &ae_type,
+	while (archive_acl_next(abstract_acl, ae_requested_type, &ae_type,
 		   &ae_permset, &ae_tag, &ae_id, &ae_name) == ARCHIVE_OK) {
 		acl_create_entry(&acl, &acl_entry);
 
