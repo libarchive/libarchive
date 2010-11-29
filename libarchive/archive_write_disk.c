@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2003-2010 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -266,7 +266,7 @@ static int	restore_entry(struct archive_write_disk *);
 static int	set_acl(struct archive_write_disk *, int fd, struct archive_entry *,
 		    acl_type_t, int archive_entry_acl_type, const char *tn);
 #endif
-static int	set_acls(struct archive_write_disk *);
+static int	set_acls(struct archive_write_disk *, int fd, struct archive_entry *);
 static int	set_mac_metadata(struct archive_write_disk *, const char *,
 				 const void *, size_t);
 static int	set_xattrs(struct archive_write_disk *);
@@ -838,13 +838,19 @@ _archive_write_disk_finish_entry(struct archive *_a)
 		    archive_entry_gname(a->entry),
 		    archive_entry_gid(a->entry));
 	 }
+
 	/*
-	 * If restoring ownership, do it before trying to restore suid/sgid
+	 * Restore ownership before set_mode tries to restore suid/sgid
 	 * bits.  If we set the owner, we know what it is and can skip
 	 * a stat() call to examine the ownership of the file on disk.
 	 */
 	if (a->todo & TODO_OWNER)
 		ret = set_ownership(a);
+
+	/*
+	 * set_mode must precede ACLs on systems such as Solaris and
+	 * FreeBSD where setting the mode implicitly clears extended ACLs
+	 */
 	if (a->todo & TODO_MODE) {
 		int r2 = set_mode(a, a->mode);
 		if (r2 < ret) ret = r2;
@@ -870,7 +876,7 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	}
 
 	/*
-	 * Time has to be restored after all other metadata;
+	 * Time must follow most other metadata;
 	 * otherwise atime will get changed.
 	 */
 	if (a->todo & TODO_TIMES) {
@@ -896,7 +902,7 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	 * ACLs that prevent attribute changes (including time).
 	 */
 	if (a->todo & TODO_ACLS) {
-		int r2 = set_acls(a);
+		int r2 = set_acls(a, a->fd, a->entry);
 		if (r2 < ret) ret = r2;
 	}
 
@@ -2490,9 +2496,11 @@ set_mac_metadata(struct archive_write_disk *a, const char *pathname,
 #ifndef HAVE_POSIX_ACL
 /* Default empty function body to satisfy mainline code. */
 static int
-set_acls(struct archive_write_disk *a)
+set_acls(struct archive_write_disk *a, int fd, struct archive_entry *entry)
 {
 	(void)a; /* UNUSED */
+	(void)fd; /* UNUSED */
+	(void)entry; /* UNUSED */
 	return (ARCHIVE_OK);
 }
 
@@ -2502,15 +2510,15 @@ set_acls(struct archive_write_disk *a)
  * XXX TODO: What about ACL types other than ACCESS and DEFAULT?
  */
 static int
-set_acls(struct archive_write_disk *a)
+set_acls(struct archive_write_disk *a, int fd, struct archive_entry *entry)
 {
 	int		 ret;
 
-	ret = set_acl(a, a->fd, a->entry, ACL_TYPE_ACCESS,
+	ret = set_acl(a, fd, entry, ACL_TYPE_ACCESS,
 	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS, "access");
 	if (ret != ARCHIVE_OK)
 		return (ret);
-	ret = set_acl(a, a->fd, a->entry, ACL_TYPE_DEFAULT,
+	ret = set_acl(a, fd, entry, ACL_TYPE_DEFAULT,
 	    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT, "default");
 	return (ret);
 }
