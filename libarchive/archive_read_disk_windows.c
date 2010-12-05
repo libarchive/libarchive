@@ -2018,4 +2018,10 @@ tree_close(struct tree *t)
 	free(t);
 }
 
+#else
+/* Suppress the 'no symbols in this file' warning on some compilers by
+ * defining a useless function on non-Windows systems.
+ */
+void __archive_read_disk_windows_useless_function(void) {
+}
 #endif

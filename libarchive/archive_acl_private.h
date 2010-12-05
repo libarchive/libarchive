@@ -49,6 +49,7 @@ struct archive_acl {
 	struct archive_acl_entry	*acl_p;
 	int		 acl_state;	/* See acl_next for details. */
 	wchar_t		*acl_text_w;
+	int		 acl_types;
 };
 
 void archive_acl_clear(struct archive_acl *);
@@ -58,10 +59,8 @@ int archive_acl_reset(struct archive_acl *, int);
 int archive_acl_next(struct archive_acl *, int,
     int *, int *, int *, int *, const char **);
 
-void archive_acl_add_entry(struct archive_acl *, int, int, int, int, const char *);
-//void archive_acl_add_entry_w(struct archive_acl *,
-//    int, int, int, int, const wchar_t *);
-void archive_acl_add_entry_w_len(struct archive_acl *,
+int archive_acl_add_entry(struct archive_acl *, int, int, int, int, const char *);
+int archive_acl_add_entry_w_len(struct archive_acl *,
     int, int, int, int, const wchar_t *, size_t);
 
 const wchar_t *archive_acl_text_w(struct archive_acl *, int);

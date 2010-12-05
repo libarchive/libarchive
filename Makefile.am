@@ -237,9 +237,10 @@ libarchive_test_SOURCES=					\
 	libarchive/test/main.c					\
 	libarchive/test/read_open_memory.c			\
 	libarchive/test/test.h					\
-	libarchive/test/test_acl_basic.c			\
 	libarchive/test/test_acl_freebsd.c			\
+	libarchive/test/test_acl_nfs4.c				\
 	libarchive/test/test_acl_pax.c				\
+	libarchive/test/test_acl_posix1e.c			\
 	libarchive/test/test_archive_api_feature.c		\
 	libarchive/test/test_bad_fd.c				\
 	libarchive/test/test_compat_bzip2.c			\

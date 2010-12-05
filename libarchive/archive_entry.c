@@ -1049,21 +1049,21 @@ archive_entry_acl_clear(struct archive_entry *entry)
 /*
  * Add a single ACL entry to the internal list of ACL data.
  */
-void
+int
 archive_entry_acl_add_entry(struct archive_entry *entry,
     int type, int permset, int tag, int id, const char *name)
 {
-	archive_acl_add_entry(&entry->acl, type, permset, tag, id, name);
+	return archive_acl_add_entry(&entry->acl, type, permset, tag, id, name);
 }
 
 /*
  * As above, but with a wide-character name.
  */
-void
+int
 archive_entry_acl_add_entry_w(struct archive_entry *entry,
     int type, int permset, int tag, int id, const wchar_t *name)
 {
-	archive_acl_add_entry_w_len(&entry->acl,
+	return archive_acl_add_entry_w_len(&entry->acl,
 	    type, permset, tag, id, name, wcslen(name));
 }
 

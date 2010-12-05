@@ -27,7 +27,7 @@ __FBSDID("$FreeBSD: src/lib/libarchive/test/test_acl_basic.c,v 1.6 2008/10/19 00
 
 /*
  * Exercise the system-independent portion of the ACL support.
- * Check that archive_entry objects can save and restore ACL data.
+ * Check that archive_entry objects can save and restore POSIX.1e-style ACL data.
  *
  * This should work on all systems, regardless of whether local
  * filesystems support ACLs or not.
@@ -74,6 +74,34 @@ static struct acl_t acls2[] = {
 	  ARCHIVE_ENTRY_ACL_GROUP, 78, "group78" },
 	{ ARCHIVE_ENTRY_ACL_TYPE_ACCESS, ARCHIVE_ENTRY_ACL_WRITE | ARCHIVE_ENTRY_ACL_EXECUTE,
 	  ARCHIVE_ENTRY_ACL_OTHER, -1, "" },
+};
+
+/*
+ * NFS4 entry types; attempts to set these on top of POSIX.1e
+ * attributes should fail.
+ */
+static struct acl_t acls_nfs4[] = {
+	/* NFS4 types */
+	{ ARCHIVE_ENTRY_ACL_TYPE_ALLOW, ARCHIVE_ENTRY_ACL_READ,
+	  ARCHIVE_ENTRY_ACL_USER, 78, "" },
+	{ ARCHIVE_ENTRY_ACL_TYPE_DENY, ARCHIVE_ENTRY_ACL_READ,
+	  ARCHIVE_ENTRY_ACL_USER, 78, "" },
+	{ ARCHIVE_ENTRY_ACL_TYPE_AUDIT, ARCHIVE_ENTRY_ACL_READ,
+	  ARCHIVE_ENTRY_ACL_USER, 78, "" },
+	{ ARCHIVE_ENTRY_ACL_TYPE_ALARM, ARCHIVE_ENTRY_ACL_READ,
+	  ARCHIVE_ENTRY_ACL_USER, 78, "" },
+
+	/* NFS4 tags */
+	{ ARCHIVE_ENTRY_ACL_TYPE_ACCESS, ARCHIVE_ENTRY_ACL_READ,
+	  ARCHIVE_ENTRY_ACL_EVERYONE, -1, "" },
+
+	/* NFS4 inheritance markers */
+	{ ARCHIVE_ENTRY_ACL_TYPE_ACCESS,
+	  ARCHIVE_ENTRY_ACL_READ | ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT,
+	  ARCHIVE_ENTRY_ACL_USER, 79, "" },
+	{ ARCHIVE_ENTRY_ACL_TYPE_ACCESS,
+	  ARCHIVE_ENTRY_ACL_READ | ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT,
+	  ARCHIVE_ENTRY_ACL_USER_OBJ, -1, "" },
 };
 
 static void
@@ -174,9 +202,10 @@ compare_acls(struct archive_entry *ae, struct acl_t *acls, int n, int mode)
 	free(marker);
 }
 
-DEFINE_TEST(test_acl_basic)
+DEFINE_TEST(test_acl_posix1e)
 {
 	struct archive_entry *ae;
+	int i;
 
 	/* Create a simple archive_entry. */
 	assert((ae = archive_entry_new()) != NULL);
@@ -184,6 +213,14 @@ DEFINE_TEST(test_acl_basic)
         archive_entry_set_mode(ae, S_IFREG | 0777);
 
 	/* Basic owner/owning group should just update mode bits. */
+
+	/*
+	 * Note: This features of libarchive's ACL implementation
+	 * shouldn't be relied on and should probably be removed.  It
+	 * was done to identify trivial ACLs so we could avoid
+	 * triggering unnecessary extensions.  It's better to identify
+	 * trivial ACLs at the point they are being read from disk.
+	 */
 	set_acls(ae, acls0, sizeof(acls0)/sizeof(acls0[0]));
 	failure("Basic ACLs shouldn't be stored as extended ACLs");
 	assert(0 == archive_entry_acl_reset(ae, ARCHIVE_ENTRY_ACL_TYPE_ACCESS));
@@ -220,5 +257,21 @@ DEFINE_TEST(test_acl_basic)
 	failure("Basic ACLs should set mode to 0142, not %04o",
 	    archive_entry_mode(ae)&0777);
 	assert((archive_entry_mode(ae) & 0777) == 0142);
+
+	/*
+	 * Different types of malformed ACL entries that should
+	 * fail when added to existing POSIX.1e ACLs.
+	 */
+	set_acls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]));
+	for (i = 0; i < sizeof(acls_nfs4)/sizeof(acls_nfs4[0]); ++i) {
+		struct acl_t *p = &acls_nfs4[i];
+		failure("Malformed ACL test #%d", i);
+		assertEqualInt(ARCHIVE_FAILED,
+		    archive_entry_acl_add_entry(ae,
+			p->type, p->permset, p->tag, p->qual, p->name));
+		assertEqualInt(6,
+		    archive_entry_acl_reset(ae,
+			ARCHIVE_ENTRY_ACL_TYPE_ACCESS));
+	}
 	archive_entry_free(ae);
 }
