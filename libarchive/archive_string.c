@@ -428,6 +428,7 @@ archive_wstrappend_mbs(struct archive_wstring *dest,
 	r = mbstowcs(dest->s, src->s, wcs_length);
 	if (r != (size_t)-1 && r != 0) {
 		dest->s[r] = 0;
+		dest->length = r;
 		return (0);
 	}
 	return (-1);
