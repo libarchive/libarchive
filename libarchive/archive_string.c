@@ -414,7 +414,7 @@ archive_wstrappend_utf8(struct archive_wstring *dest, struct archive_string *src
 
 
 int
-archive_wstrappend_mbs(struct archive_wstring *dest,
+archive_wstrcpy_mbs(struct archive_wstring *dest,
 			 struct archive_string *src)
 {
 	size_t r;
@@ -600,7 +600,7 @@ archive_mstring_get_wcs(struct archive_mstring *aes)
 	}
 	/* Try converting MBS to WCS using native locale. */
 	if ((aes->aes_set & AES_SET_MBS)
-	    && !archive_wstrappend_mbs(&(aes->aes_wcs), &(aes->aes_mbs))) {
+	    && !archive_wstrcpy_mbs(&(aes->aes_wcs), &(aes->aes_mbs))) {
 		aes->aes_set |= AES_SET_WCS;
 		return (aes->aes_wcs.s);
 	}

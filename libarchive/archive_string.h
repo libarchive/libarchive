@@ -155,7 +155,7 @@ int archive_wstrappend_utf8(struct archive_wstring *dest,
 
 /* Translates from MBS in src to Unicode in dest. */
 /* Returns non-zero if conversion failed in any way. */
-int archive_wstrappend_mbs(struct archive_wstring *dest,
+int archive_wstrcpy_mbs(struct archive_wstring *dest,
 			      struct archive_string *src);
 
 
