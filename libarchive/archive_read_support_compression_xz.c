@@ -554,7 +554,7 @@ lzip_init(struct archive_read_filter *self)
 
 	state = (struct private_data *)self->data;
 	h = __archive_read_filter_ahead(self->upstream, 6, &avail_in);
-	if (h == NULL && avail_in < 0)
+	if (h == NULL)
 		return (ARCHIVE_FATAL);
 
 	/* Get a version number. */
