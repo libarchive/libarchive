@@ -89,7 +89,8 @@ archive_entry_sparse_add_entry(struct archive_entry *entry,
 		entry->sparse_head = entry->sparse_tail = sp;
 	else {
 		/* Add a new sparse block to the tail of list. */
-		entry->sparse_tail->next = sp;
+		if (entry->sparse_tail != NULL)
+			entry->sparse_tail->next = sp;
 		entry->sparse_tail = sp;
 	}
 }
