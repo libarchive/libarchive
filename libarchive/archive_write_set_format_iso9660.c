@@ -1292,7 +1292,7 @@ iso9660_options(struct archive_write *a, const char *key, const char *value)
 			if (p[0] == '0' && (p[1] == 'x' || p[1] == 'X'))
 				p += 2;
 			while (*p) {
-				if (*p >= 'A' && *p <= 'f')
+				if (*p >= 'A' && *p <= 'F')
 					seg = (seg << 4) + *p - 'A' + 0x0a;
 				else if (*p >= 'a' && *p <= 'f')
 					seg = (seg << 4) + *p - 'a' + 0x0a;
