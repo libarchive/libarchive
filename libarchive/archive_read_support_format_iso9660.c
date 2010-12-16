@@ -1199,7 +1199,6 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 				    "ISO9660 directory list");
 				return (ARCHIVE_FATAL);
 			}
-			seenJoliet = iso9660->seenJoliet;/* Save flag. */
 			iso9660->seenJoliet = 0;
 			file = parse_file_info(a, NULL, block);
 			if (file == NULL)
