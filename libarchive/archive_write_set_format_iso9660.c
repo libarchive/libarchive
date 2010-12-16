@@ -4679,7 +4679,6 @@ isofile_register_hardlink(struct archive_write *a, struct isofile *file)
 	pathname = archive_entry_hardlink(file->entry);
 	if (pathname == NULL) {
 		/* This `file` is a hardlink target. */
-		pathname = archive_entry_pathname(file->entry);
 		hl = malloc(sizeof(*hl));
 		if (hl == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
