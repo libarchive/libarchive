@@ -1785,7 +1785,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 		 *       *, /, :, ;, ? and \.
 		 */
 		/* Chop off trailing ';1' from files. */
-		if (*(wp-2) == L';' && *(wp-1) == L'1') {
+		if (wp > (wbuff + 2) && *(wp-2) == L';' && *(wp-1) == L'1') {
 			wp-=2;
 			*wp = L'\0';
 		}
