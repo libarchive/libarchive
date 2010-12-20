@@ -52,6 +52,7 @@ static struct {
 } files[] = {
 	{0, "test_fuzz_1.iso.Z"}, /* Exercise compress decompressor. */
 	{1, "test_fuzz_1.iso.Z"},
+	{0, "test_fuzz.lzh"},
 	{0, "test_compat_bzip2_1.tbz"}, /* Exercise bzip2 decompressor. */
 	{1, "test_compat_bzip2_1.tbz"},
 	{0, "test_compat_gtar_1.tar"},

@@ -169,7 +169,7 @@ struct archive_read {
 		int	(*read_data)(struct archive_read *, const void **, size_t *, int64_t *);
 		int	(*read_data_skip)(struct archive_read *);
 		int	(*cleanup)(struct archive_read *);
-	}	formats[9];
+	}	formats[10];
 	struct archive_format_descriptor	*format; /* Active format. */
 
 	/*
