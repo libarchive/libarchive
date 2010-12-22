@@ -45,6 +45,7 @@ IF(ENABLE_TEST)
     test_read_extract.c
     test_read_file_nonexistent.c
     test_read_format_ar.c
+    test_read_format_cab.c
     test_read_format_cpio_afio.c
     test_read_format_cpio_bin.c
     test_read_format_cpio_bin_Z.c

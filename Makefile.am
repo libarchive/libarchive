@@ -134,6 +134,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_read_support_compression_xz.c	\
 	libarchive/archive_read_support_format_all.c		\
 	libarchive/archive_read_support_format_ar.c		\
+	libarchive/archive_read_support_format_cab.c		\
 	libarchive/archive_read_support_format_cpio.c		\
 	libarchive/archive_read_support_format_empty.c		\
 	libarchive/archive_read_support_format_iso9660.c	\
@@ -275,6 +276,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_extract.c			\
 	libarchive/test/test_read_file_nonexistent.c		\
 	libarchive/test/test_read_format_ar.c			\
+	libarchive/test/test_read_format_cab.c			\
 	libarchive/test/test_read_format_cpio_afio.c		\
 	libarchive/test/test_read_format_cpio_bin.c		\
 	libarchive/test/test_read_format_cpio_bin_Z.c		\
@@ -396,6 +398,8 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_fuzz_1.iso.Z.uu				\
 	libarchive/test/test_pax_filename_encoding.tar.uu		\
 	libarchive/test/test_read_format_ar.ar.uu			\
+	libarchive/test/test_read_format_cab_1.cab.uu			\
+	libarchive/test/test_read_format_cab_2.cab.uu			\
 	libarchive/test/test_read_format_cpio_bin_be.cpio.uu		\
 	libarchive/test/test_read_format_cpio_svr4_bzip2_rpm.rpm.uu	\
 	libarchive/test/test_read_format_cpio_svr4_gzip_rpm.rpm.uu	\
