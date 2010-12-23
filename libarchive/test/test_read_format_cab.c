@@ -65,19 +65,17 @@ hello
 hello
 END
 #
-dd if=/dev/zero of=${base}/zero bs=1 count=33000
+dd if=/dev/zero of=${base}/zero bs=1 count=33000 > /dev/null 2>&1
 #
-# Set up a file time.
-#
-TZ=utc touch -afhm -t 198001020000.00 ${base}/dir1/file1 ${base}/dir2/file2
-TZ=utc touch -afhm -t 198001020000.02 ${base}/dir1 ${base}/dir2
-TZ=utc touch -afhm -t 198001020000.04 ${base}/empty ${base}/zero
-#
+cab1=test_read_format_cab_1.cab
+cab2=test_read_format_cab_2.cab
 #
 cat > ${base}/mkcab1 << END
 .Set Compress=OFF
 .Set DiskDirectory1=.
-.Set CabinetName1=test_read_format_cab_1.cab
+.Set InfDate=1980-01-02
+.Set InfTime=00:00:00
+.Set CabinetName1=${cab1}
 empty
 .Set DestinationDir=dir1
 dir1/file1
@@ -88,7 +86,9 @@ END
 cat > ${base}/mkcab2 << END
 .Set CompressionType=MSZIP
 .Set DiskDirectory1=.
-.Set CabinetName1=test_read_format_cab_2.cab
+.Set InfDate=1980-01-02
+.Set InfTime=00:00:00
+.Set CabinetName1=${cab2}
 empty
 zero
 .Set DestinationDir=dir1
@@ -97,22 +97,41 @@ dir1/file1
 dir2/file2
 END
 #
-f=cab.tar.Z
-(cd ${base}; bsdtar cfZ $f empty zero dir1/file1 dir2/file2 mkcab1 mkcab2)
+cat > ${base}/mkcab3 << END
+.Set CompressionType=MSZIP
+.Set DiskDirectory1=.
+.Set CabinetName1=test.cab
+${cab1}
+${cab2}
+END
 #
-cab1=test_read_format_cab_1.cab 
-cab2=test_read_format_cab_2.cab 
+cat > ${base}/cab.bat << END
+makecab.exe /F mkcab1
+makecab.exe /F mkcab2
+makecab.exe /F mkcab3
+del setup.inf setup.rpt
+del empty zero dir1\file1 dir2\file2 mkcab1 mkcab2 mkcab3
+del ${cab1} ${cab2}
+rmdir dir1 dir2
+END
+#
+f=cab.zip
+(cd ${base}; zip -q -c $f empty zero dir1/file1 dir2/file2 mkcab1 mkcab2 mkcab3 cab.bat)
+#
+echo
 echo "You need some more work to make sample files for cab reader test."
+echo
 echo "1. Move ${base}/${f} to Windows PC"
 echo "2. Extract ${base}/${f}"
-echo "3. Open command prompt and change current directory where you extracted ${base}/${f}"
+echo "3. Open command prompt and change current directory where you extracted ${f}"
 
-echo "4. Execute makecab.exe /F mkcab1"
-echo "5. Execute makecab.exe /F mkcab2"
-echo "6. Then you will see what there are two cabinet files, ${cab1} and ${cab2}"
-echo "7. Move the cabinet files to posix platform"
+echo "4. Execute cab.bat"
+echo "5. Then you will see what there is a cabinet file, test.cab"
+echo "6. Move test.cab to posix platform"
+echo "7. Excuete bsdtar xf test.cab"
 echo "8. Execute uuencode ${cab1} ${cab1} > ${cab1}.uu"
 echo "9. Execute uuencode ${cab2} ${cab2} > ${cab2}.uu"
+
 exit 1
 */
 
