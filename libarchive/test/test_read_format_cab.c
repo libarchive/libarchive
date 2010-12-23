@@ -174,7 +174,6 @@ verify(const char *refname, int comp)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt((AE_IFREG | 0777), archive_entry_mode(ae));
 	assertEqualString("empty", archive_entry_pathname(ae));
-	assertEqualInt(1292586132, archive_entry_mtime(ae));
 	assertEqualInt(0, archive_entry_uid(ae));
 	assertEqualInt(0, archive_entry_gid(ae));
 	assertEqualInt(0, archive_entry_size(ae));
@@ -187,7 +186,6 @@ verify(const char *refname, int comp)
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 		assertEqualInt((AE_IFREG | 0777), archive_entry_mode(ae));
 		assertEqualString("zero", archive_entry_pathname(ae));
-		assertEqualInt(1292586132, archive_entry_mtime(ae));
 		assertEqualInt(0, archive_entry_uid(ae));
 		assertEqualInt(0, archive_entry_gid(ae));
 		assertEqualInt(33000, archive_entry_size(ae));
@@ -204,7 +202,6 @@ verify(const char *refname, int comp)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt((AE_IFREG | 0777), archive_entry_mode(ae));
 	assertEqualString("dir1/file1", archive_entry_pathname(ae));
-	assertEqualInt(1292586132, archive_entry_mtime(ae));
 	assertEqualInt(0, archive_entry_uid(ae));
 	assertEqualInt(0, archive_entry_gid(ae));
 	assertEqualInt(file1_size, archive_entry_size(ae));
@@ -215,7 +212,6 @@ verify(const char *refname, int comp)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt((AE_IFREG | 0777), archive_entry_mode(ae));
 	assertEqualString("dir2/file2", archive_entry_pathname(ae));
-	assertEqualInt(1292586132, archive_entry_mtime(ae));
 	assertEqualInt(0, archive_entry_uid(ae));
 	assertEqualInt(0, archive_entry_gid(ae));
 	assertEqualInt(file2_size, archive_entry_size(ae));
