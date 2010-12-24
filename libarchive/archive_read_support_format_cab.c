@@ -139,8 +139,8 @@ struct cffile {
 #define iFoldCONTINUED_TO_NEXT		0xFFFE
 #define iFoldCONTINUED_PREV_AND_NEXT	0xFFFF
 	unsigned char		 attr;
-#define _A_RDONLY	0x01
-#define _A_NAME_IS_UTF	0x80
+#define ATTR_RDONLY		0x01
+#define ATTR_NAME_IS_UTF	0x80
 	struct archive_string 	 pathname;
 };
 
@@ -424,7 +424,7 @@ cab_convert_path_separator(struct cab *cab, struct archive_string *pathname,
 	if (strchr(pathname->s, '\\') == NULL)
 		return;
 
-	if ((attr & _A_NAME_IS_UTF) != 0 ||
+	if ((attr & ATTR_NAME_IS_UTF) != 0 ||
 	    archive_wstrcpy_mbs(&(cab->ws), pathname) != 0) {
 		for (l = 0; pathname->s[l] != '\0'; l++) {
 			if (pathname->s[l] == '\\')
@@ -776,11 +776,11 @@ archive_read_format_cab_read_header(struct archive_read *a,
 	 * Set a default value and common data
 	 */
 	archive_entry_set_pathname(entry, file->pathname.s);
-	if (file->attr & _A_NAME_IS_UTF)
+	if (file->attr & ATTR_NAME_IS_UTF)
 		archive_entry_update_pathname_utf8(entry, file->pathname.s);
 
 	archive_entry_set_size(entry, file->uncompressed_size);
-	if (file->attr & _A_RDONLY)
+	if (file->attr & ATTR_RDONLY)
 		archive_entry_set_mode(entry, AE_IFREG | 0555);
 	else
 		archive_entry_set_mode(entry, AE_IFREG | 0777);
