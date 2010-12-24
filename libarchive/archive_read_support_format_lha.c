@@ -176,7 +176,7 @@ struct lha {
 
 	unsigned char		 dos_attr;
 
-	/* Flag to mark progress that an archive was read ther first header.*/
+	/* Flag to mark progress that an archive was read their first header.*/
 	char			 found_first_header;
 	/* Flag to mark that indicates an empty directory. */
 	char			 directory;
@@ -599,7 +599,7 @@ archive_read_format_lha_read_header(struct archive_read *a,
 	} else {
 		archive_entry_set_symlink(entry, NULL);
 		/*
-		 * Make sure a filetype is set.
+		 * Make sure a file-type is set.
 		 * The mode has been overridden if it is in the extended data.
 		 */
 		lha->mode = (lha->mode & ~AE_IFMT) |
@@ -703,7 +703,7 @@ lha_replace_path_separator(struct lha *lha, struct archive_string *fn)
 	 */
 	archive_string_empty(&(lha->mbs));
 	archive_strappend_w_mbs(&(lha->mbs), lha->ws.s);
-	/* If mbs length is differenct to fn, we broked the
+	/* If mbs length is different to fn, we broke the
 	 * filename and we shouldn't use it. */
 	if (archive_strlen(&(lha->mbs)) == archive_strlen(fn))
 		archive_string_copy(fn, &(lha->mbs));
@@ -852,7 +852,7 @@ lha_read_file_header_1(struct archive_read *a, struct lha *lha)
 	lha->origsize = archive_le32dec(p + H1_ORIG_SIZE_OFFSET);
 	lha->mtime = lha_dos_time(p + H1_DOS_TIME_OFFSET);
 	namelen = p[H1_NAME_LEN_OFFSET];
-	/* Calculate a padding size. The result will be nomally 0 only(?) */
+	/* Calculate a padding size. The result will be normally 0 only(?) */
 	padding = ((int)lha->header_size) - H1_FIXED_SIZE - namelen;
 
 	if (namelen > 230 || padding < 0)
@@ -955,7 +955,7 @@ lha_read_file_header_2(struct archive_read *a, struct lha *lha)
 	if (err < ARCHIVE_WARN)
 		return (err);
 
-	/* Calculate a padding size. The result will be nomally 0 or 1. */
+	/* Calculate a padding size. The result will be normally 0 or 1. */
 	padding = (int)lha->header_size - (int)(H2_FIXED_SIZE + extdsize);
 	if (padding > 0) {
 		if ((p = __archive_read_ahead(a, padding, NULL)) == NULL)
@@ -1068,7 +1068,7 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 	unsigned int i;
 	unsigned char extdtype;
 
-#define EXT_HEADER_CRC		0x00		/* Header crc and information*/
+#define EXT_HEADER_CRC		0x00		/* Header CRC and information*/
 #define EXT_FILENAME		0x01		/* Filename 		    */
 #define EXT_DIRECTORY		0x02		/* Directory name	    */
 #define EXT_DOS_ATTR		0x40		/* MS-DOS attribute	    */
@@ -1677,7 +1677,7 @@ lzh_decode_init(struct lzh_stream *strm, const char *method)
 }
 
 /*
- * Relase LZHUF decoder.
+ * Release LZHUF decoder.
  */
 static void
 lzh_decode_free(struct lzh_stream *strm)
@@ -1827,7 +1827,7 @@ lzh_decode(struct lzh_stream *strm, int last)
 		case ST_RD_BLOCK:
 			/*
 			 * Read a block number indicates how many blocks
-			 * we will handle. the block is composed of a
+			 * we will handle. The block is composed of a
 			 * literal and a match, sometimes a literal only
 			 * in particular, there are no reference data at
 			 * the beginning of the decompression.
@@ -2049,7 +2049,7 @@ lzh_decode(struct lzh_stream *strm, int last)
 				 * cache buffer up. In specific situation we
 				 * are close to the end of the data, the cache
 				 * buffer will not be full and thus we have to
-				 * determain if the cache buffer has some bits
+				 * determine if the cache buffer has some bits
 				 * as much as we need after lzh_br_read_ahead()
 				 * failed. */
 				if (!lzh_br_read_ahead(strm,

@@ -106,7 +106,7 @@ struct cfdata {
 	/* To keep memory image of this CFDATA to compute the sum. */
 	size_t			 memimage_size;
 	unsigned char		*memimage;
-	/* Result of calculatation of sum. */
+	/* Result of calculation of sum. */
 	uint32_t		 sum_calculated;
 	unsigned char		 sum_extra[4];
 	int			 sum_extra_avail;
@@ -185,7 +185,7 @@ struct cab {
 	struct archive_wstring	 ws;
 	struct archive_string	 mbs;
 
-	/* Flag to mark progress that an archive was read ther first header.*/
+	/* Flag to mark progress that an archive was read their first header.*/
 	char			 found_header;
 	char			 end_of_archive;
 	char			 end_of_entry;
@@ -274,7 +274,7 @@ is_cab_magic(const void *h)
 		/*
 		 * Note: Self-Extraction program has 'MSCF' string in their
 		 * program. If we were finding 'MSCF' string only, we got
-		 * wrong place for Cabinet header. thous we have to check
+		 * wrong place for Cabinet header, thus, we have to check
 		 * following four bytes which are reserved and must be set
 		 * to zero.
 		 */
@@ -399,7 +399,7 @@ cab_strnlen(const unsigned char *p, size_t maxlen)
 	return (i);
 }
 
-/* Read bytes as much as reamining. */
+/* Read bytes as much as remaining. */
 static const void *
 cab_read_ahead_remaining(struct archive_read *a, size_t min, ssize_t *avail)
 {
@@ -443,7 +443,7 @@ cab_convert_path_separator(struct cab *cab, struct archive_string *pathname,
 	if (r) {
 		archive_string_empty(&cab->mbs);
 		archive_strappend_w_mbs(&cab->mbs, cab->ws.s);
-		/* If mbs length is differenct to pathname, we broked the
+		/* If mbs length is different to pathname, we broke the
 		 * pathname. We shouldn't use it. */
 		if (archive_strlen(&cab->mbs) == archive_strlen(pathname))
 			archive_string_copy(pathname, &cab->mbs);
@@ -816,7 +816,7 @@ archive_read_format_cab_read_data(struct archive_read *a,
 		*offset = 0;
 		archive_clear_error(&a->archive);
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Cannot restore this file splited in multivolume.");
+		    "Cannot restore this file split in multivolume.");
 		return (ARCHIVE_FAILED);
 		break;
 	}
