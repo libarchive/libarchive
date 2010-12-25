@@ -1320,9 +1320,9 @@ __archive_mktemp(const char *tmpdir)
 	 * Create a temporary file.
 	 */
 	archive_strcat(&temp_name, "libarchive_");
-	xp = temp_name.s + archive_strlen(&temp_name);
+	xp = ((BYTE *)temp_name.s) + archive_strlen(&temp_name);
 	archive_strcat(&temp_name, "XXXXXXXXXX");
-	ep = temp_name.s + archive_strlen(&temp_name);
+	ep = ((BYTE *)temp_name.s) + archive_strlen(&temp_name);
 
 	if (!CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_FULL,
 		CRYPT_VERIFYCONTEXT)) {
