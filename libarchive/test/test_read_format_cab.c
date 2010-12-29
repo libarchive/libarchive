@@ -27,9 +27,21 @@ __FBSDID("$FreeBSD");
 
 /*
 Execute the following command to rebuild the data for this program:
-   tail -n +32 test_read_format_cab.c | /bin/sh
+   tail -n +44 test_read_format_cab.c | /bin/sh
+And following works are:
+1. Move /tmp/cab/cab.zip to Windows PC
+2. Extract cab.zip
+3. Open command prompt and change current directory where you extracted cab.zip
+4. Execute cab.bat
+5. Then you will see that there is a cabinet file, test.cab
+6. Move test.cab to posix platform
+7. Extract test.cab with this version of bsdtar
+8. Excecute the following command to make uuencoded files.
+ uuencode test_read_format_cab_1.cab test_read_format_cab_1.cab > test_read_format_cab_1.cab.uu
+ uuencode test_read_format_cab_2.cab test_read_format_cab_2.cab > test_read_format_cab_2.cab.uu
+ uuencode test_read_format_cab_3.cab test_read_format_cab_3.cab > test_read_format_cab_3.cab.uu
 
-#/bin/sh
+#!/bin/sh
 #
 # How to make test data.
 #
@@ -69,6 +81,8 @@ dd if=/dev/zero of=${base}/zero bs=1 count=33000 > /dev/null 2>&1
 #
 cab1=test_read_format_cab_1.cab
 cab2=test_read_format_cab_2.cab
+cab3=test_read_format_cab_3.cab
+#
 #
 cat > ${base}/mkcab1 << END
 .Set Compress=OFF
@@ -98,40 +112,42 @@ dir2/file2
 END
 #
 cat > ${base}/mkcab3 << END
+.Set CompressionType=LZX
+.Set DiskDirectory1=.
+.Set InfDate=1980-01-02
+.Set InfTime=00:00:00
+.Set CabinetName1=${cab3}
+empty
+zero
+.Set DestinationDir=dir1
+dir1/file1
+.Set DestinationDir=dir2
+dir2/file2
+END
+#
+cat > ${base}/mkcab4 << END
 .Set CompressionType=MSZIP
 .Set DiskDirectory1=.
 .Set CabinetName1=test.cab
 ${cab1}
 ${cab2}
+${cab3}
 END
 #
 cat > ${base}/cab.bat << END
 makecab.exe /F mkcab1
 makecab.exe /F mkcab2
 makecab.exe /F mkcab3
+makecab.exe /F mkcab4
 del setup.inf setup.rpt
-del empty zero dir1\file1 dir2\file2 mkcab1 mkcab2 mkcab3
-del ${cab1} ${cab2}
+del empty zero dir1\file1 dir2\file2 mkcab1 mkcab2 mkcab3 mkcab4
+del ${cab1} ${cab2} ${cab3}
 rmdir dir1 dir2
 END
 #
 f=cab.zip
-(cd ${base}; zip -q -c $f empty zero dir1/file1 dir2/file2 mkcab1 mkcab2 mkcab3 cab.bat)
+(cd ${base}; zip -q -c $f empty zero dir1/file1 dir2/file2 mkcab1 mkcab2 mkcab3 mkcab4 cab.bat)
 #
-echo
-echo "You need some more work to make sample files for cab reader test."
-echo
-echo "1. Move ${base}/${f} to Windows PC"
-echo "2. Extract ${base}/${f}"
-echo "3. Open command prompt and change current directory where you extracted ${f}"
-
-echo "4. Execute cab.bat"
-echo "5. Then you will see what there is a cabinet file, test.cab"
-echo "6. Move test.cab to posix platform"
-echo "7. Excuete bsdtar xf test.cab"
-echo "8. Execute uuencode ${cab1} ${cab1} > ${cab1}.uu"
-echo "9. Execute uuencode ${cab2} ${cab2} > ${cab2}.uu"
-
 exit 1
 */
 
@@ -236,5 +252,7 @@ DEFINE_TEST(test_read_format_cab)
 	verify("test_read_format_cab_1.cab", 0);
 	/* Verify Cabinet file in MSZIP. */
 	verify("test_read_format_cab_2.cab", 1);
+	/* Verify Cabinet file in LZX. */
+	verify("test_read_format_cab_3.cab", 1);
 }
 

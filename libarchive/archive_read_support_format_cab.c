@@ -51,6 +51,102 @@
 #include "archive_read_private.h"
 #include "archive_endian.h"
 
+
+struct lzx_dec {
+	/* Decoding status. */
+	int     		 state;
+
+	/*
+	 * Window to see last decoded data, from 32KBi to 2MBi.
+	 */
+	int			 w_size;
+	int			 w_mask;
+	/* Window buffer, which is a loop buffer. */
+	unsigned char		*w_buff;
+	/* The insert position to the window. */
+	int			 w_pos;
+	/* The position where we can copy decoded code from the window. */
+	int     		 copy_pos;
+	/* The length how many bytes we can copy decoded code from
+	 * the window. */
+	int     		 copy_len;
+	/* Translation reversal for x86 proccessor CALL byte sequence(E8).
+	 * This is used for LZX only. */
+	uint32_t		 translation_size;
+	char			 translation;
+	char			 block_type;
+#define VERBATIM_BLOCK		1
+#define ALIGNED_OFFSET_BLOCK	2
+#define UNCOMPRESSED_BLOCK	3
+	size_t			 block_size;
+	size_t			 block_bytes_avail;
+	/* Repeated offset. */
+	uint32_t		 r0, r1, r2;
+	unsigned char		 rbytes[4];
+	int			 rbytes_avail;
+	int			 length_header;
+	int			 position_slot;
+	int			 offset_bits;
+
+	struct pos_tbl {
+		int		 base;
+		int		 footer_bits;
+	}			*pos_tbl;
+	/*
+	 * Bit stream reader.
+	 */
+	struct {
+#define CACHE_TYPE		uint64_t
+#define CACHE_BITS		(8 * sizeof(CACHE_TYPE))
+	 	/* Cache buffer. */
+		CACHE_TYPE	 cache_buffer;
+		/* Indicates how many bits avail in cache_buffer. */
+		int		 cache_avail;
+		unsigned char	 odd;
+		char		 have_odd;
+	} br;
+
+	/*
+	 * Huffman coding.
+	 */
+	struct huffman {
+		int		 len_size;
+		int		 freq[17];
+		unsigned char	*bitlen;
+
+		/*
+		 * Use a index table. It's faster than traversing huffman
+		 * coding tree, which is a binary tree.
+		 * TODO: Reduce the memory used for the index table.
+		 */
+		int		 max_bits;
+		int		 tbl_bits;
+		uint16_t	*tbl;
+	}			 at, lt, mt, pt;
+
+	int			 loop;
+	int			 error;
+};
+
+static int slots[] = {
+	30, 32, 34, 36, 38, 42, 50, 66, 98, 162, 290
+};
+#define SLOT_BASE	15
+#define SLOT_MAX	21/*->25*/
+
+struct lzx_stream {
+	const unsigned char	*next_in;
+	int64_t			 avail_in;
+	int64_t			 total_in;
+	unsigned char		*next_out;
+	int64_t			 avail_out;
+	int64_t			 total_out;
+	struct lzx_dec		*ds;
+};
+
+/*
+ * Cabinet file definitions.
+ */
 /* CFHEADER offset */
 #define CFHEADER_signature	0
 #define CFHEADER_cbCabinet	8
@@ -200,6 +296,7 @@ struct cab {
 	z_stream		 stream;
 	char			 stream_valid;
 #endif
+	struct lzx_stream	 xstrm;
 };
 
 static int	archive_read_format_cab_bid(struct archive_read *);
@@ -224,8 +321,20 @@ static const void *cab_read_ahead_cfdata(struct archive_read *, ssize_t *);
 static const void *cab_read_ahead_cfdata_none(struct archive_read *, ssize_t *);
 static const void *cab_read_ahead_cfdata_deflate(struct archive_read *,
 		    ssize_t *);
+static const void *cab_read_ahead_cfdata_lzx(struct archive_read *,
+		    ssize_t *);
 static int64_t	cab_consume_cfdata(struct archive_read *, int64_t);
 static int64_t	cab_minimum_consume_cfdata(struct archive_read *, int64_t);
+static int	lzx_decode_init(struct lzx_stream *, int);
+static void	lzx_decode_free(struct lzx_stream *);
+static void	lzx_translation(struct lzx_stream *, void *, size_t, uint32_t);
+static void	lzx_cleanup_bitstream(struct lzx_stream *);
+static int	lzx_decode(struct lzx_stream *, int);
+static int	lzx_read_pre_tree(struct lzx_stream *);
+static int	lzx_read_bitlen(struct lzx_stream *, struct huffman *, int);
+static int	lzx_huffman_init(struct huffman *, size_t, int);
+static void	lzx_huffman_free(struct huffman *);
+static int	lzx_make_huffman_table(struct huffman *);
 
 
 int
@@ -575,7 +684,7 @@ cab_read_header(struct archive_read *a)
 		folder->comptype =
 		    archive_le16dec(p+CFFOLDER_typeCompress) & 0x0F;
 		folder->compdata =
-		    archive_le16dec(p+CFFOLDER_typeCompress) >> 4;
+		    archive_le16dec(p+CFFOLDER_typeCompress) >> 8;
 		/* Get a compression name. */
 		if (folder->comptype <
 		    sizeof(compression_name) / sizeof(compression_name[0]))
@@ -1068,7 +1177,8 @@ cab_next_cfdata(struct archive_read *a)
 		     cab->entry_cffolder->cfdata_count) &&
 		       cfdata->uncompressed_size != 0x8000)
 			goto invalid;
-		/* A Compressed data size and an uncompressed data size must
+
+		/* A compressed data size and an uncompressed data size must
 		 * be the same in no compression mode. */
 		if (cab->entry_cffolder->comptype == COMPTYPE_NONE &&
 		    cfdata->compressed_size != cfdata->uncompressed_size)
@@ -1131,6 +1241,8 @@ cab_read_ahead_cfdata(struct archive_read *a, ssize_t *avail)
 		return (cab_read_ahead_cfdata_none(a, avail));
 	case COMPTYPE_MSZIP:
 		return (cab_read_ahead_cfdata_deflate(a, avail));
+	case COMPTYPE_LZX:
+		return (cab_read_ahead_cfdata_lzx(a, avail));
 	default: /* Unsupported compression. */
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Unsupported CAB compression : %s",
@@ -1214,7 +1326,7 @@ cab_read_ahead_cfdata_deflate(struct archive_read *a, ssize_t *avail)
 		    = (unsigned char *)malloc(cab->uncompressed_buffer_size);
 		if (cab->uncompressed_buffer == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
-			    "No memory for CAB decompression");
+			    "No memory for CAB reader");
 			*avail = ARCHIVE_FATAL;
 			return (NULL);
 		}
@@ -1338,7 +1450,7 @@ cab_read_ahead_cfdata_deflate(struct archive_read *a, ssize_t *avail)
 
 	if (uavail < cfdata->uncompressed_size) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Invalid decompression size (%d < %d)",
+		    "Invalid uncompressed size (%d < %d)",
 		    uavail, cfdata->uncompressed_size);
 		*avail = ARCHIVE_FATAL;
 		return (NULL);
@@ -1423,6 +1535,129 @@ cab_read_ahead_cfdata_deflate(struct archive_read *a, ssize_t *avail)
 }
 
 #endif /* HAVE_ZLIB_H */
+
+static const void *
+cab_read_ahead_cfdata_lzx(struct archive_read *a, ssize_t *avail)
+{
+	struct cab *cab = (struct cab *)(a->format->data);
+	struct cfdata *cfdata;
+	const void *d;
+	int r;
+	uint16_t uavail;
+
+	cfdata = cab->entry_cfdata;
+	/* If the buffer hasn't been allocated, allocate it now. */
+	if (cab->uncompressed_buffer == NULL) {
+		cab->uncompressed_buffer_size = 0x8000;
+		cab->uncompressed_buffer
+		    = (unsigned char *)malloc(cab->uncompressed_buffer_size);
+		if (cab->uncompressed_buffer == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "No memory for CAB reader");
+			*avail = ARCHIVE_FATAL;
+			return (NULL);
+		}
+	}
+
+	uavail = cfdata->uncompressed_avail;
+	if (uavail == cfdata->uncompressed_size) {
+		d = cab->uncompressed_buffer + cfdata->read_offset;
+		*avail = uavail - cfdata->read_offset;
+		return (d);
+	}
+
+	if (!cab->entry_cffolder->decompress_init) {
+		r = lzx_decode_init(&cab->xstrm,
+		    cab->entry_cffolder->compdata);
+		if (r != ARCHIVE_OK) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Can't initialize LZX decompression.");
+			*avail = ARCHIVE_FATAL;
+			return (NULL);
+		}
+		/* We've initialized decompression for this stream. */
+		cab->entry_cffolder->decompress_init = 1;
+	}
+
+	/* Clean up remaining bits of previous CFDATA. */
+	lzx_cleanup_bitstream(&cab->xstrm);
+	cab->xstrm.total_out = uavail;
+	while (cab->xstrm.total_out < cfdata->uncompressed_size) {
+		ssize_t bytes_avail;
+
+		cab->xstrm.next_out =
+		    cab->uncompressed_buffer + cab->xstrm.total_out;
+		cab->xstrm.avail_out =
+		    cfdata->uncompressed_size - cab->xstrm.total_out;
+
+		d = __archive_read_ahead(a, 1, &bytes_avail);
+		if (bytes_avail <= 0) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Truncated CAB file data");
+			*avail = ARCHIVE_FATAL;
+			return (NULL);
+		}
+		if (bytes_avail > cfdata->compressed_bytes_remaining)
+			bytes_avail = cfdata->compressed_bytes_remaining;
+
+		cab->xstrm.next_in = d;
+		cab->xstrm.avail_in = bytes_avail;
+		cab->xstrm.total_in = 0;
+		r = lzx_decode(&cab->xstrm,
+		    cfdata->compressed_bytes_remaining == bytes_avail);
+		switch (r) {
+		case ARCHIVE_OK:
+		case ARCHIVE_EOF:
+			break;
+		default:
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "LZX decompression failed (%d)", r);
+			*avail = ARCHIVE_FATAL;
+			return (NULL);
+		}
+		cfdata->unconsumed = cab->xstrm.total_in;
+		cfdata->sum_ptr = d;
+		if (cab_minimum_consume_cfdata(a, cfdata->unconsumed) < 0) {
+			*avail = ARCHIVE_FATAL;
+			return (NULL);
+		}
+	}
+
+	uavail = cab->xstrm.total_out;
+	/*
+	 * Make sure a read pointer advances to next CFDATA.
+	 */
+	if (cfdata->compressed_bytes_remaining > 0) {
+		ssize_t bytes_avail;
+
+		d = __archive_read_ahead(a, cfdata->compressed_bytes_remaining,
+		    &bytes_avail);
+		if (bytes_avail <= 0) {
+			*avail = truncated_error(a);
+			return (NULL);
+		}
+		cfdata->unconsumed = cfdata->compressed_bytes_remaining;
+		cfdata->sum_ptr = d;
+		if (cab_minimum_consume_cfdata(a, cfdata->unconsumed) < 0) {
+			*avail = ARCHIVE_FATAL;
+			return (NULL);
+		}
+	}
+
+	/*
+	 * Translation reversal of x86 proccessor CALL byte sequence(E8).
+	 */
+	lzx_translation(&cab->xstrm, cab->uncompressed_buffer,
+	    cfdata->uncompressed_size,
+	    (cab->entry_cffolder->cfdata_index-1) * 0x8000);
+
+	d = cab->uncompressed_buffer + cfdata->read_offset;
+	*avail = uavail - cfdata->read_offset;
+	cfdata->uncompressed_avail = uavail;
+
+	return (d);
+}
 
 /*
  * Consume CFDATA.
@@ -1682,6 +1917,7 @@ archive_read_format_cab_cleanup(struct archive_read *a)
 	if (cab->stream_valid)
 		inflateEnd(&cab->stream);
 #endif
+	lzx_decode_free(&cab->xstrm);
 	archive_wstring_free(&cab->ws);
 	archive_string_free(&cab->mbs);
 	free(cab->uncompressed_buffer);
@@ -1709,5 +1945,1003 @@ cab_dos_time(const unsigned char *p)
 	ts.tm_sec = (msTime << 1) & 0x3e;
 	ts.tm_isdst = -1;
 	return (mktime(&ts));
+}
+
+/*****************************************************************
+ *
+ * LZX decompression code.
+ *
+ *****************************************************************/
+
+/*
+ * Initialize LZX decoder.
+ *
+ * Returns ARCHIVE_OK if initialization was successful.
+ * Returns ARCHIVE_FAILED if w_bits has unsupported value.
+ * Returns ARCHIVE_FATAL if initialization failed; memory allocation
+ * error occurred.
+ */
+static int
+lzx_decode_init(struct lzx_stream *strm, int w_bits)
+{
+	struct lzx_dec *ds;
+	int slot, w_size, w_slot;
+	int base, footer;
+
+	if (strm->ds == NULL) {
+		strm->ds = calloc(1, sizeof(*strm->ds));
+		if (strm->ds == NULL)
+			return (ARCHIVE_FATAL);
+	}
+	ds = strm->ds;
+	ds->error = ARCHIVE_FAILED;
+
+	/* Allow bits from 15(32KBi) up to 21(2MBi) */
+	if (w_bits < SLOT_BASE || w_bits > SLOT_MAX)
+		return (ARCHIVE_FAILED);
+
+	ds->error = ARCHIVE_FATAL;
+
+	/*
+	 * Alloc window
+	 */
+	w_size = ds->w_size;
+	w_slot = slots[w_bits - SLOT_BASE];
+	ds->w_size = 1U << w_bits;
+	ds->w_mask = ds->w_size -1;
+	if (ds->w_buff == NULL || w_size != ds->w_size) {
+		free(ds->w_buff);
+		ds->w_buff = malloc(ds->w_size);
+		if (ds->w_buff == NULL)
+			return (ARCHIVE_FATAL);
+		free(ds->pos_tbl);
+		ds->pos_tbl = malloc(sizeof(ds->pos_tbl[0]) * w_slot);
+		if (ds->pos_tbl == NULL)
+			return (ARCHIVE_FATAL);
+		lzx_huffman_free(&(strm->ds->mt));
+	}
+
+	base = footer = 0;
+	for (slot = 0; slot < w_slot; slot++) {
+		int n;
+		if (footer == 0)
+			base = slot;
+		else
+			base += 1 << footer;
+		if (footer < 17) {
+			footer = -2;
+			for (n = base; n; n >>= 1)
+				footer++;
+			if (footer <= 0)
+				footer = 0;
+		}
+		ds->pos_tbl[slot].base = base;
+		ds->pos_tbl[slot].footer_bits = footer;
+	}
+
+	ds->w_pos = 0;
+	ds->state = 0;
+	ds->br.cache_buffer = 0;
+	ds->br.cache_avail = 0;
+	ds->r0 = ds->r1 = ds->r2 = 1;
+
+	/* Initialize aligned offset tree. */
+	if (lzx_huffman_init(&(ds->at), 8, 8) != ARCHIVE_OK)
+		return (ARCHIVE_FATAL);
+
+	/* Initialize pre-tree. */
+	if (lzx_huffman_init(&(ds->pt), 20, 10) != ARCHIVE_OK)
+		return (ARCHIVE_FATAL);
+
+	/* Initialize Main tree. */
+	if (lzx_huffman_init(&(ds->mt), 256+(w_slot<<3), 16)
+	    != ARCHIVE_OK)
+		return (ARCHIVE_FATAL);
+
+	/* Initialize Length tree. */
+	if (lzx_huffman_init(&(ds->lt), 249, 16) != ARCHIVE_OK)
+		return (ARCHIVE_FATAL);
+
+	ds->error = 0;
+
+	return (ARCHIVE_OK);
+}
+
+/*
+ * Release LZX decoder.
+ */
+static void
+lzx_decode_free(struct lzx_stream *strm)
+{
+
+	if (strm->ds == NULL)
+		return;
+	free(strm->ds->w_buff);
+	lzx_huffman_free(&(strm->ds->at));
+	lzx_huffman_free(&(strm->ds->pt));
+	lzx_huffman_free(&(strm->ds->mt));
+	lzx_huffman_free(&(strm->ds->lt));
+	free(strm->ds);
+	strm->ds = NULL;
+}
+
+/*
+ * E8 Call Translation reversal.
+ */
+static void
+lzx_translation(struct lzx_stream *strm, void *p, size_t size, uint32_t offset)
+{
+	struct lzx_dec *ds = strm->ds;
+	unsigned char *b, *end;
+
+	if (!ds->translation || size <= 10)
+		return;
+	b = p;
+	end = b + size - 10;
+	while (b < end && (b = memchr(b, 0xE8, end - b)) != NULL) {
+		size_t i = b - (unsigned char *)p;
+		long cp, displacement, value;
+
+		cp = offset + i;
+		value = archive_le32dec(&b[1]);
+		if (value >= -cp && value < (long)ds->translation_size) {
+			if (value >= 0)
+				displacement = value - cp;
+			else
+				displacement = value + ds->translation_size;
+			archive_le32enc(&b[1], (uint32_t)displacement);
+		}
+		b += 5;
+	}
+}
+
+/*
+ * Bit stream reader.
+ */
+/* Check that the cache buffer has enough bits. */
+#define lzx_br_has(strm, n)	((strm)->ds->br.cache_avail >= n)
+/* Get compressed data by bit. */
+#define lzx_br_bits(strm, n)				\
+	(((uint16_t)((strm)->ds->br.cache_buffer >>	\
+		((strm)->ds->br.cache_avail - (n)))) & cache_masks[n])
+#define lzx_br_bits_forced(strm, n)			\
+	(((uint16_t)((strm)->ds->br.cache_buffer <<	\
+		((n) - (strm)->ds->br.cache_avail))) & cache_masks[n])
+/* Read ahead to make sure the cache buffer has enough compressed data we
+ * will use.
+ *  True  : completed, there is enough data in the cache buffer.
+ *  False : we met that strm->next_in is empty, we have to get following
+ *          bytes. */
+#define lzx_br_read_ahead(strm, n)	\
+	(lzx_br_has((strm), (n)) || lzx_br_fillup(strm))
+/*  True  : the cache buffer has some bits as much as we need.
+ *  False : there are no enough bits in the cache buffer to be used,
+ *          we have to get following bytes if we could. */
+#define lzx_br_ensure(strm, n)		\
+	(lzx_br_read_ahead((strm), (n)) || lzx_br_has((strm), (n)))
+
+/* Notify how man bits we consumed. */
+#define lzx_br_consume(strm, n)	((strm)->ds->br.cache_avail -= (n))
+#define lzx_br_consume_unalined_bits(strm)	\
+	((strm)->ds->br.cache_avail &= ~0x0f)
+
+static uint16_t cache_masks[] = {
+	0x0000, 0x0001, 0x0003, 0x0007,
+	0x000F, 0x001F, 0x003F, 0x007F,
+	0x00FF, 0x01FF, 0x03FF, 0x07FF,
+	0x0FFF, 0x1FFF, 0x3FFF, 0x7FFF,
+	0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF
+};
+
+/*
+ * Shift away used bits in the cache data and fill it up with following bits.
+ * Call this when cache buffer does not have enough bits you need.
+ *
+ * Returns 1 if the cache buffer is full.
+ * Returns 0 if the cache buffer is not full; input buffer is empty.
+ */
+static int
+lzx_br_fillup(struct lzx_stream *strm)
+{
+	struct lzx_dec *ds = strm->ds;
+	int n = CACHE_BITS - ds->br.cache_avail;
+
+	if (ds->br.have_odd && n >= 16 && strm->avail_in > 0) {
+		ds->br.cache_buffer =
+		   (ds->br.cache_buffer << 16) |
+		   ((uint16_t)(*strm->next_in)) << 8 |
+		    ds->br.odd;
+		strm->next_in++;
+		strm->avail_in--;
+		strm->total_in++;
+		ds->br.cache_avail += 16;
+		n -= 16;
+		ds->br.have_odd = 0;
+	}
+	while (n >= 16) {
+		if (strm->avail_in < 2) {
+			/* There is not enough compressed data to fill up the
+			 * cache buffer. */
+			if (strm->avail_in == 1) {
+				ds->br.odd = *strm->next_in++;
+				strm->avail_in--;
+				strm->total_in++;
+				ds->br.have_odd = 1;
+			}
+			return (0);
+		}
+		if (strm->avail_in >= 8) {
+			int words;
+			switch (words = (n >> 4)) {
+			case 4:
+				ds->br.cache_buffer =
+				    (((uint64_t)archive_le16dec(
+					strm->next_in)) << 48) |
+				    (((uint64_t)archive_le16dec(
+					strm->next_in+2)) << 32) |
+				    (((uint32_t)archive_le16dec(
+					strm->next_in+4)) << 16) |
+				    archive_le16dec(strm->next_in+6);
+				break;
+			case 3:
+				ds->br.cache_buffer =
+		 		   (ds->br.cache_buffer << 48) |
+				    (((uint64_t)archive_le16dec(
+					strm->next_in)) << 32) |
+				    (((uint32_t)archive_le16dec(
+					strm->next_in+2)) << 16) |
+				    archive_le16dec(strm->next_in+4);
+				break;
+			default:
+				words = 0;
+				break;
+			}
+			if (words) {
+				strm->next_in += words << 1;
+				strm->avail_in -= words << 1;
+				strm->total_in += words << 1;
+				ds->br.cache_avail += words << 4;
+				return (1);
+			}
+		}
+		ds->br.cache_buffer =
+		   (ds->br.cache_buffer << 16) |
+		    archive_le16dec(strm->next_in);
+		strm->next_in += 2;
+		strm->avail_in -= 2;
+		strm->total_in += 2;
+		ds->br.cache_avail += 16;
+		n -= 16;
+	}
+	return (1);
+}
+
+static void
+lzx_cleanup_bitstream(struct lzx_stream *strm)
+{
+	strm->ds->br.cache_avail = 0;
+	strm->ds->br.have_odd = 0;
+}
+
+/*
+ * Decode LZX.
+ *
+ * 1. Returns ARCHIVE_OK if output buffer or input buffer are empty.
+ *    Please set available buffer and call this function again.
+ * 2. Returns ARCHIVE_EOF if decompression has been completed.
+ * 3. Returns ARCHIVE_FAILED if an error occurred; compressed data
+ *    is broken or you do not set 'last' flag properly.
+ */
+static int
+lzx_decode(struct lzx_stream *strm, int last)
+{
+	struct lzx_dec *ds = strm->ds;
+	int c, i;
+#define ST_RD_TRANSLATION	0
+#define ST_RD_TRANSLATION_SIZE	1
+#define ST_RD_BLOCK_TYPE	2
+#define ST_RD_BLOCK_SIZE	3
+#define ST_RD_R0		4
+#define ST_RD_R1		5
+#define ST_RD_R2		6
+#define ST_COPY_UNCOMP1		7
+#define ST_COPY_UNCOMP2		8
+#define ST_RD_ALIGNED_OFFSET	9
+#define ST_RD_VERBATIM		10
+#define ST_RD_PRE_MAIN_TREE_256	11
+#define ST_MAIN_TREE_256	12
+#define ST_RD_PRE_MAIN_TREE_REM	13
+#define ST_MAIN_TREE_REM	14
+#define ST_RD_PRE_LENGTH_TREE	15
+#define ST_LENGTH_TREE		16
+#define ST_MAIN			17
+#define ST_LENGTH		18
+#define ST_OFFSET		19
+#define ST_REAL_POS		20
+#define ST_COPY			21
+
+	if (ds->error)
+		return (ds->error);
+
+	for (;;) {
+		switch (ds->state) {
+		case ST_RD_TRANSLATION:
+			if (!lzx_br_read_ahead(strm, 1)) {
+				ds->state = ST_RD_TRANSLATION;
+				if (last)
+					goto failed;
+				return (ARCHIVE_OK);
+			}
+			ds->translation = lzx_br_bits(strm, 1);
+			lzx_br_consume(strm, 1);
+			/* FALL THROUGH */
+		case ST_RD_TRANSLATION_SIZE:
+			if (ds->translation) {
+				if (!lzx_br_read_ahead(strm, 32)) {
+					ds->state = ST_RD_TRANSLATION_SIZE;
+					if (last)
+						goto failed;
+					return (ARCHIVE_OK);
+				}
+				ds->translation_size = lzx_br_bits(strm, 16);
+				lzx_br_consume(strm, 16);
+				ds->translation_size <<= 16;
+				ds->translation_size |= lzx_br_bits(strm, 16);
+				lzx_br_consume(strm, 16);
+			}
+			/* FALL THROUGH */
+		case ST_RD_BLOCK_TYPE:
+			if (!lzx_br_read_ahead(strm, 3)) {
+				ds->state = ST_RD_BLOCK_TYPE;
+				if (last)
+					goto failed;
+				return (ARCHIVE_OK);
+			}
+			ds->block_type = lzx_br_bits(strm, 3);
+			lzx_br_consume(strm, 3);
+			/* Check a block type. */
+			switch (ds->block_type) {
+			case VERBATIM_BLOCK:
+			case ALIGNED_OFFSET_BLOCK:
+			case UNCOMPRESSED_BLOCK:
+				break;
+			default:
+				goto failed;/* Invalid */
+			}
+			/* FALL THROUGH */
+		case ST_RD_BLOCK_SIZE:
+			if (!lzx_br_read_ahead(strm, 24)) {
+				ds->state = ST_RD_BLOCK_SIZE;
+				if (last)
+					goto failed;
+				return (ARCHIVE_OK);
+			}
+			ds->block_size = lzx_br_bits(strm, 8);
+			lzx_br_consume(strm, 8);
+			ds->block_size <<= 16;
+			ds->block_size |= lzx_br_bits(strm, 16);
+			lzx_br_consume(strm, 16);
+			if (ds->block_size == 0)
+				goto failed;
+			ds->block_bytes_avail = ds->block_size;
+			if (ds->block_type != UNCOMPRESSED_BLOCK) {
+				if (ds->block_type == VERBATIM_BLOCK)
+					ds->state = ST_RD_VERBATIM;
+				else
+					ds->state = ST_RD_ALIGNED_OFFSET;
+				break;
+			}
+			/*
+			 * Handle an Uncompressed Block.
+			 */
+			/* Skip padding to align following field on
+			 * 16-bit boundary. */
+			lzx_br_consume_unalined_bits(strm);
+			/* Preparation to read repeated offsets R0,R1 and R2. */
+			ds->rbytes_avail = 0;
+			ds->state = ST_RD_R0;
+			/* FALL THROUGH */
+		case ST_RD_R0:
+		case ST_RD_R1:
+		case ST_RD_R2:
+			do {
+				uint16_t u16;
+				/* Drain bits in the cache buffer of
+				 * bit-stream. */
+				if (lzx_br_has(strm, 32)) {
+					u16 = lzx_br_bits(strm, 16);
+					lzx_br_consume(strm, 16);
+					archive_le16enc(ds->rbytes, u16);
+					u16 = lzx_br_bits(strm, 16);
+					lzx_br_consume(strm, 16);
+					archive_le16enc(ds->rbytes+2, u16);
+					ds->rbytes_avail = 4;
+				} else if (lzx_br_has(strm, 16)) {
+					u16 = lzx_br_bits(strm, 16);
+					lzx_br_consume(strm, 16);
+					archive_le16enc(ds->rbytes, u16);
+					ds->rbytes_avail = 2;
+				} else
+					ds->rbytes_avail = 0;
+				if (ds->rbytes_avail < 4 && ds->br.have_odd) {
+					ds->rbytes[ds->rbytes_avail++] =
+					    ds->br.odd;
+					ds->br.have_odd = 0;
+				}
+				while (ds->rbytes_avail < 4) {
+					if (strm->avail_in <= 0) {
+						if (last)
+							goto failed;
+						return (ARCHIVE_OK);
+					}
+					ds->rbytes[ds->rbytes_avail++] =
+					    *strm->next_in++;
+					strm->avail_in--;
+					strm->total_in++;
+				}
+				if (ds->state == ST_RD_R0) {
+					ds->r0 = archive_le32dec(ds->rbytes);
+					ds->state = ST_RD_R1;
+				} else if (ds->state == ST_RD_R1) {
+					ds->r1 = archive_le32dec(ds->rbytes);
+					ds->state = ST_RD_R2;
+				} else if (ds->state == ST_RD_R2) {
+					ds->r2 = archive_le32dec(ds->rbytes);
+					/* We've gotten all repeated offsets. */
+					ds->state = ST_COPY_UNCOMP1;
+				}
+			} while (ds->state != ST_COPY_UNCOMP1);
+			/* FALL THROUGH */
+		case ST_COPY_UNCOMP1:
+			/*
+			 * Copy bytes form next_in to next_out directly.
+			 */
+			while (ds->block_bytes_avail) {
+				unsigned char *d;
+				int l,ll;
+
+				if (strm->avail_out <= 0)
+					/* Output buffer is empty. */
+					return (ARCHIVE_OK);
+				if (strm->avail_in <= 0) {
+					/* Input buffer is empty. */
+					if (last)
+						goto failed;
+					return (ARCHIVE_OK);
+				}
+				l = ds->block_bytes_avail;
+				if (l > ds->w_size - ds->w_pos)
+					l = ds->w_size - ds->w_pos;
+				if (l > strm->avail_out)
+					l = (int)strm->avail_out;
+				if (l > strm->avail_in)
+					l = (int)strm->avail_in;
+				ll = l;
+				d = &(ds->w_buff[ds->w_pos]);
+				while (--l >= 0) {
+					*strm->next_out++ = *strm->next_in;
+					*d++ = *strm->next_in++;
+				}
+				strm->avail_out -= ll;
+				strm->total_out += ll;
+				strm->avail_in -= ll;
+				strm->total_in += ll;
+				ds->w_pos = (ds->w_pos + ll) & ds->w_mask;
+				ds->block_bytes_avail -= ll;
+			}
+			/* FALL THROUGH */
+		case ST_COPY_UNCOMP2:
+			/* Re-align; skip padding byte. */
+			if (ds->block_size & 1) {
+				if (strm->avail_in <= 0) {
+					/* Input buffer is empty. */
+					ds->state = ST_COPY_UNCOMP2;
+					if (last)
+						goto failed;
+					return (ARCHIVE_OK);
+				}
+				strm->next_in++;
+				strm->avail_in --;
+				strm->total_in ++;
+			}
+			/* This block ended. */
+			ds->state = ST_RD_BLOCK_TYPE;
+			return (ARCHIVE_EOF);
+			/********************/
+		case ST_RD_ALIGNED_OFFSET:
+			/*
+			 * Read Aligned offset tree.
+			 */
+			if (!lzx_br_read_ahead(strm, 3 * ds->at.len_size)) {
+				ds->state = ST_RD_ALIGNED_OFFSET;
+				if (last)
+					goto failed;
+				return (ARCHIVE_OK);
+			}
+			memset(ds->at.freq, 0, sizeof(ds->at.freq));
+			for (i = 0; i < ds->at.len_size; i++) {
+				ds->at.bitlen[i] = lzx_br_bits(strm, 3);
+				ds->at.freq[ds->at.bitlen[i]]++;
+				lzx_br_consume(strm, 3);
+			}
+			if (!lzx_make_huffman_table(&ds->at))
+				goto failed;
+			/* FALL THROUGH */
+		case ST_RD_VERBATIM:
+			ds->loop = 0;
+			/* FALL THROUGH */
+		case ST_RD_PRE_MAIN_TREE_256:
+			/*
+			 * Read Pre-tree for first 256 elements of main tree.
+			 */
+			if (!lzx_read_pre_tree(strm)) {
+				ds->state = ST_RD_PRE_MAIN_TREE_256;
+				if (last)
+					goto failed;
+				return (ARCHIVE_OK);
+			}
+			if (!lzx_make_huffman_table(&ds->pt))
+				goto failed;
+			ds->loop = 0;
+			/* FALL THROUGH */
+		case ST_MAIN_TREE_256:
+			/*
+			 * Get path lengths of first 256 elements of main tree.
+			 */
+			if (!lzx_read_bitlen(strm, &ds->mt, 256)) {
+				ds->state = ST_MAIN_TREE_256;
+				if (last)
+					goto failed;
+				return (ARCHIVE_OK);
+			}
+			ds->loop = 0;
+			/* FALL THROUGH */
+		case ST_RD_PRE_MAIN_TREE_REM:
+			/*
+			 * Read Pre-tree for remaining elements of main tree.
+			 */
+			if (!lzx_read_pre_tree(strm)) {
+				ds->state = ST_RD_PRE_MAIN_TREE_REM;
+				if (last)
+					goto failed;
+				return (ARCHIVE_OK);
+			}
+			if (!lzx_make_huffman_table(&ds->pt))
+				goto failed;
+			ds->loop = 256;
+			/* FALL THROUGH */
+		case ST_MAIN_TREE_REM:
+			/*
+			 * Get path lengths of remaining elements of main tree.
+			 */
+			if (!lzx_read_bitlen(strm, &ds->mt, -1)) {
+				ds->state = ST_MAIN_TREE_REM;
+				if (last)
+					goto failed;
+				return (ARCHIVE_OK);
+			}
+			if (!lzx_make_huffman_table(&ds->mt))
+				goto failed;
+			ds->loop = 0;
+			/* FALL THROUGH */
+		case ST_RD_PRE_LENGTH_TREE:
+			/*
+			 * Read Pre-tree for remaining elements of main tree.
+			 */
+			if (!lzx_read_pre_tree(strm)) {
+				ds->state = ST_RD_PRE_LENGTH_TREE;
+				if (last)
+					goto failed;
+				return (ARCHIVE_OK);
+			}
+			if (!lzx_make_huffman_table(&ds->pt))
+				goto failed;
+			ds->loop = 0;
+			/* FALL THROUGH */
+		case ST_LENGTH_TREE:
+			/*
+			 * Get path lengths of remaining elements of main tree.
+			 */
+			if (!lzx_read_bitlen(strm, &ds->lt, -1)) {
+				ds->state = ST_LENGTH_TREE;
+				if (last)
+					goto failed;
+				return (ARCHIVE_OK);
+			}
+			if (!lzx_make_huffman_table(&ds->lt))
+				goto failed;
+			ds->state = ST_MAIN;
+			/* FALL THROUGH */
+		case ST_MAIN:
+			for (;;) {
+				if (ds->block_bytes_avail == 0) {
+					/* This block ended. */
+					ds->state = ST_RD_BLOCK_TYPE;
+					return (ARCHIVE_EOF);
+				}
+				if (strm->avail_out <= 0)
+					/* Output buffer is empty. */
+					return (ARCHIVE_OK);
+
+				if (!lzx_br_ensure(strm,
+				    ds->mt.max_bits)) {
+					if (!last)
+						return (ARCHIVE_OK);
+					/* Remaining bits are less than
+					 * maximum bits(mt.max_bits) but maybe
+					 * it still remains as much as we need,
+					 * so we should try to use it with
+					 * dummy bits. */
+					c = ds->mt.tbl[lzx_br_bits_forced(
+					    strm, ds->mt.max_bits)];
+					lzx_br_consume(strm, ds->mt.bitlen[c]);
+					if (!lzx_br_has(strm, 0))
+						goto failed;/* Over read. */
+				} else {
+					c = ds->mt.tbl[lzx_br_bits(strm,
+					    ds->mt.max_bits)];
+					lzx_br_consume(strm, ds->mt.bitlen[c]);
+				}
+				if (c > UCHAR_MAX)
+					break;
+				/*
+				 * 'c' is exactly literal code.
+				 */
+				/* Save a decoded code to reference it
+				 * afterward. */
+				strm->ds->w_buff[ds->w_pos] = c;
+				strm->ds->w_pos = (ds->w_pos + 1)
+				    & strm->ds->w_mask;
+				/* Store the decoded code to output buffer. */
+				*strm->next_out++ = c;
+				strm->avail_out--;
+				strm->total_out++;
+				ds->block_bytes_avail--;
+			}
+			/*
+			 * Get a match code, its length and offset.
+			 */
+			c -= UCHAR_MAX + 1;
+			ds->length_header = c & 7;
+			ds->position_slot = c >> 3;
+			/* FALL THROUGH */
+		case ST_LENGTH:
+			/*
+			 * Get a length.
+			 */
+			if (ds->length_header == 7) {
+				if (!lzx_br_ensure(strm, ds->lt.max_bits)) {
+					if (!last) {
+						ds->state = ST_LENGTH;
+						return (ARCHIVE_OK);
+					}
+					c = ds->lt.tbl[lzx_br_bits_forced(
+					    strm, ds->lt.max_bits)];
+					lzx_br_consume(strm, ds->lt.bitlen[c]);
+					if (!lzx_br_has(strm, 0))
+						goto failed;/* Over read. */
+				} else {
+					c = ds->lt.tbl[lzx_br_bits(strm,
+					    ds->lt.max_bits)];
+					lzx_br_consume(strm, ds->lt.bitlen[c]);
+				}
+				ds->copy_len = c + 7 + 2;
+			} else
+				ds->copy_len = ds->length_header + 2;
+			/*
+			 * Get an offset.
+			 */
+			switch (ds->position_slot) {
+			case 0: /* Use repeated offset 0. */
+				ds->copy_pos = ds->r0;
+				break;
+			case 1: /* Use repeated offset 1. */
+				ds->copy_pos = ds->r1;
+				/* Swap repeated offset. */
+				ds->r1 = ds->r0;
+				ds->r0 = ds->copy_pos;
+				break;
+			case 2: /* Use repeated offset 2. */
+				ds->copy_pos = ds->r2;
+				/* Swap repeated offset. */
+				ds->r2 = ds->r0;
+				ds->r0 = ds->copy_pos;
+				break;
+			default:
+				ds->offset_bits =
+				    ds->pos_tbl[ds->position_slot].footer_bits;
+				break;
+			}
+			if (ds->position_slot <= 2) {
+				ds->state = ST_REAL_POS;
+				break;
+			}
+			/* FALL THROUGH */
+		case ST_OFFSET:
+			/*
+			 * Get the offset, which is a distance from
+			 * current window position.
+			 */
+			if (ds->block_type == ALIGNED_OFFSET_BLOCK &&
+			    ds->offset_bits >= 3) {
+				int offbits = ds->offset_bits - 3;
+
+				if (!lzx_br_ensure(strm, offbits)) {
+					ds->state = ST_OFFSET;
+					if (last)
+						goto failed;
+					return (ARCHIVE_OK);
+				}
+				c = lzx_br_bits(strm, offbits);
+				ds->copy_pos = c << 3;
+
+				/* Get an aligned number. */
+				if (!lzx_br_ensure(strm,
+				    offbits + ds->at.max_bits)) {
+					if (!last) {
+						ds->state = ST_OFFSET;
+						return (ARCHIVE_OK);
+					}
+					lzx_br_consume(strm, offbits);
+					c = ds->at.tbl[lzx_br_bits_forced(strm,
+					    ds->at.max_bits)];
+					lzx_br_consume(strm, ds->at.bitlen[c]);
+					if (!lzx_br_has(strm, 0))
+						goto failed;/* Over read. */
+				} else {
+					lzx_br_consume(strm, offbits);
+					c = ds->at.tbl[lzx_br_bits(strm,
+					    ds->at.max_bits)];
+					lzx_br_consume(strm, ds->at.bitlen[c]);
+				}
+				/* Add an aligned number. */
+				ds->copy_pos += c;
+			} else {
+				if (!lzx_br_ensure(strm, ds->offset_bits)) {
+					ds->state = ST_OFFSET;
+					if (last)
+						goto failed;
+					return (ARCHIVE_OK);
+				}
+				c = lzx_br_bits(strm, ds->offset_bits);
+				lzx_br_consume(strm, ds->offset_bits);
+				ds->copy_pos = c;
+			}
+			ds->copy_pos += ds->pos_tbl[ds->position_slot].base -2;
+
+			/* Update repeated offset LRU queue. */
+			ds->r2 = ds->r1;
+			ds->r1 = ds->r0;
+			ds->r0 = ds->copy_pos;
+			/* FALL THROUGH */
+		case ST_REAL_POS:
+			/*
+			 * Compute a real position in window.
+			 */
+			ds->copy_pos = (ds->w_pos - ds->copy_pos) & ds->w_mask;
+			/* FALL THROUGH */
+		case ST_COPY:
+			/*
+			 * Copy several bytes as extracted data from the window
+			 * into the output buffer.
+			 */
+			if ((size_t)ds->copy_len > ds->block_bytes_avail)
+				goto failed;
+			do {
+				const unsigned char *s;
+				unsigned char *d;
+				int l,ll;
+				if (strm->avail_out <= 0) {
+					/* Output buffer is empty. */
+					ds->state = ST_COPY;
+					return (ARCHIVE_OK);
+				}
+				l = ds->copy_len;
+				if (l > ds->w_size - ds->copy_pos)
+					l = ds->w_size - ds->copy_pos;
+				if (l > ds->w_size - ds->w_pos)
+					l = ds->w_size - ds->w_pos;
+				if (l > strm->avail_out)
+					l = (int)strm->avail_out;
+				ll = l;
+				s = &(ds->w_buff[ds->copy_pos]);
+				d = &(ds->w_buff[ds->w_pos]);
+				while (--l >= 0) {
+					*strm->next_out++ = *s;
+					*d++ = *s++;
+				}
+				strm->avail_out -= ll;
+				strm->total_out += ll;
+				ds->copy_pos =
+				    (ds->copy_pos + ll) & ds->w_mask;
+				ds->w_pos = (ds->w_pos + ll) & ds->w_mask;
+				ds->copy_len -= ll;
+				ds->block_bytes_avail -= ll;
+			} while (ds->copy_len > 0);
+			ds->state = ST_MAIN;
+			break;
+		}
+	}
+failed:
+	return (ds->error = ARCHIVE_FAILED);
+}
+
+static int
+lzx_read_pre_tree(struct lzx_stream *strm)
+{
+	struct lzx_dec *ds = strm->ds;
+	int i;
+
+	if (ds->loop == 0)
+		memset(ds->pt.freq, 0, sizeof(ds->pt.freq));
+	for (i = ds->loop; i < ds->pt.len_size; i++) {
+		if (!lzx_br_read_ahead(strm, 4)) {
+			ds->loop = i;
+			return (0);
+		}
+		ds->pt.bitlen[i] = lzx_br_bits(strm, 4);
+		ds->pt.freq[ds->pt.bitlen[i]]++;
+		lzx_br_consume(strm, 4);
+	}
+	ds->loop = i;
+	return (1);
+}
+
+/*
+ * Read a bunch of bit-lengths from pre-tree.
+ */
+static int
+lzx_read_bitlen(struct lzx_stream *strm, struct huffman *d, int end)
+{
+	struct lzx_dec *ds = strm->ds;
+	int c, i, j, ret, same;
+
+	i = ds->loop;
+	if (i == 0)
+		memset(d->freq, 0, sizeof(d->freq));
+	ret = 0;
+	if (end < 0)
+		end = d->len_size;
+	while (i < end) {
+		ds->loop = i;
+		if (!lzx_br_read_ahead(strm, ds->pt.max_bits))
+			goto getdata;
+		c = ds->pt.tbl[lzx_br_bits(strm, ds->pt.max_bits)];
+		switch (c) {
+		case 17:/* several zero lengths, from 4 to 19. */
+			if (!lzx_br_read_ahead(strm, ds->pt.bitlen[c]+4))
+				goto getdata;
+			lzx_br_consume(strm, ds->pt.bitlen[c]);
+			same = lzx_br_bits(strm, 4) + 4;
+			lzx_br_consume(strm, 4);
+			for (j = 0; j < same; j++)
+				d->bitlen[i++] = 0;
+			break;
+		case 18:/* many zero lengths, from 20 to 51. */
+			if (!lzx_br_read_ahead(strm, ds->pt.bitlen[c]+5))
+				goto getdata;
+			lzx_br_consume(strm, ds->pt.bitlen[c]);
+			same = lzx_br_bits(strm, 5) + 20;
+			lzx_br_consume(strm, 5);
+			memset(d->bitlen + i, 0, same);
+			i += same;
+			break;
+		case 19:/* a few same lengths. */
+			if (!lzx_br_read_ahead(strm,
+			    ds->pt.bitlen[c]+1+ds->pt.max_bits))
+				goto getdata;
+			lzx_br_consume(strm, ds->pt.bitlen[c]);
+			same = lzx_br_bits(strm, 1) + 4;
+			lzx_br_consume(strm, 1);
+			c = ds->pt.tbl[lzx_br_bits(strm, ds->pt.max_bits)];
+			lzx_br_consume(strm, ds->pt.bitlen[c]);
+			c = (d->bitlen[i] - c + 17) % 17;
+			for (j = 0; j < same; j++)
+				d->bitlen[i++] = c;
+			d->freq[c] += same;
+			break;
+		default:
+			lzx_br_consume(strm, ds->pt.bitlen[c]);
+			c = (d->bitlen[i] - c + 17) % 17;
+			d->freq[c]++;
+			d->bitlen[i++] = c;
+			break;
+		}
+	}
+	ret = 1;
+getdata:
+	ds->loop = i;
+	return (ret);
+}
+
+static int
+lzx_huffman_init(struct huffman *hf, size_t len_size, int tbl_bits)
+{
+
+	if (hf->bitlen == NULL || hf->len_size != len_size) {
+		free(hf->bitlen);
+		hf->bitlen = calloc(len_size,  sizeof(hf->bitlen[0]));
+		if (hf->bitlen == NULL)
+			return (ARCHIVE_FATAL);
+		hf->len_size = len_size;
+	} else
+		memset(hf->bitlen, 0, len_size *  sizeof(hf->bitlen[0]));
+	if (hf->tbl == NULL) {
+		hf->tbl = malloc((1 << tbl_bits) * sizeof(hf->tbl[0]));
+		if (hf->tbl == NULL)
+			return (ARCHIVE_FATAL);
+		hf->tbl_bits = tbl_bits;
+	}
+	return (ARCHIVE_OK);
+}
+
+static void
+lzx_huffman_free(struct huffman *hf)
+{
+	free(hf->bitlen);
+	free(hf->tbl);
+}
+
+/*
+ * Make a huffman coding table.
+ */
+static int
+lzx_make_huffman_table(struct huffman *hf)
+{
+	int bitptn[17], weight[17];
+	int i, maxbits = 0, ptn, tbl_size, w;
+
+	/*
+	 * Initialize bit patterns.
+	 */
+	ptn = 0;
+	for (i = 1, w = 1 << 15; i <= 16; i++, w >>= 1) {
+		bitptn[i] = ptn;
+		weight[i] = w;
+		if (hf->freq[i]) {
+			ptn += hf->freq[i] * w;
+			maxbits = i;
+		}
+	}
+	if ((ptn & 0xffff) != 0 || maxbits > hf->tbl_bits)
+		return (0);/* Invalid */
+
+	hf->max_bits = maxbits;
+	tbl_size = 1 << maxbits;
+
+	/*
+	 * Cut out extra bits which we won't house in the table.
+	 * This preparation reduces the same calculation in the for-loop
+	 * making the table.
+	 */
+	if (maxbits < 16) {
+		int ebits = 16 - maxbits;
+		for (i = 1; i <= maxbits; i++) {
+			bitptn[i] >>= ebits;
+			weight[i] >>= ebits;
+		}
+	}
+
+	/*
+	 * Make the table.
+	 */
+	for (i = 0; i < hf->len_size; i++) {
+		uint16_t *p;
+		int len, cnt;
+
+		if ((len = hf->bitlen[i]) == 0)
+			continue;
+		/* Get a bit pattern */
+		ptn = bitptn[len];
+		cnt = weight[len];
+		/* Calculate next bit pattern */
+		if ((bitptn[len] += cnt) > tbl_size)
+			return (0);/* Invalid */
+		/* Update the table */
+		p = &(hf->tbl[ptn]);
+		while (--cnt >= 0)
+			*p++ = (uint16_t)i;
+	}
+	return (1);
 }
 
