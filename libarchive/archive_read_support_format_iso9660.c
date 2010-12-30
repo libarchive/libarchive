@@ -2112,9 +2112,13 @@ register_CE(struct archive_read *a, int32_t location,
 	offset = ((uint64_t)location) * (uint64_t)iso9660->logical_block_size;
 	if (((file->mode & AE_IFMT) == AE_IFREG &&
 	    offset >= file->offset) ||
-	    offset < iso9660->current_position) {
+	    offset < iso9660->current_position ||
+	    (((uint64_t)file->ce_offset) + file->ce_size)
+	      > iso9660->logical_block_size ||
+	    offset + file->ce_offset + file->ce_size
+		  > iso9660->volume_size) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Invalid location in SUSP \"CE\" extension");
+		    "Invalid parameter in SUSP \"CE\" extension");
 		return (ARCHIVE_FATAL);
 	}
 
