@@ -2243,7 +2243,7 @@ static int
 lzx_decode(struct lzx_stream *strm, int last)
 {
 	struct lzx_dec *ds = strm->ds;
-	int c, i;
+	int c, i, r;
 #define ST_RD_TRANSLATION	0
 #define ST_RD_TRANSLATION_SIZE	1
 #define ST_RD_BLOCK_TYPE	2
@@ -2495,7 +2495,10 @@ lzx_decode(struct lzx_stream *strm, int last)
 			/*
 			 * Get path lengths of first 256 elements of main tree.
 			 */
-			if (!lzx_read_bitlen(strm, &ds->mt, 256)) {
+			r = lzx_read_bitlen(strm, &ds->mt, 256);
+			if (r < 0)
+				goto failed;
+			else if (!r) {
 				ds->state = ST_MAIN_TREE_256;
 				if (last)
 					goto failed;
@@ -2521,7 +2524,10 @@ lzx_decode(struct lzx_stream *strm, int last)
 			/*
 			 * Get path lengths of remaining elements of main tree.
 			 */
-			if (!lzx_read_bitlen(strm, &ds->mt, -1)) {
+			r = lzx_read_bitlen(strm, &ds->mt, -1);
+			if (r < 0)
+				goto failed;
+			else if (!r) {
 				ds->state = ST_MAIN_TREE_REM;
 				if (last)
 					goto failed;
@@ -2549,7 +2555,10 @@ lzx_decode(struct lzx_stream *strm, int last)
 			/*
 			 * Get path lengths of remaining elements of main tree.
 			 */
-			if (!lzx_read_bitlen(strm, &ds->lt, -1)) {
+			r = lzx_read_bitlen(strm, &ds->lt, -1);
+			if (r < 0)
+				goto failed;
+			else if (!r) {
 				ds->state = ST_LENGTH_TREE;
 				if (last)
 					goto failed;
@@ -2820,6 +2829,8 @@ lzx_read_bitlen(struct lzx_stream *strm, struct huffman *d, int end)
 				goto getdata;
 			lzx_br_consume(strm, ds->pt.bitlen[c]);
 			same = lzx_br_bits(strm, 4) + 4;
+			if (i + same > end)
+				return (-1);
 			lzx_br_consume(strm, 4);
 			for (j = 0; j < same; j++)
 				d->bitlen[i++] = 0;
@@ -2829,6 +2840,8 @@ lzx_read_bitlen(struct lzx_stream *strm, struct huffman *d, int end)
 				goto getdata;
 			lzx_br_consume(strm, ds->pt.bitlen[c]);
 			same = lzx_br_bits(strm, 5) + 20;
+			if (i + same > end)
+				return (-1);
 			lzx_br_consume(strm, 5);
 			memset(d->bitlen + i, 0, same);
 			i += same;
@@ -2839,6 +2852,8 @@ lzx_read_bitlen(struct lzx_stream *strm, struct huffman *d, int end)
 				goto getdata;
 			lzx_br_consume(strm, ds->pt.bitlen[c]);
 			same = lzx_br_bits(strm, 1) + 4;
+			if (i + same > end)
+				return (-1);
 			lzx_br_consume(strm, 1);
 			c = ds->pt.tbl[lzx_br_bits(strm, ds->pt.max_bits)];
 			lzx_br_consume(strm, ds->pt.bitlen[c]);
