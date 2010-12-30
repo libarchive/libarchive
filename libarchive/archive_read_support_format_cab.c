@@ -1246,7 +1246,7 @@ cab_read_ahead_cfdata(struct archive_read *a, ssize_t *avail)
 	default: /* Unsupported compression. */
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Unsupported CAB compression : %s",
-		    compression_name[cab->entry_cffolder->comptype]);
+		    cab->entry_cffolder->compname);
 		*avail = ARCHIVE_FAILED;
 		return (NULL);
 	}
