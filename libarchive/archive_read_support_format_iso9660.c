@@ -336,6 +336,7 @@ struct iso9660 {
 	struct {
 		struct file_info	*first;
 		struct file_info	**last;
+		int			 count;
 	}	cache_files;
 
 	uint64_t current_position;
@@ -434,6 +435,7 @@ archive_read_support_format_iso9660(struct archive *_a)
 	iso9660->magic = ISO9660_MAGIC;
 	iso9660->cache_files.first = NULL;
 	iso9660->cache_files.last = &(iso9660->cache_files.first);
+	iso9660->cache_files.count = 0;
 	/* Enable to support Joliet extensions by default.	*/
 	iso9660->opt_support_joliet = 1;
 	/* Enable to support Rock Ridge extensions by default.	*/
@@ -2548,11 +2550,15 @@ next_cache_entry(struct iso9660 *iso9660)
 
 	file = cache_get_entry(iso9660);
 	if (file != NULL) {
+		int cnt = 0;
 		while (file->parent != NULL && !file->parent->exposed) {
 			/* If file's parent is not exposed, it's moved
 			 * to next entry of its parent. */
 			cache_add_to_next_of_parent(iso9660, file);
 			file = cache_get_entry(iso9660);
+			/* Prevent infnity loop caused by a broken ISO image. */
+			if (++cnt > iso9660->cache_files.count)
+				return (NULL);
 		}
 		return (file);
 	}
@@ -2568,6 +2574,7 @@ next_cache_entry(struct iso9660 *iso9660)
 	number = file->number;
 	iso9660->cache_files.first = NULL;
 	iso9660->cache_files.last = &(iso9660->cache_files.first);
+	iso9660->cache_files.count = 0;
 	empty_files.first = NULL;
 	empty_files.last = &empty_files.first;
 	/* Collect files which has the same file serial number.
@@ -2630,6 +2637,7 @@ cache_add_entry(struct iso9660 *iso9660, struct file_info *file)
 	file->next = NULL;
 	*iso9660->cache_files.last = file;
 	iso9660->cache_files.last = &(file->next);
+	iso9660->cache_files.count++;
 }
 
 static inline void
@@ -2639,6 +2647,7 @@ cache_add_to_next_of_parent(struct iso9660 *iso9660, struct file_info *file)
 	file->parent->next = file;
 	if (iso9660->cache_files.last == &(file->parent->next))
 		iso9660->cache_files.last = &(file->next);
+	iso9660->cache_files.count++;
 }
 
 static inline struct file_info *
@@ -2650,6 +2659,7 @@ cache_get_entry(struct iso9660 *iso9660)
 		iso9660->cache_files.first = file->next;
 		if (iso9660->cache_files.first == NULL)
 			iso9660->cache_files.last = &(iso9660->cache_files.first);
+		iso9660->cache_files.count--;
 	}
 	return (file);
 }
