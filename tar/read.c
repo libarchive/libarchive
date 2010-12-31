@@ -76,12 +76,12 @@ struct progress_data {
 
 static void	list_item_verbose(struct bsdtar *, FILE *,
 		    struct archive_entry *);
-static void	read_archive(struct bsdtar *bsdtar, char mode);
+static void	read_archive(struct bsdtar *bsdtar, char mode, struct archive *);
 
 void
 tar_mode_t(struct bsdtar *bsdtar)
 {
-	read_archive(bsdtar, 't');
+	read_archive(bsdtar, 't', NULL);
 	if (lafe_unmatched_inclusions_warn(bsdtar->matching, "Not found in archive") != 0)
 		bsdtar->return_value = 1;
 }
@@ -89,10 +89,20 @@ tar_mode_t(struct bsdtar *bsdtar)
 void
 tar_mode_x(struct bsdtar *bsdtar)
 {
-	read_archive(bsdtar, 'x');
+	struct archive *writer;
+
+	writer = archive_write_disk_new();
+	if (writer == NULL)
+		lafe_errc(1, ENOMEM, "Cannot allocate disk writer object");
+	if (!bsdtar->option_numeric_owner)
+		archive_write_disk_set_standard_lookup(writer);
+	archive_write_disk_set_options(writer, bsdtar->extract_flags);
+
+	read_archive(bsdtar, 'x', writer);
 
 	if (lafe_unmatched_inclusions_warn(bsdtar->matching, "Not found in archive") != 0)
 		bsdtar->return_value = 1;
+	archive_write_free(writer);
 }
 
 static void
@@ -135,7 +145,7 @@ progress_func(void *cookie)
  * Handle 'x' and 't' modes.
  */
 static void
-read_archive(struct bsdtar *bsdtar, char mode)
+read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 {
 	struct progress_data	progress_data;
 	FILE			 *out;
@@ -329,8 +339,7 @@ read_archive(struct bsdtar *bsdtar, char mode)
 			if (bsdtar->option_stdout)
 				r = archive_read_data_into_fd(a, 1);
 			else
-				r = archive_read_extract(a, entry,
-				    bsdtar->extract_flags);
+				r = archive_read_extract2(a, entry, writer);
 			if (r != ARCHIVE_OK) {
 				if (!bsdtar->verbose)
 					safe_fprintf(stderr, "%s",

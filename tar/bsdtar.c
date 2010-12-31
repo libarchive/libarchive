@@ -432,6 +432,7 @@ main(int argc, char **argv)
 		case OPTION_NUMERIC_OWNER: /* GNU tar */
 			bsdtar->uname = "";
 			bsdtar->gname = "";
+			bsdtar->option_numeric_owner++;
 			break;
 		case 'O': /* GNU tar */
 			bsdtar->option_stdout = 1;
