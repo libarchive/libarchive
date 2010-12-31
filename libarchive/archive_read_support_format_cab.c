@@ -2830,7 +2830,7 @@ lzx_read_bitlen(struct lzx_stream *strm, struct huffman *d, int end)
 			lzx_br_consume(strm, ds->pt.bitlen[c]);
 			same = lzx_br_bits(strm, 4) + 4;
 			if (i + same > end)
-				return (-1);
+				return (-1);/* Invalid */
 			lzx_br_consume(strm, 4);
 			for (j = 0; j < same; j++)
 				d->bitlen[i++] = 0;
@@ -2841,7 +2841,7 @@ lzx_read_bitlen(struct lzx_stream *strm, struct huffman *d, int end)
 			lzx_br_consume(strm, ds->pt.bitlen[c]);
 			same = lzx_br_bits(strm, 5) + 20;
 			if (i + same > end)
-				return (-1);
+				return (-1);/* Invalid */
 			lzx_br_consume(strm, 5);
 			memset(d->bitlen + i, 0, same);
 			i += same;
@@ -2858,6 +2858,8 @@ lzx_read_bitlen(struct lzx_stream *strm, struct huffman *d, int end)
 			c = ds->pt.tbl[lzx_br_bits(strm, ds->pt.max_bits)];
 			lzx_br_consume(strm, ds->pt.bitlen[c]);
 			c = (d->bitlen[i] - c + 17) % 17;
+			if (c < 0)
+				return (-1);/* Invalid */
 			for (j = 0; j < same; j++)
 				d->bitlen[i++] = c;
 			d->freq[c] += same;
@@ -2865,6 +2867,8 @@ lzx_read_bitlen(struct lzx_stream *strm, struct huffman *d, int end)
 		default:
 			lzx_br_consume(strm, ds->pt.bitlen[c]);
 			c = (d->bitlen[i] - c + 17) % 17;
+			if (c < 0)
+				return (-1);/* Invalid */
 			d->freq[c]++;
 			d->bitlen[i++] = c;
 			break;
