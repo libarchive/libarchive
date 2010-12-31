@@ -994,6 +994,7 @@ header_common(struct archive_read *a, struct tar *tar,
 {
 	const struct archive_entry_header_ustar	*header;
 	char	tartype;
+	int     err = ARCHIVE_OK;
 
 	(void)a; /* UNUSED */
 
@@ -1009,6 +1010,12 @@ header_common(struct archive_read *a, struct tar *tar,
 	archive_entry_set_uid(entry, tar_atol(header->uid, sizeof(header->uid)));
 	archive_entry_set_gid(entry, tar_atol(header->gid, sizeof(header->gid)));
 	tar->entry_bytes_remaining = tar_atol(header->size, sizeof(header->size));
+	if (tar->entry_bytes_remaining < 0) {
+		tar->entry_bytes_remaining = 0;
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Tar entry has negative size?");
+		err = ARCHIVE_WARN;
+	}
 	tar->realsize = tar->entry_bytes_remaining;
 	archive_entry_set_size(entry, tar->entry_bytes_remaining);
 	archive_entry_set_mtime(entry, tar_atol(header->mtime, sizeof(header->mtime)), 0);
@@ -1138,7 +1145,7 @@ header_common(struct archive_read *a, struct tar *tar,
 		archive_entry_set_filetype(entry, AE_IFREG);
 		break;
 	}
-	return (0);
+	return (err);
 }
 
 /*
@@ -1149,6 +1156,7 @@ header_old_tar(struct archive_read *a, struct tar *tar,
     struct archive_entry *entry, const void *h)
 {
 	const struct archive_entry_header_ustar	*header;
+	int err = ARCHIVE_OK;
 
 	/* Copy filename over (to ensure null termination). */
 	header = (const struct archive_entry_header_ustar *)h;
@@ -1156,10 +1164,10 @@ header_old_tar(struct archive_read *a, struct tar *tar,
 	archive_entry_copy_pathname(entry, tar->entry_pathname.s);
 
 	/* Grab rest of common fields */
-	header_common(a, tar, entry, h);
+	err = header_common(a, tar, entry, h);
 
 	tar->entry_padding = 0x1ff & (-tar->entry_bytes_remaining);
-	return (0);
+	return (err);
 }
 
 /*
@@ -1271,6 +1279,7 @@ header_ustar(struct archive_read *a, struct tar *tar,
 {
 	const struct archive_entry_header_ustar	*header;
 	struct archive_string *as;
+	int err = ARCHIVE_OK;
 
 	header = (const struct archive_entry_header_ustar *)h;
 
@@ -1287,7 +1296,7 @@ header_ustar(struct archive_read *a, struct tar *tar,
 	archive_entry_copy_pathname(entry, as->s);
 
 	/* Handle rest of common fields. */
-	header_common(a, tar, entry, h);
+	err = header_common(a, tar, entry, h);
 
 	/* Handle POSIX ustar fields. */
 	archive_strncpy(&(tar->entry_uname), header->uname,
@@ -1308,7 +1317,7 @@ header_ustar(struct archive_read *a, struct tar *tar,
 
 	tar->entry_padding = 0x1ff & (-tar->entry_bytes_remaining);
 
-	return (0);
+	return (err);
 }
 
 
@@ -1790,6 +1799,7 @@ header_gnutar(struct archive_read *a, struct tar *tar,
 {
 	const struct archive_entry_header_gnutar *header;
 	int64_t t;
+	int err = ARCHIVE_OK;
 
 	(void)a;
 
@@ -1800,7 +1810,7 @@ header_gnutar(struct archive_read *a, struct tar *tar,
 	 */
 
 	/* Grab fields common to all tar variants. */
-	header_common(a, tar, entry, h);
+	err = header_common(a, tar, entry, h);
 
 	/* Copy filename over (to ensure null termination). */
 	header = (const struct archive_entry_header_gnutar *)h;
@@ -1853,7 +1863,7 @@ header_gnutar(struct archive_read *a, struct tar *tar,
 		}
 	}
 
-	return (0);
+	return (err);
 }
 
 static void
