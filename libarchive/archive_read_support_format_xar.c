@@ -1378,6 +1378,13 @@ decompression_init(struct archive_read *a, enum enctype encoding)
 		break;
 #endif
 #if defined(HAVE_LZMA_H) && defined(HAVE_LIBLZMA)
+#if LZMA_VERSION_MAJOR >= 5
+/* Effectively disable the limiter. */
+#define LZMA_MEMLIMIT   UINT64_MAX
+#else
+/* NOTE: This needs to check memory size which running system has. */
+#define LZMA_MEMLIMIT   (1U << 30)
+#endif
 	case XZ:
 	case LZMA:
 		if (xar->lzstream_valid) {
@@ -1386,11 +1393,11 @@ decompression_init(struct archive_read *a, enum enctype encoding)
 		}
 		if (xar->entry_encoding == XZ)
 			r = lzma_stream_decoder(&(xar->lzstream),
-			    (1U << 30),/* memlimit */
+			    LZMA_MEMLIMIT,/* memlimit */
 			    LZMA_CONCATENATED);
 		else
 			r = lzma_alone_decoder(&(xar->lzstream),
-			    (1U << 30));/* memlimit */
+			    LZMA_MEMLIMIT);/* memlimit */
 		if (r != LZMA_OK) {
 			switch (r) {
 			case LZMA_MEM_ERROR:

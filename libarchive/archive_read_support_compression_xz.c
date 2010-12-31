@@ -69,6 +69,14 @@ struct private_data {
 	int64_t		 member_out;
 };
 
+#if LZMA_VERSION_MAJOR >= 5
+/* Effectively disable the limiter. */
+#define LZMA_MEMLIMIT	UINT64_MAX
+#else
+/* NOTE: This needs to check memory size which running system has. */
+#define LZMA_MEMLIMIT	(1U << 30)
+#endif
+
 /* Combined lzip/lzma/xz filter */
 static ssize_t	xz_filter_read(struct archive_read_filter *, const void **);
 static int	xz_filter_close(struct archive_read_filter *);
@@ -516,18 +524,14 @@ xz_lzma_bidder_init(struct archive_read_filter *self)
 	} else
 		state->in_stream = 1;
 
-	/* Initialize compression library.
-	 * TODO: I don't know what value is best for memlimit.
-	 *       maybe, it needs to check memory size which
-	 *       running system has.
-	 */
+	/* Initialize compression library. */
 	if (self->code == ARCHIVE_COMPRESSION_XZ)
 		ret = lzma_stream_decoder(&(state->stream),
-		    (1U << 30),/* memlimit */
+		    LZMA_MEMLIMIT,/* memlimit */
 		    LZMA_CONCATENATED);
 	else
 		ret = lzma_alone_decoder(&(state->stream),
-		    (1U << 30));/* memlimit */
+		    LZMA_MEMLIMIT);/* memlimit */
 
 	if (ret == LZMA_OK)
 		return (ARCHIVE_OK);
