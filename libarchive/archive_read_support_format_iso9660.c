@@ -1222,6 +1222,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 	} else
 		rd_r = ARCHIVE_OK;
 
+	file = NULL;/* Eliminate a warning. */
 	/* Get the next entry that appears after the current offset. */
 	r = next_entry_seek(a, iso9660, &file);
 	if (r != ARCHIVE_OK)
