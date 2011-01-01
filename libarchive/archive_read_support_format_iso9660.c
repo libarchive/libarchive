@@ -379,9 +379,10 @@ static int	isJolietSVD(struct iso9660 *, const unsigned char *);
 static int	isSVD(struct iso9660 *, const unsigned char *);
 static int	isEVD(struct iso9660 *, const unsigned char *);
 static int	isPVD(struct iso9660 *, const unsigned char *);
-static struct file_info *next_cache_entry(struct iso9660 *iso9660);
-static int	next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
-		    struct file_info **pfile);
+static int	next_cache_entry(struct archive_read *, struct iso9660 *,
+		    struct file_info **);
+static int	next_entry_seek(struct archive_read *, struct iso9660 *,
+		    struct file_info **);
 static struct file_info *
 		parse_file_info(struct archive_read *a,
 		    struct file_info *parent, const unsigned char *isodirrec);
@@ -2507,10 +2508,12 @@ next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
     struct file_info **pfile)
 {
 	struct file_info *file;
+	int r;
 
-	*pfile = file = next_cache_entry(iso9660);
-	if (file == NULL)
-		return (ARCHIVE_EOF);
+	r = next_cache_entry(a, iso9660, pfile);
+	if (r != ARCHIVE_OK)
+		return (r);
+	file = *pfile;
 
 	/* Don't waste time seeking for zero-length bodies. */
 	if (file->size == 0)
@@ -2537,8 +2540,9 @@ next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
 	return (ARCHIVE_OK);
 }
 
-static struct file_info *
-next_cache_entry(struct iso9660 *iso9660)
+static int
+next_cache_entry(struct archive_read *a, struct iso9660 *iso9660,
+    struct file_info **pfile)
 {
 	struct file_info *file;
 	struct {
@@ -2556,19 +2560,31 @@ next_cache_entry(struct iso9660 *iso9660)
 			 * to next entry of its parent. */
 			cache_add_to_next_of_parent(iso9660, file);
 			file = cache_get_entry(iso9660);
-			/* Prevent infnity loop caused by a broken ISO image. */
-			if (++cnt > iso9660->cache_files.count)
-				return (NULL);
+			
+			/*
+			 * Sanity check for fear we should come across the
+			 * infnity loop or the segmentaion falt, both which
+			 * are caused by a broken ISO image.
+			 */
+			if (file == NULL ||
+			    ++cnt > iso9660->cache_files.count) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "Failed to read full block when scanning "
+				    "ISO9660 file list");
+				return (ARCHIVE_FATAL);
+			}
 		}
-		return (file);
+		*pfile = file;
+		return (ARCHIVE_OK);
 	}
 
-	file = next_entry(iso9660);
+	*pfile = file = next_entry(iso9660);
 	if (file == NULL)
-		return (NULL);
+		return (ARCHIVE_EOF);
 
 	if ((file->mode & AE_IFMT) != AE_IFREG || file->number == -1)
-		return (file);
+		return (ARCHIVE_OK);
 
 	count = 0;
 	number = file->number;
@@ -2602,8 +2618,10 @@ next_cache_entry(struct iso9660 *iso9660)
 		file = next_entry(iso9660);
 	}
 
-	if (count == 0)
-		return (file);
+	if (count == 0) {
+		*pfile = file;
+		return ((file == NULL)?ARCHIVE_EOF:ARCHIVE_OK);
+	}
 	if (file->number == -1) {
 		file->next = NULL;
 		*empty_files.last = file;
@@ -2628,7 +2646,8 @@ next_cache_entry(struct iso9660 *iso9660)
 		*iso9660->cache_files.last = empty_files.first;
 		iso9660->cache_files.last = empty_files.last;
 	}
-	return (cache_get_entry(iso9660));
+	*pfile = cache_get_entry(iso9660);
+	return ((*pfile == NULL)?ARCHIVE_EOF:ARCHIVE_OK);
 }
 
 static inline void
