@@ -1284,7 +1284,6 @@ advance_file_pointer(struct archive_read_filter *filter, int64_t request)
 	/* Use ordinary reads as necessary to complete the request. */
 	for (;;) {
 		bytes_read = (filter->read)(filter, &filter->client_buff);
-
 		if (bytes_read < 0) {
 			filter->client_buff = NULL;
 			filter->fatal = 1;
@@ -1303,9 +1302,11 @@ advance_file_pointer(struct archive_read_filter *filter, int64_t request)
 			filter->client_avail = bytes_read - request;
 			filter->client_total = bytes_read;
 			total_bytes_skipped += request;
+			filter->bytes_consumed += request;
 			return (total_bytes_skipped);
 		}
 
+		filter->bytes_consumed += bytes_read;
 		total_bytes_skipped += bytes_read;
 		request -= bytes_read;
 	}

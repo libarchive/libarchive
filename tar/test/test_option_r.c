@@ -30,8 +30,9 @@ __FBSDID("$FreeBSD$");
  */
 DEFINE_TEST(test_option_r)
 {
-	char buff[7500];
+	char *buff;
 	char *p0, *p1;
+	size_t buff_size = 35000;
 	size_t s, buff_size_rounded;
 	int r, i;
 
@@ -57,9 +58,11 @@ DEFINE_TEST(test_option_r)
 	assertEqualMem(p0 + 1536, "\0\0\0\0\0\0\0\0", 8);
 
 	/* Edit that file with a lot more data and update the archive with a new copy. */
-	for (i = 0; i < sizeof(buff); ++i)
+	buff = malloc(buff_size);
+	assert(buff != NULL);
+	for (i = 0; i < buff_size; ++i)
 		buff[i] = "abcdefghijklmnopqrstuvwxyz"[rand() % 26];
-	buff[sizeof(buff) - 1] = '\0';
+	buff[buff_size - 1] = '\0';
 	assertMakeFile("f1", 0644, buff);
 	r = systemf("%s rf archive.tar --format=ustar f1 >step2.out 2>step2.err", testprog);
 	failure("Error invoking %s rf archive.tar f1", testprog);
@@ -73,13 +76,13 @@ DEFINE_TEST(test_option_r)
 		free(p0);
 		return;
 	}
-	buff_size_rounded = ((sizeof(buff) + 511) / 512) * 512;
+	buff_size_rounded = ((buff_size + 511) / 512) * 512;
 	assert(s >= 2560 + buff_size_rounded);
 	/* Verify first entry is unchanged. */
 	assertEqualMem(p0, p1, 1024);
 	/* Verify that second entry is correct. */
 	assertEqualMem(p1 + 1024, "f1", 3);
-	assertEqualMem(p1 + 1536, buff, sizeof(buff));
+	assertEqualMem(p1 + 1536, buff, buff_size);
 	/* Verify end-of-archive marker. */
 	assertEqualMem(p1 + 1536 + buff_size_rounded, "\0\0\0\0\0\0\0\0", 8);
 	assertEqualMem(p1 + 2048 + buff_size_rounded, "\0\0\0\0\0\0\0\0", 8);
