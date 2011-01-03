@@ -951,6 +951,16 @@ update_filesystem(struct archive_read_disk *a, int64_t dev)
 	t->current_filesystem_id = fid;
 	t->current_filesystem = &(t->filesystem_table[fid]);
 	t->current_filesystem->dev = dev;
+
+	/*
+	 * When symlink is broken, we cannot find out what current
+	 * filesystem is.
+	 */
+	if (tree_current_stat(a->tree) == NULL) {
+		t->current_filesystem->synthetic = -1;/* Not supported */
+		t->current_filesystem->remote = -1;/* Not supported */
+		return (ARCHIVE_OK);
+	}
 	return (setup_current_filesystem(a));
 }
 
