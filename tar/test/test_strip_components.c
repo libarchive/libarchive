@@ -41,7 +41,12 @@ DEFINE_TEST(test_strip_components)
 	}
 	assertChdir("..");
 
-	assertEqualInt(0, systemf("%s -cf test.tar d0/l1 d0/s1 d0/d1", testprog));
+	if (canSymlink())
+		assertEqualInt(0, systemf("%s -cf test.tar d0/l1 d0/s1 d0/d1",
+		    testprog));
+	else
+		assertEqualInt(0, systemf("%s -cf test.tar d0/l1 d0/d1",
+		    testprog));
 
 	assertMakeDir("target", 0755);
 	assertEqualInt(0, systemf("%s -x -C target --strip-components 2 "
