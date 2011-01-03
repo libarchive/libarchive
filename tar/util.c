@@ -263,12 +263,19 @@ yes(const char *fmt, ...)
  * about -C with non-existent directories; such requests will only
  * fail if the directory must be accessed.
  *
- * TODO: Make this handle Windows paths correctly.
  */
 void
 set_chdir(struct bsdtar *bsdtar, const char *newdir)
 {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	if (newdir[0] == '/' || newdir[0] == '\\' ||
+	    /* Detect this type, for example, "C:\" or "C:/" */
+	    (((newdir[0] >= 'a' && newdir[0] <= 'z') ||
+	      (newdir[0] >= 'A' && newdir[0] <= 'Z')) &&
+	    newdir[1] == ':' && (newdir[2] == '/' || newdir[2] == '\\'))) {
+#else
 	if (newdir[0] == '/') {
+#endif
 		/* The -C /foo -C /bar case; dump first one. */
 		free(bsdtar->pending_chdir);
 		bsdtar->pending_chdir = NULL;
