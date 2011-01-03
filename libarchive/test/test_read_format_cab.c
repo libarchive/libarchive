@@ -169,8 +169,13 @@ static const char file2[] = {
 };
 #define file2_size (sizeof(file2)-1)
 
+enum comp_type {
+	STORE = 0,
+	MSZIP,
+	LZX
+};
 static void
-verify(const char *refname, int comp)
+verify(const char *refname, enum comp_type comp)
 {
 	struct archive_entry *ae;
 	struct archive *a;
@@ -194,7 +199,7 @@ verify(const char *refname, int comp)
 	assertEqualInt(0, archive_entry_gid(ae));
 	assertEqualInt(0, archive_entry_size(ae));
 
-	if (comp) {
+	if (comp != STORE) {
 		/* Verify regular zero.
 		 * Maximum CFDATA size is 32768, so we need over 32768 bytes
 		 * file to check if we properly handle multiple CFDATA.
@@ -206,8 +211,16 @@ verify(const char *refname, int comp)
 		assertEqualInt(0, archive_entry_gid(ae));
 		assertEqualInt(33000, archive_entry_size(ae));
 		for (s = 0; s + sizeof(buff) < 33000; s+= sizeof(buff)) {
-			assertEqualInt(sizeof(buff),
-			    archive_read_data(a, buff, sizeof(buff)));
+			ssize_t rsize = archive_read_data(a, buff, sizeof(buff));
+			if (comp == MSZIP && rsize < 0 &&
+			    strcmp(archive_error_string(a),
+			    "libarchive compiled without deflate support (no libz)")
+			    == 0) {
+				skipping("Skipping CAB format(MSZIP) check: %s",
+				    archive_error_string(a));
+				goto finish;
+			}
+			assertEqualInt(sizeof(buff), rsize);
 			assertEqualMem(buff, zero, sizeof(buff));
 		}
 		assertEqualInt(33000 - s, archive_read_data(a, buff, 33000 - s));
@@ -243,16 +256,17 @@ verify(const char *refname, int comp)
 
 	/* Close the archive. */
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+finish:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 DEFINE_TEST(test_read_format_cab)
 {
 	/* Verify Cabinet file in no compression. */
-	verify("test_read_format_cab_1.cab", 0);
+	verify("test_read_format_cab_1.cab", STORE);
 	/* Verify Cabinet file in MSZIP. */
-	verify("test_read_format_cab_2.cab", 1);
+	verify("test_read_format_cab_2.cab", MSZIP);
 	/* Verify Cabinet file in LZX. */
-	verify("test_read_format_cab_3.cab", 1);
+	verify("test_read_format_cab_3.cab", LZX);
 }
 
