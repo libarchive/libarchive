@@ -1292,7 +1292,7 @@ tree_append(struct tree *t, const wchar_t *name, size_t name_length)
 		name_length--;
 
 	/* Resize pathname buffer as needed. */
-	size_needed = name_length + 1 + t->dirname_length;
+	size_needed = name_length + t->dirname_length + 2;
 	archive_wstring_ensure(&t->path, size_needed);
 	/* Add a separating '/' if it's needed. */
 	if (t->dirname_length > 0 &&
@@ -1303,7 +1303,7 @@ tree_append(struct tree *t, const wchar_t *name, size_t name_length)
 	if (t->full_path_dir_length > 0) {
 		t->full_path.s[t->full_path_dir_length] = L'\0';
 		t->full_path.length = t->full_path_dir_length;
-		size_needed = name_length + 1 + t->full_path_dir_length;
+		size_needed = name_length + t->full_path_dir_length + 2;
 		archive_wstring_ensure(&t->full_path, size_needed);
 		/* Add a separating '\' if it's needed. */
 		if (t->full_path.s[archive_strlen(&t->full_path)-1] != L'\\')
