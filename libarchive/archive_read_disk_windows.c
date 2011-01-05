@@ -952,15 +952,6 @@ update_filesystem(struct archive_read_disk *a, int64_t dev)
 	t->current_filesystem = &(t->filesystem_table[fid]);
 	t->current_filesystem->dev = dev;
 
-	/*
-	 * When symlink is broken, we cannot find out what current
-	 * filesystem is.
-	 */
-	if (tree_current_stat(a->tree) == NULL) {
-		t->current_filesystem->synthetic = -1;/* Not supported */
-		t->current_filesystem->remote = -1;/* Not supported */
-		return (ARCHIVE_OK);
-	}
 	return (setup_current_filesystem(a));
 }
 
@@ -1106,6 +1097,29 @@ setup_current_filesystem(struct archive_read_disk *a)
 }
 
 #elif defined(_WIN32) && !defined(__CYGWIN__)
+/*
+ * If symlink is broken, statfs or statvfs will fail.
+ * Use its directory path instead.
+ */
+static wchar_t *
+safe_path_for_statfs(struct tree *t)
+{
+	const wchar_t *path;
+	wchar_t *cp, *p = NULL;
+
+	path = tree_current_access_path(t);
+	if (tree_current_stat(t) == NULL) {
+		p = _wcsdup(path);
+		cp = wcsrchr(p, '/');
+		if (cp != NULL && wcslen(cp) >= 2) {
+			cp[1] = '.';
+			cp[2] = '\0';
+			path = p;
+		}
+	} else
+		p = _wcsdup(path);
+	return (p);
+}
 
 /*
  * Get conditions of synthetic and remote on Windows
@@ -1115,15 +1129,18 @@ setup_current_filesystem(struct archive_read_disk *a)
 {
 	struct tree *t = a->tree;
 	wchar_t vol[256];
+	wchar_t *path;
 
 	t->current_filesystem->synthetic = -1;/* Not supported */
-	if (!GetVolumePathNameW(tree_current_access_path(t), vol,
-	    sizeof(vol)/sizeof(vol[0]))) {
+	path = safe_path_for_statfs(t);
+	if (!GetVolumePathNameW(path, vol, sizeof(vol)/sizeof(vol[0]))) {
+		free(path);
 		t->current_filesystem->remote = -1;
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
                         "GetVolumePathName failed: %d", (int)GetLastError());
 		return (ARCHIVE_FAILED);
 	}
+	free(path);
 	switch (GetDriveTypeW(vol)) {
 	case DRIVE_UNKNOWN:
 	case DRIVE_NO_ROOT_DIR:

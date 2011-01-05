@@ -863,15 +863,6 @@ update_filesystem(struct archive_read_disk *a, int64_t dev)
 # endif /* NAME_MAX */
 #endif /* HAVE_READDIR_R */
 
-	/*
-	 * When symlink is broken, we cannot find out what current
-	 * filesystem is.
-	 */
-	if (tree_current_stat(a->tree) == NULL) {
-		t->current_filesystem->synthetic = -1;/* Not supported */
-		t->current_filesystem->remote = -1;/* Not supported */
-		return (ARCHIVE_OK);
-	}
 	return (setup_current_filesystem(a));
 }
 
@@ -905,6 +896,41 @@ archive_read_disk_current_filesystem_is_remote(struct archive *_a)
 	return (a->tree->current_filesystem->remote);
 }
 
+#if defined(__FreeBSD__) || \
+   (defined(HAVE_STATVFS) && defined(ST_LOCAL)) || \
+   (defined(HAVE_SYS_VFS_H) && defined(HAVE_LINUX_MAGIC_H))
+
+/*
+ * If symlink is broken, statfs or statvfs will fail.
+ * Use its directory path instead.
+ */
+static char *
+safe_path_for_statfs(struct tree *t)
+{
+	const char *path;
+	char *cp, *p = NULL;
+
+	path = tree_current_access_path(t);
+	if (tree_current_stat(t) == NULL) {
+		cp = strrchr(path, '/');
+		if (cp == NULL)
+			p = strdup(".");
+		else {
+			p = strdup(path);
+			cp = strrchr(p, '/');
+			if (cp != NULL && strlen(cp) >= 2) {
+				cp[1] = '.';
+				cp[2] = '\0';
+				path = p;
+			}
+		}
+	} else
+		p = strdup(path);
+	return (p);
+}
+
+#endif
+
 #if defined(__FreeBSD__)
 
 /*
@@ -916,11 +942,14 @@ setup_current_filesystem(struct archive_read_disk *a)
 	struct tree *t = a->tree;
 	struct statfs sfs;
 	struct xvfsconf vfc;
+	char *path;
 	int r;
 
 	t->current_filesystem->synthetic = -1;
 	t->current_filesystem->remote = -1;
-	r = statfs(tree_current_access_path(t), &sfs);
+	path = safe_path_for_statfs(t);
+	r = statfs(path, &sfs);
+	free(path);
 	if (r == -1) {
 		archive_set_error(&a->archive, errno, "statfs failed");
 		return (ARCHIVE_FAILED);
@@ -951,10 +980,13 @@ setup_current_filesystem(struct archive_read_disk *a)
 {
 	struct tree *t = a->tree;
 	struct statvfs sfs;
+	const char *path;
 	int r;
 
 	t->current_filesystem->synthetic = -1;
-	r = statvfs(tree_current_access_path(t), &sfs);
+	path = safe_path_for_statfs(t);
+	r = statvfs(path, &sfs);
+	free(path);
 	if (r == -1) {
 		t->current_filesystem->remote = -1;
 		archive_set_error(&a->archive, errno, "statfs failed");
@@ -983,9 +1015,12 @@ setup_current_filesystem(struct archive_read_disk *a)
 {
 	struct tree *t = a->tree;
 	struct statfs sfs;
+	const char *path;
 	int r;
 
-	r = statfs(tree_current_access_path(t), &sfs);
+	path = safe_path_for_statfs(t);
+	r = statfs(path, &sfs);
+	free(path);
 	if (r == -1) {
 		t->current_filesystem->synthetic = -1;
 		t->current_filesystem->remote = -1;
