@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
  */
 DEFINE_TEST(test_compat_mac_gnutar)
 {
-	char name[] = "test_compat_mac_gnutar.tgz";
+	char name[] = "test_compat_mac_gnutar.tar.Z";
 	struct archive_entry *ae;
 	struct archive *a;
 	const void *attr;
@@ -122,7 +122,7 @@ DEFINE_TEST(test_compat_mac_gnutar)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify that the format detection worked. */
-	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_GZIP);
+	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_COMPRESS);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_GNUTAR);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
