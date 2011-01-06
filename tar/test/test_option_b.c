@@ -28,6 +28,10 @@ __FBSDID("$FreeBSD$");
 DEFINE_TEST(test_option_b)
 {
 	assertMakeFile("file1", 0644, "file1");
+	if (systemf("cat file1 > test_cat.out 2> test_cat.err") != 0) {
+		skipping("Platform doesn't have cat");
+		return;
+	}
 
 	/*
 	 * Bsdtar does not pad if the output is going directly to a disk file.
