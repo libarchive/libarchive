@@ -250,6 +250,7 @@ DEFINE_TEST(test_read_disk_directory_traversals)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, "dir1"));
 
 	/* Step in a deep directory. */
+	file_count = 12;
 	while (file_count--) {
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_next_header2(a, ae));
