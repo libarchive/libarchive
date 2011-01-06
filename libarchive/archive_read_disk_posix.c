@@ -980,7 +980,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 {
 	struct tree *t = a->tree;
 	struct statvfs sfs;
-	const char *path;
+	char *path;
 	int r;
 
 	t->current_filesystem->synthetic = -1;
@@ -1015,7 +1015,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 {
 	struct tree *t = a->tree;
 	struct statfs sfs;
-	const char *path;
+	char *path;
 	int r;
 
 	path = safe_path_for_statfs(t);
