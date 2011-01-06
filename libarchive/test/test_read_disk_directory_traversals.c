@@ -25,11 +25,18 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+# if !defined(__BORLANDC__)
+#  define getcwd _getcwd
+# endif
+#endif
+
 DEFINE_TEST(test_read_disk_directory_traversals)
 {
 	struct archive *a;
 	struct archive_entry *ae;
 	const void *p;
+	char *initial_cwd, *cwd;
 	size_t size;
 	int64_t offset;
 	int file_count;
@@ -165,7 +172,6 @@ DEFINE_TEST(test_read_disk_directory_traversals)
 	/*
 	 * Test that call archive_read_disk_open with a regular file.
 	 */
-	assert((ae = archive_entry_new()) != NULL);
 	assert((a = archive_read_disk_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, "dir1/file1"));
 
@@ -191,7 +197,6 @@ DEFINE_TEST(test_read_disk_directory_traversals)
 	/*
 	 * Test for wildcard '*' or '?'
 	 */
-	assert((ae = archive_entry_new()) != NULL);
 	assert((a = archive_read_disk_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, "dir1/*1"));
 
@@ -231,6 +236,46 @@ DEFINE_TEST(test_read_disk_directory_traversals)
 	/* Destroy the archive. */
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 #endif
+
+	/*
+	 * We should be on the initial directory where we performed
+	 * archive_read_disk_new() after we perfome archive_read_free()
+	 *  even if we broke off the directory traversals.
+	 */
+
+	/* Save current working directory. */
+	initial_cwd = getcwd(NULL, 0);
+
+	assert((a = archive_read_disk_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, "dir1"));
+
+	/* Step in a deep directory. */
+	while (file_count--) {
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_next_header2(a, ae));
+		if (strcmp(archive_entry_pathname(ae),
+		    "dir1/sub1/file1") == 0)
+			/*
+			 * We are on an another directory at this time.
+			 */
+			break;
+		if (archive_entry_filetype(ae) == AE_IFDIR) {
+			/* Descend into the current object */
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_disk_descend(a));
+		}
+	}
+	/* Destroy the archive. */
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* We should be on the initial working directory. */
+	failure(
+	    "Current working directory does not return to the initial"
+	    "directory");
+	cwd = getcwd(NULL, 0);
+	assertEqualString(initial_cwd, cwd);
+	free(initial_cwd);
+	free(cwd);
 
 	archive_entry_free(ae);
 }

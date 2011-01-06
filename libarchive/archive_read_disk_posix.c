@@ -1444,25 +1444,34 @@ tree_current_path(struct tree *t)
 static void
 tree_close(struct tree *t)
 {
+	/* Close the handle of readdir(). */
+	if (t->d != INVALID_DIR_HANDLE) {
+		closedir(t->d);
+		t->d = INVALID_DIR_HANDLE;
+	}
 	/* Release anything remaining in the stack. */
-	while (t->stack != NULL)
+	while (t->stack != NULL) {
+#ifdef HAVE_FCHDIR
+		/*
+		 * If the current working directory have not returned to
+		 * the initial directory where tree_open() was performed,
+		 * we should return.
+		 */
+		if (t->stack->next == NULL) {
+			/* The last stack has the initial directory fd. */
+			int s = fchdir(t->stack->symlink_parent_fd);
+			(void)s; /* UNUSED */
+			close(t->stack->symlink_parent_fd);
+		} else if (t->stack->flags & isDirLink)
+			close(t->stack->symlink_parent_fd);
+#endif
 		tree_pop(t);
+	}
 	archive_string_free(&t->path);
 #if defined(HAVE_READDIR_R)
 	free(t->dirent);
 #endif
 	free(t->filesystem_table);
-	/* TODO: Ensure that premature close() resets cwd */
-#if 0
-#ifdef HAVE_FCHDIR
-	if (t->initialDirFd >= 0) {
-		int s = fchdir(t->initialDirFd);
-		(void)s; /* UNUSED */
-		close(t->initialDirFd);
-		t->initialDirFd = -1;
-	}
-#endif
-#endif
 	free(t);
 }
 

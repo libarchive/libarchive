@@ -1537,13 +1537,18 @@ tree_current_path(struct tree *t)
 static void
 tree_close(struct tree *t)
 {
+	/* Close the handle of FindFirstFileW */
+	if (t->d != INVALID_DIR_HANDLE) {
+		FindClose(t->d);
+		t->d = INVALID_DIR_HANDLE;
+		t->findData = NULL;
+	}
 	/* Release anything remaining in the stack. */
 	while (t->stack != NULL)
 		tree_pop(t);
 	archive_wstring_free(&t->path);
 	archive_wstring_free(&t->full_path);
 	free(t->filesystem_table);
-	/* TODO: Ensure that premature close() resets cwd */
 	free(t);
 }
 
