@@ -64,6 +64,7 @@ IF(WIN32)
 ENDIF(WIN32)
 
 #
+INCLUDE(CheckCSourceCompiles)
 INCLUDE(CheckCSourceRuns)
 INCLUDE(CheckFileOffsetBits)
 INCLUDE(CheckFuncs)
@@ -539,18 +540,26 @@ CHECK_FUNCTION_EXISTS_GLIBC(_ctime64_s HAVE__CTIME64_S)
 CHECK_FUNCTION_EXISTS_GLIBC(_get_timezone HAVE__GET_TIMEZONE)
 CHECK_FUNCTION_EXISTS_GLIBC(_localtime64_s HAVE__LOCALTIME64_S)
 CHECK_FUNCTION_EXISTS_GLIBC(_mkgmtime64 HAVE__MKGMTIME64)
-CHECK_SYMBOL_EXISTS(wmemcmp "wchar.h" HAVE_WMEMCMP)
-CHECK_SYMBOL_EXISTS(wmemcpy "wchar.h" HAVE_WMEMCPY)
 
 SET(CMAKE_REQUIRED_LIBRARIES "")
-CHECK_SYMBOL_EXISTS(fseeko           "stdio.h"    HAVE_FSEEKO)
-CHECK_SYMBOL_EXISTS(strerror_r       "string.h"   HAVE_STRERROR_R)
-CHECK_SYMBOL_EXISTS(strftime         "time.h"     HAVE_STRFTIME)
-CHECK_SYMBOL_EXISTS(vprintf          "stdio.h"    HAVE_VPRINTF)
-CHECK_SYMBOL_EXISTS(cygwin_conv_path "sys/cygwin.h" HAVE_CYGWIN_CONV_PATH)
+CHECK_FUNCTION_EXISTS(cygwin_conv_path HAVE_CYGWIN_CONV_PATH)
+CHECK_FUNCTION_EXISTS(fseeko HAVE_FSEEKO)
+CHECK_FUNCTION_EXISTS(strerror_r HAVE_STRERROR_R)
+CHECK_FUNCTION_EXISTS(strftime HAVE_STRFTIME)
+CHECK_FUNCTION_EXISTS(vprintf HAVE_VPRINTF)
+CHECK_FUNCTION_EXISTS(wmemcmp HAVE_WMEMCMP)
+CHECK_FUNCTION_EXISTS(wmemcpy HAVE_WMEMCPY)
 
-CHECK_SYMBOL_EXISTS(major            "sys/mkdev.h"     MAJOR_IN_MKDEV)
-CHECK_SYMBOL_EXISTS(major            "sys/sysmacros.h" MAJOR_IN_SYSMACROS)
+# To verify major(), we need to both include the header
+# of interest and verify that the result can be linked.
+# CHECK_FUNCTION_EXISTS doesn't accept a header argument,
+# CHECK_SYMBOL_EXISTS doesn't test linkage.
+CHECK_C_SOURCE_COMPILES(
+  "#include <sys/mkdev.h>\nint main() { return major(256); }"
+  MAJOR_IN_MKDEV)
+CHECK_C_SOURCE_COMPILES(
+  "#include <sys/sysmacros.h>\nint main() { return major(256); }"
+  MAJOR_IN_SYSMACROS)
 
 IF(HAVE_STRERROR_R)
   SET(HAVE_DECL_STRERROR_R 1)
@@ -818,10 +827,10 @@ IF(ENABLE_ACL)
   # test for specific permissions in a permset.)  Linux uses the obvious
   # name, FreeBSD adds _np to mark it as "non-Posix extension."
   # Test for both as a double-check that we really have POSIX-style ACL support.
-  CHECK_SYMBOL_EXISTS(acl_get_perm "${INCLUDES}" HAVE_ACL_GET_PERM)
-  CHECK_SYMBOL_EXISTS(acl_get_perm_np "${INCLUDES}" HAVE_ACL_GET_PERM_NP)
-  CHECK_SYMBOL_EXISTS(acl_get_link "${INCLUDES}" HAVE_ACL_GET_LINK)
-  CHECK_SYMBOL_EXISTS(acl_get_link_np "${INCLUDES}" HAVE_ACL_GET_LINK_NP)
+  CHECK_FUNCTION_EXISTS(acl_get_perm HAVE_ACL_GET_PERM)
+  CHECK_FUNCTION_EXISTS(acl_get_perm_np HAVE_ACL_GET_PERM_NP)
+  CHECK_FUNCTION_EXISTS(acl_get_link HAVE_ACL_GET_LINK)
+  CHECK_FUNCTION_EXISTS(acl_get_link_np HAVE_ACL_GET_LINK_NP)
 
   # MacOS has an acl.h that isn't POSIX.  It can be detected by
   # checking for ACL_USER
