@@ -27,7 +27,7 @@ __FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_option_keep_newer_files)
 {
-	const char *reffile = "test_option_keep_newer_files.tgz";
+	const char *reffile = "test_option_keep_newer_files.tar.Z";
 
 	/* Reference file has one entry "file" with a very old timestamp. */
 	extract_reference_file(reffile);
