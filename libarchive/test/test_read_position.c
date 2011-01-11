@@ -41,25 +41,25 @@ verify_read_positions(struct archive *a)
 	assert(read_position == (intmax_t)archive_read_header_position(a));
 	for (j = 0; j < sizeof(data_sizes)/sizeof(data_sizes[0]); ++j) {
 		assertA(0 == archive_read_next_header(a, &ae));
-		assert(read_position
-		    == (intmax_t)archive_read_header_position(a));
+		assertEqualInt(read_position,
+		    (intmax_t)archive_read_header_position(a));
 		/* Every other entry: read, then skip */
 		if (j & 1)
 			assertEqualInt(ARCHIVE_OK,
 			    archive_read_data_into_buffer(a, tmp, 1));
 		assertA(0 == archive_read_data_skip(a));
 		/* read_data_skip() doesn't change header_position */
-		assert(read_position
-		    == (intmax_t)archive_read_header_position(a));
+		assertEqualInt(read_position,
+		    (intmax_t)archive_read_header_position(a));
 
 		read_position += 512; /* Size of header. */
 		read_position += (data_sizes[j] + 511) & ~511;
 	}
 
 	assertA(1 == archive_read_next_header(a, &ae));
-	assert(read_position == (intmax_t)archive_read_header_position(a));
+	assertEqualInt(read_position, (intmax_t)archive_read_header_position(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assert(read_position == (intmax_t)archive_read_header_position(a));
+	assertEqualInt(read_position, (intmax_t)archive_read_header_position(a));
 }
 
 /* Check that header_position tracks correctly on read. */
