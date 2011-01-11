@@ -196,8 +196,10 @@ tree_dir_next_windows(struct tree *t, const wchar_t *pattern);
 #endif
 
 /* Initiate/terminate a tree traversal. */
-static struct tree *tree_open(const char *);
+static struct tree *tree_open(const char *, int);
+static struct tree *tree_reopen(struct tree *, const char *, int);
 static void tree_close(struct tree *);
+static void tree_free(struct tree *);
 static void tree_push(struct tree *, const wchar_t *);
 
 /*
@@ -431,6 +433,7 @@ _archive_read_free(struct archive *_a)
 	else
 		r = ARCHIVE_OK;
 
+	tree_free(a->tree);
 	if (a->cleanup_gname != NULL && a->lookup_gname_data != NULL)
 		(a->cleanup_gname)(a->lookup_gname_data);
 	if (a->cleanup_uname != NULL && a->lookup_uname_data != NULL)
@@ -453,10 +456,8 @@ _archive_read_close(struct archive *_a)
 	if (a->archive.state != ARCHIVE_STATE_FATAL)
 		a->archive.state = ARCHIVE_STATE_CLOSED;
 
-	if (a->tree != NULL) {
+	if (a->tree != NULL)
 		tree_close(a->tree);
-		a->tree = NULL;
-	}
 	if (a->entry_fd >= 0) {
 		close(a->entry_fd);
 		a->entry_fd = -1;
@@ -794,22 +795,22 @@ int
 archive_read_disk_open(struct archive *_a, const char *pathname)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
-	struct tree *tree;
 
-	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC, ARCHIVE_STATE_NEW,
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
+	    ARCHIVE_STATE_NEW | ARCHIVE_STATE_CLOSED,
 	    "archive_read_disk_open");
 	archive_clear_error(&a->archive);
 
-	tree = tree_open(pathname);
-	if (tree == NULL) {
+	if (a->tree != NULL)
+		a->tree = tree_reopen(a->tree, pathname, a->symlink_mode);
+	else
+		a->tree = tree_open(pathname, a->symlink_mode);
+	if (a->tree == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate tar data");
 		a->archive.state = ARCHIVE_STATE_FATAL;
 		return (ARCHIVE_FATAL);
 	}
-	tree->symlink_mode = a->symlink_mode;
-	tree->current_filesystem_id = -1;
-	a->tree = tree;
 	a->archive.state = ARCHIVE_STATE_HEADER;
 	a->entry_eof = 0;
 	a->entry_fd = -1;
@@ -1109,36 +1110,62 @@ tree_append(struct tree *t, const wchar_t *name, size_t name_length)
  * Open a directory tree for traversal.
  */
 static struct tree *
-tree_open(const char *path)
+tree_open(const char *path, int symlink_mode)
 {
 	struct tree *t;
+
+	t = malloc(sizeof(*t));
+	memset(t, 0, sizeof(*t));
+	archive_string_init(&(t->full_path));
+	archive_string_init(&t->path);
+	archive_wstring_ensure(&t->path, 15);
+	return (tree_reopen(t, path, symlink_mode));
+}
+
+static struct tree *
+tree_reopen(struct tree *t, const char *path, int symlink_mode)
+{
 	wchar_t *pathname, *p, *base;
 	DWORD l;
 
+	t->flags = 0;
+	t->visit_type = 0;
+	t->tree_errno = 0;
+	t->full_path_dir_length = 0;
+	t->dirname_length = 0;
+	t->depth = 0;
+	t->descend = 0;
+	t->current = NULL;
+	t->d = INVALID_DIR_HANDLE;
+	t->current_filesystem_id = -1;
+	t->symlink_mode = symlink_mode;
+	archive_string_empty(&(t->full_path));
+	archive_string_empty(&t->path);
+
+	/* Get wchar_t strings from char strings. */
 	l = MultiByteToWideChar(CP_ACP, 0, path, (int)strlen(path), NULL, 0);
 	if (l == 0)
-		return (NULL);
+		goto failed;
 	pathname = malloc((l+1) * sizeof(wchar_t));
 	if (pathname == NULL)
-		return (NULL);
+		goto failed;
 	l = MultiByteToWideChar(CP_ACP, 0, path, (int)strlen(path), pathname, l);
 	pathname[l] = L'\0';
+
+	/* Convert path separators from '\' to '/' */
 	for (p = pathname; *p != L'\0'; ++p) {
 		if (*p == L'\\')
 			*p = L'/';
 	}
 	base = pathname;
 
-	t = malloc(sizeof(*t));
-	memset(t, 0, sizeof(*t));
-	archive_string_init(&(t->full_path));
 	p = permissive_name(base);
-	if (p == NULL)
-		return (NULL);
+	if (p == NULL) {
+		free(pathname);
+		goto failed;
+	}
 	archive_wstrcpy(&(t->full_path), p);
 	free(p);
-	archive_string_init(&t->path);
-	archive_wstring_ensure(&t->path, 15);
 	/* First item is set up a lot like a symlink traversal. */
 	/* printf("Looking for wildcard in %s\n", path); */
 	/* TODO: wildcard detection here screws up on \\?\c:\ UNC names */
@@ -1162,8 +1189,10 @@ tree_open(const char *path)
 	tree_push(t, base);
 	free(pathname);
 	t->stack->flags = needsFirstVisit | isDirLink | needsAscent;
-	t->d = INVALID_DIR_HANDLE;
 	return (t);
+failed:
+	tree_free(t);
+	return (NULL);
 }
 
 /*
@@ -1532,7 +1561,7 @@ tree_current_path(struct tree *t)
 }
 
 /*
- * Terminate the traversal and release any resources.
+ * Terminate the traversal.
  */
 static void
 tree_close(struct tree *t)
@@ -1546,6 +1575,16 @@ tree_close(struct tree *t)
 	/* Release anything remaining in the stack. */
 	while (t->stack != NULL)
 		tree_pop(t);
+}
+
+/*
+ * Release any resources.
+ */
+static void
+tree_free(struct tree *t)
+{
+	if (t == NULL)
+		return;
 	archive_wstring_free(&t->path);
 	archive_wstring_free(&t->full_path);
 	free(t->filesystem_table);

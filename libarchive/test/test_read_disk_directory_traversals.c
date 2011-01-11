@@ -166,13 +166,12 @@ DEFINE_TEST(test_read_disk_directory_traversals)
 	/* There is no entry. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
 
-	/* Destroy the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	/* Close the disk object. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 
 	/*
 	 * Test that call archive_read_disk_open with a regular file.
 	 */
-	assert((a = archive_read_disk_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, "dir1/file1"));
 
 	/* dir1/file1 */
@@ -189,15 +188,14 @@ DEFINE_TEST(test_read_disk_directory_traversals)
 	/* There is no entry. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
 
-	/* Destroy the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	/* Close the disk object. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	/*
 	 * Test for wildcard '*' or '?'
 	 */
-	assert((a = archive_read_disk_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, "dir1/*1"));
 
 	/* dir1/file1 */
@@ -233,8 +231,8 @@ DEFINE_TEST(test_read_disk_directory_traversals)
 	/* There is no entry. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
 
-	/* Destroy the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	/* Close the disk object. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 #endif
 
 	/*
@@ -246,7 +244,6 @@ DEFINE_TEST(test_read_disk_directory_traversals)
 	/* Save current working directory. */
 	initial_cwd = getcwd(NULL, 0);
 
-	assert((a = archive_read_disk_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, "dir1"));
 
 	/* Step in a deep directory. */
@@ -266,7 +263,7 @@ DEFINE_TEST(test_read_disk_directory_traversals)
 			    archive_read_disk_descend(a));
 		}
 	}
-	/* Destroy the archive. */
+	/* Destroy the disk object. */
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/* We should be on the initial working directory. */
