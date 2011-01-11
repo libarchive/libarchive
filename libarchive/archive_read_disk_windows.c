@@ -170,6 +170,7 @@ struct tree {
 	BY_HANDLE_FILE_INFORMATION	st;
 	int	 descend;
 
+	char	 initial_symlink_mode;
 	char	 symlink_mode;
 	struct filesystem *current_filesystem;
 	struct filesystem *filesystem_table;
@@ -197,7 +198,7 @@ tree_dir_next_windows(struct tree *t, const wchar_t *pattern);
 
 /* Initiate/terminate a tree traversal. */
 static struct tree *tree_open(const char *, int);
-static struct tree *tree_reopen(struct tree *, const char *, int);
+static struct tree *tree_reopen(struct tree *, const char *);
 static void tree_close(struct tree *);
 static void tree_free(struct tree *);
 static void tree_push(struct tree *, const wchar_t *);
@@ -466,14 +467,25 @@ _archive_read_close(struct archive *_a)
 	return (ARCHIVE_OK);
 }
 
+static void
+setup_symlink_mode(struct archive_read_disk *a, char symlink_mode, 
+    int follow_symlinks)
+{
+	a->symlink_mode = symlink_mode;
+	a->follow_symlinks = follow_symlinks;
+	if (a->tree != NULL) {
+		a->tree->initial_symlink_mode = a->symlink_mode;
+		a->tree->symlink_mode = a->symlink_mode;
+	}
+}
+
 int
 archive_read_disk_set_symlink_logical(struct archive *_a)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
 	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
 	    ARCHIVE_STATE_ANY, "archive_read_disk_set_symlink_logical");
-	a->symlink_mode = 'L';
-	a->follow_symlinks = 1;
+	setup_symlink_mode(a, 'L', 1);
 	return (ARCHIVE_OK);
 }
 
@@ -483,8 +495,7 @@ archive_read_disk_set_symlink_physical(struct archive *_a)
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
 	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
 	    ARCHIVE_STATE_ANY, "archive_read_disk_set_symlink_physical");
-	a->symlink_mode = 'P';
-	a->follow_symlinks = 0;
+	setup_symlink_mode(a, 'P', 0);
 	return (ARCHIVE_OK);
 }
 
@@ -494,8 +505,7 @@ archive_read_disk_set_symlink_hybrid(struct archive *_a)
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
 	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
 	    ARCHIVE_STATE_ANY, "archive_read_disk_set_symlink_hybrid");
-	a->symlink_mode = 'H';
-	a->follow_symlinks = 1; /* Follow symlinks initially. */
+	setup_symlink_mode(a, 'H', 1);/* Follow symlinks initially. */
 	return (ARCHIVE_OK);
 }
 
@@ -802,7 +812,7 @@ archive_read_disk_open(struct archive *_a, const char *pathname)
 	archive_clear_error(&a->archive);
 
 	if (a->tree != NULL)
-		a->tree = tree_reopen(a->tree, pathname, a->symlink_mode);
+		a->tree = tree_reopen(a->tree, pathname);
 	else
 		a->tree = tree_open(pathname, a->symlink_mode);
 	if (a->tree == NULL) {
@@ -1119,11 +1129,12 @@ tree_open(const char *path, int symlink_mode)
 	archive_string_init(&(t->full_path));
 	archive_string_init(&t->path);
 	archive_wstring_ensure(&t->path, 15);
-	return (tree_reopen(t, path, symlink_mode));
+	t->initial_symlink_mode = symlink_mode;
+	return (tree_reopen(t, path));
 }
 
 static struct tree *
-tree_reopen(struct tree *t, const char *path, int symlink_mode)
+tree_reopen(struct tree *t, const char *path)
 {
 	wchar_t *pathname, *p, *base;
 	DWORD l;
@@ -1138,7 +1149,7 @@ tree_reopen(struct tree *t, const char *path, int symlink_mode)
 	t->current = NULL;
 	t->d = INVALID_DIR_HANDLE;
 	t->current_filesystem_id = -1;
-	t->symlink_mode = symlink_mode;
+	t->symlink_mode = t->initial_symlink_mode;
 	archive_string_empty(&(t->full_path));
 	archive_string_empty(&t->path);
 
