@@ -910,7 +910,8 @@ archive_read_disk_current_filesystem_is_remote(struct archive *_a)
 
 #if defined(__FreeBSD__) || \
    (defined(HAVE_STATVFS) && defined(ST_LOCAL)) || \
-   (defined(HAVE_SYS_VFS_H) && defined(HAVE_LINUX_MAGIC_H))
+   (defined(HAVE_SYS_VFS_H) && defined(HAVE_LINUX_MAGIC_H) && \
+	 defined(HAVE_STATFS))
 
 /*
  * If symlink is broken, statfs or statvfs will fail.
@@ -1011,7 +1012,12 @@ setup_current_filesystem(struct archive_read_disk *a)
 	return (ARCHIVE_OK);
 }
 
-#elif defined(HAVE_SYS_VFS_H) && defined(HAVE_LINUX_MAGIC_H)
+#elif defined(HAVE_SYS_VFS_H) && defined(HAVE_LINUX_MAGIC_H) &&\
+	defined(HAVE_STATFS)
+/*
+ * Note: statfs is deprecated since LSB 3.2
+ */
+
 #ifndef CIFS_SUPER_MAGIC
 #define CIFS_SUPER_MAGIC 0xFF534D42
 #endif

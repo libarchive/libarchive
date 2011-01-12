@@ -472,6 +472,9 @@
 #cmakedefine HAVE_SIGNAL_H 1
 
 /* Define to 1 if you have the `statvfs' function. */ 
+#cmakedefine HAVE_STATFS 1
+
+/* Define to 1 if you have the `statvfs' function. */ 
 #cmakedefine HAVE_STATVFS 1
 
 /* Define to 1 if `stat' has the bug that it succeeds when given the
