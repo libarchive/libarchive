@@ -588,7 +588,7 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	 */
 	if (t->current_sparse->offset > a->entry_total) {
 		if (lseek(a->entry_fd,
-		    (off_t)t->current_sparse->offset, SEEK_SET) < 0) {
+		    t->current_sparse->offset, SEEK_SET) < 0) {
 			archive_set_error(&a->archive, errno, "Seek error");
 			r = ARCHIVE_FATAL;
 			a->archive.state = ARCHIVE_STATE_FATAL;
