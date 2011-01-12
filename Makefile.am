@@ -389,7 +389,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_lzma_1.tlz.uu			\
 	libarchive/test/test_compat_lzma_2.tlz.uu			\
 	libarchive/test/test_compat_lzma_3.tlz.uu			\
-	libarchive/test/test_compat_mac_gnutar.tgz.uu			\
+	libarchive/test/test_compat_mac_gnutar.tar.Z.uu			\
 	libarchive/test/test_compat_solaris_tar_acl.tar.uu		\
 	libarchive/test/test_compat_tar_hardlink_1.tar.uu		\
 	libarchive/test/test_compat_xz_1.txz.uu				\
