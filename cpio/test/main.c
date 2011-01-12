@@ -25,6 +25,7 @@
 
 #include "test.h"
 #include <errno.h>
+#include <limits.h>
 #include <locale.h>
 #include <stdarg.h>
 #include <time.h>
@@ -1896,7 +1897,11 @@ get_refdir(const char *d)
 	}
 
 	/* Get the current dir. */
+#ifdef PATH_MAX
+	pwd = getcwd(NULL, PATH_MAX);/* Solaris getcwd needs the size. */
+#else
 	pwd = getcwd(NULL, 0);
+#endif
 	while (pwd[strlen(pwd) - 1] == '\n')
 		pwd[strlen(pwd) - 1] = '\0';
 

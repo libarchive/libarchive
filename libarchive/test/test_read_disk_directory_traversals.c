@@ -25,6 +25,7 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
+#include <limits.h>
 #if defined(_WIN32) && !defined(__CYGWIN__)
 # if !defined(__BORLANDC__)
 #  define getcwd _getcwd
@@ -243,7 +244,11 @@ test_basic()
 	 */
 
 	/* Save current working directory. */
+#ifdef PATH_MAX
+	initial_cwd = getcwd(NULL, PATH_MAX);/* Solaris getcwd needs the size. */
+#else
 	initial_cwd = getcwd(NULL, 0);
+#endif
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, "dir1"));
 
@@ -271,7 +276,11 @@ test_basic()
 	failure(
 	    "Current working directory does not return to the initial"
 	    "directory");
+#ifdef PATH_MAX
+	cwd = getcwd(NULL, PATH_MAX);/* Solaris getcwd needs the size. */
+#else
 	cwd = getcwd(NULL, 0);
+#endif
 	assertEqualString(initial_cwd, cwd);
 	free(initial_cwd);
 	free(cwd);
