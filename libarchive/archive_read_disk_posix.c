@@ -175,6 +175,13 @@ struct tree {
 	struct stat	st;
 	int	 descend;
 
+	struct entry_sparse {
+		int64_t length;
+		int64_t offset;
+	}	*sparse_list, *current_sparse;
+	int	 sparse_count;
+	int	 sparse_list_size;
+
 	char	 initial_symlink_mode;
 	char	 symlink_mode;
 	struct filesystem *current_filesystem;
@@ -289,7 +296,7 @@ static const char *trivial_lookup_uname(void *, uid_t uid);
 static const char *trivial_lookup_gname(void *, int64_t gid);
 static const char *trivial_lookup_uname(void *, int64_t uid);
 #endif
-
+static int	setup_sparse(struct archive_read_disk *, struct archive_entry *);
 
 
 static struct archive_vtable *
@@ -543,6 +550,7 @@ _archive_read_data_block(struct archive *_a, const void **buff,
     size_t *size, int64_t *offset)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+	struct tree *t;
 	int r;
 	ssize_t bytes;
 	size_t buffbytes;
@@ -554,6 +562,7 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 		r = ARCHIVE_EOF;
 		goto abort_read_data;
 	}
+	t = a->tree;
 
 	if (a->entry_fd < 0) {
 		a->entry_fd = open(tree_current_access_path(a->tree),
@@ -565,6 +574,8 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 			goto abort_read_data;
 		}
 	}
+
+	/* Allocate read buffer. */
 	if (a->entry_buff == NULL) {
 		a->entry_buff = malloc(1024 * 64);
 		if (a->entry_buff == NULL) {
@@ -578,16 +589,34 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	}
 
 	buffbytes = a->entry_buff_size;
-	if ((int64_t)buffbytes > a->entry_remaining_bytes)
-		buffbytes = (size_t)a->entry_remaining_bytes;
-	bytes = read(a->entry_fd, a->entry_buff, buffbytes);
-	if (bytes < 0) {
-		archive_set_error(&a->archive, errno,
-		    "Read error");
-		r = ARCHIVE_FATAL;
-		a->archive.state = ARCHIVE_STATE_FATAL;
-		goto abort_read_data;
+	if (buffbytes > t->current_sparse->length)
+		buffbytes = t->current_sparse->length;
+
+	/*
+	 * Skip hole.
+	 */
+	if (t->current_sparse->offset > a->entry_total) {
+		if (lseek(a->entry_fd,
+		    (off_t)t->current_sparse->offset, SEEK_SET) < 0) {
+			archive_set_error(&a->archive, errno, "Seek error");
+			r = ARCHIVE_FATAL;
+			a->archive.state = ARCHIVE_STATE_FATAL;
+			goto abort_read_data;
+		}
+		bytes = t->current_sparse->offset - a->entry_total;
+		a->entry_remaining_bytes -= bytes;
+		a->entry_total += bytes;
 	}
+	if (buffbytes > 0) {
+		bytes = read(a->entry_fd, a->entry_buff, buffbytes);
+		if (bytes < 0) {
+			archive_set_error(&a->archive, errno, "Read error");
+			r = ARCHIVE_FATAL;
+			a->archive.state = ARCHIVE_STATE_FATAL;
+			goto abort_read_data;
+		}
+	} else
+		bytes = 0;
 	if (bytes == 0) {
 		/* Get EOF */
 		a->entry_eof = 1;
@@ -605,6 +634,10 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 		a->entry_fd = -1;
 		a->entry_eof = 1;
 	}
+	t->current_sparse->offset += bytes;
+	t->current_sparse->length -= bytes;
+	if (t->current_sparse->length == 0 && !a->entry_eof)
+		t->current_sparse++;
 	return (ARCHIVE_OK);
 
 abort_read_data:
@@ -729,6 +762,9 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 		if (archive_entry_filetype(entry) == AE_IFREG) {
 			a->entry_remaining_bytes = archive_entry_size(entry);
 			a->entry_eof = (a->entry_remaining_bytes == 0)? 1: 0;
+			if (!a->entry_eof &&
+			    setup_sparse(a, entry) != ARCHIVE_OK)
+				return (ARCHIVE_FATAL);
 		} else {
 			a->entry_remaining_bytes = 0;
 			a->entry_eof = 1;
@@ -743,6 +779,44 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	}
 
 	return (r);
+}
+
+static int
+setup_sparse(struct archive_read_disk *a, struct archive_entry *entry)
+{
+	struct tree *t = a->tree;
+	int64_t length, offset;
+	int i;
+
+	t->sparse_count = archive_entry_sparse_reset(entry);
+	if (t->sparse_count+1 > t->sparse_list_size) {
+		free(t->sparse_list);
+		t->sparse_list_size = t->sparse_count + 1;
+		t->sparse_list = malloc(sizeof(t->sparse_list[0]) *
+		    t->sparse_list_size);
+		if (t->sparse_list == NULL) {
+			t->sparse_list_size = 0;
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate data");
+			a->archive.state = ARCHIVE_STATE_FATAL;
+			return (ARCHIVE_FATAL);
+		}
+	}
+	for (i = 0; i < t->sparse_count; i++) {
+		archive_entry_sparse_next(entry, &offset, &length);
+		t->sparse_list[i].offset = offset;
+		t->sparse_list[i].length = length;
+	}
+	if (i == 0) {
+		t->sparse_list[i].offset = 0;
+		t->sparse_list[i].length = archive_entry_size(entry);
+	} else {
+		t->sparse_list[i].offset = archive_entry_size(entry);
+		t->sparse_list[i].length = 0;
+	}
+	t->current_sparse = t->sparse_list;
+
+	return (ARCHIVE_OK);
 }
 
 /*
@@ -1520,6 +1594,7 @@ tree_free(struct tree *t)
 #if defined(HAVE_READDIR_R)
 	free(t->dirent);
 #endif
+	free(t->sparse_list);
 	free(t->filesystem_table);
 	free(t);
 }

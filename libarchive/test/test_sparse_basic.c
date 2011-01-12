@@ -228,25 +228,38 @@ static void
 verify_sparse_file(struct archive *a, const char *path,
     const struct sparse *sparse, int blocks)
 {
-	struct stat stb, *st;
 	struct archive_entry *ae;
+	const void *buff;
+	size_t bytes_read;
+	int64_t offset;
+	int64_t total;
+	int data_blocks, hole;
 
-	st = &stb;
 	create_sparse_file(path, sparse);
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	st = NULL;
-#else
-	assertEqualInt(stat(path, &stb), 0);
-#endif
 	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_pathname(ae, path);
-	archive_entry_copy_sourcepath(ae, path);
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_disk_entry_from_file(a, ae, -1, st));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, path));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
 	/* Verify the number of holes only, not its offset nor its
 	 * length because those alignments are deeply dependence on
 	 * its filesystem. */ 
 	assertEqualInt(blocks, archive_entry_sparse_count(ae));
+	total = 0;
+	data_blocks = 0;
+	hole = 0;
+	while (ARCHIVE_OK == archive_read_data_block(a, &buff, &bytes_read,
+	    &offset)) {
+		if (offset > total || offset == 0) {
+			if (offset > total)
+				hole = 1;
+			data_blocks++;
+		}
+		total = offset + bytes_read;
+	}
+	if (!hole && data_blocks == 1)
+		data_blocks = 0;/* There are no holes */
+	assertEqualInt(blocks, data_blocks);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	archive_entry_free(ae);
 }
 
