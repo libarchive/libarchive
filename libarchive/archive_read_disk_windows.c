@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2003-2009 Tim Kientzle
- * Copyright (c) 2010 Michihiro NAKAJIMA
+ * Copyright (c) 2010,2011 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -245,17 +245,6 @@ static int tree_next(struct tree *);
  * that can be used to access the file.  Because tree does use chdir
  * extensively, the access path is almost never the same as the full
  * current path.
- *
- * TODO: Flesh out this interface to provide other information.  In
- * particular, Windows can provide file size, mode, and some permission
- * information without invoking stat() at all.
- *
- * TODO: On platforms that support it, use openat()-style operations
- * to eliminate the chdir() operations entirely while still supporting
- * arbitrarily deep traversals.  This makes access_path troublesome to
- * support, of course, which means we'll need a rich enough interface
- * that clients can function without it.  (In particular, we'll need
- * tree_current_open() that returns an open file descriptor.)
  *
  */
 static const wchar_t *tree_current_path(struct tree *);
