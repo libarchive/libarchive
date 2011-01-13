@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2003-2009 Tim Kientzle
- * Copyright (c) 2010 Michihiro NAKAJIMA
+ * Copyright (c) 2010,2011 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -110,18 +110,18 @@ __FBSDID("$FreeBSD$");
  */
 
 struct tree_entry {
-	int depth;
-	struct tree_entry *next;
-	struct tree_entry *parent;
-	struct archive_string name;
-	size_t dirname_length;
-	dev_t dev;
-	ino_t ino;
-	int flags;
-	int filesystem_id;
+	int			 depth;
+	struct tree_entry	*next;
+	struct tree_entry	*parent;
+	struct archive_string	 name;
+	size_t			 dirname_length;
+	dev_t			 dev;
+	ino_t			 ino;
+	int			 flags;
+	int			 filesystem_id;
 	/* How to return back to the parent of a symlink. */
 #ifdef HAVE_FCHDIR
-	int symlink_parent_fd;
+	int			 symlink_parent_fd;
 #else
 #error fchdir function required.
 #endif
@@ -137,12 +137,12 @@ struct filesystem {
 };
 
 /* Definitions for tree_entry.flags bitmap. */
-#define	isDir 1 /* This entry is a regular directory. */
-#define	isDirLink 2 /* This entry is a symbolic link to a directory. */
-#define	needsFirstVisit 4 /* This is an initial entry. */
-#define	needsDescent 8 /* This entry needs to be previsited. */
-#define	needsOpen 16 /* This is a directory that needs to be opened. */
-#define	needsAscent 32 /* This entry needs to be postvisited. */
+#define	isDir		1  /* This entry is a regular directory. */
+#define	isDirLink	2  /* This entry is a symbolic link to a directory. */
+#define	needsFirstVisit	4  /* This is an initial entry. */
+#define	needsDescent	8  /* This entry needs to be previsited. */
+#define	needsOpen	16 /* This is a directory that needs to be opened. */
+#define	needsAscent	32 /* This entry needs to be postvisited. */
 
 /*
  * Local data for this package.
@@ -150,51 +150,54 @@ struct filesystem {
 struct tree {
 	struct tree_entry	*stack;
 	struct tree_entry	*current;
-	DIR	*d;
+	DIR			*d;
 #define	INVALID_DIR_HANDLE NULL
-	struct dirent *de;
+	struct dirent		*de;
 #if defined(HAVE_READDIR_R)
-	struct dirent *dirent;
-	size_t	 dirent_allocated;
+	struct dirent		*dirent;
+	size_t			 dirent_allocated;
 #endif
-	int	 flags;
-	int	 visit_type;
-	int	 tree_errno; /* Error code from last failed operation. */
+	int			 flags;
+	int			 visit_type;
+	/* Error code from last failed operation. */
+	int			 tree_errno;
 
 	/* Dynamically-sized buffer for holding path */
-	struct archive_string path;
+	struct archive_string	 path;
 
-	const char *basename; /* Last path element */
-	size_t	 dirname_length; /* Leading dir length */
+	/* Last path element */
+	const char		*basename;
+	/* Leading dir length */
+	size_t			 dirname_length;
 
-	int	 depth;
-	int	 openCount;
-	int	 maxOpenCount;
+	int			 depth;
+	int			 openCount;
+	int			 maxOpenCount;
 
-	struct stat	lst;
-	struct stat	st;
-	int	 descend;
+	struct stat		 lst;
+	struct stat		 st;
+	int			 descend;
 
 	struct entry_sparse {
-		int64_t length;
-		int64_t offset;
-	}	*sparse_list, *current_sparse;
-	int	 sparse_count;
-	int	 sparse_list_size;
+		int64_t		 length;
+		int64_t		 offset;
+	}			*sparse_list, *current_sparse;
+	int			 sparse_count;
+	int			 sparse_list_size;
 
-	char	 initial_symlink_mode;
-	char	 symlink_mode;
-	struct filesystem *current_filesystem;
-	struct filesystem *filesystem_table;
-	int		current_filesystem_id;
-	int		max_filesystem_id;
-	int		allocated_filesytem;
+	char			 initial_symlink_mode;
+	char			 symlink_mode;
+	struct filesystem	*current_filesystem;
+	struct filesystem	*filesystem_table;
+	int			 current_filesystem_id;
+	int			 max_filesystem_id;
+	int			 allocated_filesytem;
 };
 
 /* Definitions for tree.flags bitmap. */
-#define	hasStat 16  /* The st entry is valid. */
-#define	hasLstat 32 /* The lst entry is valid. */
-#define	hasFileInfo 64 /* The Windows fileInfo entry is valid. */
+#define	hasStat		16 /* The st entry is valid. */
+#define	hasLstat	32 /* The lst entry is valid. */
+#define	hasFileInfo	64 /* The Windows fileInfo entry is valid. */
 
 static int
 tree_dir_next_posix(struct tree *t);
@@ -231,11 +234,11 @@ static void tree_push(struct tree *, const char *, int);
  * traversal completely hosed.  Right now, this is only returned for
  * chdir() failures during ascent.
  */
-#define	TREE_REGULAR	1
+#define	TREE_REGULAR		1
 #define	TREE_POSTDESCENT	2
-#define	TREE_POSTASCENT	3
-#define	TREE_ERROR_DIR	-1
-#define	TREE_ERROR_FATAL -2
+#define	TREE_POSTASCENT		3
+#define	TREE_ERROR_DIR		-1
+#define	TREE_ERROR_FATAL	-2
 
 static int tree_next(struct tree *);
 
@@ -1324,7 +1327,8 @@ tree_next(struct tree *t)
 		if (t->stack->flags & needsFirstVisit) {
 			/* Top stack item needs a regular visit. */
 			t->current = t->stack;
-			tree_append(t, t->stack->name.s, archive_strlen(&(t->stack->name)));
+			tree_append(t, t->stack->name.s,
+			    archive_strlen(&(t->stack->name)));
 			//t->dirname_length = t->path_length;
 			//tree_pop(t);
 			t->stack->flags &= ~needsFirstVisit;
@@ -1332,7 +1336,8 @@ tree_next(struct tree *t)
 		} else if (t->stack->flags & needsDescent) {
 			/* Top stack item is dir to descend into. */
 			t->current = t->stack;
-			tree_append(t, t->stack->name.s, archive_strlen(&(t->stack->name)));
+			tree_append(t, t->stack->name.s,
+			    archive_strlen(&(t->stack->name)));
 			t->stack->flags &= ~needsDescent;
 #ifdef HAVE_FCHDIR
 			/* If it is a link, set up fd for the ascent. */

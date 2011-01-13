@@ -109,15 +109,15 @@ __FBSDID("$FreeBSD$");
  */
 
 struct tree_entry {
-	int depth;
-	struct tree_entry *next;
-	struct tree_entry *parent;
-	size_t full_path_dir_length;
-	struct archive_wstring name;
-	size_t dirname_length;
-	dev_t dev;
-	ino_t ino;
-	int flags;
+	int			 depth;
+	struct tree_entry	*next;
+	struct tree_entry	*parent;
+	size_t			 full_path_dir_length;
+	struct archive_wstring	 name;
+	size_t			 dirname_length;
+	dev_t			 dev;
+	ino_t			 ino;
+	int			 flags;
 };
 
 struct filesystem {
@@ -127,12 +127,12 @@ struct filesystem {
 };
 
 /* Definitions for tree_entry.flags bitmap. */
-#define	isDir 1 /* This entry is a regular directory. */
-#define	isDirLink 2 /* This entry is a symbolic link to a directory. */
-#define	needsFirstVisit 4 /* This is an initial entry. */
-#define	needsDescent 8 /* This entry needs to be previsited. */
-#define	needsOpen 16 /* This is a directory that needs to be opened. */
-#define	needsAscent 32 /* This entry needs to be postvisited. */
+#define	isDir		1  /* This entry is a regular directory. */
+#define	isDirLink	2  /* This entry is a symbolic link to a directory. */
+#define	needsFirstVisit	4  /* This is an initial entry. */
+#define	needsDescent	8  /* This entry needs to be previsited. */
+#define	needsOpen	16 /* This is a directory that needs to be opened. */
+#define	needsAscent	32 /* This entry needs to be postvisited. */
 
 /*
  * On Windows, "first visit" is handled as a pattern to be handed to
@@ -149,49 +149,52 @@ struct tree {
 	struct tree_entry	*current;
 	HANDLE d;
 #define	INVALID_DIR_HANDLE INVALID_HANDLE_VALUE
-	WIN32_FIND_DATAW _findData;
-	WIN32_FIND_DATAW *findData;
-	int	 flags;
-	int	 visit_type;
-	int	 tree_errno; /* Error code from last failed operation. */
+	WIN32_FIND_DATAW	_findData;
+	WIN32_FIND_DATAW	*findData;
+	int			 flags;
+	int			 visit_type;
+	/* Error code from last failed operation. */
+	int			 tree_errno;
 
 	/* A full path with "\\?\" prefix. */
-	struct archive_wstring full_path;
-	size_t full_path_dir_length;
+	struct archive_wstring	 full_path;
+	size_t			 full_path_dir_length;
 	/* Dynamically-sized buffer for holding path */
-	struct archive_wstring path;
+	struct archive_wstring	 path;
 
-	const wchar_t *basename; /* Last path element */
-	size_t	 dirname_length; /* Leading dir length */
+	/* Last path element */
+	const wchar_t		*basename;
+	/* Leading dir length */
+	size_t			 dirname_length;
 
 	int	 depth;
 
 	BY_HANDLE_FILE_INFORMATION	lst;
 	BY_HANDLE_FILE_INFORMATION	st;
-	int	 descend;
+	int			 descend;
 
 	struct entry_sparse {
-		int64_t length;
-		int64_t offset;
-	}	*sparse_list, *current_sparse;
-	int	 sparse_count;
-	int	 sparse_list_size;
+		int64_t		 length;
+		int64_t		 offset;
+	}			*sparse_list, *current_sparse;
+	int			 sparse_count;
+	int			 sparse_list_size;
 
-	char	 initial_symlink_mode;
-	char	 symlink_mode;
-	struct filesystem *current_filesystem;
-	struct filesystem *filesystem_table;
-	int		current_filesystem_id;
-	int		max_filesystem_id;
-	int		allocated_filesytem;
+	char			 initial_symlink_mode;
+	char			 symlink_mode;
+	struct filesystem	*current_filesystem;
+	struct filesystem	*filesystem_table;
+	int			 current_filesystem_id;
+	int			 max_filesystem_id;
+	int			 allocated_filesytem;
 };
 
 #define dev_no(st)	st->dwVolumeSerialNumber
 
 /* Definitions for tree.flags bitmap. */
-#define	hasStat 16  /* The st entry is valid. */
-#define	hasLstat 32 /* The lst entry is valid. */
-#define	hasFileInfo 64 /* The Windows fileInfo entry is valid. */
+#define	hasStat		16 /* The st entry is valid. */
+#define	hasLstat	32 /* The lst entry is valid. */
+#define	hasFileInfo	64 /* The Windows fileInfo entry is valid. */
 
 static int
 tree_dir_next_windows(struct tree *t, const wchar_t *pattern);
@@ -228,11 +231,11 @@ static void tree_push(struct tree *, const wchar_t *);
  * traversal completely hosed.  Right now, this is only returned for
  * chdir() failures during ascent.
  */
-#define	TREE_REGULAR	1
+#define	TREE_REGULAR		1
 #define	TREE_POSTDESCENT	2
-#define	TREE_POSTASCENT	3
-#define	TREE_ERROR_DIR	-1
-#define	TREE_ERROR_FATAL -2
+#define	TREE_POSTASCENT		3
+#define	TREE_ERROR_DIR		-1
+#define	TREE_ERROR_FATAL	-2
 
 static int tree_next(struct tree *);
 
@@ -1344,7 +1347,8 @@ tree_next(struct tree *t)
 			}
 			/* Top stack item needs a regular visit. */
 			t->current = t->stack;
-			tree_append(t, t->stack->name.s, archive_strlen(&(t->stack->name)));
+			tree_append(t, t->stack->name.s,
+			    archive_strlen(&(t->stack->name)));
 			//t->dirname_length = t->path_length;
 			//tree_pop(t);
 			t->stack->flags &= ~needsFirstVisit;
@@ -1352,7 +1356,8 @@ tree_next(struct tree *t)
 		} else if (t->stack->flags & needsDescent) {
 			/* Top stack item is dir to descend into. */
 			t->current = t->stack;
-			tree_append(t, t->stack->name.s, archive_strlen(&(t->stack->name)));
+			tree_append(t, t->stack->name.s,
+			    archive_strlen(&(t->stack->name)));
 			t->stack->flags &= ~needsDescent;
 			t->dirname_length = archive_strlen(&t->path);
 			t->full_path_dir_length = archive_strlen(&t->full_path);
