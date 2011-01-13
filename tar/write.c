@@ -316,9 +316,6 @@ tar_mode_r(struct bsdtar *bsdtar)
 		 * Just preserve the current format, with a little care
 		 * for formats that libarchive can't write.
 		 */
-		if (format == ARCHIVE_FORMAT_TAR_GNUTAR)
-			/* TODO: When gtar supports pax, use pax restricted. */
-			format = ARCHIVE_FORMAT_TAR_USTAR;
 		if (format == ARCHIVE_FORMAT_EMPTY)
 			format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED;
 		archive_write_set_format(a, format);
@@ -392,11 +389,8 @@ tar_mode_u(struct bsdtar *bsdtar)
 	/* Re-open archive for writing. */
 	a = archive_write_new();
 	/*
-	 * Set format to same one auto-detected above, except that
-	 * we don't write GNU tar format, so use ustar instead.
+	 * Set format to same one auto-detected above.
 	 */
-	if (format == ARCHIVE_FORMAT_TAR_GNUTAR)
-		format = ARCHIVE_FORMAT_TAR_USTAR;
 	archive_write_set_format(a, format);
 	archive_write_set_bytes_per_block(a, bsdtar->bytes_per_block);
 	archive_write_set_bytes_in_last_block(a, bsdtar->bytes_in_last_block);
