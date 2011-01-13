@@ -248,6 +248,9 @@
 /* Define to 1 if you have the <fcntl.h> header file. */
 #cmakedefine HAVE_FCNTL_H 1
 
+/* Define to 1 if you have the `fdopendir' function. */
+#cmakedefine HAVE_FDOPENDIR 1
+
 /* Define to 1 if you have the `fork' function. */
 #cmakedefine HAVE_FORK 1
 
