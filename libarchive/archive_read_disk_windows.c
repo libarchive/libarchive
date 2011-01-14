@@ -115,9 +115,10 @@ struct tree_entry {
 	size_t			 full_path_dir_length;
 	struct archive_wstring	 name;
 	size_t			 dirname_length;
-	dev_t			 dev;
-	ino_t			 ino;
+	int64_t			 dev;
+	int64_t			 ino;
 	int			 flags;
+	int			 filesystem_id;
 };
 
 struct filesystem {
@@ -189,7 +190,12 @@ struct tree {
 	int			 allocated_filesytem;
 };
 
-#define dev_no(st)	st->dwVolumeSerialNumber
+#define bhfi_dev(bhfi)	((bhfi)->dwVolumeSerialNumber)
+/* Treat FileIndex as i-node. We should remove a sequence number
+ * which is high-16-bits of nFileIndexHigh. */
+#define bhfi_ino(bhfi)	\
+	((((int64_t)((bhfi)->nFileIndexHigh & 0x0000FFFFUL)) << 32) \
+    + (bhfi)->nFileIndexLow)
 
 /* Definitions for tree.flags bitmap. */
 #define	hasStat		16 /* The st entry is valid. */
@@ -211,7 +217,7 @@ static struct tree *tree_open(const char *, int);
 static struct tree *tree_reopen(struct tree *, const char *);
 static void tree_close(struct tree *);
 static void tree_free(struct tree *);
-static void tree_push(struct tree *, const wchar_t *);
+static void tree_push(struct tree *, const wchar_t *, int, int64_t, int64_t);
 
 /*
  * tree_next() returns Zero if there is no next entry, non-zero if
@@ -276,6 +282,8 @@ static int tree_current_is_dir(struct tree *);
 static int update_filesystem(struct archive_read_disk *a,
 		    int64_t dev);
 static int setup_current_filesystem(struct archive_read_disk *);
+static int tree_target_is_same_as_parent(struct tree *,
+		    const BY_HANDLE_FILE_INFORMATION *);
 
 static int	_archive_read_free(struct archive *);
 static int	_archive_read_close(struct archive *);
@@ -705,7 +713,7 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 		a->follow_symlinks = 1;
 		/* 'L': Archive symlinks as targets, if we can. */
 		st = tree_current_stat(t);
-		if (st != NULL)
+		if (st != NULL && !tree_target_is_same_as_parent(t, st))
 			break;
 		/* If stat fails, we have a broken symlink;
 		 * in that case, don't follow the link. */
@@ -721,7 +729,7 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 		break;
 	}
 
-	if (update_filesystem(a, dev_no(lst)) != ARCHIVE_OK) {
+	if (update_filesystem(a, bhfi_dev(lst)) != ARCHIVE_OK) {
 		a->archive.state = ARCHIVE_STATE_FATAL;
 		return (ARCHIVE_FATAL);
 	}
@@ -856,10 +864,12 @@ archive_read_disk_descend(struct archive *_a)
 	}
 
 	if (tree_current_is_physical_dir(t)) {
-		tree_push(t, t->basename);
+		tree_push(t, t->basename, t->current_filesystem_id,
+		    bhfi_dev(&(t->lst)), bhfi_ino(&(t->lst)));
 		t->stack->flags |= isDir;
 	} else if (tree_current_is_dir(t)) {
-		tree_push(t, t->basename);
+		tree_push(t, t->basename, t->current_filesystem_id,
+		    bhfi_dev(&(t->st)), bhfi_ino(&(t->st)));
 		t->stack->flags |= isDirLink;
 	}
 	t->descend = 0;
@@ -1045,7 +1055,8 @@ setup_current_filesystem(struct archive_read_disk *a)
  * Add a directory path to the current stack.
  */
 static void
-tree_push(struct tree *t, const wchar_t *path)
+tree_push(struct tree *t, const wchar_t *path, int filesystem_id,
+    int64_t dev, int64_t ino)
 {
 	struct tree_entry *te;
 
@@ -1059,6 +1070,9 @@ tree_push(struct tree *t, const wchar_t *path)
 	archive_string_init(&te->name);
 	archive_wstrcpy(&te->name, path);
 	te->flags = needsDescent | needsOpen | needsAscent;
+	te->filesystem_id = filesystem_id;
+	te->dev = dev;
+	te->ino = ino;
 	te->dirname_length = t->dirname_length;
 	te->full_path_dir_length = t->full_path_dir_length;
 }
@@ -1262,7 +1276,7 @@ tree_reopen(struct tree *t, const char *path)
 			t->full_path_dir_length = archive_strlen(&t->full_path);
 		}
 	}
-	tree_push(t, base);
+	tree_push(t, base, 0, 0, 0);
 	free(pathname);
 	t->stack->flags = needsFirstVisit | isDirLink | needsAscent;
 	return (t);
@@ -1468,12 +1482,8 @@ tree_archive_entry_copy_bhfi(struct archive_entry *entry, struct tree *t,
 	archive_entry_set_mtime(entry, secs, nsecs);
 	fileTimeToUtc(&bhfi->ftCreationTime, &secs, &nsecs);
 	archive_entry_set_birthtime(entry, secs, nsecs);
-	archive_entry_set_dev(entry, bhfi->dwVolumeSerialNumber);
-	/* Set FileIndex as i-node. We should remove a sequence number
-	 * which is high-16-bits of nFileIndexHigh. */
-	archive_entry_set_ino64(entry,
-	    (((int64_t)(bhfi->nFileIndexHigh & 0x0000FFFFUL)) << 32)
-	    + bhfi->nFileIndexLow);
+	archive_entry_set_dev(entry, bhfi_dev(bhfi));
+	archive_entry_set_ino64(entry, bhfi_ino(bhfi));
 	if (bhfi->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 		archive_entry_set_nlink(entry, bhfi->nNumberOfLinks + 1);
 	else
@@ -1481,7 +1491,6 @@ tree_archive_entry_copy_bhfi(struct archive_entry *entry, struct tree *t,
 	archive_entry_set_size(entry,
 	    (((int64_t)bhfi->nFileSizeHigh) << 32)
 	    + bhfi->nFileSizeLow);
-	archive_entry_set_dev(entry, bhfi->dwVolumeSerialNumber);
 	archive_entry_set_uid(entry, 0);
 	archive_entry_set_gid(entry, 0);
 	archive_entry_set_rdev(entry, 0);
@@ -1609,6 +1618,24 @@ tree_current_is_physical_link(struct tree *t)
 			        & FILE_ATTRIBUTE_REPARSE_POINT) &&
 			(t->findData->dwReserved0
 			    == IO_REPARSE_TAG_SYMLINK));
+	return (0);
+}
+
+/*
+ * Test whether the same file has been in the tree as its parent.
+ */
+static int
+tree_target_is_same_as_parent(struct tree *t,
+    const BY_HANDLE_FILE_INFORMATION *st)
+{
+	struct tree_entry *te;
+	int64_t dev = bhfi_dev(st);
+	int64_t ino = bhfi_ino(st);
+
+	for (te = t->current->parent; te != NULL; te = te->parent) {
+		if (te->dev == dev && te->ino == ino)
+			return (1);
+	}
 	return (0);
 }
 

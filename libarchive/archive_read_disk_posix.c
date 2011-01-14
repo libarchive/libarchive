@@ -118,8 +118,8 @@ struct tree_entry {
 	struct tree_entry	*parent;
 	struct archive_string	 name;
 	size_t			 dirname_length;
-	dev_t			 dev;
-	ino_t			 ino;
+	int64_t			 dev;
+	int64_t			 ino;
 	int			 flags;
 	int			 filesystem_id;
 	/* How to return back to the parent of a symlink. */
@@ -214,7 +214,7 @@ static struct tree *tree_open(const char *, int);
 static struct tree *tree_reopen(struct tree *, const char *);
 static void tree_close(struct tree *);
 static void tree_free(struct tree *);
-static void tree_push(struct tree *, const char *, int);
+static void tree_push(struct tree *, const char *, int, int64_t, int64_t);
 static int tree_enter_initial_dir(struct tree *);
 static int tree_enter_working_dir(struct tree *);
 
@@ -283,6 +283,7 @@ static int tree_current_is_dir(struct tree *);
 static int update_filesystem(struct archive_read_disk *a,
 		    int64_t dev);
 static int setup_current_filesystem(struct archive_read_disk *);
+static int tree_target_is_same_as_parent(struct tree *, const struct stat *);
 
 static int	_archive_read_free(struct archive *);
 static int	_archive_read_close(struct archive *);
@@ -729,7 +730,7 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 		a->follow_symlinks = 1;
 		/* 'L': Archive symlinks as targets, if we can. */
 		st = tree_current_stat(t);
-		if (st != NULL)
+		if (st != NULL && !tree_target_is_same_as_parent(t, st))
 			break;
 		/* If stat fails, we have a broken symlink;
 		 * in that case, don't follow the link. */
@@ -854,10 +855,12 @@ archive_read_disk_descend(struct archive *_a)
 	}
 
 	if (tree_current_is_physical_dir(t)) {
-		tree_push(t, t->basename, t->current_filesystem_id);
+		tree_push(t, t->basename, t->current_filesystem_id,
+		    t->lst.st_dev, t->lst.st_ino);
 		t->stack->flags |= isDir;
 	} else if (tree_current_is_dir(t)) {
-		tree_push(t, t->basename, t->current_filesystem_id);
+		tree_push(t, t->basename, t->current_filesystem_id,
+		    t->st.st_dev, t->st.st_ino);
 		t->stack->flags |= isDirLink;
 	}
 	t->descend = 0;
@@ -1179,7 +1182,8 @@ setup_current_filesystem(struct archive_read_disk *a)
  * Add a directory path to the current stack.
  */
 static void
-tree_push(struct tree *t, const char *path, int filesystem_id)
+tree_push(struct tree *t, const char *path, int filesystem_id,
+    int64_t dev, int64_t ino)
 {
 	struct tree_entry *te;
 
@@ -1195,6 +1199,8 @@ tree_push(struct tree *t, const char *path, int filesystem_id)
 	archive_strcpy(&te->name, path);
 	te->flags = needsDescent | needsOpen | needsAscent;
 	te->filesystem_id = filesystem_id;
+	te->dev = dev;
+	te->ino = ino;
 	te->dirname_length = t->dirname_length;
 }
 
@@ -1255,7 +1261,7 @@ tree_reopen(struct tree *t, const char *path)
 	archive_string_empty(&t->path);
 
 	/* First item is set up a lot like a symlink traversal. */
-	tree_push(t, path, 0);
+	tree_push(t, path, 0, 0, 0);
 	t->stack->flags = needsFirstVisit;
 	t->maxOpenCount = t->openCount = 1;
 	t->initial_dir_fd = open(".", O_RDONLY);
@@ -1590,6 +1596,21 @@ tree_current_is_physical_dir(struct tree *t)
 		return 0;
 	/* Use the definitive test.  Hopefully this is cached. */
 	return (S_ISDIR(st->st_mode));
+}
+
+/*
+ * Test whether the same file has been in the tree as its parent.
+ */
+static int
+tree_target_is_same_as_parent(struct tree *t, const struct stat *st)
+{
+	struct tree_entry *te;
+
+	for (te = t->current->parent; te != NULL; te = te->parent) {
+		if (te->dev == st->st_dev && te->ino == st->st_ino)
+			return (1);
+	}
+	return (0);
 }
 
 /*
