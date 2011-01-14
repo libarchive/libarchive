@@ -80,6 +80,9 @@ __FBSDID("$FreeBSD$");
 #include "archive_private.h"
 #include "archive_read_disk_private.h"
 
+#ifndef HAVE_FCHDIR
+#error fchdir function required.
+#endif
 #ifndef O_BINARY
 #define O_BINARY	0
 #endif
@@ -120,11 +123,7 @@ struct tree_entry {
 	int			 flags;
 	int			 filesystem_id;
 	/* How to return back to the parent of a symlink. */
-#ifdef HAVE_FCHDIR
 	int			 symlink_parent_fd;
-#else
-#error fchdir function required.
-#endif
 };
 
 struct filesystem {
@@ -173,10 +172,8 @@ struct tree {
 	int			 depth;
 	int			 openCount;
 	int			 maxOpenCount;
-#ifdef HAVE_FCHDIR
 	int			 initial_dir_fd;
 	int			 working_dir_fd;
-#endif
 
 	struct stat		 lst;
 	struct stat		 st;
@@ -1194,9 +1191,7 @@ tree_push(struct tree *t, const char *path, int filesystem_id)
 		te->depth = te->parent->depth + 1;
 	t->stack = te;
 	archive_string_init(&te->name);
-#ifdef HAVE_FCHDIR
 	te->symlink_parent_fd = -1;
-#endif
 	archive_strcpy(&te->name, path);
 	te->flags = needsDescent | needsOpen | needsAscent;
 	te->filesystem_id = filesystem_id;
@@ -1233,7 +1228,6 @@ tree_append(struct tree *t, const char *name, size_t name_length)
 static struct tree *
 tree_open(const char *path, int symlink_mode)
 {
-#ifdef HAVE_FCHDIR
 	struct tree *t;
 
 	if ((t = malloc(sizeof(*t))) == NULL)
@@ -1243,13 +1237,11 @@ tree_open(const char *path, int symlink_mode)
 	archive_string_ensure(&t->path, 31);
 	t->initial_symlink_mode = symlink_mode;
 	return (tree_reopen(t, path));
-#endif
 }
 
 static struct tree *
 tree_reopen(struct tree *t, const char *path)
 {
-#ifdef HAVE_FCHDIR
 	t->flags = 0;
 	t->visit_type = 0;
 	t->tree_errno = 0;
@@ -1269,7 +1261,6 @@ tree_reopen(struct tree *t, const char *path)
 	t->initial_dir_fd = open(".", O_RDONLY);
 	t->working_dir_fd = dup(t->initial_dir_fd);
 	return (t);
-#endif
 }
 
 static int
@@ -1277,7 +1268,6 @@ tree_descent(struct tree *t)
 {
 	int r = 0;
 
-#ifdef HAVE_FCHDIR
 	/* If it is a link, set up fd for the ascent. */
 	if (t->stack->flags & isDirLink)
 		t->stack->symlink_parent_fd = t->working_dir_fd;
@@ -1286,7 +1276,6 @@ tree_descent(struct tree *t)
 		t->openCount--;
 	}
 	t->working_dir_fd = -1;
-#endif
 	t->dirname_length = archive_strlen(&t->path);
 	if (chdir(t->stack->name.s) != 0)
 	{
@@ -1313,31 +1302,25 @@ tree_ascend(struct tree *t)
 
 	te = t->stack;
 	t->depth--;
-#ifdef HAVE_FCHDIR
 	close(t->working_dir_fd);
 	t->working_dir_fd = -1;
 	t->openCount--;
-#endif
 	if (te->flags & isDirLink) {
-#ifdef HAVE_FCHDIR
 		if (fchdir(te->symlink_parent_fd) != 0) {
 			t->tree_errno = errno;
 			r = TREE_ERROR_FATAL;
 		}
 		t->working_dir_fd = te->symlink_parent_fd;
 		te->symlink_parent_fd = -1;
-#endif
 	} else {
 		if (chdir("..") != 0) {
 			t->tree_errno = errno;
 			r = TREE_ERROR_FATAL;
 		}
-#ifdef HAVE_FCHDIR
 		t->working_dir_fd = open(".", O_RDONLY);
 		t->openCount++;
 		if (t->openCount > t->maxOpenCount)
 			t->maxOpenCount = t->openCount;
-#endif
 	}
 	return (r);
 }
@@ -1348,10 +1331,8 @@ tree_ascend(struct tree *t)
 static int
 tree_enter_initial_dir(struct tree *t)
 {
-#ifdef HAVE_FCHDIR
 	if (t->initial_dir_fd >= 0)
 		return (fchdir(t->initial_dir_fd));
-#endif
 	return (0);
 }
 
@@ -1361,10 +1342,8 @@ tree_enter_initial_dir(struct tree *t)
 static int
 tree_enter_working_dir(struct tree *t)
 {
-#ifdef HAVE_FCHDIR
 	if (t->working_dir_fd >= 0)
 		return (fchdir(t->working_dir_fd));
-#endif
 	return (0);
 }
 
@@ -1644,13 +1623,10 @@ tree_close(struct tree *t)
 	}
 	/* Release anything remaining in the stack. */
 	while (t->stack != NULL) {
-#ifdef HAVE_FCHDIR
 		if (t->stack->flags & isDirLink)
 			close(t->stack->symlink_parent_fd);
-#endif
 		tree_pop(t);
 	}
-#ifdef HAVE_FCHDIR
 	if (t->working_dir_fd >= 0) {
 		close(t->working_dir_fd);
 		t->working_dir_fd = -1;
@@ -1659,7 +1635,6 @@ tree_close(struct tree *t)
 		close(t->initial_dir_fd);
 		t->initial_dir_fd = -1;
 	}
-#endif
 }
 
 /*
