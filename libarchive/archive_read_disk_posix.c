@@ -312,6 +312,7 @@ archive_read_disk_vtable(void)
 		av.archive_close = _archive_read_close;
 		av.archive_read_data_block = _archive_read_data_block;
 		av.archive_read_next_header2 = _archive_read_next_header2;
+		inited = 1;
 	}
 	return (&av);
 }

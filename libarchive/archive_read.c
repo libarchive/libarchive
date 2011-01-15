@@ -90,6 +90,7 @@ archive_read_vtable(void)
 		av.archive_read_next_header2 = _archive_read_next_header2;
 		av.archive_free = _archive_read_free;
 		av.archive_close = _archive_read_close;
+		inited = 1;
 	}
 	return (&av);
 }

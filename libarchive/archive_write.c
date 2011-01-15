@@ -95,6 +95,7 @@ archive_write_vtable(void)
 		av.archive_write_header = _archive_write_header;
 		av.archive_write_finish_entry = _archive_write_finish_entry;
 		av.archive_write_data = _archive_write_data;
+		inited = 1;
 	}
 	return (&av);
 }

@@ -343,6 +343,7 @@ archive_write_disk_vtable(void)
 		    = _archive_write_disk_finish_entry;
 		av.archive_write_data = _archive_write_disk_data;
 		av.archive_write_data_block = _archive_write_disk_data_block;
+		inited = 1;
 	}
 	return (&av);
 }
