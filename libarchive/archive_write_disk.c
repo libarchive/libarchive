@@ -409,6 +409,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	a->fd = -1;
 	a->fd_offset = 0;
 	a->offset = 0;
+	a->restore_pwd = -1;
 	a->uid = a->user_uid;
 	a->mode = archive_entry_mode(a->entry);
 	if (archive_entry_size_is_set(a->entry))
@@ -1029,8 +1030,6 @@ edit_deep_directories(struct archive_write_disk *a)
 {
 	int ret;
 	char *tail = a->name;
-
-	a->restore_pwd = -1;
 
 	/* If path is short, avoid the open() below. */
 	if (strlen(tail) <= PATH_MAX)
