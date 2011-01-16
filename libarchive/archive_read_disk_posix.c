@@ -282,7 +282,7 @@ static const struct stat *tree_current_lstat(struct tree *);
 static int tree_current_is_physical_dir(struct tree *);
 /* "is_dir" is equivalent to S_ISDIR(tree_current_stat()->st_mode) */
 static int tree_current_is_dir(struct tree *);
-static int update_filesystem(struct archive_read_disk *a,
+static int update_current_filesystem(struct archive_read_disk *a,
 		    int64_t dev);
 static int setup_current_filesystem(struct archive_read_disk *);
 static int tree_target_is_same_as_parent(struct tree *, const struct stat *);
@@ -764,7 +764,7 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 		break;
 	}
 
-	if (update_filesystem(a, lst->st_dev) != ARCHIVE_OK) {
+	if (update_current_filesystem(a, st->st_dev) != ARCHIVE_OK) {
 		a->archive.state = ARCHIVE_STATE_FATAL;
 		tree_enter_initial_dir(t);
 		return (ARCHIVE_FATAL);
@@ -937,7 +937,7 @@ archive_read_disk_current_filesystem(struct archive *_a)
 }
 
 static int
-update_filesystem(struct archive_read_disk *a, int64_t dev)
+update_current_filesystem(struct archive_read_disk *a, int64_t dev)
 {
 	struct tree *t = a->tree;
 	int i, fid;
@@ -1026,42 +1026,22 @@ archive_read_disk_current_filesystem_is_remote(struct archive *_a)
 	return (a->tree->current_filesystem->remote);
 }
 
-#if 0
 #if defined(__FreeBSD__) || \
    ((defined(HAVE_STATVFS) || defined(HAVE_FSTATVFS)) && defined(ST_LOCAL)) || \
    (defined(HAVE_SYS_VFS_H) && defined(HAVE_LINUX_MAGIC_H) && \
 	 (defined(HAVE_STATFS) || defined(HAVE_FSTATFS)))
 
-/*
- * If symlink is broken, statfs or statvfs will fail.
- * Use its directory path instead.
- */
-static char *
-safe_path_for_statfs(struct tree *t)
+static int
+tree_current_is_symblic_link_target(struct tree *t)
 {
-	const char *path;
-	char *cp, *p = NULL;
+	static const struct stat *lst, *st;
 
-	path = tree_current_access_path(t);
-	if (tree_current_stat(t) == NULL) {
-		cp = strrchr(path, '/');
-		if (cp == NULL)
-			p = strdup(".");
-		else {
-			p = strdup(path);
-			cp = strrchr(p, '/');
-			if (cp != NULL && strlen(cp) >= 2) {
-				cp[1] = '.';
-				cp[2] = '\0';
-				path = p;
-			}
-		}
-	} else
-		p = strdup(path);
-	return (p);
+	lst = tree_current_lstat(t);
+	st = tree_current_stat(t);
+	return (lst != NULL && lst->st_dev == t->current_filesystem->dev &&
+	    lst->st_dev != st->st_dev);
 }
 
-#endif
 #endif
 
 #if defined(__FreeBSD__)
@@ -1079,7 +1059,26 @@ setup_current_filesystem(struct archive_read_disk *a)
 
 	t->current_filesystem->synthetic = -1;
 	t->current_filesystem->remote = -1;
-	r = fstatfs(tree_current_dir_fd(t), &sfs);
+	if (tree_current_is_symblic_link_target(t)) {
+#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_FDOPENDIR)
+		/*
+		 * Get file system statistics on any directory
+		 * where current is.
+		 */
+		int fd = openat(tree_current_dir_fd(t),
+		    tree_current_access_path(t), O_RDONLY | O_DIRECT);
+		if (fd < 0) {
+			archive_set_error(&a->archive, errno,
+			    "openat failed");
+			return (ARCHIVE_FAILED);
+		}
+		r = fstatfs(fd, &sfs);
+		close(fd);
+#else
+		r = statfs(tree_current_access_path(t), &sfs);
+#endif
+	} else
+		r = fstatfs(tree_current_dir_fd(t), &sfs);
 	if (r == -1) {
 		archive_set_error(&a->archive, errno, "statfs failed");
 		return (ARCHIVE_FAILED);
@@ -1113,11 +1112,15 @@ setup_current_filesystem(struct archive_read_disk *a)
 	int r;
 
 	t->current_filesystem->synthetic = -1;
+	if (tree_current_is_symblic_link_target(t))
+		r = statvfs(tree_current_access_path(t), &sfs);
+	else {
 #ifdef HAVE_FSTATVFS
-	r = fstatvfs(tree_current_dir_fd(t), &sfs);
+		r = fstatvfs(tree_current_dir_fd(t), &sfs);
 #else
-	r = statvfs(".", &sfs);
+		r = statvfs(".", &sfs);
 #endif
+	}
 	if (r == -1) {
 		t->current_filesystem->remote = -1;
 		archive_set_error(&a->archive, errno, "statfs failed");
@@ -1153,11 +1156,31 @@ setup_current_filesystem(struct archive_read_disk *a)
 	struct statfs sfs;
 	int r;
 
-#ifdef HAVE_FSTATFS
-	r = fstatfs(tree_current_dir_fd(t), &sfs);
+	if (tree_current_is_symblic_link_target(t)) {
+#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_FDOPENDIR)
+		/*
+		 * Get file system statistics on any directory
+		 * where current is.
+		 */
+		int fd = openat(tree_current_dir_fd(t),
+		    tree_current_access_path(t), O_RDONLY | O_DIRECT);
+		if (fd < 0) {
+			archive_set_error(&a->archive, errno,
+			    "openat failed");
+			return (ARCHIVE_FAILED);
+		}
+		r = fstatfs(fd, &sfs);
+		close(fd);
 #else
-	r = statfs(".", &sfs);
+		r = statfs(tree_current_access_path(t), &sfs);
 #endif
+	} else {
+#ifdef HAVE_FSTATFS
+		r = fstatfs(tree_current_dir_fd(t), &sfs);
+#else
+		r = statfs(".", &sfs);
+#endif
+	}
 	if (r == -1) {
 		t->current_filesystem->synthetic = -1;
 		t->current_filesystem->remote = -1;

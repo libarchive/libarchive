@@ -279,7 +279,7 @@ static void tree_archive_entry_copy_bhfi(struct archive_entry *,
 		    struct tree *, const BY_HANDLE_FILE_INFORMATION *);
 /* "is_dir" is equivalent to S_ISDIR(tree_current_stat()->st_mode) */
 static int tree_current_is_dir(struct tree *);
-static int update_filesystem(struct archive_read_disk *a,
+static int update_current_filesystem(struct archive_read_disk *a,
 		    int64_t dev);
 static int setup_current_filesystem(struct archive_read_disk *);
 static int tree_target_is_same_as_parent(struct tree *,
@@ -730,7 +730,7 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 		break;
 	}
 
-	if (update_filesystem(a, bhfi_dev(lst)) != ARCHIVE_OK) {
+	if (update_current_filesystem(a, bhfi_dev(st)) != ARCHIVE_OK) {
 		a->archive.state = ARCHIVE_STATE_FATAL;
 		return (ARCHIVE_FATAL);
 	}
@@ -920,7 +920,7 @@ archive_read_disk_current_filesystem(struct archive *_a)
 }
 
 static int
-update_filesystem(struct archive_read_disk *a, int64_t dev)
+update_current_filesystem(struct archive_read_disk *a, int64_t dev)
 {
 	struct tree *t = a->tree;
 	int i, fid;
