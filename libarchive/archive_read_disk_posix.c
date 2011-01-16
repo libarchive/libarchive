@@ -1724,7 +1724,7 @@ tree_dir_next_posix(struct tree *t)
 		}
 #if defined(HAVE_READDIR_R)
 		dirent_size = offsetof(struct dirent, d_name) +
-		  t->filesystem_table[t->current->filesystem_id].name_max + 1;
+		  t->filesystem_table[t->current_filesystem_id].name_max + 1;
 		if (t->dirent == NULL || t->dirent_allocated < dirent_size) {
 			free(t->dirent);
 			t->dirent = malloc(dirent_size);
