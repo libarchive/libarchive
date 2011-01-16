@@ -133,6 +133,10 @@ struct filesystem {
 #if defined(HAVE_READDIR_R)
 	size_t		name_max;
 #endif
+	long		incr_xfer_size;
+	long		max_xfer_size;
+	long		min_xfer_size;
+	long		xfer_align;
 };
 
 /* Definitions for tree_entry.flags bitmap. */
@@ -595,6 +599,13 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	}
 
 	/* Allocate read buffer. */
+	/*
+	 * TODO: Choose a suitable buffer size with
+	 * t->current_filesystem->xfer_align,
+	 * t->current_filesystem->max_xfer_size,
+	 * t->current_filesystem->min_xfer_size and
+	 * t->current_filesystem->incr_xfer_size.
+	 */
 	if (a->entry_buff == NULL) {
 		a->entry_buff = malloc(1024 * 64);
 		if (a->entry_buff == NULL) {
@@ -613,6 +624,7 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 
 	/*
 	 * Skip hole.
+	 * TODO: Consider t->current_filesystem->xfer_align.
 	 */
 	if (t->current_sparse->offset > a->entry_total) {
 		if (lseek(a->entry_fd,
@@ -1044,6 +1056,49 @@ tree_current_is_symblic_link_target(struct tree *t)
 
 #endif
 
+#if defined(_PC_REC_INCR_XFER_SIZE) && defined(_PC_REC_MAX_XFER_SIZE) &&\
+	defined(_PC_REC_MIN_XFER_SIZE) && defined(_PC_REC_XFER_ALIGN)
+static int
+get_xfer_size(struct tree *t, int fd, const char *path)
+{
+	t->current_filesystem->xfer_align = -1;
+	errno = 0;
+	if (fd >= 0) {
+		t->current_filesystem->incr_xfer_size =
+		    fpathconf(fd, _PC_REC_INCR_XFER_SIZE);
+		t->current_filesystem->max_xfer_size =
+		    fpathconf(fd, _PC_REC_MAX_XFER_SIZE);
+		t->current_filesystem->min_xfer_size =
+		    fpathconf(fd, _PC_REC_MIN_XFER_SIZE);
+		t->current_filesystem->xfer_align =
+		    fpathconf(fd, _PC_REC_XFER_ALIGN);
+	} else if (path != NULL) {
+		t->current_filesystem->incr_xfer_size =
+		    pathconf(path, _PC_REC_INCR_XFER_SIZE);
+		t->current_filesystem->max_xfer_size =
+		    pathconf(path, _PC_REC_MAX_XFER_SIZE);
+		t->current_filesystem->min_xfer_size =
+		    pathconf(path, _PC_REC_MIN_XFER_SIZE);
+		t->current_filesystem->xfer_align =
+		    pathconf(path, _PC_REC_XFER_ALIGN);
+	}
+	/* At least we need an alignment size. */
+	if (t->current_filesystem->xfer_align == -1)
+		return (-1);
+	else
+		return (0);
+}
+#else
+static int
+get_xfer_size(struct tree *t, int fd, const char *path)
+{
+	(void)t; /* UNUSED */
+	(void)fd; /* UNUSED */
+	(void)path; /* UNUSED */
+	return (1);/* Not supported */
+}
+#endif
+
 #if defined(__FreeBSD__)
 
 /*
@@ -1055,7 +1110,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 	struct tree *t = a->tree;
 	struct statfs sfs;
 	struct xvfsconf vfc;
-	int r;
+	int r, xr = 0;
 
 	t->current_filesystem->synthetic = -1;
 	t->current_filesystem->remote = -1;
@@ -1066,22 +1121,35 @@ setup_current_filesystem(struct archive_read_disk *a)
 		 * where current is.
 		 */
 		int fd = openat(tree_current_dir_fd(t),
-		    tree_current_access_path(t), O_RDONLY | O_DIRECT);
+		    tree_current_access_path(t), O_RDONLY);
 		if (fd < 0) {
 			archive_set_error(&a->archive, errno,
 			    "openat failed");
 			return (ARCHIVE_FAILED);
 		}
 		r = fstatfs(fd, &sfs);
+		if (r == 0)
+			xr = get_xfer_size(t, fd, NULL);
 		close(fd);
 #else
 		r = statfs(tree_current_access_path(t), &sfs);
+		if (r == 0)
+			xr = get_xfer_size(t, -1, tree_current_access_path(t));
 #endif
-	} else
+	} else {
 		r = fstatfs(tree_current_dir_fd(t), &sfs);
-	if (r == -1) {
+		if (r == 0)
+			xr = get_xfer_size(t, tree_current_dir_fd(t), NULL);
+	}
+	if (r == -1 || xr == -1) {
 		archive_set_error(&a->archive, errno, "statfs failed");
 		return (ARCHIVE_FAILED);
+	} else if (xr == 1) {
+		/* pathconf(_PC_REX_*) operations are not supported. */
+		t->current_filesystem->xfer_align = sfs.f_bsize;
+		t->current_filesystem->max_xfer_size = -1;
+		t->current_filesystem->min_xfer_size = sfs.f_iosize;
+		t->current_filesystem->incr_xfer_size = sfs.f_iosize;
 	}
 	if (sfs.f_flags & MNT_LOCAL)
 		t->current_filesystem->remote = 0;
@@ -1123,9 +1191,13 @@ setup_current_filesystem(struct archive_read_disk *a)
 	}
 	if (r == -1) {
 		t->current_filesystem->remote = -1;
-		archive_set_error(&a->archive, errno, "statfs failed");
+		archive_set_error(&a->archive, errno, "statvfs failed");
 		return (ARCHIVE_FAILED);
 	}
+	t->current_filesystem->xfer_align = sfs.f_frsize;
+	t->current_filesystem->max_xfer_size = -1;
+	t->current_filesystem->min_xfer_size = sfs.f_iosize;
+	t->current_filesystem->incr_xfer_size = sfs.f_iosize;
 	if (sfs.f_flag & ST_LOCAL)
 		t->current_filesystem->remote = 0;
 	else
@@ -1154,7 +1226,8 @@ setup_current_filesystem(struct archive_read_disk *a)
 {
 	struct tree *t = a->tree;
 	struct statfs sfs;
-	int r;
+	struct statvfs svfs;
+	int r, vr = 0, xr = 0;
 
 	if (tree_current_is_symblic_link_target(t)) {
 #if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_FDOPENDIR)
@@ -1163,29 +1236,58 @@ setup_current_filesystem(struct archive_read_disk *a)
 		 * where current is.
 		 */
 		int fd = openat(tree_current_dir_fd(t),
-		    tree_current_access_path(t), O_RDONLY | O_DIRECT);
+		    tree_current_access_path(t), O_RDONLY);
 		if (fd < 0) {
 			archive_set_error(&a->archive, errno,
 			    "openat failed");
 			return (ARCHIVE_FAILED);
 		}
 		r = fstatfs(fd, &sfs);
+		if (r == 0) {
+			xr = get_xfer_size(t, fd, NULL);
+			if (xr == 1)
+				vr = fstatvfs(fd, &svfs);
+		}
 		close(fd);
 #else
 		r = statfs(tree_current_access_path(t), &sfs);
+		if (r == 0) {
+			xr = get_xfer_size(t, -1, tree_current_access_path(t));
+			if (xr == 1)
+				vr = statvfs(tree_current_access_path(t),
+				    &svfs);
+		}
 #endif
 	} else {
 #ifdef HAVE_FSTATFS
 		r = fstatfs(tree_current_dir_fd(t), &sfs);
+		if (r == 0) {
+			xr = get_xfer_size(t, tree_current_dir_fd(t), NULL);
+			if (xr == 1)
+				vr = fstatvfs(tree_current_dir_fd(t), &svfs);
+		}
+#elif defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_FDOPENDIR)
+#error "Unexpected case. Please tell us about this error."
 #else
 		r = statfs(".", &sfs);
+		if (r == 0) {
+			xr = get_xfer_size(t, -1, ".");
+			if (xr == 1)
+				vr = statvfs(".", &svfs);
+		}
 #endif
 	}
-	if (r == -1) {
+	if (r == -1 || xr == -1 || vr == -1) {
 		t->current_filesystem->synthetic = -1;
 		t->current_filesystem->remote = -1;
 		archive_set_error(&a->archive, errno, "statfs failed");
 		return (ARCHIVE_FAILED);
+	} else if (xr == 1) {
+		/* pathconf(_PC_REX_*) operations are not supported. */
+		t->current_filesystem->xfer_align = svfs.f_frsize;
+		t->current_filesystem->max_xfer_size = -1;
+		t->current_filesystem->min_xfer_size = svfs.f_bszie;
+		t->current_filesystem->incr_xfer_size = svfs.f_bszie;
 	}
 	switch (sfs.f_type) {
 	case AFS_SUPER_MAGIC:
@@ -1211,6 +1313,67 @@ setup_current_filesystem(struct archive_read_disk *a)
 	return (ARCHIVE_OK);
 }
 
+#elif defined(HAVE_STATVFS) || defined(HAVE_FSTATVFS)
+
+static int
+setup_current_filesystem(struct archive_read_disk *a)
+{
+	struct tree *t = a->tree;
+	struct statvfs sfs;
+	int r, xr = 0;
+
+	t->current_filesystem->synthetic = -1;/* Not supported */
+	t->current_filesystem->remote = -1;/* Not supported */
+	if (tree_current_is_symblic_link_target(t)) {
+#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_FDOPENDIR)
+		/*
+		 * Get file system statistics on any directory
+		 * where current is.
+		 */
+		int fd = openat(tree_current_dir_fd(t),
+		    tree_current_access_path(t), O_RDONLY);
+		if (fd < 0) {
+			archive_set_error(&a->archive, errno,
+			    "openat failed");
+			return (ARCHIVE_FAILED);
+		}
+		r = fstatvfs(fd, &sfs);
+		if (r == 0)
+			xr = get_xfer_size(t, fd, NULL);
+		close(fd);
+#else
+		r = statvfs(tree_current_access_path(t), &sfs);
+		if (r == 0)
+			xr = get_xfer_size(t, -1, tree_current_access_path(t));
+#endif
+	} else {
+#ifdef HAVE_FSTATVFS
+		r = fstatvfs(tree_current_dir_fd(t), &sfs);
+		if (r == 0)
+			xr = get_xfer_size(t, tree_current_dir_fd(t), NULL);
+#elif defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_FDOPENDIR)
+#error "Unexpected case. Please tell us about this error."
+#else
+		r = statvfs(".", &sfs);
+		if (r == 0)
+			xr = get_xfer_size(t, -1, ".");
+#endif
+	}
+	if (r == -1 || xr == -1) {
+		t->current_filesystem->synthetic = -1;
+		t->current_filesystem->remote = -1;
+		archive_set_error(&a->archive, errno, "statvfs failed");
+		return (ARCHIVE_FAILED);
+	} else if (xr == 1) {
+		/* pathconf(_PC_REX_*) operations are not supported. */
+		t->current_filesystem->xfer_align = sfs.f_frsize;
+		t->current_filesystem->max_xfer_size = -1;
+		t->current_filesystem->min_xfer_size = sfs.f_bszie;
+		t->current_filesystem->incr_xfer_size = sfs.f_bszie;
+	}
+	return (ARCHIVE_OK);
+}
+
 #else
 
 /*
@@ -1222,6 +1385,10 @@ setup_current_filesystem(struct archive_read_disk *a)
 	struct tree *t = a->tree;
 	t->current_filesystem->synthetic = -1;/* Not supported */
 	t->current_filesystem->remote = -1;/* Not supported */
+	t->current_filesystem->xfer_align = -1;
+	t->current_filesystem->max_xfer_size = -1;
+	t->current_filesystem->min_xfer_size = -1;
+	t->current_filesystem->incr_xfer_size = -1;
 	return (ARCHIVE_OK);
 }
 
