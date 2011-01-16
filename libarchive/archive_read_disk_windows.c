@@ -1228,7 +1228,6 @@ tree_reopen(struct tree *t, const char *path)
 	t->descend = 0;
 	t->current = NULL;
 	t->d = INVALID_DIR_HANDLE;
-	t->current_filesystem_id = -1;
 	t->symlink_mode = t->initial_symlink_mode;
 	archive_string_empty(&(t->full_path));
 	archive_string_empty(&t->path);
