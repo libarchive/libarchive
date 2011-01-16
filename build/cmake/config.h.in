@@ -263,6 +263,15 @@
 /* Define to 1 if you have the `fstat' function. */
 #cmakedefine HAVE_FSTAT 1
 
+/* Define to 1 if you have the `fstatat' function. */
+#cmakedefine HAVE_FSTATAT 1
+
+/* Define to 1 if you have the `fstatfs' function. */
+#cmakedefine HAVE_FSTATFS 1
+
+/* Define to 1 if you have the `fstatvfs' function. */
+#cmakedefine HAVE_FSTATVFS 1
+
 /* Define to 1 if you have the `ftruncate' function. */
 #cmakedefine HAVE_FTRUNCATE 1
 
@@ -310,6 +319,9 @@
 
 /* Define to 1 if you have the <langinfo.h> header file. */
 #cmakedefine HAVE_LANGINFO_H 1
+
+/* Define to 1 if you have the `openat' function. */
+#cmakedefine HAVE_OPENAT 1
 
 /* Define to 1 if you have the `lchflags' function. */
 #cmakedefine HAVE_LCHFLAGS 1

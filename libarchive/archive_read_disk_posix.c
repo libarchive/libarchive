@@ -198,6 +198,7 @@ struct tree {
 /* Definitions for tree.flags bitmap. */
 #define	hasStat		16 /* The st entry is valid. */
 #define	hasLstat	32 /* The lst entry is valid. */
+#define	needsChdir	64 /* Changing a working directory is needed. */
 
 static int
 tree_dir_next_posix(struct tree *t);
@@ -217,6 +218,7 @@ static void tree_free(struct tree *);
 static void tree_push(struct tree *, const char *, int, int64_t, int64_t);
 static int tree_enter_initial_dir(struct tree *);
 static int tree_enter_working_dir(struct tree *);
+static int tree_current_dir_fd(struct tree *);
 
 /*
  * tree_next() returns Zero if there is no next entry, non-zero if
@@ -568,17 +570,28 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	t = a->tree;
 
 	if (a->entry_fd < 0) {
+#ifdef HAVE_OPENAT
+		a->entry_fd = openat(tree_current_dir_fd(t),
+		    tree_current_access_path(t), O_RDONLY | O_BINARY);
+		if (a->entry_fd < 0) {
+			archive_set_error(&a->archive, errno,
+			    "Couldn't open %s", tree_current_path(t));
+			r = ARCHIVE_FAILED;
+			goto abort_read_data;
+		}
+#else
 		tree_enter_working_dir(t);
-		a->entry_fd = open(tree_current_access_path(a->tree),
+		a->entry_fd = open(tree_current_access_path(t),
 		    O_RDONLY | O_BINARY);
 		if (a->entry_fd < 0) {
 			archive_set_error(&a->archive, errno,
-			    "Couldn't open %s", tree_current_path(a->tree));
+			    "Couldn't open %s", tree_current_path(t));
 			r = ARCHIVE_FAILED;
 			tree_enter_initial_dir(t);
 			goto abort_read_data;
 		}
 		tree_enter_initial_dir(t);
+#endif
 	}
 
 	/* Allocate read buffer. */
@@ -676,8 +689,12 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 		a->entry_fd = -1;
 	}
 	t = a->tree;
+#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_FDOPENDIR)
+	t->flags |= needsChdir;
+#else
 	/* Restore working directory. */
 	tree_enter_working_dir(t);
+#endif
 	st = NULL;
 	lst = NULL;
 	do {
@@ -757,6 +774,14 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	archive_entry_set_pathname(entry, tree_current_path(t));
 	archive_entry_copy_sourcepath(entry, tree_current_access_path(t));
 	archive_entry_copy_stat(entry, st);
+
+#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_FDOPENDIR)
+	/* Restore working directory. */
+	if (t->flags & needsChdir) {
+		tree_enter_working_dir(t);
+		t->flags &= ~needsChdir;
+	}
+#endif
 	/* Populate the archive_entry with metadata from the disk. */
 	r = archive_read_disk_entry_from_file(&(a->archive), entry, -1, st);
 
@@ -1001,10 +1026,11 @@ archive_read_disk_current_filesystem_is_remote(struct archive *_a)
 	return (a->tree->current_filesystem->remote);
 }
 
+#if 0
 #if defined(__FreeBSD__) || \
-   (defined(HAVE_STATVFS) && defined(ST_LOCAL)) || \
+   ((defined(HAVE_STATVFS) || defined(HAVE_FSTATVFS)) && defined(ST_LOCAL)) || \
    (defined(HAVE_SYS_VFS_H) && defined(HAVE_LINUX_MAGIC_H) && \
-	 defined(HAVE_STATFS))
+	 (defined(HAVE_STATFS) || defined(HAVE_FSTATFS)))
 
 /*
  * If symlink is broken, statfs or statvfs will fail.
@@ -1036,6 +1062,7 @@ safe_path_for_statfs(struct tree *t)
 }
 
 #endif
+#endif
 
 #if defined(__FreeBSD__)
 
@@ -1048,14 +1075,11 @@ setup_current_filesystem(struct archive_read_disk *a)
 	struct tree *t = a->tree;
 	struct statfs sfs;
 	struct xvfsconf vfc;
-	char *path;
 	int r;
 
 	t->current_filesystem->synthetic = -1;
 	t->current_filesystem->remote = -1;
-	path = safe_path_for_statfs(t);
-	r = statfs(path, &sfs);
-	free(path);
+	r = fstatfs(tree_current_dir_fd(t), &sfs);
 	if (r == -1) {
 		archive_set_error(&a->archive, errno, "statfs failed");
 		return (ARCHIVE_FAILED);
@@ -1076,7 +1100,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 	return (ARCHIVE_OK);
 }
 
-#elif defined(HAVE_STATVFS) && defined(ST_LOCAL)
+#elif (defined(HAVE_STATVFS) || defined(HAVE_FSTATVFS)) && defined(ST_LOCAL)
 
 /*
  * Get conditions of synthetic and remote on NetBSD
@@ -1086,13 +1110,14 @@ setup_current_filesystem(struct archive_read_disk *a)
 {
 	struct tree *t = a->tree;
 	struct statvfs sfs;
-	char *path;
 	int r;
 
 	t->current_filesystem->synthetic = -1;
-	path = safe_path_for_statfs(t);
-	r = statvfs(path, &sfs);
-	free(path);
+#ifdef HAVE_FSTATVFS
+	r = fstatvfs(tree_current_dir_fd(t), &sfs);
+#else
+	r = statvfs(".", &sfs);
+#endif
 	if (r == -1) {
 		t->current_filesystem->remote = -1;
 		archive_set_error(&a->archive, errno, "statfs failed");
@@ -1106,7 +1131,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 }
 
 #elif defined(HAVE_SYS_VFS_H) && defined(HAVE_LINUX_MAGIC_H) &&\
-	defined(HAVE_STATFS)
+	(defined(HAVE_STATFS) || defined(HAVE_FSTATFS))
 /*
  * Note: statfs is deprecated since LSB 3.2
  */
@@ -1126,12 +1151,13 @@ setup_current_filesystem(struct archive_read_disk *a)
 {
 	struct tree *t = a->tree;
 	struct statfs sfs;
-	char *path;
 	int r;
 
-	path = safe_path_for_statfs(t);
-	r = statfs(path, &sfs);
-	free(path);
+#ifdef HAVE_FSTATFS
+	r = fstatfs(tree_current_dir_fd(t), &sfs);
+#else
+	r = statfs(".", &sfs);
+#endif
 	if (r == -1) {
 		t->current_filesystem->synthetic = -1;
 		t->current_filesystem->remote = -1;
@@ -1275,6 +1301,27 @@ tree_descent(struct tree *t)
 {
 	int r = 0;
 
+#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_FDOPENDIR)
+	int new_fd;
+	t->dirname_length = archive_strlen(&t->path);
+	new_fd = openat(t->working_dir_fd, t->stack->name.s, O_RDONLY);
+	if (new_fd < 0) {
+		t->tree_errno = errno;
+		r = TREE_ERROR_DIR;
+	} else {
+		t->depth++;
+		/* If it is a link, set up fd for the ascent. */
+		if (t->stack->flags & isDirLink) {
+			t->stack->symlink_parent_fd = t->working_dir_fd;
+			t->openCount++;
+			if (t->openCount > t->maxOpenCount)
+				t->maxOpenCount = t->openCount;
+		} else
+			close(t->working_dir_fd);
+		t->working_dir_fd = new_fd;
+		t->flags |= needsChdir;
+	}
+#else
 	/* If it is a link, set up fd for the ascent. */
 	if (t->stack->flags & isDirLink)
 		t->stack->symlink_parent_fd = t->working_dir_fd;
@@ -1295,6 +1342,7 @@ tree_descent(struct tree *t)
 		if (t->openCount > t->maxOpenCount)
 			t->maxOpenCount = t->openCount;
 	}
+#endif
 	return (r);
 }
 
@@ -1305,29 +1353,48 @@ static int
 tree_ascend(struct tree *t)
 {
 	struct tree_entry *te;
-	int r = 0;
+	int r = 0, prev_dir_fd;
 
 	te = t->stack;
-	t->depth--;
-	close(t->working_dir_fd);
-	t->working_dir_fd = -1;
-	t->openCount--;
+	prev_dir_fd = t->working_dir_fd;
+#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_FDOPENDIR)
+	if (te->flags & isDirLink) {
+		t->working_dir_fd = te->symlink_parent_fd;
+		t->flags |= needsChdir;
+	} else {
+		int new_fd = openat(t->working_dir_fd, "..", O_RDONLY);
+		if (new_fd < 0) {
+			t->tree_errno = errno;
+			r = TREE_ERROR_FATAL;
+		} else {
+			t->working_dir_fd = new_fd;
+			t->flags |= needsChdir;
+		}
+	}
+#else
 	if (te->flags & isDirLink) {
 		if (fchdir(te->symlink_parent_fd) != 0) {
 			t->tree_errno = errno;
 			r = TREE_ERROR_FATAL;
-		}
-		t->working_dir_fd = te->symlink_parent_fd;
-		te->symlink_parent_fd = -1;
+		} else
+			t->working_dir_fd = te->symlink_parent_fd;
 	} else {
 		if (chdir("..") != 0) {
 			t->tree_errno = errno;
 			r = TREE_ERROR_FATAL;
+		} else
+			t->working_dir_fd = open(".", O_RDONLY);
+	}
+#endif
+	if (r == 0) {
+		/* Current directory has been changed, we should
+		 * close an fd of previous working directory. */
+		close(prev_dir_fd);
+		if (te->flags & isDirLink) {
+			t->openCount--;
+			te->symlink_parent_fd = -1;
 		}
-		t->working_dir_fd = open(".", O_RDONLY);
-		t->openCount++;
-		if (t->openCount > t->maxOpenCount)
-			t->maxOpenCount = t->openCount;
+		t->depth--;
 	}
 	return (r);
 }
@@ -1352,6 +1419,12 @@ tree_enter_working_dir(struct tree *t)
 	if (t->working_dir_fd >= 0)
 		return (fchdir(t->working_dir_fd));
 	return (0);
+}
+
+static int
+tree_current_dir_fd(struct tree *t)
+{
+	return (t->working_dir_fd);
 }
 
 /*
@@ -1512,7 +1585,12 @@ static const struct stat *
 tree_current_stat(struct tree *t)
 {
 	if (!(t->flags & hasStat)) {
+#ifdef HAVE_FSTATAT
+		if (fstatat(tree_current_dir_fd(t),
+		    tree_current_access_path(t), &t->st, 0) != 0)
+#else
 		if (stat(tree_current_access_path(t), &t->st) != 0)
+#endif
 			return NULL;
 		t->flags |= hasStat;
 	}
@@ -1526,7 +1604,13 @@ static const struct stat *
 tree_current_lstat(struct tree *t)
 {
 	if (!(t->flags & hasLstat)) {
+#ifdef HAVE_FSTATAT
+		if (fstatat(tree_current_dir_fd(t),
+		    tree_current_access_path(t), &t->lst,
+		    AT_SYMLINK_NOFOLLOW) != 0)
+#else
 		if (lstat(tree_current_access_path(t), &t->lst) != 0)
+#endif
 			return NULL;
 		t->flags |= hasLstat;
 	}
