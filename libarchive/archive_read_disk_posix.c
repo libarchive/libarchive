@@ -279,6 +279,7 @@ static const char *tree_current_access_path(struct tree *);
  */
 static const struct stat *tree_current_stat(struct tree *);
 static const struct stat *tree_current_lstat(struct tree *);
+static int	tree_current_is_symblic_link_target(struct tree *);
 
 /* The following functions use tricks to avoid a certain number of
  * stat()/lstat() calls. */
@@ -1037,24 +1038,6 @@ archive_read_disk_current_filesystem_is_remote(struct archive *_a)
 
 	return (a->tree->current_filesystem->remote);
 }
-
-#if defined(__FreeBSD__) || \
-   ((defined(HAVE_STATVFS) || defined(HAVE_FSTATVFS)) && defined(ST_LOCAL)) || \
-   (defined(HAVE_SYS_VFS_H) && defined(HAVE_LINUX_MAGIC_H) && \
-	 (defined(HAVE_STATFS) || defined(HAVE_FSTATFS)))
-
-static int
-tree_current_is_symblic_link_target(struct tree *t)
-{
-	static const struct stat *lst, *st;
-
-	lst = tree_current_lstat(t);
-	st = tree_current_stat(t);
-	return (lst != NULL && lst->st_dev == t->current_filesystem->dev &&
-	    lst->st_dev != st->st_dev);
-}
-
-#endif
 
 #if defined(_PC_REC_INCR_XFER_SIZE) && defined(_PC_REC_MAX_XFER_SIZE) &&\
 	defined(_PC_REC_MIN_XFER_SIZE) && defined(_PC_REC_XFER_ALIGN)
@@ -1885,6 +1868,21 @@ tree_target_is_same_as_parent(struct tree *t, const struct stat *st)
 			return (1);
 	}
 	return (0);
+}
+
+/*
+ * Test whether the current file is symbolic link target and
+ * on the other filesystem.
+ */
+static int
+tree_current_is_symblic_link_target(struct tree *t)
+{
+	static const struct stat *lst, *st;
+
+	lst = tree_current_lstat(t);
+	st = tree_current_stat(t);
+	return (st != NULL && st->st_dev == t->current_filesystem->dev &&
+	    st->st_dev != lst->st_dev);
 }
 
 /*
