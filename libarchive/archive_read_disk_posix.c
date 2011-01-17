@@ -1439,6 +1439,9 @@ static int
 setup_current_filesystem(struct archive_read_disk *a)
 {
 	struct tree *t = a->tree;
+#if !defined(_PC_NAME_MAX)
+	long nm;
+#endif
 	t->current_filesystem->synthetic = -1;/* Not supported */
 	t->current_filesystem->remote = -1;/* Not supported */
 	t->current_filesystem->xfer_align = 4096;
@@ -1448,9 +1451,11 @@ setup_current_filesystem(struct archive_read_disk *a)
 
 	/* Set maximum filename length. */
 #if defined(_PC_NAME_MAX)
-	t->current_filesystem->name_max =
-	    pathconf(tree_current_access_path(t), _PC_NAME_MAX);
-	if (t->current_filesystem->name_max == (size_t)-1)
+	if (tree_current_is_symblic_link_target(t))
+		nm = pathconf(tree_current_access_path(t), _PC_NAME_MAX);
+	else
+		nm = fpathconf(tree_current_dir_fd(t), _PC_NAME_MAX);
+	if (nm == -1) {
 #endif /* _PC_NAME_MAX */
 		/*
 		 * Some sysmtes (HP-UX or others?) incorrectly defined
@@ -1463,6 +1468,8 @@ setup_current_filesystem(struct archive_read_disk *a)
 		 * length. */
 		t->current_filesystem->name_max = PATH_MAX;
 #endif /* NAME_MAX */
+	} else
+		t->current_filesystem->name_max = nm;
 	return (ARCHIVE_OK);
 }
 
