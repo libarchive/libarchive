@@ -353,6 +353,13 @@ AC_CHECK_MEMBERS([struct tm.tm_gmtoff, struct tm.__tm_gmtoff],,,
 #include <time.h>
 ])
 
+# Check for f_namemax in struct statfs
+AC_CHECK_MEMBERS([struct statfs.f_namemax],,,
+[
+#include <sys/param.h>
+#include <sys/mount.h>
+])
+
 # Check for birthtime in struct stat
 AC_CHECK_MEMBERS([struct stat.st_birthtime])
 
@@ -415,8 +422,8 @@ AC_CHECK_STDCALL_FUNC([CreateHardLinkA],[const char *, const char *, void *])
 AC_CHECK_FUNCS([chflags chown chroot ctime_r])
 AC_CHECK_FUNCS([fchdir fchflags fchmod fchown fcntl fdopendir fork])
 AC_CHECK_FUNCS([fstat fstatat fstatfs fstatvfs ftruncate futimens futimes])
-AC_CHECK_FUNCS([geteuid getpid])
-AC_CHECK_FUNCS([getgrgid_r getgrnam_r getpwnam_r getpwuid_r gmtime_r])
+AC_CHECK_FUNCS([geteuid getpid getgrgid_r getgrnam_r])
+AC_CHECK_FUNCS([getpwnam_r getpwuid_r getvfsbyname gmtime_r])
 AC_CHECK_FUNCS([lchflags lchmod lchown link localtime_r lstat])
 AC_CHECK_FUNCS([lutimes mbrtowc memmove memset mkdir mkfifo mknod mkstemp])
 AC_CHECK_FUNCS([nl_langinfo openat pipe poll readdir_r readlink])

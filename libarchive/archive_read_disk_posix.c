@@ -1125,10 +1125,10 @@ get_xfer_size(struct tree *t, int fd, const char *path)
 }
 #endif
 
-#if defined(__FreeBSD__)
+#if defined(HAVE_STATFS) && defined(HAVE_FSTATFS) && defined(MNT_LOCAL)
 
 /*
- * Get conditions of synthetic and remote on FreeBSD.
+ * Get conditions of synthetic and remote on FreeBSD, OpenBSD and Mac OS X.
  */
 static int
 setup_current_filesystem(struct archive_read_disk *a)
@@ -1137,6 +1137,9 @@ setup_current_filesystem(struct archive_read_disk *a)
 	struct statfs sfs;
 	struct xvfsconf vfc;
 	int r, xr = 0;
+#if !defined(HAVE_STRUCT_STATFS_F_NAMEMAX)
+	long nm;
+#endif
 
 	t->current_filesystem->synthetic = -1;
 	t->current_filesystem->remote = -1;
@@ -1181,6 +1184,8 @@ setup_current_filesystem(struct archive_read_disk *a)
 		t->current_filesystem->remote = 0;
 	else
 		t->current_filesystem->remote = 1;
+
+#if defined(HAVE_GETVFSBYNAME) && defined(VFCF_SYNTHETIC)
 	r = getvfsbyname(sfs.f_fstypename, &vfc);
 	if (r == -1) {
 		archive_set_error(&a->archive, errno, "getvfsbyname failed");
@@ -1190,9 +1195,22 @@ setup_current_filesystem(struct archive_read_disk *a)
 		t->current_filesystem->synthetic = 1;
 	else
 		t->current_filesystem->synthetic = 0;
+#endif
 
 	/* Set maximum filename length. */
+#if defined(HAVE_STRUCT_STATFS_F_NAMEMAX)
 	t->current_filesystem->name_max = sfs.f_namemax;
+#else
+	/* Mac OS X does not have f_namemax in struct statfs. */
+	if (tree_current_is_symblic_link_target(t))
+		nm = pathconf(tree_current_access_path(t), _PC_NAME_MAX);
+	else
+		nm = fpathconf(tree_current_dir_fd(t), _PC_NAME_MAX);
+	if (nm == -1)
+		t->current_filesystem->name_max = NAME_MAX;
+	else
+		t->current_filesystem->name_max = nm;
+#endif
 	return (ARCHIVE_OK);
 }
 

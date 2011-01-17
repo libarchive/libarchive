@@ -498,6 +498,7 @@ CHECK_FUNCTION_EXISTS_GLIBC(getgrnam_r HAVE_GETGRNAM_R)
 CHECK_FUNCTION_EXISTS_GLIBC(getpwnam_r HAVE_GETPWNAM_R)
 CHECK_FUNCTION_EXISTS_GLIBC(getpwuid_r HAVE_GETPWUID_R)
 CHECK_FUNCTION_EXISTS_GLIBC(getpid HAVE_GETPID)
+CHECK_FUNCTION_EXISTS_GLIBC(getvfsbyname HAVE_GETVFSBYNAME)
 CHECK_FUNCTION_EXISTS_GLIBC(gmtime_r HAVE_GMTIME_R)
 CHECK_FUNCTION_EXISTS_GLIBC(lchflags HAVE_LCHFLAGS)
 CHECK_FUNCTION_EXISTS_GLIBC(lchmod HAVE_LCHMOD)
@@ -599,6 +600,10 @@ CHECK_STRUCT_MEMBER("struct tm" tm_gmtoff
     "time.h" HAVE_STRUCT_TM_TM_GMTOFF)
 CHECK_STRUCT_MEMBER("struct tm" __tm_gmtoff
     "time.h" HAVE_STRUCT_TM___TM_GMTOFF)
+
+# Check for f_namemax in struct statfs
+CHECK_STRUCT_MEMBER("struct statfs" f_namemax
+    "sys/param.h;sys/mount.h" HAVE_STRUCT_STATFS_F_NAMEMAX)
 
 # Check for birthtime in struct stat
 CHECK_STRUCT_MEMBER("struct stat" st_birthtime
