@@ -969,7 +969,7 @@ update_current_filesystem(struct archive_read_disk *a, int64_t dev)
 	}
 
 	/*
-	 * There is a new filesytem, we generate a new ID for.
+	 * This is the new filesytem which we have to generate a new ID for.
 	 */
 	fid = t->max_filesystem_id++;
 	if (t->max_filesystem_id > t->allocated_filesytem) {
@@ -988,24 +988,9 @@ update_current_filesystem(struct archive_read_disk *a, int64_t dev)
 	t->current_filesystem_id = fid;
 	t->current_filesystem = &(t->filesystem_table[fid]);
 	t->current_filesystem->dev = dev;
-#if defined(HAVE_READDIR_R)
-# if defined(_PC_NAME_MAX)
-	t->current_filesystem->name_max =
-	    pathconf(tree_current_access_path(t), _PC_NAME_MAX);
-	if (t->current_filesystem->name_max == (size_t)-1)
-# endif /* _PC_NAME_MAX */
-		/*
-		 * Some sysmtes (HP-UX or others?) incorrectly define NAME_MAX
-		 * macro to be a smaller value.
-		 */
-# if defined(NAME_MAX) && NAME_MAX >= 255
-		t->current_filesystem->name_max = NAME_MAX;
-# else
-		/* No way to get a trusted value of a maximum filename length. */
-		t->current_filesystem->name_max = PATH_MAX;
-# endif /* NAME_MAX */
-#endif /* HAVE_READDIR_R */
 
+	/* Setup the current filesystem properties which depend on
+	 * platform specific. */
 	return (setup_current_filesystem(a));
 }
 
@@ -1147,6 +1132,9 @@ setup_current_filesystem(struct archive_read_disk *a)
 		t->current_filesystem->synthetic = 1;
 	else
 		t->current_filesystem->synthetic = 0;
+
+	/* Set maximum filename length. */
+	t->current_filesystem->name_max = sfs.f_namemax;
 	return (ARCHIVE_OK);
 }
 
@@ -1185,6 +1173,9 @@ setup_current_filesystem(struct archive_read_disk *a)
 		t->current_filesystem->remote = 0;
 	else
 		t->current_filesystem->remote = 1;
+
+	/* Set maximum filename length. */
+	t->current_filesystem->name_max = sfs.f_namemax;
 	return (ARCHIVE_OK);
 }
 
@@ -1293,6 +1284,9 @@ setup_current_filesystem(struct archive_read_disk *a)
 		t->current_filesystem->synthetic = 0;
 		break;
 	}
+
+	/* Set maximum filename length. */
+	t->current_filesystem->name_max = svfs.f_namemax;
 	return (ARCHIVE_OK);
 }
 
@@ -1354,6 +1348,9 @@ setup_current_filesystem(struct archive_read_disk *a)
 		t->current_filesystem->min_xfer_size = sfs.f_bsize;
 		t->current_filesystem->incr_xfer_size = sfs.f_bsize;
 	}
+
+	/* Set maximum filename length. */
+	t->current_filesystem->name_max = sfs.f_namemax;
 	return (ARCHIVE_OK);
 }
 
@@ -1368,10 +1365,28 @@ setup_current_filesystem(struct archive_read_disk *a)
 	struct tree *t = a->tree;
 	t->current_filesystem->synthetic = -1;/* Not supported */
 	t->current_filesystem->remote = -1;/* Not supported */
-	t->current_filesystem->xfer_align = -1;
+	t->current_filesystem->xfer_align = 4096;
 	t->current_filesystem->max_xfer_size = -1;
-	t->current_filesystem->min_xfer_size = -1;
-	t->current_filesystem->incr_xfer_size = -1;
+	t->current_filesystem->min_xfer_size = 4096;
+	t->current_filesystem->incr_xfer_size = 4096;
+
+	/* Set maximum filename length. */
+#if defined(_PC_NAME_MAX)
+	t->current_filesystem->name_max =
+	    pathconf(tree_current_access_path(t), _PC_NAME_MAX);
+	if (t->current_filesystem->name_max == (size_t)-1)
+#endif /* _PC_NAME_MAX */
+		/*
+		 * Some sysmtes (HP-UX or others?) incorrectly defined
+		 * NAME_MAX macro to be a smaller value.
+		 */
+#if defined(NAME_MAX) && NAME_MAX >= 255
+		t->current_filesystem->name_max = NAME_MAX;
+#else
+		/* No way to get a trusted value of maximum filename
+		 * length. */
+		t->current_filesystem->name_max = PATH_MAX;
+#endif /* NAME_MAX */
 	return (ARCHIVE_OK);
 }
 
