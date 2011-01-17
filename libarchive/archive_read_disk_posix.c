@@ -1361,8 +1361,10 @@ setup_current_filesystem(struct archive_read_disk *a)
 		break;
 	}
 
+#if defined(HAVE_READDIR_R)
 	/* Set maximum filename length. */
 	t->current_filesystem->name_max = svfs.f_namemax;
+#endif
 	return (ARCHIVE_OK);
 }
 
@@ -1425,8 +1427,10 @@ setup_current_filesystem(struct archive_read_disk *a)
 		t->current_filesystem->incr_xfer_size = sfs.f_bsize;
 	}
 
+#if defined(HAVE_READDIR_R)
 	/* Set maximum filename length. */
 	t->current_filesystem->name_max = sfs.f_namemax;
+#endif
 	return (ARCHIVE_OK);
 }
 
@@ -1439,7 +1443,7 @@ static int
 setup_current_filesystem(struct archive_read_disk *a)
 {
 	struct tree *t = a->tree;
-#if !defined(_PC_NAME_MAX)
+#if defined(_PC_NAME_MAX) && defined(HAVE_READDIR_R)
 	long nm;
 #endif
 	t->current_filesystem->synthetic = -1;/* Not supported */
@@ -1449,27 +1453,31 @@ setup_current_filesystem(struct archive_read_disk *a)
 	t->current_filesystem->min_xfer_size = 4096;
 	t->current_filesystem->incr_xfer_size = 4096;
 
+#if defined(HAVE_READDIR_R)
 	/* Set maximum filename length. */
-#if defined(_PC_NAME_MAX)
+#  if defined(_PC_NAME_MAX)
 	if (tree_current_is_symblic_link_target(t))
 		nm = pathconf(tree_current_access_path(t), _PC_NAME_MAX);
 	else
 		nm = fpathconf(tree_current_dir_fd(t), _PC_NAME_MAX);
-	if (nm == -1) {
-#endif /* _PC_NAME_MAX */
+	if (nm == -1)
+#  endif /* _PC_NAME_MAX */
 		/*
 		 * Some sysmtes (HP-UX or others?) incorrectly defined
 		 * NAME_MAX macro to be a smaller value.
 		 */
-#if defined(NAME_MAX) && NAME_MAX >= 255
+#  if defined(NAME_MAX) && NAME_MAX >= 255
 		t->current_filesystem->name_max = NAME_MAX;
-#else
+#  else
 		/* No way to get a trusted value of maximum filename
 		 * length. */
 		t->current_filesystem->name_max = PATH_MAX;
-#endif /* NAME_MAX */
-	} else
+#  endif /* NAME_MAX */
+#  if defined(_PC_NAME_MAX)
+	else
 		t->current_filesystem->name_max = nm;
+#  endif /* _PC_NAME_MAX */
+#endif /* HAVE_READDIR_R */
 	return (ARCHIVE_OK);
 }
 
