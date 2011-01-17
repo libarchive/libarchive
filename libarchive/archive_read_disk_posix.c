@@ -137,6 +137,15 @@ struct filesystem {
 	long		max_xfer_size;
 	long		min_xfer_size;
 	long		xfer_align;
+
+	/*
+	 * Buffer used for reading file contents.
+	 */
+	/* Exactly allocated memory pointer. */
+	unsigned char	*allocation_ptr;
+	/* Pointer adjusted to the filesystem alignment . */
+	unsigned char	*buff;
+	size_t		 buff_size;
 };
 
 /* Definitions for tree_entry.flags bitmap. */
@@ -455,7 +464,6 @@ _archive_read_free(struct archive *_a)
 	if (a->cleanup_uname != NULL && a->lookup_uname_data != NULL)
 		(a->cleanup_uname)(a->lookup_uname_data);
 	archive_string_free(&a->archive.error_string);
-	free(a->entry_buff);
 	a->archive.magic = 0;
 	free(a);
 	return (r);
@@ -555,6 +563,53 @@ trivial_lookup_uname(void *private_data, int64_t uid)
 	return (NULL);
 }
 
+/*
+ * Allocate memory for the reading buffer adjusted to the filesystem
+ * alignment.
+ */
+static int
+setup_suitable_read_buffer(struct archive_read_disk *a)
+{
+	struct tree *t = a->tree;
+	struct filesystem *cf = t->current_filesystem;
+	size_t asize;
+	size_t s;
+
+	if (cf->allocation_ptr == NULL) {
+		if (cf->max_xfer_size != -1)
+			asize = cf->max_xfer_size + cf->xfer_align;
+		else {
+			asize = cf->min_xfer_size;
+			while (asize < 1024*64)
+				asize += cf->incr_xfer_size;
+			asize += cf->xfer_align;
+		}
+		cf->allocation_ptr = malloc(asize);
+		if (cf->allocation_ptr == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Couldn't allocate memory");
+			a->archive.state = ARCHIVE_STATE_FATAL;
+			return (ARCHIVE_FATAL);
+		}
+
+		/*
+		 * Calculate proper address for the filesystem.
+		 */
+		s = (uintptr_t)cf->allocation_ptr;
+		s %= cf->xfer_align;
+		if (s > 0)
+			s = cf->xfer_align - s;
+
+		/*
+		 * Set a read buffer pointer in the proper alignment of
+		 * the current filesystem.
+		 */
+		cf->buff = cf->allocation_ptr + s;
+		cf->buff_size = asize - cf->xfer_align;
+	}
+	return (ARCHIVE_OK);
+}
+
 static int
 _archive_read_data_block(struct archive *_a, const void **buff,
     size_t *size, int64_t *offset)
@@ -574,6 +629,10 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	}
 	t = a->tree;
 
+	/*
+	 * Open the current file.
+	 * TODO: use O_DIRECT.
+	 */
 	if (a->entry_fd < 0) {
 #ifdef HAVE_OPENAT
 		a->entry_fd = openat(tree_current_dir_fd(t),
@@ -599,25 +658,18 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 #endif
 	}
 
-	/* Allocate read buffer. */
 	/*
-	 * TODO: Choose a suitable buffer size with
-	 * t->current_filesystem->xfer_align,
-	 * t->current_filesystem->max_xfer_size,
-	 * t->current_filesystem->min_xfer_size and
-	 * t->current_filesystem->incr_xfer_size.
+	 * Allocate read buffer if not allocated.
 	 */
-	if (a->entry_buff == NULL) {
-		a->entry_buff = malloc(1024 * 64);
-		if (a->entry_buff == NULL) {
-			archive_set_error(&a->archive, ENOMEM,
-			    "Couldn't allocate memory");
-			r = ARCHIVE_FATAL;
+	if (t->current_filesystem->allocation_ptr == NULL) {
+		r = setup_suitable_read_buffer(a);
+		if (r != ARCHIVE_OK) {
 			a->archive.state = ARCHIVE_STATE_FATAL;
 			goto abort_read_data;
 		}
-		a->entry_buff_size = 1024 * 64;
 	}
+	a->entry_buff = t->current_filesystem->buff;
+	a->entry_buff_size = t->current_filesystem->buff_size;
 
 	buffbytes = a->entry_buff_size;
 	if (buffbytes > t->current_sparse->length)
@@ -625,7 +677,7 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 
 	/*
 	 * Skip hole.
-	 * TODO: Consider t->current_filesystem->xfer_align.
+	 * TODO: Should we consider t->current_filesystem->xfer_align?
 	 */
 	if (t->current_sparse->offset > a->entry_total) {
 		if (lseek(a->entry_fd,
@@ -639,6 +691,10 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 		a->entry_remaining_bytes -= bytes;
 		a->entry_total += bytes;
 	}
+
+	/*
+	 * Read file contents.
+	 */
 	if (buffbytes > 0) {
 		bytes = read(a->entry_fd, a->entry_buff, buffbytes);
 		if (bytes < 0) {
@@ -988,6 +1044,8 @@ update_current_filesystem(struct archive_read_disk *a, int64_t dev)
 	t->current_filesystem_id = fid;
 	t->current_filesystem = &(t->filesystem_table[fid]);
 	t->current_filesystem->dev = dev;
+	t->current_filesystem->allocation_ptr = NULL;
+	t->current_filesystem->buff = NULL;
 
 	/* Setup the current filesystem properties which depend on
 	 * platform specific. */
@@ -1951,6 +2009,8 @@ tree_close(struct tree *t)
 static void
 tree_free(struct tree *t)
 {
+	int i;
+
 	if (t == NULL)
 		return;
 	archive_string_free(&t->path);
@@ -1958,6 +2018,8 @@ tree_free(struct tree *t)
 	free(t->dirent);
 #endif
 	free(t->sparse_list);
+	for (i = 0; i < t->max_filesystem_id; i++)
+		free(t->filesystem_table[i].allocation_ptr);
 	free(t->filesystem_table);
 	free(t);
 }
