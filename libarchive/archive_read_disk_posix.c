@@ -191,6 +191,7 @@ struct tree {
 	struct stat		 lst;
 	struct stat		 st;
 	int			 descend;
+	int			 nlink;
 
 	struct entry_sparse {
 		int64_t		 length;
@@ -651,22 +652,27 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 
 	/*
 	 * Open the current file.
-	 * TODO: use O_DIRECT.
 	 */
 	if (a->entry_fd < 0) {
+		int flags = O_RDONLY | O_BINARY;
+
+		/*
+		 * Eliminate or reduce cache effects if we can.
+		 *
+		 * Carefully consider this to be enabled.
+		 */
+#if defined(O_DIRECT) && 0/* Disabled for now */
+		if (t->current_filesystem->xfer_align != -1 &&
+		    t->nlink == 1)
+			flags |= O_DIRECT;
+#endif
 #ifdef HAVE_OPENAT
 		a->entry_fd = openat(tree_current_dir_fd(t),
-		    tree_current_access_path(t), O_RDONLY | O_BINARY);
-		if (a->entry_fd < 0) {
-			archive_set_error(&a->archive, errno,
-			    "Couldn't open %s", tree_current_path(t));
-			r = ARCHIVE_FAILED;
-			goto abort_read_data;
-		}
+		    tree_current_access_path(t), flags);
 #else
 		tree_enter_working_dir(t);
-		a->entry_fd = open(tree_current_access_path(t),
-		    O_RDONLY | O_BINARY);
+		a->entry_fd = open(tree_current_access_path(t), flags);
+#endif
 		if (a->entry_fd < 0) {
 			archive_set_error(&a->archive, errno,
 			    "Couldn't open %s", tree_current_path(t));
@@ -675,7 +681,6 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 			goto abort_read_data;
 		}
 		tree_enter_initial_dir(t);
-#endif
 	}
 
 	/*
@@ -887,6 +892,7 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	case ARCHIVE_WARN:
 		a->entry_total = 0;
 		if (archive_entry_filetype(entry) == AE_IFREG) {
+			t->nlink = archive_entry_nlink(entry);
 			a->entry_remaining_bytes = archive_entry_size(entry);
 			a->entry_eof = (a->entry_remaining_bytes == 0)? 1: 0;
 			if (!a->entry_eof &&
