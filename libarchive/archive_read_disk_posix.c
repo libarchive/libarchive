@@ -1365,7 +1365,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 
 #if defined(HAVE_READDIR_R)
 	/* Set maximum filename length. */
-	t->current_filesystem->name_max = svfs.f_namemax;
+	t->current_filesystem->name_max = sfs.f_namelen;
 #endif
 	return (ARCHIVE_OK);
 }
