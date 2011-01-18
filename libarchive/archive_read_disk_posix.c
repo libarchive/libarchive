@@ -577,8 +577,13 @@ setup_suitable_read_buffer(struct archive_read_disk *a)
 	size_t s;
 
 	if (cf->allocation_ptr == NULL) {
+		/* If we couldn't get a filesystem alignment,
+		 * we use 4096 as default value but we won't use
+		 * O_DIRECT to open() and openat() operations. */
+		long xfer_align = (cf->xfer_align == -1)?4096:cf->xfer_align;
+
 		if (cf->max_xfer_size != -1)
-			asize = cf->max_xfer_size + cf->xfer_align;
+			asize = cf->max_xfer_size + xfer_align;
 		else {
 			long incr = cf->incr_xfer_size;
 			/* Some platform does not set a proper value to
@@ -586,13 +591,18 @@ setup_suitable_read_buffer(struct archive_read_disk *a)
 			if (incr < 0)
 				incr = cf->min_xfer_size;
 			if (cf->min_xfer_size < 0) {
-				incr = cf->xfer_align;
-				asize = cf->xfer_align;
+				incr = xfer_align;
+				asize = xfer_align;
 			} else
 				asize = cf->min_xfer_size;
+
+			/* Increase a buffer size up to 64K bytes in
+			 * a proper incremant size. */
 			while (asize < 1024*64)
 				asize += incr;
-			asize += cf->xfer_align;
+			/* Take a margin to adjust to the filesystem
+			 * alignment. */
+			asize += xfer_align;
 		}
 		cf->allocation_ptr = malloc(asize);
 		if (cf->allocation_ptr == NULL) {
@@ -606,16 +616,16 @@ setup_suitable_read_buffer(struct archive_read_disk *a)
 		 * Calculate proper address for the filesystem.
 		 */
 		s = (uintptr_t)cf->allocation_ptr;
-		s %= cf->xfer_align;
+		s %= xfer_align;
 		if (s > 0)
-			s = cf->xfer_align - s;
+			s = xfer_align - s;
 
 		/*
 		 * Set a read buffer pointer in the proper alignment of
 		 * the current filesystem.
 		 */
 		cf->buff = cf->allocation_ptr + s;
-		cf->buff_size = asize - cf->xfer_align;
+		cf->buff_size = asize - xfer_align;
 	}
 	return (ARCHIVE_OK);
 }
@@ -1460,10 +1470,10 @@ setup_current_filesystem(struct archive_read_disk *a)
 #endif
 	t->current_filesystem->synthetic = -1;/* Not supported */
 	t->current_filesystem->remote = -1;/* Not supported */
-	t->current_filesystem->xfer_align = 4096;
+	t->current_filesystem->xfer_align = -1;/* Unknown */
 	t->current_filesystem->max_xfer_size = -1;
-	t->current_filesystem->min_xfer_size = 4096;
-	t->current_filesystem->incr_xfer_size = 4096;
+	t->current_filesystem->min_xfer_size = -1;
+	t->current_filesystem->incr_xfer_size = -1;
 
 #if defined(HAVE_READDIR_R)
 	/* Set maximum filename length. */
