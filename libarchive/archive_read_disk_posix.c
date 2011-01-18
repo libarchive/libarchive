@@ -1134,7 +1134,7 @@ get_xfer_size(struct tree *t, int fd, const char *path)
 #if defined(HAVE_STATFS) && defined(HAVE_FSTATFS) && defined(MNT_LOCAL)
 
 /*
- * Get conditions of synthetic and remote on FreeBSD, OpenBSD and Mac OS X.
+ * Gather current filesystem properties on FreeBSD, OpenBSD and Mac OS X.
  */
 static int
 setup_current_filesystem(struct archive_read_disk *a)
@@ -1225,7 +1225,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 #elif (defined(HAVE_STATVFS) || defined(HAVE_FSTATVFS)) && defined(ST_LOCAL)
 
 /*
- * Get conditions of synthetic and remote on NetBSD
+ * Gather current filesystem properties on NetBSD
  */
 static int
 setup_current_filesystem(struct archive_read_disk *a)
@@ -1277,7 +1277,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 #endif
 
 /*
- * Get conditions of synthetic and remote on Linux
+ * Gather current filesystem properties on Linux
  */
 static int
 setup_current_filesystem(struct archive_read_disk *a)
@@ -1378,6 +1378,9 @@ setup_current_filesystem(struct archive_read_disk *a)
 
 #elif defined(HAVE_STATVFS) || defined(HAVE_FSTATVFS)
 
+/*
+ * Gather current filesystem properties on other posix platform.
+ */
 static int
 setup_current_filesystem(struct archive_read_disk *a)
 {
@@ -1445,7 +1448,8 @@ setup_current_filesystem(struct archive_read_disk *a)
 #else
 
 /*
- * Generic
+ * Generic: Gather current filesystem properties.
+ * TODO: Is this generic function really needed?
  */
 static int
 setup_current_filesystem(struct archive_read_disk *a)
