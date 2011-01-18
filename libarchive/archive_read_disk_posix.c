@@ -211,7 +211,8 @@ struct tree {
 /* Definitions for tree.flags bitmap. */
 #define	hasStat		16 /* The st entry is valid. */
 #define	hasLstat	32 /* The lst entry is valid. */
-#define	needsChdir	64 /* Changing a working directory is needed. */
+#define	onWorkingDir	64 /* We are on the working dir where we are
+			    * reading directory entry at this time. */
 
 static int
 tree_dir_next_posix(struct tree *t);
@@ -767,9 +768,7 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 		a->entry_fd = -1;
 	}
 	t = a->tree;
-#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_FDOPENDIR)
-	t->flags |= needsChdir;
-#else
+#if !(defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_FDOPENDIR))
 	/* Restore working directory. */
 	tree_enter_working_dir(t);
 #endif
@@ -855,11 +854,9 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 
 #if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_FDOPENDIR)
 	/* Restore working directory. */
-	if (t->flags & needsChdir) {
-		tree_enter_working_dir(t);
-		t->flags &= ~needsChdir;
-	}
+	tree_enter_working_dir(t);
 #endif
+
 	/* Populate the archive_entry with metadata from the disk. */
 	r = archive_read_disk_entry_from_file(&(a->archive), entry, -1, st);
 
@@ -1608,7 +1605,6 @@ tree_descent(struct tree *t)
 		} else
 			close(t->working_dir_fd);
 		t->working_dir_fd = new_fd;
-		t->flags |= needsChdir;
 	}
 #else
 	/* If it is a link, set up fd for the ascent. */
@@ -1647,18 +1643,15 @@ tree_ascend(struct tree *t)
 	te = t->stack;
 	prev_dir_fd = t->working_dir_fd;
 #if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_FDOPENDIR)
-	if (te->flags & isDirLink) {
+	if (te->flags & isDirLink)
 		t->working_dir_fd = te->symlink_parent_fd;
-		t->flags |= needsChdir;
-	} else {
+	else {
 		int new_fd = openat(t->working_dir_fd, "..", O_RDONLY);
 		if (new_fd < 0) {
 			t->tree_errno = errno;
 			r = TREE_ERROR_FATAL;
-		} else {
+		} else
 			t->working_dir_fd = new_fd;
-			t->flags |= needsChdir;
-		}
 	}
 #else
 	if (te->flags & isDirLink) {
@@ -1694,9 +1687,14 @@ tree_ascend(struct tree *t)
 static int
 tree_enter_initial_dir(struct tree *t)
 {
-	if (t->initial_dir_fd >= 0)
-		return (fchdir(t->initial_dir_fd));
-	return (0);
+	int r = 0;
+
+	if (t->flags & onWorkingDir) {
+		r = fchdir(t->initial_dir_fd);
+		if (r == 0)
+			t->flags &= ~onWorkingDir;
+	}
+	return (r);
 }
 
 /*
@@ -1705,9 +1703,19 @@ tree_enter_initial_dir(struct tree *t)
 static int
 tree_enter_working_dir(struct tree *t)
 {
-	if (t->working_dir_fd >= 0)
-		return (fchdir(t->working_dir_fd));
-	return (0);
+	int r = 0;
+
+	/*
+	 * Change the current directory if really needed.
+	 * Sometimes this is unneeded when we did not do
+	 * descent.
+	 */
+	if (t->depth > 0 && (t->flags & onWorkingDir) == 0) {
+		r = fchdir(t->working_dir_fd);
+		if (r == 0)
+			t->flags |= onWorkingDir;
+	}
+	return (r);
 }
 
 static int
