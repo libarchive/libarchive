@@ -1135,7 +1135,9 @@ setup_current_filesystem(struct archive_read_disk *a)
 {
 	struct tree *t = a->tree;
 	struct statfs sfs;
+#if defined(HAVE_GETVFSBYNAME) && defined(VFCF_SYNTHETIC)
 	struct xvfsconf vfc;
+#endif
 	int r, xr = 0;
 #if !defined(HAVE_STRUCT_STATFS_F_NAMEMAX)
 	long nm;
