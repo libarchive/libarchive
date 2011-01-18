@@ -579,9 +579,18 @@ setup_suitable_read_buffer(struct archive_read_disk *a)
 		if (cf->max_xfer_size != -1)
 			asize = cf->max_xfer_size + cf->xfer_align;
 		else {
-			asize = cf->min_xfer_size;
+			long incr = cf->incr_xfer_size;
+			/* Some platform does not set a proper value to
+			 * incr_xfer_size.*/
+			if (incr < 0)
+				incr = cf->min_xfer_size;
+			if (cf->min_xfer_size < 0) {
+				incr = cf->xfer_align;
+				asize = cf->xfer_align;
+			} else
+				asize = cf->min_xfer_size;
 			while (asize < 1024*64)
-				asize += cf->incr_xfer_size;
+				asize += incr;
 			asize += cf->xfer_align;
 		}
 		cf->allocation_ptr = malloc(asize);
