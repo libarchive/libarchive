@@ -1116,7 +1116,7 @@ get_xfer_size(struct tree *t, int fd, const char *path)
 	}
 	/* At least we need an alignment size. */
 	if (t->current_filesystem->xfer_align == -1)
-		return (-1);
+		return ((errno == EINVAL)?1:-1);
 	else
 		return (0);
 }
