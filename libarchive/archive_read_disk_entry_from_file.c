@@ -199,7 +199,7 @@ archive_read_disk_entry_from_file(struct archive *_a,
 	}
 #endif
 
-#ifdef HAVE_READLINK
+#if defined(HAVE_READLINK) || defined(HAVE_READLINKAT)
 	if (S_ISLNK(st->st_mode)) {
 		size_t linkbuffer_len = st->st_size + 1;
 		char *linkbuffer;
@@ -211,6 +211,12 @@ archive_read_disk_entry_from_file(struct archive *_a,
 			    "Couldn't read link data");
 			return (ARCHIVE_FAILED);
 		}
+#ifdef HAVE_READLINKAT
+		if (a->entry_wd_fd >= 0)
+			lnklen = readlinkat(a->entry_wd_fd, path,
+			    linkbuffer, linkbuffer_len);
+		else
+#endif /* HAVE_READLINKAT */
 		lnklen = readlink(path, linkbuffer, linkbuffer_len);
 		if (lnklen < 0) {
 			archive_set_error(&a->archive, errno,
@@ -222,7 +228,7 @@ archive_read_disk_entry_from_file(struct archive *_a,
 		archive_entry_set_symlink(entry, linkbuffer);
 		free(linkbuffer);
 	}
-#endif
+#endif /* HAVE_READLINK || HAVE_READLINKAT */
 
 	r = setup_acls_posix1e(a, entry, fd);
 	r1 = setup_xattrs(a, entry, fd);

@@ -440,6 +440,7 @@ archive_read_disk_new(void)
 	a->archive.vtable = archive_read_disk_vtable();
 	a->lookup_uname = trivial_lookup_uname;
 	a->lookup_gname = trivial_lookup_gname;
+	a->entry_wd_fd = -1;
 	a->entry_fd = -1;
 	return (&a->archive);
 }
@@ -872,6 +873,7 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	tree_enter_working_dir(t);
 #endif
 
+	a->entry_wd_fd = tree_current_dir_fd(t);
 	/* Populate the archive_entry with metadata from the disk. */
 	r = archive_read_disk_entry_from_file(&(a->archive), entry, -1, st);
 

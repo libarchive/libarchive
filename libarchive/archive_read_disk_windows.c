@@ -422,6 +422,7 @@ archive_read_disk_new(void)
 	a->archive.vtable = archive_read_disk_vtable();
 	a->lookup_uname = trivial_lookup_uname;
 	a->lookup_gname = trivial_lookup_gname;
+	a->entry_wd_fd = -1;
 	a->entry_fd = -1;
 	return (&a->archive);
 }

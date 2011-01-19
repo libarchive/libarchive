@@ -55,6 +55,7 @@ struct archive_read_disk {
 
 	struct tree *tree;
 
+	int		 entry_wd_fd;
 	int		 entry_fd;
 	int		 entry_eof;
 	int64_t		 entry_remaining_bytes;
