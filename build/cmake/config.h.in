@@ -251,6 +251,12 @@
 /* Define to 1 if you have the `fdopendir' function. */
 #cmakedefine HAVE_FDOPENDIR 1
 
+/* Define to 1 if you have the `fgetxattr' function. */
+#cmakedefine HAVE_FGETXATTR 1
+
+/* Define to 1 if you have the `flistxattr' function. */
+#cmakedefine HAVE_FLISTXATTR 1
+
 /* Define to 1 if you have the `fork' function. */
 #cmakedefine HAVE_FORK 1
 

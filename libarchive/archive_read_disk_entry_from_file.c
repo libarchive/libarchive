@@ -478,7 +478,8 @@ setup_acls_posix1e(struct archive_read_disk *a,
 }
 #endif
 
-#if HAVE_LISTXATTR && HAVE_LLISTXATTR && HAVE_GETXATTR && HAVE_LGETXATTR
+#if HAVE_FGETXATTR && HAVE_FLISTXATTR && HAVE_LISTXATTR && \
+    HAVE_LLISTXATTR && HAVE_GETXATTR && HAVE_LGETXATTR
 
 /*
  * Linux extended attribute support.
@@ -500,13 +501,13 @@ setup_xattr(struct archive_read_disk *a,
 	void *value = NULL;
 	const char *accpath;
 
-	(void)fd; /* UNUSED */
-
 	accpath = archive_entry_sourcepath(entry);
 	if (accpath == NULL)
 		accpath = archive_entry_pathname(entry);
 
-	if (!a->follow_symlinks)
+	if (fd >= 0)
+		size = fgetxattr(fd, name, NULL, 0);
+	else if (!a->follow_symlinks)
 		size = lgetxattr(accpath, name, NULL, 0);
 	else
 		size = getxattr(accpath, name, NULL, 0);
@@ -522,7 +523,9 @@ setup_xattr(struct archive_read_disk *a,
 		return (ARCHIVE_FATAL);
 	}
 
-	if (!a->follow_symlinks)
+	if (fd >= 0)
+		size = fgetxattr(fd, name, value, size);
+	else if (!a->follow_symlinks)
 		size = lgetxattr(accpath, name, value, size);
 	else
 		size = getxattr(accpath, name, value, size);
@@ -547,12 +550,13 @@ setup_xattrs(struct archive_read_disk *a,
 	const char *path;
 	ssize_t list_size;
 
-
 	path = archive_entry_sourcepath(entry);
 	if (path == NULL)
 		path = archive_entry_pathname(entry);
 
-	if (!a->follow_symlinks)
+	if (fd >= 0)
+		list_size = flistxattr(fd, NULL, 0);
+	else if (!a->follow_symlinks)
 		list_size = llistxattr(path, NULL, 0);
 	else
 		list_size = listxattr(path, NULL, 0);
@@ -573,7 +577,9 @@ setup_xattrs(struct archive_read_disk *a,
 		return (ARCHIVE_FATAL);
 	}
 
-	if (!a->follow_symlinks)
+	if (fd >= 0)
+		list_size = flistxattr(fd, list, list_size);
+	else if (!a->follow_symlinks)
 		list_size = llistxattr(path, list, list_size);
 	else
 		list_size = listxattr(path, list, list_size);
