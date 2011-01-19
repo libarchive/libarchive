@@ -626,13 +626,13 @@ setup_xattr(struct archive_read_disk *a, struct archive_entry *entry,
 	void *value = NULL;
 	const char *accpath;
 
-	(void)fd; /* UNUSED */
-
 	accpath = archive_entry_sourcepath(entry);
 	if (accpath == NULL)
 		accpath = archive_entry_pathname(entry);
 
-	if (!a->follow_symlinks)
+	if (fd >= 0)
+		size = extattr_get_fd(fd, namespace, name, NULL, 0);
+	else if (!a->follow_symlinks)
 		size = extattr_get_link(accpath, namespace, name, NULL, 0);
 	else
 		size = extattr_get_file(accpath, namespace, name, NULL, 0);
@@ -648,7 +648,9 @@ setup_xattr(struct archive_read_disk *a, struct archive_entry *entry,
 		return (ARCHIVE_FATAL);
 	}
 
-	if (!a->follow_symlinks)
+	if (fd >= 0)
+		size = extattr_get_fd(fd, namespace, name, value, size);
+	else if (!a->follow_symlinks)
 		size = extattr_get_link(accpath, namespace, name, value, size);
 	else
 		size = extattr_get_file(accpath, namespace, name, value, size);
@@ -679,7 +681,9 @@ setup_xattrs(struct archive_read_disk *a,
 	if (path == NULL)
 		path = archive_entry_pathname(entry);
 
-	if (!a->follow_symlinks)
+	if (fd >= 0)
+		list_size = extattr_list_fd(fd, namespace, NULL, 0);
+	else if (!a->follow_symlinks)
 		list_size = extattr_list_link(path, namespace, NULL, 0);
 	else
 		list_size = extattr_list_file(path, namespace, NULL, 0);
@@ -700,7 +704,9 @@ setup_xattrs(struct archive_read_disk *a,
 		return (ARCHIVE_FATAL);
 	}
 
-	if (!a->follow_symlinks)
+	if (fd >= 0)
+		list_size = extattr_list_fd(fd, namespace, list, list_size);
+	else if (!a->follow_symlinks)
 		list_size = extattr_list_link(path, namespace, list, list_size);
 	else
 		list_size = extattr_list_file(path, namespace, list, list_size);
