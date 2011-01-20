@@ -876,8 +876,7 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	 */
 	if (a->follow_symlinks || archive_entry_filetype(entry) != AE_IFLNK)
 		fd = openat(tree_current_dir_fd(t), tree_current_access_path(t),
-		    (a->follow_symlinks)? O_RDONLY | O_NONBLOCK
-				        : O_RDONLY | O_NONBLOCK | O_NOFOLLOW);
+		    O_RDONLY | O_NONBLOCK);
 	/* Restore working directory if openat() operation failed or
 	 * the file is a symbolic link. */
 	if (fd < 0)
