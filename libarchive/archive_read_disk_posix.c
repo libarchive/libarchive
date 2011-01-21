@@ -718,12 +718,38 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 		    t->nlink == 1)
 			flags |= O_DIRECT;
 #endif
+#if defined(O_NOATIME)
+		/*
+		 * Linux has O_NOATIME flag; use it if we need.
+		 */
+		if ((t->flags & needsRestoreTimes) != 0 &&
+		    t->restore_time.noatime == 0)
+			flags |= O_NOATIME;
+		do {
+#endif
 #ifdef HAVE_OPENAT
-		a->entry_fd = openat(tree_current_dir_fd(t),
-		    tree_current_access_path(t), flags);
+			a->entry_fd = openat(tree_current_dir_fd(t),
+			    tree_current_access_path(t), flags);
 #else
-		tree_enter_working_dir(t);
-		a->entry_fd = open(tree_current_access_path(t), flags);
+			tree_enter_working_dir(t);
+			a->entry_fd = open(tree_current_access_path(t), flags);
+#endif
+#if defined(O_NOATIME)
+			/*
+			 * When we did open the file with O_NOATIME flag,
+			 * if successful, set 1 to t->restore_time.noatime
+			 * not to restore an atime of the file later.
+			 * if failed by EPERM, retry it without O_NOATIME flag.
+			 */
+			if (flags & O_NOATIME) {
+				if (a->entry_fd >= 0)
+					t->restore_time.noatime = 1;
+				else if (errno == EPERM) {
+					flags &= ~O_NOATIME;
+					continue;
+				}
+			}
+		} while (0);
 #endif
 		if (a->entry_fd < 0) {
 			archive_set_error(&a->archive, errno,
