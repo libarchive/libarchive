@@ -1478,7 +1478,7 @@ assertion_umask(const char *file, int line, int mask)
 /* Set times, report failures. */
 int
 assertion_utimes(const char *file, int line,
-    const char *pathname, long mt, long mt_nsec, long at, long at_nsec)
+    const char *pathname, long at, long at_nsec, long mt, long mt_nsec)
 {
 	int r;
 
