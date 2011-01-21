@@ -209,6 +209,8 @@
   assertion_make_symlink(__FILE__, __LINE__, newfile, linkto)
 #define assertUmask(mask)	\
   assertion_umask(__FILE__, __LINE__, mask)
+#define assertUtimes(pathname, atime, atime_nsec, mtime, mtime_nsec)	\
+  assertion_utimes(__FILE__, __LINE__, pathname, atime, atime_nsec, mtime, mtime_nsec)
 
 /*
  * This would be simple with C99 variadic macros, but I don't want to
@@ -253,6 +255,7 @@ int assertion_make_symlink(const char *, int, const char *newpath, const char *)
 int assertion_non_empty_file(const char *, int, const char *);
 int assertion_text_file_contents(const char *, int, const char *buff, const char *f);
 int assertion_umask(const char *, int, int);
+int assertion_utimes(const char *, int, const char *, long, long, long, long );
 
 void skipping_setup(const char *, int);
 void test_skipping(const char *fmt, ...);

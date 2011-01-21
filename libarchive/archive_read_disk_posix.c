@@ -112,6 +112,16 @@ __FBSDID("$FreeBSD$");
  *    3) Arbitrary logical traversals by closing/reopening intermediate fds.
  */
 
+struct restore_time {
+	const char		*name;
+	time_t			 mtime;
+	long			 mtime_nsec;
+	time_t			 atime;
+	long			 atime_nsec;
+	mode_t			 filetype;
+	int			 noatime;
+};
+
 struct tree_entry {
 	int			 depth;
 	struct tree_entry	*next;
@@ -124,12 +134,15 @@ struct tree_entry {
 	int			 filesystem_id;
 	/* How to return back to the parent of a symlink. */
 	int			 symlink_parent_fd;
+	/* How to restore time of a directory. */
+	struct restore_time	 restore_time;
 };
 
 struct filesystem {
 	int64_t		dev;
 	int		synthetic;
 	int		remote;
+	int		noatime;
 #if defined(HAVE_READDIR_R)
 	size_t		name_max;
 #endif
@@ -192,6 +205,8 @@ struct tree {
 	struct stat		 st;
 	int			 descend;
 	int			 nlink;
+	/* How to restore time of a file. */
+	struct restore_time	 restore_time;
 
 	struct entry_sparse {
 		int64_t		 length;
@@ -214,6 +229,7 @@ struct tree {
 #define	hasLstat	32 /* The lst entry is valid. */
 #define	onWorkingDir	64 /* We are on the working dir where we are
 			    * reading directory entry at this time. */
+#define	needsRestoreTimes 128
 
 static int
 tree_dir_next_posix(struct tree *t);
@@ -226,11 +242,12 @@ tree_dir_next_posix(struct tree *t);
 #endif
 
 /* Initiate/terminate a tree traversal. */
-static struct tree *tree_open(const char *, int);
-static struct tree *tree_reopen(struct tree *, const char *);
+static struct tree *tree_open(const char *, int, int);
+static struct tree *tree_reopen(struct tree *, const char *, int);
 static void tree_close(struct tree *);
 static void tree_free(struct tree *);
-static void tree_push(struct tree *, const char *, int, int64_t, int64_t);
+static void tree_push(struct tree *, const char *, int, int64_t, int64_t,
+		struct restore_time *);
 static int tree_enter_initial_dir(struct tree *);
 static int tree_enter_working_dir(struct tree *);
 static int tree_current_dir_fd(struct tree *);
@@ -317,6 +334,8 @@ static const char *trivial_lookup_gname(void *, int64_t gid);
 static const char *trivial_lookup_uname(void *, int64_t uid);
 #endif
 static int	setup_sparse(struct archive_read_disk *, struct archive_entry *);
+static int	close_and_restore_time(int fd, struct tree *,
+		    struct restore_time *);
 
 
 static struct archive_vtable *
@@ -483,12 +502,16 @@ _archive_read_close(struct archive *_a)
 	if (a->archive.state != ARCHIVE_STATE_FATAL)
 		a->archive.state = ARCHIVE_STATE_CLOSED;
 
-	if (a->tree != NULL)
-		tree_close(a->tree);
 	if (a->entry_fd >= 0) {
-		close(a->entry_fd);
+		if (a->tree != NULL)
+			close_and_restore_time(a->entry_fd, a->tree,
+			    &a->tree->restore_time);
+		else
+			close(a->entry_fd);
 		a->entry_fd = -1;
 	}
+	if (a->tree != NULL)
+		tree_close(a->tree);
 
 	return (ARCHIVE_OK);
 }
@@ -533,6 +556,32 @@ archive_read_disk_set_symlink_hybrid(struct archive *_a)
 	    ARCHIVE_STATE_ANY, "archive_read_disk_set_symlink_hybrid");
 	setup_symlink_mode(a, 'H', 1);/* Follow symlinks initially. */
 	return (ARCHIVE_OK);
+}
+
+int
+archive_read_disk_set_atime_restored(struct archive *_a)
+{
+#ifndef HAVE_UTIMES
+	static int warning_done = 0;
+#endif
+	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
+	    ARCHIVE_STATE_ANY, "archive_read_disk_restore_atime");
+#ifdef HAVE_UTIMES
+	a->restore_time = 1;
+	if (a->tree != NULL)
+		a->tree->flags |= needsRestoreTimes;
+	return (ARCHIVE_OK);
+#else
+	if (warning_done)
+		/* Warning was already emitted; suppress further warnings. */
+		return (ARCHIVE_OK);
+
+	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+	    "Cannot restore access time on this system");
+	warning_done = 1;
+	return (ARCHIVE_WARN);
+#endif
 }
 
 /*
@@ -637,7 +686,7 @@ _archive_read_data_block(struct archive *_a, const void **buff,
     size_t *size, int64_t *offset)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
-	struct tree *t;
+	struct tree *t = a->tree;
 	int r;
 	ssize_t bytes;
 	size_t buffbytes;
@@ -649,7 +698,6 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 		r = ARCHIVE_EOF;
 		goto abort_read_data;
 	}
-	t = a->tree;
 
 	/*
 	 * Open the current file.
@@ -744,7 +792,7 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	a->entry_remaining_bytes -= bytes;
 	if (a->entry_remaining_bytes == 0) {
 		/* Close the current file descriptor */
-		close(a->entry_fd);
+		close_and_restore_time(a->entry_fd, t, &t->restore_time);
 		a->entry_fd = -1;
 		a->entry_eof = 1;
 	}
@@ -760,7 +808,7 @@ abort_read_data:
 	*offset = a->entry_total;
 	if (a->entry_fd >= 0) {
 		/* Close the current file descriptor */
-		close(a->entry_fd);
+		close_and_restore_time(a->entry_fd, t, &t->restore_time);
 		a->entry_fd = -1;
 	}
 	return (r);
@@ -779,11 +827,11 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
 	    "archive_read_next_header2");
 
+	t = a->tree;
 	if (a->entry_fd >= 0) {
-		close(a->entry_fd);
+		close_and_restore_time(a->entry_fd, t, &a->tree->restore_time);
 		a->entry_fd = -1;
 	}
-	t = a->tree;
 #if !(defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_FDOPENDIR))
 	/* Restore working directory. */
 	tree_enter_working_dir(t);
@@ -867,6 +915,14 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	archive_entry_set_pathname(entry, tree_current_path(t));
 	archive_entry_copy_sourcepath(entry, tree_current_access_path(t));
 	archive_entry_copy_stat(entry, st);
+
+	/* Save the times to be restored. */
+	t->restore_time.mtime = archive_entry_mtime(entry);
+	t->restore_time.mtime_nsec = archive_entry_mtime_nsec(entry);
+	t->restore_time.atime = archive_entry_atime(entry);
+	t->restore_time.atime_nsec = archive_entry_atime_nsec(entry);
+	t->restore_time.filetype = archive_entry_filetype(entry);
+	t->restore_time.noatime = t->current_filesystem->noatime;
 
 #if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_FDOPENDIR)
 	/*
@@ -996,11 +1052,11 @@ archive_read_disk_descend(struct archive *_a)
 
 	if (tree_current_is_physical_dir(t)) {
 		tree_push(t, t->basename, t->current_filesystem_id,
-		    t->lst.st_dev, t->lst.st_ino);
+		    t->lst.st_dev, t->lst.st_ino, &t->restore_time);
 		t->stack->flags |= isDir;
 	} else if (tree_current_is_dir(t)) {
 		tree_push(t, t->basename, t->current_filesystem_id,
-		    t->st.st_dev, t->st.st_ino);
+		    t->st.st_dev, t->st.st_ino, &t->restore_time);
 		t->stack->flags |= isDirLink;
 	}
 	t->descend = 0;
@@ -1018,9 +1074,10 @@ archive_read_disk_open(struct archive *_a, const char *pathname)
 	archive_clear_error(&a->archive);
 
 	if (a->tree != NULL)
-		a->tree = tree_reopen(a->tree, pathname);
+		a->tree = tree_reopen(a->tree, pathname, a->restore_time);
 	else
-		a->tree = tree_open(pathname, a->symlink_mode);
+		a->tree = tree_open(pathname, a->symlink_mode,
+		    a->restore_time);
 	if (a->tree == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate tar data");
@@ -1244,6 +1301,11 @@ setup_current_filesystem(struct archive_read_disk *a)
 		t->current_filesystem->synthetic = 0;
 #endif
 
+	if (sfs.f_flags & MNT_NOATIME)
+		t->current_filesystem->noatime = 1;
+	else
+		t->current_filesystem->noatime = 0;
+
 	/* Set maximum filename length. */
 #if defined(HAVE_STRUCT_STATFS_F_NAMEMAX)
 	t->current_filesystem->name_max = sfs.f_namemax;
@@ -1306,6 +1368,11 @@ setup_current_filesystem(struct archive_read_disk *a)
 	else
 		t->current_filesystem->remote = 1;
 
+	if (sfs.f_flag & ST_NOATIME)
+		t->current_filesystem->noatime = 1;
+	else
+		t->current_filesystem->noatime = 0;
+
 	/* Set maximum filename length. */
 	t->current_filesystem->name_max = sfs.f_namemax;
 	return (ARCHIVE_OK);
@@ -1333,7 +1400,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 	struct tree *t = a->tree;
 	struct statfs sfs;
 	struct statvfs svfs;
-	int r, vr = 0, xr = 0;
+	int r, vr = 0, xr;
 
 	if (tree_current_is_symblic_link_target(t)) {
 #if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_FDOPENDIR)
@@ -1348,39 +1415,30 @@ setup_current_filesystem(struct archive_read_disk *a)
 			    "openat failed");
 			return (ARCHIVE_FAILED);
 		}
+		vr = fstatvfs(fd, &svfs);/* for f_flag, mount flags */
 		r = fstatfs(fd, &sfs);
-		if (r == 0) {
+		if (r == 0)
 			xr = get_xfer_size(t, fd, NULL);
-			if (xr == 1)
-				vr = fstatvfs(fd, &svfs);
-		}
 		close(fd);
 #else
+		vr = statvfs(tree_current_access_path(t), &svfs);
 		r = statfs(tree_current_access_path(t), &sfs);
-		if (r == 0) {
+		if (r == 0)
 			xr = get_xfer_size(t, -1, tree_current_access_path(t));
-			if (xr == 1)
-				vr = statvfs(tree_current_access_path(t),
-				    &svfs);
-		}
 #endif
 	} else {
 #ifdef HAVE_FSTATFS
+		vr = fstatvfs(tree_current_dir_fd(t), &svfs);
 		r = fstatfs(tree_current_dir_fd(t), &sfs);
-		if (r == 0) {
+		if (r == 0)
 			xr = get_xfer_size(t, tree_current_dir_fd(t), NULL);
-			if (xr == 1)
-				vr = fstatvfs(tree_current_dir_fd(t), &svfs);
-		}
 #elif defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_FDOPENDIR)
 #error "Unexpected case. Please tell us about this error."
 #else
+		vr = statvfs(".", &svfs);
 		r = statfs(".", &sfs);
-		if (r == 0) {
+		if (r == 0)
 			xr = get_xfer_size(t, -1, ".");
-			if (xr == 1)
-				vr = statvfs(".", &svfs);
-		}
 #endif
 	}
 	if (r == -1 || xr == -1 || vr == -1) {
@@ -1416,6 +1474,13 @@ setup_current_filesystem(struct archive_read_disk *a)
 		t->current_filesystem->synthetic = 0;
 		break;
 	}
+
+#if defined(ST_NOATIME)
+	if (svfs.f_flag & ST_NOATIME)
+		t->current_filesystem->noatime = 1;
+	else
+#endif
+		t->current_filesystem->noatime = 0;
 
 #if defined(HAVE_READDIR_R)
 	/* Set maximum filename length. */
@@ -1486,6 +1551,13 @@ setup_current_filesystem(struct archive_read_disk *a)
 		t->current_filesystem->incr_xfer_size = sfs.f_bsize;
 	}
 
+#if defined(ST_NOATIME)
+	if (sfs.f_flag & ST_NOATIME)
+		t->current_filesystem->noatime = 1;
+	else
+#endif
+		t->current_filesystem->noatime = 0;
+
 #if defined(HAVE_READDIR_R)
 	/* Set maximum filename length. */
 	t->current_filesystem->name_max = sfs.f_namemax;
@@ -1508,6 +1580,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 #endif
 	t->current_filesystem->synthetic = -1;/* Not supported */
 	t->current_filesystem->remote = -1;/* Not supported */
+	t->current_filesystem->noatime = 0;
 	(void)get_xfer_size(t, -1, ".");/* Dummy call to avoid build error. */
 	t->current_filesystem->xfer_align = -1;/* Unknown */
 	t->current_filesystem->max_xfer_size = -1;
@@ -1544,13 +1617,53 @@ setup_current_filesystem(struct archive_read_disk *a)
 
 #endif
 
+static int
+close_and_restore_time(int fd, struct tree *t, struct restore_time *rt)
+{
+#ifndef HAVE_UTIMES
+	(void)a; /* UNUSED */
+	return (close(fd));
+#else
+	struct timeval times[2];
+
+	if ((t->flags & needsRestoreTimes) == 0 || rt->noatime) {
+		if (fd >= 0)
+			return (close(fd));
+		else
+			return (0);
+	}
+
+	times[1].tv_sec = rt->mtime;
+	times[1].tv_usec = rt->mtime_nsec / 1000;
+
+	times[0].tv_sec = rt->atime;
+	times[0].tv_usec = rt->atime_nsec / 1000;
+
+#if defined(HAVE_FUTIMES) && !defined(__CYGWIN__)
+	if (futimes(fd, times) == 0)
+		return (close(fd));
+#endif
+	close(fd);
+#if defined(HAVE_FUTIMESAT)
+	if (futimesat(tree_current_dir_fd(t), rt->name, times) == 0)
+		return (0);
+#endif
+#ifdef HAVE_LUTIMES
+	if (lutimes(rt->name, times) != 0)
+#else
+	if (AE_IFLNK != rt->filetype && utimes(rt->name, times) != 0)
+#endif
+		return (-1);
+#endif
+	return (0);
+}
 
 /*
  * Add a directory path to the current stack.
  */
 static void
 tree_push(struct tree *t, const char *path, int filesystem_id,
-    int64_t dev, int64_t ino)
+    int64_t dev, int64_t ino, struct restore_time *rt)
 {
 	struct tree_entry *te;
 
@@ -1569,6 +1682,15 @@ tree_push(struct tree *t, const char *path, int filesystem_id,
 	te->dev = dev;
 	te->ino = ino;
 	te->dirname_length = t->dirname_length;
+	te->restore_time.name = te->name.s;
+	if (rt != NULL) {
+		te->restore_time.mtime = rt->mtime;
+		te->restore_time.mtime_nsec = rt->mtime_nsec;
+		te->restore_time.atime = rt->atime;
+		te->restore_time.atime_nsec = rt->atime_nsec;
+		te->restore_time.filetype = rt->filetype;
+		te->restore_time.noatime = rt->noatime;
+	}
 }
 
 /*
@@ -1593,13 +1715,14 @@ tree_append(struct tree *t, const char *name, size_t name_length)
 		archive_strappend_char(&t->path, '/');
 	t->basename = t->path.s + archive_strlen(&t->path);
 	archive_strncat(&t->path, name, name_length);
+	t->restore_time.name = t->basename;
 }
 
 /*
  * Open a directory tree for traversal.
  */
 static struct tree *
-tree_open(const char *path, int symlink_mode)
+tree_open(const char *path, int symlink_mode, int restore_time)
 {
 	struct tree *t;
 
@@ -1609,13 +1732,13 @@ tree_open(const char *path, int symlink_mode)
 	archive_string_init(&t->path);
 	archive_string_ensure(&t->path, 31);
 	t->initial_symlink_mode = symlink_mode;
-	return (tree_reopen(t, path));
+	return (tree_reopen(t, path, restore_time));
 }
 
 static struct tree *
-tree_reopen(struct tree *t, const char *path)
+tree_reopen(struct tree *t, const char *path, int restore_time)
 {
-	t->flags = 0;
+	t->flags = (restore_time)?needsRestoreTimes:0;
 	t->visit_type = 0;
 	t->tree_errno = 0;
 	t->dirname_length = 0;
@@ -1627,7 +1750,7 @@ tree_reopen(struct tree *t, const char *path)
 	archive_string_empty(&t->path);
 
 	/* First item is set up a lot like a symlink traversal. */
-	tree_push(t, path, 0, 0, 0);
+	tree_push(t, path, 0, 0, 0, NULL);
 	t->stack->flags = needsFirstVisit;
 	t->maxOpenCount = t->openCount = 1;
 	t->initial_dir_fd = open(".", O_RDONLY);
@@ -1724,7 +1847,7 @@ tree_ascend(struct tree *t)
 	if (r == 0) {
 		/* Current directory has been changed, we should
 		 * close an fd of previous working directory. */
-		close(prev_dir_fd);
+		close_and_restore_time(prev_dir_fd, t, &te->restore_time);
 		if (te->flags & isDirLink) {
 			t->openCount--;
 			te->symlink_parent_fd = -1;

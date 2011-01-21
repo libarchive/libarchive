@@ -754,6 +754,152 @@ test_symlink_logical_loop()
 	archive_entry_free(ae);
 }
 
+static void
+test_restore_atime()
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	const void *p;
+	size_t size;
+	int64_t offset;
+	int file_count;
+
+	assertMakeDir("at", 0755);
+	assertMakeFile("at/f1", 0644, "0123456789");
+	assertMakeFile("at/f2", 0644, "hello world");
+	assertMakeFile("at/fe", 0644, NULL);
+	assertUtimes("at/f1", 886600, 0, 886600, 0);
+	assertUtimes("at/f2", 886611, 0, 886611, 0);
+	assertUtimes("at/fe", 886611, 0, 886611, 0);
+	assertUtimes("at", 886622, 0, 886622, 0);
+	file_count = 4;
+
+	assert((ae = archive_entry_new()) != NULL);
+	assert((a = archive_read_disk_new()) != NULL);
+
+	/*
+	 * Test1: Traversals without archive_read_disk_set_atime_restored().
+	 */
+	failure("Directory traversals should work as well");
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, "at"));
+	while (file_count--) {
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+		if (strcmp(archive_entry_pathname(ae), "at") == 0) {
+			assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
+		} else if (strcmp(archive_entry_pathname(ae), "at/f1") == 0) {
+			assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
+			assertEqualInt(archive_entry_size(ae), 10);
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_data_block(a, &p, &size, &offset));
+			assertEqualInt((int)size, 10);
+			assertEqualInt((int)offset, 0);
+			assertEqualInt(memcmp(p, "0123456789", 10), 0);
+			assertEqualInt(ARCHIVE_EOF,
+			    archive_read_data_block(a, &p, &size, &offset));
+			assertEqualInt((int)size, 0);
+			assertEqualInt((int)offset, 10);
+		} else if (strcmp(archive_entry_pathname(ae), "at/f2") == 0) {
+			assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
+			assertEqualInt(archive_entry_size(ae), 11);
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_data_block(a, &p, &size, &offset));
+			assertEqualInt((int)size, 11);
+			assertEqualInt((int)offset, 0);
+			assertEqualInt(memcmp(p, "hello world", 11), 0);
+			assertEqualInt(ARCHIVE_EOF,
+			    archive_read_data_block(a, &p, &size, &offset));
+			assertEqualInt((int)size, 0);
+			assertEqualInt((int)offset, 11);
+		} else if (strcmp(archive_entry_pathname(ae), "at/fe") == 0) {
+			assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
+			assertEqualInt(archive_entry_size(ae), 0);
+		}
+		if (archive_entry_filetype(ae) == AE_IFDIR) {
+			/* Descend into the current object */
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_disk_descend(a));
+		}
+	}
+	/* There is no entry. */
+	failure("There must be no entry");
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
+
+	failure("Atime must not be restored");
+	assertFileAtimeRecent("at");
+	assertFileAtimeRecent("at/f1");
+	assertFileAtimeRecent("at/f2");
+	failure("The atime of a empty file must not be changed");
+	assertFileAtime("at/fe", 886611, 0);
+
+	/* Close the disk object. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+
+	/*
+	 * Test2: Traversals with archive_read_disk_set_atime_restored().
+	 */
+	assertUtimes("at/f1", 886600, 0, 886600, 0);
+	assertUtimes("at/f2", 886611, 0, 886611, 0);
+	assertUtimes("at/fe", 886611, 0, 886611, 0);
+	assertUtimes("at", 886622, 0, 886622, 0);
+	file_count = 4;
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_set_atime_restored(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, "at"));
+
+	failure("Directory traversals should work as well");
+	while (file_count--) {
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+		if (strcmp(archive_entry_pathname(ae), "at") == 0) {
+			assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
+		} else if (strcmp(archive_entry_pathname(ae), "at/f1") == 0) {
+			assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
+			assertEqualInt(archive_entry_size(ae), 10);
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_data_block(a, &p, &size, &offset));
+			assertEqualInt((int)size, 10);
+			assertEqualInt((int)offset, 0);
+			assertEqualInt(memcmp(p, "0123456789", 10), 0);
+			assertEqualInt(ARCHIVE_EOF,
+			    archive_read_data_block(a, &p, &size, &offset));
+			assertEqualInt((int)size, 0);
+			assertEqualInt((int)offset, 10);
+		} else if (strcmp(archive_entry_pathname(ae), "at/f2") == 0) {
+			assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
+			assertEqualInt(archive_entry_size(ae), 11);
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_data_block(a, &p, &size, &offset));
+			assertEqualInt((int)size, 11);
+			assertEqualInt((int)offset, 0);
+			assertEqualInt(memcmp(p, "hello world", 11), 0);
+			assertEqualInt(ARCHIVE_EOF,
+			    archive_read_data_block(a, &p, &size, &offset));
+			assertEqualInt((int)size, 0);
+			assertEqualInt((int)offset, 11);
+		} else if (strcmp(archive_entry_pathname(ae), "at/fe") == 0) {
+			assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
+			assertEqualInt(archive_entry_size(ae), 0);
+		}
+		if (archive_entry_filetype(ae) == AE_IFDIR) {
+			/* Descend into the current object */
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_disk_descend(a));
+		}
+	}
+	/* There is no entry. */
+	failure("There must be no entry");
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
+
+	failure("Atime must be restored");
+	assertFileAtime("at", 886622, 0);
+	assertFileAtime("at/f1", 886600, 0);
+	assertFileAtime("at/f2", 886611, 0);
+	failure("The atime of a empty file must not be changed");
+	assertFileAtime("at/fe", 886611, 0);
+
+	/* Destroy the disk object. */
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	archive_entry_free(ae);
+}
+
 DEFINE_TEST(test_read_disk_directory_traversals)
 {
 	/* Basic test. */
@@ -764,4 +910,6 @@ DEFINE_TEST(test_read_disk_directory_traversals)
 	test_symlink_logical();
 	/* Test logcal mode; prevent loop in symlinks. */ 
 	test_symlink_logical_loop();
+	/* Test to restore atime. */
+	test_restore_atime();
 }

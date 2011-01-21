@@ -55,6 +55,9 @@ struct archive_read_disk {
 
 	struct tree *tree;
 
+	/* Restore time if user want. */
+	int		 restore_time;
+
 	int		 entry_wd_fd;
 	int		 entry_fd;
 	int		 entry_eof;

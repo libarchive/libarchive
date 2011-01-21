@@ -108,17 +108,29 @@ __FBSDID("$FreeBSD$");
  *    3) Arbitrary logical traversals by closing/reopening intermediate fds.
  */
 
+struct restore_time {
+	const wchar_t		*full_path;
+	time_t			 mtime;
+	long			 mtime_nsec;
+	time_t			 atime;
+	long			 atime_nsec;
+	mode_t			 filetype;
+};
+
 struct tree_entry {
 	int			 depth;
 	struct tree_entry	*next;
 	struct tree_entry	*parent;
 	size_t			 full_path_dir_length;
 	struct archive_wstring	 name;
+	struct archive_wstring	 full_path;
 	size_t			 dirname_length;
 	int64_t			 dev;
 	int64_t			 ino;
 	int			 flags;
 	int			 filesystem_id;
+	/* How to restore time of a directory. */
+	struct restore_time	 restore_time;
 };
 
 struct filesystem {
@@ -173,6 +185,8 @@ struct tree {
 	BY_HANDLE_FILE_INFORMATION	lst;
 	BY_HANDLE_FILE_INFORMATION	st;
 	int			 descend;
+	/* How to restore time of a file. */
+	struct restore_time	restore_time;
 
 	struct entry_sparse {
 		int64_t		 length;
@@ -200,7 +214,7 @@ struct tree {
 /* Definitions for tree.flags bitmap. */
 #define	hasStat		16 /* The st entry is valid. */
 #define	hasLstat	32 /* The lst entry is valid. */
-#define	hasFileInfo	64 /* The Windows fileInfo entry is valid. */
+#define	needsRestoreTimes 128
 
 static int
 tree_dir_next_windows(struct tree *t, const wchar_t *pattern);
@@ -213,11 +227,12 @@ tree_dir_next_windows(struct tree *t, const wchar_t *pattern);
 #endif
 
 /* Initiate/terminate a tree traversal. */
-static struct tree *tree_open(const char *, int);
-static struct tree *tree_reopen(struct tree *, const char *);
+static struct tree *tree_open(const char *, int, int);
+static struct tree *tree_reopen(struct tree *, const char *, int);
 static void tree_close(struct tree *);
 static void tree_free(struct tree *);
-static void tree_push(struct tree *, const wchar_t *, int, int64_t, int64_t);
+static void tree_push(struct tree *, const wchar_t *, const wchar_t *,
+		int, int64_t, int64_t, struct restore_time *);
 
 /*
  * tree_next() returns Zero if there is no next entry, non-zero if
@@ -299,6 +314,8 @@ static const char *trivial_lookup_gname(void *, int64_t gid);
 static const char *trivial_lookup_uname(void *, int64_t uid);
 #endif
 static int	setup_sparse(struct archive_read_disk *, struct archive_entry *);
+static int	close_and_restore_time(int fd, struct tree *,
+		    struct restore_time *);
 
 
 static struct archive_vtable *
@@ -466,12 +483,16 @@ _archive_read_close(struct archive *_a)
 	if (a->archive.state != ARCHIVE_STATE_FATAL)
 		a->archive.state = ARCHIVE_STATE_CLOSED;
 
-	if (a->tree != NULL)
-		tree_close(a->tree);
 	if (a->entry_fd >= 0) {
-		close(a->entry_fd);
+		if (a->tree != NULL && a->tree->flags & needsRestoreTimes)
+			close_and_restore_time(a->entry_fd, a->tree,
+			    &a->tree->restore_time);
+		else
+			close(a->entry_fd);
 		a->entry_fd = -1;
 	}
+	if (a->tree != NULL)
+		tree_close(a->tree);
 
 	return (ARCHIVE_OK);
 }
@@ -518,6 +539,18 @@ archive_read_disk_set_symlink_hybrid(struct archive *_a)
 	return (ARCHIVE_OK);
 }
 
+int
+archive_read_disk_set_atime_restored(struct archive *_a)
+{
+	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
+	    ARCHIVE_STATE_ANY, "archive_read_disk_restore_atime");
+	a->restore_time = 1;
+	if (a->tree != NULL)
+		a->tree->flags |= needsRestoreTimes;
+	return (ARCHIVE_OK);
+}
+
 /*
  * Trivial implementations of gname/uname lookup functions.
  * These are normally overridden by the client, but these stub
@@ -554,7 +587,7 @@ _archive_read_data_block(struct archive *_a, const void **buff,
     size_t *size, int64_t *offset)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
-	struct tree *t;
+	struct tree *t = a->tree;
 	int r;
 	ssize_t bytes;
 	size_t buffbytes;
@@ -566,7 +599,6 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 		r = ARCHIVE_EOF;
 		goto abort_read_data;
 	}
-	t = a->tree;
 
 	/* Allocate read buffer. */
 	if (a->entry_buff == NULL) {
@@ -623,7 +655,7 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	a->entry_remaining_bytes -= bytes;
 	if (a->entry_remaining_bytes == 0) {
 		/* Close the current file descriptor */
-		close(a->entry_fd);
+		close_and_restore_time(a->entry_fd, t, &t->restore_time);
 		a->entry_fd = -1;
 		a->entry_eof = 1;
 	}
@@ -639,7 +671,7 @@ abort_read_data:
 	*offset = a->entry_total;
 	if (a->entry_fd >= 0) {
 		/* Close the current file descriptor */
-		close(a->entry_fd);
+		close_and_restore_time(a->entry_fd, t, &t->restore_time);
 		a->entry_fd = -1;
 	}
 	return (r);
@@ -760,6 +792,14 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	archive_entry_copy_sourcepath(entry, mb);
 	free(mb);
 	tree_archive_entry_copy_bhfi(entry, t, st);
+
+	/* Save the times to be restored. */
+	t->restore_time.mtime = archive_entry_mtime(entry);
+	t->restore_time.mtime_nsec = archive_entry_mtime_nsec(entry);
+	t->restore_time.atime = archive_entry_atime(entry);
+	t->restore_time.atime_nsec = archive_entry_atime_nsec(entry);
+	t->restore_time.filetype = archive_entry_filetype(entry);
+
 	/* Populate the archive_entry with metadata from the disk. */
 	if (archive_entry_filetype(entry) == AE_IFREG &&
 	    archive_entry_size(entry) > 0) {
@@ -866,12 +906,16 @@ archive_read_disk_descend(struct archive *_a)
 	}
 
 	if (tree_current_is_physical_dir(t)) {
-		tree_push(t, t->basename, t->current_filesystem_id,
-		    bhfi_dev(&(t->lst)), bhfi_ino(&(t->lst)));
+		tree_push(t, t->basename, t->full_path.s,
+		    t->current_filesystem_id,
+		    bhfi_dev(&(t->lst)), bhfi_ino(&(t->lst)),
+		    &t->restore_time);
 		t->stack->flags |= isDir;
 	} else if (tree_current_is_dir(t)) {
-		tree_push(t, t->basename, t->current_filesystem_id,
-		    bhfi_dev(&(t->st)), bhfi_ino(&(t->st)));
+		tree_push(t, t->basename, t->full_path.s,
+		    t->current_filesystem_id,
+		    bhfi_dev(&(t->st)), bhfi_ino(&(t->st)),
+		    &t->restore_time);
 		t->stack->flags |= isDirLink;
 	}
 	t->descend = 0;
@@ -889,9 +933,10 @@ archive_read_disk_open(struct archive *_a, const char *pathname)
 	archive_clear_error(&a->archive);
 
 	if (a->tree != NULL)
-		a->tree = tree_reopen(a->tree, pathname);
+		a->tree = tree_reopen(a->tree, pathname, a->restore_time);
 	else
-		a->tree = tree_open(pathname, a->symlink_mode);
+		a->tree = tree_open(pathname, a->symlink_mode,
+		    a->restore_time);
 	if (a->tree == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate tar data");
@@ -1053,12 +1098,58 @@ setup_current_filesystem(struct archive_read_disk *a)
 	return (ARCHIVE_OK);
 }
 
+#define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
+#define WINTIME(sec, nsec) ((Int32x32To64(sec, 10000000) + EPOC_TIME)\
+	 + (((nsec)/1000)*10))
+
+static int
+close_and_restore_time(int fd, struct tree *t, struct restore_time *rt)
+{
+	HANDLE handle;
+	ULARGE_INTEGER wintm;
+	FILETIME fatime, fmtime;
+	int r = 0;
+
+	if (fd < 0 && AE_IFLNK == rt->filetype)
+		return (0);
+
+	/* Close a file descritor.
+	 * It will not be used for SetFileTime() because it has been opened
+	 * by a read only mode.
+	 */
+	if (fd >= 0)
+		r = close(fd);
+	if ((t->flags & needsRestoreTimes) == 0)
+		return (r);
+
+	handle = CreateFileW(rt->full_path, FILE_WRITE_ATTRIBUTES,
+		    0, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+	if (handle == INVALID_HANDLE_VALUE) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	wintm.QuadPart = WINTIME(rt->atime, rt->atime_nsec);
+	fatime.dwLowDateTime = wintm.LowPart;
+	fatime.dwHighDateTime = wintm.HighPart;
+	wintm.QuadPart = WINTIME(rt->mtime, rt->mtime_nsec);
+	fmtime.dwLowDateTime = wintm.LowPart;
+	fmtime.dwHighDateTime = wintm.HighPart;
+	if (SetFileTime(handle, NULL, &fatime, &fmtime) == 0) {
+		errno = EINVAL;
+		r = -1;
+	} else
+		r = 0;
+	CloseHandle(handle);
+	return (r);
+}
+
 /*
  * Add a directory path to the current stack.
  */
 static void
-tree_push(struct tree *t, const wchar_t *path, int filesystem_id,
-    int64_t dev, int64_t ino)
+tree_push(struct tree *t, const wchar_t *path, const wchar_t *full_path,
+    int filesystem_id, int64_t dev, int64_t ino, struct restore_time *rt)
 {
 	struct tree_entry *te;
 
@@ -1071,12 +1162,22 @@ tree_push(struct tree *t, const wchar_t *path, int filesystem_id,
 	t->stack = te;
 	archive_string_init(&te->name);
 	archive_wstrcpy(&te->name, path);
+	archive_string_init(&te->full_path);
+	archive_wstrcpy(&te->full_path, full_path);
 	te->flags = needsDescent | needsOpen | needsAscent;
 	te->filesystem_id = filesystem_id;
 	te->dev = dev;
 	te->ino = ino;
 	te->dirname_length = t->dirname_length;
 	te->full_path_dir_length = t->full_path_dir_length;
+	te->restore_time.full_path = te->full_path.s;
+	if (rt != NULL) {
+		te->restore_time.mtime = rt->mtime;
+		te->restore_time.mtime_nsec = rt->mtime_nsec;
+		te->restore_time.atime = rt->atime;
+		te->restore_time.atime_nsec = rt->atime_nsec;
+		te->restore_time.filetype = rt->filetype;
+	}
 }
 
 /*
@@ -1185,6 +1286,7 @@ tree_append(struct tree *t, const wchar_t *name, size_t name_length)
 		archive_wstrappend_wchar(&t->path, L'/');
 	t->basename = t->path.s + archive_strlen(&t->path);
 	archive_wstrncat(&t->path, name, name_length);
+	t->restore_time.full_path = t->basename;
 	if (t->full_path_dir_length > 0) {
 		t->full_path.s[t->full_path_dir_length] = L'\0';
 		t->full_path.length = t->full_path_dir_length;
@@ -1194,6 +1296,7 @@ tree_append(struct tree *t, const wchar_t *name, size_t name_length)
 		if (t->full_path.s[archive_strlen(&t->full_path)-1] != L'\\')
 			archive_wstrappend_wchar(&t->full_path, L'\\');
 		archive_wstrncat(&t->full_path, name, name_length);
+		t->restore_time.full_path = t->full_path.s;
 	}
 }
 
@@ -1201,7 +1304,7 @@ tree_append(struct tree *t, const wchar_t *name, size_t name_length)
  * Open a directory tree for traversal.
  */
 static struct tree *
-tree_open(const char *path, int symlink_mode)
+tree_open(const char *path, int symlink_mode, int restore_time)
 {
 	struct tree *t;
 
@@ -1211,16 +1314,16 @@ tree_open(const char *path, int symlink_mode)
 	archive_string_init(&t->path);
 	archive_wstring_ensure(&t->path, 15);
 	t->initial_symlink_mode = symlink_mode;
-	return (tree_reopen(t, path));
+	return (tree_reopen(t, path, restore_time));
 }
 
 static struct tree *
-tree_reopen(struct tree *t, const char *path)
+tree_reopen(struct tree *t, const char *path, int restore_time)
 {
 	wchar_t *pathname, *p, *base;
 	DWORD l;
 
-	t->flags = 0;
+	t->flags = (restore_time)?needsRestoreTimes:0;
 	t->visit_type = 0;
 	t->tree_errno = 0;
 	t->full_path_dir_length = 0;
@@ -1277,13 +1380,22 @@ tree_reopen(struct tree *t, const char *path)
 			t->full_path_dir_length = archive_strlen(&t->full_path);
 		}
 	}
-	tree_push(t, base, 0, 0, 0);
+	tree_push(t, base, t->full_path.s, 0, 0, 0, NULL);
 	free(pathname);
-	t->stack->flags = needsFirstVisit | isDirLink | needsAscent;
+	t->stack->flags = needsFirstVisit;
 	return (t);
 failed:
 	tree_free(t);
 	return (NULL);
+}
+
+static int
+tree_descent(struct tree *t)
+{
+	t->dirname_length = archive_strlen(&t->path);
+	t->full_path_dir_length = archive_strlen(&t->full_path);
+	t->depth++;
+	return (0);
 }
 
 /*
@@ -1293,11 +1405,11 @@ static int
 tree_ascend(struct tree *t)
 {
 	struct tree_entry *te;
-	int r = 0;
 
 	te = t->stack;
 	t->depth--;
-	return (r);
+	close_and_restore_time(-1, t, &te->restore_time);
+	return (0);
 }
 
 /*
@@ -1322,6 +1434,7 @@ tree_pop(struct tree *t)
 	while (t->basename[0] == L'/')
 		t->basename++;
 	archive_wstring_free(&te->name);
+	archive_wstring_free(&te->full_path);
 	free(te);
 }
 
@@ -1374,10 +1487,13 @@ tree_next(struct tree *t)
 			tree_append(t, t->stack->name.s,
 			    archive_strlen(&(t->stack->name)));
 			t->stack->flags &= ~needsDescent;
-			t->dirname_length = archive_strlen(&t->path);
-			t->full_path_dir_length = archive_strlen(&t->full_path);
-			t->depth++;
-			return (t->visit_type = TREE_POSTDESCENT);
+			r = tree_descent(t);
+			if (r != 0) {
+				tree_pop(t);
+				t->visit_type = r;
+			} else
+				t->visit_type = TREE_POSTDESCENT;
+			return (t->visit_type);
 		} else if (t->stack->flags & needsOpen) {
 			t->stack->flags &= ~needsOpen;
 			r = tree_dir_next_windows(t, L"*");
@@ -1447,8 +1563,6 @@ tree_dir_next_windows(struct tree *t, const wchar_t *pattern)
 		return (t->visit_type = TREE_REGULAR);
 	}
 }
-
-#define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
 
 static void
 fileTimeToUtc(const FILETIME *filetime, time_t *time, long *ns)

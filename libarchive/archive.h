@@ -797,6 +797,8 @@ __LA_DECL int	archive_read_disk_descend(struct archive *);
 __LA_DECL int	archive_read_disk_current_filesystem(struct archive *);
 __LA_DECL int	archive_read_disk_current_filesystem_is_synthetic(struct archive *);
 __LA_DECL int	archive_read_disk_current_filesystem_is_remote(struct archive *);
+/* Request that the access time of the entry visited by travesal be restored. */
+__LA_DECL int  archive_read_disk_set_atime_restored(struct archive *);
 
 /*
  * Accessor functions to read/set various information in
