@@ -428,7 +428,7 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 
 	/* Choose a suitable copy buffer size */
 	bsdtar->buff_size = 64 * 1024;
-	while (bsdtar->buff_size < bsdtar->bytes_per_block)
+	while (bsdtar->buff_size < (size_t)bsdtar->bytes_per_block)
 	  bsdtar->buff_size *= 2;
 	/* Try to compensate for space we'll lose to alignment. */
 	bsdtar->buff_size += 16 * 1024;

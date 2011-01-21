@@ -60,7 +60,7 @@ DEFINE_TEST(test_option_r)
 	/* Edit that file with a lot more data and update the archive with a new copy. */
 	buff = malloc(buff_size);
 	assert(buff != NULL);
-	for (i = 0; i < buff_size; ++i)
+	for (i = 0; i < (int)buff_size; ++i)
 		buff[i] = "abcdefghijklmnopqrstuvwxyz"[rand() % 26];
 	buff[buff_size - 1] = '\0';
 	assertMakeFile("f1", 0644, buff);

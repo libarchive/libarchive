@@ -1007,11 +1007,11 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 		/* Use uname if it's present, else lookup name from uid. */
 		uname = archive_entry_uname(entry);
 		if (uname == NULL)
-			uname = lookup_uname(cpio, archive_entry_uid(entry));
+			uname = lookup_uname(cpio, (uid_t)archive_entry_uid(entry));
 		/* Use gname if it's present, else lookup name from gid. */
 		gname = archive_entry_gname(entry);
 		if (gname == NULL)
-			gname = lookup_gname(cpio, archive_entry_gid(entry));
+			gname = lookup_gname(cpio, (uid_t)archive_entry_gid(entry));
 	}
 
 	/* Print device number or file size. */

@@ -78,7 +78,7 @@ test_truncation(const char *compression, int (*set_compression)(struct archive *
 			free(buff);
 			return;
 		}
-		for (j = 0; j < datasize; ++j) {
+		for (j = 0; j < (int)datasize; ++j) {
 			data[j] = (char)(rand() % 256);
 		}
 		failure(path);
