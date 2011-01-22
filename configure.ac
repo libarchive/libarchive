@@ -380,13 +380,17 @@ AC_CHECK_MEMBERS([struct stat.st_flags])
 # TODO: Check for %ju and %llu support directly.
 AC_CHECK_TYPES([uintmax_t, unsigned long long])
 
-# We need int64_t, uint64_t, intmax_t, and uintmax_t
+# We use C99-style integer types
+# Declare them if the local platform doesn't already do so.
 AC_TYPE_INTMAX_T
-AC_TYPE_INT64_T
 AC_TYPE_UINTMAX_T
+AC_TYPE_INT64_T
 AC_TYPE_UINT64_T
+AC_TYPE_INT32_T
+AC_TYPE_UINT32_T
+AC_TYPE_INT16_T
+AC_TYPE_UINT16_T
 
-# TODO: If any of these are missing, define them right here.
 AC_CHECK_DECLS([SIZE_MAX, SSIZE_MAX, INT64_MAX, INT64_MIN, UINT64_MAX, UINT32_MAX])
 
 AC_CHECK_DECL([EFTYPE],
