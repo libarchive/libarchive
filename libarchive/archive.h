@@ -28,6 +28,9 @@
 #ifndef ARCHIVE_H_INCLUDED
 #define	ARCHIVE_H_INCLUDED
 
+#include <sys/stat.h>
+#include <stdio.h> /* For FILE * */
+
 /*
  * Note: archive.h is for use outside of libarchive; the configuration
  * headers (config.h, archive_platform.h, etc.) are purely internal.
@@ -36,24 +39,15 @@
  * platform macros.
  */
 #if defined(__BORLANDC__) && __BORLANDC__ >= 0x560
-# define __LA_STDINT_H <stdint.h>
-#elif !defined(__WATCOMC__) && !defined(_MSC_VER) && !defined(__INTERIX) && !defined(__BORLANDC__)
-# define __LA_STDINT_H <inttypes.h>
+# include <stdint.h>
+#elif !defined(__WATCOMC__) && !defined(_MSC_VER) && !defined(__INTERIX) && !defined(__BORLANDC__) && !defined(_SCO_DS)
+# include <inttypes.h>
 #endif
-
-#include <sys/stat.h>
-#if ARCHIVE_VERSION_NUMBER < 3000000
-#include <sys/types.h>  /* Linux needs this for off_t; 3.0+ doesn't need it */
-#endif
-#ifdef __LA_STDINT_H
-# include __LA_STDINT_H /* int64_t, etc. */
-#endif
-#include <stdio.h> /* For FILE * */
 
 /* Get appropriate definitions of standard POSIX-style types. */
 /* These should match the types used in 'struct stat' */
 #if defined(_WIN32) && !defined(__CYGWIN__)
-#define	__LA_INT64_T	__int64
+# define	__LA_INT64_T	__int64
 # if defined(_SSIZE_T_DEFINED)
 #  define	__LA_SSIZE_T	ssize_t
 # elif defined(_WIN64)
@@ -69,11 +63,15 @@
 #  define	__LA_GID_T	short
 # endif
 #else
-#include <unistd.h>  /* ssize_t, uid_t, and gid_t */
-#define	__LA_INT64_T	int64_t
-#define	__LA_SSIZE_T	ssize_t
-#define	__LA_UID_T	uid_t
-#define	__LA_GID_T	gid_t
+# include <unistd.h>  /* ssize_t, uid_t, and gid_t */
+# if defined(_SCO_DS)
+#  define	__LA_INT64_T	long long
+# else
+#  define	__LA_INT64_T	int64_t
+# endif
+# define	__LA_SSIZE_T	ssize_t
+# define	__LA_UID_T	uid_t
+# define	__LA_GID_T	gid_t
 #endif
 
 /*

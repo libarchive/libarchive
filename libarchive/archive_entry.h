@@ -64,11 +64,15 @@
 # endif
 #else
 #include <unistd.h>
-#define	__LA_INT64_T	int64_t
-#define	__LA_UID_T	uid_t /* Remove in libarchive 3.2 */
-#define	__LA_GID_T	gid_t /* Remove in libarchive 3.2 */
-#define	__LA_DEV_T	dev_t
-#define	__LA_MODE_T	mode_t
+# if defined(_SCO_DS)
+#  define	__LA_INT64_T	long long
+# else
+#  define	__LA_INT64_T	int64_t
+# endif
+# define	__LA_UID_T	uid_t /* Remove in libarchive 3.2 */
+# define	__LA_GID_T	gid_t /* Remove in libarchive 3.2 */
+# define	__LA_DEV_T	dev_t
+# define	__LA_MODE_T	mode_t
 #endif
 
 /*
