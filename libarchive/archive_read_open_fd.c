@@ -59,11 +59,7 @@ struct read_fd_data {
 
 static int	file_close(struct archive *, void *);
 static ssize_t	file_read(struct archive *, void *, const void **buff);
-#if ARCHIVE_VERSION_NUMBER < 3000000
-static off_t	file_skip(struct archive *, void *, off_t request);
-#else
 static int64_t	file_skip(struct archive *, void *, int64_t request);
-#endif
 
 int
 archive_read_open_fd(struct archive *a, int fd, size_t block_size)
@@ -126,19 +122,21 @@ file_read(struct archive *a, void *client_data, const void **buff)
 	}
 }
 
-#if ARCHIVE_VERSION_NUMBER < 3000000
-static off_t
-file_skip(struct archive *a, void *client_data, off_t request)
-#else
 static int64_t
 file_skip(struct archive *a, void *client_data, int64_t request)
-#endif
 {
 	struct read_fd_data *mine = (struct read_fd_data *)client_data;
+	off_t skip = (off_t)request;
 	off_t old_offset, new_offset;
+	int skip_bits = sizeof(skip) * 8 - 1;  /* off_t is a signed type. */
+	int64_t max_skip = (((int64_t)1 << (skip_bits - 1)) - 1) * 2 + 1;
 
 	if (!mine->use_lseek)
 		return (0);
+
+	/* Reduce a request that would overflow the 'skip' variable. */
+	if ((sizeof(request) > sizeof(skip)) && (request > max_skip))
+		skip = max_skip;
 
 	/* Reduce request to the next smallest multiple of block_size */
 	request = (request / mine->block_size) * mine->block_size;
@@ -146,7 +144,7 @@ file_skip(struct archive *a, void *client_data, int64_t request)
 		return (0);
 
 	if (((old_offset = lseek(mine->fd, 0, SEEK_CUR)) >= 0) &&
-	    ((new_offset = lseek(mine->fd, request, SEEK_CUR)) >= 0))
+	    ((new_offset = lseek(mine->fd, skip, SEEK_CUR)) >= 0))
 		return (new_offset - old_offset);
 
 	/* If seek failed once, it will probably fail again. */

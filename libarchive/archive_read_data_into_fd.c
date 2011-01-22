@@ -85,11 +85,7 @@ archive_read_data_into_fd(struct archive *a, int fd)
 	const void *buff;
 	size_t size, bytes_to_write;
 	ssize_t bytes_written;
-#if ARCHIVE_VERSION_NUMBER < 3000000
-	off_t target_offset;
-#else
 	int64_t target_offset;
-#endif
 	int64_t actual_offset = 0;
 	int can_lseek;
 	char *nulls = NULL;

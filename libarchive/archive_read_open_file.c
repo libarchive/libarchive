@@ -59,11 +59,7 @@ struct read_FILE_data {
 
 static int	file_close(struct archive *, void *);
 static ssize_t	file_read(struct archive *, void *, const void **buff);
-#if ARCHIVE_VERSION_NUMBER < 3000000
-static off_t	file_skip(struct archive *, void *, off_t request);
-#else
 static int64_t	file_skip(struct archive *, void *, int64_t request);
-#endif
 
 int
 archive_read_open_FILE(struct archive *a, FILE *f)
@@ -119,15 +115,17 @@ file_read(struct archive *a, void *client_data, const void **buff)
 	return (bytes_read);
 }
 
-#if ARCHIVE_VERSION_NUMBER < 3000000
-static off_t
-file_skip(struct archive *a, void *client_data, off_t request)
-#else
 static int64_t
 file_skip(struct archive *a, void *client_data, int64_t request)
-#endif
 {
 	struct read_FILE_data *mine = (struct read_FILE_data *)client_data;
+#if HAVE_FSEEKO
+	off_t skip = (off_t)request;
+#else
+	long skip = (long)request;
+#endif
+	int skip_bits = sizeof(skip) * 8 - 1;
+	int64_t max_skip = (((int64_t)1 << (skip_bits - 1)) - 1) * 2 + 1;
 
 	(void)a; /* UNUSED */
 
@@ -140,10 +138,14 @@ file_skip(struct archive *a, void *client_data, int64_t request)
 	if (request == 0)
 		return (0);
 
+	/* If request is too big for a long or an off_t, reduce it. */
+	if ((sizeof(request) > sizeof(skip)) && (request > max_skip))
+		skip = max_skip;
+
 #if HAVE_FSEEKO
-	if (fseeko(mine->f, request, SEEK_CUR) != 0)
+	if (fseeko(mine->f, skip, SEEK_CUR) != 0)
 #else
-	if (fseek(mine->f, request, SEEK_CUR) != 0)
+	if (fseek(mine->f, skip, SEEK_CUR) != 0)
 #endif
 	{
 		mine->can_skip = 0;

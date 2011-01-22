@@ -115,13 +115,8 @@ archive_write_data(struct archive *a, const void *buff, size_t s)
 	return ((a->vtable->archive_write_data)(a, buff, s));
 }
 
-#if ARCHIVE_VERSION_NUMBER < 3000000
-ssize_t
-archive_write_data_block(struct archive *a, const void *buff, size_t s, off_t o)
-#else
 ssize_t
 archive_write_data_block(struct archive *a, const void *buff, size_t s, int64_t o)
-#endif
 {
 	return ((a->vtable->archive_write_data_block)(a, buff, s, o));
 }
@@ -138,23 +133,9 @@ archive_read_next_header2(struct archive *a, struct archive_entry *entry)
 	return ((a->vtable->archive_read_next_header2)(a, entry));
 }
 
-#if ARCHIVE_VERSION_NUMBER < 3000000
-int
-archive_read_data_block(struct archive *a,
-    const void **buff, size_t *s, off_t *o)
-{
-	int r;
-	int64_t o64;
-
-	r = ((a->vtable->archive_read_data_block)(a, buff, s, &o64));
-	*o = (off_t)o64;
-	return (r);
-}
-#else
 int
 archive_read_data_block(struct archive *a,
     const void **buff, size_t *s, int64_t *o)
 {
 	return ((a->vtable->archive_read_data_block)(a, buff, s, o));
 }
-#endif

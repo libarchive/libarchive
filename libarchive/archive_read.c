@@ -276,9 +276,10 @@ static int64_t
 client_skip_proxy(struct archive_read_filter *self, int64_t request)
 {
 	int64_t ask, get, total;
-	/* Limit our maximum seek request to 1GB on platforms
-	* with 32-bit off_t (such as Windows). */
-	int64_t skip_limit = ((int64_t)1) << (sizeof(off_t) * 8 - 2);
+	/* Seek requests over 1GiB are broken down into multiple
+	 * seeks.  This avoids overflows when the requests get
+	 * passed through 32-bit arguments. */
+	int64_t skip_limit = (int64_t)1 << 30;
 
 	if (self->archive->client.skipper == NULL)
 		return (0);
@@ -629,7 +630,7 @@ archive_read_data(struct archive *_a, void *buff, size_t s)
 		}
 
 		/* Compute the amount of zero padding needed. */
-		if (a->read_data_output_offset + (off_t)s <
+		if (a->read_data_output_offset + s <
 		    a->read_data_offset) {
 			len = s;
 		} else if (a->read_data_output_offset <
@@ -690,11 +691,7 @@ archive_read_data_skip(struct archive *_a)
 	int r;
 	const void *buff;
 	size_t size;
-#if ARCHIVE_VERSION_NUMBER < 3000000
-	off_t offset;
-#else
 	int64_t offset;
-#endif
 
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA,
 	    "archive_read_data_skip");
