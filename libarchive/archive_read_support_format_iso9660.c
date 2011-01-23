@@ -1832,14 +1832,17 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	 * NOTE: Old mkisofs did not record that FILE SERIAL NUMBER
 	 * in ISO images.
 	 */
-	if (file->size == 0 && location >= 0)
+	if (file->size == 0 && location >= 0) {
 		/* If file->size is zero, its location points wrong place.
 		 * Dot not use it for file number.
 		 * When location has negative value, it can be used
 		 * for file number.
 		 */
 		file->number = -1;
-	else
+		/* Do not appear before any directoy entries. */
+		if (file->offset == 0)
+			file->offset = -1;
+	} else
 		file->number = (int64_t)(uint32_t)location;
 
 	/* Rockridge extensions overwrite information from above. */
