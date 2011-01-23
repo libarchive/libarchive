@@ -63,6 +63,7 @@ archive_entry_copy_bhfi(struct archive_entry *entry,
 	archive_entry_set_mtime(entry, secs, nsecs);
 	fileTimeToUtc(&bhfi->ftCreationTime, &secs, &nsecs);
 	archive_entry_set_birthtime(entry, secs, nsecs);
+	archive_entry_set_ctime(entry, secs, nsecs);
 	archive_entry_set_dev(entry, bhfi->dwVolumeSerialNumber);
 	archive_entry_set_ino64(entry, (((int64_t)bhfi->nFileIndexHigh) << 32)
 		+ bhfi->nFileIndexLow);

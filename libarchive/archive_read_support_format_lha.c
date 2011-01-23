@@ -621,13 +621,16 @@ archive_read_format_lha_read_header(struct archive_read *a,
 		archive_entry_set_uname(entry, lha->uname.s);
 	if (archive_strlen(&lha->gname) > 0)
 		archive_entry_set_gname(entry, lha->gname.s);
-	if (lha->setflag & BIRTHTIME_IS_SET)
+	if (lha->setflag & BIRTHTIME_IS_SET) {
 		archive_entry_set_birthtime(entry, lha->birthtime,
 		    lha->birthtime_tv_nsec);
-	else
+		archive_entry_set_ctime(entry, lha->birthtime,
+		    lha->birthtime_tv_nsec);
+	} else {
 		archive_entry_unset_birthtime(entry);
+		archive_entry_unset_ctime(entry);
+	}
 	archive_entry_set_mtime(entry, lha->mtime, lha->mtime_tv_nsec);
-	archive_entry_unset_ctime(entry);
 	if (lha->setflag & ATIME_IS_SET)
 		archive_entry_set_atime(entry, lha->atime,
 		    lha->atime_tv_nsec);

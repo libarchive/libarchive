@@ -1597,6 +1597,7 @@ tree_archive_entry_copy_bhfi(struct archive_entry *entry, struct tree *t,
 	archive_entry_set_mtime(entry, secs, nsecs);
 	fileTimeToUtc(&bhfi->ftCreationTime, &secs, &nsecs);
 	archive_entry_set_birthtime(entry, secs, nsecs);
+	archive_entry_set_ctime(entry, secs, nsecs);
 	archive_entry_set_dev(entry, bhfi_dev(bhfi));
 	archive_entry_set_ino64(entry, bhfi_ino(bhfi));
 	if (bhfi->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
