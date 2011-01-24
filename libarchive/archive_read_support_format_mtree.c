@@ -625,24 +625,34 @@ parse_file(struct archive_read *a, struct archive_entry *entry,
 		if ((st->st_mode & S_IFMT) == S_IFREG &&
 		    archive_entry_filetype(entry) != AE_IFREG)
 			mismatched_type = 1;
+#ifdef S_IFLNK
 		if ((st->st_mode & S_IFMT) == S_IFLNK &&
 		    archive_entry_filetype(entry) != AE_IFLNK)
 			mismatched_type = 1;
+#endif
+#ifdef S_IFSOCK
 		if ((st->st_mode & S_IFSOCK) == S_IFSOCK &&
 		    archive_entry_filetype(entry) != AE_IFSOCK)
 			mismatched_type = 1;
+#endif
+#ifdef S_IFCHR
 		if ((st->st_mode & S_IFMT) == S_IFCHR &&
 		    archive_entry_filetype(entry) != AE_IFCHR)
 			mismatched_type = 1;
+#endif
+#ifdef S_IFBLK
 		if ((st->st_mode & S_IFMT) == S_IFBLK &&
 		    archive_entry_filetype(entry) != AE_IFBLK)
 			mismatched_type = 1;
+#endif
 		if ((st->st_mode & S_IFMT) == S_IFDIR &&
 		    archive_entry_filetype(entry) != AE_IFDIR)
 			mismatched_type = 1;
+#ifdef S_IFIFO
 		if ((st->st_mode & S_IFMT) == S_IFIFO &&
 		    archive_entry_filetype(entry) != AE_IFIFO)
 			mismatched_type = 1;
+#endif
 
 		if (mismatched_type) {
 			if ((parsed_kws & MTREE_HAS_OPTIONAL) == 0) {
