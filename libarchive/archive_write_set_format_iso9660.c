@@ -5238,8 +5238,10 @@ isoent_tree(struct archive_write *a, struct isoent **isoentpp)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	char name[_MAX_FNAME];/* Included null terminator size. */
-#else
+#elif defined(NAME_MAX) && NAME_MAX >= 255
 	char name[NAME_MAX+1];
+#else
+	char name[256];
 #endif
 	struct iso9660 *iso9660 = a->format_data;
 	struct isoent *dent, *isoent, *np;
@@ -5434,8 +5436,10 @@ isoent_find_entry(struct isoent *rootent, const char *fn)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	char name[_MAX_FNAME];/* Included null terminator size. */
-#else
+#elif defined(NAME_MAX) && NAME_MAX >= 255
 	char name[NAME_MAX+1];
+#else
+	char name[256];
 #endif
 	struct isoent *isoent, *np;
 	int l;
