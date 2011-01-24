@@ -826,7 +826,7 @@ archive_write_pax_header(struct archive_write *a,
 		 * If rdevmajor is too large, add 'SCHILY.devmajor' to
 		 * extended attributes.
 		 */
-		dev_t rdevmajor, rdevminor;
+		int rdevmajor, rdevminor;
 		rdevmajor = archive_entry_rdevmajor(entry_main);
 		rdevminor = archive_entry_rdevminor(entry_main);
 		if (rdevmajor >= (1 << 18)) {
@@ -1074,9 +1074,8 @@ archive_write_pax_header(struct archive_write *a,
 	if (archive_strlen(&(pax->pax_header)) > 0) {
 		struct archive_entry *pax_attr_entry;
 		time_t s;
-		uid_t uid;
-		gid_t gid;
-		mode_t mode;
+		int64_t uid, gid;
+		int mode;
 
 		pax_attr_entry = archive_entry_new();
 		p = entry_name.s;
@@ -1086,12 +1085,12 @@ archive_write_pax_header(struct archive_write *a,
 		    archive_strlen(&(pax->pax_header)));
 		/* Copy uid/gid (but clip to ustar limits). */
 		uid = archive_entry_uid(entry_main);
-		if ((unsigned int)uid >= 1 << 18)
-			uid = (uid_t)(1 << 18) - 1;
+		if (uid >= 1 << 18)
+			uid = (1 << 18) - 1;
 		archive_entry_set_uid(pax_attr_entry, uid);
 		gid = archive_entry_gid(entry_main);
-		if ((unsigned int)gid >= 1 << 18)
-			gid = (gid_t)(1 << 18) - 1;
+		if (gid >= 1 << 18)
+			gid = (1 << 18) - 1;
 		archive_entry_set_gid(pax_attr_entry, gid);
 		/* Copy mode over (but not setuid/setgid bits) */
 		mode = archive_entry_mode(entry_main);
