@@ -256,7 +256,7 @@ struct archive_write_disk {
 static int	check_symlinks(struct archive_write_disk *);
 static int	create_filesystem_object(struct archive_write_disk *);
 static struct fixup_entry *current_fixup(struct archive_write_disk *, const char *pathname);
-#ifdef HAVE_FCHDIR
+#if defined(HAVE_FCHDIR) && defined(PATH_MAX)
 static void	edit_deep_directories(struct archive_write_disk *ad);
 #endif
 static int	cleanup_pathname(struct archive_write_disk *);
