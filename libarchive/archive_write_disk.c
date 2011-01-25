@@ -278,7 +278,9 @@ static int	set_fflags_platform(struct archive_write_disk *, int fd,
 		    unsigned long fflags_set, unsigned long fflags_clear);
 static int	set_ownership(struct archive_write_disk *);
 static int	set_mode(struct archive_write_disk *, int mode);
+#if !defined(_WIN32) || defined(__CYGWIN__)
 static int	set_time(int, int, const char *, time_t, long, time_t, long);
+#endif
 static int	set_times(struct archive_write_disk *, int, int, const char *,
 		    time_t, long, time_t, long, time_t, long);
 static int	set_times_from_entry(struct archive_write_disk *);
@@ -1976,6 +1978,73 @@ set_ownership(struct archive_write_disk *a)
 	return (ARCHIVE_WARN);
 }
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+
+static int
+set_times(struct archive_write_disk *a,
+    int fd, int mode, const char *name,
+    time_t atime, long atime_nanos,
+    time_t birthtime, long birthtime_nanos,
+    time_t mtime, long mtime_nanos)
+{
+#define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
+#define WINTIME(sec, nsec) ((Int32x32To64(sec, 10000000) + EPOC_TIME)\
+	 + (((nsec)/1000)*10))
+
+	HANDLE h, hw;
+	ULARGE_INTEGER wintm;
+	wchar_t *ws;
+	FILETIME *pfbtime;
+	FILETIME fatime, fbtime, fmtime;
+
+	if (fd >= 0) {
+		h = (HANDLE)_get_osfhandle(fd);
+		hw = NULL;
+		ws = NULL;
+	} else {
+		if (S_ISLNK(mode))
+			return (ARCHIVE_OK);
+		ws = __la_win_permissive_name(name);
+		if (ws == NULL)
+			goto settimes_failed;
+		hw = CreateFileW(ws, FILE_WRITE_ATTRIBUTES,
+		    0, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+		if (hw == INVALID_HANDLE_VALUE)
+			goto settimes_failed;
+		h = hw;
+	}
+
+	wintm.QuadPart = WINTIME(atime, atime_nanos);
+	fatime.dwLowDateTime = wintm.LowPart;
+	fatime.dwHighDateTime = wintm.HighPart;
+	wintm.QuadPart = WINTIME(mtime, mtime_nanos);
+	fmtime.dwLowDateTime = wintm.LowPart;
+	fmtime.dwHighDateTime = wintm.HighPart;
+	/*
+	 * SetFileTime() supports birthtime.
+	 */
+	if (birthtime > 0 || birthtime_nanos > 0) {
+		wintm.QuadPart = WINTIME(birthtime, birthtime_nanos);
+		fbtime.dwLowDateTime = wintm.LowPart;
+		fbtime.dwHighDateTime = wintm.HighPart;
+		pfbtime = &fbtime;
+	} else
+		pfbtime = NULL;
+	if (SetFileTime(h, pfbtime, &fatime, &fmtime) == 0)
+		goto settimes_failed;
+	free(ws);
+	CloseHandle(hw);
+	return (ARCHIVE_OK);
+
+settimes_failed:
+	free(ws);
+	CloseHandle(hw);
+	archive_set_error(&a->archive, EINVAL, "Can't restore time");
+	return (ARCHIVE_WARN);
+}
+
+#else /* defined(_WIN32) && !defined(__CYGWIN__) */
+
 /*
  * Note: Returns 0 on success, non-zero on failure.
  */
@@ -2007,11 +2076,7 @@ set_time(int fd, int mode, const char *name,
 	 * LEGACY by POSIX, futimes() and lutimes() are not described
 	 * in POSIX.
 	 */
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	struct __timeval times[2];
-#else
 	struct timeval times[2];
-#endif
 
 	times[0].tv_sec = atime;
 	times[0].tv_usec = atime_nsec / 1000;
@@ -2093,6 +2158,8 @@ set_times(struct archive_write_disk *a,
 	}
 	return (ARCHIVE_OK);
 }
+
+#endif /* defined(_WIN32) && !defined(__CYGWIN__) */
 
 static int
 set_times_from_entry(struct archive_write_disk *a)

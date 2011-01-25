@@ -98,7 +98,6 @@
 #endif
 #define	fstat		__la_fstat
 #define	ftruncate	__la_ftruncate
-#define	futimes		__la_futimes
 #define link		__la_link
 #define	lseek		__la_lseek
 #define	lstat		__la_stat
@@ -119,7 +118,6 @@
 #define	umask		_umask
 #endif
 #define	unlink		__la_unlink
-#define	utimes		__la_utimes
 #define	waitpid		__la_waitpid
 #define	write		__la_write
 
@@ -280,28 +278,11 @@
 #endif /* __MINGW32__ */
 #endif /* LARGE_FILES */
 
-#ifdef USE_WINSOCK_TIMEVAL
-/* Winsock timeval has long size tv_sec. */
-#define __timeval timeval
-#else
-struct _timeval64i32 {
-	time_t		tv_sec;
-	long		tv_usec;
-};
-#define __timeval _timeval64i32
-#endif
-
 /* End of Win32 definitions. */
 
 /* Tell libarchive code that we have simulations for these. */
 #ifndef HAVE_FTRUNCATE
 #define HAVE_FTRUNCATE 1
-#endif
-#ifndef HAVE_FUTIMES
-#define HAVE_FUTIMES 1
-#endif
-#ifndef HAVE_UTIMES
-#define HAVE_UTIMES 1
 #endif
 #ifndef HAVE_LINK
 #define HAVE_LINK 1
@@ -313,7 +294,6 @@ extern int	 __la_chmod(const char *path, mode_t mode);
 extern int	 __la_fcntl(int fd, int cmd, int val);
 extern int	 __la_fstat(int fd, struct stat *st);
 extern int	 __la_ftruncate(int fd, int64_t length);
-extern int	 __la_futimes(int fd, const struct __timeval *times);
 extern int	 __la_link(const char *src, const char *dst);
 extern __int64	 __la_lseek(int fd, __int64 offset, int whence);
 extern int	 __la_lstat(const char *path, struct stat *st);
@@ -325,7 +305,6 @@ extern ssize_t	 __la_read(int fd, void *buf, size_t nbytes);
 extern int	 __la_rmdir(const char *path);
 extern int	 __la_stat(const char *path, struct stat *st);
 extern int	 __la_unlink(const char *path);
-extern int	 __la_utimes(const char *name, const struct __timeval *times);
 extern pid_t	 __la_waitpid(pid_t wpid, int *status, int option);
 extern ssize_t	 __la_write(int fd, const void *buf, size_t nbytes);
 
@@ -334,5 +313,7 @@ extern ssize_t	 __la_write(int fd, const void *buf, size_t nbytes);
 /* for status returned by la_waitpid */
 #define WIFEXITED(sts)		((sts & 0x100) == 0)
 #define WEXITSTATUS(sts)	(sts & 0x0FF)
+
+extern wchar_t *__la_win_permissive_name(const char *name);
 
 #endif /* LIBARCHIVE_ARCHIVE_WINDOWS_H_INCLUDED */

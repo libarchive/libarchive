@@ -122,8 +122,8 @@ getino(struct ustat *ub)
  * characters.
  * see also http://msdn.microsoft.com/en-us/library/aa365247.aspx
  */
-static wchar_t *
-permissive_name(const char *name)
+wchar_t *
+__la_win_permissive_name(const char *name)
 {
 	wchar_t *wn, *wnp;
 	wchar_t *ws, *wsp;
@@ -230,7 +230,7 @@ la_CreateFile(const char *path, DWORD dwDesiredAccess, DWORD dwShareMode,
 		return (handle);
 	if (GetLastError() != ERROR_PATH_NOT_FOUND)
 		return (handle);
-	wpath = permissive_name(path);
+	wpath = __la_win_permissive_name(path);
 	if (wpath == NULL)
 		return (handle);
 	handle = CreateFileW(wpath, dwDesiredAccess, dwShareMode,
@@ -282,8 +282,8 @@ __link(const char *src, const char *dst)
 		return -1;
 	}
 
-	wsrc = permissive_name(src);
-	wdst = permissive_name(dst);
+	wsrc = __la_win_permissive_name(src);
+	wdst = __la_win_permissive_name(dst);
 	if (wsrc == NULL || wdst == NULL) {
 		free(wsrc);
 		free(wdst);
@@ -396,51 +396,6 @@ __la_ftruncate(int fd, int64_t length)
 	return (0);
 }
 
-#define WINTIME(sec, usec)	((Int32x32To64(sec, 10000000) + EPOC_TIME) + (usec * 10))
-static int
-__hutimes(HANDLE handle, const struct __timeval *times)
-{
-	ULARGE_INTEGER wintm;
-	FILETIME fatime, fmtime;
-
-	wintm.QuadPart = WINTIME(times[0].tv_sec, times[0].tv_usec);
-	fatime.dwLowDateTime = wintm.LowPart;
-	fatime.dwHighDateTime = wintm.HighPart;
-	wintm.QuadPart = WINTIME(times[1].tv_sec, times[1].tv_usec);
-	fmtime.dwLowDateTime = wintm.LowPart;
-	fmtime.dwHighDateTime = wintm.HighPart;
-	if (SetFileTime(handle, NULL, &fatime, &fmtime) == 0) {
-		errno = EINVAL;
-		return (-1);
-	}
-	return (0);
-}
-
-int
-__la_futimes(int fd, const struct __timeval *times)
-{
-
-	return (__hutimes((HANDLE)_get_osfhandle(fd), times));
-}
-
-int
-__la_utimes(const char *name, const struct __timeval *times)
-{
-	int ret;
-	HANDLE handle;
-
-	handle = la_CreateFile(name, GENERIC_READ | GENERIC_WRITE,
-	    FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
-	    FILE_FLAG_BACKUP_SEMANTICS, NULL);
-	if (handle == INVALID_HANDLE_VALUE) {
-		la_dosmaperr(GetLastError());
-		return (-1);
-	}
-	ret = __hutimes(handle, times);
-	CloseHandle(handle);
-	return (ret);
-}
-
 int
 __la_chdir(const char *path)
 {
@@ -455,7 +410,7 @@ __la_chdir(const char *path)
 		}
 	} else
 		return (0);
-	ws = permissive_name(path);
+	ws = __la_win_permissive_name(path);
 	if (ws == NULL) {
 		errno = EINVAL;
 		return (-1);
@@ -483,7 +438,7 @@ __la_chmod(const char *path, mode_t mode)
 			la_dosmaperr(GetLastError());
 			return (-1);
 		}
-		ws = permissive_name(path);
+		ws = __la_win_permissive_name(path);
 		if (ws == NULL) {
 			errno = EINVAL;
 			return (-1);
@@ -582,7 +537,7 @@ __la_mkdir(const char *path, mode_t mode)
 		}
 	} else
 		return (0);
-	ws = permissive_name(path);
+	ws = __la_win_permissive_name(path);
 	if (ws == NULL) {
 		errno = EINVAL;
 		return (-1);
@@ -629,7 +584,7 @@ __la_open(const char *path, int flags, ...)
 		 */
 		attr = GetFileAttributesA(path);
 		if (attr == (DWORD)-1 && GetLastError() == ERROR_PATH_NOT_FOUND) {
-			ws = permissive_name(path);
+			ws = __la_win_permissive_name(path);
 			if (ws == NULL) {
 				errno = EINVAL;
 				return (-1);
@@ -686,7 +641,7 @@ __la_open(const char *path, int flags, ...)
 		}
 		if (r >= 0 || errno != ENOENT)
 			return (r);
-		ws = permissive_name(path);
+		ws = __la_win_permissive_name(path);
 		if (ws == NULL) {
 			errno = EINVAL;
 			return (-1);
@@ -768,7 +723,7 @@ __la_rmdir(const char *path)
 	r = _rmdir(path);
 	if (r >= 0 || errno != ENOENT)
 		return (r);
-	ws = permissive_name(path);
+	ws = __la_win_permissive_name(path);
 	if (ws == NULL) {
 		errno = EINVAL;
 		return (-1);
@@ -987,7 +942,7 @@ __la_unlink(const char *path)
 	r = _unlink(path);
 	if (r >= 0 || errno != ENOENT)
 		return (r);
-	ws = permissive_name(path);
+	ws = __la_win_permissive_name(path);
 	if (ws == NULL) {
 		errno = EINVAL;
 		return (-1);
@@ -1300,7 +1255,7 @@ __archive_mktemp(const char *tmpdir)
 			la_dosmaperr(GetLastError());
 			goto exit_tmpfile;
 		}
-		ws = permissive_name(temp_name.s);
+		ws = __la_win_permissive_name(temp_name.s);
 		if (ws == NULL) {
 			errno = EINVAL;
 			goto exit_tmpfile;
@@ -1344,7 +1299,7 @@ __archive_mktemp(const char *tmpdir)
 			*p = num[*p % sizeof(num)];
 
 		free(ws);
-		ws = permissive_name(temp_name.s);
+		ws = __la_win_permissive_name(temp_name.s);
 		if (ws == NULL) {
 			errno = EINVAL;
 			goto exit_tmpfile;
