@@ -379,6 +379,7 @@ libarchive/test/list.h: Makefile
 libarchive_TESTS_ENVIRONMENT= LIBARCHIVE_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/libarchive/test
 
 libarchive_test_EXTRA_DIST=\
+	libarchive/test/test_acl_pax.tar.uu				\
 	libarchive/test/test_compat_bzip2_1.tbz.uu			\
 	libarchive/test/test_compat_bzip2_2.tbz.uu			\
 	libarchive/test/test_compat_cpio_1.cpio.uu			\
