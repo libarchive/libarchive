@@ -40,14 +40,14 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
+#ifdef HAVE_SYS_STATFS_H
+#include <sys/statfs.h>
+#endif
 #ifdef HAVE_SYS_STATVFS_H
 #include <sys/statvfs.h>
 #endif
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
-#endif
-#ifdef HAVE_SYS_VFS_H
-#include <sys/vfs.h>
 #endif
 #ifdef HAVE_LINUX_MAGIC_H
 #include <linux/magic.h>
@@ -1407,8 +1407,8 @@ setup_current_filesystem(struct archive_read_disk *a)
 	return (ARCHIVE_OK);
 }
 
-#elif defined(HAVE_SYS_VFS_H) && defined(HAVE_LINUX_MAGIC_H) &&\
-	(defined(HAVE_STATFS) || defined(HAVE_FSTATFS))
+#elif defined(HAVE_SYS_STATFS_H) && defined(HAVE_LINUX_MAGIC_H) &&\
+	defined(HAVE_STATFS) && defined(HAVE_FSTATFS)
 /*
  * Note: statfs is deprecated since LSB 3.2
  */
@@ -1518,7 +1518,8 @@ setup_current_filesystem(struct archive_read_disk *a)
 	return (ARCHIVE_OK);
 }
 
-#elif defined(HAVE_STATVFS) || defined(HAVE_FSTATVFS)
+#elif defined(HAVE_SYS_STATVFS_H) &&\
+	(defined(HAVE_STATVFS) || defined(HAVE_FSTATVFS))
 
 /*
  * Gather current filesystem properties on other posix platform.

@@ -775,6 +775,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <sys/select.h> header file. */
 #cmakedefine HAVE_SYS_SELECT_H 1
 
+/* Define to 1 if you have the <sys/statfs.h> header file. */
+#cmakedefine HAVE_SYS_STATFS_H 1
+
 /* Define to 1 if you have the <sys/statvfs.h> header file. */
 #cmakedefine HAVE_SYS_STATVFS_H 1
 
