@@ -1808,7 +1808,7 @@ static int
 lzh_decode(struct lzh_stream *strm, int last)
 {
 	struct lzh_dec *ds = strm->ds;
-	int c, i;
+	int c = 0, i;
 #define ST_RD_BLOCK		0
 #define ST_RD_PT_1		1
 #define ST_RD_PT_2		2
