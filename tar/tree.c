@@ -122,7 +122,7 @@ struct tree_entry {
 struct tree {
 	struct tree_entry	*stack;
 	struct tree_entry	*current;
-#if defined(HAVE_WINDOWS_H) && !defined(__CYGWIN__)
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	HANDLE d;
 	BY_HANDLE_FILE_INFORMATION fileInfo;
 #define	INVALID_DIR_HANDLE INVALID_HANDLE_VALUE
@@ -611,7 +611,7 @@ tree_current_stat(struct tree *t)
 	return (&t->st);
 }
 
-#if defined(HAVE_WINDOWS_H) && !defined(__CYGWIN__)
+#if defined(_WIN32) && !defined(__CYGWIN__)
 const BY_HANDLE_FILE_INFORMATION *
 tree_current_file_information(struct tree *t)
 {
