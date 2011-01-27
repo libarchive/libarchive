@@ -443,7 +443,7 @@ AC_CHECK_FUNCS([cygwin_conv_path])
 AC_COMPILE_IFELSE(
  [AC_LANG_PROGRAM([[#include <dirent.h>]],
                   [[DIR *dir; struct dirent e, *r;
-		    exit(readdir_r(dir, &e, &r));]])],
+		    return(readdir_r(dir, &e, &r));]])],
  [AC_DEFINE(HAVE_READDIR_R,1,[Define to 1 if you have a POSIX compatible readdir_r])]
 )
 

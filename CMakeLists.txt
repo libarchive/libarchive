@@ -518,7 +518,6 @@ CHECK_FUNCTION_EXISTS_GLIBC(nl_langinfo HAVE_NL_LANGINFO)
 CHECK_FUNCTION_EXISTS_GLIBC(openat HAVE_OPENAT)
 CHECK_FUNCTION_EXISTS_GLIBC(pipe HAVE_PIPE)
 CHECK_FUNCTION_EXISTS_GLIBC(poll HAVE_POLL)
-CHECK_FUNCTION_EXISTS_GLIBC(readdir_r HAVE_READDIR_R)
 CHECK_FUNCTION_EXISTS_GLIBC(readlink HAVE_READLINK)
 CHECK_FUNCTION_EXISTS_GLIBC(readlinkat HAVE_READLINKAT)
 CHECK_FUNCTION_EXISTS_GLIBC(select HAVE_SELECT)
@@ -558,6 +557,12 @@ CHECK_FUNCTION_EXISTS(strftime HAVE_STRFTIME)
 CHECK_FUNCTION_EXISTS(vprintf HAVE_VPRINTF)
 CHECK_FUNCTION_EXISTS(wmemcmp HAVE_WMEMCMP)
 CHECK_FUNCTION_EXISTS(wmemcpy HAVE_WMEMCPY)
+
+# Make sure we have the POSIX version of readdir_r, not the
+# older 2-argument version.
+CHECK_C_SOURCE_COMPILES(
+  "#include <dirent.h>\nint main() {DIR *d; struct dirent e,*r; return readdir_r(d,&e,&r);}"
+  HAVE_READDIR_R)
 
 # To verify major(), we need to both include the header
 # of interest and verify that the result can be linked.
