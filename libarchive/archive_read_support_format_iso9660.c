@@ -1824,22 +1824,22 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	else
 		file->multi_extent = 0;
 	/*
-	 * Use location for file number.
-	 * File number is treated as inode number to find out harlink
-	 * target. If Rockridge extensions is being used, file number
-	 * will be overwritten by FILE SERIAL NUMBER of RRIP "PX"
-	 * extension.
-	 * NOTE: Old mkisofs did not record that FILE SERIAL NUMBER
+	 * Use a location for the file number, which is treated as an inode
+	 * number to find out hardlink target. If Rockridge extensions is
+	 * being used, the file number will be overwritten by FILE SERIAL
+	 * NUMBER of RRIP "PX" extension.
+	 * Note: Old mkisofs did not record that FILE SERIAL NUMBER
 	 * in ISO images.
+	 * Note2: xorriso set 0 to the location of a symlink file. 
 	 */
 	if (file->size == 0 && location >= 0) {
-		/* If file->size is zero, its location points wrong place.
-		 * Dot not use it for file number.
-		 * When location has negative value, it can be used
-		 * for file number.
+		/* If file->size is zero, its location points wrong place,
+		 * and so we should not use it for the file number.
+		 * When the location has negative value, it can be used
+		 * for the file number.
 		 */
 		file->number = -1;
-		/* Do not appear before any directoy entries. */
+		/* Do not appear before any directory entries. */
 		if (file->offset == 0)
 			file->offset = -1;
 	} else
