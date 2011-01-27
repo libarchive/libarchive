@@ -430,13 +430,22 @@ AC_CHECK_FUNCS([geteuid getpid getgrgid_r getgrnam_r])
 AC_CHECK_FUNCS([getpwnam_r getpwuid_r getvfsbyname gmtime_r])
 AC_CHECK_FUNCS([lchflags lchmod lchown link localtime_r lstat])
 AC_CHECK_FUNCS([lutimes mbrtowc memmove memset mkdir mkfifo mknod mkstemp])
-AC_CHECK_FUNCS([nl_langinfo openat pipe poll readdir_r readlink readlinkat])
+AC_CHECK_FUNCS([nl_langinfo openat pipe poll readlink readlinkat])
 AC_CHECK_FUNCS([select setenv setlocale sigaction statfs statvfs])
 AC_CHECK_FUNCS([strchr strdup strerror strncpy_s strrchr symlink timegm])
 AC_CHECK_FUNCS([tzset unsetenv utime utimensat utimes vfork])
 AC_CHECK_FUNCS([wcrtomb wcscmp wcscpy wcslen wctomb wmemcmp wmemcpy])
 # detects cygwin-1.7, as opposed to older versions
 AC_CHECK_FUNCS([cygwin_conv_path])
+
+# There are several variants of readdir_r around; we only
+# accept the POSIX-compliant version.
+AC_COMPILE_IFELSE(
+ [AC_LANG_PROGRAM([[#include <dirent.h>]],
+                  [[DIR *dir; struct dirent e, *r;
+		    exit(readdir_r(dir, &e, &r));]])],
+ [AC_DEFINE(HAVE_READDIR_R,1,[Define to 1 if you have a POSIX compatible readdir_r])]
+)
 
 # FreeBSD's nl_langinfo supports an option to specify whether the
 # current locale uses month/day or day/month ordering.  It makes the
