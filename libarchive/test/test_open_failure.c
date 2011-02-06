@@ -181,7 +181,6 @@ DEFINE_TEST(test_open_failure)
 	private.open_return = ARCHIVE_FATAL;
 	a = archive_write_new();
 	assert(a != NULL);
-	archive_write_add_filter_compress(a);
 	archive_write_set_format_zip(a);
 	assertEqualInt(ARCHIVE_FATAL,
 	    archive_write_open(a, &private, my_open, my_write, my_close));
