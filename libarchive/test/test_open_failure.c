@@ -181,6 +181,23 @@ DEFINE_TEST(test_open_failure)
 	private.open_return = ARCHIVE_FATAL;
 	a = archive_write_new();
 	assert(a != NULL);
+	archive_write_add_filter_compress(a);
+	archive_write_set_format_zip(a);
+	assertEqualInt(ARCHIVE_FATAL,
+	    archive_write_open(a, &private, my_open, my_write, my_close));
+	assertEqualInt(1, private.open_called);
+	assertEqualInt(0, private.write_called);
+	assertEqualInt(1, private.close_called);
+	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+	assertEqualInt(1, private.open_called);
+	assertEqualInt(0, private.write_called);
+	assertEqualInt(1, private.close_called);
+
+	memset(&private, 0, sizeof(private));
+	private.magic = MAGIC;
+	private.open_return = ARCHIVE_FATAL;
+	a = archive_write_new();
+	assert(a != NULL);
 	archive_write_add_filter_gzip(a);
 	assertEqualInt(ARCHIVE_FATAL,
 	    archive_write_open(a, &private, my_open, my_write, my_close));
