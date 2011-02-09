@@ -1840,8 +1840,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 		 */
 		file->number = -1;
 		/* Do not appear before any directory entries. */
-		if (file->offset == 0)
-			file->offset = -1;
+		file->offset = -1;
 	} else
 		file->number = (int64_t)(uint32_t)location;
 
