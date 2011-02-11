@@ -607,6 +607,13 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 	    ARCHIVE_STATE_DATA | ARCHIVE_STATE_HEADER, "archive_write_header");
 	archive_clear_error(&a->archive);
 
+	if (a->format_write_header == NULL) {
+		archive_set_error(&(a->archive), -1,
+		    "Format must be set before you can write to an archive.");
+		a->archive.state = ARCHIVE_STATE_FATAL;
+		return (ARCHIVE_FATAL);
+	}
+
 	/* In particular, "retry" and "fatal" get returned immediately. */
 	ret = archive_write_finish_entry(&a->archive);
 	if (ret == ARCHIVE_FATAL) {
