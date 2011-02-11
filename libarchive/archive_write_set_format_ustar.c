@@ -279,7 +279,9 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 	 */
 
 	pp = archive_entry_pathname(entry);
-	if (strlen(pp) <= USTAR_name_size)
+	if (pp == NULL) {
+		/* Yuck. */
+	} else if (strlen(pp) <= USTAR_name_size)
 		memcpy(h + USTAR_name_offset, pp, strlen(pp));
 	else {
 		/* Store in two pieces, splitting at a '/'. */
