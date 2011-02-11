@@ -341,7 +341,7 @@ owner_parse(const char *spec, int *uid, int *gid)
 		} else {
 			char *end;
 			errno = 0;
-			*uid = strtoul(user, &end, 10);
+			*uid = (int)strtoul(user, &end, 10);
 			if (errno || *end != '\0') {
 				snprintf(errbuff, sizeof(errbuff),
 				    "Couldn't lookup user ``%s''", user);
@@ -359,7 +359,7 @@ owner_parse(const char *spec, int *uid, int *gid)
 		} else {
 			char *end;
 			errno = 0;
-			*gid = strtoul(g, &end, 10);
+			*gid = (int)strtoul(g, &end, 10);
 			if (errno || *end != '\0') {
 				snprintf(errbuff, sizeof(errbuff),
 				    "Couldn't lookup group ``%s''", g);
