@@ -388,7 +388,7 @@ __archive_read_program(struct archive_read_filter *self, const char *cmd)
 		free(state->out_buf);
 		free(state);
 		archive_set_error(&self->archive->archive, EINVAL,
-		    "Can't initialise filter");
+		    "Can't initialize filter; unable to run program \"%s\"", cmd);
 		return (ARCHIVE_FATAL);
 	}
 
