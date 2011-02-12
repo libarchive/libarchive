@@ -38,7 +38,7 @@ parseoct(const char *p, size_t n)
 {
 	int i = 0;
 
-	while (*p < '0' || *p > '7') {
+	while ((*p < '0' || *p > '7') && n > 0) {
 		++p;
 		--n;
 	}
