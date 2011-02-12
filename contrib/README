@@ -37,6 +37,9 @@ psota-benchmark
 Some scripts used by Jan Psota in benchmarking
 various tar implementations.
 
+I've edited his results slightly to correctly reflect that
+bsdtar does not support a "compare" operation.
+
 ======================================================================
 
 shar
