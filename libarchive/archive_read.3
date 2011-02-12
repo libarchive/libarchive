@@ -463,6 +463,14 @@ Complete the archive and invoke the close callback.
 .It Fn archive_read_finish
 This is a deprecated synonym for
 .Fn archive_read_free .
+The new name was introduced with libarchive 3.0.
+Applications that need to compile with either libarchive 2
+or libarchive 3 should continue to use the
+.Fn archive_read_finish
+name.
+Both names will be supported until libarchive 4.0 is
+released, which is not expected to occur earlier
+than 2013.
 .It Fn archive_read_free
 Invokes
 .Fn archive_read_close
