@@ -36,6 +36,7 @@
 .Nm archive_write_disk_set_user_lookup ,
 .Nm archive_write_header ,
 .Nm archive_write_data ,
+.Nm archive_write_data_block ,
 .Nm archive_write_finish_entry ,
 .Nm archive_write_close ,
 .Nm archive_write_finish
@@ -69,6 +70,8 @@
 .Fn archive_write_header "struct archive *" "struct archive_entry *"
 .Ft ssize_t
 .Fn archive_write_data "struct archive *" "const void *" "size_t"
+.Ft ssize_t
+.Fn archive_write_data_block "struct archive *" "const void *" "size_t size" "int64_t offset"
 .Ft int
 .Fn archive_write_finish_entry "struct archive *"
 .Ft int
@@ -224,6 +227,20 @@ objects.
 .It Fn archive_write_data
 Write data corresponding to the header just written.
 Returns number of bytes written or -1 on error.
+.It Fn archive_write_data_block
+Write data corresponding to the header just written.
+This is like
+.Fn archive_write_data
+except that it performs a seek on the file being
+written to the specified offset before writing the data.
+This is useful when restoring sparse files from archive
+formats that support sparse files.
+Returns number of bytes written or -1 on error.
+(Note: This is currently not supported for
+.Tn archive_write
+handles, only for
+.Tn archive_write_disk
+handles.)
 .It Fn archive_write_finish_entry
 Close out the entry just written.
 Ordinarily, clients never need to call this, as it

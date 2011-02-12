@@ -628,6 +628,7 @@ __LA_DECL __LA_SSIZE_T	 archive_write_data_block(struct archive *,
 				    const void *, size_t, off_t);
 #else
 /* Libarchive 3.0 uses explicit int64_t to ensure consistent 64-bit support. */
+/* This interface is currently only available for archive_write_disk handles. */
 __LA_DECL __LA_SSIZE_T	 archive_write_data_block(struct archive *,
 				    const void *, size_t, __LA_INT64_T);
 #endif
