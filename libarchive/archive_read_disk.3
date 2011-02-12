@@ -207,7 +207,7 @@ file_to_archive(struct archive *a, const char *name)
   fd = open(name, O_RDONLY);
   if (fd < 0)
      return;
-  archive_entry_copy_sourcepath(entry, name);
+  archive_entry_copy_pathname(entry, name);
   archive_read_disk_entry_from_file(ard, entry, fd, NULL);
   archive_write_header(a, entry);
   while ((bytes_read = read(fd, buff, sizeof(buff))) > 0)
