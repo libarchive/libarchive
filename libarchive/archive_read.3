@@ -69,6 +69,7 @@
 .Nm archive_read_extract2 ,
 .Nm archive_read_extract_set_progress_callback ,
 .Nm archive_read_close ,
+.Nm archive_read_finish ,
 .Nm archive_read_free
 .Nd functions for reading streaming archives
 .Sh SYNOPSIS
@@ -195,6 +196,8 @@
 .Fc
 .Ft int
 .Fn archive_read_close "struct archive *"
+.Ft int
+.Fn archive_read_finish "struct archive *"
 .Ft int
 .Fn archive_read_free "struct archive *"
 .Sh DESCRIPTION
@@ -457,6 +460,9 @@ object and the archive_entry object so that various statistics
 can be retrieved for the progress display.
 .It Fn archive_read_close
 Complete the archive and invoke the close callback.
+.It Fn archive_read_finish
+This is a deprecated synonym for
+.Fn archive_read_free .
 .It Fn archive_read_free
 Invokes
 .Fn archive_read_close

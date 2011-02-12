@@ -39,6 +39,7 @@
 .Nm archive_read_disk_set_gname_lookup ,
 .Nm archive_read_disk_set_standard_lookup ,
 .Nm archive_read_close ,
+.Nm archive_read_finish ,
 .Nm archive_read_free
 .Nd functions for reading objects from disk
 .Sh SYNOPSIS
@@ -80,6 +81,8 @@
 .Fc
 .Ft int
 .Fn archive_read_close "struct archive *"
+.Ft int
+.Fn archive_read_finish "struct archive *"
 .Ft int
 .Fn archive_read_free "struct archive *"
 .Sh DESCRIPTION
@@ -177,10 +180,15 @@ This affects the file ownership fields and ACL values in the
 .Tn struct archive_entry
 object.
 .It Fn archive_read_close
-This currently does nothing.
-.It Fn archive_write_free
+Does nothing for
+.Tn archive_read_disk
+handles.
+.It Fn archive_read_finish
+This is a deprecated synonym for
+.Fn archive_read_free .
+.It Fn archive_read_free
 Invokes
-.Fn archive_write_close
+.Fn archive_read_close
 if it was not invoked manually, then releases all resources.
 .El
 More information about the

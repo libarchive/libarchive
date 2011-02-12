@@ -195,8 +195,13 @@ Once you have finished reading data from the archive, you
 should call
 .Fn archive_read_close
 to close the archive, then call
-.Fn archive_read_free
+.Fn archive_read_finish
 to release all resources, including all memory allocated by the library.
+(Note:
+.Fn archive_read_finish
+is deprecated in Libarchive 3.0; please use
+.Fn archive_read_free
+instead.)
 .Pp
 The
 .Xr archive_read 3
@@ -233,8 +238,13 @@ You can then use
 to write the actual data.
 .Pp
 After all entries have been written, use the
-.Fn archive_write_free
+.Fn archive_write_finish
 function to release all resources.
+(Note:
+.Fn archive_write_finish
+is deprecated in Libarchive 3.0; please use
+.Fn archive_write_free
+instead.)
 .Pp
 The
 .Xr archive_write 3
