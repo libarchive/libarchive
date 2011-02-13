@@ -218,21 +218,21 @@ static int
 add_option(struct archive_read *a, struct mtree_option **global,
     const char *value, size_t len)
 {
-	struct mtree_option *option;
+	struct mtree_option *opt;
 
-	if ((option = malloc(sizeof(*option))) == NULL) {
+	if ((opt = malloc(sizeof(*opt))) == NULL) {
 		archive_set_error(&a->archive, errno, "Can't allocate memory");
 		return (ARCHIVE_FATAL);
 	}
-	if ((option->value = malloc(len + 1)) == NULL) {
-		free(option);
+	if ((opt->value = malloc(len + 1)) == NULL) {
+		free(opt);
 		archive_set_error(&a->archive, errno, "Can't allocate memory");
 		return (ARCHIVE_FATAL);
 	}
-	memcpy(option->value, value, len);
-	option->value[len] = '\0';
-	option->next = *global;
-	*global = option;
+	memcpy(opt->value, value, len);
+	opt->value[len] = '\0';
+	opt->next = *global;
+	*global = opt;
 	return (ARCHIVE_OK);
 }
 
@@ -792,11 +792,11 @@ parse_device(struct archive *a, struct archive_entry *entry, char *val)
  */
 static int
 parse_keyword(struct archive_read *a, struct mtree *mtree,
-    struct archive_entry *entry, struct mtree_option *option, int *parsed_kws)
+    struct archive_entry *entry, struct mtree_option *opt, int *parsed_kws)
 {
 	char *val, *key;
 
-	key = option->value;
+	key = opt->value;
 
 	if (*key == '\0')
 		return (ARCHIVE_OK);

@@ -43,7 +43,7 @@
  */
 struct cpio {
 	/* Option parsing */
-	const char	 *optarg;
+	const char	 *argument;
 
 	/* Options */
 	const char	 *filename;

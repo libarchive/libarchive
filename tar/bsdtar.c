@@ -257,7 +257,7 @@ main(int argc, char **argv)
 			/* libarchive doesn't need this; just ignore it. */
 			break;
 		case 'b': /* SUSv2 */
-			t = atoi(bsdtar->optarg);
+			t = atoi(bsdtar->argument);
 			if (t <= 0 || t > 8192)
 				lafe_errc(1, 0,
 				    "Argument to -b is out of range (1..8192)");
@@ -266,7 +266,7 @@ main(int argc, char **argv)
 			bsdtar->bytes_in_last_block = bsdtar->bytes_per_block;
 			break;
 		case 'C': /* GNU tar */
-			set_chdir(bsdtar, bsdtar->optarg);
+			set_chdir(bsdtar, bsdtar->argument);
 			break;
 		case 'c': /* SUSv2 */
 			set_mode(bsdtar, opt);
@@ -281,25 +281,25 @@ main(int argc, char **argv)
 			bsdtar->enable_copyfile = 0;
 			break;
 		case OPTION_EXCLUDE: /* GNU tar */
-			if (lafe_exclude(&bsdtar->matching, bsdtar->optarg))
+			if (lafe_exclude(&bsdtar->matching, bsdtar->argument))
 				lafe_errc(1, 0,
-				    "Couldn't exclude %s\n", bsdtar->optarg);
+				    "Couldn't exclude %s\n", bsdtar->argument);
 			break;
 		case OPTION_FORMAT: /* GNU tar, others */
-			bsdtar->create_format = bsdtar->optarg;
+			bsdtar->create_format = bsdtar->argument;
 			break;
 		case 'f': /* SUSv2 */
-			bsdtar->filename = bsdtar->optarg;
+			bsdtar->filename = bsdtar->argument;
 			break;
 		case OPTION_GID: /* cpio */
-			t = atoi(bsdtar->optarg);
+			t = atoi(bsdtar->argument);
 			if (t < 0)
 				lafe_errc(1, 0,
 				    "Argument to --gid must be positive");
 			bsdtar->gid = t;
 			break;
 		case OPTION_GNAME: /* cpio */
-			bsdtar->gname = bsdtar->optarg;
+			bsdtar->gname = bsdtar->argument;
 			break;
 		case 'H': /* BSD convention */
 			bsdtar->symlink_mode = 'H';
@@ -324,7 +324,7 @@ main(int argc, char **argv)
 			 * permissions without having to create those
 			 * permissions on disk.
 			 */
-			bsdtar->names_from_file = bsdtar->optarg;
+			bsdtar->names_from_file = bsdtar->argument;
 			break;
 		case OPTION_INCLUDE:
 			/*
@@ -332,10 +332,10 @@ main(int argc, char **argv)
 			 * noone else needs this to filter entries
 			 * when transforming archives.
 			 */
-			if (lafe_include(&bsdtar->matching, bsdtar->optarg))
+			if (lafe_include(&bsdtar->matching, bsdtar->argument))
 				lafe_errc(1, 0,
 				    "Failed to add %s to inclusion list",
-				    bsdtar->optarg);
+				    bsdtar->argument);
 			break;
 		case 'j': /* GNU tar */
 			if (bsdtar->create_compression != '\0')
@@ -386,28 +386,28 @@ main(int argc, char **argv)
 		 * TODO: Add corresponding "older" options to reverse these.
 		 */
 		case OPTION_NEWER_CTIME: /* GNU tar */
-			bsdtar->newer_ctime_sec = get_date(now, bsdtar->optarg);
+			bsdtar->newer_ctime_sec = get_date(now, bsdtar->argument);
 			break;
 		case OPTION_NEWER_CTIME_THAN:
 			{
 				struct stat st;
-				if (stat(bsdtar->optarg, &st) != 0)
+				if (stat(bsdtar->argument, &st) != 0)
 					lafe_errc(1, 0,
-					    "Can't open file %s", bsdtar->optarg);
+					    "Can't open file %s", bsdtar->argument);
 				bsdtar->newer_ctime_sec = st.st_ctime;
 				bsdtar->newer_ctime_nsec =
 				    ARCHIVE_STAT_CTIME_NANOS(&st);
 			}
 			break;
 		case OPTION_NEWER_MTIME: /* GNU tar */
-			bsdtar->newer_mtime_sec = get_date(now, bsdtar->optarg);
+			bsdtar->newer_mtime_sec = get_date(now, bsdtar->argument);
 			break;
 		case OPTION_NEWER_MTIME_THAN:
 			{
 				struct stat st;
-				if (stat(bsdtar->optarg, &st) != 0)
+				if (stat(bsdtar->argument, &st) != 0)
 					lafe_errc(1, 0,
-					    "Can't open file %s", bsdtar->optarg);
+					    "Can't open file %s", bsdtar->argument);
 				bsdtar->newer_mtime_sec = st.st_mtime;
 				bsdtar->newer_mtime_nsec =
 				    ARCHIVE_STAT_MTIME_NANOS(&st);
@@ -444,7 +444,7 @@ main(int argc, char **argv)
 			bsdtar->option_dont_traverse_mounts = 1;
 			break;
 		case OPTION_OPTIONS:
-			bsdtar->option_options = bsdtar->optarg;
+			bsdtar->option_options = bsdtar->argument;
 			break;
 #if 0
 		/*
@@ -482,7 +482,7 @@ main(int argc, char **argv)
 			break;
 		case 's': /* NetBSD pax-as-tar */
 #if HAVE_REGEX_H
-			add_substitution(bsdtar, bsdtar->optarg);
+			add_substitution(bsdtar, bsdtar->argument);
 #else
 			lafe_warnc(0,
 			    "-s is not supported by this version of bsdtar");
@@ -493,10 +493,10 @@ main(int argc, char **argv)
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_OWNER;
 			break;
 		case OPTION_STRIP_COMPONENTS: /* GNU tar 1.15 */
-			bsdtar->strip_components = atoi(bsdtar->optarg);
+			bsdtar->strip_components = atoi(bsdtar->argument);
 			break;
 		case 'T': /* GNU tar */
-			bsdtar->names_from_file = bsdtar->optarg;
+			bsdtar->names_from_file = bsdtar->argument;
 			break;
 		case 't': /* SUSv2 */
 			set_mode(bsdtar, opt);
@@ -513,14 +513,14 @@ main(int argc, char **argv)
 			set_mode(bsdtar, opt);
 			break;
 		case OPTION_UID: /* cpio */
-			t = atoi(bsdtar->optarg);
+			t = atoi(bsdtar->argument);
 			if (t < 0)
 				lafe_errc(1, 0,
 				    "Argument to --uid must be positive");
 			bsdtar->uid = t;
 			break;
 		case OPTION_UNAME: /* cpio */
-			bsdtar->uname = bsdtar->optarg;
+			bsdtar->uname = bsdtar->argument;
 			break;
 		case 'v': /* SUSv2 */
 			bsdtar->verbose++;
@@ -540,10 +540,10 @@ main(int argc, char **argv)
 			bsdtar->option_interactive = 1;
 			break;
 		case 'X': /* GNU tar */
-			if (lafe_exclude_from_file(&bsdtar->matching, bsdtar->optarg))
+			if (lafe_exclude_from_file(&bsdtar->matching, bsdtar->argument))
 				lafe_errc(1, 0,
 				    "failed to process exclusions from file %s",
-				    bsdtar->optarg);
+				    bsdtar->argument);
 			break;
 		case 'x': /* SUSv2 */
 			set_mode(bsdtar, opt);
@@ -570,7 +570,7 @@ main(int argc, char **argv)
 			bsdtar->create_compression = opt;
 			break;
 		case OPTION_USE_COMPRESS_PROGRAM:
-			bsdtar->compress_program = bsdtar->optarg;
+			bsdtar->compress_program = bsdtar->argument;
 			break;
 		default:
 			usage();

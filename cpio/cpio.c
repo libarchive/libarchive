@@ -184,9 +184,9 @@ main(int argc, char *argv[])
 			cpio->bytes_per_block = 5120;
 			break;
 		case 'C': /* NetBSD/OpenBSD */
-			cpio->bytes_per_block = atoi(cpio->optarg);
+			cpio->bytes_per_block = atoi(cpio->argument);
 			if (cpio->bytes_per_block <= 0)
-				lafe_errc(1, 0, "Invalid blocksize %s", cpio->optarg);
+				lafe_errc(1, 0, "Invalid blocksize %s", cpio->argument);
 			break;
 		case 'c': /* POSIX 1997 */
 			cpio->format = "odc";
@@ -196,22 +196,22 @@ main(int argc, char *argv[])
 			break;
 		case 'E': /* NetBSD/OpenBSD */
 			lafe_include_from_file(&cpio->matching,
-			    cpio->optarg, cpio->option_null);
+			    cpio->argument, cpio->option_null);
 			break;
 		case 'F': /* NetBSD/OpenBSD/GNU cpio */
-			cpio->filename = cpio->optarg;
+			cpio->filename = cpio->argument;
 			break;
 		case 'f': /* POSIX 1997 */
-			lafe_exclude(&cpio->matching, cpio->optarg);
+			lafe_exclude(&cpio->matching, cpio->argument);
 			break;
 		case 'H': /* GNU cpio (also --format) */
-			cpio->format = cpio->optarg;
+			cpio->format = cpio->argument;
 			break;
 		case 'h':
 			long_help();
 			break;
 		case 'I': /* NetBSD/OpenBSD */
-			cpio->filename = cpio->optarg;
+			cpio->filename = cpio->argument;
 			break;
 		case 'i': /* POSIX 1997 */
 			if (cpio->mode != '\0')
@@ -248,7 +248,7 @@ main(int argc, char *argv[])
 			cpio->extract_flags &= ~ARCHIVE_EXTRACT_OWNER;
 			break;
 		case 'O': /* GNU cpio */
-			cpio->filename = cpio->optarg;
+			cpio->filename = cpio->argument;
 			break;
 		case 'o': /* POSIX 1997 */
 			if (cpio->mode != '\0')
@@ -272,7 +272,7 @@ main(int argc, char *argv[])
 		case 'R': /* GNU cpio, also --owner */
 			/* TODO: owner_parse should return uname/gname
 			 * also; use that to set [ug]name_override. */
-			errmsg = owner_parse(cpio->optarg, &uid, &gid);
+			errmsg = owner_parse(cpio->argument, &uid, &gid);
 			if (errmsg) {
 				lafe_warnc(-1, "%s", errmsg);
 				usage();

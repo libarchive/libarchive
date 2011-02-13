@@ -58,7 +58,7 @@ static const char *short_options
  * a small change to the code below.
  */
 
-static struct option {
+static struct bsdtar_option {
 	const char *name;
 	int required;      /* 1 if this option requires an argument. */
 	int equivalent;    /* Equivalent short option. */
@@ -185,13 +185,13 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 	static int state = state_start;
 	static char *opt_word;
 
-	const struct option *popt, *match = NULL, *match2 = NULL;
+	const struct bsdtar_option *popt, *match = NULL, *match2 = NULL;
 	const char *p, *long_prefix = "--";
 	size_t optlength;
 	int opt = '?';
 	int required = 0;
 
-	bsdtar->optarg = NULL;
+	bsdtar->argument = NULL;
 
 	/* First time through, initialize everything. */
 	if (state == state_start) {
@@ -225,8 +225,8 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 			if (p == NULL)
 				return ('?');
 			if (p[1] == ':') {
-				bsdtar->optarg = *bsdtar->argv;
-				if (bsdtar->optarg == NULL) {
+				bsdtar->argument = *bsdtar->argv;
+				if (bsdtar->argument == NULL) {
 					lafe_warnc(0,
 					    "Option %c requires an argument",
 					    opt);
@@ -307,7 +307,7 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 				long_prefix = "-W "; /* For clearer errors. */
 			} else {
 				state = state_next_word;
-				bsdtar->optarg = opt_word;
+				bsdtar->argument = opt_word;
 			}
 		}
 	}
@@ -321,7 +321,7 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 		p = strchr(opt_word, '=');
 		if (p != NULL) {
 			optlength = (size_t)(p - opt_word);
-			bsdtar->optarg = (char *)(uintptr_t)(p + 1);
+			bsdtar->argument = (char *)(uintptr_t)(p + 1);
 		} else {
 			optlength = strlen(opt_word);
 		}
@@ -360,9 +360,9 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 		/* We've found a unique match; does it need an argument? */
 		if (match->required) {
 			/* Argument required: get next word if necessary. */
-			if (bsdtar->optarg == NULL) {
-				bsdtar->optarg = *bsdtar->argv;
-				if (bsdtar->optarg == NULL) {
+			if (bsdtar->argument == NULL) {
+				bsdtar->argument = *bsdtar->argv;
+				if (bsdtar->argument == NULL) {
 					lafe_warnc(0,
 					    "Option %s%s requires an argument",
 					    long_prefix, match->name);
@@ -373,7 +373,7 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 			}
 		} else {
 			/* Argument forbidden: fail if there is one. */
-			if (bsdtar->optarg != NULL) {
+			if (bsdtar->argument != NULL) {
 				lafe_warnc(0,
 				    "Option %s%s does not allow an argument",
 				    long_prefix, match->name);
