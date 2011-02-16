@@ -21,18 +21,18 @@ rm -rf /usr/obj`pwd`
 # Try to clean up a bit more...
 #
 
-find . -name '*.So' | xargs rm
-find . -name '*.a' | xargs rm
-find . -name '*.la' | xargs rm
-find . -name '*.lo' | xargs rm
-find . -name '*.o' | xargs rm
-find . -name '*.orig' | xargs rm
-find . -name '*.po' | xargs rm
-find . -name '*.rej' | xargs rm
-find . -name '*~' | xargs rm
-find . -name '.depend' | xargs rm
+find . -name '*.So' | xargs rm -f
+find . -name '*.a' | xargs rm -f
+find . -name '*.la' | xargs rm -f
+find . -name '*.lo' | xargs rm -f
+find . -name '*.o' | xargs rm -f
+find . -name '*.orig' | xargs rm -f
+find . -name '*.po' | xargs rm -f
+find . -name '*.rej' | xargs rm -f
+find . -name '*~' | xargs rm -f
+find . -name '.depend' | xargs rm -f
 find . -name '.deps' | xargs rm -rf
-find . -name '.dirstamp' | xargs rm
+find . -name '.dirstamp' | xargs rm -f
 find . -name '.libs' | xargs rm -rf
 
 rm -rf autom4te.cache
