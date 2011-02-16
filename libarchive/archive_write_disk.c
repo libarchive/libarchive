@@ -133,9 +133,11 @@ struct fixup_entry {
 	int64_t			 atime;
 	int64_t                  birthtime;
 	int64_t			 mtime;
+	int64_t			 ctime;
 	unsigned long		 atime_nanos;
 	unsigned long            birthtime_nanos;
 	unsigned long		 mtime_nanos;
+	unsigned long		 ctime_nanos;
 	unsigned long		 fflags_set;
 	size_t			 mac_metadata_size;
 	void			*mac_metadata;
@@ -282,7 +284,7 @@ static int	set_mode(struct archive_write_disk *, int mode);
 static int	set_time(int, int, const char *, time_t, long, time_t, long);
 #endif
 static int	set_times(struct archive_write_disk *, int, int, const char *,
-		    time_t, long, time_t, long, time_t, long);
+		    time_t, long, time_t, long, time_t, long, time_t, long);
 static int	set_times_from_entry(struct archive_write_disk *);
 static struct fixup_entry *sort_dir_list(struct fixup_entry *p);
 #if ARCHIVE_VERSION_NUMBER < 3000000
@@ -1405,7 +1407,8 @@ _archive_write_disk_close(struct archive *_a)
 			set_times(a, -1, p->mode, p->name,
 			    p->atime, p->atime_nanos,
 			    p->birthtime, p->birthtime_nanos,
-			    p->mtime, p->mtime_nanos);
+			    p->mtime, p->mtime_nanos,
+			    p->ctime, p->ctime_nanos);
 		}
 		if (p->fixup & TODO_MODE_BASE)
 			chmod(p->name, p->mode);
@@ -1985,7 +1988,8 @@ set_times(struct archive_write_disk *a,
     int fd, int mode, const char *name,
     time_t atime, long atime_nanos,
     time_t birthtime, long birthtime_nanos,
-    time_t mtime, long mtime_nanos)
+    time_t mtime, long mtime_nanos,
+    time_t ctime, long ctime_nanos)
 {
 #define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
 #define WINTIME(sec, nsec) ((Int32x32To64(sec, 10000000) + EPOC_TIME)\
@@ -2127,7 +2131,8 @@ set_times(struct archive_write_disk *a,
     int fd, int mode, const char *name,
     time_t atime, long atime_nanos,
     time_t birthtime, long birthtime_nanos,
-    time_t mtime, long mtime_nanos)
+    time_t mtime, long mtime_nanos,
+    time_t ctime, long ctime_nanos)
 {
 	/* Note: set_time doesn't use libarchive return conventions!
 	 * It uses syscall conventions.  So 0 here instead of ARCHIVE_OK. */
@@ -2164,12 +2169,12 @@ set_times(struct archive_write_disk *a,
 static int
 set_times_from_entry(struct archive_write_disk *a)
 {
-	time_t atime, birthtime, mtime;
-	long atime_nsec, birthtime_nsec, mtime_nsec;
+	time_t atime, birthtime, mtime, ctime;
+	long atime_nsec, birthtime_nsec, mtime_nsec, ctime_nsec;
 
 	/* Suitable defaults. */
-	atime = birthtime = mtime = a->start_time;
-	atime_nsec = birthtime_nsec = mtime_nsec = 0;
+	atime = birthtime = mtime = ctime = a->start_time;
+	atime_nsec = birthtime_nsec = mtime_nsec = ctime_nsec = 0;
 
 	/* If no time was provided, we're done. */
 	if (!archive_entry_atime_is_set(a->entry)
@@ -2191,11 +2196,16 @@ set_times_from_entry(struct archive_write_disk *a)
 		mtime = archive_entry_mtime(a->entry);
 		mtime_nsec = archive_entry_mtime_nsec(a->entry);
 	}
+	if (archive_entry_ctime_is_set(a->entry)) {
+		ctime = archive_entry_ctime(a->entry);
+		ctime_nsec = archive_entry_ctime_nsec(a->entry);
+	}
 
 	return set_times(a, a->fd, a->mode, a->name,
 			 atime, atime_nsec,
 			 birthtime, birthtime_nsec,
-			 mtime, mtime_nsec);
+			 mtime, mtime_nsec,
+			 ctime, ctime_nsec);
 }
 
 static int
