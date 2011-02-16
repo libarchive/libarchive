@@ -101,6 +101,9 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_disk.c 201159 2009-12-29 0
 #if defined(HAVE_WINIOCTL_H) && !defined(__CYGWIN__)
 #include <winioctl.h>
 #endif
+#ifdef F_GETTIMES /* Tru64 specific */
+#include <sys/fcntl1.h>
+#endif
 
 #if __APPLE__
 #include <TargetConditionals.h>
@@ -2126,6 +2129,28 @@ set_time(int fd, int mode, const char *name,
 #endif
 }
 
+#ifdef F_SETTIMES /* Tru64 */
+static int
+set_time_tru64(int fd, int mode, const char *name,
+    time_t atime, long atime_nsec,
+    time_t mtime, long mtime_nsec,
+    time_t ctime, long ctime_nsec)
+{
+	struct attr_timbuf tstamp;
+	struct timeval times[3];
+	times[0].tv_sec = atime;
+	times[0].tv_usec = atime_nsec / 1000;
+	times[1].tv_sec = mtime;
+	times[1].tv_usec = mtime_nsec / 1000;
+	times[2].tv_sec = ctime;
+	times[2].tv_usec = ctime_nsec / 1000;
+	tstamp.atime = times[0];
+	tstamp.mtime = times[1];
+	tstamp.ctime = times[2];
+	return (fcntl(fd,F_SETTIMES,&tstamp));
+}
+#endif /* Tru64 */
+
 static int
 set_times(struct archive_write_disk *a,
     int fd, int mode, const char *name,
@@ -2137,6 +2162,20 @@ set_times(struct archive_write_disk *a,
 	/* Note: set_time doesn't use libarchive return conventions!
 	 * It uses syscall conventions.  So 0 here instead of ARCHIVE_OK. */
 	int r1 = 0, r2 = 0;
+
+#ifdef F_SETTIMES
+	 /*
+	 * on Tru64 try own fcntl first which can restore even the
+	 * ctime, fall back to default code path below if it fails
+	 * or if we are not running as root
+	 */
+	if (a->user_uid == 0 &&
+	    set_time_tru64(fd, mode, name,
+			   atime, atime_nanos, mtime,
+			   mtime_nanos, ctime, ctime_nanos) == 0) {
+		return (ARCHIVE_OK);
+	}
+#endif /* Tru64 */
 
 #ifdef HAVE_STRUCT_STAT_ST_BIRTHTIME
 	/*
