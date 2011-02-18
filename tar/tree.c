@@ -305,8 +305,8 @@ tree_open(const char *path)
 	/* printf("Looking for wildcard in %s\n", path); */
 	/* TODO: wildcard detection here screws up on \\?\c:\ UNC names */
 	if (strchr(base, '*') || strchr(base, '?')) {
-		// It has a wildcard in it...
-		// Separate the last element.
+		/* It has a wildcard in it... */
+		/* Separate the last element. */
 		p = strrchr(base, '/');
 		if (p != NULL) {
 			*p = '\0';
@@ -428,13 +428,13 @@ tree_next(struct tree *t)
 					continue;
 				return (r);
 			}
-			// Not a pattern, handle it as-is...
+			/* Not a pattern, handle it as-is... */
 #endif
 			/* Top stack item needs a regular visit. */
 			t->current = t->stack;
 			tree_append(t, t->stack->name, strlen(t->stack->name));
-			//t->dirname_length = t->path_length;
-			//tree_pop(t);
+			/* t->dirname_length = t->path_length; */
+			/* tree_pop(t); */
 			t->stack->flags &= ~needsFirstVisit;
 			return (t->visit_type = TREE_REGULAR);
 		} else if (t->stack->flags & needsDescent) {

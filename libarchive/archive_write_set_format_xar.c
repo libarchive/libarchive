@@ -101,7 +101,7 @@ archive_write_set_format_xar(struct archive *_a)
 
 #else	/* Support xar format */
 
-//#define DEBUG_PRINT_TOC		1
+/*#define DEBUG_PRINT_TOC		1 */
 
 #define HEADER_MAGIC	0x78617221
 #define HEADER_SIZE	28

@@ -1974,8 +1974,8 @@ tree_next(struct tree *t)
 			t->current = t->stack;
 			tree_append(t, t->stack->name.s,
 			    archive_strlen(&(t->stack->name)));
-			//t->dirname_length = t->path_length;
-			//tree_pop(t);
+			/* t->dirname_length = t->path_length; */
+			/* tree_pop(t); */
 			t->stack->flags &= ~needsFirstVisit;
 			return (t->visit_type = TREE_REGULAR);
 		} else if (t->stack->flags & needsDescent) {

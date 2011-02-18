@@ -84,8 +84,8 @@ archive_read_support_format_xar(struct archive *_a)
 
 #else	/* Support xar format */
 
-//#define DEBUG 1
-//#define DEBUG_PRINT_TOC 1
+/* #define DEBUG 1 */
+/* #define DEBUG_PRINT_TOC 1 */
 #if DEBUG_PRINT_TOC
 #define PRINT_TOC(d, outbytes)	do {				\
 	unsigned char *x = (unsigned char *)(uintptr_t)d;	\
@@ -1141,7 +1141,7 @@ heap_add_entry(struct heap_queue *heap, struct xar_file *file)
 			heap->files[hole] = file;
 			return;
 		}
-		// Move parent into hole <==> move hole up tree.
+		/* Move parent into hole <==> move hole up tree. */
 		heap->files[hole] = heap->files[parent];
 		hole = parent;
 	}
@@ -1171,14 +1171,14 @@ heap_get_entry(struct heap_queue *heap)
 	/*
 	 * Rebalance the heap.
 	 */
-	a = 0; // Starting element and its heap key
+	a = 0; /* Starting element and its heap key */
 	a_id = heap->files[a]->id;
 	for (;;) {
-		b = a + a + 1; // First child
+		b = a + a + 1; /* First child */
 		if (b >= heap->used)
 			return (r);
 		b_id = heap->files[b]->id;
-		c = b + 1; // Use second child if it is smaller.
+		c = b + 1; /* Use second child if it is smaller. */
 		if (c < heap->used) {
 			c_id = heap->files[c]->id;
 			if (c_id < b_id) {

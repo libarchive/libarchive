@@ -285,7 +285,7 @@ setup_mac_metadata(struct archive_read_disk *a,
 		return (ARCHIVE_WARN);
 	}
 
-	// Short-circuit if there's nothing to do.
+	/* Short-circuit if there's nothing to do. */
 	have_attrs = copyfile(name, NULL, 0, copyfile_flags | COPYFILE_CHECK);
 	if (have_attrs == -1) {
 		archive_set_error(&a->archive, errno,
@@ -919,8 +919,8 @@ setup_sparse(struct archive_read_disk *a,
 {
 	int64_t size;
 	int initial_fd = fd;
-	off_t initial_off; // FreeBSD/Solaris only, so off_t okay here
-	off_t off_s, off_e; // FreeBSD/Solaris only, so off_t okay here
+	off_t initial_off; /* FreeBSD/Solaris only, so off_t okay here */
+	off_t off_s, off_e; /* FreeBSD/Solaris only, so off_t okay here */
 	int exit_sts = ARCHIVE_OK;
 
 	if (archive_entry_filetype(entry) != AE_IFREG

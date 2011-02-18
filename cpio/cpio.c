@@ -1280,8 +1280,9 @@ lookup_gname_helper(struct cpio *cpio, const char **name, id_t id)
 const char *
 cpio_i64toa(int64_t n0)
 {
-	// 2^64 =~ 1.8 * 10^19, so 20 decimal digits suffice.
-	// We also need 1 byte for '-' and 1 for '\0'.
+	/* 2^64 =~ 1.8 * 10^19, so 20 decimal digits suffice.
+	 * We also need 1 byte for '-' and 1 for '\0'.
+	 */
 	static char buff[22];
 	int64_t n = n0 < 0 ? -n0 : n0;
 	char *p = buff + sizeof(buff);

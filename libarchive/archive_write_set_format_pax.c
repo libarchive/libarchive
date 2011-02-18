@@ -524,7 +524,7 @@ archive_write_pax_header(struct archive_write *a,
 		name_length = strlen(oname);
 		name = malloc(name_length + 3);
 		if (name == NULL) {
-			// XXX error message
+			/* XXX error message */
 			return (ARCHIVE_FAILED);
 		}
 		strcpy(name, oname);
@@ -556,7 +556,7 @@ archive_write_pax_header(struct archive_write *a,
 		archive_entry_set_uid(extra, archive_entry_uid(entry_original));
 		archive_entry_set_uname(extra, archive_entry_uname(entry_original));
 
-		// Recurse to write the special copyfile entry.
+		/* Recurse to write the special copyfile entry. */
 		r = archive_write_pax_header(a, extra);
 		if (r < ARCHIVE_WARN)
 			return (r);

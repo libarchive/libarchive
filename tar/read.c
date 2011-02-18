@@ -334,7 +334,7 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 				fflush(stderr);
 			}
 
-			// TODO siginfo_printinfo(bsdtar, 0);
+			/* TODO siginfo_printinfo(bsdtar, 0); */
 
 			if (bsdtar->option_stdout)
 				r = archive_read_data_into_fd(a, 1);

@@ -2163,7 +2163,7 @@ register_CE(struct archive_read *a, int32_t location,
 			heap->reqs[hole].file = file;
 			return (ARCHIVE_OK);
 		}
-		// Move parent into hole <==> move hole up tree.
+		/* Move parent into hole <==> move hole up tree. */
 		heap->reqs[hole] = heap->reqs[parent];
 		hole = parent;
 	}
@@ -2190,14 +2190,14 @@ next_CE(struct read_ce_queue *heap)
 	/*
 	 * Rebalance the heap.
 	 */
-	a = 0; // Starting element and its offset
+	a = 0; /* Starting element and its offset */
 	a_offset = heap->reqs[a].offset;
 	for (;;) {
-		b = a + a + 1; // First child
+		b = a + a + 1; /* First child */
 		if (b >= heap->cnt)
 			return;
 		b_offset = heap->reqs[b].offset;
-		c = b + 1; // Use second child if it is smaller.
+		c = b + 1; /* Use second child if it is smaller. */
 		if (c < heap->cnt) {
 			c_offset = heap->reqs[c].offset;
 			if (c_offset < b_offset) {
@@ -2727,7 +2727,7 @@ heap_add_entry(struct heap_queue *heap, struct file_info *file, uint64_t key)
 			heap->files[hole] = file;
 			return;
 		}
-		// Move parent into hole <==> move hole up tree.
+		/* Move parent into hole <==> move hole up tree. */
 		heap->files[hole] = heap->files[parent];
 		hole = parent;
 	}
@@ -2757,14 +2757,14 @@ heap_get_entry(struct heap_queue *heap)
 	/*
 	 * Rebalance the heap.
 	 */
-	a = 0; // Starting element and its heap key
+	a = 0; /* Starting element and its heap key */
 	a_key = heap->files[a]->key;
 	for (;;) {
-		b = a + a + 1; // First child
+		b = a + a + 1; /* First child */
 		if (b >= heap->used)
 			return (r);
 		b_key = heap->files[b]->key;
-		c = b + 1; // Use second child if it is smaller.
+		c = b + 1; /* Use second child if it is smaller. */
 		if (c < heap->used) {
 			c_key = heap->files[c]->key;
 			if (c_key < b_key) {

@@ -1218,7 +1218,7 @@ __archive_read_filter_consume(struct archive_read_filter * filter,
 	if (skipped == request)
 		return (skipped);
 	/* We hit EOF before we satisfied the skip request. */
-	if (skipped < 0)  // Map error code to 0 for error message below.
+	if (skipped < 0)  /* Map error code to 0 for error message below. */
 		skipped = 0;
 	archive_set_error(&filter->archive->archive,
 	    ARCHIVE_ERRNO_MISC,

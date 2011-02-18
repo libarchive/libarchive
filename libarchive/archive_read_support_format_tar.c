@@ -383,9 +383,9 @@ tar_flush_unconsumed(struct archive_read *a, size_t *unconsumed)
 	if (*unconsumed) {
 /*
 		void *data = (void *)__archive_read_ahead(a, *unconsumed, NULL);
-		// this block of code is to poison claimed unconsumed space, ensuring
-		// things break if it is in use still.
-		// currently it WILL break things, so enable it only for debugging this issue
+		 * this block of code is to poison claimed unconsumed space, ensuring
+		 * things break if it is in use still.
+		 * currently it WILL break things, so enable it only for debugging this issue
 		if (data) {
 			memset(data, 0xff, *unconsumed);
 		}
@@ -695,7 +695,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 	 * extensions for both the AppleDouble extension entry and the
 	 * regular entry.
 	 */
-	// TODO: Should this be disabled on non-Mac platforms?
+	/* TODO: Should this be disabled on non-Mac platforms? */
 	if ((err == ARCHIVE_WARN || err == ARCHIVE_OK) &&
 	    tar->header_recursion_depth == 0) {
 		int err2 = read_mac_metadata_blob(a, tar, entry, h, unconsumed);
@@ -1184,14 +1184,16 @@ read_mac_metadata_blob(struct archive_read *a, struct tar *tar,
 
 	(void)h; /* UNUSED */
 
-	// Find the last path element.
+	/* Find the last path element. */
 	name = p = archive_entry_pathname(entry);
 	for (; *p != '\0'; ++p) {
 		if (p[0] == '/' && p[1] != '\0')
 			name = p + 1;
 	}
-	// If last path element starts with "._", then
-	// this is a Mac extension.
+	/* 
+	 * If last path element starts with "._", then
+	 * this is a Mac extension.
+	 */
 	if (name[0] != '.' || name[1] != '_' || name[2] == '\0')
 		return ARCHIVE_OK;
 

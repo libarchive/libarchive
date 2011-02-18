@@ -139,11 +139,11 @@ __archive_check_magic(struct archive *a, unsigned int magic,
 			    write_all_states(states2, state));
 		a->state = ARCHIVE_STATE_FATAL;
 #if ARCHIVE_VERSION_NUMBER < 3000000
-		// XXXX This should be identical to the old behavior.
+		/* XXXX This should be identical to the old behavior. */
 		errmsg(archive_error_string(a));
 		diediedie();
 #else
-		// XXXX This is the proposed new behavior.
+		/* XXXX This is the proposed new behavior. */
 		return (ARCHIVE_FATAL);
 #endif
 	}
