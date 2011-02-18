@@ -49,6 +49,9 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk_entry_from_file.c 2010
 #ifdef HAVE_SYS_XATTR_H
 #include <sys/xattr.h>
 #endif
+#ifdef HAVE_SYS_XATTR_H
+#include <sys/ea.h>
+#endif
 #ifdef HAVE_ACL_LIBACL_H
 #include <acl/libacl.h>
 #endif
@@ -484,11 +487,12 @@ setup_acls_posix1e(struct archive_read_disk *a,
 }
 #endif
 
-#if HAVE_FGETXATTR && HAVE_FLISTXATTR && HAVE_LISTXATTR && \
-    HAVE_LLISTXATTR && HAVE_GETXATTR && HAVE_LGETXATTR
+#if (HAVE_FGETXATTR && HAVE_FLISTXATTR && HAVE_LISTXATTR && \
+    HAVE_LLISTXATTR && HAVE_GETXATTR && HAVE_LGETXATTR) || \
+    (HAVE_FGETEA && HAVE_FLISTEA && HAVE_LISTEA)
 
 /*
- * Linux extended attribute support.
+ * Linux and AIX extended attribute support.
  *
  * TODO:  By using a stack-allocated buffer for the first
  * call to getxattr(), we might be able to avoid the second
@@ -511,12 +515,21 @@ setup_xattr(struct archive_read_disk *a,
 	if (accpath == NULL)
 		accpath = archive_entry_pathname(entry);
 
+#if HAVE_FGETXATTR
 	if (fd >= 0)
 		size = fgetxattr(fd, name, NULL, 0);
 	else if (!a->follow_symlinks)
 		size = lgetxattr(accpath, name, NULL, 0);
 	else
 		size = getxattr(accpath, name, NULL, 0);
+#elif HAVE_FGETEA
+	if (fd >= 0)
+		size = fgetea(fd, name, NULL, 0);
+	else if (!a->follow_symlinks)
+		size = lgetea(accpath, name, NULL, 0);
+	else
+		size = getea(accpath, name, NULL, 0);
+#endif
 
 	if (size == -1) {
 		archive_set_error(&a->archive, errno,
@@ -529,12 +542,21 @@ setup_xattr(struct archive_read_disk *a,
 		return (ARCHIVE_FATAL);
 	}
 
+#if HAVE_FGETXATTR
 	if (fd >= 0)
 		size = fgetxattr(fd, name, value, size);
 	else if (!a->follow_symlinks)
 		size = lgetxattr(accpath, name, value, size);
 	else
 		size = getxattr(accpath, name, value, size);
+#elif HAVE_FGETEA
+	if (fd >= 0)
+		size = fgetea(fd, name, value, size);
+	else if (!a->follow_symlinks)
+		size = lgetea(accpath, name, value, size);
+	else
+		size = getea(accpath, name, value, size);
+#endif
 
 	if (size == -1) {
 		archive_set_error(&a->archive, errno,
@@ -560,12 +582,21 @@ setup_xattrs(struct archive_read_disk *a,
 	if (path == NULL)
 		path = archive_entry_pathname(entry);
 
+#if HAVE_FLISTXATTR
 	if (fd >= 0)
 		list_size = flistxattr(fd, NULL, 0);
 	else if (!a->follow_symlinks)
 		list_size = llistxattr(path, NULL, 0);
 	else
 		list_size = listxattr(path, NULL, 0);
+#elif HAVE_FLISTEA
+	if (fd >= 0)
+		list_size = flistea(fd, NULL, 0);
+	else if (!a->follow_symlinks)
+		list_size = llistea(path, NULL, 0);
+	else
+		list_size = listea(path, NULL, 0);
+#endif
 
 	if (list_size == -1) {
 		if (errno == ENOTSUP || errno == ENOSYS)
@@ -583,12 +614,21 @@ setup_xattrs(struct archive_read_disk *a,
 		return (ARCHIVE_FATAL);
 	}
 
+#if HAVE_FLISTXATTR
 	if (fd >= 0)
 		list_size = flistxattr(fd, list, list_size);
 	else if (!a->follow_symlinks)
 		list_size = llistxattr(path, list, list_size);
 	else
 		list_size = listxattr(path, list, list_size);
+#elif HAVE_FLISTEA
+	if (fd >= 0)
+		list_size = flistea(fd, list, list_size);
+	else if (!a->follow_symlinks)
+		list_size = llistea(path, list, list_size);
+	else
+		list_size = listea(path, list, list_size);
+#endif
 
 	if (list_size == -1) {
 		archive_set_error(&a->archive, errno,

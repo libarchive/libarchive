@@ -39,6 +39,9 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_disk.c 201159 2009-12-29 0
 #ifdef HAVE_SYS_XATTR_H
 #include <sys/xattr.h>
 #endif
+#ifdef HAVE_SYS_XATTR_H
+#include <sys/ea.h>
+#endif
 #ifdef HAVE_ATTR_XATTR_H
 #include <attr/xattr.h>
 #endif
@@ -2743,9 +2746,10 @@ set_acl(struct archive_write_disk *a, int fd, const char *name,
 }
 #endif
 
-#if HAVE_LSETXATTR
+#if HAVE_LSETXATTR || HAVE_LSETEA
 /*
- * Restore extended attributes -  Linux implementation
+ * Restore extended attributes -  Linux and AIX implementations:
+ * AIX' ea interface is syntaxwise identical to the Linux xattr interface.
  */
 static int
 set_xattrs(struct archive_write_disk *a)
@@ -2768,10 +2772,19 @@ set_xattrs(struct archive_write_disk *a)
 			if (a->fd >= 0)
 				e = fsetxattr(a->fd, name, value, size, 0);
 			else
+#elif HAVE_FSETEA
+			if (a->fd >= 0)
+				e = fsetea(a->fd, name, value, size, 0);
+			else
 #endif
 			{
+#if HAVE_LSETXATTR
 				e = lsetxattr(archive_entry_pathname(entry),
 				    name, value, size, 0);
+#elif HAVE_LSETEA
+				e = lsetea(archive_entry_pathname(entry),
+				    name, value, size, 0);
+#endif
 			}
 			if (e == -1) {
 				if (errno == ENOTSUP || errno == ENOSYS) {
