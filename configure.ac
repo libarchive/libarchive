@@ -474,12 +474,14 @@ AC_ARG_ENABLE([xattr],
 
 if test "x$enable_xattr" != "xno"; then
 	AC_CHECK_HEADERS([attr/xattr.h])
-	AC_CHECK_HEADERS([sys/xattr.h])
+	AC_CHECK_HEADERS([sys/xattr.h sys/ea.h])
 	AC_CHECK_LIB(attr,setxattr)
 	AC_CHECK_FUNCS([extattr_get_file extattr_list_file])
 	AC_CHECK_FUNCS([extattr_set_fd extattr_set_file])
 	AC_CHECK_FUNCS([fgetxattr flistxattr fsetxattr getxattr])
 	AC_CHECK_FUNCS([lgetxattr listxattr llistxattr lsetxattr])
+	AC_CHECK_FUNCS([fgetea flistea fsetea getea])
+	AC_CHECK_FUNCS([lgetea listea llistea lsetea])
 	AC_CHECK_DECLS([EXTATTR_NAMESPACE_USER], [], [], [#include <sys/types.h>
 #include <sys/extattr.h>
 ])
