@@ -414,8 +414,14 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `fdopendir' function. */
 #cmakedefine HAVE_FDOPENDIR 1
 
+/* Define to 1 if you have the `fgetea' function. */
+#cmakedefine HAVE_FGETEA 1
+
 /* Define to 1 if you have the `fgetxattr' function. */
 #cmakedefine HAVE_FGETXATTR 1
+
+/* Define to 1 if you have the `flistea' function. */
+#cmakedefine HAVE_FLISTEA 1
 
 /* Define to 1 if you have the `flistxattr' function. */
 #cmakedefine HAVE_FLISTXATTR 1
@@ -425,6 +431,9 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if fseeko (and presumably ftello) exists and is declared. */
 #cmakedefine HAVE_FSEEKO 1
+
+/* Define to 1 if you have the `fsetea' function. */
+#cmakedefine HAVE_FSETEA 1
 
 /* Define to 1 if you have the `fsetxattr' function. */
 #cmakedefine HAVE_FSETXATTR 1
@@ -471,6 +480,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `getvfsbyname' function. */
 #cmakedefine HAVE_GETVFSBYNAME 1
 
+/* Define to 1 if you have the `getea' function. */
+#cmakedefine HAVE_GETEA 1
+
 /* Define to 1 if you have the `getxattr' function. */
 #cmakedefine HAVE_GETXATTR 1
 
@@ -500,6 +512,9 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the `lchown' function. */
 #cmakedefine HAVE_LCHOWN 1
+
+/* Define to 1 if you have the `lgetea' function. */
+#cmakedefine HAVE_LGETEA 1
 
 /* Define to 1 if you have the `lgetxattr' function. */
 #cmakedefine HAVE_LGETXATTR 1
@@ -552,8 +567,14 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <linux/magic.h> header file. */
 #cmakedefine HAVE_LINUX_MAGIC_H 1
 
+/* Define to 1 if you have the `listea' function. */
+#cmakedefine HAVE_LISTEA 1
+
 /* Define to 1 if you have the `listxattr' function. */
 #cmakedefine HAVE_LISTXATTR 1
+
+/* Define to 1 if you have the `llistea' function. */
+#cmakedefine HAVE_LLISTEA 1
 
 /* Define to 1 if you have the `llistxattr' function. */
 #cmakedefine HAVE_LLISTXATTR 1
@@ -566,6 +587,9 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if the system has the type `long long int'. */
 #cmakedefine HAVE_LONG_LONG_INT 1
+
+/* Define to 1 if you have the `lsetea' function. */
+#cmakedefine HAVE_LSETEA 1
 
 /* Define to 1 if you have the `lsetxattr' function. */
 #cmakedefine HAVE_LSETXATTR 1
@@ -749,6 +773,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <sys/dir.h> header file, and it defines `DIR'.
    */
 #cmakedefine HAVE_SYS_DIR_H 1
+
+/* Define to 1 if you have the <sys/ea.h> header file. */
+#cmakedefine HAVE_SYS_EA_H 1
 
 /* Define to 1 if you have the <sys/extattr.h> header file. */
 #cmakedefine HAVE_SYS_EXTATTR_H 1
