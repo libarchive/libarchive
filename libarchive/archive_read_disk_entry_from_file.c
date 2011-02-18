@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk_entry_from_file.c 2010
 #ifdef HAVE_SYS_XATTR_H
 #include <sys/xattr.h>
 #endif
-#ifdef HAVE_SYS_XATTR_H
+#ifdef HAVE_SYS_EA_H
 #include <sys/ea.h>
 #endif
 #ifdef HAVE_ACL_LIBACL_H

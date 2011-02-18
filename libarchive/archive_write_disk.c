@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_disk.c 201159 2009-12-29 0
 #ifdef HAVE_SYS_XATTR_H
 #include <sys/xattr.h>
 #endif
-#ifdef HAVE_SYS_XATTR_H
+#ifdef HAVE_SYS_EA_H
 #include <sys/ea.h>
 #endif
 #ifdef HAVE_ATTR_XATTR_H
