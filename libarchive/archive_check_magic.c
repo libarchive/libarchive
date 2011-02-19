@@ -86,6 +86,18 @@ state_name(unsigned s)
 	}
 }
 
+static const char *
+archive_handle_type_name(unsigned m)
+{
+	switch (m) {
+	case ARCHIVE_WRITE_MAGIC:	return ("archive_write");
+	case ARCHIVE_READ_MAGIC:	return ("archive_read");
+	case ARCHIVE_WRITE_DISK_MAGIC:	return ("archive_write_disk");
+	case ARCHIVE_READ_DISK_MAGIC:	return ("archive_read_disk");
+	default:			return NULL;
+	}
+}
+
 
 static char *
 write_all_states(char *buff, unsigned int states)
@@ -119,12 +131,30 @@ __archive_check_magic(struct archive *a, unsigned int magic,
 {
 	char states1[64];
 	char states2[64];
+	const char *handle_type;
 
-	if (a->magic != magic) {
+	/*
+	 * If this isn't some form of archive handle,
+	 * then the library user has screwed up so bad that
+	 * we don't even have a reliable way to report an error.
+	 */
+	handle_type = archive_handle_type_name(a->magic);
+
+	if (!handle_type) {
 		errmsg("PROGRAMMER ERROR: Function ");
 		errmsg(function);
 		errmsg(" invoked with invalid archive handle.\n");
 		diediedie();
+	}
+
+	if (a->magic != magic) {
+		archive_set_error(a, -1,
+		    "PROGRAMMER ERROR: Function '%s' invoked"
+		    " on '%s' archive object, which is not supported.",
+		    function,
+		    handle_type);
+		a->state = ARCHIVE_STATE_FATAL;
+		return (ARCHIVE_FATAL);
 	}
 
 	if ((a->state & state) == 0) {
@@ -138,14 +168,7 @@ __archive_check_magic(struct archive *a, unsigned int magic,
 			    write_all_states(states1, a->state),
 			    write_all_states(states2, state));
 		a->state = ARCHIVE_STATE_FATAL;
-#if ARCHIVE_VERSION_NUMBER < 3000000
-		/* XXXX This should be identical to the old behavior. */
-		errmsg(archive_error_string(a));
-		diediedie();
-#else
-		/* XXXX This is the proposed new behavior. */
 		return (ARCHIVE_FATAL);
-#endif
 	}
 	return ARCHIVE_OK;
 }
