@@ -175,6 +175,7 @@ archive_set_error(struct archive *a, int error_number, const char *fmt, ...)
 		return;
 	}
 
+	archive_string_empty(&(a->error_string));
 	va_start(ap, fmt);
 	archive_string_vsprintf(&(a->error_string), fmt, ap);
 	va_end(ap);
