@@ -270,6 +270,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_open_file.c			\
 	libarchive/test/test_open_filename.c			\
 	libarchive/test/test_pax_filename_encoding.c		\
+	libarchive/test/test_pax_filename_encoding_freebsd.c	\
 	libarchive/test/test_read_compress_program.c		\
 	libarchive/test/test_read_data_large.c			\
 	libarchive/test/test_read_disk.c			\
