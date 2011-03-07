@@ -1458,6 +1458,7 @@ _archive_write_disk_free(struct archive *_a)
 	archive_string_free(&a->archive.error_string);
 	archive_string_free(&a->path_safe);
 	a->archive.magic = 0;
+	__archive_clean(&a->archive);
 	free(a);
 	return (ret);
 }

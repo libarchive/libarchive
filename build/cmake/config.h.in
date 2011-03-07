@@ -492,6 +492,12 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <grp.h> header file. */
 #cmakedefine HAVE_GRP_H 1
 
+/* Define to 1 if you have the `iconv' function. */
+#cmakedefine HAVE_ICONV 1
+
+/* Define to 1 if you have the <iconv.h> header file. */
+#cmakedefine HAVE_ICONV_H 1
+
 /* Define to 1 if you have the <inttypes.h> header file. */
 #cmakedefine HAVE_INTTYPES_H 1
 

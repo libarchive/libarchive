@@ -525,8 +525,8 @@ cab_read_ahead_remaining(struct archive_read *a, size_t min, ssize_t *avail)
 
 /* Convert a path separator '\' -> '/' */
 static void
-cab_convert_path_separator(struct cab *cab, struct archive_string *pathname,
-    unsigned char attr)
+cab_convert_path_separator(struct archive_read *a, struct cab *cab,
+    struct archive_string *pathname, unsigned char attr)
 {
 	int l, r;
 
@@ -534,7 +534,7 @@ cab_convert_path_separator(struct cab *cab, struct archive_string *pathname,
 		return;
 
 	if ((attr & ATTR_NAME_IS_UTF) != 0 ||
-	    archive_wstrcpy_mbs(&(cab->ws), pathname) != 0) {
+	    archive_wstrcpy_mbs(&a->archive, &(cab->ws), pathname) != 0) {
 		for (l = 0; pathname->s[l] != '\0'; l++) {
 			if (pathname->s[l] == '\\')
 				pathname->s[l] = '/';
@@ -551,7 +551,7 @@ cab_convert_path_separator(struct cab *cab, struct archive_string *pathname,
 	}
 	if (r) {
 		archive_string_empty(&cab->mbs);
-		archive_strappend_w_mbs(&cab->mbs, cab->ws.s);
+		archive_strappend_w_mbs(&a->archive, &cab->mbs, cab->ws.s);
 		/* If mbs length is different to pathname, we broke the
 		 * pathname. We shouldn't use it. */
 		if (archive_strlen(&cab->mbs) == archive_strlen(pathname))
@@ -756,8 +756,7 @@ cab_read_header(struct archive_read *a)
 		__archive_read_consume(a, len + 1);
 		cab->cab_offset += len + 1;
 		/* Convert a path separator '\' -> '/' */
-		cab_convert_path_separator(cab, &(file->pathname),
-		    file->attr);
+		cab_convert_path_separator(a, cab, &(file->pathname), file->attr);
 
 		/*
 		 * Sanity check if each data is acceptable.

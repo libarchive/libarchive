@@ -47,36 +47,18 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_util.c 201098 2009-12-28 02:58:1
 #include "archive_private.h"
 #include "archive_string.h"
 
-#if ARCHIVE_VERSION_NUMBER < 3000000
-/* These disappear in libarchive 3.0 */
-/* Deprecated. */
-int
-archive_api_feature(void)
+/* Generic initialization of 'struct archive' objects. */
+void
+__archive_clean(struct archive *a)
 {
-	return (ARCHIVE_API_FEATURE);
-}
-
-/* Deprecated. */
-int
-archive_api_version(void)
-{
-	return (ARCHIVE_API_VERSION);
-}
-
-/* Deprecated synonym for archive_version_number() */
-int
-archive_version_stamp(void)
-{
-	return (archive_version_number());
-}
-
-/* Deprecated synonym for archive_version_string() */
-const char *
-archive_version(void)
-{
-	return (archive_version_string());
-}
+#if HAVE_ICONV
+	free(a->current_code);
+	if (a->unicode_to_current != (iconv_t)0)
+		iconv_close(a->unicode_to_current);
+	if (a->current_to_unicode != (iconv_t)0)
+		iconv_close(a->current_to_unicode);
 #endif
+}
 
 int
 archive_version_number(void)

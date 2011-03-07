@@ -669,7 +669,7 @@ archive_read_format_lha_read_header(struct archive_read *a,
  * set for a filename in an archive.
  */
 static void
-lha_replace_path_separator(struct lha *lha, struct archive_string *fn)
+lha_replace_path_separator(struct archive_read *a, struct lha *lha, struct archive_string *fn)
 {
 	size_t i;
 
@@ -688,7 +688,7 @@ lha_replace_path_separator(struct lha *lha, struct archive_string *fn)
 	 */
 
 	/* If converting to wide character failed, force a replacement. */
-	if (!archive_wstrcpy_mbs(&(lha->ws), fn)) {
+	if (!archive_wstrcpy_mbs(&a->archive, &(lha->ws), fn)) {
 		for (i = 0; i < archive_strlen(fn); i++) {
 			if (fn->s[i] == '\\')
 				fn->s[i] = '/';
@@ -705,7 +705,7 @@ lha_replace_path_separator(struct lha *lha, struct archive_string *fn)
 	 * Sanity check that we surely did not break a filename.
 	 */
 	archive_string_empty(&(lha->mbs));
-	archive_strappend_w_mbs(&(lha->mbs), lha->ws.s);
+	archive_strappend_w_mbs(&a->archive, &(lha->mbs), lha->ws.s);
 	/* If mbs length is different to fn, we broke the
 	 * filename and we shouldn't use it. */
 	if (archive_strlen(&(lha->mbs)) == archive_strlen(fn))
@@ -768,7 +768,7 @@ lha_read_file_header_0(struct archive_read *a, struct lha *lha)
 		return (truncated_error(a));
 
 	archive_strncpy(&lha->filename, p + H0_FILE_NAME_OFFSET, namelen);
-	lha_replace_path_separator(lha, &lha->filename);
+	lha_replace_path_separator(a, lha, &lha->filename);
 	lha->crc = archive_le16dec(p + H0_FILE_NAME_OFFSET + namelen);
 	sum_calculated = lha_calcsum(0, p, 2, lha->header_size - 2);
 

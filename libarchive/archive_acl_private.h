@@ -56,14 +56,14 @@ void archive_acl_clear(struct archive_acl *);
 void archive_acl_copy(struct archive_acl *, struct archive_acl *);
 int archive_acl_count(struct archive_acl *, int);
 int archive_acl_reset(struct archive_acl *, int);
-int archive_acl_next(struct archive_acl *, int,
+int archive_acl_next(struct archive *, struct archive_acl *, int,
     int *, int *, int *, int *, const char **);
 
 int archive_acl_add_entry(struct archive_acl *, int, int, int, int, const char *);
 int archive_acl_add_entry_w_len(struct archive_acl *,
     int, int, int, int, const wchar_t *, size_t);
 
-const wchar_t *archive_acl_text_w(struct archive_acl *, int);
+const wchar_t *archive_acl_text_w(struct archive *, struct archive_acl *, int);
 
 /*
  * Private ACL parser.  This is private because it handles some

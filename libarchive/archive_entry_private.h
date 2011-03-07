@@ -71,6 +71,8 @@ struct ae_sparse {
  * TODO: Design a good API for handling sparse files.
  */
 struct archive_entry {
+	struct archive *archive;
+
 	/*
 	 * Note that ae_stat.st_mode & AE_IFMT  can be  0!
 	 *

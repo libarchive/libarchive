@@ -180,13 +180,17 @@ archive_entry_clone(struct archive_entry *entry)
 	const void *p;
 
 	/* Allocate new structure and copy over all of the fields. */
-	entry2 = archive_entry_new();
+	/* TODO: Should we copy the archive over?  Or require a new archive
+	 * as an argument? */
+	entry2 = archive_entry_new2(entry->archive);
 	if (entry2 == NULL)
 		return (NULL);
 	entry2->ae_stat = entry->ae_stat;
 	entry2->ae_fflags_set = entry->ae_fflags_set;
 	entry2->ae_fflags_clear = entry->ae_fflags_clear;
 
+	/* TODO: XXX If clone can have a different archive, what do we do here if
+	 * character sets are different? XXX */
 	archive_mstring_copy(&entry2->ae_fflags_text, &entry->ae_fflags_text);
 	archive_mstring_copy(&entry2->ae_gname, &entry->ae_gname);
 	archive_mstring_copy(&entry2->ae_hardlink, &entry->ae_hardlink);
@@ -232,12 +236,19 @@ archive_entry_free(struct archive_entry *entry)
 struct archive_entry *
 archive_entry_new(void)
 {
+	return archive_entry_new2(NULL);
+}
+
+struct archive_entry *
+archive_entry_new2(struct archive *a)
+{
 	struct archive_entry *entry;
 
 	entry = (struct archive_entry *)malloc(sizeof(*entry));
 	if (entry == NULL)
 		return (NULL);
 	memset(entry, 0, sizeof(*entry));
+	entry->archive = a;
 	return (entry);
 }
 
@@ -356,7 +367,7 @@ archive_entry_fflags_text(struct archive_entry *entry)
 	const char *f;
 	char *p;
 
-	f = archive_mstring_get_mbs(&entry->ae_fflags_text);
+	f = archive_mstring_get_mbs(entry->archive, &entry->ae_fflags_text);
 	if (f != NULL)
 		return (f);
 
@@ -369,7 +380,7 @@ archive_entry_fflags_text(struct archive_entry *entry)
 
 	archive_mstring_copy_mbs(&entry->ae_fflags_text, p);
 	free(p);
-	f = archive_mstring_get_mbs(&entry->ae_fflags_text);
+	f = archive_mstring_get_mbs(entry->archive, &entry->ae_fflags_text);
 	return (f);
 }
 
@@ -387,20 +398,20 @@ archive_entry_gid(struct archive_entry *entry)
 const char *
 archive_entry_gname(struct archive_entry *entry)
 {
-	return (archive_mstring_get_mbs(&entry->ae_gname));
+	return (archive_mstring_get_mbs(entry->archive, &entry->ae_gname));
 }
 
 const wchar_t *
 archive_entry_gname_w(struct archive_entry *entry)
 {
-	return (archive_mstring_get_wcs(&entry->ae_gname));
+	return (archive_mstring_get_wcs(entry->archive, &entry->ae_gname));
 }
 
 const char *
 archive_entry_hardlink(struct archive_entry *entry)
 {
 	if (entry->ae_set & AE_SET_HARDLINK)
-		return (archive_mstring_get_mbs(&entry->ae_hardlink));
+		return (archive_mstring_get_mbs(entry->archive, &entry->ae_hardlink));
 	return (NULL);
 }
 
@@ -408,7 +419,7 @@ const wchar_t *
 archive_entry_hardlink_w(struct archive_entry *entry)
 {
 	if (entry->ae_set & AE_SET_HARDLINK)
-		return (archive_mstring_get_wcs(&entry->ae_hardlink));
+		return (archive_mstring_get_wcs(entry->archive, &entry->ae_hardlink));
 	return (NULL);
 }
 
@@ -465,13 +476,13 @@ archive_entry_nlink(struct archive_entry *entry)
 const char *
 archive_entry_pathname(struct archive_entry *entry)
 {
-	return (archive_mstring_get_mbs(&entry->ae_pathname));
+	return (archive_mstring_get_mbs(entry->archive, &entry->ae_pathname));
 }
 
 const wchar_t *
 archive_entry_pathname_w(struct archive_entry *entry)
 {
-	return (archive_mstring_get_wcs(&entry->ae_pathname));
+	return (archive_mstring_get_wcs(entry->archive, &entry->ae_pathname));
 }
 
 mode_t
@@ -523,14 +534,14 @@ archive_entry_size_is_set(struct archive_entry *entry)
 const char *
 archive_entry_sourcepath(struct archive_entry *entry)
 {
-	return (archive_mstring_get_mbs(&entry->ae_sourcepath));
+	return (archive_mstring_get_mbs(entry->archive, &entry->ae_sourcepath));
 }
 
 const char *
 archive_entry_symlink(struct archive_entry *entry)
 {
 	if (entry->ae_set & AE_SET_SYMLINK)
-		return (archive_mstring_get_mbs(&entry->ae_symlink));
+		return (archive_mstring_get_mbs(entry->archive, &entry->ae_symlink));
 	return (NULL);
 }
 
@@ -538,7 +549,7 @@ const wchar_t *
 archive_entry_symlink_w(struct archive_entry *entry)
 {
 	if (entry->ae_set & AE_SET_SYMLINK)
-		return (archive_mstring_get_wcs(&entry->ae_symlink));
+		return (archive_mstring_get_wcs(entry->archive, &entry->ae_symlink));
 	return (NULL);
 }
 
@@ -556,13 +567,13 @@ archive_entry_uid(struct archive_entry *entry)
 const char *
 archive_entry_uname(struct archive_entry *entry)
 {
-	return (archive_mstring_get_mbs(&entry->ae_uname));
+	return (archive_mstring_get_mbs(entry->archive, &entry->ae_uname));
 }
 
 const wchar_t *
 archive_entry_uname_w(struct archive_entry *entry)
 {
-	return (archive_mstring_get_wcs(&entry->ae_uname));
+	return (archive_mstring_get_wcs(entry->archive, &entry->ae_uname));
 }
 
 /*
@@ -637,7 +648,7 @@ archive_entry_copy_gname_w(struct archive_entry *entry, const wchar_t *name)
 int
 archive_entry_update_gname_utf8(struct archive_entry *entry, const char *name)
 {
-	return (archive_mstring_update_utf8(&entry->ae_gname, name));
+	return (archive_mstring_update_utf8(entry->archive, &entry->ae_gname, name));
 }
 
 #if ARCHIVE_VERSION_NUMBER < 3000000
@@ -700,7 +711,7 @@ archive_entry_update_hardlink_utf8(struct archive_entry *entry, const char *targ
 		entry->ae_set |= AE_SET_HARDLINK;
 	else
 		entry->ae_set &= ~AE_SET_HARDLINK;
-	return (archive_mstring_update_utf8(&entry->ae_hardlink, target));
+	return (archive_mstring_update_utf8(entry->archive, &entry->ae_hardlink, target));
 }
 
 void
@@ -812,9 +823,9 @@ int
 archive_entry_update_link_utf8(struct archive_entry *entry, const char *target)
 {
 	if (entry->ae_set & AE_SET_SYMLINK)
-		return (archive_mstring_update_utf8(&entry->ae_symlink, target));
+		return (archive_mstring_update_utf8(entry->archive, &entry->ae_symlink, target));
 	else
-		return (archive_mstring_update_utf8(&entry->ae_hardlink, target));
+		return (archive_mstring_update_utf8(entry->archive, &entry->ae_hardlink, target));
 }
 
 void
@@ -869,7 +880,7 @@ archive_entry_copy_pathname_w(struct archive_entry *entry, const wchar_t *name)
 int
 archive_entry_update_pathname_utf8(struct archive_entry *entry, const char *name)
 {
-	return (archive_mstring_update_utf8(&entry->ae_pathname, name));
+	return (archive_mstring_update_utf8(entry->archive, &entry->ae_pathname, name));
 }
 
 void
@@ -962,7 +973,7 @@ archive_entry_update_symlink_utf8(struct archive_entry *entry, const char *linkn
 		entry->ae_set |= AE_SET_SYMLINK;
 	else
 		entry->ae_set &= ~AE_SET_SYMLINK;
-	return (archive_mstring_update_utf8(&entry->ae_symlink, linkname));
+	return (archive_mstring_update_utf8(entry->archive, &entry->ae_symlink, linkname));
 }
 
 #if ARCHIVE_VERSION_NUMBER < 3000000
@@ -998,7 +1009,7 @@ archive_entry_copy_uname_w(struct archive_entry *entry, const wchar_t *name)
 int
 archive_entry_update_uname_utf8(struct archive_entry *entry, const char *name)
 {
-	return (archive_mstring_update_utf8(&entry->ae_uname, name));
+	return (archive_mstring_update_utf8(entry->archive, &entry->ae_uname, name));
 }
 
 const void *
@@ -1095,7 +1106,7 @@ int
 archive_entry_acl_next(struct archive_entry *entry, int want_type, int *type,
     int *permset, int *tag, int *id, const char **name)
 {
-	return archive_acl_next(&entry->acl, want_type, type, permset, tag, id, name);
+	return archive_acl_next(entry->archive, &entry->acl, want_type, type, permset, tag, id, name);
 }
 
 /*
@@ -1105,7 +1116,7 @@ archive_entry_acl_next(struct archive_entry *entry, int want_type, int *type,
 const wchar_t *
 archive_entry_acl_text_w(struct archive_entry *entry, int flags)
 {
-	return archive_acl_text_w(&entry->acl, flags);
+	return archive_acl_text_w(entry->archive, &entry->acl, flags);
 }
 
 /*

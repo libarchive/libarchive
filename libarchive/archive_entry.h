@@ -125,6 +125,7 @@ extern "C" {
  * applications (e.g., a package manager could attach special
  * package-management attributes to each entry).
  */
+struct archive;
 struct archive_entry;
 
 /*
@@ -166,6 +167,15 @@ __LA_DECL struct archive_entry	*archive_entry_clear(struct archive_entry *);
 __LA_DECL struct archive_entry	*archive_entry_clone(struct archive_entry *);
 __LA_DECL void			 archive_entry_free(struct archive_entry *);
 __LA_DECL struct archive_entry	*archive_entry_new(void);
+
+/*
+ * This form of archive_entry_new2() will pull character-set
+ * conversion information from the specified archive handle.  The
+ * older archive_entry_new(void) form is equivalent to calling
+ * archive_entry_new2(NULL) and will result in the use of an internal
+ * default character-set conversion.
+ */
+__LA_DECL struct archive_entry	*archive_entry_new2(struct archive *);
 
 /*
  * Retrieve fields from an archive_entry.

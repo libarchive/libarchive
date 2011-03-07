@@ -141,7 +141,7 @@ archive_string_vsprintf(struct archive_string *as, const char *fmt,
 			switch(long_flag) {
 			case 'l':
 				pw = va_arg(ap, wchar_t *);
-				archive_strappend_w_mbs(as, pw);
+				archive_strappend_w_mbs(NULL, as, pw);
 				break;
 			default:
 				p2 = va_arg(ap, char *);
@@ -151,7 +151,7 @@ archive_string_vsprintf(struct archive_string *as, const char *fmt,
 			break;
 		case 'S':
 			pw = va_arg(ap, wchar_t *);
-			archive_strappend_w_mbs(as, pw);
+			archive_strappend_w_mbs(NULL, as, pw);
 			break;
 		case 'o': case 'u': case 'x': case 'X':
 			/* Common handling for unsigned integer formats. */

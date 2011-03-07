@@ -490,6 +490,7 @@ _archive_read_free(struct archive *_a)
 		(a->cleanup_uname)(a->lookup_uname_data);
 	archive_string_free(&a->archive.error_string);
 	a->archive.magic = 0;
+	__archive_clean(&a->archive);
 	free(a);
 	return (r);
 }

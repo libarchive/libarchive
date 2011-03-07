@@ -283,9 +283,9 @@ static int	xar_finish_entry(struct archive_write *);
 static int	xar_close(struct archive_write *);
 static int	xar_free(struct archive_write *);
 
-static struct file *file_new(struct archive_entry *);
+static struct file *file_new(struct archive_write *a, struct archive_entry *);
 static void	file_free(struct file *);
-static struct file *file_create_virtual_dir(struct xar *,
+static struct file *file_create_virtual_dir(struct archive_write *a, struct xar *,
 		    const char *);
 static int	file_add_child_tail(struct file *, struct file *);
 static struct file *file_find_child(struct file *, const char *);
@@ -364,7 +364,7 @@ archive_write_set_format_xar(struct archive *_a)
 	/*
 	 * Create the root directory.
 	 */
-	xar->root = file_create_virtual_dir(xar, "");
+	xar->root = file_create_virtual_dir(a, xar, "");
 	if (xar->root == NULL) {
 		free(xar);
 		archive_set_error(&a->archive, ENOMEM,
@@ -513,7 +513,7 @@ xar_write_header(struct archive_write *a, struct archive_entry *entry)
 	xar->cur_file = NULL;
 	xar->bytes_remaining = 0;
 
-	file = file_new(entry);
+	file = file_new(a, entry);
 	if (file == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate data");
@@ -1852,7 +1852,7 @@ file_cmp_key(const struct archive_rb_node *n, const void *key)
 }
 
 static struct file *
-file_new(struct archive_entry *entry)
+file_new(struct archive_write *a, struct archive_entry *entry)
 {
 	struct file *file;
 	static const struct archive_rb_tree_ops rb_ops = {
@@ -1866,7 +1866,7 @@ file_new(struct archive_entry *entry)
 	if (entry != NULL)
 		file->entry = archive_entry_clone(entry);
 	else
-		file->entry = archive_entry_new();
+		file->entry = archive_entry_new2(&a->archive);
 	if (file->entry == NULL) {
 		free(file);
 		return (NULL);
@@ -1905,11 +1905,11 @@ file_free(struct file *file)
 }
 
 static struct file *
-file_create_virtual_dir(struct xar *xar, const char *pathname)
+file_create_virtual_dir(struct archive_write *a, struct xar *xar, const char *pathname)
 {
 	struct file *file;
 
-	file = file_new(NULL);
+	file = file_new(a, NULL);
 	if (file == NULL)
 		return (NULL);
 	archive_entry_set_pathname(file->entry, pathname);
@@ -2232,7 +2232,7 @@ file_tree(struct archive_write *a, struct file **filepp)
 				as.s[as.length-1] = '\0';
 				as.length--;
 			}
-			vp = file_create_virtual_dir(xar, as.s);
+			vp = file_create_virtual_dir(a, xar, as.s);
 			if (vp == NULL) {
 				archive_string_free(&as);
 				archive_set_error(&a->archive, ENOMEM,

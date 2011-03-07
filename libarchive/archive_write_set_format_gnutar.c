@@ -268,7 +268,7 @@ archive_write_gnutar_header(struct archive_write *a, struct archive_entry *entry
 		linkname = archive_entry_symlink(entry);
 	if (linkname != NULL && strlen(linkname) > GNUTAR_linkname_size) {
 		size_t todo = strlen(linkname);
-		struct archive_entry *temp = archive_entry_new();
+		struct archive_entry *temp = archive_entry_new2(&a->archive);
 
 		/* Uname/gname here don't really matter since noone reads them;
 		 * these are the values that GNU tar happens to use on FreeBSD. */
@@ -297,7 +297,7 @@ archive_write_gnutar_header(struct archive_write *a, struct archive_entry *entry
 	if (strlen(archive_entry_pathname(entry)) > GNUTAR_name_size) {
 		const char *pathname = archive_entry_pathname(entry);
 		size_t todo = strlen(pathname);
-		struct archive_entry *temp = archive_entry_new();
+		struct archive_entry *temp = archive_entry_new2(&a->archive);
 
 		/* Uname/gname here don't really matter since noone reads them;
 		 * these are the values that GNU tar happens to use on FreeBSD. */

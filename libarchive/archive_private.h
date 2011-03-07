@@ -32,6 +32,10 @@
 #ifndef ARCHIVE_PRIVATE_H_INCLUDED
 #define	ARCHIVE_PRIVATE_H_INCLUDED
 
+#if HAVE_ICONV_H
+#include <iconv.h>
+#endif
+
 #include "archive.h"
 #include "archive_string.h"
 
@@ -107,6 +111,12 @@ struct archive {
 	int		  archive_error_number;
 	const char	 *error;
 	struct archive_string	error_string;
+
+#if HAVE_ICONV
+	iconv_t		 unicode_to_current;
+	iconv_t		 current_to_unicode;
+	char *current_code;
+#endif
 };
 
 /* Check magic value and state; return(ARCHIVE_FATAL) if it isn't valid. */

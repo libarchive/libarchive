@@ -35,6 +35,15 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_string.c 201095 2009-12-28 02:33
  * without incurring additional memory allocations.
  */
 
+#ifdef HAVE_ERRNO_H
+#include <errno.h>
+#endif
+#ifdef HAVE_ICONV_H
+#include <iconv.h>
+#endif
+#ifdef HAVE_LANGINFO_H
+#include <langinfo.h>
+#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -50,6 +59,12 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_string.c 201095 2009-12-28 02:33
 
 #include "archive_private.h"
 #include "archive_string.h"
+
+#if SIZEOF_WCHAR_T == 2
+#define __LA_UNICODE "UCS-2-INTERNAL"
+#else
+#define __LA_UNICODE "UCS-4-INTERNAL"
+#endif
 
 static struct archive_string *
 archive_string_append(struct archive_string *as, const char *p, size_t s)
@@ -238,9 +253,23 @@ archive_wstrappend_wchar(struct archive_wstring *as, wchar_t c)
 }
 
 /*
- * Translates a wide character string into UTF-8 and appends
- * to the archive_string.  Note: returns NULL if conversion fails,
- * but still leaves a best-effort conversion in the argument as.
+ * Character set conversion functions.
+ *
+ * Conversions involving MBS use the "current locale" as
+ * stored in the archive object passed in.  Conversions
+ * between UTF8 and Unicode do not require any such help,
+ * of course.
+ *
+ * TODO: Provide utility functions to set the current locale.
+ * Remember that Windows stores character encoding as an int,
+ * POSIX typically uses a string.  I'd rather not bother trying
+ * to translate between the two.
+ */
+
+/*
+ * Unicode to UTF-8.
+ * Note: returns NULL if conversion fails, but still leaves a best-effort
+ * conversion in the argument as.
  */
 struct archive_string *
 archive_strappend_w_utf8(struct archive_string *as, const wchar_t *w)
@@ -302,6 +331,14 @@ archive_strappend_w_utf8(struct archive_string *as, const wchar_t *w)
 	return (return_val);
 }
 
+/*
+ * UTF-8  ===>  Unicode
+ *
+ */
+
+/*
+ * Utility to convert a single UTF-8 sequence.
+ */
 static int
 utf8_to_unicode(int *pwc, const char *s, size_t n)
 {
@@ -412,9 +449,102 @@ archive_wstrappend_utf8(struct archive_wstring *dest, struct archive_string *src
 	return (0);
 }
 
+#if HAVE_ICONV
 
+/*
+ * Get the "current character set" name to use with iconv.
+ * On FreeBSD, the empty character set name "" chooses
+ * the correct character encoding for the current locale,
+ * so this isn't necessary.
+ * But iconv on Mac OS 10.6 doesn't seem to handle this correctly;
+ * on that system, we have to explicitly call nl_langinfo()
+ * to get the right name.  Not sure about other platforms.
+ */
+static const char *
+default_iconv_charset(const char *charset) {
+	if (charset != NULL && charset[0] != '\0')
+		return charset;
+#if HAVE_NL_LANGINFO
+	return nl_langinfo(CODESET);
+#else
+	return "";
+#endif
+}
+
+/*
+ * Translates from the current locale character set to Unicode
+ * and appends to the archive_wstring.  Note: returns NULL if conversion
+ * fails.
+ *
+ * This version uses the POSIX iconv() function.
+ */
 int
-archive_wstrcpy_mbs(struct archive_wstring *dest,
+archive_wstrcpy_mbs(struct archive *a, struct archive_wstring *dest, struct archive_string *src)
+{
+	char *p;
+	char buff[256];
+	size_t remaining;
+	iconv_t cd;
+
+	if (a == NULL) {
+		cd = iconv_open(__LA_UNICODE, default_iconv_charset(NULL));
+	} else if (a->unicode_to_current == (iconv_t)(0))
+		cd = iconv_open(__LA_UNICODE, default_iconv_charset(a->current_code));
+	else {
+		/* Use the cached conversion descriptor after resetting it. */
+		cd = a->current_to_unicode;
+		iconv(cd, NULL, NULL, NULL, NULL);
+	}
+	if (cd == (iconv_t)(-1)) {
+		/* XXX do something here XXX */
+		return -1;
+	}
+
+	p = src->s;
+	remaining = archive_strlen(src);
+	for (;;) {
+		size_t avail = sizeof(buff);
+		char *outp = buff;
+		size_t result = iconv(cd, &p, &remaining, &outp, &avail);
+
+		if (avail < sizeof(buff))
+			archive_wstring_append(dest,
+			    (const wchar_t *)buff,
+			    (sizeof(buff) - avail) / sizeof(wchar_t));
+		if (result != (size_t)-1) {
+			break; /* Conversion completed. */
+		} else if (errno == EILSEQ) {
+			/* Skip the illegal input wchar. */
+			archive_wstrappend_wchar(dest, L'?');
+			archive_wstrappend_wchar(dest, p[0]);
+			p += 1;
+			remaining -= 1;
+		} else if (errno == E2BIG) {
+			/* Flush the output and do some more. */
+			continue;
+		} else if (errno == EINVAL) {
+			/* Final character is invalid. */
+			archive_wstrappend_wchar(dest, L'?');
+			archive_wstrappend_wchar(dest, p[0]);
+			break;
+		}
+	}
+	/* Dispose of the conversion descriptor or cache it. */
+	if (a == NULL)
+		iconv_close(cd);
+	else if (a->current_to_unicode == (iconv_t)(0))
+		a->current_to_unicode = cd;
+	return (0);
+}
+
+
+#else
+
+/*
+ * Convert MBS to Unicode.
+ */
+int
+archive_wstrcpy_mbs(struct archive *a, struct archive_wstring *dest,
 			 struct archive_string *src)
 {
 	size_t r;
@@ -434,12 +564,13 @@ archive_wstrcpy_mbs(struct archive_wstring *dest,
 	return (-1);
 }
 
+#endif
+
 #if defined(_WIN32) && !defined(__CYGWIN__)
 
 /*
- * Translates a wide character string into current locale character set
- * and appends to the archive_string.  Note: returns NULL if conversion
- * fails.
+ * Unicode ==> MBS.
+ * Note: returns NULL if conversion fails.
  *
  * Win32 builds use WideCharToMultiByte from the Windows API.
  * (Maybe Cygwin should too?  WideCharToMultiByte will know a
@@ -447,11 +578,14 @@ archive_wstrcpy_mbs(struct archive_wstring *dest,
  * wrapper is going to know.)
  */
 struct archive_string *
-archive_strappend_w_mbs(struct archive_string *as, const wchar_t *w)
+archive_strappend_w_mbs(struct archive *a, struct archive_string *as, const wchar_t *w)
 {
 	char *p;
 	int l, wl;
 	BOOL useDefaultChar = FALSE;
+
+	/* TODO: XXX use codepage preference from a XXX */
+	(void)a; /* UNUSED */
 
 	wl = (int)wcslen(w);
 	l = wl * 4 + 4;
@@ -474,6 +608,71 @@ archive_strappend_w_mbs(struct archive_string *as, const wchar_t *w)
 	return (as);
 }
 
+#elif HAVE_ICONV
+
+/*
+ * Translates a wide character string into current locale character set
+ * and appends to the archive_string.  Note: returns NULL if conversion
+ * fails.
+ *
+ * This version uses the POSIX iconv() function.
+ */
+struct archive_string *
+archive_strappend_w_mbs(struct archive *a, struct archive_string *as, const wchar_t *w)
+{
+	char *p;
+	char buff[256];
+	size_t remaining;
+	iconv_t cd;
+
+	if (a == NULL)
+		cd = iconv_open(default_iconv_charset(""), __LA_UNICODE);
+	else if (a->unicode_to_current == (iconv_t)(0))
+		cd = iconv_open(default_iconv_charset(a->current_code), __LA_UNICODE);
+	else {
+		/* Use the cached conversion descriptor after resetting it. */
+		cd = a->unicode_to_current;
+		iconv(cd, NULL, NULL, NULL, NULL);
+	}
+	if (cd == (iconv_t)(-1)) {
+		/* XXX do something here XXX */
+		return NULL;
+	}
+
+	p = (char *)(uintptr_t)w;
+	remaining = wcslen(w) * sizeof(wchar_t);
+	for (;;) {
+		size_t avail = sizeof(buff);
+		char *outp = buff;
+		size_t result = iconv(cd, &p, &remaining, &outp, &avail);
+
+		if (avail < sizeof(buff))
+			archive_string_append(as, buff, sizeof(buff) - avail);
+		if (result >= 0) {
+			break; /* Conversion completed. */
+		} else if (errno == EILSEQ) {
+			/* Skip the illegal input wchar. */
+			archive_strappend_char(as, '?');
+			p += sizeof(wchar_t);
+			remaining -= sizeof(wchar_t);
+		} else if (errno == E2BIG) {
+			/* Flush the output and do some more. */
+			continue;
+		} else if (errno == EINVAL) {
+			/* Final character is invalid. */
+			archive_strappend_char(as, '?');
+			break;
+		}
+	}
+	/* Dispose of the conversion descriptor or cache it. */
+	if (a == NULL)
+		iconv_close(cd);
+	else if (a->unicode_to_current == (iconv_t)(0))
+		a->unicode_to_current = cd;
+	return (as);
+}
+
+
 #else
 
 /*
@@ -486,7 +685,7 @@ archive_strappend_w_mbs(struct archive_string *as, const wchar_t *w)
  * either of these, fall back to the built-in UTF8 conversion.
  */
 struct archive_string *
-archive_strappend_w_mbs(struct archive_string *as, const wchar_t *w)
+archive_strappend_w_mbs(struct archive *a, struct archive_string *as, const wchar_t *w)
 {
 #if !defined(HAVE_WCTOMB) && !defined(HAVE_WCRTOMB)
 	/* If there's no built-in locale support, fall back to UTF8 always. */
@@ -564,14 +763,39 @@ archive_mstring_copy(struct archive_mstring *dest, struct archive_mstring *src)
 }
 
 const char *
-archive_mstring_get_mbs(struct archive_mstring *aes)
+archive_mstring_get_utf8(struct archive *a, struct archive_mstring *aes)
+{
+	const wchar_t *wc;
+
+	/* If we already have a UTF8 form, return that immediately. */
+	if (aes->aes_set & AES_SET_UTF8)
+		return (aes->aes_utf8.s);
+	/* If there's a Unicode form, convert that. */
+	if ((aes->aes_set & AES_SET_WCS)
+	    && archive_strappend_w_utf8(&(aes->aes_utf8), aes->aes_wcs.s) != NULL) {
+		aes->aes_set |= AES_SET_UTF8;
+		return (aes->aes_utf8.s);
+	}
+	/* TODO: Convert MBS to UTF8 in one step instead of two. */
+	wc = archive_mstring_get_wcs(a, aes);
+	if (wc != NULL) {
+		archive_string_empty(&(aes->aes_utf8));
+		archive_strappend_w_utf8(&(aes->aes_utf8), wc);
+		aes->aes_set |= AES_SET_UTF8;
+		return (aes->aes_utf8.s);
+	}
+	return (NULL);
+}
+
+const char *
+archive_mstring_get_mbs(struct archive *a, struct archive_mstring *aes)
 {
 	/* If we already have an MBS form, return that immediately. */
 	if (aes->aes_set & AES_SET_MBS)
 		return (aes->aes_mbs.s);
 	/* If there's a WCS form, try converting with the native locale. */
 	if ((aes->aes_set & AES_SET_WCS)
-	    && archive_strappend_w_mbs(&(aes->aes_mbs), aes->aes_wcs.s) != NULL) {
+	    && archive_strappend_w_mbs(a, &(aes->aes_mbs), aes->aes_wcs.s) != NULL) {
 		aes->aes_set |= AES_SET_MBS;
 		return (aes->aes_mbs.s);
 	}
@@ -587,7 +811,7 @@ archive_mstring_get_mbs(struct archive_mstring *aes)
 }
 
 const wchar_t *
-archive_mstring_get_wcs(struct archive_mstring *aes)
+archive_mstring_get_wcs(struct archive *a, struct archive_mstring *aes)
 {
 	/* Return WCS form if we already have it. */
 	if (aes->aes_set & AES_SET_WCS)
@@ -600,7 +824,7 @@ archive_mstring_get_wcs(struct archive_mstring *aes)
 	}
 	/* Try converting MBS to WCS using native locale. */
 	if ((aes->aes_set & AES_SET_MBS)
-	    && !archive_wstrcpy_mbs(&(aes->aes_wcs), &(aes->aes_mbs))) {
+	    && !archive_wstrcpy_mbs(a, &(aes->aes_wcs), &(aes->aes_mbs))) {
 		aes->aes_set |= AES_SET_WCS;
 		return (aes->aes_wcs.s);
 	}
@@ -651,7 +875,7 @@ archive_mstring_copy_wcs_len(struct archive_mstring *aes, const wchar_t *wcs, si
  * usable values even if some of the character conversions are failing.)
  */
 int
-archive_mstring_update_utf8(struct archive_mstring *aes, const char *utf8)
+archive_mstring_update_utf8(struct archive *a, struct archive_mstring *aes, const char *utf8)
 {
 	if (utf8 == NULL) {
 		aes->aes_set = 0;
@@ -679,7 +903,7 @@ archive_mstring_update_utf8(struct archive_mstring *aes, const char *utf8)
 	aes->aes_set = AES_SET_UTF8 | AES_SET_WCS; /* Both UTF8 and WCS set. */
 
 	/* Try converting WCS to MBS, return false on failure. */
-	if (archive_strappend_w_mbs(&(aes->aes_mbs), aes->aes_wcs.s) == NULL)
+	if (archive_strappend_w_mbs(a, &(aes->aes_mbs), aes->aes_wcs.s) == NULL)
 		return (0);
 	aes->aes_set = AES_SET_UTF8 | AES_SET_WCS | AES_SET_MBS;
 

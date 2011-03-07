@@ -35,10 +35,6 @@ __FBSDID("$FreeBSD: head/lib/libarchive/test/test_pax_filename_encoding.c 201247
 
 DEFINE_TEST(test_pax_filename_encoding_freebsd)
 {
-#if !defined(__FreeBSD__)
-	/* TODO: This test can probably be enabled on other systems as well. */
-	skipping("FreeBSD-specific locale test");
-#else
   	struct archive *a;
   	struct archive_entry *entry;
 	char buff[4096];
@@ -64,5 +60,4 @@ DEFINE_TEST(test_pax_filename_encoding_freebsd)
 	/* Above three characters in KOI8-R should translate to the following
 	 * three characters (two bytes each) in UTF-8. */
 	assertEqualMem(buff + 512, "15 path=\xD0\xBF\xD1\x80\xD0\xB8\x0A", 15);
-#endif
 }

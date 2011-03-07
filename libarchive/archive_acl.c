@@ -314,7 +314,7 @@ archive_acl_reset(struct archive_acl *acl, int want_type)
  * standard permissions and include them in the returned list.
  */
 int
-archive_acl_next(struct archive_acl *acl, int want_type, int *type,
+archive_acl_next(struct archive *a, struct archive_acl *acl, int want_type, int *type,
     int *permset, int *tag, int *id, const char **name)
 {
 	*name = NULL;
@@ -370,7 +370,7 @@ archive_acl_next(struct archive_acl *acl, int want_type, int *type,
 	*permset = acl->acl_p->permset;
 	*tag = acl->acl_p->tag;
 	*id = acl->acl_p->id;
-	*name = archive_mstring_get_mbs(&acl->acl_p->name);
+	*name = archive_mstring_get_mbs(a, &acl->acl_p->name);
 	acl->acl_p = acl->acl_p->next;
 	return (ARCHIVE_OK);
 }
@@ -380,7 +380,7 @@ archive_acl_next(struct archive_acl *acl, int want_type, int *type,
  * the style of the generated ACL.
  */
 const wchar_t *
-archive_acl_text_w(struct archive_acl *acl, int flags)
+archive_acl_text_w(struct archive *a, struct archive_acl *acl, int flags)
 {
 	int count;
 	size_t length;
@@ -408,7 +408,7 @@ archive_acl_text_w(struct archive_acl *acl, int flags)
 				length += 8; /* "default:" */
 			length += 5; /* tag name */
 			length += 1; /* colon */
-			wname = archive_mstring_get_wcs(&ap->name);
+			wname = archive_mstring_get_wcs(a, &ap->name);
 			if (wname != NULL)
 				length += wcslen(wname);
 			else
@@ -450,7 +450,7 @@ archive_acl_text_w(struct archive_acl *acl, int flags)
 		ap = acl->acl_head;
 		while (ap != NULL) {
 			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
-				wname = archive_mstring_get_wcs(&ap->name);
+				wname = archive_mstring_get_wcs(a, &ap->name);
 				*wp++ = separator;
 				if (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)
 					id = ap->id;
@@ -474,7 +474,7 @@ archive_acl_text_w(struct archive_acl *acl, int flags)
 		count = 0;
 		while (ap != NULL) {
 			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) != 0) {
-				wname = archive_mstring_get_wcs(&ap->name);
+				wname = archive_mstring_get_wcs(a, &ap->name);
 				if (count > 0)
 					*wp++ = separator;
 				if (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)

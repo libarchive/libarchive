@@ -518,7 +518,7 @@ archive_write_pax_header(struct archive_write *a,
 		const char *oname;
 		char *name, *bname;
 		size_t name_length;
-		struct archive_entry *extra = archive_entry_new();
+		struct archive_entry *extra = archive_entry_new2(&a->archive);
 
 		oname = archive_entry_pathname(entry_original);
 		name_length = strlen(oname);
@@ -1077,7 +1077,7 @@ archive_write_pax_header(struct archive_write *a,
 		int64_t uid, gid;
 		int mode;
 
-		pax_attr_entry = archive_entry_new();
+		pax_attr_entry = archive_entry_new2(&a->archive);
 		p = entry_name.s;
 		archive_entry_set_pathname(pax_attr_entry,
 		    build_pax_attribute_name(pax_entry_name, p));

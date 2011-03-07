@@ -110,7 +110,7 @@ archive_read_new(void)
 	a->archive.magic = ARCHIVE_READ_MAGIC;
 
 	a->archive.state = ARCHIVE_STATE_NEW;
-	a->entry = archive_entry_new();
+	a->entry = archive_entry_new2(&a->archive);
 	a->archive.vtable = archive_read_vtable();
 
 	return (&a->archive);
@@ -857,6 +857,7 @@ _archive_read_free(struct archive *_a)
 	if (a->entry)
 		archive_entry_free(a->entry);
 	a->archive.magic = 0;
+	__archive_clean(&a->archive);
 	free(a);
 	return (r);
 }

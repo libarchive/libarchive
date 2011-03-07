@@ -590,6 +590,7 @@ _archive_write_free(struct archive *_a)
 	free((void *)(uintptr_t)(const void *)a->nulls);
 	archive_string_free(&a->archive.error_string);
 	a->archive.magic = 0;
+	__archive_clean(&a->archive);
 	free(a);
 	return (r);
 }

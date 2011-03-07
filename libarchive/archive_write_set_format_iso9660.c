@@ -944,7 +944,7 @@ static void	calculate_path_table_size(struct vdd *);
 static void	isofile_init_entry_list(struct iso9660 *);
 static void	isofile_add_entry(struct iso9660 *, struct isofile *);
 static void	isofile_free_all_entries(struct iso9660 *);
-static struct isofile * isofile_new(struct archive_entry *);
+static struct isofile * isofile_new(struct archive_write *, struct archive_entry *);
 static void	isofile_free(struct isofile *);
 static void	isofile_gen_utility_names(struct isofile *);
 #ifdef HAVE_ZLIB_H
@@ -962,7 +962,7 @@ static int	isoent_clone_tree(struct archive_write *,
 		    struct isoent **, struct isoent *);
 static void	_isoent_free(struct isoent *isoent);
 static void	isoent_free_all(struct isoent *);
-static struct isoent * isoent_create_virtual_dir(struct iso9660 *,
+static struct isoent * isoent_create_virtual_dir(struct archive_write *, struct iso9660 *,
 		    const char *);
 static int	isoent_cmp_node(const struct archive_rb_node *,
 		    const struct archive_rb_node *);
@@ -1135,7 +1135,7 @@ archive_write_set_format_iso9660(struct archive *_a)
 
 	/* Create the root directory. */
 	iso9660->primary.rootent =
-	    isoent_create_virtual_dir(iso9660, "");
+	    isoent_create_virtual_dir(a, iso9660, "");
 	if (iso9660->primary.rootent == NULL) {
 		free(iso9660);
 		archive_set_error(&a->archive, ENOMEM,
@@ -1522,7 +1522,7 @@ iso9660_write_header(struct archive_write *a, struct archive_entry *entry)
 		iso9660->need_multi_extent = 1;
 	}
 
-	file = isofile_new(entry);
+	file = isofile_new(a, entry);
 	if (file == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate data");
@@ -4410,7 +4410,7 @@ isofile_free_all_entries(struct iso9660 *iso9660)
 }
 
 static struct isofile *
-isofile_new(struct archive_entry *entry)
+isofile_new(struct archive_write *a, struct archive_entry *entry)
 {
 	struct isofile *file;
 
@@ -4421,7 +4421,7 @@ isofile_new(struct archive_entry *entry)
 	if (entry != NULL)
 		file->entry = archive_entry_clone(entry);
 	else
-		file->entry = archive_entry_new();
+		file->entry = archive_entry_new2(&a->archive);
 	if (file->entry == NULL) {
 		free(file);
 		return (NULL);
@@ -4860,12 +4860,12 @@ isoent_free_all(struct isoent *isoent)
 }
 
 static struct isoent *
-isoent_create_virtual_dir(struct iso9660 *iso9660, const char *pathname)
+isoent_create_virtual_dir(struct archive_write *a, struct iso9660 *iso9660, const char *pathname)
 {
 	struct isofile *file;
 	struct isoent *isoent;
 
-	file = isofile_new(NULL);
+	file = isofile_new(a, NULL);
 	if (file == NULL)
 		return (NULL);
 	archive_entry_set_pathname(file->entry, pathname);
@@ -5322,7 +5322,7 @@ isoent_tree(struct archive_write *a, struct isoent **isoentpp)
 				as.s[as.length-1] = '\0';
 				as.length--;
 			}
-			vp = isoent_create_virtual_dir(iso9660, as.s);
+			vp = isoent_create_virtual_dir(a, iso9660, as.s);
 			if (vp == NULL) {
 				archive_string_free(&as);
 				archive_set_error(&a->archive, ENOMEM,
@@ -6343,7 +6343,7 @@ isoent_rr_move_dir(struct archive_write *a, struct isoent **rr_moved,
 		/* There isn't rr_move entry.
 		 * Create rr_move entry and insert it into the root entry.
 		 */
-		rrmoved = isoent_create_virtual_dir(iso9660, "rr_moved");
+		rrmoved = isoent_create_virtual_dir(a, iso9660, "rr_moved");
 		if (rrmoved == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory");
@@ -6772,7 +6772,7 @@ isoent_create_boot_catalog(struct archive_write *a, struct isoent *rootent)
 	/*
 	 * Create the entry which is the "boot.catalog" file.
 	 */
-	file = isofile_new(NULL);
+	file = isofile_new(a, NULL);
 	if (file == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate memory");
