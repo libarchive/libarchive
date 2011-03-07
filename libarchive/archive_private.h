@@ -137,6 +137,7 @@ int	__archive_parse_options(const char *p, const char *fn,
 
 int	__archive_mktemp(const char *tmpdir);
 
+int	__archive_clean(struct archive *);
 
 #define	err_combine(a,b)	((a) < (b) ? (a) : (b))
 

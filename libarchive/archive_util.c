@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_util.c 201098 2009-12-28 02:58:1
 #include "archive_string.h"
 
 /* Generic initialization of 'struct archive' objects. */
-void
+int
 __archive_clean(struct archive *a)
 {
 #if HAVE_ICONV
@@ -58,6 +58,7 @@ __archive_clean(struct archive *a)
 	if (a->current_to_unicode != (iconv_t)0)
 		iconv_close(a->current_to_unicode);
 #endif
+	return (ARCHIVE_OK);
 }
 
 int

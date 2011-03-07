@@ -1801,7 +1801,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 #endif
 
 		/* store the result in the file name field. */
-		archive_strappend_w_utf8(&file->name, wbuff);
+		archive_string_append_from_unicode_to_utf8(&file->name, wbuff, wcslen(wbuff));
 	} else {
 		/* Chop off trailing ';1' from files. */
 		if (name_len > 2 && p[name_len - 2] == ';' &&

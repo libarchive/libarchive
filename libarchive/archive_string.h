@@ -78,13 +78,13 @@ struct archive_wstring *
 archive_wstrappend_wchar(struct archive_wstring *, wchar_t);
 
 /* Convert a Unicode string to UTF-8 and append the result. */
-struct archive_string *
-archive_strappend_w_utf8(struct archive_string *, const wchar_t *);
+int
+archive_string_append_from_unicode_to_utf8(struct archive_string *, const wchar_t *, size_t);
 
 /* Convert a Unicode string to current locale and append the result. */
 /* Returns NULL if conversion fails. */
-struct archive_string *
-archive_strappend_w_mbs(struct archive *, struct archive_string *, const wchar_t *);
+int
+archive_string_append_from_unicode_to_mbs(struct archive *, struct archive_string *, const wchar_t *, size_t);
 
 /* Copy one archive_string to another */
 #define	archive_string_copy(dest, src) \
@@ -148,15 +148,14 @@ void	archive_string_vsprintf(struct archive_string *, const char *,
 void	archive_string_sprintf(struct archive_string *, const char *, ...)
 	    __LA_PRINTF(2, 3);
 
-/* Translates from UTF8 in src to Unicode in dest. */
+/* Translates from UTF8 to Unicode. */
 /* Returns non-zero if conversion failed in any way. */
-int archive_wstrappend_utf8(struct archive_wstring *dest,
-			      struct archive_string *src);
+int archive_wstring_append_from_utf8(struct archive_wstring *dest, const char *, size_t);
 
-/* Translates from MBS in src to Unicode in dest. */
+/* Translates from MBS to Unicode. */
 /* Returns non-zero if conversion failed in any way. */
-int archive_wstrcpy_mbs(struct archive *,
-    struct archive_wstring *dest, struct archive_string *src);
+int archive_wstring_append_from_mbs(struct archive *,
+    struct archive_wstring *dest, const char *, size_t);
 
 
 /* A "multistring" can hold Unicode, UTF8, or MBS versions of

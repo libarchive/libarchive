@@ -533,8 +533,9 @@ cab_convert_path_separator(struct archive_read *a, struct cab *cab,
 	if (strchr(pathname->s, '\\') == NULL)
 		return;
 
+	archive_wstring_empty(&cab->ws);
 	if ((attr & ATTR_NAME_IS_UTF) != 0 ||
-	    archive_wstrcpy_mbs(&a->archive, &(cab->ws), pathname) != 0) {
+	    archive_wstring_append_from_mbs(&a->archive, &(cab->ws), pathname->s, pathname->length) != 0) {
 		for (l = 0; pathname->s[l] != '\0'; l++) {
 			if (pathname->s[l] == '\\')
 				pathname->s[l] = '/';
@@ -551,7 +552,7 @@ cab_convert_path_separator(struct archive_read *a, struct cab *cab,
 	}
 	if (r) {
 		archive_string_empty(&cab->mbs);
-		archive_strappend_w_mbs(&a->archive, &cab->mbs, cab->ws.s);
+		archive_string_append_from_unicode_to_mbs(&a->archive, &cab->mbs, cab->ws.s, cab->ws.length);
 		/* If mbs length is different to pathname, we broke the
 		 * pathname. We shouldn't use it. */
 		if (archive_strlen(&cab->mbs) == archive_strlen(pathname))

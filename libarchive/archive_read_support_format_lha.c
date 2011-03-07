@@ -688,7 +688,7 @@ lha_replace_path_separator(struct archive_read *a, struct lha *lha, struct archi
 	 */
 
 	/* If converting to wide character failed, force a replacement. */
-	if (!archive_wstrcpy_mbs(&a->archive, &(lha->ws), fn)) {
+	if (!archive_wstring_append_from_mbs(&a->archive, &(lha->ws), fn->s, fn->length)) {
 		for (i = 0; i < archive_strlen(fn); i++) {
 			if (fn->s[i] == '\\')
 				fn->s[i] = '/';
@@ -705,7 +705,7 @@ lha_replace_path_separator(struct archive_read *a, struct lha *lha, struct archi
 	 * Sanity check that we surely did not break a filename.
 	 */
 	archive_string_empty(&(lha->mbs));
-	archive_strappend_w_mbs(&a->archive, &(lha->mbs), lha->ws.s);
+	archive_string_append_from_unicode_to_mbs(&a->archive, &(lha->mbs), lha->ws.s, lha->ws.length);
 	/* If mbs length is different to fn, we broke the
 	 * filename and we shouldn't use it. */
 	if (archive_strlen(&(lha->mbs)) == archive_strlen(fn))
