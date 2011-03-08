@@ -195,7 +195,7 @@ esac
 AC_HEADER_DIRENT
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS([acl/libacl.h attr/xattr.h copyfile.h ctype.h errno.h])
-AC_CHECK_HEADERS([ext2fs/ext2_fs.h fcntl.h grp.h iconv.h])
+AC_CHECK_HEADERS([ext2fs/ext2_fs.h fcntl.h grp.h])
 AC_CHECK_HEADERS([inttypes.h io.h langinfo.h limits.h])
 AC_CHECK_HEADERS([linux/fiemap.h linux/fs.h linux/magic.h])
 AC_CHECK_HEADERS([locale.h paths.h poll.h pwd.h regex.h signal.h stdarg.h])
@@ -230,6 +230,14 @@ AC_ARG_WITH([lzmadec],
 if test "x$with_lzmadec" != "xno"; then
   AC_CHECK_HEADERS([lzmadec.h])
   AC_CHECK_LIB(lzmadec,lzmadec_decode)
+fi
+
+AC_ARG_WITH([iconv],
+  AS_HELP_STRING([--without-iconv], [Don't try to link against iconv]))
+
+if test "x$with_iconv" != "xno"; then
+  AC_CHECK_HEADERS([iconv.h])
+  AC_CHECK_LIB(iconv, iconv)
 fi
 
 AC_ARG_WITH([lzma],
