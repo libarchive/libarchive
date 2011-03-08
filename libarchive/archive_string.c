@@ -60,12 +60,6 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_string.c 201095 2009-12-28 02:33
 #include "archive_private.h"
 #include "archive_string.h"
 
-#if SIZEOF_WCHAR_T == 2
-#define __LA_UNICODE "UCS-2-INTERNAL"
-#else
-#define __LA_UNICODE "UCS-4-INTERNAL"
-#endif
-
 static struct archive_string *
 archive_string_append(struct archive_string *as, const char *p, size_t s)
 {
@@ -472,6 +466,33 @@ default_iconv_charset(const char *charset) {
 }
 
 /*
+ * Get the proper name for "Unicode" on this platform,
+ * matching the native wchar_t in both size and
+ * endianness.
+ * Note: We can't do much better than this in general;
+ * in particular, we can't test the endianness
+ * at configure time when cross-compiling.
+ */
+static const char *
+unicode_iconv_charset(void) {
+	if (sizeof(wchar_t) == 2) {
+		union {wchar_t a; char b[2];} tester;
+		tester.a = 1;
+		if (tester.b[0] == 1)
+			return "UTF-16LE";
+		else
+			return "UTF-16BE";
+	} else {
+		union {wchar_t a; char b[4];} tester;
+		tester.a = 1;
+		if (tester.b[0] == 1)
+			return "UTF-32LE";
+		else
+			return "UTF-32BE";
+	}
+}
+
+/*
  * Translates from the current locale character set to Unicode
  * and appends to the archive_wstring.  Note: returns non-zero
  * if conversion fails.
@@ -488,9 +509,9 @@ archive_wstring_append_from_mbs(struct archive *a, struct archive_wstring *dest,
 	int return_value = 0; /* success */
 
 	if (a == NULL) {
-		cd = iconv_open(__LA_UNICODE, default_iconv_charset(NULL));
+		cd = iconv_open(unicode_iconv_charset(), default_iconv_charset(NULL));
 	} else if (a->unicode_to_current == (iconv_t)(0))
-		cd = iconv_open(__LA_UNICODE, default_iconv_charset(a->current_code));
+		cd = iconv_open(unicode_iconv_charset(), default_iconv_charset(a->current_code));
 	else {
 		/* Use the cached conversion descriptor after resetting it. */
 		cd = a->current_to_unicode;
@@ -553,7 +574,7 @@ archive_wstring_append_from_mbs(struct archive *a, struct archive_wstring *dest,
 	size_t wcs_length = len;
 	if (NULL == archive_wstring_ensure(dest, dest->length + wcs_length + 1))
 		__archive_errx(1, "No memory for archive_mstring_get_wcs()");
-	r = mbstowcs(dest->s + dest->length, src->s, wcs_length);
+	r = mbstowcs(dest->s + dest->length, p, wcs_length);
 	if (r != (size_t)-1 && r != 0) {
 		dest->length += r;
 		dest->s[dest->length] = 0;
@@ -625,9 +646,9 @@ archive_string_append_from_unicode_to_mbs(struct archive *a, struct archive_stri
 	int return_value = 0; /* success */
 
 	if (a == NULL)
-		cd = iconv_open(default_iconv_charset(""), __LA_UNICODE);
+		cd = iconv_open(default_iconv_charset(""), unicode_iconv_charset());
 	else if (a->unicode_to_current == (iconv_t)(0))
-		cd = iconv_open(default_iconv_charset(a->current_code), __LA_UNICODE);
+		cd = iconv_open(default_iconv_charset(a->current_code), unicode_iconv_charset());
 	else {
 		/* Use the cached conversion descriptor after resetting it. */
 		cd = a->unicode_to_current;
