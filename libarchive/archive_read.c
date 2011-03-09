@@ -305,7 +305,6 @@ client_close_proxy(struct archive_read_filter *self)
 	if (self->archive->client.closer != NULL)
 		r = (self->archive->client.closer)((struct archive *)self->archive,
 		    self->data);
-	self->data = NULL;
 	return (r);
 }
 
@@ -795,9 +794,10 @@ _archive_read_close(struct archive *_a)
 
 	archive_check_magic(&a->archive, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_ANY | ARCHIVE_STATE_FATAL, "archive_read_close");
+	if (a->archive.state == ARCHIVE_STATE_CLOSED)
+		return (ARCHIVE_OK);
 	archive_clear_error(&a->archive);
-	if (a->archive.state != ARCHIVE_STATE_FATAL)
-		a->archive.state = ARCHIVE_STATE_CLOSED;
+	a->archive.state = ARCHIVE_STATE_CLOSED;
 
 	/* TODO: Clean up the formatters. */
 

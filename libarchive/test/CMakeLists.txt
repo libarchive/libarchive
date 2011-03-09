@@ -14,6 +14,9 @@ IF(ENABLE_TEST)
     test_acl_posix1e.c
     test_archive_api_feature.c
     test_archive_clear_error.c
+    test_archive_read_close_twice.c
+    test_archive_read_close_twice_open_fd.c
+    test_archive_read_close_twice_open_filename.c
     test_archive_set_error.c
     test_bad_fd.c
     test_compat_bzip2.c
