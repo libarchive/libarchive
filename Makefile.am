@@ -440,6 +440,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_lha_lh7.lzh.uu			\
 	libarchive/test/test_read_format_lha_withjunk.lzh.uu		\
 	libarchive/test/test_read_format_mtree.mtree.uu			\
+	libarchive/test/test_read_format_mtree_nomagic.mtree.uu		\
 	libarchive/test/test_read_format_raw.data.Z.uu			\
 	libarchive/test/test_read_format_raw.data.uu			\
 	libarchive/test/test_read_format_tar_empty_filename.tar.uu	\

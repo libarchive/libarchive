@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2003-2007 Tim Kientzle
  * Copyright (c) 2008 Joerg Sonnenberger
+ * Copyright (c) 2011 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -186,20 +187,377 @@ cleanup(struct archive_read *a)
 	return (ARCHIVE_OK);
 }
 
+static ssize_t
+get_line_size(const char *b, ssize_t avail, ssize_t *nlsize)
+{
+	ssize_t len;
+
+	len = 0;
+	while (len < avail) {
+		switch (*b) {
+		case '\0':/* Non-ascii character or control character. */
+			if (nlsize != NULL)
+				*nlsize = 0;
+			return (-1);
+		case '\r':
+			if (avail-len > 1 && b[1] == '\n') {
+				if (nlsize != NULL)
+					*nlsize = 2;
+				return (len+2);
+			}
+			/* FALL THROUGH */
+		case '\n':
+			if (nlsize != NULL)
+				*nlsize = 1;
+			return (len+1);
+		default:
+			b++;
+			len++;
+			break;
+		}
+	}
+	if (nlsize != NULL)
+		*nlsize = 0;
+	return (avail);
+}
+
+static ssize_t
+next_line(struct archive_read *a,
+    const char **b, ssize_t *avail, ssize_t *ravail, ssize_t *nl)
+{
+	ssize_t len;
+	int quit;
+	
+	quit = 0;
+	if (*avail == 0) {
+		*nl = 0;
+		len = 0;
+	} else
+		len = get_line_size(*b, *avail, nl);
+	/*
+	 * Read bytes more while it does not reach the end of line.
+	 */
+	while (*nl == 0 && len == *avail && !quit) {
+		ssize_t diff = *ravail - *avail;
+
+		*b = __archive_read_ahead(a, 160 + *ravail, avail);
+		if (*b == NULL) {
+			if (*ravail >= *avail)
+				return (0);
+			/* Reading bytes reaches the end of file. */
+			*b = __archive_read_ahead(a, *avail, avail);
+			quit = 1;
+		}
+		*ravail = *avail;
+		*b += diff;
+		*avail -= diff;
+		len = get_line_size(*b, *avail, nl);
+	}
+	return (len);
+}
+
+/*
+ * Compare characters with a mtree keyword.
+ * Returns the length of a mtree keyword if matched.
+ * Returns 0 if not matched.
+ */
+int
+bid_keycmp(const char *p, const char *key, ssize_t len)
+{
+	int match_len = 0;
+
+	while (len > 0 && *p && *key) {
+		if (*p == *key) {
+			--len;
+			++p;
+			++key;
+			++match_len;
+			continue;
+		}
+		return (0);/* Not match */
+	}
+	if (*key != '\0')
+		return (0);/* Not match */
+
+	/* A following character should be specified characters */
+	if (p[0] == '=' || p[0] == ' ' || p[0] == '\t' ||
+	    p[0] == '\n' || p[0] == '\r' ||
+	   (p[0] == '\\' && (p[1] == '\n' || p[1] == '\r')))
+		return (match_len);
+	return (0);/* Not match */
+}
+
+/*
+ * Test whether the characters 'p' has is mtree keyword.
+ * Returns the length of a detected keyword.
+ * Returns 0 if any keywords were not found.
+ */
+static ssize_t
+bid_keyword(const char *p,  ssize_t len)
+{
+	static const char *keys_c[] = {
+		"content", "contents", "cksum", NULL
+	};
+	static const char *keys_df[] = {
+		"device", "flags", NULL
+	};
+	static const char *keys_g[] = {
+		"gid", "gname", NULL
+	};
+	static const char *keys_il[] = {
+		"ignore", "link", NULL
+	};
+	static const char *keys_m[] = {
+		"md5", "md5digest", "mode", NULL
+	};
+	static const char *keys_no[] = {
+		"nlink", "optional", NULL
+	};
+	static const char *keys_r[] = {
+		"rmd160", "rmd160digest", NULL
+	};
+	static const char *keys_s[] = {
+		"sha1", "sha1digest",
+		"sha256", "sha256digest",
+		"sha384", "sha384digest",
+		"sha512", "sha512digest",
+		"size", NULL
+	};
+	static const char *keys_t[] = {
+		"tags", "time", "type", NULL
+	};
+	static const char *keys_u[] = {
+		"uid", "uname",	NULL
+	};
+	const char **keys;
+	int i;
+
+	switch (*p) {
+	case 'c': keys = keys_c; break;
+	case 'd': case 'f': keys = keys_df; break;
+	case 'g': keys = keys_g; break;
+	case 'i': case 'l': keys = keys_il; break;
+	case 'm': keys = keys_m; break;
+	case 'n': case 'o': keys = keys_no; break;
+	case 'r': keys = keys_r; break;
+	case 's': keys = keys_s; break;
+	case 't': keys = keys_t; break;
+	case 'u': keys = keys_u; break;
+	default: return (0);/* Unknown key */
+	}
+
+	for (i = 0; keys[i] != NULL; i++) {
+		int l = bid_keycmp(p, keys[i], len);
+		if (l > 0)
+			return (l);
+	}
+	return (0);/* Unkown key */
+}
+
+/*
+ * Test whether there is a set of mtree keywords.
+ * Returns the number of keyword.
+ * Returns -1 if we got incorrect sequence.
+ * This function expects a set of "<space characters>keyword=value".
+ * When "unset" is specified, expects a set of "<space characters>keyword".
+ */
+static int
+bid_keyword_list(const char *p,  ssize_t len, int unset)
+{
+	int l;
+	int keycnt = 0;
+
+	while (len > 0 && *p) {
+		int blank = 0;
+
+		/* Test whether there are blank characters in the line. */
+		while (len >0 && (*p == ' ' || *p == '\t')) {
+			++p;
+			--len;
+			blank = 1;
+		}
+		if (*p == '\n' || *p == '\r')
+			break;
+		if (p[0] == '\\' && (p[1] == '\n' || p[1] == '\r'))
+			break;
+		if (!blank) /* No blank character. */
+			return (-1);
+
+		if (unset) {
+			l = bid_keycmp(p, "all", len);
+			if (l > 0)
+				return (1);
+		}
+		/* Test whether there is a correct key in the line. */
+		l = bid_keyword(p, len);
+		if (l == 0)
+			return (-1);/* Unknown keyword was found. */
+		p += l;
+		len -= l;
+		keycnt++;
+
+		/* Skip value */
+		if (*p == '=') {
+			int value = 0;
+			++p;
+			--len;
+			while (len > 0 && *p != ' ' && *p != '\t') {
+				++p;
+				--len;
+				value = 1;
+			}
+			/* A keyword should have a its value unless
+			 * "/unset" operation. */ 
+			if (!unset && value == 0)
+				return (-1);
+		}
+	}
+	return (keycnt);
+}
+
+static int
+bid_entry(const char *p, ssize_t len)
+{
+	int f = 0;
+	static const unsigned char safe_char[256] = {
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 00 - 0F */
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 10 - 1F */
+		/* !"$%&'()*+,-./  EXCLUSION:( )(#) */
+		0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, /* 20 - 2F */
+		/* 0123456789:;<>?  EXCLUSION:(=) */
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, /* 30 - 3F */
+		/* @ABCDEFGHIJKLMNO */
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, /* 40 - 4F */
+		/* PQRSTUVWXYZ[\]^_  */
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, /* 50 - 5F */
+		/* `abcdefghijklmno */
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, /* 60 - 6F */
+		/* pqrstuvwxyz{|}~ */
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, /* 70 - 7F */
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 80 - 8F */
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 90 - 9F */
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* A0 - AF */
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* B0 - BF */
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* C0 - CF */
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* D0 - DF */
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* E0 - EF */
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* F0 - FF */
+	};
+
+	/*
+	 * Skip the path-name which is quoted.
+	 */
+	while (len > 0 && *p != ' ' && *p != '\t') {
+		if (!safe_char[*(const unsigned char *)p])
+			return (-1);
+		++p;
+		--len;
+		++f;
+	}
+	/* If a path-name was not found, returns error. */
+	if (f == 0)
+		return (-1);
+
+	return (bid_keyword_list(p, len, 0));
+}
+
+#define MAX_BID_ENTRY	3
 
 static int
 mtree_bid(struct archive_read *a)
 {
 	const char *signature = "#mtree";
 	const char *p;
+	ssize_t avail, ravail;
+	ssize_t len, nl;
+	int detected_bytes = 0, entry_cnt = 0, multiline = 0;
 
 	/* Now let's look at the actual header and see if it matches. */
-	p = __archive_read_ahead(a, strlen(signature), NULL);
+	p = __archive_read_ahead(a, strlen(signature), &avail);
 	if (p == NULL)
 		return (-1);
 
 	if (strncmp(p, signature, strlen(signature)) == 0)
 		return (8 * (int)strlen(signature));
+
+	/*
+	 * There is not a mtree signature. Let's try to detect mtree format.
+	 */
+	ravail = avail;
+	for (;;) {
+		len = next_line(a, &p, &avail, &ravail, &nl);
+		/* The terminal character of the line should be
+		 * a new line character, '\r\n' or '\n'. */
+		if (len <= 0 || nl == 0)
+			break;
+		if (!multiline) {
+			/* Leading whitespace is never significant,
+			 * ignore it. */
+			while (len > 0 && (*p == ' ' || *p == '\t')) {
+				++p;
+				--avail;
+				--len;
+			}
+			/* Skip comment or empty line. */ 
+			if (p[0] == '#' || p[0] == '\n' || p[0] == '\r') {
+				p += len;
+				avail -= len;
+				continue;
+			}
+		} else {
+			/* A continuance line; the terminal
+			 * character of previous line was '\' character. */
+			if (bid_keyword_list(p, len, 0) <= 0)
+				break;
+			if (multiline == 1)
+				detected_bytes += len;
+			if (p[len-nl-1] != '\\') {
+				if (multiline == 1 &&
+				    ++entry_cnt >= MAX_BID_ENTRY)
+					break;
+				multiline = 0;
+			}
+			p += len;
+			avail -= len;
+			continue;
+		}
+		if (p[0] != '/') {
+			if (bid_entry(p, len) >= 0) {
+				detected_bytes += len;
+				if (p[len-nl-1] == '\\')
+					/* This line continues. */
+					multiline = 1;
+				else {
+					/* We've got plenty of correct lines
+					 * to assume that this file is a mtree
+					 * format. */
+					if (++entry_cnt >= MAX_BID_ENTRY)
+						break;
+				}
+			} else
+				break;
+		} else if (strncmp(p, "/set", 4) == 0) {
+			if (bid_keyword_list(p+4, len-4, 0) <= 0)
+				break;
+			/* This line continues. */
+			if (p[len-nl-1] == '\\')
+				multiline = 2;
+		} else if (strncmp(p, "/unset", 6) == 0) {
+			if (bid_keyword_list(p+6, len-6, 1) <= 0)
+				break;
+			/* This line continues. */
+			if (p[len-nl-1] == '\\')
+				multiline = 2;
+		} else
+			break;
+
+		/* Test next line. */
+		p += len;
+		avail -= len;
+	}
+	if (entry_cnt >= MAX_BID_ENTRY || (entry_cnt > 0 && len == 0))
+		return (32);
+
 	return (0);
 }
 
