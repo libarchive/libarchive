@@ -1257,7 +1257,8 @@ get_xfer_size(struct tree *t, int fd, const char *path)
 }
 #endif
 
-#if defined(HAVE_STATFS) && defined(HAVE_FSTATFS) && defined(MNT_LOCAL)
+#if defined(HAVE_STATFS) && defined(HAVE_FSTATFS) && defined(MNT_LOCAL) \
+	&& !defined(ST_LOCAL)
 
 /*
  * Gather current filesystem properties on FreeBSD, OpenBSD and Mac OS X.
@@ -1366,11 +1367,11 @@ setup_current_filesystem(struct archive_read_disk *a)
 	int r, xr = 0;
 
 	t->current_filesystem->synthetic = -1;
-	if (tree_current_is_symblic_link_target(t))
+	if (tree_current_is_symblic_link_target(t)) {
 		r = statvfs(tree_current_access_path(t), &sfs);
 		if (r == 0)
 			xr = get_xfer_size(t, -1, tree_current_access_path(t));
-	else {
+	} else {
 #ifdef HAVE_FSTATVFS
 		r = fstatvfs(tree_current_dir_fd(t), &sfs);
 		if (r == 0)
@@ -1381,7 +1382,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 			xr = get_xfer_size(t, -1, ".");
 #endif
 	}
-	if (r == -1 || rx == -1) {
+	if (r == -1 || xr == -1) {
 		t->current_filesystem->remote = -1;
 		archive_set_error(&a->archive, errno, "statvfs failed");
 		return (ARCHIVE_FAILED);
