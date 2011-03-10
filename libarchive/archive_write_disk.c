@@ -2682,7 +2682,7 @@ set_acl(struct archive_write_disk *a, int fd, const char *name,
 	if (entries == 0)
 		return (ARCHIVE_OK);
 	acl = acl_init(entries);
-	while (archive_acl_next((struct archive *)a, abstract_acl,
+	while (archive_acl_next(&a->archive, abstract_acl,
 	    ae_requested_type, &ae_type, &ae_permset, &ae_tag, &ae_id,
 	    &ae_name) == ARCHIVE_OK) {
 		acl_create_entry(&acl, &acl_entry);
