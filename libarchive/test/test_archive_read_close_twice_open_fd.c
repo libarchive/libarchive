@@ -26,13 +26,6 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-#ifdef HAVE_SYS_PARAM_H
-#include <sys/param.h>
-#endif
-
 DEFINE_TEST(test_archive_read_close_twice_open_fd)
 {
 	struct archive* a = archive_read_new();
