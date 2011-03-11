@@ -266,10 +266,6 @@ LA_CHECK_INCLUDE_FILE("winioctl.h" HAVE_WINIOCTL_H)
 
 
 #
-# Some headers require extra includes when they're available.
-#
-
-#
 # Find OpenSSL
 #
 IF(ENABLE_OPENSSL)
@@ -443,22 +439,66 @@ CHECK_HASH_WIN("MD5;SHA1;SHA256;SHA384;SHA512")
 
 #
 # Find iconv
+# POSIX defines the second arg as const char **
+# and requires it to be in libc.  But we can accept
+# a non-const argument here and can support iconv()
+# being in libiconv.
 #
 LA_CHECK_INCLUDE_FILE("iconv.h" HAVE_ICONV_H)   
 IF(HAVE_ICONV_H)
   FIND_PATH(ICONV_INCLUDE_DIR iconv.h) 
+
+  # Try POSIX-conforming iconv() in libc
+ CHECK_C_SOURCE_COMPILES(
+    "#include <iconv.h>
+     int main() {const char *ccp; iconv_t cd;
+     iconv(cd, &ccp, (size_t *)0, (char **)0, (size_t *)0);
+     return 0;}"
+  HAVE_POSIX_ICONV_IN_LIBC)
+  IF(HAVE_POSIX_ICONV_IN_LIBC)
+    SET(HAVE_ICONV true)
+    SET(ICONV_IS_POSIX true)
+  ELSE(HAVE_POSIX_ICONV_IN_LIBC)
+
+    # Try non-POSIX-conforming iconv() in libc
+    CHECK_C_SOURCE_COMPILES(
+      "#include <iconv.h>
+       int main() {char *ccp; iconv_t cd;
+       iconv(cd, &ccp, (size_t *)0, (char **)0, (size_t *)0);
+       return 0;}"
+  HAVE_NONPOSIX_ICONV_IN_LIBC)
+    IF(HAVE_NONPOSIX_ICONV_IN_LIBC)
+      SET(HAVE_ICONV true)
+    ELSE(HAVE_NONPOSIX_ICONV_IN_LIBC)
+
+      # iconv isn't in libc, try libiconv
+      SET(CMAKE_REQUIRED_LIBRARIES "iconv")
+      CHECK_C_SOURCE_COMPILES(
+          "#include <iconv.h>
+           int main() {const char *ccp; iconv_t cd;
+           iconv(cd, &ccp, (size_t *)0, (char **)0, (size_t *)0);
+           return 0;}"
+       HAVE_POSIX_ICONV_IN_LIBICONV)
+      IF(HAVE_POSIX_ICONV_IN_LIBICONV)
+        SET(HAVE_ICONV true) 
+        SET(ICONV_IS_POSIX true) 
+        LIST(APPEND ADDITIONAL_LIBS "iconv")
+      ELSE(HAVE_POSIX_ICONV_IN_LIBICONV)
+
+        CHECK_C_SOURCE_COMPILES(
+            "#include <iconv.h>
+             int main() {char *ccp; iconv_t cd;
+             iconv(cd, &ccp, (size_t *)0, (char **)0, (size_t *)0);
+             return 0;}"
+         HAVE_NONPOSIX_ICONV_IN_LIBICONV)
+        IF(HAVE_NONPOSIX_ICONV_IN_LIBICONV)
+          SET(HAVE_ICONV true) 
+          LIST(APPEND ADDITIONAL_LIBS "iconv")
+       ENDIF(HAVE_NONPOSIX_ICONV_IN_LIBICONV)
+      ENDIF(HAVE_POSIX_ICONV_IN_LIBICONV)
+    ENDIF(HAVE_NONPOSIX_ICONV_IN_LIBC)
+  ENDIF(HAVE_POSIX_ICONV_IN_LIBC)
 ENDIF(HAVE_ICONV_H)
-CHECK_FUNCTION_EXISTS(iconv HAVE_ICONV_IN_LIBC) 
-IF(HAVE_ICONV_IN_LIBC)
-  SET(HAVE_ICONV true)
-ELSE(HAVE_ICONV_IN_LIBC)
-  # iconv isn't in libc, try libiconv
-  CHECK_LIBRARY_EXISTS(iconv iconv "" HAVE_ICONV_IN_LIBICONV)
-  IF(HAVE_ICONV_IN_LIBICONV)
-    SET(HAVE_ICONV true) 
-    LIST(APPEND ADDITIONAL_LIBS "iconv")
-  ENDIF(HAVE_ICONV_IN_LIBICONV)
-ENDIF(HAVE_ICONV_IN_LIBC)
 
 #
 # Find Libxml2

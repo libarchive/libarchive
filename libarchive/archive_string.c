@@ -503,7 +503,11 @@ int
 archive_wstring_append_from_mbs(struct archive *a, struct archive_wstring *dest, const char *p, size_t len)
 {
 	char buff[256];
+#if ICONV_IS_POSIX
+	const char *inp;
+#else
 	char *inp;
+#endif
 	size_t remaining;
 	iconv_t cd;
 	int return_value = 0; /* success */
@@ -640,7 +644,11 @@ int
 archive_string_append_from_unicode_to_mbs(struct archive *a, struct archive_string *as, const wchar_t *w, size_t len)
 {
 	char buff[256];
+#if ICONV_IS_POSIX
+	const char *inp;
+#else
 	char *inp;
+#endif
 	size_t remaining;
 	iconv_t cd;
 	int return_value = 0; /* success */
