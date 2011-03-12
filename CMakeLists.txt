@@ -33,6 +33,14 @@ SET(LIBARCHIVE_VERSION_STRING  "${VERSION}")
 # Shared library number
 SET(SOVERSION                   8)
 
+# Especially for early development, we want to be a little
+# aggressive about diagnosing build problems; this can get
+# relaxed somewhat in final shipping versions.
+IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
+  ADD_DEFINITIONS(-Wall -Werror)
+  SET(CMAKE_REQUIRED_FLAGS "-Wall -Werror")
+ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
+
 # Enable CTest/CDash support
 include(CTest)
 
@@ -925,12 +933,6 @@ INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/libarchive)
 IF(MSVC)
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_DEPRECATE)
 ENDIF(MSVC)
-# Especially for early development, we want to be a little
-# aggressive about diagnosing build problems; this can get
-# relaxed somewhat in final shipping versions.
-IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
-  ADD_DEFINITIONS(-Wall -Werror)
-ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
 
 IF(ENABLE_TEST)
 ADD_CUSTOM_TARGET(run_all_tests)
