@@ -255,10 +255,7 @@ function splitwords(l, dest, n, o, w) {
     } else if(match(words[w],"^Nd$")) {
       add("- " wtail())
     } else if(match(words[w],"^Fl$")) {
-      if (displaylines == 0)
-	add("*-" words[++w] "*")
-      else
-	add("-" words[++w])
+      addopen("-")
     } else if(match(words[w],"^Ar$")) {
       if(w==nwords)
 	add("_file ..._")
