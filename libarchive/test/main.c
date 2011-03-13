@@ -524,7 +524,9 @@ assertion_equal_wstring(const char *file, int line,
     void *extra)
 {
 	assertion_count(file, line);
-	if (v1 == v2 || wcscmp(v1, v2) == 0)
+	if (v1 == v2)
+		return (1);
+	if (v1 != NULL && v2 != NULL && wcscmp(v1, v2) == 0)
 		return (1);
 	failure_start(file, line, "%s != %s", e1, e2);
 	wcsdump(e1, v1);

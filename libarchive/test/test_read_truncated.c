@@ -37,9 +37,9 @@ DEFINE_TEST(test_read_truncated)
 
 	/* Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
-	assertA(0 == archive_write_set_format_ustar(a));
-	assertA(0 == archive_write_set_compression_none(a));
-	assertA(0 == archive_write_open_memory(a, buff, sizeof(buff), &used));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_none(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	/*
 	 * Write a file to it.
@@ -50,9 +50,9 @@ DEFINE_TEST(test_read_truncated)
 	for (i = 0; i < sizeof(buff2); i++)
 		buff2[i] = (unsigned char)rand();
 	archive_entry_set_size(ae, sizeof(buff2));
-	assertA(0 == archive_write_header(a, ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	archive_entry_free(ae);
-	assertA((int)sizeof(buff2) == archive_write_data(a, buff2, sizeof(buff2)));
+	assertEqualIntA(a, sizeof(buff2), archive_write_data(a, buff2, sizeof(buff2)));
 
 	/* Close out the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
@@ -62,22 +62,21 @@ DEFINE_TEST(test_read_truncated)
 	 * verify that we get an appropriate error. */
 	for (i = 1; i < used + 100; i += 100) {
 		assert((a = archive_read_new()) != NULL);
-		assertA(0 == archive_read_support_format_all(a));
-		assertA(0 == archive_read_support_compression_all(a));
-		assertA(0 == archive_read_open_memory(a, buff, i));
-
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
 		if (i < 512) {
-			assertA(ARCHIVE_FATAL == archive_read_next_header(a, &ae));
+			assertEqualIntA(a, ARCHIVE_FATAL, archive_read_open_memory(a, buff, i));
 			goto wrap_up;
 		} else {
-			assertA(0 == archive_read_next_header(a, &ae));
+			assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, i));
 		}
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 
 		if (i < 512 + sizeof(buff2)) {
-			assertA(ARCHIVE_FATAL == archive_read_data(a, buff2, sizeof(buff2)));
+			assertEqualIntA(a, ARCHIVE_FATAL, archive_read_data(a, buff2, sizeof(buff2)));
 			goto wrap_up;
 		} else {
-			assertA((int)sizeof(buff2) == archive_read_data(a, buff2, sizeof(buff2)));
+			assertEqualIntA(a, sizeof(buff2), archive_read_data(a, buff2, sizeof(buff2)));
 		}
 
 		/* Verify the end of the archive. */
@@ -87,9 +86,9 @@ DEFINE_TEST(test_read_truncated)
 		 * does not return an error if it can't consume
 		 * it.) */
 		if (i < 512 + 512*((sizeof(buff2) + 511)/512) + 512) {
-			assertA(ARCHIVE_FATAL == archive_read_next_header(a, &ae));
+			assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
 		} else {
-			assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+			assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 		}
 	wrap_up:
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
@@ -101,22 +100,21 @@ DEFINE_TEST(test_read_truncated)
 	/* Same as above, except skip the body instead of reading it. */
 	for (i = 1; i < used + 100; i += 100) {
 		assert((a = archive_read_new()) != NULL);
-		assertA(0 == archive_read_support_format_all(a));
-		assertA(0 == archive_read_support_compression_all(a));
-		assertA(0 == archive_read_open_memory(a, buff, i));
-
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
 		if (i < 512) {
-			assertA(ARCHIVE_FATAL == archive_read_next_header(a, &ae));
+			assertEqualIntA(a, ARCHIVE_FATAL, archive_read_open_memory(a, buff, i));
 			goto wrap_up2;
 		} else {
-			assertA(0 == archive_read_next_header(a, &ae));
+			assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, i));
 		}
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 
 		if (i < 512 + 512*((sizeof(buff2)+511)/512)) {
-			assertA(ARCHIVE_FATAL == archive_read_data_skip(a));
+			assertEqualIntA(a, ARCHIVE_FATAL, archive_read_data_skip(a));
 			goto wrap_up2;
 		} else {
-			assertA(ARCHIVE_OK == archive_read_data_skip(a));
+			assertEqualIntA(a, ARCHIVE_OK, archive_read_data_skip(a));
 		}
 
 		/* Verify the end of the archive. */
@@ -126,9 +124,9 @@ DEFINE_TEST(test_read_truncated)
 		 * does not return an error if it can't consume
 		 * it.) */
 		if (i < 512 + 512*((sizeof(buff2) + 511)/512) + 512) {
-			assertA(ARCHIVE_FATAL == archive_read_next_header(a, &ae));
+			assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
 		} else {
-			assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+			assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 		}
 	wrap_up2:
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));

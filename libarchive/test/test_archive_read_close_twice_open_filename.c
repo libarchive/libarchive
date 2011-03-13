@@ -30,17 +30,18 @@ DEFINE_TEST(test_archive_read_close_twice_open_filename)
 {
 	struct archive* a = archive_read_new();
 
-	assertEqualInt(0, archive_read_open_filename(a, 0, 0));
+	assertEqualInt(ARCHIVE_OK, archive_read_support_format_empty(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_open_filename(a, 0, 0));
 	assertEqualInt(0, archive_errno(a));
 	assertEqualString(NULL, archive_error_string(a));
 
-	assertEqualInt(0, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(0, archive_errno(a));
 	assertEqualString(NULL, archive_error_string(a));
 
-	assertEqualInt(0, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(0, archive_errno(a));
 	assertEqualString(NULL, archive_error_string(a));
 
-	archive_read_finish(a);
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 }

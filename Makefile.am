@@ -248,6 +248,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_archive_read_close_twice.c		\
 	libarchive/test/test_archive_read_close_twice_open_fd.c	\
 	libarchive/test/test_archive_read_close_twice_open_filename.c	\
+	libarchive/test/test_archive_read_next_header_empty.c	\
 	libarchive/test/test_archive_set_error.c		\
 	libarchive/test/test_bad_fd.c				\
 	libarchive/test/test_compat_bzip2.c			\

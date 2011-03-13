@@ -37,8 +37,8 @@ DEFINE_TEST(test_read_pax_truncated)
 
 	/* Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
-	assertA(0 == archive_write_set_format_pax(a));
-	assertA(0 == archive_write_set_compression_none(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_pax(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_none(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 			archive_write_open_memory(a, buff, buff_size, &used));
 
@@ -54,10 +54,10 @@ DEFINE_TEST(test_read_pax_truncated)
 	archive_entry_set_ctime(ae, 3, 4);
 	archive_entry_set_mtime(ae, 5, 6);
 	archive_entry_set_size(ae, filedata_size);
-	assertA(0 == archive_write_header(a, ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	archive_entry_free(ae);
-	assertA((ssize_t)filedata_size
-	    == archive_write_data(a, filedata, filedata_size));
+	assertEqualIntA(a, (int)filedata_size, 
+	    (int)archive_write_data(a, filedata, filedata_size));
 
 	/* Close out the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
@@ -67,10 +67,17 @@ DEFINE_TEST(test_read_pax_truncated)
 	 * verify that we get an appropriate error. */
 	for (i = 1; i < used + 100; i += 100) {
 		assert((a = archive_read_new()) != NULL);
-		assertA(0 == archive_read_support_format_all(a));
-		assertA(0 == archive_read_support_compression_all(a));
-		assertA(0 == read_open_memory2(a, buff, i, 13));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+		/* If it's truncated very early, the file type detection should fail. */
+		if (i < 512) {
+			assertEqualIntA(a, ARCHIVE_FATAL, read_open_memory2(a, buff, i, 13));
+			goto wrap_up;
+		} else {
+			assertEqualIntA(a, ARCHIVE_OK, read_open_memory2(a, buff, i, 13));
+		}
 
+		/* If it's truncated in a header, the header read should fail. */
 		if (i < 1536) {
 			assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
 			goto wrap_up;
@@ -79,8 +86,9 @@ DEFINE_TEST(test_read_pax_truncated)
 			assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
 		}
 
+		/* If it's truncated in the body, the body read should fail. */
 		if (i < 1536 + filedata_size) {
-			assertA(ARCHIVE_FATAL == archive_read_data(a, filedata, filedata_size));
+			assertEqualIntA(a, ARCHIVE_FATAL, archive_read_data(a, filedata, filedata_size));
 			goto wrap_up;
 		} else {
 			failure("Archive truncated to %d bytes", i);
@@ -113,22 +121,28 @@ DEFINE_TEST(test_read_pax_truncated)
 	/* Same as above, except skip the body instead of reading it. */
 	for (i = 1; i < used + 100; i += 100) {
 		assert((a = archive_read_new()) != NULL);
-		assertA(0 == archive_read_support_format_all(a));
-		assertA(0 == archive_read_support_compression_all(a));
-		assertA(0 == read_open_memory(a, buff, i, 7));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+		/* If it's truncated very early, file type detection should fail. */
+		if (i < 512) {
+			assertEqualIntA(a, ARCHIVE_FATAL, read_open_memory(a, buff, i, 7));
+			goto wrap_up2;
+		} else {
+			assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, buff, i, 7));
+		}
 
 		if (i < 1536) {
-			assertA(ARCHIVE_FATAL == archive_read_next_header(a, &ae));
+			assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
 			goto wrap_up2;
 		} else {
 			assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
 		}
 
 		if (i < 1536 + 512*((filedata_size+511)/512)) {
-			assertA(ARCHIVE_FATAL == archive_read_data_skip(a));
+			assertEqualIntA(a, ARCHIVE_FATAL, archive_read_data_skip(a));
 			goto wrap_up2;
 		} else {
-			assertA(ARCHIVE_OK == archive_read_data_skip(a));
+			assertEqualIntA(a, ARCHIVE_OK, archive_read_data_skip(a));
 		}
 
 		/* Verify the end of the archive. */
@@ -157,9 +171,9 @@ DEFINE_TEST(test_read_pax_truncated)
 	buff2[513] = '9';
 	buff2[514] = 'A'; /* Non-digit in size. */
 	assert((a = archive_read_new()) != NULL);
-	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_support_compression_all(a));
-	assertA(0 == archive_read_open_memory(a, buff2, used));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff2, used));
 	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
@@ -168,9 +182,9 @@ DEFINE_TEST(test_read_pax_truncated)
 	memcpy(buff2, buff, buff_size);
 	buff2[512] = 'A'; /* First character not a digit. */
 	assert((a = archive_read_new()) != NULL);
-	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_support_compression_all(a));
-	assertA(0 == archive_read_open_memory(a, buff2, used));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff2, used));
 	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
@@ -181,9 +195,9 @@ DEFINE_TEST(test_read_pax_truncated)
 		buff2[i] = '9';
 	buff2[i] = ' ';
 	assert((a = archive_read_new()) != NULL);
-	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_support_compression_all(a));
-	assertA(0 == archive_read_open_memory(a, buff2, used));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff2, used));
 	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
@@ -195,9 +209,9 @@ DEFINE_TEST(test_read_pax_truncated)
 	buff2[514] = '9';
 	buff2[515] = ' ';
 	assert((a = archive_read_new()) != NULL);
-	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_support_compression_all(a));
-	assertA(0 == archive_read_open_memory(a, buff2, used));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff2, used));
 	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
@@ -207,9 +221,9 @@ DEFINE_TEST(test_read_pax_truncated)
 	buff2[512] = '1'; /* Too small. */
 	buff2[513] = ' ';
 	assert((a = archive_read_new()) != NULL);
-	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_support_compression_all(a));
-	assertA(0 == archive_read_open_memory(a, buff2, used));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff2, used));
 	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
@@ -218,9 +232,9 @@ DEFINE_TEST(test_read_pax_truncated)
 	memcpy(buff2, buff, buff_size);
 	buff2[512] = ' '; /* No size given. */
 	assert((a = archive_read_new()) != NULL);
-	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_support_compression_all(a));
-	assertA(0 == archive_read_open_memory(a, buff2, used));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff2, used));
 	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
@@ -229,9 +243,9 @@ DEFINE_TEST(test_read_pax_truncated)
 	memcpy(buff2, buff, buff_size);
 	buff2[1024]++; /* Break the checksum. */
 	assert((a = archive_read_new()) != NULL);
-	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_support_compression_all(a));
-	assertA(0 == archive_read_open_memory(a, buff2, used));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff2, used));
 	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));

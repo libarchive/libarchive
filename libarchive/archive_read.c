@@ -318,7 +318,7 @@ archive_read_open2(struct archive *_a, void *client_data,
 {
 	struct archive_read *a = (struct archive_read *)_a;
 	struct archive_read_filter *filter;
-	int e;
+	int slot, e;
 
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
 	    "archive_read_open");
@@ -360,9 +360,19 @@ archive_read_open2(struct archive *_a, void *client_data,
 
 	/* Build out the input pipeline. */
 	e = build_stream(a);
-	if (e == ARCHIVE_OK)
-		a->archive.state = ARCHIVE_STATE_HEADER;
+	if (e < ARCHIVE_WARN) {
+		a->archive.state = ARCHIVE_STATE_FATAL;
+		return (ARCHIVE_FATAL);
+	}
 
+	slot = choose_format(a);
+	if (slot < 0) {
+		a->archive.state = ARCHIVE_STATE_FATAL;
+		return (ARCHIVE_FATAL);
+	}
+	a->format = &(a->formats[slot]);
+
+	a->archive.state = ARCHIVE_STATE_HEADER;
 	return (e);
 }
 
@@ -435,7 +445,7 @@ static int
 _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	int slot, ret;
+	int ret;
 
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
@@ -444,18 +454,6 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	++_a->file_count;
 	archive_entry_clear(entry);
 	archive_clear_error(&a->archive);
-
-	/*
-	 * If no format has yet been chosen, choose one.
-	 */
-	if (a->format == NULL) {
-		slot = choose_format(a);
-		if (slot < 0) {
-			a->archive.state = ARCHIVE_STATE_FATAL;
-			return (ARCHIVE_FATAL);
-		}
-		a->format = &(a->formats[slot]);
-	}
 
 	/*
 	 * If client didn't consume entire data, skip any remainder
