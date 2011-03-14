@@ -132,6 +132,7 @@ IF(ENABLE_TEST)
     test_write_format_iso9660_filename.c
     test_write_format_iso9660_zisofs.c
     test_write_format_mtree.c
+    test_write_format_mtree_fflags.c
     test_write_format_pax.c
     test_write_format_shar_empty.c
     test_write_format_tar.c

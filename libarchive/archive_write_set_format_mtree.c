@@ -681,10 +681,13 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 		archive_strcat(str, " uname=");
 		mtree_quote(str, name);
 	}
-	if ((keys & F_FLAGS) != 0 &&
-	    (name = archive_entry_fflags_text(entry)) != NULL) {
-		archive_strcat(str, " flags=");
-		mtree_quote(str, name);
+	if ((keys & F_FLAGS) != 0) {
+		if ((name = archive_entry_fflags_text(entry)) != NULL) {
+			archive_strcat(str, " flags=");
+			mtree_quote(str, name);
+		} else if (mtree->set.processed)
+			/* Overwrite the global parameter. */
+			archive_strcat(str, " flags=none");
 	}
 	if ((keys & F_TIME) != 0)
 		archive_string_sprintf(str, " time=%jd.%jd",
