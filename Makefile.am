@@ -58,12 +58,6 @@ dist-hook:
 	-rm -f $(distdir)/*/Makefile $(distdir)/*/*/Makefile
 	cd $(distdir)/doc && /bin/sh update.sh
 
-# Verify cmake builds as part of the acceptance
-distcheck-hook:
-	mkdir $(distdir)/_build/cmtest
-	cd $(distdir)/_build/cmtest && cmake ../.. && make && make test
-	rm -rf $(distdir)/_build/cmtest
-
 #
 # Extra rules for cleanup
 #
@@ -435,6 +429,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_lha_header0.lzh.uu		\
 	libarchive/test/test_read_format_lha_header1.lzh.uu		\
 	libarchive/test/test_read_format_lha_header2.lzh.uu		\
+	libarchive/test/test_read_format_lha_header3.lzh.uu		\
 	libarchive/test/test_read_format_lha_lh0.lzh.uu			\
 	libarchive/test/test_read_format_lha_lh6.lzh.uu			\
 	libarchive/test/test_read_format_lha_lh7.lzh.uu			\
