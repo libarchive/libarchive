@@ -60,5 +60,3 @@ esac
 autoconf
 autoheader
 automake -a -c
-
-./configure
