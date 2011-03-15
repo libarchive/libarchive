@@ -238,6 +238,7 @@ AC_ARG_WITH([iconv],
 if test "x$with_iconv" != "xno"; then
   AC_CHECK_HEADERS([iconv.h])
   AC_CHECK_LIB(iconv, iconv)
+  AC_CHECK_FUNCS([iconv])
 fi
 
 AC_ARG_WITH([lzma],
@@ -435,7 +436,7 @@ AC_CHECK_FUNCS([chflags chown chroot ctime_r])
 AC_CHECK_FUNCS([fchdir fchflags fchmod fchown fcntl fdopendir fork])
 AC_CHECK_FUNCS([fstat fstatat fstatfs fstatvfs ftruncate futimens futimes])
 AC_CHECK_FUNCS([geteuid getpid getgrgid_r getgrnam_r])
-AC_CHECK_FUNCS([getpwnam_r getpwuid_r getvfsbyname gmtime_r iconv])
+AC_CHECK_FUNCS([getpwnam_r getpwuid_r getvfsbyname gmtime_r])
 AC_CHECK_FUNCS([lchflags lchmod lchown link localtime_r lstat])
 AC_CHECK_FUNCS([lutimes mbrtowc memmove memset mkdir mkfifo mknod mkstemp])
 AC_CHECK_FUNCS([nl_langinfo openat pipe poll readlink readlinkat])
