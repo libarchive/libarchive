@@ -444,10 +444,11 @@ set_global(struct mtree_writer *mtree, struct archive_entry *entry)
 		if ((name = archive_entry_uname(entry)) != NULL) {
 			archive_strcat(&setstr, " uname=");
 			mtree_quote(&setstr, name);
-		} else if ((oldkeys & F_UNAME) != 0)
-			archive_strcat(&unsetstr, " uname");
-		else
+		} else {
 			keys &= ~F_UNAME;
+			if ((oldkeys & F_UNAME) != 0)
+				archive_strcat(&unsetstr, " uname");
+		}
 	}
 	if ((keys & effkeys & F_UID) != 0) {
 		mtree->set.uid = archive_entry_uid(entry);
@@ -458,10 +459,11 @@ set_global(struct mtree_writer *mtree, struct archive_entry *entry)
 		if ((name = archive_entry_gname(entry)) != NULL) {
 			archive_strcat(&setstr, " gname=");
 			mtree_quote(&setstr, name);
-		} else if ((oldkeys & F_GNAME) != 0)
-			archive_strcat(&unsetstr, " gname");
-		else
+		} else {
 			keys &= ~F_GNAME;
+			if ((oldkeys & F_GNAME) != 0)
+				archive_strcat(&unsetstr, " gname");
+		}
 	}
 	if ((keys & effkeys & F_GID) != 0) {
 		mtree->set.gid = archive_entry_gid(entry);
@@ -478,10 +480,11 @@ set_global(struct mtree_writer *mtree, struct archive_entry *entry)
 			mtree_quote(&setstr, name);
 			archive_entry_fflags(entry, &mtree->set.fflags_set,
 			    &mtree->set.fflags_clear);
-		} else if ((oldkeys & F_FLAGS) != 0)
-			archive_strcat(&unsetstr, " flags");
-		else
+		} else {
 			keys &= ~F_FLAGS;
+			if ((oldkeys & F_FLAGS) != 0)
+				archive_strcat(&unsetstr, " flags");
+		}
 	}
 	if (unsetstr.length > 0)
 		archive_string_sprintf(&mtree->buf, "/unset%s\n", unsetstr.s);
@@ -685,7 +688,8 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 		if ((name = archive_entry_fflags_text(entry)) != NULL) {
 			archive_strcat(str, " flags=");
 			mtree_quote(str, name);
-		} else if (mtree->set.processed)
+		} else if (mtree->set.processed &&
+		    (mtree->set.keys & F_FLAGS) != 0)
 			/* Overwrite the global parameter. */
 			archive_strcat(str, " flags=none");
 	}
