@@ -237,8 +237,7 @@ AC_ARG_WITH([iconv],
 
 if test "x$with_iconv" != "xno"; then
   AC_CHECK_HEADERS([iconv.h])
-  AC_CHECK_LIB(iconv, iconv)
-  AC_CHECK_FUNCS([iconv])
+  AM_ICONV
 fi
 
 AC_ARG_WITH([lzma],

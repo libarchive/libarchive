@@ -51,7 +51,8 @@ rm -f bsdcpio_test
 rm -f bsdtar
 rm -f bsdtar_test
 rm -f build/autoconf/compile
-rm -f build/autoconf/config.*
+rm -f build/autoconf/config.guess
+rm -f build/autoconf/config.sub
 rm -f build/autoconf/depcomp
 rm -f build/autoconf/install-sh
 rm -f build/autoconf/libtool.m4
