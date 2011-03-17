@@ -1534,8 +1534,8 @@ iso9660_write_header(struct archive_write *a, struct archive_entry *entry)
 	isofile_gen_utility_names(file);
 	if (iso9660->opt.joliet) {
 		/* Test whether a filename can be converted to UTF-16BE or not. */
-		if (0 > archive_string_copy_to_utf16be(&a->archive,
-		    &iso9660->utf16be, &file->basename)) {
+		if (0 > archive_strncpy_to_utf16be(&a->archive,
+			&iso9660->utf16be, file->basename.s, file->basename.length)) {
 				isofile_free(file);
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "A filename cannot be converted to UTF-16BE;"
@@ -2099,11 +2099,12 @@ set_str_utf16be(struct archive_write *a, unsigned char *p, const char *s,
 		onepad = 0;
 	if (vdc == VDC_UCS2) {
 		struct iso9660 *iso9660 = a->format_data;
-		archive_strncpy(&iso9660->mbs, s, l);
-		archive_string_copy_to_utf16be(&a->archive,
-			&iso9660->utf16be, &iso9660->mbs);
-		memcpy(p, iso9660->utf16be.s, iso9660->utf16be.length);
+		archive_strncpy_to_utf16be(&a->archive,
+			&iso9660->utf16be, s, strlen(s));
 		size = iso9660->utf16be.length;
+		if (size > l)
+			size = l;
+		memcpy(p, iso9660->utf16be.s, size);
 	} else {
 		const uint16_t *u16 = (const uint16_t *)s;
 
@@ -5964,8 +5965,8 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 		int ext_off, noff, weight;
 		size_t lt;
 
-		archive_string_copy_to_utf16be(&a->archive,
-		    &iso9660->utf16be, &np->file->basename);
+		archive_strncpy_to_utf16be(&a->archive, &iso9660->utf16be,
+		    np->file->basename.s, np->file->basename.length);
 		if ((int)(l = iso9660->utf16be.length) > ffmax)
 			l = ffmax;
 
@@ -6000,9 +6001,8 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 		 * Get a length of MBS of a full-pathname.
 		 */
 		if ((int)iso9660->utf16be.length > ffmax) {
-			archive_string_copy_from_utf16be(&a->archive,
-			    &iso9660->mbs,
-			    (const unsigned char *)np->identifier, l);
+			archive_strncpy_from_utf16be(&a->archive, &iso9660->mbs,
+			    (const char *)np->identifier, l);
 			np->mb_len = iso9660->mbs.length;
 			if (np->mb_len != (int)np->file->basename.length)
 				weight = np->mb_len;

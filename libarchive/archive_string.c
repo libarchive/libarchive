@@ -769,8 +769,8 @@ archive_string_append_from_unicode_to_mbs(struct archive *a, struct archive_stri
  * Return -1 if conversion failes.
  */
 int
-archive_string_copy_from_utf16be(struct archive *a,
-    struct archive_string *as, const unsigned char *utf16, size_t bytes)
+archive_strncpy_from_utf16be(struct archive *a,
+    struct archive_string *as, const char *utf16, size_t bytes)
 {
 	int ll;
 	BOOL defchar;
@@ -816,22 +816,22 @@ is_big_endian()
  * Return -1 if conversion failes.
  */
 int
-archive_string_copy_to_utf16be(struct archive *a,
-    struct archive_string *a16be, struct archive_string *as)
+archive_strncpy_to_utf16be(struct archive *a,
+    struct archive_string *a16be, const char *s, size_t length)
 {
 	size_t count;
 
-	archive_string_ensure(a16be, (as->length + 1) * 2);
+	archive_string_ensure(a16be, (length + 1) * 2);
 	archive_string_empty(a16be);
 	do {
 		count = MultiByteToWideChar(CP_OEMCP,
-		    MB_PRECOMPOSED, as->s, as->length,
+		    MB_PRECOMPOSED, s, length,
 		    (LPWSTR)a16be->s, (int)a16be->buffer_length - 2);
 		if (count == 0 &&
 		    GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
 			/* Need more buffer for UTF-16 string */
 			count = MultiByteToWideChar(CP_OEMCP,
-			    MB_PRECOMPOSED, as->s, as->length, NULL, 0);
+			    MB_PRECOMPOSED, s, length, NULL, 0);
 			archive_string_ensure(a16be, (count +1) * 2);
 			continue;
 		}
@@ -862,8 +862,8 @@ archive_string_copy_to_utf16be(struct archive *a,
  * Return -1 if conversion failes.
  */
 int
-archive_string_copy_from_utf16be(struct archive *a,
-    struct archive_string *as, const unsigned char *utf16, size_t bytes)
+archive_strncpy_from_utf16be(struct archive *a,
+    struct archive_string *as, const char *utf16, size_t bytes)
 {
 	ICONV_CONST char *inp;
 	size_t remaining;
@@ -933,8 +933,8 @@ archive_string_copy_from_utf16be(struct archive *a,
  * Return -1 if conversion failes.
  */
 int
-archive_string_copy_to_utf16be(struct archive *a,
-    struct archive_string *a16be, struct archive_string *as)
+archive_strncpy_to_utf16be(struct archive *a,
+    struct archive_string *a16be, const char *src, size_t length)
 {
 	ICONV_CONST char *inp;
 	size_t remaining;
@@ -960,12 +960,12 @@ archive_string_copy_to_utf16be(struct archive *a,
 		return (-1);
 	}
 
-	archive_string_ensure(a16be, (as->length+1)*2);
+	archive_string_ensure(a16be, (length+1)*2);
 
-	inp = (char *)(uintptr_t)as->s;
-	remaining = as->length;
+	inp = (char *)(uintptr_t)src;
+	remaining = length;
 	outp = a16be->s;
-	avail = outbase = as->length * 2;
+	avail = outbase = length * 2;
 	while (remaining > 0) {
 		size_t result = iconv(cd, &inp, &remaining, &outp, &avail);
 
@@ -985,8 +985,8 @@ archive_string_copy_to_utf16be(struct archive *a,
 			 * Increase an output buffer.  */
 			a16be->length = outbase - avail;
 			outbase *= 2;
-			archive_string_ensure(as, outbase+2);
-			outp = as->s + a16be->length;
+			archive_string_ensure(a16be, outbase+2);
+			outp = a16be->s + a16be->length;
 			avail = outbase - a16be->length;
 		}
 	}
@@ -1013,8 +1013,8 @@ archive_string_copy_to_utf16be(struct archive *a,
  * Return -1 if conversion failes.
  */
 int
-archive_string_copy_from_utf16be(struct archive *a,
-    struct archive_string *as, const unsigned char *utf16, size_t bytes)
+archive_strncpy_from_utf16be(struct archive *a,
+    struct archive_string *as, const char *utf16, size_t bytes)
 {
 	char *mbs;
 	int ret = 0;
@@ -1044,15 +1044,15 @@ archive_string_copy_from_utf16be(struct archive *a,
  * Return -1 if conversion failes.
  */
 int
-archive_string_copy_to_utf16be(struct archive *a,
-    struct archive_string *a16be, struct archive_string *as)
+archive_strncpy_to_utf16be(struct archive *a,
+    struct archive_string *a16be, const char *src, size_t length)
 {
-	const char *s = as->s;
+	const char *s = src;
 	char *utf16;
-	size_t remaining = as->length;
+	size_t remaining = length;
 	int ret = 0;
 
-	archive_string_ensure(a16be, (as->length + 1) * 2);
+	archive_string_ensure(a16be, (length + 1) * 2);
 	archive_string_empty(a16be);
 	utf16 = a16be->s;
 	while (remaining--) {

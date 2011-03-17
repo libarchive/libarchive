@@ -1790,8 +1790,8 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 
 		/* Convert UTF-16BE of a filename to local locale MBS and store
 		 * the result into a filename field. */
-		archive_string_copy_from_utf16be(&a->archive, &file->name,
-		    p, name_len);
+		archive_strncpy_from_utf16be(&a->archive, &file->name,
+		    (const char *)p, name_len);
 	} else {
 		/* Chop off trailing ';1' from files. */
 		if (name_len > 2 && p[name_len - 2] == ';' &&

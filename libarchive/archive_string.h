@@ -89,14 +89,14 @@ archive_string_append_from_unicode_to_mbs(struct archive *, struct archive_strin
 /* Convert a UTF-16BE string to current locale and copy the result.
  * Return -1 if conversion failes. */
 int
-archive_string_copy_from_utf16be(struct archive *a,
-    struct archive_string *as, const unsigned char *utf16, size_t bytes);
+archive_strncpy_from_utf16be(struct archive *,
+    struct archive_string *, const char *, size_t);
 
 /* Convert a current locale string to UTF-16BE and copy the result.
  * Return -1 if conversion failes. */
 int
-archive_string_copy_to_utf16be(struct archive *a,
-    struct archive_string *a16be, struct archive_string *as);
+archive_strncpy_to_utf16be(struct archive *,
+    struct archive_string *, const char *, size_t);
 
 /* Copy one archive_string to another */
 #define	archive_string_copy(dest, src) \
