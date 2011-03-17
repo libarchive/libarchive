@@ -52,15 +52,21 @@ int
 __archive_clean(struct archive *a)
 {
 #if HAVE_ICONV
+	int i;
+
 	free(a->current_code);
 	if (a->unicode_to_current != (iconv_t)0)
 		iconv_close(a->unicode_to_current);
 	if (a->current_to_unicode != (iconv_t)0)
 		iconv_close(a->current_to_unicode);
-	if (a->utf16be_to_current != (iconv_t)0)
-		iconv_close(a->utf16be_to_current);
-	if (a->current_to_utf16be != (iconv_t)0)
-		iconv_close(a->current_to_utf16be);
+
+	for (i = 0; i < ICONV_TABLE_SIZE; i++) {
+		free(a->iconv_table[i].charset);
+		if (a->iconv_table[i].to_current != (iconv_t)0)
+			iconv_close(a->iconv_table[i].to_current);
+		if (a->iconv_table[i].from_current != (iconv_t)0)
+			iconv_close(a->iconv_table[i].from_current);
+	}
 #endif
 	return (ARCHIVE_OK);
 }

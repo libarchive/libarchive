@@ -115,9 +115,14 @@ struct archive {
 #if HAVE_ICONV
 	iconv_t		 unicode_to_current;
 	iconv_t		 current_to_unicode;
-	iconv_t		 utf16be_to_current;
-	iconv_t		 current_to_utf16be;
 	char *current_code;
+#define ICONV_TABLE_SIZE	2
+	struct archive_iconv_table {
+		char *charset;
+		iconv_t	 to_current;
+		iconv_t	 from_current;
+	}	iconv_table[ICONV_TABLE_SIZE];
+	struct archive_iconv_table *last;
 #endif
 };
 

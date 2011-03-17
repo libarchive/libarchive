@@ -98,6 +98,19 @@ int
 archive_strncpy_to_utf16be(struct archive *,
     struct archive_string *, const char *, size_t);
 
+/* Convert MBS from specific locale to current locale and copy the result.
+ * Return -1 if conversion failes. */
+int
+archive_strncpy_from_specific_locale(struct archive *,
+    struct archive_string *, const char *, size_t, const char *);
+
+/* Convert MBS from current locale to specific locale and copy the result.
+ * Return -1 if conversion failes. */
+int
+archive_strncpy_to_specific_locale(struct archive *,
+    struct archive_string *, const char *, size_t, const char *);
+
+
 /* Copy one archive_string to another */
 #define	archive_string_copy(dest, src) \
 	((dest)->length = 0, archive_string_concat((dest), (src)))
