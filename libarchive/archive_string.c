@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2003-2010 Tim Kientzle
+ * Copyright (c) 2003-2011 Tim Kientzle
+ * Copyright (c) 2011 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,6 +58,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_string.c 201095 2009-12-28 02:33
 #include <windows.h>
 #endif
 
+#include "archive_endian.h"
 #include "archive_private.h"
 #include "archive_string.h"
 
@@ -755,6 +757,322 @@ archive_string_append_from_unicode_to_mbs(struct archive *a, struct archive_stri
 
 #endif /* _WIN32 && ! __CYGWIN__ */
 
+/*
+ * Conversion functions between local locale MBS and UTF-16BE.
+ *   archive_string_copy_from_utf16be() : UTF-16BE --> MBS
+ *   archive_string_copy_to_utf16be()   : MBS --> UTF16BE
+ */
+#if defined(_WIN32) && !defined(__CYGWIN__)
+
+/*
+ * Convert a UTF-16BE string to current locale and copy the result.
+ * Return -1 if conversion failes.
+ */
+int
+archive_string_copy_from_utf16be(struct archive *a,
+    struct archive_string *as, const unsigned char *utf16, size_t bytes)
+{
+	int ll;
+	BOOL defchar;
+	char *mbs;
+	size_t mbs_size;
+	int ret = 0;
+
+	archive_string_empty(as);
+	bytes &= ~1;
+	archive_string_ensure(as, bytes+1);
+	mbs = as->s;
+	mbs_size = as->buffer_length-1;
+	while (bytes) {
+		uint16_t val = archive_be16dec(utf16);
+		ll = WideCharToMultiByte(CP_OEMCP, 0,
+		    (LPCWSTR)&val, 1, mbs, mbs_size,
+			NULL, &defchar);
+		if (ll == 0) {
+			*mbs = '\0';
+			return (-1);
+		} else if (defchar)
+			ret = -1;
+		as->length += ll;
+		mbs += ll;
+		mbs_size -= ll;
+		bytes -= 2;
+		utf16 += 2;
+	}
+	*mbs = '\0';
+	return (ret);
+}
+
+static int
+is_big_endian()
+{
+	uint16_t d = 1;
+
+	return (archive_be16dec(&d) == 1);
+}
+
+/*
+ * Convert a current locale string to UTF-16BE and copy the result.
+ * Return -1 if conversion failes.
+ */
+int
+archive_string_copy_to_utf16be(struct archive *a,
+    struct archive_string *a16be, struct archive_string *as)
+{
+	size_t count;
+
+	archive_string_ensure(a16be, (as->length + 1) * 2);
+	archive_string_empty(a16be);
+	do {
+		count = MultiByteToWideChar(CP_OEMCP,
+		    MB_PRECOMPOSED, as->s, as->length,
+		    (LPWSTR)a16be->s, (int)a16be->buffer_length - 2);
+		if (count == 0 &&
+		    GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
+			/* Need more buffer for UTF-16 string */
+			count = MultiByteToWideChar(CP_OEMCP,
+			    MB_PRECOMPOSED, as->s, as->length, NULL, 0);
+			archive_string_ensure(a16be, (count +1) * 2);
+			continue;
+		}
+		if (count == 0)
+			return (-1);
+	} while (0);
+	a16be->length = count * 2;
+	a16be->s[a16be->length] = 0;
+	a16be->s[a16be->length+1] = 0;
+
+	if (!is_big_endian()) {
+		char *s = a16be->s;
+		size_t l = a16be->length;
+		while (l > 0) {
+			uint16_t v = archive_le16dec(s);
+			archive_be16enc(s, v);
+			s += 2;
+			l -= 2;
+		}
+	}
+	return (0);
+}
+
+#elif HAVE_ICONV
+
+/*
+ * Convert a UTF-16BE string to current locale and copy the result.
+ * Return -1 if conversion failes.
+ */
+int
+archive_string_copy_from_utf16be(struct archive *a,
+    struct archive_string *as, const unsigned char *utf16, size_t bytes)
+{
+	ICONV_CONST char *inp;
+	size_t remaining;
+	iconv_t cd;
+	char *outp;
+	size_t avail, outbase;
+	int return_value = 0; /* success */
+
+	archive_string_empty(as);
+
+	if (a == NULL)
+		cd = iconv_open(default_iconv_charset(""), "UTF-16BE");
+	else if (a->utf16be_to_current == (iconv_t)(0))
+		cd = iconv_open(default_iconv_charset(a->current_code),
+		    "UTF-16BE");
+	else {
+		/* Use the cached conversion descriptor after resetting it. */
+		cd = a->utf16be_to_current;
+		iconv(cd, NULL, NULL, NULL, NULL);
+	}
+	if (cd == (iconv_t)(-1)) {
+		/* XXX do something here XXX */
+		return (-1);
+	}
+
+	bytes &= ~1;
+	archive_string_ensure(as, bytes+1);
+
+	inp = (char *)(uintptr_t)utf16;
+	remaining = bytes;
+	outp = as->s;
+	avail = outbase = bytes;
+	while (remaining > 0) {
+		size_t result = iconv(cd, &inp, &remaining, &outp, &avail);
+
+		if (result != (size_t)-1) {
+			*outp = '\0';
+			as->length = outbase - avail;
+			break; /* Conversion completed. */
+		} else if (errno == EILSEQ || errno == EINVAL) {
+			/* Skip the illegal input bytes. */
+			*outp++ = '?';
+			avail --;
+			inp += 2;
+			remaining -= 2;
+			return_value = -1; /* failure */
+		} else {
+			/* E2BIG no output buffer,
+			 * Increase an output buffer.  */
+			as->length = outbase - avail;
+			outbase *= 2;
+			archive_string_ensure(as, outbase+1);
+			outp = as->s + as->length;
+			avail = outbase - as->length;
+		}
+	}
+	/* Dispose of the conversion descriptor or cache it. */
+	if (a == NULL)
+		iconv_close(cd);
+	else if (a->utf16be_to_current == (iconv_t)(0))
+		a->utf16be_to_current = cd;
+	return (return_value);
+}
+
+/*
+ * Convert a current locale string to UTF-16BE and copy the result.
+ * Return -1 if conversion failes.
+ */
+int
+archive_string_copy_to_utf16be(struct archive *a,
+    struct archive_string *a16be, struct archive_string *as)
+{
+	ICONV_CONST char *inp;
+	size_t remaining;
+	iconv_t cd;
+	char *outp;
+	size_t avail, outbase;
+	int return_value = 0; /* success */
+
+	archive_string_empty(a16be);
+
+	if (a == NULL)
+		cd = iconv_open("UTF-16BE", default_iconv_charset(""));
+	else if (a->current_to_utf16be == (iconv_t)(0))
+		cd = iconv_open("UTF-16BE",
+		    default_iconv_charset(a->current_code));
+	else {
+		/* Use the cached conversion descriptor after resetting it. */
+		cd = a->current_to_utf16be;
+		iconv(cd, NULL, NULL, NULL, NULL);
+	}
+	if (cd == (iconv_t)(-1)) {
+		/* XXX do something here XXX */
+		return (-1);
+	}
+
+	archive_string_ensure(a16be, (as->length+1)*2);
+
+	inp = (char *)(uintptr_t)as->s;
+	remaining = as->length;
+	outp = a16be->s;
+	avail = outbase = as->length * 2;
+	while (remaining > 0) {
+		size_t result = iconv(cd, &inp, &remaining, &outp, &avail);
+
+		if (result != (size_t)-1) {
+			outp[0] = 0; outp[1] = 0;
+			a16be->length = outbase - avail;
+			break; /* Conversion completed. */
+		} else if (errno == EILSEQ || errno == EINVAL) {
+			/* Skip the illegal input bytes. */
+			*outp++ = 0; *outp++ = '?';
+			avail -= 2;
+			inp ++;
+			remaining --;
+			return_value = -1; /* failure */
+		} else {
+			/* E2BIG no output buffer,
+			 * Increase an output buffer.  */
+			a16be->length = outbase - avail;
+			outbase *= 2;
+			archive_string_ensure(as, outbase+2);
+			outp = as->s + a16be->length;
+			avail = outbase - a16be->length;
+		}
+	}
+	/* Dispose of the conversion descriptor or cache it. */
+	if (a == NULL)
+		iconv_close(cd);
+	else if (a->current_to_utf16be == (iconv_t)(0))
+		a->current_to_utf16be = cd;
+	return (return_value);
+}
+
+#else
+
+/*
+ * In case the platform does not have iconv nor other character-set
+ * conversion functions; We cannot handle UTF-16BE character-set,
+ * but there is a chance if a string consists just ASCII code.
+ *
+ * TODO: if current locale is UTF-8, it can be converted to UTF-16BE.
+ */
+
+/*
+ * Convert a UTF-16BE string to current locale and copy the result.
+ * Return -1 if conversion failes.
+ */
+int
+archive_string_copy_from_utf16be(struct archive *a,
+    struct archive_string *as, const unsigned char *utf16, size_t bytes)
+{
+	char *mbs;
+	int ret = 0;
+
+	archive_string_empty(as);
+	bytes &= ~1;
+	archive_string_ensure(as, bytes+1);
+	mbs = as->s;
+	while (bytes) {
+		uint16_t val = archive_be16dec(utf16);
+		if (val >= 0x80) {
+			/* We cannot handle it. */
+			*mbs++ = '?';
+			ret =  -1;
+		} else
+			*mbs++ = (char)val;
+		as->length ++;
+		bytes -= 2;
+		utf16 += 2;
+	}
+	*mbs = '\0';
+	return (ret);
+}
+
+/*
+ * Convert a current locale string to UTF-16BE and copy the result.
+ * Return -1 if conversion failes.
+ */
+int
+archive_string_copy_to_utf16be(struct archive *a,
+    struct archive_string *a16be, struct archive_string *as)
+{
+	const char *s = as->s;
+	char *utf16;
+	size_t remaining = as->length;
+	int ret = 0;
+
+	archive_string_ensure(a16be, (as->length + 1) * 2);
+	archive_string_empty(a16be);
+	utf16 = a16be->s;
+	while (remaining--) {
+		if (*(unsigned char *)s >= 0x80) {
+			/* We cannot handle it. */
+			*utf16++ = 0;
+			*utf16++ = '?';
+			ret = -1;
+		} else {
+			*utf16++ = 0;
+			*utf16++ = *s++;
+		}
+		a16be->length += 2;
+	}
+	a16be->s[a16be->length] = 0;
+	a16be->s[a16be->length+1] = 0;
+	return (ret);
+}
+
+#endif
 
 /*
  * Multistring operations.

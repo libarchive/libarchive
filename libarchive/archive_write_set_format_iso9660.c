@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009,2010 Michihiro NAKAJIMA
+ * Copyright (c) 2009-2011 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -695,6 +695,10 @@ struct iso9660 {
 	uint64_t		 bytes_remaining;
 	int			 need_multi_extent;
 
+	/* Temporary string buffer for Joliet extension. */ 
+	struct archive_string	 utf16be;
+	struct archive_string	 mbs;
+
 	/* A list of all of struct isofile entries. */
 	struct {
 		struct isofile	*first;
@@ -898,12 +902,12 @@ static void	get_system_identitier(char *, size_t);
 static void	set_str(unsigned char *, const char *, size_t, char,
 		    const char *);
 static inline int joliet_allowed_char(unsigned char, unsigned char);
-static void	set_str_beutf16(unsigned char *, const char *, size_t,
-		    uint16_t, enum vdc);
-static void	set_str_a_characters_bp(unsigned char *, int, int,
-		    const char *, enum vdc);
-static void	set_str_d_characters_bp(unsigned char *, int, int,
-		    const char *, enum  vdc);
+static void	set_str_utf16be(struct archive_write *, unsigned char *,
+			const char *, size_t, uint16_t, enum vdc);
+static void	set_str_a_characters_bp(struct archive_write *,
+			unsigned char *, int, int, const char *, enum vdc);
+static void	set_str_d_characters_bp(struct archive_write *,
+			unsigned char *, int, int, const char *, enum  vdc);
 static void	set_VD_bp(unsigned char *, enum VD_type, unsigned char);
 static inline void set_unused_field_bp(unsigned char *, int, int);
 
@@ -1017,9 +1021,6 @@ static size_t	fd_boot_image_size(int);
 static void	make_boot_catalog(struct iso9660 *, unsigned char *);
 static int	setup_boot_information(struct archive_write *);
 
-static size_t	mbstobeutf16s(unsigned char *, size_t, const char *, int);
-static size_t	mblen_of_beutf16(const unsigned char *, size_t);
-
 static int	zisofs_init(struct archive_write *, struct isofile *);
 static void	zisofs_detect_magic(struct archive_write *,
 		    const void *, size_t);
@@ -1065,6 +1066,8 @@ archive_write_set_format_iso9660(struct archive *_a)
 	iso9660->directories_too_deep = NULL;
 	iso9660->dircnt_max = 1;
 	iso9660->wbuff_remaining = 0;
+	archive_string_init(&(iso9660->utf16be));
+	archive_string_init(&(iso9660->mbs));
 
 	/*
 	 * Init Identifiers used for PVD and SVD.
@@ -1529,6 +1532,17 @@ iso9660_write_header(struct archive_write *a, struct archive_entry *entry)
 		return (ARCHIVE_FATAL);
 	}
 	isofile_gen_utility_names(file);
+	if (iso9660->opt.joliet) {
+		/* Test whether a filename can be converted to UTF-16BE or not. */
+		if (0 > archive_string_copy_to_utf16be(&a->archive,
+		    &iso9660->utf16be, &file->basename)) {
+				isofile_free(file);
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "A filename cannot be converted to UTF-16BE;"
+			    "You should disable making Joliet extension");
+			return (ARCHIVE_FAILED);
+		}
+	}
 	isofile_add_entry(iso9660, file);
 	isoent = isoent_new(file);
 	if (isoent == NULL) {
@@ -1994,6 +2008,8 @@ iso9660_free(struct archive_write *a)
 	archive_string_free(&(iso9660->el_torito.catalog_filename));
 	archive_string_free(&(iso9660->el_torito.boot_filename));
 	archive_string_free(&(iso9660->el_torito.id));
+	archive_string_free(&(iso9660->utf16be));
+	archive_string_free(&(iso9660->mbs));
 
 	free(iso9660);
 	a->format_data = NULL;
@@ -2068,8 +2084,8 @@ joliet_allowed_char(unsigned char high, unsigned char low)
 }
 
 static void
-set_str_beutf16(unsigned char *p, const char *s, size_t l, uint16_t uf,
-    enum vdc vdc)
+set_str_utf16be(struct archive_write *a, unsigned char *p, const char *s,
+    size_t l, uint16_t uf, enum vdc vdc)
 {
 	size_t size, i;
 	int onepad;
@@ -2082,7 +2098,12 @@ set_str_beutf16(unsigned char *p, const char *s, size_t l, uint16_t uf,
 	} else
 		onepad = 0;
 	if (vdc == VDC_UCS2) {
-		size = mbstobeutf16s(p, l, s, strlen(s));
+		struct iso9660 *iso9660 = a->format_data;
+		archive_strncpy(&iso9660->mbs, s, l);
+		archive_string_copy_to_utf16be(&a->archive,
+			&iso9660->utf16be, &iso9660->mbs);
+		memcpy(p, iso9660->utf16be.s, iso9660->utf16be.length);
+		size = iso9660->utf16be.length;
 	} else {
 		const uint16_t *u16 = (const uint16_t *)s;
 
@@ -2156,8 +2177,8 @@ static const char d1_characters_map[0x80] = {
 };
 
 static void
-set_str_a_characters_bp(unsigned char *bp, int from, int to,
-    const char *s, enum vdc vdc)
+set_str_a_characters_bp(struct archive_write *a, unsigned char *bp,
+    int from, int to, const char *s, enum vdc vdc)
 {
 
 	switch (vdc) {
@@ -2171,15 +2192,15 @@ set_str_a_characters_bp(unsigned char *bp, int from, int to,
 		break;
 	case VDC_UCS2:
 	case VDC_UCS2_DIRECT:
-		set_str_beutf16(bp+from, s, to - from + 1,
+		set_str_utf16be(a, bp+from, s, to - from + 1,
 		    0x0020, vdc);
 		break;
 	}
 }
 
 static void
-set_str_d_characters_bp(unsigned char *bp, int from, int to,
-    const char *s, enum  vdc vdc)
+set_str_d_characters_bp(struct archive_write *a, unsigned char *bp,
+    int from, int to, const char *s, enum  vdc vdc)
 {
 
 	switch (vdc) {
@@ -2193,7 +2214,7 @@ set_str_d_characters_bp(unsigned char *bp, int from, int to,
 		break;
 	case VDC_UCS2:
 	case VDC_UCS2_DIRECT:
-		set_str_beutf16(bp+from, s, to - from + 1,
+		set_str_utf16be(a, bp+from, s, to - from + 1,
 		    0x0020, vdc);
 		break;
 	}
@@ -3523,9 +3544,9 @@ set_file_identifier(unsigned char *bp, int from, int to, enum vdc vdc,
 
 	if (id->length > 0 && leading_under && id->s[0] != '_') {
 		if (char_type == A_CHAR)
-			set_str_a_characters_bp(bp, from, to, id->s, vdc);
+			set_str_a_characters_bp(a, bp, from, to, id->s, vdc);
 		else
-			set_str_d_characters_bp(bp, from, to, id->s, vdc);
+			set_str_d_characters_bp(a, bp, from, to, id->s, vdc);
 	} else if (id->length > 0) {
 		ids = id->s;
 		if (leading_under)
@@ -3552,16 +3573,16 @@ set_file_identifier(unsigned char *bp, int from, int to, enum vdc vdc,
 			vdc = VDC_UCS2_DIRECT;
 		}
 		if (char_type == A_CHAR)
-			set_str_a_characters_bp(bp, from, to,
+			set_str_a_characters_bp(a, bp, from, to,
 			    identifier, vdc);
 		else
-			set_str_d_characters_bp(bp, from, to,
+			set_str_d_characters_bp(a, bp, from, to,
 			    identifier, vdc);
 	} else {
 		if (char_type == A_CHAR)
-			set_str_a_characters_bp(bp, from, to, NULL, vdc);
+			set_str_a_characters_bp(a, bp, from, to, NULL, vdc);
 		else
-			set_str_d_characters_bp(bp, from, to, NULL, vdc);
+			set_str_d_characters_bp(a, bp, from, to, NULL, vdc);
 	}
 	return (ARCHIVE_OK);
 }
@@ -3612,9 +3633,9 @@ write_VD(struct archive_write *a, struct vdd *vdd)
 	set_unused_field_bp(bp, 8, 8);
 	/* System Identifier */
 	get_system_identitier(identifier, sizeof(identifier));
-	set_str_a_characters_bp(bp, 9, 40, identifier, vdc);
+	set_str_a_characters_bp(a, bp, 9, 40, identifier, vdc);
 	/* Volume Identifier */
-	set_str_d_characters_bp(bp, 41, 72,
+	set_str_d_characters_bp(a, bp, 41, 72,
 	    iso9660->volume_identifier.s, vdc);
 	/* Unused Field */
 	set_unused_field_bp(bp, 73, 80);
@@ -3650,7 +3671,7 @@ write_VD(struct archive_write *a, struct vdd *vdd)
 	set_directory_record(bp+157, 190-157+1, vdd->rootent,
 	    iso9660, DIR_REC_VD, vdd->vdd_type);
 	/* Volume Set Identifier */
-	set_str_d_characters_bp(bp, 191, 318, "", vdc);
+	set_str_d_characters_bp(a, bp, 191, 318, "", vdc);
 	/* Publisher Identifier */
 	r = set_file_identifier(bp, 319, 446, vdc, a, vdd,
 	    &(iso9660->publisher_identifier),
@@ -5943,18 +5964,21 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 		int ext_off, noff, weight;
 		size_t lt;
 
-		l = mbstobeutf16s(NULL, 0, np->file->basename.s,
-		    np->file->basename.length);
-		p = malloc(l+6+2);
+		archive_string_copy_to_utf16be(&a->archive,
+		    &iso9660->utf16be, &np->file->basename);
+		if ((int)(l = iso9660->utf16be.length) > ffmax)
+			l = ffmax;
+
+		p = malloc((l+1)*2);
 		if (p == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory");
 			return (ARCHIVE_FATAL);
 		}
-		l = mbstobeutf16s(p, l, np->file->basename.s,
-		    np->file->basename.length);
-		if ((int)l > ffmax)
-			l = ffmax;
+		memcpy(p, iso9660->utf16be.s, l);
+		p[l] = 0;
+		p[l+1] = 0;
+
 		np->identifier = (char *)p;
 		lt = l;
 		dot = p + l;
@@ -5973,23 +5997,27 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 		np->id_len = l;
 
 		/*
-		 * Check full-path name length.
+		 * Get a length of MBS of a full-pathname.
 		 */
-		if ((int)l == ffmax) {
-			np->mb_len = mblen_of_beutf16(
+		if ((int)iso9660->utf16be.length > ffmax) {
+			archive_string_copy_from_utf16be(&a->archive,
+			    &iso9660->mbs,
 			    (const unsigned char *)np->identifier, l);
+			np->mb_len = iso9660->mbs.length;
 			if (np->mb_len != (int)np->file->basename.length)
 				weight = np->mb_len;
 		} else
 			np->mb_len = np->file->basename.length;
 
-		/* If length of full path name is longer than 240,
+		/* If a length of full-pathname is longer than 240 bytes,
 		 * it violates Joliet extensions regulation. */
 		if (parent_len + np->mb_len > 240) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "A lenght of a full-path name of `%s' is "
-			    "longer than 240 bytes.",
-			    archive_entry_pathname(np->file->entry));
+			    "The regulation of Joliet extensions;"
+			    " A lenght of a full-pathname of `%s' is "
+			    "longer than 240 bytes, (p=%d, b=%d)",
+			    archive_entry_pathname(np->file->entry),
+			    (int)parent_len, (int)np->mb_len);
 			return (ARCHIVE_FATAL);
 		}
 
@@ -7022,166 +7050,6 @@ setup_boot_information(struct archive_write *a)
 	    np->file->content.offset_of_temp + 8, SEEK_SET);
 	return (write_to_temp(a, iso9660->temp_fd, iso9660->wbuff, 56));
 }
-
-#if defined(_WIN32) && !defined(__CYGWIN__)
-static size_t
-mbstobeutf16s(unsigned char *utf16, size_t utf16_size,
-    const char *s, int len)
-{
-	size_t count;
-
-	if (utf16 != NULL && utf16_size > 1) {
-		count = MultiByteToWideChar(CP_ACP,
-		    MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
-		    s, len, (LPWSTR)utf16, (int)utf16_size/2);
-		if (count == 0 &&
-		    GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
-			unsigned char *tp;
-			size_t tl;
-
-			tl = MultiByteToWideChar(CP_ACP,
-			    MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
-			    s, len, NULL, 0);
-			if (tl) {
-				tp = malloc(tl*2);
-				if (tp != NULL) {
-					count = MultiByteToWideChar(CP_ACP,
-					    MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
-					    s, len, (LPWSTR)tp, (int)tl);
-					if (count) {
-						uint16_t val = 1;
-
-						count = utf16_size / 2;
-						if (archive_be16dec(&val) != 1) {
-							unsigned char *xp = tp;
-							while (utf16_size > 0) {
-								archive_be16enc(
-								    utf16,
-								    *(uint16_t *)xp);
-								utf16 += 2;
-								xp += 2;
-								utf16_size -= 2;
-							}
-						} else
-							memcpy(utf16, tp, utf16_size);
-					}
-					free(tp);
-				}
-			}
-		} else if (count > 0) {
-			uint16_t val = 1;
-			if (archive_be16dec(&val) != 1) {
-				while (utf16_size > 0) {
-					archive_be16enc(utf16, *(uint16_t *)utf16);
-						utf16 += 2;
-						utf16_size -= 2;
-					}
-			}
-		}
-	} else
-		count = MultiByteToWideChar(CP_ACP,
-		    MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
-		    s, len, NULL, 0);
-	return (count * 2);
-}
-
-static size_t
-mblen_of_beutf16(const unsigned char *utf16, size_t utf16_size)
-{
-	int count;
-	BOOL defchar;
-
-	count = WideCharToMultiByte(CP_ACP, 0,
-	    (LPCWSTR)utf16, (int)utf16_size/2,
-	    NULL, 0, NULL, &defchar);
-	if (count == 0 || defchar)
-		return (0);
-	return ((size_t)count);
-}
-
-#else
-
-/*
- * NOTE: if wchar_t is not UCS4, mbstoutf16s() and mblen_of_beutf16()
- * couldn't work as we have expected.
- */
-static size_t
-mbstobeutf16s(unsigned char *utf16, size_t utf16_size,
-    const char *s, int len)
-{
-	size_t utf16_avail;
-	wchar_t wc;
-#if HAVE_MBRTOWC
-	mbstate_t ps;
-
-	memset(&ps, 0, sizeof(ps));
-#else
-	mbtowc(NULL, NULL, 0);
-#endif
-	utf16_size &= ~1;
-	if (utf16_size == 0) {
-		utf16 = NULL;
-		utf16_avail = utf16_size = SIZE_MAX;
-	} else
-		utf16_avail = utf16_size;
-	while (*s && len > 0 && utf16_avail > 0) {
-		int mlen;
-
-#if HAVE_MBRTOWC
-		mlen = mbrtowc(&wc, s, len, &ps);
-#else
-		mlen = mbtowc(&wc, s, len);
-#endif
-		if (mlen < 0)
-			return (0);
-		if (mlen == 0)
-			break;
-		if (utf16 != NULL) {
-			*utf16++ = (wc >> 8) & 0xFF;
-			*utf16++ = wc & 0xFF;
-		}
-		utf16_avail -= 2;
-		s += mlen;
-		len -= mlen;
-	}
-	return (utf16_size - utf16_avail);
-}
-
-static size_t
-mblen_of_beutf16(const unsigned char *utf16, size_t utf16_size)
-{
-	size_t mlen;
-	char mbchars[MB_LEN_MAX];
-#if HAVE_WCRTOMB
-	mbstate_t ps;
-
-	memset(&ps, 0, sizeof(ps));
-#else
-	wctomb(NULL, L'\0');
-#endif
-	mlen = 0;
-	utf16_size &= ~1;
-	while (utf16_size) {
-		int len;
-		wchar_t wc;
-
-		wc = *(const uint16_t *)utf16;
-#if HAVE_WCRTOMB
-		len = wcrtomb(mbchars, wc, &ps);
-#else
-		len = wctomb(mbchars, wc);
-#endif
-		if (len < 0)
-			return (0);
-		if (len == 0)
-			break;
-		mlen += len;
-		utf16 += 2;
-		utf16_size -= 2;
-	}
-	return (mlen);
-}
-#endif
 
 #ifdef HAVE_ZLIB_H
 

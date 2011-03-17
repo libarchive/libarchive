@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2003-2007 Tim Kientzle
  * Copyright (c) 2009 Andreas Henriksson <andreas@fatal.se>
- * Copyright (c) 2009 Michihiro NAKAJIMA
+ * Copyright (c) 2009-2011 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1764,19 +1764,9 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 		 * names which are 103 UCS2 characters(206 bytes) by their
 		 * option '-joliet-long'.
 		 */
-		wchar_t wbuff[103+1], *wp;
-		const unsigned char *c;
-
 		if (name_len > 206)
 			name_len = 206;
-		/* convert BE UTF-16 to wchar_t */
-		for (c = p, wp = wbuff;
-				c < (p + name_len) &&
-				wp < (wbuff + sizeof(wbuff)/sizeof(*wbuff) - 1);
-				c += 2) {
-			*wp++ = (((255 & (int)c[0]) << 8) | (255 & (int)c[1]));
-		}
-		*wp = L'\0';
+		name_len &= ~1;
 
 		/* trim trailing first version and dot from filename.
 		 *
@@ -1789,19 +1779,19 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 		 *       *, /, :, ;, ? and \.
 		 */
 		/* Chop off trailing ';1' from files. */
-		if (wp > (wbuff + 2) && *(wp-2) == L';' && *(wp-1) == L'1') {
-			wp-=2;
-			*wp = L'\0';
-		}
-
+		if (name_len > 4 && p[name_len-4] == 0 && p[name_len-3] == ';'
+		    && p[name_len-2] == 0 && p[name_len-1] == '1')
+			name_len -= 4;
 #if 0 /* XXX: this somehow manages to strip of single-character file extensions, like '.c'. */
 		/* Chop off trailing '.' from filenames. */
-		if (*(wp-1) == L'.')
-			*(--wp) = L'\0';
+		if (name_len > 2 && p[name_len-2] == 0 && p[name_len-1] == '.')
+			name_len -= 2;
 #endif
 
-		/* store the result in the file name field. */
-		archive_string_append_from_unicode_to_utf8(&file->name, wbuff, wcslen(wbuff));
+		/* Convert UTF-16BE of a filename to local locale MBS and store
+		 * the result into a filename field. */
+		archive_string_copy_from_utf16be(&a->archive, &file->name,
+		    p, name_len);
 	} else {
 		/* Chop off trailing ';1' from files. */
 		if (name_len > 2 && p[name_len - 2] == ';' &&

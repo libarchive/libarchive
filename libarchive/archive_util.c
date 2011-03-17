@@ -57,6 +57,10 @@ __archive_clean(struct archive *a)
 		iconv_close(a->unicode_to_current);
 	if (a->current_to_unicode != (iconv_t)0)
 		iconv_close(a->current_to_unicode);
+	if (a->utf16be_to_current != (iconv_t)0)
+		iconv_close(a->utf16be_to_current);
+	if (a->current_to_utf16be != (iconv_t)0)
+		iconv_close(a->current_to_utf16be);
 #endif
 	return (ARCHIVE_OK);
 }

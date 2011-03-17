@@ -115,6 +115,8 @@ struct archive {
 #if HAVE_ICONV
 	iconv_t		 unicode_to_current;
 	iconv_t		 current_to_unicode;
+	iconv_t		 utf16be_to_current;
+	iconv_t		 current_to_utf16be;
 	char *current_code;
 #endif
 };

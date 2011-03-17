@@ -86,6 +86,18 @@ archive_string_append_from_unicode_to_utf8(struct archive_string *, const wchar_
 int
 archive_string_append_from_unicode_to_mbs(struct archive *, struct archive_string *, const wchar_t *, size_t);
 
+/* Convert a UTF-16BE string to current locale and copy the result.
+ * Return -1 if conversion failes. */
+int
+archive_string_copy_from_utf16be(struct archive *a,
+    struct archive_string *as, const unsigned char *utf16, size_t bytes);
+
+/* Convert a current locale string to UTF-16BE and copy the result.
+ * Return -1 if conversion failes. */
+int
+archive_string_copy_to_utf16be(struct archive *a,
+    struct archive_string *a16be, struct archive_string *as);
+
 /* Copy one archive_string to another */
 #define	archive_string_copy(dest, src) \
 	((dest)->length = 0, archive_string_concat((dest), (src)))
