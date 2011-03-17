@@ -677,6 +677,10 @@ __la_read(int fd, void *buf, size_t nbytes)
 		errno = EBADF;
 		return (-1);
 	}
+	/* Do not pass 0 to third parameter of ReadFile(), read bytes.
+	 * This will not return to application size. */
+	if (nbytes == 0)
+		return (0);
 	handle = (HANDLE)_get_osfhandle(fd);
 	if (GetFileType(handle) == FILE_TYPE_PIPE) {
 		DWORD sta;
