@@ -193,7 +193,8 @@ static int get_keys(struct mtree_writer *, struct mtree_entry *);
 static void sum_init(struct mtree_writer *);
 static void sum_update(struct mtree_writer *, const void *, size_t);
 static void sum_final(struct mtree_writer *, struct mtree_entry *);
-static void sum_write(struct mtree_writer *, struct mtree_entry *);
+static void sum_write(struct mtree_writer *, struct archive_string *,
+	struct mtree_entry *);
 
 #define	COMPUTE_CRC(var, ch)	(var) = (var) << 8 ^ crctab[(var) >> 24 ^ (ch)]
 static const uint32_t crctab[] = {
@@ -965,7 +966,7 @@ write_entry(struct archive_write *a, struct mtree_entry *me)
 	}
 
 	/* Write a bunch of sum. */
-	sum_write(mtree, me);
+	sum_write(mtree, str, me);
 
 	archive_strcat(str, "\n");
 	if (mtree->indent)
@@ -1388,9 +1389,10 @@ strappend_bin(struct archive_string *s, const unsigned char *bin, int n)
 #endif
 
 static void
-sum_write(struct mtree_writer *mtree, struct mtree_entry *me)
+sum_write(struct mtree_writer *mtree, struct archive_string *str,
+    struct mtree_entry *me)
 {
-	struct archive_string *str;
+
 	if (mtree->compute_sum & F_CKSUM) {
 		archive_string_sprintf(str, " cksum=%ju",
 		    (uintmax_t)me->crc);
