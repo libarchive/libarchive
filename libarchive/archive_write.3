@@ -147,11 +147,7 @@ object suitable for writing a tar archive.
 Sets the block size used for writing the archive data.
 Every call to the write callback function, except possibly the last one, will
 use this value for the length.
-The third parameter is a boolean that specifies whether or not the final block
-written will be padded to the full block size.
-If it is zero, the last block will not be padded.
-If it is non-zero, padding will be added both before and after compression.
-The default is to use a block size of 10240 bytes and to pad the last block.
+The default is to use a block size of 10240 bytes.
 Note that a block size of zero will suppress internal blocking
 and cause writes to be sent directly to the write callback as they occur.
 .It Fn archive_write_get_bytes_per_block
