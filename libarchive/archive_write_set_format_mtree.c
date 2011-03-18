@@ -966,7 +966,8 @@ write_entry(struct archive_write *a, struct mtree_entry *me)
 	}
 
 	/* Write a bunch of sum. */
-	sum_write(mtree, str, me);
+	if (me->filetype == AE_IFREG)
+		sum_write(mtree, str, me);
 
 	archive_strcat(str, "\n");
 	if (mtree->indent)
@@ -1012,7 +1013,8 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 		return (ARCHIVE_OK);
 	mtree->mtree_entry = NULL;
 
-	sum_final(mtree, me);
+	if (me->filetype == AE_IFREG)
+		sum_final(mtree, me);
 
 	if (mtree->set.output) {
 		if (!mtree->dironly) {
@@ -1072,7 +1074,8 @@ archive_write_mtree_data(struct archive_write *a, const void *buff, size_t n)
 	if (mtree->mtree_entry == NULL)
 		return (n);
 
-	sum_update(mtree, buff, n);
+	if (mtree->mtree_entry->filetype == AE_IFREG)
+		sum_update(mtree, buff, n);
 
 	return (n);
 }
