@@ -67,6 +67,7 @@ struct mtree_entry {
 	dev_t rdevminor;
 	int64_t size;
 
+	int compute_sum;
 	uint32_t crc;
 #ifdef ARCHIVE_HAS_MD5
 	unsigned char buf_md5[16];
@@ -193,8 +194,7 @@ static int get_keys(struct mtree_writer *, struct mtree_entry *);
 static void sum_init(struct mtree_writer *);
 static void sum_update(struct mtree_writer *, const void *, size_t);
 static void sum_final(struct mtree_writer *, struct mtree_entry *);
-static void sum_write(struct mtree_writer *, struct archive_string *,
-	struct mtree_entry *);
+static void sum_write(struct archive_string *, struct mtree_entry *);
 
 #define	COMPUTE_CRC(var, ch)	(var) = (var) << 8 ^ crctab[(var) >> 24 ^ (ch)]
 static const uint32_t crctab[] = {
@@ -820,6 +820,7 @@ new_mtree_entry(struct archive_entry *entry)
 	me->rdevmajor =	archive_entry_rdevmajor(entry);
 	me->rdevminor = archive_entry_rdevminor(entry);
 	me->size = archive_entry_size(entry);
+	me->compute_sum = 0;
 
 	return (me);
 }
@@ -967,7 +968,7 @@ write_entry(struct archive_write *a, struct mtree_entry *me)
 
 	/* Write a bunch of sum. */
 	if (me->filetype == AE_IFREG)
-		sum_write(mtree, str, me);
+		sum_write(str, me);
 
 	archive_strcat(str, "\n");
 	if (mtree->indent)
@@ -1373,6 +1374,8 @@ sum_final(struct mtree_writer *mtree, struct mtree_entry *me)
 	if (mtree->compute_sum & F_SHA512)
 		archive_sha512_final(&mtree->sha512ctx, me->buf_sha512);
 #endif
+	/* Save what types of sum are computed. */
+	me->compute_sum = mtree->compute_sum;
 }
 
 #if defined(ARCHIVE_HAS_MD5) || defined(ARCHIVE_HAS_RMD160) || \
@@ -1392,46 +1395,45 @@ strappend_bin(struct archive_string *s, const unsigned char *bin, int n)
 #endif
 
 static void
-sum_write(struct mtree_writer *mtree, struct archive_string *str,
-    struct mtree_entry *me)
+sum_write(struct archive_string *str, struct mtree_entry *me)
 {
 
-	if (mtree->compute_sum & F_CKSUM) {
+	if (me->compute_sum & F_CKSUM) {
 		archive_string_sprintf(str, " cksum=%ju",
 		    (uintmax_t)me->crc);
 	}
 #ifdef ARCHIVE_HAS_MD5
-	if (mtree->compute_sum & F_MD5) {
+	if (me->compute_sum & F_MD5) {
 		archive_strcat(str, " md5digest=");
 		strappend_bin(str, me->buf_md5, sizeof(me->buf_md5));
 	}
 #endif
 #ifdef ARCHIVE_HAS_RMD160
-	if (mtree->compute_sum & F_RMD160) {
+	if (me->compute_sum & F_RMD160) {
 		archive_strcat(str, " rmd160digest=");
 		strappend_bin(str, me->buf_rmd160, sizeof(me->buf_rmd160));
 	}
 #endif
 #ifdef ARCHIVE_HAS_SHA1
-	if (mtree->compute_sum & F_SHA1) {
+	if (me->compute_sum & F_SHA1) {
 		archive_strcat(str, " sha1digest=");
 		strappend_bin(str, me->buf_sha1, sizeof(me->buf_sha1));
 	}
 #endif
 #ifdef ARCHIVE_HAS_SHA256
-	if (mtree->compute_sum & F_SHA256) {
+	if (me->compute_sum & F_SHA256) {
 		archive_strcat(str, " sha256digest=");
 		strappend_bin(str, me->buf_sha256, sizeof(me->buf_sha256));
 	}
 #endif
 #ifdef ARCHIVE_HAS_SHA384
-	if (mtree->compute_sum & F_SHA384) {
+	if (me->compute_sum & F_SHA384) {
 		archive_strcat(str, " sha384digest=");
 		strappend_bin(str, me->buf_sha384, sizeof(me->buf_sha384));
 	}
 #endif
 #ifdef ARCHIVE_HAS_SHA512
-	if (mtree->compute_sum & F_SHA512) {
+	if (me->compute_sum & F_SHA512) {
 		archive_strcat(str, " sha512digest=");
 		strappend_bin(str, me->buf_sha512, sizeof(me->buf_sha512));
 	}
