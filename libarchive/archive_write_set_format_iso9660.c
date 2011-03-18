@@ -1484,11 +1484,10 @@ iso9660_options(struct archive_write *a, const char *key, const char *value)
 		break;
 	}
 
-	return (ARCHIVE_WARN);
 invalid_value:
 	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 	    "Invalid value for option ``%s''", key);
-	return (ARCHIVE_FATAL);
+	return (ARCHIVE_FAILED);
 }
 
 static int

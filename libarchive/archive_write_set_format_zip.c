@@ -210,15 +210,15 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 #else
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "deflate compression not supported");
-			return ARCHIVE_WARN;
+			return ARCHIVE_FAILED;
 #endif
 		} else if (strcmp(value, "store") == 0)
 			zip->compression = COMPRESSION_STORE;
 		else
-			return (ARCHIVE_WARN);
+			return (ARCHIVE_FAILED);
 		return (ARCHIVE_OK);
 	}
-	return (ARCHIVE_WARN);
+	return (ARCHIVE_FAILED);
 }
 
 int

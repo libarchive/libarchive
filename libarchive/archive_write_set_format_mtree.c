@@ -1013,7 +1013,7 @@ archive_write_mtree_options(struct archive_write *a, const char *key,
 		return (ARCHIVE_OK);
 	}
 
-	return (ARCHIVE_WARN);
+	return (ARCHIVE_FAILED);
 }
 
 int

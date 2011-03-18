@@ -49,12 +49,12 @@ DEFINE_TEST(test_write_format_zip)
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_zip(a));
 #ifdef HAVE_ZLIB_H
-	compression_type = "zip:compression=deflate";
+	compression_type = "deflate";
 #else
-	compression_type = "zip:compression=store";
+	compression_type = "store";
 #endif
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_format_options(a, compression_type));
+	    archive_write_set_format_option(a, "zip", "compression", compression_type));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_none(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used));

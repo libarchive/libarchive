@@ -77,13 +77,13 @@ DEFINE_TEST(test_write_format_iso9660_zisofs)
 	assert((a = archive_write_new()) != NULL);
 	assertA(0 == archive_write_set_format_iso9660(a));
 	assertA(0 == archive_write_set_compression_none(a));
-	r = archive_write_set_options(a, "zisofs");
+	r = archive_write_set_option(a, NULL, "zisofs", "1");
 	if (r == ARCHIVE_FATAL) {
 		skipping("zisofs option not supported on this platform");
 		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 		return;
 	}
-	assertA(0 == archive_write_set_options(a, "!pad"));
+	assertA(0 == archive_write_set_option(a, NULL, "pad", NULL));
 	assertA(0 == archive_write_open_memory(a, buff, buffsize, &used));
 
 	/*

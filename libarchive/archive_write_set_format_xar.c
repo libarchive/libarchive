@@ -498,7 +498,7 @@ xar_options(struct archive_write *a, const char *key, const char *value)
 		return (ARCHIVE_OK);
 	}
 
-	return (ARCHIVE_WARN);
+	return (ARCHIVE_FAILED);
 }
 
 static int

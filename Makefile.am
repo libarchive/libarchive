@@ -100,6 +100,8 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_entry_strmode.c			\
 	libarchive/archive_entry_xattr.c			\
 	libarchive/archive_hash.h				\
+	libarchive/archive_options.c				\
+	libarchive/archive_options_private.h			\
 	libarchive/archive_platform.h				\
 	libarchive/archive_private.h				\
 	libarchive/archive_rb.c					\
@@ -117,6 +119,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_read_open_filename.c			\
 	libarchive/archive_read_open_memory.c			\
 	libarchive/archive_read_private.h			\
+	libarchive/archive_read_set_options.c			\
 	libarchive/archive_read_support_compression_all.c	\
 	libarchive/archive_read_support_compression_bzip2.c	\
 	libarchive/archive_read_support_compression_compress.c	\
@@ -199,6 +202,7 @@ libarchive_man_MANS=						\
 	libarchive/archive_entry_time.3				\
 	libarchive/archive_read.3				\
 	libarchive/archive_read_disk.3				\
+	libarchive/archive_read_set_options.3			\
 	libarchive/archive_util.3				\
 	libarchive/archive_write.3				\
 	libarchive/archive_write_disk.3				\
@@ -244,6 +248,14 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_archive_read_close_twice_open_filename.c	\
 	libarchive/test/test_archive_read_next_header_empty.c	\
 	libarchive/test/test_archive_set_error.c		\
+	libarchive/test/test_archive_read_set_filter_option.c	\
+	libarchive/test/test_archive_read_set_format_option.c	\
+	libarchive/test/test_archive_read_set_option.c		\
+	libarchive/test/test_archive_read_set_options.c		\
+	libarchive/test/test_archive_write_set_filter_option.c	\
+	libarchive/test/test_archive_write_set_format_option.c	\
+	libarchive/test/test_archive_write_set_option.c		\
+	libarchive/test/test_archive_write_set_options.c	\
 	libarchive/test/test_bad_fd.c				\
 	libarchive/test/test_compat_bzip2.c			\
 	libarchive/test/test_compat_cpio.c			\

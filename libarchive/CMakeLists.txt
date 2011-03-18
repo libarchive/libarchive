@@ -26,6 +26,8 @@ SET(libarchive_SOURCES
   archive_entry_strmode.c
   archive_entry_xattr.c
   archive_hash.h
+  archive_options.c
+  archive_options_private.h
   archive_platform.h
   archive_private.h
   archive_rb.c
@@ -43,6 +45,7 @@ SET(libarchive_SOURCES
   archive_read_open_filename.c
   archive_read_open_memory.c
   archive_read_private.h
+  archive_read_set_options.c
   archive_read_support_compression_all.c
   archive_read_support_compression_bzip2.c
   archive_read_support_compression_compress.c
@@ -113,6 +116,7 @@ SET(libarchive_MANS
   archive_entry_time.3
   archive_read.3
   archive_read_disk.3
+  archive_read_set_options.3
   archive_util.3
   archive_write.3
   archive_write_disk.3

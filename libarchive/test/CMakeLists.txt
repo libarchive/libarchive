@@ -19,6 +19,14 @@ IF(ENABLE_TEST)
     test_archive_read_close_twice_open_filename.c
     test_archive_read_next_header_empty.c
     test_archive_set_error.c
+    test_archive_read_set_filter_option.c
+    test_archive_read_set_format_option.c
+    test_archive_read_set_option.c
+    test_archive_read_set_options.c
+    test_archive_write_set_filter_option.c
+    test_archive_write_set_format_option.c
+    test_archive_write_set_option.c
+    test_archive_write_set_options.c
     test_bad_fd.c
     test_compat_bzip2.c
     test_compat_cpio.c

@@ -28,22 +28,127 @@
 .Dt archive_write_options 3
 .Os
 .Sh NAME
-.Nm archive_write_set_filter_options ,
-.Nm archive_write_set_format_options ,
-.Nm archive_write_set_options ,
-.Nd functions for controlling options when creating archives
+.Nm archive_write_set_filter_option ,
+.Nm archive_write_set_format_option ,
+.Nm archive_write_set_option ,
+.Nm archive_write_set_options
+.Nd functions controlling options for reading archives
+.Sh SYNOPSIS
+.\"
 .Sh SYNOPSIS
 .Ft int
-.Fn archive_write_set_filter_options "struct archive *" "const char *"
+.Fo archive_write_set_filter_option
+.Fa "struct archive *"
+.Fa "const char *module"
+.Fa "const char *option"
+.Fa "const char *value"
+.Fc
 .Ft int
-.Fn archive_write_set_format_options "struct archive *" "const char *"
+.Fo archive_write_set_format_option
+.Fa "struct archive *"
+.Fa "const char *module"
+.Fa "const char *option"
+.Fa "const char *value"
+.Fc
 .Ft int
-.Fn archive_write_set_options "struct archive *" "const char *"
+.Fo archive_write_set_option
+.Fa "struct archive *"
+.Fa "const char *module"
+.Fa "const char *option"
+.Fa "const char *value"
+.Fc
+.Ft int
+.Fo archive_write_set_options
+.Fa "struct archive *"
+.Fa "const char *options"
+.Fc
 .Sh DESCRIPTION
 These functions provide a way for libarchive clients to configure
 specific write modules.
-The argument is a comma-separated list of key/value pairs that
-are parsed and passed to the currently-configured modules.
+.Bl -tag -width indent
+.It Xo
+.Fn archive_write_set_filter_option ,
+.Fn archive_write_set_format_option
+.Xc
+Specifies an option that will be passed to currently-registered
+filters (including decompression filters) or format readers.
+.Pp
+If
+.Ar option
+and
+.Ar value
+are both
+.Dv NULL ,
+these functions will do nothing and
+.Cm ARCHIVE_OK
+will be returned.
+If
+.Ar option
+is
+.Dv NULL
+but
+.Ar value
+is not, these functions will do nothing and
+.Cm ARCHIVE_FAILED
+will be returned.
+.Pp
+If
+.Ar module
+is not
+.Dv NULL ,
+.Ar option
+and
+.Ar value
+will be provided to the filter or reader named
+.Ar module .
+The return value will be that of the module.
+If there is no such module,
+.Cm ARCHIVE_FAILED
+will be returned.
+.Pp
+If
+.Ar module
+is
+.Dv NULL ,
+.Ar option
+and
+.Ar value
+will be provided to every registered module.
+If any module returns
+.Cm ARCHIVE_FATAL ,
+this value will be returned immediately.
+Otherwise,
+.Cm ARCHIVE_OK
+will be returned if any module accepts the option, and
+.Cm ARCHIVE_FAILED
+in all other cases.
+.\"
+.It Xo
+.Fn archive_write_set_option
+.Xc
+Calls
+.Fn archive_write_set_format_option ,
+then
+.Fn archive_write_set_filter_option .
+If either function returns
+.Cm ARCHIVE_FATAL ,
+.Cm ARCHIVE_FATAL
+will be returned
+immediately.
+Otherwise, greater of the two values will be returned.
+.\"
+.It Xo
+.Fn archive_write_set_options
+.Xc
+.Ar options
+is a comma-separated list of options.
+If
+.Ar options
+is
+.Dv NULL
+or empty,
+.Cm ARCHIVE_OK
+will be returned immediately.
 .Pp
 Individual options have one of the following forms:
 .Bl -tag -compact -width indent
@@ -60,8 +165,9 @@ As above, but the corresponding option and value will be provided
 only to modules whose name matches
 .Ar module .
 .El
-.Pp
-The currently supported options are:
+.El
+.\"
+.Sh OPTIONS
 .Bl -tag -compact -width indent
 .It Filter gzip
 .Bl -tag -compact -width indent
@@ -292,14 +398,6 @@ This option can be provided multiple times to suppress compression
 on many files.
 .El
 .El
-.Sh RETURN VALUES
-The return value will be
-.Cm ARCHIVE_OK
-if each specified option was accepted by at least one module,
-.Cm ARCHIVE_WARN
-if some option was refused by every module, or
-.Cm ARCHIVE_FATAL
-if there was a fatal error while attempting to process some option.
 .Sh EXAMPLES
 The following example creates an archive write handle to
 create a gzip-compressed ISO9660 format image.
@@ -317,6 +415,7 @@ archive_write_open_filename(a, filename, blocksize);
 .Sh SEE ALSO
 .Xr tar 1 ,
 .Xr libarchive 3 ,
+.Xr archive_read_set_options 3 ,
 .Xr archive_write 3
 .Sh HISTORY
 The

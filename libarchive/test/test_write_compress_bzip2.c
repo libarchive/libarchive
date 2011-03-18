@@ -105,14 +105,14 @@ DEFINE_TEST(test_write_compress_bzip2)
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_bytes_per_block(a, 10));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_bzip2(a));
-	assertEqualIntA(a, ARCHIVE_WARN,
-	    archive_write_set_compressor_options(a, "nonexistent-option=0"));
-	assertEqualIntA(a, ARCHIVE_WARN,
-	    archive_write_set_compressor_options(a, "compression-level=abc"));
-	assertEqualIntA(a, ARCHIVE_WARN,
-	    archive_write_set_compressor_options(a, "compression-level=99"));
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_write_set_filter_option(a, NULL, "nonexistent-option", "0"));
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_write_set_filter_option(a, NULL, "compression-level", "abc"));
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_write_set_filter_option(a, NULL, "compression-level", "99"));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_compressor_options(a, "compression-level=9"));
+	    archive_write_set_filter_option(a, NULL, "compression-level", "9"));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, buffsize, &used2));
 	for (i = 0; i < 999; i++) {
 		sprintf(path, "file%03d", i);
@@ -158,7 +158,7 @@ DEFINE_TEST(test_write_compress_bzip2)
 	    archive_write_set_bytes_per_block(a, 10));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_bzip2(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_compressor_options(a, "compression-level=1"));
+	    archive_write_set_filter_option(a, NULL, "compression-level", "1"));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, buffsize, &used2));
 	for (i = 0; i < 999; i++) {
 		sprintf(path, "file%03d", i);

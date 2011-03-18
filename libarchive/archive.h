@@ -439,15 +439,21 @@ __LA_DECL int archive_read_data_into_fd(struct archive *, int fd);
 /*
  * Set read options.
  */
-/* Apply option string to the format only. */
-__LA_DECL int archive_read_set_format_options(struct archive *_a,
-			    const char *s);
-/* Apply option string to the filter only. */
-__LA_DECL int archive_read_set_filter_options(struct archive *_a,
-			    const char *s);
+/* Apply option to the format only. */
+__LA_DECL int archive_read_set_format_option(struct archive *_a,
+			    const char *m, const char *o,
+			    const char *v);
+/* Apply option to the filter only. */
+__LA_DECL int archive_read_set_filter_option(struct archive *_a,
+			    const char *m, const char *o,
+			    const char *v);
+/* Apply option to both the format and the filter. */
+__LA_DECL int archive_read_set_option(struct archive *_a,
+			    const char *m, const char *o,
+			    const char *v);
 /* Apply option string to both the format and the filter. */
 __LA_DECL int archive_read_set_options(struct archive *_a,
-			    const char *s);
+			    const char *opts);
 
 /*-
  * Convenience function to recreate the current entry (whose header
@@ -643,24 +649,23 @@ __LA_DECL int		 archive_write_finish(struct archive *);
 #endif
 
 /*
- * Set write options.  Note that there's really no reason to use
- * anything but archive_write_set_options().  The others should probably
- * all be deprecated and eventually removed.
+ * Set write options.
  */
-/* Apply option string to both the format and all filters. */
-__LA_DECL int		archive_write_set_options(struct archive *_a,
-			    const char *s);
-/* Apply option string to the format only. */
-__LA_DECL int		archive_write_set_format_options(struct archive *_a,
-			    const char *s);
-/* Apply option string to all matching filters. */
-__LA_DECL int		archive_write_set_filter_options(struct archive *_a,
-			    const char *s);
-#if ARCHIVE_VERSION_NUMBER < 4000000
-/* Deprecated synonym for archive_write_set_filter_options. */
-__LA_DECL int		archive_write_set_compressor_options(struct archive *_a,
-			    const char *s);
-#endif
+/* Apply option to the format only. */
+__LA_DECL int archive_write_set_format_option(struct archive *_a,
+			    const char *m, const char *o,
+			    const char *v);
+/* Apply option to the filter only. */
+__LA_DECL int archive_write_set_filter_option(struct archive *_a,
+			    const char *m, const char *o,
+			    const char *v);
+/* Apply option to both the format and the filter. */
+__LA_DECL int archive_write_set_option(struct archive *_a,
+			    const char *m, const char *o,
+			    const char *v);
+/* Apply option string to both the format and the filter. */
+__LA_DECL int archive_write_set_options(struct archive *_a,
+			    const char *opts);
 
 /*-
  * ARCHIVE_WRITE_DISK API

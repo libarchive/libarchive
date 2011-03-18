@@ -151,9 +151,11 @@ verify(unsigned char *buff, size_t used, enum vtype type, struct fns *fns)
 	assertEqualIntA(a, 0, archive_read_support_format_all(a));
 	assertEqualIntA(a, 0, archive_read_support_compression_all(a));
 	if (type >= 1)
-		assertA(0 == archive_read_set_options(a, "!rockridge"));
+		assertA(0 == archive_read_set_option(a, NULL, "rockridge",
+		    NULL));
 	if (type >= 2)
-		assertA(0 == archive_read_set_options(a, "!joliet"));
+		assertA(0 == archive_read_set_option(a, NULL, "joliet",
+		    NULL));
 	assertEqualIntA(a, 0, archive_read_open_memory(a, buff, used));
 
 	/*
@@ -217,7 +219,7 @@ create_iso_image(unsigned char *buff, size_t buffsize, size_t *used,
 	assert((a = archive_write_new()) != NULL);
 	assertA(0 == archive_write_set_format_iso9660(a));
 	assertA(0 == archive_write_set_compression_none(a));
-	assertA(0 == archive_write_set_options(a, "!pad"));
+	assertA(0 == archive_write_set_option(a, NULL, "pad", NULL));
 	if (opt)
 		assertA(0 == archive_write_set_options(a, opt));
 	assertA(0 == archive_write_set_bytes_per_block(a, 1));

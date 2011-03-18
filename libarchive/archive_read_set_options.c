@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2010 Tim Kientzle
+ * Copyright (c) 2011 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
-#include "archive_write_private.h"
+#include "archive_read_private.h"
 #include "archive_options_private.h"
 
 static int	archive_set_format_option(struct archive *a,
@@ -37,37 +37,37 @@ static int	archive_set_option(struct archive *a,
 		    const char *m, const char *o, const char *v);
 
 int
-archive_write_set_format_option(struct archive *a, const char *m, const char *o,
+archive_read_set_format_option(struct archive *a, const char *m, const char *o,
     const char *v)
 {
 	return _archive_set_option(a, m, o, v,
-	    ARCHIVE_WRITE_MAGIC, "archive_write_set_format_option",
+	    ARCHIVE_READ_MAGIC, "archive_read_set_format_option",
 	    archive_set_format_option);
 }
 
 int
-archive_write_set_filter_option(struct archive *a, const char *m, const char *o,
+archive_read_set_filter_option(struct archive *a, const char *m, const char *o,
     const char *v)
 {
 	return _archive_set_option(a, m, o, v,
-	    ARCHIVE_WRITE_MAGIC, "archive_write_set_filter_option",
+	    ARCHIVE_READ_MAGIC, "archive_read_set_filter_option",
 	    archive_set_filter_option);
 }
 
 int
-archive_write_set_option(struct archive *a, const char *m, const char *o,
+archive_read_set_option(struct archive *a, const char *m, const char *o,
     const char *v)
 {
 	return _archive_set_option(a, m, o, v,
-	    ARCHIVE_WRITE_MAGIC, "archive_write_set_option",
+	    ARCHIVE_READ_MAGIC, "archive_read_set_option",
 	    archive_set_option);
 }
 
 int
-archive_write_set_options(struct archive *a, const char *options)
+archive_read_set_options(struct archive *a, const char *options)
 {
 	return _archive_set_options(a, options,
-	    ARCHIVE_WRITE_MAGIC, "archive_write_set_options",
+	    ARCHIVE_READ_MAGIC, "archive_read_set_options",
 	    archive_set_option);
 }
 
@@ -75,32 +75,56 @@ static int
 archive_set_format_option(struct archive *_a, const char *m, const char *o,
     const char *v)
 {
-	struct archive_write *a = (struct archive_write *)_a;
+	struct archive_read *a = (struct archive_read *)_a;
+	struct archive_format_descriptor *format;
+	size_t i;
+	int r, rv = ARCHIVE_FAILED;
 
-	if (a->format_name == NULL)
-		return (ARCHIVE_FAILED);
-	if (m != NULL && strcmp(m, a->format_name) != 0)
-		return (ARCHIVE_FAILED);
-	if (a->format_options == NULL)
-		return (ARCHIVE_FAILED);
-	return a->format_options(a, o, v);
+	for (i = 0; i < sizeof(a->formats)/sizeof(a->formats[0]); i++) {
+		format = &a->formats[i];
+		if (format == NULL || format->options == NULL ||
+		    format->name == NULL)
+			/* This format does not support option. */
+			continue;
+		if (m != NULL && strcmp(format->name, m) != 0)
+			continue;
+
+		a->format = format;
+		r = format->options(a, o, v);
+		a->format = NULL;
+
+		if (r == ARCHIVE_FATAL)
+			return (ARCHIVE_FATAL);
+
+		if (m != NULL)
+			return (r);
+
+		if (r == ARCHIVE_OK)
+			rv = ARCHIVE_OK;
+	}
+	return (rv);
 }
 
 static int
 archive_set_filter_option(struct archive *_a, const char *m, const char *o,
     const char *v)
 {
-	struct archive_write *a = (struct archive_write *)_a;
-	struct archive_write_filter *filter;
+	struct archive_read *a = (struct archive_read *)_a;
+	struct archive_read_filter *filter;
+	struct archive_read_filter_bidder *bidder;
 	int r, rv = ARCHIVE_FAILED;
 
-	for (filter = a->filter_first; filter != NULL; filter = filter->next_filter) {
-		if (filter->options == NULL)
+	for (filter = a->filter; filter != NULL; filter = filter->upstream) {
+		bidder = filter->bidder;
+		if (bidder == NULL)
+			continue;
+		if (bidder->options == NULL)
+			/* This bidder does not support option */
 			continue;
 		if (m != NULL && strcmp(filter->name, m) != 0)
 			continue;
 
-		r = filter->options(filter, o, v);
+		r = bidder->options(bidder, o, v);
 
 		if (r == ARCHIVE_FATAL)
 			return (ARCHIVE_FATAL);

@@ -98,7 +98,7 @@ DEFINE_TEST(test_write_format_zip_no_compression)
 	/* Create new ZIP archive in memory without padding. */
 	assert((a = archive_write_new()) != NULL);
 	assertA(0 == archive_write_set_format_zip(a));
-	assertA(0 == archive_write_set_format_options(a, "zip:compression=store"));
+	assertA(0 == archive_write_set_options(a, "zip:compression=store"));
 	assertA(0 == archive_write_set_compression_none(a));
 	assertA(0 == archive_write_set_bytes_per_block(a, 1));
 	assertA(0 == archive_write_set_bytes_in_last_block(a, 1));

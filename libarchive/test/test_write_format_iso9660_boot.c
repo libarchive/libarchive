@@ -105,10 +105,10 @@ _test_write_format_iso9660_boot(int write_info_tbl)
 	assert((a = archive_write_new()) != NULL);
 	assertA(0 == archive_write_set_format_iso9660(a));
 	assertA(0 == archive_write_set_compression_none(a));
-	assertA(0 == archive_write_set_options(a, "boot=boot.img"));
+	assertA(0 == archive_write_set_option(a, NULL, "boot", "boot.img"));
 	if (write_info_tbl)
-		assertA(0 == archive_write_set_options(a, "boot-info-table"));
-	assertA(0 == archive_write_set_options(a, "!pad"));
+		assertA(0 == archive_write_set_option(a, NULL, "boot-info-table", "1"));
+	assertA(0 == archive_write_set_option(a, NULL, "pad", NULL));
 	assertA(0 == archive_write_open_memory(a, buff, buffsize, &used));
 
 	/*

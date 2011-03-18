@@ -449,7 +449,7 @@ DEFINE_TEST(test_write_format_iso9660)
 	assertEqualIntA(a, 0, archive_read_support_compression_all(a));
 	/* Disable Rockridge extensions support. */
         assertEqualInt(ARCHIVE_OK,
-            archive_read_set_options(a, "!rockridge"));
+            archive_read_set_option(a, NULL, "rockridge", NULL));
 	assertEqualIntA(a, 0, archive_read_open_memory(a, buff, used));
 
 	/*
@@ -686,7 +686,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	assertEqualIntA(a, 0, archive_read_support_compression_all(a));
 	/* Disable Rockridge and Joliet extensions support. */
         assertEqualInt(ARCHIVE_OK,
-            archive_read_set_options(a, "!rockridge,!joliet"));
+            archive_read_set_option(a, NULL, "rockridge", NULL));
+        assertEqualInt(ARCHIVE_OK,
+            archive_read_set_option(a, NULL, "joliet", NULL));
 	assertEqualIntA(a, 0, archive_read_open_memory(a, buff, used));
 
 	/*
