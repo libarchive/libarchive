@@ -320,6 +320,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_format_isorr_rr_moved.c	\
 	libarchive/test/test_read_format_isozisofs_bz2.c	\
 	libarchive/test/test_read_format_lha.c			\
+	libarchive/test/test_read_format_lha_filename.c		\
 	libarchive/test/test_read_format_mtree.c		\
 	libarchive/test/test_read_format_pax_bz2.c		\
 	libarchive/test/test_read_format_raw.c			\
@@ -447,6 +448,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_lha_lh6.lzh.uu			\
 	libarchive/test/test_read_format_lha_lh7.lzh.uu			\
 	libarchive/test/test_read_format_lha_withjunk.lzh.uu		\
+	libarchive/test/test_read_format_lha_cp932.lzh.uu		\
 	libarchive/test/test_read_format_mtree.mtree.uu			\
 	libarchive/test/test_read_format_mtree_nomagic.mtree.uu		\
 	libarchive/test/test_read_format_raw.data.Z.uu			\

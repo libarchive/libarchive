@@ -91,6 +91,7 @@ IF(ENABLE_TEST)
     test_read_format_isorr_rr_moved.c
     test_read_format_isozisofs_bz2.c
     test_read_format_lha.c
+    test_read_format_lha_filename.c
     test_read_format_mtree.c
     test_read_format_pax_bz2.c
     test_read_format_raw.c
