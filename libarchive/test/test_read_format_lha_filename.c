@@ -38,6 +38,11 @@ DEFINE_TEST(test_read_format_lha_filename)
 	/*
 	 * Read LHA filename in ja_JP.eucJP.
 	 */
+	if (!canConvertCharset("eucJP", "CP932")) {
+		skipping("This system cannot convert character-set"
+		    " from CP932 to eucJP.");
+		return;
+	}
 	if (NULL == setlocale(LC_ALL, "ja_JP.eucJP")) {
 		skipping("ja_JP.eucJP locale not available on this system.");
 		return;
@@ -77,6 +82,11 @@ DEFINE_TEST(test_read_format_lha_filename)
 	/*
 	 * Read LHA filename in ja_JP.UTF-8.
 	 */
+	if (!canConvertCharset("UTF-8", "CP932")) {
+		skipping("This system cannot convert character-set"
+		    " from CP932 to UTF-8.");
+		return;
+	}
 	if (NULL == setlocale(LC_ALL, "ja_JP.UTF-8")) {
 		skipping("ja_JP.UTF-8 locale not available on this system.");
 		return;

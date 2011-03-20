@@ -336,6 +336,11 @@ test_pax_filename_encoding_ru_RU()
 	char buff[4096];
 	size_t used;
 
+	if (!canConvertCharset("UTF-8", "KOI8-R")) {
+		skipping("This system cannot convert character-set"
+		    " from KOI8-R to UTF-8.");
+		return;
+	}
 	if (NULL == setlocale(LC_ALL, "ru_RU.KOI8-R")) {
 		skipping("KOI8-R locale not available on this system.");
 		return;
@@ -370,6 +375,11 @@ test_pax_filename_encoding_ja_JP()
 	wchar_t ws[] = {0x8868, L'.', L't', L'x', L't', 0};
 	size_t used;
 
+	if (!canConvertCharset("UTF-8", "eucJP")) {
+		skipping("This system cannot convert character-set"
+		    " from eucJP to UTF-8.");
+		return;
+	}
 	if (NULL == setlocale(LC_ALL, "ja_JP.eucJP")) {
 		skipping("eucJP locale not available on this system.");
 		return;

@@ -28,6 +28,9 @@
 #include <sys/time.h>
 #endif
 #include <errno.h>
+#ifdef HAVE_ICONV_H
+#include <iconv.h>
+#endif
 #include <limits.h>
 #include <locale.h>
 #include <stdarg.h>
@@ -1656,6 +1659,23 @@ canGunzip(void)
 			value = 1;
 	}
 	return (value);
+}
+
+/*
+ * Can this platform convert character-set.
+ */
+int
+canConvertCharset(const char *to_charset, const char *from_charset)
+{
+#if HAVE_ICONV
+	iconv_t cd = iconv_open(to_charset, from_charset);
+	if (cd == NULL)
+		return (0);
+	iconv_close(cd);
+	return (1);
+#else
+	return (0);
+#endif
 }
 
 /*
