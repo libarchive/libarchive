@@ -730,7 +730,7 @@ lha_replace_path_separator(struct archive_read *a, struct lha *lha,
 	 * Try to replace a character in wide character.
 	 */
 
-	/* If converting to wide character failed, force a replacement. */
+	/* If a conversion to wide character failed, force a replacement. */
 	if (!archive_wstring_append_from_mbs(&a->archive, &(lha->ws),
 	    fn->s, fn->length)) {
 		for (i = 0; i < archive_strlen(fn); i++) {

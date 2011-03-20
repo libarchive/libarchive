@@ -289,6 +289,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_file_nonexistent.c		\
 	libarchive/test/test_read_format_ar.c			\
 	libarchive/test/test_read_format_cab.c			\
+	libarchive/test/test_read_format_cab_filename.c		\
 	libarchive/test/test_read_format_cpio_afio.c		\
 	libarchive/test/test_read_format_cpio_bin.c		\
 	libarchive/test/test_read_format_cpio_bin_Z.c		\
@@ -419,6 +420,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_cab_1.cab.uu			\
 	libarchive/test/test_read_format_cab_2.cab.uu			\
 	libarchive/test/test_read_format_cab_3.cab.uu			\
+	libarchive/test/test_read_format_cab_cp932.cab.uu		\
 	libarchive/test/test_read_format_cpio_bin_be.cpio.uu		\
 	libarchive/test/test_read_format_cpio_svr4_bzip2_rpm.rpm.uu	\
 	libarchive/test/test_read_format_cpio_svr4_gzip_rpm.rpm.uu	\
