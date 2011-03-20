@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2004 Tim Kientzle
+ * Copyright (c) 2011 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -92,6 +93,7 @@ struct zip {
 
 	struct archive_string	pathname;
 	struct archive_string	extra;
+	char			*charset;
 	char	format_name[64];
 };
 
@@ -123,6 +125,8 @@ static const char *compression_names[] = {
 };
 
 static int	archive_read_format_zip_bid(struct archive_read *);
+static int	archive_read_format_zip_options(struct archive_read *,
+		    const char *, const char *);
 static int	archive_read_format_zip_cleanup(struct archive_read *);
 static int	archive_read_format_zip_read_data(struct archive_read *,
 		    const void **, size_t *, int64_t *);
@@ -160,7 +164,7 @@ archive_read_support_format_zip(struct archive *_a)
 	    zip,
 	    "zip",
 	    archive_read_format_zip_bid,
-	    NULL,
+	    archive_read_format_zip_options,
 	    archive_read_format_zip_read_header,
 	    archive_read_format_zip_read_data,
 	    archive_read_format_zip_read_data_skip,
@@ -234,6 +238,29 @@ archive_read_format_zip_bid(struct archive_read *a)
 	}
 
 	return (0);
+}
+
+static int
+archive_read_format_zip_options(struct archive_read *a,
+    const char *key, const char *val)
+{
+	struct zip *zip;
+	int ret = ARCHIVE_FAILED;
+
+	zip = (struct zip *)(a->format->data);
+	if (strcmp(key, "charset")  == 0) {
+		if (val == NULL || val[0] == 0)
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "zip: charset option needs a character-set name");
+		else {
+			zip->charset = strdup(val);
+			ret = ARCHIVE_OK;
+		}
+	} else
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "zip: unknown keyword ``%s''", key);
+
+	return (ret);
 }
 
 /*
@@ -465,9 +492,8 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 		    "Truncated ZIP file header");
 		return (ARCHIVE_FATAL);
 	}
-	if (archive_string_ensure(&zip->pathname, zip->filename_length) == NULL)
-		__archive_errx(1, "Out of memory");
-	archive_strncpy(&zip->pathname, h, zip->filename_length);
+	archive_strncpy_from_specific_locale(&a->archive, &zip->pathname,
+	    (const char *)h, zip->filename_length, zip->charset);
 	__archive_read_consume(a, zip->filename_length);
 	archive_entry_set_pathname(entry, zip->pathname.s);
 
@@ -884,6 +910,7 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 	free(zip->uncompressed_buffer);
 	archive_string_free(&(zip->pathname));
 	archive_string_free(&(zip->extra));
+	free(zip->charset);
 	free(zip);
 	(a->format->data) = NULL;
 	return (ARCHIVE_OK);
