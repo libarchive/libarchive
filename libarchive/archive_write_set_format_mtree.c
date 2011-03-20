@@ -789,7 +789,7 @@ new_mtree_entry(struct archive_entry *entry)
 	struct mtree_entry *me;
 	const char *s;
 
-	me = malloc(sizeof(*me));
+	me = calloc(1, sizeof(*me));
 	if (me == NULL)
 		return (NULL);
 	me->pathname = strdup(archive_entry_pathname(entry));
