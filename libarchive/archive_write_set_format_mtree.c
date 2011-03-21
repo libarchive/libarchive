@@ -638,7 +638,8 @@ inc_attr_count(struct attr_counter **top, struct attr_counter *ac,
 			ac->prev = pac;
 			ac->next = pac->next;
 			pac->next = ac;
-			ac->next->prev = ac;
+			if (ac->next != NULL)
+				ac->next->prev = ac;
 		} else {
 			ac->prev = NULL;
 			ac->next = *top;
