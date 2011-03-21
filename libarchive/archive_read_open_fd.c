@@ -129,14 +129,17 @@ file_skip(struct archive *a, void *client_data, int64_t request)
 	off_t skip = (off_t)request;
 	off_t old_offset, new_offset;
 	int skip_bits = sizeof(skip) * 8 - 1;  /* off_t is a signed type. */
-	int64_t max_skip = (((int64_t)1 << (skip_bits - 1)) - 1) * 2 + 1;
 
 	if (!mine->use_lseek)
 		return (0);
 
 	/* Reduce a request that would overflow the 'skip' variable. */
-	if ((sizeof(request) > sizeof(skip)) && (request > max_skip))
-		skip = max_skip;
+	if (sizeof(request) > sizeof(skip)) {
+		int64_t max_skip =
+		    (((int64_t)1 << (skip_bits - 1)) - 1) * 2 + 1;
+		if (request > max_skip)
+			skip = max_skip;
+	}
 
 	/* Reduce request to the next smallest multiple of block_size */
 	request = (request / mine->block_size) * mine->block_size;
