@@ -996,8 +996,35 @@ process_extra(const void* extra, struct zip* zip)
 				zip->gid = archive_le16dec(p + offset + 2);
 			break;
 		case 0x7875:
+		{
 			/* Info-Zip Unix Extra Field (type 3) "ux". */
+			int uidsize = 0, gidsize = 0;
+
+			if (datasize >= 1 && p[offset] == 1) {/* version=1 */
+				if (datasize >= 4) {
+					/* get a uid size. */
+					uidsize = p[offset+1];
+					if (uidsize == 2)
+						zip->uid = archive_le16dec(
+						     p + offset + 2);
+					else if (uidsize == 4 && datasize >= 6)
+						zip->uid = archive_le32dec(
+						     p + offset + 2);
+				}
+				if (datasize >= (2 + uidsize + 3)) {
+					/* get a gid size. */
+					gidsize = p[offset+2+uidsize];
+					if (gidsize == 2)
+						zip->gid = archive_le16dec(
+						    p+offset+2+uidsize+1);
+					else if (gidsize == 4 &&
+					    datasize >= (2 + uidsize + 5))
+						zip->gid = archive_le32dec(
+						    p+offset+2+uidsize+1);
+				}
+			}
 			break;
+		}
 		default:
 			break;
 		}

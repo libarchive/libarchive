@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2011 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,7 +32,8 @@ __FBSDID("$FreeBSD: head/lib/libarchive/test/test_read_format_zip.c 189482 2009-
  *   * file2 has an invalid CRC
  */
 
-DEFINE_TEST(test_read_format_zip)
+static void
+test_basic()
 {
 	const char *refname = "test_read_format_zip.zip";
 	struct archive_entry *ae;
@@ -89,4 +91,55 @@ finish:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+/*
+ * Read Info-ZIP New Unix Extra Field 0x7875 "ux".
+ *  Currently sotres Unix UID/GID up to 32 bits.
+ */
+static void
+test_info_zip_ux()
+{
+	const char *refname = "test_read_format_zip_ux.zip";
+	struct archive_entry *ae;
+	struct archive *a;
+	char *buff[128];
+	int r;
 
+	extract_reference_file(refname);
+	assert((a = archive_read_new()) != NULL);
+	assertA(0 == archive_read_support_compression_all(a));
+	assertA(0 == archive_read_support_format_all(a));
+	assertA(0 == archive_read_open_filename(a, refname, 10240));
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualString("file1", archive_entry_pathname(ae));
+	assertEqualInt(1300668680, archive_entry_mtime(ae));
+	assertEqualInt(18, archive_entry_size(ae));
+	failure("zip reader should read Info-ZIP New Unix Extra Field");
+	assertEqualInt(1001, archive_entry_uid(ae));
+	assertEqualInt(1001, archive_entry_gid(ae));
+	failure("archive_read_data() returns number of bytes read");
+	r = archive_read_data(a, buff, 19);
+	if (r < ARCHIVE_OK) {
+		if (strcmp(archive_error_string(a),
+		    "libarchive compiled without deflate support (no libz)") == 0) {
+			skipping("Skipping ZIP compression check: %s",
+			    archive_error_string(a));
+			goto finish;
+		}
+	}
+	assertEqualInt(18, r);
+	assert(0 == memcmp(buff, "hello\nhello\nhello\n", 18));
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	assertA(archive_compression(a) == ARCHIVE_COMPRESSION_NONE);
+	assertA(archive_format(a) == ARCHIVE_FORMAT_ZIP);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+finish:
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_zip)
+{
+	test_basic();
+	test_info_zip_ux();
+}
