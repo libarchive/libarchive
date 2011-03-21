@@ -350,6 +350,9 @@ and internal buffer optimizations.
 A convenience function that repeatedly calls
 .Fn archive_read_data_block
 to skip all of the data for this archive entry.
+Note that this function is invoked automatically by
+.Fn archive_read_next_header2
+if the previous entry was not completely consumed.
 .\" #if ARCHIVE_API_VERSION < 3
 .It Fn archive_read_data_into_buffer
 This function is deprecated and will be removed.
