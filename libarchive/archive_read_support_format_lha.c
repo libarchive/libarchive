@@ -1133,7 +1133,6 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 #define EXT_OS2_NEW_ATTR	0x7f		/* new attribute(OS/2 only) */
 #define EXT_NEW_ATTR		0xff		/* new attribute	    */
 
-	extdsize = 0;
 	*total_size = sizefield_length;
 
 	for (;;) {
