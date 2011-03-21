@@ -608,8 +608,12 @@ free_attr_count(struct attr_counter **top)
 
 	if (*top == NULL)
 		return;
-	for (ac = *top; (tac = ac) != NULL; ac = tac->next)
+	ac = *top;
+        while (ac != NULL) {
+		tac = ac->next;
 		free(ac);
+		ac = tac;
+	}
 	*top = NULL;
 }
 
@@ -992,11 +996,17 @@ write_mtree_entries(struct archive_write *a)
 	struct mtree_entry *me, *tme;
 	int ret;
 
-	for (me = mtree->set.me_first; (tme = me) != NULL; me = tme->next) {
+	for (me = mtree->set.me_first; me; me = me->next) {
 		ret = write_entry(a, me);
-		free_mtree_entry(me);
 		if (ret != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
+	}
+
+	me = mtree->set.me_first;
+	while (me != NULL) {
+		tme = me->next;
+		free_mtree_entry(me);
+		me = tme;
 	}
 	mtree->set.me_first = NULL;
 	mtree->set.me_last = &mtree->set.me_first;
@@ -1091,8 +1101,12 @@ archive_write_mtree_free(struct archive_write *a)
 		return (ARCHIVE_OK);
 
 	/* Make sure we dot not leave any entries. */
-	for (me = mtree->set.me_first; (tme = me) != NULL; me = tme->next)
+	me = mtree->set.me_first;
+	while (me != NULL) {
+		tme = me->next;
 		free_mtree_entry(me);
+		me = tme;
+	}
 	archive_string_free(&mtree->ebuf);
 	archive_string_free(&mtree->buf);
 	archive_string_free(&mtree->set.parent);
