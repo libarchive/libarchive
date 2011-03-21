@@ -247,11 +247,12 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_archive_read_close_twice_open_fd.c	\
 	libarchive/test/test_archive_read_close_twice_open_filename.c	\
 	libarchive/test/test_archive_read_next_header_empty.c	\
-	libarchive/test/test_archive_set_error.c		\
+	libarchive/test/test_archive_read_next_header_raw.c	\
 	libarchive/test/test_archive_read_set_filter_option.c	\
 	libarchive/test/test_archive_read_set_format_option.c	\
 	libarchive/test/test_archive_read_set_option.c		\
 	libarchive/test/test_archive_read_set_options.c		\
+	libarchive/test/test_archive_set_error.c		\
 	libarchive/test/test_archive_write_set_filter_option.c	\
 	libarchive/test/test_archive_write_set_format_option.c	\
 	libarchive/test/test_archive_write_set_option.c		\
@@ -270,10 +271,10 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_compat_zip.c			\
 	libarchive/test/test_empty_write.c			\
 	libarchive/test/test_entry.c				\
-	libarchive/test/test_extattr_freebsd.c			\
-	libarchive/test/test_filter_count.c		\
-	libarchive/test/test_fuzz.c				\
 	libarchive/test/test_entry_strmode.c			\
+	libarchive/test/test_extattr_freebsd.c			\
+	libarchive/test/test_filter_count.c			\
+	libarchive/test/test_fuzz.c				\
 	libarchive/test/test_link_resolver.c			\
 	libarchive/test/test_open_failure.c			\
 	libarchive/test/test_open_fd.c				\
@@ -363,8 +364,8 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_format_ar.c			\
 	libarchive/test/test_write_format_cpio.c		\
 	libarchive/test/test_write_format_cpio_empty.c		\
-	libarchive/test/test_write_format_cpio_odc.c		\
 	libarchive/test/test_write_format_cpio_newc.c		\
+	libarchive/test/test_write_format_cpio_odc.c		\
 	libarchive/test/test_write_format_gnutar.c		\
 	libarchive/test/test_write_format_iso9660.c		\
 	libarchive/test/test_write_format_iso9660_boot.c	\

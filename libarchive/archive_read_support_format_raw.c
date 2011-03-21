@@ -130,6 +130,7 @@ archive_read_format_raw_read_data(struct archive_read *a,
 
 	info = (struct raw_info *)(a->format->data);
 
+	/* Consume the bytes we read last time. */
 	if (info->unconsumed) {
 		__archive_read_consume(a, info->unconsumed);
 		info->unconsumed = 0;
@@ -141,7 +142,7 @@ archive_read_format_raw_read_data(struct archive_read *a,
 	/* Get whatever bytes are immediately available. */
 	*buff = __archive_read_ahead(a, 1, &avail);
 	if (avail > 0) {
-		/* Consume and return the bytes we just read */
+		/* Return the bytes we just read */
 		*size = avail;
 		*offset = info->offset;
 		info->offset += *size;
@@ -166,11 +167,12 @@ archive_read_format_raw_read_data_skip(struct archive_read *a)
 {
 	struct raw_info *info = (struct raw_info *)(a->format->data);
 
+	/* Consume the bytes we read last time. */
 	if (info->unconsumed) {
 		__archive_read_consume(a, info->unconsumed);
 		info->unconsumed = 0;
 	}
-
+	info->end_of_file = 1;
 	return (ARCHIVE_OK);
 }
 

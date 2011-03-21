@@ -18,11 +18,12 @@ IF(ENABLE_TEST)
     test_archive_read_close_twice_open_fd.c
     test_archive_read_close_twice_open_filename.c
     test_archive_read_next_header_empty.c
-    test_archive_set_error.c
+    test_archive_read_next_header_raw.c
     test_archive_read_set_filter_option.c
     test_archive_read_set_format_option.c
     test_archive_read_set_option.c
     test_archive_read_set_options.c
+    test_archive_set_error.c
     test_archive_write_set_filter_option.c
     test_archive_write_set_format_option.c
     test_archive_write_set_option.c
@@ -134,8 +135,8 @@ IF(ENABLE_TEST)
     test_write_format_ar.c
     test_write_format_cpio.c
     test_write_format_cpio_empty.c
-    test_write_format_cpio_odc.c
     test_write_format_cpio_newc.c
+    test_write_format_cpio_odc.c
     test_write_format_gnutar.c
     test_write_format_iso9660.c
     test_write_format_iso9660_boot.c
