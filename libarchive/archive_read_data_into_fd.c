@@ -116,7 +116,7 @@ archive_read_data_into_fd(struct archive *a, int fd)
 			if (bytes_written < 0) {
 				archive_set_error(a, errno, "Write error");
 				r = ARCHIVE_FATAL;
-				break;
+				goto cleanup;
 			}
 			actual_offset += bytes_written;
 			p += bytes_written;
@@ -131,6 +131,7 @@ archive_read_data_into_fd(struct archive *a, int fd)
 			r = r2;
 	}
 
+cleanup:
 	free(nulls);
 	if (r != ARCHIVE_EOF)
 		return (r);
