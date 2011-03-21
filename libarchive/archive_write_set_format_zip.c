@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2008 Anselm Strauss
  * Copyright (c) 2009 Joerg Sonnenberger
+ * Copyright (c) 2011 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -78,7 +79,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_zip.c 201168 20
 #define ZIP_SIGNATURE_FILE_HEADER 0x02014b50
 #define ZIP_SIGNATURE_CENTRAL_DIRECTORY_END 0x06054b50
 #define ZIP_SIGNATURE_EXTRA_TIMESTAMP 0x5455
-#define ZIP_SIGNATURE_EXTRA_UNIX 0x7855
+#define ZIP_SIGNATURE_EXTRA_NEW_UNIX 0x7875
 #define ZIP_VERSION_EXTRACT 0x0014 /* ZIP version 2.0 is needed. */
 #define ZIP_VERSION_BY 0x0314 /* Made by UNIX, using ZIP version 2.0. */
 #define ZIP_FLAGS 0x08 /* Flagging bit 3 (count from 0) for using data descriptor. */
@@ -148,8 +149,11 @@ struct zip_extra_data_local {
 	char ctime[4];
 	char unix_id[2];
 	char unix_size[2];
-	char unix_uid[2];
-	char unix_gid[2];
+	char unix_version;
+	char unix_uid_size;
+	char unix_uid[4];
+	char unix_gid_size;
+	char unix_gid[4];
 };
 
 struct zip_extra_data_central {
@@ -368,10 +372,15 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	archive_le32enc(&e.atime, archive_entry_atime(entry));
 	archive_le32enc(&e.ctime, archive_entry_ctime(entry));
 
-	archive_le16enc(&e.unix_id, ZIP_SIGNATURE_EXTRA_UNIX);
-	archive_le16enc(&e.unix_size, sizeof(e.unix_uid) + sizeof(e.unix_gid));
-	archive_le16enc(&e.unix_uid, archive_entry_uid(entry));
-	archive_le16enc(&e.unix_gid, archive_entry_gid(entry));
+	archive_le16enc(&e.unix_id, ZIP_SIGNATURE_EXTRA_NEW_UNIX);
+	archive_le16enc(&e.unix_size, sizeof(e.unix_version) +
+	    sizeof(e.unix_uid_size) + sizeof(e.unix_uid) +
+	    sizeof(e.unix_gid_size) + sizeof(e.unix_gid));
+	e.unix_version = 1;
+	e.unix_uid_size = 4;
+	archive_le32enc(&e.unix_uid, archive_entry_uid(entry));
+	e.unix_gid_size = 4;
+	archive_le32enc(&e.unix_gid, archive_entry_gid(entry));
 
 	archive_le32enc(&d->uncompressed_size, size);
 
@@ -541,7 +550,7 @@ archive_write_zip_close(struct archive_write *a)
 		archive_le16enc(&e.time_size, sizeof(e.mtime) + sizeof(e.time_flag));
 		e.time_flag[0] = 0x07;
 		archive_le32enc(&e.mtime, archive_entry_mtime(l->entry));
-		archive_le16enc(&e.unix_id, ZIP_SIGNATURE_EXTRA_UNIX);
+		archive_le16enc(&e.unix_id, ZIP_SIGNATURE_EXTRA_NEW_UNIX);
 		archive_le16enc(&e.unix_size, 0x0000);
 
 		ret = __archive_write_output(a, &h, sizeof(h));
