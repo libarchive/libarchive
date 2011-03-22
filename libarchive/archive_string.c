@@ -465,6 +465,62 @@ default_iconv_charset(const char *charset) {
 #endif
 }
 
+/*
+ * Test that platform support a character-set conversion.
+ */
+int
+archive_string_conversion_to_charset(struct archive *a, const char *charset)
+{
+	int ret;
+#if HAVE_ICONV
+	iconv_t cd = iconv_open(charset, default_iconv_charset(""));
+
+	if (cd == (iconv_t)(-1)) {
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
+		    "iconv_open failed : Cannot convert a character-set "
+		    "from current locale to %s", charset);
+		ret = -1;
+	} else {
+		iconv_close(cd);
+		ret = 0;
+	}
+#else
+	archive_set_error(a, ARCHIVE_ERRNO_MISC,
+	    " A character-set conversion not fully supported"
+	    " on this platform");
+	ret = -1;
+#endif
+	return (ret);
+}
+
+/*
+ * Test that platform support a character-set conversion.
+ */
+int
+archive_string_conversion_from_charset(struct archive *a, const char *charset)
+{
+	int ret;
+#if HAVE_ICONV
+	iconv_t cd = iconv_open(default_iconv_charset(""), charset);
+
+	if (cd == (iconv_t)(-1)) {
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
+		    "iconv_open failed : Cannot convert a character-set "
+		    "from current locale to %s", charset);
+		ret = -1;
+	} else {
+		iconv_close(cd);
+		ret = 0;
+	}
+#else
+	archive_set_error(a, ARCHIVE_ERRNO_MISC,
+	    " A character-set conversion not fully supported"
+	    " on this platform");
+	ret = -1;
+#endif
+	return (ret);
+}
+
 #if HAVE_ICONV
 
 /*
@@ -861,7 +917,8 @@ la_iconv_open(struct archive *a, const char *charset, int direction)
 			cd = iconv_open(default_iconv_charset(a->current_code),
 			    charset);
 			/* Save a conversion descriptor. */
-			itbl->to_current = cd;
+			if (cd != (iconv_t)-1)
+				itbl->to_current = cd;
 		} else {
 			/* Use the cached conversion descriptor after
 			 * resetting it. */
@@ -876,7 +933,8 @@ la_iconv_open(struct archive *a, const char *charset, int direction)
 			cd = iconv_open(charset,
 			    default_iconv_charset(a->current_code));
 			/* Save a conversion descriptor. */
-			itbl->from_current = cd;
+			if (cd != (iconv_t)-1)
+				itbl->from_current = cd;
 		} else {
 			/* Use the cached conversion descriptor after
 			 * resetting it. */

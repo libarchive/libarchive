@@ -421,10 +421,12 @@ archive_read_format_lha_options(struct archive_read *a,
 		if (val == NULL || val[0] == 0)
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "lha: charset option needs a character-set name");
-		else {
+		else if (archive_string_conversion_from_charset(
+		    &a->archive, val) == 0) {
 			archive_strcpy(&lha->opt_charset, val);
 			ret = ARCHIVE_OK;
-		}
+		} else
+			ret = ARCHIVE_FATAL;
 	} else
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "lha: unknown keyword ``%s''", key);

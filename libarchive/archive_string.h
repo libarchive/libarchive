@@ -98,6 +98,14 @@ int
 archive_strncpy_to_utf16be(struct archive *,
     struct archive_string *, const char *, size_t);
 
+
+/* Test that platform support a character-set conversion.
+ * Return -1 and set a error message if the conversion is not supported. */
+int
+archive_string_conversion_to_charset(struct archive *, const char *);
+int
+archive_string_conversion_from_charset(struct archive *, const char *);
+
 /* Convert MBS from specific locale to current locale and copy the result.
  * Return -1 if conversion failes. */
 int

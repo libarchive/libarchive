@@ -458,10 +458,12 @@ archive_read_format_cab_options(struct archive_read *a,
 		if (val == NULL || val[0] == 0)
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "cab: charset option needs a character-set name");
-		else {
+		else if (archive_string_conversion_from_charset(
+		    &a->archive, val) == 0) {
 			cab->charset = strdup(val);
 			ret = ARCHIVE_OK;
-		}
+		} else
+			ret = ARCHIVE_FATAL;
 	} else
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "cab: unknown keyword ``%s''", key);
