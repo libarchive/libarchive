@@ -27,28 +27,36 @@ __FBSDID("$FreeBSD");
 
 #include <locale.h>
 
-DEFINE_TEST(test_read_format_lha_filename)
+static void
+test_read_format_lha_filename_CP932_eucJP(const char *refname)
 {
 	struct archive *a;
 	struct archive_entry *ae;
 
-	/* A sample file was created with LHA32.EXE through UNLHA.DLL. */
-	const char *refname = "test_read_format_lha_cp932.lzh";
-
 	/*
 	 * Read LHA filename in ja_JP.eucJP.
 	 */
-	if (!canConvertCharset("eucJP", "CP932")) {
-		skipping("This system cannot convert character-set"
-		    " from CP932 to eucJP.");
-		return;
-	}
 	if (NULL == setlocale(LC_ALL, "ja_JP.eucJP")) {
 		skipping("ja_JP.eucJP locale not available on this system.");
 		return;
 	}
 
-	extract_reference_file(refname);
+	/*
+	 * Create a read object only for a test that platform support
+	 * a character-set conversion because we can read a character-set
+	 * of filenames from the header of an lha archive file and so we
+	 * want to test that it works well. 
+	 */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	if (ARCHIVE_OK != archive_read_set_options(a, "charset=CP932")) {
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		skipping("This system cannot convert character-set"
+		    " from CP932 to eucJP.");
+		return;
+	}
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -77,20 +85,36 @@ DEFINE_TEST(test_read_format_lha_filename)
 	/* Close the archive. */
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
 
+static void
+test_read_format_lha_filename_CP932_UTF8(const char *refname)
+{
+	struct archive *a;
+	struct archive_entry *ae;
 
 	/*
 	 * Read LHA filename in ja_JP.UTF-8.
 	 */
-	if (!canConvertCharset("UTF-8", "CP932")) {
-		skipping("This system cannot convert character-set"
-		    " from CP932 to UTF-8.");
-		return;
-	}
 	if (NULL == setlocale(LC_ALL, "ja_JP.UTF-8")) {
 		skipping("ja_JP.UTF-8 locale not available on this system.");
 		return;
 	}
+	/*
+	 * Create a read object only for a test that platform support
+	 * a character-set conversion because we can read a character-set
+	 * of filenames from the header of an lha archive file and so we
+	 * want to test that it works well. 
+	 */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	if (ARCHIVE_OK != archive_read_set_options(a, "charset=CP932")) {
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		skipping("This system cannot convert character-set"
+		    " from CP932 to UTF-8.");
+		return;
+	}
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
@@ -123,3 +147,13 @@ DEFINE_TEST(test_read_format_lha_filename)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+DEFINE_TEST(test_read_format_lha_filename)
+{
+	/* A sample file was created with LHA32.EXE through UNLHA.DLL. */
+	const char *refname = "test_read_format_lha_cp932.lzh";
+
+	extract_reference_file(refname);
+
+	test_read_format_lha_filename_CP932_eucJP(refname);
+	test_read_format_lha_filename_CP932_UTF8(refname);
+}

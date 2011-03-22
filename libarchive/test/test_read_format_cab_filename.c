@@ -27,31 +27,28 @@ __FBSDID("$FreeBSD");
 
 #include <locale.h>
 
-DEFINE_TEST(test_read_format_cab_filename)
+static void
+test_read_format_cab_filename_CP932_eucJP(const char *refname)
 {
 	struct archive *a;
 	struct archive_entry *ae;
-	const char *refname = "test_read_format_cab_cp932.cab";
 
 	/*
 	 * Read CAB filename in ja_JP.eucJP with "charset=CP932" option.
 	 */
-	if (!canConvertCharset("eucJP", "CP932")) {
-		skipping("This system cannot convert character-set"
-		    " from CP932 to eucJP.");
-		return;
-	}
 	if (NULL == setlocale(LC_ALL, "ja_JP.eucJP")) {
 		skipping("ja_JP.eucJP locale not available on this system.");
 		return;
 	}
 
-	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_set_options(a, "charset=CP932"));
+	if (ARCHIVE_OK != archive_read_set_options(a, "charset=CP932")) {
+		skipping("This system cannot convert character-set"
+		    " from CP932 to eucJP.");
+		goto cleanup;
+	}
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_open_filename(a, refname, 10240));
 
@@ -78,18 +75,20 @@ DEFINE_TEST(test_read_format_cab_filename)
 	assertEqualIntA(a, ARCHIVE_FORMAT_CAB, archive_format(a));
 
 	/* Close the archive. */
+cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
 
+static void
+test_read_format_cab_filename_CP932_UTF8(const char *refname)
+{
+	struct archive *a;
+	struct archive_entry *ae;
 
 	/*
 	 * Read CAB filename in ja_JP.UTF-8 with "charset=CP932" option.
 	 */
-	if (!canConvertCharset("UTF-8", "CP932")) {
-		skipping("This system cannot convert character-set"
-		    " from CP932 to UTF-8.");
-		return;
-	}
 	if (NULL == setlocale(LC_ALL, "ja_JP.UTF-8")) {
 		skipping("ja_JP.UTF-8 locale not available on this system.");
 		return;
@@ -98,8 +97,11 @@ DEFINE_TEST(test_read_format_cab_filename)
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_set_options(a, "charset=CP932"));
+	if (ARCHIVE_OK != archive_read_set_options(a, "charset=CP932")) {
+		skipping("This system cannot convert character-set"
+		    " from CP932 to UTF-8.");
+		goto cleanup;
+	}
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_open_filename(a, refname, 10240));
 
@@ -126,7 +128,16 @@ DEFINE_TEST(test_read_format_cab_filename)
 	assertEqualIntA(a, ARCHIVE_FORMAT_CAB, archive_format(a));
 
 	/* Close the archive. */
+cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+DEFINE_TEST(test_read_format_cab_filename)
+{
+	const char *refname = "test_read_format_cab_cp932.cab";
+
+	extract_reference_file(refname);
+	test_read_format_cab_filename_CP932_eucJP(refname);
+	test_read_format_cab_filename_CP932_UTF8(refname);
+}
