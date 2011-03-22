@@ -764,6 +764,41 @@ archive_string_append_from_unicode_to_mbs(struct archive *a, struct archive_stri
  *   archive_string_copy_from_specific_locale()
  *   archive_string_copy_to_specific_locale()
  */
+static size_t
+la_strnlen(const void *_p, size_t n)
+{
+	size_t s;
+	const char *p, *pp;
+
+	p = (const char *)_p;
+
+	/* Like strlen(p), except won't examine positions beyond p[n]. */
+	s = 0;
+	pp = p;
+	while (s < n && *pp) {
+		pp++;
+		s++;
+	}
+	return (s);
+}
+
+int
+archive_strncpy_from_locale(struct archive *a,
+    struct archive_string *as, const void *_p, size_t n,
+    const char *charset)
+{
+	as->length = 0;
+	return (archive_strncat_from_locale(a, as, _p, n, charset));
+}
+
+int
+archive_strncpy_to_locale(struct archive *a,
+    struct archive_string *as, const void *_p, size_t n,
+    const char *charset)
+{
+	as->length = 0;
+	return (archive_strncat_to_locale(a, as, _p, n, charset));
+}
 
 #if HAVE_ICONV
 
@@ -865,18 +900,19 @@ la_iconv_close(struct archive *a, iconv_t cd)
  * Return -1 if conversion failes.
  */
 static int
-la_strncpy_in_locale(struct archive *a,
-    struct archive_string *as, const char *src, size_t length,
+la_strncat_in_locale(struct archive *a,
+    struct archive_string *as, const void *_p, size_t n,
     const char *charset, int direction)
 {
 	ICONV_CONST char *inp;
 	size_t remaining;
 	iconv_t cd;
+	const char *src = _p;
 	char *outp;
-	size_t avail, outbase;
+	size_t avail, length;
 	int return_value = 0; /* success */
 
-	archive_string_empty(as);
+	length = la_strnlen(_p, n);
 	/* If charset is NULL, we just make a copy without conversion. */
 	if (charset == NULL) {
 		archive_string_append(as, src, length);
@@ -891,18 +927,18 @@ la_strncpy_in_locale(struct archive *a,
 		return (-1);
 	}
 
-	archive_string_ensure(as, length*2+1);
+	archive_string_ensure(as, as->length + length*2+1);
 
 	inp = (char *)(uintptr_t)src;
 	remaining = length;
-	outp = as->s;
-	avail = outbase = length;
+	outp = as->s + as->length;
+	avail = as->buffer_length -1;
 	while (remaining > 0) {
 		size_t result = iconv(cd, &inp, &remaining, &outp, &avail);
 
 		if (result != (size_t)-1) {
 			*outp = '\0';
-			as->length = outbase - avail;
+			as->length = outp - as->s;
 			break; /* Conversion completed. */
 		} else if (errno == EILSEQ || errno == EINVAL) {
 			/* Skip the illegal input bytes. */
@@ -914,11 +950,10 @@ la_strncpy_in_locale(struct archive *a,
 		} else {
 			/* E2BIG no output buffer,
 			 * Increase an output buffer.  */
-			as->length = outbase - avail;
-			outbase *= 2;
-			archive_string_ensure(as, outbase+1);
+			as->length = outp - as->s;
+			archive_string_ensure(as, as->buffer_length * 2);
 			outp = as->s + as->length;
-			avail = outbase - as->length;
+			avail = as->buffer_length - as->length -1;
 		}
 	}
 	/* Dispose of the conversion descriptor or cache it. */
@@ -931,11 +966,10 @@ la_strncpy_in_locale(struct archive *a,
  * Return -1 if conversion failes.
  */
 int
-archive_strncpy_from_specific_locale(struct archive *a,
-    struct archive_string *as, const char *src, size_t length,
-    const char *charset)
+archive_strncat_from_locale(struct archive *a, struct archive_string *as,
+    const void *_p, size_t n, const char *charset)
 {
-	return (la_strncpy_in_locale(a, as, src, length, charset,
+	return (la_strncat_in_locale(a, as, _p, n, charset,
 	    LA_ICONV_TO_CURRENT));
 }
 
@@ -944,11 +978,10 @@ archive_strncpy_from_specific_locale(struct archive *a,
  * Return -1 if conversion failes.
  */
 int
-archive_strncpy_to_specific_locale(struct archive *a,
-    struct archive_string *as, const char *src, size_t length,
-    const char *charset)
+archive_strncat_to_locale(struct archive *a, struct archive_string *as,
+    const void *_p, size_t n, const char *charset)
 {
-	return (la_strncpy_in_locale(a, as, src, length, charset,
+	return (la_strncat_in_locale(a, as, _p, n, charset,
 	    LA_ICONV_FROM_CURRENT));
 }
 
@@ -963,7 +996,7 @@ archive_strncpy_to_specific_locale(struct archive *a,
 #define LA_UTF8_TO_CURRENT	0
 #define LA_CURRENT_TO_UTF8	1
 static int
-strncpy_in_utf8(struct archive *a, struct archive_string *as,
+strncat_in_utf8(struct archive *a, struct archive_string *as,
     const char *s, size_t length, int direction)
 {
 	int count;
@@ -979,7 +1012,6 @@ strncpy_in_utf8(struct archive *a, struct archive_string *as,
 		cp_to = CP_UTF8;
 	}
 
-	archive_string_empty(as);
 	count = MultiByteToWideChar(cp_from,
 	    MB_PRECOMPOSED, s, length, NULL, 0);
 	if (count == 0) {
@@ -1000,11 +1032,11 @@ strncpy_in_utf8(struct archive *a, struct archive_string *as,
 		archive_string_append(as, s, length);
 		return (-1);
 	}
-	archive_string_ensure(as, count +1);
+	archive_string_ensure(as, as->length + count +1);
 	count = WideCharToMultiByte(cp_to, 0, ws, count,
-	    as->s, count, NULL, &defchar);
-	as->length = count;
-	as->s[count] = '\0';
+	    as->s + as->length, count, NULL, &defchar);
+	as->length += count;
+	as->s[as->length] = '\0';
 	free(ws);
 	return (defchar?-1:0);
 }
@@ -1029,16 +1061,16 @@ is_all_ascii_code(struct archive_string *as)
  * Returns 0 if charset is NULL.
  */
 int
-archive_strncpy_from_specific_locale(struct archive *a,
-    struct archive_string *as, const char *src, size_t length,
-    const char *charset)
+archive_strncat_from_locale(struct archive *a, struct archive_string *as,
+    const void *_p, size_t n, const char *charset)
 {
+	size_t length = la_strnlen(_p, n);
+
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	if (charset != NULL && strcmp(charset, "UTF-8") == 0)
-		return (strncpy_in_utf8(a, as, src, length, LA_UTF8_TO_CURRENT));
+		return (strncat_in_utf8(a, as, _p, length, LA_UTF8_TO_CURRENT));
 #endif
-	archive_string_empty(as);
-	archive_string_append(as, src, length);
+	archive_string_append(as, _p, length);
 	/* If charset is NULL, just make a copy, so return 0 as success. */
 	if (charset == NULL ||
 	    strcmp(default_iconv_charset(NULL), charset) == 0)
@@ -1054,16 +1086,16 @@ archive_strncpy_from_specific_locale(struct archive *a,
  * Returns 0 if charset is NULL.
  */
 int
-archive_strncpy_to_specific_locale(struct archive *a,
-    struct archive_string *as, const char *src, size_t length,
-    const char *charset)
+archive_strncat_to_locale(struct archive *a, struct archive_string *as,
+    const void *_p, size_t n, const char *charset)
 {
+	size_t length = la_strnlen(_p, n);
+
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	if (charset != NULL && strcmp(charset, "UTF-8") == 0)
-		return (strncpy_in_utf8(a, as, src, length, LA_CURRENT_TO_UTF8));
+		return (strncat_in_utf8(a, as, _p, length, LA_CURRENT_TO_UTF8));
 #endif
-	archive_string_empty(as);
-	archive_string_append(as, src, length);
+	archive_string_append(as, _p, length);
 	/* If charset is NULL, just make a copy, so return 0 as success. */
 	if (charset == NULL ||
 	    strcmp(default_iconv_charset(NULL), charset) == 0)

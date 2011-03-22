@@ -492,8 +492,8 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 		    "Truncated ZIP file header");
 		return (ARCHIVE_FATAL);
 	}
-	archive_strncpy_from_specific_locale(&a->archive, &zip->pathname,
-	    (const char *)h, zip->filename_length, zip->charset);
+	archive_strncpy_from_locale(&a->archive, &zip->pathname,
+	    h, zip->filename_length, zip->charset);
 	__archive_read_consume(a, zip->filename_length);
 	archive_entry_set_pathname(entry, zip->pathname.s);
 

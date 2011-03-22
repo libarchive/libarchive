@@ -101,14 +101,20 @@ archive_strncpy_to_utf16be(struct archive *,
 /* Convert MBS from specific locale to current locale and copy the result.
  * Return -1 if conversion failes. */
 int
-archive_strncpy_from_specific_locale(struct archive *,
-    struct archive_string *, const char *, size_t, const char *);
+archive_strncat_from_locale(struct archive *,
+    struct archive_string *, const void *, size_t, const char *);
+int
+archive_strncpy_from_locale(struct archive *,
+    struct archive_string *, const void *, size_t, const char *);
 
 /* Convert MBS from current locale to specific locale and copy the result.
  * Return -1 if conversion failes. */
 int
-archive_strncpy_to_specific_locale(struct archive *,
-    struct archive_string *, const char *, size_t, const char *);
+archive_strncat_to_locale(struct archive *,
+    struct archive_string *, const void *, size_t, const char *);
+int
+archive_strncpy_to_locale(struct archive *,
+    struct archive_string *, const void *, size_t, const char *);
 
 
 /* Copy one archive_string to another */
@@ -148,6 +154,10 @@ archive_wstrcat(struct archive_wstring *, const wchar_t *);
 	archive_strncpy((as), (p), ((p) == NULL ? 0 : strlen(p)))
 #define	archive_wstrcpy(as,p) \
 	archive_wstrncpy((as), (p), ((p) == NULL ? 0 : wcslen(p)))
+#define	archive_strcpy_from_locale(a,as,p,lo) \
+	archive_strncpy_from_locale((a), (as), (p), ((p) == NULL ? 0 : strlen(p)), (lo))
+#define	archive_strcpy_to_locale(a,as,p,lo) \
+	archive_strncpy_to_locale((a), (as), (p), ((p) == NULL ? 0 : strlen(p)), (lo))
 
 /* Copy a C string to an archive_string with limit, resizing as necessary. */
 #define	archive_strncpy(as,p,l) \

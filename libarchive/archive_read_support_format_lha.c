@@ -611,7 +611,7 @@ archive_read_format_lha_read_header(struct archive_read *a,
 	 */
 	archive_string_concat(&lha->dirname, &lha->filename);
 	archive_string_init(&pathname);
-	archive_strncpy_from_specific_locale(&a->archive, &pathname,
+	archive_strncpy_from_locale(&a->archive, &pathname,
 	    lha->dirname.s, lha->dirname.length, lha->charset);
 
 	/*

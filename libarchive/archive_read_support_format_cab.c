@@ -791,11 +791,11 @@ cab_read_header(struct archive_read *a)
 			goto invalid;
 		archive_string_init(&(file->pathname));
 		if ((file->attr & ATTR_NAME_IS_UTF) && cab->charset == NULL)
-			archive_strncpy_from_specific_locale(&a->archive,
-			    &(file->pathname),  (const char *)p, len, "UTF-8");
+			archive_strncpy_from_locale(&a->archive,
+			    &(file->pathname), p, len, "UTF-8");
 		else
-			archive_strncpy_from_specific_locale(&a->archive,
-			    &(file->pathname),  (const char *)p, len, cab->charset);
+			archive_strncpy_from_locale(&a->archive,
+			    &(file->pathname), p, len, cab->charset);
 		__archive_read_consume(a, len + 1);
 		cab->cab_offset += len + 1;
 		/* Convert a path separator '\' -> '/' */
