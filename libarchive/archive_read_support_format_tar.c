@@ -31,41 +31,11 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_support_format_tar.c 201161
 #include <errno.h>
 #endif
 #include <stddef.h>
-/* #include <stdint.h> */ /* See archive_platform.h */
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
 #ifdef HAVE_STRING_H
 #include <string.h>
-#endif
-
-/* Obtain suitable wide-character manipulation functions. */
-#ifdef HAVE_WCHAR_H
-#include <wchar.h>
-#else
-/* Good enough for equality testing, which is all we need. */
-static int wcscmp(const wchar_t *s1, const wchar_t *s2)
-{
-	int diff = *s1 - *s2;
-	while (*s1 && diff == 0)
-		diff = (int)*++s1 - (int)*++s2;
-	return diff;
-}
-/* Good enough for equality testing, which is all we need. */
-static int wcsncmp(const wchar_t *s1, const wchar_t *s2, size_t n)
-{
-	int diff = *s1 - *s2;
-	while (*s1 && diff == 0 && n-- > 0)
-		diff = (int)*++s1 - (int)*++s2;
-	return diff;
-}
-static size_t wcslen(const wchar_t *s)
-{
-	const wchar_t *p = s;
-	while (*p)
-		p++;
-	return p - s;
-}
 #endif
 
 #include "archive.h"
