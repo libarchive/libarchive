@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2003-2007 Tim Kientzle
- * Copyright (c) 2010 Michihiro NAKAJIMA
+ * Copyright (c) 2010-2011 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,6 +52,13 @@ struct sparse_block {
 struct pax {
 	uint64_t	entry_bytes_remaining;
 	uint64_t	entry_padding;
+	struct archive_string	l_path;
+	struct archive_string	l_uname;
+	struct archive_string	l_gname;
+	struct archive_string	l_linkpath;
+	struct archive_string	l_url_encoded_name;
+	struct archive_string	l_acl_mbs;
+	struct archive_string	l_acl_utf8;
 	struct archive_string	pax_header;
 	struct archive_string	sparse_map;
 	size_t			sparse_map_padding;
@@ -66,8 +73,6 @@ static void		 add_pax_attr_int(struct archive_string *,
 static void		 add_pax_attr_time(struct archive_string *,
 			     const char *key, int64_t sec,
 			     unsigned long nanos);
-static void		 add_pax_attr_w(struct archive_string *,
-			     const char *key, const wchar_t *wvalue);
 static ssize_t		 archive_write_pax_data(struct archive_write *,
 			     const void *, size_t);
 static int		 archive_write_pax_close(struct archive_write *);
@@ -81,7 +86,7 @@ static char		*build_pax_attribute_name(char *dest, const char *src);
 static char		*build_ustar_entry_name(char *dest, const char *src,
 			     size_t src_length, const char *insert);
 static char		*format_int(char *dest, int64_t);
-static int		 has_non_ASCII(const wchar_t *);
+static int		 has_non_ASCII(struct archive_string *);
 static void		 sparse_list_clear(struct pax *);
 static int		 sparse_list_add(struct pax *, int64_t, int64_t);
 static char		*url_encode(const char *in);
@@ -212,106 +217,6 @@ add_pax_attr_int(struct archive_string *as, const char *key, int64_t value)
 	add_pax_attr(as, key, format_int(tmp + sizeof(tmp) - 1, value));
 }
 
-static char *
-utf8_encode(const wchar_t *wval)
-{
-	int utf8len;
-	const wchar_t *wp;
-	unsigned long wc;
-	char *utf8_value, *p;
-
-	utf8len = 0;
-	for (wp = wval; *wp != L'\0'; ) {
-		wc = *wp++;
-
-		if (wc >= 0xd800 && wc <= 0xdbff
-		    && *wp >= 0xdc00 && *wp <= 0xdfff) {
-			/* This is a surrogate pair.  Combine into a
-			 * full Unicode value before encoding into
-			 * UTF-8. */
-			wc = (wc - 0xd800) << 10; /* High 10 bits */
-			wc += (*wp++ - 0xdc00); /* Low 10 bits */
-			wc += 0x10000; /* Skip BMP */
-		}
-		if (wc <= 0x7f)
-			utf8len++;
-		else if (wc <= 0x7ff)
-			utf8len += 2;
-		else if (wc <= 0xffff)
-			utf8len += 3;
-		else if (wc <= 0x1fffff)
-			utf8len += 4;
-		else if (wc <= 0x3ffffff)
-			utf8len += 5;
-		else if (wc <= 0x7fffffff)
-			utf8len += 6;
-		/* Ignore larger values; UTF-8 can't encode them. */
-	}
-
-	utf8_value = (char *)malloc(utf8len + 1);
-	if (utf8_value == NULL) {
-		__archive_errx(1, "Not enough memory for attributes");
-		return (NULL);
-	}
-
-	for (wp = wval, p = utf8_value; *wp != L'\0'; ) {
-		wc = *wp++;
-		if (wc >= 0xd800 && wc <= 0xdbff
-		    && *wp >= 0xdc00 && *wp <= 0xdfff) {
-			/* Combine surrogate pair. */
-			wc = (wc - 0xd800) << 10;
-			wc += *wp++ - 0xdc00 + 0x10000;
-		}
-		if (wc <= 0x7f) {
-			*p++ = (char)wc;
-		} else if (wc <= 0x7ff) {
-			p[0] = 0xc0 | ((wc >> 6) & 0x1f);
-			p[1] = 0x80 | (wc & 0x3f);
-			p += 2;
-		} else if (wc <= 0xffff) {
-			p[0] = 0xe0 | ((wc >> 12) & 0x0f);
-			p[1] = 0x80 | ((wc >> 6) & 0x3f);
-			p[2] = 0x80 | (wc & 0x3f);
-			p += 3;
-		} else if (wc <= 0x1fffff) {
-			p[0] = 0xf0 | ((wc >> 18) & 0x07);
-			p[1] = 0x80 | ((wc >> 12) & 0x3f);
-			p[2] = 0x80 | ((wc >> 6) & 0x3f);
-			p[3] = 0x80 | (wc & 0x3f);
-			p += 4;
-		} else if (wc <= 0x3ffffff) {
-			p[0] = 0xf8 | ((wc >> 24) & 0x03);
-			p[1] = 0x80 | ((wc >> 18) & 0x3f);
-			p[2] = 0x80 | ((wc >> 12) & 0x3f);
-			p[3] = 0x80 | ((wc >> 6) & 0x3f);
-			p[4] = 0x80 | (wc & 0x3f);
-			p += 5;
-		} else if (wc <= 0x7fffffff) {
-			p[0] = 0xfc | ((wc >> 30) & 0x01);
-			p[1] = 0x80 | ((wc >> 24) & 0x3f);
-			p[1] = 0x80 | ((wc >> 18) & 0x3f);
-			p[2] = 0x80 | ((wc >> 12) & 0x3f);
-			p[3] = 0x80 | ((wc >> 6) & 0x3f);
-			p[4] = 0x80 | (wc & 0x3f);
-			p += 6;
-		}
-		/* Ignore larger values; UTF-8 can't encode them. */
-	}
-	*p = '\0';
-
-	return (utf8_value);
-}
-
-static void
-add_pax_attr_w(struct archive_string *as, const char *key, const wchar_t *wval)
-{
-	char *utf8_value = utf8_encode(wval);
-	if (utf8_value == NULL)
-		return;
-	add_pax_attr(as, key, utf8_value);
-	free(utf8_value);
-}
-
 /*
  * Add a key/value attribute to the pax header.  This function handles
  * the length field and various other syntactic requirements.
@@ -362,7 +267,8 @@ add_pax_attr(struct archive_string *as, const char *key, const char *value)
 }
 
 static void
-archive_write_pax_header_xattrs(struct pax *pax, struct archive_entry *entry)
+archive_write_pax_header_xattrs(struct archive_write *a,
+    struct pax *pax, struct archive_entry *entry)
 {
 	struct archive_string s;
 	int i = archive_entry_xattr_reset(entry);
@@ -372,26 +278,17 @@ archive_write_pax_header_xattrs(struct pax *pax, struct archive_entry *entry)
 		const void *value;
 		char *encoded_value;
 		char *url_encoded_name = NULL, *encoded_name = NULL;
-		wchar_t *wcs_name = NULL;
 		size_t size;
 
 		archive_entry_xattr_next(entry, &name, &value, &size);
-		/* Name is URL-encoded, then converted to wchar_t,
-		 * then UTF-8 encoded. */
 		url_encoded_name = url_encode(name);
 		if (url_encoded_name != NULL) {
-			/* Convert narrow-character to wide-character. */
-			size_t wcs_length = strlen(url_encoded_name);
-			wcs_name = (wchar_t *)malloc((wcs_length + 1) * sizeof(wchar_t));
-			if (wcs_name == NULL)
-				__archive_errx(1, "No memory for xattr conversion");
-			mbstowcs(wcs_name, url_encoded_name, wcs_length);
-			wcs_name[wcs_length] = 0;
+			/* Convert narrow-character to UTF-8. */
+			if (archive_strcpy_to_locale(&(a->archive),
+			    &(pax->l_url_encoded_name), url_encoded_name,
+			    "UTF-8") == 0)
+				encoded_name = pax->l_url_encoded_name.s;
 			free(url_encoded_name); /* Done with this. */
-		}
-		if (wcs_name != NULL) {
-			encoded_name = utf8_encode(wcs_name);
-			free(wcs_name); /* Done with wchar_t name. */
 		}
 
 		encoded_value = base64_encode((const char *)value, size);
@@ -403,7 +300,6 @@ archive_write_pax_header_xattrs(struct pax *pax, struct archive_entry *entry)
 			add_pax_attr(&(pax->pax_header), s.s, encoded_value);
 			archive_string_free(&s);
 		}
-		free(encoded_name);
 		free(encoded_value);
 	}
 }
@@ -425,7 +321,7 @@ archive_write_pax_header(struct archive_write *a,
 	char *t;
 	const wchar_t *wp;
 	const char *suffix;
-	int need_extension, r, ret;
+	int need_extension, r, r2, ret;
 	int sparse_count;
 	uint64_t sparse_total, real_size;
 	struct pax *pax;
@@ -435,8 +331,7 @@ archive_write_pax_header(struct archive_write *a,
 	const char *uname = NULL, *gname = NULL;
 	const void *mac_metadata;
 	size_t mac_metadata_size;
-	const wchar_t *path_w = NULL, *linkpath_w = NULL;
-	const wchar_t *uname_w = NULL, *gname_w = NULL;
+	const char *charset = "UTF-8";/* Default charset. */
 
 	char paxbuff[512];
 	char ustarbuff[512];
@@ -609,40 +504,37 @@ archive_write_pax_header(struct archive_write *a,
 	 */
 	hdrcharset = NULL;
 	path = archive_entry_pathname(entry_main);
-	path_w = archive_entry_pathname_w(entry_main);
-	if (path != NULL && path_w == NULL) {
+	if (archive_strcpy_to_locale(&(a->archive), &(pax->l_path),
+	    path, charset) != 0) {
+		archive_string_empty(&pax->l_path);
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Can't translate pathname '%s' to UTF-8", path);
+		    "Can't translate pathname '%s' to %s", path, charset);
 		ret = ARCHIVE_WARN;
 		hdrcharset = "BINARY";
 	}
 	uname = archive_entry_uname(entry_main);
-	uname_w = archive_entry_uname_w(entry_main);
-	if (uname != NULL && uname_w == NULL) {
+	if (archive_strcpy_to_locale(&(a->archive), &(pax->l_uname),
+	    uname, charset) != 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Can't translate uname '%s' to UTF-8", uname);
+		    "Can't translate uname '%s' to %s", uname, charset);
 		ret = ARCHIVE_WARN;
 		hdrcharset = "BINARY";
 	}
 	gname = archive_entry_gname(entry_main);
-	gname_w = archive_entry_gname_w(entry_main);
-	if (gname != NULL && gname_w == NULL) {
+	if (archive_strcpy_to_locale(&(a->archive), &(pax->l_gname),
+	    gname, charset) != 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Can't translate gname '%s' to UTF-8", gname);
+		    "Can't translate gname '%s' to %s", gname, charset);
 		ret = ARCHIVE_WARN;
 		hdrcharset = "BINARY";
 	}
 	linkpath = hardlink;
-	if (linkpath != NULL) {
-		linkpath_w = archive_entry_hardlink_w(entry_main);
-	} else {
+	if (linkpath == NULL)
 		linkpath = archive_entry_symlink(entry_main);
-		if (linkpath != NULL)
-			linkpath_w = archive_entry_symlink_w(entry_main);
-	}
-	if (linkpath != NULL && linkpath_w == NULL) {
+	if (archive_strcpy_to_locale(&(a->archive), &(pax->l_linkpath),
+	    linkpath, charset) != 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Can't translate linkpath '%s' to UTF-8", linkpath);
+		    "Can't translate linkpath '%s' to %s", linkpath, charset);
 		ret = ARCHIVE_WARN;
 		hdrcharset = "BINARY";
 	}
@@ -657,21 +549,14 @@ archive_write_pax_header(struct archive_write *a,
 	 * 'path' to pax extended attrs.  (Note that an unconvertible
 	 * name must have non-ASCII characters.)
 	 */
-	if (path == NULL) {
-		/* We don't have a narrow version, so we have to store
-		 * the wide version. */
-		add_pax_attr_w(&(pax->pax_header), "path", path_w);
-		archive_entry_set_pathname(entry_main, "@WidePath");
-		need_extension = 1;
-	} else if (has_non_ASCII(path_w)) {
+	if (has_non_ASCII(&pax->l_path)) {
 		/* We have non-ASCII characters. */
-		if (path_w == NULL || hdrcharset != NULL) {
+		if (archive_strlen(&(pax->l_path)) == 0 || hdrcharset != NULL) {
 			/* Can't do UTF-8, so store it raw. */
 			add_pax_attr(&(pax->pax_header), "path", path);
 		} else {
 			/* Store UTF-8 */
-			add_pax_attr_w(&(pax->pax_header),
-			    "path", path_w);
+			add_pax_attr(&(pax->pax_header), "path", pax->l_path.s);
 		}
 		archive_entry_set_pathname(entry_main,
 		    build_ustar_entry_name(ustar_entry_name,
@@ -703,14 +588,15 @@ archive_write_pax_header(struct archive_write *a,
 			    || suffix[1] == '\0'    /* empty suffix */
 			    || suffix - path > 155)  /* Prefix > 155 chars */
 			{
-				if (path_w == NULL || hdrcharset != NULL) {
+				if (archive_strlen(&(pax->l_path)) == 0
+				    || hdrcharset != NULL) {
 					/* Can't do UTF-8, so store it raw. */
 					add_pax_attr(&(pax->pax_header),
 					    "path", path);
 				} else {
 					/* Store UTF-8 */
-					add_pax_attr_w(&(pax->pax_header),
-					    "path", path_w);
+					add_pax_attr(&(pax->pax_header),
+					    "path", pax->l_path.s);
 				}
 				archive_entry_set_pathname(entry_main,
 				    build_ustar_entry_name(ustar_entry_name,
@@ -723,9 +609,11 @@ archive_write_pax_header(struct archive_write *a,
 	if (linkpath != NULL) {
 		/* If link name is too long or has non-ASCII characters, add
 		 * 'linkpath' to pax extended attrs. */
-		if (strlen(linkpath) > 100 || linkpath_w == NULL
-		    || linkpath_w == NULL || has_non_ASCII(linkpath_w)) {
-			if (linkpath_w == NULL || hdrcharset != NULL)
+		if (strlen(linkpath) > 100 ||
+		    archive_strlen(&(pax->l_linkpath)) == 0 ||
+		    has_non_ASCII(&(pax->l_linkpath))) {
+			if (archive_strlen(&(pax->l_linkpath)) == 0
+			    || hdrcharset != NULL)
 				/* If the linkpath is not convertible
 				 * to wide, or we're encoding in
 				 * binary anyway, store it raw. */
@@ -735,8 +623,8 @@ archive_write_pax_header(struct archive_write *a,
 				/* If the link is long or has a
 				 * non-ASCII character, store it as a
 				 * pax extended attribute. */
-				add_pax_attr_w(&(pax->pax_header),
-				    "linkpath", linkpath_w);
+				add_pax_attr(&(pax->pax_header),
+				    "linkpath", pax->l_linkpath.s);
 			if (strlen(linkpath) > 100) {
 				if (hardlink != NULL)
 					archive_entry_set_hardlink(entry_main,
@@ -771,15 +659,16 @@ archive_write_pax_header(struct archive_write *a,
 	 * 'gname' to pax extended attrs. */
 	if (gname != NULL) {
 		if (strlen(gname) > 31
-		    || gname_w == NULL
-		    || has_non_ASCII(gname_w))
+		    || archive_strlen(&pax->l_gname) == 0
+		    || has_non_ASCII(&pax->l_gname))
 		{
-			if (gname_w == NULL || hdrcharset != NULL) {
+			if (archive_strlen(&pax->l_gname) == 0
+			    || hdrcharset != NULL) {
 				add_pax_attr(&(pax->pax_header),
 				    "gname", gname);
 			} else  {
-				add_pax_attr_w(&(pax->pax_header),
-				    "gname", gname_w);
+				add_pax_attr(&(pax->pax_header),
+				    "gname", pax->l_gname.s);
 			}
 			need_extension = 1;
 		}
@@ -795,15 +684,16 @@ archive_write_pax_header(struct archive_write *a,
 	/* Add 'uname' to pax extended attrs if necessary. */
 	if (uname != NULL) {
 		if (strlen(uname) > 31
-		    || uname_w == NULL
-		    || has_non_ASCII(uname_w))
+		    || archive_strlen(&pax->l_uname) == 0
+		    || has_non_ASCII(&pax->l_uname))
 		{
-			if (uname_w == NULL || hdrcharset != NULL) {
+			if (archive_strlen(&pax->l_uname) == 0
+			    || hdrcharset != NULL) {
 				add_pax_attr(&(pax->pax_header),
 				    "uname", uname);
 			} else {
-				add_pax_attr_w(&(pax->pax_header),
-				    "uname", uname_w);
+				add_pax_attr(&(pax->pax_header),
+				    "uname", pax->l_uname.s);
 			}
 			need_extension = 1;
 		}
@@ -943,15 +833,53 @@ archive_write_pax_header(struct archive_write *a,
 		wp = archive_entry_acl_text_w(entry_original,
 		    ARCHIVE_ENTRY_ACL_TYPE_ACCESS |
 		    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID);
-		if (wp != NULL && *wp != L'\0')
-			add_pax_attr_w(&(pax->pax_header),
-			    "SCHILY.acl.access", wp);
+		if (wp != NULL && *wp != L'\0') {
+			archive_string_empty(&(pax->l_acl_mbs));
+			r2 = archive_string_append_from_unicode_to_mbs(
+			    &(a->archive), &(pax->l_acl_mbs),
+			    wp, wcslen(wp));
+			if (r2 == 0) {
+				r = archive_strncpy_to_locale(
+				    &(a->archive), &(pax->l_acl_utf8),
+				    pax->l_acl_mbs.s, pax->l_acl_mbs.length,
+				    "UTF-8");
+			} else
+				r = 0;
+			if (r2 || r) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Can't translate ACL.access to UTF-8");
+				ret = ARCHIVE_WARN;
+			} else {
+				add_pax_attr(&(pax->pax_header),
+				    "SCHILY.acl.access", pax->l_acl_utf8.s);
+			}
+		}
 		wp = archive_entry_acl_text_w(entry_original,
 		    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT |
 		    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID);
-		if (wp != NULL && *wp != L'\0')
-			add_pax_attr_w(&(pax->pax_header),
-			    "SCHILY.acl.default", wp);
+		if (wp != NULL && *wp != L'\0') {
+			archive_string_empty(&(pax->l_acl_mbs));
+			r2 = archive_string_append_from_unicode_to_mbs(
+			    &(a->archive), &(pax->l_acl_mbs),
+			    wp, wcslen(wp));
+			if (r2 == 0) {
+				r = archive_strncpy_to_locale(
+				    &(a->archive), &(pax->l_acl_utf8),
+				    pax->l_acl_mbs.s, pax->l_acl_mbs.length,
+				    "UTF-8");
+			} else
+				r = 0;
+			if (r2 || r) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Can't translate ACL.default to UTF-8");
+				ret = ARCHIVE_WARN;
+			} else {
+				add_pax_attr(&(pax->pax_header),
+				    "SCHILY.acl.default", pax->l_acl_utf8.s);
+			}
+		}
 
 		/* We use GNU-tar-compatible sparse attributes. */
 		if (sparse_count > 0) {
@@ -1000,7 +928,7 @@ archive_write_pax_header(struct archive_write *a,
 		}
 
 		/* Store extended attributes */
-		archive_write_pax_header_xattrs(pax, entry_original);
+		archive_write_pax_header_xattrs(a, pax, entry_original);
 	}
 
 	/* Only regular files have data. */
@@ -1468,6 +1396,13 @@ archive_write_pax_free(struct archive_write *a)
 
 	archive_string_free(&pax->pax_header);
 	archive_string_free(&pax->sparse_map);
+	archive_string_free(&pax->l_path);
+	archive_string_free(&pax->l_uname);
+	archive_string_free(&pax->l_gname);
+	archive_string_free(&pax->l_linkpath);
+	archive_string_free(&pax->l_url_encoded_name);
+	archive_string_free(&pax->l_acl_mbs);
+	archive_string_free(&pax->l_acl_utf8);
 	sparse_list_clear(pax);
 	free(pax);
 	a->format_data = NULL;
@@ -1559,13 +1494,15 @@ archive_write_pax_data(struct archive_write *a, const void *buff, size_t s)
 }
 
 static int
-has_non_ASCII(const wchar_t *wp)
+has_non_ASCII(struct archive_string *as)
 {
-	if (wp == NULL)
+	const unsigned char *p = (const unsigned char *)as->s;
+
+	if (p == NULL)
 		return (1);
-	while (*wp != L'\0' && *wp < 128)
-		wp++;
-	return (*wp != L'\0');
+	while (*p != '\0' && *p < 128)
+		p++;
+	return (*p != '\0');
 }
 
 /*
