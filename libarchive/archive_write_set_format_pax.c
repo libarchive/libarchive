@@ -64,6 +64,8 @@ struct pax {
 	size_t			sparse_map_padding;
 	struct sparse_block	*sparse_list;
 	struct sparse_block	*sparse_tail;
+	char			*opt_charset;
+	int			 opt_binary;
 };
 
 static void		 add_pax_attr(struct archive_string *, const char *key,
@@ -80,6 +82,8 @@ static int		 archive_write_pax_free(struct archive_write *);
 static int		 archive_write_pax_finish_entry(struct archive_write *);
 static int		 archive_write_pax_header(struct archive_write *,
 			     struct archive_entry *);
+static int		 archive_write_pax_options(struct archive_write *,
+			     const char *, const char *);
 static char		*base64_encode(const char *src, size_t len);
 static char		*build_gnu_sparse_name(char *dest, const char *src);
 static char		*build_pax_attribute_name(char *dest, const char *src);
@@ -136,6 +140,7 @@ archive_write_set_format_pax(struct archive *_a)
 	memset(pax, 0, sizeof(*pax));
 	a->format_data = pax;
 	a->format_name = "pax";
+	a->format_options = archive_write_pax_options;
 	a->format_write_header = archive_write_pax_header;
 	a->format_write_data = archive_write_pax_data;
 	a->format_close = archive_write_pax_close;
@@ -144,6 +149,47 @@ archive_write_set_format_pax(struct archive *_a)
 	a->archive.archive_format = ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE;
 	a->archive.archive_format_name = "POSIX pax interchange";
 	return (ARCHIVE_OK);
+}
+
+static int
+archive_write_pax_options(struct archive_write *a, const char *key,
+    const char *val)
+{
+	struct pax *pax = (struct pax *)a->format_data;
+	int ret = ARCHIVE_FAILED;
+
+	if (strcmp(key, "charset")  == 0) {
+		if (val == NULL || val[0] == 0)
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "pax: charset option needs a character-set name");
+		else if (strcmp(val, "BINARY") == 0 ||
+		    strcmp(val, "binary") == 0) {
+			/*
+			 * Specify binary mode. We will not convert
+			 * filenames, uname and gname to UTF-8 or others.
+			 */
+			pax->opt_binary = 1;
+			free(pax->opt_charset);
+			pax->opt_charset = NULL;
+			ret = ARCHIVE_OK;
+		} else if (archive_string_conversion_to_charset(
+		    &a->archive, val) == 0) {
+			pax->opt_binary = 0;
+			free(pax->opt_charset);
+			if (strcmp(val, "UTF-8") == 0) {
+				/* This is default charset, so we should
+				 * not specify the charset. */
+				pax->opt_charset = NULL;
+			} else
+				pax->opt_charset = strdup(val);
+			ret = ARCHIVE_OK;
+		} else
+			ret = ARCHIVE_FATAL;
+	} else
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "pax: unknown keyword ``%s''", key);
+
+	return (ret);
 }
 
 /*
@@ -321,17 +367,16 @@ archive_write_pax_header(struct archive_write *a,
 	char *t;
 	const wchar_t *wp;
 	const char *suffix;
-	int need_extension, r, r2, ret;
+	int binary, need_extension, r, r2, ret;
 	int sparse_count;
 	uint64_t sparse_total, real_size;
 	struct pax *pax;
-	const char *hdrcharset = NULL;
 	const char *hardlink;
 	const char *path = NULL, *linkpath = NULL;
 	const char *uname = NULL, *gname = NULL;
 	const void *mac_metadata;
 	size_t mac_metadata_size;
-	const char *charset = "UTF-8";/* Default charset. */
+	const char *charset;
 
 	char paxbuff[512];
 	char ustarbuff[512];
@@ -350,6 +395,16 @@ archive_write_pax_header(struct archive_write *a,
 			  "Can't record entry in tar file without pathname");
 		return (ARCHIVE_FAILED);
 	}
+
+	/*
+	 * Choose a header encoding.
+	 */
+	if ((binary = pax->opt_binary) != 0)
+		charset = NULL;
+	else if (pax->opt_charset != NULL)
+		charset = pax->opt_charset;
+	else
+		charset = "UTF-8";/* Default */
 
 	hardlink = archive_entry_hardlink(entry_original);
 
@@ -502,46 +557,47 @@ archive_write_pax_header(struct archive_write *a,
 	 * require binary coding.  If any of them does, then all of
 	 * them do.
 	 */
-	hdrcharset = NULL;
 	path = archive_entry_pathname(entry_main);
 	if (archive_strcpy_to_locale(&(a->archive), &(pax->l_path),
-	    path, charset) != 0) {
+	    path, charset) != 0 && !binary) {
 		archive_string_empty(&pax->l_path);
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate pathname '%s' to %s", path, charset);
 		ret = ARCHIVE_WARN;
-		hdrcharset = "BINARY";
+		binary = 1;/* The header charset switches to binary mode. */
 	}
 	uname = archive_entry_uname(entry_main);
 	if (archive_strcpy_to_locale(&(a->archive), &(pax->l_uname),
-	    uname, charset) != 0) {
+	    uname, charset) != 0 && !binary) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate uname '%s' to %s", uname, charset);
 		ret = ARCHIVE_WARN;
-		hdrcharset = "BINARY";
+		binary = 1;/* The header charset switches to binary mode. */
 	}
 	gname = archive_entry_gname(entry_main);
 	if (archive_strcpy_to_locale(&(a->archive), &(pax->l_gname),
-	    gname, charset) != 0) {
+	    gname, charset) != 0 && !binary) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate gname '%s' to %s", gname, charset);
 		ret = ARCHIVE_WARN;
-		hdrcharset = "BINARY";
+		binary = 1;/* The header charset switches to binary mode. */
 	}
 	linkpath = hardlink;
 	if (linkpath == NULL)
 		linkpath = archive_entry_symlink(entry_main);
 	if (archive_strcpy_to_locale(&(a->archive), &(pax->l_linkpath),
-	    linkpath, charset) != 0) {
+	    linkpath, charset) != 0 && !binary) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate linkpath '%s' to %s", linkpath, charset);
 		ret = ARCHIVE_WARN;
-		hdrcharset = "BINARY";
+		binary = 1;/* The header charset switches to binary mode. */
 	}
 
 	/* Store the header encoding first, to be nice to readers. */
-	if (hdrcharset != NULL)
-		add_pax_attr(&(pax->pax_header), "hdrcharset", hdrcharset);
+	if (binary)
+		add_pax_attr(&(pax->pax_header), "hdrcharset", "BINARY");
+	else if (pax->opt_charset != NULL && pax->opt_charset == charset)
+		add_pax_attr(&(pax->pax_header), "hdrcharset", charset);
 
 
 	/*
@@ -551,7 +607,7 @@ archive_write_pax_header(struct archive_write *a,
 	 */
 	if (has_non_ASCII(&pax->l_path)) {
 		/* We have non-ASCII characters. */
-		if (archive_strlen(&(pax->l_path)) == 0 || hdrcharset != NULL) {
+		if (archive_strlen(&(pax->l_path)) == 0 || binary) {
 			/* Can't do UTF-8, so store it raw. */
 			add_pax_attr(&(pax->pax_header), "path", path);
 		} else {
@@ -589,7 +645,7 @@ archive_write_pax_header(struct archive_write *a,
 			    || suffix - path > 155)  /* Prefix > 155 chars */
 			{
 				if (archive_strlen(&(pax->l_path)) == 0
-				    || hdrcharset != NULL) {
+				    || binary) {
 					/* Can't do UTF-8, so store it raw. */
 					add_pax_attr(&(pax->pax_header),
 					    "path", path);
@@ -613,7 +669,7 @@ archive_write_pax_header(struct archive_write *a,
 		    archive_strlen(&(pax->l_linkpath)) == 0 ||
 		    has_non_ASCII(&(pax->l_linkpath))) {
 			if (archive_strlen(&(pax->l_linkpath)) == 0
-			    || hdrcharset != NULL)
+			    || binary)
 				/* If the linkpath is not convertible
 				 * to wide, or we're encoding in
 				 * binary anyway, store it raw. */
@@ -663,7 +719,7 @@ archive_write_pax_header(struct archive_write *a,
 		    || has_non_ASCII(&pax->l_gname))
 		{
 			if (archive_strlen(&pax->l_gname) == 0
-			    || hdrcharset != NULL) {
+			    || binary) {
 				add_pax_attr(&(pax->pax_header),
 				    "gname", gname);
 			} else  {
@@ -688,7 +744,7 @@ archive_write_pax_header(struct archive_write *a,
 		    || has_non_ASCII(&pax->l_uname))
 		{
 			if (archive_strlen(&pax->l_uname) == 0
-			    || hdrcharset != NULL) {
+			    || binary) {
 				add_pax_attr(&(pax->pax_header),
 				    "uname", uname);
 			} else {
@@ -1403,6 +1459,7 @@ archive_write_pax_free(struct archive_write *a)
 	archive_string_free(&pax->l_url_encoded_name);
 	archive_string_free(&pax->l_acl_mbs);
 	archive_string_free(&pax->l_acl_utf8);
+	free(pax->opt_charset);
 	sparse_list_clear(pax);
 	free(pax);
 	a->format_data = NULL;
