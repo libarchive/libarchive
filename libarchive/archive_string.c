@@ -1113,6 +1113,38 @@ is_all_ascii_code(struct archive_string *as)
 	return (1);
 }
 
+static int
+invalid_mbs(const void *_p, size_t n)
+{
+	const char *p = (const char *)_p;
+	size_t r;
+
+#if HAVE_MBRTOWC
+	mbstate_t shift_state;
+
+	memset(&shift_state, 0, sizeof(shift_state));
+#else
+	/* Clear the shift state before starting. */
+	mbtowc(NULL, NULL, 0);
+#endif
+	while (n) {
+		wchar_t wc;
+
+#if HAVE_MBRTOWC
+		r = mbrtowc(&wc, p, n, &shift_state);
+#else
+		r = mbtowc(&wc, p, n);
+#endif
+		if (r == (size_t)-1 || r == (size_t)-2)
+			return (-1);/* Invalid. */
+		if (r == 0)
+			break;
+		p += r;
+		n -= r;
+	}
+	return (0); /* All Okey. */
+}
+
 /*
  * Convert MBS from specific locale to current locale and copy the result.
  * Basically returns -1 because we cannot make a conversion of charset.
@@ -1131,7 +1163,8 @@ archive_strncat_from_locale(struct archive *a, struct archive_string *as,
 	archive_string_append(as, _p, length);
 	/* If charset is NULL, just make a copy, so return 0 as success. */
 	if (charset == NULL ||
-	    strcmp(default_iconv_charset(NULL), charset) == 0)
+	    (strcmp(default_iconv_charset(NULL), charset) == 0 &&
+	     invalid_mbs(_p, n) == 0))
 		return (0);
 	if (is_all_ascii_code(as))
 		return (0);
@@ -1156,7 +1189,8 @@ archive_strncat_to_locale(struct archive *a, struct archive_string *as,
 	archive_string_append(as, _p, length);
 	/* If charset is NULL, just make a copy, so return 0 as success. */
 	if (charset == NULL ||
-	    strcmp(default_iconv_charset(NULL), charset) == 0)
+	    (strcmp(default_iconv_charset(NULL), charset) == 0 &&
+	     invalid_mbs(_p, n) == 0))
 		return (0);
 	if (is_all_ascii_code(as))
 		return (0);
