@@ -158,8 +158,6 @@ struct tar {
 	struct archive_string	 pax_global;
 	struct archive_string	 line;
 	int			 pax_hdrcharset_binary;
-	wchar_t 		*pax_entry;
-	size_t			 pax_entry_length;
 	int			 header_recursion_depth;
 	int64_t			 entry_bytes_remaining;
 	int64_t			 entry_offset;
@@ -174,13 +172,13 @@ struct tar {
 	int			 sparse_gnu_minor;
 	char			 sparse_gnu_pending;
 
+	struct archive_wstring	 wacl;
 	struct archive_string	 localname;
 	struct archive_string	 opt_charset;
 	struct archive_string	 hdr_charset;
 	const char		*charset;
 };
 
-static ssize_t	UTF8_mbrtowc(wchar_t *pwc, const char *s, size_t n);
 static int	archive_block_is_null(const unsigned char *p);
 static char	*base64_decode(const char *, size_t, size_t *);
 static void	 gnu_add_sparse_entry(struct tar *,
@@ -225,8 +223,8 @@ static int	archive_read_format_tar_skip(struct archive_read *a);
 static int	archive_read_format_tar_read_header(struct archive_read *,
 		    struct archive_entry *);
 static int	checksum(struct archive_read *, const void *);
-static int 	pax_attribute(struct tar *, struct archive_entry *,
-		    char *key, char *value);
+static int 	pax_attribute(struct archive_read *, struct tar *,
+		    struct archive_entry *, char *key, char *value);
 static int 	pax_header(struct archive_read *, struct tar *,
 		    struct archive_entry *, char *attr);
 static void	pax_time(const char *, int64_t *sec, long *nanos);
@@ -242,7 +240,6 @@ static int	tar_read_header(struct archive_read *, struct tar *,
 		    struct archive_entry *, size_t *);
 static int	tohex(int c);
 static char	*url_decode(const char *);
-static wchar_t	*utf8_decode(struct tar *, const char *, size_t length);
 static void	tar_flush_unconsumed(struct archive_read *, size_t *);
 
 
@@ -306,7 +303,7 @@ archive_read_format_tar_cleanup(struct archive_read *a)
 	archive_string_free(&tar->opt_charset);
 	archive_string_free(&tar->hdr_charset);
 	archive_string_free(&tar->localname);
-	free(tar->pax_entry);
+	archive_wstring_free(&tar->wacl);
 	free(tar);
 	(a->format->data) = NULL;
 	return (ARCHIVE_OK);
@@ -847,7 +844,6 @@ header_Solaris_ACL(struct archive_read *a, struct tar *tar,
 	int err;
 	int64_t type;
 	char *acl, *p;
-	wchar_t *wp;
 
 	/*
 	 * read_body_to_string adds a NUL terminator, but we need a little
@@ -916,8 +912,20 @@ header_Solaris_ACL(struct archive_read *a, struct tar *tar,
 	while (*p != '\0' && p < acl + size)
 		p++;
 
-	wp = utf8_decode(tar, acl, p - acl);
-	err = archive_acl_parse_w(archive_entry_acl(entry), wp,
+	if (archive_strncpy_from_locale(&(a->archive), &(tar->localname),
+	    acl, p - acl, "UTF-8") != 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Malformed Solaris ACL attribute (unconvertible)");
+		return(ARCHIVE_WARN);
+	}
+	archive_wstring_empty(&(tar->wacl));
+	if (archive_wstring_append_from_mbs(&(a->archive), &(tar->wacl),
+	    tar->localname.s, tar->localname.length) != 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Malformed Solaris ACL attribute (unconvertible)");
+		return(ARCHIVE_WARN);
+	}
+	err = archive_acl_parse_w(archive_entry_acl(entry), tar->wacl.s,
 	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
 	if (err != ARCHIVE_OK)
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -1481,7 +1489,7 @@ pax_header(struct archive_read *a, struct tar *tar,
 		value = p + 1;
 
 		/* Identify this attribute and set it in the entry. */
-		err2 = pax_attribute(tar, entry, key, value);
+		err2 = pax_attribute(a, tar, entry, key, value);
 		err = err_combine(err, err2);
 
 		/* Skip to next line */
@@ -1620,12 +1628,12 @@ pax_attribute_xattr(struct archive_entry *entry,
  * any of them look useful.
  */
 static int
-pax_attribute(struct tar *tar, struct archive_entry *entry,
-    char *key, char *value)
+pax_attribute(struct archive_read *a, struct tar *tar,
+    struct archive_entry *entry, char *key, char *value)
 {
 	int64_t s;
 	long n;
-	wchar_t *wp;
+	int err = ARCHIVE_OK;
 
 	switch (key[0]) {
 	case 'G':
@@ -1707,15 +1715,49 @@ pax_attribute(struct tar *tar, struct archive_entry *entry,
 	case 'S':
 		/* We support some keys used by the "star" archiver */
 		if (strcmp(key, "SCHILY.acl.access")==0) {
-			wp = utf8_decode(tar, value, strlen(value));
-			/* TODO: if (wp == NULL) */
-			archive_acl_parse_w(archive_entry_acl(entry), wp,
-			    ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
+			if (archive_strcpy_from_locale(&(a->archive),
+			    &(tar->localname), value, "UTF-8") != 0) {
+				err = ARCHIVE_WARN;
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "SCHILY.acl.access can't be converted "
+				    "from UTF-8 to current locale.");
+			}
+			archive_wstring_empty(&(tar->wacl));
+			if (archive_wstring_append_from_mbs(
+			    &(a->archive), &(tar->wacl), tar->localname.s,
+			    tar->localname.length) != 0) {
+				err = ARCHIVE_WARN;
+				archive_set_error(&a->archive,
+				     ARCHIVE_ERRNO_FILE_FORMAT,
+				    "SCHILY.acl.access can't be converted"
+				    " to wide-character.");
+			} else {
+				archive_acl_parse_w(archive_entry_acl(entry),
+				    tar->wacl.s, ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
+			}
 		} else if (strcmp(key, "SCHILY.acl.default")==0) {
-			wp = utf8_decode(tar, value, strlen(value));
-			/* TODO: if (wp == NULL) */
-			archive_acl_parse_w(archive_entry_acl(entry), wp,
-			    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT);
+			if (archive_strcpy_from_locale(&(a->archive),
+			    &(tar->localname), value, "UTF-8") != 0) {
+				err = ARCHIVE_WARN;
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "SCHILY.acl.default can't be converted "
+				    "from UTF-8 to current locale.");
+			}
+			archive_wstring_empty(&(tar->wacl));
+			if (archive_wstring_append_from_mbs(
+			    &(a->archive), &(tar->wacl), tar->localname.s,
+			    tar->localname.length) != 0) {
+				err = ARCHIVE_WARN;
+				archive_set_error(&a->archive,
+				     ARCHIVE_ERRNO_FILE_FORMAT,
+				    "SCHILY.acl.default can't be converted"
+				    " to wide-character.");
+			} else {
+				archive_acl_parse_w(archive_entry_acl(entry),
+				    tar->wacl.s, ARCHIVE_ENTRY_ACL_TYPE_DEFAULT);
+			}
 		} else if (strcmp(key, "SCHILY.devmajor")==0) {
 			archive_entry_set_rdevmajor(entry,
 			    tar_atol10(value, strlen(value)));
@@ -1828,7 +1870,7 @@ pax_attribute(struct tar *tar, struct archive_entry *entry,
 		}
 		break;
 	}
-	return (0);
+	return (err);
 }
 
 
@@ -2423,119 +2465,6 @@ readline(struct archive_read *a, struct tar *tar, const char **start,
 		*unconsumed = bytes_read;
 	}
 }
-
-static wchar_t *
-utf8_decode(struct tar *tar, const char *src, size_t length)
-{
-	wchar_t *dest;
-	ssize_t n;
-
-	/* Ensure pax_entry buffer is big enough. */
-	if (tar->pax_entry_length <= length) {
-		wchar_t *old_entry;
-
-		if (tar->pax_entry_length <= 0)
-			tar->pax_entry_length = 1024;
-		while (tar->pax_entry_length <= length + 1)
-			tar->pax_entry_length *= 2;
-
-		old_entry = tar->pax_entry;
-		tar->pax_entry = (wchar_t *)realloc(tar->pax_entry,
-		    tar->pax_entry_length * sizeof(wchar_t));
-		if (tar->pax_entry == NULL) {
-			free(old_entry);
-			/* TODO: Handle this error. */
-			return (NULL);
-		}
-	}
-
-	dest = tar->pax_entry;
-	while (length > 0) {
-		n = UTF8_mbrtowc(dest, src, length);
-		if (n < 0)
-			return (NULL);
-		if (n == 0)
-			break;
-		dest++;
-		src += n;
-		length -= n;
-	}
-	*dest = L'\0';
-	return (tar->pax_entry);
-}
-
-/*
- * Copied and simplified from FreeBSD libc/locale.
- */
-static ssize_t
-UTF8_mbrtowc(wchar_t *pwc, const char *s, size_t n)
-{
-        int ch, i, len, mask;
-        unsigned long wch;
-
-        if (s == NULL || n == 0 || pwc == NULL)
-                return (0);
-
-        /*
-         * Determine the number of octets that make up this character from
-         * the first octet, and a mask that extracts the interesting bits of
-         * the first octet.
-         */
-        ch = (unsigned char)*s;
-        if ((ch & 0x80) == 0) {
-                mask = 0x7f;
-                len = 1;
-        } else if ((ch & 0xe0) == 0xc0) {
-                mask = 0x1f;
-                len = 2;
-        } else if ((ch & 0xf0) == 0xe0) {
-                mask = 0x0f;
-                len = 3;
-        } else if ((ch & 0xf8) == 0xf0) {
-                mask = 0x07;
-                len = 4;
-        } else {
-		/* Invalid first byte. */
-		return (-1);
-        }
-
-        if (n < (size_t)len) {
-		/* Valid first byte but truncated. */
-                return (-2);
-	}
-
-        /*
-         * Decode the octet sequence representing the character in chunks
-         * of 6 bits, most significant first.
-         */
-        wch = (unsigned char)*s++ & mask;
-        i = len;
-        while (--i != 0) {
-                if ((*s & 0xc0) != 0x80) {
-			/* Invalid intermediate byte; consume one byte and
-			 * emit '?' */
-			*pwc = '?';
-			return (1);
-                }
-                wch <<= 6;
-                wch |= *s++ & 0x3f;
-        }
-
-	/* Assign the value to the output; out-of-range values
-	 * just get truncated. */
-	*pwc = (wchar_t)wch;
-#ifdef WCHAR_MAX
-	/*
-	 * If platform has WCHAR_MAX, we can do something
-	 * more sensible with out-of-range values.
-	 */
-	if (wch >= WCHAR_MAX)
-		*pwc = '?';
-#endif
-	/* Return number of bytes input consumed: 0 for end-of-string. */
-        return (wch == L'\0' ? 0 : len);
-}
-
 
 /*
  * base64_decode - Base64 decode
