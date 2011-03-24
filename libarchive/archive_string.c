@@ -485,10 +485,20 @@ archive_string_conversion_to_charset(struct archive *a, const char *charset)
 		ret = 0;
 	}
 #else
-	archive_set_error(a, ARCHIVE_ERRNO_MISC,
-	    " A character-set conversion not fully supported"
-	    " on this platform");
-	ret = -1;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/*
+	 * Windows can convert string from current locale to UTF-8
+	 */
+	if (strcmp(charset, "UTF-8") == 0)
+		ret = 0;
+	else
+#endif
+	{
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
+		    "A character-set conversion not fully supported "
+		    "on this platform");
+		ret = -1;
+	}
 #endif
 	return (ret);
 }
@@ -513,10 +523,20 @@ archive_string_conversion_from_charset(struct archive *a, const char *charset)
 		ret = 0;
 	}
 #else
-	archive_set_error(a, ARCHIVE_ERRNO_MISC,
-	    " A character-set conversion not fully supported"
-	    " on this platform");
-	ret = -1;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/*
+	 * Windows can convert string from UTF-8 to current locale
+	 */
+	if (strcmp(charset, "UTF-8") == 0)
+		ret = 0;
+	else
+#endif
+	{
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
+		    "A character-set conversion not fully supported "
+			"on this platform");
+		ret = -1;
+	}
 #endif
 	return (ret);
 }
