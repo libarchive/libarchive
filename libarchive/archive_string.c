@@ -826,6 +826,8 @@ la_strnlen(const void *_p, size_t n)
 	size_t s;
 	const char *p, *pp;
 
+	if (_p == NULL)
+		return (0);
 	p = (const char *)_p;
 
 	/* Like strlen(p), except won't examine positions beyond p[n]. */
@@ -1057,21 +1059,33 @@ static int
 strncat_in_utf8(struct archive *a, struct archive_string *as,
     const char *s, size_t length, int direction)
 {
-	int count;
+	int count, wslen;
 	wchar_t *ws;
-	BOOL defchar;
+	BOOL defchar, *dp;
 	UINT cp_from, cp_to;
+	DWORD mbflag;
+
+	if (s == NULL || length == 0) {
+		/* We must allocate memory even if there is no data.
+		 * It simulates archive_string_append behavior. */
+		if (archive_string_ensure(as, as->length + 1) == NULL)
+			__archive_errx(1, "Out of memory");
+		as->s[as->length] = 0;
+		return (0);
+	}
 
 	if (direction == LA_UTF8_TO_CURRENT) {
 		cp_from = CP_UTF8;
 		cp_to = CP_OEMCP;
+		mbflag = 0;
 	} else {
 		cp_from = CP_OEMCP;
 		cp_to = CP_UTF8;
+		mbflag = MB_PRECOMPOSED;
 	}
 
 	count = MultiByteToWideChar(cp_from,
-	    MB_PRECOMPOSED, s, length, NULL, 0);
+	    mbflag, s, length, NULL, 0);
 	if (count == 0) {
 		archive_string_append(as, s, length);
 		return (-1);
@@ -1080,19 +1094,25 @@ strncat_in_utf8(struct archive *a, struct archive_string *as,
 	if (ws == NULL)
 		__archive_errx(0, "No memory");
 	count = MultiByteToWideChar(cp_from,
-	    MB_PRECOMPOSED, s, length, ws, count);
+	    mbflag, s, length, ws, count);
 	ws[count] = L'\0';
+	wslen = count;
 
-	count = WideCharToMultiByte(cp_to, 0, ws, count,
+	count = WideCharToMultiByte(cp_to, 0, ws, wslen,
 	    NULL, 0, NULL, NULL);
 	if (count == 0) {
 		free(ws);
 		archive_string_append(as, s, length);
 		return (-1);
 	}
+	defchar = 0;
+	if (cp_to == CP_UTF8)
+		dp = NULL;
+	else
+		dp = &defchar;
 	archive_string_ensure(as, as->length + count +1);
-	count = WideCharToMultiByte(cp_to, 0, ws, count,
-	    as->s + as->length, count, NULL, &defchar);
+	count = WideCharToMultiByte(cp_to, 0, ws, wslen,
+	    as->s + as->length, count, NULL, dp);
 	as->length += count;
 	as->s[as->length] = '\0';
 	free(ws);
