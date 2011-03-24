@@ -506,7 +506,7 @@ archive_string_conversion_from_charset(struct archive *a, const char *charset)
 	if (cd == (iconv_t)(-1)) {
 		archive_set_error(a, ARCHIVE_ERRNO_MISC,
 		    "iconv_open failed : Cannot convert a character-set "
-		    "from current locale to %s", charset);
+		    "from %s to current locale", charset);
 		ret = -1;
 	} else {
 		iconv_close(cd);
