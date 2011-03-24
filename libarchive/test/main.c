@@ -1662,23 +1662,6 @@ canGunzip(void)
 }
 
 /*
- * Can this platform convert character-set.
- */
-int
-canConvertCharset(const char *to_charset, const char *from_charset)
-{
-#if HAVE_ICONV
-	iconv_t cd = iconv_open(to_charset, from_charset);
-	if (cd == NULL)
-		return (0);
-	iconv_close(cd);
-	return (1);
-#else
-	return (0);
-#endif
-}
-
-/*
  * Sleep as needed; useful for verifying disk timestamp changes by
  * ensuring that the wall-clock time has actually changed before we
  * go back to re-read something from disk.
