@@ -176,12 +176,7 @@ archive_write_pax_options(struct archive_write *a, const char *key,
 		    &a->archive, val) == 0) {
 			pax->opt_binary = 0;
 			free(pax->opt_charset);
-			if (strcmp(val, "UTF-8") == 0) {
-				/* This is default charset, so we should
-				 * not specify the charset. */
-				pax->opt_charset = NULL;
-			} else
-				pax->opt_charset = strdup(val);
+			pax->opt_charset = strdup(val);
 			ret = ARCHIVE_OK;
 		} else
 			ret = ARCHIVE_FATAL;
@@ -401,7 +396,8 @@ archive_write_pax_header(struct archive_write *a,
 	 */
 	if ((binary = pax->opt_binary) != 0)
 		charset = NULL;
-	else if (pax->opt_charset != NULL)
+	else if (pax->opt_charset != NULL &&
+	    strcmp(pax->opt_charset, "UTF-8") != 0)
 		charset = pax->opt_charset;
 	else
 		charset = "UTF-8";/* Default */
@@ -1052,7 +1048,8 @@ archive_write_pax_header(struct archive_write *a,
 	 * The non-strict formatter uses similar logic for other
 	 * numeric fields, though they're less critical.
 	 */
-	__archive_write_format_header_ustar(a, ustarbuff, entry_main, -1, 0);
+	__archive_write_format_header_ustar(a, ustarbuff, entry_main, -1, 0,
+	    pax->opt_charset);
 
 	/* If we built any extended attributes, write that entry first. */
 	if (archive_strlen(&(pax->pax_header)) > 0) {
@@ -1108,18 +1105,19 @@ archive_write_pax_header(struct archive_write *a,
 		archive_entry_set_ctime(pax_attr_entry, 0, 0);
 
 		r = __archive_write_format_header_ustar(a, paxbuff,
-		    pax_attr_entry, 'x', 1);
+		    pax_attr_entry, 'x', 1, pax->opt_charset);
 
 		archive_entry_free(pax_attr_entry);
 
 		/* Note that the 'x' header shouldn't ever fail to format */
-		if (r != 0) {
+		if (r < ARCHIVE_WARN) {
 			const char *msg = "archive_write_pax_header: "
 			    "'x' header failed?!  This can't happen.\n";
 			size_t u = write(2, msg, strlen(msg));
 			(void)u; /* UNUSED */
 			exit(1);
-		}
+		} else if (r < ret)
+			ret = r;
 		r = __archive_write_output(a, paxbuff, 512);
 		if (r != ARCHIVE_OK) {
 			sparse_list_clear(pax);
