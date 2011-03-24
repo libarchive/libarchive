@@ -460,6 +460,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_tar_empty_filename.tar.uu	\
 	libarchive/test/test_read_format_zip.zip.uu			\
 	libarchive/test/test_read_format_zip_cp932.zip.uu		\
+	libarchive/test/test_read_format_zip_utf8.zip.uu		\
 	libarchive/test/CMakeLists.txt					\
 	libarchive/test/README
 

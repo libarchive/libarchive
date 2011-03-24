@@ -98,6 +98,7 @@ struct zip {
 };
 
 #define ZIP_LENGTH_AT_END	8
+#define ZIP_UTF8_NAME		(1<<11)	
 
 struct zip_file_header {
 	char	signature[4];
@@ -457,6 +458,7 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 {
 	const struct zip_file_header *p;
 	const void *h;
+	int ret = ARCHIVE_OK;
 
 	if ((p = __archive_read_ahead(a, sizeof *p, NULL)) == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
@@ -494,8 +496,26 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 		    "Truncated ZIP file header");
 		return (ARCHIVE_FATAL);
 	}
-	archive_strncpy_from_locale(&a->archive, &zip->pathname,
-	    h, zip->filename_length, zip->charset);
+	if (zip->charset == NULL && (zip->flags & ZIP_UTF8_NAME) != 0) {
+		/* The filename is stored to be UTF-8. */
+		if (archive_strncpy_from_locale(&a->archive, &zip->pathname,
+		    h, zip->filename_length, "UTF-8") != 0) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Pathname cannot be converted "
+			    "from UTF-8 to current locale.");
+			ret = ARCHIVE_WARN;
+		}
+	} else {
+		if (archive_strncpy_from_locale(&a->archive, &zip->pathname,
+		    h, zip->filename_length, zip->charset) != 0) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Pathname cannot be converted "
+			    "from %s to current locale.", zip->charset);
+			ret = ARCHIVE_WARN;
+		}
+	}
 	__archive_read_consume(a, zip->filename_length);
 	archive_entry_set_pathname(entry, zip->pathname.s);
 
@@ -538,7 +558,7 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 	    zip->compression_name);
 	a->archive.archive_format_name = zip->format_name;
 
-	return (ARCHIVE_OK);
+	return (ret);
 }
 
 /* Convert an MSDOS-style date/time into Unix-style time. */
