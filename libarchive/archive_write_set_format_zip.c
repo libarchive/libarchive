@@ -97,6 +97,8 @@ static int archive_write_zip_close(struct archive_write *);
 static int archive_write_zip_free(struct archive_write *);
 static int archive_write_zip_finish_entry(struct archive_write *);
 static int archive_write_zip_header(struct archive_write *, struct archive_entry *);
+static int archive_write_zip_options(struct archive_write *,
+	      const char *, const char *);
 static unsigned int dos_time(const time_t);
 static size_t path_length(struct archive_entry *);
 static int write_path(struct archive_entry *, struct archive_write *);
@@ -181,7 +183,9 @@ struct zip {
 	int64_t offset;
 	int64_t written_bytes;
 	int64_t remaining_data_bytes;
+	struct archive_string l_name;
 	enum compression compression;
+	char *opt_charset;
 
 #ifdef HAVE_ZLIB_H
 	z_stream stream;
@@ -203,26 +207,44 @@ struct zip_central_directory_end {
 
 static int
 archive_write_zip_options(struct archive_write *a, const char *key,
-    const char *value)
+    const char *val)
 {
 	struct zip *zip = a->format_data;
+	int ret = ARCHIVE_FAILED;
 
 	if (strcmp(key, "compression") == 0) {
-		if (strcmp(value, "deflate") == 0) {
+		if (val == NULL || val[0] == 0) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "%s: compression option needs a compression name",
+			    a->format_name);
+		} else if (strcmp(val, "deflate") == 0) {
 #ifdef HAVE_ZLIB_H
 			zip->compression = COMPRESSION_DEFLATE;
+			ret = ARCHIVE_OK;
 #else
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "deflate compression not supported");
-			return ARCHIVE_FAILED;
 #endif
-		} else if (strcmp(value, "store") == 0)
+		} else if (strcmp(val, "store") == 0) {
 			zip->compression = COMPRESSION_STORE;
-		else
-			return (ARCHIVE_FAILED);
-		return (ARCHIVE_OK);
-	}
-	return (ARCHIVE_FAILED);
+			ret = ARCHIVE_OK;
+		}
+	} else if (strcmp(key, "charset")  == 0) {
+		if (val == NULL || val[0] == 0) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "%s: charset option needs a character-set name",
+			    a->format_name);
+		} else if (archive_string_conversion_to_charset(
+		    &a->archive, val) == 0) {
+			free(zip->opt_charset);
+			zip->opt_charset = strdup(val);
+			ret = ARCHIVE_OK;
+		} else
+			ret = ARCHIVE_FATAL;
+	} else
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "%s: unknown keyword ``%s''", a->format_name, key);
+	return (ret);
 }
 
 int
@@ -286,16 +308,17 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	struct zip_extra_data_local e;
 	struct zip_data_descriptor *d;
 	struct zip_file_header_link *l;
-	int ret;
+	int ret, ret2 = ARCHIVE_OK;
 	int64_t size;
 	mode_t type;
 
 	/* Entries other than a regular file or a folder are skipped. */
 	type = archive_entry_filetype(entry);
 	if ((type != AE_IFREG) & (type != AE_IFDIR)) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC, "Filetype not supported");
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Filetype not supported");
 		return ARCHIVE_FAILED;
-	};
+	}; 
 
 	/* Directory entries should have a size of 0. */
 	if (type == AE_IFDIR)
@@ -309,10 +332,22 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	/* Append archive entry to the central directory data. */
 	l = (struct zip_file_header_link *) malloc(sizeof(*l));
 	if (l == NULL) {
-		archive_set_error(&a->archive, ENOMEM, "Can't allocate zip header data");
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate zip header data");
 		return (ARCHIVE_FATAL);
 	}
 	l->entry = archive_entry_clone(entry);
+	if (zip->opt_charset != NULL) {
+		if (archive_strcpy_to_locale(&(a->archive), &(zip->l_name),
+		    archive_entry_pathname(entry), zip->opt_charset) != 0) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Can't translate pathname '%s' to %s",
+			    archive_entry_pathname(entry), zip->opt_charset);
+			ret2 = ARCHIVE_WARN;
+		}
+		archive_entry_set_pathname(l->entry, zip->l_name.s);
+	}
 	/* Initialize the CRC variable and potentially the local crc32(). */
 	l->crc32 = crc32(0, NULL, 0);
 	l->compression = zip->compression;
@@ -334,7 +369,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	archive_le16enc(&h.flags, ZIP_FLAGS);
 	archive_le16enc(&h.compression, zip->compression);
 	archive_le32enc(&h.timedate, dos_time(archive_entry_mtime(entry)));
-	archive_le16enc(&h.filename_length, (uint16_t)path_length(entry));
+	archive_le16enc(&h.filename_length, (uint16_t)path_length(l->entry));
 
 	switch (zip->compression) {
 	case COMPRESSION_STORE:
@@ -355,7 +390,8 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		zip->stream.avail_out = zip->len_buf;
 		if (deflateInit2(&zip->stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED,
 		    -15, 8, Z_DEFAULT_STRATEGY) != Z_OK) {
-			archive_set_error(&a->archive, ENOMEM, "Can't init deflate compressor");
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't init deflate compressor");
 			return (ARCHIVE_FATAL);
 		}
 		break;
@@ -389,7 +425,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		return (ARCHIVE_FATAL);
 	zip->written_bytes += sizeof(h);
 
-	ret = write_path(entry, a);
+	ret = write_path(l->entry, a);
 	if (ret <= ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 	zip->written_bytes += ret;
@@ -399,6 +435,8 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		return (ARCHIVE_FATAL);
 	zip->written_bytes += sizeof(e);
 
+	if (ret2 != ARCHIVE_OK)
+		return (ret2);
 	return (ARCHIVE_OK);
 }
 
@@ -605,6 +643,8 @@ archive_write_zip_free(struct archive_write *a)
 #ifdef HAVE_ZLIB_H
 	free(zip->buf);
 #endif
+	archive_string_free(&(zip->l_name));
+	free(zip->opt_charset);
 	free(zip);
 	a->format_data = NULL;
 	return (ARCHIVE_OK);
