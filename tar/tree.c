@@ -289,14 +289,35 @@ tree_open(const char *path)
 #elif defined(_WIN32) && !defined(__CYGWIN__)
 	struct tree *t;
 	char *cwd = _getcwd(NULL, 0);
-	char *pathname = strdup(path), *p, *base;
+	char *pathname, *p, *base;
+	wchar_t *wcs, *wp;
+	size_t l, wlen;
 
+	/* Take care of '\' character in multi-byte character-set.
+	 * Some multi-byte character-set have been using '\' character
+	 * for a part of its character code. */
+	l = MultiByteToWideChar(CP_OEMCP, 0, path, strlen(path), NULL, 0);
+	if (l == 0)
+		abort();
+	wcs = malloc(sizeof(*wcs) * (l+1));
+	if (wcs == NULL)
+		abort();
+	l = MultiByteToWideChar(CP_OEMCP, 0, path, strlen(path), wcs, l);
+	wcs[l] = L'\0';
+	wlen = l;
+	for (wp = wcs; *wp != L'\0'; ++wp) {
+		if (*wp == L'\\')
+			*wp = L'/';
+	}
+	l = WideCharToMultiByte(CP_OEMCP, 0, wcs, wlen, NULL, 0, NULL, NULL);
+	if (l == 0)
+		abort();
+	pathname = malloc(l+1);
 	if (pathname == NULL)
 		abort();
-	for (p = pathname; *p != '\0'; ++p) {
-		if (*p == '\\')
-			*p = '/';
-	}
+	l = WideCharToMultiByte(CP_OEMCP, 0, wcs, wlen, pathname, l, NULL, NULL);
+	pathname[l] = '\0';
+	free(wcs);
 	base = pathname;
 
 	t = malloc(sizeof(*t));
