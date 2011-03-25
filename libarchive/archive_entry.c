@@ -1119,6 +1119,12 @@ archive_entry_acl_text_w(struct archive_entry *entry, int flags)
 	return archive_acl_text_w(entry->archive, &entry->acl, flags);
 }
 
+const char *
+archive_entry_acl_text(struct archive_entry *entry, int flags)
+{
+	return archive_acl_text(entry->archive, &entry->acl, flags);
+}
+
 /*
  * Following code is modified from UC Berkeley sources, and
  * is subject to the following copyright notice.

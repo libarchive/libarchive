@@ -58,6 +58,15 @@ static int	prefix_w(const wchar_t *start, const wchar_t *end,
 static void	append_entry_w(wchar_t **wp, const wchar_t *prefix, int tag,
 		    const wchar_t *wname, int perm, int id);
 static void	append_id_w(wchar_t **wp, int id);
+static int	isint(const char *start, const char *end, int *result);
+static int	ismode(const char *start, const char *end, int *result);
+static void	next_field(const char **p, const char **start,
+		    const char **end, char *sep);
+static int	prefix(const char *start, const char *end,
+		    const char *test);
+static void	append_entry(char **p, const char *prefix, int tag,
+		    const char *name, int perm, int id);
+static void	append_id(char **p, int id);
 
 void
 archive_acl_clear(struct archive_acl *acl)
@@ -73,6 +82,10 @@ archive_acl_clear(struct archive_acl *acl)
 	if (acl->acl_text_w != NULL) {
 		free(acl->acl_text_w);
 		acl->acl_text_w = NULL;
+	}
+	if (acl->acl_text != NULL) {
+		free(acl->acl_text);
+		acl->acl_text = NULL;
 	}
 	acl->acl_p = NULL;
 	acl->acl_state = 0; /* Not counting. */
@@ -131,6 +144,26 @@ archive_acl_add_entry_w_len(struct archive_acl *acl,
 	}
 	if (name != NULL  &&  *name != L'\0' && len > 0)
 		archive_mstring_copy_wcs_len(&ap->name, name, len);
+	else
+		archive_mstring_clean(&ap->name);
+	return ARCHIVE_OK;
+}
+
+int
+archive_acl_add_entry_len(struct archive_acl *acl,
+    int type, int permset, int tag, int id, const char *name, size_t len)
+{
+	struct archive_acl_entry *ap;
+
+	if (acl_special(acl, type, permset, tag) == 0)
+		return ARCHIVE_OK;
+	ap = acl_new_entry(acl, type, permset, tag, id);
+	if (ap == NULL) {
+		/* XXX Error XXX */
+		return ARCHIVE_FAILED;
+	}
+	if (name != NULL  &&  *name != '\0' && len > 0)
+		archive_mstring_copy_mbs_len(&ap->name, name, len);
 	else
 		archive_mstring_clean(&ap->name);
 	return ARCHIVE_OK;
@@ -225,6 +258,10 @@ acl_new_entry(struct archive_acl *acl,
 	if (acl->acl_text_w != NULL) {
 		free(acl->acl_text_w);
 		acl->acl_text_w = NULL;
+	}
+	if (acl->acl_text != NULL) {
+		free(acl->acl_text);
+		acl->acl_text = NULL;
 	}
 
 	/* If there's a matching entry already in the list, overwrite it. */
@@ -558,6 +595,184 @@ append_entry_w(wchar_t **wp, const wchar_t *prefix, int tag,
 	**wp = L'\0';
 }
 
+const char *
+archive_acl_text(struct archive *a, struct archive_acl *acl, int flags)
+{
+	int count;
+	size_t length;
+	const char *name;
+	const char *prefix;
+	char separator;
+	struct archive_acl_entry *ap;
+	int id;
+	char *p;
+
+	if (acl->acl_text != NULL) {
+		free (acl->acl_text);
+		acl->acl_text = NULL;
+	}
+
+	separator = ',';
+	count = 0;
+	length = 0;
+	ap = acl->acl_head;
+	while (ap != NULL) {
+		if ((ap->type & flags) != 0) {
+			count++;
+			if ((flags & ARCHIVE_ENTRY_ACL_STYLE_MARK_DEFAULT) &&
+			    (ap->type & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT))
+				length += 8; /* "default:" */
+			length += 5; /* tag name */
+			length += 1; /* colon */
+			name = archive_mstring_get_mbs(a, &ap->name);
+			if (name != NULL)
+				length += strlen(name);
+			else
+				length += sizeof(uid_t) * 3 + 1;
+			length ++; /* colon */
+			length += 3; /* rwx */
+			length += 1; /* colon */
+			length += max(sizeof(uid_t), sizeof(gid_t)) * 3 + 1;
+			length ++; /* newline */
+		}
+		ap = ap->next;
+	}
+
+	if (count > 0 && ((flags & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0)) {
+		length += 10; /* "user::rwx\n" */
+		length += 11; /* "group::rwx\n" */
+		length += 11; /* "other::rwx\n" */
+	}
+
+	if (count == 0)
+		return (NULL);
+
+	/* Now, allocate the string and actually populate it. */
+	p = acl->acl_text = (char *)malloc(length);
+	if (p == NULL)
+		__archive_errx(1, "No memory to generate the text version of the ACL");
+	count = 0;
+	if ((flags & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
+		append_entry(&p, NULL, ARCHIVE_ENTRY_ACL_USER_OBJ, NULL,
+		    acl->mode & 0700, -1);
+		*p++ = ',';
+		append_entry(&p, NULL, ARCHIVE_ENTRY_ACL_GROUP_OBJ, NULL,
+		    acl->mode & 0070, -1);
+		*p++ = ',';
+		append_entry(&p, NULL, ARCHIVE_ENTRY_ACL_OTHER, NULL,
+		    acl->mode & 0007, -1);
+		count += 3;
+
+		ap = acl->acl_head;
+		while (ap != NULL) {
+			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
+				name = archive_mstring_get_mbs(a, &ap->name);
+				*p++ = separator;
+				if (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)
+					id = ap->id;
+				else
+					id = -1;
+				append_entry(&p, NULL, ap->tag, name,
+				    ap->permset, id);
+				count++;
+			}
+			ap = ap->next;
+		}
+	}
+
+
+	if ((flags & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) != 0) {
+		if (flags & ARCHIVE_ENTRY_ACL_STYLE_MARK_DEFAULT)
+			prefix = "default:";
+		else
+			prefix = NULL;
+		ap = acl->acl_head;
+		count = 0;
+		while (ap != NULL) {
+			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) != 0) {
+				name = archive_mstring_get_mbs(a, &ap->name);
+				if (count > 0)
+					*p++ = separator;
+				if (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)
+					id = ap->id;
+				else
+					id = -1;
+				append_entry(&p, prefix, ap->tag,
+				    name, ap->permset, id);
+				count ++;
+			}
+			ap = ap->next;
+		}
+	}
+
+	return (acl->acl_text);
+}
+
+static void
+append_id(char **p, int id)
+{
+	if (id < 0)
+		id = 0;
+	if (id > 9)
+		append_id(p, id / 10);
+	*(*p)++ = "0123456789"[id % 10];
+}
+
+static void
+append_entry(char **p, const char *prefix, int tag,
+    const char *name, int perm, int id)
+{
+	if (prefix != NULL) {
+		strcpy(*p, prefix);
+		*p += strlen(*p);
+	}
+	switch (tag) {
+	case ARCHIVE_ENTRY_ACL_USER_OBJ:
+		name = NULL;
+		id = -1;
+		/* FALLTHROUGH */
+	case ARCHIVE_ENTRY_ACL_USER:
+		strcpy(*p, "user");
+		break;
+	case ARCHIVE_ENTRY_ACL_GROUP_OBJ:
+		name = NULL;
+		id = -1;
+		/* FALLTHROUGH */
+	case ARCHIVE_ENTRY_ACL_GROUP:
+		strcpy(*p, "group");
+		break;
+	case ARCHIVE_ENTRY_ACL_MASK:
+		strcpy(*p, "mask");
+		name = NULL;
+		id = -1;
+		break;
+	case ARCHIVE_ENTRY_ACL_OTHER:
+		strcpy(*p, "other");
+		name = NULL;
+		id = -1;
+		break;
+	}
+	*p += strlen(*p);
+	*(*p)++ = ':';
+	if (name != NULL) {
+		strcpy(*p, name);
+		*p += strlen(*p);
+	} else if (tag == ARCHIVE_ENTRY_ACL_USER
+	    || tag == ARCHIVE_ENTRY_ACL_GROUP) {
+		append_id(p, id);
+		id = -1;
+	}
+	*(*p)++ = ':';
+	*(*p)++ = (perm & 0444) ? 'r' : '-';
+	*(*p)++ = (perm & 0222) ? 'w' : '-';
+	*(*p)++ = (perm & 0111) ? 'x' : '-';
+	if (id != -1) {
+		*(*p)++ = ':';
+		append_id(p, id);
+	}
+	**p = '\0';
+}
+
 /*
  * Parse a textual ACL.  This automatically recognizes and supports
  * extensions described above.  The 'type' argument is used to
@@ -772,6 +987,235 @@ next_field_w(const wchar_t **wp, const wchar_t **start,
  */
 static int
 prefix_w(const wchar_t *start, const wchar_t *end, const wchar_t *test)
+{
+	if (start == end)
+		return (0);
+
+	if (*start++ != *test++)
+		return (0);
+
+	while (start < end  &&  *start++ == *test++)
+		;
+
+	if (start < end)
+		return (0);
+
+	return (1);
+}
+
+/*
+ * Parse a textual ACL.  This automatically recognizes and supports
+ * extensions described above.  The 'type' argument is used to
+ * indicate the type that should be used for any entries not
+ * explicitly marked as "default:".
+ */
+int
+archive_acl_parse(struct archive_acl *acl,
+    const char *text, int default_type)
+{
+	struct {
+		const char *start;
+		const char *end;
+	} field[4], name;
+
+	int fields, n;
+	int type, tag, permset, id;
+	char sep;
+
+	while (text != NULL  &&  *text != '\0') {
+		/*
+		 * Parse the fields out of the next entry,
+		 * advance 'text' to start of next entry.
+		 */
+		fields = 0;
+		do {
+			const char *start, *end;
+			next_field(&text, &start, &end, &sep);
+			if (fields < 4) {
+				field[fields].start = start;
+				field[fields].end = end;
+			}
+			++fields;
+		} while (sep == ':');
+
+		/* Set remaining fields to blank. */
+		for (n = fields; n < 4; ++n)
+			field[n].start = field[n].end = NULL;
+
+		/* Check for a numeric ID in field 1 or 3. */
+		id = -1;
+		isint(field[1].start, field[1].end, &id);
+		/* Field 3 is optional. */
+		if (id == -1 && fields > 3)
+			isint(field[3].start, field[3].end, &id);
+
+		/*
+		 * Solaris extension:  "defaultuser::rwx" is the
+		 * default ACL corresponding to "user::rwx", etc.
+		 */
+		if (field[0].end - field[0].start > 7
+		    && memcmp(field[0].start, "default", 7) == 0) {
+			type = ARCHIVE_ENTRY_ACL_TYPE_DEFAULT;
+			field[0].start += 7;
+		} else
+			type = default_type;
+
+		name.start = name.end = NULL;
+		if (prefix(field[0].start, field[0].end, "user")) {
+			if (!ismode(field[2].start, field[2].end, &permset))
+				return (ARCHIVE_WARN);
+			if (id != -1 || field[1].start < field[1].end) {
+				tag = ARCHIVE_ENTRY_ACL_USER;
+				name = field[1];
+			} else
+				tag = ARCHIVE_ENTRY_ACL_USER_OBJ;
+		} else if (prefix(field[0].start, field[0].end, "group")) {
+			if (!ismode(field[2].start, field[2].end, &permset))
+				return (ARCHIVE_WARN);
+			if (id != -1 || field[1].start < field[1].end) {
+				tag = ARCHIVE_ENTRY_ACL_GROUP;
+				name = field[1];
+			} else
+				tag = ARCHIVE_ENTRY_ACL_GROUP_OBJ;
+		} else if (prefix(field[0].start, field[0].end, "other")) {
+			if (fields == 2
+			    && field[1].start < field[1].end
+			    && ismode(field[1].start, field[1].end, &permset)) {
+				/* This is Solaris-style "other:rwx" */
+			} else if (fields == 3
+			    && field[1].start == field[1].end
+			    && field[2].start < field[2].end
+			    && ismode(field[2].start, field[2].end, &permset)) {
+				/* This is FreeBSD-style "other::rwx" */
+			} else
+				return (ARCHIVE_WARN);
+			tag = ARCHIVE_ENTRY_ACL_OTHER;
+		} else if (prefix(field[0].start, field[0].end, "mask")) {
+			if (fields == 2
+			    && field[1].start < field[1].end
+			    && ismode(field[1].start, field[1].end, &permset)) {
+				/* This is Solaris-style "mask:rwx" */
+			} else if (fields == 3
+			    && field[1].start == field[1].end
+			    && field[2].start < field[2].end
+			    && ismode(field[2].start, field[2].end, &permset)) {
+				/* This is FreeBSD-style "mask::rwx" */
+			} else
+				return (ARCHIVE_WARN);
+			tag = ARCHIVE_ENTRY_ACL_MASK;
+		} else
+			return (ARCHIVE_WARN);
+
+		/* Add entry to the internal list. */
+		archive_acl_add_entry_len(acl, type, permset,
+		    tag, id, name.start, name.end - name.start);
+	}
+	return (ARCHIVE_OK);
+}
+
+/*
+ * Parse a string to a positive decimal integer.  Returns true if
+ * the string is non-empty and consists only of decimal digits,
+ * false otherwise.
+ */
+static int
+isint(const char *start, const char *end, int *result)
+{
+	int n = 0;
+	if (start >= end)
+		return (0);
+	while (start < end) {
+		if (*start < '0' || *start > '9')
+			return (0);
+		if (n > (INT_MAX / 10) ||
+		    (n == INT_MAX / 10 && (*start - '0') > INT_MAX % 10)) {
+			n = INT_MAX;
+		} else {
+			n *= 10;
+			n += *start - '0';
+		}
+		start++;
+	}
+	*result = n;
+	return (1);
+}
+
+/*
+ * Parse a string as a mode field.  Returns true if
+ * the string is non-empty and consists only of mode characters,
+ * false otherwise.
+ */
+static int
+ismode(const char *start, const char *end, int *permset)
+{
+	const char *p;
+
+	if (start >= end)
+		return (0);
+	p = start;
+	*permset = 0;
+	while (p < end) {
+		switch (*p++) {
+		case 'r': case 'R':
+			*permset |= ARCHIVE_ENTRY_ACL_READ;
+			break;
+		case 'w': case 'W':
+			*permset |= ARCHIVE_ENTRY_ACL_WRITE;
+			break;
+		case 'x': case 'X':
+			*permset |= ARCHIVE_ENTRY_ACL_EXECUTE;
+			break;
+		case '-':
+			break;
+		default:
+			return (0);
+		}
+	}
+	return (1);
+}
+
+/*
+ * Match "[:whitespace:]*(.*)[:whitespace:]*[:,\n]".  *wp is updated
+ * to point to just after the separator.  *start points to the first
+ * character of the matched text and *end just after the last
+ * character of the matched identifier.  In particular *end - *start
+ * is the length of the field body, not including leading or trailing
+ * whitespace.
+ */
+static void
+next_field(const char **p, const char **start,
+    const char **end, char *sep)
+{
+	/* Skip leading whitespace to find start of field. */
+	while (**p == ' ' || **p == '\t' || **p == '\n') {
+		(*p)++;
+	}
+	*start = *p;
+
+	/* Scan for the separator. */
+	while (**p != '\0' && **p != ',' && **p != ':' && **p != '\n') {
+		(*p)++;
+	}
+	*sep = **p;
+
+	/* Trim trailing whitespace to locate end of field. */
+	*end = *p - 1;
+	while (**end == ' ' || **end == '\t' || **end == '\n') {
+		(*end)--;
+	}
+	(*end)++;
+
+	/* Adjust scanner location. */
+	if (**p != '\0')
+		(*p)++;
+}
+
+/*
+ * Return true if the characters [start...end) are a prefix of 'test'.
+ * This makes it easy to handle the obvious abbreviations: 'u' for 'user', etc.
+ */
+static int
+prefix(const char *start, const char *end, const char *test)
 {
 	if (start == end)
 		return (0);

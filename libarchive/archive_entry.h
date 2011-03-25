@@ -505,6 +505,8 @@ __LA_DECL int	 archive_entry_acl_next_w(struct archive_entry *, int /* want_type
 #define	ARCHIVE_ENTRY_ACL_STYLE_MARK_DEFAULT	2048
 __LA_DECL const wchar_t	*archive_entry_acl_text_w(struct archive_entry *,
 		    int /* flags */);
+__LA_DECL const char *archive_entry_acl_text(struct archive_entry *,
+		    int /* flags */);
 
 /* Return a count of entries matching 'want_type' */
 __LA_DECL int	 archive_entry_acl_count(struct archive_entry *, int /* want_type */);

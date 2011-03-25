@@ -142,7 +142,6 @@ struct tar {
 	int			 sparse_gnu_minor;
 	char			 sparse_gnu_pending;
 
-	struct archive_wstring	 wacl;
 	struct archive_string	 localname;
 	struct archive_string	 opt_charset;
 	struct archive_string	 hdr_charset;
@@ -273,7 +272,6 @@ archive_read_format_tar_cleanup(struct archive_read *a)
 	archive_string_free(&tar->opt_charset);
 	archive_string_free(&tar->hdr_charset);
 	archive_string_free(&tar->localname);
-	archive_wstring_free(&tar->wacl);
 	free(tar);
 	(a->format->data) = NULL;
 	return (ARCHIVE_OK);
@@ -888,15 +886,8 @@ header_Solaris_ACL(struct archive_read *a, struct tar *tar,
 		    "Malformed Solaris ACL attribute (unconvertible)");
 		return(ARCHIVE_WARN);
 	}
-	archive_wstring_empty(&(tar->wacl));
-	if (archive_wstring_append_from_mbs(&(a->archive), &(tar->wacl),
-	    tar->localname.s, tar->localname.length) != 0) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Malformed Solaris ACL attribute (unconvertible)");
-		return(ARCHIVE_WARN);
-	}
-	err = archive_acl_parse_w(archive_entry_acl(entry), tar->wacl.s,
-	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
+	err = archive_acl_parse(archive_entry_acl(entry),
+	    tar->localname.s, ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
 	if (err != ARCHIVE_OK)
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Malformed Solaris ACL attribute (unparsable)");
@@ -1692,20 +1683,10 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "SCHILY.acl.access can't be converted "
 				    "from UTF-8 to current locale.");
-			}
-			archive_wstring_empty(&(tar->wacl));
-			if (archive_wstring_append_from_mbs(
-			    &(a->archive), &(tar->wacl), tar->localname.s,
-			    tar->localname.length) != 0) {
-				err = ARCHIVE_WARN;
-				archive_set_error(&a->archive,
-				     ARCHIVE_ERRNO_FILE_FORMAT,
-				    "SCHILY.acl.access can't be converted"
-				    " to wide-character.");
-			} else {
-				archive_acl_parse_w(archive_entry_acl(entry),
-				    tar->wacl.s, ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
-			}
+			} else
+				archive_acl_parse(archive_entry_acl(entry),
+				    tar->localname.s,
+				    ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
 		} else if (strcmp(key, "SCHILY.acl.default")==0) {
 			if (archive_strcpy_from_locale(&(a->archive),
 			    &(tar->localname), value, "UTF-8") != 0) {
@@ -1714,20 +1695,10 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "SCHILY.acl.default can't be converted "
 				    "from UTF-8 to current locale.");
-			}
-			archive_wstring_empty(&(tar->wacl));
-			if (archive_wstring_append_from_mbs(
-			    &(a->archive), &(tar->wacl), tar->localname.s,
-			    tar->localname.length) != 0) {
-				err = ARCHIVE_WARN;
-				archive_set_error(&a->archive,
-				     ARCHIVE_ERRNO_FILE_FORMAT,
-				    "SCHILY.acl.default can't be converted"
-				    " to wide-character.");
-			} else {
-				archive_acl_parse_w(archive_entry_acl(entry),
-				    tar->wacl.s, ARCHIVE_ENTRY_ACL_TYPE_DEFAULT);
-			}
+			} else
+				archive_acl_parse(archive_entry_acl(entry),
+				    tar->localname.s,
+				    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT);
 		} else if (strcmp(key, "SCHILY.devmajor")==0) {
 			archive_entry_set_rdevmajor(entry,
 			    tar_atol10(value, strlen(value)));

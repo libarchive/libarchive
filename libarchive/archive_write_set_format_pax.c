@@ -57,7 +57,6 @@ struct pax {
 	struct archive_string	l_gname;
 	struct archive_string	l_linkpath;
 	struct archive_string	l_url_encoded_name;
-	struct archive_string	l_acl_mbs;
 	struct archive_string	l_acl_utf8;
 	struct archive_string	pax_header;
 	struct archive_string	sparse_map;
@@ -360,9 +359,8 @@ archive_write_pax_header(struct archive_write *a,
 	struct archive_entry *entry_main;
 	const char *p;
 	char *t;
-	const wchar_t *wp;
 	const char *suffix;
-	int binary, need_extension, r, r2, ret;
+	int binary, need_extension, r, ret;
 	int sparse_count;
 	uint64_t sparse_total, real_size;
 	struct pax *pax;
@@ -882,22 +880,13 @@ archive_write_pax_header(struct archive_write *a,
 			add_pax_attr(&(pax->pax_header), "SCHILY.fflags", p);
 
 		/* I use star-compatible ACL attributes. */
-		wp = archive_entry_acl_text_w(entry_original,
+		p = archive_entry_acl_text(entry_original,
 		    ARCHIVE_ENTRY_ACL_TYPE_ACCESS |
 		    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID);
-		if (wp != NULL && *wp != L'\0') {
-			archive_string_empty(&(pax->l_acl_mbs));
-			r2 = archive_string_append_from_unicode_to_mbs(
-			    &(a->archive), &(pax->l_acl_mbs),
-			    wp, wcslen(wp));
-			if (r2 == 0) {
-				r = archive_strncpy_to_locale(
-				    &(a->archive), &(pax->l_acl_utf8),
-				    pax->l_acl_mbs.s, pax->l_acl_mbs.length,
-				    "UTF-8");
-			} else
-				r = 0;
-			if (r2 || r) {
+		if (p != NULL && *p != '\0') {
+			r = archive_strcpy_to_locale(
+			    &(a->archive), &(pax->l_acl_utf8), p, "UTF-8");
+			if (r != 0) {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Can't translate ACL.access to UTF-8");
@@ -907,22 +896,13 @@ archive_write_pax_header(struct archive_write *a,
 				    "SCHILY.acl.access", pax->l_acl_utf8.s);
 			}
 		}
-		wp = archive_entry_acl_text_w(entry_original,
+		p = archive_entry_acl_text(entry_original,
 		    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT |
 		    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID);
-		if (wp != NULL && *wp != L'\0') {
-			archive_string_empty(&(pax->l_acl_mbs));
-			r2 = archive_string_append_from_unicode_to_mbs(
-			    &(a->archive), &(pax->l_acl_mbs),
-			    wp, wcslen(wp));
-			if (r2 == 0) {
-				r = archive_strncpy_to_locale(
-				    &(a->archive), &(pax->l_acl_utf8),
-				    pax->l_acl_mbs.s, pax->l_acl_mbs.length,
-				    "UTF-8");
-			} else
-				r = 0;
-			if (r2 || r) {
+		if (p != NULL && *p != '\0') {
+			r = archive_strcpy_to_locale(
+			    &(a->archive), &(pax->l_acl_utf8), p, "UTF-8");
+			if (r != 0) {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Can't translate ACL.default to UTF-8");
@@ -1455,7 +1435,6 @@ archive_write_pax_free(struct archive_write *a)
 	archive_string_free(&pax->l_gname);
 	archive_string_free(&pax->l_linkpath);
 	archive_string_free(&pax->l_url_encoded_name);
-	archive_string_free(&pax->l_acl_mbs);
 	archive_string_free(&pax->l_acl_utf8);
 	free(pax->opt_charset);
 	sparse_list_clear(pax);

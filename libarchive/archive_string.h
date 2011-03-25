@@ -226,6 +226,8 @@ const char *	archive_mstring_get_mbs(struct archive *, struct archive_mstring *)
 const char *	archive_mstring_get_utf8(struct archive *, struct archive_mstring *);
 const wchar_t *	archive_mstring_get_wcs(struct archive *, struct archive_mstring *);
 int	archive_mstring_copy_mbs(struct archive_mstring *, const char *mbs);
+int	archive_mstring_copy_mbs_len(struct archive_mstring *, const char *mbs,
+	    size_t);
 int	archive_mstring_copy_utf8(struct archive_mstring *, const char *utf8);
 int	archive_mstring_copy_wcs(struct archive_mstring *, const wchar_t *wcs);
 int	archive_mstring_copy_wcs_len(struct archive_mstring *, const wchar_t *wcs, size_t);

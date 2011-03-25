@@ -49,6 +49,7 @@ struct archive_acl {
 	struct archive_acl_entry	*acl_p;
 	int		 acl_state;	/* See acl_next for details. */
 	wchar_t		*acl_text_w;
+	char		*acl_text;
 	int		 acl_types;
 };
 
@@ -62,8 +63,11 @@ int archive_acl_next(struct archive *, struct archive_acl *, int,
 int archive_acl_add_entry(struct archive_acl *, int, int, int, int, const char *);
 int archive_acl_add_entry_w_len(struct archive_acl *,
     int, int, int, int, const wchar_t *, size_t);
+int archive_acl_add_entry_len(struct archive_acl *,
+    int, int, int, int, const char *, size_t);
 
 const wchar_t *archive_acl_text_w(struct archive *, struct archive_acl *, int);
+const char *archive_acl_text(struct archive *, struct archive_acl *, int);
 
 /*
  * Private ACL parser.  This is private because it handles some
@@ -75,5 +79,7 @@ const wchar_t *archive_acl_text_w(struct archive *, struct archive_acl *, int);
  */
 int archive_acl_parse_w(struct archive_acl *,
 		    const wchar_t *, int /* type */);
+int archive_acl_parse(struct archive_acl *,
+		    const char *, int /* type */);
 
 #endif /* ARCHIVE_ENTRY_PRIVATE_H_INCLUDED */

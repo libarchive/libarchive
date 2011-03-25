@@ -1817,8 +1817,19 @@ archive_mstring_copy_mbs(struct archive_mstring *aes, const char *mbs)
 		aes->aes_set = 0;
 		return (0);
 	}
+	return (archive_mstring_copy_mbs_len(aes, mbs, strlen(mbs)));
+}
+
+int
+archive_mstring_copy_mbs_len(struct archive_mstring *aes, const char *mbs,
+    size_t len)
+{
+	if (mbs == NULL) {
+		aes->aes_set = 0;
+		return (0);
+	}
 	aes->aes_set = AES_SET_MBS; /* Only MBS form is set now. */
-	archive_strcpy(&(aes->aes_mbs), mbs);
+	archive_strncpy(&(aes->aes_mbs), mbs, len);
 	archive_string_empty(&(aes->aes_utf8));
 	archive_wstring_empty(&(aes->aes_wcs));
 	return (0);
