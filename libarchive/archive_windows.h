@@ -101,7 +101,6 @@
 #define link		__la_link
 #define	lseek		__la_lseek
 #define	lstat		__la_stat
-#define	mbstowcs	__la_mbstowcs
 #define	mkdir(d,m)	__la_mkdir(d, m)
 #define	open		__la_open
 #define	read		__la_read
@@ -297,7 +296,6 @@ extern int	 __la_ftruncate(int fd, int64_t length);
 extern int	 __la_link(const char *src, const char *dst);
 extern __int64	 __la_lseek(int fd, __int64 offset, int whence);
 extern int	 __la_lstat(const char *path, struct stat *st);
-extern size_t	 __la_mbstowcs(wchar_t *wcstr, const char *mbstr, size_t nwchars);
 extern int	 __la_mkdir(const char *path, mode_t mode);
 extern int	 __la_mkstemp(char *template);
 extern int	 __la_open(const char *path, int flags, ...);

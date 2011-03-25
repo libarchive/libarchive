@@ -113,8 +113,6 @@ struct archive {
 	struct archive_string	error_string;
 
 #if HAVE_ICONV
-	iconv_t		 unicode_to_current;
-	iconv_t		 current_to_unicode;
 	char *current_code;
 #define ICONV_TABLE_SIZE	2
 	struct archive_iconv_table {

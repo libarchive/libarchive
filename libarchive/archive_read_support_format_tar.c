@@ -1470,13 +1470,10 @@ pax_header(struct archive_read *a, struct tar *tar,
 				err = set_conversion_failed_error(a, tar,
 				    "Gname");
 			else
+				/* Use a converted name. */
 				value = tar->localname.s;
 		}
-		if (tar->charset != NULL && value != tar->localname.s)
-			/* Fall back on the orignal bad string. */
-			archive_entry_update_gname_utf8(entry, value);
-		else
-			archive_entry_copy_gname(entry, value);
+		archive_entry_copy_gname(entry, value);
 	}
 	if (archive_strlen(&(tar->entry_linkpath)) > 0) {
 		value = tar->entry_linkpath.s;
@@ -1486,13 +1483,10 @@ pax_header(struct archive_read *a, struct tar *tar,
 				err = set_conversion_failed_error(a, tar,
 				    "Linkname");
 			else
+				/* Use a converted name. */
 				value = tar->localname.s;
 		}
-		if (tar->charset != NULL && value != tar->localname.s)
-			/* Fall back on the orignal bad string. */
-			archive_entry_update_link_utf8(entry, value);
-		else
-			archive_entry_copy_link(entry, value);
+		archive_entry_copy_link(entry, value);
 	}
 	/*
 	 * Some extensions (such as the GNU sparse file extensions)
@@ -1515,13 +1509,10 @@ pax_header(struct archive_read *a, struct tar *tar,
 				err = set_conversion_failed_error(a, tar,
 				    "Pathname");
 			else
+				/* Use a converted name. */
 				value = tar->localname.s;
 		}
-		if (tar->charset != NULL && value != tar->localname.s)
-			/* Fall back on the orignal bad string. */
-			archive_entry_update_pathname_utf8(entry, value);
-		else
-			archive_entry_copy_pathname(entry, value);
+		archive_entry_copy_pathname(entry, value);
 	}
 	if (archive_strlen(&(tar->entry_uname)) > 0) {
 		value = tar->entry_uname.s;
@@ -1531,13 +1522,10 @@ pax_header(struct archive_read *a, struct tar *tar,
 				err = set_conversion_failed_error(a, tar,
 				    "Uname");
 			else
+				/* Use a converted name. */
 				value = tar->localname.s;
 		}
-		if (tar->charset != NULL && value != tar->localname.s)
-			/* Fall back on the orignal bad string. */
-			archive_entry_update_uname_utf8(entry, value);
-		else
-			archive_entry_copy_uname(entry, value);
+		archive_entry_copy_uname(entry, value);
 	}
 	return (err);
 }

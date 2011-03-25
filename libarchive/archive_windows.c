@@ -551,20 +551,6 @@ __la_mkdir(const char *path, mode_t mode)
 	return (0);
 }
 
-/* Windows' mbstowcs is differrent error handling from other unix mbstowcs.
- * That one is using MultiByteToWideChar function with MB_PRECOMPOSED and
- * MB_ERR_INVALID_CHARS flags.
- * This implements for only to pass libarchive_test.
- */
-size_t
-__la_mbstowcs(wchar_t *wcstr, const char *mbstr, size_t nwchars)
-{
-
-	return (MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS,
-	    mbstr, (int)strlen(mbstr), wcstr,
-	    (int)nwchars));
-}
-
 int
 __la_open(const char *path, int flags, ...)
 {

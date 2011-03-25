@@ -191,10 +191,6 @@ void	archive_string_vsprintf(struct archive_string *, const char *,
 void	archive_string_sprintf(struct archive_string *, const char *, ...)
 	    __LA_PRINTF(2, 3);
 
-/* Translates from UTF8 to Unicode. */
-/* Returns non-zero if conversion failed in any way. */
-int archive_wstring_append_from_utf8(struct archive_wstring *dest, const char *, size_t);
-
 /* Translates from MBS to Unicode. */
 /* Returns non-zero if conversion failed in any way. */
 int archive_wstring_append_from_mbs(struct archive *,

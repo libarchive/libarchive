@@ -55,10 +55,6 @@ __archive_clean(struct archive *a)
 	int i;
 
 	free(a->current_code);
-	if (a->unicode_to_current != (iconv_t)0)
-		iconv_close(a->unicode_to_current);
-	if (a->current_to_unicode != (iconv_t)0)
-		iconv_close(a->current_to_unicode);
 
 	for (i = 0; i < ICONV_TABLE_SIZE; i++) {
 		free(a->iconv_table[i].charset);
