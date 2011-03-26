@@ -53,6 +53,9 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_zip.c 201168 20
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
+#ifdef HAVE_LANGINFO_H
+#include <langinfo.h>
+#endif
 #include <stdio.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
@@ -83,6 +86,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_zip.c 201168 20
 #define ZIP_VERSION_EXTRACT 0x0014 /* ZIP version 2.0 is needed. */
 #define ZIP_VERSION_BY 0x0314 /* Made by UNIX, using ZIP version 2.0. */
 #define ZIP_FLAGS 0x08 /* Flagging bit 3 (count from 0) for using data descriptor. */
+#define ZIP_FLAGS_UTF8_NAME	(1 << 11)
 
 enum compression {
 	COMPRESSION_STORE = 0
@@ -174,6 +178,7 @@ struct zip_file_header_link {
 	unsigned long crc32;
 	int64_t compressed_size;
 	enum compression compression;
+	int flags;
 };
 
 struct zip {
@@ -185,6 +190,7 @@ struct zip {
 	int64_t remaining_data_bytes;
 	struct archive_string l_name;
 	enum compression compression;
+	int flags;
 	char *opt_charset;
 
 #ifdef HAVE_ZLIB_H
@@ -301,6 +307,18 @@ archive_write_set_format_zip(struct archive *_a)
 }
 
 static int
+is_all_ascii(const char *p)
+{
+	const unsigned char *pp = (const unsigned char *)p;
+
+	while (*pp) {
+		if (*pp++ > 127)
+			return (0);
+	}
+	return (1);
+}
+
+static int
 archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 {
 	struct zip *zip;
@@ -325,6 +343,18 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		archive_entry_set_size(entry, 0);
 
 	zip = a->format_data;
+	if (zip->flags == 0) {
+		/* Initialize the general purpose flags. */
+		zip->flags = ZIP_FLAGS;
+		if (zip->opt_charset != NULL) {
+			if (strcmp(zip->opt_charset, "UTF-8") == 0)
+				zip->flags |= ZIP_FLAGS_UTF8_NAME;
+#if HAVE_NL_LANGINFO
+		} else if (strcmp(nl_langinfo(CODESET), "UTF-8") == 0) {
+			zip->flags |= ZIP_FLAGS_UTF8_NAME;
+#endif
+		}
+	}
 	d = &zip->data_descriptor;
 	size = archive_entry_size(entry);
 	zip->remaining_data_bytes = size;
@@ -337,6 +367,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		return (ARCHIVE_FATAL);
 	}
 	l->entry = archive_entry_clone(entry);
+	l->flags = zip->flags;
 	if (zip->opt_charset != NULL) {
 		if (archive_strcpy_to_locale(&(a->archive), &(zip->l_name),
 		    archive_entry_pathname(entry), zip->opt_charset) != 0) {
@@ -348,6 +379,11 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		}
 		archive_entry_set_pathname(l->entry, zip->l_name.s);
 	}
+	/* If all character of a filename is ASCII, Reset UTF-8 Name flag. */
+	if ((l->flags & ZIP_FLAGS_UTF8_NAME) != 0 &&
+	    is_all_ascii(archive_entry_pathname(l->entry)))
+		l->flags &= ~ZIP_FLAGS_UTF8_NAME;
+
 	/* Initialize the CRC variable and potentially the local crc32(). */
 	l->crc32 = crc32(0, NULL, 0);
 	l->compression = zip->compression;
@@ -366,7 +402,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	memset(&h, 0, sizeof(h));
 	archive_le32enc(&h.signature, ZIP_SIGNATURE_LOCAL_FILE_HEADER);
 	archive_le16enc(&h.version, ZIP_VERSION_EXTRACT);
-	archive_le16enc(&h.flags, ZIP_FLAGS);
+	archive_le16enc(&h.flags, l->flags);
 	archive_le16enc(&h.compression, zip->compression);
 	archive_le32enc(&h.timedate, dos_time(archive_entry_mtime(entry)));
 	archive_le16enc(&h.filename_length, (uint16_t)path_length(l->entry));
@@ -565,7 +601,6 @@ archive_write_zip_close(struct archive_write *a)
 	archive_le32enc(&h.signature, ZIP_SIGNATURE_FILE_HEADER);
 	archive_le16enc(&h.version_by, ZIP_VERSION_BY);
 	archive_le16enc(&h.version_extract, ZIP_VERSION_EXTRACT);
-	archive_le16enc(&h.flags, ZIP_FLAGS);
 
 	entries = 0;
 	offset_start = zip->written_bytes;
@@ -573,6 +608,7 @@ archive_write_zip_close(struct archive_write *a)
 	/* Formatting individual header fields per entry and
 	 * writing each entry. */
 	while (l != NULL) {
+		archive_le16enc(&h.flags, l->flags);
 		archive_le16enc(&h.compression, l->compression);
 		archive_le32enc(&h.timedate, dos_time(archive_entry_mtime(l->entry)));
 		archive_le32enc(&h.crc32, l->crc32);
