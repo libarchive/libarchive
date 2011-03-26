@@ -82,7 +82,7 @@ int
 archive_string_append_from_unicode_to_utf8(struct archive_string *, const wchar_t *, size_t);
 
 /* Convert a Unicode string to current locale and append the result. */
-/* Returns NULL if conversion fails. */
+/* Returns -1 if conversion fails. */
 int
 archive_string_append_from_unicode_to_mbs(struct archive *, struct archive_string *, const wchar_t *, size_t);
 

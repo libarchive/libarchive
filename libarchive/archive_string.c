@@ -427,6 +427,7 @@ archive_string_conversion_from_charset(struct archive *a, const char *charset)
 
 /*
  * Convert MBS to WCS.
+ * Note: returns -1 if conversion fails.
  */
 int
 archive_wstring_append_from_mbs(struct archive *a,
@@ -456,6 +457,7 @@ archive_wstring_append_from_mbs(struct archive *a,
 
 /*
  * Convert MBS to WCS.
+ * Note: returns -1 if conversion fails.
  */
 int
 archive_wstring_append_from_mbs(struct archive *a,
@@ -499,7 +501,7 @@ archive_wstring_append_from_mbs(struct archive *a,
 
 /*
  * WCS ==> MBS.
- * Note: returns NULL if conversion fails.
+ * Note: returns -1 if conversion fails.
  *
  * Win32 builds use WideCharToMultiByte from the Windows API.
  * (Maybe Cygwin should too?  WideCharToMultiByte will know a
@@ -538,25 +540,17 @@ archive_string_append_from_unicode_to_mbs(struct archive *a,
 	return (0);
 }
 
-#else
+#elif defined(HAVE_WCTOMB) || defined(HAVE_WCRTOMB)
 
 /*
  * Translates a wide character string into current locale character set
- * and appends to the archive_string.  Note: returns NULL if conversion
+ * and appends to the archive_string.  Note: returns -1 if conversion
  * fails.
- *
- * Non-Windows uses ISO C wcrtomb() or wctomb() to perform the conversion
- * one character at a time.  If a non-Windows platform doesn't have
- * either of these, fall back to the built-in UTF8 conversion.
  */
 int
 archive_string_append_from_unicode_to_mbs(struct archive *a,
     struct archive_string *as, const wchar_t *w, size_t len)
 {
-#if !defined(HAVE_WCTOMB) && !defined(HAVE_WCRTOMB)
-	/* If there's no built-in locale support, fall back to UTF8 always. */
-	return archive_string_append_from_unicode_to_utf8(as, w, len);
-#else
 	/* We cannot use the standard wcstombs() here because it
 	 * cannot tell us how big the output buffer should be.  So
 	 * I've built a loop around wcrtomb() or wctomb() that
@@ -600,10 +594,24 @@ archive_string_append_from_unicode_to_mbs(struct archive *a,
 	*p = '\0';
 	archive_strcat(as, buff);
 	return (0);
-#endif
 }
 
-#endif /* _WIN32 && ! __CYGWIN__ */
+#else /* HAVE_WCTOMB || HAVE_WCRTOMB */
+
+/*
+ * TODO: Test if __STDC_ISO_10646__ is defined.
+ * Non-Windows uses ISO C wcrtomb() or wctomb() to perform the conversion
+ * one character at a time.  If a non-Windows platform doesn't have
+ * either of these, fall back to the built-in UTF8 conversion.
+ */
+int
+archive_string_append_from_unicode_to_mbs(struct archive *a,
+    struct archive_string *as, const wchar_t *w, size_t len)
+{
+	return (-1);
+}
+
+#endif /* HAVE_WCTOMB || HAVE_WCRTOMB */
 
 
 
