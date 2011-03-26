@@ -622,9 +622,6 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `mbsnrtowcs' function. */
 #cmakedefine HAVE_MBSNRTOWCS 1
 
-/* Define to 1 if you have the `mbsrtowcs' function. */
-#cmakedefine HAVE_MBSRTOWCS 1
-
 /* Define to 1 if you have the `memmove' function. */
 #cmakedefine HAVE_MEMMOVE 1
 

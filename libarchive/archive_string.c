@@ -469,8 +469,10 @@ archive_wstring_append_from_mbs(struct archive *a,
 	 * so this length estimate will always be big enough.
 	 */
 	size_t wcs_length = len;
+	size_t mbs_length = len;
 	const char *mbs = p;
-#if HAVE_MBSRTOWCS || HAVE_MBSNRTOWCS
+	wchar_t *wcs;
+#if HAVE_MBRTOWC || HAVE_MBSNRTOWCS
 	mbstate_t shift_state;
 
 	memset(&shift_state, 0, sizeof(shift_state));
@@ -478,21 +480,42 @@ archive_wstring_append_from_mbs(struct archive *a,
 	if (NULL == archive_wstring_ensure(dest, dest->length + wcs_length + 1))
 		__archive_errx(1,
 		    "No memory for archive_wstring_append_from_mbs()");
-
+	wcs = dest->s + dest->length;
 #if HAVE_MBSNRTOWCS
-	r = mbsnrtowcs(dest->s + dest->length, &mbs, len, wcs_length,
-	    &shift_state);
-#elif HAVE_MBSRTOWCS
-	r = mbsrtowcs(dest->s + dest->length, &mbs, wcs_length, &shift_state);
-#else
-	r = mbstowcs(dest->s + dest->length, mbs, wcs_length);
-#endif
+	r = mbsnrtowcs(wcs, &mbs, mbs_length, wcs_length, &shift_state);
 	if (r != (size_t)-1) {
 		dest->length += r;
 		dest->s[dest->length] = L'\0';
 		return (0);
 	}
 	return (-1);
+#else /* HAVE_MBSNRTOWCS */
+	/*
+	 * We cannot use mbsrtowcs/mbstowcs here because those may convert
+	 * extra MBS when strlen(p) > len and one wide character consis of
+	 * multi bytes.
+	 */
+	while (wcs_length > 0 && *mbs && mbs_length > 0) {
+#if HAVE_MBRTOWC
+		r = mbrtowc(wcs, mbs, wcs_length, &shift_state);
+#else
+		r = mbtowc(wcs, mbs, wcs_length);
+#endif
+		if (r == (size_t)-1 || r == (size_t)-2) {
+			dest->s[dest->length] = L'\0';
+			return (-1);
+		}
+		if (r == 0 || r > mbs_length)
+			break;
+		wcs++;
+		wcs_length--;
+		mbs += r;
+		mbs_length -= r;
+	}
+	dest->length = wcs - dest->s;
+	dest->s[dest->length] = L'\0';
+	return (0);
+#endif /* HAVE_MBSNRTOWCS */
 }
 
 #endif
