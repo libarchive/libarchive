@@ -328,11 +328,6 @@ archive_string_append_from_unicode_to_utf8(struct archive_string *as, const wcha
 }
 
 /*
- * UTF-8  ===>  Unicode
- *
- */
-
-/*
  * Get the "current character set" name to use with iconv.
  * On FreeBSD, the empty character set name "" chooses
  * the correct character encoding for the current locale,
@@ -472,14 +467,27 @@ archive_wstring_append_from_mbs(struct archive *a,
 	 * so this length estimate will always be big enough.
 	 */
 	size_t wcs_length = len;
+	const char *mbs = p;
+#if HAVE_MBSRTOWCS || HAVE_MBSNRTOWCS
+	mbstate_t shift_state;
+
+	memset(&shift_state, 0, sizeof(shift_state));
+#endif
 	if (NULL == archive_wstring_ensure(dest, dest->length + wcs_length + 1))
 		__archive_errx(1,
 		    "No memory for archive_wstring_append_from_mbs()");
 
-	r = mbstowcs(dest->s + dest->length, p, wcs_length);
+#if HAVE_MBSNRTOWCS
+	r = mbsnrtowcs(dest->s + dest->length, &mbs, len, wcs_length,
+	    &shift_state);
+#elif HAVE_MBSRTOWCS
+	r = mbsrtowcs(dest->s + dest->length, &mbs, wcs_length, &shift_state);
+#else
+	r = mbstowcs(dest->s + dest->length, mbs, wcs_length);
+#endif
 	if (r != (size_t)-1) {
 		dest->length += r;
-		dest->s[dest->length] = 0;
+		dest->s[dest->length] = L'\0';
 		return (0);
 	}
 	return (-1);
