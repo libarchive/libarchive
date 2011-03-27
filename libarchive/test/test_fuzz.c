@@ -133,7 +133,7 @@ DEFINE_TEST(test_fuzz)
 
 		for (i = 0; i < 100; ++i) {
 			FILE *f;
-			int j, numbytes;
+			int j, numbytes, trycnt;
 
 			/* Fuzz < 1% of the bytes in the archive. */
 			memcpy(image, rawimage, size);
@@ -143,8 +143,20 @@ DEFINE_TEST(test_fuzz)
 
 			/* Save the messed-up image to a file.
 			 * If we crash, that file will be useful. */
-			f = fopen("after.test.failure.send.this.file."
-			    "to.libarchive.maintainers.with.system.details", "wb");
+			for (trycnt = 0; trycnt < 3; trycnt++) {
+				f = fopen("after.test.failure.send.this.file."
+				    "to.libarchive.maintainers.with.system.details", "wb");
+				if (f != NULL)
+					break;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+				/*
+				 * Sometimes previous close operation does not completely
+				 * end at this time. So we should take a wait while
+				 * the operation running.
+				 */
+				Sleep(100);
+#endif
+			}
 			assertEqualInt((size_t)size, fwrite(image, 1, (size_t)size, f));
 			fclose(f);
 
