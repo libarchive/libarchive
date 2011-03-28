@@ -129,6 +129,7 @@ struct archive_write {
  */
 int
 __archive_write_format_header_ustar(struct archive_write *, char buff[512],
-    struct archive_entry *, int tartype, int strict, const char *);
+    struct archive_entry *, int tartype, int strict,
+    struct archive_string_conv *);
 
 #endif

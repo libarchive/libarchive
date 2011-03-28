@@ -290,7 +290,8 @@ struct cab {
 	unsigned char		*uncompressed_buffer;
 	size_t			 uncompressed_buffer_size;
 
-	char			*charset;
+	struct archive_string_conv *sconv;
+	struct archive_string_conv *sconv_utf8;
 	char			 format_name[64];
 
 #ifdef HAVE_ZLIB_H
@@ -458,12 +459,14 @@ archive_read_format_cab_options(struct archive_read *a,
 		if (val == NULL || val[0] == 0)
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "cab: charset option needs a character-set name");
-		else if (archive_string_conversion_from_charset(
-		    &a->archive, val) == 0) {
-			cab->charset = strdup(val);
-			ret = ARCHIVE_OK;
-		} else
-			ret = ARCHIVE_FATAL;
+		else {
+			cab->sconv = archive_string_conversion_from_charset(
+			    &a->archive, val, 0);
+			if (cab->sconv != NULL)
+				ret = ARCHIVE_OK;
+			else
+				ret = ARCHIVE_FATAL;
+		}
 	} else
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "cab: unknown keyword ``%s''", key);
@@ -792,12 +795,16 @@ cab_read_header(struct archive_read *a)
 		if ((len = cab_strnlen(p, avail-1)) <= 0)
 			goto invalid;
 		archive_string_init(&(file->pathname));
-		if ((file->attr & ATTR_NAME_IS_UTF) && cab->charset == NULL)
-			archive_strncpy_from_locale(&a->archive,
-			    &(file->pathname), p, len, "UTF-8");
-		else
-			archive_strncpy_from_locale(&a->archive,
-			    &(file->pathname), p, len, cab->charset);
+		if ((file->attr & ATTR_NAME_IS_UTF) && cab->sconv == NULL) {
+			if (cab->sconv_utf8 == NULL)
+				cab->sconv_utf8 =
+				    archive_string_conversion_from_charset(
+					&(a->archive), "UTF-8", 1);
+			archive_strncpy_in_locale(&(file->pathname), p, len,
+			    cab->sconv_utf8);
+		} else
+			archive_strncpy_in_locale(&(file->pathname), p,
+			    len, cab->sconv);
 		__archive_read_consume(a, len + 1);
 		cab->cab_offset += len + 1;
 		/* Convert a path separator '\' -> '/' */
@@ -1970,7 +1977,6 @@ archive_read_format_cab_cleanup(struct archive_read *a)
 	archive_wstring_free(&cab->ws);
 	archive_string_free(&cab->mbs);
 	free(cab->uncompressed_buffer);
-	free(cab->charset);
 	free(cab);
 	(a->format->data) = NULL;
 	return (ARCHIVE_OK);

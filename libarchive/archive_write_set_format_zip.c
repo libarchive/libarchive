@@ -191,7 +191,7 @@ struct zip {
 	struct archive_string l_name;
 	enum compression compression;
 	int flags;
-	char *opt_charset;
+	struct archive_string_conv *opt_sconv;
 
 #ifdef HAVE_ZLIB_H
 	z_stream stream;
@@ -240,13 +240,14 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "%s: charset option needs a character-set name",
 			    a->format_name);
-		} else if (archive_string_conversion_to_charset(
-		    &a->archive, val) == 0) {
-			free(zip->opt_charset);
-			zip->opt_charset = strdup(val);
-			ret = ARCHIVE_OK;
-		} else
-			ret = ARCHIVE_FATAL;
+		} else {
+			zip->opt_sconv = archive_string_conversion_to_charset(
+			    &a->archive, val, 0);
+			if (zip->opt_sconv != NULL)
+				ret = ARCHIVE_OK;
+			else
+				ret = ARCHIVE_FATAL;
+		}
 	} else
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "%s: unknown keyword ``%s''", a->format_name, key);
@@ -346,8 +347,9 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	if (zip->flags == 0) {
 		/* Initialize the general purpose flags. */
 		zip->flags = ZIP_FLAGS;
-		if (zip->opt_charset != NULL) {
-			if (strcmp(zip->opt_charset, "UTF-8") == 0)
+		if (zip->opt_sconv != NULL) {
+			if (strcmp(archive_string_conversion_charset_name(
+			    zip->opt_sconv), "UTF-8") == 0)
 				zip->flags |= ZIP_FLAGS_UTF8_NAME;
 #if HAVE_NL_LANGINFO
 		} else if (strcmp(nl_langinfo(CODESET), "UTF-8") == 0) {
@@ -368,13 +370,14 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	}
 	l->entry = archive_entry_clone(entry);
 	l->flags = zip->flags;
-	if (zip->opt_charset != NULL) {
-		if (archive_strcpy_to_locale(&(a->archive), &(zip->l_name),
-		    archive_entry_pathname(entry), zip->opt_charset) != 0) {
+	if (zip->opt_sconv != NULL) {
+		if (archive_strcpy_in_locale(&(zip->l_name),
+		    archive_entry_pathname(entry), zip->opt_sconv) != 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Can't translate pathname '%s' to %s",
-			    archive_entry_pathname(entry), zip->opt_charset);
+			    archive_entry_pathname(entry),
+			    archive_string_conversion_charset_name(zip->opt_sconv));
 			ret2 = ARCHIVE_WARN;
 		}
 		archive_entry_set_pathname(l->entry, zip->l_name.s);
@@ -680,7 +683,6 @@ archive_write_zip_free(struct archive_write *a)
 	free(zip->buf);
 #endif
 	archive_string_free(&(zip->l_name));
-	free(zip->opt_charset);
 	free(zip);
 	a->format_data = NULL;
 	return (ARCHIVE_OK);

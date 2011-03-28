@@ -51,19 +51,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_util.c 201098 2009-12-28 02:58:1
 int
 __archive_clean(struct archive *a)
 {
-#if HAVE_ICONV
-	int i;
-
-	free(a->current_code);
-
-	for (i = 0; i < ICONV_TABLE_SIZE; i++) {
-		free(a->iconv_table[i].charset);
-		if (a->iconv_table[i].to_current != (iconv_t)0)
-			iconv_close(a->iconv_table[i].to_current);
-		if (a->iconv_table[i].from_current != (iconv_t)0)
-			iconv_close(a->iconv_table[i].from_current);
-	}
-#endif
+	archive_string_conversion_free(a);
 	return (ARCHIVE_OK);
 }
 

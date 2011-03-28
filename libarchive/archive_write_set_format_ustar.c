@@ -48,7 +48,7 @@ struct ustar {
 	uint64_t	entry_bytes_remaining;
 	uint64_t	entry_padding;
 
-	char		*opt_charset;
+	struct archive_string_conv *opt_sconv;
 };
 
 /*
@@ -213,13 +213,14 @@ archive_write_ustar_options(struct archive_write *a, const char *key,
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "%s: charset option needs a character-set name",
 			    a->format_name);
-		else if (archive_string_conversion_to_charset(
-		    &a->archive, val) == 0) {
-			free(ustar->opt_charset);
-			ustar->opt_charset = strdup(val);
-			ret = ARCHIVE_OK;
-		} else
-			ret = ARCHIVE_FATAL;
+		else {
+			ustar->opt_sconv = archive_string_conversion_to_charset(
+			    &a->archive, val, 0);
+			if (ustar->opt_sconv != NULL)
+				ret = ARCHIVE_OK;
+			else
+				ret = ARCHIVE_FATAL;
+		}
 	} else
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "%s: unknown keyword ``%s''", a->format_name, key);
@@ -272,7 +273,7 @@ archive_write_ustar_header(struct archive_write *a, struct archive_entry *entry)
 	}
 
 	ret = __archive_write_format_header_ustar(a, buff, entry, -1, 1,
-	    ustar->opt_charset);
+	    ustar->opt_sconv);
 	if (ret < ARCHIVE_WARN)
 		return (ret);
 	ret2 = __archive_write_output(a, buff, 512);
@@ -298,7 +299,8 @@ archive_write_ustar_header(struct archive_write *a, struct archive_entry *entry)
  */
 int
 __archive_write_format_header_ustar(struct archive_write *a, char h[512],
-    struct archive_entry *entry, int tartype, int strict, const char *charset)
+    struct archive_entry *entry, int tartype, int strict,
+    struct archive_string_conv *sconv)
 {
 	unsigned int checksum;
 	int i, r, ret;
@@ -326,12 +328,12 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 	pp = archive_entry_pathname(entry);
 	/* Check if a charset conversion is needed or not,
 	 * to avoid extra memory copy. */
-	if (charset != NULL) {
-		r = archive_strcpy_to_locale(&(a->archive), &l_name, pp, charset);
+	if (sconv != NULL) {
+		r = archive_strcpy_in_locale(&l_name, pp, sconv);
 		if (r != 0) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Can't translate pathname '%s' to %s",
-			    pp, charset);
+			    pp, archive_string_conversion_charset_name(sconv));
 			ret = ARCHIVE_WARN;
 		}
 		pp = l_name.s;
@@ -385,14 +387,13 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 	else
 		p = archive_entry_symlink(entry);
 	if (p != NULL && p[0] != '\0') {
-		if (charset != NULL) {
-			r = archive_strcpy_to_locale(&(a->archive), &l_name, p,
-			    charset);
+		if (sconv != NULL) {
+			r = archive_strcpy_in_locale(&l_name, p, sconv);
 			if (r != 0) {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Can't translate linkname '%s' to %s",
-				    p, charset);
+				    p, archive_string_conversion_charset_name(sconv));
 				ret = ARCHIVE_WARN;
 			}
 			p = l_name.s;
@@ -413,14 +414,13 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 
 	p = archive_entry_uname(entry);
 	if (p != NULL && p[0] != '\0') {
-		if (charset != NULL) {
-			r = archive_strcpy_to_locale(&(a->archive), &l_name,
-			    p, charset);
+		if (sconv != NULL) {
+			r = archive_strcpy_in_locale(&l_name, p, sconv);
 			if (r != 0) {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Can't translate uname '%s' to %s",
-				    p, charset);
+				    p, archive_string_conversion_charset_name(sconv));
 				ret = ARCHIVE_WARN;
 			}
 			p = l_name.s;
@@ -441,14 +441,13 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 
 	p = archive_entry_gname(entry);
 	if (p != NULL && p[0] != '\0') {
-		if (charset != NULL) {
-			r = archive_strcpy_to_locale(&(a->archive), &l_name,
-			    p, charset);
+		if (sconv != NULL) {
+			r = archive_strcpy_in_locale(&l_name, p, sconv);
 			if (r != 0) {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Can't translate gname '%s' to %s",
-				    p, charset);
+				    p, archive_string_conversion_charset_name(sconv));
 				ret = ARCHIVE_WARN;
 			}
 			p = l_name.s;
@@ -651,7 +650,6 @@ archive_write_ustar_free(struct archive_write *a)
 	struct ustar *ustar;
 
 	ustar = (struct ustar *)a->format_data;
-	free(ustar->opt_charset);
 	free(ustar);
 	a->format_data = NULL;
 	return (ARCHIVE_OK);

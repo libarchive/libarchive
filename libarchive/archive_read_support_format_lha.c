@@ -168,8 +168,8 @@ struct lha {
 	struct archive_string 	 gname;
 	uint16_t		 header_crc;
 	uint16_t		 crc;
-	struct archive_string 	 opt_charset;
-	const char		*charset;
+	struct archive_string_conv *sconv;
+	struct archive_string_conv *opt_sconv;
 
 	struct archive_string 	 dirname;
 	struct archive_string 	 filename;
@@ -421,12 +421,15 @@ archive_read_format_lha_options(struct archive_read *a,
 		if (val == NULL || val[0] == 0)
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "lha: charset option needs a character-set name");
-		else if (archive_string_conversion_from_charset(
-		    &a->archive, val) == 0) {
-			archive_strcpy(&lha->opt_charset, val);
-			ret = ARCHIVE_OK;
-		} else
-			ret = ARCHIVE_FATAL;
+		else {
+			lha->opt_sconv =
+			    archive_string_conversion_from_charset(
+				&a->archive, val, 0);
+			if (lha->opt_sconv != NULL)
+				ret = ARCHIVE_OK;
+			else
+				ret = ARCHIVE_FATAL;
+		}
 	} else
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "lha: unknown keyword ``%s''", key);
@@ -576,10 +579,10 @@ archive_read_format_lha_read_header(struct archive_read *a,
 	archive_string_empty(&lha->dirname);
 	archive_string_empty(&lha->filename);
 	lha->dos_attr = 0;
-	if (archive_strlen(&lha->opt_charset) > 0)
-		lha->charset = lha->opt_charset.s;
+	if (lha->opt_sconv != NULL)
+		lha->sconv = lha->opt_sconv;
 	else
-		lha->charset = NULL;
+		lha->sconv = NULL;
 
 	switch (p[H_LEVEL_OFFSET]) {
 	case 0:
@@ -613,8 +616,8 @@ archive_read_format_lha_read_header(struct archive_read *a,
 	 */
 	archive_string_concat(&lha->dirname, &lha->filename);
 	archive_string_init(&pathname);
-	archive_strncpy_from_locale(&a->archive, &pathname,
-	    lha->dirname.s, lha->dirname.length, lha->charset);
+	archive_strncpy_in_locale(&pathname, lha->dirname.s,
+	    lha->dirname.length, lha->sconv);
 
 	/*
 	 * When a header level is 0, there is a possibilty that
@@ -1256,16 +1259,23 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 			/* Get a archived filename charset from codepage,
 			 * but you cannot overwrite a specified charset. */
 			if (datasize == sizeof(uint32_t) &&
-			    lha->charset == NULL) {
+			    lha->sconv == NULL) {
+				const char *charset;
 				switch (archive_le32dec(extdheader)) {
 				case 932:
-					lha->charset = "CP932";
+					charset = "CP932";
 					break;
 				case 65001: /* UTF-8 */
-					lha->charset = "UTF-8";
+					charset = "UTF-8";
 					break;
 				default:
+					charset = NULL;
 					break;
+				}
+				if (charset != NULL) {
+					lha->sconv =
+					    archive_string_conversion_from_charset(
+						&(a->archive), charset, 1);
 				}
 			}
 			break;
@@ -1570,7 +1580,6 @@ archive_read_format_lha_cleanup(struct archive_read *a)
 
 	lzh_decode_free(&(lha->strm));
 	free(lha->uncompressed_buffer);
-	archive_string_free(&(lha->opt_charset));
 	archive_string_free(&(lha->dirname));
 	archive_string_free(&(lha->filename));
 	archive_string_free(&(lha->uname));

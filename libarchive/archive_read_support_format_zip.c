@@ -93,7 +93,8 @@ struct zip {
 
 	struct archive_string	pathname;
 	struct archive_string	extra;
-	char			*charset;
+	struct archive_string_conv *sconv;
+	struct archive_string_conv *sconv_utf8;
 	char	format_name[64];
 };
 
@@ -253,12 +254,16 @@ archive_read_format_zip_options(struct archive_read *a,
 		if (val == NULL || val[0] == 0)
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "zip: charset option needs a character-set name");
-		else if (archive_string_conversion_from_charset(
-		    &a->archive, val) == 0) {
-			zip->charset = strdup(val);
-			ret = ARCHIVE_OK;
-		} else
-			ret = ARCHIVE_FATAL;
+		else {
+			zip->sconv = archive_string_conversion_from_charset(
+			    &a->archive, val, 0);
+			if (zip->sconv != NULL) {
+				if (strcmp(val, "UTF-8") == 0)
+					zip->sconv_utf8 = zip->sconv;
+				ret = ARCHIVE_OK;
+			} else
+				ret = ARCHIVE_FATAL;
+		}
 	} else
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "zip: unknown keyword ``%s''", key);
@@ -496,10 +501,14 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 		    "Truncated ZIP file header");
 		return (ARCHIVE_FATAL);
 	}
-	if (zip->charset == NULL && (zip->flags & ZIP_UTF8_NAME) != 0) {
+	if (zip->sconv == NULL && (zip->flags & ZIP_UTF8_NAME) != 0) {
 		/* The filename is stored to be UTF-8. */
-		if (archive_strncpy_from_locale(&a->archive, &zip->pathname,
-		    h, zip->filename_length, "UTF-8") != 0) {
+		if (zip->sconv_utf8 == NULL)
+			zip->sconv_utf8 =
+			    archive_string_conversion_from_charset(
+				&a->archive, "UTF-8", 1);
+		if (archive_strncpy_in_locale(&zip->pathname,
+		    h, zip->filename_length, zip->sconv_utf8) != 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Pathname cannot be converted "
@@ -507,12 +516,13 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 			ret = ARCHIVE_WARN;
 		}
 	} else {
-		if (archive_strncpy_from_locale(&a->archive, &zip->pathname,
-		    h, zip->filename_length, zip->charset) != 0) {
+		if (archive_strncpy_in_locale(&zip->pathname,
+		    h, zip->filename_length, zip->sconv) != 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Pathname cannot be converted "
-			    "from %s to current locale.", zip->charset);
+			    "from %s to current locale.",
+			    archive_string_conversion_charset_name(zip->sconv));
 			ret = ARCHIVE_WARN;
 		}
 	}
@@ -932,7 +942,6 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 	free(zip->uncompressed_buffer);
 	archive_string_free(&(zip->pathname));
 	archive_string_free(&(zip->extra));
-	free(zip->charset);
 	free(zip);
 	(a->format->data) = NULL;
 	return (ARCHIVE_OK);

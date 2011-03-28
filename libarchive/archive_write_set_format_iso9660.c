@@ -699,6 +699,9 @@ struct iso9660 {
 	struct archive_string	 utf16be;
 	struct archive_string	 mbs;
 
+	struct archive_string_conv *sconv_to_utf16be;
+	struct archive_string_conv *sconv_from_utf16be;
+
 	/* A list of all of struct isofile entries. */
 	struct {
 		struct isofile	*first;
@@ -1045,7 +1048,7 @@ archive_write_set_format_iso9660(struct archive *_a)
 	if (a->format_free != NULL)
 		(a->format_free)(a);
 
-	iso9660 = malloc(sizeof(*iso9660));
+	iso9660 = calloc(1, sizeof(*iso9660));
 	if (iso9660 == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate iso9660 data");
@@ -1150,6 +1153,8 @@ archive_write_set_format_iso9660(struct archive *_a)
 	archive_string_init(&(iso9660->cur_dirstr));
 	archive_string_ensure(&(iso9660->cur_dirstr), 1);
 	iso9660->cur_dirstr.s[0] = 0;
+	iso9660->sconv_to_utf16be = NULL;
+	iso9660->sconv_from_utf16be = NULL;
 
 	a->format_data = iso9660;
 	a->format_name = "iso9660";
@@ -1532,9 +1537,18 @@ iso9660_write_header(struct archive_write *a, struct archive_entry *entry)
 	}
 	isofile_gen_utility_names(file);
 	if (iso9660->opt.joliet) {
+		if (iso9660->sconv_to_utf16be == NULL) {
+			iso9660->sconv_to_utf16be =
+			    archive_string_conversion_to_charset(
+				&(a->archive), "UTF-16BE", 1);
+			iso9660->sconv_from_utf16be =
+			    archive_string_conversion_from_charset(
+				&(a->archive), "UTF-16BE", 1);
+		}
 		/* Test whether a filename can be converted to UTF-16BE or not. */
-		if (0 > archive_strncpy_to_utf16be(&a->archive,
-			&iso9660->utf16be, file->basename.s, file->basename.length)) {
+		if (0 > archive_strncpy_in_locale(&iso9660->utf16be,
+		    file->basename.s, file->basename.length,
+		    iso9660->sconv_to_utf16be)) {
 				isofile_free(file);
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "A filename cannot be converted to UTF-16BE;"
@@ -1769,6 +1783,17 @@ iso9660_close(struct archive_write *a)
 		    iso9660->primary.rootent);
 		if (ret < 0)
 			return (ret);
+		/* Make sure we have UTF-16BE convertors.
+		 * if there is no file entry, convertors are still
+		 * uninitilized. */
+		if (iso9660->sconv_to_utf16be == NULL) {
+			iso9660->sconv_to_utf16be =
+			    archive_string_conversion_to_charset(
+				&(a->archive), "UTF-16BE", 1);
+			iso9660->sconv_from_utf16be =
+			    archive_string_conversion_from_charset(
+				&(a->archive), "UTF-16BE", 1);
+		}
 	}
 
 	/*
@@ -2098,8 +2123,8 @@ set_str_utf16be(struct archive_write *a, unsigned char *p, const char *s,
 		onepad = 0;
 	if (vdc == VDC_UCS2) {
 		struct iso9660 *iso9660 = a->format_data;
-		archive_strncpy_to_utf16be(&a->archive,
-			&iso9660->utf16be, s, strlen(s));
+		archive_strncpy_in_locale(&iso9660->utf16be, s, strlen(s),
+		    iso9660->sconv_to_utf16be);
 		size = iso9660->utf16be.length;
 		if (size > l)
 			size = l;
@@ -5964,8 +5989,9 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 		int ext_off, noff, weight;
 		size_t lt;
 
-		archive_strncpy_to_utf16be(&a->archive, &iso9660->utf16be,
-		    np->file->basename.s, np->file->basename.length);
+		archive_strncpy_in_locale(&iso9660->utf16be,
+		    np->file->basename.s, np->file->basename.length,
+		    iso9660->sconv_to_utf16be);
 		if ((int)(l = iso9660->utf16be.length) > ffmax)
 			l = ffmax;
 
@@ -6000,8 +6026,9 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 		 * Get a length of MBS of a full-pathname.
 		 */
 		if ((int)iso9660->utf16be.length > ffmax) {
-			archive_strncpy_from_utf16be(&a->archive, &iso9660->mbs,
-			    (const char *)np->identifier, l);
+			archive_strncpy_in_locale(&iso9660->mbs,
+			    (const char *)np->identifier, l,
+			    iso9660->sconv_from_utf16be);
 			np->mb_len = iso9660->mbs.length;
 			if (np->mb_len != (int)np->file->basename.length)
 				weight = np->mb_len;

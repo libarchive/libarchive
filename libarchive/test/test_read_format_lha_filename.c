@@ -147,6 +147,68 @@ test_read_format_lha_filename_CP932_UTF8(const char *refname)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+static void
+test_read_format_lha_filename_CP932_Windows(const char *refname)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+
+	/*
+	 * Read LHA filename in jpn on Windows.
+	 */
+	if (NULL == setlocale(LC_ALL, "jpn")) {
+		skipping("jpn locale not available on this system.");
+		return;
+	}
+	/*
+	 * Create a read object only for a test that platform support
+	 * a character-set conversion because we can read a character-set
+	 * of filenames from the header of an lha archive file and so we
+	 * want to test that it works well. 
+	 */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+
+	/* Verify regular file. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("\x8A\xBF\x8E\x9A\x2E\x74\x78\x74",
+	    archive_entry_pathname(ae));
+	assertEqualInt(8, archive_entry_size(ae));
+
+	/* Verify regular file. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("\x95\x5C\x2E\x74\x78\x74", archive_entry_pathname(ae));
+	assertEqualInt(4, archive_entry_size(ae));
+
+
+	/* End of archive. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	/* Verify archive format. */
+	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FORMAT_LHA, archive_format(a));
+
+	/* Close the archive. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+#else
+/* Stub */
+static void
+test_read_format_lha_filename_CP932_Windows(const char *refname)
+{
+	(void)refname; /* UNUSED */
+}
+#endif
+
 DEFINE_TEST(test_read_format_lha_filename)
 {
 	/* A sample file was created with LHA32.EXE through UNLHA.DLL. */
@@ -156,4 +218,5 @@ DEFINE_TEST(test_read_format_lha_filename)
 
 	test_read_format_lha_filename_CP932_eucJP(refname);
 	test_read_format_lha_filename_CP932_UTF8(refname);
+	test_read_format_lha_filename_CP932_Windows(refname);
 }

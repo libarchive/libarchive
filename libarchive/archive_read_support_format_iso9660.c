@@ -354,6 +354,7 @@ struct iso9660 {
 	size_t  entry_bytes_unconsumed;
 	struct zisofs	 entry_zisofs;
 	struct content	*entry_content;
+	struct archive_string_conv *sconv_utf16be;
 };
 
 static int	archive_read_format_iso9660_bid(struct archive_read *);
@@ -1790,8 +1791,12 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 
 		/* Convert UTF-16BE of a filename to local locale MBS and store
 		 * the result into a filename field. */
-		archive_strncpy_from_utf16be(&a->archive, &file->name,
-		    (const char *)p, name_len);
+		if (iso9660->sconv_utf16be == NULL)
+			iso9660->sconv_utf16be =
+			    archive_string_conversion_from_charset(
+				&(a->archive), "UTF-16BE", 1);
+		archive_strncpy_in_locale(&file->name,
+		    (const char *)p, name_len, iso9660->sconv_utf16be);
 	} else {
 		/* Chop off trailing ';1' from files. */
 		if (name_len > 2 && p[name_len - 2] == ';' &&

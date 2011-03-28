@@ -63,7 +63,8 @@ struct pax {
 	size_t			sparse_map_padding;
 	struct sparse_block	*sparse_list;
 	struct sparse_block	*sparse_tail;
-	char			*opt_charset;
+	struct archive_string_conv *opt_sconv;
+	struct archive_string_conv *sconv_utf8;
 	int			 opt_binary;
 };
 
@@ -168,17 +169,17 @@ archive_write_pax_options(struct archive_write *a, const char *key,
 			 * filenames, uname and gname to UTF-8 or others.
 			 */
 			pax->opt_binary = 1;
-			free(pax->opt_charset);
-			pax->opt_charset = NULL;
+			pax->opt_sconv = NULL;
 			ret = ARCHIVE_OK;
-		} else if (archive_string_conversion_to_charset(
-		    &a->archive, val) == 0) {
-			pax->opt_binary = 0;
-			free(pax->opt_charset);
-			pax->opt_charset = strdup(val);
-			ret = ARCHIVE_OK;
-		} else
-			ret = ARCHIVE_FATAL;
+		} else {
+			pax->opt_sconv = archive_string_conversion_to_charset(
+			    &a->archive, val, 0);
+			if (pax->opt_sconv != NULL) {
+				pax->opt_binary = 0;
+				ret = ARCHIVE_OK;
+			} else
+				ret = ARCHIVE_FATAL;
+		}
 	} else
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "pax: unknown keyword ``%s''", key);
@@ -324,9 +325,8 @@ archive_write_pax_header_xattrs(struct archive_write *a,
 		url_encoded_name = url_encode(name);
 		if (url_encoded_name != NULL) {
 			/* Convert narrow-character to UTF-8. */
-			if (archive_strcpy_to_locale(&(a->archive),
-			    &(pax->l_url_encoded_name), url_encoded_name,
-			    "UTF-8") == 0)
+			if (archive_strcpy_in_locale(&(pax->l_url_encoded_name),
+			    url_encoded_name, pax->sconv_utf8) == 0)
 				encoded_name = pax->l_url_encoded_name.s;
 			free(url_encoded_name); /* Done with this. */
 		}
@@ -369,7 +369,7 @@ archive_write_pax_header(struct archive_write *a,
 	const char *uname = NULL, *gname = NULL;
 	const void *mac_metadata;
 	size_t mac_metadata_size;
-	const char *charset;
+	struct archive_string_conv *sconv;
 
 	char paxbuff[512];
 	char ustarbuff[512];
@@ -389,16 +389,20 @@ archive_write_pax_header(struct archive_write *a,
 		return (ARCHIVE_FAILED);
 	}
 
+	if (pax->sconv_utf8 == NULL)
+		pax->sconv_utf8 = archive_string_conversion_to_charset(
+		    &(a->archive), "UTF-8", 1);
 	/*
 	 * Choose a header encoding.
 	 */
 	if ((binary = pax->opt_binary) != 0)
-		charset = NULL;
-	else if (pax->opt_charset != NULL &&
-	    strcmp(pax->opt_charset, "UTF-8") != 0)
-		charset = pax->opt_charset;
+		sconv = NULL;
+	else if (pax->opt_sconv != NULL &&
+	    strcmp(archive_string_conversion_charset_name(pax->opt_sconv),
+		"UTF-8") != 0)
+		sconv = pax->opt_sconv;
 	else
-		charset = "UTF-8";/* Default */
+		sconv = pax->sconv_utf8;
 
 	hardlink = archive_entry_hardlink(entry_original);
 
@@ -552,37 +556,38 @@ archive_write_pax_header(struct archive_write *a,
 	 * them do.
 	 */
 	path = archive_entry_pathname(entry_main);
-	if (archive_strcpy_to_locale(&(a->archive), &(pax->l_path),
-	    path, charset) != 0 && !binary) {
+	if (archive_strcpy_in_locale(&(pax->l_path), path, sconv) != 0 && !binary) {
 		archive_string_empty(&pax->l_path);
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Can't translate pathname '%s' to %s", path, charset);
+		    "Can't translate pathname '%s' to %s", path,
+		    archive_string_conversion_charset_name(sconv));
 		ret = ARCHIVE_WARN;
 		binary = 1;/* The header charset switches to binary mode. */
 	}
 	uname = archive_entry_uname(entry_main);
-	if (archive_strcpy_to_locale(&(a->archive), &(pax->l_uname),
-	    uname, charset) != 0 && !binary) {
+	if (archive_strcpy_in_locale(&(pax->l_uname), uname, sconv) != 0 && !binary) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Can't translate uname '%s' to %s", uname, charset);
+		    "Can't translate uname '%s' to %s", uname,
+		    archive_string_conversion_charset_name(sconv));
 		ret = ARCHIVE_WARN;
 		binary = 1;/* The header charset switches to binary mode. */
 	}
 	gname = archive_entry_gname(entry_main);
-	if (archive_strcpy_to_locale(&(a->archive), &(pax->l_gname),
-	    gname, charset) != 0 && !binary) {
+	if (archive_strcpy_in_locale(&(pax->l_gname), gname, sconv) != 0 && !binary) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Can't translate gname '%s' to %s", gname, charset);
+		    "Can't translate gname '%s' to %s", gname,
+		    archive_string_conversion_charset_name(sconv));
 		ret = ARCHIVE_WARN;
 		binary = 1;/* The header charset switches to binary mode. */
 	}
 	linkpath = hardlink;
 	if (linkpath == NULL)
 		linkpath = archive_entry_symlink(entry_main);
-	if (archive_strcpy_to_locale(&(a->archive), &(pax->l_linkpath),
-	    linkpath, charset) != 0 && !binary) {
+	if (archive_strcpy_in_locale(&(pax->l_linkpath), linkpath, sconv) != 0
+	    && !binary) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Can't translate linkpath '%s' to %s", linkpath, charset);
+		    "Can't translate linkpath '%s' to %s", linkpath,
+		    archive_string_conversion_charset_name(sconv));
 		ret = ARCHIVE_WARN;
 		binary = 1;/* The header charset switches to binary mode. */
 	}
@@ -590,8 +595,9 @@ archive_write_pax_header(struct archive_write *a,
 	/* Store the header encoding first, to be nice to readers. */
 	if (binary)
 		add_pax_attr(&(pax->pax_header), "hdrcharset", "BINARY");
-	else if (pax->opt_charset != NULL && pax->opt_charset == charset)
-		add_pax_attr(&(pax->pax_header), "hdrcharset", charset);
+	else if (pax->opt_sconv != NULL && pax->sconv_utf8 != sconv)
+		add_pax_attr(&(pax->pax_header), "hdrcharset",
+		    archive_string_conversion_charset_name(sconv));
 
 
 	/*
@@ -884,8 +890,8 @@ archive_write_pax_header(struct archive_write *a,
 		    ARCHIVE_ENTRY_ACL_TYPE_ACCESS |
 		    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID);
 		if (p != NULL && *p != '\0') {
-			r = archive_strcpy_to_locale(
-			    &(a->archive), &(pax->l_acl_utf8), p, "UTF-8");
+			r = archive_strcpy_in_locale(
+			    &(pax->l_acl_utf8), p, pax->sconv_utf8);
 			if (r != 0) {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
@@ -900,8 +906,8 @@ archive_write_pax_header(struct archive_write *a,
 		    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT |
 		    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID);
 		if (p != NULL && *p != '\0') {
-			r = archive_strcpy_to_locale(
-			    &(a->archive), &(pax->l_acl_utf8), p, "UTF-8");
+			r = archive_strcpy_in_locale(
+			    &(pax->l_acl_utf8), p, pax->sconv_utf8);
 			if (r != 0) {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
@@ -1029,7 +1035,7 @@ archive_write_pax_header(struct archive_write *a,
 	 * numeric fields, though they're less critical.
 	 */
 	__archive_write_format_header_ustar(a, ustarbuff, entry_main, -1, 0,
-	    pax->opt_charset);
+	    pax->opt_sconv);
 
 	/* If we built any extended attributes, write that entry first. */
 	if (archive_strlen(&(pax->pax_header)) > 0) {
@@ -1085,7 +1091,7 @@ archive_write_pax_header(struct archive_write *a,
 		archive_entry_set_ctime(pax_attr_entry, 0, 0);
 
 		r = __archive_write_format_header_ustar(a, paxbuff,
-		    pax_attr_entry, 'x', 1, pax->opt_charset);
+		    pax_attr_entry, 'x', 1, pax->opt_sconv);
 
 		archive_entry_free(pax_attr_entry);
 
@@ -1436,7 +1442,6 @@ archive_write_pax_free(struct archive_write *a)
 	archive_string_free(&pax->l_linkpath);
 	archive_string_free(&pax->l_url_encoded_name);
 	archive_string_free(&pax->l_acl_utf8);
-	free(pax->opt_charset);
 	sparse_list_clear(pax);
 	free(pax);
 	a->format_data = NULL;

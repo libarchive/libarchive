@@ -143,9 +143,9 @@ struct tar {
 	char			 sparse_gnu_pending;
 
 	struct archive_string	 localname;
-	struct archive_string	 opt_charset;
-	struct archive_string	 hdr_charset;
-	const char		*charset;
+	struct archive_string_conv *opt_sconv;
+	struct archive_string_conv *sconv;
+	struct archive_string_conv *sconv_acl;
 };
 
 static int	archive_block_is_null(const unsigned char *p);
@@ -269,8 +269,6 @@ archive_read_format_tar_cleanup(struct archive_read *a)
 	archive_string_free(&tar->pax_header);
 	archive_string_free(&tar->longname);
 	archive_string_free(&tar->longlink);
-	archive_string_free(&tar->opt_charset);
-	archive_string_free(&tar->hdr_charset);
 	archive_string_free(&tar->localname);
 	free(tar);
 	(a->format->data) = NULL;
@@ -361,12 +359,15 @@ archive_read_format_tar_options(struct archive_read *a,
 		if (val == NULL || val[0] == 0)
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "tar: charset option needs a character-set name");
-		else if (archive_string_conversion_from_charset(
-		    &a->archive, val) == 0) {
-			archive_strcpy(&tar->opt_charset, val);
-			ret = ARCHIVE_OK;
-		} else
-			ret = ARCHIVE_FATAL;
+		else {
+			tar->opt_sconv =
+			    archive_string_conversion_from_charset(
+				&a->archive, val, 0);
+			if (tar->opt_sconv != NULL)
+				ret = ARCHIVE_OK;
+			else
+				ret = ARCHIVE_FATAL;
+		}
 	} else
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "tar: unknown keyword ``%s''", key);
@@ -447,10 +448,7 @@ archive_read_format_tar_read_header(struct archive_read *a,
 	tar->realsize = -1; /* Mark this as "unset" */
 
 	/* Set a default character-set of names in an archive file. */
-	if (archive_strlen(&tar->opt_charset) == 0)
-		tar->charset = NULL;
-	else
-		tar->charset = tar->opt_charset.s;
+	tar->sconv = tar->opt_sconv;
 
 	r = tar_read_header(a, tar, entry, &unconsumed);
 
@@ -880,8 +878,11 @@ header_Solaris_ACL(struct archive_read *a, struct tar *tar,
 	while (*p != '\0' && p < acl + size)
 		p++;
 
-	if (archive_strncpy_from_locale(&(a->archive), &(tar->localname),
-	    acl, p - acl, "UTF-8") != 0) {
+	if (tar->sconv_acl == NULL)
+		tar->sconv_acl = archive_string_conversion_from_charset(
+		    &(a->archive), "UTF-8", 1);
+	if (archive_strncpy_in_locale(&(tar->localname), acl, p - acl,
+	    tar->sconv_acl) != 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Malformed Solaris ACL attribute (unconvertible)");
 		return(ARCHIVE_WARN);
@@ -920,7 +921,7 @@ set_conversion_failed_error(struct archive_read *a, struct tar *tar,
 {
 	archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 	    "%s can't be converted from %s to current locale.",
-	    name, tar->charset);
+	    name, archive_string_conversion_charset_name(tar->sconv));
 	return (ARCHIVE_WARN);
 }
 
@@ -940,10 +941,9 @@ header_longname(struct archive_read *a, struct tar *tar,
 	err = tar_read_header(a, tar, entry, unconsumed);
 	if ((err != ARCHIVE_OK) && (err != ARCHIVE_WARN))
 		return (err);
-	if (tar->charset != NULL) {
-		if (archive_strncpy_from_locale(&(a->archive),
-		    &(tar->localname), tar->longname.s, tar->longname.length,
-		    tar->charset) != 0)
+	if (tar->sconv != NULL) {
+		if (archive_strncpy_in_locale(&(tar->localname),
+		    tar->longname.s, tar->longname.length, tar->sconv) != 0)
 			err = set_conversion_failed_error(a, tar, "Pathname");
 		archive_entry_copy_pathname(entry, tar->localname.s);
 	} else
@@ -1027,9 +1027,9 @@ header_common(struct archive_read *a, struct tar *tar,
 
 	header = (const struct archive_entry_header_ustar *)h;
 	if (header->linkname[0]) {
-		if (archive_strncpy_from_locale(&(a->archive),
-		    &(tar->entry_linkpath), header->linkname,
-		    sizeof(header->linkname), tar->charset) != 0)
+		if (archive_strncpy_in_locale(&(tar->entry_linkpath),
+		    header->linkname, sizeof(header->linkname),
+		    tar->sconv) != 0)
 			err = set_conversion_failed_error(a, tar, "Linkname");
 	} else
 		archive_string_empty(&(tar->entry_linkpath));
@@ -1189,8 +1189,8 @@ header_old_tar(struct archive_read *a, struct tar *tar,
 
 	/* Copy filename over (to ensure null termination). */
 	header = (const struct archive_entry_header_ustar *)h;
-	if (archive_strncpy_from_locale(&(a->archive), &(tar->entry_pathname),
-	    header->name, sizeof(header->name), tar->charset) != 0)
+	if (archive_strncpy_in_locale(&(tar->entry_pathname),
+	    header->name, sizeof(header->name), tar->sconv) != 0)
 		err = set_conversion_failed_error(a, tar, "Pathname");
 	archive_entry_copy_pathname(entry, tar->entry_pathname.s);
 
@@ -1321,15 +1321,15 @@ header_ustar(struct archive_read *a, struct tar *tar,
 	/* Copy name into an internal buffer to ensure null-termination. */
 	as = &(tar->entry_pathname);
 	if (header->prefix[0]) {
-		r = archive_strncpy_from_locale(&(a->archive), as,
-		    header->prefix, sizeof(header->prefix), tar->charset);
+		r = archive_strncpy_in_locale(as, header->prefix,
+		    sizeof(header->prefix), tar->sconv);
 		if (as->s[archive_strlen(as) - 1] != '/')
 			archive_strappend_char(as, '/');
-		r2 = archive_strncat_from_locale(&(a->archive), as, header->name,
-		    sizeof(header->name), tar->charset);
+		r2 = archive_strncat_in_locale(as, header->name,
+		    sizeof(header->name), tar->sconv);
 	} else {
-		r = archive_strncpy_from_locale(&(a->archive), as, header->name,
-		    sizeof(header->name), tar->charset);
+		r = archive_strncpy_in_locale(as, header->name,
+		    sizeof(header->name), tar->sconv);
 		r2 = 0;
 	}
 	if (r != 0 || r2 != 0)
@@ -1341,14 +1341,14 @@ header_ustar(struct archive_read *a, struct tar *tar,
 	err = header_common(a, tar, entry, h);
 
 	/* Handle POSIX ustar fields. */
-	r = archive_strncpy_from_locale(&(a->archive), &(tar->entry_uname),
-	    header->uname, sizeof(header->uname), tar->charset);
+	r = archive_strncpy_in_locale(&(tar->entry_uname),
+	    header->uname, sizeof(header->uname), tar->sconv);
 	if (r != 0)
 		err = set_conversion_failed_error(a, tar, "Uname");
 	archive_entry_copy_uname(entry, tar->entry_uname.s);
 
-	r = archive_strncpy_from_locale(&(a->archive), &(tar->entry_gname),
-	    header->gname, sizeof(header->gname), tar->charset);
+	r = archive_strncpy_in_locale(&(tar->entry_gname),
+	    header->gname, sizeof(header->gname), tar->sconv);
 	if (r != 0)
 		err = set_conversion_failed_error(a, tar, "Gname");
 	archive_entry_copy_gname(entry, tar->entry_gname.s);
@@ -1459,14 +1459,15 @@ pax_header(struct archive_read *a, struct tar *tar,
 	}
 
 	/* Default charset is UTF-8. */
-	if (tar->pax_hdrcharset_binary == 0 && tar->charset == NULL)
-		tar->charset = "UTF-8";
+	if (tar->pax_hdrcharset_binary == 0 && tar->sconv == NULL)
+		tar->sconv = archive_string_conversion_from_charset(
+		    &(a->archive), "UTF-8", 1);
 
 	if (archive_strlen(&(tar->entry_gname)) > 0) {
 		value = tar->entry_gname.s;
-		if (tar->charset != NULL) {
-			if (archive_strcpy_from_locale(&(a->archive),
-			    &(tar->localname), value, tar->charset) != 0)
+		if (tar->sconv != NULL) {
+			if (archive_strcpy_in_locale(&(tar->localname),
+			    value, tar->sconv) != 0)
 				err = set_conversion_failed_error(a, tar,
 				    "Gname");
 			else
@@ -1477,9 +1478,9 @@ pax_header(struct archive_read *a, struct tar *tar,
 	}
 	if (archive_strlen(&(tar->entry_linkpath)) > 0) {
 		value = tar->entry_linkpath.s;
-		if (tar->charset != NULL) {
-			if (archive_strcpy_from_locale(&(a->archive),
-			    &(tar->localname), value, tar->charset) != 0)
+		if (tar->sconv != NULL) {
+			if (archive_strcpy_in_locale(&(tar->localname),
+			    value, tar->sconv) != 0)
 				err = set_conversion_failed_error(a, tar,
 				    "Linkname");
 			else
@@ -1503,9 +1504,9 @@ pax_header(struct archive_read *a, struct tar *tar,
 	else if (archive_strlen(&(tar->entry_pathname)) > 0)
 		value = tar->entry_pathname.s;
 	if (value != NULL) {
-		if (tar->charset != NULL) {
-			if (archive_strcpy_from_locale(&(a->archive),
-			    &(tar->localname), value, tar->charset) != 0)
+		if (tar->sconv != NULL) {
+			if (archive_strcpy_in_locale(&(tar->localname),
+			    value, tar->sconv) != 0)
 				err = set_conversion_failed_error(a, tar,
 				    "Pathname");
 			else
@@ -1516,9 +1517,9 @@ pax_header(struct archive_read *a, struct tar *tar,
 	}
 	if (archive_strlen(&(tar->entry_uname)) > 0) {
 		value = tar->entry_uname.s;
-		if (tar->charset != NULL) {
-			if (archive_strcpy_from_locale(&(a->archive),
-			    &(tar->localname), value, tar->charset) != 0)
+		if (tar->sconv != NULL) {
+			if (archive_strcpy_in_locale(&(tar->localname),
+			    value, tar->sconv) != 0)
 				err = set_conversion_failed_error(a, tar,
 				    "Uname");
 			else
@@ -1664,8 +1665,13 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 	case 'S':
 		/* We support some keys used by the "star" archiver */
 		if (strcmp(key, "SCHILY.acl.access")==0) {
-			if (archive_strcpy_from_locale(&(a->archive),
-			    &(tar->localname), value, "UTF-8") != 0) {
+			if (tar->sconv_acl == NULL)
+				tar->sconv_acl =
+				    archive_string_conversion_from_charset(
+					&(a->archive), "UTF-8", 1);
+
+			if (archive_strcpy_in_locale(&(tar->localname),
+			    value, tar->sconv_acl) != 0) {
 				err = ARCHIVE_WARN;
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
@@ -1676,8 +1682,13 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 				    tar->localname.s,
 				    ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
 		} else if (strcmp(key, "SCHILY.acl.default")==0) {
-			if (archive_strcpy_from_locale(&(a->archive),
-			    &(tar->localname), value, "UTF-8") != 0) {
+			if (tar->sconv_acl == NULL)
+				tar->sconv_acl =
+				    archive_string_conversion_from_charset(
+					&(a->archive), "UTF-8", 1);
+
+			if (archive_strcpy_in_locale(&(tar->localname),
+			    value, tar->sconv_acl) != 0) {
 				err = ARCHIVE_WARN;
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
@@ -1734,16 +1745,19 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 		}
 		break;
 	case 'h':
-		if (strcmp(key, "hdrcharset") == 0 && tar->charset == NULL) {
+		if (strcmp(key, "hdrcharset") == 0 && tar->sconv == NULL) {
 			if (strcmp(value, "BINARY") == 0)
 				tar->pax_hdrcharset_binary = 1;
 			else if (strcmp(value, "ISO-IR 10646 2000 UTF-8") == 0) {
 				tar->pax_hdrcharset_binary = 0;
-				archive_strcpy(&tar->hdr_charset, "UTF-8");
-				tar->charset = tar->hdr_charset.s;
+				tar->sconv =
+				    archive_string_conversion_from_charset(
+					&(a->archive), "UTF-8", 1);
 			} else {
-				archive_strcpy(&tar->hdr_charset, value);
-				tar->charset = tar->hdr_charset.s;
+				tar->pax_hdrcharset_binary = 0;
+				tar->sconv =
+				    archive_string_conversion_from_charset(
+					&(a->archive), value, 1);
 			}
 		}
 		break;
@@ -1876,8 +1890,8 @@ header_gnutar(struct archive_read *a, struct tar *tar,
 
 	/* Copy filename over (to ensure null termination). */
 	header = (const struct archive_entry_header_gnutar *)h;
-	r = archive_strncpy_from_locale(&(a->archive), &(tar->entry_pathname),
-	    header->name, sizeof(header->name), tar->charset);
+	r = archive_strncpy_in_locale(&(tar->entry_pathname),
+	    header->name, sizeof(header->name), tar->sconv);
 	if (r != 0)
 		err = set_conversion_failed_error(a, tar, "Pathname");
 	archive_entry_copy_pathname(entry, tar->entry_pathname.s);
@@ -1886,14 +1900,14 @@ header_gnutar(struct archive_read *a, struct tar *tar,
 	/* XXX Can the following be factored out since it's common
 	 * to ustar and gnu tar?  Is it okay to move it down into
 	 * header_common, perhaps?  */
-	r = archive_strncpy_from_locale(&(a->archive), &(tar->entry_uname),
-	    header->uname, sizeof(header->uname), tar->charset);
+	r = archive_strncpy_in_locale(&(tar->entry_uname),
+	    header->uname, sizeof(header->uname), tar->sconv);
 	if (r != 0)
 		err = set_conversion_failed_error(a, tar, "Uname");
 	archive_entry_copy_uname(entry, tar->entry_uname.s);
 
-	r = archive_strncpy_from_locale(&(a->archive), &(tar->entry_gname),
-	    header->gname, sizeof(header->gname), tar->charset);
+	r = archive_strncpy_in_locale(&(tar->entry_gname),
+	    header->gname, sizeof(header->gname), tar->sconv);
 	if (r != 0)
 		err = set_conversion_failed_error(a, tar, "Gname");
 	archive_entry_copy_gname(entry, tar->entry_gname.s);

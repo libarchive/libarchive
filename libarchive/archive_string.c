@@ -62,6 +62,37 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_string.c 201095 2009-12-28 02:33
 #include "archive_private.h"
 #include "archive_string.h"
 
+
+struct archive_string_conv {
+	struct archive_string_conv	*next;
+	char				*from_charset;
+	char				*to_charset;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	UINT				 from_cp;
+	UINT				 to_cp;
+#endif
+	/* Set 1 if from_charset and to_charset are the same. */
+	int				 same;
+	int				 flag;
+#define SCONV_TO_CHARSET	1/* MBS is being converted to specified charset. */
+#define SCONV_FROM_CHARSET	2/* MBS is being converted from specified charset. */
+#define SCONV_BEST_EFFORT 	4/* Copy at least ASCII code. */
+#define SCONV_WIN_CP	 	8/* Use Windows API for converting MBS. */
+#define SCONV_UTF16BE	 	16/* Consideration to UTF-16BE; one side is
+				   * 'char', ohter is like 'int16_t'. */
+
+#if HAVE_ICONV
+	iconv_t				 cd;
+#endif
+};
+
+static int strncpy_from_utf16be(struct archive_string *, const void *, size_t,
+    struct archive_string_conv *);
+static int strncpy_to_utf16be(struct archive_string *, const void *, size_t,
+    struct archive_string_conv *);
+static int best_effort_strncat_in_locale(struct archive_string *, const void *,
+    size_t, struct archive_string_conv *);
+
 static struct archive_string *
 archive_string_append(struct archive_string *as, const char *p, size_t s)
 {
@@ -249,85 +280,6 @@ archive_wstrappend_wchar(struct archive_wstring *as, wchar_t c)
 }
 
 /*
- * Character set conversion functions.
- *
- * Conversions involving MBS use the "current locale" as
- * stored in the archive object passed in.  Conversions
- * between UTF8 and Unicode do not require any such help,
- * of course.
- *
- * TODO: Provide utility functions to set the current locale.
- * Remember that Windows stores character encoding as an int,
- * POSIX typically uses a string.  I'd rather not bother trying
- * to translate between the two.
- */
-
-/*
- * Unicode to UTF-8.
- * Note: returns non-zero if conversion fails, but still leaves a best-effort
- * conversion in the argument as.
- */
-int
-archive_string_append_from_unicode_to_utf8(struct archive_string *as, const wchar_t *w, size_t len)
-{
-	char *p;
-	unsigned wc;
-	char buff[256];
-	int return_val = 0; /* success */
-
-	/*
-	 * Convert one wide char at a time into 'buff', whenever that
-	 * fills, append it to the string.
-	 */
-	p = buff;
-	while (len-- > 0) {
-		/* Flush the buffer when we have <=16 bytes free. */
-		/* (No encoding has a single character >16 bytes.) */
-		if ((size_t)(p - buff) >= (size_t)(sizeof(buff) - 16)) {
-			*p = '\0';
-			archive_strcat(as, buff);
-			p = buff;
-		}
-		wc = *w++;
-		/* If this is a surrogate pair, assemble the full code point.*/
-		/* Note: wc must not be wchar_t here, because the full code
-		 * point can be more than 16 bits! */
-		if (wc >= 0xD800 && wc <= 0xDBff
-		    && *w >= 0xDC00 && *w <= 0xDFFF) {
-			wc -= 0xD800;
-			wc *= 0x400;
-			wc += (*w - 0xDC00);
-			wc += 0x10000;
-			++w;
-		}
-		/* Translate code point to UTF8 */
-		if (wc <= 0x7f) {
-			*p++ = (char)wc;
-		} else if (wc <= 0x7ff) {
-			*p++ = 0xc0 | ((wc >> 6) & 0x1f);
-			*p++ = 0x80 | (wc & 0x3f);
-		} else if (wc <= 0xffff) {
-			*p++ = 0xe0 | ((wc >> 12) & 0x0f);
-			*p++ = 0x80 | ((wc >> 6) & 0x3f);
-			*p++ = 0x80 | (wc & 0x3f);
-		} else if (wc <= 0x1fffff) {
-			*p++ = 0xf0 | ((wc >> 18) & 0x07);
-			*p++ = 0x80 | ((wc >> 12) & 0x3f);
-			*p++ = 0x80 | ((wc >> 6) & 0x3f);
-			*p++ = 0x80 | (wc & 0x3f);
-		} else {
-			/* Unicode has no codes larger than 0x1fffff. */
-			/* TODO: use \uXXXX escape here instead of ? */
-			*p++ = '?';
-			return_val = -1;
-		}
-	}
-	*p = '\0';
-	archive_strcat(as, buff);
-	return (return_val);
-}
-
-/*
  * Get the "current character set" name to use with iconv.
  * On FreeBSD, the empty character set name "" chooses
  * the correct character encoding for the current locale,
@@ -345,82 +297,6 @@ default_iconv_charset(const char *charset) {
 #else
 	return "";
 #endif
-}
-
-/*
- * Test that platform support a character-set conversion.
- */
-int
-archive_string_conversion_to_charset(struct archive *a, const char *charset)
-{
-	int ret;
-#if HAVE_ICONV
-	iconv_t cd = iconv_open(charset, default_iconv_charset(""));
-
-	if (cd == (iconv_t)(-1)) {
-		archive_set_error(a, ARCHIVE_ERRNO_MISC,
-		    "iconv_open failed : Cannot convert a character-set "
-		    "from current locale to %s", charset);
-		ret = -1;
-	} else {
-		iconv_close(cd);
-		ret = 0;
-	}
-#else
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	/*
-	 * Windows can convert string from current locale to UTF-8
-	 */
-	if (strcmp(charset, "UTF-8") == 0)
-		ret = 0;
-	else
-#endif
-	{
-		archive_set_error(a, ARCHIVE_ERRNO_MISC,
-		    "A character-set conversion not fully supported "
-		    "on this platform");
-		ret = -1;
-	}
-#endif
-	return (ret);
-}
-
-/*
- * Test that platform support a character-set conversion.
- */
-int
-archive_string_conversion_from_charset(struct archive *a, const char *charset)
-{
-	int ret;
-#if HAVE_ICONV
-	iconv_t cd = iconv_open(default_iconv_charset(""), charset);
-
-	if (cd == (iconv_t)(-1)) {
-		archive_set_error(a, ARCHIVE_ERRNO_MISC,
-		    "iconv_open failed : Cannot convert a character-set "
-		    "from %s to current locale", charset);
-		ret = -1;
-	} else {
-		iconv_close(cd);
-		ret = 0;
-	}
-#else
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	/*
-	 * Windows can convert string from UTF-8 to current locale
-	 */
-	if (strcmp(charset, "UTF-8") == 0)
-		ret = 0;
-	else
-#endif
-	{
-		archive_set_error(a, ARCHIVE_ERRNO_MISC,
-		    "A character-set conversion not fully supported "
-			"on this platform");
-		ret = -1;
-	}
-#endif
-	return (ret);
 }
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -637,12 +513,380 @@ archive_string_append_from_unicode_to_mbs(struct archive *a,
 #endif /* HAVE_WCTOMB || HAVE_WCRTOMB */
 
 
+static struct archive_string_conv *
+find_sconv_object(struct archive *a, const char *fc, const char *tc)
+{
+	struct archive_string_conv *sc; 
+
+	if (a == NULL)
+		return (NULL);
+
+	for (sc = a->sconv; sc != NULL; sc = sc->next) {
+		if (strcmp(sc->from_charset, fc) == 0 &&
+		    strcmp(sc->to_charset, tc) == 0)
+			break;
+	}
+	return (sc);
+}
+
+static void
+add_sconv_object(struct archive *a, struct archive_string_conv *sc)
+{
+	struct archive_string_conv **psc; 
+
+	/* Add a new sconv to sconv list. */
+	psc = &(a->sconv);
+	while (*psc != NULL)
+		psc = &((*psc)->next);
+	*psc = sc;
+}
+
+static struct archive_string_conv *
+create_sconv_object(const char *fc, const char *tc, int flag)
+{
+	struct archive_string_conv *sc; 
+
+	sc = malloc(sizeof(*sc));
+	if (sc == NULL)
+		__archive_errx(1, "No memory for charset conversion object");
+	sc->next = NULL;
+	sc->from_charset = strdup(fc);
+	if (sc->from_charset == NULL)
+		__archive_errx(1, "No memory for charset conversion object");
+	sc->to_charset = strdup(tc);
+	if (sc->to_charset == NULL)
+		__archive_errx(1, "No memory for charset conversion object");
+	sc->same = (strcmp(fc, tc) == 0)?1:0;
+#if HAVE_ICONV
+	sc->cd = iconv_open(tc, fc);
+#endif
+	sc->flag = flag;
+	return (sc);
+}
+
+static void
+free_sconv_object(struct archive_string_conv *sc)
+{
+	free(sc->from_charset);
+	free(sc->to_charset);
+#if HAVE_ICONV
+	if (sc->cd != (iconv_t)-1)
+		iconv_close(sc->cd);
+#endif
+	free(sc);
+}
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+static unsigned
+my_atoi(const char *p)
+{
+	unsigned cp;
+
+	cp = 0;
+	while (*p) {
+		if (*p >= '0' && *p <= '9')
+			cp = cp * 10 + (*p - '0');
+		else
+			return (-1);
+		p++;
+	}
+	return (cp);
+}
+
+#define CP_UTF16LE	1200
+#define CP_UTF16BE	1201
 
 /*
- * Conversion functions between local locale MBS and specific locale MBS.
- *   archive_string_copy_from_specific_locale()
- *   archive_string_copy_to_specific_locale()
+ * Translate Charset into CodePage.
+ * Return -1 if failed.
+ *
+ * Note: This translation code may be insufficient.
  */
+static unsigned
+make_codepage_from_charset(const char *charset)
+{
+	char *cs = strdup(charset);
+	char *p;
+	unsigned cp;
+
+	p = cs;
+	while (*p) {
+		if (*p >= 'a' && *p <= 'z')
+			*p -= 'a' - 'A';
+		p++;
+	}
+	cp = -1;
+	switch (*cs) {
+	case 'A':
+		if (strcmp(cs, "ASCII") == 0)
+			cp = 1252;
+		break;
+	case 'B':
+		if (strcmp(cs, "BIG5") == 0)
+			cp = 950;
+		break;
+	case 'C':
+		if (cs[1] == 'P' && cs[2] >= '0' && cs[2] <= '9') {
+			cp = my_atoi(cs + 2);
+			switch (cp) {
+			case 367:
+			case 819:
+				cp = 1252;
+				break;
+			}
+		} else if (strcmp(cs, "CP_ACP") == 0)
+			cp = GetACP();
+		else if (strcmp(cs, "CP_OEMCP") == 0)
+			cp = GetOEMCP();
+		break;
+	case 'E':
+		if (strcmp(cs, "EUCJP") == 0)
+			cp = 51932;
+		else if (strcmp(cs, "EUCCN") == 0)
+			cp = 51936;
+		else if (strcmp(cs, "EUCKR") == 0)
+			cp = 949;
+		break;
+	case 'G':
+		if (strcmp(cs, "GB2312") == 0)
+			cp = 936;
+		break;
+	case 'I':
+		if (cs[1] == 'B' && cs[2] == 'M' &&
+		    cs[3] >= '0' && cs[3] <= '9') {
+			cp = my_atoi(cs + 3);
+			switch (cp) {
+			case 367:
+			case 819:
+				cp = 1252;
+				break;
+			}
+		} else if (strncmp(cs, "ISO8859-", 8) == 0) {
+			if (cs[8] == '1' && cs[9] == '\0')
+				cp = 1252;
+			else if (cs[8] == '2' && cs[9] == '\0')
+				cp = 28592;
+			else if (cs[8] == '8' && cs[9] == '\0')
+				cp = 1255;
+		} else if (strncmp(cs, "ISO_8859-", 9) == 0) {
+			if (cs[9] == '1' && cs[10] == '\0')
+				cp = 1252;
+			else if (cs[9] == '2' && cs[10] == '\0')
+				cp = 28592;
+			else if (cs[9] == '8' && cs[10] == '\0')
+				cp = 1255;
+		}
+		break;
+	case 'L':
+		if (strcmp(cs, "LATIN1") == 0)
+			cp = 1252;
+		else if (strcmp(cs, "LATIN2") == 0)
+			cp = 28592;
+		break;
+	case 'S':
+		if (strcmp(cs, "SHIFT_JIS") == 0 ||
+		    strcmp(cs, "SHIFT-JIS") == 0 ||
+		    strcmp(cs, "SJIS") == 0)
+			cp = 932;
+		break;
+	case 'U':
+		if (strcmp(cs, "US") == 0)
+			cp = 1252;
+		else if (strcmp(cs, "US-ASCII") == 0)
+			cp = 1252;
+		else if (strcmp(cs, "UTF-8") == 0)
+			cp = CP_UTF8;
+		else if (strcmp(cs, "UTF-16") == 0 ||
+		    strcmp(cs, "UTF-16LE") == 0)
+			cp = CP_UTF16LE;
+		else if (strcmp(cs, "UTF-16BE") == 0)
+			cp = CP_UTF16BE;
+		break;
+	case 'W':
+		if (strncmp(cs, "WINDOWS-", 8) == 0) {
+			cp = my_atoi(cs + 8);
+			if (cp != 874 && (cp < 1250 || cp > 1258))
+				cp = -1;/* This may invalid code. */
+		}
+		break;
+	}
+
+	free(p);
+	return (cp);
+}
+#endif
+
+static struct archive_string_conv *
+get_sconv_object(struct archive *a, const char *fc, const char *tc, int flag)
+{
+	struct archive_string_conv *sc; 
+
+	sc = find_sconv_object(a, fc, tc);
+	if (sc != NULL)
+		return (sc);
+
+	sc = create_sconv_object(fc, tc, flag);
+#if HAVE_ICONV
+	if (sc->cd == (iconv_t)-1 && (flag & SCONV_BEST_EFFORT) == 0) {
+		free_sconv_object(sc);
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
+		    "iconv_open failed : Cannot convert "
+		    "string to %s", tc);
+		return (NULL);
+	} else if (a != NULL)
+		add_sconv_object(a, sc);
+#else /* HAVE_ICONV */
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/*
+	 * Windows platform can convert a string in current locale from/to
+	 * UTF-8 and UTF-16BE.
+	 */
+	if (flag & SCONV_TO_CHARSET) {
+		if (a != NULL)
+			sc->from_cp = a->current_codepage;
+		else
+			sc->from_cp = GetOEMCP();
+		sc->to_cp = make_codepage_from_charset(tc);
+		if (sc->to_cp == CP_UTF16BE) {
+			sc->flag |= SCONV_UTF16BE;
+			if (a != NULL)
+				add_sconv_object(a, sc);
+			return (sc);
+		}
+		if (sc->from_cp == sc->to_cp)
+			sc->same = 1;
+		else if (IsValidCodePage(sc->to_cp)) {
+			sc->flag |= SCONV_WIN_CP;
+			if (a != NULL)
+				add_sconv_object(a, sc);
+			return (sc);
+		}
+	} else if (flag & SCONV_FROM_CHARSET) {
+		if (a != NULL)
+			sc->to_cp = a->current_codepage;
+		else
+			sc->to_cp = GetOEMCP();
+		sc->from_cp = make_codepage_from_charset(fc);
+		if (sc->from_cp == CP_UTF16BE) {
+			sc->flag |= SCONV_UTF16BE;
+			if (a != NULL)
+				add_sconv_object(a, sc);
+			return (sc);
+		}
+		if (sc->to_cp == sc->from_cp)
+			sc->same = 1;
+		else if (IsValidCodePage(sc->from_cp)) {
+			sc->flag |= SCONV_WIN_CP;
+			if (a != NULL)
+				add_sconv_object(a, sc);
+			return (sc);
+		}
+	}
+#endif
+	if (!sc->same && (flag & SCONV_BEST_EFFORT) == 0) {
+		free_sconv_object(sc);
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
+		    "A character-set conversion not fully supported "
+		    "on this platform");
+		return (NULL);
+	} else if (a != NULL)
+		add_sconv_object(a, sc);
+#endif /* HAVE_ICONV */
+
+	if (((flag & SCONV_TO_CHARSET) != 0 && strcmp(tc, "UTF-16BE") == 0) ||
+	    ((flag & SCONV_FROM_CHARSET) != 0 && strcmp(fc, "UTF-16BE") == 0))
+		sc->flag |= SCONV_UTF16BE;
+
+	return (sc);
+}
+
+static const char *
+get_current_charset(struct archive *a)
+{
+	const char *cur_charset;
+
+	if (a == NULL)
+		cur_charset = default_iconv_charset("");
+	else {
+		cur_charset = default_iconv_charset(a->current_code);
+		if (a->current_code == NULL) {
+			a->current_code = strdup(cur_charset);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+			a->current_codepage = GetOEMCP();
+#endif
+		}
+	}
+	return (cur_charset);
+}
+
+/*
+ * Make and Return a string conversion object.
+ * Return NULL if the platform does not support the specified conversion
+ * and best_effort is 0.
+ * If best_effort is set, A string conversion object must be returned
+ * but the conversion might fail when non-ASCII code is found.
+ */
+struct archive_string_conv *
+archive_string_conversion_to_charset(struct archive *a, const char *charset,
+    int best_effort)
+{
+	int flag = SCONV_TO_CHARSET;
+
+	if (best_effort)
+		flag |= SCONV_BEST_EFFORT;
+	return (get_sconv_object(a, get_current_charset(a), charset, flag));
+}
+
+struct archive_string_conv *
+archive_string_conversion_from_charset(struct archive *a, const char *charset,
+    int best_effort)
+{
+	int flag = SCONV_FROM_CHARSET;
+
+	if (best_effort)
+		flag |= SCONV_BEST_EFFORT;
+	return (get_sconv_object(a, charset, get_current_charset(a), flag));
+}
+
+/*
+ * Dispose of all character conversion objects in the archive object.
+ */
+void
+archive_string_conversion_free(struct archive *a)
+{
+	struct archive_string_conv *sc; 
+	struct archive_string_conv *sc_next; 
+
+	for (sc = a->sconv; sc != NULL; sc = sc_next) {
+		sc_next = sc->next;
+		free_sconv_object(sc);
+	}
+	a->sconv = NULL;
+	free(a->current_code);
+	a->current_code = NULL;
+}
+
+/*
+ * Return a conversion charset name.
+ */
+const char *
+archive_string_conversion_charset_name(struct archive_string_conv *sc)
+{
+	if (sc->flag & SCONV_TO_CHARSET)
+		return (sc->to_charset);
+	else
+		return (sc->from_charset);
+}
+
+/*
+ *
+ * Copy one archive_string to another in locale conversion.
+ *
+ *	archive_strncpy_in_locale();
+ *	archive_strcpy_in_locale();
+ *
+ */
+
 static size_t
 la_strnlen(const void *_p, size_t n)
 {
@@ -664,128 +908,28 @@ la_strnlen(const void *_p, size_t n)
 }
 
 int
-archive_strncpy_from_locale(struct archive *a,
-    struct archive_string *as, const void *_p, size_t n,
-    const char *charset)
+archive_strncpy_in_locale(struct archive_string *as, const void *_p, size_t n,
+    struct archive_string_conv *sc)
 {
 	as->length = 0;
-	return (archive_strncat_from_locale(a, as, _p, n, charset));
+	if (sc != NULL && (sc->flag & SCONV_UTF16BE)) {
+		if (sc->flag & SCONV_TO_CHARSET)
+			return (strncpy_to_utf16be(as, _p, n, sc));
+		else
+			return (strncpy_from_utf16be(as, _p, n, sc));
+	}
+	return (archive_strncat_in_locale(as, _p, n, sc));
 }
 
-int
-archive_strncpy_to_locale(struct archive *a,
-    struct archive_string *as, const void *_p, size_t n,
-    const char *charset)
-{
-	as->length = 0;
-	return (archive_strncat_to_locale(a, as, _p, n, charset));
-}
 
 #if HAVE_ICONV
 
-#define LA_ICONV_TO_CURRENT	0
-#define LA_ICONV_FROM_CURRENT	1
-
-static iconv_t
-la_iconv_open(struct archive *a, const char *charset, int direction)
-{
-	iconv_t cd;
-	struct archive_iconv_table *itbl;
-
-	if (a == NULL) {
-		if (direction == LA_ICONV_TO_CURRENT)
-			cd = iconv_open(default_iconv_charset(""), charset);
-		else
-			cd = iconv_open(charset, default_iconv_charset(""));
-		return (cd);
-	}
-
-	/*
-	 * Find an iconv table, which has been caching conversion descriptors.
-	 */
-	if (a->iconv_table[0].charset != NULL &&
-	    strcmp(a->iconv_table[0].charset, charset) == 0)
-		itbl = a->last = &(a->iconv_table[0]);
-	else if (a->iconv_table[1].charset != NULL &&
-	    strcmp(a->iconv_table[1].charset, charset) == 0)
-		itbl = a->last = &(a->iconv_table[1]);
-	else {
-		/*
-		 * Thare an't iconv tables which has the same charset,
-		 * and so We should use the iconv table which is not
-		 * pointed by a->last.
-		 */
-		if (a->last == &(a->iconv_table[1]))
-			itbl = a->last = &(a->iconv_table[0]);
-		else
-			itbl = a->last = &(a->iconv_table[1]);
-
-		/* If a chosen iconv table is already used,
-		 * we have to close it. */
-		if (itbl->to_current != (iconv_t)0) {
-			iconv_close(itbl->to_current);
-			itbl->to_current = (iconv_t)0;
-		}
-		if (itbl->from_current != (iconv_t)0) {
-			iconv_close(itbl->from_current);
-			itbl->from_current = (iconv_t)0;
-		}
-		free(itbl->charset);
-		itbl->charset = strdup(charset);
-	}
-
-	if (direction == LA_ICONV_TO_CURRENT) {
-		/*
-		 * Convert a string from specific locale to current locale.
-		 */
-		if (itbl->to_current == (iconv_t)(0)) {
-			cd = iconv_open(default_iconv_charset(a->current_code),
-			    charset);
-			/* Save a conversion descriptor. */
-			if (cd != (iconv_t)-1)
-				itbl->to_current = cd;
-		} else {
-			/* Use the cached conversion descriptor after
-			 * resetting it. */
-			cd = itbl->to_current;
-			iconv(cd, NULL, NULL, NULL, NULL);
-		}
-	} else {
-		/*
-		 * Convert a string from current locale to specific locale.
-		 */
-		if (itbl->from_current == (iconv_t)(0)) {
-			cd = iconv_open(charset,
-			    default_iconv_charset(a->current_code));
-			/* Save a conversion descriptor. */
-			if (cd != (iconv_t)-1)
-				itbl->from_current = cd;
-		} else {
-			/* Use the cached conversion descriptor after
-			 * resetting it. */
-			cd = itbl->from_current;
-			iconv(cd, NULL, NULL, NULL, NULL);
-		}
-	}
-	return (cd);
-}
-
-static void
-la_iconv_close(struct archive *a, iconv_t cd)
-{
-	/* Dispose of the conversion descriptor. */
-	if (a == NULL)
-		iconv_close(cd);
-}
-
 /*
- * Convert MBS from some locale to other locale and copy the result.
  * Return -1 if conversion failes.
  */
-static int
-la_strncat_in_locale(struct archive *a,
-    struct archive_string *as, const void *_p, size_t n,
-    const char *charset, int direction)
+int
+archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
+    struct archive_string_conv *sc)
 {
 	ICONV_CONST char *inp;
 	size_t remaining;
@@ -796,21 +940,17 @@ la_strncat_in_locale(struct archive *a,
 	int return_value = 0; /* success */
 
 	length = la_strnlen(_p, n);
-	/* If charset is NULL, we just make a copy without conversion. */
-	if (charset == NULL) {
+	/* If sc is NULL, we just make a copy without conversion. */
+	if (sc == NULL) {
 		archive_string_append(as, src, length);
 		return (0);
 	}
 
-	cd = la_iconv_open(a, charset, direction);
-	if (cd == (iconv_t)(-1)) {
-		/* We cannot get a conversion descriptor, and so
-		 * we just copy a string. */
-		archive_string_append(as, src, length);
-		return (-1);
-	}
-
 	archive_string_ensure(as, as->length + length*2+1);
+
+	cd = sc->cd;
+	if (cd == (iconv_t)-1)
+		return (best_effort_strncat_in_locale(as, _p, n, sc));
 
 	inp = (char *)(uintptr_t)src;
 	remaining = length;
@@ -839,36 +979,24 @@ la_strncat_in_locale(struct archive *a,
 			avail = as->buffer_length - as->length -1;
 		}
 	}
-	/* Dispose of the conversion descriptor or cache it. */
-	la_iconv_close(a, cd);
 	return (return_value);
 }
 
-/*
- * Convert MBS from specific locale to current locale and copy the result.
- * Return -1 if conversion failes.
- */
-int
-archive_strncat_from_locale(struct archive *a, struct archive_string *as,
-    const void *_p, size_t n, const char *charset)
-{
-	return (la_strncat_in_locale(a, as, _p, n, charset,
-	    LA_ICONV_TO_CURRENT));
-}
-
-/*
- * Convert MBS from current locale to specific locale and copy the result.
- * Return -1 if conversion failes.
- */
-int
-archive_strncat_to_locale(struct archive *a, struct archive_string *as,
-    const void *_p, size_t n, const char *charset)
-{
-	return (la_strncat_in_locale(a, as, _p, n, charset,
-	    LA_ICONV_FROM_CURRENT));
-}
-
 #else /* HAVE_ICONV */
+
+/*
+ * Basically returns -1 because we cannot make a conversion of charset.
+ * Returns 0 if sc is NULL.
+ */
+int
+archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
+    struct archive_string_conv *sc)
+{
+	return (best_effort_strncat_in_locale(as, _p, n, sc));
+}
+
+#endif /* HAVE_ICONV */
+
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 
@@ -876,16 +1004,14 @@ archive_strncat_to_locale(struct archive *a, struct archive_string *as,
  * Convert a UTF-8 string from/to current locale and copy the result.
  * Return -1 if conversion failes.
  */
-#define LA_UTF8_TO_CURRENT	0
-#define LA_CURRENT_TO_UTF8	1
 static int
-strncat_in_utf8(struct archive *a, struct archive_string *as,
-    const char *s, size_t length, int direction)
+strncat_in_codepage(struct archive_string *as,
+    const char *s, size_t length, struct archive_string_conv *sc)
 {
 	int count, wslen;
 	wchar_t *ws;
 	BOOL defchar, *dp;
-	UINT cp_from, cp_to;
+	UINT from_cp, to_cp;
 	DWORD mbflag;
 
 	if (s == NULL || length == 0) {
@@ -897,17 +1023,14 @@ strncat_in_utf8(struct archive *a, struct archive_string *as,
 		return (0);
 	}
 
-	if (direction == LA_UTF8_TO_CURRENT) {
-		cp_from = CP_UTF8;
-		cp_to = CP_OEMCP;
+	from_cp = sc->from_cp;
+	to_cp = sc->to_cp;
+	if (sc->flag & SCONV_FROM_CHARSET)
 		mbflag = 0;
-	} else {
-		cp_from = CP_OEMCP;
-		cp_to = CP_UTF8;
+	else
 		mbflag = MB_PRECOMPOSED;
-	}
 
-	count = MultiByteToWideChar(cp_from,
+	count = MultiByteToWideChar(from_cp,
 	    mbflag, s, length, NULL, 0);
 	if (count == 0) {
 		archive_string_append(as, s, length);
@@ -916,12 +1039,12 @@ strncat_in_utf8(struct archive *a, struct archive_string *as,
 	ws = malloc(sizeof(*ws) * (count+1));
 	if (ws == NULL)
 		__archive_errx(0, "No memory");
-	count = MultiByteToWideChar(cp_from,
+	count = MultiByteToWideChar(from_cp,
 	    mbflag, s, length, ws, count);
 	ws[count] = L'\0';
 	wslen = count;
 
-	count = WideCharToMultiByte(cp_to, 0, ws, wslen,
+	count = WideCharToMultiByte(to_cp, 0, ws, wslen,
 	    NULL, 0, NULL, NULL);
 	if (count == 0) {
 		free(ws);
@@ -929,12 +1052,12 @@ strncat_in_utf8(struct archive *a, struct archive_string *as,
 		return (-1);
 	}
 	defchar = 0;
-	if (cp_to == CP_UTF8)
+	if (to_cp == CP_UTF8)
 		dp = NULL;
 	else
 		dp = &defchar;
 	archive_string_ensure(as, as->length + count +1);
-	count = WideCharToMultiByte(cp_to, 0, ws, wslen,
+	count = WideCharToMultiByte(to_cp, 0, ws, wslen,
 	    as->s + as->length, count, NULL, dp);
 	as->length += count;
 	as->s[as->length] = '\0';
@@ -944,6 +1067,9 @@ strncat_in_utf8(struct archive *a, struct archive_string *as,
 
 #endif /* defined(_WIN32) && !defined(__CYGWIN__) */
 
+/*
+ * Test that MBS consists of ASCII code only.
+ */
 static int
 is_all_ascii_code(struct archive_string *as)
 {
@@ -956,6 +1082,9 @@ is_all_ascii_code(struct archive_string *as)
 	return (1);
 }
 
+/*
+ * Test that MBS ==> WCS is okay.
+ */
 static int
 invalid_mbs(const void *_p, size_t n)
 {
@@ -989,65 +1118,34 @@ invalid_mbs(const void *_p, size_t n)
 }
 
 /*
- * Convert MBS from specific locale to current locale and copy the result.
  * Basically returns -1 because we cannot make a conversion of charset.
- * Returns 0 if charset is NULL.
+ * Returns 0 if sc is NULL.
  */
-int
-archive_strncat_from_locale(struct archive *a, struct archive_string *as,
-    const void *_p, size_t n, const char *charset)
+static int
+best_effort_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
+    struct archive_string_conv *sc)
 {
 	size_t length = la_strnlen(_p, n);
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	if (charset != NULL && strcmp(charset, "UTF-8") == 0)
-		return (strncat_in_utf8(a, as, _p, length, LA_UTF8_TO_CURRENT));
+	if (sc != NULL && (sc->flag & SCONV_WIN_CP) != 0)
+		return (strncat_in_codepage(as, _p, length, sc));
 #endif
 	archive_string_append(as, _p, length);
 	/* If charset is NULL, just make a copy, so return 0 as success. */
-	if (charset == NULL ||
-	    (strcmp(default_iconv_charset(NULL), charset) == 0 &&
-	     invalid_mbs(_p, n) == 0))
+	if (sc == NULL || (sc->same && invalid_mbs(_p, n) == 0))
 		return (0);
 	if (is_all_ascii_code(as))
 		return (0);
 	return (-1);
 }
-
-/*
- * Convert MBS from current locale to specific locale and copy the result.
- * Basically returns -1 because we cannot make a conversion of charset.
- * Returns 0 if charset is NULL.
- */
-int
-archive_strncat_to_locale(struct archive *a, struct archive_string *as,
-    const void *_p, size_t n, const char *charset)
-{
-	size_t length = la_strnlen(_p, n);
-
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	if (charset != NULL && strcmp(charset, "UTF-8") == 0)
-		return (strncat_in_utf8(a, as, _p, length, LA_CURRENT_TO_UTF8));
-#endif
-	archive_string_append(as, _p, length);
-	/* If charset is NULL, just make a copy, so return 0 as success. */
-	if (charset == NULL ||
-	    (strcmp(default_iconv_charset(NULL), charset) == 0 &&
-	     invalid_mbs(_p, n) == 0))
-		return (0);
-	if (is_all_ascii_code(as))
-		return (0);
-	return (-1);
-}
-
-#endif /* HAVE_ICONV */
 
 
 
 /*
  * Conversion functions between local locale MBS and UTF-16BE.
- *   archive_strcpy_from_utf16be() : UTF-16BE --> MBS
- *   archive_strcpy_to_utf16be()   : MBS --> UTF16BE
+ *   strncpy_from_utf16be() : UTF-16BE --> MBS
+ *   strncpy_to_utf16be()   : MBS --> UTF16BE
  */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 
@@ -1055,16 +1153,18 @@ archive_strncat_to_locale(struct archive *a, struct archive_string *as,
  * Convert a UTF-16BE string to current locale and copy the result.
  * Return -1 if conversion failes.
  */
-int
-archive_strncpy_from_utf16be(struct archive *a,
-    struct archive_string *as, const char *utf16, size_t bytes)
+static int
+strncpy_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
+    struct archive_string_conv *sc)
 {
+	const char *utf16 = (const char *)_p;
 	int ll;
 	BOOL defchar;
 	char *mbs;
 	size_t mbs_size;
 	int ret = 0;
 
+	(void)sc; /* UNUSED */
 	archive_string_empty(as);
 	bytes &= ~1;
 	archive_string_ensure(as, bytes+1);
@@ -1102,12 +1202,14 @@ is_big_endian()
  * Convert a current locale string to UTF-16BE and copy the result.
  * Return -1 if conversion failes.
  */
-int
-archive_strncpy_to_utf16be(struct archive *a,
-    struct archive_string *a16be, const char *s, size_t length)
+static int
+strncpy_to_utf16be(struct archive_string *a16be, const void *_p, size_t length,
+    struct archive_string_conv *sc)
 {
+	const char *s = (const char *)_p;
 	size_t count;
 
+	(void)sc; /* UNUSED */
 	archive_string_ensure(a16be, (length + 1) * 2);
 	archive_string_empty(a16be);
 	do {
@@ -1148,11 +1250,12 @@ archive_strncpy_to_utf16be(struct archive *a,
  * Convert a UTF-16BE string to current locale and copy the result.
  * Return -1 if conversion failes.
  */
-int
-archive_strncpy_from_utf16be(struct archive *a,
-    struct archive_string *as, const char *utf16, size_t bytes)
+static int
+strncpy_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
+    struct archive_string_conv *sc)
 {
 	ICONV_CONST char *inp;
+	const char *utf16 = (const char *)_p;
 	size_t remaining;
 	iconv_t cd;
 	char *outp;
@@ -1161,15 +1264,10 @@ archive_strncpy_from_utf16be(struct archive *a,
 
 	archive_string_empty(as);
 
-	cd = la_iconv_open(a, "UTF-16BE", LA_ICONV_TO_CURRENT);
-	if (cd == (iconv_t)(-1)) {
-		/* XXX do something here XXX */
-		return (-1);
-	}
-
 	bytes &= ~1;
 	archive_string_ensure(as, bytes+1);
 
+	cd = sc->cd;
 	inp = (char *)(uintptr_t)utf16;
 	remaining = bytes;
 	outp = as->s;
@@ -1198,8 +1296,6 @@ archive_strncpy_from_utf16be(struct archive *a,
 			avail = outbase - as->length;
 		}
 	}
-	/* Dispose of the conversion descriptor or cache it. */
-	la_iconv_close(a, cd);
 	return (return_value);
 }
 
@@ -1207,11 +1303,12 @@ archive_strncpy_from_utf16be(struct archive *a,
  * Convert a current locale string to UTF-16BE and copy the result.
  * Return -1 if conversion failes.
  */
-int
-archive_strncpy_to_utf16be(struct archive *a,
-    struct archive_string *a16be, const char *src, size_t length)
+static int
+strncpy_to_utf16be(struct archive_string *a16be, const void *_p,
+    size_t length, struct archive_string_conv *sc)
 {
 	ICONV_CONST char *inp;
+	const char *src = (const char *)_p;
 	size_t remaining;
 	iconv_t cd;
 	char *outp;
@@ -1220,14 +1317,9 @@ archive_strncpy_to_utf16be(struct archive *a,
 
 	archive_string_empty(a16be);
 
-	cd = la_iconv_open(a, "UTF-16BE", LA_ICONV_FROM_CURRENT);
-	if (cd == (iconv_t)(-1)) {
-		/* XXX do something here XXX */
-		return (-1);
-	}
-
 	archive_string_ensure(a16be, (length+1)*2);
 
+	cd = sc->cd;
 	inp = (char *)(uintptr_t)src;
 	remaining = length;
 	outp = a16be->s;
@@ -1256,8 +1348,6 @@ archive_strncpy_to_utf16be(struct archive *a,
 			avail = outbase - a16be->length;
 		}
 	}
-	/* Dispose of the conversion descriptor or cache it. */
-	la_iconv_close(a, cd);
 	return (return_value);
 }
 
@@ -1277,7 +1367,7 @@ archive_strncpy_to_utf16be(struct archive *a,
  * conversion in the argument as.
  */
 static int
-archive_string_append_from_utf16be_to_utf8(struct archive_string *as,
+string_append_from_utf16be_to_utf8(struct archive_string *as,
     const char *utf16be, size_t bytes)
 {
 	char *p, *end;
@@ -1404,7 +1494,7 @@ utf8_to_unicode(int *pwc, const char *s, size_t n)
  * Returns 0 on success, non-zero if conversion fails.
  */
 static int
-archive_string_append_from_utf8_to_utf16be(struct archive_string *as,
+string_append_from_utf8_to_utf16be(struct archive_string *as,
     const char *p, size_t len)
 {
 	char *s, *end;
@@ -1483,12 +1573,15 @@ archive_string_append_from_utf8_to_utf16be(struct archive_string *as,
  * Convert a UTF-16BE string to current locale and copy the result.
  * Return -1 if conversion failes.
  */
-int
-archive_strncpy_from_utf16be(struct archive *a,
-    struct archive_string *as, const char *utf16, size_t bytes)
+static int
+strncpy_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
+    struct archive_string_conv *sc)
 {
+	const char *utf16 = (const char *)_p;
 	char *mbs;
 	int ret = 0;
+
+	(void)sc; /* UNUSED */
 
 	archive_string_empty(as);
 
@@ -1497,8 +1590,7 @@ archive_strncpy_from_utf16be(struct archive *a,
 	 * string into a UTF-8 string.
 	 */
 	if (strcmp(default_iconv_charset(NULL), "UTF-8") == 0)
-		return (archive_string_append_from_utf16be_to_utf8(as,
-		    utf16, bytes));
+		return (string_append_from_utf16be_to_utf8(as, utf16, bytes));
 
 	/*
 	 * Other case, we should do the best effort.
@@ -1528,14 +1620,16 @@ archive_strncpy_from_utf16be(struct archive *a,
  * Convert a current locale string to UTF-16BE and copy the result.
  * Return -1 if conversion failes.
  */
-int
-archive_strncpy_to_utf16be(struct archive *a,
-    struct archive_string *a16be, const char *src, size_t length)
+static int
+strncpy_to_utf16be(struct archive_string *a16be, const void *_p, size_t length,
+    struct archive_string_conv *sc)
 {
-	const char *s = src;
+	const char *s = (const char *)_p;
 	char *utf16;
 	size_t remaining = length;
 	int ret = 0;
+
+	(void)sc; /* UNUSED */
 
 	archive_string_empty(a16be);
 
@@ -1544,8 +1638,7 @@ archive_strncpy_to_utf16be(struct archive *a,
 	 * string into a UTF-16BE string.
 	 */
 	if (strcmp(default_iconv_charset(NULL), "UTF-8") == 0)
-		return (archive_string_append_from_utf8_to_utf16be(a16be,
-		    src, length));
+		return (string_append_from_utf8_to_utf16be(a16be, s, length));
 
 	/*
 	 * Other case, we should do the best effort.
@@ -1599,16 +1692,23 @@ archive_mstring_copy(struct archive_mstring *dest, struct archive_mstring *src)
 const char *
 archive_mstring_get_utf8(struct archive *a, struct archive_mstring *aes)
 {
+	struct archive_string_conv *sc;
+	int r;
 
 	/* If we already have a UTF8 form, return that immediately. */
 	if (aes->aes_set & AES_SET_UTF8)
 		return (aes->aes_utf8.s);
 
-	if ((aes->aes_set & AES_SET_MBS)
-	    && archive_strncpy_to_locale(a, &(aes->aes_mbs), aes->aes_mbs.s,
-			aes->aes_mbs.length, "UTF-8") == 0) {
-		aes->aes_set |= AES_SET_UTF8;
-		return (aes->aes_utf8.s);
+	if (aes->aes_set & AES_SET_MBS) {
+		sc = archive_string_conversion_to_charset(a, "UTF-8", 1);
+		r = archive_strncpy_in_locale(&(aes->aes_mbs), aes->aes_mbs.s,
+		    aes->aes_mbs.length, sc);
+		if (a == NULL)
+			free_sconv_object(sc);
+		if (r == 0) {
+			aes->aes_set |= AES_SET_UTF8;
+			return (aes->aes_utf8.s);
+		}
 	}
 	return (NULL);
 }
@@ -1616,6 +1716,9 @@ archive_mstring_get_utf8(struct archive *a, struct archive_mstring *aes)
 const char *
 archive_mstring_get_mbs(struct archive *a, struct archive_mstring *aes)
 {
+	struct archive_string_conv *sc;
+	int r;
+
 	/* If we already have an MBS form, return that immediately. */
 	if (aes->aes_set & AES_SET_MBS)
 		return (aes->aes_mbs.s);
@@ -1627,11 +1730,16 @@ archive_mstring_get_mbs(struct archive *a, struct archive_mstring *aes)
 		return (aes->aes_mbs.s);
 	}
 	/* If there's a UTF-8 form, try converting with the native locale. */
-	if ((aes->aes_set & AES_SET_UTF8)
-	    && archive_strncpy_from_locale(a, &(aes->aes_mbs),
-			aes->aes_utf8.s, aes->aes_utf8.length, "UTF-8") == 0) {
-		aes->aes_set |= AES_SET_UTF8;
-		return (aes->aes_utf8.s);
+	if (aes->aes_set & AES_SET_UTF8) {
+		sc = archive_string_conversion_from_charset(a, "UTF-8", 1);
+		r = archive_strncpy_in_locale(&(aes->aes_mbs),
+			aes->aes_utf8.s, aes->aes_utf8.length, sc);
+		if (a == NULL)
+			free_sconv_object(sc);
+		if (r == 0) {
+			aes->aes_set |= AES_SET_UTF8;
+			return (aes->aes_utf8.s);
+		}
 	}
 	return (NULL);
 }
@@ -1712,6 +1820,9 @@ int
 archive_mstring_update_utf8(struct archive *a, struct archive_mstring *aes,
     const char *utf8)
 {
+	struct archive_string_conv *sc;
+	int r;
+
 	if (utf8 == NULL) {
 		aes->aes_set = 0;
 		return (1); /* Succeeded in clearing everything. */
@@ -1727,7 +1838,11 @@ archive_mstring_update_utf8(struct archive *a, struct archive_mstring *aes,
 	aes->aes_set = AES_SET_UTF8;	/* Only UTF8 is set now. */
 
 	/* Try converting UTF-8 to MBS, return false on failure. */
-	if (archive_strcpy_from_locale(a, &(aes->aes_mbs), utf8, "UTF-8") != 0)
+	sc = archive_string_conversion_from_charset(a, "UTF-8", 1);
+	r = archive_strcpy_in_locale(&(aes->aes_mbs), utf8, sc);
+	if (a == NULL)
+		free_sconv_object(sc);
+	if (r != 0)
 		return (0);
 	aes->aes_set = AES_SET_UTF8 | AES_SET_MBS; /* Both UTF8 and MBS set. */
 

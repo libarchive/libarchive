@@ -83,6 +83,8 @@ struct archive_vtable {
 	const char * (*archive_filter_name)(struct archive *, int);
 };
 
+struct archive_string_conv;
+
 struct archive {
 	/*
 	 * The magic/state values are used to sanity-check the
@@ -112,16 +114,9 @@ struct archive {
 	const char	 *error;
 	struct archive_string	error_string;
 
-#if HAVE_ICONV
 	char *current_code;
-#define ICONV_TABLE_SIZE	2
-	struct archive_iconv_table {
-		char *charset;
-		iconv_t	 to_current;
-		iconv_t	 from_current;
-	}	iconv_table[ICONV_TABLE_SIZE];
-	struct archive_iconv_table *last;
-#endif
+	unsigned current_codepage;
+	struct archive_string_conv *sconv;
 };
 
 /* Check magic value and state; return(ARCHIVE_FATAL) if it isn't valid. */
