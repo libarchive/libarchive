@@ -137,8 +137,8 @@ system calls.
 #include <unistd.h>
 
 struct mydata {
-	const char *name;
-	int fd;
+  const char *name;
+  int fd;
 };
 
 int
@@ -194,12 +194,12 @@ write_archive(const char *outname, const char **filename)
     archive_entry_set_pathname(entry, *filename);
     archive_write_header(a, entry);
     if ((fd = open(*filename, O_RDONLY)) != -1) {
+      len = read(fd, buff, sizeof(buff));
+      while ( len > 0 ) {
+        archive_write_data(a, buff, len);
         len = read(fd, buff, sizeof(buff));
-        while ( len > 0 ) {
-    	    archive_write_data(a, buff, len);
-	    len = read(fd, buff, sizeof(buff));
-        }
-        close(fd);
+      }
+      close(fd);
     }
     archive_entry_free(entry);
     filename++;
@@ -209,11 +209,11 @@ write_archive(const char *outname, const char **filename)
 
 int main(int argc, const char **argv)
 {
-	const char *outname;
-	argv++;
-	outname = argv++;
-	write_archive(outname, argv);
-	return 0;
+  const char *outname;
+  argv++;
+  outname = argv++;
+  write_archive(outname, argv);
+  return 0;
 }
 .Ed
 .Sh SEE ALSO
