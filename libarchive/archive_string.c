@@ -711,7 +711,7 @@ make_codepage_from_charset(const char *charset)
 		break;
 	}
 
-	free(p);
+	free(cs);
 	return (cp);
 }
 #endif
