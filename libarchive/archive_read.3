@@ -28,18 +28,10 @@
 .Dt archive_read 3
 .Os
 .Sh NAME
-.Nm archive_read_close ,
-.Nm archive_read_finish ,
-.Nm archive_read_free
+.Nm archive_read
 .Nd functions for reading streaming archives
 .Sh SYNOPSIS
 .In archive.h
-.Ft int
-.Fn archive_read_close "struct archive *"
-.Ft int
-.Fn archive_read_finish "struct archive *"
-.Ft int
-.Fn archive_read_free "struct archive *"
 .Sh DESCRIPTION
 These functions provide a complete API for reading streaming archives.
 The general process is to first create the
@@ -71,47 +63,9 @@ See
 .Xr archive_read_data 3 .
 .\"
 .Ss Release resources
-.Bl -tag -compact -width indent
-.It Fn archive_read_close
-Complete the archive and invoke the close callback.
-.It Fn archive_read_finish
-This is a deprecated synonym for
-.Fn archive_read_free .
-The new name was introduced with libarchive 3.0.
-Applications that need to compile with either libarchive 2
-or libarchive 3 should continue to use the
-.Fn archive_read_finish
-name.
-Both names will be supported until libarchive 4.0 is
-released, which is not expected to occur earlier
-than 2013.
-.It Fn archive_read_free
-Invokes
-.Fn archive_read_close
-if it was not invoked manually, then release all resources.
-Note: In libarchive 1.x, this function was declared to return
-.Ft void ,
-which made it impossible to detect certain errors when
-.Fn archive_read_close
-was invoked implicitly from this function.
-The declaration is corrected beginning with libarchive 2.0.
-.El
-.Pp
-Note that the library determines most of the relevant information about
-the archive by inspection.
-In particular, it automatically detects
-.Xr gzip 1
-or
-.Xr bzip2 1
-compression and transparently performs the appropriate decompression.
-It also automatically detects the archive format.
-.Pp
-A complete description of the
-.Tn struct archive
-and
-.Tn struct archive_entry
-objects can be found in the overview manual page for
-.Xr libarchive 3 .
+See
+.Xr archive_read_free 3 .
+.\"
 .Sh EXAMPLE
 The following illustrates basic usage of the library.
 In this example,
@@ -171,28 +125,15 @@ myclose(struct archive *a, void *client_data)
   return (ARCHIVE_OK);
 }
 .Ed
-.Sh RETURN VALUES
-Most functions return zero on success, non-zero on error.
-The possible return codes include:
-.Cm ARCHIVE_OK
-(the operation succeeded),
-.Cm ARCHIVE_WARN
-(the operation succeeded but a non-critical error was encountered),
-and
-.Cm ARCHIVE_FATAL
-(there was a fatal error; the archive should be closed immediately).
-Detailed error codes and textual descriptions are available from the
-.Fn archive_errno
-and
-.Fn archive_error_string
-functions.
 .\" .Sh ERRORS
 .Sh SEE ALSO
 .Xr tar 1 ,
 .Xr libarchive 3 ,
+.Xr archive_read_new 3 ,
 .Xr archive_read_data 3 ,
 .Xr archive_read_filter 3 ,
 .Xr archive_read_format 3 ,
+.Xr archive_read_open 3 ,
 .Xr archive_read_set_options 3 ,
 .Xr archive_util 3 ,
 .Xr tar 5
