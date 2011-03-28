@@ -46,15 +46,15 @@ SET(libarchive_SOURCES
   archive_read_open_memory.c
   archive_read_private.h
   archive_read_set_options.c
-  archive_read_support_compression_all.c
-  archive_read_support_compression_bzip2.c
-  archive_read_support_compression_compress.c
-  archive_read_support_compression_gzip.c
-  archive_read_support_compression_none.c
-  archive_read_support_compression_program.c
-  archive_read_support_compression_rpm.c
-  archive_read_support_compression_uu.c
-  archive_read_support_compression_xz.c
+  archive_read_support_filter_all.c
+  archive_read_support_filter_bzip2.c
+  archive_read_support_filter_compress.c
+  archive_read_support_filter_gzip.c
+  archive_read_support_filter_none.c
+  archive_read_support_filter_program.c
+  archive_read_support_filter_rpm.c
+  archive_read_support_filter_uu.c
+  archive_read_support_filter_xz.c
   archive_read_support_format_all.c
   archive_read_support_format_ar.c
   archive_read_support_format_cab.c
