@@ -141,6 +141,16 @@ static int	compress_filter_close(struct archive_read_filter *);
 static int	getbits(struct archive_read_filter *, int n);
 static int	next_code(struct archive_read_filter *);
 
+#if ARCHIVE_VERSION_NUMBER >= 4000000
+#warning archive_read_support_compression_compress
+#endif
+
+int
+archive_read_support_filter_compress(struct archive *a)
+{
+	return archive_read_support_compression_compress(a);
+}
+
 int
 archive_read_support_compression_compress(struct archive *_a)
 {

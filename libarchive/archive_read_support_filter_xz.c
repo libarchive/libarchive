@@ -114,6 +114,16 @@ static int	lzip_bidder_bid(struct archive_read_filter_bidder *,
 		    struct archive_read_filter *);
 static int	lzip_bidder_init(struct archive_read_filter *);
 
+#if ARCHIVE_VERSION_NUMBER >= 4000000
+#warning archive_read_support_compression_xz
+#endif
+
+int
+archive_read_support_filter_xz(struct archive *a)
+{
+	return archive_read_support_compression_xz(a);
+}
+
 int
 archive_read_support_compression_xz(struct archive *_a)
 {
@@ -136,6 +146,16 @@ archive_read_support_compression_xz(struct archive *_a)
 	    "Using external unxz program for xz decompression");
 	return (ARCHIVE_WARN);
 #endif
+}
+
+#if ARCHIVE_VERSION_NUMBER >= 4000000
+#warning archive_read_support_compression_lzma
+#endif
+
+int
+archive_read_support_filter_lzma(struct archive *a)
+{
+	return archive_read_support_compression_lzma(a);
 }
 
 int
@@ -162,6 +182,16 @@ archive_read_support_compression_lzma(struct archive *_a)
 	    "Using external unlzma program for lzma decompression");
 	return (ARCHIVE_WARN);
 #endif
+}
+
+#if ARCHIVE_VERSION_NUMBER >= 4000000
+#warning archive_read_support_compression_lzip
+#endif
+
+int
+archive_read_support_filter_lzip(struct archive *a)
+{
+	return archive_read_support_compression_lzip(a);
 }
 
 int

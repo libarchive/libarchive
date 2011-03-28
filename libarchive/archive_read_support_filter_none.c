@@ -28,6 +28,16 @@ __FBSDID("$FreeBSD$");
 
 #include "archive.h"
 
+#if ARCHIVE_VERSION_NUMBER >= 4000000
+#warning archive_read_support_compression_none
+#endif
+
+int
+archive_read_support_filter_none(struct archive *a)
+{
+	return archive_read_support_compression_none(a);
+}
+
 /*
  * Uncompressed streams are handled implicitly by the read core,
  * so this is now a no-op.

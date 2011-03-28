@@ -63,6 +63,16 @@ static ssize_t	uudecode_filter_read(struct archive_read_filter *,
 		    const void **);
 static int	uudecode_filter_close(struct archive_read_filter *);
 
+#if ARCHIVE_VERSION_NUMBER >= 4000000
+#warning archive_read_support_compression_uu
+#endif
+
+int
+archive_read_support_filter_uu(struct archive *a)
+{
+	return archive_read_support_compression_uu(a);
+}
+
 int
 archive_read_support_compression_uu(struct archive *_a)
 {

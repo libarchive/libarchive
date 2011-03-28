@@ -72,6 +72,16 @@ static int	bzip2_reader_bid(struct archive_read_filter_bidder *, struct archive_
 static int	bzip2_reader_init(struct archive_read_filter *);
 static int	bzip2_reader_free(struct archive_read_filter_bidder *);
 
+#if ARCHIVE_VERSION_NUMBER >= 4000000
+#warning archive_read_support_compression_bzip2
+#endif
+
+int
+archive_read_support_filter_bzip2(struct archive *a)
+{
+	return archive_read_support_compression_bzip2(a);
+}
+
 int
 archive_read_support_compression_bzip2(struct archive *_a)
 {

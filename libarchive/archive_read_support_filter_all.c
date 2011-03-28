@@ -28,28 +28,38 @@ __FBSDID("$FreeBSD$");
 
 #include "archive.h"
 
+#if ARCHIVE_VERSION_NUMBER >= 4000000
+#warning archive_read_support_compression_all
+#endif
+
+int
+archive_read_support_filter_all(struct archive *a)
+{
+	return archive_read_support_compression_all(a);
+}
+
 int
 archive_read_support_compression_all(struct archive *a)
 {
 	/* Bzip falls back to "bunzip2" command-line */
-	archive_read_support_compression_bzip2(a);
+	archive_read_support_filter_bzip2(a);
 	/* The decompress code doesn't use an outside library. */
-	archive_read_support_compression_compress(a);
+	archive_read_support_filter_compress(a);
 	/* Gzip decompress falls back to "gunzip" command-line. */
-	archive_read_support_compression_gzip(a);
+	archive_read_support_filter_gzip(a);
 	/* Lzip falls back to "unlzip" command-line program. */
-	archive_read_support_compression_lzip(a);
+	archive_read_support_filter_lzip(a);
 	/* The LZMA file format has a very weak signature, so it
 	 * may not be feasible to keep this here, but we'll try.
 	 * This will come back out if there are problems. */
 	/* Lzma falls back to "unlzma" command-line program. */
-	archive_read_support_compression_lzma(a);
+	archive_read_support_filter_lzma(a);
 	/* Xz falls back to "unxz" command-line program. */
-	archive_read_support_compression_xz(a);
+	archive_read_support_filter_xz(a);
 	/* The decode code doesn't use an outside library. */
-	archive_read_support_compression_uu(a);
+	archive_read_support_filter_uu(a);
 	/* The decode code doesn't use an outside library. */
-	archive_read_support_compression_rpm(a);
+	archive_read_support_filter_rpm(a);
 
 	/* Note: We always return ARCHIVE_OK here, even if some of the
 	 * above return ARCHIVE_WARN.  The intent here is to enable

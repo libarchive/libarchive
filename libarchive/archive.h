@@ -326,9 +326,8 @@ __LA_DECL struct archive	*archive_read_new(void);
  * support_compression_bzip2().  The "all" functions provide the
  * obvious shorthand.
  */
-/* TODO: Rename 'compression' here to 'filter' for libarchive 3.0, deprecate
- * the old names. */
 
+#if ARCHIVE_VERSION_NUMBER < 4000000
 __LA_DECL int archive_read_support_compression_all(struct archive *);
 __LA_DECL int archive_read_support_compression_bzip2(struct archive *);
 __LA_DECL int archive_read_support_compression_compress(struct archive *);
@@ -345,6 +344,24 @@ __LA_DECL int archive_read_support_compression_program_signature
 __LA_DECL int archive_read_support_compression_rpm(struct archive *);
 __LA_DECL int archive_read_support_compression_uu(struct archive *);
 __LA_DECL int archive_read_support_compression_xz(struct archive *);
+#endif
+
+__LA_DECL int archive_read_support_filter_all(struct archive *);
+__LA_DECL int archive_read_support_filter_bzip2(struct archive *);
+__LA_DECL int archive_read_support_filter_compress(struct archive *);
+__LA_DECL int archive_read_support_filter_gzip(struct archive *);
+__LA_DECL int archive_read_support_filter_lzip(struct archive *);
+__LA_DECL int archive_read_support_filter_lzma(struct archive *);
+__LA_DECL int archive_read_support_filter_none(struct archive *);
+__LA_DECL int archive_read_support_filter_program(struct archive *,
+		     const char *command);
+__LA_DECL int archive_read_support_filter_program_signature
+		(struct archive *, const char *,
+				    const void * /* match */, size_t);
+
+__LA_DECL int archive_read_support_filter_rpm(struct archive *);
+__LA_DECL int archive_read_support_filter_uu(struct archive *);
+__LA_DECL int archive_read_support_filter_xz(struct archive *);
 
 __LA_DECL int archive_read_support_format_all(struct archive *);
 __LA_DECL int archive_read_support_format_ar(struct archive *);
