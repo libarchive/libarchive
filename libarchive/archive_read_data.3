@@ -36,10 +36,7 @@
 .\" #if ARCHIVE_API_VERSION < 3
 .Nm archive_read_data_into_buffer ,
 .\" #endif
-.Nm archive_read_data_into_fd ,
-.Nm archive_read_extract ,
-.Nm archive_read_extract2 ,
-.Nm archive_read_extract_set_progress_callback
+.Nm archive_read_data_into_fd
 .Nd functions for reading streaming archives
 .Sh SYNOPSIS
 .In archive.h
@@ -64,24 +61,7 @@
 .\" #endif
 .Ft int
 .Fn archive_read_data_into_fd "struct archive *" "int fd"
-.Ft int
-.Fo archive_read_extract
-.Fa "struct archive *"
-.Fa "struct archive_entry *"
-.Fa "int flags"
-.Fc
-.Ft int
-.Fo archive_read_extract2
-.Fa "struct archive *src"
-.Fa "struct archive_entry *"
-.Fa "struct archive *dest"
-.Fc
-.Ft void
-.Fo archive_read_extract_set_progress_callback
-.Fa "struct archive *"
-.Fa "void (*func)(void *)"
-.Fa "void *user_data"
-.Fc
+.\"
 .Sh DESCRIPTION
 .Bl -tag -compact -width indent
 .It Fn archive_read_next_header
@@ -133,52 +113,6 @@ instead.
 A convenience function that repeatedly calls
 .Fn archive_read_data_block
 to copy the entire entry to the provided file descriptor.
-.It Fn archive_read_extract , Fn archive_read_extract_set_skip_file
-A convenience function that wraps the corresponding
-.Xr archive_write_disk 3
-interfaces.
-The first call to
-.Fn archive_read_extract
-creates a restore object using
-.Xr archive_write_disk_new 3
-and
-.Xr archive_write_disk_set_standard_lookup 3 ,
-then transparently invokes
-.Xr archive_write_disk_set_options 3 ,
-.Xr archive_write_header 3 ,
-.Xr archive_write_data 3 ,
-and
-.Xr archive_write_finish_entry 3
-to create the entry on disk and copy data into it.
-The
-.Va flags
-argument is passed unmodified to
-.Xr archive_write_disk_set_options 3 .
-.It Fn archive_read_extract2
-This is another version of
-.Fn archive_read_extract
-that allows you to provide your own restore object.
-In particular, this allows you to override the standard lookup functions
-using
-.Xr archive_write_disk_set_group_lookup 3 ,
-and
-.Xr archive_write_disk_set_user_lookup 3 .
-Note that
-.Fn archive_read_extract2
-does not accept a
-.Va flags
-argument; you should use
-.Fn archive_write_disk_set_options
-to set the restore options yourself.
-.It Fn archive_read_extract_set_progress_callback
-Sets a pointer to a user-defined callback that can be used
-for updating progress displays during extraction.
-The progress function will be invoked during the extraction of large
-regular files.
-The progress function will be invoked with the pointer provided to this call.
-Generally, the data pointed to should include a reference to the archive
-object and the archive_entry object so that various statistics
-can be retrieved for the progress display.
 .El
 .\"
 .Sh RETURN VALUES
@@ -218,6 +152,7 @@ functions.
 .Xr tar 1 ,
 .Xr libarchive 3 ,
 .Xr archive_read 3 ,
+.Xr archive_read_extract 3 ,
 .Xr archive_read_filter 3 ,
 .Xr archive_read_format 3 ,
 .Xr archive_read_open 3 ,
