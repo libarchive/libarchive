@@ -120,48 +120,9 @@ See
 .Xr libarchive_read 3 .
 .\"
 .Sh WRITING AN ARCHIVE
-You use a similar process to write an archive.
-The
-.Fn archive_write_new
-function creates an archive object useful for writing,
-the various
-.Fn archive_write_set_XXX
-functions are used to set parameters for writing the archive, and
-.Fn archive_write_open
-completes the setup and opens the archive for writing.
-.Pp
-Individual archive entries are written in a three-step
-process:
-You first initialize a
-.Tn struct archive_entry
-structure with information about the new entry.
-At a minimum, you should set the pathname of the
-entry and provide a
-.Va struct stat
-with a valid
-.Va st_mode
-field, which specifies the type of object and
-.Va st_size
-field, which specifies the size of the data portion of the object.
-The
-.Fn archive_write_header
-function actually writes the header data to the archive.
-You can then use
-.Fn archive_write_data
-to write the actual data.
-.Pp
-After all entries have been written, use the
-.Fn archive_write_finish
-function to release all resources.
-(Note:
-.Fn archive_write_finish
-is deprecated in Libarchive 3.0; please use
-.Fn archive_write_free
-instead.)
-.Pp
-The
-.Xr archive_write 3
-manual page provides more detailed calling information for this API.
+See
+.Xr libarchive_write 3 .
+.\"
 .Sh WRITING ENTRIES TO DISK
 The
 .Xr archive_write_disk 3

@@ -43,36 +43,79 @@ close the archive and release all resources.
 .Ss Create archive object
 See
 .Xr archive_write_new 3 .
+.Pp
+To write an archive, you must first obtain an initialized
+.Tn struct archive
+object from
+.Fn archive_write_new .
 .\"
-.Ss Enable filters and formats
+.Ss Enable filters and formats, configure block size and padding
 See
-.Xr archive_write_filter 3
+.Xr archive_write_filter 3 ,
+.Xr archive_write_format 3
 and
-.Xr archive_write_format 3 .
-.\"
-.Ss Configure block size and padding
-See
 .Xr archive_write_blocksize 3 .
+.Pp
+You can then modify this object for the desired operations with the
+various
+.Fn archive_write_set_XXX
+functions.
+In particular, you will need to invoke appropriate
+.Fn archive_write_add_XXX
+and
+.Fn archive_write_set_XXX
+functions to enable the corresponding compression and format
+support.
+.\"
+.Ss Set options
+See
+.Xr archive_read_set_options 3 .
 .\"
 .Ss Open archive
 See
 .Xr archive_write_open 3 .
+.Pp
+Once you have prepared the
+.Tn struct archive
+object, you call
+.Fn archive_write_open
+to actually open the archive and prepare it for writing.
+There are several variants of this function;
+the most basic expects you to provide pointers to several
+functions that can provide blocks of bytes from the archive.
+There are convenience forms that allow you to
+specify a filename, file descriptor,
+.Ft "FILE *"
+object, or a block of memory from which to write the archive data.
 .\"
 .Ss Produce archive
 See
 .Xr archive_write_header 3
 and
 .Xr archive_write_data 3 .
+.Pp
+Individual archive entries are written in a three-step
+process:
+You first initialize a
+.Tn struct archive_entry
+structure with information about the new entry.
+At a minimum, you should set the pathname of the
+entry and provide a
+.Va struct stat
+with a valid
+.Va st_mode
+field, which specifies the type of object and
+.Va st_size
+field, which specifies the size of the data portion of the object.
 .\"
 .Ss Release resources
 See
 .Xr archive_write_free 3 .
 .Pp
-More information about the
-.Va struct archive
-object and the overall design of the library can be found in the
-.Xr libarchive 3
-overview.
+After all entries have been written, use the
+.Fn archive_write_free
+function to release all resources.
+.\"
 .Sh EXAMPLE
 The following sketch illustrates basic usage of the library.
 In this example,
