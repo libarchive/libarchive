@@ -84,13 +84,13 @@ DEFINE_TEST(test_write_compress_lzma)
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	r = archive_read_support_compression_lzma(a);
+	r = archive_read_support_filter_lzma(a);
 	if (r == ARCHIVE_WARN) {
 		skipping("Can't verify lzma writing by reading back;"
 		    " lzma reading not fully supported on this platform");
 	} else {
 		assertEqualIntA(a, ARCHIVE_OK,
-		    archive_read_support_compression_all(a));
+		    archive_read_support_filter_all(a));
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_open_memory(a, buff, used1));
 		for (i = 0; i < 100; i++) {
@@ -139,12 +139,12 @@ DEFINE_TEST(test_write_compress_lzma)
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	r = archive_read_support_compression_lzma(a);
+	r = archive_read_support_filter_lzma(a);
 	if (r == ARCHIVE_WARN) {
 		skipping("lzma reading not fully supported on this platform");
 	} else {
 		assertEqualIntA(a, ARCHIVE_OK,
-		    archive_read_support_compression_all(a));
+		    archive_read_support_filter_all(a));
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_open_memory(a, buff, used2));
 		for (i = 0; i < 100; i++) {
@@ -198,8 +198,8 @@ DEFINE_TEST(test_write_compress_lzma)
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
-	r = archive_read_support_compression_lzma(a);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	r = archive_read_support_filter_lzma(a);
 	if (r == ARCHIVE_WARN) {
 		skipping("lzma reading not fully supported on this platform");
 	} else {

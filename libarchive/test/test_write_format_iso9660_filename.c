@@ -149,7 +149,7 @@ verify(unsigned char *buff, size_t used, enum vtype type, struct fns *fns)
 	 */
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, 0, archive_read_support_format_all(a));
-	assertEqualIntA(a, 0, archive_read_support_compression_all(a));
+	assertEqualIntA(a, 0, archive_read_support_filter_all(a));
 	if (type >= 1)
 		assertA(0 == archive_read_set_option(a, NULL, "rockridge",
 		    NULL));

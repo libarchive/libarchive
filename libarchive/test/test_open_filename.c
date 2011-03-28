@@ -69,7 +69,7 @@ DEFINE_TEST(test_open_filename)
 	 */
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_open_filename(a, "test.tar", 512));
 
@@ -100,7 +100,7 @@ DEFINE_TEST(test_open_filename)
 	 */
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_FATAL,
 	    archive_read_open_filename(a, "nonexistent.tar", 512));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));

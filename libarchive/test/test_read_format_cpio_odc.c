@@ -51,7 +51,7 @@ DEFINE_TEST(test_read_format_cpio_odc)
 	struct archive_entry *ae;
 	struct archive *a;
 	assert((a = archive_read_new()) != NULL);
-	assertA(0 == archive_read_support_compression_all(a));
+	assertA(0 == archive_read_support_filter_all(a));
 	assertA(0 == archive_read_support_format_all(a));
 	assertA(0 == archive_read_open_memory(a, archive, sizeof(archive)));
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));

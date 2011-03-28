@@ -95,7 +95,7 @@ test_truncation(const char *compression, int (*set_compression)(struct archive *
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used1 - used1/64));
 	for (i = 0; i < 100; i++) {

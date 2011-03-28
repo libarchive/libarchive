@@ -58,7 +58,7 @@ test_pax_filename_encoding_1(void)
 	extract_reference_file(testname);
 	a = archive_read_new();
 	assertEqualInt(ARCHIVE_OK, archive_read_support_format_tar(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualInt(ARCHIVE_OK,
 	    archive_read_open_filename(a, testname, 10240));
 	/*

@@ -36,7 +36,7 @@ test(int pristine)
 	int known_option_rv = pristine ? ARCHIVE_FAILED : ARCHIVE_OK;
 
 	if (!pristine) {
-		archive_read_support_compression_all(a);
+		archive_read_support_filter_all(a);
 		archive_read_support_format_all(a);
         }
 

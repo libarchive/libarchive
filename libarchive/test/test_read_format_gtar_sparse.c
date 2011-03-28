@@ -190,7 +190,7 @@ verify_archive_file(const char *name, struct archive_contents *ac)
 	extract_reference_file(name);
 
 	assert((a = archive_read_new()) != NULL);
-	assert(0 == archive_read_support_compression_all(a));
+	assert(0 == archive_read_support_filter_all(a));
 	assert(0 == archive_read_support_format_tar(a));
 	failure("Can't open %s", name);
 	assert(0 == archive_read_open_filename(a, name, 3));

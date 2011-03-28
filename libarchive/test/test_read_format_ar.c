@@ -38,7 +38,7 @@ DEFINE_TEST(test_read_format_ar)
 
 	extract_reference_file(reffile);
 	assert((a = archive_read_new()) != NULL);
-	assertA(0 == archive_read_support_compression_all(a));
+	assertA(0 == archive_read_support_filter_all(a));
 	assertA(0 == archive_read_support_format_all(a));
 	assertA(0 == archive_read_open_file(a, reffile, 7));
 

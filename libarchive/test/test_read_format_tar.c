@@ -66,7 +66,7 @@ static void verifyEmpty(void)
 	struct archive *a;
 
 	assert((a = archive_read_new()) != NULL);
-	assertA(0 == archive_read_support_compression_all(a));
+	assertA(0 == archive_read_support_filter_all(a));
 	assertA(0 == archive_read_support_format_all(a));
 	assertA(0 == archive_read_open_memory(a, archiveEmpty, 512));
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
@@ -433,7 +433,7 @@ static void verify(unsigned char *d, size_t s,
 	memset(buff + s, 0, 2048);
 
 	assert((a = archive_read_new()) != NULL);
-	assertA(0 == archive_read_support_compression_all(a));
+	assertA(0 == archive_read_support_filter_all(a));
 	assertA(0 == archive_read_support_format_all(a));
 	assertA(0 == archive_read_open_memory(a, buff, s + 1024));
 	assertA(0 == archive_read_next_header(a, &ae));

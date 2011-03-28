@@ -120,7 +120,7 @@ DEFINE_TEST(test_write_format_zip)
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_compression_all(a));
+	    archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_open_memory(a, buff, used));
 

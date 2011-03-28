@@ -39,7 +39,7 @@ DEFINE_TEST(test_read_format_raw)
 	/* First, try pulling data out of an uninterpretable file. */
 	extract_reference_file(reffile1);
 	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
 	assertEqualIntA(a, ARCHIVE_OK,
@@ -65,7 +65,7 @@ DEFINE_TEST(test_read_format_raw)
 	/* Second, try the same with a compressed file. */
 	extract_reference_file(reffile2);
 	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,

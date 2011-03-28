@@ -58,7 +58,7 @@ test_read_format_lha_filename_CP932_eucJP(const char *refname)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_open_filename(a, refname, 10240));
@@ -117,7 +117,7 @@ test_read_format_lha_filename_CP932_UTF8(const char *refname)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_open_filename(a, refname, 10240));
@@ -172,7 +172,7 @@ test_read_format_lha_filename_CP932_Windows(const char *refname)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_open_filename(a, refname, 10240));

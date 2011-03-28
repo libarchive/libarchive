@@ -42,8 +42,8 @@ DEFINE_TEST(test_read_format_cpio_bin_lzip)
 	int r;
 
 	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
-	r = archive_read_support_compression_lzip(a);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	r = archive_read_support_filter_lzip(a);
 	if (r == ARCHIVE_WARN) {
 		skipping("lzip reading not fully supported on this platform");
 		assertEqualInt(ARCHIVE_OK, archive_read_free(a));

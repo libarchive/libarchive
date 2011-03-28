@@ -63,7 +63,7 @@ DEFINE_TEST(test_read_truncated)
 	for (i = 1; i < used + 100; i += 100) {
 		assert((a = archive_read_new()) != NULL);
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-		assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 		if (i < 512) {
 			assertEqualIntA(a, ARCHIVE_FATAL, archive_read_open_memory(a, buff, i));
 			goto wrap_up;
@@ -101,7 +101,7 @@ DEFINE_TEST(test_read_truncated)
 	for (i = 1; i < used + 100; i += 100) {
 		assert((a = archive_read_new()) != NULL);
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-		assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 		if (i < 512) {
 			assertEqualIntA(a, ARCHIVE_FATAL, archive_read_open_memory(a, buff, i));
 			goto wrap_up2;

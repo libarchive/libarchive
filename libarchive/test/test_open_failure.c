@@ -132,7 +132,7 @@ DEFINE_TEST(test_open_failure)
 	a = archive_read_new();
 	assert(a != NULL);
 	assertEqualInt(ARCHIVE_OK,
-	    archive_read_support_compression_compress(a));
+	    archive_read_support_filter_compress(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_support_format_tar(a));
 	assertEqualInt(ARCHIVE_FATAL,
 	    archive_read_open(a, &private, my_open, my_read, my_close));

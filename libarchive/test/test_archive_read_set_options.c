@@ -38,7 +38,7 @@ test(int pristine)
 	int mixed_options_rv = pristine ? ARCHIVE_FAILED : ARCHIVE_WARN;
 
 	if (!pristine) {
-		archive_read_support_compression_all(a);
+		archive_read_support_filter_all(a);
 		archive_read_support_format_all(a);
         }
 

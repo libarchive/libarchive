@@ -80,8 +80,8 @@ DEFINE_TEST(test_write_compress_program)
 	 */
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
-	r = archive_read_support_compression_gzip(a);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	r = archive_read_support_filter_gzip(a);
 	/* The compression_gzip() handler will fall back to gunzip
 	 * automatically, but if we know gunzip isn't available, then
 	 * skip the rest. */

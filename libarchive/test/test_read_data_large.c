@@ -78,7 +78,7 @@ DEFINE_TEST(test_read_data_large)
 	/* Check that archive_read_data can handle 10*10^6 at a pop. */
 	assert((a = archive_read_new()) != NULL);
 	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_support_compression_all(a));
+	assertA(0 == archive_read_support_filter_all(a));
 	assertA(0 == archive_read_open_memory(a, buff1, sizeof(buff1)));
 	assertA(0 == archive_read_next_header(a, &ae));
 	failure("Wrote 10MB, but didn't read the same amount");
@@ -91,7 +91,7 @@ DEFINE_TEST(test_read_data_large)
 	/* Check archive_read_data_into_fd */
 	assert((a = archive_read_new()) != NULL);
 	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_support_compression_all(a));
+	assertA(0 == archive_read_support_filter_all(a));
 	assertA(0 == archive_read_open_memory(a, buff1, sizeof(buff1)));
 	assertA(0 == archive_read_next_header(a, &ae));
 #if defined(__BORLANDC__)

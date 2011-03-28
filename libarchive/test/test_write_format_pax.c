@@ -115,7 +115,7 @@ DEFINE_TEST(test_write_format_pax)
 	 */
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, 0, archive_read_support_format_all(a));
-	assertEqualIntA(a, 0, archive_read_support_compression_all(a));
+	assertEqualIntA(a, 0, archive_read_support_filter_all(a));
 	assertEqualIntA(a, 0, archive_read_open_memory(a, buff, used));
 
 	/*

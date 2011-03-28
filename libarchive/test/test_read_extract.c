@@ -117,7 +117,7 @@ DEFINE_TEST(test_read_extract)
 	/* Extract the entries to disk. */
 	assert((a = archive_read_new()) != NULL);
 	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_support_compression_all(a));
+	assertA(0 == archive_read_support_filter_all(a));
 	assertA(0 == archive_read_open_memory(a, buff, BUFF_SIZE));
 	/* Restore first entry with _EXTRACT_PERM. */
 	failure("Error reading first entry", i);

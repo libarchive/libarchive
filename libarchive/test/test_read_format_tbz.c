@@ -40,7 +40,7 @@ DEFINE_TEST(test_read_format_tbz)
 	int r;
 
 	assert((a = archive_read_new()) != NULL);
-	r = archive_read_support_compression_bzip2(a);
+	r = archive_read_support_filter_bzip2(a);
 	if (r != ARCHIVE_OK) {
 		skipping("Bzip2 support");
 		archive_read_free(a);

@@ -62,7 +62,7 @@ DEFINE_TEST(test_read_large)
 
 	assert(NULL != (a = archive_read_new()));
 	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_support_compression_all(a));
+	assertA(0 == archive_read_support_filter_all(a));
 	assertA(0 == archive_read_open_memory(a, buff, sizeof(buff)));
 	assertA(0 == archive_read_next_header(a, &entry));
 	assertA(0 == archive_read_data_into_buffer(a, testdatacopy, sizeof(testdatacopy)));
@@ -72,7 +72,7 @@ DEFINE_TEST(test_read_large)
 
 	assert(NULL != (a = archive_read_new()));
 	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_support_compression_all(a));
+	assertA(0 == archive_read_support_filter_all(a));
 	assertA(0 == archive_read_open_memory(a, buff, sizeof(buff)));
 	assertA(0 == archive_read_next_header(a, &entry));
 #if defined(__BORLANDC__)

@@ -40,7 +40,7 @@ DEFINE_TEST(test_read_format_cpio_svr4c_Z)
 /*	printf("Archive address: start=%X, end=%X\n", archive, archive+sizeof(archive)); */
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_compression_all(a));
+	    archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,

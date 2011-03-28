@@ -42,7 +42,7 @@ test_read_format_cab_filename_CP932_eucJP(const char *refname)
 	}
 
 	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	if (ARCHIVE_OK != archive_read_set_options(a, "charset=CP932")) {
 		skipping("This system cannot convert character-set"
@@ -95,7 +95,7 @@ test_read_format_cab_filename_CP932_UTF8(const char *refname)
 	}
 
 	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	if (ARCHIVE_OK != archive_read_set_options(a, "charset=CP932")) {
 		skipping("This system cannot convert character-set"

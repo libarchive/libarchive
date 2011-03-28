@@ -35,7 +35,7 @@ test(int pristine)
 	struct archive* a = archive_read_new();
 
 	if (!pristine)
-		archive_read_support_compression_all(a);
+		archive_read_support_filter_all(a);
 
 	should(a, ARCHIVE_OK, NULL, NULL, NULL);
 	should(a, ARCHIVE_OK, "", "", "");

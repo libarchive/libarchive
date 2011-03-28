@@ -29,7 +29,7 @@ void
 read_test(const char *name)
 {
 	struct archive* a = archive_read_new();
-	if(ARCHIVE_OK != archive_read_support_compression_bzip2(a)) {
+	if(ARCHIVE_OK != archive_read_support_filter_bzip2(a)) {
 		skipping("bzip2 unsupported");
 		return;
 	}

@@ -43,9 +43,9 @@ DEFINE_TEST(test_read_compress_program)
 	 * program is requested.
 	 */
 	assert((a = archive_read_new()) != NULL);
-	r = archive_read_support_compression_program(a, "nonexistent");
+	r = archive_read_support_filter_program(a, "nonexistent");
 	if (r == ARCHIVE_FATAL) {
-		skipping("archive_read_support_compression_program() "
+		skipping("archive_read_support_filter_program() "
 		    "unsupported on this platform");
 		return;
 	}
@@ -66,9 +66,9 @@ DEFINE_TEST(test_read_compress_program)
 	}
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_compression_none(a));
+	    archive_read_support_filter_none(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_compression_program(a, "gunzip"));
+	    archive_read_support_filter_program(a, "gunzip"));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,

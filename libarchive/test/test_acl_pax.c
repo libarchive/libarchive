@@ -240,7 +240,7 @@ DEFINE_TEST(test_acl_pax)
 	/* Read back each entry and check that the ACL data is right. */
 	assert(NULL != (a = archive_read_new()));
 	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_support_compression_all(a));
+	assertA(0 == archive_read_support_filter_all(a));
 	assertA(0 == archive_read_open_memory(a, buff, used));
 
 	/* First item has no ACLs */

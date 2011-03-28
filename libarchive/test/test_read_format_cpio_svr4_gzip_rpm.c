@@ -90,7 +90,7 @@ DEFINE_TEST(test_read_format_cpio_svr4_gzip_rpm)
 	int r;
 
 	assert((a = archive_read_new()) != NULL);
-        r = archive_read_support_compression_gzip(a);
+        r = archive_read_support_filter_gzip(a);
 	if (r == ARCHIVE_WARN) {
 		skipping("gzip reading not fully supported on this platform");
 		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
@@ -98,7 +98,7 @@ DEFINE_TEST(test_read_format_cpio_svr4_gzip_rpm)
         }
 	assertEqualIntA(a, ARCHIVE_OK, r);
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_compression_rpm(a));
+	    archive_read_support_filter_rpm(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	extract_reference_file(name);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, name, 2));

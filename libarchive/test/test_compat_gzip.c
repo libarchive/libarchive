@@ -47,7 +47,7 @@ verify(const char *name)
 	int i,r;
 
 	assert((a = archive_read_new()) != NULL);
-	r = archive_read_support_compression_gzip(a);
+	r = archive_read_support_filter_gzip(a);
 	if (r == ARCHIVE_WARN) {
 		skipping("gzip reading not fully supported on this platform");
 		assertEqualInt(ARCHIVE_OK, archive_read_free(a));

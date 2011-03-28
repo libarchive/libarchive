@@ -47,7 +47,7 @@ test_read_format_mtree1(void)
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_compression_all(a));
+	    archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_file(a, reffile, 11));
@@ -120,7 +120,7 @@ test_read_format_mtree2(void)
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_compression_all(a));
+	    archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
@@ -154,7 +154,7 @@ test_read_format_mtree3(void)
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_compression_all(a));
+	    archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
@@ -193,7 +193,7 @@ test_read_format_mtree4(void)
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_compression_all(a));
+	    archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_file(a, reffile, 11));

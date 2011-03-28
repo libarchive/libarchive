@@ -108,7 +108,7 @@ test_filename(const char *prefix, int dlen, int flen)
 	 */
 	assert((a = archive_read_new()) != NULL);
 	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_support_compression_all(a));
+	assertA(0 == archive_read_support_filter_all(a));
 	assertA(0 == archive_read_open_memory(a, buff, used));
 
 	/* Read the file and check the filename. */

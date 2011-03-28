@@ -84,7 +84,7 @@ DEFINE_TEST(test_write_compress_bzip2)
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used1));
 	for (i = 0; i < 999; i++) {
 		sprintf(path, "file%03d", i);
@@ -137,7 +137,7 @@ DEFINE_TEST(test_write_compress_bzip2)
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used2));
 	for (i = 0; i < 999; i++) {
 		sprintf(path, "file%03d", i);
@@ -182,7 +182,7 @@ DEFINE_TEST(test_write_compress_bzip2)
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used2));
 	for (i = 0; i < 999; i++) {
 		sprintf(path, "file%03d", i);

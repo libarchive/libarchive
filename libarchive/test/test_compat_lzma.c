@@ -107,8 +107,8 @@ compat_lzma(const char *name)
 	int i, r;
 
 	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
-	r = archive_read_support_compression_lzma(a);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	r = archive_read_support_filter_lzma(a);
 	if (r == ARCHIVE_WARN) {
 		skipping("lzma reading not fully supported on this platform");
 		assertEqualInt(ARCHIVE_OK, archive_read_free(a));

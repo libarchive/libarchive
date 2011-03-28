@@ -75,7 +75,7 @@ DEFINE_TEST(test_read_format_isojoliet_long)
 		pathname[i] = '0' + ((i+1) % 10); 
 	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
-	assertEqualInt(0, archive_read_support_compression_all(a));
+	assertEqualInt(0, archive_read_support_filter_all(a));
 	assertEqualInt(0, archive_read_support_format_all(a));
 	assertEqualInt(ARCHIVE_OK,
 	    archive_read_set_options(a, "iso9660:!rockridge"));

@@ -98,7 +98,7 @@ DEFINE_TEST(test_fuzz)
 			/* Use format_raw to decompress the data. */
 			assert((a = archive_read_new()) != NULL);
 			assertEqualIntA(a, ARCHIVE_OK,
-			    archive_read_support_compression_all(a));
+			    archive_read_support_filter_all(a));
 			assertEqualIntA(a, ARCHIVE_OK,
 			    archive_read_support_format_raw(a));
 			r = archive_read_open_filename(a, filename, 16384);
@@ -162,7 +162,7 @@ DEFINE_TEST(test_fuzz)
 
 			assert((a = archive_read_new()) != NULL);
 			assertEqualIntA(a, ARCHIVE_OK,
-			    archive_read_support_compression_all(a));
+			    archive_read_support_filter_all(a));
 			assertEqualIntA(a, ARCHIVE_OK,
 			    archive_read_support_format_all(a));
 

@@ -638,7 +638,7 @@ static void verify(unsigned char *d, size_t s,
 	case BZIP2:
 		/* This is only check whether bzip is supported or not.
 		 * This filter won't be used this test.  */
-		if (ARCHIVE_OK != archive_read_support_compression_bzip2(a)) {
+		if (ARCHIVE_OK != archive_read_support_filter_bzip2(a)) {
 			skipping("Unsupported bzip2");
 			assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 			return;
@@ -649,7 +649,7 @@ static void verify(unsigned char *d, size_t s,
 		 * will return a warning if gzip is unsupported. */
 		break;
 	}
-	assertA(0 == archive_read_support_compression_all(a));
+	assertA(0 == archive_read_support_filter_all(a));
 	r = archive_read_support_format_xar(a);
 	if (r == ARCHIVE_WARN) {
 		skipping("xar reading not fully supported on this platform");
