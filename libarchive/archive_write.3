@@ -28,15 +28,12 @@
 .Dt archive_write 3
 .Os
 .Sh NAME
-.Nm archive_write_finish_entry ,
 .Nm archive_write_close ,
 .Nm archive_write_finish ,
 .Nm archive_write_free
 .Nd functions for creating archives
 .Sh SYNOPSIS
 .In archive.h
-.Ft int
-.Fn archive_write_finish_entry "struct archive *"
 .Ft int
 .Fn archive_write_close "struct archive *"
 .Ft int
@@ -78,15 +75,6 @@ and
 The following summary describes the functions in approximately
 the order they are ordinarily used:
 .Bl -tag -width indent
-.It Fn archive_write_finish_entry
-Close out the entry just written.
-In particular, this writes out the final padding required by some formats.
-Ordinarily, clients never need to call this, as it
-is called automatically by
-.Fn archive_write_next_header
-and
-.Fn archive_write_close
-as needed.
 .It Fn archive_write_close
 Complete the archive and invoke the close callback.
 .It Fn archive_write_finish

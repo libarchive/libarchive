@@ -25,23 +25,37 @@
 .\" $FreeBSD: head/lib/libarchive/archive_write.3 201110 2009-12-28 03:31:29Z kientzle $
 .\"
 .Dd March 23, 2011
-.Dt archive_write 3
+.Dt archive_write_finish_entry 3
 .Os
 .Sh NAME
-.Nm archive_write_data
+.Nm archive_write_finish_entry
 .Nd functions for creating archives
 .Sh SYNOPSIS
 .In archive.h
-.Ft ssize_t
-.Fn archive_write_data "struct archive *" "const void *" "size_t"
+.Ft int
+.Fn archive_write_finish_entry "struct archive *"
 .Sh DESCRIPTION
-Write data corresponding to the header just written.
+Close out the entry just written.
+In particular, this writes out the final padding required by some formats.
+Ordinarily, clients never need to call this, as it
+is called automatically by
+.Fn archive_write_next_header
+and
+.Fn archive_write_close
+as needed.
 .\" .Sh EXAMPLE
-.\"
 .Sh RETURN VALUES
-This function returns the number of bytes actually written, or
-.Li -1
-on error.
+This function returns
+.Cm ARCHIVE_OK
+on success, or one of several non-zero
+error codes for errors.
+Specific error codes include:
+.Cm ARCHIVE_RETRY
+for operations that might succeed if retried,
+.Cm ARCHIVE_WARN
+for unusual conditions that do not prevent further operations, and
+.Cm ARCHIVE_FATAL
+for serious errors that make remaining operations impossible.
 .Pp
 Detailed error codes and textual descriptions are available from the
 .Fn archive_errno
@@ -51,7 +65,7 @@ functions.
 .Sh SEE ALSO
 .Xr tar 1 ,
 .Xr libarchive 3 ,
-.Xr archive_write_finish_entry 3 ,
+.Xr archive_write_data 3 ,
 .Xr archive_write_set_options 3 ,
 .Xr cpio 5 ,
 .Xr mtree 5 ,
