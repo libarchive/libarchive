@@ -70,7 +70,7 @@ they cause the corresponding support code to be linked into your
 program, and they enable the corresponding auto-detect code.
 Unless you have specific constraints, you will generally want
 to invoke
-.Fn archive_read_support_compression_all
+.Fn archive_read_support_filter_all
 and
 .Fn archive_read_support_format_all
 to enable auto-detect for all formats and compression types
@@ -173,7 +173,7 @@ list_archive(const char *name)
   mydata = malloc(sizeof(struct mydata));
   a = archive_read_new();
   mydata->name = name;
-  archive_read_support_compression_all(a);
+  archive_read_support_filter_all(a);
   archive_read_support_format_all(a);
   archive_read_open(a, mydata, myopen, myread, myclose);
   while (archive_read_next_header(a, &entry) == ARCHIVE_OK) {
