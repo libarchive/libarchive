@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009,2010 Michihiro NAKAJIMA
+ * Copyright (c) 2009-2011 Michihiro NAKAJIMA
  * Copyright (c) 2003-2007 Kees Zeelenberg
  * All rights reserved.
  *
@@ -141,7 +141,7 @@ __la_win_permissive_name(const char *name)
 	}
 	wn[l] = L'\0';
 
-	/* Get a full path names */
+	/* Get a full-pathname. */
 	l = GetFullPathNameW(wn, 0, NULL, NULL);
 	if (l == 0) {
 		free(wn);
@@ -158,16 +158,16 @@ __la_win_permissive_name(const char *name)
 
 	if (wnp[0] == L'\\' && wnp[1] == L'\\' &&
 	    wnp[2] == L'?' && wnp[3] == L'\\')
-		/* We have already permissive names. */
+		/* We have already a permissive name. */
 		return (wn);
 
 	if (wnp[0] == L'\\' && wnp[1] == L'\\' &&
 		wnp[2] == L'.' && wnp[3] == L'\\') {
-		/* Device names */
+		/* This is a device name */
 		if (((wnp[4] >= L'a' && wnp[4] <= L'z') ||
 		     (wnp[4] >= L'A' && wnp[4] <= L'Z')) &&
 		    wnp[5] == L':' && wnp[6] == L'\\')
-			wnp[2] = L'?';/* Not device names. */
+			wnp[2] = L'?';/* Not device name. */
 		return (wn);
 	}
 
@@ -215,6 +215,10 @@ __la_win_permissive_name(const char *name)
 	return (ws);
 }
 
+/*
+ * Create a file handle.
+ * This can exceed MAX_PATH limitation.
+ */
 static HANDLE
 la_CreateFile(const char *path, DWORD dwDesiredAccess, DWORD dwShareMode,
     LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition,
@@ -269,9 +273,12 @@ la_CreateHardLinkW(wchar_t *linkname, wchar_t *target)
 }
 
 
-/* Make a link to src called dst.  */
-static int
-__link(const char *src, const char *dst)
+/*
+ * Make a link from src to dst.
+ * This can exceed MAX_PATH limitation.
+ */
+int
+__la_link(const char *src, const char *dst)
 {
 	wchar_t *wsrc, *wdst;
 	int res, retval;
@@ -324,7 +331,7 @@ __link(const char *src, const char *dst)
 			*++slash = L'\0';
 		else
 			wcscat(wnewsrc, L"\\");
-		/* Converting multi-byte src to wide-char src */
+		/* Converting a multi-byte src to a wide-char src */
 		wlen = (int)wcslen(wsrc);
 		slen = (int)strlen(src);
 		n = MultiByteToWideChar(CP_ACP, 0, src, slen, wsrc, wlen);
@@ -362,13 +369,6 @@ exit:
 	return (retval);
 }
 
-/* Make a hard link to src called dst.  */
-int
-__la_link(const char *src, const char *dst)
-{
-	return __link(src, dst);
-}
-
 int
 __la_ftruncate(int fd, int64_t length)
 {
@@ -396,6 +396,10 @@ __la_ftruncate(int fd, int64_t length)
 	return (0);
 }
 
+/*
+ * Change current working directory.
+ * This can exceed MAX_PATH limitation.
+ */
 int
 __la_chdir(const char *path)
 {
@@ -424,6 +428,7 @@ __la_chdir(const char *path)
 	return (0);
 }
 
+/* This can exceed MAX_PATH limitation. */
 int
 __la_chmod(const char *path, mode_t mode)
 {
@@ -468,7 +473,7 @@ __la_chmod(const char *path, mode_t mode)
 }
 
 /*
- * This fcntl is limited implemention.
+ * This fcntl is limited implementation.
  */
 int
 __la_fcntl(int fd, int cmd, int val)
@@ -520,6 +525,7 @@ __la_lseek(int fd, __int64 offset, int whence)
 	return (newpointer.QuadPart);
 }
 
+/* This can exceed MAX_PATH limitation. */
 int
 __la_mkdir(const char *path, mode_t mode)
 {
@@ -551,6 +557,7 @@ __la_mkdir(const char *path, mode_t mode)
 	return (0);
 }
 
+/* This can exceed MAX_PATH limitation. */
 int
 __la_open(const char *path, int flags, ...)
 {
@@ -615,7 +622,7 @@ __la_open(const char *path, int flags, ...)
 		r = _open(path, flags, pmode);
 #endif
 		if (r < 0 && errno == EACCES && (flags & O_CREAT) != 0) {
-			/* simular other POSIX system action to pass a test */
+			/* Simulate other POSIX system action to pass our test suite. */
 			attr = GetFileAttributesA(path);
 			if (attr == (DWORD)-1)
 				la_dosmaperr(GetLastError());
@@ -635,7 +642,7 @@ __la_open(const char *path, int flags, ...)
 	}
 	r = _wopen(ws, flags, pmode);
 	if (r < 0 && errno == EACCES && (flags & O_CREAT) != 0) {
-		/* simular other POSIX system action to pass a test */
+		/* Simulate other POSIX system action to pass our test suite. */
 		attr = GetFileAttributesW(ws);
 		if (attr == (DWORD)-1)
 			la_dosmaperr(GetLastError());
@@ -664,7 +671,7 @@ __la_read(int fd, void *buf, size_t nbytes)
 		return (-1);
 	}
 	/* Do not pass 0 to third parameter of ReadFile(), read bytes.
-	 * This will not return to application size. */
+	 * This will not return to application side. */
 	if (nbytes == 0)
 		return (0);
 	handle = (HANDLE)_get_osfhandle(fd);
@@ -703,7 +710,10 @@ __la_read(int fd, void *buf, size_t nbytes)
 	return ((ssize_t)bytes_read);
 }
 
-/* Remove directory */
+/*
+ * Remove a directory.
+ * This can exceed MAX_PATH limitation.
+ */
 int
 __la_rmdir(const char *path)
 {
@@ -742,9 +752,9 @@ fileTimeToUTC(const FILETIME *filetime, time_t *time, long *ns)
 }
 
 /* Stat by handle
- * Windows' stat() does not accept path which is added "\\?\" especially "?"
+ * Windows' stat() does not accept the path added "\\?\" especially "?"
  * character.
- * It means we cannot access a long name path(which is longer than MAX_PATH).
+ * It means we cannot access the long name path longer than MAX_PATH.
  * So I've implemented simular Windows' stat() to access the long name path.
  * And I've added some feature.
  * 1. set st_ino by nFileIndexHigh and nFileIndexLow of
@@ -833,7 +843,7 @@ __hstat(HANDLE handle, struct ustat *st)
 	st->st_nlink = 1;
 	st->st_dev = 0;
 #else
-	/* Getting FileIndex as i-node. We have to remove a sequence which
+	/* Getting FileIndex as i-node. We should remove a sequence which
 	 * is high-16-bits of nFileIndexHigh. */
 	ino64.HighPart = info.nFileIndexHigh & 0x0000FFFFUL;
 	ino64.LowPart  = info.nFileIndexLow;
@@ -865,6 +875,11 @@ copy_stat(struct stat *st, struct ustat *us)
 	st->st_rdev = us->st_rdev;
 }
 
+/*
+ * TODO: Remove a use of __la_fstat and __la_stat.
+ * We should use GetFileInformationByHandle in place
+ * where We still use the *stat functions.
+ */
 int
 __la_fstat(int fd, struct stat *st)
 {
@@ -886,6 +901,7 @@ __la_fstat(int fd, struct stat *st)
 	return (ret);
 }
 
+/* This can exceed MAX_PATH limitation. */
 int
 __la_stat(const char *path, struct stat *st)
 {
@@ -923,6 +939,10 @@ __la_stat(const char *path, struct stat *st)
 	return (ret);
 }
 
+/*
+ * Delete a file.
+ * This can exceed MAX_PATH limitation.
+ */
 int
 __la_unlink(const char *path)
 {
@@ -943,7 +963,7 @@ __la_unlink(const char *path)
 }
 
 /*
- * This waitpid is limited implemention.
+ * This waitpid is limited implementation.
  */
 pid_t
 __la_waitpid(pid_t wpid, int *status, int option)
@@ -1003,131 +1023,19 @@ __la_write(int fd, const void *buf, size_t nbytes)
 	return (bytes_written);
 }
 
+
 /*
- * The following function was modified from PostgreSQL sources and is
- * subject to the copyright below.
+ * Message digest functions.
+ *
+ * Simulate the interface of OpenSSL's ones.
+ *
  */
-/*-------------------------------------------------------------------------
- *
- * win32error.c
- *	  Map win32 error codes to errno values
- *
- * Portions Copyright (c) 1996-2008, PostgreSQL Global Development Group
- *
- * IDENTIFICATION
- *	  $PostgreSQL: pgsql/src/port/win32error.c,v 1.4 2008/01/01 19:46:00 momjian Exp $
- *
- *-------------------------------------------------------------------------
- */
-/*
-PostgreSQL Database Management System
-(formerly known as Postgres, then as Postgres95)
-
-Portions Copyright (c) 1996-2008, PostgreSQL Global Development Group
-
-Portions Copyright (c) 1994, The Regents of the University of California
-
-Permission to use, copy, modify, and distribute this software and its
-documentation for any purpose, without fee, and without a written agreement
-is hereby granted, provided that the above copyright notice and this
-paragraph and the following two paragraphs appear in all copies.
-
-IN NO EVENT SHALL THE UNIVERSITY OF CALIFORNIA BE LIABLE TO ANY PARTY FOR
-DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING
-LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS
-DOCUMENTATION, EVEN IF THE UNIVERSITY OF CALIFORNIA HAS BEEN ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-THE UNIVERSITY OF CALIFORNIA SPECIFICALLY DISCLAIMS ANY WARRANTIES,
-INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
-AND FITNESS FOR A PARTICULAR PURPOSE.  THE SOFTWARE PROVIDED HEREUNDER IS
-ON AN "AS IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATIONS TO
-PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
-*/
-
-static const struct {
-	DWORD		winerr;
-	int		doserr;
-} doserrors[] =
-{
-	{	ERROR_INVALID_FUNCTION, EINVAL	},
-	{	ERROR_FILE_NOT_FOUND, ENOENT	},
-	{	ERROR_PATH_NOT_FOUND, ENOENT	},
-	{	ERROR_TOO_MANY_OPEN_FILES, EMFILE	},
-	{	ERROR_ACCESS_DENIED, EACCES	},
-	{	ERROR_INVALID_HANDLE, EBADF	},
-	{	ERROR_ARENA_TRASHED, ENOMEM	},
-	{	ERROR_NOT_ENOUGH_MEMORY, ENOMEM	},
-	{	ERROR_INVALID_BLOCK, ENOMEM	},
-	{	ERROR_BAD_ENVIRONMENT, E2BIG	},
-	{	ERROR_BAD_FORMAT, ENOEXEC	},
-	{	ERROR_INVALID_ACCESS, EINVAL	},
-	{	ERROR_INVALID_DATA, EINVAL	},
-	{	ERROR_INVALID_DRIVE, ENOENT	},
-	{	ERROR_CURRENT_DIRECTORY, EACCES	},
-	{	ERROR_NOT_SAME_DEVICE, EXDEV	},
-	{	ERROR_NO_MORE_FILES, ENOENT	},
-	{	ERROR_LOCK_VIOLATION, EACCES	},
-	{	ERROR_SHARING_VIOLATION, EACCES	},
-	{	ERROR_BAD_NETPATH, ENOENT	},
-	{	ERROR_NETWORK_ACCESS_DENIED, EACCES	},
-	{	ERROR_BAD_NET_NAME, ENOENT	},
-	{	ERROR_FILE_EXISTS, EEXIST	},
-	{	ERROR_CANNOT_MAKE, EACCES	},
-	{	ERROR_FAIL_I24, EACCES	},
-	{	ERROR_INVALID_PARAMETER, EINVAL	},
-	{	ERROR_NO_PROC_SLOTS, EAGAIN	},
-	{	ERROR_DRIVE_LOCKED, EACCES	},
-	{	ERROR_BROKEN_PIPE, EPIPE	},
-	{	ERROR_DISK_FULL, ENOSPC	},
-	{	ERROR_INVALID_TARGET_HANDLE, EBADF	},
-	{	ERROR_INVALID_HANDLE, EINVAL	},
-	{	ERROR_WAIT_NO_CHILDREN, ECHILD	},
-	{	ERROR_CHILD_NOT_COMPLETE, ECHILD	},
-	{	ERROR_DIRECT_ACCESS_HANDLE, EBADF	},
-	{	ERROR_NEGATIVE_SEEK, EINVAL	},
-	{	ERROR_SEEK_ON_DEVICE, EACCES	},
-	{	ERROR_DIR_NOT_EMPTY, ENOTEMPTY	},
-	{	ERROR_NOT_LOCKED, EACCES	},
-	{	ERROR_BAD_PATHNAME, ENOENT	},
-	{	ERROR_MAX_THRDS_REACHED, EAGAIN	},
-	{	ERROR_LOCK_FAILED, EACCES	},
-	{	ERROR_ALREADY_EXISTS, EEXIST	},
-	{	ERROR_FILENAME_EXCED_RANGE, ENOENT	},
-	{	ERROR_NESTING_NOT_ALLOWED, EAGAIN	},
-	{	ERROR_NOT_ENOUGH_QUOTA, ENOMEM	}
-};
-
-static void
-la_dosmaperr(unsigned long e)
-{
-	int			i;
-
-	if (e == 0)
-	{
-		errno = 0;
-		return;
-	}
-
-	for (i = 0; i < sizeof(doserrors); i++)
-	{
-		if (doserrors[i].winerr == e)
-		{
-			errno = doserrors[i].doserr;
-			return;
-		}
-	}
-
-	/* fprintf(stderr, "unrecognized win32 error code: %lu", e); */
-	errno = EINVAL;
-	return;
-}
-
 #if defined(ARCHIVE_HASH_MD5_WIN)    ||\
     defined(ARCHIVE_HASH_SHA1_WIN)   || defined(ARCHIVE_HASH_SHA256_WIN) ||\
     defined(ARCHIVE_HASH_SHA384_WIN) || defined(ARCHIVE_HASH_SHA512_WIN)
+
 /*
- * Message digest functions.
+ * Initialize a Message digest.
  */
 void
 __la_hash_Init(Digest_CTX *ctx, ALG_ID algId)
@@ -1151,6 +1059,9 @@ __la_hash_Init(Digest_CTX *ctx, ALG_ID algId)
 	ctx->valid = 1;
 }
 
+/*
+ * Update a Message digest.
+ */
 void
 __la_hash_Update(Digest_CTX *ctx, const unsigned char *buf, size_t len)
 {
@@ -1326,6 +1237,127 @@ exit_tmpfile:
 	free(ws);
 	archive_string_free(&temp_name);
 	return (fd);
+}
+
+
+/*
+ * The following function was modified from PostgreSQL sources and is
+ * subject to the copyright below.
+ */
+/*-------------------------------------------------------------------------
+ *
+ * win32error.c
+ *	  Map win32 error codes to errno values
+ *
+ * Portions Copyright (c) 1996-2008, PostgreSQL Global Development Group
+ *
+ * IDENTIFICATION
+ *	  $PostgreSQL: pgsql/src/port/win32error.c,v 1.4 2008/01/01 19:46:00 momjian Exp $
+ *
+ *-------------------------------------------------------------------------
+ */
+/*
+PostgreSQL Database Management System
+(formerly known as Postgres, then as Postgres95)
+
+Portions Copyright (c) 1996-2008, PostgreSQL Global Development Group
+
+Portions Copyright (c) 1994, The Regents of the University of California
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose, without fee, and without a written agreement
+is hereby granted, provided that the above copyright notice and this
+paragraph and the following two paragraphs appear in all copies.
+
+IN NO EVENT SHALL THE UNIVERSITY OF CALIFORNIA BE LIABLE TO ANY PARTY FOR
+DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING
+LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS
+DOCUMENTATION, EVEN IF THE UNIVERSITY OF CALIFORNIA HAS BEEN ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+THE UNIVERSITY OF CALIFORNIA SPECIFICALLY DISCLAIMS ANY WARRANTIES,
+INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS FOR A PARTICULAR PURPOSE.  THE SOFTWARE PROVIDED HEREUNDER IS
+ON AN "AS IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATIONS TO
+PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+*/
+
+static const struct {
+	DWORD		winerr;
+	int		doserr;
+} doserrors[] =
+{
+	{	ERROR_INVALID_FUNCTION, EINVAL	},
+	{	ERROR_FILE_NOT_FOUND, ENOENT	},
+	{	ERROR_PATH_NOT_FOUND, ENOENT	},
+	{	ERROR_TOO_MANY_OPEN_FILES, EMFILE	},
+	{	ERROR_ACCESS_DENIED, EACCES	},
+	{	ERROR_INVALID_HANDLE, EBADF	},
+	{	ERROR_ARENA_TRASHED, ENOMEM	},
+	{	ERROR_NOT_ENOUGH_MEMORY, ENOMEM	},
+	{	ERROR_INVALID_BLOCK, ENOMEM	},
+	{	ERROR_BAD_ENVIRONMENT, E2BIG	},
+	{	ERROR_BAD_FORMAT, ENOEXEC	},
+	{	ERROR_INVALID_ACCESS, EINVAL	},
+	{	ERROR_INVALID_DATA, EINVAL	},
+	{	ERROR_INVALID_DRIVE, ENOENT	},
+	{	ERROR_CURRENT_DIRECTORY, EACCES	},
+	{	ERROR_NOT_SAME_DEVICE, EXDEV	},
+	{	ERROR_NO_MORE_FILES, ENOENT	},
+	{	ERROR_LOCK_VIOLATION, EACCES	},
+	{	ERROR_SHARING_VIOLATION, EACCES	},
+	{	ERROR_BAD_NETPATH, ENOENT	},
+	{	ERROR_NETWORK_ACCESS_DENIED, EACCES	},
+	{	ERROR_BAD_NET_NAME, ENOENT	},
+	{	ERROR_FILE_EXISTS, EEXIST	},
+	{	ERROR_CANNOT_MAKE, EACCES	},
+	{	ERROR_FAIL_I24, EACCES	},
+	{	ERROR_INVALID_PARAMETER, EINVAL	},
+	{	ERROR_NO_PROC_SLOTS, EAGAIN	},
+	{	ERROR_DRIVE_LOCKED, EACCES	},
+	{	ERROR_BROKEN_PIPE, EPIPE	},
+	{	ERROR_DISK_FULL, ENOSPC	},
+	{	ERROR_INVALID_TARGET_HANDLE, EBADF	},
+	{	ERROR_INVALID_HANDLE, EINVAL	},
+	{	ERROR_WAIT_NO_CHILDREN, ECHILD	},
+	{	ERROR_CHILD_NOT_COMPLETE, ECHILD	},
+	{	ERROR_DIRECT_ACCESS_HANDLE, EBADF	},
+	{	ERROR_NEGATIVE_SEEK, EINVAL	},
+	{	ERROR_SEEK_ON_DEVICE, EACCES	},
+	{	ERROR_DIR_NOT_EMPTY, ENOTEMPTY	},
+	{	ERROR_NOT_LOCKED, EACCES	},
+	{	ERROR_BAD_PATHNAME, ENOENT	},
+	{	ERROR_MAX_THRDS_REACHED, EAGAIN	},
+	{	ERROR_LOCK_FAILED, EACCES	},
+	{	ERROR_ALREADY_EXISTS, EEXIST	},
+	{	ERROR_FILENAME_EXCED_RANGE, ENOENT	},
+	{	ERROR_NESTING_NOT_ALLOWED, EAGAIN	},
+	{	ERROR_NOT_ENOUGH_QUOTA, ENOMEM	}
+};
+
+static void
+la_dosmaperr(unsigned long e)
+{
+	int			i;
+
+	if (e == 0)
+	{
+		errno = 0;
+		return;
+	}
+
+	for (i = 0; i < sizeof(doserrors); i++)
+	{
+		if (doserrors[i].winerr == e)
+		{
+			errno = doserrors[i].doserr;
+			return;
+		}
+	}
+
+	/* fprintf(stderr, "unrecognized win32 error code: %lu", e); */
+	errno = EINVAL;
+	return;
 }
 
 #endif /* _WIN32 && !__CYGWIN__ */
