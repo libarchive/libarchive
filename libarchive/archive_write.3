@@ -28,12 +28,6 @@
 .Dt archive_write 3
 .Os
 .Sh NAME
-.Nm archive_write_set_format_cpio ,
-.Nm archive_write_set_format_pax ,
-.Nm archive_write_set_format_pax_restricted ,
-.Nm archive_write_set_format_shar ,
-.Nm archive_write_set_format_shar_dump ,
-.Nm archive_write_set_format_ustar ,
 .Nm archive_write_get_bytes_per_block ,
 .Nm archive_write_set_bytes_per_block ,
 .Nm archive_write_set_bytes_in_last_block ,
@@ -81,18 +75,6 @@
 .Fn archive_write_add_filter_program "struct archive *" "const char * cmd"
 .Ft int
 .Fn archive_write_add_filter_xz "struct archive *"
-.Ft int
-.Fn archive_write_set_format_cpio "struct archive *"
-.Ft int
-.Fn archive_write_set_format_pax "struct archive *"
-.Ft int
-.Fn archive_write_set_format_pax_restricted "struct archive *"
-.Ft int
-.Fn archive_write_set_format_shar "struct archive *"
-.Ft int
-.Fn archive_write_set_format_shar_dump "struct archive *"
-.Ft int
-.Fn archive_write_set_format_ustar "struct archive *"
 .Ft int
 .Fo archive_write_open
 .Fa "struct archive *"
@@ -170,37 +152,6 @@ functions, this function can be called after the archive is opened.
 .It Fn archive_write_get_bytes_in_last_block
 Retrieve the currently-set value for last block size.
 A value of -1 here indicates that the library should use default values.
-.It Xo
-.Fn archive_write_set_format_cpio ,
-.Fn archive_write_set_format_pax ,
-.Fn archive_write_set_format_pax_restricted ,
-.Fn archive_write_set_format_shar ,
-.Fn archive_write_set_format_shar_dump ,
-.Fn archive_write_set_format_ustar
-.Xc
-Sets the format that will be used for the archive.
-The library can write
-POSIX octet-oriented cpio format archives,
-POSIX-standard
-.Dq pax interchange
-format archives,
-traditional
-.Dq shar
-archives,
-enhanced
-.Dq dump
-shar archives that store a variety of file attributes and handle binary files,
-and
-POSIX-standard
-.Dq ustar
-archives.
-The pax interchange format is a backwards-compatible tar format that
-adds key/value attributes to each entry and supports arbitrary
-filenames, linknames, uids, sizes, etc.
-.Dq Restricted pax interchange format
-is the library default; this is the same as pax format, but suppresses
-the pax extended header for most normal files.
-In most cases, this will result in ordinary ustar archives.
 .It Xo
 .Fn archive_write_add_filter_bzip2 ,
 .Fn archive_write_add_filter_compress ,
