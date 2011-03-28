@@ -28,7 +28,6 @@
 .Dt archive_write 3
 .Os
 .Sh NAME
-.Nm archive_write_data ,
 .Nm archive_write_finish_entry ,
 .Nm archive_write_close ,
 .Nm archive_write_finish ,
@@ -36,8 +35,6 @@
 .Nd functions for creating archives
 .Sh SYNOPSIS
 .In archive.h
-.Ft ssize_t
-.Fn archive_write_data "struct archive *" "const void *" "size_t"
 .Ft int
 .Fn archive_write_finish_entry "struct archive *"
 .Ft int
@@ -74,14 +71,13 @@ See
 .\"
 .Ss Produce archive
 See
-.Xr archive_write_header 3 .
+.Xr archive_write_header 3
+and
+.Xr archive_write_data 3 .
 .Pp
 The following summary describes the functions in approximately
 the order they are ordinarily used:
 .Bl -tag -width indent
-.It Fn archive_write_data
-Write data corresponding to the header just written.
-Returns number of bytes written or -1 on error.
 .It Fn archive_write_finish_entry
 Close out the entry just written.
 In particular, this writes out the final padding required by some formats.
@@ -294,14 +290,6 @@ and
 .Fn archive_error_string
 functions can be used to retrieve an appropriate error code and a
 textual error message.
-.Pp
-.Fn archive_write_data
-returns a count of the number of bytes actually written.
-On error, -1 is returned and the
-.Fn archive_errno
-and
-.Fn archive_error_string
-functions will return appropriate values.
 Note that if the client-provided write callback function
 returns a non-zero value, that error will be propagated back to the caller
 through whatever API function resulted in that call, which
