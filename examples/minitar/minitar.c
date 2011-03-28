@@ -342,13 +342,13 @@ extract(const char *filename, int do_extract, int flags)
 	ext = archive_write_disk_new();
 	archive_write_disk_set_options(ext, flags);
 #ifndef NO_BZIP2_EXTRACT
-	archive_read_support_compression_bzip2(a);
+	archive_read_support_filter_bzip2(a);
 #endif
 #ifndef NO_GZIP_EXTRACT
-	archive_read_support_compression_gzip(a);
+	archive_read_support_filter_gzip(a);
 #endif
 #ifndef NO_COMPRESS_EXTRACT
-	archive_read_support_compression_compress(a);
+	archive_read_support_filter_compress(a);
 #endif
 #ifndef NO_TAR_EXTRACT
 	archive_read_support_format_tar(a);

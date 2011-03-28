@@ -267,7 +267,7 @@ tar_mode_r(struct bsdtar *bsdtar)
 		    "Cannot open %s", bsdtar->filename);
 
 	a = archive_read_new();
-	archive_read_support_compression_all(a);
+	archive_read_support_filter_all(a);
 	archive_read_support_format_tar(a);
 	archive_read_support_format_gnutar(a);
 	r = archive_read_open_fd(a, bsdtar->fd, 10240);
@@ -357,7 +357,7 @@ tar_mode_u(struct bsdtar *bsdtar)
 		    "Cannot open %s", bsdtar->filename);
 
 	a = archive_read_new();
-	archive_read_support_compression_all(a);
+	archive_read_support_filter_all(a);
 	archive_read_support_format_tar(a);
 	archive_read_support_format_gnutar(a);
 	if (archive_read_open_fd(a, bsdtar->fd, bsdtar->bytes_per_block)
@@ -560,7 +560,7 @@ append_archive_filename(struct bsdtar *bsdtar, struct archive *a,
 
 	ina = archive_read_new();
 	archive_read_support_format_all(ina);
-	archive_read_support_compression_all(ina);
+	archive_read_support_filter_all(ina);
 	if (archive_read_open_file(ina, filename, bsdtar->bytes_per_block)) {
 		lafe_warnc(0, "%s", archive_error_string(ina));
 		bsdtar->return_value = 1;

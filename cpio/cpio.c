@@ -835,7 +835,7 @@ mode_in(struct cpio *cpio)
 	a = archive_read_new();
 	if (a == NULL)
 		lafe_errc(1, 0, "Couldn't allocate archive object");
-	archive_read_support_compression_all(a);
+	archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
 
 	if (archive_read_open_file(a, cpio->filename, cpio->bytes_per_block))
@@ -940,7 +940,7 @@ mode_list(struct cpio *cpio)
 	a = archive_read_new();
 	if (a == NULL)
 		lafe_errc(1, 0, "Couldn't allocate archive object");
-	archive_read_support_compression_all(a);
+	archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
 
 	if (archive_read_open_file(a, cpio->filename, cpio->bytes_per_block))
