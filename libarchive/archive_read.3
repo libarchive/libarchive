@@ -29,18 +29,6 @@
 .Os
 .Sh NAME
 .Nm archive_read_new ,
-.Nm archive_read_next_header ,
-.Nm archive_read_next_header2 ,
-.Nm archive_read_data ,
-.Nm archive_read_data_block ,
-.Nm archive_read_data_skip ,
-.\" #if ARCHIVE_API_VERSION < 3
-.Nm archive_read_data_into_buffer ,
-.\" #endif
-.Nm archive_read_data_into_fd ,
-.Nm archive_read_extract ,
-.Nm archive_read_extract2 ,
-.Nm archive_read_extract_set_progress_callback ,
 .Nm archive_read_close ,
 .Nm archive_read_finish ,
 .Nm archive_read_free
@@ -49,45 +37,6 @@
 .In archive.h
 .Ft struct archive *
 .Fn archive_read_new "void"
-.Ft int
-.Fn archive_read_next_header "struct archive *" "struct archive_entry **"
-.Ft int
-.Fn archive_read_next_header2 "struct archive *" "struct archive_entry *"
-.Ft ssize_t
-.Fn archive_read_data "struct archive *" "void *buff" "size_t len"
-.Ft int
-.Fo archive_read_data_block
-.Fa "struct archive *"
-.Fa "const void **buff"
-.Fa "size_t *len"
-.Fa "off_t *offset"
-.Fc
-.Ft int
-.Fn archive_read_data_skip "struct archive *"
-.\" #if ARCHIVE_API_VERSION < 3
-.Ft int
-.Fn archive_read_data_into_buffer "struct archive *" "void *" "ssize_t len"
-.\" #endif
-.Ft int
-.Fn archive_read_data_into_fd "struct archive *" "int fd"
-.Ft int
-.Fo archive_read_extract
-.Fa "struct archive *"
-.Fa "struct archive_entry *"
-.Fa "int flags"
-.Fc
-.Ft int
-.Fo archive_read_extract2
-.Fa "struct archive *src"
-.Fa "struct archive_entry *"
-.Fa "struct archive *dest"
-.Fc
-.Ft void
-.Fo archive_read_extract_set_progress_callback
-.Fa "struct archive *"
-.Fa "void (*func)(void *)"
-.Fa "void *user_data"
-.Fc
 .Ft int
 .Fn archive_read_close "struct archive *"
 .Ft int
@@ -124,103 +73,8 @@ See
 .Xr archive_read_open 3 .
 .\"
 .Ss Consume archive
-.Bl -tag -compact -width indent
-.It Fn archive_read_next_header
-Read the header for the next entry and return a pointer to
-a
-.Tn struct archive_entry .
-This is a convenience wrapper around
-.Fn archive_read_next_header2
-that reuses an internal
-.Tn struct archive_entry
-object for each request.
-.It Fn archive_read_next_header2
-Read the header for the next entry and populate the provided
-.Tn struct archive_entry .
-.It Fn archive_read_data
-Read data associated with the header just read.
-Internally, this is a convenience function that calls
-.Fn archive_read_data_block
-and fills any gaps with nulls so that callers see a single
-continuous stream of data.
-.It Fn archive_read_data_block
-Return the next available block of data for this entry.
-Unlike
-.Fn archive_read_data ,
-the
-.Fn archive_read_data_block
-function avoids copying data and allows you to correctly handle
-sparse files, as supported by some archive formats.
-The library guarantees that offsets will increase and that blocks
-will not overlap.
-Note that the blocks returned from this function can be much larger
-than the block size read from disk, due to compression
-and internal buffer optimizations.
-.It Fn archive_read_data_skip
-A convenience function that repeatedly calls
-.Fn archive_read_data_block
-to skip all of the data for this archive entry.
-Note that this function is invoked automatically by
-.Fn archive_read_next_header2
-if the previous entry was not completely consumed.
-.\" #if ARCHIVE_API_VERSION < 3
-.It Fn archive_read_data_into_buffer
-This function is deprecated and will be removed.
-Use
-.Fn archive_read_data
-instead.
-.\" #endif
-.It Fn archive_read_data_into_fd
-A convenience function that repeatedly calls
-.Fn archive_read_data_block
-to copy the entire entry to the provided file descriptor.
-.It Fn archive_read_extract , Fn archive_read_extract_set_skip_file
-A convenience function that wraps the corresponding
-.Xr archive_write_disk 3
-interfaces.
-The first call to
-.Fn archive_read_extract
-creates a restore object using
-.Xr archive_write_disk_new 3
-and
-.Xr archive_write_disk_set_standard_lookup 3 ,
-then transparently invokes
-.Xr archive_write_disk_set_options 3 ,
-.Xr archive_write_header 3 ,
-.Xr archive_write_data 3 ,
-and
-.Xr archive_write_finish_entry 3
-to create the entry on disk and copy data into it.
-The
-.Va flags
-argument is passed unmodified to
-.Xr archive_write_disk_set_options 3 .
-.It Fn archive_read_extract2
-This is another version of
-.Fn archive_read_extract
-that allows you to provide your own restore object.
-In particular, this allows you to override the standard lookup functions
-using
-.Xr archive_write_disk_set_group_lookup 3 ,
-and
-.Xr archive_write_disk_set_user_lookup 3 .
-Note that
-.Fn archive_read_extract2
-does not accept a
-.Va flags
-argument; you should use
-.Fn archive_write_disk_set_options
-to set the restore options yourself.
-.It Fn archive_read_extract_set_progress_callback
-Sets a pointer to a user-defined callback that can be used
-for updating progress displays during extraction.
-The progress function will be invoked during the extraction of large
-regular files.
-The progress function will be invoked with the pointer provided to this call.
-Generally, the data pointed to should include a reference to the archive
-object and the archive_entry object so that various statistics
-can be retrieved for the progress display.
-.El
+See
+.Xr archive_read_data 3 .
 .\"
 .Ss Release resources
 .Bl -tag -compact -width indent
@@ -330,10 +184,6 @@ The possible return codes include:
 (the operation succeeded),
 .Cm ARCHIVE_WARN
 (the operation succeeded but a non-critical error was encountered),
-.Cm ARCHIVE_EOF
-(end-of-archive was encountered),
-.Cm ARCHIVE_RETRY
-(the operation failed but can be retried),
 and
 .Cm ARCHIVE_FATAL
 (there was a fatal error; the archive should be closed immediately).
@@ -350,35 +200,11 @@ object.
 It returns
 .Dv NULL
 on error.
-.Pp
-.Fn archive_read_data
-returns a count of bytes actually read or zero at the end of the entry.
-On error, a value of
-.Cm ARCHIVE_FATAL ,
-.Cm ARCHIVE_WARN ,
-or
-.Cm ARCHIVE_RETRY
-is returned and an error code and textual description can be retrieved from the
-.Fn archive_errno
-and
-.Fn archive_error_string
-functions.
-.Pp
-The library expects the client callbacks to behave similarly.
-If there is an error, you can use
-.Fn archive_set_error
-to set an appropriate error code and description,
-then return one of the non-zero values above.
-(Note that the value eventually returned to the client may
-not be the same; many errors that are not critical at the level
-of basic I/O can prevent the archive from being properly read,
-thus most I/O errors eventually cause
-.Cm ARCHIVE_FATAL
-to be returned.)
 .\" .Sh ERRORS
 .Sh SEE ALSO
 .Xr tar 1 ,
 .Xr libarchive 3 ,
+.Xr archive_read_data 3 ,
 .Xr archive_read_filter 3 ,
 .Xr archive_read_format 3 ,
 .Xr archive_read_set_options 3 ,
