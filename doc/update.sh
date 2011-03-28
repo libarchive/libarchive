@@ -65,6 +65,7 @@ echo $all >>Makefile
 cd ..
 
 # Build Makefile in 'html' directory
+test -d html || mkdir html
 cd html
 rm -f *.html
 echo > Makefile
@@ -82,6 +83,7 @@ echo $all >>Makefile
 cd ..
 
 # Build Makefile in 'wiki' directory
+test -d wiki || mkdir wiki
 cd wiki
 rm -f *.wiki
 echo > Makefile
