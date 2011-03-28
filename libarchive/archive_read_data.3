@@ -111,11 +111,6 @@ The possible return codes include:
 and
 .Cm ARCHIVE_FATAL
 (there was a fatal error; the archive should be closed immediately).
-Detailed error codes and textual descriptions are available from the
-.Fn archive_errno
-and
-.Fn archive_error_string
-functions.
 .Pp
 .Fn archive_read_data
 returns a count of bytes actually read or zero at the end of the entry.
@@ -124,12 +119,15 @@ On error, a value of
 .Cm ARCHIVE_WARN ,
 or
 .Cm ARCHIVE_RETRY
-is returned and an error code and textual description can be retrieved from the
+is returned.
+.\"
+.Sh ERRORS
+Detailed error codes and textual descriptions are available from the
 .Fn archive_errno
 and
 .Fn archive_error_string
 functions.
-.\" .Sh ERRORS
+.\"
 .Sh SEE ALSO
 .Xr tar 1 ,
 .Xr libarchive 3 ,

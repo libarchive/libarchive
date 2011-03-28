@@ -189,18 +189,6 @@ On failure, the callback should invoke
 to register an error code and message and
 return
 .Cm ARCHIVE_FATAL.
-.\" .Sh EXAMPLE
-.Sh RETURN VALUES
-These functions return
-.Cm ARCHIVE_OK
-on success, or
-.Cm ARCHIVE_FATAL .
-.Pp
-Detailed error codes and textual descriptions are available from the
-.Fn archive_errno
-and
-.Fn archive_error_string
-functions.
 .Pp
 Note that if the client-provided write callback function
 returns a non-zero value, that error will be propagated back to the caller
@@ -218,6 +206,20 @@ to provide values that can then be retrieved by
 .Fn archive_errno
 and
 .Fn archive_error_string .
+.\" .Sh EXAMPLE
+.Sh RETURN VALUES
+These functions return
+.Cm ARCHIVE_OK
+on success, or
+.Cm ARCHIVE_FATAL .
+.\"
+.Sh ERRORS
+Detailed error codes and textual descriptions are available from the
+.Fn archive_errno
+and
+.Fn archive_error_string
+functions.
+.\"
 .Sh SEE ALSO
 .Xr tar 1 ,
 .Xr libarchive 3 ,

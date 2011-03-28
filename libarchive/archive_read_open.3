@@ -211,25 +211,14 @@ These functions return
 .Cm ARCHIVE_OK
 on success, or
 .Cm ARCHIVE_FATAL .
-.Pp
+.\"
+.Sh ERRORS
 Detailed error codes and textual descriptions are available from the
 .Fn archive_errno
 and
 .Fn archive_error_string
 functions.
-.Pp
-The library expects the client callbacks to behave similarly.
-If there is an error, you can use
-.Fn archive_set_error
-to set an appropriate error code and description,
-then return one of the non-zero values above.
-(Note that the value eventually returned to the client may
-not be the same; many errors that are not critical at the level
-of basic I/O can prevent the archive from being properly read,
-thus most I/O errors eventually cause
-.Cm ARCHIVE_FATAL
-to be returned.)
-.\" .Sh ERRORS
+.\"
 .Sh SEE ALSO
 .Xr tar 1 ,
 .Xr libarchive 3 ,

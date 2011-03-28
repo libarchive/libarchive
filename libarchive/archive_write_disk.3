@@ -289,12 +289,6 @@ for operations that might succeed if retried,
 for unusual conditions that do not prevent further operations, and
 .Cm ARCHIVE_FATAL
 for serious errors that make remaining operations impossible.
-The
-.Fn archive_errno
-and
-.Fn archive_error_string
-functions can be used to retrieve an appropriate error code and a
-textual error message.
 .Pp
 .Fn archive_write_disk_new
 returns a pointer to a newly-allocated
@@ -302,12 +296,18 @@ returns a pointer to a newly-allocated
 object.
 .Pp
 .Fn archive_write_data
-returns a count of the number of bytes actually written.
-On error, -1 is returned and the
+returns a count of the number of bytes actually written,
+or
+.Li -1
+on error.
+.\"
+.Sh ERRORS
+Detailed error codes and textual descriptions are available from the
 .Fn archive_errno
 and
 .Fn archive_error_string
-functions will return appropriate values.
+functions.
+.\"
 .Sh SEE ALSO
 .Xr archive_read 3 ,
 .Xr archive_write 3 ,

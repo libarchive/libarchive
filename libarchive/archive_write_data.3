@@ -42,12 +42,14 @@ Write data corresponding to the header just written.
 This function returns the number of bytes actually written, or
 .Li -1
 on error.
-.Pp
+.\"
+.Sh ERRORS
 Detailed error codes and textual descriptions are available from the
 .Fn archive_errno
 and
 .Fn archive_error_string
 functions.
+.\"
 .Sh SEE ALSO
 .Xr tar 1 ,
 .Xr libarchive 3 ,

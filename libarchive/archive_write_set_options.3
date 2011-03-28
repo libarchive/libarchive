@@ -412,6 +412,14 @@ archive_write_set_format_iso9660(a);
 archive_write_set_options(a, "boot=kernel.img,compression=9");
 archive_write_open_filename(a, filename, blocksize);
 .Ed
+.\"
+.Sh ERRORS
+Detailed error codes and textual descriptions are available from the
+.Fn archive_errno
+and
+.Fn archive_error_string
+functions.
+.\"
 .Sh SEE ALSO
 .Xr tar 1 ,
 .Xr libarchive 3 ,
