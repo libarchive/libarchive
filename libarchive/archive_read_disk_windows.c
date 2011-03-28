@@ -174,6 +174,7 @@ struct tree {
 	size_t			 full_path_dir_length;
 	/* Dynamically-sized buffer for holding path */
 	struct archive_wstring	 path;
+	struct archive_string	 temp;
 
 	/* Last path element */
 	const wchar_t		*basename;
@@ -684,8 +685,6 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	struct tree *t;
 	const BY_HANDLE_FILE_INFORMATION *st;
 	const BY_HANDLE_FILE_INFORMATION *lst;
-	DWORD l;
-	char *mb;
 	const wchar_t *wp;
 	int descend, r;
 
@@ -772,25 +771,10 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	archive_entry_copy_pathname_w(entry, tree_current_path(t));
 	// TODO: create and use archive_entry_copy_sourcepath_w
 	wp = tree_current_access_path(t);
-	l = WideCharToMultiByte(CP_ACP, 0, wp, wcslen(wp),
-	    NULL, 0, NULL, NULL);
-	if (l == 0) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "WideCharToMultiByte failed");
-		return (ARCHIVE_FAILED);
-	}
-	mb = malloc(l+1);
-	if (mb == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Couldn't allocate memory");
-		a->archive.state = ARCHIVE_STATE_FATAL;
-		return (ARCHIVE_FATAL);
-	}
-	l = WideCharToMultiByte(CP_ACP, 0, wp, wcslen(wp),
-	    mb, l+1, NULL, NULL);
-	mb[l] = '\0';
-	archive_entry_copy_sourcepath(entry, mb);
-	free(mb);
+	archive_string_empty(&(t->temp));
+	archive_string_append_from_unicode_to_mbs(&(a->archive),
+	    &(t->temp), wp, wcslen(wp));
+	archive_entry_copy_sourcepath(entry, t->temp.s);
 	tree_archive_entry_copy_bhfi(entry, t, st);
 
 	/* Save the times to be restored. */
@@ -1230,6 +1214,7 @@ tree_open(const char *path, int symlink_mode, int restore_time)
 	archive_string_init(&(t->full_path));
 	archive_string_init(&t->path);
 	archive_wstring_ensure(&t->path, 15);
+	archive_string_init(&t->temp);
 	t->initial_symlink_mode = symlink_mode;
 	return (tree_reopen(t, path, restore_time));
 }
@@ -1237,8 +1222,8 @@ tree_open(const char *path, int symlink_mode, int restore_time)
 static struct tree *
 tree_reopen(struct tree *t, const char *path, int restore_time)
 {
+	struct archive_wstring ws;
 	wchar_t *pathname, *p, *base;
-	DWORD l;
 
 	t->flags = (restore_time)?needsRestoreTimes:0;
 	t->visit_type = 0;
@@ -1254,14 +1239,11 @@ tree_reopen(struct tree *t, const char *path, int restore_time)
 	archive_string_empty(&t->path);
 
 	/* Get wchar_t strings from char strings. */
-	l = MultiByteToWideChar(CP_ACP, 0, path, (int)strlen(path), NULL, 0);
-	if (l == 0)
+	archive_string_init(&ws);
+	if (archive_wstring_append_from_mbs(NULL, &ws,
+	    path, strlen(path)) != 0)
 		goto failed;
-	pathname = malloc((l+1) * sizeof(wchar_t));
-	if (pathname == NULL)
-		goto failed;
-	l = MultiByteToWideChar(CP_ACP, 0, path, (int)strlen(path), pathname, l);
-	pathname[l] = L'\0';
+	pathname = ws.s;
 
 	/* Convert path separators from '\' to '/' */
 	for (p = pathname; *p != L'\0'; ++p) {
@@ -1271,10 +1253,8 @@ tree_reopen(struct tree *t, const char *path, int restore_time)
 	base = pathname;
 
 	p = __la_win_permissive_name(path);
-	if (p == NULL) {
-		free(pathname);
+	if (p == NULL)
 		goto failed;
-	}
 	archive_wstrcpy(&(t->full_path), p);
 	free(p);
 	/* First item is set up a lot like a symlink traversal. */
@@ -1298,10 +1278,11 @@ tree_reopen(struct tree *t, const char *path, int restore_time)
 		}
 	}
 	tree_push(t, base, t->full_path.s, 0, 0, 0, NULL);
-	free(pathname);
+	archive_wstring_free(&ws);
 	t->stack->flags = needsFirstVisit;
 	return (t);
 failed:
+	archive_wstring_free(&ws);
 	tree_free(t);
 	return (NULL);
 }
@@ -1717,6 +1698,7 @@ tree_free(struct tree *t)
 		return;
 	archive_wstring_free(&t->path);
 	archive_wstring_free(&t->full_path);
+	archive_string_free(&t->temp);
 	free(t->sparse_list);
 	free(t->filesystem_table);
 	free(t);
