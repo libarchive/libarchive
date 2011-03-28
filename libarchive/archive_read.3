@@ -28,15 +28,12 @@
 .Dt archive_read 3
 .Os
 .Sh NAME
-.Nm archive_read_new ,
 .Nm archive_read_close ,
 .Nm archive_read_finish ,
 .Nm archive_read_free
 .Nd functions for reading streaming archives
 .Sh SYNOPSIS
 .In archive.h
-.Ft struct archive *
-.Fn archive_read_new "void"
 .Ft int
 .Fn archive_read_close "struct archive *"
 .Ft int
@@ -52,12 +49,9 @@ headers and associated data, then close the archive and release all
 resources.
 .\"
 .Ss Create archive object
-.Bl -tag -compact -width indent
-.It Fn archive_read_new
-Allocates and initializes a
-.Tn struct archive
-object suitable for reading from an archive.
-.El
+See
+.Xr archive_read_new 3 .
+.\"
 .Ss Enable filters and formats
 See
 .Xr archive_read_filter 3
@@ -192,14 +186,6 @@ Detailed error codes and textual descriptions are available from the
 and
 .Fn archive_error_string
 functions.
-.Pp
-.Fn archive_read_new
-returns a pointer to a freshly allocated
-.Tn struct archive
-object.
-It returns
-.Dv NULL
-on error.
 .\" .Sh ERRORS
 .Sh SEE ALSO
 .Xr tar 1 ,
