@@ -6,6 +6,7 @@
 #
 
 # Collect list of man pages, relative to my subdirs
+test -d man || mkdir man
 cd man
 MANPAGES=`for d in libarchive tar cpio;do ls ../../$d/*.[135];done | grep -v '\.so\.'`
 cd ..
@@ -28,6 +29,7 @@ echo $all >>Makefile
 cd ..
 
 # Rebuild Makefile in 'text' directory
+test -d text || mkdir text
 cd text
 rm -f *.txt
 echo > Makefile
@@ -45,6 +47,7 @@ echo $all >>Makefile
 cd ..
 
 # Rebuild Makefile in 'pdf' directory
+test -d pdf || mkdir pdf
 cd pdf
 rm -f *.pdf
 echo > Makefile
