@@ -28,6 +28,7 @@
 .Dt archive_write 3
 .Os
 .Sh NAME
+.Nm archive_write
 .Nd functions for creating archives
 .Sh SYNOPSIS
 .In archive.h
@@ -72,70 +73,6 @@ More information about the
 object and the overall design of the library can be found in the
 .Xr libarchive 3
 overview.
-.Sh IMPLEMENTATION
-Compression support is built-in to libarchive, which uses zlib and bzlib
-to handle gzip and bzip2 compression, respectively.
-.Sh CLIENT CALLBACKS
-To use this library, you will need to define and register
-callback functions that will be invoked to write data to the
-resulting archive.
-These functions are registered by calling
-.Fn archive_write_open :
-.Bl -item -offset indent
-.It
-.Ft typedef int
-.Fn archive_open_callback "struct archive *" "void *client_data"
-.El
-.Pp
-The open callback is invoked by
-.Fn archive_write_open .
-It should return
-.Cm ARCHIVE_OK
-if the underlying file or data source is successfully
-opened.
-If the open fails, it should call
-.Fn archive_set_error
-to register an error code and message and return
-.Cm ARCHIVE_FATAL .
-.Bl -item -offset indent
-.It
-.Ft typedef ssize_t
-.Fo archive_write_callback
-.Fa "struct archive *"
-.Fa "void *client_data"
-.Fa "const void *buffer"
-.Fa "size_t length"
-.Fc
-.El
-.Pp
-The write callback is invoked whenever the library
-needs to write raw bytes to the archive.
-For correct blocking, each call to the write callback function
-should translate into a single
-.Xr write 2
-system call.
-This is especially critical when writing archives to tape drives.
-On success, the write callback should return the
-number of bytes actually written.
-On error, the callback should invoke
-.Fn archive_set_error
-to register an error code and message and return -1.
-.Bl -item -offset indent
-.It
-.Ft typedef int
-.Fn archive_close_callback "struct archive *" "void *client_data"
-.El
-.Pp
-The close callback is invoked by archive_close when
-the archive processing is complete.
-The callback should return
-.Cm ARCHIVE_OK
-on success.
-On failure, the callback should invoke
-.Fn archive_set_error
-to register an error code and message and
-return
-.Cm ARCHIVE_FATAL.
 .Sh EXAMPLE
 The following sketch illustrates basic usage of the library.
 In this example,
@@ -236,40 +173,6 @@ int main(int argc, const char **argv)
 	return 0;
 }
 .Ed
-.Sh RETURN VALUES
-Most functions return
-.Cm ARCHIVE_OK
-(zero) on success, or one of several non-zero
-error codes for errors.
-Specific error codes include:
-.Cm ARCHIVE_RETRY
-for operations that might succeed if retried,
-.Cm ARCHIVE_WARN
-for unusual conditions that do not prevent further operations, and
-.Cm ARCHIVE_FATAL
-for serious errors that make remaining operations impossible.
-The
-.Fn archive_errno
-and
-.Fn archive_error_string
-functions can be used to retrieve an appropriate error code and a
-textual error message.
-Note that if the client-provided write callback function
-returns a non-zero value, that error will be propagated back to the caller
-through whatever API function resulted in that call, which
-may include
-.Fn archive_write_header ,
-.Fn archive_write_data ,
-.Fn archive_write_close ,
-.Fn archive_write_finish ,
-or
-.Fn archive_write_free .
-The client callback can call
-.Fn archive_set_error
-to provide values that can then be retrieved by
-.Fn archive_errno
-and
-.Fn archive_error_string .
 .Sh SEE ALSO
 .Xr tar 1 ,
 .Xr libarchive 3 ,
