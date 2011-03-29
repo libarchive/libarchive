@@ -1677,22 +1677,31 @@ cleanup_pathname_win(struct archive_write_disk *a)
 	wchar_t wc;
 	char *p;
 	size_t alen, l;
+	int mb, dos;
 
 	alen = 0;
-	l = 0;
+	mb = dos = 0;
 	for (p = a->name; *p != '\0'; p++) {
 		++alen;
-		if (*p == '\\')
-			l = 1;
+		if (*(unsigned char *)p > 127)
+			mb = 1;
+		if (*p == '\\') {
+			/* If we have not met any multi-byte characters,
+			 * we can replace '\' with '/'. */
+			if (!mb)
+				*p = '/';
+			dos = 1;
+		}
 		/* Rewrite the path name if its character is a unusable. */
 		if (*p == ':' || *p == '*' || *p == '?' || *p == '"' ||
 		    *p == '<' || *p == '>' || *p == '|')
 			*p = '_';
 	}
-	if (alen == 0 || l == 0)
+	if (!mb || !dos)
 		return;
+
 	/*
-	 * Convert path separator.
+	 * Convert path separator in wide-character.
 	 */
 	p = a->name;
 	while (*p != '\0' && alen) {

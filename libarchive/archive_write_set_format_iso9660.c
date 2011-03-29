@@ -4500,29 +4500,49 @@ isofile_free(struct isofile *file)
 
 #if defined(_WIN32) || defined(__CYGWIN__)
 static void
-cleanup_backslash(char *p, size_t len)
+cleanup_backslash(char *_p, size_t len)
 {
 	wchar_t wc;
 	size_t l;
 	mbstate_t ps;
+	char *p;
+	int mb, dos;
+
+	p = _p;
+	mb = dos = 0;
+	while (*p) {
+		if (*(unsigned char *)p > 127)
+			mb = 1;
+		if (*p == '\\') {
+			/* If we have not met any multi-byte characters,
+			 * we can replace '\' with '/'. */
+			if (!mb)
+				*p = '/';
+			dos = 1;
+		}
+		p++;
+	}
+	if (!mb || !dos)
+		return;
 
 	/* Convert a path-separator from '\' to  '/' */
 	memset(&ps, 0, sizeof(ps));
-        while (*p != '\0' && len) {
-                l = mbrtowc(&wc, p, len, &ps);
-                if (l == -1) {
-                        while (*p != '\0') {
-                                if (*p == '\\')
-                                        *p = '/';
-                                ++p;
-                        }
-                        break;
-                }
-                if (l == 1 && wc == L'\\')
-                        *p = '/';
-                p += l;
-                len -= l;
-        }
+	p = _p;
+	while (*p != '\0' && len) {
+		l = mbrtowc(&wc, p, len, &ps);
+		if (l == -1) {
+			while (*p != '\0') {
+				if (*p == '\\')
+					*p = '/';
+				++p;
+			}
+			break;
+		}
+		if (l == 1 && wc == L'\\')
+			*p = '/';
+		p += l;
+		len -= l;
+	}
 }
 #else
 #define cleanup_backslash(p, len)	/* nop */
