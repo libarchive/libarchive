@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009,2010 Michihiro NAKAJIMA
+ * Copyright (c) 2009-2011 Michihiro NAKAJIMA
  * Copyright (c) 2003-2006 Tim Kientzle
  * All rights reserved.
  *
@@ -259,21 +259,9 @@
 
 #if __USE_LARGEFILE && __USE_FILE_OFFSET64
 /* replace stat and seek by their large-file equivalents */
-#undef	stat
-#define	stat		_stati64
-
-#undef	lseek
-#define	lseek       _lseeki64
-#define	lseek64     _lseeki64
-#define	tell        _telli64
-#define	tell64      _telli64
-
 #ifdef __MINGW32__
 # define fseek      fseeko64
 # define fseeko     fseeko64
-# define ftell      ftello64
-# define ftello     ftello64
-# define ftell64    ftello64
 #endif /* __MINGW32__ */
 #endif /* LARGE_FILES */
 
