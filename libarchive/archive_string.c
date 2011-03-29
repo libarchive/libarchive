@@ -1065,32 +1065,40 @@ strncat_in_codepage(struct archive_string *as,
 	return (defchar?-1:0);
 }
 
-#endif /* defined(_WIN32) && !defined(__CYGWIN__) */
-
 /*
- * Test that MBS consists of ASCII code only.
+ * Test whether MBS ==> WCS is okay.
  */
 static int
-is_all_ascii_code(struct archive_string *as)
+invalid_mbs(const void *_p, size_t n, struct archive_string_conv *sc)
 {
-	size_t i;
+	const char *p = (const char *)_p;
+	unsigned codepage;
+	DWORD mbflag = MB_ERR_INVALID_CHARS;
 
-	for (i = 0; i < as->length; i++)
-		if (((unsigned char)as->s[i]) > 0x7f)
-			return (0);
-	/* It seems the string we have checked is all ASCII code. */
-	return (1);
+	if (sc->flag & SCONV_FROM_CHARSET)
+		codepage = sc->to_cp;
+	else
+		codepage = sc->from_cp;
+	if (codepage != CP_UTF8)
+		mbflag |= MB_PRECOMPOSED;
+
+	if (MultiByteToWideChar(codepage, mbflag, p, n, NULL, 0) == 0)
+		return (-1); /* Invalid */
+	return (0); /* Okay */
 }
 
+#else
+
 /*
- * Test that MBS ==> WCS is okay.
+ * Test whether MBS ==> WCS is okay.
  */
 static int
-invalid_mbs(const void *_p, size_t n)
+invalid_mbs(const void *_p, size_t n, struct archive_string_conv *sc)
 {
 	const char *p = (const char *)_p;
 	size_t r;
 
+	(void)sc; /* UNUSED */
 #if HAVE_MBRTOWC
 	mbstate_t shift_state;
 
@@ -1117,6 +1125,23 @@ invalid_mbs(const void *_p, size_t n)
 	return (0); /* All Okey. */
 }
 
+#endif /* defined(_WIN32) && !defined(__CYGWIN__) */
+
+/*
+ * Test that MBS consists of ASCII code only.
+ */
+static int
+is_all_ascii_code(struct archive_string *as)
+{
+	size_t i;
+
+	for (i = 0; i < as->length; i++)
+		if (((unsigned char)as->s[i]) > 0x7f)
+			return (0);
+	/* It seems the string we have checked is all ASCII code. */
+	return (1);
+}
+
 /*
  * Basically returns -1 because we cannot make a conversion of charset.
  * Returns 0 if sc is NULL.
@@ -1133,7 +1158,7 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p, size_t 
 #endif
 	archive_string_append(as, _p, length);
 	/* If charset is NULL, just make a copy, so return 0 as success. */
-	if (sc == NULL || (sc->same && invalid_mbs(_p, n) == 0))
+	if (sc == NULL || (sc->same && invalid_mbs(_p, n, sc) == 0))
 		return (0);
 	if (is_all_ascii_code(as))
 		return (0);
