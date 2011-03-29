@@ -1577,11 +1577,9 @@ static int
 strncpy_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
     struct archive_string_conv *sc)
 {
-	const char *utf16 = (const char *)_p;
+	const char *utf16;
 	char *mbs;
-	int ret = 0;
-
-	(void)sc; /* UNUSED */
+	int ret;
 
 	archive_string_empty(as);
 
@@ -1589,7 +1587,7 @@ strncpy_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
 	 * If the current locale is UTF-8, we can translate a UTF-16BE
 	 * string into a UTF-8 string.
 	 */
-	if (strcmp(default_iconv_charset(NULL), "UTF-8") == 0)
+	if (strcmp(sc->to_charset, "UTF-8") == 0)
 		return (string_append_from_utf16be_to_utf8(as, utf16, bytes));
 
 	/*
@@ -1597,6 +1595,8 @@ strncpy_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
 	 * If all character are ASCII(<0x7f), we can convert it.
 	 * if not , we set a alternative character and return -1.
 	 */
+	ret = 0;
+	utf16 = (const char *)_p;
 	bytes &= ~1;
 	archive_string_ensure(as, bytes+1);
 	mbs = as->s;
@@ -1624,12 +1624,10 @@ static int
 strncpy_to_utf16be(struct archive_string *a16be, const void *_p, size_t length,
     struct archive_string_conv *sc)
 {
-	const char *s = (const char *)_p;
+	const char *s;
 	char *utf16;
-	size_t remaining = length;
-	int ret = 0;
-
-	(void)sc; /* UNUSED */
+	size_t remaining;
+	int ret;
 
 	archive_string_empty(a16be);
 
@@ -1637,7 +1635,7 @@ strncpy_to_utf16be(struct archive_string *a16be, const void *_p, size_t length,
 	 * If the current locale is UTF-8, we can translate a UTF-8
 	 * string into a UTF-16BE string.
 	 */
-	if (strcmp(default_iconv_charset(NULL), "UTF-8") == 0)
+	if (strcmp(sc->from_charset, "UTF-8") == 0)
 		return (string_append_from_utf8_to_utf16be(a16be, s, length));
 
 	/*
@@ -1645,6 +1643,9 @@ strncpy_to_utf16be(struct archive_string *a16be, const void *_p, size_t length,
 	 * If all character are ASCII(<0x7f), we can convert it.
 	 * if not , we set a alternative character and return -1.
 	 */
+	ret = 0;
+	s = (const char *)_p;
+	remaining = length;
 	archive_string_ensure(a16be, (length + 1) * 2);
 	utf16 = a16be->s;
 	while (remaining--) {
