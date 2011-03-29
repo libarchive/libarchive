@@ -249,24 +249,6 @@
 #endif
 
 
-#ifdef _LARGEFILE_SOURCE
-# define __USE_LARGEFILE 1		/* declare fseeko and ftello */
-#endif
-
-#if defined _FILE_OFFSET_BITS && _FILE_OFFSET_BITS == 64
-# define __USE_FILE_OFFSET64  1	/* replace 32-bit functions by 64-bit ones */
-#endif
-
-#if __USE_LARGEFILE && __USE_FILE_OFFSET64
-/* replace stat and seek by their large-file equivalents */
-#ifdef __MINGW32__
-# define fseek      fseeko64
-# define fseeko     fseeko64
-#endif /* __MINGW32__ */
-#endif /* LARGE_FILES */
-
-/* End of Win32 definitions. */
-
 /* Tell libarchive code that we have simulations for these. */
 #ifndef HAVE_FTRUNCATE
 #define HAVE_FTRUNCATE 1

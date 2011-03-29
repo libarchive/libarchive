@@ -121,6 +121,8 @@ file_skip(struct archive *a, void *client_data, int64_t request)
 	struct read_FILE_data *mine = (struct read_FILE_data *)client_data;
 #if HAVE_FSEEKO
 	off_t skip = (off_t)request;
+#elif HAVE__FSEEKI64
+	int64_t skip = request;
 #else
 	long skip = (long)request;
 #endif
@@ -147,6 +149,8 @@ file_skip(struct archive *a, void *client_data, int64_t request)
 
 #if HAVE_FSEEKO
 	if (fseeko(mine->f, skip, SEEK_CUR) != 0)
+#elif HAVE__FSEEKI64
+	if (_fseeki64(mine->f, skip, SEEK_CUR) != 0)
 #else
 	if (fseek(mine->f, skip, SEEK_CUR) != 0)
 #endif
