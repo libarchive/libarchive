@@ -1954,11 +1954,11 @@ file_add_child_tail(struct file *parent, struct file *child)
 static struct file *
 file_find_child(struct file *parent, const char *child_name)
 {
-        struct file *np;
+	struct file *np;
 
-        np = (struct file *)__archive_rb_tree_find_node(
-            &(parent->rbtree), child_name);
-        return (np);
+	np = (struct file *)__archive_rb_tree_find_node(
+	    &(parent->rbtree), child_name);
+	return (np);
 }
 
 #if defined(_WIN32) || defined(__CYGWIN__)
@@ -1967,12 +1967,12 @@ cleanup_backslash(char *utf8, size_t len)
 {
 
 	/* Convert a path-separator from '\' to  '/' */
-        while (*utf8 != '\0' && len) {
-                if (*utf8 == '\\')
-                        *utf8 = '/';
+	while (*utf8 != '\0' && len) {
+		if (*utf8 == '\\')
+			*utf8 = '/';
 		++utf8;
-                --len;
-        }
+		--len;
+	}
 }
 #else
 #define cleanup_backslash(p, len)	/* nop */
