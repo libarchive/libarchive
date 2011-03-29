@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_string.c 201095 2009-12-28 02:33
 #endif
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #include <windows.h>
+#include <locale.h>
 #endif
 
 #include "archive_endian.h"
@@ -86,6 +87,18 @@ struct archive_string_conv {
 #endif
 };
 
+static struct archive_string_conv *find_sconv_object(struct archive *,
+	const char *, const char *);
+static void add_sconv_object(struct archive *, struct archive_string_conv *);
+static struct archive_string_conv *create_sconv_object(const char *,
+	const char *, unsigned, int);
+static void free_sconv_object(struct archive_string_conv *);
+static struct archive_string_conv *get_sconv_object(struct archive *,
+	const char *, const char *, int);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+static unsigned make_codepage_from_charset(const char *);
+static unsigned get_current_codepage();
+#endif
 static int strncpy_from_utf16be(struct archive_string *, const void *, size_t,
     struct archive_string_conv *);
 static int strncpy_to_utf16be(struct archive_string *, const void *, size_t,
@@ -319,7 +332,7 @@ archive_wstring_append_from_mbs(struct archive *a,
 		__archive_errx(1,
 		    "No memory for archive_wstring_append_from_mbs()");
 
-	r = MultiByteToWideChar(CP_OEMCP, 0,
+	r = MultiByteToWideChar(get_current_codepage(), 0,
 	    p, (int)len, dest->s + dest->length, (int)wcs_length);
 	if (r > 0) {
 		dest->length += r;
@@ -427,9 +440,10 @@ archive_string_append_from_unicode_to_mbs(struct archive *a,
 	 * the my_wcstombs() which is running on non Windows system with
 	 * wctomb().
 	 * And to set NULL for last argument is necessary when a codepage
-	 * is not CP_OEMCP(current locale).
+	 * is not current locale.
 	 */
-	l = WideCharToMultiByte(CP_OEMCP, 0, w, len, p, l, NULL, &useDefaultChar);
+	l = WideCharToMultiByte(get_current_codepage(), 0,
+	    w, len, p, l, NULL, &useDefaultChar);
 	if (l == 0) {
 		free(p);
 		return (-1);
@@ -542,7 +556,8 @@ add_sconv_object(struct archive *a, struct archive_string_conv *sc)
 }
 
 static struct archive_string_conv *
-create_sconv_object(const char *fc, const char *tc, int flag)
+create_sconv_object(const char *fc, const char *tc,
+    unsigned current_codepage, int flag)
 {
 	struct archive_string_conv *sc; 
 
@@ -561,6 +576,16 @@ create_sconv_object(const char *fc, const char *tc, int flag)
 	sc->cd = iconv_open(tc, fc);
 #endif
 	sc->flag = flag;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	if (flag & SCONV_TO_CHARSET) {
+		sc->from_cp = current_codepage;
+		sc->to_cp = make_codepage_from_charset(tc);
+	} else if (flag & SCONV_FROM_CHARSET) {
+		sc->to_cp = current_codepage;
+		sc->from_cp = make_codepage_from_charset(fc);
+	}
+#endif
+
 	return (sc);
 }
 
@@ -714,18 +739,41 @@ make_codepage_from_charset(const char *charset)
 	free(cs);
 	return (cp);
 }
-#endif
+
+/*
+ * Return the current codepage.
+ */
+static unsigned
+get_current_codepage()
+{
+	unsigned codepage;
+
+	_locale_t locale = _get_current_locale();
+	codepage = locale->locinfo->lc_codepage;
+	_free_locale(locale);
+	return (codepage);
+}
+#endif /* defined(_WIN32) && !defined(__CYGWIN__) */
 
 static struct archive_string_conv *
 get_sconv_object(struct archive *a, const char *fc, const char *tc, int flag)
 {
-	struct archive_string_conv *sc; 
+	struct archive_string_conv *sc;
+	unsigned current_codepage;
 
 	sc = find_sconv_object(a, fc, tc);
 	if (sc != NULL)
 		return (sc);
 
-	sc = create_sconv_object(fc, tc, flag);
+	if (a == NULL)
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		current_codepage = get_current_codepage();
+#else
+		current_codepage = -1;
+#endif
+	else
+		current_codepage = a->current_codepage;
+	sc = create_sconv_object(fc, tc, current_codepage, flag);
 #if HAVE_ICONV
 	if (sc->cd == (iconv_t)-1 && (flag & SCONV_BEST_EFFORT) == 0) {
 		free_sconv_object(sc);
@@ -742,11 +790,6 @@ get_sconv_object(struct archive *a, const char *fc, const char *tc, int flag)
 	 * UTF-8 and UTF-16BE.
 	 */
 	if (flag & SCONV_TO_CHARSET) {
-		if (a != NULL)
-			sc->from_cp = a->current_codepage;
-		else
-			sc->from_cp = GetOEMCP();
-		sc->to_cp = make_codepage_from_charset(tc);
 		if (sc->to_cp == CP_UTF16BE) {
 			sc->flag |= SCONV_UTF16BE;
 			if (a != NULL)
@@ -762,11 +805,6 @@ get_sconv_object(struct archive *a, const char *fc, const char *tc, int flag)
 			return (sc);
 		}
 	} else if (flag & SCONV_FROM_CHARSET) {
-		if (a != NULL)
-			sc->to_cp = a->current_codepage;
-		else
-			sc->to_cp = GetOEMCP();
-		sc->from_cp = make_codepage_from_charset(fc);
 		if (sc->from_cp == CP_UTF16BE) {
 			sc->flag |= SCONV_UTF16BE;
 			if (a != NULL)
@@ -812,7 +850,7 @@ get_current_charset(struct archive *a)
 		if (a->current_code == NULL) {
 			a->current_code = strdup(cur_charset);
 #if defined(_WIN32) && !defined(__CYGWIN__)
-			a->current_codepage = GetOEMCP();
+			a->current_codepage = get_current_codepage();
 #endif
 		}
 	}
@@ -1189,7 +1227,6 @@ strncpy_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
 	size_t mbs_size;
 	int ret = 0;
 
-	(void)sc; /* UNUSED */
 	archive_string_empty(as);
 	bytes &= ~1;
 	archive_string_ensure(as, bytes+1);
@@ -1197,7 +1234,7 @@ strncpy_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
 	mbs_size = as->buffer_length-1;
 	while (bytes) {
 		uint16_t val = archive_be16dec(utf16);
-		ll = WideCharToMultiByte(CP_OEMCP, 0,
+		ll = WideCharToMultiByte(sc->to_cp, 0,
 		    (LPCWSTR)&val, 1, mbs, mbs_size,
 			NULL, &defchar);
 		if (ll == 0) {
@@ -1234,17 +1271,16 @@ strncpy_to_utf16be(struct archive_string *a16be, const void *_p, size_t length,
 	const char *s = (const char *)_p;
 	size_t count;
 
-	(void)sc; /* UNUSED */
 	archive_string_ensure(a16be, (length + 1) * 2);
 	archive_string_empty(a16be);
 	do {
-		count = MultiByteToWideChar(CP_OEMCP,
+		count = MultiByteToWideChar(sc->from_cp,
 		    MB_PRECOMPOSED, s, length,
 		    (LPWSTR)a16be->s, (int)a16be->buffer_length - 2);
 		if (count == 0 &&
 		    GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
 			/* Need more buffer for UTF-16 string */
-			count = MultiByteToWideChar(CP_OEMCP,
+			count = MultiByteToWideChar(sc->from_cp,
 			    MB_PRECOMPOSED, s, length, NULL, 0);
 			archive_string_ensure(a16be, (count +1) * 2);
 			continue;

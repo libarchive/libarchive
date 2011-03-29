@@ -56,6 +56,7 @@
 #include <sys/utime.h>
 #endif
 #include <sys/stat.h>
+#include <locale.h>
 #include <process.h>
 #include <stdlib.h>
 #include <wchar.h>
@@ -116,6 +117,17 @@ getino(struct ustat *ub)
 	return (ino64.LowPart ^ (ino64.LowPart >> INOSIZE));
 }
 
+static unsigned
+get_current_codepage()
+{
+	unsigned codepage;
+
+	_locale_t locale = _get_current_locale();
+	codepage = locale->locinfo->lc_codepage;
+	_free_locale(locale);
+	return (codepage);
+}
+
 /*
  * Prepend "\\?\" to the path name and convert it to unicode to permit
  * an extended-length path for a maximum total path length of 32767
@@ -134,7 +146,8 @@ __la_win_permissive_name(const char *name)
 	wn = malloc((len + 1) * sizeof(wchar_t));
 	if (wn == NULL)
 		return (NULL);
-	l = MultiByteToWideChar(CP_ACP, 0, name, (int)len, wn, (int)len);
+	l = MultiByteToWideChar(get_current_codepage(), 0,
+	    name, (int)len, wn, (int)len);
 	if (l == 0) {
 		free(wn);
 		return (NULL);
@@ -334,7 +347,8 @@ __la_link(const char *src, const char *dst)
 		/* Converting a multi-byte src to a wide-char src */
 		wlen = (int)wcslen(wsrc);
 		slen = (int)strlen(src);
-		n = MultiByteToWideChar(CP_ACP, 0, src, slen, wsrc, wlen);
+		n = MultiByteToWideChar(get_current_codepage(), 0,
+		    src, slen, wsrc, wlen);
 		if (n == 0) {
 			free (wnewsrc);
 			retval = -1;
