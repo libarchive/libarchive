@@ -1100,14 +1100,14 @@ assertion_file_time(const char *file, int line,
 		time_t now = time(NULL);
 		if (filet < now - 10 || filet > now + 1) {
 			failure_start(file, line,
-			    "File %s has %ctime %ld, %ld seconds ago\n",
+			    "File %s has %ctime %lld, %lld seconds ago\n",
 			    pathname, type, filet, now - filet);
 			failure_finish(NULL);
 			return (0);
 		}
 	} else if (filet != t || filet_nsec != nsec) {
 		failure_start(file, line,
-		    "File %s has %ctime %ld.%09ld, expected %ld.%09ld",
+		    "File %s has %ctime %lld.%09lld, expected %lld.%09lld",
 		    pathname, type, filet, filet_nsec, t, nsec);
 		failure_finish(NULL);
 		return (0);
