@@ -212,9 +212,12 @@ archive_read_open2(struct archive *_a, void *client_data,
 	    "archive_read_open");
 	archive_clear_error(&a->archive);
 
-	if (client_reader == NULL)
-		__archive_errx(1,
+	if (client_reader == NULL) {
+		archive_set_error(&a->archive, EINVAL,
 		    "No reader function provided to archive_read_open");
+		a->archive.state = ARCHIVE_STATE_FATAL;
+		return (ARCHIVE_FATAL);
+	}
 
 	/* Open data source. */
 	if (client_opener != NULL) {
@@ -437,10 +440,11 @@ choose_format(struct archive_read *a)
 	 * There were no bidders; this is a serious programmer error
 	 * and demands a quick and definitive abort.
 	 */
-	if (best_bid_slot < 0)
-		__archive_errx(1, "No formats were registered; you must "
-		    "invoke at least one archive_read_support_format_XXX "
-		    "function in order to successfully read an archive.");
+	if (best_bid_slot < 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "No formats registered");
+		return (ARCHIVE_FATAL);
+	}
 
 	/*
 	 * There were bidders, but no non-zero bids; this means we
