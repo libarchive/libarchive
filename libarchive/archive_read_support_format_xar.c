@@ -389,9 +389,9 @@ static uint64_t	atol10(const char *, size_t);
 static int64_t	atol8(const char *, size_t);
 static size_t	atohex(unsigned char *, size_t, const char *, size_t);
 static time_t	parse_time(const char *p, size_t n);
-static void	heap_add_entry(struct heap_queue *, struct xar_file *);
+static int	heap_add_entry(struct heap_queue *, struct xar_file *);
 static struct xar_file *heap_get_entry(struct heap_queue *);
-static void	add_link(struct xar *, struct xar_file *);
+static int	add_link(struct xar *, struct xar_file *);
 static void	checksum_init(struct archive_read *, int, int);
 static void	checksum_update(struct archive_read *, const void *,
 		    size_t, const void *, size_t);
@@ -402,15 +402,15 @@ static int	decompress(struct archive_read *, const void **,
 		    size_t *, const void *, size_t *);
 static int	decompression_cleanup(struct archive_read *);
 static void	xmlattr_cleanup(struct xmlattr_list *);
-static void	file_new(struct xar *, struct xmlattr_list *);
+static int	_file_new(struct xar *, struct xmlattr_list *);
 static void	file_free(struct xar_file *);
-static void	xattr_new(struct xar *, struct xmlattr_list *);
+static int	xattr_new(struct xar *, struct xmlattr_list *);
 static void	xattr_free(struct xattr *);
 static int	getencoding(struct xmlattr_list *);
 static int	getsumalgorithm(struct xmlattr_list *);
-static void	unknowntag_start(struct xar *, const char *);
+static int	_unknowntag_start(struct xar *, const char *);
 static void	unknowntag_end(struct xar *, const char *);
-static void	xml_start(void *, const char *, struct xmlattr_list *);
+static int	xml_start(struct archive_read *, const char *, struct xmlattr_list *);
 static void	xml_end(void *, const char *);
 static void	xml_data(void *, const char *, int);
 static int	xml_parse_file_flags(struct xar *, const char *);
@@ -423,12 +423,31 @@ static void	xml2_error_hdr(void *, const char *, xmlParserSeverities,
 		    xmlTextReaderLocatorPtr);
 static int	xml2_read_toc(struct archive_read *);
 #elif defined(HAVE_BSDXML_H) || defined(HAVE_EXPAT_H)
-static void	expat_xmlattr_setup(struct xmlattr_list *, const XML_Char **);
+static int	expat_xmlattr_setup(struct xmlattr_list *, const XML_Char **);
 static void	expat_start_cb(void *, const XML_Char *, const XML_Char **);
 static void	expat_end_cb(void *, const XML_Char *);
 static void	expat_data_cb(void *, const XML_Char *, int);
 static int	expat_read_toc(struct archive_read *);
 #endif
+
+#define file_new(__a, __xar, __list) \
+	do { \
+		if (_file_new(__xar, __list) != ARCHIVE_OK) { \
+			archive_set_error(&(__a)->archive, \
+			    ENOMEM, "Out of memory"); \
+			return (ARCHIVE_FATAL); \
+		} \
+	} while (0)
+
+#define unknowntag_start(__a, __x, __name) \
+	do { \
+		int r = _unknowntag_start(__x, __name); \
+		if (r != ARCHIVE_OK) { \
+			archive_set_error(&(__a)->archive, \
+			    ENOMEM, "Out of memory"); \
+			return (ARCHIVE_FATAL); \
+		} \
+	} while (0)
 
 int
 archive_read_support_format_xar(struct archive *_a)
@@ -1139,7 +1158,7 @@ parse_time(const char *p, size_t n)
 	return (t);
 }
 
-static void
+static int
 heap_add_entry(struct heap_queue *heap, struct xar_file *file)
 {
 	uint64_t file_id, parent_id;
@@ -1153,12 +1172,14 @@ heap_add_entry(struct heap_queue *heap, struct xar_file *file)
 		if (heap->allocated < 1024)
 			new_size = 1024;
 		/* Overflow might keep us from growing the list. */
-		if (new_size <= heap->allocated)
-			__archive_errx(1, "Out of memory");
+		if (new_size <= heap->allocated) {
+			return (ARCHIVE_FATAL);
+		}
 		new_pending_files = (struct xar_file **)
 		    malloc(new_size * sizeof(new_pending_files[0]));
-		if (new_pending_files == NULL)
-			__archive_errx(1, "Out of memory");
+		if (new_pending_files == NULL) {
+			return (ARCHIVE_FATAL);
+		}
 		memcpy(new_pending_files, heap->files,
 		    heap->allocated * sizeof(new_pending_files[0]));
 		if (heap->files != NULL)
@@ -1178,13 +1199,15 @@ heap_add_entry(struct heap_queue *heap, struct xar_file *file)
 		parent_id = heap->files[parent]->id;
 		if (file_id >= parent_id) {
 			heap->files[hole] = file;
-			return;
+			return (ARCHIVE_OK);
 		}
 		/* Move parent into hole <==> move hole up tree. */
 		heap->files[hole] = heap->files[parent];
 		hole = parent;
 	}
 	heap->files[0] = file;
+
+	return (ARCHIVE_OK);
 }
 
 static struct xar_file *
@@ -1234,7 +1257,7 @@ heap_get_entry(struct heap_queue *heap)
 	}
 }
 
-static void
+static int
 add_link(struct xar *xar, struct xar_file *file)
 {
 	struct hdlink *hdlink;
@@ -1244,18 +1267,19 @@ add_link(struct xar *xar, struct xar_file *file)
 			file->hdnext = hdlink->files;
 			hdlink->cnt++;
 			hdlink->files = file;
-			return;
+			return (ARCHIVE_OK);
 		}
 	}
 	hdlink = malloc(sizeof(*hdlink));
 	if (hdlink == NULL)
-		__archive_errx(1, "No memory for add_link()");
+		return (ARCHIVE_FATAL);
 	file->hdnext = NULL;
 	hdlink->id = file->link;
 	hdlink->cnt = 1;
 	hdlink->files = file;
 	hdlink->next = xar->hdlink_list;
 	xar->hdlink_list = hdlink;
+	return (ARCHIVE_OK);
 }
 
 static void
@@ -1736,15 +1760,15 @@ xmlattr_cleanup(struct xmlattr_list *list)
 	list->last = &(list->first);
 }
 
-static void
-file_new(struct xar *xar, struct xmlattr_list *list)
+static int
+_file_new(struct xar *xar, struct xmlattr_list *list)
 {
 	struct xar_file *file;
 	struct xmlattr *attr;
 
 	file = calloc(1, sizeof(*file));
 	if (file == NULL)
-		__archive_errx(1, "Out of memory");
+		return (ARCHIVE_FATAL);
 	file->parent = xar->file;
 	file->mode = 0777 | AE_IFREG;
 	file->atime = time(NULL);
@@ -1756,7 +1780,9 @@ file_new(struct xar *xar, struct xmlattr_list *list)
 			file->id = atol10(attr->value, strlen(attr->value));
 	}
 	file->nlink = 1;
-	heap_add_entry(&(xar->file_queue), file);
+	if (heap_add_entry(&(xar->file_queue), file) != ARCHIVE_OK)
+		return (ARCHIVE_FATAL);
+	return (ARCHIVE_OK);
 }
 
 static void
@@ -1781,7 +1807,7 @@ file_free(struct xar_file *file)
 	free(file);
 }
 
-static void
+static int
 xattr_new(struct xar *xar, struct xmlattr_list *list)
 {
 	struct xattr *xattr, **nx;
@@ -1789,7 +1815,7 @@ xattr_new(struct xar *xar, struct xmlattr_list *list)
 
 	xattr = calloc(1, sizeof(*xattr));
 	if (xattr == NULL)
-		__archive_errx(1, "Out of memory");
+		return (ARCHIVE_FATAL);
 	xar->xattr = xattr;
 	for (attr = list->first; attr != NULL; attr = attr->next) {
 		if (strcmp(attr->name, "id") == 0)
@@ -1803,6 +1829,8 @@ xattr_new(struct xar *xar, struct xmlattr_list *list)
 	}
 	xattr->next = *nx;
 	*nx = xattr;
+
+	return (ARCHIVE_OK);
 }
 
 static void
@@ -1858,8 +1886,8 @@ getsumalgorithm(struct xmlattr_list *list)
 	return (alg);
 }
 
-static void
-unknowntag_start(struct xar *xar, const char *name)
+static int
+_unknowntag_start(struct xar *xar, const char *name)
 {
 	struct unknown_tag *tag;
 
@@ -1868,7 +1896,7 @@ unknowntag_start(struct xar *xar, const char *name)
 #endif
 	tag = malloc(sizeof(*tag));
 	if (tag == NULL)
-		__archive_errx(1, "Out of memory");
+		return (ARCHIVE_FATAL);
 	tag->next = xar->unknowntags;
 	archive_string_init(&(tag->name));
 	archive_strcpy(&(tag->name), name);
@@ -1877,6 +1905,7 @@ unknowntag_start(struct xar *xar, const char *name)
 		xar->xmlsts = UNKNOWN;
 	}
 	xar->unknowntags = tag;
+	return (ARCHIVE_OK);
 }
 
 static void
@@ -1899,14 +1928,12 @@ unknowntag_end(struct xar *xar, const char *name)
 	}
 }
 
-static void
-xml_start(void *userData, const char *name, struct xmlattr_list *list)
+static int
+xml_start(struct archive_read *a, const char *name, struct xmlattr_list *list)
 {
-	struct archive_read *a;
 	struct xar *xar;
 	struct xmlattr *attr;
 
-	a = (struct archive_read *)userData;
 	xar = (struct xar *)(a->format->data);
 
 #if DEBUG
@@ -1921,13 +1948,13 @@ xml_start(void *userData, const char *name, struct xmlattr_list *list)
 		if (strcmp(name, "xar") == 0)
 			xar->xmlsts = XAR;
 		else
-			unknowntag_start(xar, name);
+			unknowntag_start(a, xar, name);
 		break;
 	case XAR:
 		if (strcmp(name, "toc") == 0)
 			xar->xmlsts = TOC;
 		else
-			unknowntag_start(xar, name);
+			unknowntag_start(a, xar, name);
 		break;
 	case TOC:
 		if (strcmp(name, "creation-time") == 0)
@@ -1935,11 +1962,11 @@ xml_start(void *userData, const char *name, struct xmlattr_list *list)
 		else if (strcmp(name, "checksum") == 0)
 			xar->xmlsts = TOC_CHECKSUM;
 		else if (strcmp(name, "file") == 0) {
-			file_new(xar, list);
+			file_new(a, xar, list);
 			xar->xmlsts = TOC_FILE;
 		}
 		else
-			unknowntag_start(xar, name);
+			unknowntag_start(a, xar, name);
 		break;
 	case TOC_CHECKSUM:
 		if (strcmp(name, "offset") == 0)
@@ -1947,16 +1974,20 @@ xml_start(void *userData, const char *name, struct xmlattr_list *list)
 		else if (strcmp(name, "size") == 0)
 			xar->xmlsts = TOC_CHECKSUM_SIZE;
 		else
-			unknowntag_start(xar, name);
+			unknowntag_start(a, xar, name);
 		break;
 	case TOC_FILE:
 		if (strcmp(name, "file") == 0) {
-			file_new(xar, list);
+			file_new(a, xar, list);
 		}
 		else if (strcmp(name, "data") == 0)
 			xar->xmlsts = FILE_DATA;
 		else if (strcmp(name, "ea") == 0) {
-			xattr_new(xar, list);
+			if (xattr_new(xar, list) != ARCHIVE_OK) {
+				archive_set_error(&a->archive,
+				    ENOMEM, "Out of memory");
+				return (ARCHIVE_FATAL);
+			}
 			xar->xmlsts = FILE_EA;
 		}
 		else if (strcmp(name, "ctime") == 0)
@@ -1996,7 +2027,12 @@ xml_start(void *userData, const char *name, struct xmlattr_list *list)
 					xar->file->link = atol10(attr->value,
 					    strlen(attr->value));
 					if (xar->file->link > 0)
-						add_link(xar, xar->file);
+						if (add_link(xar, xar->file) != ARCHIVE_OK) {
+							archive_set_error(
+							    &a->archive,
+							    ENOMEM, "Out of memory");
+							return (ARCHIVE_FATAL);
+						};
 				}
 			}
 		}
@@ -2016,7 +2052,7 @@ xml_start(void *userData, const char *name, struct xmlattr_list *list)
 		else if (strcmp(name, "ext2") == 0)
 			xar->xmlsts = FILE_EXT2;
 		else
-			unknowntag_start(xar, name);
+			unknowntag_start(a, xar, name);
 		break;
 	case FILE_DATA:
 		if (strcmp(name, "length") == 0)
@@ -2040,7 +2076,7 @@ xml_start(void *userData, const char *name, struct xmlattr_list *list)
 		else if (strcmp(name, "content") == 0)
 			xar->xmlsts = FILE_DATA_CONTENT;
 		else
-			unknowntag_start(xar, name);
+			unknowntag_start(a, xar, name);
 		break;
 	case FILE_DEVICE:
 		if (strcmp(name, "major") == 0)
@@ -2048,10 +2084,10 @@ xml_start(void *userData, const char *name, struct xmlattr_list *list)
 		else if (strcmp(name, "minor") == 0)
 			xar->xmlsts = FILE_DEVICE_MINOR;
 		else
-			unknowntag_start(xar, name);
+			unknowntag_start(a, xar, name);
 		break;
 	case FILE_DATA_CONTENT:
-		unknowntag_start(xar, name);
+		unknowntag_start(a, xar, name);
 		break;
 	case FILE_EA:
 		if (strcmp(name, "length") == 0)
@@ -2072,7 +2108,7 @@ xml_start(void *userData, const char *name, struct xmlattr_list *list)
 		else if (strcmp(name, "fstype") == 0)
 			xar->xmlsts = FILE_EA_FSTYPE;
 		else
-			unknowntag_start(xar, name);
+			unknowntag_start(a, xar, name);
 		break;
 	case FILE_ACL:
 		if (strcmp(name, "appleextended") == 0)
@@ -2082,15 +2118,15 @@ xml_start(void *userData, const char *name, struct xmlattr_list *list)
 		else if (strcmp(name, "access") == 0)
 			xar->xmlsts = FILE_ACL_ACCESS;
 		else
-			unknowntag_start(xar, name);
+			unknowntag_start(a, xar, name);
 		break;
 	case FILE_FLAGS:
 		if (!xml_parse_file_flags(xar, name))
-			unknowntag_start(xar, name);
+			unknowntag_start(a, xar, name);
 		break;
 	case FILE_EXT2:
 		if (!xml_parse_file_ext2(xar, name))
-			unknowntag_start(xar, name);
+			unknowntag_start(a, xar, name);
 		break;
 	case TOC_CREATION_TIME:
 	case TOC_CHECKSUM_OFFSET:
@@ -2158,9 +2194,10 @@ xml_start(void *userData, const char *name, struct xmlattr_list *list)
 	case FILE_EXT2_TopDir:
 	case FILE_EXT2_Reserved:
 	case UNKNOWN:
-		unknowntag_start(xar, name);
+		unknowntag_start(a, xar, name);
 		break;
 	}
+	return (ARCHIVE_OK);
 }
 
 static void
@@ -2989,15 +3026,15 @@ xml2_xmlattr_setup(struct xmlattr_list *list, xmlTextReaderPtr reader)
 	while (r == 1) {
 		attr = malloc(sizeof*(attr));
 		if (attr == NULL)
-			__archive_errx(1, "Out of memory");
+			return (ARCHIVE_FATAL);
 		attr->name = strdup(
 		    (const char *)xmlTextReaderConstLocalName(reader));
 		if (attr->name == NULL)
-			__archive_errx(1, "Out of memory");
+			return (ARCHIVE_FATAL);
 		attr->value = strdup(
 		    (const char *)xmlTextReaderConstValue(reader));
 		if (attr->value == NULL)
-			__archive_errx(1, "Out of memory");
+			return (ARCHIVE_FATAL);
 		attr->next = NULL;
 		*list->last = attr;
 		list->last = &(attr->next);
@@ -3070,7 +3107,7 @@ xml2_read_toc(struct archive_read *a)
 {
 	xmlTextReaderPtr reader;
 	struct xmlattr_list list;
-	int r;
+	int r, started;
 
 	reader = xmlReaderForIO(xml2_read_cb, xml2_close_cb, a, NULL, NULL, 0);
 	if (reader == NULL) {
@@ -3090,12 +3127,17 @@ xml2_read_toc(struct archive_read *a)
 		case XML_READER_TYPE_ELEMENT:
 			empty = xmlTextReaderIsEmptyElement(reader);
 			r = xml2_xmlattr_setup(&list, reader);
-			if (r == 0) {
-				xml_start(a, name, &list);
-				xmlattr_cleanup(&list);
-				if (empty)
-					xml_end(a, name);
+			if (r != ARCHIVE_OK) {
+				archive_set_error(&a->archive,
+				    ENOMEM, "Out of memory");
+				return (ARCHIVE_FATAL);
 			}
+			started = xml_start(a, name, &list);
+			xmlattr_cleanup(&list);
+			if (started != ARCHIVE_OK)
+				return (ARCHIVE_FATAL);
+			if (empty)
+				xml_end(a, name);
 			break;
 		case XML_READER_TYPE_END_ELEMENT:
 			xml_end(a, name);
@@ -3119,7 +3161,7 @@ xml2_read_toc(struct archive_read *a)
 
 #elif defined(HAVE_BSDXML_H) || defined(HAVE_EXPAT_H)
 
-static void
+static int
 expat_xmlattr_setup(struct xmlattr_list *list, const XML_Char **atts)
 {
 	struct xmlattr *attr;
@@ -3127,31 +3169,36 @@ expat_xmlattr_setup(struct xmlattr_list *list, const XML_Char **atts)
 	list->first = NULL;
 	list->last = &(list->first);
 	if (atts == NULL)
-		return;
+		return (ARCHIVE_OK);
 	while (atts[0] != NULL && atts[1] != NULL) {
 		attr = malloc(sizeof*(attr));
 		if (attr == NULL)
-			__archive_errx(1, "Out of memory");
+			return (ARCHIVE_FATAL);
 		attr->name = strdup(atts[0]);
 		if (attr->name == NULL)
-			__archive_errx(1, "Out of memory");
+			return (ARCHIVE_FATAL);
 		attr->value = strdup(atts[1]);
 		if (attr->value == NULL)
-			__archive_errx(1, "Out of memory");
+			return (ARCHIVE_FATAL);
 		attr->next = NULL;
 		*list->last = attr;
 		list->last = &(attr->next);
 		atts += 2;
 	}
+	return (ARCHIVE_OK);
 }
 
 static void
 expat_start_cb(void *userData, const XML_Char *name, const XML_Char **atts)
 {
+	struct archive_read *a = (struct archive_read *)userData;
 	struct xmlattr_list list;
 
-	expat_xmlattr_setup(&list, atts);
-	xml_start(userData, (const char *)name, &list);
+	if (expat_xmlattr_setup(&list, atts) != ARCHIVE_OK) {
+		archive_set_error(&a->archive, ENOMEM, "Out of memory");
+		return (ARCHIVE_FATAL);
+	}
+	xml_start(a, (const char *)name, &list);
 	xmlattr_cleanup(&list);
 }
 
