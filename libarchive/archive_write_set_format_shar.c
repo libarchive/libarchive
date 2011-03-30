@@ -350,8 +350,10 @@ archive_write_shar_data_sed(struct archive_write *a, const void *buff, size_t n)
 	 * twice before entering the loop, so make sure three additional
 	 * bytes can be written.
 	 */
-	if (archive_string_ensure(&shar->work, ensured + 3) == NULL)
-		__archive_errx(1, "Out of memory");
+	if (archive_string_ensure(&shar->work, ensured + 3) == NULL) {
+		archive_set_error(&a->archive, ENOMEM, "Out of memory");
+		return (ARCHIVE_FATAL);
+	}
 
 	if (shar->work.length > ensured) {
 		ret = __archive_write_output(a, shar->work.s,
@@ -407,16 +409,18 @@ uuencode_group(const char _in[3], char out[4])
 	out[3] = UUENC( 0x3f & t );
 }
 
-static void
-uuencode_line(struct shar *shar, const char *inbuf, size_t len)
+static int
+_uuencode_line(struct archive_write *a, struct shar *shar, const char *inbuf, size_t len)
 {
 	char tmp_buf[3], *buf;
 	size_t alloc_len;
 
 	/* len <= 45 -> expanded to 60 + len byte + new line */
 	alloc_len = shar->work.length + 62;
-	if (archive_string_ensure(&shar->work, alloc_len) == NULL)
-		__archive_errx(1, "Out of memory");
+	if (archive_string_ensure(&shar->work, alloc_len) == NULL) {
+		archive_set_error(&a->archive, ENOMEM, "Out of memory");
+		return (ARCHIVE_FATAL);
+	}
 
 	buf = shar->work.s + shar->work.length;
 	*buf++ = UUENC(len);
@@ -437,10 +441,21 @@ uuencode_line(struct shar *shar, const char *inbuf, size_t len)
 		buf += 4;
 	}
 	*buf++ = '\n';
-	if ((buf - shar->work.s) > (ptrdiff_t)(shar->work.length + 62))
-		__archive_errx(1, "Buffer overflow");
+	if ((buf - shar->work.s) > (ptrdiff_t)(shar->work.length + 62)) {
+		archive_set_error(&a->archive,
+		    ARCHIVE_ERRNO_MISC, "Buffer overflow");
+		return (ARCHIVE_FATAL);
+	}
 	shar->work.length = buf - shar->work.s;
+	return (ARCHIVE_OK);
 }
+
+#define uuencode_line(__a, __shar, __inbuf, __len) \
+	do { \
+		int r = _uuencode_line(__a, __shar, __inbuf, __len); \
+		if (r != ARCHIVE_OK) \
+			return (ARCHIVE_FATAL); \
+	} while (0)
 
 static ssize_t
 archive_write_shar_data_uuencode(struct archive_write *a, const void *buff,
@@ -465,7 +480,7 @@ archive_write_shar_data_uuencode(struct archive_write *a, const void *buff,
 			shar->outpos += n;
 			return length;
 		}
-		uuencode_line(shar, shar->outbuff, 45);
+		uuencode_line(a, shar, shar->outbuff, 45);
 		src += n;
 		n = length - n;
 	} else {
@@ -473,7 +488,7 @@ archive_write_shar_data_uuencode(struct archive_write *a, const void *buff,
 	}
 
 	while (n >= 45) {
-		uuencode_line(shar, src, 45);
+		uuencode_line(a, shar, src, 45);
 		src += 45;
 		n -= 45;
 
@@ -507,7 +522,7 @@ archive_write_shar_finish_entry(struct archive_write *a)
 		/* Finish uuencoded data. */
 		if (shar->has_data) {
 			if (shar->outpos > 0)
-				uuencode_line(shar, shar->outbuff,
+				uuencode_line(a, shar, shar->outbuff,
 				    shar->outpos);
 			archive_strcat(&shar->work, "`\nend\n");
 			archive_strcat(&shar->work, "SHAR_END\n");
