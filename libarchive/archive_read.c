@@ -838,16 +838,18 @@ __archive_read_register_format(struct archive_read *a,
 		}
 	}
 
-	__archive_errx(1, "Not enough slots for format registration");
-	return (ARCHIVE_FATAL); /* Never actually called. */
+	archive_set_error(&a->archive, ENOMEM,
+	    "Not enough slots for format registration");
+	return (ARCHIVE_FATAL);
 }
 
 /*
  * Used internally by decompression routines to register their bid and
  * initialization functions.
  */
-struct archive_read_filter_bidder *
-__archive_read_get_bidder(struct archive_read *a)
+int
+__archive_read_get_bidder(struct archive_read *a,
+    struct archive_read_filter_bidder **bidder)
 {
 	int i, number_slots;
 
@@ -856,12 +858,14 @@ __archive_read_get_bidder(struct archive_read *a)
 	for (i = 0; i < number_slots; i++) {
 		if (a->bidders[i].bid == NULL) {
 			memset(a->bidders + i, 0, sizeof(a->bidders[0]));
-			return (a->bidders + i);
+			*bidder = (a->bidders + i);
+			return (ARCHIVE_OK);
 		}
 	}
 
-	__archive_errx(1, "Not enough slots for compression registration");
-	return (NULL); /* Never actually executed. */
+	archive_set_error(&a->archive, ENOMEM,
+	    "Not enough slots for filter registration");
+	return (ARCHIVE_FATAL);
 }
 
 /*

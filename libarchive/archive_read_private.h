@@ -190,8 +190,17 @@ int	__archive_read_register_format(struct archive_read *a,
 	    int (*read_data_skip)(struct archive_read *),
 	    int (*cleanup)(struct archive_read *));
 
-struct archive_read_filter_bidder
-	*__archive_read_get_bidder(struct archive_read *a);
+int __archive_read_get_bidder(struct archive_read *a,
+    struct archive_read_filter_bidder **bidder);
+
+#define archive_read_get_bidder(__a, __b) \
+	do { \
+		int r = __archive_read_get_bidder(__a, &(__b)); \
+		if (r != ARCHIVE_OK) \
+			return (r); \
+		if ((__b) == NULL) \
+			return (ARCHIVE_FATAL); \
+	} while (0)
 
 const void *__archive_read_ahead(struct archive_read *, size_t, ssize_t *);
 const void *__archive_read_filter_ahead(struct archive_read_filter *,

@@ -164,9 +164,7 @@ archive_read_support_compression_program_signature(struct archive *_a,
 	/*
 	 * Get a bidder object from the read core.
 	 */
-	bidder = __archive_read_get_bidder(a);
-	if (bidder == NULL)
-		return (ARCHIVE_FATAL);
+	archive_read_get_bidder(a, bidder);
 
 	/*
 	 * Allocate our private state.

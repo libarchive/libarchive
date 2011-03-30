@@ -86,10 +86,9 @@ int
 archive_read_support_compression_bzip2(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	struct archive_read_filter_bidder *reader = __archive_read_get_bidder(a);
+	struct archive_read_filter_bidder *reader;
 
-	if (reader == NULL)
-		return (ARCHIVE_FATAL);
+	archive_read_get_bidder(a, reader);
 
 	reader->data = NULL;
 	reader->bid = bzip2_reader_bid;

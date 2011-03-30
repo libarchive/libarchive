@@ -79,10 +79,7 @@ archive_read_support_compression_rpm(struct archive *_a)
 	struct archive_read *a = (struct archive_read *)_a;
 	struct archive_read_filter_bidder *bidder;
 
-	bidder = __archive_read_get_bidder(a);
-	archive_clear_error(_a);
-	if (bidder == NULL)
-		return (ARCHIVE_FATAL);
+	archive_read_get_bidder(a, bidder);
 
 	bidder->data = NULL;
 	bidder->bid = rpm_bidder_bid;
