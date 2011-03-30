@@ -1097,11 +1097,10 @@ archive_write_pax_header(struct archive_write *a,
 
 		/* Note that the 'x' header shouldn't ever fail to format */
 		if (r < ARCHIVE_WARN) {
-			const char *msg = "archive_write_pax_header: "
-			    "'x' header failed?!  This can't happen.\n";
-			size_t u = write(2, msg, strlen(msg));
-			(void)u; /* UNUSED */
-			exit(1);
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "archive_write_pax_header: "
+			    "'x' header failed?!  This can't happen.\n");
+			return (ARCHIVE_FATAL);
 		} else if (r < ret)
 			ret = r;
 		r = __archive_write_output(a, paxbuff, 512);
