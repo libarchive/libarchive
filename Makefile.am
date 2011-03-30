@@ -248,6 +248,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_archive_read_close_twice_open_filename.c	\
 	libarchive/test/test_archive_read_next_header_empty.c	\
 	libarchive/test/test_archive_read_next_header_raw.c	\
+	libarchive/test/test_archive_read_open2.c		\
 	libarchive/test/test_archive_read_set_filter_option.c	\
 	libarchive/test/test_archive_read_set_format_option.c	\
 	libarchive/test/test_archive_read_set_option.c		\
