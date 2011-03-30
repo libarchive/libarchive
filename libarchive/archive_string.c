@@ -1638,7 +1638,7 @@ static int
 strncpy_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
     struct archive_string_conv *sc)
 {
-	const char *utf16;
+	const char *utf16 = (const char *)_p;
 	char *mbs;
 	int ret;
 
@@ -1657,7 +1657,6 @@ strncpy_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
 	 * if not , we set a alternative character and return -1.
 	 */
 	ret = 0;
-	utf16 = (const char *)_p;
 	bytes &= ~1;
 	archive_string_ensure(as, bytes+1);
 	mbs = as->s;
@@ -1685,7 +1684,7 @@ static int
 strncpy_to_utf16be(struct archive_string *a16be, const void *_p, size_t length,
     struct archive_string_conv *sc)
 {
-	const char *s;
+	const char *s = (const char *)_p;
 	char *utf16;
 	size_t remaining;
 	int ret;
@@ -1705,7 +1704,6 @@ strncpy_to_utf16be(struct archive_string *a16be, const void *_p, size_t length,
 	 * if not , we set a alternative character and return -1.
 	 */
 	ret = 0;
-	s = (const char *)_p;
 	remaining = length;
 	archive_string_ensure(a16be, (length + 1) * 2);
 	utf16 = a16be->s;
