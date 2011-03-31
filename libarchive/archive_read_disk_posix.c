@@ -1671,7 +1671,11 @@ close_and_restore_time(int fd, struct tree *t, struct restore_time *rt)
 	times[0].tv_sec = rt->atime;
 	times[0].tv_usec = rt->atime_nsec / 1000;
 
-#if defined(HAVE_FUTIMES) && !defined(__CYGWIN__)
+#if defined(HAVE_FUTIMENS) && !defined(__CYGWIN__)
+	/* futimens() is defined in POSIX.1-2008. */
+	if (futimens(fd, times) == 0)
+		return (close(fd));
+#elif defined(HAVE_FUTIMES) && !defined(__CYGWIN__)
 	if (futimes(fd, times) == 0)
 		return (close(fd));
 #endif
