@@ -35,10 +35,10 @@ read_cb(struct archive *a, void *client, const void **buff)
 {
 	return (ssize_t)0;
 }
-static off_t
-skip_cb(struct archive *a, void *client, off_t request)
+static int64_t
+skip_cb(struct archive *a, void *client, int64_t request)
 {
-	return (off_t)0;
+	return (int64_t)0;
 }
 static int
 close_cb(struct archive *a, void *client)
