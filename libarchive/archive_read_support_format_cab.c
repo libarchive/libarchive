@@ -560,24 +560,32 @@ cab_convert_path_separator(struct archive_read *a, struct cab *cab,
     struct archive_string *fn, unsigned char attr)
 {
 	size_t i;
+	int mb;
 
+	/* Easy check if we have '\' in multi-byte string. */
+	mb = 0;
 	for (i = 0; i < archive_strlen(fn); i++) {
-		if (fn->s[i] == '\\')
+		if (fn->s[i] == '\\') {
+			if (mb)
+				break;/* This may be second byte of multi-byte character. */
 			fn->s[i] = '/';
-		else if (fn->s[i] & 0x80)
-			/* Are there any multibyte characters in fn ? */
-			break;
+			mb = 0;
+		} else if (fn->s[i] & 0x80)
+			mb = 1;
+		else
+			mb = 0;
 	}
 	if (i == archive_strlen(fn))
 		return;
 
 	/*
-	 * Try to replace a character in wide character.
+	 * Try to replace a character '\' with '/' in wide character.
 	 */
 
-	/* If a conversion to wide character failed, force a replacement. */
-	if (!archive_wstring_append_from_mbs(&a->archive, &(cab->ws),
-	    fn->s, fn->length)) {
+	/* If a conversion to wide character failed, force the replacement. */
+	archive_string_empty(&(cab->ws));
+	if (archive_wstring_append_from_mbs(&a->archive, &(cab->ws),
+	    fn->s, fn->length) != 0) {
 		for (i = 0; i < archive_strlen(fn); i++) {
 			if (fn->s[i] == '\\')
 				fn->s[i] = '/';
@@ -589,15 +597,14 @@ cab_convert_path_separator(struct archive_read *a, struct cab *cab,
 		if (cab->ws.s[i] == L'\\')
 			cab->ws.s[i] = L'/';
 	}
-
-	/*
-	 * Sanity check that we surely did not break a filename.
-	 */
 	archive_string_empty(&(cab->mbs));
 	archive_string_append_from_unicode_to_mbs(&a->archive, &(cab->mbs),
 	    cab->ws.s, cab->ws.length);
-	/* If mbs length is different to fn, we broke the
-	 * filename and we shouldn't use it. */
+	/*
+	 * Sanity check that we surely did not break a filename.
+	 * If MBS length is different to fn, we broke the
+	 * filename, and so we shouldn't use it.
+	 */
 	if (archive_strlen(&(cab->mbs)) == archive_strlen(fn))
 		archive_string_copy(fn, &(cab->mbs));
 }

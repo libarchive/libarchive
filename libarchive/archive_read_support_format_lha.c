@@ -711,33 +711,38 @@ archive_read_format_lha_read_header(struct archive_read *a,
 /*
  * Replace a DOS path separator '\' by a character '/'.
  * Some multi-byte character set have  a character '\' in its second byte.
- * Try to save a filename from breaking down as much as possible.
- * Ideally, libarchive would have the ability to convert a character
- * set for a filename in an archive.
  */
 static void
 lha_replace_path_separator(struct archive_read *a, struct lha *lha,
     struct archive_string *fn)
 {
 	size_t i;
+	int mb;
 
+	/* Easy check if we have '\' in multi-byte string. */
+	mb = 0;
 	for (i = 0; i < archive_strlen(fn); i++) {
-		if (fn->s[i] == '\\')
+		if (fn->s[i] == '\\') {
+			if (mb)
+				break;/* This may be second byte of multi-byte character. */
 			fn->s[i] = '/';
-		else if (fn->s[i] & 0x80)
-			/* Are there any multibyte characters in fn ? */
-			break;
+			mb = 0;
+		} else if (fn->s[i] & 0x80)
+			mb = 1;
+		else
+			mb = 0;
 	}
 	if (i == archive_strlen(fn))
 		return;
 
 	/*
-	 * Try to replace a character in wide character.
+	 * Try to replace a character '\' with '/' in wide character.
 	 */
 
-	/* If a conversion to wide character failed, force a replacement. */
-	if (!archive_wstring_append_from_mbs(&a->archive, &(lha->ws),
-	    fn->s, fn->length)) {
+	/* If a conversion to wide character failed, force the replacement. */
+	archive_string_empty(&(lha->ws));
+	if (archive_wstring_append_from_mbs(&a->archive, &(lha->ws),
+	    fn->s, fn->length) != 0) {
 		for (i = 0; i < archive_strlen(fn); i++) {
 			if (fn->s[i] == '\\')
 				fn->s[i] = '/';
@@ -749,15 +754,14 @@ lha_replace_path_separator(struct archive_read *a, struct lha *lha,
 		if (lha->ws.s[i] == L'\\')
 			lha->ws.s[i] = L'/';
 	}
-
-	/*
-	 * Sanity check that we surely did not break a filename.
-	 */
 	archive_string_empty(&(lha->mbs));
 	archive_string_append_from_unicode_to_mbs(&a->archive, &(lha->mbs),
 	    lha->ws.s, lha->ws.length);
-	/* If mbs length is different to fn, we broke the
-	 * filename and we shouldn't use it. */
+	/*
+	 * Sanity check that we surely did not break a filename.
+	 * If MBS length is different to fn, we broke the
+	 * filename, and so we shouldn't use it.
+	 */
 	if (archive_strlen(&(lha->mbs)) == archive_strlen(fn))
 		archive_string_copy(fn, &(lha->mbs));
 }
