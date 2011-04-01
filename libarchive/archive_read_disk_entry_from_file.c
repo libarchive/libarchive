@@ -1004,3 +1004,4 @@ setup_sparse(struct archive_read_disk *a,
 #endif
 
 #endif /* !defined(_WIN32) || defined(__CYGWIN__) */
+
