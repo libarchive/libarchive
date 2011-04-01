@@ -224,6 +224,9 @@ create_sparse_file(const char *path, const struct sparse *s)
 
 #endif
 
+/*
+ * Sparse test with directory traversals.
+ */
 static void
 verify_sparse_file(struct archive *a, const char *path,
     const struct sparse *sparse, int blocks)
@@ -260,6 +263,38 @@ verify_sparse_file(struct archive *a, const char *path,
 	assertEqualInt(blocks, data_blocks);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	archive_entry_free(ae);
+}
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#define	close		_close
+#define	open		_open
+#endif
+
+/*
+ * Sparse test without directory traversals.
+ */
+static void
+verify_sparse_file2(struct archive *a, const char *path,
+    const struct sparse *sparse, int blocks, int preopen)
+{
+	struct archive_entry *ae;
+	int fd;
+
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_pathname(ae, path);
+	if (preopen)
+		fd = open(path, O_RDONLY | O_BINARY);
+	else
+		fd = -1;
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_disk_entry_from_file(a, ae, fd, NULL));
+	if (fd >= 0)
+		close(fd);
+	/* Verify the number of holes only, not its offset nor its
+	 * length because those alignments are deeply dependence on
+	 * its filesystem. */ 
+	assertEqualInt(blocks, archive_entry_sparse_count(ae));
 	archive_entry_free(ae);
 }
 
@@ -335,6 +370,9 @@ DEFINE_TEST(test_sparse_basic)
 	}
 	p = path + strlen(path);
 
+	/*
+	 * Get sparse data through directory traversals.
+	 */
 	assert((a = archive_read_disk_new()) != NULL);
 
 	strcpy(p, "/file0");
@@ -348,6 +386,17 @@ DEFINE_TEST(test_sparse_basic)
 
 	strcpy(p, "/file3");
 	verify_sparse_file(a, path, sparse_file3, 0);
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/*
+	 * Get sparse data through archive_read_disk_entry_from_file().
+	 */
+	assert((a = archive_read_disk_new()) != NULL);
+
+	strcpy(p, "/file0");
+	verify_sparse_file2(a, path, sparse_file0, 5, 0);
+	verify_sparse_file2(a, path, sparse_file0, 5, 1);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

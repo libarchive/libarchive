@@ -27,6 +27,9 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk_entry_from_file.c 201084 2009-12-28 02:14:09Z kientzle $");
 
+/* This is the tree-walking code for POSIX systems. */
+#if !defined(_WIN32) || defined(__CYGWIN__)
+
 #ifdef HAVE_SYS_TYPES_H
 /* Mac OSX requires sys/types.h before sys/acl.h. */
 #include <sys/types.h>
@@ -92,9 +95,6 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk_entry_from_file.c 2010
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#if defined(HAVE_WINIOCTL_H) && !defined(__CYGWIN__)
-#include <winioctl.h>
-#endif
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -139,10 +139,6 @@ archive_read_disk_entry_from_file(struct archive *_a,
 
 	if (a->tree == NULL) {
 		if (st == NULL) {
-			/* TODO: On Windows, use GetFileInfoByHandle() here.
-			 * Windows stat() can't be fixed because 'struct stat'
-			 * is broken on Windows.
-			 */
 #if HAVE_FSTAT
 			if (fd >= 0) {
 				if (fstat(fd, &s) != 0) {
@@ -990,141 +986,6 @@ exit_setup_sparse:
 	return (exit_sts);
 }
 
-#elif defined(_WIN32) && !defined(__CYGWIN__)
-
-/*
- * Windows sparse interface.
- */
-#if defined(__MINGW32__) && !defined(FSCTL_QUERY_ALLOCATED_RANGES)
-#define FSCTL_QUERY_ALLOCATED_RANGES 0x940CF
-typedef struct {
-	LARGE_INTEGER FileOffset;
-	LARGE_INTEGER Length;
-} FILE_ALLOCATED_RANGE_BUFFER;
-#endif
-
-static int
-setup_sparse(struct archive_read_disk *a,
-    struct archive_entry *entry, int fd)
-{
-	HANDLE handle;
-	BY_HANDLE_FILE_INFORMATION info;
-	FILE_ALLOCATED_RANGE_BUFFER range, *outranges = NULL;
-	size_t outranges_size;
-	LARGE_INTEGER fsize;
-	int initial_fd = fd;
-	int exit_sts = ARCHIVE_OK;
-
-	if (archive_entry_filetype(entry) != AE_IFREG
-	    || archive_entry_size(entry) <= 0
-	    || archive_entry_hardlink(entry) != NULL)
-		return (ARCHIVE_OK);
-
-	if (fd < 0) {
-		const char *path;
-
-		path = archive_entry_sourcepath(entry);
-		if (path == NULL)
-			path = archive_entry_pathname(entry);
-		fd = open(path, O_RDONLY | O_BINARY);
-		if (fd < 0) {
-			archive_set_error(&a->archive, errno,
-			    "Can't open `%s'", path);
-			return (ARCHIVE_FAILED);
-		}
-	}
-	handle = (HANDLE)_get_osfhandle(fd);
-	ZeroMemory(&info, sizeof(info));
-	if (!GetFileInformationByHandle (handle, &info)) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			"GetFileInformationByHandle Failed: %lu",
-		    GetLastError());
-		exit_sts = ARCHIVE_FAILED;
-		goto exit_setup_sparse;
-	}
-	if ((info.dwFileAttributes & FILE_ATTRIBUTE_SPARSE_FILE) == 0)
-		goto exit_setup_sparse;/* Not sparse file */
-
-	fsize.HighPart = info.nFileSizeHigh;
-	fsize.LowPart = info.nFileSizeLow;
-	range.FileOffset.QuadPart = 0;
-	range.Length.QuadPart = fsize.QuadPart;
-	outranges_size = 2048;
-	outranges = (FILE_ALLOCATED_RANGE_BUFFER *)malloc(outranges_size);
-	if (outranges == NULL) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			"Couldn't allocate memory");
-		exit_sts = ARCHIVE_FATAL;
-		goto exit_setup_sparse;
-	}
-
-	for (;;) {
-		DWORD retbytes;
-		BOOL ret;
-
-		for (;;) {
-			ret = DeviceIoControl(handle,
-			    FSCTL_QUERY_ALLOCATED_RANGES,
-			    &range, sizeof(range), outranges,
-			    outranges_size, &retbytes, NULL);
-			if (ret == 0 && GetLastError() == ERROR_MORE_DATA) {
-				free(outranges);
-				outranges_size *= 2;
-				outranges = (FILE_ALLOCATED_RANGE_BUFFER *)
-				    malloc(outranges_size);
-				if (outranges == NULL) {
-					archive_set_error(&a->archive,
-					    ARCHIVE_ERRNO_MISC,
-					    "Couldn't allocate memory");
-					exit_sts = ARCHIVE_FATAL;
-					goto exit_setup_sparse;
-				}
-				continue;
-			} else
-				break;
-		}
-		if (ret != 0) {
-			if (retbytes > 0) {
-				DWORD i, n;
-
-				n = retbytes / sizeof(outranges[0]);
-				if (n == 1 &&
-				    outranges[0].FileOffset.QuadPart == 0 &&
-				    outranges[0].Length.QuadPart == fsize.QuadPart)
-					break;/* This is not sparse. */
-				for (i = 0; i < n; i++)
-					archive_entry_sparse_add_entry(entry,
-					    outranges[i].FileOffset.QuadPart,
-						outranges[i].Length.QuadPart);
-				range.FileOffset.QuadPart =
-				    outranges[n-1].FileOffset.QuadPart
-				    + outranges[n-1].Length.QuadPart;
-				range.Length.QuadPart =
-				    fsize.QuadPart - range.FileOffset.QuadPart;
-				if (range.Length.QuadPart > 0)
-					continue;
-			} else {
-				/* The remaining data is hole. */
-				archive_entry_sparse_add_entry(entry,
-				    range.FileOffset.QuadPart,
-				    range.Length.QuadPart);
-			}
-			break;
-		} else {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "DeviceIoControl Failed: %lu", GetLastError());
-			exit_sts = ARCHIVE_FAILED;
-			goto exit_setup_sparse;
-		}
-	}
-exit_setup_sparse:
-	if (initial_fd != fd)
-		close(fd);
-	free(outranges);
-
-	return (exit_sts);
-}
-
 #else
 
 /*
@@ -1141,3 +1002,5 @@ setup_sparse(struct archive_read_disk *a,
 }
 
 #endif
+
+#endif /* !defined(_WIN32) || defined(__CYGWIN__) */

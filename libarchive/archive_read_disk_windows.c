@@ -68,6 +68,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#if defined(HAVE_WINIOCTL_H) && !defined(__CYGWIN__)
+#include <winioctl.h>
+#endif
 
 #include "archive.h"
 #include "archive_string.h"
@@ -317,6 +320,9 @@ static const char *trivial_lookup_uname(void *, int64_t uid);
 static int	setup_sparse(struct archive_read_disk *, struct archive_entry *);
 static int	close_and_restore_time(int fd, struct tree *,
 		    struct restore_time *);
+static int	setup_sparse_from_disk(struct archive_read_disk *,
+		    struct archive_entry *, HANDLE);
+
 
 
 static struct archive_vtable *
@@ -686,6 +692,7 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	const BY_HANDLE_FILE_INFORMATION *st;
 	const BY_HANDLE_FILE_INFORMATION *lst;
 	const wchar_t *wp;
+	const char*name;
 	int descend, r;
 
 	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
@@ -784,7 +791,15 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	t->restore_time.atime_nsec = archive_entry_atime_nsec(entry);
 	t->restore_time.filetype = archive_entry_filetype(entry);
 
-	/* Populate the archive_entry with metadata from the disk. */
+	/* Lookup uname/gname */
+	name = archive_read_disk_uname(_a, archive_entry_uid(entry));
+	if (name != NULL)
+		archive_entry_copy_uname(entry, name);
+	name = archive_read_disk_gname(_a, archive_entry_gid(entry));
+	if (name != NULL)
+		archive_entry_copy_gname(entry, name);
+
+	r = ARCHIVE_OK;
 	if (archive_entry_filetype(entry) == AE_IFREG &&
 	    archive_entry_size(entry) > 0) {
 		a->entry_fd = _wopen(tree_current_access_path(t),
@@ -794,9 +809,13 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 			    "Couldn't open %ls", tree_current_path(a->tree));
 			return (ARCHIVE_FAILED);
 		}
+
+		/* Find sparse data from the disk. */
+		if (archive_entry_hardlink(entry) == NULL &&
+		    (st->dwFileAttributes & FILE_ATTRIBUTE_SPARSE_FILE) != 0)
+			r = setup_sparse_from_disk(a, entry,
+			    (HANDLE)_get_osfhandle(a->entry_fd));
 	}
-	r = archive_read_disk_entry_from_file(&(a->archive), entry,
-	    a->entry_fd, NULL);
 
 	/*
 	 * EOF and FATAL are persistent at this layer.  By
@@ -1482,7 +1501,8 @@ fileTimeToUtc(const FILETIME *filetime, time_t *time, long *ns)
 }
 
 static void
-tree_archive_entry_copy_bhfi(struct archive_entry *entry, struct tree *t,
+entry_copy_bhfi(struct archive_entry *entry, const wchar_t *path,
+	const WIN32_FIND_DATAW *findData,
 	const BY_HANDLE_FILE_INFORMATION *bhfi)
 {
 	time_t secs;
@@ -1513,7 +1533,8 @@ tree_archive_entry_copy_bhfi(struct archive_entry *entry, struct tree *t,
 	if ((bhfi->dwFileAttributes & FILE_ATTRIBUTE_READONLY) == 0)
 		mode |= S_IWUSR | S_IWGRP | S_IWOTH;
 	if ((bhfi->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) &&
-	    t->findData->dwReserved0 == IO_REPARSE_TAG_SYMLINK)
+	    findData != NULL &&
+	    findData->dwReserved0 == IO_REPARSE_TAG_SYMLINK)
 		mode |= S_IFLNK;
 	else if (bhfi->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 		mode |= S_IFDIR | S_IXUSR | S_IXGRP | S_IXOTH;
@@ -1521,7 +1542,7 @@ tree_archive_entry_copy_bhfi(struct archive_entry *entry, struct tree *t,
 		const wchar_t *p;
 
 		mode |= S_IFREG;
-		p = wcsrchr(tree_current_path(t), L'.');
+		p = wcsrchr(path, L'.');
 		if (p != NULL && wcslen(p) == 4) {
 			switch (p[1]) {
 			case L'B': case L'b':
@@ -1547,6 +1568,13 @@ tree_archive_entry_copy_bhfi(struct archive_entry *entry, struct tree *t,
 		}
 	}
 	archive_entry_set_mode(entry, mode);
+}
+
+static void
+tree_archive_entry_copy_bhfi(struct archive_entry *entry, struct tree *t,
+	const BY_HANDLE_FILE_INFORMATION *bhfi)
+{
+	entry_copy_bhfi(entry, tree_current_path(t), t->findData, bhfi);
 }
 
 static int
@@ -1702,6 +1730,239 @@ tree_free(struct tree *t)
 	free(t->sparse_list);
 	free(t->filesystem_table);
 	free(t);
+}
+
+
+/*
+ * Populate the archive_entry with metadata from the disk.
+ */
+int
+archive_read_disk_entry_from_file(struct archive *_a,
+    struct archive_entry *entry, int fd, const struct stat *st)
+{
+	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+	const wchar_t *path;
+	const char *name;
+	HANDLE h;
+	BY_HANDLE_FILE_INFORMATION bhfi;
+	DWORD fileAttributes;
+	int r;
+
+	archive_clear_error(_a);
+	name = archive_entry_sourcepath(entry);
+	if (name == NULL)
+		name = archive_entry_pathname(entry);
+	path = __la_win_permissive_name(name);
+
+	if (st == NULL) {
+		/*
+		 * Get metadata through GetFileInformationByHandle().
+		 */
+		if (fd >= 0) {
+			h = (HANDLE)_get_osfhandle(fd);
+			r = GetFileInformationByHandle(h, &bhfi);
+			if (r == 0) {
+				archive_set_error(&a->archive, GetLastError(),
+				    "Can't GetFileInformationByHandle");
+				return (ARCHIVE_FAILED);
+			}
+			entry_copy_bhfi(entry, path, NULL, &bhfi);
+		} else {
+			WIN32_FIND_DATAW findData;
+			DWORD flag, desiredAccess;
+	
+			h = FindFirstFileW(path, &findData);
+			if (h == INVALID_DIR_HANDLE) {
+				archive_set_error(&a->archive, GetLastError(),
+				    "Can't FindFirstFileW");
+				return (ARCHIVE_FAILED);
+			}
+			FindClose(h);
+
+			flag = FILE_FLAG_BACKUP_SEMANTICS;
+			if (!a->follow_symlinks &&
+			    (findData.dwFileAttributes
+			      & FILE_ATTRIBUTE_REPARSE_POINT) &&
+				  (findData.dwReserved0 == IO_REPARSE_TAG_SYMLINK)) {
+				flag |= FILE_FLAG_OPEN_REPARSE_POINT;
+				desiredAccess = 0;
+			} else
+				desiredAccess = GENERIC_READ;
+
+			h = CreateFileW(path, desiredAccess, 0, NULL,
+			    OPEN_EXISTING, flag, NULL);
+			if (h == INVALID_HANDLE_VALUE) {
+				archive_set_error(&a->archive,
+				    GetLastError(),
+				    "Can't CreateFileW");
+				return (ARCHIVE_FAILED);
+			}
+			r = GetFileInformationByHandle(h, &bhfi);
+			if (r == 0) {
+				archive_set_error(&a->archive,
+				    GetLastError(),
+				    "Can't GetFileInformationByHandle");
+				CloseHandle(h);
+				return (ARCHIVE_FAILED);
+			}
+			entry_copy_bhfi(entry, path, &findData, &bhfi);
+		}
+		fileAttributes = bhfi.dwFileAttributes;
+	} else {
+		archive_entry_copy_stat(entry, st);
+		h = INVALID_DIR_HANDLE;
+	}
+
+	/* Lookup uname/gname */
+	name = archive_read_disk_uname(_a, archive_entry_uid(entry));
+	if (name != NULL)
+		archive_entry_copy_uname(entry, name);
+	name = archive_read_disk_gname(_a, archive_entry_gid(entry));
+	if (name != NULL)
+		archive_entry_copy_gname(entry, name);
+
+	/*
+	 * Can this file be sparse file ?
+	 */
+	if (archive_entry_filetype(entry) != AE_IFREG
+	    || archive_entry_size(entry) <= 0
+		|| archive_entry_hardlink(entry) != NULL) {
+		if (h != INVALID_HANDLE_VALUE && fd < 0)
+			CloseHandle(h);
+		return (ARCHIVE_OK);
+	}
+
+	if (h == INVALID_HANDLE_VALUE) {
+		if (fd >= 0) {
+			h = (HANDLE)_get_osfhandle(fd);
+		} else {
+			h = CreateFileW(path, GENERIC_READ, 0, NULL,
+			    OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+			if (h == INVALID_HANDLE_VALUE) {
+				archive_set_error(&a->archive, GetLastError(),
+				    "Can't CreateFileW");
+				return (ARCHIVE_FAILED);
+			}
+		}
+		r = GetFileInformationByHandle(h, &bhfi);
+		if (r == 0) {
+			archive_set_error(&a->archive, GetLastError(),
+			    "Can't GetFileInformationByHandle");
+			if (h != INVALID_HANDLE_VALUE && fd < 0)
+				CloseHandle(h);
+			return (ARCHIVE_FAILED);
+		}
+		fileAttributes = bhfi.dwFileAttributes;
+	}
+
+	/* Sparse file must be set a mark, FILE_ATTRIBUTE_SPARSE_FILE */
+	if ((fileAttributes & FILE_ATTRIBUTE_SPARSE_FILE) == 0) {
+		if (fd < 0)
+			CloseHandle(h);
+		return (ARCHIVE_OK);
+	}
+
+	r = setup_sparse_from_disk(a, entry, h);
+	if (fd < 0)
+		CloseHandle(h);
+
+	return (r);
+}
+
+/*
+ * Windows sparse interface.
+ */
+#if defined(__MINGW32__) && !defined(FSCTL_QUERY_ALLOCATED_RANGES)
+#define FSCTL_QUERY_ALLOCATED_RANGES 0x940CF
+typedef struct {
+	LARGE_INTEGER FileOffset;
+	LARGE_INTEGER Length;
+} FILE_ALLOCATED_RANGE_BUFFER;
+#endif
+
+static int
+setup_sparse_from_disk(struct archive_read_disk *a,
+    struct archive_entry *entry, HANDLE handle)
+{
+	FILE_ALLOCATED_RANGE_BUFFER range, *outranges = NULL;
+	size_t outranges_size;
+	int64_t entry_size = archive_entry_size(entry);
+	int exit_sts = ARCHIVE_OK;
+
+	range.FileOffset.QuadPart = 0;
+	range.Length.QuadPart = entry_size;
+	outranges_size = 2048;
+	outranges = (FILE_ALLOCATED_RANGE_BUFFER *)malloc(outranges_size);
+	if (outranges == NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			"Couldn't allocate memory");
+		exit_sts = ARCHIVE_FATAL;
+		goto exit_setup_sparse;
+	}
+
+	for (;;) {
+		DWORD retbytes;
+		BOOL ret;
+
+		for (;;) {
+			ret = DeviceIoControl(handle,
+			    FSCTL_QUERY_ALLOCATED_RANGES,
+			    &range, sizeof(range), outranges,
+			    outranges_size, &retbytes, NULL);
+			if (ret == 0 && GetLastError() == ERROR_MORE_DATA) {
+				free(outranges);
+				outranges_size *= 2;
+				outranges = (FILE_ALLOCATED_RANGE_BUFFER *)
+				    malloc(outranges_size);
+				if (outranges == NULL) {
+					archive_set_error(&a->archive,
+					    ARCHIVE_ERRNO_MISC,
+					    "Couldn't allocate memory");
+					exit_sts = ARCHIVE_FATAL;
+					goto exit_setup_sparse;
+				}
+				continue;
+			} else
+				break;
+		}
+		if (ret != 0) {
+			if (retbytes > 0) {
+				DWORD i, n;
+
+				n = retbytes / sizeof(outranges[0]);
+				if (n == 1 &&
+				    outranges[0].FileOffset.QuadPart == 0 &&
+				    outranges[0].Length.QuadPart == entry_size)
+					break;/* This is not sparse. */
+				for (i = 0; i < n; i++)
+					archive_entry_sparse_add_entry(entry,
+					    outranges[i].FileOffset.QuadPart,
+						outranges[i].Length.QuadPart);
+				range.FileOffset.QuadPart =
+				    outranges[n-1].FileOffset.QuadPart
+				    + outranges[n-1].Length.QuadPart;
+				range.Length.QuadPart =
+				    entry_size - range.FileOffset.QuadPart;
+				if (range.Length.QuadPart > 0)
+					continue;
+			} else {
+				/* The remaining data is hole. */
+				archive_entry_sparse_add_entry(entry,
+				    range.FileOffset.QuadPart,
+				    range.Length.QuadPart);
+			}
+			break;
+		} else {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "DeviceIoControl Failed: %lu", GetLastError());
+			exit_sts = ARCHIVE_FAILED;
+			goto exit_setup_sparse;
+		}
+	}
+exit_setup_sparse:
+	free(outranges);
+
+	return (exit_sts);
 }
 
 #else
