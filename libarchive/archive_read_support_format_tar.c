@@ -222,6 +222,32 @@ static int	tohex(int c);
 static char	*url_decode(const char *);
 static void	tar_flush_unconsumed(struct archive_read *, size_t *);
 
+/*
+ * PAX hdrcharset.
+ */
+static const struct {
+	const char *isoname;
+	const char *cnvname;
+} pax_charset[] = {
+	{ "BINARY", NULL },
+	{ "ISO-IR 10646 2000 UTF-8", "UTF-8" },
+	{ "ISO-IR 8859 1 1998", "ISO-8859-1" },
+	{ "ISO-IR 8859 1 1998", "ISO-8859-1" },
+	{ "ISO-IR 8859 2 1999", "ISO-8859-2" },
+	{ "ISO-IR 8859 3 1999", "ISO-8859-3" },
+	{ "ISO-IR 8859 4 1998", "ISO-8859-4" },
+	{ "ISO-IR 8859 5 1999", "ISO-8859-5" },
+	{ "ISO-IR 8859 6 1999", "ISO-8859-6" },
+	{ "ISO-IR 8859 7 1987", "ISO-8859-7" },
+	{ "ISO-IR 8859 8 1999", "ISO-8859-8" },
+	{ "ISO-IR 8859 9 1999", "ISO-8859-9" },
+	{ "ISO-IR 8859 10 1998", "ISO-8859-10" },
+	{ "ISO-IR 8859 13 1998", "ISO-8859-13" },
+	{ "ISO-IR 8859 14 1998", "ISO-8859-14" },
+	{ "ISO-IR 8859 15 1999", "ISO-8859-15" },
+	{ NULL, NULL}
+};
+
 
 int
 archive_read_support_format_gnutar(struct archive *a)
@@ -1757,18 +1783,21 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 		break;
 	case 'h':
 		if (strcmp(key, "hdrcharset") == 0 && tar->sconv == NULL) {
-			if (strcmp(value, "BINARY") == 0)
-				tar->pax_hdrcharset_binary = 1;
-			else if (strcmp(value, "ISO-IR 10646 2000 UTF-8") == 0) {
-				tar->pax_hdrcharset_binary = 0;
-				tar->sconv =
-				    archive_string_conversion_from_charset(
-					&(a->archive), "UTF-8", 1);
-			} else {
-				tar->pax_hdrcharset_binary = 0;
-				tar->sconv =
-				    archive_string_conversion_from_charset(
-					&(a->archive), value, 1);
+			int i;
+			for (i = 0; pax_charset[i].isoname != NULL; i++) {
+				if (strcmp(pax_charset[i].isoname, value) == 0) {
+					if (pax_charset[i].cnvname == NULL) {
+						/* Binary  mode. */
+						tar->pax_hdrcharset_binary = 1;
+						break;
+					}
+					tar->pax_hdrcharset_binary = 0;
+					tar->sconv =
+					    archive_string_conversion_from_charset(
+						&(a->archive),
+						pax_charset[i].cnvname, 1);
+					break;
+				}
 			}
 		}
 		break;
