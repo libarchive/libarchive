@@ -622,126 +622,110 @@ my_atoi(const char *p)
 #define CP_UTF16BE	1201
 
 /*
- * Translate Charset into CodePage.
+ * Translate Charset name (as used by iconv) into CodePage (as used by Windows)
  * Return -1 if failed.
  *
  * Note: This translation code may be insufficient.
  */
+static struct charset {
+	const char *name;
+	unsigned cp;
+} charsets[] = {
+	/* MUST BE SORTED! */
+	{"ASCII", 1252},
+	{"BIG5", 950},
+	{"CHINESE", 936},
+	{"CP367", 1252},
+	{"CP819", 1252},
+	{"EUC-CN", 51936},
+	{"EUC-JP", 51932},
+	{"EUC-KR", 949},
+	{"EUCCN", 51936},
+	{"EUCJP", 51932},
+	{"EUCKR", 949},
+	{"GB2312", 936},
+	{"HEBREW", 1255},
+	{"IBM367", 1252},
+	{"IBM819", 1252},
+	{"ISO-8859-1", 1252},
+	{"ISO-8859-13", 1257},
+	{"ISO-8859-2", 28592}, /* Should be 1250? */
+	{"ISO-8859-5", 1251},
+	{"ISO-8859-7", 1253},
+	{"ISO-8859-8", 1255},
+	{"ISO-8859-9", 1254},
+	{"ISO8859-1", 1252},
+	{"ISO8859-13", 1257},
+	{"ISO8859-2", 28592}, /* Should be 1250? */
+	{"ISO8859-5", 1251},
+	{"ISO8859-7", 1253},
+	{"ISO8859-8", 1255},
+	{"ISO8859-9", 1254},
+	{"KOI8-R", 20866},
+	{"LATIN1", 1252},
+	{"LATIN2", 28592},
+	{"SHIFT-JIS", 932},
+	{"SHIFT_JIS", 932},
+	{"SJIS", 932},
+	{"US", 1252},
+	{"US-ASCII", 1252},
+	{"UTF-16", 1200},
+	{"UTF-16BE", 1201},
+	{"UTF-16LE", 1200},
+	{"UTF-8", CP_UTF8},
+};
 static unsigned
 make_codepage_from_charset(const char *charset)
 {
-	char *cs = strdup(charset);
+	char cs[16];
 	char *p;
 	unsigned cp;
+	int a, b;
 
+	if (charset == NULL || strlen(charset) > 15)
+		return -1;
+
+	/* Copy name to uppercase. */
 	p = cs;
-	while (*p) {
-		if (*p >= 'a' && *p <= 'z')
-			*p -= 'a' - 'A';
-		p++;
+	while (*charset) {
+		char c = *charset++;
+		if (c >= 'a' && c <= 'z')
+			c -= 'a' - 'A';
+		*p++ = c;
 	}
+	*p++ = '\0';
 	cp = -1;
+
+	/* Look it up in the table first, so that we can easily
+	 * override CP367, which we map to 1252 instead of 367. */
+	a = 0;
+	b = sizeof(charsets)/sizeof(charsets[0]);
+	while (b > a) {
+		int c = (b + a) / 2;
+		int r = strcmp(charsets[c].name, cs);
+		if (r < 0)
+			a = c + 1;
+		else if (r > 0)
+			b = c;
+		else
+			return charsets[c].cp;
+	}
+
+	/* If it's not in the table, try to parse it. */
 	switch (*cs) {
-	case 'A':
-		if (strcmp(cs, "ASCII") == 0)
-			cp = 1252;
-		break;
-	case 'B':
-		if (strcmp(cs, "BIG5") == 0)
-			cp = 950;
-		break;
 	case 'C':
-		if (strcmp(cs, "CHINESE") == 0)
-			cp = 936;
-		else if (cs[1] == 'P' && cs[2] >= '0' && cs[2] <= '9') {
+		if (cs[1] == 'P' && cs[2] >= '0' && cs[2] <= '9') {
 			cp = my_atoi(cs + 2);
-			switch (cp) {
-			case 367:
-			case 819:
-				cp = 1252;
-				break;
-			}
 		} else if (strcmp(cs, "CP_ACP") == 0)
 			cp = GetACP();
 		else if (strcmp(cs, "CP_OEMCP") == 0)
 			cp = GetOEMCP();
 		break;
-	case 'E':
-		if (strcmp(cs, "EUCJP") == 0 ||
-		    strcmp(cs, "EUC-JP") == 0)
-			cp = 51932;
-		else if (strcmp(cs, "EUCCN") == 0 ||
-		    strcmp(cs, "EUC-CN") == 0)
-			cp = 51936;
-		else if (strcmp(cs, "EUCKR") == 0 ||
-		    strcmp(cs, "EUC-KR") == 0)
-			cp = 949;
-		break;
-	case 'G':
-		if (strcmp(cs, "GB2312") == 0)
-			cp = 936;
-		break;
-	case 'H':
-		if (strcmp(cs, "HEBREW") == 0)
-			cp = 1255;
-		break;
 	case 'I':
 		if (cs[1] == 'B' && cs[2] == 'M' &&
 		    cs[3] >= '0' && cs[3] <= '9') {
 			cp = my_atoi(cs + 3);
-			switch (cp) {
-			case 367:
-			case 819:
-				cp = 1252;
-				break;
-			}
-		} else if (strncmp(cs, "ISO-8859-", 9) == 0 ||
-		    strncmp(cs, "ISO8859-", 8) == 0) {
-			int d;
-			if (cs[3] == '-')
-				d = my_atoi(cs + 9);
-			else
-				d = my_atoi(cs + 8);
-			switch (d) {
-			case 1: cp = 1252; break;/* Western Eouropean languages */
-			case 2: cp = 28592; break;/* Central European languages (1250?) */
-			case 5: cp = 1251; break;/* Cyrillic */
-			case 7: cp = 1253; break;/* Greek: not fully compatible */
-			case 8: cp = 1255; break;/* Hebrew */
-			case 9: cp = 1254; break;/* Turkish */
-			case 13:cp = 1257; break;/* Baltic languages: almost compatible */
-			default: break;
-			}
 		}
-		break;
-	case 'K':
-		if (strcmp(cs, "KOI8-R") == 0)
-			cp = 20866;/* Cyrillc */
-		break;
-	case 'L':
-		if (strcmp(cs, "LATIN1") == 0)
-			cp = 1252;
-		else if (strcmp(cs, "LATIN2") == 0)
-			cp = 28592;
-		break;
-	case 'S':
-		if (strcmp(cs, "SHIFT_JIS") == 0 ||
-		    strcmp(cs, "SHIFT-JIS") == 0 ||
-		    strcmp(cs, "SJIS") == 0)
-			cp = 932;
-		break;
-	case 'U':
-		if (strcmp(cs, "US") == 0)
-			cp = 1252;
-		else if (strcmp(cs, "US-ASCII") == 0)
-			cp = 1252;
-		else if (strcmp(cs, "UTF-8") == 0)
-			cp = CP_UTF8;
-		else if (strcmp(cs, "UTF-16") == 0 ||
-		    strcmp(cs, "UTF-16LE") == 0)
-			cp = CP_UTF16LE;
-		else if (strcmp(cs, "UTF-16BE") == 0)
-			cp = CP_UTF16BE;
 		break;
 	case 'W':
 		if (strncmp(cs, "WINDOWS-", 8) == 0) {
@@ -751,8 +735,6 @@ make_codepage_from_charset(const char *charset)
 		}
 		break;
 	}
-
-	free(cs);
 	return (cp);
 }
 
