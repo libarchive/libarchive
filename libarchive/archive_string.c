@@ -651,7 +651,9 @@ make_codepage_from_charset(const char *charset)
 			cp = 950;
 		break;
 	case 'C':
-		if (cs[1] == 'P' && cs[2] >= '0' && cs[2] <= '9') {
+		if (strcmp(cs, "CHINESE") == 0)
+			cp = 936;
+		else if (cs[1] == 'P' && cs[2] >= '0' && cs[2] <= '9') {
 			cp = my_atoi(cs + 2);
 			switch (cp) {
 			case 367:
@@ -665,16 +667,23 @@ make_codepage_from_charset(const char *charset)
 			cp = GetOEMCP();
 		break;
 	case 'E':
-		if (strcmp(cs, "EUCJP") == 0)
+		if (strcmp(cs, "EUCJP") == 0 ||
+		    strcmp(cs, "EUC-JP") == 0)
 			cp = 51932;
-		else if (strcmp(cs, "EUCCN") == 0)
+		else if (strcmp(cs, "EUCCN") == 0 ||
+		    strcmp(cs, "EUC-CN") == 0)
 			cp = 51936;
-		else if (strcmp(cs, "EUCKR") == 0)
+		else if (strcmp(cs, "EUCKR") == 0 ||
+		    strcmp(cs, "EUC-KR") == 0)
 			cp = 949;
 		break;
 	case 'G':
 		if (strcmp(cs, "GB2312") == 0)
 			cp = 936;
+		break;
+	case 'H':
+		if (strcmp(cs, "HEBREW") == 0)
+			cp = 1255;
 		break;
 	case 'I':
 		if (cs[1] == 'B' && cs[2] == 'M' &&
@@ -686,21 +695,28 @@ make_codepage_from_charset(const char *charset)
 				cp = 1252;
 				break;
 			}
-		} else if (strncmp(cs, "ISO8859-", 8) == 0) {
-			if (cs[8] == '1' && cs[9] == '\0')
-				cp = 1252;
-			else if (cs[8] == '2' && cs[9] == '\0')
-				cp = 28592;
-			else if (cs[8] == '8' && cs[9] == '\0')
-				cp = 1255;
-		} else if (strncmp(cs, "ISO_8859-", 9) == 0) {
-			if (cs[9] == '1' && cs[10] == '\0')
-				cp = 1252;
-			else if (cs[9] == '2' && cs[10] == '\0')
-				cp = 28592;
-			else if (cs[9] == '8' && cs[10] == '\0')
-				cp = 1255;
+		} else if (strncmp(cs, "ISO-8859-", 9) == 0 ||
+		    strncmp(cs, "ISO8859-", 8) == 0) {
+			int d;
+			if (cs[3] == '-')
+				d = my_atoi(cs + 9);
+			else
+				d = my_atoi(cs + 8);
+			switch (d) {
+			case 1: cp = 1252; break;/* Western Eouropean languages */
+			case 2: cp = 28592; break;/* Central European languages (1250?) */
+			case 5: cp = 1251; break;/* Cyrillic */
+			case 7: cp = 1253; break;/* Greek: not fully compatible */
+			case 8: cp = 1255; break;/* Hebrew */
+			case 9: cp = 1254; break;/* Turkish */
+			case 13:cp = 1257; break;/* Baltic languages: almost compatible */
+			default: break;
+			}
 		}
+		break;
+	case 'K':
+		if (strcmp(cs, "KOI8-R") == 0)
+			cp = 20866;/* Cyrillc */
 		break;
 	case 'L':
 		if (strcmp(cs, "LATIN1") == 0)
