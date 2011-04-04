@@ -120,37 +120,50 @@ test_archive_strappend_char()
 	assertExactString(2, EXTENT, "XY", s);
 }
 
+/* archive_strnXXX() tests focus on length handling.
+ * other behaviors are tested by proxy through archive_strXXX()
+ */
+
 static void
 test_archive_strncat()
 {
-	struct archive_string s, *x;
+	struct archive_string s;
 
 	archive_string_init(&s);
 	assertExactString(0, 0, NULL, s);
 
-	/* null target, empty source */
-	x = archive_strncat(&s, "", 0);
-	assert(NULL != x);
-	assertEqualArchiveString(*x, s);
-	assertExactString(0, EXTENT, "", s);
+	/* perfect length */
+	assert(NULL != archive_strncat(&s, "snafu", 5));
+	assertExactString(5, EXTENT, "snafu", s);
 
-	/* empty target, empty source */
-	x = archive_strncat(&s, "", 0);
-	assert(NULL != x);
-	assertEqualArchiveString(*x, s);
-	assertExactString(0, EXTENT, "", s);
+	/* short read */
+	assert(NULL != archive_strncat(&s, "barbazqux", 3));
+	assertExactString(8, EXTENT, "snafubar", s);
 
-	/* empty target, non-empty source */
-	x = archive_strncat(&s, "fubar", 5);
-	assert(NULL != x);
-	assertEqualArchiveString(*x, s);
+	/* long read is ok too! */
+	assert(NULL != archive_strncat(&s, "snafu", 8));
+	assertExactString(13, EXTENT, "snafubarsnafu", s);
+}
+
+static void
+test_archive_strncpy()
+{
+	struct archive_string s;
+
+	archive_string_init(&s);
+	assertExactString(0, 0, NULL, s);
+
+	/* perfect length */
+	assert(NULL != archive_strncpy(&s, "fubar", 5));
 	assertExactString(5, EXTENT, "fubar", s);
 
-	/* non-empty target, non-empty source */
-	x = archive_strncat(&s, "bazqux", 3);
-	assert(NULL != x);
-	assertEqualArchiveString(*x, s);
-	assertExactString(8, EXTENT, "fubarbaz", s);
+	/* short read */
+	assert(NULL != archive_strncpy(&s, "snafubar", 5));
+	assertExactString(5, EXTENT, "snafu", s);
+
+	/* long read is ok too! */
+	assert(NULL != archive_strncpy(&s, "snafu", 8));
+	assertExactString(5, EXTENT, "snafu", s);
 }
 
 static void
@@ -278,6 +291,7 @@ DEFINE_TEST(test_archive_string)
 	test_archive_strcat();
 	test_archive_strappend_char();
 	test_archive_strncat();
+	test_archive_strncpy();
 	test_archive_strcpy();
 	test_archive_string_concat();
 	test_archive_string_copy();
