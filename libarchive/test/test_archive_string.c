@@ -285,6 +285,60 @@ test_archive_string_copy()
 	assertExactString(5, EXTENT, "fubar", t);
 }
 
+static void
+test_archive_string_sprintf()
+{
+	struct archive_string s;
+#define S16 "0123456789abcdef"
+#define S32 S16 S16
+#define S64 S32 S32
+#define S128 S64 S64
+	const char *s32 = S32;
+	const char *s33 = S32 "0";
+	const char *s64 = S64;
+	const char *s65 = S64 "0";
+	const char *s128 = S128;
+	const char *s129 = S128 "0";
+#undef S16
+#undef S32
+#undef S64
+#undef S128
+
+	archive_string_init(&s);
+	assertExactString(0, 0, NULL, s);
+
+	archive_string_sprintf(&s, "%s", "");
+	assertExactString(0, 2 * EXTENT, "", s);
+
+	archive_string_empty(&s);
+	archive_string_sprintf(&s, "%s", s32);
+	assertExactString(32, 2 * EXTENT, s32, s);
+
+	archive_string_empty(&s);
+	archive_string_sprintf(&s, "%s", s33);
+	assertExactString(33, 2 * EXTENT, s33, s);
+
+	archive_string_empty(&s);
+	archive_string_sprintf(&s, "%s", s64);
+	assertExactString(64, 4 * EXTENT, s64, s);
+
+	archive_string_empty(&s);
+	archive_string_sprintf(&s, "%s", s65);
+	assertExactString(65, 4 * EXTENT, s65, s);
+
+	archive_string_empty(&s);
+	archive_string_sprintf(&s, "%s", s128);
+	assertExactString(128, 8 * EXTENT, s128, s);
+
+	archive_string_empty(&s);
+	archive_string_sprintf(&s, "%s", s129);
+	assertExactString(129, 8 * EXTENT, s129, s);
+
+	archive_string_empty(&s);
+	archive_string_sprintf(&s, "%d", 1234567890);
+	assertExactString(10, 8 * EXTENT, "1234567890", s);
+}
+
 DEFINE_TEST(test_archive_string)
 {
 	test_archive_string_ensure();
@@ -295,4 +349,5 @@ DEFINE_TEST(test_archive_string)
 	test_archive_strcpy();
 	test_archive_string_concat();
 	test_archive_string_copy();
+	test_archive_string_sprintf();
 }
