@@ -409,12 +409,12 @@ static inline void cache_add_entry(struct iso9660 *iso9660,
 static inline void cache_add_to_next_of_parent(struct iso9660 *iso9660,
 		    struct file_info *file);
 static inline struct file_info *cache_get_entry(struct iso9660 *iso9660);
-static int	heap_add_entry(struct heap_queue *heap,
+static int	heap_add_entry(struct archive_read *a, struct heap_queue *heap,
 		    struct file_info *file, uint64_t key);
 static struct file_info *heap_get_entry(struct heap_queue *heap);
 
-#define add_entry(iso9660, file)	\
-	heap_add_entry(&((iso9660)->pending_files), file, file->offset)
+#define add_entry(arch, iso9660, file)	\
+	heap_add_entry(arch, &((iso9660)->pending_files), file, file->offset)
 #define next_entry(iso9660)		\
 	heap_get_entry(&((iso9660)->pending_files))
 
@@ -984,13 +984,9 @@ read_children(struct archive_read *a, struct file_info *parent)
 				return (ARCHIVE_FATAL);
 			}
 			if (child->cl_offset) {
-				if (heap_add_entry(&(iso9660->cl_files),
+				if (heap_add_entry(a, &(iso9660->cl_files),
 				    child, child->cl_offset) != ARCHIVE_OK)
-				{
-					archive_set_error(&a->archive,
-					    ENOMEM, "heap_add_entry");
 					return (ARCHIVE_FATAL);
-				}
 			} else {
 				if (child->multi_extent || multi != NULL) {
 					struct content *con;
@@ -1015,15 +1011,19 @@ read_children(struct archive_read *a, struct file_info *parent)
 					con->next = NULL;
 					*multi->contents.last = con;
 					multi->contents.last = &(con->next);
-					if (multi == child)
-						add_entry(iso9660, child);
-					else {
+					if (multi == child) {
+						if (add_entry(a, iso9660, child)
+						    != ARCHIVE_OK)
+							return (ARCHIVE_FATAL);
+					} else {
 						multi->size += child->size;
 						if (!child->multi_extent)
 							multi = NULL;
 					}
 				} else
-					add_entry(iso9660, child);
+					if (add_entry(a, iso9660, child)
+					    != ARCHIVE_OK)
+						return (ARCHIVE_FATAL);
 			}
 		}
 	}
@@ -1061,12 +1061,9 @@ relocate_dir(struct archive_read *a, struct iso9660 *iso9660,
 		return (ARCHIVE_OK);
 	} else
 		/* This case is wrong pattern. */
-		if (heap_add_entry(&(iso9660->re_dirs), re, re->offset)
-		    != ARCHIVE_OK) {
-			archive_set_error(&a->archive,
-			    ENOMEM, "heap_add_entry");
+		if (heap_add_entry(a, &(iso9660->re_dirs), re, re->offset)
+		    != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
-		}
 	return (ARCHIVE_OK);
 }
 
@@ -1092,21 +1089,24 @@ read_entries(struct archive_read *a)
 		    (strcmp(file->name.s, "rr_moved") == 0 ||
 		     strcmp(file->name.s, ".rr_moved") == 0)) {
 			iso9660->rr_moved = file;
-		} else if (file->re)
-			heap_add_entry(&(iso9660->re_dirs), file,
-			    file->offset);
-		else
+		} else if (file->re) {
+			if (heap_add_entry(a, &(iso9660->re_dirs), file,
+			    file->offset) != ARCHIVE_OK)
+				return (ARCHIVE_FATAL);
+		} else
 			cache_add_entry(iso9660, file);
 	}
 	if (file != NULL)
-		add_entry(iso9660, file);
+		if (add_entry(a, iso9660, file) != ARCHIVE_OK)
+			return (ARCHIVE_FATAL);
 
 	if (iso9660->rr_moved != NULL) {
 		/*
 		 * Relocate directory which rr_moved has.
 		 */
 		while ((file = heap_get_entry(&(iso9660->cl_files))) != NULL)
-			relocate_dir(a, iso9660, file);
+			if (relocate_dir(a, iso9660, file) != ARCHIVE_OK)
+				return (ARCHIVE_FATAL);
 
 		/* If rr_moved directory still has children,
 		 * Add rr_moved into pending_files to show
@@ -1221,7 +1221,8 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 			iso9660->seenJoliet = seenJoliet;
 		}
 		/* Store the root directory in the pending list. */
-		add_entry(iso9660, file);
+		if (add_entry(a, iso9660, file) != ARCHIVE_OK)
+			return (ARCHIVE_FATAL);
 		if (iso9660->seenRockridge) {
 			a->archive.archive_format =
 			    ARCHIVE_FORMAT_ISO9660_ROCKRIDGE;
@@ -2700,7 +2701,8 @@ cache_get_entry(struct iso9660 *iso9660)
 }
 
 static int
-heap_add_entry(struct heap_queue *heap, struct file_info *file, uint64_t key)
+heap_add_entry(struct archive_read *a, struct heap_queue *heap,
+    struct file_info *file, uint64_t key)
 {
 	uint64_t file_key, parent_key;
 	int hole, parent;
@@ -2714,11 +2716,15 @@ heap_add_entry(struct heap_queue *heap, struct file_info *file, uint64_t key)
 			new_size = 1024;
 		/* Overflow might keep us from growing the list. */
 		if (new_size <= heap->allocated) {
+			archive_set_error(&a->archive,
+			    ENOMEM, "Out of memory");
 			return (ARCHIVE_FATAL);
 		}
 		new_pending_files = (struct file_info **)
 		    malloc(new_size * sizeof(new_pending_files[0]));
 		if (new_pending_files == NULL) {
+			archive_set_error(&a->archive,
+			    ENOMEM, "Out of memory");
 			return (ARCHIVE_FATAL);
 		}
 		memcpy(new_pending_files, heap->files,
