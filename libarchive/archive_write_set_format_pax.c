@@ -386,9 +386,12 @@ archive_write_pax_header(struct archive_write *a,
 		return (ARCHIVE_FAILED);
 	}
 
-	if (pax->sconv_utf8 == NULL)
+	if (pax->sconv_utf8 == NULL) {
 		pax->sconv_utf8 = archive_string_conversion_to_charset(
 		    &(a->archive), "UTF-8", 1);
+		if (pax->sconv_utf8 == NULL)
+			return (ARCHIVE_FAILED);/* Couldn't allocate memory */
+	}
 	/*
 	 * Choose a header encoding.
 	 */

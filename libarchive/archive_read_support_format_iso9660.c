@@ -1802,10 +1802,13 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 
 		/* Convert UTF-16BE of a filename to local locale MBS and store
 		 * the result into a filename field. */
-		if (iso9660->sconv_utf16be == NULL)
+		if (iso9660->sconv_utf16be == NULL) {
 			iso9660->sconv_utf16be =
 			    archive_string_conversion_from_charset(
 				&(a->archive), "UTF-16BE", 1);
+			if (iso9660->sconv_utf16be == NULL)
+				return (NULL);/* Coundn't allocate memory */
+		}
 		archive_strncpy_in_locale(&file->name,
 		    (const char *)p, name_len, iso9660->sconv_utf16be);
 	} else {

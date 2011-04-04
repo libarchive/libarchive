@@ -503,10 +503,13 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 	}
 	if (zip->sconv == NULL && (zip->flags & ZIP_UTF8_NAME) != 0) {
 		/* The filename is stored to be UTF-8. */
-		if (zip->sconv_utf8 == NULL)
+		if (zip->sconv_utf8 == NULL) {
 			zip->sconv_utf8 =
 			    archive_string_conversion_from_charset(
 				&a->archive, "UTF-8", 1);
+			if (zip->sconv_utf8 == NULL)
+				return (ARCHIVE_FATAL);
+		}
 		if (archive_strncpy_in_locale(&zip->pathname,
 		    h, zip->filename_length, zip->sconv_utf8) != 0) {
 			archive_set_error(&a->archive,

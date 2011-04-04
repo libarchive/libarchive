@@ -889,9 +889,12 @@ header_Solaris_ACL(struct archive_read *a, struct tar *tar,
 	while (*p != '\0' && p < acl + size)
 		p++;
 
-	if (tar->sconv_acl == NULL)
+	if (tar->sconv_acl == NULL) {
 		tar->sconv_acl = archive_string_conversion_from_charset(
 		    &(a->archive), "UTF-8", 1);
+		if (tar->sconv_acl == NULL)
+			return (ARCHIVE_FATAL);
+	}
 	if (archive_strncpy_in_locale(&(tar->localname), acl, p - acl,
 	    tar->sconv_acl) != 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -1463,6 +1466,8 @@ pax_header(struct archive_read *a, struct tar *tar,
 
 		/* Identify this attribute and set it in the entry. */
 		err2 = pax_attribute(a, tar, entry, key, value);
+		if (err2 == ARCHIVE_FATAL)
+			return (err2);
 		err = err_combine(err, err2);
 
 		/* Skip to next line */
@@ -1481,6 +1486,8 @@ pax_header(struct archive_read *a, struct tar *tar,
 		 */
 		sconv = archive_string_conversion_from_charset(
 		    &(a->archive), "UTF-8", 1);
+		if (sconv == NULL)
+			return (ARCHIVE_FATAL);
 	}
 
 	if (archive_strlen(&(tar->entry_gname)) > 0) {
@@ -1685,10 +1692,13 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 	case 'S':
 		/* We support some keys used by the "star" archiver */
 		if (strcmp(key, "SCHILY.acl.access")==0) {
-			if (tar->sconv_acl == NULL)
+			if (tar->sconv_acl == NULL) {
 				tar->sconv_acl =
 				    archive_string_conversion_from_charset(
 					&(a->archive), "UTF-8", 1);
+				if (tar->sconv_acl == NULL)
+					return (ARCHIVE_FATAL);
+			}
 
 			if (archive_strcpy_in_locale(&(tar->localname),
 			    value, tar->sconv_acl) != 0) {
@@ -1702,10 +1712,13 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 				    tar->localname.s,
 				    ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
 		} else if (strcmp(key, "SCHILY.acl.default")==0) {
-			if (tar->sconv_acl == NULL)
+			if (tar->sconv_acl == NULL) {
 				tar->sconv_acl =
 				    archive_string_conversion_from_charset(
 					&(a->archive), "UTF-8", 1);
+				if (tar->sconv_acl == NULL)
+					return (ARCHIVE_FATAL);
+			}
 
 			if (archive_strcpy_in_locale(&(tar->localname),
 			    value, tar->sconv_acl) != 0) {

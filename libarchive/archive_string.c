@@ -563,14 +563,19 @@ create_sconv_object(const char *fc, const char *tc,
 
 	sc = malloc(sizeof(*sc));
 	if (sc == NULL)
-		__archive_errx(1, "No memory for charset conversion object");
+		return (NULL);
 	sc->next = NULL;
 	sc->from_charset = strdup(fc);
-	if (sc->from_charset == NULL)
-		__archive_errx(1, "No memory for charset conversion object");
+	if (sc->from_charset == NULL) {
+		free(sc);
+		return (NULL);
+	}
 	sc->to_charset = strdup(tc);
-	if (sc->to_charset == NULL)
-		__archive_errx(1, "No memory for charset conversion object");
+	if (sc->to_charset == NULL) {
+		free(sc);
+		free(sc->from_charset);
+		return (NULL);
+	}
 	sc->same = (strcmp(fc, tc) == 0)?1:0;
 #if HAVE_ICONV
 	sc->cd = iconv_open(tc, fc);
@@ -772,6 +777,11 @@ get_sconv_object(struct archive *a, const char *fc, const char *tc, int flag)
 	else
 		current_codepage = a->current_codepage;
 	sc = create_sconv_object(fc, tc, current_codepage, flag);
+	if (sc == NULL) {
+		archive_set_error(a, ENOMEM,
+		    "Could not allocate memory for a string conversion object");
+		return (NULL);
+	}
 #if HAVE_ICONV
 	if (sc->cd == (iconv_t)-1 && (flag & SCONV_BEST_EFFORT) == 0) {
 		free_sconv_object(sc);
@@ -860,7 +870,8 @@ get_current_charset(struct archive *a)
  * Return NULL if the platform does not support the specified conversion
  * and best_effort is 0.
  * If best_effort is set, A string conversion object must be returned
- * but the conversion might fail when non-ASCII code is found.
+ * except memory allocation for the object fails, but the conversion
+ * might fail when non-ASCII code is found.
  */
 struct archive_string_conv *
 archive_string_conversion_to_charset(struct archive *a, const char *charset,
@@ -1759,6 +1770,8 @@ archive_mstring_get_utf8(struct archive *a, struct archive_mstring *aes)
 
 	if (aes->aes_set & AES_SET_MBS) {
 		sc = archive_string_conversion_to_charset(a, "UTF-8", 1);
+		if (sc == NULL)
+			return (NULL);/* Couldn't allocate memory for sc. */
 		r = archive_strncpy_in_locale(&(aes->aes_mbs), aes->aes_mbs.s,
 		    aes->aes_mbs.length, sc);
 		if (a == NULL)
@@ -1790,6 +1803,8 @@ archive_mstring_get_mbs(struct archive *a, struct archive_mstring *aes)
 	/* If there's a UTF-8 form, try converting with the native locale. */
 	if (aes->aes_set & AES_SET_UTF8) {
 		sc = archive_string_conversion_from_charset(a, "UTF-8", 1);
+		if (sc == NULL)
+			return (NULL);/* Couldn't allocate memory for sc. */
 		r = archive_strncpy_in_locale(&(aes->aes_mbs),
 			aes->aes_utf8.s, aes->aes_utf8.length, sc);
 		if (a == NULL)
@@ -1897,6 +1912,8 @@ archive_mstring_update_utf8(struct archive *a, struct archive_mstring *aes,
 
 	/* Try converting UTF-8 to MBS, return false on failure. */
 	sc = archive_string_conversion_from_charset(a, "UTF-8", 1);
+	if (sc == NULL)
+		return (0);/* Couldn't allocate memory for sc. */
 	r = archive_strcpy_in_locale(&(aes->aes_mbs), utf8, sc);
 	if (a == NULL)
 		free_sconv_object(sc);

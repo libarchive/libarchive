@@ -803,10 +803,13 @@ cab_read_header(struct archive_read *a)
 			goto invalid;
 		archive_string_init(&(file->pathname));
 		if ((file->attr & ATTR_NAME_IS_UTF) && cab->sconv == NULL) {
-			if (cab->sconv_utf8 == NULL)
+			if (cab->sconv_utf8 == NULL) {
 				cab->sconv_utf8 =
 				    archive_string_conversion_from_charset(
 					&(a->archive), "UTF-8", 1);
+				if (cab->sconv_utf8 == NULL)
+					return (ARCHIVE_FATAL);
+			}
 			archive_strncpy_in_locale(&(file->pathname), p, len,
 			    cab->sconv_utf8);
 		} else

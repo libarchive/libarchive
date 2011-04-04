@@ -1280,6 +1280,8 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 					lha->sconv =
 					    archive_string_conversion_from_charset(
 						&(a->archive), charset, 1);
+					if (lha->sconv == NULL)
+						return (ARCHIVE_FATAL);
 				}
 			}
 			break;
