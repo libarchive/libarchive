@@ -63,10 +63,8 @@ struct pax {
 	size_t			sparse_map_padding;
 	struct sparse_block	*sparse_list;
 	struct sparse_block	*sparse_tail;
-	struct archive_string_conv *opt_sconv;
 	struct archive_string_conv *sconv_utf8;
 	int			 opt_binary;
-	const char	*hdrcharset;
 };
 
 static void		 add_pax_attr(struct archive_string *, const char *key,
@@ -156,24 +154,6 @@ static int
 archive_write_pax_options(struct archive_write *a, const char *key,
     const char *val)
 {
-	static const char *iso_charset[] = {
-		NULL,
-		"ISO-IR 8859 1 1998",
-		"ISO-IR 8859 2 1999",
-		"ISO-IR 8859 3 1999",
-		"ISO-IR 8859 4 1998",
-		"ISO-IR 8859 5 1999",
-		"ISO-IR 8859 6 1999",
-		"ISO-IR 8859 7 1987",
-		"ISO-IR 8859 8 1999",
-		"ISO-IR 8859 9 1999",
-		"ISO-IR 8859 10 1998",
-		NULL,
-		NULL,
-		"ISO-IR 8859 13 1998",
-		"ISO-IR 8859 14 1998",
-		"ISO-IR 8859 15 1999",
-	};
 	struct pax *pax = (struct pax *)a->format_data;
 	int ret = ARCHIVE_FAILED;
 
@@ -185,93 +165,18 @@ archive_write_pax_options(struct archive_write *a, const char *key,
 		if (val == NULL || val[0] == 0)
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "pax: charset option needs a character-set name");
-		else {
-			int try_conv = 0;
-			const char *p;
-
-			switch (val[0]) {
-			case 'b':
-			case 'B':
-				/*
-				 * Specify binary mode. We will not convert
-				 * filenames, uname and gname to any charsets.
-				 */
-				if (strcmp(val, "BINARY") == 0 ||
-				    strcmp(val, "binary") == 0) {
-					pax->opt_binary = 1;
-					pax->opt_sconv = NULL;
-					pax->hdrcharset = "BINARY";
-					ret = ARCHIVE_OK;
-				}
-				break;
-			case 'I':
-				/*
-				 * ISO-8859-1  ISO8859-1
-				 * ISO-8859-2  ISO8859-2
-				 * ISO-8859-3  ISO8859-3
-				 * ISO-8859-4  ISO8859-4
-				 * ISO-8859-5  ISO8859-5
-				 * ISO-8859-6  ISO8859-6
-				 * ISO-8859-7  ISO8859-7
-				 * ISO-8859-8  ISO8859-8
-				 * ISO-8859-9  ISO8859-9
-				 * ISO-8859-10 ISO8859-10
-				 * ISO-8859-13 ISO8859-13
-				 * ISO-8859-14 ISO8859-14
-				 * ISO-8859-15 ISO8859-15
-				 */
-				if (strncmp(val, "ISO-8859-", 9) == 0 ||
-				    strncmp(val, "ISO8859-", 8) == 0) {
-					int d;
-					if (val[3] == '-')
-						p = val + 9;
-					else
-						p = val + 8;
-					if (p[0] >= '1' && p[0] <= '9') {
-						d = p[0] - '0';
-						if (p[1] >= '0' && p[1] <= '5'
-						    && p[2] == '\0')
-							d = d * 10 + (p[1] - '0');
-						else if (p[1] != '\0')
-							d = -1;
-					} else
-						d = -1;
-					if (d >= 1 && d <= 15 &&
-					    iso_charset[d] != NULL) {
-						try_conv = 1;
-						pax->hdrcharset =
-						    iso_charset[d];
-					}
-				}
-				break;
-			case 'U':
-				/* UTF-8 is default charset. */
-				if (strcmp(val, "UTF-8") == 0) {
-					try_conv = 1;
-					pax->hdrcharset = NULL;
-				}
-				break;
-			}
+		else if (strcmp(val, "BINARY") == 0 ||
+		    strcmp(val, "binary") == 0) {
 			/*
-			 * Can this platform convert names to specified
-			 * charset ?
+			 * Specify binary mode. We will not convert
+			 * filenames, uname and gname to any charsets.
 			 */
-			if (try_conv) {
-				pax->opt_binary = 0;
-				pax->opt_sconv =
-				    archive_string_conversion_to_charset(
-				        &a->archive, val, 0);
-				if (pax->opt_sconv != NULL)
-					ret = ARCHIVE_OK;
-				else {
-					pax->hdrcharset = NULL;
-					ret = ARCHIVE_FATAL;
-				}
-			} else if (ret != ARCHIVE_OK)
-				archive_set_error(&a->archive,
-				    ARCHIVE_ERRNO_MISC,
-				    "pax: invalid charset name");
-		}
+			pax->opt_binary = 1;
+			ret = ARCHIVE_OK;
+		} else
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_MISC,
+			    "pax: invalid charset name");
 	} else
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "pax: unknown keyword ``%s''", key);
@@ -489,8 +394,6 @@ archive_write_pax_header(struct archive_write *a,
 	 */
 	if ((binary = pax->opt_binary) != 0)
 		sconv = NULL;
-	else if (pax->opt_sconv != NULL && pax->hdrcharset != NULL)
-		sconv = pax->opt_sconv;
 	else
 		sconv = pax->sconv_utf8;
 
@@ -685,8 +588,6 @@ archive_write_pax_header(struct archive_write *a,
 	/* Store the header encoding first, to be nice to readers. */
 	if (binary)
 		add_pax_attr(&(pax->pax_header), "hdrcharset", "BINARY");
-	else if (pax->hdrcharset != NULL)
-		add_pax_attr(&(pax->pax_header), "hdrcharset", pax->hdrcharset);
 
 
 	/*
@@ -1124,7 +1025,7 @@ archive_write_pax_header(struct archive_write *a,
 	 * numeric fields, though they're less critical.
 	 */
 	__archive_write_format_header_ustar(a, ustarbuff, entry_main, -1, 0,
-	    pax->opt_sconv);
+	    NULL);
 
 	/* If we built any extended attributes, write that entry first. */
 	if (archive_strlen(&(pax->pax_header)) > 0) {
@@ -1180,7 +1081,7 @@ archive_write_pax_header(struct archive_write *a,
 		archive_entry_set_ctime(pax_attr_entry, 0, 0);
 
 		r = __archive_write_format_header_ustar(a, paxbuff,
-		    pax_attr_entry, 'x', 1, pax->opt_sconv);
+		    pax_attr_entry, 'x', 1, NULL);
 
 		archive_entry_free(pax_attr_entry);
 
