@@ -164,7 +164,8 @@ static int	header_afiol(struct archive_read *, struct cpio *,
 static int	is_octal(const char *, size_t);
 static int	is_hex(const char *, size_t);
 static int	le4(const unsigned char *);
-static int	record_hardlink(struct cpio *cpio, struct archive_entry *entry);
+static int	record_hardlink(struct archive_read *a,
+		    struct cpio *cpio, struct archive_entry *entry);
 
 int
 archive_read_support_format_cpio(struct archive *_a)
@@ -315,9 +316,7 @@ archive_read_format_cpio_read_header(struct archive_read *a,
 	}
 
 	/* Detect and record hardlinks to previously-extracted entries. */
-	if (record_hardlink(cpio, entry) != ARCHIVE_OK) {
-		archive_set_error(&a->archive,
-		    ENOMEM, "Out of memory adding file to list");
+	if (record_hardlink(a, cpio, entry) != ARCHIVE_OK) {
 		return (ARCHIVE_FATAL);
 	}
 
@@ -876,7 +875,8 @@ atol16(const char *p, unsigned char_cnt)
 }
 
 static int
-record_hardlink(struct cpio *cpio, struct archive_entry *entry)
+record_hardlink(struct archive_read *a,
+    struct cpio *cpio, struct archive_entry *entry)
 {
 	struct links_entry      *le;
 	dev_t dev;
@@ -912,8 +912,11 @@ record_hardlink(struct cpio *cpio, struct archive_entry *entry)
 	}
 
 	le = (struct links_entry *)malloc(sizeof(struct links_entry));
-	if (le == NULL)
+	if (le == NULL) {
+		archive_set_error(&a->archive,
+		    ENOMEM, "Out of memory adding file to list");
 		return (ARCHIVE_FATAL);
+	}
 	if (cpio->links_head != NULL)
 		cpio->links_head->previous = le;
 	le->next = cpio->links_head;
@@ -923,8 +926,11 @@ record_hardlink(struct cpio *cpio, struct archive_entry *entry)
 	le->ino = ino;
 	le->links = archive_entry_nlink(entry) - 1;
 	le->name = strdup(archive_entry_pathname(entry));
-	if (le->name == NULL)
+	if (le->name == NULL) {
+		archive_set_error(&a->archive,
+		    ENOMEM, "Out of memory adding file to list");
 		return (ARCHIVE_FATAL);
+	}
 
 	return (ARCHIVE_OK);
 }
