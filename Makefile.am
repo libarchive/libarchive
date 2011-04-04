@@ -254,6 +254,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_archive_read_set_option.c		\
 	libarchive/test/test_archive_read_set_options.c		\
 	libarchive/test/test_archive_set_error.c		\
+	libarchive/test/test_archive_string.c			\
 	libarchive/test/test_archive_write_set_filter_option.c	\
 	libarchive/test/test_archive_write_set_format_option.c	\
 	libarchive/test/test_archive_write_set_option.c		\
