@@ -157,7 +157,8 @@ archive_read_support_compression_compress(struct archive *_a)
 	struct archive_read *a = (struct archive_read *)_a;
 	struct archive_read_filter_bidder *bidder;
 
-	archive_read_get_bidder(a, bidder);
+	if (__archive_read_get_bidder(a, &bidder) != ARCHIVE_OK)
+		return (ARCHIVE_FATAL);
 
 	bidder->data = NULL;
 	bidder->bid = compress_bidder_bid;

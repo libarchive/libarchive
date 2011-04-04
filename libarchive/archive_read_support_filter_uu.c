@@ -79,7 +79,8 @@ archive_read_support_compression_uu(struct archive *_a)
 	struct archive_read *a = (struct archive_read *)_a;
 	struct archive_read_filter_bidder *bidder;
 
-	archive_read_get_bidder(a, bidder);
+	if (__archive_read_get_bidder(a, &bidder) != ARCHIVE_OK)
+		return (ARCHIVE_FATAL);
 
 	bidder->data = NULL;
 	bidder->bid = uudecode_bidder_bid;
