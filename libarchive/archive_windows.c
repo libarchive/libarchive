@@ -122,9 +122,13 @@ get_current_codepage()
 {
 	unsigned codepage;
 
+#if defined(HAVE__GET_CURRENT_LOCALE) && defined(HAVE__FREE_LOCALE)
 	_locale_t locale = _get_current_locale();
 	codepage = locale->locinfo->lc_codepage;
 	_free_locale(locale);
+#else
+	codepage = GetOEMCP();
+#endif
 	return (codepage);
 }
 
