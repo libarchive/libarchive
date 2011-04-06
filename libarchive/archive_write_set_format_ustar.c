@@ -208,10 +208,10 @@ archive_write_ustar_options(struct archive_write *a, const char *key,
 	struct ustar *ustar = (struct ustar *)a->format_data;
 	int ret = ARCHIVE_FAILED;
 
-	if (strcmp(key, "charset")  == 0) {
+	if (strcmp(key, "hdrcharset")  == 0) {
 		if (val == NULL || val[0] == 0)
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "%s: charset option needs a character-set name",
+			    "%s: hdrcharset option needs a character-set name",
 			    a->format_name);
 		else {
 			ustar->opt_sconv = archive_string_conversion_to_charset(

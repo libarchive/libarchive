@@ -525,10 +525,10 @@ xar_options(struct archive_read *a, const char *key, const char *val)
 	int ret = ARCHIVE_FAILED;
 
 	xar = (struct xar *)(a->format->data);
-	if (strcmp(key, "charset")  == 0) {
+	if (strcmp(key, "hdrcharset")  == 0) {
 		if (val == NULL || val[0] == 0)
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "xar: charset option needs a character-set name");
+			    "xar: hdrcharset option needs a character-set name");
 		else {
 			struct archive_string_conv *sc;
 

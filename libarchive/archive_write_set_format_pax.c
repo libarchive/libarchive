@@ -157,14 +157,14 @@ archive_write_pax_options(struct archive_write *a, const char *key,
 	struct pax *pax = (struct pax *)a->format_data;
 	int ret = ARCHIVE_FAILED;
 
-	if (strcmp(key, "charset")  == 0) {
+	if (strcmp(key, "hdrcharset")  == 0) {
 		/*
 		 * The character-set we can use are defined in
 		 * IEEE Std 1003.1-2001
 		 */
 		if (val == NULL || val[0] == 0)
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "pax: charset option needs a character-set name");
+			    "pax: hdrcharset option needs a character-set name");
 		else if (strcmp(val, "BINARY") == 0 ||
 		    strcmp(val, "binary") == 0) {
 			/*

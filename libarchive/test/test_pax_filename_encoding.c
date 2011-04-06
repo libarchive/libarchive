@@ -345,7 +345,7 @@ test_pax_filename_encoding_ru_RU()
 
 	a = archive_write_new();
 	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
-	if (archive_write_set_options(a, "charset=UTF-8") != ARCHIVE_OK) {
+	if (archive_write_set_options(a, "hdrcharset=UTF-8") != ARCHIVE_OK) {
 		skipping("This system cannot convert character-set"
 		    " from KOI8-R to UTF-8.");
 		archive_write_free(a);
@@ -384,7 +384,7 @@ test_pax_filename_encoding_ja_JP()
 
 	a = archive_write_new();
 	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
-	if (archive_write_set_options(a, "charset=UTF-8") != ARCHIVE_OK) {
+	if (archive_write_set_options(a, "hdrcharset=UTF-8") != ARCHIVE_OK) {
 		skipping("This system cannot convert character-set"
 		    " from eucJP to UTF-8.");
 		archive_write_free(a);

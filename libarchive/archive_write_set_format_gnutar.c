@@ -193,10 +193,10 @@ archive_write_gnutar_options(struct archive_write *a, const char *key,
 	struct gnutar *gnutar = (struct gnutar *)a->format_data;
 	int ret = ARCHIVE_FAILED;
 
-	if (strcmp(key, "charset")  == 0) {
+	if (strcmp(key, "hdrcharset")  == 0) {
 		if (val == NULL || val[0] == 0)
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "%s: charset option needs a character-set name",
+			    "%s: hdrcharset option needs a character-set name",
 			    a->format_name);
 		else {
 			gnutar->opt_sconv = archive_string_conversion_to_charset(

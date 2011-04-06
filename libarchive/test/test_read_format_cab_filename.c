@@ -34,7 +34,7 @@ test_read_format_cab_filename_CP932_eucJP(const char *refname)
 	struct archive_entry *ae;
 
 	/*
-	 * Read CAB filename in ja_JP.eucJP with "charset=CP932" option.
+	 * Read CAB filename in ja_JP.eucJP with "hdrcharset=CP932" option.
 	 */
 	if (NULL == setlocale(LC_ALL, "ja_JP.eucJP")) {
 		skipping("ja_JP.eucJP locale not available on this system.");
@@ -44,7 +44,7 @@ test_read_format_cab_filename_CP932_eucJP(const char *refname)
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	if (ARCHIVE_OK != archive_read_set_options(a, "charset=CP932")) {
+	if (ARCHIVE_OK != archive_read_set_options(a, "hdrcharset=CP932")) {
 		skipping("This system cannot convert character-set"
 		    " from CP932 to eucJP.");
 		goto cleanup;
@@ -87,7 +87,7 @@ test_read_format_cab_filename_CP932_UTF8(const char *refname)
 	struct archive_entry *ae;
 
 	/*
-	 * Read CAB filename in ja_JP.UTF-8 with "charset=CP932" option.
+	 * Read CAB filename in ja_JP.UTF-8 with "hdrcharset=CP932" option.
 	 */
 	if (NULL == setlocale(LC_ALL, "ja_JP.UTF-8")) {
 		skipping("ja_JP.UTF-8 locale not available on this system.");
@@ -97,7 +97,7 @@ test_read_format_cab_filename_CP932_UTF8(const char *refname)
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	if (ARCHIVE_OK != archive_read_set_options(a, "charset=CP932")) {
+	if (ARCHIVE_OK != archive_read_set_options(a, "hdrcharset=CP932")) {
 		skipping("This system cannot convert character-set"
 		    " from CP932 to UTF-8.");
 		goto cleanup;
