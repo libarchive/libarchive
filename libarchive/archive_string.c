@@ -421,7 +421,7 @@ archive_wstring_append_from_mbs(struct archive *a,
  * wrapper is going to know.)
  */
 int
-archive_string_append_from_unicode_to_mbs(struct archive *a,
+archive_string_append_from_wcs_to_mbs(struct archive *a,
     struct archive_string *as, const wchar_t *w, size_t len)
 {
 	char *p;
@@ -461,7 +461,7 @@ archive_string_append_from_unicode_to_mbs(struct archive *a,
  * fails.
  */
 int
-archive_string_append_from_unicode_to_mbs(struct archive *a,
+archive_string_append_from_wcs_to_mbs(struct archive *a,
     struct archive_string *as, const wchar_t *w, size_t len)
 {
 	/* We cannot use the standard wcstombs() here because it
@@ -518,7 +518,7 @@ archive_string_append_from_unicode_to_mbs(struct archive *a,
  * either of these, fall back to the built-in UTF8 conversion.
  */
 int
-archive_string_append_from_unicode_to_mbs(struct archive *a,
+archive_string_append_from_wcs_to_mbs(struct archive *a,
     struct archive_string *as, const wchar_t *w, size_t len)
 {
 	return (-1);
@@ -1795,7 +1795,7 @@ archive_mstring_get_mbs(struct archive *a, struct archive_mstring *aes)
 		return (aes->aes_mbs.s);
 	/* If there's a WCS form, try converting with the native locale. */
 	if ((aes->aes_set & AES_SET_WCS)
-	    && archive_string_append_from_unicode_to_mbs(a, &(aes->aes_mbs),
+	    && archive_string_append_from_wcs_to_mbs(a, &(aes->aes_mbs),
 			aes->aes_wcs.s, aes->aes_wcs.length) == 0) {
 		aes->aes_set |= AES_SET_MBS;
 		return (aes->aes_mbs.s);

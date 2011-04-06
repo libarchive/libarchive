@@ -755,7 +755,7 @@ lha_replace_path_separator(struct archive_read *a, struct lha *lha,
 			lha->ws.s[i] = L'/';
 	}
 	archive_string_empty(&(lha->mbs));
-	archive_string_append_from_unicode_to_mbs(&a->archive, &(lha->mbs),
+	archive_string_append_from_wcs_to_mbs(&a->archive, &(lha->mbs),
 	    lha->ws.s, lha->ws.length);
 	/*
 	 * Sanity check that we surely did not break a filename.
