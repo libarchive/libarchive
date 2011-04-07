@@ -258,10 +258,379 @@ test_read_format_zip_filename_UTF8_UTF8(const char *refname)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+static void
+test_read_format_zip_filename_CP866_KOI8R(const char *refname)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+
+	/*
+	 * Read ZIP filename in ru_RU.KOI8-R with "hdrcharset=CP866" option.
+	 */
+	if (NULL == setlocale(LC_ALL, "ru_RU.KOI8-R")) {
+		skipping("ru_RU.KOI8-R locale not available on this system.");
+		return;
+	}
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	if (ARCHIVE_OK != archive_read_set_options(a, "hdrcharset=CP866")) {
+		skipping("This system cannot convert character-set"
+		    " from CP866 to KOI8-R.");
+		goto cleanup;
+	}
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+
+	/* Verify regular file. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("\xf0\xf2\xe9\xf7\xe5\xf4",
+	    archive_entry_pathname(ae));
+	assertEqualInt(6, archive_entry_size(ae));
+
+	/* Verify regular file. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("\xd0\xd2\xc9\xd7\xc5\xd4",
+	    archive_entry_pathname(ae));
+	assertEqualInt(6, archive_entry_size(ae));
+
+
+	/* End of archive. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	/* Verify archive format. */
+	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
+
+	/* Close the archive. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+cleanup:
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+static void
+test_read_format_zip_filename_CP866_UTF8(const char *refname)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+
+	/*
+	 * Read ZIP filename in ru_RU.UTF-8 with "hdrcharset=CP866" option.
+	 */
+	if (NULL == setlocale(LC_ALL, "ru_RU.UTF-8")) {
+		skipping("ru_RU.UTF-8 locale not available on this system.");
+		return;
+	}
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	if (ARCHIVE_OK != archive_read_set_options(a, "hdrcharset=CP866")) {
+		skipping("This system cannot convert character-set"
+		    " from CP866 to UTF-8.");
+		goto cleanup;
+	}
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+
+	/* Verify regular file. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("\xd0\x9f\xd0\xa0\xd0\x98\xd0\x92\xd0\x95\xd0\xa2",
+	    archive_entry_pathname(ae));
+	assertEqualInt(6, archive_entry_size(ae));
+
+	/* Verify regular file. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("\xd0\xbf\xd1\x80\xd0\xb8\xd0\xb2\xd0\xb5\xd1\x82",
+	    archive_entry_pathname(ae));
+	assertEqualInt(6, archive_entry_size(ae));
+
+
+	/* End of archive. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	/* Verify archive format. */
+	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
+
+	/* Close the archive. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+cleanup:
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+static void
+test_read_format_zip_filename_KOI8R_CP866(const char *refname)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+
+	/*
+	 * Read ZIP filename in ru_RU.CP866 with "hdrcharset=KOI8-R" option.
+	 */
+	if (NULL == setlocale(LC_ALL, "ru_RU.CP866")) {
+		skipping("ru_RU.CP866 locale not available on this system.");
+		return;
+	}
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	if (ARCHIVE_OK != archive_read_set_options(a, "hdrcharset=KOI8-R")) {
+		skipping("This system cannot convert character-set"
+		    " from KOI8-R to CP866.");
+		goto cleanup;
+	}
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+
+	/* Verify regular file. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("\xaf\xe0\xa8\xa2\xa5\xe2",
+	    archive_entry_pathname(ae));
+	assertEqualInt(6, archive_entry_size(ae));
+
+	/* Verify regular file. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("\x8f\x90\x88\x82\x85\x92",
+	    archive_entry_pathname(ae));
+	assertEqualInt(6, archive_entry_size(ae));
+
+
+	/* End of archive. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	/* Verify archive format. */
+	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
+
+	/* Close the archive. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+cleanup:
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+static void
+test_read_format_zip_filename_KOI8R_UTF8(const char *refname)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+
+	/*
+	 * Read ZIP filename in ru_RU.UTF-8 with "hdrcharset=KOI8-R" option.
+	 */
+	if (NULL == setlocale(LC_ALL, "ru_RU.UTF-8")) {
+		skipping("ru_RU.UTF-8 locale not available on this system.");
+		return;
+	}
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	if (ARCHIVE_OK != archive_read_set_options(a, "hdrcharset=KOI8-R")) {
+		skipping("This system cannot convert character-set"
+		    " from KOI8-R to UTF-8.");
+		goto cleanup;
+	}
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+
+	/* Verify regular file. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("\xd0\xbf\xd1\x80\xd0\xb8\xd0\xb2\xd0\xb5\xd1\x82",
+	    archive_entry_pathname(ae));
+	assertEqualInt(6, archive_entry_size(ae));
+
+	/* Verify regular file. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("\xd0\x9f\xd0\xa0\xd0\x98\xd0\x92\xd0\x95\xd0\xa2",
+	    archive_entry_pathname(ae));
+	assertEqualInt(6, archive_entry_size(ae));
+
+
+	/* End of archive. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	/* Verify archive format. */
+	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
+
+	/* Close the archive. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+cleanup:
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+static void
+test_read_format_zip_filename_UTF8_KOI8R(const char *refname)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+
+	/*
+	 * Read ZIP filename in ru_RU.KOI8-R with "hdrcharset=UTF-8" option.
+	 */
+	if (NULL == setlocale(LC_ALL, "ru_RU.KOI8-R")) {
+		skipping("ru_RU.KOI8-R locale not available on this system.");
+		return;
+	}
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	if (ARCHIVE_OK != archive_read_set_options(a, "hdrcharset=UTF-8")) {
+		skipping("This system cannot convert character-set"
+		    " from UTF-8 to KOI8-R.");
+		goto cleanup;
+	}
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* Re-create a read archive object. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+
+	/* Verify regular file. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("\xf0\xf2\xe9\xf7\xe5\xf4",
+	    archive_entry_pathname(ae));
+	assertEqualInt(6, archive_entry_size(ae));
+
+	/* Verify regular file. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("\xd0\xd2\xc9\xd7\xc5\xd4",
+	    archive_entry_pathname(ae));
+	assertEqualInt(6, archive_entry_size(ae));
+
+
+	/* End of archive. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	/* Verify archive format. */
+	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
+
+	/* Close the archive. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+cleanup:
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+static void
+test_read_format_zip_filename_UTF8_CP866(const char *refname)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+
+	/*
+	 * Read ZIP filename in ru_RU.CP866 without charset option
+	 * because the file name in the sample file is UTF-8 and
+	 * Bit 11 of its general purpose bit flag is set.
+	 */
+	if (NULL == setlocale(LC_ALL, "ru_RU.CP866")) {
+		skipping("ru_RU.CP866 locale not available on this system.");
+		return;
+	}
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	if (ARCHIVE_OK != archive_read_set_options(a, "hdrcharset=UTF-8")) {
+		skipping("This system cannot convert character-set"
+		    " from UTF-8 to CP866.");
+		goto cleanup;
+	}
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* Re-create a read archive object. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+
+	/* Verify regular file. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("\x8f\x90\x88\x82\x85\x92",
+	    archive_entry_pathname(ae));
+	assertEqualInt(6, archive_entry_size(ae));
+
+	/* Verify regular file. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("\xaf\xe0\xa8\xa2\xa5\xe2",
+	    archive_entry_pathname(ae));
+	assertEqualInt(6, archive_entry_size(ae));
+
+
+	/* End of archive. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	/* Verify archive format. */
+	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
+
+	/* Close the archive. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+cleanup:
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+static void
+test_read_format_zip_filename_UTF8_UTF8_ru(const char *refname)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+
+	/*
+	 * Read ZIP filename in ru_RU.UTF-8 without charset option
+	 * because the file name in the sample file is UTF-8 and
+	 * Bit 11 of its general purpose bit flag is set.
+	 */
+	if (NULL == setlocale(LC_ALL, "ru_RU.UTF-8")) {
+		skipping("ru_RU.UTF-8 locale not available on this system.");
+		return;
+	}
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+
+	/* Verify regular file. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("\xd0\x9f\xd0\xa0\xd0\x98\xd0\x92\xd0\x95\xd0\xa2",
+	    archive_entry_pathname(ae));
+	assertEqualInt(6, archive_entry_size(ae));
+
+	/* Verify regular file. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("\xd0\xbf\xd1\x80\xd0\xb8\xd0\xb2\xd0\xb5\xd1\x82",
+	    archive_entry_pathname(ae));
+	assertEqualInt(6, archive_entry_size(ae));
+
+
+	/* End of archive. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	/* Verify archive format. */
+	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
+
+	/* Close the archive. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_read_format_zip_filename)
 {
 	const char *refname = "test_read_format_zip_cp932.zip";
 	const char *refname2 = "test_read_format_zip_utf8.zip";
+	const char *refname3 = "test_read_format_zip_cp866.zip";
+	const char *refname4 = "test_read_format_zip_koi8r.zip";
+	const char *refname5 = "test_read_format_zip_utf8_ru.zip";
 
 	extract_reference_file(refname);
 	test_read_format_zip_filename_CP932_eucJP(refname);
@@ -269,4 +638,14 @@ DEFINE_TEST(test_read_format_zip_filename)
 	extract_reference_file(refname2);
 	test_read_format_zip_filename_UTF8_eucJP(refname2);
 	test_read_format_zip_filename_UTF8_UTF8(refname2);
+	extract_reference_file(refname3);
+	test_read_format_zip_filename_CP866_KOI8R(refname3);
+	test_read_format_zip_filename_CP866_UTF8(refname3);
+	extract_reference_file(refname4);
+	test_read_format_zip_filename_KOI8R_CP866(refname4);
+	test_read_format_zip_filename_KOI8R_UTF8(refname4);
+	extract_reference_file(refname5);
+	test_read_format_zip_filename_UTF8_KOI8R(refname5);
+	test_read_format_zip_filename_UTF8_CP866(refname5);
+	test_read_format_zip_filename_UTF8_UTF8_ru(refname5);
 }
