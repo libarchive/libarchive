@@ -882,6 +882,53 @@ archive_string_conversion_from_charset(struct archive *a, const char *charset,
 }
 
 /*
+ * archive_string_default_conversion_*_archive() are provided for Windows
+ * platform because other archiver application use CP_OEMCP for
+ * MultiByteToWideChar() and WideCharToMultiByte() for the filenames
+ * in tar or zip files. But mbstowcs/wcstombs(CRT) usually use CP_ACP
+ * unless you use setlocale(LC_ALL, ".OCP")(specify CP_OEMCP).
+ * So we should make a string conversion between CP_ACP and CP_OEMCP
+ * for compatibillty.
+ */
+#if defined(_WIN32) && !defined(__CYGWIN__)
+struct archive_string_conv *
+archive_string_default_conversion_for_read(struct archive *a)
+{
+	const char *cur_charset = get_current_charset(a);
+
+	if (a->current_codepage == GetOEMCP())
+		return (NULL);/* no conversion. */
+	return (get_sconv_object(a, "CP_OEMCP", cur_charset,
+	    SCONV_FROM_CHARSET));
+}
+
+struct archive_string_conv *
+archive_string_default_conversion_for_write(struct archive *a)
+{
+	const char *cur_charset = get_current_charset(a);
+
+	if (a->current_codepage == GetOEMCP())
+		return (NULL);/* no conversion. */
+	return (get_sconv_object(a, "CP_OEMCP", cur_charset,
+	    SCONV_TO_CHARSET));
+}
+#else
+struct archive_string_conv *
+archive_string_default_conversion_for_read(struct archive *a)
+{
+	(void)a; /* UNUSED */
+	return (NULL);
+}
+
+struct archive_string_conv *
+archive_string_default_conversion_for_write(struct archive *a)
+{
+	(void)a; /* UNUSED */
+	return (NULL);
+}
+#endif
+
+/*
  * Dispose of all character conversion objects in the archive object.
  */
 void

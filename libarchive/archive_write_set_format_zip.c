@@ -192,6 +192,8 @@ struct zip {
 	enum compression compression;
 	int flags;
 	struct archive_string_conv *opt_sconv;
+	struct archive_string_conv *sconv_default;
+	int	init_default_conversion;
 
 #ifdef HAVE_ZLIB_H
 	z_stream stream;
@@ -327,6 +329,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	struct zip_extra_data_local e;
 	struct zip_data_descriptor *d;
 	struct zip_file_header_link *l;
+	struct archive_string_conv *sconv;
 	int ret, ret2 = ARCHIVE_OK;
 	int64_t size;
 	mode_t type;
@@ -344,6 +347,13 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		archive_entry_set_size(entry, 0);
 
 	zip = a->format_data;
+	/* Setup default conversion. */
+	if (zip->opt_sconv == NULL && !zip->init_default_conversion) {
+		zip->sconv_default =
+		    archive_string_default_conversion_for_write(&(a->archive));
+		zip->init_default_conversion = 1;
+	}
+
 	if (zip->flags == 0) {
 		/* Initialize the general purpose flags. */
 		zip->flags = ZIP_FLAGS;
@@ -370,14 +380,18 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	}
 	l->entry = archive_entry_clone(entry);
 	l->flags = zip->flags;
-	if (zip->opt_sconv != NULL) {
+	if (zip->opt_sconv != NULL)
+		sconv = zip->opt_sconv;
+	else
+		sconv = zip->sconv_default;
+	if (sconv != NULL) {
 		if (archive_strcpy_in_locale(&(zip->l_name),
-		    archive_entry_pathname(entry), zip->opt_sconv) != 0) {
+		    archive_entry_pathname(entry), sconv) != 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Can't translate pathname '%s' to %s",
 			    archive_entry_pathname(entry),
-			    archive_string_conversion_charset_name(zip->opt_sconv));
+			    archive_string_conversion_charset_name(sconv));
 			ret2 = ARCHIVE_WARN;
 		}
 		archive_entry_set_pathname(l->entry, zip->l_name.s);

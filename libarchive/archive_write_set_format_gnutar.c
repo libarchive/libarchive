@@ -54,6 +54,8 @@ struct gnutar {
 	struct archive_string l_uname;
 	struct archive_string l_gname;
 	struct archive_string_conv *opt_sconv;
+	struct archive_string_conv *sconv_default;
+	int init_default_conversion;
 };
 
 /*
@@ -271,8 +273,20 @@ archive_write_gnutar_header(struct archive_write *a, struct archive_entry *entry
 	int tartype;
 	const char *linkname;
 	struct gnutar *gnutar;
+	struct archive_string_conv *sconv;
 
 	gnutar = (struct gnutar *)a->format_data;
+
+	/* Setup default string conversion. */
+	if (gnutar->opt_sconv == NULL) {
+		if (!gnutar->init_default_conversion) {
+			gnutar->sconv_default =
+			    archive_string_default_conversion_for_write(&(a->archive));
+			gnutar->init_default_conversion = 1;
+		}
+		sconv = gnutar->sconv_default;
+	} else
+		sconv = gnutar->opt_sconv;
 
 	/* Only regular files (not hardlinks) have data. */
 	if (archive_entry_hardlink(entry) != NULL ||
@@ -303,36 +317,36 @@ archive_write_gnutar_header(struct archive_write *a, struct archive_entry *entry
 	}
 
 	r = archive_strcpy_in_locale(&(gnutar->l_pathname),
-	    archive_entry_pathname(entry), gnutar->opt_sconv);
+	    archive_entry_pathname(entry), sconv);
 	if (r != 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate pathname '%s' to %s",
 		    archive_entry_pathname(entry),
-		    archive_string_conversion_charset_name(gnutar->opt_sconv));
+		    archive_string_conversion_charset_name(sconv));
 		ret2 = ARCHIVE_WARN;
 	}
 	if (archive_entry_uname(entry) != NULL) {
 		r = archive_strcpy_in_locale(&(gnutar->l_uname),
-		    archive_entry_uname(entry), gnutar->opt_sconv);
+		    archive_entry_uname(entry), sconv);
 		if (r != 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Can't translate uname '%s' to %s",
 			    archive_entry_uname(entry),
-			    archive_string_conversion_charset_name(gnutar->opt_sconv));
+			    archive_string_conversion_charset_name(sconv));
 			ret2 = ARCHIVE_WARN;
 		}
 	} else
 		archive_string_empty(&(gnutar->l_uname));
 	if (archive_entry_gname(entry) != NULL) {
 		archive_strcpy_in_locale(&(gnutar->l_gname),
-		    archive_entry_gname(entry), gnutar->opt_sconv);
+		    archive_entry_gname(entry), sconv);
 		if (r != 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Can't translate gname '%s' to %s",
 			    archive_entry_gname(entry),
-			    archive_string_conversion_charset_name(gnutar->opt_sconv));
+			    archive_string_conversion_charset_name(sconv));
 			ret2 = ARCHIVE_WARN;
 		}
 	} else
@@ -344,13 +358,13 @@ archive_write_gnutar_header(struct archive_write *a, struct archive_entry *entry
 		linkname = archive_entry_symlink(entry);
 	if (linkname != NULL) {
 		archive_strcpy_in_locale(&(gnutar->l_linkname),
-		    linkname, gnutar->opt_sconv);
+		    linkname, sconv);
 		if (r != 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Can't translate linkname '%s' to %s",
 			    linkname,
-			    archive_string_conversion_charset_name(gnutar->opt_sconv));
+			    archive_string_conversion_charset_name(sconv));
 			ret2 = ARCHIVE_WARN;
 		}
 	} else

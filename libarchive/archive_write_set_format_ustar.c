@@ -49,6 +49,8 @@ struct ustar {
 	uint64_t	entry_padding;
 
 	struct archive_string_conv *opt_sconv;
+	struct archive_string_conv *sconv_default;
+	int	init_default_conversion;
 };
 
 /*
@@ -234,10 +236,22 @@ archive_write_ustar_header(struct archive_write *a, struct archive_entry *entry)
 	char buff[512];
 	int ret, ret2;
 	struct ustar *ustar;
+	struct archive_string_conv *sconv;
 
 	ustar = (struct ustar *)a->format_data;
 
-        /* Sanity check. */
+	/* Setup default string conversion. */
+	if (ustar->opt_sconv == NULL) {
+		if (!ustar->init_default_conversion) {
+			ustar->sconv_default =
+			    archive_string_default_conversion_for_write(&(a->archive));
+			ustar->init_default_conversion = 1;
+		}
+		sconv = ustar->sconv_default;
+	} else
+		sconv = ustar->opt_sconv;
+
+	/* Sanity check. */
 	if (archive_entry_pathname(entry) == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Can't record entry in tar file without pathname");
@@ -272,8 +286,7 @@ archive_write_ustar_header(struct archive_write *a, struct archive_entry *entry)
 		}
 	}
 
-	ret = __archive_write_format_header_ustar(a, buff, entry, -1, 1,
-	    ustar->opt_sconv);
+	ret = __archive_write_format_header_ustar(a, buff, entry, -1, 1, sconv);
 	if (ret < ARCHIVE_WARN)
 		return (ret);
 	ret2 = __archive_write_output(a, buff, 512);

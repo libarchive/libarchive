@@ -146,6 +146,8 @@ struct tar {
 	struct archive_string_conv *opt_sconv;
 	struct archive_string_conv *sconv;
 	struct archive_string_conv *sconv_acl;
+	struct archive_string_conv *sconv_default;
+	int			 init_default_conversion;
 };
 
 static int	archive_block_is_null(const unsigned char *p);
@@ -449,8 +451,16 @@ archive_read_format_tar_read_header(struct archive_read *a,
 	tar->sparse_last = NULL;
 	tar->realsize = -1; /* Mark this as "unset" */
 
-	/* Set a default character-set of names in an archive file. */
+	/* Setup default string conversion. */
 	tar->sconv = tar->opt_sconv;
+	if (tar->sconv == NULL) {
+		if (!tar->init_default_conversion) {
+			tar->sconv_default =
+			    archive_string_default_conversion_for_read(&(a->archive));
+			tar->init_default_conversion = 1;
+		}
+		tar->sconv = tar->sconv_default;
+	}
 
 	r = tar_read_header(a, tar, entry, &unconsumed);
 

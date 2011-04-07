@@ -87,12 +87,22 @@ int
 archive_string_append_from_wcs_to_mbs(struct archive *, struct archive_string *, const wchar_t *, size_t);
 
 
-/* Test that platform support a character-set conversion.
- * Return -1 and set a error message if the conversion is not supported. */
+/* Create a string conversion object.
+ * Return NULL and set a error message if the conversion is not supported
+ * on the platform. */
 struct archive_string_conv *
 archive_string_conversion_to_charset(struct archive *, const char *, int);
 struct archive_string_conv *
 archive_string_conversion_from_charset(struct archive *, const char *, int);
+/* Create the default string conversion object for reading/writing an archive.
+ * Return NULL if the conversion is unneeded.
+ * Note: On non Windows platform this always returns NULL.
+ */
+struct archive_string_conv *
+archive_string_default_conversion_for_read(struct archive *);
+struct archive_string_conv *
+archive_string_default_conversion_for_write(struct archive *);
+/* Dispose of a string conversion object. */
 void
 archive_string_conversion_free(struct archive *);
 const char *

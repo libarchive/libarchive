@@ -94,7 +94,9 @@ struct zip {
 	struct archive_string	pathname;
 	struct archive_string	extra;
 	struct archive_string_conv *sconv;
+	struct archive_string_conv *sconv_default;
 	struct archive_string_conv *sconv_utf8;
+	int				init_default_conversion;
 	char	format_name[64];
 };
 
@@ -463,7 +465,15 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 {
 	const struct zip_file_header *p;
 	const void *h;
+	struct archive_string_conv *sconv;
 	int ret = ARCHIVE_OK;
+
+	/* Setup default conversion. */
+	if (zip->sconv == NULL && !zip->init_default_conversion) {
+		zip->sconv_default =
+		    archive_string_default_conversion_for_read(&(a->archive));
+		zip->init_default_conversion = 1;
+	}
 
 	if ((p = __archive_read_ahead(a, sizeof *p, NULL)) == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
@@ -501,7 +511,9 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 		    "Truncated ZIP file header");
 		return (ARCHIVE_FATAL);
 	}
-	if (zip->sconv == NULL && (zip->flags & ZIP_UTF8_NAME) != 0) {
+	if (zip->sconv != NULL)
+		sconv = zip->sconv;
+	else if (zip->flags & ZIP_UTF8_NAME) {
 		/* The filename is stored to be UTF-8. */
 		if (zip->sconv_utf8 == NULL) {
 			zip->sconv_utf8 =
@@ -510,24 +522,18 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 			if (zip->sconv_utf8 == NULL)
 				return (ARCHIVE_FATAL);
 		}
-		if (archive_strncpy_in_locale(&zip->pathname,
-		    h, zip->filename_length, zip->sconv_utf8) != 0) {
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Pathname cannot be converted "
-			    "from UTF-8 to current locale.");
-			ret = ARCHIVE_WARN;
-		}
-	} else {
-		if (archive_strncpy_in_locale(&zip->pathname,
-		    h, zip->filename_length, zip->sconv) != 0) {
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Pathname cannot be converted "
-			    "from %s to current locale.",
-			    archive_string_conversion_charset_name(zip->sconv));
-			ret = ARCHIVE_WARN;
-		}
+		sconv = zip->sconv_utf8;
+	} else
+		sconv = zip->sconv_default;
+
+	if (archive_strncpy_in_locale(&zip->pathname,
+	    h, zip->filename_length, sconv) != 0) {
+		archive_set_error(&a->archive,
+		    ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Pathname cannot be converted "
+		    "from %s to current locale.",
+		    archive_string_conversion_charset_name(sconv));
+		ret = ARCHIVE_WARN;
 	}
 	__archive_read_consume(a, zip->filename_length);
 	archive_entry_set_pathname(entry, zip->pathname.s);
