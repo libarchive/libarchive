@@ -343,6 +343,7 @@ test_pax_filename_encoding_ru_RU()
 		return;
 	}
 
+	/* Check if the paltform completely supports the string conversion. */
 	a = archive_write_new();
 	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
 	if (archive_write_set_options(a, "hdrcharset=UTF-8") != ARCHIVE_OK) {
@@ -351,6 +352,12 @@ test_pax_filename_encoding_ru_RU()
 		archive_write_free(a);
 		return;
 	}
+	archive_write_free(a);
+
+	/* Re-create a write archive object since filenames should be written
+	 * in UTF-8 by default. */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	entry = archive_entry_new2(a);
@@ -382,6 +389,7 @@ test_pax_filename_encoding_ja_JP()
 		return;
 	}
 
+	/* Check if the paltform completely supports the string conversion. */
 	a = archive_write_new();
 	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
 	if (archive_write_set_options(a, "hdrcharset=UTF-8") != ARCHIVE_OK) {
@@ -390,6 +398,12 @@ test_pax_filename_encoding_ja_JP()
 		archive_write_free(a);
 		return;
 	}
+	archive_write_free(a);
+
+	/* Re-create a write archive object since filenames should be written
+	 * in UTF-8 by default. */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	entry = archive_entry_new2(a);
