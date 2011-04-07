@@ -931,14 +931,8 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `_ctime64_s' function. */
 #cmakedefine HAVE__CTIME64_S 1
 
-/* Define to 1 if you have the `_free_locale' function. */
-#cmakedefine HAVE__FREE_LOCALE 1
-
 /* Define to 1 if you have the `_fseeki64' function. */
 #cmakedefine HAVE__FSEEKI64 1
-
-/* Define to 1 if you have the `_get_current_locale' function. */
-#cmakedefine HAVE__GET_CURRENT_LOCALE 1
 
 /* Define to 1 if you have the `_get_timezone' function. */
 #cmakedefine HAVE__GET_TIMEZONE 1

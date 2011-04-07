@@ -445,7 +445,7 @@ AC_CHECK_FUNCS([select setenv setlocale sigaction statfs statvfs])
 AC_CHECK_FUNCS([strchr strdup strerror strncpy_s strrchr symlink timegm])
 AC_CHECK_FUNCS([tzset unsetenv utime utimensat utimes vfork])
 AC_CHECK_FUNCS([wcrtomb wcscmp wcscpy wcslen wctomb wmemcmp wmemcpy])
-AC_CHECK_FUNCS([_ctime64_s _free_locale _fseeki64 _get_current_locale])
+AC_CHECK_FUNCS([_ctime64_s _fseeki64])
 AC_CHECK_FUNCS([_get_timezone _localtime64_s _mkgmtime64])
 # detects cygwin-1.7, as opposed to older versions
 AC_CHECK_FUNCS([cygwin_conv_path])

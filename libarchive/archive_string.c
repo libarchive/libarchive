@@ -97,7 +97,6 @@ static struct archive_string_conv *get_sconv_object(struct archive *,
 	const char *, const char *, int);
 #if defined(_WIN32) && !defined(__CYGWIN__)
 static unsigned make_codepage_from_charset(const char *);
-static unsigned get_current_codepage();
 #endif
 static int strncpy_from_utf16be(struct archive_string *, const void *, size_t,
     struct archive_string_conv *);
@@ -332,7 +331,7 @@ archive_wstring_append_from_mbs(struct archive *a,
 		__archive_errx(1,
 		    "No memory for archive_wstring_append_from_mbs()");
 
-	r = MultiByteToWideChar(get_current_codepage(), 0,
+	r = MultiByteToWideChar(CP_ACP, 0,
 	    p, (int)len, dest->s + dest->length, (int)wcs_length);
 	if (r > 0) {
 		dest->length += r;
@@ -442,7 +441,7 @@ archive_string_append_from_wcs_to_mbs(struct archive *a,
 	 * And to set NULL for last argument is necessary when a codepage
 	 * is not current locale.
 	 */
-	l = WideCharToMultiByte(get_current_codepage(), 0,
+	l = WideCharToMultiByte(CP_ACP, 0,
 	    w, len, p, l, NULL, &useDefaultChar);
 	if (l == 0) {
 		free(p);
@@ -743,23 +742,6 @@ make_codepage_from_charset(const char *charset)
 	return (cp);
 }
 
-/*
- * Return the current codepage.
- */
-static unsigned
-get_current_codepage()
-{
-	unsigned codepage;
-
-#if defined(HAVE__GET_CURRENT_LOCALE) && defined(HAVE__FREE_LOCALE)
-	_locale_t locale = _get_current_locale();
-	codepage = locale->locinfo->lc_codepage;
-	_free_locale(locale);
-#else
-	codepage = GetOEMCP();
-#endif
-	return (codepage);
-}
 #endif /* defined(_WIN32) && !defined(__CYGWIN__) */
 
 static struct archive_string_conv *
@@ -774,7 +756,7 @@ get_sconv_object(struct archive *a, const char *fc, const char *tc, int flag)
 
 	if (a == NULL)
 #if defined(_WIN32) && !defined(__CYGWIN__)
-		current_codepage = get_current_codepage();
+		current_codepage = GetACP();
 #else
 		current_codepage = -1;
 #endif
@@ -862,7 +844,7 @@ get_current_charset(struct archive *a)
 		if (a->current_code == NULL) {
 			a->current_code = strdup(cur_charset);
 #if defined(_WIN32) && !defined(__CYGWIN__)
-			a->current_codepage = get_current_codepage();
+			a->current_codepage = GetACP();
 #endif
 		}
 	}
