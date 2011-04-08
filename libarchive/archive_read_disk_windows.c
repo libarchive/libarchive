@@ -1787,6 +1787,8 @@ archive_read_disk_entry_from_file(struct archive *_a,
 				  (findData.dwReserved0 == IO_REPARSE_TAG_SYMLINK)) {
 				flag |= FILE_FLAG_OPEN_REPARSE_POINT;
 				desiredAccess = 0;
+			} else if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+				desiredAccess = 0;
 			} else
 				desiredAccess = GENERIC_READ;
 
