@@ -301,8 +301,6 @@ verify_sparse_file2(struct archive *a, const char *path,
 DEFINE_TEST(test_sparse_basic)
 {
 	char cwd[PATH_MAX+1];
-	char path[PATH_MAX+1];
-	char *p;
 	struct archive *a;
 	/*
 	 * The alignment of the hole of sparse files deeply depends
@@ -354,38 +352,26 @@ DEFINE_TEST(test_sparse_basic)
 		{ END,	0 }
 	};
 
-	/* Make a filename template. */
+	/* Check if the filesystem where CWD on can
+	 * report the number of the holes of a sparse file. */
 	if (!assert(getcwd(cwd, sizeof(cwd)-1) != NULL))
 		return;
-	while (cwd[strlen(cwd) - 1] == '\n')
-		cwd[strlen(cwd) - 1] = '\0';
-	strncpy(path, cwd,  sizeof(path)-1);
-	if (!assert(strlen(path) + 7 <= sizeof(path)))
-		return;/* a filename is too long */
-	if (!is_sparse_supported(path)) {
+	if (!is_sparse_supported(cwd)) {
 		skipping("This filesystem or platform do not support "
 		    "the reporting of the holes of a sparse file through "
 		    "API such as lseek(HOLE)");
 		return;
 	}
-	p = path + strlen(path);
 
 	/*
 	 * Get sparse data through directory traversals.
 	 */
 	assert((a = archive_read_disk_new()) != NULL);
 
-	strcpy(p, "/file0");
-	verify_sparse_file(a, path, sparse_file0, 5);
-
-	strcpy(p, "/file1");
-	verify_sparse_file(a, path, sparse_file1, 2);
-
-	strcpy(p, "/file2");
-	verify_sparse_file(a, path, sparse_file2, 20);
-
-	strcpy(p, "/file3");
-	verify_sparse_file(a, path, sparse_file3, 0);
+	verify_sparse_file(a, "file0", sparse_file0, 5);
+	verify_sparse_file(a, "file1", sparse_file1, 2);
+	verify_sparse_file(a, "file2", sparse_file2, 20);
+	verify_sparse_file(a, "file3", sparse_file3, 0);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
@@ -394,9 +380,8 @@ DEFINE_TEST(test_sparse_basic)
 	 */
 	assert((a = archive_read_disk_new()) != NULL);
 
-	strcpy(p, "/file0");
-	verify_sparse_file2(a, path, sparse_file0, 5, 0);
-	verify_sparse_file2(a, path, sparse_file0, 5, 1);
+	verify_sparse_file2(a, "file0", sparse_file0, 5, 0);
+	verify_sparse_file2(a, "file0", sparse_file0, 5, 1);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
