@@ -87,6 +87,8 @@ struct archive_string_conv {
 #endif
 };
 
+#define CP_C_LOCALE	0	/* "C" locale */
+
 static struct archive_string_conv *find_sconv_object(struct archive *,
 	const char *, const char *);
 static void add_sconv_object(struct archive *, struct archive_string_conv *);
@@ -312,7 +314,7 @@ default_iconv_charset(const char *charset) {
 #endif
 }
 
-#if defined(_WIN32) && !defined(__CYGWIN__) && 0
+#if defined(_WIN32) && !defined(__CYGWIN__)
 
 /*
  * Convert MBS to WCS.
@@ -323,6 +325,7 @@ archive_wstring_append_from_mbs(struct archive *a,
     struct archive_wstring *dest, const char *p, size_t len)
 {
 	size_t r;
+	unsigned cp;
 	/*
 	 * No single byte will be more than one wide character,
 	 * so this length estimate will always be big enough.
@@ -332,8 +335,20 @@ archive_wstring_append_from_mbs(struct archive *a,
 		__archive_errx(1,
 		    "No memory for archive_wstring_append_from_mbs()");
 
-	r = MultiByteToWideChar(CP_ACP, 0,
-	    p, (int)len, dest->s + dest->length, (int)wcs_length);
+	cp = get_current_codepage();
+	if (cp == CP_C_LOCALE) {
+		wchar_t *wp = dest->s + dest->length;
+		const unsigned char *mp = (const unsigned char *)p;
+
+		r = 0;
+		while (r < len && *mp) {
+			*wp++ = (wchar_t)*mp++;
+			r++;
+		}
+	} else {
+		r = MultiByteToWideChar(cp, 0,
+		    p, (int)len, dest->s + dest->length, (int)wcs_length);
+	}
 	if (r > 0) {
 		dest->length += r;
 		dest->s[dest->length] = 0;
@@ -409,7 +424,7 @@ archive_wstring_append_from_mbs(struct archive *a,
 
 #endif
 
-#if defined(_WIN32) && !defined(__CYGWIN__) && 0
+#if defined(_WIN32) && !defined(__CYGWIN__)
 
 /*
  * WCS ==> MBS.
@@ -426,11 +441,30 @@ archive_string_append_from_wcs_to_mbs(struct archive *a,
 {
 	char *p;
 	int l;
+	unsigned cp;
 	BOOL useDefaultChar = FALSE;
 
 	/* TODO: XXX use codepage preference from a XXX */
 	(void)a; /* UNUSED */
 
+	cp = get_current_codepage();
+	if (cp == CP_C_LOCALE) {
+		/*
+		 * "C" locale special process.
+		 */
+		archive_string_ensure(as, as->length + len + 1);
+		p = as->s + as->length;
+		l = 0;
+		while (l < (int)len && *w) {
+			if (*w > 255)
+				return (-1);
+			*p++ = (char)*w++;
+			l++;
+		}
+		*p = '\0';
+		as->length += l;
+		return (0);
+	}
 
 	l = len * 4 + 4;
 	p = malloc(l);
@@ -442,9 +476,9 @@ archive_string_append_from_wcs_to_mbs(struct archive *a,
 	 * And to set NULL for last argument is necessary when a codepage
 	 * is not current locale.
 	 */
-	l = WideCharToMultiByte(CP_ACP, 0,
+	l = WideCharToMultiByte(cp, 0,
 	    w, len, p, l, NULL, &useDefaultChar);
-	if (l == 0) {
+	if (l == 0 || useDefaultChar) {
 		free(p);
 		return (-1);
 	}
@@ -799,6 +833,8 @@ get_current_codepage()
 	locale = setlocale(LC_CTYPE, NULL);
 	if (locale == NULL)
 		return (GetACP());
+	if (locale[0] == 'C' && locale[1] == '\0')
+		return (CP_C_LOCALE);
 	p = strrchr(locale, '.');
 	if (p == NULL)
 		return (GetACP());
@@ -962,7 +998,8 @@ archive_string_default_conversion_for_read(struct archive *a)
 {
 	const char *cur_charset = get_current_charset(a);
 
-	if (a->current_codepage == GetOEMCP())
+	if (a->current_codepage == CP_C_LOCALE ||
+	    a->current_codepage == GetOEMCP())
 		return (NULL);/* no conversion. */
 	return (get_sconv_object(a, "CP_OEMCP", cur_charset,
 	    SCONV_FROM_CHARSET));
@@ -973,7 +1010,8 @@ archive_string_default_conversion_for_write(struct archive *a)
 {
 	const char *cur_charset = get_current_charset(a);
 
-	if (a->current_codepage == GetOEMCP())
+	if (a->current_codepage == CP_C_LOCALE ||
+	    a->current_codepage == GetOEMCP())
 		return (NULL);/* no conversion. */
 	return (get_sconv_object(a, "CP_OEMCP", cur_charset,
 	    SCONV_TO_CHARSET));
@@ -1158,7 +1196,6 @@ strncat_in_codepage(struct archive_string *as,
 	wchar_t *ws;
 	BOOL defchar, *dp;
 	UINT from_cp, to_cp;
-	DWORD mbflag;
 
 	if (s == NULL || length == 0) {
 		/* We must allocate memory even if there is no data.
@@ -1171,40 +1208,87 @@ strncat_in_codepage(struct archive_string *as,
 
 	from_cp = sc->from_cp;
 	to_cp = sc->to_cp;
-	if (sc->flag & SCONV_FROM_CHARSET)
-		mbflag = 0;
-	else
-		mbflag = MB_PRECOMPOSED;
 
-	count = MultiByteToWideChar(from_cp,
-	    mbflag, s, length, NULL, 0);
-	if (count == 0) {
-		archive_string_append(as, s, length);
-		return (-1);
+	if (from_cp == CP_C_LOCALE &&
+		(sc->flag & SCONV_TO_CHARSET) != 0) {
+		/*
+		 * "C" locale special process.
+		 */
+		wchar_t *wp;
+		const unsigned char *mp;
+
+		wp = ws = malloc(sizeof(*ws) * (length+1));
+		if (ws == NULL)
+			__archive_errx(0, "No memory");
+
+		mp = (const unsigned char *)s;
+		count = 0;
+		while (count < (int)length && *mp) {
+			*wp++ = (wchar_t)*mp++;
+			count++;
+		}
+	} else {
+		DWORD mbflag;
+
+		if (sc->flag & SCONV_FROM_CHARSET)
+			mbflag = 0;
+		else
+			mbflag = MB_PRECOMPOSED;
+
+		count = MultiByteToWideChar(from_cp,
+		    mbflag, s, length, NULL, 0);
+		if (count == 0) {
+			archive_string_append(as, s, length);
+			return (-1);
+		}
+		ws = malloc(sizeof(*ws) * (count+1));
+		if (ws == NULL)
+			__archive_errx(0, "No memory");
+		count = MultiByteToWideChar(from_cp,
+		    mbflag, s, length, ws, count);
 	}
-	ws = malloc(sizeof(*ws) * (count+1));
-	if (ws == NULL)
-		__archive_errx(0, "No memory");
-	count = MultiByteToWideChar(from_cp,
-	    mbflag, s, length, ws, count);
 	ws[count] = L'\0';
 	wslen = count;
 
-	count = WideCharToMultiByte(to_cp, 0, ws, wslen,
-	    NULL, 0, NULL, NULL);
-	if (count == 0) {
-		free(ws);
-		archive_string_append(as, s, length);
-		return (-1);
+	if (to_cp == CP_C_LOCALE &&
+		(sc->flag & SCONV_FROM_CHARSET) != 0) {
+		/*
+		 * "C" locale special process.
+		 */
+		char *p;
+		wchar_t *wp;
+
+		archive_string_ensure(as, as->length + wslen +1);
+		p = as->s + as->length;
+		wp = ws;
+		count = 0;
+		defchar = 0;
+		while (count < wslen && *wp) {
+			if (*wp > 255) {
+				*p++ = '?';
+				wp++;
+				defchar = 1;
+			} else
+				*p++ = (char)*wp++;
+			count++;
+		}
+	} else {
+		count = WideCharToMultiByte(to_cp, 0, ws, wslen,
+		    NULL, 0, NULL, NULL);
+		if (count == 0) {
+			free(ws);
+			archive_string_append(as, s, length);
+			return (-1);
+		}
+		defchar = 0;
+		if (to_cp == CP_UTF8)
+			dp = NULL;
+		else
+			dp = &defchar;
+		archive_string_ensure(as, as->length + count +1);
+		count = WideCharToMultiByte(to_cp, 0, ws, wslen,
+		    as->s + as->length, count, NULL, dp);
 	}
-	defchar = 0;
-	if (to_cp == CP_UTF8)
-		dp = NULL;
-	else
-		dp = &defchar;
-	archive_string_ensure(as, as->length + count +1);
-	count = WideCharToMultiByte(to_cp, 0, ws, wslen,
-	    as->s + as->length, count, NULL, dp);
 	as->length += count;
 	as->s[as->length] = '\0';
 	free(ws);
@@ -1225,6 +1309,9 @@ invalid_mbs(const void *_p, size_t n, struct archive_string_conv *sc)
 		codepage = sc->to_cp;
 	else
 		codepage = sc->from_cp;
+
+	if (codepage == CP_C_LOCALE)
+		return (0);
 	if (codepage != CP_UTF8)
 		mbflag |= MB_PRECOMPOSED;
 
