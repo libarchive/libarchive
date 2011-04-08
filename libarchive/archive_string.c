@@ -491,8 +491,7 @@ archive_string_append_from_wcs_to_mbs(struct archive *a,
 		/* Flush the buffer when we have <=16 bytes free. */
 		/* (No encoding has a single character >16 bytes.) */
 		if ((size_t)(p - buff) >= (size_t)(sizeof(buff) - MB_CUR_MAX)) {
-			*p = '\0';
-			archive_strcat(as, buff);
+			archive_string_append(as, buff, p - buff);
 			p = buff;
 		}
 #if HAVE_WCRTOMB
@@ -504,8 +503,7 @@ archive_string_append_from_wcs_to_mbs(struct archive *a,
 			return (-1);
 		p += n;
 	}
-	*p = '\0';
-	archive_strcat(as, buff);
+	archive_string_append(as, buff, p - buff);
 	return (0);
 }
 
