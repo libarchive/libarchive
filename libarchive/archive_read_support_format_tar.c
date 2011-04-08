@@ -1478,15 +1478,13 @@ pax_header(struct archive_read *a, struct tar *tar,
 		attr_length -= line_length;
 	}
 
-	/* Note: Should we use the specified charset only if hdrcharset is
-	 * BINARY ? */
-	sconv = tar->sconv;
-	if (sconv == NULL && !tar->pax_hdrcharset_binary) {
-		/*
-		 * Even if charset for filenames is not specified
-		 * PAX format uses UTF-8 as default charset for its header
-		 * unless hdrcharset=BINARY is present.
-		 */
+	/*
+	 * PAX format uses UTF-8 as default charset for its header metadata
+	 * unless hdrcharset=BINARY is present.
+	 */
+	if (tar->pax_hdrcharset_binary)
+		sconv = NULL;
+	else {
 		sconv = archive_string_conversion_from_charset(
 		    &(a->archive), "UTF-8", 1);
 		if (sconv == NULL)
@@ -1785,7 +1783,7 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 		}
 		break;
 	case 'h':
-		if (strcmp(key, "hdrcharset") == 0 && tar->sconv == NULL) {
+		if (strcmp(key, "hdrcharset") == 0) {
 			if (strcmp(value, "BINARY") == 0)
 				/* Binary  mode. */
 				tar->pax_hdrcharset_binary = 1;
