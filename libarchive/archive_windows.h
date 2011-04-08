@@ -283,5 +283,6 @@ extern ssize_t	 __la_write(int fd, const void *buf, size_t nbytes);
 #define WEXITSTATUS(sts)	(sts & 0x0FF)
 
 extern wchar_t *__la_win_permissive_name(const char *name);
+extern wchar_t *__la_win_permissive_name_w(const wchar_t *wname);
 
 #endif /* LIBARCHIVE_ARCHIVE_WINDOWS_H_INCLUDED */

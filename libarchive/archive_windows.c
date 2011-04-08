@@ -126,36 +126,41 @@ getino(struct ustat *ub)
 wchar_t *
 __la_win_permissive_name(const char *name)
 {
+	wchar_t *wn;
+	wchar_t *ws;
+	size_t ll;
+
+	ll = strlen(name);
+	wn = malloc((ll + 1) * sizeof(wchar_t));
+	if (wn == NULL)
+		return (NULL);
+	ll = mbstowcs(wn, name, ll);
+	if (ll == (size_t)-1) {
+		free(wn);
+		return (NULL);
+	}
+	wn[ll] = L'\0';
+	ws = __la_win_permissive_name_w(wn);
+	free(wn);
+	return (ws);
+}
+
+wchar_t *
+__la_win_permissive_name_w(const wchar_t *wname)
+{
 	wchar_t *wn, *wnp;
 	wchar_t *ws, *wsp;
 	DWORD l, len, slen;
 	int unc;
 
-	len = (DWORD)strlen(name);
-	wn = malloc((len + 1) * sizeof(wchar_t));
-	if (wn == NULL)
-		return (NULL);
-	l = MultiByteToWideChar(CP_ACP, 0,
-	    name, (int)len, wn, (int)len);
-	if (l == 0) {
-		free(wn);
-		return (NULL);
-	}
-	wn[l] = L'\0';
-
 	/* Get a full-pathname. */
-	l = GetFullPathNameW(wn, 0, NULL, NULL);
-	if (l == 0) {
-		free(wn);
+	l = GetFullPathNameW(wname, 0, NULL, NULL);
+	if (l == 0)
 		return (NULL);
-	}
 	wnp = malloc(l * sizeof(wchar_t));
-	if (wnp == NULL) {
-		free(wn);
+	if (wnp == NULL)
 		return (NULL);
-	}
-	len = GetFullPathNameW(wn, l, wnp, NULL);
-	free(wn);
+	len = GetFullPathNameW(wname, l, wnp, NULL);
 	wn = wnp;
 
 	if (wnp[0] == L'\\' && wnp[1] == L'\\' &&
@@ -1106,21 +1111,21 @@ __la_hash_Final(unsigned char *buf, size_t bufsize, Digest_CTX *ctx)
 int
 __archive_mktemp(const char *tmpdir)
 {
-	static const char num[] = {
-		'0', '1', '2', '3', '4', '5', '6', '7',
-		'8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
-		'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
-		'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V',
-		'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd',
-		'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l',
-		'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
-		'u', 'v', 'w', 'x', 'y', 'z'
+	static const wchar_t num[] = {
+		L'0', L'1', L'2', L'3', L'4', L'5', L'6', L'7',
+		L'8', L'9', L'A', L'B', L'C', L'D', L'E', L'F',
+		L'G', L'H', L'I', L'J', L'K', L'L', L'M', L'N',
+		L'O', L'P', L'Q', L'R', L'S', L'T', L'U', L'V',
+		L'W', L'X', L'Y', L'Z', L'a', L'b', L'c', L'd',
+		L'e', L'f', L'g', L'h', L'i', L'j', L'k', L'l',
+		L'm', L'n', L'o', L'p', L'q', L'r', L's', L't',
+		L'u', L'v', L'w', L'x', L'y', L'z'
 	};
 	HCRYPTPROV hProv;
-	struct archive_string temp_name;
+	struct archive_wstring temp_name;
 	wchar_t *ws;
 	DWORD attr;
-	BYTE *xp, *ep;
+	wchar_t *xp, *ep;
 	int fd;
 
 	hProv = (HCRYPTPROV)NULL;
@@ -1131,35 +1136,36 @@ __archive_mktemp(const char *tmpdir)
 	/* Get a temporary directory. */
 	if (tmpdir == NULL) {
 		size_t l;
-		char *tmp;
+		wchar_t *tmp;
 
-		l = GetTempPathA(0, NULL);
+		l = GetTempPathW(0, NULL);
 		if (l == 0) {
 			la_dosmaperr(GetLastError());
 			goto exit_tmpfile;
 		}
-		tmp = malloc(l);
+		tmp = malloc(l*sizeof(wchar_t));
 		if (tmp == NULL) {
 			errno = ENOMEM;
 			goto exit_tmpfile;
 		}
-		GetTempPathA(l, tmp);
-		archive_strcpy(&temp_name, tmp);
+		GetTempPathW(l, tmp);
+		archive_wstrcpy(&temp_name, tmp);
 		free(tmp);
 	} else {
-		archive_strcpy(&temp_name, tmpdir);
-		if (temp_name.s[temp_name.length-1] != '/')
-			archive_strappend_char(&temp_name, '/');
+		archive_wstring_append_from_mbs(NULL, &temp_name, tmpdir,
+		    strlen(tmpdir));
+		if (temp_name.s[temp_name.length-1] != L'/')
+			archive_wstrappend_wchar(&temp_name, L'/');
 	}
 
 	/* Check if temp_name is a directory. */
-	attr = GetFileAttributesA(temp_name.s);
+	attr = GetFileAttributesW(temp_name.s);
 	if (attr == (DWORD)-1) {
 		if (GetLastError() != ERROR_FILE_NOT_FOUND) {
 			la_dosmaperr(GetLastError());
 			goto exit_tmpfile;
 		}
-		ws = __la_win_permissive_name(temp_name.s);
+		ws = __la_win_permissive_name_w(temp_name.s);
 		if (ws == NULL) {
 			errno = EINVAL;
 			goto exit_tmpfile;
@@ -1178,10 +1184,10 @@ __archive_mktemp(const char *tmpdir)
 	/*
 	 * Create a temporary file.
 	 */
-	archive_strcat(&temp_name, "libarchive_");
-	xp = ((BYTE *)temp_name.s) + archive_strlen(&temp_name);
-	archive_strcat(&temp_name, "XXXXXXXXXX");
-	ep = ((BYTE *)temp_name.s) + archive_strlen(&temp_name);
+	archive_wstrcat(&temp_name, L"libarchive_");
+	xp = temp_name.s + archive_strlen(&temp_name);
+	archive_wstrcat(&temp_name, L"XXXXXXXXXX");
+	ep = temp_name.s + archive_strlen(&temp_name);
 
 	if (!CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_FULL,
 		CRYPT_VERIFYCONTEXT)) {
@@ -1190,20 +1196,20 @@ __archive_mktemp(const char *tmpdir)
 	}
 
 	for (;;) {
-		BYTE *p;
+		wchar_t *p;
 		HANDLE h;
 
 		/* Generate a random file name through CryptGenRandom(). */
 		p = xp;
-		if (!CryptGenRandom(hProv, ep - p, p)) {
+		if (!CryptGenRandom(hProv, (ep - p)*sizeof(wchar_t), (BYTE*)p)) {
 			la_dosmaperr(GetLastError());
 			goto exit_tmpfile;
 		}
 		for (; p < ep; p++)
-			*p = num[*p % sizeof(num)];
+			*p = num[((DWORD)*p) % (sizeof(num)/sizeof(num[0]))];
 
 		free(ws);
-		ws = __la_win_permissive_name(temp_name.s);
+		ws = __la_win_permissive_name_w(temp_name.s);
 		if (ws == NULL) {
 			errno = EINVAL;
 			goto exit_tmpfile;
@@ -1238,7 +1244,7 @@ exit_tmpfile:
 	if (hProv != (HCRYPTPROV)NULL)
 		CryptReleaseContext(hProv, 0);
 	free(ws);
-	archive_string_free(&temp_name);
+	archive_wstring_free(&temp_name);
 	return (fd);
 }
 

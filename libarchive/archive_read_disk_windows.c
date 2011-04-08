@@ -1263,6 +1263,12 @@ tree_reopen(struct tree *t, const char *path, int restore_time)
 	    path, strlen(path)) != 0)
 		goto failed;
 	pathname = ws.s;
+	/* Get a full-path-name. */
+	p = __la_win_permissive_name_w(pathname);
+	if (p == NULL)
+		goto failed;
+	archive_wstrcpy(&(t->full_path), p);
+	free(p);
 
 	/* Convert path separators from '\' to '/' */
 	for (p = pathname; *p != L'\0'; ++p) {
@@ -1271,11 +1277,6 @@ tree_reopen(struct tree *t, const char *path, int restore_time)
 	}
 	base = pathname;
 
-	p = __la_win_permissive_name(path);
-	if (p == NULL)
-		goto failed;
-	archive_wstrcpy(&(t->full_path), p);
-	free(p);
 	/* First item is set up a lot like a symlink traversal. */
 	/* printf("Looking for wildcard in %s\n", path); */
 	/* TODO: wildcard detection here screws up on \\?\c:\ UNC names */
