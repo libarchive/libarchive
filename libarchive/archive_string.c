@@ -97,6 +97,7 @@ static struct archive_string_conv *get_sconv_object(struct archive *,
 	const char *, const char *, int);
 #if defined(_WIN32) && !defined(__CYGWIN__)
 static unsigned make_codepage_from_charset(const char *);
+static unsigned get_current_codepage();
 #endif
 static int strncpy_from_utf16be(struct archive_string *, const void *, size_t,
     struct archive_string_conv *);
@@ -311,7 +312,7 @@ default_iconv_charset(const char *charset) {
 #endif
 }
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
+#if defined(_WIN32) && !defined(__CYGWIN__) && 0
 
 /*
  * Convert MBS to WCS.
@@ -408,7 +409,7 @@ archive_wstring_append_from_mbs(struct archive *a,
 
 #endif
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
+#if defined(_WIN32) && !defined(__CYGWIN__) && 0
 
 /*
  * WCS ==> MBS.
@@ -791,6 +792,24 @@ make_codepage_from_charset(const char *charset)
 	return (cp);
 }
 
+static unsigned
+get_current_codepage()
+{
+	char *locale, *p;
+	unsigned cp;
+
+	locale = setlocale(LC_CTYPE, NULL);
+	if (locale == NULL)
+		return (GetACP());
+	p = strrchr(locale, '.');
+	if (p == NULL)
+		return (GetACP());
+	cp = my_atoi(p+1);
+	if (cp <= 0)
+		return (GetACP());
+	return (cp);
+}
+
 #endif /* defined(_WIN32) && !defined(__CYGWIN__) */
 
 static struct archive_string_conv *
@@ -805,7 +824,7 @@ get_sconv_object(struct archive *a, const char *fc, const char *tc, int flag)
 
 	if (a == NULL)
 #if defined(_WIN32) && !defined(__CYGWIN__)
-		current_codepage = GetACP();
+		current_codepage = get_current_codepage();
 #else
 		current_codepage = -1;
 #endif
@@ -893,7 +912,7 @@ get_current_charset(struct archive *a)
 		if (a->current_code == NULL) {
 			a->current_code = strdup(cur_charset);
 #if defined(_WIN32) && !defined(__CYGWIN__)
-			a->current_codepage = GetACP();
+			a->current_codepage = get_current_codepage();
 #endif
 		}
 	}

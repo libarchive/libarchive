@@ -628,28 +628,28 @@ test_read_format_zip_filename_UTF8_UTF8_ru(const char *refname)
 
 /*
  * Filenames conversion test on Windows.
- * We have to compare filenames in WCS because setlocale() can affects 
- * only CRT functins, and Windows uses escape character to compose
- * several character-set in any locale so that many locale-dependent
- * MBS can be together displayed on Console. So MBS can be described
- * by different byte sequence if the current locale is different.
  */
 
 static void
-test_read_format_zip_filename_CP932_WIN(const char *refname)
+test_read_format_zip_filename_CP932_CP932(const char *refname)
 {
 	struct archive *a;
 	struct archive_entry *ae;
 
 	/*
-	 * Read ZIP filename in ja_JP.eucJP with "hdrcharset=CP932" option.
+	 * Read ZIP filename in CP932 with "hdrcharset=CP932" option.
 	 */
+	if (NULL == setlocale(LC_ALL, ".932")) {
+		skipping("CP932 locale not available on this system.");
+		return;
+	}
+
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	if (ARCHIVE_OK != archive_read_set_options(a, "hdrcharset=CP932")) {
 		skipping("This system cannot convert character-set"
-		    " from CP932 to eucJP.");
+		    " from CP932.");
 		goto cleanup;
 	}
 	assertEqualIntA(a, ARCHIVE_OK,
@@ -657,16 +657,16 @@ test_read_format_zip_filename_CP932_WIN(const char *refname)
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualWString(
-	    L"\u8868\u3060\u3088/\u4e00\u89a7\u8868.txt",
-	    archive_entry_pathname_w(ae));
+	assertEqualString(
+		"\x95\x5c\x82\xbe\x82\xe6\x2f\x88\xea\x97\x97\x95\x5c.txt",
+	    archive_entry_pathname(ae));
 	assertEqualInt(5, archive_entry_size(ae));
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualWString(
-	    L"\u8868\u3060\u3088/\u6f22\u5b57.txt",
-	    archive_entry_pathname_w(ae));
+	assertEqualString(
+		"\x95\x5c\x82\xbe\x82\xe6\x2f\x8a\xbf\x8e\x9a.txt",
+	    archive_entry_pathname(ae));
 	assertEqualInt(5, archive_entry_size(ae));
 
 
@@ -684,16 +684,21 @@ cleanup:
 }
 
 static void
-test_read_format_zip_filename_UTF8_jp_WIN(const char *refname)
+test_read_format_zip_filename_UTF8_CP932(const char *refname)
 {
 	struct archive *a;
 	struct archive_entry *ae;
 
 	/*
-	 * Read ZIP filename in ja_JP.eucJP without charset option
+	 * Read ZIP filename in CP932 without charset option
 	 * because the file name in the sample file is UTF-8 and
 	 * Bit 11 of its general purpose bit flag is set.
 	 */
+	if (NULL == setlocale(LC_ALL, ".932")) {
+		skipping("CP932 locale not available on this system.");
+		return;
+	}
+
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -703,25 +708,25 @@ test_read_format_zip_filename_UTF8_jp_WIN(const char *refname)
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
-	assertEqualWString(
-	    L"\u8868\u3060\u3088/",
-	    archive_entry_pathname_w(ae));
+	assertEqualString(
+		"\x95\x5c\x82\xbe\x82\xe6\x2f",
+	    archive_entry_pathname(ae));
 	assertEqualInt(0, archive_entry_size(ae));
 
 	/* Verify directory file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
-	assertEqualWString(
-	    L"\u8868\u3060\u3088/\u4e00\u89a7\u8868.txt",
-	    archive_entry_pathname_w(ae));
+	assertEqualString(
+		"\x95\x5c\x82\xbe\x82\xe6\x2f\x88\xea\x97\x97\x95\x5c.txt",
+	    archive_entry_pathname(ae));
 	assertEqualInt(5, archive_entry_size(ae));
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
-	assertEqualWString(
-	    L"\u8868\u3060\u3088/\u6f22\u5b57.txt",
-	    archive_entry_pathname_w(ae));
+	assertEqualString(
+		"\x95\x5c\x82\xbe\x82\xe6\x2f\x8a\xbf\x8e\x9a.txt",
+	    archive_entry_pathname(ae));
 	assertEqualInt(5, archive_entry_size(ae));
 
 	/* End of archive. */
@@ -737,20 +742,25 @@ test_read_format_zip_filename_UTF8_jp_WIN(const char *refname)
 }
 
 static void
-test_read_format_zip_filename_CP866_WIN(const char *refname)
+test_read_format_zip_filename_CP866_CP1251(const char *refname)
 {
 	struct archive *a;
 	struct archive_entry *ae;
 
 	/*
-	 * Read ZIP filename in ru_RU.KOI8-R with "hdrcharset=CP866" option.
+	 * Read ZIP filename in CP1251 with "hdrcharset=CP866" option.
 	 */
+	if (NULL == setlocale(LC_ALL, ".1251")) {
+		skipping("CP1251 locale not available on this system.");
+		return;
+	}
+
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	if (ARCHIVE_OK != archive_read_set_options(a, "hdrcharset=CP866")) {
 		skipping("This system cannot convert character-set"
-		    " from CP866.");
+		    " from CP866 to CP1251.");
 		goto cleanup;
 	}
 	assertEqualIntA(a, ARCHIVE_OK,
@@ -758,14 +768,14 @@ test_read_format_zip_filename_CP866_WIN(const char *refname)
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualWString(L"\u041f\u0420\u0418\u0412\u0415\u0422",
-	    archive_entry_pathname_w(ae));
+	assertEqualString("\xcf\xd0\xc8\xc2\xc5\xd2",
+	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualWString(L"\u043f\u0440\u0438\u0432\u0435\u0442",
-	    archive_entry_pathname_w(ae));
+	assertEqualString("\xef\xf0\xe8\xe2\xe5\xf2",
+	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
 
 
@@ -783,20 +793,25 @@ cleanup:
 }
 
 static void
-test_read_format_zip_filename_KOI8R_WIN(const char *refname)
+test_read_format_zip_filename_KOI8R_CP1251(const char *refname)
 {
 	struct archive *a;
 	struct archive_entry *ae;
 
 	/*
-	 * Read ZIP filename in ru_RU.CP866 with "hdrcharset=KOI8-R" option.
+	 * Read ZIP filename in CP1251 with "hdrcharset=KOI8-R" option.
 	 */
+	if (NULL == setlocale(LC_ALL, ".1251")) {
+		skipping("CP1251 locale not available on this system.");
+		return;
+	}
+
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	if (ARCHIVE_OK != archive_read_set_options(a, "hdrcharset=KOI8-R")) {
 		skipping("This system cannot convert character-set"
-		    " from KOI8-R.");
+		    " from KOI8-R to CP1251.");
 		goto cleanup;
 	}
 	assertEqualIntA(a, ARCHIVE_OK,
@@ -804,14 +819,14 @@ test_read_format_zip_filename_KOI8R_WIN(const char *refname)
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualWString(L"\u043f\u0440\u0438\u0432\u0435\u0442",
-	    archive_entry_pathname_w(ae));
+	assertEqualString("\xef\xf0\xe8\xe2\xe5\xf2",
+	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualWString(L"\u041f\u0420\u0418\u0412\u0415\u0422",
-	    archive_entry_pathname_w(ae));
+	assertEqualString("\xcf\xd0\xc8\xc2\xc5\xd2",
+	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
 
 
@@ -829,16 +844,21 @@ cleanup:
 }
 
 static void
-test_read_format_zip_filename_UTF8_ru_WIN(const char *refname)
+test_read_format_zip_filename_UTF8_CP1251(const char *refname)
 {
 	struct archive *a;
 	struct archive_entry *ae;
 
 	/*
-	 * Read ZIP filename in ru_RU.UTF-8 without charset option
+	 * Read ZIP filename in CP1251 without charset option
 	 * because the file name in the sample file is UTF-8 and
 	 * Bit 11 of its general purpose bit flag is set.
 	 */
+	if (NULL == setlocale(LC_ALL, ".1251")) {
+		skipping("CP1251 locale not available on this system.");
+		return;
+	}
+
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -847,14 +867,14 @@ test_read_format_zip_filename_UTF8_ru_WIN(const char *refname)
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualWString(L"\u041f\u0420\u0418\u0412\u0415\u0422",
-	    archive_entry_pathname_w(ae));
+	assertEqualString("\xcf\xd0\xc8\xc2\xc5\xd2",
+	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualWString(L"\u043f\u0440\u0438\u0432\u0435\u0442",
-	    archive_entry_pathname_w(ae));
+	assertEqualString("\xef\xf0\xe8\xe2\xe5\xf2",
+	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
 
 
@@ -897,10 +917,10 @@ DEFINE_TEST(test_read_format_zip_filename)
 	test_read_format_zip_filename_UTF8_CP866(refname5);
 	test_read_format_zip_filename_UTF8_UTF8_ru(refname5);
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	test_read_format_zip_filename_CP932_WIN(refname);
-	test_read_format_zip_filename_UTF8_jp_WIN(refname2);
-	test_read_format_zip_filename_CP866_WIN(refname3);
-	test_read_format_zip_filename_KOI8R_WIN(refname4);
-	test_read_format_zip_filename_UTF8_ru_WIN(refname5);
+	test_read_format_zip_filename_CP932_CP932(refname);
+	test_read_format_zip_filename_UTF8_CP932(refname2);
+	test_read_format_zip_filename_CP866_CP1251(refname3);
+	test_read_format_zip_filename_KOI8R_CP1251(refname4);
+	test_read_format_zip_filename_UTF8_CP1251(refname5);
 #endif
 }
