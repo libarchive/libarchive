@@ -624,12 +624,6 @@ test_read_format_zip_filename_UTF8_UTF8_ru(const char *refname)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
-
-/*
- * Filenames conversion test on Windows.
- */
-
 static void
 test_read_format_zip_filename_CP932_CP932(const char *refname)
 {
@@ -637,9 +631,10 @@ test_read_format_zip_filename_CP932_CP932(const char *refname)
 	struct archive_entry *ae;
 
 	/*
-	 * Read ZIP filename in CP932 with "hdrcharset=CP932" option.
+	 * Read ZIP filename in CP932/SJIS with "hdrcharset=CP932" option.
 	 */
-	if (NULL == setlocale(LC_ALL, ".932")) {
+	if (NULL == setlocale(LC_ALL, ".932") &&
+	    NULL == setlocale(LC_ALL, "ja_JP.SJIS")) {
 		skipping("CP932 locale not available on this system.");
 		return;
 	}
@@ -690,15 +685,26 @@ test_read_format_zip_filename_UTF8_CP932(const char *refname)
 	struct archive_entry *ae;
 
 	/*
-	 * Read ZIP filename in CP932 without charset option
+	 * Read ZIP filename in CP932/SJIS without charset option
 	 * because the file name in the sample file is UTF-8 and
 	 * Bit 11 of its general purpose bit flag is set.
 	 */
-	if (NULL == setlocale(LC_ALL, ".932")) {
+	if (NULL == setlocale(LC_ALL, ".932") &&
+	    NULL == setlocale(LC_ALL, "ja_JP.SJIS")) {
 		skipping("CP932 locale not available on this system.");
 		return;
 	}
 
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
+	if (ARCHIVE_OK != archive_read_set_options(a, "hdrcharset=UTF-8")) {
+		skipping("This system cannot convert character-set"
+		    " from UTF-8 to CP932.");
+		goto cleanup;
+	}
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* Re-create a read archive object. */
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -738,6 +744,7 @@ test_read_format_zip_filename_UTF8_CP932(const char *refname)
 
 	/* Close the archive. */
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -750,7 +757,8 @@ test_read_format_zip_filename_CP866_CP1251(const char *refname)
 	/*
 	 * Read ZIP filename in CP1251 with "hdrcharset=CP866" option.
 	 */
-	if (NULL == setlocale(LC_ALL, ".1251")) {
+	if (NULL == setlocale(LC_ALL, ".1251") &&
+	    NULL == setlocale(LC_ALL, "ru_RU.CP1251")) {
 		skipping("CP1251 locale not available on this system.");
 		return;
 	}
@@ -801,7 +809,8 @@ test_read_format_zip_filename_KOI8R_CP1251(const char *refname)
 	/*
 	 * Read ZIP filename in CP1251 with "hdrcharset=KOI8-R" option.
 	 */
-	if (NULL == setlocale(LC_ALL, ".1251")) {
+	if (NULL == setlocale(LC_ALL, ".1251") &&
+	    NULL == setlocale(LC_ALL, "ru_RU.CP1251")) {
 		skipping("CP1251 locale not available on this system.");
 		return;
 	}
@@ -854,11 +863,22 @@ test_read_format_zip_filename_UTF8_CP1251(const char *refname)
 	 * because the file name in the sample file is UTF-8 and
 	 * Bit 11 of its general purpose bit flag is set.
 	 */
-	if (NULL == setlocale(LC_ALL, ".1251")) {
+	if (NULL == setlocale(LC_ALL, ".1251") &&
+	    NULL == setlocale(LC_ALL, "ru_RU.CP1251")) {
 		skipping("CP1251 locale not available on this system.");
 		return;
 	}
 
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
+	if (ARCHIVE_OK != archive_read_set_options(a, "hdrcharset=UTF-8")) {
+		skipping("This system cannot convert character-set"
+		    " from UTF-8 to CP1251.");
+		goto cleanup;
+	}
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* Re-create a read archive object. */
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -887,40 +907,42 @@ test_read_format_zip_filename_UTF8_CP1251(const char *refname)
 
 	/* Close the archive. */
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-#endif
 
 DEFINE_TEST(test_read_format_zip_filename)
 {
-	const char *refname = "test_read_format_zip_cp932.zip";
+	const char *refname1 = "test_read_format_zip_cp932.zip";
 	const char *refname2 = "test_read_format_zip_utf8.zip";
 	const char *refname3 = "test_read_format_zip_cp866.zip";
 	const char *refname4 = "test_read_format_zip_koi8r.zip";
 	const char *refname5 = "test_read_format_zip_utf8_ru.zip";
 
-	extract_reference_file(refname);
-	test_read_format_zip_filename_CP932_eucJP(refname);
-	test_read_format_zip_filename_CP932_UTF8(refname);
+	extract_reference_file(refname1);
+	test_read_format_zip_filename_CP932_eucJP(refname1);
+	test_read_format_zip_filename_CP932_UTF8(refname1);
+	test_read_format_zip_filename_CP932_CP932(refname1);
+
 	extract_reference_file(refname2);
 	test_read_format_zip_filename_UTF8_eucJP(refname2);
 	test_read_format_zip_filename_UTF8_UTF8(refname2);
+	test_read_format_zip_filename_UTF8_CP932(refname2);
+
 	extract_reference_file(refname3);
 	test_read_format_zip_filename_CP866_KOI8R(refname3);
 	test_read_format_zip_filename_CP866_UTF8(refname3);
+	test_read_format_zip_filename_CP866_CP1251(refname3);
+
 	extract_reference_file(refname4);
 	test_read_format_zip_filename_KOI8R_CP866(refname4);
 	test_read_format_zip_filename_KOI8R_UTF8(refname4);
+	test_read_format_zip_filename_KOI8R_CP1251(refname4);
+
 	extract_reference_file(refname5);
 	test_read_format_zip_filename_UTF8_KOI8R(refname5);
 	test_read_format_zip_filename_UTF8_CP866(refname5);
 	test_read_format_zip_filename_UTF8_UTF8_ru(refname5);
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	test_read_format_zip_filename_CP932_CP932(refname);
-	test_read_format_zip_filename_UTF8_CP932(refname2);
-	test_read_format_zip_filename_CP866_CP1251(refname3);
-	test_read_format_zip_filename_KOI8R_CP1251(refname4);
 	test_read_format_zip_filename_UTF8_CP1251(refname5);
-#endif
 }
