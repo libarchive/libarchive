@@ -100,6 +100,7 @@ static struct archive_string_conv *get_sconv_object(struct archive *,
 #if defined(_WIN32) && !defined(__CYGWIN__)
 static unsigned make_codepage_from_charset(const char *);
 static unsigned get_current_codepage();
+static unsigned get_current_oemcp();
 #endif
 static int strncpy_from_utf16be(struct archive_string *, const void *, size_t,
     struct archive_string_conv *);
@@ -844,6 +845,82 @@ get_current_codepage()
 	return (cp);
 }
 
+/*
+ * ACP ==> OEMCP map.
+ */
+static struct {
+	unsigned acp;
+	unsigned ocp;
+	const char *locale;
+} acp_ocp_map[] = {
+	{  950,  950, "Chinese_Taiwan" },
+	{  936,  936, "Chinese_People's Republic of China" },
+	{  950,  950, "Chinese_Taiwan" },
+	{ 1250,  852, "Czech_Czech Republic" },
+	{ 1252,  850, "Danish_Denmark" },
+	{ 1252,  850, "Dutch_Netherlands" },
+	{ 1252,  850, "Dutch_Belgium" },
+	{ 1252,  437, "English_United States" },
+	{ 1252,  850, "English_Australia" },
+	{ 1252,  850, "English_Canada" },
+	{ 1252,  850, "English_New Zealand" },
+	{ 1252,  850, "English_United Kingdom" },
+	{ 1252,  437, "English_United States" },
+	{ 1252,  850, "Finnish_Finland" },
+	{ 1252,  850, "French_France" },
+	{ 1252,  850, "French_Belgium" },
+	{ 1252,  850, "French_Canada" },
+	{ 1252,  850, "French_Switzerland" },
+	{ 1252,  850, "German_Germany" },
+	{ 1252,  850, "German_Austria" },
+	{ 1252,  850, "German_Switzerland" },
+	{ 1253,  737, "Greek_Greece" },
+	{ 1250,  852, "Hungarian_Hungary" },
+	{ 1252,  850, "Icelandic_Iceland" },
+	{ 1252,  850, "Italian_Italy" },
+	{ 1252,  850, "Italian_Switzerland" },
+	{  932,  932, "Japanese_Japan" },
+	{  949,  949, "Korean_Korea" },
+	{ 1252,  850, "Norwegian (BokmOl)_Norway" },
+	{ 1252,  850, "Norwegian (BokmOl)_Norway" },
+	{ 1252,  850, "Norwegian-Nynorsk_Norway" },
+	{ 1250,  852, "Polish_Poland" },
+	{ 1252,  850, "Portuguese_Portugal" },
+	{ 1252,  850, "Portuguese_Brazil" },
+	{ 1251,  866, "Russian_Russia" },
+	{ 1250,  852, "Slovak_Slovakia" },
+	{ 1252,  850, "Spanish_Spain" },
+	{ 1252,  850, "Spanish_Mexico" },
+	{ 1252,  850, "Spanish_Spain" },
+	{ 1252,  850, "Swedish_Sweden" },
+	{ 1254,  857, "Turkish_Turkey" },
+	{ 0, 0, NULL}
+};
+
+static unsigned
+get_current_oemcp()
+{
+	int i;
+	char *locale, *p;
+	size_t len;
+
+	locale = setlocale(LC_CTYPE, NULL);
+	if (locale == NULL)
+		return (GetOEMCP());
+	if (locale[0] == 'C' && locale[1] == '\0')
+		return (CP_C_LOCALE);
+
+	p = strrchr(locale, '.');
+	if (p == NULL)
+		return (GetOEMCP());
+	len = p - locale;
+	for (i = 0; acp_ocp_map[i].acp; i++) {
+		if (strncmp(acp_ocp_map[i].locale, locale, len) == 0)
+			return (acp_ocp_map[i].ocp);
+	}
+	return (GetOEMCP());
+}
+
 #endif /* defined(_WIN32) && !defined(__CYGWIN__) */
 
 static struct archive_string_conv *
@@ -947,6 +1024,7 @@ get_current_charset(struct archive *a)
 			a->current_code = strdup(cur_charset);
 #if defined(_WIN32) && !defined(__CYGWIN__)
 			a->current_codepage = get_current_codepage();
+			a->current_oemcp = get_current_oemcp();
 #endif
 		}
 	}
@@ -999,7 +1077,7 @@ archive_string_default_conversion_for_read(struct archive *a)
 	const char *cur_charset = get_current_charset(a);
 
 	if (a->current_codepage == CP_C_LOCALE ||
-	    a->current_codepage == GetOEMCP())
+	    a->current_codepage == a->current_oemcp)
 		return (NULL);/* no conversion. */
 	return (get_sconv_object(a, "CP_OEMCP", cur_charset,
 	    SCONV_FROM_CHARSET));
@@ -1011,7 +1089,7 @@ archive_string_default_conversion_for_write(struct archive *a)
 	const char *cur_charset = get_current_charset(a);
 
 	if (a->current_codepage == CP_C_LOCALE ||
-	    a->current_codepage == GetOEMCP())
+	    a->current_codepage == a->current_oemcp)
 		return (NULL);/* no conversion. */
 	return (get_sconv_object(a, "CP_OEMCP", cur_charset,
 	    SCONV_TO_CHARSET));

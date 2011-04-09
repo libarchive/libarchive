@@ -115,7 +115,8 @@ struct archive {
 	struct archive_string	error_string;
 
 	char *current_code;
-	unsigned current_codepage;
+	unsigned current_codepage; /* Current ACP(ANSI CodePage). */
+	unsigned current_oemcp; /* Current OEMCP(OEM CodePage). */
 	struct archive_string_conv *sconv;
 };
 
