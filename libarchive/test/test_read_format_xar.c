@@ -83,11 +83,7 @@ static void verify0(struct archive *a, struct archive_entry *ae)
 {
 	const void *p;
 	size_t size;
-#if ARCHIVE_VERSION_NUMBER < 3000000
-	off_t offset;
-#else
 	int64_t offset;
-#endif
 
 	assert(archive_entry_filetype(ae) == AE_IFREG);
 	assertEqualInt(archive_entry_mode(ae) & 0777, 0644);

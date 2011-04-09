@@ -906,11 +906,7 @@ extract_data(struct archive *ar, struct archive *aw)
 	int r;
 	size_t size;
 	const void *block;
-#if ARCHIVE_VERSION_NUMBER < 3000000
-	off_t offset;
-#else
 	int64_t offset;
-#endif
 
 	for (;;) {
 		r = archive_read_data_block(ar, &block, &size, &offset);

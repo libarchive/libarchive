@@ -146,28 +146,6 @@ __LA_DECL int		archive_version_number(void);
 #define	ARCHIVE_VERSION_STRING "libarchive 3.0.0a"
 __LA_DECL const char *	archive_version_string(void);
 
-#if ARCHIVE_VERSION_NUMBER < 3000000
-/*
- * Deprecated; these are older names that will be removed in favor of
- * the simpler definitions above.
- */
-#define	ARCHIVE_VERSION_STAMP	ARCHIVE_VERSION_NUMBER
-__LA_DECL int		archive_version_stamp(void);
-#define	ARCHIVE_LIBRARY_VERSION	ARCHIVE_VERSION_STRING
-__LA_DECL const char *	archive_version(void);
-#define	ARCHIVE_API_VERSION	(ARCHIVE_VERSION_NUMBER / 1000000)
-__LA_DECL int		archive_api_version(void);
-#define	ARCHIVE_API_FEATURE	((ARCHIVE_VERSION_NUMBER / 1000) % 1000)
-__LA_DECL int		archive_api_feature(void);
-#endif
-
-#if ARCHIVE_VERSION_NUMBER < 3000000
-/* This should never have been here in the first place. */
-/* Legacy of old tar assumptions, will be removed in libarchive 3.0. */
-#define	ARCHIVE_BYTES_PER_RECORD	  512
-#define	ARCHIVE_DEFAULT_BYTES_PER_BLOCK	10240
-#endif
-
 /* Declare our basic types. */
 struct archive;
 struct archive_entry;
@@ -212,17 +190,8 @@ typedef __LA_SSIZE_T	archive_read_callback(struct archive *,
 			    void *_client_data, const void **_buffer);
 
 /* Skips at most request bytes from archive and returns the skipped amount */
-#if ARCHIVE_VERSION_NUMBER < 3000000
-/* Libarchive 2.0 used off_t here, but that is a bad idea on Linux and a
- * few other platforms where off_t varies with build settings. */
-typedef off_t		archive_skip_callback(struct archive *,
-			    void *_client_data, off_t request);
-#else
-/* Libarchive 3.0 uses int64_t here, which is actually guaranteed to be
- * 64 bits on every platform. */
 typedef __LA_INT64_T	archive_skip_callback(struct archive *,
 			    void *_client_data, __LA_INT64_T request);
-#endif
 
 /* Returns size actually written, zero on EOF, -1 on error. */
 typedef __LA_SSIZE_T	archive_write_callback(struct archive *,
@@ -434,13 +403,8 @@ __LA_DECL __LA_SSIZE_T		 archive_read_data(struct archive *,
  * the desired size of the block.  The API does guarantee that offsets will
  * be strictly increasing and that returned blocks will not overlap.
  */
-#if ARCHIVE_VERSION_NUMBER < 3000000
-__LA_DECL int archive_read_data_block(struct archive *a,
-		    const void **buff, size_t *size, off_t *offset);
-#else
 __LA_DECL int archive_read_data_block(struct archive *a,
 		    const void **buff, size_t *size, __LA_INT64_T *offset);
-#endif
 
 /*-
  * Some convenience functions that are built on archive_read_data:
@@ -528,13 +492,8 @@ __LA_DECL void	 archive_read_extract_set_progress_callback(struct archive *,
 
 /* Record the dev/ino of a file that will not be written.  This is
  * generally set to the dev/ino of the archive being read. */
-#if ARCHIVE_VERSION_NUMBER < 3000000
-__LA_DECL void		archive_read_extract_set_skip_file(struct archive *,
-		     dev_t, ino_t);
-#else
 __LA_DECL void		archive_read_extract_set_skip_file(struct archive *,
 		     __LA_INT64_T, __LA_INT64_T);
-#endif
 
 /* Close the file and release most resources. */
 __LA_DECL int		 archive_read_close(struct archive *);
@@ -572,12 +531,8 @@ __LA_DECL int archive_write_get_bytes_in_last_block(struct archive *);
 
 /* The dev/ino of a file that won't be archived.  This is used
  * to avoid recursively adding an archive to itself. */
-#if ARCHIVE_VERSION_NUMBER < 3000000
-__LA_DECL int archive_write_set_skip_file(struct archive *, dev_t, ino_t);
-#else
 __LA_DECL int archive_write_set_skip_file(struct archive *,
     __LA_INT64_T, __LA_INT64_T);
-#endif
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
 __LA_DECL int archive_write_set_compression_bzip2(struct archive *);
@@ -644,17 +599,10 @@ __LA_DECL int archive_write_header(struct archive *,
 __LA_DECL __LA_SSIZE_T	archive_write_data(struct archive *,
 			    const void *, size_t);
 
-#if ARCHIVE_VERSION_NUMBER < 3000000
-/* Libarchive 1.x and 2.x use off_t for the argument, but that's not
- * stable on Linux. */
-__LA_DECL __LA_SSIZE_T	 archive_write_data_block(struct archive *,
-				    const void *, size_t, off_t);
-#else
-/* Libarchive 3.0 uses explicit int64_t to ensure consistent 64-bit support. */
-/* This interface is currently only available for archive_write_disk handles. */
+/* This interface is currently only available for archive_write_disk handles.  */
 __LA_DECL __LA_SSIZE_T	 archive_write_data_block(struct archive *,
 				    const void *, size_t, __LA_INT64_T);
-#endif
+
 __LA_DECL int		 archive_write_finish_entry(struct archive *);
 __LA_DECL int		 archive_write_close(struct archive *);
 /* This can fail if the archive wasn't already closed, in which case
@@ -702,13 +650,8 @@ __LA_DECL int archive_write_set_options(struct archive *_a,
  */
 __LA_DECL struct archive	*archive_write_disk_new(void);
 /* This file will not be overwritten. */
-#if ARCHIVE_VERSION_NUMBER < 3000000
-__LA_DECL int		 archive_write_disk_set_skip_file(struct archive *,
-		     dev_t, ino_t);
-#else
 __LA_DECL int archive_write_disk_set_skip_file(struct archive *,
     __LA_INT64_T, __LA_INT64_T);
-#endif
 /* Set flags to control how the next item gets created.
  * This accepts a bitmask of ARCHIVE_EXTRACT_XXX flags defined above. */
 __LA_DECL int		 archive_write_disk_set_options(struct archive *,
@@ -736,16 +679,6 @@ __LA_DECL int	 archive_write_disk_set_standard_lookup(struct archive *);
  * your needs, you can write your own and register them.  Be sure to
  * include a cleanup function if you have allocated private data.
  */
-#if ARCHIVE_VERSION_NUMBER < 3000000
-__LA_DECL int	 archive_write_disk_set_group_lookup(struct archive *,
-			    void * /* private_data */,
-			    __LA_GID_T (*)(void *, const char *, __LA_GID_T),
-			    void (* /* cleanup */)(void *));
-__LA_DECL int	 archive_write_disk_set_user_lookup(struct archive *,
-			    void * /* private_data */,
-			    __LA_UID_T (*)(void *, const char *, __LA_UID_T),
-			    void (* /* cleanup */)(void *));
-#else
 __LA_DECL int archive_write_disk_set_group_lookup(struct archive *,
     void * /* private_data */,
     __LA_INT64_T (*)(void *, const char *, __LA_INT64_T),
@@ -754,7 +687,6 @@ __LA_DECL int archive_write_disk_set_user_lookup(struct archive *,
     void * /* private_data */,
     __LA_INT64_T (*)(void *, const char *, __LA_INT64_T),
     void (* /* cleanup */)(void *));
-#endif
 
 /*
  * ARCHIVE_READ_DISK API
@@ -775,27 +707,12 @@ __LA_DECL int archive_read_disk_entry_from_file(struct archive *,
     struct archive_entry *, int /* fd */, const struct stat *);
 /* Look up gname for gid or uname for uid. */
 /* Default implementations are very, very stupid. */
-#if ARCHIVE_VERSION_NUMBER < 3000000
-__LA_DECL const char *archive_read_disk_gname(struct archive *, __LA_GID_T);
-__LA_DECL const char *archive_read_disk_uname(struct archive *, __LA_UID_T);
-#else
 __LA_DECL const char *archive_read_disk_gname(struct archive *, __LA_INT64_T);
 __LA_DECL const char *archive_read_disk_uname(struct archive *, __LA_INT64_T);
-#endif
 /* "Standard" implementation uses getpwuid_r, getgrgid_r and caches the
  * results for performance. */
 __LA_DECL int	archive_read_disk_set_standard_lookup(struct archive *);
 /* You can install your own lookups if you like. */
-#if ARCHIVE_VERSION_NUMBER < 3000000
-__LA_DECL int	archive_read_disk_set_gname_lookup(struct archive *,
-    void * /* private_data */,
-    const char *(* /* lookup_fn */)(void *, __LA_GID_T),
-    void (* /* cleanup_fn */)(void *));
-__LA_DECL int	archive_read_disk_set_uname_lookup(struct archive *,
-    void * /* private_data */,
-    const char *(* /* lookup_fn */)(void *, __LA_UID_T),
-    void (* /* cleanup_fn */)(void *));
-#else
 __LA_DECL int	archive_read_disk_set_gname_lookup(struct archive *,
     void * /* private_data */,
     const char *(* /* lookup_fn */)(void *, __LA_INT64_T),
@@ -804,7 +721,6 @@ __LA_DECL int	archive_read_disk_set_uname_lookup(struct archive *,
     void * /* private_data */,
     const char *(* /* lookup_fn */)(void *, __LA_INT64_T),
     void (* /* cleanup_fn */)(void *));
-#endif
 /* Start traversal. */
 __LA_DECL int	archive_read_disk_open(struct archive *, const char *);
 /*

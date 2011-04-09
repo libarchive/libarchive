@@ -33,13 +33,8 @@ gname_cleanup(void *d)
 	*mp = 0x2468;
 }
 
-#if ARCHIVE_VERSION_NUMBER < 3000000
-static const char *
-gname_lookup(void *d, gid_t g)
-#else
 static const char *
 gname_lookup(void *d, int64_t g)
-#endif
 {
 	int *mp = d;
 	assertEqualInt(*mp, 0x13579);
@@ -56,13 +51,8 @@ uname_cleanup(void *d)
 	*mp = 0x2345;
 }
 
-#if ARCHIVE_VERSION_NUMBER < 3000000
-static const char *
-uname_lookup(void *d, uid_t u)
-#else
 static const char *
 uname_lookup(void *d, int64_t u)
-#endif
 {
 	int *mp = d;
 	assertEqualInt(*mp, 0x1234);

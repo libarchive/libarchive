@@ -65,11 +65,7 @@ DEFINE_TEST(test_read_format_isorr_rr_moved)
 	struct archive *a;
 	const void *p;
 	size_t size;
-#if ARCHIVE_VERSION_NUMBER < 3000000
-	off_t offset;
-#else
 	int64_t offset;
-#endif
 	int i;
 
 	extract_reference_file(refname);

@@ -49,11 +49,7 @@ struct read_memory_data {
 
 static int	memory_read_close(struct archive *, void *);
 static int	memory_read_open(struct archive *, void *);
-#if ARCHIVE_VERSION_NUMBER < 3000000
-static off_t	memory_read_skip(struct archive *, void *, off_t request);
-#else
 static int64_t	memory_read_skip(struct archive *, void *, int64_t request);
-#endif
 static ssize_t	memory_read(struct archive *, void *, const void **buff);
 static int	read_open_memory_internal(struct archive *a, void *buff,
     size_t size, size_t read_size, int fullapi);
@@ -141,13 +137,8 @@ memory_read(struct archive *a, void *client_data, const void **buff)
 /*
  * How mean can a skip() routine be?  Let's try to find out.
  */
-#if ARCHIVE_VERSION_NUMBER < 3000000
-static off_t
-memory_read_skip(struct archive *a, void *client_data, off_t skip)
-#else
 static int64_t
 memory_read_skip(struct archive *a, void *client_data, int64_t skip)
-#endif
 {
 	struct read_memory_data *mine = (struct read_memory_data *)client_data;
 

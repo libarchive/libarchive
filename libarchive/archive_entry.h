@@ -213,20 +213,12 @@ __LA_DECL void		 archive_entry_fflags(struct archive_entry *,
 			    unsigned long * /* set */,
 			    unsigned long * /* clear */);
 __LA_DECL const char	*archive_entry_fflags_text(struct archive_entry *);
-#if ARCHIVE_VERSION_NUMBER < 3000000
-__LA_DECL __LA_GID_T	 archive_entry_gid(struct archive_entry *);
-#else
 __LA_DECL __LA_INT64_T	 archive_entry_gid(struct archive_entry *);
-#endif
 __LA_DECL const char	*archive_entry_gname(struct archive_entry *);
 __LA_DECL const wchar_t	*archive_entry_gname_w(struct archive_entry *);
 __LA_DECL const char	*archive_entry_hardlink(struct archive_entry *);
 __LA_DECL const wchar_t	*archive_entry_hardlink_w(struct archive_entry *);
-#if ARCHIVE_VERSION_NUMBER < 3000000
-__LA_DECL __LA_INO_T	 archive_entry_ino(struct archive_entry *);
-#else
 __LA_DECL __LA_INT64_T	 archive_entry_ino(struct archive_entry *);
-#endif
 __LA_DECL __LA_INT64_T	 archive_entry_ino64(struct archive_entry *);
 __LA_DECL __LA_MODE_T	 archive_entry_mode(struct archive_entry *);
 __LA_DECL time_t	 archive_entry_mtime(struct archive_entry *);
@@ -245,11 +237,7 @@ __LA_DECL int		 archive_entry_size_is_set(struct archive_entry *);
 __LA_DECL const char	*archive_entry_strmode(struct archive_entry *);
 __LA_DECL const char	*archive_entry_symlink(struct archive_entry *);
 __LA_DECL const wchar_t	*archive_entry_symlink_w(struct archive_entry *);
-#if ARCHIVE_VERSION_NUMBER < 3000000
-__LA_DECL __LA_UID_T	 archive_entry_uid(struct archive_entry *);
-#else
 __LA_DECL __LA_INT64_T	 archive_entry_uid(struct archive_entry *);
-#endif
 __LA_DECL const char	*archive_entry_uname(struct archive_entry *);
 __LA_DECL const wchar_t	*archive_entry_uname_w(struct archive_entry *);
 
@@ -285,11 +273,7 @@ __LA_DECL const char *archive_entry_copy_fflags_text(struct archive_entry *,
 	    const char *);
 __LA_DECL const wchar_t *archive_entry_copy_fflags_text_w(struct archive_entry *,
 	    const wchar_t *);
-#if ARCHIVE_VERSION_NUMBER < 3000000
-__LA_DECL void	archive_entry_set_gid(struct archive_entry *, __LA_GID_T);
-#else
 __LA_DECL void	archive_entry_set_gid(struct archive_entry *, __LA_INT64_T);
-#endif
 __LA_DECL void	archive_entry_set_gname(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_gname(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_gname_w(struct archive_entry *, const wchar_t *);
@@ -298,11 +282,7 @@ __LA_DECL void	archive_entry_set_hardlink(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_hardlink(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_hardlink_w(struct archive_entry *, const wchar_t *);
 __LA_DECL int	archive_entry_update_hardlink_utf8(struct archive_entry *, const char *);
-#if ARCHIVE_VERSION_NUMBER < 3000000
-__LA_DECL void	archive_entry_set_ino(struct archive_entry *, unsigned long);
-#else
 __LA_DECL void	archive_entry_set_ino(struct archive_entry *, __LA_INT64_T);
-#endif
 __LA_DECL void	archive_entry_set_ino64(struct archive_entry *, __LA_INT64_T);
 __LA_DECL void	archive_entry_set_link(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_link(struct archive_entry *, const char *);
@@ -327,11 +307,7 @@ __LA_DECL void	archive_entry_set_symlink(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_symlink(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_symlink_w(struct archive_entry *, const wchar_t *);
 __LA_DECL int	archive_entry_update_symlink_utf8(struct archive_entry *, const char *);
-#if ARCHIVE_VERSION_NUMBER < 3000000
-__LA_DECL void	archive_entry_set_uid(struct archive_entry *, __LA_UID_T);
-#else
 __LA_DECL void	archive_entry_set_uid(struct archive_entry *, __LA_INT64_T);
-#endif
 __LA_DECL void	archive_entry_set_uname(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_uname(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_uname_w(struct archive_entry *, const wchar_t *);

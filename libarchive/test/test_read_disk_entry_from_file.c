@@ -25,26 +25,16 @@
 #include "test.h"
 __FBSDID("$FreeBSD: head/lib/libarchive/test/test_read_disk_entry_from_file.c 201247 2009-12-30 05:59:21Z kientzle $");
 
-#if ARCHIVE_VERSION_NUMBER < 3000000
-static const char *
-gname_lookup(void *d, gid_t g)
-#else
 static const char *
 gname_lookup(void *d, int64_t g)
-#endif
 {
 	(void)d; /* UNUSED */
 	(void)g; /* UNUSED */
 	return ("FOOGROUP");
 }
 
-#if ARCHIVE_VERSION_NUMBER < 3000000
-static const char *
-uname_lookup(void *d, uid_t u)
-#else
 static const char *
 uname_lookup(void *d, int64_t u)
-#endif
 {
 	(void)d; /* UNUSED */
 	(void)u; /* UNUSED */

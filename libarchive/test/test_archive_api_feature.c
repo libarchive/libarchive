@@ -47,20 +47,4 @@ DEFINE_TEST(test_archive_api_feature)
 		failure("Version string is: %s", archive_version_string());
 		assert(*p == '\0');
 	}
-
-/* This is all scheduled to disappear in libarchive 3.0 */
-#if ARCHIVE_VERSION_NUMBER < 3000000
-	assertEqualInt(ARCHIVE_VERSION_STAMP, ARCHIVE_VERSION_NUMBER);
-	assertEqualInt(ARCHIVE_API_FEATURE, archive_api_feature());
-	assertEqualInt(ARCHIVE_API_VERSION, archive_api_version());
-	/*
-	 * Even though ARCHIVE_VERSION_STAMP only appears in
-	 * archive.h after 1.9.0 and 2.2.3, the macro is synthesized
-	 * in test.h, so this test is always valid.
-	 */
-	assertEqualInt(ARCHIVE_VERSION_STAMP / 1000, ARCHIVE_API_VERSION * 1000 + ARCHIVE_API_FEATURE);
-
-	assertEqualInt(ARCHIVE_VERSION_STAMP, archive_version_stamp());
-	assertEqualString(ARCHIVE_LIBRARY_VERSION, archive_version());
-#endif
 }

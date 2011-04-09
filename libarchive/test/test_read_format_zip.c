@@ -41,11 +41,7 @@ test_basic()
 	char *buff[128];
 	const void *pv;
 	size_t s;
-#if ARCHIVE_VERSION_NUMBER < 3000000
-	off_t o;
-#else
 	int64_t o;
-#endif
 	int r;
 
 	extract_reference_file(refname);

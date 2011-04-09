@@ -191,13 +191,8 @@ archive_write_get_bytes_in_last_block(struct archive *_a)
  * dev/ino of a file to be rejected.  Used to prevent adding
  * an archive to itself recursively.
  */
-#if ARCHIVE_VERSION_NUMBER < 3000000
-int
-archive_write_set_skip_file(struct archive *_a, dev_t d, ino_t i)
-#else
 int
 archive_write_set_skip_file(struct archive *_a, int64_t d, int64_t i)
-#endif
 {
 	struct archive_write *a = (struct archive_write *)_a;
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,

@@ -329,13 +329,8 @@ static int	_archive_read_data_block(struct archive *,
 		    const void **, size_t *, int64_t *);
 static int	_archive_read_next_header2(struct archive *,
 		    struct archive_entry *);
-#if ARCHIVE_VERSION_NUMBER < 3000000
-static const char *trivial_lookup_gname(void *, gid_t gid);
-static const char *trivial_lookup_uname(void *, uid_t uid);
-#else
 static const char *trivial_lookup_gname(void *, int64_t gid);
 static const char *trivial_lookup_uname(void *, int64_t uid);
-#endif
 static int	setup_sparse(struct archive_read_disk *, struct archive_entry *);
 static int	close_and_restore_time(int fd, struct tree *,
 		    struct restore_time *);
@@ -357,13 +352,8 @@ archive_read_disk_vtable(void)
 	return (&av);
 }
 
-#if ARCHIVE_VERSION_NUMBER < 3000000
-const char *
-archive_read_disk_gname(struct archive *_a, gid_t gid)
-#else
 const char *
 archive_read_disk_gname(struct archive *_a, int64_t gid)
-#endif
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
 	if (ARCHIVE_OK != __archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
@@ -374,13 +364,8 @@ archive_read_disk_gname(struct archive *_a, int64_t gid)
 	return ((*a->lookup_gname)(a->lookup_gname_data, gid));
 }
 
-#if ARCHIVE_VERSION_NUMBER < 3000000
-const char *
-archive_read_disk_uname(struct archive *_a, uid_t uid)
-#else
 const char *
 archive_read_disk_uname(struct archive *_a, int64_t uid)
-#endif
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
 	if (ARCHIVE_OK != __archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
@@ -391,19 +376,11 @@ archive_read_disk_uname(struct archive *_a, int64_t uid)
 	return ((*a->lookup_uname)(a->lookup_uname_data, uid));
 }
 
-#if ARCHIVE_VERSION_NUMBER < 3000000
-int
-archive_read_disk_set_gname_lookup(struct archive *_a,
-    void *private_data,
-    const char * (*lookup_gname)(void *private, gid_t gid),
-    void (*cleanup_gname)(void *private))
-#else
 int
 archive_read_disk_set_gname_lookup(struct archive *_a,
     void *private_data,
     const char * (*lookup_gname)(void *private, int64_t gid),
     void (*cleanup_gname)(void *private))
-#endif
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
 	archive_check_magic(&a->archive, ARCHIVE_READ_DISK_MAGIC,
@@ -418,19 +395,11 @@ archive_read_disk_set_gname_lookup(struct archive *_a,
 	return (ARCHIVE_OK);
 }
 
-#if ARCHIVE_VERSION_NUMBER < 3000000
-int
-archive_read_disk_set_uname_lookup(struct archive *_a,
-    void *private_data,
-    const char * (*lookup_uname)(void *private, uid_t uid),
-    void (*cleanup_uname)(void *private))
-#else
 int
 archive_read_disk_set_uname_lookup(struct archive *_a,
     void *private_data,
     const char * (*lookup_uname)(void *private, int64_t uid),
     void (*cleanup_uname)(void *private))
-#endif
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
 	archive_check_magic(&a->archive, ARCHIVE_READ_DISK_MAGIC,
@@ -593,26 +562,16 @@ archive_read_disk_set_atime_restored(struct archive *_a)
  * These are normally overridden by the client, but these stub
  * versions ensure that we always have something that works.
  */
-#if ARCHIVE_VERSION_NUMBER < 3000000
-static const char *
-trivial_lookup_gname(void *private_data, gid_t gid)
-#else
 static const char *
 trivial_lookup_gname(void *private_data, int64_t gid)
-#endif
 {
 	(void)private_data; /* UNUSED */
 	(void)gid; /* UNUSED */
 	return (NULL);
 }
 
-#if ARCHIVE_VERSION_NUMBER < 3000000
-static const char *
-trivial_lookup_uname(void *private_data, uid_t uid)
-#else
 static const char *
 trivial_lookup_uname(void *private_data, int64_t uid)
-#endif
 {
 	(void)private_data; /* UNUSED */
 	(void)uid; /* UNUSED */

@@ -58,13 +58,8 @@ struct bucket {
 
 static const size_t cache_size = 127;
 static unsigned int	hash(const char *);
-#if ARCHIVE_VERSION_NUMBER < 3000000
-static gid_t	lookup_gid(void *, const char *uname, gid_t);
-static uid_t	lookup_uid(void *, const char *uname, uid_t);
-#else
 static int64_t	lookup_gid(void *, const char *uname, int64_t);
 static int64_t	lookup_uid(void *, const char *uname, int64_t);
-#endif
 static void	cleanup(void *);
 
 /*
@@ -98,13 +93,8 @@ archive_write_disk_set_standard_lookup(struct archive *a)
 	return (ARCHIVE_OK);
 }
 
-#if ARCHIVE_VERSION_NUMBER < 3000000
-static gid_t
-lookup_gid(void *private_data, const char *gname, gid_t gid)
-#else
 static int64_t
 lookup_gid(void *private_data, const char *gname, int64_t gid)
-#endif
 {
 	int h;
 	struct bucket *b;
@@ -173,13 +163,8 @@ lookup_gid(void *private_data, const char *gname, int64_t gid)
 	return (gid);
 }
 
-#if ARCHIVE_VERSION_NUMBER < 3000000
-static uid_t
-lookup_uid(void *private_data, const char *uname, uid_t uid)
-#else
 static int64_t
 lookup_uid(void *private_data, const char *uname, int64_t uid)
-#endif
 {
 	int h;
 	struct bucket *b;

@@ -64,11 +64,7 @@ DEFINE_TEST(test_read_format_isojoliet_long)
 	struct archive *a;
 	const void *p;
 	size_t size;
-#if ARCHIVE_VERSION_NUMBER < 3000000
-	off_t offset;
-#else
 	int64_t offset;
-#endif
 	int i;
 
 	for (i = 0; i < 100; i++)

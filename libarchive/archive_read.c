@@ -119,13 +119,8 @@ archive_read_new(void)
 /*
  * Record the do-not-extract-to file. This belongs in archive_read_extract.c.
  */
-#if ARCHIVE_VERSION_NUMBER < 3000000
-void
-archive_read_extract_set_skip_file(struct archive *_a, dev_t d, ino_t i)
-#else
 void
 archive_read_extract_set_skip_file(struct archive *_a, int64_t d, int64_t i)
-#endif
 {
 	struct archive_read *a = (struct archive_read *)_a;
 
