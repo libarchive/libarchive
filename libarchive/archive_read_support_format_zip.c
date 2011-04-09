@@ -511,9 +511,7 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 		    "Truncated ZIP file header");
 		return (ARCHIVE_FATAL);
 	}
-	if (zip->sconv != NULL)
-		sconv = zip->sconv;
-	else if (zip->flags & ZIP_UTF8_NAME) {
+	if (zip->flags & ZIP_UTF8_NAME) {
 		/* The filename is stored to be UTF-8. */
 		if (zip->sconv_utf8 == NULL) {
 			zip->sconv_utf8 =
@@ -523,7 +521,9 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 				return (ARCHIVE_FATAL);
 		}
 		sconv = zip->sconv_utf8;
-	} else
+	} else if (zip->sconv != NULL)
+		sconv = zip->sconv;
+	else
 		sconv = zip->sconv_default;
 
 	if (archive_strncpy_in_locale(&zip->pathname,

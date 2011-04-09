@@ -785,6 +785,7 @@ cab_read_header(struct archive_read *a)
 	prev_folder = -1;
 	for (i = 0; i < hd->file_count; i++) {
 		struct cffile *file = &(hd->file_array[i]);
+		struct archive_string_conv *sconv;
 		ssize_t avail;
 
 		if ((p = __archive_read_ahead(a, 16, NULL)) == NULL)
@@ -802,7 +803,7 @@ cab_read_header(struct archive_read *a)
 		if ((len = cab_strnlen(p, avail-1)) <= 0)
 			goto invalid;
 		archive_string_init(&(file->pathname));
-		if ((file->attr & ATTR_NAME_IS_UTF) && cab->sconv == NULL) {
+		if (file->attr & ATTR_NAME_IS_UTF) {
 			if (cab->sconv_utf8 == NULL) {
 				cab->sconv_utf8 =
 				    archive_string_conversion_from_charset(
@@ -810,11 +811,10 @@ cab_read_header(struct archive_read *a)
 				if (cab->sconv_utf8 == NULL)
 					return (ARCHIVE_FATAL);
 			}
-			archive_strncpy_in_locale(&(file->pathname), p, len,
-			    cab->sconv_utf8);
+			sconv = cab->sconv_utf8;
 		} else
-			archive_strncpy_in_locale(&(file->pathname), p,
-			    len, cab->sconv);
+			sconv = cab->sconv;
+		archive_strncpy_in_locale(&(file->pathname), p, len, sconv);
 		__archive_read_consume(a, len + 1);
 		cab->cab_offset += len + 1;
 		/* Convert a path separator '\' -> '/' */

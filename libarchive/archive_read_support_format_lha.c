@@ -1260,29 +1260,30 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 			}
 			break;
 		case EXT_CODEPAGE:
-			/* Get a archived filename charset from codepage,
-			 * but you cannot overwrite a specified charset. */
-			if (datasize == sizeof(uint32_t) &&
-			    lha->sconv == NULL) {
+			/* Get an archived filename charset from codepage.
+			 * This overwrites the charset specified by
+			 * hdrcharset option. */
+			if (datasize == sizeof(uint32_t)) {
+				struct archive_string cp;
 				const char *charset;
+
+				archive_string_init(&cp);
 				switch (archive_le32dec(extdheader)) {
-				case 932:
-					charset = "CP932";
-					break;
 				case 65001: /* UTF-8 */
 					charset = "UTF-8";
 					break;
 				default:
-					charset = NULL;
+					archive_string_sprintf(&cp, "CP%d",
+					    (int)archive_le32dec(extdheader));
+					charset = cp.s;
 					break;
 				}
-				if (charset != NULL) {
-					lha->sconv =
-					    archive_string_conversion_from_charset(
-						&(a->archive), charset, 1);
-					if (lha->sconv == NULL)
-						return (ARCHIVE_FATAL);
-				}
+				lha->sconv =
+				    archive_string_conversion_from_charset(
+					&(a->archive), charset, 1);
+				archive_string_free(&cp);
+				if (lha->sconv == NULL)
+					return (ARCHIVE_FATAL);
 			}
 			break;
 		case EXT_UNIX_MODE:
