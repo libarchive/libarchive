@@ -308,4 +308,3 @@ int read_open_memory2(struct archive *, void *, size_t, size_t);
 #include <dmalloc.h>
 #endif
 
-#define __LIBARCHIVE_TEST

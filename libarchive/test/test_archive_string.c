@@ -25,6 +25,7 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
+#define __LIBARCHIVE_TEST
 #include "archive_string.h"
 
 #define EXTENT 32
