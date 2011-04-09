@@ -45,8 +45,6 @@ __FBSDID("$FreeBSD$");
 		assert(NULL != (as).s); \
 	} while (0)
 
-#define assertEqualArchiveString(l, r) \
-
 static void
 test_archive_string_ensure()
 {
@@ -56,50 +54,42 @@ test_archive_string_ensure()
 	assertExactString(0, 0, NULL, s);
 
 	/* single-extent allocation */
-	assert(NULL != archive_string_ensure(&s, 5));
+	assert(&s == archive_string_ensure(&s, 5));
 	assertNonNULLString(0, EXTENT, s);
 
 	/* what happens around extent boundaries? */
-	assert(NULL != archive_string_ensure(&s, EXTENT - 1));
+	assert(&s == archive_string_ensure(&s, EXTENT - 1));
 	assertNonNULLString(0, EXTENT, s);
 
-	assert(NULL != archive_string_ensure(&s, EXTENT));
+	assert(&s == archive_string_ensure(&s, EXTENT));
 	assertNonNULLString(0, EXTENT, s);
 
-	assert(NULL != archive_string_ensure(&s, EXTENT + 1));
+	assert(&s == archive_string_ensure(&s, EXTENT + 1));
 	assertNonNULLString(0, 2 * EXTENT, s);
 }
 
 static void
 test_archive_strcat()
 {
-	struct archive_string s, *x;
+	struct archive_string s;
 
 	archive_string_init(&s);
 	assertExactString(0, 0, NULL, s);
 
 	/* null target, empty source */
-	x = archive_strcat(&s, "");
-	assert(NULL != x);
-	assertEqualArchiveString(*x, s);
+	assert(&s == archive_strcat(&s, ""));
 	assertExactString(0, EXTENT, "", s);
 
 	/* empty target, empty source */
-	x = archive_strcat(&s, "");
-	assert(NULL != x);
-	assertEqualArchiveString(*x, s);
+	assert(&s == archive_strcat(&s, ""));
 	assertExactString(0, EXTENT, "", s);
 
 	/* empty target, non-empty source */
-	x = archive_strcat(&s, "fubar");
-	assert(NULL != x);
-	assertEqualArchiveString(*x, s);
+	assert(&s == archive_strcat(&s, "fubar"));
 	assertExactString(5, EXTENT, "fubar", s);
 
 	/* non-empty target, non-empty source */
-	x = archive_strcat(&s, "baz");
-	assert(NULL != x);
-	assertEqualArchiveString(*x, s);
+	assert(&s == archive_strcat(&s, "baz"));
 	assertExactString(8, EXTENT, "fubarbaz", s);
 }
 
@@ -133,15 +123,15 @@ test_archive_strncat()
 	assertExactString(0, 0, NULL, s);
 
 	/* perfect length */
-	assert(NULL != archive_strncat(&s, "snafu", 5));
+	assert(&s == archive_strncat(&s, "snafu", 5));
 	assertExactString(5, EXTENT, "snafu", s);
 
 	/* short read */
-	assert(NULL != archive_strncat(&s, "barbazqux", 3));
+	assert(&s == archive_strncat(&s, "barbazqux", 3));
 	assertExactString(8, EXTENT, "snafubar", s);
 
 	/* long read is ok too! */
-	assert(NULL != archive_strncat(&s, "snafu", 8));
+	assert(&s == archive_strncat(&s, "snafu", 8));
 	assertExactString(13, EXTENT, "snafubarsnafu", s);
 }
 
@@ -154,15 +144,15 @@ test_archive_strncpy()
 	assertExactString(0, 0, NULL, s);
 
 	/* perfect length */
-	assert(NULL != archive_strncpy(&s, "fubar", 5));
+	assert(&s == archive_strncpy(&s, "fubar", 5));
 	assertExactString(5, EXTENT, "fubar", s);
 
 	/* short read */
-	assert(NULL != archive_strncpy(&s, "snafubar", 5));
+	assert(&s == archive_strncpy(&s, "snafubar", 5));
 	assertExactString(5, EXTENT, "snafu", s);
 
 	/* long read is ok too! */
-	assert(NULL != archive_strncpy(&s, "snafu", 8));
+	assert(&s == archive_strncpy(&s, "snafu", 8));
 	assertExactString(5, EXTENT, "snafu", s);
 }
 
@@ -175,15 +165,15 @@ test_archive_strcpy()
 	assertExactString(0, 0, NULL, s);
 
 	/* null target */
-	assert(NULL != archive_strcpy(&s, "snafu"));
+	assert(&s == archive_strcpy(&s, "snafu"));
 	assertExactString(5, EXTENT, "snafu", s);
 
 	/* dirty target */
-	assert(NULL != archive_strcpy(&s, "foo"));
+	assert(&s == archive_strcpy(&s, "foo"));
 	assertExactString(3, EXTENT, "foo", s);
 
 	/* dirty target, empty source */
-	assert(NULL != archive_strcpy(&s, ""));
+	assert(&s == archive_strcpy(&s, ""));
 	assertExactString(0, EXTENT, "", s);
 }
 
@@ -207,27 +197,27 @@ test_archive_string_concat()
 	assertExactString(0, EXTENT, "", t);
 
 	/* null target, empty source */
-	assert(NULL != archive_strcpy(&s, ""));
+	assert(&s == archive_strcpy(&s, ""));
 	archive_string_concat(&u, &s);
 	assertExactString(0, EXTENT, "", s);
 	assertExactString(0, EXTENT, "", u);
 
 	/* null target, non-empty source */
-	assert(NULL != archive_strcpy(&s, "foo"));
+	assert(&s == archive_strcpy(&s, "foo"));
 	archive_string_concat(&v, &s);
 	assertExactString(3, EXTENT, "foo", s);
 	assertExactString(3, EXTENT, "foo", v);
 
 	/* empty target, empty source */
-	assert(NULL != archive_strcpy(&s, ""));
-	assert(NULL != archive_strcpy(&t, ""));
+	assert(&s == archive_strcpy(&s, ""));
+	assert(&t == archive_strcpy(&t, ""));
 	archive_string_concat(&t, &s);
 	assertExactString(0, EXTENT, "", s);
 	assertExactString(0, EXTENT, "", t);
 
 	/* empty target, non-empty source */
-	assert(NULL != archive_strcpy(&s, "snafu"));
-	assert(NULL != archive_strcpy(&t, ""));
+	assert(&s == archive_strcpy(&s, "snafu"));
+	assert(&t == archive_strcpy(&t, ""));
 	archive_string_concat(&t, &s);
 	assertExactString(5, EXTENT, "snafu", s);
 	assertExactString(5, EXTENT, "snafu", t);
