@@ -215,6 +215,48 @@ test_zip_filename_encoding_KOI8R()
 }
 
 /*
+ * Do not translate CP1251 into CP866 if non Windows platform.
+ */
+static void
+test_zip_filename_encoding_ru_RU_CP1251()
+{
+  	struct archive *a;
+  	struct archive_entry *entry;
+	char buff[4096];
+	size_t used;
+
+	if (NULL == setlocale(LC_ALL, "ru_RU.CP1251")) {
+		skipping("Russian_Russia locale not available on this system.");
+		return;
+	}
+
+	/*
+	 * Verify that CP1251 filenames are not translated into any
+	 * other character-set, in particular, CP866.
+	 */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_zip(a));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	entry = archive_entry_new2(a);
+	/* Set a CP1251 filename. */
+	archive_entry_set_pathname(entry, "\xEF\xF0\xE8");
+	archive_entry_set_filetype(entry, AE_IFREG);
+	archive_entry_set_size(entry, 0);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* A bit 11 of general purpos flag should be 0,
+	 * which indicates the filename charset is unkown. */
+	assertEqualInt(0, buff[7]);
+	/* Above three characters in CP1251 should not translate into
+	 * any other character-set. */
+	assertEqualMem(buff + 30, "\xEF\xF0\xE8", 3);
+}
+
+/*
  * Other archiver applications on Windows translate CP1251 filenames
  * into CP866 filenames and store it in the zip file.
  * Test above behavior works well.
@@ -393,6 +435,7 @@ DEFINE_TEST(test_zip_filename_encoding)
 {
 	test_zip_filename_encoding_UTF8();
 	test_zip_filename_encoding_KOI8R();
+	test_zip_filename_encoding_ru_RU_CP1251();
 	test_zip_filename_encoding_Russian_Russia();
 	test_zip_filename_encoding_EUCJP();
 }
