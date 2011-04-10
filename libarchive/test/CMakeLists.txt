@@ -25,6 +25,7 @@ IF(ENABLE_TEST)
     test_archive_read_set_option.c
     test_archive_read_set_options.c
     test_archive_read_support_filter_torture.c
+    test_archive_read_support_format_torture.c
     test_archive_set_error.c
     test_archive_string.c
     test_archive_write_set_filter_option.c

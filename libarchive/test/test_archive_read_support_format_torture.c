@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2011 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,28 +22,22 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "test.h"
+__FBSDID("$FreeBSD$");
 
-#include "archive_platform.h"
-__FBSDID("$FreeBSD: head/lib/libarchive/archive_read_support_format_all.c 174991 2007-12-30 04:58:22Z kientzle $");
+#include "test_archive_read_support.h"
 
-#include "archive.h"
-#include "archive_private.h"
-
-int
-archive_read_support_format_all(struct archive *a)
+DEFINE_TEST(test_archive_read_support_format_torture)
 {
-	archive_check_magic(a, ARCHIVE_READ_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_read_support_format_all");
-
-	archive_read_support_format_ar(a);
-	archive_read_support_format_cab(a);
-	archive_read_support_format_cpio(a);
-	archive_read_support_format_empty(a);
-	archive_read_support_format_iso9660(a);
-	archive_read_support_format_lha(a);
-	archive_read_support_format_mtree(a);
-	archive_read_support_format_tar(a);
-	archive_read_support_format_xar(a);
-	archive_read_support_format_zip(a);
-	return (ARCHIVE_OK);
+	test_filter_or_format(archive_read_support_format_all);
+	test_filter_or_format(archive_read_support_format_ar);
+	test_filter_or_format(archive_read_support_format_cab);
+	test_filter_or_format(archive_read_support_format_cpio);
+	test_filter_or_format(archive_read_support_format_empty);
+	test_filter_or_format(archive_read_support_format_iso9660);
+	test_filter_or_format(archive_read_support_format_lha);
+	test_filter_or_format(archive_read_support_format_mtree);
+	test_filter_or_format(archive_read_support_format_tar);
+	test_filter_or_format(archive_read_support_format_xar);
+	test_filter_or_format(archive_read_support_format_zip);
 }
