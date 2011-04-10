@@ -107,10 +107,9 @@ test_pax_filename_encoding_2(void)
 	 * de_DE.UTF-8 seems to be commonly supported.
 	 */
 	/* If it doesn't exist, just warn and return. */
-	if (LOCALE_UTF8 == NULL
-	    || NULL == setlocale(LC_ALL, LOCALE_UTF8)) {
+	if (NULL == setlocale(LC_ALL, "de_DE.UTF-8")) {
 		skipping("invalid encoding tests require a suitable locale;"
-		    " %s not available on this system", LOCALE_UTF8);
+		    " de_DE.UTF-8 not available on this system");
 		return;
 	}
 

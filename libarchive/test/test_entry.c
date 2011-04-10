@@ -775,7 +775,7 @@ DEFINE_TEST(test_entry)
 	/*
 	 * Exercise the character-conversion logic, if we can.
 	 */
-	if (NULL == LOCALE_UTF8 || NULL == setlocale(LC_ALL, LOCALE_UTF8)) {
+	if (NULL == setlocale(LC_ALL, "de_DE.UTF-8")) {
 		skipping("Can't exercise charset-conversion logic without"
 			" a suitable locale.");
 	} else {
