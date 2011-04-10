@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2011 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,32 +22,37 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
-#include "archive.h"
-#include "archive_private.h"
+typedef struct archive *constructor();
+typedef int enabler(struct archive *);
+typedef int destructor(struct archive *);
 
-#if ARCHIVE_VERSION_NUMBER >= 4000000
-#warning archive_read_support_compression_none
-#endif
-
-int
-archive_read_support_filter_none(struct archive *a)
+static void
+test_success(constructor new_, enabler enable_, destructor free_)
 {
-	return archive_read_support_compression_none(a);
+	struct archive *a = new_();
+	assertEqualIntA(a, ARCHIVE_OK, enable_(a));
+	assert(NULL == archive_error_string(a));
+	assertEqualIntA(a, 0, archive_errno(a));
+	free_(a);
 }
 
-/*
- * Uncompressed streams are handled implicitly by the read core,
- * so this is now a no-op.
- */
-int
-archive_read_support_compression_none(struct archive *a)
+static void
+test_failure(constructor new_, enabler enable_, destructor free_)
 {
-	archive_check_magic(a, ARCHIVE_READ_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_read_support_filter_none");
+	struct archive *a = new_();
+	assertEqualIntA(a, ARCHIVE_FATAL, enable_(a));
+	assert(NULL != archive_error_string(a));
+	assertEqualIntA(a, -1, archive_errno(a));
+	free_(a);
+}
 
-	return (ARCHIVE_OK);
+static void
+test_filter_or_format(enabler enable)
+{
+	test_success(archive_read_new, enable, archive_read_free);
+	test_failure(archive_write_new, enable, archive_write_free);
+	test_failure(archive_read_disk_new, enable, archive_read_free);
+	test_failure(archive_write_disk_new, enable, archive_write_free);
 }

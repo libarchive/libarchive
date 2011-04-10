@@ -27,6 +27,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "archive.h"
+#include "archive_private.h"
 
 #if ARCHIVE_VERSION_NUMBER >= 4000000
 #warning archive_read_support_compression_all
@@ -41,6 +42,9 @@ archive_read_support_filter_all(struct archive *a)
 int
 archive_read_support_compression_all(struct archive *a)
 {
+	archive_check_magic(a, ARCHIVE_READ_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_read_support_filter_all");
+
 	/* Bzip falls back to "bunzip2" command-line */
 	archive_read_support_filter_bzip2(a);
 	/* The decompress code doesn't use an outside library. */

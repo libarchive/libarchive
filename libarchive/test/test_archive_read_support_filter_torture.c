@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2011 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,32 +22,21 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#include "archive_platform.h"
+#include "test.h"
 __FBSDID("$FreeBSD$");
 
-#include "archive.h"
-#include "archive_private.h"
+#include "test_archive_read_support.h"
 
-#if ARCHIVE_VERSION_NUMBER >= 4000000
-#warning archive_read_support_compression_none
-#endif
-
-int
-archive_read_support_filter_none(struct archive *a)
+DEFINE_TEST(test_archive_read_support_filter_torture)
 {
-	return archive_read_support_compression_none(a);
-}
-
-/*
- * Uncompressed streams are handled implicitly by the read core,
- * so this is now a no-op.
- */
-int
-archive_read_support_compression_none(struct archive *a)
-{
-	archive_check_magic(a, ARCHIVE_READ_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_read_support_filter_none");
-
-	return (ARCHIVE_OK);
+	test_filter_or_format(archive_read_support_filter_all);
+	test_filter_or_format(archive_read_support_filter_bzip2);
+	test_filter_or_format(archive_read_support_filter_compress);
+	test_filter_or_format(archive_read_support_filter_gzip);
+	test_filter_or_format(archive_read_support_filter_lzip);
+	test_filter_or_format(archive_read_support_filter_lzma);
+	test_filter_or_format(archive_read_support_filter_none);
+	test_filter_or_format(archive_read_support_filter_rpm);
+	test_filter_or_format(archive_read_support_filter_uu);
+	test_filter_or_format(archive_read_support_filter_xz);
 }
