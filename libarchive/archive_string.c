@@ -559,7 +559,11 @@ archive_string_append_from_wcs_to_mbs(struct archive *a,
 
 #endif /* HAVE_WCTOMB || HAVE_WCRTOMB */
 
-
+/*
+ * Find a string conversion object by a pair of 'from' charset name
+ * and 'to' charset name from an archive object.
+ * Return NULL if not found.
+ */
 static struct archive_string_conv *
 find_sconv_object(struct archive *a, const char *fc, const char *tc)
 {
@@ -576,6 +580,9 @@ find_sconv_object(struct archive *a, const char *fc, const char *tc)
 	return (sc);
 }
 
+/*
+ * Register a string object to an archive object.
+ */
 static void
 add_sconv_object(struct archive *a, struct archive_string_conv *sc)
 {
@@ -588,6 +595,9 @@ add_sconv_object(struct archive *a, struct archive_string_conv *sc)
 	*psc = sc;
 }
 
+/*
+ * Create a string conversion object.
+ */
 static struct archive_string_conv *
 create_sconv_object(const char *fc, const char *tc,
     unsigned current_codepage, int flag)
@@ -627,6 +637,9 @@ create_sconv_object(const char *fc, const char *tc,
 	return (sc);
 }
 
+/*
+ * Free a string conversion object.
+ */
 static void
 free_sconv_object(struct archive_string_conv *sc)
 {
@@ -825,6 +838,9 @@ make_codepage_from_charset(const char *charset)
 	return (cp);
 }
 
+/*
+ * Return ANSI Code Page of current locale set by setlocale().
+ */
 static unsigned
 get_current_codepage()
 {
@@ -846,7 +862,7 @@ get_current_codepage()
 }
 
 /*
- * ACP ==> OEMCP map.
+ * Translation table between Locale Name and ACP/OEMCP.
  */
 static struct {
 	unsigned acp;
@@ -897,6 +913,9 @@ static struct {
 	{ 0, 0, NULL}
 };
 
+/*
+ * Return OEM Code Page of current locale set by setlocale().
+ */
 static unsigned
 get_current_oemcp()
 {
@@ -923,6 +942,9 @@ get_current_oemcp()
 
 #endif /* defined(_WIN32) && !defined(__CYGWIN__) */
 
+/*
+ * Return a string conversion object.
+ */
 static struct archive_string_conv *
 get_sconv_object(struct archive *a, const char *fc, const char *tc, int flag)
 {
@@ -993,7 +1015,7 @@ get_sconv_object(struct archive *a, const char *fc, const char *tc, int flag)
 			return (sc);
 		}
 	}
-#endif
+#endif /* _WIN32 && !__CYGWIN__ */
 	if (!sc->same && (flag & SCONV_BEST_EFFORT) == 0) {
 		free_sconv_object(sc);
 		archive_set_error(a, ARCHIVE_ERRNO_MISC,
@@ -1036,7 +1058,7 @@ get_current_charset(struct archive *a)
  * Return NULL if the platform does not support the specified conversion
  * and best_effort is 0.
  * If best_effort is set, A string conversion object must be returned
- * except memory allocation for the object fails, but the conversion
+ * unless memory allocation for the object fails, but the conversion
  * might fail when non-ASCII code is found.
  */
 struct archive_string_conv *
@@ -1265,8 +1287,8 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 #else /* HAVE_ICONV */
 
 /*
- * Basically returns -1 because we cannot make a conversion of charset.
- * Returns 0 if sc is NULL.
+ * Basically returns -1 because we cannot make a conversion of charset
+ * without iconv. Returns 0 if sc is NULL.
  */
 int
 archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
