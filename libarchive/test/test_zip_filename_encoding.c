@@ -431,6 +431,107 @@ test_zip_filename_encoding_EUCJP()
 	assertEqualMem(buff + 30, "abcABC", 6);
 }
 
+static void
+test_zip_filename_encoding_CP932()
+{
+  	struct archive *a;
+  	struct archive_entry *entry;
+	char buff[4096];
+	size_t used;
+
+	if (NULL == setlocale(LC_ALL, "Japanese_Japan") &&
+	    NULL == setlocale(LC_ALL, "ja_JP.SJIS")) {
+		skipping("CP932/SJIS locale not available on this system.");
+		return;
+	}
+
+	/*
+	 * Verify that EUC-JP filenames are correctly translated to UTF-8.
+	 */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_zip(a));
+	if (archive_write_set_options(a, "hdrcharset=UTF-8") != ARCHIVE_OK) {
+		skipping("This system cannot convert character-set"
+		    " from CP932/SJIS to UTF-8.");
+		archive_write_free(a);
+		return;
+	}
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	entry = archive_entry_new2(a);
+	/* Set a CP932/SJIS filename. */
+	archive_entry_set_pathname(entry, "\x95\x5C.txt");
+	/* Check the Unicode version. */
+	archive_entry_set_filetype(entry, AE_IFREG);
+	archive_entry_set_size(entry, 0);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* A bit 11 of general purpos flag should be 0x08,
+	 * which indicates the filename charset is UTF-8. */
+	assertEqualInt(0x08, buff[7]);
+	/* Check UTF-8 version. */
+	assertEqualMem(buff + 30, "\xE8\xA1\xA8.txt", 7);
+
+	/*
+	 * Verify that CP932/SJIS filenames are not translated to UTF-8.
+	 */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_zip(a));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	entry = archive_entry_new2(a);
+	/* Set a CP932/SJIS filename. */
+	archive_entry_set_pathname(entry, "\x95\x5C.txt");
+	/* Check the Unicode version. */
+	archive_entry_set_filetype(entry, AE_IFREG);
+	archive_entry_set_size(entry, 0);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* A bit 11 of general purpos flag should be 0,
+	 * which indicates the filename charset is unkown. */
+	assertEqualInt(0, buff[7]);
+	/* Above three characters in CP932/SJIS should not translate to
+	 * any character-set. */
+	assertEqualMem(buff + 30, "\x95\x5C.txt", 6);
+
+	/*
+	 * Verify that A bit 11 of general purpos flag is not set
+	 * when ASCII filenames are stored even if hdrcharset=UTF-8
+	 * is specified.
+	 */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_zip(a));
+	if (archive_write_set_options(a, "hdrcharset=UTF-8") != ARCHIVE_OK) {
+		skipping("This system cannot convert character-set"
+		    " from CP932/SJIS to UTF-8.");
+		archive_write_free(a);
+		return;
+	}
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	entry = archive_entry_new2(a);
+	/* Set an ASCII filename. */
+	archive_entry_set_pathname(entry, "abcABC");
+	/* Check the Unicode version. */
+	archive_entry_set_filetype(entry, AE_IFREG);
+	archive_entry_set_size(entry, 0);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* A bit 11 of general purpos flag should be 0,
+	 * which indicates the filename charset is unkown. */
+	assertEqualInt(0, buff[7]);
+	assertEqualMem(buff + 30, "abcABC", 6);
+}
+
 DEFINE_TEST(test_zip_filename_encoding)
 {
 	test_zip_filename_encoding_UTF8();
@@ -438,4 +539,5 @@ DEFINE_TEST(test_zip_filename_encoding)
 	test_zip_filename_encoding_ru_RU_CP1251();
 	test_zip_filename_encoding_Russian_Russia();
 	test_zip_filename_encoding_EUCJP();
+	test_zip_filename_encoding_CP932();
 }

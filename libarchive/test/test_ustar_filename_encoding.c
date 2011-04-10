@@ -358,6 +358,48 @@ test_ustar_filename_encoding_EUCJP_CP932()
 	assertEqualMem(buff, "\x95\x5C.txt", 6);
 }
 
+static void
+test_ustar_filename_encoding_CP932_UTF8()
+{
+  	struct archive *a;
+  	struct archive_entry *entry;
+	char buff[4096];
+	size_t used;
+
+	if (NULL == setlocale(LC_ALL, "Japanese_Japan") &&
+	    NULL == setlocale(LC_ALL, "ja_JP.SJIS")) {
+		skipping("CP932/SJIS locale not available on this system.");
+		return;
+	}
+
+	/*
+	 * Verify that CP932/SJIS filenames are correctly translated to UTF-8.
+	 */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_ustar(a));
+	if (archive_write_set_options(a, "hdrcharset=UTF-8") != ARCHIVE_OK) {
+		skipping("This system cannot convert character-set"
+		    " from CP932/SJIS to UTF-8.");
+		archive_write_free(a);
+		return;
+	}
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	entry = archive_entry_new2(a);
+	/* Set a CP932/SJIS filename. */
+	archive_entry_set_pathname(entry, "\x95\x5C.txt");
+	/* Check the Unicode version. */
+	archive_entry_set_filetype(entry, AE_IFREG);
+	archive_entry_set_size(entry, 0);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* Check UTF-8 version. */
+	assertEqualMem(buff, "\xE8\xA1\xA8.txt", 7);
+}
+
 DEFINE_TEST(test_ustar_filename_encoding)
 {
 	test_ustar_filename_encoding_UTF8_CP866();
@@ -368,4 +410,5 @@ DEFINE_TEST(test_ustar_filename_encoding)
 	test_ustar_filename_encoding_Russian_Russia();
 	test_ustar_filename_encoding_EUCJP_UTF8();
 	test_ustar_filename_encoding_EUCJP_CP932();
+	test_ustar_filename_encoding_CP932_UTF8();
 }
