@@ -50,6 +50,7 @@ IF(ENABLE_TEST)
     test_extattr_freebsd.c
     test_filter_count.c
     test_fuzz.c
+    test_gnutar_filename_encoding.c
     test_link_resolver.c
     test_open_failure.c
     test_open_fd.c
