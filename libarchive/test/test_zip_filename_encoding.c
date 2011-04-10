@@ -36,7 +36,7 @@ test_zip_filename_encoding_UTF8()
 	size_t used;
 
 	if (NULL == setlocale(LC_ALL, "ru_RU.UTF-8")) {
-		skipping("KOI8-R locale not available on this system.");
+		skipping("ru_RU.UTF-8 locale not available on this system.");
 		return;
 	}
 
@@ -56,6 +56,7 @@ test_zip_filename_encoding_UTF8()
 	    archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	entry = archive_entry_new2(a);
+	/* Set a UTF-8 filename. */
 	archive_entry_set_pathname(entry, "\xD0\xBF\xD1\x80\xD0\xB8");
 	archive_entry_set_filetype(entry, AE_IFREG);
 	archive_entry_set_size(entry, 0);
@@ -66,8 +67,6 @@ test_zip_filename_encoding_UTF8()
 	/* A bit 11 of general purpos flag should be 0x08,
 	 * which indicates the filename charset is UTF-8. */
 	assertEqualInt(0x08, buff[7]);
-	/* Above three characters in KOI8-R should translate to the following
-	 * three characters (two bytes each) in UTF-8. */
 	assertEqualMem(buff + 30, "\xD0\xBF\xD1\x80\xD0\xB8", 6);
 
 	/*
@@ -80,6 +79,7 @@ test_zip_filename_encoding_UTF8()
 	    archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	entry = archive_entry_new2(a);
+	/* Set a UTF-8 filename. */
 	archive_entry_set_pathname(entry, "\xD0\xBF\xD1\x80\xD0\xB8");
 	archive_entry_set_filetype(entry, AE_IFREG);
 	archive_entry_set_size(entry, 0);
@@ -90,8 +90,6 @@ test_zip_filename_encoding_UTF8()
 	/* A bit 11 of general purpos flag should be 0x08,
 	 * which indicates the filename charset is UTF-8. */
 	assertEqualInt(0x08, buff[7]);
-	/* Above three characters in KOI8-R should translate to the following
-	 * three characters (two bytes each) in UTF-8. */
 	assertEqualMem(buff + 30, "\xD0\xBF\xD1\x80\xD0\xB8", 6);
 
 	/*
@@ -104,6 +102,7 @@ test_zip_filename_encoding_UTF8()
 	    archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	entry = archive_entry_new2(a);
+	/* Set an ASCII filename. */
 	archive_entry_set_pathname(entry, "abcABC");
 	archive_entry_set_filetype(entry, AE_IFREG);
 	archive_entry_set_size(entry, 0);
@@ -145,6 +144,7 @@ test_zip_filename_encoding_KOI8R()
 	    archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	entry = archive_entry_new2(a);
+	/* Set a KOI8-R filename. */
 	archive_entry_set_pathname(entry, "\xD0\xD2\xC9");
 	archive_entry_set_filetype(entry, AE_IFREG);
 	archive_entry_set_size(entry, 0);
@@ -168,6 +168,7 @@ test_zip_filename_encoding_KOI8R()
 	    archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	entry = archive_entry_new2(a);
+	/* Set a KOI8-R filename. */
 	archive_entry_set_pathname(entry, "\xD0\xD2\xC9");
 	archive_entry_set_filetype(entry, AE_IFREG);
 	archive_entry_set_size(entry, 0);
@@ -199,6 +200,7 @@ test_zip_filename_encoding_KOI8R()
 	    archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	entry = archive_entry_new2(a);
+	/* Set an ASCII filename. */
 	archive_entry_set_pathname(entry, "abcABC");
 	archive_entry_set_filetype(entry, AE_IFREG);
 	archive_entry_set_size(entry, 0);
@@ -210,6 +212,81 @@ test_zip_filename_encoding_KOI8R()
 	 * which indicates the filename charset is unkown. */
 	assertEqualInt(0, buff[7]);
 	assertEqualMem(buff + 30, "abcABC", 6);
+}
+
+/*
+ * Other archiver applications on Windows translate CP1251 filenames
+ * into CP866 filenames and store it in the zip file.
+ * Test above behavior works well.
+ */
+static void
+test_zip_filename_encoding_Russian_Russia()
+{
+  	struct archive *a;
+  	struct archive_entry *entry;
+	char buff[4096];
+	size_t used;
+
+	if (NULL == setlocale(LC_ALL, "Russian_Russia")) {
+		skipping("Russian_Russia locale not available on this system.");
+		return;
+	}
+
+	/*
+	 * Verify that Russian_Russia(CP1251) filenames are correctly translated
+	 * to UTF-8.
+	 */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_zip(a));
+	if (archive_write_set_options(a, "hdrcharset=UTF-8") != ARCHIVE_OK) {
+		skipping("This system cannot convert character-set"
+		    " from Russian_Russia.CP1251 to UTF-8.");
+		archive_write_free(a);
+		return;
+	}
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	entry = archive_entry_new2(a);
+	/* Set a CP1251 filename. */
+	archive_entry_set_pathname(entry, "\xEF\xF0\xE8");
+	archive_entry_set_filetype(entry, AE_IFREG);
+	archive_entry_set_size(entry, 0);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* A bit 11 of general purpos flag should be 0x08,
+	 * which indicates the filename charset is UTF-8. */
+	assertEqualInt(0x08, buff[7]);
+	/* Above three characters in CP1251 should translate to the following
+	 * three characters (two bytes each) in UTF-8. */
+	assertEqualMem(buff + 30, "\xD0\xBF\xD1\x80\xD0\xB8", 6);
+
+	/*
+	 * Verify that Russian_Russia(CP1251) filenames are correctly translated
+	 * to CP866.
+	 */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_zip(a));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	entry = archive_entry_new2(a);
+	/* Set a CP1251 filename. */
+	archive_entry_set_pathname(entry, "\xEF\xF0\xE8");
+	archive_entry_set_filetype(entry, AE_IFREG);
+	archive_entry_set_size(entry, 0);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* A bit 11 of general purpos flag should be 0,
+	 * which indicates the filename charset is unkown. */
+	assertEqualInt(0, buff[7]);
+	/* Above three characters in CP1251 should translate to the following
+	 * three characters in CP866. */
+	assertEqualMem(buff + 30, "\xAF\xE0\xA8", 3);
 }
 
 static void
@@ -240,6 +317,7 @@ test_zip_filename_encoding_EUCJP()
 	    archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	entry = archive_entry_new2(a);
+	/* Set an EUC-JP filename. */
 	archive_entry_set_pathname(entry, "\xC9\xBD.txt");
 	/* Check the Unicode version. */
 	archive_entry_set_filetype(entry, AE_IFREG);
@@ -263,6 +341,7 @@ test_zip_filename_encoding_EUCJP()
 	    archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	entry = archive_entry_new2(a);
+	/* Set an EUC-JP filename. */
 	archive_entry_set_pathname(entry, "\xC9\xBD.txt");
 	/* Check the Unicode version. */
 	archive_entry_set_filetype(entry, AE_IFREG);
@@ -295,6 +374,7 @@ test_zip_filename_encoding_EUCJP()
 	    archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	entry = archive_entry_new2(a);
+	/* Set an ASCII filename. */
 	archive_entry_set_pathname(entry, "abcABC");
 	/* Check the Unicode version. */
 	archive_entry_set_filetype(entry, AE_IFREG);
@@ -313,5 +393,6 @@ DEFINE_TEST(test_zip_filename_encoding)
 {
 	test_zip_filename_encoding_UTF8();
 	test_zip_filename_encoding_KOI8R();
+	test_zip_filename_encoding_Russian_Russia();
 	test_zip_filename_encoding_EUCJP();
 }
