@@ -488,6 +488,49 @@ archive_string_append_from_wcs_to_mbs(struct archive *a,
 	return (0);
 }
 
+#elif defined(HAVE_WCSNRTOMBS)
+
+/*
+ * Translates a wide character string into current locale character set
+ * and appends to the archive_string.  Note: returns -1 if conversion
+ * fails.
+ */
+int
+archive_string_append_from_wcs_to_mbs(struct archive *a,
+    struct archive_string *as, const wchar_t *w, size_t len)
+{
+	mbstate_t shift_state;
+	size_t r, ndest, nwc;
+	char *dest;
+	const wchar_t *wp, *wpp;
+
+	wp = w;
+	nwc = len;
+	ndest = len * 2;
+	/* Initialize the shift state. */
+	memset(&shift_state, 0, sizeof(shift_state));
+	for (;;) {
+		/* Allocate buffer for MBS. */
+		if (archive_string_ensure(as, as->length + ndest + 1) == NULL)
+			__archive_errx(1, "Out of memory");
+
+		dest = as->s + as->length;
+		wpp = wp;
+		r = wcsnrtombs(dest, &wp, nwc, as->buffer_length -1,
+		    &shift_state);
+		if (r == (size_t)-1)
+			return (-1);
+		as->length += r;
+		if (wp == NULL || (wp - wpp) >= nwc) {
+			/* All WCS translated to MBS. */
+			as->s[as->length] = '\0';
+			return (0);
+		}
+		/* Get a remaining WCS lenth. */
+		nwc -= wp - wpp;
+	}
+}
+
 #elif defined(HAVE_WCTOMB) || defined(HAVE_WCRTOMB)
 
 /*
