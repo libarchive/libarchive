@@ -122,6 +122,7 @@ IF(ENABLE_TEST)
     test_tar_filenames.c
     test_tar_large.c
     test_ustar_filenames.c
+    test_ustar_filename_encoding.c
     test_write_compress.c
     test_write_compress_bzip2.c
     test_write_compress_gzip.c

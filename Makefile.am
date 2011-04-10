@@ -351,6 +351,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_tar_filenames.c			\
 	libarchive/test/test_tar_large.c			\
 	libarchive/test/test_ustar_filenames.c			\
+	libarchive/test/test_ustar_filename_encoding.c		\
 	libarchive/test/test_write_compress.c			\
 	libarchive/test/test_write_compress_bzip2.c		\
 	libarchive/test/test_write_compress_gzip.c		\
