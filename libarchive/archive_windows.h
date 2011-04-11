@@ -90,21 +90,16 @@
 
 /* Alias the Windows _function to the POSIX equivalent. */
 #define	chdir		__la_chdir
-#define	chmod		__la_chmod
 #define	close		_close
 #define	fcntl		__la_fcntl
 #ifndef fileno
 #define	fileno		_fileno
 #endif
 #define	fstat		__la_fstat
-#define	ftruncate	__la_ftruncate
-#define link		__la_link
 #define	lseek		__la_lseek
 #define	lstat		__la_stat
-#define	mkdir(d,m)	__la_mkdir(d, m)
 #define	open		__la_open
 #define	read		__la_read
-#define	rmdir		__la_rmdir
 #if !defined(__BORLANDC__)
 #define setmode		_setmode
 #endif
@@ -116,7 +111,6 @@
 #if !defined(__BORLANDC__)
 #define	umask		_umask
 #endif
-#define	unlink		__la_unlink
 #define	waitpid		__la_waitpid
 #define	write		__la_write
 
@@ -249,14 +243,6 @@
 #endif
 
 
-/* Tell libarchive code that we have simulations for these. */
-#ifndef HAVE_FTRUNCATE
-#define HAVE_FTRUNCATE 1
-#endif
-#ifndef HAVE_LINK
-#define HAVE_LINK 1
-#endif
-
 /* Replacement POSIX function */
 extern int	 __la_chdir(const char *path);
 extern int	 __la_chmod(const char *path, mode_t mode);
@@ -284,5 +270,8 @@ extern ssize_t	 __la_write(int fd, const void *buf, size_t nbytes);
 
 extern wchar_t *__la_win_permissive_name(const char *name);
 extern wchar_t *__la_win_permissive_name_w(const wchar_t *wname);
+extern void __la_dosmaperr(unsigned long e);
+#define la_dosmaperr(e) __la_dosmaperr(e)
+
 
 #endif /* LIBARCHIVE_ARCHIVE_WINDOWS_H_INCLUDED */

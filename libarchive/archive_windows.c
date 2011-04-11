@@ -101,9 +101,6 @@ struct ustat {
 	dev_t		st_rdev;
 };
 
-/* Local replacement for undocumented Windows CRT function. */
-static void la_dosmaperr(unsigned long e);
-
 /* Transform 64-bits ino into 32-bits by hashing.
  * You do not forget that really unique number size is 64-bits.
  */
@@ -251,159 +248,6 @@ la_CreateFile(const char *path, DWORD dwDesiredAccess, DWORD dwShareMode,
 	return (handle);
 }
 
-static void *
-la_GetFunctionKernel32(const char *name)
-{
-	static HINSTANCE lib;
-	static int set;
-	if (!set) {
-		set = 1;
-		lib = LoadLibrary("kernel32.dll");
-	}
-	if (lib == NULL) {
-		fprintf(stderr, "Can't load kernel32.dll?!\n");
-		exit(1);
-	}
-	return (void *)GetProcAddress(lib, name);
-}
-
-static int
-la_CreateHardLinkW(wchar_t *linkname, wchar_t *target)
-{
-	static BOOLEAN (WINAPI *f)(LPWSTR, LPWSTR, LPSECURITY_ATTRIBUTES);
-	static int set;
-	if (!set) {
-		set = 1;
-		f = la_GetFunctionKernel32("CreateHardLinkW");
-	}
-	return f == NULL ? 0 : (*f)(linkname, target, NULL);
-}
-
-
-/*
- * Make a link from src to dst.
- * This can exceed MAX_PATH limitation.
- */
-int
-__la_link(const char *src, const char *dst)
-{
-	wchar_t *wsrc, *wdst;
-	int res, retval;
-	DWORD attr;
-
-	if (src == NULL || dst == NULL) {
-		set_errno (EINVAL);
-		return -1;
-	}
-
-	wsrc = __la_win_permissive_name(src);
-	wdst = __la_win_permissive_name(dst);
-	if (wsrc == NULL || wdst == NULL) {
-		free(wsrc);
-		free(wdst);
-		set_errno (EINVAL);
-		return -1;
-	}
-
-	if ((attr = GetFileAttributesW(wsrc)) != (DWORD)-1) {
-		res = la_CreateHardLinkW(wdst, wsrc);
-	} else {
-		/* wsrc does not exist; try src prepend it with the dirname of wdst */
-		wchar_t *wnewsrc, *slash;
-		int i, n, slen, wlen;
-
-		if (strlen(src) >= 3 && isalpha((unsigned char)src[0]) &&
-		    src[1] == ':' && src[2] == '\\') {
-			/* Original src name is already full-path */
-			retval = -1;
-			goto exit;
-		}
-		if (src[0] == '\\') {
-			/* Original src name is almost full-path
-			 * (maybe src name is without drive) */
-			retval = -1;
-			goto exit;
-		}
-
-		wnewsrc = malloc ((wcslen(wsrc) + wcslen(wdst) + 1) * sizeof(wchar_t));
-		if (wnewsrc == NULL) {
-			errno = ENOMEM;
-			retval = -1;
-			goto exit;
-		}
-		/* Copying a dirname of wdst */
-		wcscpy(wnewsrc, wdst);
-		slash = wcsrchr(wnewsrc, L'\\');
-		if (slash != NULL)
-			*++slash = L'\0';
-		else
-			wcscat(wnewsrc, L"\\");
-		/* Converting a multi-byte src to a wide-char src */
-		wlen = (int)wcslen(wsrc);
-		slen = (int)strlen(src);
-		n = MultiByteToWideChar(CP_ACP, 0,
-		    src, slen, wsrc, wlen);
-		if (n == 0) {
-			free (wnewsrc);
-			retval = -1;
-			goto exit;
-		}
-		for (i = 0; i < n; i++)
-			if (wsrc[i] == L'/')
-				wsrc[i] = L'\\';
-		wcsncat(wnewsrc, wsrc, n);
-		/* Check again */
-		attr = GetFileAttributesW(wnewsrc);
-		if (attr == (DWORD)-1 || (attr & FILE_ATTRIBUTE_DIRECTORY) != 0) {
-			if (attr == (DWORD)-1)
-				la_dosmaperr(GetLastError());
-			else
-				errno = EPERM;
-			free (wnewsrc);
-			retval = -1;
-			goto exit;
-		}
-		res = la_CreateHardLinkW(wdst, wnewsrc);
-		free (wnewsrc);
-	}
-	if (res == 0) {
-		la_dosmaperr(GetLastError());
-		retval = -1;
-	} else
-		retval = 0;
-exit:
-	free(wsrc);
-	free(wdst);
-	return (retval);
-}
-
-int
-__la_ftruncate(int fd, int64_t length)
-{
-	LARGE_INTEGER distance;
-	HANDLE handle;
-
-	if (fd < 0) {
-		errno = EBADF;
-		return (-1);
-	}
-	handle = (HANDLE)_get_osfhandle(fd);
-	if (GetFileType(handle) != FILE_TYPE_DISK) {
-		errno = EBADF;
-		return (-1);
-	}
-	distance.QuadPart = length;
-	if (!SetFilePointerEx(handle, distance, NULL, FILE_BEGIN)) {
-		la_dosmaperr(GetLastError());
-		return (-1);
-	}
-	if (!SetEndOfFile(handle)) {
-		la_dosmaperr(GetLastError());
-		return (-1);
-	}
-	return (0);
-}
-
 /*
  * Change current working directory.
  * This can exceed MAX_PATH limitation.
@@ -429,50 +273,6 @@ __la_chdir(const char *path)
 	}
 	r = SetCurrentDirectoryW(ws);
 	free(ws);
-	if (r == 0) {
-		la_dosmaperr(GetLastError());
-		return (-1);
-	}
-	return (0);
-}
-
-/* This can exceed MAX_PATH limitation. */
-int
-__la_chmod(const char *path, mode_t mode)
-{
-	wchar_t *ws;
-	DWORD attr;
-	BOOL r;
-
-	ws = NULL;
-	attr = GetFileAttributesA(path);
-	if (attr == (DWORD)-1) {
-		if (GetLastError() != ERROR_FILE_NOT_FOUND) {
-			la_dosmaperr(GetLastError());
-			return (-1);
-		}
-		ws = __la_win_permissive_name(path);
-		if (ws == NULL) {
-			errno = EINVAL;
-			return (-1);
-		}
-		attr = GetFileAttributesW(ws);
-		if (attr == (DWORD)-1) {
-			free(ws);
-			la_dosmaperr(GetLastError());
-			return (-1);
-		}
-	}
-	if (mode & _S_IWRITE)
-		attr &= ~FILE_ATTRIBUTE_READONLY;
-	else
-		attr |= FILE_ATTRIBUTE_READONLY;
-	if (ws == NULL)
-		r = SetFileAttributesA(path, attr);
-	else {
-		r = SetFileAttributesW(ws, attr);
-		free(ws);
-	}
 	if (r == 0) {
 		la_dosmaperr(GetLastError());
 		return (-1);
@@ -531,38 +331,6 @@ __la_lseek(int fd, __int64 offset, int whence)
 		return (-1);
 	}
 	return (newpointer.QuadPart);
-}
-
-/* This can exceed MAX_PATH limitation. */
-int
-__la_mkdir(const char *path, mode_t mode)
-{
-	wchar_t *ws;
-	int r;
-
-	(void)mode;/* UNUSED */
-	r = CreateDirectoryA(path, NULL);
-	if (r == 0) {
-		DWORD lasterr = GetLastError();
-		if (lasterr != ERROR_FILENAME_EXCED_RANGE &&
-			lasterr != ERROR_PATH_NOT_FOUND) {
-			la_dosmaperr(GetLastError());
-			return (-1);
-		}
-	} else
-		return (0);
-	ws = __la_win_permissive_name(path);
-	if (ws == NULL) {
-		errno = EINVAL;
-		return (-1);
-	}
-	r = CreateDirectoryW(ws, NULL);
-	free(ws);
-	if (r == 0) {
-		la_dosmaperr(GetLastError());
-		return (-1);
-	}
-	return (0);
 }
 
 /* This can exceed MAX_PATH limitation. */
@@ -716,29 +484,6 @@ __la_read(int fd, void *buf, size_t nbytes)
 		return (-1);
 	}
 	return ((ssize_t)bytes_read);
-}
-
-/*
- * Remove a directory.
- * This can exceed MAX_PATH limitation.
- */
-int
-__la_rmdir(const char *path)
-{
-	wchar_t *ws;
-	int r;
-
-	r = _rmdir(path);
-	if (r >= 0 || errno != ENOENT)
-		return (r);
-	ws = __la_win_permissive_name(path);
-	if (ws == NULL) {
-		errno = EINVAL;
-		return (-1);
-	}
-	r = _wrmdir(ws);
-	free(ws);
-	return (r);
 }
 
 /* Convert Windows FILETIME to UTC */
@@ -945,29 +690,6 @@ __la_stat(const char *path, struct stat *st)
 		}
 	}
 	return (ret);
-}
-
-/*
- * Delete a file.
- * This can exceed MAX_PATH limitation.
- */
-int
-__la_unlink(const char *path)
-{
-	wchar_t *ws;
-	int r;
-
-	r = _unlink(path);
-	if (r >= 0 || errno != ENOENT)
-		return (r);
-	ws = __la_win_permissive_name(path);
-	if (ws == NULL) {
-		errno = EINVAL;
-		return (-1);
-	}
-	r = _wunlink(ws);
-	free(ws);
-	return (r);
 }
 
 /*
@@ -1344,8 +1066,8 @@ static const struct {
 	{	ERROR_NOT_ENOUGH_QUOTA, ENOMEM	}
 };
 
-static void
-la_dosmaperr(unsigned long e)
+void
+__la_dosmaperr(unsigned long e)
 {
 	int			i;
 

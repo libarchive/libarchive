@@ -72,6 +72,10 @@ __FBSDID("$FreeBSD$");
 #ifndef O_BINARY
 #define O_BINARY 0
 #endif
+#ifndef IO_REPARSE_TAG_SYMLINK
+/* Old SDKs do not provide IO_REPARSE_TAG_SYMLINK */
+#define	IO_REPARSE_TAG_SYMLINK 0xA000000CL
+#endif
 
 struct fixup_entry {
 	struct fixup_entry	*next;
@@ -89,7 +93,7 @@ struct fixup_entry {
 	size_t			 mac_metadata_size;
 	void			*mac_metadata;
 	int			 fixup; /* bitmask of what needs fixing */
-	char			*name;
+	wchar_t			*name;
 };
 
 /*
@@ -140,20 +144,20 @@ struct archive_write_disk {
 	/*
 	 * Full path of last file to satisfy symlink checks.
 	 */
-	struct archive_string	path_safe;
+	struct archive_wstring	path_safe;
 
 	/*
 	 * Cached stat data from disk for the current entry.
 	 * If this is valid, pst points to st.  Otherwise,
 	 * pst is null.
 	 */
-	struct stat		 st;
-	struct stat		*pst;
+	BY_HANDLE_FILE_INFORMATION		 st;
+	BY_HANDLE_FILE_INFORMATION		*pst;
 
 	/* Information about the object being restored right now. */
 	struct archive_entry	*entry; /* Entry being extracted. */
-	char			*name; /* Name of entry, possibly edited. */
-	struct archive_string	 _name_data; /* backing store for 'name' */
+	wchar_t			*name; /* Name of entry, possibly edited. */
+	struct archive_wstring	 _name_data; /* backing store for 'name' */
 	/* Tasks remaining for this object. */
 	int			 todo;
 	/* Tasks deferred until end-of-archive. */
@@ -196,25 +200,25 @@ struct archive_write_disk {
 
 static int	check_symlinks(struct archive_write_disk *);
 static int	create_filesystem_object(struct archive_write_disk *);
-static struct fixup_entry *current_fixup(struct archive_write_disk *, const char *pathname);
+static struct fixup_entry *current_fixup(struct archive_write_disk *, const wchar_t *pathname);
 #if defined(HAVE_FCHDIR) && defined(PATH_MAX)
 static void	edit_deep_directories(struct archive_write_disk *ad);
 #endif
 static int	cleanup_pathname(struct archive_write_disk *);
-static int	create_dir(struct archive_write_disk *, char *);
-static int	create_parent_dir(struct archive_write_disk *, char *);
-static int	older(struct stat *, struct archive_entry *);
+static int	create_dir(struct archive_write_disk *, wchar_t *);
+static int	create_parent_dir(struct archive_write_disk *, wchar_t *);
+static int	older(BY_HANDLE_FILE_INFORMATION *, struct archive_entry *);
 static int	restore_entry(struct archive_write_disk *);
 #ifdef HAVE_POSIX_ACL
 static int	set_acl(struct archive_write_disk *, int fd, const char *, struct archive_acl *,
 		    acl_type_t, int archive_entry_acl_type, const char *tn);
 #endif
-static int	set_acls(struct archive_write_disk *, int fd, const char *, struct archive_acl *);
+static int	set_acls(struct archive_write_disk *, int fd, const wchar_t *, struct archive_acl *);
 static int	set_xattrs(struct archive_write_disk *);
 static int	set_fflags(struct archive_write_disk *);
 static int	set_ownership(struct archive_write_disk *);
 static int	set_mode(struct archive_write_disk *, int mode);
-static int	set_times(struct archive_write_disk *, int, int, const char *,
+static int	set_times(struct archive_write_disk *, int, int, const wchar_t *,
 		    time_t, long, time_t, long, time_t, long, time_t, long);
 static int	set_times_from_entry(struct archive_write_disk *);
 static struct fixup_entry *sort_dir_list(struct fixup_entry *p);
@@ -233,6 +237,174 @@ static int	_archive_write_disk_finish_entry(struct archive *);
 static ssize_t	_archive_write_disk_data(struct archive *, const void *, size_t);
 static ssize_t	_archive_write_disk_data_block(struct archive *, const void *, size_t, int64_t);
 
+#define bhfi_dev(bhfi)	((bhfi)->dwVolumeSerialNumber)
+/* Treat FileIndex as i-node. We should remove a sequence number
+ * which is high-16-bits of nFileIndexHigh. */
+#define bhfi_ino(bhfi)	\
+	((((int64_t)((bhfi)->nFileIndexHigh & 0x0000FFFFUL)) << 32) \
+    + (bhfi)->nFileIndexLow)
+#define bhfi_size(bhfi)	\
+    ((((int64_t)(bhfi)->nFileSizeHigh) << 32) + (bhfi)->nFileSizeLow)
+
+static int
+file_information(struct archive_write_disk *a, wchar_t *path,
+    BY_HANDLE_FILE_INFORMATION *st, mode_t *mode, int sim_lstat)
+{
+	HANDLE h;
+	int r;
+	DWORD flag = FILE_FLAG_BACKUP_SEMANTICS;
+	WIN32_FIND_DATAW	findData;
+
+	if (sim_lstat || mode != NULL) {
+		h = FindFirstFileW(path, &findData);
+		if (h == INVALID_HANDLE_VALUE) {
+			la_dosmaperr(GetLastError());
+			return (-1);
+		}
+		FindClose(h);
+	}
+
+	/* Is symlink file ? */
+	if (sim_lstat && 
+	    ((findData.dwFileAttributes
+		        & FILE_ATTRIBUTE_REPARSE_POINT) &&
+		(findData.dwReserved0 == IO_REPARSE_TAG_SYMLINK)))
+		flag |= FILE_FLAG_OPEN_REPARSE_POINT;
+
+	h = CreateFileW(a->name, 0, 0, NULL,
+	    OPEN_EXISTING, flag, NULL);
+	if (h == INVALID_HANDLE_VALUE) {
+		la_dosmaperr(GetLastError());
+		return (-1);
+	}
+	r = GetFileInformationByHandle(h, st);
+	CloseHandle(h);
+	if (r == 0) {
+		la_dosmaperr(GetLastError());
+		return (-1);
+	}
+
+	if (mode == NULL)
+		return (0);
+
+	*mode = S_IRUSR | S_IRGRP | S_IROTH;
+	if ((st->dwFileAttributes & FILE_ATTRIBUTE_READONLY) == 0)
+		*mode |= S_IWUSR | S_IWGRP | S_IWOTH;
+	if ((st->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) &&
+	    findData.dwReserved0 == IO_REPARSE_TAG_SYMLINK)
+		*mode |= S_IFLNK;
+	else if (st->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+		*mode |= S_IFDIR | S_IXUSR | S_IXGRP | S_IXOTH;
+	else {
+		const wchar_t *p;
+
+		*mode |= S_IFREG;
+		p = wcsrchr(path, L'.');
+		if (p != NULL && wcslen(p) == 4) {
+			switch (p[1]) {
+			case L'B': case L'b':
+				if ((p[2] == L'A' || p[2] == L'a' ) &&
+				    (p[3] == L'T' || p[3] == L't' ))
+					*mode |= S_IXUSR | S_IXGRP | S_IXOTH;
+				break;
+			case L'C': case L'c':
+				if (((p[2] == L'M' || p[2] == L'm' ) &&
+				    (p[3] == L'D' || p[3] == L'd' )) ||
+				    ((p[2] == L'M' || p[2] == L'm' ) &&
+				    (p[3] == L'D' || p[3] == L'd' )))
+					*mode |= S_IXUSR | S_IXGRP | S_IXOTH;
+				break;
+			case L'E': case L'e':
+				if ((p[2] == L'X' || p[2] == L'x' ) &&
+				    (p[3] == L'E' || p[3] == L'e' ))
+					*mode |= S_IXUSR | S_IXGRP | S_IXOTH;
+				break;
+			default:
+				break;
+			}
+		}
+	}
+	return (0);
+}
+
+int
+la_chmod(const wchar_t *path, mode_t mode)
+{
+	DWORD attr;
+	BOOL r;
+
+	attr = GetFileAttributesW(path);
+	if (attr == (DWORD)-1) {
+		la_dosmaperr(GetLastError());
+		return (-1);
+	}
+	if (mode & _S_IWRITE)
+		attr &= ~FILE_ATTRIBUTE_READONLY;
+	else
+		attr |= FILE_ATTRIBUTE_READONLY;
+	r = SetFileAttributesW(path, attr);
+	if (r == 0) {
+		la_dosmaperr(GetLastError());
+		return (-1);
+	}
+	return (0);
+}
+
+static void *
+la_GetFunctionKernel32(const char *name)
+{
+	static HINSTANCE lib;
+	static int set;
+	if (!set) {
+		set = 1;
+		lib = LoadLibrary("kernel32.dll");
+	}
+	if (lib == NULL) {
+		fprintf(stderr, "Can't load kernel32.dll?!\n");
+		exit(1);
+	}
+	return (void *)GetProcAddress(lib, name);
+}
+
+static int
+la_CreateHardLinkW(wchar_t *linkname, wchar_t *target)
+{
+	static BOOLEAN (WINAPI *f)(LPWSTR, LPWSTR, LPSECURITY_ATTRIBUTES);
+	static int set;
+	if (!set) {
+		set = 1;
+		f = la_GetFunctionKernel32("CreateHardLinkW");
+	}
+	return f == NULL ? 0 : (*f)(linkname, target, NULL);
+}
+
+static int
+la_ftruncate(int fd, int64_t length)
+{
+	LARGE_INTEGER distance;
+	HANDLE handle;
+
+	if (fd < 0) {
+		errno = EBADF;
+		return (-1);
+	}
+	handle = (HANDLE)_get_osfhandle(fd);
+	if (GetFileType(handle) != FILE_TYPE_DISK) {
+		errno = EBADF;
+		return (-1);
+	}
+	distance.QuadPart = length;
+	if (!SetFilePointerEx(handle, distance, NULL, FILE_BEGIN)) {
+		la_dosmaperr(GetLastError());
+		return (-1);
+	}
+	if (!SetEndOfFile(handle)) {
+		la_dosmaperr(GetLastError());
+		return (-1);
+	}
+	return (0);
+}
+
 static int
 lazy_stat(struct archive_write_disk *a)
 {
@@ -240,17 +412,18 @@ lazy_stat(struct archive_write_disk *a)
 		/* Already have stat() data available. */
 		return (ARCHIVE_OK);
 	}
-#ifdef HAVE_FSTAT
-	if (a->fd >= 0 && fstat(a->fd, &a->st) == 0) {
+	if (a->fd >= 0 &&
+	    GetFileInformationByHandle(
+	      (HANDLE)_get_osfhandle(a->fd), &a->st) == 0) {
 		a->pst = &a->st;
 		return (ARCHIVE_OK);
 	}
-#endif
+
 	/*
 	 * XXX At this point, symlinks should not be hit, otherwise
 	 * XXX a race occured.  Do we want to check explicitly for that?
 	 */
-	if (lstat(a->name, &a->st) == 0) {
+	if (file_information(a, a->name, &a->st, NULL, 1) == 0) {
 		a->pst = &a->st;
 		return (ARCHIVE_OK);
 	}
@@ -315,6 +488,9 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	struct fixup_entry *fe;
+#if 0
+	wchar_t *full;
+#endif
 	int ret, r;
 
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
@@ -346,7 +522,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		a->filesize = archive_entry_size(a->entry);
 	else
 		a->filesize = -1;
-	archive_strcpy(&(a->_name_data), archive_entry_pathname(a->entry));
+	archive_wstrcpy(&(a->_name_data), archive_entry_pathname_w(a->entry));
 	a->name = a->_name_data.s;
 	archive_clear_error(&a->archive);
 
@@ -358,6 +534,24 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	ret = cleanup_pathname(a);
 	if (ret != ARCHIVE_OK)
 		return (ret);
+
+	/* 
+	 * TODO: Currently we cannot use making full-path operation
+	 * because this "aa/a/../b../c" will be converted to "aa/c" by
+	 * GetFullPathNameW() W32 API, which __la_win_permissive_name_w uses.
+	 * it means we cannot handle multiple dirs in one archive_entry.
+	 */
+#if 0
+	/*
+	 * Generate full-pathname and use it from here.
+	 */
+	full = __la_win_permissive_name_w(a->name);
+	if (full == NULL)
+		return (ARCHIVE_FAILED);
+	archive_wstrcpy(&(a->_name_data), full);
+	a->name = a->_name_data.s;
+	free(full);
+#endif
 
 	/*
 	 * Query the umask so we get predictable mode settings.
@@ -450,7 +644,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	 * deep restore logic.
 	 */
 	if (a->deferred & TODO_MODE) {
-		fe = current_fixup(a, archive_entry_pathname(entry));
+		fe = current_fixup(a, archive_entry_pathname_w(entry));
 		fe->fixup |= TODO_MODE_BASE;
 		fe->mode = a->mode;
 	}
@@ -458,7 +652,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	if ((a->deferred & TODO_TIMES)
 		&& (archive_entry_mtime_is_set(entry)
 		    || archive_entry_atime_is_set(entry))) {
-		fe = current_fixup(a, archive_entry_pathname(entry));
+		fe = current_fixup(a, archive_entry_pathname_w(entry));
 		fe->mode = a->mode;
 		fe->fixup |= TODO_TIMES;
 		if (archive_entry_atime_is_set(entry)) {
@@ -488,7 +682,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	}
 
 	if (a->deferred & TODO_ACLS) {
-		fe = current_fixup(a, archive_entry_pathname(entry));
+		fe = current_fixup(a, archive_entry_pathname_w(entry));
 		archive_acl_copy(&fe->acl, archive_entry_acl(entry));
 	}
 
@@ -497,7 +691,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		size_t metadata_size;
 		metadata = archive_entry_mac_metadata(a->entry, &metadata_size);
 		if (metadata != NULL && metadata_size > 0) {
-			fe = current_fixup(a, archive_entry_pathname(entry));
+			fe = current_fixup(a, archive_entry_pathname_w(entry));
 			fe->mac_metadata = malloc(metadata_size);
 			if (fe->mac_metadata != NULL) {
 				memcpy(fe->mac_metadata, metadata, metadata_size);
@@ -508,7 +702,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	}
 
 	if (a->deferred & TODO_FFLAGS) {
-		fe = current_fixup(a, archive_entry_pathname(entry));
+		fe = current_fixup(a, archive_entry_pathname_w(entry));
 		fe->fixup |= TODO_FFLAGS;
 		/* TODO: Complete this.. defer fflags from below. */
 	}
@@ -698,14 +892,12 @@ _archive_write_disk_finish_entry(struct archive *_a)
 		/* Last write ended at exactly the filesize; we're done. */
 		/* Hopefully, this is the common case. */
 	} else {
-#if HAVE_FTRUNCATE
-		if (ftruncate(a->fd, a->filesize) == -1 &&
+		if (la_ftruncate(a->fd, a->filesize) == -1 &&
 		    a->filesize == 0) {
 			archive_set_error(&a->archive, errno,
 			    "File size could not be restored");
 			return (ARCHIVE_FAILED);
 		}
-#endif
 		/*
 		 * Not all platforms implement the XSI option to
 		 * extend files via ftruncate.  Stat() the file again
@@ -716,7 +908,7 @@ _archive_write_disk_finish_entry(struct archive *_a)
 			return (ret);
 		/* We can use lseek()/write() to extend the file if
 		 * ftruncate didn't work or isn't available. */
-		if (a->st.st_size < a->filesize) {
+		if (bhfi_size(&(a->st)) < a->filesize) {
 			const char nul = '\0';
 			if (lseek(a->fd, a->filesize - 1, SEEK_SET) < 0) {
 				archive_set_error(&a->archive, errno,
@@ -802,7 +994,7 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	 */
 	if (a->todo & TODO_ACLS) {
 		int r2 = set_acls(a, a->fd,
-				  archive_entry_pathname(a->entry),
+				  archive_entry_pathname_w(a->entry),
 				  archive_entry_acl(a->entry));
 		if (r2 < ret) ret = r2;
 	}
@@ -875,7 +1067,7 @@ archive_write_disk_new(void)
 	a->start_time = time(NULL);
 	/* Query and restore the umask. */
 	umask(a->user_umask = umask(0));
-	if (archive_string_ensure(&a->path_safe, 512) == NULL) {
+	if (archive_wstring_ensure(&a->path_safe, 512) == NULL) {
 		free(a);
 		return (NULL);
 	}
@@ -900,12 +1092,12 @@ restore_entry(struct archive_write_disk *a)
 		 * object is a dir, but that doesn't mean the old
 		 * object isn't a dir.
 		 */
-		if (unlink(a->name) == 0) {
+		if (_wunlink(a->name) == 0) {
 			/* We removed it, reset cached stat. */
 			a->pst = NULL;
 		} else if (errno == ENOENT) {
 			/* File didn't exist, that's just as good. */
-		} else if (rmdir(a->name) == 0) {
+		} else if (_wrmdir(a->name) == 0) {
 			/* It was a dir, but now it's gone. */
 			a->pst = NULL;
 		} else {
@@ -943,7 +1135,7 @@ restore_entry(struct archive_write_disk *a)
 	 */
 	if (en == EISDIR) {
 		/* A dir is in the way of a non-dir, rmdir it. */
-		if (rmdir(a->name) != 0) {
+		if (_wrmdir(a->name) != 0) {
 			archive_set_error(&a->archive, errno,
 			    "Can't remove already-existing dir");
 			return (ARCHIVE_FAILED);
@@ -952,6 +1144,7 @@ restore_entry(struct archive_write_disk *a)
 		/* Try again. */
 		en = create_filesystem_object(a);
 	} else if (en == EEXIST) {
+		mode_t st_mode;
 		/*
 		 * We know something is in the way, but we don't know what;
 		 * we need to find out before we go any further.
@@ -963,13 +1156,13 @@ restore_entry(struct archive_write_disk *a)
 		 * follow the symlink if we're creating a dir.
 		 */
 		if (S_ISDIR(a->mode))
-			r = stat(a->name, &a->st);
+			r = file_information(a, a->name, &a->st, &st_mode, 0);
 		/*
 		 * If it's not a dir (or it's a broken symlink),
 		 * then don't follow it.
 		 */
 		if (r != 0 || !S_ISDIR(a->mode))
-			r = lstat(a->name, &a->st);
+			r = file_information(a, a->name, &a->st, &st_mode, 1);
 		if (r != 0) {
 			archive_set_error(&a->archive, errno,
 			    "Can't stat existing object");
@@ -980,7 +1173,7 @@ restore_entry(struct archive_write_disk *a)
 		 * NO_OVERWRITE_NEWER doesn't apply to directories.
 		 */
 		if ((a->flags & ARCHIVE_EXTRACT_NO_OVERWRITE_NEWER)
-		    &&  !S_ISDIR(a->st.st_mode)) {
+		    &&  !S_ISDIR(st_mode)) {
 			if (!older(&(a->st), a->entry)) {
 				archive_entry_unset_size(a->entry);
 				return (ARCHIVE_OK);
@@ -990,15 +1183,15 @@ restore_entry(struct archive_write_disk *a)
 		/* If it's our archive, we're done. */
 		if (a->skip_file_dev > 0 &&
 		    a->skip_file_ino > 0 &&
-		    a->st.st_dev == a->skip_file_dev &&
-		    a->st.st_ino == a->skip_file_ino) {
+		    bhfi_dev(&a->st) == a->skip_file_dev &&
+		    bhfi_ino(&a->st) == a->skip_file_ino) {
 			archive_set_error(&a->archive, 0, "Refusing to overwrite archive");
 			return (ARCHIVE_FAILED);
 		}
 
-		if (!S_ISDIR(a->st.st_mode)) {
+		if (!S_ISDIR(st_mode)) {
 			/* A non-dir is in the way, unlink it. */
-			if (unlink(a->name) != 0) {
+			if (_wunlink(a->name) != 0) {
 				archive_set_error(&a->archive, errno,
 				    "Can't unlink already-existing object");
 				return (ARCHIVE_FAILED);
@@ -1008,7 +1201,7 @@ restore_entry(struct archive_write_disk *a)
 			en = create_filesystem_object(a);
 		} else if (!S_ISDIR(a->mode)) {
 			/* A dir is in the way of a non-dir, rmdir it. */
-			if (rmdir(a->name) != 0) {
+			if (_wrmdir(a->name) != 0) {
 				archive_set_error(&a->archive, errno,
 				    "Can't remove already-existing dir");
 				return (ARCHIVE_FAILED);
@@ -1023,7 +1216,7 @@ restore_entry(struct archive_write_disk *a)
 			 * Note that we don't change perms on existing
 			 * dirs unless _EXTRACT_PERM is specified.
 			 */
-			if ((a->mode != a->st.st_mode)
+			if ((a->mode != st_mode)
 			    && (a->todo & TODO_MODE_FORCE))
 				a->deferred |= (a->todo & TODO_MODE);
 			/* Ownership doesn't need deferred fixup. */
@@ -1051,15 +1244,31 @@ static int
 create_filesystem_object(struct archive_write_disk *a)
 {
 	/* Create the entry. */
-	const char *linkname;
+	const wchar_t *linkname;
 	mode_t final_mode, mode;
 	int r;
 
 	/* We identify hard/symlinks according to the link names. */
 	/* Since link(2) and symlink(2) don't handle modes, we're done here. */
-	linkname = archive_entry_hardlink(a->entry);
+	linkname = archive_entry_hardlink_w(a->entry);
 	if (linkname != NULL) {
-		r = link(linkname, a->name) ? errno : 0;
+		wchar_t *linkfull, *namefull;
+
+		linkfull = __la_win_permissive_name_w(linkname);
+		namefull = __la_win_permissive_name_w(a->name);
+		if (linkfull == NULL || namefull == NULL) {
+			errno = EINVAL;
+			r = -1;
+		} else {
+			r = la_CreateHardLinkW(namefull, linkfull);
+			if (r == 0) {
+				la_dosmaperr(GetLastError());
+				r = errno;
+			} else
+				r = 0;
+		}
+		free(linkfull);
+		free(namefull);
 		/*
 		 * New cpio and pax formats allow hardlink entries
 		 * to carry data, so we may have to open the file
@@ -1076,13 +1285,13 @@ create_filesystem_object(struct archive_write_disk *a)
 			a->todo = 0;
 			a->deferred = 0;
 		} if (r == 0 && a->filesize > 0) {
-			a->fd = open(a->name, O_WRONLY | O_TRUNC | O_BINARY);
+			a->fd = _wopen(a->name, O_WRONLY | O_TRUNC | O_BINARY);
 			if (a->fd < 0)
 				r = errno;
 		}
 		return (r);
 	}
-	linkname = archive_entry_symlink(a->entry);
+	linkname = archive_entry_symlink_w(a->entry);
 	if (linkname != NULL) {
 #if HAVE_SYMLINK
 		return symlink(linkname, a->name) ? errno : 0;
@@ -1111,8 +1320,19 @@ create_filesystem_object(struct archive_write_disk *a)
 		/* POSIX requires that we fall through here. */
 		/* FALLTHROUGH */
 	case AE_IFREG:
-		a->fd = open(a->name,
+		a->fd = _wopen(a->name,
 		    O_WRONLY | O_CREAT | O_EXCL | O_BINARY, mode);
+		if (a->fd < 0 && errno == EACCES) {
+			DWORD attr;
+			/* Simulate an errno of POSIX system. */
+			attr = GetFileAttributesW(a->name);
+			if (attr == (DWORD)-1)
+				la_dosmaperr(GetLastError());
+			else if (attr & FILE_ATTRIBUTE_DIRECTORY)
+				errno = EISDIR;
+			else
+				errno = EACCES;
+		}
 		r = (a->fd < 0);
 		break;
 	case AE_IFCHR:
@@ -1122,8 +1342,9 @@ create_filesystem_object(struct archive_write_disk *a)
 		return (EINVAL);
 	case AE_IFDIR:
 		mode = (mode | MINIMUM_DIR_MODE) & MAXIMUM_DIR_MODE;
-		r = mkdir(a->name, mode);
-		if (r == 0) {
+		r = CreateDirectoryW(a->name, NULL);
+		if (r != 0) {
+			r = 0;
 			/* Defer setting dir times. */
 			a->deferred |= (a->todo & TODO_TIMES);
 			a->todo &= ~TODO_TIMES;
@@ -1134,6 +1355,9 @@ create_filesystem_object(struct archive_write_disk *a)
 			    || (a->flags & ARCHIVE_EXTRACT_PERM))
 				a->deferred |= (a->todo & TODO_MODE);
 			a->todo &= ~TODO_MODE;
+		} else {
+			la_dosmaperr(GetLastError());
+			r = -1;
 		}
 		break;
 	case AE_IFIFO:
@@ -1199,7 +1423,7 @@ _archive_write_disk_close(struct archive *_a)
 			    p->ctime, p->ctime_nanos);
 		}
 		if (p->fixup & TODO_MODE_BASE)
-			chmod(p->name, p->mode);
+			la_chmod(p->name, p->mode);
 		if (p->fixup & TODO_ACLS)
 			set_acls(a, -1, p->name, &p->acl);
 		next = p->next;
@@ -1230,9 +1454,9 @@ _archive_write_disk_free(struct archive *_a)
 		(a->cleanup_uid)(a->lookup_uid_data);
 	if (a->entry)
 		archive_entry_free(a->entry);
-	archive_string_free(&a->_name_data);
+	archive_wstring_free(&a->_name_data);
 	archive_string_free(&a->archive.error_string);
-	archive_string_free(&a->path_safe);
+	archive_wstring_free(&a->path_safe);
 	a->archive.magic = 0;
 	__archive_clean(&a->archive);
 	free(a);
@@ -1275,7 +1499,7 @@ sort_dir_list(struct fixup_entry *p)
 
 	/* Step 3: Merge the returned lists. */
 	/* Pick the first element for the merged list. */
-	if (strcmp(a->name, b->name) > 0) {
+	if (wcscmp(a->name, b->name) > 0) {
 		t = p = a;
 		a = a->next;
 	} else {
@@ -1285,7 +1509,7 @@ sort_dir_list(struct fixup_entry *p)
 
 	/* Always put the later element on the list first. */
 	while (a != NULL && b != NULL) {
-		if (strcmp(a->name, b->name) > 0) {
+		if (wcscmp(a->name, b->name) > 0) {
 			t->next = a;
 			a = a->next;
 		} else {
@@ -1311,7 +1535,7 @@ sort_dir_list(struct fixup_entry *p)
  * structure rather than a simple list of names.
  */
 static struct fixup_entry *
-new_fixup(struct archive_write_disk *a, const char *pathname)
+new_fixup(struct archive_write_disk *a, const wchar_t *pathname)
 {
 	struct fixup_entry *fe;
 
@@ -1321,7 +1545,7 @@ new_fixup(struct archive_write_disk *a, const char *pathname)
 	fe->next = a->fixup_list;
 	a->fixup_list = fe;
 	fe->fixup = 0;
-	fe->name = strdup(pathname);
+	fe->name = _wcsdup(pathname);
 	return (fe);
 }
 
@@ -1329,7 +1553,7 @@ new_fixup(struct archive_write_disk *a, const char *pathname)
  * Returns a fixup structure for the current entry.
  */
 static struct fixup_entry *
-current_fixup(struct archive_write_disk *a, const char *pathname)
+current_fixup(struct archive_write_disk *a, const wchar_t *pathname)
 {
 	if (a->current_fixup == NULL)
 		a->current_fixup = new_fixup(a, pathname);
@@ -1350,15 +1574,11 @@ current_fixup(struct archive_write_disk *a, const char *pathname)
 static int
 check_symlinks(struct archive_write_disk *a)
 {
-#if !defined(HAVE_LSTAT)
-	/* Platform doesn't have lstat, so we can't look for symlinks. */
-	(void)a; /* UNUSED */
-	return (ARCHIVE_OK);
-#else
-	char *pn, *p;
-	char c;
+	wchar_t *pn, *p;
+	wchar_t c;
 	int r;
-	struct stat st;
+	BY_HANDLE_FILE_INFORMATION st;
+	mode_t st_mode;
 
 	/*
 	 * Guard against symlink tricks.  Reject any archive entry whose
@@ -1378,19 +1598,19 @@ check_symlinks(struct archive_write_disk *a)
 		c = pn[0];
 		pn[0] = '\0';
 		/* Check that we haven't hit a symlink. */
-		r = lstat(a->name, &st);
+		r = file_information(a, a->name, &st, &st_mode, 1);
 		if (r != 0) {
 			/* We've hit a dir that doesn't exist; stop now. */
 			if (errno == ENOENT)
 				break;
-		} else if (S_ISLNK(st.st_mode)) {
+		} else if (S_ISLNK(st_mode)) {
 			if (c == '\0') {
 				/*
 				 * Last element is symlink; remove it
 				 * so we can overwrite it with the
 				 * item being extracted.
 				 */
-				if (unlink(a->name)) {
+				if (_wunlink(a->name)) {
 					archive_set_error(&a->archive, errno,
 					    "Could not remove symlink %s",
 					    a->name);
@@ -1414,7 +1634,7 @@ check_symlinks(struct archive_write_disk *a)
 				return (0);
 			} else if (a->flags & ARCHIVE_EXTRACT_UNLINK) {
 				/* User asked us to remove problems. */
-				if (unlink(a->name) != 0) {
+				if (_wunlink(a->name) != 0) {
 					archive_set_error(&a->archive, 0,
 					    "Cannot remove intervening symlink %s",
 					    a->name);
@@ -1433,67 +1653,8 @@ check_symlinks(struct archive_write_disk *a)
 	}
 	pn[0] = c;
 	/* We've checked and/or cleaned the whole path, so remember it. */
-	archive_strcpy(&a->path_safe, a->name);
+	archive_wstrcpy(&a->path_safe, a->name);
 	return (ARCHIVE_OK);
-#endif
-}
-
-/*
- * 1. Convert a path separator from '\' to '/' .
- *    We shouldn't check multi-byte character directly because some
- *    character-set have been using the '\' character for a part of
- *    its multibyte character code.
- * 2. Replace unusable characters in Windows with underscore('_').
- * See also : http://msdn.microsoft.com/en-us/library/aa365247.aspx
- */
-static void
-cleanup_pathname_win(struct archive_write_disk *a)
-{
-	wchar_t wc;
-	char *p;
-	size_t alen, l;
-	int mb, dos;
-
-	alen = 0;
-	mb = dos = 0;
-	for (p = a->name; *p != '\0'; p++) {
-		++alen;
-		if (*(unsigned char *)p > 127)
-			mb = 1;
-		if (*p == '\\') {
-			/* If we have not met any multi-byte characters,
-			 * we can replace '\' with '/'. */
-			if (!mb)
-				*p = '/';
-			dos = 1;
-		}
-		/* Rewrite the path name if its character is a unusable. */
-		if (*p == ':' || *p == '*' || *p == '?' || *p == '"' ||
-		    *p == '<' || *p == '>' || *p == '|')
-			*p = '_';
-	}
-	if (!mb || !dos)
-		return;
-
-	/*
-	 * Convert path separator in wide-character.
-	 */
-	p = a->name;
-	while (*p != '\0' && alen) {
-		l = mbtowc(&wc, p, alen);
-		if (l == -1) {
-			while (*p != '\0') {
-				if (*p == '\\')
-					*p = '/';
-				++p;
-			}
-			break;
-		}
-		if (l == 1 && wc == L'\\')
-			*p = '/';
-		p += l;
-		alen -= l;
-	}
 }
 
 /*
@@ -1505,40 +1666,47 @@ cleanup_pathname_win(struct archive_write_disk *a)
 static int
 cleanup_pathname(struct archive_write_disk *a)
 {
-	char *dest, *src;
-	char separator = '\0';
+	wchar_t *dest, *src, *p;
+	wchar_t separator = L'\0';
 
 	dest = src = a->name;
-	if (*src == '\0') {
+	if (*src == L'\0') {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Invalid empty pathname");
 		return (ARCHIVE_FAILED);
 	}
 
-	cleanup_pathname_win(a);
+	for (p = a->name; *p != L'\0'; p++) {
+		if (*p == L'\\')
+			*p = L'/';
+		/* Rewrite the path name if its character is a unusable. */
+		if (*p == L':' || *p == L'*' || *p == L'?' || *p == L'"' ||
+		    *p == L'<' || *p == L'>' || *p == L'|')
+			*p = L'_';
+	}
 	/* Skip leading '/'. */
-	if (*src == '/')
+	if (*src == L'/')
 		separator = *src++;
 
 	/* Scan the pathname one element at a time. */
 	for (;;) {
 		/* src points to first char after '/' */
-		if (src[0] == '\0') {
+		if (src[0] == L'\0') {
 			break;
-		} else if (src[0] == '/') {
+		} else if (src[0] == L'/') {
 			/* Found '//', ignore second one. */
 			src++;
 			continue;
-		} else if (src[0] == '.') {
-			if (src[1] == '\0') {
+		} else if (src[0] == L'.') {
+			if (src[1] == L'\0') {
 				/* Ignore trailing '.' */
 				break;
-			} else if (src[1] == '/') {
+			} else if (src[1] == L'/') {
 				/* Skip './'. */
 				src += 2;
 				continue;
-			} else if (src[1] == '.') {
-				if (src[2] == '/' || src[2] == '\0') {
+			} else if (src[1] == L'.') {
+				if (src[2] == L'/' || src[2] == L'\0') {
 					/* Conditionally warn about '..' */
 					if (a->flags & ARCHIVE_EXTRACT_SECURE_NODOTDOT) {
 						archive_set_error(&a->archive,
@@ -1559,12 +1727,12 @@ cleanup_pathname(struct archive_write_disk *a)
 
 		/* Copy current element, including leading '/'. */
 		if (separator)
-			*dest++ = '/';
-		while (*src != '\0' && *src != '/') {
+			*dest++ = L'/';
+		while (*src != L'\0' && *src != L'/') {
 			*dest++ = *src++;
 		}
 
-		if (*src == '\0')
+		if (*src == L'\0')
 			break;
 
 		/* Skip '/' separator. */
@@ -1580,12 +1748,12 @@ cleanup_pathname(struct archive_write_disk *a)
 		 * like '.' or '/' or './' or '/././././/./'.
 		 */
 		if (separator)
-			*dest++ = '/';
+			*dest++ = L'/';
 		else
-			*dest++ = '.';
+			*dest++ = L'.';
 	}
 	/* Terminate the result. */
-	*dest = '\0';
+	*dest = L'\0';
 	return (ARCHIVE_OK);
 }
 
@@ -1594,18 +1762,18 @@ cleanup_pathname(struct archive_write_disk *a)
  * is already in mutable storage.
  */
 static int
-create_parent_dir(struct archive_write_disk *a, char *path)
+create_parent_dir(struct archive_write_disk *a, wchar_t *path)
 {
-	char *slash;
+	wchar_t *slash;
 	int r;
 
 	/* Remove tail element to obtain parent name. */
-	slash = strrchr(path, '/');
+	slash = wcsrchr(path, L'/');
 	if (slash == NULL)
 		return (ARCHIVE_OK);
-	*slash = '\0';
+	*slash = L'\0';
 	r = create_dir(a, path);
-	*slash = '/';
+	*slash = L'/';
 	return (r);
 }
 
@@ -1617,29 +1785,29 @@ create_parent_dir(struct archive_write_disk *a, char *path)
  * Assumes path is in mutable storage; path is unchanged on exit.
  */
 static int
-create_dir(struct archive_write_disk *a, char *path)
+create_dir(struct archive_write_disk *a, wchar_t *path)
 {
-	struct stat st;
+	BY_HANDLE_FILE_INFORMATION st;
 	struct fixup_entry *le;
-	char *slash, *base;
-	mode_t mode_final, mode;
+	wchar_t *slash, *base;
+	mode_t mode_final, mode, st_mode;
 	int r;
 
 	/* Check for special names and just skip them. */
-	slash = strrchr(path, '/');
+	slash = wcsrchr(path, L'/');
 	if (slash == NULL)
 		base = path;
 	else
 		base = slash + 1;
 
-	if (base[0] == '\0' ||
-	    (base[0] == '.' && base[1] == '\0') ||
-	    (base[0] == '.' && base[1] == '.' && base[2] == '\0')) {
+	if (base[0] == L'\0' ||
+	    (base[0] == L'.' && base[1] == L'\0') ||
+	    (base[0] == L'.' && base[1] == L'.' && base[2] == L'\0')) {
 		/* Don't bother trying to create null path, '.', or '..'. */
 		if (slash != NULL) {
-			*slash = '\0';
+			*slash = L'\0';
 			r = create_dir(a, path);
-			*slash = '/';
+			*slash = L'/';
 			return (r);
 		}
 		return (ARCHIVE_OK);
@@ -1650,15 +1818,15 @@ create_dir(struct archive_write_disk *a, char *path)
 	 * here loses the ability to extract through symlinks.  Also note
 	 * that this should not use the a->st cache.
 	 */
-	if (stat(path, &st) == 0) {
-		if (S_ISDIR(st.st_mode))
+	if (file_information(a, path, &st, &st_mode, 0) == 0) {
+		if (S_ISDIR(st_mode))
 			return (ARCHIVE_OK);
 		if ((a->flags & ARCHIVE_EXTRACT_NO_OVERWRITE)) {
 			archive_set_error(&a->archive, EEXIST,
 			    "Can't create directory '%s'", path);
 			return (ARCHIVE_FAILED);
 		}
-		if (unlink(path) != 0) {
+		if (_wunlink(path) != 0) {
 			archive_set_error(&a->archive, errno,
 			    "Can't create directory '%s': "
 			    "Conflicting file cannot be removed",
@@ -1690,13 +1858,15 @@ create_dir(struct archive_write_disk *a, char *path)
 	mode = mode_final;
 	mode |= MINIMUM_DIR_MODE;
 	mode &= MAXIMUM_DIR_MODE;
-	if (mkdir(path, mode) == 0) {
+	if (CreateDirectoryW(path, NULL) != 0) {
 		if (mode != mode_final) {
 			le = new_fixup(a, path);
 			le->fixup |=TODO_MODE_BASE;
 			le->mode = mode_final;
 		}
 		return (ARCHIVE_OK);
+	} else {
+		la_dosmaperr(GetLastError());
 	}
 
 	/*
@@ -1705,7 +1875,7 @@ create_dir(struct archive_write_disk *a, char *path)
 	 * don't add it to the fixup list here, as it's already been
 	 * added.
 	 */
-	if (stat(path, &st) == 0 && S_ISDIR(st.st_mode))
+	if (file_information(a, path, &st, &st_mode, 0) == 0 && S_ISDIR(st_mode))
 		return (ARCHIVE_OK);
 
 	archive_set_error(&a->archive, errno, "Failed to create dir '%s'",
@@ -1744,7 +1914,7 @@ set_ownership(struct archive_write_disk *a)
 
 static int
 set_times(struct archive_write_disk *a,
-    int fd, int mode, const char *name,
+    int fd, int mode, const wchar_t *name,
     time_t atime, long atime_nanos,
     time_t birthtime, long birthtime_nanos,
     time_t mtime, long mtime_nanos,
@@ -1756,22 +1926,23 @@ set_times(struct archive_write_disk *a,
 
 	HANDLE h, hw;
 	ULARGE_INTEGER wintm;
-	wchar_t *ws;
 	FILETIME *pfbtime;
 	FILETIME fatime, fbtime, fmtime;
 
 	if (fd >= 0) {
 		h = (HANDLE)_get_osfhandle(fd);
 		hw = NULL;
-		ws = NULL;
 	} else {
+		wchar_t *ws;
+
 		if (S_ISLNK(mode))
 			return (ARCHIVE_OK);
-		ws = __la_win_permissive_name(name);
+		ws = __la_win_permissive_name_w(name);
 		if (ws == NULL)
 			goto settimes_failed;
 		hw = CreateFileW(ws, FILE_WRITE_ATTRIBUTES,
 		    0, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+		free(ws);
 		if (hw == INVALID_HANDLE_VALUE)
 			goto settimes_failed;
 		h = hw;
@@ -1795,12 +1966,10 @@ set_times(struct archive_write_disk *a,
 		pfbtime = NULL;
 	if (SetFileTime(h, pfbtime, &fatime, &fmtime) == 0)
 		goto settimes_failed;
-	free(ws);
 	CloseHandle(hw);
 	return (ARCHIVE_OK);
 
 settimes_failed:
-	free(ws);
 	CloseHandle(hw);
 	archive_set_error(&a->archive, EINVAL, "Can't restore time");
 	return (ARCHIVE_WARN);
@@ -1861,11 +2030,11 @@ set_mode(struct archive_write_disk *a, int mode)
 		 */
 		if ((r = lazy_stat(a)) != ARCHIVE_OK)
 			return (r);
-		if (a->pst->st_gid != a->gid) {
+		if (0 != a->gid) {
 			mode &= ~ S_ISGID;
 		}
 		/* While we're here, double-check the UID. */
-		if (a->pst->st_uid != a->uid
+		if (0 != a->uid
 		    && (a->todo & TODO_SUID)) {
 			mode &= ~ S_ISUID;
 		}
@@ -1917,7 +2086,7 @@ set_mode(struct archive_write_disk *a, int mode)
 #endif
 			/* If this platform lacks fchmod(), then
 			 * we'll just use chmod(). */
-			if (chmod(a->name, mode) != 0) {
+			if (la_chmod(a->name, mode) != 0) {
 				archive_set_error(&a->archive, errno,
 				    "Can't set permissions to 0%o", (int)mode);
 				r = ARCHIVE_WARN;
@@ -1935,7 +2104,7 @@ set_fflags(struct archive_write_disk *a)
 
 /* Default empty function body to satisfy mainline code. */
 static int
-set_acls(struct archive_write_disk *a, int fd, const char *name,
+set_acls(struct archive_write_disk *a, int fd, const wchar_t *name,
 	 struct archive_acl *acl)
 {
 	(void)a; /* UNUSED */
@@ -1987,20 +2156,43 @@ trivial_lookup_uid(void *private_data, const char *uname, int64_t uid)
 	return (uid);
 }
 
+static void
+fileTimeToUtc(const FILETIME *filetime, time_t *time, long *ns)
+{
+	ULARGE_INTEGER utc;
+
+	utc.HighPart = filetime->dwHighDateTime;
+	utc.LowPart  = filetime->dwLowDateTime;
+	if (utc.QuadPart >= EPOC_TIME) {
+		utc.QuadPart -= EPOC_TIME;
+		/* milli seconds base */
+		*time = (time_t)(utc.QuadPart / 10000000);
+		/* nano seconds base */
+		*ns = (long)(utc.QuadPart % 10000000) * 100;
+	} else {
+		*time = 0;
+		*ns = 0;
+	}
+}
 /*
  * Test if file on disk is older than entry.
  */
 static int
-older(struct stat *st, struct archive_entry *entry)
+older(BY_HANDLE_FILE_INFORMATION *st, struct archive_entry *entry)
 {
+	time_t sec;
+	long nsec;
+
+	fileTimeToUtc(&st->ftLastWriteTime, &sec, &nsec);
 	/* First, test the seconds and return if we have a definite answer. */
 	/* Definitely older. */
-	if (st->st_mtime < archive_entry_mtime(entry))
+	if (sec < archive_entry_mtime(entry))
 		return (1);
 	/* Definitely younger. */
-	if (st->st_mtime > archive_entry_mtime(entry))
+	if (sec > archive_entry_mtime(entry))
 		return (0);
-	/* This system doesn't have high-res timestamps. */
+	if (nsec < archive_entry_mtime_nsec(entry))
+		return (1);
 	/* Same age or newer, so not older. */
 	return (0);
 }
