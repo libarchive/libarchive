@@ -103,9 +103,6 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_UTIME_H
 #include <utime.h>
 #endif
-#if defined(HAVE_WINIOCTL_H) && !defined(__CYGWIN__)
-#include <winioctl.h>
-#endif
 #ifdef F_GETTIMES /* Tru64 specific */
 #include <sys/fcntl1.h>
 #endif
@@ -280,9 +277,7 @@ static int	set_fflags_platform(struct archive_write_disk *, int fd,
 		    unsigned long fflags_set, unsigned long fflags_clear);
 static int	set_ownership(struct archive_write_disk *);
 static int	set_mode(struct archive_write_disk *, int mode);
-#if !defined(_WIN32) || defined(__CYGWIN__)
 static int	set_time(int, int, const char *, time_t, long, time_t, long);
-#endif
 static int	set_times(struct archive_write_disk *, int, int, const char *,
 		    time_t, long, time_t, long, time_t, long, time_t, long);
 static int	set_times_from_entry(struct archive_write_disk *);
@@ -472,10 +467,8 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		a->mode &= ~S_ISVTX;
 		a->mode &= ~a->user_umask;
 	}
-#if !defined(_WIN32) || defined(__CYGWIN__)
 	if (a->flags & ARCHIVE_EXTRACT_OWNER)
 		a->todo |= TODO_OWNER;
-#endif
 	if (a->flags & ARCHIVE_EXTRACT_TIME)
 		a->todo |= TODO_TIMES;
 	if (a->flags & ARCHIVE_EXTRACT_ACL) {
@@ -598,33 +591,6 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		fe->fixup |= TODO_FFLAGS;
 		/* TODO: Complete this.. defer fflags from below. */
 	}
-
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	/*
-	 * On Windows, A creating sparse file requires a special mark.
-	 */
-	if (a->fd >= 0 && archive_entry_sparse_count(entry) > 0) {
-		int64_t base = 0, offset, length;
-		int i, cnt = archive_entry_sparse_reset(entry);
-		int sparse = 0;
-
-		for (i = 0; i < cnt; i++) {
-			archive_entry_sparse_next(entry, &offset, &length);
-			if (offset - base >= 4096) {
-				sparse = 1;/* we have a hole. */
-				break;
-			}
-			base = offset + length;
-		}
-		if (sparse) {
-			HANDLE h = (HANDLE)_get_osfhandle(a->fd);
-			DWORD dmy;
-			/* Mark this file as sparse. */
-			DeviceIoControl(h, FSCTL_SET_SPARSE,
-			    NULL, 0, NULL, 0, &dmy, NULL);
-		}
-	}
-#endif
 
 	/* We've created the object and are ready to pour data into it. */
 	if (ret >= ARCHIVE_WARN)
@@ -1630,66 +1596,6 @@ check_symlinks(struct archive_write_disk *a)
 #endif
 }
 
-#if defined(_WIN32) || defined(__CYGWIN__)
-/*
- * 1. Convert a path separator from '\' to '/' .
- *    We shouldn't check multi-byte character directly because some
- *    character-set have been using the '\' character for a part of
- *    its multibyte character code.
- * 2. Replace unusable characters in Windows with underscore('_').
- * See also : http://msdn.microsoft.com/en-us/library/aa365247.aspx
- */
-static void
-cleanup_pathname_win(struct archive_write_disk *a)
-{
-	wchar_t wc;
-	char *p;
-	size_t alen, l;
-	int mb, dos;
-
-	alen = 0;
-	mb = dos = 0;
-	for (p = a->name; *p != '\0'; p++) {
-		++alen;
-		if (*(unsigned char *)p > 127)
-			mb = 1;
-		if (*p == '\\') {
-			/* If we have not met any multi-byte characters,
-			 * we can replace '\' with '/'. */
-			if (!mb)
-				*p = '/';
-			dos = 1;
-		}
-		/* Rewrite the path name if its character is a unusable. */
-		if (*p == ':' || *p == '*' || *p == '?' || *p == '"' ||
-		    *p == '<' || *p == '>' || *p == '|')
-			*p = '_';
-	}
-	if (!mb || !dos)
-		return;
-
-	/*
-	 * Convert path separator in wide-character.
-	 */
-	p = a->name;
-	while (*p != '\0' && alen) {
-		l = mbtowc(&wc, p, alen);
-		if (l == -1) {
-			while (*p != '\0') {
-				if (*p == '\\')
-					*p = '/';
-				++p;
-			}
-			break;
-		}
-		if (l == 1 && wc == L'\\')
-			*p = '/';
-		p += l;
-		alen -= l;
-	}
-}
-#endif
-
 /*
  * Canonicalize the pathname.  In particular, this strips duplicate
  * '/' characters, '.' elements, and trailing '/'.  It also raises an
@@ -1709,9 +1615,6 @@ cleanup_pathname(struct archive_write_disk *a)
 		return (ARCHIVE_FAILED);
 	}
 
-#if defined(_WIN32) || defined(__CYGWIN__)
-	cleanup_pathname_win(a);
-#endif
 	/* Skip leading '/'. */
 	if (*src == '/')
 		separator = *src++;
@@ -1965,74 +1868,6 @@ set_ownership(struct archive_write_disk *a)
 	return (ARCHIVE_WARN);
 }
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
-
-static int
-set_times(struct archive_write_disk *a,
-    int fd, int mode, const char *name,
-    time_t atime, long atime_nanos,
-    time_t birthtime, long birthtime_nanos,
-    time_t mtime, long mtime_nanos,
-    time_t ctime, long ctime_nanos)
-{
-#define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
-#define WINTIME(sec, nsec) ((Int32x32To64(sec, 10000000) + EPOC_TIME)\
-	 + (((nsec)/1000)*10))
-
-	HANDLE h, hw;
-	ULARGE_INTEGER wintm;
-	wchar_t *ws;
-	FILETIME *pfbtime;
-	FILETIME fatime, fbtime, fmtime;
-
-	if (fd >= 0) {
-		h = (HANDLE)_get_osfhandle(fd);
-		hw = NULL;
-		ws = NULL;
-	} else {
-		if (S_ISLNK(mode))
-			return (ARCHIVE_OK);
-		ws = __la_win_permissive_name(name);
-		if (ws == NULL)
-			goto settimes_failed;
-		hw = CreateFileW(ws, FILE_WRITE_ATTRIBUTES,
-		    0, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
-		if (hw == INVALID_HANDLE_VALUE)
-			goto settimes_failed;
-		h = hw;
-	}
-
-	wintm.QuadPart = WINTIME(atime, atime_nanos);
-	fatime.dwLowDateTime = wintm.LowPart;
-	fatime.dwHighDateTime = wintm.HighPart;
-	wintm.QuadPart = WINTIME(mtime, mtime_nanos);
-	fmtime.dwLowDateTime = wintm.LowPart;
-	fmtime.dwHighDateTime = wintm.HighPart;
-	/*
-	 * SetFileTime() supports birthtime.
-	 */
-	if (birthtime > 0 || birthtime_nanos > 0) {
-		wintm.QuadPart = WINTIME(birthtime, birthtime_nanos);
-		fbtime.dwLowDateTime = wintm.LowPart;
-		fbtime.dwHighDateTime = wintm.HighPart;
-		pfbtime = &fbtime;
-	} else
-		pfbtime = NULL;
-	if (SetFileTime(h, pfbtime, &fatime, &fmtime) == 0)
-		goto settimes_failed;
-	free(ws);
-	CloseHandle(hw);
-	return (ARCHIVE_OK);
-
-settimes_failed:
-	free(ws);
-	CloseHandle(hw);
-	archive_set_error(&a->archive, EINVAL, "Can't restore time");
-	return (ARCHIVE_WARN);
-}
-
-#else /* defined(_WIN32) && !defined(__CYGWIN__) */
-
 /*
  * Note: Returns 0 on success, non-zero on failure.
  */
@@ -2184,8 +2019,6 @@ set_times(struct archive_write_disk *a,
 	return (ARCHIVE_OK);
 }
 
-#endif /* defined(_WIN32) && !defined(__CYGWIN__) */
-
 static int
 set_times_from_entry(struct archive_write_disk *a)
 {
@@ -2245,7 +2078,6 @@ set_mode(struct archive_write_disk *a, int mode)
 			return (r);
 		if (a->pst->st_gid != a->gid) {
 			mode &= ~ S_ISGID;
-#if !defined(_WIN32) || defined(__CYGWIN__)
 			if (a->flags & ARCHIVE_EXTRACT_OWNER) {
 				/*
 				 * This is only an error if you
@@ -2258,19 +2090,16 @@ set_mode(struct archive_write_disk *a, int mode)
 				    "Can't restore SGID bit");
 				r = ARCHIVE_WARN;
 			}
-#endif
 		}
 		/* While we're here, double-check the UID. */
 		if (a->pst->st_uid != a->uid
 		    && (a->todo & TODO_SUID)) {
 			mode &= ~ S_ISUID;
-#if !defined(_WIN32) || defined(__CYGWIN__)
 			if (a->flags & ARCHIVE_EXTRACT_OWNER) {
 				archive_set_error(&a->archive, -1,
 				    "Can't restore SUID bit");
 				r = ARCHIVE_WARN;
 			}
-#endif
 		}
 		a->todo &= ~TODO_SGID_CHECK;
 		a->todo &= ~TODO_SUID_CHECK;
@@ -2282,13 +2111,11 @@ set_mode(struct archive_write_disk *a, int mode)
 		 */
 		if (a->user_uid != a->uid) {
 			mode &= ~ S_ISUID;
-#if !defined(_WIN32) || defined(__CYGWIN__)
 			if (a->flags & ARCHIVE_EXTRACT_OWNER) {
 				archive_set_error(&a->archive, -1,
 				    "Can't make file SUID");
 				r = ARCHIVE_WARN;
 			}
-#endif
 		}
 		a->todo &= ~TODO_SUID_CHECK;
 	}
