@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2003-2009 Tim Kientzle
- * Copyright (c) 2010,2011 Michihiro NAKAJIMA
+ * Copyright (c) 2010-2011 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1923,10 +1923,4 @@ exit_setup_sparse:
 	return (exit_sts);
 }
 
-#else
-/* Suppress the 'no symbols in this file' warning on some compilers by
- * defining a useless function on non-Windows systems.
- */
-void __archive_read_disk_windows_useless_function(void) {
-}
 #endif

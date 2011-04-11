@@ -112,7 +112,6 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_read_disk_posix.c			\
 	libarchive/archive_read_disk_private.h			\
 	libarchive/archive_read_disk_set_standard_lookup.c	\
-	libarchive/archive_read_disk_windows.c			\
 	libarchive/archive_read_extract.c			\
 	libarchive/archive_read_open_fd.c			\
 	libarchive/archive_read_open_file.c			\
@@ -182,6 +181,7 @@ libarchive_la_SOURCES=						\
 if INC_WINDOWS_FILES
 libarchive_la_SOURCES+=						\
 	libarchive/archive_entry_copy_bhfi.c			\
+	libarchive/archive_read_disk_windows.c			\
 	libarchive/archive_windows.h				\
 	libarchive/archive_windows.c				\
 	libarchive/filter_fork_windows.c
