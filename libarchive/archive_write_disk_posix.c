@@ -25,7 +25,9 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD: head/lib/libarchive/archive_write_disk.c 201159 2009-12-29 05:35:40Z kientzle $");
+__FBSDID("$FreeBSD$");
+
+#if !defined(_WIN32) || defined(__CYGWIN__)
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -2934,3 +2936,6 @@ older(struct stat *st, struct archive_entry *entry)
 	/* Same age or newer, so not older. */
 	return (0);
 }
+
+#endif /* !_WIN32 || __CYGWIN__ */
+

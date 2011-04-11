@@ -146,7 +146,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_util.c				\
 	libarchive/archive_virtual.c				\
 	libarchive/archive_write.c				\
-	libarchive/archive_write_disk.c				\
+	libarchive/archive_write_disk_posix.c			\
 	libarchive/archive_write_disk_private.h			\
 	libarchive/archive_write_disk_set_standard_lookup.c	\
 	libarchive/archive_write_open_fd.c			\
@@ -184,6 +184,7 @@ libarchive_la_SOURCES+=						\
 	libarchive/archive_read_disk_windows.c			\
 	libarchive/archive_windows.h				\
 	libarchive/archive_windows.c				\
+	libarchive/archive_write_disk_windows.c			\
 	libarchive/filter_fork_windows.c
 endif
 

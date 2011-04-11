@@ -72,7 +72,7 @@ SET(libarchive_SOURCES
   archive_util.c
   archive_virtual.c
   archive_write.c
-  archive_write_disk.c
+  archive_write_disk_posix.c
   archive_write_disk_private.h
   archive_write_disk_set_standard_lookup.c
   archive_write_private.h
@@ -133,6 +133,7 @@ IF(WIN32 AND NOT CYGWIN)
   LIST(APPEND libarchive_SOURCES archive_read_disk_windows.c)
   LIST(APPEND libarchive_SOURCES archive_windows.c)
   LIST(APPEND libarchive_SOURCES archive_windows.h)
+  LIST(APPEND libarchive_SOURCES archive_write_disk_windows.c)
   LIST(APPEND libarchive_SOURCES filter_fork_windows.c)
 ENDIF(WIN32 AND NOT CYGWIN)
 
