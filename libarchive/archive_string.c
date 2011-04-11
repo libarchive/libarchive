@@ -516,13 +516,14 @@ archive_string_append_from_wcs_to_mbs(struct archive *a,
 
 		dest = as->s + as->length;
 		wpp = wp;
-		r = wcsnrtombs(dest, &wp, nwc, as->buffer_length -1,
+		r = wcsnrtombs(dest, &wp, nwc,
+		    as->buffer_length - as->length -1,
 		    &shift_state);
 		if (r == (size_t)-1)
 			return (-1);
 		as->length += r;
 		if (wp == NULL || (wp - wpp) >= nwc) {
-			/* All WCS translated to MBS. */
+			/* All wide characters are translated to MBS. */
 			as->s[as->length] = '\0';
 			return (0);
 		}
@@ -550,7 +551,7 @@ archive_string_append_from_wcs_to_mbs(struct archive *a,
 	 * it's thread-safe. */
 	int n;
 	char *p;
-	char buff[256];
+	char *end;
 #if HAVE_WCRTOMB
 	mbstate_t shift_state;
 
@@ -559,18 +560,25 @@ archive_string_append_from_wcs_to_mbs(struct archive *a,
 	/* Clear the shift state before starting. */
 	wctomb(NULL, L'\0');
 #endif
-
 	/*
-	 * Convert one wide char at a time into 'buff', whenever that
-	 * fills, append it to the string.
+	 * Allocate buffer for MBS.
+	 * We need this allocation here since it is possible that
+	 * as->s is still NULL.
 	 */
-	p = buff;
-	while (*w != L'\0') {
-		/* Flush the buffer when we have <=16 bytes free. */
-		/* (No encoding has a single character >16 bytes.) */
-		if ((size_t)(p - buff) >= (size_t)(sizeof(buff) - MB_CUR_MAX)) {
-			archive_string_append(as, buff, p - buff);
-			p = buff;
+	if (archive_string_ensure(as, as->length + len + 1) == NULL)
+		__archive_errx(1, "Out of memory");
+
+	p = as->s + as->length;
+	end = as->s + as->buffer_length - MB_CUR_MAX -1;
+	while (*w != L'\0' && len > 0) {
+		if (p >= end) {
+			as->length = p - as->s;
+			/* Re-allocate buffer for MBS. */
+			if (archive_string_ensure(as,
+			    as->length + len * 2 + 1) == NULL)
+				__archive_errx(1, "Out of memory");
+			p = as->s + as->length;
+			end = as->s + as->buffer_length - MB_CUR_MAX -1;
 		}
 #if HAVE_WCRTOMB
 		n = wcrtomb(p, *w++, &shift_state);
@@ -580,8 +588,10 @@ archive_string_append_from_wcs_to_mbs(struct archive *a,
 		if (n == -1)
 			return (-1);
 		p += n;
+		len--;
 	}
-	archive_string_append(as, buff, p - buff);
+	as->length = p - as->s;
+	as->s[as->length] = '\0';
 	return (0);
 }
 
