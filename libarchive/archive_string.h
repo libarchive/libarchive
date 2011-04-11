@@ -84,7 +84,7 @@ archive_wstrappend_wchar(struct archive_wstring *, wchar_t);
 /* Convert a Unicode string to current locale and append the result. */
 /* Returns -1 if conversion fails. */
 int
-archive_string_append_from_wcs_to_mbs(struct archive *, struct archive_string *, const wchar_t *, size_t);
+archive_string_append_from_wcs_to_mbs(struct archive_string *, const wchar_t *, size_t);
 
 
 /* Create a string conversion object.
@@ -188,8 +188,8 @@ void	archive_string_sprintf(struct archive_string *, const char *, ...)
 
 /* Translates from MBS to Unicode. */
 /* Returns non-zero if conversion failed in any way. */
-int archive_wstring_append_from_mbs(struct archive *,
-    struct archive_wstring *dest, const char *, size_t);
+int archive_wstring_append_from_mbs(struct archive_wstring *dest,
+    const char *, size_t);
 
 
 /* A "multistring" can hold Unicode, UTF8, or MBS versions of

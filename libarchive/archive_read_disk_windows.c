@@ -738,8 +738,7 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	// TODO: create and use archive_entry_copy_sourcepath_w
 	wp = tree_current_access_path(t);
 	archive_string_empty(&(t->temp));
-	archive_string_append_from_wcs_to_mbs(&(a->archive),
-	    &(t->temp), wp, wcslen(wp));
+	archive_string_append_from_wcs_to_mbs(&(t->temp), wp, wcslen(wp));
 	archive_entry_copy_sourcepath(entry, t->temp.s);
 	tree_archive_entry_copy_bhfi(entry, t, st);
 
@@ -1218,8 +1217,7 @@ tree_reopen(struct tree *t, const char *path, int restore_time)
 
 	/* Get wchar_t strings from char strings. */
 	archive_string_init(&ws);
-	if (archive_wstring_append_from_mbs(NULL, &ws,
-	    path, strlen(path)) != 0)
+	if (archive_wstring_append_from_mbs(&ws, path, strlen(path)) != 0)
 		goto failed;
 	pathname = ws.s;
 	/* Get a full-path-name. */

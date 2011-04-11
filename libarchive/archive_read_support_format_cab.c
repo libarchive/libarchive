@@ -556,7 +556,7 @@ cab_read_ahead_remaining(struct archive_read *a, size_t min, ssize_t *avail)
 
 /* Convert a path separator '\' -> '/' */
 static void
-cab_convert_path_separator(struct archive_read *a, struct cab *cab,
+cab_convert_path_separator(struct cab *cab,
     struct archive_string *fn, unsigned char attr)
 {
 	size_t i;
@@ -584,7 +584,7 @@ cab_convert_path_separator(struct archive_read *a, struct cab *cab,
 
 	/* If a conversion to wide character failed, force the replacement. */
 	archive_string_empty(&(cab->ws));
-	if (archive_wstring_append_from_mbs(&a->archive, &(cab->ws),
+	if (archive_wstring_append_from_mbs(&(cab->ws),
 	    fn->s, fn->length) != 0) {
 		for (i = 0; i < archive_strlen(fn); i++) {
 			if (fn->s[i] == '\\')
@@ -598,7 +598,7 @@ cab_convert_path_separator(struct archive_read *a, struct cab *cab,
 			cab->ws.s[i] = L'/';
 	}
 	archive_string_empty(&(cab->mbs));
-	archive_string_append_from_wcs_to_mbs(&a->archive, &(cab->mbs),
+	archive_string_append_from_wcs_to_mbs(&(cab->mbs),
 	    cab->ws.s, cab->ws.length);
 	/*
 	 * Sanity check that we surely did not break a filename.
@@ -818,7 +818,7 @@ cab_read_header(struct archive_read *a)
 		__archive_read_consume(a, len + 1);
 		cab->cab_offset += len + 1;
 		/* Convert a path separator '\' -> '/' */
-		cab_convert_path_separator(a, cab, &(file->pathname), file->attr);
+		cab_convert_path_separator(cab, &(file->pathname), file->attr);
 
 		/*
 		 * Sanity check if each data is acceptable.

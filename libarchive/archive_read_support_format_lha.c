@@ -250,8 +250,7 @@ static int	archive_read_format_lha_read_data(struct archive_read *,
 static int	archive_read_format_lha_read_data_skip(struct archive_read *);
 static int	archive_read_format_lha_cleanup(struct archive_read *);
 
-static void	lha_replace_path_separator(struct archive_read *, struct lha *,
-		    struct archive_string *);
+static void	lha_replace_path_separator(struct lha *, struct archive_string *);
 static int	lha_read_file_header_0(struct archive_read *, struct lha *);
 static int	lha_read_file_header_1(struct archive_read *, struct lha *);
 static int	lha_read_file_header_2(struct archive_read *, struct lha *);
@@ -625,7 +624,7 @@ archive_read_format_lha_read_header(struct archive_read *a,
 	 * DOS/Windows. So we should convert it to '/'.
 	 */
 	if (p[H_LEVEL_OFFSET] == 0)
-		lha_replace_path_separator(a, lha, &pathname);
+		lha_replace_path_separator(lha, &pathname);
 
 	if ((lha->mode & AE_IFMT) == AE_IFLNK) {
 		/*
@@ -713,8 +712,7 @@ archive_read_format_lha_read_header(struct archive_read *a,
  * Some multi-byte character set have  a character '\' in its second byte.
  */
 static void
-lha_replace_path_separator(struct archive_read *a, struct lha *lha,
-    struct archive_string *fn)
+lha_replace_path_separator(struct lha *lha, struct archive_string *fn)
 {
 	size_t i;
 	int mb;
@@ -741,7 +739,7 @@ lha_replace_path_separator(struct archive_read *a, struct lha *lha,
 
 	/* If a conversion to wide character failed, force the replacement. */
 	archive_string_empty(&(lha->ws));
-	if (archive_wstring_append_from_mbs(&a->archive, &(lha->ws),
+	if (archive_wstring_append_from_mbs(&(lha->ws),
 	    fn->s, fn->length) != 0) {
 		for (i = 0; i < archive_strlen(fn); i++) {
 			if (fn->s[i] == '\\')
@@ -755,7 +753,7 @@ lha_replace_path_separator(struct archive_read *a, struct lha *lha,
 			lha->ws.s[i] = L'/';
 	}
 	archive_string_empty(&(lha->mbs));
-	archive_string_append_from_wcs_to_mbs(&a->archive, &(lha->mbs),
+	archive_string_append_from_wcs_to_mbs(&(lha->mbs),
 	    lha->ws.s, lha->ws.length);
 	/*
 	 * Sanity check that we surely did not break a filename.

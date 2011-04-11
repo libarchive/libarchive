@@ -322,8 +322,8 @@ default_iconv_charset(const char *charset) {
  * Note: returns -1 if conversion fails.
  */
 int
-archive_wstring_append_from_mbs(struct archive *a,
-    struct archive_wstring *dest, const char *p, size_t len)
+archive_wstring_append_from_mbs(struct archive_wstring *dest,
+    const char *p, size_t len)
 {
 	size_t r;
 	unsigned cp;
@@ -365,8 +365,8 @@ archive_wstring_append_from_mbs(struct archive *a,
  * Note: returns -1 if conversion fails.
  */
 int
-archive_wstring_append_from_mbs(struct archive *a,
-    struct archive_wstring *dest, const char *p, size_t len)
+archive_wstring_append_from_mbs(struct archive_wstring *dest,
+    const char *p, size_t len)
 {
 	size_t r;
 	/*
@@ -437,16 +437,13 @@ archive_wstring_append_from_mbs(struct archive *a,
  * wrapper is going to know.)
  */
 int
-archive_string_append_from_wcs_to_mbs(struct archive *a,
-    struct archive_string *as, const wchar_t *w, size_t len)
+archive_string_append_from_wcs_to_mbs(struct archive_string *as,
+    const wchar_t *w, size_t len)
 {
 	char *p;
 	int l;
 	unsigned cp;
 	BOOL useDefaultChar = FALSE;
-
-	/* TODO: XXX use codepage preference from a XXX */
-	(void)a; /* UNUSED */
 
 	cp = get_current_codepage();
 	if (cp == CP_C_LOCALE) {
@@ -496,8 +493,8 @@ archive_string_append_from_wcs_to_mbs(struct archive *a,
  * fails.
  */
 int
-archive_string_append_from_wcs_to_mbs(struct archive *a,
-    struct archive_string *as, const wchar_t *w, size_t len)
+archive_string_append_from_wcs_to_mbs(struct archive_string *as,
+    const wchar_t *w, size_t len)
 {
 	mbstate_t shift_state;
 	size_t r, ndest, nwc;
@@ -540,8 +537,8 @@ archive_string_append_from_wcs_to_mbs(struct archive *a,
  * fails.
  */
 int
-archive_string_append_from_wcs_to_mbs(struct archive *a,
-    struct archive_string *as, const wchar_t *w, size_t len)
+archive_string_append_from_wcs_to_mbs(struct archive_string *as,
+    const wchar_t *w, size_t len)
 {
 	/* We cannot use the standard wcstombs() here because it
 	 * cannot tell us how big the output buffer should be.  So
@@ -604,9 +601,12 @@ archive_string_append_from_wcs_to_mbs(struct archive *a,
  * either of these, fall back to the built-in UTF8 conversion.
  */
 int
-archive_string_append_from_wcs_to_mbs(struct archive *a,
-    struct archive_string *as, const wchar_t *w, size_t len)
+archive_string_append_from_wcs_to_mbs(struct archive_string *as,
+    const wchar_t *w, size_t len)
 {
+	(void)as;/* UNUSED */
+	(void)w;/* UNUSED */
+	(void)len;/* UNUSED */
 	return (-1);
 }
 
@@ -2152,7 +2152,7 @@ archive_mstring_get_mbs(struct archive *a, struct archive_mstring *aes)
 		return (aes->aes_mbs.s);
 	/* If there's a WCS form, try converting with the native locale. */
 	if ((aes->aes_set & AES_SET_WCS)
-	    && archive_string_append_from_wcs_to_mbs(a, &(aes->aes_mbs),
+	    && archive_string_append_from_wcs_to_mbs(&(aes->aes_mbs),
 			aes->aes_wcs.s, aes->aes_wcs.length) == 0) {
 		aes->aes_set |= AES_SET_MBS;
 		return (aes->aes_mbs.s);
@@ -2177,12 +2177,13 @@ archive_mstring_get_mbs(struct archive *a, struct archive_mstring *aes)
 const wchar_t *
 archive_mstring_get_wcs(struct archive *a, struct archive_mstring *aes)
 {
+	(void)a;/* UNUSED */
 	/* Return WCS form if we already have it. */
 	if (aes->aes_set & AES_SET_WCS)
 		return (aes->aes_wcs.s);
 	/* Try converting MBS to WCS using native locale. */
 	if ((aes->aes_set & AES_SET_MBS)
-	    && 0 == archive_wstring_append_from_mbs(a, &(aes->aes_wcs),
+	    && 0 == archive_wstring_append_from_mbs(&(aes->aes_wcs),
 			aes->aes_mbs.s, aes->aes_mbs.length)) {
 		aes->aes_set |= AES_SET_WCS;
 		return (aes->aes_wcs.s);
@@ -2279,7 +2280,7 @@ archive_mstring_update_utf8(struct archive *a, struct archive_mstring *aes,
 	aes->aes_set = AES_SET_UTF8 | AES_SET_MBS; /* Both UTF8 and MBS set. */
 
 	/* Try converting MBS to WCS, return false on failure. */
-	if (archive_wstring_append_from_mbs(a, &(aes->aes_wcs), aes->aes_mbs.s,
+	if (archive_wstring_append_from_mbs(&(aes->aes_wcs), aes->aes_mbs.s,
 	    aes->aes_utf8.length))
 		return (0);
 	aes->aes_set = AES_SET_UTF8 | AES_SET_WCS | AES_SET_MBS;

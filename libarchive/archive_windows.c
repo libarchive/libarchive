@@ -1152,7 +1152,7 @@ __archive_mktemp(const char *tmpdir)
 		archive_wstrcpy(&temp_name, tmp);
 		free(tmp);
 	} else {
-		archive_wstring_append_from_mbs(NULL, &temp_name, tmpdir,
+		archive_wstring_append_from_mbs(&temp_name, tmpdir,
 		    strlen(tmpdir));
 		if (temp_name.s[temp_name.length-1] != L'/')
 			archive_wstrappend_wchar(&temp_name, L'/');
