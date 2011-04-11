@@ -524,6 +524,12 @@ archive_entry_sourcepath(struct archive_entry *entry)
 	return (archive_mstring_get_mbs(entry->archive, &entry->ae_sourcepath));
 }
 
+const wchar_t *
+archive_entry_sourcepath_w(struct archive_entry *entry)
+{
+	return (archive_mstring_get_wcs(entry->archive, &entry->ae_sourcepath));
+}
+
 const char *
 archive_entry_symlink(struct archive_entry *entry)
 {
@@ -902,6 +908,12 @@ void
 archive_entry_copy_sourcepath(struct archive_entry *entry, const char *path)
 {
 	archive_mstring_copy_mbs(&entry->ae_sourcepath, path);
+}
+
+void
+archive_entry_copy_sourcepath_w(struct archive_entry *entry, const wchar_t *path)
+{
+	archive_mstring_copy_wcs(&entry->ae_sourcepath, path);
 }
 
 void

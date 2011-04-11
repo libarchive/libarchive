@@ -177,7 +177,6 @@ struct tree {
 	size_t			 full_path_dir_length;
 	/* Dynamically-sized buffer for holding path */
 	struct archive_wstring	 path;
-	struct archive_string	 temp;
 
 	/* Last path element */
 	const wchar_t		*basename;
@@ -650,7 +649,6 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	struct tree *t;
 	const BY_HANDLE_FILE_INFORMATION *st;
 	const BY_HANDLE_FILE_INFORMATION *lst;
-	const wchar_t *wp;
 	const char*name;
 	int descend, r;
 
@@ -735,11 +733,7 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	t->descend = descend;
 
 	archive_entry_copy_pathname_w(entry, tree_current_path(t));
-	// TODO: create and use archive_entry_copy_sourcepath_w
-	wp = tree_current_access_path(t);
-	archive_string_empty(&(t->temp));
-	archive_string_append_from_wcs(&(t->temp), wp, wcslen(wp));
-	archive_entry_copy_sourcepath(entry, t->temp.s);
+	archive_entry_copy_sourcepath_w(entry, tree_current_access_path(t));
 	tree_archive_entry_copy_bhfi(entry, t, st);
 
 	/* Save the times to be restored. */
@@ -1191,7 +1185,6 @@ tree_open(const char *path, int symlink_mode, int restore_time)
 	archive_string_init(&(t->full_path));
 	archive_string_init(&t->path);
 	archive_wstring_ensure(&t->path, 15);
-	archive_string_init(&t->temp);
 	t->initial_symlink_mode = symlink_mode;
 	return (tree_reopen(t, path, restore_time));
 }
@@ -1684,7 +1677,6 @@ tree_free(struct tree *t)
 		return;
 	archive_wstring_free(&t->path);
 	archive_wstring_free(&t->full_path);
-	archive_string_free(&t->temp);
 	free(t->sparse_list);
 	free(t->filesystem_table);
 	free(t);
@@ -1700,6 +1692,7 @@ archive_read_disk_entry_from_file(struct archive *_a,
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
 	const wchar_t *path;
+	const wchar_t *wname;
 	const char *name;
 	HANDLE h;
 	BY_HANDLE_FILE_INFORMATION bhfi;
@@ -1707,10 +1700,15 @@ archive_read_disk_entry_from_file(struct archive *_a,
 	int r;
 
 	archive_clear_error(_a);
-	name = archive_entry_sourcepath(entry);
-	if (name == NULL)
-		name = archive_entry_pathname(entry);
-	path = __la_win_permissive_name(name);
+	wname = archive_entry_sourcepath_w(entry);
+	if (wname == NULL)
+		wname = archive_entry_pathname_w(entry);
+	if (wname == NULL) {
+		archive_set_error(&a->archive, EINVAL,
+		    "Can't get a wide character version of the path");
+		return (ARCHIVE_FAILED);
+	}
+	path = __la_win_permissive_name_w(wname);
 
 	if (st == NULL) {
 		/*
