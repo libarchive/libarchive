@@ -598,7 +598,7 @@ cab_convert_path_separator(struct cab *cab,
 			cab->ws.s[i] = L'/';
 	}
 	archive_string_empty(&(cab->mbs));
-	archive_string_append_from_wcs_to_mbs(&(cab->mbs),
+	archive_string_append_from_wcs(&(cab->mbs),
 	    cab->ws.s, cab->ws.length);
 	/*
 	 * Sanity check that we surely did not break a filename.

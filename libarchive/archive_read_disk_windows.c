@@ -738,7 +738,7 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	// TODO: create and use archive_entry_copy_sourcepath_w
 	wp = tree_current_access_path(t);
 	archive_string_empty(&(t->temp));
-	archive_string_append_from_wcs_to_mbs(&(t->temp), wp, wcslen(wp));
+	archive_string_append_from_wcs(&(t->temp), wp, wcslen(wp));
 	archive_entry_copy_sourcepath(entry, t->temp.s);
 	tree_archive_entry_copy_bhfi(entry, t, st);
 

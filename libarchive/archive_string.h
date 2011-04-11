@@ -84,7 +84,7 @@ archive_wstrappend_wchar(struct archive_wstring *, wchar_t);
 /* Convert a Unicode string to current locale and append the result. */
 /* Returns -1 if conversion fails. */
 int
-archive_string_append_from_wcs_to_mbs(struct archive_string *, const wchar_t *, size_t);
+archive_string_append_from_wcs(struct archive_string *, const wchar_t *, size_t);
 
 
 /* Create a string conversion object.
