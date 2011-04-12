@@ -615,8 +615,15 @@ archive_read_format_lha_read_header(struct archive_read *a,
 	 */
 	archive_string_concat(&lha->dirname, &lha->filename);
 	archive_string_init(&pathname);
-	archive_strncpy_in_locale(&pathname, lha->dirname.s,
-	    lha->dirname.length, lha->sconv);
+	if (archive_strncpy_in_locale(&pathname, lha->dirname.s,
+		lha->dirname.length, lha->sconv) != 0) {
+		archive_set_error(&a->archive,
+		    ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Pathname cannot be converted "
+		    "from %s to current locale.",
+		    archive_string_conversion_charset_name(lha->sconv));
+		err = ARCHIVE_WARN;
+	}
 
 	/*
 	 * When a header level is 0, there is a possibilty that

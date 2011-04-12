@@ -238,6 +238,7 @@ struct cffile {
 #define ATTR_RDONLY		0x01
 #define ATTR_NAME_IS_UTF	0x80
 	struct archive_string 	 pathname;
+	struct archive_string_conv *pathname_conversion_failed;
 };
 
 struct cfheader {
@@ -803,6 +804,8 @@ cab_read_header(struct archive_read *a)
 		if ((len = cab_strnlen(p, avail-1)) <= 0)
 			goto invalid;
 		archive_string_init(&(file->pathname));
+		/* If a pathname is UTF-8, prepare a string conversion object
+		 * for UTF-8 and use it. */
 		if (file->attr & ATTR_NAME_IS_UTF) {
 			if (cab->sconv_utf8 == NULL) {
 				cab->sconv_utf8 =
@@ -814,7 +817,10 @@ cab_read_header(struct archive_read *a)
 			sconv = cab->sconv_utf8;
 		} else
 			sconv = cab->sconv;
-		archive_strncpy_in_locale(&(file->pathname), p, len, sconv);
+		/* Copy and translate a pathname.
+		 * if the conversion fail, we report it when return this entry. */
+		if (archive_strncpy_in_locale(&(file->pathname), p, len, sconv) != 0)
+			file->pathname_conversion_failed = sconv;
 		__archive_read_consume(a, len + 1);
 		cab->cab_offset += len + 1;
 		/* Convert a path separator '\' -> '/' */
@@ -946,6 +952,15 @@ archive_read_format_cab_read_header(struct archive_read *a,
 	 * Set a default value and common data
 	 */
 	archive_entry_set_pathname(entry, file->pathname.s);
+	if (file->pathname_conversion_failed) {
+		archive_set_error(&a->archive,
+		    ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Pathname cannot be converted "
+		    "from %s to current locale.",
+		    archive_string_conversion_charset_name(
+		      file->pathname_conversion_failed));
+		err = ARCHIVE_WARN;
+	}
 
 	archive_entry_set_size(entry, file->uncompressed_size);
 	if (file->attr & ATTR_RDONLY)
