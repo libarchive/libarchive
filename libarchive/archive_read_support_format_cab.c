@@ -291,7 +291,9 @@ struct cab {
 	unsigned char		*uncompressed_buffer;
 	size_t			 uncompressed_buffer_size;
 
+	int			 init_default_conversion;
 	struct archive_string_conv *sconv;
+	struct archive_string_conv *sconv_default;
 	struct archive_string_conv *sconv_utf8;
 	char			 format_name[64];
 
@@ -815,8 +817,19 @@ cab_read_header(struct archive_read *a)
 					return (ARCHIVE_FATAL);
 			}
 			sconv = cab->sconv_utf8;
-		} else
+		} else if (cab->sconv != NULL) {
+			/* Choose the conversion specified by the option. */
 			sconv = cab->sconv;
+		} else {
+			/* Choose the default conversion. */
+			if (!cab->init_default_conversion) {
+				cab->sconv_default =
+				    archive_string_default_conversion_for_read(
+				      &(a->archive));
+				cab->init_default_conversion = 1;
+			}
+			sconv = cab->sconv_default;
+		}
 		/* Copy and translate a pathname.
 		 * if the conversion fail, we report it when return this entry. */
 		if (archive_strncpy_in_locale(&(file->pathname), p, len, sconv) != 0)
