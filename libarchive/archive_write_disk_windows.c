@@ -165,7 +165,7 @@ struct archive_write_disk {
 	/* Options requested by the client. */
 	int			 flags;
 	/* Handle for the file we're restoring. */
-	int			 fd;
+	HANDLE		 fh;
 	/* Current offset for writing data to the file. */
 	int64_t			 offset;
 	/* Last offset actually written to disk. */
@@ -213,12 +213,12 @@ static int	restore_entry(struct archive_write_disk *);
 static int	set_acl(struct archive_write_disk *, int fd, const char *, struct archive_acl *,
 		    acl_type_t, int archive_entry_acl_type, const char *tn);
 #endif
-static int	set_acls(struct archive_write_disk *, int fd, const wchar_t *, struct archive_acl *);
+static int	set_acls(struct archive_write_disk *, HANDLE h, const wchar_t *, struct archive_acl *);
 static int	set_xattrs(struct archive_write_disk *);
 static int	set_fflags(struct archive_write_disk *);
 static int	set_ownership(struct archive_write_disk *);
 static int	set_mode(struct archive_write_disk *, int mode);
-static int	set_times(struct archive_write_disk *, int, int, const wchar_t *,
+static int	set_times(struct archive_write_disk *, HANDLE, int, const wchar_t *,
 		    time_t, long, time_t, long, time_t, long, time_t, long);
 static int	set_times_from_entry(struct archive_write_disk *);
 static struct fixup_entry *sort_dir_list(struct fixup_entry *p);
@@ -379,16 +379,10 @@ la_CreateHardLinkW(wchar_t *linkname, wchar_t *target)
 }
 
 static int
-la_ftruncate(int fd, int64_t length)
+la_ftruncate(HANDLE handle, int64_t length)
 {
 	LARGE_INTEGER distance;
-	HANDLE handle;
 
-	if (fd < 0) {
-		errno = EBADF;
-		return (-1);
-	}
-	handle = (HANDLE)_get_osfhandle(fd);
 	if (GetFileType(handle) != FILE_TYPE_DISK) {
 		errno = EBADF;
 		return (-1);
@@ -412,9 +406,8 @@ lazy_stat(struct archive_write_disk *a)
 		/* Already have stat() data available. */
 		return (ARCHIVE_OK);
 	}
-	if (a->fd >= 0 &&
-	    GetFileInformationByHandle(
-	      (HANDLE)_get_osfhandle(a->fd), &a->st) == 0) {
+	if (a->fh != INVALID_HANDLE_VALUE &&
+	    GetFileInformationByHandle(a->fh, &a->st) == 0) {
 		a->pst = &a->st;
 		return (ARCHIVE_OK);
 	}
@@ -512,7 +505,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		a->entry = NULL;
 	}
 	a->entry = archive_entry_clone(entry);
-	a->fd = -1;
+	a->fh = INVALID_HANDLE_VALUE;
 	a->fd_offset = 0;
 	a->offset = 0;
 	a->restore_pwd = -1;
@@ -710,7 +703,8 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	/*
 	 * On Windows, A creating sparse file requires a special mark.
 	 */
-	if (a->fd >= 0 && archive_entry_sparse_count(entry) > 0) {
+	if (a->fh != INVALID_HANDLE_VALUE &&
+	    archive_entry_sparse_count(entry) > 0) {
 		int64_t base = 0, offset, length;
 		int i, cnt = archive_entry_sparse_reset(entry);
 		int sparse = 0;
@@ -724,10 +718,9 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 			base = offset + length;
 		}
 		if (sparse) {
-			HANDLE h = (HANDLE)_get_osfhandle(a->fd);
 			DWORD dmy;
 			/* Mark this file as sparse. */
-			DeviceIoControl(h, FSCTL_SET_SPARSE,
+			DeviceIoControl(a->fh, FSCTL_SET_SPARSE,
 			    NULL, 0, NULL, 0, &dmy, NULL);
 		}
 	}
@@ -739,7 +732,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	 * If it's not open, tell our client not to try writing.
 	 * In particular, dirs, links, etc, don't get written to.
 	 */
-	if (a->fd < 0) {
+	if (a->fh == INVALID_HANDLE_VALUE) {
 		archive_entry_set_size(entry, 0);
 		a->filesize = 0;
 	}
@@ -762,13 +755,13 @@ static ssize_t
 write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 {
 	uint64_t start_size = size;
-	ssize_t bytes_written = 0;
+	DWORD bytes_written = 0;
 	ssize_t block_size = 0, bytes_to_write;
 
 	if (size == 0)
 		return (ARCHIVE_OK);
 
-	if (a->filesize == 0 || a->fd < 0) {
+	if (a->filesize == 0 || a->fh == INVALID_HANDLE_VALUE) {
 		archive_set_error(&a->archive, 0,
 		    "Attempt to write to an empty file");
 		return (ARCHIVE_WARN);
@@ -816,15 +809,29 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 		}
 		/* Seek if necessary to the specified offset. */
 		if (a->offset != a->fd_offset) {
-			if (lseek(a->fd, a->offset, SEEK_SET) < 0) {
+			LARGE_INTEGER distance;
+			distance.QuadPart = a->offset;
+			if (SetFilePointerEx(a->fh, distance, NULL, FILE_BEGIN) == 0) {
+				DWORD lasterr = GetLastError();
+				if (lasterr == ERROR_ACCESS_DENIED)
+					errno = EBADF;
+				else
+					la_dosmaperr(lasterr);
 				archive_set_error(&a->archive, errno,
 				    "Seek failed");
 				return (ARCHIVE_FATAL);
 			}
 			a->fd_offset = a->offset;
  		}
-		bytes_written = write(a->fd, buff, bytes_to_write);
-		if (bytes_written < 0) {
+		if (!WriteFile(a->fh, buff, (uint32_t)bytes_to_write,
+		    &bytes_written, NULL)) {
+			DWORD lasterr;
+
+			lasterr = GetLastError();
+			if (lasterr == ERROR_ACCESS_DENIED)
+				errno = EBADF;
+			else
+				la_dosmaperr(lasterr);
 			archive_set_error(&a->archive, errno, "Write failed");
 			return (ARCHIVE_WARN);
 		}
@@ -884,7 +891,7 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	archive_clear_error(&a->archive);
 
 	/* Pad or truncate file to the right size. */
-	if (a->fd < 0) {
+	if (a->fh == INVALID_HANDLE_VALUE) {
 		/* There's no file. */
 	} else if (a->filesize < 0) {
 		/* File size is unknown, so we can't set the size. */
@@ -892,7 +899,7 @@ _archive_write_disk_finish_entry(struct archive *_a)
 		/* Last write ended at exactly the filesize; we're done. */
 		/* Hopefully, this is the common case. */
 	} else {
-		if (la_ftruncate(a->fd, a->filesize) == -1 &&
+		if (la_ftruncate(a->fh, a->filesize) == -1 &&
 		    a->filesize == 0) {
 			archive_set_error(&a->archive, errno,
 			    "File size could not be restored");
@@ -910,12 +917,24 @@ _archive_write_disk_finish_entry(struct archive *_a)
 		 * ftruncate didn't work or isn't available. */
 		if (bhfi_size(&(a->st)) < a->filesize) {
 			const char nul = '\0';
-			if (lseek(a->fd, a->filesize - 1, SEEK_SET) < 0) {
+			LARGE_INTEGER distance;
+			distance.QuadPart = a->filesize - 1;
+			if (!SetFilePointerEx(a->fh, distance, NULL, FILE_BEGIN)) {
+				DWORD lasterr = GetLastError();
+				if (lasterr == ERROR_ACCESS_DENIED)
+					errno = EBADF;
+				else
+					la_dosmaperr(lasterr);
 				archive_set_error(&a->archive, errno,
 				    "Seek failed");
 				return (ARCHIVE_FATAL);
 			}
-			if (write(a->fd, &nul, 1) < 0) {
+			if (!WriteFile(a->fh, &nul, 1, NULL, NULL)) {
+				DWORD lasterr = GetLastError();
+				if (lasterr == ERROR_ACCESS_DENIED)
+					errno = EBADF;
+				else
+					la_dosmaperr(lasterr);
 				archive_set_error(&a->archive, errno,
 				    "Write to restore size failed");
 				return (ARCHIVE_FATAL);
@@ -993,16 +1012,16 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	 * ACLs that prevent attribute changes (including time).
 	 */
 	if (a->todo & TODO_ACLS) {
-		int r2 = set_acls(a, a->fd,
+		int r2 = set_acls(a, a->fh,
 				  archive_entry_pathname_w(a->entry),
 				  archive_entry_acl(a->entry));
 		if (r2 < ret) ret = r2;
 	}
 
 	/* If there's an fd, we can close it now. */
-	if (a->fd >= 0) {
-		close(a->fd);
-		a->fd = -1;
+	if (a->fh != INVALID_HANDLE_VALUE) {
+		CloseHandle(a->fh);
+		a->fh = INVALID_HANDLE_VALUE;
 	}
 	/* If there's an entry, we can release it now. */
 	if (a->entry) {
@@ -1267,8 +1286,6 @@ create_filesystem_object(struct archive_write_disk *a)
 			} else
 				r = 0;
 		}
-		free(linkfull);
-		free(namefull);
 		/*
 		 * New cpio and pax formats allow hardlink entries
 		 * to carry data, so we may have to open the file
@@ -1285,10 +1302,15 @@ create_filesystem_object(struct archive_write_disk *a)
 			a->todo = 0;
 			a->deferred = 0;
 		} if (r == 0 && a->filesize > 0) {
-			a->fd = _wopen(a->name, O_WRONLY | O_TRUNC | O_BINARY);
-			if (a->fd < 0)
+			a->fh = CreateFileW(namefull, GENERIC_WRITE, 0, NULL,
+			    TRUNCATE_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+			if (a->fh == INVALID_HANDLE_VALUE) {
+				la_dosmaperr(GetLastError());
 				r = errno;
+			}
 		}
+		free(linkfull);
+		free(namefull);
 		return (r);
 	}
 	linkname = archive_entry_symlink_w(a->entry);
@@ -1320,20 +1342,35 @@ create_filesystem_object(struct archive_write_disk *a)
 		/* POSIX requires that we fall through here. */
 		/* FALLTHROUGH */
 	case AE_IFREG:
-		a->fd = _wopen(a->name,
-		    O_WRONLY | O_CREAT | O_EXCL | O_BINARY, mode);
-		if (a->fd < 0 && errno == EACCES) {
-			DWORD attr;
-			/* Simulate an errno of POSIX system. */
-			attr = GetFileAttributesW(a->name);
-			if (attr == (DWORD)-1)
-				la_dosmaperr(GetLastError());
-			else if (attr & FILE_ATTRIBUTE_DIRECTORY)
-				errno = EISDIR;
-			else
-				errno = EACCES;
+		{
+		wchar_t *full;
+
+		full = __la_win_permissive_name_w(a->name);
+		if (full == NULL) {
+			errno = EINVAL;
+			break;
 		}
-		r = (a->fd < 0);
+		/* O_WRONLY | O_CREAT | O_EXCL */
+		a->fh = CreateFileW(full, GENERIC_WRITE, 0, NULL,
+		    CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+		free(full);
+		if (a->fh == INVALID_HANDLE_VALUE) {
+			if (GetLastError() == ERROR_ACCESS_DENIED) {
+				DWORD attr;
+				/* Simulate an errno of POSIX system. */
+				attr = GetFileAttributesW(a->name);
+				if (attr == (DWORD)-1)
+					la_dosmaperr(GetLastError());
+				else if (attr & FILE_ATTRIBUTE_DIRECTORY)
+					errno = EISDIR;
+				else
+					errno = EACCES;
+			} else
+				la_dosmaperr(GetLastError());
+			r = 1;
+		} else
+			r = 0;
+		}
 		break;
 	case AE_IFCHR:
 	case AE_IFBLK:
@@ -1416,7 +1453,7 @@ _archive_write_disk_close(struct archive *_a)
 	while (p != NULL) {
 		a->pst = NULL; /* Mark stat cache as out-of-date. */
 		if (p->fixup & TODO_TIMES) {
-			set_times(a, -1, p->mode, p->name,
+			set_times(a, INVALID_HANDLE_VALUE, p->mode, p->name,
 			    p->atime, p->atime_nanos,
 			    p->birthtime, p->birthtime_nanos,
 			    p->mtime, p->mtime_nanos,
@@ -1425,7 +1462,7 @@ _archive_write_disk_close(struct archive *_a)
 		if (p->fixup & TODO_MODE_BASE)
 			la_chmod(p->name, p->mode);
 		if (p->fixup & TODO_ACLS)
-			set_acls(a, -1, p->name, &p->acl);
+			set_acls(a, INVALID_HANDLE_VALUE, p->name, &p->acl);
 		next = p->next;
 		archive_acl_clear(&p->acl);
 		free(p->mac_metadata);
@@ -1914,7 +1951,7 @@ set_ownership(struct archive_write_disk *a)
 
 static int
 set_times(struct archive_write_disk *a,
-    int fd, int mode, const wchar_t *name,
+    HANDLE h, int mode, const wchar_t *name,
     time_t atime, long atime_nanos,
     time_t birthtime, long birthtime_nanos,
     time_t mtime, long mtime_nanos,
@@ -1924,13 +1961,12 @@ set_times(struct archive_write_disk *a,
 #define WINTIME(sec, nsec) ((Int32x32To64(sec, 10000000) + EPOC_TIME)\
 	 + (((nsec)/1000)*10))
 
-	HANDLE h, hw;
+	HANDLE hw;
 	ULARGE_INTEGER wintm;
 	FILETIME *pfbtime;
 	FILETIME fatime, fbtime, fmtime;
 
-	if (fd >= 0) {
-		h = (HANDLE)_get_osfhandle(fd);
+	if (h != INVALID_HANDLE_VALUE) {
 		hw = NULL;
 	} else {
 		wchar_t *ws;
@@ -2008,7 +2044,7 @@ set_times_from_entry(struct archive_write_disk *a)
 		ctime_nsec = archive_entry_ctime_nsec(a->entry);
 	}
 
-	return set_times(a, a->fd, a->mode, a->name,
+	return set_times(a, a->fh, a->mode, a->name,
 			 atime, atime_nsec,
 			 birthtime, birthtime_nsec,
 			 mtime, mtime_nsec,
@@ -2104,11 +2140,11 @@ set_fflags(struct archive_write_disk *a)
 
 /* Default empty function body to satisfy mainline code. */
 static int
-set_acls(struct archive_write_disk *a, int fd, const wchar_t *name,
+set_acls(struct archive_write_disk *a, HANDLE h, const wchar_t *name,
 	 struct archive_acl *acl)
 {
 	(void)a; /* UNUSED */
-	(void)fd; /* UNUSED */
+	(void)h; /* UNUSED */
 	(void)name; /* UNUSED */
 	(void)acl; /* UNUSED */
 	return (ARCHIVE_OK);
