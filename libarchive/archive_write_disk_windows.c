@@ -325,6 +325,135 @@ file_information(struct archive_write_disk *a, wchar_t *path,
 	return (0);
 }
 
+/* 
+ * Note: The path, for example, "aa/a/../b../c" will be converted to "aa/c"
+ * by GetFullPathNameW() W32 API, which __la_win_permissive_name_w uses.
+ * It means we cannot handle multiple dirs in one archive_entry.
+ * So we have to make the full-pathname in another way, which does not
+ * break "../" path string.
+ */
+int
+permissive_name_w(struct archive_write_disk *a)
+{
+	wchar_t *wn, *wnp;
+	wchar_t *ws, *wsp;
+	DWORD l;
+
+	wnp = a->name;
+	if (wnp[0] == L'\\' && wnp[1] == L'\\' &&
+	    wnp[2] == L'?' && wnp[3] == L'\\')
+		/* We have already a permissive name. */
+		return (0);
+
+	if (wnp[0] == L'\\' && wnp[1] == L'\\' &&
+		wnp[2] == L'.' && wnp[3] == L'\\') {
+		/* This is a device name */
+		if (((wnp[4] >= L'a' && wnp[4] <= L'z') ||
+		     (wnp[4] >= L'A' && wnp[4] <= L'Z')) &&
+			 wnp[5] == L':' && wnp[6] == L'\\') {
+			wnp[2] = L'?';/* Not device name. */
+			return (0);
+		}
+	}
+
+	/*
+	 * A full-pathname starting with a drive name like "C:\abc".
+	 */
+	if (((wnp[0] >= L'a' && wnp[0] <= L'z') ||
+	     (wnp[0] >= L'A' && wnp[0] <= L'Z')) &&
+		 wnp[1] == L':' && wnp[2] == L'\\') {
+		wn = _wcsdup(wnp);
+		if (wn == NULL)
+			return (-1);
+		archive_wstring_ensure(&(a->_name_data), 4 + wcslen(wn) + 1);
+		a->name = a->_name_data.s;
+		/* Prepend "\\?\" */
+		archive_wstrncpy(&(a->_name_data), L"\\\\?\\", 4);
+		archive_wstrcat(&(a->_name_data), wn);
+		free(wn);
+		return (0);
+	}
+
+	/*
+	 * A full-pathname pointig a network drive
+	 * like "\\<server-name>\<share-name>\file". 
+	 */
+	if (wnp[0] == L'\\' && wnp[1] == L'\\' && wnp[2] != L'\\') {
+		const wchar_t *p = &wnp[2];
+
+		/* Skip server-name letters. */
+		while (*p != L'\\' && *p != L'\0')
+			++p;
+		if (*p == L'\\') {
+			const wchar_t *rp = ++p;
+			/* Skip share-name letters. */
+			while (*p != L'\\' && *p != L'\0')
+				++p;
+			if (*p == L'\\' && p != rp) {
+				/* Now, match patterns such as
+				 * "\\server-name\share-name\" */
+				wn = _wcsdup(wnp);
+				if (wn == NULL)
+					return (-1);
+				archive_wstring_ensure(&(a->_name_data), 8 + wcslen(wn) + 1);
+				a->name = a->_name_data.s;
+				/* Prepend "\\?\UNC\" */
+				archive_wstrncpy(&(a->_name_data), L"\\\\?\\UNC\\", 8);
+				archive_wstrcat(&(a->_name_data), wn+2);
+				free(wn);
+				return (0);
+			}
+		}
+		return (0);
+	}
+
+	/*
+	 * Get current working directory.
+	 */
+	l = GetCurrentDirectoryW(0, NULL);
+	if (l == 0)
+		return (-1);
+	ws = malloc(l * sizeof(wchar_t));
+	l = GetCurrentDirectoryW(l, ws);
+	if (l == 0) {
+		free(ws);
+		return (-1);
+	}
+	wsp = ws;
+
+	/*
+	 * A full-pathname starting without a drive name like "\abc".
+	 */
+	if (wnp[0] == L'\\') {
+		wn = _wcsdup(wnp);
+		if (wn == NULL)
+			return (-1);
+		archive_wstring_ensure(&(a->_name_data), 4 + 2 + wcslen(wn) + 1);
+		a->name = a->_name_data.s;
+		/* Prepend "\\?\" and drive name. */
+		archive_wstrncpy(&(a->_name_data), L"\\\\?\\", 4);
+		archive_wstrncat(&(a->_name_data), wsp, 2);
+		archive_wstrcat(&(a->_name_data), wn);
+		free(wsp);
+		free(wn);
+		return (0);
+	}
+
+	wn = _wcsdup(wnp);
+	if (wn == NULL)
+		return (-1);
+	archive_wstring_ensure(&(a->_name_data), 4 + l + 1 + wcslen(wn) + 1);
+	a->name = a->_name_data.s;
+	/* Prepend "\\?\" and drive name. */
+	archive_wstrncpy(&(a->_name_data), L"\\\\?\\", 4);
+	archive_wstrncat(&(a->_name_data), wsp, l);
+	archive_wstrncat(&(a->_name_data), L"\\", 1);
+	archive_wstrcat(&(a->_name_data), wn);
+	free(wsp);
+	free(wn);
+	return (0);
+}
+
 int
 la_chmod(const wchar_t *path, mode_t mode)
 {
@@ -479,9 +608,6 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	struct fixup_entry *fe;
-#if 0
-	wchar_t *full;
-#endif
 	int ret, r;
 
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
@@ -526,23 +652,13 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	if (ret != ARCHIVE_OK)
 		return (ret);
 
-	/* 
-	 * TODO: Currently we cannot use making full-path operation
-	 * because this "aa/a/../b../c" will be converted to "aa/c" by
-	 * GetFullPathNameW() W32 API, which __la_win_permissive_name_w uses.
-	 * it means we cannot handle multiple dirs in one archive_entry.
-	 */
-#if 0
 	/*
-	 * Generate full-pathname and use it from here.
+	 * Generate a full-pathname and use it from here.
 	 */
-	full = __la_win_permissive_name_w(a->name);
-	if (full == NULL)
+	if (permissive_name_w(a) < 0) {
+		errno = EINVAL;
 		return (ARCHIVE_FAILED);
-	archive_wstrcpy(&(a->_name_data), full);
-	a->name = a->_name_data.s;
-	free(full);
-#endif
+	}
 
 	/*
 	 * Query the umask so we get predictable mode settings.
@@ -1109,10 +1225,20 @@ restore_entry(struct archive_write_disk *a)
 
 	if ((en == ENOTDIR || en == ENOENT)
 	    && !(a->flags & ARCHIVE_EXTRACT_NO_AUTODIR)) {
+		wchar_t *full;
 		/* If the parent dir doesn't exist, try creating it. */
 		create_parent_dir(a, a->name);
 		/* Now try to create the object again. */
-		en = create_filesystem_object(a);
+		full = __la_win_permissive_name_w(a->name);
+		if (full == NULL) {
+			en = EINVAL;
+		} else {
+			/* Remove multiple directories such as "a/../b../c" */
+			archive_wstrcpy(&(a->_name_data), full);
+			a->name = a->_name_data.s;
+			free(full);
+			en = create_filesystem_object(a);
+		}
 	}
 
 	if ((en == EISDIR || en == EEXIST)
@@ -1319,18 +1445,9 @@ create_filesystem_object(struct archive_write_disk *a)
 		/* POSIX requires that we fall through here. */
 		/* FALLTHROUGH */
 	case AE_IFREG:
-		{
-		wchar_t *full;
-
-		full = __la_win_permissive_name_w(a->name);
-		if (full == NULL) {
-			errno = EINVAL;
-			break;
-		}
 		/* O_WRONLY | O_CREAT | O_EXCL */
-		a->fh = CreateFileW(full, GENERIC_WRITE, 0, NULL,
+		a->fh = CreateFileW(a->name, GENERIC_WRITE, 0, NULL,
 		    CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
-		free(full);
 		if (a->fh == INVALID_HANDLE_VALUE) {
 			if (GetLastError() == ERROR_ACCESS_DENIED) {
 				DWORD attr;
@@ -1347,7 +1464,6 @@ create_filesystem_object(struct archive_write_disk *a)
 			r = 1;
 		} else
 			r = 0;
-		}
 		break;
 	case AE_IFCHR:
 	case AE_IFBLK:
@@ -1604,9 +1720,9 @@ check_symlinks(struct archive_write_disk *a)
 		++p, ++pn;
 	c = pn[0];
 	/* Keep going until we've checked the entire name. */
-	while (pn[0] != '\0' && (pn[0] != '/' || pn[1] != '\0')) {
+	while (pn[0] != '\0' && (pn[0] != '\\' || pn[1] != '\0')) {
 		/* Skip the next path element. */
-		while (*pn != '\0' && *pn != '/')
+		while (*pn != '\0' && *pn != '\\')
 			++pn;
 		c = pn[0];
 		pn[0] = '\0';
@@ -1672,7 +1788,7 @@ check_symlinks(struct archive_write_disk *a)
 
 /*
  * Canonicalize the pathname.  In particular, this strips duplicate
- * '/' characters, '.' elements, and trailing '/'.  It also raises an
+ * '\' characters, '.' elements, and trailing '\'.  It also raises an
  * error for an empty path, a trailing '..' or (if _SECURE_NODOTDOT is
  * set) any '..' in the path.
  */
@@ -1690,36 +1806,36 @@ cleanup_pathname(struct archive_write_disk *a)
 	}
 
 	for (p = a->name; *p != L'\0'; p++) {
-		if (*p == L'\\')
-			*p = L'/';
+		if (*p == L'/')
+			*p = L'\\';
 		/* Rewrite the path name if its character is a unusable. */
 		if (*p == L':' || *p == L'*' || *p == L'?' || *p == L'"' ||
 		    *p == L'<' || *p == L'>' || *p == L'|')
 			*p = L'_';
 	}
-	/* Skip leading '/'. */
-	if (*src == L'/')
+	/* Skip leading '\'. */
+	if (*src == L'\\')
 		separator = *src++;
 
 	/* Scan the pathname one element at a time. */
 	for (;;) {
-		/* src points to first char after '/' */
+		/* src points to first char after '\' */
 		if (src[0] == L'\0') {
 			break;
-		} else if (src[0] == L'/') {
-			/* Found '//', ignore second one. */
+		} else if (src[0] == L'\\') {
+			/* Found '\\'('//'), ignore second one. */
 			src++;
 			continue;
 		} else if (src[0] == L'.') {
 			if (src[1] == L'\0') {
 				/* Ignore trailing '.' */
 				break;
-			} else if (src[1] == L'/') {
-				/* Skip './'. */
+			} else if (src[1] == L'\\') {
+				/* Skip '.\'. */
 				src += 2;
 				continue;
 			} else if (src[1] == L'.') {
-				if (src[2] == L'/' || src[2] == L'\0') {
+				if (src[2] == L'\\' || src[2] == L'\0') {
 					/* Conditionally warn about '..' */
 					if (a->flags & ARCHIVE_EXTRACT_SECURE_NODOTDOT) {
 						archive_set_error(&a->archive,
@@ -1732,36 +1848,36 @@ cleanup_pathname(struct archive_write_disk *a)
 				 * Note: Under no circumstances do we
 				 * remove '..' elements.  In
 				 * particular, restoring
-				 * '/foo/../bar/' should create the
+				 * '\foo\..\bar\' should create the
 				 * 'foo' dir as a side-effect.
 				 */
 			}
 		}
 
-		/* Copy current element, including leading '/'. */
+		/* Copy current element, including leading '\'. */
 		if (separator)
-			*dest++ = L'/';
-		while (*src != L'\0' && *src != L'/') {
+			*dest++ = L'\\';
+		while (*src != L'\0' && *src != L'\\') {
 			*dest++ = *src++;
 		}
 
 		if (*src == L'\0')
 			break;
 
-		/* Skip '/' separator. */
+		/* Skip '\' separator. */
 		separator = *src++;
 	}
 	/*
 	 * We've just copied zero or more path elements, not including the
-	 * final '/'.
+	 * final '\'.
 	 */
 	if (dest == a->name) {
 		/*
 		 * Nothing got copied.  The path must have been something
-		 * like '.' or '/' or './' or '/././././/./'.
+		 * like '.' or '\' or './' or '/././././/./'.
 		 */
 		if (separator)
-			*dest++ = L'/';
+			*dest++ = L'\\';
 		else
 			*dest++ = L'.';
 	}
@@ -1781,12 +1897,12 @@ create_parent_dir(struct archive_write_disk *a, wchar_t *path)
 	int r;
 
 	/* Remove tail element to obtain parent name. */
-	slash = wcsrchr(path, L'/');
+	slash = wcsrchr(path, L'\\');
 	if (slash == NULL)
 		return (ARCHIVE_OK);
 	*slash = L'\0';
 	r = create_dir(a, path);
-	*slash = L'/';
+	*slash = L'\\';
 	return (r);
 }
 
@@ -1802,12 +1918,12 @@ create_dir(struct archive_write_disk *a, wchar_t *path)
 {
 	BY_HANDLE_FILE_INFORMATION st;
 	struct fixup_entry *le;
-	wchar_t *slash, *base;
+	wchar_t *slash, *base, *full;
 	mode_t mode_final, mode, st_mode;
 	int r;
 
 	/* Check for special names and just skip them. */
-	slash = wcsrchr(path, L'/');
+	slash = wcsrchr(path, L'\\');
 	if (slash == NULL)
 		base = path;
 	else
@@ -1820,7 +1936,7 @@ create_dir(struct archive_write_disk *a, wchar_t *path)
 		if (slash != NULL) {
 			*slash = L'\0';
 			r = create_dir(a, path);
-			*slash = L'/';
+			*slash = L'\\';
 			return (r);
 		}
 		return (ARCHIVE_OK);
@@ -1853,7 +1969,7 @@ create_dir(struct archive_write_disk *a, wchar_t *path)
 	} else if (slash != NULL) {
 		*slash = '\0';
 		r = create_dir(a, path);
-		*slash = '/';
+		*slash = '\\';
 		if (r != ARCHIVE_OK)
 			return (r);
 	}
@@ -1871,7 +1987,14 @@ create_dir(struct archive_write_disk *a, wchar_t *path)
 	mode = mode_final;
 	mode |= MINIMUM_DIR_MODE;
 	mode &= MAXIMUM_DIR_MODE;
-	if (CreateDirectoryW(path, NULL) != 0) {
+	/*
+	 * Apply __la_win_permissive_name_w to path in order to
+	 * remove '../' path string.
+	 */
+	full = __la_win_permissive_name_w(path);
+	if (full == NULL)
+		errno = EINVAL;
+	else if (CreateDirectoryW(full, NULL) != 0) {
 		if (mode != mode_final) {
 			le = new_fixup(a, path);
 			le->fixup |=TODO_MODE_BASE;
@@ -1881,6 +2004,7 @@ create_dir(struct archive_write_disk *a, wchar_t *path)
 	} else {
 		la_dosmaperr(GetLastError());
 	}
+	free(full);
 
 	/*
 	 * Without the following check, a/b/../b/c/d fails at the
