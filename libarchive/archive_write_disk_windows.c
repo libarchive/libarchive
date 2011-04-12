@@ -90,8 +90,6 @@ struct fixup_entry {
 	unsigned long		 mtime_nanos;
 	unsigned long		 ctime_nanos;
 	unsigned long		 fflags_set;
-	size_t			 mac_metadata_size;
-	void			*mac_metadata;
 	int			 fixup; /* bitmask of what needs fixing */
 	wchar_t			*name;
 };
@@ -602,12 +600,6 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		else
 			a->todo |= TODO_ACLS;
 	}
-	if (a->flags & ARCHIVE_EXTRACT_MAC_METADATA) {
-		if (archive_entry_filetype(a->entry) == AE_IFDIR)
-			a->deferred |= TODO_MAC_METADATA;
-		else
-			a->todo |= TODO_MAC_METADATA;
-	}
 	if (a->flags & ARCHIVE_EXTRACT_XATTR)
 		a->todo |= TODO_XATTR;
 	if (a->flags & ARCHIVE_EXTRACT_FFLAGS)
@@ -677,21 +669,6 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	if (a->deferred & TODO_ACLS) {
 		fe = current_fixup(a, archive_entry_pathname_w(entry));
 		archive_acl_copy(&fe->acl, archive_entry_acl(entry));
-	}
-
-	if (a->deferred & TODO_MAC_METADATA) {
-		const void *metadata;
-		size_t metadata_size;
-		metadata = archive_entry_mac_metadata(a->entry, &metadata_size);
-		if (metadata != NULL && metadata_size > 0) {
-			fe = current_fixup(a, archive_entry_pathname_w(entry));
-			fe->mac_metadata = malloc(metadata_size);
-			if (fe->mac_metadata != NULL) {
-				memcpy(fe->mac_metadata, metadata, metadata_size);
-				fe->mac_metadata_size = metadata_size;
-				fe->fixup |= TODO_MAC_METADATA;
-			}
-		}
 	}
 
 	if (a->deferred & TODO_FFLAGS) {
@@ -1465,7 +1442,6 @@ _archive_write_disk_close(struct archive *_a)
 			set_acls(a, INVALID_HANDLE_VALUE, p->name, &p->acl);
 		next = p->next;
 		archive_acl_clear(&p->acl);
-		free(p->mac_metadata);
 		free(p->name);
 		free(p);
 		p = next;
