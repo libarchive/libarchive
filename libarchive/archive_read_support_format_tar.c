@@ -1479,11 +1479,16 @@ pax_header(struct archive_read *a, struct tar *tar,
 	}
 
 	/*
-	 * PAX format uses UTF-8 as default charset for its header metadata
-	 * unless hdrcharset=BINARY is present.
+	 * PAX format uses UTF-8 as default charset for its metadata
+	 * unless hdrcharset=BINARY is present in its header.
+	 * We apply the charset specified by the hdrcharset option only
+	 * when the hdrcharset attribute(in PAX header) is BINARY because
+	 * we respect the charset described in PAX header and BINARY also
+	 * means that metadata(filename,uname and gname) character-set
+	 * is unknown.
 	 */
 	if (tar->pax_hdrcharset_binary)
-		sconv = NULL;
+		sconv = tar->opt_sconv;
 	else {
 		sconv = archive_string_conversion_from_charset(
 		    &(a->archive), "UTF-8", 1);
