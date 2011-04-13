@@ -1615,6 +1615,9 @@ close_and_restore_time(int fd, struct tree *t, struct restore_time *rt)
 	(void)a; /* UNUSED */
 	return (close(fd));
 #else
+#if defined(HAVE_FUTIMENS) && !defined(__CYGWIN__)
+	struct timespec timespecs[2];
+#endif
 	struct timeval times[2];
 
 	if ((t->flags & needsRestoreTimes) == 0 || rt->noatime) {
@@ -1624,17 +1627,24 @@ close_and_restore_time(int fd, struct tree *t, struct restore_time *rt)
 			return (0);
 	}
 
+#if defined(HAVE_FUTIMENS) && !defined(__CYGWIN__)
+	timespecs[1].tv_sec = rt->mtime;
+	timespecs[1].tv_nsec = rt->mtime_nsec;
+
+	timespecs[0].tv_sec = rt->atime;
+	timespecs[0].tv_nsec = rt->atime_nsec;
+	/* futimens() is defined in POSIX.1-2008. */
+	if (futimens(fd, timespecs) == 0)
+		return (close(fd));
+#endif
+
 	times[1].tv_sec = rt->mtime;
 	times[1].tv_usec = rt->mtime_nsec / 1000;
 
 	times[0].tv_sec = rt->atime;
 	times[0].tv_usec = rt->atime_nsec / 1000;
 
-#if defined(HAVE_FUTIMENS) && !defined(__CYGWIN__)
-	/* futimens() is defined in POSIX.1-2008. */
-	if (futimens(fd, times) == 0)
-		return (close(fd));
-#elif defined(HAVE_FUTIMES) && !defined(__CYGWIN__)
+#if !defined(HAVE_FUTIMENS) && defined(HAVE_FUTIMES) && !defined(__CYGWIN__)
 	if (futimes(fd, times) == 0)
 		return (close(fd));
 #endif
