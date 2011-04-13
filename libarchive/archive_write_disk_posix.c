@@ -71,6 +71,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_GRP_H
 #include <grp.h>
 #endif
+#ifdef HAVE_LANGINFO_H
+#include <langinfo.h>
+#endif
 #ifdef HAVE_LINUX_FS_H
 #include <linux/fs.h>	/* for Linux file flags */
 #endif
@@ -1596,6 +1599,71 @@ check_symlinks(struct archive_write_disk *a)
 #endif
 }
 
+#if defined(__CYGWIN__)
+/*
+ * 1. Convert a path separator from '\' to '/' .
+ *    We shouldn't check multibyte character directly because some
+ *    character-set have been using the '\' character for a part of
+ *    its multibyte character code.
+ * 2. Replace unusable characters in Windows with underscore('_').
+ * See also : http://msdn.microsoft.com/en-us/library/aa365247.aspx
+ */
+static void
+cleanup_pathname_win(struct archive_write_disk *a)
+{
+	wchar_t wc;
+	char *p;
+	size_t alen, l;
+	int mb, complete, utf8;
+
+	alen = 0;
+	mb = 0;
+	complete = 1;
+	utf8 = (strcmp(nl_langinfo(CODESET), "UTF-8") == 0)? 1: 0;
+	for (p = a->name; *p != '\0'; p++) {
+		++alen;
+		if (*p == '\\') {
+			/* If previous byte is smaller than 128,
+			 * this is not second byte of multibyte characters,
+			 * so we can replace '\' with '/'. */
+			if (utf8 || !mb)
+				*p = '/';
+			else
+				complete = 0;/* uncompleted. */
+		} else if (*(unsigned char *)p > 127)
+			mb = 1;
+		else
+			mb = 0;
+		/* Rewrite the path name if its character is a unusable. */
+		if (*p == ':' || *p == '*' || *p == '?' || *p == '"' ||
+		    *p == '<' || *p == '>' || *p == '|')
+			*p = '_';
+	}
+	if (complete)
+		return;
+
+	/*
+	 * Convert path separator in wide-character.
+	 */
+	p = a->name;
+	while (*p != '\0' && alen) {
+		l = mbtowc(&wc, p, alen);
+		if (l == -1) {
+			while (*p != '\0') {
+				if (*p == '\\')
+					*p = '/';
+				++p;
+			}
+			break;
+		}
+		if (l == 1 && wc == L'\\')
+			*p = '/';
+		p += l;
+		alen -= l;
+	}
+}
+#endif
+
 /*
  * Canonicalize the pathname.  In particular, this strips duplicate
  * '/' characters, '.' elements, and trailing '/'.  It also raises an
@@ -1615,6 +1683,9 @@ cleanup_pathname(struct archive_write_disk *a)
 		return (ARCHIVE_FAILED);
 	}
 
+#if defined(__CYGWIN__)
+	cleanup_pathname_win(a);
+#endif
 	/* Skip leading '/'. */
 	if (*src == '/')
 		separator = *src++;
