@@ -255,6 +255,13 @@ file_information(struct archive_write_disk *a, wchar_t *path,
 
 	if (sim_lstat || mode != NULL) {
 		h = FindFirstFileW(path, &findData);
+		if (h == INVALID_HANDLE_VALUE &&
+		    GetLastError() == ERROR_INVALID_NAME) {
+			wchar_t *full;
+			full = __la_win_permissive_name_w(path);
+			h = FindFirstFileW(full, &findData);
+			free(full);
+		}
 		if (h == INVALID_HANDLE_VALUE) {
 			la_dosmaperr(GetLastError());
 			return (-1);
@@ -271,6 +278,14 @@ file_information(struct archive_write_disk *a, wchar_t *path,
 
 	h = CreateFileW(a->name, 0, 0, NULL,
 	    OPEN_EXISTING, flag, NULL);
+	if (h == INVALID_HANDLE_VALUE &&
+	    GetLastError() == ERROR_INVALID_NAME) {
+		wchar_t *full;
+		full = __la_win_permissive_name_w(path);
+		h = CreateFileW(full, 0, 0, NULL,
+		    OPEN_EXISTING, flag, NULL);
+		free(full);
+	}
 	if (h == INVALID_HANDLE_VALUE) {
 		la_dosmaperr(GetLastError());
 		return (-1);
@@ -449,6 +464,7 @@ permissive_name_w(struct archive_write_disk *a)
 	archive_wstrncat(&(a->_name_data), wsp, l);
 	archive_wstrncat(&(a->_name_data), L"\\", 1);
 	archive_wstrcat(&(a->_name_data), wn);
+	a->name = a->_name_data.s;
 	free(wsp);
 	free(wn);
 	return (0);
@@ -459,22 +475,36 @@ la_chmod(const wchar_t *path, mode_t mode)
 {
 	DWORD attr;
 	BOOL r;
+	wchar_t *fullname;
+	int ret = 0;
 
+	fullname = NULL;
 	attr = GetFileAttributesW(path);
+	if (attr == (DWORD)-1 &&
+	    GetLastError() == ERROR_INVALID_NAME) {
+		fullname = __la_win_permissive_name_w(path);
+		attr = GetFileAttributesW(fullname);
+	}
 	if (attr == (DWORD)-1) {
 		la_dosmaperr(GetLastError());
-		return (-1);
+		ret = -1;
+		goto exit_chmode;
 	}
 	if (mode & _S_IWRITE)
 		attr &= ~FILE_ATTRIBUTE_READONLY;
 	else
 		attr |= FILE_ATTRIBUTE_READONLY;
-	r = SetFileAttributesW(path, attr);
+	if (fullname != NULL)
+		r = SetFileAttributesW(fullname, attr);
+	else
+		r = SetFileAttributesW(path, attr);
 	if (r == 0) {
 		la_dosmaperr(GetLastError());
-		return (-1);
+		ret = -1;
 	}
-	return (0);
+exit_chmode:
+	free(fullname);
+	return (ret);
 }
 
 static void *
@@ -1186,6 +1216,35 @@ archive_write_disk_new(void)
 	return (&a->archive);
 }
 
+static int
+disk_unlink(wchar_t *path)
+{
+	wchar_t *fullname;
+	int r;
+
+	r = _wunlink(path);
+	if (r != 0 && GetLastError() == ERROR_INVALID_NAME) {
+		fullname = __la_win_permissive_name_w(path);
+		r = _wunlink(fullname);
+		free(fullname);
+	}
+	return (r);
+}
+
+static int
+disk_rmdir(wchar_t *path)
+{
+	wchar_t *fullname;
+	int r;
+
+	r = _wrmdir(path);
+	if (r != 0 && GetLastError() == ERROR_INVALID_NAME) {
+		fullname = __la_win_permissive_name_w(path);
+		r = _wrmdir(fullname);
+		free(fullname);
+	}
+	return (r);
+}
 
 /*
  * The main restore function.
@@ -1204,12 +1263,12 @@ restore_entry(struct archive_write_disk *a)
 		 * object is a dir, but that doesn't mean the old
 		 * object isn't a dir.
 		 */
-		if (_wunlink(a->name) == 0) {
+		if (disk_unlink(a->name) == 0) {
 			/* We removed it, reset cached stat. */
 			a->pst = NULL;
 		} else if (errno == ENOENT) {
 			/* File didn't exist, that's just as good. */
-		} else if (_wrmdir(a->name) == 0) {
+		} else if (disk_rmdir(a->name) == 0) {
 			/* It was a dir, but now it's gone. */
 			a->pst = NULL;
 		} else {
@@ -1257,7 +1316,7 @@ restore_entry(struct archive_write_disk *a)
 	 */
 	if (en == EISDIR) {
 		/* A dir is in the way of a non-dir, rmdir it. */
-		if (_wrmdir(a->name) != 0) {
+		if (disk_rmdir(a->name) != 0) {
 			archive_set_error(&a->archive, errno,
 			    "Can't remove already-existing dir");
 			return (ARCHIVE_FAILED);
@@ -1313,7 +1372,7 @@ restore_entry(struct archive_write_disk *a)
 
 		if (!S_ISDIR(st_mode)) {
 			/* A non-dir is in the way, unlink it. */
-			if (_wunlink(a->name) != 0) {
+			if (disk_unlink(a->name) != 0) {
 				archive_set_error(&a->archive, errno,
 				    "Can't unlink already-existing object");
 				return (ARCHIVE_FAILED);
@@ -1323,7 +1382,7 @@ restore_entry(struct archive_write_disk *a)
 			en = create_filesystem_object(a);
 		} else if (!S_ISDIR(a->mode)) {
 			/* A dir is in the way of a non-dir, rmdir it. */
-			if (_wrmdir(a->name) != 0) {
+			if (disk_rmdir(a->name) != 0) {
 				archive_set_error(&a->archive, errno,
 				    "Can't remove already-existing dir");
 				return (ARCHIVE_FAILED);
@@ -1367,6 +1426,7 @@ create_filesystem_object(struct archive_write_disk *a)
 {
 	/* Create the entry. */
 	const wchar_t *linkname;
+	wchar_t *fullname;
 	mode_t final_mode, mode;
 	int r;
 
@@ -1445,14 +1505,22 @@ create_filesystem_object(struct archive_write_disk *a)
 		/* POSIX requires that we fall through here. */
 		/* FALLTHROUGH */
 	case AE_IFREG:
+		fullname = a->name;
 		/* O_WRONLY | O_CREAT | O_EXCL */
-		a->fh = CreateFileW(a->name, GENERIC_WRITE, 0, NULL,
+		a->fh = CreateFileW(fullname, GENERIC_WRITE, 0, NULL,
 		    CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+		if (a->fh == INVALID_HANDLE_VALUE &&
+		    GetLastError() == ERROR_INVALID_NAME &&
+		    fullname == a->name) {
+			fullname = __la_win_permissive_name_w(a->name);
+			a->fh = CreateFileW(fullname, GENERIC_WRITE, 0, NULL,
+			    CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+		}
 		if (a->fh == INVALID_HANDLE_VALUE) {
 			if (GetLastError() == ERROR_ACCESS_DENIED) {
 				DWORD attr;
 				/* Simulate an errno of POSIX system. */
-				attr = GetFileAttributesW(a->name);
+				attr = GetFileAttributesW(fullname);
 				if (attr == (DWORD)-1)
 					la_dosmaperr(GetLastError());
 				else if (attr & FILE_ATTRIBUTE_DIRECTORY)
@@ -1464,6 +1532,8 @@ create_filesystem_object(struct archive_write_disk *a)
 			r = 1;
 		} else
 			r = 0;
+		if (fullname != a->name)
+			free(fullname);
 		break;
 	case AE_IFCHR:
 	case AE_IFBLK:
@@ -1472,7 +1542,13 @@ create_filesystem_object(struct archive_write_disk *a)
 		return (EINVAL);
 	case AE_IFDIR:
 		mode = (mode | MINIMUM_DIR_MODE) & MAXIMUM_DIR_MODE;
-		r = CreateDirectoryW(a->name, NULL);
+		fullname = a->name;
+		r = CreateDirectoryW(fullname, NULL);
+		if (r == 0 && GetLastError() == ERROR_INVALID_NAME &&
+			fullname == a->name) {
+			fullname = __la_win_permissive_name_w(a->name);
+			r = CreateDirectoryW(fullname, NULL);
+		}
 		if (r != 0) {
 			r = 0;
 			/* Defer setting dir times. */
@@ -1489,6 +1565,8 @@ create_filesystem_object(struct archive_write_disk *a)
 			la_dosmaperr(GetLastError());
 			r = -1;
 		}
+		if (fullname != a->name)
+			free(fullname);
 		break;
 	case AE_IFIFO:
 		/* TODO: Find a better way to warn about our inability
@@ -1739,7 +1817,7 @@ check_symlinks(struct archive_write_disk *a)
 				 * so we can overwrite it with the
 				 * item being extracted.
 				 */
-				if (_wunlink(a->name)) {
+				if (disk_unlink(a->name)) {
 					archive_set_error(&a->archive, errno,
 					    "Could not remove symlink %s",
 					    a->name);
@@ -1763,7 +1841,7 @@ check_symlinks(struct archive_write_disk *a)
 				return (0);
 			} else if (a->flags & ARCHIVE_EXTRACT_UNLINK) {
 				/* User asked us to remove problems. */
-				if (_wunlink(a->name) != 0) {
+				if (disk_unlink(a->name) != 0) {
 					archive_set_error(&a->archive, 0,
 					    "Cannot remove intervening symlink %s",
 					    a->name);
@@ -1955,7 +2033,7 @@ create_dir(struct archive_write_disk *a, wchar_t *path)
 			    "Can't create directory '%s'", path);
 			return (ARCHIVE_FAILED);
 		}
-		if (_wunlink(path) != 0) {
+		if (disk_unlink(path) != 0) {
 			archive_set_error(&a->archive, errno,
 			    "Can't create directory '%s': "
 			    "Conflicting file cannot be removed",
