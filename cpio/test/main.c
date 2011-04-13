@@ -153,7 +153,7 @@ my_GetFileInformationByName(const char *path, BY_HANDLE_FILE_INFORMATION *bhfi)
 
 	memset(bhfi, 0, sizeof(*bhfi));
 	h = CreateFile(path, FILE_READ_ATTRIBUTES, 0, NULL,
-		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
 	if (h == INVALID_HANDLE_VALUE)
 		return (0);
 	r = GetFileInformationByHandle(h, bhfi);
@@ -1691,6 +1691,27 @@ extract_reference_file(const char *name)
 	fclose(in);
 }
 
+int
+is_LargeInode(const char *file)
+{
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	BY_HANDLE_FILE_INFORMATION bhfi;
+	int r;
+
+	r = my_GetFileInformationByName(file, &bhfi);
+	if (r != 0)
+		return (0);
+	return (bhfi.nFileIndexHigh & 0x0000FFFFUL);
+#else
+	struct stat st;
+	int64_t ino;
+
+	if (stat(file, &st) < 0)
+		return (0);
+	ino = (int64_t)st.st_ino;
+	return (ino > 0xffffffff);
+#endif
+}
 /*
  *
  * TEST management

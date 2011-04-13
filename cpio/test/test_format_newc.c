@@ -77,6 +77,7 @@ DEFINE_TEST(test_format_newc)
 	time_t t, t2, now;
 	char *p, *e;
 	size_t s, fs, ns;
+	char result[1024];
 
 	assertUmask(0);
 
@@ -111,6 +112,29 @@ DEFINE_TEST(test_format_newc)
 	assertMakeDir("dir", 0775);
 	fprintf(list, "dir\n");
 
+	/* Setup result message. */
+	memset(result, 0, sizeof(result));
+	if (is_LargeInode("file1"))
+		strncat(result,
+		    "bsdcpio: file1: large inode number truncated: "
+		    "Numerical result out of range\n",
+		    sizeof(result) - strlen(result) -1);
+	if (canSymlink() && is_LargeInode("symlink"))
+		strncat(result,
+		    "bsdcpio: symlink: large inode number truncated: "
+			"Numerical result out of range\n",
+		    sizeof(result) - strlen(result) -1);
+	if (is_LargeInode("dir"))
+		strncat(result,
+		    "bsdcpio: dir: large inode number truncated: "
+		    "Numerical result out of range\n",
+		    sizeof(result) - strlen(result) -1);
+	if (is_LargeInode("hardlink"))
+		strncat(result,
+		    "bsdcpio: hardlink: large inode number truncated: "
+		    "Numerical result out of range\n",
+		    sizeof(result) - strlen(result) -1);
+
 	/* Record some facts about what we just created: */
 	now = time(NULL); /* They were all created w/in last two seconds. */
 
@@ -123,10 +147,11 @@ DEFINE_TEST(test_format_newc)
 
 	/* Verify that nothing went to stderr. */
 	if (canSymlink()) {
-		assertTextFileContents("2 blocks\n", "newc.err");
+		strncat(result, "2 blocks\n", sizeof(result) - strlen(result));
 	} else {
-		assertTextFileContents("1 block\n", "newc.err");
+		strncat(result, "1 block\n", sizeof(result) - strlen(result));
 	}
+	assertTextFileContents(result, "newc.err");
 
 	/* Verify that stdout is a well-formed cpio file in "newc" format. */
 	p = slurpfile(&s, "newc.out");
