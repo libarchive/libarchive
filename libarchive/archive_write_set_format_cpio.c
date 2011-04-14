@@ -49,6 +49,8 @@ static int	archive_write_cpio_free(struct archive_write *);
 static int	archive_write_cpio_finish_entry(struct archive_write *);
 static int	archive_write_cpio_header(struct archive_write *,
 		    struct archive_entry *);
+static int	archive_write_cpio_options(struct archive_write *,
+		    const char *, const char *);
 static int	format_octal(int64_t, void *, int);
 static int64_t	format_octal_recursive(int64_t, char *, int);
 static int	write_header(struct archive_write *, struct archive_entry *);
@@ -61,6 +63,11 @@ struct cpio {
 	struct		 { int64_t old; int new;} *ino_list;
 	size_t		  ino_list_size;
 	size_t		  ino_list_next;
+
+	struct archive_string pathname;
+	struct archive_string_conv *opt_sconv;
+	struct archive_string_conv *sconv_default;
+	int		  init_default_conversion;
 };
 
 struct cpio_header {
@@ -93,14 +100,14 @@ archive_write_set_format_cpio(struct archive *_a)
 	if (a->format_free != NULL)
 		(a->format_free)(a);
 
-	cpio = (struct cpio *)malloc(sizeof(*cpio));
+	cpio = (struct cpio *)calloc(1, sizeof(*cpio));
 	if (cpio == NULL) {
 		archive_set_error(&a->archive, ENOMEM, "Can't allocate cpio data");
 		return (ARCHIVE_FATAL);
 	}
-	memset(cpio, 0, sizeof(*cpio));
 	a->format_data = cpio;
 	a->format_name = "cpio";
+	a->format_options = archive_write_cpio_options;
 	a->format_write_header = archive_write_cpio_header;
 	a->format_write_data = archive_write_cpio_data;
 	a->format_finish_entry = archive_write_cpio_finish_entry;
@@ -109,6 +116,33 @@ archive_write_set_format_cpio(struct archive *_a)
 	a->archive.archive_format = ARCHIVE_FORMAT_CPIO_POSIX;
 	a->archive.archive_format_name = "POSIX cpio";
 	return (ARCHIVE_OK);
+}
+
+static int
+archive_write_cpio_options(struct archive_write *a, const char *key,
+    const char *val)
+{
+	struct cpio *cpio = (struct cpio *)a->format_data;
+	int ret = ARCHIVE_FAILED;
+
+	if (strcmp(key, "hdrcharset")  == 0) {
+		if (val == NULL || val[0] == 0)
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "%s: hdrcharset option needs a character-set name",
+			    a->format_name);
+		else {
+			cpio->opt_sconv = archive_string_conversion_to_charset(
+			    &a->archive, val, 0);
+			if (cpio->opt_sconv != NULL)
+				ret = ARCHIVE_OK;
+			else
+				ret = ARCHIVE_FATAL;
+		}
+	} else
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "%s: unknown keyword ``%s''", a->format_name, key);
+
+	return (ret);
 }
 
 /*
@@ -207,12 +241,33 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 	int pathlength, ret, ret_final;
 	int64_t	ino;
 	struct cpio_header	 h;
+	struct archive_string_conv *sconv;
 
 	cpio = (struct cpio *)a->format_data;
 	ret_final = ARCHIVE_OK;
+	sconv = cpio->opt_sconv;
+	if (sconv == NULL) {
+		if (!cpio->init_default_conversion) {
+			cpio->sconv_default =
+			    archive_string_default_conversion_for_write(
+			      &(a->archive));
+			cpio->init_default_conversion = 1;
+		}
+		sconv = cpio->sconv_default;
+	}
 
-	path = archive_entry_pathname(entry);
-	pathlength = (int)strlen(path) + 1; /* Include trailing null. */
+	ret = archive_strcpy_in_locale(&(cpio->pathname),
+	    archive_entry_pathname(entry), sconv);
+	if (ret != 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Can't translate pathname '%s' to %s",
+		    archive_entry_pathname(entry),
+		    archive_string_conversion_charset_name(sconv));
+		ret_final = ARCHIVE_WARN;
+	}
+	path = cpio->pathname.s;
+	/* Include trailing null. */
+	pathlength = (int)archive_strlen(&(cpio->pathname)) + 1;
 
 	memset(&h, 0, sizeof(h));
 	format_octal(070707, &h.c_magic, sizeof(h.c_magic));
@@ -350,6 +405,7 @@ archive_write_cpio_free(struct archive_write *a)
 	struct cpio *cpio;
 
 	cpio = (struct cpio *)a->format_data;
+	archive_string_free(&(cpio->pathname));
 	free(cpio->ino_list);
 	free(cpio);
 	a->format_data = NULL;
