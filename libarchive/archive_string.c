@@ -45,6 +45,9 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_string.c 201095 2009-12-28 02:33
 #ifdef HAVE_LANGINFO_H
 #include <langinfo.h>
 #endif
+#ifdef HAVE_LOCALCHARSET_H
+#include <localcharset.h>
+#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -303,12 +306,18 @@ archive_wstrappend_wchar(struct archive_wstring *as, wchar_t c)
  * But iconv on Mac OS 10.6 doesn't seem to handle this correctly;
  * on that system, we have to explicitly call nl_langinfo()
  * to get the right name.  Not sure about other platforms.
+ *
+ * NOTE: GNU libiconv does not recognize the character-set name
+ * which some platform nl_langinfo(CODESET) returns, so we should
+ * use locale_charset() instead of nl_langinfo(CODESET) for GNU libiconv.
  */
 static const char *
 default_iconv_charset(const char *charset) {
 	if (charset != NULL && charset[0] != '\0')
 		return charset;
-#if HAVE_NL_LANGINFO
+#if HAVE_LOCALE_CHARSET
+	return locale_charset();
+#elif HAVE_NL_LANGINFO
 	return nl_langinfo(CODESET);
 #else
 	return "";
