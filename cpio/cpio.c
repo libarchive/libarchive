@@ -50,6 +50,9 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/cpio.c,v 1.15 2008/12/06 07:30:40 kientzle 
 #ifdef HAVE_GRP_H
 #include <grp.h>
 #endif
+#ifdef HAVE_LOCALE_H
+#include <locale.h>
+#endif
 #ifdef HAVE_PWD_H
 #include <pwd.h>
 #endif
@@ -147,6 +150,10 @@ main(int argc, char *argv[])
 		else
 			lafe_progname = *argv;
 	}
+#if HAVE_SETLOCALE
+	if (setlocale(LC_ALL, "") == NULL)
+		lafe_warnc(0, "Failed to set default locale");
+#endif
 
 	cpio->uid_override = -1;
 	cpio->gid_override = -1;
