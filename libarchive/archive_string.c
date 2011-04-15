@@ -440,16 +440,16 @@ int
 archive_string_append_from_wcs(struct archive_string *as,
     const wchar_t *w, size_t len)
 {
-	char *p;
 	int l;
 	unsigned cp;
-	BOOL useDefaultChar = FALSE;
+	BOOL useDefaultChar;
 
 	cp = get_current_codepage();
 	if (cp == CP_C_LOCALE) {
 		/*
 		 * "C" locale special process.
 		 */
+		char *p;
 		archive_string_ensure(as, as->length + len + 1);
 		p = as->s + as->length;
 		l = 0;
@@ -464,24 +464,26 @@ archive_string_append_from_wcs(struct archive_string *as,
 		return (0);
 	}
 
-	l = len * 4 + 4;
-	p = malloc(l);
-	if (p == NULL)
-		__archive_errx(1, "Out of memory");
-	/* To check a useDefaultChar is to simulate error handling of
-	 * the my_wcstombs() which is running on non Windows system with
-	 * wctomb().
-	 * And to set NULL for last argument is necessary when a codepage
-	 * is not current locale.
-	 */
-	l = WideCharToMultiByte(cp, 0,
-	    w, len, p, l, NULL, &useDefaultChar);
+	/* Make sure the MBS buffer has plenty to set. */
+	archive_string_ensure(as, as->length + len * 2 + 1);
+	do {
+		useDefaultChar = FALSE;
+		l = WideCharToMultiByte(cp, 0, w, len, as->s + as->length,
+		    as->buffer_length-1, NULL, &useDefaultChar);
+		if (l == 0 && GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
+			/* Expand the MBS buffer and retry. */
+			archive_string_ensure(as, as->buffer_length + len);
+			continue;
+		}
+	} while (0);
+
 	if (l == 0 || useDefaultChar) {
-		free(p);
+		/* Conversion error happend. */
+		as->s[as->length] = '\0';
 		return (-1);
 	}
-	archive_string_append(as, p, l);
-	free(p);
+	as->length += l;
+	as->s[as->length] = '\0';
 	return (0);
 }
 
