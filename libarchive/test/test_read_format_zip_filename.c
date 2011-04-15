@@ -966,6 +966,110 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+/*
+ * The sample zip file was made in LANG=KOI8-R and it contains two
+ * files the charset of which are different.
+ * - the filename of first file is stored in KOI8-R.
+ * - the filename of second file is stored in UTF-8.
+ *
+ * Whenever hdrcharset option is specified, we will correctly read the
+ * filename of sencod file, which is stored in UTF-8.
+ */
+
+static void
+test_read_format_zip_filename_KOI8R_UTF8_2(const char *refname)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+
+	/*
+	 * Read filename in ru_RU.UTF-8 with "hdrcharset=KOI8-R" option.
+	 */
+	if (NULL == setlocale(LC_ALL, "ru_RU.UTF-8")) {
+		skipping("ru_RU.UTF-8 locale not available on this system.");
+		return;
+	}
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	if (ARCHIVE_OK != archive_read_set_options(a, "hdrcharset=KOI8-R")) {
+		skipping("This system cannot convert character-set"
+		    " from KOI8-R to UTF-8.");
+		goto next_test;
+	}
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+
+	/* Verify regular first file. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("\xd0\x9f\xd0\xa0\xd0\x98\xd0\x92\xd0\x95\xd0\xa2",
+	    archive_entry_pathname(ae));
+	assertEqualInt(6, archive_entry_size(ae));
+
+	/*
+	 * Verify regular second file.
+	 * The filename is not translated because Bit 11 of its general
+	 * purpose bit flag is set and so we know the conversion is unneeded.
+	 */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("\xd0\xbf\xd1\x80\xd0\xb8\xd0\xb2\xd0\xb5\xd1\x82",
+	    archive_entry_pathname(ae));
+	assertEqualInt(6, archive_entry_size(ae));
+
+
+	/* End of archive. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	/* Verify archive format. */
+	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
+
+	/* Close the archive. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+next_test:
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/*
+	 * Read filename in ru_RU.UTF-8 without "hdrcharset=KOI8-R" option.
+	 * The filename we can properly read is only second file.
+	 */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+
+	/*
+	 * Verify regular first file.
+	 * The filename is not translated to UTF-8 because Bit 11 of
+	 * its general purpose bit flag is *not* set and so there is
+	 * not way to know its charset.
+	 */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	/* A filename is in KOI8-R. */
+	assertEqualString("\xf0\xf2\xe9\xf7\xe5\xf4",
+	    archive_entry_pathname(ae));
+	assertEqualInt(6, archive_entry_size(ae));
+
+	/* Verify regular file. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("\xd0\xbf\xd1\x80\xd0\xb8\xd0\xb2\xd0\xb5\xd1\x82",
+	    archive_entry_pathname(ae));
+	assertEqualInt(6, archive_entry_size(ae));
+
+
+	/* End of archive. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	/* Verify archive format. */
+	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
+
+	/* Close the archive. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
 
 DEFINE_TEST(test_read_format_zip_filename)
 {
@@ -974,6 +1078,7 @@ DEFINE_TEST(test_read_format_zip_filename)
 	const char *refname3 = "test_read_format_zip_cp866.zip";
 	const char *refname4 = "test_read_format_zip_koi8r.zip";
 	const char *refname5 = "test_read_format_zip_utf8_ru.zip";
+	const char *refname6 = "test_read_format_zip_utf8_ru2.zip";
 
 	extract_reference_file(refname1);
 	test_read_format_zip_filename_CP932_eucJP(refname1);
@@ -1001,4 +1106,8 @@ DEFINE_TEST(test_read_format_zip_filename)
 	test_read_format_zip_filename_UTF8_CP866(refname5);
 	test_read_format_zip_filename_UTF8_UTF8_ru(refname5);
 	test_read_format_zip_filename_UTF8_CP1251(refname5);
+
+	/* The filenames contained in refname6 are different charset. */
+	extract_reference_file(refname6);
+	test_read_format_zip_filename_KOI8R_UTF8_2(refname6);
 }
