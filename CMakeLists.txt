@@ -452,17 +452,20 @@ CHECK_HASH_WIN("MD5;SHA1;SHA256;SHA384;SHA512")
 # a non-const argument here and can support iconv()
 # being in libiconv.
 #
-LA_CHECK_INCLUDE_FILE("iconv.h" HAVE_ICONV_H)   
-IF(HAVE_ICONV_H)
-  FIND_PATH(ICONV_INCLUDE_DIR iconv.h) 
+FIND_PATH(ICONV_INCLUDE_DIR iconv.h)
+IF(ICONV_INCLUDE_DIR)
+  INCLUDE_DIRECTORIES(${ICONV_INCLUDE_DIR})
+  SET(CMAKE_REQUIRED_INCLUDES ${INCLUDE_DIRECTORIES})
+  #SET(INCLUDES ${INCLUDES} "iconv.h")
+  SET(HAVE_ICONV_H 1)
 
   # Try POSIX-conforming iconv() in libc
- CHECK_C_SOURCE_COMPILES(
+  CHECK_C_SOURCE_COMPILES(
     "#include <iconv.h>
      int main() {const char *ccp; iconv_t cd;
      iconv(cd, &ccp, (size_t *)0, (char **)0, (size_t *)0);
      return 0;}"
-  HAVE_POSIX_ICONV_IN_LIBC)
+   HAVE_POSIX_ICONV_IN_LIBC)
   IF(HAVE_POSIX_ICONV_IN_LIBC)
     SET(HAVE_ICONV true)
     SET(ICONV_CONST "const")
@@ -474,14 +477,17 @@ IF(HAVE_ICONV_H)
        int main() {char *ccp; iconv_t cd;
        iconv(cd, &ccp, (size_t *)0, (char **)0, (size_t *)0);
        return 0;}"
-  HAVE_NONPOSIX_ICONV_IN_LIBC)
+     HAVE_NONPOSIX_ICONV_IN_LIBC)
     IF(HAVE_NONPOSIX_ICONV_IN_LIBC)
       SET(HAVE_ICONV true)
       SET(ICONV_CONST "") 
     ELSE(HAVE_NONPOSIX_ICONV_IN_LIBC)
 
       # iconv isn't in libc, try libiconv
-      SET(CMAKE_REQUIRED_LIBRARIES "iconv")
+      FIND_LIBRARY(LIBICONV_PATH iconv)
+      IF(LIBICONV_PATH)
+        SET(CMAKE_REQUIRED_LIBRARIES ${LIBICONV_PATH})
+      ENDIF(LIBICONV_PATH)
       CHECK_C_SOURCE_COMPILES(
           "#include <iconv.h>
            int main() {const char *ccp; iconv_t cd;
@@ -508,7 +514,7 @@ IF(HAVE_ICONV_H)
       ENDIF(HAVE_POSIX_ICONV_IN_LIBICONV)
     ENDIF(HAVE_NONPOSIX_ICONV_IN_LIBC)
   ENDIF(HAVE_POSIX_ICONV_IN_LIBC)
-ENDIF(HAVE_ICONV_H)
+ENDIF(ICONV_INCLUDE_DIR)
 
 #
 # Find Libxml2
@@ -531,7 +537,7 @@ ELSE(LIBXML2_FOUND)
   IF(EXPAT_FOUND)
     INCLUDE_DIRECTORIES(${EXPAT_INCLUDE_DIR})
     LIST(APPEND ADDITIONAL_LIBS ${EXPAT_LIBRARIES})
-   SET(HAVE_LIBEXPAT 1)
+    SET(HAVE_LIBEXPAT 1)
     LA_CHECK_INCLUDE_FILE("expat.h" HAVE_EXPAT_H)
   ENDIF(EXPAT_FOUND)
 ENDIF(LIBXML2_FOUND)
