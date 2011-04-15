@@ -164,88 +164,88 @@ typedef uint64_t uintmax_t;
 #endif
 
 /* MD5 via ARCHIVE_HASH_MD5_LIBC supported. */
-#cmakedefine ARCHIVE_HASH_MD5_LIBC
+#cmakedefine ARCHIVE_HASH_MD5_LIBC 1
 
 /* MD5 via ARCHIVE_HASH_MD5_LIBSYSTEM supported. */
-#cmakedefine ARCHIVE_HASH_MD5_LIBSYSTEM
+#cmakedefine ARCHIVE_HASH_MD5_LIBSYSTEM 1
 
 /* MD5 via ARCHIVE_HASH_MD5_OPENSSL supported. */
-#cmakedefine ARCHIVE_HASH_MD5_OPENSSL
+#cmakedefine ARCHIVE_HASH_MD5_OPENSSL 1
 
 /* MD5 via ARCHIVE_HASH_MD5_WIN supported. */
-#cmakedefine ARCHIVE_HASH_MD5_WIN
+#cmakedefine ARCHIVE_HASH_MD5_WIN 1
 
 /* RMD160 via ARCHIVE_HASH_RMD160_LIBC supported. */
-#cmakedefine ARCHIVE_HASH_RMD160_LIBC
+#cmakedefine ARCHIVE_HASH_RMD160_LIBC 1
 
 /* RMD160 via ARCHIVE_HASH_RMD160_OPENSSL supported. */
-#cmakedefine ARCHIVE_HASH_RMD160_OPENSSL
+#cmakedefine ARCHIVE_HASH_RMD160_OPENSSL 1
 
 /* SHA1 via ARCHIVE_HASH_SHA1_LIBC supported. */
-#cmakedefine ARCHIVE_HASH_SHA1_LIBC
+#cmakedefine ARCHIVE_HASH_SHA1_LIBC 1
 
 /* SHA1 via ARCHIVE_HASH_SHA1_LIBSYSTEM supported. */
-#cmakedefine ARCHIVE_HASH_SHA1_LIBSYSTEM
+#cmakedefine ARCHIVE_HASH_SHA1_LIBSYSTEM 1
 
 /* SHA1 via ARCHIVE_HASH_SHA1_OPENSSL supported. */
-#cmakedefine ARCHIVE_HASH_SHA1_OPENSSL
+#cmakedefine ARCHIVE_HASH_SHA1_OPENSSL 1
 
 /* SHA1 via ARCHIVE_HASH_SHA1_WIN supported. */
-#cmakedefine ARCHIVE_HASH_SHA1_WIN
+#cmakedefine ARCHIVE_HASH_SHA1_WIN 1
 
 /* SHA256 via ARCHIVE_HASH_SHA256_LIBC supported. */
-#cmakedefine ARCHIVE_HASH_SHA256_LIBC
+#cmakedefine ARCHIVE_HASH_SHA256_LIBC 1
 
 /* SHA256 via ARCHIVE_HASH_SHA256_LIBC2 supported. */
-#cmakedefine ARCHIVE_HASH_SHA256_LIBC2
+#cmakedefine ARCHIVE_HASH_SHA256_LIBC2 1
 
 /* SHA256 via ARCHIVE_HASH_SHA256_LIBC3 supported. */
-#cmakedefine ARCHIVE_HASH_SHA256_LIBC3
+#cmakedefine ARCHIVE_HASH_SHA256_LIBC3 1
 
 /* SHA256 via ARCHIVE_HASH_SHA256_LIBSYSTEM supported. */
-#cmakedefine ARCHIVE_HASH_SHA256_LIBSYSTEM
+#cmakedefine ARCHIVE_HASH_SHA256_LIBSYSTEM 1
 
 /* SHA256 via ARCHIVE_HASH_SHA256_OPENSSL supported. */
-#cmakedefine ARCHIVE_HASH_SHA256_OPENSSL
+#cmakedefine ARCHIVE_HASH_SHA256_OPENSSL 1
 
 /* SHA256 via ARCHIVE_HASH_SHA256_WIN supported. */
-#cmakedefine ARCHIVE_HASH_SHA256_WIN
+#cmakedefine ARCHIVE_HASH_SHA256_WIN 1
 
 /* SHA384 via ARCHIVE_HASH_SHA384_LIBC supported. */
-#cmakedefine ARCHIVE_HASH_SHA384_LIBC
+#cmakedefine ARCHIVE_HASH_SHA384_LIBC 1
 
 /* SHA384 via ARCHIVE_HASH_SHA384_LIBC2 supported. */
-#cmakedefine ARCHIVE_HASH_SHA384_LIBC2
+#cmakedefine ARCHIVE_HASH_SHA384_LIBC2 1
 
 /* SHA384 via ARCHIVE_HASH_SHA384_LIBC3 supported. */
-#cmakedefine ARCHIVE_HASH_SHA384_LIBC3
+#cmakedefine ARCHIVE_HASH_SHA384_LIBC3 1
 
 /* SHA384 via ARCHIVE_HASH_SHA384_LIBSYSTEM supported. */
-#cmakedefine ARCHIVE_HASH_SHA384_LIBSYSTEM
+#cmakedefine ARCHIVE_HASH_SHA384_LIBSYSTEM 1
 
 /* SHA384 via ARCHIVE_HASH_SHA384_OPENSSL supported. */
-#cmakedefine ARCHIVE_HASH_SHA384_OPENSSL
+#cmakedefine ARCHIVE_HASH_SHA384_OPENSSL 1
 
 /* SHA384 via ARCHIVE_HASH_SHA384_WIN supported. */
-#cmakedefine ARCHIVE_HASH_SHA384_WIN
+#cmakedefine ARCHIVE_HASH_SHA384_WIN 1
 
 /* SHA512 via ARCHIVE_HASH_SHA512_LIBC supported. */
-#cmakedefine ARCHIVE_HASH_SHA512_LIBC
+#cmakedefine ARCHIVE_HASH_SHA512_LIBC 1
 
 /* SHA512 via ARCHIVE_HASH_SHA512_LIBC2 supported. */
-#cmakedefine ARCHIVE_HASH_SHA512_LIBC2
+#cmakedefine ARCHIVE_HASH_SHA512_LIBC2 1
 
 /* SHA512 via ARCHIVE_HASH_SHA512_LIBC3 supported. */
-#cmakedefine ARCHIVE_HASH_SHA512_LIBC3
+#cmakedefine ARCHIVE_HASH_SHA512_LIBC3 1
 
 /* SHA512 via ARCHIVE_HASH_SHA512_LIBSYSTEM supported. */
-#cmakedefine ARCHIVE_HASH_SHA512_LIBSYSTEM
+#cmakedefine ARCHIVE_HASH_SHA512_LIBSYSTEM 1
 
 /* SHA512 via ARCHIVE_HASH_SHA512_OPENSSL supported. */
-#cmakedefine ARCHIVE_HASH_SHA512_OPENSSL
+#cmakedefine ARCHIVE_HASH_SHA512_OPENSSL 1
 
 /* SHA512 via ARCHIVE_HASH_SHA512_WIN supported. */
-#cmakedefine ARCHIVE_HASH_SHA512_WIN
+#cmakedefine ARCHIVE_HASH_SHA512_WIN 1
 
 /* Version number of bsdcpio */
 #cmakedefine BSDCPIO_VERSION_STRING "${BSDCPIO_VERSION_STRING}"
@@ -462,6 +462,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `futimesat' function. */
 #cmakedefine HAVE_FUTIMESAT 1
 
+/* Define to 1 if you have the `getea' function. */
+#cmakedefine HAVE_GETEA 1
+
 /* Define to 1 if you have the `geteuid' function. */
 #cmakedefine HAVE_GETEUID 1
 
@@ -482,9 +485,6 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the `getvfsbyname' function. */
 #cmakedefine HAVE_GETVFSBYNAME 1
-
-/* Define to 1 if you have the `getea' function. */
-#cmakedefine HAVE_GETEA 1
 
 /* Define to 1 if you have the `getxattr' function. */
 #cmakedefine HAVE_GETXATTR 1
@@ -509,9 +509,6 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the <langinfo.h> header file. */
 #cmakedefine HAVE_LANGINFO_H 1
-
-/* Define to 1 if you have the `openat' function. */
-#cmakedefine HAVE_OPENAT 1
 
 /* Define to 1 if you have the `lchflags' function. */
 #cmakedefine HAVE_LCHFLAGS 1
@@ -564,7 +561,7 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <limits.h> header file. */
 #cmakedefine HAVE_LIMITS_H 1
 
-/* Define to 1 if you have the link() function. */
+/* Define to 1 if you have the `link' function. */
 #cmakedefine HAVE_LINK 1
 
 /* Define to 1 if you have the <linux/fiemap.h> header file. */
@@ -587,6 +584,12 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the `llistxattr' function. */
 #cmakedefine HAVE_LLISTXATTR 1
+
+/* Define to 1 if you have the <localcharset.h> header file. */
+#cmakedefine HAVE_LOCALCHARSET_H 1
+
+/* Define to 1 if you have the `locale_charset' function. */
+#cmakedefine HAVE_LOCALE_CHARSET 1
 
 /* Define to 1 if you have the <locale.h> header file. */
 #cmakedefine HAVE_LOCALE_H 1
@@ -649,6 +652,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `nl_langinfo' function. */
 #cmakedefine HAVE_NL_LANGINFO 1
 
+/* Define to 1 if you have the `openat' function. */
+#cmakedefine HAVE_OPENAT 1
+
 /* Define to 1 if you have the <paths.h> header file. */
 #cmakedefine HAVE_PATHS_H 1
 
@@ -694,10 +700,10 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <signal.h> header file. */
 #cmakedefine HAVE_SIGNAL_H 1
 
-/* Define to 1 if you have the `statvfs' function. */ 
+/* Define to 1 if you have the `statfs' function. */
 #cmakedefine HAVE_STATFS 1
 
-/* Define to 1 if you have the `statvfs' function. */ 
+/* Define to 1 if you have the `statvfs' function. */
 #cmakedefine HAVE_STATVFS 1
 
 /* Define to 1 if `stat' has the bug that it succeeds when given the
@@ -740,40 +746,40 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if `f_namemax' is a member of `struct statfs'. */
 #cmakedefine HAVE_STRUCT_STATFS_F_NAMEMAX 1
 
-/* Define to 1 if `st_birthtime' is member of `struct stat'. */
+/* Define to 1 if `st_birthtime' is a member of `struct stat'. */
 #cmakedefine HAVE_STRUCT_STAT_ST_BIRTHTIME 1
 
-/* Define to 1 if `st_birthtimespec.tv_nsec' is member of `struct stat'. */
+/* Define to 1 if `st_birthtimespec.tv_nsec' is a member of `struct stat'. */
 #cmakedefine HAVE_STRUCT_STAT_ST_BIRTHTIMESPEC_TV_NSEC 1
 
-/* Define to 1 if `st_blksize' is member of `struct stat'. */
+/* Define to 1 if `st_blksize' is a member of `struct stat'. */
 #cmakedefine HAVE_STRUCT_STAT_ST_BLKSIZE 1
 
-/* Define to 1 if `st_flags' is member of `struct stat'. */
+/* Define to 1 if `st_flags' is a member of `struct stat'. */
 #cmakedefine HAVE_STRUCT_STAT_ST_FLAGS 1
 
-/* Define to 1 if `st_mtimespec.tv_nsec' is member of `struct stat'. */
+/* Define to 1 if `st_mtimespec.tv_nsec' is a member of `struct stat'. */
 #cmakedefine HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC 1
 
-/* Define to 1 if `st_mtime_n' is member of `struct stat'. */
+/* Define to 1 if `st_mtime_n' is a member of `struct stat'. */
 #cmakedefine HAVE_STRUCT_STAT_ST_MTIME_N 1
 
-/* Define to 1 if `st_mtime_usec' is member of `struct stat'. */
+/* Define to 1 if `st_mtime_usec' is a member of `struct stat'. */
 #cmakedefine HAVE_STRUCT_STAT_ST_MTIME_USEC 1
 
-/* Define to 1 if `st_mtim.tv_nsec' is member of `struct stat'. */
+/* Define to 1 if `st_mtim.tv_nsec' is a member of `struct stat'. */
 #cmakedefine HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC 1
 
-/* Define to 1 if `st_umtime' is member of `struct stat'. */
+/* Define to 1 if `st_umtime' is a member of `struct stat'. */
 #cmakedefine HAVE_STRUCT_STAT_ST_UMTIME 1
 
-/* Define to 1 if `tm_gmtoff' is member of `struct tm'. */
+/* Define to 1 if `tm_gmtoff' is a member of `struct tm'. */
 #cmakedefine HAVE_STRUCT_TM_TM_GMTOFF 1
 
-/* Define to 1 if `__tm_gmtoff' is member of `struct tm'. */
+/* Define to 1 if `__tm_gmtoff' is a member of `struct tm'. */
 #cmakedefine HAVE_STRUCT_TM___TM_GMTOFF 1
 
-/* Define to 1 if you have the symlink() function. */
+/* Define to 1 if you have the `symlink' function. */
 #cmakedefine HAVE_SYMLINK 1
 
 /* Define to 1 if you have the <sys/acl.h> header file. */
@@ -928,9 +934,6 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <zlib.h> header file. */
 #cmakedefine HAVE_ZLIB_H 1
 
-/* Define as const if the declaration of iconv() needs const. */
-#define ICONV_CONST ${ICONV_CONST}
-
 /* Define to 1 if you have the `_ctime64_s' function. */
 #cmakedefine HAVE__CTIME64_S 1
 
@@ -945,6 +948,9 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the `_mkgmtime64' function. */
 #cmakedefine HAVE__MKGMTIME64 1
+
+/* Define as const if the declaration of iconv() needs const. */
+#define ICONV_CONST ${ICONV_CONST}
 
 /* Version number of libarchive as a single integer */
 #cmakedefine LIBARCHIVE_VERSION_NUMBER "${LIBARCHIVE_VERSION_NUMBER}"
