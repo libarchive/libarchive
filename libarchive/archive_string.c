@@ -692,15 +692,19 @@ create_sconv_object(const char *fc, const char *tc,
 			flag |= SCONV_UTF16BE;
 		sc->from_cp = current_codepage;
 		sc->to_cp = make_codepage_from_charset(tc);
+#if defined(_WIN32) && !defined(__CYGWIN__)
 		if (IsValidCodePage(sc->to_cp))
 			flag |= SCONV_WIN_CP;
+#endif
 	} else if (flag & SCONV_FROM_CHARSET) {
 		if (strcmp(fc, "UTF-16BE") == 0)
 			flag |= SCONV_UTF16BE;
 		sc->to_cp = current_codepage;
 		sc->from_cp = make_codepage_from_charset(fc);
+#if defined(_WIN32) && !defined(__CYGWIN__)
 		if (IsValidCodePage(sc->from_cp))
 			flag |= SCONV_WIN_CP;
+#endif
 	}
 	sc->flag = flag;
 
