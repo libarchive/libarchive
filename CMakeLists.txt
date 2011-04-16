@@ -48,23 +48,37 @@ include(CTest)
 # TODO: Require CMake 2.8 and drop this workaround (perhaps late 2010).
 INCLUDE(AddTest28)
 
+# Set default value for option.
+# Do not use SET() to option variables. it doest not correctly work on GUI.
+IF(WIN32 AND NOT CYGWIN)
+  # Currently, dynamic build only.
+  SET(TAR_DEFAULT OFF)
+  SET(TAR_SHARED_DEFAULT ON)
+  SET(CPIO_DEFAULT OFF)
+  SET(CPIO_SHARED_DEFAULT ON)
+  # Not tested.
+  SET(ICONV_DEFAULT OFF)
+ELSE(WIN32 AND NOT CYGWIN)
+  SET(TAR_DEFAULT ON)
+  SET(TAR_SHARED_DEFAULT FALSE)
+  SET(CPIO_DEFAULT ON)
+  SET(CPIO_SHARED_DEFAULT FALSE)
+  SET(ICONV_DEFAULT ON)
+ENDIF(WIN32 AND NOT CYGWIN)
+
 OPTION(ENABLE_OPENSSL "Enable use of OpenSSL" ON)
-OPTION(ENABLE_TAR "Enable tar building" ON)
-OPTION(ENABLE_TAR_SHARED "Enable dynamic build of tar" OFF)
-OPTION(ENABLE_CPIO "Enable cpio building" ON)
-OPTION(ENABLE_CPIO_SHARED "Enable dynamic build of cpio" OFF)
+OPTION(ENABLE_TAR "Enable tar building" ${TAR_DEFAULT})
+OPTION(ENABLE_TAR_SHARED "Enable dynamic build of tar" ${TAR_SHARED_DEFAULT})
+OPTION(ENABLE_CPIO "Enable cpio building" ${CPIO_DEFAULT})
+OPTION(ENABLE_CPIO_SHARED "Enable dynamic build of cpio" ${CPIO_SHARED_DEFAULT})
 OPTION(ENABLE_XATTR "Enable extended attribute support" ON)
 OPTION(ENABLE_ACL "Enable ACL support" ON)
+OPTION(ENABLE_ICONV "Enable iconv support" ${ICONV_DEFAULT})
 OPTION(ENABLE_TEST "Enable unit and regression tests" ON)
 
 IF(ENABLE_TEST)
 	ENABLE_TESTING()
 ENDIF(ENABLE_TEST)
-IF(WIN32 AND NOT CYGWIN)
-  # Currently, dynamic build only.
-  SET(ENABLE_TAR_SHARED ON)
-  SET(ENABLE_CPIO_SHARED ON)
-ENDIF(WIN32 AND NOT CYGWIN)
 
 IF(WIN32)
   SET(_WIN32_WINNT 0x0500 CACHE INTERNAL "Setting _WIN32_WINNT to 0x0500 for Windows 2000 APIs")
@@ -452,84 +466,88 @@ CHECK_HASH_WIN("MD5;SHA1;SHA256;SHA384;SHA512")
 # a non-const argument here and can support iconv()
 # being in libiconv.
 #
-FIND_PATH(ICONV_INCLUDE_DIR iconv.h)
-IF(ICONV_INCLUDE_DIR)
-  INCLUDE_DIRECTORIES(${ICONV_INCLUDE_DIR})
-  SET(CMAKE_REQUIRED_INCLUDES ${ICONV_INCLUDE_DIR})
-  #SET(INCLUDES ${INCLUDES} "iconv.h")
-  SET(HAVE_ICONV_H 1)
+IF(ENABLE_ICONV)
+  FIND_PATH(ICONV_INCLUDE_DIR iconv.h)
+  IF(ICONV_INCLUDE_DIR)
+    INCLUDE_DIRECTORIES(${ICONV_INCLUDE_DIR})
+    SET(CMAKE_REQUIRED_INCLUDES ${ICONV_INCLUDE_DIR})
+    #SET(INCLUDES ${INCLUDES} "iconv.h")
+    SET(HAVE_ICONV_H 1)
 
-  # Try POSIX-conforming iconv() in libc
-  CHECK_C_SOURCE_COMPILES(
-    "#include <iconv.h>
-     int main() {const char *ccp; iconv_t cd;
-     iconv(cd, &ccp, (size_t *)0, (char **)0, (size_t *)0);
-     return 0;}"
-   HAVE_POSIX_ICONV_IN_LIBC)
-  IF(HAVE_POSIX_ICONV_IN_LIBC)
-    SET(HAVE_ICONV true)
-    SET(ICONV_CONST "const")
-  ELSE(HAVE_POSIX_ICONV_IN_LIBC)
-
-    # Try non-POSIX-conforming iconv() in libc
+    # Try POSIX-conforming iconv() in libc
     CHECK_C_SOURCE_COMPILES(
       "#include <iconv.h>
-       int main() {char *ccp; iconv_t cd;
+       int main() {const char *ccp; iconv_t cd;
        iconv(cd, &ccp, (size_t *)0, (char **)0, (size_t *)0);
        return 0;}"
-     HAVE_NONPOSIX_ICONV_IN_LIBC)
-    IF(HAVE_NONPOSIX_ICONV_IN_LIBC)
+     HAVE_POSIX_ICONV_IN_LIBC)
+    IF(HAVE_POSIX_ICONV_IN_LIBC)
       SET(HAVE_ICONV true)
-      SET(ICONV_CONST "") 
-    ELSE(HAVE_NONPOSIX_ICONV_IN_LIBC)
+      SET(ICONV_CONST "const")
+    ELSE(HAVE_POSIX_ICONV_IN_LIBC)
 
-      # iconv isn't in libc, try libiconv
-      FIND_LIBRARY(LIBICONV_PATH iconv)
-      IF(LIBICONV_PATH)
-        SET(CMAKE_REQUIRED_LIBRARIES ${LIBICONV_PATH})
-      ENDIF(LIBICONV_PATH)
+      # Try non-POSIX-conforming iconv() in libc
       CHECK_C_SOURCE_COMPILES(
-          "#include <iconv.h>
-           int main() {const char *ccp; iconv_t cd;
-           iconv(cd, &ccp, (size_t *)0, (char **)0, (size_t *)0);
-           return 0;}"
-       HAVE_POSIX_ICONV_IN_LIBICONV)
-      IF(HAVE_POSIX_ICONV_IN_LIBICONV)
-        SET(HAVE_ICONV true) 
-        SET(ICONV_CONST "const") 
-        LIST(APPEND ADDITIONAL_LIBS ${LIBICONV_PATH})
-      ELSE(HAVE_POSIX_ICONV_IN_LIBICONV)
+        "#include <iconv.h>
+         int main() {char *ccp; iconv_t cd;
+         iconv(cd, &ccp, (size_t *)0, (char **)0, (size_t *)0);
+         return 0;}"
+       HAVE_NONPOSIX_ICONV_IN_LIBC)
+      IF(HAVE_NONPOSIX_ICONV_IN_LIBC)
+        SET(HAVE_ICONV true)
+        SET(ICONV_CONST "") 
+      ELSE(HAVE_NONPOSIX_ICONV_IN_LIBC)
 
+        # iconv isn't in libc, try libiconv
+        FIND_LIBRARY(LIBICONV_PATH iconv)
+        IF(LIBICONV_PATH)
+          SET(CMAKE_REQUIRED_LIBRARIES ${LIBICONV_PATH})
+        ENDIF(LIBICONV_PATH)
         CHECK_C_SOURCE_COMPILES(
             "#include <iconv.h>
-             int main() {char *ccp; iconv_t cd;
+             int main() {const char *ccp; iconv_t cd;
              iconv(cd, &ccp, (size_t *)0, (char **)0, (size_t *)0);
              return 0;}"
-         HAVE_NONPOSIX_ICONV_IN_LIBICONV)
-        IF(HAVE_NONPOSIX_ICONV_IN_LIBICONV)
+         HAVE_POSIX_ICONV_IN_LIBICONV)
+        IF(HAVE_POSIX_ICONV_IN_LIBICONV)
           SET(HAVE_ICONV true) 
-          SET(ICONV_CONST "") 
+          SET(ICONV_CONST "const") 
           LIST(APPEND ADDITIONAL_LIBS ${LIBICONV_PATH})
-        ENDIF(HAVE_NONPOSIX_ICONV_IN_LIBICONV)
-      ENDIF(HAVE_POSIX_ICONV_IN_LIBICONV)
-    ENDIF(HAVE_NONPOSIX_ICONV_IN_LIBC)
-  ENDIF(HAVE_POSIX_ICONV_IN_LIBC)
-ENDIF(ICONV_INCLUDE_DIR)
-#
-IF(LIBICONV_PATH)
-  CHECK_INCLUDE_FILES("localcharset.h" HAVE_LOCALCHARSET_H)
-  CHECK_FUNCTION_EXISTS_GLIBC(locale_charset HAVE_LOCALE_CHARSET)
-  IF(NOT HAVE_LOCALE_CHARSET)
-    FIND_LIBRARY(LIBCHARSET_PATH charset)
-    IF(LIBCHARSET_PATH)
-      SET(CMAKE_REQUIRED_LIBRARIES ${LIBCHARSET_PATH})
-      CHECK_FUNCTION_EXISTS_GLIBC(locale_charset HAVE_LOCALE_CHARSET)
-      IF(HAVE_LOCALE_CHARSET)
-        LIST(APPEND ADDITIONAL_LIBS ${LIBCHARSET_PATH})
-      ENDIF(HAVE_LOCALE_CHARSET)
-    ENDIF(LIBCHARSET_PATH)
-  ENDIF(NOT HAVE_LOCALE_CHARSET)
-ENDIF(LIBICONV_PATH)
+        ELSE(HAVE_POSIX_ICONV_IN_LIBICONV)
+
+          CHECK_C_SOURCE_COMPILES(
+              "#include <iconv.h>
+               int main() {char *ccp; iconv_t cd;
+               iconv(cd, &ccp, (size_t *)0, (char **)0, (size_t *)0);
+               return 0;}"
+           HAVE_NONPOSIX_ICONV_IN_LIBICONV)
+          IF(HAVE_NONPOSIX_ICONV_IN_LIBICONV)
+            SET(HAVE_ICONV true) 
+            SET(ICONV_CONST "") 
+            LIST(APPEND ADDITIONAL_LIBS ${LIBICONV_PATH})
+          ENDIF(HAVE_NONPOSIX_ICONV_IN_LIBICONV)
+        ENDIF(HAVE_POSIX_ICONV_IN_LIBICONV)
+      ENDIF(HAVE_NONPOSIX_ICONV_IN_LIBC)
+    ENDIF(HAVE_POSIX_ICONV_IN_LIBC)
+  ENDIF(ICONV_INCLUDE_DIR)
+  #
+  # Find locale_charset() for libiconv.
+  #
+  IF(LIBICONV_PATH)
+    CHECK_INCLUDE_FILES("localcharset.h" HAVE_LOCALCHARSET_H)
+    CHECK_FUNCTION_EXISTS_GLIBC(locale_charset HAVE_LOCALE_CHARSET)
+    IF(NOT HAVE_LOCALE_CHARSET)
+      FIND_LIBRARY(LIBCHARSET_PATH charset)
+      IF(LIBCHARSET_PATH)
+        SET(CMAKE_REQUIRED_LIBRARIES ${LIBCHARSET_PATH})
+        CHECK_FUNCTION_EXISTS_GLIBC(locale_charset HAVE_LOCALE_CHARSET)
+        IF(HAVE_LOCALE_CHARSET)
+          LIST(APPEND ADDITIONAL_LIBS ${LIBCHARSET_PATH})
+        ENDIF(HAVE_LOCALE_CHARSET)
+      ENDIF(LIBCHARSET_PATH)
+    ENDIF(NOT HAVE_LOCALE_CHARSET)
+  ENDIF(LIBICONV_PATH)
+ENDIF(ENABLE_ICONV)
 
 #
 # Find Libxml2
