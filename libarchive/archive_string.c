@@ -71,19 +71,21 @@ struct archive_string_conv {
 	struct archive_string_conv	*next;
 	char				*from_charset;
 	char				*to_charset;
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	UINT				 from_cp;
-	UINT				 to_cp;
-#endif
+	unsigned			 from_cp;
+	unsigned			 to_cp;
 	/* Set 1 if from_charset and to_charset are the same. */
 	int				 same;
 	int				 flag;
-#define SCONV_TO_CHARSET	1/* MBS is being converted to specified charset. */
-#define SCONV_FROM_CHARSET	2/* MBS is being converted from specified charset. */
-#define SCONV_BEST_EFFORT 	4/* Copy at least ASCII code. */
-#define SCONV_WIN_CP	 	8/* Use Windows API for converting MBS. */
-#define SCONV_UTF16BE	 	16/* Consideration to UTF-16BE; one side is
-				   * 'char', ohter is like 'int16_t'. */
+#define SCONV_TO_CHARSET	1	/* MBS is being converted to specified
+					 * charset. */
+#define SCONV_FROM_CHARSET	2	/* MBS is being converted from
+					 * specified charset. */
+#define SCONV_BEST_EFFORT 	4	/* Copy at least ASCII code. */
+#define SCONV_WIN_CP	 	8	/* Use Windows API for converting
+					 * MBS. */
+#define SCONV_UTF16BE	 	16	/* Consideration to UTF-16BE; one side
+					 * is single byte character, other is
+					 * double bytes character. */
 
 #if HAVE_ICONV
 	iconv_t				 cd;
@@ -100,11 +102,9 @@ static struct archive_string_conv *create_sconv_object(const char *,
 static void free_sconv_object(struct archive_string_conv *);
 static struct archive_string_conv *get_sconv_object(struct archive *,
 	const char *, const char *, int);
-#if defined(_WIN32) && !defined(__CYGWIN__)
 static unsigned make_codepage_from_charset(const char *);
 static unsigned get_current_codepage();
 static unsigned get_current_oemcp();
-#endif
 static int strncpy_from_utf16be(struct archive_string *, const void *, size_t,
     struct archive_string_conv *);
 static int strncpy_to_utf16be(struct archive_string *, const void *, size_t,
@@ -683,20 +683,35 @@ create_sconv_object(const char *fc, const char *tc,
 		free(sc->from_charset);
 		return (NULL);
 	}
-	sc->same = (strcmp(fc, tc) == 0)?1:0;
 #if HAVE_ICONV
 	sc->cd = iconv_open(tc, fc);
 #endif
-	sc->flag = flag;
-#if defined(_WIN32) && !defined(__CYGWIN__)
+
 	if (flag & SCONV_TO_CHARSET) {
+		if (strcmp(tc, "UTF-16BE") == 0)
+			flag |= SCONV_UTF16BE;
 		sc->from_cp = current_codepage;
 		sc->to_cp = make_codepage_from_charset(tc);
+		if (IsValidCodePage(sc->to_cp))
+			flag |= SCONV_WIN_CP;
 	} else if (flag & SCONV_FROM_CHARSET) {
+		if (strcmp(fc, "UTF-16BE") == 0)
+			flag |= SCONV_UTF16BE;
 		sc->to_cp = current_codepage;
 		sc->from_cp = make_codepage_from_charset(fc);
+		if (IsValidCodePage(sc->from_cp))
+			flag |= SCONV_WIN_CP;
 	}
-#endif
+	sc->flag = flag;
+
+	/*
+	 * Check if "from charset" and "to charset" are the same.
+	 */
+	if (strcmp(fc, tc) == 0 ||
+	    (sc->from_cp != -1 && sc->from_cp == sc->to_cp))
+		sc->same = 1;
+	else
+		sc->same = 0;
 
 	return (sc);
 }
@@ -1003,6 +1018,28 @@ get_current_oemcp()
 	}
 	return (GetOEMCP());
 }
+#else
+
+/*
+ * POSIX platform does not use CodePage.
+ */
+
+static unsigned
+get_current_codepage()
+{
+	return (-1);/* Unknown */
+}
+static unsigned
+make_codepage_from_charset(const char *charset)
+{
+	(void)charset; /* UNUSED */
+	return (-1);/* Unknown */
+}
+static unsigned
+get_current_oemcp()
+{
+	return (-1);/* Unknown */
+}
 
 #endif /* defined(_WIN32) && !defined(__CYGWIN__) */
 
@@ -1020,11 +1057,7 @@ get_sconv_object(struct archive *a, const char *fc, const char *tc, int flag)
 		return (sc);
 
 	if (a == NULL)
-#if defined(_WIN32) && !defined(__CYGWIN__)
 		current_codepage = get_current_codepage();
-#else
-		current_codepage = -1;
-#endif
 	else
 		current_codepage = a->current_codepage;
 	sc = create_sconv_object(fc, tc, current_codepage, flag);
@@ -1048,36 +1081,10 @@ get_sconv_object(struct archive *a, const char *fc, const char *tc, int flag)
 	 * Windows platform can convert a string in current locale from/to
 	 * UTF-8 and UTF-16BE.
 	 */
-	if (flag & SCONV_TO_CHARSET) {
-		if (sc->to_cp == CP_UTF16BE) {
-			sc->flag |= SCONV_UTF16BE;
-			if (a != NULL)
-				add_sconv_object(a, sc);
-			return (sc);
-		}
-		if (sc->from_cp == sc->to_cp)
-			sc->same = 1;
-		else if (IsValidCodePage(sc->to_cp)) {
-			sc->flag |= SCONV_WIN_CP;
-			if (a != NULL)
-				add_sconv_object(a, sc);
-			return (sc);
-		}
-	} else if (flag & SCONV_FROM_CHARSET) {
-		if (sc->from_cp == CP_UTF16BE) {
-			sc->flag |= SCONV_UTF16BE;
-			if (a != NULL)
-				add_sconv_object(a, sc);
-			return (sc);
-		}
-		if (sc->to_cp == sc->from_cp)
-			sc->same = 1;
-		else if (IsValidCodePage(sc->from_cp)) {
-			sc->flag |= SCONV_WIN_CP;
-			if (a != NULL)
-				add_sconv_object(a, sc);
-			return (sc);
-		}
+	if (sc->flag & (SCONV_UTF16BE | SCONV_WIN_CP)) {
+		if (a != NULL)
+			add_sconv_object(a, sc);
+		return (sc);
 	}
 #endif /* _WIN32 && !__CYGWIN__ */
 	if (!sc->same && (flag & SCONV_BEST_EFFORT) == 0) {
@@ -1089,10 +1096,6 @@ get_sconv_object(struct archive *a, const char *fc, const char *tc, int flag)
 	} else if (a != NULL)
 		add_sconv_object(a, sc);
 #endif /* HAVE_ICONV */
-
-	if (((flag & SCONV_TO_CHARSET) != 0 && strcmp(tc, "UTF-16BE") == 0) ||
-	    ((flag & SCONV_FROM_CHARSET) != 0 && strcmp(fc, "UTF-16BE") == 0))
-		sc->flag |= SCONV_UTF16BE;
 
 	return (sc);
 }
@@ -1108,10 +1111,8 @@ get_current_charset(struct archive *a)
 		cur_charset = default_iconv_charset(a->current_code);
 		if (a->current_code == NULL) {
 			a->current_code = strdup(cur_charset);
-#if defined(_WIN32) && !defined(__CYGWIN__)
 			a->current_codepage = get_current_codepage();
 			a->current_oemcp = get_current_oemcp();
-#endif
 		}
 	}
 	return (cur_charset);
@@ -1587,102 +1588,7 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p, size_t 
  *   strncpy_from_utf16be() : UTF-16BE --> MBS
  *   strncpy_to_utf16be()   : MBS --> UTF16BE
  */
-#if defined(_WIN32) && !defined(__CYGWIN__)
-
-/*
- * Convert a UTF-16BE string to current locale and copy the result.
- * Return -1 if conversion failes.
- */
-static int
-strncpy_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
-    struct archive_string_conv *sc)
-{
-	const char *utf16 = (const char *)_p;
-	int ll;
-	BOOL defchar;
-	char *mbs;
-	size_t mbs_size;
-	int ret = 0;
-
-	archive_string_empty(as);
-	bytes &= ~1;
-	archive_string_ensure(as, bytes+1);
-	mbs = as->s;
-	mbs_size = as->buffer_length-1;
-	while (bytes) {
-		uint16_t val = archive_be16dec(utf16);
-		ll = WideCharToMultiByte(sc->to_cp, 0,
-		    (LPCWSTR)&val, 1, mbs, mbs_size,
-			NULL, &defchar);
-		if (ll == 0) {
-			*mbs = '\0';
-			return (-1);
-		} else if (defchar)
-			ret = -1;
-		as->length += ll;
-		mbs += ll;
-		mbs_size -= ll;
-		bytes -= 2;
-		utf16 += 2;
-	}
-	*mbs = '\0';
-	return (ret);
-}
-
-static int
-is_big_endian()
-{
-	uint16_t d = 1;
-
-	return (archive_be16dec(&d) == 1);
-}
-
-/*
- * Convert a current locale string to UTF-16BE and copy the result.
- * Return -1 if conversion failes.
- */
-static int
-strncpy_to_utf16be(struct archive_string *a16be, const void *_p, size_t length,
-    struct archive_string_conv *sc)
-{
-	const char *s = (const char *)_p;
-	size_t count;
-
-	archive_string_ensure(a16be, (length + 1) * 2);
-	archive_string_empty(a16be);
-	do {
-		count = MultiByteToWideChar(sc->from_cp,
-		    MB_PRECOMPOSED, s, length,
-		    (LPWSTR)a16be->s, (int)a16be->buffer_length - 2);
-		if (count == 0 &&
-		    GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
-			/* Need more buffer for UTF-16 string */
-			count = MultiByteToWideChar(sc->from_cp,
-			    MB_PRECOMPOSED, s, length, NULL, 0);
-			archive_string_ensure(a16be, (count +1) * 2);
-			continue;
-		}
-		if (count == 0)
-			return (-1);
-	} while (0);
-	a16be->length = count * 2;
-	a16be->s[a16be->length] = 0;
-	a16be->s[a16be->length+1] = 0;
-
-	if (!is_big_endian()) {
-		char *s = a16be->s;
-		size_t l = a16be->length;
-		while (l > 0) {
-			uint16_t v = archive_le16dec(s);
-			archive_be16enc(s, v);
-			s += 2;
-			l -= 2;
-		}
-	}
-	return (0);
-}
-
-#elif HAVE_ICONV
+#if HAVE_ICONV
 
 /*
  * Convert a UTF-16BE string to current locale and copy the result.
@@ -1787,6 +1693,101 @@ strncpy_to_utf16be(struct archive_string *a16be, const void *_p,
 		}
 	}
 	return (return_value);
+}
+
+#elif defined(_WIN32) && !defined(__CYGWIN__)
+
+/*
+ * Convert a UTF-16BE string to current locale and copy the result.
+ * Return -1 if conversion failes.
+ */
+static int
+strncpy_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
+    struct archive_string_conv *sc)
+{
+	const char *utf16 = (const char *)_p;
+	int ll;
+	BOOL defchar;
+	char *mbs;
+	size_t mbs_size;
+	int ret = 0;
+
+	archive_string_empty(as);
+	bytes &= ~1;
+	archive_string_ensure(as, bytes+1);
+	mbs = as->s;
+	mbs_size = as->buffer_length-1;
+	while (bytes) {
+		uint16_t val = archive_be16dec(utf16);
+		ll = WideCharToMultiByte(sc->to_cp, 0,
+		    (LPCWSTR)&val, 1, mbs, mbs_size,
+			NULL, &defchar);
+		if (ll == 0) {
+			*mbs = '\0';
+			return (-1);
+		} else if (defchar)
+			ret = -1;
+		as->length += ll;
+		mbs += ll;
+		mbs_size -= ll;
+		bytes -= 2;
+		utf16 += 2;
+	}
+	*mbs = '\0';
+	return (ret);
+}
+
+static int
+is_big_endian()
+{
+	uint16_t d = 1;
+
+	return (archive_be16dec(&d) == 1);
+}
+
+/*
+ * Convert a current locale string to UTF-16BE and copy the result.
+ * Return -1 if conversion failes.
+ */
+static int
+strncpy_to_utf16be(struct archive_string *a16be, const void *_p, size_t length,
+    struct archive_string_conv *sc)
+{
+	const char *s = (const char *)_p;
+	size_t count;
+
+	archive_string_ensure(a16be, (length + 1) * 2);
+	archive_string_empty(a16be);
+	do {
+		count = MultiByteToWideChar(sc->from_cp,
+		    MB_PRECOMPOSED, s, length,
+		    (LPWSTR)a16be->s, (int)a16be->buffer_length - 2);
+		if (count == 0 &&
+		    GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
+			/* Need more buffer for UTF-16 string */
+			count = MultiByteToWideChar(sc->from_cp,
+			    MB_PRECOMPOSED, s, length, NULL, 0);
+			archive_string_ensure(a16be, (count +1) * 2);
+			continue;
+		}
+		if (count == 0)
+			return (-1);
+	} while (0);
+	a16be->length = count * 2;
+	a16be->s[a16be->length] = 0;
+	a16be->s[a16be->length+1] = 0;
+
+	if (!is_big_endian()) {
+		char *s = a16be->s;
+		size_t l = a16be->length;
+		while (l > 0) {
+			uint16_t v = archive_le16dec(s);
+			archive_be16enc(s, v);
+			s += 2;
+			l -= 2;
+		}
+	}
+	return (0);
 }
 
 #else
