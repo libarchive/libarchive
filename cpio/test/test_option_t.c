@@ -35,6 +35,7 @@ DEFINE_TEST(test_option_t)
 	int r;
 	time_t mtime;
 	char date[32];
+	char date2[32];
 
 	/* List reference archive, make sure the TOC is correct. */
 	extract_reference_file("test_option_t.cpio");
@@ -87,12 +88,13 @@ DEFINE_TEST(test_option_t)
 	setlocale(LC_ALL, "");
 #endif
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	strftime(date, sizeof(date), "%b %d  %Y ", localtime(&mtime));
+	strftime(date2, sizeof(date), "%b %d  %Y", localtime(&mtime));
+	_snprintf(date, sizeof(date)-1, "%12s file", date2);
 #else
-	strftime(date, sizeof(date), "%b %e  %Y ", localtime(&mtime));
+	strftime(date2, sizeof(date), "%b %e  %Y", localtime(&mtime));
+	snprintf(date, sizeof(date)-1, "%12s file", date2);
 #endif
 	assertEqualMem(p + 42, date, strlen(date));
-	assertEqualMem(p + 42 + strlen(date)-1, " file", 5);
 	free(p);
 
 	/* But "-n" without "-t" is an error. */
