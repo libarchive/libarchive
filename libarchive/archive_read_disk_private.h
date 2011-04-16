@@ -53,18 +53,12 @@ struct archive_read_disk {
 	 */
 	char	follow_symlinks;  /* Either 'L' or 'P'. */
 
+	/* Directory traversals. */
 	struct tree *tree;
 
-	/* Restore time if user want. */
+	/* Set 1 if users request to restore atime . */
 	int		 restore_time;
-
 	int		 entry_wd_fd;
-	int		 entry_fd;
-	int		 entry_eof;
-	int64_t		 entry_remaining_bytes;
-	int64_t		 entry_total;
-	unsigned char	*entry_buff;
-	size_t		 entry_buff_size;
 
 	const char * (*lookup_gname)(void *private, int64_t gid);
 	void	(*cleanup_gname)(void *private);

@@ -205,6 +205,13 @@ struct tree {
 	int			 current_filesystem_id;
 	int			 max_filesystem_id;
 	int			 allocated_filesytem;
+
+	int			 entry_fd;
+	int			 entry_eof;
+	int64_t			 entry_remaining_bytes;
+	int64_t			 entry_total;
+	unsigned char		*entry_buff;
+	size_t			 entry_buff_size;
 };
 
 #define bhfi_dev(bhfi)	((bhfi)->dwVolumeSerialNumber)
@@ -415,7 +422,6 @@ archive_read_disk_new(void)
 	a->lookup_uname = trivial_lookup_uname;
 	a->lookup_gname = trivial_lookup_gname;
 	a->entry_wd_fd = -1;
-	a->entry_fd = -1;
 	return (&a->archive);
 }
 
@@ -441,7 +447,6 @@ _archive_read_free(struct archive *_a)
 	if (a->cleanup_uname != NULL && a->lookup_uname_data != NULL)
 		(a->cleanup_uname)(a->lookup_uname_data);
 	archive_string_free(&a->archive.error_string);
-	free(a->entry_buff);
 	a->archive.magic = 0;
 	free(a);
 	return (r);
@@ -458,16 +463,7 @@ _archive_read_close(struct archive *_a)
 	if (a->archive.state != ARCHIVE_STATE_FATAL)
 		a->archive.state = ARCHIVE_STATE_CLOSED;
 
-	if (a->entry_fd >= 0) {
-		if (a->tree != NULL && a->tree->flags & needsRestoreTimes)
-			close_and_restore_time(a->entry_fd, a->tree,
-			    &a->tree->restore_time);
-		else
-			close(a->entry_fd);
-		a->entry_fd = -1;
-	}
-	if (a->tree != NULL)
-		tree_close(a->tree);
+	tree_close(a->tree);
 
 	return (ARCHIVE_OK);
 }
@@ -560,45 +556,45 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC, ARCHIVE_STATE_DATA,
 	    "archive_read_data_block");
 
-	if (a->entry_eof || a->entry_remaining_bytes <= 0) {
+	if (t->entry_eof || t->entry_remaining_bytes <= 0) {
 		r = ARCHIVE_EOF;
 		goto abort_read_data;
 	}
 
 	/* Allocate read buffer. */
-	if (a->entry_buff == NULL) {
-		a->entry_buff = malloc(1024 * 64);
-		if (a->entry_buff == NULL) {
+	if (t->entry_buff == NULL) {
+		t->entry_buff = malloc(1024 * 64);
+		if (t->entry_buff == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Couldn't allocate memory");
 			r = ARCHIVE_FATAL;
 			a->archive.state = ARCHIVE_STATE_FATAL;
 			goto abort_read_data;
 		}
-		a->entry_buff_size = 1024 * 64;
+		t->entry_buff_size = 1024 * 64;
 	}
 
-	buffbytes = a->entry_buff_size;
+	buffbytes = t->entry_buff_size;
 	if (buffbytes > t->current_sparse->length)
 		buffbytes = t->current_sparse->length;
 
 	/*
 	 * Skip hole.
 	 */
-	if (t->current_sparse->offset > a->entry_total) {
-		if (lseek(a->entry_fd,
+	if (t->current_sparse->offset > t->entry_total) {
+		if (lseek(t->entry_fd,
 		    t->current_sparse->offset, SEEK_SET) < 0) {
 			archive_set_error(&a->archive, errno, "Seek error");
 			r = ARCHIVE_FATAL;
 			a->archive.state = ARCHIVE_STATE_FATAL;
 			goto abort_read_data;
 		}
-		bytes = t->current_sparse->offset - a->entry_total;
-		a->entry_remaining_bytes -= bytes;
-		a->entry_total += bytes;
+		bytes = t->current_sparse->offset - t->entry_total;
+		t->entry_remaining_bytes -= bytes;
+		t->entry_total += bytes;
 	}
 	if (buffbytes > 0) {
-		bytes = read(a->entry_fd, a->entry_buff, buffbytes);
+		bytes = read(t->entry_fd, t->entry_buff, buffbytes);
 		if (bytes < 0) {
 			archive_set_error(&a->archive, errno, "Read error");
 			r = ARCHIVE_FATAL;
@@ -609,35 +605,35 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 		bytes = 0;
 	if (bytes == 0) {
 		/* Get EOF */
-		a->entry_eof = 1;
+		t->entry_eof = 1;
 		r = ARCHIVE_EOF;
 		goto abort_read_data;
 	}
-	*buff = a->entry_buff;
+	*buff = t->entry_buff;
 	*size = bytes;
-	*offset = a->entry_total;
-	a->entry_total += bytes;
-	a->entry_remaining_bytes -= bytes;
-	if (a->entry_remaining_bytes == 0) {
+	*offset = t->entry_total;
+	t->entry_total += bytes;
+	t->entry_remaining_bytes -= bytes;
+	if (t->entry_remaining_bytes == 0) {
 		/* Close the current file descriptor */
-		close_and_restore_time(a->entry_fd, t, &t->restore_time);
-		a->entry_fd = -1;
-		a->entry_eof = 1;
+		close_and_restore_time(t->entry_fd, t, &t->restore_time);
+		t->entry_fd = -1;
+		t->entry_eof = 1;
 	}
 	t->current_sparse->offset += bytes;
 	t->current_sparse->length -= bytes;
-	if (t->current_sparse->length == 0 && !a->entry_eof)
+	if (t->current_sparse->length == 0 && !t->entry_eof)
 		t->current_sparse++;
 	return (ARCHIVE_OK);
 
 abort_read_data:
 	*buff = NULL;
 	*size = 0;
-	*offset = a->entry_total;
-	if (a->entry_fd >= 0) {
+	*offset = t->entry_total;
+	if (t->entry_fd >= 0) {
 		/* Close the current file descriptor */
-		close_and_restore_time(a->entry_fd, t, &t->restore_time);
-		a->entry_fd = -1;
+		close_and_restore_time(t->entry_fd, t, &t->restore_time);
+		t->entry_fd = -1;
 	}
 	return (r);
 }
@@ -656,11 +652,11 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
 	    "archive_read_next_header2");
 
-	if (a->entry_fd >= 0) {
-		close(a->entry_fd);
-		a->entry_fd = -1;
-	}
 	t = a->tree;
+	if (t->entry_fd >= 0) {
+		close_and_restore_time(t->entry_fd, t, &t->restore_time);
+		t->entry_fd = -1;
+	}
 	st = NULL;
 	lst = NULL;
 	do {
@@ -754,9 +750,9 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	r = ARCHIVE_OK;
 	if (archive_entry_filetype(entry) == AE_IFREG &&
 	    archive_entry_size(entry) > 0) {
-		a->entry_fd = _wopen(tree_current_access_path(t),
+		t->entry_fd = _wopen(tree_current_access_path(t),
 		    O_RDONLY | O_BINARY);
-		if (a->entry_fd < 0) {
+		if (t->entry_fd < 0) {
 			archive_set_error(&a->archive, errno,
 			    "Couldn't open %ls", tree_current_path(a->tree));
 			return (ARCHIVE_FAILED);
@@ -766,7 +762,7 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 		if (archive_entry_hardlink(entry) == NULL &&
 		    (st->dwFileAttributes & FILE_ATTRIBUTE_SPARSE_FILE) != 0)
 			r = setup_sparse_from_disk(a, entry,
-			    (HANDLE)_get_osfhandle(a->entry_fd));
+			    (HANDLE)_get_osfhandle(t->entry_fd));
 	}
 
 	/*
@@ -780,16 +776,16 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 		break;
 	case ARCHIVE_OK:
 	case ARCHIVE_WARN:
-		a->entry_total = 0;
+		t->entry_total = 0;
 		if (archive_entry_filetype(entry) == AE_IFREG) {
-			a->entry_remaining_bytes = archive_entry_size(entry);
-			a->entry_eof = (a->entry_remaining_bytes == 0)? 1: 0;
-			if (!a->entry_eof &&
+			t->entry_remaining_bytes = archive_entry_size(entry);
+			t->entry_eof = (t->entry_remaining_bytes == 0)? 1: 0;
+			if (!t->entry_eof &&
 			    setup_sparse(a, entry) != ARCHIVE_OK)
 				return (ARCHIVE_FATAL);
 		} else {
-			a->entry_remaining_bytes = 0;
-			a->entry_eof = 1;
+			t->entry_remaining_bytes = 0;
+			t->entry_eof = 1;
 		}
 		a->archive.state = ARCHIVE_STATE_DATA;
 		break;
@@ -899,8 +895,6 @@ archive_read_disk_open(struct archive *_a, const char *pathname)
 		return (ARCHIVE_FATAL);
 	}
 	a->archive.state = ARCHIVE_STATE_HEADER;
-	a->entry_eof = 0;
-	a->entry_fd = -1;
 
 	return (ARCHIVE_OK);
 }
@@ -1207,6 +1201,9 @@ tree_reopen(struct tree *t, const char *path, int restore_time)
 	t->symlink_mode = t->initial_symlink_mode;
 	archive_string_empty(&(t->full_path));
 	archive_string_empty(&t->path);
+	t->entry_fd = -1;
+	t->entry_eof = 0;
+	t->entry_remaining_bytes = 0;
 
 	/* Get wchar_t strings from char strings. */
 	archive_string_init(&ws);
@@ -1656,6 +1653,17 @@ tree_current_path(struct tree *t)
 static void
 tree_close(struct tree *t)
 {
+
+	if (t == NULL)
+		return;
+	if (t->entry_fd >= 0) {
+		if (t->flags & needsRestoreTimes)
+			close_and_restore_time(t->entry_fd, t,
+			    &t->restore_time);
+		else
+			close(t->entry_fd);
+		t->entry_fd = -1;
+	}
 	/* Close the handle of FindFirstFileW */
 	if (t->d != INVALID_DIR_HANDLE) {
 		FindClose(t->d);
@@ -1679,6 +1687,7 @@ tree_free(struct tree *t)
 	archive_wstring_free(&t->full_path);
 	free(t->sparse_list);
 	free(t->filesystem_table);
+	free(t->entry_buff);
 	free(t);
 }
 
