@@ -206,7 +206,7 @@ struct tree {
 	int			 max_filesystem_id;
 	int			 allocated_filesytem;
 
-	int			 entry_fd;
+	HANDLE			 entry_fh;
 	int			 entry_eof;
 	int64_t			 entry_remaining_bytes;
 	int64_t			 entry_total;
@@ -319,7 +319,7 @@ static int	_archive_read_next_header2(struct archive *,
 static const char *trivial_lookup_gname(void *, int64_t gid);
 static const char *trivial_lookup_uname(void *, int64_t uid);
 static int	setup_sparse(struct archive_read_disk *, struct archive_entry *);
-static int	close_and_restore_time(int fd, struct tree *,
+static int	close_and_restore_time(HANDLE, struct tree *,
 		    struct restore_time *);
 static int	setup_sparse_from_disk(struct archive_read_disk *,
 		    struct archive_entry *, HANDLE);
@@ -550,7 +550,7 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
 	struct tree *t = a->tree;
 	int r;
-	ssize_t bytes;
+	int64_t bytes;
 	size_t buffbytes;
 
 	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC, ARCHIVE_STATE_DATA,
@@ -582,8 +582,16 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	 * Skip hole.
 	 */
 	if (t->current_sparse->offset > t->entry_total) {
-		if (lseek(t->entry_fd,
-		    t->current_sparse->offset, SEEK_SET) < 0) {
+		LARGE_INTEGER distance;
+		distance.QuadPart = t->current_sparse->offset;
+		if (!SetFilePointerEx(t->entry_fh, distance, NULL, FILE_BEGIN)) {
+			DWORD lasterr;
+
+			lasterr = GetLastError();
+			if (lasterr == ERROR_ACCESS_DENIED)
+				errno = EBADF;
+			else
+				la_dosmaperr(lasterr);
 			archive_set_error(&a->archive, errno, "Seek error");
 			r = ARCHIVE_FATAL;
 			a->archive.state = ARCHIVE_STATE_FATAL;
@@ -594,13 +602,24 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 		t->entry_total += bytes;
 	}
 	if (buffbytes > 0) {
-		bytes = read(t->entry_fd, t->entry_buff, buffbytes);
-		if (bytes < 0) {
+		DWORD bytes_read;
+		if (!ReadFile(t->entry_fh, t->entry_buff,
+		    (uint32_t)buffbytes, &bytes_read, NULL)) {
+			DWORD lasterr;
+
+			lasterr = GetLastError();
+			if (lasterr == ERROR_NO_DATA)
+				errno = EAGAIN;
+			else if (lasterr == ERROR_ACCESS_DENIED)
+				errno = EBADF;
+			else
+				la_dosmaperr(lasterr);
 			archive_set_error(&a->archive, errno, "Read error");
 			r = ARCHIVE_FATAL;
 			a->archive.state = ARCHIVE_STATE_FATAL;
 			goto abort_read_data;
 		}
+		bytes = bytes_read;
 	} else
 		bytes = 0;
 	if (bytes == 0) {
@@ -616,8 +635,8 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	t->entry_remaining_bytes -= bytes;
 	if (t->entry_remaining_bytes == 0) {
 		/* Close the current file descriptor */
-		close_and_restore_time(t->entry_fd, t, &t->restore_time);
-		t->entry_fd = -1;
+		close_and_restore_time(t->entry_fh, t, &t->restore_time);
+		t->entry_fh = INVALID_HANDLE_VALUE;
 		t->entry_eof = 1;
 	}
 	t->current_sparse->offset += bytes;
@@ -630,10 +649,10 @@ abort_read_data:
 	*buff = NULL;
 	*size = 0;
 	*offset = t->entry_total;
-	if (t->entry_fd >= 0) {
+	if (t->entry_fh != INVALID_HANDLE_VALUE) {
 		/* Close the current file descriptor */
-		close_and_restore_time(t->entry_fd, t, &t->restore_time);
-		t->entry_fd = -1;
+		close_and_restore_time(t->entry_fh, t, &t->restore_time);
+		t->entry_fh = INVALID_HANDLE_VALUE;
 	}
 	return (r);
 }
@@ -653,9 +672,9 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	    "archive_read_next_header2");
 
 	t = a->tree;
-	if (t->entry_fd >= 0) {
-		close_and_restore_time(t->entry_fd, t, &t->restore_time);
-		t->entry_fd = -1;
+	if (t->entry_fh != INVALID_HANDLE_VALUE) {
+		close_and_restore_time(t->entry_fh, t, &t->restore_time);
+		t->entry_fh = INVALID_HANDLE_VALUE;
 	}
 	st = NULL;
 	lst = NULL;
@@ -750,9 +769,10 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	r = ARCHIVE_OK;
 	if (archive_entry_filetype(entry) == AE_IFREG &&
 	    archive_entry_size(entry) > 0) {
-		t->entry_fd = _wopen(tree_current_access_path(t),
-		    O_RDONLY | O_BINARY);
-		if (t->entry_fd < 0) {
+		t->entry_fh = CreateFileW(tree_current_access_path(t),
+		    GENERIC_READ, 0, NULL, OPEN_EXISTING,
+		    FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+		if (t->entry_fh == INVALID_HANDLE_VALUE) {
 			archive_set_error(&a->archive, errno,
 			    "Couldn't open %ls", tree_current_path(a->tree));
 			return (ARCHIVE_FAILED);
@@ -761,8 +781,7 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 		/* Find sparse data from the disk. */
 		if (archive_entry_hardlink(entry) == NULL &&
 		    (st->dwFileAttributes & FILE_ATTRIBUTE_SPARSE_FILE) != 0)
-			r = setup_sparse_from_disk(a, entry,
-			    (HANDLE)_get_osfhandle(t->entry_fd));
+			r = setup_sparse_from_disk(a, entry, t->entry_fh);
 	}
 
 	/*
@@ -1052,22 +1071,22 @@ setup_current_filesystem(struct archive_read_disk *a)
 	 + (((nsec)/1000)*10))
 
 static int
-close_and_restore_time(int fd, struct tree *t, struct restore_time *rt)
+close_and_restore_time(HANDLE h, struct tree *t, struct restore_time *rt)
 {
 	HANDLE handle;
 	ULARGE_INTEGER wintm;
 	FILETIME fatime, fmtime;
 	int r = 0;
 
-	if (fd < 0 && AE_IFLNK == rt->filetype)
+	if (h == INVALID_HANDLE_VALUE && AE_IFLNK == rt->filetype)
 		return (0);
 
 	/* Close a file descritor.
 	 * It will not be used for SetFileTime() because it has been opened
 	 * by a read only mode.
 	 */
-	if (fd >= 0)
-		r = close(fd);
+	if (h != INVALID_HANDLE_VALUE)
+		CloseHandle(h);
 	if ((t->flags & needsRestoreTimes) == 0)
 		return (r);
 
@@ -1201,7 +1220,7 @@ tree_reopen(struct tree *t, const char *path, int restore_time)
 	t->symlink_mode = t->initial_symlink_mode;
 	archive_string_empty(&(t->full_path));
 	archive_string_empty(&t->path);
-	t->entry_fd = -1;
+	t->entry_fh = INVALID_HANDLE_VALUE;
 	t->entry_eof = 0;
 	t->entry_remaining_bytes = 0;
 
@@ -1273,7 +1292,7 @@ tree_ascend(struct tree *t)
 
 	te = t->stack;
 	t->depth--;
-	close_and_restore_time(-1, t, &te->restore_time);
+	close_and_restore_time(INVALID_DIR_HANDLE, t, &te->restore_time);
 	return (0);
 }
 
@@ -1656,9 +1675,9 @@ tree_close(struct tree *t)
 
 	if (t == NULL)
 		return;
-	if (t->entry_fd >= 0) {
-		close_and_restore_time(t->entry_fd, t, &t->restore_time);
-		t->entry_fd = -1;
+	if (t->entry_fh != INVALID_HANDLE_VALUE) {
+		close_and_restore_time(t->entry_fh, t, &t->restore_time);
+		t->entry_fh = INVALID_HANDLE_VALUE;
 	}
 	/* Close the handle of FindFirstFileW */
 	if (t->d != INVALID_DIR_HANDLE) {
