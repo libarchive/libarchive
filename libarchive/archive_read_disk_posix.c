@@ -2216,11 +2216,7 @@ tree_close(struct tree *t)
 	if (t == NULL)
 		return;
 	if (t->entry_fd >= 0) {
-		if (t->flags & needsRestoreTimes)
-			close_and_restore_time(t->entry_fd, t,
-			    &t->restore_time);
-		else
-			close(t->entry_fd);
+		close_and_restore_time(t->entry_fd, t, &t->restore_time);
 		t->entry_fd = -1;
 	}
 	/* Close the handle of readdir(). */
