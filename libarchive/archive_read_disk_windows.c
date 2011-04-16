@@ -113,10 +113,8 @@ __FBSDID("$FreeBSD$");
 
 struct restore_time {
 	const wchar_t		*full_path;
-	time_t			 mtime;
-	long			 mtime_nsec;
-	time_t			 atime;
-	long			 atime_nsec;
+	FILETIME		 lastWriteTime;
+	FILETIME		 lastAccessTime;
 	mode_t			 filetype;
 };
 
@@ -752,10 +750,8 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	tree_archive_entry_copy_bhfi(entry, t, st);
 
 	/* Save the times to be restored. */
-	t->restore_time.mtime = archive_entry_mtime(entry);
-	t->restore_time.mtime_nsec = archive_entry_mtime_nsec(entry);
-	t->restore_time.atime = archive_entry_atime(entry);
-	t->restore_time.atime_nsec = archive_entry_atime_nsec(entry);
+	t->restore_time.lastWriteTime = st->ftLastWriteTime;
+	t->restore_time.lastAccessTime = st->ftLastAccessTime;
 	t->restore_time.filetype = archive_entry_filetype(entry);
 
 	/* Lookup uname/gname */
@@ -1066,16 +1062,10 @@ setup_current_filesystem(struct archive_read_disk *a)
 	return (ARCHIVE_OK);
 }
 
-#define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
-#define WINTIME(sec, nsec) ((Int32x32To64(sec, 10000000) + EPOC_TIME)\
-	 + (((nsec)/1000)*10))
-
 static int
 close_and_restore_time(HANDLE h, struct tree *t, struct restore_time *rt)
 {
 	HANDLE handle;
-	ULARGE_INTEGER wintm;
-	FILETIME fatime, fmtime;
 	int r = 0;
 
 	if (h == INVALID_HANDLE_VALUE && AE_IFLNK == rt->filetype)
@@ -1097,13 +1087,8 @@ close_and_restore_time(HANDLE h, struct tree *t, struct restore_time *rt)
 		return (-1);
 	}
 
-	wintm.QuadPart = WINTIME(rt->atime, rt->atime_nsec);
-	fatime.dwLowDateTime = wintm.LowPart;
-	fatime.dwHighDateTime = wintm.HighPart;
-	wintm.QuadPart = WINTIME(rt->mtime, rt->mtime_nsec);
-	fmtime.dwLowDateTime = wintm.LowPart;
-	fmtime.dwHighDateTime = wintm.HighPart;
-	if (SetFileTime(handle, NULL, &fatime, &fmtime) == 0) {
+	if (SetFileTime(handle, NULL, &rt->lastAccessTime,
+	    &rt->lastWriteTime) == 0) {
 		errno = EINVAL;
 		r = -1;
 	} else
@@ -1140,10 +1125,8 @@ tree_push(struct tree *t, const wchar_t *path, const wchar_t *full_path,
 	te->full_path_dir_length = t->full_path_dir_length;
 	te->restore_time.full_path = te->full_path.s;
 	if (rt != NULL) {
-		te->restore_time.mtime = rt->mtime;
-		te->restore_time.mtime_nsec = rt->mtime_nsec;
-		te->restore_time.atime = rt->atime;
-		te->restore_time.atime_nsec = rt->atime_nsec;
+		te->restore_time.lastWriteTime = rt->lastWriteTime;
+		te->restore_time.lastAccessTime = rt->lastAccessTime;
 		te->restore_time.filetype = rt->filetype;
 	}
 }
@@ -1448,6 +1431,7 @@ tree_dir_next_windows(struct tree *t, const wchar_t *pattern)
 	}
 }
 
+#define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
 static void
 fileTimeToUtc(const FILETIME *filetime, time_t *time, long *ns)
 {
