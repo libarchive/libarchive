@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2003-2011 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,18 +29,16 @@ __FBSDID("$FreeBSD$");
 #include "archive.h"
 #include "archive_private.h"
 
-#if ARCHIVE_VERSION_NUMBER >= 4000000
-#warning archive_read_support_compression_all
+#if ARCHIVE_VERSION_NUMBER < 4000000
+int
+archive_read_support_compression_all(struct archive *a)
+{
+	return archive_read_support_filter_all(a);
+}
 #endif
 
 int
 archive_read_support_filter_all(struct archive *a)
-{
-	return archive_read_support_compression_all(a);
-}
-
-int
-archive_read_support_compression_all(struct archive *a)
 {
 	archive_check_magic(a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_filter_all");
