@@ -208,7 +208,7 @@ test_read_format_lha_filename_CP932_Windows(const char *refname)
 DEFINE_TEST(test_read_format_lha_filename)
 {
 	/* A sample file was created with LHA32.EXE through UNLHA.DLL. */
-	const char *refname = "test_read_format_lha_cp932.lzh";
+	const char *refname = "test_read_format_lha_filename_cp932.lzh";
 
 	extract_reference_file(refname);
 

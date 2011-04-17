@@ -145,7 +145,7 @@ test_read_format_zip_filename_UTF8_eucJP(const char *refname)
 	 * Bit 11 of its general purpose bit flag is set.
 	 */
 	if (NULL == setlocale(LC_ALL, "ja_JP.eucJP")) {
-		skipping("ja_JP.eucJP locale not available on this system.");
+		skipping("ja_JP.eucJP locale not availablefilename_ on this system.");
 		return;
 	}
 	assert((a = archive_read_new()) != NULL);
@@ -1073,12 +1073,12 @@ next_test:
 
 DEFINE_TEST(test_read_format_zip_filename)
 {
-	const char *refname1 = "test_read_format_zip_cp932.zip";
-	const char *refname2 = "test_read_format_zip_utf8.zip";
-	const char *refname3 = "test_read_format_zip_cp866.zip";
-	const char *refname4 = "test_read_format_zip_koi8r.zip";
-	const char *refname5 = "test_read_format_zip_utf8_ru.zip";
-	const char *refname6 = "test_read_format_zip_utf8_ru2.zip";
+	const char *refname1 = "test_read_format_zip_filename_cp932.zip";
+	const char *refname2 = "test_read_format_zip_filename_utf8_jp.zip";
+	const char *refname3 = "test_read_format_zip_filename_cp866.zip";
+	const char *refname4 = "test_read_format_zip_filename_koi8r.zip";
+	const char *refname5 = "test_read_format_zip_filename_utf8_ru.zip";
+	const char *refname6 = "test_read_format_zip_filename_utf8_ru2.zip";
 
 	extract_reference_file(refname1);
 	test_read_format_zip_filename_CP932_eucJP(refname1);

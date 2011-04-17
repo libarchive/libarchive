@@ -433,18 +433,18 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_cab_1.cab.uu			\
 	libarchive/test/test_read_format_cab_2.cab.uu			\
 	libarchive/test/test_read_format_cab_3.cab.uu			\
-	libarchive/test/test_read_format_cab_cp932.cab.uu		\
+	libarchive/test/test_read_format_cab_filename_cp932.cab.uu	\
 	libarchive/test/test_read_format_cpio_bin_be.cpio.uu		\
-	libarchive/test/test_read_format_cpio_cp866.cpio.uu		\
-	libarchive/test/test_read_format_cpio_eucjp.cpio.uu		\
-	libarchive/test/test_read_format_cpio_koi8r.cpio.uu		\
+	libarchive/test/test_read_format_cpio_filename_cp866.cpio.uu	\
+	libarchive/test/test_read_format_cpio_filename_eucjp.cpio.uu	\
+	libarchive/test/test_read_format_cpio_filename_koi8r.cpio.uu	\
+	libarchive/test/test_read_format_cpio_filename_utf8_jp.cpio.uu	\
+	libarchive/test/test_read_format_cpio_filename_utf8_ru.cpio.uu	\
 	libarchive/test/test_read_format_cpio_svr4_bzip2_rpm.rpm.uu	\
 	libarchive/test/test_read_format_cpio_svr4_gzip_rpm.rpm.uu	\
-	libarchive/test/test_read_format_cpio_utf8_jp.cpio.uu		\
-	libarchive/test/test_read_format_cpio_utf8_ru.cpio.uu		\
-	libarchive/test/test_read_format_gtar_cp866.tar.Z.uu		\
-	libarchive/test/test_read_format_gtar_eucjp.tar.Z.uu		\
-	libarchive/test/test_read_format_gtar_koi8r.tar.Z.uu		\
+	libarchive/test/test_read_format_gtar_filename_cp866.tar.Z.uu	\
+	libarchive/test/test_read_format_gtar_filename_eucjp.tar.Z.uu	\
+	libarchive/test/test_read_format_gtar_filename_koi8r.tar.Z.uu	\
 	libarchive/test/test_read_format_gtar_sparse_1_13.tar.uu	\
 	libarchive/test/test_read_format_gtar_sparse_1_17.tar.uu	\
 	libarchive/test/test_read_format_gtar_sparse_1_17_posix00.tar.uu \
@@ -463,6 +463,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_iso_rockridge_rr_moved.iso.Z.uu\
 	libarchive/test/test_read_format_iso_xorriso.iso.Z.uu		\
 	libarchive/test/test_read_format_iso_zisofs.iso.Z.uu		\
+	libarchive/test/test_read_format_lha_filename_cp932.lzh.uu	\
 	libarchive/test/test_read_format_lha_header0.lzh.uu		\
 	libarchive/test/test_read_format_lha_header1.lzh.uu		\
 	libarchive/test/test_read_format_lha_header2.lzh.uu		\
@@ -471,7 +472,6 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_lha_lh6.lzh.uu			\
 	libarchive/test/test_read_format_lha_lh7.lzh.uu			\
 	libarchive/test/test_read_format_lha_withjunk.lzh.uu		\
-	libarchive/test/test_read_format_lha_cp932.lzh.uu		\
 	libarchive/test/test_read_format_mtree.mtree.uu			\
 	libarchive/test/test_read_format_mtree_nomagic.mtree.uu		\
 	libarchive/test/test_read_format_raw.data.Z.uu			\
@@ -479,11 +479,12 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_tar_empty_filename.tar.uu	\
 	libarchive/test/test_read_format_tar_filename_koi8r.tar.Z.uu	\
 	libarchive/test/test_read_format_zip.zip.uu			\
-	libarchive/test/test_read_format_zip_cp866.zip.uu		\
-	libarchive/test/test_read_format_zip_cp932.zip.uu		\
-	libarchive/test/test_read_format_zip_koi8r.zip.uu		\
-	libarchive/test/test_read_format_zip_utf8.zip.uu		\
-	libarchive/test/test_read_format_zip_utf8_ru.zip.uu		\
+	libarchive/test/test_read_format_zip_filename_cp866.zip.uu	\
+	libarchive/test/test_read_format_zip_filename_cp932.zip.uu	\
+	libarchive/test/test_read_format_zip_filename_koi8r.zip.uu	\
+	libarchive/test/test_read_format_zip_filename_utf8_jp.zip.uu	\
+	libarchive/test/test_read_format_zip_filename_utf8_ru2.zip.uu	\
+	libarchive/test/test_read_format_zip_filename_utf8_ru.zip.uu	\
 	libarchive/test/CMakeLists.txt					\
 	libarchive/test/README
 

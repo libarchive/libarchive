@@ -135,7 +135,7 @@ cleanup:
 
 DEFINE_TEST(test_read_format_cab_filename)
 {
-	const char *refname = "test_read_format_cab_cp932.cab";
+	const char *refname = "test_read_format_cab_filename_cp932.cab";
 
 	extract_reference_file(refname);
 	test_read_format_cab_filename_CP932_eucJP(refname);

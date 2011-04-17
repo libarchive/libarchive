@@ -491,9 +491,9 @@ cleanup:
 
 DEFINE_TEST(test_read_format_gtar_filename)
 {
-	const char *refname1 = "test_read_format_gtar_eucjp.tar.Z";
-	const char *refname2 = "test_read_format_gtar_cp866.tar.Z";
-	const char *refname3 = "test_read_format_gtar_koi8r.tar.Z";
+	const char *refname1 = "test_read_format_gtar_filename_eucjp.tar.Z";
+	const char *refname2 = "test_read_format_gtar_filename_cp866.tar.Z";
+	const char *refname3 = "test_read_format_gtar_filename_koi8r.tar.Z";
 
 	extract_reference_file(refname1);
 	test_read_format_gtar_filename_eucJP_UTF8(refname1);

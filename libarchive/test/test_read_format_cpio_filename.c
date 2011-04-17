@@ -840,11 +840,11 @@ cleanup:
 
 DEFINE_TEST(test_read_format_cpio_filename)
 {
-	const char *refname1 = "test_read_format_cpio_eucjp.cpio";
-	const char *refname2 = "test_read_format_cpio_utf8_jp.cpio";
-	const char *refname3 = "test_read_format_cpio_cp866.cpio";
-	const char *refname4 = "test_read_format_cpio_koi8r.cpio";
-	const char *refname5 = "test_read_format_cpio_utf8_ru.cpio";
+	const char *refname1 = "test_read_format_cpio_filename_eucjp.cpio";
+	const char *refname2 = "test_read_format_cpio_filename_utf8_jp.cpio";
+	const char *refname3 = "test_read_format_cpio_filename_cp866.cpio";
+	const char *refname4 = "test_read_format_cpio_filename_koi8r.cpio";
+	const char *refname5 = "test_read_format_cpio_filename_utf8_ru.cpio";
 
 	extract_reference_file(refname1);
 	test_read_format_cpio_filename_eucJP_UTF8(refname1);
