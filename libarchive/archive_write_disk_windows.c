@@ -1464,7 +1464,7 @@ create_filesystem_object(struct archive_write_disk *a)
 		if (r == 0 && a->filesize <= 0) {
 			a->todo = 0;
 			a->deferred = 0;
-		} if (r == 0 && a->filesize > 0) {
+		} else if (r == 0 && a->filesize > 0) {
 			a->fh = CreateFileW(namefull, GENERIC_WRITE, 0, NULL,
 			    TRUNCATE_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 			if (a->fh == INVALID_HANDLE_VALUE) {

@@ -1207,7 +1207,7 @@ create_filesystem_object(struct archive_write_disk *a)
 		if (r == 0 && a->filesize <= 0) {
 			a->todo = 0;
 			a->deferred = 0;
-		} if (r == 0 && a->filesize > 0) {
+		} else if (r == 0 && a->filesize > 0) {
 			a->fd = open(a->name, O_WRONLY | O_TRUNC | O_BINARY);
 			if (a->fd < 0)
 				r = errno;
