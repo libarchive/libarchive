@@ -363,7 +363,8 @@ test_pax_filename_encoding_KOI8R()
 	 * in UTF-8 by default. */
 	a = archive_write_new();
 	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_open_memory(a, buff, sizeof(buff), &used));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	entry = archive_entry_new2(a);
 	archive_entry_set_pathname(entry, "\xD0\xD2\xC9");
@@ -379,7 +380,7 @@ test_pax_filename_encoding_KOI8R()
 }
 
 /*
- * Verify that KOI8-R filenames are correctly translated to Unicode and UTF-8.
+ * Verify that CP1251 filenames are correctly translated to Unicode and UTF-8.
  */
 static void
 test_pax_filename_encoding_CP1251()
@@ -410,7 +411,8 @@ test_pax_filename_encoding_CP1251()
 	 * in UTF-8 by default. */
 	a = archive_write_new();
 	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_open_memory(a, buff, sizeof(buff), &used));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	entry = archive_entry_new2(a);
 	archive_entry_set_pathname(entry, "\xef\xf0\xe8");
@@ -456,7 +458,8 @@ test_pax_filename_encoding_EUCJP()
 	 * in UTF-8 by default. */
 	a = archive_write_new();
 	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_open_memory(a, buff, sizeof(buff), &used));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	entry = archive_entry_new2(a);
 	archive_entry_set_pathname(entry, "\xC9\xBD.txt");
@@ -504,7 +507,8 @@ test_pax_filename_encoding_CP932()
 	 * in UTF-8 by default. */
 	a = archive_write_new();
 	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_open_memory(a, buff, sizeof(buff), &used));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	entry = archive_entry_new2(a);
 	archive_entry_set_pathname(entry, "\x95\x5C.txt");
@@ -520,6 +524,69 @@ test_pax_filename_encoding_CP932()
 
 }
 
+/*
+ * Verify that KOI8-R filenames are not translated to Unicode and UTF-8
+ * when using hdrcharset=BINARY option.
+ */
+static void
+test_pax_filename_encoding_KOI8R_BINARY()
+{
+  	struct archive *a;
+  	struct archive_entry *entry;
+	char buff[4096];
+	size_t used;
+
+	if (NULL == setlocale(LC_ALL, "ru_RU.KOI8-R")) {
+		skipping("KOI8-R locale not available on this system.");
+		return;
+	}
+
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
+	/* BINARY mode should be accepted. */
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_set_options(a, "hdrcharset=BINARY"));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	entry = archive_entry_new2(a);
+	archive_entry_set_pathname(entry, "\xD0\xD2\xC9");
+	archive_entry_set_filetype(entry, AE_IFREG);
+	archive_entry_set_size(entry, 0);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* "hdrcharset=BINARY" pax attribute should be written. */
+	assertEqualMem(buff + 512, "21 hdrcharset=BINARY\x0A", 21);
+	/* Above three characters in KOI8-R should not translate to any
+	 * character-set. */
+	assertEqualMem(buff + 512+21, "12 path=\xD0\xD2\xC9\x0A", 12);
+}
+
+/*
+ * Pax format writer only accepts both BINARY and UTF-8.
+ * If other character-set name is specified, you will get ARCHIVE_FAILED.
+ */
+static void
+test_pax_filename_encoding_KOI8R_CP1251()
+{
+  	struct archive *a;
+
+	if (NULL == setlocale(LC_ALL, "ru_RU.KOI8-R")) {
+		skipping("KOI8-R locale not available on this system.");
+		return;
+	}
+
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
+	/* pax format writer only accepts both BINARY and UTF-8. */
+	assertEqualInt(ARCHIVE_FAILED,
+	    archive_write_set_options(a, "hdrcharset=CP1251"));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+}
+
+
 DEFINE_TEST(test_pax_filename_encoding)
 {
 	test_pax_filename_encoding_1();
@@ -529,4 +596,6 @@ DEFINE_TEST(test_pax_filename_encoding)
 	test_pax_filename_encoding_CP1251();
 	test_pax_filename_encoding_EUCJP();
 	test_pax_filename_encoding_CP932();
+	test_pax_filename_encoding_KOI8R_BINARY();
+	test_pax_filename_encoding_KOI8R_CP1251();
 }
