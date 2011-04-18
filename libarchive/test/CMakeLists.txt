@@ -112,6 +112,7 @@ IF(ENABLE_TEST)
     test_read_format_tlz.c
     test_read_format_txz.c
     test_read_format_tz.c
+    test_read_format_ustar_filename.c
     test_read_format_xar.c
     test_read_format_zip.c
     test_read_format_zip_filename.c

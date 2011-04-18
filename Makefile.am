@@ -342,6 +342,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_format_tlz.c			\
 	libarchive/test/test_read_format_txz.c			\
 	libarchive/test/test_read_format_tz.c			\
+	libarchive/test/test_read_format_ustar_filename.c	\
 	libarchive/test/test_read_format_xar.c			\
 	libarchive/test/test_read_format_zip.c			\
 	libarchive/test/test_read_format_zip_filename.c		\
@@ -478,6 +479,9 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_raw.data.uu			\
 	libarchive/test/test_read_format_tar_empty_filename.tar.uu	\
 	libarchive/test/test_read_format_tar_filename_koi8r.tar.Z.uu	\
+	libarchive/test/test_read_format_ustar_filename_cp866.tar.Z.uu	\
+	libarchive/test/test_read_format_ustar_filename_eucjp.tar.Z.uu	\
+	libarchive/test/test_read_format_ustar_filename_koi8r.tar.Z.uu	\
 	libarchive/test/test_read_format_zip.zip.uu			\
 	libarchive/test/test_read_format_zip_filename_cp866.zip.uu	\
 	libarchive/test/test_read_format_zip_filename_cp932.zip.uu	\
