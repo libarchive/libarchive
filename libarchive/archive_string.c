@@ -1628,52 +1628,85 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
  * Utility to convert a single UTF-8 sequence.
  */
 static int
-utf8_to_unicode(int *pwc, const char *s, size_t n)
+utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 {
-        int ch;
+	static unsigned char utf8_count[256] = {
+		 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,/* 00 - 0F */
+		 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,/* 10 - 1F */
+		 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,/* 20 - 2F */
+		 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,/* 30 - 3F */
+		 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,/* 40 - 4F */
+		 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,/* 50 - 5F */
+		 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,/* 60 - 6F */
+		 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,/* 70 - 7F */
+		 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,/* 80 - 8F */
+		 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,/* 90 - 9F */
+		 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,/* A0 - AF */
+		 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,/* B0 - BF */
+		 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,/* C0 - CF */
+		 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,/* D0 - DF */
+		 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,/* E0 - EF */
+		 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 /* F0 - FF */
+	};
+	int ch;
+	unsigned char cnt;
+	uint32_t wc;
 
-        /*
+	/* Sanity check. */
+	if (n == 0)
+		return (0);
+	/*
 	 * Decode 1-4 bytes depending on the value of the first byte.
 	 */
-        ch = (unsigned char)*s;
-	if (ch == 0) {
+	ch = (unsigned char)*s;
+	if (ch == 0)
 		return (0); /* Standard:  return 0 for end-of-string. */
-	}
-	if ((ch & 0x80) == 0) {
-                *pwc = ch & 0x7f;
-		return (1);
-        }
-	if ((ch & 0xe0) == 0xc0) {
-		if (n < 2)
-			return (-1);
+	cnt = utf8_count[ch];
+
+	/* Invalide sequence or there are not plenty bytes. */
+	if (n < cnt)
+		return (-1);
+	switch (cnt) {
+	case 1:	/* 1 byte sequence. */
+		*pwc = ch & 0x7f;
+		return (cnt);
+	case 2:	/* 2 bytes sequence. */
 		if ((s[1] & 0xc0) != 0x80) return (-1);
-                *pwc = ((ch & 0x1f) << 6) | (s[1] & 0x3f);
-		return (2);
-        }
-	if ((ch & 0xf0) == 0xe0) {
-		if (n < 3)
-			return (-1);
+		*pwc = ((ch & 0x1f) << 6) | (s[1] & 0x3f);
+		return (cnt);
+	case 3:	/* 3 bytes sequence. */
 		if ((s[1] & 0xc0) != 0x80) return (-1);
 		if ((s[2] & 0xc0) != 0x80) return (-1);
-                *pwc = ((ch & 0x0f) << 12)
+		wc = ((ch & 0x0f) << 12)
 		    | ((s[1] & 0x3f) << 6)
 		    | (s[2] & 0x3f);
-		return (3);
-        }
-	if ((ch & 0xf8) == 0xf0) {
+		if (wc < 0x800)
+			return (-1);/* Overlong sequence. */
+		break;
+	case 4:	/* 4 bytes sequence. */
 		if (n < 4)
 			return (-1);
 		if ((s[1] & 0xc0) != 0x80) return (-1);
 		if ((s[2] & 0xc0) != 0x80) return (-1);
 		if ((s[3] & 0xc0) != 0x80) return (-1);
-                *pwc = ((ch & 0x07) << 18)
+		wc = ((ch & 0x07) << 18)
 		    | ((s[1] & 0x3f) << 12)
 		    | ((s[2] & 0x3f) << 6)
 		    | (s[3] & 0x3f);
-		return (4);
-        }
-	/* Invalid first byte. */
-	return (-1);
+		if (wc < 0x10000)
+			return (-1);/* Overlong sequence. */
+		break;
+	default:
+		return (-1);
+	}
+
+	/* Surrogate and values larger than 0x10FFFF are not leagal
+	 * Unicode values. */
+	if ((wc >= 0xd800 &&wc <= 0xdfff) || wc > 0x10ffff)
+		return (-1);
+	/* Correctly gets a Unicode, returns used bytes. */
+	*pwc = wc;
+	return (cnt);
 }
 
 /*
@@ -1717,7 +1750,7 @@ strncat_from_utf8_libarchive2(struct archive_string *as,
 	end = as->s + as->buffer_length - MB_CUR_MAX -1;
 	while (*s != '\0' && len > 0) {
 		wchar_t wc;
-		int unicode;
+		uint32_t unicode;
 
 		if (p >= end) {
 			as->length = p - as->s;
@@ -2009,21 +2042,39 @@ string_append_from_utf16be_to_utf8(struct archive_string *as,
 		
 		/* If this is a surrogate pair, assemble the full code point.*/
 		if (uc >= 0xD800 && uc <= 0xDBff) {
-			if (bytes < 2) {
-				/* Wrong sequence. */
-				*p++ = '?';
-				return_val = -1;
-				break;
-			}
-			unsigned utf16_next = archive_be16dec(utf16be);
+			unsigned utf16_next;
+
+			if (bytes >= 2)
+				utf16_next = archive_be16dec(utf16be);
+			else
+				utf16_next = 0;
 			if (utf16_next >= 0xDC00 && utf16_next <= 0xDFFF) {
 				uc -= 0xD800;
 				uc *= 0x400;
 				uc += (utf16_next - 0xDC00);
 				uc += 0x10000;
 				utf16be += 2; bytes -=2;
+			} else {
+				/* Wrong sequence. */
+				*p++ = '?';
+				return_val = -1;
+				break;
 			}
 		}
+
+		/*
+		 * Surrogate pair values(0xd800 through 0xdfff) are only
+		 * used by UTF-16, so, after above culculation, the code
+		 * must not be surrogate values, and Unicode has no codes
+		 * larger than 0x10ffff. Thus, those are not leagal Unicode
+		 * values.
+		 */
+		if (uc >= 0xd800 && uc <= 0xdfff || uc > 0x10ffff) {
+			*p++ = '?';
+			return_val = -1;
+			break;
+		}
+
 		/* Translate code point to UTF8 */
 		if (uc <= 0x7f) {
 			*p++ = (char)uc;
@@ -2034,16 +2085,11 @@ string_append_from_utf16be_to_utf8(struct archive_string *as,
 			*p++ = 0xe0 | ((uc >> 12) & 0x0f);
 			*p++ = 0x80 | ((uc >> 6) & 0x3f);
 			*p++ = 0x80 | (uc & 0x3f);
-		} else if (uc <= 0x1fffff) {
+		} else {
 			*p++ = 0xf0 | ((uc >> 18) & 0x07);
 			*p++ = 0x80 | ((uc >> 12) & 0x3f);
 			*p++ = 0x80 | ((uc >> 6) & 0x3f);
 			*p++ = 0x80 | (uc & 0x3f);
-		} else {
-			/* Unicode has no codes larger than 0x1fffff. */
-			/* TODO: use \uXXXX escape here instead of ? */
-			*p++ = '?';
-			return_val = -1;
 		}
 	}
 	as->length = p - as->s;
@@ -2061,7 +2107,8 @@ string_append_from_utf8_to_utf16be(struct archive_string *as,
 {
 	char *s, *end;
 	size_t base_size;
-	int wc, wc2;/* Must be large enough for a 21-bit Unicode code point. */
+	uint32_t wc, wc2;	/* Must be large enough for a 21-bit Unicode
+				 * code point. */
 	int n;
 	int return_val = 0; /* success */
 
@@ -2086,34 +2133,7 @@ string_append_from_utf8_to_utf16be(struct archive_string *as,
 		}
 		p += n;
 		len -= n;
-		if (wc >= 0xDC00 && wc <= 0xDBFF) {
-			/* This is a leading surrogate; some idiot
-			 * has translated UTF16 to UTF8 without combining
-			 * surrogates; rebuild the full code point before
-			 * continuing. */
-			n = utf8_to_unicode(&wc2, p, len);
-			if (n < 0) {
-				return_val = -1;
-				break;
-			}
-			if (n == 0) /* Ignore the leading surrogate */
-				break;
-			if (wc2 < 0xDC00 || wc2 > 0xDFFF) {
-				/* If the second character isn't a
-				 * trailing surrogate, then someone
-				 * has really screwed up and this is
-				 * invalid. */
-				return_val = -1;
-				break;
-			} else {
-				p += n;
-				len -= n;
-				wc -= 0xD800;
-				wc *= 0x400;
-				wc += wc2 - 0xDC00;
-				wc += 0x10000;
-			}
-		}
+
 		if (wc > 0xffff) {
 			/* We have a code point that won't fit into a
 			 * wchar_t; convert it to a surrogate pair. */
