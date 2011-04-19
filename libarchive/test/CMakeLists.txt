@@ -40,6 +40,7 @@ IF(ENABLE_TEST)
     test_compat_lzip.c
     test_compat_lzma.c
     test_compat_mac_gnutar.c
+    test_compat_pax_libarchive_2x.c
     test_compat_solaris_tar_acl.c
     test_compat_tar_hardlink.c
     test_compat_xz.c

@@ -86,6 +86,8 @@ struct archive_string_conv {
 #define SCONV_UTF16BE	 	16	/* Consideration to UTF-16BE; one side
 					 * is single byte character, other is
 					 * double bytes character. */
+#define SCONV_UTF8_LIBARCHIVE_2 32	/* Incorrect UTF-8 made by libarchive
+					 * 2.x in the wrong assumption. */
 
 #if HAVE_ICONV
 	iconv_t				 cd;
@@ -111,6 +113,8 @@ static int strncpy_to_utf16be(struct archive_string *, const void *, size_t,
     struct archive_string_conv *);
 static int best_effort_strncat_in_locale(struct archive_string *, const void *,
     size_t, struct archive_string_conv *);
+static int strncat_from_utf8_libarchive2(struct archive_string *,
+    const char *, size_t);
 
 static struct archive_string *
 archive_string_append(struct archive_string *as, const char *p, size_t s)
@@ -668,6 +672,18 @@ create_sconv_object(const char *fc, const char *tc,
 {
 	struct archive_string_conv *sc; 
 
+	/*
+	 * Special conversion for the incorrect UTF-8 made by libarchive 2.x
+	 * only for the platform WCS of which is not Unicode.
+	 */
+	if (strcmp(fc, "UTF-8-MADE_BY_LIBARCHIVE2") == 0)
+#if (defined(_WIN32) && !defined(__CYGWIN__)) \
+	 || defined(__STDC_ISO_10646__) || defined(__APPLE__)
+		fc = "UTF-8";/* Ignore special sequence. */
+#else
+		flag |= SCONV_UTF8_LIBARCHIVE_2;
+#endif
+
 	sc = malloc(sizeof(*sc));
 	if (sc == NULL)
 		return (NULL);
@@ -682,6 +698,11 @@ create_sconv_object(const char *fc, const char *tc,
 		free(sc);
 		free(sc->from_charset);
 		return (NULL);
+	}
+
+	if (flag & SCONV_UTF8_LIBARCHIVE_2) {
+		sc->flag = flag;
+		return (sc);
 	}
 #if HAVE_ICONV
 	sc->cd = iconv_open(tc, fc);
@@ -1070,6 +1091,14 @@ get_sconv_object(struct archive *a, const char *fc, const char *tc, int flag)
 		    "Could not allocate memory for a string conversion object");
 		return (NULL);
 	}
+
+	/* We have to specially treat a string conversion so that
+	 * we can correctly translate the wrong format UTF-8 string. */
+	if (sc->flag & SCONV_UTF8_LIBARCHIVE_2) {
+		if (a != NULL)
+			add_sconv_object(a, sc);
+		return (sc);
+	}
 #if HAVE_ICONV
 	if (sc->cd == (iconv_t)-1 && (flag & SCONV_BEST_EFFORT) == 0) {
 		free_sconv_object(sc);
@@ -1316,6 +1345,11 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 		archive_string_append(as, src, length);
 		return (0);
 	}
+
+	/* Perform special sequence for the incorrect UTF-8 made by
+	 * libarchive2.x. */
+	if (sc->flag & SCONV_UTF8_LIBARCHIVE_2)
+		return (strncat_from_utf8_libarchive2(as, _p, length));
 
 	archive_string_ensure(as, as->length + length*2+1);
 
@@ -1567,8 +1601,8 @@ is_all_ascii_code(struct archive_string *as)
  * Returns 0 if sc is NULL.
  */
 static int
-best_effort_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
-    struct archive_string_conv *sc)
+best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
+    size_t n, struct archive_string_conv *sc)
 {
 	size_t length = la_strnlen(_p, n);
 
@@ -1576,6 +1610,11 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p, size_t 
 	if (sc != NULL && (sc->flag & SCONV_WIN_CP) != 0)
 		return (strncat_in_codepage(as, _p, length, sc));
 #endif
+	/* Perform special sequence for the incorrect UTF-8 made by
+	 * libarchive2.x. */
+	if (sc != NULL && (sc->flag & SCONV_UTF8_LIBARCHIVE_2) != 0)
+		return (strncat_from_utf8_libarchive2(as, _p, length));
+
 	archive_string_append(as, _p, length);
 	/* If charset is NULL, just make a copy, so return 0 as success. */
 	if (sc == NULL || (sc->same && invalid_mbs(_p, n, sc) == 0))
@@ -1585,6 +1624,138 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p, size_t 
 	return (-1);
 }
 
+/*
+ * Utility to convert a single UTF-8 sequence.
+ */
+static int
+utf8_to_unicode(int *pwc, const char *s, size_t n)
+{
+        int ch;
+
+        /*
+	 * Decode 1-4 bytes depending on the value of the first byte.
+	 */
+        ch = (unsigned char)*s;
+	if (ch == 0) {
+		return (0); /* Standard:  return 0 for end-of-string. */
+	}
+	if ((ch & 0x80) == 0) {
+                *pwc = ch & 0x7f;
+		return (1);
+        }
+	if ((ch & 0xe0) == 0xc0) {
+		if (n < 2)
+			return (-1);
+		if ((s[1] & 0xc0) != 0x80) return (-1);
+                *pwc = ((ch & 0x1f) << 6) | (s[1] & 0x3f);
+		return (2);
+        }
+	if ((ch & 0xf0) == 0xe0) {
+		if (n < 3)
+			return (-1);
+		if ((s[1] & 0xc0) != 0x80) return (-1);
+		if ((s[2] & 0xc0) != 0x80) return (-1);
+                *pwc = ((ch & 0x0f) << 12)
+		    | ((s[1] & 0x3f) << 6)
+		    | (s[2] & 0x3f);
+		return (3);
+        }
+	if ((ch & 0xf8) == 0xf0) {
+		if (n < 4)
+			return (-1);
+		if ((s[1] & 0xc0) != 0x80) return (-1);
+		if ((s[2] & 0xc0) != 0x80) return (-1);
+		if ((s[3] & 0xc0) != 0x80) return (-1);
+                *pwc = ((ch & 0x07) << 18)
+		    | ((s[1] & 0x3f) << 12)
+		    | ((s[2] & 0x3f) << 6)
+		    | (s[3] & 0x3f);
+		return (4);
+        }
+	/* Invalid first byte. */
+	return (-1);
+}
+
+/*
+ * libarchive 2.x made incorrect UTF-8 strings in the wrong assumuption
+ * that WCS is Unicode. it is true for servel platforms but some are false.
+ * And then people who did not use UTF-8 locale on the non Unicode WCS
+ * platform and made a tar file with libarchive(mostly bsdtar) 2.x. Those
+ * now cannot get right filename from libarchive 3.x and later since we
+ * fixed the wrong assumption and it is incompatible to older its versions.
+ * So we provide special option, "utf8type=libarchive2.x", for resolving it.
+ * That option enable the string conversion of libarchive 2.x.
+ *
+ * Translates the wrong UTF-8 string made by libarchive 2.x into current
+ * locale character set and appends to the archive_string.
+ * Note: returns -1 if conversion fails.
+ */
+static int
+strncat_from_utf8_libarchive2(struct archive_string *as,
+    const char *s, size_t len)
+{
+	int n;
+	char *p;
+	char *end;
+#if HAVE_WCRTOMB
+	mbstate_t shift_state;
+
+	memset(&shift_state, 0, sizeof(shift_state));
+#else
+	/* Clear the shift state before starting. */
+	wctomb(NULL, L'\0');
+#endif
+	/*
+	 * Allocate buffer for MBS.
+	 * We need this allocation here since it is possible that
+	 * as->s is still NULL.
+	 */
+	if (archive_string_ensure(as, as->length + len + 1) == NULL)
+		__archive_errx(1, "Out of memory");
+
+	p = as->s + as->length;
+	end = as->s + as->buffer_length - MB_CUR_MAX -1;
+	while (*s != '\0' && len > 0) {
+		wchar_t wc;
+		int unicode;
+
+		if (p >= end) {
+			as->length = p - as->s;
+			/* Re-allocate buffer for MBS. */
+			if (archive_string_ensure(as,
+			    as->length + len * 2 + 1) == NULL)
+				__archive_errx(1, "Out of memory");
+			p = as->s + as->length;
+			end = as->s + as->buffer_length - MB_CUR_MAX -1;
+		}
+
+		/*
+		 * As libarchie 2.x, translates the wrong UTF-8 MBS into
+		 * a wide-character in the assumption that WCS is Unicode.
+		 */
+		n = utf8_to_unicode(&unicode, s, len);
+		if (n == -1)
+			return (-1);
+		s += n;
+		len -= n;
+
+		/*
+		 * Translates the wide-character into the current locale MBS.
+		 */
+		wc = (wchar_t)unicode;
+#if HAVE_WCRTOMB
+		n = wcrtomb(p, wc, &shift_state);
+#else
+		n = wctomb(p, wc);
+#endif
+		if (n == -1)
+			return (-1);
+		p += n;
+	}
+	as->length = p - as->s;
+	as->s[as->length] = '\0';
+	return (0);
+}
 
 
 /*
@@ -1878,58 +2049,6 @@ string_append_from_utf16be_to_utf8(struct archive_string *as,
 	as->length = p - as->s;
 	*p = '\0';
 	return (return_val);
-}
-
-/*
- * Utility to convert a single UTF-8 sequence.
- */
-static int
-utf8_to_unicode(int *pwc, const char *s, size_t n)
-{
-        int ch;
-
-        /*
-	 * Decode 1-4 bytes depending on the value of the first byte.
-	 */
-        ch = (unsigned char)*s;
-	if (ch == 0) {
-		return (0); /* Standard:  return 0 for end-of-string. */
-	}
-	if ((ch & 0x80) == 0) {
-                *pwc = ch & 0x7f;
-		return (1);
-        }
-	if ((ch & 0xe0) == 0xc0) {
-		if (n < 2)
-			return (-1);
-		if ((s[1] & 0xc0) != 0x80) return (-1);
-                *pwc = ((ch & 0x1f) << 6) | (s[1] & 0x3f);
-		return (2);
-        }
-	if ((ch & 0xf0) == 0xe0) {
-		if (n < 3)
-			return (-1);
-		if ((s[1] & 0xc0) != 0x80) return (-1);
-		if ((s[2] & 0xc0) != 0x80) return (-1);
-                *pwc = ((ch & 0x0f) << 12)
-		    | ((s[1] & 0x3f) << 6)
-		    | (s[2] & 0x3f);
-		return (3);
-        }
-	if ((ch & 0xf8) == 0xf0) {
-		if (n < 4)
-			return (-1);
-		if ((s[1] & 0xc0) != 0x80) return (-1);
-		if ((s[2] & 0xc0) != 0x80) return (-1);
-		if ((s[3] & 0xc0) != 0x80) return (-1);
-                *pwc = ((ch & 0x07) << 18)
-		    | ((s[1] & 0x3f) << 12)
-		    | ((s[2] & 0x3f) << 6)
-		    | (s[3] & 0x3f);
-		return (4);
-        }
-	/* Invalid first byte. */
-	return (-1);
 }
 
 /*

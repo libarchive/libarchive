@@ -270,6 +270,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_compat_lzip.c			\
 	libarchive/test/test_compat_lzma.c			\
 	libarchive/test/test_compat_mac_gnutar.c		\
+	libarchive/test/test_compat_pax_libarchive_2x.c		\
 	libarchive/test/test_compat_solaris_tar_acl.c		\
 	libarchive/test/test_compat_tar_hardlink.c		\
 	libarchive/test/test_compat_xz.c			\
@@ -421,6 +422,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_lzma_2.tlz.uu			\
 	libarchive/test/test_compat_lzma_3.tlz.uu			\
 	libarchive/test/test_compat_mac_gnutar.tar.Z.uu			\
+	libarchive/test/test_compat_pax_libarchive_2x.tar.Z.uu		\
 	libarchive/test/test_compat_solaris_tar_acl.tar.uu		\
 	libarchive/test/test_compat_tar_hardlink_1.tar.uu		\
 	libarchive/test/test_compat_xz_1.txz.uu				\

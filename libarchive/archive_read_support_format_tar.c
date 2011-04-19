@@ -148,6 +148,7 @@ struct tar {
 	struct archive_string_conv *sconv_acl;
 	struct archive_string_conv *sconv_default;
 	int			 init_default_conversion;
+	int			 utf8_made_by_libarchive2x;
 };
 
 static int	archive_block_is_null(const unsigned char *p);
@@ -372,6 +373,16 @@ archive_read_format_tar_options(struct archive_read *a,
 			else
 				ret = ARCHIVE_FATAL;
 		}
+	} else if (strcmp(key, "utf8type")  == 0) {
+		if (val == NULL || val[0] == 0)
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "tar: utf8type option needs value");
+		else if (strcmp(val, "libarchive2x") == 0) {
+			tar->utf8_made_by_libarchive2x = 1;
+			ret = ARCHIVE_OK;
+		} else
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "tar: incorrect value for ``%s''", key);
 	} else
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "tar: unknown keyword ``%s''", key);
@@ -1490,8 +1501,13 @@ pax_header(struct archive_read *a, struct tar *tar,
 	if (tar->pax_hdrcharset_binary)
 		sconv = tar->opt_sconv;
 	else {
+		const char *cs;
+		if (tar->utf8_made_by_libarchive2x)
+			cs = "UTF-8-MADE_BY_LIBARCHIVE2";
+		else
+			cs = "UTF-8";
 		sconv = archive_string_conversion_from_charset(
-		    &(a->archive), "UTF-8", 1);
+		    &(a->archive), cs, 1);
 		if (sconv == NULL)
 			return (ARCHIVE_FATAL);
 	}
