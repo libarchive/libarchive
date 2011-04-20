@@ -630,7 +630,6 @@ CHECK_FUNCTION_EXISTS_GLIBC(openat HAVE_OPENAT)
 CHECK_FUNCTION_EXISTS_GLIBC(pipe HAVE_PIPE)
 CHECK_FUNCTION_EXISTS_GLIBC(poll HAVE_POLL)
 CHECK_FUNCTION_EXISTS_GLIBC(readlink HAVE_READLINK)
-CHECK_FUNCTION_EXISTS_GLIBC(readlinkat HAVE_READLINKAT)
 CHECK_FUNCTION_EXISTS_GLIBC(select HAVE_SELECT)
 CHECK_FUNCTION_EXISTS_GLIBC(setenv HAVE_SETENV)
 CHECK_FUNCTION_EXISTS_GLIBC(setlocale HAVE_SETLOCALE)
@@ -676,6 +675,13 @@ CHECK_FUNCTION_EXISTS(wmemcpy HAVE_WMEMCPY)
 CHECK_C_SOURCE_COMPILES(
   "#include <dirent.h>\nint main() {DIR *d; struct dirent e,*r; return readdir_r(d,&e,&r);}"
   HAVE_READDIR_R)
+
+
+# Only detect readlinkat() if we also have AT_FDCWD in unistd.h.
+CHECK_C_SOURCE_COMPILES(
+  "#include <unistd.h>\nint main() {return readlinkat(AT_FDCWD, NULL, 0);}"
+  HAVE_READLINKAT)
+
 
 # To verify major(), we need to both include the header
 # of interest and verify that the result can be linked.
@@ -1026,7 +1032,7 @@ IF(MSVC)
 ENDIF(MSVC)
 
 IF(ENABLE_TEST)
-ADD_CUSTOM_TARGET(run_all_tests)
+  ADD_CUSTOM_TARGET(run_all_tests)
 ENDIF(ENABLE_TEST)
 
 add_subdirectory(libarchive)
