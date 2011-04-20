@@ -88,6 +88,8 @@ struct archive_string_conv {
 					 * double bytes character. */
 #define SCONV_UTF8_LIBARCHIVE_2 32	/* Incorrect UTF-8 made by libarchive
 					 * 2.x in the wrong assumption. */
+#define SCONV_UTF8_UTF8_COPY	64	/* Copy UTF-8 string in checking
+					 * CESU-8. */
 
 #if HAVE_ICONV
 	iconv_t				 cd;
@@ -115,6 +117,8 @@ static int best_effort_strncat_in_locale(struct archive_string *, const void *,
     size_t, struct archive_string_conv *);
 static int strncat_from_utf8_libarchive2(struct archive_string *,
     const char *, size_t);
+static int strncat_from_utf8_utf8(struct archive_string *, const char *,
+    size_t);
 
 static struct archive_string *
 archive_string_append(struct archive_string *as, const char *p, size_t s)
@@ -728,7 +732,6 @@ create_sconv_object(const char *fc, const char *tc,
 			flag |= SCONV_WIN_CP;
 #endif
 	}
-	sc->flag = flag;
 
 	/*
 	 * Check if "from charset" and "to charset" are the same.
@@ -738,6 +741,14 @@ create_sconv_object(const char *fc, const char *tc,
 		sc->same = 1;
 	else
 		sc->same = 0;
+
+	/*
+	 * Copy UTF-8 string in checking CESU-8 including surrogate pair.
+	 */
+	if (sc->same && strcmp(fc, "UTF-8") == 0)
+		flag |= SCONV_UTF8_UTF8_COPY;
+
+	sc->flag = flag;
 
 	return (sc);
 }
@@ -1351,6 +1362,9 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 	 * libarchive2.x. */
 	if (sc->flag & SCONV_UTF8_LIBARCHIVE_2)
 		return (strncat_from_utf8_libarchive2(as, _p, length));
+	/* Copy UTF-8 string with a check of CESU-8. */
+	if (sc != NULL && (sc->flag & SCONV_UTF8_UTF8_COPY) != 0)
+		return (strncat_from_utf8_utf8(as, _p, length));
 
 	archive_string_ensure(as, as->length + length*2+1);
 
@@ -1616,6 +1630,10 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 	if (sc != NULL && (sc->flag & SCONV_UTF8_LIBARCHIVE_2) != 0)
 		return (strncat_from_utf8_libarchive2(as, _p, length));
 
+	/* Copy UTF-8 string with a check of CESU-8. */
+	if (sc != NULL && (sc->flag & SCONV_UTF8_UTF8_COPY) != 0)
+		return (strncat_from_utf8_utf8(as, _p, length));
+
 	archive_string_append(as, _p, length);
 	/* If charset is NULL, just make a copy, so return 0 as success. */
 	if (sc == NULL || (sc->same && invalid_mbs(_p, n, sc) == 0))
@@ -1625,11 +1643,15 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 	return (-1);
 }
 
+#define IS_HIGH_SURROGATE(uc)	((uc) >= 0xD800 && (uc) <= 0xDBFF)
+#define IS_LOW_SURROGATE(uc)	((uc) >= 0xDC00 && (uc) <= 0xDFFF)
+#define IS_SURROGATE(uc)	((uc) >= 0xD800 && (uc) <= 0xDfff)
+#define UNICODE_MAX		0x10FFFF
 /*
  * Utility to convert a single UTF-8 sequence.
  */
 static int
-utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
+_utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 {
 	static unsigned char utf8_count[256] = {
 		 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,/* 00 - 0F */
@@ -1701,13 +1723,144 @@ utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 		return (-1);
 	}
 
-	/* Surrogate and values larger than 0x10FFFF are not leagal
+	/* The code point larger than 0x10FFFF is not leagal
 	 * Unicode values. */
-	if ((wc >= 0xd800 &&wc <= 0xdfff) || wc > 0x10ffff)
+	if (wc > UNICODE_MAX)
 		return (-1);
 	/* Correctly gets a Unicode, returns used bytes. */
 	*pwc = wc;
 	return (cnt);
+}
+
+static int
+utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
+{
+	uint32_t wc;
+	int cnt;
+
+	cnt = _utf8_to_unicode(&wc, s, n);
+	/* Surrogate is not leagal Unicode values. */
+	if (cnt == 3 && IS_SURROGATE(wc))
+		return (-1);
+	*pwc = wc;
+	return (cnt);
+}
+
+static inline uint32_t
+combine_surrogate_pair(uint32_t uc, uint32_t uc2)
+{
+	uc -= 0xD800;
+	uc *= 0x400;
+	uc += uc2 - 0xDC00;
+	uc += 0x10000;
+	return (uc);
+}
+
+/*
+ * CESU-8: The Compatibility Encoding Scheme for UTF-16.
+ */
+static int
+cesu8_to_unicode(uint32_t *pwc, const char *s, size_t n)
+{
+	uint32_t wc, wc2;
+	int cnt;
+
+	cnt = _utf8_to_unicode(&wc, s, n);
+	if (cnt == 3 && IS_HIGH_SURROGATE(wc)) {
+		if (n - 3 < 3)
+			return (-1);
+		cnt = _utf8_to_unicode(&wc2, s+3, n-3);
+		if (cnt != 3 || !IS_LOW_SURROGATE(wc2))
+			return (-1);
+		wc = combine_surrogate_pair(wc, wc2);
+		cnt = 6;
+	}
+	*pwc = wc;
+	return (cnt);
+}
+
+/*
+ * Translate code point to UTF8.
+ *
+ * NOTE:This function does not check if the Unicode is leagal or not.
+ * Please you definitely check it before calling this.
+ */
+static int
+unicode_to_utf8(char *p, uint32_t uc)
+{
+	char *_p = p;
+
+	/* Translate code point to UTF8 */
+	if (uc <= 0x7f) {
+		*p++ = (char)uc;
+	} else if (uc <= 0x7ff) {
+		*p++ = 0xc0 | ((uc >> 6) & 0x1f);
+		*p++ = 0x80 | (uc & 0x3f);
+	} else if (uc <= 0xffff) {
+		*p++ = 0xe0 | ((uc >> 12) & 0x0f);
+		*p++ = 0x80 | ((uc >> 6) & 0x3f);
+		*p++ = 0x80 | (uc & 0x3f);
+	} else {
+		*p++ = 0xf0 | ((uc >> 18) & 0x07);
+		*p++ = 0x80 | ((uc >> 12) & 0x3f);
+		*p++ = 0x80 | ((uc >> 6) & 0x3f);
+		*p++ = 0x80 | (uc & 0x3f);
+	}
+	return ((int)(p - _p));
+}
+
+/*
+ * Copy UTF-8 string in checking surrogate pair.
+ * If any surrogate pair are found, it would be canonicalized.
+ */
+static int
+strncat_from_utf8_utf8(struct archive_string *as, const char *s, size_t len)
+{
+	char *p;
+	int n, ret = 0;
+
+	/*
+	 * Additional buffer size will not be larger than a value of 'len'
+	 * even if a conversion of CESU-8 happen. Because a surrogate pair
+	 * code point of CESU-8 sequence takes six bytes, but a new UTF-8
+	 * sequence converted from the CESU-8 takes four bytes.
+	 */
+	if (archive_string_ensure(as, as->length + len + 1) == NULL)
+		__archive_errx(1, "Out of memory");
+
+	p = as->s + as->length;
+	do {
+		uint32_t uc;
+		const char *ss = s;
+
+		while ((n = utf8_to_unicode(&uc, s, len)) > 0) {
+			s += n;
+			len -= n;
+		}
+		if (ss < s) {
+			memcpy(p, ss, s - ss);
+			p += s - ss;
+		}
+
+		if (n == -1) {
+			/* Is this CESU-8 ? */
+			n = cesu8_to_unicode(&uc, s, len);
+			if (n == -1) {
+				/* Skip current byte. */
+				*p++ = '?';
+				n = 1;
+				ret = -1;
+			} else {
+				/* Rebuild UTF-8. */
+				p += unicode_to_utf8(p, uc);
+			}
+			s += n;
+			len -= n;
+		}
+	} while (n > 0);
+	as->length = p - as->s;
+	as->s[as->length] = '\0';
+	return (ret);
 }
 
 /*
@@ -2042,18 +2195,15 @@ string_append_from_utf16be_to_utf8(struct archive_string *as,
 		utf16be += 2; bytes -=2;
 		
 		/* If this is a surrogate pair, assemble the full code point.*/
-		if (uc >= 0xD800 && uc <= 0xDBff) {
-			unsigned utf16_next;
+		if (IS_HIGH_SURROGATE(uc)) {
+			unsigned uc2;
 
 			if (bytes >= 2)
-				utf16_next = archive_be16dec(utf16be);
+				uc2 = archive_be16dec(utf16be);
 			else
-				utf16_next = 0;
-			if (utf16_next >= 0xDC00 && utf16_next <= 0xDFFF) {
-				uc -= 0xD800;
-				uc *= 0x400;
-				uc += (utf16_next - 0xDC00);
-				uc += 0x10000;
+				uc2 = 0;
+			if (IS_LOW_SURROGATE(uc2)) {
+				uc = combine_surrogate_pair(uc, uc2);
 				utf16be += 2; bytes -=2;
 			} else {
 				/* Wrong sequence. */
@@ -2070,28 +2220,14 @@ string_append_from_utf16be_to_utf8(struct archive_string *as,
 		 * larger than 0x10ffff. Thus, those are not leagal Unicode
 		 * values.
 		 */
-		if (uc >= 0xd800 && uc <= 0xdfff || uc > 0x10ffff) {
+		if (IS_SURROGATE(uc) || uc > UNICODE_MAX) {
 			*p++ = '?';
 			return_val = -1;
 			break;
 		}
 
 		/* Translate code point to UTF8 */
-		if (uc <= 0x7f) {
-			*p++ = (char)uc;
-		} else if (uc <= 0x7ff) {
-			*p++ = 0xc0 | ((uc >> 6) & 0x1f);
-			*p++ = 0x80 | (uc & 0x3f);
-		} else if (uc <= 0xffff) {
-			*p++ = 0xe0 | ((uc >> 12) & 0x0f);
-			*p++ = 0x80 | ((uc >> 6) & 0x3f);
-			*p++ = 0x80 | (uc & 0x3f);
-		} else {
-			*p++ = 0xf0 | ((uc >> 18) & 0x07);
-			*p++ = 0x80 | ((uc >> 12) & 0x3f);
-			*p++ = 0x80 | ((uc >> 6) & 0x3f);
-			*p++ = 0x80 | (uc & 0x3f);
-		}
+		p += unicode_to_utf8(p, uc);
 	}
 	as->length = p - as->s;
 	*p = '\0';
