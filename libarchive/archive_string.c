@@ -88,7 +88,7 @@ struct archive_string_conv {
 					 * double bytes character. */
 #define SCONV_UTF8_LIBARCHIVE_2 32	/* Incorrect UTF-8 made by libarchive
 					 * 2.x in the wrong assumption. */
-#define SCONV_UTF8_UTF8_COPY	64	/* Copy UTF-8 string in checking
+#define SCONV_COPY_UTF8_TO_UTF8	64	/* Copy UTF-8 string in checking
 					 * CESU-8. */
 
 #if HAVE_ICONV
@@ -746,7 +746,7 @@ create_sconv_object(const char *fc, const char *tc,
 	 * Copy UTF-8 string in checking CESU-8 including surrogate pair.
 	 */
 	if (sc->same && strcmp(fc, "UTF-8") == 0)
-		flag |= SCONV_UTF8_UTF8_COPY;
+		flag |= SCONV_COPY_UTF8_TO_UTF8;
 
 	sc->flag = flag;
 
@@ -1362,8 +1362,13 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 	 * libarchive2.x. */
 	if (sc->flag & SCONV_UTF8_LIBARCHIVE_2)
 		return (strncat_from_utf8_libarchive2(as, _p, length));
-	/* Copy UTF-8 string with a check of CESU-8. */
-	if (sc != NULL && (sc->flag & SCONV_UTF8_UTF8_COPY) != 0)
+
+	/*
+	 * Copy UTF-8 string with a check of CESU-8.
+	 * Apparently, iconv does not check surrogate pairs in UTF-8
+	 * when both from-charset and to-charset are UTF-8.
+	 */
+	if (sc != NULL && (sc->flag & SCONV_COPY_UTF8_TO_UTF8) != 0)
 		return (strncat_from_utf8_utf8(as, _p, length));
 
 	archive_string_ensure(as, as->length + length*2+1);
@@ -1421,8 +1426,8 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 #if defined(_WIN32) && !defined(__CYGWIN__)
 
 /*
- * Convert a UTF-8 string from/to current locale and copy the result.
- * Return -1 if conversion failes.
+ * Translate a string from a some CodePage to an another CodePage by
+ * Windows APIs, and copy the result. Return -1 if conversion failes.
  */
 static int
 strncat_in_codepage(struct archive_string *as,
@@ -1631,7 +1636,7 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 		return (strncat_from_utf8_libarchive2(as, _p, length));
 
 	/* Copy UTF-8 string with a check of CESU-8. */
-	if (sc != NULL && (sc->flag & SCONV_UTF8_UTF8_COPY) != 0)
+	if (sc != NULL && (sc->flag & SCONV_COPY_UTF8_TO_UTF8) != 0)
 		return (strncat_from_utf8_utf8(as, _p, length));
 
 	archive_string_append(as, _p, length);
@@ -1643,10 +1648,19 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 	return (-1);
 }
 
+
+/*
+ * Unicode conversion functions.
+ *   - UTF-8 <===> UTF-8 in removing surrogate pairs.
+ *   - UTF-8 made by libarchive 2.x ===> UTF-8.
+ *   - UTF-16BE <===> UTF-8.
+ *
+ */
 #define IS_HIGH_SURROGATE(uc)	((uc) >= 0xD800 && (uc) <= 0xDBFF)
 #define IS_LOW_SURROGATE(uc)	((uc) >= 0xDC00 && (uc) <= 0xDFFF)
-#define IS_SURROGATE(uc)	((uc) >= 0xD800 && (uc) <= 0xDfff)
+#define IS_SURROGATE(uc)	((uc) >= 0xD800 && (uc) <= 0xDFFF)
 #define UNICODE_MAX		0x10FFFF
+
 /*
  * Utility to convert a single UTF-8 sequence.
  */
@@ -1689,6 +1703,8 @@ _utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 	/* Invalide sequence or there are not plenty bytes. */
 	if (n < cnt)
 		return (-1);
+
+	/* Make a Unicode code point from a single UTF-8 sequence. */
 	switch (cnt) {
 	case 1:	/* 1 byte sequence. */
 		*pwc = ch & 0x7f;
@@ -1757,6 +1773,9 @@ combine_surrogate_pair(uint32_t uc, uint32_t uc2)
 }
 
 /*
+ * Convert a single UTF-8/CESU-8 sequence to a Unicode code point in
+ * removing surrogate pairs.
+ *
  * CESU-8: The Compatibility Encoding Scheme for UTF-16.
  */
 static int
@@ -1780,7 +1799,7 @@ cesu8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 }
 
 /*
- * Translate code point to UTF8.
+ * Convert a Unicode code point to a single UTF-8 sequence.
  *
  * NOTE:This function does not check if the Unicode is leagal or not.
  * Please you definitely check it before calling this.
@@ -1946,7 +1965,7 @@ strncat_from_utf8_libarchive2(struct archive_string *as,
 
 
 /*
- * Conversion functions between local locale MBS and UTF-16BE.
+ * Conversion functions between current locale dependent MBS and UTF-16BE.
  *   strncpy_from_utf16be() : UTF-16BE --> MBS
  *   strncpy_to_utf16be()   : MBS --> UTF16BE
  */
