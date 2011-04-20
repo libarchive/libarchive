@@ -2244,8 +2244,7 @@ string_append_from_utf8_to_utf16be(struct archive_string *as,
 {
 	char *s, *end;
 	size_t base_size;
-	uint32_t wc, wc2;	/* Must be large enough for a 21-bit Unicode
-				 * code point. */
+	uint32_t wc;/* Must be large enough for a 21-bit Unicode code point. */
 	int n;
 	int return_val = 0; /* success */
 
