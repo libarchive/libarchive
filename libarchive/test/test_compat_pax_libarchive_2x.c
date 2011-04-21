@@ -38,13 +38,18 @@ __FBSDID("$FreeBSD");
  * FreeBSD.
  */
 
-static void
-test_compat_pax_libarchive_2x_KOI8R(const char *refname)
+DEFINE_TEST(test_compat_pax_libarchive_2x)
 {
+#if (defined(_WIN32) && !defined(__CYGWIN__)) \
+         || defined(__STDC_ISO_10646__) || defined(__APPLE__)
+	skipping("This test only for the platform the WCS of which is "
+	    "not Unicode.");
+#else
 	struct archive *a;
 	struct archive_entry *ae;
 	char c;
 	wchar_t wc;
+	const char *refname = "test_compat_pax_libarchive_2x.tar.Z";
 
 	/*
  	* Read incorrect format UTF-8 filename in ru_RU.KOI8-R with
@@ -59,13 +64,15 @@ test_compat_pax_libarchive_2x_KOI8R(const char *refname)
 	/*
 	 * Test if wchar_t format is the same as FreeBSD wchar_t.
 	 */
-	wctomb(NULL, L'\0');
+	assert(-1 != wctomb(NULL, L'\0'));
 	wc = (wchar_t)0xd0;
 	c = 0;
 	if (wctomb(&c, wc) != 1 || (unsigned char)c != 0xd0) {
 		skipping("wchar_t format is different on this platform.");
 		return;
 	}
+
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -135,13 +142,5 @@ test_compat_pax_libarchive_2x_KOI8R(const char *refname)
 	/* Close the archive. */
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-}
-
-
-DEFINE_TEST(test_compat_pax_libarchive_2x)
-{
-	const char *refname = "test_compat_pax_libarchive_2x.tar.Z";
-
-	extract_reference_file(refname);
-	test_compat_pax_libarchive_2x_KOI8R(refname);
+#endif
 }
