@@ -1656,8 +1656,8 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
  *   - UTF-16BE <===> UTF-8.
  *
  */
-#define IS_HIGH_SURROGATE(uc)	((uc) >= 0xD800 && (uc) <= 0xDBFF)
-#define IS_LOW_SURROGATE(uc)	((uc) >= 0xDC00 && (uc) <= 0xDFFF)
+#define IS_HIGH_SURROGATE_LA(uc) ((uc) >= 0xD800 && (uc) <= 0xDBFF)
+#define IS_LOW_SURROGATE_LA(uc)	((uc) >= 0xDC00 && (uc) <= 0xDFFF)
 #define IS_SURROGATE(uc)	((uc) >= 0xD800 && (uc) <= 0xDFFF)
 #define UNICODE_MAX		0x10FFFF
 
@@ -1785,11 +1785,11 @@ cesu8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 	int cnt;
 
 	cnt = _utf8_to_unicode(&wc, s, n);
-	if (cnt == 3 && IS_HIGH_SURROGATE(wc)) {
+	if (cnt == 3 && IS_HIGH_SURROGATE_LA(wc)) {
 		if (n - 3 < 3)
 			return (-1);
 		cnt = _utf8_to_unicode(&wc2, s+3, n-3);
-		if (cnt != 3 || !IS_LOW_SURROGATE(wc2))
+		if (cnt != 3 || !IS_LOW_SURROGATE_LA(wc2))
 			return (-1);
 		wc = combine_surrogate_pair(wc, wc2);
 		cnt = 6;
@@ -2214,14 +2214,14 @@ string_append_from_utf16be_to_utf8(struct archive_string *as,
 		utf16be += 2; bytes -=2;
 		
 		/* If this is a surrogate pair, assemble the full code point.*/
-		if (IS_HIGH_SURROGATE(uc)) {
+		if (IS_HIGH_SURROGATE_LA(uc)) {
 			unsigned uc2;
 
 			if (bytes >= 2)
 				uc2 = archive_be16dec(utf16be);
 			else
 				uc2 = 0;
-			if (IS_LOW_SURROGATE(uc2)) {
+			if (IS_LOW_SURROGATE_LA(uc2)) {
 				uc = combine_surrogate_pair(uc, uc2);
 				utf16be += 2; bytes -=2;
 			} else {
