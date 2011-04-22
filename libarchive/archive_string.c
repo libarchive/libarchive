@@ -706,6 +706,9 @@ create_sconv_object(const char *fc, const char *tc,
 	}
 
 	if (flag & SCONV_UTF8_LIBARCHIVE_2) {
+#if HAVE_ICONV
+		sc->cd = (iconv_t)-1;
+#endif
 		sc->flag = flag;
 		return (sc);
 	}
