@@ -117,7 +117,7 @@ static int best_effort_strncat_in_locale(struct archive_string *, const void *,
     size_t, struct archive_string_conv *);
 static int strncat_from_utf8_libarchive2(struct archive_string *,
     const char *, size_t);
-static int strncat_from_utf8_utf8(struct archive_string *, const char *,
+static int strncat_from_utf8_to_utf8(struct archive_string *, const char *,
     size_t);
 
 static struct archive_string *
@@ -1372,7 +1372,7 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 	 * when both from-charset and to-charset are UTF-8.
 	 */
 	if (sc != NULL && (sc->flag & SCONV_COPY_UTF8_TO_UTF8) != 0)
-		return (strncat_from_utf8_utf8(as, _p, length));
+		return (strncat_from_utf8_to_utf8(as, _p, length));
 
 	archive_string_ensure(as, as->length + length*2+1);
 
@@ -1640,7 +1640,7 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 
 	/* Copy UTF-8 string with a check of CESU-8. */
 	if (sc != NULL && (sc->flag & SCONV_COPY_UTF8_TO_UTF8) != 0)
-		return (strncat_from_utf8_utf8(as, _p, length));
+		return (strncat_from_utf8_to_utf8(as, _p, length));
 
 	archive_string_append(as, _p, length);
 	/* If charset is NULL, just make a copy, so return 0 as success. */
@@ -1836,7 +1836,7 @@ unicode_to_utf8(char *p, uint32_t uc)
  * If any surrogate pair are found, it would be canonicalized.
  */
 static int
-strncat_from_utf8_utf8(struct archive_string *as, const char *s, size_t len)
+strncat_from_utf8_to_utf8(struct archive_string *as, const char *s, size_t len)
 {
 	char *p;
 	int n, ret = 0;
