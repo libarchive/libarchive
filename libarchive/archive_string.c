@@ -1646,7 +1646,7 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 
 	archive_string_append(as, _p, length);
 	/* If charset is NULL, just make a copy, so return 0 as success. */
-	if (sc == NULL || (sc->same && invalid_mbs(_p, n, sc) == 0))
+	if (sc == NULL || (sc->same && invalid_mbs(_p, length, sc) == 0))
 		return (0);
 	if (is_all_ascii_code(as))
 		return (0);
