@@ -104,12 +104,12 @@ test_pax_filename_encoding_2(void)
 
 	/*
 	 * We need a starting locale which has invalid sequences.
-	 * de_DE.UTF-8 seems to be commonly supported.
+	 * en_US.UTF-8 seems to be commonly supported.
 	 */
 	/* If it doesn't exist, just warn and return. */
-	if (NULL == setlocale(LC_ALL, "de_DE.UTF-8")) {
+	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
 		skipping("invalid encoding tests require a suitable locale;"
-		    " de_DE.UTF-8 not available on this system");
+		    " en_US.UTF-8 not available on this system");
 		return;
 	}
 
