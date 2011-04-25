@@ -1660,8 +1660,8 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
  *
  */
 #define IS_HIGH_SURROGATE_LA(uc) ((uc) >= 0xD800 && (uc) <= 0xDBFF)
-#define IS_LOW_SURROGATE_LA(uc)	((uc) >= 0xDC00 && (uc) <= 0xDFFF)
-#define IS_SURROGATE(uc)	((uc) >= 0xD800 && (uc) <= 0xDFFF)
+#define IS_LOW_SURROGATE_LA(uc)	 ((uc) >= 0xDC00 && (uc) <= 0xDFFF)
+#define IS_SURROGATE_PAIR_LA(uc) ((uc) >= 0xD800 && (uc) <= 0xDFFF)
 #define UNICODE_MAX		0x10FFFF
 
 /*
@@ -1759,7 +1759,7 @@ utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 
 	cnt = _utf8_to_unicode(&wc, s, n);
 	/* Surrogate is not leagal Unicode values. */
-	if (cnt == 3 && IS_SURROGATE(wc))
+	if (cnt == 3 && IS_SURROGATE_PAIR_LA(wc))
 		return (-1);
 	*pwc = wc;
 	return (cnt);
@@ -2242,7 +2242,7 @@ string_append_from_utf16be_to_utf8(struct archive_string *as,
 		 * larger than 0x10ffff. Thus, those are not leagal Unicode
 		 * values.
 		 */
-		if (IS_SURROGATE(uc) || uc > UNICODE_MAX) {
+		if (IS_SURROGATE_PAIR_LA(uc) || uc > UNICODE_MAX) {
 			*p++ = '?';
 			return_val = -1;
 			break;
