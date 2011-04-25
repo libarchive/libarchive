@@ -374,7 +374,6 @@ struct xmlattr_list {
 };
 
 static int	xar_bid(struct archive_read *);
-static int	xar_options(struct archive_read *, const char *, const char *);
 static int	xar_read_header(struct archive_read *,
 		    struct archive_entry *);
 static int	xar_read_data(struct archive_read *,
@@ -464,7 +463,7 @@ archive_read_support_format_xar(struct archive *_a)
 	    xar,
 	    "xar",
 	    xar_bid,
-	    xar_options,
+	    NULL,
 	    xar_read_header,
 	    xar_read_data,
 	    xar_read_data_skip,
@@ -517,38 +516,6 @@ xar_bid(struct archive_read *a)
 	}
 
 	return (bid);
-}
-
-static int
-xar_options(struct archive_read *a, const char *key, const char *val)
-{
-	struct xar *xar;
-	int ret = ARCHIVE_FAILED;
-
-	xar = (struct xar *)(a->format->data);
-	if (strcmp(key, "hdrcharset")  == 0) {
-		if (val == NULL || val[0] == 0)
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "xar: hdrcharset option needs a character-set name");
-		else {
-			struct archive_string_conv *sc;
-
-			/*
-			 * TODO: Should we allow UTF-8-MAC only ? 
-			 */
-			sc = archive_string_conversion_from_charset(
-			    &a->archive, val, 0);
-			if (sc != NULL) {
-				xar->sconv = sc;
-				ret = ARCHIVE_OK;
-			} else
-				ret = ARCHIVE_FATAL;
-		}
-	} else
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "xar: unknown keyword ``%s''", key);
-
-	return (ret);
 }
 
 static int
