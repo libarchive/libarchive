@@ -1629,18 +1629,20 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 {
 	size_t length = la_strnlen(_p, n);
 
+	if (sc != NULL) {
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	if (sc != NULL && (sc->flag & SCONV_WIN_CP) != 0)
-		return (strncat_in_codepage(as, _p, length, sc));
+		if (sc->flag & SCONV_WIN_CP)
+			return (strncat_in_codepage(as, _p, length, sc));
 #endif
-	/* Perform special sequence for the incorrect UTF-8 made by
-	 * libarchive2.x. */
-	if (sc != NULL && (sc->flag & SCONV_UTF8_LIBARCHIVE_2) != 0)
-		return (strncat_from_utf8_libarchive2(as, _p, length));
+		/* Perform special sequence for the incorrect UTF-8 made by
+		 * libarchive2.x. */
+		if (sc->flag & SCONV_UTF8_LIBARCHIVE_2)
+			return (strncat_from_utf8_libarchive2(as, _p, length));
 
-	/* Copy UTF-8 string with a check of CESU-8. */
-	if (sc != NULL && (sc->flag & SCONV_COPY_UTF8_TO_UTF8) != 0)
-		return (strncat_from_utf8_to_utf8(as, _p, length));
+		/* Copy UTF-8 string with a check of CESU-8. */
+		if (sc->flag & SCONV_COPY_UTF8_TO_UTF8)
+			return (strncat_from_utf8_to_utf8(as, _p, length));
+	}
 
 	archive_string_append(as, _p, length);
 	/* If charset is NULL, just make a copy, so return 0 as success. */
