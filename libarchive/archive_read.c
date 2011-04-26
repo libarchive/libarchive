@@ -141,9 +141,30 @@ archive_read_open(struct archive *a, void *client_data,
     archive_close_callback *client_closer)
 {
 	/* Old archive_read_open() is just a thin shell around
-	 * archive_read_open2. */
-	return archive_read_open2(a, client_data, client_opener,
-	    client_reader, NULL, client_closer);
+	 * archive_read_open1. */
+	archive_read_set_open_callback(a, client_opener);
+	archive_read_set_read_callback(a, client_reader);
+	archive_read_set_close_callback(a, client_closer);
+	archive_read_set_callback_data(a, client_data);
+	return archive_read_open1(a);
+}
+
+
+int
+archive_read_open2(struct archive *a, void *client_data,
+    archive_open_callback *client_opener,
+    archive_read_callback *client_reader,
+    archive_skip_callback *client_skipper,
+    archive_close_callback *client_closer)
+{
+	/* Old archive_read_open2() is just a thin shell around
+	 * archive_read_open1. */
+	archive_read_set_callback_data(a, client_data);
+	archive_read_set_open_callback(a, client_opener);
+	archive_read_set_read_callback(a, client_reader);
+	archive_read_set_skip_callback(a, client_skipper);
+	archive_read_set_close_callback(a, client_closer);
+	return archive_read_open1(a);
 }
 
 static ssize_t
@@ -191,13 +212,62 @@ client_close_proxy(struct archive_read_filter *self)
 	return (r);
 }
 
+int
+archive_read_set_open_callback(struct archive *_a,
+    archive_open_callback *client_opener)
+{
+	struct archive_read *a = (struct archive_read *)_a;
+	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
+	    "archive_read_set_open_callback");
+	a->client.opener = client_opener;
+	return ARCHIVE_OK;
+}
 
 int
-archive_read_open2(struct archive *_a, void *client_data,
-    archive_open_callback *client_opener,
-    archive_read_callback *client_reader,
-    archive_skip_callback *client_skipper,
+archive_read_set_read_callback(struct archive *_a,
+    archive_read_callback *client_reader)
+{
+	struct archive_read *a = (struct archive_read *)_a;
+	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
+	    "archive_read_set_read_callback");
+	a->client.reader = client_reader;
+	return ARCHIVE_OK;
+}
+
+int
+archive_read_set_skip_callback(struct archive *_a,
+    archive_skip_callback *client_skipper)
+{
+	struct archive_read *a = (struct archive_read *)_a;
+	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
+	    "archive_read_set_skip_callback");
+	a->client.skipper = client_skipper;
+	return ARCHIVE_OK;
+}
+
+int
+archive_read_set_close_callback(struct archive *_a,
     archive_close_callback *client_closer)
+{
+	struct archive_read *a = (struct archive_read *)_a;
+	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
+	    "archive_read_set_close_callback");
+	a->client.closer = client_closer;
+	return ARCHIVE_OK;
+}
+
+int
+archive_read_set_callback_data(struct archive *_a, void *client_data)
+{
+	struct archive_read *a = (struct archive_read *)_a;
+	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
+	    "archive_read_set_callback_data");
+	a->client.data = client_data;
+	return ARCHIVE_OK;
+}
+
+int
+archive_read_open1(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 	struct archive_read_filter *filter;
@@ -207,7 +277,7 @@ archive_read_open2(struct archive *_a, void *client_data,
 	    "archive_read_open");
 	archive_clear_error(&a->archive);
 
-	if (client_reader == NULL) {
+	if (a->client.reader == NULL) {
 		archive_set_error(&a->archive, EINVAL,
 		    "No reader function provided to archive_read_open");
 		a->archive.state = ARCHIVE_STATE_FATAL;
@@ -215,20 +285,15 @@ archive_read_open2(struct archive *_a, void *client_data,
 	}
 
 	/* Open data source. */
-	if (client_opener != NULL) {
-		e =(client_opener)(&a->archive, client_data);
+	if (a->client.opener != NULL) {
+		e =(a->client.opener)(&a->archive, a->client.data);
 		if (e != 0) {
 			/* If the open failed, call the closer to clean up. */
-			if (client_closer)
-				(client_closer)(&a->archive, client_data);
+			if (a->client.closer)
+				(a->client.closer)(&a->archive, a->client.data);
 			return (e);
 		}
 	}
-
-	/* Save the client functions and mock up the initial source. */
-	a->client.reader = client_reader;
-	a->client.skipper = client_skipper;
-	a->client.closer = client_closer;
 
 	filter = calloc(1, sizeof(*filter));
 	if (filter == NULL)
@@ -236,7 +301,7 @@ archive_read_open2(struct archive *_a, void *client_data,
 	filter->bidder = NULL;
 	filter->upstream = NULL;
 	filter->archive = a;
-	filter->data = client_data;
+	filter->data = a->client.data;
 	filter->read = client_read_proxy;
 	filter->skip = client_skip_proxy;
 	filter->close = client_close_proxy;

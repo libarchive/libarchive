@@ -100,8 +100,11 @@ archive_read_open_fd(struct archive *a, int fd, size_t block_size)
 	setmode(mine->fd, O_BINARY);
 #endif
 
-	return (archive_read_open2(a, mine,
-		NULL, file_read, file_skip, file_close));
+	archive_read_set_read_callback(a, file_read);
+	archive_read_set_skip_callback(a, file_skip);
+	archive_read_set_close_callback(a, file_close);
+	archive_read_set_callback_data(a, mine);
+	return (archive_read_open1(a));
 }
 
 static ssize_t

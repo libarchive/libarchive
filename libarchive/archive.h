@@ -346,8 +346,21 @@ __LA_DECL int archive_read_support_format_tar(struct archive *);
 __LA_DECL int archive_read_support_format_xar(struct archive *);
 __LA_DECL int archive_read_support_format_zip(struct archive *);
 
+/* Set various callbacks. */
+__LA_DECL int archive_read_set_open_callback(struct archive *,
+    archive_open_callback *);
+__LA_DECL int archive_read_set_read_callback(struct archive *,
+    archive_read_callback *);
+__LA_DECL int archive_read_set_skip_callback(struct archive *,
+    archive_skip_callback *);
+__LA_DECL int archive_read_set_close_callback(struct archive *,
+    archive_close_callback *);
+/* The callback data is provided to all of the callbacks above. */
+__LA_DECL int archive_read_set_callback_data(struct archive *, void *);
+/* Opening freezes the callbacks. */
+__LA_DECL int archive_read_open1(struct archive *);
 
-/* Open the archive using callbacks for archive I/O. */
+/* Convenience wrappers around the above. */
 __LA_DECL int archive_read_open(struct archive *, void *_client_data,
 		     archive_open_callback *, archive_read_callback *,
 		     archive_close_callback *);

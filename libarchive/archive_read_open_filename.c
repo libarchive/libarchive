@@ -217,8 +217,11 @@ archive_read_open_filename(struct archive *a, const char *filename,
 	if (is_disk_like)
 		mine->use_lseek = 1;
 
-	return (archive_read_open2(a, mine,
-		NULL, file_read, file_skip, file_close));
+	archive_read_set_read_callback(a, file_read);
+	archive_read_set_skip_callback(a, file_skip);
+	archive_read_set_close_callback(a, file_close);
+	archive_read_set_callback_data(a, mine);
+	return (archive_read_open1(a));
 }
 
 static ssize_t

@@ -117,9 +117,11 @@ struct archive_read_filter {
  * so should be deferred at least until libarchive 3.0.
  */
 struct archive_read_client {
+	archive_open_callback	*opener;
 	archive_read_callback	*reader;
 	archive_skip_callback	*skipper;
 	archive_close_callback	*closer;
+	void *data;
 };
 
 struct archive_read {
