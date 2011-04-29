@@ -2034,12 +2034,19 @@ tree_dir_next_posix(struct tree *t)
 		r = readdir_r(t->d, t->dirent, &t->de);
 		if (r != 0 || t->de == NULL) {
 #else
+		errno = 0;
 		t->de = readdir(t->d);
 		if (t->de == NULL) {
+			r = errno;
 #endif
 			closedir(t->d);
 			t->d = INVALID_DIR_HANDLE;
-			return (0);
+			if (r != 0) {
+				t->tree_errno = r;
+				t->visit_type = TREE_ERROR_DIR;
+				return (t->visit_type);
+			} else
+				return (0);
 		}
 		name = t->de->d_name;
 		namelen = D_NAMELEN(t->de);
