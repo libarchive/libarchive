@@ -1290,6 +1290,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 	else
 		t->current_filesystem->noatime = 0;
 
+#if defined(HAVE_READDIR_R)
 	/* Set maximum filename length. */
 #if defined(HAVE_STRUCT_STATFS_F_NAMEMAX)
 	t->current_filesystem->name_max = sfs.f_namemax;
@@ -1304,6 +1305,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 	else
 		t->current_filesystem->name_max = nm;
 #endif
+#endif /* HAVE_READDIR_R */
 	return (ARCHIVE_OK);
 }
 
