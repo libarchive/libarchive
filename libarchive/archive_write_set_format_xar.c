@@ -250,6 +250,7 @@ struct xar {
 	struct chksumwork	 a_sumwrk;	/* archived checksum.	*/
 	struct chksumwork	 e_sumwrk;	/* extracted checksum.	*/
 	struct la_zstream	 stream;
+	struct archive_string_conv *sconv;
 	/*
 	 * Compressed data buffer.
 	 */
@@ -332,7 +333,6 @@ static int	compression_code(struct archive *,
 static int	compression_end(struct archive *,
 		    struct la_zstream *);
 static int	save_xattrs(struct archive_write *, struct file *);
-static size_t	utf8_encode(struct archive_string *, const wchar_t *);
 static int	getalgsize(enum sumalg);
 static const char *getalgname(enum sumalg);
 
@@ -512,6 +512,13 @@ xar_write_header(struct archive_write *a, struct archive_entry *entry)
 	xar = (struct xar *)a->format_data;
 	xar->cur_file = NULL;
 	xar->bytes_remaining = 0;
+
+	if (xar->sconv == NULL) {
+		xar->sconv = archive_string_conversion_to_charset(
+		    &a->archive, "UTF-8", 1);
+		if (xar->sconv == NULL)
+			return (ARCHIVE_FATAL);
+	}
 
 	file = file_new(a, entry);
 	if (file == NULL) {
@@ -1263,24 +1270,17 @@ make_file_entry(struct archive_write *a, xmlTextWriterPtr writer,
 	if (r < 0)
 		return (ARCHIVE_FATAL);
 	if (archive_entry_uname(file->entry) != NULL) {
-		utf8_encode(&(xar->tstr),
-		    archive_entry_uname_w(file->entry));
-		if (archive_strlen(&(xar->tstr)) == 0) {
+		if (archive_strcpy_in_locale(&(xar->tstr),
+		    archive_entry_uname(file->entry), xar->sconv) != 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Can't translate uname '%s' to UTF-8",
 			    archive_entry_uname(file->entry));
-			r = xmlwrite_string(a, writer, "user",
-			    archive_entry_uname(file->entry));
-			if (r < 0)
-				return (ARCHIVE_FATAL);
 			r2 = ARCHIVE_WARN;
-		} else {
-			r = xmlwrite_string(a, writer, "user",
-			    xar->tstr.s);
-			if (r < 0)
-				return (ARCHIVE_FATAL);
 		}
+		r = xmlwrite_string(a, writer, "user", xar->tstr.s);
+		if (r < 0)
+			return (ARCHIVE_FATAL);
 	}
 
 	/*
@@ -1291,24 +1291,17 @@ make_file_entry(struct archive_write *a, xmlTextWriterPtr writer,
 	if (r < 0)
 		return (ARCHIVE_FATAL);
 	if (archive_entry_gname(file->entry) != NULL) {
-		utf8_encode(&(xar->tstr),
-		    archive_entry_gname_w(file->entry));
-		if (archive_strlen(&(xar->tstr)) == 0) {
+		if (archive_strcpy_in_locale(&(xar->tstr),
+		    archive_entry_gname(file->entry), xar->sconv) != 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Can't translate gname '%s' to UTF-8",
 			    archive_entry_gname(file->entry));
-			r = xmlwrite_string(a, writer, "group",
-			    archive_entry_gname(file->entry));
-			if (r < 0)
-				return (ARCHIVE_FATAL);
 			r2 = ARCHIVE_WARN;
-		} else {
-			r = xmlwrite_string(a, writer, "group",
-			    xar->tstr.s);
-			if (r < 0)
-				return (ARCHIVE_FATAL);
 		}
+		r = xmlwrite_string(a, writer, "group", xar->tstr.s);
+		if (r < 0)
+			return (ARCHIVE_FATAL);
 	}
 
 	/*
@@ -1997,17 +1990,14 @@ file_gen_utility_names(struct archive_write *a, struct file *file)
 	if (file->parent == file)/* virtual root */
 		return (ARCHIVE_OK);
 
-	utf8_encode(&(xar->tstr), archive_entry_pathname_w(file->entry));
-	if (archive_strlen(&(xar->tstr)) == 0) {
+	if (archive_strcpy_in_locale(&(file->parentdir),
+	    archive_entry_pathname(file->entry), xar->sconv) != 0) {
 		archive_set_error(&a->archive,
 		    ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate pathname '%s' to UTF-8",
 		    archive_entry_pathname(file->entry));
-		archive_strcpy(&(file->parentdir),
-		    archive_entry_pathname(file->entry));
 		r = ARCHIVE_WARN;
-	} else
-		archive_string_copy(&(file->parentdir), &(xar->tstr));
+	}
 	len = file->parentdir.length;
 	p = dirname = file->parentdir.s;
 	/*
@@ -2095,18 +2085,14 @@ file_gen_utility_names(struct archive_write *a, struct file *file)
 
 	if (archive_entry_filetype(file->entry) == AE_IFLNK) {
 		/* Convert symlink name too. */
-		utf8_encode(&(xar->tstr),
-		    archive_entry_symlink_w(file->entry));
-		if (archive_strlen(&(xar->tstr)) == 0) {
+		if (archive_strcpy_in_locale(&(file->symlink),
+		    archive_entry_symlink(file->entry), xar->sconv) != 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Can't translate symlink '%s' to UTF-8",
 			    archive_entry_symlink(file->entry));
-			archive_strcpy(&(file->symlink),
-			    archive_entry_symlink(file->entry));
 			r = ARCHIVE_WARN;
-		} else
-			archive_string_copy(&(file->symlink), &(xar->tstr));
+		}
 		cleanup_backslash(file->symlink.s, file->symlink.length);
 	}
 	/*
@@ -3114,97 +3100,6 @@ save_xattrs(struct archive_write *a, struct file *file)
 			return (ARCHIVE_FATAL);
 	}
 	return (ARCHIVE_OK);
-}
-
-static size_t
-utf8_encode(struct archive_string *utf8, const wchar_t *wval)
-{
-	int utf8len;
-	const wchar_t *wp;
-	unsigned long wc;
-	char *utf8_value, *p;
-
-	archive_string_empty(utf8);
-	if (wval == NULL)
-		return (0);
-	utf8len = 0;
-	for (wp = wval; *wp != L'\0'; ) {
-		wc = *wp++;
-
-		if (wc >= 0xd800 && wc <= 0xdbff
-		    && *wp >= 0xdc00 && *wp <= 0xdfff) {
-			/* This is a surrogate pair.  Combine into a
-			 * full Unicode value before encoding into
-			 * UTF-8. */
-			wc = (wc - 0xd800) << 10; /* High 10 bits */
-			wc += (*wp++ - 0xdc00); /* Low 10 bits */
-			wc += 0x10000; /* Skip BMP */
-		}
-		if (wc <= 0x7f)
-			utf8len++;
-		else if (wc <= 0x7ff)
-			utf8len += 2;
-		else if (wc <= 0xffff)
-			utf8len += 3;
-		else if (wc <= 0x1fffff)
-			utf8len += 4;
-		else if (wc <= 0x3ffffff)
-			utf8len += 5;
-		else if (wc <= 0x7fffffff)
-			utf8len += 6;
-		/* Ignore larger values; UTF-8 can't encode them. */
-	}
-
-	archive_string_ensure(utf8, utf8len + 1);
-	utf8->length = utf8len;
-	utf8_value = utf8->s;
-
-	for (wp = wval, p = utf8_value; *wp != L'\0'; ) {
-		wc = *wp++;
-		if (wc >= 0xd800 && wc <= 0xdbff
-		    && *wp >= 0xdc00 && *wp <= 0xdfff) {
-			/* Combine surrogate pair. */
-			wc = (wc - 0xd800) << 10;
-			wc += *wp++ - 0xdc00 + 0x10000;
-		}
-		if (wc <= 0x7f) {
-			*p++ = (char)wc;
-		} else if (wc <= 0x7ff) {
-			p[0] = 0xc0 | ((wc >> 6) & 0x1f);
-			p[1] = 0x80 | (wc & 0x3f);
-			p += 2;
-		} else if (wc <= 0xffff) {
-			p[0] = 0xe0 | ((wc >> 12) & 0x0f);
-			p[1] = 0x80 | ((wc >> 6) & 0x3f);
-			p[2] = 0x80 | (wc & 0x3f);
-			p += 3;
-		} else if (wc <= 0x1fffff) {
-			p[0] = 0xf0 | ((wc >> 18) & 0x07);
-			p[1] = 0x80 | ((wc >> 12) & 0x3f);
-			p[2] = 0x80 | ((wc >> 6) & 0x3f);
-			p[3] = 0x80 | (wc & 0x3f);
-			p += 4;
-		} else if (wc <= 0x3ffffff) {
-			p[0] = 0xf8 | ((wc >> 24) & 0x03);
-			p[1] = 0x80 | ((wc >> 18) & 0x3f);
-			p[2] = 0x80 | ((wc >> 12) & 0x3f);
-			p[3] = 0x80 | ((wc >> 6) & 0x3f);
-			p[4] = 0x80 | (wc & 0x3f);
-			p += 5;
-		} else if (wc <= 0x7fffffff) {
-			p[0] = 0xfc | ((wc >> 30) & 0x01);
-			p[1] = 0x80 | ((wc >> 24) & 0x3f);
-			p[1] = 0x80 | ((wc >> 18) & 0x3f);
-			p[2] = 0x80 | ((wc >> 12) & 0x3f);
-			p[3] = 0x80 | ((wc >> 6) & 0x3f);
-			p[4] = 0x80 | (wc & 0x3f);
-			p += 6;
-		}
-		/* Ignore larger values; UTF-8 can't encode them. */
-	}
-	*p = '\0';
-
-	return (utf8->length);
 }
 
 static int
