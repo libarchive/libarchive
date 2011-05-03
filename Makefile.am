@@ -142,6 +142,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_read_support_format_zip.c		\
 	libarchive/archive_string.c				\
 	libarchive/archive_string.h				\
+	libarchive/archive_string_composition.h			\
 	libarchive/archive_string_sprintf.c			\
 	libarchive/archive_util.c				\
 	libarchive/archive_virtual.c				\
@@ -258,6 +259,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_archive_read_support_format_torture.c	\
 	libarchive/test/test_archive_set_error.c		\
 	libarchive/test/test_archive_string.c			\
+	libarchive/test/test_archive_string_conversion.c	\
 	libarchive/test/test_archive_write_set_filter_option.c	\
 	libarchive/test/test_archive_write_set_format_option.c	\
 	libarchive/test/test_archive_write_set_option.c		\
@@ -411,6 +413,7 @@ libarchive_TESTS_ENVIRONMENT= LIBARCHIVE_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/
 
 libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_acl_pax.tar.uu				\
+	libarchive/test/test_archive_string_conversion.txt.gz.uu	\
 	libarchive/test/test_compat_bzip2_1.tbz.uu			\
 	libarchive/test/test_compat_bzip2_2.tbz.uu			\
 	libarchive/test/test_compat_cpio_1.cpio.uu			\

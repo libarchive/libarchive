@@ -68,6 +68,7 @@ SET(libarchive_SOURCES
   archive_read_support_format_zip.c
   archive_string.c
   archive_string.h
+  archive_string_composition.h
   archive_string_sprintf.c
   archive_util.c
   archive_virtual.c

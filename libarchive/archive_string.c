@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_string.c 201095 2009-12-28 02:33
 #include "archive_endian.h"
 #include "archive_private.h"
 #include "archive_string.h"
+#include "archive_string_composition.h"
 
 
 struct archive_string_conv {
@@ -88,12 +89,17 @@ struct archive_string_conv {
 					 * double bytes character. */
 #define SCONV_UTF8_LIBARCHIVE_2 32	/* Incorrect UTF-8 made by libarchive
 					 * 2.x in the wrong assumption. */
-#define SCONV_COPY_UTF8_TO_UTF8	64	/* Copy UTF-8 string in checking
+#define SCONV_COPY_UTF8_TO_UTF8	64	/* Copy UTF-8 characters in checking
 					 * CESU-8. */
+#define SCONV_NORMALIZATION_C	128	/* Need normalization to be Form C.
+					 * Before UTF-8 characters are actually
+					 * processed. */
 
 #if HAVE_ICONV
 	iconv_t				 cd;
 #endif
+	/* A temporary buffer for a conversion of UTF-8 NFD. */
+	struct archive_string		 utf8;
 };
 
 #define CP_C_LOCALE	0	/* "C" locale */
@@ -118,6 +124,8 @@ static int best_effort_strncat_in_locale(struct archive_string *, const void *,
 static int strncat_from_utf8_libarchive2(struct archive_string *,
     const char *, size_t);
 static int strncat_from_utf8_to_utf8(struct archive_string *, const char *,
+    size_t);
+static int archive_string_normalize_C(struct archive_string *, const char *,
     size_t);
 
 static struct archive_string *
@@ -689,7 +697,7 @@ create_sconv_object(const char *fc, const char *tc,
 		flag |= SCONV_UTF8_LIBARCHIVE_2;
 #endif
 
-	sc = malloc(sizeof(*sc));
+	sc = calloc(1, sizeof(*sc));
 	if (sc == NULL)
 		return (NULL);
 	sc->next = NULL;
@@ -704,6 +712,7 @@ create_sconv_object(const char *fc, const char *tc,
 		free(sc->from_charset);
 		return (NULL);
 	}
+	archive_string_init(&sc->utf8);
 
 	if (flag & SCONV_UTF8_LIBARCHIVE_2) {
 #if HAVE_ICONV
@@ -712,9 +721,6 @@ create_sconv_object(const char *fc, const char *tc,
 		sc->flag = flag;
 		return (sc);
 	}
-#if HAVE_ICONV
-	sc->cd = iconv_open(tc, fc);
-#endif
 
 	if (flag & SCONV_TO_CHARSET) {
 		if (strcmp(tc, "UTF-16BE") == 0)
@@ -726,6 +732,18 @@ create_sconv_object(const char *fc, const char *tc,
 			flag |= SCONV_WIN_CP;
 #endif
 	} else if (flag & SCONV_FROM_CHARSET) {
+		/*
+		 * Set a flag for UTF-8 NFD. Usually iconv cannot handle
+		 * UTF-8 NFD. So we have to translate UTF-8 NFD characters
+		 * to NFC ones ourselves so that to prevent that the same
+		 * sight of two filenames, one is NFC and other is NFD,
+		 * would be in its directory.
+		 */
+#if !defined(__APPLE__)
+		if (strcmp(fc, "UTF-8") == 0)
+			flag |= SCONV_NORMALIZATION_C;
+		else
+#endif
 		if (strcmp(fc, "UTF-16BE") == 0)
 			flag |= SCONV_UTF16BE;
 		sc->to_cp = current_codepage;
@@ -751,6 +769,42 @@ create_sconv_object(const char *fc, const char *tc,
 	if (sc->same && strcmp(fc, "UTF-8") == 0)
 		flag |= SCONV_COPY_UTF8_TO_UTF8;
 
+#if defined(HAVE_ICONV)
+	/*
+	 * Create an iconv object.
+	 */
+#if defined(__APPLE__)
+	if (flag & SCONV_COPY_UTF8_TO_UTF8) {
+		if (flag & SCONV_FROM_CHARSET) {
+			/* To be NFD for comparing filenames. */
+			sc->cd = iconv_open("UTF-8-MAC", fc);
+			if (sc->cd != (iconv_t)-1)
+				flag &= ~SCONV_COPY_UTF8_TO_UTF8;
+		} else {
+			/* This case does not use iconv. */
+			sc->cd = (iconv_t)-1;
+		}
+	} else if (strcmp(fc, "UTF-8") == 0) {
+		sc->cd = iconv_open(tc, "UTF-8-MAC");
+		if (sc->cd == (iconv_t)-1) {
+			sc->cd = iconv_open(tc, fc);
+			flag |= SCONV_NORMALIZATION_C;
+		}
+	} else if (strcmp(tc, "UTF-8") == 0) {
+		sc->cd = iconv_open("UTF-8-MAC", fc);
+		if (sc->cd == (iconv_t)-1)
+			sc->cd = iconv_open(tc, fc);
+	}
+#else
+	if (flag & SCONV_COPY_UTF8_TO_UTF8)
+		/* This case does not use iconv. */
+		sc->cd = (iconv_t)-1;
+#endif
+	else {
+		sc->cd = iconv_open(tc, fc);
+	}
+#endif	/* HAVE_ICONV */
+
 	sc->flag = flag;
 
 	return (sc);
@@ -764,6 +818,7 @@ free_sconv_object(struct archive_string_conv *sc)
 {
 	free(sc->from_charset);
 	free(sc->to_charset);
+	archive_string_free(&sc->utf8);
 #if HAVE_ICONV
 	if (sc->cd != (iconv_t)-1)
 		iconv_close(sc->cd);
@@ -1115,7 +1170,8 @@ get_sconv_object(struct archive *a, const char *fc, const char *tc, int flag)
 		return (sc);
 	}
 #if HAVE_ICONV
-	if (sc->cd == (iconv_t)-1 && (flag & SCONV_BEST_EFFORT) == 0) {
+	if (sc->cd == (iconv_t)-1 &&
+	   (sc->flag & (SCONV_BEST_EFFORT | SCONV_COPY_UTF8_TO_UTF8)) == 0) {
 		free_sconv_object(sc);
 		archive_set_error(a, ARCHIVE_ERRNO_MISC,
 		    "iconv_open failed : Cannot convert "
@@ -1371,14 +1427,31 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 	 * Apparently, iconv does not check surrogate pairs in UTF-8
 	 * when both from-charset and to-charset are UTF-8.
 	 */
-	if (sc != NULL && (sc->flag & SCONV_COPY_UTF8_TO_UTF8) != 0)
-		return (strncat_from_utf8_to_utf8(as, _p, length));
-
-	archive_string_ensure(as, as->length + length*2+1);
+	if (sc->flag & SCONV_COPY_UTF8_TO_UTF8) {
+		if (sc->flag & SCONV_NORMALIZATION_C)
+	 		/* Additionally it nees normalization. */
+			return (archive_string_normalize_C(as, _p, length));
+		else
+			return (strncat_from_utf8_to_utf8(as, _p, length));
+	}
 
 	cd = sc->cd;
 	if (cd == (iconv_t)-1)
 		return (best_effort_strncat_in_locale(as, _p, n, sc));
+
+	/*
+	 * Need normalization to UTF-8 because iconv cannot correctly
+	 * translate UTF-8 NFD characters to other charset.
+	 */
+	if (sc->flag & SCONV_NORMALIZATION_C) {
+		archive_string_empty(&(sc->utf8));
+		if (archive_string_normalize_C(&(sc->utf8), _p, length) != 0)
+			return (-1);
+		src = sc->utf8.s;
+		length = sc->utf8.length;
+	}
+
+	archive_string_ensure(as, as->length + length*2+1);
 
 	inp = (char *)(uintptr_t)src;
 	remaining = length;
@@ -1474,6 +1547,20 @@ strncat_in_codepage(struct archive_string *as,
 	} else {
 		DWORD mbflag;
 
+		/*
+		 * Need normalization to UTF-8 since
+		 * MultiByteToWideChar() API does not support.
+		 * NOTE: When from_cp is CP_UTF8, neither MB_PRECOMPOSED nor
+		 * MB_COMPOSITE can be used; MultiByteToWideChar fail.
+		 */
+		if (sc->flag & SCONV_NORMALIZATION_C) {
+			archive_string_empty(&(sc->utf8));
+			if (archive_string_normalize_C(&(sc->utf8), s,
+			    length) != 0)
+				return (-1);
+			s = sc->utf8.s;
+			length = sc->utf8.length;
+		}
 		if (sc->flag & SCONV_FROM_CHARSET)
 			mbflag = 0;
 		else
@@ -1639,9 +1726,18 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 		if (sc->flag & SCONV_UTF8_LIBARCHIVE_2)
 			return (strncat_from_utf8_libarchive2(as, _p, length));
 
-		/* Copy UTF-8 string with a check of CESU-8. */
-		if (sc->flag & SCONV_COPY_UTF8_TO_UTF8)
-			return (strncat_from_utf8_to_utf8(as, _p, length));
+		/*
+		 * Copy a UTF-8 string with a check of CESU-8.
+		 */
+		if (sc->flag & SCONV_COPY_UTF8_TO_UTF8) {
+			if (sc->flag & SCONV_NORMALIZATION_C)
+	 			/* Additionally it nees normalization. */
+				return (archive_string_normalize_C(
+				    as, _p, length));
+			else
+				return (strncat_from_utf8_to_utf8(
+				    as, _p, length));
+		}
 	}
 
 	archive_string_append(as, _p, length);
@@ -1657,6 +1753,7 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 /*
  * Unicode conversion functions.
  *   - UTF-8 <===> UTF-8 in removing surrogate pairs.
+ *   - UTF-8 NFD ===> UTF-8 NFC in removing surrogate pairs.
  *   - UTF-8 made by libarchive 2.x ===> UTF-8.
  *   - UTF-16BE <===> UTF-8.
  *
@@ -1882,6 +1979,337 @@ strncat_from_utf8_to_utf8(struct archive_string *as, const char *s, size_t len)
 			len -= n;
 		}
 	} while (n > 0);
+	as->length = p - as->s;
+	as->s[as->length] = '\0';
+	return (ret);
+}
+
+/*
+ * Following Constants for Hangul compositions this information comes from
+ * Unicode Standard Annex #15  http://unicode.org/reports/tr15/
+ */
+#define HC_SBASE	0xAC00
+#define HC_LBASE	0x1100
+#define HC_VBASE	0x1161
+#define HC_TBASE	0x11A7
+#define HC_LCOUNT	19
+#define HC_VCOUNT	21
+#define HC_TCOUNT	28
+#define HC_NCOUNT	(HC_VCOUNT * HC_TCOUNT)
+#define HC_SCOUNT	(HC_LCOUNT * HC_NCOUNT)
+
+static uint32_t
+get_nfc(uint32_t uc, uint32_t uc2)
+{
+	int t, b;
+
+	t = 0;
+	b = sizeof(u_composition_table)/sizeof(u_composition_table[0]) -1;
+	while (b >= t) {
+		int m = (t + b) / 2;
+		if (u_composition_table[m].cp1 < uc)
+			t = m + 1;
+		else if (u_composition_table[m].cp1 > uc)
+			b = m - 1;
+		else if (u_composition_table[m].cp2 < uc2)
+			t = m + 1;
+		else if (u_composition_table[m].cp2 > uc2)
+			b = m - 1;
+		else
+			return (u_composition_table[m].nfc);
+	}
+	return (0);
+}
+
+#define FDC_MAX 10	/* The maximum number of Following Decomposable
+			 * Characters. */
+
+/*
+ * Update first code point.
+ */
+#define UPDATE_UC(new_uc)	do {		\
+	uc = new_uc;				\
+	ucptr = NULL;				\
+} while (0)
+
+/*
+ * Replace first code point with second code point.
+ */
+#define REPLACE_UC_WITH_UC2() do {		\
+	uc = uc2;				\
+	ucptr = uc2ptr;				\
+	n = n2;					\
+} while (0)
+
+/*
+ * Write first code point.
+ * If the code point has not be changed from its original code,
+ * this just copies it from its original buffer pointer.
+ * If not, this converts it to UTF-8 byte sequence and copies it.
+ */
+#define WRITE_UC()	do {			\
+	if (ucptr) {				\
+		switch (n) {			\
+		case 4:				\
+			*p++ = *ucptr++;	\
+			/* FALL THROUGH */	\
+		case 3:				\
+			*p++ = *ucptr++;	\
+			/* FALL THROUGH */	\
+		case 2:				\
+			*p++ = *ucptr++;	\
+			/* FALL THROUGH */	\
+		case 1:				\
+			*p++ = *ucptr;		\
+			break;			\
+		}				\
+		ucptr = NULL;			\
+	} else {				\
+		p += unicode_to_utf8(p, uc);	\
+	}					\
+} while (0)
+
+/*
+ * Collect following decomposable code points.
+ */
+#define COLLECT_CPS(start)	do {		\
+	int _i;					\
+	for (_i = start; _i < FDC_MAX ; _i++) {	\
+		nx = cesu8_to_unicode(&ucx[_i], s, len);\
+		if (nx <= 0)			\
+			break;			\
+		cx = CCC(ucx[_i]);		\
+		if (cl >= cx && cl != 228 && cx != 228)\
+			break;			\
+		s += nx;			\
+		len -= nx;			\
+		cl = cx;			\
+		ccx[_i] = cx;			\
+	}					\
+	if (_i >= FDC_MAX) {			\
+		ret = -1;			\
+		ucx_size = FDC_MAX;		\
+	} else					\
+		ucx_size = _i;			\
+} while (0)
+
+/*
+ * Normalize UTF-8 characters to Form C and copy the result.
+ *
+ * TODO: Convert composition exclusions,which are never converted
+ * from NFC,NFD,NFKC and NFKD, to Form C.
+ */
+static int
+archive_string_normalize_C(struct archive_string *as, const char *s,
+    size_t len)
+{
+	char *p, *endp;
+	int ret = 0;
+
+	/*
+	 * The process normalizing NFD characters to NFC will not expand
+	 * the length of an NFC UTF-8 string more than the length of an
+	 * NFD one unless we normalize the composition exclusion characters.
+	 */
+	if (archive_string_ensure(as, as->length + len + 1) == NULL)
+		__archive_errx(1, "Out of memory");
+
+	p = as->s + as->length;
+	endp = as->s + as->buffer_length -1;
+	do {
+		const char *ucptr, *uc2ptr;
+		uint32_t uc, uc2;
+		int n, n2;
+
+		/* Read first code point. */
+		n = cesu8_to_unicode(&uc, s, len);
+		if (n < 0) {
+			/* Skip current byte. */
+			*p++ = '?';
+			s++;
+			len--;
+			ret = -1;
+			continue;
+		} else if (n == 0)
+			break;
+		else if (n == 6)
+			/* uc is converted from a surrogate pair.
+			 * this should be treated as a changed code. */
+			ucptr = NULL;
+		else
+			ucptr = s;
+		s += n;
+		len -= n;
+
+		/* Read second code point. */
+		while ((n2 = cesu8_to_unicode(&uc2, s, len)) > 0) {
+			uint32_t ucx[FDC_MAX];
+			int ccx[FDC_MAX];
+			int cl, cx, i, nx, ucx_size;
+			int LIndex,SIndex;
+			uint32_t nfc;
+
+			if (n2 == 6)
+				/* uc2 is converted from a surrogate pair.
+			 	 * this should be treated as a changed code. */
+				uc2ptr = NULL;
+			else
+				uc2ptr = s;
+			s += n2;
+			len -= n2;
+
+			/*
+			 * If current second code point is out of decomposable
+			 * code points, finding compositions is unneeded.
+			 */
+			if (!IS_DECOMPOSABLE_BLOCK(uc2)) {
+				WRITE_UC();
+				REPLACE_UC_WITH_UC2();
+				continue;
+			}
+
+			/*
+			 * Try to combine current code points.
+			 */
+			/*
+			 * We have to combine Hangul characters according to
+			 * http://uniicode.org/reports/tr15/#Hangul
+			 */
+			if (0 <= (LIndex = uc - HC_LBASE) &&
+			    LIndex < HC_LCOUNT) {
+				/*
+				 * Hangul Composition.
+				 * 1. Two current code points are L and V.
+				 */
+				int VIndex = uc2 - HC_VBASE;
+				if (0 <= VIndex && VIndex < HC_VCOUNT) {
+					/* Make syllable of form LV. */
+					UPDATE_UC(HC_SBASE +
+					    (LIndex * HC_VCOUNT + VIndex) *
+					     HC_TCOUNT);
+				} else {
+					WRITE_UC();
+					REPLACE_UC_WITH_UC2();
+				}
+				continue;
+			} else if (0 <= (SIndex = uc - HC_SBASE) &&
+			    SIndex < HC_SCOUNT && (SIndex % HC_TCOUNT) == 0) {
+				/*
+				 * Hangul Composition.
+				 * 2. Two current code points are LV and T.
+				 */
+				int TIndex = uc2 - HC_TBASE;
+				if (0 < TIndex && TIndex < HC_TCOUNT) {
+					/* Make syllable of form LVT. */
+					UPDATE_UC(uc + TIndex);
+				} else {
+					WRITE_UC();
+					REPLACE_UC_WITH_UC2();
+				}
+				continue;
+			} else if ((nfc = get_nfc(uc, uc2)) != 0) {
+				/* A composition to current code points
+				 * is found. */
+				UPDATE_UC(nfc);
+				continue;
+			} else if ((cl = CCC(uc2)) == 0) {
+				/* Clearly 'uc2' the second code point is not
+				 * a decomposable code. */
+				WRITE_UC();
+				REPLACE_UC_WITH_UC2();
+				continue;
+			}
+
+			/*
+			 * Collect following decomposable code points.
+			 */
+			cx = 0;
+			ucx[0] = uc2;
+			ccx[0] = cl;
+			COLLECT_CPS(1);
+
+			/*
+			 * Find a composed code in the collected code points.
+			 */
+			i = 1;
+			while (i < ucx_size) {
+				int j;
+
+				if ((nfc = get_nfc(uc, ucx[i])) == 0) {
+					i++;
+					continue;
+				}
+
+				/*
+				 * nfc is composed of uc and ucx[i].
+				 */
+				UPDATE_UC(nfc);
+
+				/*
+				 * Remove ucx[i] by shifting
+				 * follwoing code points.
+				 */ 
+				for (j = i; j+1 < ucx_size; j++) {
+					ucx[j] = ucx[j+1];
+					ccx[j] = ccx[j+1];
+				}
+				ucx_size --;
+
+				/*
+				 * Collect following code points blocked
+				 * by ucx[i] the removed code point.
+				 */
+				if (ucx_size > 0 && i == ucx_size &&
+				    nx > 0 && cx == cl) {
+					cl =  ccx[ucx_size-1];
+					COLLECT_CPS(ucx_size);
+				}
+				/*
+				 * Restart finding a composed code with
+				 * the updated uc from the top of the
+				 * collected code points.
+				 */
+				i = 0;
+			}
+
+			/*
+			 * Apparently the current code points are not
+			 * decomposed characters or already composed.
+			 */
+			WRITE_UC();
+			for (i = 0; i < ucx_size; i++)
+				p += unicode_to_utf8(p, ucx[i]);
+
+			/*
+			 * Flush out remaining canonical combining characters.
+			 */
+			if (nx > 0 && cx == cl && len > 0) {
+				while ((nx = cesu8_to_unicode(&ucx[0], s, len))
+				    > 0) {
+					cx = CCC(ucx[0]);
+					if (cl > cx)
+						break;
+					s += nx;
+					len -= nx;
+					cl = cx;
+					p += unicode_to_utf8(p, ucx[0]);
+				}
+			}
+			break;
+		}
+		if (n2 < 0) {
+			WRITE_UC();
+			/* Skip current byte. */
+			*p++ = '?';
+			s++;
+			len--;
+			ret = -1;
+			continue;
+		} else if (n2 == 0) {
+			WRITE_UC();
+			break;
+		}
+	} while (len > 0);
 	as->length = p - as->s;
 	as->s[as->length] = '\0';
 	return (ret);
