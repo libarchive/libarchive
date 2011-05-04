@@ -794,14 +794,10 @@ setup_xattrs(struct archive_read_disk *a,
 
 #endif
 
-#if defined(HAVE_LINUX_FIEMAP_H) && 0 /* DISABLED FOR NOW */
+#if defined(HAVE_LINUX_FIEMAP_H)
 
 /*
  * Linux sparse interface.
- *
- * TODO: This needs to be fixed and then re-enabled above.
- * When that happens, also reenable the Linux parts of
- * test/test_sparse_basic.c.
  *
  * The FIEMAP ioctl returns an "extent" for each physical allocation
  * on disk.  We need to process those to generate a more compact list
@@ -896,6 +892,21 @@ setup_sparse(struct archive_read_disk *a,
 			fm->fm_start = fe->fe_logical + fe->fe_length;
 		} else
 			break;
+	}
+
+	/*
+	 * ioctl(, FS_IOC_FIEMAP,) sometimes returns two adjacent extents
+	 * though the file is not sparse. archive_entry_sparse_add_entry()
+	 * automatically merge them and so we have to check the result
+	 * whether extents are merged and it indicates the whole file.
+	 * If so, we should remove sparse data in an entry.
+	 */
+	if (archive_entry_sparse_reset(entry) == 1) {
+		int64_t length, offset;
+		archive_entry_sparse_next(entry, &offset, &length);
+		if (offset == 0 && length == size)
+			/* This is not sparse. */
+			archive_entry_sparse_clear(entry);
 	}
 exit_setup_sparse:
 	if (initial_fd != fd)
