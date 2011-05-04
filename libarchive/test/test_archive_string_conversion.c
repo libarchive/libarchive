@@ -113,7 +113,7 @@ test_archive_string_normalization()
 {
 	struct archive *a;
 	struct archive_entry *ae;
-	struct archive_string s;
+	struct archive_string utf8;
 	struct archive_string_conv *sconv;
 	FILE *fp;
 	char buff[512];
@@ -128,7 +128,7 @@ test_archive_string_normalization()
 		return;
 	}
 
-	archive_string_init(&s);
+	archive_string_init(&utf8);
 	extract_reference_file(reffile);
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -196,41 +196,41 @@ test_archive_string_normalization()
 		 * Normalize an NFC string.
 		 */
 		assertEqualInt(0,
-		    archive_strcpy_in_locale(&s, utf8_nfc, sconv));
+		    archive_strcpy_in_locale(&utf8, utf8_nfc, sconv));
 		failure("NFC(%s) should be converted to NFD(%s):%d",
 		    nfc, nfd, line);
-		assertEqualString(utf8_nfd, s.s);
+		assertEqualUTF8String(utf8_nfd, utf8.s);
 
 		/*
 		 * Normalize an NFD string.
 		 */
 		assertEqualInt(0,
-		    archive_strcpy_in_locale(&s, utf8_nfd, sconv));
+		    archive_strcpy_in_locale(&utf8, utf8_nfd, sconv));
 		failure("NFD(%s) should not be any changed:%d",
 		    nfd, line);
-		assertEqualString(utf8_nfd, s.s);
+		assertEqualUTF8String(utf8_nfd, utf8.s);
 #else
 		/*
 		 * Normalize an NFD string.
 		 */
 		assertEqualInt(0,
-		    archive_strcpy_in_locale(&s, utf8_nfd, sconv));
+		    archive_strcpy_in_locale(&utf8, utf8_nfd, sconv));
 		failure("NFD(%s) should be converted to NFC(%s):%d",
 		    nfd, nfc, line);
-		assertEqualString(utf8_nfc, s.s);
+		assertEqualUTF8String(utf8_nfc, utf8.s);
 
 		/*
 		 * Normalize an NFC string.
 		 */
 		assertEqualInt(0,
-		    archive_strcpy_in_locale(&s, utf8_nfc, sconv));
+		    archive_strcpy_in_locale(&utf8, utf8_nfc, sconv));
 		failure("NFC(%s) should not be any changed:%d",
 		    nfc, line);
-		assertEqualString(utf8_nfc, s.s);
+		assertEqualUTF8String(utf8_nfc, utf8.s);
 #endif
 	}
 
-	archive_string_free(&s);
+	archive_string_free(&utf8);
 	fclose(fp);
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

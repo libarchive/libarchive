@@ -140,7 +140,9 @@
   assertion_equal_int(__FILE__, __LINE__, (v1), #v1, (v2), #v2, NULL)
 /* Assert two strings are the same.  Reports value of each one if not. */
 #define assertEqualString(v1,v2)   \
-  assertion_equal_string(__FILE__, __LINE__, (v1), #v1, (v2), #v2, NULL)
+  assertion_equal_string(__FILE__, __LINE__, (v1), #v1, (v2), #v2, NULL, 0)
+#define assertEqualUTF8String(v1,v2)   \
+  assertion_equal_string(__FILE__, __LINE__, (v1), #v1, (v2), #v2, NULL, 1)
 /* As above, but v1 and v2 are wchar_t * */
 #define assertEqualWString(v1,v2)   \
   assertion_equal_wstring(__FILE__, __LINE__, (v1), #v1, (v2), #v2, NULL)
@@ -226,7 +228,7 @@ int assertion_empty_file(const char *, int, const char *);
 int assertion_equal_file(const char *, int, const char *, const char *);
 int assertion_equal_int(const char *, int, long long, const char *, long long, const char *, void *);
 int assertion_equal_mem(const char *, int, const void *, const char *, const void *, const char *, size_t, const char *, void *);
-int assertion_equal_string(const char *, int, const char *v1, const char *, const char *v2, const char *, void *);
+int assertion_equal_string(const char *, int, const char *v1, const char *, const char *v2, const char *, void *, int);
 int assertion_equal_wstring(const char *, int, const wchar_t *v1, const char *, const wchar_t *v2, const char *, void *);
 int assertion_file_atime(const char *, int, const char *, long, long);
 int assertion_file_atime_recent(const char *, int, const char *);
@@ -299,7 +301,7 @@ int read_open_memory2(struct archive *, void *, size_t, size_t);
 #define assertEqualIntA(a,v1,v2)   \
   assertion_equal_int(__FILE__, __LINE__, (v1), #v1, (v2), #v2, (a))
 #define assertEqualStringA(a,v1,v2)   \
-  assertion_equal_string(__FILE__, __LINE__, (v1), #v1, (v2), #v2, (a))
+  assertion_equal_string(__FILE__, __LINE__, (v1), #v1, (v2), #v2, (a), 0)
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
