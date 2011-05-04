@@ -2103,7 +2103,7 @@ static int
 archive_string_normalize_C(struct archive_string *as, const char *s,
     size_t len)
 {
-	char *p, *endp;
+	char *p;
 	int ret = 0;
 
 	/*
@@ -2115,7 +2115,6 @@ archive_string_normalize_C(struct archive_string *as, const char *s,
 		__archive_errx(1, "Out of memory");
 
 	p = as->s + as->length;
-	endp = as->s + as->buffer_length -1;
 	do {
 		const char *ucptr, *uc2ptr;
 		uint32_t uc, uc2;
