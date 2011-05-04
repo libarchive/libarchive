@@ -1366,7 +1366,9 @@ header_ustar(struct archive_read *a, struct tar *tar,
 	archive_entry_copy_pathname(entry, as->s);
 
 	/* Handle rest of common fields. */
-	err = header_common(a, tar, entry, h);
+	r = header_common(a, tar, entry, h);
+	if (r < err)
+		err = r;
 
 	/* Handle POSIX ustar fields. */
 	r = archive_strncpy_in_locale(&(tar->entry_uname),
