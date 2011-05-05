@@ -367,8 +367,8 @@ archive_entry_fflags_text(struct archive_entry *entry)
 	const char *f;
 	char *p;
 
-	f = archive_mstring_get_mbs(entry->archive, &entry->ae_fflags_text);
-	if (f != NULL)
+	if (archive_mstring_get_mbs(entry->archive,
+	    &entry->ae_fflags_text, &f) == 0 && f != NULL)
 		return (f);
 
 	if (entry->ae_fflags_set == 0  &&  entry->ae_fflags_clear == 0)
@@ -380,8 +380,10 @@ archive_entry_fflags_text(struct archive_entry *entry)
 
 	archive_mstring_copy_mbs(&entry->ae_fflags_text, p);
 	free(p);
-	f = archive_mstring_get_mbs(entry->archive, &entry->ae_fflags_text);
-	return (f);
+	if (archive_mstring_get_mbs(entry->archive,
+	    &entry->ae_fflags_text, &f) == 0)
+		return (f);
+	return (NULL);
 }
 
 int64_t
@@ -393,28 +395,38 @@ archive_entry_gid(struct archive_entry *entry)
 const char *
 archive_entry_gname(struct archive_entry *entry)
 {
-	return (archive_mstring_get_mbs(entry->archive, &entry->ae_gname));
+	const char *p;
+	if (archive_mstring_get_mbs(entry->archive, &entry->ae_gname, &p) == 0)
+		return (p);
+	return (NULL);
 }
 
 const wchar_t *
 archive_entry_gname_w(struct archive_entry *entry)
 {
-	return (archive_mstring_get_wcs(entry->archive, &entry->ae_gname));
+	const wchar_t *p;
+	if (archive_mstring_get_wcs(entry->archive, &entry->ae_gname, &p) == 0)
+		return (p);
+	return (NULL);
 }
 
 const char *
 archive_entry_hardlink(struct archive_entry *entry)
 {
-	if (entry->ae_set & AE_SET_HARDLINK)
-		return (archive_mstring_get_mbs(entry->archive, &entry->ae_hardlink));
+	const char *p;
+	if ((entry->ae_set & AE_SET_HARDLINK) && archive_mstring_get_mbs(
+	    entry->archive, &entry->ae_hardlink, &p) == 0)
+		return (p);
 	return (NULL);
 }
 
 const wchar_t *
 archive_entry_hardlink_w(struct archive_entry *entry)
 {
-	if (entry->ae_set & AE_SET_HARDLINK)
-		return (archive_mstring_get_wcs(entry->archive, &entry->ae_hardlink));
+	const wchar_t *p;
+	if ((entry->ae_set & AE_SET_HARDLINK) && archive_mstring_get_wcs(
+	    entry->archive, &entry->ae_hardlink, &p) == 0)
+		return (p);
 	return (NULL);
 }
 
@@ -463,13 +475,21 @@ archive_entry_nlink(struct archive_entry *entry)
 const char *
 archive_entry_pathname(struct archive_entry *entry)
 {
-	return (archive_mstring_get_mbs(entry->archive, &entry->ae_pathname));
+	const char *p;
+	if (archive_mstring_get_mbs(
+	    entry->archive, &entry->ae_pathname, &p) == 0)
+		return (p);
+	return (NULL);
 }
 
 const wchar_t *
 archive_entry_pathname_w(struct archive_entry *entry)
 {
-	return (archive_mstring_get_wcs(entry->archive, &entry->ae_pathname));
+	const wchar_t *p;
+	if (archive_mstring_get_wcs(
+	    entry->archive, &entry->ae_pathname, &p) == 0)
+		return (p);
+	return (NULL);
 }
 
 mode_t
@@ -521,28 +541,40 @@ archive_entry_size_is_set(struct archive_entry *entry)
 const char *
 archive_entry_sourcepath(struct archive_entry *entry)
 {
-	return (archive_mstring_get_mbs(entry->archive, &entry->ae_sourcepath));
+	const char *p;
+	if (archive_mstring_get_mbs(
+	    entry->archive, &entry->ae_sourcepath, &p) == 0)
+		return (p);
+	return (NULL);
 }
 
 const wchar_t *
 archive_entry_sourcepath_w(struct archive_entry *entry)
 {
-	return (archive_mstring_get_wcs(entry->archive, &entry->ae_sourcepath));
+	const wchar_t *p;
+	if (archive_mstring_get_wcs(
+	    entry->archive, &entry->ae_sourcepath, &p) == 0)
+		return (p);
+	return (NULL);
 }
 
 const char *
 archive_entry_symlink(struct archive_entry *entry)
 {
-	if (entry->ae_set & AE_SET_SYMLINK)
-		return (archive_mstring_get_mbs(entry->archive, &entry->ae_symlink));
+	const char *p;
+	if ((entry->ae_set & AE_SET_SYMLINK) && archive_mstring_get_mbs(
+	    entry->archive, &entry->ae_symlink, &p) == 0)
+		return (p);
 	return (NULL);
 }
 
 const wchar_t *
 archive_entry_symlink_w(struct archive_entry *entry)
 {
-	if (entry->ae_set & AE_SET_SYMLINK)
-		return (archive_mstring_get_wcs(entry->archive, &entry->ae_symlink));
+	const wchar_t *p;
+	if ((entry->ae_set & AE_SET_SYMLINK) && archive_mstring_get_wcs(
+	    entry->archive, &entry->ae_symlink, &p) == 0)
+		return (p);
 	return (NULL);
 }
 
@@ -555,13 +587,19 @@ archive_entry_uid(struct archive_entry *entry)
 const char *
 archive_entry_uname(struct archive_entry *entry)
 {
-	return (archive_mstring_get_mbs(entry->archive, &entry->ae_uname));
+	const char *p;
+	if (archive_mstring_get_mbs(entry->archive, &entry->ae_uname, &p) == 0)
+		return (p);
+	return (NULL);
 }
 
 const wchar_t *
 archive_entry_uname_w(struct archive_entry *entry)
 {
-	return (archive_mstring_get_wcs(entry->archive, &entry->ae_uname));
+	const wchar_t *p;
+	if (archive_mstring_get_wcs(entry->archive, &entry->ae_uname, &p) == 0)
+		return (p);
+	return (NULL);
 }
 
 /*
