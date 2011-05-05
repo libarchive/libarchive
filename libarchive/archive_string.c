@@ -61,6 +61,9 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_string.c 201095 2009-12-28 02:33
 #include <windows.h>
 #include <locale.h>
 #endif
+#if defined(__APPLE__)
+#include <CoreServices/CoreServices.h>
+#endif
 
 #include "archive_endian.h"
 #include "archive_private.h"
@@ -94,12 +97,19 @@ struct archive_string_conv {
 #define SCONV_NORMALIZATION_C	128	/* Need normalization to be Form C.
 					 * Before UTF-8 characters are actually
 					 * processed. */
+#define SCONV_NORMALIZATION_D	256	/* Need normalization to be Form D.
+					 * Before UTF-8 characters are actually
+					 * processed.
+					 * Currently this only for MAC OS X. */
 
 #if HAVE_ICONV
 	iconv_t				 cd;
 #endif
 	/* A temporary buffer for a conversion of UTF-8 NFD. */
 	struct archive_string		 utf8;
+#if defined(__APPLE__)
+	UnicodeToTextInfo		 uniInfo;
+#endif
 };
 
 #define CP_C_LOCALE	0	/* "C" locale */
@@ -127,6 +137,10 @@ static int strncat_from_utf8_to_utf8(struct archive_string *, const char *,
     size_t);
 static int archive_string_normalize_C(struct archive_string *, const char *,
     size_t);
+#if defined(__APPLE__)
+static int archive_string_normalize_D(struct archive_string *, const char *,
+    size_t);
+#endif
 
 static struct archive_string *
 archive_string_append(struct archive_string *as, const char *p, size_t s)
@@ -676,6 +690,27 @@ add_sconv_object(struct archive *a, struct archive_string_conv *sc)
 	*psc = sc;
 }
 
+#if defined(__APPLE__)
+
+static int
+createUniInfo(static struct archive_string_conv *sconv)
+{
+	UnicodeMapping map;
+	OSStatus err;
+
+	map.unicodeEncoding = CreateTextEncoding(kTextEncodingUnicodeDefault,
+	    kUnicodeNoSubset, kUnicodeUTF8Format);
+	map.otherEncoding = CreateTextEncoding(kTextEncodingUnicodeDefault,
+	    kUnicodeHFSPlusDecompVariant, kUnicodeUTF8Format);
+	map.mappingVersion = kUnicodeUseLatestMapping;
+
+	sconv->uniInfo = NULL;
+	err = CreateUnicodeToTextInfo(&map, &(sconv->uniInfo));
+	return ((err == noErr)? 0: -1);
+}
+
+#endif /* __APPLE__ */
+
 /*
  * Create a string conversion object.
  */
@@ -739,12 +774,13 @@ create_sconv_object(const char *fc, const char *tc,
 		 * sight of two filenames, one is NFC and other is NFD,
 		 * would be in its directory.
 		 */
-#if !defined(__APPLE__)
 		if (strcmp(fc, "UTF-8") == 0)
+#if defined(__APPLE__)
+			flag |= SCONV_NORMALIZATION_D;
+#else
 			flag |= SCONV_NORMALIZATION_C;
-		else
 #endif
-		if (strcmp(fc, "UTF-16BE") == 0)
+		else if (strcmp(fc, "UTF-16BE") == 0)
 			flag |= SCONV_UTF16BE;
 		sc->to_cp = current_codepage;
 		sc->from_cp = make_codepage_from_charset(fc);
@@ -775,14 +811,11 @@ create_sconv_object(const char *fc, const char *tc,
 	 */
 #if defined(__APPLE__)
 	if (flag & SCONV_COPY_UTF8_TO_UTF8) {
-		if (flag & SCONV_FROM_CHARSET) {
-			/* To be NFD for comparing filenames. */
-			sc->cd = iconv_open("UTF-8-MAC", fc);
-			if (sc->cd != (iconv_t)-1)
-				flag &= ~SCONV_COPY_UTF8_TO_UTF8;
-		} else {
-			/* This case does not use iconv. */
-			sc->cd = (iconv_t)-1;
+		/* This case does not use iconv. */
+		sc->cd = (iconv_t)-1;
+		if (flag & SCONV_NORMALIZATION_D) {
+			if (createUniInfo(sc) != 0)
+				flag &= ~SCONV_NORMALIZATION_D;
 		}
 	} else if (strcmp(fc, "UTF-8") == 0) {
 		sc->cd = iconv_open(tc, "UTF-8-MAC");
@@ -822,6 +855,10 @@ free_sconv_object(struct archive_string_conv *sc)
 #if HAVE_ICONV
 	if (sc->cd != (iconv_t)-1)
 		iconv_close(sc->cd);
+#endif
+#if defined(__APPLE__)
+	if (sc->uniInfo != NULL)
+		DisposeUnicodeToTextInfo(&(sc->uniInfo));
 #endif
 	free(sc);
 }
@@ -1428,6 +1465,12 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 	 * when both from-charset and to-charset are UTF-8.
 	 */
 	if (sc->flag & SCONV_COPY_UTF8_TO_UTF8) {
+#if defined(__APPLE__)
+		if (sc->flag & SCONV_NORMALIZATION_D)
+	 		/* Additionally it nees normalization. */
+			return (archive_string_normalize_D(as, _p, length));
+		else
+#endif
 		if (sc->flag & SCONV_NORMALIZATION_C)
 	 		/* Additionally it nees normalization. */
 			return (archive_string_normalize_C(as, _p, length));
@@ -2313,6 +2356,61 @@ archive_string_normalize_C(struct archive_string *as, const char *s,
 	as->s[as->length] = '\0';
 	return (ret);
 }
+
+#if defined(__APPLE__)
+
+/*
+ * Normalize UTF-8 characters to Form D and copy the result.
+ */
+static int
+archive_string_normalize_D(struct archive_string *as, const char *s,
+    size_t len, struct archive_string_conv *sc)
+{
+	const char *inp;
+	char *outp;
+	ByteCount inCount, outCount;
+	ByteCount inAvail, outAvail;
+	OSStatus err;
+
+	if (archive_string_ensure(as, as->length + len*2 + 1) == NULL)
+		__archive_errx(1, "Out of memory");
+
+	inp = s;
+	inAvail = len;
+	outp = as->s + as->length;
+	outAvail = as->buffer_length - as->length -1;
+
+	/* Reinitialize all state information. */
+	if (ResetUnicodeToTextInfo(sc->uniInfo) != noErr)
+		return (-1);
+	do {
+		inCount = outCount = 0;
+		err = ConvertFromUnicodeToText(sc->uniInfo,
+		    inAvail, (ConstUniCharArrayPtr)inp,
+		    kUnicodeDefaultDirectionMask, 0, NULL, NULL, NULL,
+		    outAvail, &inCount, &outCount, outp);
+		if (err == noErr ||
+		    err == kTECOutputBufferFullStatus) {
+			inp += inCount;
+			inAvail -= inCount;
+			outp += outCount;
+			outAvail -= outCount;
+			as->length = outp - as->s;
+		}
+		if (err == kTECOutputBufferFullStatus) {
+			if (archive_string_ensure(as,
+			    as->buffer_length+inAvail+1) == NULL)
+				__archive_errx(1, "Out of memory");
+			outp = as->s + as->length;
+			outAvail = as->buffer_length - as->length -1;
+			continue;
+		}
+	} while (0);
+	as->s[as->length] = '\0';
+	return ((err == noErr)?0: -1);
+}
+
+#endif /* __APPLE__ */
 
 /*
  * libarchive 2.x made incorrect UTF-8 strings in the wrong assumuption
