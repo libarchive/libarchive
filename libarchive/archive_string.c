@@ -3086,7 +3086,6 @@ archive_mstring_copy_wcs_len(struct archive_mstring *aes, const wchar_t *wcs,
  * strive to give the user something useful, so you can get hopefully
  * usable values even if some of the character conversions are failing.)
  */
-/* TODO: Reverse the return values here so that zero is success. */
 int
 archive_mstring_update_utf8(struct archive *a, struct archive_mstring *aes,
     const char *utf8)
@@ -3096,7 +3095,7 @@ archive_mstring_update_utf8(struct archive *a, struct archive_mstring *aes,
 
 	if (utf8 == NULL) {
 		aes->aes_set = 0;
-		return (1); /* Succeeded in clearing everything. */
+		return (0); /* Succeeded in clearing everything. */
 	}
 
 	/* Save the UTF8 string. */
@@ -3111,20 +3110,20 @@ archive_mstring_update_utf8(struct archive *a, struct archive_mstring *aes,
 	/* Try converting UTF-8 to MBS, return false on failure. */
 	sc = archive_string_conversion_from_charset(a, "UTF-8", 1);
 	if (sc == NULL)
-		return (0);/* Couldn't allocate memory for sc. */
+		return (-1);/* Couldn't allocate memory for sc. */
 	r = archive_strcpy_in_locale(&(aes->aes_mbs), utf8, sc);
 	if (a == NULL)
 		free_sconv_object(sc);
 	if (r != 0)
-		return (0);
+		return (-1);
 	aes->aes_set = AES_SET_UTF8 | AES_SET_MBS; /* Both UTF8 and MBS set. */
 
 	/* Try converting MBS to WCS, return false on failure. */
 	if (archive_wstring_append_from_mbs(&(aes->aes_wcs), aes->aes_mbs.s,
 	    aes->aes_utf8.length))
-		return (0);
+		return (-1);
 	aes->aes_set = AES_SET_UTF8 | AES_SET_WCS | AES_SET_MBS;
 
 	/* All conversions succeeded. */
-	return (1);
+	return (0);
 }
