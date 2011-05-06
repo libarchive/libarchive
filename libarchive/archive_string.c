@@ -139,7 +139,7 @@ static int archive_string_normalize_C(struct archive_string *, const char *,
     size_t);
 #if defined(__APPLE__)
 static int archive_string_normalize_D(struct archive_string *, const char *,
-    size_t);
+    size_t, struct archive_string_conv *);
 #endif
 
 static struct archive_string *
@@ -693,7 +693,7 @@ add_sconv_object(struct archive *a, struct archive_string_conv *sc)
 #if defined(__APPLE__)
 
 static int
-createUniInfo(static struct archive_string_conv *sconv)
+createUniInfo(struct archive_string_conv *sconv)
 {
 	UnicodeMapping map;
 	OSStatus err;
@@ -1468,7 +1468,7 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 #if defined(__APPLE__)
 		if (sc->flag & SCONV_NORMALIZATION_D)
 	 		/* Additionally it nees normalization. */
-			return (archive_string_normalize_D(as, _p, length));
+			return (archive_string_normalize_D(as, _p, length, sc));
 		else
 #endif
 		if (sc->flag & SCONV_NORMALIZATION_C)
