@@ -125,6 +125,13 @@ static struct archive_string_conv *get_sconv_object(struct archive *,
 static unsigned make_codepage_from_charset(const char *);
 static unsigned get_current_codepage();
 static unsigned get_current_oemcp();
+#if defined(_WIN32) && !defined(__CYGWIN__)
+static int archive_wstring_append_from_mbs_in_codepage(
+    struct archive_wstring *, const char *, size_t,
+    struct archive_string_conv *);
+static int archive_string_append_from_wcs_in_codepage(struct archive_string *,
+    const wchar_t *, size_t, struct archive_string_conv *);
+#endif
 static int strncpy_from_utf16be(struct archive_string *, const void *, size_t,
     struct archive_string_conv *);
 static int strncpy_to_utf16be(struct archive_string *, const void *, size_t,
@@ -365,37 +372,83 @@ int
 archive_wstring_append_from_mbs(struct archive_wstring *dest,
     const char *p, size_t len)
 {
-	size_t r;
-	unsigned cp;
-	/*
-	 * No single byte will be more than one wide character,
-	 * so this length estimate will always be big enough.
-	 */
-	size_t wcs_length = len;
-	if (NULL == archive_wstring_ensure(dest, dest->length + wcs_length + 1))
-		__archive_errx(1,
-		    "No memory for archive_wstring_append_from_mbs()");
+	return (archive_wstring_append_from_mbs_in_codepage(dest, p, len, NULL));
+}
 
-	cp = get_current_codepage();
-	if (cp == CP_C_LOCALE) {
-		wchar_t *wp = dest->s + dest->length;
-		const unsigned char *mp = (const unsigned char *)p;
+static int
+archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
+    const char *s, size_t length, struct archive_string_conv *sc)
+{
+	int count;
+	UINT from_cp;
 
-		r = 0;
-		while (r < len && *mp) {
-			*wp++ = (wchar_t)*mp++;
-			r++;
+	if (sc != NULL)
+		from_cp = sc->from_cp;
+	else
+		from_cp = get_current_codepage();
+
+	if (from_cp == CP_C_LOCALE) {
+		/*
+		 * "C" locale special process.
+		 */
+		wchar_t *ws;
+		const unsigned char *mp;
+
+		if (NULL == archive_wstring_ensure(dest,
+		    dest->length + length + 1))
+			__archive_errx(1,
+			    "No memory for archive_wstring_append_from_mbs_*");
+
+		ws = dest->s + dest->length;
+		mp = (const unsigned char *)s;
+		count = 0;
+		while (count < (int)length && *mp) {
+			*ws++ = (wchar_t)*mp++;
+			count++;
 		}
 	} else {
-		r = MultiByteToWideChar(cp, 0,
-		    p, (int)len, dest->s + dest->length, (int)wcs_length);
+		DWORD mbflag;
+
+		/*
+		 * Need normalization to UTF-8 since
+		 * MultiByteToWideChar() API does not support.
+		 * NOTE: When from_cp is CP_UTF8, neither MB_PRECOMPOSED nor
+		 * MB_COMPOSITE can be used; MultiByteToWideChar fail.
+		 */
+		if (sc != NULL && (sc->flag & SCONV_NORMALIZATION_C)) {
+			archive_string_empty(&(sc->utf8));
+			if (archive_string_normalize_C(&(sc->utf8), s,
+			    length) != 0)
+				return (-1);
+			s = sc->utf8.s;
+			length = sc->utf8.length;
+		}
+		if (sc == NULL || (sc->flag & SCONV_FROM_CHARSET))
+			mbflag = 0;
+		else
+			mbflag = MB_PRECOMPOSED;
+
+		/*
+		 * Count how many bytes are needed for WCS.
+		 */
+		count = MultiByteToWideChar(from_cp,
+		    mbflag, s, length, NULL, 0);
+		if (count == 0)
+			return (-1);
+		/* Allocate memory for WCS. */
+		if (NULL == archive_wstring_ensure(dest,
+		    dest->length + count + 1))
+			__archive_errx(1,
+			    "No memory for archive_wstring_append_from_mbs_*");
+		/* Convert MBS to WCS. */
+		count = MultiByteToWideChar(from_cp,
+		    mbflag, s, length, dest->s + dest->length, count);
+		if (count == 0)
+			return (-1);
 	}
-	if (r > 0) {
-		dest->length += r;
-		dest->s[dest->length] = 0;
-		return (0);
-	}
-	return (-1);
+	dest->length += count;
+	dest->s[dest->length] = L'\0';
+	return (0);
 }
 
 #else
@@ -480,51 +533,68 @@ int
 archive_string_append_from_wcs(struct archive_string *as,
     const wchar_t *w, size_t len)
 {
-	int l;
-	unsigned cp;
-	BOOL useDefaultChar;
+	return (archive_string_append_from_wcs_in_codepage(as, w, len, NULL));
+}
 
-	cp = get_current_codepage();
-	if (cp == CP_C_LOCALE) {
+static int
+archive_string_append_from_wcs_in_codepage(struct archive_string *as,
+    const wchar_t *ws, size_t len, struct archive_string_conv *sc)
+{
+	BOOL defchar_used, *dp;
+	int count;
+	UINT to_cp;
+	int wslen = (int)len;
+
+	if (sc != NULL)
+		to_cp = sc->to_cp;
+	else
+		to_cp = get_current_codepage();
+
+	if (to_cp == CP_C_LOCALE) {
 		/*
 		 * "C" locale special process.
 		 */
+		const wchar_t *wp = ws;
 		char *p;
-		archive_string_ensure(as, as->length + len + 1);
+
+		archive_string_ensure(as, as->length + wslen +1);
 		p = as->s + as->length;
-		l = 0;
-		while (l < (int)len && *w) {
-			if (*w > 255)
+		count = 0;
+		defchar_used = 0;
+		while (count < wslen && *wp) {
+			if (*wp > 255) {
+				*p++ = '?';
+				wp++;
+				defchar_used = 1;
+			} else
+				*p++ = (char)*wp++;
+			count++;
+		}
+	} else {
+		/* Make sure the MBS buffer has plenty to set. */
+		archive_string_ensure(as, as->length + len * 2 + 1);
+		do {
+			defchar_used = 0;
+			if (to_cp == CP_UTF8)
+				dp = NULL;
+			else
+				dp = &defchar_used;
+			count = WideCharToMultiByte(to_cp, 0, ws, wslen,
+			    as->s + as->length, as->buffer_length-1, NULL, dp);
+			if (count == 0 &&
+			    GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
+				/* Expand the MBS buffer and retry. */
+				archive_string_ensure(as,
+				    as->buffer_length + len);
+				continue;
+			}
+			if (count == 0)
 				return (-1);
-			*p++ = (char)*w++;
-			l++;
-		}
-		*p = '\0';
-		as->length += l;
-		return (0);
+		} while (0);
 	}
-
-	/* Make sure the MBS buffer has plenty to set. */
-	archive_string_ensure(as, as->length + len * 2 + 1);
-	do {
-		useDefaultChar = FALSE;
-		l = WideCharToMultiByte(cp, 0, w, len, as->s + as->length,
-		    as->buffer_length-1, NULL, &useDefaultChar);
-		if (l == 0 && GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
-			/* Expand the MBS buffer and retry. */
-			archive_string_ensure(as, as->buffer_length + len);
-			continue;
-		}
-	} while (0);
-
-	if (l == 0 || useDefaultChar) {
-		/* Conversion error happend. */
-		as->s[as->length] = '\0';
-		return (-1);
-	}
-	as->length += l;
+	as->length += count;
 	as->s[as->length] = '\0';
-	return (0);
+	return (defchar_used?-1:0);
 }
 
 #elif defined(HAVE_WCSNRTOMBS)
@@ -1552,121 +1622,34 @@ static int
 strncat_in_codepage(struct archive_string *as,
     const char *s, size_t length, struct archive_string_conv *sc)
 {
-	int count, wslen;
-	wchar_t *ws;
-	BOOL defchar, *dp;
-	UINT from_cp, to_cp;
+	struct archive_wstring aws;
+	size_t l;
+	int r;
 
 	if (s == NULL || length == 0) {
 		/* We must allocate memory even if there is no data.
-		 * It simulates archive_string_append behavior. */
+		 * This simulates archive_string_append behavior. */
 		if (archive_string_ensure(as, as->length + 1) == NULL)
 			__archive_errx(1, "Out of memory");
 		as->s[as->length] = 0;
 		return (0);
 	}
 
-	from_cp = sc->from_cp;
-	to_cp = sc->to_cp;
-
-	if (from_cp == CP_C_LOCALE &&
-		(sc->flag & SCONV_TO_CHARSET) != 0) {
-		/*
-		 * "C" locale special process.
-		 */
-		wchar_t *wp;
-		const unsigned char *mp;
-
-		wp = ws = malloc(sizeof(*ws) * (length+1));
-		if (ws == NULL)
-			__archive_errx(0, "No memory");
-
-		mp = (const unsigned char *)s;
-		count = 0;
-		while (count < (int)length && *mp) {
-			*wp++ = (wchar_t)*mp++;
-			count++;
-		}
-	} else {
-		DWORD mbflag;
-
-		/*
-		 * Need normalization to UTF-8 since
-		 * MultiByteToWideChar() API does not support.
-		 * NOTE: When from_cp is CP_UTF8, neither MB_PRECOMPOSED nor
-		 * MB_COMPOSITE can be used; MultiByteToWideChar fail.
-		 */
-		if (sc->flag & SCONV_NORMALIZATION_C) {
-			archive_string_empty(&(sc->utf8));
-			if (archive_string_normalize_C(&(sc->utf8), s,
-			    length) != 0)
-				return (-1);
-			s = sc->utf8.s;
-			length = sc->utf8.length;
-		}
-		if (sc->flag & SCONV_FROM_CHARSET)
-			mbflag = 0;
-		else
-			mbflag = MB_PRECOMPOSED;
-
-		count = MultiByteToWideChar(from_cp,
-		    mbflag, s, length, NULL, 0);
-		if (count == 0) {
-			archive_string_append(as, s, length);
-			return (-1);
-		}
-		ws = malloc(sizeof(*ws) * (count+1));
-		if (ws == NULL)
-			__archive_errx(0, "No memory");
-		count = MultiByteToWideChar(from_cp,
-		    mbflag, s, length, ws, count);
+	archive_string_init(&aws);
+	if (archive_wstring_append_from_mbs_in_codepage(
+	    &aws, s, length, sc) != 0) {
+		archive_wstring_free(&aws);
+		archive_string_append(as, s, length);
+		return (-1);
 	}
-	ws[count] = L'\0';
-	wslen = count;
 
-	if (to_cp == CP_C_LOCALE &&
-		(sc->flag & SCONV_FROM_CHARSET) != 0) {
-		/*
-		 * "C" locale special process.
-		 */
-		char *p;
-		wchar_t *wp;
-
-		archive_string_ensure(as, as->length + wslen +1);
-		p = as->s + as->length;
-		wp = ws;
-		count = 0;
-		defchar = 0;
-		while (count < wslen && *wp) {
-			if (*wp > 255) {
-				*p++ = '?';
-				wp++;
-				defchar = 1;
-			} else
-				*p++ = (char)*wp++;
-			count++;
-		}
-	} else {
-		count = WideCharToMultiByte(to_cp, 0, ws, wslen,
-		    NULL, 0, NULL, NULL);
-		if (count == 0) {
-			free(ws);
-			archive_string_append(as, s, length);
-			return (-1);
-		}
-		defchar = 0;
-		if (to_cp == CP_UTF8)
-			dp = NULL;
-		else
-			dp = &defchar;
-		archive_string_ensure(as, as->length + count +1);
-		count = WideCharToMultiByte(to_cp, 0, ws, wslen,
-		    as->s + as->length, count, NULL, dp);
-	}
-	as->length += count;
-	as->s[as->length] = '\0';
-	free(ws);
-	return (defchar?-1:0);
+	l = as->length;
+	r = archive_string_append_from_wcs_in_codepage(
+	    as, aws.s, aws.length, sc);
+	if (r != 0 && l == as->length)
+		archive_string_append(as, s, length);
+	archive_wstring_free(&aws);
+	return (r);
 }
 
 /*
