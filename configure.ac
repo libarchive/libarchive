@@ -191,6 +191,13 @@ case $host in
   ;;
 esac
 
+# We need CoreFoundation on Mac OS.
+case $host in
+  *darwin* )
+  LIBS="${LIBS} -framework CoreFoundation"
+  ;;
+esac
+
 # Checks for header files.
 AC_HEADER_DIRENT
 AC_HEADER_SYS_WAIT
