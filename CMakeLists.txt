@@ -1031,9 +1031,9 @@ IF(MSVC)
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_DEPRECATE)
 ENDIF(MSVC)
 
-# We need CoreFoundation on Mac OS.
+# We need CoreServices on Mac OS.
 IF(APPLE)
-  LIST(APPEND ADDITIONAL_LIBS "-framework CoreFoundation")
+  LIST(APPEND ADDITIONAL_LIBS "-framework CoreServices")
 ENDIF(APPLE)
 
 IF(ENABLE_TEST)
