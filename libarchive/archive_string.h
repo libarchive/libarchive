@@ -201,6 +201,7 @@ struct archive_mstring {
 	struct archive_string aes_mbs;
 	struct archive_string aes_utf8;
 	struct archive_wstring aes_wcs;
+	struct archive_string aes_mbs_in_locale;
 	/* Bitmap of which of the above are valid.  Because we're lazy
 	 * about malloc-ing and reusing the underlying storage, we
 	 * can't rely on NULL pointers to indicate whether a string
@@ -216,12 +217,17 @@ void	archive_mstring_copy(struct archive_mstring *dest, struct archive_mstring *
 int archive_mstring_get_mbs(struct archive *, struct archive_mstring *, const char **);
 int archive_mstring_get_utf8(struct archive *, struct archive_mstring *, const char **);
 int archive_mstring_get_wcs(struct archive *, struct archive_mstring *, const wchar_t **);
+int	archive_mstring_get_mbs_l(struct archive_mstring *, const char **,
+	    size_t *, struct archive_string_conv *);
 int	archive_mstring_copy_mbs(struct archive_mstring *, const char *mbs);
 int	archive_mstring_copy_mbs_len(struct archive_mstring *, const char *mbs,
 	    size_t);
 int	archive_mstring_copy_utf8(struct archive_mstring *, const char *utf8);
 int	archive_mstring_copy_wcs(struct archive_mstring *, const wchar_t *wcs);
-int	archive_mstring_copy_wcs_len(struct archive_mstring *, const wchar_t *wcs, size_t);
+int	archive_mstring_copy_wcs_len(struct archive_mstring *,
+	    const wchar_t *wcs, size_t);
+int	archive_mstring_copy_mbs_len_l(struct archive_mstring *,
+	    const char *mbs, size_t, struct archive_string_conv *);
 int     archive_mstring_update_utf8(struct archive *, struct archive_mstring *aes, const char *utf8);
 
 

@@ -94,6 +94,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_entry.h				\
 	libarchive/archive_entry_copy_stat.c			\
 	libarchive/archive_entry_link_resolver.c		\
+	libarchive/archive_entry_locale.h			\
 	libarchive/archive_entry_private.h			\
 	libarchive/archive_entry_sparse.c			\
 	libarchive/archive_entry_stat.c				\

@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_entry.c 201096 2009-12-28 02:41:
 #include "archive.h"
 #include "archive_acl_private.h"
 #include "archive_entry.h"
+#include "archive_entry_locale.h"
 #include "archive_private.h"
 #include "archive_entry_private.h"
 
@@ -410,6 +411,13 @@ archive_entry_gname_w(struct archive_entry *entry)
 	return (NULL);
 }
 
+int
+_archive_entry_gname_l(struct archive_entry *entry,
+    const char **p, size_t *len, struct archive_string_conv *sc)
+{
+	return (archive_mstring_get_mbs_l(&entry->ae_gname, p, len, sc));
+}
+
 const char *
 archive_entry_hardlink(struct archive_entry *entry)
 {
@@ -428,6 +436,18 @@ archive_entry_hardlink_w(struct archive_entry *entry)
 	    entry->archive, &entry->ae_hardlink, &p) == 0)
 		return (p);
 	return (NULL);
+}
+
+int
+_archive_entry_hardlink_l(struct archive_entry *entry,
+    const char **p, size_t *len, struct archive_string_conv *sc)
+{
+	if ((entry->ae_set & AE_SET_HARDLINK) == 0) {
+		*p = NULL;
+		*len = 0;
+		return (0);
+	}
+	return (archive_mstring_get_mbs_l(&entry->ae_hardlink, p, len, sc));
 }
 
 int64_t
@@ -490,6 +510,13 @@ archive_entry_pathname_w(struct archive_entry *entry)
 	    entry->archive, &entry->ae_pathname, &p) == 0)
 		return (p);
 	return (NULL);
+}
+
+int
+_archive_entry_pathname_l(struct archive_entry *entry,
+    const char **p, size_t *len, struct archive_string_conv *sc)
+{
+	return (archive_mstring_get_mbs_l(&entry->ae_pathname, p, len, sc));
 }
 
 mode_t
@@ -578,6 +605,18 @@ archive_entry_symlink_w(struct archive_entry *entry)
 	return (NULL);
 }
 
+int
+_archive_entry_symlink_l(struct archive_entry *entry,
+    const char **p, size_t *len, struct archive_string_conv *sc)
+{
+	if ((entry->ae_set & AE_SET_SYMLINK) == 0) {
+		*p = NULL;
+		*len = 0;
+		return (0);
+	}
+	return (archive_mstring_get_mbs_l( &entry->ae_symlink, p, len, sc));
+}
+
 int64_t
 archive_entry_uid(struct archive_entry *entry)
 {
@@ -600,6 +639,13 @@ archive_entry_uname_w(struct archive_entry *entry)
 	if (archive_mstring_get_wcs(entry->archive, &entry->ae_uname, &p) == 0)
 		return (p);
 	return (NULL);
+}
+
+int
+_archive_entry_uname_l(struct archive_entry *entry,
+    const char **p, size_t *len, struct archive_string_conv *sc)
+{
+	return (archive_mstring_get_mbs_l(&entry->ae_uname, p, len, sc));
 }
 
 /*
@@ -675,6 +721,13 @@ archive_entry_update_gname_utf8(struct archive_entry *entry, const char *name)
 	return (0);
 }
 
+int
+_archive_entry_copy_gname_l(struct archive_entry *entry,
+    const char *name, size_t len, struct archive_string_conv *sc)
+{
+	return (archive_mstring_copy_mbs_len_l(&entry->ae_gname, name, len, sc));
+}
+
 void
 archive_entry_set_ino(struct archive_entry *entry, int64_t ino)
 {
@@ -730,6 +783,21 @@ archive_entry_update_hardlink_utf8(struct archive_entry *entry, const char *targ
 	    &entry->ae_hardlink, target) == 0)
 		return (1);
 	return (0);
+}
+
+int
+_archive_entry_copy_hardlink_l(struct archive_entry *entry,
+    const char *target, size_t len, struct archive_string_conv *sc)
+{
+	int r;
+
+	r = archive_mstring_copy_mbs_len_l(&entry->ae_hardlink,
+	    target, len, sc);
+	if (target != NULL && r == 0)
+		entry->ae_set |= AE_SET_HARDLINK;
+	else
+		entry->ae_set &= ~AE_SET_HARDLINK;
+	return (r);
 }
 
 void
@@ -850,6 +918,21 @@ archive_entry_update_link_utf8(struct archive_entry *entry, const char *target)
 	return ((r == 0)? 1: 0);
 }
 
+int
+_archive_entry_copy_link_l(struct archive_entry *entry,
+    const char *target, size_t len, struct archive_string_conv *sc)
+{
+	int r;
+
+	if (entry->ae_set & AE_SET_SYMLINK)
+		r = archive_mstring_copy_mbs_len_l(&entry->ae_symlink,
+		    target, len, sc);
+	else
+		r = archive_mstring_copy_mbs_len_l(&entry->ae_hardlink,
+		    target, len, sc);
+	return (r);
+}
+
 void
 archive_entry_set_mode(struct archive_entry *entry, mode_t m)
 {
@@ -906,6 +989,14 @@ archive_entry_update_pathname_utf8(struct archive_entry *entry, const char *name
 	    &entry->ae_pathname, name) == 0)
 		return (1);
 	return (0);
+}
+
+int
+_archive_entry_copy_pathname_l(struct archive_entry *entry,
+    const char *name, size_t len, struct archive_string_conv *sc)
+{
+	return (archive_mstring_copy_mbs_len_l(&entry->ae_pathname,
+	    name, len, sc));
 }
 
 void
@@ -1010,6 +1101,21 @@ archive_entry_update_symlink_utf8(struct archive_entry *entry, const char *linkn
 	return (0);
 }
 
+int
+_archive_entry_copy_symlink_l(struct archive_entry *entry,
+    const char *linkname, size_t len, struct archive_string_conv *sc)
+{
+	int r;
+
+	r = archive_mstring_copy_mbs_len_l(&entry->ae_symlink,
+	    linkname, len, sc);
+	if (linkname != NULL && r == 0)
+		entry->ae_set |= AE_SET_SYMLINK;
+	else
+		entry->ae_set &= ~AE_SET_SYMLINK;
+	return (r);
+}
+
 void
 archive_entry_set_uid(struct archive_entry *entry, int64_t u)
 {
@@ -1042,6 +1148,14 @@ archive_entry_update_uname_utf8(struct archive_entry *entry, const char *name)
 	    &entry->ae_uname, name) == 0)
 		return (1);
 	return (0);
+}
+
+int
+_archive_entry_copy_uname_l(struct archive_entry *entry,
+    const char *name, size_t len, struct archive_string_conv *sc)
+{
+	return (archive_mstring_copy_mbs_len_l(&entry->ae_uname,
+	    name, len, sc));
 }
 
 const void *

@@ -575,7 +575,7 @@ archive_string_append_from_wcs_in_codepage(struct archive_string *as,
 		archive_string_ensure(as, as->length + len * 2 + 1);
 		do {
 			defchar_used = 0;
-			if (to_cp == CP_UTF8)
+			if (to_cp == CP_UTF8 || sc == NULL)
 				dp = NULL;
 			else
 				dp = &defchar_used;
@@ -2926,6 +2926,7 @@ archive_mstring_clean(struct archive_mstring *aes)
 	archive_wstring_free(&(aes->aes_wcs));
 	archive_string_free(&(aes->aes_mbs));
 	archive_string_free(&(aes->aes_utf8));
+	archive_string_free(&(aes->aes_mbs_in_locale));
 	aes->aes_set = 0;
 }
 
@@ -3042,6 +3043,62 @@ archive_mstring_get_wcs(struct archive *a, struct archive_mstring *aes,
 }
 
 int
+archive_mstring_get_mbs_l(struct archive_mstring *aes,
+    const char **p, size_t *length, struct archive_string_conv *sc)
+{
+	int r, ret = 0;
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/*
+	 * Internationalization programing on Windows must use Wide
+	 * characters because Windows platform cannot make locale UTF-8.
+	 */
+	if (sc != NULL && (aes->aes_set & AES_SET_WCS) != 0) {
+		r = archive_string_append_from_wcs_in_codepage(
+		    &(aes->aes_mbs), aes->aes_wcs.s, aes->aes_wcs.length, sc);
+		if (r == 0) {
+			*p = aes->aes_mbs_in_locale.s;
+			if (length != NULL)
+				*length = aes->aes_mbs_in_locale.length;
+			return (0);
+		} else
+			ret = -1;
+	}
+#endif
+
+	/* If there is not an MBS form but is a WCS form, try converting
+	 * with the native locale to be used for translating it to specified
+	 * character-set. */
+	if ((aes->aes_set & AES_SET_MBS) == 0 &&
+	    (aes->aes_set & AES_SET_WCS) != 0) {
+		r = archive_string_append_from_wcs(&(aes->aes_mbs),
+		    aes->aes_wcs.s, aes->aes_wcs.length);
+		if (r == 0)
+			aes->aes_set |= AES_SET_MBS;
+		else
+			ret = -1;
+	}
+	/* If we already have an MBS form, use it to be translated to
+	 * specified character-set. */
+	if (aes->aes_set & AES_SET_MBS) {
+		r = archive_strncpy_in_locale(&(aes->aes_mbs_in_locale),
+		    aes->aes_mbs.s, aes->aes_mbs.length, sc);
+		if (r == 0) {
+			*p = aes->aes_mbs_in_locale.s;
+			if (length != NULL)
+				*length = aes->aes_mbs_in_locale.length;
+			return (0);
+		} else
+			ret = -1;
+	}
+
+	*p = NULL;
+	if (length != NULL)
+		*length = 0;
+	return (ret);
+}
+
+int
 archive_mstring_copy_mbs(struct archive_mstring *aes, const char *mbs)
 {
 	if (mbs == NULL) {
@@ -3084,6 +3141,46 @@ archive_mstring_copy_wcs_len(struct archive_mstring *aes, const wchar_t *wcs,
 	archive_string_empty(&(aes->aes_utf8));
 	archive_wstrncpy(&(aes->aes_wcs), wcs, len);
 	return (0);
+}
+
+int
+archive_mstring_copy_mbs_len_l(struct archive_mstring *aes,
+    const char *mbs, size_t len, struct archive_string_conv *sc)
+{
+	int r;
+
+	if (mbs == NULL) {
+		aes->aes_set = 0;
+		return (0);
+	}
+	archive_string_empty(&(aes->aes_mbs));
+	archive_wstring_empty(&(aes->aes_wcs));
+	archive_string_empty(&(aes->aes_utf8));
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/*
+	 * Internationalization programing on Windows must use Wide
+	 * characters because Windows platform cannot make locale UTF-8.
+	 */
+	if (sc == NULL) {
+		archive_string_append(&(aes->aes_mbs), mbs, len);
+		aes->aes_set = AES_SET_MBS;
+		r = 0;
+	} else {
+		r = archive_wstring_append_from_mbs_in_codepage(
+		    &(aes->aes_wcs), mbs, len, sc);
+		if (r == 0)
+			aes->aes_set = AES_SET_WCS;
+		else
+			aes->aes_set = 0;
+	}
+#else
+	r = archive_strncpy_in_locale(&(aes->aes_mbs), mbs, len, sc);
+	if (r == 0)
+		aes->aes_set = AES_SET_MBS; /* Only MBS form is set now. */
+	else
+		aes->aes_set = 0;
+#endif
+	return (r);
 }
 
 /*
