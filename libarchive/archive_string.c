@@ -1790,9 +1790,15 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 #define IS_LOW_SURROGATE_LA(uc)	 ((uc) >= 0xDC00 && (uc) <= 0xDFFF)
 #define IS_SURROGATE_PAIR_LA(uc) ((uc) >= 0xD800 && (uc) <= 0xDFFF)
 #define UNICODE_MAX		0x10FFFF
+#define UNICODE_R_CHAR		0xFFFD	/* Replacemant character. */
 
 /*
  * Utility to convert a single UTF-8 sequence.
+ *
+ * Usually return used bytes, return used byte in negative value when
+ * a unicode character is replaced with U+FFFD.
+ * See also http://unicode.org/review/pr-121.html Public Review Issue #121
+ * Recommended Practice for Replacement Characters.
  */
 static int
 _utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
@@ -1815,7 +1821,7 @@ _utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 		 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,/* E0 - EF */
 		 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 /* F0 - FF */
 	};
-	int ch;
+	int ch, i;
 	unsigned char cnt;
 	uint32_t wc;
 
@@ -1831,8 +1837,16 @@ _utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 	cnt = utf8_count[ch];
 
 	/* Invalide sequence or there are not plenty bytes. */
-	if (n < cnt)
-		return (-1);
+	if (n < cnt) {
+		cnt = n;
+		for (i = 1; i < cnt; i++) {
+			if ((s[i] & 0xc0) != 0x80) {
+				cnt = i;
+				break;
+			}
+		}
+		goto invalid_sequence;
+	}
 
 	/* Make a Unicode code point from a single UTF-8 sequence. */
 	switch (cnt) {
@@ -1840,42 +1854,79 @@ _utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 		*pwc = ch & 0x7f;
 		return (cnt);
 	case 2:	/* 2 bytes sequence. */
-		if ((s[1] & 0xc0) != 0x80) return (-1);
+		if ((s[1] & 0xc0) != 0x80) {
+			cnt = 1;
+			goto invalid_sequence;
+		}
 		*pwc = ((ch & 0x1f) << 6) | (s[1] & 0x3f);
 		return (cnt);
 	case 3:	/* 3 bytes sequence. */
-		if ((s[1] & 0xc0) != 0x80) return (-1);
-		if ((s[2] & 0xc0) != 0x80) return (-1);
+		if ((s[1] & 0xc0) != 0x80) {
+			cnt = 1;
+			goto invalid_sequence;
+		}
+		if ((s[2] & 0xc0) != 0x80) {
+			cnt = 2;
+			goto invalid_sequence;
+		}
 		wc = ((ch & 0x0f) << 12)
 		    | ((s[1] & 0x3f) << 6)
 		    | (s[2] & 0x3f);
 		if (wc < 0x800)
-			return (-1);/* Overlong sequence. */
+			goto invalid_sequence;/* Overlong sequence. */
 		break;
 	case 4:	/* 4 bytes sequence. */
-		if (n < 4)
-			return (-1);
-		if ((s[1] & 0xc0) != 0x80) return (-1);
-		if ((s[2] & 0xc0) != 0x80) return (-1);
-		if ((s[3] & 0xc0) != 0x80) return (-1);
+		if ((s[1] & 0xc0) != 0x80) {
+			cnt = 1;
+			goto invalid_sequence;
+		}
+		if ((s[2] & 0xc0) != 0x80) {
+			cnt = 2;
+			goto invalid_sequence;
+		}
+		if ((s[3] & 0xc0) != 0x80) {
+			cnt = 3;
+			goto invalid_sequence;
+		}
 		wc = ((ch & 0x07) << 18)
 		    | ((s[1] & 0x3f) << 12)
 		    | ((s[2] & 0x3f) << 6)
 		    | (s[3] & 0x3f);
 		if (wc < 0x10000)
-			return (-1);/* Overlong sequence. */
+			goto invalid_sequence;/* Overlong sequence. */
 		break;
-	default:
-		return (-1);
+	default: /* Others are all invalid sequence. */
+		if (ch == 0xc0 || ch == 0xc1)
+			cnt = 2;
+		else if (ch >= 0xf5 && ch <= 0xf7)
+			cnt = 4;
+		else if (ch >= 0xf8 && ch <= 0xfb)
+			cnt = 5;
+		else if (ch == 0xfc || ch == 0xfd)
+			cnt = 6;
+		else
+			cnt = 1;
+		if (n < cnt)
+			cnt = n;
+		for (i = 1; i < cnt; i++) {
+			if ((s[i] & 0xc0) != 0x80) {
+				cnt = i;
+				break;
+			}
+		}
+		goto invalid_sequence;
 	}
 
 	/* The code point larger than 0x10FFFF is not leagal
 	 * Unicode values. */
 	if (wc > UNICODE_MAX)
-		return (-1);
+		goto invalid_sequence;
 	/* Correctly gets a Unicode, returns used bytes. */
 	*pwc = wc;
 	return (cnt);
+invalid_sequence:
+	*pwc = UNICODE_R_CHAR;/* set the Replacement Character instead. */
+	return (((int)cnt) * -1);
 }
 
 static int
@@ -1885,9 +1936,9 @@ utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 	int cnt;
 
 	cnt = _utf8_to_unicode(&wc, s, n);
-	/* Surrogate is not leagal Unicode values. */
+	/* Any of Surrogate pair is not leagal Unicode values. */
 	if (cnt == 3 && IS_SURROGATE_PAIR_LA(wc))
-		return (-1);
+		return (-3);
 	*pwc = wc;
 	return (cnt);
 }
@@ -1907,6 +1958,9 @@ combine_surrogate_pair(uint32_t uc, uint32_t uc2)
  * removing surrogate pairs.
  *
  * CESU-8: The Compatibility Encoding Scheme for UTF-16.
+ *
+ * Usually return used bytes, return used byte in negative value when
+ * a unicode character is replaced with U+FFFD.
  */
 static int
 cesu8_to_unicode(uint32_t *pwc, const char *s, size_t n)
@@ -1916,15 +1970,25 @@ cesu8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 
 	cnt = _utf8_to_unicode(&wc, s, n);
 	if (cnt == 3 && IS_HIGH_SURROGATE_LA(wc)) {
-		if (n - 3 < 3)
-			return (-1);
+		if (n - 3 < 3) {
+			/* Invalid byte sequence. */
+			goto invalid_sequence;
+		}
 		cnt = _utf8_to_unicode(&wc2, s+3, n-3);
-		if (cnt != 3 || !IS_LOW_SURROGATE_LA(wc2))
-			return (-1);
+		if (cnt != 3 || !IS_LOW_SURROGATE_LA(wc2)) {
+			/* Invalid byte sequence. */
+			goto invalid_sequence;
+		}
 		wc = combine_surrogate_pair(wc, wc2);
 		cnt = 6;
+	} else if (cnt == 3 && IS_LOW_SURROGATE_LA(wc)) {
+		/* Invalid byte sequence. */
+		goto invalid_sequence;
 	}
 	*pwc = wc;
+	return (cnt);
+invalid_sequence:
+	*pwc = UNICODE_R_CHAR;/* set the Replacement Character instead. */
 	return (cnt);
 }
 
@@ -1949,11 +2013,18 @@ unicode_to_utf8(char *p, uint32_t uc)
 		*p++ = 0xe0 | ((uc >> 12) & 0x0f);
 		*p++ = 0x80 | ((uc >> 6) & 0x3f);
 		*p++ = 0x80 | (uc & 0x3f);
-	} else {
+	} else if (uc <= UNICODE_MAX) {
 		*p++ = 0xf0 | ((uc >> 18) & 0x07);
 		*p++ = 0x80 | ((uc >> 12) & 0x3f);
 		*p++ = 0x80 | ((uc >> 6) & 0x3f);
 		*p++ = 0x80 | (uc & 0x3f);
+	} else {
+		/*
+		 * Undescribed code point should be U+FFFD(replacement character).
+		 */
+		*p++ = 0xef;
+		*p++ = 0xbf;
+		*p++ = 0xbd;
 	}
 	return ((int)(p - _p));
 }
@@ -1965,23 +2036,30 @@ unicode_to_utf8(char *p, uint32_t uc)
 static int
 strncat_from_utf8_to_utf8(struct archive_string *as, const char *s, size_t len)
 {
-	char *p;
+	char *p, *endp;
 	int n, ret = 0;
 
-	/*
-	 * Additional buffer size will not be larger than a value of 'len'
-	 * even if a conversion of CESU-8 happen. Because a surrogate pair
-	 * code point of CESU-8 sequence takes six bytes, but a new UTF-8
-	 * sequence converted from the CESU-8 takes four bytes.
-	 */
 	if (archive_string_ensure(as, as->length + len + 1) == NULL)
 		__archive_errx(1, "Out of memory");
 
 	p = as->s + as->length;
+	endp = as->s + as->buffer_length -1 -4;
 	do {
 		uint32_t uc;
 		const char *ss = s;
 
+		if (p + len > endp) {
+			as->length = p - as->s;
+			if (archive_string_ensure(as,
+			    as->buffer_length + len + 1) == NULL)
+				__archive_errx(1, "Out of memory");
+			p = as->s + as->length;
+			endp = as->s + as->buffer_length -1 -4;
+		}
+
+		/*
+		 * Forward byte sequence until a conversion of that is needed.
+		 */
 		while ((n = utf8_to_unicode(&uc, s, len)) > 0) {
 			s += n;
 			len -= n;
@@ -1991,18 +2069,29 @@ strncat_from_utf8_to_utf8(struct archive_string *as, const char *s, size_t len)
 			p += s - ss;
 		}
 
-		if (n == -1) {
-			/* Is this CESU-8 ? */
-			n = cesu8_to_unicode(&uc, s, len);
-			if (n == -1) {
-				/* Skip current byte. */
-				*p++ = '?';
-				n = 1;
-				ret = -1;
-			} else {
-				/* Rebuild UTF-8. */
-				p += unicode_to_utf8(p, uc);
+		/*
+		 * If n is negative, current byte sequence needs a replacement.
+		 */
+		if (n < 0) {
+			if (n == -3 && IS_SURROGATE_PAIR_LA(uc)) {
+				/* Current byte sequence may be CESU-8. */
+				n = cesu8_to_unicode(&uc, s, len);
 			}
+			if (n < 0) {
+				ret = -1;
+				n *= -1;/* Use a replaced unicode character. */
+			}
+
+			if (p + 4 > endp) {
+				as->length = p - as->s;
+				if (archive_string_ensure(as,
+				    as->buffer_length + len + 1) == NULL)
+					__archive_errx(1, "Out of memory");
+				p = as->s + as->length;
+				endp = as->s + as->buffer_length -1 -4;
+			}
+			/* Rebuild UTF-8 byte sequence. */
+			p += unicode_to_utf8(p, uc);
 			s += n;
 			len -= n;
 		}
@@ -2121,6 +2210,17 @@ get_nfc(uint32_t uc, uint32_t uc2)
 		ucx_size = _i;			\
 } while (0)
 
+#define MAKE_SURE_ENOUGH_BUFFER()	do {	\
+	if (p + len > endp) {			\
+		as->length = p - as->s;		\
+		if (archive_string_ensure(as,	\
+		    as->buffer_length + len + 1) == NULL)\
+			__archive_errx(1, "Out of memory");\
+		p = as->s + as->length;		\
+		endp = as->s + as->buffer_length -1 -4;\
+	}\
+} while (0)
+
 /*
  * Normalize UTF-8 characters to Form C and copy the result.
  *
@@ -2131,7 +2231,7 @@ static int
 archive_string_normalize_C(struct archive_string *as, const char *s,
     size_t len)
 {
-	char *p;
+	char *p, *endp;
 	int ret = 0;
 
 	/*
@@ -2143,6 +2243,7 @@ archive_string_normalize_C(struct archive_string *as, const char *s,
 		__archive_errx(1, "Out of memory");
 
 	p = as->s + as->length;
+	endp = as->s + as->buffer_length -1 -4;
 	do {
 		const char *ucptr, *uc2ptr;
 		uint32_t uc, uc2;
@@ -2151,11 +2252,11 @@ archive_string_normalize_C(struct archive_string *as, const char *s,
 		/* Read first code point. */
 		n = cesu8_to_unicode(&uc, s, len);
 		if (n < 0) {
-			/* Skip current byte. */
-			*p++ = '?';
-			s++;
-			len--;
-			ret = -1;
+			/* Use a replaced unicode character. */
+			MAKE_SURE_ENOUGH_BUFFER();
+			p += unicode_to_utf8(p, uc);
+			s += n*-1;
+			len -= n*-1;
 			continue;
 		} else if (n == 0)
 			break;
@@ -2326,11 +2427,11 @@ archive_string_normalize_C(struct archive_string *as, const char *s,
 		}
 		if (n2 < 0) {
 			WRITE_UC();
-			/* Skip current byte. */
-			*p++ = '?';
-			s++;
-			len--;
-			ret = -1;
+			/* Use a replaced unicode character. */
+			MAKE_SURE_ENOUGH_BUFFER();
+			p += unicode_to_utf8(p, uc2);
+			s += n2*-1;
+			len -= n2*-1;
 			continue;
 		} else if (n2 == 0) {
 			WRITE_UC();
@@ -2451,19 +2552,21 @@ strncat_from_utf8_libarchive2(struct archive_string *as,
 		}
 
 		/*
-		 * As libarchie 2.x, translates the wrong UTF-8 MBS into
-		 * a wide-character in the assumption that WCS is Unicode.
+		 * As libarchie 2.x, translates the UTF-8 characters into
+		 * wide-characters in the assumption that WCS is Unicode.
 		 */
 		n = utf8_to_unicode(&unicode, s, len);
-		if (n == -1)
-			return (-1);
+		if (n < 0) {
+			n *= -1;
+			wc = L'?';
+		} else
+			wc = (wchar_t)unicode;
+
 		s += n;
 		len -= n;
-
 		/*
 		 * Translates the wide-character into the current locale MBS.
 		 */
-		wc = (wchar_t)unicode;
 #if HAVE_WCRTOMB
 		n = wcrtomb(p, wc, &shift_state);
 #else
@@ -2795,12 +2898,11 @@ string_append_from_utf8_to_utf16be(struct archive_string *as,
 			s = as->s + l;
 			end = as->s + as->buffer_length -2;
 		}
-		n = utf8_to_unicode(&wc, p, len);
+		n = cesu8_to_unicode(&wc, p, len);
 		if (n == 0)
 			break;
-		if (n < 0) {
-			return (-1);
-		}
+		if (n < 0)
+			n *= -1; /* Use a replaced unicode character. */
 		p += n;
 		len -= n;
 
