@@ -982,6 +982,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 #cmakedefine TIME_WITH_SYS_TIME 1
 
+/*
+ * Some platform requires a macro to use extension functions.
+ */
 #cmakedefine SAFE_TO_DEFINE_EXTENSIONS 1
 #ifdef SAFE_TO_DEFINE_EXTENSIONS
 /* Enable extensions on AIX 3, Interix.  */

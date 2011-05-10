@@ -286,6 +286,20 @@ LA_CHECK_INCLUDE_FILE("wctype.h" HAVE_WCTYPE_H)
 LA_CHECK_INCLUDE_FILE("windows.h" HAVE_WINDOWS_H)
 LA_CHECK_INCLUDE_FILE("winioctl.h" HAVE_WINIOCTL_H)
 
+#
+# Check whether use of __EXTENSIONS__ is safe.
+# We need some macro such as _GNU_SOURCE to use extension functions.
+#
+SET(_INCLUDE_FILES)
+FOREACH (it ${_HEADER})
+   SET(_INCLUDE_FILES "${_INCLUDE_FILES}#include <${it}>\n")
+ENDFOREACH (it)
+
+CHECK_C_SOURCE_COMPILES(
+  "#define __EXTENSIONS__ 1
+   ${_INCLUDE_FILES}
+   int main() { return 0;}"
+ SAFE_TO_DEFINE_EXTENSIONS)
 
 #
 # Find OpenSSL
