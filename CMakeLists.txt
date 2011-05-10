@@ -695,7 +695,7 @@ CHECK_FUNCTION_EXISTS(wmemcpy HAVE_WMEMCPY)
 # Make sure we have the POSIX version of readdir_r, not the
 # older 2-argument version.
 CHECK_C_SOURCE_COMPILES(
-  "#include <dirent.h>\nint main() {DIR *d; struct dirent e,*r; return readdir_r(d,&e,&r);}"
+  "#include <dirent.h>\nint main() {DIR *d = opendir(\".\"); struct dirent e,*r; return readdir_r(d,&e,&r);}"
   HAVE_READDIR_R)
 
 
