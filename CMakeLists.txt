@@ -481,9 +481,11 @@ IF(ENABLE_ICONV)
 
     # Try POSIX-conforming iconv() in libc
     CHECK_C_SOURCE_COMPILES(
-      "#include <iconv.h>
-       int main() {const char *ccp; iconv_t cd;
+      "#include <stdlib.h>
+#include <iconv.h>
+       int main() {const char *ccp; iconv_t cd = iconv_open(\"\", \"\");
        iconv(cd, &ccp, (size_t *)0, (char **)0, (size_t *)0);
+       iconv_close(cd);
        return 0;}"
      HAVE_POSIX_ICONV_IN_LIBC)
     IF(HAVE_POSIX_ICONV_IN_LIBC)
@@ -493,9 +495,11 @@ IF(ENABLE_ICONV)
 
       # Try non-POSIX-conforming iconv() in libc
       CHECK_C_SOURCE_COMPILES(
-        "#include <iconv.h>
-         int main() {char *ccp; iconv_t cd;
+        "#include <stdlib.h>
+#include <iconv.h>
+         int main() {char *ccp; iconv_t cd = iconv_open(\"\", \"\");
          iconv(cd, &ccp, (size_t *)0, (char **)0, (size_t *)0);
+         iconv_close(cd);
          return 0;}"
        HAVE_NONPOSIX_ICONV_IN_LIBC)
       IF(HAVE_NONPOSIX_ICONV_IN_LIBC)
@@ -509,9 +513,11 @@ IF(ENABLE_ICONV)
           SET(CMAKE_REQUIRED_LIBRARIES ${LIBICONV_PATH})
         ENDIF(LIBICONV_PATH)
         CHECK_C_SOURCE_COMPILES(
-            "#include <iconv.h>
-             int main() {const char *ccp; iconv_t cd;
+            "#include <stdlib.h>
+#include <iconv.h>
+             int main() {const char *ccp; iconv_t cd = iconv_open(\"\", \"\");
              iconv(cd, &ccp, (size_t *)0, (char **)0, (size_t *)0);
+             iconv_close(cd);
              return 0;}"
          HAVE_POSIX_ICONV_IN_LIBICONV)
         IF(HAVE_POSIX_ICONV_IN_LIBICONV)
@@ -521,9 +527,11 @@ IF(ENABLE_ICONV)
         ELSE(HAVE_POSIX_ICONV_IN_LIBICONV)
 
           CHECK_C_SOURCE_COMPILES(
-              "#include <iconv.h>
-               int main() {char *ccp; iconv_t cd;
+              "#include <stdlib.h>
+#include <iconv.h>
+               int main() {char *ccp; iconv_t cd = iconv_open(\"\", \"\");
                iconv(cd, &ccp, (size_t *)0, (char **)0, (size_t *)0);
+               iconv_close(cd);
                return 0;}"
            HAVE_NONPOSIX_ICONV_IN_LIBICONV)
           IF(HAVE_NONPOSIX_ICONV_IN_LIBICONV)
