@@ -1558,10 +1558,12 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 	 */
 	if (sc->flag & SCONV_NORMALIZATION_C) {
 		archive_string_empty(&(sc->utf8));
-		if (archive_string_normalize_C(&(sc->utf8), _p, length) != 0)
-			return (-1);
-		src = sc->utf8.s;
-		length = sc->utf8.length;
+		if (archive_string_normalize_C(&(sc->utf8), _p, length) != 0) {
+			return_value = -1; /* failure */
+		} else {
+			src = sc->utf8.s;
+			length = sc->utf8.length;
+		}
 	}
 
 	archive_string_ensure(as, as->length + length*2+1);
