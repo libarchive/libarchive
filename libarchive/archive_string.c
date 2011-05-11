@@ -3158,8 +3158,10 @@ archive_mstring_get_mbs_l(struct archive_mstring *aes,
 	 * characters because Windows platform cannot make locale UTF-8.
 	 */
 	if (sc != NULL && (aes->aes_set & AES_SET_WCS) != 0) {
+		archive_string_empty(&(aes->aes_mbs_in_locale));
 		r = archive_string_append_from_wcs_in_codepage(
-		    &(aes->aes_mbs), aes->aes_wcs.s, aes->aes_wcs.length, sc);
+		    &(aes->aes_mbs_in_locale), aes->aes_wcs.s,
+		    aes->aes_wcs.length, sc);
 		if (r == 0) {
 			*p = aes->aes_mbs_in_locale.s;
 			if (length != NULL)
@@ -3175,6 +3177,7 @@ archive_mstring_get_mbs_l(struct archive_mstring *aes,
 	 * character-set. */
 	if ((aes->aes_set & AES_SET_MBS) == 0 &&
 	    (aes->aes_set & AES_SET_WCS) != 0) {
+		archive_string_empty(&(aes->aes_mbs));
 		r = archive_string_append_from_wcs(&(aes->aes_mbs),
 		    aes->aes_wcs.s, aes->aes_wcs.length);
 		if (r == 0)
@@ -3185,20 +3188,23 @@ archive_mstring_get_mbs_l(struct archive_mstring *aes,
 	/* If we already have an MBS form, use it to be translated to
 	 * specified character-set. */
 	if (aes->aes_set & AES_SET_MBS) {
-		r = archive_strncpy_in_locale(&(aes->aes_mbs_in_locale),
-		    aes->aes_mbs.s, aes->aes_mbs.length, sc);
-		if (r == 0) {
-			*p = aes->aes_mbs_in_locale.s;
+		if (sc == NULL) {
+			/* Conversion is unneeded. */
+			*p = aes->aes_mbs.s;
 			if (length != NULL)
-				*length = aes->aes_mbs_in_locale.length;
+				*length = aes->aes_mbs.length;
 			return (0);
-		} else
-			ret = -1;
+		}
+		ret = archive_strncpy_in_locale(&(aes->aes_mbs_in_locale),
+		    aes->aes_mbs.s, aes->aes_mbs.length, sc);
+		*p = aes->aes_mbs_in_locale.s;
+		if (length != NULL)
+			*length = aes->aes_mbs_in_locale.length;
+	} else {
+		*p = NULL;
+		if (length != NULL)
+			*length = 0;
 	}
-
-	*p = NULL;
-	if (length != NULL)
-		*length = 0;
 	return (ret);
 }
 

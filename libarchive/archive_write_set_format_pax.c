@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_pax.c 201162 20
 
 #include "archive.h"
 #include "archive_entry.h"
+#include "archive_entry_locale.h"
 #include "archive_private.h"
 #include "archive_write_private.h"
 
@@ -52,10 +53,6 @@ struct sparse_block {
 struct pax {
 	uint64_t	entry_bytes_remaining;
 	uint64_t	entry_padding;
-	struct archive_string	l_path;
-	struct archive_string	l_uname;
-	struct archive_string	l_gname;
-	struct archive_string	l_linkpath;
 	struct archive_string	l_url_encoded_name;
 	struct archive_string	l_acl_utf8;
 	struct archive_string	pax_header;
@@ -89,7 +86,7 @@ static char		*build_pax_attribute_name(char *dest, const char *src);
 static char		*build_ustar_entry_name(char *dest, const char *src,
 			     size_t src_length, const char *insert);
 static char		*format_int(char *dest, int64_t);
-static int		 has_non_ASCII(struct archive_string *);
+static int		 has_non_ASCII(const char *);
 static void		 sparse_list_clear(struct pax *);
 static int		 sparse_list_add(struct pax *, int64_t, int64_t);
 static char		*url_encode(const char *in);
@@ -377,9 +374,14 @@ archive_write_pax_header(struct archive_write *a,
 	const char *hardlink;
 	const char *path = NULL, *linkpath = NULL;
 	const char *uname = NULL, *gname = NULL;
+	const char *l_hardlink, *l_path, *l_linkpath, *l_uname, *l_gname;
 	const void *mac_metadata;
 	size_t mac_metadata_size;
 	struct archive_string_conv *sconv;
+	size_t l_hardlink_length, l_path_length, l_linkpath_length;
+	size_t l_uname_length, l_gname_length;
+	size_t hardlink_length, path_length, linkpath_length;
+	size_t uname_length, gname_length;
 
 	char paxbuff[512];
 	char ustarbuff[512];
@@ -418,7 +420,18 @@ archive_write_pax_header(struct archive_write *a,
 		sconv = pax->sconv_utf8;
 	}
 
-	hardlink = archive_entry_hardlink(entry_original);
+	archive_entry_hardlink_l(entry_original, &hardlink,
+	    &hardlink_length, NULL);
+	r = archive_entry_hardlink_l(entry_original, &l_hardlink,
+	    &l_hardlink_length, sconv);
+	if (r != 0) {
+		l_hardlink = NULL; l_hardlink_length = 0;
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Can't translate linkname '%s' to %s", hardlink,
+		    archive_string_conversion_charset_name(sconv));
+		ret = ARCHIVE_WARN;
+		sconv = NULL;/* The header charset switches to binary mode. */
+	}
 
 	/* Make sure this is a type of entry that we can handle here */
 	if (hardlink == NULL) {
@@ -569,25 +582,33 @@ archive_write_pax_header(struct archive_write *a,
 	 * require binary coding.  If any of them does, then all of
 	 * them do.
 	 */
-	path = archive_entry_pathname(entry_main);
-	if (archive_strcpy_in_locale(&(pax->l_path), path, sconv)) {
-		archive_string_empty(&pax->l_path);
+	archive_entry_pathname_l(entry_main, &path, &path_length, NULL);
+	r = archive_entry_pathname_l(entry_main, &l_path, &l_path_length,
+	    sconv);
+	if (r != 0) {
+		l_path = NULL; l_path_length = 0;
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate pathname '%s' to %s", path,
 		    archive_string_conversion_charset_name(sconv));
 		ret = ARCHIVE_WARN;
 		sconv = NULL;/* The header charset switches to binary mode. */
 	}
-	uname = archive_entry_uname(entry_main);
-	if (archive_strcpy_in_locale(&(pax->l_uname), uname, sconv)) {
+	archive_entry_uname_l(entry_main, &uname, &uname_length, NULL);
+	r = archive_entry_uname_l(entry_main, &l_uname, &l_uname_length,
+	    sconv);
+	if (r != 0) {
+		l_uname = NULL; l_uname_length = 0;
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate uname '%s' to %s", uname,
 		    archive_string_conversion_charset_name(sconv));
 		ret = ARCHIVE_WARN;
 		sconv = NULL;/* The header charset switches to binary mode. */
 	}
-	gname = archive_entry_gname(entry_main);
-	if (archive_strcpy_in_locale(&(pax->l_gname), gname, sconv)) {
+	archive_entry_gname_l(entry_main, &gname, &gname_length, NULL);
+	r = archive_entry_gname_l(entry_main, &l_gname, &l_gname_length,
+	    sconv);
+	if (r != 0) {
+		l_gname = NULL; l_gname_length = 0;
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate gname '%s' to %s", gname,
 		    archive_string_conversion_charset_name(sconv));
@@ -595,14 +616,24 @@ archive_write_pax_header(struct archive_write *a,
 		sconv = NULL;/* The header charset switches to binary mode. */
 	}
 	linkpath = hardlink;
-	if (linkpath == NULL)
-		linkpath = archive_entry_symlink(entry_main);
-	if (archive_strcpy_in_locale(&(pax->l_linkpath), linkpath, sconv)) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Can't translate linkpath '%s' to %s", linkpath,
-		    archive_string_conversion_charset_name(sconv));
-		ret = ARCHIVE_WARN;
-		sconv = NULL;/* The header charset switches to binary mode. */
+	if (linkpath == NULL) {
+		archive_entry_symlink_l(entry_main, &linkpath,
+		    &linkpath_length, NULL);
+		r = archive_entry_symlink_l(entry_main, &l_linkpath,
+		    &l_linkpath_length, sconv);
+		if (r != 0) {
+			l_linkpath = NULL; l_linkpath_length = 0;
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Can't translate linkname '%s' to %s", linkpath,
+			    archive_string_conversion_charset_name(sconv));
+			ret = ARCHIVE_WARN;
+			sconv = NULL;
+		}
+	} else {
+		linkpath_length = hardlink_length;
+		l_linkpath = l_hardlink;
+		l_linkpath_length = l_hardlink_length;
 	}
 
 	/* Store the header encoding first, to be nice to readers. */
@@ -615,18 +646,18 @@ archive_write_pax_header(struct archive_write *a,
 	 * 'path' to pax extended attrs.  (Note that an unconvertible
 	 * name must have non-ASCII characters.)
 	 */
-	if (has_non_ASCII(&pax->l_path)) {
+	if (has_non_ASCII(l_path)) {
 		/* We have non-ASCII characters. */
-		if (archive_strlen(&(pax->l_path)) == 0 || sconv == NULL) {
+		if (l_path_length == 0 || sconv == NULL) {
 			/* Can't do UTF-8, so store it raw. */
 			add_pax_attr(&(pax->pax_header), "path", path);
 		} else {
 			/* Store UTF-8 */
-			add_pax_attr(&(pax->pax_header), "path", pax->l_path.s);
+			add_pax_attr(&(pax->pax_header), "path", l_path);
 		}
 		archive_entry_set_pathname(entry_main,
 		    build_ustar_entry_name(ustar_entry_name,
-			path, strlen(path), NULL));
+			path, path_length, NULL));
 		need_extension = 1;
 	} else {
 		/* We have an all-ASCII path; we'd like to just store
@@ -634,12 +665,12 @@ archive_write_pax_header(struct archive_write *a,
 		 * duplicates some of the logic in
 		 * write_set_format_ustar.c
 		 */
-		if (strlen(path) <= 100) {
+		if (path_length <= 100) {
 			/* Fits in the old 100-char tar name field. */
 		} else {
 			/* Find largest suffix that will fit. */
 			/* Note: strlen() > 100, so strlen() - 100 - 1 >= 0 */
-			suffix = strchr(path + strlen(path) - 100 - 1, '/');
+			suffix = strchr(path + path_length - 100 - 1, '/');
 			/* Don't attempt an empty prefix. */
 			if (suffix == path)
 				suffix = strchr(suffix + 1, '/');
@@ -654,19 +685,18 @@ archive_write_pax_header(struct archive_write *a,
 			    || suffix[1] == '\0'    /* empty suffix */
 			    || suffix - path > 155)  /* Prefix > 155 chars */
 			{
-				if (archive_strlen(&(pax->l_path)) == 0
-				    || sconv == NULL) {
+				if (l_path_length == 0 || sconv == NULL) {
 					/* Can't do UTF-8, so store it raw. */
 					add_pax_attr(&(pax->pax_header),
 					    "path", path);
 				} else {
 					/* Store UTF-8 */
 					add_pax_attr(&(pax->pax_header),
-					    "path", pax->l_path.s);
+					    "path", l_path);
 				}
 				archive_entry_set_pathname(entry_main,
 				    build_ustar_entry_name(ustar_entry_name,
-					path, strlen(path), NULL));
+					path, path_length, NULL));
 				need_extension = 1;
 			}
 		}
@@ -675,11 +705,9 @@ archive_write_pax_header(struct archive_write *a,
 	if (linkpath != NULL) {
 		/* If link name is too long or has non-ASCII characters, add
 		 * 'linkpath' to pax extended attrs. */
-		if (strlen(linkpath) > 100 ||
-		    archive_strlen(&(pax->l_linkpath)) == 0 ||
-		    has_non_ASCII(&(pax->l_linkpath))) {
-			if (archive_strlen(&(pax->l_linkpath)) == 0
-			    || sconv == NULL)
+		if (linkpath_length > 100 ||
+		    l_linkpath_length == 0 || has_non_ASCII(l_linkpath)) {
+			if (l_linkpath_length == 0 || sconv == NULL)
 				/* If the linkpath is not convertible
 				 * to wide, or we're encoding in
 				 * binary anyway, store it raw. */
@@ -690,8 +718,8 @@ archive_write_pax_header(struct archive_write *a,
 				 * non-ASCII character, store it as a
 				 * pax extended attribute. */
 				add_pax_attr(&(pax->pax_header),
-				    "linkpath", pax->l_linkpath.s);
-			if (strlen(linkpath) > 100) {
+				    "linkpath", l_linkpath);
+			if (linkpath_length > 100) {
 				if (hardlink != NULL)
 					archive_entry_set_hardlink(entry_main,
 					    "././@LongHardLink");
@@ -724,17 +752,16 @@ archive_write_pax_header(struct archive_write *a,
 	/* If group name is too large or has non-ASCII characters, add
 	 * 'gname' to pax extended attrs. */
 	if (gname != NULL) {
-		if (strlen(gname) > 31
-		    || archive_strlen(&pax->l_gname) == 0
-		    || has_non_ASCII(&pax->l_gname))
+		if (gname_length > 31
+		    || l_gname_length == 0
+		    || has_non_ASCII(l_gname))
 		{
-			if (archive_strlen(&pax->l_gname) == 0
-			    || sconv == NULL) {
+			if (l_gname_length == 0 || sconv == NULL) {
 				add_pax_attr(&(pax->pax_header),
 				    "gname", gname);
 			} else  {
 				add_pax_attr(&(pax->pax_header),
-				    "gname", pax->l_gname.s);
+				    "gname", l_gname);
 			}
 			need_extension = 1;
 		}
@@ -749,17 +776,16 @@ archive_write_pax_header(struct archive_write *a,
 
 	/* Add 'uname' to pax extended attrs if necessary. */
 	if (uname != NULL) {
-		if (strlen(uname) > 31
-		    || archive_strlen(&pax->l_uname) == 0
-		    || has_non_ASCII(&pax->l_uname))
+		if (uname_length > 31
+		    || l_uname_length == 0
+		    || has_non_ASCII(l_uname))
 		{
-			if (archive_strlen(&pax->l_uname) == 0
-			    || sconv == NULL) {
+			if (l_uname_length == 0 || sconv == NULL) {
 				add_pax_attr(&(pax->pax_header),
 				    "uname", uname);
 			} else {
 				add_pax_attr(&(pax->pax_header),
-				    "uname", pax->l_uname.s);
+				    "uname", l_uname);
 			}
 			need_extension = 1;
 		}
@@ -1445,10 +1471,6 @@ archive_write_pax_free(struct archive_write *a)
 
 	archive_string_free(&pax->pax_header);
 	archive_string_free(&pax->sparse_map);
-	archive_string_free(&pax->l_path);
-	archive_string_free(&pax->l_uname);
-	archive_string_free(&pax->l_gname);
-	archive_string_free(&pax->l_linkpath);
 	archive_string_free(&pax->l_url_encoded_name);
 	archive_string_free(&pax->l_acl_utf8);
 	sparse_list_clear(pax);
@@ -1542,9 +1564,9 @@ archive_write_pax_data(struct archive_write *a, const void *buff, size_t s)
 }
 
 static int
-has_non_ASCII(struct archive_string *as)
+has_non_ASCII(const char *_p)
 {
-	const unsigned char *p = (const unsigned char *)as->s;
+	const unsigned char *p = (const unsigned char *)_p;
 
 	if (p == NULL)
 		return (1);
