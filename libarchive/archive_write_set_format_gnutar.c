@@ -43,16 +43,21 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_gnu_tar.c 19157
 
 #include "archive.h"
 #include "archive_entry.h"
+#include "archive_entry_locale.h"
 #include "archive_private.h"
 #include "archive_write_private.h"
 
 struct gnutar {
 	uint64_t	entry_bytes_remaining;
 	uint64_t	entry_padding;
-	struct archive_string l_linkname;
-	struct archive_string l_pathname;
-	struct archive_string l_uname;
-	struct archive_string l_gname;
+	const char *	linkname;
+	size_t		linkname_length;
+	const char *	pathname;
+	size_t		pathname_length;
+	const char *	uname;
+	size_t		uname_length;
+	const char *	gname;
+	size_t		gname_length;
 	struct archive_string_conv *opt_sconv;
 	struct archive_string_conv *sconv_default;
 	int init_default_conversion;
@@ -227,10 +232,6 @@ archive_write_gnutar_free(struct archive_write *a)
 	struct gnutar *gnutar;
 
 	gnutar = (struct gnutar *)a->format_data;
-	archive_string_free(&gnutar->l_linkname);
-	archive_string_free(&gnutar->l_pathname);
-	archive_string_free(&gnutar->l_uname);
-	archive_string_free(&gnutar->l_gname);
 	free(gnutar);
 	a->format_data = NULL;
 	return (ARCHIVE_OK);
@@ -266,12 +267,12 @@ archive_write_gnutar_data(struct archive_write *a, const void *buff, size_t s)
 }
 
 static int
-archive_write_gnutar_header(struct archive_write *a, struct archive_entry *entry)
+archive_write_gnutar_header(struct archive_write *a,
+     struct archive_entry *entry)
 {
 	char buff[512];
 	int r, ret, ret2 = ARCHIVE_OK;
 	int tartype;
-	const char *linkname;
 	struct gnutar *gnutar;
 	struct archive_string_conv *sconv;
 
@@ -281,7 +282,8 @@ archive_write_gnutar_header(struct archive_write *a, struct archive_entry *entry
 	if (gnutar->opt_sconv == NULL) {
 		if (!gnutar->init_default_conversion) {
 			gnutar->sconv_default =
-			    archive_string_default_conversion_for_write(&(a->archive));
+			    archive_string_default_conversion_for_write(
+				&(a->archive));
 			gnutar->init_default_conversion = 1;
 		}
 		sconv = gnutar->sconv_default;
@@ -316,8 +318,8 @@ archive_write_gnutar_header(struct archive_write *a, struct archive_entry *entry
 		}
 	}
 
-	r = archive_strcpy_in_locale(&(gnutar->l_pathname),
-	    archive_entry_pathname(entry), sconv);
+	r = archive_entry_pathname_l(entry, &(gnutar->pathname),
+	    &(gnutar->pathname_length), sconv);
 	if (r != 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate pathname '%s' to %s",
@@ -325,52 +327,52 @@ archive_write_gnutar_header(struct archive_write *a, struct archive_entry *entry
 		    archive_string_conversion_charset_name(sconv));
 		ret2 = ARCHIVE_WARN;
 	}
-	if (archive_entry_uname(entry) != NULL) {
-		r = archive_strcpy_in_locale(&(gnutar->l_uname),
-		    archive_entry_uname(entry), sconv);
-		if (r != 0) {
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Can't translate uname '%s' to %s",
-			    archive_entry_uname(entry),
-			    archive_string_conversion_charset_name(sconv));
-			ret2 = ARCHIVE_WARN;
-		}
-	} else
-		archive_string_empty(&(gnutar->l_uname));
-	if (archive_entry_gname(entry) != NULL) {
-		archive_strcpy_in_locale(&(gnutar->l_gname),
-		    archive_entry_gname(entry), sconv);
-		if (r != 0) {
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Can't translate gname '%s' to %s",
-			    archive_entry_gname(entry),
-			    archive_string_conversion_charset_name(sconv));
-			ret2 = ARCHIVE_WARN;
-		}
-	} else
-		archive_string_empty(&(gnutar->l_gname));
+	r = archive_entry_uname_l(entry, &(gnutar->uname),
+	    &(gnutar->uname_length), sconv);
+	if (r != 0) {
+		archive_set_error(&a->archive,
+		    ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Can't translate uname '%s' to %s",
+		    archive_entry_uname(entry),
+		    archive_string_conversion_charset_name(sconv));
+		ret2 = ARCHIVE_WARN;
+	}
+	r = archive_entry_gname_l(entry, &(gnutar->gname),
+	    &(gnutar->gname_length), sconv);
+	if (r != 0) {
+		archive_set_error(&a->archive,
+		    ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Can't translate gname '%s' to %s",
+		    archive_entry_gname(entry),
+		    archive_string_conversion_charset_name(sconv));
+		ret2 = ARCHIVE_WARN;
+	}
 
 	/* If linkname is longer than 100 chars we need to add a 'K' header. */
-	linkname = archive_entry_hardlink(entry);
-	if (linkname == NULL)
-		linkname = archive_entry_symlink(entry);
-	if (linkname != NULL) {
-		archive_strcpy_in_locale(&(gnutar->l_linkname),
-		    linkname, sconv);
+	r = archive_entry_hardlink_l(entry, &(gnutar->linkname),
+	    &(gnutar->linkname_length), sconv);
+	if (r != 0) {
+		archive_set_error(&a->archive,
+		    ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Can't translate linkname '%s' to %s",
+		    archive_entry_hardlink(entry),
+		    archive_string_conversion_charset_name(sconv));
+		ret2 = ARCHIVE_WARN;
+	}
+	if (gnutar->linkname_length == 0) {
+		r = archive_entry_symlink_l(entry, &(gnutar->linkname),
+		    &(gnutar->linkname_length), sconv);
 		if (r != 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Can't translate linkname '%s' to %s",
-			    linkname,
+			    archive_entry_hardlink(entry),
 			    archive_string_conversion_charset_name(sconv));
 			ret2 = ARCHIVE_WARN;
 		}
-	} else
-		archive_string_empty(&(gnutar->l_linkname));
-	if (archive_strlen(&(gnutar->l_linkname)) > GNUTAR_linkname_size) {
-		size_t todo = archive_strlen(&(gnutar->l_linkname));
+	}
+	if (gnutar->linkname_length > GNUTAR_linkname_size) {
+		size_t todo = gnutar->linkname_length;
 		struct archive_entry *temp = archive_entry_new2(&a->archive);
 
 		/* Uname/gname here don't really matter since noone reads them;
@@ -379,8 +381,7 @@ archive_write_gnutar_header(struct archive_write *a, struct archive_entry *entry
 		archive_entry_set_gname(temp, "wheel");
 
 		archive_entry_set_pathname(temp, "././@LongLink");
-		archive_entry_set_size(temp,
-		    archive_strlen(&(gnutar->l_linkname)) + 1);
+		archive_entry_set_size(temp, gnutar->linkname_length + 1);
 		ret = archive_format_gnutar_header(a, buff, temp, 'K');
 		if (ret < ARCHIVE_WARN)
 			return (ret);
@@ -389,7 +390,7 @@ archive_write_gnutar_header(struct archive_write *a, struct archive_entry *entry
 			return (ret);
 		archive_entry_free(temp);
 		/* Write as many 512 bytes blocks as needed to write full name. */
-		ret = __archive_write_output(a, gnutar->l_linkname.s, todo);
+		ret = __archive_write_output(a, gnutar->linkname, todo);
 		if(ret < ARCHIVE_WARN)
 			return (ret);
 		ret = __archive_write_nulls(a, 0x1ff & (-(ssize_t)todo));
@@ -398,9 +399,9 @@ archive_write_gnutar_header(struct archive_write *a, struct archive_entry *entry
 	}
 
 	/* If pathname is longer than 100 chars we need to add an 'L' header. */
-	if (archive_strlen(&(gnutar->l_pathname)) > GNUTAR_name_size) {
-		const char *pathname = gnutar->l_pathname.s;
-		size_t todo = archive_strlen(&(gnutar->l_pathname));
+	if (gnutar->pathname_length > GNUTAR_name_size) {
+		const char *pathname = gnutar->pathname;
+		size_t todo = gnutar->pathname_length;
 		struct archive_entry *temp = archive_entry_new2(&a->archive);
 
 		/* Uname/gname here don't really matter since noone reads them;
@@ -409,8 +410,7 @@ archive_write_gnutar_header(struct archive_write *a, struct archive_entry *entry
 		archive_entry_set_gname(temp, "wheel");
 
 		archive_entry_set_pathname(temp, "././@LongLink");
-		archive_entry_set_size(temp,
-		    archive_strlen(&(gnutar->l_pathname)) + 1);
+		archive_entry_set_size(temp, gnutar->pathname_length + 1);
 		ret = archive_format_gnutar_header(a, buff, temp, 'L');
 		if (ret < ARCHIVE_WARN)
 			return (ret);
@@ -496,17 +496,17 @@ archive_format_gnutar_header(struct archive_write *a, char h[512],
 		p = archive_entry_pathname(entry);
 		copy_length = strlen(p);
 	} else {
-		p = gnutar->l_pathname.s;
-		copy_length = archive_strlen(&(gnutar->l_pathname));
+		p = gnutar->pathname;
+		copy_length = gnutar->pathname_length;
 	}
 	if (copy_length > GNUTAR_name_size)
 		copy_length = GNUTAR_name_size;
 	memcpy(h + GNUTAR_name_offset, p, copy_length);
 
-	if ((copy_length = archive_strlen(&(gnutar->l_linkname))) > 0) {
+	if ((copy_length = gnutar->linkname_length) > 0) {
 		if (copy_length > GNUTAR_linkname_size)
 			copy_length = GNUTAR_linkname_size;
-		memcpy(h + GNUTAR_linkname_offset, gnutar->l_linkname.s,
+		memcpy(h + GNUTAR_linkname_offset, gnutar->linkname,
 		    copy_length);
 	}
 
@@ -515,8 +515,8 @@ archive_format_gnutar_header(struct archive_write *a, char h[512],
 		p = archive_entry_uname(entry);
 		copy_length = strlen(p);
 	} else {
-		p = gnutar->l_uname.s;
-		copy_length = archive_strlen(&(gnutar->l_uname));
+		p = gnutar->uname;
+		copy_length = gnutar->uname_length;
 	}
 	if (copy_length > 0) {
 		if (copy_length > GNUTAR_uname_size)
@@ -529,8 +529,8 @@ archive_format_gnutar_header(struct archive_write *a, char h[512],
 		p = archive_entry_gname(entry);
 		copy_length = strlen(p);
 	} else {
-		p = gnutar->l_gname.s;
-		copy_length = archive_strlen(&(gnutar->l_gname));
+		p = gnutar->gname;
+		copy_length = gnutar->gname_length;
 	}
 	if (copy_length > 0) {
 		if (strlen(p) > GNUTAR_gname_size)
