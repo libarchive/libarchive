@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_ustar.c 191579 
 
 #include "archive.h"
 #include "archive_entry.h"
+#include "archive_entry_locale.h"
 #include "archive_private.h"
 #include "archive_write_private.h"
 
@@ -320,11 +321,9 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 	size_t copy_length;
 	const char *p, *pp;
 	int mytartype;
-	struct archive_string l_name;
 
 	ret = 0;
 	mytartype = -1;
-	archive_string_init(&l_name);
 	/*
 	 * The "template header" already includes the "ustar"
 	 * signature, various end-of-field markers and other required
@@ -337,22 +336,13 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 	 * are allowed to exactly fill their destination (without null),
 	 * I use memcpy(dest, src, strlen()) here a lot to copy strings.
 	 */
-
-	pp = archive_entry_pathname(entry);
-	/* Check if a charset conversion is needed or not,
-	 * to avoid extra memory copy. */
-	if (sconv != NULL) {
-		r = archive_strcpy_in_locale(&l_name, pp, sconv);
-		if (r != 0) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Can't translate pathname '%s' to %s",
-			    pp, archive_string_conversion_charset_name(sconv));
-			ret = ARCHIVE_WARN;
-		}
-		pp = l_name.s;
-		copy_length = archive_strlen(&l_name);
-	} else
-		copy_length = strlen(pp);
+	r = archive_entry_pathname_l(entry, &pp, &copy_length, sconv);
+	if (r != 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Can't translate pathname '%s' to %s",
+		    pp, archive_string_conversion_charset_name(sconv));
+		ret = ARCHIVE_WARN;
+	}
 	if (copy_length <= USTAR_name_size)
 		memcpy(h + USTAR_name_offset, pp, copy_length);
 	else {
@@ -394,27 +384,26 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 		}
 	}
 
-	p = archive_entry_hardlink(entry);
-	if (p != NULL)
+	r = archive_entry_hardlink_l(entry, &p, &copy_length, sconv);
+	if (r != 0) {
+		archive_set_error(&a->archive,
+		    ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Can't translate linkname '%s' to %s",
+		    p, archive_string_conversion_charset_name(sconv));
+		ret = ARCHIVE_WARN;
+	}
+	if (copy_length > 0)
 		mytartype = '1';
-	else
-		p = archive_entry_symlink(entry);
-	if (p != NULL && p[0] != '\0') {
-		if (sconv != NULL) {
-			r = archive_strcpy_in_locale(&l_name, p, sconv);
-			if (r != 0) {
-				archive_set_error(&a->archive,
-				    ARCHIVE_ERRNO_FILE_FORMAT,
-				    "Can't translate linkname '%s' to %s",
-				    p, archive_string_conversion_charset_name(sconv));
-				ret = ARCHIVE_WARN;
-			}
-			p = l_name.s;
-			copy_length = archive_strlen(&l_name);
-		} else
-			copy_length = strlen(p);
-	} else
-		copy_length = 0;
+	else {
+		r = archive_entry_symlink_l(entry, &p, &copy_length, sconv);
+		if (r != 0) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Can't translate linkname '%s' to %s",
+			    p, archive_string_conversion_charset_name(sconv));
+			ret = ARCHIVE_WARN;
+		}
+	}
 	if (copy_length > 0) {
 		if (copy_length > USTAR_linkname_size) {
 			archive_set_error(&a->archive, ENAMETOOLONG,
@@ -425,23 +414,14 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 		memcpy(h + USTAR_linkname_offset, p, copy_length);
 	}
 
-	p = archive_entry_uname(entry);
-	if (p != NULL && p[0] != '\0') {
-		if (sconv != NULL) {
-			r = archive_strcpy_in_locale(&l_name, p, sconv);
-			if (r != 0) {
-				archive_set_error(&a->archive,
-				    ARCHIVE_ERRNO_FILE_FORMAT,
-				    "Can't translate uname '%s' to %s",
-				    p, archive_string_conversion_charset_name(sconv));
-				ret = ARCHIVE_WARN;
-			}
-			p = l_name.s;
-			copy_length = archive_strlen(&l_name);
-		} else
-			copy_length = strlen(p);
-	} else
-		copy_length = 0;
+	r = archive_entry_uname_l(entry, &p, &copy_length, sconv);
+	if (r != 0) {
+		archive_set_error(&a->archive,
+		    ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Can't translate uname '%s' to %s",
+		    p, archive_string_conversion_charset_name(sconv));
+		ret = ARCHIVE_WARN;
+	}
 	if (copy_length > 0) {
 		if (copy_length > USTAR_uname_size) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -452,23 +432,14 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 		memcpy(h + USTAR_uname_offset, p, copy_length);
 	}
 
-	p = archive_entry_gname(entry);
-	if (p != NULL && p[0] != '\0') {
-		if (sconv != NULL) {
-			r = archive_strcpy_in_locale(&l_name, p, sconv);
-			if (r != 0) {
-				archive_set_error(&a->archive,
-				    ARCHIVE_ERRNO_FILE_FORMAT,
-				    "Can't translate gname '%s' to %s",
-				    p, archive_string_conversion_charset_name(sconv));
-				ret = ARCHIVE_WARN;
-			}
-			p = l_name.s;
-			copy_length = archive_strlen(&l_name);
-		} else
-			copy_length = strlen(p);
-	} else
-		copy_length = 0;
+	r = archive_entry_gname_l(entry, &p, &copy_length, sconv);
+	if (r != 0) {
+		archive_set_error(&a->archive,
+		    ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Can't translate gname '%s' to %s",
+		    p, archive_string_conversion_charset_name(sconv));
+		ret = ARCHIVE_WARN;
+	}
 	if (copy_length > 0) {
 		if (strlen(p) > USTAR_gname_size) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -532,8 +503,6 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 			ret = ARCHIVE_FAILED;
 		}
 	}
-
-	archive_string_free(&l_name);
 
 	if (tartype >= 0) {
 		h[USTAR_typeflag_offset] = tartype;
