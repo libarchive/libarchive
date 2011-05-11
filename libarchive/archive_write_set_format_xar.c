@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include "archive.h"
 #include "archive_endian.h"
 #include "archive_entry.h"
+#include "archive_entry_locale.h"
 #include "archive_hash.h"
 #include "archive_private.h"
 #include "archive_rb.h"
@@ -1087,6 +1088,8 @@ make_file_entry(struct archive_write *a, xmlTextWriterPtr writer,
 	struct archive_string linkto;
 	struct heap_data *heap;
 	unsigned char *tmp;
+	const char *p;
+	size_t len;
 	int r, r2, l, ll;
 
 	xar = (struct xar *)a->format_data;
@@ -1269,16 +1272,16 @@ make_file_entry(struct archive_write *a, xmlTextWriterPtr writer,
 	    "%d", archive_entry_uid(file->entry));
 	if (r < 0)
 		return (ARCHIVE_FATAL);
-	if (archive_entry_uname(file->entry) != NULL) {
-		if (archive_strcpy_in_locale(&(xar->tstr),
-		    archive_entry_uname(file->entry), xar->sconv) != 0) {
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Can't translate uname '%s' to UTF-8",
-			    archive_entry_uname(file->entry));
-			r2 = ARCHIVE_WARN;
-		}
-		r = xmlwrite_string(a, writer, "user", xar->tstr.s);
+	r = archive_entry_uname_l(file->entry, &p, &len, xar->sconv);
+	if (r != 0) {
+		archive_set_error(&a->archive,
+		    ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Can't translate uname '%s' to UTF-8",
+		    archive_entry_uname(file->entry));
+		r2 = ARCHIVE_WARN;
+	}
+	if (len > 0) {
+		r = xmlwrite_string(a, writer, "user", p);
 		if (r < 0)
 			return (ARCHIVE_FATAL);
 	}
@@ -1290,16 +1293,16 @@ make_file_entry(struct archive_write *a, xmlTextWriterPtr writer,
 	    "%d", archive_entry_gid(file->entry));
 	if (r < 0)
 		return (ARCHIVE_FATAL);
-	if (archive_entry_gname(file->entry) != NULL) {
-		if (archive_strcpy_in_locale(&(xar->tstr),
-		    archive_entry_gname(file->entry), xar->sconv) != 0) {
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Can't translate gname '%s' to UTF-8",
-			    archive_entry_gname(file->entry));
-			r2 = ARCHIVE_WARN;
-		}
-		r = xmlwrite_string(a, writer, "group", xar->tstr.s);
+	r = archive_entry_gname_l(file->entry, &p, &len, xar->sconv);
+	if (r != 0) {
+		archive_set_error(&a->archive,
+		    ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Can't translate gname '%s' to UTF-8",
+		    archive_entry_gname(file->entry));
+		r2 = ARCHIVE_WARN;
+	}
+	if (len > 0) {
+		r = xmlwrite_string(a, writer, "group", p);
 		if (r < 0)
 			return (ARCHIVE_FATAL);
 	}
@@ -1978,6 +1981,7 @@ static int
 file_gen_utility_names(struct archive_write *a, struct file *file)
 {
 	struct xar *xar;
+	const char *pp;
 	char *p, *dirname, *slash;
 	size_t len;
 	int r = ARCHIVE_OK;
@@ -1990,14 +1994,15 @@ file_gen_utility_names(struct archive_write *a, struct file *file)
 	if (file->parent == file)/* virtual root */
 		return (ARCHIVE_OK);
 
-	if (archive_strcpy_in_locale(&(file->parentdir),
-	    archive_entry_pathname(file->entry), xar->sconv) != 0) {
+	if (archive_entry_pathname_l(file->entry, &pp, &len, xar->sconv)
+	    != 0) {
 		archive_set_error(&a->archive,
 		    ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate pathname '%s' to UTF-8",
 		    archive_entry_pathname(file->entry));
 		r = ARCHIVE_WARN;
 	}
+	archive_strncpy(&(file->parentdir), pp, len);
 	len = file->parentdir.length;
 	p = dirname = file->parentdir.s;
 	/*
@@ -2084,15 +2089,17 @@ file_gen_utility_names(struct archive_write *a, struct file *file)
 	len = strlen(p);
 
 	if (archive_entry_filetype(file->entry) == AE_IFLNK) {
+		size_t len2;
 		/* Convert symlink name too. */
-		if (archive_strcpy_in_locale(&(file->symlink),
-		    archive_entry_symlink(file->entry), xar->sconv) != 0) {
+		if (archive_entry_symlink_l(file->entry, &pp, &len2,
+		    xar->sconv) != 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Can't translate symlink '%s' to UTF-8",
 			    archive_entry_symlink(file->entry));
 			r = ARCHIVE_WARN;
 		}
+		archive_strncpy(&(file->symlink), pp, len2);
 		cleanup_backslash(file->symlink.s, file->symlink.length);
 	}
 	/*
