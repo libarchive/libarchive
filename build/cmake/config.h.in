@@ -919,7 +919,7 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <windows.h> header file. */
 #cmakedefine HAVE_WINDOWS_H 1
 
-/* Define to 1 if you have the <windioctl.h> header file. */
+/* Define to 1 if you have the <winioctl.h> header file. */
 #cmakedefine HAVE_WINIOCTL_H 1
 
 /* Define to 1 if you have _CrtSetReportMode in <crtdbg.h>  */
