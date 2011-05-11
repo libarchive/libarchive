@@ -47,6 +47,7 @@
 
 #include "archive.h"
 #include "archive_entry.h"
+#include "archive_entry_locale.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
 #include "archive_endian.h"
@@ -238,7 +239,6 @@ struct cffile {
 #define ATTR_RDONLY		0x01
 #define ATTR_NAME_IS_UTF	0x80
 	struct archive_string 	 pathname;
-	struct archive_string_conv *pathname_conversion_failed;
 };
 
 struct cfheader {
@@ -280,7 +280,6 @@ struct cab {
 	int64_t			 cab_offset;
 	struct cfheader		 cfheader;
 	struct archive_wstring	 ws;
-	struct archive_string	 mbs;
 
 	/* Flag to mark progress that an archive was read their first header.*/
 	char			 found_header;
@@ -362,8 +361,6 @@ archive_read_support_format_cab(struct archive *_a)
 	}
 	archive_string_init(&cab->ws);
 	archive_wstring_ensure(&cab->ws, 256);
-	archive_string_init(&cab->mbs);
-	archive_string_ensure(&cab->mbs, 256);
 
 	r = __archive_read_register_format(a,
 	    cab,
@@ -558,9 +555,8 @@ cab_read_ahead_remaining(struct archive_read *a, size_t min, ssize_t *avail)
 }
 
 /* Convert a path separator '\' -> '/' */
-static void
-cab_convert_path_separator(struct cab *cab,
-    struct archive_string *fn, unsigned char attr)
+static int
+cab_convert_path_separator_1(struct archive_string *fn, unsigned char attr)
 {
 	size_t i;
 	int mb;
@@ -569,47 +565,41 @@ cab_convert_path_separator(struct cab *cab,
 	mb = 0;
 	for (i = 0; i < archive_strlen(fn); i++) {
 		if (fn->s[i] == '\\') {
-			if (mb)
-				break;/* This may be second byte of multi-byte character. */
+			if (mb) {
+				/* This may be second byte of multi-byte
+				 * character. */
+				break;
+			}
 			fn->s[i] = '/';
 			mb = 0;
-		} else if (fn->s[i] & 0x80)
+		} else if ((fn->s[i] & 0x80) && !(attr & ATTR_NAME_IS_UTF))
 			mb = 1;
 		else
 			mb = 0;
 	}
 	if (i == archive_strlen(fn))
-		return;
+		return (0);
+	return (-1);
+}
 
-	/*
-	 * Try to replace a character '\' with '/' in wide character.
-	 */
+/*
+ * Replace a character '\' with '/' in wide character.
+ */
+static void
+cab_convert_path_separator_2(struct cab *cab, struct archive_entry *entry)
+{
+	const wchar_t *wp;
+	size_t i;
 
 	/* If a conversion to wide character failed, force the replacement. */
-	archive_string_empty(&(cab->ws));
-	if (archive_wstring_append_from_mbs(&(cab->ws),
-	    fn->s, fn->length) != 0) {
-		for (i = 0; i < archive_strlen(fn); i++) {
-			if (fn->s[i] == '\\')
-				fn->s[i] = '/';
+	if ((wp = archive_entry_pathname_w(entry)) != NULL) {
+		archive_wstrcpy(&(cab->ws), wp);
+		for (i = 0; i < archive_strlen(&(cab->ws)); i++) {
+			if (cab->ws.s[i] == L'\\')
+				cab->ws.s[i] = L'/';
 		}
-		return;
+		archive_entry_copy_pathname_w(entry, cab->ws.s);
 	}
-
-	for (i = 0; i < archive_strlen(&(cab->ws)); i++) {
-		if (cab->ws.s[i] == L'\\')
-			cab->ws.s[i] = L'/';
-	}
-	archive_string_empty(&(cab->mbs));
-	archive_string_append_from_wcs(&(cab->mbs),
-	    cab->ws.s, cab->ws.length);
-	/*
-	 * Sanity check that we surely did not break a filename.
-	 * If MBS length is different to fn, we broke the
-	 * filename, and so we shouldn't use it.
-	 */
-	if (archive_strlen(&(cab->mbs)) == archive_strlen(fn))
-		archive_string_copy(fn, &(cab->mbs));
 }
 
 /*
@@ -788,7 +778,6 @@ cab_read_header(struct archive_read *a)
 	prev_folder = -1;
 	for (i = 0; i < hd->file_count; i++) {
 		struct cffile *file = &(hd->file_array[i]);
-		struct archive_string_conv *sconv;
 		ssize_t avail;
 
 		if ((p = __archive_read_ahead(a, 16, NULL)) == NULL)
@@ -805,39 +794,12 @@ cab_read_header(struct archive_read *a)
 			return (truncated_error(a));
 		if ((len = cab_strnlen(p, avail-1)) <= 0)
 			goto invalid;
+
+		/* Copy a pathname.  */
 		archive_string_init(&(file->pathname));
-		/* If a pathname is UTF-8, prepare a string conversion object
-		 * for UTF-8 and use it. */
-		if (file->attr & ATTR_NAME_IS_UTF) {
-			if (cab->sconv_utf8 == NULL) {
-				cab->sconv_utf8 =
-				    archive_string_conversion_from_charset(
-					&(a->archive), "UTF-8", 1);
-				if (cab->sconv_utf8 == NULL)
-					return (ARCHIVE_FATAL);
-			}
-			sconv = cab->sconv_utf8;
-		} else if (cab->sconv != NULL) {
-			/* Choose the conversion specified by the option. */
-			sconv = cab->sconv;
-		} else {
-			/* Choose the default conversion. */
-			if (!cab->init_default_conversion) {
-				cab->sconv_default =
-				    archive_string_default_conversion_for_read(
-				      &(a->archive));
-				cab->init_default_conversion = 1;
-			}
-			sconv = cab->sconv_default;
-		}
-		/* Copy and translate a pathname.
-		 * if the conversion fail, we report it when return this entry. */
-		if (archive_strncpy_in_locale(&(file->pathname), p, len, sconv) != 0)
-			file->pathname_conversion_failed = sconv;
+		archive_strncpy(&(file->pathname), p, len);
 		__archive_read_consume(a, len + 1);
 		cab->cab_offset += len + 1;
-		/* Convert a path separator '\' -> '/' */
-		cab_convert_path_separator(cab, &(file->pathname), file->attr);
 
 		/*
 		 * Sanity check if each data is acceptable.
@@ -915,7 +877,8 @@ archive_read_format_cab_read_header(struct archive_read *a,
 	struct cfheader *hd;
 	struct cffolder *prev_folder;
 	struct cffile *file;
-	int err = ARCHIVE_OK;
+	struct archive_string_conv *sconv;
+	int err = ARCHIVE_OK, r;
 	
 	cab = (struct cab *)(a->format->data);
 	if (cab->found_header == 0) {
@@ -961,18 +924,47 @@ archive_read_format_cab_read_header(struct archive_read *a,
 	if (prev_folder != cab->entry_cffolder)
 		cab->entry_cfdata = NULL;
 
+	/* If a pathname is UTF-8, prepare a string conversion object
+	 * for UTF-8 and use it. */
+	if (file->attr & ATTR_NAME_IS_UTF) {
+		if (cab->sconv_utf8 == NULL) {
+			cab->sconv_utf8 =
+			    archive_string_conversion_from_charset(
+				&(a->archive), "UTF-8", 1);
+			if (cab->sconv_utf8 == NULL)
+				return (ARCHIVE_FATAL);
+		}
+		sconv = cab->sconv_utf8;
+	} else if (cab->sconv != NULL) {
+		/* Choose the conversion specified by the option. */
+		sconv = cab->sconv;
+	} else {
+		/* Choose the default conversion. */
+		if (!cab->init_default_conversion) {
+			cab->sconv_default =
+			    archive_string_default_conversion_for_read(
+			      &(a->archive));
+			cab->init_default_conversion = 1;
+		}
+		sconv = cab->sconv_default;
+	}
+
 	/*
 	 * Set a default value and common data
 	 */
-	archive_entry_set_pathname(entry, file->pathname.s);
-	if (file->pathname_conversion_failed) {
+	r = cab_convert_path_separator_1(&(file->pathname), file->attr);
+	if (archive_entry_copy_pathname_l(entry, file->pathname.s,
+	    archive_strlen(&(file->pathname)), sconv) != 0) {
 		archive_set_error(&a->archive,
 		    ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Pathname cannot be converted "
 		    "from %s to current locale.",
-		    archive_string_conversion_charset_name(
-		      file->pathname_conversion_failed));
+		    archive_string_conversion_charset_name(sconv));
 		err = ARCHIVE_WARN;
+	}
+	if (r < 0) {
+		/* Convert a path separator '\' -> '/' */
+		cab_convert_path_separator_2(cab, entry);
 	}
 
 	archive_entry_set_size(entry, file->uncompressed_size);
@@ -2013,7 +2005,6 @@ archive_read_format_cab_cleanup(struct archive_read *a)
 #endif
 	lzx_decode_free(&cab->xstrm);
 	archive_wstring_free(&cab->ws);
-	archive_string_free(&cab->mbs);
 	free(cab->uncompressed_buffer);
 	free(cab);
 	(a->format->data) = NULL;
