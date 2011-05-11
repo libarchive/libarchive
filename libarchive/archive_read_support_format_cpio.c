@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_support_format_cpio.c 20116
 
 #include "archive.h"
 #include "archive_entry.h"
+#include "archive_entry_locale.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
 
@@ -131,8 +132,6 @@ struct cpio {
 	int			(*read_header)(struct archive_read *, struct cpio *,
 				     struct archive_entry *, size_t *, size_t *);
 	struct links_entry	 *links_head;
-	struct archive_string	  entry_name;
-	struct archive_string	  entry_linkname;
 	int64_t			  entry_bytes_remaining;
 	int64_t			  entry_bytes_unconsumed;
 	int64_t			  entry_offset;
@@ -330,14 +329,13 @@ archive_read_format_cpio_read_header(struct archive_read *a,
 	h = __archive_read_ahead(a, namelength + name_pad, NULL);
 	if (h == NULL)
 	    return (ARCHIVE_FATAL);
-	if (archive_strncpy_in_locale(&cpio->entry_name,
+	if (archive_entry_copy_pathname_l(entry,
 	    (const char *)h, namelength, sconv) != 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Pathname can't be converted from %s to current locale.",
 		    archive_string_conversion_charset_name(sconv));
 		r = ARCHIVE_WARN;
 	}
-	archive_entry_set_pathname(entry, cpio->entry_name.s);
 	cpio->entry_offset = 0;
 
 	__archive_read_consume(a, namelength + name_pad);
@@ -347,10 +345,16 @@ archive_read_format_cpio_read_header(struct archive_read *a,
 		h = __archive_read_ahead(a, cpio->entry_bytes_remaining, NULL);
 		if (h == NULL)
 			return (ARCHIVE_FATAL);
-		archive_strncpy(&cpio->entry_linkname, (const char *)h,
-		    cpio->entry_bytes_remaining);
+		if (archive_entry_copy_symlink_l(entry, (const char *)h,
+		    cpio->entry_bytes_remaining, sconv) != 0) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Linkname can't be converted from %s to "
+			    "current locale.",
+			    archive_string_conversion_charset_name(sconv));
+			r = ARCHIVE_WARN;
+		}
 		__archive_read_consume(a, cpio->entry_bytes_remaining);
-		archive_entry_set_symlink(entry, cpio->entry_linkname.s);
 		cpio->entry_bytes_remaining = 0;
 	}
 
@@ -859,7 +863,6 @@ archive_read_format_cpio_cleanup(struct archive_read *a)
                 free(cpio->links_head);
                 cpio->links_head = lp;
         }
-	archive_string_free(&cpio->entry_name);
 	free(cpio);
 	(a->format->data) = NULL;
 	return (ARCHIVE_OK);
