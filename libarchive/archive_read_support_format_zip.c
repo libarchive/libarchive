@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_support_format_zip.c 201102
 
 #include "archive.h"
 #include "archive_entry.h"
+#include "archive_entry_locale.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
 #include "archive_endian.h"
@@ -91,7 +92,6 @@ struct zip {
 	char			stream_valid;
 #endif
 
-	struct archive_string	pathname;
 	struct archive_string	extra;
 	struct archive_string_conv *sconv;
 	struct archive_string_conv *sconv_default;
@@ -465,6 +465,8 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 {
 	const struct zip_file_header *p;
 	const void *h;
+	const wchar_t *wp;
+	size_t len;
 	struct archive_string_conv *sconv;
 	int ret = ARCHIVE_OK;
 
@@ -526,7 +528,7 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 	else
 		sconv = zip->sconv_default;
 
-	if (archive_strncpy_in_locale(&zip->pathname,
+	if (archive_entry_copy_pathname_l(entry,
 	    h, zip->filename_length, sconv) != 0) {
 		archive_set_error(&a->archive,
 		    ARCHIVE_ERRNO_FILE_FORMAT,
@@ -536,9 +538,10 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 		ret = ARCHIVE_WARN;
 	}
 	__archive_read_consume(a, zip->filename_length);
-	archive_entry_set_pathname(entry, zip->pathname.s);
 
-	if (zip->pathname.s[archive_strlen(&zip->pathname) - 1] == '/')
+	wp = archive_entry_pathname_w(entry);
+	len = (wp != NULL)?wcslen(wp):0;
+	if (len > 0 && wp[len - 1] == L'/')
 		zip->mode = AE_IFDIR | 0777;
 	else
 		zip->mode = AE_IFREG | 0777;
@@ -949,7 +952,6 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 		inflateEnd(&zip->stream);
 #endif
 	free(zip->uncompressed_buffer);
-	archive_string_free(&(zip->pathname));
 	archive_string_free(&(zip->extra));
 	free(zip);
 	(a->format->data) = NULL;
