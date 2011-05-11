@@ -605,6 +605,15 @@ ENDIF(LIBXML2_FOUND)
 #
 # Check functions
 #
+IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
+  #
+  # During checking functions, we should use -fno-builtin to avoid the
+  # failure of function detection which failure is an error "conflicting
+  # types for built-in function" caused by using -Werror option.
+  #
+  SET(SAVE_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
+  SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -fno-builtin")
+ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
 CHECK_SYMBOL_EXISTS(_CrtSetReportMode "crtdbg.h" HAVE__CrtSetReportMode)
 CHECK_FUNCTION_EXISTS_GLIBC(chflags HAVE_CHFLAGS)
 CHECK_FUNCTION_EXISTS_GLIBC(chown HAVE_CHOWN)
@@ -691,6 +700,11 @@ CHECK_FUNCTION_EXISTS(strftime HAVE_STRFTIME)
 CHECK_FUNCTION_EXISTS(vprintf HAVE_VPRINTF)
 CHECK_FUNCTION_EXISTS(wmemcmp HAVE_WMEMCMP)
 CHECK_FUNCTION_EXISTS(wmemcpy HAVE_WMEMCPY)
+
+# Restore CMAKE_REQUIRED_FLAGS
+IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
+  SET(CMAKE_REQUIRED_FLAGS ${SAVE_CMAKE_REQUIRED_FLAGS})
+ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
 
 # Make sure we have the POSIX version of readdir_r, not the
 # older 2-argument version.
