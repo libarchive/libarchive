@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include "archive.h"
 #include "archive_endian.h"
 #include "archive_entry.h"
+#include "archive_entry_locale.h"
 #include "archive_hash.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
@@ -196,7 +197,6 @@ struct xar_file {
 	unsigned int		 nlink;
 	struct archive_string	 hardlink;
 	struct xattr		*xattr_list;
-	unsigned int		 conversion_failed;
 };
 
 struct hdlink {
@@ -659,6 +659,7 @@ xar_read_header(struct archive_read *a, struct archive_entry *entry)
 	int r;
 
 	xar = (struct xar *)(a->format->data);
+	r = ARCHIVE_OK;
 
 	if (xar->offset == 0) {
 		/* Create a character conversion object. */
@@ -695,15 +696,45 @@ xar_read_header(struct archive_read *a, struct archive_entry *entry)
 	archive_entry_set_ctime(entry, file->ctime, 0);
 	archive_entry_set_mtime(entry, file->mtime, 0);
 	archive_entry_set_gid(entry, file->gid);
-	if (file->gname.length > 0)
-		archive_entry_set_gname(entry, file->gname.s);
+	if (file->gname.length > 0 &&
+	    archive_entry_copy_gname_l(entry, file->gname.s,
+		archive_strlen(&(file->gname)), xar->sconv) != 0) {
+		archive_set_error(&a->archive,
+		    ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Gname cannot be converted from %s to current locale.",
+		    archive_string_conversion_charset_name(xar->sconv));
+		r = ARCHIVE_WARN;
+	}
 	archive_entry_set_uid(entry, file->uid);
-	if (file->uname.length > 0)
-		archive_entry_set_uname(entry, file->uname.s);
+	if (file->uname.length > 0 &&
+	    archive_entry_copy_uname_l(entry, file->uname.s,
+		archive_strlen(&(file->uname)), xar->sconv) != 0) {
+		archive_set_error(&a->archive,
+		    ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Uname cannot be converted from %s to current locale.",
+		    archive_string_conversion_charset_name(xar->sconv));
+		r = ARCHIVE_WARN;
+	}
 	archive_entry_set_mode(entry, file->mode);
-	archive_entry_set_pathname(entry, file->pathname.s);
-	if (file->symlink.length > 0)
-		archive_entry_set_symlink(entry, file->symlink.s);
+	if (archive_entry_copy_pathname_l(entry, file->pathname.s,
+	    archive_strlen(&(file->pathname)), xar->sconv) != 0) {
+		archive_set_error(&a->archive,
+		    ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Pathname cannot be converted from %s to current locale.",
+		    archive_string_conversion_charset_name(xar->sconv));
+		r = ARCHIVE_WARN;
+	}
+
+
+	if (file->symlink.length > 0 &&
+	    archive_entry_copy_symlink_l(entry, file->symlink.s,
+		archive_strlen(&(file->symlink)), xar->sconv) != 0) {
+		archive_set_error(&a->archive,
+		    ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Linkname cannot be converted from %s to current locale.",
+		    archive_string_conversion_charset_name(xar->sconv));
+		r = ARCHIVE_WARN;
+	}
 	/* Set proper nlink. */
 	if ((file->mode & AE_IFMT) == AE_IFDIR)
 		archive_entry_set_nlink(entry, file->subdirs + 2);
@@ -732,7 +763,6 @@ xar_read_header(struct archive_read *a, struct archive_entry *entry)
 	/*
 	 * Read extended attributes.
 	 */
-	r = ARCHIVE_OK;
 	xattr = file->xattr_list;
 	while (xattr != NULL) {
 		const void *d;
@@ -775,27 +805,6 @@ xar_read_header(struct archive_read *a, struct archive_entry *entry)
 		r = move_reading_point(a, file->offset);
 	else
 		r = ARCHIVE_OK;
-
-	/* Report conversion failure. */
-	if (r > ARCHIVE_WARN && file->conversion_failed) {
-		const char *p;
-		if (file->conversion_failed & HAS_PATHNAME)
-			p = "Pathname";
-		else if (file->conversion_failed & HAS_SYMLINK)
-			p = "Symlink";
-		else if (file->conversion_failed & HAS_GID)
-			p = "Gname";
-		else if (file->conversion_failed & HAS_UID)
-			p = "Uname";
-		else
-			p = "?";
-		archive_set_error(&a->archive,
-		    ARCHIVE_ERRNO_FILE_FORMAT,
-		    "%s cannot be converted from %s to current locale.",
-		    p,
-		    archive_string_conversion_charset_name(xar->sconv));
-		r = ARCHIVE_WARN;
-	}
 
 	file_free(file);
 	return (r);
@@ -2575,8 +2584,8 @@ static const int base64[256] = {
 	-1, -1, -1, -1, -1, -1, -1, -1, /* F0 - FF */
 };
 
-static int
-strappend_base64(struct archive_read *a, struct xar *xar,
+static void
+strappend_base64(struct xar *xar,
     struct archive_string *as, const char *s, size_t l)
 {
 	unsigned char buff[256];
@@ -2621,10 +2630,8 @@ strappend_base64(struct archive_read *a, struct xar *xar,
 			out = buff;
 		}
 	}
-	if (len > 0 && archive_strncat_in_locale(as, (const char *)buff, len,
-	    xar->sconv) != 0)
-		return (-1);
-	return (0);
+	if (len > 0)
+		archive_strncat(as, (const char *)buff, len);
 }
 
 static void
@@ -2668,18 +2675,14 @@ xml_data(void *userData, const char *s, int len)
 		}
 		xar->file->has |= HAS_PATHNAME;
 		if (xar->base64text) {
-			if (strappend_base64(a, xar,
-				&(xar->file->pathname), s, len) != 0) {
-				xar->file->conversion_failed |= HAS_PATHNAME;
-			}
+			strappend_base64(xar,
+			    &(xar->file->pathname), s, len);
 		} else
 			archive_strncat(&(xar->file->pathname), s, len);
 		break;
 	case FILE_LINK:
 		xar->file->has |= HAS_SYMLINK;
-		if (archive_strncpy_in_locale(&(xar->file->symlink), s, len,
-		    xar->sconv) != 0)
-			xar->file->conversion_failed |= HAS_SYMLINK;
+		archive_strncpy(&(xar->file->symlink), s, len);
 		break;
 	case FILE_TYPE:
 		if (strncmp("file", s, len) == 0 ||
@@ -2730,9 +2733,7 @@ xml_data(void *userData, const char *s, int len)
 		break;
 	case FILE_GROUP:
 		xar->file->has |= HAS_GID;
-		if (archive_strncpy_in_locale(&(xar->file->gname), s, len,
-		    xar->sconv) != 0)
-			xar->file->conversion_failed |= HAS_GID;
+		archive_strncpy(&(xar->file->gname), s, len);
 		break;
 	case FILE_GID:
 		xar->file->has |= HAS_GID;
@@ -2740,9 +2741,7 @@ xml_data(void *userData, const char *s, int len)
 		break;
 	case FILE_USER:
 		xar->file->has |= HAS_UID;
-		if (archive_strncpy_in_locale(&(xar->file->uname), s, len,
-		    xar->sconv) != 0)
-			xar->file->conversion_failed |= HAS_UID;
+		archive_strncpy(&(xar->file->uname), s, len);
 		break;
 	case FILE_UID:
 		xar->file->has |= HAS_UID;
