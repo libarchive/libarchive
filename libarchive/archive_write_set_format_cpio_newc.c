@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_cpio_newc.c 201
 
 #include "archive.h"
 #include "archive_entry.h"
+#include "archive_entry_locale.h"
 #include "archive_private.h"
 #include "archive_write_private.h"
 
@@ -50,6 +51,8 @@ static int	archive_write_newc_free(struct archive_write *);
 static int	archive_write_newc_finish_entry(struct archive_write *);
 static int	archive_write_newc_header(struct archive_write *,
 		    struct archive_entry *);
+static int      archive_write_newc_options(struct archive_write *,
+		    const char *, const char *);
 static int	format_hex(int64_t, void *, int);
 static int64_t	format_hex_recursive(int64_t, char *, int);
 static int	write_header(struct archive_write *, struct archive_entry *);
@@ -57,6 +60,10 @@ static int	write_header(struct archive_write *, struct archive_entry *);
 struct cpio {
 	uint64_t	  entry_bytes_remaining;
 	int		  padding;
+
+	struct archive_string_conv *opt_sconv;
+	struct archive_string_conv *sconv_default;
+	int		  init_default_conversion;
 };
 
 struct cpio_header_newc {
@@ -103,6 +110,7 @@ archive_write_set_format_cpio_newc(struct archive *_a)
 	memset(cpio, 0, sizeof(*cpio));
 	a->format_data = cpio;
 	a->format_name = "cpio";
+	a->format_options = archive_write_newc_options;
 	a->format_write_header = archive_write_newc_header;
 	a->format_write_data = archive_write_newc_data;
 	a->format_finish_entry = archive_write_newc_finish_entry;
@@ -114,17 +122,67 @@ archive_write_set_format_cpio_newc(struct archive *_a)
 }
 
 static int
+archive_write_newc_options(struct archive_write *a, const char *key,
+    const char *val)
+{
+	struct cpio *cpio = (struct cpio *)a->format_data;
+	int ret = ARCHIVE_FAILED;
+
+	if (strcmp(key, "hdrcharset")  == 0) {
+		if (val == NULL || val[0] == 0)
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "%s: hdrcharset option needs a character-set name",
+			    a->format_name);
+		else {
+			cpio->opt_sconv = archive_string_conversion_to_charset(
+			    &a->archive, val, 0);
+			if (cpio->opt_sconv != NULL)
+				ret = ARCHIVE_OK;
+			else
+				ret = ARCHIVE_FATAL;
+		}
+	} else
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "%s: unknown keyword ``%s''", a->format_name, key);
+
+	return (ret);
+}
+
+static struct archive_string_conv *
+get_sconv(struct archive_write *a)
+{
+	struct cpio *cpio;
+	struct archive_string_conv *sconv;
+
+	cpio = (struct cpio *)a->format_data;
+	sconv = cpio->opt_sconv;
+	if (sconv == NULL) {
+		if (!cpio->init_default_conversion) {
+			cpio->sconv_default =
+			    archive_string_default_conversion_for_write(
+			      &(a->archive));
+			cpio->init_default_conversion = 1;
+		}
+		sconv = cpio->sconv_default;
+	}
+	return (sconv);
+}
+
+static int
 archive_write_newc_header(struct archive_write *a, struct archive_entry *entry)
 {
+	struct cpio *cpio;
 	const char *path;
+	size_t len;
 
 	if (archive_entry_filetype(entry) == 0) {
 		archive_set_error(&a->archive, -1, "Filetype required");
 		return (ARCHIVE_FAILED);
 	}
 
-	path = archive_entry_pathname(entry);
-	if (path == NULL || path[0] == '\0') {
+	cpio = (struct cpio *)a->format_data;
+	(void)archive_entry_pathname_l(entry, &path, &len, get_sconv(a));
+	if (len == 0 || path == NULL || path[0] == '\0') {
 		archive_set_error(&a->archive, -1, "Pathname required");
 		return (ARCHIVE_FAILED);
 	}
@@ -145,13 +203,23 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 	const char *p, *path;
 	int pathlength, ret, ret_final;
 	struct cpio_header_newc	 h;
+	struct archive_string_conv *sconv;
+	size_t len;
 	int pad;
 
 	cpio = (struct cpio *)a->format_data;
 	ret_final = ARCHIVE_OK;
+	sconv = get_sconv(a);
 
-	path = archive_entry_pathname(entry);
-	pathlength = (int)strlen(path) + 1; /* Include trailing null. */
+	ret = archive_entry_pathname_l(entry, &path, &len, sconv);
+	if (ret != 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Can't translate pathname '%s' to %s",
+		    archive_entry_pathname(entry),
+		    archive_string_conversion_charset_name(sconv));
+		ret_final = ARCHIVE_WARN;
+	}
+	pathlength = (int)len + 1; /* Include trailing null. */
 
 	memset(&h, 0, sizeof(h));
 	format_hex(0x070701, &h.c_magic, sizeof(h.c_magic));
@@ -190,8 +258,15 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 		archive_entry_set_size(entry, 0);
 
 	/* Symlinks get the link written as the body of the entry. */
-	p = archive_entry_symlink(entry);
-	if (p != NULL  &&  *p != '\0')
+	ret = archive_entry_symlink_l(entry, &p, &len, sconv);
+	if (ret != 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Can't translate linkname '%s' to %s",
+		    archive_entry_symlink(entry),
+		    archive_string_conversion_charset_name(sconv));
+		ret_final = ARCHIVE_WARN;
+	}
+	if (len > 0 && p != NULL  &&  *p != '\0')
 		ret = format_hex(strlen(p), &h.c_filesize,
 		    sizeof(h.c_filesize));
 	else
