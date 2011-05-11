@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_support_format_tar.c 201161
 #include "archive.h"
 #include "archive_acl_private.h" /* For ACL parsing routines. */
 #include "archive_entry.h"
+#include "archive_entry_locale.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
 
@@ -969,13 +970,9 @@ header_longname(struct archive_read *a, struct tar *tar,
 	err = tar_read_header(a, tar, entry, unconsumed);
 	if ((err != ARCHIVE_OK) && (err != ARCHIVE_WARN))
 		return (err);
-	if (tar->sconv != NULL) {
-		if (archive_strncpy_in_locale(&(tar->localname),
-		    tar->longname.s, tar->longname.length, tar->sconv) != 0)
-			err = set_conversion_failed_error(a, tar->sconv, "Pathname");
-		archive_entry_copy_pathname(entry, tar->localname.s);
-	} else
-		archive_entry_copy_pathname(entry, tar->longname.s);
+	if (archive_entry_copy_pathname_l(entry, tar->longname.s,
+	    archive_strlen(&(tar->longname)), tar->sconv) != 0)
+		err = set_conversion_failed_error(a, tar->sconv, "Pathname");
 	return (err);
 }
 
@@ -1054,12 +1051,10 @@ header_common(struct archive_read *a, struct tar *tar,
 	int     err = ARCHIVE_OK;
 
 	header = (const struct archive_entry_header_ustar *)h;
-	if (header->linkname[0]) {
-		if (archive_strncpy_in_locale(&(tar->entry_linkpath),
-		    header->linkname, sizeof(header->linkname),
-		    tar->sconv) != 0)
-			err = set_conversion_failed_error(a, tar->sconv, "Linkname");
-	} else
+	if (header->linkname[0])
+		archive_strncpy(&(tar->entry_linkpath),
+		    header->linkname, sizeof(header->linkname));
+	else
 		archive_string_empty(&(tar->entry_linkpath));
 
 	/* Parse out the numeric fields (all are octal) */
@@ -1082,7 +1077,10 @@ header_common(struct archive_read *a, struct tar *tar,
 
 	switch (tartype) {
 	case '1': /* Hard link */
-		archive_entry_copy_hardlink(entry, tar->entry_linkpath.s);
+		if (archive_entry_copy_hardlink_l(entry, tar->entry_linkpath.s,
+		    archive_strlen(&(tar->entry_linkpath)), tar->sconv) != 0)
+			err = set_conversion_failed_error(a, tar->sconv,
+			    "Linkname");
 		/*
 		 * The following may seem odd, but: Technically, tar
 		 * does not store the file type for a "hard link"
@@ -1144,7 +1142,10 @@ header_common(struct archive_read *a, struct tar *tar,
 		archive_entry_set_filetype(entry, AE_IFLNK);
 		archive_entry_set_size(entry, 0);
 		tar->entry_bytes_remaining = 0;
-		archive_entry_copy_symlink(entry, tar->entry_linkpath.s);
+		if (archive_entry_copy_symlink_l(entry, tar->entry_linkpath.s,
+		    archive_strlen(&(tar->entry_linkpath)), tar->sconv) != 0)
+			err = set_conversion_failed_error(a, tar->sconv,
+			    "Linkname");
 		break;
 	case '3': /* Character device */
 		archive_entry_set_filetype(entry, AE_IFCHR);
@@ -1217,10 +1218,9 @@ header_old_tar(struct archive_read *a, struct tar *tar,
 
 	/* Copy filename over (to ensure null termination). */
 	header = (const struct archive_entry_header_ustar *)h;
-	if (archive_strncpy_in_locale(&(tar->entry_pathname),
+	if (archive_entry_copy_pathname_l(entry,
 	    header->name, sizeof(header->name), tar->sconv) != 0)
 		err = set_conversion_failed_error(a, tar->sconv, "Pathname");
-	archive_entry_copy_pathname(entry, tar->entry_pathname.s);
 
 	/* Grab rest of common fields */
 	err2 = header_common(a, tar, entry, h);
@@ -1342,28 +1342,23 @@ header_ustar(struct archive_read *a, struct tar *tar,
 {
 	const struct archive_entry_header_ustar	*header;
 	struct archive_string *as;
-	int err = ARCHIVE_OK, r, r2;
+	int err = ARCHIVE_OK, r;
 
 	header = (const struct archive_entry_header_ustar *)h;
 
 	/* Copy name into an internal buffer to ensure null-termination. */
 	as = &(tar->entry_pathname);
 	if (header->prefix[0]) {
-		r = archive_strncpy_in_locale(as, header->prefix,
-		    sizeof(header->prefix), tar->sconv);
+		archive_strncpy(as, header->prefix, sizeof(header->prefix));
 		if (as->s[archive_strlen(as) - 1] != '/')
 			archive_strappend_char(as, '/');
-		r2 = archive_strncat_in_locale(as, header->name,
-		    sizeof(header->name), tar->sconv);
+		archive_strncat(as, header->name, sizeof(header->name));
 	} else {
-		r = archive_strncpy_in_locale(as, header->name,
-		    sizeof(header->name), tar->sconv);
-		r2 = 0;
+		archive_strncpy(as, header->name, sizeof(header->name));
 	}
-	if (r != 0 || r2 != 0)
+	if (archive_entry_copy_pathname_l(entry, as->s, archive_strlen(as),
+	    tar->sconv) != 0)
 		err = set_conversion_failed_error(a, tar->sconv, "Pathname");
-
-	archive_entry_copy_pathname(entry, as->s);
 
 	/* Handle rest of common fields. */
 	r = header_common(a, tar, entry, h);
@@ -1371,17 +1366,13 @@ header_ustar(struct archive_read *a, struct tar *tar,
 		err = r;
 
 	/* Handle POSIX ustar fields. */
-	r = archive_strncpy_in_locale(&(tar->entry_uname),
-	    header->uname, sizeof(header->uname), tar->sconv);
-	if (r != 0)
+	if (archive_entry_copy_uname_l(entry,
+	    header->uname, sizeof(header->uname), tar->sconv) != 0)
 		err = set_conversion_failed_error(a, tar->sconv, "Uname");
-	archive_entry_copy_uname(entry, tar->entry_uname.s);
 
-	r = archive_strncpy_in_locale(&(tar->entry_gname),
-	    header->gname, sizeof(header->gname), tar->sconv);
-	if (r != 0)
+	if (archive_entry_copy_gname_l(entry,
+	    header->gname, sizeof(header->gname), tar->sconv) != 0)
 		err = set_conversion_failed_error(a, tar->sconv, "Gname");
-	archive_entry_copy_gname(entry, tar->entry_gname.s);
 
 	/* Parse out device numbers only for char and block specials. */
 	if (header->typeflag[0] == '3' || header->typeflag[0] == '4') {
@@ -1409,6 +1400,7 @@ pax_header(struct archive_read *a, struct tar *tar,
 	size_t attr_length, l, line_length;
 	char *p;
 	char *key, *value;
+	struct archive_string *as;
 	struct archive_string_conv *sconv;
 	int err, err2;
 
@@ -1515,30 +1507,20 @@ pax_header(struct archive_read *a, struct tar *tar,
 	}
 
 	if (archive_strlen(&(tar->entry_gname)) > 0) {
-		value = tar->entry_gname.s;
-		if (sconv != NULL) {
-			if (archive_strcpy_in_locale(&(tar->localname),
-			    value, sconv) != 0)
-				err = set_conversion_failed_error(a, sconv,
-				    "Gname");
-			else
-				/* Use a converted name. */
-				value = tar->localname.s;
+		if (archive_entry_copy_gname_l(entry, tar->entry_gname.s,
+		    archive_strlen(&(tar->entry_gname)), sconv) != 0) {
+			err = set_conversion_failed_error(a, sconv, "Gname");
+			/* Use a converted an original name. */
+			archive_entry_copy_gname(entry, tar->entry_gname.s);
 		}
-		archive_entry_copy_gname(entry, value);
 	}
 	if (archive_strlen(&(tar->entry_linkpath)) > 0) {
-		value = tar->entry_linkpath.s;
-		if (sconv != NULL) {
-			if (archive_strcpy_in_locale(&(tar->localname),
-			    value, sconv) != 0)
-				err = set_conversion_failed_error(a, sconv,
-				    "Linkname");
-			else
-				/* Use a converted name. */
-				value = tar->localname.s;
+		if (archive_entry_copy_link_l(entry, tar->entry_linkpath.s,
+		    archive_strlen(&(tar->entry_linkpath)), sconv) != 0) {
+			err = set_conversion_failed_error(a, sconv, "Linkname");
+			/* Use a converted an original name. */
+			archive_entry_copy_link(entry, tar->entry_linkpath.s);
 		}
-		archive_entry_copy_link(entry, value);
 	}
 	/*
 	 * Some extensions (such as the GNU sparse file extensions)
@@ -1549,35 +1531,26 @@ pax_header(struct archive_read *a, struct tar *tar,
 	 * we find and figure it all out afterwards.  This is the
 	 * figuring out part.
 	 */
-	value = NULL;
+	as = NULL;
 	if (archive_strlen(&(tar->entry_pathname_override)) > 0)
-		value = tar->entry_pathname_override.s;
+		as = &(tar->entry_pathname_override);
 	else if (archive_strlen(&(tar->entry_pathname)) > 0)
-		value = tar->entry_pathname.s;
-	if (value != NULL) {
-		if (sconv != NULL) {
-			if (archive_strcpy_in_locale(&(tar->localname),
-			    value, sconv) != 0)
-				err = set_conversion_failed_error(a, sconv,
-				    "Pathname");
-			else
-				/* Use a converted name. */
-				value = tar->localname.s;
+		as = &(tar->entry_pathname);
+	if (as != NULL) {
+		if (archive_entry_copy_pathname_l(entry, as->s,
+		    archive_strlen(as), sconv) != 0) {
+			err = set_conversion_failed_error(a, sconv, "Pathname");
+			/* Use a converted an original name. */
+			archive_entry_copy_pathname(entry, as->s);
 		}
-		archive_entry_copy_pathname(entry, value);
 	}
 	if (archive_strlen(&(tar->entry_uname)) > 0) {
-		value = tar->entry_uname.s;
-		if (sconv != NULL) {
-			if (archive_strcpy_in_locale(&(tar->localname),
-			    value, sconv) != 0)
-				err = set_conversion_failed_error(a, sconv,
-				    "Uname");
-			else
-				/* Use a converted name. */
-				value = tar->localname.s;
+		if (archive_entry_copy_uname_l(entry, tar->entry_uname.s,
+		    archive_strlen(&(tar->entry_uname)), sconv) != 0) {
+			err = set_conversion_failed_error(a, sconv, "Uname");
+			/* Use a converted an original name. */
+			archive_entry_copy_uname(entry, tar->entry_uname.s);
 		}
-		archive_entry_copy_uname(entry, value);
 	}
 	return (err);
 }
@@ -1930,7 +1903,7 @@ header_gnutar(struct archive_read *a, struct tar *tar,
 {
 	const struct archive_entry_header_gnutar *header;
 	int64_t t;
-	int err = ARCHIVE_OK, r;
+	int err = ARCHIVE_OK;
 
 	/*
 	 * GNU header is like POSIX ustar, except 'prefix' is
@@ -1943,27 +1916,21 @@ header_gnutar(struct archive_read *a, struct tar *tar,
 
 	/* Copy filename over (to ensure null termination). */
 	header = (const struct archive_entry_header_gnutar *)h;
-	r = archive_strncpy_in_locale(&(tar->entry_pathname),
-	    header->name, sizeof(header->name), tar->sconv);
-	if (r != 0)
+	if (archive_entry_copy_pathname_l(entry,
+	    header->name, sizeof(header->name), tar->sconv) != 0)
 		err = set_conversion_failed_error(a, tar->sconv, "Pathname");
-	archive_entry_copy_pathname(entry, tar->entry_pathname.s);
 
 	/* Fields common to ustar and GNU */
 	/* XXX Can the following be factored out since it's common
 	 * to ustar and gnu tar?  Is it okay to move it down into
 	 * header_common, perhaps?  */
-	r = archive_strncpy_in_locale(&(tar->entry_uname),
-	    header->uname, sizeof(header->uname), tar->sconv);
-	if (r != 0)
+	if (archive_entry_copy_uname_l(entry,
+	    header->uname, sizeof(header->uname), tar->sconv) != 0)
 		err = set_conversion_failed_error(a, tar->sconv, "Uname");
-	archive_entry_copy_uname(entry, tar->entry_uname.s);
 
-	r = archive_strncpy_in_locale(&(tar->entry_gname),
-	    header->gname, sizeof(header->gname), tar->sconv);
-	if (r != 0)
+	if (archive_entry_copy_gname_l(entry,
+	    header->gname, sizeof(header->gname), tar->sconv) != 0)
 		err = set_conversion_failed_error(a, tar->sconv, "Gname");
-	archive_entry_copy_gname(entry, tar->entry_gname.s);
 
 	/* Parse out device numbers only for char and block specials */
 	if (header->typeflag[0] == '3' || header->typeflag[0] == '4') {
