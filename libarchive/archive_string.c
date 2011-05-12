@@ -101,6 +101,7 @@ struct archive_string_conv {
 					 * Before UTF-8 characters are actually
 					 * processed.
 					 * Currently this only for MAC OS X. */
+#define SCONV_TO_UTF8		512	/* MBS/WCS being converted to UTF-8. */
 
 #if HAVE_ICONV
 	iconv_t				 cd;
@@ -876,6 +877,16 @@ create_sconv_object(const char *fc, const char *tc,
 		sc->same = 0;
 
 	/*
+	 * Mark if "to charset" is UTF-8.
+	 */
+	if (strcmp(tc, "UTF-8") == 0)
+		flag |= SCONV_TO_UTF8;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	if (sc->to_cp == CP_UTF8)
+		flag |= SCONV_TO_UTF8;
+#endif
+
+	/*
 	 * Copy UTF-8 string in checking CESU-8 including surrogate pair.
 	 */
 	if (sc->same && strcmp(fc, "UTF-8") == 0)
@@ -1575,7 +1586,7 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 	inp = (char *)(uintptr_t)src;
 	remaining = length;
 	outp = as->s + as->length;
-	avail = as->buffer_length -1;
+	avail = as->buffer_length - as->length -1;
 	while (remaining > 0) {
 		size_t result = iconv(cd, &inp, &remaining, &outp, &avail);
 
@@ -1584,9 +1595,28 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 			as->length = outp - as->s;
 			break; /* Conversion completed. */
 		} else if (errno == EILSEQ || errno == EINVAL) {
-			/* Skip the illegal input bytes. */
-			*outp++ = '?';
-			avail--;
+			if (sc->flag & SCONV_TO_UTF8) {
+				/*
+				 * Unkonwn character should be U+FFFD
+				 * (replacement character).
+				 */
+				if (avail < 3) {
+					as->length = outp - as->s;
+					archive_string_ensure(as,
+					    as->buffer_length * 2);
+					outp = as->s + as->length;
+					avail = as->buffer_length
+					    - as->length -1;
+				}
+				*outp++ = 0xef;
+				*outp++ = 0xbf;
+				*outp++ = 0xbd;
+				avail -= 3;
+			} else {
+				/* Skip the illegal input bytes. */
+				*outp++ = '?';
+				avail--;
+			}
 			inp++;
 			remaining--;
 			return_value = -1; /* failure */
@@ -1739,8 +1769,60 @@ is_all_ascii_code(struct archive_string *as)
 }
 
 /*
- * Basically returns -1 because we cannot make a conversion of charset.
+ * If a character is non-ASCII this assigns U+FFFD(0xef, 0xbd, 0xbd) for it,
+ * and copy the reuslt.
+ */
+static int
+best_effort_strncat_to_utf8(struct archive_string *as, const char *p,
+    size_t length)
+{
+	size_t remaining;
+	char *outp;
+	size_t avail;
+	int return_value = 0; /* success */
+
+	if (archive_string_ensure(as, as->length + length + 1) == NULL)
+		__archive_errx(1, "Out of memory");
+
+	remaining = length;
+	outp = as->s + as->length;
+	avail = as->buffer_length - as->length -1;
+	while (*p && remaining > 0) {
+		if (*p < 0) {
+			if (avail < remaining + 2) {
+				as->length = outp - as->s;
+				archive_string_ensure(as,
+				    as->buffer_length + remaining);
+				outp = as->s + as->length;
+				avail = as->buffer_length - as->length -1;
+			}
+			/*
+			 * Unknown character should be U+FFFD
+			 * (replacement character).
+			 */
+			*outp++ = 0xef;
+			*outp++ = 0xbf;
+			*outp++ = 0xbd;
+			avail -= 3;
+			p++;
+			remaining--;
+			return_value = -1;
+		} else {
+			*outp++ = *p++;
+			remaining--;
+		}
+	}
+	as->length = outp - as->s;
+	as->s[as->length] = '\0';
+	return (return_value);
+}
+
+/*
+ * Basically returns -1 because we cannot make a conversion of charset
+ * but in some cases this would return 0.
  * Returns 0 if sc is NULL.
+ * Returns 0 if all copied characters are ASCII.
+ * Returns 0 if running on Windows and converting characters is successful.
  */
 static int
 best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
@@ -1770,6 +1852,12 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 				return (strncat_from_utf8_to_utf8(
 				    as, _p, length));
 		}
+
+		/*
+		 * Copy a string in UTF-8.
+		 */
+		if (sc->flag & SCONV_TO_UTF8)
+			return (best_effort_strncat_to_utf8(as, _p, length));
 	}
 
 	archive_string_append(as, _p, length);
