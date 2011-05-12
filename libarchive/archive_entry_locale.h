@@ -61,6 +61,10 @@ int _archive_entry_symlink_l(struct archive_entry *,
 #define archive_entry_uname_l	_archive_entry_uname_l
 int _archive_entry_uname_l(struct archive_entry *,
     const char **, size_t *, struct archive_string_conv *);
+#define archive_entry_acl_text_l _archive_entry_acl_text_l
+int _archive_entry_acl_text_l(struct archive_entry *, int,
+    const char **, size_t *, struct archive_string_conv *);
+
 
 #define archive_entry_copy_gname_l	_archive_entry_copy_gname_l
 int _archive_entry_copy_gname_l(struct archive_entry *,

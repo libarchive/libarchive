@@ -54,7 +54,6 @@ struct pax {
 	uint64_t	entry_bytes_remaining;
 	uint64_t	entry_padding;
 	struct archive_string	l_url_encoded_name;
-	struct archive_string	l_acl_utf8;
 	struct archive_string	pax_header;
 	struct archive_string	sparse_map;
 	size_t			sparse_map_padding;
@@ -922,37 +921,31 @@ archive_write_pax_header(struct archive_write *a,
 			add_pax_attr(&(pax->pax_header), "SCHILY.fflags", p);
 
 		/* I use star-compatible ACL attributes. */
-		p = archive_entry_acl_text(entry_original,
+		r = archive_entry_acl_text_l(entry_original,
 		    ARCHIVE_ENTRY_ACL_TYPE_ACCESS |
-		    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID);
-		if (p != NULL && *p != '\0') {
-			r = archive_strcpy_in_locale(
-			    &(pax->l_acl_utf8), p, pax->sconv_utf8);
-			if (r != 0) {
-				archive_set_error(&a->archive,
-				    ARCHIVE_ERRNO_FILE_FORMAT,
-				    "Can't translate ACL.access to UTF-8");
-				ret = ARCHIVE_WARN;
-			} else {
-				add_pax_attr(&(pax->pax_header),
-				    "SCHILY.acl.access", pax->l_acl_utf8.s);
-			}
+		    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID,
+		    &p, NULL, pax->sconv_utf8);
+		if (r != 0) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Can't translate ACL.access to UTF-8");
+			ret = ARCHIVE_WARN;
+		} else if (p != NULL && *p != '\0') {
+			add_pax_attr(&(pax->pax_header),
+			    "SCHILY.acl.access", p);
 		}
-		p = archive_entry_acl_text(entry_original,
+		r = archive_entry_acl_text_l(entry_original,
 		    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT |
-		    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID);
-		if (p != NULL && *p != '\0') {
-			r = archive_strcpy_in_locale(
-			    &(pax->l_acl_utf8), p, pax->sconv_utf8);
-			if (r != 0) {
-				archive_set_error(&a->archive,
-				    ARCHIVE_ERRNO_FILE_FORMAT,
-				    "Can't translate ACL.default to UTF-8");
-				ret = ARCHIVE_WARN;
-			} else {
-				add_pax_attr(&(pax->pax_header),
-				    "SCHILY.acl.default", pax->l_acl_utf8.s);
-			}
+		    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID,
+		    &p, NULL, pax->sconv_utf8);
+		if (r != 0) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Can't translate ACL.default to UTF-8");
+			ret = ARCHIVE_WARN;
+		} else if (p != NULL && *p != '\0') {
+			add_pax_attr(&(pax->pax_header),
+			    "SCHILY.acl.default", p);
 		}
 
 		/* We use GNU-tar-compatible sparse attributes. */
@@ -1472,7 +1465,6 @@ archive_write_pax_free(struct archive_write *a)
 	archive_string_free(&pax->pax_header);
 	archive_string_free(&pax->sparse_map);
 	archive_string_free(&pax->l_url_encoded_name);
-	archive_string_free(&pax->l_acl_utf8);
 	sparse_list_clear(pax);
 	free(pax);
 	a->format_data = NULL;

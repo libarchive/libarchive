@@ -150,10 +150,12 @@ archive_acl_add_entry_w_len(struct archive_acl *acl,
 }
 
 int
-archive_acl_add_entry_len(struct archive_acl *acl,
-    int type, int permset, int tag, int id, const char *name, size_t len)
+archive_acl_add_entry_len_l(struct archive_acl *acl,
+    int type, int permset, int tag, int id, const char *name, size_t len,
+    struct archive_string_conv *sc)
 {
 	struct archive_acl_entry *ap;
+	int r;
 
 	if (acl_special(acl, type, permset, tag) == 0)
 		return ARCHIVE_OK;
@@ -162,11 +164,13 @@ archive_acl_add_entry_len(struct archive_acl *acl,
 		/* XXX Error XXX */
 		return ARCHIVE_FAILED;
 	}
-	if (name != NULL  &&  *name != '\0' && len > 0)
-		archive_mstring_copy_mbs_len(&ap->name, name, len);
-	else
+	if (name != NULL  &&  *name != '\0' && len > 0) {
+		r = archive_mstring_copy_mbs_len_l(&ap->name, name, len, sc);
+	} else {
+		r = 0;
 		archive_mstring_clean(&ap->name);
-	return ARCHIVE_OK;
+	}
+	return ((r == 0)? ARCHIVE_OK: ARCHIVE_WARN);
 }
 
 /*
@@ -596,8 +600,10 @@ append_entry_w(wchar_t **wp, const wchar_t *prefix, int tag,
 	**wp = L'\0';
 }
 
-const char *
-archive_acl_text(struct archive *a, struct archive_acl *acl, int flags)
+int
+archive_acl_text_l(struct archive_acl *acl, int flags,
+    const char **acl_text, size_t *acl_text_len,
+    struct archive_string_conv *sc)
 {
 	int count;
 	size_t length;
@@ -605,7 +611,8 @@ archive_acl_text(struct archive *a, struct archive_acl *acl, int flags)
 	const char *prefix;
 	char separator;
 	struct archive_acl_entry *ap;
-	int id;
+	size_t len;
+	int id, r;
 	char *p;
 
 	if (acl->acl_text != NULL) {
@@ -613,6 +620,9 @@ archive_acl_text(struct archive *a, struct archive_acl *acl, int flags)
 		acl->acl_text = NULL;
 	}
 
+	*acl_text = NULL;
+	if (acl_text_len != NULL)
+		*acl_text_len = 0;
 	separator = ',';
 	count = 0;
 	length = 0;
@@ -625,9 +635,12 @@ archive_acl_text(struct archive *a, struct archive_acl *acl, int flags)
 				length += 8; /* "default:" */
 			length += 5; /* tag name */
 			length += 1; /* colon */
-			if (archive_mstring_get_mbs(a, &ap->name, &name) == 0 &&
-			    name != NULL)
-				length += strlen(name);
+			r = archive_mstring_get_mbs_l(
+			    &ap->name, &name, &len, sc);
+			if (r != 0)
+				return (-1);
+			if (len > 0 && name != NULL)
+				length += len;
 			else
 				length += sizeof(uid_t) * 3 + 1;
 			length ++; /* colon */
@@ -646,7 +659,7 @@ archive_acl_text(struct archive *a, struct archive_acl *acl, int flags)
 	}
 
 	if (count == 0)
-		return (NULL);
+		return (0);
 
 	/* Now, allocate the string and actually populate it. */
 	p = acl->acl_text = (char *)malloc(length);
@@ -664,20 +677,21 @@ archive_acl_text(struct archive *a, struct archive_acl *acl, int flags)
 		    acl->mode & 0007, -1);
 		count += 3;
 
-		ap = acl->acl_head;
-		while (ap != NULL) {
-			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0 &&
-				archive_mstring_get_mbs(a, &ap->name, &name) == 0) {
-				*p++ = separator;
-				if (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)
-					id = ap->id;
-				else
-					id = -1;
-				append_entry(&p, NULL, ap->tag, name,
-				    ap->permset, id);
-				count++;
-			}
-			ap = ap->next;
+		for (ap = acl->acl_head; ap != NULL; ap = ap->next) {
+			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) == 0)
+				continue;
+			r = archive_mstring_get_mbs_l(
+			    &ap->name, &name, &len, sc);
+			if (r != 0)
+				return (-1);
+			*p++ = separator;
+			if (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)
+				id = ap->id;
+			else
+				id = -1;
+			append_entry(&p, NULL, ap->tag, name,
+			    ap->permset, id);
+			count++;
 		}
 	}
 
@@ -687,26 +701,30 @@ archive_acl_text(struct archive *a, struct archive_acl *acl, int flags)
 			prefix = "default:";
 		else
 			prefix = NULL;
-		ap = acl->acl_head;
 		count = 0;
-		while (ap != NULL) {
-			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) != 0 &&
-				archive_mstring_get_mbs(a, &ap->name, &name) == 0) {
-				if (count > 0)
-					*p++ = separator;
-				if (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)
-					id = ap->id;
-				else
-					id = -1;
-				append_entry(&p, prefix, ap->tag,
-				    name, ap->permset, id);
-				count ++;
-			}
-			ap = ap->next;
+		for (ap = acl->acl_head; ap != NULL; ap = ap->next) {
+			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) == 0)
+				continue;
+			r = archive_mstring_get_mbs_l(
+			    &ap->name, &name, &len, sc);
+			if (r != 0)
+				return (-1);
+			if (count > 0)
+				*p++ = separator;
+			if (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)
+				id = ap->id;
+			else
+				id = -1;
+			append_entry(&p, prefix, ap->tag,
+			    name, ap->permset, id);
+			count ++;
 		}
 	}
 
-	return (acl->acl_text);
+	*acl_text = acl->acl_text;
+	if (acl_text_len != NULL)
+		*acl_text_len = strlen(acl->acl_text);
+	return (0);
 }
 
 static void
@@ -1011,15 +1029,15 @@ prefix_w(const wchar_t *start, const wchar_t *end, const wchar_t *test)
  * explicitly marked as "default:".
  */
 int
-archive_acl_parse(struct archive_acl *acl,
-    const char *text, int default_type)
+archive_acl_parse_l(struct archive_acl *acl,
+    const char *text, int default_type, struct archive_string_conv *sc)
 {
 	struct {
 		const char *start;
 		const char *end;
 	} field[4], name;
 
-	int fields, n;
+	int fields, n, r, ret = ARCHIVE_OK;
 	int type, tag, permset, id;
 	char sep;
 
@@ -1108,10 +1126,14 @@ archive_acl_parse(struct archive_acl *acl,
 			return (ARCHIVE_WARN);
 
 		/* Add entry to the internal list. */
-		archive_acl_add_entry_len(acl, type, permset,
-		    tag, id, name.start, name.end - name.start);
+		r = archive_acl_add_entry_len_l(acl, type, permset,
+		    tag, id, name.start, name.end - name.start, sc);
+		if (r < ARCHIVE_WARN)
+			return (r);
+		if (r != ARCHIVE_OK)
+			ret = ARCHIVE_WARN;
 	}
-	return (ARCHIVE_OK);
+	return (ret);
 }
 
 /*
