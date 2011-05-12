@@ -107,16 +107,37 @@ test_read_format_cab_filename_CP932_UTF8(const char *refname)
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualUTF8String("\xe8\xa1\xa8\xe3\x81\xa0\xe3\x82\x88\x2f"
+#if defined(__APPLE__)
+	/* Compare NFD string. */
+	assertEqualUTF8String(
+	    "\xe8\xa1\xa8\xe3\x81\x9f\xe3\x82\x99\xe3\x82\x88\x2f"
 	    "\xe6\xbc\xa2\xe5\xad\x97\x2e\x74\x78\x74",
 	    archive_entry_pathname(ae));
 	assertEqualInt(5, archive_entry_size(ae));
+#else
+	/* Compare NFC string. */
+	assertEqualUTF8String(
+	    "\xe8\xa1\xa8\xe3\x81\xa0\xe3\x82\x88\x2f"
+	    "\xe6\xbc\xa2\xe5\xad\x97\x2e\x74\x78\x74",
+	    archive_entry_pathname(ae));
+	assertEqualInt(5, archive_entry_size(ae));
+#endif
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualUTF8String("\xe8\xa1\xa8\xe3\x81\xa0\xe3\x82\x88\x2f"
+#if defined(__APPLE__)
+	/* Compare NFD string. */
+	assertEqualUTF8String(
+	    "\xe8\xa1\xa8\xe3\x81\x9f\xe3\x82\x99\xe3\x82\x88\x2f"
 	    "\xe4\xb8\x80\xe8\xa6\xa7\xe8\xa1\xa8\x2e\x74\x78\x74",
 	    archive_entry_pathname(ae));
+#else
+	/* Compare NFC string. */
+	assertEqualUTF8String(
+	    "\xe8\xa1\xa8\xe3\x81\xa0\xe3\x82\x88\x2f"
+	    "\xe4\xb8\x80\xe8\xa6\xa7\xe8\xa1\xa8\x2e\x74\x78\x74",
+	    archive_entry_pathname(ae));
+#endif
 	assertEqualInt(5, archive_entry_size(ae));
 
 
