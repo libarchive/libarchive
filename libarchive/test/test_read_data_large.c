@@ -84,7 +84,7 @@ DEFINE_TEST(test_read_data_large)
 	failure("Wrote 10MB, but didn't read the same amount");
 	assertEqualIntA(a, sizeof(buff2),archive_read_data(a, buff3, sizeof(buff3)));
 	failure("Read expected 10MB, but data read didn't match what was written");
-	assert(0 == memcmp(buff2, buff3, sizeof(buff3)));
+	assertEqualMem(buff2, buff3, sizeof(buff3));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
@@ -109,5 +109,5 @@ DEFINE_TEST(test_read_data_large)
 	assert(f != NULL);
 	assertEqualInt(sizeof(buff3), fread(buff3, 1, sizeof(buff3), f));
 	fclose(f);
-	assert(0 == memcmp(buff2, buff3, sizeof(buff3)));
+	assertEqualMem(buff2, buff3, sizeof(buff3));
 }

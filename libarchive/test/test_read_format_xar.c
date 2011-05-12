@@ -99,7 +99,7 @@ static void verify0(struct archive *a, struct archive_entry *ae)
 	assertEqualInt(archive_read_data_block(a, &p, &size, &offset), 0);
 	assertEqualInt((int)size, 16);
 	assertEqualInt((int)offset, 0);
-	assertEqualInt(memcmp(p, "hellohellohello\n", 16), 0);
+	assertEqualMem(p, "hellohellohello\n", 16);
 }
 
 static void verify1(struct archive *a, struct archive_entry *ae)

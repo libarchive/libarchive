@@ -186,7 +186,7 @@ test_format(int	(*set_format)(struct archive *))
 	assertEqualInt((S_IFREG | 0755), archive_entry_mode(ae));
 	assertEqualInt(8, archive_entry_size(ae));
 	assertA(8 == archive_read_data(a, filedata, 10));
-	assert(0 == memcmp(filedata, "12345678", 8));
+	assertEqualMem(filedata, "12345678", 8);
 
 	/*
 	 * The second file can't be read because we damaged its header.

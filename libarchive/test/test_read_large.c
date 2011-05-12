@@ -67,7 +67,7 @@ DEFINE_TEST(test_read_large)
 	assertA(0 == archive_read_next_header(a, &entry));
 	assertA(0 == archive_read_data_into_buffer(a, testdatacopy, sizeof(testdatacopy)));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-	assert(0 == memcmp(testdata, testdatacopy, sizeof(testdata)));
+	assertEqualMem(testdata, testdatacopy, sizeof(testdata));
 
 
 	assert(NULL != (a = archive_read_new()));
@@ -89,5 +89,5 @@ DEFINE_TEST(test_read_large)
 	assertEqualInt(sizeof(testdatacopy),
 	    fread(testdatacopy, 1, sizeof(testdatacopy), f));
 	fclose(f);
-	assert(0 == memcmp(testdata, testdatacopy, sizeof(testdata)));
+	assertEqualMem(testdata, testdatacopy, sizeof(testdata));
 }

@@ -38,7 +38,7 @@ DEFINE_TEST(test_archive_api_feature)
 	    archive_version_number() % 1000);
 	failure("Version string is: %s, computed is: %s",
 	    archive_version_string(), buff);
-	assert(memcmp(buff, archive_version_string(), strlen(buff)) == 0);
+	assertEqualMem(buff, archive_version_string(), strlen(buff));
 	if (strlen(buff) < strlen(archive_version_string())) {
 		p = archive_version_string() + strlen(buff);
 		failure("Version string is: %s", archive_version_string());

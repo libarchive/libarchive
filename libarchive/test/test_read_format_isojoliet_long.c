@@ -118,7 +118,7 @@ DEFINE_TEST(test_read_format_isojoliet_long)
 	assertEqualInt(0, archive_read_data_block(a, &p, &size, &offset));
 	assertEqualInt(6, (int)size);
 	assertEqualInt(0, offset);
-	assertEqualInt(0, memcmp(p, "hello\n", 6));
+	assertEqualMem(p, "hello\n", 6);
 
 	/* Second name for the same regular file (this happens to be
 	 * returned second, so does get marked as a hardlink). */

@@ -58,7 +58,7 @@ DEFINE_TEST(test_read_format_ar)
 	assertEqualInt(0, archive_entry_gid(ae));
 	assert(8 == archive_entry_size(ae));
 	assertA(8 == archive_read_data(a, buff, 10));
-	assert(0 == memcmp(buff, "55667788", 8));
+	assertEqualMem(buff, "55667788", 8);
 
 	/* Second Entry */
 	assertA(0 == archive_read_next_header(a, &ae));
@@ -68,7 +68,7 @@ DEFINE_TEST(test_read_format_ar)
 	assertEqualInt(0, archive_entry_gid(ae));
 	assert(4 == archive_entry_size(ae));
 	assertA(4 == archive_read_data(a, buff, 10));
-	assert(0 == memcmp(buff, "3333", 4));
+	assertEqualMem(buff, "3333", 4);
 
 	/* Third Entry */
 	assertA(0 == archive_read_next_header(a, &ae));
@@ -78,7 +78,7 @@ DEFINE_TEST(test_read_format_ar)
 	assertEqualInt(0, archive_entry_gid(ae));
 	assert(9 == archive_entry_size(ae));
 	assertA(9 == archive_read_data(a, buff, 9));
-	assert(0 == memcmp(buff, "987654321", 9));
+	assertEqualMem(buff, "987654321", 9);
 
 	/* Test EOF */
 	assertA(1 == archive_read_next_header(a, &ae));
