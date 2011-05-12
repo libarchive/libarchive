@@ -25,6 +25,9 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_SYS_IOCTL_H
+#include <sys/ioctl.h>
+#endif
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
@@ -40,6 +43,12 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#ifdef HAVE_LINUX_FIEMAP_H
+#include <linux/fiemap.h>
+#endif
+#ifdef HAVE_LINUX_FS_H
+#include <linux/fs.h>
+#endif
 
 /*
  * NOTE: On FreeBSD and Solaris, this test needs ZFS.
@@ -51,6 +60,8 @@ struct sparse {
 	enum { DATA, HOLE, END } type;
 	size_t	size;
 };
+
+static void create_sparse_file(const char *, const struct sparse *);
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #include <winioctl.h>
@@ -142,7 +153,7 @@ is_sparse_supported(const char *path)
 	return (pathconf(path, _PC_MIN_HOLE_SIZE) > 0);
 }
 
-#elif defined(__linux__)
+#elif defined(__linux__)&& defined(HAVE_LINUX_FIEMAP_H)
 
 /*
  * FIEMAP, which can detect 'hole' of a sparse file, has
@@ -152,9 +163,19 @@ is_sparse_supported(const char *path)
 static int
 is_sparse_supported(const char *path)
 {
+	const struct sparse sparse_file[] = {
+ 		/* This hole size is too small to create a sparse
+		 * files for almost filesystem. */
+		{ HOLE,	 1024 }, { DATA, 10240 },
+		{ END,	0 }
+	};
 	struct utsname ut;
 	char *p, *e;
 	long d;
+	int fd, r;
+	struct fiemap *fm;
+	char buff[1024];
+	const char *testfile = "can_sparse";
 
 	memset(&ut, 0, sizeof(ut));
 	assertEqualInt(uname(&ut), 0);
@@ -168,7 +189,24 @@ is_sparse_supported(const char *path)
 		return (0);
 	p = e + 1;
 	d = strtol(p, NULL, 10);
-	return (d >= 28);
+	if (d < 28)
+		return (0);
+	create_sparse_file(testfile, sparse_file);
+	fd = open(testfile,  O_RDWR);
+	if (fd < 0)
+		return (0);
+	fm = (struct fiemap *)buff;
+	fm->fm_start = 0;
+	fm->fm_length = ~0ULL;;
+	fm->fm_flags = FIEMAP_FLAG_SYNC;
+	fm->fm_extent_count = (sizeof(buff) - sizeof(*fm))/
+		sizeof(struct fiemap_extent);
+	r = ioctl(fd, FS_IOC_FIEMAP, fm);
+	if (r < 0 && (errno == ENOTTY || errno == EOPNOTSUPP))
+		return (0);/* Not supported. */
+	close(fd);
+	unlink(testfile);
+	return (1);
 }
 
 #else
