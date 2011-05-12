@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_zip.c 201168 20
 #include "archive.h"
 #include "archive_endian.h"
 #include "archive_entry.h"
+#include "archive_entry_locale.h"
 #include "archive_private.h"
 #include "archive_write_private.h"
 
@@ -188,7 +189,6 @@ struct zip {
 	int64_t offset;
 	int64_t written_bytes;
 	int64_t remaining_data_bytes;
-	struct archive_string l_name;
 	enum compression compression;
 	int flags;
 	struct archive_string_conv *opt_sconv;
@@ -385,8 +385,10 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	else
 		sconv = zip->sconv_default;
 	if (sconv != NULL) {
-		if (archive_strcpy_in_locale(&(zip->l_name),
-		    archive_entry_pathname(entry), sconv) != 0) {
+		const char *p;
+		size_t len;
+
+		if (archive_entry_pathname_l(entry, &p, &len, sconv) != 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Can't translate pathname '%s' to %s",
@@ -394,7 +396,8 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			    archive_string_conversion_charset_name(sconv));
 			ret2 = ARCHIVE_WARN;
 		}
-		archive_entry_set_pathname(l->entry, zip->l_name.s);
+		if (len > 0)
+			archive_entry_set_pathname(l->entry, p);
 	}
 	/* If all character of a filename is ASCII, Reset UTF-8 Name flag. */
 	if ((l->flags & ZIP_FLAGS_UTF8_NAME) != 0 &&
@@ -696,7 +699,6 @@ archive_write_zip_free(struct archive_write *a)
 #ifdef HAVE_ZLIB_H
 	free(zip->buf);
 #endif
-	archive_string_free(&(zip->l_name));
 	free(zip);
 	a->format_data = NULL;
 	return (ARCHIVE_OK);
