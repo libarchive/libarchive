@@ -501,11 +501,22 @@ archive_read_format_tar_read_header(struct archive_read *a,
 		 * directory: This is needed for certain old tar
 		 * variants and even for some broken newer ones.
 		 */
-		p = archive_entry_pathname(entry);
-		l = strlen(p);
-		if (archive_entry_filetype(entry) == AE_IFREG
-		    && p[l-1] == '/')
-			archive_entry_set_filetype(entry, AE_IFDIR);
+		const wchar_t *wp;
+		wp = archive_entry_pathname_w(entry);
+		if (wp != NULL) {
+			l = wcslen(wp);
+			if (archive_entry_filetype(entry) == AE_IFREG
+			    && wp[l-1] == L'/')
+				archive_entry_set_filetype(entry, AE_IFDIR);
+		} else {
+			p = archive_entry_pathname(entry);
+			if (p == NULL)
+				return (ARCHIVE_FAILED);
+			l = strlen(p);
+			if (archive_entry_filetype(entry) == AE_IFREG
+			    && p[l-1] == '/')
+				archive_entry_set_filetype(entry, AE_IFDIR);
+		}
 	}
 	return (r);
 }
@@ -1242,21 +1253,39 @@ read_mac_metadata_blob(struct archive_read *a, struct tar *tar,
 	int64_t size;
 	const void *data;
 	const char *p, *name;
+	const wchar_t *wp, *wname;
 
 	(void)h; /* UNUSED */
 
-	/* Find the last path element. */
-	name = p = archive_entry_pathname(entry);
-	for (; *p != '\0'; ++p) {
-		if (p[0] == '/' && p[1] != '\0')
-			name = p + 1;
+	wname = wp = archive_entry_pathname_w(entry);
+	if (wp != NULL) {
+		/* Find the last path element. */
+		for (; *wp != L'\0'; ++wp) {
+			if (wp[0] == '/' && wp[1] != L'\0')
+				wname = wp + 1;
+		}
+		/* 
+		 * If last path element starts with "._", then
+		 * this is a Mac extension.
+		 */
+		if (wname[0] != L'.' || wname[1] != L'_' || wname[2] == L'\0')
+			return ARCHIVE_OK;
+	} else {
+		/* Find the last path element. */
+		name = p = archive_entry_pathname(entry);
+		if (p == NULL)
+			return (ARCHIVE_FAILED);
+		for (; *p != '\0'; ++p) {
+			if (p[0] == '/' && p[1] != '\0')
+				name = p + 1;
+		}
+		/* 
+		 * If last path element starts with "._", then
+		 * this is a Mac extension.
+		 */
+		if (name[0] != '.' || name[1] != '_' || name[2] == '\0')
+			return ARCHIVE_OK;
 	}
-	/* 
-	 * If last path element starts with "._", then
-	 * this is a Mac extension.
-	 */
-	if (name[0] != '.' || name[1] != '_' || name[2] == '\0')
-		return ARCHIVE_OK;
 
  	/* Read the body as a Mac OS metadata blob. */
 	size = archive_entry_size(entry);

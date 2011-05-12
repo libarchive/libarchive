@@ -466,6 +466,7 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 	const struct zip_file_header *p;
 	const void *h;
 	const wchar_t *wp;
+	const char *cp;
 	size_t len;
 	struct archive_string_conv *sconv;
 	int ret = ARCHIVE_OK;
@@ -540,11 +541,20 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 	__archive_read_consume(a, zip->filename_length);
 
 	wp = archive_entry_pathname_w(entry);
-	len = (wp != NULL)?wcslen(wp):0;
-	if (len > 0 && wp[len - 1] == L'/')
-		zip->mode = AE_IFDIR | 0777;
-	else
-		zip->mode = AE_IFREG | 0777;
+	if (wp != NULL) {
+		len = wcslen(wp);
+		if (len > 0 && wp[len - 1] == L'/')
+			zip->mode = AE_IFDIR | 0777;
+		else
+			zip->mode = AE_IFREG | 0777;
+	} else {
+		cp = archive_entry_pathname(entry);
+		len = (cp != NULL)?strlen(cp):0;
+		if (len > 0 && cp[len - 1] == '/')
+			zip->mode = AE_IFDIR | 0777;
+		else
+			zip->mode = AE_IFREG | 0777;
+	}
 
 	/* Read the extra data. */
 	if ((h = __archive_read_ahead(a, zip->extra_length, NULL)) == NULL) {

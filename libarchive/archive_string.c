@@ -379,7 +379,7 @@ static int
 archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
     const char *s, size_t length, struct archive_string_conv *sc)
 {
-	int count;
+	int count, ret = 0;
 	UINT from_cp;
 
 	if (sc != NULL)
@@ -419,7 +419,7 @@ archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
 			archive_string_empty(&(sc->utf8));
 			if (archive_string_normalize_C(&(sc->utf8), s,
 			    length) != 0)
-				return (-1);
+				ret = -1;
 			s = sc->utf8.s;
 			length = sc->utf8.length;
 		}
@@ -444,11 +444,11 @@ archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
 		count = MultiByteToWideChar(from_cp,
 		    mbflag, s, length, dest->s + dest->length, count);
 		if (count == 0)
-			return (-1);
+			ret = -1;
 	}
 	dest->length += count;
 	dest->s[dest->length] = L'\0';
-	return (0);
+	return (ret);
 }
 
 #else
@@ -541,7 +541,7 @@ archive_string_append_from_wcs_in_codepage(struct archive_string *as,
     const wchar_t *ws, size_t len, struct archive_string_conv *sc)
 {
 	BOOL defchar_used, *dp;
-	int count;
+	int count, ret = 0;
 	UINT to_cp;
 	int wslen = (int)len;
 
@@ -557,7 +557,10 @@ archive_string_append_from_wcs_in_codepage(struct archive_string *as,
 		const wchar_t *wp = ws;
 		char *p;
 
-		archive_string_ensure(as, as->length + wslen +1);
+		if (NULL == archive_string_ensure(as,
+		    as->length + wslen +1))
+			__archive_errx(1,
+			    "No memory for archive_string_append_from_wcs*");
 		p = as->s + as->length;
 		count = 0;
 		defchar_used = 0;
@@ -584,12 +587,14 @@ archive_string_append_from_wcs_in_codepage(struct archive_string *as,
 			if (count == 0 &&
 			    GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
 				/* Expand the MBS buffer and retry. */
-				archive_string_ensure(as,
-				    as->buffer_length + len);
+				if (NULL == archive_string_ensure(as,
+					as->buffer_length + len))
+					__archive_errx(1,
+					    "No memory for archive_string_append_from_wcs*");
 				continue;
 			}
 			if (count == 0)
-				return (-1);
+				ret = -1;
 		} while (0);
 	}
 	as->length += count;
@@ -682,6 +687,7 @@ archive_string_append_from_wcs(struct archive_string *as,
 	while (*w != L'\0' && len > 0) {
 		if (p >= end) {
 			as->length = p - as->s;
+			as->s[as->length] = '\0';
 			/* Re-allocate buffer for MBS. */
 			if (archive_string_ensure(as,
 			    as->length + len * 2 + 1) == NULL)
@@ -1558,12 +1564,10 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 	 */
 	if (sc->flag & SCONV_NORMALIZATION_C) {
 		archive_string_empty(&(sc->utf8));
-		if (archive_string_normalize_C(&(sc->utf8), _p, length) != 0) {
+		if (archive_string_normalize_C(&(sc->utf8), _p, length) != 0)
 			return_value = -1; /* failure */
-		} else {
-			src = sc->utf8.s;
-			length = sc->utf8.length;
-		}
+		src = sc->utf8.s;
+		length = sc->utf8.length;
 	}
 
 	archive_string_ensure(as, as->length + length*2+1);
@@ -2257,6 +2261,7 @@ archive_string_normalize_C(struct archive_string *as, const char *s,
 			p += unicode_to_utf8(p, uc);
 			s += n*-1;
 			len -= n*-1;
+			ret = -1;
 			continue;
 		} else if (n == 0)
 			break;
@@ -2432,6 +2437,7 @@ archive_string_normalize_C(struct archive_string *as, const char *s,
 			p += unicode_to_utf8(p, uc2);
 			s += n2*-1;
 			len -= n2*-1;
+			ret = -1;
 			continue;
 		} else if (n2 == 0) {
 			WRITE_UC();
@@ -3091,11 +3097,12 @@ archive_mstring_get_mbs(struct archive *a, struct archive_mstring *aes,
 	*p = NULL;
 	/* If there's a WCS form, try converting with the native locale. */
 	if (aes->aes_set & AES_SET_WCS) {
+		archive_string_empty(&(aes->aes_mbs));
 		r = archive_string_append_from_wcs(&(aes->aes_mbs),
 		    aes->aes_wcs.s, aes->aes_wcs.length);
+		*p = aes->aes_mbs.s;
 		if (r == 0) {
 			aes->aes_set |= AES_SET_MBS;
-			*p = aes->aes_mbs.s;
 			return (ret);
 		} else
 			ret = -1;
@@ -3109,9 +3116,9 @@ archive_mstring_get_mbs(struct archive *a, struct archive_mstring *aes,
 			aes->aes_utf8.s, aes->aes_utf8.length, sc);
 		if (a == NULL)
 			free_sconv_object(sc);
+		*p = aes->aes_utf8.s;
 		if (r == 0) {
 			aes->aes_set |= AES_SET_UTF8;
-			*p = aes->aes_utf8.s;
 			ret = 0;/* success; overwrite previous error. */
 		} else
 			ret = -1;/* failure. */
@@ -3135,6 +3142,7 @@ archive_mstring_get_wcs(struct archive *a, struct archive_mstring *aes,
 	*wp = NULL;
 	/* Try converting MBS to WCS using native locale. */
 	if (aes->aes_set & AES_SET_MBS) {
+		archive_wstring_empty(&(aes->aes_wcs));
 		r = archive_wstring_append_from_mbs(&(aes->aes_wcs),
 		    aes->aes_mbs.s, aes->aes_mbs.length);
 		if (r == 0) {
