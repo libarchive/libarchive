@@ -768,6 +768,7 @@ add_sconv_object(struct archive *a, struct archive_string_conv *sc)
 }
 
 #if defined(__APPLE__)
+static OSStatus err_createUniInfo = 0;/* Debug */
 
 static int
 createUniInfo(struct archive_string_conv *sconv)
@@ -783,6 +784,7 @@ createUniInfo(struct archive_string_conv *sconv)
 
 	sconv->uniInfo = NULL;
 	err = CreateUnicodeToTextInfo(&map, &(sconv->uniInfo));
+	err_createUniInfo = err;/* Debug */
 	return ((err == noErr)? 0: -1);
 }
 
@@ -902,7 +904,14 @@ create_sconv_object(const char *fc, const char *tc,
 		sc->cd = (iconv_t)-1;
 		if (flag & SCONV_NORMALIZATION_D) {
 			if (createUniInfo(sc) != 0)
+#if 0
 				flag &= ~SCONV_NORMALIZATION_D;
+#else
+			{/* This is Debug code */
+				free_sconv_object(sc);
+				return (NULL);
+			}
+#endif
 		}
 	} else if (strcmp(fc, "UTF-8") == 0) {
 		sc->cd = iconv_open(tc, "UTF-8-MAC");
@@ -1281,6 +1290,14 @@ get_sconv_object(struct archive *a, const char *fc, const char *tc, int flag)
 		current_codepage = a->current_codepage;
 	sc = create_sconv_object(fc, tc, current_codepage, flag);
 	if (sc == NULL) {
+#if defined(__APPLE__) /* Debug */
+		if (err_createUniInfo != 0) {
+			archive_set_error(a, (int)err_createUniInfo,
+			    "createUniInfo failed = %d",
+			    (int)err_createUniInfo);
+			return (NULL);
+		}
+#endif
 		archive_set_error(a, ENOMEM,
 		    "Could not allocate memory for a string conversion object");
 		return (NULL);

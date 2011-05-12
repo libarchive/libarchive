@@ -143,8 +143,14 @@ test_archive_string_normalization()
 	fclose(fp);
 
 	assert((fp = fopen("testdata.txt", "r")) != NULL);
-	assert(NULL != (sconv =
+	assertA(NULL != (sconv =
 	    archive_string_conversion_from_charset(a, "UTF-8", 0)));
+	if (sconv == NULL || fp == NULL) {
+		/* We cannot continue this test. */
+		if (fp != NULL)
+			fclose(fp);
+		return;
+	}
 	/*
 	 * Read test data.
 	 *  Test data format:
