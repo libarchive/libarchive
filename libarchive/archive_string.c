@@ -1362,8 +1362,10 @@ get_sconv_object(struct archive *a, const char *fc, const char *tc, int flag)
 			return (NULL);
 		}
 #endif
-		archive_set_error(a, ENOMEM,
-		    "Could not allocate memory for a string conversion object");
+		if (a != NULL)
+			archive_set_error(a, ENOMEM,
+			    "Could not allocate memory for "
+			    "a string conversion object");
 		return (NULL);
 	}
 
@@ -1378,9 +1380,10 @@ get_sconv_object(struct archive *a, const char *fc, const char *tc, int flag)
 	if (sc->cd == (iconv_t)-1 &&
 	   (sc->flag & (SCONV_BEST_EFFORT | SCONV_COPY_UTF8_TO_UTF8)) == 0) {
 		free_sconv_object(sc);
-		archive_set_error(a, ARCHIVE_ERRNO_MISC,
-		    "iconv_open failed : Cannot convert "
-		    "string to %s", tc);
+		if (a != NULL)
+			archive_set_error(a, ARCHIVE_ERRNO_MISC,
+			    "iconv_open failed : Cannot convert "
+			    "string to %s", tc);
 		return (NULL);
 	} else if (a != NULL)
 		add_sconv_object(a, sc);
@@ -1398,9 +1401,10 @@ get_sconv_object(struct archive *a, const char *fc, const char *tc, int flag)
 #endif /* _WIN32 && !__CYGWIN__ */
 	if (!sc->same && (flag & SCONV_BEST_EFFORT) == 0) {
 		free_sconv_object(sc);
-		archive_set_error(a, ARCHIVE_ERRNO_MISC,
-		    "A character-set conversion not fully supported "
-		    "on this platform");
+		if (a != NULL)
+			archive_set_error(a, ARCHIVE_ERRNO_MISC,
+			    "A character-set conversion not fully supported "
+			    "on this platform");
 		return (NULL);
 	} else if (a != NULL)
 		add_sconv_object(a, sc);
