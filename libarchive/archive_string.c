@@ -110,6 +110,7 @@ struct archive_string_conv {
 	struct archive_string		 utf8;
 #if defined(__APPLE__)
 	UnicodeToTextInfo		 uniInfo;
+	struct archive_string		 utf16;
 #endif
 };
 
@@ -836,7 +837,7 @@ createUniInfo(struct archive_string_conv *sconv)
 	OSStatus err;
 
 	map.unicodeEncoding = CreateTextEncoding(kTextEncodingUnicodeDefault,
-	    kUnicodeNoSubset, kUnicodeUTF8Format);
+	    kUnicodeNoSubset, kTextEncodingDefaultFormat);
 	map.otherEncoding = CreateTextEncoding(kTextEncodingUnicodeDefault,
 	    kUnicodeHFSPlusDecompVariant, kUnicodeUTF8Format);
 	map.mappingVersion = kUnicodeUseLatestMapping;
@@ -886,6 +887,9 @@ create_sconv_object(const char *fc, const char *tc,
 		return (NULL);
 	}
 	archive_string_init(&sc->utf8);
+#if defined(__APPLE__)
+	archive_string_init(&sc->utf16);
+#endif
 
 	if (flag & SCONV_UTF8_LIBARCHIVE_2) {
 #if HAVE_ICONV
@@ -1012,6 +1016,7 @@ free_sconv_object(struct archive_string_conv *sc)
 		iconv_close(sc->cd);
 #endif
 #if defined(__APPLE__)
+	archive_string_free(&sc->utf16);
 	if (sc->uniInfo != NULL)
 		DisposeUnicodeToTextInfo(&(sc->uniInfo));
 #endif
@@ -2616,23 +2621,84 @@ archive_string_normalize_C(struct archive_string *as, const char *s,
 #if defined(__APPLE__)
 
 /*
+ * Return a UTF-16 string by converting this archive_string from UTF-8.
+ * Returns 0 on success, non-zero if some character are replaced.
+ * TODO: Is it better to use ConvertFromTextToUnicode() instead ?
+ */
+static int
+strncpy_from_utf8_to_utf16(struct archive_string *as,
+    const char *p, size_t len)
+{
+	UTF16Char *s, *end;
+	uint32_t wc;/* Must be large enough for a 21-bit Unicode code point. */
+	int n;
+	int return_val = 0; /* success */
+
+	if (NULL == archive_string_ensure(as, (len+1) * sizeof(UTF16Char)))
+		__archive_errx(1, "Out of memory");
+
+	as->length = 0;
+	s = (UTF16Char *)as->s;
+	end = (UTF16Char *)(as->s + as->buffer_length - sizeof(UTF16Char));
+	while (len > 0) {
+		/* Expand the buffer when we have <4 bytes free. */
+		if (end - s < 2) {
+			as->length = ((char *)s) - as->s;
+			if (NULL == archive_string_ensure(as,
+			    as->buffer_length + (len+1) * sizeof(UTF16Char)))
+				__archive_errx(1, "Out of memory");
+			s = (UTF16Char *)(as->s + as->length);
+			end = (UTF16Char *)
+			    (as->s + as->buffer_length - sizeof(UTF16Char));
+		}
+		n = _utf8_to_unicode(&wc, p, len);
+		if (n == 0)
+			break;
+		if (n < 0) {
+			return_val = -1;
+			n *= -1; /* Use a replaced unicode character. */
+		}
+		p += n;
+		len -= n;
+
+		if (wc > 0xffff) {
+			/* We have a code point that won't fit into a
+			 * wchar_t; convert it to a surrogate pair. */
+			wc -= 0x10000;
+			*s++ = (UTF16Char)((wc >> 10) & 0x3ff) + 0xD800;
+			*s++ = (UTF16Char)(wc & 0x3ff) + 0xDC00;
+		} else {
+			*s++ = (UTF16Char)wc;
+		}
+	}
+	as->length = ((char *)s) - as->s;
+	*s = 0;
+	return (return_val);
+}
+
+/*
  * Normalize UTF-8 characters to Form D and copy the result.
  */
 static int
 archive_string_normalize_D(struct archive_string *as, const char *s,
     size_t len, struct archive_string_conv *sc)
 {
-	const char *inp;
+	const UniChar *inp;
 	char *outp;
 	ByteCount inCount, outCount;
 	ByteCount inAvail, outAvail;
 	OSStatus err;
+	int return_val;
+
+	return_val = strncpy_from_utf8_to_utf16(&(sc->utf16), s, len);
+	if (archive_strlen(&(sc->utf16)) == 0)
+		return (return_val);
 
 	if (archive_string_ensure(as, as->length + len*2 + 1) == NULL)
 		__archive_errx(1, "Out of memory");
 
-	inp = s;
-	inAvail = len;
+	inp = (UniChar *)sc->utf16.s;
+	inAvail = archive_strlen(&(sc->utf16));
 	outp = as->s + as->length;
 	outAvail = as->buffer_length - as->length -1;
 
@@ -2642,17 +2708,16 @@ archive_string_normalize_D(struct archive_string *as, const char *s,
 	do {
 		inCount = outCount = 0;
 		err = ConvertFromUnicodeToText(sc->uniInfo,
-		    inAvail, (ConstUniCharArrayPtr)inp,
+		    inAvail, inp,
 		    kUnicodeDefaultDirectionMask, 0, NULL, NULL, NULL,
 		    outAvail, &inCount, &outCount, outp);
-		if (err == noErr ||
-		    err == kTECOutputBufferFullStatus) {
-			inp += inCount;
-			inAvail -= inCount;
-			outp += outCount;
-			outAvail -= outCount;
-			as->length = outp - as->s;
-		}
+
+		inp += inCount/sizeof(*inp);
+		inAvail -= inCount;
+		outp += outCount;
+		outAvail -= outCount;
+		as->length = outp - as->s;
+
 		if (err == kTECOutputBufferFullStatus) {
 			if (archive_string_ensure(as,
 			    as->buffer_length+inAvail+1) == NULL)
@@ -2661,9 +2726,11 @@ archive_string_normalize_D(struct archive_string *as, const char *s,
 			outAvail = as->buffer_length - as->length -1;
 			continue;
 		}
+		if (err != noErr)
+			return_val = -1;
 	} while (0);
 	as->s[as->length] = '\0';
-	return ((err == noErr)?0: -1);
+	return (return_val);
 }
 
 #endif /* __APPLE__ */
