@@ -3110,7 +3110,7 @@ string_append_from_utf16be_to_utf8(struct archive_string *as,
 
 /*
  * Return a UTF-16BE string by converting this archive_string from UTF-8.
- * Returns 0 on success, non-zero if conversion fails.
+ * Returns 0 on success, non-zero if some character replacement happend.
  */
 static int
 string_append_from_utf8_to_utf16be(struct archive_string *as,
@@ -3129,17 +3129,19 @@ string_append_from_utf8_to_utf16be(struct archive_string *as,
 	while (len > 0) {
 		/* Expand the buffer when we have <4 bytes free. */
 		if (end - s < 4) {
-			size_t l = p - as->s;
+			as->length = s - as->s;
 			base_size *= 2;
 			archive_string_ensure(as, base_size);
-			s = as->s + l;
+			s = as->s + as->length;
 			end = as->s + as->buffer_length -2;
 		}
 		n = cesu8_to_unicode(&wc, p, len);
 		if (n == 0)
 			break;
-		if (n < 0)
+		if (n < 0) {
+			return_val = -1;
 			n *= -1; /* Use a replaced unicode character. */
+		}
 		p += n;
 		len -= n;
 
