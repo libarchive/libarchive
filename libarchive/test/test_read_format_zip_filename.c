@@ -87,10 +87,10 @@ test_read_format_zip_filename_CP932_UTF8(const char *refname)
 	struct archive_entry *ae;
 
 	/*
-	 * Read CP932 filename in ja_JP.UTF-8 with "hdrcharset=CP932" option.
+	 * Read CP932 filename in en_US.UTF-8 with "hdrcharset=CP932" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "ja_JP.UTF-8")) {
-		skipping("ja_JP.UTF-8 locale not available on this system.");
+	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
 
@@ -227,12 +227,12 @@ test_read_format_zip_filename_UTF8_UTF8(const char *refname)
 	struct archive_entry *ae;
 
 	/*
-	 * Read UTF-8 filename in ja_JP.UTF-8 without charset option
+	 * Read UTF-8 filename in en_US.UTF-8 without charset option
 	 * because the file name in the sample file is UTF-8 and
 	 * Bit 11 of its general purpose bit flag is set.
 	 */
-	if (NULL == setlocale(LC_ALL, "ja_JP.UTF-8")) {
-		skipping("ja_JP.UTF-8 locale not available on this system.");
+	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
 
@@ -337,10 +337,10 @@ test_read_format_zip_filename_CP866_UTF8(const char *refname)
 	struct archive_entry *ae;
 
 	/*
-	 * Read CP866 filename in ru_RU.UTF-8 with "hdrcharset=CP866" option.
+	 * Read CP866 filename in en_US.UTF-8 with "hdrcharset=CP866" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "ru_RU.UTF-8")) {
-		skipping("ru_RU.UTF-8 locale not available on this system.");
+	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
 
@@ -440,10 +440,10 @@ test_read_format_zip_filename_KOI8R_UTF8(const char *refname)
 	struct archive_entry *ae;
 
 	/*
-	 * Read KOI8-R filename in ru_RU.UTF-8 with "hdrcharset=KOI8-R" option.
+	 * Read KOI8-R filename in en_US.UTF-8 with "hdrcharset=KOI8-R" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "ru_RU.UTF-8")) {
-		skipping("ru_RU.UTF-8 locale not available on this system.");
+	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
 
@@ -608,12 +608,12 @@ test_read_format_zip_filename_UTF8_UTF8_ru(const char *refname)
 	struct archive_entry *ae;
 
 	/*
-	 * Read UTF-8 filename in ru_RU.UTF-8 without charset option
+	 * Read UTF-8 filename in en_US.UTF-8 without charset option
 	 * because the file name in the sample file is UTF-8 and
 	 * Bit 11 of its general purpose bit flag is set.
 	 */
-	if (NULL == setlocale(LC_ALL, "ru_RU.UTF-8")) {
-		skipping("ru_RU.UTF-8 locale not available on this system.");
+	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
 
@@ -1003,10 +1003,10 @@ test_read_format_zip_filename_KOI8R_UTF8_2(const char *refname)
 	struct archive_entry *ae;
 
 	/*
-	 * Read filename in ru_RU.UTF-8 with "hdrcharset=KOI8-R" option.
+	 * Read filename in en_US.UTF-8 with "hdrcharset=KOI8-R" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "ru_RU.UTF-8")) {
-		skipping("ru_RU.UTF-8 locale not available on this system.");
+	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
 
@@ -1051,7 +1051,7 @@ next_test:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/*
-	 * Read filename in ru_RU.UTF-8 without "hdrcharset=KOI8-R" option.
+	 * Read filename in en_US.UTF-8 without "hdrcharset=KOI8-R" option.
 	 * The filename we can properly read is only second file.
 	 */
 	assert((a = archive_read_new()) != NULL);

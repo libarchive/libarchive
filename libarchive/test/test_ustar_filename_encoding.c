@@ -35,8 +35,8 @@ test_ustar_filename_encoding_UTF8_CP866()
 	char buff[4096];
 	size_t used;
 
-	if (NULL == setlocale(LC_ALL, "ru_RU.UTF-8")) {
-		skipping("ru_RU.UTF-8 locale not available on this system.");
+	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
 

@@ -34,10 +34,10 @@ test_read_format_gtar_filename_eucJP_UTF8(const char *refname)
 	struct archive_entry *ae;
 
 	/*
-	 * Read eucJP filename in ja_JP.UTF-8 with "hdrcharset=eucJP" option.
+	 * Read eucJP filename in en_US.UTF-8 with "hdrcharset=eucJP" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "ja_JP.UTF-8")) {
-		skipping("ja_JP.UTF-8 locale not available on this system.");
+	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
 
@@ -136,10 +136,10 @@ test_read_format_gtar_filename_CP866_UTF8(const char *refname)
 	struct archive_entry *ae;
 
 	/*
-	 * Read CP866 filename in ru_RU.UTF-8 with "hdrcharset=CP866" option.
+	 * Read CP866 filename in en_US.UTF-8 with "hdrcharset=CP866" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "ru_RU.UTF-8")) {
-		skipping("ru_RU.UTF-8 locale not available on this system.");
+	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
 
@@ -239,10 +239,10 @@ test_read_format_gtar_filename_KOI8R_UTF8(const char *refname)
 	struct archive_entry *ae;
 
 	/*
-	 * Read KOI8-R filename in ru_RU.UTF-8 with "hdrcharset=KOI8-R" option.
+	 * Read KOI8-R filename in en_US.UTF-8 with "hdrcharset=KOI8-R" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "ru_RU.UTF-8")) {
-		skipping("ru_RU.UTF-8 locale not available on this system.");
+	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
 

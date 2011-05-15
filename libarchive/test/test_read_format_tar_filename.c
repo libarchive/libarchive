@@ -154,11 +154,11 @@ test_read_format_tar_filename_KOI8R_UTF8(const char *refname)
 	struct archive_entry *ae;
 
 	/*
-	 * Read filename in ru_RU.UTF-8 with "hdrcharset=KOI8-R" option.
+	 * Read filename in en_US.UTF-8 with "hdrcharset=KOI8-R" option.
 	 * We should correctly read two filenames.
 	 */
-	if (NULL == setlocale(LC_ALL, "ru_RU.UTF-8")) {
-		skipping("ru_RU.UTF-8 locale not available on this system.");
+	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
 
@@ -200,7 +200,7 @@ test_read_format_tar_filename_KOI8R_UTF8(const char *refname)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/*
-	 * Read filename in ru_RU.UTF-8 without "hdrcharset=KOI8-R" option.
+	 * Read filename in en_US.UTF-8 without "hdrcharset=KOI8-R" option.
 	 * The filename we can properly read is only second file.
 	 */
 

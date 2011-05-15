@@ -94,10 +94,10 @@ test_read_format_lha_filename_CP932_UTF8(const char *refname)
 	struct archive_entry *ae;
 
 	/*
-	 * Read LHA filename in ja_JP.UTF-8.
+	 * Read LHA filename in en_US.UTF-8.
 	 */
-	if (NULL == setlocale(LC_ALL, "ja_JP.UTF-8")) {
-		skipping("ja_JP.UTF-8 locale not available on this system.");
+	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
 	/*
