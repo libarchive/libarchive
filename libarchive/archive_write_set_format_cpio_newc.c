@@ -171,7 +171,6 @@ get_sconv(struct archive_write *a)
 static int
 archive_write_newc_header(struct archive_write *a, struct archive_entry *entry)
 {
-	struct cpio *cpio;
 	const char *path;
 	size_t len;
 
@@ -180,7 +179,6 @@ archive_write_newc_header(struct archive_write *a, struct archive_entry *entry)
 		return (ARCHIVE_FAILED);
 	}
 
-	cpio = (struct cpio *)a->format_data;
 	(void)archive_entry_pathname_l(entry, &path, &len, get_sconv(a));
 	if (len == 0 || path == NULL || path[0] == '\0') {
 		archive_set_error(&a->archive, -1, "Pathname required");
