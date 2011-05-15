@@ -714,8 +714,9 @@ CHECK_C_SOURCE_COMPILES(
 
 
 # Only detect readlinkat() if we also have AT_FDCWD in unistd.h.
+# NOTE: linux requires fcntl.h for AT_FDCWD.
 CHECK_C_SOURCE_COMPILES(
-  "#include <unistd.h>\nint main() {return readlinkat(AT_FDCWD, NULL, 0);}"
+  "#include <fcntl.h>\n#include <unistd.h>\nint main() {char buf[10]; return readlinkat(AT_FDCWD, \"\", buf, 0);}"
   HAVE_READLINKAT)
 
 
