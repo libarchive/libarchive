@@ -110,7 +110,8 @@ struct archive_string_conv {
 	struct archive_string		 utf8;
 #if defined(__APPLE__)
 	UnicodeToTextInfo		 uniInfo;
-	struct archive_string		 utf16;
+	struct archive_string		 utf16nfc;
+	struct archive_string		 utf16nfd;
 #endif
 };
 
@@ -837,9 +838,9 @@ createUniInfo(struct archive_string_conv *sconv)
 	OSStatus err;
 
 	map.unicodeEncoding = CreateTextEncoding(kTextEncodingUnicodeDefault,
-	    kUnicodeNoSubset, kTextEncodingDefaultFormat);
+	    kUnicodeNoSubset, kUnicode16BitFormat);
 	map.otherEncoding = CreateTextEncoding(kTextEncodingUnicodeDefault,
-	    kUnicodeHFSPlusDecompVariant, kUnicodeUTF8Format);
+	    kUnicodeHFSPlusDecompVariant, kUnicode16BitFormat);
 	map.mappingVersion = kUnicodeUseLatestMapping;
 
 	sconv->uniInfo = NULL;
@@ -888,7 +889,8 @@ create_sconv_object(const char *fc, const char *tc,
 	}
 	archive_string_init(&sc->utf8);
 #if defined(__APPLE__)
-	archive_string_init(&sc->utf16);
+	archive_string_init(&sc->utf16nfc);
+	archive_string_init(&sc->utf16nfd);
 #endif
 
 	if (flag & SCONV_UTF8_LIBARCHIVE_2) {
@@ -1016,7 +1018,8 @@ free_sconv_object(struct archive_string_conv *sc)
 		iconv_close(sc->cd);
 #endif
 #if defined(__APPLE__)
-	archive_string_free(&sc->utf16);
+	archive_string_free(&sc->utf16nfc);
+	archive_string_free(&sc->utf16nfd);
 	if (sc->uniInfo != NULL)
 		DisposeUnicodeToTextInfo(&(sc->uniInfo));
 #endif
@@ -2616,6 +2619,83 @@ archive_string_normalize_C(struct archive_string *as, const char *s,
 #if defined(__APPLE__)
 
 /*
+ * UTF-16BE to UTF-8.
+ * Note: returns non-zero if conversion fails, but still leaves a best-effort
+ * conversion in the argument as.
+ */
+static int
+strncpy_from_utf16_to_utf8(struct archive_string *as,
+    const void *_p, size_t bytes)
+{
+	UTF16Char *utf16;
+	char *p, *end;
+	unsigned uc;
+	int return_val = 0; /* success */
+
+	utf16 = (UTF16Char *)_p;
+	bytes &= ~1;
+	if (NULL == archive_string_ensure(as, bytes+1))
+		__archive_errx(1, "Out of memory");
+	p = as->s + as->length;
+	end = as->s + as->buffer_length -1;
+	while (bytes >= 2) {
+		/* Expand the buffer when we have <4 bytes free. */
+		if (end - p < 4) {
+			as->length = p - as->s;
+			if (NULL == archive_string_ensure(as,
+			    as->buffer_length + bytes + 1))
+				__archive_errx(1, "Out of memory");
+			p = as->s + as->length;
+			end = as->s + as->buffer_length -1;
+		}
+
+		uc = *utf16;
+		utf16++; bytes -= sizeof(UTF16Char);
+		
+		/* If this is a surrogate pair, assemble the full code point.*/
+		if (IS_HIGH_SURROGATE_LA(uc)) {
+			unsigned uc2;
+
+			if (bytes >= sizeof(UTF16Char))
+				uc2 = *utf16;
+			else
+				uc2 = 0;
+			if (IS_LOW_SURROGATE_LA(uc2)) {
+				uc = combine_surrogate_pair(uc, uc2);
+				utf16++; bytes -= sizeof(UTF16Char);
+			} else {
+		 		/* Undescribed code point should be U+FFFD
+			 	* (replacement character). */
+				p += unicode_to_utf8(p, 0xFFFD);
+				return_val = -1;
+				break;
+			}
+		}
+
+		/*
+		 * Surrogate pair values(0xd800 through 0xdfff) are only
+		 * used by UTF-16, so, after above culculation, the code
+		 * must not be surrogate values, and Unicode has no codes
+		 * larger than 0x10ffff. Thus, those are not leagal Unicode
+		 * values.
+		 */
+		if (IS_SURROGATE_PAIR_LA(uc) || uc > UNICODE_MAX) {
+		 	/* Undescribed code point should be U+FFFD
+			 * (replacement character). */
+			p += unicode_to_utf8(p, 0xFFFD);
+			return_val = -1;
+			break;
+		}
+
+		/* Translate code point to UTF8 */
+		p += unicode_to_utf8(p, uc);
+	}
+	as->length = p - as->s;
+	*p = '\0';
+	return (return_val);
+}
+
+/*
  * Return a UTF-16 string by converting this archive_string from UTF-8.
  * Returns 0 on success, non-zero if some character are replaced.
  * TODO: Is it better to use ConvertFromTextToUnicode() instead ?
@@ -2685,21 +2765,35 @@ archive_string_normalize_D(struct archive_string *as, const char *s,
 	OSStatus err;
 	int return_val;
 
-	return_val = strncpy_from_utf8_to_utf16(&(sc->utf16), s, len);
-	if (archive_strlen(&(sc->utf16)) == 0)
+	/*
+	 * Convert UTF-8 to UTF-16.
+	 */
+	return_val = strncpy_from_utf8_to_utf16(&(sc->utf16nfc), s, len);
+	if (archive_strlen(&(sc->utf16nfc)) == 0) {
+		if (archive_string_ensure(as, as->length + 1) == NULL)
+			__archive_errx(1, "Out of memory");
 		return (return_val);
+	}
 
-	if (archive_string_ensure(as, as->length + len*2 + 1) == NULL)
+	/*
+	 * Convert NFC to NFD(HFS Plus version).
+	 */
+	if (archive_string_ensure(&(sc->utf16nfd),
+	    sc->utf16nfd.length * 2 + 2) == NULL)
 		__archive_errx(1, "Out of memory");
 
-	inp = (UniChar *)sc->utf16.s;
-	inAvail = archive_strlen(&(sc->utf16));
-	outp = as->s + as->length;
-	outAvail = as->buffer_length - as->length -1;
+	inp = (UniChar *)sc->utf16nfc.s;
+	inAvail = archive_strlen(&(sc->utf16nfc));
+	sc->utf16nfd.length = 0;
+	outp = sc->utf16nfd.s;
+	outAvail = sc->utf16nfd.buffer_length -1;
 
 	/* Reinitialize all state information. */
-	if (ResetUnicodeToTextInfo(sc->uniInfo) != noErr)
+	if (ResetUnicodeToTextInfo(sc->uniInfo) != noErr) {
+		if (archive_string_ensure(as, as->length + 1) == NULL)
+			__archive_errx(1, "Out of memory");
 		return (-1);
+	}
 	do {
 		inCount = outCount = 0;
 		err = ConvertFromUnicodeToText(sc->uniInfo,
@@ -2711,20 +2805,26 @@ archive_string_normalize_D(struct archive_string *as, const char *s,
 		inAvail -= inCount;
 		outp += outCount;
 		outAvail -= outCount;
-		as->length = outp - as->s;
+		sc->utf16nfd.length = outp - sc->utf16nfd.s;
 
 		if (err == kTECOutputBufferFullStatus) {
 			if (archive_string_ensure(as,
 			    as->buffer_length+inAvail+1) == NULL)
 				__archive_errx(1, "Out of memory");
-			outp = as->s + as->length;
-			outAvail = as->buffer_length - as->length -1;
+			outp = sc->utf16nfd.s;
+			outAvail = sc->utf16nfd.buffer_length - 1;
 			continue;
 		}
 		if (err != noErr)
 			return_val = -1;
 	} while (0);
 	as->s[as->length] = '\0';
+	/*
+	 * Convert UTF-16 to UTF-8.
+	 */
+	if (strncpy_from_utf16_to_utf8(as, sc->utf16nfd.s,
+	    sc->utf16nfd.length) != 0)
+		return_val = -1;
 	return (return_val);
 }
 
