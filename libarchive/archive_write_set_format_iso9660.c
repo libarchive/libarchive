@@ -4507,16 +4507,11 @@ isofile_free(struct isofile *file)
 }
 
 #if defined(_WIN32) || defined(__CYGWIN__)
-static void
-cleanup_backslash(char *_p, size_t len)
+static int
+cleanup_backslash_1(char *p)
 {
-	wchar_t wc;
-	size_t l;
-	mbstate_t ps;
-	char *p;
 	int mb, dos;
 
-	p = _p;
 	mb = dos = 0;
 	while (*p) {
 		if (*(unsigned char *)p > 127)
@@ -4531,29 +4526,21 @@ cleanup_backslash(char *_p, size_t len)
 		p++;
 	}
 	if (!mb || !dos)
-		return;
+		return (0);
+	return (-1);
+}
+
+static void
+cleanup_backslash_2(wchar_t *p)
+{
 
 	/* Convert a path-separator from '\' to  '/' */
-	memset(&ps, 0, sizeof(ps));
-	p = _p;
-	while (*p != '\0' && len) {
-		l = mbrtowc(&wc, p, len, &ps);
-		if (l == -1) {
-			while (*p != '\0') {
-				if (*p == '\\')
-					*p = '/';
-				++p;
-			}
-			break;
-		}
-		if (l == 1 && wc == L'\\')
-			*p = '/';
-		p += l;
-		len -= l;
+	while (*p != L'\0') {
+		if (*p == L'\\')
+			*p = L'/';
+		p++;
 	}
 }
-#else
-#define cleanup_backslash(p, len)	/* nop */
 #endif
 
 /*
@@ -4571,17 +4558,33 @@ isofile_gen_utility_names(struct isofile *file)
 	archive_string_empty(&(file->symlink));
 
 	pathname =  archive_entry_pathname(file->entry);
-	archive_strcpy(&(file->parentdir), pathname);
-	len = file->parentdir.length;
-	if (len == 0) {/* virtual root */
+	if (pathname == NULL || pathname[0] == '\0') {/* virtual root */
 		file->dircnt = 0;
 		return;
 	}
-	p = dirname = file->parentdir.s;
+	archive_strcpy(&(file->parentdir), pathname);
+#if defined(_WIN32) || defined(__CYGWIN__)
 	/*
 	 * Convert a path-separator from '\' to  '/'
 	 */
-	cleanup_backslash(p, len);
+	if (cleanup_backslash_1(file->parentdir.s) != 0) {
+		const wchar_t *wp = archive_entry_pathname_w(file->entry);
+		struct archive_wstring ws;
+
+		if (wp != NULL) {
+			archive_string_init(&ws);
+			archive_wstrcpy(&ws, wp);
+			cleanup_backslash_2(ws.s);
+			archive_string_empty(&(file->parentdir));
+			archive_string_append_from_wcs(&(file->parentdir),
+			    ws.s, ws.length);
+			archive_wstring_free(&ws);
+		}
+	}
+#endif
+
+	len = file->parentdir.length;
+	p = dirname = file->parentdir.s;
 
 	if (p[0] == '/') {
 		p++;
@@ -4665,7 +4668,28 @@ isofile_gen_utility_names(struct isofile *file)
 		/* Convert symlink name too. */
 		pathname = archive_entry_symlink(file->entry);
 		archive_strcpy(&(file->symlink),  pathname);
-		cleanup_backslash(file->symlink.s, file->symlink.length);
+#if defined(_WIN32) || defined(__CYGWIN__)
+		/*
+		 * Convert a path-separator from '\' to  '/'
+		 */
+		if (archive_strlen(&(file->symlink)) > 0 &&
+		    cleanup_backslash_1(file->symlink.s) != 0) {
+			const wchar_t *wp =
+			    archive_entry_symlink_w(file->entry);
+			struct archive_wstring ws;
+
+			if (wp != NULL) {
+				archive_string_init(&ws);
+				archive_wstrcpy(&ws, wp);
+				cleanup_backslash_2(ws.s);
+				archive_string_empty(&(file->symlink));
+				archive_string_append_from_wcs(
+				    &(file->symlink),
+				    ws.s, ws.length);
+				archive_wstring_free(&ws);
+			}
+		}
+#endif
 	}
 	/*
 	 * - Count up directory elements.
@@ -4704,10 +4728,24 @@ get_parent_and_base(struct archive_string *parentdir,
 	char *p, *slash;
 
 	archive_strcpy(parentdir, pathname);
+#if defined(_WIN32) || defined(__CYGWIN__)
 	/*
 	 * Convert a path-separator from '\' to  '/'
 	 */
-	cleanup_backslash(parentdir->s, parentdir->length);
+	if (cleanup_backslash_1(parentdir->s) != 0) {
+		struct archive_wstring ws;
+
+		archive_string_init(&ws);
+		if (archive_wstring_append_from_mbs(&ws,
+		    parentdir->s, parentdir->length) == 0) {
+			cleanup_backslash_2(ws.s);
+			archive_string_empty(parentdir);
+			archive_string_append_from_wcs(parentdir,
+			    ws.s, ws.length);
+		}
+		archive_wstring_free(&ws);
+	}
+#endif
 	/*
 	 * - Count up directory elements.
 	 * - Find out the position which points the last position of
