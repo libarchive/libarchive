@@ -606,7 +606,9 @@ archive_string_append_from_wcs_in_codepage(struct archive_string *as,
 		}
 	} else {
 		/* Make sure the MBS buffer has plenty to set. */
-		archive_string_ensure(as, as->length + len * 2 + 1);
+		if (NULL ==
+		    archive_string_ensure(as, as->length + len * 2 + 1))
+			__archive_errx(1, "Out of memory");
 		do {
 			defchar_used = 0;
 			if (to_cp == CP_UTF8 || sc == NULL)
@@ -1669,7 +1671,8 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 		length = sc->utf8.length;
 	}
 
-	archive_string_ensure(as, as->length + length*2+1);
+	if (archive_string_ensure(as, as->length + length*2+1) == NULL)
+		__archive_errx(1, "Out of memory");
 
 	inp = (char *)(uintptr_t)src;
 	remaining = length;
@@ -1690,8 +1693,11 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 				 */
 				if (avail < 3) {
 					as->length = outp - as->s;
-					archive_string_ensure(as,
-					    as->buffer_length * 2);
+					if (NULL ==
+					    archive_string_ensure(as,
+					    as->buffer_length * 2))
+						__archive_errx(1,
+						    "Out of memory");
 					outp = as->s + as->length;
 					avail = as->buffer_length
 					    - as->length -1;
@@ -1712,7 +1718,9 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 			/* E2BIG no output buffer,
 			 * Increase an output buffer.  */
 			as->length = outp - as->s;
-			archive_string_ensure(as, as->buffer_length * 2);
+			if (NULL ==
+			    archive_string_ensure(as, as->buffer_length * 2))
+				__archive_errx(1, "Out of memory");
 			outp = as->s + as->length;
 			avail = as->buffer_length - as->length -1;
 		}
@@ -2940,7 +2948,8 @@ strncpy_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
 	archive_string_empty(as);
 
 	bytes &= ~1;
-	archive_string_ensure(as, bytes+1);
+	if (archive_string_ensure(as, bytes+1) == NULL)
+		__archive_errx(1, "Out of memory");
 
 	cd = sc->cd;
 	inp = (char *)(uintptr_t)utf16;
@@ -2966,7 +2975,8 @@ strncpy_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
 			 * Increase an output buffer.  */
 			as->length = outbase - avail;
 			outbase *= 2;
-			archive_string_ensure(as, outbase+1);
+			if (archive_string_ensure(as, outbase+1) == NULL)
+				__archive_errx(1, "Out of memory");
 			outp = as->s + as->length;
 			avail = outbase - as->length;
 		}
@@ -2992,7 +3002,8 @@ strncpy_to_utf16be(struct archive_string *a16be, const void *_p,
 
 	archive_string_empty(a16be);
 
-	archive_string_ensure(a16be, (length+1)*2);
+	if (archive_string_ensure(a16be, (length+1)*2) == NULL)
+		__archive_errx(1, "Out of memory");
 
 	cd = sc->cd;
 	inp = (char *)(uintptr_t)src;
@@ -3018,7 +3029,8 @@ strncpy_to_utf16be(struct archive_string *a16be, const void *_p,
 			 * Increase an output buffer.  */
 			a16be->length = outbase - avail;
 			outbase *= 2;
-			archive_string_ensure(a16be, outbase+2);
+			if (archive_string_ensure(a16be, outbase+2) == NULL)
+				__archive_errx(1, "Out of memory");
 			outp = a16be->s + a16be->length;
 			avail = outbase - a16be->length;
 		}
@@ -3045,7 +3057,8 @@ strncpy_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
 
 	archive_string_empty(as);
 	bytes &= ~1;
-	archive_string_ensure(as, bytes+1);
+	if (archive_string_ensure(as, bytes+1) == NULL)
+		__archive_errx(1, "Out of memory");
 	mbs = as->s;
 	mbs_size = as->buffer_length-1;
 	while (bytes) {
@@ -3087,7 +3100,8 @@ strncpy_to_utf16be(struct archive_string *a16be, const void *_p, size_t length,
 	const char *s = (const char *)_p;
 	size_t count;
 
-	archive_string_ensure(a16be, (length + 1) * 2);
+	if (archive_string_ensure(a16be, (length + 1) * 2) == NULL)
+		__archive_errx(1, "Out of memory");
 	archive_string_empty(a16be);
 	do {
 		count = MultiByteToWideChar(sc->from_cp,
@@ -3098,7 +3112,9 @@ strncpy_to_utf16be(struct archive_string *a16be, const void *_p, size_t length,
 			/* Need more buffer for UTF-16 string */
 			count = MultiByteToWideChar(sc->from_cp,
 			    MB_PRECOMPOSED, s, length, NULL, 0);
-			archive_string_ensure(a16be, (count +1) * 2);
+			if (archive_string_ensure(a16be, (count +1) * 2)
+			    == NULL)
+				__archive_errx(1, "Out of memory");
 			continue;
 		}
 		if (count == 0)
@@ -3146,7 +3162,8 @@ string_append_from_utf16be_to_utf8(struct archive_string *as,
 	int return_val = 0; /* success */
 
 	bytes &= ~1;
-	archive_string_ensure(as, bytes+1);
+	if (archive_string_ensure(as, bytes+1) == NULL)
+		__archive_errx(1, "Out of memory");
 	base_size = as->buffer_length;
 	p = as->s + as->length;
 	end = as->s + as->buffer_length -1;
@@ -3155,7 +3172,8 @@ string_append_from_utf16be_to_utf8(struct archive_string *as,
 		if (end - p < 4) {
 			size_t l = p - as->s;
 			base_size *= 2;
-			archive_string_ensure(as, base_size);
+			if (archive_string_ensure(as, base_size) == NULL)
+				__archive_errx(1, "Out of memory");
 			p = as->s + l;
 			end = as->s + as->buffer_length -1;
 		}
@@ -3217,7 +3235,8 @@ string_append_from_utf8_to_utf16be(struct archive_string *as,
 	int n;
 	int return_val = 0; /* success */
 
-	archive_string_ensure(as, (len+1)*2);
+	if (archive_string_ensure(as, (len+1)*2) == NULL)
+		__archive_errx(1, "Out of memory");
 	base_size = as->buffer_length;
 	s = as->s + as->length;
 	end = as->s + as->buffer_length -2;
@@ -3226,7 +3245,8 @@ string_append_from_utf8_to_utf16be(struct archive_string *as,
 		if (end - s < 4) {
 			as->length = s - as->s;
 			base_size *= 2;
-			archive_string_ensure(as, base_size);
+			if (archive_string_ensure(as, base_size) == NULL)
+				__archive_errx(1, "Out of memory");
 			s = as->s + as->length;
 			end = as->s + as->buffer_length -2;
 		}
@@ -3285,7 +3305,8 @@ strncpy_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
 	 */
 	ret = 0;
 	bytes &= ~1;
-	archive_string_ensure(as, bytes+1);
+	if (archive_string_ensure(as, bytes+1) == NULL)
+		__archive_errx(1, "Out of memory");
 	mbs = as->s;
 	while (bytes) {
 		uint16_t val = archive_be16dec(utf16);
@@ -3332,7 +3353,8 @@ strncpy_to_utf16be(struct archive_string *a16be, const void *_p, size_t length,
 	 */
 	ret = 0;
 	remaining = length;
-	archive_string_ensure(a16be, (length + 1) * 2);
+	if (archive_string_ensure(a16be, (length + 1) * 2) == NULL)
+		__archive_errx(1, "Out of memory");
 	utf16 = a16be->s;
 	while (remaining--) {
 		if (*(unsigned char *)s >= 0x80) {
