@@ -1943,7 +1943,7 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 			return_value = -1;
 		} else if (*inp < 0) {
 			*outp++ = '?';
-			*inp++;
+			inp++;
 			remaining--;
 			return_value = -1;
 		} else {
