@@ -3019,7 +3019,8 @@ strncpy_to_utf16be(struct archive_string *a16be, const void *_p,
 			break; /* Conversion completed. */
 		} else if (errno == EILSEQ || errno == EINVAL) {
 			/* Skip the illegal input bytes. */
-			*outp++ = 0; *outp++ = '?';
+			archive_be16enc(outp, 0xFFFD);
+			outp += 2;
 			avail -= 2;
 			inp ++;
 			remaining --;
@@ -3193,10 +3194,11 @@ string_append_from_utf16be_to_utf8(struct archive_string *as,
 				uc = combine_surrogate_pair(uc, uc2);
 				utf16be += 2; bytes -=2;
 			} else {
-				/* Wrong sequence. */
-				*p++ = '?';
+		 		/* Undescribed code point should be U+FFFD
+			 	* (replacement character). */
+				p += unicode_to_utf8(p, 0xFFFD);
 				return_val = -1;
-				break;
+				continue;
 			}
 		}
 
@@ -3208,9 +3210,11 @@ string_append_from_utf16be_to_utf8(struct archive_string *as,
 		 * values.
 		 */
 		if (IS_SURROGATE_PAIR_LA(uc) || uc > UNICODE_MAX) {
-			*p++ = '?';
+		 	/* Undescribed code point should be U+FFFD
+		 	* (replacement character). */
+			p += unicode_to_utf8(p, 0xFFFD);
 			return_val = -1;
-			break;
+			continue;
 		}
 
 		/* Translate code point to UTF8 */
@@ -3295,7 +3299,7 @@ strncpy_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
 	 * If the current locale is UTF-8, we can translate a UTF-16BE
 	 * string into a UTF-8 string.
 	 */
-	if (strcmp(sc->to_charset, "UTF-8") == 0)
+	if (sc->flag & SCONV_TO_UTF8)
 		return (string_append_from_utf16be_to_utf8(as, utf16, bytes));
 
 	/*
@@ -3359,8 +3363,8 @@ strncpy_to_utf16be(struct archive_string *a16be, const void *_p, size_t length,
 	while (remaining--) {
 		if (*(unsigned char *)s >= 0x80) {
 			/* We cannot handle it. */
-			*utf16++ = 0;
-			*utf16++ = '?';
+			archive_be16enc(utf16, 0xFFFD);
+			*utf16 += 2;
 			ret = -1;
 		} else {
 			*utf16++ = 0;
