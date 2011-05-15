@@ -1839,84 +1839,28 @@ invalid_mbs(const void *_p, size_t n, struct archive_string_conv *sc)
 #endif /* defined(_WIN32) && !defined(__CYGWIN__) */
 
 /*
- * Test that MBS consists of ASCII code only.
- */
-static int
-is_all_ascii_code(struct archive_string *as)
-{
-	size_t i;
-
-	for (i = 0; i < as->length; i++)
-		if (((unsigned char)as->s[i]) > 0x7f)
-			return (0);
-	/* It seems the string we have checked is all ASCII code. */
-	return (1);
-}
-
-/*
- * If a character is non-ASCII this assigns U+FFFD(0xef, 0xbd, 0xbd) for it,
- * and copy the reuslt.
- */
-static int
-best_effort_strncat_to_utf8(struct archive_string *as, const char *p,
-    size_t length)
-{
-	size_t remaining;
-	char *outp;
-	size_t avail;
-	int return_value = 0; /* success */
-
-	if (archive_string_ensure(as, as->length + length + 1) == NULL)
-		__archive_errx(1, "Out of memory");
-
-	remaining = length;
-	outp = as->s + as->length;
-	avail = as->buffer_length - as->length -1;
-	while (*p && remaining > 0) {
-		if (*p < 0) {
-			if (avail < remaining + 2) {
-				as->length = outp - as->s;
-				archive_string_ensure(as,
-				    as->buffer_length + remaining);
-				outp = as->s + as->length;
-				avail = as->buffer_length - as->length -1;
-			}
-			/*
-			 * Unknown character should be U+FFFD
-			 * (replacement character).
-			 */
-			*outp++ = 0xef;
-			*outp++ = 0xbf;
-			*outp++ = 0xbd;
-			avail -= 3;
-			p++;
-			remaining--;
-			return_value = -1;
-		} else {
-			*outp++ = *p++;
-			remaining--;
-		}
-	}
-	as->length = outp - as->s;
-	as->s[as->length] = '\0';
-	return (return_value);
-}
-
-/*
  * Basically returns -1 because we cannot make a conversion of charset
- * but in some cases this would return 0.
+ * without iconv but in some cases this would return 0.
  * Returns 0 if sc is NULL.
  * Returns 0 if all copied characters are ASCII.
+ * Returns 0 if both from-locale and to-locale are the same and those
+ * can be WCS with no error.
  * Returns 0 if running on Windows and converting characters is successful.
  */
 static int
 best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
     size_t n, struct archive_string_conv *sc)
 {
+	size_t remaining;
+	char *outp;
+	const char *inp;
+	size_t avail;
+	int return_value = 0; /* success */
 	size_t length = la_strnlen(_p, n);
 
 	if (sc != NULL) {
 #if defined(_WIN32) && !defined(__CYGWIN__)
+		/* On Windows we can use Windows API for string conversion. */
 		if (sc->flag & SCONV_WIN_CP)
 			return (strncat_in_codepage(as, _p, length, sc));
 #endif
@@ -1937,21 +1881,68 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 				return (strncat_from_utf8_to_utf8(
 				    as, _p, length));
 		}
-
-		/*
-		 * Copy a string in UTF-8.
-		 */
-		if (sc->flag & SCONV_TO_UTF8)
-			return (best_effort_strncat_to_utf8(as, _p, length));
 	}
 
-	archive_string_append(as, _p, length);
-	/* If charset is NULL, just make a copy, so return 0 as success. */
-	if (sc == NULL || (sc->same && invalid_mbs(_p, length, sc) == 0))
-		return (0);
-	if (is_all_ascii_code(as))
-		return (0);
-	return (-1);
+	/*
+	 * If charset is NULL, this just makes a copy, so this returns 0
+	 * as success. If both from-locale and to-locale is the same, this
+	 * also makes a copy. And then this checks all copied MBS can be
+	 * WCS if so this returns 0.
+	 */
+	if (sc == NULL || sc->same) {
+		archive_string_append(as, _p, length);
+		if (sc == NULL)
+			return (0);
+		return (invalid_mbs(_p, length, sc));
+	}
+
+	/*
+	 * If a character is ASCII, this just copies it. If not, this
+	 * assigns '?' charater instead but in UTF-8 locale this assigns
+	 * byte sequence 0xEF 0xBD 0xBD, which are code point U+FFFD,
+	 * a Replacement Character in Unicode.
+	 */
+	if (archive_string_ensure(as, as->length + length + 1) == NULL)
+		__archive_errx(1, "Out of memory");
+
+	remaining = length;
+	inp = (const char *)_p;
+	outp = as->s + as->length;
+	avail = as->buffer_length - as->length -1;
+	while (*inp && remaining > 0) {
+		if (*inp < 0 && (sc->flag & SCONV_TO_UTF8)) {
+			if (avail < remaining + 2) {
+				as->length = outp - as->s;
+				if (NULL == archive_string_ensure(as,
+				    as->buffer_length + remaining))
+					__archive_errx(1, "Out of memory");
+				outp = as->s + as->length;
+				avail = as->buffer_length - as->length -1;
+			}
+			/*
+		 	 * When coping a string in UTF-8, unknown character
+			 * should be U+FFFD (replacement character).
+			 */
+			*outp++ = 0xef;
+			*outp++ = 0xbf;
+			*outp++ = 0xbd;
+			avail -= 3;
+			inp++;
+			remaining--;
+			return_value = -1;
+		} else if (*inp < 0) {
+			*outp++ = '?';
+			*inp++;
+			remaining--;
+			return_value = -1;
+		} else {
+			*outp++ = *inp++;
+			remaining--;
+		}
+	}
+	as->length = outp - as->s;
+	as->s[as->length] = '\0';
+	return (return_value);
 }
 
 
