@@ -137,6 +137,7 @@ static int archive_wstring_append_from_mbs_in_codepage(
     struct archive_string_conv *);
 static int archive_string_append_from_wcs_in_codepage(struct archive_string *,
     const wchar_t *, size_t, struct archive_string_conv *);
+static int is_big_endian(void);
 #endif
 static int strncpy_from_utf16be(struct archive_string *, const void *, size_t,
     struct archive_string_conv *);
@@ -2021,7 +2022,7 @@ _utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 	/* Invalide sequence or there are not plenty bytes. */
 	if (n < cnt) {
 		cnt = n;
-		for (i = 1; i < cnt; i++) {
+		for (i = 1; (unsigned)i < cnt; i++) {
 			if ((s[i] & 0xc0) != 0x80) {
 				cnt = i;
 				break;
@@ -2090,7 +2091,7 @@ _utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 			cnt = 1;
 		if (n < cnt)
 			cnt = n;
-		for (i = 1; i < cnt; i++) {
+		for (i = 1; (unsigned)i < cnt; i++) {
 			if ((s[i] & 0xc0) != 0x80) {
 				cnt = i;
 				break;
@@ -3086,7 +3087,7 @@ strncpy_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
 }
 
 static int
-is_big_endian()
+is_big_endian(void)
 {
 	uint16_t d = 1;
 
