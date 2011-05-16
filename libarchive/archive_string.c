@@ -2830,7 +2830,6 @@ archive_string_normalize_D(struct archive_string *as, const char *s,
 		if (err != noErr)
 			return_val = -1;
 	} while (0);
-	as->s[as->length] = '\0';
 	/*
 	 * Convert UTF-16 to UTF-8.
 	 */
