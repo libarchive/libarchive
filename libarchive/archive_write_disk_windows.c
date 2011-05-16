@@ -2144,6 +2144,9 @@ set_times(struct archive_write_disk *a,
 	FILETIME *pfbtime;
 	FILETIME fatime, fbtime, fmtime;
 
+	(void)ctime; /* UNUSED */
+	(void)ctime_nanos; /* UNUSED */
+
 	if (h != INVALID_HANDLE_VALUE) {
 		hw = NULL;
 	} else {
