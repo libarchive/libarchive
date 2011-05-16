@@ -129,8 +129,8 @@ static void free_sconv_object(struct archive_string_conv *);
 static struct archive_string_conv *get_sconv_object(struct archive *,
 	const char *, const char *, int);
 static unsigned make_codepage_from_charset(const char *);
-static unsigned get_current_codepage();
-static unsigned get_current_oemcp();
+static unsigned get_current_codepage(void);
+static unsigned get_current_oemcp(void);
 #if defined(_WIN32) && !defined(__CYGWIN__)
 static int archive_wstring_append_from_mbs_in_codepage(
     struct archive_wstring *, const char *, size_t,
