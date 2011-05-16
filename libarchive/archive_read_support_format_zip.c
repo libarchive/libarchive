@@ -159,7 +159,8 @@ archive_read_support_format_zip(struct archive *_a)
 
 	zip = (struct zip *)malloc(sizeof(*zip));
 	if (zip == NULL) {
-		archive_set_error(&a->archive, ENOMEM, "Can't allocate zip data");
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate zip data");
 		return (ARCHIVE_FATAL);
 	}
 	memset(zip, 0, sizeof(*zip));
@@ -363,7 +364,8 @@ archive_read_format_zip_read_header(struct archive_read *a,
 	if (signature[0] != 'P' || signature[1] != 'K') {
 		r = search_next_signature(a);
 		if (r != ARCHIVE_OK) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Bad ZIP file");
 			return (ARCHIVE_FATAL);
 		}
@@ -383,7 +385,8 @@ archive_read_format_zip_read_header(struct archive_read *a,
 			return (ARCHIVE_FATAL);
 		signature = (const char *)h;
 		if (signature[0] != 'P' || signature[1] != 'K') {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Bad ZIP file");
 			return (ARCHIVE_FATAL);
 		}
@@ -684,18 +687,23 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		if (zip->flags & ZIP_LENGTH_AT_END) {
 			const char *p;
 
-			/* since we're screwing with the exposed window, it's possible this will cross 
-			 * a forced move/realloc w/in that layer... in other words, the previous read_ahead's
-			 * returned pointer isn't trustable.  thus we redo the window, and reset buff if needed.
-			 * note that decompression sidesteps this via the flushing of entry_bytes_unconsumed
+			/* since we're screwing with the exposed window,
+			 * it's possible this will cross a forced move/realloc
+			 * w/in that layer... in other words, the previous
+			 * read_ahead's returned pointer isn't trustable.
+			 * thus we redo the window, and reset buff if needed.
+			 * note that decompression sidesteps this via the
+			 * flushing of entry_bytes_unconsumed
 			 */
-			if (!(p = __archive_read_ahead(a, zip->entry_bytes_unconsumed + 16, NULL))) {
+			if (!(p = (const char *)__archive_read_ahead(a,
+			    zip->entry_bytes_unconsumed + 16, NULL))) {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Truncated ZIP end-of-file record");
 				return (ARCHIVE_FATAL);
 			}
-			/* update the ptr, and set p to just the 16 bytes we care about */
+			/* update the ptr, and set p to just the 16 bytes
+			 * we care about */
 			if (reset_buff) {
 				*buff = p;
 				p += zip->entry_bytes_unconsumed;
@@ -711,7 +719,8 @@ archive_read_format_zip_read_data(struct archive_read *a,
 			    "ZIP compressed data is wrong size");
 			return (ARCHIVE_WARN);
 		}
-		/* Size field only stores the lower 32 bits of the actual size. */
+		/* Size field only stores the lower 32 bits of the actual
+		 * size. */
 		if ((zip->uncompressed_size & UINT32_MAX)
 		    != (zip->entry_uncompressed_bytes_read & UINT32_MAX)) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -993,9 +1002,11 @@ process_extra(const void* extra, struct zip* zip)
 		case 0x0001:
 			/* Zip64 extended information extra field. */
 			if (datasize >= 8)
-				zip->uncompressed_size = archive_le64dec(p + offset);
+				zip->uncompressed_size =
+				    archive_le64dec(p + offset);
 			if (datasize >= 16)
-				zip->compressed_size = archive_le64dec(p + offset + 8);
+				zip->compressed_size =
+				    archive_le64dec(p + offset + 8);
 			break;
 		case 0x5455:
 		{
