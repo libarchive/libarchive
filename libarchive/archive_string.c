@@ -635,7 +635,7 @@ archive_string_append_from_wcs_in_codepage(struct archive_string *as,
 	}
 	as->length += count;
 	as->s[as->length] = '\0';
-	return (defchar_used?-1:0);
+	return (defchar_used?-1:ret);
 }
 
 #elif defined(HAVE_WCSNRTOMBS)
