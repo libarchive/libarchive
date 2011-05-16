@@ -1006,6 +1006,7 @@ archive_read_format_cab_read_data(struct archive_read *a,
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Cannot restore this file split in multivolume.");
 		return (ARCHIVE_FAILED);
+	default:
 		break;
 	}
 	if (cab->entry_unconsumed) {
@@ -1816,8 +1817,7 @@ cab_consume_cfdata(struct archive_read *a, int64_t consumed_bytes)
 				case iFoldCONTINUED_PREV_AND_NEXT:
 				case iFoldCONTINUED_TO_NEXT:
 				case iFoldCONTINUED_FROM_PREV:
-				return (ARCHIVE_FATAL);
-					rbytes = 0;
+					return (ARCHIVE_FATAL);
 					break;
 				default:
 					break;
@@ -2962,7 +2962,7 @@ static int
 lzx_huffman_init(struct huffman *hf, size_t len_size, int tbl_bits)
 {
 
-	if (hf->bitlen == NULL || hf->len_size != len_size) {
+	if (hf->bitlen == NULL || hf->len_size != (int)len_size) {
 		free(hf->bitlen);
 		hf->bitlen = calloc(len_size,  sizeof(hf->bitlen[0]));
 		if (hf->bitlen == NULL)
