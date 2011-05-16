@@ -140,9 +140,6 @@ static size_t wcslen(const wchar_t *s)
 /* Good enough for simple equality testing, but not for sorting. */
 #define wmemcmp(a,b,i)  memcmp((a), (b), (i) * sizeof(wchar_t))
 #endif
-#ifndef HAVE_WMEMCPY
-#define wmemcpy(a,b,i)  (wchar_t *)memcpy((a), (b), (i) * sizeof(wchar_t))
-#endif
 
 /****************************************************************************
  *
