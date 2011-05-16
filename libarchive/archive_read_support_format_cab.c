@@ -955,6 +955,11 @@ archive_read_format_cab_read_header(struct archive_read *a,
 	r = cab_convert_path_separator_1(&(file->pathname), file->attr);
 	if (archive_entry_copy_pathname_l(entry, file->pathname.s,
 	    archive_strlen(&(file->pathname)), sconv) != 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Pathname");
+			return (ARCHIVE_FATAL);
+		}
 		archive_set_error(&a->archive,
 		    ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Pathname cannot be converted "

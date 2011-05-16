@@ -313,7 +313,7 @@ add_pax_attr(struct archive_string *as, const char *key, const char *value)
 	archive_strappend_char(as, '\n');
 }
 
-static void
+static int
 archive_write_pax_header_xattrs(struct archive_write *a,
     struct pax *pax, struct archive_entry *entry)
 {
@@ -326,15 +326,22 @@ archive_write_pax_header_xattrs(struct archive_write *a,
 		char *encoded_value;
 		char *url_encoded_name = NULL, *encoded_name = NULL;
 		size_t size;
+		int r;
 
 		archive_entry_xattr_next(entry, &name, &value, &size);
 		url_encoded_name = url_encode(name);
 		if (url_encoded_name != NULL) {
 			/* Convert narrow-character to UTF-8. */
-			if (archive_strcpy_in_locale(&(pax->l_url_encoded_name),
-			    url_encoded_name, pax->sconv_utf8) == 0)
-				encoded_name = pax->l_url_encoded_name.s;
+			r = archive_strcpy_in_locale(&(pax->l_url_encoded_name),
+			    url_encoded_name, pax->sconv_utf8);
 			free(url_encoded_name); /* Done with this. */
+			if (r == 0)
+				encoded_name = pax->l_url_encoded_name.s;
+			else if (errno == ENOMEM) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "Can't allocate memory for Linkname");
+				return (ARCHIVE_FATAL);
+			}
 		}
 
 		encoded_value = base64_encode((const char *)value, size);
@@ -348,6 +355,7 @@ archive_write_pax_header_xattrs(struct archive_write *a,
 		}
 		free(encoded_value);
 	}
+	return (ARCHIVE_OK);
 }
 
 /*
@@ -419,11 +427,21 @@ archive_write_pax_header(struct archive_write *a,
 		sconv = pax->sconv_utf8;
 	}
 
-	archive_entry_hardlink_l(entry_original, &hardlink,
+	r = archive_entry_hardlink_l(entry_original, &hardlink,
 	    &hardlink_length, NULL);
+	if (r != 0 && errno == ENOMEM) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate memory for Linkname");
+		return (ARCHIVE_FATAL);
+	}
 	r = archive_entry_hardlink_l(entry_original, &l_hardlink,
 	    &l_hardlink_length, sconv);
 	if (r != 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Linkname");
+			return (ARCHIVE_FATAL);
+		}
 		l_hardlink = NULL; l_hardlink_length = 0;
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate linkname '%s' to %s", hardlink,
@@ -581,10 +599,20 @@ archive_write_pax_header(struct archive_write *a,
 	 * require binary coding.  If any of them does, then all of
 	 * them do.
 	 */
-	archive_entry_pathname_l(entry_main, &path, &path_length, NULL);
+	r = archive_entry_pathname_l(entry_main, &path, &path_length, NULL);
+	if (r != 0 && errno == ENOMEM) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate memory for Pathname");
+		return (ARCHIVE_FATAL);
+	}
 	r = archive_entry_pathname_l(entry_main, &l_path, &l_path_length,
 	    sconv);
 	if (r != 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Pathname");
+			return (ARCHIVE_FATAL);
+		}
 		l_path = NULL; l_path_length = 0;
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate pathname '%s' to %s", path,
@@ -592,10 +620,20 @@ archive_write_pax_header(struct archive_write *a,
 		ret = ARCHIVE_WARN;
 		sconv = NULL;/* The header charset switches to binary mode. */
 	}
-	archive_entry_uname_l(entry_main, &uname, &uname_length, NULL);
+	r = archive_entry_uname_l(entry_main, &uname, &uname_length, NULL);
+	if (r != 0 && errno == ENOMEM) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate memory for Uname");
+		return (ARCHIVE_FATAL);
+	}
 	r = archive_entry_uname_l(entry_main, &l_uname, &l_uname_length,
 	    sconv);
 	if (r != 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Uname");
+			return (ARCHIVE_FATAL);
+		}
 		l_uname = NULL; l_uname_length = 0;
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate uname '%s' to %s", uname,
@@ -603,10 +641,20 @@ archive_write_pax_header(struct archive_write *a,
 		ret = ARCHIVE_WARN;
 		sconv = NULL;/* The header charset switches to binary mode. */
 	}
-	archive_entry_gname_l(entry_main, &gname, &gname_length, NULL);
+	r = archive_entry_gname_l(entry_main, &gname, &gname_length, NULL);
+	if (r != 0 && errno == ENOMEM) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate memory for Gname");
+		return (ARCHIVE_FATAL);
+	}
 	r = archive_entry_gname_l(entry_main, &l_gname, &l_gname_length,
 	    sconv);
 	if (r != 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Gname");
+			return (ARCHIVE_FATAL);
+		}
 		l_gname = NULL; l_gname_length = 0;
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate gname '%s' to %s", gname,
@@ -616,11 +664,21 @@ archive_write_pax_header(struct archive_write *a,
 	}
 	linkpath = hardlink;
 	if (linkpath == NULL) {
-		archive_entry_symlink_l(entry_main, &linkpath,
+		r = archive_entry_symlink_l(entry_main, &linkpath,
 		    &linkpath_length, NULL);
+		if (r != 0 && errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Linkname");
+			return (ARCHIVE_FATAL);
+		}
 		r = archive_entry_symlink_l(entry_main, &l_linkpath,
 		    &l_linkpath_length, sconv);
 		if (r != 0) {
+			if (errno == ENOMEM) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "Can't allocate memory for Linkname");
+				return (ARCHIVE_FATAL);
+			}
 			l_linkpath = NULL; l_linkpath_length = 0;
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
@@ -926,6 +984,12 @@ archive_write_pax_header(struct archive_write *a,
 		    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID,
 		    &p, NULL, pax->sconv_utf8);
 		if (r != 0) {
+			if (errno == ENOMEM) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "Can't allocate memory for "
+				    "ACL.access");
+				return (ARCHIVE_FATAL);
+			}
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Can't translate ACL.access to UTF-8");
@@ -939,6 +1003,12 @@ archive_write_pax_header(struct archive_write *a,
 		    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID,
 		    &p, NULL, pax->sconv_utf8);
 		if (r != 0) {
+			if (errno == ENOMEM) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "Can't allocate memory for "
+				    "ACL.default");
+				return (ARCHIVE_FATAL);
+			}
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Can't translate ACL.default to UTF-8");
@@ -995,7 +1065,12 @@ archive_write_pax_header(struct archive_write *a,
 		}
 
 		/* Store extended attributes */
-		archive_write_pax_header_xattrs(a, pax, entry_original);
+		if (archive_write_pax_header_xattrs(a, pax, entry_original)
+		    == ARCHIVE_FATAL) {
+			archive_entry_free(entry_main);
+			archive_string_free(&entry_name);
+			return (ARCHIVE_FATAL);
+		}
 	}
 
 	/* Only regular files have data. */
@@ -1063,8 +1138,9 @@ archive_write_pax_header(struct archive_write *a,
 	 * The non-strict formatter uses similar logic for other
 	 * numeric fields, though they're less critical.
 	 */
-	__archive_write_format_header_ustar(a, ustarbuff, entry_main, -1, 0,
-	    NULL);
+	if (__archive_write_format_header_ustar(a, ustarbuff, entry_main, -1, 0,
+	    NULL) == ARCHIVE_FATAL)
+		return (ARCHIVE_FATAL);
 
 	/* If we built any extended attributes, write that entry first. */
 	if (archive_strlen(&(pax->pax_header)) > 0) {

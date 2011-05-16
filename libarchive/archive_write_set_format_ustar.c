@@ -338,6 +338,11 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 	 */
 	r = archive_entry_pathname_l(entry, &pp, &copy_length, sconv);
 	if (r != 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Pathname");
+			return (ARCHIVE_FATAL);
+		}
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate pathname '%s' to %s",
 		    pp, archive_string_conversion_charset_name(sconv));
@@ -386,6 +391,11 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 
 	r = archive_entry_hardlink_l(entry, &p, &copy_length, sconv);
 	if (r != 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Linkname");
+			return (ARCHIVE_FATAL);
+		}
 		archive_set_error(&a->archive,
 		    ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate linkname '%s' to %s",
@@ -397,6 +407,11 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 	else {
 		r = archive_entry_symlink_l(entry, &p, &copy_length, sconv);
 		if (r != 0) {
+			if (errno == ENOMEM) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "Can't allocate memory for Linkname");
+				return (ARCHIVE_FATAL);
+			}
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Can't translate linkname '%s' to %s",
@@ -416,6 +431,11 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 
 	r = archive_entry_uname_l(entry, &p, &copy_length, sconv);
 	if (r != 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Uname");
+			return (ARCHIVE_FATAL);
+		}
 		archive_set_error(&a->archive,
 		    ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate uname '%s' to %s",
@@ -434,6 +454,11 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 
 	r = archive_entry_gname_l(entry, &p, &copy_length, sconv);
 	if (r != 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Gname");
+			return (ARCHIVE_FATAL);
+		}
 		archive_set_error(&a->archive,
 		    ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate gname '%s' to %s",

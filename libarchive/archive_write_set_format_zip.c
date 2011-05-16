@@ -389,6 +389,11 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		size_t len;
 
 		if (archive_entry_pathname_l(entry, &p, &len, sconv) != 0) {
+			if (errno == ENOMEM) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "Can't allocate memory for Pathname");
+				return (ARCHIVE_FATAL);
+			}
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Can't translate pathname '%s' to %s",

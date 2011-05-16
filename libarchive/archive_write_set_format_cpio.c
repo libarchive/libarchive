@@ -242,7 +242,12 @@ archive_write_cpio_header(struct archive_write *a, struct archive_entry *entry)
 		return (ARCHIVE_FAILED);
 	}
 
-	(void)archive_entry_pathname_l(entry, &path, &len, get_sconv(a));
+	if (archive_entry_pathname_l(entry, &path, &len, get_sconv(a)) != 0
+	    && errno == ENOMEM) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate memory for Pathname");
+		return (ARCHIVE_FATAL);
+	}
 	if (len == 0 || path == NULL || path[0] == '\0') {
 		archive_set_error(&a->archive, -1, "Pathname required");
 		return (ARCHIVE_FAILED);
@@ -272,6 +277,11 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 
 	ret = archive_entry_pathname_l(entry, &path, &len, sconv);
 	if (ret != 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Pathname");
+			return (ARCHIVE_FATAL);
+		}
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate pathname '%s' to %s",
 		    archive_entry_pathname(entry),
@@ -317,6 +327,11 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 	/* Symlinks get the link written as the body of the entry. */
 	ret = archive_entry_symlink_l(entry, &p, &len, sconv);
 	if (ret != 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Linkname");
+			return (ARCHIVE_FATAL);
+		}
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate linkname '%s' to %s",
 		    archive_entry_symlink(entry),

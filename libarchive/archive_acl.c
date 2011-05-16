@@ -26,6 +26,9 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_ERRNO_H
+#include <errno.h>
+#endif
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif
@@ -170,7 +173,12 @@ archive_acl_add_entry_len_l(struct archive_acl *acl,
 		r = 0;
 		archive_mstring_clean(&ap->name);
 	}
-	return ((r == 0)? ARCHIVE_OK: ARCHIVE_WARN);
+	if (r == 0)
+		return (ARCHIVE_OK);
+	else if (errno == ENOMEM)
+		return (ARCHIVE_FATAL);
+	else
+		return (ARCHIVE_WARN);
 }
 
 /*

@@ -905,11 +905,11 @@ static void	get_system_identitier(char *, size_t);
 static void	set_str(unsigned char *, const char *, size_t, char,
 		    const char *);
 static inline int joliet_allowed_char(unsigned char, unsigned char);
-static void	set_str_utf16be(struct archive_write *, unsigned char *,
+static int	set_str_utf16be(struct archive_write *, unsigned char *,
 			const char *, size_t, uint16_t, enum vdc);
-static void	set_str_a_characters_bp(struct archive_write *,
+static int	set_str_a_characters_bp(struct archive_write *,
 			unsigned char *, int, int, const char *, enum vdc);
-static void	set_str_d_characters_bp(struct archive_write *,
+static int	set_str_d_characters_bp(struct archive_write *,
 			unsigned char *, int, int, const char *, enum  vdc);
 static void	set_VD_bp(unsigned char *, enum VD_type, unsigned char);
 static inline void set_unused_field_bp(unsigned char *, int, int);
@@ -1553,7 +1553,12 @@ iso9660_write_header(struct archive_write *a, struct archive_entry *entry)
 		if (0 > archive_strncpy_in_locale(&iso9660->utf16be,
 		    file->basename.s, file->basename.length,
 		    iso9660->sconv_to_utf16be)) {
-				isofile_free(file);
+			isofile_free(file);
+			if (errno == ENOMEM) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "Can't allocate memory for UTF-16BE");
+				return (ARCHIVE_FATAL);
+			}
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "A filename cannot be converted to UTF-16BE;"
 			    "You should disable making Joliet extension");
@@ -2115,7 +2120,7 @@ joliet_allowed_char(unsigned char high, unsigned char low)
 	return (1);
 }
 
-static void
+static int
 set_str_utf16be(struct archive_write *a, unsigned char *p, const char *s,
     size_t l, uint16_t uf, enum vdc vdc)
 {
@@ -2131,8 +2136,12 @@ set_str_utf16be(struct archive_write *a, unsigned char *p, const char *s,
 		onepad = 0;
 	if (vdc == VDC_UCS2) {
 		struct iso9660 *iso9660 = a->format_data;
-		archive_strncpy_in_locale(&iso9660->utf16be, s, strlen(s),
-		    iso9660->sconv_to_utf16be);
+		if (archive_strncpy_in_locale(&iso9660->utf16be, s, strlen(s),
+		    iso9660->sconv_to_utf16be) != 0 && errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for UTF-16BE");
+			return (ARCHIVE_FATAL);
+		}
 		size = iso9660->utf16be.length;
 		if (size > l)
 			size = l;
@@ -2159,6 +2168,7 @@ set_str_utf16be(struct archive_write *a, unsigned char *p, const char *s,
 	}
 	if (onepad)
 		*p = 0;
+	return (ARCHIVE_OK);
 }
 
 static const char a_characters_map[0x80] = {
@@ -2209,48 +2219,56 @@ static const char d1_characters_map[0x80] = {
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,/* 70-7F */
 };
 
-static void
+static int
 set_str_a_characters_bp(struct archive_write *a, unsigned char *bp,
     int from, int to, const char *s, enum vdc vdc)
 {
+	int r;
 
 	switch (vdc) {
 	case VDC_STD:
 		set_str(bp+from, s, to - from + 1, 0x20,
 		    a_characters_map);
+		r = ARCHIVE_OK;
 		break;
 	case VDC_LOWERCASE:
 		set_str(bp+from, s, to - from + 1, 0x20,
 		    a1_characters_map);
+		r = ARCHIVE_OK;
 		break;
 	case VDC_UCS2:
 	case VDC_UCS2_DIRECT:
-		set_str_utf16be(a, bp+from, s, to - from + 1,
+		r = set_str_utf16be(a, bp+from, s, to - from + 1,
 		    0x0020, vdc);
 		break;
 	}
+	return (r);
 }
 
-static void
+static int
 set_str_d_characters_bp(struct archive_write *a, unsigned char *bp,
     int from, int to, const char *s, enum  vdc vdc)
 {
+	int r;
 
 	switch (vdc) {
 	case VDC_STD:
 		set_str(bp+from, s, to - from + 1, 0x20,
 		    d_characters_map);
+		r = ARCHIVE_OK;
 		break;
 	case VDC_LOWERCASE:
 		set_str(bp+from, s, to - from + 1, 0x20,
 		    d1_characters_map);
+		r = ARCHIVE_OK;
 		break;
 	case VDC_UCS2:
 	case VDC_UCS2_DIRECT:
-		set_str_utf16be(a, bp+from, s, to - from + 1,
+		r = set_str_utf16be(a, bp+from, s, to - from + 1,
 		    0x0020, vdc);
 		break;
 	}
+	return (r);
 }
 
 static void
@@ -3574,12 +3592,13 @@ set_file_identifier(unsigned char *bp, int from, int to, enum vdc vdc,
 	struct isoent *isoent;
 	const char *ids;
 	size_t len;
+	int r;
 
 	if (id->length > 0 && leading_under && id->s[0] != '_') {
 		if (char_type == A_CHAR)
-			set_str_a_characters_bp(a, bp, from, to, id->s, vdc);
+			r = set_str_a_characters_bp(a, bp, from, to, id->s, vdc);
 		else
-			set_str_d_characters_bp(a, bp, from, to, id->s, vdc);
+			r = set_str_d_characters_bp(a, bp, from, to, id->s, vdc);
 	} else if (id->length > 0) {
 		ids = id->s;
 		if (leading_under)
@@ -3606,18 +3625,18 @@ set_file_identifier(unsigned char *bp, int from, int to, enum vdc vdc,
 			vdc = VDC_UCS2_DIRECT;
 		}
 		if (char_type == A_CHAR)
-			set_str_a_characters_bp(a, bp, from, to,
+			r = set_str_a_characters_bp(a, bp, from, to,
 			    identifier, vdc);
 		else
-			set_str_d_characters_bp(a, bp, from, to,
+			r = set_str_d_characters_bp(a, bp, from, to,
 			    identifier, vdc);
 	} else {
 		if (char_type == A_CHAR)
-			set_str_a_characters_bp(a, bp, from, to, NULL, vdc);
+			r = set_str_a_characters_bp(a, bp, from, to, NULL, vdc);
 		else
-			set_str_d_characters_bp(a, bp, from, to, NULL, vdc);
+			r = set_str_d_characters_bp(a, bp, from, to, NULL, vdc);
 	}
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 /*
@@ -3666,10 +3685,14 @@ write_VD(struct archive_write *a, struct vdd *vdd)
 	set_unused_field_bp(bp, 8, 8);
 	/* System Identifier */
 	get_system_identitier(identifier, sizeof(identifier));
-	set_str_a_characters_bp(a, bp, 9, 40, identifier, vdc);
+	r = set_str_a_characters_bp(a, bp, 9, 40, identifier, vdc);
+	if (r != ARCHIVE_OK)
+		return (r);
 	/* Volume Identifier */
-	set_str_d_characters_bp(a, bp, 41, 72,
+	r = set_str_d_characters_bp(a, bp, 41, 72,
 	    iso9660->volume_identifier.s, vdc);
+	if (r != ARCHIVE_OK)
+		return (r);
 	/* Unused Field */
 	set_unused_field_bp(bp, 73, 80);
 	/* Volume Space Size */
@@ -3704,7 +3727,9 @@ write_VD(struct archive_write *a, struct vdd *vdd)
 	set_directory_record(bp+157, 190-157+1, vdd->rootent,
 	    iso9660, DIR_REC_VD, vdd->vdd_type);
 	/* Volume Set Identifier */
-	set_str_d_characters_bp(a, bp, 191, 318, "", vdc);
+	r = set_str_d_characters_bp(a, bp, 191, 318, "", vdc);
+	if (r != ARCHIVE_OK)
+		return (r);
 	/* Publisher Identifier */
 	r = set_file_identifier(bp, 319, 446, vdc, a, vdd,
 	    &(iso9660->publisher_identifier),

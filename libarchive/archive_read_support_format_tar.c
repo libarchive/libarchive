@@ -726,6 +726,8 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 			err = header_old_tar(a, tar, entry, h);
 		}
 	}
+	if (err == ARCHIVE_FATAL)
+		return (err);
 
 	tar_flush_unconsumed(a, unconsumed);
 
@@ -924,9 +926,14 @@ header_Solaris_ACL(struct archive_read *a, struct tar *tar,
 	archive_strncpy(&(tar->localname), acl, p - acl);
 	err = archive_acl_parse_l(archive_entry_acl(entry),
 	    tar->localname.s, ARCHIVE_ENTRY_ACL_TYPE_ACCESS, tar->sconv_acl);
-	if (err != ARCHIVE_OK)
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Malformed Solaris ACL attribute (unparsable)");
+	if (err != ARCHIVE_OK) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for ACL");
+		} else
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Malformed Solaris ACL attribute (unparsable)");
+	}
 	return (err);
 }
 
@@ -954,6 +961,11 @@ static int
 set_conversion_failed_error(struct archive_read *a,
     struct archive_string_conv *sconv, const char *name)
 {
+	if (errno == ENOMEM) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate memory for %s", name);
+		return (ARCHIVE_FATAL);
+	}
 	archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 	    "%s can't be converted from %s to current locale.",
 	    name, archive_string_conversion_charset_name(sconv));
@@ -1084,9 +1096,12 @@ header_common(struct archive_read *a, struct tar *tar,
 	switch (tartype) {
 	case '1': /* Hard link */
 		if (archive_entry_copy_hardlink_l(entry, tar->entry_linkpath.s,
-		    archive_strlen(&(tar->entry_linkpath)), tar->sconv) != 0)
+		    archive_strlen(&(tar->entry_linkpath)), tar->sconv) != 0) {
 			err = set_conversion_failed_error(a, tar->sconv,
 			    "Linkname");
+			if (err == ARCHIVE_FATAL)
+				return (err);
+		}
 		/*
 		 * The following may seem odd, but: Technically, tar
 		 * does not store the file type for a "hard link"
@@ -1149,9 +1164,12 @@ header_common(struct archive_read *a, struct tar *tar,
 		archive_entry_set_size(entry, 0);
 		tar->entry_bytes_remaining = 0;
 		if (archive_entry_copy_symlink_l(entry, tar->entry_linkpath.s,
-		    archive_strlen(&(tar->entry_linkpath)), tar->sconv) != 0)
+		    archive_strlen(&(tar->entry_linkpath)), tar->sconv) != 0) {
 			err = set_conversion_failed_error(a, tar->sconv,
 			    "Linkname");
+			if (err == ARCHIVE_FATAL)
+				return (err);
+		}
 		break;
 	case '3': /* Character device */
 		archive_entry_set_filetype(entry, AE_IFCHR);
@@ -1225,8 +1243,11 @@ header_old_tar(struct archive_read *a, struct tar *tar,
 	/* Copy filename over (to ensure null termination). */
 	header = (const struct archive_entry_header_ustar *)h;
 	if (archive_entry_copy_pathname_l(entry,
-	    header->name, sizeof(header->name), tar->sconv) != 0)
+	    header->name, sizeof(header->name), tar->sconv) != 0) {
 		err = set_conversion_failed_error(a, tar->sconv, "Pathname");
+		if (err == ARCHIVE_FATAL)
+			return (err);
+	}
 
 	/* Grab rest of common fields */
 	err2 = header_common(a, tar, entry, h);
@@ -1381,22 +1402,33 @@ header_ustar(struct archive_read *a, struct tar *tar,
 		archive_strncpy(as, header->name, sizeof(header->name));
 	}
 	if (archive_entry_copy_pathname_l(entry, as->s, archive_strlen(as),
-	    tar->sconv) != 0)
+	    tar->sconv) != 0) {
 		err = set_conversion_failed_error(a, tar->sconv, "Pathname");
+		if (err == ARCHIVE_FATAL)
+			return (err);
+	}
 
 	/* Handle rest of common fields. */
 	r = header_common(a, tar, entry, h);
+	if (r == ARCHIVE_FATAL)
+		return (r);
 	if (r < err)
 		err = r;
 
 	/* Handle POSIX ustar fields. */
 	if (archive_entry_copy_uname_l(entry,
-	    header->uname, sizeof(header->uname), tar->sconv) != 0)
+	    header->uname, sizeof(header->uname), tar->sconv) != 0) {
 		err = set_conversion_failed_error(a, tar->sconv, "Uname");
+		if (err == ARCHIVE_FATAL)
+			return (err);
+	}
 
 	if (archive_entry_copy_gname_l(entry,
-	    header->gname, sizeof(header->gname), tar->sconv) != 0)
+	    header->gname, sizeof(header->gname), tar->sconv) != 0) {
 		err = set_conversion_failed_error(a, tar->sconv, "Gname");
+		if (err == ARCHIVE_FATAL)
+			return (err);
+	}
 
 	/* Parse out device numbers only for char and block specials. */
 	if (header->typeflag[0] == '3' || header->typeflag[0] == '4') {
@@ -1534,6 +1566,8 @@ pax_header(struct archive_read *a, struct tar *tar,
 		if (archive_entry_copy_gname_l(entry, tar->entry_gname.s,
 		    archive_strlen(&(tar->entry_gname)), sconv) != 0) {
 			err = set_conversion_failed_error(a, sconv, "Gname");
+			if (err == ARCHIVE_FATAL)
+				return (err);
 			/* Use a converted an original name. */
 			archive_entry_copy_gname(entry, tar->entry_gname.s);
 		}
@@ -1542,6 +1576,8 @@ pax_header(struct archive_read *a, struct tar *tar,
 		if (archive_entry_copy_link_l(entry, tar->entry_linkpath.s,
 		    archive_strlen(&(tar->entry_linkpath)), sconv) != 0) {
 			err = set_conversion_failed_error(a, sconv, "Linkname");
+			if (err == ARCHIVE_FATAL)
+				return (err);
 			/* Use a converted an original name. */
 			archive_entry_copy_link(entry, tar->entry_linkpath.s);
 		}
@@ -1564,6 +1600,8 @@ pax_header(struct archive_read *a, struct tar *tar,
 		if (archive_entry_copy_pathname_l(entry, as->s,
 		    archive_strlen(as), sconv) != 0) {
 			err = set_conversion_failed_error(a, sconv, "Pathname");
+			if (err == ARCHIVE_FATAL)
+				return (err);
 			/* Use a converted an original name. */
 			archive_entry_copy_pathname(entry, as->s);
 		}
@@ -1572,6 +1610,8 @@ pax_header(struct archive_read *a, struct tar *tar,
 		if (archive_entry_copy_uname_l(entry, tar->entry_uname.s,
 		    archive_strlen(&(tar->entry_uname)), sconv) != 0) {
 			err = set_conversion_failed_error(a, sconv, "Uname");
+			if (err == ARCHIVE_FATAL)
+				return (err);
 			/* Use a converted an original name. */
 			archive_entry_copy_uname(entry, tar->entry_uname.s);
 		}
@@ -1730,6 +1770,12 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 			    tar->sconv_acl);
 			if (r != ARCHIVE_OK) {
 				err = r;
+				if (err == ARCHIVE_FATAL) {
+					archive_set_error(&a->archive, ENOMEM,
+					    "Can't allocate memory for "
+					    "SCHILY.acl.access");
+					return (err);
+				}
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
 				    "Parse error: SCHILY.acl.access");
@@ -1748,6 +1794,12 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 			    tar->sconv_acl);
 			if (r != ARCHIVE_OK) {
 				err = r;
+				if (err == ARCHIVE_FATAL) {
+					archive_set_error(&a->archive, ENOMEM,
+					    "Can't allocate memory for "
+					    "SCHILY.acl.default");
+					return (err);
+				}
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
 				    "Parse error: SCHILY.acl.default");
@@ -1933,24 +1985,35 @@ header_gnutar(struct archive_read *a, struct tar *tar,
 
 	/* Grab fields common to all tar variants. */
 	err = header_common(a, tar, entry, h);
+	if (err == ARCHIVE_FATAL)
+		return (err);
 
 	/* Copy filename over (to ensure null termination). */
 	header = (const struct archive_entry_header_gnutar *)h;
 	if (archive_entry_copy_pathname_l(entry,
-	    header->name, sizeof(header->name), tar->sconv) != 0)
+	    header->name, sizeof(header->name), tar->sconv) != 0) {
 		err = set_conversion_failed_error(a, tar->sconv, "Pathname");
+		if (err == ARCHIVE_FATAL)
+			return (err);
+	}
 
 	/* Fields common to ustar and GNU */
 	/* XXX Can the following be factored out since it's common
 	 * to ustar and gnu tar?  Is it okay to move it down into
 	 * header_common, perhaps?  */
 	if (archive_entry_copy_uname_l(entry,
-	    header->uname, sizeof(header->uname), tar->sconv) != 0)
+	    header->uname, sizeof(header->uname), tar->sconv) != 0) {
 		err = set_conversion_failed_error(a, tar->sconv, "Uname");
+		if (err == ARCHIVE_FATAL)
+			return (err);
+	}
 
 	if (archive_entry_copy_gname_l(entry,
-	    header->gname, sizeof(header->gname), tar->sconv) != 0)
+	    header->gname, sizeof(header->gname), tar->sconv) != 0) {
 		err = set_conversion_failed_error(a, tar->sconv, "Gname");
+		if (err == ARCHIVE_FATAL)
+			return (err);
+	}
 
 	/* Parse out device numbers only for char and block specials */
 	if (header->typeflag[0] == '3' || header->typeflag[0] == '4') {

@@ -39,6 +39,9 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_entry.c 201096 2009-12-28 02:41:
 #include <sys/sysmacros.h>
 #define HAVE_MAJOR
 #endif
+#ifdef HAVE_ERRNO_H
+#include <errno.h>
+#endif
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif
@@ -1266,7 +1269,9 @@ const char *
 archive_entry_acl_text(struct archive_entry *entry, int flags)
 {
 	const char *p;
-	archive_acl_text_l(&entry->acl, flags, &p, NULL, NULL);
+	if (archive_acl_text_l(&entry->acl, flags, &p, NULL, NULL) != 0
+	    && errno == ENOMEM)
+		return (NULL);
 	return (p);
 }
 

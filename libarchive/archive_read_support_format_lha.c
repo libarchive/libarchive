@@ -648,6 +648,11 @@ archive_read_format_lha_read_header(struct archive_read *a,
 	 */
 	if (archive_entry_copy_pathname_l(entry, pathname.s,
 	    pathname.length, lha->sconv) != 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Pathname");
+			return (ARCHIVE_FATAL);
+		}
 		archive_set_error(&a->archive,
 		    ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Pathname cannot be converted "
@@ -659,6 +664,11 @@ archive_read_format_lha_read_header(struct archive_read *a,
 	if (archive_strlen(&linkname) > 0) {
 		if (archive_entry_copy_symlink_l(entry, linkname.s,
 		    linkname.length, lha->sconv) != 0) {
+			if (errno == ENOMEM) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "Can't allocate memory for Linkname");
+				return (ARCHIVE_FATAL);
+			}
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Linkname cannot be converted "

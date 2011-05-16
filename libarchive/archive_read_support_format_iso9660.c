@@ -1810,8 +1810,13 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 			if (iso9660->sconv_utf16be == NULL)
 				return (NULL);/* Coundn't allocate memory */
 		}
-		archive_strncpy_in_locale(&file->name,
-		    (const char *)p, name_len, iso9660->sconv_utf16be);
+		if (archive_strncpy_in_locale(&file->name,
+		    (const char *)p, name_len, iso9660->sconv_utf16be) != 0
+		    && errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "No memory for file name");
+			return (NULL);
+		}
 	} else {
 		/* Chop off trailing ';1' from files. */
 		if (name_len > 2 && p[name_len - 2] == ';' &&

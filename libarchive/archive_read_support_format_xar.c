@@ -699,6 +699,11 @@ xar_read_header(struct archive_read *a, struct archive_entry *entry)
 	if (file->gname.length > 0 &&
 	    archive_entry_copy_gname_l(entry, file->gname.s,
 		archive_strlen(&(file->gname)), xar->sconv) != 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Gname");
+			return (ARCHIVE_FATAL);
+		}
 		archive_set_error(&a->archive,
 		    ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Gname cannot be converted from %s to current locale.",
@@ -709,6 +714,11 @@ xar_read_header(struct archive_read *a, struct archive_entry *entry)
 	if (file->uname.length > 0 &&
 	    archive_entry_copy_uname_l(entry, file->uname.s,
 		archive_strlen(&(file->uname)), xar->sconv) != 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Uname");
+			return (ARCHIVE_FATAL);
+		}
 		archive_set_error(&a->archive,
 		    ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Uname cannot be converted from %s to current locale.",
@@ -718,6 +728,11 @@ xar_read_header(struct archive_read *a, struct archive_entry *entry)
 	archive_entry_set_mode(entry, file->mode);
 	if (archive_entry_copy_pathname_l(entry, file->pathname.s,
 	    archive_strlen(&(file->pathname)), xar->sconv) != 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Pathname");
+			return (ARCHIVE_FATAL);
+		}
 		archive_set_error(&a->archive,
 		    ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Pathname cannot be converted from %s to current locale.",
@@ -729,6 +744,11 @@ xar_read_header(struct archive_read *a, struct archive_entry *entry)
 	if (file->symlink.length > 0 &&
 	    archive_entry_copy_symlink_l(entry, file->symlink.s,
 		archive_strlen(&(file->symlink)), xar->sconv) != 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Linkname");
+			return (ARCHIVE_FATAL);
+		}
 		archive_set_error(&a->archive,
 		    ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Linkname cannot be converted from %s to current locale.",

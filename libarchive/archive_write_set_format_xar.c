@@ -528,6 +528,8 @@ xar_write_header(struct archive_write *a, struct archive_entry *entry)
 		return (ARCHIVE_FATAL);
 	}
 	r2 = file_gen_utility_names(a, file);
+	if (r2 < ARCHIVE_WARN)
+		return (r2);
 
 	/* Add entry into tree */
 	file_entry = file->entry;
@@ -1274,6 +1276,11 @@ make_file_entry(struct archive_write *a, xmlTextWriterPtr writer,
 		return (ARCHIVE_FATAL);
 	r = archive_entry_uname_l(file->entry, &p, &len, xar->sconv);
 	if (r != 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Uname");
+			return (ARCHIVE_FATAL);
+		}
 		archive_set_error(&a->archive,
 		    ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate uname '%s' to UTF-8",
@@ -1295,6 +1302,11 @@ make_file_entry(struct archive_write *a, xmlTextWriterPtr writer,
 		return (ARCHIVE_FATAL);
 	r = archive_entry_gname_l(file->entry, &p, &len, xar->sconv);
 	if (r != 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Gname");
+			return (ARCHIVE_FATAL);
+		}
 		archive_set_error(&a->archive,
 		    ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate gname '%s' to UTF-8",
@@ -1996,6 +2008,11 @@ file_gen_utility_names(struct archive_write *a, struct file *file)
 
 	if (archive_entry_pathname_l(file->entry, &pp, &len, xar->sconv)
 	    != 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Pathname");
+			return (ARCHIVE_FATAL);
+		}
 		archive_set_error(&a->archive,
 		    ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate pathname '%s' to UTF-8",
@@ -2093,6 +2110,11 @@ file_gen_utility_names(struct archive_write *a, struct file *file)
 		/* Convert symlink name too. */
 		if (archive_entry_symlink_l(file->entry, &pp, &len2,
 		    xar->sconv) != 0) {
+			if (errno == ENOMEM) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "Can't allocate memory for Linkname");
+				return (ARCHIVE_FATAL);
+			}
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Can't translate symlink '%s' to UTF-8",
@@ -2249,7 +2271,8 @@ file_tree(struct archive_write *a, struct file **filepp)
 				return (ARCHIVE_FATAL);
 			}
 			archive_string_free(&as);
-			file_gen_utility_names(a, vp);
+			if (file_gen_utility_names(a, vp) <= ARCHIVE_FAILED)
+				return (ARCHIVE_FATAL);
 			file_add_child_tail(dent, vp);
 			file_register(xar, vp);
 			np = vp;
