@@ -70,6 +70,9 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_string.c 201095 2009-12-28 02:33
 #include "archive_string.h"
 #include "archive_string_composition.h"
 
+#ifndef HAVE_WMEMCPY
+#define wmemcpy(a,b,i)  (wchar_t *)memcpy((a), (b), (i) * sizeof(wchar_t))
+#endif
 
 struct archive_string_conv {
 	struct archive_string_conv	*next;
@@ -168,7 +171,7 @@ archive_wstring_append(struct archive_wstring *as, const wchar_t *p, size_t s)
 {
 	if (archive_wstring_ensure(as, as->length + s + 1) == NULL)
 		__archive_errx(1, "Out of memory");
-	memcpy(as->s + as->length, p, s * sizeof(wchar_t));
+	wmemcpy(as->s + as->length, p, s);
 	as->length += s;
 	as->s[as->length] = 0;
 	return (as);
