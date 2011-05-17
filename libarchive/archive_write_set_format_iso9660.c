@@ -1539,8 +1539,10 @@ iso9660_write_header(struct archive_write *a, struct archive_entry *entry)
 		return (ARCHIVE_FATAL);
 	}
 	r = isofile_gen_utility_names(a, file);
-	if (r < ARCHIVE_WARN)
+	if (r < ARCHIVE_WARN) {
+		isofile_free(file);
 		return (r);
+	}
 	else if (r < ret)
 		ret = r;
 	isofile_add_entry(iso9660, file);
@@ -4604,7 +4606,6 @@ isofile_gen_utility_names(struct archive_write *a, struct isofile *file)
 		 */
 		if (0 > archive_entry_pathname_l(file->entry, &u16, &u16len,
 		    iso9660->sconv_to_utf16be)) {
-			isofile_free(file);
 			if (errno == ENOMEM) {
 				archive_set_error(&a->archive, ENOMEM,
 				    "Can't allocate memory for UTF-16BE");
@@ -5094,7 +5095,10 @@ isoent_create_virtual_dir(struct archive_write *a, struct iso9660 *iso9660, cons
 	archive_entry_set_gid(file->entry, getgid());
 	archive_entry_set_mode(file->entry, 0555 | AE_IFDIR);
 	archive_entry_set_nlink(file->entry, 2);
-	isofile_gen_utility_names(a, file);
+	if (isofile_gen_utility_names(a, file) < ARCHIVE_WARN) {
+		isofile_free(file);
+		return (NULL);
+	}
 	isofile_add_entry(iso9660, file);
 
 	isoent = isoent_new(file);
@@ -7012,8 +7016,10 @@ isoent_create_boot_catalog(struct archive_write *a, struct isoent *rootent)
 	archive_entry_set_mode(file->entry, AE_IFREG | 0444);
 	archive_entry_set_nlink(file->entry, 1);
 
-	if (isofile_gen_utility_names(a, file) == ARCHIVE_FATAL)
+	if (isofile_gen_utility_names(a, file) < ARCHIVE_WARN) {
+		isofile_free(file);
 		return (ARCHIVE_FATAL);
+	}
 	file->boot = BOOT_CATALOG;
 	file->content.size = LOGICAL_BLOCK_SIZE;
 	isofile_add_entry(iso9660, file);
