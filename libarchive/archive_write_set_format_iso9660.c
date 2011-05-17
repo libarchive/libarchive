@@ -57,6 +57,7 @@
 #include "archive.h"
 #include "archive_endian.h"
 #include "archive_entry.h"
+#include "archive_entry_locale.h"
 #include "archive_private.h"
 #include "archive_rb.h"
 #include "archive_write_private.h"
@@ -174,6 +175,7 @@ struct isofile {
 	 */
 	struct archive_string	 parentdir;
 	struct archive_string	 basename;
+	struct archive_string	 basename_utf16;
 	struct archive_string	 symlink;
 	int			 dircnt;	/* The number of elements of
 						 * its parent directory */
@@ -953,7 +955,8 @@ static void	isofile_add_entry(struct iso9660 *, struct isofile *);
 static void	isofile_free_all_entries(struct iso9660 *);
 static struct isofile * isofile_new(struct archive_write *, struct archive_entry *);
 static void	isofile_free(struct isofile *);
-static void	isofile_gen_utility_names(struct isofile *);
+static int	isofile_gen_utility_names(struct archive_write *,
+		    struct isofile *);
 #ifdef HAVE_ZLIB_H
 static void	get_parent_and_base(struct archive_string *,
 		    struct archive_string *, const char *);
@@ -1501,7 +1504,7 @@ iso9660_write_header(struct archive_write *a, struct archive_entry *entry)
 	struct iso9660 *iso9660;
 	struct isofile *file;
 	struct isoent *isoent;
-	int r;
+	int r, ret = ARCHIVE_OK;
 
 	iso9660 = a->format_data;
 
@@ -1535,36 +1538,11 @@ iso9660_write_header(struct archive_write *a, struct archive_entry *entry)
 		    "Can't allocate data");
 		return (ARCHIVE_FATAL);
 	}
-	isofile_gen_utility_names(file);
-	if (iso9660->opt.joliet) {
-		if (iso9660->sconv_to_utf16be == NULL) {
-			iso9660->sconv_to_utf16be =
-			    archive_string_conversion_to_charset(
-				&(a->archive), "UTF-16BE", 1);
-			if (iso9660->sconv_to_utf16be == NULL)
-				return (ARCHIVE_FATAL);/* Couldn't allocate memory */
-			iso9660->sconv_from_utf16be =
-			    archive_string_conversion_from_charset(
-				&(a->archive), "UTF-16BE", 1);
-			if (iso9660->sconv_from_utf16be == NULL)
-				return (ARCHIVE_FATAL);/* Couldn't allocate memory */
-		}
-		/* Test whether a filename can be converted to UTF-16BE or not. */
-		if (0 > archive_strncpy_in_locale(&iso9660->utf16be,
-		    file->basename.s, file->basename.length,
-		    iso9660->sconv_to_utf16be)) {
-			isofile_free(file);
-			if (errno == ENOMEM) {
-				archive_set_error(&a->archive, ENOMEM,
-				    "Can't allocate memory for UTF-16BE");
-				return (ARCHIVE_FATAL);
-			}
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "A filename cannot be converted to UTF-16BE;"
-			    "You should disable making Joliet extension");
-			return (ARCHIVE_FAILED);
-		}
-	}
+	r = isofile_gen_utility_names(a, file);
+	if (r < ARCHIVE_WARN)
+		return (r);
+	else if (r < ret)
+		ret = r;
 	isofile_add_entry(iso9660, file);
 	isoent = isoent_new(file);
 	if (isoent == NULL) {
@@ -1589,7 +1567,7 @@ iso9660_write_header(struct archive_write *a, struct archive_entry *entry)
 	/* Non regular files contents are unneeded to be saved to
 	 * temporary files. */
 	if (archive_entry_filetype(file->entry) != AE_IFREG)
-		return (ARCHIVE_OK);
+		return (ret);
 
 	/*
 	 * Set the current file to cur_file to read its contents.
@@ -1619,9 +1597,11 @@ iso9660_write_header(struct archive_write *a, struct archive_entry *entry)
 	file->content.offset_of_temp = lseek(iso9660->temp_fd, 0, SEEK_CUR);
 	file->cur_content = &(file->content);
 	r = zisofs_init(a, file);
+	if (r < ret)
+		ret = r;
 	iso9660->bytes_remaining =  archive_entry_size(file->entry);
 
-	return (r);
+	return (ret);
 }
 
 static int
@@ -1800,12 +1780,14 @@ iso9660_close(struct archive_write *a)
 			    archive_string_conversion_to_charset(
 				&(a->archive), "UTF-16BE", 1);
 			if (iso9660->sconv_to_utf16be == NULL)
-				return (ARCHIVE_FATAL);/* Couldn't allocate memory */
+				/* Couldn't allocate memory */
+				return (ARCHIVE_FATAL);
 			iso9660->sconv_from_utf16be =
 			    archive_string_conversion_from_charset(
 				&(a->archive), "UTF-16BE", 1);
 			if (iso9660->sconv_from_utf16be == NULL)
-				return (ARCHIVE_FATAL);/* Couldn't allocate memory */
+				/* Couldn't allocate memory */
+				return (ARCHIVE_FATAL);
 		}
 	}
 
@@ -4507,6 +4489,7 @@ isofile_new(struct archive_write *a, struct archive_entry *entry)
 	}
 	archive_string_init(&(file->parentdir));
 	archive_string_init(&(file->basename));
+	archive_string_init(&(file->basename_utf16));
 	archive_string_init(&(file->symlink));
 	file->cur_content = &(file->content);
 
@@ -4527,6 +4510,7 @@ isofile_free(struct isofile *file)
 	archive_entry_free(file->entry);
 	archive_string_free(&(file->parentdir));
 	archive_string_free(&(file->basename));
+	archive_string_free(&(file->basename_utf16));
 	archive_string_free(&(file->symlink));
 	free(file);
 }
@@ -4571,22 +4555,118 @@ cleanup_backslash_2(wchar_t *p)
 /*
  * Generate a parent directory name and a base name from a pathname.
  */
-static void
-isofile_gen_utility_names(struct isofile *file)
+static int
+isofile_gen_utility_names(struct archive_write *a, struct isofile *file)
 {
+	struct iso9660 *iso9660;
 	const char *pathname;
 	char *p, *dirname, *slash;
 	size_t len;
+	int ret = ARCHIVE_OK;
+
+	iso9660 = a->format_data;
 
 	archive_string_empty(&(file->parentdir));
 	archive_string_empty(&(file->basename));
+	archive_string_empty(&(file->basename_utf16));
 	archive_string_empty(&(file->symlink));
 
 	pathname =  archive_entry_pathname(file->entry);
 	if (pathname == NULL || pathname[0] == '\0') {/* virtual root */
 		file->dircnt = 0;
-		return;
+		return (ret);
 	}
+
+	/*
+	 * Make a UTF-16BE basename if Joliet extension enabled.
+	 */
+	if (iso9660->opt.joliet) {
+		const char *u16, *ulast;
+		size_t u16len, ulen_last;
+
+		if (iso9660->sconv_to_utf16be == NULL) {
+			iso9660->sconv_to_utf16be =
+			    archive_string_conversion_to_charset(
+				&(a->archive), "UTF-16BE", 1);
+			if (iso9660->sconv_to_utf16be == NULL)
+				/* Couldn't allocate memory */
+				return (ARCHIVE_FATAL);
+			iso9660->sconv_from_utf16be =
+			    archive_string_conversion_from_charset(
+				&(a->archive), "UTF-16BE", 1);
+			if (iso9660->sconv_from_utf16be == NULL)
+				/* Couldn't allocate memory */
+				return (ARCHIVE_FATAL);
+		}
+
+		/*
+		 * Converte a filename to UTF-16BE.
+		 */
+		if (0 > archive_entry_pathname_l(file->entry, &u16, &u16len,
+		    iso9660->sconv_to_utf16be)) {
+			isofile_free(file);
+			if (errno == ENOMEM) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "Can't allocate memory for UTF-16BE");
+				return (ARCHIVE_FATAL);
+			}
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "A filename cannot be converted to UTF-16BE;"
+			    "You should disable making Joliet extension");
+			ret = ARCHIVE_WARN;
+		}
+
+		/*
+		 * Make sure a path separator is not in the last;
+		 * Remove trailing '/'.
+		 */
+		while (u16len >= 2) {
+#if defined(_WIN32) || defined(__CYGWIN__)
+			if (u16[u16len-2] == 0 &&
+			    (u16[u16len-1] == '/' || u16[u16len-1] == '\\'))
+#else
+			if (u16[u16len-2] == 0 && u16[u16len-1] == '/')
+#endif
+			{
+				u16len -= 2;
+			} else
+				break;
+		}
+
+		/*
+		 * Find a basename in UTF-16BE.
+		 */
+		ulast = u16;
+		u16len >>= 1;
+		ulen_last = u16len;
+		while (u16len > 0) {
+#if defined(_WIN32) || defined(__CYGWIN__)
+			if (u16[0] == 0 && (u16[1] == '/' || u16[1] == '\\'))
+#else
+			if (u16[0] == 0 && u16[1] == '/')
+#endif
+			{
+				ulast = u16 + 2;
+				ulen_last = u16len -1;
+			}
+			u16 += 2;
+			u16len --;
+		}
+		ulen_last <<= 1;
+		if (archive_string_ensure(&(file->basename_utf16),
+		    ulen_last) == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for UTF-16BE");
+			return (ARCHIVE_FATAL);
+		}
+
+		/*
+		 * Set UTF-16BE basename.
+		 */
+		memcpy(file->basename_utf16.s, ulast, ulen_last);
+		file->basename_utf16.length = ulen_last;
+	}
+
 	archive_strcpy(&(file->parentdir), pathname);
 #if defined(_WIN32) || defined(__CYGWIN__)
 	/*
@@ -4734,7 +4814,7 @@ isofile_gen_utility_names(struct isofile *file)
 		archive_string_copy(&(file->basename), &(file->parentdir));
 		archive_string_empty(&(file->parentdir));
 		*file->parentdir.s = '\0';
-		return;
+		return (ret);
 	}
 
 	/* Make a basename from dirname and slash */
@@ -4743,6 +4823,7 @@ isofile_gen_utility_names(struct isofile *file)
 	archive_strcpy(&(file->basename),  slash + 1);
 	if (archive_entry_filetype(file->entry) == AE_IFDIR)
 		file->dircnt ++;
+	return (ret);
 }
 
 #ifdef HAVE_ZLIB_H
@@ -5013,7 +5094,7 @@ isoent_create_virtual_dir(struct archive_write *a, struct iso9660 *iso9660, cons
 	archive_entry_set_gid(file->entry, getgid());
 	archive_entry_set_mode(file->entry, 0555 | AE_IFDIR);
 	archive_entry_set_nlink(file->entry, 2);
-	isofile_gen_utility_names(file);
+	isofile_gen_utility_names(a, file);
 	isofile_add_entry(iso9660, file);
 
 	isoent = isoent_new(file);
@@ -6080,10 +6161,7 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 		int ext_off, noff, weight;
 		size_t lt;
 
-		archive_strncpy_in_locale(&iso9660->utf16be,
-		    np->file->basename.s, np->file->basename.length,
-		    iso9660->sconv_to_utf16be);
-		if ((int)(l = iso9660->utf16be.length) > ffmax)
+		if ((int)(l = np->file->basename_utf16.length) > ffmax)
 			l = ffmax;
 
 		p = malloc((l+1)*2);
@@ -6092,7 +6170,7 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 			    "Can't allocate memory");
 			return (ARCHIVE_FATAL);
 		}
-		memcpy(p, iso9660->utf16be.s, l);
+		memcpy(p, np->file->basename_utf16.s, l);
 		p[l] = 0;
 		p[l+1] = 0;
 
@@ -6116,7 +6194,7 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 		/*
 		 * Get a length of MBS of a full-pathname.
 		 */
-		if ((int)iso9660->utf16be.length > ffmax) {
+		if ((int)np->file->basename_utf16.length > ffmax) {
 			archive_strncpy_in_locale(&iso9660->mbs,
 			    (const char *)np->identifier, l,
 			    iso9660->sconv_from_utf16be);
@@ -6934,7 +7012,8 @@ isoent_create_boot_catalog(struct archive_write *a, struct isoent *rootent)
 	archive_entry_set_mode(file->entry, AE_IFREG | 0444);
 	archive_entry_set_nlink(file->entry, 1);
 
-	isofile_gen_utility_names(file);
+	if (isofile_gen_utility_names(a, file) == ARCHIVE_FATAL)
+		return (ARCHIVE_FATAL);
 	file->boot = BOOT_CATALOG;
 	file->content.size = LOGICAL_BLOCK_SIZE;
 	isofile_add_entry(iso9660, file);
