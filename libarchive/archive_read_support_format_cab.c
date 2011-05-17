@@ -1823,7 +1823,6 @@ cab_consume_cfdata(struct archive_read *a, int64_t consumed_bytes)
 				case iFoldCONTINUED_TO_NEXT:
 				case iFoldCONTINUED_FROM_PREV:
 					return (ARCHIVE_FATAL);
-					break;
 				default:
 					break;
 				}
