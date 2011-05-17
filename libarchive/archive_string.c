@@ -3133,6 +3133,29 @@ strncat_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
 	if (archive_string_ensure(as, as->length + bytes +1) == NULL)
 		return (-1);
 
+	mbs = as->s + as->length;
+	mbs_size = as->buffer_length - as->length -1;
+
+	if (sc->to_cp == CP_C_LOCALE) {
+		/*
+		 * "C" locale special process.
+		 */
+		u16 = _p;
+		ll = 0;
+		for (b = 0; b < bytes; b += 2) {
+			uint16_t val = archive_be16dec(u16+b);
+			if (val > 255) {
+				*mbs++ = '?';
+				ret = -1;
+			} else
+				*mbs++ = (char)(val&0xff);
+			ll++;
+		}
+		as->length += ll;
+		as->s[as->length] = '\0';
+		return (ret);
+	}
+
 	archive_string_init(&tmp);
 	if (is_big_endian()) {
 		u16 = _p;
@@ -3150,9 +3173,8 @@ strncat_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
 		u16 = tmp.s;
 	}
 
-	mbs = as->s + as->length;
-	mbs_size = as->buffer_length - as->length -1;
 	do {
+		defchar = 0;
 		ll = WideCharToMultiByte(sc->to_cp, 0,
 		    (LPCWSTR)u16, bytes>>1, mbs, mbs_size,
 			NULL, &defchar);
@@ -3202,6 +3224,22 @@ strncat_to_utf16be(struct archive_string *a16be, const void *_p, size_t length,
 
 	u16 = a16be->s + a16be->length;
 	avail = a16be->buffer_length - 2;
+	if (sc->from_cp == CP_C_LOCALE) {
+		/*
+		 * "C" locale special process.
+		 */
+		count = 0;
+		while (count < length && *s) {
+			archive_be16enc(u16, *s);
+			u16 += 2;
+			s++;
+			count++;
+		}
+		a16be->length += count << 1;
+		a16be->s[a16be->length] = 0;
+		a16be->s[a16be->length+1] = 0;
+		return (0);
+	}
 	do {
 		count = MultiByteToWideChar(sc->from_cp,
 		    MB_PRECOMPOSED, s, length, (LPWSTR)u16, (int)avail>>1);
