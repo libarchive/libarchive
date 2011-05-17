@@ -71,6 +71,11 @@ unicode_to_utf8(char *p, uint32_t uc)
         return ((int)(p - _p));
 }
 
+/*
+ * Note: U+2000 - U+2FFF, U+F900 - U+FAFF and U+2F800 - U+2FAFF are not
+ * converted to NFD on Mac OS.
+ * see also http://developer.apple.com/library/mac/#qa/qa2001/qa1173.html
+ */
 static int
 scan_unicode_pattern(char *out, const char *pattern, int exclude_mac_nfd)
 {
@@ -85,10 +90,24 @@ scan_unicode_pattern(char *out, const char *pattern, int exclude_mac_nfd)
 			uc = (uc << 4) + (*p - 'A' + 0x0a);
 		else {
 			if (exclude_mac_nfd) {
-				/* These are not converted to NFD on Mac OS. */
+				/*
+				 * These are not converted to NFD on Mac OS.
+				 */
 				if ((uc >= 0x2000 && uc <= 0x2FFF) ||
 				    (uc >= 0xF900 && uc <= 0xFAFF) ||
 				    (uc >= 0x2F800 && uc <= 0x2FAFF))
+					return (-1);
+				/*
+				 * Those code points are not converted to
+				 * NFD on Mac OS. I do not know the reason
+				 * because it is undocumented.
+				 *   NFC        NFD
+				 *   1109A  ==> 11099 110BA
+				 *   1109C  ==> 1109B 110BA
+				 *   110AB  ==> 110A5 110BA
+				 */
+				if (uc == 0x1109A || uc == 0x1109C ||
+				    uc == 0x110AB)
 					return (-1);
 			}
 			op += unicode_to_utf8(op, uc);
