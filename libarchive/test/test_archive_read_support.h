@@ -24,7 +24,7 @@
  */
 __FBSDID("$FreeBSD$");
 
-typedef struct archive *constructor();
+typedef struct archive *constructor(void);
 typedef int enabler(struct archive *);
 typedef int destructor(struct archive *);
 

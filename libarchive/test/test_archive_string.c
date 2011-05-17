@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 	} while (0)
 
 static void
-test_archive_string_ensure()
+test_archive_string_ensure(void)
 {
 	struct archive_string s;
 
@@ -70,7 +70,7 @@ test_archive_string_ensure()
 }
 
 static void
-test_archive_strcat()
+test_archive_strcat(void)
 {
 	struct archive_string s;
 
@@ -95,7 +95,7 @@ test_archive_strcat()
 }
 
 static void
-test_archive_strappend_char()
+test_archive_strappend_char(void)
 {
 	struct archive_string s;
 
@@ -116,7 +116,7 @@ test_archive_strappend_char()
  */
 
 static void
-test_archive_strncat()
+test_archive_strncat(void)
 {
 	struct archive_string s;
 
@@ -137,7 +137,7 @@ test_archive_strncat()
 }
 
 static void
-test_archive_strncpy()
+test_archive_strncpy(void)
 {
 	struct archive_string s;
 
@@ -158,7 +158,7 @@ test_archive_strncpy()
 }
 
 static void
-test_archive_strcpy()
+test_archive_strcpy(void)
 {
 	struct archive_string s;
 
@@ -179,7 +179,7 @@ test_archive_strcpy()
 }
 
 static void
-test_archive_string_concat()
+test_archive_string_concat(void)
 {
 	struct archive_string s, t, u, v;
 
@@ -225,7 +225,7 @@ test_archive_string_concat()
 }
 
 static void
-test_archive_string_copy()
+test_archive_string_copy(void)
 {
 	struct archive_string s, t, u, v;
 
@@ -277,7 +277,7 @@ test_archive_string_copy()
 }
 
 static void
-test_archive_string_sprintf()
+test_archive_string_sprintf(void)
 {
 	struct archive_string s;
 #define S16 "0123456789abcdef"
