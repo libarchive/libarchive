@@ -118,7 +118,22 @@ struct archive_string_conv {
 #endif
 };
 
-#define CP_C_LOCALE	0	/* "C" locale */
+#define CP_C_LOCALE	0	/* "C" locale only for this file. */
+#define CP_UTF16LE	1200
+#define CP_UTF16BE	1201
+
+#define IS_HIGH_SURROGATE_LA(uc) ((uc) >= 0xD800 && (uc) <= 0xDBFF)
+#define IS_LOW_SURROGATE_LA(uc)	 ((uc) >= 0xDC00 && (uc) <= 0xDFFF)
+#define IS_SURROGATE_PAIR_LA(uc) ((uc) >= 0xD800 && (uc) <= 0xDFFF)
+#define UNICODE_MAX		0x10FFFF
+#define UNICODE_R_CHAR		0xFFFD	/* Replacement character. */
+/* Set U+FFFD(Replacement character) in UTF-8. */
+#define UTF8_SET_R_CHAR(outp) do {		\
+			(outp)[0] = 0xef;	\
+			(outp)[1] = 0xbf;	\
+			(outp)[2] = 0xbd;	\
+} while (0)
+#define UTF8_R_CHAR_SIZE	3
 
 static struct archive_string_conv *find_sconv_object(struct archive *,
 	const char *, const char *);
@@ -1053,9 +1068,6 @@ my_atoi(const char *p)
 	return (cp);
 }
 
-#define CP_UTF16LE	1200
-#define CP_UTF16BE	1201
-
 /*
  * Translate Charset name (as used by iconv) into CodePage (as used by Windows)
  * Return -1 if failed.
@@ -1981,10 +1993,9 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 		 	 * When coping a string in UTF-8, unknown character
 			 * should be U+FFFD (replacement character).
 			 */
-			*outp++ = 0xef;
-			*outp++ = 0xbf;
-			*outp++ = 0xbd;
-			avail -= 3;
+			UTF8_SET_R_CHAR(outp);
+			outp += UTF8_R_CHAR_SIZE;
+			avail -= UTF8_R_CHAR_SIZE;
 			inp++;
 			remaining--;
 			return_value = -1;
@@ -2012,11 +2023,6 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
  *   - UTF-16BE <===> UTF-8.
  *
  */
-#define IS_HIGH_SURROGATE_LA(uc) ((uc) >= 0xD800 && (uc) <= 0xDBFF)
-#define IS_LOW_SURROGATE_LA(uc)	 ((uc) >= 0xDC00 && (uc) <= 0xDFFF)
-#define IS_SURROGATE_PAIR_LA(uc) ((uc) >= 0xD800 && (uc) <= 0xDFFF)
-#define UNICODE_MAX		0x10FFFF
-#define UNICODE_R_CHAR		0xFFFD	/* Replacemant character. */
 
 /*
  * Utility to convert a single UTF-8 sequence.
@@ -2246,11 +2252,11 @@ unicode_to_utf8(char *p, uint32_t uc)
 		*p++ = 0x80 | (uc & 0x3f);
 	} else {
 		/*
-		 * Undescribed code point should be U+FFFD(replacement character).
+		 * Undescribed code point should be U+FFFD
+		 * (replacement character).
 		 */
-		*p++ = 0xef;
-		*p++ = 0xbf;
-		*p++ = 0xbd;
+		UTF8_SET_R_CHAR(p);
+		p += UTF8_R_CHAR_SIZE;
 	}
 	return ((int)(p - _p));
 }
@@ -2721,7 +2727,7 @@ strncpy_from_utf16_to_utf8(struct archive_string *as,
 			} else {
 		 		/* Undescribed code point should be U+FFFD
 			 	* (replacement character). */
-				p += unicode_to_utf8(p, 0xFFFD);
+				p += unicode_to_utf8(p, UNICODE_R_CHAR);
 				return_val = -1;
 				break;
 			}
@@ -2737,7 +2743,7 @@ strncpy_from_utf16_to_utf8(struct archive_string *as,
 		if (IS_SURROGATE_PAIR_LA(uc) || uc > UNICODE_MAX) {
 		 	/* Undescribed code point should be U+FFFD
 			 * (replacement character). */
-			p += unicode_to_utf8(p, 0xFFFD);
+			p += unicode_to_utf8(p, UNICODE_R_CHAR);
 			return_val = -1;
 			break;
 		}
@@ -3024,10 +3030,9 @@ strncat_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
 				 * character should be U+FFFD (replacement
 				 * character).
 				 */
-				*outp++ = 0xef;
-				*outp++ = 0xbf;
-				*outp++ = 0xbd;
-				avail -= 3;
+				UTF8_SET_R_CHAR(outp);
+				outp += UTF8_R_CHAR_SIZE;
+				avail -= UTF8_R_CHAR_SIZE;
 			} else {
 				*outp++ = '?';
 				avail --;
@@ -3084,7 +3089,7 @@ strncat_to_utf16be(struct archive_string *a16be, const void *_p,
 			break; /* Conversion completed. */
 		} else if (errno == EILSEQ || errno == EINVAL) {
 			/* Skip the illegal input bytes. */
-			archive_be16enc(outp, 0xFFFD);
+			archive_be16enc(outp, UNICODE_R_CHAR);
 			outp += 2;
 			avail -= 2;
 			inp ++;
@@ -3286,7 +3291,7 @@ string_append_from_utf16be_to_utf8(struct archive_string *as,
 			} else {
 		 		/* Undescribed code point should be U+FFFD
 			 	* (replacement character). */
-				p += unicode_to_utf8(p, 0xFFFD);
+				p += unicode_to_utf8(p, UNICODE_R_CHAR);
 				return_val = -1;
 				continue;
 			}
@@ -3302,7 +3307,7 @@ string_append_from_utf16be_to_utf8(struct archive_string *as,
 		if (IS_SURROGATE_PAIR_LA(uc) || uc > UNICODE_MAX) {
 		 	/* Undescribed code point should be U+FFFD
 		 	* (replacement character). */
-			p += unicode_to_utf8(p, 0xFFFD);
+			p += unicode_to_utf8(p, UNICODE_R_CHAR);
 			return_val = -1;
 			continue;
 		}
@@ -3451,7 +3456,7 @@ strncat_to_utf16be(struct archive_string *a16be, const void *_p, size_t length,
 	while (remaining--) {
 		if (*(unsigned char *)s >= 0x80) {
 			/* We cannot handle it. */
-			archive_be16enc(utf16, 0xFFFD);
+			archive_be16enc(utf16, UNICODE_R_CHAR);
 			utf16 += 2;
 			ret = -1;
 		} else {
