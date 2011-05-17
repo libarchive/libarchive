@@ -1626,7 +1626,7 @@ la_strnlen16(const void *_p, size_t n)
 	s = 0;
 	pp = p;
 	n >>= 1;
-	while (s < n && pp[0] && pp[1]) {
+	while (s < n && (pp[0] || pp[1])) {
 		pp += 2;
 		s++;
 	}
@@ -3154,7 +3154,7 @@ strncat_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
 	mbs_size = as->buffer_length - as->length -1;
 	do {
 		ll = WideCharToMultiByte(sc->to_cp, 0,
-		    (LPCWSTR)u16, bytes, mbs, mbs_size,
+		    (LPCWSTR)u16, bytes>>1, mbs, mbs_size,
 			NULL, &defchar);
 		if (ll == 0 &&
 		    GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
@@ -3204,7 +3204,7 @@ strncat_to_utf16be(struct archive_string *a16be, const void *_p, size_t length,
 	avail = a16be->buffer_length - 2;
 	do {
 		count = MultiByteToWideChar(sc->from_cp,
-		    MB_PRECOMPOSED, s, length, (LPWSTR)u16, (int)avail);
+		    MB_PRECOMPOSED, s, length, (LPWSTR)u16, (int)avail>>1);
 		if (count == 0 &&
 		    GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
 			/* Need more buffer for UTF-16 string */
