@@ -700,7 +700,7 @@ archive_read_format_zip_read_data(struct archive_read *a,
 			 * note that decompression sidesteps this via the
 			 * flushing of entry_bytes_unconsumed
 			 */
-			if (!(p = (const char *)__archive_read_ahead(a,
+			if (NULL == (p = __archive_read_ahead(a,
 			    zip->entry_bytes_unconsumed + 16, NULL))) {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
