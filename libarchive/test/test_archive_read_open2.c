@@ -28,21 +28,31 @@ __FBSDID("$FreeBSD$");
 static int
 open_cb(struct archive *a, void *client)
 {
+	(void)a; /* UNUSED */
+	(void)client; /* UNUSED */
 	return 0;
 }
 static ssize_t
 read_cb(struct archive *a, void *client, const void **buff)
 {
+	(void)a; /* UNUSED */
+	(void)client; /* UNUSED */
+	(void)buff; /* UNUSED */
 	return (ssize_t)0;
 }
 static int64_t
 skip_cb(struct archive *a, void *client, int64_t request)
 {
+	(void)a; /* UNUSED */
+	(void)client; /* UNUSED */
+	(void)request; /* UNUSED */
 	return (int64_t)0;
 }
 static int
 close_cb(struct archive *a, void *client)
 {
+	(void)a; /* UNUSED */
+	(void)client; /* UNUSED */
 	return 0;
 }
 
