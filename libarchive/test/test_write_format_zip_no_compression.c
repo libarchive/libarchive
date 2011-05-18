@@ -266,7 +266,7 @@ DEFINE_TEST(test_write_format_zip_no_compression)
 	p = p + 9;
 	assertEqualInt(i2(p), 0x7875); /* 'ux' extension header */
 	assertEqualInt(i2(p + 2), 0); /* 'ux' size */
-	p = p + 4;
+	/*p = p + 4;*/
 
 	/* Verify local header of folder entry. */
 	assertEqualMem(q, "PK\003\004", 4); /* Signature */
@@ -306,5 +306,5 @@ DEFINE_TEST(test_write_format_zip_no_compression)
 	assertEqualInt(i4(q + 4), crc); /* CRC-32 */
 	assertEqualInt(i4(q + 8), 0); /* Compressed size */
 	assertEqualInt(i4(q + 12), 0); /* Uncompressed size */
-	q = q + 16;
+	/*q = q + 16;*/
 }
