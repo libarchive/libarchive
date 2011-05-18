@@ -85,26 +85,26 @@ struct archive_string_conv {
 	int				 flag;
 #define SCONV_TO_CHARSET	1	/* MBS is being converted to specified
 					 * charset. */
-#define SCONV_FROM_CHARSET	2	/* MBS is being converted from
+#define SCONV_FROM_CHARSET	(1<<1)	/* MBS is being converted from
 					 * specified charset. */
-#define SCONV_BEST_EFFORT 	4	/* Copy at least ASCII code. */
-#define SCONV_WIN_CP	 	8	/* Use Windows API for converting
+#define SCONV_BEST_EFFORT 	(1<<2)	/* Copy at least ASCII code. */
+#define SCONV_WIN_CP	 	(1<<3)	/* Use Windows API for converting
 					 * MBS. */
-#define SCONV_UTF16BE	 	16	/* Consideration to UTF-16BE; one side
-					 * is single byte character, other is
-					 * double bytes character. */
-#define SCONV_UTF8_LIBARCHIVE_2 32	/* Incorrect UTF-8 made by libarchive
+#define SCONV_UTF8_LIBARCHIVE_2 (1<<4)	/* Incorrect UTF-8 made by libarchive
 					 * 2.x in the wrong assumption. */
-#define SCONV_COPY_UTF8_TO_UTF8	64	/* Copy UTF-8 characters in checking
+#define SCONV_COPY_UTF8_TO_UTF8	(1<<5)	/* Copy UTF-8 characters in checking
 					 * CESU-8. */
-#define SCONV_NORMALIZATION_C	128	/* Need normalization to be Form C.
+#define SCONV_NORMALIZATION_C	(1<<6)	/* Need normalization to be Form C.
 					 * Before UTF-8 characters are actually
 					 * processed. */
-#define SCONV_NORMALIZATION_D	256	/* Need normalization to be Form D.
+#define SCONV_NORMALIZATION_D	(1<<7)	/* Need normalization to be Form D.
 					 * Before UTF-8 characters are actually
 					 * processed.
 					 * Currently this only for MAC OS X. */
-#define SCONV_TO_UTF8		512	/* MBS/WCS being converted to UTF-8. */
+#define SCONV_TO_UTF8		(1<<8)	/* "to charset" side is UTF-8. */
+#define SCONV_FROM_UTF8		(1<<9)	/* "from charset" side is UTF-8. */
+#define SCONV_TO_UTF16BE 	(1<<10)	/* "to charset" side is UTF-16BE. */
+#define SCONV_FROM_UTF16BE 	(1<<11)	/* "from charset" side is UTF-16BE. */
 
 #if HAVE_ICONV
 	iconv_t				 cd;
@@ -927,8 +927,10 @@ create_sconv_object(const char *fc, const char *tc,
 	}
 
 	if (flag & SCONV_TO_CHARSET) {
-		if (strcmp(tc, "UTF-16BE") == 0)
-			flag |= SCONV_UTF16BE;
+		/*
+		 * Convert characters from the current locale charset to
+		 * a specified charset.
+		 */
 		sc->from_cp = current_codepage;
 		sc->to_cp = make_codepage_from_charset(tc);
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -937,20 +939,9 @@ create_sconv_object(const char *fc, const char *tc,
 #endif
 	} else if (flag & SCONV_FROM_CHARSET) {
 		/*
-		 * Set a flag for UTF-8 NFD. Usually iconv cannot handle
-		 * UTF-8 NFD. So we have to translate UTF-8 NFD characters
-		 * to NFC ones ourselves so that to prevent that the same
-		 * sight of two filenames, one is NFC and other is NFD,
-		 * would be in its directory.
+		 * Convert characters from a specified charset to
+		 * the current locale charset.
 		 */
-		if (strcmp(fc, "UTF-8") == 0)
-#if defined(__APPLE__)
-			flag |= SCONV_NORMALIZATION_D;
-#else
-			flag |= SCONV_NORMALIZATION_C;
-#endif
-		else if (strcmp(fc, "UTF-16BE") == 0)
-			flag |= SCONV_UTF16BE;
 		sc->to_cp = current_codepage;
 		sc->from_cp = make_codepage_from_charset(fc);
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -969,19 +960,48 @@ create_sconv_object(const char *fc, const char *tc,
 		sc->same = 0;
 
 	/*
-	 * Mark if "to charset" is UTF-8.
+	 * Mark if "from charset" or "to charset" are UTF-8 or UTF-16BE.
 	 */
 	if (strcmp(tc, "UTF-8") == 0)
 		flag |= SCONV_TO_UTF8;
+	if (strcmp(fc, "UTF-8") == 0)
+		flag |= SCONV_FROM_UTF8;
+	if (strcmp(tc, "UTF-16BE") == 0)
+		flag |= SCONV_TO_UTF16BE;
+	if (strcmp(fc, "UTF-16BE") == 0)
+		flag |= SCONV_FROM_UTF16BE;
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	if (sc->to_cp == CP_UTF8)
 		flag |= SCONV_TO_UTF8;
+	if (sc->from_cp == CP_UTF8)
+		flag |= SCONV_FROM_UTF8;
+	if (sc->to_cp == CP_UTF16BE)
+		flag |= SCONV_TO_UTF16BE;
+	if (sc->from_cp == CP_UTF16BE)
+		flag |= SCONV_FROM_UTF16BE;
 #endif
+
+	/*
+	 * Set a flag for UTF-8 NFD. Usually iconv cannot handle
+	 * UTF-8 NFD. So we have to translate UTF-8 NFD characters
+	 * to NFC ones ourselves so that to prevent that the same
+	 * sight of two filenames, one is NFC and other is NFD,
+	 * would be in its directory.
+	 */
+	if ((flag & (SCONV_FROM_CHARSET | SCONV_FROM_UTF8)) ==
+	    (SCONV_FROM_CHARSET | SCONV_FROM_UTF8)){
+#if defined(__APPLE__)
+		flag |= SCONV_NORMALIZATION_D;
+#else
+		flag |= SCONV_NORMALIZATION_C;
+#endif
+	}
 
 	/*
 	 * Copy UTF-8 string in checking CESU-8 including surrogate pair.
 	 */
-	if (sc->same && strcmp(fc, "UTF-8") == 0)
+	if ((flag & (SCONV_TO_UTF8 | SCONV_FROM_UTF8)) ==
+	    (SCONV_TO_UTF8 | SCONV_FROM_UTF8))
 		flag |= SCONV_COPY_UTF8_TO_UTF8;
 
 #if defined(HAVE_ICONV)
@@ -1003,13 +1023,13 @@ create_sconv_object(const char *fc, const char *tc,
 			}
 #endif
 		}
-	} else if (strcmp(fc, "UTF-8") == 0) {
+	} else if (flag & SCONV_FROM_UTF8) {
 		sc->cd = iconv_open(tc, "UTF-8-MAC");
 		if (sc->cd == (iconv_t)-1) {
 			sc->cd = iconv_open(tc, fc);
 			flag |= SCONV_NORMALIZATION_C;
 		}
-	} else if (strcmp(tc, "UTF-8") == 0) {
+	} else if (flag & SCONV_TO_UTF8) {
 		sc->cd = iconv_open("UTF-8-MAC", fc);
 		if (sc->cd == (iconv_t)-1)
 			sc->cd = iconv_open(tc, fc);
@@ -1418,7 +1438,7 @@ get_sconv_object(struct archive *a, const char *fc, const char *tc, int flag)
 	 * Windows platform can convert a string in current locale from/to
 	 * UTF-8 and UTF-16BE.
 	 */
-	if (sc->flag & (SCONV_UTF16BE | SCONV_WIN_CP)) {
+	if (sc->flag & (SCONV_TO_UTF16BE | SCONV_FROM_UTF16BE | SCONV_WIN_CP)) {
 		if (a != NULL)
 			add_sconv_object(a, sc);
 		return (sc);
@@ -1659,25 +1679,26 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 	size_t avail, length;
 	int return_value = 0; /* success */
 
-	/*
-	 * Converting string from/to UTF-16.
-	 */
-	if (sc != NULL && (sc->flag & SCONV_UTF16BE)) {
-		if (sc->flag & SCONV_TO_CHARSET) {
-			length = la_strnlen(_p, n);
-			return (strncat_to_utf16be(as, _p, length, sc));
-		} else {
-			length = la_strnlen16(_p, n);
-			return (strncat_from_utf16be(as, _p, length, sc));
-		}
-	}
-
-	length = la_strnlen(_p, n);
 	/* If sc is NULL, we just make a copy without conversion. */
 	if (sc == NULL) {
+		length = la_strnlen(_p, n);
 		archive_string_append(as, src, length);
 		return (0);
 	}
+
+	/*
+	 * Converting string from/to UTF-16.
+	 */
+	if (sc->flag & SCONV_TO_UTF16BE) {
+		length = la_strnlen(_p, n);
+		return (strncat_to_utf16be(as, _p, length, sc));
+	}
+	if (sc->flag & SCONV_FROM_UTF16BE) {
+		length = la_strnlen16(_p, n);
+		return (strncat_from_utf16be(as, _p, length, sc));
+	}
+
+	length = la_strnlen(_p, n);
 
 	/* Perform special sequence for the incorrect UTF-8 made by
 	 * libarchive2.x. */
@@ -1787,14 +1808,13 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 {
 	size_t length;
 
-	if (sc != NULL && (sc->flag & SCONV_UTF16BE)) {
-		if (sc->flag & SCONV_TO_CHARSET) {
-			length = la_strnlen(_p, n);
-			return (strncat_to_utf16be(as, _p, length, sc));
-		} else {
-			length = la_strnlen16(_p, n);
-			return (strncat_from_utf16be(as, _p, length, sc));
-		}
+	if (sc != NULL && (sc->flag & SCONV_TO_UTF16BE)) {
+		length = la_strnlen(_p, n);
+		return (strncat_to_utf16be(as, _p, length, sc));
+	}
+	if (sc != NULL && (sc->flag & SCONV_FROM_UTF16BE)) {
+		length = la_strnlen16(_p, n);
+		return (strncat_from_utf16be(as, _p, length, sc));
 	}
 	return (best_effort_strncat_in_locale(as, _p, n, sc));
 }
@@ -3477,7 +3497,7 @@ strncat_to_utf16be(struct archive_string *a16be, const void *_p, size_t length,
 	 * If the current locale is UTF-8, we can translate a UTF-8
 	 * string into a UTF-16BE string.
 	 */
-	if (strcmp(sc->from_charset, "UTF-8") == 0)
+	if (sc->flag & SCONV_FROM_UTF8)
 		return (string_append_from_utf8_to_utf16be(a16be, s, length));
 
 	/*
