@@ -146,6 +146,8 @@ static struct archive_string_conv *get_sconv_object(struct archive *,
 static unsigned make_codepage_from_charset(const char *);
 static unsigned get_current_codepage(void);
 static unsigned get_current_oemcp(void);
+static size_t la_strnlen(const void *, size_t);
+static size_t utf16nbytes(const void *, size_t);
 #if defined(_WIN32) && !defined(__CYGWIN__)
 static int archive_wstring_append_from_mbs_in_codepage(
     struct archive_wstring *, const char *, size_t,
@@ -432,6 +434,22 @@ archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
 			*ws++ = (wchar_t)*mp++;
 			count++;
 		}
+	} else if (sc != NULL && (sc->flag & SCONV_FROM_UTF16BE)) {
+		count = utf16nbytes(s, length);
+		count >>= 1; /* to be WCS length */
+		/* Allocate memory for WCS. */
+		if (NULL == archive_wstring_ensure(dest,
+		    dest->length + count + 1))
+			return (-1);
+		wmemcpy(dest->s + dest->length, (wchar_t *)s, count);
+		if (!is_big_endian()) {
+			uint16_t *u16 = (uint16_t *)(dest->s + dest->length);
+			int b;
+			for (b = 0; b < count; b++) {
+				uint16_t val = archive_le16dec(u16+b);
+				archive_be16enc(u16+b, val);
+			}
+		}
 	} else {
 		DWORD mbflag;
 
@@ -460,6 +478,11 @@ archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
 		count = MultiByteToWideChar(from_cp,
 		    mbflag, s, length, NULL, 0);
 		if (count == 0) {
+			if (dest->s == NULL) {
+				if (NULL == archive_wstring_ensure(dest,
+				    dest->length + 1))
+					return (-1);
+			}
 			dest->s[dest->length] = L'\0';
 			return (-1);
 		}
@@ -628,6 +651,21 @@ archive_string_append_from_wcs_in_codepage(struct archive_string *as,
 				*p++ = (char)*wp++;
 			count++;
 		}
+	} else if (sc != NULL && (sc->flag & SCONV_TO_UTF16BE)) {
+		uint16_t *u16;
+
+		if (NULL ==
+		    archive_string_ensure(as, as->length + len * 2 + 2))
+			return (-1);
+		u16 = (uint16_t *)(as->s + as->length);
+		count = 0;
+		defchar_used = 0;
+		while (count < (int)len && *ws) {
+			archive_be16enc(u16+count, *ws);
+			ws++;
+			count++;
+		}
+		count <<= 1; /* to be byte size */
 	} else {
 		/* Make sure the MBS buffer has plenty to set. */
 		if (NULL ==
@@ -1616,7 +1654,7 @@ la_strnlen(const void *_p, size_t n)
 }
 
 static size_t
-la_strnlen16(const void *_p, size_t n)
+utf16nbytes(const void *_p, size_t n)
 {
 	size_t s;
 	const char *p, *pp;
@@ -1677,7 +1715,7 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 		return (strncat_to_utf16be(as, _p, length, sc));
 	}
 	if (sc->flag & SCONV_FROM_UTF16BE) {
-		length = la_strnlen16(_p, n);
+		length = utf16nbytes(_p, n);
 		return (strncat_from_utf16be(as, _p, length, sc));
 	}
 
@@ -1796,7 +1834,7 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 		return (strncat_to_utf16be(as, _p, length, sc));
 	}
 	if (sc != NULL && (sc->flag & SCONV_FROM_UTF16BE)) {
-		length = la_strnlen16(_p, n);
+		length = utf16nbytes(_p, n);
 		return (strncat_from_utf16be(as, _p, length, sc));
 	}
 	return (best_effort_strncat_in_locale(as, _p, n, sc));
@@ -3167,11 +3205,8 @@ strncat_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
 			return (-1);
 		memcpy(tmp.s, _p, bytes);
 		for (b = 0; b < bytes; b += 2) {
-			char *t;
 			uint16_t val = archive_be16dec(tmp.s+b);
-			t = (char *)&val;
-			tmp.s[b] = t[0];
-			tmp.s[b+1] = t[1];
+			archive_le16enc(tmp.s+b, val);
 		}
 		u16 = tmp.s;
 	}
