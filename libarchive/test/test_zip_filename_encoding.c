@@ -28,7 +28,7 @@ __FBSDID("$FreeBSD$");
 #include <locale.h>
 
 static void
-test_zip_filename_encoding_UTF8()
+test_zip_filename_encoding_UTF8(void)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -117,7 +117,7 @@ test_zip_filename_encoding_UTF8()
 }
 
 static void
-test_zip_filename_encoding_KOI8R()
+test_zip_filename_encoding_KOI8R(void)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -218,7 +218,7 @@ test_zip_filename_encoding_KOI8R()
  * Do not translate CP1251 into CP866 if non Windows platform.
  */
 static void
-test_zip_filename_encoding_ru_RU_CP1251()
+test_zip_filename_encoding_ru_RU_CP1251(void)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -262,7 +262,7 @@ test_zip_filename_encoding_ru_RU_CP1251()
  * Test above behavior works well.
  */
 static void
-test_zip_filename_encoding_Russian_Russia()
+test_zip_filename_encoding_Russian_Russia(void)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -332,7 +332,7 @@ test_zip_filename_encoding_Russian_Russia()
 }
 
 static void
-test_zip_filename_encoding_EUCJP()
+test_zip_filename_encoding_EUCJP(void)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -432,7 +432,7 @@ test_zip_filename_encoding_EUCJP()
 }
 
 static void
-test_zip_filename_encoding_CP932()
+test_zip_filename_encoding_CP932(void)
 {
   	struct archive *a;
   	struct archive_entry *entry;

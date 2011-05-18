@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/test/test_read_format_zip.c 189482 2009-
  */
 
 static void
-test_basic()
+test_basic(void)
 {
 	const char *refname = "test_read_format_zip.zip";
 	struct archive_entry *ae;
@@ -92,7 +92,7 @@ finish:
  *  Currently sotres Unix UID/GID up to 32 bits.
  */
 static void
-test_info_zip_ux()
+test_info_zip_ux(void)
 {
 	const char *refname = "test_read_format_zip_ux.zip";
 	struct archive_entry *ae;

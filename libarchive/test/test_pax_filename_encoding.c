@@ -336,7 +336,7 @@ test_pax_filename_encoding_3(void)
  * Verify that KOI8-R filenames are correctly translated to Unicode and UTF-8.
  */
 static void
-test_pax_filename_encoding_KOI8R()
+test_pax_filename_encoding_KOI8R(void)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -383,7 +383,7 @@ test_pax_filename_encoding_KOI8R()
  * Verify that CP1251 filenames are correctly translated to Unicode and UTF-8.
  */
 static void
-test_pax_filename_encoding_CP1251()
+test_pax_filename_encoding_CP1251(void)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -431,7 +431,7 @@ test_pax_filename_encoding_CP1251()
  * Verify that EUC-JP filenames are correctly translated to Unicode and UTF-8.
  */
 static void
-test_pax_filename_encoding_EUCJP()
+test_pax_filename_encoding_EUCJP(void)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -479,7 +479,7 @@ test_pax_filename_encoding_EUCJP()
  * Verify that CP932/SJIS filenames are correctly translated to Unicode and UTF-8.
  */
 static void
-test_pax_filename_encoding_CP932()
+test_pax_filename_encoding_CP932(void)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -529,7 +529,7 @@ test_pax_filename_encoding_CP932()
  * when using hdrcharset=BINARY option.
  */
 static void
-test_pax_filename_encoding_KOI8R_BINARY()
+test_pax_filename_encoding_KOI8R_BINARY(void)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -569,7 +569,7 @@ test_pax_filename_encoding_KOI8R_BINARY()
  * If other character-set name is specified, you will get ARCHIVE_FAILED.
  */
 static void
-test_pax_filename_encoding_KOI8R_CP1251()
+test_pax_filename_encoding_KOI8R_CP1251(void)
 {
   	struct archive *a;
 

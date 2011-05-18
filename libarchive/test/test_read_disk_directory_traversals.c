@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 static void
-test_basic()
+test_basic(void)
 {
 	struct archive *a;
 	struct archive_entry *ae;
@@ -289,7 +289,7 @@ test_basic()
 }
 
 static void
-test_symlink_hybrid()
+test_symlink_hybrid(void)
 {
 	struct archive *a;
 	struct archive_entry *ae;
@@ -446,7 +446,7 @@ test_symlink_hybrid()
 }
 
 static void
-test_symlink_logical()
+test_symlink_logical(void)
 {
 	struct archive *a;
 	struct archive_entry *ae;
@@ -676,7 +676,7 @@ test_symlink_logical()
 }
 
 static void
-test_symlink_logical_loop()
+test_symlink_logical_loop(void)
 {
 	struct archive *a;
 	struct archive_entry *ae;
@@ -755,7 +755,7 @@ test_symlink_logical_loop()
 }
 
 static void
-test_restore_atime()
+test_restore_atime(void)
 {
 	struct archive *a;
 	struct archive_entry *ae;

@@ -28,7 +28,7 @@ __FBSDID("$FreeBSD$");
 #include <locale.h>
 
 static void
-test_ustar_filename_encoding_UTF8_CP866()
+test_ustar_filename_encoding_UTF8_CP866(void)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -70,7 +70,7 @@ test_ustar_filename_encoding_UTF8_CP866()
 }
 
 static void
-test_ustar_filename_encoding_KOI8R_UTF8()
+test_ustar_filename_encoding_KOI8R_UTF8(void)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -112,7 +112,7 @@ test_ustar_filename_encoding_KOI8R_UTF8()
 }
 
 static void
-test_ustar_filename_encoding_KOI8R_CP866()
+test_ustar_filename_encoding_KOI8R_CP866(void)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -154,7 +154,7 @@ test_ustar_filename_encoding_KOI8R_CP866()
 }
 
 static void
-test_ustar_filename_encoding_CP1251_UTF8()
+test_ustar_filename_encoding_CP1251_UTF8(void)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -200,7 +200,7 @@ test_ustar_filename_encoding_CP1251_UTF8()
  * Do not translate CP1251 into CP866 if non Windows platform.
  */
 static void
-test_ustar_filename_encoding_ru_RU_CP1251()
+test_ustar_filename_encoding_ru_RU_CP1251(void)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -241,7 +241,7 @@ test_ustar_filename_encoding_ru_RU_CP1251()
  * Test above behavior works well.
  */
 static void
-test_ustar_filename_encoding_Russian_Russia()
+test_ustar_filename_encoding_Russian_Russia(void)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -277,7 +277,7 @@ test_ustar_filename_encoding_Russian_Russia()
 }
 
 static void
-test_ustar_filename_encoding_EUCJP_UTF8()
+test_ustar_filename_encoding_EUCJP_UTF8(void)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -318,7 +318,7 @@ test_ustar_filename_encoding_EUCJP_UTF8()
 }
 
 static void
-test_ustar_filename_encoding_EUCJP_CP932()
+test_ustar_filename_encoding_EUCJP_CP932(void)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -359,7 +359,7 @@ test_ustar_filename_encoding_EUCJP_CP932()
 }
 
 static void
-test_ustar_filename_encoding_CP932_UTF8()
+test_ustar_filename_encoding_CP932_UTF8(void)
 {
   	struct archive *a;
   	struct archive_entry *entry;

@@ -128,7 +128,7 @@ scan_unicode_pattern(char *out, const char *pattern, int exclude_mac_nfd)
  * On other platforms, the characters to be Form C.
  */
 static void
-test_archive_string_normalization()
+test_archive_string_normalization(void)
 {
 	struct archive *a;
 	struct archive_entry *ae;
