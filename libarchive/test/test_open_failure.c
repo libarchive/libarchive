@@ -41,9 +41,9 @@ struct my_data {
 static ssize_t
 my_read(struct archive *a, void *_private, const void **buff)
 {
+	struct my_data *private = (struct my_data *)_private;
 	(void)a; /* UNUSED */
 	(void)buff; /* UNUSED */
-	struct my_data *private = (struct my_data *)_private;
 	assertEqualInt(MAGIC, private->magic);
 	++private->read_called;
 	return (private->read_return);
@@ -52,10 +52,10 @@ my_read(struct archive *a, void *_private, const void **buff)
 static ssize_t
 my_write(struct archive *a, void *_private, const void *buff, size_t s)
 {
+	struct my_data *private = (struct my_data *)_private;
 	(void)a; /* UNUSED */
 	(void)buff; /* UNUSED */
 	(void)s; /* UNUSED */
-	struct my_data *private = (struct my_data *)_private;
 	assertEqualInt(MAGIC, private->magic);
 	++private->write_called;
 	return (private->write_return);
@@ -64,8 +64,8 @@ my_write(struct archive *a, void *_private, const void *buff, size_t s)
 static int
 my_open(struct archive *a, void *_private)
 {
-	(void)a; /* UNUSED */
 	struct my_data *private = (struct my_data *)_private;
+	(void)a; /* UNUSED */
 	assertEqualInt(MAGIC, private->magic);
 	++private->open_called;
 	return (private->open_return);
@@ -74,8 +74,8 @@ my_open(struct archive *a, void *_private)
 static int
 my_close(struct archive *a, void *_private)
 {
-	(void)a; /* UNUSED */
 	struct my_data *private = (struct my_data *)_private;
+	(void)a; /* UNUSED */
 	assertEqualInt(MAGIC, private->magic);
 	++private->close_called;
 	return (private->close_return);
