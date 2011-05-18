@@ -2038,7 +2038,7 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 static int
 _utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 {
-	static unsigned char utf8_count[256] = {
+	static char utf8_count[256] = {
 		 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,/* 00 - 0F */
 		 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,/* 10 - 1F */
 		 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,/* 20 - 2F */
@@ -2057,7 +2057,7 @@ _utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 		 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 /* F0 - FF */
 	};
 	int ch, i;
-	unsigned char cnt;
+	int cnt;
 	uint32_t wc;
 
 	/* Sanity check. */
@@ -2072,9 +2072,9 @@ _utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 	cnt = utf8_count[ch];
 
 	/* Invalide sequence or there are not plenty bytes. */
-	if (n < cnt) {
+	if ((int)n < cnt) {
 		cnt = n;
-		for (i = 1; (unsigned)i < cnt; i++) {
+		for (i = 1; i < cnt; i++) {
 			if ((s[i] & 0xc0) != 0x80) {
 				cnt = i;
 				break;
@@ -2141,9 +2141,9 @@ _utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 			cnt = 6;
 		else
 			cnt = 1;
-		if (n < cnt)
+		if ((int)n < cnt)
 			cnt = n;
-		for (i = 1; (unsigned)i < cnt; i++) {
+		for (i = 1; i < cnt; i++) {
 			if ((s[i] & 0xc0) != 0x80) {
 				cnt = i;
 				break;
@@ -2161,7 +2161,7 @@ _utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 	return (cnt);
 invalid_sequence:
 	*pwc = UNICODE_R_CHAR;/* set the Replacement Character instead. */
-	return (((int)cnt) * -1);
+	return (cnt * -1);
 }
 
 static int
