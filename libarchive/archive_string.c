@@ -3107,29 +3107,8 @@ strncat_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
 			break; /* Conversion completed. */
 		} else if (errno == EILSEQ || errno == EINVAL) {
 			/* Skip the illegal input bytes. */
-			if (sc->flag & SCONV_TO_UTF8) {
-				if (avail < remaining + 2) {
-					as->length = outp - as->s;
-					as->s[as->length] = '\0';
-					if (NULL == archive_string_ensure(as,
-					    as->buffer_length + remaining))
-						return (-1);
-					outp = as->s + as->length;
-					avail = as->buffer_length -
-					    as->length -1;
-				}
-				/*
-			 	 * When coping a string in UTF-8, unknown
-				 * character should be U+FFFD (replacement
-				 * character).
-				 */
-				UTF8_SET_R_CHAR(outp);
-				outp += UTF8_R_CHAR_SIZE;
-				avail -= UTF8_R_CHAR_SIZE;
-			} else {
-				*outp++ = '?';
-				avail --;
-			}
+			*outp++ = '?';
+			avail --;
 			inp += 2;
 			remaining -= 2;
 			return_value = -1; /* failure */
