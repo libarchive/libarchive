@@ -1269,7 +1269,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 		}
 		if (iso9660->utf16be_path == NULL) {
 			iso9660->utf16be_path = malloc(UTF16_NAME_MAX);
-			if (iso9660->utf16be_path) {
+			if (iso9660->utf16be_path == NULL) {
 				archive_set_error(&a->archive, ENOMEM,
 				    "No memory");
 				return (ARCHIVE_FATAL);
@@ -1277,7 +1277,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 		}
 		if (iso9660->utf16be_previous_path == NULL) {
 			iso9660->utf16be_previous_path = malloc(UTF16_NAME_MAX);
-			if (iso9660->utf16be_previous_path) {
+			if (iso9660->utf16be_previous_path == NULL) {
 				archive_set_error(&a->archive, ENOMEM,
 				    "No memory");
 				return (ARCHIVE_FATAL);
