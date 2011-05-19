@@ -441,7 +441,7 @@ assertion_equal_int(const char *file, int line,
 static int
 _utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 {
-	static unsigned char utf8_count[256] = {
+	static char utf8_count[256] = {
 		 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,/* 00 - 0F */
 		 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,/* 10 - 1F */
 		 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,/* 20 - 2F */
@@ -460,7 +460,7 @@ _utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 		 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 /* F0 - FF */
 	};
 	int ch;
-	unsigned char cnt;
+	int cnt;
 	uint32_t wc;
 
 	/* Sanity check. */
@@ -475,7 +475,7 @@ _utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 	cnt = utf8_count[ch];
 
 	/* Invalide sequence or there are not plenty bytes. */
-	if (n < cnt)
+	if (n < (size_t)cnt)
 		return (-1);
 
 	/* Make a Unicode code point from a single UTF-8 sequence. */

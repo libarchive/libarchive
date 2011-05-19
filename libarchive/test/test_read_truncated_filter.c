@@ -107,7 +107,7 @@ test_truncation(const char *compression, int (*set_compression)(struct archive *
 		}
 		sprintf(path, "%s%d", compression, i);
 		assertEqualString(path, archive_entry_pathname(ae));
-		if (datasize != archive_read_data(a, data, datasize)) {
+		if (datasize != (size_t)archive_read_data(a, data, datasize)) {
 			failure("Should have non-NULL error message for %s",
 			    compression);
 			assert(NULL != archive_error_string(a));

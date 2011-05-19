@@ -35,7 +35,6 @@ test_xar(const char *option)
 	struct archive_entry *ae;
 	struct archive *a;
 	size_t used;
-	int i;
 	const char *name;
 	const void *value;
 	size_t size;
@@ -182,7 +181,7 @@ test_xar(const char *option)
 	assert((AE_IFREG | 0755) == archive_entry_mode(ae));
 	assertEqualInt(2, archive_entry_nlink(ae));
 	assertEqualInt(8, archive_entry_size(ae));
-	assertEqualInt(2, i = archive_entry_xattr_reset(ae));
+	assertEqualInt(2, archive_entry_xattr_reset(ae));
 	assertEqualInt(ARCHIVE_OK,
 	    archive_entry_xattr_next(ae, &name, &value, &size));
 	assertEqualString("user.data2", name);

@@ -316,6 +316,7 @@ verify_sparse_file2(struct archive *a, const char *path,
 	struct archive_entry *ae;
 	int fd;
 
+	(void)sparse; /* UNUSED */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_set_pathname(ae, path);
 	if (preopen)

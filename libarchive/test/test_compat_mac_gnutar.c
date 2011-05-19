@@ -45,7 +45,6 @@ DEFINE_TEST(test_compat_mac_gnutar)
 	struct archive *a;
 	const void *attr;
 	size_t attrSize;
-	int r;
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -53,7 +52,7 @@ DEFINE_TEST(test_compat_mac_gnutar)
 	extract_reference_file(name);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, name, 10240));
 
-	assertEqualIntA(a, ARCHIVE_OK, r = archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString(TESTPATH, archive_entry_pathname(ae));
 	assertEqualInt(1275688109, archive_entry_mtime(ae));
 	assertEqualInt(95594, archive_entry_uid(ae));
@@ -66,7 +65,7 @@ DEFINE_TEST(test_compat_mac_gnutar)
 	assert(attr == NULL);
 	assertEqualInt(0, attrSize);
 
-	assertEqualIntA(a, ARCHIVE_OK, r = archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString(TESTPATH "dir/", archive_entry_pathname(ae));
 	assertEqualInt(1275687611, archive_entry_mtime(ae));
 	assertEqualInt(95594, archive_entry_uid(ae));
@@ -79,7 +78,7 @@ DEFINE_TEST(test_compat_mac_gnutar)
 	assert(attr != NULL);
 	assertEqualInt(225, attrSize);
 
-	assertEqualIntA(a, ARCHIVE_OK, r = archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString(TESTPATH "file", archive_entry_pathname(ae));
 	assertEqualInt(1275687588, archive_entry_mtime(ae));
 	assertEqualInt(95594, archive_entry_uid(ae));
@@ -92,7 +91,7 @@ DEFINE_TEST(test_compat_mac_gnutar)
 	assert(attr != NULL);
 	assertEqualInt(225, attrSize);
 
-	assertEqualIntA(a, ARCHIVE_OK, r = archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("dir/", archive_entry_pathname(ae));
 	assertEqualInt(1275688064, archive_entry_mtime(ae));
 	assertEqualInt(95594, archive_entry_uid(ae));
@@ -105,7 +104,7 @@ DEFINE_TEST(test_compat_mac_gnutar)
 	assert(attr != NULL);
 	assertEqualInt(225, attrSize);
 
-	assertEqualIntA(a, ARCHIVE_OK, r = archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("file", archive_entry_pathname(ae));
 	assertEqualInt(1275625860, archive_entry_mtime(ae));
 	assertEqualInt(95594, archive_entry_uid(ae));
