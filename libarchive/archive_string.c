@@ -155,11 +155,17 @@ static int archive_wstring_append_from_mbs_in_codepage(
 static int archive_string_append_from_wcs_in_codepage(struct archive_string *,
     const wchar_t *, size_t, struct archive_string_conv *);
 static int is_big_endian(void);
+static int strncat_in_codepage(struct archive_string *, const char *,
+    size_t, struct archive_string_conv *);
 #endif
 static int strncat_from_utf16be(struct archive_string *, const void *, size_t,
     struct archive_string_conv *);
 static int strncat_to_utf16be(struct archive_string *, const void *, size_t,
     struct archive_string_conv *);
+#if defined(HAVE_ICONV)
+static int iconv_strncat_in_locale(struct archive_string *, const void *,
+    size_t, struct archive_string_conv *);
+#endif
 static int best_effort_strncat_in_locale(struct archive_string *, const void *,
     size_t, struct archive_string_conv *);
 static int strncat_from_utf8_libarchive2(struct archive_string *,
@@ -172,6 +178,10 @@ static int archive_string_normalize_C(struct archive_string *, const char *,
 static int archive_string_normalize_D(struct archive_string *, const char *,
     size_t, struct archive_string_conv *);
 #endif
+static int strncat_from_utf16_to_utf8(struct archive_string *, const void *,
+    size_t, int);
+static int strncat_from_utf8_to_utf16(struct archive_string *, const char *,
+    size_t, int);
 
 static struct archive_string *
 archive_string_append(struct archive_string *as, const char *p, size_t s)
@@ -1682,29 +1692,36 @@ archive_strncpy_in_locale(struct archive_string *as, const void *_p, size_t n,
 	return (archive_strncat_in_locale(as, _p, n, sc));
 }
 
-
-#if HAVE_ICONV
-
-/*
- * Return -1 if conversion failes.
- */
 int
 archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
     struct archive_string_conv *sc)
 {
-	ICONV_CONST char *inp;
-	size_t remaining;
-	iconv_t cd;
-	const char *src = _p;
-	char *outp;
-	size_t avail, length;
-	int return_value = 0; /* success */
+	size_t length;
+	int r;
 
-	/* If sc is NULL, we just make a copy without conversion. */
+	/*
+	 * If sc is NULL, we just make a copy without conversion.
+	 */
 	if (sc == NULL) {
 		length = la_strnlen(_p, n);
-		archive_string_append(as, src, length);
+		/*
+		 * archive_string_append() will call archive_string_ensure()
+		 * but we cannot know if that call is failed or not. so
+		 * we call archive_string_ensure() here.
+		 */
+		if (archive_string_ensure(as, as->length + length + 1) == NULL)
+			return (-1);
+		archive_string_append(as, _p, length);
 		return (0);
+	}
+
+	/*
+	 * Perform special sequence for the incorrect UTF-8 made by
+	 * libarchive2.x.
+	 */
+	if (sc->flag & SCONV_UTF8_LIBARCHIVE_2) {
+		length = la_strnlen(_p, n);
+		return (strncat_from_utf8_libarchive2(as, _p, length));
 	}
 
 	/*
@@ -1712,42 +1729,86 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 	 */
 	if (sc->flag & SCONV_TO_UTF16BE) {
 		length = la_strnlen(_p, n);
-		return (strncat_to_utf16be(as, _p, length, sc));
+		/*
+		 * If the current locale is UTF-8, we can translate
+		 * a UTF-8 string into a UTF-16BE string.
+		 */
+		if (sc->flag & SCONV_FROM_UTF8)
+			r = strncat_from_utf8_to_utf16(as, _p, length, 1);
+		else
+			r = strncat_to_utf16be(as, _p, length, sc);
+		return (r);
 	}
 	if (sc->flag & SCONV_FROM_UTF16BE) {
 		length = utf16nbytes(_p, n);
-		return (strncat_from_utf16be(as, _p, length, sc));
+		/*
+		 * If the current locale is UTF-8, we can translate
+		 * a UTF-16BE string into a UTF-8 string.
+		 */
+		if (sc->flag & SCONV_TO_UTF8)
+			r = strncat_from_utf16_to_utf8(as, _p, length, 1);
+		else
+			r = strncat_from_utf16be(as, _p, length, sc);
+		return (r);
 	}
 
 	length = la_strnlen(_p, n);
 
-	/* Perform special sequence for the incorrect UTF-8 made by
-	 * libarchive2.x. */
-	if (sc->flag & SCONV_UTF8_LIBARCHIVE_2)
-		return (strncat_from_utf8_libarchive2(as, _p, length));
-
 	/*
 	 * Copy UTF-8 string with a check of CESU-8.
 	 * Apparently, iconv does not check surrogate pairs in UTF-8
-	 * when both from-charset and to-charset are UTF-8.
+	 * when both from-charset and to-charset are UTF-8, and then
+	 * we use our UTF-8 copy code.
 	 */
 	if (sc->flag & SCONV_COPY_UTF8_TO_UTF8) {
 #if defined(__APPLE__)
 		if (sc->flag & SCONV_NORMALIZATION_D)
 	 		/* Additionally it nees normalization. */
-			return (archive_string_normalize_D(as, _p, length, sc));
+			r = archive_string_normalize_D(as, _p, length, sc);
 		else
 #endif
 		if (sc->flag & SCONV_NORMALIZATION_C)
-	 		/* Additionally it nees normalization. */
-			return (archive_string_normalize_C(as, _p, length));
+ 			/* Additionally it nees normalization. */
+			r = archive_string_normalize_C(as, _p, length);
 		else
-			return (strncat_from_utf8_to_utf8(as, _p, length));
+			r = strncat_from_utf8_to_utf8(as, _p, length);
+		return (r);
 	}
+
+#if HAVE_ICONV
+	return (iconv_strncat_in_locale(as, _p, length, sc));
+#else /* HAVE_ICONV */
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/*
+	 * On Windows we can use Windows API for string conversion.
+	 */
+	if (sc->flag & SCONV_WIN_CP)
+		return (strncat_in_codepage(as, _p, length, sc));
+#endif
+	return (best_effort_strncat_in_locale(as, _p, length, sc));
+#endif /* HAVE_ICONV */
+}
+
+#if HAVE_ICONV
+
+/*
+ * Return -1 if conversion failes.
+ */
+static int
+iconv_strncat_in_locale(struct archive_string *as, const void *_p,
+    size_t length, struct archive_string_conv *sc)
+{
+	ICONV_CONST char *inp;
+	size_t remaining;
+	iconv_t cd;
+	const char *src = _p;
+	char *outp;
+	size_t avail;
+	int return_value = 0; /* success */
 
 	cd = sc->cd;
 	if (cd == (iconv_t)-1)
-		return (best_effort_strncat_in_locale(as, _p, n, sc));
+		return (best_effort_strncat_in_locale(as, _p, length, sc));
 
 	/*
 	 * Need normalization to UTF-8 because iconv cannot correctly
@@ -1815,29 +1876,6 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 		}
 	}
 	return (return_value);
-}
-
-#else /* HAVE_ICONV */
-
-/*
- * Basically returns -1 because we cannot make a conversion of charset
- * without iconv. Returns 0 if sc is NULL.
- */
-int
-archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
-    struct archive_string_conv *sc)
-{
-	size_t length;
-
-	if (sc != NULL && (sc->flag & SCONV_TO_UTF16BE)) {
-		length = la_strnlen(_p, n);
-		return (strncat_to_utf16be(as, _p, length, sc));
-	}
-	if (sc != NULL && (sc->flag & SCONV_FROM_UTF16BE)) {
-		length = utf16nbytes(_p, n);
-		return (strncat_from_utf16be(as, _p, length, sc));
-	}
-	return (best_effort_strncat_in_locale(as, _p, n, sc));
 }
 
 #endif /* HAVE_ICONV */
@@ -1952,58 +1990,26 @@ invalid_mbs(const void *_p, size_t n, struct archive_string_conv *sc)
 /*
  * Basically returns -1 because we cannot make a conversion of charset
  * without iconv but in some cases this would return 0.
- * Returns 0 if sc is NULL.
  * Returns 0 if all copied characters are ASCII.
  * Returns 0 if both from-locale and to-locale are the same and those
  * can be WCS with no error.
- * Returns 0 if running on Windows and converting characters is successful.
  */
 static int
 best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
-    size_t n, struct archive_string_conv *sc)
+    size_t length, struct archive_string_conv *sc)
 {
 	size_t remaining;
 	char *outp;
 	const char *inp;
 	size_t avail;
 	int return_value = 0; /* success */
-	size_t length = la_strnlen(_p, n);
-
-	if (sc != NULL) {
-#if defined(_WIN32) && !defined(__CYGWIN__)
-		/* On Windows we can use Windows API for string conversion. */
-		if (sc->flag & SCONV_WIN_CP)
-			return (strncat_in_codepage(as, _p, length, sc));
-#endif
-		/* Perform special sequence for the incorrect UTF-8 made by
-		 * libarchive2.x. */
-		if (sc->flag & SCONV_UTF8_LIBARCHIVE_2)
-			return (strncat_from_utf8_libarchive2(as, _p, length));
-
-		/*
-		 * Copy a UTF-8 string with a check of CESU-8.
-		 */
-		if (sc->flag & SCONV_COPY_UTF8_TO_UTF8) {
-			if (sc->flag & SCONV_NORMALIZATION_C)
-	 			/* Additionally it nees normalization. */
-				return (archive_string_normalize_C(
-				    as, _p, length));
-			else
-				return (strncat_from_utf8_to_utf8(
-				    as, _p, length));
-		}
-	}
 
 	/*
-	 * If charset is NULL, this just makes a copy, so this returns 0
-	 * as success. If both from-locale and to-locale is the same, this
-	 * also makes a copy. And then this checks all copied MBS can be
-	 * WCS if so this returns 0.
+	 * If both from-locale and to-locale is the same, this makes a copy.
+	 * And then this checks all copied MBS can be WCS if so returns 0.
 	 */
-	if (sc == NULL || sc->same) {
+	if (sc->same) {
 		archive_string_append(as, _p, length);
-		if (sc == NULL)
-			return (0);
 		return (invalid_mbs(_p, length, sc));
 	}
 
@@ -2262,6 +2268,8 @@ cesu8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 	return (cnt);
 invalid_sequence:
 	*pwc = UNICODE_R_CHAR;/* set the Replacement Character instead. */
+	if (cnt > 0)
+		cnt *= -1;
 	return (cnt);
 }
 
@@ -2300,6 +2308,92 @@ unicode_to_utf8(char *p, uint32_t uc)
 		p += UTF8_R_CHAR_SIZE;
 	}
 	return ((int)(p - _p));
+}
+
+static int
+utf16_to_unicode(uint32_t *pwc, const char *s, size_t n, int be)
+{
+	const char *utf16 = s;
+	unsigned uc;
+
+	if (n == 0)
+		return (0);
+	if (n == 1) {
+		/* set the Replacement Character instead. */
+		*pwc = UNICODE_R_CHAR;
+		return (-1);
+	}
+
+	if (be)
+		uc = archive_be16dec(utf16);
+	else
+		uc = archive_le16dec(utf16);
+	utf16 += 2;
+		
+	/* If this is a surrogate pair, assemble the full code point.*/
+	if (IS_HIGH_SURROGATE_LA(uc)) {
+		unsigned uc2;
+
+		if (n >= 4) {
+			if (be)
+				uc2 = archive_be16dec(utf16);
+			else
+				uc2 = archive_le16dec(utf16);
+		} else
+			uc2 = 0;
+		if (IS_LOW_SURROGATE_LA(uc2)) {
+			uc = combine_surrogate_pair(uc, uc2);
+			utf16 += 2;
+		} else {
+	 		/* Undescribed code point should be U+FFFD
+		 	* (replacement character). */
+			*pwc = UNICODE_R_CHAR;
+			return (-2);
+		}
+	}
+
+	/*
+	 * Surrogate pair values(0xd800 through 0xdfff) are only
+	 * used by UTF-16, so, after above culculation, the code
+	 * must not be surrogate values, and Unicode has no codes
+	 * larger than 0x10ffff. Thus, those are not leagal Unicode
+	 * values.
+	 */
+	if (IS_SURROGATE_PAIR_LA(uc) || uc > UNICODE_MAX) {
+	 	/* Undescribed code point should be U+FFFD
+	 	* (replacement character). */
+		*pwc = UNICODE_R_CHAR;
+		return (((int)(utf16 - s)) * -1);
+	}
+	*pwc = uc;
+	return ((int)(utf16 - s));
+}
+
+static int
+unicode_to_utf16(char *p, uint32_t uc, int be)
+{
+	char *utf16 = p;
+
+	if (uc > 0xffff) {
+		/* We have a code point that won't fit into a
+		 * wchar_t; convert it to a surrogate pair. */
+		uc -= 0x10000;
+		if (be) {
+			archive_be16enc(utf16, ((uc >> 10) & 0x3ff) + 0xD800);
+			archive_be16enc(utf16+2, (uc & 0x3ff) + 0xDC00);
+		} else {
+			archive_le16enc(utf16, ((uc >> 10) & 0x3ff) + 0xD800);
+			archive_le16enc(utf16+2, (uc & 0x3ff) + 0xDC00);
+		}
+		utf16 += 4;
+	} else {
+		if (be)
+			archive_be16enc(utf16, uc);
+		else
+			archive_le16enc(utf16, uc);
+		utf16 += 2;
+	}
+	return ((int)(utf16 - p));
 }
 
 /*
@@ -2721,139 +2815,6 @@ archive_string_normalize_C(struct archive_string *as, const char *s,
 #if defined(__APPLE__)
 
 /*
- * UTF-16BE to UTF-8.
- * Note: returns non-zero if conversion fails, but still leaves a best-effort
- * conversion in the argument as.
- */
-static int
-strncpy_from_utf16_to_utf8(struct archive_string *as,
-    const void *_p, size_t bytes)
-{
-	UTF16Char *utf16;
-	char *p, *end;
-	unsigned uc;
-	int return_val = 0; /* success */
-
-	utf16 = (UTF16Char *)_p;
-	bytes &= ~1;
-	if (NULL == archive_string_ensure(as, bytes+1))
-		return (-1);
-	p = as->s + as->length;
-	end = as->s + as->buffer_length -1;
-	while (bytes >= 2) {
-		/* Expand the buffer when we have <4 bytes free. */
-		if (end - p < 4) {
-			as->length = p - as->s;
-			if (NULL == archive_string_ensure(as,
-			    as->buffer_length + bytes + 1))
-				return (-1);
-			p = as->s + as->length;
-			end = as->s + as->buffer_length -1;
-		}
-
-		uc = *utf16;
-		utf16++; bytes -= sizeof(UTF16Char);
-		
-		/* If this is a surrogate pair, assemble the full code point.*/
-		if (IS_HIGH_SURROGATE_LA(uc)) {
-			unsigned uc2;
-
-			if (bytes >= sizeof(UTF16Char))
-				uc2 = *utf16;
-			else
-				uc2 = 0;
-			if (IS_LOW_SURROGATE_LA(uc2)) {
-				uc = combine_surrogate_pair(uc, uc2);
-				utf16++; bytes -= sizeof(UTF16Char);
-			} else {
-		 		/* Undescribed code point should be U+FFFD
-			 	* (replacement character). */
-				p += unicode_to_utf8(p, UNICODE_R_CHAR);
-				return_val = -1;
-				break;
-			}
-		}
-
-		/*
-		 * Surrogate pair values(0xd800 through 0xdfff) are only
-		 * used by UTF-16, so, after above culculation, the code
-		 * must not be surrogate values, and Unicode has no codes
-		 * larger than 0x10ffff. Thus, those are not leagal Unicode
-		 * values.
-		 */
-		if (IS_SURROGATE_PAIR_LA(uc) || uc > UNICODE_MAX) {
-		 	/* Undescribed code point should be U+FFFD
-			 * (replacement character). */
-			p += unicode_to_utf8(p, UNICODE_R_CHAR);
-			return_val = -1;
-			break;
-		}
-
-		/* Translate code point to UTF8 */
-		p += unicode_to_utf8(p, uc);
-	}
-	as->length = p - as->s;
-	*p = '\0';
-	return (return_val);
-}
-
-/*
- * Return a UTF-16 string by converting this archive_string from UTF-8.
- * Returns 0 on success, non-zero if some character are replaced.
- * TODO: Is it better to use ConvertFromTextToUnicode() instead ?
- */
-static int
-strncpy_from_utf8_to_utf16(struct archive_string *as,
-    const char *p, size_t len)
-{
-	UTF16Char *s, *end;
-	uint32_t wc;/* Must be large enough for a 21-bit Unicode code point. */
-	int n;
-	int return_val = 0; /* success */
-
-	if (NULL == archive_string_ensure(as, (len+1) * sizeof(UTF16Char)))
-		return (-1);
-
-	as->length = 0;
-	s = (UTF16Char *)as->s;
-	end = (UTF16Char *)(as->s + as->buffer_length - sizeof(UTF16Char));
-	while (len > 0) {
-		/* Expand the buffer when we have <4 bytes free. */
-		if (end - s < 2) {
-			as->length = ((char *)s) - as->s;
-			if (NULL == archive_string_ensure(as,
-			    as->buffer_length + (len+1) * sizeof(UTF16Char)))
-				return (-1);
-			s = (UTF16Char *)(as->s + as->length);
-			end = (UTF16Char *)
-			    (as->s + as->buffer_length - sizeof(UTF16Char));
-		}
-		n = _utf8_to_unicode(&wc, p, len);
-		if (n == 0)
-			break;
-		if (n < 0) {
-			return_val = -1;
-			n *= -1; /* Use a replaced unicode character. */
-		}
-		p += n;
-		len -= n;
-
-		if (wc > 0xffff) {
-			/* We have a code point that won't fit into a
-			 * wchar_t; convert it to a surrogate pair. */
-			wc -= 0x10000;
-			*s++ = (UTF16Char)((wc >> 10) & 0x3ff) + 0xD800;
-			*s++ = (UTF16Char)(wc & 0x3ff) + 0xDC00;
-		} else {
-			*s++ = (UTF16Char)wc;
-		}
-	}
-	as->length = ((char *)s) - as->s;
-	*s = 0;
-	return (return_val);
-}
-
-/*
  * Normalize UTF-8 characters to Form D and copy the result.
  */
 static int
@@ -2870,7 +2831,8 @@ archive_string_normalize_D(struct archive_string *as, const char *s,
 	/*
 	 * Convert UTF-8 to UTF-16.
 	 */
-	return_val = strncpy_from_utf8_to_utf16(&(sc->utf16nfc), s, len);
+	archive_string_empty(&(sc->utf16nfc));
+	return_val = strncat_from_utf8_to_utf16(&(sc->utf16nfc), s, len, 0);
 	if (archive_strlen(&(sc->utf16nfc)) == 0) {
 		if (archive_string_ensure(as, as->length + 1) == NULL)
 			return (-1);
@@ -2922,8 +2884,9 @@ archive_string_normalize_D(struct archive_string *as, const char *s,
 	/*
 	 * Convert UTF-16 to UTF-8.
 	 */
-	if (strncpy_from_utf16_to_utf8(as, sc->utf16nfd.s,
-	    sc->utf16nfd.length) != 0)
+	archive_string_empty(as);
+	if (strncat_from_utf16_to_utf8(as, sc->utf16nfd.s,
+	    sc->utf16nfd.length, 0) != 0)
 		return_val = -1;
 	return (return_val);
 }
@@ -3019,6 +2982,95 @@ strncat_from_utf8_libarchive2(struct archive_string *as,
  *   strncat_from_utf16be() : UTF-16BE --> MBS
  *   strncat_to_utf16be()   : MBS --> UTF16BE
  */
+
+/*
+ * UTF-16[BE] to UTF-8.
+ * Note: returns non-zero if conversion fails, but still leaves a best-effort
+ * conversion in the argument as.
+ */
+static int
+strncat_from_utf16_to_utf8(struct archive_string *as,
+    const void *_p, size_t bytes, int be)
+{
+	const char *utf16;
+	char *p, *end;
+	uint32_t uc;
+	int n, return_val = 0; /* success */
+
+	utf16 = (const char *)_p;
+	bytes &= ~1;
+	if (NULL == archive_string_ensure(as, bytes+1))
+		return (-1);
+	p = as->s + as->length;
+	end = as->s + as->buffer_length -1;
+	while ((n = utf16_to_unicode(&uc, utf16, bytes, be)) != 0) {
+		/* Expand the buffer when we have <4 bytes free. */
+		if (end - p < 4) {
+			as->length = p - as->s;
+			if (NULL == archive_string_ensure(as,
+			    as->buffer_length + bytes + 1))
+				return (-1);
+			p = as->s + as->length;
+			end = as->s + as->buffer_length -1;
+		}
+
+		if (n < 0) {
+			n *= -1;
+			return_val = -1;
+		}
+		utf16 += n;
+		bytes -= n;
+		/* Translate code point to UTF8 */
+		p += unicode_to_utf8(p, uc);
+	}
+	as->length = p - as->s;
+	as->s[as->length] = '\0';
+	return (return_val);
+}
+
+/*
+ * Return a UTF-16 string by converting this archive_string from UTF-8.
+ * Returns 0 on success, non-zero if some character are replaced.
+ */
+static int
+strncat_from_utf8_to_utf16(struct archive_string *as,
+    const char *p, size_t len, int be)
+{
+	char *s, *end;
+	uint32_t uc;/* Must be large enough for a 21-bit Unicode code point. */
+	int n;
+	int return_val = 0; /* success */
+
+	if (NULL == archive_string_ensure(as, (len+1) * sizeof(uint16_t)))
+		return (-1);
+
+	as->length = 0;
+	s = as->s;
+	end = as->s + as->buffer_length - sizeof(uint16_t);
+	while ((n = _utf8_to_unicode(&uc, p, len)) != 0) {
+		/* Expand the buffer when we have <2 bytes free. */
+		if (end - s < 2) {
+			as->length = s - as->s;
+			if (NULL == archive_string_ensure(as,
+			    as->buffer_length + (len+1) * sizeof(uint16_t)))
+				return (-1);
+			s = as->s + as->length;
+			end = as->s + as->buffer_length - sizeof(uint16_t);
+		}
+		if (n < 0) {
+			return_val = -1;
+			n *= -1; /* Use a replaced unicode character. */
+		}
+		p += n;
+		len -= n;
+		s += unicode_to_utf16(s, uc, be);
+	}
+	as->length = s - as->s;
+	as->s[as->length] = 0;
+	as->s[as->length+1] = 0;
+	return (return_val);
+}
+
 #if HAVE_ICONV
 
 /*
@@ -3322,138 +3374,6 @@ strncat_to_utf16be(struct archive_string *a16be, const void *_p, size_t length,
  */
 
 /*
- * UTF-16BE to UTF-8.
- * Note: returns non-zero if conversion fails, but still leaves a best-effort
- * conversion in the argument as.
- */
-static int
-string_append_from_utf16be_to_utf8(struct archive_string *as,
-    const char *utf16be, size_t bytes)
-{
-	char *p, *end;
-	unsigned uc;
-	int return_val = 0; /* success */
-
-	bytes &= ~1;
-	if (archive_string_ensure(as, as->length + bytes+1) == NULL)
-		return (-1);
-	p = as->s + as->length;
-	end = as->s + as->buffer_length - as->length -1;
-	while (bytes >= 2) {
-		/* Expand the buffer when we have <4 bytes free. */
-		if (end - p < 4) {
-			as->length = p - as->s;
-			if (archive_string_ensure(as,
-			    as->buffer_length + bytes) == NULL)
-				return (-1);
-			p = as->s + as->length;
-			end = as->s + as->buffer_length - as->length -1;
-		}
-
-		uc = archive_be16dec(utf16be);
-		utf16be += 2; bytes -=2;
-		
-		/* If this is a surrogate pair, assemble the full code point.*/
-		if (IS_HIGH_SURROGATE_LA(uc)) {
-			unsigned uc2;
-
-			if (bytes >= 2)
-				uc2 = archive_be16dec(utf16be);
-			else
-				uc2 = 0;
-			if (IS_LOW_SURROGATE_LA(uc2)) {
-				uc = combine_surrogate_pair(uc, uc2);
-				utf16be += 2; bytes -=2;
-			} else {
-		 		/* Undescribed code point should be U+FFFD
-			 	* (replacement character). */
-				p += unicode_to_utf8(p, UNICODE_R_CHAR);
-				return_val = -1;
-				continue;
-			}
-		}
-
-		/*
-		 * Surrogate pair values(0xd800 through 0xdfff) are only
-		 * used by UTF-16, so, after above culculation, the code
-		 * must not be surrogate values, and Unicode has no codes
-		 * larger than 0x10ffff. Thus, those are not leagal Unicode
-		 * values.
-		 */
-		if (IS_SURROGATE_PAIR_LA(uc) || uc > UNICODE_MAX) {
-		 	/* Undescribed code point should be U+FFFD
-		 	* (replacement character). */
-			p += unicode_to_utf8(p, UNICODE_R_CHAR);
-			return_val = -1;
-			continue;
-		}
-
-		/* Translate code point to UTF8 */
-		p += unicode_to_utf8(p, uc);
-	}
-	as->length = p - as->s;
-	*p = '\0';
-	return (return_val);
-}
-
-/*
- * Return a UTF-16BE string by converting this archive_string from UTF-8.
- * Returns 0 on success, non-zero if some character replacement happend.
- */
-static int
-string_append_from_utf8_to_utf16be(struct archive_string *as,
-    const char *p, size_t len)
-{
-	char *s, *end;
-	uint32_t wc;/* Must be large enough for a 21-bit Unicode code point. */
-	int n;
-	int return_val = 0; /* success */
-
-	if (archive_string_ensure(as, as->length + (len+1)*2) == NULL)
-		return (-1);
-	s = as->s + as->length;
-	end = as->s + as->buffer_length - as->length -2;
-	while (len > 0) {
-		/* Expand the buffer when we have <4 bytes free. */
-		if (end - s < 4) {
-			as->length = s - as->s;
-			as->s[as->length] = 0;
-			as->s[as->length+1] = 0;
-			if (archive_string_ensure(as,
-			    as->buffer_length + len) == NULL)
-				return (-1);
-			s = as->s + as->length;
-			end = as->s + as->buffer_length - as->length -2;
-		}
-		n = cesu8_to_unicode(&wc, p, len);
-		if (n == 0)
-			break;
-		if (n < 0) {
-			return_val = -1;
-			n *= -1; /* Use a replaced unicode character. */
-		}
-		p += n;
-		len -= n;
-
-		if (wc > 0xffff) {
-			/* We have a code point that won't fit into a
-			 * wchar_t; convert it to a surrogate pair. */
-			wc -= 0x10000;
-			archive_be16enc(s, ((wc >> 10) & 0x3ff) + 0xD800);
-			archive_be16enc(s+2, (wc & 0x3ff) + 0xDC00);
-			s += 4;
-		} else {
-			archive_be16enc(s, wc);
-			s += 2;
-		}
-	}
-	as->length = s - as->s;
-	as->s[as->length] = 0;
-	as->s[as->length+1] = 0;
-	return (return_val);
-}
-
-/*
  * Convert a UTF-16BE string to current locale and copy the result.
  * Return -1 if conversion failes.
  */
@@ -3463,14 +3383,8 @@ strncat_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
 {
 	const char *utf16 = (const char *)_p;
 	char *mbs;
-	int ret;
-
-	/*
-	 * If the current locale is UTF-8, we can translate a UTF-16BE
-	 * string into a UTF-8 string.
-	 */
-	if (sc->flag & SCONV_TO_UTF8)
-		return (string_append_from_utf16be_to_utf8(as, utf16, bytes));
+	uint32_t uc;
+	int n, ret;
 
 	/*
 	 * Other case, we should do the best effort.
@@ -3478,23 +3392,27 @@ strncat_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
 	 * if not , we set a alternative character and return -1.
 	 */
 	ret = 0;
-	bytes &= ~1;
 	if (archive_string_ensure(as, as->length + bytes +1) == NULL)
 		return (-1);
 	mbs = as->s + as->length;
-	while (bytes) {
-		uint16_t val = archive_be16dec(utf16);
-		if (val >= 0x80) {
+
+	while ((n = utf16_to_unicode(&uc, utf16, bytes, 1)) != 0) {
+		if (n < 0) {
+			n *= -1;
+			ret =  -1;
+		}
+		bytes -= n;
+		utf16 += n;
+
+		if (uc > 127) {
 			/* We cannot handle it. */
 			*mbs++ = '?';
 			ret =  -1;
 		} else
-			*mbs++ = (char)val;
-		as->length ++;
-		bytes -= 2;
-		utf16 += 2;
+			*mbs++ = (char)uc;
 	}
-	*mbs = '\0';
+	as->length = mbs - as->s;
+	as->s[as->length] = '\0';
 	return (ret);
 }
 
@@ -3512,35 +3430,29 @@ strncat_to_utf16be(struct archive_string *a16be, const void *_p, size_t length,
 	int ret;
 
 	/*
-	 * If the current locale is UTF-8, we can translate a UTF-8
-	 * string into a UTF-16BE string.
-	 */
-	if (sc->flag & SCONV_FROM_UTF8)
-		return (string_append_from_utf8_to_utf16be(a16be, s, length));
-
-	/*
 	 * Other case, we should do the best effort.
 	 * If all character are ASCII(<0x7f), we can convert it.
 	 * if not , we set a alternative character and return -1.
 	 */
 	ret = 0;
 	remaining = length;
+
 	if (archive_string_ensure(a16be,
 	    a16be->length + (length + 1) * 2) == NULL)
 		return (-1);
+
 	utf16 = a16be->s + a16be->length;
 	while (remaining--) {
-		if (*(unsigned char *)s >= 0x80) {
+		unsigned c = *s++;
+		if (c > 127) {
 			/* We cannot handle it. */
-			archive_be16enc(utf16, UNICODE_R_CHAR);
-			utf16 += 2;
+			c = UNICODE_R_CHAR;
 			ret = -1;
-		} else {
-			*utf16++ = 0;
-			*utf16++ = *s++;
 		}
-		a16be->length += 2;
+		archive_be16enc(utf16, c);
+		utf16 += 2;
 	}
+	a16be->length = utf16 - a16be->s;
 	a16be->s[a16be->length] = 0;
 	a16be->s[a16be->length+1] = 0;
 	return (ret);
