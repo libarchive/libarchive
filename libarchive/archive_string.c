@@ -2599,7 +2599,8 @@ archive_string_normalize_C(struct archive_string *as, const char *s,
     size_t len)
 {
 	char *p, *endp;
-	int ret = 0;
+	uint32_t uc, uc2;
+	int n, n2, ret = 0;
 
 	/*
 	 * The process normalizing NFD characters to NFC will not expand
@@ -2611,13 +2612,9 @@ archive_string_normalize_C(struct archive_string *as, const char *s,
 
 	p = as->s + as->length;
 	endp = as->s + as->buffer_length -1 -4;
-	do {
+	while ((n = cesu8_to_unicode(&uc, s, len)) != 0) {
 		const char *ucptr, *uc2ptr;
-		uint32_t uc, uc2;
-		int n, n2;
 
-		/* Read first code point. */
-		n = cesu8_to_unicode(&uc, s, len);
 		if (n < 0) {
 			/* Use a replaced unicode character. */
 			MAKE_SURE_ENOUGH_BUFFER();
@@ -2626,9 +2623,7 @@ archive_string_normalize_C(struct archive_string *as, const char *s,
 			len -= n*-1;
 			ret = -1;
 			continue;
-		} else if (n == 0)
-			break;
-		else if (n == 6)
+		} else if (n == 6)
 			/* uc is converted from a surrogate pair.
 			 * this should be treated as a changed code. */
 			ucptr = NULL;
@@ -2806,7 +2801,7 @@ archive_string_normalize_C(struct archive_string *as, const char *s,
 			WRITE_UC();
 			break;
 		}
-	} while (len > 0);
+	}
 	as->length = p - as->s;
 	as->s[as->length] = '\0';
 	return (ret);
@@ -2914,6 +2909,7 @@ strncat_from_utf8_libarchive2(struct archive_string *as,
 	int n;
 	char *p;
 	char *end;
+	uint32_t unicode;
 #if HAVE_WCRTOMB
 	mbstate_t shift_state;
 
@@ -2932,9 +2928,8 @@ strncat_from_utf8_libarchive2(struct archive_string *as,
 
 	p = as->s + as->length;
 	end = as->s + as->buffer_length - MB_CUR_MAX -1;
-	while (*s != '\0' && len > 0) {
+	while ((n = _utf8_to_unicode(&unicode, s, len)) != 0) {
 		wchar_t wc;
-		uint32_t unicode;
 
 		if (p >= end) {
 			as->length = p - as->s;
@@ -2950,7 +2945,6 @@ strncat_from_utf8_libarchive2(struct archive_string *as,
 		 * As libarchie 2.x, translates the UTF-8 characters into
 		 * wide-characters in the assumption that WCS is Unicode.
 		 */
-		n = utf8_to_unicode(&unicode, s, len);
 		if (n < 0) {
 			n *= -1;
 			wc = L'?';
