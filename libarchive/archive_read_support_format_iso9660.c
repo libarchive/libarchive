@@ -1274,7 +1274,8 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 		}
 
 		r = archive_entry_copy_pathname_l(entry,
-		    iso9660->utf16be_path, iso9660->utf16be_path_len,
+		    (const char *)iso9660->utf16be_path,
+		    iso9660->utf16be_path_len,
 		    iso9660->sconv_utf16be);
 		if (r != 0) {
 			if (errno == ENOMEM) {
@@ -1335,7 +1336,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 	    file->number == iso9660->previous_number) {
 		if (iso9660->seenJoliet) {
 			r = archive_entry_copy_hardlink_l(entry,
-			    iso9660->utf16be_previous_path,
+			    (const char *)iso9660->utf16be_previous_path,
 			    iso9660->utf16be_previous_path_len,
 			    iso9660->sconv_utf16be);
 			if (r != 0) {
