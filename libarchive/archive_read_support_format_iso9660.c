@@ -358,9 +358,13 @@ struct iso9660 {
 	struct zisofs	 entry_zisofs;
 	struct content	*entry_content;
 	struct archive_string_conv *sconv_utf16be;
-	unsigned char utf16be_path[240];
+	/*
+	 * Buffers for a full pathname in UTF-16BE in Joliet extensions.
+	 */
+#define UTF16_NAME_MAX	1024
+	unsigned char *utf16be_path;
 	size_t		 utf16be_path_len;
-	unsigned char utf16be_previous_path[240];
+	unsigned char *utf16be_previous_path;
 	size_t		 utf16be_previous_path_len;
 };
 
@@ -437,12 +441,12 @@ archive_read_support_format_iso9660(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_iso9660");
 
-	iso9660 = (struct iso9660 *)malloc(sizeof(*iso9660));
+	iso9660 = (struct iso9660 *)calloc(1, sizeof(*iso9660));
 	if (iso9660 == NULL) {
-		archive_set_error(&a->archive, ENOMEM, "Can't allocate iso9660 data");
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate iso9660 data");
 		return (ARCHIVE_FATAL);
 	}
-	memset(iso9660, 0, sizeof(*iso9660));
 	iso9660->magic = ISO9660_MAGIC;
 	iso9660->cache_files.first = NULL;
 	iso9660->cache_files.last = &(iso9660->cache_files.first);
@@ -1263,14 +1267,29 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 				/* Coundn't allocate memory */
 				return (ARCHIVE_FATAL);
 		}
+		if (iso9660->utf16be_path == NULL) {
+			iso9660->utf16be_path = malloc(UTF16_NAME_MAX);
+			if (iso9660->utf16be_path) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "No memory");
+				return (ARCHIVE_FATAL);
+			}
+		}
+		if (iso9660->utf16be_previous_path == NULL) {
+			iso9660->utf16be_previous_path = malloc(UTF16_NAME_MAX);
+			if (iso9660->utf16be_previous_path) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "No memory");
+				return (ARCHIVE_FATAL);
+			}
+		}
 
 		iso9660->utf16be_path_len = 0;
 		if (build_pathname_utf16be(iso9660->utf16be_path,
-		    sizeof(iso9660->utf16be_path),
-		    &(iso9660->utf16be_path_len), file) != 0) {
+		    UTF16_NAME_MAX, &(iso9660->utf16be_path_len), file) != 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Pathname is too long(over 240 bytes)");
+			    "Pathname is too long");
 		}
 
 		r = archive_entry_copy_pathname_l(entry,
@@ -1777,6 +1796,8 @@ archive_read_format_iso9660_cleanup(struct archive_read *a)
 		}
 	}
 #endif
+	free(iso9660->utf16be_path);
+	free(iso9660->utf16be_previous_path);
 	free(iso9660);
 	(a->format->data) = NULL;
 	return (r);
