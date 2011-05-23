@@ -71,17 +71,73 @@ unicode_to_utf8(char *p, uint32_t uc)
         return ((int)(p - _p));
 }
 
+static void
+archive_be16enc(void *pp, uint16_t u)
+{
+        unsigned char *p = (unsigned char *)pp;
+
+        p[0] = (u >> 8) & 0xff;
+        p[1] = u & 0xff;
+}
+
+static int
+unicode_to_utf16be(char *p, uint32_t uc)
+{
+	char *utf16 = p;
+
+	if (uc > 0xffff) {
+		/* We have a code point that won't fit into a
+		 * wchar_t; convert it to a surrogate pair. */
+		uc -= 0x10000;
+		archive_be16enc(utf16, ((uc >> 10) & 0x3ff) + 0xD800);
+		archive_be16enc(utf16+2, (uc & 0x3ff) + 0xDC00);
+		return (4);
+	} else {
+		archive_be16enc(utf16, uc);
+		return (2);
+	}
+}
+
+static int
+wc_size()
+{
+	return (sizeof(wchar_t));
+}
+
+static int
+unicode_to_wc(wchar_t *wp, uint32_t uc)
+{
+	if (wc_size() == 4) {
+		*wp = (wchar_t)uc;
+		return (1);
+	} 
+	if (uc > 0xffff) {
+		/* We have a code point that won't fit into a
+		 * wchar_t; convert it to a surrogate pair. */
+		uc -= 0x10000;
+		*wp++ = (wchar_t)(((uc >> 10) & 0x3ff) + 0xD800);
+		*wp = (wchar_t)((uc & 0x3ff) + 0xDC00);
+		return (2);
+	} else {
+		*wp = (wchar_t)uc;
+		return (1);
+	}
+}
+
 /*
  * Note: U+2000 - U+2FFF, U+F900 - U+FAFF and U+2F800 - U+2FAFF are not
  * converted to NFD on Mac OS.
  * see also http://developer.apple.com/library/mac/#qa/qa2001/qa1173.html
  */
 static int
-scan_unicode_pattern(char *out, const char *pattern, int exclude_mac_nfd)
+scan_unicode_pattern(char *out, wchar_t *wout, char *u16be,
+    const char *pattern, int exclude_mac_nfd)
 {
 	unsigned uc = 0;
 	const char *p = pattern;
 	char *op = out;
+	wchar_t *owp = wout;
+	char *op16be = u16be;
 
 	for (;;) {
 		if (*p >= '0' && *p <= '9')
@@ -110,8 +166,13 @@ scan_unicode_pattern(char *out, const char *pattern, int exclude_mac_nfd)
 				    uc == 0x110AB)
 					return (-1);
 			}
+			op16be += unicode_to_utf16be(op16be, uc);
+			owp += unicode_to_wc(owp, uc);
 			op += unicode_to_utf8(op, uc);
 			if (!*p) {
+				*op16be++ = 0;
+				*op16be = 0;
+				*owp = L'\0';
 				*op = '\0';
 				break;
 			}
@@ -120,6 +181,17 @@ scan_unicode_pattern(char *out, const char *pattern, int exclude_mac_nfd)
 		p++;
 	}
 	return (0);
+}
+
+static int
+is_wc_is_unicode()
+{
+#if (defined(_WIN32) && !defined(__CYGWIN__)) \
+	 || defined(__STDC_ISO_10646__) || defined(__APPLE__)
+	return (1);
+#else
+	return (0);
+#endif
 }
 
 /*
@@ -133,21 +205,28 @@ test_archive_string_normalization(void)
 	struct archive *a;
 	struct archive_entry *ae;
 	struct archive_string utf8;
+	struct archive_mstring mstr;
 	struct archive_string_conv *sconv;
+	struct archive_string_conv *sconv16;
 	FILE *fp;
 	char buff[512];
 	static const char reffile[] = "test_archive_string_conversion.txt.gz";
 	ssize_t size;
 	int line = 0;
+	int locale_is_utf8, wc_is_unicode;
 
+	locale_is_utf8 = (NULL != setlocale(LC_ALL, "en_US.UTF-8"));
+	wc_is_unicode = is_wc_is_unicode();
 	/* If it doesn't exist, just warn and return. */
-	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+	if (!locale_is_utf8 && !wc_is_unicode) {
 		skipping("invalid encoding tests require a suitable locale;"
 		    " en_US.UTF-8 not available on this system");
 		return;
 	}
 
 	archive_string_init(&utf8);
+	memset(&mstr, 0, sizeof(mstr));
+
 	extract_reference_file(reffile);
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -164,10 +243,13 @@ test_archive_string_normalization(void)
 	assert((fp = fopen("testdata.txt", "r")) != NULL);
 	assertA(NULL != (sconv =
 	    archive_string_conversion_from_charset(a, "UTF-8", 0)));
-	if (sconv == NULL || fp == NULL) {
+	assertA(NULL != (sconv16 =
+	    archive_string_conversion_from_charset(a, "UTF-16BE", 0)));
+	if (sconv == NULL || sconv16 == NULL || fp == NULL) {
 		/* We cannot continue this test. */
 		if (fp != NULL)
 			fclose(fp);
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 		return;
 	}
 	/*
@@ -180,6 +262,8 @@ test_archive_string_normalization(void)
 	while (fgets(buff, sizeof(buff), fp) != NULL) {
 		char nfc[80], nfd[80];
 		char utf8_nfc[80], utf8_nfd[80];
+		char utf16be_nfc[80], utf16be_nfd[80];
+		wchar_t wc_nfc[40], wc_nfd[40];
 		char *e, *p;
 
 		line++;
@@ -205,57 +289,136 @@ test_archive_string_normalization(void)
 		 * Convert an NFC pattern to UTF-8 bytes.
 		 */
 #if defined(__APPLE__)
-		if (scan_unicode_pattern(utf8_nfc, nfc, 1) != 0)
+		if (scan_unicode_pattern(utf8_nfc, wc_nfc, utf16be_nfc,
+		    nfc, 1) != 0)
 			continue;
 #else
-		scan_unicode_pattern(utf8_nfc, nfc, 0);
+		scan_unicode_pattern(utf8_nfc, wc_nfc, utf16be_nfc, nfc, 0);
 #endif
 
 		/*
 		 * Convert an NFD pattern to UTF-8 bytes.
 		 */
-		scan_unicode_pattern(utf8_nfd, nfd, 0);
+		scan_unicode_pattern(utf8_nfd, wc_nfd, utf16be_nfd, nfd, 0);
+
+		if (locale_is_utf8) {
+#if defined(__APPLE__)
+			/*
+			 * Normalize an NFC string.
+			 */
+			assertEqualInt(0,
+			    archive_strcpy_in_locale(&utf8, utf8_nfc, sconv));
+			failure("NFC(%s) should be converted to NFD(%s):%d",
+			    nfc, nfd, line);
+			assertEqualUTF8String(utf8_nfd, utf8.s);
+
+			/*
+			 * Normalize an NFD string.
+			 */
+			assertEqualInt(0,
+			    archive_strcpy_in_locale(&utf8, utf8_nfd, sconv));
+			failure("NFD(%s) should not be any changed:%d",
+			    nfd, line);
+			assertEqualUTF8String(utf8_nfd, utf8.s);
+
+			/*
+			 * Normalize an NFC string in UTF-16BE.
+			 */
+			assertEqualInt(0, archive_strncpy_in_locale(&utf8,
+			    utf16be_nfc, 100000, sconv16));
+			failure("NFC(%s) should be converted to NFD(%s):%d",
+			    nfc, nfd, line);
+			assertEqualUTF8String(utf8_nfd, utf8.s);
+#else
+			/*
+			 * Normalize an NFD string.
+			 */
+			assertEqualInt(0,
+			    archive_strcpy_in_locale(&utf8, utf8_nfd, sconv));
+			failure("NFD(%s) should be converted to NFC(%s):%d",
+			    nfd, nfc, line);
+			assertEqualUTF8String(utf8_nfc, utf8.s);
+
+			/*
+			 * Normalize an NFC string.
+			 */
+			assertEqualInt(0,
+			    archive_strcpy_in_locale(&utf8, utf8_nfc, sconv));
+			failure("NFC(%s) should not be any changed:%d",
+			    nfc, line);
+			assertEqualUTF8String(utf8_nfc, utf8.s);
+
+			/*
+			 * Normalize an NFD string in UTF-16BE.
+			 */
+			assertEqualInt(0, archive_strncpy_in_locale(&utf8,
+			    utf16be_nfd, 100000, sconv16));
+			failure("NFD(%s) should be converted to NFC(%s):%d",
+			    nfd, nfc, line);
+			assertEqualUTF8String(utf8_nfc, utf8.s);
+#endif
+		}
+
+		/*
+		 * Test for archive_mstring interface.
+		 * In specific, Windows platform UTF-16BE is directly
+		 * converted to wide-character to avoid the effect of
+		 * current locale since windows platform cannot make
+		 * locale UTF-8.
+		 */
+		if (locale_is_utf8 || wc_is_unicode) {
+			const wchar_t *wp;
 
 #if defined(__APPLE__)
-		/*
-		 * Normalize an NFC string.
-		 */
-		assertEqualInt(0,
-		    archive_strcpy_in_locale(&utf8, utf8_nfc, sconv));
-		failure("NFC(%s) should be converted to NFD(%s):%d",
-		    nfc, nfd, line);
-		assertEqualUTF8String(utf8_nfd, utf8.s);
+			/*
+			 * Normalize an NFD string in UTF-8.
+			 */
+			assertEqualInt(0, archive_mstring_copy_mbs_len_l(
+			    &mstr, utf8_nfc, 100000, sconv));
+			failure("UTF-8 NFC(%s) should be converted "
+			    "to WCS NFD(%s):%d", nfc, nfd, line);
+			assertEqualInt(0,
+			    archive_mstring_get_wcs(a, &mstr, &wp));
+			assertEqualWString(wc_nfd, wp);
 
-		/*
-		 * Normalize an NFD string.
-		 */
-		assertEqualInt(0,
-		    archive_strcpy_in_locale(&utf8, utf8_nfd, sconv));
-		failure("NFD(%s) should not be any changed:%d",
-		    nfd, line);
-		assertEqualUTF8String(utf8_nfd, utf8.s);
+			/*
+			 * Normalize an NFD string in UTF-16BE.
+			 */
+			assertEqualInt(0, archive_mstring_copy_mbs_len_l(
+			    &mstr, utf16be_nfc, 100000, sconv16));
+			failure("UTF-16BE NFC(%s) should be converted "
+			    "to WCS NFD(%s):%d", nfc, nfd, line);
+			assertEqualInt(0,
+			    archive_mstring_get_wcs(a, &mstr, &wp));
+			assertEqualWString(wc_nfd, wp);
 #else
-		/*
-		 * Normalize an NFD string.
-		 */
-		assertEqualInt(0,
-		    archive_strcpy_in_locale(&utf8, utf8_nfd, sconv));
-		failure("NFD(%s) should be converted to NFC(%s):%d",
-		    nfd, nfc, line);
-		assertEqualUTF8String(utf8_nfc, utf8.s);
+			/*
+			 * Normalize an NFD string in UTF-8.
+			 */
+			assertEqualInt(0, archive_mstring_copy_mbs_len_l(
+			    &mstr, utf8_nfd, 100000, sconv));
+			failure("UTF-8 NFD(%s) should be converted "
+			    "to WCS NFC(%s):%d", nfd, nfc, line);
+			assertEqualInt(0,
+			    archive_mstring_get_wcs(a, &mstr, &wp));
+			assertEqualWString(wc_nfc, wp);
 
-		/*
-		 * Normalize an NFC string.
-		 */
-		assertEqualInt(0,
-		    archive_strcpy_in_locale(&utf8, utf8_nfc, sconv));
-		failure("NFC(%s) should not be any changed:%d",
-		    nfc, line);
-		assertEqualUTF8String(utf8_nfc, utf8.s);
+			/*
+			 * Normalize an NFD string in UTF-16BE.
+			 */
+			assertEqualInt(0, archive_mstring_copy_mbs_len_l(
+			    &mstr, utf16be_nfd, 100000, sconv16));
+			failure("UTF-8 NFD(%s) should be converted "
+			    "to WCS NFC(%s):%d", nfd, nfc, line);
+			assertEqualInt(0,
+			    archive_mstring_get_wcs(a, &mstr, &wp));
+			assertEqualWString(wc_nfc, wp);
 #endif
+		}
 	}
 
 	archive_string_free(&utf8);
+	archive_mstring_clean(&mstr);
 	fclose(fp);
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

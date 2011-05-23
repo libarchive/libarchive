@@ -92,8 +92,6 @@ struct archive_string_conv {
 					 * MBS. */
 #define SCONV_UTF8_LIBARCHIVE_2 (1<<4)	/* Incorrect UTF-8 made by libarchive
 					 * 2.x in the wrong assumption. */
-#define SCONV_COPY_UTF8_TO_UTF8	(1<<5)	/* Copy UTF-8 characters in checking
-					 * CESU-8. */
 #define SCONV_NORMALIZATION_C	(1<<6)	/* Need normalization to be Form C.
 					 * Before UTF-8 characters are actually
 					 * processed. */
@@ -105,12 +103,14 @@ struct archive_string_conv {
 #define SCONV_FROM_UTF8		(1<<9)	/* "from charset" side is UTF-8. */
 #define SCONV_TO_UTF16BE 	(1<<10)	/* "to charset" side is UTF-16BE. */
 #define SCONV_FROM_UTF16BE 	(1<<11)	/* "from charset" side is UTF-16BE. */
+#define SCONV_TO_UTF16LE 	(1<<12)	/* "to charset" side is UTF-16LE. */
 
 #if HAVE_ICONV
 	iconv_t				 cd;
 #endif
 	/* A temporary buffer for a conversion of UTF-8 NFD. */
 	struct archive_string		 utf8;
+	struct archive_string		 utf16;
 #if defined(__APPLE__)
 	UnicodeToTextInfo		 uniInfo;
 	struct archive_string		 utf16nfc;
@@ -146,7 +146,7 @@ static struct archive_string_conv *get_sconv_object(struct archive *,
 static unsigned make_codepage_from_charset(const char *);
 static unsigned get_current_codepage(void);
 static unsigned get_current_oemcp(void);
-static size_t la_strnlen(const void *, size_t);
+static size_t mbsnbytes(const void *, size_t);
 static size_t utf16nbytes(const void *, size_t);
 #if defined(_WIN32) && !defined(__CYGWIN__)
 static int archive_wstring_append_from_mbs_in_codepage(
@@ -168,12 +168,20 @@ static int iconv_strncat_in_locale(struct archive_string *, const void *,
 #endif
 static int best_effort_strncat_in_locale(struct archive_string *, const void *,
     size_t, struct archive_string_conv *);
+static int _utf8_to_unicode(uint32_t *, const char *, size_t);
+static int utf8_to_unicode(uint32_t *, const char *, size_t);
+static inline uint32_t combine_surrogate_pair(uint32_t, uint32_t);
+static int cesu8_to_unicode(uint32_t *, const char *, size_t);
+static size_t unicode_to_utf8(char *, size_t, uint32_t);
+static int utf16_to_unicode(uint32_t *, const char *, size_t, int);
+static size_t unicode_to_utf16be(char *, size_t, uint32_t);
+static size_t unicode_to_utf16le(char *, size_t, uint32_t);
 static int strncat_from_utf8_libarchive2(struct archive_string *,
     const char *, size_t);
 static int strncat_from_utf8_to_utf8(struct archive_string *, const char *,
     size_t);
 static int archive_string_normalize_C(struct archive_string *, const char *,
-    size_t);
+    size_t, struct archive_string_conv *);
 #if defined(__APPLE__)
 static int archive_string_normalize_D(struct archive_string *, const char *,
     size_t, struct archive_string_conv *);
@@ -444,6 +452,39 @@ archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
 			*ws++ = (wchar_t)*mp++;
 			count++;
 		}
+	} else if (sc != NULL && (sc->flag & SCONV_NORMALIZATION_C)) {
+		/*
+		 * Normalize UTF-8 and UTF-16BE and convert it directly
+		 * to UTF-16 as wchar_t.
+		 */
+		struct archive_string u16;
+		int saved_flag = sc->flag;/* save current flag. */
+
+		if (is_big_endian())
+			sc->flag |= SCONV_TO_UTF16BE;
+		else
+			sc->flag |= SCONV_TO_UTF16LE;
+
+		if (sc->flag & SCONV_FROM_UTF16BE) {
+			/*
+			 *  UTF-16BE NFD ===> UTF-16 NFC
+			 */
+			count = utf16nbytes(s, length);
+		} else {
+			/*
+			 *  UTF-8 NFD ===> UTF-16 NFC
+			 */
+			count = mbsnbytes(s, length);
+		}
+		u16.s = (char *)dest->s;
+		u16.length = dest->length << 1;;
+		u16.buffer_length = dest->buffer_length;
+		ret = archive_string_normalize_C(&u16, s, count, sc);
+		dest->s = (wchar_t *)u16.s;
+		dest->length = u16.length >> 1;
+		dest->buffer_length = u16.buffer_length;
+		sc->flag = saved_flag;/* restore the saved flag. */
+		return (ret);
 	} else if (sc != NULL && (sc->flag & SCONV_FROM_UTF16BE)) {
 		count = utf16nbytes(s, length);
 		count >>= 1; /* to be WCS length */
@@ -463,23 +504,14 @@ archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
 	} else {
 		DWORD mbflag;
 
-		/*
-		 * Need normalization to UTF-8 since
-		 * MultiByteToWideChar() API does not support.
-		 * NOTE: When from_cp is CP_UTF8, neither MB_PRECOMPOSED nor
-		 * MB_COMPOSITE can be used; MultiByteToWideChar fail.
-		 */
-		if (sc != NULL && (sc->flag & SCONV_NORMALIZATION_C)) {
-			archive_string_empty(&(sc->utf8));
-			if (archive_string_normalize_C(&(sc->utf8), s,
-			    length) != 0)
-				ret = -1;
-			s = sc->utf8.s;
-			length = sc->utf8.length;
-		}
-		if (sc == NULL || (sc->flag & SCONV_FROM_CHARSET))
+		if (sc == NULL)
 			mbflag = 0;
-		else
+		else if (sc->flag & SCONV_FROM_CHARSET) {
+			/* Do not trust the length which comes from
+			 * an archive file. */
+			length = mbsnbytes(s, length);
+			mbflag = 0;
+		} else
 			mbflag = MB_PRECOMPOSED;
 
 		/*
@@ -959,6 +991,7 @@ create_sconv_object(const char *fc, const char *tc,
 		return (NULL);
 	}
 	archive_string_init(&sc->utf8);
+	archive_string_init(&sc->utf16);
 #if defined(__APPLE__)
 	archive_string_init(&sc->utf16nfc);
 	archive_string_init(&sc->utf16nfd);
@@ -1034,8 +1067,8 @@ create_sconv_object(const char *fc, const char *tc,
 	 * sight of two filenames, one is NFC and other is NFD,
 	 * would be in its directory.
 	 */
-	if ((flag & (SCONV_FROM_CHARSET | SCONV_FROM_UTF8)) ==
-	    (SCONV_FROM_CHARSET | SCONV_FROM_UTF8)){
+	if ((flag & SCONV_FROM_CHARSET) &&
+	    (flag & (SCONV_FROM_UTF16BE | SCONV_FROM_UTF8))) {
 #if defined(__APPLE__)
 		flag |= SCONV_NORMALIZATION_D;
 #else
@@ -1043,42 +1076,22 @@ create_sconv_object(const char *fc, const char *tc,
 #endif
 	}
 
-	/*
-	 * Copy UTF-8 string in checking CESU-8 including surrogate pair.
-	 */
-	if ((flag & (SCONV_TO_UTF8 | SCONV_FROM_UTF8)) ==
-	    (SCONV_TO_UTF8 | SCONV_FROM_UTF8))
-		flag |= SCONV_COPY_UTF8_TO_UTF8;
+#if defined(__APPLE__)
+	if (flag & SCONV_NORMALIZATION_D) {
+		if (createUniInfo(sc) != 0)
+			flag &= ~SCONV_NORMALIZATION_D;
+	}
+#endif
 
 #if defined(HAVE_ICONV)
 	/*
 	 * Create an iconv object.
 	 */
-#if defined(__APPLE__)
-	if (flag & SCONV_COPY_UTF8_TO_UTF8) {
+	if ((flag & (SCONV_TO_UTF8 | SCONV_TO_UTF16BE)) &&
+	    (flag & (SCONV_FROM_UTF8 | SCONV_FROM_UTF16BE))) {
 		/* This case does not use iconv. */
 		sc->cd = (iconv_t)-1;
-		if (flag & SCONV_NORMALIZATION_D) {
-			if (createUniInfo(sc) != 0)
-				flag &= ~SCONV_NORMALIZATION_D;
-		}
-	} else if (flag & SCONV_FROM_UTF8) {
-		sc->cd = iconv_open(tc, "UTF-8-MAC");
-		if (sc->cd == (iconv_t)-1) {
-			sc->cd = iconv_open(tc, fc);
-			flag |= SCONV_NORMALIZATION_C;
-		}
-	} else if (flag & SCONV_TO_UTF8) {
-		sc->cd = iconv_open("UTF-8-MAC", fc);
-		if (sc->cd == (iconv_t)-1)
-			sc->cd = iconv_open(tc, fc);
-	}
-#else
-	if (flag & SCONV_COPY_UTF8_TO_UTF8)
-		/* This case does not use iconv. */
-		sc->cd = (iconv_t)-1;
-#endif
-	else {
+	} else {
 		sc->cd = iconv_open(tc, fc);
 	}
 #endif	/* HAVE_ICONV */
@@ -1097,6 +1110,7 @@ free_sconv_object(struct archive_string_conv *sc)
 	free(sc->from_charset);
 	free(sc->to_charset);
 	archive_string_free(&sc->utf8);
+	archive_string_free(&sc->utf16);
 #if HAVE_ICONV
 	if (sc->cd != (iconv_t)-1)
 		iconv_close(sc->cd);
@@ -1452,9 +1466,15 @@ get_sconv_object(struct archive *a, const char *fc, const char *tc, int flag)
 			add_sconv_object(a, sc);
 		return (sc);
 	}
+	/* This case we can use our conversion routine. */
+	if ((sc->flag & (SCONV_TO_UTF8 | SCONV_TO_UTF16BE)) &&
+	    (sc->flag & (SCONV_FROM_UTF8 | SCONV_FROM_UTF16BE))) {
+		if (a != NULL)
+			add_sconv_object(a, sc);
+		return (sc);
+	}
 #if HAVE_ICONV
-	if (sc->cd == (iconv_t)-1 &&
-	   (sc->flag & (SCONV_BEST_EFFORT | SCONV_COPY_UTF8_TO_UTF8)) == 0) {
+	if (sc->cd == (iconv_t)-1 && (sc->flag & SCONV_BEST_EFFORT) == 0) {
 		free_sconv_object(sc);
 		if (a != NULL)
 			archive_set_error(a, ARCHIVE_ERRNO_MISC,
@@ -1644,7 +1664,7 @@ archive_string_conversion_charset_name(struct archive_string_conv *sc)
  */
 
 static size_t
-la_strnlen(const void *_p, size_t n)
+mbsnbytes(const void *_p, size_t n)
 {
 	size_t s;
 	const char *p, *pp;
@@ -1697,13 +1717,13 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
     struct archive_string_conv *sc)
 {
 	size_t length;
-	int r;
+	int r, r2 = 0;
 
 	/*
 	 * If sc is NULL, we just make a copy without conversion.
 	 */
 	if (sc == NULL) {
-		length = la_strnlen(_p, n);
+		length = mbsnbytes(_p, n);
 		/*
 		 * archive_string_append() will call archive_string_ensure()
 		 * but we cannot know if that call is failed or not. so
@@ -1720,15 +1740,15 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 	 * libarchive2.x.
 	 */
 	if (sc->flag & SCONV_UTF8_LIBARCHIVE_2) {
-		length = la_strnlen(_p, n);
+		length = mbsnbytes(_p, n);
 		return (strncat_from_utf8_libarchive2(as, _p, length));
 	}
 
 	/*
-	 * Converting string from/to UTF-16.
+	 * Convert a string to UTF-16BE.
 	 */
 	if (sc->flag & SCONV_TO_UTF16BE) {
-		length = la_strnlen(_p, n);
+		length = mbsnbytes(_p, n);
 		/*
 		 * If the current locale is UTF-8, we can translate
 		 * a UTF-8 string into a UTF-16BE string.
@@ -1739,54 +1759,135 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 			r = strncat_to_utf16be(as, _p, length, sc);
 		return (r);
 	}
+
+	/*
+	 * Convert a string from UTF-16BE.
+	 */
 	if (sc->flag & SCONV_FROM_UTF16BE) {
 		length = utf16nbytes(_p, n);
-		/*
-		 * If the current locale is UTF-8, we can translate
-		 * a UTF-16BE string into a UTF-8 string.
-		 */
-		if (sc->flag & SCONV_TO_UTF8)
-			r = strncat_from_utf16_to_utf8(as, _p, length, 1);
-		else
-			r = strncat_from_utf16be(as, _p, length, sc);
-		return (r);
-	}
-
-	length = la_strnlen(_p, n);
-
-	/*
-	 * Copy UTF-8 string with a check of CESU-8.
-	 * Apparently, iconv does not check surrogate pairs in UTF-8
-	 * when both from-charset and to-charset are UTF-8, and then
-	 * we use our UTF-8 copy code.
-	 */
-	if (sc->flag & SCONV_COPY_UTF8_TO_UTF8) {
+		if (sc->flag & SCONV_TO_UTF8) {
+			/*
+			 * If the current locale is UTF-8, we can translate
+			 * a UTF-16BE string into a UTF-8 string directly.
+			 */
 #if defined(__APPLE__)
-		if (sc->flag & SCONV_NORMALIZATION_D)
-	 		/* Additionally it nees normalization. */
-			r = archive_string_normalize_D(as, _p, length, sc);
-		else
+			if (sc->flag & SCONV_NORMALIZATION_D)
+		 		/* Additionally it nees normalization. */
+				r = archive_string_normalize_D(as, _p,
+				    length, sc);
+			else
 #endif
-		if (sc->flag & SCONV_NORMALIZATION_C)
- 			/* Additionally it nees normalization. */
-			r = archive_string_normalize_C(as, _p, length);
-		else
-			r = strncat_from_utf8_to_utf8(as, _p, length);
+			if (sc->flag & SCONV_NORMALIZATION_C)
+ 				/* Additionally it nees normalization. */
+				r = archive_string_normalize_C(as, _p,
+				    length, sc);
+			else
+				r = strncat_from_utf16_to_utf8(as, _p,
+				    length, 1);
+		} else {
+			/*
+			 * At least we should normalize a UTF-16BE string.
+			 */
+#if defined(__APPLE__)
+			if (sc->flag & SCONV_NORMALIZATION_D) {
+				archive_string_empty(&(sc->utf16));
+				r = archive_string_normalize_D(
+				    &(sc->utf16), _p, length, sc);
+				if (r != 0 && errno == ENOMEM)
+					return (r);
+				_p = sc->utf16.s;
+				length = sc->utf16.length;
+				r = r2;
+			} else
+#endif
+			if (sc->flag & SCONV_NORMALIZATION_C) {
+				archive_string_empty(&(sc->utf16));
+				r = archive_string_normalize_C(
+				    &(sc->utf16), _p, length, sc);
+				if (r != 0 && errno == ENOMEM)
+					return (r);
+				_p = sc->utf16.s;
+				length = sc->utf16.length;
+				r = r2;
+			}
+			r = strncat_from_utf16be(as, _p, length, sc);
+			if (r > r2)
+				r = r2;
+		}
 		return (r);
 	}
 
-#if HAVE_ICONV
-	return (iconv_strncat_in_locale(as, _p, length, sc));
-#else /* HAVE_ICONV */
+	length = mbsnbytes(_p, n);
+
+	if (sc->flag & SCONV_FROM_UTF8) {
+		/*
+		 * Copy UTF-8 string with a check of CESU-8.
+		 * Apparently, iconv does not check surrogate pairs in UTF-8
+		 * when both from-charset and to-charset are UTF-8, and then
+		 * we use our UTF-8 copy code.
+		 */
+		if (sc->flag & SCONV_TO_UTF8) {
+#if defined(__APPLE__)
+			if (sc->flag & SCONV_NORMALIZATION_D)
+		 		/* Additionally it nees normalization. */
+				r = archive_string_normalize_D(
+				    as, _p, length, sc);
+			else
+#endif
+			if (sc->flag & SCONV_NORMALIZATION_C)
+ 				/* Additionally it nees normalization. */
+				r = archive_string_normalize_C(
+				    as, _p, length, sc);
+			else
+				r = strncat_from_utf8_to_utf8(as, _p, length);
+			return (r);
+		} else if ((sc->flag & SCONV_WIN_CP) == 0) {
+			/*
+			 * At least we should normalize a UTF-8 string.
+	 		 * because iconv cannot correctly translate UTF-8
+			 * NFD characters to other charset.
+			 */
+#if defined(__APPLE__)
+			if (sc->flag & SCONV_NORMALIZATION_D) {
+				archive_string_empty(&(sc->utf8));
+				r = archive_string_normalize_D(
+				    &(sc->utf8), _p, length, sc);
+				if (r != 0 && errno == ENOMEM)
+					return (r);
+				_p = sc->utf8.s;
+				length = sc->utf8.length;
+				r2 = r;
+			} else
+#endif
+			if (sc->flag & SCONV_NORMALIZATION_C) {
+				archive_string_empty(&(sc->utf8));
+				r = archive_string_normalize_C(
+				    &(sc->utf8), _p, length, sc);
+				if (r != 0 && errno == ENOMEM)
+					return (r);
+				_p = sc->utf8.s;
+				length = sc->utf8.length;
+				r2 = r;
+			}
+		}
+	}
+
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	/*
-	 * On Windows we can use Windows API for string conversion.
+	 * On Windows we can use Windows API for a string conversion.
 	 */
 	if (sc->flag & SCONV_WIN_CP)
 		return (strncat_in_codepage(as, _p, length, sc));
 #endif
-	return (best_effort_strncat_in_locale(as, _p, length, sc));
+
+#if HAVE_ICONV
+	r = iconv_strncat_in_locale(as, _p, length, sc);
+#else /* HAVE_ICONV */
+	r = best_effort_strncat_in_locale(as, _p, length, sc);
 #endif /* HAVE_ICONV */
+	if (r > r2)
+		r = r2;
+	return (r);
 }
 
 #if HAVE_ICONV
@@ -1809,18 +1910,6 @@ iconv_strncat_in_locale(struct archive_string *as, const void *_p,
 	cd = sc->cd;
 	if (cd == (iconv_t)-1)
 		return (best_effort_strncat_in_locale(as, _p, length, sc));
-
-	/*
-	 * Need normalization to UTF-8 because iconv cannot correctly
-	 * translate UTF-8 NFD characters to other charset.
-	 */
-	if (sc->flag & SCONV_NORMALIZATION_C) {
-		archive_string_empty(&(sc->utf8));
-		if (archive_string_normalize_C(&(sc->utf8), _p, length) != 0)
-			return_value = -1; /* failure */
-		src = sc->utf8.s;
-		length = sc->utf8.length;
-	}
 
 	if (archive_string_ensure(as, as->length + length*2+1) == NULL)
 		return (-1);
@@ -2279,22 +2368,30 @@ invalid_sequence:
  * NOTE:This function does not check if the Unicode is leagal or not.
  * Please you definitely check it before calling this.
  */
-static int
-unicode_to_utf8(char *p, uint32_t uc)
+static size_t
+unicode_to_utf8(char *p, size_t remaining, uint32_t uc)
 {
 	char *_p = p;
 
 	/* Translate code point to UTF8 */
 	if (uc <= 0x7f) {
+		if (remaining == 0)
+			return (0);
 		*p++ = (char)uc;
 	} else if (uc <= 0x7ff) {
+		if (remaining < 2)
+			return (0);
 		*p++ = 0xc0 | ((uc >> 6) & 0x1f);
 		*p++ = 0x80 | (uc & 0x3f);
 	} else if (uc <= 0xffff) {
+		if (remaining < 3)
+			return (0);
 		*p++ = 0xe0 | ((uc >> 12) & 0x0f);
 		*p++ = 0x80 | ((uc >> 6) & 0x3f);
 		*p++ = 0x80 | (uc & 0x3f);
 	} else if (uc <= UNICODE_MAX) {
+		if (remaining < 4)
+			return (0);
 		*p++ = 0xf0 | ((uc >> 18) & 0x07);
 		*p++ = 0x80 | ((uc >> 12) & 0x3f);
 		*p++ = 0x80 | ((uc >> 6) & 0x3f);
@@ -2304,10 +2401,18 @@ unicode_to_utf8(char *p, uint32_t uc)
 		 * Undescribed code point should be U+FFFD
 		 * (replacement character).
 		 */
+		if (remaining < UTF8_R_CHAR_SIZE)
+			return (0);
 		UTF8_SET_R_CHAR(p);
 		p += UTF8_R_CHAR_SIZE;
 	}
-	return ((int)(p - _p));
+	return (p - _p);
+}
+
+static int
+utf16be_to_unicode(uint32_t *pwc, const char *s, size_t n)
+{
+	return (utf16_to_unicode(pwc, s, n, 1));
 }
 
 static int
@@ -2369,31 +2474,48 @@ utf16_to_unicode(uint32_t *pwc, const char *s, size_t n, int be)
 	return ((int)(utf16 - s));
 }
 
-static int
-unicode_to_utf16(char *p, uint32_t uc, int be)
+static size_t
+unicode_to_utf16be(char *p, size_t remaining, uint32_t uc)
 {
 	char *utf16 = p;
 
 	if (uc > 0xffff) {
 		/* We have a code point that won't fit into a
 		 * wchar_t; convert it to a surrogate pair. */
+		if (remaining < 4)
+			return (0);
 		uc -= 0x10000;
-		if (be) {
-			archive_be16enc(utf16, ((uc >> 10) & 0x3ff) + 0xD800);
-			archive_be16enc(utf16+2, (uc & 0x3ff) + 0xDC00);
-		} else {
-			archive_le16enc(utf16, ((uc >> 10) & 0x3ff) + 0xD800);
-			archive_le16enc(utf16+2, (uc & 0x3ff) + 0xDC00);
-		}
-		utf16 += 4;
+		archive_be16enc(utf16, ((uc >> 10) & 0x3ff) + 0xD800);
+		archive_be16enc(utf16+2, (uc & 0x3ff) + 0xDC00);
+		return (4);
 	} else {
-		if (be)
-			archive_be16enc(utf16, uc);
-		else
-			archive_le16enc(utf16, uc);
-		utf16 += 2;
+		if (remaining < 2)
+			return (0);
+		archive_be16enc(utf16, uc);
+		return (2);
 	}
-	return ((int)(utf16 - p));
+}
+
+static size_t
+unicode_to_utf16le(char *p, size_t remaining, uint32_t uc)
+{
+	char *utf16 = p;
+
+	if (uc > 0xffff) {
+		/* We have a code point that won't fit into a
+		 * wchar_t; convert it to a surrogate pair. */
+		if (remaining < 4)
+			return (0);
+		uc -= 0x10000;
+		archive_le16enc(utf16, ((uc >> 10) & 0x3ff) + 0xD800);
+		archive_le16enc(utf16+2, (uc & 0x3ff) + 0xDC00);
+		return (4);
+	} else {
+		if (remaining < 2)
+			return (0);
+		archive_le16enc(utf16, uc);
+		return (2);
+	}
 }
 
 /*
@@ -2410,19 +2532,11 @@ strncat_from_utf8_to_utf8(struct archive_string *as, const char *s, size_t len)
 		return (-1);
 
 	p = as->s + as->length;
-	endp = as->s + as->buffer_length -1 -4;
+	endp = as->s + as->buffer_length -1;
 	do {
 		uint32_t uc;
 		const char *ss = s;
-
-		if (p + len > endp) {
-			as->length = p - as->s;
-			if (archive_string_ensure(as,
-			    as->buffer_length + len + 1) == NULL)
-				return (-1);
-			p = as->s + as->length;
-			endp = as->s + as->buffer_length -1 -4;
-		}
+		size_t w;
 
 		/*
 		 * Forward byte sequence until a conversion of that is needed.
@@ -2432,6 +2546,15 @@ strncat_from_utf8_to_utf8(struct archive_string *as, const char *s, size_t len)
 			len -= n;
 		}
 		if (ss < s) {
+			if (p + (s - ss) > endp) {
+				as->length = p - as->s;
+				if (archive_string_ensure(as,
+				    as->buffer_length + len + 1) == NULL)
+					return (-1);
+				p = as->s + as->length;
+				endp = as->s + as->buffer_length -1;
+			}
+
 			memcpy(p, ss, s - ss);
 			p += s - ss;
 		}
@@ -2449,16 +2572,16 @@ strncat_from_utf8_to_utf8(struct archive_string *as, const char *s, size_t len)
 				n *= -1;/* Use a replaced unicode character. */
 			}
 
-			if (p + 4 > endp) {
+			/* Rebuild UTF-8 byte sequence. */
+			while ((w = unicode_to_utf8(p, endp - p, uc)) == 0) {
 				as->length = p - as->s;
 				if (archive_string_ensure(as,
 				    as->buffer_length + len + 1) == NULL)
 					return (-1);
 				p = as->s + as->length;
-				endp = as->s + as->buffer_length -1 -4;
+				endp = as->s + as->buffer_length -1;
 			}
-			/* Rebuild UTF-8 byte sequence. */
-			p += unicode_to_utf8(p, uc);
+			p += w;
 			s += n;
 			len -= n;
 		}
@@ -2525,6 +2648,22 @@ get_nfc(uint32_t uc, uint32_t uc2)
 	n = n2;					\
 } while (0)
 
+#define EXPAND_BUFFER() do {			\
+	as->length = p - as->s;			\
+	if (archive_string_ensure(as,		\
+	    as->buffer_length + len * tm + ts) == NULL)\
+		return (-1);			\
+	p = as->s + as->length;			\
+	endp = as->s + as->buffer_length - ts;	\
+} while (0)
+
+#define UNPARSE(p, endp, uc)	do {		\
+	while ((w = unparse(p, (endp) - (p), uc)) == 0) {\
+		EXPAND_BUFFER();		\
+	}					\
+	p += w;					\
+} while (0)
+
 /*
  * Write first code point.
  * If the code point has not be changed from its original code,
@@ -2533,6 +2672,8 @@ get_nfc(uint32_t uc, uint32_t uc2)
  */
 #define WRITE_UC()	do {			\
 	if (ucptr) {				\
+		if (p + n > endp)		\
+			EXPAND_BUFFER();	\
 		switch (n) {			\
 		case 4:				\
 			*p++ = *ucptr++;	\
@@ -2549,7 +2690,7 @@ get_nfc(uint32_t uc, uint32_t uc2)
 		}				\
 		ucptr = NULL;			\
 	} else {				\
-		p += unicode_to_utf8(p, uc);	\
+		UNPARSE(p, endp, uc);		\
 	}					\
 } while (0)
 
@@ -2559,7 +2700,7 @@ get_nfc(uint32_t uc, uint32_t uc2)
 #define COLLECT_CPS(start)	do {		\
 	int _i;					\
 	for (_i = start; _i < FDC_MAX ; _i++) {	\
-		nx = cesu8_to_unicode(&ucx[_i], s, len);\
+		nx = parse(&ucx[_i], s, len);	\
 		if (nx <= 0)			\
 			break;			\
 		cx = CCC(ucx[_i]);		\
@@ -2577,53 +2718,77 @@ get_nfc(uint32_t uc, uint32_t uc2)
 		ucx_size = _i;			\
 } while (0)
 
-#define MAKE_SURE_ENOUGH_BUFFER()	do {	\
-	if (p + len > endp) {			\
-		as->length = p - as->s;		\
-		if (archive_string_ensure(as,	\
-		    as->buffer_length + len + 1) == NULL)\
-			return (-1);		\
-		p = as->s + as->length;		\
-		endp = as->s + as->buffer_length -1 -4;\
-	}\
-} while (0)
-
 /*
- * Normalize UTF-8 characters to Form C and copy the result.
+ * Normalize UTF-8/UTF-16BE characters to Form C and copy the result.
  *
  * TODO: Convert composition exclusions,which are never converted
  * from NFC,NFD,NFKC and NFKD, to Form C.
  */
 static int
 archive_string_normalize_C(struct archive_string *as, const char *s,
-    size_t len)
+    size_t len, struct archive_string_conv *sc)
 {
 	char *p, *endp;
 	uint32_t uc, uc2;
-	int n, n2, ret = 0;
+	size_t w;
+	int always_replace, n, n2, ret = 0, spair, ts, tm;
+	int (*parse)(uint32_t *, const char *, size_t);
+	size_t (*unparse)(char *, size_t, uint32_t);
 
-	/*
-	 * The process normalizing NFD characters to NFC will not expand
-	 * the length of an NFC UTF-8 string more than the length of an
-	 * NFD one unless we normalize the composition exclusion characters.
-	 */
-	if (archive_string_ensure(as, as->length + len + 1) == NULL)
+	always_replace = 1;
+	ts = 1;/* text size. */
+	if (sc->flag & SCONV_TO_UTF16BE) {
+		unparse = unicode_to_utf16be;
+		ts = 2;
+		if (sc->flag & SCONV_FROM_UTF16BE)
+			always_replace = 0;
+	} else if (sc->flag & SCONV_TO_UTF16LE) {
+		unparse = unicode_to_utf16le;
+		ts = 2;
+	} else if (sc->flag & SCONV_TO_UTF8) {
+		unparse = unicode_to_utf8;
+		if (sc->flag & SCONV_FROM_UTF8)
+			always_replace = 0;
+	} else {
+		/*
+		 * This case is going to be converted to another
+		 * character-set through iconv.
+		 */
+		always_replace = 0;
+		if (sc->flag & SCONV_FROM_UTF16BE) {
+			unparse = unicode_to_utf16be;
+			ts = 2;
+		} else {
+			unparse = unicode_to_utf8;
+		}
+	}
+
+	if (sc->flag & SCONV_FROM_UTF16BE) {
+		parse = utf16be_to_unicode;
+		tm = 1;
+		spair = 4;/* surrogate pair size in UTF-16. */
+	} else {
+		parse = cesu8_to_unicode;
+		tm = ts;
+		spair = 6;/* surrogate pair size in UTF-8. */
+	}
+
+	if (archive_string_ensure(as, as->length + len * tm + ts) == NULL)
 		return (-1);
 
 	p = as->s + as->length;
-	endp = as->s + as->buffer_length -1 -4;
-	while ((n = cesu8_to_unicode(&uc, s, len)) != 0) {
+	endp = as->s + as->buffer_length - ts;
+	while ((n = parse(&uc, s, len)) != 0) {
 		const char *ucptr, *uc2ptr;
 
 		if (n < 0) {
 			/* Use a replaced unicode character. */
-			MAKE_SURE_ENOUGH_BUFFER();
-			p += unicode_to_utf8(p, uc);
+			UNPARSE(p, endp, uc);
 			s += n*-1;
 			len -= n*-1;
 			ret = -1;
 			continue;
-		} else if (n == 6)
+		} else if (n == spair || always_replace)
 			/* uc is converted from a surrogate pair.
 			 * this should be treated as a changed code. */
 			ucptr = NULL;
@@ -2633,14 +2798,14 @@ archive_string_normalize_C(struct archive_string *as, const char *s,
 		len -= n;
 
 		/* Read second code point. */
-		while ((n2 = cesu8_to_unicode(&uc2, s, len)) > 0) {
+		while ((n2 = parse(&uc2, s, len)) > 0) {
 			uint32_t ucx[FDC_MAX];
 			int ccx[FDC_MAX];
 			int cl, cx, i, nx, ucx_size;
 			int LIndex,SIndex;
 			uint32_t nfc;
 
-			if (n2 == 6)
+			if (n2 == spair || always_replace)
 				/* uc2 is converted from a surrogate pair.
 			 	 * this should be treated as a changed code. */
 				uc2ptr = NULL;
@@ -2769,13 +2934,13 @@ archive_string_normalize_C(struct archive_string *as, const char *s,
 			 */
 			WRITE_UC();
 			for (i = 0; i < ucx_size; i++)
-				p += unicode_to_utf8(p, ucx[i]);
+				UNPARSE(p, endp, ucx[i]);
 
 			/*
 			 * Flush out remaining canonical combining characters.
 			 */
 			if (nx > 0 && cx == cl && len > 0) {
-				while ((nx = cesu8_to_unicode(&ucx[0], s, len))
+				while ((nx = parse(&ucx[0], s, len))
 				    > 0) {
 					cx = CCC(ucx[0]);
 					if (cl > cx)
@@ -2783,7 +2948,7 @@ archive_string_normalize_C(struct archive_string *as, const char *s,
 					s += nx;
 					len -= nx;
 					cl = cx;
-					p += unicode_to_utf8(p, ucx[0]);
+					UNPARSE(p, endp, ucx[0]);
 				}
 			}
 			break;
@@ -2791,8 +2956,7 @@ archive_string_normalize_C(struct archive_string *as, const char *s,
 		if (n2 < 0) {
 			WRITE_UC();
 			/* Use a replaced unicode character. */
-			MAKE_SURE_ENOUGH_BUFFER();
-			p += unicode_to_utf8(p, uc2);
+			UNPARSE(p, endp, uc2);
 			s += n2*-1;
 			len -= n2*-1;
 			ret = -1;
@@ -2804,6 +2968,8 @@ archive_string_normalize_C(struct archive_string *as, const char *s,
 	}
 	as->length = p - as->s;
 	as->s[as->length] = '\0';
+	if (ts == 2)
+		as->s[as->length+1] = '\0';
 	return (ret);
 }
 
@@ -2822,16 +2988,39 @@ archive_string_normalize_D(struct archive_string *as, const char *s,
 	ByteCount inAvail, outAvail;
 	OSStatus err;
 	int return_val;
+	enum {
+		RT_8,
+		RT_16LE,
+		RT_16BE
+	} rt;
 
-	/*
-	 * Convert UTF-8 to UTF-16.
-	 */
 	archive_string_empty(&(sc->utf16nfc));
-	return_val = strncat_from_utf8_to_utf16(&(sc->utf16nfc), s, len, 0);
-	if (archive_strlen(&(sc->utf16nfc)) == 0) {
-		if (archive_string_ensure(as, as->length + 1) == NULL)
+	if (sc->flag & SCONV_FROM_UTF16BE) {
+		size_t i;
+		char *d;
+
+		if (archive_string_ensure(&(sc->utf16nfc),
+		    sc->utf16nfc.length + length + 1) == NULL)
 			return (-1);
-		return (return_val);
+		d = sc->utf16nfc.s;
+		for (i = 0; i < len; i += 2) {
+			uint16_t val = archive_be16dec(s+i);
+			archive_le16enc(d+i, val);
+		}
+		sc->utf16nfc.length = i;
+		sc->utf16nfc.s[i] = 0;
+		sc->utf16nfc.s[i+1] = 0;
+	} else {
+		/*
+		 * Convert UTF-8 to UTF-16.
+		 */
+		return_val = strncat_from_utf8_to_utf16(&(sc->utf16nfc),
+		    s, len, 0);
+		if (archive_strlen(&(sc->utf16nfc)) == 0) {
+			if (archive_string_ensure(as, as->length + 1) == NULL)
+				return (-1);
+			return (return_val);
+		}
 	}
 
 	/*
@@ -2876,13 +3065,54 @@ archive_string_normalize_D(struct archive_string *as, const char *s,
 		if (err != noErr)
 			return_val = -1;
 	} while (0);
-	/*
-	 * Convert UTF-16 to UTF-8.
-	 */
-	archive_string_empty(as);
-	if (strncat_from_utf16_to_utf8(as, sc->utf16nfd.s,
-	    sc->utf16nfd.length, 0) != 0)
-		return_val = -1;
+
+	if (sc->flag & SCONV_TO_UTF16BE)
+		rt = RT_16BE;
+	else if (sc->flag & SCONV_TO_UTF16LE)
+		rt = RT_16LE;/* This may not happen. */
+	else if (sc->flag & SCONV_TO_UTF8)
+		rt = RT_8;
+	else {
+		/*
+		 * This case is going to be converted to another
+		 * character-set through iconv.
+		 */
+		if (sc->flag & SCONV_FROM_UTF16BE)
+			rt = RT_16BE;
+		else
+			rt = RT_8;
+	}
+
+	if (rt == RT_8) {
+		/*
+		 * Convert UTF-16 to UTF-8.
+		 */
+		archive_string_empty(as);
+		if (strncat_from_utf16_to_utf8(as, sc->utf16nfd.s,
+		    sc->utf16nfd.length, 0) != 0)
+			return_val = -1;
+	} else {
+		/*
+		 * Convert UTF-16 to UTF-16BE/LE.
+		 */
+		char *dst, *src;
+		if (archive_string_ensure(as,
+		    as->length + sc->utf16nfd.length + 2) == NULL)
+			return (-1);
+		dst = as->s + as->length;
+		src = sc->utf16nfd.s;
+		if (rt == RT_16BE) {
+			size_t i;
+			for (i = 0; i < sc->utf16nfd.length; i += 2) {
+				uint16_t val = archive_le16dec(src+i);
+				archive_be16enc(dst+i, val);
+			}
+		} else
+			memcpy(dst, src, sc->utf16nfd.length);
+		as->length += sc->utf16nfd.length;
+		as->s[as->length] = 0;
+		as->s[as->length+1] = 0;
+	}
 	return (return_val);
 }
 
@@ -2989,6 +3219,7 @@ strncat_from_utf16_to_utf8(struct archive_string *as,
 	const char *utf16;
 	char *p, *end;
 	uint32_t uc;
+	size_t w;
 	int n, return_val = 0; /* success */
 
 	utf16 = (const char *)_p;
@@ -2998,16 +3229,6 @@ strncat_from_utf16_to_utf8(struct archive_string *as,
 	p = as->s + as->length;
 	end = as->s + as->buffer_length -1;
 	while ((n = utf16_to_unicode(&uc, utf16, bytes, be)) != 0) {
-		/* Expand the buffer when we have <4 bytes free. */
-		if (end - p < 4) {
-			as->length = p - as->s;
-			if (NULL == archive_string_ensure(as,
-			    as->buffer_length + bytes + 1))
-				return (-1);
-			p = as->s + as->length;
-			end = as->s + as->buffer_length -1;
-		}
-
 		if (n < 0) {
 			n *= -1;
 			return_val = -1;
@@ -3015,7 +3236,16 @@ strncat_from_utf16_to_utf8(struct archive_string *as,
 		utf16 += n;
 		bytes -= n;
 		/* Translate code point to UTF8 */
-		p += unicode_to_utf8(p, uc);
+		while ((w = unicode_to_utf8(p, end - p, uc)) == 0) {
+			/* Expand a destination buffer. */
+			as->length = p - as->s;
+			if (NULL == archive_string_ensure(as,
+			    as->buffer_length + bytes + 1))
+				return (-1);
+			p = as->s + as->length;
+			end = as->s + as->buffer_length -1;
+		}
+		p += w;
 	}
 	as->length = p - as->s;
 	as->s[as->length] = '\0';
@@ -3032,18 +3262,26 @@ strncat_from_utf8_to_utf16(struct archive_string *as,
 {
 	char *s, *end;
 	uint32_t uc;/* Must be large enough for a 21-bit Unicode code point. */
+	size_t w;
 	int n;
 	int return_val = 0; /* success */
+	size_t (*to_utf16)(char *, size_t, uint32_t);
 
 	if (NULL == archive_string_ensure(as, (len+1) * sizeof(uint16_t)))
 		return (-1);
 
-	as->length = 0;
-	s = as->s;
+	to_utf16 = (be)?unicode_to_utf16be:unicode_to_utf16le;
+	s = as->s + as->length;
 	end = as->s + as->buffer_length - sizeof(uint16_t);
 	while ((n = _utf8_to_unicode(&uc, p, len)) != 0) {
-		/* Expand the buffer when we have <2 bytes free. */
-		if (end - s < 2) {
+		if (n < 0) {
+			return_val = -1;
+			n *= -1; /* Use a replaced unicode character. */
+		}
+		p += n;
+		len -= n;
+		while ((w = to_utf16(s, end - s, uc)) == 0) {
+			/* Expand a destination buffer. */
 			as->length = s - as->s;
 			if (NULL == archive_string_ensure(as,
 			    as->buffer_length + (len+1) * sizeof(uint16_t)))
@@ -3051,13 +3289,7 @@ strncat_from_utf8_to_utf16(struct archive_string *as,
 			s = as->s + as->length;
 			end = as->s + as->buffer_length - sizeof(uint16_t);
 		}
-		if (n < 0) {
-			return_val = -1;
-			n *= -1; /* Use a replaced unicode character. */
-		}
-		p += n;
-		len -= n;
-		s += unicode_to_utf16(s, uc, be);
+		s += w;
 	}
 	as->length = s - as->s;
 	as->s[as->length] = 0;
