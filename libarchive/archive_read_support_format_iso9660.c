@@ -1378,7 +1378,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 		archive_entry_unset_size(entry);
 		iso9660->entry_bytes_remaining = 0;
 		iso9660->entry_sparse_offset = 0;
-		return (ARCHIVE_OK);
+		return (rd_r);
 	}
 
 	/* Except for the hardlink case above, if the offset of the
