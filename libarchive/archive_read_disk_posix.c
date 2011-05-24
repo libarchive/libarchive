@@ -1386,7 +1386,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 	struct tree *t = a->tree;
 	struct statfs sfs;
 	struct statvfs svfs;
-	int r, vr = 0, xr;
+	int r, vr = 0, xr = 0;
 
 	if (tree_current_is_symblic_link_target(t)) {
 #if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_FDOPENDIR)

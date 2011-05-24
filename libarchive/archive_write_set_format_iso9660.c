@@ -2225,6 +2225,8 @@ set_str_a_characters_bp(struct archive_write *a, unsigned char *bp,
 		r = set_str_utf16be(a, bp+from, s, to - from + 1,
 		    0x0020, vdc);
 		break;
+	default:
+		r = ARCHIVE_FATAL;
 	}
 	return (r);
 }
@@ -2251,6 +2253,8 @@ set_str_d_characters_bp(struct archive_write *a, unsigned char *bp,
 		r = set_str_utf16be(a, bp+from, s, to - from + 1,
 		    0x0020, vdc);
 		break;
+	default:
+		r = ARCHIVE_FATAL;
 	}
 	return (r);
 }
