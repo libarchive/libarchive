@@ -99,7 +99,7 @@ unicode_to_utf16be(char *p, uint32_t uc)
 }
 
 static int
-wc_size()
+wc_size(void)
 {
 	return (sizeof(wchar_t));
 }
@@ -184,7 +184,7 @@ scan_unicode_pattern(char *out, wchar_t *wout, char *u16be,
 }
 
 static int
-is_wc_is_unicode()
+is_wc_is_unicode(void)
 {
 #if (defined(_WIN32) && !defined(__CYGWIN__)) \
 	 || defined(__STDC_ISO_10646__) || defined(__APPLE__)
