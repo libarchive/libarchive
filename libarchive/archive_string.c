@@ -104,6 +104,7 @@ struct archive_string_conv {
 #define SCONV_TO_UTF16BE 	(1<<10)	/* "to charset" side is UTF-16BE. */
 #define SCONV_FROM_UTF16BE 	(1<<11)	/* "from charset" side is UTF-16BE. */
 #define SCONV_TO_UTF16LE 	(1<<12)	/* "to charset" side is UTF-16LE. */
+#define SCONV_FROM_UTF16LE 	(1<<13)	/* "from charset" side is UTF-16LE. */
 
 #if HAVE_ICONV
 	iconv_t				 cd;
@@ -186,10 +187,8 @@ static int archive_string_normalize_C(struct archive_string *, const char *,
 static int archive_string_normalize_D(struct archive_string *, const char *,
     size_t, struct archive_string_conv *);
 #endif
-static int strncat_from_utf16_to_utf8(struct archive_string *, const void *,
-    size_t, int);
-static int strncat_from_utf8_to_utf16(struct archive_string *, const char *,
-    size_t, int);
+static int archive_string_append_unicode(struct archive_string *,
+    const char *, size_t, struct archive_string_conv *);
 
 static struct archive_string *
 archive_string_append(struct archive_string *as, const char *p, size_t s)
@@ -1754,7 +1753,7 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 		 * a UTF-8 string into a UTF-16BE string.
 		 */
 		if (sc->flag & SCONV_FROM_UTF8)
-			r = strncat_from_utf8_to_utf16(as, _p, length, 1);
+			r = archive_string_append_unicode(as, _p, length, sc);
 		else
 			r = strncat_to_utf16be(as, _p, length, sc);
 		return (r);
@@ -1782,8 +1781,8 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 				r = archive_string_normalize_C(as, _p,
 				    length, sc);
 			else
-				r = strncat_from_utf16_to_utf8(as, _p,
-				    length, 1);
+				r = archive_string_append_unicode(as, _p,
+				    length, sc);
 		} else {
 			/*
 			 * At least we should normalize a UTF-16BE string.
@@ -2591,6 +2590,80 @@ strncat_from_utf8_to_utf8(struct archive_string *as, const char *s, size_t len)
 	return (ret);
 }
 
+static int
+archive_string_append_unicode(struct archive_string *as, const char *s,
+    size_t len, struct archive_string_conv *sc)
+{
+	char *p, *endp;
+	uint32_t uc;
+	size_t w;
+	int n, ret = 0, ts, tm;
+	int (*parse)(uint32_t *, const char *, size_t);
+	size_t (*unparse)(char *, size_t, uint32_t);
+
+	if (sc->flag & SCONV_TO_UTF16BE) {
+		unparse = unicode_to_utf16be;
+		ts = 2;
+	} else if (sc->flag & SCONV_TO_UTF16LE) {
+		unparse = unicode_to_utf16le;
+		ts = 2;
+	} else if (sc->flag & SCONV_TO_UTF8) {
+		unparse = unicode_to_utf8;
+		ts = 1;
+	} else {
+		/*
+		 * This case is going to be converted to another
+		 * character-set through iconv.
+		 */
+		if (sc->flag & SCONV_FROM_UTF16BE) {
+			unparse = unicode_to_utf16be;
+			ts = 2;
+		} else {
+			unparse = unicode_to_utf8;
+			ts = 1;
+		}
+	}
+
+	if (sc->flag & SCONV_FROM_UTF16BE) {
+		parse = utf16be_to_unicode;
+		tm = 1;
+	} else {
+		parse = cesu8_to_unicode;
+		tm = ts;
+	}
+
+	if (archive_string_ensure(as, as->length + len * tm + ts) == NULL)
+		return (-1);
+
+	p = as->s + as->length;
+	endp = as->s + as->buffer_length - ts;
+	while ((n = parse(&uc, s, len)) != 0) {
+		if (n < 0) {
+			/* Use a replaced unicode character. */
+			n *= -1;
+			ret = -1;
+		}
+		s += n;
+		len -= n;
+		while ((w = unparse(p, endp - p, uc)) == 0) {
+			/* There is not enough output buffer so
+			 * we have to expand it. */
+			as->length = p - as->s;
+			if (archive_string_ensure(as,
+			    as->buffer_length + len * tm + ts) == NULL)
+				return (-1);
+			p = as->s + as->length;
+			endp = as->s + as->buffer_length - ts;
+		}
+		p += w;
+	}
+	as->length = p - as->s;
+	as->s[as->length] = '\0';
+	if (ts == 2)
+		as->s[as->length+1] = '\0';
+	return (ret);
+}
+
 /*
  * Following Constants for Hangul compositions this information comes from
  * Unicode Standard Annex #15  http://unicode.org/reports/tr15/
@@ -2987,40 +3060,23 @@ archive_string_normalize_D(struct archive_string *as, const char *s,
 	ByteCount inCount, outCount;
 	ByteCount inAvail, outAvail;
 	OSStatus err;
-	int return_val;
-	enum {
-		RT_8,
-		RT_16LE,
-		RT_16BE
-	} rt;
+	int ret, saved_flag;
 
+	/*
+	 * Convert the current string to UTF-16LE.
+	 * The character-set of the current string must be UTF-16BE or
+	 * UTF-8.
+	 */
 	archive_string_empty(&(sc->utf16nfc));
-	if (sc->flag & SCONV_FROM_UTF16BE) {
-		size_t i;
-		char *d;
-
-		if (archive_string_ensure(&(sc->utf16nfc),
-		    sc->utf16nfc.length + length + 1) == NULL)
+	saved_flag = sc->flag;/* save a flag. */
+	sc->flag &= ~(SCONV_TO_UTF16BE | SCONV_TO_UTF8);
+	sc->flag |= SCONV_TO_UTF16LE;
+	ret = archive_string_append_unicode(&(sc->utf16nfc), s, len, sc);
+	sc->flag = saved_flag;/* restore the saved flag */
+	if (archive_strlen(&(sc->utf16nfc)) == 0) {
+		if (archive_string_ensure(as, as->length + 1) == NULL)
 			return (-1);
-		d = sc->utf16nfc.s;
-		for (i = 0; i < len; i += 2) {
-			uint16_t val = archive_be16dec(s+i);
-			archive_le16enc(d+i, val);
-		}
-		sc->utf16nfc.length = i;
-		sc->utf16nfc.s[i] = 0;
-		sc->utf16nfc.s[i+1] = 0;
-	} else {
-		/*
-		 * Convert UTF-8 to UTF-16.
-		 */
-		return_val = strncat_from_utf8_to_utf16(&(sc->utf16nfc),
-		    s, len, 0);
-		if (archive_strlen(&(sc->utf16nfc)) == 0) {
-			if (archive_string_ensure(as, as->length + 1) == NULL)
-				return (-1);
-			return (return_val);
-		}
+		return (ret);
 	}
 
 	/*
@@ -3063,57 +3119,32 @@ archive_string_normalize_D(struct archive_string *as, const char *s,
 			continue;
 		}
 		if (err != noErr)
-			return_val = -1;
+			ret = -1;
 	} while (0);
 
-	if (sc->flag & SCONV_TO_UTF16BE)
-		rt = RT_16BE;
-	else if (sc->flag & SCONV_TO_UTF16LE)
-		rt = RT_16LE;/* This may not happen. */
-	else if (sc->flag & SCONV_TO_UTF8)
-		rt = RT_8;
-	else {
+	/*
+	 * Convert a UTF-16LE(NFD) string to the original character-set.
+	 */
+	saved_flag = sc->flag;/* save a flag. */
+	if (!(sc->flag &
+	    (SCONV_TO_UTF16BE | SCONV_TO_UTF16LE | SCONV_TO_UTF8))) {
 		/*
 		 * This case is going to be converted to another
 		 * character-set through iconv.
 		 */
 		if (sc->flag & SCONV_FROM_UTF16BE)
-			rt = RT_16BE;
+			sc->flag |= SCONV_TO_UTF16BE;
 		else
-			rt = RT_8;
+			sc->flag |= SCONV_TO_UTF8;
 	}
-
-	if (rt == RT_8) {
-		/*
-		 * Convert UTF-16 to UTF-8.
-		 */
-		archive_string_empty(as);
-		if (strncat_from_utf16_to_utf8(as, sc->utf16nfd.s,
-		    sc->utf16nfd.length, 0) != 0)
-			return_val = -1;
-	} else {
-		/*
-		 * Convert UTF-16 to UTF-16BE/LE.
-		 */
-		char *dst, *src;
-		if (archive_string_ensure(as,
-		    as->length + sc->utf16nfd.length + 2) == NULL)
-			return (-1);
-		dst = as->s + as->length;
-		src = sc->utf16nfd.s;
-		if (rt == RT_16BE) {
-			size_t i;
-			for (i = 0; i < sc->utf16nfd.length; i += 2) {
-				uint16_t val = archive_le16dec(src+i);
-				archive_be16enc(dst+i, val);
-			}
-		} else
-			memcpy(dst, src, sc->utf16nfd.length);
-		as->length += sc->utf16nfd.length;
-		as->s[as->length] = 0;
-		as->s[as->length+1] = 0;
-	}
-	return (return_val);
+	sc->flag &= ~(SCONV_FROM_UTF16BE | SCONV_FROM_UTF8);
+	sc->flag |= SCONV_FROM_UTF16LE;
+	archive_string_empty(as);
+	if (archive_string_append_unicode(as, sc->utf16nfd.s,
+	    sc->utf16nfd.length, sc) != 0)
+		ret = -1;
+	sc->flag = saved_flag;/* restore the saved flag */
+	return (ret);
 }
 
 #endif /* __APPLE__ */
@@ -3206,96 +3237,6 @@ strncat_from_utf8_libarchive2(struct archive_string *as,
  *   strncat_from_utf16be() : UTF-16BE --> MBS
  *   strncat_to_utf16be()   : MBS --> UTF16BE
  */
-
-/*
- * UTF-16[BE] to UTF-8.
- * Note: returns non-zero if conversion fails, but still leaves a best-effort
- * conversion in the argument as.
- */
-static int
-strncat_from_utf16_to_utf8(struct archive_string *as,
-    const void *_p, size_t bytes, int be)
-{
-	const char *utf16;
-	char *p, *end;
-	uint32_t uc;
-	size_t w;
-	int n, return_val = 0; /* success */
-
-	utf16 = (const char *)_p;
-	bytes &= ~1;
-	if (NULL == archive_string_ensure(as, bytes+1))
-		return (-1);
-	p = as->s + as->length;
-	end = as->s + as->buffer_length -1;
-	while ((n = utf16_to_unicode(&uc, utf16, bytes, be)) != 0) {
-		if (n < 0) {
-			n *= -1;
-			return_val = -1;
-		}
-		utf16 += n;
-		bytes -= n;
-		/* Translate code point to UTF8 */
-		while ((w = unicode_to_utf8(p, end - p, uc)) == 0) {
-			/* Expand a destination buffer. */
-			as->length = p - as->s;
-			if (NULL == archive_string_ensure(as,
-			    as->buffer_length + bytes + 1))
-				return (-1);
-			p = as->s + as->length;
-			end = as->s + as->buffer_length -1;
-		}
-		p += w;
-	}
-	as->length = p - as->s;
-	as->s[as->length] = '\0';
-	return (return_val);
-}
-
-/*
- * Return a UTF-16 string by converting this archive_string from UTF-8.
- * Returns 0 on success, non-zero if some character are replaced.
- */
-static int
-strncat_from_utf8_to_utf16(struct archive_string *as,
-    const char *p, size_t len, int be)
-{
-	char *s, *end;
-	uint32_t uc;/* Must be large enough for a 21-bit Unicode code point. */
-	size_t w;
-	int n;
-	int return_val = 0; /* success */
-	size_t (*to_utf16)(char *, size_t, uint32_t);
-
-	if (NULL == archive_string_ensure(as, (len+1) * sizeof(uint16_t)))
-		return (-1);
-
-	to_utf16 = (be)?unicode_to_utf16be:unicode_to_utf16le;
-	s = as->s + as->length;
-	end = as->s + as->buffer_length - sizeof(uint16_t);
-	while ((n = _utf8_to_unicode(&uc, p, len)) != 0) {
-		if (n < 0) {
-			return_val = -1;
-			n *= -1; /* Use a replaced unicode character. */
-		}
-		p += n;
-		len -= n;
-		while ((w = to_utf16(s, end - s, uc)) == 0) {
-			/* Expand a destination buffer. */
-			as->length = s - as->s;
-			if (NULL == archive_string_ensure(as,
-			    as->buffer_length + (len+1) * sizeof(uint16_t)))
-				return (-1);
-			s = as->s + as->length;
-			end = as->s + as->buffer_length - sizeof(uint16_t);
-		}
-		s += w;
-	}
-	as->length = s - as->s;
-	as->s[as->length] = 0;
-	as->s[as->length+1] = 0;
-	return (return_val);
-}
 
 #if HAVE_ICONV
 
