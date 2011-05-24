@@ -1303,12 +1303,14 @@ iso9660_options(struct archive_write *a, const char *key, const char *value)
 			if (p[0] == '0' && (p[1] == 'x' || p[1] == 'X'))
 				p += 2;
 			while (*p) {
+				if (seg)
+					seg <<= 4;
 				if (*p >= 'A' && *p <= 'F')
-					seg = (seg << 4) + *p - 'A' + 0x0a;
+					seg += *p - 'A' + 0x0a;
 				else if (*p >= 'a' && *p <= 'f')
-					seg = (seg << 4) + *p - 'a' + 0x0a;
+					seg += *p - 'a' + 0x0a;
 				else if (*p >= '0' && *p <= '9')
-					seg = (seg << 4) + *p - '0';
+					seg += *p - '0';
 				else
 					goto invalid_value;
 				if (seg > 0xffff) {
