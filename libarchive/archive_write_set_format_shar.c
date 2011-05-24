@@ -412,7 +412,7 @@ uuencode_group(const char _in[3], char out[4])
 static int
 _uuencode_line(struct archive_write *a, struct shar *shar, const char *inbuf, size_t len)
 {
-	char tmp_buf[3], *buf;
+	char *buf;
 	size_t alloc_len;
 
 	/* len <= 45 -> expanded to 60 + len byte + new line */
@@ -431,13 +431,14 @@ _uuencode_line(struct archive_write *a, struct shar *shar, const char *inbuf, si
 		buf += 4;
 	}
 	if (len != 0) {
+		char tmp_buf[3];
 		tmp_buf[0] = inbuf[0];
 		if (len == 1)
 			tmp_buf[1] = '\0';
 		else
 			tmp_buf[1] = inbuf[1];
 		tmp_buf[2] = '\0';
-		uuencode_group(inbuf, buf);
+		uuencode_group(tmp_buf, buf);
 		buf += 4;
 	}
 	*buf++ = '\n';
