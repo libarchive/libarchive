@@ -272,7 +272,7 @@ __archive_rb_tree_insert_rebalance(struct archive_rb_tree *rbt,
     struct archive_rb_node *self)
 {
 	struct archive_rb_node * father = RB_FATHER(self);
-	struct archive_rb_node * grandpa = RB_FATHER(father);
+	struct archive_rb_node * grandpa;
 	struct archive_rb_node * uncle;
 	unsigned int which;
 	unsigned int other;
@@ -327,8 +327,6 @@ __archive_rb_tree_insert_rebalance(struct archive_rb_tree *rbt,
 		 *   child.
 		 */
 		__archive_rb_tree_reparent_nodes(father, other);
-		self = father;
-		father = RB_FATHER(self);
 	}
 	/*
 	 * Case 3: we are opposite a child of a black uncle.
