@@ -1796,7 +1796,7 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 					return (r);
 				_p = sc->utf16.s;
 				length = sc->utf16.length;
-				r = r2;
+				r2 = r;
 			} else
 #endif
 			if (sc->flag & SCONV_NORMALIZATION_C) {
@@ -1807,7 +1807,7 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 					return (r);
 				_p = sc->utf16.s;
 				length = sc->utf16.length;
-				r = r2;
+				r2 = r;
 			}
 			r = strncat_from_utf16be(as, _p, length, sc);
 			if (r > r2)
