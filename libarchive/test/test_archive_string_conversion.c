@@ -41,9 +41,9 @@ if [ ! -f ${if} ]; then
   echo "Not found: \"${if}\""
   exit 0
 fi
-of=test_archive_string_conversion.txt.gz
+of=test_archive_string_conversion.txt.Z
 echo "\$FreeBSD\$" > ${of}.uu
-awk -F ';'  '$0 ~/^[0-9A-F]+/ {printf "%s;%s\n", $2, $3}' ${if} | gzip | uuencode ${of} >> ${of}.uu
+awk -F ';'  '$0 ~/^[0-9A-F]+/ {printf "%s;%s\n", $2, $3}' ${if} | compress | uuencode ${of} >> ${of}.uu
 exit 1
 */
 
@@ -210,7 +210,7 @@ test_archive_string_normalization(void)
 	struct archive_string_conv *sconv16;
 	FILE *fp;
 	char buff[512];
-	static const char reffile[] = "test_archive_string_conversion.txt.gz";
+	static const char reffile[] = "test_archive_string_conversion.txt.Z";
 	ssize_t size;
 	int line = 0;
 	int locale_is_utf8, wc_is_unicode;
