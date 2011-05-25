@@ -1090,6 +1090,12 @@ create_sconv_object(const char *fc, const char *tc,
 	    (flag & (SCONV_FROM_UTF8 | SCONV_FROM_UTF16BE))) {
 		/* This case does not use iconv. */
 		sc->cd = (iconv_t)-1;
+#if defined(__APPLE__)
+	} else if ((flag & SCONV_FROM_CHARSET) && (flag & SCONV_TO_UTF8)) {
+		sc->cd = iconv_open("UTF-8-MAC", fc);
+		if (sc->cd == (iconv_t)-1)
+			sc->cd = iconv_open(tc, fc);
+#endif
 	} else {
 		sc->cd = iconv_open(tc, fc);
 	}
@@ -2415,6 +2421,12 @@ utf16be_to_unicode(uint32_t *pwc, const char *s, size_t n)
 }
 
 static int
+utf16le_to_unicode(uint32_t *pwc, const char *s, size_t n)
+{
+	return (utf16_to_unicode(pwc, s, n, 0));
+}
+
+static int
 utf16_to_unicode(uint32_t *pwc, const char *s, size_t n, int be)
 {
 	const char *utf16 = s;
@@ -2627,6 +2639,9 @@ archive_string_append_unicode(struct archive_string *as, const char *s,
 	if (sc->flag & SCONV_FROM_UTF16BE) {
 		parse = utf16be_to_unicode;
 		tm = 1;
+	} else if (sc->flag & SCONV_FROM_UTF16LE) {
+		parse = utf16le_to_unicode;
+		tm = 1;
 	} else {
 		parse = cesu8_to_unicode;
 		tm = ts;
@@ -2838,6 +2853,10 @@ archive_string_normalize_C(struct archive_string *as, const char *s,
 
 	if (sc->flag & SCONV_FROM_UTF16BE) {
 		parse = utf16be_to_unicode;
+		tm = 1;
+		spair = 4;/* surrogate pair size in UTF-16. */
+	} else if (sc->flag & SCONV_FROM_UTF16LE) {
+		parse = utf16le_to_unicode;
 		tm = 1;
 		spair = 4;/* surrogate pair size in UTF-16. */
 	} else {
@@ -3134,6 +3153,8 @@ archive_string_normalize_D(struct archive_string *as, const char *s,
 		 */
 		if (sc->flag & SCONV_FROM_UTF16BE)
 			sc->flag |= SCONV_TO_UTF16BE;
+		else if (sc->flag & SCONV_FROM_UTF16LE)
+			sc->flag |= SCONV_TO_UTF16LE;
 		else
 			sc->flag |= SCONV_TO_UTF8;
 	}
