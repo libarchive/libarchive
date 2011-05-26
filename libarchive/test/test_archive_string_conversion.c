@@ -407,10 +407,10 @@ test_archive_string_normalization(void)
 			 */
 			assertEqualInt(0, archive_mstring_copy_mbs_len_l(
 			    &mstr, utf8_nfc, 100000, f_sconv8));
-			failure("UTF-8 NFC(%s) should be converted "
-			    "to WCS NFD(%s):%d", nfc, nfd, line);
 			assertEqualInt(0,
 			    archive_mstring_get_wcs(a, &mstr, &wp));
+			failure("UTF-8 NFC(%s) should be converted "
+			    "to WCS NFD(%s):%d", nfc, nfd, line);
 			assertEqualWString(wc_nfd, wp);
 
 			/*
@@ -418,10 +418,10 @@ test_archive_string_normalization(void)
 			 */
 			assertEqualInt(0, archive_mstring_copy_mbs_len_l(
 			    &mstr, utf16be_nfc, 100000, f_sconv16));
-			failure("UTF-16BE NFC(%s) should be converted "
-			    "to WCS NFD(%s):%d", nfc, nfd, line);
 			assertEqualInt(0,
 			    archive_mstring_get_wcs(a, &mstr, &wp));
+			failure("UTF-16BE NFC(%s) should be converted "
+			    "to WCS NFD(%s):%d", nfc, nfd, line);
 			assertEqualWString(wc_nfd, wp);
 
 			/*
@@ -429,10 +429,10 @@ test_archive_string_normalization(void)
 			 */
 			assertEqualInt(0, archive_mstring_copy_wcs(
 			    &mstr, wc_nfd));
-			failure("WCS NFD(%s) should be UTF-8 NFD:%d"
-			    ,nfd, line);
 			assertEqualInt(0, archive_mstring_get_mbs_l(
 			    &mstr, &mp, &mplen, t_sconv8));
+			failure("WCS NFD(%s) should be UTF-8 NFD:%d"
+			    ,nfd, line);
 			assertEqualUTF8String(utf8_nfd, mp);
 #else
 			/*
@@ -440,10 +440,10 @@ test_archive_string_normalization(void)
 			 */
 			assertEqualInt(0, archive_mstring_copy_mbs_len_l(
 			    &mstr, utf8_nfd, 100000, f_sconv8));
-			failure("UTF-8 NFD(%s) should be converted "
-			    "to WCS NFC(%s):%d", nfd, nfc, line);
 			assertEqualInt(0,
 			    archive_mstring_get_wcs(a, &mstr, &wp));
+			failure("UTF-8 NFD(%s) should be converted "
+			    "to WCS NFC(%s):%d", nfd, nfc, line);
 			assertEqualWString(wc_nfc, wp);
 
 			/*
@@ -451,10 +451,10 @@ test_archive_string_normalization(void)
 			 */
 			assertEqualInt(0, archive_mstring_copy_mbs_len_l(
 			    &mstr, utf16be_nfd, 100000, f_sconv16));
-			failure("UTF-8 NFD(%s) should be converted "
-			    "to WCS NFC(%s):%d", nfd, nfc, line);
 			assertEqualInt(0,
 			    archive_mstring_get_wcs(a, &mstr, &wp));
+			failure("UTF-8 NFD(%s) should be converted "
+			    "to WCS NFC(%s):%d", nfd, nfc, line);
 			assertEqualWString(wc_nfc, wp);
 
 			/*
@@ -462,10 +462,10 @@ test_archive_string_normalization(void)
 			 */
 			assertEqualInt(0, archive_mstring_copy_wcs(
 			    &mstr, wc_nfc));
-			failure("WCS NFC(%s) should be UTF-8 NFC:%d"
-			    ,nfc, line);
 			assertEqualInt(0, archive_mstring_get_mbs_l(
 			    &mstr, &mp, &mplen, t_sconv8));
+			failure("WCS NFC(%s) should be UTF-8 NFC:%d"
+			    ,nfc, line);
 			assertEqualUTF8String(utf8_nfc, mp);
 #endif
 		}
