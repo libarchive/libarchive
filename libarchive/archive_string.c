@@ -3133,13 +3133,11 @@ archive_string_normalize_D(struct archive_string *as, const char *s,
 			if (archive_string_ensure(as,
 			    as->buffer_length+inAvail+1) == NULL)
 				return (-1);
-			outp = sc->utf16nfd.s;
+			outp = sc->utf16nfd.s + sc->utf16nfd.length;
 			outAvail = sc->utf16nfd.buffer_length - 1;
-			continue;
-		}
-		if (err != noErr)
+		} else if (err != noErr)
 			ret = -1;
-	} while (0);
+	} while (err == kTECOutputBufferFullStatus);
 
 	/*
 	 * Convert a UTF-16LE(NFD) string to the original character-set.
