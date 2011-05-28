@@ -3076,13 +3076,14 @@ archive_string_normalize_D(struct archive_string *as, const char *s,
 {
 	const UniChar *inp;
 	char *outp;
+	size_t newsize;
 	ByteCount inCount, outCount;
 	ByteCount inAvail, outAvail;
 	OSStatus err;
 	int ret, saved_flag;
 
 	/*
-	 * Convert the current string to UTF-16LE.
+	 * Convert the current string to UTF-16LE for normalization.
 	 * The character-set of the current string must be UTF-16BE or
 	 * UTF-8.
 	 */
@@ -3099,48 +3100,49 @@ archive_string_normalize_D(struct archive_string *as, const char *s,
 	}
 
 	/*
-	 * Convert NFC to NFD(HFS Plus version).
+	 * Normalize an NFC string to be an NFD(HFS Plus version).
 	 */
-	if (archive_string_ensure(&(sc->utf16nfd),
-	    sc->utf16nfd.length * 2 + 2) == NULL)
+	newsize = sc->utf16nfc.length + 2;
+	if (archive_string_ensure(&(sc->utf16nfd), newsize) == NULL)
 		return (-1);
 
 	inp = (UniChar *)sc->utf16nfc.s;
 	inAvail = archive_strlen(&(sc->utf16nfc));
 	sc->utf16nfd.length = 0;
 	outp = sc->utf16nfd.s;
-	outAvail = sc->utf16nfd.buffer_length -1;
+	outAvail = sc->utf16nfd.buffer_length -2;
 
-	/* Reinitialize all state information. */
-	if (ResetUnicodeToTextInfo(sc->uniInfo) != noErr) {
-		(void)archive_string_ensure(as, as->length + 1);
-		return (-1);
-	}
 	do {
+		/* Reinitialize all state information. */
+		if (ResetUnicodeToTextInfo(sc->uniInfo) != noErr)
+			goto return_no_changed_data;
+
 		inCount = outCount = 0;
 		err = ConvertFromUnicodeToText(sc->uniInfo,
 		    inAvail, inp,
 		    kUnicodeDefaultDirectionMask, 0, NULL, NULL, NULL,
 		    outAvail, &inCount, &outCount, outp);
 
-		inp += inCount/sizeof(*inp);
-		inAvail -= inCount;
-		outp += outCount;
-		outAvail -= outCount;
-		sc->utf16nfd.length = outp - sc->utf16nfd.s;
-
-		if (err == kTECOutputBufferFullStatus) {
-			if (archive_string_ensure(as,
-			    as->buffer_length+inAvail+1) == NULL)
+		if (err == noErr) {
+			sc->utf16nfd.length = outCount;
+			sc->utf16nfd.s[sc->utf16nfd.length] = 0;
+			sc->utf16nfd.s[sc->utf16nfd.length+1] = 0;
+		} else if (err == kTECOutputBufferFullStatus) {
+			newsize = inAvail - inCount;
+			if (newsize > inAvail)
+				newsize = inAvail;
+			newsize += as->buffer_length + 2;
+			if (archive_string_ensure(as, newsize) == NULL)
 				return (-1);
-			outp = sc->utf16nfd.s + sc->utf16nfd.length;
-			outAvail = sc->utf16nfd.buffer_length - 1;
-		} else if (err != noErr)
-			ret = -1;
+			outp = sc->utf16nfd.s;
+			outAvail = sc->utf16nfd.buffer_length -2;
+		} else
+			goto return_no_changed_data;
 	} while (err == kTECOutputBufferFullStatus);
 
 	/*
-	 * Convert a UTF-16LE(NFD) string to the original character-set.
+	 * If there is a next-step conversion, we should convert
+	 * a UTF-16LE(NFD) string back to the original Unicode type.
 	 */
 	saved_flag = sc->flag;/* save a flag. */
 	if (!(sc->flag &
@@ -3158,12 +3160,19 @@ archive_string_normalize_D(struct archive_string *as, const char *s,
 	}
 	sc->flag &= ~(SCONV_FROM_UTF16BE | SCONV_FROM_UTF8);
 	sc->flag |= SCONV_FROM_UTF16LE;
-	archive_string_empty(as);
 	if (archive_string_append_unicode(as, sc->utf16nfd.s,
 	    sc->utf16nfd.length, sc) != 0)
 		ret = -1;
 	sc->flag = saved_flag;/* restore the saved flag */
 	return (ret);
+
+return_no_changed_data:
+	/*
+	 * Something conversion error happend, so we return a no normalized
+	 * string with an error.
+	 */
+	(void)archive_string_append_unicode(as, s, len, sc);
+	return (-1);
 }
 
 #endif /* __APPLE__ */
