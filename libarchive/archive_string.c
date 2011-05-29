@@ -1042,45 +1042,44 @@ create_sconv_object(const char *fc, const char *tc,
 	 */
 	if (strcmp(tc, "UTF-8") == 0)
 		flag |= SCONV_TO_UTF8;
+	else if (strcmp(tc, "UTF-16BE") == 0)
+		flag |= SCONV_TO_UTF16BE;
 	if (strcmp(fc, "UTF-8") == 0)
 		flag |= SCONV_FROM_UTF8;
-	if (strcmp(tc, "UTF-16BE") == 0)
-		flag |= SCONV_TO_UTF16BE;
-	if (strcmp(fc, "UTF-16BE") == 0)
+	else if (strcmp(fc, "UTF-16BE") == 0)
 		flag |= SCONV_FROM_UTF16BE;
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	if (sc->to_cp == CP_UTF8)
 		flag |= SCONV_TO_UTF8;
+	else if (sc->to_cp == CP_UTF16BE)
+		flag |= SCONV_TO_UTF16BE;
 	if (sc->from_cp == CP_UTF8)
 		flag |= SCONV_FROM_UTF8;
-	if (sc->to_cp == CP_UTF16BE)
-		flag |= SCONV_TO_UTF16BE;
-	if (sc->from_cp == CP_UTF16BE)
+	else if (sc->from_cp == CP_UTF16BE)
 		flag |= SCONV_FROM_UTF16BE;
 #endif
 
 	/*
-	 * Set a flag for UTF-8 NFD. Usually iconv cannot handle
-	 * UTF-8 NFD. So we have to translate UTF-8 NFD characters
-	 * to NFC ones ourselves so that to prevent that the same
-	 * sight of two filenames, one is NFC and other is NFD,
-	 * would be in its directory.
+	 * Set a flag for Unicode NFD. Usually iconv cannot correctly
+	 * handle it. So we have to translate NFD characters to NFC ones
+	 * ourselves before iconv handles. Another reason is to prevent
+	 * that the same sight of two filenames, one is NFC and other
+	 * is NFD, would be in its directory.
+	 * On Mac OS X, although its filesystem layer automatically
+	 * convert filenames to NFD, it would be useful for filename
+	 * comparing to find out the same filenames that we normalize
+	 * that to be NFD ourselves.
 	 */
 	if ((flag & SCONV_FROM_CHARSET) &&
 	    (flag & (SCONV_FROM_UTF16BE | SCONV_FROM_UTF8))) {
 #if defined(__APPLE__)
-		flag |= SCONV_NORMALIZATION_D;
-#else
-		flag |= SCONV_NORMALIZATION_C;
+		if (flag & SCONV_TO_UTF8) {
+			if (createUniInfo(sc) == 0)
+				flag |= SCONV_NORMALIZATION_D;
+		} else
 #endif
+			flag |= SCONV_NORMALIZATION_C;
 	}
-
-#if defined(__APPLE__)
-	if (flag & SCONV_NORMALIZATION_D) {
-		if (createUniInfo(sc) != 0)
-			flag &= ~SCONV_NORMALIZATION_D;
-	}
-#endif
 
 #if defined(HAVE_ICONV)
 	/*
@@ -1092,7 +1091,21 @@ create_sconv_object(const char *fc, const char *tc,
 		sc->cd = (iconv_t)-1;
 #if defined(__APPLE__)
 	} else if ((flag & SCONV_FROM_CHARSET) && (flag & SCONV_TO_UTF8)) {
+		/*
+		 * In case reading an archive file.
+		 * Translate non-Unicode filenames in an archive file to
+		 * UTF-8-MAC filenames.
+		 */
 		sc->cd = iconv_open("UTF-8-MAC", fc);
+		if (sc->cd == (iconv_t)-1)
+			sc->cd = iconv_open(tc, fc);
+	} else if ((flag & SCONV_TO_CHARSET) && (flag & SCONV_FROM_UTF8)) {
+		/*
+		 * In case writing an archive file.
+		 * Translate UTF-8-MAC filenames in HFS Plus to non-Unicode
+		 * filenames.
+		 */
+		sc->cd = iconv_open(to, "UTF-8-MAC");
 		if (sc->cd == (iconv_t)-1)
 			sc->cd = iconv_open(tc, fc);
 #endif
