@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_string.c 201095 2009-12-28 02:33
 #include "archive_string.h"
 #include "archive_string_composition.h"
 
-#ifndef HAVE_WMEMCPY
+#if !defined(HAVE_WMEMCPY) && !defined(wmemcpy)
 #define wmemcpy(a,b,i)  (wchar_t *)memcpy((a), (b), (i) * sizeof(wchar_t))
 #endif
 
