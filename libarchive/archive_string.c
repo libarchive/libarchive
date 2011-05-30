@@ -1105,7 +1105,7 @@ create_sconv_object(const char *fc, const char *tc,
 		 * Translate UTF-8-MAC filenames in HFS Plus to non-Unicode
 		 * filenames.
 		 */
-		sc->cd = iconv_open(to, "UTF-8-MAC");
+		sc->cd = iconv_open(tc, "UTF-8-MAC");
 		if (sc->cd == (iconv_t)-1)
 			sc->cd = iconv_open(tc, fc);
 #endif
