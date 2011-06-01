@@ -1460,6 +1460,7 @@ get_sconv_object(struct archive *a, const char *fc, const char *tc, int flag)
 	struct archive_string_conv *sc;
 	unsigned current_codepage;
 
+	/* Check if we have made the sconv object. */
 	sc = find_sconv_object(a, fc, tc);
 	if (sc != NULL)
 		return (sc);
@@ -1479,51 +1480,41 @@ get_sconv_object(struct archive *a, const char *fc, const char *tc, int flag)
 
 	/* We have to specially treat a string conversion so that
 	 * we can correctly translate the wrong format UTF-8 string. */
-	if (sc->flag & SCONV_UTF8_LIBARCHIVE_2) {
-		if (a != NULL)
-			add_sconv_object(a, sc);
-		return (sc);
-	}
+	if (sc->flag & SCONV_UTF8_LIBARCHIVE_2)
+		goto success;
 	/* This case we can use our conversion routine. */
 	if ((sc->flag & (SCONV_TO_UTF8 | SCONV_TO_UTF16BE)) &&
-	    (sc->flag & (SCONV_FROM_UTF8 | SCONV_FROM_UTF16BE))) {
-		if (a != NULL)
-			add_sconv_object(a, sc);
-		return (sc);
-	}
+	    (sc->flag & (SCONV_FROM_UTF8 | SCONV_FROM_UTF16BE)))
+		goto success;
+	/* Windows platform can convert a string in current locale from/to
+	 * UTF-8 and UTF-16BE with its API. */
+	if (sc->flag & SCONV_WIN_CP)
+		goto success;
+	/* Try conversion in the best effort. */
+	if (sc->flag & SCONV_BEST_EFFORT)
+		goto success;
+	/* No conversion. */
+	if (sc->same)
+		goto success;
 #if HAVE_ICONV
-	if (sc->cd == (iconv_t)-1 && (sc->flag & SCONV_BEST_EFFORT) == 0) {
-		free_sconv_object(sc);
-		if (a != NULL)
-			archive_set_error(a, ARCHIVE_ERRNO_MISC,
-			    "iconv_open failed : Cannot convert "
-			    "string to %s", tc);
-		return (NULL);
-	} else if (a != NULL)
-		add_sconv_object(a, sc);
+	if (sc->cd != (iconv_t)-1)
+		goto success;
+	if (a != NULL)
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
+		    "iconv_open failed : Cannot handle ``%s''", tc);
 #else /* HAVE_ICONV */
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	/*
-	 * Windows platform can convert a string in current locale from/to
-	 * UTF-8 and UTF-16BE.
-	 */
-	if (sc->flag & (SCONV_TO_UTF16BE | SCONV_FROM_UTF16BE | SCONV_WIN_CP)) {
-		if (a != NULL)
-			add_sconv_object(a, sc);
-		return (sc);
-	}
-#endif /* _WIN32 && !__CYGWIN__ */
-	if (!sc->same && (flag & SCONV_BEST_EFFORT) == 0) {
-		free_sconv_object(sc);
-		if (a != NULL)
-			archive_set_error(a, ARCHIVE_ERRNO_MISC,
-			    "A character-set conversion not fully supported "
-			    "on this platform");
-		return (NULL);
-	} else if (a != NULL)
-		add_sconv_object(a, sc);
+	if (a != NULL)
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
+		    "A character-set conversion not fully supported "
+		    "on this platform");
 #endif /* HAVE_ICONV */
+	/* Failed; free a sconv object. */
+	free_sconv_object(sc);
+	return (NULL);
 
+success:
+	if (a != NULL)
+		add_sconv_object(a, sc);
 	return (sc);
 }
 
