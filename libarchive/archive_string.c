@@ -1228,11 +1228,11 @@ create_sconv_object(const char *fc, const char *tc,
 	if (sc->to_cp == CP_UTF8)
 		flag |= SCONV_TO_UTF8;
 	else if (sc->to_cp == CP_UTF16BE)
-		flag |= SCONV_TO_UTF16BE;
+		flag |= SCONV_TO_UTF16BE | SCONV_WIN_CP;
 	if (sc->from_cp == CP_UTF8)
 		flag |= SCONV_FROM_UTF8;
 	else if (sc->from_cp == CP_UTF16BE)
-		flag |= SCONV_FROM_UTF16BE;
+		flag |= SCONV_FROM_UTF16BE | SCONV_WIN_CP;
 #endif
 
 	/*
