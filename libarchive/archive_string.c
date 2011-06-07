@@ -161,10 +161,12 @@ static int is_big_endian(void);
 static int strncat_in_codepage(struct archive_string *, const void *,
     size_t, struct archive_string_conv *);
 #endif
+#if !defined(HAVE_ICONV)
 static int strncat_from_utf16be(struct archive_string *, const void *, size_t,
     struct archive_string_conv *);
 static int strncat_to_utf16be(struct archive_string *, const void *, size_t,
     struct archive_string_conv *);
+#endif
 #if defined(HAVE_ICONV)
 static int iconv_strncat_in_locale(struct archive_string *, const void *,
     size_t, struct archive_string_conv *);
@@ -989,10 +991,19 @@ setup_converter(struct archive_string_conv *sc)
 		 * If the current locale is UTF-8, we can translate
 		 * a UTF-8 string into a UTF-16BE string.
 		 */
-		if (sc->flag & SCONV_FROM_UTF8)
+		if (sc->flag & SCONV_FROM_UTF8) {
 			add_converter(sc, archive_string_append_unicode);
+			return;
+		}
+#if defined(HAVE_ICONV)
+		if (sc->cd != (iconv_t)-1)
+			add_converter(sc, iconv_strncat_in_locale);
 		else
-			add_converter(sc, strncat_to_utf16be);
+			/* Make sure we have no converter. */
+			sc->nconverter = 0;
+#else
+		add_converter(sc, strncat_to_utf16be);
+#endif
 		return;
 	}
 
@@ -1020,8 +1031,17 @@ setup_converter(struct archive_string_conv *sc)
 			    (SCONV_NORMALIZATION_D |SCONV_NORMALIZATION_C)))
 				add_converter(sc,
 				    archive_string_append_unicode);
-		} else
-			add_converter(sc, strncat_from_utf16be);
+			return;
+		}
+#if defined(HAVE_ICONV)
+		if (sc->cd != (iconv_t)-1)
+			add_converter(sc, iconv_strncat_in_locale);
+		else
+			/* Make sure we have no converter. */
+			sc->nconverter = 0;
+#else
+		add_converter(sc, strncat_from_utf16be);
+#endif
 		return;
 	}
 
@@ -1920,67 +1940,85 @@ iconv_strncat_in_locale(struct archive_string *as, const void *_p,
 	size_t remaining;
 	iconv_t cd;
 	char *outp;
-	size_t avail;
+	size_t avail, bs;
 	int return_value = 0; /* success */
+	int to_size, from_size;
 
-	if (archive_string_ensure(as, as->length + length*2+1) == NULL)
+	if (sc->flag & SCONV_TO_UTF16BE)
+		to_size = 2;
+	else
+		to_size = 1;
+	if (sc->flag & SCONV_FROM_UTF16BE)
+		from_size = 2;
+	else
+		from_size = 1;
+
+	if (archive_string_ensure(as, as->length + length*2+to_size) == NULL)
 		return (-1);
 
 	cd = sc->cd;
 	inp = (char *)(uintptr_t)_p;
 	remaining = length;
 	outp = as->s + as->length;
-	avail = as->buffer_length - as->length -1;
-	while (remaining > 0) {
+	avail = as->buffer_length - as->length - to_size;
+	while (remaining >= from_size) {
 		size_t result = iconv(cd, &inp, &remaining, &outp, &avail);
 
-		if (result != (size_t)-1) {
-			*outp = '\0';
-			as->length = outp - as->s;
+		if (result != (size_t)-1)
 			break; /* Conversion completed. */
-		} else if (errno == EILSEQ || errno == EINVAL) {
-			if (sc->flag & SCONV_TO_UTF8) {
-				/*
-				 * Unkonwn character should be U+FFFD
-				 * (replacement character).
-				 */
-				if (avail < UTF8_R_CHAR_SIZE) {
+
+		if (errno == EILSEQ || errno == EINVAL) {
+			/*
+		 	 * If an output charset is UTF-8 or UTF-16BE,
+			 * unknown character should be U+FFFD
+			 * (replacement character).
+			 */
+			if (sc->flag & (SCONV_TO_UTF8 | SCONV_TO_UTF16BE)) {
+				size_t rbytes;
+				if (sc->flag & SCONV_TO_UTF8)
+					rbytes = UTF8_R_CHAR_SIZE;
+				else
+					rbytes = 2;
+
+				if (avail < rbytes) {
 					as->length = outp - as->s;
+					bs = as->buffer_length + remaining * 2;
 					if (NULL ==
-					    archive_string_ensure(as,
-					    as->buffer_length * 2))
+					    archive_string_ensure(as, bs))
 						return (-1);
 					outp = as->s + as->length;
 					avail = as->buffer_length
-					    - as->length -1;
+					    - as->length - to_size;
 				}
-				/*
-			 	 * When coping a string in UTF-8, unknown
-				 * character should be U+FFFD (replacement
-				 * character).
-				 */
-				UTF8_SET_R_CHAR(outp);
-				outp += UTF8_R_CHAR_SIZE;
-				avail -= UTF8_R_CHAR_SIZE;
+				if (sc->flag & SCONV_TO_UTF8)
+					UTF8_SET_R_CHAR(outp);
+				else
+					archive_be16enc(outp, UNICODE_R_CHAR);
+				outp += rbytes;
+				avail -= rbytes;
 			} else {
 				/* Skip the illegal input bytes. */
 				*outp++ = '?';
 				avail--;
 			}
-			inp++;
-			remaining--;
+			inp += from_size;
+			remaining -= from_size;
 			return_value = -1; /* failure */
 		} else {
 			/* E2BIG no output buffer,
 			 * Increase an output buffer.  */
 			as->length = outp - as->s;
-			if (NULL ==
-			    archive_string_ensure(as, as->buffer_length * 2))
+			bs = as->buffer_length + remaining * 2;
+			if (NULL == archive_string_ensure(as, bs))
 				return (-1);
 			outp = as->s + as->length;
-			avail = as->buffer_length - as->length -1;
+			avail = as->buffer_length - as->length - to_size;
 		}
 	}
+	as->length = outp - as->s;
+	as->s[as->length] = 0;
+	if (to_size == 2)
+		as->s[as->length+1] = 0;
 	return (return_value);
 }
 
@@ -3287,113 +3325,8 @@ strncat_from_utf8_libarchive2(struct archive_string *as,
 #if HAVE_ICONV
 
 /*
- * Convert a UTF-16BE string to current locale and copy the result.
- * Return -1 if conversion failes.
+ * No specific functions for UTF-16BE; use iconv_strncat_in_locale() instead.
  */
-static int
-strncat_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
-    struct archive_string_conv *sc)
-{
-	ICONV_CONST char *inp;
-	const char *utf16 = (const char *)_p;
-	size_t remaining;
-	iconv_t cd;
-	char *outp;
-	size_t avail;
-	int return_value = 0; /* success */
-
-	bytes &= ~1;
-	if (archive_string_ensure(as, as->length + bytes +1) == NULL)
-		return (-1);
-
-	cd = sc->cd;
-	inp = (char *)(uintptr_t)utf16;
-	remaining = bytes;
-	outp = as->s + as->length;
-	avail = as->buffer_length - as->length -1;
-	while (remaining > 0) {
-		size_t result = iconv(cd, &inp, &remaining, &outp, &avail);
-
-		if (result != (size_t)-1) {
-			as->length = outp - as->s;
-			as->s[as->length] = '\0';
-			break; /* Conversion completed. */
-		} else if (errno == EILSEQ || errno == EINVAL) {
-			/* Skip the illegal input bytes. */
-			*outp++ = '?';
-			avail --;
-			inp += 2;
-			remaining -= 2;
-			return_value = -1; /* failure */
-		} else {
-			/* E2BIG no output buffer,
-			 * Increase an output buffer.  */
-			as->length = outp - as->s;
-			as->s[as->length] = '\0';
-			if (archive_string_ensure(as,
-			    as->buffer_length + remaining) == NULL)
-				return (-1);
-			outp = as->s + as->length;
-			avail = as->buffer_length - as->length -1;
-		}
-	}
-	return (return_value);
-}
-
-/*
- * Convert a current locale string to UTF-16BE and copy the result.
- * Return -1 if conversion failes.
- */
-static int
-strncat_to_utf16be(struct archive_string *a16be, const void *_p,
-    size_t length, struct archive_string_conv *sc)
-{
-	ICONV_CONST char *inp;
-	size_t remaining;
-	iconv_t cd;
-	char *outp;
-	size_t avail;
-	int return_value = 0; /* success */
-
-	if (archive_string_ensure(a16be, a16be->length + (length+1)*2) == NULL)
-		return (-1);
-
-	cd = sc->cd;
-	inp = (char *)(uintptr_t)_p;
-	remaining = length;
-	outp = a16be->s + a16be->length;
-	avail = a16be->buffer_length - a16be->length -2;
-	while (remaining > 0) {
-		size_t result = iconv(cd, &inp, &remaining, &outp, &avail);
-
-		if (result != (size_t)-1) {
-			a16be->length = outp - a16be->s;
-			a16be->s[a16be->length] = 0;
-			a16be->s[a16be->length+1] = 0;
-			break; /* Conversion completed. */
-		} else if (errno == EILSEQ || errno == EINVAL) {
-			/* Skip the illegal input bytes. */
-			archive_be16enc(outp, UNICODE_R_CHAR);
-			outp += 2;
-			avail -= 2;
-			inp ++;
-			remaining --;
-			return_value = -1; /* failure */
-		} else {
-			/* E2BIG no output buffer,
-			 * Increase an output buffer.  */
-			a16be->length = outp - a16be->s;
-			a16be->s[a16be->length] = 0;
-			a16be->s[a16be->length+1] = 0;
-			if (archive_string_ensure(a16be,
-			    a16be->buffer_length + remaining * 2) == NULL)
-				return (-1);
-			outp = a16be->s + a16be->length;
-			avail = a16be->buffer_length - a16be->length -2;
-		}
-	}
-	return (return_value);
-}
 
 #elif defined(_WIN32) && !defined(__CYGWIN__)
 
