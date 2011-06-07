@@ -1982,7 +1982,8 @@ iconv_strncat_in_locale(struct archive_string *as, const void *_p,
 
 				if (avail < rbytes) {
 					as->length = outp - as->s;
-					bs = as->buffer_length + remaining * 2;
+					bs = as->buffer_length +
+					    (remaining * to_size) + rbytes;
 					if (NULL ==
 					    archive_string_ensure(as, bs))
 						return (-1);
@@ -2167,10 +2168,11 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 	avail = as->buffer_length - as->length -1;
 	while (*inp && remaining > 0) {
 		if (*inp < 0 && (sc->flag & SCONV_TO_UTF8)) {
-			if (avail < remaining + 2) {
+			if (avail < UTF8_R_CHAR_SIZE) {
 				as->length = outp - as->s;
 				if (NULL == archive_string_ensure(as,
-				    as->buffer_length + remaining))
+				    as->buffer_length + remaining +
+				    UTF8_R_CHAR_SIZE))
 					return (-1);
 				outp = as->s + as->length;
 				avail = as->buffer_length - as->length -1;
