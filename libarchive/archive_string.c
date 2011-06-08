@@ -1135,18 +1135,6 @@ create_sconv_object(const char *fc, const char *tc,
 {
 	struct archive_string_conv *sc; 
 
-	/*
-	 * Special conversion for the incorrect UTF-8 made by libarchive 2.x
-	 * only for the platform WCS of which is not Unicode.
-	 */
-	if (strcmp(fc, "UTF-8-MADE_BY_LIBARCHIVE2") == 0)
-#if (defined(_WIN32) && !defined(__CYGWIN__)) \
-	 || defined(__STDC_ISO_10646__) || defined(__APPLE__)
-		fc = "UTF-8";/* Ignore special sequence. */
-#else
-		flag |= SCONV_UTF8_LIBARCHIVE_2;
-#endif
-
 	sc = calloc(1, sizeof(*sc));
 	if (sc == NULL)
 		return (NULL);
@@ -1167,18 +1155,6 @@ create_sconv_object(const char *fc, const char *tc,
 	archive_string_init(&sc->utf16nfc);
 	archive_string_init(&sc->utf16nfd);
 #endif
-
-	if (flag & SCONV_UTF8_LIBARCHIVE_2) {
-#if HAVE_ICONV
-		sc->cd = (iconv_t)-1;
-#endif
-		sc->flag = flag;
-		/*
-		 * Setup converters.
-		 */
-		setup_converter(sc);
-		return (sc);
-	}
 
 	if (flag & SCONV_TO_CHARSET) {
 		/*
@@ -1830,6 +1806,39 @@ archive_string_conversion_charset_name(struct archive_string_conv *sc)
 		return (sc->to_charset);
 	else
 		return (sc->from_charset);
+}
+
+/*
+ * Change the behavior of a string conversion.
+ */
+void
+archive_string_conversion_set_opt(struct archive_string_conv *sc, int opt)
+{
+	switch (opt) {
+	/*
+	 * A filename in UTF-8 was made with libarchive 2.x in a wrong
+	 * assumption that wchar_t was Unicode.
+	 * This option enables simulating the assumption in order to read
+	 * that filname correctly.
+	 */
+	case SCONV_SET_OPT_UTF8_LIBARCHIVE2X:
+#if (defined(_WIN32) && !defined(__CYGWIN__)) \
+	 || defined(__STDC_ISO_10646__) || defined(__APPLE__)
+		/*
+		 * Nothing to do for it since wchar_t on these platforms
+		 * is really Unicode.
+		 */
+#else
+		if ((sc->flag & SCONV_UTF8_LIBARCHIVE_2) == 0) {
+			sc->flag |= SCONV_UTF8_LIBARCHIVE_2;
+			/* Re-setup string converters. */
+			setup_converter(sc);
+		}
+#endif
+		break;
+	default:
+		break;
+	}
 }
 
 /*

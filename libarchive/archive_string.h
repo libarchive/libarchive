@@ -107,6 +107,9 @@ void
 archive_string_conversion_free(struct archive *);
 const char *
 archive_string_conversion_charset_name(struct archive_string_conv *);
+void
+archive_string_conversion_set_opt(struct archive_string_conv *, int);
+#define SCONV_SET_OPT_UTF8_LIBARCHIVE2X	1
 
 
 /* Copy one archive_string to another in locale conversion.

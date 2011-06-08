@@ -149,7 +149,7 @@ struct tar {
 	struct archive_string_conv *sconv_acl;
 	struct archive_string_conv *sconv_default;
 	int			 init_default_conversion;
-	int			 utf8_made_by_libarchive2x;
+	int			 utf8_made_with_libarchive2x;
 };
 
 static int	archive_block_is_null(const unsigned char *p);
@@ -379,7 +379,7 @@ archive_read_format_tar_options(struct archive_read *a,
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "tar: utf8type option needs value");
 		else if (strcmp(val, "libarchive2x") == 0) {
-			tar->utf8_made_by_libarchive2x = 1;
+			tar->utf8_made_with_libarchive2x = 1;
 			ret = ARCHIVE_OK;
 		} else
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -1551,15 +1551,13 @@ pax_header(struct archive_read *a, struct tar *tar,
 	if (tar->pax_hdrcharset_binary)
 		sconv = tar->opt_sconv;
 	else {
-		const char *cs;
-		if (tar->utf8_made_by_libarchive2x)
-			cs = "UTF-8-MADE_BY_LIBARCHIVE2";
-		else
-			cs = "UTF-8";
 		sconv = archive_string_conversion_from_charset(
-		    &(a->archive), cs, 1);
+		    &(a->archive), "UTF-8", 1);
 		if (sconv == NULL)
 			return (ARCHIVE_FATAL);
+		if (tar->utf8_made_with_libarchive2x)
+			archive_string_conversion_set_opt(sconv,
+			    SCONV_SET_OPT_UTF8_LIBARCHIVE2X);
 	}
 
 	if (archive_strlen(&(tar->entry_gname)) > 0) {
