@@ -129,7 +129,8 @@ archive_write_set_format_pax(struct archive *_a)
 
 	pax = (struct pax *)malloc(sizeof(*pax));
 	if (pax == NULL) {
-		archive_set_error(&a->archive, ENOMEM, "Can't allocate pax data");
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate pax data");
 		return (ARCHIVE_FATAL);
 	}
 	memset(pax, 0, sizeof(*pax));
@@ -171,10 +172,11 @@ archive_write_pax_options(struct archive_write *a, const char *key,
 			ret = ARCHIVE_OK;
 		} else if (strcmp(val, "UTF-8") == 0) {
 			/*
-			 * Specify UTF-8 character-set to be used for filenames.
-			 * This is almost the test that running platform supports
-			 * the string conversion. Especially libarchive_test needs
-			 * this trick for its test.
+			 * Specify UTF-8 character-set to be used for
+			 * filenames. This is almost the test that
+			 * running platform supports the string conversion.
+			 * Especially libarchive_test needs this trick for
+			 * its test.
 			 */
 			pax->sconv_utf8 = archive_string_conversion_to_charset(
 			    &(a->archive), "UTF-8", 0);
@@ -183,8 +185,7 @@ archive_write_pax_options(struct archive_write *a, const char *key,
 			else
 				ret = ARCHIVE_OK;
 		} else
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_MISC,
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "pax: invalid charset name");
 	} else
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -332,7 +333,8 @@ archive_write_pax_header_xattrs(struct archive_write *a,
 		url_encoded_name = url_encode(name);
 		if (url_encoded_name != NULL) {
 			/* Convert narrow-character to UTF-8. */
-			r = archive_strcpy_in_locale(&(pax->l_url_encoded_name),
+			r = archive_strcpy_in_locale(
+			    &(pax->l_url_encoded_name),
 			    url_encoded_name, pax->sconv_utf8);
 			free(url_encoded_name); /* Done with this. */
 			if (r == 0)
@@ -419,7 +421,7 @@ archive_write_pax_header(struct archive_write *a,
 			/* Initialize the string conversion object
 			 * we must need */
 			pax->sconv_utf8 = archive_string_conversion_to_charset(
-			        &(a->archive), "UTF-8", 1);
+			    &(a->archive), "UTF-8", 1);
 			if (pax->sconv_utf8 == NULL)
 				/* Couldn't allocate memory */
 				return (ARCHIVE_FAILED);
@@ -487,7 +489,8 @@ archive_write_pax_header(struct archive_write *a,
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "tar format cannot archive this (type=0%lo)",
-			    (unsigned long)archive_entry_filetype(entry_original));
+			    (unsigned long)
+			    archive_entry_filetype(entry_original));
 			return (ARCHIVE_FAILED);
 		}
 	}
@@ -505,7 +508,8 @@ archive_write_pax_header(struct archive_write *a,
 	 * should not lose data just because the local filesystem
 	 * can't store it.
 	 */
-	mac_metadata = archive_entry_mac_metadata(entry_original, &mac_metadata_size);
+	mac_metadata =
+	    archive_entry_mac_metadata(entry_original, &mac_metadata_size);
 	if (mac_metadata != NULL) {
 		const char *oname;
 		char *name, *bname;
@@ -539,14 +543,19 @@ archive_write_pax_header(struct archive_write *a,
 
 		archive_entry_set_size(extra, mac_metadata_size);
 		archive_entry_set_filetype(extra, AE_IFREG);
-		archive_entry_set_perm(extra, archive_entry_perm(entry_original));
+		archive_entry_set_perm(extra,
+		    archive_entry_perm(entry_original));
 		archive_entry_set_mtime(extra,
-					archive_entry_mtime(entry_original),
-					archive_entry_mtime_nsec(entry_original));
-		archive_entry_set_gid(extra, archive_entry_gid(entry_original));
-		archive_entry_set_gname(extra, archive_entry_gname(entry_original));
-		archive_entry_set_uid(extra, archive_entry_uid(entry_original));
-		archive_entry_set_uname(extra, archive_entry_uname(entry_original));
+		    archive_entry_mtime(entry_original),
+		    archive_entry_mtime_nsec(entry_original));
+		archive_entry_set_gid(extra,
+		    archive_entry_gid(entry_original));
+		archive_entry_set_gname(extra,
+		    archive_entry_gname(entry_original));
+		archive_entry_set_uid(extra,
+		    archive_entry_uid(entry_original));
+		archive_entry_set_uname(extra,
+		    archive_entry_uname(entry_original));
 
 		/* Recurse to write the special copyfile entry. */
 		r = archive_write_pax_header(a, extra);
@@ -1217,7 +1226,8 @@ archive_write_pax_header(struct archive_write *a,
 		}
 
 		pax->entry_bytes_remaining = archive_strlen(&(pax->pax_header));
-		pax->entry_padding = 0x1ff & (-(int64_t)pax->entry_bytes_remaining);
+		pax->entry_padding =
+		    0x1ff & (-(int64_t)pax->entry_bytes_remaining);
 
 		r = __archive_write_output(a, pax->pax_header.s,
 		    archive_strlen(&(pax->pax_header)));
@@ -1468,7 +1478,8 @@ build_pax_attribute_name(char *dest, const char *src)
 	/* If the platform can't fetch the pid, don't include it. */
 	strcpy(buff, "PaxHeader");
 #endif
-	/* General case: build a ustar-compatible name adding "/PaxHeader/". */
+	/* General case: build a ustar-compatible name adding
+	 * "/PaxHeader/". */
 	build_ustar_entry_name(dest, src, p - src, buff);
 
 	return (dest);
@@ -1516,7 +1527,8 @@ build_gnu_sparse_name(char *dest, const char *src)
 	/* If the platform can't fetch the pid, don't include it. */
 	strcpy(buff, "GNUSparseFile");
 #endif
-	/* General case: build a ustar-compatible name adding "/GNUSparseFile/". */
+	/* General case: build a ustar-compatible name adding
+	 * "/GNUSparseFile/". */
 	build_ustar_entry_name(dest, src, p - src, buff);
 
 	return (dest);
