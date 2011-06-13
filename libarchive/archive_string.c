@@ -1249,8 +1249,18 @@ create_sconv_object(const char *fc, const char *tc,
 		 * UTF-8-MAC filenames.
 		 */
 		sc->cd = iconv_open("UTF-8-MAC", fc);
-		if (sc->cd == (iconv_t)-1)
-			sc->cd = iconv_open(tc, fc);
+		if (sc->cd == (iconv_t)-1) {
+			if ((sc->flag & SCONV_BEST_EFFORT) &&
+			    strcmp(fc, "CP932") == 0) {
+				sc->cd = iconv_open("UTF-8-MAC", "SJIS");
+				if (sc->cd == (iconv_t)-1) {
+					sc->cd = iconv_open(tc, fc);
+					if (sc->cd == (iconv_t)-1)
+						sc->cd = iconv_open(tc, "SJIS");
+				}
+			} else
+				sc->cd = iconv_open(tc, fc);
+		}
 	} else if ((flag & SCONV_TO_CHARSET) && (flag & SCONV_FROM_UTF8)) {
 		/*
 		 * In case writing an archive file.
@@ -1258,11 +1268,32 @@ create_sconv_object(const char *fc, const char *tc,
 		 * filenames.
 		 */
 		sc->cd = iconv_open(tc, "UTF-8-MAC");
-		if (sc->cd == (iconv_t)-1)
-			sc->cd = iconv_open(tc, fc);
+		if (sc->cd == (iconv_t)-1) {
+			if ((sc->flag & SCONV_BEST_EFFORT) &&
+			    strcmp(tc, "CP932") == 0) {
+				sc->cd = iconv_open("SJIS", "UTF-8-MAC");
+				if (sc->cd == (iconv_t)-1) {
+					sc->cd = iconv_open(tc, fc);
+					if (sc->cd == (iconv_t)-1)
+						sc->cd = iconv_open("SJIS", fc);
+				}
+			} else
+				sc->cd = iconv_open(tc, fc);
+		}
 #endif
 	} else {
 		sc->cd = iconv_open(tc, fc);
+		if (sc->cd == (iconv_t)-1 && (sc->flag & SCONV_BEST_EFFORT)) {
+			/*
+			 * Unfortunaly, all of iconv implements do support 
+			 * "CP932" character-set, so we should use "SJIS"
+			 * instead if iconv_open failed.
+			 */
+			if (strcmp(tc, "CP932") == 0)
+				sc->cd = iconv_open("SJIS", fc);
+			else if (strcmp(fc, "CP932") == 0)
+				sc->cd = iconv_open(tc, "SJIS");
+		}
 	}
 #endif	/* HAVE_ICONV */
 
