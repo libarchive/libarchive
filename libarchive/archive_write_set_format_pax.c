@@ -360,6 +360,96 @@ archive_write_pax_header_xattrs(struct archive_write *a,
 	return (ARCHIVE_OK);
 }
 
+static int
+get_entry_hardlink(struct archive_write *a, struct archive_entry *entry,
+    const char **name, size_t *length, struct archive_string_conv *sc)
+{
+	int r;
+	
+	r = archive_entry_hardlink_l(entry, name, length, sc);
+	if (r != 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Linkname");
+			return (ARCHIVE_FATAL);
+		}
+		return (ARCHIVE_WARN);
+	}
+	return (ARCHIVE_OK);
+}
+
+static int
+get_entry_pathname(struct archive_write *a, struct archive_entry *entry,
+    const char **name, size_t *length, struct archive_string_conv *sc)
+{
+	int r;
+
+	r = archive_entry_pathname_l(entry, name, length, sc);
+	if (r != 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Pathname");
+			return (ARCHIVE_FATAL);
+		}
+		return (ARCHIVE_WARN);
+	}
+	return (ARCHIVE_OK);
+}
+
+static int
+get_entry_uname(struct archive_write *a, struct archive_entry *entry,
+    const char **name, size_t *length, struct archive_string_conv *sc)
+{
+	int r;
+
+	r = archive_entry_uname_l(entry, name, length, sc);
+	if (r != 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Uname");
+			return (ARCHIVE_FATAL);
+		}
+		return (ARCHIVE_WARN);
+	}
+	return (ARCHIVE_OK);
+}
+
+static int
+get_entry_gname(struct archive_write *a, struct archive_entry *entry,
+    const char **name, size_t *length, struct archive_string_conv *sc)
+{
+	int r;
+
+	r = archive_entry_gname_l(entry, name, length, sc);
+	if (r != 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Gname");
+			return (ARCHIVE_FATAL);
+		}
+		return (ARCHIVE_WARN);
+	}
+	return (ARCHIVE_OK);
+}
+
+static int
+get_entry_symlink(struct archive_write *a, struct archive_entry *entry,
+    const char **name, size_t *length, struct archive_string_conv *sc)
+{
+	int r;
+
+	r = archive_entry_symlink_l(entry, name, length, sc);
+	if (r != 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Linkname");
+			return (ARCHIVE_FATAL);
+		}
+		return (ARCHIVE_WARN);
+	}
+	return (ARCHIVE_OK);
+}
+
 /*
  * TODO: Consider adding 'comment' and 'charset' fields to
  * archive_entry so that clients can specify them.  Also, consider
@@ -383,12 +473,9 @@ archive_write_pax_header(struct archive_write *a,
 	const char *hardlink;
 	const char *path = NULL, *linkpath = NULL;
 	const char *uname = NULL, *gname = NULL;
-	const char *l_hardlink, *l_path, *l_linkpath, *l_uname, *l_gname;
 	const void *mac_metadata;
 	size_t mac_metadata_size;
 	struct archive_string_conv *sconv;
-	size_t l_hardlink_length, l_path_length, l_linkpath_length;
-	size_t l_uname_length, l_gname_length;
 	size_t hardlink_length, path_length, linkpath_length;
 	size_t uname_length, gname_length;
 
@@ -429,22 +516,15 @@ archive_write_pax_header(struct archive_write *a,
 		sconv = pax->sconv_utf8;
 	}
 
-	r = archive_entry_hardlink_l(entry_original, &hardlink,
-	    &hardlink_length, NULL);
-	if (r != 0 && errno == ENOMEM) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate memory for Linkname");
-		return (ARCHIVE_FATAL);
-	}
-	r = archive_entry_hardlink_l(entry_original, &l_hardlink,
-	    &l_hardlink_length, sconv);
-	if (r != 0) {
-		if (errno == ENOMEM) {
-			archive_set_error(&a->archive, ENOMEM,
-			    "Can't allocate memory for Linkname");
-			return (ARCHIVE_FATAL);
-		}
-		l_hardlink = NULL; l_hardlink_length = 0;
+	r = get_entry_hardlink(a, entry_original, &hardlink,
+	    &hardlink_length, sconv);
+	if (r == ARCHIVE_FATAL)
+		return (r);
+	else if (r != ARCHIVE_OK) {
+		r = get_entry_hardlink(a, entry_original, &hardlink,
+		    &hardlink_length, NULL);
+		if (r == ARCHIVE_FATAL)
+			return (r);
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate linkname '%s' to %s", hardlink,
 		    archive_string_conversion_charset_name(sconv));
@@ -608,63 +688,40 @@ archive_write_pax_header(struct archive_write *a,
 	 * require binary coding.  If any of them does, then all of
 	 * them do.
 	 */
-	r = archive_entry_pathname_l(entry_main, &path, &path_length, NULL);
-	if (r != 0 && errno == ENOMEM) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate memory for Pathname");
-		return (ARCHIVE_FATAL);
-	}
-	r = archive_entry_pathname_l(entry_main, &l_path, &l_path_length,
-	    sconv);
-	if (r != 0) {
-		if (errno == ENOMEM) {
-			archive_set_error(&a->archive, ENOMEM,
-			    "Can't allocate memory for Pathname");
-			return (ARCHIVE_FATAL);
-		}
-		l_path = NULL; l_path_length = 0;
+	r = get_entry_pathname(a, entry_main, &path, &path_length, sconv);
+	if (r == ARCHIVE_FATAL)
+		return (r);
+	else if (r != ARCHIVE_OK) {
+		r = get_entry_pathname(a, entry_main, &path,
+		    &path_length, NULL);
+		if (r == ARCHIVE_FATAL)
+			return (r);
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate pathname '%s' to %s", path,
 		    archive_string_conversion_charset_name(sconv));
 		ret = ARCHIVE_WARN;
 		sconv = NULL;/* The header charset switches to binary mode. */
 	}
-	r = archive_entry_uname_l(entry_main, &uname, &uname_length, NULL);
-	if (r != 0 && errno == ENOMEM) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate memory for Uname");
-		return (ARCHIVE_FATAL);
-	}
-	r = archive_entry_uname_l(entry_main, &l_uname, &l_uname_length,
-	    sconv);
-	if (r != 0) {
-		if (errno == ENOMEM) {
-			archive_set_error(&a->archive, ENOMEM,
-			    "Can't allocate memory for Uname");
-			return (ARCHIVE_FATAL);
-		}
-		l_uname = NULL; l_uname_length = 0;
+	r = get_entry_uname(a, entry_main, &uname, &uname_length, sconv);
+	if (r == ARCHIVE_FATAL)
+		return (r);
+	else if (r != ARCHIVE_OK) {
+		r = get_entry_uname(a, entry_main, &uname, &uname_length, NULL);
+		if (r == ARCHIVE_FATAL)
+			return (r);
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate uname '%s' to %s", uname,
 		    archive_string_conversion_charset_name(sconv));
 		ret = ARCHIVE_WARN;
 		sconv = NULL;/* The header charset switches to binary mode. */
 	}
-	r = archive_entry_gname_l(entry_main, &gname, &gname_length, NULL);
-	if (r != 0 && errno == ENOMEM) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate memory for Gname");
-		return (ARCHIVE_FATAL);
-	}
-	r = archive_entry_gname_l(entry_main, &l_gname, &l_gname_length,
-	    sconv);
-	if (r != 0) {
-		if (errno == ENOMEM) {
-			archive_set_error(&a->archive, ENOMEM,
-			    "Can't allocate memory for Gname");
-			return (ARCHIVE_FATAL);
-		}
-		l_gname = NULL; l_gname_length = 0;
+	r = get_entry_gname(a, entry_main, &gname, &gname_length, sconv);
+	if (r == ARCHIVE_FATAL)
+		return (r);
+	else if (r != ARCHIVE_OK) {
+		r = get_entry_gname(a, entry_main, &gname, &gname_length, NULL);
+		if (r == ARCHIVE_FATAL)
+			return (r);
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate gname '%s' to %s", gname,
 		    archive_string_conversion_charset_name(sconv));
@@ -672,23 +729,17 @@ archive_write_pax_header(struct archive_write *a,
 		sconv = NULL;/* The header charset switches to binary mode. */
 	}
 	linkpath = hardlink;
+	linkpath_length = hardlink_length;
 	if (linkpath == NULL) {
-		r = archive_entry_symlink_l(entry_main, &linkpath,
-		    &linkpath_length, NULL);
-		if (r != 0 && errno == ENOMEM) {
-			archive_set_error(&a->archive, ENOMEM,
-			    "Can't allocate memory for Linkname");
-			return (ARCHIVE_FATAL);
-		}
-		r = archive_entry_symlink_l(entry_main, &l_linkpath,
-		    &l_linkpath_length, sconv);
-		if (r != 0) {
-			if (errno == ENOMEM) {
-				archive_set_error(&a->archive, ENOMEM,
-				    "Can't allocate memory for Linkname");
-				return (ARCHIVE_FATAL);
-			}
-			l_linkpath = NULL; l_linkpath_length = 0;
+		r = get_entry_symlink(a, entry_main, &linkpath,
+		    &linkpath_length, sconv);
+		if (r == ARCHIVE_FATAL)
+			return (r);
+		else if (r != ARCHIVE_OK) {
+			r = get_entry_symlink(a, entry_main, &linkpath,
+			    &linkpath_length, NULL);
+			if (r == ARCHIVE_FATAL)
+				return (r);
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Can't translate linkname '%s' to %s", linkpath,
@@ -696,10 +747,29 @@ archive_write_pax_header(struct archive_write *a,
 			ret = ARCHIVE_WARN;
 			sconv = NULL;
 		}
-	} else {
-		linkpath_length = hardlink_length;
-		l_linkpath = l_hardlink;
-		l_linkpath_length = l_hardlink_length;
+	}
+
+	/* If any string conversions failed, get all attributes
+	 * in binary-mode. */
+	if (sconv == NULL && !pax->opt_binary) {
+		if (hardlink != NULL) {
+			r = get_entry_hardlink(a, entry_main, &hardlink,
+			    &hardlink_length, NULL);
+			if (r == ARCHIVE_FATAL)
+				return (r);
+			linkpath = hardlink;
+			linkpath_length = hardlink_length;
+		}
+		r = get_entry_pathname(a, entry_main, &path,
+		    &path_length, NULL);
+		if (r == ARCHIVE_FATAL)
+			return (r);
+		r = get_entry_uname(a, entry_main, &uname, &uname_length, NULL);
+		if (r == ARCHIVE_FATAL)
+			return (r);
+		r = get_entry_gname(a, entry_main, &gname, &gname_length, NULL);
+		if (r == ARCHIVE_FATAL)
+			return (r);
 	}
 
 	/* Store the header encoding first, to be nice to readers. */
@@ -712,15 +782,9 @@ archive_write_pax_header(struct archive_write *a,
 	 * 'path' to pax extended attrs.  (Note that an unconvertible
 	 * name must have non-ASCII characters.)
 	 */
-	if (has_non_ASCII(l_path)) {
+	if (has_non_ASCII(path)) {
 		/* We have non-ASCII characters. */
-		if (l_path_length == 0 || sconv == NULL) {
-			/* Can't do UTF-8, so store it raw. */
-			add_pax_attr(&(pax->pax_header), "path", path);
-		} else {
-			/* Store UTF-8 */
-			add_pax_attr(&(pax->pax_header), "path", l_path);
-		}
+		add_pax_attr(&(pax->pax_header), "path", path);
 		archive_entry_set_pathname(entry_main,
 		    build_ustar_entry_name(ustar_entry_name,
 			path, path_length, NULL));
@@ -751,15 +815,7 @@ archive_write_pax_header(struct archive_write *a,
 			    || suffix[1] == '\0'    /* empty suffix */
 			    || suffix - path > 155)  /* Prefix > 155 chars */
 			{
-				if (l_path_length == 0 || sconv == NULL) {
-					/* Can't do UTF-8, so store it raw. */
-					add_pax_attr(&(pax->pax_header),
-					    "path", path);
-				} else {
-					/* Store UTF-8 */
-					add_pax_attr(&(pax->pax_header),
-					    "path", l_path);
-				}
+				add_pax_attr(&(pax->pax_header), "path", path);
 				archive_entry_set_pathname(entry_main,
 				    build_ustar_entry_name(ustar_entry_name,
 					path, path_length, NULL));
@@ -771,20 +827,8 @@ archive_write_pax_header(struct archive_write *a,
 	if (linkpath != NULL) {
 		/* If link name is too long or has non-ASCII characters, add
 		 * 'linkpath' to pax extended attrs. */
-		if (linkpath_length > 100 ||
-		    l_linkpath_length == 0 || has_non_ASCII(l_linkpath)) {
-			if (l_linkpath_length == 0 || sconv == NULL)
-				/* If the linkpath is not convertible
-				 * to wide, or we're encoding in
-				 * binary anyway, store it raw. */
-				add_pax_attr(&(pax->pax_header),
-				    "linkpath", linkpath);
-			else
-				/* If the link is long or has a
-				 * non-ASCII character, store it as a
-				 * pax extended attribute. */
-				add_pax_attr(&(pax->pax_header),
-				    "linkpath", l_linkpath);
+		if (linkpath_length > 100 || has_non_ASCII(linkpath)) {
+			add_pax_attr(&(pax->pax_header), "linkpath", linkpath);
 			if (linkpath_length > 100) {
 				if (hardlink != NULL)
 					archive_entry_set_hardlink(entry_main,
@@ -818,17 +862,8 @@ archive_write_pax_header(struct archive_write *a,
 	/* If group name is too large or has non-ASCII characters, add
 	 * 'gname' to pax extended attrs. */
 	if (gname != NULL) {
-		if (gname_length > 31
-		    || l_gname_length == 0
-		    || has_non_ASCII(l_gname))
-		{
-			if (l_gname_length == 0 || sconv == NULL) {
-				add_pax_attr(&(pax->pax_header),
-				    "gname", gname);
-			} else  {
-				add_pax_attr(&(pax->pax_header),
-				    "gname", l_gname);
-			}
+		if (gname_length > 31 || has_non_ASCII(gname)) {
+			add_pax_attr(&(pax->pax_header), "gname", gname);
 			need_extension = 1;
 		}
 	}
@@ -842,17 +877,8 @@ archive_write_pax_header(struct archive_write *a,
 
 	/* Add 'uname' to pax extended attrs if necessary. */
 	if (uname != NULL) {
-		if (uname_length > 31
-		    || l_uname_length == 0
-		    || has_non_ASCII(l_uname))
-		{
-			if (l_uname_length == 0 || sconv == NULL) {
-				add_pax_attr(&(pax->pax_header),
-				    "uname", uname);
-			} else {
-				add_pax_attr(&(pax->pax_header),
-				    "uname", l_uname);
-			}
+		if (uname_length > 31 || has_non_ASCII(uname)) {
+			add_pax_attr(&(pax->pax_header), "uname", uname);
 			need_extension = 1;
 		}
 	}
