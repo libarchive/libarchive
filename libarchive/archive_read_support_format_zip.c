@@ -96,7 +96,7 @@ struct zip {
 	struct archive_string_conv *sconv;
 	struct archive_string_conv *sconv_default;
 	struct archive_string_conv *sconv_utf8;
-	int				init_default_conversion;
+	int			init_default_conversion;
 	char	format_name[64];
 };
 
@@ -253,7 +253,11 @@ archive_read_format_zip_options(struct archive_read *a,
 	int ret = ARCHIVE_FAILED;
 
 	zip = (struct zip *)(a->format->data);
-	if (strcmp(key, "hdrcharset")  == 0) {
+	if (strcmp(key, "compat-2x")  == 0) {
+		/* Handle filnames as libarchive 2.x */
+		zip->init_default_conversion = (val != NULL)?1:0;
+		ret = ARCHIVE_OK;
+	} else if (strcmp(key, "hdrcharset")  == 0) {
 		if (val == NULL || val[0] == 0)
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "zip: hdrcharset option needs a character-set name");

@@ -28,11 +28,11 @@ __FBSDID("$FreeBSD");
 #include <locale.h>
 
 /*
- * Test "tar:utf8type=libarchive2x" option. That enalbe the string
- * conversion of libarchive 2.x, which made incorrect UTF-8 string for
- * pax on some platform wchar_t of which is non Unicode.
- * The option is unneeded if people are using UTF-8 locale during making
- * tar files.
+ * Test "tar:compat-2x" option that enables the string conversion of
+ * libarchive 2.x, which made incorrect UTF-8 form filenames for the
+ * pax format on some platform the wchar_t of which was not Unicode form.
+ * The option is unneeded if people have been using UTF-8 locale during
+ * making tar files(in pax format).
  *
  * NOTE: The sample tar file was made with bsdtar 2.x in LANG=KOI8-R on
  * FreeBSD.
@@ -53,7 +53,7 @@ DEFINE_TEST(test_compat_pax_libarchive_2x)
 
 	/*
  	* Read incorrect format UTF-8 filename in ru_RU.KOI8-R with
-	* "tar:utf8type=libarchive2x" option. We should correctly
+	* "tar:compat-2x" option. We should correctly
 	* read two filenames.
 	*/
 	if (NULL == setlocale(LC_ALL, "ru_RU.KOI8-R")) {
@@ -78,7 +78,7 @@ DEFINE_TEST(test_compat_pax_libarchive_2x)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_set_options(a, "tar:utf8type=libarchive2x"));
+	    archive_read_set_options(a, "tar:compat-2x"));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_open_filename(a, refname, 10240));
 
@@ -108,7 +108,7 @@ DEFINE_TEST(test_compat_pax_libarchive_2x)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/*
-	 * Without "tar:utf8type=libarchive2x" option.
+	 * Without "tar:compat-2x" option.
 	 * Neither first file name nor second file name can be translated
 	 * to KOI8-R.
 	 */

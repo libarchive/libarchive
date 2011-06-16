@@ -149,7 +149,7 @@ struct tar {
 	struct archive_string_conv *sconv_acl;
 	struct archive_string_conv *sconv_default;
 	int			 init_default_conversion;
-	int			 utf8_made_with_libarchive2x;
+	int			 compat_2x;
 };
 
 static int	archive_block_is_null(const unsigned char *p);
@@ -361,7 +361,12 @@ archive_read_format_tar_options(struct archive_read *a,
 	int ret = ARCHIVE_FAILED;
 
 	tar = (struct tar *)(a->format->data);
-	if (strcmp(key, "hdrcharset")  == 0) {
+	if (strcmp(key, "compat-2x")  == 0) {
+		/* Handle UTF-8 filnames as libarchive 2.x */
+		tar->compat_2x = (val != NULL)?1:0;
+		tar->init_default_conversion = tar->compat_2x;
+		ret = ARCHIVE_OK;
+	} else if (strcmp(key, "hdrcharset")  == 0) {
 		if (val == NULL || val[0] == 0)
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "tar: hdrcharset option needs a character-set name");
@@ -374,16 +379,6 @@ archive_read_format_tar_options(struct archive_read *a,
 			else
 				ret = ARCHIVE_FATAL;
 		}
-	} else if (strcmp(key, "utf8type")  == 0) {
-		if (val == NULL || val[0] == 0)
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "tar: utf8type option needs value");
-		else if (strcmp(val, "libarchive2x") == 0) {
-			tar->utf8_made_with_libarchive2x = 1;
-			ret = ARCHIVE_OK;
-		} else
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "tar: incorrect value for ``%s''", key);
 	} else
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "tar: unknown keyword ``%s''", key);
@@ -1555,7 +1550,7 @@ pax_header(struct archive_read *a, struct tar *tar,
 		    &(a->archive), "UTF-8", 1);
 		if (sconv == NULL)
 			return (ARCHIVE_FATAL);
-		if (tar->utf8_made_with_libarchive2x)
+		if (tar->compat_2x)
 			archive_string_conversion_set_opt(sconv,
 			    SCONV_SET_OPT_UTF8_LIBARCHIVE2X);
 	}

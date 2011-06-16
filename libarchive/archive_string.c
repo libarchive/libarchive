@@ -3303,7 +3303,7 @@ return_no_changed_data:
  * platform and made a tar file with libarchive(mostly bsdtar) 2.x. Those
  * now cannot get right filename from libarchive 3.x and later since we
  * fixed the wrong assumption and it is incompatible to older its versions.
- * So we provide special option, "utf8type=libarchive2.x", for resolving it.
+ * So we provide special option, "compat-2x.x", for resolving it.
  * That option enable the string conversion of libarchive 2.x.
  *
  * Translates the wrong UTF-8 string made by libarchive 2.x into current
