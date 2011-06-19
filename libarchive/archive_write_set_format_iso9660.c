@@ -22,10 +22,6 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/*
- * The implemation of red black tree routine is based on
- * /usr/include/sys/tree.h of FreeBSD
- */
 
 #include "archive_platform.h"
 
@@ -168,7 +164,6 @@ struct isofile {
 	struct isofile		*hardlink_target;
 
 	struct archive_entry	*entry;
-	int			 temp_fd;
 
 	/*
 	 * Used for making a directory tree.
@@ -208,8 +203,6 @@ struct isofile {
 		unsigned char	 header_size;
 		unsigned char	 log2_bs;
 		uint32_t	 uncompressed_size;
-		int		 keep_original;
-		int64_t		 original_offset_of_temp;
 	} zisofs;
 };
 
@@ -659,16 +652,9 @@ struct iso_option {
 	 *        :    Make files zisofs file and generate RRIP 'ZF'
  	 *        :    extension. So you do not need mkzftree utility
 	 *        :    for making zisofs.
-	 *        :    Sometimes we will choose an original file data
-	 *        :    insteadof zisofs file data when following
-	 *        :    condition:
-	 *        :      o If zisofsed file size is more than an
-	 *        :        original file size.
-	 *        :      o If the number of Logical Blocks which an
-	 *        :        original file will use in ISO-image file
-	 *        :        is the same as or less than the number of
-	 *        :        Logical Blocks which a zisofsed file will use.
-	 *        :    Those won't reduce ISO-image size.
+	 *        :    When the file size is less than one Logical Block
+	 *        :    size, that file will not zisofs'ed since it does
+	 *        :    reduece an ISO-image size.
 	 *        :
 	 *        :    When you specify option 'boot=<boot-image>', that
 	 *        :    'boot-image' file won't be converted to zisofs file.
@@ -756,13 +742,12 @@ struct iso9660 {
 	/* Used for making zisofs. */
 	struct {
 		int		 detect_magic:1;
+		int		 making:1;
+		int		 allzero:1;
 		unsigned char	 magic_buffer[64];
 		int		 magic_cnt;
 
 #ifdef HAVE_ZLIB_H
-		int		 making:1;
-		int		 allzero:1;
-
 		/*
 		 * Copy a compressed file to iso9660.zisofs.temp_fd
 		 * and also copy a uncompressed file(original file) to
@@ -773,14 +758,12 @@ struct iso9660 {
 		 * but if not, we use uncompressed file and remove
 		 * the copy of the compressed file.
 		 */
-		int		 temp_fd;
-		int64_t		 offset_of_temp;
 		uint32_t	*block_pointers;
 		size_t		 block_pointers_allocated;
 		int		 block_pointers_cnt;
 		int		 block_pointers_idx;
-		uint64_t	 total_size;
-		uint64_t	 offset_of_block;
+		int64_t		 total_size;
+		int64_t		 block_offset;
 
 		z_stream	 stream;
 		int		 stream_valid;
@@ -957,10 +940,6 @@ static struct isofile * isofile_new(struct archive_write *, struct archive_entry
 static void	isofile_free(struct isofile *);
 static int	isofile_gen_utility_names(struct archive_write *,
 		    struct isofile *);
-#ifdef HAVE_ZLIB_H
-static void	get_parent_and_base(struct archive_string *,
-		    struct archive_string *, const char *);
-#endif
 static int	isofile_register_hardlink(struct archive_write *,
 		    struct isofile *);
 static void	isofile_connect_hardlink_files(struct iso9660 *);
@@ -1030,13 +1009,12 @@ static int	setup_boot_information(struct archive_write *);
 static int	zisofs_init(struct archive_write *, struct isofile *);
 static void	zisofs_detect_magic(struct archive_write *,
 		    const void *, size_t);
-#ifdef HAVE_ZLIB_H
-static void	zisofs_cancel(struct iso9660 *, struct isofile *);
+static int	zisofs_write_out_boot_file(struct archive_write *);
 static int	zisofs_write_to_temp(struct archive_write *,
 		    const void *, size_t);
 static int	zisofs_finish_entry(struct archive_write *);
 static int	zisofs_fix_bootfile(struct archive_write *);
-#endif
+static int	zisofs_free(struct archive_write *);
 
 int
 archive_write_set_format_iso9660(struct archive *_a)
@@ -1108,7 +1086,6 @@ archive_write_set_format_iso9660(struct archive *_a)
 	 * Init zisofs variables.
 	 */
 #ifdef HAVE_ZLIB_H
-	iso9660->zisofs.temp_fd = -1;
 	iso9660->zisofs.block_pointers = NULL;
 	iso9660->zisofs.block_pointers_allocated = 0;
 	iso9660->zisofs.stream_valid = 0;
@@ -1596,8 +1573,7 @@ iso9660_write_header(struct archive_write *a, struct archive_entry *entry)
 		}
 	}
 
-	/* Save a offset of current file in temporary file. */
-	file->temp_fd = iso9660->temp_fd;
+	/* Save an offset of current file in temporary file. */
 	file->content.offset_of_temp = lseek(iso9660->temp_fd, 0, SEEK_CUR);
 	file->cur_content = &(file->content);
 	r = zisofs_init(a, file);
@@ -1609,14 +1585,15 @@ iso9660_write_header(struct archive_write *a, struct archive_entry *entry)
 }
 
 static int
-write_to_temp(struct archive_write *a, int fd, const void *buff, size_t s)
+write_to_temp(struct archive_write *a, const void *buff, size_t s)
 {
+	struct iso9660 *iso9660 = a->format_data;
 	ssize_t written;
 	const unsigned char *b;
 
 	b = (const unsigned char *)buff;
 	while (s) {
-		written = write(fd, b, s);
+		written = write(iso9660->temp_fd, b, s);
 		if (written < 0) {
 			archive_set_error(&a->archive, errno,
 			    "Can't write to temporary file");
@@ -1624,6 +1601,24 @@ write_to_temp(struct archive_write *a, int fd, const void *buff, size_t s)
 		}
 		s -= written;
 		b += written;
+	}
+	return (ARCHIVE_OK);
+}
+
+static int
+write_padding_to_temp(struct archive_write *a, int64_t csize)
+{
+	size_t ns, nts;
+
+	ns = csize % LOGICAL_BLOCK_SIZE;
+	if (ns != 0) {
+		ns = LOGICAL_BLOCK_SIZE - ns;
+		while (ns > 0) {
+			nts = (ns > a->null_length)? a->null_length: ns;
+			if (write_to_temp(a, a->nulls, nts) != ARCHIVE_OK)
+				return (ARCHIVE_FATAL);
+			ns -= nts;
+		}
 	}
 	return (ARCHIVE_OK);
 }
@@ -1649,18 +1644,24 @@ write_iso9660_data(struct archive_write *a, const void *buff, size_t s)
 
 		ts = MULTI_EXTENT_SIZE - LOGICAL_BLOCK_SIZE -
 		    iso9660->cur_file->cur_content->size;
-		if (write_to_temp(a, iso9660->temp_fd, buff, ts)
-		    != ARCHIVE_OK)
-			return (ARCHIVE_FATAL);
-		iso9660->cur_file->cur_content->size += ts;
 
 		if (iso9660->zisofs.detect_magic)
 			zisofs_detect_magic(a, buff, ts);
-#ifdef HAVE_ZLIB_H
-		if (iso9660->zisofs.making &&
-		    zisofs_write_to_temp(a, buff, ts) != ARCHIVE_OK)
+
+		if (iso9660->zisofs.making) {
+			if (zisofs_write_to_temp(a, buff, ts) != ARCHIVE_OK)
+				return (ARCHIVE_FATAL);
+		} else {
+			if (write_to_temp(a, buff, ts) != ARCHIVE_OK)
+				return (ARCHIVE_FATAL);
+			iso9660->cur_file->cur_content->size += ts;
+		}
+
+		/* Write padding. */
+		if (write_padding_to_temp(a,
+		    iso9660->cur_file->cur_content->size) != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
-#endif
+
 		/*
 		 * Make next extent.
 		 */
@@ -1673,23 +1674,26 @@ write_iso9660_data(struct archive_write *a, const void *buff, size_t s)
 			    "Can't allocate content data");
 			return (ARCHIVE_FATAL);
 		}
-		con->offset_of_temp =
-		    lseek(iso9660->cur_file->temp_fd, 0, SEEK_CUR);
+		con->offset_of_temp = lseek(iso9660->temp_fd, 0, SEEK_CUR);
 		iso9660->cur_file->cur_content->next = con;
 		iso9660->cur_file->cur_content = con;
+#ifdef HAVE_ZLIB_H
+		iso9660->zisofs.block_offset = 0;
+#endif
 	}
-
-	if (write_to_temp(a, iso9660->temp_fd, buff, ws) != ARCHIVE_OK)
-		return (ARCHIVE_FATAL);
-	iso9660->cur_file->cur_content->size += ws;
 
 	if (iso9660->zisofs.detect_magic)
 		zisofs_detect_magic(a, buff, ws);
-#ifdef HAVE_ZLIB_H
-	if (iso9660->zisofs.making &&
-	    zisofs_write_to_temp(a, buff, ws) != ARCHIVE_OK)
-		return (ARCHIVE_FATAL);
-#endif
+
+	if (iso9660->zisofs.making) {
+		if (zisofs_write_to_temp(a, buff, ws) != ARCHIVE_OK)
+			return (ARCHIVE_FATAL);
+	} else {
+		if (write_to_temp(a, buff, ws) != ARCHIVE_OK)
+			return (ARCHIVE_FATAL);
+		iso9660->cur_file->cur_content->size += ws;
+	}
+
 	return (s);
 }
 
@@ -1735,11 +1739,13 @@ iso9660_finish_entry(struct archive_write *a)
 		iso9660->bytes_remaining -= s;
 	}
 
-#ifdef HAVE_ZLIB_H
-	if (iso9660->zisofs.making &&
-	    zisofs_finish_entry(a) != ARCHIVE_OK)
+	if (iso9660->zisofs.making && zisofs_finish_entry(a) != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
-#endif
+
+	/* Write padding. */
+	if (write_padding_to_temp(a, iso9660->cur_file->cur_content->size)
+	    != ARCHIVE_OK)
+		return (ARCHIVE_FATAL);
 	return (ARCHIVE_OK);
 }
 
@@ -1764,12 +1770,10 @@ iso9660_close(struct archive_write *a)
 		    iso9660->primary.rootent);
 		if (ret < 0)
 			return (ret);
+		ret = zisofs_fix_bootfile(a);
+		if (ret < 0)
+			return (ret);
 	}
-#ifdef HAVE_ZLIB_H
-	ret = zisofs_fix_bootfile(a);
-	if (ret < 0)
-		return (ret);
-#endif
 	if (iso9660->opt.joliet) {
 		/* Make a new tree for joliet. */
 		ret = isoent_clone_tree(a, &(iso9660->joliet.rootent),
@@ -1987,21 +1991,8 @@ iso9660_free(struct archive_write *a)
 	if (iso9660->temp_fd >= 0)
 		close(iso9660->temp_fd);
 
-#ifdef HAVE_ZLIB_H
-	if (iso9660->zisofs.temp_fd >= 0)
-		close(iso9660->zisofs.temp_fd);
-	free(iso9660->zisofs.block_pointers);
-	if (iso9660->zisofs.stream_valid) {
-                switch (deflateEnd(&(iso9660->zisofs.stream))) {
-                case Z_OK:
-                        break;
-                default:
-                        archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-                            "Failed to clean up compressor");
-                        ret = ARCHIVE_FATAL;
-                }
-	}
-#endif
+	/* Free some stuff for zisofs operations. */
+	ret = zisofs_free(a);
 
 	/* Remove directory entries in tree which includes file entries. */
 	isoent_free_all(iso9660->primary.rootent);
@@ -3512,7 +3503,7 @@ wb_consume(struct archive_write *a, size_t size)
 	if (size > iso9660->wbuff_remaining ||
 	    iso9660->wbuff_remaining == 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Internal Program error: iso9660:wb_consume()"
+		    "Internal Programing error: iso9660:wb_consume()"
 		    " size=%jd, wbuff_remaining=%jd",
 		    (intmax_t)size, (intmax_t)iso9660->wbuff_remaining);
 		return (ARCHIVE_FATAL);
@@ -4275,6 +4266,7 @@ write_directory_descriptors(struct archive_write *a, struct vdd *vdd)
 static int
 _write_file_descriptors(struct archive_write *a, struct isoent *isoent)
 {
+	struct iso9660 *iso9660 = a->format_data;
 	struct isoent **enttbl;
 	int i, r;
 
@@ -4290,6 +4282,8 @@ _write_file_descriptors(struct archive_write *a, struct isoent *isoent)
 		np = enttbl[i];
 		if (np->dir)
 			continue;
+		if (np == iso9660->el_torito.boot)
+			continue;
 		file = np->file;
 		if (file->boot || file->content.size == 0)
 			continue;
@@ -4299,9 +4293,8 @@ _write_file_descriptors(struct archive_write *a, struct isoent *isoent)
 			int64_t size;
 			int64_t pad_size;
 
-			lseek(file->temp_fd,
-			    file->cur_content->offset_of_temp,
-			    SEEK_SET);
+			lseek(iso9660->temp_fd,
+			    file->cur_content->offset_of_temp, SEEK_SET);
 			size = file->cur_content->size;
 			pad_size = size % LOGICAL_BLOCK_SIZE;
 			if (pad_size)
@@ -4317,7 +4310,7 @@ _write_file_descriptors(struct archive_write *a, struct isoent *isoent)
 				else
 					rsize = (size_t)size;
 
-				rs = read(file->temp_fd, wb, rsize);
+				rs = read(iso9660->temp_fd, wb, rsize);
 				if (rs <= 0) {
 					archive_set_error(&a->archive,
 					    errno,
@@ -4343,6 +4336,44 @@ _write_file_descriptors(struct archive_write *a, struct isoent *isoent)
 }
 
 static int
+write_out_boot_file(struct archive_write *a)
+{
+	struct iso9660 *iso9660 = a->format_data;
+	struct isoent *np;
+	int64_t size;
+	int r;
+
+	np = iso9660->el_torito.boot;
+	size = archive_entry_size(np->file->entry);
+	lseek(iso9660->temp_fd,
+	    np->file->content.offset_of_temp, SEEK_SET);
+	while (size) {
+		size_t rsize;
+		ssize_t rs;
+		unsigned char *wb;
+
+		wb = wb_buffptr(a);
+		if (size > wb_remaining(a))
+			rsize = wb_remaining(a);
+		else
+			rsize = (size_t)size;
+
+		rs = read(iso9660->temp_fd, wb, rsize);
+		if (rs <= 0) {
+			archive_set_error(&a->archive, errno,
+			    "Can't read temporary file(%jd)",
+			    (intmax_t)rs);
+			return (ARCHIVE_FATAL);
+		}
+		size -= rs;
+		r = wb_consume(a, rs);
+		if (r < 0)
+			return (r);
+	}
+	return (ARCHIVE_OK);
+}
+
+static int
 write_file_descriptors(struct archive_write *a)
 {
 	struct iso9660 *iso9660 = a->format_data;
@@ -4358,48 +4389,33 @@ write_file_descriptors(struct archive_write *a)
 	}
 	if (iso9660->el_torito.boot != NULL) {
 		int64_t size, padsize;
+		struct isofile *file;
 
-		np = iso9660->el_torito.boot;
-		size = archive_entry_size(np->file->entry);
-		lseek(np->file->temp_fd,
-		    np->file->content.offset_of_temp, SEEK_SET);
-		while (size) {
-			size_t rsize;
-			ssize_t rs;
-			unsigned char *wb;
-
-			wb = wb_buffptr(a);
-			if (size > wb_remaining(a))
-				rsize = wb_remaining(a);
-			else
-				rsize = (size_t)size;
-
-			rs = read(np->file->temp_fd, wb, rsize);
-			if (rs <= 0) {
-				archive_set_error(&a->archive, errno,
-				    "Can't read temporary file(%jd)",
-				    (intmax_t)rs);
-				return (ARCHIVE_FATAL);
-			}
-			size -= rs;
-			r = wb_consume(a, rs);
-			if (r < 0)
-				return (r);
-		}
-
+		file = iso9660->el_torito.boot->file;
+		/*
+		 * If the boot file is being zisofs'ed, we should uncompress
+		 * it and write out the result.
+		 */
+		if (file->zisofs.uncompressed_size != 0 &&
+		    file->zisofs.log2_bs != 0)
+			r = zisofs_write_out_boot_file(a);
+		else
+			r = write_out_boot_file(a);
+		if (r < 0)
+			return (r);
 		/*
 		 * Write padding if needed.
 		 */
 		padsize = 0;
 		size = fd_boot_image_size(iso9660->el_torito.media_type);
 		if (size == 0)
-			size = archive_entry_size(np->file->entry);
-		else if (size > archive_entry_size(np->file->entry)) {
+			size = archive_entry_size(file->entry);
+		else if (size > archive_entry_size(file->entry)) {
 			/*
 			 * If the boot image size is not just 1200KB,
 			 * 1440KB,or 2880KB, add padding data.
 			 */
-			padsize = size - archive_entry_size(np->file->entry);
+			padsize = size - archive_entry_size(file->entry);
 		}
 		size = size % LOGICAL_BLOCK_SIZE;
 		if (size != 0)
@@ -4832,63 +4848,6 @@ isofile_gen_utility_names(struct archive_write *a, struct isofile *file)
 		file->dircnt ++;
 	return (ret);
 }
-
-#ifdef HAVE_ZLIB_H
-static void
-get_parent_and_base(struct archive_string *parentdir,
-    struct archive_string *basename, const char *pathname)
-{
-	char *p, *slash;
-
-	archive_strcpy(parentdir, pathname);
-#if defined(_WIN32) || defined(__CYGWIN__)
-	/*
-	 * Convert a path-separator from '\' to  '/'
-	 */
-	if (cleanup_backslash_1(parentdir->s) != 0) {
-		struct archive_wstring ws;
-
-		archive_string_init(&ws);
-		if (archive_wstring_append_from_mbs(&ws,
-		    parentdir->s, parentdir->length) == 0) {
-			cleanup_backslash_2(ws.s);
-			archive_string_empty(parentdir);
-			archive_string_append_from_wcs(parentdir,
-			    ws.s, ws.length);
-		}
-		archive_wstring_free(&ws);
-	}
-#endif
-	/*
-	 * - Count up directory elements.
-	 * - Find out the position which points the last position of
-	 *   path separator('/').
-	 */
-	slash = NULL;
-	p = parentdir->s + parentdir->length -1;
-	if (*p == '/') {
-	 	/* Remove '/' from the end of path. */
-		*p-- = '\0';
-		parentdir->length--;
-	}
-	for (;p >= parentdir->s; p--)
-		if (*p == '/') {
-			slash = p;
-			break;
-		}
-	if (slash == NULL) {
-		/* The pathname doesn't have a parent directory. */
-		archive_string_copy(basename, parentdir);
-		archive_string_empty(parentdir);
-		parentdir->s = '\0';
-	} else {
-		/* Make a basename from dirname and slash */
-		*slash  = '\0';
-		parentdir->length = slash - parentdir->s;
-		archive_strcpy(basename,  slash + 1);
-	}
-}
-#endif /* HAVE_ZLIB_H */
 
 /*
  * Register a entry to get a hardlink target.
@@ -5339,6 +5298,8 @@ _isoent_file_location(struct iso9660 *iso9660, struct isoent *isoent,
 
 		np = children[n];
 		if (np->dir)
+			continue;
+		if (np == iso9660->el_torito.boot)
 			continue;
 		file = np->file;
 		if (file->boot || file->hardlink_target != NULL)
@@ -6077,12 +6038,12 @@ isoent_gen_iso9660_identifier(struct archive_write *a, struct isoent *isoent,
 				}
 			}
 		}
-		/* Save a offset of a file name extension to sort files. */
+		/* Save an offset of a file name extension to sort files. */
 		np->ext_off = ext_off;
 		np->ext_len = strlen(&p[ext_off]);
 		np->id_len = l = ext_off + np->ext_len;
 
-		/* Make a offset of the number which is used to be set
+		/* Make an offset of the number which is used to be set
 		 * hexadecimal number to avoid duplicate identififier. */
 		if (iso9660->opt.iso_level == 1) {
 			if (ext_off >= 5)
@@ -6226,7 +6187,7 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 			return (ARCHIVE_FATAL);
 		}
 
-		/* Make a offset of the number which is used to be set
+		/* Make an offset of the number which is used to be set
 		 * hexadecimal number to avoid duplicate identififier. */
 		if ((int)l == ffmax)
 			noff = ext_off - 6;
@@ -7205,12 +7166,12 @@ setup_boot_information(struct archive_write *a)
 
 	if (iso9660->wbuff_remaining != 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Internal Program error: "
+		    "Internal Programing error: "
 		    "iso9660:setup_boot_information()");
 		return (ARCHIVE_FATAL);
 	}
 	np = iso9660->el_torito.boot;
-	lseek(np->file->temp_fd,
+	lseek(iso9660->temp_fd,
 	    np->file->content.offset_of_temp + 64, SEEK_SET);
 	size = archive_entry_size(np->file->entry) - 64;
 	if (size <= 0) {
@@ -7228,7 +7189,7 @@ setup_boot_information(struct archive_write *a)
 		else
 			rsize = (size_t)size;
 
-		rs = read(np->file->temp_fd, iso9660->wbuff, rsize);
+		rs = read(iso9660->temp_fd, iso9660->wbuff, rsize);
 		if (rs <= 0) {
 			archive_set_error(&a->archive, errno,
 			    "Can't read temporary file(%jd)",
@@ -7254,9 +7215,9 @@ setup_boot_information(struct archive_write *a)
 	memset(iso9660->wbuff+16, 0, 40);
 
 	/* Overwrite the boot file. */
-	lseek(np->file->temp_fd,
+	lseek(iso9660->temp_fd,
 	    np->file->content.offset_of_temp + 8, SEEK_SET);
-	return (write_to_temp(a, iso9660->temp_fd, iso9660->wbuff, 56));
+	return (write_to_temp(a, iso9660->wbuff, 56));
 }
 
 #ifdef HAVE_ZLIB_H
@@ -7303,104 +7264,22 @@ zisofs_init_zstream(struct archive_write *a)
 	return (ARCHIVE_OK);
 }
 
-static void
-zisofs_check_bootfile(struct archive_write *a, struct isofile *file)
-{
-	struct iso9660 *iso9660 = a->format_data;
-	const char *np, *cp;
-	struct archive_string	 parentdir;
-	struct archive_string	 basename;
-	int len, match;
-
-	if (!iso9660->opt.boot)
-		return;
-
-	archive_string_init(&parentdir);
-	archive_string_init(&basename);
-	get_parent_and_base(&parentdir, &basename,
-	    iso9660->el_torito.boot_filename.s);
-
-	if (basename.length != file->basename.length)
-		goto exit;
-	if (strcmp(basename.s, file->basename.s) != 0)
-		goto exit;
-	if (parentdir.length > file->parentdir.length)
-		goto exit;
-	len = parentdir.length;
-	np = parentdir.s + parentdir.length;
-	cp = file->parentdir.s + file->parentdir.length;
-	match = 1;
-	while (len--) {
-		if (*--np != *--cp) {
-			match = 0;
-			break;
-		}
-	}
-	if (match) {
-		--cp;
-		if ((cp >= file->parentdir.s && *cp == '/') ||
-		    cp < file->parentdir.s)
-			file->zisofs.keep_original = 1;
-	}
-exit:
-	archive_string_free(&parentdir);
-	archive_string_free(&basename);
-}
-
 static int
 zisofs_fix_bootfile(struct archive_write *a)
 {
 	struct iso9660 *iso9660 = a->format_data;
 	struct isoent *isoent;
 	struct isofile *file;
-	struct archive_string	 parentdir;
-	struct archive_string	 basename;
-	struct archive_string str;
 
-	if (!iso9660->opt.boot)
-		return (ARCHIVE_OK);
-
-	archive_string_init(&str);
-	archive_string_init(&parentdir);
-	archive_string_init(&basename);
-	get_parent_and_base(&parentdir, &basename,
-	    iso9660->el_torito.boot_filename.s);
-	archive_string_empty(&str);
-	if (parentdir.length) {
-		archive_string_copy(&str, &parentdir);
-		archive_strappend_char(&str, '/');
-	}
-	archive_string_concat(&str, &basename);
-	isoent = isoent_find_entry(iso9660->primary.rootent,
-	    str.s);
-	if (isoent == NULL) {
-		archive_set_error(&a->archive,
-		    ARCHIVE_ERRNO_MISC,
-		    "Specified file ``%s'' which disable to "
-		    " be zisofs is not found.",
-		    str.s);
-		archive_string_free(&str);
-		archive_string_free(&parentdir);
-		archive_string_free(&basename);
-		return (ARCHIVE_FATAL);
-	}
-	if (isoent->file->zisofs.keep_original) {
+	isoent = iso9660->el_torito.boot;
+	if (isoent != NULL && isoent->file->zisofs.header_size != 0) {
 		file = isoent->file;
-		file->temp_fd = iso9660->temp_fd;
-		file->content.offset_of_temp =
-		    file->zisofs.original_offset_of_temp;
 		archive_entry_set_size(file->entry,
 		    file->zisofs.uncompressed_size);
-		file->content.size = file->zisofs.uncompressed_size;
 		/* Remark file->zisofs not to create
 		 * RRIP 'ZF' Use Entry. */
 		file->zisofs.header_size = 0;
-		file->zisofs.log2_bs = 0;
-		file->zisofs.uncompressed_size = 0;
 	}
-	archive_string_free(&str);
-	archive_string_free(&parentdir);
-	archive_string_free(&basename);
 
 	return (ARCHIVE_OK);
 }
@@ -7412,14 +7291,14 @@ zisofs_init(struct archive_write *a,  struct isofile *file)
 {
 	struct iso9660 *iso9660 = a->format_data;
 #ifdef HAVE_ZLIB_H
+	uint64_t tsize;
 	size_t ceil, bpsize;
 	int r;
 #endif
 
 	iso9660->zisofs.detect_magic = 0;
-#ifdef HAVE_ZLIB_H
 	iso9660->zisofs.making = 0;
-#endif
+
 	if (!iso9660->opt.rr || !iso9660->opt.zisofs)
 		return (ARCHIVE_OK);
 
@@ -7439,19 +7318,6 @@ zisofs_init(struct archive_write *a,  struct isofile *file)
 	 * in ISO-image file. It won't reduce iso-image file size. */
 	if (archive_entry_size(file->entry) <= LOGICAL_BLOCK_SIZE)
 		return (ARCHIVE_OK);
-
-	/*
-	 * Create a temporary file, which will be used for saving
-	 * compressed data.
-	 */
-	if (iso9660->zisofs.temp_fd < 0) {
-		iso9660->zisofs.temp_fd = __archive_mktemp(NULL);
-		if (iso9660->zisofs.temp_fd < 0) {
-			archive_set_error( &a->archive, errno,
-			    "Can't create temporary file");
-			return (ARCHIVE_FATAL);
-		}
-	}
 
 	/* Initialize compression library */
 	r = zisofs_init_zstream(a);
@@ -7483,30 +7349,24 @@ zisofs_init(struct archive_write *a,  struct isofile *file)
 		iso9660->zisofs.block_pointers_allocated = bpsize;
 	}
 
-	/* Save a offset of current file in zisofs temporary file. */
-	iso9660->zisofs.offset_of_temp =
-	    lseek(iso9660->zisofs.temp_fd, 0, SEEK_CUR);
-	iso9660->zisofs.total_size = ZF_HEADER_SIZE + bpsize;
-
 	/*
 	 * Skip zisofs header and Block Pointers, which we will write
 	 * after all compressed data of a file written to the temporary
 	 * file.
 	 */
-	lseek(iso9660->zisofs.temp_fd, iso9660->zisofs.total_size, SEEK_CUR);
+	tsize = ZF_HEADER_SIZE + bpsize;
+	lseek(iso9660->temp_fd, tsize, SEEK_CUR);
 
 	/*
 	 * Initialize some variables to make zisofs.
 	 */
-	archive_le32enc(&(iso9660->zisofs.block_pointers[0]),
-	    iso9660->zisofs.total_size);
+	archive_le32enc(&(iso9660->zisofs.block_pointers[0]), tsize);
 	iso9660->zisofs.remaining = file->zisofs.uncompressed_size;
 	iso9660->zisofs.making = 1;
 	iso9660->zisofs.allzero = 1;
-	iso9660->zisofs.offset_of_block = iso9660->zisofs.total_size;
-
-	/* Check if this file does not need to be zisofs. */
-	zisofs_check_bootfile(a, file);
+	iso9660->zisofs.block_offset = tsize;
+	iso9660->zisofs.total_size = tsize;
+	iso9660->cur_file->cur_content->size = tsize;
 #endif
 
 	return (ARCHIVE_OK);
@@ -7555,7 +7415,7 @@ zisofs_detect_magic(struct archive_write *a, const void *buff, size_t s)
 	iso9660->zisofs.detect_magic = 0;
 	p = magic_buff;
 
-	/* Check magic code of zisofs. */
+	/* Check the magic code of zisofs. */
 	if (memcmp(p, zisofs_magic, sizeof(zisofs_magic)) != 0)
 		/* This is not zisofs file which made by mkzftree. */
 		return;
@@ -7590,29 +7450,16 @@ zisofs_detect_magic(struct archive_write *a, const void *buff, size_t s)
 		doff += bed - bst;
 		ceil--;
 	}
-#ifdef HAVE_ZLIB_H
-	if (file->zisofs.header_size != 0)
-		zisofs_cancel(iso9660, file);
-#endif
+
 	file->zisofs.uncompressed_size = uncompressed_size;
 	file->zisofs.header_size = header_size;
 	file->zisofs.log2_bs = log2_bs;
+
+	/* Disable making a zisofs image. */
+	iso9660->zisofs.making = 0;
 }
 
 #ifdef HAVE_ZLIB_H
-
-static void
-zisofs_cancel(struct iso9660 *iso9660, struct isofile *file)
-{
-
-	/* Remark file->zisofs not to create RRIP 'ZF' Use Entry. */
-	file->zisofs.header_size = 0;
-	file->zisofs.log2_bs = 0;
-	file->zisofs.uncompressed_size = 0;
-	lseek(iso9660->zisofs.temp_fd,
-	    iso9660->zisofs.offset_of_temp, SEEK_SET);
-	iso9660->zisofs.making = 0;
-}
 
 /*
  * Compress data and write it to a temporary file.
@@ -7665,14 +7512,18 @@ zisofs_write_to_temp(struct archive_write *a, const void *buff, size_t s)
 		 */
 		if (flush == Z_FINISH && iso9660->zisofs.allzero &&
 		    avail + zstrm->total_in == ZF_BLOCK_SIZE) {
-			if (iso9660->zisofs.offset_of_block !=
-			    iso9660->zisofs.total_size) {
-				lseek(iso9660->zisofs.temp_fd,
-				    iso9660->zisofs.offset_of_temp +
-				        iso9660->zisofs.offset_of_block,
+			if (iso9660->zisofs.block_offset !=
+			    file->cur_content->size) {
+				int64_t diff;
+
+				lseek(iso9660->temp_fd,
+				    file->cur_content->offset_of_temp +
+				        iso9660->zisofs.block_offset,
 				    SEEK_SET);
-				iso9660->zisofs.total_size =
-				    iso9660->zisofs.offset_of_block;
+				diff = file->cur_content->size -
+				    iso9660->zisofs.block_offset;
+				file->cur_content->size -= diff;
+				iso9660->zisofs.total_size -= diff;
 			}
 			zstrm->avail_in = 0;
 		}
@@ -7687,10 +7538,11 @@ zisofs_write_to_temp(struct archive_write *a, const void *buff, size_t s)
 			case Z_OK:
 			case Z_STREAM_END:
 				csize = zstrm->total_out - csize;
-				if (write_to_temp(a, iso9660->zisofs.temp_fd,
-				    iso9660->wbuff, csize) != ARCHIVE_OK)
+				if (write_to_temp(a, iso9660->wbuff, csize)
+				    != ARCHIVE_OK)
 					return (ARCHIVE_FATAL);
 				iso9660->zisofs.total_size += csize;
+				iso9660->cur_file->cur_content->size += csize;
 				zstrm->next_out = iso9660->wbuff;
 				zstrm->avail_out = sizeof(iso9660->wbuff);
 				break;
@@ -7702,16 +7554,6 @@ zisofs_write_to_temp(struct archive_write *a, const void *buff, size_t s)
 				    r);
 				return (ARCHIVE_FATAL);
 			}
-		}
-
-		/*
-		 * If a size of zisofs data is more than uncompressed size,
-		 * we do not need to make a zisofs extension.
-		 */
-		if (iso9660->zisofs.total_size >
-		    file->zisofs.uncompressed_size) {
-			zisofs_cancel(iso9660, file);
-			return (ARCHIVE_OK);
 		}
 
 		if (flush == Z_FINISH) {
@@ -7726,8 +7568,7 @@ zisofs_write_to_temp(struct archive_write *a, const void *buff, size_t s)
 			if (r != ARCHIVE_OK)
 				return (ARCHIVE_FATAL);
 			iso9660->zisofs.allzero = 1;
-			iso9660->zisofs.offset_of_block =
-			    iso9660->zisofs.total_size;
+			iso9660->zisofs.block_offset = file->cur_content->size;
 		}
 	} while (s);
 
@@ -7742,42 +7583,14 @@ zisofs_finish_entry(struct archive_write *a)
 	unsigned char buff[16];
 	size_t s;
 	int64_t tail;
-	int bk1, bk2;
-
-	bk1 = (file->zisofs.uncompressed_size +
-	    LOGICAL_BLOCK_SIZE -1) / LOGICAL_BLOCK_SIZE;
-	bk2 = (iso9660->zisofs.total_size +
-	    LOGICAL_BLOCK_SIZE -1) / LOGICAL_BLOCK_SIZE;
-
-	/* The number of Logical Blocks which uncompressed data
-	 * will use in iso-image file is the same as the number of
-	 * Logical Blocks which zisofs(compressed) data will use
-	 * in ISO-image file. It won't reduce iso-image file size. */
-	if (bk1 == bk2) {
-		zisofs_cancel(iso9660, file);
-		return (ARCHIVE_OK);
-	}
-
-	if (file->zisofs.keep_original)
-		/* Maybe we will use the original data, which is
-		 * uncompressed but we cannot decide it now. */
-		file->zisofs.original_offset_of_temp =
-		    file->content.offset_of_temp;
-	else
-		/* Remove the original data, which is uncompressed. */
-		lseek(iso9660->temp_fd, file->content.offset_of_temp,
-		    SEEK_SET);
 
 	/* Direct temp file stream to zisofs temp file stream. */
-	file->temp_fd = iso9660->zisofs.temp_fd;
-	file->content.offset_of_temp = iso9660->zisofs.offset_of_temp;
 	archive_entry_set_size(file->entry, iso9660->zisofs.total_size);
-	file->content.size = iso9660->zisofs.total_size;
 
 	/*
 	 * Save a file pointer which points the end of current zisofs data.
 	 */
-	tail = lseek(file->temp_fd, 0, SEEK_CUR);
+	tail = lseek(iso9660->temp_fd, 0, SEEK_CUR);
 
 	/*
 	 * Make a header.
@@ -7813,9 +7626,9 @@ zisofs_finish_entry(struct archive_write *a)
 	buff[14] = buff[15] = 0;/* Reserved */
 
 	/* Get the right position to write the header. */
-	lseek(file->temp_fd, file->content.offset_of_temp, SEEK_SET);
+	lseek(iso9660->temp_fd, file->content.offset_of_temp, SEEK_SET);
 	/* Write the header. */
-	if (write_to_temp(a, file->temp_fd, buff, 16) != ARCHIVE_OK)
+	if (write_to_temp(a, buff, 16) != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
 	/*
@@ -7823,14 +7636,341 @@ zisofs_finish_entry(struct archive_write *a)
 	 */
 	s = iso9660->zisofs.block_pointers_cnt *
 	    sizeof(iso9660->zisofs.block_pointers[0]);
-	if (write_to_temp(a, file->temp_fd, iso9660->zisofs.block_pointers, s)
+	if (write_to_temp(a, iso9660->zisofs.block_pointers, s)
 	    != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
 	/* Set the file pointer to the end of current zisofs data. */
-	lseek(file->temp_fd, tail, SEEK_SET);
+	lseek(iso9660->temp_fd, tail, SEEK_SET);
 
 	return (ARCHIVE_OK);
+}
+
+static int
+zisofs_free(struct archive_write *a)
+{
+	struct iso9660 *iso9660 = a->format_data;
+	int ret = ARCHIVE_OK;
+
+	free(iso9660->zisofs.block_pointers);
+	if (iso9660->zisofs.stream_valid &&
+	    deflateEnd(&(iso9660->zisofs.stream)) != Z_OK) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Failed to clean up compressor");
+		ret = ARCHIVE_FATAL;
+	}
+	iso9660->zisofs.block_pointers = NULL;
+	iso9660->zisofs.stream_valid = 0;
+	return (ret);
+}
+
+struct zisofs_extract {
+	int		 pz_log2_bs; /* Log2 of block size */
+	uint64_t	 pz_uncompressed_size;
+	size_t		 uncompressed_buffer_size;
+
+	int		 initialized:1;
+	int		 header_passed:1;
+
+	uint32_t	 pz_offset;
+	unsigned char	*block_pointers;
+	size_t		 block_pointers_size;
+	size_t		 block_pointers_avail;
+	size_t		 block_off;
+	uint32_t	 block_avail;
+
+	z_stream	 stream;
+	int		 stream_valid;
+};
+
+static ssize_t
+zisofs_extract_init(struct archive_write *a, struct zisofs_extract *zisofs,
+    const unsigned char *p, size_t bytes)
+{
+	size_t avail = bytes;
+	size_t ceil, xsize;
+
+	/* Allocate block pointers buffer. */
+	ceil = (zisofs->pz_uncompressed_size +
+		(1LL << zisofs->pz_log2_bs) - 1)
+		>> zisofs->pz_log2_bs;
+	xsize = (ceil + 1) * 4;
+	if (zisofs->block_pointers == NULL) {
+		size_t alloc = ((xsize >> 10) + 1) << 10;
+		zisofs->block_pointers = malloc(alloc);
+		if (zisofs->block_pointers == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "No memory for zisofs decompression");
+			return (ARCHIVE_FATAL);
+		}
+	}
+	zisofs->block_pointers_size = xsize;
+
+	/* Allocate uncompressed data buffer. */
+	zisofs->uncompressed_buffer_size = 1UL << zisofs->pz_log2_bs;
+
+	/*
+	 * Read the file header, and check the magic code of zisofs.
+	 */
+	if (!zisofs->header_passed) {
+		int err = 0;
+		if (avail < 16) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Illegal zisofs file body");
+			return (ARCHIVE_FATAL);
+		}
+
+		if (memcmp(p, zisofs_magic, sizeof(zisofs_magic)) != 0)
+			err = 1;
+		else if (archive_le32dec(p + 8) != zisofs->pz_uncompressed_size)
+			err = 1;
+		else if (p[12] != 4 || p[13] != zisofs->pz_log2_bs)
+			err = 1;
+		if (err) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Illegal zisofs file body");
+			return (ARCHIVE_FATAL);
+		}
+		avail -= 16;
+		p += 16;
+		zisofs->header_passed = 1;
+	}
+
+	/*
+	 * Read block pointers.
+	 */
+	if (zisofs->header_passed &&
+	    zisofs->block_pointers_avail < zisofs->block_pointers_size) {
+		xsize = zisofs->block_pointers_size
+		    - zisofs->block_pointers_avail;
+		if (avail < xsize)
+			xsize = avail;
+		memcpy(zisofs->block_pointers
+		    + zisofs->block_pointers_avail, p, xsize);
+		zisofs->block_pointers_avail += xsize;
+		avail -= xsize;
+		p += xsize;
+	    	if (zisofs->block_pointers_avail
+		    == zisofs->block_pointers_size) {
+			/* We've got all block pointers and initialize
+			 * related variables.	*/
+			zisofs->block_off = 0;
+			zisofs->block_avail = 0;
+			/* Complete a initialization */
+			zisofs->initialized = 1;
+		}
+	}
+	return ((ssize_t)avail);
+}
+
+static ssize_t
+zisofs_extract(struct archive_write *a, struct zisofs_extract *zisofs,
+    const unsigned char *p, size_t bytes)
+{
+	size_t avail;
+	int r;
+
+	if (!zisofs->initialized) {
+		ssize_t rs = zisofs_extract_init(a, zisofs, p, bytes);
+		if (rs < 0)
+			return (rs);
+		if (!zisofs->initialized) {
+			/* We need more data. */
+			zisofs->pz_offset += bytes;
+			return (bytes);
+		}
+		avail = rs;
+		p += bytes - avail;
+	} else
+		avail = bytes;
+
+	/*
+	 * Get block offsets from block pointers.
+	 */
+	if (zisofs->block_avail == 0) {
+		uint32_t bst, bed;
+
+		if (zisofs->block_off + 4 >= zisofs->block_pointers_size) {
+			/* There isn't a pair of offsets. */
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Illegal zisofs block pointers");
+			return (ARCHIVE_FATAL);
+		}
+		bst = archive_le32dec(
+		    zisofs->block_pointers + zisofs->block_off);
+		if (bst != zisofs->pz_offset + (bytes - avail)) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Illegal zisofs block pointers(cannot seek)");
+			return (ARCHIVE_FATAL);
+		}
+		bed = archive_le32dec(
+		    zisofs->block_pointers + zisofs->block_off + 4);
+		if (bed < bst) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Illegal zisofs block pointers");
+			return (ARCHIVE_FATAL);
+		}
+		zisofs->block_avail = bed - bst;
+		zisofs->block_off += 4;
+
+		/* Initialize compression library for new block. */
+		if (zisofs->stream_valid)
+			r = inflateReset(&zisofs->stream);
+		else
+			r = inflateInit(&zisofs->stream);
+		if (r != Z_OK) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Can't initialize zisofs decompression.");
+			return (ARCHIVE_FATAL);
+		}
+		zisofs->stream_valid = 1;
+		zisofs->stream.total_in = 0;
+		zisofs->stream.total_out = 0;
+	}
+
+	/*
+	 * Make uncompressed data.
+	 */
+	if (zisofs->block_avail == 0) {
+		/*
+		 * It's basically 32K bytes NUL data.
+		 */
+		unsigned char *wb;
+		size_t size, wsize;
+
+		size = zisofs->uncompressed_buffer_size;
+		while (size) {
+			wb = wb_buffptr(a);
+			if (size > wb_remaining(a))
+				wsize = wb_remaining(a);
+			else
+				wsize = size;
+			memset(wb, 0, wsize);
+			r = wb_consume(a, wsize);
+			if (r < 0)
+				return (r);
+			size -= wsize;
+		}
+	} else {
+		zisofs->stream.next_in = (Bytef *)(uintptr_t)(const void *)p;
+		if (avail > zisofs->block_avail)
+			zisofs->stream.avail_in = zisofs->block_avail;
+		else
+			zisofs->stream.avail_in = avail;
+		zisofs->stream.next_out = wb_buffptr(a);
+		zisofs->stream.avail_out = wb_remaining(a);
+
+		r = inflate(&zisofs->stream, 0);
+		switch (r) {
+		case Z_OK: /* Decompressor made some progress.*/
+		case Z_STREAM_END: /* Found end of stream. */
+			break;
+		default:
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "zisofs decompression failed (%d)", r);
+			return (ARCHIVE_FATAL);
+		}
+		avail -= zisofs->stream.next_in - p;
+		zisofs->block_avail -= zisofs->stream.next_in - p;
+		r = wb_consume(a, wb_remaining(a) - zisofs->stream.avail_out);
+		if (r < 0)
+			return (r);
+	}
+	zisofs->pz_offset += bytes;
+	return (bytes - avail);
+}
+
+static int
+zisofs_write_out_boot_file(struct archive_write *a)
+{
+	struct iso9660 *iso9660 = a->format_data;
+	struct isofile *file;
+	ssize_t r;
+	size_t remaining;
+	struct zisofs_extract zext;
+	int ret = ARCHIVE_OK;
+
+	file = iso9660->el_torito.boot->file;
+	memset(&zext, 0, sizeof(zext));
+	zext.pz_uncompressed_size = file->zisofs.uncompressed_size;
+	zext.pz_log2_bs = file->zisofs.log2_bs;
+
+	lseek(iso9660->temp_fd, file->content.offset_of_temp, SEEK_SET);
+	remaining = file->content.size;
+	while (remaining) {
+		size_t rsize;
+		ssize_t rs;
+		unsigned char rbuff[LOGICAL_BLOCK_SIZE * 2];
+
+		rsize = sizeof(rbuff);
+		if (rsize > remaining)
+			rsize = remaining;
+		rs = read(iso9660->temp_fd, rbuff, rsize);
+		if (rs <= 0) {
+			archive_set_error(&a->archive, errno,
+			    "Can't read temporary file(%jd)",
+			    (intmax_t)rs);
+			return (ARCHIVE_FATAL);
+		}
+		remaining -= rs;
+		r = zisofs_extract(a, &zext, rbuff, rs);
+		if (r < 0) {
+			ret = (int)r;
+			break;
+		}
+	}
+	free(zext.block_pointers);
+	if (zext.stream_valid && inflateEnd(&(zext.stream)) != Z_OK) {
+        	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Failed to clean up compressor");
+		ret = ARCHIVE_FATAL;
+	}
+	return (ARCHIVE_OK);
+}
+
+#else
+
+static int
+zisofs_write_to_temp(struct archive_write *a, const void *buff, size_t s)
+{
+	(void)buff; /* UNUSED */
+	(void)s; /* UNUSED */
+	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC, "Programing error");
+	return (ARCHIVE_FATAL);
+}
+
+static int
+zisofs_fix_bootfile(struct archive_write *a)
+{
+	(void)a; /* UNUSED */
+	return (ARCHIVE_OK);
+}
+
+static int
+zisofs_finish_entry(struct archive_write *a)
+{
+	(void)a; /* UNUSED */
+	return (ARCHIVE_OK);
+}
+
+static int
+zisofs_free(struct archive_write *a)
+{
+	(void)a; /* UNUSED */
+	return (ARCHIVE_OK);
+}
+
+static int
+zisofs_write_out_boot_file(struct archive_write *a)
+{
+	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+	    "zisofs decompression is not supported on this platform");
+	return (ARCHIVE_FATAL);
 }
 
 #endif /* HAVE_ZLIB_H */
