@@ -776,8 +776,19 @@ struct iso9660 {
 	int			 dircnt_max;
 
 	/* Write buffer. */
+#define wb_buffmax()	(LOGICAL_BLOCK_SIZE * 32)
+#define wb_remaining(a)	(((struct iso9660 *)(a)->format_data)->wbuff_remaining)
+#define wb_offset(a)	(((struct iso9660 *)(a)->format_data)->wbuff_offset \
+		+ wb_buffmax() - wb_remaining(a))
 	unsigned char		 wbuff[LOGICAL_BLOCK_SIZE * 32];
 	size_t			 wbuff_remaining;
+	enum {
+		WB_TO_STREAM,
+		WB_TO_TEMP
+	} 			 wbuff_type;
+	int64_t			 wbuff_offset;
+	int64_t			 wbuff_written;
+	int64_t			 wbuff_tail;
 
 	/* 'El Torito' boot data. */
 	struct {
@@ -916,6 +927,7 @@ static inline int get_dir_rec_size(struct iso9660 *, struct isoent *,
 static inline unsigned char *wb_buffptr(struct archive_write *);
 static int	wb_write_out(struct archive_write *);
 static int	wb_consume(struct archive_write *, size_t);
+static int	wb_set_offset(struct archive_write *, int64_t);
 static int	write_null(struct archive_write *, size_t);
 static int	write_VD_terminator(struct archive_write *);
 static int	set_file_identifier(unsigned char *, int, int, enum vdc,
@@ -1049,7 +1061,11 @@ archive_write_set_format_iso9660(struct archive *_a)
 	isofile_init_hardlinks(iso9660);
 	iso9660->directories_too_deep = NULL;
 	iso9660->dircnt_max = 1;
-	iso9660->wbuff_remaining = 0;
+	iso9660->wbuff_remaining = wb_buffmax();
+	iso9660->wbuff_type = WB_TO_TEMP;
+	iso9660->wbuff_offset = 0;
+	iso9660->wbuff_written = 0;
+	iso9660->wbuff_tail = 0;
 	archive_string_init(&(iso9660->utf16be));
 	archive_string_init(&(iso9660->mbs));
 
@@ -1574,7 +1590,7 @@ iso9660_write_header(struct archive_write *a, struct archive_entry *entry)
 	}
 
 	/* Save an offset of current file in temporary file. */
-	file->content.offset_of_temp = lseek(iso9660->temp_fd, 0, SEEK_CUR);
+	file->content.offset_of_temp = wb_offset(a);
 	file->cur_content = &(file->content);
 	r = zisofs_init(a, file);
 	if (r < ret)
@@ -1606,21 +1622,47 @@ write_to_temp(struct archive_write *a, const void *buff, size_t s)
 }
 
 static int
-write_padding_to_temp(struct archive_write *a, int64_t csize)
+wb_write_to_temp(struct archive_write *a, const void *buff, size_t s)
 {
-	size_t ns, nts;
+	const char *xp = buff;
+	size_t xs = s;
 
-	ns = csize % LOGICAL_BLOCK_SIZE;
-	if (ns != 0) {
-		ns = LOGICAL_BLOCK_SIZE - ns;
-		while (ns > 0) {
-			nts = (ns > a->null_length)? a->null_length: ns;
-			if (write_to_temp(a, a->nulls, nts) != ARCHIVE_OK)
-				return (ARCHIVE_FATAL);
-			ns -= nts;
-		}
+	/*
+	 * If written data size is big enough to system-call
+	 * and there is no waiting data, this calls write_to_temp() in
+	 * order to reduce a extra memory copy.
+	 */
+	if (wb_remaining(a) == wb_buffmax() && s > (1024 * 16)) {
+		struct iso9660 *iso9660 = (struct iso9660 *)a->format_data;
+		iso9660->wbuff_offset += s;
+		return (write_to_temp(a, buff, s));
+	}
+
+	while (xs) {
+		size_t size = xs;
+		if (size > wb_remaining(a))
+			size = wb_remaining(a);
+		memcpy(wb_buffptr(a), xp, size);
+		if (wb_consume(a, size) != ARCHIVE_OK)
+			return (ARCHIVE_FATAL);
+		xs -= size;
+		xp += size;
 	}
 	return (ARCHIVE_OK);
+}
+
+static int
+wb_write_padding_to_temp(struct archive_write *a, int64_t csize)
+{
+	size_t ns;
+	int ret;
+
+	ns = csize % LOGICAL_BLOCK_SIZE;
+	if (ns != 0)
+		ret = write_null(a, LOGICAL_BLOCK_SIZE - ns);
+	else
+		ret = ARCHIVE_OK;
+	return (ret);
 }
 
 static ssize_t
@@ -1652,13 +1694,13 @@ write_iso9660_data(struct archive_write *a, const void *buff, size_t s)
 			if (zisofs_write_to_temp(a, buff, ts) != ARCHIVE_OK)
 				return (ARCHIVE_FATAL);
 		} else {
-			if (write_to_temp(a, buff, ts) != ARCHIVE_OK)
+			if (wb_write_to_temp(a, buff, ts) != ARCHIVE_OK)
 				return (ARCHIVE_FATAL);
 			iso9660->cur_file->cur_content->size += ts;
 		}
 
 		/* Write padding. */
-		if (write_padding_to_temp(a,
+		if (wb_write_padding_to_temp(a,
 		    iso9660->cur_file->cur_content->size) != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
 
@@ -1674,7 +1716,7 @@ write_iso9660_data(struct archive_write *a, const void *buff, size_t s)
 			    "Can't allocate content data");
 			return (ARCHIVE_FATAL);
 		}
-		con->offset_of_temp = lseek(iso9660->temp_fd, 0, SEEK_CUR);
+		con->offset_of_temp = wb_offset(a);
 		iso9660->cur_file->cur_content->next = con;
 		iso9660->cur_file->cur_content = con;
 #ifdef HAVE_ZLIB_H
@@ -1689,7 +1731,7 @@ write_iso9660_data(struct archive_write *a, const void *buff, size_t s)
 		if (zisofs_write_to_temp(a, buff, ws) != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
 	} else {
-		if (write_to_temp(a, buff, ws) != ARCHIVE_OK)
+		if (wb_write_to_temp(a, buff, ws) != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
 		iso9660->cur_file->cur_content->size += ws;
 	}
@@ -1743,7 +1785,7 @@ iso9660_finish_entry(struct archive_write *a)
 		return (ARCHIVE_FATAL);
 
 	/* Write padding. */
-	if (write_padding_to_temp(a, iso9660->cur_file->cur_content->size)
+	if (wb_write_padding_to_temp(a, iso9660->cur_file->cur_content->size)
 	    != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 	return (ARCHIVE_OK);
@@ -1756,6 +1798,13 @@ iso9660_close(struct archive_write *a)
 	int ret, blocks;
 
 	iso9660 = a->format_data;
+
+	/* Write remaining data out. */
+	if (wb_remaining(a) > 0) {
+		ret = wb_write_out(a);
+		if (ret < 0)
+			return (ret);
+	}
 
 	/*
 	 * Preparations...
@@ -1867,8 +1916,13 @@ iso9660_close(struct archive_write *a)
 	/*
 	 * Write ISO 9660 image.
 	 */
-	/* Start using wbuff as file buffer. */
-	iso9660->wbuff_remaining = sizeof(iso9660->wbuff);
+
+	/* Switc to start using wbuff as file buffer. */
+	iso9660->wbuff_remaining = wb_buffmax();
+	iso9660->wbuff_type = WB_TO_STREAM;
+	iso9660->wbuff_offset = 0;
+	iso9660->wbuff_written = 0;
+	iso9660->wbuff_tail = 0;
 
 	/* Write The System Area */
 	ret = write_null(a, SYSTEM_AREA_BLOCK * LOGICAL_BLOCK_SIZE);
@@ -3465,8 +3519,6 @@ get_dir_rec_size(struct iso9660 *iso9660, struct isoent *isoent,
  * __archive_write_output() for performance.
  */
 
-#define wb_buffmax(a)	(sizeof(((struct iso9660 *)(a)->format_data)->wbuff))
-#define wb_remaining(a)	(((struct iso9660 *)(a)->format_data)->wbuff_remaining)
 
 static inline unsigned char *
 wb_buffptr(struct archive_write *a)
@@ -3486,7 +3538,14 @@ wb_write_out(struct archive_write *a)
 
 	wsize = sizeof(iso9660->wbuff) - iso9660->wbuff_remaining;
 	nw = wsize % LOGICAL_BLOCK_SIZE;
-	r = __archive_write_output(a, iso9660->wbuff, wsize - nw);
+	if (iso9660->wbuff_type == WB_TO_STREAM)
+		r = __archive_write_output(a, iso9660->wbuff, wsize - nw);
+	else
+		r = write_to_temp(a, iso9660->wbuff, wsize - nw);
+	/* Increase the offset. */
+	iso9660->wbuff_offset += wsize - nw;
+	if (iso9660->wbuff_offset > iso9660->wbuff_written)
+		iso9660->wbuff_written = iso9660->wbuff_offset;
 	iso9660->wbuff_remaining = sizeof(iso9660->wbuff);
 	if (nw) {
 		iso9660->wbuff_remaining -= nw;
@@ -3511,6 +3570,62 @@ wb_consume(struct archive_write *a, size_t size)
 	iso9660->wbuff_remaining -= size;
 	if (iso9660->wbuff_remaining < LOGICAL_BLOCK_SIZE)
 		return (wb_write_out(a));
+	return (ARCHIVE_OK);
+}
+
+static int
+wb_set_offset(struct archive_write *a, int64_t off)
+{
+	struct iso9660 *iso9660 = (struct iso9660 *)a->format_data;
+	int64_t used, ext_bytes;
+
+	if (iso9660->wbuff_type != WB_TO_TEMP) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Internal Programing error: iso9660:wb_set_offset()");
+		return (ARCHIVE_FATAL);
+	}
+
+	used = sizeof(iso9660->wbuff) - iso9660->wbuff_remaining;
+	if (iso9660->wbuff_offset + used > iso9660->wbuff_tail)
+		iso9660->wbuff_tail = iso9660->wbuff_offset + used;
+	if (iso9660->wbuff_offset < iso9660->wbuff_written) {
+		if (used > 0 &&
+		    write_to_temp(a, iso9660->wbuff, used) != ARCHIVE_OK)
+			return (ARCHIVE_FATAL);
+		iso9660->wbuff_offset = iso9660->wbuff_written;
+		lseek(iso9660->temp_fd, iso9660->wbuff_offset, SEEK_SET);
+		iso9660->wbuff_remaining = sizeof(iso9660->wbuff);
+		used = 0;
+	}
+	if (off < iso9660->wbuff_offset) {
+		/*
+		 * Write out waiting data.
+		 */
+		if (used > 0) {
+			if (wb_write_out(a) != ARCHIVE_OK)
+				return (ARCHIVE_FATAL);
+		}
+		lseek(iso9660->temp_fd, off, SEEK_SET);
+		iso9660->wbuff_offset = off;
+		iso9660->wbuff_remaining = sizeof(iso9660->wbuff);
+	} else if (off <= iso9660->wbuff_tail) {
+		iso9660->wbuff_remaining =
+		    sizeof(iso9660->wbuff) - (off - iso9660->wbuff_offset);
+	} else {
+		ext_bytes = off - iso9660->wbuff_tail;
+		iso9660->wbuff_remaining = sizeof(iso9660->wbuff)
+		   - (iso9660->wbuff_tail - iso9660->wbuff_offset);
+		while (ext_bytes >= iso9660->wbuff_remaining) {
+			if (write_null(a, (size_t)iso9660->wbuff_remaining)
+			    != ARCHIVE_OK)
+				return (ARCHIVE_FATAL);
+			ext_bytes -= iso9660->wbuff_remaining;
+		}
+		if (ext_bytes > 0) {
+			if (write_null(a, (size_t)ext_bytes) != ARCHIVE_OK)
+				return (ARCHIVE_FATAL);
+		}
+	}
 	return (ARCHIVE_OK);
 }
 
@@ -7163,13 +7278,8 @@ setup_boot_information(struct archive_write *a)
 	struct isoent *np;
 	int64_t size;
 	uint32_t sum;
+	char buff[4096];
 
-	if (iso9660->wbuff_remaining != 0) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Internal Programing error: "
-		    "iso9660:setup_boot_information()");
-		return (ARCHIVE_FATAL);
-	}
 	np = iso9660->el_torito.boot;
 	lseek(iso9660->temp_fd,
 	    np->file->content.offset_of_temp + 64, SEEK_SET);
@@ -7184,12 +7294,12 @@ setup_boot_information(struct archive_write *a)
 		size_t rsize;
 		ssize_t i, rs;
 
-		if (size > sizeof(iso9660->wbuff))
-			rsize = sizeof(iso9660->wbuff);
+		if (size > sizeof(buff))
+			rsize = sizeof(buff);
 		else
 			rsize = (size_t)size;
 
-		rs = read(iso9660->temp_fd, iso9660->wbuff, rsize);
+		rs = read(iso9660->temp_fd, buff, rsize);
 		if (rs <= 0) {
 			archive_set_error(&a->archive, errno,
 			    "Can't read temporary file(%jd)",
@@ -7197,27 +7307,27 @@ setup_boot_information(struct archive_write *a)
 			return (ARCHIVE_FATAL);
 		}
 		for (i = 0; i < rs; i += 4)
-			sum += archive_le32dec(iso9660->wbuff + i);
+			sum += archive_le32dec(buff + i);
 		size -= rs;
 	}
 	/* Set the location of Primary Volume Descriptor. */
-	set_num_731(iso9660->wbuff, SYSTEM_AREA_BLOCK);
+	set_num_731(buff, SYSTEM_AREA_BLOCK);
 	/* Set the location of the boot file. */
-	set_num_731(iso9660->wbuff+4, np->file->content.location);
+	set_num_731(buff+4, np->file->content.location);
 	/* Set the size of the boot file. */
 	size = fd_boot_image_size(iso9660->el_torito.media_type);
 	if (size == 0)
 		size = archive_entry_size(np->file->entry);
-	set_num_731(iso9660->wbuff+8, (uint32_t)size);
+	set_num_731(buff+8, (uint32_t)size);
 	/* Set the sum of the boot file. */
-	set_num_731(iso9660->wbuff+12, sum);
+	set_num_731(buff+12, sum);
 	/* Clear reserved bytes. */
-	memset(iso9660->wbuff+16, 0, 40);
+	memset(buff+16, 0, 40);
 
 	/* Overwrite the boot file. */
 	lseek(iso9660->temp_fd,
 	    np->file->content.offset_of_temp + 8, SEEK_SET);
-	return (write_to_temp(a, iso9660->wbuff, 56));
+	return (write_to_temp(a, buff, 56));
 }
 
 #ifdef HAVE_ZLIB_H
@@ -7231,8 +7341,6 @@ zisofs_init_zstream(struct archive_write *a)
 	iso9660->zisofs.stream.next_in = NULL;
 	iso9660->zisofs.stream.avail_in = 0;
 	iso9660->zisofs.stream.total_in = 0;
-	iso9660->zisofs.stream.next_out = iso9660->wbuff;
-	iso9660->zisofs.stream.avail_out = sizeof(iso9660->wbuff);
 	iso9660->zisofs.stream.total_out = 0;
 	if (iso9660->zisofs.stream_valid)
 		r = deflateReset(&(iso9660->zisofs.stream));
@@ -7355,7 +7463,8 @@ zisofs_init(struct archive_write *a,  struct isofile *file)
 	 * file.
 	 */
 	tsize = ZF_HEADER_SIZE + bpsize;
-	lseek(iso9660->temp_fd, tsize, SEEK_CUR);
+	if (write_null(a, tsize) != ARCHIVE_OK)
+		return (ARCHIVE_FATAL);
 
 	/*
 	 * Initialize some variables to make zisofs.
@@ -7475,6 +7584,8 @@ zisofs_write_to_temp(struct archive_write *a, const void *buff, size_t s)
 	int flush, r;
 
 	zstrm = &(iso9660->zisofs.stream);
+	zstrm->next_out = wb_buffptr(a);
+	zstrm->avail_out = wb_remaining(a);
 	b = (const unsigned char *)buff;
 	do {
 		avail = ZF_BLOCK_SIZE - zstrm->total_in;
@@ -7516,10 +7627,11 @@ zisofs_write_to_temp(struct archive_write *a, const void *buff, size_t s)
 			    file->cur_content->size) {
 				int64_t diff;
 
-				lseek(iso9660->temp_fd,
+				r = wb_set_offset(a,
 				    file->cur_content->offset_of_temp +
-				        iso9660->zisofs.block_offset,
-				    SEEK_SET);
+				        iso9660->zisofs.block_offset);
+				if (r != ARCHIVE_OK)
+					return (r);
 				diff = file->cur_content->size -
 				    iso9660->zisofs.block_offset;
 				file->cur_content->size -= diff;
@@ -7538,13 +7650,12 @@ zisofs_write_to_temp(struct archive_write *a, const void *buff, size_t s)
 			case Z_OK:
 			case Z_STREAM_END:
 				csize = zstrm->total_out - csize;
-				if (write_to_temp(a, iso9660->wbuff, csize)
-				    != ARCHIVE_OK)
+				if (wb_consume(a, csize) != ARCHIVE_OK)
 					return (ARCHIVE_FATAL);
 				iso9660->zisofs.total_size += csize;
 				iso9660->cur_file->cur_content->size += csize;
-				zstrm->next_out = iso9660->wbuff;
-				zstrm->avail_out = sizeof(iso9660->wbuff);
+				zstrm->next_out = wb_buffptr(a);
+				zstrm->avail_out = wb_remaining(a);
 				break;
 			default:
 				archive_set_error(&a->archive,
@@ -7590,7 +7701,7 @@ zisofs_finish_entry(struct archive_write *a)
 	/*
 	 * Save a file pointer which points the end of current zisofs data.
 	 */
-	tail = lseek(iso9660->temp_fd, 0, SEEK_CUR);
+	tail = wb_offset(a);
 
 	/*
 	 * Make a header.
@@ -7625,10 +7736,11 @@ zisofs_finish_entry(struct archive_write *a)
 	buff[13] = file->zisofs.log2_bs;
 	buff[14] = buff[15] = 0;/* Reserved */
 
-	/* Get the right position to write the header. */
-	lseek(iso9660->temp_fd, file->content.offset_of_temp, SEEK_SET);
+	/* Move to the right position to write the header. */
+	wb_set_offset(a, file->content.offset_of_temp);
+
 	/* Write the header. */
-	if (write_to_temp(a, buff, 16) != ARCHIVE_OK)
+	if (wb_write_to_temp(a, buff, 16) != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
 	/*
@@ -7636,12 +7748,12 @@ zisofs_finish_entry(struct archive_write *a)
 	 */
 	s = iso9660->zisofs.block_pointers_cnt *
 	    sizeof(iso9660->zisofs.block_pointers[0]);
-	if (write_to_temp(a, iso9660->zisofs.block_pointers, s)
+	if (wb_write_to_temp(a, iso9660->zisofs.block_pointers, s)
 	    != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
-	/* Set the file pointer to the end of current zisofs data. */
-	lseek(iso9660->temp_fd, tail, SEEK_SET);
+	/* Set a file pointer back to the end of the temporary file. */
+	wb_set_offset(a, tail);
 
 	return (ARCHIVE_OK);
 }
