@@ -1012,6 +1012,8 @@ static int	isoent_cmp_key_joliet(const struct archive_rb_node *,
 static inline void path_table_add_entry(struct path_table *, struct isoent *);
 static inline struct isoent * path_table_last_entry(struct path_table *);
 static int	isoent_make_path_table(struct archive_write *);
+static int	isoent_find_out_boot_file(struct archive_write *,
+		    struct isoent *);
 static int	isoent_create_boot_catalog(struct archive_write *,
 		    struct isoent *);
 static size_t	fd_boot_image_size(int);
@@ -1021,11 +1023,10 @@ static int	setup_boot_information(struct archive_write *);
 static int	zisofs_init(struct archive_write *, struct isofile *);
 static void	zisofs_detect_magic(struct archive_write *,
 		    const void *, size_t);
-static int	zisofs_write_out_boot_file(struct archive_write *);
 static int	zisofs_write_to_temp(struct archive_write *,
 		    const void *, size_t);
 static int	zisofs_finish_entry(struct archive_write *);
-static int	zisofs_fix_bootfile(struct archive_write *);
+static int	zisofs_rewind_boot_file(struct archive_write *);
 static int	zisofs_free(struct archive_write *);
 
 int
@@ -1799,7 +1800,9 @@ iso9660_close(struct archive_write *a)
 
 	iso9660 = a->format_data;
 
-	/* Write remaining data out. */
+	/*
+	 * Write remaining data out to the temprary file.
+	 */
 	if (wb_remaining(a) > 0) {
 		ret = wb_write_out(a);
 		if (ret < 0)
@@ -1814,15 +1817,35 @@ iso9660_close(struct archive_write *a)
 #endif
 		time(&(iso9660->birth_time));
 	isoent_trim_root_directory(iso9660);
+
+	/*
+	 * Prepare a bootable ISO image.
+	 */
 	if (iso9660->opt.boot) {
-		ret = isoent_create_boot_catalog(a,
-		    iso9660->primary.rootent);
+		/* Find out the boot file entry. */
+		ret = isoent_find_out_boot_file(a, iso9660->primary.rootent);
 		if (ret < 0)
 			return (ret);
-		ret = zisofs_fix_bootfile(a);
+		/* Reconvert the boot file from zisofs'ed form to
+		 * plain form. */
+		ret = zisofs_rewind_boot_file(a);
+		if (ret < 0)
+			return (ret);
+		/* Write remaining data out to the temprary file. */
+		if (wb_remaining(a) > 0) {
+			ret = wb_write_out(a);
+			if (ret < 0)
+				return (ret);
+		}
+		/* Create the boot catalog. */
+		ret = isoent_create_boot_catalog(a, iso9660->primary.rootent);
 		if (ret < 0)
 			return (ret);
 	}
+
+	/*
+	 * Prepare joliet extensions.
+	 */
 	if (iso9660->opt.joliet) {
 		/* Make a new tree for joliet. */
 		ret = isoent_clone_tree(a, &(iso9660->joliet.rootent),
@@ -1857,7 +1880,7 @@ iso9660_close(struct archive_write *a)
 
 	/*
 	 * Calculate a total volume size and setup all locations of
-	 * contents of a iso9660 image.
+	 * contents of an iso9660 image.
 	 */
 	blocks = SYSTEM_AREA_BLOCK
 		+ PRIMARY_VOLUME_DESCRIPTOR_BLOCK
@@ -1870,7 +1893,7 @@ iso9660_close(struct archive_write *a)
 	if (iso9660->opt.iso_level == 4)
 		blocks += SUPPLEMENTARY_VOLUME_DESCRIPTOR_BLOCK;
 
-	/* Setup locations of Path Table. */
+	/* Setup the locations of Path Table. */
 	iso9660->primary.location_type_L_path_table = blocks;
 	blocks += iso9660->primary.path_table_block;
 	iso9660->primary.location_type_M_path_table = blocks;
@@ -1882,7 +1905,7 @@ iso9660_close(struct archive_write *a)
 		blocks += iso9660->joliet.path_table_block;
 	}
 
-	/* Setup locations of directories. */
+	/* Setup the locations of directories. */
 	isoent_setup_directory_location(iso9660, blocks,
 	    &(iso9660->primary));
 	blocks += iso9660->primary.total_dir_block;
@@ -1897,7 +1920,7 @@ iso9660_close(struct archive_write *a)
 		blocks += RRIP_ER_BLOCK;
 	}
 
-	/* Setup locations of all file contents. */
+	/* Setup the locations of all file contents. */
  	isoent_setup_file_location(iso9660, blocks);
 	blocks += iso9660->total_file_block;
 	if (iso9660->opt.boot && iso9660->opt.boot_info_table) {
@@ -1914,7 +1937,7 @@ iso9660_close(struct archive_write *a)
 
 
 	/*
-	 * Write ISO 9660 image.
+	 * Write an ISO 9660 image.
 	 */
 
 	/* Switc to start using wbuff as file buffer. */
@@ -4507,15 +4530,7 @@ write_file_descriptors(struct archive_write *a)
 		struct isofile *file;
 
 		file = iso9660->el_torito.boot->file;
-		/*
-		 * If the boot file is being zisofs'ed, we should uncompress
-		 * it and write out the result.
-		 */
-		if (file->zisofs.uncompressed_size != 0 &&
-		    file->zisofs.log2_bs != 0)
-			r = zisofs_write_out_boot_file(a);
-		else
-			r = write_out_boot_file(a);
+		r = write_out_boot_file(a);
 		if (r < 0)
 			return (r);
 		/*
@@ -7060,12 +7075,9 @@ isoent_make_path_table(struct archive_write *a)
 }
 
 static int
-isoent_create_boot_catalog(struct archive_write *a, struct isoent *rootent)
+isoent_find_out_boot_file(struct archive_write *a, struct isoent *rootent)
 {
 	struct iso9660 *iso9660 = a->format_data;
-	struct isofile *file;
-	struct isoent *isoent;
-	struct archive_entry *entry;
 
 	/* Find a isoent of the boot file. */
 	iso9660->el_torito.boot = isoent_find_entry(rootent,
@@ -7077,6 +7089,16 @@ isoent_create_boot_catalog(struct archive_write *a, struct isoent *rootent)
 		return (ARCHIVE_FATAL);
 	}
 	iso9660->el_torito.boot->file->boot = BOOT_IMAGE;
+	return (ARCHIVE_OK);
+}
+
+static int
+isoent_create_boot_catalog(struct archive_write *a, struct isoent *rootent)
+{
+	struct iso9660 *iso9660 = a->format_data;
+	struct isofile *file;
+	struct isoent *isoent;
+	struct archive_entry *entry;
 
 	/*
 	 * Create the entry which is the "boot.catalog" file.
@@ -7369,26 +7391,6 @@ zisofs_init_zstream(struct archive_write *a)
 		    "compression library: invalid library version");
 		return (ARCHIVE_FATAL);
 	}
-	return (ARCHIVE_OK);
-}
-
-static int
-zisofs_fix_bootfile(struct archive_write *a)
-{
-	struct iso9660 *iso9660 = a->format_data;
-	struct isoent *isoent;
-	struct isofile *file;
-
-	isoent = iso9660->el_torito.boot;
-	if (isoent != NULL && isoent->file->zisofs.header_size != 0) {
-		file = isoent->file;
-		archive_entry_set_size(file->entry,
-		    file->zisofs.uncompressed_size);
-		/* Remark file->zisofs not to create
-		 * RRIP 'ZF' Use Entry. */
-		file->zisofs.header_size = 0;
-	}
-
 	return (ARCHIVE_OK);
 }
 
@@ -7998,51 +8000,108 @@ zisofs_extract(struct archive_write *a, struct zisofs_extract *zisofs,
 }
 
 static int
-zisofs_write_out_boot_file(struct archive_write *a)
+zisofs_rewind_boot_file(struct archive_write *a)
 {
 	struct iso9660 *iso9660 = a->format_data;
 	struct isofile *file;
+	char *rbuff;
 	ssize_t r;
-	size_t remaining;
+	size_t remaining, rbuff_size;
 	struct zisofs_extract zext;
-	int ret = ARCHIVE_OK;
+	int64_t read_offset, write_offset, new_offset;
+	int fd, ret = ARCHIVE_OK;
 
 	file = iso9660->el_torito.boot->file;
+	/*
+	 * There is nothing to do if this boot file does not have
+	 * zisofs header.
+	 */
+	if (file->zisofs.header_size == 0)
+		return (ARCHIVE_OK);
+
+	/*
+	 * Uncompress the zisofs'ed file contents.
+	 */
 	memset(&zext, 0, sizeof(zext));
 	zext.pz_uncompressed_size = file->zisofs.uncompressed_size;
 	zext.pz_log2_bs = file->zisofs.log2_bs;
 
-	lseek(iso9660->temp_fd, file->content.offset_of_temp, SEEK_SET);
+	fd = iso9660->temp_fd;
+	new_offset = wb_offset(a);
+	read_offset = file->content.offset_of_temp;
 	remaining = file->content.size;
+	if (remaining > 1024 * 32)
+		rbuff_size = 1024 * 32;
+	else
+		rbuff_size = remaining;
+
+	rbuff = malloc(rbuff_size);
+	if (rbuff == NULL) {
+		archive_set_error(&a->archive, ENOMEM, "Can't allocate memory");
+		return (ARCHIVE_FATAL);
+	}
 	while (remaining) {
 		size_t rsize;
 		ssize_t rs;
-		unsigned char rbuff[LOGICAL_BLOCK_SIZE * 2];
 
-		rsize = sizeof(rbuff);
+		/* Get the current file pointer. */
+		write_offset = lseek(fd, 0, SEEK_CUR);
+
+		/* Change the file pointer to read. */
+		lseek(fd, read_offset, SEEK_SET);
+
+		rsize = rbuff_size;
 		if (rsize > remaining)
 			rsize = remaining;
 		rs = read(iso9660->temp_fd, rbuff, rsize);
 		if (rs <= 0) {
 			archive_set_error(&a->archive, errno,
-			    "Can't read temporary file(%jd)",
-			    (intmax_t)rs);
-			return (ARCHIVE_FATAL);
+			    "Can't read temporary file(%jd)", (intmax_t)rs);
+			ret = ARCHIVE_FATAL;
+			break;
 		}
 		remaining -= rs;
+		read_offset += rs;
+
+		/* Put the file pointer back to write. */
+		lseek(fd, write_offset, SEEK_SET);
+
 		r = zisofs_extract(a, &zext, rbuff, rs);
 		if (r < 0) {
 			ret = (int)r;
 			break;
 		}
 	}
+
+	if (ret == ARCHIVE_OK) {
+		/*
+		 * Change the boot file content from zisofs'ed data
+		 * to plain data.
+		 */
+		file->content.offset_of_temp = new_offset;
+		file->content.size = file->zisofs.uncompressed_size;
+		archive_entry_set_size(file->entry, file->content.size);
+		/* Set to be no zisofs. */
+		file->zisofs.header_size = 0;
+		file->zisofs.log2_bs = 0;
+		file->zisofs.uncompressed_size = 0;
+		r = wb_write_padding_to_temp(a, file->content.size);
+		if (r < 0)
+			ret = ARCHIVE_FATAL;
+	}
+
+	/*
+	 * Free the resource we used in this function only.
+	 */
+	free(rbuff);
 	free(zext.block_pointers);
 	if (zext.stream_valid && inflateEnd(&(zext.stream)) != Z_OK) {
         	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Failed to clean up compressor");
 		ret = ARCHIVE_FATAL;
 	}
-	return (ARCHIVE_OK);
+
+	return (ret);
 }
 
 #else
@@ -8057,9 +8116,16 @@ zisofs_write_to_temp(struct archive_write *a, const void *buff, size_t s)
 }
 
 static int
-zisofs_fix_bootfile(struct archive_write *a)
+zisofs_rewind_boot_file(struct archive_write *a)
 {
-	(void)a; /* UNUSED */
+	struct iso9660 *iso9660 = a->format_data;
+
+	if (iso9660->el_torito.boot->file->zisofs.header_size != 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "We cannot extract the zisofs imaged boot file;"
+		    " this may not boot in being zisofs imaged");
+		return (ARCHIVE_FAILED);
+	}
 	return (ARCHIVE_OK);
 }
 
@@ -8075,14 +8141,6 @@ zisofs_free(struct archive_write *a)
 {
 	(void)a; /* UNUSED */
 	return (ARCHIVE_OK);
-}
-
-static int
-zisofs_write_out_boot_file(struct archive_write *a)
-{
-	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-	    "zisofs decompression is not supported on this platform");
-	return (ARCHIVE_FATAL);
 }
 
 #endif /* HAVE_ZLIB_H */
