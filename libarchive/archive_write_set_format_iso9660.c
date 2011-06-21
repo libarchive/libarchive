@@ -7270,7 +7270,7 @@ setup_boot_information(struct archive_write *a)
 	struct isoent *np;
 	int64_t size;
 	uint32_t sum;
-	char buff[4096];
+	unsigned char buff[4096];
 
 	np = iso9660->el_torito.boot;
 	lseek(iso9660->temp_fd,
@@ -7974,7 +7974,7 @@ zisofs_rewind_boot_file(struct archive_write *a)
 {
 	struct iso9660 *iso9660 = a->format_data;
 	struct isofile *file;
-	char *rbuff;
+	unsigned char *rbuff;
 	ssize_t r;
 	size_t remaining, rbuff_size;
 	struct zisofs_extract zext;
