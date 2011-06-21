@@ -2094,9 +2094,8 @@ iso9660_free(struct archive_write *a)
 	int i, ret;
 
 	iso9660 = a->format_data;
-	ret = ARCHIVE_OK;
 
-	/* Close temporary file. */
+	/* Close the temporary file. */
 	if (iso9660->temp_fd >= 0)
 		close(iso9660->temp_fd);
 
@@ -7835,7 +7834,6 @@ zisofs_extract_init(struct archive_write *a, struct zisofs_extract *zisofs,
 		    + zisofs->block_pointers_avail, p, xsize);
 		zisofs->block_pointers_avail += xsize;
 		avail -= xsize;
-		p += xsize;
 	    	if (zisofs->block_pointers_avail
 		    == zisofs->block_pointers_size) {
 			/* We've got all block pointers and initialize
