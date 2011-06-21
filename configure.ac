@@ -191,10 +191,10 @@ case $host in
   ;;
 esac
 
-# We need CoreFoundation on Mac OS.
+# We need CoreServices on Mac OS.
 case $host in
   *darwin* )
-  LIBS="${LIBS} -framework CoreFoundation"
+  LIBS="${LIBS} -framework CoreServices"
   ;;
 esac
 
