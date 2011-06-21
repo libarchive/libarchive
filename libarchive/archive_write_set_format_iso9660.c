@@ -69,6 +69,7 @@
 #define COMPAT_MKISOFS		1
 #endif
 
+#define LOGICAL_BLOCK_BITS			11
 #define LOGICAL_BLOCK_SIZE			2048
 #define PATH_TABLE_BLOCK_SIZE			4096
 
@@ -159,6 +160,7 @@ struct ctl_extr_rec {
 struct isofile {
 	/* Used for managing struct isofile list. */
 	struct isofile		*allnext;
+	struct isofile		*datanext;
 	/* Used for managing a hardlined struct isofile list. */
 	struct isofile		*hlnext;
 	struct isofile		*hardlink_target;
@@ -180,8 +182,9 @@ struct isofile {
 	 */
 	struct content {
 		int64_t		 offset_of_temp;
-		uint32_t 	 location;
 		int64_t		 size;
+		int		 blocks;
+		uint32_t 	 location;
 		/*
 		 * One extent equals one content.
 		 * If this entry has multi extent, `next' variable points
@@ -189,6 +192,7 @@ struct isofile {
 		 */
 		struct content	*next;		/* next content	*/
 	} content, *cur_content;
+	int			 write_content;
 
 	enum {
 		NO = 0,
@@ -696,6 +700,14 @@ struct iso9660 {
 		struct isofile	**last;
 	}			 all_file_list;
 
+	/* A list of struct isofile entries which have its
+	 * contents and are not a directory, a hardlined file
+	 * and a symlink file. */
+	struct {
+		struct isofile	*first;
+		struct isofile	**last;
+	}			 data_file_list;
+
 	/* Used for managing to find hardlinking files. */
 	struct archive_rb_tree	 hardlink_rbtree;
 
@@ -948,7 +960,10 @@ static void	calculate_path_table_size(struct vdd *);
 static void	isofile_init_entry_list(struct iso9660 *);
 static void	isofile_add_entry(struct iso9660 *, struct isofile *);
 static void	isofile_free_all_entries(struct iso9660 *);
-static struct isofile * isofile_new(struct archive_write *, struct archive_entry *);
+static void	isofile_init_entry_data_file_list(struct iso9660 *);
+static void	isofile_add_data_file(struct iso9660 *, struct isofile *);
+static struct isofile * isofile_new(struct archive_write *,
+		    struct archive_entry *);
 static void	isofile_free(struct isofile *);
 static int	isofile_gen_utility_names(struct archive_write *,
 		    struct isofile *);
@@ -963,8 +978,8 @@ static int	isoent_clone_tree(struct archive_write *,
 		    struct isoent **, struct isoent *);
 static void	_isoent_free(struct isoent *isoent);
 static void	isoent_free_all(struct isoent *);
-static struct isoent * isoent_create_virtual_dir(struct archive_write *, struct iso9660 *,
-		    const char *);
+static struct isoent * isoent_create_virtual_dir(struct archive_write *,
+		    struct iso9660 *, const char *);
 static int	isoent_cmp_node(const struct archive_rb_node *,
 		    const struct archive_rb_node *);
 static int	isoent_cmp_key(const struct archive_rb_node *,
@@ -1017,7 +1032,7 @@ static int	isoent_find_out_boot_file(struct archive_write *,
 static int	isoent_create_boot_catalog(struct archive_write *,
 		    struct isoent *);
 static size_t	fd_boot_image_size(int);
-static void	make_boot_catalog(struct iso9660 *, unsigned char *);
+static int	make_boot_catalog(struct archive_write *);
 static int	setup_boot_information(struct archive_write *);
 
 static int	zisofs_init(struct archive_write *, struct isofile *);
@@ -1059,6 +1074,7 @@ archive_write_set_format_iso9660(struct archive *_a)
 	iso9660->joliet.vdd_type = VDD_JOLIET;
 	iso9660->joliet.pathtbl = NULL;
 	isofile_init_entry_list(iso9660);
+	isofile_init_entry_data_file_list(iso9660);
 	isofile_init_hardlinks(iso9660);
 	iso9660->directories_too_deep = NULL;
 	iso9660->dircnt_max = 1;
@@ -1705,6 +1721,11 @@ write_iso9660_data(struct archive_write *a, const void *buff, size_t s)
 		    iso9660->cur_file->cur_content->size) != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
 
+		/* Compute the logical block number. */
+		iso9660->cur_file->cur_content->blocks =
+		    (iso9660->cur_file->cur_content->size
+		     + LOGICAL_BLOCK_SIZE -1) >> LOGICAL_BLOCK_BITS;
+
 		/*
 		 * Make next extent.
 		 */
@@ -1770,6 +1791,8 @@ iso9660_finish_entry(struct archive_write *a)
 		return (ARCHIVE_OK);
 	if (archive_entry_filetype(iso9660->cur_file->entry) != AE_IFREG)
 		return (ARCHIVE_OK);
+	if (iso9660->cur_file->content.size == 0)
+		return (ARCHIVE_OK);
 
 	/* If there are unwritten data, write null data instead. */
 	while (iso9660->bytes_remaining > 0) {
@@ -1789,6 +1812,15 @@ iso9660_finish_entry(struct archive_write *a)
 	if (wb_write_padding_to_temp(a, iso9660->cur_file->cur_content->size)
 	    != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
+
+	/* Compute the logical block number. */
+	iso9660->cur_file->cur_content->blocks =
+	    (iso9660->cur_file->cur_content->size
+	     + LOGICAL_BLOCK_SIZE -1) >> LOGICAL_BLOCK_BITS;
+
+	/* Add the current file to data file list. */
+	isofile_add_data_file(iso9660, iso9660->cur_file);
+
 	return (ARCHIVE_OK);
 }
 
@@ -4401,106 +4433,30 @@ write_directory_descriptors(struct archive_write *a, struct vdd *vdd)
 	return (ARCHIVE_OK);
 }
 
+/*
+ * Read file contents from the temporary file, and write it.
+ */
 static int
-_write_file_descriptors(struct archive_write *a, struct isoent *isoent)
+write_file_contents(struct archive_write *a, int64_t offset, int64_t size)
 {
 	struct iso9660 *iso9660 = a->format_data;
-	struct isoent **enttbl;
-	int i, r;
-
-	enttbl = isoent->children_sorted;
-	for (i = 0; i < isoent->children.cnt; i++) {
-		struct isoent *np;
-		struct isofile *file;
-
-		/*
-		 * We do not write file contents if its file-type is
-		 * a directory or boot-file, or empty file.
-		 */
-		np = enttbl[i];
-		if (np->dir)
-			continue;
-		if (np == iso9660->el_torito.boot)
-			continue;
-		file = np->file;
-		if (file->boot || file->content.size == 0)
-			continue;
-
-		file->cur_content = &(file->content);
-		do {
-			int64_t size;
-			int64_t pad_size;
-
-			lseek(iso9660->temp_fd,
-			    file->cur_content->offset_of_temp, SEEK_SET);
-			size = file->cur_content->size;
-			pad_size = size % LOGICAL_BLOCK_SIZE;
-			if (pad_size)
-				pad_size = LOGICAL_BLOCK_SIZE - pad_size;
-			while (size) {
-				size_t rsize;
-				ssize_t rs;
-				unsigned char *wb;
-
-				wb = wb_buffptr(a);
-				if (size > wb_remaining(a))
-					rsize = wb_remaining(a);
-				else
-					rsize = (size_t)size;
-
-				rs = read(iso9660->temp_fd, wb, rsize);
-				if (rs <= 0) {
-					archive_set_error(&a->archive,
-					    errno,
-					    "Can't read temporary file(%jd)",
-					    (intmax_t)rs);
-					return (ARCHIVE_FATAL);
-				}
-				size -= rs;
-				if (size == 0 && pad_size) {
-					/* All file contents must be aligned
-					 * with LOGICAL_BLOCK_SIZE */
-					memset(wb + rs, 0, pad_size);
-					rs += pad_size;
-				}
-				r = wb_consume(a, rs);
-				if (r < 0)
-					return (r);
-			}
-			file->cur_content = file->cur_content->next;
-		} while (file->cur_content != NULL);
-	}
-	return (ARCHIVE_OK);
-}
-
-static int
-write_out_boot_file(struct archive_write *a)
-{
-	struct iso9660 *iso9660 = a->format_data;
-	struct isoent *np;
-	int64_t size;
 	int r;
 
-	np = iso9660->el_torito.boot;
-	size = archive_entry_size(np->file->entry);
-	lseek(iso9660->temp_fd,
-	    np->file->content.offset_of_temp, SEEK_SET);
+	lseek(iso9660->temp_fd, offset, SEEK_SET);
+
 	while (size) {
 		size_t rsize;
 		ssize_t rs;
 		unsigned char *wb;
 
 		wb = wb_buffptr(a);
-		if (size > wb_remaining(a))
-			rsize = wb_remaining(a);
-		else
+		rsize = wb_remaining(a);
+		if (rsize > (size_t)size)
 			rsize = (size_t)size;
-
 		rs = read(iso9660->temp_fd, wb, rsize);
 		if (rs <= 0) {
 			archive_set_error(&a->archive, errno,
-			    "Can't read temporary file(%jd)",
-			    (intmax_t)rs);
+			    "Can't read temporary file(%jd)", (intmax_t)rs);
 			return (ARCHIVE_FATAL);
 		}
 		size -= rs;
@@ -4515,83 +4471,70 @@ static int
 write_file_descriptors(struct archive_write *a)
 {
 	struct iso9660 *iso9660 = a->format_data;
-	struct isoent *np;
-	int depth, r;
-	int joliet;
+	struct isofile *file;
+	int64_t blocks, offset;
+	int r;
 
+	blocks = 0;
+	offset = 0;
+
+	/* Make the boot catalog contents, and write it. */
 	if (iso9660->el_torito.catalog != NULL) {
-		make_boot_catalog(iso9660, wb_buffptr(a));
-		r = wb_consume(a, LOGICAL_BLOCK_SIZE);
+		r = make_boot_catalog(a);
 		if (r < 0)
 			return (r);
 	}
-	if (iso9660->el_torito.boot != NULL) {
-		int64_t size, padsize;
-		struct isofile *file;
 
-		file = iso9660->el_torito.boot->file;
-		r = write_out_boot_file(a);
-		if (r < 0)
-			return (r);
-		/*
-		 * Write padding if needed.
-		 */
-		padsize = 0;
-		size = fd_boot_image_size(iso9660->el_torito.media_type);
-		if (size == 0)
-			size = archive_entry_size(file->entry);
-		else if (size > archive_entry_size(file->entry)) {
-			/*
-			 * If the boot image size is not just 1200KB,
-			 * 1440KB,or 2880KB, add padding data.
-			 */
-			padsize = size - archive_entry_size(file->entry);
-		}
-		size = size % LOGICAL_BLOCK_SIZE;
-		if (size != 0)
-			padsize += LOGICAL_BLOCK_SIZE - size;
-		if (padsize > 0) {
-			r = write_null(a, (size_t)padsize);
+	/* Write the boot file contents. */
+	if (iso9660->el_torito.boot != NULL) {
+		struct isofile *file = iso9660->el_torito.boot->file;
+
+		blocks = file->content.blocks;
+		offset = file->content.offset_of_temp;
+		if (offset != 0) {
+			r = write_file_contents(a, offset,
+			    blocks << LOGICAL_BLOCK_BITS);
 			if (r < 0)
 				return (r);
+			blocks = 0;
+			offset = 0;
 		}
 	}
 
-	depth = 0;
-	if (!iso9660->opt.rr && iso9660->opt.joliet) {
-		joliet = 1;
-		np = iso9660->joliet.rootent;
-	} else {
-		joliet = 0;
-		np = iso9660->primary.rootent;
+	/* Write out all file contents. */
+	for (file = iso9660->data_file_list.first;
+	    file != NULL; file = file->datanext) {
+
+		if (!file->write_content)
+			continue;
+
+		if ((offset + (blocks << LOGICAL_BLOCK_BITS)) <
+		     file->content.offset_of_temp) {
+			if (blocks > 0) {
+				r = write_file_contents(a, offset,
+				    blocks << LOGICAL_BLOCK_BITS);
+				if (r < 0)
+					return (r);
+			}
+			blocks = 0;
+			offset = file->content.offset_of_temp;
+		}
+
+		file->cur_content = &(file->content);
+		do {
+			blocks += file->cur_content->blocks;
+			/* Next fragument */
+			file->cur_content = file->cur_content->next;
+		} while (file->cur_content != NULL);
 	}
-	do {
-		r =  _write_file_descriptors(a, np);
+
+	/* Flush out remaining blocks. */
+	if (blocks > 0) {
+		r = write_file_contents(a, offset,
+		    blocks << LOGICAL_BLOCK_BITS);
 		if (r < 0)
 			return (r);
-
-		if (np->subdirs.first != NULL &&
-		    (joliet ||
-		    ((iso9660->opt.rr == OPT_RR_DISABLED &&
-		      depth + 2 < iso9660->primary.max_depth) ||
-		     (iso9660->opt.rr &&
-		      depth + 1 < iso9660->primary.max_depth)))) {
-			/* Enter to sub directories. */
-			np = np->subdirs.first;
-			depth++;
-			continue;
-		}
-		while (np != np->parent) {
-			if (np->drnext == NULL) {
-				/* Return to the parent directory. */
-				np = np->parent;
-				depth--;
-			} else {
-				np = np->drnext;
-				break;
-			}
-		}
-	} while (np != np->parent);
+	}
 
 	return (ARCHIVE_OK);
 }
@@ -4623,6 +4566,22 @@ isofile_free_all_entries(struct iso9660 *iso9660)
 		file = file_next;
 	}
 }
+
+static void
+isofile_init_entry_data_file_list(struct iso9660 *iso9660)
+{
+	iso9660->data_file_list.first = NULL;
+	iso9660->data_file_list.last = &(iso9660->data_file_list.first);
+}
+
+static void
+isofile_add_data_file(struct iso9660 *iso9660, struct isofile *file)
+{
+	file->datanext = NULL;
+	*iso9660->data_file_list.last = file;
+	iso9660->data_file_list.last = &(file->datanext);
+}
+
 
 static struct isofile *
 isofile_new(struct archive_write *a, struct archive_entry *entry)
@@ -5411,16 +5370,14 @@ isoent_setup_directory_location(struct iso9660 *iso9660, int location,
 
 static void
 _isoent_file_location(struct iso9660 *iso9660, struct isoent *isoent,
-    int *location, int *symlocation)
+    int *symlocation)
 {
 	struct isoent **children;
-	int total_block;
 	int n;
 
 	if (isoent->children.cnt == 0)
 		return;
 
-	total_block = 0;
 	children = isoent->children_sorted;
 	for (n = 0; n < isoent->children.cnt; n++) {
 		struct isoent *np;
@@ -5444,21 +5401,8 @@ _isoent_file_location(struct iso9660 *iso9660, struct isoent *isoent,
 			continue;
 		}
 
-		file->cur_content = &(file->content);
-		do {
-			int block;
-
-			file->cur_content->location = *location;
-			block = (file->cur_content->size
-				  + LOGICAL_BLOCK_SIZE -1)
-				/ LOGICAL_BLOCK_SIZE;
-			*location += block;
-			total_block += block;
-			/* Next fragument */
-			file->cur_content = file->cur_content->next;
-		} while (file->cur_content != NULL);
+		file->write_content = 1;
 	}
-	iso9660->total_file_block += total_block;
 }
 
 /*
@@ -5469,17 +5413,19 @@ isoent_setup_file_location(struct iso9660 *iso9660, int location)
 {
 	struct isoent *isoent;
 	struct isoent *np;
+	struct isofile *file;
 	size_t size;
 	int block;
 	int depth;
 	int joliet;
 	int symlocation;
+	int total_block;
 
 	iso9660->total_file_block = 0;
 	if ((isoent = iso9660->el_torito.catalog) != NULL) {
 		isoent->file->content.location = location;
 		block = (archive_entry_size(isoent->file->entry) +
-		    LOGICAL_BLOCK_SIZE -1) / LOGICAL_BLOCK_SIZE;
+		    LOGICAL_BLOCK_SIZE -1) >> LOGICAL_BLOCK_BITS;
 		location += block;
 		iso9660->total_file_block += block;
 	}
@@ -5488,9 +5434,10 @@ isoent_setup_file_location(struct iso9660 *iso9660, int location)
 		size = fd_boot_image_size(iso9660->el_torito.media_type);
 		if (size == 0)
 			size = archive_entry_size(isoent->file->entry);
-		block = (size + LOGICAL_BLOCK_SIZE -1) / LOGICAL_BLOCK_SIZE;
+		block = (size + LOGICAL_BLOCK_SIZE -1) >> LOGICAL_BLOCK_BITS;
 		location += block;
 		iso9660->total_file_block += block;
+		isoent->file->content.blocks = block;
 	}
 
 	depth = 0;
@@ -5503,7 +5450,7 @@ isoent_setup_file_location(struct iso9660 *iso9660, int location)
 		np = iso9660->primary.rootent;
 	}
 	do {
-		_isoent_file_location(iso9660, np, &location, &symlocation);
+		_isoent_file_location(iso9660, np, &symlocation);
 
 		if (np->subdirs.first != NULL &&
 		    (joliet ||
@@ -5527,6 +5474,24 @@ isoent_setup_file_location(struct iso9660 *iso9660, int location)
 			}
 		}
 	} while (np != np->parent);
+
+	total_block = 0;
+	for (file = iso9660->data_file_list.first;
+	    file != NULL; file = file->datanext) {
+
+		if (!file->write_content)
+			continue;
+
+		file->cur_content = &(file->content);
+		do {
+			file->cur_content->location = location;
+			location += file->cur_content->blocks;
+			total_block += file->cur_content->blocks;
+			/* Next fragument */
+			file->cur_content = file->cur_content->next;
+		} while (file->cur_content != NULL);
+	}
+	iso9660->total_file_block += total_block;
 }
 
 static int
@@ -7231,12 +7196,15 @@ fd_boot_image_size(int media_type)
 /*
  * Make a boot catalog image data.
  */
-static void
-make_boot_catalog(struct iso9660 *iso9660, unsigned char *block)
+static int
+make_boot_catalog(struct archive_write *a)
 {
+	struct iso9660 *iso9660 = a->format_data;
+	unsigned char *block;
 	unsigned char *p;
 	uint16_t sum, *wp;
 
+	block = wb_buffptr(a);
 	memset(block, 0, LOGICAL_BLOCK_SIZE);
 	p = block;
 	/*
@@ -7291,6 +7259,8 @@ make_boot_catalog(struct iso9660 *iso9660, unsigned char *block)
 	    iso9660->el_torito.boot->file->content.location);
 	/* Unused */
 	memset(&p[12], 0, 20);
+
+	return (wb_consume(a, LOGICAL_BLOCK_SIZE));
 }
 
 static int
