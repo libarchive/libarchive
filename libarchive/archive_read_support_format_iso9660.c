@@ -1591,7 +1591,7 @@ zisofs_read_data(struct archive_read *a,
 		}
 
 		if (!zisofs->initialized)
-			goto next_data; /* We need more datas. */
+			goto next_data; /* We need more data. */
 	}
 
 	/*
@@ -1602,21 +1602,26 @@ zisofs_read_data(struct archive_read *a,
 
 		if (zisofs->block_off + 4 >= zisofs->block_pointers_size) {
 			/* There isn't a pair of offsets. */
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Illegal zisofs block pointers");
 			return (ARCHIVE_FATAL);
 		}
-		bst = archive_le32dec(zisofs->block_pointers + zisofs->block_off);
+		bst = archive_le32dec(
+		    zisofs->block_pointers + zisofs->block_off);
 		if (bst != zisofs->pz_offset + (bytes_read - avail)) {
-			/* TODO: Should we seek offset of current file by bst ? */
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			/* TODO: Should we seek offset of current file
+			 * by bst ? */
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Illegal zisofs block pointers(cannot seek)");
 			return (ARCHIVE_FATAL);
 		}
 		bed = archive_le32dec(
 		    zisofs->block_pointers + zisofs->block_off + 4);
 		if (bed < bst) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Illegal zisofs block pointers");
 			return (ARCHIVE_FATAL);
 		}
@@ -1639,7 +1644,7 @@ zisofs_read_data(struct archive_read *a,
 	}
 
 	/*
-	 * Make uncompressed datas.
+	 * Make uncompressed data.
 	 */
 	if (zisofs->block_avail == 0) {
 		memset(zisofs->uncompressed_buffer, 0,
@@ -2389,12 +2394,14 @@ parse_rockridge_NM1(struct file_info *file,
 	case 0:
 		if (data_length < 2)
 			return;
-		archive_strncat(&file->name, (const char *)data + 1, data_length - 1);
+		archive_strncat(&file->name,
+		    (const char *)data + 1, data_length - 1);
 		break;
 	case 1:
 		if (data_length < 2)
 			return;
-		archive_strncat(&file->name, (const char *)data + 1, data_length - 1);
+		archive_strncat(&file->name,
+		    (const char *)data + 1, data_length - 1);
 		file->name_continues = 1;
 		break;
 	case 2:
@@ -2633,7 +2640,8 @@ next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
 	if (file->size == 0)
 		file->offset = iso9660->current_position;
 
-	/* flush any remaining bytes from the last round to ensure we're positioned */
+	/* flush any remaining bytes from the last round to ensure
+	 * we're positioned */
 	if (iso9660->entry_bytes_unconsumed) {
 		__archive_read_consume(a, iso9660->entry_bytes_unconsumed);
 		iso9660->entry_bytes_unconsumed = 0;
@@ -2791,7 +2799,8 @@ cache_get_entry(struct iso9660 *iso9660)
 	if ((file = iso9660->cache_files.first) != NULL) {
 		iso9660->cache_files.first = file->next;
 		if (iso9660->cache_files.first == NULL)
-			iso9660->cache_files.last = &(iso9660->cache_files.first);
+			iso9660->cache_files.last =
+			    &(iso9660->cache_files.first);
 		iso9660->cache_files.count--;
 	}
 	return (file);
