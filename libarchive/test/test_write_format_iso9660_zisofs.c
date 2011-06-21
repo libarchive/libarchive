@@ -35,7 +35,7 @@ static const unsigned char volumesize[] = {
     0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x23
 };
 static const unsigned char volumesize2[] = {
-    0xa1, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xa1
+    0x36, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x36
 };
 static const unsigned char volumesize3[] = {
     0x28, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28
@@ -328,7 +328,7 @@ test_write_format_iso9660_zisofs_2(void)
 	struct archive *a;
 	struct archive_entry *ae;
 	unsigned char *buff;
-	size_t buffsize = 162 * 2048;
+	size_t buffsize = 60 * 2048;
 	size_t used;
 	unsigned int i;
 	int r;
@@ -364,9 +364,13 @@ test_write_format_iso9660_zisofs_2(void)
 	archive_entry_free(ae);
 	for (i = 0; i < 256; i++) {
 		int j;
-		srand(i);
-		for (j = 0; j < sizeof(data); j++)
-			data[j] = rand() & 0xff;
+		if (i == 0) {
+			for (j = 0; j < sizeof(data); j++)
+				data[j] = (i^j) & 0xff;
+		} else {
+			for (j = 0; j < sizeof(data); j++)
+				data[j] ^= i+j;
+		}
 		assertEqualIntA(a, 1024, archive_write_data(a, data, 1024));
 	}
 
@@ -425,8 +429,8 @@ test_write_format_iso9660_zisofs_2(void)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
 
-	failure("The ISO image size should be 329728 bytes.");
-	assertEqualInt(used, 2048 * 161);
+	failure("The ISO image size should be 110592 bytes.");
+	assertEqualInt(used, 2048 * 54);
 
 	/* Check System Area. */
 	for (i = 0; i < 2048 * 16; i++) {
@@ -468,16 +472,16 @@ test_write_format_iso9660_zisofs_2(void)
 	/* "file2"  Contents is not zisofs data. */
 	memset(data, 'a', sizeof(data));
 	failure("file2 image should not be zisofs'ed.");
-	assertEqualMem(buff+2048*158, data, 1024);
+	assertEqualMem(buff+2048*51, data, 1024);
 	memset(data, 'b', sizeof(data));
 	failure("file2 image should not be zisofs'ed.");
-	assertEqualMem(buff+2048*158+1024, data, 1024);
+	assertEqualMem(buff+2048*51+1024, data, 1024);
 	/* "file3"  Contents is zisofs data. */
 	failure("file3 image should be zisofs'ed.");
-	assertEqualMem(buff+2048*159, zisofs_magic, 8);
+	assertEqualMem(buff+2048*52, zisofs_magic, 8);
 	/* "file4"  Contents is zisofs data. */
 	failure("file4 image should be zisofs'ed.");
-	assertEqualMem(buff+2048*160, zisofs_magic, 8);
+	assertEqualMem(buff+2048*53, zisofs_magic, 8);
 
 	/*
 	 * Read ISO image.
