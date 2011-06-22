@@ -83,10 +83,15 @@ struct archive_entry {
 	 */
 
 	/*
-	 * Read archive_entry_copy_stat.c for an explanation of why I
-	 * don't just use "struct stat" instead of "struct aest" here
-	 * and why I have this odd pointer to a separately-allocated
-	 * struct stat.
+	 * We have a "struct aest" for holding file metadata rather than just
+	 * a "struct stat" because on some platforms the "struct stat" has
+	 * fields which are too narrow to hold the range of possible values;
+	 * we don't want to lose information if we read an archive and write
+	 * out another (e.g., in "tar -cf new.tar @old.tar").
+	 *
+	 * The "stat" pointer points to some form of platform-specific struct
+	 * stat; it is declared as a void * rather than a struct stat * as
+	 * some platforms have multiple varieties of stat structures.
 	 */
 	void *stat;
 	int  stat_valid; /* Set to 0 whenever a field in aest changes. */
