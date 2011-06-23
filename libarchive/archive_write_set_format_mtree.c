@@ -121,7 +121,7 @@ struct mtree_writer {
 		struct mtree_entry *me_first;
 		struct mtree_entry **me_last;
 	} set;
-	/* chekc sum */
+	/* check sum */
 	int compute_sum;
 	uint32_t crc;
 	uint64_t crc_len;
