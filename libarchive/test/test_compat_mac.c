@@ -38,9 +38,9 @@ __FBSDID("$FreeBSD$");
  * Apple shipped an extended version of GNU tar with Mac OX X 10.5
  * and earlier.
  */
-DEFINE_TEST(test_compat_mac_gnutar)
+void test_compat_mac_1()
 {
-	char name[] = "test_compat_mac_gnutar.tar.Z";
+	char name[] = "test_compat_mac-1.tar.Z";
 	struct archive_entry *ae;
 	struct archive *a;
 	const void *attr;
@@ -126,5 +126,64 @@ DEFINE_TEST(test_compat_mac_gnutar)
 
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+/*
+ * Apple shipped a customized version of bsdtar starting with MacOS 10.6.
+ */
+void test_compat_mac_2()
+{
+	char name[] = "test_compat_mac-2.tar.Z";
+	struct archive_entry *ae;
+	struct archive *a;
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	extract_reference_file(name);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, name, 10240));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("./", archive_entry_pathname(ae));
+	assertEqualInt(1303628303, archive_entry_mtime(ae));
+	assertEqualInt(501, archive_entry_uid(ae));
+	assertEqualString("tim", archive_entry_uname(ae));
+	assertEqualInt(20, archive_entry_gid(ae));
+	assertEqualString("staff", archive_entry_gname(ae));
+	assertEqualInt(040755, archive_entry_mode(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("./mydir/", archive_entry_pathname(ae));
+	assertEqualInt(1303628303, archive_entry_mtime(ae));
+	assertEqualInt(501, archive_entry_uid(ae));
+	assertEqualString("tim", archive_entry_uname(ae));
+	assertEqualInt(20, archive_entry_gid(ae));
+	assertEqualString("staff", archive_entry_gname(ae));
+	assertEqualInt(040755, archive_entry_mode(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("./myfile", archive_entry_pathname(ae));
+	assertEqualInt(1303628303, archive_entry_mtime(ae));
+	assertEqualInt(501, archive_entry_uid(ae));
+	assertEqualString("tim", archive_entry_uname(ae));
+	assertEqualInt(20, archive_entry_gid(ae));
+	assertEqualString("staff", archive_entry_gname(ae));
+	assertEqualInt(0100644, archive_entry_mode(ae));
+
+	/* Verify the end-of-archive. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	/* Verify that the format detection worked. */
+	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_COMPRESS);
+	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
+
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_compat_mac)
+{
+	test_compat_mac_1();
+	test_compat_mac_2();
 }
 

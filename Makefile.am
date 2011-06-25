@@ -272,7 +272,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_compat_gzip.c			\
 	libarchive/test/test_compat_lzip.c			\
 	libarchive/test/test_compat_lzma.c			\
-	libarchive/test/test_compat_mac_gnutar.c		\
+	libarchive/test/test_compat_mac.c			\
 	libarchive/test/test_compat_pax_libarchive_2x.c		\
 	libarchive/test/test_compat_solaris_tar_acl.c		\
 	libarchive/test/test_compat_tar_hardlink.c		\
