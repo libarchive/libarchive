@@ -1542,11 +1542,11 @@ cab_read_ahead_cfdata_deflate(struct archive_read *a, ssize_t *avail)
 	}
 
 	/*
-	 * Note: I doubt there is a bug in makecab.exe because compressed
-	 * bytes are still remaining regardless we have gotten all
-	 * uncompressed bytes, which size is recoded in CFDATA, as much as
-	 * we need and we have to use the garbage to compute the sum of
-	 * CFDATA.
+	 * Note: I suspect there is a bug in makecab.exe because, in rare
+	 * case, compressed bytes are still remaining regardless we have
+	 * gotten all uncompressed bytes, which size is recoded in CFDATA,
+	 * as much as we need, and we have to use the garbage so as to
+	 * correctly compute the sum of CFDATA accordingly.
 	 */
 	if (cfdata->compressed_bytes_remaining > 0) {
 		ssize_t bytes_avail;
