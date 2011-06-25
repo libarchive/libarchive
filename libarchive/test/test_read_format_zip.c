@@ -80,6 +80,9 @@ test_basic(void)
 	failure("file2 has a bad CRC, so reading to end should fail");
 	assertEqualInt(ARCHIVE_WARN, archive_read_data(a, buff, 19));
 	assertEqualMem(buff, "hello\nhello\nhello\n", 18);
+        /* Verify the number of files read. */
+	failure("the archive file has three files");
+	assertEqualInt(3, archive_file_count(a));
 	assertA(archive_compression(a) == ARCHIVE_COMPRESSION_NONE);
 	assertA(archive_format(a) == ARCHIVE_FORMAT_ZIP);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
@@ -126,6 +129,10 @@ test_info_zip_ux(void)
 	assertEqualInt(18, r);
 	assertEqualMem(buff, "hello\nhello\nhello\n", 18);
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+        /* Verify the number of files read. */
+	failure("the archive file has just one file");
+	assertEqualInt(1, archive_file_count(a));
 
 	assertA(archive_compression(a) == ARCHIVE_COMPRESSION_NONE);
 	assertA(archive_format(a) == ARCHIVE_FORMAT_ZIP);

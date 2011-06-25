@@ -42,6 +42,7 @@ DEFINE_TEST(test_read_format_iso_gz)
 	    archive_read_open_filename(a, name, 512));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_next_header(a, &ae));
+	assertEqualInt(1, archive_file_count(a));
 	assertEqualInt(archive_compression(a),
 	    ARCHIVE_COMPRESSION_COMPRESS);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_ISO9660);

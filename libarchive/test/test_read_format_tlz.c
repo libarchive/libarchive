@@ -53,6 +53,7 @@ DEFINE_TEST(test_read_format_tlz)
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_open_memory(a, archive, sizeof(archive)));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(1, archive_file_count(a));
 	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_LZMA);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));

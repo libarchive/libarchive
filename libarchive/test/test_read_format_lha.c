@@ -229,8 +229,22 @@ verify(const char *refname, int posix)
 	assertEqualInt(file2_size, archive_read_data(a, buff, file2_size));
 	assertEqualMem(buff, file2, file2_size);
 
+	/* Verify the number of files read. */
+	if (posix) {
+		assertEqualInt(6, archive_file_count(a));
+	} else {
+		assertEqualInt(4, archive_file_count(a));
+	}
+
 	/* End of archive. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	/* Verify the number of files read. */
+	if (posix) {
+		assertEqualInt(6, archive_file_count(a));
+	} else {
+		assertEqualInt(4, archive_file_count(a));
+	}
 
 	/* Verify archive format. */
 	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));

@@ -671,6 +671,9 @@ static void verify(unsigned char *d, size_t s,
 		assertEqualInt(archive_format(a), ARCHIVE_FORMAT_XAR);
 		/* Verify the only entry. */
 		f2(a, ae);
+		assertEqualInt(2, archive_file_count(a));
+	} else {
+		assertEqualInt(1, archive_file_count(a));
 	}
 	/* End of archive. */
 	assertEqualInt(ARCHIVE_EOF, archive_read_next_header(a, &ae));

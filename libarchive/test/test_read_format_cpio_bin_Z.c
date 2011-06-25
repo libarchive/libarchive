@@ -43,6 +43,7 @@ DEFINE_TEST(test_read_format_cpio_bin_Z)
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_open_memory(a, archive, sizeof(archive)));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(1, archive_file_count(a));
 	failure("archive_compression_name(a)=\"%s\"",
 	    archive_compression_name(a));
 	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_COMPRESS);

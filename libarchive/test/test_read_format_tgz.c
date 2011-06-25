@@ -50,6 +50,7 @@ DEFINE_TEST(test_read_format_tgz)
 	assertEqualInt(ARCHIVE_OK,
 	    archive_read_open_memory(a, archive, sizeof(archive)));
 	assertEqualInt(ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(1, archive_file_count(a));
 	assertEqualInt(archive_compression(a),
 	    ARCHIVE_COMPRESSION_GZIP);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);

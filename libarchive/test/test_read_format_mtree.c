@@ -105,6 +105,7 @@ test_read_format_mtree1(void)
 	assertEqualString(archive_entry_pathname(ae), "notindir");
 
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualInt(12, archive_file_count(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
@@ -130,6 +131,7 @@ test_read_format_mtree2(void)
 	assertEqualString(archive_entry_pathname(ae), "d");
 	assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualInt(1, archive_file_count(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
@@ -170,6 +172,7 @@ test_read_format_mtree3(void)
 	assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
 
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualInt(3, archive_file_count(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
@@ -251,6 +254,7 @@ test_read_format_mtree4(void)
 	assertEqualString(archive_entry_pathname(ae), "notindir");
 
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualInt(12, archive_file_count(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 

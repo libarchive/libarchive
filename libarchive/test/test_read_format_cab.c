@@ -250,6 +250,12 @@ verify(const char *refname, enum comp_type comp)
 	/* End of archive. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
+	if (comp != STORE) {
+		assertEqualInt(4, archive_file_count(a));
+	} else {
+		assertEqualInt(3, archive_file_count(a));
+	}
+
 	/* Verify archive format. */
 	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
 	assertEqualIntA(a, ARCHIVE_FORMAT_CAB, archive_format(a));
