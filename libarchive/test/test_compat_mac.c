@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 	"abcdefghijklmnopqrstuvwxyz/"
 
 /*
- * Apple shipped an extended version of GNU tar with Mac OX X 10.5
+ * Apple shipped an extended version of GNU tar with Mac OS X 10.5
  * and earlier.
  */
 void test_compat_mac_1()
@@ -103,6 +103,7 @@ void test_compat_mac_1()
 	attr = archive_entry_mac_metadata(ae, &attrSize);
 	assert(attr != NULL);
 	assertEqualInt(225, attrSize);
+	assertEqualMem("\x00\x05\x16\x07\x00\x02\x00\x00Mac OS X", attr, 16);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("file", archive_entry_pathname(ae));
@@ -116,6 +117,7 @@ void test_compat_mac_1()
 	attr = archive_entry_mac_metadata(ae, &attrSize);
 	assert(attr != NULL);
 	assertEqualInt(225, attrSize);
+	assertEqualMem("\x00\x05\x16\x07\x00\x02\x00\x00Mac OS X", attr, 16);
 
 	/* Verify the end-of-archive. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
@@ -136,6 +138,8 @@ void test_compat_mac_2()
 	char name[] = "test_compat_mac-2.tar.Z";
 	struct archive_entry *ae;
 	struct archive *a;
+	const void *attr;
+	size_t attrSize;
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -152,6 +156,10 @@ void test_compat_mac_2()
 	assertEqualString("staff", archive_entry_gname(ae));
 	assertEqualInt(040755, archive_entry_mode(ae));
 
+	attr = archive_entry_mac_metadata(ae, &attrSize);
+	assert(attr == NULL);
+	assertEqualInt(0, attrSize);
+
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("./mydir/", archive_entry_pathname(ae));
 	assertEqualInt(1303628303, archive_entry_mtime(ae));
@@ -161,6 +169,11 @@ void test_compat_mac_2()
 	assertEqualString("staff", archive_entry_gname(ae));
 	assertEqualInt(040755, archive_entry_mode(ae));
 
+	attr = archive_entry_mac_metadata(ae, &attrSize);
+	assert(attr != NULL);
+	assertEqualInt(267, attrSize);
+	assertEqualMem("\x00\x05\x16\x07\x00\x02\x00\x00Mac OS X", attr, 16);
+
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("./myfile", archive_entry_pathname(ae));
 	assertEqualInt(1303628303, archive_entry_mtime(ae));
@@ -169,6 +182,11 @@ void test_compat_mac_2()
 	assertEqualInt(20, archive_entry_gid(ae));
 	assertEqualString("staff", archive_entry_gname(ae));
 	assertEqualInt(0100644, archive_entry_mode(ae));
+
+	attr = archive_entry_mac_metadata(ae, &attrSize);
+	assert(attr != NULL);
+	assertEqualInt(267, attrSize);
+	assertEqualMem("\x00\x05\x16\x07\x00\x02\x00\x00Mac OS X", attr, 16);
 
 	/* Verify the end-of-archive. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));

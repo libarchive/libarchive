@@ -1300,9 +1300,7 @@ read_mac_metadata_blob(struct archive_read *a, struct tar *tar,
 
  	/* Read the body as a Mac OS metadata blob. */
 	size = archive_entry_size(entry);
-	*unconsumed = (size + 511) & ~ 511;
 
-	tar_flush_unconsumed(a, unconsumed);
 	/*
 	 * TODO: Look beyond the body here to peek at the next header.
 	 * If it's a regular header (not an extension header)
@@ -1321,6 +1319,8 @@ read_mac_metadata_blob(struct archive_read *a, struct tar *tar,
 		return (ARCHIVE_FATAL);
 	}
 	archive_entry_copy_mac_metadata(entry, data, size);
+	*unconsumed = (size + 511) & ~ 511;
+	tar_flush_unconsumed(a, unconsumed);
 	return (tar_read_header(a, tar, entry, unconsumed));
 }
 
