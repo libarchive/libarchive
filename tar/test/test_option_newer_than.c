@@ -36,6 +36,8 @@ DEFINE_TEST(test_option_newer_than)
    */
   assertMakeDir("test1in", 0755);
   assertChdir("test1in");
+  assertMakeDir("a", 0755);
+  assertMakeDir("a/b", 0755);
   assertMakeFile("old.txt", 0644, "old.txt");
   assertEqualInt(0, stat("old.txt", &st));
   sleepUntilAfter(st.st_mtime);
@@ -43,10 +45,11 @@ DEFINE_TEST(test_option_newer_than)
   assertEqualInt(0, stat("middle.txt", &st));
   sleepUntilAfter(st.st_mtime);
   assertMakeFile("new.txt", 0644, "new");
+  assertMakeFile("a/b/new.txt", 0644, "new file in old directory");
 
   /* Test --newer-than on create */
-  assertEqualInt(0, systemf("%s -cf ../test1.tar --newer-than middle.txt *.txt", testprog));
-  assertEqualInt(0, systemf("%s -cf ../test2.tar *.txt", testprog));
+  assertEqualInt(0, systemf("%s -cf ../test1.tar --newer-than middle.txt *.txt a", testprog));
+  assertEqualInt(0, systemf("%s -cf ../test2.tar *.txt a", testprog));
   assertChdir("..");
 
   /* Extract test1.tar to a clean dir and verify what got archived. */
@@ -54,6 +57,7 @@ DEFINE_TEST(test_option_newer_than)
   assertChdir("test1out");
   assertEqualInt(0, systemf("%s xf ../test1.tar", testprog));
   assertFileExists("new.txt");
+  assertFileExists("a/b/new.txt");
   assertFileNotExists("middle.txt");
   assertFileNotExists("old.txt");
   assertChdir("..");
@@ -63,11 +67,9 @@ DEFINE_TEST(test_option_newer_than)
   assertChdir("test2out");
   assertEqualInt(0, systemf("%s xf ../test2.tar --newer-than ../test1in/middle.txt", testprog));
   assertFileExists("new.txt");
+  assertFileExists("a/b/new.txt");
   assertFileNotExists("middle.txt");
   assertFileNotExists("old.txt");
   assertChdir("..");
-
-  /* TODO: old dir containing new file, should descend into dir to visit file even though we don't archive it. */
-  // rm -rf t && mkdir -p t/a/b && cd t && sleep 1 && touch TIMESTAMP && sleep 1 && touch a/b/test && ../bin/bsdtar cvf /dev/null --newer-than TIMESTAMP a && cd ..
 
 }
