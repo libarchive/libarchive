@@ -2455,14 +2455,12 @@ invalid_sequence:
 static int
 utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 {
-	uint32_t wc;
 	int cnt;
 
-	cnt = _utf8_to_unicode(&wc, s, n);
+	cnt = _utf8_to_unicode(pwc, s, n);
 	/* Any of Surrogate pair is not leagal Unicode values. */
-	if (cnt == 3 && IS_SURROGATE_PAIR_LA(wc))
+	if (cnt == 3 && IS_SURROGATE_PAIR_LA(*pwc))
 		return (-3);
-	*pwc = wc;
 	return (cnt);
 }
 
