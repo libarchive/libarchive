@@ -65,6 +65,8 @@ static struct {
 	{0, "test_read_format_ar.ar"},
 	{0, "test_read_format_cpio_bin_be.cpio"},
 	{0, "test_read_format_cpio_svr4_gzip_rpm.rpm"}, /* Test RPM unwrapper */
+	{0, "test_read_format_rar.rar"}, /* Uncompressed RAR test */
+	{0, "test_read_format_rar_subblock.rar"}, /* RAR with subblocks */
 	{0, "test_read_format_gtar_sparse_1_17_posix10_modified.tar"},
 	{0, "test_read_format_mtree.mtree"},
 	{0, "test_read_format_tar_empty_filename.tar"},

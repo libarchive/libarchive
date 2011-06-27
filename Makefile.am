@@ -137,6 +137,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_read_support_format_iso9660.c	\
 	libarchive/archive_read_support_format_lha.c		\
 	libarchive/archive_read_support_format_mtree.c		\
+	libarchive/archive_read_support_format_rar.c		\
 	libarchive/archive_read_support_format_raw.c		\
 	libarchive/archive_read_support_format_tar.c		\
 	libarchive/archive_read_support_format_xar.c		\
@@ -336,6 +337,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_format_lha_filename.c		\
 	libarchive/test/test_read_format_mtree.c		\
 	libarchive/test/test_read_format_pax_bz2.c		\
+	libarchive/test/test_read_format_rar.c			\
 	libarchive/test/test_read_format_raw.c			\
 	libarchive/test/test_read_format_tar.c			\
 	libarchive/test/test_read_format_tar_empty_filename.c	\
@@ -480,6 +482,9 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_lha_withjunk.lzh.uu		\
 	libarchive/test/test_read_format_mtree.mtree.uu			\
 	libarchive/test/test_read_format_mtree_nomagic.mtree.uu		\
+	libarchive/test/test_read_format_rar.rar.uu			\
+	libarchive/test/test_read_format_rar_noeof.rar.uu		\
+	libarchive/test/test_read_format_rar_subblock.rar.uu		\
 	libarchive/test/test_read_format_raw.data.Z.uu			\
 	libarchive/test/test_read_format_raw.data.uu			\
 	libarchive/test/test_read_format_tar_empty_filename.tar.uu	\

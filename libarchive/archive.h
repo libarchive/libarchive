@@ -273,6 +273,7 @@ typedef int	archive_close_callback(struct archive *, void *_client_data);
 #define	ARCHIVE_FORMAT_XAR			0xA0000
 #define	ARCHIVE_FORMAT_LHA			0xB0000
 #define	ARCHIVE_FORMAT_CAB			0xC0000
+#define	ARCHIVE_FORMAT_RAR			0xD0000
 
 /*-
  * Basic outline for reading an archive:
@@ -345,6 +346,7 @@ __LA_DECL int archive_read_support_format_raw(struct archive *);
 __LA_DECL int archive_read_support_format_tar(struct archive *);
 __LA_DECL int archive_read_support_format_xar(struct archive *);
 __LA_DECL int archive_read_support_format_zip(struct archive *);
+__LA_DECL int archive_read_support_format_rar(struct archive *);
 
 /* Set various callbacks. */
 __LA_DECL int archive_read_set_open_callback(struct archive *,

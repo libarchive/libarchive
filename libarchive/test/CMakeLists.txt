@@ -5,7 +5,7 @@
 ############################################
 IF(ENABLE_TEST)
   SET(libarchive_test_SOURCES
-    main.c
+   main.c
     read_open_memory.c
     test.h
     test_acl_freebsd.c
@@ -104,6 +104,7 @@ IF(ENABLE_TEST)
     test_read_format_lha_filename.c
     test_read_format_mtree.c
     test_read_format_pax_bz2.c
+    test_read_format_rar.c
     test_read_format_raw.c
     test_read_format_tar.c
     test_read_format_tar_empty_filename.c
