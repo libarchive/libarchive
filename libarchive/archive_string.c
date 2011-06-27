@@ -1135,14 +1135,17 @@ canonical_charset_name(const char *charset)
 {
 	char cs[16];
 	char *p;
+	const char *s;
 
-	if (charset == NULL || strlen(charset) > 15)
+	if (charset == NULL || charset[0] == '\0'
+	    || strlen(charset) > 15)
 		return (charset);
 
 	/* Copy name to uppercase. */
 	p = cs;
-	while (*charset) {
-		char c = *charset++;
+	s = charset;
+	while (*s) {
+		char c = *s++;
 		if (c >= 'a' && c <= 'z')
 			c -= 'a' - 'A';
 		*p++ = c;
