@@ -334,6 +334,30 @@ verify_sparse_file2(struct archive *a, const char *path,
 	archive_entry_free(ae);
 }
 
+static void
+test_sparse_whole_file_data()
+{
+	struct archive_entry *ae;
+	int64_t offset;
+	int i;
+
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_size(ae, 1024*10);
+
+	/*
+	 * Add sparse block data up to the file size.
+	 */
+	offset = 0;
+	for (i = 0; i < 10; i++) {
+		archive_entry_sparse_add_entry(ae, offset, 1024);
+		offset += 1024;
+	}
+
+	failure("There should be no sparse");
+	assertEqualInt(0, archive_entry_sparse_count(ae));
+	archive_entry_free(ae);
+}
+
 DEFINE_TEST(test_sparse_basic)
 {
 	char cwd[PATH_MAX+1];
@@ -387,6 +411,12 @@ DEFINE_TEST(test_sparse_basic)
 		{ HOLE,	 1024 }, { DATA, 10240 },
 		{ END,	0 }
 	};
+
+	/*
+	 * Test for the case that sparse data indicates just the whole file
+	 * data.
+	 */
+	test_sparse_whole_file_data();
 
 	/* Check if the filesystem where CWD on can
 	 * report the number of the holes of a sparse file. */

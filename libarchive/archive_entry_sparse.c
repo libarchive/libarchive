@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2003-2007 Tim Kientzle
- * Copyright (c) 2010 Michihiro NAKAJIMA
+ * Copyright (c) 2010-2011 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -108,7 +108,21 @@ archive_entry_sparse_count(struct archive_entry *entry)
 	for (sp = entry->sparse_head; sp != NULL; sp = sp->next)
 		count++;
 
-	return count;
+	/*
+	 * Sanity check if this entry is exactly sparse.
+	 * If amount of sparse blocks is just one and it indicates the whole
+	 * file data, we should remove it and return zero.
+	 */
+	if (count == 1) {
+		sp = entry->sparse_head;
+		if (sp->offset == 0 &&
+		    sp->length >= archive_entry_size(entry)) {
+			count = 0;
+			archive_entry_sparse_clear(entry);
+		}
+	}
+
+	return (count);
 }
 
 int
