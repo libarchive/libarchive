@@ -1127,6 +1127,40 @@ setup_converter(struct archive_string_conv *sc)
 }
 
 /*
+ * Return canonicalized charset-name but this supports just UTF-8, UTF-16BE
+ * and CP932 which are referenced in create_sconv_object().
+ */
+static const char *
+canonical_charset_name(const char *charset)
+{
+	char cs[16];
+	char *p;
+
+	if (charset == NULL || strlen(charset) > 15)
+		return (charset);
+
+	/* Copy name to uppercase. */
+	p = cs;
+	while (*charset) {
+		char c = *charset++;
+		if (c >= 'a' && c <= 'z')
+			c -= 'a' - 'A';
+		*p++ = c;
+	}
+	*p++ = '\0';
+
+	if (strcmp(cs, "UTF-8") == 0 ||
+	    strcmp(cs, "UTF8") == 0)
+		return ("UTF-8");
+	if (strcmp(cs, "UTF-16BE") == 0 ||
+	    strcmp(cs, "UTF16BE") == 0)
+		return ("UTF-16BE");
+	if (strcmp(cs, "CP932") == 0)
+		return ("CP932");
+	return (charset);
+}
+
+/*
  * Create a string conversion object.
  */
 static struct archive_string_conv *
@@ -1656,7 +1690,9 @@ get_sconv_object(struct archive *a, const char *fc, const char *tc, int flag)
 		current_codepage = get_current_codepage();
 	else
 		current_codepage = a->current_codepage;
-	sc = create_sconv_object(fc, tc, current_codepage, flag);
+
+	sc = create_sconv_object(canonical_charset_name(fc),
+	    canonical_charset_name(tc), current_codepage, flag);
 	if (sc == NULL) {
 		if (a != NULL)
 			archive_set_error(a, ENOMEM,

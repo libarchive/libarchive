@@ -477,8 +477,58 @@ test_archive_string_normalization(void)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+static void
+test_archive_string_canonicalization(void)
+{
+	struct archive *a;
+	struct archive_string_conv *sconv;
+
+	setlocale(LC_ALL, "en_US.UTF-8");
+
+	assert((a = archive_read_new()) != NULL);
+
+	assertA(NULL != (sconv =
+	    archive_string_conversion_to_charset(a, "UTF-8", 1)));
+	failure("Charset name should be UTF-8");
+	assertEqualString("UTF-8",
+	    archive_string_conversion_charset_name(sconv));
+
+	assertA(NULL != (sconv =
+	    archive_string_conversion_to_charset(a, "UTF8", 1)));
+	failure("Charset name should be UTF-8");
+	assertEqualString("UTF-8",
+	    archive_string_conversion_charset_name(sconv));
+
+	assertA(NULL != (sconv =
+	    archive_string_conversion_to_charset(a, "utf8", 1)));
+	failure("Charset name should be UTF-8");
+	assertEqualString("UTF-8",
+	    archive_string_conversion_charset_name(sconv));
+
+	assertA(NULL != (sconv =
+	    archive_string_conversion_to_charset(a, "UTF-16BE", 1)));
+	failure("Charset name should be UTF-16BE");
+	assertEqualString("UTF-16BE",
+	    archive_string_conversion_charset_name(sconv));
+
+	assertA(NULL != (sconv =
+	    archive_string_conversion_to_charset(a, "UTF16BE", 1)));
+	failure("Charset name should be UTF-16BE");
+	assertEqualString("UTF-16BE",
+	    archive_string_conversion_charset_name(sconv));
+
+	assertA(NULL != (sconv =
+	    archive_string_conversion_to_charset(a, "utf16be", 1)));
+	failure("Charset name should be UTF-16BE");
+	assertEqualString("UTF-16BE",
+	    archive_string_conversion_charset_name(sconv));
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+}
 
 DEFINE_TEST(test_archive_string_conversion)
 {
 	test_archive_string_normalization();
+	test_archive_string_canonicalization();
 }
