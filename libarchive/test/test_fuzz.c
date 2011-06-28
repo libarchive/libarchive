@@ -89,7 +89,7 @@ DEFINE_TEST(test_fuzz)
 		struct archive *a;
 		char *rawimage, *image;
 		size_t size;
-		int i;
+		int i, q;
 
 		extract_reference_file(filename);
 		if (files[n].uncompress) {
@@ -136,7 +136,9 @@ DEFINE_TEST(test_fuzz)
 
 			/* Fuzz < 1% of the bytes in the archive. */
 			memcpy(image, rawimage, size);
-			numbytes = (int)(rand() % (size / 100));
+			q = size / 100;
+			if (!q) q = 1;
+			numbytes = (int)(rand() % q);
 			for (j = 0; j < numbytes; ++j)
 				image[rand() % size] = (char)rand();
 
