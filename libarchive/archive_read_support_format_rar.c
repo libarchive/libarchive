@@ -481,7 +481,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
     header_size += rar->packed_size;
 
   filename_size = archive_le16dec(file_header.name_size);
-  if ((filename = malloc(filename_size)) == NULL)
+  if ((filename = malloc(filename_size+1)) == NULL)
     return (ARCHIVE_FATAL);
   memcpy(filename, p, filename_size);
   filename[filename_size] = '\0';
@@ -693,7 +693,7 @@ read_symlink_stored(struct archive_read *a, struct archive_entry *entry,
   if ((h = __archive_read_ahead(a, rar->packed_size, NULL)) == NULL)
     return (ARCHIVE_FATAL);
   p = h;
-  filename = malloc(rar->packed_size);
+  filename = malloc(rar->packed_size+1);
   memcpy(filename, p, rar->packed_size);
   filename[rar->packed_size] = '\0';
 
