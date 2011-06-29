@@ -502,12 +502,8 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   else
     sconv = archive_string_default_conversion_for_read(&(a->archive));
 
-#if !((defined(__WIN32__) || defined(_WIN32) || defined(__WIN32)) && !defined(__CYGWIN__))
   while ((strp = strchr(filename, '\\')) != NULL)
     *strp = '/';
-#else
-  (void)strp;
-#endif
   p += filename_size;
 
   if (rar->file_flags & FHD_SALT)
