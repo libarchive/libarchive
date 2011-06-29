@@ -365,9 +365,7 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 #if HAVE_REGEX_H
 	char *subst_name;
 	int r;
-#endif
 
-#if HAVE_REGEX_H
 	r = apply_substitution(bsdtar, name, &subst_name, 0);
 	if (r == -1) {
 		lafe_warnc(0, "Invalid substitution, skipping entry");

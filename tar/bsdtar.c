@@ -642,8 +642,6 @@ main(int argc, char **argv)
 		buff[1] = bsdtar->symlink_mode;
 		only_mode(bsdtar, buff, "cru");
 	}
-	if (bsdtar->strip_components != 0)
-		only_mode(bsdtar, "--strip-components", "xt");
 
 	/* Filename "-" implies stdio. */
 	if (strcmp(bsdtar->filename, "-") == 0)
