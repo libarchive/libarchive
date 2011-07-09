@@ -987,7 +987,6 @@ static int	isoent_cmp_key(const struct archive_rb_node *,
 static int	isoent_add_child_head(struct isoent *, struct isoent *);
 static int	isoent_add_child_tail(struct isoent *, struct isoent *);
 static void	isoent_remove_child(struct isoent *, struct isoent *);
-static void	isoent_trim_root_directory(struct iso9660 *);
 static void	isoent_setup_directory_location(struct iso9660 *,
 		    int, struct vdd *);
 static void	isoent_setup_file_location(struct iso9660 *, int);
@@ -1853,7 +1852,6 @@ iso9660_close(struct archive_write *a)
 	if (iso9660->birth_time == 0)
 #endif
 		time(&(iso9660->birth_time));
-	isoent_trim_root_directory(iso9660);
 
 	/*
 	 * Prepare a bootable ISO image.
@@ -5260,31 +5258,6 @@ isoent_remove_child(struct isoent *parent, struct isoent *child)
 
 	__archive_rb_tree_remove_node(&(parent->rbtree),
 	    (struct archive_rb_node *)child);
-}
-
-/*
- * Trim extra directories.
- * If the root directory is a virtual directory and has one sub-directory
- * only, the sub-direcotry become a new root directory.
- */
-static void
-isoent_trim_root_directory(struct iso9660 *iso9660)
-{
-	struct isoent *rootent, *child;
-
-	rootent = iso9660->primary.rootent;
-	while (rootent->virtual) {
-		if (rootent->children.cnt != 1)
-			break;
-		child = rootent->children.first;
-		if (child->dir) {
-			_isoent_free(rootent);
-			iso9660->primary.rootent = rootent = child;
-			rootent->parent = rootent;
-			iso9660->dircnt_max--;
-		} else
-			break;
-	}
 }
 
 static int
