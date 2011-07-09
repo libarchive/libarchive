@@ -1556,6 +1556,18 @@ iso9660_write_header(struct archive_write *a, struct archive_entry *entry)
 	}
 	else if (r < ret)
 		ret = r;
+
+	/*
+	 * Ignore a path which looks like the top of directory name
+	 * since we have already made the root directory of an ISO image.
+	 */
+	if (archive_strlen(&(file->parentdir)) == 0 &&
+	    archive_strlen(&(file->basename)) == 1 &&
+	    file->basename.s[0] == '.') {
+		isofile_free(file);
+		return (r);
+	}
+
 	isofile_add_entry(iso9660, file);
 	isoent = isoent_new(file);
 	if (isoent == NULL) {
