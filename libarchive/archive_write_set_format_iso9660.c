@@ -1645,14 +1645,19 @@ wb_write_to_temp(struct archive_write *a, const void *buff, size_t s)
 	size_t xs = s;
 
 	/*
-	 * If written data size is big enough to system-call
+	 * If a written data size is big enough to use system-call
 	 * and there is no waiting data, this calls write_to_temp() in
 	 * order to reduce a extra memory copy.
 	 */
 	if (wb_remaining(a) == wb_buffmax() && s > (1024 * 16)) {
 		struct iso9660 *iso9660 = (struct iso9660 *)a->format_data;
-		iso9660->wbuff_offset += s;
-		return (write_to_temp(a, buff, s));
+		xs = s % LOGICAL_BLOCK_SIZE;
+		iso9660->wbuff_offset += s - xs;
+		if (write_to_temp(a, buff, s - xs) != ARCHIVE_OK)
+			return (ARCHIVE_FATAL);
+		if (xs == 0)
+			return (ARCHIVE_OK);
+		xp += s - xs;
 	}
 
 	while (xs) {
