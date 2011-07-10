@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 Michihiro NAKAJIMA
+ * Copyright (c) 2010-2011 Michihiro NAKAJIMA
  * Copyright (c) 2008 Anselm Strauss
  * All rights reserved.
  *
@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 DEFINE_TEST(test_write_format_xar_empty)
 {
 	struct archive *a;
+	struct archive_entry *ae;
 	char buff[256];
 	size_t used;
 
@@ -49,6 +50,66 @@ DEFINE_TEST(test_write_format_xar_empty)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_bytes_in_last_block(a, 1));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	/* Add "." entry which must be ignored. */ 
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_atime(ae, 2, 0);
+	archive_entry_set_ctime(ae, 4, 0);
+	archive_entry_set_mtime(ae, 5, 0);
+	archive_entry_copy_pathname(ae, ".");
+	archive_entry_set_mode(ae, S_IFDIR | 0755);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+
+	/* Add ".." entry which must be ignored. */ 
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_atime(ae, 2, 0);
+	archive_entry_set_ctime(ae, 4, 0);
+	archive_entry_set_mtime(ae, 5, 0);
+	archive_entry_copy_pathname(ae, "..");
+	archive_entry_set_mode(ae, S_IFDIR | 0755);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+
+	/* Add "/" entry which must be ignored. */ 
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_atime(ae, 2, 0);
+	archive_entry_set_ctime(ae, 4, 0);
+	archive_entry_set_mtime(ae, 5, 0);
+	archive_entry_copy_pathname(ae, "/");
+	archive_entry_set_mode(ae, S_IFDIR | 0755);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+
+	/* Add "../" entry which must be ignored. */ 
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_atime(ae, 2, 0);
+	archive_entry_set_ctime(ae, 4, 0);
+	archive_entry_set_mtime(ae, 5, 0);
+	archive_entry_copy_pathname(ae, "../");
+	archive_entry_set_mode(ae, S_IFDIR | 0755);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+
+	/* Add "../../." entry which must be ignored. */ 
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_atime(ae, 2, 0);
+	archive_entry_set_ctime(ae, 4, 0);
+	archive_entry_set_mtime(ae, 5, 0);
+	archive_entry_copy_pathname(ae, "../../.");
+	archive_entry_set_mode(ae, S_IFDIR | 0755);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+
+	/* Add "..//.././" entry which must be ignored. */ 
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_atime(ae, 2, 0);
+	archive_entry_set_ctime(ae, 4, 0);
+	archive_entry_set_mtime(ae, 5, 0);
+	archive_entry_copy_pathname(ae, "..//.././");
+	archive_entry_set_mode(ae, S_IFDIR | 0755);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
 
 	/* Close out the archive without writing anything. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));

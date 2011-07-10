@@ -531,6 +531,16 @@ xar_write_header(struct archive_write *a, struct archive_entry *entry)
 	if (r2 < ARCHIVE_WARN)
 		return (r2);
 
+	/*
+	 * Ignore a path which looks like the top of directory name
+	 * since we have already made the root directory of an Xar archive.
+	 */
+	if (archive_strlen(&(file->parentdir)) == 0 &&
+	    archive_strlen(&(file->basename)) == 0) {
+		file_free(file);
+		return (r2);
+	}
+
 	/* Add entry into tree */
 	file_entry = file->entry;
 	r = file_tree(a, &file);
@@ -2027,22 +2037,24 @@ file_gen_utility_names(struct archive_write *a, struct file *file)
 	 */
 	cleanup_backslash(p, len);
 
-	if (p[0] == '/') {
-		p++;
-		len--;
-	}
 	/*
-	 * Remove leading '../' and './' elements
+	 * Remove leading '/', '../' and './' elements
 	 */
 	while (*p) {
-		if (p[0] != '.')
+		if (p[0] == '/') {
+			p++;
+			len--;
+		} else if (p[0] != '.')
 			break;
-		if (p[1] == '.' && p[2] == '/') {
+		else if (p[1] == '.' && p[2] == '/') {
 			p += 3;
 			len -= 3;
-		} else if (p[1] == '/') {
+		} else if (p[1] == '/' || (p[1] == '.' && p[2] == '\0')) {
 			p += 2;
 			len -= 2;
+		} else if (p[1] == '\0') {
+			p++;
+			len--;
 		} else
 			break;
 	}
