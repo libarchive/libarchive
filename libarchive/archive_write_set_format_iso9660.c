@@ -1562,8 +1562,7 @@ iso9660_write_header(struct archive_write *a, struct archive_entry *entry)
 	 * since we have already made the root directory of an ISO image.
 	 */
 	if (archive_strlen(&(file->parentdir)) == 0 &&
-	    archive_strlen(&(file->basename)) == 1 &&
-	    file->basename.s[0] == '.') {
+	    archive_strlen(&(file->basename)) == 0) {
 		isofile_free(file);
 		return (r);
 	}
@@ -4817,22 +4816,24 @@ isofile_gen_utility_names(struct archive_write *a, struct isofile *file)
 	len = file->parentdir.length;
 	p = dirname = file->parentdir.s;
 
-	if (p[0] == '/') {
-		p++;
-		len--;
-	}
 	/*
-	 * Remove leading '../' and './' elements
+	 * Remove leading '/', '../' and './' elements
 	 */
 	while (*p) {
-		if (p[0] != '.')
+		if (p[0] == '/') {
+			p++;
+			len--;
+		} else if (p[0] != '.')
 			break;
-		if (p[1] == '.' && p[2] == '/') {
+		else if (p[1] == '.' && p[2] == '/') {
 			p += 3;
 			len -= 3;
-		} else if (p[1] == '/') {
+		} else if (p[1] == '/' || (p[1] == '.' && p[2] == '\0')) {
 			p += 2;
 			len -= 2;
+		} else if (p[1] == '\0') {
+			p++;
+			len--;
 		} else
 			break;
 	}
