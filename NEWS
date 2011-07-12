@@ -1,3 +1,8 @@
+Feb 05, 2011: Fix issue 134: Improve handling of open failures
+Dec 06, 2010: Fix issue 119: Relax ISO verification
+Dec 06, 2010: Fix issue 121: mtree parsing
+Dec 05, 2010: Fix extraction of GNU tar 'D' directory entries
+Dec 05, 2010: Be less demanding in LZMA/XZ compression tests
 Jun 30, 2010: libarchive 2.8.4 released
 Jun 30, 2010: Improved reliability of hash function detection
 Jun 30, 2010: Fix issues on ancient FreeBSD, QNX, ancient NetBSD and Minix
