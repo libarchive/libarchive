@@ -38,7 +38,6 @@ EXTRA_DIST= \
 	build/clean.sh			\
 	build/cmake			\
 	build/version			\
-	build/windows			\
 	contrib				\
 	doc				\
 	examples			\
@@ -242,6 +241,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_fuzz.c				\
 	libarchive/test/test_entry_strmode.c			\
 	libarchive/test/test_link_resolver.c			\
+	libarchive/test/test_open_failure.c			\
 	libarchive/test/test_open_fd.c				\
 	libarchive/test/test_open_file.c			\
 	libarchive/test/test_open_filename.c			\
