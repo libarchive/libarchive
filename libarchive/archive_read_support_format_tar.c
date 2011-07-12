@@ -113,6 +113,7 @@ struct sparse_block {
 	struct sparse_block	*next;
 	int64_t	offset;
 	int64_t	remaining;
+	int hole;
 };
 
 struct tar {
@@ -207,6 +208,8 @@ static ssize_t	readline(struct archive_read *, struct tar *, const char **,
 		    ssize_t limit, size_t *);
 static int	read_body_to_string(struct archive_read *, struct tar *,
 		    struct archive_string *, const void *h, size_t *);
+static int	solaris_sparse_parse(struct archive_read *, struct tar *,
+		    struct archive_entry *, const char *);
 static int64_t	tar_atol(const char *, unsigned);
 static int64_t	tar_atol10(const char *, unsigned);
 static int64_t	tar_atol256(const char *, unsigned);
@@ -434,7 +437,6 @@ archive_read_format_tar_read_header(struct archive_read *a,
 	static int default_inode;
 	static int default_dev;
 	struct tar *tar;
-	struct sparse_block *sp;
 	const char *p;
 	int r;
 	size_t l, unconsumed = 0;
@@ -450,12 +452,7 @@ archive_read_format_tar_read_header(struct archive_read *a,
 
 	tar = (struct tar *)(a->format->data);
 	tar->entry_offset = 0;
-	while (tar->sparse_list != NULL) {
-		sp = tar->sparse_list;
-		tar->sparse_list = sp->next;
-		free(sp);
-	}
-	tar->sparse_last = NULL;
+	gnu_clear_sparse_list(tar);
 	tar->realsize = -1; /* Mark this as "unset" */
 
 	/* Setup default string conversion. */
@@ -485,8 +482,9 @@ archive_read_format_tar_read_header(struct archive_read *a,
 		struct sparse_block *sb;
 
 		for (sb = tar->sparse_list; sb != NULL; sb = sb->next) {
-			archive_entry_sparse_add_entry(entry,
-			    sb->offset, sb->remaining);
+			if (!sb->hole)
+				archive_entry_sparse_add_entry(entry,
+				    sb->offset, sb->remaining);
 		}
 	}
 
@@ -526,6 +524,7 @@ archive_read_format_tar_read_data(struct archive_read *a,
 
 	tar = (struct tar *)(a->format->data);
 
+skip_hole:
 	/* Remove exhausted entries from sparse list. */
 	while (tar->sparse_list != NULL &&
 	    tar->sparse_list->remaining == 0) {
@@ -570,6 +569,10 @@ archive_read_format_tar_read_data(struct archive_read *a,
 	tar->sparse_list->offset += bytes_read;
 	tar->entry_bytes_remaining -= bytes_read;
 	tar->entry_bytes_unconsumed = bytes_read;
+
+	if (tar->sparse_list->hole)
+		goto skip_hole;
+
 	return (ARCHIVE_OK);
 }
 
@@ -1817,6 +1820,17 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 		} else if (strcmp(key, "SCHILY.realsize")==0) {
 			tar->realsize = tar_atol10(value, strlen(value));
 			archive_entry_set_size(entry, tar->realsize);
+		} else if (strcmp(key, "SUN.holesdata")==0) {
+			/* A Solaris extension for sparse. */
+			r = solaris_sparse_parse(a, tar, entry, value);
+			if (r < err) {
+				if (r == ARCHIVE_FATAL)
+					return (r);
+				err = r;
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "Parse error: SUN.holesdata");
+			}
 		}
 		break;
 	case 'a':
@@ -2311,6 +2325,49 @@ gnu_sparse_10_read(struct archive_read *a, struct tar *tar, size_t *unconsumed)
 	if (to_skip != __archive_read_consume(a, to_skip))
 		return (ARCHIVE_FATAL);
 	return (bytes_read + to_skip);
+}
+
+/*
+ * Solaris pax extension for a sparse file. This is recorded with the
+ * data and hole pairs. The way recording sparse infomation by Solaris'
+ * pax simply indicates where is data or sparse, so the stored contents
+ * consist of both data and hole.
+ */
+static int
+solaris_sparse_parse(struct archive_read *a, struct tar *tar,
+    struct archive_entry *entry, const char *p)
+{
+	const char *e;
+	int64_t start, end;
+	int hole = 1;
+
+	end = 0;
+	if (*p == ' ')
+		p++;
+	else
+		return (ARCHIVE_WARN);
+	for (;;) {
+		e = p;
+		while (*e != '\0' && *e != ' ') {
+			if (*e < '0' || *e > '9')
+				return (ARCHIVE_WARN);
+			e++;
+		}
+		start = end;
+		end = tar_atol10(p, e - p);
+		if (end < 0)
+			return (ARCHIVE_WARN);
+		if (start < end) {
+			if (gnu_add_sparse_entry(a, tar, start,
+			    end - start) != ARCHIVE_OK)
+				return (ARCHIVE_FATAL);
+			tar->sparse_last->hole = hole;
+		}
+		if (*e == '\0')
+			return (ARCHIVE_OK);
+		p = e + 1;
+		hole = hole == 0;
+	}
 }
 
 /*-
