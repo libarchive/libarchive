@@ -2196,6 +2196,7 @@ file_tree(struct archive_write *a, struct file **filepp)
 #endif
 	struct xar *xar = (struct xar *)a->format_data;
 	struct file *dent, *file, *np;
+	struct archive_entry *ent;
 	const char *fn, *p;
 	int l;
 
@@ -2348,16 +2349,13 @@ same_entry:
 		*filepp = NULL;
 		return (ARCHIVE_FAILED);
 	}
-	if (archive_entry_mtime(np->entry) <
-	    archive_entry_mtime(file->entry) || np->virtual) {
-		/* Swap files. */
-		struct archive_entry *ent;
 
-		ent = np->entry;
-		np->entry = file->entry;
-		file->entry = ent;
-		np->virtual = 0;
-	}
+	/* Swap files. */
+	ent = np->entry;
+	np->entry = file->entry;
+	file->entry = ent;
+	np->virtual = 0;
+
 	file_free(file);
 	*filepp = np;
 	return (ARCHIVE_OK);

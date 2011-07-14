@@ -5676,13 +5676,12 @@ same_entry:
 		*isoentpp = NULL;
 		return (ARCHIVE_FAILED);
 	}
-	if (archive_entry_mtime(f1->entry) <
-	    archive_entry_mtime(f2->entry) || np->virtual) {
-		/* Swap file entries. */
-		np->file = f2;
-		isoent->file = f1;
-		np->virtual = 0;
-	}
+
+	/* Swap file entries. */
+	np->file = f2;
+	isoent->file = f1;
+	np->virtual = 0;
+
 	_isoent_free(isoent);
 	*isoentpp = np;
 	return (ARCHIVE_OK);
