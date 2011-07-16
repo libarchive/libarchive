@@ -484,8 +484,9 @@ drive_compressor(struct archive_write_filter *f,
 			archive_set_error(f->archive, ENOMEM,
 			    "lzma compression error: "
 			    "%ju MiB would have been needed",
-			    (lzma_memusage(&(data->stream)) + 1024 * 1024 -1)
-			    / (1024 * 1024));
+			    (uintmax_t)((lzma_memusage(&(data->stream))
+				    + 1024 * 1024 -1)
+				/ (1024 * 1024)));
 			return (ARCHIVE_FATAL);
 		default:
 			/* Any other return value indicates an error. */
