@@ -66,6 +66,10 @@ static struct {
 	{0, "test_read_format_cpio_bin_be.cpio"},
 	{0, "test_read_format_cpio_svr4_gzip_rpm.rpm"}, /* Test RPM unwrapper */
 	{0, "test_read_format_rar.rar"}, /* Uncompressed RAR test */
+	{0, "test_read_format_rar_compress_normal.rar"}, /* Normal Compressed RAR
+	                                                  * test */
+	{0, "test_read_format_rar_multi_lzss_blocks.rar"}, /* Normal Compressed Multi
+	                                                    * LZSS blocks RAR test */
 	{0, "test_read_format_rar_noeof.rar"}, /* RAR with no EOF header */
 	{0, "test_read_format_rar_subblock.rar"}, /* RAR with subblocks */
 	{0, "test_read_format_gtar_sparse_1_17_posix10_modified.tar"},

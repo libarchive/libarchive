@@ -30,6 +30,7 @@
 #include <errno.h>
 #endif
 #include <time.h>
+#include <limits.h>
 
 #include "archive.h"
 #include "archive_endian.h"
@@ -83,15 +84,15 @@
 #define FHD_EXTFLAGS     0x2000
 
 /* File dictionary sizes */
-#define DICTIONARY_SIZE_64   0
-#define DICTIONARY_SIZE_128  1
-#define DICTIONARY_SIZE_256  2
-#define DICTIONARY_SIZE_512  3
-#define DICTIONARY_SIZE_1024 4
-#define DICTIONARY_SIZE_2048 5
-#define DICTIONARY_SIZE_4096 6
-
-#define FILE_IS_DIRECTORY    7
+#define DICTIONARY_SIZE_64   0x00
+#define DICTIONARY_SIZE_128  0x20
+#define DICTIONARY_SIZE_256  0x40
+#define DICTIONARY_SIZE_512  0x60
+#define DICTIONARY_SIZE_1024 0x80
+#define DICTIONARY_SIZE_2048 0xA0
+#define DICTIONARY_SIZE_4096 0xC0
+#define FILE_IS_DIRECTORY    0xE0
+#define DICTIONARY_MASK      FILE_IS_DIRECTORY
 
 /* OS Flags */
 #define OS_MSDOS  0
@@ -114,6 +115,18 @@
 #define CRC_POLYNOMIAL 0xEDB88320
 
 #define NS_UNIT 10000000
+
+#define DICTIONARY_MAX_SIZE 0x400000
+
+#define MAINCODE_SIZE      299
+#define OFFSETCODE_SIZE    60
+#define LOWOFFSETCODE_SIZE 17
+#define LENGTHCODE_SIZE    28
+#define HUFFMAN_TABLE_SIZE \
+  MAINCODE_SIZE + OFFSETCODE_SIZE + LOWOFFSETCODE_SIZE + LENGTHCODE_SIZE
+
+#define MAX_SYMBOL_LENGTH 0xF
+#define MAX_SYMBOLS       20
 
 /* Define this here for non-Windows platforms */
 #if !((defined(__WIN32__) || defined(_WIN32) || defined(__WIN32)) && !defined(__CYGWIN__))
@@ -141,6 +154,34 @@ struct rar_file_header
   char method;
   char name_size[2];
   char file_attr[4];
+};
+
+struct huffman_tree_node
+{
+  int branches[2];
+};
+
+struct huffman_table_entry
+{
+  unsigned int length;
+  int value;
+};
+
+struct huffman_code
+{
+  struct huffman_tree_node *tree;
+  int numentries;
+  int minlength;
+  int maxlength;
+  int tablesize;
+  struct huffman_table_entry *table;
+};
+
+struct lzss
+{
+  unsigned char *window;
+  int mask;
+  int64_t position;
 };
 
 struct rar
@@ -172,6 +213,25 @@ struct rar
   /* Fields to help with tracking decompression of files. */
   int64_t bytes_remaining;
   int64_t offset;
+  int64_t bitoffset;
+  char valid;
+  struct huffman_code maincode;
+  struct huffman_code offsetcode;
+  struct huffman_code lowoffsetcode;
+  struct huffman_code lengthcode;
+  unsigned char lengthtable[HUFFMAN_TABLE_SIZE];
+  unsigned char *unp_buffer;
+  struct lzss lzss;
+  unsigned int dictionary_size;
+  char output_last_match;
+  unsigned int lastlength;
+  unsigned int lastoffset;
+  unsigned int oldoffset[4];
+  unsigned int lastlowoffset;
+  unsigned int numlowoffsetrepeats;
+  off_t filterstart;
+  char start_new_block;
+  char start_new_table;
 };
 
 static int archive_read_format_rar_bid(struct archive_read *);
@@ -185,11 +245,103 @@ static int archive_read_format_rar_cleanup(struct archive_read *);
 /* Support functions */
 static int read_header(struct archive_read *, struct archive_entry *, char);
 static time_t get_time(int time);
-static void read_exttime(struct archive_entry *, const char *, struct rar *);
+static void read_exttime(const char *, struct rar *);
 static int read_symlink_stored(struct archive_read *, struct archive_entry *,
                                struct archive_string_conv *);
 static int read_data_stored(struct archive_read *, const void **, size_t *,
                             int64_t *);
+static int read_data_lzss(struct archive_read *, const void **, size_t *,
+                          int64_t *);
+static int parse_codes(struct archive_read *);
+static void free_codes(struct archive_read *);
+static unsigned char read_bits(struct archive_read *, char);
+static unsigned int read_bits_32(struct archive_read *, char);
+static int read_next_symbol(struct archive_read *, struct huffman_code *);
+static void create_code(struct archive_read *, struct huffman_code *,
+                        unsigned char *, int, char);
+static int add_value(struct archive_read *, struct huffman_code *, int, int,
+                     int);
+static int new_node(struct huffman_code *);
+static void make_table(struct huffman_code *);
+static void make_table_recurse(struct huffman_code *, int,
+                               struct huffman_table_entry *, int, int);
+static off_t expand(struct archive_read *, off_t);
+static int copy_from_lzss_window(struct archive_read *, const void **,
+                                   int64_t, int);
+
+/* Find last bit set */
+static inline int
+rar_fls(unsigned int word)
+{
+  word |= (word >>  1);
+  word |= (word >>  2);
+  word |= (word >>  4);
+  word |= (word >>  8);
+  word |= (word >> 16);
+  return word - (word >> 1);
+}
+
+/* LZSS functions */
+static inline int64_t
+lzss_position(struct lzss *lzss)
+{
+  return lzss->position;
+}
+
+static inline int
+lzss_mask(struct lzss *lzss)
+{
+  return lzss->mask;
+}
+
+static inline int
+lzss_size(struct lzss *lzss)
+{
+  return lzss->mask + 1;
+}
+
+static inline int
+lzss_offset_for_position(struct lzss *lzss, int64_t pos)
+{
+  return pos & lzss->mask;
+}
+
+static inline unsigned char *
+lzss_pointer_for_position(struct lzss *lzss, int64_t pos)
+{
+  return &lzss->window[lzss_offset_for_position(lzss, pos)];
+}
+
+static inline int
+lzss_current_offset(struct lzss *lzss)
+{
+  return lzss_offset_for_position(lzss, lzss->position);
+}
+
+static inline uint8_t *
+lzss_current_pointer(struct lzss *lzss)
+{
+  return lzss_pointer_for_position(lzss, lzss->position);
+}
+
+static inline void
+lzss_emit_literal(struct rar *rar, uint8_t literal)
+{
+  *lzss_current_pointer(&rar->lzss) = literal;
+  rar->lzss.position++;
+}
+
+static inline void
+lzss_emit_match(struct rar *rar, int offset, int length)
+{
+  int i, windowoffs = lzss_current_offset(&rar->lzss);
+  for(i = 0; i < length; i++)
+  {
+    rar->lzss.window[(windowoffs + i) & lzss_mask(&rar->lzss)] =
+      rar->lzss.window[(windowoffs + i - offset) & lzss_mask(&rar->lzss)];
+  }
+  rar->lzss.position += length;
+}
 
 int
 archive_read_support_format_rar(struct archive *_a)
@@ -359,6 +511,8 @@ archive_read_format_rar_read_data(struct archive_read *a, const void **buff,
   case COMPRESS_METHOD_FASTEST:
   case COMPRESS_METHOD_FAST:
   case COMPRESS_METHOD_NORMAL:
+    return read_data_lzss(a, buff, size, offset);
+
   case COMPRESS_METHOD_GOOD:
   case COMPRESS_METHOD_BEST:
   default:
@@ -374,7 +528,24 @@ archive_read_format_rar_read_data_skip(struct archive_read *a)
   struct rar *rar;
 
   rar = (struct rar *)(a->format->data);
-  __archive_read_consume(a, rar->packed_size);
+  switch (rar->compression_method)
+  {
+  case COMPRESS_METHOD_FASTEST:
+  case COMPRESS_METHOD_FAST:
+  case COMPRESS_METHOD_NORMAL:
+    if (rar->offset)
+    {
+      while (rar->bitoffset > 0)
+        rar->bitoffset -= 8 * __archive_read_consume(a, 1);
+      break;
+    }
+
+  case COMPRESS_METHOD_STORE:
+  case COMPRESS_METHOD_GOOD:
+  case COMPRESS_METHOD_BEST:
+  default:
+    __archive_read_consume(a, rar->packed_size);
+  }
   return (ARCHIVE_OK);
 }
 
@@ -384,6 +555,9 @@ archive_read_format_rar_cleanup(struct archive_read *a)
   struct rar *rar;
 
   rar = (struct rar *)(a->format->data);
+  free_codes(a);
+  free(rar->unp_buffer);
+  free(rar->lzss.window);
   free(rar);
   (a->format->data) = NULL;
   return (ARCHIVE_OK);
@@ -437,6 +611,12 @@ read_header(struct archive_read *a, struct archive_entry *entry,
     rar->mnsec = 0;
     rar->arctime = 0;
     rar->arcnsec = 0;
+  }
+  else
+  {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                      "RAR solid archive support unavailable.");
+    return (ARCHIVE_FATAL);
   }
 
   if ((h = __archive_read_ahead(a, header_size - 7, NULL)) == NULL)
@@ -513,7 +693,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   }
 
   if (rar->file_flags & FHD_EXTTIME)
-    read_exttime(entry, p, rar);
+    read_exttime(p, rar);
 
   __archive_read_consume(a, header_size - 7);
 
@@ -544,7 +724,12 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   }
 
   rar->bytes_remaining = rar->packed_size;
-  rar->offset = 0;
+  rar->lzss.position = rar->dictionary_size = rar->offset = rar->bitoffset = 0;
+  rar->valid = 1;
+  rar->start_new_table = 1;
+  free(rar->unp_buffer);
+  rar->unp_buffer = NULL;
+  memset(rar->lengthtable, 0, sizeof(rar->lengthtable));
 
   /* Don't set any archive entries for non-file header types */
   if (head_type == NEWSUB_HEAD)
@@ -573,25 +758,10 @@ read_header(struct archive_read *a, struct archive_entry *entry,
 
   if (((rar->mode) & AE_IFMT) == AE_IFLNK)
   {
-    switch (rar->compression_method)
-    {
-    case COMPRESS_METHOD_STORE:
-      if ((ret2 = read_symlink_stored(a, entry, sconv)) < (ARCHIVE_WARN))
-        return ret2;
-      if (ret > ret2)
-        ret = ret2;
-      break;
-
-    case COMPRESS_METHOD_FASTEST:
-    case COMPRESS_METHOD_FAST:
-    case COMPRESS_METHOD_NORMAL:
-    case COMPRESS_METHOD_GOOD:
-    case COMPRESS_METHOD_BEST:
-    default:
-      archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                        "Unsupported compression method for RAR file.");
-      return (ARCHIVE_FATAL);
-    }
+    if ((ret2 = read_symlink_stored(a, entry, sconv)) < (ARCHIVE_WARN))
+      return ret2;
+    if (ret > ret2)
+      ret = ret2;
   }
 
   return ret;
@@ -612,10 +782,10 @@ get_time(int time)
 }
 
 static void
-read_exttime(struct archive_entry *entry, const char *p, struct rar *rar)
+read_exttime(const char *p, struct rar *rar)
 {
-  unsigned rmode, flags, rem, count;
-  int time, i, j;
+  unsigned rmode, flags, rem, j, count;
+  int time, i;
   struct tm *tm;
   time_t t;
   long nsec;
@@ -741,5 +911,712 @@ read_data_stored(struct archive_read *a, const void **buff, size_t *size,
   *offset = rar->offset;
   rar->offset += bytes_avail;
   rar->bytes_remaining -= bytes_avail;
+  return (ARCHIVE_OK);
+}
+
+static int
+read_data_lzss(struct archive_read *a, const void **buff, size_t *size,
+               int64_t *offset)
+{
+  struct rar *rar;
+  ssize_t bytes_avail;
+  off_t start, end, actualend;
+  int ret = (ARCHIVE_OK);
+
+  rar = (struct rar *)(a->format->data);
+  if (!rar->valid)
+    return (ARCHIVE_FATAL);
+
+  if (rar->dictionary_size && rar->offset >= rar->unp_size)
+  {
+    *buff = NULL;
+    *size = 0;
+    *offset = rar->offset;
+    return (ARCHIVE_EOF);
+  }
+
+  if (rar->dictionary_size && rar->bytes_remaining > 0)
+  {
+    *offset = rar->offset;
+    if (rar->offset + rar->bytes_remaining > rar->unp_size)
+      *size = rar->unp_size - rar->offset;
+    else
+      *size = rar->bytes_remaining;
+    ret = copy_from_lzss_window(a, buff, *offset, *size);
+    rar->offset += *size;
+    rar->bytes_remaining -= *size;
+    return ret;
+  }
+
+  if (rar->start_new_table && ((ret = parse_codes(a)) < (ARCHIVE_WARN)))
+    return (ARCHIVE_FATAL);
+
+  __archive_read_ahead(a, 1, &bytes_avail);
+  if (bytes_avail <= 0)
+  {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                      "Truncated RAR file data");
+    return (ARCHIVE_FATAL);
+  }
+  if (bytes_avail > rar->bytes_remaining)
+    bytes_avail = rar->bytes_remaining;
+  
+  start = rar->offset;
+  end = start + rar->dictionary_size;
+  rar->filterstart = LONG_MAX;
+
+  if ((actualend = expand(a, end)) < 0)
+    return (ARCHIVE_FATAL);
+
+  rar->bytes_remaining = actualend - start;
+  *offset = rar->offset;
+  if (rar->offset + rar->bytes_remaining > rar->unp_size)
+    *size = rar->unp_size - rar->offset;
+  else
+    *size = rar->bytes_remaining;
+  ret = copy_from_lzss_window(a, buff, *offset, *size);
+  rar->offset += *size;
+  rar->bytes_remaining -= *size;
+  return ret;
+}
+
+static int
+parse_codes(struct archive_read *a)
+{
+  const void *h;
+  ssize_t bytes_avail;
+  int i, j, val, n;
+  unsigned char bitlengths[MAX_SYMBOLS], zerocount;
+  struct huffman_code precode;
+  struct rar *rar = (struct rar *)(a->format->data);
+
+  free_codes(a);
+
+  /* Skip to the next byte */
+  while (rar->bitoffset % 8)
+    rar->bitoffset++;
+
+  if ((h = __archive_read_ahead(a, 1, NULL)) == NULL)
+  {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                      "Truncated RAR file data");
+    return (ARCHIVE_FATAL);
+  }
+
+  /* PPMd block flag */
+  if (read_bits(a, 1))
+  {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                      "Unsupported compression method for RAR file.");
+    return (ARCHIVE_FATAL);
+  }
+
+  /* Keep existing table flag */
+  if (!read_bits(a, 1))
+    memset(rar->lengthtable, 0, sizeof(rar->lengthtable));
+
+  memset(&bitlengths, 0, sizeof(bitlengths));
+  for (i = 0; i < MAX_SYMBOLS;)
+  {
+    bitlengths[i++] = read_bits(a, 4);
+    if (bitlengths[i-1] == 0xF)
+    {
+      zerocount = read_bits(a, 4);
+      if (zerocount)
+      {
+        i--;
+        for (j = 0; j < zerocount + 2 && i < MAX_SYMBOLS; j++)
+          bitlengths[i++] = 0;
+      }
+    }
+  }
+
+  rar->bitoffset -= 8 * __archive_read_consume(a, (rar->bitoffset / 8));
+  h = __archive_read_ahead(a, (rar->bitoffset / 8) + 1, &bytes_avail);
+  if (bytes_avail <= 0)
+  {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                      "Truncated RAR file data");
+    return (ARCHIVE_FATAL);
+  }
+
+  memset(&precode, 0, sizeof(precode));
+  create_code(a, &precode, bitlengths, MAX_SYMBOLS, MAX_SYMBOL_LENGTH);
+
+  for (i = 0; i < HUFFMAN_TABLE_SIZE;)
+  {
+    if ((val = read_next_symbol(a, &precode)) < 0)
+      return (ARCHIVE_FATAL);
+    if (val < 16)
+    {
+      rar->lengthtable[i] = (rar->lengthtable[i] + val) & 0xF;
+      i++;
+    }
+    else if (val < 18)
+    {
+      if (i == 0)
+      {
+        archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                          "Internal error extracting RAR file.");
+        return (ARCHIVE_FATAL);
+      }
+
+      if(val == 16)
+        n = read_bits(a, 3) + 3;
+      else
+        n = read_bits(a, 7) + 11;
+
+      for (j = 0; j < n && i < HUFFMAN_TABLE_SIZE; j++)
+      {
+        rar->lengthtable[i] = rar->lengthtable[i-1];
+        i++;
+      }
+    }
+    else
+    {
+      if(val == 18)
+        n = read_bits(a, 3) + 3;
+      else
+        n = read_bits(a, 7) + 11;
+
+      for(j = 0; j < n && i < HUFFMAN_TABLE_SIZE; j++)
+        rar->lengthtable[i++] = 0;
+    }
+  }
+
+  create_code(a, &rar->maincode, &rar->lengthtable[0], MAINCODE_SIZE,
+              MAX_SYMBOL_LENGTH);
+  create_code(a, &rar->offsetcode, &rar->lengthtable[MAINCODE_SIZE],
+              OFFSETCODE_SIZE, MAX_SYMBOL_LENGTH);
+  create_code(a, &rar->lowoffsetcode,
+              &rar->lengthtable[MAINCODE_SIZE + OFFSETCODE_SIZE],
+              LOWOFFSETCODE_SIZE, MAX_SYMBOL_LENGTH);
+  create_code(a, &rar->lengthcode,
+              &rar->lengthtable[MAINCODE_SIZE + OFFSETCODE_SIZE +
+              LOWOFFSETCODE_SIZE], LENGTHCODE_SIZE, MAX_SYMBOL_LENGTH);
+
+  if (!rar->dictionary_size || !rar->lzss.window)
+  {
+    /* Seems as though dictionary sizes are not used. Even so, minimize
+     * memory usage as much as possible.
+     */
+    if (rar->unp_size >= DICTIONARY_MAX_SIZE)
+      rar->dictionary_size = DICTIONARY_MAX_SIZE;
+    else
+      rar->dictionary_size = rar_fls(rar->unp_size) << 1;
+    rar->lzss.window = (unsigned char *)realloc(rar->lzss.window,
+                                                rar->dictionary_size);
+    memset(rar->lzss.window, 0, rar->dictionary_size);
+    rar->lzss.mask = rar->dictionary_size - 1;
+  }
+
+  rar->start_new_table = 0;
+  rar->bitoffset -= 8 * __archive_read_consume(a, (rar->bitoffset / 8));
+  return (ARCHIVE_OK);
+}
+
+static void
+free_codes(struct archive_read *a)
+{
+  struct rar *rar = (struct rar *)(a->format->data);
+  free(rar->maincode.tree);
+  free(rar->offsetcode.tree);
+  free(rar->lowoffsetcode.tree);
+  free(rar->lengthcode.tree);
+  free(rar->maincode.table);
+  free(rar->offsetcode.table);
+  free(rar->lowoffsetcode.table);
+  free(rar->lengthcode.table);
+  memset(&rar->maincode, 0, sizeof(rar->maincode));
+  memset(&rar->offsetcode, 0, sizeof(rar->offsetcode));
+  memset(&rar->lowoffsetcode, 0, sizeof(rar->lowoffsetcode));
+  memset(&rar->lengthcode, 0, sizeof(rar->lengthcode));
+}
+
+static unsigned char
+read_bits(struct archive_read *a, char length)
+{
+  unsigned char ret, m;
+  const unsigned char *p;
+  struct rar *rar = (struct rar *)(a->format->data);
+  if (length <= 0 || length > 8)
+  {
+    rar->valid = 0;
+    return 0;
+  }
+  if ((p = __archive_read_ahead(a,
+    ((rar->bitoffset + length) / 8) + 1, NULL)) == NULL)
+  {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                      "Truncated RAR file data");
+    rar->valid = 0;
+    return 0;
+  }
+  m = rar->bitoffset % 8;
+  ret = (*(p + (rar->bitoffset / 8))) << m;
+  ret |= (*(p + ((rar->bitoffset + (8 - m)) / 8))) >> (8 - m);
+  rar->bitoffset += length;
+  return ret >> (8 - length);
+}
+
+static unsigned int
+read_bits_32(struct archive_read *a, char length)
+{
+  unsigned char bits[4];
+  struct rar *rar = (struct rar *)(a->format->data);
+  if (length <= 0 || length > 32)
+  {
+    rar->valid = 0;
+    return 0;
+  }
+  memset(&bits, 0, sizeof(bits));
+  while (length > 0 && rar->valid)
+  {
+    if (length % 8)
+    {
+      bits[(32 - length) / 8] = read_bits(a, length % 8);
+      length -= length % 8;
+    }
+    else
+    {
+      bits[(32 - length) / 8] = read_bits(a, 8);
+      length -= 8;
+    }
+  }
+  if (!rar->valid)
+    return 0;
+  return archive_be32dec(&bits);
+}
+
+static int
+read_next_symbol(struct archive_read *a, struct huffman_code *code)
+{
+  unsigned char bit;
+  unsigned int bits;
+  int length, value, node;
+  struct rar *rar;
+
+  if (!code->table)
+    make_table(code);
+
+  rar = (struct rar *)(a->format->data);
+
+  /* Look ahead (peek) at bits */
+  bits = read_bits_32(a, code->tablesize);
+  rar->bitoffset -= code->tablesize;
+
+  length = code->table[bits].length;
+  value = code->table[bits].value;
+
+  if (length < 0)
+  {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                      "Invalid prefix code in bitstream");
+    return -1;
+  }
+
+  if (length <= code->tablesize)
+  {
+    /* Skip length bits */
+    rar->bitoffset += length;
+    return value;
+  }
+
+  /* Skip tablesize bits */
+  rar->bitoffset += code->tablesize;
+
+  node = value;
+  while (!(code->tree[node].branches[0] ==
+    code->tree[node].branches[1]))
+  {
+    bit = read_bits(a, 1);
+    if (code->tree[node].branches[bit] < 0)
+    {
+      archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                        "Invalid prefix code in bitstream");
+      return -1;
+    }
+    node = code->tree[node].branches[bit];
+  }
+
+  return code->tree[node].branches[0];
+}
+
+static void
+create_code(struct archive_read *a, struct huffman_code *code,
+            unsigned char *lengths, int numsymbols, char maxlength)
+{
+  int i, j, codebits = 0, symbolsleft = numsymbols;
+  new_node(code);
+  code->numentries = 1;
+  code->minlength = INT_MAX;
+  code->maxlength = INT_MIN;
+  codebits = 0;
+  for(i = 1; i <= maxlength; i++)
+  {
+    for(j = 0; j < numsymbols; j++)
+    {
+      if (lengths[j] != i) continue;
+      add_value(a, code, j, codebits, i);
+      codebits++;
+      if (--symbolsleft <= 0) { break; break; }
+    }
+    codebits <<= 1;
+  }
+}
+
+static int
+add_value(struct archive_read *a, struct huffman_code *code, int value,
+          int codebits, int length)
+{
+  int repeatpos, lastnode, bitpos, bit, repeatnode, nextnode;
+
+  free(code->table);
+  code->table = NULL;
+
+  if(length > code->maxlength)
+    code->maxlength = length;
+  if(length < code->minlength)
+    code->minlength = length;
+
+  repeatpos = -1;
+  if (repeatpos == 0 || (repeatpos >= 0
+    && (((codebits >> (repeatpos - 1)) & 3) == 0
+    || ((codebits >> (repeatpos - 1)) & 3) == 3)))
+  {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                      "Invalid repeat position");
+    return (ARCHIVE_FATAL);
+  }
+
+  lastnode = 0;
+  for (bitpos = length - 1; bitpos >= 0; bitpos--)
+  {
+    bit = (codebits >> bitpos) & 1;
+
+    /* Leaf node check */
+    if (code->tree[lastnode].branches[0] ==
+      code->tree[lastnode].branches[1])
+    {
+      archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                        "Prefix found");
+      return (ARCHIVE_FATAL);
+    }
+
+    if (bitpos == repeatpos)
+    {
+      /* Open branch check */
+      if (!(code->tree[lastnode].branches[bit] < 0))
+      {
+        archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                          "Invalid repeating code");
+        return (ARCHIVE_FATAL);
+      }
+
+      repeatnode = new_node(code);
+      nextnode = new_node(code);
+
+      /* Set branches */
+      code->tree[lastnode].branches[bit] = repeatnode;
+      code->tree[repeatnode].branches[bit] = repeatnode;
+      code->tree[repeatnode].branches[bit^1] = nextnode;
+      lastnode = nextnode;
+
+      bitpos++; /* terminating bit already handled, skip it */
+    }
+    else
+    {
+      /* Open branch check */
+      if (code->tree[lastnode].branches[bit] < 0)
+      {
+        new_node(code);
+        code->tree[lastnode].branches[bit] = code->numentries++;
+      }
+
+      /* set to branch */
+      lastnode = code->tree[lastnode].branches[bit];
+    }
+  }
+
+  if (!(code->tree[lastnode].branches[0] == -1
+    && code->tree[lastnode].branches[1] == -2))
+  {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                      "Prefix found");
+    return (ARCHIVE_FATAL);
+  }
+
+  /* Set leaf value */
+  code->tree[lastnode].branches[0] = value;
+  code->tree[lastnode].branches[1] = value;
+
+  return (ARCHIVE_OK);
+}
+
+static int new_node(struct huffman_code *code)
+{
+  code->tree = (struct huffman_tree_node *)realloc(code->tree,
+    (code->numentries + 1) * sizeof(*code->tree));
+  code->tree[code->numentries].branches[0] = -1;
+  code->tree[code->numentries].branches[1] = -2;
+  return 1;
+}
+
+static void
+make_table(struct huffman_code *code)
+{
+  if (code->maxlength < code->minlength || code->maxlength > 10)
+    code->tablesize = 10;
+  else
+    code->tablesize = code->maxlength;
+
+  code->table =
+    (struct huffman_table_entry *)malloc(sizeof(*code->table)
+    * (1 << code->tablesize));
+
+  make_table_recurse(code, 0, code->table, 0, code->tablesize);
+}
+
+static void make_table_recurse(struct huffman_code *code, int node,
+                               struct huffman_table_entry *table, int depth,
+                               int maxdepth)
+{
+  int currtablesize, i;
+
+  currtablesize = 1 << (maxdepth - depth);
+
+  if (code->tree[node].branches[0] ==
+    code->tree[node].branches[1])
+  {
+    for(i = 0; i < currtablesize; i++)
+    {
+      table[i].length = depth;
+      table[i].value = code->tree[node].branches[0];
+    }
+  }
+  else if (node < 0)
+  {
+    for(i = 0; i < currtablesize; i++)
+      table[i].length = -1;
+  }
+  else
+  {
+    if(depth == maxdepth)
+    {
+      table[0].length = maxdepth + 1;
+      table[0].value = node;
+    }
+    else
+    {
+      make_table_recurse(code, code->tree[node].branches[0], table, depth + 1,
+                         maxdepth);
+      make_table_recurse(code, code->tree[node].branches[1],
+                         table + currtablesize / 2, depth + 1, maxdepth);
+    }
+  }
+}
+
+static off_t
+expand(struct archive_read *a, off_t end)
+{
+  static const unsigned char lengthbases[] =
+    {   0,   1,   2,   3,   4,   5,   6,
+        7,   8,  10,  12,  14,  16,  20,
+       24,  28,  32,  40,  48,  56,  64,
+       80,  96, 112, 128, 160, 192, 224 };
+  static const unsigned char lengthbits[] =
+    { 0, 0, 0, 0, 0, 0, 0,
+      0, 1, 1, 1, 1, 2, 2,
+      2, 2, 3, 3, 3, 3, 4,
+      4, 4, 4, 5, 5, 5, 5 };
+  static const unsigned int offsetbases[] =
+    {       0,       1,       2,       3,       4,       6,
+            8,      12,      16,      24,      32,      48,
+           64,      96,     128,     192,     256,     384,
+          512,     768,    1024,    1536,    2048,    3072,
+         4096,    6144,    8192,   12288,   16384,   24576,
+        32768,   49152,   65536,   98304,  131072,  196608,
+       262144,  327680,  393216,  458752,  524288,  589824,
+       655360,  720896,  786432,  851968,  917504,  983040,
+      1048576, 1310720, 1572864, 1835008, 2097152, 2359296,
+      2621440, 2883584, 3145728, 3407872, 3670016, 3932160 };
+  static const unsigned char offsetbits[] =
+    {  0,  0,  0,  0,  1,  1,  2,  2,  3,  3,  4,  4,
+       5,  5,  6,  6,  7,  7,  8,  8,  9,  9, 10, 10,
+      11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 16, 16,
+      16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16,
+      18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18 };
+  static const unsigned char shortbases[] =
+    { 0, 4, 8, 16, 32, 64, 128, 192 };
+  static const unsigned char shortbits[] =
+    { 2, 2, 3, 4, 5, 6, 6, 6 };
+
+  int symbol, offs, len, offsindex, lensymbol, i, offssymbol, lowoffsetsymbol;
+  unsigned char newfile;
+  struct rar *rar = (struct rar *)(a->format->data);
+
+  if (rar->filterstart < end)
+    end = rar->filterstart;
+
+  while (1)
+  {
+    if (rar->output_last_match &&
+      lzss_position(&rar->lzss) + rar->lastlength <= end)
+    {
+      lzss_emit_match(rar, rar->lastoffset, rar->lastlength);
+      rar->output_last_match = 0;
+    }
+
+    if(rar->output_last_match || lzss_position(&rar->lzss) >= end)
+      return lzss_position(&rar->lzss);
+
+    rar->bitoffset -= 8 * __archive_read_consume(a, (rar->bitoffset / 8));
+    symbol = read_next_symbol(a, &rar->maincode);
+    rar->output_last_match = 0;
+
+    if (symbol < 256)
+    {
+      lzss_emit_literal(rar, symbol);
+      continue;
+    }
+    else if (symbol == 256)
+    {
+      newfile = !read_bits(a, 1);
+
+      if(newfile)
+      {
+        rar->start_new_block = 1;
+        rar->start_new_table = read_bits(a, 1);
+        return lzss_position(&rar->lzss);
+      }
+      else
+      {
+        parse_codes(a);
+        continue;
+      }
+    }
+    else if(symbol==257)
+    {
+      if (rar->filterstart < end)
+        end = rar->filterstart;
+      continue;
+    }
+    else if(symbol==258)
+    {
+      if(rar->lastlength == 0)
+        continue;
+
+      offs = rar->lastoffset;
+      len = rar->lastlength;
+    }
+    else if (symbol <= 262)
+    {
+      offsindex = symbol - 259;
+      offs = rar->oldoffset[offsindex];
+
+      lensymbol = read_next_symbol(a, &rar->lengthcode);
+      len = lengthbases[lensymbol] + 2;
+      if (lengthbits[lensymbol] > 0)
+        len += read_bits_32(a, lengthbits[lensymbol]);
+
+      for (i = offsindex; i > 0; i--)
+        rar->oldoffset[i] = rar->oldoffset[i-1];
+      rar->oldoffset[0] = offs;
+    }
+    else if(symbol<=270)
+    {
+      offs = shortbases[symbol-263] + 1;
+      if(shortbits[symbol-263] > 0)
+        offs += read_bits_32(a, shortbits[symbol-263]);
+
+      len = 2;
+
+      for(i = 3; i > 0; i--)
+        rar->oldoffset[i] = rar->oldoffset[i-1];
+      rar->oldoffset[0] = offs;
+    }
+    else
+    {
+      len = lengthbases[symbol-271]+3;
+      if(lengthbits[symbol-271] > 0)
+        len += read_bits_32(a, lengthbits[symbol-271]);
+
+      offssymbol = read_next_symbol(a, &rar->offsetcode);
+      offs = offsetbases[offssymbol]+1;
+      if(offsetbits[offssymbol] > 0)
+      {
+        if(offssymbol > 9)
+        {
+          if(offsetbits[offssymbol] > 4)
+            offs += read_bits_32(a, offsetbits[offssymbol] - 4) << 4;
+
+          if(rar->numlowoffsetrepeats > 0)
+          {
+            rar->numlowoffsetrepeats--;
+            offs += rar->lastlowoffset;
+          }
+          else
+          {
+            lowoffsetsymbol = read_next_symbol(a, &rar->lowoffsetcode);
+            if(lowoffsetsymbol == 16)
+            {
+              rar->numlowoffsetrepeats = 15;
+              offs += rar->lastlowoffset;
+            }
+            else
+            {
+              offs += lowoffsetsymbol;
+              rar->lastlowoffset = lowoffsetsymbol;
+            }
+          }
+        }
+        else
+          offs += read_bits_32(a, offsetbits[offssymbol]);
+      }
+
+      if (offs >= 0x40000)
+        len++;
+      if (offs >= 0x2000)
+        len++;
+
+      for(i = 3; i > 0; i--)
+        rar->oldoffset[i] = rar->oldoffset[i-1];
+      rar->oldoffset[0] = offs;
+    }
+
+    rar->lastoffset = offs;
+    rar->lastlength = len;
+    rar->output_last_match = 1;
+  }
+}
+
+static int
+copy_from_lzss_window(struct archive_read *a, const void **buffer,
+                        int64_t startpos, int length)
+{
+  int windowoffs, firstpart;
+  struct rar *rar = (struct rar *)(a->format->data);
+
+  if (!rar->unp_buffer)
+  {
+    if ((rar->unp_buffer = malloc(rar->dictionary_size)) == NULL)
+    {
+      archive_set_error(&a->archive, ENOMEM,
+                        "Unable to allocate memory for uncompressed data.");
+      return (ARCHIVE_FATAL);
+    }
+  }
+
+  windowoffs = lzss_offset_for_position(&rar->lzss, startpos);
+  if(windowoffs + length <= lzss_size(&rar->lzss))
+    *buffer = &rar->lzss.window[windowoffs];
+  else
+  {
+    firstpart = lzss_size(&rar->lzss) - windowoffs;
+    memcpy(&rar->unp_buffer[0], &rar->lzss.window[windowoffs], firstpart);
+    memcpy(&rar->unp_buffer[firstpart], &rar->lzss.window[0],
+           length - firstpart);
+    *buffer = rar->unp_buffer;
+  }
   return (ARCHIVE_OK);
 }
