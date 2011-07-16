@@ -2936,8 +2936,8 @@ compression_code_lzma(struct archive *a,
 		archive_set_error(a, ENOMEM,
 		    "lzma compression error:"
 		    " %ju MiB would have been needed",
-		    (lzma_memusage(strm) + 1024 * 1024 -1)
-		    / (1024 * 1024));
+		    (uintmax_t)((lzma_memusage(strm) + 1024 * 1024 -1)
+			/ (1024 * 1024)));
 		return (ARCHIVE_FATAL);
 	default:
 		/* Any other return value indicates an error */
