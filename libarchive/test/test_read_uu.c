@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2003-2007 Tim Kientzle
- * Copyright (c) 2009 Michihiro NAKAJIMA
+ * Copyright (c) 2009-2011 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -70,12 +70,25 @@ static const char extradata[] = {
 };
 
 static void
-test_read_uu_sub(const char *uudata, size_t uusize)
+test_read_uu_sub(const char *uudata, size_t uusize, int no_nl)
 {
 	struct archive_entry *ae;
 	struct archive *a;
 	char *buff;
+	char extradata_no_nl[sizeof(extradata)];
+	const char *extradata_ptr;
 	int extra;
+
+	if (no_nl) {
+		/* Remove '\n' from extra data to make a very long line. */
+		char *p;
+		memcpy(extradata_no_nl, extradata, sizeof(extradata));
+		extradata_ptr = extradata_no_nl;
+		for (p = extradata_no_nl;
+		    *p && (p = strchr(p, '\n')) != NULL; p++)
+			*p = ' ';/* Replace '\n' with ' ' a space character. */
+	} else
+		extradata_ptr = extradata;
 
 	assert(NULL != (buff = malloc(uusize + 64 * 1024)));
 	if (buff == NULL)
@@ -88,11 +101,11 @@ test_read_uu_sub(const char *uudata, size_t uusize)
 		 * 64Kbytes before uuencoded data. */
 		while (size) {
 			if (size > sizeof(extradata)-1) {
-				memcpy(p, extradata, sizeof(extradata)-1);
+				memcpy(p, extradata_ptr, sizeof(extradata)-1);
 				p += sizeof(extradata)-1;
 				size -= sizeof(extradata)-1;
 			} else {
-				memcpy(p, extradata, size-1);
+				memcpy(p, extradata_ptr, size-1);
 				p += size-1;
 				*p++ = '\n';/* the last of extra text must have
 					     * '\n' character. */
@@ -109,15 +122,27 @@ test_read_uu_sub(const char *uudata, size_t uusize)
 		    archive_read_support_format_all(a));
 		assertEqualIntA(a, ARCHIVE_OK,
 		    read_open_memory(a, buff, size, 2));
-		assertEqualIntA(a, ARCHIVE_OK,
-		    archive_read_next_header(a, &ae));
-		failure("archive_compression_name(a)=\"%s\"",
-		    archive_compression_name(a));
-		assertEqualInt(archive_compression(a),
-		    ARCHIVE_COMPRESSION_COMPRESS);
-		failure("archive_format_name(a)=\"%s\"",
-		    archive_format_name(a));
-		assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
+		if (extra == 64 && no_nl) {
+			/* TODO : Should we not recognize uuencoded data at
+			 * bidding data type in this case ? */
+			failure("64K bytes extra data without NL "
+			    "should not decode uuencoded data");
+			assertEqualIntA(a, ARCHIVE_EOF,
+			    archive_read_next_header(a, &ae));
+		} else {
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_next_header(a, &ae));
+			failure("archive_compression_name(a)=\"%s\""
+			    "extra %d, NL %d",
+			    archive_compression_name(a), extra, !no_nl);
+			assertEqualInt(archive_compression(a),
+			    ARCHIVE_COMPRESSION_COMPRESS);
+			failure("archive_format_name(a)=\"%s\""
+			    "extra %d, NL %d",
+			    archive_format_name(a), extra, !no_nl);
+			assertEqualInt(archive_format(a),
+			    ARCHIVE_FORMAT_TAR_USTAR);
+		}
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	}
@@ -127,8 +152,14 @@ test_read_uu_sub(const char *uudata, size_t uusize)
 DEFINE_TEST(test_read_uu)
 {
 	/* Read the traditional uuencoded data. */
-	test_read_uu_sub(archive, sizeof(archive)-1);
+	test_read_uu_sub(archive, sizeof(archive)-1, 0);
 	/* Read the Base64 uuencoded data. */
-	test_read_uu_sub(archive64, sizeof(archive64)-1);
+	test_read_uu_sub(archive64, sizeof(archive64)-1, 0);
+	/* Read the traditional uuencoded data with very long line extra
+	 * data in front of it. */
+	test_read_uu_sub(archive, sizeof(archive)-1, 1);
+	/* Read the Base64 uuencoded data with very long line extra data
+	 * in front of it. */
+	test_read_uu_sub(archive64, sizeof(archive64)-1, 1);
 }
 
