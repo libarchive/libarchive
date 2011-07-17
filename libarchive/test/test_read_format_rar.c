@@ -170,13 +170,13 @@ static void
 test_compress_normal(void)
 {
   const char reffile[] = "test_read_format_rar_compress_normal.rar";
-  int file1_size = 20111;
+#define file1_size 20111
   char file1_buff[file1_size];
   const char file1_test_txt[] = "<P STYLE=\"margin-bottom: 0in\"><BR>\n"
                                 "</P>\n"
                                 "</BODY>\n"
                                 "</HTML>";
-  int file2_size = 20;
+#define file2_size 20
   char file2_buff[file2_size];
   const char file2_test_txt[] = "test text document\r\n";
   struct archive_entry *ae;
@@ -219,7 +219,7 @@ test_compress_normal(void)
   assertEqualInt(file2_size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
   assertA(file2_size == archive_read_data(a, file2_buff, file2_size));
-  assertEqualMem(&file2_buff[file2_size - sizeof(file2_test_txt) + 1],
+  assertEqualMem(&file2_buff[file2_size + 1 - sizeof(file2_test_txt)],
                  file2_test_txt, sizeof(file2_test_txt) - 1);
 
   /* Fourth header. */
@@ -287,7 +287,7 @@ test_multi_lzss_blocks(void)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
-  while (offset + sizeof(buff) < size)
+  while (offset + (int)sizeof(buff) < size)
   {
     assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
     offset += sizeof(buff);
