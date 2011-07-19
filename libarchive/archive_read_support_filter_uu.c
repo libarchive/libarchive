@@ -40,6 +40,9 @@ __FBSDID("$FreeBSD$");
 #include "archive_private.h"
 #include "archive_read_private.h"
 
+// Maximum lookahead during bid phase
+#define UUENCODE_BID_MAX_READ 128*1024 // in bytes
+
 struct uudecode {
 	int64_t		 total;
 	unsigned char	*in_buff;
@@ -205,7 +208,8 @@ get_line(const unsigned char *b, ssize_t avail, ssize_t *nlsize)
 
 static ssize_t
 bid_get_line(struct archive_read_filter *filter,
-    const unsigned char **b, ssize_t *avail, ssize_t *ravail, ssize_t *nl)
+    const unsigned char **b, ssize_t *avail, ssize_t *ravail,
+    ssize_t *nl, size_t* nbytes_read)
 {
 	ssize_t len;
 	int quit;
@@ -219,7 +223,7 @@ bid_get_line(struct archive_read_filter *filter,
 	/*
 	 * Read bytes more while it does not reach the end of line.
 	 */
-	while (*nl == 0 && len == *avail && !quit) {
+	while (*nl == 0 && len == *avail && !quit && *nbytes_read < UUENCODE_BID_MAX_READ) {
 		ssize_t diff = *ravail - *avail;
 
 		*b = __archive_read_filter_ahead(filter, 160 + *ravail, avail);
@@ -230,6 +234,7 @@ bid_get_line(struct archive_read_filter *filter,
 			*b = __archive_read_filter_ahead(filter, *avail, avail);
 			quit = 1;
 		}
+		*nbytes_read = *avail;
 		*ravail = *avail;
 		*b += diff;
 		*avail -= diff;
@@ -249,6 +254,7 @@ uudecode_bidder_bid(struct archive_read_filter_bidder *self,
 	ssize_t len, nl;
 	int l;
 	int firstline;
+	size_t nbytes_read;
 
 	(void)self; /* UNUSED */
 
@@ -258,10 +264,11 @@ uudecode_bidder_bid(struct archive_read_filter_bidder *self,
 
 	firstline = 20;
 	ravail = avail;
+	nbytes_read = avail;
 	for (;;) {
-		len = bid_get_line(filter, &b, &avail, &ravail, &nl);
+		len = bid_get_line(filter, &b, &avail, &ravail, &nl, &nbytes_read);
 		if (len < 0 || nl == 0)
-			return (0);/* Binary data. */
+			return (0); /* No match found. */
 		if (len - nl >= 11 && memcmp(b, "begin ", 6) == 0)
 			l = 6;
 		else if (len -nl >= 18 && memcmp(b, "begin-base64 ", 13) == 0)
@@ -279,10 +286,14 @@ uudecode_bidder_bid(struct archive_read_filter_bidder *self,
 		if (l)
 			break;
 		firstline = 0;
+
+		// Do not read more than UUENCODE_BID_MAX_READ bytes
+		if (nbytes_read >= UUENCODE_BID_MAX_READ)
+			return (0);
 	}
 	if (!avail)
 		return (0);
-	len = bid_get_line(filter, &b, &avail, &ravail, &nl);
+	len = bid_get_line(filter, &b, &avail, &ravail, &nl, &nbytes_read);
 	if (len < 0 || nl == 0)
 		return (0);/* There are non-ascii characters. */
 	avail -= len;
