@@ -78,6 +78,7 @@ test_read_uu_sub(const char *uudata, size_t uusize, int no_nl)
 	char extradata_no_nl[sizeof(extradata)];
 	const char *extradata_ptr;
 	int extra;
+	size_t size;
 
 	if (no_nl) {
 		/* Remove '\n' from extra data to make a very long line. */
@@ -90,7 +91,7 @@ test_read_uu_sub(const char *uudata, size_t uusize, int no_nl)
 	} else
 		extradata_ptr = extradata;
 
-	assert(NULL != (buff = malloc(uusize + 64 * 1024)));
+	assert(NULL != (buff = malloc(uusize + 1024 * 1024)));
 	if (buff == NULL)
 		return;
 	for (extra = 0; extra <= 64; extra = extra==0?1:extra*2) {
@@ -146,6 +147,24 @@ test_read_uu_sub(const char *uudata, size_t uusize, int no_nl)
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	}
+
+	/* UUdecode bidder shouldn't scan too much data; make sure it
+	 * fails if we put 512k of data before the start. */
+	size = 512 * 1024;
+	for (extra = 0; extra < size; ++extra)
+		buff[extra + 1024] = buff[extra];
+	buff[size - 1] = '\n';
+	memcpy(buff + size, uudata, uusize);
+	size += uusize;
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_FATAL,
+	    read_open_memory(a, buff, size, 2));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
 	free(buff);
 }
 
