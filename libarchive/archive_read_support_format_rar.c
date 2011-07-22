@@ -1533,8 +1533,7 @@ expand(struct archive_read *a, off_t end)
       return lzss_position(&rar->lzss);
 
     rar->bitoffset -= 8 * __archive_read_consume(a, (rar->bitoffset / 8));
-    symbol = read_next_symbol(a, &rar->maincode);
-    if (symbol < 0)
+    if ((symbol = read_next_symbol(a, &rar->maincode)) < 0)
       return -1;
     rar->output_last_match = 0;
     
@@ -1578,7 +1577,8 @@ expand(struct archive_read *a, off_t end)
       offsindex = symbol - 259;
       offs = rar->oldoffset[offsindex];
 
-      lensymbol = read_next_symbol(a, &rar->lengthcode);
+      if ((lensymbol = read_next_symbol(a, &rar->lengthcode)) < 0)
+        return -1;
       len = lengthbases[lensymbol] + 2;
       if (lengthbits[lensymbol] > 0)
         len += read_bits_32(a, lengthbits[lensymbol]);
@@ -1605,7 +1605,8 @@ expand(struct archive_read *a, off_t end)
       if(lengthbits[symbol-271] > 0)
         len += read_bits_32(a, lengthbits[symbol-271]);
 
-      offssymbol = read_next_symbol(a, &rar->offsetcode);
+      if ((offssymbol = read_next_symbol(a, &rar->offsetcode)) < 0)
+        return -1;
       offs = offsetbases[offssymbol]+1;
       if(offsetbits[offssymbol] > 0)
       {
@@ -1621,7 +1622,9 @@ expand(struct archive_read *a, off_t end)
           }
           else
           {
-            lowoffsetsymbol = read_next_symbol(a, &rar->lowoffsetcode);
+            if ((lowoffsetsymbol =
+              read_next_symbol(a, &rar->lowoffsetcode)) < 0)
+              return -1;
             if(lowoffsetsymbol == 16)
             {
               rar->numlowoffsetrepeats = 15;
