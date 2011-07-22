@@ -72,6 +72,7 @@ static struct {
 	                                                    * LZSS blocks RAR test */
 	{0, "test_read_format_rar_noeof.rar"}, /* RAR with no EOF header */
 	{0, "test_read_format_rar_subblock.rar"}, /* RAR with subblocks */
+	{0, "test_read_format_rar_unicode.rar"}, /* RAR with Unicode filenames */
 	{0, "test_read_format_gtar_sparse_1_17_posix10_modified.tar"},
 	{0, "test_read_format_mtree.mtree"},
 	{0, "test_read_format_tar_empty_filename.tar"},
