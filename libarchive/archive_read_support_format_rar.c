@@ -1560,9 +1560,9 @@ expand(struct archive_read *a, off_t end)
     }
     else if(symbol==257)
     {
-      if (rar->filterstart < end)
-        end = rar->filterstart;
-      continue;
+      archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                        "Parsing filters is unsupported.");
+      return -1;
     }
     else if(symbol==258)
     {
