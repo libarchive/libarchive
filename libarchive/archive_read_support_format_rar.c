@@ -262,9 +262,9 @@ static void create_code(struct archive_read *, struct huffman_code *,
 static int add_value(struct archive_read *, struct huffman_code *, int, int,
                      int);
 static int new_node(struct huffman_code *);
-static void make_table(struct huffman_code *);
-static void make_table_recurse(struct huffman_code *, int,
-                               struct huffman_table_entry *, int, int);
+static int make_table(struct huffman_code *);
+static int make_table_recurse(struct huffman_code *, int,
+                              struct huffman_table_entry *, int, int);
 static off_t expand(struct archive_read *, off_t);
 static int copy_from_lzss_window(struct archive_read *, const void **,
                                    int64_t, int);
@@ -1247,7 +1247,14 @@ read_next_symbol(struct archive_read *a, struct huffman_code *code)
   struct rar *rar;
 
   if (!code->table)
-    make_table(code);
+  {
+    if (make_table(code) != (ARCHIVE_OK))
+    {
+      archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                        "Error in generating table.");
+      return -1;
+    }
+  }
 
   rar = (struct rar *)(a->format->data);
 
@@ -1412,7 +1419,7 @@ static int new_node(struct huffman_code *code)
   return 1;
 }
 
-static void
+static int
 make_table(struct huffman_code *code)
 {
   if (code->maxlength < code->minlength || code->maxlength > 10)
@@ -1424,16 +1431,20 @@ make_table(struct huffman_code *code)
     (struct huffman_table_entry *)malloc(sizeof(*code->table)
     * (1 << code->tablesize));
 
-  make_table_recurse(code, 0, code->table, 0, code->tablesize);
+  return make_table_recurse(code, 0, code->table, 0, code->tablesize);
 }
 
-static void make_table_recurse(struct huffman_code *code, int node,
-                               struct huffman_table_entry *table, int depth,
-                               int maxdepth)
+static int
+make_table_recurse(struct huffman_code *code, int node,
+                   struct huffman_table_entry *table, int depth,
+                   int maxdepth)
 {
-  int currtablesize, i;
+  int currtablesize, i, ret = (ARCHIVE_OK);
 
   currtablesize = 1 << (maxdepth - depth);
+
+  if (!code->tree)
+    return (ARCHIVE_FATAL);
 
   if (code->tree[node].branches[0] ==
     code->tree[node].branches[1])
@@ -1458,12 +1469,13 @@ static void make_table_recurse(struct huffman_code *code, int node,
     }
     else
     {
-      make_table_recurse(code, code->tree[node].branches[0], table, depth + 1,
-                         maxdepth);
-      make_table_recurse(code, code->tree[node].branches[1],
+      ret |= make_table_recurse(code, code->tree[node].branches[0], table,
+                                depth + 1, maxdepth);
+      ret |= make_table_recurse(code, code->tree[node].branches[1],
                          table + currtablesize / 2, depth + 1, maxdepth);
     }
   }
+  return ret;
 }
 
 static off_t
@@ -1522,8 +1534,10 @@ expand(struct archive_read *a, off_t end)
 
     rar->bitoffset -= 8 * __archive_read_consume(a, (rar->bitoffset / 8));
     symbol = read_next_symbol(a, &rar->maincode);
+    if (symbol < 0)
+      return -1;
     rar->output_last_match = 0;
-
+    
     if (symbol < 256)
     {
       lzss_emit_literal(rar, symbol);
