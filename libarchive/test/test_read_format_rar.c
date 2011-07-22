@@ -25,6 +25,8 @@
  */
 #include "test.h"
 
+#include <locale.h>
+
 static void
 test_basic(void)
 {
@@ -162,6 +164,62 @@ test_noeof(void)
   /* Test EOF */
   assertA(1 == archive_read_next_header(a, &ae));
   assertEqualInt(1, archive_file_count(a));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+static void
+test_unicode(void)
+{
+  char buff[5];
+  const char reffile[] = "test_read_format_rar_unicode.rar";
+  const char test_txt[] = "kanji";
+  struct archive_entry *ae;
+  struct archive *a;
+
+  setlocale(LC_ALL, "en_US.UTF-8");
+
+  extract_reference_file(reffile);
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_support_filter_all(a));
+  assertA(0 == archive_read_support_format_all(a));
+  assertA(0 == archive_read_open_file(a, reffile, 10240));
+
+  /* First header. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("表だよ/新しいフォルダ/新規テキスト ドキュメント.txt",
+                    archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertEqualInt(0, archive_entry_size(ae));
+  assertEqualInt(33188, archive_entry_mode(ae));
+
+  /* Second header. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("表だよ/漢字長いファイル名long-filename-in-漢字.txt",
+                    archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertEqualInt(5, archive_entry_size(ae));
+  assertEqualInt(33188, archive_entry_mode(ae));
+  assertA(5 == archive_read_data(a, buff, 5));
+  assertEqualMem(buff, test_txt, 5);
+
+  /* Third header. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("表だよ/新しいフォルダ", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertEqualInt(0, archive_entry_size(ae));
+  assertEqualInt(16877, archive_entry_mode(ae));
+
+  /* Fourth header. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("表だよ", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertEqualInt(0, archive_entry_size(ae));
+  assertEqualInt(16877, archive_entry_mode(ae));
+
+  /* Test EOF */
+  assertA(1 == archive_read_next_header(a, &ae));
+  assertEqualInt(4, archive_file_count(a));
   assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
@@ -307,6 +365,7 @@ DEFINE_TEST(test_read_format_rar)
   test_basic();
   test_subblock();
   test_noeof();
+  test_unicode();
   test_compress_normal();
   test_multi_lzss_blocks();
 }

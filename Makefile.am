@@ -490,6 +490,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar_multi_lzss_blocks.rar.uu	\
 	libarchive/test/test_read_format_rar_noeof.rar.uu		\
 	libarchive/test/test_read_format_rar_subblock.rar.uu		\
+	libarchive/test/test_read_format_rar_unicode.rar.uu		\
 	libarchive/test/test_read_format_raw.data.Z.uu			\
 	libarchive/test/test_read_format_raw.data.uu			\
 	libarchive/test/test_read_format_tar_empty_filename.tar.uu	\

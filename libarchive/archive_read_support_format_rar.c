@@ -573,11 +573,12 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   struct rar_header rar_header;
   struct rar_file_header file_header;
   int64_t header_size;
-  unsigned filename_size;
+  unsigned filename_size, offset, end;
   char *filename;
   char *strp;
   char packed_size[8];
   char unp_size[8];
+  unsigned char highbyte, flagbyte, flagbits, length;
   int time;
   struct archive_string_conv *sconv;
   int ret = (ARCHIVE_OK), ret2;
@@ -669,22 +670,71 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   {
     if (filename_size != strlen(filename))
     {
-      memcpy(filename, p + strlen(filename), filename_size - strlen(filename));
-      filename[filename_size - strlen(filename)] = '\0';
+      end = filename_size;
+      filename_size = 0;
+      offset = strlen(filename) + 1;
+      highbyte = *(p + offset++);
+      flagbits = 0;
+      while (offset < end)
+      {
+        if (!flagbits)
+        {
+          flagbyte = *(p + offset++);
+          flagbits = 8;
+        }
+        flagbits -= 2;
+        switch((flagbyte >> flagbits) & 3)
+        {
+          case 0:
+            filename[filename_size++] = '\0';
+            filename[filename_size++] = *(p + offset++);
+            break;
+          case 1:
+            filename[filename_size++] = highbyte;
+            filename[filename_size++] = *(p + offset++);
+            break;
+          case 2:
+            filename[filename_size++] = *(p + offset + 1);
+            filename[filename_size++] = *(p + offset);
+            offset += 2;
+            break;
+          case 3:
+          {
+            length = *(p + offset++);
+            while (length)
+            {
+              filename[filename_size++] = *(p + offset);
+              length--;
+            }
+          }
+          break;
+        }
+      }
+      filename[filename_size++] = '\0';
+      filename[filename_size++] = '\0';
     }
-    sconv = archive_string_conversion_from_charset(&a->archive, "UTF-8", 1);
+    sconv = archive_string_conversion_from_charset(&a->archive, "UTF-16BE", 1);
     if (sconv == NULL)
     {
       free(filename);
       return (ARCHIVE_FATAL);
     }
+    strp = filename;
+    while (memcmp(strp, "\x00\x00", 2))
+    {
+      if (!memcmp(strp, "\x00\\", 2))
+        *(strp + 1) = '/';
+      strp += 2;
+    }
+    p += offset;
   }
   else
+  {
     sconv = archive_string_default_conversion_for_read(&(a->archive));
-
-  while ((strp = strchr(filename, '\\')) != NULL)
-    *strp = '/';
-  p += filename_size;
+    while ((strp = strchr(filename, '\\')) != NULL)
+      *strp = '/';
+    p += filename_size;
+  }
 
   if (rar->file_flags & FHD_SALT)
   {
@@ -741,7 +791,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   archive_entry_set_size(entry, rar->unp_size);
   archive_entry_set_mode(entry, rar->mode);
 
-  if (archive_entry_copy_pathname_l(entry, filename, strlen(filename), sconv))
+  if (archive_entry_copy_pathname_l(entry, filename, filename_size, sconv))
   {
     if (errno == ENOMEM)
     {
