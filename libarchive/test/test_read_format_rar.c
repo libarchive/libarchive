@@ -177,7 +177,10 @@ test_unicode(void)
   struct archive_entry *ae;
   struct archive *a;
 
-  setlocale(LC_ALL, "en_US.UTF-8");
+  if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+	skipping("en_US.UTF-8 locale not available on this system.");
+	return;
+  }
 
   extract_reference_file(reffile);
   assert((a = archive_read_new()) != NULL);
