@@ -169,7 +169,7 @@ test_noeof(void)
 }
 
 static void
-test_unicode(void)
+test_unicode_UTF8(void)
 {
   char buff[5];
   const char reffile[] = "test_read_format_rar_unicode.rar";
@@ -225,6 +225,88 @@ test_unicode(void)
   assertA(0 == archive_read_next_header(a, &ae));
   assertEqualUTF8String("\xE8\xA1\xA8\xE3\x81\xA0\xE3\x82\x88",
       archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertEqualInt(0, archive_entry_size(ae));
+  assertEqualInt(16877, archive_entry_mode(ae));
+
+  /* Test EOF */
+  assertA(1 == archive_read_next_header(a, &ae));
+  assertEqualInt(4, archive_file_count(a));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+static void
+test_unicode_CP932(void)
+{
+  char buff[5];
+  const char reffile[] = "test_read_format_rar_unicode.rar";
+  const char test_txt[] = "kanji";
+  struct archive_entry *ae;
+  struct archive *a;
+
+  if (NULL == setlocale(LC_ALL, "Japanese_Japan") &&
+    NULL == setlocale(LC_ALL, "ja_JP.SJIS")) {
+	skipping("CP932 locale not available on this system.");
+	return;
+  }
+
+  /*
+   * Test that current platform supports a string conversion from UTF-8
+   * to CP932.
+   * Note: use the zip reader since the rar reader does not support
+   * a hdrcharset option.
+   */
+  assert((a = archive_read_new()) != NULL);
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
+  if (ARCHIVE_OK != archive_read_set_options(a, "hdrcharset=UTF-8")) {
+	skipping("This system cannot convert character-set"
+	    " from Unicode to CP932.");
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	return;
+  }
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+  extract_reference_file(reffile);
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_support_filter_all(a));
+  assertA(0 == archive_read_support_format_all(a));
+  assertA(0 == archive_read_open_file(a, reffile, 10240));
+
+  /* First header. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("\x95\x5c\x82\xbe\x82\xe6/\x90\x56\x82\xb5\x82\xa2"
+      "\x83\x74\x83\x48\x83\x8b\x83\x5f/\x90\x56\x8b\x4b\x83\x65\x83\x4c"
+      "\x83\x58\x83\x67 \x83\x68\x83\x4c\x83\x85\x83\x81\x83\x93\x83\x67.txt",
+      archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertEqualInt(0, archive_entry_size(ae));
+  assertEqualInt(33188, archive_entry_mode(ae));
+
+  /* Second header. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("\x95\x5c\x82\xbe\x82\xe6/\x8a\xbf\x8e\x9a"
+      "\x92\xb7\x82\xa2\x83\x74\x83\x40\x83\x43\x83\x8b\x96\xbc\x6c"
+      "\x6f\x6e\x67\x2d\x66\x69\x6c\x65\x6e\x61\x6d\x65\x2d\x69\x6e"
+      "\x2d\x8a\xbf\x8e\x9a.txt", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertEqualInt(5, archive_entry_size(ae));
+  assertEqualInt(33188, archive_entry_mode(ae));
+  assertA(5 == archive_read_data(a, buff, 5));
+  assertEqualMem(buff, test_txt, 5);
+
+  /* Third header. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("\x95\x5c\x82\xbe\x82\xe6/"
+      "\x90\x56\x82\xb5\x82\xa2\x83\x74\x83\x48\x83\x8b\x83\x5f",
+      archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertEqualInt(0, archive_entry_size(ae));
+  assertEqualInt(16877, archive_entry_mode(ae));
+
+  /* Fourth header. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("\x95\x5c\x82\xbe\x82\xe6", archive_entry_pathname(ae));
   assertA((int)archive_entry_mtime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(16877, archive_entry_mode(ae));
@@ -377,7 +459,8 @@ DEFINE_TEST(test_read_format_rar)
   test_basic();
   test_subblock();
   test_noeof();
-  test_unicode();
+  test_unicode_UTF8();
+  test_unicode_CP932();
   test_compress_normal();
   test_multi_lzss_blocks();
 }
