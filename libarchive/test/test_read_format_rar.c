@@ -187,16 +187,22 @@ test_unicode(void)
 
   /* First header. */
   assertA(0 == archive_read_next_header(a, &ae));
-  assertEqualString("表だよ/新しいフォルダ/新規テキスト ドキュメント.txt",
-                    archive_entry_pathname(ae));
+  assertEqualString("\xE8\xA1\xA8\xE3\x81\xA0\xE3\x82\x88/"
+      "\xE6\x96\xB0\xE3\x81\x97\xE3\x81\x84\xE3\x83\x95\xE3\x82"
+      "\xA9\xE3\x83\xAB\xE3\x83\x80/\xE6\x96\xB0\xE8\xA6\x8F"
+      "\xE3\x83\x86\xE3\x82\xAD\xE3\x82\xB9\xE3\x83\x88 "
+      "\xE3\x83\x89\xE3\x82\xAD\xE3\x83\xA5\xE3\x83\xA1\xE3\x83"
+      "\xB3\xE3\x83\x88.txt", archive_entry_pathname(ae));
   assertA((int)archive_entry_mtime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
 
   /* Second header. */
   assertA(0 == archive_read_next_header(a, &ae));
-  assertEqualString("表だよ/漢字長いファイル名long-filename-in-漢字.txt",
-                    archive_entry_pathname(ae));
+  assertEqualString("\xE8\xA1\xA8\xE3\x81\xA0\xE3\x82\x88/"
+      "\xE6\xBC\xA2\xE5\xAD\x97\xE9\x95\xB7\xE3\x81\x84\xE3\x83\x95"
+      "\xE3\x82\xA1\xE3\x82\xA4\xE3\x83\xAB\xE5\x90\x8Dlong-filename-in-"
+      "\xE6\xBC\xA2\xE5\xAD\x97.txt", archive_entry_pathname(ae));
   assertA((int)archive_entry_mtime(ae));
   assertEqualInt(5, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
@@ -205,14 +211,17 @@ test_unicode(void)
 
   /* Third header. */
   assertA(0 == archive_read_next_header(a, &ae));
-  assertEqualString("表だよ/新しいフォルダ", archive_entry_pathname(ae));
+  assertEqualString("\xE8\xA1\xA8\xE3\x81\xA0\xE3\x82\x88/"
+      "\xE6\x96\xB0\xE3\x81\x97\xE3\x81\x84\xE3\x83\x95\xE3\x82"
+      "\xA9\xE3\x83\xAB\xE3\x83\x80", archive_entry_pathname(ae));
   assertA((int)archive_entry_mtime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(16877, archive_entry_mode(ae));
 
   /* Fourth header. */
   assertA(0 == archive_read_next_header(a, &ae));
-  assertEqualString("表だよ", archive_entry_pathname(ae));
+  assertEqualString("\xE8\xA1\xA8\xE3\x81\xA0\xE3\x82\x88",
+      archive_entry_pathname(ae));
   assertA((int)archive_entry_mtime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(16877, archive_entry_mode(ae));
