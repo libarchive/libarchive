@@ -573,12 +573,11 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   struct rar_header rar_header;
   struct rar_file_header file_header;
   int64_t header_size;
-  unsigned filename_size, offset, end;
+  unsigned filename_size, end;
   char *filename;
   char *strp;
   char packed_size[8];
   char unp_size[8];
-  unsigned char highbyte, flagbyte, flagbits, length;
   int time;
   struct archive_string_conv *sconv;
   int ret = (ARCHIVE_OK), ret2;
@@ -678,8 +677,12 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   filename[filename_size] = '\0';
   if (rar->file_flags & FHD_UNICODE)
   {
+    unsigned offset;
+
     if (filename_size != strlen(filename))
     {
+      unsigned char highbyte, flagbits, flagbyte, length;
+
       end = filename_size;
       filename_size = 0;
       offset = strlen(filename) + 1;
@@ -691,7 +694,9 @@ read_header(struct archive_read *a, struct archive_entry *entry,
         {
           flagbyte = *(p + offset++);
           flagbits = 8;
-        }
+        } else
+	  flagbyte = 0;
+	
         flagbits -= 2;
         switch((flagbyte >> flagbits) & 3)
         {
@@ -722,7 +727,9 @@ read_header(struct archive_read *a, struct archive_entry *entry,
       }
       filename[filename_size++] = '\0';
       filename[filename_size++] = '\0';
-    }
+    } else
+      offset = 0;
+
     sconv = archive_string_conversion_from_charset(&a->archive, "UTF-16BE", 1);
     if (sconv == NULL)
     {
