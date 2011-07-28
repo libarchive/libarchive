@@ -518,11 +518,16 @@ read_more:
 			}
 			break;
 		}
-		if (total + len * 2 > OUT_BUFF_SIZE)
-			break;
 		switch (uudecode->state) {
 		default:
 		case ST_FIND_HEAD:
+			/* Do not read more than UUENCODE_BID_MAX_READ bytes */
+			if (total + len >= UUENCODE_BID_MAX_READ) {
+				archive_set_error(&self->archive->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Invalid format data");
+				return (ARCHIVE_FATAL);
+			}
 			if (len - nl > 13 && memcmp(b, "begin ", 6) == 0)
 				l = 6;
 			else if (len - nl > 18 &&
@@ -540,6 +545,8 @@ read_more:
 			}
 			break;
 		case ST_READ_UU:
+			if (total + len * 2 > OUT_BUFF_SIZE)
+				break;
 			body = len - nl;
 			if (!uuchar[*b] || body <= 0) {
 				archive_set_error(&self->archive->archive,
@@ -604,6 +611,8 @@ read_more:
 			}
 			break;
 		case ST_READ_BASE64:
+			if (total + len * 2 > OUT_BUFF_SIZE)
+				break;
 			l = len - nl;
 			if (l >= 3 && b[0] == '=' && b[1] == '=' &&
 			    b[2] == '=') {

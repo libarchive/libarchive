@@ -123,27 +123,18 @@ test_read_uu_sub(const char *uudata, size_t uusize, int no_nl)
 		    archive_read_support_format_all(a));
 		assertEqualIntA(a, ARCHIVE_OK,
 		    read_open_memory(a, buff, size, 2));
-		if (extra == 64 && no_nl) {
-			/* TODO : Should we not recognize uuencoded data at
-			 * bidding data type in this case ? */
-			failure("64K bytes extra data without NL "
-			    "should not decode uuencoded data");
-			assertEqualIntA(a, ARCHIVE_EOF,
-			    archive_read_next_header(a, &ae));
-		} else {
-			assertEqualIntA(a, ARCHIVE_OK,
-			    archive_read_next_header(a, &ae));
-			failure("archive_compression_name(a)=\"%s\""
-			    "extra %d, NL %d",
-			    archive_compression_name(a), extra, !no_nl);
-			assertEqualInt(archive_compression(a),
-			    ARCHIVE_COMPRESSION_COMPRESS);
-			failure("archive_format_name(a)=\"%s\""
-			    "extra %d, NL %d",
-			    archive_format_name(a), extra, !no_nl);
-			assertEqualInt(archive_format(a),
-			    ARCHIVE_FORMAT_TAR_USTAR);
-		}
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_next_header(a, &ae));
+		failure("archive_compression_name(a)=\"%s\""
+		    "extra %d, NL %d",
+		    archive_compression_name(a), extra, !no_nl);
+		assertEqualInt(archive_compression(a),
+		    ARCHIVE_COMPRESSION_COMPRESS);
+		failure("archive_format_name(a)=\"%s\""
+		    "extra %d, NL %d",
+		    archive_format_name(a), extra, !no_nl);
+		assertEqualInt(archive_format(a),
+		    ARCHIVE_FORMAT_TAR_USTAR);
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	}
@@ -151,7 +142,7 @@ test_read_uu_sub(const char *uudata, size_t uusize, int no_nl)
 	/* UUdecode bidder shouldn't scan too much data; make sure it
 	 * fails if we put 512k of data before the start. */
 	size = 512 * 1024;
-	for (extra = 0; extra < size; ++extra)
+	for (extra = 0; (size_t)extra < size; ++extra)
 		buff[extra + 1024] = buff[extra];
 	buff[size - 1] = '\n';
 	memcpy(buff + size, uudata, uusize);
