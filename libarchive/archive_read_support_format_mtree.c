@@ -239,8 +239,15 @@ next_line(struct archive_read *a,
 	 */
 	while (*nl == 0 && len == *avail && !quit) {
 		ssize_t diff = *ravail - *avail;
+		size_t nbytes_req = (*ravail+1023) & ~1023U;
+		ssize_t tested;
 
-		*b = __archive_read_ahead(a, 160 + *ravail, avail);
+		/* Increase reading bytes if it is not enough to at least
+		 * new two lines. */
+		if (nbytes_req < (size_t)*ravail + 160)
+			nbytes_req <<= 1;
+
+		*b = __archive_read_ahead(a, nbytes_req, avail);
 		if (*b == NULL) {
 			if (*ravail >= *avail)
 				return (0);
@@ -251,7 +258,10 @@ next_line(struct archive_read *a,
 		*ravail = *avail;
 		*b += diff;
 		*avail -= diff;
+		tested = len;/* Skip some bytes we already determinated. */
 		len = get_line_size(*b, *avail, nl);
+		if (len >= 0)
+			len += tested;
 	}
 	return (len);
 }
