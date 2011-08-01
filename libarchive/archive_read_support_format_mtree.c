@@ -1551,6 +1551,20 @@ mtree_atol10(char **p)
 	return (sign < 0) ? -l : l;
 }
 
+/* Parse a hex digit. */
+static int
+parsehex(char c)
+{
+	if (c >= '0' && c <= '9')
+		return c - '0';
+	else if (c >= 'a' && c <= 'f')
+		return c - 'a';
+	else if (c >= 'A' && c <= 'F')
+		return c - 'A';
+	else
+		return -1;
+}
+
 /*
  * Note that this implementation does not (and should not!) obey
  * locale settings; you cannot simply substitute strtol here, since
@@ -1563,38 +1577,25 @@ mtree_atol16(char **p)
 	int base, digit, sign;
 
 	base = 16;
-	limit = INT64_MAX / base;
-	last_digit_limit = INT64_MAX % base;
 
 	if (**p == '-') {
 		sign = -1;
+		limit = ((uint64_t)(INT64_MAX) + 1) / base;
+		last_digit_limit = ((uint64_t)(INT64_MAX) + 1) % base;
 		++(*p);
-	} else
+	} else {
 		sign = 1;
+		limit = INT64_MAX / base;
+		last_digit_limit = INT64_MAX % base;
+	}
 
 	l = 0;
-	if (**p >= '0' && **p <= '9')
-		digit = **p - '0';
-	else if (**p >= 'a' && **p <= 'f')
-		digit = **p - 'a' + 10;
-	else if (**p >= 'A' && **p <= 'F')
-		digit = **p - 'A' + 10;
-	else
-		digit = -1;
+	digit = parsehex(**p);
 	while (digit >= 0 && digit < base) {
-		if (l > limit || (l == limit && digit > last_digit_limit)) {
-			l = INT64_MAX; /* Truncate on overflow. */
-			break;
-		}
+		if (l > limit || (l == limit && digit > last_digit_limit))
+			return (sign < 0) ? INT64_MIN : INT64_MAX;
 		l = (l * base) + digit;
-		if (**p >= '0' && **p <= '9')
-			digit = **p - '0';
-		else if (**p >= 'a' && **p <= 'f')
-			digit = **p - 'a' + 10;
-		else if (**p >= 'A' && **p <= 'F')
-			digit = **p - 'A' + 10;
-		else
-			digit = -1;
+		digit = parsehex(*++(*p));
 	}
 	return (sign < 0) ? -l : l;
 }
