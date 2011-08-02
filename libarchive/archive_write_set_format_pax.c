@@ -240,18 +240,17 @@ add_pax_attr_time(struct archive_string *as, const char *key,
 static char *
 format_int(char *t, int64_t i)
 {
-	int sign;
+	uint64_t ui;
 
-	if (i < 0) {
-		sign = -1;
-		i = -i;
-	} else
-		sign = 1;
+	if (i < 0) 
+		ui = (i == INT64_MIN) ? (uint64_t)(INT64_MAX) + 1 : -i;
+	else
+		ui = i;
 
 	do {
-		*--t = "0123456789"[i % 10];
-	} while (i /= 10);
-	if (sign < 0)
+		*--t = "0123456789"[ui % 10];
+	} while (ui /= 10);
+	if (i < 0)
 		*--t = '-';
 	return (t);
 }
