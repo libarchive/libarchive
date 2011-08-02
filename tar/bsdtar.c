@@ -493,7 +493,13 @@ main(int argc, char **argv)
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_OWNER;
 			break;
 		case OPTION_STRIP_COMPONENTS: /* GNU tar 1.15 */
-			bsdtar->strip_components = atoi(bsdtar->argument);
+			errno = 0;
+			bsdtar->strip_components = strtol(bsdtar->argument,
+			    NULL, 0);
+			if (errno)
+				lafe_errc(1, 0,
+				    "Invalid --strip-components argument: %s",
+				    bsdtar->argument);
 			break;
 		case 'T': /* GNU tar */
 			bsdtar->names_from_file = bsdtar->argument;
