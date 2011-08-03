@@ -25,8 +25,14 @@
 
 #include "archive_platform.h"
 
+#ifdef HAVE_SYS_ENDIAN_H
+#include <sys/endian.h>
+#endif
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
+#endif
+#ifdef HAVE_ENDIAN_H
+#include <endian.h>
 #endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
@@ -284,7 +290,7 @@ static int	lzh_decode_init(struct lzh_stream *, const char *);
 static void	lzh_decode_free(struct lzh_stream *);
 static uint16_t lzh_crc16(struct lzh_stream *);
 static int	lzh_decode(struct lzh_stream *, int);
-static int	lzh_br_fillup(struct lzh_stream *);
+static int	lzh_br_fillup(struct lzh_stream *, struct lzh_br *);
 static int	lzh_huffman_init(struct huffman *, size_t, int);
 static void	lzh_huffman_free(struct huffman *);
 static int	lzh_read_pt_bitlen(struct lzh_stream *, int start, int end);
@@ -1694,15 +1700,38 @@ lha_crc16(uint16_t crc, const void *pp, size_t len)
 {
 	const unsigned char *buff = (const unsigned char *)pp;
 
-	while (len >= 4) {
-		CRC16(crc, *buff++);
-		CRC16(crc, *buff++);
-		CRC16(crc, *buff++);
-		CRC16(crc, *buff++);
-		len -= 4;
+	while (len >= 8) {
+		CRC16(crc, *buff++); CRC16(crc, *buff++);
+		CRC16(crc, *buff++); CRC16(crc, *buff++);
+		CRC16(crc, *buff++); CRC16(crc, *buff++);
+		CRC16(crc, *buff++); CRC16(crc, *buff++);
+		len -= 8;
 	}
-	while (len-- > 0)
+	switch (len) {
+	case 7:
 		CRC16(crc, *buff++);
+		/* FALL THROUGH */
+	case 6:
+		CRC16(crc, *buff++);
+		/* FALL THROUGH */
+	case 5:
+		CRC16(crc, *buff++);
+		/* FALL THROUGH */
+	case 4:
+		CRC16(crc, *buff++);
+		/* FALL THROUGH */
+	case 3:
+		CRC16(crc, *buff++);
+		/* FALL THROUGH */
+	case 2:
+		CRC16(crc, *buff++);
+		/* FALL THROUGH */
+	case 1:
+		CRC16(crc, *buff++);
+		/* FALL THROUGH */
+	case 0:
+		break;
+	}
 	return (crc);
 }
 
@@ -1820,9 +1849,10 @@ lzh_crc16(struct lzh_stream *strm)
  *  False : we met that strm->next_in is empty, we have to get following
  *          bytes. */
 #define lzh_br_read_ahead(strm, br, n)	\
-	(lzh_br_has(br, (n)) || lzh_br_fillup(strm))
+	(lzh_br_has(br, (n)) || lzh_br_fillup(strm, br))
 /* Notify how man bits we consumed. */
 #define lzh_br_consume(br, n)	((br)->cache_avail -= (n))
+#define lzh_br_unconsume(br, n)	((br)->cache_avail += (n))
 
 static const uint16_t cache_masks[] = {
 	0x0000, 0x0001, 0x0003, 0x0007,
@@ -1840,55 +1870,103 @@ static const uint16_t cache_masks[] = {
  * Returns 0 if the cache buffer is not full; input buffer is empty.
  */
 static int
-lzh_br_fillup(struct lzh_stream *strm)
+lzh_br_fillup(struct lzh_stream *strm, struct lzh_br *br)
 {
-	struct lzh_dec *ds = strm->ds;
-	int n = CACHE_BITS - ds->br.cache_avail;
+/*
+ * x86 proccessor family can read misaligned data without an access error.
+ */
+#if defined(__i386__)
+#  if defined(_WIN32) && !defined(__CYGWIN__)
+#    define lzh_be16dec(p) _byteswap_ushort(*(const uint16_t *)(p))
+#  elif defined(be16toh)
+#    define lzh_be16dec(p) be16toh(*(const uint16_t *)(p))
+#  elif defined(betoh16)
+#    define lzh_be16dec(p) betoh16(*(const uint16_t *)(p))
+#  else
+#    define lzh_be16dec	archive_be16dec
+#  endif
+#  if defined(_WIN32) && !defined(__CYGWIN__)
+#    define lzh_be16dec(p) _byteswap_ulong(*(const uint32_t *)(p))
+#  elif defined(be32toh)
+#    define lzh_be32dec(p) be32toh(*(const uint32_t *)(p))
+#  elif defined(betoh32)
+#    define lzh_be32dec(p) betoh32(*(const uint32_t *)(p))
+#  else
+#    define lzh_be32dec	archive_be32dec
+#  endif
+#  if defined(_WIN32) && !defined(__CYGWIN__)
+#    define lzh_be16dec(p) _byteswap_uint64(*(const uint64_t *)(p))
+#  elif defined(be64toh)
+#    define lzh_be64dec(p) be64toh(*(const uint64_t *)(p))
+#  elif defined(betoh64)
+#    define lzh_be64dec(p) betoh64(*(const uint64_t *)(p))
+#  else
+#    define lzh_be64dec	archive_be64dec
+#  endif
+#else
+#  define lzh_be16dec	archive_be16dec
+#  define lzh_be32dec	archive_be32dec
+#  define lzh_be64dec	archive_be64dec
+#endif
+	int n = CACHE_BITS - br->cache_avail;
 
-	while (n >= 8) {
+	for (;;) {
+		switch (n >> 3) {
+		case 8:
+			if (strm->avail_in >= 8) {
+				br->cache_buffer =
+				    lzh_be64dec(strm->next_in);
+				strm->next_in += 8;
+				strm->avail_in -= 8;
+				br->cache_avail += 8 * 8;
+				return (1);
+			}
+			break;
+		case 7:
+			if (strm->avail_in >= 8) {/* Read extra one. */
+				br->cache_buffer =
+		 		   (br->cache_buffer << 56) |
+				    lzh_be64dec(strm->next_in) >> 8;
+				strm->next_in += 7;
+				strm->avail_in -= 7;
+				br->cache_avail += 7 * 8;
+				return (1);
+			}
+			break;
+		case 6:
+			if (strm->avail_in >= 6) {
+				br->cache_buffer =
+		 		   (br->cache_buffer << 48) |
+				   (((uint64_t)lzh_be32dec(
+				       strm->next_in)) << 16) |
+				    lzh_be16dec(&strm->next_in[4]);
+				strm->next_in += 6;
+				strm->avail_in -= 6;
+				br->cache_avail += 6 * 8;
+				return (1);
+			}
+			break;
+		case 0:
+			/* We have enough compressed data in
+			 * the cache buffer.*/ 
+			return (1);
+		default:
+			break;
+		}
 		if (strm->avail_in == 0) {
 			/* There is not enough compressed data to fill up the
 			 * cache buffer. */
 			return (0);
-		} else if (strm->avail_in >= 8) {
-			int bytes;
-			switch (bytes = (n >> 3)) {
-			case 8:
-				ds->br.cache_buffer =
-				    archive_be64dec(strm->next_in);
-				break;
-			case 7:
-				ds->br.cache_buffer =
-		 		   (ds->br.cache_buffer << 56) |
-				    archive_be64dec(strm->next_in) >> 8;
-				break;
-			case 6:
-				ds->br.cache_buffer =
-		 		   (ds->br.cache_buffer << 48) |
-				   (((uint64_t)archive_be32dec(
-				       strm->next_in)) << 16) |
-				    archive_be16dec(&strm->next_in[4]);
-				break;
-			default:
-				bytes = 0;
-				break;
-			}
-			if (bytes) {
-				strm->next_in += bytes;
-				strm->avail_in -= bytes;
-				strm->total_in += bytes;
-				ds->br.cache_avail += bytes * 8;
-				return (1);
-			}
 		}
-		ds->br.cache_buffer =
-		   (ds->br.cache_buffer << 8) | *strm->next_in++;
+		br->cache_buffer =
+		   (br->cache_buffer << 8) | *strm->next_in++;
 		strm->avail_in--;
-		strm->total_in++;
-		ds->br.cache_avail += 8;
+		br->cache_avail += 8;
 		n -= 8;
 	}
-	return (1);
+#undef lzh_be16dec
+#undef lzh_be32dec
+#undef lzh_be64dec
 }
 
 /*
@@ -1911,13 +1989,8 @@ lzh_br_fillup(struct lzh_stream *strm)
  *    zeros are treated as the mark of the end of the data although the zeros
  *    is dummy, not the file data.
  */
-static int
-lzh_decode(struct lzh_stream *strm, int last)
-{
-	struct lzh_dec *ds = strm->ds;
-	struct lzh_br *br = &(ds->br);
-	int c = 0, i;
-	unsigned rbits;
+static int	lzh_read_blocks(struct lzh_stream *, int);
+static int	lzh_decode_blocks(struct lzh_stream *, int);
 #define ST_RD_BLOCK		0
 #define ST_RD_PT_1		1
 #define ST_RD_PT_2		2
@@ -1931,8 +2004,40 @@ lzh_decode(struct lzh_stream *strm, int last)
 #define ST_GET_POS_1		10
 #define ST_GET_POS_2		11
 #define ST_COPY_DATA		12
+
+static int
+lzh_decode(struct lzh_stream *strm, int last)
+{
+	struct lzh_dec *ds = strm->ds;
+	int64_t avail_in;
+	int r;
+
 	if (ds->error)
 		return (ds->error);
+
+	avail_in = strm->avail_in;
+	do {
+		if (ds->state < ST_GET_LITERAL)
+			r = lzh_read_blocks(strm, last);
+		else {
+			int64_t bytes_written = strm->avail_out;
+			r = lzh_decode_blocks(strm, last);
+			bytes_written -= strm->avail_out;
+			strm->next_out += bytes_written;
+			strm->total_out += bytes_written;
+		}
+	} while (r == 100);
+	strm->total_in += avail_in - strm->avail_in;
+	return (r);
+}
+
+static int
+lzh_read_blocks(struct lzh_stream *strm, int last)
+{
+	struct lzh_dec *ds = strm->ds;
+	struct lzh_br *br = &(ds->br);
+	int c = 0, i;
+	unsigned rbits;
 
 	for (;;) {
 		switch (ds->state) {
@@ -2149,16 +2254,47 @@ lzh_decode(struct lzh_stream *strm, int last)
 			ds->state = ST_RD_PT_1;
 			break;
 		case ST_GET_LITERAL:
+			return (100);
+		}
+	}
+failed:
+	return (ds->error = ARCHIVE_FAILED);
+}
+
+static int
+lzh_decode_blocks(struct lzh_stream *strm, int last)
+{
+	struct lzh_dec *ds = strm->ds;
+	struct lzh_br bre = ds->br;
+	struct huffman *lt = &(ds->lt);
+	struct huffman *pt = &(ds->pt);
+	unsigned char *outp = strm->next_out;
+	unsigned char *endp = outp + strm->avail_out;
+	unsigned char *w_buff = ds->w_buff;
+	unsigned char *lt_bitlen = lt->bitlen;
+	unsigned char *pt_bitlen = pt->bitlen;
+	int blocks_avail = ds->blocks_avail, c = 0;
+	int copy_len = ds->copy_len, copy_pos = ds->copy_pos;
+	int w_pos = ds->w_pos, w_mask = ds->w_mask, w_size = ds->w_size;
+	int lt_max_bits = lt->max_bits, pt_max_bits = pt->max_bits;
+	int state = ds->state;
+	uint16_t crc16 = ds->crc16;
+
+	for (;;) {
+		switch (state) {
+		case ST_GET_LITERAL:
 			for (;;) {
-				if (ds->blocks_avail == 0) {
+				if (blocks_avail == 0) {
 					/* We have decoded all blocks.
 					 * Let's handle next blocks. */
 					ds->state = ST_RD_BLOCK;
-					break;
+					ds->br = bre;
+					ds->blocks_avail = 0;
+					ds->crc16 = crc16;
+					ds->w_pos = w_pos;
+					strm->avail_out = endp - outp;
+					return (100);
 				}
-				if (strm->avail_out <= 0)
-					/* Output buffer is empty. */
-					return (ARCHIVE_OK);
 
 				/* lzh_br_read_ahead() always try to fill the
 				 * cache buffer up. In specific situation we
@@ -2167,145 +2303,168 @@ lzh_decode(struct lzh_stream *strm, int last)
 				 * determine if the cache buffer has some bits
 				 * as much as we need after lzh_br_read_ahead()
 				 * failed. */
-				if (!lzh_br_read_ahead(strm, br,
-					ds->lt.max_bits) &&
-				    !lzh_br_has(br, ds->lt.max_bits)) {
+				if (!lzh_br_read_ahead(strm, &bre,
+				    lt_max_bits) &&
+				    !lzh_br_has(&bre, lt_max_bits)) {
 					if (!last)
-						return (ARCHIVE_OK);
+						goto next_data;
 					/* Remaining bits are less than
 					 * maximum bits(lt.max_bits) but maybe
 					 * it still remains as much as we need,
 					 * so we should try to use it with
 					 * dummy bits. */
-					rbits = lzh_br_bits_forced(
-					    br, ds->lt.max_bits);
-					c = lzh_decode_huffman(&(ds->lt),rbits);
-					lzh_br_consume(br, ds->lt.bitlen[c]);
-					if (!lzh_br_has(br, 0))
+					c = lzh_decode_huffman(lt,
+					      lzh_br_bits_forced(&bre,
+					        lt_max_bits));
+					lzh_br_consume(&bre, lt_bitlen[c]);
+					if (!lzh_br_has(&bre, 0))
 						goto failed;/* Over read. */
 				} else {
-					rbits = lzh_br_bits(br,
-					    ds->lt.max_bits);
-					c = lzh_decode_huffman(&(ds->lt),rbits);
-					lzh_br_consume(br, ds->lt.bitlen[c]);
+					c = lzh_decode_huffman(lt,
+					      lzh_br_bits(&bre, lt_max_bits));
+					lzh_br_consume(&bre, lt_bitlen[c]);
 				}
-				ds->blocks_avail--;
+				blocks_avail--;
 				if (c > UCHAR_MAX)
 					/* Current block is a match data. */
 					break;
+				if (outp >= endp) {
+					/* Output buffer is empty. */
+					/* Back out the current block. */
+					blocks_avail++;
+					lzh_br_unconsume(&bre, lt_bitlen[c]);
+					goto next_data;
+				}
 				/*
 				 * 'c' is exactly a literal code.
 				 */
 				/* Save a decoded code to reference it
 				 * afterward. */
-				ds->w_buff[ds->w_pos] = c;
-				ds->w_pos = (ds->w_pos + 1) & ds->w_mask;
-				CRC16(ds->crc16, c);
+				w_buff[w_pos] = c;
+				w_pos = (w_pos + 1) & w_mask;
+				CRC16(crc16, c);
 				/* Store the decoded code to the output
 				 * buffer. */
-				*strm->next_out++ = c;
-				strm->avail_out--;
-				strm->total_out++;
+				*outp++ = c;
 			}
-			if (ds->state == ST_RD_BLOCK)
-				break;
 			/* 'c' is the length of a match pattern we have
 			 * already extracted, which has be stored in
 			 * window(ds->w_buff). */
-			ds->copy_len = c - (UCHAR_MAX + 1) + MINMATCH;
+			copy_len = c - (UCHAR_MAX + 1) + MINMATCH;
 			/* FALL THROUGH */
 		case ST_GET_POS_1:
 			/*
 			 * Get a reference position. 
 			 */
-			if (!lzh_br_read_ahead(strm, br, ds->pt.max_bits) &&
-			    !lzh_br_has(br, ds->pt.max_bits)) {
+			if (!lzh_br_read_ahead(strm, &bre, pt_max_bits) &&
+			    !lzh_br_has(&bre, pt_max_bits)) {
 				if (!last) {
-					ds->state = ST_GET_POS_1;
-					return (ARCHIVE_OK);
+					state = ST_GET_POS_1;
+					ds->copy_len = copy_len;
+					goto next_data;
 				}
-				rbits = lzh_br_bits_forced(br, ds->pt.max_bits);
-				c = lzh_decode_huffman(&(ds->pt), rbits);
-				lzh_br_consume(br, ds->pt.bitlen[c]);
-				if (!lzh_br_has(br, 0))
+				copy_pos = lzh_decode_huffman(pt,
+				    lzh_br_bits_forced(&bre, pt_max_bits));
+				lzh_br_consume(&bre, pt_bitlen[copy_pos]);
+				if (!lzh_br_has(&bre, 0))
 					goto failed;/* Over read. */
 			} else {
-				rbits = lzh_br_bits(br, ds->pt.max_bits);
-				c = lzh_decode_huffman(&(ds->pt), rbits);
-				lzh_br_consume(br, ds->pt.bitlen[c]);
+				copy_pos = lzh_decode_huffman(pt,
+				    lzh_br_bits(&bre, pt_max_bits));
+				lzh_br_consume(&bre, pt_bitlen[copy_pos]);
 			}
-			ds->copy_pos = c;
 			/* FALL THROUGH */
 		case ST_GET_POS_2:
-			if (ds->copy_pos > 1) {
+			if (copy_pos > 1) {
 				/* We need an additional adjustment number to
 				 * the position. */
-				int p = ds->copy_pos - 1;
-				if (!lzh_br_read_ahead(strm, br, p) &&
-				    !lzh_br_has(br, p)) {
+				int p = copy_pos - 1;
+				if (!lzh_br_read_ahead(strm, &bre, p) &&
+				    !lzh_br_has(&bre, p)) {
 					if (last)
 						goto failed;/* Truncated data.*/
-					ds->state = ST_GET_POS_2;
-					return (ARCHIVE_OK);
+					state = ST_GET_POS_2;
+					ds->copy_len = copy_len;
+					ds->copy_pos = copy_pos;
+					goto next_data;
 				}
-				ds->copy_pos = (1 << p) + lzh_br_bits(br, p);
-				lzh_br_consume(br, p);
+				copy_pos = (1 << p) + lzh_br_bits(&bre, p);
+				lzh_br_consume(&bre, p);
 			}
 			/* The position is actually a distance from the last
 			 * code we had extracted and thus we have to convert
 			 * it to a position of the window. */
-			ds->copy_pos =
-			    (ds->w_pos - ds->copy_pos - 1) & ds->w_mask;
+			copy_pos = (w_pos - copy_pos - 1) & w_mask;
 			/* FALL THROUGH */
 		case ST_COPY_DATA:
 			/*
 			 * Copy several bytes as extracted data from the window
 			 * into the output buffer.
 			 */
-			do {
+			for (;;) {
 				const unsigned char *s;
-				unsigned char *d, *o;
-				int l,ll;
-				if (strm->avail_out <= 0) {
-					/* Output buffer is empty. */
-					ds->state = ST_COPY_DATA;
-					return (ARCHIVE_OK);
-				}
-				l = ds->copy_len;
-				if (l > ds->w_size - ds->copy_pos)
-					l = ds->w_size - ds->copy_pos;
-				if (l > ds->w_size - ds->w_pos)
-					l = ds->w_size - ds->w_pos;
-				if (l > strm->avail_out)
-					l = (int)strm->avail_out;
-				ll = l;
-				s = &(ds->w_buff[ds->copy_pos]);
-				d = &(ds->w_buff[ds->w_pos]);
-				o = strm->next_out;
-				if (l >= 8 && ((s + l < d) || (d + l < s))) {
-					memcpy(d, s, l);
-					memcpy(o, s, l);
-					ds->crc16 = lha_crc16(ds->crc16, s, l);
+				int l;
+
+				l = copy_len;
+				if (copy_pos > w_pos) {
+					if (l > w_size - copy_pos)
+						l = w_size - copy_pos;
 				} else {
-					for (l = 0; l < ll; l++) {
-						c = o[l] = d[l] = s[l];
-						CRC16(ds->crc16, c);
+					if (l > w_size - w_pos)
+						l = w_size - w_pos;
+				}
+				if (outp + l >= endp)
+					l = endp - outp;
+				s = w_buff + copy_pos;
+				/*
+				 * We calculate CRC16 here becase of
+				 * increasing a performance of the
+				 * calculation so as to reduce L1 cache miss. 
+				 */
+				if (l >= 8 && ((copy_pos + l < w_pos)
+				    || (w_pos + l < copy_pos))) {
+					memcpy(w_buff + w_pos, s, l);
+					memcpy(outp, s, l);
+					crc16 = lha_crc16(crc16, s, l);
+				} else {
+					unsigned char *d;
+					int li;
+
+					d = w_buff + w_pos;
+					for (li = 0; li < l; li++) {
+						c = outp[li] = d[li] = s[li];
+						CRC16(crc16, c);
 					}
 				}
-				strm->next_out += ll;
-				strm->avail_out -= ll;
-				strm->total_out += ll;
-				ds->copy_pos =
-				    (ds->copy_pos + ll) & ds->w_mask;
-				ds->w_pos = (ds->w_pos + ll) & ds->w_mask;
-				ds->copy_len -= ll;
-			} while (ds->copy_len > 0);
-			ds->state = ST_GET_LITERAL;
+				outp += l;
+				copy_pos = (copy_pos + l) & w_mask;
+				w_pos = (w_pos + l) & w_mask;
+				if (copy_len <= l)
+					/* A copy of current pattern ended. */
+					break;
+				copy_len -= l;
+				if (outp >= endp) {
+					/* Output buffer is empty. */
+					state = ST_COPY_DATA;
+					ds->copy_len = copy_len;
+					ds->copy_pos = copy_pos;
+					goto next_data;
+				}
+			}
+			state = ST_GET_LITERAL;
 			break;
 		}
 	}
 failed:
 	return (ds->error = ARCHIVE_FAILED);
+next_data:
+	ds->br = bre;
+	ds->blocks_avail = blocks_avail;
+	ds->crc16 = crc16;
+	ds->state = state;
+	ds->w_pos = w_pos;
+	strm->avail_out = endp - outp;
+	return (ARCHIVE_OK);
 }
 
 static int

@@ -201,13 +201,13 @@ esac
 # Checks for header files.
 AC_HEADER_DIRENT
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS([acl/libacl.h attr/xattr.h copyfile.h ctype.h errno.h])
-AC_CHECK_HEADERS([ext2fs/ext2_fs.h fcntl.h grp.h])
+AC_CHECK_HEADERS([acl/libacl.h attr/xattr.h copyfile.h ctype.h endian.h])
+AC_CHECK_HEADERS([errno.h ext2fs/ext2_fs.h fcntl.h grp.h])
 AC_CHECK_HEADERS([inttypes.h io.h langinfo.h limits.h])
 AC_CHECK_HEADERS([linux/fiemap.h linux/fs.h linux/magic.h])
 AC_CHECK_HEADERS([locale.h paths.h poll.h pwd.h regex.h signal.h stdarg.h])
 AC_CHECK_HEADERS([stdint.h stdlib.h string.h])
-AC_CHECK_HEADERS([sys/acl.h sys/cdefs.h sys/extattr.h sys/ioctl.h])
+AC_CHECK_HEADERS([sys/acl.h sys/cdefs.h sys/endian.h sys/extattr.h sys/ioctl.h])
 AC_CHECK_HEADERS([sys/mkdev.h sys/mount.h])
 AC_CHECK_HEADERS([sys/param.h sys/poll.h sys/select.h sys/statfs.h sys/statvfs.h])
 AC_CHECK_HEADERS([sys/time.h sys/utime.h sys/utsname.h sys/vfs.h])

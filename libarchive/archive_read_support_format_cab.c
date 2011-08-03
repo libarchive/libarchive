@@ -82,14 +82,14 @@ struct lzx_dec {
 	size_t			 block_size;
 	size_t			 block_bytes_avail;
 	/* Repeated offset. */
-	uint32_t		 r0, r1, r2;
+	int			 r0, r1, r2;
 	unsigned char		 rbytes[4];
 	int			 rbytes_avail;
 	int			 length_header;
 	int			 position_slot;
 	int			 offset_bits;
 
-	struct pos_tbl {
+	struct lzx_pos_tbl {
 		int		 base;
 		int		 footer_bits;
 	}			*pos_tbl;
@@ -341,6 +341,8 @@ static const void *cab_read_ahead_cfdata_lzx(struct archive_read *,
 static int64_t	cab_consume_cfdata(struct archive_read *, int64_t);
 static int64_t	cab_minimum_consume_cfdata(struct archive_read *, int64_t);
 static int	lzx_decode_init(struct lzx_stream *, int);
+static int	lzx_read_blocks(struct lzx_stream *, int);
+static int	lzx_decode_blocks(struct lzx_stream *, int);
 static void	lzx_decode_free(struct lzx_stream *);
 static void	lzx_translation(struct lzx_stream *, void *, size_t, uint32_t);
 static void	lzx_cleanup_bitstream(struct lzx_stream *);
@@ -1049,6 +1051,14 @@ archive_read_format_cab_read_data(struct archive_read *a,
 static uint32_t
 cab_checksum_cfdata_4(const void *p, size_t bytes, uint32_t seed)
 {
+/*
+ * x86 proccessor family can read misaligned data without an access error.
+ */
+#ifdef __i386__
+#  define lzx_le32dec(a)	(*(const uint32_t *)(a))
+#else
+#  define lzx_le32dec(a)	archive_le132ec(a)
+#endif
 	const unsigned char *b;
 	int u32num;
 	uint32_t sum;
@@ -1057,10 +1067,11 @@ cab_checksum_cfdata_4(const void *p, size_t bytes, uint32_t seed)
 	sum = seed;
 	b = p;
 	while (--u32num >= 0) {
-		sum ^= archive_le32dec(b);
+		sum ^= lzx_le32dec(b);
 		b += 4;
 	}
 	return (sum);
+#undef lzx_le32dec
 }
 
 static uint32_t
@@ -2213,7 +2224,7 @@ lzx_translation(struct lzx_stream *strm, void *p, size_t size, uint32_t offset)
  *  False : we met that strm->next_in is empty, we have to get following
  *          bytes. */
 #define lzx_br_read_ahead(strm, br, n)	\
-	(lzx_br_has((br), (n)) || lzx_br_fillup(strm))
+	(lzx_br_has((br), (n)) || lzx_br_fillup(strm, br))
 /*  True  : the cache buffer has some bits as much as we need.
  *  False : there are no enough bits in the cache buffer to be used,
  *          we have to get following bytes if we could. */
@@ -2240,79 +2251,93 @@ static const uint16_t cache_masks[] = {
  * Returns 0 if the cache buffer is not full; input buffer is empty.
  */
 static int
-lzx_br_fillup(struct lzx_stream *strm)
+lzx_br_fillup(struct lzx_stream *strm, struct lzx_br *br)
 {
-	struct lzx_dec *ds = strm->ds;
-	int n = CACHE_BITS - ds->br.cache_avail;
+/*
+ * x86 proccessor family can read misaligned data without an access error.
+ */
+#ifdef __i386__
+#  define lzx_le16dec(a)	(*(const uint16_t *)(a))
+#else
+#  define lzx_le16dec(a)	archive_le16dec(a)
+#endif
+	int n = CACHE_BITS - br->cache_avail;
 
-	if (ds->br.have_odd && n >= 16 && strm->avail_in > 0) {
-		ds->br.cache_buffer =
-		   (ds->br.cache_buffer << 16) |
-		   ((uint16_t)(*strm->next_in)) << 8 |
-		    ds->br.odd;
-		strm->next_in++;
-		strm->avail_in--;
-		strm->total_in++;
-		ds->br.cache_avail += 16;
-		n -= 16;
-		ds->br.have_odd = 0;
-	}
-	while (n >= 16) {
+	for (;;) {
+		switch (n >> 4) {
+		case 4:
+			if (strm->avail_in >= 8) {
+				br->cache_buffer =
+				    (((uint64_t)lzx_le16dec(
+					strm->next_in)) << 48) |
+				    (((uint64_t)lzx_le16dec(
+					strm->next_in+2)) << 32) |
+				    (((uint32_t)lzx_le16dec(
+					strm->next_in+4)) << 16) |
+				    lzx_le16dec(strm->next_in+6);
+				strm->next_in += 8;
+				strm->avail_in -= 8;
+				br->cache_avail += 8 * 8;
+				return (1);
+			}
+			break;
+		case 3:
+			if (strm->avail_in >= 6) {
+				br->cache_buffer =
+		 		   (br->cache_buffer << 48) |
+				    (((uint64_t)lzx_le16dec(
+					strm->next_in)) << 32) |
+				    (((uint32_t)lzx_le16dec(
+					strm->next_in+2)) << 16) |
+				    lzx_le16dec(strm->next_in+4);
+				strm->next_in += 6;
+				strm->avail_in -= 6;
+				br->cache_avail += 6 * 8;
+				return (1);
+			}
+			break;
+		case 0:
+			/* We have enough compressed data in
+			 * the cache buffer.*/
+			return (1);
+		default:
+			break;
+		}
 		if (strm->avail_in < 2) {
-			/* There is not enough compressed data to fill up the
-			 * cache buffer. */
+			/* There is not enough compressed data to
+			 * fill up the cache buffer. */
 			if (strm->avail_in == 1) {
-				ds->br.odd = *strm->next_in++;
+				br->odd = *strm->next_in++;
 				strm->avail_in--;
-				strm->total_in++;
-				ds->br.have_odd = 1;
+				br->have_odd = 1;
 			}
 			return (0);
 		}
-		if (strm->avail_in >= 8) {
-			int words;
-			switch (words = (n >> 4)) {
-			case 4:
-				ds->br.cache_buffer =
-				    (((uint64_t)archive_le16dec(
-					strm->next_in)) << 48) |
-				    (((uint64_t)archive_le16dec(
-					strm->next_in+2)) << 32) |
-				    (((uint32_t)archive_le16dec(
-					strm->next_in+4)) << 16) |
-				    archive_le16dec(strm->next_in+6);
-				break;
-			case 3:
-				ds->br.cache_buffer =
-		 		   (ds->br.cache_buffer << 48) |
-				    (((uint64_t)archive_le16dec(
-					strm->next_in)) << 32) |
-				    (((uint32_t)archive_le16dec(
-					strm->next_in+2)) << 16) |
-				    archive_le16dec(strm->next_in+4);
-				break;
-			default:
-				words = 0;
-				break;
-			}
-			if (words) {
-				strm->next_in += words << 1;
-				strm->avail_in -= words << 1;
-				strm->total_in += words << 1;
-				ds->br.cache_avail += words << 4;
-				return (1);
-			}
-		}
-		ds->br.cache_buffer =
-		   (ds->br.cache_buffer << 16) |
-		    archive_le16dec(strm->next_in);
+		br->cache_buffer =
+		   (br->cache_buffer << 16) |
+		    lzx_le16dec(strm->next_in);
 		strm->next_in += 2;
 		strm->avail_in -= 2;
-		strm->total_in += 2;
-		ds->br.cache_avail += 16;
+		br->cache_avail += 16;
 		n -= 16;
 	}
-	return (1);
+#undef lzx_le16dec
+}
+
+static void
+lzx_br_fixup(struct lzx_stream *strm, struct lzx_br *br)
+{
+	int n = CACHE_BITS - br->cache_avail;
+
+	if (br->have_odd && n >= 16 && strm->avail_in > 0) {
+		br->cache_buffer =
+		   (br->cache_buffer << 16) |
+		   ((uint16_t)(*strm->next_in)) << 8 | br->odd;
+		strm->next_in++;
+		strm->avail_in--;
+		br->cache_avail += 16;
+		br->have_odd = 0;
+	}
 }
 
 static void
@@ -2331,13 +2356,6 @@ lzx_cleanup_bitstream(struct lzx_stream *strm)
  * 3. Returns ARCHIVE_FAILED if an error occurred; compressed data
  *    is broken or you do not set 'last' flag properly.
  */
-static int
-lzx_decode(struct lzx_stream *strm, int last)
-{
-	struct lzx_dec *ds = strm->ds;
-	struct lzx_br *br = &(ds->br);
-	int c, i, r;
-	unsigned rbits;
 #define ST_RD_TRANSLATION	0
 #define ST_RD_TRANSLATION_SIZE	1
 #define ST_RD_BLOCK_TYPE	2
@@ -2361,8 +2379,39 @@ lzx_decode(struct lzx_stream *strm, int last)
 #define ST_REAL_POS		20
 #define ST_COPY			21
 
+static int
+lzx_decode(struct lzx_stream *strm, int last)
+{
+	struct lzx_dec *ds = strm->ds;
+	int64_t avail_in;
+	int r;
+
 	if (ds->error)
 		return (ds->error);
+
+	avail_in = strm->avail_in;
+	lzx_br_fixup(strm, &(ds->br));
+	do {
+		if (ds->state < ST_MAIN)
+			r = lzx_read_blocks(strm, last);
+		else {
+			int64_t bytes_written = strm->avail_out;
+			r = lzx_decode_blocks(strm, last);
+			bytes_written -= strm->avail_out;
+			strm->next_out += bytes_written;
+			strm->total_out += bytes_written;
+		}
+	} while (r == 100);
+	strm->total_in += avail_in - strm->avail_in;
+	return (r);
+}
+
+static int
+lzx_read_blocks(struct lzx_stream *strm, int last)
+{
+	struct lzx_dec *ds = strm->ds;
+	struct lzx_br *br = &(ds->br);
+	int i, r;
 
 	for (;;) {
 		switch (ds->state) {
@@ -2478,16 +2527,21 @@ lzx_decode(struct lzx_stream *strm, int last)
 					ds->rbytes[ds->rbytes_avail++] =
 					    *strm->next_in++;
 					strm->avail_in--;
-					strm->total_in++;
 				}
 				if (ds->state == ST_RD_R0) {
 					ds->r0 = archive_le32dec(ds->rbytes);
+					if (ds->r0 < 0)
+						goto failed;
 					ds->state = ST_RD_R1;
 				} else if (ds->state == ST_RD_R1) {
 					ds->r1 = archive_le32dec(ds->rbytes);
+					if (ds->r1 < 0)
+						goto failed;
 					ds->state = ST_RD_R2;
 				} else if (ds->state == ST_RD_R2) {
 					ds->r2 = archive_le32dec(ds->rbytes);
+					if (ds->r2 < 0)
+						goto failed;
 					/* We've gotten all repeated offsets. */
 					ds->state = ST_COPY_UNCOMP1;
 				}
@@ -2526,7 +2580,6 @@ lzx_decode(struct lzx_stream *strm, int last)
 				strm->avail_out -= ll;
 				strm->total_out += ll;
 				strm->avail_in -= ll;
-				strm->total_in += ll;
 				ds->w_pos = (ds->w_pos + ll) & ds->w_mask;
 				ds->block_bytes_avail -= ll;
 			}
@@ -2543,7 +2596,6 @@ lzx_decode(struct lzx_stream *strm, int last)
 				}
 				strm->next_in++;
 				strm->avail_in --;
-				strm->total_in ++;
 			}
 			/* This block ended. */
 			ds->state = ST_RD_BLOCK_TYPE;
@@ -2661,37 +2713,80 @@ lzx_decode(struct lzx_stream *strm, int last)
 			if (!lzx_make_huffman_table(&ds->lt))
 				goto failed;
 			ds->state = ST_MAIN;
-			/* FALL THROUGH */
+			return (100);
+		}
+	}
+failed:
+	return (ds->error = ARCHIVE_FAILED);
+}
+
+static int
+lzx_decode_blocks(struct lzx_stream *strm, int last)
+{
+	struct lzx_dec *ds = strm->ds;
+	struct lzx_br bre = ds->br;
+	struct huffman *at = &(ds->at), *lt = &(ds->lt), *mt = &(ds->mt);
+	const struct lzx_pos_tbl *pos_tbl = ds->pos_tbl;
+	unsigned char *outp = strm->next_out;
+	unsigned char *endp = outp + strm->avail_out;
+	unsigned char *w_buff = ds->w_buff;
+	unsigned char *at_bitlen = at->bitlen;
+	unsigned char *lt_bitlen = lt->bitlen;
+	unsigned char *mt_bitlen = mt->bitlen;
+	size_t block_bytes_avail = ds->block_bytes_avail;
+	int at_max_bits = at->max_bits;
+	int lt_max_bits = lt->max_bits;
+	int mt_max_bits = mt->max_bits;
+	int c, copy_len = ds->copy_len, copy_pos = ds->copy_pos;
+	int w_pos = ds->w_pos, w_mask = ds->w_mask, w_size = ds->w_size;
+	int length_header = ds->length_header;
+	int offset_bits = ds->offset_bits;
+	int position_slot = ds->position_slot;
+	int r0 = ds->r0, r1 = ds->r1, r2 = ds->r2;
+	int state = ds->state;
+	char block_type = ds->block_type;
+
+	for (;;) {
+		switch (state) {
 		case ST_MAIN:
 			for (;;) {
-				if (ds->block_bytes_avail == 0) {
+				if (block_bytes_avail == 0) {
 					/* This block ended. */
 					ds->state = ST_RD_BLOCK_TYPE;
+					ds->br = bre;
+					ds->block_bytes_avail =
+					    block_bytes_avail;
+					ds->copy_len = copy_len;
+					ds->copy_pos = copy_pos;
+					ds->length_header = length_header;
+					ds->position_slot = position_slot;
+					ds->r0 = r0; ds->r1 = r1; ds->r2 = r2;
+					ds->w_pos = w_pos;
+					strm->avail_out = endp - outp;
 					return (ARCHIVE_EOF);
 				}
-				if (strm->avail_out <= 0)
+				if (outp >= endp)
 					/* Output buffer is empty. */
-					return (ARCHIVE_OK);
+					goto next_data;
 
-				if (!lzx_br_ensure(strm, br, ds->mt.max_bits)) {
+				if (!lzx_br_ensure(strm, &bre, mt_max_bits)) {
 					if (!last)
-						return (ARCHIVE_OK);
+						goto next_data;
 					/* Remaining bits are less than
 					 * maximum bits(mt.max_bits) but maybe
 					 * it still remains as much as we need,
 					 * so we should try to use it with
 					 * dummy bits. */
-					rbits = lzx_br_bits_forced(
-					    br, ds->mt.max_bits);
-					c = lzx_decode_huffman(&(ds->mt),rbits);
-					lzx_br_consume(br, ds->mt.bitlen[c]);
-					if (!lzx_br_has(br, 0))
+					c = lzx_decode_huffman(mt,
+					      lzx_br_bits_forced(
+				 	        &bre, mt_max_bits));
+					lzx_br_consume(&bre, mt_bitlen[c]);
+					if (!lzx_br_has(&bre, 0))
 						goto failed;/* Over read. */
 				} else {
-					rbits = lzx_br_bits(br,
-					    ds->mt.max_bits);
-					c = lzx_decode_huffman(&(ds->mt),rbits);
-					lzx_br_consume(br, ds->mt.bitlen[c]);
+					c = lzx_decode_huffman(mt,
+					      lzx_br_bits(&bre, mt_max_bits));
+					lzx_br_consume(&bre, mt_bitlen[c]);
 				}
 				if (c > UCHAR_MAX)
 					break;
@@ -2700,72 +2795,70 @@ lzx_decode(struct lzx_stream *strm, int last)
 				 */
 				/* Save a decoded code to reference it
 				 * afterward. */
-				ds->w_buff[ds->w_pos] = c;
-				ds->w_pos = (ds->w_pos + 1) & ds->w_mask;
+				w_buff[w_pos] = c;
+				w_pos = (w_pos + 1) & w_mask;
 				/* Store the decoded code to output buffer. */
-				*strm->next_out++ = c;
-				strm->avail_out--;
-				strm->total_out++;
-				ds->block_bytes_avail--;
+				*outp++ = c;
+				block_bytes_avail--;
 			}
 			/*
 			 * Get a match code, its length and offset.
 			 */
 			c -= UCHAR_MAX + 1;
-			ds->length_header = c & 7;
-			ds->position_slot = c >> 3;
+			length_header = c & 7;
+			position_slot = c >> 3;
 			/* FALL THROUGH */
 		case ST_LENGTH:
 			/*
 			 * Get a length.
 			 */
-			if (ds->length_header == 7) {
-				if (!lzx_br_ensure(strm, br, ds->lt.max_bits)) {
+			if (length_header == 7) {
+				if (!lzx_br_ensure(strm, &bre, lt_max_bits)) {
 					if (!last) {
-						ds->state = ST_LENGTH;
-						return (ARCHIVE_OK);
+						state = ST_LENGTH;
+						goto next_data;
 					}
-					rbits = lzx_br_bits_forced(
-					    br, ds->lt.max_bits);
-					c = lzx_decode_huffman(&(ds->lt),rbits);
-					lzx_br_consume(br, ds->lt.bitlen[c]);
-					if (!lzx_br_has(br, 0))
+					c = lzx_decode_huffman(lt,
+					      lzx_br_bits_forced(
+					        &bre, lt_max_bits));
+					lzx_br_consume(&bre, lt_bitlen[c]);
+					if (!lzx_br_has(&bre, 0))
 						goto failed;/* Over read. */
 				} else {
-					rbits = lzx_br_bits(br,
-					    ds->lt.max_bits);
-					c = lzx_decode_huffman(&(ds->lt),rbits);
-					lzx_br_consume(br, ds->lt.bitlen[c]);
+					c = lzx_decode_huffman(lt,
+					    lzx_br_bits(&bre, lt_max_bits));
+					lzx_br_consume(&bre, lt_bitlen[c]);
 				}
-				ds->copy_len = c + 7 + 2;
+				copy_len = c + 7 + 2;
 			} else
-				ds->copy_len = ds->length_header + 2;
+				copy_len = length_header + 2;
+			if ((size_t)copy_len > block_bytes_avail)
+				goto failed;
 			/*
 			 * Get an offset.
 			 */
-			switch (ds->position_slot) {
+			switch (position_slot) {
 			case 0: /* Use repeated offset 0. */
-				ds->copy_pos = ds->r0;
-				break;
+				copy_pos = r0;
+				state = ST_REAL_POS;
+				continue;
 			case 1: /* Use repeated offset 1. */
-				ds->copy_pos = ds->r1;
+				copy_pos = r1;
 				/* Swap repeated offset. */
-				ds->r1 = ds->r0;
-				ds->r0 = ds->copy_pos;
-				break;
+				r1 = r0;
+				r0 = copy_pos;
+				state = ST_REAL_POS;
+				continue;
 			case 2: /* Use repeated offset 2. */
-				ds->copy_pos = ds->r2;
+				copy_pos = r2;
 				/* Swap repeated offset. */
-				ds->r2 = ds->r0;
-				ds->r0 = ds->copy_pos;
-				break;
+				r2 = r0;
+				r0 = copy_pos;
+				state = ST_REAL_POS;
+				continue;
 			default:
-				ds->offset_bits =
-				    ds->pos_tbl[ds->position_slot].footer_bits;
-				break;
-			}
-			if (ds->position_slot <= 2) {
-				ds->state = ST_REAL_POS;
+				offset_bits =
+				    pos_tbl[position_slot].footer_bits;
 				break;
 			}
 			/* FALL THROUGH */
@@ -2774,110 +2867,128 @@ lzx_decode(struct lzx_stream *strm, int last)
 			 * Get the offset, which is a distance from
 			 * current window position.
 			 */
-			if (ds->block_type == ALIGNED_OFFSET_BLOCK &&
-			    ds->offset_bits >= 3) {
-				int offbits = ds->offset_bits - 3;
+			if (block_type == ALIGNED_OFFSET_BLOCK &&
+			    offset_bits >= 3) {
+				int offbits = offset_bits - 3;
 
-				if (!lzx_br_ensure(strm, br, offbits)) {
-					ds->state = ST_OFFSET;
+				if (!lzx_br_ensure(strm, &bre, offbits)) {
+					state = ST_OFFSET;
 					if (last)
 						goto failed;
-					return (ARCHIVE_OK);
+					goto next_data;
 				}
-				c = lzx_br_bits(br, offbits);
-				ds->copy_pos = c << 3;
+				copy_pos = lzx_br_bits(&bre, offbits) << 3;
 
 				/* Get an aligned number. */
-				if (!lzx_br_ensure(strm, br,
-				    offbits + ds->at.max_bits)) {
+				if (!lzx_br_ensure(strm, &bre,
+				    offbits + at_max_bits)) {
 					if (!last) {
-						ds->state = ST_OFFSET;
-						return (ARCHIVE_OK);
+						state = ST_OFFSET;
+						goto next_data;
 					}
-					lzx_br_consume(br, offbits);
-					rbits = lzx_br_bits_forced(br,
-					    ds->at.max_bits);
-					c = lzx_decode_huffman(&(ds->at),rbits);
-					lzx_br_consume(br, ds->at.bitlen[c]);
-					if (!lzx_br_has(br, 0))
+					lzx_br_consume(&bre, offbits);
+					c = lzx_decode_huffman(at,
+					      lzx_br_bits_forced(&bre,
+					        at_max_bits));
+					lzx_br_consume(&bre, at_bitlen[c]);
+					if (!lzx_br_has(&bre, 0))
 						goto failed;/* Over read. */
 				} else {
-					lzx_br_consume(br, offbits);
-					rbits = lzx_br_bits(br,
-					    ds->at.max_bits);
-					c = lzx_decode_huffman(&(ds->at),rbits);
-					lzx_br_consume(br, ds->at.bitlen[c]);
+					lzx_br_consume(&bre, offbits);
+					c = lzx_decode_huffman(at,
+					      lzx_br_bits(&bre, at_max_bits));
+					lzx_br_consume(&bre, at_bitlen[c]);
 				}
 				/* Add an aligned number. */
-				ds->copy_pos += c;
+				copy_pos += c;
 			} else {
-				if (!lzx_br_ensure(strm, br, ds->offset_bits)) {
-					ds->state = ST_OFFSET;
+				if (!lzx_br_ensure(strm, &bre, offset_bits)) {
+					state = ST_OFFSET;
 					if (last)
 						goto failed;
-					return (ARCHIVE_OK);
+					goto next_data;
 				}
-				c = lzx_br_bits(br, ds->offset_bits);
-				lzx_br_consume(br, ds->offset_bits);
-				ds->copy_pos = c;
+				copy_pos = lzx_br_bits(&bre, offset_bits);
+				lzx_br_consume(&bre, offset_bits);
 			}
-			ds->copy_pos += ds->pos_tbl[ds->position_slot].base -2;
+			copy_pos += pos_tbl[position_slot].base -2;
 
 			/* Update repeated offset LRU queue. */
-			ds->r2 = ds->r1;
-			ds->r1 = ds->r0;
-			ds->r0 = ds->copy_pos;
+			r2 = r1;
+			r1 = r0;
+			r0 = copy_pos;
 			/* FALL THROUGH */
 		case ST_REAL_POS:
 			/*
 			 * Compute a real position in window.
 			 */
-			ds->copy_pos = (ds->w_pos - ds->copy_pos) & ds->w_mask;
+			copy_pos = (w_pos - copy_pos) & w_mask;
 			/* FALL THROUGH */
 		case ST_COPY:
 			/*
 			 * Copy several bytes as extracted data from the window
 			 * into the output buffer.
 			 */
-			if ((size_t)ds->copy_len > ds->block_bytes_avail)
-				goto failed;
-			do {
+			for (;;) {
 				const unsigned char *s;
-				unsigned char *d;
-				int l,ll;
-				if (strm->avail_out <= 0) {
+				int l;
+
+				l = copy_len;
+				if (copy_pos > w_pos) {
+					if (l > w_size - copy_pos)
+						l = w_size - copy_pos;
+				} else {
+					if (l > w_size - w_pos)
+						l = w_size - w_pos;
+				}
+				if (outp + l >= endp)
+					l = endp - outp;
+				s = w_buff + copy_pos;
+				if (l >= 8 && ((copy_pos + l < w_pos)
+				  || (w_pos + l < copy_pos))) {
+					memcpy(w_buff + w_pos, s, l);
+					memcpy(outp, s, l);
+				} else {
+					unsigned char *d;
+					int li;
+
+					d = w_buff + w_pos;
+					for (li = 0; li < l; li++)
+						outp[li] = d[li] = s[li];
+				}
+				outp += l;
+				copy_pos = (copy_pos + l) & w_mask;
+				w_pos = (w_pos + l) & w_mask;
+				block_bytes_avail -= l;
+				if (copy_len <= l)
+					/* A copy of current pattern ended. */
+					break;
+				copy_len -= l;
+				if (outp >= endp) {
 					/* Output buffer is empty. */
-					ds->state = ST_COPY;
-					return (ARCHIVE_OK);
+					state = ST_COPY;
+					goto next_data;
 				}
-				l = ds->copy_len;
-				if (l > ds->w_size - ds->copy_pos)
-					l = ds->w_size - ds->copy_pos;
-				if (l > ds->w_size - ds->w_pos)
-					l = ds->w_size - ds->w_pos;
-				if (l > strm->avail_out)
-					l = (int)strm->avail_out;
-				ll = l;
-				s = &(ds->w_buff[ds->copy_pos]);
-				d = &(ds->w_buff[ds->w_pos]);
-				while (--l >= 0) {
-					*strm->next_out++ = *s;
-					*d++ = *s++;
-				}
-				strm->avail_out -= ll;
-				strm->total_out += ll;
-				ds->copy_pos =
-				    (ds->copy_pos + ll) & ds->w_mask;
-				ds->w_pos = (ds->w_pos + ll) & ds->w_mask;
-				ds->copy_len -= ll;
-				ds->block_bytes_avail -= ll;
-			} while (ds->copy_len > 0);
-			ds->state = ST_MAIN;
+			}
+			state = ST_MAIN;
 			break;
 		}
 	}
 failed:
 	return (ds->error = ARCHIVE_FAILED);
+next_data:
+	ds->br = bre;
+	ds->block_bytes_avail = block_bytes_avail;
+	ds->copy_len = copy_len;
+	ds->copy_pos = copy_pos;
+	ds->length_header = length_header;
+	ds->offset_bits = offset_bits;
+	ds->position_slot = position_slot;
+	ds->r0 = r0; ds->r1 = r1; ds->r2 = r2;
+	ds->state = state;
+	ds->w_pos = w_pos;
+	strm->avail_out = endp - outp;
+	return (ARCHIVE_OK);
 }
 
 static int
