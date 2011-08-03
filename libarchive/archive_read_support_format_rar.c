@@ -688,14 +688,14 @@ read_header(struct archive_read *a, struct archive_entry *entry,
       offset = strlen(filename) + 1;
       highbyte = *(p + offset++);
       flagbits = 0;
+      flagbyte = 0;
       while (offset < end)
       {
         if (!flagbits)
         {
           flagbyte = *(p + offset++);
           flagbits = 8;
-        } else
-	  flagbyte = 0;
+        }
 	
         flagbits -= 2;
         switch((flagbyte >> flagbits) & 3)
