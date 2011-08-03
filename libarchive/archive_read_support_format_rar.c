@@ -431,12 +431,26 @@ archive_read_format_rar_read_header(struct archive_read *a,
     case MAIN_HEAD:
       rar->main_flags = archive_le16dec(p + 3);
       skip = archive_le16dec(p + 5);
+      if (skip < 7 + sizeof(rar->reserved1) + sizeof(rar->reserved2)) {
+        archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+          "Invalid header size");
+        return (ARCHIVE_FATAL);
+      }
+      if ((h = __archive_read_ahead(a, skip, NULL)) == NULL)
+        return (ARCHIVE_FATAL);
+      p = h;
       memcpy(rar->reserved1, p + 7, sizeof(rar->reserved1));
       memcpy(rar->reserved2, p + 7 + sizeof(rar->reserved1),
              sizeof(rar->reserved2));
-      if (rar->main_flags & MHD_ENCRYPTVER)
+      if (rar->main_flags & MHD_ENCRYPTVER) {
+        if (skip < 7 + sizeof(rar->reserved1) + sizeof(rar->reserved2)+1) {
+          archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+            "Invalid header size");
+          return (ARCHIVE_FATAL);
+        }
         rar->encryptver = *(p + 7 + sizeof(rar->reserved1) +
                             sizeof(rar->reserved2));
+      }
 
       if (rar->main_flags & MHD_VOLUME ||
           rar->main_flags & MHD_FIRSTVOLUME)
@@ -469,12 +483,26 @@ archive_read_format_rar_read_header(struct archive_read *a,
     case SIGN_HEAD:
       flags = archive_le16dec(p + 3);
       skip = archive_le16dec(p + 5);
-      if (flags & HD_ADD_SIZE_PRESENT)
-      {
-        if ((h = __archive_read_ahead(a, 13, NULL)) == NULL)
+      if (skip < 7) {
+        archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+          "Invalid header size");
+        return (ARCHIVE_FATAL);
+      }
+      if (skip > 7) {
+        if ((h = __archive_read_ahead(a, skip, NULL)) == NULL)
           return (ARCHIVE_FATAL);
         p = h;
+      }
+      if (flags & HD_ADD_SIZE_PRESENT)
+      {
+        if (skip < 7 + 4) {
+          archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+            "Invalid header size");
+          return (ARCHIVE_FATAL);
+        }
         skip += archive_le32dec(p + 7);
+        if (__archive_read_ahead(a, skip, NULL) == NULL)
+          return (ARCHIVE_FATAL);
       }
       __archive_read_consume(a, skip);
       if ((h = __archive_read_ahead(a, 7, NULL)) == NULL)
