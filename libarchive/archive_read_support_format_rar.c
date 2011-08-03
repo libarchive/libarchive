@@ -566,9 +566,11 @@ archive_read_format_rar_read_data_skip(struct archive_read *a)
   case COMPRESS_METHOD_GOOD:
   case COMPRESS_METHOD_BEST:
   default:
-    bytes_skipped = __archive_read_consume(a, rar->packed_size);
-    if (bytes_skipped < 0)
-      return (ARCHIVE_FATAL);
+    if (rar->bytes_remaining > 0) {
+      bytes_skipped = __archive_read_consume(a, rar->bytes_remaining);
+      if (bytes_skipped < 0)
+        return (ARCHIVE_FATAL);
+    }
   }
   return (ARCHIVE_OK);
 }
