@@ -1875,7 +1875,7 @@ lzh_br_fillup(struct lzh_stream *strm, struct lzh_br *br)
 /*
  * x86 proccessor family can read misaligned data without an access error.
  */
-#if defined(__i386__)
+#if defined(__i386__) || (defined(_MSC_VER) && defined(_M_IX86)) 
 #  if defined(_WIN32) && !defined(__CYGWIN__)
 #    define lzh_be16dec(p) _byteswap_ushort(*(const uint16_t *)(p))
 #  elif defined(be16toh)
@@ -1886,7 +1886,7 @@ lzh_br_fillup(struct lzh_stream *strm, struct lzh_br *br)
 #    define lzh_be16dec	archive_be16dec
 #  endif
 #  if defined(_WIN32) && !defined(__CYGWIN__)
-#    define lzh_be16dec(p) _byteswap_ulong(*(const uint32_t *)(p))
+#    define lzh_be32dec(p) _byteswap_ulong(*(const uint32_t *)(p))
 #  elif defined(be32toh)
 #    define lzh_be32dec(p) be32toh(*(const uint32_t *)(p))
 #  elif defined(betoh32)
@@ -1895,7 +1895,7 @@ lzh_br_fillup(struct lzh_stream *strm, struct lzh_br *br)
 #    define lzh_be32dec	archive_be32dec
 #  endif
 #  if defined(_WIN32) && !defined(__CYGWIN__)
-#    define lzh_be16dec(p) _byteswap_uint64(*(const uint64_t *)(p))
+#    define lzh_be64dec(p) _byteswap_uint64(*(const uint64_t *)(p))
 #  elif defined(be64toh)
 #    define lzh_be64dec(p) be64toh(*(const uint64_t *)(p))
 #  elif defined(betoh64)

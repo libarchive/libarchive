@@ -1054,7 +1054,7 @@ cab_checksum_cfdata_4(const void *p, size_t bytes, uint32_t seed)
 /*
  * x86 proccessor family can read misaligned data without an access error.
  */
-#ifdef __i386__
+#if defined(__i386__) || (defined(_MSC_VER) && defined(_M_IX86)) 
 #  define lzx_le32dec(a)	(*(const uint32_t *)(a))
 #else
 #  define lzx_le32dec(a)	archive_le32dec(a)
