@@ -144,16 +144,22 @@ archive_string_vsprintf(struct archive_string *as, const char *fmt,
 			switch(long_flag) {
 			case 'l':
 				pw = va_arg(ap, wchar_t *);
+				if (pw == NULL)
+					pw = L"(null)";
 				archive_string_append_from_wcs(as, pw, wcslen(pw));
 				break;
 			default:
 				p2 = va_arg(ap, char *);
+				if (p2 == NULL)
+					p2 = "(null)";
 				archive_strcat(as, p2);
 				break;
 			}
 			break;
 		case 'S':
 			pw = va_arg(ap, wchar_t *);
+			if (pw == NULL)
+				pw = L"(null)";
 			archive_string_append_from_wcs(as, pw, wcslen(pw));
 			break;
 		case 'o': case 'u': case 'x': case 'X':
