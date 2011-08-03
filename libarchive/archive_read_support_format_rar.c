@@ -526,6 +526,7 @@ static int
 archive_read_format_rar_read_data_skip(struct archive_read *a)
 {
   struct rar *rar;
+  int64_t bytes_skipped;
 
   rar = (struct rar *)(a->format->data);
   switch (rar->compression_method)
@@ -533,10 +534,16 @@ archive_read_format_rar_read_data_skip(struct archive_read *a)
   case COMPRESS_METHOD_FASTEST:
   case COMPRESS_METHOD_FAST:
   case COMPRESS_METHOD_NORMAL:
-    if (rar->offset)
+    if (rar->offset && rar->bitoffset > 0)
     {
-      while (rar->bitoffset > 0)
-        rar->bitoffset -= 8 * __archive_read_consume(a, 1);
+      bytes_skipped = __archive_read_consume(a, rar->bitoffset/8);
+      if (bytes_skipped < 0)
+        return (ARCHIVE_FATAL);
+      if (rar->bitoffset % 8) {
+        bytes_skipped = __archive_read_consume(a, rar->bitoffset/8);
+        if (bytes_skipped < 0)
+          return (ARCHIVE_FATAL);
+      }
       break;
     }
 
@@ -544,7 +551,9 @@ archive_read_format_rar_read_data_skip(struct archive_read *a)
   case COMPRESS_METHOD_GOOD:
   case COMPRESS_METHOD_BEST:
   default:
-    __archive_read_consume(a, rar->packed_size);
+    bytes_skipped = __archive_read_consume(a, rar->packed_size);
+    if (bytes_skipped < 0)
+      return (ARCHIVE_FATAL);
   }
   return (ARCHIVE_OK);
 }
