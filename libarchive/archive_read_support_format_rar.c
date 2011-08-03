@@ -246,7 +246,7 @@ static int archive_read_format_rar_cleanup(struct archive_read *);
 /* Support functions */
 static int read_header(struct archive_read *, struct archive_entry *, char);
 static time_t get_time(int time);
-static void read_exttime(const char *, struct rar *);
+static int read_exttime(const char *, struct rar *, const char *);
 static int read_symlink_stored(struct archive_read *, struct archive_entry *,
                                struct archive_string_conv *);
 static int read_data_stored(struct archive_read *, const void **, size_t *,
@@ -594,7 +594,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
             char head_type)
 {
   const void *h;
-  const char *p;
+  const char *p, *endp;
   struct rar *rar;
   struct rar_header rar_header;
   struct rar_file_header file_header;
@@ -616,6 +616,11 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   memcpy(&rar_header, p, sizeof(rar_header));
   rar->file_flags = archive_le16dec(rar_header.flags);
   header_size = archive_le16dec(rar_header.size);
+  if (header_size < sizeof(file_header) + 7) {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+      "Invalid header size");
+    return (ARCHIVE_FATAL);
+  }
   __archive_read_consume(a, 7);
 
   if (!(rar->file_flags & FHD_SOLID))
@@ -648,6 +653,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   if ((h = __archive_read_ahead(a, header_size - 7, NULL)) == NULL)
     return (ARCHIVE_FATAL);
   p = h;
+  endp = p + header_size - 7;
   memcpy(&file_header, p, sizeof(file_header));
   p += sizeof(file_header);
 
@@ -693,11 +699,24 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   /* TODO: RARv3 subblocks contain comments. For now the complete block is
    * consumed at the end.
    */
-  if (head_type == NEWSUB_HEAD)
+  if (head_type == NEWSUB_HEAD) {
+    size_t distance = p - (const char *)h;
     header_size += rar->packed_size;
+    /* Make sure we have the extended data. */
+    if ((h = __archive_read_ahead(a, header_size - 7, NULL)) == NULL)
+        return (ARCHIVE_FATAL);
+    p = h;
+    endp = p + header_size - 7;
+    p += distance;
+  }
 
   filename_size = archive_le16dec(file_header.name_size);
-  if ((filename = malloc(filename_size+1)) == NULL) {
+  if (p + filename_size > endp) {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+      "Invalid filename size");
+    return (ARCHIVE_FATAL);
+  }
+  if ((filename = malloc(filename_size+2)) == NULL) {
     archive_set_error(&a->archive, ENOMEM,
                       "Couldn't allocate memory.");
     return (ARCHIVE_FATAL);
@@ -718,7 +737,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
       highbyte = *(p + offset++);
       flagbits = 0;
       flagbyte = 0;
-      while (offset < end)
+      while (offset < end && filename_size < end)
       {
         if (!flagbits)
         {
@@ -747,12 +766,20 @@ read_header(struct archive_read *a, struct archive_entry *entry,
             length = *(p + offset++);
             while (length)
             {
+	          if (filename_size >= end)
+			    break;
               filename[filename_size++] = *(p + offset);
               length--;
             }
           }
           break;
         }
+      }
+      if (filename_size >= end) {
+        free(filename);
+        archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+          "Invalid filename");
+        return (ARCHIVE_FAILED);
       }
       filename[filename_size++] = '\0';
       filename[filename_size++] = '\0';
@@ -784,12 +811,22 @@ read_header(struct archive_read *a, struct archive_entry *entry,
 
   if (rar->file_flags & FHD_SALT)
   {
+    if (p + 8 > endp) {
+      archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+        "Invalid header size");
+      return (ARCHIVE_FATAL);
+    }
     memcpy(rar->salt, p, 8);
     p += 8;
   }
 
-  if (rar->file_flags & FHD_EXTTIME)
-    read_exttime(p, rar);
+  if (rar->file_flags & FHD_EXTTIME) {
+    if (read_exttime(p, rar, endp) < 0) {
+      archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+        "Invalid header size");
+      return (ARCHIVE_FATAL);
+    }
+  }
 
   __archive_read_consume(a, header_size - 7);
 
@@ -877,8 +914,8 @@ get_time(int time)
   return mktime(&tm);
 }
 
-static void
-read_exttime(const char *p, struct rar *rar)
+static int
+read_exttime(const char *p, struct rar *rar, const char *endp)
 {
   unsigned rmode, flags, rem, j, count;
   int time, i;
@@ -886,6 +923,8 @@ read_exttime(const char *p, struct rar *rar)
   time_t t;
   long nsec;
 
+  if (p + 2 > endp)
+    return (-1);
   flags = archive_le16dec(p);
   p += 2;
 
@@ -899,12 +938,16 @@ read_exttime(const char *p, struct rar *rar)
     {
       if (!t)
       {
+        if (p + 4 > endp)
+          return (-1);
         time = archive_le32dec(p);
         t = get_time(time);
         p += 4;
       }
       rem = 0;
       count = rmode & 3;
+      if (p + count > endp)
+        return (-1);
       for (j = 0; j < count; j++)
       {
         rem = ((*p) << 16) | (rem >> 8);
@@ -939,6 +982,7 @@ read_exttime(const char *p, struct rar *rar)
       }
     }
   }
+  return (0);
 }
 
 static int
