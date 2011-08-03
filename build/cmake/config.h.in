@@ -170,6 +170,8 @@ typedef unsigned char uint8_t;
 /* Define intmax_t and uintmax_t if they are not already defined. */
 #if !defined(HAVE_INTMAX_T)
 typedef int64_t intmax_t;
+#define INTMAX_MIN INT64_MIN
+#define INTMAX_MAX INT64_MAX
 #endif
 
 #if !defined(HAVE_UINTMAX_T)
