@@ -1084,6 +1084,7 @@ parse_codes(struct archive_read *a)
   unsigned char bitlengths[MAX_SYMBOLS], zerocount;
   struct huffman_code precode;
   struct rar *rar = (struct rar *)(a->format->data);
+  int64_t bytes_consumed;
 
   free_codes(a);
 
@@ -1126,7 +1127,10 @@ parse_codes(struct archive_read *a)
     }
   }
 
-  rar->bitoffset -= 8 * __archive_read_consume(a, (rar->bitoffset / 8));
+  bytes_consumed = __archive_read_consume(a, (rar->bitoffset / 8));
+  if (bytes_consumed < 0)
+    return (ARCHIVE_FATAL);
+  rar->bitoffset -= 8 * bytes_consumed;
   h = __archive_read_ahead(a, (rar->bitoffset / 8) + 1, &bytes_avail);
   if (bytes_avail <= 0)
   {
@@ -1206,7 +1210,10 @@ parse_codes(struct archive_read *a)
   }
 
   rar->start_new_table = 0;
-  rar->bitoffset -= 8 * __archive_read_consume(a, (rar->bitoffset / 8));
+  bytes_consumed = __archive_read_consume(a, (rar->bitoffset / 8));
+  if (bytes_consumed < 0)
+    return (ARCHIVE_FATAL);
+  rar->bitoffset -= 8 * bytes_consumed;
   return (ARCHIVE_OK);
 }
 
@@ -1558,6 +1565,7 @@ expand(struct archive_read *a, off_t end)
   static const unsigned char shortbits[] =
     { 2, 2, 3, 4, 5, 6, 6, 6 };
 
+  int64_t bytes_consumed;
   int symbol, offs, len, offsindex, lensymbol, i, offssymbol, lowoffsetsymbol;
   unsigned char newfile;
   struct rar *rar = (struct rar *)(a->format->data);
@@ -1577,7 +1585,10 @@ expand(struct archive_read *a, off_t end)
     if(rar->output_last_match || lzss_position(&rar->lzss) >= end)
       return lzss_position(&rar->lzss);
 
-    rar->bitoffset -= 8 * __archive_read_consume(a, (rar->bitoffset / 8));
+	bytes_consumed = __archive_read_consume(a, (rar->bitoffset / 8));
+	if (bytes_consumed < 0)
+	  return (-1);
+    rar->bitoffset -= 8 * bytes_consumed;
     if ((symbol = read_next_symbol(a, &rar->maincode)) < 0)
       return -1;
     rar->output_last_match = 0;
