@@ -671,8 +671,11 @@ read_header(struct archive_read *a, struct archive_entry *entry,
     header_size += rar->packed_size;
 
   filename_size = archive_le16dec(file_header.name_size);
-  if ((filename = malloc(filename_size+1)) == NULL)
+  if ((filename = malloc(filename_size+1)) == NULL) {
+    archive_set_error(&a->archive, ENOMEM,
+                      "Couldn't allocate memory.");
     return (ARCHIVE_FATAL);
+  }
   memcpy(filename, p, filename_size);
   filename[filename_size] = '\0';
   if (rar->file_flags & FHD_UNICODE)
