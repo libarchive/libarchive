@@ -211,6 +211,7 @@ struct rar
   long arcnsec;
 
   /* Fields to help with tracking decompression of files. */
+  int64_t bytes_unconsumed;
   int64_t bytes_remaining;
   int64_t offset;
   int64_t bitoffset;
@@ -458,6 +459,7 @@ archive_read_format_rar_read_header(struct archive_read *a,
       continue;
 
     case FILE_HEAD:
+      rar->bytes_unconsumed = 0;
       return read_header(a, entry, head_type);
 
     case COMM_HEAD:
@@ -503,6 +505,12 @@ archive_read_format_rar_read_data(struct archive_read *a, const void **buff,
                                   size_t *size, int64_t *offset)
 {
   struct rar *rar = (struct rar *)(a->format->data);
+
+  if (rar->bytes_unconsumed > 0) {
+      /* Consume as much as the decompressor actually used. */
+      __archive_read_consume(a, rar->bytes_unconsumed);
+      rar->bytes_unconsumed = 0;
+  }
   switch (rar->compression_method)
   {
   case COMPRESS_METHOD_STORE:
@@ -529,6 +537,13 @@ archive_read_format_rar_read_data_skip(struct archive_read *a)
   int64_t bytes_skipped;
 
   rar = (struct rar *)(a->format->data);
+
+  if (rar->bytes_unconsumed > 0) {
+      /* Consume as much as the decompressor actually used. */
+      __archive_read_consume(a, rar->bytes_unconsumed);
+      rar->bytes_unconsumed = 0;
+  }
+
   switch (rar->compression_method)
   {
   case COMPRESS_METHOD_FASTEST:
@@ -990,6 +1005,7 @@ read_data_stored(struct archive_read *a, const void **buff, size_t *size,
   *offset = rar->offset;
   rar->offset += bytes_avail;
   rar->bytes_remaining -= bytes_avail;
+  rar->bytes_unconsumed = bytes_avail;
   return (ARCHIVE_OK);
 }
 
