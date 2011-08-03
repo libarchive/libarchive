@@ -1057,7 +1057,7 @@ cab_checksum_cfdata_4(const void *p, size_t bytes, uint32_t seed)
 #ifdef __i386__
 #  define lzx_le32dec(a)	(*(const uint32_t *)(a))
 #else
-#  define lzx_le32dec(a)	archive_le132ec(a)
+#  define lzx_le32dec(a)	archive_le32dec(a)
 #endif
 	const unsigned char *b;
 	int u32num;
