@@ -258,7 +258,7 @@ static void free_codes(struct archive_read *);
 static unsigned char read_bits(struct archive_read *, char);
 static unsigned int read_bits_32(struct archive_read *, char);
 static int read_next_symbol(struct archive_read *, struct huffman_code *);
-static void create_code(struct archive_read *, struct huffman_code *,
+static int create_code(struct archive_read *, struct huffman_code *,
                         unsigned char *, int, char);
 static int add_value(struct archive_read *, struct huffman_code *, int, int,
                      int);
@@ -1118,7 +1118,7 @@ read_data_lzss(struct archive_read *a, const void **buff, size_t *size,
   }
 
   if (rar->start_new_table && ((ret = parse_codes(a)) < (ARCHIVE_WARN)))
-    return (ARCHIVE_FATAL);
+    return (ret);
 
   __archive_read_ahead(a, 1, &bytes_avail);
   if (bytes_avail <= 0)
@@ -1154,7 +1154,7 @@ parse_codes(struct archive_read *a)
 {
   const void *h;
   ssize_t bytes_avail;
-  int i, j, val, n;
+  int i, j, val, n, r;
   unsigned char bitlengths[MAX_SYMBOLS], zerocount;
   struct huffman_code precode;
   struct rar *rar = (struct rar *)(a->format->data);
@@ -1214,7 +1214,9 @@ parse_codes(struct archive_read *a)
   }
 
   memset(&precode, 0, sizeof(precode));
-  create_code(a, &precode, bitlengths, MAX_SYMBOLS, MAX_SYMBOL_LENGTH);
+  r = create_code(a, &precode, bitlengths, MAX_SYMBOLS, MAX_SYMBOL_LENGTH);
+  if (r != ARCHIVE_OK)
+    return (r);
 
   for (i = 0; i < HUFFMAN_TABLE_SIZE;)
   {
@@ -1257,16 +1259,24 @@ parse_codes(struct archive_read *a)
     }
   }
 
-  create_code(a, &rar->maincode, &rar->lengthtable[0], MAINCODE_SIZE,
+  r = create_code(a, &rar->maincode, &rar->lengthtable[0], MAINCODE_SIZE,
               MAX_SYMBOL_LENGTH);
-  create_code(a, &rar->offsetcode, &rar->lengthtable[MAINCODE_SIZE],
+  if (r != ARCHIVE_OK)
+    return (r);
+  r = create_code(a, &rar->offsetcode, &rar->lengthtable[MAINCODE_SIZE],
               OFFSETCODE_SIZE, MAX_SYMBOL_LENGTH);
-  create_code(a, &rar->lowoffsetcode,
+  if (r != ARCHIVE_OK)
+    return (r);
+  r = create_code(a, &rar->lowoffsetcode,
               &rar->lengthtable[MAINCODE_SIZE + OFFSETCODE_SIZE],
               LOWOFFSETCODE_SIZE, MAX_SYMBOL_LENGTH);
-  create_code(a, &rar->lengthcode,
+  if (r != ARCHIVE_OK)
+    return (r);
+  r = create_code(a, &rar->lengthcode,
               &rar->lengthtable[MAINCODE_SIZE + OFFSETCODE_SIZE +
               LOWOFFSETCODE_SIZE], LENGTHCODE_SIZE, MAX_SYMBOL_LENGTH);
+  if (r != ARCHIVE_OK)
+    return (r);
 
   if (!rar->dictionary_size || !rar->lzss.window)
   {
@@ -1425,7 +1435,7 @@ read_next_symbol(struct archive_read *a, struct huffman_code *code)
   return code->tree[node].branches[0];
 }
 
-static void
+static int
 create_code(struct archive_read *a, struct huffman_code *code,
             unsigned char *lengths, int numsymbols, char maxlength)
 {
@@ -1440,12 +1450,14 @@ create_code(struct archive_read *a, struct huffman_code *code,
     for(j = 0; j < numsymbols; j++)
     {
       if (lengths[j] != i) continue;
-      add_value(a, code, j, codebits, i);
+      if (add_value(a, code, j, codebits, i) != ARCHIVE_OK)
+        return (ARCHIVE_FAILED);
       codebits++;
       if (--symbolsleft <= 0) { break; break; }
     }
     codebits <<= 1;
   }
+  return (ARCHIVE_OK);
 }
 
 static int
@@ -1469,7 +1481,7 @@ add_value(struct archive_read *a, struct huffman_code *code, int value,
   {
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                       "Invalid repeat position");
-    return (ARCHIVE_FATAL);
+    return (ARCHIVE_FAILED);
   }
 
   lastnode = 0;
@@ -1483,7 +1495,7 @@ add_value(struct archive_read *a, struct huffman_code *code, int value,
     {
       archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                         "Prefix found");
-      return (ARCHIVE_FATAL);
+      return (ARCHIVE_FAILED);
     }
 
     if (bitpos == repeatpos)
@@ -1493,7 +1505,7 @@ add_value(struct archive_read *a, struct huffman_code *code, int value,
       {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                           "Invalid repeating code");
-        return (ARCHIVE_FATAL);
+        return (ARCHIVE_FAILED);
       }
 
       repeatnode = new_node(code);
@@ -1526,7 +1538,7 @@ add_value(struct archive_read *a, struct huffman_code *code, int value,
   {
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                       "Prefix found");
-    return (ARCHIVE_FATAL);
+    return (ARCHIVE_FAILED);
   }
 
   /* Set leaf value */
@@ -1684,7 +1696,8 @@ expand(struct archive_read *a, off_t end)
       }
       else
       {
-        parse_codes(a);
+        if (parse_codes(a) != ARCHIVE_OK)
+          return (-1);
         continue;
       }
     }
