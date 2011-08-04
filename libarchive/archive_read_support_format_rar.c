@@ -1724,7 +1724,7 @@ expand(struct archive_read *a, off_t end)
         return -1;
       if (lensymbol > sizeof(lengthbases)/sizeof(lengthbases[0]))
         return (-1);
-      if (lensymbol-271 > sizeof(lengthbits)/sizeof(lengthbits[0]))
+      if (lensymbol > sizeof(lengthbits)/sizeof(lengthbits[0]))
         return (-1);
       len = lengthbases[lensymbol] + 2;
       if (lengthbits[lensymbol] > 0)
@@ -1748,9 +1748,9 @@ expand(struct archive_read *a, off_t end)
     }
     else
     {
-      if (lensymbol-271 > sizeof(lengthbases)/sizeof(lengthbases[0]))
+      if (symbol-271 > sizeof(lengthbases)/sizeof(lengthbases[0]))
         return (-1);
-      if (lensymbol-271 > sizeof(lengthbits)/sizeof(lengthbits[0]))
+      if (symbol-271 > sizeof(lengthbits)/sizeof(lengthbits[0]))
         return (-1);
       len = lengthbases[symbol-271]+3;
       if(lengthbits[symbol-271] > 0)
