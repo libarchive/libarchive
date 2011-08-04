@@ -230,7 +230,7 @@ struct rar
   unsigned int oldoffset[4];
   unsigned int lastlowoffset;
   unsigned int numlowoffsetrepeats;
-  off_t filterstart;
+  int64_t filterstart;
   char start_new_block;
   char start_new_table;
 };
@@ -266,7 +266,7 @@ static int new_node(struct huffman_code *);
 static int make_table(struct huffman_code *);
 static int make_table_recurse(struct huffman_code *, int,
                               struct huffman_table_entry *, int, int);
-static off_t expand(struct archive_read *, off_t);
+static int64_t expand(struct archive_read *, int64_t);
 static int copy_from_lzss_window(struct archive_read *, const void **,
                                    int64_t, int);
 
@@ -1089,7 +1089,7 @@ read_data_lzss(struct archive_read *a, const void **buff, size_t *size,
 {
   struct rar *rar;
   ssize_t bytes_avail;
-  off_t start, end, actualend;
+  int64_t start, end, actualend;
   int ret = (ARCHIVE_OK);
 
   rar = (struct rar *)(a->format->data);
@@ -1132,7 +1132,7 @@ read_data_lzss(struct archive_read *a, const void **buff, size_t *size,
   
   start = rar->offset;
   end = start + rar->dictionary_size;
-  rar->filterstart = LONG_MAX;
+  rar->filterstart = INT64_MAX;
 
   if ((actualend = expand(a, end)) < 0)
     return (ARCHIVE_FATAL);
@@ -1616,8 +1616,8 @@ make_table_recurse(struct huffman_code *code, int node,
   return ret;
 }
 
-static off_t
-expand(struct archive_read *a, off_t end)
+static int64_t
+expand(struct archive_read *a, int64_t end)
 {
   static const unsigned char lengthbases[] =
     {   0,   1,   2,   3,   4,   5,   6,
