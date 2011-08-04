@@ -1671,9 +1671,9 @@ expand(struct archive_read *a, off_t end)
     if(rar->output_last_match || lzss_position(&rar->lzss) >= end)
       return lzss_position(&rar->lzss);
 
-	bytes_consumed = __archive_read_consume(a, (rar->bitoffset / 8));
-	if (bytes_consumed < 0)
-	  return (-1);
+    bytes_consumed = __archive_read_consume(a, (rar->bitoffset / 8));
+    if (bytes_consumed < 0)
+      return (-1);
     rar->bitoffset -= 8 * bytes_consumed;
     if ((symbol = read_next_symbol(a, &rar->maincode)) < 0)
       return -1;
@@ -1722,6 +1722,10 @@ expand(struct archive_read *a, off_t end)
 
       if ((lensymbol = read_next_symbol(a, &rar->lengthcode)) < 0)
         return -1;
+      if (lensymbol > sizeof(lengthbases)/sizeof(lengthbases[0]))
+        return (-1);
+      if (lensymbol-271 > sizeof(lengthbits)/sizeof(lengthbits[0]))
+        return (-1);
       len = lengthbases[lensymbol] + 2;
       if (lengthbits[lensymbol] > 0)
         len += read_bits_32(a, lengthbits[lensymbol]);
@@ -1744,12 +1748,20 @@ expand(struct archive_read *a, off_t end)
     }
     else
     {
+      if (lensymbol-271 > sizeof(lengthbases)/sizeof(lengthbases[0]))
+        return (-1);
+      if (lensymbol-271 > sizeof(lengthbits)/sizeof(lengthbits[0]))
+        return (-1);
       len = lengthbases[symbol-271]+3;
       if(lengthbits[symbol-271] > 0)
         len += read_bits_32(a, lengthbits[symbol-271]);
 
       if ((offssymbol = read_next_symbol(a, &rar->offsetcode)) < 0)
         return -1;
+      if (offssymbol > sizeof(offsetbases)/sizeof(offsetbases[0]))
+        return (-1);
+      if (offssymbol > sizeof(offsetbits)/sizeof(offsetbits[0]))
+        return (-1);
       offs = offsetbases[offssymbol]+1;
       if(offsetbits[offssymbol] > 0)
       {
