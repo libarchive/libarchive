@@ -1085,7 +1085,7 @@ read_data_lzss(struct archive_read *a, const void **buff, size_t *size,
 
   rar = (struct rar *)(a->format->data);
   if (!rar->valid)
-    return (ARCHIVE_FATAL);
+    return (ARCHIVE_FAILED);
 
   if (rar->dictionary_size && rar->offset >= rar->unp_size)
   {
@@ -1118,7 +1118,7 @@ read_data_lzss(struct archive_read *a, const void **buff, size_t *size,
   rar->filterstart = INT64_MAX;
 
   if ((actualend = expand(a, end)) < 0)
-    return (ARCHIVE_FATAL);
+    return ((int)actualend);
 
   rar->bytes_uncopied = actualend - start;
   if (rar->bytes_uncopied == 0) {
@@ -1345,7 +1345,7 @@ parse_codes(struct archive_read *a)
     rar_br_consume(br, 1);
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                       "Unsupported compression method for RAR file.");
-    return (ARCHIVE_FATAL);
+    return (ARCHIVE_FAILED);
   }
   rar_br_consume(br, 1);
 
@@ -1386,7 +1386,7 @@ parse_codes(struct archive_read *a)
   for (i = 0; i < HUFFMAN_TABLE_SIZE;)
   {
     if ((val = read_next_symbol(a, &precode)) < 0)
-      return (ARCHIVE_FATAL);
+      return (ARCHIVE_FAILED);
     if (val < 16)
     {
       rar->lengthtable[i] = (rar->lengthtable[i] + val) & 0xF;
@@ -1398,7 +1398,7 @@ parse_codes(struct archive_read *a)
       {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                           "Internal error extracting RAR file.");
-        return (ARCHIVE_FATAL);
+        return (ARCHIVE_FAILED);
       }
 
       if(val == 16) {
@@ -1813,7 +1813,7 @@ expand(struct archive_read *a, int64_t end)
       return lzss_position(&rar->lzss);
 
     if ((symbol = read_next_symbol(a, &rar->maincode)) < 0)
-      return -1;
+      return (ARCHIVE_FAILED);
     rar->output_last_match = 0;
     
     if (symbol < 256)
@@ -1840,7 +1840,7 @@ expand(struct archive_read *a, int64_t end)
       else
       {
         if (parse_codes(a) != ARCHIVE_OK)
-          return (-1);
+          return (ARCHIVE_FAILED);
         continue;
       }
     }
@@ -1848,7 +1848,7 @@ expand(struct archive_read *a, int64_t end)
     {
       archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                         "Parsing filters is unsupported.");
-      return -1;
+      return (ARCHIVE_FAILED);
     }
     else if(symbol==258)
     {
@@ -1864,11 +1864,11 @@ expand(struct archive_read *a, int64_t end)
       offs = rar->oldoffset[offsindex];
 
       if ((lensymbol = read_next_symbol(a, &rar->lengthcode)) < 0)
-        return -1;
+        goto bad_data;
       if (lensymbol > sizeof(lengthbases)/sizeof(lengthbases[0]))
-        return (-1);
+        goto bad_data;
       if (lensymbol > sizeof(lengthbits)/sizeof(lengthbits[0]))
-        return (-1);
+        goto bad_data;
       len = lengthbases[lensymbol] + 2;
       if (lengthbits[lensymbol] > 0) {
         if (!rar_br_read_ahead(a, br, lengthbits[lensymbol]))
@@ -1900,9 +1900,9 @@ expand(struct archive_read *a, int64_t end)
     else
     {
       if (symbol-271 > sizeof(lengthbases)/sizeof(lengthbases[0]))
-        return (-1);
+        goto bad_data;
       if (symbol-271 > sizeof(lengthbits)/sizeof(lengthbits[0]))
-        return (-1);
+        goto bad_data;
       len = lengthbases[symbol-271]+3;
       if(lengthbits[symbol-271] > 0) {
         if (!rar_br_read_ahead(a, br, lengthbits[symbol-271]))
@@ -1912,11 +1912,11 @@ expand(struct archive_read *a, int64_t end)
       }
 
       if ((offssymbol = read_next_symbol(a, &rar->offsetcode)) < 0)
-        return -1;
+        goto bad_data;
       if (offssymbol > sizeof(offsetbases)/sizeof(offsetbases[0]))
-        return (-1);
+        goto bad_data;
       if (offssymbol > sizeof(offsetbits)/sizeof(offsetbits[0]))
-        return (-1);
+        goto bad_data;
       offs = offsetbases[offssymbol]+1;
       if(offsetbits[offssymbol] > 0)
       {
@@ -1938,7 +1938,7 @@ expand(struct archive_read *a, int64_t end)
           {
             if ((lowoffsetsymbol =
               read_next_symbol(a, &rar->lowoffsetcode)) < 0)
-              return -1;
+              return (ARCHIVE_FAILED);
             if(lowoffsetsymbol == 16)
             {
               rar->numlowoffsetrepeats = 15;
@@ -1977,6 +1977,10 @@ truncated_data:
   archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                     "Truncated RAR file data");
   rar->valid = 0;
+  return (ARCHIVE_FAILED);
+bad_data:
+  archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                    "Bad RAR file data");
   return (ARCHIVE_FAILED);
 }
 
