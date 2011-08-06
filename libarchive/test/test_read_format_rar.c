@@ -322,13 +322,13 @@ static void
 test_compress_normal(void)
 {
   const char reffile[] = "test_read_format_rar_compress_normal.rar";
-#define file1_size 20111
+  const int file1_size = 20111;
   char file1_buff[file1_size];
   const char file1_test_txt[] = "<P STYLE=\"margin-bottom: 0in\"><BR>\n"
                                 "</P>\n"
                                 "</BODY>\n"
                                 "</HTML>";
-#define file2_size 20
+  const int file2_size = 20;
   char file2_buff[file2_size];
   const char file2_test_txt[] = "test text document\r\n";
   struct archive_entry *ae;
@@ -454,6 +454,100 @@ test_multi_lzss_blocks(void)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+static void
+test_compress_best(void)
+{
+  const char reffile[] = "test_read_format_rar_compress_best.rar";
+  const int file1_size = 20111;
+  char file1_buff[file1_size];
+  const char file1_test_txt[] = "<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                                "</P>\n"
+                                "</BODY>\n"
+                                "</HTML>";
+  const int file2_size = 20;
+  char file2_buff[file2_size];
+  const char file2_test_txt[] = "test text document\r\n";
+  struct archive_entry *ae;
+  struct archive *a;
+
+  extract_reference_file(reffile);
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_support_filter_all(a));
+  assertA(0 == archive_read_support_format_all(a));
+  assertA(0 == archive_read_open_file(a, reffile, 10240));
+
+  /* First header. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("LibarchiveAddingTest.html", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(file1_size, archive_entry_size(ae));
+  assertEqualInt(33188, archive_entry_mode(ae));
+  assertA(file1_size == archive_read_data(a, file1_buff, file1_size));
+  assertEqualMem(&file1_buff[file1_size - sizeof(file1_test_txt) + 1],
+                 file1_test_txt, sizeof(file1_test_txt) - 1);
+
+    /* Second header. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("testlink", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(25, archive_entry_size(ae));
+  assertEqualInt(41471, archive_entry_mode(ae));
+  assertEqualString("LibarchiveAddingTest.html", archive_entry_symlink(ae));
+
+  /* Third header. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("testdir/test.txt", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(file2_size, archive_entry_size(ae));
+  assertEqualInt(33188, archive_entry_mode(ae));
+  assertA(file2_size == archive_read_data(a, file2_buff, file2_size));
+  assertEqualMem(&file2_buff[file2_size + 1 - sizeof(file2_test_txt)],
+                 file2_test_txt, sizeof(file2_test_txt) - 1);
+
+  /* Fourth header. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("testdir/LibarchiveAddingTest.html",
+                    archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(file1_size, archive_entry_size(ae));
+  assertEqualInt(33188, archive_entry_mode(ae));
+  assertA(file1_size == archive_read_data(a, file1_buff, file1_size));
+  assertEqualMem(&file1_buff[file1_size - sizeof(file1_test_txt) + 1],
+                 file1_test_txt, sizeof(file1_test_txt) - 1);
+
+  /* Fifth header. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("testdir", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(0, archive_entry_size(ae));
+  assertEqualInt(16877, archive_entry_mode(ae));
+
+  /* Sixth header. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("testemptydir", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(0, archive_entry_size(ae));
+  assertEqualInt(16877, archive_entry_mode(ae));
+
+  /* Test EOF */
+  assertA(1 == archive_read_next_header(a, &ae));
+  assertEqualInt(6, archive_file_count(a));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_read_format_rar)
 {
   test_basic();
@@ -463,4 +557,5 @@ DEFINE_TEST(test_read_format_rar)
   test_unicode_CP932();
   test_compress_normal();
   test_multi_lzss_blocks();
+  test_compress_best();
 }

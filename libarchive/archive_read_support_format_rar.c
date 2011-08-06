@@ -36,6 +36,7 @@
 #include "archive_endian.h"
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
+#include "archive_ppmd7.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
 
@@ -216,14 +217,17 @@ struct rar
   int64_t bytes_uncopied;
   int64_t offset;
   char valid;
+  unsigned char *unp_buffer;
+  unsigned int dictionary_size;
+  char start_new_block;
+
+  /* LZSS members */
   struct huffman_code maincode;
   struct huffman_code offsetcode;
   struct huffman_code lowoffsetcode;
   struct huffman_code lengthcode;
   unsigned char lengthtable[HUFFMAN_TABLE_SIZE];
-  unsigned char *unp_buffer;
   struct lzss lzss;
-  unsigned int dictionary_size;
   char output_last_match;
   unsigned int lastlength;
   unsigned int lastoffset;
@@ -231,8 +235,13 @@ struct rar
   unsigned int lastlowoffset;
   unsigned int numlowoffsetrepeats;
   int64_t filterstart;
-  char start_new_block;
   char start_new_table;
+
+  /* PPMd Variant H members */
+  char is_ppmd_block;
+  CPpmd7 ppmd7_context;
+  CPpmd7z_RangeDec range_dec;
+  IByteIn bytein;
 
   /*
    * Bit stream reader.
@@ -265,7 +274,7 @@ static int read_symlink_stored(struct archive_read *, struct archive_entry *,
                                struct archive_string_conv *);
 static int read_data_stored(struct archive_read *, const void **, size_t *,
                             int64_t *);
-static int read_data_lzss(struct archive_read *, const void **, size_t *,
+static int read_data_compressed(struct archive_read *, const void **, size_t *,
                           int64_t *);
 static int rar_br_preparation(struct archive_read *, struct rar_br *);
 static int parse_codes(struct archive_read *);
@@ -282,6 +291,188 @@ static int make_table_recurse(struct huffman_code *, int,
 static int64_t expand(struct archive_read *, int64_t);
 static int copy_from_lzss_window(struct archive_read *, const void **,
                                    int64_t, int);
+
+/*
+ * Bit stream reader.
+ */
+/* Check that the cache buffer has enough bits. */
+#define rar_br_has(br, n) ((br)->cache_avail >= n)
+/* Get compressed data by bit. */
+#define rar_br_bits(br, n)        \
+  (((uint32_t)((br)->cache_buffer >>    \
+    ((br)->cache_avail - (n)))) & cache_masks[n])
+#define rar_br_bits_forced(br, n)     \
+  (((uint32_t)((br)->cache_buffer <<    \
+    ((n) - (br)->cache_avail))) & cache_masks[n])
+/* Read ahead to make sure the cache buffer has enough compressed data we
+ * will use.
+ *  True  : completed, there is enough data in the cache buffer.
+ *  False : there is no data in the stream. */
+#define rar_br_read_ahead(a, br, n) \
+  ((rar_br_has(br, (n)) || rar_br_fillup(a, br)) || rar_br_has(br, (n)))
+/* Notify how man bits we consumed. */
+#define rar_br_consume(br, n) ((br)->cache_avail -= (n))
+#define rar_br_consume_unalined_bits(br) ((br)->cache_avail &= ~7)
+
+static const uint32_t cache_masks[] = {
+  0x00000000, 0x00000001, 0x00000003, 0x00000007,
+  0x0000000F, 0x0000001F, 0x0000003F, 0x0000007F,
+  0x000000FF, 0x000001FF, 0x000003FF, 0x000007FF,
+  0x00000FFF, 0x00001FFF, 0x00003FFF, 0x00007FFF,
+  0x0000FFFF, 0x0001FFFF, 0x0003FFFF, 0x0007FFFF,
+  0x000FFFFF, 0x001FFFFF, 0x003FFFFF, 0x007FFFFF,
+  0x00FFFFFF, 0x01FFFFFF, 0x03FFFFFF, 0x07FFFFFF,
+  0x0FFFFFFF, 0x1FFFFFFF, 0x3FFFFFFF, 0x7FFFFFFF,
+  0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF
+};
+
+/*
+ * Shift away used bits in the cache data and fill it up with following bits.
+ * Call this when cache buffer does not have enough bits you need.
+ *
+ * Returns 1 if the cache buffer is full.
+ * Returns 0 if the cache buffer is not full; input buffer is empty.
+ */
+static int
+rar_br_fillup(struct archive_read *a, struct rar_br *br)
+{
+/*
+ * x86 proccessor family can read misaligned data without an access error.
+ */
+#if defined(__i386__) || (defined(_MSC_VER) && defined(_M_IX86))
+#  if defined(_WIN32) && !defined(__CYGWIN__)
+#    define rar_be16dec(p) _byteswap_ushort(*(const uint16_t *)(p))
+#  elif defined(be16toh)
+#    define rar_be16dec(p) be16toh(*(const uint16_t *)(p))
+#  elif defined(betoh16)
+#    define rar_be16dec(p) betoh16(*(const uint16_t *)(p))
+#  else
+#    define rar_be16dec archive_be16dec
+#  endif
+#  if defined(_WIN32) && !defined(__CYGWIN__)
+#    define rar_be32dec(p) _byteswap_ulong(*(const uint32_t *)(p))
+#  elif defined(be32toh)
+#    define rar_be32dec(p) be32toh(*(const uint32_t *)(p))
+#  elif defined(betoh32)
+#    define rar_be32dec(p) betoh32(*(const uint32_t *)(p))
+#  else
+#    define rar_be32dec archive_be32dec
+#  endif
+#  if defined(_WIN32) && !defined(__CYGWIN__)
+#    define rar_be64dec(p) _byteswap_uint64(*(const uint64_t *)(p))
+#  elif defined(be64toh)
+#    define rar_be64dec(p) be64toh(*(const uint64_t *)(p))
+#  elif defined(betoh64)
+#    define rar_be64dec(p) betoh64(*(const uint64_t *)(p))
+#  else
+#    define rar_be64dec archive_be64dec
+#  endif
+#else
+#  define rar_be16dec archive_be16dec
+#  define rar_be32dec archive_be32dec
+#  define rar_be64dec archive_be64dec
+#endif
+  struct rar *rar = (struct rar *)(a->format->data);
+  int n = CACHE_BITS - br->cache_avail;
+
+  for (;;) {
+    switch (n >> 3) {
+    case 8:
+      if (br->avail_in >= 8) {
+        br->cache_buffer =
+            rar_be64dec(br->next_in);
+        br->next_in += 8;
+        br->avail_in -= 8;
+        br->cache_avail += 8 * 8;
+        rar->bytes_unconsumed += 8;
+        rar->bytes_remaining -= 8;
+        return (1);
+      }
+      break;
+    case 7:
+      if (br->avail_in >= 8) {/* Read extra one. */
+        br->cache_buffer =
+           (br->cache_buffer << 56) |
+            rar_be64dec(br->next_in) >> 8;
+        br->next_in += 7;
+        br->avail_in -= 7;
+        br->cache_avail += 7 * 8;
+        rar->bytes_unconsumed += 7;
+        rar->bytes_remaining -= 7;
+        return (1);
+      }
+      break;
+    case 6:
+      if (br->avail_in >= 6) {
+        br->cache_buffer =
+           (br->cache_buffer << 48) |
+           (((uint64_t)rar_be32dec(
+               br->next_in)) << 16) |
+            rar_be16dec(&br->next_in[4]);
+        br->next_in += 6;
+        br->avail_in -= 6;
+        br->cache_avail += 6 * 8;
+        rar->bytes_unconsumed += 6;
+        rar->bytes_remaining -= 6;
+        return (1);
+      }
+      break;
+    case 0:
+      /* We have enough compressed data in
+       * the cache buffer.*/
+      return (1);
+    default:
+      break;
+    }
+    if (br->avail_in <= 0) {
+
+      if (rar->bytes_unconsumed > 0) {
+        /* Consume as much as the decompressor
+         * actually used. */
+        __archive_read_consume(a, rar->bytes_unconsumed);
+        rar->bytes_unconsumed = 0;
+      }
+      br->next_in = __archive_read_ahead(a, 1, &(br->avail_in));
+      if (br->next_in == NULL)
+        return (0);
+      if (br->avail_in > rar->bytes_remaining)
+        br->avail_in = rar->bytes_remaining;
+      if (br->avail_in == 0)
+        return (0);
+    }
+    br->cache_buffer =
+       (br->cache_buffer << 8) | *br->next_in++;
+    br->avail_in--;
+    br->cache_avail += 8;
+    n -= 8;
+    rar->bytes_unconsumed++;
+    rar->bytes_remaining--;
+  }
+#undef rar_be16dec
+#undef rar_be32dec
+#undef rar_be64dec
+}
+
+static int
+rar_br_preparation(struct archive_read *a, struct rar_br *br)
+{
+  struct rar *rar = (struct rar *)(a->format->data);
+
+  if (rar->bytes_remaining > 0) {
+    br->next_in = __archive_read_ahead(a, 1, &(br->avail_in));
+    if (br->next_in == NULL) {
+      archive_set_error(&a->archive,
+          ARCHIVE_ERRNO_FILE_FORMAT,
+          "Truncated RAR file data");
+      return (ARCHIVE_FATAL);
+    }
+    if (br->avail_in > rar->bytes_remaining)
+      br->avail_in = rar->bytes_remaining;
+    if (br->cache_avail == 0)
+      (void)rar_br_fillup(a, br);
+  }
+  return (ARCHIVE_OK);
+}
 
 /* Find last bit set */
 static inline int
@@ -355,6 +546,39 @@ lzss_emit_match(struct rar *rar, int offset, int length)
       rar->lzss.window[(windowoffs + i - offset) & lzss_mask(&rar->lzss)];
   }
   rar->lzss.position += length;
+}
+
+static void *
+ppmd_alloc(void *p, size_t size)
+{
+  (void)p;
+  return malloc(size);
+}
+static void
+ppmd_free(void *p, void *address)
+{
+  (void)p;
+  free(address);
+}
+static ISzAlloc g_szalloc = { ppmd_alloc, ppmd_free };
+
+static Byte
+ppmd_read(void *p)
+{
+  struct archive_read *a = ((IByteIn*)p)->a;
+  struct rar *rar = (struct rar *)(a->format->data);
+  struct rar_br *br = &(rar->br);
+  Byte b;
+  if (!rar_br_read_ahead(a, br, 1))
+  {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                      "Truncated RAR file data");
+    rar->valid = 0;
+    return 0;
+  }
+  b = rar_br_bits(br, 8);
+  rar_br_consume(br, 8);
+  return b;
 }
 
 int
@@ -559,10 +783,10 @@ archive_read_format_rar_read_data(struct archive_read *a, const void **buff,
   case COMPRESS_METHOD_FASTEST:
   case COMPRESS_METHOD_FAST:
   case COMPRESS_METHOD_NORMAL:
-    return read_data_lzss(a, buff, size, offset);
-
   case COMPRESS_METHOD_GOOD:
   case COMPRESS_METHOD_BEST:
+    return read_data_compressed(a, buff, size, offset);
+
   default:
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                       "Unsupported compression method for RAR file.");
@@ -601,6 +825,7 @@ archive_read_format_rar_cleanup(struct archive_read *a)
   free_codes(a);
   free(rar->unp_buffer);
   free(rar->lzss.window);
+  Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
   free(rar);
   (a->format->data) = NULL;
   return (ARCHIVE_OK);
@@ -879,10 +1104,12 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   rar->br.cache_avail = 0;
   rar->br.avail_in = 0;
   rar->valid = 1;
+  rar->is_ppmd_block = 0;
   rar->start_new_table = 1;
   free(rar->unp_buffer);
   rar->unp_buffer = NULL;
   memset(rar->lengthtable, 0, sizeof(rar->lengthtable));
+  Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
 
   /* Don't set any archive entries for non-file header types */
   if (head_type == NEWSUB_HEAD)
@@ -1076,12 +1303,12 @@ read_data_stored(struct archive_read *a, const void **buff, size_t *size,
 }
 
 static int
-read_data_lzss(struct archive_read *a, const void **buff, size_t *size,
+read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
                int64_t *offset)
 {
   struct rar *rar;
   int64_t start, end, actualend;
-  int ret = (ARCHIVE_OK);
+  int ret = (ARCHIVE_OK), sym;
 
   rar = (struct rar *)(a->format->data);
   if (!rar->valid)
@@ -1092,10 +1319,11 @@ read_data_lzss(struct archive_read *a, const void **buff, size_t *size,
     *buff = NULL;
     *size = 0;
     *offset = rar->offset;
+    Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
     return (ARCHIVE_EOF);
   }
 
-  if (rar->dictionary_size && rar->bytes_uncopied > 0)
+  if (!rar->is_ppmd_block && rar->dictionary_size && rar->bytes_uncopied > 0)
   {
     *offset = rar->offset;
     if (rar->offset + rar->bytes_uncopied > rar->unp_size)
@@ -1113,221 +1341,66 @@ read_data_lzss(struct archive_read *a, const void **buff, size_t *size,
   if (rar->start_new_table && ((ret = parse_codes(a)) < (ARCHIVE_WARN)))
     return (ret);
 
-  start = rar->offset;
-  end = start + rar->dictionary_size;
-  rar->filterstart = INT64_MAX;
-
-  if ((actualend = expand(a, end)) < 0)
-    return ((int)actualend);
-
-  rar->bytes_uncopied = actualend - start;
-  if (rar->bytes_uncopied == 0) {
-      /* Broken RAR files cause this case.
-       * NOTE: If this case were possible on a normal RAR file
-       * we would find out where it was actually bad and
-       * what we would do to solve it. */
+  if (rar->is_ppmd_block)
+  {
+    if (!rar->unp_buffer)
+    {
+      if ((rar->unp_buffer = malloc(1)) == NULL)
+      {
+        archive_set_error(&a->archive, ENOMEM,
+                          "Unable to allocate memory for uncompressed data.");
+        return (ARCHIVE_FATAL);
+      }
+    }
+    if ((sym = Ppmd7_DecodeSymbol(&rar->ppmd7_context, &rar->range_dec.p)) < 0)
+    {
       archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                        "Internal error extracting RAR file.");
-      return (ARCHIVE_FAILED);
+                        "Invalid symbol");
+      return (ARCHIVE_FATAL);
+    }
+    *offset = rar->offset++;
+    *size = 1;
+    *rar->unp_buffer = sym;
+    *buff = rar->unp_buffer;
+    return (ret);
   }
-  *offset = rar->offset;
-  if (rar->offset + rar->bytes_uncopied > rar->unp_size)
-    *size = rar->unp_size - rar->offset;
   else
-    *size = rar->bytes_uncopied;
-  ret = copy_from_lzss_window(a, buff, *offset, *size);
-  rar->offset += *size;
-  rar->bytes_uncopied -= *size;
+  {
+    start = rar->offset;
+    end = start + rar->dictionary_size;
+    rar->filterstart = INT64_MAX;
+
+    if ((actualend = expand(a, end)) < 0)
+      return ((int)actualend);
+
+    rar->bytes_uncopied = actualend - start;
+    if (rar->bytes_uncopied == 0) {
+        /* Broken RAR files cause this case.
+        * NOTE: If this case were possible on a normal RAR file
+        * we would find out where it was actually bad and
+        * what we would do to solve it. */
+        archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                          "Internal error extracting RAR file.");
+        return (ARCHIVE_FAILED);
+    }
+    *offset = rar->offset;
+    if (rar->offset + rar->bytes_uncopied > rar->unp_size)
+      *size = rar->unp_size - rar->offset;
+    else
+      *size = rar->bytes_uncopied;
+    ret = copy_from_lzss_window(a, buff, *offset, *size);
+    rar->offset += *size;
+    rar->bytes_uncopied -= *size;
+  }
   return ret;
-}
-
-/*
- * Bit stream reader.
- */
-/* Check that the cache buffer has enough bits. */
-#define rar_br_has(br, n)	((br)->cache_avail >= n)
-/* Get compressed data by bit. */
-#define rar_br_bits(br, n)				\
-	(((uint32_t)((br)->cache_buffer >>		\
-		((br)->cache_avail - (n)))) & cache_masks[n])
-#define rar_br_bits_forced(br, n)			\
-	(((uint32_t)((br)->cache_buffer <<		\
-		((n) - (br)->cache_avail))) & cache_masks[n])
-/* Read ahead to make sure the cache buffer has enough compressed data we
- * will use.
- *  True  : completed, there is enough data in the cache buffer.
- *  False : there is no data in the stream. */
-#define rar_br_read_ahead(a, br, n)	\
-	((rar_br_has(br, (n)) || rar_br_fillup(a, br)) || rar_br_has(br, (n)))
-/* Notify how man bits we consumed. */
-#define rar_br_consume(br, n)	((br)->cache_avail -= (n))
-#define rar_br_consume_unalined_bits(br) ((br)->cache_avail &= ~7)
-
-static const uint32_t cache_masks[] = {
-	0x00000000, 0x00000001, 0x00000003, 0x00000007,
-	0x0000000F, 0x0000001F, 0x0000003F, 0x0000007F,
-	0x000000FF, 0x000001FF, 0x000003FF, 0x000007FF,
-	0x00000FFF, 0x00001FFF, 0x00003FFF, 0x00007FFF,
-	0x0000FFFF, 0x0001FFFF, 0x0003FFFF, 0x0007FFFF,
-	0x000FFFFF, 0x001FFFFF, 0x003FFFFF, 0x007FFFFF,
-	0x00FFFFFF, 0x01FFFFFF, 0x03FFFFFF, 0x07FFFFFF,
-	0x0FFFFFFF, 0x1FFFFFFF, 0x3FFFFFFF, 0x7FFFFFFF,
-	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF
-};
-
-/*
- * Shift away used bits in the cache data and fill it up with following bits.
- * Call this when cache buffer does not have enough bits you need.
- *
- * Returns 1 if the cache buffer is full.
- * Returns 0 if the cache buffer is not full; input buffer is empty.
- */
-static int
-rar_br_fillup(struct archive_read *a, struct rar_br *br)
-{
-/*
- * x86 proccessor family can read misaligned data without an access error.
- */
-#if defined(__i386__) || (defined(_MSC_VER) && defined(_M_IX86))
-#  if defined(_WIN32) && !defined(__CYGWIN__)
-#    define rar_be16dec(p) _byteswap_ushort(*(const uint16_t *)(p))
-#  elif defined(be16toh)
-#    define rar_be16dec(p) be16toh(*(const uint16_t *)(p))
-#  elif defined(betoh16)
-#    define rar_be16dec(p) betoh16(*(const uint16_t *)(p))
-#  else
-#    define rar_be16dec	archive_be16dec
-#  endif
-#  if defined(_WIN32) && !defined(__CYGWIN__)
-#    define rar_be32dec(p) _byteswap_ulong(*(const uint32_t *)(p))
-#  elif defined(be32toh)
-#    define rar_be32dec(p) be32toh(*(const uint32_t *)(p))
-#  elif defined(betoh32)
-#    define rar_be32dec(p) betoh32(*(const uint32_t *)(p))
-#  else
-#    define rar_be32dec	archive_be32dec
-#  endif
-#  if defined(_WIN32) && !defined(__CYGWIN__)
-#    define rar_be64dec(p) _byteswap_uint64(*(const uint64_t *)(p))
-#  elif defined(be64toh)
-#    define rar_be64dec(p) be64toh(*(const uint64_t *)(p))
-#  elif defined(betoh64)
-#    define rar_be64dec(p) betoh64(*(const uint64_t *)(p))
-#  else
-#    define rar_be64dec	archive_be64dec
-#  endif
-#else
-#  define rar_be16dec	archive_be16dec
-#  define rar_be32dec	archive_be32dec
-#  define rar_be64dec	archive_be64dec
-#endif
- 	struct rar *rar = (struct rar *)(a->format->data);
-	int n = CACHE_BITS - br->cache_avail;
-
-	for (;;) {
-		switch (n >> 3) {
-		case 8:
-			if (br->avail_in >= 8) {
-				br->cache_buffer =
-				    rar_be64dec(br->next_in);
-				br->next_in += 8;
-				br->avail_in -= 8;
-				br->cache_avail += 8 * 8;
-				rar->bytes_unconsumed += 8;
-				rar->bytes_remaining -= 8;
-				return (1);
-			}
-			break;
-		case 7:
-			if (br->avail_in >= 8) {/* Read extra one. */
-				br->cache_buffer =
-		 		   (br->cache_buffer << 56) |
-				    rar_be64dec(br->next_in) >> 8;
-				br->next_in += 7;
-				br->avail_in -= 7;
-				br->cache_avail += 7 * 8;
-				rar->bytes_unconsumed += 7;
-				rar->bytes_remaining -= 7;
-				return (1);
-			}
-			break;
-		case 6:
-			if (br->avail_in >= 6) {
-				br->cache_buffer =
-		 		   (br->cache_buffer << 48) |
-				   (((uint64_t)rar_be32dec(
-				       br->next_in)) << 16) |
-				    rar_be16dec(&br->next_in[4]);
-				br->next_in += 6;
-				br->avail_in -= 6;
-				br->cache_avail += 6 * 8;
-				rar->bytes_unconsumed += 6;
-				rar->bytes_remaining -= 6;
-				return (1);
-			}
-			break;
-		case 0:
-			/* We have enough compressed data in
-			 * the cache buffer.*/ 
-			return (1);
-		default:
-			break;
-		}
-		if (br->avail_in <= 0) {
-
-			if (rar->bytes_unconsumed > 0) {
-				/* Consume as much as the decompressor
-				 * actually used. */
-				__archive_read_consume(a, rar->bytes_unconsumed);
-				rar->bytes_unconsumed = 0;
-			}
-			br->next_in = __archive_read_ahead(a, 1, &(br->avail_in));
-			if (br->next_in == NULL)
-				return (0);
-			if (br->avail_in > rar->bytes_remaining)
-				br->avail_in = rar->bytes_remaining;
-			if (br->avail_in == 0)
-				return (0);
-		}
-		br->cache_buffer =
-		   (br->cache_buffer << 8) | *br->next_in++;
-		br->avail_in--;
-		br->cache_avail += 8;
-		n -= 8;
-		rar->bytes_unconsumed++;
-		rar->bytes_remaining--;
-	}
-#undef rar_be16dec
-#undef rar_be32dec
-#undef rar_be64dec
-}
-
-static int
-rar_br_preparation(struct archive_read *a, struct rar_br *br)
-{
- 	struct rar *rar = (struct rar *)(a->format->data);
-
-	if (rar->bytes_remaining > 0) {
-		br->next_in = __archive_read_ahead(a, 1, &(br->avail_in));
-		if (br->next_in == NULL) {
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Truncated RAR file data");
-			return (ARCHIVE_FATAL);
-		}
-		if (br->avail_in > rar->bytes_remaining)
-			br->avail_in = rar->bytes_remaining;
-		if (br->cache_avail == 0)
-			(void)rar_br_fillup(a, br);
-	}
-	return (ARCHIVE_OK);
 }
 
 static int
 parse_codes(struct archive_read *a)
 {
   int i, j, val, n, r;
-  unsigned char bitlengths[MAX_SYMBOLS], zerocount;
+  unsigned char bitlengths[MAX_SYMBOLS], zerocount, ppmd_flags;
+  unsigned int maxorder;
   struct huffman_code precode;
   struct rar *rar = (struct rar *)(a->format->data);
   struct rar_br *br = &(rar->br);
@@ -1340,12 +1413,69 @@ parse_codes(struct archive_read *a)
   /* PPMd block flag */
   if (!rar_br_read_ahead(a, br, 1))
     goto truncated_data;
-  if (rar_br_bits(br, 1))
+  if ((rar->is_ppmd_block = rar_br_bits(br, 1)) != 0)
   {
     rar_br_consume(br, 1);
-    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                      "Unsupported compression method for RAR file.");
-    return (ARCHIVE_FAILED);
+    ppmd_flags = rar_br_bits(br, 7);
+    rar_br_consume(br, 7);
+
+    /* Memory is allocated in MB */
+    if (ppmd_flags & 0x20)
+    {
+      rar->dictionary_size = (rar_br_bits(br, 8) + 1) << 20;
+      rar_br_consume(br, 8);
+    }
+
+    if (ppmd_flags & 0x40)
+    {
+      rar->ppmd7_context.InitEsc = rar_br_bits(br, 8);
+      rar_br_consume(br, 8);
+    }
+
+    if (ppmd_flags & 0x20)
+    {
+      maxorder = (ppmd_flags & 0x1F) + 1;
+      if(maxorder > 16)
+        maxorder = 16 + (maxorder - 16) * 3;
+
+      if (maxorder == 1)
+      {
+        archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                          "Truncated RAR file data");
+        return (ARCHIVE_FATAL);
+      }
+
+      rar->bytein.a = a;
+      rar->bytein.Read = &ppmd_read;
+      PpmdRAR_RangeDec_CreateVTable(&rar->range_dec);
+      rar->range_dec.Stream = &rar->bytein;
+      Ppmd7_Construct(&rar->ppmd7_context);
+
+      if (!Ppmd7_Alloc(&rar->ppmd7_context, rar->dictionary_size, &g_szalloc))
+      {
+        archive_set_error(&a->archive, ENOMEM,
+                          "Out of memory");
+        return (ARCHIVE_FATAL);
+      }
+      if (!PpmdRAR_RangeDec_Init(&rar->range_dec))
+      {
+        archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                          "Unable to initialize PPMd range decoder");
+        return (ARCHIVE_FATAL);
+      }
+      Ppmd7_Init(&rar->ppmd7_context, maxorder);
+    }
+    else
+    {
+      if (!PpmdRAR_RangeDec_Init(&rar->range_dec))
+      {
+        archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                          "Unable to initialize PPMd range decoder");
+        return (ARCHIVE_FATAL);
+      }
+    }
+    rar->start_new_table = 0;
+    return (ARCHIVE_OK);
   }
   rar_br_consume(br, 1);
 

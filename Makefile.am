@@ -104,6 +104,10 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_options.c				\
 	libarchive/archive_options_private.h			\
 	libarchive/archive_platform.h				\
+	libarchive/archive_ppmd.h				\
+	libarchive/archive_ppmd7.c				\
+	libarchive/archive_ppmd7.h				\
+	libarchive/archive_ppmd7dec.c				\
 	libarchive/archive_private.h				\
 	libarchive/archive_rb.c					\
 	libarchive/archive_rb.h					\
@@ -486,6 +490,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_mtree.mtree.uu			\
 	libarchive/test/test_read_format_mtree_nomagic.mtree.uu		\
 	libarchive/test/test_read_format_rar.rar.uu			\
+	libarchive/test/test_read_format_rar_compress_best.rar.uu	\
 	libarchive/test/test_read_format_rar_compress_normal.rar.uu	\
 	libarchive/test/test_read_format_rar_multi_lzss_blocks.rar.uu	\
 	libarchive/test/test_read_format_rar_noeof.rar.uu		\
