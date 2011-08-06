@@ -142,7 +142,6 @@ struct lzh_dec {
 	int			 reading_position;
 	int			 loop;
 	int			 error;
-	uint16_t		 crc16;
 };
 
 struct lzh_stream {
@@ -288,7 +287,6 @@ static int	lha_read_data_lzh(struct archive_read *, const void **,
 static uint16_t lha_crc16(uint16_t, const void *, size_t);
 static int	lzh_decode_init(struct lzh_stream *, const char *);
 static void	lzh_decode_free(struct lzh_stream *);
-static uint16_t lzh_crc16(struct lzh_stream *);
 static int	lzh_decode(struct lzh_stream *, int);
 static int	lzh_br_fillup(struct lzh_stream *, struct lzh_br *);
 static int	lzh_huffman_init(struct huffman *, size_t, int);
@@ -1550,7 +1548,8 @@ lha_read_data_lzh(struct archive_read *a, const void **buff,
 		*offset = lha->entry_offset;
 		*size = lha->strm.next_out - lha->uncompressed_buffer;
 		*buff = lha->uncompressed_buffer;
-		lha->entry_crc_calculated = lzh_crc16(&(lha->strm));
+		lha->entry_crc_calculated =
+		    lha_crc16(lha->entry_crc_calculated, *buff, *size);
 		lha->entry_offset += *size;
 	} else {
 		*offset = lha->entry_offset;
@@ -1783,7 +1782,6 @@ lzh_decode_init(struct lzh_stream *strm, const char *method)
 			return (ARCHIVE_FATAL);
 	}
 	memset(ds->w_buff, 0x20, ds->w_size);
-	ds->crc16 = 0;
 	ds->w_pos = 0;
 	ds->state = 0;
 	ds->pos_pt_len_size = w_bits + 1;
@@ -1820,16 +1818,6 @@ lzh_decode_free(struct lzh_stream *strm)
 	free(strm->ds);
 	strm->ds = NULL;
 }
-
-static uint16_t
-lzh_crc16(struct lzh_stream *strm)
-{
-
-	if (strm->ds == NULL)
-		return (0);
-	return (strm->ds->crc16);
-}
-
 
 /*
  * Bit stream reader.
@@ -2278,7 +2266,6 @@ lzh_decode_blocks(struct lzh_stream *strm, int last)
 	int w_pos = ds->w_pos, w_mask = ds->w_mask, w_size = ds->w_size;
 	int lt_max_bits = lt->max_bits, pt_max_bits = pt->max_bits;
 	int state = ds->state;
-	uint16_t crc16 = ds->crc16;
 
 	for (;;) {
 		switch (state) {
@@ -2290,7 +2277,6 @@ lzh_decode_blocks(struct lzh_stream *strm, int last)
 					ds->state = ST_RD_BLOCK;
 					ds->br = bre;
 					ds->blocks_avail = 0;
-					ds->crc16 = crc16;
 					ds->w_pos = w_pos;
 					strm->avail_out = endp - outp;
 					return (100);
@@ -2342,7 +2328,6 @@ lzh_decode_blocks(struct lzh_stream *strm, int last)
 				 * afterward. */
 				w_buff[w_pos] = c;
 				w_pos = (w_pos + 1) & w_mask;
-				CRC16(crc16, c);
 				/* Store the decoded code to the output
 				 * buffer. */
 				*outp++ = c;
@@ -2425,16 +2410,13 @@ lzh_decode_blocks(struct lzh_stream *strm, int last)
 				    || (w_pos + l < copy_pos))) {
 					memcpy(w_buff + w_pos, s, l);
 					memcpy(outp, s, l);
-					crc16 = lha_crc16(crc16, s, l);
 				} else {
 					unsigned char *d;
 					int li;
 
 					d = w_buff + w_pos;
-					for (li = 0; li < l; li++) {
-						c = outp[li] = d[li] = s[li];
-						CRC16(crc16, c);
-					}
+					for (li = 0; li < l; li++)
+						outp[li] = d[li] = s[li];
 				}
 				outp += l;
 				copy_pos = (copy_pos + l) & w_mask;
@@ -2460,7 +2442,6 @@ failed:
 next_data:
 	ds->br = bre;
 	ds->blocks_avail = blocks_avail;
-	ds->crc16 = crc16;
 	ds->state = state;
 	ds->w_pos = w_pos;
 	strm->avail_out = endp - outp;
