@@ -106,8 +106,6 @@ typedef struct
 #define PPMD_N4 ((128 + 3 - 1 * PPMD_N1 - 2 * PPMD_N2 - 3 * PPMD_N3) / 4)
 #define PPMD_NUM_INDEXES (PPMD_N1 + PPMD_N2 + PPMD_N3 + PPMD_N4)
 
-#pragma pack(push,1)
-
 /* SEE-contexts for PPM-contexts with masked symbols */
 typedef struct
 {
@@ -126,8 +124,6 @@ typedef struct
   UInt16 SuccessorLow;
   UInt16 SuccessorHigh;
 } CPpmd_State;
-
-#pragma pack(pop)
 
 typedef
   #ifdef PPMD_32BIT
