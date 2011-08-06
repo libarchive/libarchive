@@ -454,8 +454,38 @@ test_multi_lzss_blocks(void)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+#if 1
+static void
+test_read_damaged(void)
+{
+	struct archive_entry *ae;
+  	struct archive *a;
+	const void *blk;
+	size_t blk_size;
+	int64_t blk_offset;
+
+	assert((a = archive_read_new()) != NULL);
+	assertA(0 == archive_read_support_filter_all(a));
+	assertA(0 == archive_read_support_format_all(a));
+fprintf(stderr, "start \n");
+	if (0 == archive_read_open_filename(a, "/home/cue/project/libarchive/tmp/ccc", 10240)) {
+fprintf(stderr, "open \n");
+		int i = 0;
+                while(0 == archive_read_next_header(a, &ae)) {
+fprintf(stderr, "i=%d \n", i);
+                        while (0 == archive_read_data_block(a,
+                                &blk, &blk_size, &blk_offset))
+                                continue;
+                }
+                archive_read_close(a);
+        }
+        archive_read_free(a);
+}
+#endif
+
 DEFINE_TEST(test_read_format_rar)
 {
+  test_read_damaged();
   test_basic();
   test_subblock();
   test_noeof();
