@@ -1993,7 +1993,8 @@ expand(struct archive_read *a, int64_t end)
       rar->output_last_match = 0;
     }
 
-    if(rar->output_last_match || lzss_position(&rar->lzss) >= end)
+    if(rar->is_ppmd_block || rar->output_last_match ||
+      lzss_position(&rar->lzss) >= end)
       return lzss_position(&rar->lzss);
 
     if ((symbol = read_next_symbol(a, &rar->maincode)) < 0)
