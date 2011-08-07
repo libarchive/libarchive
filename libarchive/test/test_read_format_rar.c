@@ -548,6 +548,49 @@ test_compress_best(void)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+/* This is a test for RAR files compressed using a technique where compression
+ * switches back and forth to and from ppmd and lzss decoding.
+ */
+static void
+test_ppmd_lzss_conversion(void)
+{
+  const char reffile[] = "test_read_format_rar_ppmd_lzss_conversion.rar";
+  const char test_txt[] = "-bottom: 0in\"><BR>\n</P>\n</BODY>\n</HTML>";
+  int size = 20131111, offset = 0;
+  char buff[64];
+  struct archive_entry *ae;
+  struct archive *a;
+
+  extract_reference_file(reffile);
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_support_filter_all(a));
+  assertA(0 == archive_read_support_format_all(a));
+  assertA(0 == archive_read_open_file(a, reffile, 10240));
+
+  /* First header. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("ppmd_lzss_conversion_test.txt",
+                    archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(size, archive_entry_size(ae));
+  assertEqualInt(33188, archive_entry_mode(ae));
+  while (offset + (int)sizeof(buff) < size)
+  {
+    assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
+    offset += sizeof(buff);
+  }
+  assertA(size - offset == archive_read_data(a, buff, size - offset));
+  assertEqualMem(buff, test_txt, size - offset);
+
+  /* Test EOF */
+  assertA(1 == archive_read_next_header(a, &ae));
+  assertEqualInt(1, archive_file_count(a));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_read_format_rar)
 {
   test_basic();
@@ -558,4 +601,5 @@ DEFINE_TEST(test_read_format_rar)
   test_compress_normal();
   test_multi_lzss_blocks();
   test_compress_best();
+  test_ppmd_lzss_conversion();
 }

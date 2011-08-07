@@ -239,6 +239,7 @@ struct rar
 
   /* PPMd Variant H members */
   char is_ppmd_block;
+  int ppmd_escape;
   CPpmd7 ppmd7_context;
   CPpmd7z_RangeDec range_dec;
   IByteIn bytein;
@@ -1269,7 +1270,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
 {
   struct rar *rar;
   int64_t start, end, actualend;
-  int ret = (ARCHIVE_OK), sym;
+  int ret = (ARCHIVE_OK), sym, code, lzss_offset, length, i;
 
   rar = (struct rar *)(a->format->data);
   if (!rar->valid)
@@ -1304,26 +1305,85 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
 
   if (rar->is_ppmd_block)
   {
-    if (!rar->unp_buffer)
-    {
-      if ((rar->unp_buffer = malloc(1)) == NULL)
-      {
-        archive_set_error(&a->archive, ENOMEM,
-                          "Unable to allocate memory for uncompressed data.");
-        return (ARCHIVE_FATAL);
-      }
-    }
     if ((sym = Ppmd7_DecodeSymbol(&rar->ppmd7_context, &rar->range_dec.p)) < 0)
     {
       archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                         "Invalid symbol");
       return (ARCHIVE_FATAL);
     }
-    *offset = rar->offset++;
-    *size = 1;
-    *rar->unp_buffer = sym;
-    *buff = rar->unp_buffer;
-    return (ret);
+    if(sym != rar->ppmd_escape)
+    {
+      lzss_emit_literal(rar, sym);
+      rar->bytes_uncopied++;
+    }
+    else
+    {
+      if ((code = Ppmd7_DecodeSymbol(&rar->ppmd7_context, &rar->range_dec.p)) < 0)
+      {
+        archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                          "Invalid symbol");
+        return (ARCHIVE_FATAL);
+      }
+
+      switch(code)
+      {
+        case 0:
+          rar->start_new_table = 1;
+          return read_data_compressed(a, buff, size, offset);
+
+        case 2:
+          *buff = NULL;
+          *size = 0;
+          *offset = rar->offset;
+          Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
+          return (ARCHIVE_EOF);
+
+        case 3:
+          archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                            "Parsing filters is unsupported.");
+          return (ARCHIVE_FAILED);
+
+        case 4:
+          lzss_offset = 0;
+          for (i = 2; i >= 0; i--)
+          {
+            if ((code = Ppmd7_DecodeSymbol(&rar->ppmd7_context,
+              &rar->range_dec.p)) < 0)
+            {
+              archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                                "Invalid symbol");
+              return (ARCHIVE_FATAL);
+            }
+            lzss_offset |= code << (i * 8);
+          }
+          if ((length = Ppmd7_DecodeSymbol(&rar->ppmd7_context,
+            &rar->range_dec.p)) < 0)
+          {
+            archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                              "Invalid symbol");
+            return (ARCHIVE_FATAL);
+          }
+          lzss_emit_match(rar, lzss_offset + 2, length + 32);
+          rar->bytes_uncopied += length + 32;
+          break;
+
+        case 5:
+          if ((length = Ppmd7_DecodeSymbol(&rar->ppmd7_context,
+            &rar->range_dec.p)) < 0)
+          {
+            archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                              "Invalid symbol");
+            return (ARCHIVE_FATAL);
+          }
+          lzss_emit_match(rar, 1, length + 4);
+          rar->bytes_uncopied += length + 4;
+          break;
+
+       default:
+         lzss_emit_literal(rar, sym);
+         rar->bytes_uncopied++;
+      }
+    }
   }
   else
   {
@@ -1344,15 +1404,15 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
                           "Internal error extracting RAR file.");
         return (ARCHIVE_FAILED);
     }
-    *offset = rar->offset;
-    if (rar->offset + rar->bytes_uncopied > rar->unp_size)
-      *size = rar->unp_size - rar->offset;
-    else
-      *size = rar->bytes_uncopied;
-    ret = copy_from_lzss_window(a, buff, *offset, *size);
-    rar->offset += *size;
-    rar->bytes_uncopied -= *size;
   }
+  *offset = rar->offset;
+  if (rar->offset + rar->bytes_uncopied > rar->unp_size)
+    *size = rar->unp_size - rar->offset;
+  else
+    *size = rar->bytes_uncopied;
+  ret = copy_from_lzss_window(a, buff, *offset, *size);
+  rar->offset += *size;
+  rar->bytes_uncopied -= *size;
   return ret;
 }
 
@@ -1395,9 +1455,11 @@ parse_codes(struct archive_read *a)
     {
       if (!rar_br_read_ahead(a, br, 8))
         goto truncated_data;
-      rar->ppmd7_context.InitEsc = rar_br_bits(br, 8);
+      rar->ppmd_escape = rar->ppmd7_context.InitEsc = rar_br_bits(br, 8);
       rar_br_consume(br, 8);
     }
+    else
+      rar->ppmd_escape = 2;
 
     if (ppmd_flags & 0x20)
     {
@@ -1441,118 +1503,119 @@ parse_codes(struct archive_read *a)
         return (ARCHIVE_FATAL);
       }
     }
-    rar->start_new_table = 0;
-    return (ARCHIVE_OK);
   }
-  rar_br_consume(br, 1);
-
-  /* Keep existing table flag */
-  if (!rar_br_read_ahead(a, br, 1))
-    goto truncated_data;
-  if (!rar_br_bits(br, 1))
-    memset(rar->lengthtable, 0, sizeof(rar->lengthtable));
-  rar_br_consume(br, 1);
-
-  memset(&bitlengths, 0, sizeof(bitlengths));
-  for (i = 0; i < MAX_SYMBOLS;)
+  else
   {
-    if (!rar_br_read_ahead(a, br, 4))
+    rar_br_consume(br, 1);
+
+    /* Keep existing table flag */
+    if (!rar_br_read_ahead(a, br, 1))
       goto truncated_data;
-    bitlengths[i++] = rar_br_bits(br, 4);
-    rar_br_consume(br, 4);
-    if (bitlengths[i-1] == 0xF)
+    if (!rar_br_bits(br, 1))
+      memset(rar->lengthtable, 0, sizeof(rar->lengthtable));
+    rar_br_consume(br, 1);
+
+    memset(&bitlengths, 0, sizeof(bitlengths));
+    for (i = 0; i < MAX_SYMBOLS;)
     {
       if (!rar_br_read_ahead(a, br, 4))
         goto truncated_data;
-      zerocount = rar_br_bits(br, 4);
+      bitlengths[i++] = rar_br_bits(br, 4);
       rar_br_consume(br, 4);
-      if (zerocount)
+      if (bitlengths[i-1] == 0xF)
       {
-        i--;
-        for (j = 0; j < zerocount + 2 && i < MAX_SYMBOLS; j++)
-          bitlengths[i++] = 0;
+        if (!rar_br_read_ahead(a, br, 4))
+          goto truncated_data;
+        zerocount = rar_br_bits(br, 4);
+        rar_br_consume(br, 4);
+        if (zerocount)
+        {
+          i--;
+          for (j = 0; j < zerocount + 2 && i < MAX_SYMBOLS; j++)
+            bitlengths[i++] = 0;
+        }
       }
     }
-  }
 
-  memset(&precode, 0, sizeof(precode));
-  r = create_code(a, &precode, bitlengths, MAX_SYMBOLS, MAX_SYMBOL_LENGTH);
-  if (r != ARCHIVE_OK)
-    return (r);
+    memset(&precode, 0, sizeof(precode));
+    r = create_code(a, &precode, bitlengths, MAX_SYMBOLS, MAX_SYMBOL_LENGTH);
+    if (r != ARCHIVE_OK)
+      return (r);
 
-  for (i = 0; i < HUFFMAN_TABLE_SIZE;)
-  {
-    if ((val = read_next_symbol(a, &precode)) < 0)
-      return (ARCHIVE_FAILED);
-    if (val < 16)
+    for (i = 0; i < HUFFMAN_TABLE_SIZE;)
     {
-      rar->lengthtable[i] = (rar->lengthtable[i] + val) & 0xF;
-      i++;
-    }
-    else if (val < 18)
-    {
-      if (i == 0)
-      {
-        archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                          "Internal error extracting RAR file.");
+      if ((val = read_next_symbol(a, &precode)) < 0)
         return (ARCHIVE_FAILED);
-      }
-
-      if(val == 16) {
-        if (!rar_br_read_ahead(a, br, 3))
-          goto truncated_data;
-        n = rar_br_bits(br, 3) + 3;
-        rar_br_consume(br, 3);
-      } else {
-        if (!rar_br_read_ahead(a, br, 7))
-          goto truncated_data;
-        n = rar_br_bits(br, 7) + 11;
-        rar_br_consume(br, 7);
-      }
-
-      for (j = 0; j < n && i < HUFFMAN_TABLE_SIZE; j++)
+      if (val < 16)
       {
-        rar->lengthtable[i] = rar->lengthtable[i-1];
+        rar->lengthtable[i] = (rar->lengthtable[i] + val) & 0xF;
         i++;
       }
-    }
-    else
-    {
-      if(val == 18) {
-        if (!rar_br_read_ahead(a, br, 3))
-          goto truncated_data;
-        n = rar_br_bits(br, 3) + 3;
-        rar_br_consume(br, 3);
-      } else {
-        if (!rar_br_read_ahead(a, br, 7))
-          goto truncated_data;
-        n = rar_br_bits(br, 7) + 11;
-        rar_br_consume(br, 7);
+      else if (val < 18)
+      {
+        if (i == 0)
+        {
+          archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                            "Internal error extracting RAR file.");
+          return (ARCHIVE_FAILED);
+        }
+
+        if(val == 16) {
+          if (!rar_br_read_ahead(a, br, 3))
+            goto truncated_data;
+          n = rar_br_bits(br, 3) + 3;
+          rar_br_consume(br, 3);
+        } else {
+          if (!rar_br_read_ahead(a, br, 7))
+            goto truncated_data;
+          n = rar_br_bits(br, 7) + 11;
+          rar_br_consume(br, 7);
+        }
+
+        for (j = 0; j < n && i < HUFFMAN_TABLE_SIZE; j++)
+        {
+          rar->lengthtable[i] = rar->lengthtable[i-1];
+          i++;
+        }
       }
+      else
+      {
+        if(val == 18) {
+          if (!rar_br_read_ahead(a, br, 3))
+            goto truncated_data;
+          n = rar_br_bits(br, 3) + 3;
+          rar_br_consume(br, 3);
+        } else {
+          if (!rar_br_read_ahead(a, br, 7))
+            goto truncated_data;
+          n = rar_br_bits(br, 7) + 11;
+          rar_br_consume(br, 7);
+        }
 
-      for(j = 0; j < n && i < HUFFMAN_TABLE_SIZE; j++)
-        rar->lengthtable[i++] = 0;
+        for(j = 0; j < n && i < HUFFMAN_TABLE_SIZE; j++)
+          rar->lengthtable[i++] = 0;
+      }
     }
-  }
 
-  r = create_code(a, &rar->maincode, &rar->lengthtable[0], MAINCODE_SIZE,
-              MAX_SYMBOL_LENGTH);
-  if (r != ARCHIVE_OK)
-    return (r);
-  r = create_code(a, &rar->offsetcode, &rar->lengthtable[MAINCODE_SIZE],
-              OFFSETCODE_SIZE, MAX_SYMBOL_LENGTH);
-  if (r != ARCHIVE_OK)
-    return (r);
-  r = create_code(a, &rar->lowoffsetcode,
-              &rar->lengthtable[MAINCODE_SIZE + OFFSETCODE_SIZE],
-              LOWOFFSETCODE_SIZE, MAX_SYMBOL_LENGTH);
-  if (r != ARCHIVE_OK)
-    return (r);
-  r = create_code(a, &rar->lengthcode,
-              &rar->lengthtable[MAINCODE_SIZE + OFFSETCODE_SIZE +
-              LOWOFFSETCODE_SIZE], LENGTHCODE_SIZE, MAX_SYMBOL_LENGTH);
-  if (r != ARCHIVE_OK)
-    return (r);
+    r = create_code(a, &rar->maincode, &rar->lengthtable[0], MAINCODE_SIZE,
+                MAX_SYMBOL_LENGTH);
+    if (r != ARCHIVE_OK)
+      return (r);
+    r = create_code(a, &rar->offsetcode, &rar->lengthtable[MAINCODE_SIZE],
+                OFFSETCODE_SIZE, MAX_SYMBOL_LENGTH);
+    if (r != ARCHIVE_OK)
+      return (r);
+    r = create_code(a, &rar->lowoffsetcode,
+                &rar->lengthtable[MAINCODE_SIZE + OFFSETCODE_SIZE],
+                LOWOFFSETCODE_SIZE, MAX_SYMBOL_LENGTH);
+    if (r != ARCHIVE_OK)
+      return (r);
+    r = create_code(a, &rar->lengthcode,
+                &rar->lengthtable[MAINCODE_SIZE + OFFSETCODE_SIZE +
+                LOWOFFSETCODE_SIZE], LENGTHCODE_SIZE, MAX_SYMBOL_LENGTH);
+    if (r != ARCHIVE_OK)
+      return (r);
+  }
 
   if (!rar->dictionary_size || !rar->lzss.window)
   {

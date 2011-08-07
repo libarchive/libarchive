@@ -72,6 +72,10 @@ static struct {
 	{0, "test_read_format_rar_multi_lzss_blocks.rar"}, /* Normal Compressed Multi
 	                                                    * LZSS blocks RAR test */
 	{0, "test_read_format_rar_noeof.rar"}, /* RAR with no EOF header */
+	{0, "test_read_format_rar_ppmd_lzss_conversion.rar"}, /* Best Compressed
+	                                                       * RAR file with both
+	                                                       * PPMd and LZSS
+	                                                       * blocks */
 	{0, "test_read_format_rar_subblock.rar"}, /* RAR with subblocks */
 	{0, "test_read_format_rar_unicode.rar"}, /* RAR with Unicode filenames */
 	{0, "test_read_format_gtar_sparse_1_17_posix10_modified.tar"},
