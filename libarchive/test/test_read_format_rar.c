@@ -555,8 +555,8 @@ static void
 test_ppmd_lzss_conversion(void)
 {
   const char reffile[] = "test_read_format_rar_ppmd_lzss_conversion.rar";
-  const char test_txt[] = "-bottom: 0in\"><BR>\n</P>\n</BODY>\n</HTML>";
-  int size = 20131111, offset = 0;
+  const char test_txt[] = "gin-bottom: 0in\"><BR>\n</P>\n</BODY>\n</HTML>";
+  int size = 241647978, offset = 0;
   char buff[64];
   struct archive_entry *ae;
   struct archive *a;
