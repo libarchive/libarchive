@@ -1377,18 +1377,24 @@ parse_codes(struct archive_read *a)
   if ((rar->is_ppmd_block = rar_br_bits(br, 1)) != 0)
   {
     rar_br_consume(br, 1);
+    if (!rar_br_read_ahead(a, br, 7))
+      goto truncated_data;
     ppmd_flags = rar_br_bits(br, 7);
     rar_br_consume(br, 7);
 
     /* Memory is allocated in MB */
     if (ppmd_flags & 0x20)
     {
+      if (!rar_br_read_ahead(a, br, 8))
+        goto truncated_data;
       rar->dictionary_size = (rar_br_bits(br, 8) + 1) << 20;
       rar_br_consume(br, 8);
     }
 
     if (ppmd_flags & 0x40)
     {
+      if (!rar_br_read_ahead(a, br, 8))
+        goto truncated_data;
       rar->ppmd7_context.InitEsc = rar_br_bits(br, 8);
       rar_br_consume(br, 8);
     }
