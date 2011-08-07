@@ -30,6 +30,10 @@ SET(libarchive_SOURCES
   archive_options.c
   archive_options_private.h
   archive_platform.h
+  archive_ppmd.h
+  archive_ppmd7.c
+  archive_ppmd7.h
+  archive_ppmd7dec.c
   archive_private.h
   archive_rb.c
   archive_rb.h
@@ -44,10 +48,6 @@ SET(libarchive_SOURCES
   archive_read_open_file.c
   archive_read_open_filename.c
   archive_read_open_memory.c
-  archive_ppmd.h
-  archive_ppmd7.c
-  archive_ppmd7.h
-  archive_ppmd7dec.c
   archive_read_private.h
   archive_read_set_options.c
   archive_read_support_filter_all.c
