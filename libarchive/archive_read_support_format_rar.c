@@ -238,6 +238,7 @@ struct rar
   char start_new_table;
 
   /* PPMd Variant H members */
+  char ppmd_valid;
   char is_ppmd_block;
   int ppmd_escape;
   CPpmd7 ppmd7_context;
@@ -1088,6 +1089,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   rar->unp_buffer = NULL;
   memset(rar->lengthtable, 0, sizeof(rar->lengthtable));
   Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
+  rar->ppmd_valid = 0;
 
   /* Don't set any archive entries for non-file header types */
   if (head_type == NEWSUB_HEAD)
@@ -1509,9 +1511,15 @@ parse_codes(struct archive_read *a)
         return (ARCHIVE_FATAL);
       }
       Ppmd7_Init(&rar->ppmd7_context, maxorder);
+      rar->ppmd_valid = 1;
     }
     else
     {
+      if (!rar->ppmd_valid) {
+        archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                          "Invalid PPMd sequence");
+        return (ARCHIVE_FAILED);
+      }
       if (!PpmdRAR_RangeDec_Init(&rar->range_dec))
       {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
