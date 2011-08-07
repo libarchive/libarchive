@@ -1860,42 +1860,6 @@ static const uint16_t cache_masks[] = {
 static int
 lzh_br_fillup(struct lzh_stream *strm, struct lzh_br *br)
 {
-/*
- * x86 proccessor family can read misaligned data without an access error.
- */
-#if defined(__i386__) || (defined(_MSC_VER) && defined(_M_IX86)) 
-#  if defined(_WIN32) && !defined(__CYGWIN__)
-#    define lzh_be16dec(p) _byteswap_ushort(*(const uint16_t *)(p))
-#  elif defined(be16toh)
-#    define lzh_be16dec(p) be16toh(*(const uint16_t *)(p))
-#  elif defined(betoh16)
-#    define lzh_be16dec(p) betoh16(*(const uint16_t *)(p))
-#  else
-#    define lzh_be16dec	archive_be16dec
-#  endif
-#  if defined(_WIN32) && !defined(__CYGWIN__)
-#    define lzh_be32dec(p) _byteswap_ulong(*(const uint32_t *)(p))
-#  elif defined(be32toh)
-#    define lzh_be32dec(p) be32toh(*(const uint32_t *)(p))
-#  elif defined(betoh32)
-#    define lzh_be32dec(p) betoh32(*(const uint32_t *)(p))
-#  else
-#    define lzh_be32dec	archive_be32dec
-#  endif
-#  if defined(_WIN32) && !defined(__CYGWIN__)
-#    define lzh_be64dec(p) _byteswap_uint64(*(const uint64_t *)(p))
-#  elif defined(be64toh)
-#    define lzh_be64dec(p) be64toh(*(const uint64_t *)(p))
-#  elif defined(betoh64)
-#    define lzh_be64dec(p) betoh64(*(const uint64_t *)(p))
-#  else
-#    define lzh_be64dec	archive_be64dec
-#  endif
-#else
-#  define lzh_be16dec	archive_be16dec
-#  define lzh_be32dec	archive_be32dec
-#  define lzh_be64dec	archive_be64dec
-#endif
 	int n = CACHE_BITS - br->cache_avail;
 
 	for (;;) {
@@ -1903,7 +1867,7 @@ lzh_br_fillup(struct lzh_stream *strm, struct lzh_br *br)
 		case 8:
 			if (strm->avail_in >= 8) {
 				br->cache_buffer =
-				    lzh_be64dec(strm->next_in);
+				    archive_be64dec(strm->next_in);
 				strm->next_in += 8;
 				strm->avail_in -= 8;
 				br->cache_avail += 8 * 8;
@@ -1914,7 +1878,7 @@ lzh_br_fillup(struct lzh_stream *strm, struct lzh_br *br)
 			if (strm->avail_in >= 8) {/* Read extra one. */
 				br->cache_buffer =
 		 		   (br->cache_buffer << 56) |
-				    lzh_be64dec(strm->next_in) >> 8;
+				    archive_be64dec(strm->next_in) >> 8;
 				strm->next_in += 7;
 				strm->avail_in -= 7;
 				br->cache_avail += 7 * 8;
@@ -1925,9 +1889,9 @@ lzh_br_fillup(struct lzh_stream *strm, struct lzh_br *br)
 			if (strm->avail_in >= 6) {
 				br->cache_buffer =
 		 		   (br->cache_buffer << 48) |
-				   (((uint64_t)lzh_be32dec(
+				   (((uint64_t)archive_be32dec(
 				       strm->next_in)) << 16) |
-				    lzh_be16dec(&strm->next_in[4]);
+				    archive_be16dec(&strm->next_in[4]);
 				strm->next_in += 6;
 				strm->avail_in -= 6;
 				br->cache_avail += 6 * 8;
@@ -1952,9 +1916,6 @@ lzh_br_fillup(struct lzh_stream *strm, struct lzh_br *br)
 		br->cache_avail += 8;
 		n -= 8;
 	}
-#undef lzh_be16dec
-#undef lzh_be32dec
-#undef lzh_be64dec
 }
 
 /*

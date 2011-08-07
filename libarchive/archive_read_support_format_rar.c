@@ -336,42 +336,6 @@ static const uint32_t cache_masks[] = {
 static int
 rar_br_fillup(struct archive_read *a, struct rar_br *br)
 {
-/*
- * x86 proccessor family can read misaligned data without an access error.
- */
-#if defined(__i386__) || (defined(_MSC_VER) && defined(_M_IX86))
-#  if defined(_WIN32) && !defined(__CYGWIN__)
-#    define rar_be16dec(p) _byteswap_ushort(*(const uint16_t *)(p))
-#  elif defined(be16toh)
-#    define rar_be16dec(p) be16toh(*(const uint16_t *)(p))
-#  elif defined(betoh16)
-#    define rar_be16dec(p) betoh16(*(const uint16_t *)(p))
-#  else
-#    define rar_be16dec archive_be16dec
-#  endif
-#  if defined(_WIN32) && !defined(__CYGWIN__)
-#    define rar_be32dec(p) _byteswap_ulong(*(const uint32_t *)(p))
-#  elif defined(be32toh)
-#    define rar_be32dec(p) be32toh(*(const uint32_t *)(p))
-#  elif defined(betoh32)
-#    define rar_be32dec(p) betoh32(*(const uint32_t *)(p))
-#  else
-#    define rar_be32dec archive_be32dec
-#  endif
-#  if defined(_WIN32) && !defined(__CYGWIN__)
-#    define rar_be64dec(p) _byteswap_uint64(*(const uint64_t *)(p))
-#  elif defined(be64toh)
-#    define rar_be64dec(p) be64toh(*(const uint64_t *)(p))
-#  elif defined(betoh64)
-#    define rar_be64dec(p) betoh64(*(const uint64_t *)(p))
-#  else
-#    define rar_be64dec archive_be64dec
-#  endif
-#else
-#  define rar_be16dec archive_be16dec
-#  define rar_be32dec archive_be32dec
-#  define rar_be64dec archive_be64dec
-#endif
   struct rar *rar = (struct rar *)(a->format->data);
   int n = CACHE_BITS - br->cache_avail;
 
@@ -380,7 +344,7 @@ rar_br_fillup(struct archive_read *a, struct rar_br *br)
     case 8:
       if (br->avail_in >= 8) {
         br->cache_buffer =
-            rar_be64dec(br->next_in);
+            archive_be64dec(br->next_in);
         br->next_in += 8;
         br->avail_in -= 8;
         br->cache_avail += 8 * 8;
@@ -393,7 +357,7 @@ rar_br_fillup(struct archive_read *a, struct rar_br *br)
       if (br->avail_in >= 8) {/* Read extra one. */
         br->cache_buffer =
            (br->cache_buffer << 56) |
-            rar_be64dec(br->next_in) >> 8;
+            archive_be64dec(br->next_in) >> 8;
         br->next_in += 7;
         br->avail_in -= 7;
         br->cache_avail += 7 * 8;
@@ -406,9 +370,9 @@ rar_br_fillup(struct archive_read *a, struct rar_br *br)
       if (br->avail_in >= 6) {
         br->cache_buffer =
            (br->cache_buffer << 48) |
-           (((uint64_t)rar_be32dec(
+           (((uint64_t)archive_be32dec(
                br->next_in)) << 16) |
-            rar_be16dec(&br->next_in[4]);
+            archive_be16dec(&br->next_in[4]);
         br->next_in += 6;
         br->avail_in -= 6;
         br->cache_avail += 6 * 8;
@@ -448,9 +412,6 @@ rar_br_fillup(struct archive_read *a, struct rar_br *br)
     rar->bytes_unconsumed++;
     rar->bytes_remaining--;
   }
-#undef rar_be16dec
-#undef rar_be32dec
-#undef rar_be64dec
 }
 
 static int
