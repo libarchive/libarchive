@@ -1316,7 +1316,8 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
     return ret;
   }
 
-  if ((ret = rar_br_preparation(a, &(rar->br))) < ARCHIVE_WARN)
+  if (!rar->br.next_in &&
+    (ret = rar_br_preparation(a, &(rar->br))) < ARCHIVE_WARN)
     return (ret);
   if (rar->start_new_table && ((ret = parse_codes(a)) < (ARCHIVE_WARN)))
     return (ret);
