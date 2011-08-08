@@ -25,14 +25,8 @@
 
 #include "archive_platform.h"
 
-#ifdef HAVE_SYS_ENDIAN_H
-#include <sys/endian.h>
-#endif
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
-#endif
-#ifdef HAVE_ENDIAN_H
-#include <endian.h>
 #endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
