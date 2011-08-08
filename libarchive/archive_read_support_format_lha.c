@@ -1789,7 +1789,7 @@ lzh_decode_init(struct lzh_stream *strm, const char *method)
 	    != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 	ds->lt.len_bits = 9;
-	if (lzh_huffman_init(&(ds->pt), PT_BITLEN_SIZE, 12)
+	if (lzh_huffman_init(&(ds->pt), PT_BITLEN_SIZE, 16)
 	    != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 	ds->error = 0;
