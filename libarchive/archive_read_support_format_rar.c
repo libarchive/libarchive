@@ -1901,7 +1901,7 @@ new_node(struct huffman_code *code)
 {
   code->tree = (struct huffman_tree_node *)realloc(code->tree,
     (code->numentries + 1) * sizeof(*code->tree));
-  if (code->tree)
+  if (code->tree == NULL)
     return (-1);
   code->tree[code->numentries].branches[0] = -1;
   code->tree[code->numentries].branches[1] = -2;
