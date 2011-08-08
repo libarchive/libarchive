@@ -104,9 +104,9 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_options.c				\
 	libarchive/archive_options_private.h			\
 	libarchive/archive_platform.h				\
-	libarchive/archive_ppmd.h				\
+	libarchive/archive_ppmd_private.h			\
 	libarchive/archive_ppmd7.c				\
-	libarchive/archive_ppmd7.h				\
+	libarchive/archive_ppmd7_private.h			\
 	libarchive/archive_ppmd7dec.c				\
 	libarchive/archive_private.h				\
 	libarchive/archive_rb.c					\

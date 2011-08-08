@@ -6,8 +6,8 @@ This code is based on PPMd var.H (2001): Dmitry Shkarin : Public domain */
 #error This header is only to be used internally to libarchive.
 #endif
 
-#ifndef ARCHIVE_PPMD_H_INCLUDED
-#define ARCHIVE_PPMD_H_INCLUDED
+#ifndef ARCHIVE_PPMD_PRIVATE_H_INCLUDED
+#define ARCHIVE_PPMD_PRIVATE_H_INCLUDED
 
 #include <stddef.h>
 

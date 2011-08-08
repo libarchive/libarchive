@@ -37,7 +37,7 @@
 #include "archive_endian.h"
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
-#include "archive_ppmd7.h"
+#include "archive_ppmd7_private.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
 

@@ -10,10 +10,10 @@ If you need the compatibility with original PPMd var.H, you can use external Ran
 #error This header is only to be used internally to libarchive.
 #endif
 
-#ifndef ARCHIVE_PPMD7_H_INCLUDED
-#define ARCHIVE_PPMD7_H_INCLUDED
+#ifndef ARCHIVE_PPMD7_PRIVATE_H_INCLUDED
+#define ARCHIVE_PPMD7_PRIVATE_H_INCLUDED
 
-#include "archive_ppmd.h"
+#include "archive_ppmd_private.h"
 
 #define PPMD7_MIN_ORDER 2
 #define PPMD7_MAX_ORDER 64
