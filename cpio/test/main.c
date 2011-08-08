@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/test/main.c,v 1.3 2008/08/24 04:58:22 kient
 #define KNOWNREF	"test_option_f.cpio.uu"
 #define ENVBASE "BSDCPIO" /* Prefix for environment variables. */
 #define	PROGRAM "bsdcpio" /* Name of program being tested. */
+#define PROGRAM_ALIAS "cpio" /* Generic alias for program */
 #undef	LIBRARY		  /* Not testing a library. */
 #undef	EXTRA_DUMP	  /* How to dump extra data */
 #undef	EXTRA_ERRNO	  /* How to dump errno */
@@ -1944,6 +1945,12 @@ get_refdir(const char *d)
 #else
 	snprintf(buff, sizeof(buff), "%s/%s/test", pwd, PROGRAM);
 #endif
+	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
+	if (p != NULL) goto success;
+	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
+	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+
+	snprintf(buff, sizeof(buff), "%s/%s/test", pwd, PROGRAM_ALIAS);
 	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
 	if (p != NULL) goto success;
 	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);

@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/test/main.c,v 1.6 2008/11/05 06:40:53 kientz
 #define KNOWNREF	"test_patterns_2.tar.uu"
 #define ENVBASE "BSDTAR"  /* Prefix for environment variables. */
 #define	PROGRAM "bsdtar"  /* Name of program being tested. */
+#define PROGRAM_ALIAS "tar" /* Generic alias for program */
 #undef	LIBRARY		  /* Not testing a library. */
 #undef	EXTRA_DUMP	  /* How to dump extra data */
 #undef	EXTRA_ERRNO	  /* What errno to report */
@@ -1923,6 +1924,12 @@ get_refdir(const char *d)
 #else
 	snprintf(buff, sizeof(buff), "%s/%s/test", pwd, PROGRAM);
 #endif
+	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
+	if (p != NULL) goto success;
+	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
+	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+
+	snprintf(buff, sizeof(buff), "%s/%s/test", pwd, PROGRAM_ALIAS);
 	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
 	if (p != NULL) goto success;
 	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
