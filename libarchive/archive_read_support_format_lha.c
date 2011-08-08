@@ -2041,7 +2041,8 @@ lzh_read_blocks(struct lzh_stream *strm, int last)
 			/* Note: ST_RD_PT_1, ST_RD_PT_2 and ST_RD_PT_4 are
 			 * used in reading both a literal table and a
 			 * position table. */
-			if (!lzh_br_read_ahead(strm, br, ds->pt.len_bits)) {
+			if (!lzh_br_read_ahead(strm, br, ds->pt.len_bits) &&
+			    !lzh_br_has(br, ds->pt.len_bits)) {
 				if (last)
 					goto failed;/* Truncated data. */
 				ds->state = ST_RD_PT_1;
@@ -2090,7 +2091,8 @@ lzh_read_blocks(struct lzh_stream *strm, int last)
 				return (ARCHIVE_OK);
 			}
 			/* There are some null in bitlen of the literal. */
-			if (!lzh_br_read_ahead(strm, br, 2)) {
+			if (!lzh_br_read_ahead(strm, br, 2) &&
+			    !lzh_br_has(br, 2)) {
 				if (last)
 					goto failed;/* Truncated data. */
 				ds->state = ST_RD_PT_3;
@@ -2122,7 +2124,8 @@ lzh_read_blocks(struct lzh_stream *strm, int last)
 			}
 			/* FALL THROUGH */
 		case ST_RD_LITERAL_1:
-			if (!lzh_br_read_ahead(strm, br, ds->lt.len_bits)) {
+			if (!lzh_br_read_ahead(strm, br, ds->lt.len_bits) &&
+			    !lzh_br_has(br, ds->lt.len_bits)) {
 				if (last)
 					goto failed;/* Truncated data. */
 				ds->state = ST_RD_LITERAL_1;
@@ -2135,7 +2138,8 @@ lzh_read_blocks(struct lzh_stream *strm, int last)
 			if (ds->lt.len_avail == 0) {
 				/* There is no bitlen. */
 				if (!lzh_br_read_ahead(strm, br,
-				    ds->lt.len_bits)) {
+				    ds->lt.len_bits) &&
+				    !lzh_br_has(br, ds->lt.len_bits)) {
 					if (last)
 						goto failed;/* Truncated data.*/
 					ds->state = ST_RD_LITERAL_2;
@@ -2156,7 +2160,8 @@ lzh_read_blocks(struct lzh_stream *strm, int last)
 			i = ds->loop;
 			while (i < ds->lt.len_avail) {
 				if (!lzh_br_read_ahead(strm, br,
-				    ds->pt.max_bits)) {
+				    ds->pt.max_bits) &&
+				    !lzh_br_has(br, ds->pt.max_bits)) {
 					if (last)
 						goto failed;/* Truncated data.*/
 					ds->loop = i;
@@ -2182,7 +2187,9 @@ lzh_read_blocks(struct lzh_stream *strm, int last)
 					/* c == 1 or c == 2 */
 					int n = (c == 1)?4:9;
 					if (!lzh_br_read_ahead(strm, br,
-					     ds->pt.bitlen[c] + n)) {
+					     ds->pt.bitlen[c] + n) &&
+					    !lzh_br_has(br,
+					      ds->pt.bitlen[c] + n)) {
 						if (last) /* Truncated data. */
 							goto failed;
 						ds->loop = i;
