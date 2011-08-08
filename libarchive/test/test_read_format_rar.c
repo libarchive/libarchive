@@ -591,6 +591,64 @@ test_ppmd_lzss_conversion(void)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+static void
+test_binary(void)
+{
+  const char reffile[] = "test_read_format_rar_binary_data.rar";
+  const int file1_size = 1048576;
+  char file1_buff[file1_size];
+  const char file1_test_txt[] = "\x37\xef\xb2\xbe\x33\xf6\xcc\xcb\xee\x2a\x10"
+                                "\x9d\x2e\x01\xe9\xf6\xf9\xe5\xe6\x67\x0c\x2b"
+                                "\xd8\x6b\xa0\x26\x9a\xf7\x93\x87\x42\xf1\x08"
+                                "\x42\xdc\x9b\x76\x91\x20\xa4\x01\xbe\x67\xbd"
+                                "\x08\x74\xde\xec";
+  const int file2_size = 32618;
+  char file2_buff[file2_size];
+  const char file2_test_txt[] = "\x00\xee\x78\x00\x00\x4d\x45\x54\x41\x2d\x49"
+                                "\x4e\x46\x2f\x6d\x61\x6e\x69\x66\x65\x73\x74"
+                                "\x2e\x78\x6d\x6c\x50\x4b\x05\x06\x00\x00\x00"
+                                "\x00\x12\x00\x12\x00\xaa\x04\x00\x00\xaa\x7a"
+                                "\x00\x00\x00\x00";
+  struct archive_entry *ae;
+  struct archive *a;
+
+  extract_reference_file(reffile);
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_support_filter_all(a));
+  assertA(0 == archive_read_support_format_all(a));
+  assertA(0 == archive_read_open_file(a, reffile, 10240));
+
+  /* First header. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("random_data.bin", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(file1_size, archive_entry_size(ae));
+  assertEqualInt(33188, archive_entry_mode(ae));
+  assertA(file1_size == archive_read_data(a, file1_buff, file1_size));
+  assertEqualMem(&file1_buff[file1_size - sizeof(file1_test_txt) + 1],
+                 file1_test_txt, sizeof(file1_test_txt) - 1);
+
+    /* Second header. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("LibarchiveAddingTest.odt", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(file2_size, archive_entry_size(ae));
+  assertEqualInt(33188, archive_entry_mode(ae));
+  assertA(file2_size == archive_read_data(a, file2_buff, file2_size));
+  assertEqualMem(&file2_buff[file2_size + 1 - sizeof(file2_test_txt)],
+                 file2_test_txt, sizeof(file2_test_txt) - 1);
+
+  /* Test EOF */
+  assertA(1 == archive_read_next_header(a, &ae));
+  assertEqualInt(2, archive_file_count(a));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_read_format_rar)
 {
   test_basic();
@@ -602,4 +660,5 @@ DEFINE_TEST(test_read_format_rar)
   test_multi_lzss_blocks();
   test_compress_best();
   test_ppmd_lzss_conversion();
+  test_binary();
 }
