@@ -519,7 +519,7 @@ archive_read_format_lha_read_header(struct archive_read *a,
 	lha->end_of_entry_cleanup = 0;
 	lha->entry_unconsumed = 0;
 
-	if ((p = __archive_read_ahead(a, sizeof(*p), NULL)) == NULL) {
+	if ((p = __archive_read_ahead(a, H_SIZE, NULL)) == NULL) {
 		/*
 		 * LHa archiver added 0 to the tail of its archive file as
 		 * the mark of the end of the archive.
