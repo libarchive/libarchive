@@ -2054,7 +2054,8 @@ lzh_read_blocks(struct lzh_stream *strm, int last)
 			if (ds->pt.len_avail == 0) {
 				/* There is no bitlen. */
 				if (!lzh_br_read_ahead(strm, br,
-				    ds->pt.len_bits)) {
+				    ds->pt.len_bits) &&
+				    !lzh_br_has(br, ds->pt.len_bits)) {
 					if (last)
 						goto failed;/* Truncated data.*/
 					ds->state = ST_RD_PT_2;
