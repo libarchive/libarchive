@@ -2218,6 +2218,11 @@ copy_from_lzss_window(struct archive_read *a, const void **buffer,
   else
   {
     firstpart = lzss_size(&rar->lzss) - windowoffs;
+    if (firstpart < 0) {
+      archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                        "Bad RAR file data");
+      return (ARCHIVE_FAILED);
+    }
     memcpy(&rar->unp_buffer[0], &rar->lzss.window[windowoffs], firstpart);
     memcpy(&rar->unp_buffer[firstpart], &rar->lzss.window[0],
            length - firstpart);
