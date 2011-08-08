@@ -431,7 +431,6 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_lzma_1.tlz.uu			\
 	libarchive/test/test_compat_lzma_2.tlz.uu			\
 	libarchive/test/test_compat_lzma_3.tlz.uu			\
-	libarchive/test/test_compat_mac_gnutar.tar.Z.uu			\
 	libarchive/test/test_compat_pax_libarchive_2x.tar.Z.uu		\
 	libarchive/test/test_compat_solaris_tar_acl.tar.uu		\
 	libarchive/test/test_compat_solaris_pax_sparse_1.pax.Z.uu	\
