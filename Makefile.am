@@ -428,9 +428,12 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_gzip_1.tgz.uu			\
 	libarchive/test/test_compat_gzip_2.tgz.uu			\
 	libarchive/test/test_compat_lzip_1.tlz.uu			\
+	libarchive/test/test_compat_lzip_2.tlz.uu			\
 	libarchive/test/test_compat_lzma_1.tlz.uu			\
 	libarchive/test/test_compat_lzma_2.tlz.uu			\
 	libarchive/test/test_compat_lzma_3.tlz.uu			\
+	libarchive/test/test_compat_mac-1.tar.Z.uu			\
+	libarchive/test/test_compat_mac-2.tar.Z.uu			\
 	libarchive/test/test_compat_pax_libarchive_2x.tar.Z.uu		\
 	libarchive/test/test_compat_solaris_tar_acl.tar.uu		\
 	libarchive/test/test_compat_solaris_pax_sparse_1.pax.Z.uu	\
@@ -511,6 +514,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_filename_utf8_jp.zip.uu	\
 	libarchive/test/test_read_format_zip_filename_utf8_ru2.zip.uu	\
 	libarchive/test/test_read_format_zip_filename_utf8_ru.zip.uu	\
+	libarchive/test/test_read_format_zip_ux.zip.uu			\
 	libarchive/test/CMakeLists.txt					\
 	libarchive/test/README
 
