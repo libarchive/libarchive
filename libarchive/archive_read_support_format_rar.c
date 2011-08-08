@@ -33,6 +33,7 @@
 #include <limits.h>
 
 #include "archive.h"
+#include "archive_crc32.h"
 #include "archive_endian.h"
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
@@ -628,21 +629,28 @@ archive_read_format_rar_read_header(struct archive_read *a,
   /* RAR files can be generated without EOF headers, so return ARCHIVE_EOF if
   * this fails.
   */
-  if ((h = __archive_read_ahead(a, 7, NULL)) == NULL)
+  if (__archive_read_ahead(a, 7, NULL) == NULL)
     return (ARCHIVE_EOF);
-  p = h;
 
   while (1)
   {
+    unsigned long crc32_val;
+
+    if ((h = __archive_read_ahead(a, 7, NULL)) == NULL)
+      return (ARCHIVE_FATAL);
+    p = h;
+
     head_type = p[2];
     switch(head_type)
     {
     case MARK_HEAD:
-      __archive_read_consume(a, 7);
-      if ((h = __archive_read_ahead(a, 7, NULL)) == NULL)
+      if (memcmp(p, RAR_SIGNATURE, 7) != 0) {
+        archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+          "Invalid marker header");
         return (ARCHIVE_FATAL);
-      p = h;
-      continue;
+      }
+      __archive_read_consume(a, 7);
+      break;
 
     case MAIN_HEAD:
       rar->main_flags = archive_le16dec(p + 3);
@@ -682,11 +690,14 @@ archive_read_format_rar_read_header(struct archive_read *a,
         return (ARCHIVE_FATAL);
       }
 
-      __archive_read_consume(a, skip);
-      if ((h = __archive_read_ahead(a, 7, NULL)) == NULL)
+      crc32_val = crc32(0, p + 2, skip - 2);
+      if ((crc32_val & 0xffff) != archive_le16dec(p)) {
+        archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+          "Header CRC error");
         return (ARCHIVE_FATAL);
-      p = h;
-      continue;
+      }
+      __archive_read_consume(a, skip);
+      break;
 
     case FILE_HEAD:
       return read_header(a, entry, head_type);
@@ -716,31 +727,34 @@ archive_read_format_rar_read_header(struct archive_read *a,
           return (ARCHIVE_FATAL);
         }
         skip += archive_le32dec(p + 7);
-        if (__archive_read_ahead(a, skip, NULL) == NULL)
+        if ((h = __archive_read_ahead(a, skip, NULL)) == NULL)
           return (ARCHIVE_FATAL);
+        p = h;
+      }
+
+      crc32_val = crc32(0, p + 2, skip - 2);
+      if ((crc32_val & 0xffff) != archive_le16dec(p)) {
+        archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+          "Header CRC error");
+        return (ARCHIVE_FATAL);
       }
       __archive_read_consume(a, skip);
-      if ((h = __archive_read_ahead(a, 7, NULL)) == NULL)
-        return (ARCHIVE_FATAL);
-      p = h;
-      continue;
+      break;
 
     case NEWSUB_HEAD:
       if ((ret = read_header(a, entry, head_type)) < ARCHIVE_WARN)
         return ret;
-      if ((h = __archive_read_ahead(a, 7, NULL)) == NULL)
-        return (ARCHIVE_FATAL);
-      p = h;
-      continue;
+      break;
 
     case ENDARC_HEAD:
       return (ARCHIVE_EOF);
-    }
-    break;
-  }
 
-  archive_set_error(&a->archive,  ARCHIVE_ERRNO_FILE_FORMAT, "Bad RAR file");
-  return (ARCHIVE_FATAL);
+    default:
+      archive_set_error(&a->archive,  ARCHIVE_ERRNO_FILE_FORMAT,
+                        "Bad RAR file");
+      return (ARCHIVE_FATAL);
+    }
+  }
 }
 
 static int
@@ -827,6 +841,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   char unp_size[8];
   int time;
   struct archive_string_conv *sconv;
+  unsigned long crc32_val;
   int ret = (ARCHIVE_OK), ret2;
 
   rar = (struct rar *)(a->format->data);
@@ -842,6 +857,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
       "Invalid header size");
     return (ARCHIVE_FATAL);
   }
+  crc32_val = crc32(0, p + 2, 7 - 2);
   __archive_read_consume(a, 7);
 
   if (!(rar->file_flags & FHD_SOLID))
@@ -873,6 +889,15 @@ read_header(struct archive_read *a, struct archive_entry *entry,
 
   if ((h = __archive_read_ahead(a, header_size - 7, NULL)) == NULL)
     return (ARCHIVE_FATAL);
+
+  /* File Header CRC check. */
+  crc32_val = crc32(crc32_val, h, header_size - 7);
+  if ((crc32_val & 0xffff) != archive_le16dec(rar_header.crc)) {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+      "Header CRC error");
+    return (ARCHIVE_FATAL);
+  }
+  /* If no CRC error, Go on parsing File Header. */
   p = h;
   endp = p + header_size - 7;
   memcpy(&file_header, p, sizeof(file_header));
