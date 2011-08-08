@@ -1653,6 +1653,11 @@ parse_codes(struct archive_read *a)
       rar->dictionary_size = rar_fls(rar->unp_size) << 1;
     rar->lzss.window = (unsigned char *)realloc(rar->lzss.window,
                                                 rar->dictionary_size);
+    if (rar->lzss.window == NULL) {
+      archive_set_error(&a->archive, ENOMEM,
+                        "Unable to allocate memory for uncompressed data.");
+      return (ARCHIVE_FATAL);
+    }
     memset(rar->lzss.window, 0, rar->dictionary_size);
     rar->lzss.mask = rar->dictionary_size - 1;
   }
@@ -1766,7 +1771,12 @@ create_code(struct archive_read *a, struct huffman_code *code,
             unsigned char *lengths, int numsymbols, char maxlength)
 {
   int i, j, codebits = 0, symbolsleft = numsymbols;
-  new_node(code);
+
+  if (new_node(code) < 0) {
+    archive_set_error(&a->archive, ENOMEM,
+                      "Unable to allocate memory for node data.");
+    return (ARCHIVE_FATAL);
+  }
   code->numentries = 1;
   code->minlength = INT_MAX;
   code->maxlength = INT_MIN;
@@ -1834,8 +1844,16 @@ add_value(struct archive_read *a, struct huffman_code *code, int value,
         return (ARCHIVE_FAILED);
       }
 
-      repeatnode = new_node(code);
-      nextnode = new_node(code);
+      if ((repeatnode = new_node(code)) < 0) {
+        archive_set_error(&a->archive, ENOMEM,
+                          "Unable to allocate memory for node data.");
+        return (ARCHIVE_FATAL);
+      }
+      if ((nextnode = new_node(code)) < 0) {
+        archive_set_error(&a->archive, ENOMEM,
+                          "Unable to allocate memory for node data.");
+        return (ARCHIVE_FATAL);
+      }
 
       /* Set branches */
       code->tree[lastnode].branches[bit] = repeatnode;
@@ -1850,7 +1868,11 @@ add_value(struct archive_read *a, struct huffman_code *code, int value,
       /* Open branch check */
       if (code->tree[lastnode].branches[bit] < 0)
       {
-        new_node(code);
+        if (new_node(code) < 0) {
+          archive_set_error(&a->archive, ENOMEM,
+                            "Unable to allocate memory for node data.");
+          return (ARCHIVE_FATAL);
+        }
         code->tree[lastnode].branches[bit] = code->numentries++;
       }
 
@@ -1874,10 +1896,13 @@ add_value(struct archive_read *a, struct huffman_code *code, int value,
   return (ARCHIVE_OK);
 }
 
-static int new_node(struct huffman_code *code)
+static int
+new_node(struct huffman_code *code)
 {
   code->tree = (struct huffman_tree_node *)realloc(code->tree,
     (code->numentries + 1) * sizeof(*code->tree));
+  if (code->tree)
+    return (-1);
   code->tree[code->numentries].branches[0] = -1;
   code->tree[code->numentries].branches[1] = -2;
   return 1;
