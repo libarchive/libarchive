@@ -253,6 +253,7 @@ struct rar
 
   /* PPMd Variant H members */
   char ppmd_valid;
+  char ppmd_freed;
   char is_ppmd_block;
   int ppmd_escape;
   CPpmd7 ppmd7_context;
@@ -1155,7 +1156,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   rar->unp_buffer_size = UNP_BUFFER_SIZE;
   memset(rar->lengthtable, 0, sizeof(rar->lengthtable));
   __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
-  rar->ppmd_valid = 0;
+  rar->ppmd_valid = rar->ppmd_freed = 0;
 
   /* Don't set any archive entries for non-file header types */
   if (head_type == NEWSUB_HEAD)
@@ -1369,7 +1370,8 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
     return (ARCHIVE_FAILED);
 
   do {
-    if (rar->dictionary_size && rar->offset >= rar->unp_size)
+    if (rar->ppmd_freed ||
+       (rar->dictionary_size && rar->offset >= rar->unp_size))
     {
       if (rar->unp_offset > 0) {
         /*
@@ -1388,6 +1390,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
       *size = 0;
       *offset = rar->offset;
       __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
+      rar->ppmd_freed = 1;
       if (rar->file_crc != rar->crc_calculated) {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
                           "File CRC error");
@@ -1458,6 +1461,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
           case 2:
             __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context,
               &g_szalloc);
+            rar->ppmd_freed = 1;
             if (rar->unp_offset > 0) {
               /* We have unprocessed extracted data. write it out. */
               *buff = rar->unp_buffer;
