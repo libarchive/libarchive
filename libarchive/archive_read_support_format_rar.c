@@ -218,7 +218,10 @@ struct rar
   int64_t bytes_remaining;
   int64_t bytes_uncopied;
   int64_t offset;
+  int64_t offset_outgoing;
   char valid;
+  unsigned int unp_offset;
+  unsigned int unp_buffer_size;
   unsigned char *unp_buffer;
   unsigned int dictionary_size;
   char start_new_block;
@@ -1131,6 +1134,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   rar->bytes_remaining = rar->packed_size;
   rar->bytes_uncopied = rar->bytes_unconsumed = 0;
   rar->lzss.position = rar->dictionary_size = rar->offset = 0;
+  rar->offset_outgoing = 0;
   rar->br.cache_avail = 0;
   rar->br.avail_in = 0;
   rar->crc_calculated = 0;
@@ -1139,6 +1143,10 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   rar->start_new_table = 1;
   free(rar->unp_buffer);
   rar->unp_buffer = NULL;
+  rar->unp_offset = 0;
+  /* Set a minimum size of an uncompressed buffer.
+   * This will be over written by a dictionary size */
+  rar->unp_buffer_size = 64 * 1024;
   memset(rar->lengthtable, 0, sizeof(rar->lengthtable));
   __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
   rar->ppmd_valid = 0;
@@ -1347,157 +1355,211 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
 {
   struct rar *rar;
   int64_t start, end, actualend;
+  size_t bs;
   int ret = (ARCHIVE_OK), sym, code, lzss_offset, length, i;
 
   rar = (struct rar *)(a->format->data);
   if (!rar->valid)
     return (ARCHIVE_FAILED);
 
-  if (rar->dictionary_size && rar->offset >= rar->unp_size)
-  {
-    *buff = NULL;
-    *size = 0;
-    *offset = rar->offset;
-    __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
-    if (rar->file_crc != rar->crc_calculated) {
-      archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-                        "File CRC error");
-      return (ARCHIVE_FAILED);
-    }
-    return (ARCHIVE_EOF);
-  }
-
-  if (!rar->is_ppmd_block && rar->dictionary_size && rar->bytes_uncopied > 0)
-  {
-    *offset = rar->offset;
-    if (rar->offset + rar->bytes_uncopied > rar->unp_size)
-      *size = rar->unp_size - rar->offset;
-    else
-      *size = rar->bytes_uncopied;
-    ret = copy_from_lzss_window(a, buff, *offset, *size);
-    rar->offset += *size;
-    rar->bytes_uncopied -= *size;
-    return ret;
-  }
-
-  if (!rar->br.next_in &&
-    (ret = rar_br_preparation(a, &(rar->br))) < ARCHIVE_WARN)
-    return (ret);
-  if (rar->start_new_table && ((ret = parse_codes(a)) < (ARCHIVE_WARN)))
-    return (ret);
-
-  if (rar->is_ppmd_block)
-  {
-    if ((sym = __archive_ppmd7_functions.Ppmd7_DecodeSymbol(&rar->ppmd7_context,
-      &rar->range_dec.p)) < 0)
+  do {
+    if (rar->dictionary_size && rar->offset >= rar->unp_size)
     {
-      archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                        "Invalid symbol");
-      return (ARCHIVE_FATAL);
+      if (rar->unp_offset > 0) {
+        /*
+         * We have unprocessed extracted data. write it out.
+         */
+        *buff = rar->unp_buffer;
+        *size = rar->unp_offset;
+        *offset = rar->offset_outgoing;
+        rar->offset_outgoing += *size;
+        /* Calculate File CRC. */
+        rar->crc_calculated = crc32(rar->crc_calculated, *buff, *size);
+        rar->unp_offset = 0;
+        return (ARCHIVE_OK);
+      }
+      *buff = NULL;
+      *size = 0;
+      *offset = rar->offset;
+      __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
+      if (rar->file_crc != rar->crc_calculated) {
+        archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+                          "File CRC error");
+        return (ARCHIVE_FAILED);
+      }
+      return (ARCHIVE_EOF);
     }
-    if(sym != rar->ppmd_escape)
+
+    if (!rar->is_ppmd_block && rar->dictionary_size && rar->bytes_uncopied > 0)
     {
-      lzss_emit_literal(rar, sym);
-      rar->bytes_uncopied++;
+      if (rar->bytes_uncopied > (rar->unp_buffer_size - rar->unp_offset))
+        bs = rar->unp_buffer_size - rar->unp_offset;
+      else
+        bs = rar->bytes_uncopied;
+      ret = copy_from_lzss_window(a, buff, rar->offset, bs);
+      if (ret != ARCHIVE_OK)
+        return (ret);
+      rar->offset += bs;
+      rar->bytes_uncopied -= bs;
+      if (*buff != NULL) {
+        rar->unp_offset = 0;
+        *size = rar->unp_buffer_size;
+        *offset = rar->offset_outgoing;
+        rar->offset_outgoing += *size;
+        /* Calculate File CRC. */
+        rar->crc_calculated = crc32(rar->crc_calculated, *buff, *size);
+        return (ret);
+      }
+      continue;
     }
-    else
+
+    if (!rar->br.next_in &&
+      (ret = rar_br_preparation(a, &(rar->br))) < ARCHIVE_WARN)
+      return (ret);
+    if (rar->start_new_table && ((ret = parse_codes(a)) < (ARCHIVE_WARN)))
+      return (ret);
+
+    if (rar->is_ppmd_block)
     {
-      if ((code = __archive_ppmd7_functions.Ppmd7_DecodeSymbol(
+      if ((sym = __archive_ppmd7_functions.Ppmd7_DecodeSymbol(
         &rar->ppmd7_context, &rar->range_dec.p)) < 0)
       {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                           "Invalid symbol");
         return (ARCHIVE_FATAL);
       }
-
-      switch(code)
+      if(sym != rar->ppmd_escape)
       {
-        case 0:
-          rar->start_new_table = 1;
-          return read_data_compressed(a, buff, size, offset);
-
-        case 2:
-          *buff = NULL;
-          *size = 0;
-          *offset = rar->offset;
-          __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
-          return (ARCHIVE_EOF);
-
-        case 3:
+        lzss_emit_literal(rar, sym);
+        rar->bytes_uncopied++;
+      }
+      else
+      {
+        if ((code = __archive_ppmd7_functions.Ppmd7_DecodeSymbol(
+          &rar->ppmd7_context, &rar->range_dec.p)) < 0)
+        {
           archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                            "Parsing filters is unsupported.");
-          return (ARCHIVE_FAILED);
+                            "Invalid symbol");
+          return (ARCHIVE_FATAL);
+        }
 
-        case 4:
-          lzss_offset = 0;
-          for (i = 2; i >= 0; i--)
-          {
-            if ((code = __archive_ppmd7_functions.Ppmd7_DecodeSymbol(
+        switch(code)
+        {
+          case 0:
+            rar->start_new_table = 1;
+            return read_data_compressed(a, buff, size, offset);
+
+          case 2:
+            __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context,
+              &g_szalloc);
+            if (rar->unp_offset > 0) {
+              /* We have unprocessed extracted data. write it out. */
+              *buff = rar->unp_buffer;
+              *size = rar->unp_offset;
+              *offset = rar->offset_outgoing;
+              rar->offset_outgoing += *size;
+              /* Calculate File CRC. */
+              rar->crc_calculated = crc32(rar->crc_calculated, *buff, *size);
+              rar->unp_offset = 0;
+              return (ARCHIVE_OK);
+            } else {
+              *buff = NULL;
+              *size = 0;
+              *offset = rar->offset;
+              if (rar->file_crc != rar->crc_calculated) {
+                archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+                                  "File CRC error");
+                return (ARCHIVE_FAILED);
+              }
+              return (ARCHIVE_EOF);
+            }
+
+          case 3:
+            archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                              "Parsing filters is unsupported.");
+            return (ARCHIVE_FAILED);
+
+          case 4:
+            lzss_offset = 0;
+            for (i = 2; i >= 0; i--)
+            {
+              if ((code = __archive_ppmd7_functions.Ppmd7_DecodeSymbol(
+                &rar->ppmd7_context, &rar->range_dec.p)) < 0)
+              {
+                archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                                  "Invalid symbol");
+                return (ARCHIVE_FATAL);
+              }
+              lzss_offset |= code << (i * 8);
+            }
+            if ((length = __archive_ppmd7_functions.Ppmd7_DecodeSymbol(
               &rar->ppmd7_context, &rar->range_dec.p)) < 0)
             {
               archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                                 "Invalid symbol");
               return (ARCHIVE_FATAL);
             }
-            lzss_offset |= code << (i * 8);
-          }
-          if ((length = __archive_ppmd7_functions.Ppmd7_DecodeSymbol(
-            &rar->ppmd7_context, &rar->range_dec.p)) < 0)
-          {
-            archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                              "Invalid symbol");
-            return (ARCHIVE_FATAL);
-          }
-          lzss_emit_match(rar, lzss_offset + 2, length + 32);
-          rar->bytes_uncopied += length + 32;
-          break;
+            lzss_emit_match(rar, lzss_offset + 2, length + 32);
+            rar->bytes_uncopied += length + 32;
+            break;
 
-        case 5:
-          if ((length = __archive_ppmd7_functions.Ppmd7_DecodeSymbol(
-            &rar->ppmd7_context, &rar->range_dec.p)) < 0)
-          {
-            archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                              "Invalid symbol");
-            return (ARCHIVE_FATAL);
-          }
-          lzss_emit_match(rar, 1, length + 4);
-          rar->bytes_uncopied += length + 4;
-          break;
+          case 5:
+            if ((length = __archive_ppmd7_functions.Ppmd7_DecodeSymbol(
+              &rar->ppmd7_context, &rar->range_dec.p)) < 0)
+            {
+              archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                                "Invalid symbol");
+              return (ARCHIVE_FATAL);
+            }
+            lzss_emit_match(rar, 1, length + 4);
+            rar->bytes_uncopied += length + 4;
+            break;
 
-       default:
-         lzss_emit_literal(rar, sym);
-         rar->bytes_uncopied++;
+         default:
+           lzss_emit_literal(rar, sym);
+           rar->bytes_uncopied++;
+        }
       }
     }
-  }
-  else
-  {
-    start = rar->offset;
-    end = start + rar->dictionary_size;
-    rar->filterstart = INT64_MAX;
+    else
+    {
+      start = rar->offset;
+      end = start + rar->dictionary_size;
+      rar->filterstart = INT64_MAX;
 
-    if ((actualend = expand(a, end)) < 0)
-      return ((int)actualend);
+      if ((actualend = expand(a, end)) < 0)
+        return ((int)actualend);
 
-    rar->bytes_uncopied = actualend - start;
-    if (rar->bytes_uncopied == 0) {
-        /* Broken RAR files cause this case.
-        * NOTE: If this case were possible on a normal RAR file
-        * we would find out where it was actually bad and
-        * what we would do to solve it. */
-        archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                          "Internal error extracting RAR file.");
-        return (ARCHIVE_FAILED);
+      rar->bytes_uncopied = actualend - start;
+      if (rar->bytes_uncopied == 0) {
+          /* Broken RAR files cause this case.
+          * NOTE: If this case were possible on a normal RAR file
+          * we would find out where it was actually bad and
+          * what we would do to solve it. */
+          archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                            "Internal error extracting RAR file");
+          return (ARCHIVE_FAILED);
+      }
     }
-  }
-  *offset = rar->offset;
-  if (rar->offset + rar->bytes_uncopied > rar->unp_size)
-    *size = rar->unp_size - rar->offset;
-  else
-    *size = rar->bytes_uncopied;
-  ret = copy_from_lzss_window(a, buff, *offset, *size);
-  rar->offset += *size;
-  rar->bytes_uncopied -= *size;
+    if (rar->bytes_uncopied > (rar->unp_buffer_size - rar->unp_offset))
+      bs = rar->unp_buffer_size - rar->unp_offset;
+    else
+      bs = rar->bytes_uncopied;
+    ret = copy_from_lzss_window(a, buff, rar->offset, bs);
+    if (ret != ARCHIVE_OK)
+      return (ret);
+    rar->offset += bs;
+    rar->bytes_uncopied -= bs;
+    /*
+     * If *buff is NULL, it means unp_buffer is not full.
+     * So we have to continue extracting a RAR file.
+     */
+  } while (*buff == NULL);
+
+  rar->unp_offset = 0;
+  *size = rar->unp_buffer_size;
+  *offset = rar->offset_outgoing;
+  rar->offset_outgoing += *size;
   /* Calculate File CRC. */
   rar->crc_calculated = crc32(rar->crc_calculated, *buff, *size);
   return ret;
@@ -2273,7 +2335,9 @@ copy_from_lzss_window(struct archive_read *a, const void **buffer,
 
   if (!rar->unp_buffer)
   {
-    if ((rar->unp_buffer = malloc(rar->dictionary_size)) == NULL)
+    if (rar->unp_buffer_size < rar->dictionary_size)
+      rar->unp_buffer_size = rar->dictionary_size;
+    if ((rar->unp_buffer = malloc(rar->unp_buffer_size)) == NULL)
     {
       archive_set_error(&a->archive, ENOMEM,
                         "Unable to allocate memory for uncompressed data.");
@@ -2283,7 +2347,8 @@ copy_from_lzss_window(struct archive_read *a, const void **buffer,
 
   windowoffs = lzss_offset_for_position(&rar->lzss, startpos);
   if(windowoffs + length <= lzss_size(&rar->lzss))
-    *buffer = &rar->lzss.window[windowoffs];
+    memcpy(&rar->unp_buffer[rar->unp_offset], &rar->lzss.window[windowoffs],
+           length);
   else
   {
     firstpart = lzss_size(&rar->lzss) - windowoffs;
@@ -2292,10 +2357,19 @@ copy_from_lzss_window(struct archive_read *a, const void **buffer,
                         "Bad RAR file data");
       return (ARCHIVE_FAILED);
     }
-    memcpy(&rar->unp_buffer[0], &rar->lzss.window[windowoffs], firstpart);
-    memcpy(&rar->unp_buffer[firstpart], &rar->lzss.window[0],
-           length - firstpart);
-    *buffer = rar->unp_buffer;
+    if (firstpart < length) {
+      memcpy(&rar->unp_buffer[rar->unp_offset],
+             &rar->lzss.window[windowoffs], firstpart);
+      memcpy(&rar->unp_buffer[rar->unp_offset + firstpart],
+             &rar->lzss.window[0], length - firstpart);
+    } else
+      memcpy(&rar->unp_buffer[rar->unp_offset],
+             &rar->lzss.window[windowoffs], length);
   }
+  rar->unp_offset += length;
+  if (rar->unp_offset >= rar->unp_buffer_size)
+    *buffer = rar->unp_buffer;
+  else
+    *buffer = NULL;
   return (ARCHIVE_OK);
 }
