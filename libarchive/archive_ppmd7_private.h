@@ -70,8 +70,6 @@ void Ppmd7_Init(CPpmd7 *p, unsigned maxOrder);
 
 /* ---------- Internal Functions ---------- */
 
-extern const Byte PPMD7_kExpEscape[16];
-
 #ifdef PPMD_32BIT
   #define Ppmd7_GetPtr(p, ptr) (ptr)
   #define Ppmd7_GetContext(p, ptr) (ptr)

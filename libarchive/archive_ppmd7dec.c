@@ -8,6 +8,8 @@ This code is based on PPMd var.H (2001): Dmitry Shkarin : Public domain */
 
 #define kTopValue (1 << 24)
 
+static const Byte PPMD7_kExpEscape[16] = { 25, 14, 9, 7, 5, 5, 4, 4, 4, 3, 3, 3, 2, 2, 2, 2 };
+
 static Bool Ppmd_RangeDec_Init(CPpmd7z_RangeDec *p)
 {
   unsigned i;
