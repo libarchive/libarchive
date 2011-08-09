@@ -29,6 +29,12 @@
 #error This header is only to be used internally to libarchive.
 #endif
 
+#ifndef ARCHIVE_CRC32_H_INCLUDED
+#define ARCHIVE_CRC32_H_INCLUDED
+
+#ifdef HAVE_ZLIB_H
+#include <zlib.h>	/* for crc32() */
+#else
 /*
  * When zlib is unavailable, we should still be able to validate
  * uncompressed zip archives.  That requires us to be able to compute
@@ -64,3 +70,5 @@ crc32(unsigned long crc, const void *_p, size_t len)
 		crc = crc_tbl[(crc ^ *p++) & 0xff] ^ (crc >> 8);
 	return (crc ^ 0xffffffffUL);
 }
+#endif	/* HAVE_ZLIB_H */
+#endif	/* ARCHIVE_CRC32_H_INCLUDED */

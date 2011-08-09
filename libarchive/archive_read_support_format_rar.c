@@ -692,7 +692,7 @@ archive_read_format_rar_read_header(struct archive_read *a,
         return (ARCHIVE_FATAL);
       }
 
-      crc32_val = crc32(0, p + 2, skip - 2);
+      crc32_val = crc32(0, (const unsigned char *)p + 2, skip - 2);
       if ((crc32_val & 0xffff) != archive_le16dec(p)) {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
           "Header CRC error");
@@ -734,7 +734,7 @@ archive_read_format_rar_read_header(struct archive_read *a,
         p = h;
       }
 
-      crc32_val = crc32(0, p + 2, skip - 2);
+      crc32_val = crc32(0, (const unsigned char *)p + 2, skip - 2);
       if ((crc32_val & 0xffff) != archive_le16dec(p)) {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
           "Header CRC error");
@@ -859,7 +859,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
       "Invalid header size");
     return (ARCHIVE_FATAL);
   }
-  crc32_val = crc32(0, p + 2, 7 - 2);
+  crc32_val = crc32(0, (const unsigned char *)p + 2, 7 - 2);
   __archive_read_consume(a, 7);
 
   if (!(rar->file_flags & FHD_SOLID))
