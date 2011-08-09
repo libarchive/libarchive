@@ -190,6 +190,7 @@ struct rar
 {
   /* Entries from main RAR header */
   unsigned main_flags;
+  unsigned long file_crc;
   char reserved1[2];
   char reserved2[4];
   char encryptver;
@@ -221,6 +222,7 @@ struct rar
   unsigned char *unp_buffer;
   unsigned int dictionary_size;
   char start_new_block;
+  unsigned long crc_calculated;
 
   /* LZSS members */
   struct huffman_code maincode;
@@ -908,6 +910,8 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   time = archive_le32dec(file_header.file_time);
   rar->mtime = get_time(time);
 
+  rar->file_crc = archive_le32dec(file_header.file_crc);
+
   if (rar->file_flags & FHD_PASSWORD)
   {
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
@@ -1107,6 +1111,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   rar->lzss.position = rar->dictionary_size = rar->offset = 0;
   rar->br.cache_avail = 0;
   rar->br.avail_in = 0;
+  rar->crc_calculated = 0;
   rar->valid = 1;
   rar->is_ppmd_block = 0;
   rar->start_new_table = 1;
@@ -1286,6 +1291,11 @@ read_data_stored(struct archive_read *a, const void **buff, size_t *size,
     *buff = NULL;
     *size = 0;
     *offset = rar->offset;
+    if (rar->file_crc != rar->crc_calculated) {
+      archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+                        "File CRC error");
+      return (ARCHIVE_FAILED);
+    }
     return (ARCHIVE_EOF);
   }
 
@@ -1304,6 +1314,8 @@ read_data_stored(struct archive_read *a, const void **buff, size_t *size,
   rar->offset += bytes_avail;
   rar->bytes_remaining -= bytes_avail;
   rar->bytes_unconsumed = bytes_avail;
+  /* Calculate File CRC. */
+  rar->crc_calculated = crc32(rar->crc_calculated, *buff, bytes_avail);
   return (ARCHIVE_OK);
 }
 
@@ -1325,6 +1337,11 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
     *size = 0;
     *offset = rar->offset;
     __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
+    if (rar->file_crc != rar->crc_calculated) {
+      archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+                        "File CRC error");
+      return (ARCHIVE_FAILED);
+    }
     return (ARCHIVE_EOF);
   }
 
@@ -1459,6 +1476,8 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
   ret = copy_from_lzss_window(a, buff, *offset, *size);
   rar->offset += *size;
   rar->bytes_uncopied -= *size;
+  /* Calculate File CRC. */
+  rar->crc_calculated = crc32(rar->crc_calculated, *buff, *size);
   return ret;
 }
 
