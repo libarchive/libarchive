@@ -130,6 +130,14 @@
 #define MAX_SYMBOL_LENGTH 0xF
 #define MAX_SYMBOLS       20
 
+/*
+ * Considering L1,L2 cache miss and a calling of write sytem-call,
+ * the best size of the output buffer(uncompressed buffer) is 128K.
+ * If the structure of extracting process is changed, this value
+ * might be researched again.
+ */
+#define UNP_BUFFER_SIZE   (128 * 1024)
+
 /* Define this here for non-Windows platforms */
 #if !((defined(__WIN32__) || defined(_WIN32) || defined(__WIN32)) && !defined(__CYGWIN__))
 #define FILE_ATTRIBUTE_DIRECTORY 0x10
@@ -1144,9 +1152,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   free(rar->unp_buffer);
   rar->unp_buffer = NULL;
   rar->unp_offset = 0;
-  /* Set a minimum size of an uncompressed buffer.
-   * This will be over written by a dictionary size */
-  rar->unp_buffer_size = 64 * 1024;
+  rar->unp_buffer_size = UNP_BUFFER_SIZE;
   memset(rar->lengthtable, 0, sizeof(rar->lengthtable));
   __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
   rar->ppmd_valid = 0;
@@ -2335,8 +2341,6 @@ copy_from_lzss_window(struct archive_read *a, const void **buffer,
 
   if (!rar->unp_buffer)
   {
-    if (rar->unp_buffer_size < rar->dictionary_size)
-      rar->unp_buffer_size = rar->dictionary_size;
     if ((rar->unp_buffer = malloc(rar->unp_buffer_size)) == NULL)
     {
       archive_set_error(&a->archive, ENOMEM,
