@@ -818,7 +818,7 @@ archive_read_format_rar_cleanup(struct archive_read *a)
   free_codes(a);
   free(rar->unp_buffer);
   free(rar->lzss.window);
-  Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
+  __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
   free(rar);
   (a->format->data) = NULL;
   return (ARCHIVE_OK);
@@ -1113,7 +1113,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   free(rar->unp_buffer);
   rar->unp_buffer = NULL;
   memset(rar->lengthtable, 0, sizeof(rar->lengthtable));
-  Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
+  __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
   rar->ppmd_valid = 0;
 
   /* Don't set any archive entries for non-file header types */
@@ -1324,7 +1324,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
     *buff = NULL;
     *size = 0;
     *offset = rar->offset;
-    Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
+    __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
     return (ARCHIVE_EOF);
   }
 
@@ -1349,7 +1349,8 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
 
   if (rar->is_ppmd_block)
   {
-    if ((sym = Ppmd7_DecodeSymbol(&rar->ppmd7_context, &rar->range_dec.p)) < 0)
+    if ((sym = __archive_ppmd7_functions.Ppmd7_DecodeSymbol(&rar->ppmd7_context,
+      &rar->range_dec.p)) < 0)
     {
       archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                         "Invalid symbol");
@@ -1362,7 +1363,8 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
     }
     else
     {
-      if ((code = Ppmd7_DecodeSymbol(&rar->ppmd7_context, &rar->range_dec.p)) < 0)
+      if ((code = __archive_ppmd7_functions.Ppmd7_DecodeSymbol(
+        &rar->ppmd7_context, &rar->range_dec.p)) < 0)
       {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                           "Invalid symbol");
@@ -1379,7 +1381,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
           *buff = NULL;
           *size = 0;
           *offset = rar->offset;
-          Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
+          __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
           return (ARCHIVE_EOF);
 
         case 3:
@@ -1391,8 +1393,8 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
           lzss_offset = 0;
           for (i = 2; i >= 0; i--)
           {
-            if ((code = Ppmd7_DecodeSymbol(&rar->ppmd7_context,
-              &rar->range_dec.p)) < 0)
+            if ((code = __archive_ppmd7_functions.Ppmd7_DecodeSymbol(
+              &rar->ppmd7_context, &rar->range_dec.p)) < 0)
             {
               archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                                 "Invalid symbol");
@@ -1400,8 +1402,8 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
             }
             lzss_offset |= code << (i * 8);
           }
-          if ((length = Ppmd7_DecodeSymbol(&rar->ppmd7_context,
-            &rar->range_dec.p)) < 0)
+          if ((length = __archive_ppmd7_functions.Ppmd7_DecodeSymbol(
+            &rar->ppmd7_context, &rar->range_dec.p)) < 0)
           {
             archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                               "Invalid symbol");
@@ -1412,8 +1414,8 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
           break;
 
         case 5:
-          if ((length = Ppmd7_DecodeSymbol(&rar->ppmd7_context,
-            &rar->range_dec.p)) < 0)
+          if ((length = __archive_ppmd7_functions.Ppmd7_DecodeSymbol(
+            &rar->ppmd7_context, &rar->range_dec.p)) < 0)
           {
             archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                               "Invalid symbol");
@@ -1520,23 +1522,24 @@ parse_codes(struct archive_read *a)
 
       rar->bytein.a = a;
       rar->bytein.Read = &ppmd_read;
-      PpmdRAR_RangeDec_CreateVTable(&rar->range_dec);
+      __archive_ppmd7_functions.PpmdRAR_RangeDec_CreateVTable(&rar->range_dec);
       rar->range_dec.Stream = &rar->bytein;
-      Ppmd7_Construct(&rar->ppmd7_context);
+      __archive_ppmd7_functions.Ppmd7_Construct(&rar->ppmd7_context);
 
-      if (!Ppmd7_Alloc(&rar->ppmd7_context, rar->dictionary_size, &g_szalloc))
+      if (!__archive_ppmd7_functions.Ppmd7_Alloc(&rar->ppmd7_context,
+        rar->dictionary_size, &g_szalloc))
       {
         archive_set_error(&a->archive, ENOMEM,
                           "Out of memory");
         return (ARCHIVE_FATAL);
       }
-      if (!PpmdRAR_RangeDec_Init(&rar->range_dec))
+      if (!__archive_ppmd7_functions.PpmdRAR_RangeDec_Init(&rar->range_dec))
       {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                           "Unable to initialize PPMd range decoder");
         return (ARCHIVE_FATAL);
       }
-      Ppmd7_Init(&rar->ppmd7_context, maxorder);
+      __archive_ppmd7_functions.Ppmd7_Init(&rar->ppmd7_context, maxorder);
       rar->ppmd_valid = 1;
     }
     else
@@ -1546,7 +1549,7 @@ parse_codes(struct archive_read *a)
                           "Invalid PPMd sequence");
         return (ARCHIVE_FAILED);
       }
-      if (!PpmdRAR_RangeDec_Init(&rar->range_dec))
+      if (!__archive_ppmd7_functions.PpmdRAR_RangeDec_Init(&rar->range_dec))
       {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                           "Unable to initialize PPMd range decoder");

@@ -61,40 +61,6 @@ typedef struct
   UInt16 BinSumm[128][64];
 } CPpmd7;
 
-void Ppmd7_Construct(CPpmd7 *p);
-Bool Ppmd7_Alloc(CPpmd7 *p, UInt32 size, ISzAlloc *alloc);
-void Ppmd7_Free(CPpmd7 *p, ISzAlloc *alloc);
-void Ppmd7_Init(CPpmd7 *p, unsigned maxOrder);
-#define Ppmd7_WasAllocated(p) ((p)->Base != NULL)
-
-
-/* ---------- Internal Functions ---------- */
-
-#ifdef PPMD_32BIT
-  #define Ppmd7_GetPtr(p, ptr) (ptr)
-  #define Ppmd7_GetContext(p, ptr) (ptr)
-  #define Ppmd7_GetStats(p, ctx) ((ctx)->Stats)
-#else
-  #define Ppmd7_GetPtr(p, offs) ((void *)((p)->Base + (offs)))
-  #define Ppmd7_GetContext(p, offs) ((CPpmd7_Context *)Ppmd7_GetPtr((p), (offs)))
-  #define Ppmd7_GetStats(p, ctx) ((CPpmd_State *)Ppmd7_GetPtr((p), ((ctx)->Stats)))
-#endif
-
-void Ppmd7_Update1(CPpmd7 *p);
-void Ppmd7_Update1_0(CPpmd7 *p);
-void Ppmd7_Update2(CPpmd7 *p);
-void Ppmd7_UpdateBin(CPpmd7 *p);
-
-#define Ppmd7_GetBinSumm(p) \
-    &p->BinSumm[Ppmd7Context_OneState(p->MinContext)->Freq - 1][p->PrevSuccess + \
-    p->NS2BSIndx[Ppmd7_GetContext(p, p->MinContext->Suffix)->NumStats - 1] + \
-    (p->HiBitsFlag = p->HB2Flag[p->FoundState->Symbol]) + \
-    2 * p->HB2Flag[Ppmd7Context_OneState(p->MinContext)->Symbol] + \
-    ((p->RunLength >> 26) & 0x20)]
-
-CPpmd_See *Ppmd7_MakeEscFreq(CPpmd7 *p, unsigned numMasked, UInt32 *scale);
-
-
 /* ---------- Decode ---------- */
 
 typedef struct
@@ -114,15 +80,6 @@ typedef struct
   IByteIn *Stream;
 } CPpmd7z_RangeDec;
 
-void Ppmd7z_RangeDec_CreateVTable(CPpmd7z_RangeDec *p);
-void PpmdRAR_RangeDec_CreateVTable(CPpmd7z_RangeDec *p);
-Bool Ppmd7z_RangeDec_Init(CPpmd7z_RangeDec *p);
-Bool PpmdRAR_RangeDec_Init(CPpmd7z_RangeDec *p);
-#define Ppmd7z_RangeDec_IsFinishedOK(p) ((p)->Code == 0)
-
-int Ppmd7_DecodeSymbol(CPpmd7 *p, IPpmd7_RangeDec *rc);
-
-
 /* ---------- Encode ---------- */
 
 /*typedef struct
@@ -132,11 +89,31 @@ int Ppmd7_DecodeSymbol(CPpmd7 *p, IPpmd7_RangeDec *rc);
   Byte Cache;
   UInt64 CacheSize;
   IByteOut *Stream;
-} CPpmd7z_RangeEnc;
+} CPpmd7z_RangeEnc;*/
 
-void Ppmd7z_RangeEnc_Init(CPpmd7z_RangeEnc *p);
-void Ppmd7z_RangeEnc_FlushData(CPpmd7z_RangeEnc *p);
+typedef struct
+{
+  /* Base Functions */
+  void (*Ppmd7_Construct)(CPpmd7 *p);
+  Bool (*Ppmd7_Alloc)(CPpmd7 *p, UInt32 size, ISzAlloc *alloc);
+  void (*Ppmd7_Free)(CPpmd7 *p, ISzAlloc *alloc);
+  void (*Ppmd7_Init)(CPpmd7 *p, unsigned maxOrder);
+  #define Ppmd7_WasAllocated(p) ((p)->Base != NULL)
 
-void Ppmd7_EncodeSymbol(CPpmd7 *p, CPpmd7z_RangeEnc *rc, int symbol);
-*/
+  /* Decode Functions */
+  void (*Ppmd7z_RangeDec_CreateVTable)(CPpmd7z_RangeDec *p);
+  void (*PpmdRAR_RangeDec_CreateVTable)(CPpmd7z_RangeDec *p);
+  Bool (*Ppmd7z_RangeDec_Init)(CPpmd7z_RangeDec *p);
+  Bool (*PpmdRAR_RangeDec_Init)(CPpmd7z_RangeDec *p);
+  #define Ppmd7z_RangeDec_IsFinishedOK(p) ((p)->Code == 0)
+  int (*Ppmd7_DecodeSymbol)(CPpmd7 *p, IPpmd7_RangeDec *rc);
+
+  /* Encode Functions */
+  /*void (*Ppmd7z_RangeEnc_Init)(CPpmd7z_RangeEnc *p);
+  void (*Ppmd7z_RangeEnc_FlushData)(CPpmd7z_RangeEnc *p);
+
+  void (*Ppmd7_EncodeSymbol)(CPpmd7 *p, CPpmd7z_RangeEnc *rc, int symbol);*/
+} IPpmd7;
+
+extern const IPpmd7 __archive_ppmd7_functions;
 #endif

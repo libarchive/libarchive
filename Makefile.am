@@ -107,7 +107,6 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_ppmd_private.h			\
 	libarchive/archive_ppmd7.c				\
 	libarchive/archive_ppmd7_private.h			\
-	libarchive/archive_ppmd7dec.c				\
 	libarchive/archive_private.h				\
 	libarchive/archive_rb.c					\
 	libarchive/archive_rb.h					\
