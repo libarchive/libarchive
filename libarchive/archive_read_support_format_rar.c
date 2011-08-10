@@ -1683,13 +1683,19 @@ parse_codes(struct archive_read *a)
 
     memset(&precode, 0, sizeof(precode));
     r = create_code(a, &precode, bitlengths, MAX_SYMBOLS, MAX_SYMBOL_LENGTH);
-    if (r != ARCHIVE_OK)
+    if (r != ARCHIVE_OK) {
+      free(precode.tree);
+      free(precode.table);
       return (r);
+    }
 
     for (i = 0; i < HUFFMAN_TABLE_SIZE;)
     {
-      if ((val = read_next_symbol(a, &precode)) < 0)
+      if ((val = read_next_symbol(a, &precode)) < 0) {
+        free(precode.tree);
+        free(precode.table);
         return (ARCHIVE_FAILED);
+      }
       if (val < 16)
       {
         rar->lengthtable[i] = (rar->lengthtable[i] + val) & 0xF;
@@ -1699,19 +1705,27 @@ parse_codes(struct archive_read *a)
       {
         if (i == 0)
         {
+          free(precode.tree);
+          free(precode.table);
           archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                             "Internal error extracting RAR file.");
           return (ARCHIVE_FAILED);
         }
 
         if(val == 16) {
-          if (!rar_br_read_ahead(a, br, 3))
+          if (!rar_br_read_ahead(a, br, 3)) {
+            free(precode.tree);
+            free(precode.table);
             goto truncated_data;
+          }
           n = rar_br_bits(br, 3) + 3;
           rar_br_consume(br, 3);
         } else {
-          if (!rar_br_read_ahead(a, br, 7))
+          if (!rar_br_read_ahead(a, br, 7)) {
+            free(precode.tree);
+            free(precode.table);
             goto truncated_data;
+          }
           n = rar_br_bits(br, 7) + 11;
           rar_br_consume(br, 7);
         }
@@ -1725,13 +1739,19 @@ parse_codes(struct archive_read *a)
       else
       {
         if(val == 18) {
-          if (!rar_br_read_ahead(a, br, 3))
+          if (!rar_br_read_ahead(a, br, 3)) {
+            free(precode.tree);
+            free(precode.table);
             goto truncated_data;
+          }
           n = rar_br_bits(br, 3) + 3;
           rar_br_consume(br, 3);
         } else {
-          if (!rar_br_read_ahead(a, br, 7))
+          if (!rar_br_read_ahead(a, br, 7)) {
+            free(precode.tree);
+            free(precode.table);
             goto truncated_data;
+          }
           n = rar_br_bits(br, 7) + 11;
           rar_br_consume(br, 7);
         }
