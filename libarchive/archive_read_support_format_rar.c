@@ -1406,8 +1406,10 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
       else
         bs = rar->bytes_uncopied;
       ret = copy_from_lzss_window(a, buff, rar->offset, bs);
-      if (ret != ARCHIVE_OK)
+      if (ret != ARCHIVE_OK) {
+        __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
         return (ret);
+      }
       rar->offset += bs;
       rar->bytes_uncopied -= bs;
       if (*buff != NULL) {
@@ -1423,16 +1425,21 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
     }
 
     if (!rar->br.next_in &&
-      (ret = rar_br_preparation(a, &(rar->br))) < ARCHIVE_WARN)
+      (ret = rar_br_preparation(a, &(rar->br))) < ARCHIVE_WARN) {
+      __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
       return (ret);
-    if (rar->start_new_table && ((ret = parse_codes(a)) < (ARCHIVE_WARN)))
+    }
+    if (rar->start_new_table && ((ret = parse_codes(a)) < (ARCHIVE_WARN))) {
+      __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
       return (ret);
+    }
 
     if (rar->is_ppmd_block)
     {
       if ((sym = __archive_ppmd7_functions.Ppmd7_DecodeSymbol(
         &rar->ppmd7_context, &rar->range_dec.p)) < 0)
       {
+        __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                           "Invalid symbol");
         return (ARCHIVE_FATAL);
@@ -1447,6 +1454,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
         if ((code = __archive_ppmd7_functions.Ppmd7_DecodeSymbol(
           &rar->ppmd7_context, &rar->range_dec.p)) < 0)
         {
+          __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
           archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                             "Invalid symbol");
           return (ARCHIVE_FATAL);
@@ -1463,6 +1471,8 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
             continue;
 
           case 3:
+            __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context,
+              &g_szalloc);
             archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                               "Parsing filters is unsupported.");
             return (ARCHIVE_FAILED);
@@ -1474,6 +1484,8 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
               if ((code = __archive_ppmd7_functions.Ppmd7_DecodeSymbol(
                 &rar->ppmd7_context, &rar->range_dec.p)) < 0)
               {
+                __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context,
+                  &g_szalloc);
                 archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                                   "Invalid symbol");
                 return (ARCHIVE_FATAL);
@@ -1483,6 +1495,8 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
             if ((length = __archive_ppmd7_functions.Ppmd7_DecodeSymbol(
               &rar->ppmd7_context, &rar->range_dec.p)) < 0)
             {
+              __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context,
+                &g_szalloc);
               archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                                 "Invalid symbol");
               return (ARCHIVE_FATAL);
@@ -1495,6 +1509,8 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
             if ((length = __archive_ppmd7_functions.Ppmd7_DecodeSymbol(
               &rar->ppmd7_context, &rar->range_dec.p)) < 0)
             {
+              __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context,
+                &g_szalloc);
               archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                                 "Invalid symbol");
               return (ARCHIVE_FATAL);
@@ -1534,8 +1550,11 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
     else
       bs = rar->bytes_uncopied;
     ret = copy_from_lzss_window(a, buff, rar->offset, bs);
-    if (ret != ARCHIVE_OK)
+    if (ret != ARCHIVE_OK) {
+      __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context,
+        &g_szalloc);
       return (ret);
+    }
     rar->offset += bs;
     rar->bytes_uncopied -= bs;
     /*
