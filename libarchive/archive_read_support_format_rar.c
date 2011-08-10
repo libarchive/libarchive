@@ -31,9 +31,14 @@
 #endif
 #include <time.h>
 #include <limits.h>
+#ifdef HAVE_ZLIB_H
+#include <zlib.h> /* crc32 */
+#endif
 
 #include "archive.h"
+#ifndef HAVE_ZLIB_H
 #include "archive_crc32.h"
+#endif
 #include "archive_endian.h"
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
