@@ -211,6 +211,8 @@ struct rar
   time_t mtime;
   long mnsec;
   mode_t mode;
+  char *filename;
+  size_t filename_allocated;
 
   /* File header optional entries */
   char salt[8];
@@ -852,6 +854,7 @@ archive_read_format_rar_cleanup(struct archive_read *a)
 
   rar = (struct rar *)(a->format->data);
   free_codes(a);
+  free(rar->filename);
   free(rar->unp_buffer);
   free(rar->lzss.window);
   __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
@@ -1000,11 +1003,15 @@ read_header(struct archive_read *a, struct archive_entry *entry,
       "Invalid filename size");
     return (ARCHIVE_FATAL);
   }
-  if ((filename = malloc(filename_size+2)) == NULL) {
-    archive_set_error(&a->archive, ENOMEM,
-                      "Couldn't allocate memory.");
-    return (ARCHIVE_FATAL);
+  if (rar->filename_allocated < filename_size+2) {
+    rar->filename = realloc(rar->filename, filename_size+2);
+    if (rar->filename == NULL) {
+      archive_set_error(&a->archive, ENOMEM,
+                        "Couldn't allocate memory.");
+      return (ARCHIVE_FATAL);
+    }
   }
+  filename = rar->filename;
   memcpy(filename, p, filename_size);
   filename[filename_size] = '\0';
   if (rar->file_flags & FHD_UNICODE)
@@ -1060,7 +1067,6 @@ read_header(struct archive_read *a, struct archive_entry *entry,
         }
       }
       if (filename_size >= end) {
-        free(filename);
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
           "Invalid filename");
         return (ARCHIVE_FAILED);
@@ -1072,10 +1078,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
 
     sconv = archive_string_conversion_from_charset(&a->archive, "UTF-16BE", 1);
     if (sconv == NULL)
-    {
-      free(filename);
       return (ARCHIVE_FATAL);
-    }
     strp = filename;
     while (memcmp(strp, "\x00\x00", 2))
     {
@@ -1136,7 +1139,6 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   default:
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                       "Unknown file attributes from RAR file's host OS");
-    free(filename);
     return (ARCHIVE_FATAL);
   }
 
@@ -1181,7 +1183,6 @@ read_header(struct archive_read *a, struct archive_entry *entry,
                       archive_string_conversion_charset_name(sconv));
     ret = (ARCHIVE_WARN);
   }
-  free(filename);
 
   if (((rar->mode) & AE_IFMT) == AE_IFLNK)
   {
@@ -1739,6 +1740,8 @@ parse_codes(struct archive_read *a)
           rar->lengthtable[i++] = 0;
       }
     }
+    free(precode.tree);
+    free(precode.table);
 
     r = create_code(a, &rar->maincode, &rar->lengthtable[0], MAINCODE_SIZE,
                 MAX_SYMBOL_LENGTH);
