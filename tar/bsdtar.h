@@ -81,6 +81,10 @@ struct bsdtar {
 	char		  day_first; /* show day before month in -tv output */
 	char		  enable_copyfile; /* For Mac OS */
 
+	/* Option parser state */
+	int		  getopt_state;
+	char		 *getopt_word;
+
 	/* If >= 0, then close this when done. */
 	int		  fd;
 
