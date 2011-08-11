@@ -240,6 +240,7 @@ struct rar
   unsigned char *unp_buffer;
   unsigned int dictionary_size;
   char start_new_block;
+  char entry_eof;
   unsigned long crc_calculated;
 
   /* LZSS members */
@@ -850,6 +851,14 @@ archive_read_format_rar_read_data(struct archive_read *a, const void **buff,
       __archive_read_consume(a, rar->bytes_unconsumed);
       rar->bytes_unconsumed = 0;
   }
+
+  if (rar->entry_eof) {
+    *buff = NULL;
+    *size = 0;
+    *offset = rar->offset;
+    return (ARCHIVE_EOF);
+  }
+
   switch (rar->compression_method)
   {
   case COMPRESS_METHOD_STORE:
@@ -1219,6 +1228,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   rar->br.cache_avail = 0;
   rar->br.avail_in = 0;
   rar->crc_calculated = 0;
+  rar->entry_eof = 0;
   rar->valid = 1;
   rar->is_ppmd_block = 0;
   rar->start_new_table = 1;
@@ -1256,11 +1266,19 @@ read_header(struct archive_read *a, struct archive_entry *entry,
 
   if (((rar->mode) & AE_IFMT) == AE_IFLNK)
   {
+    /* Make sure a symbolic-link file does not have its body. */
+    rar->bytes_remaining = 0;
+    archive_entry_set_size(entry, 0);
+
+    /* Read a symbolic-link name. */
     if ((ret2 = read_symlink_stored(a, entry, sconv)) < (ARCHIVE_WARN))
       return ret2;
     if (ret > ret2)
       ret = ret2;
   }
+
+  if (rar->bytes_remaining == 0)
+    rar->entry_eof = 1;
 
   return ret;
 }
@@ -1377,6 +1395,7 @@ read_symlink_stored(struct archive_read *a, struct archive_entry *entry,
                       archive_string_conversion_charset_name(sconv));
     ret = (ARCHIVE_WARN);
   }
+  __archive_read_consume(a, rar->packed_size);
   return ret;
 }
 
@@ -1398,6 +1417,7 @@ read_data_stored(struct archive_read *a, const void **buff, size_t *size,
                         "File CRC error");
       return (ARCHIVE_FAILED);
     }
+    rar->entry_eof = 1;
     return (ARCHIVE_EOF);
   }
 
@@ -1459,6 +1479,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
                           "File CRC error");
         return (ARCHIVE_FAILED);
       }
+      rar->entry_eof = 1;
       return (ARCHIVE_EOF);
     }
 

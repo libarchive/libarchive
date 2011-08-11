@@ -60,9 +60,10 @@ test_basic(void)
   assertA((int)archive_entry_mtime(ae));
   assertA((int)archive_entry_ctime(ae));
   assertA((int)archive_entry_atime(ae));
-  assertEqualInt(8, archive_entry_size(ae));
+  assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(41471, archive_entry_mode(ae));
   assertEqualString("test.txt", archive_entry_symlink(ae));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
 
   /* Third header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -171,7 +172,7 @@ test_noeof(void)
 static void
 test_unicode_UTF8(void)
 {
-  char buff[5];
+  char buff[30];
   const char reffile[] = "test_read_format_rar_unicode.rar";
   const char test_txt[] = "kanji";
   struct archive_entry *ae;
@@ -209,7 +210,7 @@ test_unicode_UTF8(void)
   assertA((int)archive_entry_mtime(ae));
   assertEqualInt(5, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
-  assertA(5 == archive_read_data(a, buff, 5));
+  assertEqualIntA(a, 5, archive_read_data(a, buff, 5));
   assertEqualMem(buff, test_txt, 5);
 
   /* Third header. */
@@ -241,6 +242,7 @@ test_unicode_UTF8(void)
   assertA((int)archive_entry_mtime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(41453, archive_entry_mode(ae));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
 
   /* Test EOF */
   assertA(1 == archive_read_next_header(a, &ae));
@@ -252,7 +254,7 @@ test_unicode_UTF8(void)
 static void
 test_unicode_CP932(void)
 {
-  char buff[5];
+  char buff[30];
   const char reffile[] = "test_read_format_rar_unicode.rar";
   const char test_txt[] = "kanji";
   struct archive_entry *ae;
@@ -326,6 +328,7 @@ test_unicode_CP932(void)
   assertA((int)archive_entry_mtime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(41453, archive_entry_mode(ae));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
 
   /* Test EOF */
   assertA(1 == archive_read_next_header(a, &ae));
@@ -374,9 +377,10 @@ test_compress_normal(void)
   assertA((int)archive_entry_mtime(ae));
   assertA((int)archive_entry_ctime(ae));
   assertA((int)archive_entry_atime(ae));
-  assertEqualInt(25, archive_entry_size(ae));
+  assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(41471, archive_entry_mode(ae));
   assertEqualString("LibarchiveAddingTest.html", archive_entry_symlink(ae));
+  assertEqualIntA(a, 0, archive_read_data(a, file1_buff, 30));
 
   /* Third header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -510,9 +514,10 @@ test_compress_best(void)
   assertA((int)archive_entry_mtime(ae));
   assertA((int)archive_entry_ctime(ae));
   assertA((int)archive_entry_atime(ae));
-  assertEqualInt(25, archive_entry_size(ae));
+  assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(41471, archive_entry_mode(ae));
   assertEqualString("LibarchiveAddingTest.html", archive_entry_symlink(ae));
+  assertEqualIntA(a, 0, archive_read_data(a, file1_buff, 30));
 
   /* Third header. */
   assertA(0 == archive_read_next_header(a, &ae));
