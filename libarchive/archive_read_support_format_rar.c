@@ -268,6 +268,14 @@ struct rar
   IByteIn bytein;
 
   /*
+   * String conversion object.
+   */
+  int init_default_conversion;
+  struct archive_string_conv *sconv_default;
+  struct archive_string_conv *opt_sconv;
+  struct archive_string_conv *sconv_utf16be;
+
+  /*
    * Bit stream reader.
    */
   struct rar_br {
@@ -283,6 +291,8 @@ struct rar
 };
 
 static int archive_read_format_rar_bid(struct archive_read *);
+static int archive_read_format_rar_options(struct archive_read *,
+    const char *, const char *);
 static int archive_read_format_rar_read_header(struct archive_read *,
     struct archive_entry *);
 static int archive_read_format_rar_read_data(struct archive_read *,
@@ -626,7 +636,7 @@ archive_read_support_format_rar(struct archive *_a)
                                      rar,
                                      "rar",
                                      archive_read_format_rar_bid,
-                                     NULL,
+                                     archive_read_format_rar_options,
                                      archive_read_format_rar_read_header,
                                      archive_read_format_rar_read_data,
                                      archive_read_format_rar_read_data_skip,
@@ -649,6 +659,34 @@ archive_read_format_rar_bid(struct archive_read *a)
     return (30);
 
   return (0);
+}
+
+static int
+archive_read_format_rar_options(struct archive_read *a,
+    const char *key, const char *val)
+{
+  struct rar *rar;
+  int ret = ARCHIVE_FAILED;
+        
+  rar = (struct rar *)(a->format->data);
+  if (strcmp(key, "hdrcharset")  == 0) {
+    if (val == NULL || val[0] == 0)
+      archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+          "rar: hdrcharset option needs a character-set name");
+    else {
+      rar->opt_sconv =
+          archive_string_conversion_from_charset(
+              &a->archive, val, 0);
+      if (rar->opt_sconv != NULL)
+        ret = ARCHIVE_OK;
+      else
+        ret = ARCHIVE_FATAL;
+    }
+  } else
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+        "rar: unknown keyword ``%s''", key);
+                
+  return (ret);
 }
 
 static int
@@ -891,11 +929,24 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   char packed_size[8];
   char unp_size[8];
   int time;
-  struct archive_string_conv *sconv;
+  struct archive_string_conv *sconv, *fn_sconv;
   unsigned long crc32_val;
   int ret = (ARCHIVE_OK), ret2;
 
   rar = (struct rar *)(a->format->data);
+
+  /* Setup a string conversion object for non-rar-unicode filenames. */
+  sconv = rar->opt_sconv;
+  if (sconv == NULL) {
+    if (!rar->init_default_conversion) {
+      rar->sconv_default =
+          archive_string_default_conversion_for_read(
+            &(a->archive));
+      rar->init_default_conversion = 1;
+    }
+    sconv = rar->sconv_default;
+  }
+
 
   if ((h = __archive_read_ahead(a, 7, NULL)) == NULL)
     return (ARCHIVE_FATAL);
@@ -1088,9 +1139,16 @@ read_header(struct archive_read *a, struct archive_entry *entry,
     } else
       offset = 0;
 
-    sconv = archive_string_conversion_from_charset(&a->archive, "UTF-16BE", 1);
-    if (sconv == NULL)
-      return (ARCHIVE_FATAL);
+    /* Decoded unicode is UTF-16BE, so we have to update a string
+     * conversion object for it. */
+    if (rar->sconv_utf16be == NULL) {
+      rar->sconv_utf16be = archive_string_conversion_from_charset(
+         &a->archive, "UTF-16BE", 1);
+      if (rar->sconv_utf16be == NULL)
+        return (ARCHIVE_FATAL);
+    }
+    fn_sconv = rar->sconv_utf16be;
+
     strp = filename;
     while (memcmp(strp, "\x00\x00", 2))
     {
@@ -1102,7 +1160,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   }
   else
   {
-    sconv = archive_string_default_conversion_for_read(&(a->archive));
+    fn_sconv = sconv;
     while ((strp = strchr(filename, '\\')) != NULL)
       *strp = '/';
     p += filename_size;
@@ -1182,7 +1240,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   archive_entry_set_size(entry, rar->unp_size);
   archive_entry_set_mode(entry, rar->mode);
 
-  if (archive_entry_copy_pathname_l(entry, filename, filename_size, sconv))
+  if (archive_entry_copy_pathname_l(entry, filename, filename_size, fn_sconv))
   {
     if (errno == ENOMEM)
     {
@@ -1299,24 +1357,19 @@ read_symlink_stored(struct archive_read *a, struct archive_entry *entry,
   const void *h;
   const char *p;
   struct rar *rar;
-  char *filename;
   int ret = (ARCHIVE_OK);
 
   rar = (struct rar *)(a->format->data);
   if ((h = __archive_read_ahead(a, rar->packed_size, NULL)) == NULL)
     return (ARCHIVE_FATAL);
   p = h;
-  filename = malloc(rar->packed_size+1);
-  memcpy(filename, p, rar->packed_size);
-  filename[rar->packed_size] = '\0';
 
-  if (archive_entry_copy_symlink_l(entry, filename, strlen(filename), sconv))
+  if (archive_entry_copy_symlink_l(entry, p, rar->packed_size, sconv))
   {
     if (errno == ENOMEM)
     {
       archive_set_error(&a->archive, ENOMEM,
                         "Can't allocate memory for link");
-      free(filename);
       return (ARCHIVE_FATAL);
     }
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
@@ -1324,7 +1377,6 @@ read_symlink_stored(struct archive_read *a, struct archive_entry *entry,
                       archive_string_conversion_charset_name(sconv));
     ret = (ARCHIVE_WARN);
   }
-  free(filename);
   return ret;
 }
 

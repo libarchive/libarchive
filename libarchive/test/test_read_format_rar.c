@@ -229,9 +229,22 @@ test_unicode_UTF8(void)
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(16877, archive_entry_mode(ae));
 
+  /* Fifth header, which has a symbolic-link name in multi-byte characters. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualUTF8String("\xE8\xA1\xA8\xE3\x81\xA0\xE3\x82\x88/"
+      "\xE3\x83\x95\xE3\x82\xA1\xE3\x82\xA4\xE3\x83\xAB",
+      archive_entry_pathname(ae));
+  assertEqualUTF8String(
+      "\xE6\xBC\xA2\xE5\xAD\x97\xE9\x95\xB7\xE3\x81\x84\xE3\x83\x95"
+      "\xE3\x82\xA1\xE3\x82\xA4\xE3\x83\xAB\xE5\x90\x8Dlong-filename-in-"
+      "\xE6\xBC\xA2\xE5\xAD\x97.txt", archive_entry_symlink(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertEqualInt(0, archive_entry_size(ae));
+  assertEqualInt(41453, archive_entry_mode(ae));
+
   /* Test EOF */
   assertA(1 == archive_read_next_header(a, &ae));
-  assertEqualInt(4, archive_file_count(a));
+  assertEqualInt(5, archive_file_count(a));
   assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
@@ -251,26 +264,17 @@ test_unicode_CP932(void)
 	return;
   }
 
-  /*
-   * Test that current platform supports a string conversion from UTF-8
-   * to CP932.
-   * Note: use the zip reader since the rar reader does not support
-   * a hdrcharset option.
-   */
-  assert((a = archive_read_new()) != NULL);
-  assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
-  if (ARCHIVE_OK != archive_read_set_options(a, "hdrcharset=UTF-8")) {
-	skipping("This system cannot convert character-set"
-	    " from Unicode to CP932.");
-	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-	return;
-  }
-  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-
   extract_reference_file(reffile);
   assert((a = archive_read_new()) != NULL);
   assertA(0 == archive_read_support_filter_all(a));
   assertA(0 == archive_read_support_format_all(a));
+  /* Specify the charset of symbolic-link file name. */
+  if (ARCHIVE_OK != archive_read_set_options(a, "rar:hdrcharset=UTF-8")) {
+	skipping("This system cannot convert character-set"
+	    " from UTF-8 to CP932.");
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	return;
+  }
   assertA(0 == archive_read_open_file(a, reffile, 10240));
 
   /* First header. */
@@ -311,9 +315,21 @@ test_unicode_CP932(void)
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(16877, archive_entry_mode(ae));
 
+  /* Fifth header, which has a symbolic-link name in multi-byte characters. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("\x95\x5c\x82\xbe\x82\xe6/"
+      "\x83\x74\x83\x40\x83\x43\x83\x8B", archive_entry_pathname(ae));
+  assertEqualString("\x8a\xbf\x8e\x9a"
+      "\x92\xb7\x82\xa2\x83\x74\x83\x40\x83\x43\x83\x8b\x96\xbc\x6c"
+      "\x6f\x6e\x67\x2d\x66\x69\x6c\x65\x6e\x61\x6d\x65\x2d\x69\x6e"
+      "\x2d\x8a\xbf\x8e\x9a.txt", archive_entry_symlink(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertEqualInt(0, archive_entry_size(ae));
+  assertEqualInt(41453, archive_entry_mode(ae));
+
   /* Test EOF */
   assertA(1 == archive_read_next_header(a, &ae));
-  assertEqualInt(4, archive_file_count(a));
+  assertEqualInt(5, archive_file_count(a));
   assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
