@@ -274,6 +274,7 @@ struct rar
   int init_default_conversion;
   struct archive_string_conv *sconv_default;
   struct archive_string_conv *opt_sconv;
+  struct archive_string_conv *sconv_utf8;
   struct archive_string_conv *sconv_utf16be;
 
   /*
@@ -1088,11 +1089,9 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   filename[filename_size] = '\0';
   if (rar->file_flags & FHD_UNICODE)
   {
-    unsigned offset;
-
     if (filename_size != strlen(filename))
     {
-      unsigned char highbyte, flagbits, flagbyte, length;
+      unsigned char highbyte, flagbits, flagbyte, length, offset;
 
       end = filename_size;
       filename_size = 0;
@@ -1145,27 +1144,42 @@ read_header(struct archive_read *a, struct archive_entry *entry,
       }
       filename[filename_size++] = '\0';
       filename[filename_size++] = '\0';
-    } else
-      offset = 0;
 
-    /* Decoded unicode is UTF-16BE, so we have to update a string
-     * conversion object for it. */
-    if (rar->sconv_utf16be == NULL) {
-      rar->sconv_utf16be = archive_string_conversion_from_charset(
-         &a->archive, "UTF-16BE", 1);
-      if (rar->sconv_utf16be == NULL)
-        return (ARCHIVE_FATAL);
-    }
-    fn_sconv = rar->sconv_utf16be;
+      /* Decoded unicode form is UTF-16BE, so we have to update a string
+       * conversion object for it. */
+      if (rar->sconv_utf16be == NULL) {
+        rar->sconv_utf16be = archive_string_conversion_from_charset(
+           &a->archive, "UTF-16BE", 1);
+        if (rar->sconv_utf16be == NULL)
+          return (ARCHIVE_FATAL);
+      }
+      fn_sconv = rar->sconv_utf16be;
 
-    strp = filename;
-    while (memcmp(strp, "\x00\x00", 2))
-    {
-      if (!memcmp(strp, "\x00\\", 2))
-        *(strp + 1) = '/';
-      strp += 2;
+      strp = filename;
+      while (memcmp(strp, "\x00\x00", 2))
+      {
+        if (!memcmp(strp, "\x00\\", 2))
+          *(strp + 1) = '/';
+        strp += 2;
+      }
+      p += offset;
+    } else {
+      /*
+       * If FHD_UNICODE is set but no unicode data, this file name form
+       * is UTF-8, so we have to update a string conversion object for
+       * it accordingly.
+       */
+      if (rar->sconv_utf8 == NULL) {
+        rar->sconv_utf8 = archive_string_conversion_from_charset(
+           &a->archive, "UTF-8", 1);
+        if (rar->sconv_utf8 == NULL)
+          return (ARCHIVE_FATAL);
+      }
+      fn_sconv = rar->sconv_utf8;
+      while ((strp = strchr(filename, '\\')) != NULL)
+        *strp = '/';
+      p += filename_size;
     }
-    p += offset;
   }
   else
   {
