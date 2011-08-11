@@ -1274,7 +1274,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
     }
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                       "Pathname cannot be converted from %s to current locale.",
-                      archive_string_conversion_charset_name(sconv));
+                      archive_string_conversion_charset_name(fn_sconv));
     ret = (ARCHIVE_WARN);
   }
 
