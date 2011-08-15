@@ -86,6 +86,9 @@ struct lzh_dec {
 	/* The length how many bytes we can copy decoded code from
 	 * the window. */
 	int     		 copy_len;
+	/* The remaining bytes that we have not copied decoded data from
+	 * the window to an output buffer. */
+	int			 w_remaining;
 
 	/*
 	 * Bit stream reader.
@@ -1777,6 +1780,7 @@ lzh_decode_init(struct lzh_stream *strm, const char *method)
 	}
 	memset(ds->w_buff, 0x20, ds->w_size);
 	ds->w_pos = 0;
+	ds->w_remaining = 0;
 	ds->state = 0;
 	ds->pos_pt_len_size = w_bits + 1;
 	ds->pos_pt_len_bits = (w_bits == 15 || w_bits == 16)? 5: 4;
@@ -1978,16 +1982,42 @@ lzh_decode(struct lzh_stream *strm, int last)
 	do {
 		if (ds->state < ST_GET_LITERAL)
 			r = lzh_read_blocks(strm, last);
-		else {
-			int64_t bytes_written = strm->avail_out;
+		else
 			r = lzh_decode_blocks(strm, last);
-			bytes_written -= strm->avail_out;
-			strm->next_out += bytes_written;
-			strm->total_out += bytes_written;
-		}
 	} while (r == 100);
 	strm->total_in += avail_in - strm->avail_in;
 	return (r);
+}
+
+static int
+lzh_copy_from_window(struct lzh_stream *strm, struct lzh_dec *ds)
+{
+	size_t copy_bytes;
+
+	if (ds->w_remaining == 0 && ds->w_pos > 0) {
+		if (ds->w_pos - ds->copy_pos <= strm->avail_out)
+			copy_bytes = ds->w_pos - ds->copy_pos;
+		else
+			copy_bytes = strm->avail_out;
+		memcpy(strm->next_out,
+		    ds->w_buff + ds->copy_pos, copy_bytes);
+		ds->copy_pos += copy_bytes;
+	} else {
+		if (ds->w_remaining <= strm->avail_out)
+			copy_bytes = ds->w_remaining;
+		else
+			copy_bytes = strm->avail_out;
+		memcpy(strm->next_out,
+		    ds->w_buff + ds->w_size - ds->w_remaining, copy_bytes);
+		ds->w_remaining -= copy_bytes;
+	}
+	strm->next_out += copy_bytes;
+	strm->avail_out -= copy_bytes;
+	strm->total_out += copy_bytes;
+	if (strm->avail_out == 0)
+		return (0);
+	else
+		return (1);
 }
 
 static int
@@ -2020,6 +2050,10 @@ lzh_read_blocks(struct lzh_stream *strm, int last)
 					 *     set.
 					 */
 					goto failed;
+				}
+				if (ds->w_pos > 0) {
+					if (!lzh_copy_from_window(strm, ds))
+						return (ARCHIVE_OK);
 				}
 				/* End of compressed data; we have completely
 				 * handled all compressed data. */
@@ -2235,8 +2269,6 @@ lzh_decode_blocks(struct lzh_stream *strm, int last)
 	struct lzh_br bre = ds->br;
 	struct huffman *lt = &(ds->lt);
 	struct huffman *pt = &(ds->pt);
-	unsigned char *outp = strm->next_out;
-	unsigned char *endp = outp + strm->avail_out;
 	unsigned char *w_buff = ds->w_buff;
 	unsigned char *lt_bitlen = lt->bitlen;
 	unsigned char *pt_bitlen = pt->bitlen;
@@ -2246,6 +2278,10 @@ lzh_decode_blocks(struct lzh_stream *strm, int last)
 	int lt_max_bits = lt->max_bits, pt_max_bits = pt->max_bits;
 	int state = ds->state;
 
+	if (ds->w_remaining > 0) {
+		if (!lzh_copy_from_window(strm, ds))
+			goto next_data;
+	}
 	for (;;) {
 		switch (state) {
 		case ST_GET_LITERAL:
@@ -2257,7 +2293,7 @@ lzh_decode_blocks(struct lzh_stream *strm, int last)
 					ds->br = bre;
 					ds->blocks_avail = 0;
 					ds->w_pos = w_pos;
-					strm->avail_out = endp - outp;
+					ds->copy_pos = 0;
 					return (100);
 				}
 
@@ -2293,23 +2329,18 @@ lzh_decode_blocks(struct lzh_stream *strm, int last)
 				if (c > UCHAR_MAX)
 					/* Current block is a match data. */
 					break;
-				if (outp >= endp) {
-					/* Output buffer is empty. */
-					/* Back out the current block. */
-					blocks_avail++;
-					lzh_br_unconsume(&bre, lt_bitlen[c]);
-					goto next_data;
-				}
 				/*
 				 * 'c' is exactly a literal code.
 				 */
 				/* Save a decoded code to reference it
 				 * afterward. */
 				w_buff[w_pos] = c;
-				w_pos = (w_pos + 1) & w_mask;
-				/* Store the decoded code to the output
-				 * buffer. */
-				*outp++ = c;
+				if (++w_pos >= w_size) {
+					w_pos = 0;
+					ds->w_remaining = w_size;
+					if (!lzh_copy_from_window(strm, ds))
+						goto next_data;
+				}
 			}
 			/* 'c' is the length of a match pattern we have
 			 * already extracted, which has be stored in
@@ -2362,11 +2393,10 @@ lzh_decode_blocks(struct lzh_stream *strm, int last)
 			/* FALL THROUGH */
 		case ST_COPY_DATA:
 			/*
-			 * Copy several bytes as extracted data from the window
-			 * into the output buffer.
+			 * Copy `copy_len' bytes as extracted data from
+			 * the window into the output buffer.
 			 */
 			for (;;) {
-				const unsigned char *s;
 				int l;
 
 				l = copy_len;
@@ -2377,40 +2407,41 @@ lzh_decode_blocks(struct lzh_stream *strm, int last)
 					if (l > w_size - w_pos)
 						l = w_size - w_pos;
 				}
-				if (outp + l >= endp)
-					l = endp - outp;
-				s = w_buff + copy_pos;
-				/*
-				 * We calculate CRC16 here becase of
-				 * increasing a performance of the
-				 * calculation so as to reduce L1 cache miss. 
-				 */
-				if (l >= 8 && ((copy_pos + l < w_pos)
-				    || (w_pos + l < copy_pos))) {
-					memcpy(w_buff + w_pos, s, l);
-					memcpy(outp, s, l);
+				if ((copy_pos + l < w_pos)
+				    || (w_pos + l < copy_pos)) {
+					/* No overlap. */
+					memcpy(w_buff + w_pos,
+					    w_buff + copy_pos, l);
 				} else {
+					const unsigned char *s;
 					unsigned char *d;
 					int li;
 
 					d = w_buff + w_pos;
+					s = w_buff + copy_pos;
 					for (li = 0; li < l; li++)
-						outp[li] = d[li] = s[li];
+						d[li] = s[li];
 				}
-				outp += l;
 				copy_pos = (copy_pos + l) & w_mask;
 				w_pos = (w_pos + l) & w_mask;
+				if (w_pos == 0) {
+					ds->w_remaining = w_size;
+					if (!lzh_copy_from_window(strm, ds)) {
+						if (copy_len <= l)
+							state = ST_GET_LITERAL;
+						else {
+							state = ST_COPY_DATA;
+							ds->copy_len =
+							    copy_len - l;
+						}
+						ds->copy_pos = copy_pos;
+						goto next_data;
+					}
+				}
 				if (copy_len <= l)
 					/* A copy of current pattern ended. */
 					break;
 				copy_len -= l;
-				if (outp >= endp) {
-					/* Output buffer is empty. */
-					state = ST_COPY_DATA;
-					ds->copy_len = copy_len;
-					ds->copy_pos = copy_pos;
-					goto next_data;
-				}
 			}
 			state = ST_GET_LITERAL;
 			break;
@@ -2423,7 +2454,6 @@ next_data:
 	ds->blocks_avail = blocks_avail;
 	ds->state = state;
 	ds->w_pos = w_pos;
-	strm->avail_out = endp - outp;
 	return (ARCHIVE_OK);
 }
 
