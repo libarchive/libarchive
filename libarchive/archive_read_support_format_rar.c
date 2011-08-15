@@ -569,12 +569,11 @@ lzss_emit_match(struct rar *rar, int offset, int length)
     }
     d = &(rar->lzss.window[dstoffs]);
     s = &(rar->lzss.window[srcoffs]);
-    if (l >= 8 && ((dstoffs + l < srcoffs) || (srcoffs + l < dstoffs)))
+    if ((dstoffs + l < srcoffs) || (srcoffs + l < dstoffs))
       memcpy(d, s, l);
     else {
-      li = l;
-      while (li-- > 0)
-        *d++ = *s++;
+      for (li = 0; li < l; li++)
+        d[li] = s[li];
     }
     remaining -= l;
     dstoffs = (dstoffs + l) & lzss_mask(&(rar->lzss));
