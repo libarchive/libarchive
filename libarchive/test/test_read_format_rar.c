@@ -341,14 +341,14 @@ static void
 test_compress_normal(void)
 {
   const char reffile[] = "test_read_format_rar_compress_normal.rar";
-  const int file1_size = 20111;
-  char file1_buff[file1_size];
+  char file1_buff[20111];
+  int file1_size = sizeof(file1_buff);
   const char file1_test_txt[] = "<P STYLE=\"margin-bottom: 0in\"><BR>\n"
                                 "</P>\n"
                                 "</BODY>\n"
                                 "</HTML>";
-  const int file2_size = 20;
-  char file2_buff[file2_size];
+  char file2_buff[20];
+  int file2_size = sizeof(file2_buff);
   const char file2_test_txt[] = "test text document\r\n";
   struct archive_entry *ae;
   struct archive *a;
@@ -478,14 +478,14 @@ static void
 test_compress_best(void)
 {
   const char reffile[] = "test_read_format_rar_compress_best.rar";
-  const int file1_size = 20111;
-  char file1_buff[file1_size];
+  char file1_buff[20111];
+  int file1_size = sizeof(file1_buff);
   const char file1_test_txt[] = "<P STYLE=\"margin-bottom: 0in\"><BR>\n"
                                 "</P>\n"
                                 "</BODY>\n"
                                 "</HTML>";
-  const int file2_size = 20;
-  char file2_buff[file2_size];
+  char file2_buff[20];
+  int file2_size = sizeof(file2_buff);
   const char file2_test_txt[] = "test text document\r\n";
   struct archive_entry *ae;
   struct archive *a;
@@ -616,15 +616,15 @@ static void
 test_binary(void)
 {
   const char reffile[] = "test_read_format_rar_binary_data.rar";
-  const int file1_size = 1048576;
-  char file1_buff[file1_size];
+  char file1_buff[1048576];
+  int file1_size = sizeof(file1_buff);
   const char file1_test_txt[] = "\x37\xef\xb2\xbe\x33\xf6\xcc\xcb\xee\x2a\x10"
                                 "\x9d\x2e\x01\xe9\xf6\xf9\xe5\xe6\x67\x0c\x2b"
                                 "\xd8\x6b\xa0\x26\x9a\xf7\x93\x87\x42\xf1\x08"
                                 "\x42\xdc\x9b\x76\x91\x20\xa4\x01\xbe\x67\xbd"
                                 "\x08\x74\xde\xec";
-  const int file2_size = 32618;
-  char file2_buff[file2_size];
+  char file2_buff[32618];
+  int file2_size = sizeof(file2_buff);
   const char file2_test_txt[] = "\x00\xee\x78\x00\x00\x4d\x45\x54\x41\x2d\x49"
                                 "\x4e\x46\x2f\x6d\x61\x6e\x69\x66\x65\x73\x74"
                                 "\x2e\x78\x6d\x6c\x50\x4b\x05\x06\x00\x00\x00"
