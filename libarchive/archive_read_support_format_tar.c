@@ -1035,7 +1035,7 @@ read_body_to_string(struct archive_read *a, struct tar *tar,
 
 	tar_flush_unconsumed(a, unconsumed);
 
- 	/* Read the body into the string. */
+	/* Read the body into the string. */
 	*unconsumed = (size + 511) & ~ 511;
 	src = __archive_read_ahead(a, *unconsumed, NULL);
 	if (src == NULL) {
