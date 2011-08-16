@@ -99,7 +99,7 @@ struct mtree {
 
 	struct archive_entry_linkresolver *resolver;
 
-	int64_t			 cur_size, cur_offset;
+	int64_t			 cur_size;
 };
 
 static int	cleanup(struct archive_read *);
