@@ -243,7 +243,7 @@ format_int(char *t, int64_t i)
 	uint64_t ui;
 
 	if (i < 0) 
-		ui = (i == INT64_MIN) ? (uint64_t)(INT64_MAX) + 1 : -i;
+		ui = (i == INT64_MIN) ? (uint64_t)(INT64_MAX) + 1 : (uint64_t)(-i);
 	else
 		ui = i;
 
