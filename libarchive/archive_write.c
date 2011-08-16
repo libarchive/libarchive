@@ -29,7 +29,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write.c 201099 2009-12-28 03:03:
 /*
  * This file contains the "essential" portions of the write API, that
  * is, stuff that will essentially always be used by any client that
- * actually needs to write a archive.  Optional pieces have been, as
+ * actually needs to write an archive.  Optional pieces have been, as
  * far as possible, separated out into separate files to reduce
  * needlessly bloating statically-linked clients.
  */

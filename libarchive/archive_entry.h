@@ -543,7 +543,7 @@ __LA_DECL int	archive_entry_sparse_next(struct archive_entry *,
  *      be written.
  *   4. Call archive_entry_linkify(resolver, NULL) until
  *      no more entries are returned.
- *   5. Call archive_entry_link_resolver_free(resolver) to free resources.
+ *   5. Call archive_entry_linkresolver_free(resolver) to free resources.
  *
  * The entries returned have their hardlink and size fields updated
  * appropriately.  If an entry is passed in that does not refer to
@@ -593,7 +593,7 @@ struct archive_entry_linkresolver;
  *           linkify(l2) => l1
  *           linkify(NULL) => l2   (at end, you retrieve remaining links)
  *    As the name suggests, this strategy is used by newer cpio variants.
- *    It's noticably more complex for the archiver, slightly more complex
+ *    It's noticeably more complex for the archiver, slightly more complex
  *    for the dearchiver than the tar strategy, but makes it straightforward
  *    to restore a file using any link by simply continuing to scan until
  *    you see a link that is stored with a body.  In contrast, the tar

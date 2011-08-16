@@ -569,7 +569,7 @@ archive_read_format_iso9660_options(struct archive_read *a,
 
 	/* Note: The "warn" return is just to inform the options
 	 * supervisor that we didn't handle it.  It will generate
-	 * a suitable error if noone used this option. */
+	 * a suitable error if no one used this option. */
 	return (ARCHIVE_WARN);
 }
 
@@ -1889,7 +1889,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 
 		/* trim trailing first version and dot from filename.
 		 *
-		 * Remember we where in UTF-16BE land!
+		 * Remember we were in UTF-16BE land!
 		 * SEPARATOR 1 (.) and SEPARATOR 2 (;) are both
 		 * 16 bits big endian characters on Joliet.
 		 *

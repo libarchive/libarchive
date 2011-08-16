@@ -241,7 +241,7 @@ typedef int	archive_close_callback(struct archive *, void *_client_data);
  * will change the format code to indicate the extended format that
  * was used).  In other cases, it's because different tools have
  * modified the archive and so different parts of the archive
- * actually have slightly different formts.  (Both tar and cpio store
+ * actually have slightly different formats.  (Both tar and cpio store
  * format codes in each entry, so it is quite possible for each
  * entry to be in a different format.)
  */
@@ -522,7 +522,7 @@ __LA_DECL int		 archive_read_finish(struct archive *);
 
 /*-
  * To create an archive:
- *   1) Ask archive_write_new for a archive writer object.
+ *   1) Ask archive_write_new for an archive writer object.
  *   2) Set any global properties.  In particular, you should set
  *      the compression and format to use.
  *   3) Call archive_write_open to open the file (most people

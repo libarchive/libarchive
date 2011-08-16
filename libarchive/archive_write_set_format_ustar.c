@@ -371,7 +371,7 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 			 * The only feasible separator is a final '/';
 			 * this would result in a non-empty prefix and
 			 * an empty name, which POSIX doesn't
-			 * explicity forbid, but it just feels wrong.
+			 * explicitly forbid, but it just feels wrong.
 			 */
 			archive_set_error(&a->archive, ENAMETOOLONG,
 			    "Pathname too long");

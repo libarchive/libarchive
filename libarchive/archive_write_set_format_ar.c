@@ -201,7 +201,7 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 		ar->is_strtab = 1;
 		buff[AR_name_offset] = buff[AR_name_offset + 1] = '/';
 		/*
-		 * For archive string table, only ar_size filed should
+		 * For archive string table, only ar_size field should
 		 * be set.
 		 */
 		goto size;
@@ -515,7 +515,7 @@ format_decimal(int64_t v, char *p, int s)
 	len = s;
 	h = p;
 
-	/* Negative values in ar header are meaningless , so use 0. */
+	/* Negative values in ar header are meaningless, so use 0. */
 	if (v < 0) {
 		while (len-- > 0)
 			*p++ = '0';
