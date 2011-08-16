@@ -530,7 +530,13 @@ archive_names_from_file(struct bsdtar *bsdtar, struct archive *a)
 	lr = lafe_line_reader(bsdtar->names_from_file, bsdtar->option_null);
 	while ((line = lafe_line_reader_next(lr)) != NULL) {
 		if (bsdtar->next_line_is_dir) {
-			set_chdir(bsdtar, line);
+			if (*line != '\0')
+				set_chdir(bsdtar, line);
+			else {
+				lafe_warnc(0,
+				    "Meaningless argument for -C: ''");
+				bsdtar->return_value = 1;
+			}
 			bsdtar->next_line_is_dir = 0;
 		} else if (!bsdtar->option_null && strcmp(line, "-C") == 0)
 			bsdtar->next_line_is_dir = 1;
