@@ -125,4 +125,22 @@ DEFINE_TEST(test_option_C_upper)
 	assertEmptyFile("test.out");
 	assertEmptyFile("test.err");
 	assertChdir("..");
+
+	/*
+	 * Test 7: -C used without specifying directory
+	 */
+	assertMakeDir("test7", 0755);
+	assertChdir("test7");
+	r = systemf("%s -cf archive.tar ../d1/file1 -C 2>write.err", testprog);
+	assert(r != 0);
+	assertNonEmptyFile("write.err");
+
+	/*
+	 * Test 8: -C used with meaningless option ''
+	 */
+	assertMakeDir("test8", 0755);
+	assertChdir("test8");
+	r = systemf("%s -cf archive.tar ../d1/file1 -C '' 2>write.err", testprog);
+	assert(r != 0);
+	assertNonEmptyFile("write.err");
 }
