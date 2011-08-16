@@ -116,7 +116,7 @@ archive_read_extract2(struct archive *_a, struct archive_entry *entry,
 		r2 = ARCHIVE_WARN;
 	/* Use the first message. */
 	if (r2 != ARCHIVE_OK && r == ARCHIVE_OK)
- 		archive_copy_error(&a->archive, ad);
+		archive_copy_error(&a->archive, ad);
 	/* Use the worst error return. */
 	if (r2 < r)
 		r = r2;
@@ -145,6 +145,8 @@ copy_data(struct archive *ar, struct archive *aw)
 	int r;
 
 	extract = get_extract((struct archive_read *)ar);
+	if (extract == NULL)
+		return (ARCHIVE_FATAL);
 	for (;;) {
 		r = archive_read_data_block(ar, &buff, &size, &offset);
 		if (r == ARCHIVE_EOF)
