@@ -792,7 +792,7 @@ archive_write_pax_header(struct archive_write *a,
 		/* We have an all-ASCII path; we'd like to just store
 		 * it in the ustar header if it will fit.  Yes, this
 		 * duplicates some of the logic in
-		 * write_set_format_ustar.c
+		 * archive_write_set_format_ustar.c
 		 */
 		if (path_length <= 100) {
 			/* Fits in the old 100-char tar name field. */
