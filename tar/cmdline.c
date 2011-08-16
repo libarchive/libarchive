@@ -173,7 +173,7 @@ static const struct bsdtar_option {
  *
  * TODO: If we want to support arbitrary command-line options from -T
  * input (as GNU tar does), we may need to extend this to handle option
- * words from sources other than argv/arc.  I'm not really sure if I
+ * words from sources other than argv/argc.  I'm not really sure if I
  * like that feature of GNU tar, so it's certainly not a priority.
  */
 
