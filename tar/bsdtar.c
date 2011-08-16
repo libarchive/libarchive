@@ -266,6 +266,10 @@ main(int argc, char **argv)
 			bsdtar->bytes_in_last_block = bsdtar->bytes_per_block;
 			break;
 		case 'C': /* GNU tar */
+			if (strlen(bsdtar->argument) == 0)
+				lafe_errc(1, 0,
+				    "Meaningless option: -C ''");
+
 			set_chdir(bsdtar, bsdtar->argument);
 			break;
 		case 'c': /* SUSv2 */
