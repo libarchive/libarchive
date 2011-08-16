@@ -797,7 +797,7 @@ __la_hash_Update(Digest_CTX *ctx, const unsigned char *buf, size_t len)
 {
 
 	if (!ctx->valid)
-	return;
+		return;
 
 	CryptHashData(ctx->hash,
 		      (unsigned char *)(uintptr_t)buf,
