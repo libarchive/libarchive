@@ -78,18 +78,17 @@ static int	gzip_bidder_bid(struct archive_read_filter_bidder *,
 		    struct archive_read_filter *);
 static int	gzip_bidder_init(struct archive_read_filter *);
 
-#if ARCHIVE_VERSION_NUMBER >= 4000000
-#warning archive_read_support_compression_gzip
-#endif
-
+#if ARCHIVE_VERSION_NUMBER < 4000000
+/* Deprecated; remove in libarchive 4.0 */
 int
-archive_read_support_filter_gzip(struct archive *a)
+archive_read_support_compression_gzip(struct archive *a)
 {
 	return archive_read_support_compression_gzip(a);
 }
+#endif
 
 int
-archive_read_support_compression_gzip(struct archive *_a)
+archive_read_support_filter_gzip(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 	struct archive_read_filter_bidder *bidder;

@@ -55,29 +55,28 @@ __FBSDID("$FreeBSD$");
 #include "archive_private.h"
 #include "archive_read_private.h"
 
-#if ARCHIVE_VERSION_NUMBER >= 4000000
-#warning archive_read_support_compression_program
+
+#if ARCHIVE_VERSION_NUMBER < 4000000
+/* Deprecated; remove in libarchive 4.0 */
+int
+archive_read_support_compression_program(struct archive *a, const char *cmd)
+{
+	return archive_read_support_filter_program(a, cmd);
+}
+
+int
+archive_read_support_compression_program_signature(struct archive *a,
+    const char *cmd, const void *signature, size_t signature_len)
+{
+	return archive_read_support_filter_program_signature(a,
+	    cmd, signature, signature_len);
+}
 #endif
 
 int
 archive_read_support_filter_program(struct archive *a, const char *cmd)
 {
-	return archive_read_support_compression_program(a, cmd);
-}
-
-int
-archive_read_support_filter_program_signature(struct archive *a,
-    const char *cmd, const void *signature, size_t signature_len)
-{
-	return archive_read_support_compression_program_signature(a,
-	    cmd, signature, signature_len);
-}
-
-
-int
-archive_read_support_compression_program(struct archive *a, const char *cmd)
-{
-	return (archive_read_support_compression_program_signature(a, cmd, NULL, 0));
+	return (archive_read_support_filter_program_signature(a, cmd, NULL, 0));
 }
 
 
@@ -90,7 +89,7 @@ archive_read_support_compression_program(struct archive *a, const char *cmd)
  * this function is actually invoked.
  */
 int
-archive_read_support_compression_program_signature(struct archive *_a,
+archive_read_support_filter_program_signature(struct archive *_a,
     const char *cmd, const void *signature, size_t signature_len)
 {
 	(void)_a; /* UNUSED */
@@ -154,7 +153,7 @@ static ssize_t	program_filter_read(struct archive_read_filter *,
 static int	program_filter_close(struct archive_read_filter *);
 
 int
-archive_read_support_compression_program_signature(struct archive *_a,
+archive_read_support_filter_program_signature(struct archive *_a,
     const char *cmd, const void *signature, size_t signature_len)
 {
 	struct archive_read *a = (struct archive_read *)_a;
