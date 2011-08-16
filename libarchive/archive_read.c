@@ -483,7 +483,7 @@ choose_format(struct archive_read *a)
 	best_bid = -1;
 	best_bid_slot = -1;
 
-	/* Set up a->format and a->pformat_data for convenience of bidders. */
+	/* Set up a->format for convenience of bidders. */
 	a->format = &(a->formats[0]);
 	for (i = 0; i < slots; i++, a->format++) {
 		if (a->format->bid) {
