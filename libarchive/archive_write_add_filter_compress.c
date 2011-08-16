@@ -204,7 +204,7 @@ archive_compressor_compress_open(struct archive_write_filter *f)
  * Output the given code.
  * Inputs:
  * 	code:	A n_bits-bit integer.  If == -1, then EOF.  This assumes
- *		that n_bits =< (long)wordsize - 1.
+ *		that n_bits <= (long)wordsize - 1.
  * Outputs:
  * 	Outputs code to the file.
  * Assumptions:
