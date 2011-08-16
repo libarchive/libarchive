@@ -155,7 +155,8 @@ realloc_strncat(char **str, const char *append, size_t len)
 	new_str = malloc(old_len + len + 1);
 	if (new_str == NULL)
 		lafe_errc(1, errno, "Out of memory");
-	memcpy(new_str, *str, old_len);
+	if (*str != NULL)
+		memcpy(new_str, *str, old_len);
 	memcpy(new_str + old_len, append, len);
 	new_str[old_len + len] = '\0';
 	free(*str);
@@ -176,7 +177,8 @@ realloc_strcat(char **str, const char *append)
 	new_str = malloc(old_len + strlen(append) + 1);
 	if (new_str == NULL)
 		lafe_errc(1, errno, "Out of memory");
-	memcpy(new_str, *str, old_len);
+	if (*str != NULL)
+		memcpy(new_str, *str, old_len);
 	strcpy(new_str + old_len, append);
 	free(*str);
 	*str = new_str;
