@@ -462,7 +462,7 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 					goto cleanup;
 				}
 				if (*arg == '\0') {
-					bsdtar_warnc(bsdtar, 0,
+					lafe_warnc(0,
 					    "Meaningless argument for -C: ''");
 					bsdtar->return_value = 1;
 					goto cleanup;
