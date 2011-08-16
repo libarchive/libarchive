@@ -1106,7 +1106,7 @@ process_extra(const void* extra, struct zip* zip)
 	if (offset != zip->extra_length)
 	{
 		fprintf(stderr,
-		    "Extra data field contents do not match reported size!");
+		    "Extra data field contents do not match reported size!\n");
 	}
 #endif
 }
