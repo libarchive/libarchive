@@ -461,6 +461,12 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 					bsdtar->return_value = 1;
 					goto cleanup;
 				}
+				if (*arg == '\0') {
+					bsdtar_warnc(bsdtar, 0,
+					    "Meaningless argument for -C: ''");
+					bsdtar->return_value = 1;
+					goto cleanup;
+				}
 			}
 			set_chdir(bsdtar, arg);
 		} else {
