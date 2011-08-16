@@ -898,8 +898,10 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 		return (0);
 
 	/* Reserved field must be 0. */
+	/* But accept NetBSD/FreeBSD "makefs" images with 0x20 here. */
 	for (i = 0; i < PVD_reserved4_size; ++i)
-		if (h[PVD_reserved4_offset + i] != 0)
+		if (h[PVD_reserved4_offset + i] != 0
+		    && h[PVD_reserved4_offset + i] != 0x20)
 			return (0);
 
 	/* Reserved field must be 0. */
