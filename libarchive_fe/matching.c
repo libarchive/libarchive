@@ -140,7 +140,7 @@ add_pattern(struct match **list, const char *pattern)
 	strcpy(match->pattern, pattern);
 	/* Both "foo/" and "foo" should match "foo/bar". */
 	if (len && match->pattern[len - 1] == '/')
-		match->pattern[strlen(match->pattern)-1] = '\0';
+		match->pattern[len - 1] = '\0';
 	match->next = *list;
 	*list = match;
 	match->matches = 0;
