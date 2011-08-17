@@ -134,6 +134,7 @@ DEFINE_TEST(test_option_C_upper)
 	r = systemf("%s -cf archive.tar ../d1/file1 -C 2>write.err", testprog);
 	assert(r != 0);
 	assertNonEmptyFile("write.err");
+	assertChdir("..");
 
 	/*
 	 * Test 8: -C used with meaningless option ''
@@ -143,4 +144,5 @@ DEFINE_TEST(test_option_C_upper)
 	r = systemf("%s -cf archive.tar ../d1/file1 -C '' 2>write.err", testprog);
 	assert(r != 0);
 	assertNonEmptyFile("write.err");
+	assertChdir("..");
 }
