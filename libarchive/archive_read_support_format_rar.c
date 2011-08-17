@@ -321,8 +321,8 @@ static int create_code(struct archive_read *, struct huffman_code *,
 static int add_value(struct archive_read *, struct huffman_code *, int, int,
                      int);
 static int new_node(struct huffman_code *);
-static int make_table(struct huffman_code *);
-static int make_table_recurse(struct huffman_code *, int,
+static int make_table(struct archive_read *, struct huffman_code *);
+static int make_table_recurse(struct archive_read *, struct huffman_code *, int,
                               struct huffman_table_entry *, int, int);
 static int64_t expand(struct archive_read *, int64_t);
 static int copy_from_lzss_window(struct archive_read *, const void **,
@@ -1943,12 +1943,8 @@ read_next_symbol(struct archive_read *a, struct huffman_code *code)
 
   if (!code->table)
   {
-    if (make_table(code) != (ARCHIVE_OK))
-    {
-      archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                        "Error in generating table.");
+    if (make_table(a, code) != (ARCHIVE_OK))
       return -1;
-    }
   }
 
   rar = (struct rar *)(a->format->data);
@@ -2151,7 +2147,7 @@ new_node(struct huffman_code *code)
 }
 
 static int
-make_table(struct huffman_code *code)
+make_table(struct archive_read *a, struct huffman_code *code)
 {
   if (code->maxlength < code->minlength || code->maxlength > 10)
     code->tablesize = 10;
@@ -2162,20 +2158,30 @@ make_table(struct huffman_code *code)
     (struct huffman_table_entry *)malloc(sizeof(*code->table)
     * (1 << code->tablesize));
 
-  return make_table_recurse(code, 0, code->table, 0, code->tablesize);
+  return make_table_recurse(a, code, 0, code->table, 0, code->tablesize);
 }
 
 static int
-make_table_recurse(struct huffman_code *code, int node,
+make_table_recurse(struct archive_read *a, struct huffman_code *code, int node,
                    struct huffman_table_entry *table, int depth,
                    int maxdepth)
 {
   int currtablesize, i, ret = (ARCHIVE_OK);
 
-  currtablesize = 1 << (maxdepth - depth);
-
   if (!code->tree)
+  {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                      "Huffman tree was not created.");
     return (ARCHIVE_FATAL);
+  }
+  if (node < 0 || node >= code->numentries)
+  {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                      "Invalid location to Huffman tree specified.");
+    return (ARCHIVE_FATAL);
+  }
+
+  currtablesize = 1 << (maxdepth - depth);
 
   if (code->tree[node].branches[0] ==
     code->tree[node].branches[1])
@@ -2200,9 +2206,9 @@ make_table_recurse(struct huffman_code *code, int node,
     }
     else
     {
-      ret |= make_table_recurse(code, code->tree[node].branches[0], table,
+      ret |= make_table_recurse(a, code, code->tree[node].branches[0], table,
                                 depth + 1, maxdepth);
-      ret |= make_table_recurse(code, code->tree[node].branches[1],
+      ret |= make_table_recurse(a, code, code->tree[node].branches[1],
                          table + currtablesize / 2, depth + 1, maxdepth);
     }
   }
