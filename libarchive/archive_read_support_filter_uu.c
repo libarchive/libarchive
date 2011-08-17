@@ -71,7 +71,7 @@ static int	uudecode_filter_close(struct archive_read_filter *);
 int
 archive_read_support_compression_uu(struct archive *a)
 {
-	return archive_read_support_compression_uu(a);
+	return archive_read_support_filter_uu(a);
 }
 #endif
 

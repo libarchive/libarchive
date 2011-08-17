@@ -83,7 +83,7 @@ static int	gzip_bidder_init(struct archive_read_filter *);
 int
 archive_read_support_compression_gzip(struct archive *a)
 {
-	return archive_read_support_compression_gzip(a);
+	return archive_read_support_filter_gzip(a);
 }
 #endif
 

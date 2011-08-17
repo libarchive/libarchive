@@ -119,7 +119,7 @@ static int	lzip_bidder_init(struct archive_read_filter *);
 int
 archive_read_support_compression_xz(struct archive *a)
 {
-	return archive_read_support_compression_xz(a);
+	return archive_read_support_filter_xz(a);
 }
 #endif
 
@@ -149,18 +149,16 @@ archive_read_support_filter_xz(struct archive *_a)
 #endif
 }
 
-#if ARCHIVE_VERSION_NUMBER >= 4000000
-#warning archive_read_support_compression_lzma
+#if ARCHIVE_VERSION_NUMBER < 4000000
+int
+archive_read_support_compression_lzma(struct archive *a)
+{
+	return archive_read_support_filter_lzma(a);
+}
 #endif
 
 int
-archive_read_support_filter_lzma(struct archive *a)
-{
-	return archive_read_support_compression_lzma(a);
-}
-
-int
-archive_read_support_compression_lzma(struct archive *_a)
+archive_read_support_filter_lzma(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 	struct archive_read_filter_bidder *bidder;
@@ -187,18 +185,17 @@ archive_read_support_compression_lzma(struct archive *_a)
 #endif
 }
 
-#if ARCHIVE_VERSION_NUMBER >= 4000000
-#warning archive_read_support_compression_lzip
+
+#if ARCHIVE_VERSION_NUMBER < 4000000
+int
+archive_read_support_compression_lzip(struct archive *a)
+{
+	return archive_read_support_filter_lzip(a);
+}
 #endif
 
 int
-archive_read_support_filter_lzip(struct archive *a)
-{
-	return archive_read_support_compression_lzip(a);
-}
-
-int
-archive_read_support_compression_lzip(struct archive *_a)
+archive_read_support_filter_lzip(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 	struct archive_read_filter_bidder *bidder;

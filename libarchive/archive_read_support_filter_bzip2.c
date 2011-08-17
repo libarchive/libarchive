@@ -77,7 +77,7 @@ static int	bzip2_reader_free(struct archive_read_filter_bidder *);
 int
 archive_read_support_compression_bzip2(struct archive *a)
 {
-	return archive_read_support_compression_bzip2(a);
+	return archive_read_support_filter_bzip2(a);
 }
 #endif
 

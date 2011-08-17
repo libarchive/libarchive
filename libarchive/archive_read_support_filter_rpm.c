@@ -68,7 +68,7 @@ static int	rpm_filter_close(struct archive_read_filter *);
 int
 archive_read_support_compression_rpm(struct archive *a)
 {
-	return archive_read_support_compression_rpm(a);
+	return archive_read_support_filter_rpm(a);
 }
 #endif
 

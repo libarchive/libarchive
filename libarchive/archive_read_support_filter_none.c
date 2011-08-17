@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 int
 archive_read_support_compression_none(struct archive *a)
 {
-	return archive_read_support_compression_none(a);
+	return archive_read_support_filter_none(a);
 }
 #endif
 
