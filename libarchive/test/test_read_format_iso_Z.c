@@ -82,7 +82,7 @@ static void test2()
 	assertEqualString("C/D", archive_entry_pathname(ae));
 	assertEqualIntA(a, ARCHIVE_EOF,
 	    archive_read_next_header(a, &ae));
-	assertEqualInt(4, archive_file_count(a));
+	assertEqualInt(5, archive_file_count(a));
 	assertEqualInt(archive_compression(a),
 	    ARCHIVE_COMPRESSION_COMPRESS);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_ISO9660);
