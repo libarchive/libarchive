@@ -112,7 +112,7 @@ DEFINE_TEST(test_read_format_iso_xorriso)
 			assertEqualInt(86401, archive_entry_mtime(ae));
 			assertEqualInt(86401, archive_entry_atime(ae));
 			assertEqualInt(2, archive_entry_nlink(ae));
-		} else if (strcmp("./hardlink",
+		} else if (strcmp("./file",
 		    archive_entry_pathname(ae)) == 0) {
 			/* A regular file. */
 			assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
@@ -124,7 +124,7 @@ DEFINE_TEST(test_read_format_iso_xorriso)
 			assertEqualInt(86401, archive_entry_mtime(ae));
 			assertEqualInt(86401, archive_entry_atime(ae));
 			assertEqualInt(2, archive_entry_nlink(ae));
-		} else if (strcmp("./file",
+		} else if (strcmp("./hardlink",
 		    archive_entry_pathname(ae)) == 0) {
 			/* A hardlink to the regular file. */
 			/* Note: If "hardlink" gets returned before "file",
@@ -133,7 +133,7 @@ DEFINE_TEST(test_read_format_iso_xorriso)
 			 * This test should tolerate that, since it's a
 			 * perfectly permissible thing for libarchive to do. */
 			assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
-			assertEqualString("./hardlink", archive_entry_hardlink(ae));
+			assertEqualString("./file", archive_entry_hardlink(ae));
 			assertEqualInt(0, archive_entry_size_is_set(ae));
 			assertEqualInt(0, archive_entry_size(ae));
 			assertEqualInt(86401, archive_entry_mtime(ae));
