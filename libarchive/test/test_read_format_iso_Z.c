@@ -25,7 +25,8 @@
 #include "test.h"
 __FBSDID("$FreeBSD: head/lib/libarchive/test/test_read_format_iso_gz.c 201247 2009-12-30 05:59:21Z kientzle $");
 
-static void test1()
+static void
+test1(void)
 {
 	struct archive_entry *ae;
 	struct archive *a;
@@ -50,7 +51,8 @@ static void test1()
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void test2()
+static void
+test2(void)
 {
 	struct archive_entry *ae;
 	struct archive *a;
