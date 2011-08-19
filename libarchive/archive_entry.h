@@ -519,7 +519,7 @@ __LA_DECL int	archive_entry_xattr_next(struct archive_entry *,
 
 __LA_DECL void	 archive_entry_sparse_clear(struct archive_entry *);
 __LA_DECL void	 archive_entry_sparse_add_entry(struct archive_entry *,
-	    int64_t /* offset */, int64_t /* length */);
+	    __LA_INT64_T /* offset */, __LA_INT64_T /* length */);
 
 /*
  * To retrieve the xattr list, first "reset", then repeatedly ask for the
@@ -529,7 +529,7 @@ __LA_DECL void	 archive_entry_sparse_add_entry(struct archive_entry *,
 __LA_DECL int	archive_entry_sparse_count(struct archive_entry *);
 __LA_DECL int	archive_entry_sparse_reset(struct archive_entry *);
 __LA_DECL int	archive_entry_sparse_next(struct archive_entry *,
-	    int64_t * /* offset */, int64_t * /* length */);
+	    __LA_INT64_T * /* offset */, __LA_INT64_T * /* length */);
 
 /*
  * Utility to match up hardlinks.
