@@ -215,7 +215,9 @@ apply_substitution(struct bsdtar *bsdtar, const char *name, char **result, int s
 		for (i = 0, j = 0; rule->result[i] != '\0'; ++i) {
 			if (rule->result[i] == '~') {
 				realloc_strncat(result, rule->result + j, i - j);
-				realloc_strncat(result, name, matches[0].rm_eo);
+				realloc_strncat(result,
+				    name + matches[0].rm_so,
+				    matches[0].rm_eo - matches[0].rm_so);
 				j = i + 1;
 				continue;
 			}
