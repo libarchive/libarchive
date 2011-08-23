@@ -366,6 +366,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_gtar_sparse_1_17_posix10.tar.uu \
 	libarchive/test/test_read_format_gtar_sparse_1_17_posix10_modified.tar.uu \
 	libarchive/test/test_read_format_iso.iso.Z.uu			\
+	libarchive/test/test_read_format_iso_2.iso.Z.uu			\
 	libarchive/test/test_read_format_iso_joliet.iso.Z.uu		\
 	libarchive/test/test_read_format_iso_joliet_long.iso.Z.uu	\
 	libarchive/test/test_read_format_iso_joliet_rockridge.iso.Z.uu	\
