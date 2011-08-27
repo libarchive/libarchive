@@ -35,11 +35,10 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_mtree.c 201171 
 #include <string.h>
 
 #include "archive.h"
+#include "archive_crypto_private.h"
 #include "archive_entry.h"
 #include "archive_private.h"
 #include "archive_write_private.h"
-
-#include "archive_hash.h"
 
 #define INDENTNAMELEN	15
 #define MAXLINELEN	80

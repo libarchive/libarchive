@@ -48,7 +48,7 @@
 
 #include "archive_platform.h"
 #include "archive_private.h"
-#include "archive_hash.h"
+#include "archive_crypto_private.h"
 #include <ctype.h>
 #include <errno.h>
 #include <stddef.h>

@@ -89,6 +89,8 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_acl_private.h			\
 	libarchive/archive_check_magic.c			\
 	libarchive/archive_crc32.h				\
+	libarchive/archive_crypto.c				\
+	libarchive/archive_crypto_private.h			\
 	libarchive/archive_endian.h				\
 	libarchive/archive_entry.c				\
 	libarchive/archive_entry.h				\
@@ -100,7 +102,6 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_entry_stat.c				\
 	libarchive/archive_entry_strmode.c			\
 	libarchive/archive_entry_xattr.c			\
-	libarchive/archive_hash.h				\
 	libarchive/archive_options.c				\
 	libarchive/archive_options_private.h			\
 	libarchive/archive_platform.h				\
@@ -250,6 +251,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_acl_posix1e.c			\
 	libarchive/test/test_archive_api_feature.c		\
 	libarchive/test/test_archive_clear_error.c		\
+	libarchive/test/test_archive_crypto.c			\
 	libarchive/test/test_archive_read_close_twice.c		\
 	libarchive/test/test_archive_read_close_twice_open_fd.c	\
 	libarchive/test/test_archive_read_close_twice_open_filename.c	\

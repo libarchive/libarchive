@@ -15,6 +15,8 @@ SET(include_HEADERS
 SET(libarchive_SOURCES
   archive_acl.c
   archive_check_magic.c
+  archive_crypto.c
+  archive_crypto_private.h
   archive_endian.h
   archive_entry.c
   archive_entry.h
@@ -26,7 +28,6 @@ SET(libarchive_SOURCES
   archive_entry_stat.c
   archive_entry_strmode.c
   archive_entry_xattr.c
-  archive_hash.h
   archive_options.c
   archive_options_private.h
   archive_platform.h

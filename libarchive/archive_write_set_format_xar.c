@@ -57,10 +57,10 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include "archive.h"
+#include "archive_crypto_private.h"
 #include "archive_endian.h"
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
-#include "archive_hash.h"
 #include "archive_private.h"
 #include "archive_rb.h"
 #include "archive_string.h"

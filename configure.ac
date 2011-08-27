@@ -290,69 +290,6 @@ if test "x$ac_cv_header_libxml_xmlreader_h" != "xyes"; then
   fi
 fi
 
-AC_DEFUN([MD_CHECK], [
-  if test "$found_$1" != yes; then
-    saved_LIBS="$LIBS"
-    saved_CPPFLAGS="$CPPFLAGS"
-    CPPFLAGS="$CPPFLAGS -I$srcdir/libarchive"
-    LIBS="$LIBS $4"
-    AC_MSG_CHECKING([support for ARCHIVE_HASH_$1_$2])
-    AC_LINK_IFELSE([AC_LANG_SOURCE([
-#define $1_COMPILE_TEST
-#define ARCHIVE_HASH_$1_$2
-#define __LIBARCHIVE_BUILD
-#include "archive_hash.h"
-
-int
-main(int argc, char **argv)
-{
-	archive_$3_ctx ctx;
-
-	archive_$3_init(&ctx);
-	archive_$3_update(&ctx, *argv, argc);
-	archive_$3_final(&ctx, *argv);
-	return 0;
-}
-])],
-    [ AC_MSG_RESULT([yes])
-      found_$1=yes
-      mdLIBS="$mdLIBS $4"
-      AC_DEFINE(ARCHIVE_HASH_$1_$2, 1, [ $1 via ARCHIVE_HASH_$1_$2 supported.])
-    ],
-    [ AC_MSG_RESULT([no])])
-    LIBS="$saved_LIBS"
-    CPPFLAGS="$saved_CPPFLAGS"
-  fi
-])
-
-MD_CHECK(MD5, LIBC, md5)
-MD_CHECK(MD5, LIBSYSTEM, md5)
-MD_CHECK(RMD160, LIBC, rmd160)
-MD_CHECK(SHA1, LIBC, sha1)
-MD_CHECK(SHA1, LIBSYSTEM, sha1)
-MD_CHECK(SHA256, LIBC, sha256)
-MD_CHECK(SHA256, LIBC2, sha256)
-MD_CHECK(SHA256, LIBC3, sha256)
-MD_CHECK(SHA256, LIBSYSTEM, sha256)
-MD_CHECK(SHA384, LIBC, sha384)
-MD_CHECK(SHA384, LIBC2, sha384)
-MD_CHECK(SHA384, LIBC3, sha384)
-MD_CHECK(SHA384, LIBSYSTEM, sha384)
-MD_CHECK(SHA512, LIBC, sha512)
-MD_CHECK(SHA512, LIBC2, sha512)
-MD_CHECK(SHA512, LIBC3, sha512)
-MD_CHECK(SHA512, LIBSYSTEM, sha512)
-
-if test "x$with_openssl" != "xno"; then
-    MD_CHECK(MD5, OPENSSL, md5, -lcrypto)
-    MD_CHECK(RMD160, OPENSSL, rmd160, -lcrypto)
-    MD_CHECK(SHA1, OPENSSL, sha1, -lcrypto)
-    MD_CHECK(SHA256, OPENSSL, sha256, -lcrypto)
-    MD_CHECK(SHA384, OPENSSL, sha384, -lcrypto)
-    MD_CHECK(SHA512, OPENSSL, sha512, -lcrypto)
-fi
-LIBS="$LIBS $mdLIBS"
-
 # TODO: Give the user the option of using a pre-existing system
 # libarchive.  This will define HAVE_LIBARCHIVE which will cause
 # bsdtar_platform.h to use #include <...> for the libarchive headers.
@@ -572,5 +509,71 @@ fi
 
 # Additional requirements
 AC_SYS_LARGEFILE
+
+dnl NOTE: Crypto checks must run last.
+AC_DEFUN([CRYPTO_CHECK], [
+  if test "$found_$1" != yes; then
+    saved_LIBS="$LIBS"
+    saved_CPPFLAGS="$CPPFLAGS"
+    CPPFLAGS="$CPPFLAGS -I$srcdir -I$srcdir/libarchive"
+    LIBS="$LIBS $4"
+    touch "check_crypto_md.h"
+    AC_MSG_CHECKING([support for ARCHIVE_CRYPTO_$1_$2])
+    AC_LINK_IFELSE([AC_LANG_SOURCE([
+#define ARCHIVE_$1_COMPILE_TEST
+#define ARCHIVE_CRYPTO_$1_$2
+#define PLATFORM_CONFIG_H "check_crypto_md.h"
+
+$(cat "$srcdir/libarchive/archive_crypto.c")
+
+int
+main(int argc, char **argv)
+{
+  archive_$3_ctx ctx;
+  archive_$3_init(&ctx);
+  archive_$3_update(&ctx, *argv, argc);
+  archive_$3_final(&ctx, NULL);
+  return 0;
+}
+])],
+    [ AC_MSG_RESULT([yes])
+      found_$1=yes
+      mdLIBS="$mdLIBS $4"
+      AC_DEFINE(ARCHIVE_CRYPTO_$1_$2, 1, [ $1 via ARCHIVE_CRYPTO_$1_$2 supported.])
+    ],
+    [ AC_MSG_RESULT([no])])
+    LIBS="$saved_LIBS"
+    CPPFLAGS="$saved_CPPFLAGS"
+    rm "check_crypto_md.h"
+  fi
+])
+
+CRYPTO_CHECK(MD5, LIBC, md5)
+CRYPTO_CHECK(MD5, LIBSYSTEM, md5)
+CRYPTO_CHECK(RMD160, LIBC, rmd160)
+CRYPTO_CHECK(SHA1, LIBC, sha1)
+CRYPTO_CHECK(SHA1, LIBSYSTEM, sha1)
+CRYPTO_CHECK(SHA256, LIBC, sha256)
+CRYPTO_CHECK(SHA256, LIBC2, sha256)
+CRYPTO_CHECK(SHA256, LIBC3, sha256)
+CRYPTO_CHECK(SHA256, LIBSYSTEM, sha256)
+CRYPTO_CHECK(SHA384, LIBC, sha384)
+CRYPTO_CHECK(SHA384, LIBC2, sha384)
+CRYPTO_CHECK(SHA384, LIBC3, sha384)
+CRYPTO_CHECK(SHA384, LIBSYSTEM, sha384)
+CRYPTO_CHECK(SHA512, LIBC, sha512)
+CRYPTO_CHECK(SHA512, LIBC2, sha512)
+CRYPTO_CHECK(SHA512, LIBC3, sha512)
+CRYPTO_CHECK(SHA512, LIBSYSTEM, sha512)
+
+if test "x$with_openssl" != "xno"; then
+    CRYPTO_CHECK(MD5, OPENSSL, md5, -lcrypto)
+    CRYPTO_CHECK(RMD160, OPENSSL, rmd160, -lcrypto)
+    CRYPTO_CHECK(SHA1, OPENSSL, sha1, -lcrypto)
+    CRYPTO_CHECK(SHA256, OPENSSL, sha256, -lcrypto)
+    CRYPTO_CHECK(SHA384, OPENSSL, sha384, -lcrypto)
+    CRYPTO_CHECK(SHA512, OPENSSL, sha512, -lcrypto)
+fi
+LIBS="$LIBS $mdLIBS"
 
 AC_OUTPUT
