@@ -90,7 +90,7 @@ void test2(void)
 	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 }
 
-DEFINE_TEST(test_read_format_iso_gz)
+DEFINE_TEST(test_read_format_iso_Z)
 {
 	test1();
 	test2();

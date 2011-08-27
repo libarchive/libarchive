@@ -61,7 +61,7 @@ IF(ENABLE_TEST)
     test_read_format_gtar_gz.c
     test_read_format_gtar_lzma.c
     test_read_format_gtar_sparse.c
-    test_read_format_iso_gz.c
+    test_read_format_iso_Z.c
     test_read_format_iso_multi_extent.c
     test_read_format_isojoliet_bz2.c
     test_read_format_isojoliet_long.c

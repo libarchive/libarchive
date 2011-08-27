@@ -269,7 +269,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_format_gtar_gz.c		\
 	libarchive/test/test_read_format_gtar_lzma.c		\
 	libarchive/test/test_read_format_gtar_sparse.c		\
-	libarchive/test/test_read_format_iso_gz.c		\
+	libarchive/test/test_read_format_iso_Z.c		\
 	libarchive/test/test_read_format_iso_multi_extent.c	\
 	libarchive/test/test_read_format_isojoliet_bz2.c	\
 	libarchive/test/test_read_format_isojoliet_long.c	\
