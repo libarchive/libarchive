@@ -78,6 +78,30 @@ __archive_libsystem_md5final(archive_md5_ctx *ctx, void *md)
   return (ARCHIVE_OK);
 }
 
+#elif defined(ARCHIVE_CRYPTO_MD5_NETTLE)
+
+static int
+__archive_nettle_md5init(archive_md5_ctx *ctx)
+{
+  md5_init(ctx);
+  return (ARCHIVE_OK);
+}
+
+static int
+__archive_nettle_md5update(archive_md5_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  md5_update(ctx, insize, indata);
+  return (ARCHIVE_OK);
+}
+
+static int
+__archive_nettle_md5final(archive_md5_ctx *ctx, void *md)
+{
+  md5_digest(ctx, MD5_DIGEST_SIZE, md);
+  return (ARCHIVE_OK);
+}
+
 #elif defined(ARCHIVE_CRYPTO_MD5_OPENSSL)
 
 static int
@@ -158,6 +182,30 @@ __archive_libc_ripemd160final(archive_rmd160_ctx *ctx, void *md)
   return (ARCHIVE_OK);
 }
 
+#elif defined(ARCHIVE_CRYPTO_RMD160_NETTLE)
+
+static int
+__archive_nettle_ripemd160init(archive_rmd160_ctx *ctx)
+{
+  rmd160_init(ctx);
+  return (ARCHIVE_OK);
+}
+
+static int
+__archive_nettle_ripemd160update(archive_rmd160_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  rmd160_update(ctx, insize, indata);
+  return (ARCHIVE_OK);
+}
+
+static int
+__archive_nettle_ripemd160final(archive_rmd160_ctx *ctx, void *md)
+{
+  rmd160_digest(ctx, RMD160_DIGEST_SIZE, md);
+  return (ARCHIVE_OK);
+}
+
 #elif defined(ARCHIVE_CRYPTO_RMD160_OPENSSL)
 
 static int
@@ -230,6 +278,30 @@ static int
 __archive_libsystem_sha1final(archive_sha1_ctx *ctx, void *md)
 {
   CC_SHA1_Final(md, ctx);
+  return (ARCHIVE_OK);
+}
+
+#elif defined(ARCHIVE_CRYPTO_SHA1_NETTLE)
+
+static int
+__archive_nettle_sha1init(archive_sha1_ctx *ctx)
+{
+  sha1_init(ctx);
+  return (ARCHIVE_OK);
+}
+
+static int
+__archive_nettle_sha1update(archive_sha1_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  sha1_update(ctx, insize, indata);
+  return (ARCHIVE_OK);
+}
+
+static int
+__archive_nettle_sha1final(archive_sha1_ctx *ctx, void *md)
+{
+  sha1_digest(ctx, SHA1_DIGEST_SIZE, md);
   return (ARCHIVE_OK);
 }
 
@@ -385,6 +457,30 @@ __archive_libsystem_sha256final(archive_sha256_ctx *ctx, void *md)
   return (ARCHIVE_OK);
 }
 
+#elif defined(ARCHIVE_CRYPTO_SHA256_NETTLE)
+
+static int
+__archive_nettle_sha256init(archive_sha256_ctx *ctx)
+{
+  sha256_init(ctx);
+  return (ARCHIVE_OK);
+}
+
+static int
+__archive_nettle_sha256update(archive_sha256_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  sha256_update(ctx, insize, indata);
+  return (ARCHIVE_OK);
+}
+
+static int
+__archive_nettle_sha256final(archive_sha256_ctx *ctx, void *md)
+{
+  sha256_digest(ctx, SHA256_DIGEST_SIZE, md);
+  return (ARCHIVE_OK);
+}
+
 #elif defined(ARCHIVE_CRYPTO_SHA256_OPENSSL)
 
 static int
@@ -529,6 +625,30 @@ static int
 __archive_libsystem_sha384final(archive_sha384_ctx *ctx, void *md)
 {
   CC_SHA384_Final(md, ctx);
+  return (ARCHIVE_OK);
+}
+
+#elif defined(ARCHIVE_CRYPTO_SHA384_NETTLE)
+
+static int
+__archive_nettle_sha384init(archive_sha384_ctx *ctx)
+{
+  sha384_init(ctx);
+  return (ARCHIVE_OK);
+}
+
+static int
+__archive_nettle_sha384update(archive_sha384_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  sha384_update(ctx, insize, indata);
+  return (ARCHIVE_OK);
+}
+
+static int
+__archive_nettle_sha384final(archive_sha384_ctx *ctx, void *md)
+{
+  sha384_digest(ctx, SHA384_DIGEST_SIZE, md);
   return (ARCHIVE_OK);
 }
 
@@ -679,6 +799,30 @@ __archive_libsystem_sha512final(archive_sha512_ctx *ctx, void *md)
   return (ARCHIVE_OK);
 }
 
+#elif defined(ARCHIVE_CRYPTO_SHA512_NETTLE)
+
+static int
+__archive_nettle_sha512init(archive_sha512_ctx *ctx)
+{
+  sha512_init(ctx);
+  return (ARCHIVE_OK);
+}
+
+static int
+__archive_nettle_sha512update(archive_sha512_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  sha512_update(ctx, insize, indata);
+  return (ARCHIVE_OK);
+}
+
+static int
+__archive_nettle_sha512final(archive_sha512_ctx *ctx, void *md)
+{
+  sha512_digest(ctx, SHA512_DIGEST_SIZE, md);
+  return (ARCHIVE_OK);
+}
+
 #elif defined(ARCHIVE_CRYPTO_SHA512_OPENSSL)
 
 static int
@@ -749,6 +893,10 @@ const struct archive_crypto __archive_crypto =
   &__archive_libsystem_md5init,
   &__archive_libsystem_md5update,
   &__archive_libsystem_md5final,
+#elif defined(ARCHIVE_CRYPTO_MD5_NETTLE)
+  &__archive_nettle_md5init,
+  &__archive_nettle_md5update,
+  &__archive_nettle_md5final,
 #elif defined(ARCHIVE_CRYPTO_MD5_OPENSSL)
   &__archive_openssl_md5init,
   &__archive_openssl_md5update,
@@ -768,6 +916,10 @@ const struct archive_crypto __archive_crypto =
   &__archive_libc_ripemd160init,
   &__archive_libc_ripemd160update,
   &__archive_libc_ripemd160final,
+#elif defined(ARCHIVE_CRYPTO_RMD160_NETTLE)
+  &__archive_nettle_ripemd160init,
+  &__archive_nettle_ripemd160update,
+  &__archive_nettle_ripemd160final,
 #elif defined(ARCHIVE_CRYPTO_RMD160_OPENSSL)
   &__archive_openssl_ripemd160init,
   &__archive_openssl_ripemd160update,
@@ -787,6 +939,10 @@ const struct archive_crypto __archive_crypto =
   &__archive_libsystem_sha1init,
   &__archive_libsystem_sha1update,
   &__archive_libsystem_sha1final,
+#elif defined(ARCHIVE_CRYPTO_SHA1_NETTLE)
+  &__archive_nettle_sha1init,
+  &__archive_nettle_sha1update,
+  &__archive_nettle_sha1final,
 #elif defined(ARCHIVE_CRYPTO_SHA1_OPENSSL)
   &__archive_openssl_sha1init,
   &__archive_openssl_sha1update,
@@ -818,6 +974,10 @@ const struct archive_crypto __archive_crypto =
   &__archive_libsystem_sha256init,
   &__archive_libsystem_sha256update,
   &__archive_libsystem_sha256final,
+#elif defined(ARCHIVE_CRYPTO_SHA256_NETTLE)
+  &__archive_nettle_sha256init,
+  &__archive_nettle_sha256update,
+  &__archive_nettle_sha256final,
 #elif defined(ARCHIVE_CRYPTO_SHA256_OPENSSL)
   &__archive_openssl_sha256init,
   &__archive_openssl_sha256update,
@@ -849,6 +1009,10 @@ const struct archive_crypto __archive_crypto =
   &__archive_libsystem_sha384init,
   &__archive_libsystem_sha384update,
   &__archive_libsystem_sha384final,
+#elif defined(ARCHIVE_CRYPTO_SHA384_NETTLE)
+  &__archive_nettle_sha384init,
+  &__archive_nettle_sha384update,
+  &__archive_nettle_sha384final,
 #elif defined(ARCHIVE_CRYPTO_SHA384_OPENSSL)
   &__archive_openssl_sha384init,
   &__archive_openssl_sha384update,
@@ -880,6 +1044,10 @@ const struct archive_crypto __archive_crypto =
   &__archive_libsystem_sha512init,
   &__archive_libsystem_sha512update,
   &__archive_libsystem_sha512final
+#elif defined(ARCHIVE_CRYPTO_SHA512_NETTLE)
+  &__archive_nettle_sha512init,
+  &__archive_nettle_sha512update,
+  &__archive_nettle_sha512final,
 #elif defined(ARCHIVE_CRYPTO_SHA512_OPENSSL)
   &__archive_openssl_sha512init,
   &__archive_openssl_sha512update,

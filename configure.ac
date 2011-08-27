@@ -266,6 +266,8 @@ if test "x$with_lzma" != "xno"; then
   AC_CHECK_LIB(lzma,lzma_stream_decoder)
 fi
 
+AC_ARG_WITH([nettle],
+  AS_HELP_STRING([--without-nettle], [Don't build with crypto support from Nettle]))
 AC_ARG_WITH([openssl],
   AS_HELP_STRING([--without-openssl], [Don't build support for mtree and xar hashes through openssl]))
 
@@ -566,6 +568,14 @@ CRYPTO_CHECK(SHA512, LIBC2, sha512)
 CRYPTO_CHECK(SHA512, LIBC3, sha512)
 CRYPTO_CHECK(SHA512, LIBSYSTEM, sha512)
 
+if test "x$with_nettle" != "xno"; then
+    CRYPTO_CHECK(MD5, NETTLE, md5, -lnettle)
+    CRYPTO_CHECK(RMD160, NETTLE, rmd160, -lnettle)
+    CRYPTO_CHECK(SHA1, NETTLE, sha1, -lnettle)
+    CRYPTO_CHECK(SHA256, NETTLE, sha256, -lnettle)
+    CRYPTO_CHECK(SHA384, NETTLE, sha384, -lnettle)
+    CRYPTO_CHECK(SHA512, NETTLE, sha512, -lnettle)
+fi
 if test "x$with_openssl" != "xno"; then
     CRYPTO_CHECK(MD5, OPENSSL, md5, -lcrypto)
     CRYPTO_CHECK(RMD160, OPENSSL, rmd160, -lcrypto)

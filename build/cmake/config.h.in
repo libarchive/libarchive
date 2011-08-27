@@ -184,6 +184,9 @@ typedef uint64_t uintmax_t;
 /* MD5 via ARCHIVE_CRYPTO_MD5_LIBSYSTEM supported. */
 #cmakedefine ARCHIVE_CRYPTO_MD5_LIBSYSTEM 1
 
+/* MD5 via ARCHIVE_CRYPTO_MD5_NETTLE supported. */
+#cmakedefine ARCHIVE_CRYPTO_MD5_NETTLE 1
+
 /* MD5 via ARCHIVE_CRYPTO_MD5_OPENSSL supported. */
 #cmakedefine ARCHIVE_CRYPTO_MD5_OPENSSL 1
 
@@ -193,6 +196,9 @@ typedef uint64_t uintmax_t;
 /* RMD160 via ARCHIVE_CRYPTO_RMD160_LIBC supported. */
 #cmakedefine ARCHIVE_CRYPTO_RMD160_LIBC 1
 
+/* RMD160 via ARCHIVE_CRYPTO_RMD160_NETTLE supported. */
+#cmakedefine ARCHIVE_CRYPTO_RMD160_NETTLE 1
+
 /* RMD160 via ARCHIVE_CRYPTO_RMD160_OPENSSL supported. */
 #cmakedefine ARCHIVE_CRYPTO_RMD160_OPENSSL 1
 
@@ -201,6 +207,9 @@ typedef uint64_t uintmax_t;
 
 /* SHA1 via ARCHIVE_CRYPTO_SHA1_LIBSYSTEM supported. */
 #cmakedefine ARCHIVE_CRYPTO_SHA1_LIBSYSTEM 1
+
+/* SHA1 via ARCHIVE_CRYPTO_SHA1_NETTLE supported. */
+#cmakedefine ARCHIVE_CRYPTO_SHA1_NETTLE 1
 
 /* SHA1 via ARCHIVE_CRYPTO_SHA1_OPENSSL supported. */
 #cmakedefine ARCHIVE_CRYPTO_SHA1_OPENSSL 1
@@ -220,6 +229,9 @@ typedef uint64_t uintmax_t;
 /* SHA256 via ARCHIVE_CRYPTO_SHA256_LIBSYSTEM supported. */
 #cmakedefine ARCHIVE_CRYPTO_SHA256_LIBSYSTEM 1
 
+/* SHA256 via ARCHIVE_CRYPTO_SHA256_NETTLE supported. */
+#cmakedefine ARCHIVE_CRYPTO_SHA256_NETTLE 1
+
 /* SHA256 via ARCHIVE_CRYPTO_SHA256_OPENSSL supported. */
 #cmakedefine ARCHIVE_CRYPTO_SHA256_OPENSSL 1
 
@@ -238,6 +250,9 @@ typedef uint64_t uintmax_t;
 /* SHA384 via ARCHIVE_CRYPTO_SHA384_LIBSYSTEM supported. */
 #cmakedefine ARCHIVE_CRYPTO_SHA384_LIBSYSTEM 1
 
+/* SHA384 via ARCHIVE_CRYPTO_SHA384_NETTLE supported. */
+#cmakedefine ARCHIVE_CRYPTO_SHA384_NETTLE 1
+
 /* SHA384 via ARCHIVE_CRYPTO_SHA384_OPENSSL supported. */
 #cmakedefine ARCHIVE_CRYPTO_SHA384_OPENSSL 1
 
@@ -255,6 +270,9 @@ typedef uint64_t uintmax_t;
 
 /* SHA512 via ARCHIVE_CRYPTO_SHA512_LIBSYSTEM supported. */
 #cmakedefine ARCHIVE_CRYPTO_SHA512_LIBSYSTEM 1
+
+/* SHA512 via ARCHIVE_CRYPTO_SHA512_NETTLE supported. */
+#cmakedefine ARCHIVE_CRYPTO_SHA512_NETTLE 1
 
 /* SHA512 via ARCHIVE_CRYPTO_SHA512_OPENSSL supported. */
 #cmakedefine ARCHIVE_CRYPTO_SHA512_OPENSSL 1
