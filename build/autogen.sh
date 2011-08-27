@@ -60,6 +60,9 @@ autoconf
 autoheader
 automake -a -c
 
+curl 'http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD' > build/autoconf/config.guess
+curl 'http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=HEAD' > build/autoconf/config.sub
+
 ./configure
 make distcheck
 make dist-zip
