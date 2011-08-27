@@ -13,6 +13,7 @@ cd ..
 
 # Build Makefile in 'man' directory
 cd man
+chmod +w .
 rm -f *.[135]
 echo > Makefile
 echo "default: all" >>Makefile
@@ -31,6 +32,7 @@ cd ..
 # Rebuild Makefile in 'text' directory
 test -d text || mkdir text
 cd text
+chmod +w .
 rm -f *.txt
 echo > Makefile
 echo "default: all" >>Makefile
@@ -49,6 +51,7 @@ cd ..
 # Rebuild Makefile in 'pdf' directory
 test -d pdf || mkdir pdf
 cd pdf
+chmod +w .
 rm -f *.pdf
 echo > Makefile
 echo "default: all" >>Makefile
@@ -67,6 +70,7 @@ cd ..
 # Build Makefile in 'html' directory
 test -d html || mkdir html
 cd html
+chmod +w .
 rm -f *.html
 echo > Makefile
 echo "default: all" >>Makefile
@@ -85,6 +89,7 @@ cd ..
 # Build Makefile in 'wiki' directory
 test -d wiki || mkdir wiki
 cd wiki
+chmod +w .
 rm -f *.wiki
 echo > Makefile
 echo "default: all" >>Makefile
