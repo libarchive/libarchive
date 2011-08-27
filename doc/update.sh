@@ -14,7 +14,7 @@ cd ..
 # Build Makefile in 'man' directory
 cd man
 chmod +w .
-rm -f *.[135]
+rm -f *.[135] Makefile
 echo > Makefile
 echo "default: all" >>Makefile
 echo >>Makefile
@@ -33,7 +33,7 @@ cd ..
 test -d text || mkdir text
 cd text
 chmod +w .
-rm -f *.txt
+rm -f *.txt Makefile
 echo > Makefile
 echo "default: all" >>Makefile
 echo >>Makefile
@@ -52,7 +52,7 @@ cd ..
 test -d pdf || mkdir pdf
 cd pdf
 chmod +w .
-rm -f *.pdf
+rm -f *.pdf Makefile
 echo > Makefile
 echo "default: all" >>Makefile
 echo >>Makefile
@@ -71,7 +71,7 @@ cd ..
 test -d html || mkdir html
 cd html
 chmod +w .
-rm -f *.html
+rm -f *.html Makefile
 echo > Makefile
 echo "default: all" >>Makefile
 echo >>Makefile
@@ -90,7 +90,7 @@ cd ..
 test -d wiki || mkdir wiki
 cd wiki
 chmod +w .
-rm -f *.wiki
+rm -f *.wiki Makefile
 echo > Makefile
 echo "default: all" >>Makefile
 echo >>Makefile
