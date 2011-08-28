@@ -53,8 +53,7 @@
  * - MD5, SHA1 and SHA2 in libcrypto: with _ after algorithm name
  *
  * Windows:
- * - MD5, SHA1 and SHA2 in archive_windows.c: without algorithm name
- *   and with __la_ prefix.
+ * - MD5, SHA1 and SHA2 in archive_crypto.c using Windows crypto API
  */
 
 /* libc crypto headers */
@@ -122,9 +121,6 @@ typedef struct {
   HCRYPTPROV  cryptProv;
   HCRYPTHASH  hash;
 } Digest_CTX;
-extern void __la_hash_Init(Digest_CTX *, ALG_ID);
-extern void __la_hash_Final(unsigned char *, size_t, Digest_CTX *);
-extern void __la_hash_Update(Digest_CTX *, const unsigned char *, size_t);
 #endif
 
 /* typedefs */

@@ -29,6 +29,75 @@
 #include "archive.h"
 #include "archive_crypto_private.h"
 
+/*
+ * Message digest functions for Windows platform.
+ */
+#if defined(ARCHIVE_CRYPTO_MD5_WIN)    ||\
+	defined(ARCHIVE_CRYPTO_SHA1_WIN)   ||\
+	defined(ARCHIVE_CRYPTO_SHA256_WIN) ||\
+	defined(ARCHIVE_CRYPTO_SHA384_WIN) ||\
+	defined(ARCHIVE_CRYPTO_SHA512_WIN)
+
+/*
+ * Initialize a Message digest.
+ */
+static int
+win_crypto_init(Digest_CTX *ctx, ALG_ID algId)
+{
+
+	ctx->valid = 0;
+	if (!CryptAcquireContext(&ctx->cryptProv, NULL, NULL,
+	    PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
+		if (GetLastError() != (DWORD)NTE_BAD_KEYSET)
+			return (ARCHIVE_FAILED);
+		if (!CryptAcquireContext(&ctx->cryptProv, NULL, NULL,
+		    PROV_RSA_FULL, CRYPT_NEWKEYSET))
+			return (ARCHIVE_FAILED);
+	}
+
+	if (!CryptCreateHash(ctx->cryptProv, algId, 0, 0, &ctx->hash)) {
+		CryptReleaseContext(ctx->cryptProv, 0);
+		return (ARCHIVE_FAILED);
+	}
+
+	ctx->valid = 1;
+	return (ARCHIVE_OK);
+}
+
+/*
+ * Update a Message digest.
+ */
+static int
+win_crypto_Update(Digest_CTX *ctx, const unsigned char *buf, size_t len)
+{
+
+	if (!ctx->valid)
+		return (ARCHIVE_FAILED);
+
+	CryptHashData(ctx->hash,
+		      (unsigned char *)(uintptr_t)buf,
+		      (DWORD)len, 0);
+	return (ARCHIVE_OK);
+}
+
+static int
+win_crypto_Final(unsigned char *buf, size_t bufsize, Digest_CTX *ctx)
+{
+	DWORD siglen = bufsize;
+
+	if (!ctx->valid)
+		return (ARCHIVE_FAILED);
+
+	CryptGetHashParam(ctx->hash, HP_HASHVAL, buf, &siglen, 0);
+	CryptDestroyHash(ctx->hash);
+	CryptReleaseContext(ctx->cryptProv, 0);
+	ctx->valid = 0;
+	return (ARCHIVE_OK);
+}
+
+#endif /* defined(ARCHIVE_CRYPTO_*_WIN) */
+
+
 /* MD5 implementations */
 #if defined(ARCHIVE_CRYPTO_MD5_LIBC)
 
@@ -136,23 +205,20 @@ __archive_openssl_md5final(archive_md5_ctx *ctx, void *md)
 static int
 __archive_windowsapi_md5init(archive_md5_ctx *ctx)
 {
-  __la_hash_Init(ctx, CALG_MD5);
-  return (ARCHIVE_OK);
+  return (win_crypto_init(ctx, CALG_MD5));
 }
 
 static int
 __archive_windowsapi_md5update(archive_md5_ctx *ctx, const void *indata,
     size_t insize)
 {
-  __la_hash_Update(ctx, indata, insize);
-  return (ARCHIVE_OK);
+  return (win_crypto_Update(ctx, indata, insize));
 }
 
 static int
 __archive_windowsapi_md5final(archive_md5_ctx *ctx, void *md)
 {
-  __la_hash_Final(md, 16, ctx);
-  return (ARCHIVE_OK);
+  return (win_crypto_Final(md, 16, ctx));
 }
 
 #endif
@@ -339,23 +405,20 @@ __archive_openssl_sha1final(archive_sha1_ctx *ctx, void *md)
 static int
 __archive_windowsapi_sha1init(archive_sha1_ctx *ctx)
 {
-  __la_hash_Init(ctx, CALG_SHA1);
-  return (ARCHIVE_OK);
+  return (win_crypto_init(ctx, CALG_SHA1));
 }
 
 static int
 __archive_windowsapi_sha1update(archive_sha1_ctx *ctx, const void *indata,
     size_t insize)
 {
-  __la_hash_Update(ctx, indata, insize);
-  return (ARCHIVE_OK);
+  return (win_crypto_Update(ctx, indata, insize));
 }
 
 static int
 __archive_windowsapi_sha1final(archive_sha1_ctx *ctx, void *md)
 {
-  __la_hash_Final(md, 20, ctx);
-  return (ARCHIVE_OK);
+  return (win_crypto_Final(md, 20, ctx));
 }
 
 #endif
@@ -510,23 +573,20 @@ __archive_openssl_sha256final(archive_sha256_ctx *ctx, void *md)
 static int
 __archive_windowsapi_sha256init(archive_sha256_ctx *ctx)
 {
-  __la_hash_Init(ctx, CALG_SHA_256);
-  return (ARCHIVE_OK);
+  return (win_crypto_init(ctx, CALG_SHA_256));
 }
 
 static int
 __archive_windowsapi_sha256update(archive_sha256_ctx *ctx, const void *indata,
     size_t insize)
 {
-  __la_hash_Update(ctx, indata, insize);
-  return (ARCHIVE_OK);
+  return (win_crypto_Update(ctx, indata, insize));
 }
 
 static int
 __archive_windowsapi_sha256final(archive_sha256_ctx *ctx, void *md)
 {
-  __la_hash_Final(md, 32, ctx);
-  return (ARCHIVE_OK);
+  return (win_crypto_Final(md, 32, ctx));
 }
 
 #endif
@@ -681,23 +741,20 @@ __archive_openssl_sha384final(archive_sha384_ctx *ctx, void *md)
 static int
 __archive_windowsapi_sha384init(archive_sha384_ctx *ctx)
 {
-  __la_hash_Init(ctx, CALG_SHA_384);
-  return (ARCHIVE_OK);
+  return (win_crypto_init(ctx, CALG_SHA_384));
 }
 
 static int
 __archive_windowsapi_sha384update(archive_sha384_ctx *ctx, const void *indata,
     size_t insize)
 {
-  __la_hash_Update(ctx, indata, insize);
-  return (ARCHIVE_OK);
+  return (win_crypto_Update(ctx, indata, insize));
 }
 
 static int
 __archive_windowsapi_sha384final(archive_sha384_ctx *ctx, void *md)
 {
-  __la_hash_Final(md, 48, ctx);
-  return (ARCHIVE_OK);
+  return (win_crypto_Final(md, 48, ctx));
 }
 
 #endif
@@ -852,23 +909,20 @@ __archive_openssl_sha512final(archive_sha512_ctx *ctx, void *md)
 static int
 __archive_windowsapi_sha512init(archive_sha512_ctx *ctx)
 {
-  __la_hash_Init(ctx, CALG_SHA_512);
-  return (ARCHIVE_OK);
+  return (win_crypto_init(ctx, CALG_SHA_512));
 }
 
 static int
 __archive_windowsapi_sha512update(archive_sha512_ctx *ctx, const void *indata,
     size_t insize)
 {
-  __la_hash_Update(ctx, indata, insize);
-  return (ARCHIVE_OK);
+  return (win_crypto_Update(ctx, indata, insize));
 }
 
 static int
 __archive_windowsapi_sha512final(archive_sha512_ctx *ctx, void *md)
 {
-  __la_hash_Final(md, 64, ctx);
-  return (ARCHIVE_OK);
+  return (win_crypto_Final(md, 64, ctx));
 }
 
 #endif
