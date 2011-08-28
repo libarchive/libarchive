@@ -760,9 +760,9 @@ __la_write(int fd, const void *buf, size_t nbytes)
  * Simulate the interface of OpenSSL's ones.
  *
  */
-#if defined(ARCHIVE_HASH_MD5_WIN)    ||\
-    defined(ARCHIVE_HASH_SHA1_WIN)   || defined(ARCHIVE_HASH_SHA256_WIN) ||\
-    defined(ARCHIVE_HASH_SHA384_WIN) || defined(ARCHIVE_HASH_SHA512_WIN)
+#if defined(ARCHIVE_CRYPTO_MD5_WIN)    ||\
+	defined(ARCHIVE_CRYPTO_SHA1_WIN)   || defined(ARCHIVE_CRYPTO_SHA256_WIN) ||\
+	defined(ARCHIVE_CRYPTO_SHA384_WIN) || defined(ARCHIVE_CRYPTO_SHA512_WIN)
 
 /*
  * Initialize a Message digest.

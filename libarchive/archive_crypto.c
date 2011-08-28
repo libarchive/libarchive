@@ -510,7 +510,7 @@ __archive_openssl_sha256final(archive_sha256_ctx *ctx, void *md)
 static int
 __archive_windowsapi_sha256init(archive_sha256_ctx *ctx)
 {
-  __la_hash_Init(ctx, CALG_SHA256);
+  __la_hash_Init(ctx, CALG_SHA_256);
   return (ARCHIVE_OK);
 }
 
@@ -681,7 +681,7 @@ __archive_openssl_sha384final(archive_sha384_ctx *ctx, void *md)
 static int
 __archive_windowsapi_sha384init(archive_sha384_ctx *ctx)
 {
-  __la_hash_Init(ctx, CALG_SHA384);
+  __la_hash_Init(ctx, CALG_SHA_384);
   return (ARCHIVE_OK);
 }
 
@@ -852,7 +852,7 @@ __archive_openssl_sha512final(archive_sha512_ctx *ctx, void *md)
 static int
 __archive_windowsapi_sha512init(archive_sha512_ctx *ctx)
 {
-  __la_hash_Init(ctx, CALG_SHA512);
+  __la_hash_Init(ctx, CALG_SHA_512);
   return (ARCHIVE_OK);
 }
 
