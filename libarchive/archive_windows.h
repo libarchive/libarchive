@@ -245,20 +245,13 @@
 
 /* Replacement POSIX function */
 extern int	 __la_chdir(const char *path);
-extern int	 __la_chmod(const char *path, mode_t mode);
 extern int	 __la_fcntl(int fd, int cmd, int val);
 extern int	 __la_fstat(int fd, struct stat *st);
-extern int	 __la_ftruncate(int fd, int64_t length);
-extern int	 __la_link(const char *src, const char *dst);
 extern __int64	 __la_lseek(int fd, __int64 offset, int whence);
 extern int	 __la_lstat(const char *path, struct stat *st);
-extern int	 __la_mkdir(const char *path, mode_t mode);
-extern int	 __la_mkstemp(char *template);
 extern int	 __la_open(const char *path, int flags, ...);
 extern ssize_t	 __la_read(int fd, void *buf, size_t nbytes);
-extern int	 __la_rmdir(const char *path);
 extern int	 __la_stat(const char *path, struct stat *st);
-extern int	 __la_unlink(const char *path);
 extern pid_t	 __la_waitpid(pid_t wpid, int *status, int option);
 extern ssize_t	 __la_write(int fd, const void *buf, size_t nbytes);
 
