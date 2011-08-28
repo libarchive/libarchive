@@ -949,6 +949,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <wctype.h> header file. */
 #cmakedefine HAVE_WCTYPE_H 1
 
+/* Define to 1 if you have the <wincrypt.h> header file. */
+#cmakedefine HAVE_WINCRYPT_H 1
+
 /* Define to 1 if you have the <windows.h> header file. */
 #cmakedefine HAVE_WINDOWS_H 1
 
