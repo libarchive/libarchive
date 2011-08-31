@@ -167,6 +167,7 @@ struct lha {
 #define BIRTHTIME_IS_SET	1
 #define ATIME_IS_SET		2
 #define UNIX_MODE_IS_SET	4
+#define CRC_IS_SET		8
 	time_t			 birthtime;
 	long			 birthtime_tv_nsec;
 	time_t			 mtime;
@@ -823,7 +824,7 @@ lha_read_file_header_0(struct archive_read *a, struct lha *lha)
 	lha->mtime = lha_dos_time(p + H0_DOS_TIME_OFFSET);
 	namelen = p[H0_NAME_LEN_OFFSET];
 	extdsize = (int)lha->header_size - H0_FIXED_SIZE - namelen;
-	if (namelen > 221 || extdsize < 0) {
+	if ((namelen > 221 || extdsize < 0) && extdsize != -2) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Invalid LHa header");
 		return (ARCHIVE_FATAL);
@@ -832,7 +833,11 @@ lha_read_file_header_0(struct archive_read *a, struct lha *lha)
 		return (truncated_error(a));
 
 	archive_strncpy(&lha->filename, p + H0_FILE_NAME_OFFSET, namelen);
-	lha->crc = archive_le16dec(p + H0_FILE_NAME_OFFSET + namelen);
+	/* When extdsize == -2, A CRC16 value is not present in the header. */
+	if (extdsize >= 0) {
+		lha->crc = archive_le16dec(p + H0_FILE_NAME_OFFSET + namelen);
+		lha->setflag |= CRC_IS_SET;
+	}
 	sum_calculated = lha_calcsum(0, p, 2, lha->header_size - 2);
 
 	/* Read an extended header */
@@ -933,6 +938,7 @@ lha_read_file_header_1(struct archive_read *a, struct lha *lha)
 	}
 	archive_strncpy(&lha->filename, p + H1_FILE_NAME_OFFSET, namelen);
 	lha->crc = archive_le16dec(p + H1_FILE_NAME_OFFSET + namelen);
+	lha->setflag |= CRC_IS_SET;
 
 	sum_calculated = lha_calcsum(0, p, 2, lha->header_size - 2);
 	/* Consume used bytes but not include `next header size' data
@@ -1005,6 +1011,7 @@ lha_read_file_header_2(struct archive_read *a, struct lha *lha)
 	lha->origsize = archive_le32dec(p + H2_ORIG_SIZE_OFFSET);
 	lha->mtime = archive_le32dec(p + H2_TIME_OFFSET);
 	lha->crc = archive_le16dec(p + H2_CRC_OFFSET);
+	lha->setflag |= CRC_IS_SET;
 
 	if (lha->header_size < H2_FIXED_SIZE) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
@@ -1085,6 +1092,7 @@ lha_read_file_header_3(struct archive_read *a, struct lha *lha)
 	lha->origsize = archive_le32dec(p + H3_ORIG_SIZE_OFFSET);
 	lha->mtime = archive_le32dec(p + H3_TIME_OFFSET);
 	lha->crc = archive_le16dec(p + H3_CRC_OFFSET);
+	lha->setflag |= CRC_IS_SET;
 
 	if (lha->header_size < H3_FIXED_SIZE + 4)
 		goto invalid;
@@ -1376,7 +1384,7 @@ archive_read_format_lha_read_data(struct archive_read *a,
 	}
 	if (lha->end_of_entry) {
 		if (!lha->end_of_entry_cleanup) {
-			if (lha->level >= 2 &&
+			if ((lha->setflag & CRC_IS_SET) &&
 			    lha->crc != lha->entry_crc_calculated) {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
