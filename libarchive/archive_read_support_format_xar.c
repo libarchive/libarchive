@@ -306,7 +306,8 @@ struct xar {
 	int64_t			 total;
 	uint64_t		 h_base;
 	int			 end_of_file;
-	unsigned char		 buff[1024*32];
+#define OUTBUFF_SIZE	(1024 * 64)
+	unsigned char		*outbuff;
 
 	enum xmlstatus		 xmlsts;
 	enum xmlstatus		 xmlsts_unknown;
@@ -939,6 +940,7 @@ xar_cleanup(struct archive_read *a)
 		archive_string_free(&(tag->name));
 		free(tag);
 	}
+	free(xar->outbuff);
 	free(xar);
 	a->format->data = NULL;
 	return (r);
@@ -1580,9 +1582,17 @@ decompress(struct archive_read *a, const void **buff, size_t *outbytes,
 	avail_in = *used;
 	outbuff = (void *)(uintptr_t)*buff;
 	if (outbuff == NULL) {
-		outbuff = xar->buff;
+		if (xar->outbuff == NULL) {
+			xar->outbuff = malloc(OUTBUFF_SIZE);
+			if (xar->outbuff == NULL) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "Couldn't allocate memory for out buffer");
+				return (ARCHIVE_FATAL);
+			}
+		}
+		outbuff = xar->outbuff;
 		*buff = outbuff;
-		avail_out = sizeof(xar->buff);
+		avail_out = OUTBUFF_SIZE;
 	} else
 		avail_out = *outbytes;
 	switch (xar->rd_encoding) {
@@ -1706,7 +1716,7 @@ decompress(struct archive_read *a, const void **buff, size_t *outbytes,
 #endif
 	case NONE:
 	default:
-		if (outbuff == xar->buff) {
+		if (outbuff == xar->outbuff) {
 			*buff = b;
 			*used = avail_in;
 			*outbytes = avail_in;
