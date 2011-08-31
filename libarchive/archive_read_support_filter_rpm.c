@@ -108,20 +108,11 @@ rpm_bidder_bid(struct archive_read_filter_bidder *self,
 
 	bits_checked = 0;
 	/*
-	 * Verify Header Magic Bytes : 0xed 0xab 0xee 0xdb
+	 * Verify Header Magic Bytes : 0XED 0XAB 0XEE 0XDB
 	 */
-	if (b[0] != 0xed)
+	if (memcmp(b, "\xED\xAB\xEE\xDB", 4) != 0)
 		return (0);
-	bits_checked += 8;
-	if (b[1] != 0xab)
-		return (0);
-	bits_checked += 8;
-	if (b[2] != 0xee)
-		return (0);
-	bits_checked += 8;
-	if (b[3] != 0xdb)
-		return (0);
-	bits_checked += 8;
+	bits_checked += 32;
 	/*
 	 * Check major version.
 	 */

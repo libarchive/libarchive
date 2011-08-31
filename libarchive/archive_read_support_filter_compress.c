@@ -190,13 +190,9 @@ compress_bidder_bid(struct archive_read_filter_bidder *self,
 		return (0);
 
 	bits_checked = 0;
-	if (buffer[0] != 037)	/* Verify first ID byte. */
+	if (buffer[0] != 0x1F || buffer[1] != 0x9D)
 		return (0);
-	bits_checked += 8;
-
-	if (buffer[1] != 0235)	/* Verify second ID byte. */
-		return (0);
-	bits_checked += 8;
+	bits_checked += 16;
 
 	/*
 	 * TODO: Verify more.

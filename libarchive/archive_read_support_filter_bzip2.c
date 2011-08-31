@@ -136,7 +136,7 @@ bzip2_reader_bid(struct archive_read_filter_bidder *self, struct archive_read_fi
 
 	/* First three bytes must be "BZh" */
 	bits_checked = 0;
-	if (buffer[0] != 'B' || buffer[1] != 'Z' || buffer[2] != 'h')
+	if (memcmp(buffer, "BZh", 3) != 0)
 		return (0);
 	bits_checked += 24;
 

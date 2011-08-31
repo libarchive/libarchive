@@ -229,7 +229,6 @@ xz_bidder_bid(struct archive_read_filter_bidder *self,
 {
 	const unsigned char *buffer;
 	ssize_t avail;
-	int bits_checked;
 
 	(void)self; /* UNUSED */
 
@@ -240,27 +239,10 @@ xz_bidder_bid(struct archive_read_filter_bidder *self,
 	/*
 	 * Verify Header Magic Bytes : FD 37 7A 58 5A 00
 	 */
-	bits_checked = 0;
-	if (buffer[0] != 0xFD)
+	if (memcmp(buffer, "\xFD\x37\x7A\x58\x5A\x00", 6) != 0)
 		return (0);
-	bits_checked += 8;
-	if (buffer[1] != 0x37)
-		return (0);
-	bits_checked += 8;
-	if (buffer[2] != 0x7A)
-		return (0);
-	bits_checked += 8;
-	if (buffer[3] != 0x58)
-		return (0);
-	bits_checked += 8;
-	if (buffer[4] != 0x5A)
-		return (0);
-	bits_checked += 8;
-	if (buffer[5] != 0x00)
-		return (0);
-	bits_checked += 8;
 
-	return (bits_checked);
+	return (48);
 }
 
 /*
@@ -398,18 +380,9 @@ lzip_has_member(struct archive_read_filter *filter)
 	 * Verify Header Magic Bytes : 4C 5A 49 50 (`LZIP')
 	 */
 	bits_checked = 0;
-	if (buffer[0] != 0x4C)
+	if (memcmp(buffer, "LZIP", 4) != 0)
 		return (0);
-	bits_checked += 8;
-	if (buffer[1] != 0x5A)
-		return (0);
-	bits_checked += 8;
-	if (buffer[2] != 0x49)
-		return (0);
-	bits_checked += 8;
-	if (buffer[3] != 0x50)
-		return (0);
-	bits_checked += 8;
+	bits_checked += 32;
 
 	/* A version number must be 0 or 1 */
 	if (buffer[4] != 0 && buffer[4] != 1)
