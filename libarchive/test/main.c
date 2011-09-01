@@ -441,7 +441,7 @@ assertion_equal_int(const char *file, int line,
 static int
 _utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 {
-	static char utf8_count[256] = {
+	static const char utf8_count[256] = {
 		 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,/* 00 - 0F */
 		 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,/* 10 - 1F */
 		 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,/* 20 - 2F */

@@ -215,7 +215,7 @@ archive_compressor_compress_open(struct archive_write_filter *f)
  * code in turn.  When the buffer fills up empty it and start over.
  */
 
-static unsigned char rmask[9] =
+static const unsigned char rmask[9] =
 	{0x00, 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff};
 
 static int

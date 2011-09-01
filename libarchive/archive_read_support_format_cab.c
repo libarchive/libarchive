@@ -138,7 +138,7 @@ struct lzx_dec {
 	int			 error;
 };
 
-static int slots[] = {
+static const int slots[] = {
 	30, 32, 34, 36, 38, 42, 50, 66, 98, 162, 290
 };
 #define SLOT_BASE	15
@@ -190,7 +190,7 @@ struct lzx_stream {
 #define CFDATA_cbData		4
 #define CFDATA_cbUncomp		6
 
-static char *compression_name[] = {
+static const char *compression_name[] = {
 	"NONE",
 	"MSZIP",
 	"Quantum",

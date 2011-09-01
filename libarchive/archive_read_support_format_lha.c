@@ -1209,7 +1209,7 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 			if (datasize >= 2) {
 				lha->header_crc = archive_le16dec(extdheader);
 				if (crc != NULL) {
-					static char zeros[2] = {0, 0};
+					static const char zeros[2] = {0, 0};
 					*crc = lha_crc16(*crc, h,
 					    extdsize - datasize);
 					/* CRC value itself as zero */
