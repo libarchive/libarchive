@@ -939,7 +939,9 @@ static inline int get_dir_rec_size(struct iso9660 *, struct isoent *,
 static inline unsigned char *wb_buffptr(struct archive_write *);
 static int	wb_write_out(struct archive_write *);
 static int	wb_consume(struct archive_write *, size_t);
+#ifdef HAVE_ZLIB_H
 static int	wb_set_offset(struct archive_write *, int64_t);
+#endif
 static int	write_null(struct archive_write *, size_t);
 static int	write_VD_terminator(struct archive_write *);
 static int	set_file_identifier(unsigned char *, int, int, enum vdc,
@@ -3641,6 +3643,8 @@ wb_consume(struct archive_write *a, size_t size)
 	return (ARCHIVE_OK);
 }
 
+#ifdef HAVE_ZLIB_H
+
 static int
 wb_set_offset(struct archive_write *a, int64_t off)
 {
@@ -3696,6 +3700,8 @@ wb_set_offset(struct archive_write *a, int64_t off)
 	}
 	return (ARCHIVE_OK);
 }
+
+#endif /* HAVE_ZLIB_H */
 
 static int
 write_null(struct archive_write *a, size_t size)
