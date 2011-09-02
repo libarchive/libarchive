@@ -253,7 +253,7 @@ __archive_libc_ripemd160final(archive_rmd160_ctx *ctx, void *md)
 static int
 __archive_nettle_ripemd160init(archive_rmd160_ctx *ctx)
 {
-  rmd160_init(ctx);
+  ripemd160_init(ctx);
   return (ARCHIVE_OK);
 }
 
@@ -261,14 +261,14 @@ static int
 __archive_nettle_ripemd160update(archive_rmd160_ctx *ctx, const void *indata,
     size_t insize)
 {
-  rmd160_update(ctx, insize, indata);
+  ripemd160_update(ctx, insize, indata);
   return (ARCHIVE_OK);
 }
 
 static int
 __archive_nettle_ripemd160final(archive_rmd160_ctx *ctx, void *md)
 {
-  rmd160_digest(ctx, RMD160_DIGEST_SIZE, md);
+  ripemd160_digest(ctx, RIPEMD160_DIGEST_SIZE, md);
   return (ARCHIVE_OK);
 }
 

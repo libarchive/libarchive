@@ -92,7 +92,7 @@
 #include <nettle/md5.h>
 #endif
 #if defined(ARCHIVE_CRYPTO_RMD160_NETTLE)
-#include <nettle/rmd.h>
+#include <nettle/ripemd160.h>
 #endif
 #if defined(ARCHIVE_CRYPTO_SHA1_NETTLE) ||\
   defined(ARCHIVE_CRYPTO_SHA256_NETTLE) ||\
@@ -141,7 +141,7 @@ typedef unsigned char archive_md5_ctx;
 #if defined(ARCHIVE_CRYPTO_RMD160_LIBC)
 typedef RMD160_CTX archive_rmd160_ctx;
 #elif defined(ARCHIVE_CRYPTO_RMD160_NETTLE)
-typedef struct rmd160_ctx archive_rmd160_ctx;
+typedef struct ripemd160_ctx archive_rmd160_ctx;
 #elif defined(ARCHIVE_CRYPTO_RMD160_OPENSSL)
 typedef EVP_MD_CTX archive_rmd160_ctx;
 #else
