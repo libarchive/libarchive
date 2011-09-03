@@ -33,6 +33,11 @@ test_read_format_mtree1(void)
 	struct archive_entry *ae;
 	struct archive *a;
 	FILE *f;
+	// Compute min and max 64-bit signed twos-complement values
+	// without relying on overflow.  This assumes that long long
+	// is at least 64 bits.
+	const static long long max_int64 = ((((long long)1) << 62) - 1) + (((long long)1) << 62);
+	const static long long min_int64 = - (((long long)1) << 62) - (((long long)1) << 62);
 
 	extract_reference_file(reffile);
 
@@ -104,8 +109,32 @@ test_read_format_mtree1(void)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString(archive_entry_pathname(ae), "notindir");
 
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "dir2/emptyfile");
+	assertEqualInt(archive_entry_size(ae), 0);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "dir2/smallfile");
+	assertEqualInt(archive_entry_size(ae), 1);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "dir2/bigfile");
+	assertEqualInt(archive_entry_size(ae), max_int64);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "dir2/toobigfile");
+	assertEqualInt(archive_entry_size(ae), max_int64);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "dir2/veryoldfile");
+	assertEqualInt(archive_entry_mtime(ae), min_int64);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "dir2/toooldfile");
+	assertEqualInt(archive_entry_mtime(ae), min_int64);
+
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
-	assertEqualInt(12, archive_file_count(a));
+	assertEqualInt(18, archive_file_count(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
