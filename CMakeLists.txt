@@ -499,77 +499,46 @@ ENDMACRO(CHECK_CRYPTO_WIN CRYPTO_LIST)
 # a non-const argument here and can support iconv()
 # being in libiconv.
 #
+MACRO(CHECK_ICONV LIB TRY_ICONV_CONST)
+  IF(NOT HAVE_ICONV)
+    CHECK_C_SOURCE_COMPILES(
+      "#include <stdlib.h>
+       #include <iconv.h>
+       int main() {
+          ${TRY_ICONV_CONST} char *ccp;
+          iconv_t cd = iconv_open(\"\", \"\");
+          iconv(cd, &ccp, (size_t *)0, (char **)0, (size_t *)0);
+          iconv_close(cd);
+          return 0;
+       }"
+     HAVE_ICONV_${LIB}_${TRY_ICONV_CONST})
+    IF(HAVE_ICONV_${LIB}_${TRY_ICONV_CONST})
+      SET(HAVE_ICONV true)
+      SET(ICONV_CONST ${TRY_ICONV_CONST})
+    ENDIF(HAVE_ICONV_${LIB}_${TRY_ICONV_CONST})
+  ENDIF(NOT HAVE_ICONV)
+ENDMACRO(CHECK_ICONV TRY_ICONV_CONST)
+
 IF(ENABLE_ICONV)
   FIND_PATH(ICONV_INCLUDE_DIR iconv.h)
   IF(ICONV_INCLUDE_DIR)
-    INCLUDE_DIRECTORIES(${ICONV_INCLUDE_DIR})
-    SET(CMAKE_REQUIRED_INCLUDES ${ICONV_INCLUDE_DIR})
     #SET(INCLUDES ${INCLUDES} "iconv.h")
     SET(HAVE_ICONV_H 1)
+    INCLUDE_DIRECTORIES(${ICONV_INCLUDE_DIR})
+    SET(CMAKE_REQUIRED_INCLUDES ${ICONV_INCLUDE_DIR})
+    CHECK_ICONV("libc" "const")
+    CHECK_ICONV("libc" "")
 
-    # Try POSIX-conforming iconv() in libc
-    CHECK_C_SOURCE_COMPILES(
-      "#include <stdlib.h>
-#include <iconv.h>
-       int main() {const char *ccp; iconv_t cd = iconv_open(\"\", \"\");
-       iconv(cd, &ccp, (size_t *)0, (char **)0, (size_t *)0);
-       iconv_close(cd);
-       return 0;}"
-     HAVE_POSIX_ICONV_IN_LIBC)
-    IF(HAVE_POSIX_ICONV_IN_LIBC)
-      SET(HAVE_ICONV true)
-      SET(ICONV_CONST "const")
-    ELSE(HAVE_POSIX_ICONV_IN_LIBC)
-
-      # Try non-POSIX-conforming iconv() in libc
-      CHECK_C_SOURCE_COMPILES(
-        "#include <stdlib.h>
-#include <iconv.h>
-         int main() {char *ccp; iconv_t cd = iconv_open(\"\", \"\");
-         iconv(cd, &ccp, (size_t *)0, (char **)0, (size_t *)0);
-         iconv_close(cd);
-         return 0;}"
-       HAVE_NONPOSIX_ICONV_IN_LIBC)
-      IF(HAVE_NONPOSIX_ICONV_IN_LIBC)
-        SET(HAVE_ICONV true)
-        SET(ICONV_CONST "") 
-      ELSE(HAVE_NONPOSIX_ICONV_IN_LIBC)
-
-        # iconv isn't in libc, try libiconv
-        FIND_LIBRARY(LIBICONV_PATH iconv)
-        IF(LIBICONV_PATH)
-          SET(CMAKE_REQUIRED_LIBRARIES ${LIBICONV_PATH})
-        ENDIF(LIBICONV_PATH)
-        CHECK_C_SOURCE_COMPILES(
-            "#include <stdlib.h>
-#include <iconv.h>
-             int main() {const char *ccp; iconv_t cd = iconv_open(\"\", \"\");
-             iconv(cd, &ccp, (size_t *)0, (char **)0, (size_t *)0);
-             iconv_close(cd);
-             return 0;}"
-         HAVE_POSIX_ICONV_IN_LIBICONV)
-        IF(HAVE_POSIX_ICONV_IN_LIBICONV)
-          SET(HAVE_ICONV true) 
-          SET(ICONV_CONST "const") 
-          LIST(APPEND ADDITIONAL_LIBS ${LIBICONV_PATH})
-        ELSE(HAVE_POSIX_ICONV_IN_LIBICONV)
-
-          CHECK_C_SOURCE_COMPILES(
-              "#include <stdlib.h>
-#include <iconv.h>
-               int main() {char *ccp; iconv_t cd = iconv_open(\"\", \"\");
-               iconv(cd, &ccp, (size_t *)0, (char **)0, (size_t *)0);
-               iconv_close(cd);
-               return 0;}"
-           HAVE_NONPOSIX_ICONV_IN_LIBICONV)
-          IF(HAVE_NONPOSIX_ICONV_IN_LIBICONV)
-            SET(HAVE_ICONV true) 
-            SET(ICONV_CONST "") 
-            LIST(APPEND ADDITIONAL_LIBS ${LIBICONV_PATH})
-          ENDIF(HAVE_NONPOSIX_ICONV_IN_LIBICONV)
-        ENDIF(HAVE_POSIX_ICONV_IN_LIBICONV)
-      ENDIF(HAVE_NONPOSIX_ICONV_IN_LIBC)
-    ENDIF(HAVE_POSIX_ICONV_IN_LIBC)
+    # If iconv isn't in libc and we have a libiconv, try that.
+    FIND_LIBRARY(LIBICONV_PATH iconv)
+    IF(NOT HAVE_ICONV AND LIBICONV_PATH)
+      LIST(APPEND CMAKE_REQUIRED_LIBRARIES ${LIBICONV_PATH})
+      CHECK_ICONV("libiconv" "const")
+      CHECK_ICONV("libiconv" "")
+      IF (HAVE_ICONV)
+        LIST(APPEND ADDITIONAL_LIBS ${LIBICONV_PATH})
+      ENDIF(HAVE_ICONV)
+    ENDIF(NOT HAVE_ICONV AND LIBICONV_PATH)
   ENDIF(ICONV_INCLUDE_DIR)
   #
   # Find locale_charset() for libiconv.
