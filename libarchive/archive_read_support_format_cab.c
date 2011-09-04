@@ -2206,10 +2206,10 @@ lzx_translation(struct lzx_stream *strm, void *p, size_t size, uint32_t offset)
 #define lzx_br_has(br, n)	((br)->cache_avail >= n)
 /* Get compressed data by bit. */
 #define lzx_br_bits(br, n)				\
-	(((uint16_t)((br)->cache_buffer >>		\
+	(((uint32_t)((br)->cache_buffer >>		\
 		((br)->cache_avail - (n)))) & cache_masks[n])
 #define lzx_br_bits_forced(br, n)			\
-	(((uint16_t)((br)->cache_buffer <<		\
+	(((uint32_t)((br)->cache_buffer <<		\
 		((n) - (br)->cache_avail))) & cache_masks[n])
 /* Read ahead to make sure the cache buffer has enough compressed data we
  * will use.
@@ -2228,12 +2228,16 @@ lzx_translation(struct lzx_stream *strm, void *p, size_t size, uint32_t offset)
 #define lzx_br_consume(br, n)	((br)->cache_avail -= (n))
 #define lzx_br_consume_unalined_bits(br) ((br)->cache_avail &= ~0x0f)
 
-static const uint16_t cache_masks[] = {
-	0x0000, 0x0001, 0x0003, 0x0007,
-	0x000F, 0x001F, 0x003F, 0x007F,
-	0x00FF, 0x01FF, 0x03FF, 0x07FF,
-	0x0FFF, 0x1FFF, 0x3FFF, 0x7FFF,
-	0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF
+static const uint32_t cache_masks[] = {
+	0x00000000, 0x00000001, 0x00000003, 0x00000007,
+	0x0000000F, 0x0000001F, 0x0000003F, 0x0000007F,
+	0x000000FF, 0x000001FF, 0x000003FF, 0x000007FF,
+	0x00000FFF, 0x00001FFF, 0x00003FFF, 0x00007FFF,
+	0x0000FFFF, 0x0001FFFF, 0x0003FFFF, 0x0007FFFF,
+	0x000FFFFF, 0x001FFFFF, 0x003FFFFF, 0x007FFFFF,
+	0x00FFFFFF, 0x01FFFFFF, 0x03FFFFFF, 0x07FFFFFF,
+	0x0FFFFFFF, 0x1FFFFFFF, 0x3FFFFFFF, 0x7FFFFFFF,
+	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF
 };
 
 /*
