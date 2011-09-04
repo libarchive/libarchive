@@ -44,7 +44,7 @@ struct subst_rule {
 	struct subst_rule *next;
 	regex_t re;
 	char *result;
-	unsigned int global:1, print:1, symlink:1;
+	unsigned int global:1, print:1, symlink:1, hardlink:1;
 };
 
 struct substitution {
@@ -117,9 +117,11 @@ add_substitution(struct bsdtar *bsdtar, const char *rule_text)
 	memcpy(rule->result, start_subst, end_pattern - start_subst);
 	rule->result[end_pattern - start_subst] = '\0';
 
-	rule->global = 0;
-	rule->print = 0;
-	rule->symlink = 0;
+	/* Defaults */
+	rule->global = 0; /* Don't do multiple replacements. */
+	rule->print = 0; /* Don't print. */
+	rule->symlink = 1; /* Rewrite symlink targets. */
+	rule->hardlink = 1; /* Rewrite hardlink targets. */
 
 	while (*++end_pattern) {
 		switch (*end_pattern) {
@@ -133,7 +135,8 @@ add_substitution(struct bsdtar *bsdtar, const char *rule_text)
 			break;
 		case 's':
 		case 'S':
-			rule->symlink = 1;
+			rule->symlink = 0;
+			rule->hardlink = 0;
 			break;
 		default:
 			lafe_errc(1, 0, "Invalid replacement flag %c", *end_pattern);
@@ -185,7 +188,8 @@ realloc_strcat(char **str, const char *append)
 }
 
 int
-apply_substitution(struct bsdtar *bsdtar, const char *name, char **result, int symlink_only)
+apply_substitution(struct bsdtar *bsdtar, const char *name, char **result,
+    int hardlink_target, int symlink_target)
 {
 	const char *path = name;
 	regmatch_t matches[10];
@@ -203,7 +207,9 @@ apply_substitution(struct bsdtar *bsdtar, const char *name, char **result, int s
 	print_match = 0;
 
 	for (rule = subst->first_rule; rule != NULL; rule = rule->next) {
-		if (symlink_only && !rule->symlink)
+		if (symlink_target && !rule->symlink)
+			continue;
+		if (hardlink_target && !rule->hardlink)
 			continue;
 		if (regexec(&rule->re, name, 10, matches, 0))
 			continue;

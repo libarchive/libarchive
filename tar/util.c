@@ -366,7 +366,7 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 	char *subst_name;
 	int r;
 
-	r = apply_substitution(bsdtar, name, &subst_name, 0);
+	r = apply_substitution(bsdtar, name, &subst_name, 0, 0);
 	if (r == -1) {
 		lafe_warnc(0, "Invalid substitution, skipping entry");
 		return 1;
@@ -382,7 +382,7 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 	}
 
 	if (archive_entry_hardlink(entry)) {
-		r = apply_substitution(bsdtar, archive_entry_hardlink(entry), &subst_name, 1);
+		r = apply_substitution(bsdtar, archive_entry_hardlink(entry), &subst_name, 0, 1);
 		if (r == -1) {
 			lafe_warnc(0, "Invalid substitution, skipping entry");
 			return 1;
@@ -393,7 +393,7 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 		}
 	}
 	if (archive_entry_symlink(entry) != NULL) {
-		r = apply_substitution(bsdtar, archive_entry_symlink(entry), &subst_name, 1);
+		r = apply_substitution(bsdtar, archive_entry_symlink(entry), &subst_name, 1, 0);
 		if (r == -1) {
 			lafe_warnc(0, "Invalid substitution, skipping entry");
 			return 1;

@@ -169,6 +169,6 @@ int	yes(const char *fmt, ...);
 
 #if HAVE_REGEX_H
 void	add_substitution(struct bsdtar *, const char *);
-int	apply_substitution(struct bsdtar *, const char *, char **, int);
+int	apply_substitution(struct bsdtar *, const char *, char **, int, int);
 void	cleanup_substitution(struct bsdtar *);
 #endif
