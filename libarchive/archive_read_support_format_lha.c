@@ -1843,8 +1843,14 @@ lzh_decode_free(struct lzh_stream *strm)
  *  True  : completed, there is enough data in the cache buffer.
  *  False : we met that strm->next_in is empty, we have to get following
  *          bytes. */
-#define lzh_br_read_ahead(strm, br, n)	\
+#define lzh_br_read_ahead_0(strm, br, n)	\
 	(lzh_br_has(br, (n)) || lzh_br_fillup(strm, br))
+/*  True  : the cache buffer has some bits as much as we need.
+ *  False : there are no enough bits in the cache buffer to be used,
+ *          we have to get following bytes if we could. */
+#define lzh_br_read_ahead(strm, br, n)	\
+	(lzh_br_read_ahead_0((strm), (br), (n)) || lzh_br_has((br), (n)))
+
 /* Notify how many bits we consumed. */
 #define lzh_br_consume(br, n)	((br)->cache_avail -= (n))
 #define lzh_br_unconsume(br, n)	((br)->cache_avail += (n))
@@ -2047,7 +2053,7 @@ lzh_read_blocks(struct lzh_stream *strm, int last)
 			 * in particular, there are no reference data at
 			 * the beginning of the decompression.
 			 */
-			if (!lzh_br_read_ahead(strm, br, 16)) {
+			if (!lzh_br_read_ahead_0(strm, br, 16)) {
 				if (!last)
 					/* We need following data. */
 					return (ARCHIVE_OK);
@@ -2084,8 +2090,7 @@ lzh_read_blocks(struct lzh_stream *strm, int last)
 			/* Note: ST_RD_PT_1, ST_RD_PT_2 and ST_RD_PT_4 are
 			 * used in reading both a literal table and a
 			 * position table. */
-			if (!lzh_br_read_ahead(strm, br, ds->pt.len_bits) &&
-			    !lzh_br_has(br, ds->pt.len_bits)) {
+			if (!lzh_br_read_ahead(strm, br, ds->pt.len_bits)) {
 				if (last)
 					goto failed;/* Truncated data. */
 				ds->state = ST_RD_PT_1;
@@ -2098,8 +2103,7 @@ lzh_read_blocks(struct lzh_stream *strm, int last)
 			if (ds->pt.len_avail == 0) {
 				/* There is no bitlen. */
 				if (!lzh_br_read_ahead(strm, br,
-				    ds->pt.len_bits) &&
-				    !lzh_br_has(br, ds->pt.len_bits)) {
+				    ds->pt.len_bits)) {
 					if (last)
 						goto failed;/* Truncated data.*/
 					ds->state = ST_RD_PT_2;
@@ -2134,8 +2138,7 @@ lzh_read_blocks(struct lzh_stream *strm, int last)
 				return (ARCHIVE_OK);
 			}
 			/* There are some null in bitlen of the literal. */
-			if (!lzh_br_read_ahead(strm, br, 2) &&
-			    !lzh_br_has(br, 2)) {
+			if (!lzh_br_read_ahead(strm, br, 2)) {
 				if (last)
 					goto failed;/* Truncated data. */
 				ds->state = ST_RD_PT_3;
@@ -2167,8 +2170,7 @@ lzh_read_blocks(struct lzh_stream *strm, int last)
 			}
 			/* FALL THROUGH */
 		case ST_RD_LITERAL_1:
-			if (!lzh_br_read_ahead(strm, br, ds->lt.len_bits) &&
-			    !lzh_br_has(br, ds->lt.len_bits)) {
+			if (!lzh_br_read_ahead(strm, br, ds->lt.len_bits)) {
 				if (last)
 					goto failed;/* Truncated data. */
 				ds->state = ST_RD_LITERAL_1;
@@ -2181,8 +2183,7 @@ lzh_read_blocks(struct lzh_stream *strm, int last)
 			if (ds->lt.len_avail == 0) {
 				/* There is no bitlen. */
 				if (!lzh_br_read_ahead(strm, br,
-				    ds->lt.len_bits) &&
-				    !lzh_br_has(br, ds->lt.len_bits)) {
+				    ds->lt.len_bits)) {
 					if (last)
 						goto failed;/* Truncated data.*/
 					ds->state = ST_RD_LITERAL_2;
@@ -2203,8 +2204,7 @@ lzh_read_blocks(struct lzh_stream *strm, int last)
 			i = ds->loop;
 			while (i < ds->lt.len_avail) {
 				if (!lzh_br_read_ahead(strm, br,
-				    ds->pt.max_bits) &&
-				    !lzh_br_has(br, ds->pt.max_bits)) {
+				    ds->pt.max_bits)) {
 					if (last)
 						goto failed;/* Truncated data.*/
 					ds->loop = i;
@@ -2230,9 +2230,7 @@ lzh_read_blocks(struct lzh_stream *strm, int last)
 					/* c == 1 or c == 2 */
 					int n = (c == 1)?4:9;
 					if (!lzh_br_read_ahead(strm, br,
-					     ds->pt.bitlen[c] + n) &&
-					    !lzh_br_has(br,
-					      ds->pt.bitlen[c] + n)) {
+					     ds->pt.bitlen[c] + n)) {
 						if (last) /* Truncated data. */
 							goto failed;
 						ds->loop = i;
@@ -2314,8 +2312,7 @@ lzh_decode_blocks(struct lzh_stream *strm, int last)
 				 * as much as we need after lzh_br_read_ahead()
 				 * failed. */
 				if (!lzh_br_read_ahead(strm, &bre,
-				    lt_max_bits) &&
-				    !lzh_br_has(&bre, lt_max_bits)) {
+				    lt_max_bits)) {
 					if (!last)
 						goto next_data;
 					/* Remaining bits are less than
@@ -2360,8 +2357,7 @@ lzh_decode_blocks(struct lzh_stream *strm, int last)
 			/*
 			 * Get a reference position. 
 			 */
-			if (!lzh_br_read_ahead(strm, &bre, pt_max_bits) &&
-			    !lzh_br_has(&bre, pt_max_bits)) {
+			if (!lzh_br_read_ahead(strm, &bre, pt_max_bits)) {
 				if (!last) {
 					state = ST_GET_POS_1;
 					ds->copy_len = copy_len;
@@ -2383,8 +2379,7 @@ lzh_decode_blocks(struct lzh_stream *strm, int last)
 				/* We need an additional adjustment number to
 				 * the position. */
 				int p = copy_pos - 1;
-				if (!lzh_br_read_ahead(strm, &bre, p) &&
-				    !lzh_br_has(&bre, p)) {
+				if (!lzh_br_read_ahead(strm, &bre, p)) {
 					if (last)
 						goto failed;/* Truncated data.*/
 					state = ST_GET_POS_2;
