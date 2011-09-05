@@ -502,6 +502,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar_ppmd_lzss_conversion.rar.uu\
 	libarchive/test/test_read_format_rar_subblock.rar.uu		\
 	libarchive/test/test_read_format_rar_unicode.rar.uu		\
+	libarchive/test/test_read_format_rar_windows.rar.uu		\
 	libarchive/test/test_read_format_raw.data.Z.uu			\
 	libarchive/test/test_read_format_raw.data.uu			\
 	libarchive/test/test_read_format_tar_empty_filename.tar.uu	\
