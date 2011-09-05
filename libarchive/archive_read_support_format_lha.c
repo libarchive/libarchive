@@ -1732,7 +1732,7 @@ lha_crc16(uint16_t crc, const void *pp, size_t len)
 		CRC16(crc, *buff++);
 		/* FALL THROUGH */
 	case 1:
-		CRC16(crc, *buff++);
+		CRC16(crc, *buff);
 		/* FALL THROUGH */
 	case 0:
 		break;
@@ -2431,7 +2431,6 @@ lzh_decode_blocks(struct lzh_stream *strm, int last)
 					for (li = 0; li < l; li++)
 						d[li] = s[li];
 				}
-				copy_pos = (copy_pos + l) & w_mask;
 				w_pos = (w_pos + l) & w_mask;
 				if (w_pos == 0) {
 					ds->w_remaining = w_size;
@@ -2442,8 +2441,10 @@ lzh_decode_blocks(struct lzh_stream *strm, int last)
 							state = ST_COPY_DATA;
 							ds->copy_len =
 							    copy_len - l;
+							ds->copy_pos =
+							    (copy_pos + l)
+							    & w_mask;
 						}
-						ds->copy_pos = copy_pos;
 						goto next_data;
 					}
 				}
@@ -2451,6 +2452,7 @@ lzh_decode_blocks(struct lzh_stream *strm, int last)
 					/* A copy of current pattern ended. */
 					break;
 				copy_len -= l;
+				copy_pos = (copy_pos + l) & w_mask;
 			}
 			state = ST_GET_LITERAL;
 			break;
