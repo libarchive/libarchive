@@ -2216,13 +2216,13 @@ lzx_translation(struct lzx_stream *strm, void *p, size_t size, uint32_t offset)
  *  True  : completed, there is enough data in the cache buffer.
  *  False : we met that strm->next_in is empty, we have to get following
  *          bytes. */
-#define lzx_br_read_ahead(strm, br, n)	\
+#define lzx_br_read_ahead_0(strm, br, n)	\
 	(lzx_br_has((br), (n)) || lzx_br_fillup(strm, br))
 /*  True  : the cache buffer has some bits as much as we need.
  *  False : there are no enough bits in the cache buffer to be used,
  *          we have to get following bytes if we could. */
-#define lzx_br_ensure(strm, br, n)	\
-	(lzx_br_read_ahead((strm), (br), (n)) || lzx_br_has((br), (n)))
+#define lzx_br_read_ahead(strm, br, n)	\
+	(lzx_br_read_ahead_0((strm), (br), (n)) || lzx_br_has((br), (n)))
 
 /* Notify how many bits we consumed. */
 #define lzx_br_consume(br, n)	((br)->cache_avail -= (n))
@@ -2762,7 +2762,8 @@ lzx_decode_blocks(struct lzx_stream *strm, int last)
 					/* Output buffer is empty. */
 					goto next_data;
 
-				if (!lzx_br_ensure(strm, &bre, mt_max_bits)) {
+				if (!lzx_br_read_ahead(strm, &bre,
+				    mt_max_bits)) {
 					if (!last)
 						goto next_data;
 					/* Remaining bits are less than
@@ -2806,7 +2807,8 @@ lzx_decode_blocks(struct lzx_stream *strm, int last)
 			 * Get a length.
 			 */
 			if (length_header == 7) {
-				if (!lzx_br_ensure(strm, &bre, lt_max_bits)) {
+				if (!lzx_br_read_ahead(strm, &bre,
+				    lt_max_bits)) {
 					if (!last) {
 						state = ST_LENGTH;
 						goto next_data;
@@ -2864,7 +2866,7 @@ lzx_decode_blocks(struct lzx_stream *strm, int last)
 			    offset_bits >= 3) {
 				int offbits = offset_bits - 3;
 
-				if (!lzx_br_ensure(strm, &bre, offbits)) {
+				if (!lzx_br_read_ahead(strm, &bre, offbits)) {
 					state = ST_OFFSET;
 					if (last)
 						goto failed;
@@ -2873,7 +2875,7 @@ lzx_decode_blocks(struct lzx_stream *strm, int last)
 				copy_pos = lzx_br_bits(&bre, offbits) << 3;
 
 				/* Get an aligned number. */
-				if (!lzx_br_ensure(strm, &bre,
+				if (!lzx_br_read_ahead(strm, &bre,
 				    offbits + at_max_bits)) {
 					if (!last) {
 						state = ST_OFFSET;
@@ -2895,7 +2897,8 @@ lzx_decode_blocks(struct lzx_stream *strm, int last)
 				/* Add an aligned number. */
 				copy_pos += c;
 			} else {
-				if (!lzx_br_ensure(strm, &bre, offset_bits)) {
+				if (!lzx_br_read_ahead(strm, &bre,
+				    offset_bits)) {
 					state = ST_OFFSET;
 					if (last)
 						goto failed;
