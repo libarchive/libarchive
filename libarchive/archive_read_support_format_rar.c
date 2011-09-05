@@ -1224,10 +1224,10 @@ read_header(struct archive_read *a, struct archive_entry *entry,
 
   case OS_UNIX:
   case OS_MAC_OS:
+  case OS_BEOS:
     rar->mode = archive_le32dec(file_header.file_attr);
     break;
 
-  case OS_BEOS:
   default:
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                       "Unknown file attributes from RAR file's host OS");
