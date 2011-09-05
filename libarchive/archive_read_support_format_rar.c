@@ -1223,10 +1223,10 @@ read_header(struct archive_read *a, struct archive_entry *entry,
     break;
 
   case OS_UNIX:
+  case OS_MAC_OS:
     rar->mode = archive_le32dec(file_header.file_attr);
     break;
 
-  case OS_MAC_OS:
   case OS_BEOS:
   default:
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
