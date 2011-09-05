@@ -1211,6 +1211,8 @@ read_header(struct archive_read *a, struct archive_entry *entry,
 
   switch(file_header.host_os)
   {
+  case OS_MSDOS:
+  case OS_OS2:
   case OS_WIN32:
     rar->mode = archive_le32dec(file_header.file_attr);
     if (rar->mode & FILE_ATTRIBUTE_DIRECTORY)
@@ -1224,8 +1226,6 @@ read_header(struct archive_read *a, struct archive_entry *entry,
     rar->mode = archive_le32dec(file_header.file_attr);
     break;
 
-  case OS_MSDOS:
-  case OS_OS2:
   case OS_MAC_OS:
   case OS_BEOS:
   default:
