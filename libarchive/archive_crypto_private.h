@@ -113,8 +113,10 @@
 
 /* Windows crypto headers */
 #if defined(ARCHIVE_CRYPTO_MD5_WIN)    ||\
-      defined(ARCHIVE_CRYPTO_SHA1_WIN)   || defined(ARCHIVE_CRYPTO_SHA256_WIN) ||\
-      defined(ARCHIVE_CRYPTO_SHA384_WIN) || defined(ARCHIVE_CRYPTO_SHA512_WIN)
+  defined(ARCHIVE_CRYPTO_SHA1_WIN)   ||\
+  defined(ARCHIVE_CRYPTO_SHA256_WIN) ||\
+  defined(ARCHIVE_CRYPTO_SHA384_WIN) ||\
+  defined(ARCHIVE_CRYPTO_SHA512_WIN)
 #include <wincrypt.h>
 typedef struct {
   int   valid;
@@ -223,25 +225,25 @@ typedef unsigned char archive_sha512_ctx;
   defined(ARCHIVE_CRYPTO_MD5_OPENSSL) ||\
   defined(ARCHIVE_CRYPTO_MD5_WIN)
 #define ARCHIVE_HAS_MD5
+#endif
 #define archive_md5_init(ctx)\
   __archive_crypto.md5init(ctx)
 #define archive_md5_final(ctx, md)\
   __archive_crypto.md5final(ctx, md)
 #define archive_md5_update(ctx, buf, n)\
   __archive_crypto.md5update(ctx, buf, n)
-#endif
 
 #if defined(ARCHIVE_CRYPTO_RMD160_LIBC) ||\
   defined(ARCHIVE_CRYPTO_RMD160_NETTLE) ||\
   defined(ARCHIVE_CRYPTO_RMD160_OPENSSL)
 #define ARCHIVE_HAS_RMD160
+#endif
 #define archive_rmd160_init(ctx)\
   __archive_crypto.rmd160init(ctx)
 #define archive_rmd160_final(ctx, md)\
   __archive_crypto.rmd160final(ctx, md)
 #define archive_rmd160_update(ctx, buf, n)\
   __archive_crypto.rmd160update(ctx, buf, n)
-#endif
 
 #if defined(ARCHIVE_CRYPTO_SHA1_LIBC) ||\
   defined(ARCHIVE_CRYPTO_SHA1_LIBSYSTEM) ||\
@@ -249,13 +251,13 @@ typedef unsigned char archive_sha512_ctx;
   defined(ARCHIVE_CRYPTO_SHA1_OPENSSL) ||\
   defined(ARCHIVE_CRYPTO_SHA1_WIN)
 #define ARCHIVE_HAS_SHA1
+#endif
 #define archive_sha1_init(ctx)\
   __archive_crypto.sha1init(ctx)
 #define archive_sha1_final(ctx, md)\
   __archive_crypto.sha1final(ctx, md)
 #define archive_sha1_update(ctx, buf, n)\
   __archive_crypto.sha1update(ctx, buf, n)
-#endif
 
 #if defined(ARCHIVE_CRYPTO_SHA256_LIBC) ||\
   defined(ARCHIVE_CRYPTO_SHA256_LIBC2) ||\
@@ -265,13 +267,13 @@ typedef unsigned char archive_sha512_ctx;
   defined(ARCHIVE_CRYPTO_SHA256_OPENSSL) ||\
   defined(ARCHIVE_CRYPTO_SHA256_WIN)
 #define ARCHIVE_HAS_SHA256
+#endif
 #define archive_sha256_init(ctx)\
   __archive_crypto.sha256init(ctx)
 #define archive_sha256_final(ctx, md)\
   __archive_crypto.sha256final(ctx, md)
 #define archive_sha256_update(ctx, buf, n)\
   __archive_crypto.sha256update(ctx, buf, n)
-#endif
 
 #if defined(ARCHIVE_CRYPTO_SHA384_LIBC) ||\
   defined(ARCHIVE_CRYPTO_SHA384_LIBC2) ||\
@@ -281,13 +283,13 @@ typedef unsigned char archive_sha512_ctx;
   defined(ARCHIVE_CRYPTO_SHA384_OPENSSL) ||\
   defined(ARCHIVE_CRYPTO_SHA384_WIN)
 #define ARCHIVE_HAS_SHA384
+#endif
 #define archive_sha384_init(ctx)\
   __archive_crypto.sha384init(ctx)
 #define archive_sha384_final(ctx, md)\
   __archive_crypto.sha384final(ctx, md)
 #define archive_sha384_update(ctx, buf, n)\
   __archive_crypto.sha384update(ctx, buf, n)
-#endif
 
 #if defined(ARCHIVE_CRYPTO_SHA512_LIBC) ||\
   defined(ARCHIVE_CRYPTO_SHA512_LIBC2) ||\
@@ -297,13 +299,13 @@ typedef unsigned char archive_sha512_ctx;
   defined(ARCHIVE_CRYPTO_SHA512_OPENSSL) ||\
   defined(ARCHIVE_CRYPTO_SHA512_WIN)
 #define ARCHIVE_HAS_SHA512
+#endif
 #define archive_sha512_init(ctx)\
   __archive_crypto.sha512init(ctx)
 #define archive_sha512_final(ctx, md)\
   __archive_crypto.sha512final(ctx, md)
 #define archive_sha512_update(ctx, buf, n)\
   __archive_crypto.sha512update(ctx, buf, n)
-#endif
 
 /* Minimal interface to crypto functionality for internal use in libarchive */
 struct archive_crypto

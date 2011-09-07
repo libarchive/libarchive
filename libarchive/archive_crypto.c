@@ -1,6 +1,7 @@
 /*-
 * Copyright (c) 2003-2007 Tim Kientzle
 * Copyright (c) 2011 Andres Mejia
+* Copyright (c) 2011 Michihiro NAKAJIMA
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -221,6 +222,27 @@ __archive_windowsapi_md5final(archive_md5_ctx *ctx, void *md)
   return (win_crypto_Final(md, 16, ctx));
 }
 
+#else
+
+static int
+__archive_stub_md5init(archive_md5_ctx *ctx)
+{
+	return (ARCHIVE_FAILED);
+}
+
+static int
+__archive_stub_md5update(archive_md5_ctx *ctx, const void *indata,
+    size_t insize)
+{
+	return (ARCHIVE_FAILED);
+}
+
+static int
+__archive_stub_md5final(archive_md5_ctx *ctx, void *md)
+{
+	return (ARCHIVE_FAILED);
+}
+
 #endif
 
 /* RIPEMD160 implementations */
@@ -294,6 +316,27 @@ __archive_openssl_ripemd160final(archive_rmd160_ctx *ctx, void *md)
 {
   EVP_DigestFinal(ctx, md, NULL);
   return (ARCHIVE_OK);
+}
+
+#else
+
+static int
+__archive_stub_ripemd160init(archive_rmd160_ctx *ctx)
+{
+	return (ARCHIVE_FAILED);
+}
+
+static int
+__archive_stub_ripemd160update(archive_rmd160_ctx *ctx, const void *indata,
+    size_t insize)
+{
+	return (ARCHIVE_FAILED);
+}
+
+static int
+__archive_stub_ripemd160final(archive_rmd160_ctx *ctx, void *md)
+{
+	return (ARCHIVE_FAILED);
 }
 
 #endif
@@ -419,6 +462,27 @@ static int
 __archive_windowsapi_sha1final(archive_sha1_ctx *ctx, void *md)
 {
   return (win_crypto_Final(md, 20, ctx));
+}
+
+#else
+
+static int
+__archive_stub_sha1init(archive_sha1_ctx *ctx)
+{
+	return (ARCHIVE_FAILED);
+}
+
+static int
+__archive_stub_sha1update(archive_sha1_ctx *ctx, const void *indata,
+    size_t insize)
+{
+	return (ARCHIVE_FAILED);
+}
+
+static int
+__archive_stub_sha1final(archive_sha1_ctx *ctx, void *md)
+{
+	return (ARCHIVE_FAILED);
 }
 
 #endif
@@ -589,6 +653,27 @@ __archive_windowsapi_sha256final(archive_sha256_ctx *ctx, void *md)
   return (win_crypto_Final(md, 32, ctx));
 }
 
+#else
+
+static int
+__archive_stub_sha256init(archive_sha256_ctx *ctx)
+{
+	return (ARCHIVE_FAILED);
+}
+
+static int
+__archive_stub_sha256update(archive_sha256_ctx *ctx, const void *indata,
+    size_t insize)
+{
+	return (ARCHIVE_FAILED);
+}
+
+static int
+__archive_stub_sha256final(archive_sha256_ctx *ctx, void *md)
+{
+	return (ARCHIVE_FAILED);
+}
+
 #endif
 
 /* SHA384 implementations */
@@ -755,6 +840,27 @@ static int
 __archive_windowsapi_sha384final(archive_sha384_ctx *ctx, void *md)
 {
   return (win_crypto_Final(md, 48, ctx));
+}
+
+#else
+
+static int
+__archive_stub_sha384init(archive_sha384_ctx *ctx)
+{
+	return (ARCHIVE_FAILED);
+}
+
+static int
+__archive_stub_sha384update(archive_sha384_ctx *ctx, const void *indata,
+    size_t insize)
+{
+	return (ARCHIVE_FAILED);
+}
+
+static int
+__archive_stub_sha384final(archive_sha384_ctx *ctx, void *md)
+{
+	return (ARCHIVE_FAILED);
 }
 
 #endif
@@ -925,6 +1031,27 @@ __archive_windowsapi_sha512final(archive_sha512_ctx *ctx, void *md)
   return (win_crypto_Final(md, 64, ctx));
 }
 
+#else
+
+static int
+__archive_stub_sha512init(archive_sha512_ctx *ctx)
+{
+	return (ARCHIVE_FAILED);
+}
+
+static int
+__archive_stub_sha512update(archive_sha512_ctx *ctx, const void *indata,
+    size_t insize)
+{
+	return (ARCHIVE_FAILED);
+}
+
+static int
+__archive_stub_sha512final(archive_sha512_ctx *ctx, void *md)
+{
+	return (ARCHIVE_FAILED);
+}
+
 #endif
 
 /* NOTE: Crypto functions are set based on availability and by the following
@@ -960,9 +1087,9 @@ const struct archive_crypto __archive_crypto =
   &__archive_windowsapi_md5update,
   &__archive_windowsapi_md5final,
 #elif !defined(ARCHIVE_MD5_COMPILE_TEST)
-  NULL,
-  NULL,
-  NULL,
+  &__archive_stub_md5init,
+  &__archive_stub_md5update,
+  &__archive_stub_md5final,
 #endif
 
 /* RIPEMD160 */
@@ -979,9 +1106,9 @@ const struct archive_crypto __archive_crypto =
   &__archive_openssl_ripemd160update,
   &__archive_openssl_ripemd160final,
 #elif !defined(ARCHIVE_RMD160_COMPILE_TEST)
-  NULL,
-  NULL,
-  NULL,
+  &__archive_stub_ripemd160init,
+  &__archive_stub_ripemd160update,
+  &__archive_stub_ripemd160final,
 #endif
 
 /* SHA1 */
@@ -1006,9 +1133,9 @@ const struct archive_crypto __archive_crypto =
   &__archive_windowsapi_sha1update,
   &__archive_windowsapi_sha1final,
 #elif !defined(ARCHIVE_SHA1_COMPILE_TEST)
-  NULL,
-  NULL,
-  NULL,
+  &__archive_stub_sha1init,
+  &__archive_stub_sha1update,
+  &__archive_stub_sha1final,
 #endif
 
 /* SHA256 */
@@ -1041,9 +1168,9 @@ const struct archive_crypto __archive_crypto =
   &__archive_windowsapi_sha256update,
   &__archive_windowsapi_sha256final,
 #elif !defined(ARCHIVE_SHA256_COMPILE_TEST)
-  NULL,
-  NULL,
-  NULL,
+  &__archive_stub_sha256init,
+  &__archive_stub_sha256update,
+  &__archive_stub_sha256final,
 #endif
 
 /* SHA384 */
@@ -1076,9 +1203,9 @@ const struct archive_crypto __archive_crypto =
   &__archive_windowsapi_sha384update,
   &__archive_windowsapi_sha384final,
 #elif !defined(ARCHIVE_SHA384_COMPILE_TEST)
-  NULL,
-  NULL,
-  NULL,
+  &__archive_stub_sha384init,
+  &__archive_stub_sha384update,
+  &__archive_stub_sha384final,
 #endif
 
 /* SHA512 */
@@ -1111,8 +1238,8 @@ const struct archive_crypto __archive_crypto =
   &__archive_windowsapi_sha512update,
   &__archive_windowsapi_sha512final
 #elif !defined(ARCHIVE_SHA512_COMPILE_TEST)
-  NULL,
-  NULL,
-  NULL
+  &__archive_stub_sha512init,
+  &__archive_stub_sha512update,
+  &__archive_stub_sha512final
 #endif
 };
