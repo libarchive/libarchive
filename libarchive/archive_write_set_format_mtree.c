@@ -1277,38 +1277,50 @@ sum_init(struct mtree_writer *mtree)
 	}
 #ifdef ARCHIVE_HAS_MD5
 	if (mtree->keys & F_MD5) {
-		mtree->compute_sum |= F_MD5;
-		archive_md5_init(&mtree->md5ctx);
+		if (archive_md5_init(&mtree->md5ctx) == ARCHIVE_OK)
+			mtree->compute_sum |= F_MD5;
+		else
+			mtree->keys &= ~F_MD5;/* Not supported. */
 	}
 #endif
 #ifdef ARCHIVE_HAS_RMD160
 	if (mtree->keys & F_RMD160) {
-		mtree->compute_sum |= F_RMD160;
-		archive_rmd160_init(&mtree->rmd160ctx);
+		if (archive_rmd160_init(&mtree->rmd160ctx) == ARCHIVE_OK)
+			mtree->compute_sum |= F_RMD160;
+		else
+			mtree->keys &= ~F_RMD160;/* Not supported. */
 	}
 #endif
 #ifdef ARCHIVE_HAS_SHA1
 	if (mtree->keys & F_SHA1) {
-		mtree->compute_sum |= F_SHA1;
-		archive_sha1_init(&mtree->sha1ctx);
+		if (archive_sha1_init(&mtree->sha1ctx) == ARCHIVE_OK)
+			mtree->compute_sum |= F_SHA1;
+		else
+			mtree->keys &= ~F_SHA1;/* Not supported. */
 	}
 #endif
 #ifdef ARCHIVE_HAS_SHA256
 	if (mtree->keys & F_SHA256) {
-		mtree->compute_sum |= F_SHA256;
-		archive_sha256_init(&mtree->sha256ctx);
+		if (archive_sha256_init(&mtree->sha256ctx) == ARCHIVE_OK)
+			mtree->compute_sum |= F_SHA256;
+		else
+			mtree->keys &= ~F_SHA256;/* Not supported. */
 	}
 #endif
 #ifdef ARCHIVE_HAS_SHA384
 	if (mtree->keys & F_SHA384) {
-		mtree->compute_sum |= F_SHA384;
-		archive_sha384_init(&mtree->sha384ctx);
+		if (archive_sha384_init(&mtree->sha384ctx) == ARCHIVE_OK)
+			mtree->compute_sum |= F_SHA384;
+		else
+			mtree->keys &= ~F_SHA384;/* Not supported. */
 	}
 #endif
 #ifdef ARCHIVE_HAS_SHA512
 	if (mtree->keys & F_SHA512) {
-		mtree->compute_sum |= F_SHA512;
-		archive_sha512_init(&mtree->sha512ctx);
+		if (archive_sha512_init(&mtree->sha512ctx) == ARCHIVE_OK)
+			mtree->compute_sum |= F_SHA512;
+		else
+			mtree->keys &= ~F_SHA512;/* Not supported. */
 	}
 #endif
 }
