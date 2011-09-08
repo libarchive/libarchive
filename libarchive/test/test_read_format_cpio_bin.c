@@ -47,13 +47,13 @@ DEFINE_TEST(test_read_format_cpio_bin)
 	struct archive_entry *ae;
 	struct archive *a;
 	assert((a = archive_read_new()) != NULL);
-	assertA(0 == archive_read_support_filter_all(a));
-	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_open_memory(a, archive, sizeof(archive)));
-	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualIntA(a, 0, archive_read_support_filter_all(a));
+	assertEqualIntA(a, 0, archive_read_support_format_all(a));
+	assertEqualIntA(a, 0, archive_read_open_memory(a, archive, sizeof(archive)));
+	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
 	assertEqualInt(1, archive_file_count(a));
-	assertA(archive_compression(a) == ARCHIVE_COMPRESSION_NONE);
-	assertA(archive_format(a) == ARCHIVE_FORMAT_CPIO_BIN_LE);
+	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FORMAT_CPIO_BIN_LE, archive_format(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

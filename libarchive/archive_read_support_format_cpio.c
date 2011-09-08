@@ -44,50 +44,83 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_support_format_cpio.c 20116
 #include "archive_private.h"
 #include "archive_read_private.h"
 
-struct cpio_bin_header {
-	unsigned char	c_magic[2];
-	unsigned char	c_dev[2];
-	unsigned char	c_ino[2];
-	unsigned char	c_mode[2];
-	unsigned char	c_uid[2];
-	unsigned char	c_gid[2];
-	unsigned char	c_nlink[2];
-	unsigned char	c_rdev[2];
-	unsigned char	c_mtime[4];
-	unsigned char	c_namesize[2];
-	unsigned char	c_filesize[4];
-};
+#define	bin_magic_offset 0
+#define	bin_magic_size 2
+#define	bin_dev_offset 2
+#define	bin_dev_size 2
+#define	bin_ino_offset 4
+#define	bin_ino_size 2
+#define	bin_mode_offset 6
+#define	bin_mode_size 2
+#define	bin_uid_offset 8
+#define	bin_uid_size 2
+#define	bin_gid_offset 10
+#define	bin_gid_size 2
+#define	bin_nlink_offset 12
+#define	bin_nlink_size 2
+#define	bin_rdev_offset 14
+#define	bin_rdev_size 2
+#define	bin_mtime_offset 16
+#define	bin_mtime_size 4
+#define	bin_namesize_offset 20
+#define	bin_namesize_size 2
+#define	bin_filesize_offset 22
+#define	bin_filesize_size 4
+#define	bin_header_size 26
 
-struct cpio_odc_header {
-	char	c_magic[6];
-	char	c_dev[6];
-	char	c_ino[6];
-	char	c_mode[6];
-	char	c_uid[6];
-	char	c_gid[6];
-	char	c_nlink[6];
-	char	c_rdev[6];
-	char	c_mtime[11];
-	char	c_namesize[6];
-	char	c_filesize[11];
-};
+#define	odc_magic_offset 0
+#define	odc_magic_size 6
+#define	odc_dev_offset 6
+#define	odc_dev_size 6
+#define	odc_ino_offset 12
+#define	odc_ino_size 6
+#define	odc_mode_offset 18
+#define	odc_mode_size 6
+#define	odc_uid_offset 24
+#define	odc_uid_size 6
+#define	odc_gid_offset 30
+#define	odc_gid_size 6
+#define	odc_nlink_offset 36
+#define	odc_nlink_size 6
+#define	odc_rdev_offset 42
+#define	odc_rdev_size 6
+#define	odc_mtime_offset 48
+#define	odc_mtime_size 11
+#define	odc_namesize_offset 59
+#define	odc_namesize_size 6
+#define	odc_filesize_offset 65
+#define	odc_filesize_size 11
+#define	odc_header_size 76
 
-struct cpio_newc_header {
-	char	c_magic[6];
-	char	c_ino[8];
-	char	c_mode[8];
-	char	c_uid[8];
-	char	c_gid[8];
-	char	c_nlink[8];
-	char	c_mtime[8];
-	char	c_filesize[8];
-	char	c_devmajor[8];
-	char	c_devminor[8];
-	char	c_rdevmajor[8];
-	char	c_rdevminor[8];
-	char	c_namesize[8];
-	char	c_crc[8];
-};
+#define	newc_magic_offset 0
+#define	newc_magic_size 6
+#define	newc_ino_offset 6
+#define	newc_ino_size 8
+#define	newc_mode_offset 14
+#define	newc_mode_size 8
+#define	newc_uid_offset 22
+#define	newc_uid_size 8
+#define	newc_gid_offset 30
+#define	newc_gid_size 8
+#define	newc_nlink_offset 38
+#define	newc_nlink_size 8
+#define	newc_mtime_offset 46
+#define	newc_mtime_size 8
+#define	newc_filesize_offset 54
+#define	newc_filesize_size 8
+#define	newc_devmajor_offset 62
+#define	newc_devmajor_size 8
+#define	newc_devminor_offset 70
+#define	newc_devminor_size 8
+#define	newc_rdevmajor_offset 78
+#define	newc_rdevmajor_size 8
+#define	newc_rdevminor_offset 86
+#define	newc_rdevminor_size 8
+#define	newc_namesize_offset 94
+#define	newc_namesize_size 8
+#define	newc_checksum_offset 102
+#define	newc_checksum_size 8
+#define	newc_header_size 110
 
 /*
  * An afio large ASCII header, which they named itself.
@@ -96,25 +129,37 @@ struct cpio_newc_header {
  * 0x7fffffff, which we cannot record to odc header because of its limit.
  * If not, uses odc header.
  */
-struct cpio_afiol_header {
-	char	c_magic[6];
-	char	c_dev[8];	/* hex */
-	char	c_ino[16];	/* hex */
-	char	c_ino_m;	/* 'm' */
-	char	c_mode[6];	/* oct */
-	char	c_uid[8];	/* hex */
-	char	c_gid[8];	/* hex */
-	char	c_nlink[8];	/* hex */
-	char	c_rdev[8];	/* hex */
-	char	c_mtime[16];	/* hex */
-	char	c_mtime_n;	/* 'n' */
-	char	c_namesize[4];	/* hex */
-	char	c_flag[4];	/* hex */
-	char	c_xsize[4];	/* hex */
-	char	c_xsize_s;	/* 's' */
-	char	c_filesize[16];	/* hex */
-	char	c_filesize_c;	/* ':' */
-};
+#define	afiol_magic_offset 0
+#define	afiol_magic_size 6
+#define	afiol_dev_offset 6
+#define	afiol_dev_size 8	/* hex */
+#define	afiol_ino_offset 14
+#define	afiol_ino_size 16	/* hex */
+#define	afiol_ino_m_offset 30	/* 'm' */
+#define	afiol_mode_offset 31
+#define	afiol_mode_size 6	/* oct */
+#define	afiol_uid_offset 37
+#define	afiol_uid_size 8	/* hex */
+#define	afiol_gid_offset 45
+#define	afiol_gid_size 8	/* hex */
+#define	afiol_nlink_offset 53
+#define	afiol_nlink_size 8	/* hex */
+#define	afiol_rdev_offset 61
+#define	afiol_rdev_size 8	/* hex */
+#define	afiol_mtime_offset 69
+#define	afiol_mtime_size 16	/* hex */
+#define	afiol_mtime_n_offset 85	/* 'n' */
+#define	afiol_namesize_offset 86
+#define	afiol_namesize_size 4	/* hex */
+#define	afiol_flag_offset 90
+#define	afiol_flag_size 4	/* hex */
+#define	afiol_xsize_offset 94
+#define	afiol_xsize_size 4	/* hex */
+#define	afiol_xsize_s_offset 98	/* 's' */
+#define	afiol_filesize_offset 99
+#define	afiol_filesize_size 16	/* hex */
+#define	afiol_filesize_c_offset 115	/* ':' */
+#define afiol_header_size 116
 
 
 struct links_entry {
@@ -475,7 +520,7 @@ find_newc_header(struct archive_read *a)
 	ssize_t bytes;
 
 	for (;;) {
-		h = __archive_read_ahead(a, sizeof(struct cpio_newc_header), &bytes);
+		h = __archive_read_ahead(a, newc_header_size, &bytes);
 		if (h == NULL)
 			return (ARCHIVE_FATAL);
 		p = h;
@@ -484,19 +529,19 @@ find_newc_header(struct archive_read *a)
 		/* Try the typical case first, then go into the slow search.*/
 		if (memcmp("07070", p, 5) == 0
 		    && (p[5] == '1' || p[5] == '2')
-		    && is_hex(p, sizeof(struct cpio_newc_header)))
+		    && is_hex(p, newc_header_size))
 			return (ARCHIVE_OK);
 
 		/*
 		 * Scan ahead until we find something that looks
-		 * like an odc header.
+		 * like a newc header.
 		 */
-		while (p + sizeof(struct cpio_newc_header) <= q) {
+		while (p + newc_header_size <= q) {
 			switch (p[5]) {
 			case '1':
 			case '2':
 				if (memcmp("07070", p, 5) == 0
-					&& is_hex(p, sizeof(struct cpio_newc_header))) {
+				    && is_hex(p, newc_header_size)) {
 					skip = p - (const char *)h;
 					__archive_read_consume(a, skip);
 					skipped += skip;
@@ -531,7 +576,7 @@ header_newc(struct archive_read *a, struct cpio *cpio,
     struct archive_entry *entry, size_t *namelength, size_t *name_pad)
 {
 	const void *h;
-	const struct cpio_newc_header *header;
+	const char *header;
 	int r;
 
 	r = find_newc_header(a);
@@ -539,34 +584,34 @@ header_newc(struct archive_read *a, struct cpio *cpio,
 		return (r);
 
 	/* Read fixed-size portion of header. */
-	h = __archive_read_ahead(a, sizeof(struct cpio_newc_header), NULL);
+	h = __archive_read_ahead(a, newc_header_size, NULL);
 	if (h == NULL)
 	    return (ARCHIVE_FATAL);
 
 	/* Parse out hex fields. */
-	header = (const struct cpio_newc_header *)h;
+	header = (const char *)h;
 
-	if (memcmp(header->c_magic, "070701", 6) == 0) {
+	if (memcmp(header + newc_magic_offset, "070701", 6) == 0) {
 		a->archive.archive_format = ARCHIVE_FORMAT_CPIO_SVR4_NOCRC;
 		a->archive.archive_format_name = "ASCII cpio (SVR4 with no CRC)";
-	} else if (memcmp(header->c_magic, "070702", 6) == 0) {
+	} else if (memcmp(header + newc_magic_offset, "070702", 6) == 0) {
 		a->archive.archive_format = ARCHIVE_FORMAT_CPIO_SVR4_CRC;
 		a->archive.archive_format_name = "ASCII cpio (SVR4 with CRC)";
 	} else {
 		/* TODO: Abort here? */
 	}
 
-	archive_entry_set_devmajor(entry, atol16(header->c_devmajor, sizeof(header->c_devmajor)));
-	archive_entry_set_devminor(entry, atol16(header->c_devminor, sizeof(header->c_devminor)));
-	archive_entry_set_ino(entry, atol16(header->c_ino, sizeof(header->c_ino)));
-	archive_entry_set_mode(entry, atol16(header->c_mode, sizeof(header->c_mode)));
-	archive_entry_set_uid(entry, atol16(header->c_uid, sizeof(header->c_uid)));
-	archive_entry_set_gid(entry, atol16(header->c_gid, sizeof(header->c_gid)));
-	archive_entry_set_nlink(entry, atol16(header->c_nlink, sizeof(header->c_nlink)));
-	archive_entry_set_rdevmajor(entry, atol16(header->c_rdevmajor, sizeof(header->c_rdevmajor)));
-	archive_entry_set_rdevminor(entry, atol16(header->c_rdevminor, sizeof(header->c_rdevminor)));
-	archive_entry_set_mtime(entry, atol16(header->c_mtime, sizeof(header->c_mtime)), 0);
-	*namelength = atol16(header->c_namesize, sizeof(header->c_namesize));
+	archive_entry_set_devmajor(entry, atol16(header + newc_devmajor_offset, newc_devmajor_size));
+	archive_entry_set_devminor(entry, atol16(header + newc_devminor_offset, newc_devminor_size));
+	archive_entry_set_ino(entry, atol16(header + newc_ino_offset, newc_ino_size));
+	archive_entry_set_mode(entry, atol16(header + newc_mode_offset, newc_mode_size));
+	archive_entry_set_uid(entry, atol16(header + newc_uid_offset, newc_uid_size));
+	archive_entry_set_gid(entry, atol16(header + newc_gid_offset, newc_gid_size));
+	archive_entry_set_nlink(entry, atol16(header + newc_nlink_offset, newc_nlink_size));
+	archive_entry_set_rdevmajor(entry, atol16(header + newc_rdevmajor_offset, newc_rdevmajor_size));
+	archive_entry_set_rdevminor(entry, atol16(header + newc_rdevminor_offset, newc_rdevminor_size));
+	archive_entry_set_mtime(entry, atol16(header + newc_mtime_offset, newc_mtime_size), 0);
+	*namelength = atol16(header + newc_namesize_offset, newc_namesize_size);
 	/* Pad name to 2 more than a multiple of 4. */
 	*name_pad = (2 - *namelength) & 3;
 
@@ -576,11 +621,11 @@ header_newc(struct archive_read *a, struct cpio *cpio,
 	 * size.
 	 */
 	cpio->entry_bytes_remaining =
-	    atol16(header->c_filesize, sizeof(header->c_filesize));
+	    atol16(header + newc_filesize_offset, newc_filesize_size);
 	archive_entry_set_size(entry, cpio->entry_bytes_remaining);
 	/* Pad file contents to a multiple of 4. */
 	cpio->entry_padding = 3 & -cpio->entry_bytes_remaining;
-	__archive_read_consume(a, sizeof(struct cpio_newc_header));
+	__archive_read_consume(a, newc_header_size);
 	return (r);
 }
 
@@ -602,22 +647,22 @@ is_octal(const char *p, size_t len)
 }
 
 static int
-is_afio_large(const char *p, size_t len)
+is_afio_large(const char *h, size_t len)
 {
-	const struct cpio_afiol_header *h = (const struct cpio_afiol_header *)p;
-
-	if (len < sizeof(*h))
+	if (len < afiol_header_size)
 		return (0);
-	if (h->c_ino_m != 'm' || h->c_mtime_n != 'n' ||
-	    h->c_xsize_s != 's' ||  h->c_filesize_c != ':')
+	if (h[afiol_ino_m_offset] != 'm'
+	    || h[afiol_mtime_n_offset] != 'n'
+	    || h[afiol_xsize_s_offset] != 's'
+	    || h[afiol_filesize_c_offset] != ':')
 		return (0);
-	if (!is_hex(h->c_dev, &(h->c_ino_m) - h->c_dev))
+	if (!is_hex(h + afiol_dev_offset, afiol_ino_m_offset - afiol_dev_offset))
 		return (0);
-	if (!is_hex(h->c_mode, &(h->c_mtime_n) - h->c_mode))
+	if (!is_hex(h + afiol_mode_offset, afiol_mtime_n_offset - afiol_mode_offset))
 		return (0);
-	if (!is_hex(h->c_namesize, &(h->c_xsize_s) - h->c_namesize))
+	if (!is_hex(h + afiol_namesize_offset, afiol_xsize_s_offset - afiol_namesize_offset))
 		return (0);
-	if (!is_hex(h->c_filesize, &(h->c_filesize_c) - h->c_filesize))
+	if (!is_hex(h + afiol_filesize_offset, afiol_filesize_size))
 		return (0);
 	return (1);
 }
@@ -631,15 +676,14 @@ find_odc_header(struct archive_read *a)
 	ssize_t bytes;
 
 	for (;;) {
-		h = __archive_read_ahead(a, sizeof(struct cpio_odc_header), &bytes);
+		h = __archive_read_ahead(a, odc_header_size, &bytes);
 		if (h == NULL)
 			return (ARCHIVE_FATAL);
 		p = h;
 		q = p + bytes;
 
 		/* Try the typical case first, then go into the slow search.*/
-		if (memcmp("070707", p, 6) == 0
-		    && is_octal(p, sizeof(struct cpio_odc_header)))
+		if (memcmp("070707", p, 6) == 0 && is_octal(p, odc_header_size))
 			return (ARCHIVE_OK);
 		if (memcmp("070727", p, 6) == 0 && is_afio_large(p, bytes)) {
 			a->archive.archive_format = ARCHIVE_FORMAT_CPIO_AFIO_LARGE;
@@ -650,11 +694,11 @@ find_odc_header(struct archive_read *a)
 		 * Scan ahead until we find something that looks
 		 * like an odc header.
 		 */
-		while (p + sizeof(struct cpio_odc_header) <= q) {
+		while (p + odc_header_size <= q) {
 			switch (p[5]) {
 			case '7':
 				if ((memcmp("070707", p, 6) == 0
-				    && is_octal(p, sizeof(struct cpio_odc_header)))
+				    && is_octal(p, odc_header_size))
 				    || (memcmp("070727", p, 6) == 0
 				        && is_afio_large(p, q - p))) {
 					skip = p - (const char *)h;
@@ -695,7 +739,7 @@ header_odc(struct archive_read *a, struct cpio *cpio,
 {
 	const void *h;
 	int r;
-	const struct cpio_odc_header *header;
+	const char *header;
 
 	a->archive.archive_format = ARCHIVE_FORMAT_CPIO_POSIX;
 	a->archive.archive_format_name = "POSIX octet-oriented cpio";
@@ -714,22 +758,22 @@ header_odc(struct archive_read *a, struct cpio *cpio,
 	}
 
 	/* Read fixed-size portion of header. */
-	h = __archive_read_ahead(a, sizeof(struct cpio_odc_header), NULL);
+	h = __archive_read_ahead(a, odc_header_size, NULL);
 	if (h == NULL)
 	    return (ARCHIVE_FATAL);
 
 	/* Parse out octal fields. */
-	header = (const struct cpio_odc_header *)h;
+	header = (const char *)h;
 
-	archive_entry_set_dev(entry, atol8(header->c_dev, sizeof(header->c_dev)));
-	archive_entry_set_ino(entry, atol8(header->c_ino, sizeof(header->c_ino)));
-	archive_entry_set_mode(entry, atol8(header->c_mode, sizeof(header->c_mode)));
-	archive_entry_set_uid(entry, atol8(header->c_uid, sizeof(header->c_uid)));
-	archive_entry_set_gid(entry, atol8(header->c_gid, sizeof(header->c_gid)));
-	archive_entry_set_nlink(entry, atol8(header->c_nlink, sizeof(header->c_nlink)));
-	archive_entry_set_rdev(entry, atol8(header->c_rdev, sizeof(header->c_rdev)));
-	archive_entry_set_mtime(entry, atol8(header->c_mtime, sizeof(header->c_mtime)), 0);
-	*namelength = atol8(header->c_namesize, sizeof(header->c_namesize));
+	archive_entry_set_dev(entry, atol8(header + odc_dev_offset, odc_dev_size));
+	archive_entry_set_ino(entry, atol8(header + odc_ino_offset, odc_ino_size));
+	archive_entry_set_mode(entry, atol8(header + odc_mode_offset, odc_mode_size));
+	archive_entry_set_uid(entry, atol8(header + odc_uid_offset, odc_uid_size));
+	archive_entry_set_gid(entry, atol8(header + odc_gid_offset, odc_gid_size));
+	archive_entry_set_nlink(entry, atol8(header + odc_nlink_offset, odc_nlink_size));
+	archive_entry_set_rdev(entry, atol8(header + odc_rdev_offset, odc_rdev_size));
+	archive_entry_set_mtime(entry, atol8(header + odc_mtime_offset, odc_mtime_size), 0);
+	*namelength = atol8(header + odc_namesize_offset, odc_namesize_size);
 	*name_pad = 0; /* No padding of filename. */
 
 	/*
@@ -738,10 +782,10 @@ header_odc(struct archive_read *a, struct cpio *cpio,
 	 * size.
 	 */
 	cpio->entry_bytes_remaining =
-	    atol8(header->c_filesize, sizeof(header->c_filesize));
+	    atol8(header + odc_filesize_offset, odc_filesize_size);
 	archive_entry_set_size(entry, cpio->entry_bytes_remaining);
 	cpio->entry_padding = 0;
-	__archive_read_consume(a, sizeof(struct cpio_odc_header));
+	__archive_read_consume(a, odc_header_size);
 	return (r);
 }
 
@@ -757,35 +801,35 @@ header_afiol(struct archive_read *a, struct cpio *cpio,
     struct archive_entry *entry, size_t *namelength, size_t *name_pad)
 {
 	const void *h;
-	const struct cpio_afiol_header *header;
+	const char *header;
 
 	a->archive.archive_format = ARCHIVE_FORMAT_CPIO_AFIO_LARGE;
 	a->archive.archive_format_name = "afio large ASCII";
 
 	/* Read fixed-size portion of header. */
-	h = __archive_read_ahead(a, sizeof(struct cpio_afiol_header), NULL);
+	h = __archive_read_ahead(a, afiol_header_size, NULL);
 	if (h == NULL)
 	    return (ARCHIVE_FATAL);
 
 	/* Parse out octal fields. */
-	header = (const struct cpio_afiol_header *)h;
+	header = (const char *)h;
 
-	archive_entry_set_dev(entry, atol16(header->c_dev, sizeof(header->c_dev)));
-	archive_entry_set_ino(entry, atol16(header->c_ino, sizeof(header->c_ino)));
-	archive_entry_set_mode(entry, atol8(header->c_mode, sizeof(header->c_mode)));
-	archive_entry_set_uid(entry, atol16(header->c_uid, sizeof(header->c_uid)));
-	archive_entry_set_gid(entry, atol16(header->c_gid, sizeof(header->c_gid)));
-	archive_entry_set_nlink(entry, atol16(header->c_nlink, sizeof(header->c_nlink)));
-	archive_entry_set_rdev(entry, atol16(header->c_rdev, sizeof(header->c_rdev)));
-	archive_entry_set_mtime(entry, atol16(header->c_mtime, sizeof(header->c_mtime)), 0);
-	*namelength = atol16(header->c_namesize, sizeof(header->c_namesize));
+	archive_entry_set_dev(entry, atol16(header + afiol_dev_offset, afiol_dev_size));
+	archive_entry_set_ino(entry, atol16(header + afiol_ino_offset, afiol_ino_size));
+	archive_entry_set_mode(entry, atol8(header + afiol_mode_offset, afiol_mode_size));
+	archive_entry_set_uid(entry, atol16(header + afiol_uid_offset, afiol_uid_size));
+	archive_entry_set_gid(entry, atol16(header + afiol_gid_offset, afiol_gid_size));
+	archive_entry_set_nlink(entry, atol16(header + afiol_nlink_offset, afiol_nlink_size));
+	archive_entry_set_rdev(entry, atol16(header + afiol_rdev_offset, afiol_rdev_size));
+	archive_entry_set_mtime(entry, atol16(header + afiol_mtime_offset, afiol_mtime_size), 0);
+	*namelength = atol16(header + afiol_namesize_offset, afiol_namesize_size);
 	*name_pad = 0; /* No padding of filename. */
 
 	cpio->entry_bytes_remaining =
-	    atol16(header->c_filesize, sizeof(header->c_filesize));
+	    atol16(header + afiol_filesize_offset, afiol_filesize_size);
 	archive_entry_set_size(entry, cpio->entry_bytes_remaining);
 	cpio->entry_padding = 0;
-	__archive_read_consume(a, sizeof(struct cpio_afiol_header));
+	__archive_read_consume(a, afiol_header_size);
 	return (ARCHIVE_OK);
 }
 
@@ -795,34 +839,34 @@ header_bin_le(struct archive_read *a, struct cpio *cpio,
     struct archive_entry *entry, size_t *namelength, size_t *name_pad)
 {
 	const void *h;
-	const struct cpio_bin_header *header;
+	const unsigned char *header;
 
 	a->archive.archive_format = ARCHIVE_FORMAT_CPIO_BIN_LE;
 	a->archive.archive_format_name = "cpio (little-endian binary)";
 
 	/* Read fixed-size portion of header. */
-	h = __archive_read_ahead(a, sizeof(struct cpio_bin_header), NULL);
+	h = __archive_read_ahead(a, bin_header_size, NULL);
 	if (h == NULL)
 	    return (ARCHIVE_FATAL);
 
 	/* Parse out binary fields. */
-	header = (const struct cpio_bin_header *)h;
+	header = (const unsigned char *)h;
 
-	archive_entry_set_dev(entry, header->c_dev[0] + header->c_dev[1] * 256);
-	archive_entry_set_ino(entry, header->c_ino[0] + header->c_ino[1] * 256);
-	archive_entry_set_mode(entry, header->c_mode[0] + header->c_mode[1] * 256);
-	archive_entry_set_uid(entry, header->c_uid[0] + header->c_uid[1] * 256);
-	archive_entry_set_gid(entry, header->c_gid[0] + header->c_gid[1] * 256);
-	archive_entry_set_nlink(entry, header->c_nlink[0] + header->c_nlink[1] * 256);
-	archive_entry_set_rdev(entry, header->c_rdev[0] + header->c_rdev[1] * 256);
-	archive_entry_set_mtime(entry, le4(header->c_mtime), 0);
-	*namelength = header->c_namesize[0] + header->c_namesize[1] * 256;
+	archive_entry_set_dev(entry, header[bin_dev_offset] + header[bin_dev_offset + 1] * 256);
+	archive_entry_set_ino(entry, header[bin_ino_offset] + header[bin_ino_offset + 1] * 256);
+	archive_entry_set_mode(entry, header[bin_mode_offset] + header[bin_mode_offset + 1] * 256);
+	archive_entry_set_uid(entry, header[bin_uid_offset] + header[bin_uid_offset + 1] * 256);
+	archive_entry_set_gid(entry, header[bin_gid_offset] + header[bin_gid_offset + 1] * 256);
+	archive_entry_set_nlink(entry, header[bin_nlink_offset] + header[bin_nlink_offset + 1] * 256);
+	archive_entry_set_rdev(entry, header[bin_rdev_offset] + header[bin_rdev_offset + 1] * 256);
+	archive_entry_set_mtime(entry, le4(header + bin_mtime_offset), 0);
+	*namelength = header[bin_namesize_offset] + header[bin_namesize_offset + 1] * 256;
 	*name_pad = *namelength & 1; /* Pad to even. */
 
-	cpio->entry_bytes_remaining = le4(header->c_filesize);
+	cpio->entry_bytes_remaining = le4(header + bin_filesize_offset);
 	archive_entry_set_size(entry, cpio->entry_bytes_remaining);
 	cpio->entry_padding = cpio->entry_bytes_remaining & 1; /* Pad to even. */
-	__archive_read_consume(a, sizeof(struct cpio_bin_header));
+	__archive_read_consume(a, bin_header_size);
 	return (ARCHIVE_OK);
 }
 
@@ -831,34 +875,34 @@ header_bin_be(struct archive_read *a, struct cpio *cpio,
     struct archive_entry *entry, size_t *namelength, size_t *name_pad)
 {
 	const void *h;
-	const struct cpio_bin_header *header;
+	const unsigned char *header;
 
 	a->archive.archive_format = ARCHIVE_FORMAT_CPIO_BIN_BE;
 	a->archive.archive_format_name = "cpio (big-endian binary)";
 
 	/* Read fixed-size portion of header. */
-	h = __archive_read_ahead(a, sizeof(struct cpio_bin_header), NULL);
+	h = __archive_read_ahead(a, bin_header_size, NULL);
 	if (h == NULL)
 	    return (ARCHIVE_FATAL);
 
 	/* Parse out binary fields. */
-	header = (const struct cpio_bin_header *)h;
+	header = (const unsigned char *)h;
 
-	archive_entry_set_dev(entry, header->c_dev[0] * 256 + header->c_dev[1]);
-	archive_entry_set_ino(entry, header->c_ino[0] * 256 + header->c_ino[1]);
-	archive_entry_set_mode(entry, header->c_mode[0] * 256 + header->c_mode[1]);
-	archive_entry_set_uid(entry, header->c_uid[0] * 256 + header->c_uid[1]);
-	archive_entry_set_gid(entry, header->c_gid[0] * 256 + header->c_gid[1]);
-	archive_entry_set_nlink(entry, header->c_nlink[0] * 256 + header->c_nlink[1]);
-	archive_entry_set_rdev(entry, header->c_rdev[0] * 256 + header->c_rdev[1]);
-	archive_entry_set_mtime(entry, be4(header->c_mtime), 0);
-	*namelength = header->c_namesize[0] * 256 + header->c_namesize[1];
+	archive_entry_set_dev(entry, header[bin_dev_offset] * 256 + header[bin_dev_offset + 1]);
+	archive_entry_set_ino(entry, header[bin_ino_offset] * 256 + header[bin_ino_offset + 1]);
+	archive_entry_set_mode(entry, header[bin_mode_offset] * 256 + header[bin_mode_offset + 1]);
+	archive_entry_set_uid(entry, header[bin_uid_offset] * 256 + header[bin_uid_offset + 1]);
+	archive_entry_set_gid(entry, header[bin_gid_offset] * 256 + header[bin_gid_offset + 1]);
+	archive_entry_set_nlink(entry, header[bin_nlink_offset] * 256 + header[bin_nlink_offset + 1]);
+	archive_entry_set_rdev(entry, header[bin_rdev_offset] * 256 + header[bin_rdev_offset + 1]);
+	archive_entry_set_mtime(entry, be4(header + bin_mtime_offset), 0);
+	*namelength = header[bin_namesize_offset] * 256 + header[bin_namesize_offset + 1];
 	*name_pad = *namelength & 1; /* Pad to even. */
 
-	cpio->entry_bytes_remaining = be4(header->c_filesize);
+	cpio->entry_bytes_remaining = be4(header + bin_filesize_offset);
 	archive_entry_set_size(entry, cpio->entry_bytes_remaining);
 	cpio->entry_padding = cpio->entry_bytes_remaining & 1; /* Pad to even. */
-	__archive_read_consume(a, sizeof(struct cpio_bin_header));
+	    __archive_read_consume(a, bin_header_size);
 	return (ARCHIVE_OK);
 }
 

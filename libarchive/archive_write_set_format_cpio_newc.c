@@ -66,22 +66,35 @@ struct cpio {
 	int		  init_default_conversion;
 };
 
-struct cpio_header_newc {
-	char	c_magic[6];
-	char	c_ino[8];
-	char	c_mode[8];
-	char	c_uid[8];
-	char	c_gid[8];
-	char	c_nlink[8];
-	char	c_mtime[8];
-	char	c_filesize[8];
-	char	c_devmajor[8];
-	char	c_devminor[8];
-	char	c_rdevmajor[8];
-	char	c_rdevminor[8];
-	char	c_namesize[8];
-	char	c_checksum[8];
-};
+#define	c_magic_offset 0
+#define	c_magic_size 6
+#define	c_ino_offset 6
+#define	c_ino_size 8
+#define	c_mode_offset 14
+#define	c_mode_size 8
+#define	c_uid_offset 22
+#define	c_uid_size 8
+#define	c_gid_offset 30
+#define	c_gid_size 8
+#define	c_nlink_offset 38
+#define	c_nlink_size 8
+#define	c_mtime_offset 46
+#define	c_mtime_size 8
+#define	c_filesize_offset 54
+#define	c_filesize_size 8
+#define	c_devmajor_offset 62
+#define	c_devmajor_size 8
+#define	c_devminor_offset 70
+#define	c_devminor_size 8
+#define	c_rdevmajor_offset 78
+#define	c_rdevmajor_size 8
+#define	c_rdevminor_offset 86
+#define	c_rdevminor_size 8
+#define	c_namesize_offset 94
+#define	c_namesize_size 8
+#define	c_checksum_offset 102
+#define	c_checksum_size 8
+#define	c_header_size 110
 
 /* Logic trick: difference between 'n' and next multiple of 4 */
 #define PAD4(n)	(3 & (1 + ~(n)))
@@ -205,7 +218,7 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 	struct cpio *cpio;
 	const char *p, *path;
 	int pathlength, ret, ret_final;
-	struct cpio_header_newc	 h;
+	char h[c_header_size];
 	struct archive_string_conv *sconv;
 	size_t len;
 	int pad;
@@ -229,12 +242,12 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 	}
 	pathlength = (int)len + 1; /* Include trailing null. */
 
-	memset(&h, 0, sizeof(h));
-	format_hex(0x070701, &h.c_magic, sizeof(h.c_magic));
-	format_hex(archive_entry_devmajor(entry), &h.c_devmajor,
-	    sizeof(h.c_devmajor));
-	format_hex(archive_entry_devminor(entry), &h.c_devminor,
-	    sizeof(h.c_devminor));
+	memset(h, 0, c_header_size);
+	format_hex(0x070701, h + c_magic_offset, c_magic_size);
+	format_hex(archive_entry_devmajor(entry), h + c_devmajor_offset,
+	    c_devmajor_size);
+	format_hex(archive_entry_devminor(entry), h + c_devminor_offset,
+	    c_devminor_size);
 
 	ino = archive_entry_ino64(entry);
 	if (ino > 0xffffffff) {
@@ -244,22 +257,22 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 	}
 
 	/* TODO: Set ret_final to ARCHIVE_WARN if any of these overflow. */
-	format_hex(ino & 0xffffffff, &h.c_ino, sizeof(h.c_ino));
-	format_hex(archive_entry_mode(entry), &h.c_mode, sizeof(h.c_mode));
-	format_hex(archive_entry_uid(entry), &h.c_uid, sizeof(h.c_uid));
-	format_hex(archive_entry_gid(entry), &h.c_gid, sizeof(h.c_gid));
-	format_hex(archive_entry_nlink(entry), &h.c_nlink, sizeof(h.c_nlink));
+	format_hex(ino & 0xffffffff, h + c_ino_offset, c_ino_size);
+	format_hex(archive_entry_mode(entry), h + c_mode_offset, c_mode_size);
+	format_hex(archive_entry_uid(entry), h + c_uid_offset, c_uid_size);
+	format_hex(archive_entry_gid(entry), h + c_gid_offset, c_gid_size);
+	format_hex(archive_entry_nlink(entry), h + c_nlink_offset, c_nlink_size);
 	if (archive_entry_filetype(entry) == AE_IFBLK
 	    || archive_entry_filetype(entry) == AE_IFCHR) {
-	    format_hex(archive_entry_rdevmajor(entry), &h.c_rdevmajor, sizeof(h.c_rdevmajor));
-	    format_hex(archive_entry_rdevminor(entry), &h.c_rdevminor, sizeof(h.c_rdevminor));
+	    format_hex(archive_entry_rdevmajor(entry), h + c_rdevmajor_offset, c_rdevmajor_size);
+	    format_hex(archive_entry_rdevminor(entry), h + c_rdevminor_offset, c_rdevminor_size);
 	} else {
-	    format_hex(0, &h.c_rdevmajor, sizeof(h.c_rdevmajor));
-	    format_hex(0, &h.c_rdevminor, sizeof(h.c_rdevminor));
+	    format_hex(0, h + c_rdevmajor_offset, c_rdevmajor_size);
+	    format_hex(0, h + c_rdevminor_offset, c_rdevminor_size);
 	}
-	format_hex(archive_entry_mtime(entry), &h.c_mtime, sizeof(h.c_mtime));
-	format_hex(pathlength, &h.c_namesize, sizeof(h.c_namesize));
-	format_hex(0, &h.c_checksum, sizeof(h.c_checksum));
+	format_hex(archive_entry_mtime(entry), h + c_mtime_offset, c_mtime_size);
+	format_hex(pathlength, h + c_namesize_offset, c_namesize_size);
+	format_hex(0, h + c_checksum_offset, c_checksum_size);
 
 	/* Non-regular files don't store bodies. */
 	if (archive_entry_filetype(entry) != AE_IFREG)
@@ -280,18 +293,18 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 		ret_final = ARCHIVE_WARN;
 	}
 	if (len > 0 && p != NULL  &&  *p != '\0')
-		ret = format_hex(strlen(p), &h.c_filesize,
-		    sizeof(h.c_filesize));
+		ret = format_hex(strlen(p), h + c_filesize_offset,
+		    c_filesize_size);
 	else
 		ret = format_hex(archive_entry_size(entry),
-		    &h.c_filesize, sizeof(h.c_filesize));
+		    h + c_filesize_offset, c_filesize_size);
 	if (ret) {
 		archive_set_error(&a->archive, ERANGE,
 		    "File is too large for this format.");
 		return (ARCHIVE_FAILED);
 	}
 
-	ret = __archive_write_output(a, &h, sizeof(h));
+	ret = __archive_write_output(a, h, c_header_size);
 	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
@@ -299,7 +312,7 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 	ret = __archive_write_output(a, path, pathlength);
 	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
-	pad = PAD4(pathlength + sizeof(struct cpio_header_newc));
+	pad = PAD4(pathlength + c_header_size);
 	if (pad) {
 		ret = __archive_write_output(a, "\0\0\0", pad);
 		if (ret != ARCHIVE_OK)
