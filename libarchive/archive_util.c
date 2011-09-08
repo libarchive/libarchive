@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_util.c 201098 2009-12-28 02:58:1
 #ifdef HAVE_STRING_H
 #include <string.h>
 #endif
-#ifdef HAVE_WINCRYPT_H
+#if defined(HAVE_WINCRYPT_H) && !defined(__CYGWIN__)
 #include <wincrypt.h>
 #endif
 
