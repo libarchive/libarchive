@@ -743,6 +743,79 @@ test_windows(void)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+static void
+test_sfx(void)
+{
+  char buff[441];
+  const char reffile[] = "test_read_format_rar_sfx.exe";
+  const char test_txt[] = "test text file\r\n";
+  int size = sizeof(test_txt)-1;
+  struct archive_entry *ae;
+  struct archive *a;
+
+  extract_reference_file(reffile);
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_support_filter_all(a));
+  assertA(0 == archive_read_support_format_all(a));
+  assertA(0 == archive_read_open_file(a, reffile, 10240));
+
+  /* First header. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("test.txt", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(16, archive_entry_size(ae));
+  assertEqualInt(33188, archive_entry_mode(ae));
+  assertA(size == archive_read_data(a, buff, size));
+  assertEqualMem(buff, test_txt, size);
+
+  /* Second header. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("testshortcut.lnk", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(sizeof(buff), archive_entry_size(ae));
+  assertEqualInt(33188, archive_entry_mode(ae));
+  assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
+
+  /* Third header. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("testdir/test.txt", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(16, archive_entry_size(ae));
+  assertEqualInt(33188, archive_entry_mode(ae));
+  assertA(size == archive_read_data(a, buff, size));
+  assertEqualMem(buff, test_txt, size);
+
+  /* Fourth header. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("testdir", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(0, archive_entry_size(ae));
+  assertEqualInt(16877, archive_entry_mode(ae));
+
+  /* Fifth header. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("testemptydir", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(0, archive_entry_size(ae));
+  assertEqualInt(16877, archive_entry_mode(ae));
+
+  /* Test EOF */
+  assertA(1 == archive_read_next_header(a, &ae));
+  assertEqualInt(5, archive_file_count(a));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_read_format_rar)
 {
   test_basic();
@@ -756,4 +829,5 @@ DEFINE_TEST(test_read_format_rar)
   test_ppmd_lzss_conversion();
   test_binary();
   test_windows();
+  test_sfx();
 }
