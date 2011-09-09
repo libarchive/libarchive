@@ -77,6 +77,7 @@ static struct {
 	                                                       * RAR file with both
 	                                                       * PPMd and LZSS
 	                                                       * blocks */
+	{0, "test_read_format_rar_sfx.exe"}, /* RAR SFX archive */
 	{0, "test_read_format_rar_subblock.rar"}, /* RAR with subblocks */
 	{0, "test_read_format_rar_unicode.rar"}, /* RAR with Unicode filenames */
 	{0, "test_read_format_gtar_sparse_1_17_posix10_modified.tar"},
