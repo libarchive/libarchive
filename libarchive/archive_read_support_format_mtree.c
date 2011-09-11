@@ -121,6 +121,53 @@ static int64_t	mtree_atol10(char **);
 static int64_t	mtree_atol8(char **);
 static int64_t	mtree_atol(char **);
 
+/*
+ * There's no standard for TIME_T_MAX/TIME_T_MIN.  So we compute them
+ * here.  TODO: Move this to configure time, but be careful
+ * about cross-compile environments.
+ */
+static int64_t
+get_time_t_max(void)
+{
+#if defined(TIME_T_MAX)
+	return TIME_T_MAX;
+#else
+	static time_t t;
+	time_t a;
+	if (t == 0) {
+		a = 1;
+		while (a > t) {
+			t = a;
+			a = a * 2 + 1;
+		}
+	}
+	return t;
+#endif
+}
+
+static int64_t
+get_time_t_min(void)
+{
+#if defined(TIME_T_MIN)
+	return TIME_T_MIN;
+#else
+	/* 't' will hold the minimum value, which will be zero (if
+	 * time_t is unsigned) or -2^n (if time_t is signed). */
+	static int computed;
+	static time_t t;
+	time_t a;
+	if (computed == 0) {
+		a = (time_t)-1;
+		while (a < t) {
+			t = a;
+			a = a * 2;
+		}			
+		computed = 1;
+	}
+	return t;
+#endif
+}
+
 static void
 free_options(struct mtree_option *head)
 {
@@ -1281,17 +1328,26 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			break;
 		}
 		if (strcmp(key, "time") == 0) {
-			time_t m;
+			int64_t m;
+			int64_t my_time_t_max = get_time_t_max();
+			int64_t my_time_t_min = get_time_t_min();
 			long ns;
 
 			*parsed_kws |= MTREE_HAS_MTIME;
-			m = (time_t)mtree_atol10(&val);
+			m = mtree_atol10(&val);
+			/* Replicate an old mtree bug:
+			 * 123456789.1 represents 123456789
+			 * seconds and 1 nanosecond. */
 			if (*val == '.') {
 				++val;
 				ns = (long)mtree_atol10(&val);
 			} else
 				ns = 0;
-			archive_entry_set_mtime(entry, m, ns);
+			if (m > my_time_t_max)
+				m = my_time_t_max;
+			else if (m < my_time_t_min)
+				m = my_time_t_min;
+			archive_entry_set_mtime(entry, (time_t)m, ns);
 			break;
 		}
 		if (strcmp(key, "type") == 0) {
