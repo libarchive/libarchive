@@ -37,7 +37,7 @@ test_read_format_mtree1(void)
 	// without relying on overflow.  This assumes that long long
 	// is at least 64 bits.
 	const static long long max_int64 = ((((long long)1) << 62) - 1) + (((long long)1) << 62);
-	const static long long min_int64 = - (((long long)1) << 62) - (((long long)1) << 62);
+	time_t min_time;
 
 	extract_reference_file(reffile);
 
@@ -121,17 +121,25 @@ test_read_format_mtree1(void)
 	assertEqualString(archive_entry_pathname(ae), "dir2/bigfile");
 	assertEqualInt(archive_entry_size(ae), max_int64);
 
+	/* Size of this file is actually max_int64 + 1, but that should
+	 * overflow and be returned as max_int64. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString(archive_entry_pathname(ae), "dir2/toobigfile");
 	assertEqualInt(archive_entry_size(ae), max_int64);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString(archive_entry_pathname(ae), "dir2/veryoldfile");
-	assertEqualInt(archive_entry_mtime(ae), min_int64);
+	/* We can't know exact value here without knowing range of time_t. */
+	min_time = archive_entry_mtime(ae);
+	/* Verify min_time is the smallest possible time_t. */
+	assert(min_time <= 0);
+	assert(min_time - 1 > 0);
 
+	/* toooldfile is 1 sec older, which should overflow and get returned
+	 * with the same value. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString(archive_entry_pathname(ae), "dir2/toooldfile");
-	assertEqualInt(archive_entry_mtime(ae), min_int64);
+	assertEqualInt(archive_entry_mtime(ae), min_time);
 
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualInt(18, archive_file_count(a));
