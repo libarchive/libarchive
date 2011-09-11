@@ -50,6 +50,10 @@
 
 /* Start of configuration for native Win32  */
 
+#ifdef HAVE_ZLIB_H
+#define	ZLIB_WINAPI
+#endif
+
 #include <errno.h>
 #define	set_errno(val)	((errno)=val)
 #include <io.h>
