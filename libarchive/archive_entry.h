@@ -245,12 +245,10 @@ __LA_DECL const wchar_t	*archive_entry_uname_w(struct archive_entry *);
 /*
  * Set fields in an archive_entry.
  *
- * Note that string 'set' functions do not copy the string, only the pointer.
- * In contrast, 'copy' functions do copy the object pointed to.
- *
- * Note: As of libarchive 2.4, 'set' functions do copy the string and
- * are therefore exact synonyms for the 'copy' versions.  The 'copy'
- * names will be retired in libarchive 3.0.
+ * Note: Before libarchive 2.4, there were 'set' and 'copy' versions
+ * of the string setters.  'copy' copied the actual string, 'set' just
+ * stored the pointer.  In libarchive 2.4 and later, strings are
+ * always copied.
  */
 
 __LA_DECL void	archive_entry_set_atime(struct archive_entry *, time_t, long);
