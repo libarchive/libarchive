@@ -3287,8 +3287,9 @@ archive_string_normalize_D(struct archive_string *as, const void *_p,
 			newsize = inAvail - inCount;
 			if (newsize > inAvail)
 				newsize = inAvail;
-			newsize += as->buffer_length + 2;
-			if (archive_string_ensure(as, newsize) == NULL)
+			newsize += sc->utf16nfd.buffer_length + 2;
+			if (archive_string_ensure(&(sc->utf16nfd), newsize)
+			    == NULL)
 				return (-1);
 			outp = sc->utf16nfd.s;
 			outAvail = sc->utf16nfd.buffer_length -2;
