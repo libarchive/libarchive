@@ -29,6 +29,7 @@
 #define	ARCHIVE_H_INCLUDED
 
 #include <sys/stat.h>
+#include <stddef.h>  /* for wchar_t */
 #include <stdio.h> /* For FILE * */
 
 /*
@@ -738,6 +739,7 @@ __LA_DECL int	archive_read_disk_set_uname_lookup(struct archive *,
     void (* /* cleanup_fn */)(void *));
 /* Start traversal. */
 __LA_DECL int	archive_read_disk_open(struct archive *, const char *);
+__LA_DECL int	archive_read_disk_open_w(struct archive *, const wchar_t *);
 /*
  * Request that current entry be visited.  If you invoke it on every
  * directory, you'll get a physical traversal.  This is ignored if the

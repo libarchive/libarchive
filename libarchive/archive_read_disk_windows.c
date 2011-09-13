@@ -235,8 +235,8 @@ tree_dir_next_windows(struct tree *t, const wchar_t *pattern);
 #endif
 
 /* Initiate/terminate a tree traversal. */
-static struct tree *tree_open(const char *, int, int);
-static struct tree *tree_reopen(struct tree *, const char *, int);
+static struct tree *tree_open(const wchar_t *, int, int);
+static struct tree *tree_reopen(struct tree *, const wchar_t *, int);
 static void tree_close(struct tree *);
 static void tree_free(struct tree *);
 static void tree_push(struct tree *, const wchar_t *, const wchar_t *,
@@ -308,6 +308,7 @@ static int setup_current_filesystem(struct archive_read_disk *);
 static int tree_target_is_same_as_parent(struct tree *,
 		    const BY_HANDLE_FILE_INFORMATION *);
 
+static int	_archive_read_disk_open_w(struct archive *, const wchar_t *);
 static int	_archive_read_free(struct archive *);
 static int	_archive_read_close(struct archive *);
 static int	_archive_read_data_block(struct archive *,
@@ -892,20 +893,54 @@ int
 archive_read_disk_open(struct archive *_a, const char *pathname)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+	struct archive_wstring wpath;
+	int ret;
 
 	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
 	    ARCHIVE_STATE_NEW | ARCHIVE_STATE_CLOSED,
 	    "archive_read_disk_open");
 	archive_clear_error(&a->archive);
 
+	/* Make a wchar_t string from a char string. */
+	archive_string_init(&wpath);
+	if (archive_wstring_append_from_mbs(&wpath, pathname,
+	    strlen(pathname)) != 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Can't convert a path to a wchar_t string");
+		a->archive.state = ARCHIVE_STATE_FATAL;
+		ret = ARCHIVE_FATAL;
+	} else
+		ret = _archive_read_disk_open_w(_a, wpath.s);
+
+	archive_wstring_free(&wpath);
+	return (ret);
+}
+
+int
+archive_read_disk_open_w(struct archive *_a, const wchar_t *pathname)
+{
+	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
+	    ARCHIVE_STATE_NEW | ARCHIVE_STATE_CLOSED,
+	    "archive_read_disk_open_w");
+	archive_clear_error(&a->archive);
+
+	return (_archive_read_disk_open_w(_a, pathname));
+}
+
+static int
+_archive_read_disk_open_w(struct archive *_a, const wchar_t *pathname)
+{
+	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+
 	if (a->tree != NULL)
 		a->tree = tree_reopen(a->tree, pathname, a->restore_time);
 	else
-		a->tree = tree_open(pathname, a->symlink_mode,
-		    a->restore_time);
+		a->tree = tree_open(pathname, a->symlink_mode, a->restore_time);
 	if (a->tree == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate tar data");
+		    "Can't allocate direcotry traversal data");
 		a->archive.state = ARCHIVE_STATE_FATAL;
 		return (ARCHIVE_FATAL);
 	}
@@ -1172,7 +1207,7 @@ tree_append(struct tree *t, const wchar_t *name, size_t name_length)
  * Open a directory tree for traversal.
  */
 static struct tree *
-tree_open(const char *path, int symlink_mode, int restore_time)
+tree_open(const wchar_t *path, int symlink_mode, int restore_time)
 {
 	struct tree *t;
 
@@ -1186,7 +1221,7 @@ tree_open(const char *path, int symlink_mode, int restore_time)
 }
 
 static struct tree *
-tree_reopen(struct tree *t, const char *path, int restore_time)
+tree_reopen(struct tree *t, const wchar_t *path, int restore_time)
 {
 	struct archive_wstring ws;
 	wchar_t *pathname, *p, *base;
@@ -1209,8 +1244,7 @@ tree_reopen(struct tree *t, const char *path, int restore_time)
 
 	/* Get wchar_t strings from char strings. */
 	archive_string_init(&ws);
-	if (archive_wstring_append_from_mbs(&ws, path, strlen(path)) != 0)
-		goto failed;
+	archive_wstrcpy(&ws, path);
 	pathname = ws.s;
 	/* Get a full-path-name. */
 	p = __la_win_permissive_name_w(pathname);
