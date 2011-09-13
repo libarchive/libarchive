@@ -248,38 +248,6 @@ la_CreateFile(const char *path, DWORD dwDesiredAccess, DWORD dwShareMode,
 }
 
 /*
- * Change current working directory.
- * This can exceed MAX_PATH limitation.
- */
-int
-__la_chdir(const char *path)
-{
-	wchar_t *ws;
-	int r;
-
-	r = SetCurrentDirectoryA(path);
-	if (r == 0) {
-		if (GetLastError() != ERROR_FILE_NOT_FOUND) {
-			la_dosmaperr(GetLastError());
-			return (-1);
-		}
-	} else
-		return (0);
-	ws = __la_win_permissive_name(path);
-	if (ws == NULL) {
-		errno = EINVAL;
-		return (-1);
-	}
-	r = SetCurrentDirectoryW(ws);
-	free(ws);
-	if (r == 0) {
-		la_dosmaperr(GetLastError());
-		return (-1);
-	}
-	return (0);
-}
-
-/*
  * This fcntl is limited implementation.
  */
 int

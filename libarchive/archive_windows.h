@@ -89,7 +89,6 @@
 #endif
 
 /* Alias the Windows _function to the POSIX equivalent. */
-#define	chdir		__la_chdir
 #define	close		_close
 #define	fcntl		__la_fcntl
 #ifndef fileno
@@ -244,7 +243,6 @@
 
 
 /* Replacement POSIX function */
-extern int	 __la_chdir(const char *path);
 extern int	 __la_fcntl(int fd, int cmd, int val);
 extern int	 __la_fstat(int fd, struct stat *st);
 extern __int64	 __la_lseek(int fd, __int64 offset, int whence);
