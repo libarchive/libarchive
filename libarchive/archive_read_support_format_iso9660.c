@@ -1932,7 +1932,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 		else if (parent != NULL && (flags & 0x02) &&
 		    (parent->re || parent->re_descendant))
 			file->re_descendant = 1;
-		if (file->cl_offset != 0) {
+		if (parent != NULL && file->cl_offset != 0) {
 			parent->subdirs++;
 			/* Overwrite an offset and a number of this "CL" entry
 			 * to appear before other dirs. "+1" to those is to
