@@ -227,6 +227,7 @@ __archive_windowsapi_md5final(archive_md5_ctx *ctx, void *md)
 static int
 __archive_stub_md5init(archive_md5_ctx *ctx)
 {
+	(void)ctx; /* UNUSED */
 	return (ARCHIVE_FAILED);
 }
 
@@ -234,12 +235,17 @@ static int
 __archive_stub_md5update(archive_md5_ctx *ctx, const void *indata,
     size_t insize)
 {
+	(void)ctx; /* UNUSED */
+	(void)indata; /* UNUSED */
+	(void)insize; /* UNUSED */
 	return (ARCHIVE_FAILED);
 }
 
 static int
 __archive_stub_md5final(archive_md5_ctx *ctx, void *md)
 {
+	(void)ctx; /* UNUSED */
+	(void)md; /* UNUSED */
 	return (ARCHIVE_FAILED);
 }
 
@@ -323,6 +329,7 @@ __archive_openssl_ripemd160final(archive_rmd160_ctx *ctx, void *md)
 static int
 __archive_stub_ripemd160init(archive_rmd160_ctx *ctx)
 {
+	(void)ctx; /* UNUSED */
 	return (ARCHIVE_FAILED);
 }
 
@@ -330,12 +337,17 @@ static int
 __archive_stub_ripemd160update(archive_rmd160_ctx *ctx, const void *indata,
     size_t insize)
 {
+	(void)ctx; /* UNUSED */
+	(void)indata; /* UNUSED */
+	(void)insize; /* UNUSED */
 	return (ARCHIVE_FAILED);
 }
 
 static int
 __archive_stub_ripemd160final(archive_rmd160_ctx *ctx, void *md)
 {
+	(void)ctx; /* UNUSED */
+	(void)md; /* UNUSED */
 	return (ARCHIVE_FAILED);
 }
 
@@ -469,6 +481,7 @@ __archive_windowsapi_sha1final(archive_sha1_ctx *ctx, void *md)
 static int
 __archive_stub_sha1init(archive_sha1_ctx *ctx)
 {
+	(void)ctx; /* UNUSED */
 	return (ARCHIVE_FAILED);
 }
 
@@ -476,12 +489,17 @@ static int
 __archive_stub_sha1update(archive_sha1_ctx *ctx, const void *indata,
     size_t insize)
 {
+	(void)ctx; /* UNUSED */
+	(void)indata; /* UNUSED */
+	(void)insize; /* UNUSED */
 	return (ARCHIVE_FAILED);
 }
 
 static int
 __archive_stub_sha1final(archive_sha1_ctx *ctx, void *md)
 {
+	(void)ctx; /* UNUSED */
+	(void)md; /* UNUSED */
 	return (ARCHIVE_FAILED);
 }
 
@@ -658,6 +676,7 @@ __archive_windowsapi_sha256final(archive_sha256_ctx *ctx, void *md)
 static int
 __archive_stub_sha256init(archive_sha256_ctx *ctx)
 {
+	(void)ctx; /* UNUSED */
 	return (ARCHIVE_FAILED);
 }
 
@@ -665,12 +684,17 @@ static int
 __archive_stub_sha256update(archive_sha256_ctx *ctx, const void *indata,
     size_t insize)
 {
+	(void)ctx; /* UNUSED */
+	(void)indata; /* UNUSED */
+	(void)insize; /* UNUSED */
 	return (ARCHIVE_FAILED);
 }
 
 static int
 __archive_stub_sha256final(archive_sha256_ctx *ctx, void *md)
 {
+	(void)ctx; /* UNUSED */
+	(void)md; /* UNUSED */
 	return (ARCHIVE_FAILED);
 }
 
@@ -847,6 +871,7 @@ __archive_windowsapi_sha384final(archive_sha384_ctx *ctx, void *md)
 static int
 __archive_stub_sha384init(archive_sha384_ctx *ctx)
 {
+	(void)ctx; /* UNUSED */
 	return (ARCHIVE_FAILED);
 }
 
@@ -854,12 +879,17 @@ static int
 __archive_stub_sha384update(archive_sha384_ctx *ctx, const void *indata,
     size_t insize)
 {
+	(void)ctx; /* UNUSED */
+	(void)indata; /* UNUSED */
+	(void)insize; /* UNUSED */
 	return (ARCHIVE_FAILED);
 }
 
 static int
 __archive_stub_sha384final(archive_sha384_ctx *ctx, void *md)
 {
+	(void)ctx; /* UNUSED */
+	(void)md; /* UNUSED */
 	return (ARCHIVE_FAILED);
 }
 
@@ -1036,6 +1066,7 @@ __archive_windowsapi_sha512final(archive_sha512_ctx *ctx, void *md)
 static int
 __archive_stub_sha512init(archive_sha512_ctx *ctx)
 {
+	(void)ctx; /* UNUSED */
 	return (ARCHIVE_FAILED);
 }
 
@@ -1043,12 +1074,17 @@ static int
 __archive_stub_sha512update(archive_sha512_ctx *ctx, const void *indata,
     size_t insize)
 {
+	(void)ctx; /* UNUSED */
+	(void)indata; /* UNUSED */
+	(void)insize; /* UNUSED */
 	return (ARCHIVE_FAILED);
 }
 
 static int
 __archive_stub_sha512final(archive_sha512_ctx *ctx, void *md)
 {
+	(void)ctx; /* UNUSED */
+	(void)md; /* UNUSED */
 	return (ARCHIVE_FAILED);
 }
 

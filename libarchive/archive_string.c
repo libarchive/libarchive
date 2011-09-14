@@ -1898,6 +1898,7 @@ archive_string_conversion_set_opt(struct archive_string_conv *sc, int opt)
 		 * Nothing to do for it since wchar_t on these platforms
 		 * is really Unicode.
 		 */
+		(void)sc; /* UNUSED */
 #else
 		if ((sc->flag & SCONV_UTF8_LIBARCHIVE_2) == 0) {
 			sc->flag |= SCONV_UTF8_LIBARCHIVE_2;
@@ -3607,6 +3608,7 @@ best_effort_strncat_from_utf16be(struct archive_string *as, const void *_p,
 	uint32_t uc;
 	int n, ret;
 
+	(void)sc; /* UNUSED */
 	/*
 	 * Other case, we should do the best effort.
 	 * If all character are ASCII(<0x7f), we can convert it.
@@ -3650,6 +3652,7 @@ best_effort_strncat_to_utf16be(struct archive_string *a16be, const void *_p,
 	size_t remaining;
 	int ret;
 
+	(void)sc; /* UNUSED */
 	/*
 	 * Other case, we should do the best effort.
 	 * If all character are ASCII(<0x7f), we can convert it.

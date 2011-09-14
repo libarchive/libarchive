@@ -7060,6 +7060,7 @@ isoent_create_boot_catalog(struct archive_write *a, struct isoent *rootent)
 	struct isoent *isoent;
 	struct archive_entry *entry;
 
+	(void)rootent; /* UNUSED */
 	/*
 	 * Create the entry which is the "boot.catalog" file.
 	 */
