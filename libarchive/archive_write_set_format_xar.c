@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 Michihiro NAKAJIMA
+ * Copyright (c) 2010-2011 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -70,12 +70,14 @@ __FBSDID("$FreeBSD$");
  * Differences to xar utility.
  * - Subdocument is not supported yet.
  * - ACL is not supported yet.
- * - When writing an XML element <link type="<file-type>">, <file-type> which
- *   is a file type a symbolic link is referencing is always marked as "broken".
- *   xar utility uses stat(2) to get the file type, but, in libarcive format writer,
- *   we should not use it; if it is needed, we should get it at archive_read_disk.c.
+ * - When writing an XML element <link type="<file-type>">, <file-type>
+ *   which is a file type a symbolic link is referencing is always marked
+ *   as "broken". Xar utility uses stat(2) to get the file type, but, in
+ *   libarcive format writer, we should not use it; if it is needed, we
+ *   should get about it at archive_read_disk.c.
  * - It is possible to appear both <flags> and <ext2> elements.
- *   Xar utility generates <flags> on BSD platform and <ext2> on Linux platform.
+ *   Xar utility generates <flags> on BSD platform and <ext2> on Linux
+ *   platform.
  *
  */
 
@@ -1561,8 +1563,8 @@ make_toc(struct archive_write *a)
 			    "xmlTextWriterStartElement() failed: %d", r);
 			goto exit_toc;
 		}
-		r = xmlTextWriterWriteAttribute(writer,
-		    BAD_CAST("style"), BAD_CAST(getalgname(xar->opt_toc_sumalg)));
+		r = xmlTextWriterWriteAttribute(writer, BAD_CAST("style"),
+		    BAD_CAST(getalgname(xar->opt_toc_sumalg)));
 		if (r < 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_MISC,
@@ -1938,7 +1940,8 @@ file_free(struct file *file)
 }
 
 static struct file *
-file_create_virtual_dir(struct archive_write *a, struct xar *xar, const char *pathname)
+file_create_virtual_dir(struct archive_write *a, struct xar *xar,
+    const char *pathname)
 {
 	struct file *file;
 
