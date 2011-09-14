@@ -79,7 +79,8 @@ __FBSDID("$FreeBSD$");
  *
  */
 
-#if !defined(HAVE_LIBXML_XMLWRITER_H) ||\
+#if !(defined(HAVE_LIBXML_XMLWRITER_H) && defined(LIBXML_VERSION) &&\
+	LIBXML_VERSION >= 20703) ||\
 	!defined(HAVE_ZLIB_H) || \
 	!defined(ARCHIVE_HAS_MD5) || !defined(ARCHIVE_HAS_SHA1)
 /*
