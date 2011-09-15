@@ -3,7 +3,7 @@
 # How to build bsdtar
 #
 ############################################
-IF (ENABLE_TAR)
+IF(ENABLE_TAR OR ENABLE_TAR_SHARED)
 
   SET(bsdtar_SOURCES
     bsdtar.c
@@ -50,6 +50,6 @@ IF (ENABLE_TAR)
   # Installation rules
   INSTALL(TARGETS bsdtar RUNTIME DESTINATION bin)
   INSTALL_MAN(${bsdtar_MANS})
-ENDIF(ENABLE_TAR)
+ENDIF(ENABLE_TAR OR ENABLE_TAR_SHARED)
 
 add_subdirectory(test)
