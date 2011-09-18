@@ -282,9 +282,11 @@ if test "x$with_xml2" != "xno"; then
   if test "x$XML2_CONFIG" != "x"; then
     CPPFLAGS="${CPPFLAGS} `${XML2_CONFIG} --cflags`"
     LIBS="${LIBS} `${XML2_CONFIG} --libs`"
+    AC_CHECK_LIB(xml2,xmlInitParser,[true],AC_MSG_FAILURE(Missing xml2 library))
+  else
+    AC_CHECK_LIB(xml2,xmlInitParser)
   fi
   AC_CHECK_HEADERS([libxml/xmlreader.h libxml/xmlwriter.h])
-  AC_CHECK_LIB(xml2,xmlInitParser)
 fi
 if test "x$ac_cv_header_libxml_xmlreader_h" != "xyes"; then
   if test "x$with_expat" != "xno"; then
