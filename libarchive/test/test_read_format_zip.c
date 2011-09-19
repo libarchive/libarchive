@@ -141,8 +141,40 @@ finish:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+/*
+ * Verify that test_read_extract correctly works with
+ * Zip entries that use length-at-end.
+ */
+static void
+test_extract_length_at_end(void)
+{
+	const char *refname = "test_read_format_zip_length_at_end.zip";
+	struct archive_entry *ae;
+	struct archive *a;
+
+	extract_reference_file(refname);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 10240));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+
+	assertEqualString("hello.txt", archive_entry_pathname(ae));
+	assert(!archive_entry_size_is_set(ae));
+	assertEqualInt(0, archive_entry_size(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_extract(a, ae, 0));
+
+	assertFileContents("hello\x0A", 6, "hello.txt");
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_read_format_zip)
 {
 	test_basic();
 	test_info_zip_ux();
+	test_extract_length_at_end();
 }
