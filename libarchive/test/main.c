@@ -898,7 +898,7 @@ assertion_file_contents(const char *filename, int line, const void *buff, int s,
 		hexdump(contents, buff, n > 512 ? 512 : n, 0);
 	else {
 		logprintf("  File empty, contents should be:\n");
-		hexdump(buff, NULL, s > 512 ? 512 : n, 0);
+		hexdump(buff, NULL, s > 512 ? 512 : s, 0);
 	}
 	failure_finish(NULL);
 	free(contents);
