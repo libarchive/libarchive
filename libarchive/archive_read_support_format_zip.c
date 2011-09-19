@@ -1055,6 +1055,19 @@ process_extra(const void* extra, struct zip* zip)
 			}
 			break;
 		}
+		case 0x5855:
+		{
+			/* Info-ZIP Unix Extra Field (old version) "UX". */
+			if (datasize >= 8) {
+				zip->atime = archive_le32dec(p + offset);
+				zip->mtime = archive_le32dec(p + offset + 4);
+			}
+			if (datasize >= 12) {
+				zip->uid = archive_le16dec(p + offset + 8);
+				zip->gid = archive_le16dec(p + offset + 10);
+			}
+			break;
+		}
 		case 0x7855:
 			/* Info-ZIP Unix Extra Field (type 2) "Ux". */
 #ifdef DEBUG
