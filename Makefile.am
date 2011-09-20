@@ -443,6 +443,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_xz_1.txz.uu				\
 	libarchive/test/test_compat_zip_1.zip.uu			\
 	libarchive/test/test_compat_zip_2.zip.uu			\
+	libarchive/test/test_compat_zip_3.zip.uu			\
 	libarchive/test/test_fuzz_1.iso.Z.uu				\
 	libarchive/test/test_fuzz.cab.uu				\
 	libarchive/test/test_fuzz.lzh.uu				\
@@ -518,6 +519,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_filename_utf8_jp.zip.uu	\
 	libarchive/test/test_read_format_zip_filename_utf8_ru2.zip.uu	\
 	libarchive/test/test_read_format_zip_filename_utf8_ru.zip.uu	\
+	libarchive/test/test_read_format_zip_length_at_end.zip.uu	\
 	libarchive/test/test_read_format_zip_ux.zip.uu			\
 	libarchive/test/CMakeLists.txt					\
 	libarchive/test/README

@@ -99,11 +99,59 @@ test_compat_zip_2(void)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+/*
+ * Issue 185:  Test a regression that got in between 2.6 and 2.7 that
+ * broke extraction of Zip entries with length-at-end.
+ */
+static void
+test_compat_zip_3(void)
+{
+	const char *refname = "test_compat_zip_3.zip";
+	struct archive_entry *ae;
+	struct archive *a;
+	char *p;
+	size_t s;
+
+	extract_reference_file(refname);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 10240));
+
+	/* First entry. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("soapui-4.0.0/", archive_entry_pathname(ae));
+	assertEqualInt(0, archive_entry_size(ae));
+	assert(archive_entry_size_is_set(ae));
+	assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
+
+	/* Second entry. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("soapui-4.0.0/soapui-settings.xml", archive_entry_pathname(ae));
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assertEqualInt(0, archive_entry_size(ae));
+	assert(!archive_entry_size_is_set(ae));
+
+	/* Extract under a different name. */
+	archive_entry_set_pathname(ae, "test_3.txt");
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_extract(a, ae, 0));
+	/* Verify the first 12 bytes actually got written to disk correctly. */
+	p = slurpfile(&s, "test_3.txt");
+	assertEqualInt(s, 1030);
+	assertEqualMem(p, "<?xml versio", 12);
+	free(p);
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+}
+
 
 DEFINE_TEST(test_compat_zip)
 {
 	test_compat_zip_1();
 	test_compat_zip_2();
+	test_compat_zip_3();
 }
 
 
