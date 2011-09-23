@@ -198,6 +198,7 @@ endif
 # -no-undefined marks that libarchive doesn't rely on symbols
 # defined in the application.  This is mandatory for cygwin.
 libarchive_la_LDFLAGS= -no-undefined -version-info $(ARCHIVE_LIBTOOL_VERSION)
+libarchive_la_LIBADD= $(LTLIBICONV)
 
 # Manpages to install
 libarchive_man_MANS=						\
@@ -410,6 +411,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_zip_filename_encoding.c
 
 libarchive_test_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_builddir)/libarchive/test -DLIBARCHIVE_STATIC $(PLATFORMCPPFLAGS)
+libarchive_test_LDADD= $(LTLIBICONV)
 
 # The "list.h" file just lists all of the tests defined in all of the sources.
 # Building it automatically provides a sanity-check on libarchive_test_SOURCES
@@ -573,7 +575,7 @@ bsdtar_ldstatic=
 bsdtar_ccstatic=
 endif
 
-bsdtar_LDADD= libarchive.la libarchive_fe.la
+bsdtar_LDADD= libarchive.la libarchive_fe.la $(LTLIBICONV)
 bsdtar_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe $(bsdtar_ccstatic) $(PLATFORMCPPFLAGS)
 bsdtar_LDFLAGS= $(bsdtar_ldstatic)
 
@@ -693,7 +695,7 @@ bsdcpio_ldstatic=
 bsdcpio_ccstatic=
 endif
 
-bsdcpio_LDADD= libarchive_fe.la libarchive.la
+bsdcpio_LDADD= libarchive_fe.la libarchive.la $(LTLIBICONV)
 bsdcpio_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe $(bsdcpio_ccstatic) $(PLATFORMCPPFLAGS)
 bsdcpio_LDFLAGS= $(bsdcpio_ldstatic)
 
