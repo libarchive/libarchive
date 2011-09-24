@@ -36,7 +36,10 @@
 The
 .Nm
 library provides a flexible interface for reading and writing
-streaming archive files such as tar and cpio.
+archives in various formats such as tar and cpio.
+.Nm
+also supports reading and writing archives compressed using
+various compression filters such as gzip and bzip2.
 The library is inherently stream-oriented; readers serially iterate through
 the archive, writers serially add things to the archive.
 In particular, note that there is currently no built-in support for
