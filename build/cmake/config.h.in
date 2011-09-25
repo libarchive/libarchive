@@ -1,5 +1,8 @@
 /* config.h.  Generated from config.h.cmake by cmake configure */
 
+/* Define ZLIB_WINAPI if zlib was built on Visual Studio. */
+#cmakedefine ZLIB_WINAPI 1
+
 /* MD5 via ARCHIVE_HASH_MD5_LIBC supported. */
 #cmakedefine ARCHIVE_HASH_MD5_LIBC
 
