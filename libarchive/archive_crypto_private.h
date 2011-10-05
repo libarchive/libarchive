@@ -171,7 +171,7 @@ typedef SHA256_CTX archive_sha256_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA256_LIBC3)
 typedef SHA2_CTX archive_sha256_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA256_LIBSYSTEM)
-typedef CC_SHA256_CTX archive_shs256_ctx;
+typedef CC_SHA256_CTX archive_sha256_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA256_NETTLE)
 typedef struct sha256_ctx archive_sha256_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA256_OPENSSL)
@@ -189,7 +189,7 @@ typedef SHA384_CTX archive_sha384_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA384_LIBC3)
 typedef SHA2_CTX archive_sha384_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA384_LIBSYSTEM)
-typedef CC_SHA512_CTX archive_shs384_ctx;
+typedef CC_SHA512_CTX archive_sha384_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA384_NETTLE)
 typedef struct sha384_ctx archive_sha384_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA384_OPENSSL)
@@ -207,7 +207,7 @@ typedef SHA512_CTX archive_sha512_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA512_LIBC3)
 typedef SHA2_CTX archive_sha512_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA512_LIBSYSTEM)
-typedef CC_SHA512_CTX archive_shs512_ctx;
+typedef CC_SHA512_CTX archive_sha512_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA512_NETTLE)
 typedef struct sha512_ctx archive_sha512_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA512_OPENSSL)
