@@ -124,6 +124,30 @@ __archive_libc_md5final(archive_md5_ctx *ctx, void *md)
   return (ARCHIVE_OK);
 }
 
+#elif defined(ARCHIVE_CRYPTO_MD5_LIBMD)
+
+static int
+__archive_libc_md5init(archive_md5_ctx *ctx)
+{
+  MD5Init(ctx);
+  return (ARCHIVE_OK);
+}
+
+static int
+__archive_libc_md5update(archive_md5_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  MD5Update(ctx, indata, insize);
+  return (ARCHIVE_OK);
+}
+
+static int
+__archive_libc_md5final(archive_md5_ctx *ctx, void *md)
+{
+  MD5Final(md, ctx);
+  return (ARCHIVE_OK);
+}
+
 #elif defined(ARCHIVE_CRYPTO_MD5_LIBSYSTEM)
 
 static int
@@ -378,6 +402,30 @@ __archive_libc_sha1final(archive_sha1_ctx *ctx, void *md)
   return (ARCHIVE_OK);
 }
 
+#elif defined(ARCHIVE_CRYPTO_SHA1_LIBMD)
+
+static int
+__archive_libc_sha1init(archive_sha1_ctx *ctx)
+{
+  SHA1_Init(ctx);
+  return (ARCHIVE_OK);
+}
+
+static int
+__archive_libc_sha1update(archive_sha1_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  SHA1_Update(ctx, indata, insize);
+  return (ARCHIVE_OK);
+}
+
+static int
+__archive_libc_sha1final(archive_sha1_ctx *ctx, void *md)
+{
+  SHA1_Final(md, ctx);
+  return (ARCHIVE_OK);
+}
+
 #elif defined(ARCHIVE_CRYPTO_SHA1_LIBSYSTEM)
 
 static int
@@ -575,6 +623,30 @@ static int
 __archive_libc3_sha256final(archive_sha256_ctx *ctx, void *md)
 {
   SHA256Final(md, ctx);
+  return (ARCHIVE_OK);
+}
+
+#elif defined(ARCHIVE_CRYPTO_SHA256_LIBMD)
+
+static int
+__archive_libc_sha256init(archive_sha256_ctx *ctx)
+{
+  SHA256_Init(ctx);
+  return (ARCHIVE_OK);
+}
+
+static int
+__archive_libc_sha256update(archive_sha256_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  SHA256_Update(ctx, indata, insize);
+  return (ARCHIVE_OK);
+}
+
+static int
+__archive_libc_sha256final(archive_sha256_ctx *ctx, void *md)
+{
+  SHA256_Final(md, ctx);
   return (ARCHIVE_OK);
 }
 
@@ -965,6 +1037,30 @@ static int
 __archive_libc3_sha512final(archive_sha512_ctx *ctx, void *md)
 {
   SHA512Final(md, ctx);
+  return (ARCHIVE_OK);
+}
+
+#elif defined(ARCHIVE_CRYPTO_SHA512_LIBMD)
+
+static int
+__archive_libc_sha512init(archive_sha512_ctx *ctx)
+{
+  SHA512_Init(ctx);
+  return (ARCHIVE_OK);
+}
+
+static int
+__archive_libc_sha512update(archive_sha512_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  SHA512_Update(ctx, indata, insize);
+  return (ARCHIVE_OK);
+}
+
+static int
+__archive_libc_sha512final(archive_sha512_ctx *ctx, void *md)
+{
+  SHA512_Final(md, ctx);
   return (ARCHIVE_OK);
 }
 

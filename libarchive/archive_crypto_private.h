@@ -42,9 +42,9 @@
  * - MD5, SHA1 and SHA2 in libc: without _ after algorithm name
  * - OpenBSD 4.4 and earlier have SHA2 in libc with _ after algorithm name
  *
- * DragonFly and FreeBSD (XXX not used yet):
- * - MD5 and SHA1 in libmd: without _ after algorithm name
- * - SHA256: with _ after algorithm name
+ * DragonFly and FreeBSD:
+ * - MD5 libmd: without _ after algorithm name
+ * - SHA1, SHA256 and SHA512 in libmd: with _ after algorithm name
  *
  * Mac OS X (10.4 and later):
  * - MD5, SHA1 and SHA2 in libSystem: with CC_ prefix and _ after algorithm name
@@ -76,6 +76,20 @@
   defined(ARCHIVE_CRYPTO_SHA512_LIBC2) ||\
   defined(ARCHIVE_CRYPTO_SHA512_LIBC3)
 #include <sha2.h>
+#endif
+
+/* libmd crypto headers */
+#if defined(ARCHIVE_CRYPTO_MD5_LIBMD)
+#include <md5.h>
+#endif
+#if defined(ARCHIVE_CRYPTO_SHA1_LIBMD)
+#include <sha.h>
+#endif
+#if defined(ARCHIVE_CRYPTO_SHA256_LIBMD)
+#include <sha256.h>
+#endif
+#if defined(ARCHIVE_CRYPTO_SHA512_LIBMD)
+#include <sha512.h>
 #endif
 
 /* libSystem crypto headers */
@@ -128,6 +142,8 @@ typedef struct {
 /* typedefs */
 #if defined(ARCHIVE_CRYPTO_MD5_LIBC)
 typedef MD5_CTX archive_md5_ctx;
+#elif defined(ARCHIVE_CRYPTO_MD5_LIBMD)
+typedef MD5_CTX archive_md5_ctx;
 #elif defined(ARCHIVE_CRYPTO_MD5_LIBSYSTEM)
 typedef CC_MD5_CTX archive_md5_ctx;
 #elif defined(ARCHIVE_CRYPTO_MD5_NETTLE)
@@ -152,6 +168,8 @@ typedef unsigned char archive_rmd160_ctx;
 
 #if defined(ARCHIVE_CRYPTO_SHA1_LIBC)
 typedef SHA1_CTX archive_sha1_ctx;
+#elif defined(ARCHIVE_CRYPTO_SHA1_LIBMD)
+typedef SHA1_CTX archive_sha1_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA1_LIBSYSTEM)
 typedef CC_SHA1_CTX archive_sha1_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA1_NETTLE)
@@ -170,6 +188,8 @@ typedef SHA256_CTX archive_sha256_ctx;
 typedef SHA256_CTX archive_sha256_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA256_LIBC3)
 typedef SHA2_CTX archive_sha256_ctx;
+#elif defined(ARCHIVE_CRYPTO_SHA256_LIBMD)
+typedef SHA256_CTX archive_sha256_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA256_LIBSYSTEM)
 typedef CC_SHA256_CTX archive_sha256_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA256_NETTLE)
@@ -206,6 +226,8 @@ typedef SHA512_CTX archive_sha512_ctx;
 typedef SHA512_CTX archive_sha512_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA512_LIBC3)
 typedef SHA2_CTX archive_sha512_ctx;
+#elif defined(ARCHIVE_CRYPTO_SHA512_LIBMD)
+typedef SHA512_CTX archive_sha512_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA512_LIBSYSTEM)
 typedef CC_SHA512_CTX archive_sha512_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA512_NETTLE)
@@ -220,6 +242,7 @@ typedef unsigned char archive_sha512_ctx;
 
 /* defines */
 #if defined(ARCHIVE_CRYPTO_MD5_LIBC) ||\
+  defined(ARCHIVE_CRYPTO_MD5_LIBMD) ||	\
   defined(ARCHIVE_CRYPTO_MD5_LIBSYSTEM) ||\
   defined(ARCHIVE_CRYPTO_MD5_NETTLE) ||\
   defined(ARCHIVE_CRYPTO_MD5_OPENSSL) ||\
@@ -246,6 +269,7 @@ typedef unsigned char archive_sha512_ctx;
   __archive_crypto.rmd160update(ctx, buf, n)
 
 #if defined(ARCHIVE_CRYPTO_SHA1_LIBC) ||\
+  defined(ARCHIVE_CRYPTO_SHA1_LIBMD) ||	\
   defined(ARCHIVE_CRYPTO_SHA1_LIBSYSTEM) ||\
   defined(ARCHIVE_CRYPTO_SHA1_NETTLE) ||\
   defined(ARCHIVE_CRYPTO_SHA1_OPENSSL) ||\
@@ -262,6 +286,7 @@ typedef unsigned char archive_sha512_ctx;
 #if defined(ARCHIVE_CRYPTO_SHA256_LIBC) ||\
   defined(ARCHIVE_CRYPTO_SHA256_LIBC2) ||\
   defined(ARCHIVE_CRYPTO_SHA256_LIBC3) ||\
+  defined(ARCHIVE_CRYPTO_SHA256_LIBMD) ||\
   defined(ARCHIVE_CRYPTO_SHA256_LIBSYSTEM) ||\
   defined(ARCHIVE_CRYPTO_SHA256_NETTLE) ||\
   defined(ARCHIVE_CRYPTO_SHA256_OPENSSL) ||\
@@ -294,6 +319,7 @@ typedef unsigned char archive_sha512_ctx;
 #if defined(ARCHIVE_CRYPTO_SHA512_LIBC) ||\
   defined(ARCHIVE_CRYPTO_SHA512_LIBC2) ||\
   defined(ARCHIVE_CRYPTO_SHA512_LIBC3) ||\
+  defined(ARCHIVE_CRYPTO_SHA512_LIBMD) ||\
   defined(ARCHIVE_CRYPTO_SHA512_LIBSYSTEM) ||\
   defined(ARCHIVE_CRYPTO_SHA512_NETTLE) ||\
   defined(ARCHIVE_CRYPTO_SHA512_OPENSSL) ||\
