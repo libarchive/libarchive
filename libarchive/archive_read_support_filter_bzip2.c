@@ -197,7 +197,7 @@ bzip2_reader_init(struct archive_read_filter *self)
 
 	state = (struct private_data *)calloc(sizeof(*state), 1);
 	out_block = (unsigned char *)malloc(out_block_size);
-	if (self == NULL || state == NULL || out_block == NULL) {
+	if (state == NULL || out_block == NULL) {
 		archive_set_error(&self->archive->archive, ENOMEM,
 		    "Can't allocate data for bzip2 decompression");
 		free(out_block);
