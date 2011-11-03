@@ -63,6 +63,7 @@ DEFINE_TEST(test_entry)
 	size_t xsize; /* For xattr tests. */
 	wchar_t wc;
 	long l;
+	int i;
 
 	assert((e = archive_entry_new()) != NULL);
 
@@ -153,7 +154,9 @@ DEFINE_TEST(test_entry)
 	assert(!archive_entry_ctime_is_set(e));
 
 	/* dev */
+	assert(!archive_entry_dev_is_set(e));
 	archive_entry_set_dev(e, 235);
+	assert(archive_entry_dev_is_set(e));
 	assertEqualInt(archive_entry_dev(e), 235);
 	/* devmajor/devminor are tested specially below. */
 
@@ -197,8 +200,15 @@ DEFINE_TEST(test_entry)
 	assertEqualWString(archive_entry_hardlink_w(e), NULL);
 
 	/* ino */
+	assert(!archive_entry_ino_is_set(e));
 	archive_entry_set_ino(e, 8593);
+	assert(archive_entry_ino_is_set(e));
 	assertEqualInt(archive_entry_ino(e), 8593);
+	assertEqualInt(archive_entry_ino64(e), 8593);
+	archive_entry_set_ino64(e, 8594);
+	assert(archive_entry_ino_is_set(e));
+	assertEqualInt(archive_entry_ino(e), 8594);
+	assertEqualInt(archive_entry_ino64(e), 8594);
 
 	/* link */
 	archive_entry_set_hardlink(e, "hardlinkname");
@@ -807,7 +817,6 @@ DEFINE_TEST(test_entry)
 		assert(NULL == archive_entry_symlink_w(e));
 	}
 
-#if HAVE_WCSCPY
 	l = 0x12345678L;
 	wc = (wchar_t)l; /* Wide character too big for UTF-8. */
 	if (NULL == setlocale(LC_ALL, "C") || (long)wc != l) {
@@ -815,19 +824,18 @@ DEFINE_TEST(test_entry)
 	} else {
 		/*
 		 * Build the string L"xxx\U12345678yyy\u5678zzz" without
-		 * using C99 \u#### syntax, which isn't uniformly
-		 * supported.  (GCC 3.4.6, for instance, defaults to
-		 * "c89 plus GNU extensions.")
+		 * using wcscpy or C99 \u#### syntax.
 		 */
-		wcscpy(wbuff, L"xxxAyyyBzzz");
+		name = "xxxAyyyBzzz";
+		for (i = 0; i < strlen(name); ++i)
+			wbuff[i] = name[i];
 		wbuff[3] = (wchar_t)0x12345678;
 		wbuff[7] = (wchar_t)0x5678;
-		/* A wide filename that cannot be converted to narrow. */
+		/* A Unicode filename that cannot be converted to UTF-8. */
 		archive_entry_copy_pathname_w(e, wbuff);
 		failure("Converting wide characters from Unicode should fail.");
 		assertEqualString(NULL, archive_entry_pathname(e));
 	}
-#endif
 
 	/* Release the experimental entry. */
 	archive_entry_free(e);

@@ -71,6 +71,7 @@ struct archive_write {
 	struct archive	archive;
 
 	/* Dev/ino of the archive being written. */
+	int		  skip_file_set;
 	dev_t		  skip_file_dev;
 	int64_t		  skip_file_ino;
 

@@ -321,6 +321,12 @@ archive_entry_dev(struct archive_entry *entry)
 		return (entry->ae_stat.aest_dev);
 }
 
+int
+archive_entry_dev_is_set(struct archive_entry *entry)
+{
+	return (entry->ae_set & AE_SET_DEV);
+}
+
 dev_t
 archive_entry_devmajor(struct archive_entry *entry)
 {
@@ -454,6 +460,12 @@ int64_t
 archive_entry_ino(struct archive_entry *entry)
 {
 	return (entry->ae_stat.aest_ino);
+}
+
+int
+archive_entry_ino_is_set(struct archive_entry *entry)
+{
+	return (entry->ae_set & AE_SET_INO);
 }
 
 int64_t
@@ -732,6 +744,7 @@ void
 archive_entry_set_ino(struct archive_entry *entry, int64_t ino)
 {
 	entry->stat_valid = 0;
+	entry->ae_set |= AE_SET_INO;
 	entry->ae_stat.aest_ino = ino;
 }
 
@@ -739,6 +752,7 @@ void
 archive_entry_set_ino64(struct archive_entry *entry, int64_t ino)
 {
 	entry->stat_valid = 0;
+	entry->ae_set |= AE_SET_INO;
 	entry->ae_stat.aest_ino = ino;
 }
 
@@ -855,6 +869,7 @@ void
 archive_entry_set_dev(struct archive_entry *entry, dev_t d)
 {
 	entry->stat_valid = 0;
+	entry->ae_set |= AE_SET_DEV;
 	entry->ae_stat.aest_dev_is_broken_down = 0;
 	entry->ae_stat.aest_dev = d;
 }
@@ -863,6 +878,7 @@ void
 archive_entry_set_devmajor(struct archive_entry *entry, dev_t m)
 {
 	entry->stat_valid = 0;
+	entry->ae_set |= AE_SET_DEV;
 	entry->ae_stat.aest_dev_is_broken_down = 1;
 	entry->ae_stat.aest_devmajor = m;
 }
@@ -871,6 +887,7 @@ void
 archive_entry_set_devminor(struct archive_entry *entry, dev_t m)
 {
 	entry->stat_valid = 0;
+	entry->ae_set |= AE_SET_DEV;
 	entry->ae_stat.aest_dev_is_broken_down = 1;
 	entry->ae_stat.aest_devminor = m;
 }

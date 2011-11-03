@@ -128,6 +128,7 @@ struct archive_write_disk {
 	struct fixup_entry	*fixup_list;
 	struct fixup_entry	*current_fixup;
 	int64_t			 user_uid;
+	int			 skip_file_set;
 	dev_t			 skip_file_dev;
 	ino_t			 skip_file_ino;
 	time_t			 start_time;
@@ -869,6 +870,7 @@ archive_write_disk_set_skip_file(struct archive *_a, int64_t d, int64_t i)
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
 	    ARCHIVE_STATE_ANY, "archive_write_disk_set_skip_file");
+	a->skip_file_set = 1;
 	a->skip_file_dev = d;
 	a->skip_file_ino = i;
 	return (ARCHIVE_OK);
@@ -1362,8 +1364,7 @@ restore_entry(struct archive_write_disk *a)
 		}
 
 		/* If it's our archive, we're done. */
-		if (a->skip_file_dev > 0 &&
-		    a->skip_file_ino > 0 &&
+		if (a->skip_file_set &&
 		    bhfi_dev(&a->st) == a->skip_file_dev &&
 		    bhfi_ino(&a->st) == a->skip_file_ino) {
 			archive_set_error(&a->archive, 0, "Refusing to overwrite archive");

@@ -197,6 +197,7 @@ archive_write_set_skip_file(struct archive *_a, int64_t d, int64_t i)
 	struct archive_write *a = (struct archive_write *)_a;
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_ANY, "archive_write_set_skip_file");
+	a->skip_file_set = 1;
 	a->skip_file_dev = d;
 	a->skip_file_ino = i;
 	return (ARCHIVE_OK);
@@ -619,9 +620,10 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 	if (ret < ARCHIVE_OK && ret != ARCHIVE_WARN)
 		return (ret);
 
-	if (a->skip_file_dev != 0 &&
+	if (a->skip_file_set &&
+	    archive_entry_dev_is_set(entry) &&
+	    archive_entry_ino_is_set(entry) &&
 	    archive_entry_dev(entry) == a->skip_file_dev &&
-	    a->skip_file_ino != 0 &&
 	    archive_entry_ino64(entry) == a->skip_file_ino) {
 		archive_set_error(&a->archive, 0,
 		    "Can't add archive to itself");

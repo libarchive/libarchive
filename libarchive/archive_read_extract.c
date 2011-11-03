@@ -100,8 +100,9 @@ archive_read_extract2(struct archive *_a, struct archive_entry *entry,
 	int r, r2;
 
 	/* Set up for this particular entry. */
-	archive_write_disk_set_skip_file(ad,
-	    a->skip_file_dev, a->skip_file_ino);
+	if (a->skip_file_set)
+		archive_write_disk_set_skip_file(ad,
+		    a->skip_file_dev, a->skip_file_ino);
 	r = archive_write_header(ad, entry);
 	if (r < ARCHIVE_WARN)
 		r = ARCHIVE_WARN;

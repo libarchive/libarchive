@@ -130,6 +130,7 @@ struct archive_read {
 	struct archive_entry	*entry;
 
 	/* Dev/ino of the archive being read/written. */
+	int		  skip_file_set;
 	dev_t		  skip_file_dev;
 	ino_t		  skip_file_ino;
 
