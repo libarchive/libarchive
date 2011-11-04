@@ -818,7 +818,7 @@ read_mtree(struct archive_read *a, struct mtree *mtree)
 	last_entry = NULL;
 
 	for (counter = 1; ; ++counter) {
-		len = readline(a, mtree, &p, 256);
+		len = readline(a, mtree, &p, 65536);
 		if (len == 0) {
 			mtree->this_entry = mtree->entries;
 			free_options(global);
