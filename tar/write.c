@@ -562,9 +562,10 @@ archive_names_from_file(struct bsdtar *bsdtar, struct archive *a)
  */
 static int
 append_archive_filename(struct bsdtar *bsdtar, struct archive *a,
-    const char *filename)
+    const char *raw_filename)
 {
 	struct archive *ina;
+	const char *filename = raw_filename;
 	int rc;
 
 	if (strcmp(filename, "-") == 0)
@@ -583,7 +584,7 @@ append_archive_filename(struct bsdtar *bsdtar, struct archive *a,
 
 	if (rc != ARCHIVE_OK) {
 		lafe_warnc(0, "Error reading archive %s: %s",
-		    filename, archive_error_string(ina));
+		    raw_filename, archive_error_string(ina));
 		bsdtar->return_value = 1;
 	}
 	archive_read_free(ina);
