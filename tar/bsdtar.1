@@ -496,24 +496,11 @@ Extract files as sparse files.
 For every block on disk, check first if it contains only NULL bytes and seek
 over it otherwise.
 This works similar to the conv=sparse option of dd.
-.It Fl Fl same-owner
-(x mode only)
-Extract owner and group IDs.
-This is the reverse of
-.Fl Fl no-same-owner
-and the default behavior if
-.Nm
-is run as root.
-.It Fl Fl strip-components Ar count
-Remove the specified number of leading path elements.
-Pathnames with fewer elements will be silently skipped.
-Note that the pathname is edited after checking inclusion/exclusion patterns
-but before security checks.
 .It Fl s Ar pattern
 Modify file or archive member names according to
 .Pa pattern .
 The pattern has the format
-.Ar /old/new/ Ns Op gps
+.Ar /old/new/ Ns Op ghHprRsS
 where
 .Ar old
 is a basic regular expression,
@@ -535,6 +522,29 @@ of symbolic links.
 The optional trailing p specifies that after a successful substitution
 the original path name and the new path name should be printed to
 standard error.
+Optional trailing H, R, or S characters suppress substitutions
+for hardlink targets, regular filenames, or symlink targets,
+respectively.
+Optional trailing h, r, or s characters enable substitutions
+for hardlink targets, regular filenames, or symlink targets,
+respectively.
+The default is
+.Ar hrs
+which applies substitutions to all names.
+In particular, it is never necessary to specify h, r, or s.
+.It Fl Fl same-owner
+(x mode only)
+Extract owner and group IDs.
+This is the reverse of
+.Fl Fl no-same-owner
+and the default behavior if
+.Nm
+is run as root.
+.It Fl Fl strip-components Ar count
+Remove the specified number of leading path elements.
+Pathnames with fewer elements will be silently skipped.
+Note that the pathname is edited after checking inclusion/exclusion patterns
+but before security checks.
 .It Fl T Ar filename , Fl Fl files-from Ar filename
 In x or t mode,
 .Nm

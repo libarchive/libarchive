@@ -152,27 +152,102 @@ DEFINE_TEST(test_option_s)
 	/*
 	 * Test 9: selective renaming of hardlink target
 	 */
+	/* At extraction. (assuming hardlink2 is the hardlink entry) */
+	assertMakeDir("test9a", 0755);
+	systemf("%s -cf - in/d1 | %s -xf - -s /hardlink1/hardlink1-renamed/ -C test9a",
+	    testprog, testprog);
+	assertIsHardlink("test9a/in/d1/hardlink1-renamed", "test9a/in/d1/hardlink2");
+	/* At extraction. (assuming hardlink1 is the hardlink entry) */
+	assertMakeDir("test9b", 0755);
+	systemf("%s -cf - in/d1 | %s -xf - -s /hardlink2/hardlink2-renamed/ -C test9b",
+	    testprog, testprog);
+	assertIsHardlink("test9b/in/d1/hardlink1", "test9b/in/d1/hardlink2-renamed");
+	/* At creation. (assuming hardlink2 is the hardlink entry) */
+	assertMakeDir("test9c", 0755);
+	systemf("%s -cf - -s /hardlink1/hardlink1-renamed/ in/d1 | %s -xf - -C test9c",
+	    testprog, testprog);
+	assertIsHardlink("test9c/in/d1/hardlink1-renamed", "test9c/in/d1/hardlink2");
+	/* At creation. (assuming hardlink1 is the hardlink entry) */
+	assertMakeDir("test9d", 0755);
+	systemf("%s -cf - -s /hardlink2/hardlink2-renamed/ in/d1 | %s -xf - -C test9d",
+	    testprog, testprog);
+	assertIsHardlink("test9d/in/d1/hardlink1", "test9d/in/d1/hardlink2-renamed");
+
+	/*
+	 * Test 10: renaming symlink target without repointing symlink
+	 */
 	if (canSymlink()) {
-		/* At extraction. (assuming hardlink2 is the hardlink entry) */
-		assertMakeDir("test9a", 0755);
-		systemf("%s -cf - in/d1 | %s -xf - -s /hardlink1/hardlink1-renamed/ -C test9a",
+		/* At extraction. */
+		assertMakeDir("test10a", 0755);
+		systemf("%s -cf - in/d1 | %s -xf - -s /realfile/foo/S -s /foo/realfile/ -C test10a",
 		    testprog, testprog);
-		assertIsHardlink("test9a/in/d1/hardlink1-renamed", "test9a/in/d1/hardlink2");
-		/* At extraction. (assuming hardlink1 is the hardlink entry) */
-		assertMakeDir("test9b", 0755);
-		systemf("%s -cf - in/d1 | %s -xf - -s /hardlink2/hardlink2-renamed/ -C test9b",
+		assertFileContents("realfile", 8, "test10a/in/d1/foo");
+		assertFileContents("foo", 3, "test10a/in/d1/realfile");
+		assertFileContents("foo", 3, "test10a/in/d1/symlink");
+		assertIsSymlink("test10a/in/d1/symlink", "realfile");
+		/* At creation. */
+		assertMakeDir("test10b", 0755);
+		systemf("%s -cf - -s /realfile/foo/S -s /foo/realfile/ in/d1 | %s -xf - -C test10b",
 		    testprog, testprog);
-		assertIsHardlink("test9b/in/d1/hardlink1", "test9b/in/d1/hardlink2-renamed");
-		/* At creation. (assuming hardlink2 is the hardlink entry) */
-		assertMakeDir("test9c", 0755);
-		systemf("%s -cf - -s /hardlink1/hardlink1-renamed/ in/d1 | %s -xf - -C test9c",
-		    testprog, testprog);
-		assertIsHardlink("test9c/in/d1/hardlink1-renamed", "test9c/in/d1/hardlink2");
-		/* At creation. (assuming hardlink1 is the hardlink entry) */
-		assertMakeDir("test9d", 0755);
-		systemf("%s -cf - -s /hardlink2/hardlink2-renamed/ in/d1 | %s -xf - -C test9d",
-		    testprog, testprog);
-		assertIsHardlink("test9d/in/d1/hardlink1", "test9d/in/d1/hardlink2-renamed");
+		assertFileContents("realfile", 8, "test10b/in/d1/foo");
+		assertFileContents("foo", 3, "test10b/in/d1/realfile");
+		assertFileContents("foo", 3, "test10b/in/d1/symlink");
+		assertIsSymlink("test10b/in/d1/symlink", "realfile");
 	}
 
+	/*
+	 * Test 11: repointing symlink without renaming file
+	 */
+	if (canSymlink()) {
+		/* At extraction. */
+		assertMakeDir("test11a", 0755);
+		systemf("%s -cf - in/d1 | %s -xf - -s /realfile/foo/sR -C test11a",
+		    testprog, testprog);
+		assertFileContents("foo", 3, "test11a/in/d1/foo");
+		assertFileContents("realfile", 8, "test11a/in/d1/realfile");
+		assertFileContents("foo", 3, "test11a/in/d1/symlink");
+		assertIsSymlink("test11a/in/d1/symlink", "foo");
+		/* At creation. */
+		assertMakeDir("test11b", 0755);
+		systemf("%s -cf - -s /realfile/foo/R in/d1 | %s -xf - -C test11b",
+		    testprog, testprog);
+		assertFileContents("foo", 3, "test11b/in/d1/foo");
+		assertFileContents("realfile", 8, "test11b/in/d1/realfile");
+		assertFileContents("foo", 3, "test11b/in/d1/symlink");
+		assertIsSymlink("test11b/in/d1/symlink", "foo");
+	}
+
+	/*
+	 * Test 12: renaming hardlink target without changing hardlink.
+	 * (Requires a pre-built archive, since we otherwise can't know
+	 * which element will be stored as the hardlink.)
+	 */
+	extract_reference_file("test_option_s.tar.Z");
+	assertMakeDir("test12a", 0755);
+	systemf("%s -xf test_option_s.tar.Z -s /hardlink1/foo/H -s /foo/hardlink1/ -C test12a",
+	    testprog);
+	assertFileContents("foo", 3, "test12a/in/d1/hardlink1");
+	assertFileContents("hardlinkedfile", 14, "test12a/in/d1/foo");
+	assertFileContents("foo", 3, "test12a/in/d1/hardlink2");
+	assertIsHardlink("test12a/in/d1/hardlink1", "test12a/in/d1/hardlink2");
+	/* TODO: Expand this test to verify creation as well.
+	 * Since either hardlink1 or hardlink2 might get stored as a hardlink,
+	 * this will either requiring testing both cases and accepting either
+	 * pass, or some very creative renames that can be tested regardless.
+	 */
+
+	/*
+	 * Test 13: repoint hardlink without changing files
+	 * (Requires a pre-built archive, since we otherwise can't know
+	 * which element will be stored as the hardlink.)
+	 */
+	extract_reference_file("test_option_s.tar.Z");
+	assertMakeDir("test13a", 0755);
+	systemf("%s -xf test_option_s.tar.Z -s /hardlink1/foo/Rh -s /foo/hardlink1/Rh -C test13a",
+	    testprog);
+	assertFileContents("foo", 3, "test13a/in/d1/foo");
+	assertFileContents("hardlinkedfile", 14, "test13a/in/d1/hardlink1");
+	assertFileContents("foo", 3, "test13a/in/d1/hardlink2");
+	assertIsHardlink("test13a/in/d1/foo", "test13a/in/d1/hardlink2");
+	/* TODO: See above; expand this test to verify renames at creation. */
 }

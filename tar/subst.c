@@ -44,7 +44,7 @@ struct subst_rule {
 	struct subst_rule *next;
 	regex_t re;
 	char *result;
-	unsigned int global:1, print:1, symlink:1, hardlink:1;
+	unsigned int global:1, print:1, regular:1, symlink:1, hardlink:1;
 };
 
 struct substitution {
@@ -120,6 +120,7 @@ add_substitution(struct bsdtar *bsdtar, const char *rule_text)
 	/* Defaults */
 	rule->global = 0; /* Don't do multiple replacements. */
 	rule->print = 0; /* Don't print. */
+	rule->regular = 1; /* Rewrite regular filenames. */
 	rule->symlink = 1; /* Rewrite symlink targets. */
 	rule->hardlink = 1; /* Rewrite hardlink targets. */
 
@@ -129,14 +130,27 @@ add_substitution(struct bsdtar *bsdtar, const char *rule_text)
 		case 'G':
 			rule->global = 1;
 			break;
+		case 'h':
+			rule->hardlink = 1;
+			break;
+		case 'H':
+			rule->hardlink = 0;
+			break;
 		case 'p':
 		case 'P':
 			rule->print = 1;
 			break;
+		case 'r':
+			rule->regular = 1;
+			break;
+		case 'R':
+			rule->regular = 0;
+			break;
 		case 's':
+			rule->symlink = 1;
+			break;
 		case 'S':
 			rule->symlink = 0;
-			rule->hardlink = 0;
 			break;
 		default:
 			lafe_errc(1, 0, "Invalid replacement flag %c", *end_pattern);
@@ -189,7 +203,7 @@ realloc_strcat(char **str, const char *append)
 
 int
 apply_substitution(struct bsdtar *bsdtar, const char *name, char **result,
-    int hardlink_target, int symlink_target)
+    int symlink_target, int hardlink_target)
 {
 	const char *path = name;
 	regmatch_t matches[10];
@@ -207,10 +221,17 @@ apply_substitution(struct bsdtar *bsdtar, const char *name, char **result,
 	print_match = 0;
 
 	for (rule = subst->first_rule; rule != NULL; rule = rule->next) {
-		if (symlink_target && !rule->symlink)
-			continue;
-		if (hardlink_target && !rule->hardlink)
-			continue;
+		if (symlink_target) {
+			if (!rule->symlink)
+				continue;
+		} else if (hardlink_target) {
+			if (!rule->hardlink)
+				continue;
+		} else { /* Regular filename. */
+			if (!rule->regular)
+				continue;
+		}
+
 		if (regexec(&rule->re, name, 10, matches, 0))
 			continue;
 
