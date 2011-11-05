@@ -33,6 +33,9 @@
 #endif
 #include <limits.h>
 #include <locale.h>
+#ifdef HAVE_SIGNAL_H
+#include <signal.h>
+#endif
 #include <stdarg.h>
 #include <time.h>
 
@@ -2339,6 +2342,16 @@ main(int argc, char **argv)
 		strcat(testprg, testprogfile);
 		strcat(testprg, "\"");
 		testprog = testprg;
+	}
+#endif
+
+#if !defined(_WIN32) && defined(SIGPIPE)
+	{   /* Ignore SIGPIPE signals */
+		struct sigaction sa;
+		sa.sa_handler = SIG_IGN;
+		sigemptyset(&sa.sa_mask);
+		sa.sa_flags = 0;
+		sigaction(SIGPIPE, &sa, NULL);
 	}
 #endif
 

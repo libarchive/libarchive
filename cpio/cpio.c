@@ -56,6 +56,9 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/cpio.c,v 1.15 2008/12/06 07:30:40 kientzle 
 #ifdef HAVE_PWD_H
 #include <pwd.h>
 #endif
+#ifdef HAVE_SIGNAL_H
+#include <signal.h>
+#endif
 #ifdef HAVE_STDARG_H
 #include <stdarg.h>
 #endif
@@ -135,6 +138,16 @@ main(int argc, char *argv[])
 	memset(cpio, 0, sizeof(*cpio));
 	cpio->buff = buff;
 	cpio->buff_size = sizeof(buff);
+
+#if defined(HAVE_SIGACTION) && defined(SIGPIPE)
+	{ /* Ignore SIGPIPE signals. */
+		struct sigaction sa;
+		sigemptyset(&sa.sa_mask);
+		sa.sa_flags = 0;
+		sa.sa_handler = SIG_IGN;
+		sigaction(SIGPIPE, &sa, NULL);
+	}
+#endif
 
 	/* Need lafe_progname before calling lafe_warnc. */
 	if (*argv == NULL)
