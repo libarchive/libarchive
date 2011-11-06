@@ -9,6 +9,10 @@ if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
 endif()
 SET(CMAKE_BUILD_TYPE "Debug")
 
+# On MacOS, prefer MacPorts libraries to system libraries.
+# I haven't come up with a compelling argument for this to be conditional.
+list(APPEND CMAKE_PREFIX_PATH /opt/local)
+
 #
 # Version - read from 'version' file.
 #
