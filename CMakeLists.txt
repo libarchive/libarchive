@@ -34,8 +34,17 @@ SET(BSDCPIO_VERSION_STRING     "${VERSION}")
 SET(BSDTAR_VERSION_STRING      "${VERSION}")
 SET(LIBARCHIVE_VERSION_NUMBER  "${_version_number}")
 SET(LIBARCHIVE_VERSION_STRING  "${VERSION}")
-# Shared library number
-SET(SOVERSION                   8)
+
+# INTERFACE_VERSION increments with every release
+# libarchive 2.7 == interface version 9 = 2 + 7 
+# libarchive 2.8 == interface version 10 = 2 + 8
+# libarchive 3.0 == interface version 11
+# libarchive 3.x == interface version 11 + x
+math(EXPR INTERFACE_VERSION  "11 + ${_minor}")
+
+# Set SOVERSION == Interface version
+# ?? Should there be more here ??
+SET(SOVERSION "${INTERFACE_VERSION}")
 
 # Especially for early development, we want to be a little
 # aggressive about diagnosing build problems; this can get
