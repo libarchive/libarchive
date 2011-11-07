@@ -37,7 +37,7 @@ test_read_format_mtree1(void)
 	// without relying on overflow.  This assumes that long long
 	// is at least 64 bits.
 	const static long long max_int64 = ((((long long)1) << 62) - 1) + (((long long)1) << 62);
-	time_t min_time;
+	time_t min_time, t;
 
 	extract_reference_file(reffile);
 
@@ -137,7 +137,9 @@ test_read_format_mtree1(void)
 	/* Verify min_time is the smallest possible time_t. */
 	min_time = archive_entry_mtime(ae);
 	assert(min_time <= 0);
-	assert(min_time - 1 > 0);
+	/* Simply asserting min_time - 1 > 0 breaks with some compiler optimizations. */
+	t = min_time - 1;
+	assert(t > 0);
 
 	/* toooldfile is 1 sec older, which should overflow and get returned
 	 * with the same value. */
