@@ -225,7 +225,6 @@ libarchive_man_MANS=						\
 
 # Additional libarchive files to include in the distribution
 libarchive_EXTRA_DIST=			\
-	libarchive/test/list.h		\
 	libarchive/archive_windows.c	\
 	libarchive/archive_windows.h	\
 	libarchive/filter_fork_windows.c	\
@@ -422,6 +421,7 @@ libarchive/test/list.h: Makefile
 libarchive_TESTS_ENVIRONMENT= LIBARCHIVE_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/libarchive/test
 
 libarchive_test_EXTRA_DIST=\
+	libarchive/test/list.h		\
 	libarchive/test/test_acl_pax.tar.uu				\
 	libarchive/test/test_archive_string_conversion.txt.Z.uu		\
 	libarchive/test/test_compat_bzip2_1.tbz.uu			\
@@ -584,8 +584,7 @@ bsdtar_EXTRA_DIST=		\
 	tar/bsdtar_windows.h	\
 	tar/bsdtar_windows.c	\
 	tar/CMakeLists.txt	\
-	tar/config_freebsd.h	\
-	tar/test/list.h
+	tar/config_freebsd.h
 
 
 if BUILD_BSDTAR
@@ -659,7 +658,9 @@ bsdtar_TESTS_ENVIRONMENT=
 endif
 
 bsdtar_test_EXTRA_DIST=			\
+	tar/test/list.h \
 	tar/test/test_option_keep_newer_files.tar.Z.uu \
+	tar/test/test_option_s.tar.Z.uu \
 	tar/test/test_patterns_2.tar.uu	\
 	tar/test/test_patterns_3.tar.uu	\
 	tar/test/test_patterns_4.tar.uu	\
@@ -700,7 +701,6 @@ bsdcpio_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe $(bsd
 bsdcpio_LDFLAGS= $(bsdcpio_ldstatic)
 
 bsdcpio_EXTRA_DIST=		\
-	cpio/test/list.h	\
 	cpio/bsdcpio.1		\
 	cpio/cpio_windows.h	\
 	cpio/cpio_windows.c	\
@@ -772,6 +772,7 @@ bsdcpio_TESTS_ENVIRONMENT=
 endif
 
 bsdcpio_test_EXTRA_DIST=			\
+	cpio/test/list.h	\
 	cpio/test/test_gcpio_compat_ref.bin.uu	\
 	cpio/test/test_gcpio_compat_ref.crc.uu	\
 	cpio/test/test_gcpio_compat_ref.newc.uu	\
