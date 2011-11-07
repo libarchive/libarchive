@@ -36,11 +36,11 @@ ARCHIVE_MINOR=$(( (LIBARCHIVE_VERSION_N() / 1000) % 1000 ))
 # Libarchive 2.8 == libtool interface 10 = 2 + 8
 # Libarchive 3.0 == libtool interface 11 (assumes there's no libarchive 2.9)
 # Libarchive 3.x == libtool interface 11 + x
-ARCHIVE_LIBTOOL_MAJOR=`echo $((11 + ${ARCHIVE_MINOR}))`
+ARCHIVE_INTERFACE=`echo $((11 + ${ARCHIVE_MINOR}))`
 # Libarchive revision is bumped on any source change === libtool revision
 ARCHIVE_REVISION=$(( LIBARCHIVE_VERSION_N() % 1000 ))
 # Libarchive minor is bumped on any interface addition === libtool age
-ARCHIVE_LIBTOOL_VERSION=$ARCHIVE_LIBTOOL_MAJOR:$ARCHIVE_REVISION:$ARCHIVE_MINOR
+ARCHIVE_LIBTOOL_VERSION=$ARCHIVE_INTERFACE:$ARCHIVE_REVISION:$ARCHIVE_MINOR
 
 # Stick the version numbers into config.h
 AC_DEFINE([LIBARCHIVE_VERSION_STRING],"LIBARCHIVE_VERSION_S()",
