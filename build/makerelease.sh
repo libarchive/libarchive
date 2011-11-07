@@ -1,5 +1,12 @@
 #!/bin/sh
 
+#
+# This script exists primarily to document some of the
+# steps needed when building an "official libarchive distribution".
+# Feel free to hack it up as necessary to adjust to the peculiarities
+# of a particular build environment.
+#
+
 PATH=/usr/local/gnu-autotools/bin/:$PATH
 export PATH
 
@@ -19,6 +26,9 @@ export MAKEOBJDIRPREFIX=/junk
 
 set -ex
 
+#
+# Scrub the local tree before running the build tests below.
+#
 /bin/sh build/clean.sh
 
 #
