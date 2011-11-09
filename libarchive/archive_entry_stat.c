@@ -41,7 +41,7 @@ archive_entry_stat(struct archive_entry *entry)
 {
 	struct stat *st;
 	if (entry->stat == NULL) {
-		entry->stat = malloc(sizeof(*st));
+		entry->stat = calloc(1, sizeof(*st));
 		if (entry->stat == NULL)
 			return (NULL);
 		entry->stat_valid = 0;
