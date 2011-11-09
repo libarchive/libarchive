@@ -46,8 +46,10 @@ struct bsdtar {
 	const char	 *create_format; /* -F format */
 	char		 *pending_chdir; /* -C dir */
 	const char	 *names_from_file; /* -T file */
+	int		  newer_ctime_filter; /* --newer/--newer-than */
 	time_t		  newer_ctime_sec; /* --newer/--newer-than */
 	long		  newer_ctime_nsec; /* --newer/--newer-than */
+	int		  newer_mtime_filter; /* --newer-mtime/--newer-mtime-than */
 	time_t		  newer_mtime_sec; /* --newer-mtime */
 	long		  newer_mtime_nsec; /* --newer-mtime-than */
 	int		  bytes_per_block; /* -b block_size */

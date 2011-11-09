@@ -395,6 +395,7 @@ main(int argc, char **argv)
 		 * TODO: Add corresponding "older" options to reverse these.
 		 */
 		case OPTION_NEWER_CTIME: /* GNU tar */
+			bsdtar->newer_ctime_filter = 1;
 			bsdtar->newer_ctime_sec = get_date(now, bsdtar->argument);
 			break;
 		case OPTION_NEWER_CTIME_THAN:
@@ -403,12 +404,14 @@ main(int argc, char **argv)
 				if (stat(bsdtar->argument, &st) != 0)
 					lafe_errc(1, 0,
 					    "Can't open file %s", bsdtar->argument);
+				bsdtar->newer_ctime_filter = 1;
 				bsdtar->newer_ctime_sec = st.st_ctime;
 				bsdtar->newer_ctime_nsec =
 				    ARCHIVE_STAT_CTIME_NANOS(&st);
 			}
 			break;
 		case OPTION_NEWER_MTIME: /* GNU tar */
+			bsdtar->newer_mtime_filter = 1;
 			bsdtar->newer_mtime_sec = get_date(now, bsdtar->argument);
 			break;
 		case OPTION_NEWER_MTIME_THAN:
@@ -417,6 +420,7 @@ main(int argc, char **argv)
 				if (stat(bsdtar->argument, &st) != 0)
 					lafe_errc(1, 0,
 					    "Can't open file %s", bsdtar->argument);
+				bsdtar->newer_mtime_filter = 1;
 				bsdtar->newer_mtime_sec = st.st_mtime;
 				bsdtar->newer_mtime_nsec =
 				    ARCHIVE_STAT_MTIME_NANOS(&st);

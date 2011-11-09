@@ -234,7 +234,7 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 		/*
 		 * Exclude entries that are too old.
 		 */
-		if (bsdtar->newer_ctime_sec > 0) {
+		if (bsdtar->newer_ctime_filter) {
 			/* Use ctime if format provides, else mtime. */
 			if (archive_entry_ctime_is_set(entry)) {
 				sec = archive_entry_ctime(entry);
@@ -252,7 +252,7 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 			    && nsec <= bsdtar->newer_ctime_nsec)
 				continue; /* Too old, skip it. */
 		}
-		if (bsdtar->newer_mtime_sec > 0) {
+		if (bsdtar->newer_mtime_filter) {
 			if (archive_entry_mtime_is_set(entry)) {
 				sec = archive_entry_mtime(entry);
 				nsec = archive_entry_mtime_nsec(entry);

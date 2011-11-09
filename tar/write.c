@@ -1105,7 +1105,7 @@ new_enough(struct bsdtar *bsdtar, const char *path, const struct stat *st)
 	/*
 	 * If this file/dir is excluded by a time comparison, skip it.
 	 */
-	if (bsdtar->newer_ctime_sec > 0) {
+	if (bsdtar->newer_ctime_filter) {
 		if (st->st_ctime < bsdtar->newer_ctime_sec)
 			return (0); /* Too old, skip it. */
 		if (st->st_ctime == bsdtar->newer_ctime_sec
@@ -1113,7 +1113,7 @@ new_enough(struct bsdtar *bsdtar, const char *path, const struct stat *st)
 		    <= bsdtar->newer_ctime_nsec)
 			return (0); /* Too old, skip it. */
 	}
-	if (bsdtar->newer_mtime_sec > 0) {
+	if (bsdtar->newer_mtime_filter) {
 		if (st->st_mtime < bsdtar->newer_mtime_sec)
 			return (0); /* Too old, skip it. */
 		if (st->st_mtime == bsdtar->newer_mtime_sec
