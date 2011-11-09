@@ -38,12 +38,14 @@
 .Nm archive_entry_unset_size ,
 .Nm archive_entry_dev ,
 .Nm archive_entry_set_dev ,
+.Nm archive_entry_dev_is_set ,
 .Nm archive_entry_devmajor ,
 .Nm archive_entry_set_devmajor ,
 .Nm archive_entry_devminor ,
 .Nm archive_entry_set_devminor ,
 .Nm archive_entry_ino ,
 .Nm archive_entry_set_ino ,
+.Nm archive_entry_ino_is_set ,
 .Nm archive_entry_ino64 ,
 .Nm archive_entry_set_ino64 ,
 .Nm archive_entry_nlink ,
@@ -80,6 +82,8 @@
 .Fn archive_entry_dev "struct archive_entry *a"
 .Ft void
 .Fn archive_entry_set_dev "struct archive_entry *a" "dev_t dev"
+.Ft int
+.Fn archive_entry_dev_is_set "struct archive_entry *a"
 .Ft dev_t
 .Fn archive_entry_devmajor "struct archive_entry *a"
 .Ft void
@@ -92,6 +96,8 @@
 .Fn archive_entry_ino "struct archive_entry *a"
 .Ft void
 .Fn archive_entry_set_ino "struct archive_entry *a" "unsigned long ino"
+.Ft int
+.Fn archive_entry_ino_is_set "struct archive_entry *a"
 .Ft int64_t
 .Fn archive_entry_ino64 "struct archive_entry *a"
 .Ft void
@@ -125,12 +131,31 @@ or
 .Fn archive_entry_free
 is called.
 It is not affected by calls to the set accessor functions.
+It currently sets the following values in
+.Vt struct stat :
+.Vt st_atime ,
+.Vt st_ctime ,
+.Vt st_dev ,
+.Vt st_gid ,
+.Vt st_ino ,
+.Vt st_mode ,
+.Vt st_mtime ,
+.Vt st_nlink ,
+.Vt st_rdev ,
+.Vt st_size ,
+.Vt st_uid .
+In addition,
+.Vt st_birthtime
+and high-precision information for time-related fields
+will be included on platforms that support it.
 .Pp
 The function
 .Fn archive_entry_copy_stat
-copies all fields from the platform's
+copies fields from the platform's
 .Vt struct stat .
-Missing fields are unset.
+Fields not provided by
+.Vt struct stat
+are unchanged.
 .Ss General accessor functions
 The functions
 .Fn archive_entry_filetype
@@ -157,7 +182,8 @@ Named pipe (fifo)
 Not all file types are supported by all platforms.
 The constants used by
 .Xr stat 2
-may have different numeric value.
+may have different numeric values from the
+corresponding constants above.
 .Pp
 The functions
 .Fn archive_entry_mode
@@ -184,7 +210,7 @@ can be used to query that status.
 .Fn archive_entry_set_size
 and
 .Fn archive_entry_unset_size
-set respectively unset the size.
+set and unset the size, respectively.
 .Pp
 The number of references (hardlinks) can be obtained by calling
 .Fn archive_entry_nlinks
