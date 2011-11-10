@@ -95,9 +95,6 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/write.c,v 1.79 2008/11/27 05:49:52 kientzle 
 #include "line_reader.h"
 #include "tree.h"
 
-/* Fixed size of uname/gname caches. */
-#define	name_cache_size 101
-
 #ifndef O_BINARY
 #define	O_BINARY 0
 #endif
@@ -111,16 +108,6 @@ struct archive_dir_entry {
 
 struct archive_dir {
 	struct archive_dir_entry *head, *tail;
-};
-
-struct name_cache {
-	int	probes;
-	int	hits;
-	size_t	size;
-	struct {
-		id_t id;
-		const char *name;
-	} cache[name_cache_size];
 };
 
 static void		 add_dir_list(struct bsdtar *bsdtar, const char *path,
