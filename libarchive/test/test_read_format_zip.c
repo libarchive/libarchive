@@ -26,6 +26,12 @@
 #include "test.h"
 __FBSDID("$FreeBSD: head/lib/libarchive/test/test_read_format_zip.c 189482 2009-03-07 03:30:35Z kientzle $");
 
+#ifdef HAVE_LIBZ
+static const int libz_enabled = 1;
+#else
+static const int libz_enabled = 0;
+#endif
+
 /*
  * The reference file for this has been manually tweaked so that:
  *   * file2 has length-at-end but file1 does not
@@ -42,7 +48,6 @@ test_basic(void)
 	const void *pv;
 	size_t s;
 	int64_t o;
-	int r;
 
 	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
@@ -61,38 +66,43 @@ test_basic(void)
 	assertEqualInt(1179604289, archive_entry_mtime(ae));
 	assertEqualInt(18, archive_entry_size(ae));
 	failure("archive_read_data() returns number of bytes read");
-	r = archive_read_data(a, buff, 19);
-	if (r < ARCHIVE_OK) {
-		if (strcmp(archive_error_string(a),
-		    "libarchive compiled without deflate support (no libz)") == 0) {
-			skipping("Skipping ZIP compression check: %s",
-			    archive_error_string(a));
-			goto finish;
-		}
+	if (libz_enabled) {
+		assertEqualInt(18, archive_read_data(a, buff, 19));
+		assertEqualMem(buff, "hello\nhello\nhello\n", 18);
+	} else {
+		assertEqualInt(ARCHIVE_FATAL, archive_read_data(a, buff, 19));
+		assertEqualString(archive_error_string(a),
+		    "libarchive compiled without deflate support (no libz)");
+		assert(archive_errno(a) != 0);
 	}
-	assertEqualInt(18, r);
-	assertEqualMem(buff, "hello\nhello\nhello\n", 18);
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualString("file2", archive_entry_pathname(ae));
 	assertEqualInt(1179605932, archive_entry_mtime(ae));
 	failure("file2 has length-at-end, so we shouldn't see a valid size");
 	assertEqualInt(0, archive_entry_size_is_set(ae));
-	failure("file2 has a bad CRC, so reading to end should fail");
-	assertEqualInt(ARCHIVE_WARN, archive_read_data(a, buff, 19));
-	assertEqualMem(buff, "hello\nhello\nhello\n", 18);
-        /* Verify the number of files read. */
+	if (libz_enabled) {
+		failure("file2 has a bad CRC, so read should fail and not change buff");
+		memset(buff, 'a', 19);
+		assertEqualInt(ARCHIVE_WARN, archive_read_data(a, buff, 19));
+		assertEqualMem(buff, "aaaaaaaaaaaaaaaaaaa", 19);
+	} else {
+		assertEqualInt(ARCHIVE_FATAL, archive_read_data(a, buff, 19));
+		assertEqualString(archive_error_string(a),
+		    "libarchive compiled without deflate support (no libz)");
+		assert(archive_errno(a) != 0);
+	}
+	/* Verify the number of files read. */
 	failure("the archive file has three files");
 	assertEqualInt(3, archive_file_count(a));
 	assertA(archive_compression(a) == ARCHIVE_COMPRESSION_NONE);
 	assertA(archive_format(a) == ARCHIVE_FORMAT_ZIP);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-finish:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 /*
  * Read Info-ZIP New Unix Extra Field 0x7875 "ux".
- *  Currently sotres Unix UID/GID up to 32 bits.
+ *  Currently stores Unix UID/GID up to 32 bits.
  */
 static void
 test_info_zip_ux(void)
@@ -101,7 +111,6 @@ test_info_zip_ux(void)
 	struct archive_entry *ae;
 	struct archive *a;
 	char *buff[128];
-	int r;
 
 	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
@@ -117,27 +126,24 @@ test_info_zip_ux(void)
 	assertEqualInt(1001, archive_entry_uid(ae));
 	assertEqualInt(1001, archive_entry_gid(ae));
 	failure("archive_read_data() returns number of bytes read");
-	r = archive_read_data(a, buff, 19);
-	if (r < ARCHIVE_OK) {
-		if (strcmp(archive_error_string(a),
-		    "libarchive compiled without deflate support (no libz)") == 0) {
-			skipping("Skipping ZIP compression check: %s",
-			    archive_error_string(a));
-			goto finish;
-		}
+	if (libz_enabled) {
+		assertEqualInt(18, archive_read_data(a, buff, 19));
+		assertEqualMem(buff, "hello\nhello\nhello\n", 18);
+	} else {
+		assertEqualInt(ARCHIVE_FATAL, archive_read_data(a, buff, 19));
+		assertEqualString(archive_error_string(a),
+		    "libarchive compiled without deflate support (no libz)");
+		assert(archive_errno(a) != 0);
 	}
-	assertEqualInt(18, r);
-	assertEqualMem(buff, "hello\nhello\nhello\n", 18);
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
-        /* Verify the number of files read. */
+	/* Verify the number of files read. */
 	failure("the archive file has just one file");
 	assertEqualInt(1, archive_file_count(a));
 
 	assertA(archive_compression(a) == ARCHIVE_COMPRESSION_NONE);
 	assertA(archive_format(a) == ARCHIVE_FORMAT_ZIP);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-finish:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -164,9 +170,15 @@ test_extract_length_at_end(void)
 	assert(!archive_entry_size_is_set(ae));
 	assertEqualInt(0, archive_entry_size(ae));
 
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_extract(a, ae, 0));
-
-	assertFileContents("hello\x0A", 6, "hello.txt");
+	if (libz_enabled) {
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_extract(a, ae, 0));
+		assertFileContents("hello\x0A", 6, "hello.txt");
+	} else {
+		assertEqualIntA(a, ARCHIVE_FATAL, archive_read_extract(a, ae, 0));
+		assertEqualString(archive_error_string(a),
+		    "libarchive compiled without deflate support (no libz)");
+		assert(archive_errno(a) != 0);
+	}
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));

@@ -25,6 +25,12 @@
 #include "test.h"
 __FBSDID("$FreeBSD: head/lib/libarchive/test/test_compat_zip.c 196962 2009-09-08 05:02:41Z kientzle $");
 
+#ifdef HAVE_LIBZ
+static const int libz_enabled = 1;
+#else
+static const int libz_enabled = 0;
+#endif
+
 /* Copy this function for each test file and adjust it accordingly. */
 static void
 test_compat_zip_1(void)
@@ -46,13 +52,10 @@ test_compat_zip_1(void)
 
 	/* Read second entry. */
 	r = archive_read_next_header(a, &ae);
-	if (r != ARCHIVE_OK) {
-		if (strcmp(archive_error_string(a),
-		    "libarchive compiled without deflate support (no libz)") == 0) {
-			skipping("Skipping ZIP compression check: %s",
-			    archive_error_string(a));
-			goto finish;
-		}
+	if (r == ARCHIVE_FATAL && !libz_enabled) {
+		skipping("Skipping ZIP compression check: %s",
+			archive_error_string(a));
+		goto finish;
 	}
 	assertEqualIntA(a, ARCHIVE_OK, r);
 	assertEqualString("tmp.class", archive_entry_pathname(ae));
@@ -62,8 +65,8 @@ test_compat_zip_1(void)
 	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_NONE);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_ZIP);
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 finish:
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -109,8 +112,6 @@ test_compat_zip_3(void)
 	const char *refname = "test_compat_zip_3.zip";
 	struct archive_entry *ae;
 	struct archive *a;
-	char *p;
-	size_t s;
 
 	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
@@ -134,14 +135,21 @@ test_compat_zip_3(void)
 
 	/* Extract under a different name. */
 	archive_entry_set_pathname(ae, "test_3.txt");
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_extract(a, ae, 0));
-	/* Verify the first 12 bytes actually got written to disk correctly. */
-	p = slurpfile(&s, "test_3.txt");
-	assertEqualInt(s, 1030);
-	assertEqualMem(p, "<?xml versio", 12);
-	free(p);
+	if(libz_enabled) {
+		char *p;
+		size_t s;
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_extract(a, ae, 0));
+		/* Verify the first 12 bytes actually got written to disk correctly. */
+		p = slurpfile(&s, "test_3.txt");
+		assertEqualInt(s, 1030);
+		assertEqualMem(p, "<?xml versio", 12);
+		free(p);
+		assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	} else {
+		skipping("Skipping ZIP compression check, no libz support");
+		assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	}
 
-	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
 }
