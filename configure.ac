@@ -276,6 +276,9 @@ AC_ARG_WITH([nettle],
   AS_HELP_STRING([--without-nettle], [Don't build with crypto support from Nettle]))
 AC_ARG_WITH([openssl],
   AS_HELP_STRING([--without-openssl], [Don't build support for mtree and xar hashes through openssl]))
+case "$host_os" in
+  *darwin* ) with_openssl=no ;;
+esac
 
 AC_ARG_WITH([xml2],
   AS_HELP_STRING([--without-xml2], [Don't build support for xar through libxml2]))
