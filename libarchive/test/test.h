@@ -97,13 +97,6 @@
 #pragma warn -8068	/* Constant out of range in comparison. */
 #endif
 
-/* Cygwin */
-#if defined(__CYGWIN__)
-/* Cygwin-1.7.x is lazy about populating nlinks, so don't
- * expect it to be accurate. */
-# define NLINKS_INACCURATE_FOR_DIRS
-#endif
-
 /* Haiku OS and QNX */
 #if defined(__HAIKU__) || defined(__QNXNTO__)
 /* Haiku and QNX have typedefs in stdint.h (needed for int64_t) */

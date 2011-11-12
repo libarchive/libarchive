@@ -68,6 +68,14 @@ from_hex(const char *p, size_t l)
 	return (r);
 }
 
+static int
+nlinks(const char *p)
+{
+	struct stat st;
+	assertEqualInt(0, stat(p, &st));
+	return st.st_nlink;
+}
+
 DEFINE_TEST(test_format_newc)
 {
 	FILE *list;
@@ -241,11 +249,9 @@ DEFINE_TEST(test_format_newc)
 	/* Mode: sgid bit sometimes propagates from parent dirs, ignore it. */
 	assertEqualInt(040775, from_hex(e + 14, 8) & ~02000);
 #endif
-	assertEqualInt(from_hex(e + 22, 8), uid); /* uid */
+	assertEqualInt(uid, from_hex(e + 22, 8)); /* uid */
 	assertEqualInt(gid, from_hex(e + 30, 8)); /* gid */
-#ifndef NLINKS_INACCURATE_FOR_DIRS
-	assertEqualMem(e + 38, "00000002", 8); /* nlink */
-#endif
+	assertEqualInt(nlinks("dir"), from_hex(e + 38, 8)); /* nlinks */
 	t2 = from_hex(e + 46, 8); /* mtime */
 	failure("First entry created at t=0x%08x this entry created at t2=0x%08x", t, t2);
 	assert(t2 == t || t2 == t + 1); /* Almost same as first entry. */

@@ -51,6 +51,14 @@ from_octal(const char *p, size_t l)
 	return (r);
 }
 
+static int
+nlinks(const char *p)
+{
+	struct stat st;
+	assertEqualInt(0, stat(p, &st));
+	return st.st_nlink;
+}
+
 DEFINE_TEST(test_option_c)
 {
 	FILE *filelist;
@@ -185,13 +193,13 @@ DEFINE_TEST(test_option_c)
 	if (memcmp(e + 18, "042775", 6) != 0)
 		assertEqualMem(e + 18, "040775", 6); /* Mode */
 #endif
-	assertEqualInt(from_octal(e + 24, 6), uid); /* uid */
+	assertEqualInt(uid, from_octal(e + 24, 6)); /* uid */
 	/* Gid should be same as first entry. */
 	assert(is_octal(e + 30, 6)); /* gid */
 	assertEqualInt(gid, from_octal(e + 30, 6));
-#ifndef NLINKS_INACCURATE_FOR_DIRS
-	assertEqualMem(e + 36, "000002", 6); /* Nlink */
-#endif
+
+	assertEqualInt(nlinks("dir"), from_octal(e + 36, 6)); /* Nlink */
+
 	t = from_octal(e + 48, 11); /* mtime */
 	assert(t <= now); /* File wasn't created in future. */
 	assert(t >= now - 2); /* File was created w/in last 2 secs. */
