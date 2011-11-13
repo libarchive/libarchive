@@ -1,3 +1,5 @@
+Nov 13, 2011: libarchive 3.0.0a released
+
 Nov 06, 2011: Update shared-library version calculations for libarchive 3.x
 Sep 04, 2011: Fix tar -s; follow GNU tar for controlling hardlink/symlink substitutions
 Aug 18, 2011: Fix reading ISO images built by NetBSD's mkisofs
