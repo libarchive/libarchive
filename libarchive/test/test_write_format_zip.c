@@ -134,7 +134,7 @@ DEFINE_TEST(test_write_format_zip)
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("file", archive_entry_pathname(ae));
-	//assertEqualInt((S_IFREG | 0755), archive_entry_mode(ae));
+	/* assertEqualInt((S_IFREG | 0755), archive_entry_mode(ae)); */
 	assertEqualInt(0, archive_entry_size(ae));
 	assertEqualIntA(a, 8,
 	    archive_read_data(a, filedata, sizeof(filedata)));
@@ -153,7 +153,7 @@ DEFINE_TEST(test_write_format_zip)
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("file2", archive_entry_pathname(ae));
-	//assert((S_IFREG | 0755) == archive_entry_mode(ae));
+	/* assert((S_IFREG | 0755) == archive_entry_mode(ae)); */
 	assertEqualInt(0, archive_entry_size(ae));
 	assertEqualIntA(a, 4,
 	    archive_read_data(a, filedata, sizeof(filedata)));
@@ -168,7 +168,7 @@ DEFINE_TEST(test_write_format_zip)
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("dir/", archive_entry_pathname(ae));
-	//assertEqualInt((S_IFDIR | 0755), archive_entry_mode(ae));
+	/* assertEqualInt((S_IFDIR | 0755), archive_entry_mode(ae)); */
 	assertEqualInt(0, archive_entry_size(ae));
 	assertEqualIntA(a, 0, archive_read_data(a, filedata, 10));
 

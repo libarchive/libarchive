@@ -33,9 +33,9 @@ test_read_format_mtree1(void)
 	struct archive_entry *ae;
 	struct archive *a;
 	FILE *f;
-	// Compute max 64-bit signed twos-complement value
-	// without relying on overflow.  This assumes that long long
-	// is at least 64 bits.
+	/* Compute max 64-bit signed twos-complement value
+	 * without relying on overflow.  This assumes that long long
+	 * is at least 64 bits. */
 	const static long long max_int64 = ((((long long)1) << 62) - 1) + (((long long)1) << 62);
 	time_t min_time, t;
 

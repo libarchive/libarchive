@@ -793,8 +793,10 @@ DEFINE_TEST(test_entry)
 		archive_entry_copy_pathname(e, "abc\314\214mno\374xyz");
 		failure("Converting invalid chars to Unicode should fail.");
 		assert(NULL == archive_entry_pathname_w(e));
-		//failure("Converting invalid chars to UTF-8 should fail.");
-		//assert(NULL == archive_entry_pathname_utf8(e));
+		/*
+		  failure("Converting invalid chars to UTF-8 should fail.");
+		  assert(NULL == archive_entry_pathname_utf8(e));
+		*/
 
 		/* A group name that cannot be converted. */
 		archive_entry_copy_gname(e, "abc\314\214mno\374xyz");

@@ -259,7 +259,7 @@ test_write_format_iso9660_zisofs_1(void)
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
 	assertEqualInt(2, archive_entry_atime(ae));
-	//assertEqualInt(3, archive_entry_birthtime(ae));
+	/* assertEqualInt(3, archive_entry_birthtime(ae)); */
 	assertEqualInt(4, archive_entry_ctime(ae));
 	assertEqualInt(5, archive_entry_mtime(ae));
 	assertEqualString("file1", archive_entry_pathname(ae));
@@ -273,7 +273,7 @@ test_write_format_iso9660_zisofs_1(void)
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
 	assertEqualInt(2, archive_entry_atime(ae));
-	//assertEqualInt(3, archive_entry_birthtime(ae));
+	/* assertEqualInt(3, archive_entry_birthtime(ae)); */
 	assertEqualInt(4, archive_entry_ctime(ae));
 	assertEqualInt(5, archive_entry_mtime(ae));
 	assertEqualString("file2", archive_entry_pathname(ae));
@@ -287,7 +287,7 @@ test_write_format_iso9660_zisofs_1(void)
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
 	assertEqualInt(2, archive_entry_atime(ae));
-	//assertEqualInt(3, archive_entry_birthtime(ae));
+	/* assertEqualInt(3, archive_entry_birthtime(ae)); */
 	assertEqualInt(4, archive_entry_ctime(ae));
 	assertEqualInt(5, archive_entry_mtime(ae));
 	assertEqualString("file3", archive_entry_pathname(ae));
@@ -301,7 +301,7 @@ test_write_format_iso9660_zisofs_1(void)
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
 	assertEqualInt(2, archive_entry_atime(ae));
-	//assertEqualInt(3, archive_entry_birthtime(ae));
+	/* assertEqualInt(3, archive_entry_birthtime(ae)); */
 	assertEqualInt(4, archive_entry_ctime(ae));
 	assertEqualInt(5, archive_entry_mtime(ae));
 	assertEqualString("file4", archive_entry_pathname(ae));
