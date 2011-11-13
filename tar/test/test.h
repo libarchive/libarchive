@@ -83,13 +83,9 @@
 
 /* Windows (including Visual Studio and MinGW but not Cygwin) */
 #if defined(_WIN32) && !defined(__CYGWIN__)
-#include "../bsdtar_windows.h"
 #if !defined(__BORLANDC__)
 #define strdup _strdup
 #endif
-#define LOCALE_DE	"deu"
-#else
-#define LOCALE_DE	"de_DE.UTF-8"
 #endif
 
 /* Visual Studio */
@@ -137,7 +133,9 @@
   assertion_equal_int(__FILE__, __LINE__, (v1), #v1, (v2), #v2, NULL)
 /* Assert two strings are the same.  Reports value of each one if not. */
 #define assertEqualString(v1,v2)   \
-  assertion_equal_string(__FILE__, __LINE__, (v1), #v1, (v2), #v2, NULL)
+  assertion_equal_string(__FILE__, __LINE__, (v1), #v1, (v2), #v2, NULL, 0)
+#define assertEqualUTF8String(v1,v2)   \
+  assertion_equal_string(__FILE__, __LINE__, (v1), #v1, (v2), #v2, NULL, 1)
 /* As above, but v1 and v2 are wchar_t * */
 #define assertEqualWString(v1,v2)   \
   assertion_equal_wstring(__FILE__, __LINE__, (v1), #v1, (v2), #v2, NULL)
@@ -203,6 +201,8 @@
   assertion_make_symlink(__FILE__, __LINE__, newfile, linkto)
 #define assertUmask(mask)	\
   assertion_umask(__FILE__, __LINE__, mask)
+#define assertUtimes(pathname, atime, atime_nsec, mtime, mtime_nsec)	\
+  assertion_utimes(__FILE__, __LINE__, pathname, atime, atime_nsec, mtime, mtime_nsec)
 
 /*
  * This would be simple with C99 variadic macros, but I don't want to
@@ -221,7 +221,7 @@ int assertion_empty_file(const char *, int, const char *);
 int assertion_equal_file(const char *, int, const char *, const char *);
 int assertion_equal_int(const char *, int, long long, const char *, long long, const char *, void *);
 int assertion_equal_mem(const char *, int, const void *, const char *, const void *, const char *, size_t, const char *, void *);
-int assertion_equal_string(const char *, int, const char *v1, const char *, const char *v2, const char *, void *);
+int assertion_equal_string(const char *, int, const char *v1, const char *, const char *v2, const char *, void *, int);
 int assertion_equal_wstring(const char *, int, const wchar_t *v1, const char *, const wchar_t *v2, const char *, void *);
 int assertion_file_atime(const char *, int, const char *, long, long);
 int assertion_file_atime_recent(const char *, int, const char *);
@@ -247,6 +247,7 @@ int assertion_make_symlink(const char *, int, const char *newpath, const char *)
 int assertion_non_empty_file(const char *, int, const char *);
 int assertion_text_file_contents(const char *, int, const char *buff, const char *f);
 int assertion_umask(const char *, int, int);
+int assertion_utimes(const char *, int, const char *, long, long, long, long );
 
 void skipping_setup(const char *, int);
 void test_skipping(const char *fmt, ...);
@@ -265,6 +266,9 @@ int canGzip(void);
 
 /* Return true if this platform can run the "gunzip" program. */
 int canGunzip(void);
+
+/* Return true if the file has large i-node number(>0xffffffff). */
+int is_LargeInode(const char *);
 
 /* Suck file into string allocated via malloc(). Call free() when done. */
 /* Supports printf-style args: slurpfile(NULL, "%s/myfile", refdir); */

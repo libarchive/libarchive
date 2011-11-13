@@ -267,6 +267,9 @@ int canGzip(void);
 /* Return true if this platform can run the "gunzip" program. */
 int canGunzip(void);
 
+/* Return true if the file has large i-node number(>0xffffffff). */
+int is_LargeInode(const char *);
+
 /* Suck file into string allocated via malloc(). Call free() when done. */
 /* Supports printf-style args: slurpfile(NULL, "%s/myfile", refdir); */
 char *slurpfile(size_t *, const char *fmt, ...);
@@ -299,4 +302,3 @@ int read_open_memory2(struct archive *, void *, size_t, size_t);
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
 #endif
-

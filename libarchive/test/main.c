@@ -161,7 +161,7 @@ my_GetFileInformationByName(const char *path, BY_HANDLE_FILE_INFORMATION *bhfi)
 
 	memset(bhfi, 0, sizeof(*bhfi));
 	h = CreateFile(path, FILE_READ_ATTRIBUTES, 0, NULL,
-		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
 	if (h == INVALID_HANDLE_VALUE)
 		return (0);
 	r = GetFileInformationByHandle(h, bhfi);
@@ -992,7 +992,7 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 		return (0);
 	}
 
-	// Make a copy of the provided lines and count up the expected file size.
+	/* Make a copy of the provided lines and count up the expected file size. */
 	expected_count = 0;
 	for (i = 0; lines[i] != NULL; ++i) {
 	}
@@ -1002,7 +1002,7 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 		expected[i] = strdup(lines[i]);
 	}
 
-	// Break the file into lines
+	/* Break the file into lines */
 	actual_count = 0;
 	for (c = '\0', p = buff; p < buff + buff_size; ++p) {
 		if (*p == '\x0d' || *p == '\x0a')
@@ -1019,7 +1019,7 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 		}
 	}
 
-	// Erase matching lines from both lists
+	/* Erase matching lines from both lists */
 	for (i = 0; i < expected_count; ++i) {
 		if (expected[i] == NULL)
 			continue;
@@ -1035,7 +1035,7 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 		}
 	}
 
-	// If there's anything left, it's a failure
+	/* If there's anything left, it's a failure */
 	for (i = 0; i < expected_count; ++i) {
 		if (expected[i] != NULL)
 			++expected_failure;
@@ -1935,6 +1935,27 @@ extract_reference_file(const char *name)
 	fclose(in);
 }
 
+int
+is_LargeInode(const char *file)
+{
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	BY_HANDLE_FILE_INFORMATION bhfi;
+	int r;
+
+	r = my_GetFileInformationByName(file, &bhfi);
+	if (r != 0)
+		return (0);
+	return (bhfi.nFileIndexHigh & 0x0000FFFFUL);
+#else
+	struct stat st;
+	int64_t ino;
+
+	if (stat(file, &st) < 0)
+		return (0);
+	ino = (int64_t)st.st_ino;
+	return (ino > 0xffffffff);
+#endif
+}
 /*
  *
  * TEST management
@@ -2172,6 +2193,14 @@ get_refdir(const char *d)
 	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
 	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
 
+#if defined(PROGRAM_ALIAS)
+	snprintf(buff, sizeof(buff), "%s/%s/test", pwd, PROGRAM_ALIAS);
+	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
+	if (p != NULL) goto success;
+	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
+	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+#endif
+
 	if (memcmp(pwd, "/usr/obj", 8) == 0) {
 		snprintf(buff, sizeof(buff), "%s", pwd + 8);
 		p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
@@ -2204,15 +2233,24 @@ int
 main(int argc, char **argv)
 {
 	static const int limit = sizeof(tests) / sizeof(tests[0]);
-	int i, start, end, tests_run = 0, tests_failed = 0, option;
+	int i = 0, j = 0, start, end, tests_run = 0, tests_failed = 0, option;
 	time_t now;
 	char *refdir_alloc = NULL;
 	const char *progname;
 	const char *tmp, *option_arg, *p;
-	char tmpdir[256];
+	char tmpdir[256], *pwd, *testprogdir, *tmp2 = NULL;
 	char tmpdir_timestamp[256];
 
 	(void)argc; /* UNUSED */
+
+	/* Get the current dir. */
+#ifdef PATH_MAX
+	pwd = getcwd(NULL, PATH_MAX);/* Solaris getcwd needs the size. */
+#else
+	pwd = getcwd(NULL, 0);
+#endif
+	while (pwd[strlen(pwd) - 1] == '\n')
+		pwd[strlen(pwd) - 1] = '\0';
 
 #if defined(HAVE__CrtSetReportMode)
 	/* To stop to run the default invalid parameter handler. */
@@ -2226,11 +2264,35 @@ main(int argc, char **argv)
 	 * tree.
 	 */
 	progname = p = argv[0];
+	if ((testprogdir = (char *)malloc(strlen(progname) + 1)) == NULL)
+	{
+		fprintf(stderr, "ERROR: Out of memory.");
+		exit(1);
+	}
+	strcpy(testprogdir, progname);
 	while (*p != '\0') {
 		/* Support \ or / dir separators for Windows compat. */
 		if (*p == '/' || *p == '\\')
+		{
 			progname = p + 1;
+			i = j;
+		}
 		++p;
+		j++;
+	}
+	testprogdir[i] = '\0';
+	if (testprogdir[0] != '/')
+	{
+		/* Fixup path for relative directories. */
+		if ((testprogdir = (char *)realloc(testprogdir,
+			strlen(pwd) + 1 + strlen(testprogdir) + 1)) == NULL)
+		{
+			fprintf(stderr, "ERROR: Out of memory.");
+			exit(1);
+		}
+		strcpy(testprogdir + strlen(pwd) + 1, testprogdir);
+		strcpy(testprogdir, pwd);
+		testprogdir[strlen(pwd)] = '/';
 	}
 
 #ifdef PROGRAM
@@ -2320,9 +2382,18 @@ main(int argc, char **argv)
 	 * Sanity-check that our options make sense.
 	 */
 #ifdef PROGRAM
-	if (testprogfile == NULL) {
-		fprintf(stderr, "Program executable required\n");
-		usage(progname);
+	if (testprogfile == NULL)
+	{
+		if ((tmp2 = (char *)malloc(strlen(testprogdir) + 1 +
+			strlen(PROGRAM) + 1)) == NULL)
+		{
+			fprintf(stderr, "ERROR: Out of memory.");
+			exit(1);
+		}
+		strcpy(tmp2, testprogdir);
+		strcat(tmp2, "/");
+		strcat(tmp2, PROGRAM);
+		testprogfile = tmp2;
 	}
 
 	{
@@ -2473,6 +2544,10 @@ main(int argc, char **argv)
 			argv++;
 		}
 	}
+	/* Must be freed after all tests run */
+	free(tmp2);
+	free(testprogdir);
+	free(pwd);
 
 	/*
 	 * Report summary statistics.
