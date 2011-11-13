@@ -40,8 +40,8 @@ __FBSDID("$FreeBSD$");
 #include "archive_private.h"
 #include "archive_read_private.h"
 
-// Maximum lookahead during bid phase
-#define UUENCODE_BID_MAX_READ 128*1024 // in bytes
+/* Maximum lookahead during bid phase */
+#define UUENCODE_BID_MAX_READ 128*1024 /* in bytes */
 
 struct uudecode {
 	int64_t		 total;
@@ -298,7 +298,7 @@ uudecode_bidder_bid(struct archive_read_filter_bidder *self,
 			break;
 		firstline = 0;
 
-		// Do not read more than UUENCODE_BID_MAX_READ bytes
+		/* Do not read more than UUENCODE_BID_MAX_READ bytes */
 		if (nbytes_read >= UUENCODE_BID_MAX_READ)
 			return (0);
 	}
