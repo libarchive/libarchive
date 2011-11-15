@@ -61,33 +61,15 @@ include(CTest)
 # TODO: Require CMake 2.8 and drop this workaround (perhaps late 2010).
 INCLUDE(AddTest28)
 
-# Set default value for option.
-# Do not use SET() to option variables. it doest not correctly work on GUI.
-IF(WIN32 AND NOT CYGWIN)
-  # Currently, dynamic build only.
-  SET(TAR_DEFAULT OFF)
-  SET(TAR_SHARED_DEFAULT ON)
-  SET(CPIO_DEFAULT OFF)
-  SET(CPIO_SHARED_DEFAULT ON)
-  # Not tested.
-  SET(ICONV_DEFAULT OFF)
-ELSE(WIN32 AND NOT CYGWIN)
-  SET(TAR_DEFAULT ON)
-  SET(TAR_SHARED_DEFAULT FALSE)
-  SET(CPIO_DEFAULT ON)
-  SET(CPIO_SHARED_DEFAULT FALSE)
-  SET(ICONV_DEFAULT ON)
-ENDIF(WIN32 AND NOT CYGWIN)
-
 OPTION(ENABLE_NETTLE "Enable use of Nettle" ON)
 OPTION(ENABLE_OPENSSL "Enable use of OpenSSL" ON)
-OPTION(ENABLE_TAR "Enable tar building" ${TAR_DEFAULT})
-OPTION(ENABLE_TAR_SHARED "Enable dynamic build of tar" ${TAR_SHARED_DEFAULT})
-OPTION(ENABLE_CPIO "Enable cpio building" ${CPIO_DEFAULT})
-OPTION(ENABLE_CPIO_SHARED "Enable dynamic build of cpio" ${CPIO_SHARED_DEFAULT})
+OPTION(ENABLE_TAR "Enable tar building" ON)
+OPTION(ENABLE_TAR_SHARED "Enable dynamic build of tar" FALSE)
+OPTION(ENABLE_CPIO "Enable cpio building" ON)
+OPTION(ENABLE_CPIO_SHARED "Enable dynamic build of cpio" FALSE)
 OPTION(ENABLE_XATTR "Enable extended attribute support" ON)
 OPTION(ENABLE_ACL "Enable ACL support" ON)
-OPTION(ENABLE_ICONV "Enable iconv support" ${ICONV_DEFAULT})
+OPTION(ENABLE_ICONV "Enable iconv support" ON)
 OPTION(ENABLE_TEST "Enable unit and regression tests" ON)
 
 IF(ENABLE_TEST)

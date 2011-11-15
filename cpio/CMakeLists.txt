@@ -3,7 +3,7 @@
 # How to build bsdcpio
 #
 ############################################
-IF(ENABLE_CPIO OR ENABLE_CPIO_SHARED)
+IF(ENABLE_CPIO)
 
   SET(bsdcpio_SOURCES
     cmdline.c
@@ -45,7 +45,7 @@ IF(ENABLE_CPIO OR ENABLE_CPIO_SHARED)
   INSTALL(TARGETS bsdcpio RUNTIME DESTINATION bin)
   INSTALL_MAN(${bsdcpio_MANS})
 
-ENDIF(ENABLE_CPIO OR ENABLE_CPIO_SHARED)
+ENDIF(ENABLE_CPIO)
 
 # Test suite
 add_subdirectory(test)
