@@ -84,6 +84,8 @@
 /* Windows (including Visual Studio and MinGW but not Cygwin) */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #if !defined(__BORLANDC__)
+#undef chdir
+#define chdir _chdir
 #define strdup _strdup
 #endif
 #endif

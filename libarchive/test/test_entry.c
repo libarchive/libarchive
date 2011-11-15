@@ -829,7 +829,7 @@ DEFINE_TEST(test_entry)
 		 * using wcscpy or C99 \u#### syntax.
 		 */
 		name = "xxxAyyyBzzz";
-		for (i = 0; i < strlen(name); ++i)
+		for (i = 0; i < (int)strlen(name); ++i)
 			wbuff[i] = name[i];
 		wbuff[3] = (wchar_t)0x12345678;
 		wbuff[7] = (wchar_t)0x5678;
