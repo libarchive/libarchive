@@ -198,7 +198,9 @@ DEFINE_TEST(test_option_c)
 	assert(is_octal(e + 30, 6)); /* gid */
 	assertEqualInt(gid, from_octal(e + 30, 6));
 
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	assertEqualInt(nlinks("dir"), from_octal(e + 36, 6)); /* Nlink */
+#endif
 
 	t = from_octal(e + 48, 11); /* mtime */
 	assert(t <= now); /* File wasn't created in future. */
