@@ -51,6 +51,7 @@ from_octal(const char *p, size_t l)
 	return (r);
 }
 
+#if !defined(_WIN32) || defined(__CYGWIN__)
 static int
 nlinks(const char *p)
 {
@@ -58,6 +59,7 @@ nlinks(const char *p)
 	assertEqualInt(0, stat(p, &st));
 	return st.st_nlink;
 }
+#endif
 
 DEFINE_TEST(test_option_c)
 {
