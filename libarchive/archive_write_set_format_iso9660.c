@@ -522,11 +522,13 @@ struct iso_option {
 	 *   - this level 4 simulates mkisofs option
 	 *     '-iso-level 4';
 	 *   - crate a enhanced volume as mkisofs doing;
-	 *   - it is the same effects that you specify options
-	 *     "allow-ldots,allow-lowercase,allow-multidot,
-	 *     !limit-depth,!allow-period,!allow-vernum,
-	 *     relaxed-filenames", and that the maxinum length
-	 *     of files and directories is raised to 193.
+	 *   - allow a File Name to have leading dot;
+	 *   - allow a File Name to have all ASCII letters;
+	 *   - allow a File Name to have multiple dots;
+	 *   - allow more then 8 depths of directory trees;
+	 *   - disable a version number to a File Name;
+	 *   - disable a forced period to the tail of a File Name;
+	 *   - the maxinum length of files and directories is raised to 193.
 	 *     if rockridge option is disabled, raised to 207.
 	 */
 	unsigned int	 iso_level:3;
@@ -552,8 +554,8 @@ struct iso_option {
 	 */
 	unsigned int	 joliet:2;
 #define OPT_JOLIET_DISABLE		0	/* Not generate Joliet Records. */
-#define OPT_JOLIET_ENABLE		1	/* Generate Joliet Records.	*/
-#define OPT_JOLIET_LONGNAME		2	/* Use long joliet filenames.	*/
+#define OPT_JOLIET_ENABLE		1	/* Generate Joliet Records.  */
+#define OPT_JOLIET_LONGNAME		2	/* Use long joliet filenames.*/
 #define OPT_JOLIET_DEFAULT		OPT_JOLIET_ENABLE
 
 	/*
@@ -3192,7 +3194,7 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 #define TF_BACKUP	0x10	/* Last Backup time recorded		*/
 #define TF_EXPIRATION	0x20	/* Expiration time recorded		*/
 #define TF_EFFECTIVE	0x40	/* Effective time recorded		*/
-#define TF_LONG_FORM	0x80	/ ISO 9660 17-byte time format used	*/
+#define TF_LONG_FORM	0x80	/* ISO 9660 17-byte time format used	*/
 		unsigned char tf_flags;
 
 		length = 5;
