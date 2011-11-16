@@ -39,10 +39,6 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_version.c
     test_windows.c
   )
-  IF(WIN32 AND NOT CYGWIN)
-    LIST(APPEND bsdtar_test_SOURCES ../bsdtar_windows.c)
-    LIST(APPEND bsdtar_test_SOURCES ../bsdtar_windows.h)
-  ENDIF(WIN32 AND NOT CYGWIN)
 
   #
   # Register target
