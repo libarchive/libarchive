@@ -519,6 +519,18 @@ archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
 		} else
 			mbflag = MB_PRECOMPOSED;
 
+		if (length == 0) {
+			/*
+			 * We do not need to convert any characters but make
+			 * sure `dest' has a valid buffer(no NULL pointer).
+			 */
+			if (NULL == archive_wstring_ensure(dest,
+			    dest->length + 1))
+				return (-1);
+			dest->s[dest->length] = L'\0';
+			return (0);
+		}
+
 		/*
 		 * Count how many bytes are needed for WCS.
 		 */
@@ -3931,7 +3943,7 @@ archive_mstring_copy_mbs_len_l(struct archive_mstring *aes,
 	 * characters because Windows platform cannot make locale UTF-8.
 	 */
 	if (sc == NULL) {
-		archive_string_append(&(aes->aes_mbs), mbs, len);
+		archive_string_append(&(aes->aes_mbs), mbs, mbsnbytes(mbs, len));
 		aes->aes_set = AES_SET_MBS;
 		r = 0;
 	} else {
