@@ -419,6 +419,9 @@ function splitwords(l, dest, n, o, w) {
 	addpunct("<li>")
 	listnext[listdepth] = "</li>"
       }
+    } else if(match(words[w], "^Vt$")) {
+      w++
+      add("_" words[w] "_")
     } else if(match(words[w],"^Xo$")) {
       # TODO: Figure out how to handle this
     } else if(match(words[w],"^Xc$")) {
