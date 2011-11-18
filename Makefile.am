@@ -634,13 +634,6 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_version.c					\
 	tar/test/test_windows.c
 
-# For now, bsdtar_test uses Windows shims from tar/bsdtar_windows.*
-if INC_WINDOWS_FILES
-bsdtar_test_SOURCES+=			\
-		tar/bsdtar_windows.h	\
-		tar/bsdtar_windows.c
-endif
-
 bsdtar_test_CPPFLAGS=\
 	-I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe \
 	-I$(top_srcdir)/tar -I$(top_builddir)/tar/test \
