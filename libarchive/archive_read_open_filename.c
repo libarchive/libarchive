@@ -283,7 +283,12 @@ static int64_t
 file_skip_lseek(struct archive *a, void *client_data, int64_t request)
 {
 	struct read_file_data *mine = (struct read_file_data *)client_data;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/* We use own 64 bit version of lseek. */
+	int64_t old_offset, new_offset;
+#else
 	off_t old_offset, new_offset;
+#endif
 
 	/* We use off_t here because lseek() is declared that way. */
 
