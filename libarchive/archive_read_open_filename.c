@@ -77,7 +77,7 @@ struct read_file_data {
 static int	file_close(struct archive *, void *);
 static ssize_t	file_read(struct archive *, void *, const void **buff);
 static int64_t	file_skip(struct archive *, void *, int64_t request);
-static off_t	file_skip_lseek(struct archive *, void *, off_t request);
+static int64_t	file_skip_lseek(struct archive *, void *, int64_t request);
 
 int
 archive_read_open_file(struct archive *a, const char *filename,
@@ -279,12 +279,15 @@ file_read(struct archive *a, void *client_data, const void **buff)
  * seek request here and then actually performed the seek at the
  * top of the read callback above.
  */
-static off_t
-file_skip_lseek(struct archive *a, void *client_data, off_t request)
+static int64_t
+file_skip_lseek(struct archive *a, void *client_data, int64_t request)
 {
 	struct read_file_data *mine = (struct read_file_data *)client_data;
 	off_t old_offset, new_offset;
 
+	/* We use off_t here because lseek() is declared that way. */
+
+	/* TODO: Deal with case where off_t isn't 64 bits. */
 	if ((old_offset = lseek(mine->fd, 0, SEEK_CUR)) >= 0 &&
 	    (new_offset = lseek(mine->fd, request, SEEK_CUR)) >= 0)
 		return (new_offset - old_offset);
@@ -298,7 +301,6 @@ file_skip_lseek(struct archive *a, void *client_data, off_t request)
 
 	/* If the input is corrupted or truncated, fail. */
 	if (mine->filename[0] == '\0')
-		/* Shouldn't happen; lseek() on stdin should raise ESPIPE. */
 		archive_set_error(a, errno, "Error seeking in stdin");
 	else
 		archive_set_error(a, errno, "Error seeking in '%s'",
