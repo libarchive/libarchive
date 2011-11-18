@@ -141,7 +141,8 @@ DEFINE_TEST(test_option_C_upper)
 	 */
 	assertMakeDir("test8", 0755);
 	assertChdir("test8");
-	r = systemf("%s -cf archive.tar ../d1/file1 -C '' 2>write.err", testprog);
+	r = systemf("%s -cf archive.tar ../d1/file1 -C \"\" 2>write.err",
+	    testprog);
 	assert(r != 0);
 	assertNonEmptyFile("write.err");
 	assertChdir("..");
