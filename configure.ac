@@ -217,8 +217,13 @@ AC_CHECK_HEADERS([sys/mkdev.h sys/mount.h])
 AC_CHECK_HEADERS([sys/param.h sys/poll.h sys/select.h sys/statfs.h sys/statvfs.h])
 AC_CHECK_HEADERS([sys/time.h sys/utime.h sys/utsname.h sys/vfs.h])
 AC_CHECK_HEADERS([time.h unistd.h utime.h wchar.h wctype.h])
-# check windows.h first.
-AC_CHECK_HEADERS([windows.h wincrypt.h winioctl.h])
+AC_CHECK_HEADERS([windows.h])
+# check windows.h first; the other headers require it.
+AC_CHECK_HEADERS([wincrypt.h winioctl.h],[],[],
+[[#ifdef HAVE_WINDOWS_H
+# include <windows.h>
+#endif
+]])
 
 # Checks for libraries.
 AC_ARG_WITH([zlib],
