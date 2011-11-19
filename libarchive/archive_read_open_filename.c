@@ -76,6 +76,7 @@ struct read_file_data {
 
 static int	file_close(struct archive *, void *);
 static ssize_t	file_read(struct archive *, void *, const void **buff);
+static int64_t	file_seek(struct archive *, void *, int64_t request, int);
 static int64_t	file_skip(struct archive *, void *, int64_t request);
 static int64_t	file_skip_lseek(struct archive *, void *, int64_t request);
 
@@ -214,8 +215,10 @@ archive_read_open_filename(struct archive *a, const char *filename,
 	mine->st_mode = st.st_mode;
 
 	/* Disk-like inputs can use lseek(). */
-	if (is_disk_like)
+	if (is_disk_like) {
+		archive_read_set_seek_callback(a, file_seek);
 		mine->use_lseek = 1;
+	}
 
 	archive_read_set_read_callback(a, file_read);
 	archive_read_set_skip_callback(a, file_skip);
@@ -292,7 +295,13 @@ file_skip_lseek(struct archive *a, void *client_data, int64_t request)
 
 	/* We use off_t here because lseek() is declared that way. */
 
-	/* TODO: Deal with case where off_t isn't 64 bits. */
+	/* TODO: Deal with case where off_t isn't 64 bits.
+	 * This shouldn't be a problem on Linux or other POSIX
+	 * systems, since the configuration logic for libarchive
+	 * tries to obtain a 64-bit off_t.  It's still an issue
+	 * on Windows, though, so it might suffice to just use
+	 * _lseeki64() on Windows.
+	 */
 	if ((old_offset = lseek(mine->fd, 0, SEEK_CUR)) >= 0 &&
 	    (new_offset = lseek(mine->fd, request, SEEK_CUR)) >= 0)
 		return (new_offset - old_offset);
@@ -330,6 +339,27 @@ file_skip(struct archive *a, void *client_data, int64_t request)
 
 	/* If we can't skip, return 0; libarchive will read+discard instead. */
 	return (0);
+}
+
+static int64_t
+file_seek(struct archive *a, void *client_data, int64_t request, int whence)
+{
+	struct read_file_data *mine = (struct read_file_data *)client_data;
+	off_t r;
+
+	/* We use off_t here because lseek() is declared that way. */
+	/* See above for notes about when off_t is less than 64 bits. */
+	r = lseek(mine->fd, request, whence);
+	if (r >= 0)
+		return r;
+
+	/* If the input is corrupted or truncated, fail. */
+	if (mine->filename[0] == '\0')
+		archive_set_error(a, errno, "Error seeking in stdin");
+	else
+		archive_set_error(a, errno, "Error seeking in '%s'",
+		    mine->filename);
+	return (ARCHIVE_FATAL);
 }
 
 static int

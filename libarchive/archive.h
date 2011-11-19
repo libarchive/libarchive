@@ -190,9 +190,20 @@ struct archive_entry;
 typedef __LA_SSIZE_T	archive_read_callback(struct archive *,
 			    void *_client_data, const void **_buffer);
 
-/* Skips at most request bytes from archive and returns the skipped amount */
+/* Skips at most request bytes from archive and returns the skipped amount.
+ * This may skip fewer bytes than requested; it may even skip zero bytes.
+ * If you do skip fewer bytes than requested, libarchive will invoke your
+ * read callback and discard data as necessary to make up the full skip.
+ */
 typedef __LA_INT64_T	archive_skip_callback(struct archive *,
 			    void *_client_data, __LA_INT64_T request);
+
+/* Seeks to specified location in the file and returns the position.
+ * Whence values are SEEK_SET, SEEK_CUR, SEEK_END from stdio.h.
+ * Return ARCHIVE_FATAL if the seek fails for any reason.
+ */
+typedef __LA_INT64_T	archive_seek_callback(struct archive *,
+    void *_client_data, __LA_INT64_T offset, int whence);
 
 /* Returns size actually written, zero on EOF, -1 on error. */
 typedef __LA_SSIZE_T	archive_write_callback(struct archive *,
@@ -343,17 +354,19 @@ __LA_DECL int archive_read_support_format_gnutar(struct archive *);
 __LA_DECL int archive_read_support_format_iso9660(struct archive *);
 __LA_DECL int archive_read_support_format_lha(struct archive *);
 __LA_DECL int archive_read_support_format_mtree(struct archive *);
+__LA_DECL int archive_read_support_format_rar(struct archive *);
 __LA_DECL int archive_read_support_format_raw(struct archive *);
 __LA_DECL int archive_read_support_format_tar(struct archive *);
 __LA_DECL int archive_read_support_format_xar(struct archive *);
 __LA_DECL int archive_read_support_format_zip(struct archive *);
-__LA_DECL int archive_read_support_format_rar(struct archive *);
 
 /* Set various callbacks. */
 __LA_DECL int archive_read_set_open_callback(struct archive *,
     archive_open_callback *);
 __LA_DECL int archive_read_set_read_callback(struct archive *,
     archive_read_callback *);
+__LA_DECL int archive_read_set_seek_callback(struct archive *,
+    archive_seek_callback *);
 __LA_DECL int archive_read_set_skip_callback(struct archive *,
     archive_skip_callback *);
 __LA_DECL int archive_read_set_close_callback(struct archive *,

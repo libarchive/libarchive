@@ -76,7 +76,7 @@ struct archive_read_filter_bidder {
  * corresponding bidder above.
  */
 struct archive_read_filter {
-	int64_t bytes_consumed;
+	int64_t position;
 	/* Essentially all filters will need these values, so
 	 * just declare them here. */
 	struct archive_read_filter_bidder *bidder; /* My bidder. */
@@ -86,6 +86,8 @@ struct archive_read_filter {
 	ssize_t (*read)(struct archive_read_filter *, const void **);
 	/* Skip forward this many bytes. */
 	int64_t (*skip)(struct archive_read_filter *self, int64_t request);
+	/* Seek to an absolute location. */
+	int64_t (*seek)(struct archive_read_filter *self, int64_t offset, int whence);
 	/* Close (just this filter) and free(self). */
 	int (*close)(struct archive_read_filter *self);
 	/* My private data. */
@@ -120,6 +122,7 @@ struct archive_read_client {
 	archive_open_callback	*opener;
 	archive_read_callback	*reader;
 	archive_skip_callback	*skipper;
+	archive_seek_callback	*seeker;
 	archive_close_callback	*closer;
 	void *data;
 };
@@ -199,6 +202,8 @@ int __archive_read_get_bidder(struct archive_read *a,
 const void *__archive_read_ahead(struct archive_read *, size_t, ssize_t *);
 const void *__archive_read_filter_ahead(struct archive_read_filter *,
     size_t, ssize_t *);
+int64_t	__archive_read_seek(struct archive_read*, int64_t, int);
+int64_t	__archive_read_filter_seek(struct archive_read_filter *, int64_t, int);
 int64_t	__archive_read_consume(struct archive_read *, int64_t);
 int64_t	__archive_read_filter_consume(struct archive_read_filter *, int64_t);
 int __archive_read_program(struct archive_read_filter *, const char *);
