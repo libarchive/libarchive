@@ -86,6 +86,21 @@ __FBSDID("$FreeBSD$");
 #define	IO_REPARSE_TAG_SYMLINK 0xA000000CL
 #endif
 
+static BOOL SetFilePointerEx_perso(HANDLE hFile,
+                             LARGE_INTEGER liDistanceToMove,
+                             PLARGE_INTEGER lpNewFilePointer,
+                             DWORD dwMoveMethod)
+{
+	LARGE_INTEGER li;
+	li.QuadPart = liDistanceToMove.QuadPart;
+	li.LowPart = SetFilePointer(
+	    hFile, li.LowPart, &li.HighPart, dwMoveMethod);
+	if(lpNewFilePointer) {
+		lpNewFilePointer->QuadPart = li.QuadPart;
+	}
+	return li.LowPart != -1 || GetLastError() == NO_ERROR;
+}
+
 /*-
  * This is a new directory-walking system that addresses a number
  * of problems I've had with fts(3).  In particular, it has no
@@ -583,7 +598,7 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	if (t->current_sparse->offset > t->entry_total) {
 		LARGE_INTEGER distance;
 		distance.QuadPart = t->current_sparse->offset;
-		if (!SetFilePointerEx(t->entry_fh, distance, NULL, FILE_BEGIN)) {
+		if (!SetFilePointerEx_perso(t->entry_fh, distance, NULL, FILE_BEGIN)) {
 			DWORD lasterr;
 
 			lasterr = GetLastError();
@@ -1738,7 +1753,7 @@ archive_read_disk_entry_from_file(struct archive *_a,
 	const char *name;
 	HANDLE h;
 	BY_HANDLE_FILE_INFORMATION bhfi;
-	DWORD fileAttributes;
+	DWORD fileAttributes = 0;
 	int r;
 
 	archive_clear_error(_a);

@@ -77,6 +77,21 @@ __FBSDID("$FreeBSD$");
 #define	IO_REPARSE_TAG_SYMLINK 0xA000000CL
 #endif
 
+static BOOL SetFilePointerEx_perso(HANDLE hFile,
+                             LARGE_INTEGER liDistanceToMove,
+                             PLARGE_INTEGER lpNewFilePointer,
+                             DWORD dwMoveMethod)
+{
+	LARGE_INTEGER li;
+	li.QuadPart = liDistanceToMove.QuadPart;
+	li.LowPart = SetFilePointer(
+	    hFile, li.LowPart, &li.HighPart, dwMoveMethod);
+	if(lpNewFilePointer) {
+		lpNewFilePointer->QuadPart = li.QuadPart;
+	}
+	return li.LowPart != -1 || GetLastError() == NO_ERROR;
+}
+
 struct fixup_entry {
 	struct fixup_entry	*next;
 	struct archive_acl	 acl;
@@ -546,7 +561,7 @@ la_ftruncate(HANDLE handle, int64_t length)
 		return (-1);
 	}
 	distance.QuadPart = length;
-	if (!SetFilePointerEx(handle, distance, NULL, FILE_BEGIN)) {
+	if (!SetFilePointerEx_perso(handle, distance, NULL, FILE_BEGIN)) {
 		la_dosmaperr(GetLastError());
 		return (-1);
 	}
@@ -936,7 +951,7 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 		if (a->offset != a->fd_offset) {
 			LARGE_INTEGER distance;
 			distance.QuadPart = a->offset;
-			if (SetFilePointerEx(a->fh, distance, NULL, FILE_BEGIN) == 0) {
+			if (SetFilePointerEx_perso(a->fh, distance, NULL, FILE_BEGIN) == 0) {
 				DWORD lasterr = GetLastError();
 				if (lasterr == ERROR_ACCESS_DENIED)
 					errno = EBADF;
@@ -1044,7 +1059,7 @@ _archive_write_disk_finish_entry(struct archive *_a)
 			const char nul = '\0';
 			LARGE_INTEGER distance;
 			distance.QuadPart = a->filesize - 1;
-			if (!SetFilePointerEx(a->fh, distance, NULL, FILE_BEGIN)) {
+			if (!SetFilePointerEx_perso(a->fh, distance, NULL, FILE_BEGIN)) {
 				DWORD lasterr = GetLastError();
 				if (lasterr == ERROR_ACCESS_DENIED)
 					errno = EBADF;
@@ -2232,7 +2247,7 @@ set_times(struct archive_write_disk *a,
 #define WINTIME(sec, nsec) ((Int32x32To64(sec, 10000000) + EPOC_TIME)\
 	 + (((nsec)/1000)*10))
 
-	HANDLE hw;
+	HANDLE hw = 0;
 	ULARGE_INTEGER wintm;
 	FILETIME *pfbtime;
 	FILETIME fatime, fbtime, fmtime;

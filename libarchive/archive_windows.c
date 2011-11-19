@@ -64,9 +64,7 @@
 
 #define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
 
-#if defined(_MSC_VER) && _MSC_VER < 1300
-/* VS 6 does not provide SetFilePointerEx, so define it here.  */
-static BOOL SetFilePointerEx(HANDLE hFile,
+static BOOL SetFilePointerEx_perso(HANDLE hFile,
                              LARGE_INTEGER liDistanceToMove,
                              PLARGE_INTEGER lpNewFilePointer,
                              DWORD dwMoveMethod)
@@ -80,7 +78,6 @@ static BOOL SetFilePointerEx(HANDLE hFile,
 	}
 	return li.LowPart != -1 || GetLastError() == NO_ERROR;
 }
-#endif
 
 struct ustat {
 	int64_t		st_atime;
@@ -285,7 +282,7 @@ __la_lseek(int fd, __int64 offset, int whence)
 		return (-1);
 	}
 	distance.QuadPart = offset;
-	if (!SetFilePointerEx(handle, distance, &newpointer, whence)) {
+	if (!SetFilePointerEx_perso(handle, distance, &newpointer, whence)) {
 		DWORD lasterr;
 
 		lasterr = GetLastError();
