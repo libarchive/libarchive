@@ -291,6 +291,8 @@ const char *testworkdir;
 int read_open_memory(struct archive *, void *, size_t, size_t);
 /* "2" version exercises a slightly different set of libarchive APIs. */
 int read_open_memory2(struct archive *, void *, size_t, size_t);
+/* _seek version produces a seekable file. */
+int read_open_memory_seek(struct archive *, void *, size_t, size_t);
 
 /* Versions of above that accept an archive argument for additional info. */
 #define assertA(e)   assertion_assert(__FILE__, __LINE__, (e), #e, (a))
