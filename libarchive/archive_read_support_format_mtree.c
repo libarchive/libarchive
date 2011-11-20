@@ -534,7 +534,7 @@ mtree_bid(struct archive_read *a)
 	if (p == NULL)
 		return (-1);
 
-	if (strncmp(p, signature, strlen(signature)) == 0)
+	if (memcmp(p, signature, strlen(signature)) == 0)
 		return (8 * (int)strlen(signature));
 
 	/*
