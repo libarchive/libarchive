@@ -253,17 +253,15 @@ archive_read_support_format_cpio(struct archive *_a)
 static int
 archive_read_format_cpio_bid(struct archive_read *a)
 {
-	const void *h;
 	const unsigned char *p;
 	struct cpio *cpio;
 	int bid;
 
 	cpio = (struct cpio *)(a->format->data);
 
-	if ((h = __archive_read_ahead(a, 6, NULL)) == NULL)
+	if ((p = __archive_read_ahead(a, 6, NULL)) == NULL)
 		return (-1);
 
-	p = (const unsigned char *)h;
 	bid = 0;
 	if (memcmp(p, "070707", 6) == 0) {
 		/* ASCII cpio archive (odc, POSIX.1) */
