@@ -153,7 +153,7 @@ struct tar {
 	int			 compat_2x;
 };
 
-static int	archive_block_is_null(const unsigned char *p);
+static int	archive_block_is_null(const char *p);
 static char	*base64_decode(const char *, size_t, size_t *);
 static int	gnu_add_sparse_entry(struct archive_read *, struct tar *,
 		    int64_t offset, int64_t remaining);
@@ -289,7 +289,7 @@ static int
 archive_read_format_tar_bid(struct archive_read *a)
 {
 	int bid;
-	const void *h;
+	const char *h;
 	const struct archive_entry_header_ustar *header;
 
 	bid = 0;
@@ -300,8 +300,7 @@ archive_read_format_tar_bid(struct archive_read *a)
 		return (-1);
 
 	/* If it's an end-of-archive mark, we can handle it. */
-	if ((*(const char *)h) == 0
-	    && archive_block_is_null((const unsigned char *)h)) {
+	if (h[0] == 0 && archive_block_is_null(h)) {
 		/*
 		 * Usually, I bid the number of bits verified, but
 		 * in this case, 4096 seems excessive so I picked 10 as
@@ -319,12 +318,12 @@ archive_read_format_tar_bid(struct archive_read *a)
 
 	/* Recognize POSIX formats. */
 	if ((memcmp(header->magic, "ustar\0", 6) == 0)
-	    &&(memcmp(header->version, "00", 2)==0))
+	    && (memcmp(header->version, "00", 2) == 0))
 		bid += 56;
 
 	/* Recognize GNU tar format. */
 	if ((memcmp(header->magic, "ustar ", 6) == 0)
-	    &&(memcmp(header->version, " \0", 2)==0))
+	    && (memcmp(header->version, " \0", 2) == 0))
 		bid += 56;
 
 	/* Type flag must be null, digit or A-Z, a-z. */
@@ -610,7 +609,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 {
 	ssize_t bytes;
 	int err;
-	const void *h;
+	const char *h;
 	const struct archive_entry_header_ustar *header;
 
 	tar_flush_unconsumed(a, unconsumed);
@@ -619,20 +618,11 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 	h = __archive_read_ahead(a, 512, &bytes);
 	if (bytes < 0)
 		return (bytes);
-	if (bytes < 512) {  /* Short read or EOF. */
-		/* Try requesting just one byte and see what happens. */
-		/* XXX: Harring notes, this should be impossible to be anything but EOF... */
-		(void)__archive_read_ahead(a, 1, &bytes);
-		if (bytes == 0) {
-			/*
-			 * The archive ends at a 512-byte boundary but
-			 * without a proper end-of-archive marker.
-			 * Yes, there are tar writers that do this;
-			 * hold our nose and accept it.
-			 */
-			return (ARCHIVE_EOF);
-		}
-		/* Archive ends with a partial block; this is bad. */
+	if (bytes == 0) { /* EOF at a block boundary. */
+		/* Some writers do omit the block of nulls. <sigh> */
+		return (ARCHIVE_EOF);
+	}
+	if (bytes < 512) {  /* Short block at EOF; this is bad. */
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Truncated tar archive");
 		return (ARCHIVE_FATAL);
@@ -640,7 +630,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 	*unconsumed = 512;
 
 	/* Check for end-of-archive mark. */
-	if (((*(const char *)h)==0) && archive_block_is_null((const unsigned char *)h)) {
+	if (h[0] == 0 && archive_block_is_null(h)) {
 		/* Try to consume a second all-null record, as well. */
 		tar_flush_unconsumed(a, unconsumed);
 		h = __archive_read_ahead(a, 512, NULL);
@@ -825,7 +815,7 @@ checksum(struct archive_read *a, const void *h)
  * Return true if this block contains only nulls.
  */
 static int
-archive_block_is_null(const unsigned char *p)
+archive_block_is_null(const char *p)
 {
 	unsigned i;
 
@@ -1623,7 +1613,7 @@ pax_attribute_xattr(struct archive_entry *entry,
 	void *value_decoded;
 	size_t value_len;
 
-	if (strlen(name) < 18 || (strncmp(name, "LIBARCHIVE.xattr.", 17)) != 0)
+	if (strlen(name) < 18 || (memcmp(name, "LIBARCHIVE.xattr.", 17)) != 0)
 		return 3;
 
 	name += 17;
@@ -1740,19 +1730,19 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 		/* Our extensions */
 /* TODO: Handle arbitrary extended attributes... */
 /*
-		if (strcmp(key, "LIBARCHIVE.xxxxxxx")==0)
+		if (strcmp(key, "LIBARCHIVE.xxxxxxx") == 0)
 			archive_entry_set_xxxxxx(entry, value);
 */
-		if (strcmp(key, "LIBARCHIVE.creationtime")==0) {
+		if (strcmp(key, "LIBARCHIVE.creationtime") == 0) {
 			pax_time(value, &s, &n);
 			archive_entry_set_birthtime(entry, s, n);
 		}
-		if (strncmp(key, "LIBARCHIVE.xattr.", 17)==0)
+		if (memcmp(key, "LIBARCHIVE.xattr.", 17) == 0)
 			pax_attribute_xattr(entry, key, value);
 		break;
 	case 'S':
 		/* We support some keys used by the "star" archiver */
-		if (strcmp(key, "SCHILY.acl.access")==0) {
+		if (strcmp(key, "SCHILY.acl.access") == 0) {
 			if (tar->sconv_acl == NULL) {
 				tar->sconv_acl =
 				    archive_string_conversion_from_charset(
@@ -1776,7 +1766,7 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 				    ARCHIVE_ERRNO_MISC,
 				    "Parse error: SCHILY.acl.access");
 			}
-		} else if (strcmp(key, "SCHILY.acl.default")==0) {
+		} else if (strcmp(key, "SCHILY.acl.default") == 0) {
 			if (tar->sconv_acl == NULL) {
 				tar->sconv_acl =
 				    archive_string_conversion_from_charset(
@@ -1800,27 +1790,27 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 				    ARCHIVE_ERRNO_MISC,
 				    "Parse error: SCHILY.acl.default");
 			}
-		} else if (strcmp(key, "SCHILY.devmajor")==0) {
+		} else if (strcmp(key, "SCHILY.devmajor") == 0) {
 			archive_entry_set_rdevmajor(entry,
 			    tar_atol10(value, strlen(value)));
-		} else if (strcmp(key, "SCHILY.devminor")==0) {
+		} else if (strcmp(key, "SCHILY.devminor") == 0) {
 			archive_entry_set_rdevminor(entry,
 			    tar_atol10(value, strlen(value)));
-		} else if (strcmp(key, "SCHILY.fflags")==0) {
+		} else if (strcmp(key, "SCHILY.fflags") == 0) {
 			archive_entry_copy_fflags_text(entry, value);
-		} else if (strcmp(key, "SCHILY.dev")==0) {
+		} else if (strcmp(key, "SCHILY.dev") == 0) {
 			archive_entry_set_dev(entry,
 			    tar_atol10(value, strlen(value)));
-		} else if (strcmp(key, "SCHILY.ino")==0) {
+		} else if (strcmp(key, "SCHILY.ino") == 0) {
 			archive_entry_set_ino(entry,
 			    tar_atol10(value, strlen(value)));
-		} else if (strcmp(key, "SCHILY.nlink")==0) {
+		} else if (strcmp(key, "SCHILY.nlink") == 0) {
 			archive_entry_set_nlink(entry,
 			    tar_atol10(value, strlen(value)));
-		} else if (strcmp(key, "SCHILY.realsize")==0) {
+		} else if (strcmp(key, "SCHILY.realsize") == 0) {
 			tar->realsize = tar_atol10(value, strlen(value));
 			archive_entry_set_size(entry, tar->realsize);
-		} else if (strcmp(key, "SUN.holesdata")==0) {
+		} else if (strcmp(key, "SUN.holesdata") == 0) {
 			/* A Solaris extension for sparse. */
 			r = solaris_sparse_parse(a, tar, entry, value);
 			if (r < err) {
@@ -1834,26 +1824,26 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 		}
 		break;
 	case 'a':
-		if (strcmp(key, "atime")==0) {
+		if (strcmp(key, "atime") == 0) {
 			pax_time(value, &s, &n);
 			archive_entry_set_atime(entry, s, n);
 		}
 		break;
 	case 'c':
-		if (strcmp(key, "ctime")==0) {
+		if (strcmp(key, "ctime") == 0) {
 			pax_time(value, &s, &n);
 			archive_entry_set_ctime(entry, s, n);
-		} else if (strcmp(key, "charset")==0) {
+		} else if (strcmp(key, "charset") == 0) {
 			/* TODO: Publish charset information in entry. */
-		} else if (strcmp(key, "comment")==0) {
+		} else if (strcmp(key, "comment") == 0) {
 			/* TODO: Publish comment in entry. */
 		}
 		break;
 	case 'g':
-		if (strcmp(key, "gid")==0) {
+		if (strcmp(key, "gid") == 0) {
 			archive_entry_set_gid(entry,
 			    tar_atol10(value, strlen(value)));
-		} else if (strcmp(key, "gname")==0) {
+		} else if (strcmp(key, "gname") == 0) {
 			archive_strcpy(&(tar->entry_gname), value);
 		}
 		break;
@@ -1868,18 +1858,18 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 		break;
 	case 'l':
 		/* pax interchange doesn't distinguish hardlink vs. symlink. */
-		if (strcmp(key, "linkpath")==0) {
+		if (strcmp(key, "linkpath") == 0) {
 			archive_strcpy(&(tar->entry_linkpath), value);
 		}
 		break;
 	case 'm':
-		if (strcmp(key, "mtime")==0) {
+		if (strcmp(key, "mtime") == 0) {
 			pax_time(value, &s, &n);
 			archive_entry_set_mtime(entry, s, n);
 		}
 		break;
 	case 'p':
-		if (strcmp(key, "path")==0) {
+		if (strcmp(key, "path") == 0) {
 			archive_strcpy(&(tar->entry_pathname), value);
 		}
 		break;
@@ -1888,8 +1878,8 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 		break;
 	case 's':
 		/* POSIX has reserved 'security.*' */
-		/* Someday: if (strcmp(key, "security.acl")==0) { ... } */
-		if (strcmp(key, "size")==0) {
+		/* Someday: if (strcmp(key, "security.acl") == 0) { ... } */
+		if (strcmp(key, "size") == 0) {
 			/* "size" is the size of the data in the entry. */
 			tar->entry_bytes_remaining
 			    = tar_atol10(value, strlen(value));
@@ -1910,10 +1900,10 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 		}
 		break;
 	case 'u':
-		if (strcmp(key, "uid")==0) {
+		if (strcmp(key, "uid") == 0) {
 			archive_entry_set_uid(entry,
 			    tar_atol10(value, strlen(value)));
-		} else if (strcmp(key, "uname")==0) {
+		} else if (strcmp(key, "uname") == 0) {
 			archive_strcpy(&(tar->entry_uname), value);
 		}
 		break;
