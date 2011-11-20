@@ -159,7 +159,7 @@ archive_read_format_ar_bid(struct archive_read *a)
 	 */
 	if ((h = __archive_read_ahead(a, 8, NULL)) == NULL)
 		return (-1);
-	if (strncmp((const char*)h, "!<arch>\n", 8) == 0) {
+	if (memcmp(h, "!<arch>\n", 8) == 0) {
 		return (64);
 	}
 	return (-1);
