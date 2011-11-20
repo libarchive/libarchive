@@ -490,7 +490,6 @@ archive_read_format_iso9660_bid(struct archive_read *a)
 {
 	struct iso9660 *iso9660;
 	ssize_t bytes_read;
-	const void *h;
 	const unsigned char *p;
 	int seenTerminator;
 
@@ -502,12 +501,11 @@ archive_read_format_iso9660_bid(struct archive_read *a)
 	 * if the I/O layer gives us more, we'll take it.
 	 */
 #define RESERVED_AREA	(SYSTEM_AREA_BLOCK * LOGICAL_BLOCK_SIZE)
-	h = __archive_read_ahead(a,
+	p = __archive_read_ahead(a,
 	    RESERVED_AREA + 8 * LOGICAL_BLOCK_SIZE,
 	    &bytes_read);
-	if (h == NULL)
+	if (p == NULL)
 	    return (-1);
-	p = (const unsigned char *)h;
 
 	/* Skip the reserved area. */
 	bytes_read -= RESERVED_AREA;
