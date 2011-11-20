@@ -90,12 +90,14 @@ read_open_memory_internal(struct archive *a, void *buff,
 	mine->copy_buff_size = read_size + mine->copy_buff_offset * 2;
 	mine->copy_buff = malloc(mine->copy_buff_size);
 	memset(mine->copy_buff, 0xA5, mine->copy_buff_size);
-	if (fullapi)
-		return (archive_read_open2(a, mine, memory_read_open,
-			    memory_read, memory_read_skip, memory_read_close));
-	else
-		return (archive_read_open2(a, mine, NULL,
-			    memory_read, NULL, memory_read_close));
+	if (fullapi) {
+		archive_read_set_open_callback(a, memory_read_open);
+		archive_read_set_skip_callback(a, memory_read_skip);
+	}
+	archive_read_set_read_callback(a, memory_read);
+	archive_read_set_close_callback(a, memory_read_close);
+	archive_read_set_callback_data(a, mine);
+	return archive_read_open1(a);
 }
 
 /*
