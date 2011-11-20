@@ -392,10 +392,8 @@ archive_read_support_format_cab(struct archive *_a)
 }
 
 static int
-is_cab_magic(const void *h)
+find_cab_magic(const char *p)
 {
-	const unsigned char *p = h;
-
 	switch (p[4]) {
 	case 0:
 		/*
@@ -405,8 +403,7 @@ is_cab_magic(const void *h)
 		 * following four bytes which are reserved and must be set
 		 * to zero.
 		 */
-		if (p[0] == 'M' && p[1] == 'S' && p[2] == 'C' && p[3] == 'F' &&
-		    p[5] == 0 && p[6] == 0 && p[7] == 0)
+		if (memcmp(p, "MSCF\0\0\0\0", 8) == 0)
 			return 0;
 		return 5;
 	case 'F': return 1;
@@ -420,15 +417,14 @@ is_cab_magic(const void *h)
 static int
 archive_read_format_cab_bid(struct archive_read *a)
 {
-	const void *h;
 	const char *p;
 	ssize_t bytes_avail, offset, window;
 
-	if ((p = __archive_read_ahead(a, 4, NULL)) == NULL)
+	if ((p = __archive_read_ahead(a, 8, NULL)) == NULL)
 		return (-1);
 
-	if (is_cab_magic(p) == 0)
-		return (32);
+	if (memcmp(p, "MSCF\0\0\0\0", 8) == 0)
+		return (64);
 
 	/*
 	 * Attempt to handle self-extracting archives
@@ -439,7 +435,7 @@ archive_read_format_cab_bid(struct archive_read *a)
 		offset = 0;
 		window = 4096;
 		while (offset < (1024 * 128)) {
-			h = __archive_read_ahead(a, offset + window,
+			const char *h = __archive_read_ahead(a, offset + window,
 			    &bytes_avail);
 			if (h == NULL) {
 				/* Remaining bytes are less than window. */
@@ -448,14 +444,14 @@ archive_read_format_cab_bid(struct archive_read *a)
 					return (0);
 				continue;
 			}
-			p = (const char *)h + offset;
-			while (p + 8 < (const char *)h + bytes_avail) {
+			p = h + offset;
+			while (p + 8 < h + bytes_avail) {
 				int next;
-				if ((next = is_cab_magic(p)) == 0)
-					return (32);
+				if ((next = find_cab_magic(p)) == 0)
+					return (64);
 				p += next;
 			}
-			offset = p - (const char *)h;
+			offset = p - h;
 		}
 	}
 	return (0);
@@ -491,14 +487,13 @@ archive_read_format_cab_options(struct archive_read *a,
 static int
 cab_skip_sfx(struct archive_read *a)
 {
-	const void *h;
 	const char *p, *q;
 	size_t skip;
 	ssize_t bytes, window;
 
 	window = 4096;
 	for (;;) {
-		h = __archive_read_ahead(a, window, &bytes);
+		const char *h = __archive_read_ahead(a, window, &bytes);
 		if (h == NULL) {
 			/* Remaining size are less than window. */
 			window >>= 1;
@@ -519,14 +514,14 @@ cab_skip_sfx(struct archive_read *a)
 		 */
 		while (p + 8 < q) {
 			int next;
-			if ((next = is_cab_magic(p)) == 0) {
-				skip = p - (const char *)h;
+			if ((next = find_cab_magic(p)) == 0) {
+				skip = p - h;
 				__archive_read_consume(a, skip);
 				return (ARCHIVE_OK);
 			}
 			p += next;
 		}
-		skip = p - (const char *)h;
+		skip = p - h;
 		__archive_read_consume(a, skip);
 	}
 }
