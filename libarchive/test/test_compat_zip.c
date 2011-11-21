@@ -154,12 +154,70 @@ test_compat_zip_3(void)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
 }
 
+/**
+ * A file with leading garbage (similar to an SFX file).
+ */
+static void
+test_compat_zip_4(void)
+{
+	const char *refname = "test_compat_zip_4.zip";
+	struct archive_entry *ae;
+	struct archive *a;
+	void *p;
+	size_t s;
+
+	extract_reference_file(refname);
+	p = slurpfile(&s, refname);
+
+	/* SFX files require seek support. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, p, s, 18));
+
+	/* First entry. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("foo", archive_entry_pathname(ae));
+	assertEqualInt(4, archive_entry_size(ae));
+	assert(archive_entry_size_is_set(ae));
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assertEqualInt(0412, archive_entry_perm(ae));
+
+	/* Second entry. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("bar", archive_entry_pathname(ae));
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assertEqualInt(4, archive_entry_size(ae));
+	assert(archive_entry_size_is_set(ae));
+	assertEqualInt(0567, archive_entry_perm(ae));
+
+	/* Third entry. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("baz", archive_entry_pathname(ae));
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assertEqualInt(4, archive_entry_size(ae));
+	assert(archive_entry_size_is_set(ae));
+	assertEqualInt(0644, archive_entry_perm(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+
+	/* Try reading without seek support and watch it fail. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_FATAL, read_open_memory(a, p, s, 3));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+	free(p);
+}
 
 DEFINE_TEST(test_compat_zip)
 {
 	test_compat_zip_1();
 	test_compat_zip_2();
 	test_compat_zip_3();
+	test_compat_zip_4();
 }
 
 
