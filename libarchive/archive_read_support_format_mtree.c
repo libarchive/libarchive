@@ -103,7 +103,7 @@ struct mtree {
 };
 
 static int	cleanup(struct archive_read *);
-static int	mtree_bid(struct archive_read *);
+static int	mtree_bid(struct archive_read *, int);
 static int	parse_file(struct archive_read *, struct archive_entry *,
 		    struct mtree *, struct mtree_entry *, int *);
 static void	parse_escapes(char *, struct mtree_entry *);
@@ -521,13 +521,15 @@ bid_entry(const char *p, ssize_t len)
 #define MAX_BID_ENTRY	3
 
 static int
-mtree_bid(struct archive_read *a)
+mtree_bid(struct archive_read *a, int best_bid)
 {
 	const char *signature = "#mtree";
 	const char *p;
 	ssize_t avail, ravail;
 	ssize_t len, nl;
 	int detected_bytes = 0, entry_cnt = 0, multiline = 0;
+
+	(void)best_bid; /* UNUSED */
 
 	/* Now let's look at the actual header and see if it matches. */
 	p = __archive_read_ahead(a, strlen(signature), &avail);

@@ -81,7 +81,7 @@ struct ar {
 #define AR_fmag_offset 58
 #define AR_fmag_size 2
 
-static int	archive_read_format_ar_bid(struct archive_read *a);
+static int	archive_read_format_ar_bid(struct archive_read *a, int);
 static int	archive_read_format_ar_cleanup(struct archive_read *a);
 static int	archive_read_format_ar_read_data(struct archive_read *a,
 		    const void **buff, size_t *size, int64_t *offset);
@@ -144,14 +144,11 @@ archive_read_format_ar_cleanup(struct archive_read *a)
 }
 
 static int
-archive_read_format_ar_bid(struct archive_read *a)
+archive_read_format_ar_bid(struct archive_read *a, int best_bid)
 {
 	const void *h;
 
-	if (a->archive.archive_format != 0 &&
-	    (a->archive.archive_format & ARCHIVE_FORMAT_BASE_MASK) !=
-	    ARCHIVE_FORMAT_AR)
-		return(0);
+	(void)best_bid; /* UNUSED */
 
 	/*
 	 * Verify the 8-byte file signature.

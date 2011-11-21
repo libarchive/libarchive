@@ -313,7 +313,7 @@ struct cab {
 	struct lzx_stream	 xstrm;
 };
 
-static int	archive_read_format_cab_bid(struct archive_read *);
+static int	archive_read_format_cab_bid(struct archive_read *, int);
 static int	archive_read_format_cab_options(struct archive_read *,
 		    const char *, const char *);
 static int	archive_read_format_cab_read_header(struct archive_read *,
@@ -415,10 +415,15 @@ find_cab_magic(const char *p)
 }
 
 static int
-archive_read_format_cab_bid(struct archive_read *a)
+archive_read_format_cab_bid(struct archive_read *a, int best_bid)
 {
 	const char *p;
 	ssize_t bytes_avail, offset, window;
+
+	/* If there's already a better bid than we can ever
+	   make, don't bother testing. */
+	if (best_bid > 64)
+		return (-1);
 
 	if ((p = __archive_read_ahead(a, 8, NULL)) == NULL)
 		return (-1);

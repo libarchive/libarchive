@@ -293,7 +293,7 @@ struct rar
   } br;
 };
 
-static int archive_read_format_rar_bid(struct archive_read *);
+static int archive_read_format_rar_bid(struct archive_read *, int);
 static int archive_read_format_rar_options(struct archive_read *,
     const char *, const char *);
 static int archive_read_format_rar_read_header(struct archive_read *,
@@ -650,9 +650,13 @@ archive_read_support_format_rar(struct archive *_a)
 }
 
 static int
-archive_read_format_rar_bid(struct archive_read *a)
+archive_read_format_rar_bid(struct archive_read *a, int best_bid)
 {
   const char *p;
+
+  /* If there's already a bid > 30, we'll never win. */
+  if (best_bid > 30)
+	  return (-1);
 
   if ((p = __archive_read_ahead(a, 7, NULL)) == NULL)
     return (-1);

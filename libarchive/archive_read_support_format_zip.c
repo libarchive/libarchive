@@ -115,8 +115,8 @@ struct zip {
 #define ZIP_LENGTH_AT_END	8
 #define ZIP_UTF8_NAME		(1<<11)	
 
-static int	archive_read_format_zip_streamable_bid(struct archive_read *);
-static int	archive_read_format_zip_seekable_bid(struct archive_read *);
+static int	archive_read_format_zip_streamable_bid(struct archive_read *, int);
+static int	archive_read_format_zip_seekable_bid(struct archive_read *, int);
 static int	archive_read_format_zip_options(struct archive_read *,
 		    const char *, const char *);
 static int	archive_read_format_zip_cleanup(struct archive_read *);
@@ -225,11 +225,16 @@ archive_read_support_format_zip(struct archive *a)
  * seeking if it knows it's going to lose anyway.
  */
 static int
-archive_read_format_zip_seekable_bid(struct archive_read *a)
+archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 {
 	struct zip *zip = (struct zip *)a->format->data;
 	int64_t filesize;
 	const char *p;
+
+	/* If someone has already bid more than 32, then avoid
+	   trashing the look-ahead buffers with a seek. */
+	if (best_bid > 32)
+		return (-1);
 
 	filesize = __archive_read_seek(a, -22, SEEK_END);
 	/* If we can't seek, then we can't bid. */
@@ -365,9 +370,11 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 }
 
 static int
-archive_read_format_zip_streamable_bid(struct archive_read *a)
+archive_read_format_zip_streamable_bid(struct archive_read *a, int best_bid)
 {
 	const char *p;
+
+	(void)best_bid; /* UNUSED */
 
 	if ((p = __archive_read_ahead(a, 4, NULL)) == NULL)
 		return (-1);

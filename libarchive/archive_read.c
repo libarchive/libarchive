@@ -537,7 +537,7 @@ choose_format(struct archive_read *a)
 	a->format = &(a->formats[0]);
 	for (i = 0; i < slots; i++, a->format++) {
 		if (a->format->bid) {
-			bid = (a->format->bid)(a);
+			bid = (a->format->bid)(a, best_bid);
 			if (bid == ARCHIVE_FATAL)
 				return (ARCHIVE_FATAL);
 			if (a->filter->position != 0)
@@ -920,7 +920,7 @@ int
 __archive_read_register_format(struct archive_read *a,
     void *format_data,
     const char *name,
-    int (*bid)(struct archive_read *),
+    int (*bid)(struct archive_read *, int),
     int (*options)(struct archive_read *, const char *, const char *),
     int (*read_header)(struct archive_read *, struct archive_entry *),
     int (*read_data)(struct archive_read *, const void **, size_t *, int64_t *),

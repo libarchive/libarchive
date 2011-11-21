@@ -189,7 +189,7 @@ static int	header_ustar(struct archive_read *, struct tar *,
 		    struct archive_entry *, const void *h);
 static int	header_gnutar(struct archive_read *, struct tar *,
 		    struct archive_entry *, const void *h, size_t *);
-static int	archive_read_format_tar_bid(struct archive_read *);
+static int	archive_read_format_tar_bid(struct archive_read *, int);
 static int	archive_read_format_tar_options(struct archive_read *,
 		    const char *, const char *);
 static int	archive_read_format_tar_cleanup(struct archive_read *);
@@ -286,11 +286,13 @@ archive_read_format_tar_cleanup(struct archive_read *a)
 
 
 static int
-archive_read_format_tar_bid(struct archive_read *a)
+archive_read_format_tar_bid(struct archive_read *a, int best_bid)
 {
 	int bid;
 	const char *h;
 	const struct archive_entry_header_ustar *header;
+
+	(void)best_bid; /* UNUSED */
 
 	bid = 0;
 
@@ -1126,7 +1128,7 @@ header_common(struct archive_read *a, struct tar *tar,
 			/* Old-style or GNU tar: we must ignore the size. */
 			archive_entry_set_size(entry, 0);
 			tar->entry_bytes_remaining = 0;
-		} else if (archive_read_format_tar_bid(a) > 50) {
+		} else if (archive_read_format_tar_bid(a, 50) > 50) {
 			/*
 			 * We don't know if it's pax: If the bid
 			 * function sees a valid ustar header

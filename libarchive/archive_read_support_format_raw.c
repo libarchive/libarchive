@@ -44,7 +44,7 @@ struct raw_info {
 	int     end_of_file;
 };
 
-static int	archive_read_format_raw_bid(struct archive_read *);
+static int	archive_read_format_raw_bid(struct archive_read *, int);
 static int	archive_read_format_raw_cleanup(struct archive_read *);
 static int	archive_read_format_raw_read_data(struct archive_read *,
 		    const void **, size_t *, int64_t *);
@@ -91,12 +91,11 @@ archive_read_support_format_raw(struct archive *_a)
  * include "raw" as part of support_format_all().
  */
 static int
-archive_read_format_raw_bid(struct archive_read *a)
+archive_read_format_raw_bid(struct archive_read *a, int best_bid)
 {
-
-	if (__archive_read_ahead(a, 1, NULL) == NULL)
-		return (-1);
-	return (1);
+	if (best_bid < 1 && __archive_read_ahead(a, 1, NULL) != NULL)
+		return (1);
+	return (-1);
 }
 
 /*

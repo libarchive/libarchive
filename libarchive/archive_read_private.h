@@ -169,7 +169,7 @@ struct archive_read {
 	struct archive_format_descriptor {
 		void	 *data;
 		const char *name;
-		int	(*bid)(struct archive_read *);
+		int	(*bid)(struct archive_read *, int best_bid);
 		int	(*options)(struct archive_read *, const char *key,
 		    const char *value);
 		int	(*read_header)(struct archive_read *, struct archive_entry *);
@@ -189,7 +189,7 @@ struct archive_read {
 int	__archive_read_register_format(struct archive_read *a,
 	    void *format_data,
 	    const char *name,
-	    int (*bid)(struct archive_read *),
+	    int (*bid)(struct archive_read *, int),
 	    int (*options)(struct archive_read *, const char *, const char *),
 	    int (*read_header)(struct archive_read *, struct archive_entry *),
 	    int (*read_data)(struct archive_read *, const void **, size_t *, int64_t *),

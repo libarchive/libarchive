@@ -376,7 +376,7 @@ struct iso9660 {
 	size_t		 utf16be_previous_path_len;
 };
 
-static int	archive_read_format_iso9660_bid(struct archive_read *);
+static int	archive_read_format_iso9660_bid(struct archive_read *, int);
 static int	archive_read_format_iso9660_options(struct archive_read *,
 		    const char *, const char *);
 static int	archive_read_format_iso9660_cleanup(struct archive_read *);
@@ -486,12 +486,17 @@ archive_read_support_format_iso9660(struct archive *_a)
 
 
 static int
-archive_read_format_iso9660_bid(struct archive_read *a)
+archive_read_format_iso9660_bid(struct archive_read *a, int best_bid)
 {
 	struct iso9660 *iso9660;
 	ssize_t bytes_read;
 	const unsigned char *p;
 	int seenTerminator;
+
+	/* If there's already a better bid than we can ever
+	   make, don't bother testing. */
+	if (best_bid > 48)
+		return (-1);
 
 	iso9660 = (struct iso9660 *)(a->format->data);
 
