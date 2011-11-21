@@ -1013,13 +1013,6 @@ __archive_read_get_bidder(struct archive_read *a,
  *    to fit your request, so use this technique cautiously.  This
  *    technique is used, for example, by some of the format tasting
  *    code that has uncertain look-ahead needs.
- *
- * TODO: Someday, provide a more generic __archive_read_seek() for
- * those cases where it's useful.  This is tricky because there are lots
- * of cases where seek() is not available (reading gzip data from a
- * network socket, for instance), so there needs to be a good way to
- * communicate whether seek() is available and users of that interface
- * need to use non-seeking strategies whenever seek() is not available.
  */
 
 /*
@@ -1030,7 +1023,6 @@ __archive_read_get_bidder(struct archive_read *a,
  *  * If error, *avail gets error code.
  *  * If request can be met, returns pointer to data.
  *  * If minimum request cannot be met, returns NULL.
- *    if request is not met.
  *
  * Note: If you just want "some data", ask for 1 byte and pay attention
  * to *avail, which will have the actual amount available.  If you
