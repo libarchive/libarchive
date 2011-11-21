@@ -95,7 +95,7 @@
 #define	fileno		_fileno
 #endif
 #define	fstat		__la_fstat
-#define	lseek		__la_lseek
+#define	lseek		_lseeki64
 #define	lstat		__la_stat
 #define	open		__la_open
 #define	read		__la_read
@@ -245,7 +245,6 @@
 /* Replacement POSIX function */
 extern int	 __la_fcntl(int fd, int cmd, int val);
 extern int	 __la_fstat(int fd, struct stat *st);
-extern __int64	 __la_lseek(int fd, __int64 offset, int whence);
 extern int	 __la_lstat(const char *path, struct stat *st);
 extern int	 __la_open(const char *path, int flags, ...);
 extern ssize_t	 __la_read(int fd, void *buf, size_t nbytes);
