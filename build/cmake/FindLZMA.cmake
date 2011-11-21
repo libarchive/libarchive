@@ -14,7 +14,7 @@ IF (LZMA_INCLUDE_DIR)
 ENDIF (LZMA_INCLUDE_DIR)
 
 FIND_PATH(LZMA_INCLUDE_DIR lzma.h)
-FIND_LIBRARY(LZMA_LIBRARY NAMES lzma )
+FIND_LIBRARY(LZMA_LIBRARY NAMES lzma liblzma)
 
 # handle the QUIETLY and REQUIRED arguments and set LZMA_FOUND to TRUE if 
 # all listed variables are TRUE
