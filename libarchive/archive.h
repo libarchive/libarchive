@@ -392,6 +392,8 @@ __LA_DECL int archive_read_open2(struct archive *, void *_client_data,
 /* Use this if you know the filename.  Note: NULL indicates stdin. */
 __LA_DECL int archive_read_open_filename(struct archive *,
 		     const char *_filename, size_t _block_size);
+__LA_DECL int archive_read_open_filename_w(struct archive *,
+		     const wchar_t *_filename, size_t _block_size);
 /* archive_read_open_file() is a deprecated synonym for ..._open_filename(). */
 __LA_DECL int archive_read_open_file(struct archive *,
 		     const char *_filename, size_t _block_size);
@@ -611,6 +613,8 @@ __LA_DECL int archive_write_open(struct archive *, void *,
 		     archive_close_callback *);
 __LA_DECL int archive_write_open_fd(struct archive *, int _fd);
 __LA_DECL int archive_write_open_filename(struct archive *, const char *_file);
+__LA_DECL int archive_write_open_filename_w(struct archive *,
+		     const wchar_t *_file);
 /* A deprecated synonym for archive_write_open_filename() */
 __LA_DECL int archive_write_open_file(struct archive *, const char *_file);
 __LA_DECL int archive_write_open_FILE(struct archive *, FILE *);

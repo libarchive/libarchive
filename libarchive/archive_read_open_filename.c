@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_open_filename.c 201093 2009
 #endif
 
 #include "archive.h"
+#include "archive_string.h"
 
 #ifndef O_BINARY
 #define O_BINARY 0
@@ -71,10 +72,16 @@ struct read_file_data {
 	void	*buffer;
 	mode_t	 st_mode;  /* Mode bits for opened file. */
 	char	 use_lseek;
-	char	 filename[1]; /* Must be last! */
+	enum fnt_e { FNT_STDIN, FNT_MBS, FNT_WCS } filename_type;
+	union {
+		char	 m[1];/* MBS filename. */
+		wchar_t	 w[1];/* WCS filename. */
+	} filename; /* Must be last! */
 };
 
 static int	file_close(struct archive *, void *);
+static int	file_open_filename(struct archive *, enum fnt_e, const void *,
+		    size_t);
 static ssize_t	file_read(struct archive *, void *, const void **buff);
 static int64_t	file_seek(struct archive *, void *, int64_t request, int);
 static int64_t	file_skip(struct archive *, void *, int64_t request);
@@ -91,9 +98,61 @@ int
 archive_read_open_filename(struct archive *a, const char *filename,
     size_t block_size)
 {
+	enum fnt_e filename_type;
+
+	if (filename == NULL || filename[0] == '\0') {
+		filename_type = FNT_STDIN;
+	} else
+		filename_type = FNT_MBS;
+	return (file_open_filename(a, filename_type, filename, block_size));
+}
+
+int
+archive_read_open_filename_w(struct archive *a, const wchar_t *wfilename,
+    size_t block_size)
+{
+	enum fnt_e filename_type;
+
+	if (wfilename == NULL || wfilename[0] == L'\0') {
+		filename_type = FNT_STDIN;
+	} else {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		filename_type = FNT_WCS;
+#else
+		/*
+		 * POSIX system does not support a wchar_t interface for
+		 * open() system call, so we have to translate a whcar_t
+		 * filename to multi-byte one and use it.
+		 */
+		struct archive_string fn;
+		int r;
+
+		archive_string_init(&fn);
+		if (archive_string_append_from_wcs(&fn, wfilename,
+		    wcslen(wfilename)) != 0) {
+			archive_set_error(a, EINVAL,
+			    "Failed to convert a wide-character filename to"
+			    " a multi-byte filename");
+			archive_string_free(&fn);
+			return (ARCHIVE_FATAL);
+		}
+		r = file_open_filename(a, FNT_MBS, fn.s, block_size);
+		archive_string_free(&fn);
+		return (r);
+#endif
+	}
+	return (file_open_filename(a, filename_type, wfilename, block_size));
+}
+
+static int
+file_open_filename(struct archive *a, enum fnt_e filename_type,
+    const void *_filename, size_t block_size)
+{
 	struct stat st;
 	struct read_file_data *mine;
 	void *buffer;
+	const char *filename = NULL;
+	const wchar_t *wfilename = NULL;
 	int fd;
 	int is_disk_like = 0;
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
@@ -105,7 +164,7 @@ archive_read_open_filename(struct archive *a, const char *filename,
 #endif
 
 	archive_clear_error(a);
-	if (filename == NULL || filename[0] == '\0') {
+	if (filename_type == FNT_STDIN) {
 		/* We used to delegate stdin support by
 		 * directly calling archive_read_open_fd(a,0,block_size)
 		 * here, but that doesn't (and shouldn't) handle the
@@ -115,21 +174,49 @@ archive_read_open_filename(struct archive *a, const char *filename,
 		 * API is intended to be a little smarter for folks who
 		 * want easy handling of the common case.
 		 */
-		filename = ""; /* Normalize NULL to "" */
 		fd = 0;
 #if defined(__CYGWIN__) || defined(_WIN32)
 		setmode(0, O_BINARY);
 #endif
-	} else {
+		filename = "";
+	} else if (filename_type == FNT_MBS) {
+		filename = (const char *)_filename;
 		fd = open(filename, O_RDONLY | O_BINARY);
 		if (fd < 0) {
 			archive_set_error(a, errno,
 			    "Failed to open '%s'", filename);
 			return (ARCHIVE_FATAL);
 		}
+	} else {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		wfilename = (const wchar_t *)_filename;
+		fd = _wopen(wfilename, O_RDONLY | O_BINARY);
+		if (fd < 0 && errno == ENOENT) {
+			wchar_t *fullpath;
+			fullpath = __la_win_permissive_name_w(wfilename);
+			if (fullpath != NULL) {
+				fd = _wopen(fullpath, O_RDONLY | O_BINARY);
+				free(fullpath);
+			}
+		}
+		if (fd < 0) {
+			archive_set_error(a, errno,
+			    "Failed to open '%S'", wfilename);
+			return (ARCHIVE_FATAL);
+		}
+#else
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
+		    "Unexpedted operation in archive_read_open_filename");
+		return (ARCHIVE_FATAL);
+#endif
 	}
 	if (fstat(fd, &st) != 0) {
-		archive_set_error(a, errno, "Can't stat '%s'", filename);
+		if (filename_type == FNT_WCS)
+			archive_set_error(a, errno, "Can't stat '%S'",
+			    wfilename);
+		else
+			archive_set_error(a, errno, "Can't stat '%s'",
+			    filename);
 		return (ARCHIVE_FATAL);
 	}
 
@@ -189,8 +276,12 @@ archive_read_open_filename(struct archive *a, const char *filename,
 #endif
 	/* TODO: Add an "is_tape_like" variable and appropriate tests. */
 
-	mine = (struct read_file_data *)calloc(1,
-	    sizeof(*mine) + strlen(filename));
+	if (filename_type == FNT_WCS)
+		mine = (struct read_file_data *)calloc(1,
+		    sizeof(*mine) + wcslen(wfilename) * sizeof(wchar_t));
+	else
+		mine = (struct read_file_data *)calloc(1,
+		    sizeof(*mine) + strlen(filename));
 	/* Disk-like devices prefer power-of-two block sizes.  */
 	/* Use provided block_size as a guide so users have some control. */
 	if (is_disk_like) {
@@ -207,7 +298,11 @@ archive_read_open_filename(struct archive *a, const char *filename,
 		free(buffer);
 		return (ARCHIVE_FATAL);
 	}
-	strcpy(mine->filename, filename);
+	if (filename_type == FNT_WCS)
+		wcscpy(mine->filename.w, wfilename);
+	else
+		strcpy(mine->filename.m, filename);
+	mine->filename_type = filename_type;
 	mine->block_size = block_size;
 	mine->buffer = buffer;
 	mine->fd = fd;
@@ -252,11 +347,15 @@ file_read(struct archive *a, void *client_data, const void **buff)
 		if (bytes_read < 0) {
 			if (errno == EINTR)
 				continue;
-			else if (mine->filename[0] == '\0')
-				archive_set_error(a, errno, "Error reading stdin");
+			else if (mine->filename_type == FNT_STDIN)
+				archive_set_error(a, errno,
+				    "Error reading stdin");
+			else if (mine->filename_type == FNT_MBS)
+				archive_set_error(a, errno,
+				    "Error reading '%s'", mine->filename.m);
 			else
-				archive_set_error(a, errno, "Error reading '%s'",
-				    mine->filename);
+				archive_set_error(a, errno,
+				    "Error reading '%S'", mine->filename.w);
 		}
 		return (bytes_read);
 	}
@@ -314,11 +413,14 @@ file_skip_lseek(struct archive *a, void *client_data, int64_t request)
 		return (0);
 
 	/* If the input is corrupted or truncated, fail. */
-	if (mine->filename[0] == '\0')
+	if (mine->filename_type == FNT_STDIN)
 		archive_set_error(a, errno, "Error seeking in stdin");
-	else
+	else if (mine->filename_type == FNT_MBS)
 		archive_set_error(a, errno, "Error seeking in '%s'",
-		    mine->filename);
+		    mine->filename.m);
+	else
+		archive_set_error(a, errno, "Error seeking in '%S'",
+		    mine->filename.w);
 	return (-1);
 }
 
@@ -354,11 +456,14 @@ file_seek(struct archive *a, void *client_data, int64_t request, int whence)
 		return r;
 
 	/* If the input is corrupted or truncated, fail. */
-	if (mine->filename[0] == '\0')
+	if (mine->filename_type == FNT_STDIN)
 		archive_set_error(a, errno, "Error seeking in stdin");
-	else
+	else if (mine->filename_type == FNT_MBS)
 		archive_set_error(a, errno, "Error seeking in '%s'",
-		    mine->filename);
+		    mine->filename.m);
+	else
+		archive_set_error(a, errno, "Error seeking in '%S'",
+		    mine->filename.w);
 	return (ARCHIVE_FATAL);
 }
 
@@ -392,7 +497,7 @@ file_close(struct archive *a, void *client_data)
 			} while (bytesRead > 0);
 		}
 		/* If a named file was opened, then it needs to be closed. */
-		if (mine->filename[0] != '\0')
+		if (mine->filename_type != FNT_STDIN)
 			close(mine->fd);
 	}
 	free(mine->buffer);
