@@ -33,9 +33,68 @@
 #include "test.h"
 __FBSDID("$FreeBSD: head/lib/libarchive/test/test_write_format_zip.c 201247 2009-12-30 05:59:21Z kientzle $");
 
-DEFINE_TEST(test_write_format_zip)
+static void
+verify_contents(struct archive *a, int verify_modes)
 {
 	char filedata[64];
+	struct archive_entry *ae;
+
+	/*
+	 * Read and verify first file.
+	 */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(1, archive_entry_mtime(ae));
+	/* Zip doesn't store high-resolution mtime. */
+	assertEqualInt(0, archive_entry_mtime_nsec(ae));
+	assertEqualInt(0, archive_entry_atime(ae));
+	assertEqualInt(0, archive_entry_ctime(ae));
+	assertEqualString("file", archive_entry_pathname(ae));
+	if (verify_modes)
+		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertEqualIntA(a, 8,
+	    archive_read_data(a, filedata, sizeof(filedata)));
+	assertEqualMem(filedata, "12345678", 8);
+
+
+	/*
+	 * Read the second file back.
+	 */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(1, archive_entry_mtime(ae));
+	assertEqualInt(0, archive_entry_mtime_nsec(ae));
+	assertEqualInt(0, archive_entry_atime(ae));
+	assertEqualInt(0, archive_entry_ctime(ae));
+	assertEqualString("file2", archive_entry_pathname(ae));
+	if (verify_modes)
+		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertEqualIntA(a, 4,
+	    archive_read_data(a, filedata, sizeof(filedata)));
+	assertEqualMem(filedata, "1234", 4);
+
+	/*
+	 * Read the dir entry back.
+	 */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(11, archive_entry_mtime(ae));
+	assertEqualInt(0, archive_entry_mtime_nsec(ae));
+	assertEqualInt(0, archive_entry_atime(ae));
+	assertEqualInt(0, archive_entry_ctime(ae));
+	assertEqualString("dir/", archive_entry_pathname(ae));
+	if (verify_modes)
+		assertEqualInt(AE_IFDIR | 0755, archive_entry_mode(ae));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertEqualIntA(a, 0, archive_read_data(a, filedata, 10));
+
+	/* Verify the end of the archive. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_write_format_zip)
+{
 	struct archive_entry *ae;
 	struct archive *a;
 	size_t used;
@@ -116,65 +175,27 @@ DEFINE_TEST(test_write_format_zip)
 	/*
 	 * Now, read the data back.
 	 */
-	ae = NULL;
+	/* With the standard memory reader. */
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_filter_all(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_open_memory(a, buff, used));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
+	verify_contents(a, 1);
 
-	/*
-	 * Read and verify first file.
-	 */
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt(1, archive_entry_mtime(ae));
-	/* Zip doesn't store high-resolution mtime. */
-	assertEqualInt(0, archive_entry_mtime_nsec(ae));
-	assertEqualInt(0, archive_entry_atime(ae));
-	assertEqualInt(0, archive_entry_ctime(ae));
-	assertEqualString("file", archive_entry_pathname(ae));
-	/* assertEqualInt((S_IFREG | 0755), archive_entry_mode(ae)); */
-	assertEqualInt(0, archive_entry_size(ae));
-	assertEqualIntA(a, 8,
-	    archive_read_data(a, filedata, sizeof(filedata)));
-	assertEqualMem(filedata, "12345678", 8);
+	/* With the test memory reader -- streaming mode. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, buff, used, 7));
+	/* Streaming reader doesn't see mode information from Central Directory. */
+	verify_contents(a, 0);
 
+	/* With the test memory reader -- seeking mode. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, buff, used, 7));
+	verify_contents(a, 1);
 
-	/*
-	 * Read the second file back.
-	 */
-	if (!assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae))){
-		free(buff);
-		return;
-	}
-	assertEqualInt(1, archive_entry_mtime(ae));
-	assertEqualInt(0, archive_entry_mtime_nsec(ae));
-	assertEqualInt(0, archive_entry_atime(ae));
-	assertEqualInt(0, archive_entry_ctime(ae));
-	assertEqualString("file2", archive_entry_pathname(ae));
-	/* assert((S_IFREG | 0755) == archive_entry_mode(ae)); */
-	assertEqualInt(0, archive_entry_size(ae));
-	assertEqualIntA(a, 4,
-	    archive_read_data(a, filedata, sizeof(filedata)));
-	assertEqualMem(filedata, "1234", 4);
-
-	/*
-	 * Read the dir entry back.
-	 */
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt(11, archive_entry_mtime(ae));
-	assertEqualInt(0, archive_entry_mtime_nsec(ae));
-	assertEqualInt(0, archive_entry_atime(ae));
-	assertEqualInt(0, archive_entry_ctime(ae));
-	assertEqualString("dir/", archive_entry_pathname(ae));
-	/* assertEqualInt((S_IFDIR | 0755), archive_entry_mode(ae)); */
-	assertEqualInt(0, archive_entry_size(ae));
-	assertEqualIntA(a, 0, archive_read_data(a, filedata, 10));
-
-	/* Verify the end of the archive. */
-	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	free(buff);
 }
