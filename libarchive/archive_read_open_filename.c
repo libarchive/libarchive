@@ -443,6 +443,9 @@ file_skip(struct archive *a, void *client_data, int64_t request)
 	return (0);
 }
 
+/*
+ * TODO: Store the offset and use it in the read callback.
+ */
 static int64_t
 file_seek(struct archive *a, void *client_data, int64_t request, int whence)
 {
