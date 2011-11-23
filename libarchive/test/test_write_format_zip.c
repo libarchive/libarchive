@@ -32,7 +32,7 @@
 __FBSDID("$FreeBSD: head/lib/libarchive/test/test_write_format_zip.c 201247 2009-12-30 05:59:21Z kientzle $");
 
 static void
-verify_contents(struct archive *a, int verify_modes)
+verify_contents(struct archive *a, int expect_details)
 {
 	char filedata[64];
 	struct archive_entry *ae;
@@ -47,9 +47,12 @@ verify_contents(struct archive *a, int verify_modes)
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("file", archive_entry_pathname(ae));
-	if (verify_modes)
+	if (expect_details) {
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
-	assertEqualInt(0, archive_entry_size(ae));
+		assertEqualInt(8, archive_entry_size(ae));
+	} else {
+		assertEqualInt(0, archive_entry_size(ae));
+	}
 	assertEqualIntA(a, 8,
 	    archive_read_data(a, filedata, sizeof(filedata)));
 	assertEqualMem(filedata, "12345678", 8);
@@ -64,9 +67,12 @@ verify_contents(struct archive *a, int verify_modes)
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("file2", archive_entry_pathname(ae));
-	if (verify_modes)
+	if (expect_details) {
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
-	assertEqualInt(0, archive_entry_size(ae));
+		assertEqualInt(4, archive_entry_size(ae));
+	} else {
+		assertEqualInt(0, archive_entry_size(ae));
+	}
 	assertEqualIntA(a, 4,
 	    archive_read_data(a, filedata, sizeof(filedata)));
 	assertEqualMem(filedata, "1234", 4);
@@ -80,7 +86,7 @@ verify_contents(struct archive *a, int verify_modes)
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("dir/", archive_entry_pathname(ae));
-	if (verify_modes)
+	if (expect_details)
 		assertEqualInt(AE_IFDIR | 0755, archive_entry_mode(ae));
 	assertEqualInt(0, archive_entry_size(ae));
 	assertEqualIntA(a, 0, archive_read_data(a, filedata, 10));

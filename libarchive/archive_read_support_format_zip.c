@@ -65,6 +65,7 @@ struct zip_entry {
 	uint16_t		flags;
 	char			compression;
 	char			system;
+	char			have_central_directory;
 };
 
 struct zip {
@@ -291,6 +292,7 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 			    -1, "Invalid central directory signature");
 			return ARCHIVE_FATAL;
 		}
+		zip_entry->have_central_directory = 1;
 		/* version = p[4]; */
 		zip_entry->system = p[5];
 		/* version_required = archive_le16dec(p + 6); */
@@ -356,6 +358,9 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 	zip->entry_uncompressed_bytes_read = 0;
 	zip->entry_compressed_bytes_read = 0;
 	zip->entry_crc32 = crc32(0, NULL, 0);
+	/* TODO: If entries are sorted by offset within the file, we
+	   should be able to skip here instead of seeking.  Skipping is
+	   typically faster (easier for I/O layer to optimize). */
 	__archive_read_seek(a, zip->entry->local_header_offset, SEEK_SET);
 	if ((h = __archive_read_ahead(a, 4, NULL)) == NULL)
 		return (ARCHIVE_FATAL);
@@ -459,7 +464,7 @@ archive_read_format_zip_streamable_read_header(struct archive_read *a,
 		if (r != ARCHIVE_OK) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Bad ZIP file");
+			    "Unable to find next valid PK marker");
 			return (ARCHIVE_FATAL);
 		}
 		if ((h = __archive_read_ahead(a, 4, NULL)) == NULL)
@@ -480,7 +485,7 @@ archive_read_format_zip_streamable_read_header(struct archive_read *a,
 		if (signature[0] != 'P' || signature[1] != 'K') {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Bad ZIP file");
+			    "No valid marker found after PK00");
 			return (ARCHIVE_FATAL);
 		}
 	}
@@ -508,22 +513,12 @@ archive_read_format_zip_streamable_read_header(struct archive_read *a,
 	}
 
 	if (signature[2] == '\005' && signature[3] == '\006') {
-		/* End-of-archive record. */
+		/* End of central directory. */
 		return (ARCHIVE_EOF);
 	}
 
-	if (signature[2] == '\007' && signature[3] == '\010') {
-		/*
-		 * We should never encounter this record here;
-		 * see ZIP_LENGTH_AT_END handling below for details.
-		 */
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Bad ZIP file: Unexpected end-of-entry record");
-		return (ARCHIVE_FATAL);
-	}
-
 	archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-	    "Damaged ZIP file or unsupported format variant (%d,%d)",
+	    "Unable to make sense of PK marker (%d,%d)",
 	    signature[2], signature[3]);
 	return (ARCHIVE_FATAL);
 }
@@ -575,6 +570,8 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	size_t len, filename_length, extra_length;
 	struct archive_string_conv *sconv;
 	struct zip_entry *zip_entry = zip->entry;
+	uint32_t crc32;
+	int64_t compressed_size, uncompressed_size;
 	int ret = ARCHIVE_OK;
 	char version;
 
@@ -596,14 +593,45 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	zip_entry->flags = archive_le16dec(p + 6);
 	zip_entry->compression = archive_le16dec(p + 8);
 	zip_entry->mtime = zip_time(p + 10);
-	zip_entry->crc32 = archive_le32dec(p + 14);
-	zip_entry->compressed_size = archive_le32dec(p + 18);
-	zip_entry->uncompressed_size = archive_le32dec(p + 22);
+	crc32 = archive_le32dec(p + 14);
+	compressed_size = archive_le32dec(p + 18);
+	uncompressed_size = archive_le32dec(p + 22);
 	filename_length = archive_le16dec(p + 26);
 	extra_length = archive_le16dec(p + 28);
 
 	__archive_read_consume(a, 30);
 
+	if (zip_entry->have_central_directory) {
+		/* If we had a central dir entry, we must have size information
+		   as well, so ignore this flag. */
+		zip_entry->flags &= ~ZIP_LENGTH_AT_END;
+		/* If we have values from both local file header and
+		   central directory, warn about mismatches which
+		   might indicate a damaged file.  But some writers
+		   always put zero in local header; don't bother
+		   warning about that. */
+		if (crc32 != 0 && crc32 != zip_entry->crc32) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Inconsistent CRC32 values");
+			ret = ARCHIVE_WARN;
+		}
+		if (compressed_size != 0
+		    && compressed_size != zip_entry->compressed_size) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Inconsistent compressed size");
+			ret = ARCHIVE_WARN;
+		}
+		if (uncompressed_size != 0
+		    && uncompressed_size != zip_entry->uncompressed_size) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Inconsistent uncompressed size");
+			ret = ARCHIVE_WARN;
+		}
+	} else {
+		zip_entry->crc32 = crc32;
+		zip_entry->compressed_size = compressed_size;
+		zip_entry->uncompressed_size = uncompressed_size;
+	}
 
 	/* Read the filename. */
 	if ((h = __archive_read_ahead(a, filename_length, NULL)) == NULL) {

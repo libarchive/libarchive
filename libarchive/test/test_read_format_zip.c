@@ -38,7 +38,7 @@ static const int libz_enabled = 0;
  *   * file2 has an invalid CRC
  */
 static void
-verify_basic(struct archive *a, int check_mode)
+verify_basic(struct archive *a, int seek_checks)
 {
 	struct archive_entry *ae;
 	char *buff[128];
@@ -50,7 +50,7 @@ verify_basic(struct archive *a, int check_mode)
 	assertEqualString("dir/", archive_entry_pathname(ae));
 	assertEqualInt(1179604249, archive_entry_mtime(ae));
 	assertEqualInt(0, archive_entry_size(ae));
-	if (check_mode)
+	if (seek_checks)
 		assertEqualInt(AE_IFDIR | 0755, archive_entry_mode(ae));
 	assertEqualIntA(a, ARCHIVE_EOF,
 	    archive_read_data_block(a, &pv, &s, &o));
@@ -59,7 +59,7 @@ verify_basic(struct archive *a, int check_mode)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("file1", archive_entry_pathname(ae));
 	assertEqualInt(1179604289, archive_entry_mtime(ae));
-	if (check_mode)
+	if (seek_checks)
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
 	assertEqualInt(18, archive_entry_size(ae));
 	failure("archive_read_data() returns number of bytes read");
@@ -76,10 +76,13 @@ verify_basic(struct archive *a, int check_mode)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("file2", archive_entry_pathname(ae));
 	assertEqualInt(1179605932, archive_entry_mtime(ae));
-	if (check_mode)
+	if (seek_checks) {
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
-	failure("file2 has length-at-end, so we shouldn't see a valid size");
-	assertEqualInt(0, archive_entry_size_is_set(ae));
+		assertEqualInt(64, archive_entry_size_is_set(ae));
+	} else {
+		failure("file2 has length-at-end, so we shouldn't see a valid size when streaming");
+		assertEqualInt(0, archive_entry_size_is_set(ae));
+	}
 	if (libz_enabled) {
 		failure("file2 has a bad CRC, so read should fail and not change buff");
 		memset(buff, 'a', 19);
@@ -131,7 +134,7 @@ test_basic(void)
  *  Currently stores Unix UID/GID up to 32 bits.
  */
 static void
-verify_info_zip_ux(struct archive *a, int check_mode)
+verify_info_zip_ux(struct archive *a, int seek_checks)
 {
 	struct archive_entry *ae;
 	char *buff[128];
@@ -140,7 +143,7 @@ verify_info_zip_ux(struct archive *a, int check_mode)
 	assertEqualString("file1", archive_entry_pathname(ae));
 	assertEqualInt(1300668680, archive_entry_mtime(ae));
 	assertEqualInt(18, archive_entry_size(ae));
-	if (check_mode)
+	if (seek_checks)
 		assertEqualInt(AE_IFREG | 0644, archive_entry_mode(ae));
 	failure("zip reader should read Info-ZIP New Unix Extra Field");
 	assertEqualInt(1001, archive_entry_uid(ae));
@@ -198,17 +201,21 @@ test_info_zip_ux(void)
  * Zip entries that use length-at-end.
  */
 static void
-verify_extract_length_at_end(struct archive *a, int check_mode)
+verify_extract_length_at_end(struct archive *a, int seek_checks)
 {
 	struct archive_entry *ae;
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 
 	assertEqualString("hello.txt", archive_entry_pathname(ae));
-	assert(!archive_entry_size_is_set(ae));
-	assertEqualInt(0, archive_entry_size(ae));
-	if (check_mode)
+	if (seek_checks) {
 		assertEqualInt(AE_IFREG | 0644, archive_entry_mode(ae));
+		assert(archive_entry_size_is_set(ae));
+		assertEqualInt(6, archive_entry_size(ae));
+	} else {
+		assert(!archive_entry_size_is_set(ae));
+		assertEqualInt(0, archive_entry_size(ae));
+	}
 
 	if (libz_enabled) {
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_extract(a, ae, 0));
