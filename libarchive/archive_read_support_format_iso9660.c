@@ -1761,6 +1761,13 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 		    "Invalid location of extent of file");
 		return (NULL);
 	}
+	/* Sanity check that location doesn't have a negative value
+	 * when the file is not empty. it's too large. */
+	if (fsize != 0 && location < 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Invalid location of extent of file");
+		return (NULL);
+	}
 
 	/* Create a new file entry and copy data from the ISO dir record. */
 	file = (struct file_info *)calloc(1, sizeof(*file));
