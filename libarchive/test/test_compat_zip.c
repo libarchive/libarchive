@@ -252,6 +252,9 @@ test_compat_zip_5(void)
 	assertEqualInt(1495, archive_entry_size(ae));
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
 	assertEqualInt(0777, archive_entry_perm(ae));
+	/* TODO: Read some of the file data and verify it.
+	   The code to read uncompressed Zip entries with "file at end" semantics
+	   is tricky and should be verified more carefully. */
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("Documents/1/Pages/_rels/1.fpage.rels", archive_entry_pathname(ae));
@@ -285,9 +288,7 @@ test_compat_zip_5(void)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
 
-	/* Try reading without seek support; we don't get size information for
-	   the first entries and then fall over completely because we can't
-	   correctly parse the file body with an incorrect size. */
+	/* Try reading without seek support. */
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -314,12 +315,34 @@ test_compat_zip_5(void)
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
 	assertEqualInt(0777, archive_entry_perm(ae));
 
-	/* This fails at the PK\007\008 data-termination marker.
-	   There may be ways to make the streaming reader more robust in
-	   this case. */
-	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
-	assert(0 != archive_errno(a));
-	assert(archive_error_string(a) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("Documents/1/Pages/_rels/1.fpage.rels", archive_entry_pathname(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("Documents/1/Pages/1.fpage", archive_entry_pathname(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("Documents/1/Resources/Fonts/3DFDBC8B-4514-41F1-A808-DEA1C79BAC2B.odttf", archive_entry_pathname(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("Documents/1/_rels/FixedDocument.fdoc.rels", archive_entry_pathname(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("Documents/1/FixedDocument.fdoc", archive_entry_pathname(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("_rels/FixedDocumentSequence.fdseq.rels", archive_entry_pathname(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("FixedDocumentSequence.fdseq", archive_entry_pathname(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("_rels/.rels", archive_entry_pathname(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("[Content_Types].xml", archive_entry_pathname(ae));
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));

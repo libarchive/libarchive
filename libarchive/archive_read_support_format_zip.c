@@ -544,7 +544,6 @@ search_next_signature(struct archive_read *a)
 				if ((p[2] == '\001' && p[3] == '\002')
 				    || (p[2] == '\003' && p[3] == '\004')
 				    || (p[2] == '\005' && p[3] == '\006')
-				    || (p[2] == '\007' && p[3] == '\010')
 				    || (p[2] == '0' && p[3] == '0')) {
 					skip = p - (const char *)h;
 					__archive_read_consume(a, skip);
@@ -602,14 +601,14 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	__archive_read_consume(a, 30);
 
 	if (zip_entry->have_central_directory) {
-		/* If we had a central dir entry, we must have size information
-		   as well, so ignore this flag. */
+		/* If we read the central dir entry, we must have size information
+		   as well, so ignore the length-at-end flag. */
 		zip_entry->flags &= ~ZIP_LENGTH_AT_END;
-		/* If we have values from both local file header and
-		   central directory, warn about mismatches which
-		   might indicate a damaged file.  But some writers
-		   always put zero in local header; don't bother
-		   warning about that. */
+		/* If we have values from both the local file header
+		   and the central directory, warn about mismatches
+		   which might indicate a damaged file.  But some
+		   writers always put zero in the local header; don't
+		   bother warning about that. */
 		if (crc32 != 0 && crc32 != zip_entry->crc32) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Inconsistent CRC32 values");
@@ -628,6 +627,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 			ret = ARCHIVE_WARN;
 		}
 	} else {
+		/* If we don't have the CD info, use whatever we do have. */
 		zip_entry->crc32 = crc32;
 		zip_entry->compressed_size = compressed_size;
 		zip_entry->uncompressed_size = uncompressed_size;
@@ -862,15 +862,22 @@ archive_read_format_zip_read_data(struct archive_read *a,
 				*buff = p;
 				p += zip->entry_bytes_unconsumed;
 			}
-			zip->entry_bytes_unconsumed += 16;
-			zip->entry->crc32 = archive_le32dec(p + 4);
-			zip->entry->compressed_size = archive_le32dec(p + 8);
-			zip->entry->uncompressed_size = archive_le32dec(p + 12);
+			/* Consume the optional PK\007\010 marker. */
+			if (p[0] == 'P' && p[1] == 'K' && p[2] == '\007' && p[3] == '\010') {
+				zip->entry_bytes_unconsumed += 4;
+				p += 4;
+			}
+			zip->entry->crc32 = archive_le32dec(p);
+			zip->entry->compressed_size = archive_le32dec(p + 4);
+			zip->entry->uncompressed_size = archive_le32dec(p + 8);
+			zip->entry_bytes_unconsumed += 12;
 		}
 		/* Check file size, CRC against these values. */
 		if (zip->entry->compressed_size != zip->entry_compressed_bytes_read) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "ZIP compressed data is wrong size");
+			    "ZIP compressed data is wrong size (read %jd, expected %jd)",
+			    (intmax_t)zip->entry_compressed_bytes_read,
+			    (intmax_t)zip->entry->compressed_size);
 			return (ARCHIVE_WARN);
 		}
 		/* Size field only stores the lower 32 bits of the actual
@@ -878,7 +885,9 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		if ((zip->entry->uncompressed_size & UINT32_MAX)
 		    != (zip->entry_uncompressed_bytes_read & UINT32_MAX)) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "ZIP uncompressed data is wrong size");
+			    "ZIP uncompressed data is wrong size (read %jd, expected %jd)",
+			    (intmax_t)zip->entry_uncompressed_bytes_read,
+			    (intmax_t)zip->entry->uncompressed_size);
 			return (ARCHIVE_WARN);
 		}
 		/* Check computed CRC against header */
@@ -898,56 +907,104 @@ archive_read_format_zip_read_data(struct archive_read *a,
 }
 
 /*
- * Read "uncompressed" data.  According to the current specification,
- * if ZIP_LENGTH_AT_END is specified, then the size fields in the
- * initial file header are supposed to be set to zero.  This would, of
- * course, make it impossible for us to read the archive, since we
- * couldn't determine the end of the file data.  Info-ZIP seems to
- * include the real size fields both before and after the data in this
- * case (the CRC only appears afterwards), so this works as you would
- * expect.
+ * Read "uncompressed" data.  There are three cases:
+ *  1) We know the size of the data.  This is always true for the
+ * seeking reader (we've examined the Central Directory already).
+ *  2) ZIP_LENGTH_AT_END was set, but only the CRC was deferred.
+ * Info-ZIP seems to do this; we know the size but have to grab
+ * the CRC from the data descriptor afterwards.
+ *  3) We're streaming and ZIP_LENGTH_AT_END was specified and
+ * we have no size information.  In this case, we can do pretty
+ * well by watching for the data descriptor record.  The data
+ * descriptor is 16 bytes and includes a computed CRC that should
+ * provide a strong check.
+ *
+ * TODO: Technically, the PK\007\010 signature is optional.
+ * In the original spec, the data descriptor contained CRC
+ * and size fields but had no leading signature.  In practice,
+ * newer writers seem to provide the signature pretty consistently,
+ * but we might need to do something more complex here if
+ * we want to handle older archives that lack that signature.
  *
  * Returns ARCHIVE_OK if successful, ARCHIVE_FATAL otherwise, sets
  * zip->end_of_entry if it consumes all of the data.
  */
 static int
-zip_read_data_none(struct archive_read *a, const void **buff,
+zip_read_data_none(struct archive_read *a, const void **_buff,
     size_t *size, int64_t *offset)
 {
 	struct zip *zip;
+	const char *buff;
 	ssize_t bytes_avail;
 
 	zip = (struct zip *)(a->format->data);
-
-	if (zip->entry_bytes_remaining == 0) {
-		*buff = NULL;
-		*size = 0;
-		*offset = zip->entry_offset;
-		zip->end_of_entry = 1;
-		return (ARCHIVE_OK);
-	}
-	/*
-	 * Note: '1' here is a performance optimization.
-	 * Recall that the decompression layer returns a count of
-	 * available bytes; asking for more than that forces the
-	 * decompressor to combine reads by copying data.
-	 */
-	*buff = __archive_read_ahead(a, 1, &bytes_avail);
-	if (bytes_avail <= 0) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Truncated ZIP file data");
-		return (ARCHIVE_FATAL);
-	}
-	if (bytes_avail > zip->entry_bytes_remaining)
-		bytes_avail = zip->entry_bytes_remaining;
-
-	*size = bytes_avail;
+	*_buff = NULL;
+	*size = 0;
 	*offset = zip->entry_offset;
+
+	if (zip->entry->flags & ZIP_LENGTH_AT_END) {
+		const char *p;
+
+		/* Grab at least 16 bytes. */
+		buff = __archive_read_ahead(a, 16, &bytes_avail);
+		if (bytes_avail < 16) {
+			/* Zip archives have end-of-archive markers
+			   that are longer than this, so a failure to get at
+			   least 16 bytes really does indicate a truncated
+			   file. */
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Truncated ZIP file data");
+			return (ARCHIVE_FATAL);
+		}
+		/* Check for a complete PK\007\010 signature. */
+		p = buff;
+		if (p[0] == 'P' && p[1] == 'K' 
+		    && p[2] == '\007' && p[3] == '\010'
+		    && archive_le32dec(p + 4) == zip->entry_crc32
+		    && archive_le32dec(p + 8) == zip->entry_compressed_bytes_read
+		    && archive_le32dec(p + 12) == zip->entry_uncompressed_bytes_read) {
+			zip->end_of_entry = 1;
+			return (ARCHIVE_OK);
+		}
+		/* If not at EOF, ensure we consume at least one byte. */
+		++p;
+
+		/* Scan forward until we see where a PK\007\010 signature might be. */
+		/* Return bytes up until that point.  On the next call, the code
+		   above will verify the data descriptor. */
+		while (p < buff + bytes_avail - 4) {
+			if (p[3] == 'P') { p += 3; }
+			else if (p[3] == 'K') { p += 2; }
+			else if (p[3] == '\007') { p += 1; }
+			else if (p[3] == '\010' && p[2] == '\007'
+			    && p[1] == 'K' && p[0] == 'P') {
+				break;
+			} else { p += 4; }
+		}
+		bytes_avail = p - buff;
+	} else {
+		if (zip->entry_bytes_remaining == 0) {
+			zip->end_of_entry = 1;
+			return (ARCHIVE_OK);
+		}
+		/* Grab a bunch of bytes. */
+		buff = __archive_read_ahead(a, 1, &bytes_avail);
+		if (bytes_avail <= 0) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Truncated ZIP file data");
+			return (ARCHIVE_FATAL);
+		}
+		if (bytes_avail > zip->entry_bytes_remaining)
+			bytes_avail = zip->entry_bytes_remaining;
+
+	}
+	*size = bytes_avail;
 	zip->entry_offset += bytes_avail;
 	zip->entry_bytes_remaining -= bytes_avail;
 	zip->entry_uncompressed_bytes_read += bytes_avail;
 	zip->entry_compressed_bytes_read += bytes_avail;
 	zip->entry_bytes_unconsumed = bytes_avail;
+	*_buff = buff;
 	return (ARCHIVE_OK);
 }
 
