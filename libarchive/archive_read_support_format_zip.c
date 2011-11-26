@@ -1056,7 +1056,8 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	 * decompressor to combine reads by copying data.
 	 */
 	compressed_buff = __archive_read_ahead(a, 1, &bytes_avail);
-	if (bytes_avail > zip->entry_bytes_remaining) {
+	if (0 == (zip->entry->flags & ZIP_LENGTH_AT_END)
+	    && bytes_avail > zip->entry_bytes_remaining) {
 		bytes_avail = zip->entry_bytes_remaining;
 	}
 	if (bytes_avail <= 0) {
