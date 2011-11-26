@@ -2364,6 +2364,12 @@ read_CE(struct archive_read *a, struct iso9660 *iso9660)
 		}
 		do {
 			file = heap->reqs[0].file;
+			if (file->ce_offset + file->ce_size > step) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Malformed CE information");
+				return (ARCHIVE_FATAL);
+			}
 			p = b + file->ce_offset;
 			end = p + file->ce_size;
 			next_CE(heap);
