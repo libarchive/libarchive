@@ -65,7 +65,6 @@ struct zip_entry {
 	uint16_t		flags;
 	char			compression;
 	char			system;
-	char			have_central_directory;
 };
 
 struct zip {
@@ -73,6 +72,7 @@ struct zip {
 	int64_t			central_directory_offset;
 	size_t			central_directory_size;
 	size_t			central_directory_entries;
+	char			have_central_directory;
 
 	/* List of entries (seekable Zip only) */
 	size_t			entries_remaining;
@@ -292,7 +292,7 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 			    -1, "Invalid central directory signature");
 			return ARCHIVE_FATAL;
 		}
-		zip_entry->have_central_directory = 1;
+		zip->have_central_directory = 1;
 		/* version = p[4]; */
 		zip_entry->system = p[5];
 		/* version_required = archive_le16dec(p + 6); */
@@ -600,7 +600,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 
 	__archive_read_consume(a, 30);
 
-	if (zip_entry->have_central_directory) {
+	if (zip->have_central_directory) {
 		/* If we read the central dir entry, we must have size information
 		   as well, so ignore the length-at-end flag. */
 		zip_entry->flags &= ~ZIP_LENGTH_AT_END;
@@ -996,7 +996,6 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 		}
 		if (bytes_avail > zip->entry_bytes_remaining)
 			bytes_avail = zip->entry_bytes_remaining;
-
 	}
 	*size = bytes_avail;
 	zip->entry_offset += bytes_avail;
@@ -1057,6 +1056,9 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	 * decompressor to combine reads by copying data.
 	 */
 	compressed_buff = __archive_read_ahead(a, 1, &bytes_avail);
+	if (bytes_avail > zip->entry_bytes_remaining) {
+		bytes_avail = zip->entry_bytes_remaining;
+	}
 	if (bytes_avail <= 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Truncated ZIP file body");
