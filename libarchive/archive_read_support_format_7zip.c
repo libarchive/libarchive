@@ -802,7 +802,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 			default:
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
-				    "Unexpected codec ID: %X", codec);
+				    "Unexpected codec ID: %lX", codec);
 				return (ARCHIVE_FAILED);
 			}
 			fi++;
@@ -932,11 +932,11 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 	case _7Z_SPARC:
 	case _7Z_DELTA:
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Unexpected codec ID: %X", codec);
+		    "Unexpected codec ID: %lX", codec);
 		return (ARCHIVE_FAILED);
 	default:
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Unknown codec ID: %X", codec);
+		    "Unknown codec ID: %lX", codec);
 		return (ARCHIVE_FAILED);
 	}
 
