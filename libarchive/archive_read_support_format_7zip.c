@@ -150,24 +150,23 @@ struct _7z_header_info {
 	unsigned char		*attrBools;
 };
 
-enum _7z_codec {
-	_7Z_COPY,
-	_7Z_LZMA,
-	_7Z_LZMA2,
-	_7Z_DEFLATE,
-	_7Z_BZ2,
-	_7Z_PPMD,
-	_7Z_DELTA,
-	_7Z_CRYPTO,
-	_7Z_X86,
-	_7Z_POWERPC,
-	_7Z_IA64,
-	_7Z_ARM,
-	_7Z_ARMTHUMB,
-	_7Z_SPARC,
-	/**/
-	_7Z_UNKNOWN,
-};
+/*
+ * Codec ID
+ */
+#define _7Z_COPY	0
+#define _7Z_LZMA	0x030101
+#define _7Z_LZMA2	0x21
+#define _7Z_DEFLATE	0x040108
+#define _7Z_BZ2		0x040202
+#define _7Z_PPMD	0x030401
+#define _7Z_DELTA	0x03
+#define _7Z_CRYPTO	0x06F10701
+#define _7Z_X86		0x03030103
+#define _7Z_POWERPC	0x03030205
+#define _7Z_IA64	0x03030401
+#define _7Z_ARM		0x03030501
+#define _7Z_ARMTHUMB	0x03030701
+#define _7Z_SPARC	0x03030805
 
 struct _7zip_entry {
 	size_t			 name_len;
@@ -233,7 +232,7 @@ struct _7zip {
 
 	unsigned char 		*uncompressed_buffer;
 	size_t 			 uncompressed_buffer_size;
-	enum _7z_codec		 codec;
+	unsigned long		 codec;
 #ifdef HAVE_LZMA_H
 	lzma_stream		 lzstream;
 	int			 lzstream_valid;
@@ -258,7 +257,7 @@ static int	archive_read_format_7zip_read_data(struct archive_read *,
 static int	archive_read_format_7zip_read_data_skip(struct archive_read *);
 static int	archive_read_format_7zip_read_header(struct archive_read *,
 		    struct archive_entry *);
-static enum _7z_codec decode_codec_id(const unsigned char *, size_t);
+static unsigned long decode_codec_id(const unsigned char *, size_t);
 static int	decompress(struct archive_read *, struct _7zip *,
 		    void *, size_t *, const void *, size_t *);
 static ssize_t	extract_pack_stream(struct archive_read *);
@@ -301,8 +300,6 @@ static int64_t	skip_stream(struct archive_read *, size_t);
 static int	skip_sfx(struct archive_read *, ssize_t);
 static int	slurp_central_directory(struct archive_read *, struct _7zip *,
 		    struct _7z_header_info *);
-static int	unknown_codec(struct archive_read *, const unsigned char *,
-		    size_t);
 
 
 int
@@ -708,62 +705,17 @@ set_error(struct archive_read *a, int ret)
 
 #endif
 
-static enum _7z_codec
+static unsigned long
 decode_codec_id(const unsigned char *codecId, size_t id_size)
 {
-
-	if (id_size == 1) {
-		if (codecId[0] == 0)
-			return (_7Z_COPY);
-		if (codecId[0] == 0x21)
-			return (_7Z_LZMA2);
-		if (codecId[0] == 0x03)
-			return (_7Z_DELTA);
-	} else if (id_size == 3) {
-		if (memcmp(codecId, "\x03\x01\x01", 3) == 0)
-			return (_7Z_LZMA);
-		if (memcmp(codecId, "\x04\x02\x02", 3) == 0)
-			return (_7Z_BZ2);
-		if (memcmp(codecId, "\x04\x01\x08", 3) == 0)
-			return (_7Z_DEFLATE);
-		if (memcmp(codecId, "\x03\x04\x01", 3) == 0)
-			return (_7Z_PPMD);
-	} else if (id_size == 4) {
-		if (memcmp(codecId, "\x06\xf1\x07\x01", 4) == 0)
-			return (_7Z_CRYPTO);
-		if (memcmp(codecId, "\x03\x03\x01\x03", 4) == 0)
-			return (_7Z_X86);
-		if (memcmp(codecId, "\x03\x03\x02\x05", 4) == 0)
-			return (_7Z_POWERPC);
-		if (memcmp(codecId, "\x03\x03\x04\x01", 4) == 0)
-			return (_7Z_IA64);
-		if (memcmp(codecId, "\x03\x03\x05\x01", 4) == 0)
-			return (_7Z_ARM);
-		if (memcmp(codecId, "\x03\x03\x07\x01", 4) == 0)
-			return (_7Z_ARMTHUMB);
-		if (memcmp(codecId, "\x03\x03\x08\x05", 4) == 0)
-			return (_7Z_SPARC);
-	}
-	return (_7Z_UNKNOWN);
-}
-
-static int
-unknown_codec(struct archive_read *a, const unsigned char *codecId,
-    size_t id_size)
-{
-	unsigned char tmp[4];
 	unsigned i;
+	unsigned long id = 0;
 
-	memset(tmp, 0, sizeof(tmp));
-	for (i = 0; i < sizeof(tmp); i++) {
-		if (i >= id_size)
-			break;
-		tmp[i] = codecId[i];
+	for (i = 0; i < id_size; i++) {
+		id <<= 8;
+		id += codecId[i];
 	}
-	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-	    "Unknown supported filter ID %d bytes %X %X %X %X",
-	    (int)id_size, tmp[0], tmp[1], tmp[2], tmp[3]);
-	return (ARCHIVE_FAILED);
+	return (id);
 }
 
 static int
@@ -771,7 +723,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
     struct _7z_folder *folder)
 {
 	int r;
-	enum _7z_codec codec;
+	unsigned long codec;
 
 	codec = decode_codec_id(folder->coders[0].codecId,
 		    folder->coders[0].codecIdSize);
@@ -848,9 +800,10 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 				filters[fi].id = LZMA_FILTER_SPARC;
 				break;
 			default:
-				return unknown_codec(a,
-				    folder->coders[1].codecId,
-				    folder->coders[1].codecIdSize);
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "Unexpected codec ID: %X", codec);
+				return (ARCHIVE_FAILED);
 			}
 			fi++;
 		}
@@ -979,11 +932,12 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 	case _7Z_SPARC:
 	case _7Z_DELTA:
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Unexpected filter ID");
+		    "Unexpected codec ID: %X", codec);
 		return (ARCHIVE_FAILED);
 	default:
-		return unknown_codec(a, folder->coders[0].codecId,
-			    folder->coders[0].codecIdSize);
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Unknown codec ID: %X", codec);
+		return (ARCHIVE_FAILED);
 	}
 
 	return (ARCHIVE_OK);
