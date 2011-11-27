@@ -791,7 +791,10 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 #endif
 	{
 		lzma_options_delta delta_opt;
-		lzma_filter filters[LZMA_FILTERS_MAX], *ff;
+		lzma_filter filters[LZMA_FILTERS_MAX];
+#if LZMA_VERSION < 50000030
+		lzma_filter *ff;
+#endif
 		int fi = 0;
 
 		if (zip->lzstream_valid) {
@@ -857,7 +860,9 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 		else
 			filters[fi].id = LZMA_FILTER_LZMA1;
 		filters[fi].options = NULL;
+#if LZMA_VERSION < 50000030
 		ff = &filters[fi];
+#endif
 		r = lzma_properties_decode(&filters[fi], NULL,
 		    folder->coders[0].properties,
 		    folder->coders[0].propertiesSize);
@@ -870,7 +875,9 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 		filters[fi].id = LZMA_VLI_UNKNOWN;
 		filters[fi].options = NULL;
 		r = lzma_raw_decoder(&(zip->lzstream), filters);
+#if LZMA_VERSION < 50000030
 		free(ff->options);
+#endif
 		if (r != LZMA_OK) {
 			set_error(a, r);
 			return (ARCHIVE_FAILED);
