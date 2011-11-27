@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009,2010 Michihiro NAKAJIMA
+ * Copyright (c) 2009-2011 Michihiro NAKAJIMA
  * Copyright (c) 2003-2008 Tim Kientzle and Miklos Vajna
  * All rights reserved.
  *
@@ -598,6 +598,7 @@ lzip_init(struct archive_read_filter *self)
 		return (ARCHIVE_FATAL);
 	}
 	ret = lzma_raw_decoder(&(state->stream), filters);
+	free(filters[0].options);
 	if (ret != LZMA_OK) {
 		set_error(self, ret);
 		return (ARCHIVE_FATAL);
