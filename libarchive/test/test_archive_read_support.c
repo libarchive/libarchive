@@ -72,6 +72,7 @@ test_filter_or_format(enabler enable)
 
 DEFINE_TEST(test_archive_read_support)
 {
+	test_filter_or_format(archive_read_support_format_7zip);
 	test_filter_or_format(archive_read_support_format_all);
 	test_filter_or_format(archive_read_support_format_ar);
 	test_filter_or_format(archive_read_support_format_cab);

@@ -67,6 +67,7 @@ IF(ENABLE_TEST)
     test_read_disk_entry_from_file.c
     test_read_extract.c
     test_read_file_nonexistent.c
+    test_read_format_7zip.c
     test_read_format_ar.c
     test_read_format_cab.c
     test_read_format_cab_filename.c

@@ -68,6 +68,7 @@ archive_read_support_format_all(struct archive *a)
 	 * make it unnecessary for these to do anything at all.
 	 */
 	/* These three have potentially large look-ahead. */
+	archive_read_support_format_7zip(a);
 	archive_read_support_format_cab(a);
 	archive_read_support_format_rar(a);
 	archive_read_support_format_iso9660(a);

@@ -62,6 +62,12 @@ static struct {
 	{0, "test_compat_tar_hardlink_1.tar"},
 	{0, "test_compat_xz_1.txz"}, /* Exercise xz decompressor. */
 	{0, "test_compat_zip_1.zip"},
+	{0, "test_read_format_7zip_copy.7z"},
+	{0, "test_read_format_7zip_bcj_lzma2.7z"},
+	{0, "test_read_format_7zip_deflate.7z"},
+	{0, "test_read_format_7zip_bzip2.7z"},
+	{0, "test_read_format_7zip_lzma1.7z"},
+	{0, "test_read_format_7zip_lzma1_lzma2.7z"},
 	{0, "test_read_format_ar.ar"},
 	{0, "test_read_format_cpio_bin_be.cpio"},
 	{0, "test_read_format_cpio_svr4_gzip_rpm.rpm"}, /* Test RPM unwrapper */

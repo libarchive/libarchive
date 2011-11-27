@@ -133,6 +133,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_read_support_filter_rpm.c		\
 	libarchive/archive_read_support_filter_uu.c		\
 	libarchive/archive_read_support_filter_xz.c		\
+	libarchive/archive_read_support_format_7zip.c		\
 	libarchive/archive_read_support_format_all.c		\
 	libarchive/archive_read_support_format_ar.c		\
 	libarchive/archive_read_support_format_cab.c		\
@@ -304,6 +305,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_disk_entry_from_file.c	\
 	libarchive/test/test_read_extract.c			\
 	libarchive/test/test_read_file_nonexistent.c		\
+	libarchive/test/test_read_format_7zip.c			\
 	libarchive/test/test_read_format_ar.c			\
 	libarchive/test/test_read_format_cab.c			\
 	libarchive/test/test_read_format_cab_filename.c		\
@@ -452,6 +454,19 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_fuzz.cab.uu				\
 	libarchive/test/test_fuzz.lzh.uu				\
 	libarchive/test/test_pax_filename_encoding.tar.uu		\
+	libarchive/test/test_read_format_7zip_bcj_lzma2.7z.uu		\
+	libarchive/test/test_read_format_7zip_bzip2.7z.uu		\
+	libarchive/test/test_read_format_7zip_copy.7z.uu		\
+	libarchive/test/test_read_format_7zip_copy_2.7z.uu		\
+	libarchive/test/test_read_format_7zip_deflate.7z.uu		\
+	libarchive/test/test_read_format_7zip_delta_lzma1.7z.uu		\
+	libarchive/test/test_read_format_7zip_delta_lzma2.7z.uu		\
+	libarchive/test/test_read_format_7zip_empty_archive.7z.uu	\
+	libarchive/test/test_read_format_7zip_empty_file.7z.uu		\
+	libarchive/test/test_read_format_7zip_lzma1.7z.uu		\
+	libarchive/test/test_read_format_7zip_lzma1_2.7z.uu		\
+	libarchive/test/test_read_format_7zip_lzma1_lzma2.7z.uu		\
+	libarchive/test/test_read_format_7zip_lzma2.7z.uu		\
 	libarchive/test/test_read_format_ar.ar.uu			\
 	libarchive/test/test_read_format_cab_1.cab.uu			\
 	libarchive/test/test_read_format_cab_2.cab.uu			\
