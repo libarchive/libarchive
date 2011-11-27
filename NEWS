@@ -1,3 +1,9 @@
+Nov 26, 2011: 7Zip reader
+Nov 26, 2011: Small fixes to ISO and Zip to improve robustness with corrupted input
+Nov 24, 2011: Improve streaming Zip reader's support for uncompressed entries
+Nov 20, 2011: New seeking Zip reader supports SFX Zip archives
+Nov 20, 2011: Build fixes on Windows
+
 Nov 13, 2011: libarchive 3.0.0a released
 
 Nov 06, 2011: Update shared-library version calculations for libarchive 3.x
@@ -41,7 +47,7 @@ Feb 28, 2010: Relax handling of state failures; misuse by clients now generally
       results in a sticky ARCHIVE_FATAL rather than a visit to abort()
 Feb 25, 2010: ISO writer
 Feb 21, 2010: Split many man pages into smaller chunks.
-Feb 21, 2010: Cheat on block sizes when reading archives from disk.
+Feb 21, 2010: Performance: Cheat on block sizes when reading archives from disk.
 Feb 21, 2010: Use int64_t instead of off_t, dev_t, ino_t, uid_t, and gid_t
 Feb 20, 2010: Document new ACL functions.
 Feb 19, 2010: Support multiple write filters
