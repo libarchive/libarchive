@@ -665,8 +665,8 @@ unknown_codec(struct archive_read *a, const unsigned char *codecId,
 		tmp[i] = codecId[i];
 	}
 	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-	    "Unknown supported filter ID %d bytes %02X %02X %02X %02X",
-	    id_size, tmp[0], tmp[1], tmp[2], tmp[3]);
+	    "Unknown supported filter ID %d bytes %X %X %X %X",
+	    (int)id_size, tmp[0], tmp[1], tmp[2], tmp[3]);
 	return (ARCHIVE_FAILED);
 }
 
@@ -2312,7 +2312,7 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 		break;
 	default:
 		archive_set_error(&a->archive, -1,
-		    "Unexpected Property ID = %02X", p[0]);
+		    "Unexpected Property ID = %X", p[0]);
 		return (ARCHIVE_FATAL);
 	}
 

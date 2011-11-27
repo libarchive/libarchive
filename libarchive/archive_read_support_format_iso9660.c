@@ -3197,7 +3197,7 @@ dump_isodirrec(FILE *out, const unsigned char *isodirrec)
 	    toi(isodirrec + DR_extent_offset, DR_extent_size));
 	fprintf(out, " s %d,",
 	    toi(isodirrec + DR_size_offset, DR_extent_size));
-	fprintf(out, " f 0x%02x,",
+	fprintf(out, " f 0x%x,",
 	    toi(isodirrec + DR_flags_offset, DR_flags_size));
 	fprintf(out, " u %d,",
 	    toi(isodirrec + DR_file_unit_size_offset, DR_file_unit_size_size));

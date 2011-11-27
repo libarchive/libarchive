@@ -1210,7 +1210,7 @@ process_extra(const char *p, size_t extra_length, struct zip_entry* zip_entry)
 		if (offset + datasize > extra_length)
 			break;
 #ifdef DEBUG
-		fprintf(stderr, "Header id 0x%04x, length %d\n",
+		fprintf(stderr, "Header id 0x%x, length %d\n",
 		    headerid, datasize);
 #endif
 		switch (headerid) {
