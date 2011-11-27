@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include "archive_crc32.h"
 #endif
 
+#define _7ZIP_SIGNATURE	"7z\xBC\xAF\x27\x1C"
 
 #define kEnd			0x00
 #define kHeader			0x01
@@ -197,6 +198,7 @@ struct _7zip {
 	/* Structural information about the archive. */
 	struct _7z_stream_info	 si;
 	uint64_t		 header_offset;
+	uint64_t		 seek_base;
 
 	/* List of entries */
 	size_t			 entries_remaining;
@@ -296,6 +298,7 @@ static int	read_Times(struct _7zip *, struct _7z_header_info *, int,
 		    const unsigned char *, size_t);
 static ssize_t	read_stream(struct archive_read *, const void **, size_t);
 static int64_t	skip_stream(struct archive_read *, size_t);
+static int	skip_sfx(struct archive_read *, ssize_t);
 static int	slurp_central_directory(struct archive_read *, struct _7zip *,
 		    struct _7z_header_info *);
 static int	unknown_codec(struct archive_read *, const unsigned char *,
@@ -347,13 +350,105 @@ archive_read_format_7zip_bid(struct archive_read *a, int best_bid)
 	if ((p = __archive_read_ahead(a, 6, NULL)) == NULL)
 		return (0);
 
-	if (memcmp(p, "7z\xBC\xAF\x27\x1C", 6) != 0)
-		return (0);
+	/* If first six bytes are the 7-Zip signature,
+	 * return the bid right now. */
+	if (memcmp(p, _7ZIP_SIGNATURE, 6) == 0)
+		return (48);
 
-	/* This is just a tiny bit higher than the maximum returned by
-	   the streaming 7Zip bidder.  This ensures that the more accurate
-	   seeking 7Zip parser wins whenever seek is available. */
-	return (32);
+	/*
+	 * It may a 7-Zip SFX archive file. If first two bytes are
+	 * 'M' and 'Z', seek the 7-Zip signature. Although we will
+	 * perform a seek when reading a header, what we do not use
+	 * __archive_read_seek() here is due to a bidding performance.
+	 */
+	if (p[0] == 'M' && p[1] == 'Z') {
+		ssize_t offset = 0x27000;
+		ssize_t window = 4096;
+		ssize_t bytes_avail;
+		while (offset + window <= (0x30000)) {
+			const char *buff = __archive_read_ahead(a,
+					offset + window, &bytes_avail);
+			if (buff == NULL) {
+				/* Remaining bytes are less than window. */
+				window >>= 1;
+				if (window < 0x40)
+					return (0);
+				continue;
+			}
+			p = buff + offset;
+			while (p + 6 < buff + bytes_avail) {
+				if (memcmp(p, _7ZIP_SIGNATURE, 6) == 0)
+					return (48);
+				p += 0x100;
+			}
+			offset = p - buff;
+		}
+	}
+	return (0);
+}
+
+static int
+skip_sfx(struct archive_read *a, ssize_t bytes_avail)
+{
+	const void *h;
+	const char *p, *q;
+	size_t skip, offset;
+	ssize_t bytes, window;
+
+	/*
+	 * If bytes_avail > 0x27000 we do not have to call
+	 * __archive_read_seek() at this time since we have
+	 * alredy had enough data.
+	 */
+	if (bytes_avail > 0x27000)
+		__archive_read_consume(a, 0x27000);
+	else if (__archive_read_seek(a, 0x27000, SEEK_SET) < 0)
+		return (ARCHIVE_FATAL);
+
+	offset = 0;
+	window = 1;
+	while (offset + window <= 0x30000 - 0x27000) {
+		h = __archive_read_ahead(a, window, &bytes);
+		if (h == NULL) {
+			/* Remaining bytes are less than window. */
+			window >>= 1;
+			if (window < 0x40)
+				goto fatal;
+			continue;
+		}
+		if (bytes < 6) {
+			/* This case might happen when window == 1. */
+			window = 4096;
+			continue;
+		}
+		p = (const char *)h;
+		q = p + bytes;
+
+		/*
+		 * Scan ahead until we find something that looks
+		 * like the 7-Zip header.
+		 */
+		while (p + 6 < q) {
+			if (memcmp(p, _7ZIP_SIGNATURE, 6) == 0) {
+				struct _7zip *zip =
+				    (struct _7zip *)a->format->data;
+				skip = p - (const char *)h;
+				__archive_read_consume(a, skip);
+				zip->seek_base = 0x27000 + offset + skip;
+				return (ARCHIVE_OK);
+			}
+			p += 0x100;
+		}
+		skip = p - (const char *)h;
+		__archive_read_consume(a, skip);
+		offset += skip;
+		if (window == 1)
+			window = 4096;
+	}
+fatal:
+	archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+	    "Couldn't find out 7-Zip header");
+	return (ARCHIVE_FATAL);
 }
 
 static int
@@ -370,6 +465,7 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 
 	if (zip->entries == NULL) {
 		struct _7z_header_info header;
+
 		memset(&header, 0, sizeof(header));
 		r = slurp_central_directory(a, zip, &header);
 		free_Header(&header);
@@ -2146,12 +2242,23 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 	uint64_t next_header_size;
 	uint32_t next_header_crc;
 	size_t vsize, remaining;
+	ssize_t bytes_avail;
 	int r;
 
-	if ((p = __archive_read_ahead(a, 32, NULL)) == NULL)
+	if ((p = __archive_read_ahead(a, 32, &bytes_avail)) == NULL)
 		return (ARCHIVE_FATAL);
 
-	if (memcmp(p, "7z\xBC\xAF\x27\x1C", 6) != 0) {
+	if (p[0] == 'M' && p[1] == 'Z') {
+		/* This is an executable ? Must be self-extracting... */
+		r = skip_sfx(a, bytes_avail);
+		if (r < ARCHIVE_WARN)
+			return (r);
+		if ((p = __archive_read_ahead(a, 32, NULL)) == NULL)
+			return (ARCHIVE_FATAL);
+	}
+	zip->seek_base += 32;
+
+	if (memcmp(p, _7ZIP_SIGNATURE, 6) != 0) {
 		archive_set_error(&a->archive, -1, "Not 7Zip archive file");
 		return (ARCHIVE_FATAL);
 	}
@@ -2174,7 +2281,8 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 		archive_set_error(&a->archive, -1, "Malformed 7Zip archive");
 		return (ARCHIVE_FATAL);
 	}
-	if (__archive_read_seek(a, next_header_offset + 32, SEEK_SET) < 0)
+	if (__archive_read_seek(a, next_header_offset + zip->seek_base,
+	    SEEK_SET) < 0)
 		return (ARCHIVE_FATAL);
 	zip->header_offset = next_header_offset;
 
@@ -2238,7 +2346,8 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 			return (ARCHIVE_FATAL);
 		}
 
-		if (__archive_read_seek(a, si->pi.pos + 32, SEEK_SET) < 0)
+		if (__archive_read_seek(a, si->pi.pos + zip->seek_base,
+		    SEEK_SET) < 0)
 			return (ARCHIVE_FATAL);
 		zip->header_offset = si->pi.pos;
 
@@ -2313,6 +2422,7 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 		    "Unexpected Property ID = %X", p[0]);
 		return (ARCHIVE_FATAL);
 	}
+	zip->offset = -1;
 
 	return (ARCHIVE_OK);
 }
@@ -2497,12 +2607,12 @@ read_stream(struct archive_read *a, const void **buff, size_t size)
 	 */
 	zip->pack_stream_bytes_remaining =
 	    zip->si.pi.sizes[zip->pack_stream_index];
-	if (zip->offset != zip->si.pi.positions[zip->pack_stream_index] + 32) {
+	if (zip->offset != zip->si.pi.positions[zip->pack_stream_index]) {
 		if (0 > __archive_read_seek(a, 
-		    zip->si.pi.positions[zip->pack_stream_index] + 32,
-		    SEEK_SET))
+		    zip->si.pi.positions[zip->pack_stream_index]
+		    	+ zip->seek_base, SEEK_SET))
 			return (ARCHIVE_FATAL);
-		zip->offset = zip->si.pi.positions[zip->pack_stream_index] + 32;
+		zip->offset = zip->si.pi.positions[zip->pack_stream_index];
 	}
 	zip->pack_stream_index++;
 	zip->pack_stream_remaining--;
