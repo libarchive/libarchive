@@ -274,7 +274,7 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 static int
 slurp_central_directory(struct archive_read *a, struct zip *zip)
 {
-	int i;
+	unsigned i;
 
 	__archive_read_seek(a, zip->central_directory_offset, SEEK_SET);
 
@@ -1201,7 +1201,8 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 static void
 process_extra(const char *p, size_t extra_length, struct zip_entry* zip_entry)
 {
-	int offset = 0;
+	unsigned offset = 0;
+
 	while (offset < extra_length - 4)
 	{
 		unsigned short headerid = archive_le16dec(p + offset);
