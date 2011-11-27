@@ -461,7 +461,7 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 
 	a->archive.archive_format = ARCHIVE_FORMAT_7ZIP;
 	if (a->archive.archive_format_name == NULL)
-		a->archive.archive_format_name = "7Zip";
+		a->archive.archive_format_name = "7-Zip";
 
 	if (zip->entries == NULL) {
 		struct _7z_header_info header;
@@ -536,7 +536,7 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 		zip->end_of_entry = 1;
 
 	/* Set up a more descriptive format name. */
-	sprintf(zip->format_name, "7Zip");
+	sprintf(zip->format_name, "7-Zip");
 	a->archive.archive_format_name = zip->format_name;
 
 	return (ret);
@@ -574,7 +574,7 @@ archive_read_format_7zip_read_data(struct archive_read *a,
 	if (bytes == 0) {
 		archive_set_error(&a->archive,
 		    ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Truncated 7Zip file body");
+		    "Truncated 7-Zip file body");
 		return (ARCHIVE_FATAL);
 	}
 	zip->entry_bytes_remaining -= bytes;
@@ -592,7 +592,7 @@ archive_read_format_7zip_read_data(struct archive_read *a,
 			zip->si.ss.digests[zip->entry->ssIndex] !=
 		    zip->entry_crc32) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "7Zip bad CRC: 0x%lx should be 0x%lx",
+			    "7-Zip bad CRC: 0x%lx should be 0x%lx",
 			    (unsigned long)zip->entry_crc32,
 			    (unsigned long)zip->si.ss.digests[
 			    		zip->entry->ssIndex]);
@@ -2266,7 +2266,7 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 	zip->seek_base += 32;
 
 	if (memcmp(p, _7ZIP_SIGNATURE, 6) != 0) {
-		archive_set_error(&a->archive, -1, "Not 7Zip archive file");
+		archive_set_error(&a->archive, -1, "Not 7-Zip archive file");
 		return (ARCHIVE_FATAL);
 	}
 
@@ -2285,7 +2285,7 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 		return (ARCHIVE_EOF);
 
 	if (((int64_t)next_header_offset) < 0) {
-		archive_set_error(&a->archive, -1, "Malformed 7Zip archive");
+		archive_set_error(&a->archive, -1, "Malformed 7-Zip archive");
 		return (ARCHIVE_FATAL);
 	}
 	if (__archive_read_seek(a, next_header_offset + zip->seek_base,
@@ -2297,7 +2297,7 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 		return (ARCHIVE_FATAL);
 
 	if (crc32(0, p, next_header_size) != next_header_crc) {
-		archive_set_error(&a->archive, -1, "Damaged 7Zip archive");
+		archive_set_error(&a->archive, -1, "Damaged 7-Zip archive");
 		return (ARCHIVE_FATAL);
 	}
 
@@ -2313,12 +2313,12 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 				    "Couldn't allocate memory");
 			else
 				archive_set_error(&a->archive, -1,
-				    "Damaged 7Zip archive");
+				    "Damaged 7-Zip archive");
 			return (ARCHIVE_FATAL);
 		}
 		if (len - r == 0 || p[r] != kEnd) {
 			archive_set_error(&a->archive, -1,
-			    "Damaged 7Zip archive");
+			    "Damaged 7-Zip archive");
 			return (ARCHIVE_FATAL);
 		}
 		break;
@@ -2335,13 +2335,13 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 				    "Couldn't allocate memory");
 			else
 				archive_set_error(&a->archive, -1,
-				    "Malformed 7Zip archive");
+				    "Malformed 7-Zip archive");
 			return (ARCHIVE_FATAL);
 		}
 
 		if (si->pi.numPackStreams == 0 || si->ci.numFolders == 0) {
 			archive_set_error(&a->archive, -1,
-			    "Malformed 7Zip archive");
+			    "Malformed 7-Zip archive");
 			return (ARCHIVE_FATAL);
 		}
 
@@ -2419,7 +2419,7 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 				    "Couldn't allocate memory");
 			else
 				archive_set_error(&a->archive, -1,
-				    "Malformed 7Zip archive");
+				    "Malformed 7-Zip archive");
 			return (ARCHIVE_FATAL);
 		}
 		free(v);
@@ -2453,7 +2453,7 @@ get_uncompressed_data(struct archive_read *a, const void **buff, size_t size)
 		if (bytes_avail <= 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Truncated 7Zip file data");
+			    "Truncated 7-Zip file data");
 			return (ARCHIVE_FATAL);
 		}
 		if ((size_t)bytes_avail >
@@ -2501,7 +2501,7 @@ extract_pack_stream(struct archive_read *a)
 			    malloc(zip->uncompressed_buffer_size);
 			if (zip->uncompressed_buffer == NULL) {
 				archive_set_error(&a->archive, ENOMEM,
-				    "No memory for 7Zip decompression");
+				    "No memory for 7-Zip decompression");
 				return (ARCHIVE_FATAL);
 			}
 		}
@@ -2515,7 +2515,7 @@ extract_pack_stream(struct archive_read *a)
 		if (bytes_avail <= 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Truncated 7Zip file body");
+			    "Truncated 7-Zip file body");
 			return (ARCHIVE_FATAL);
 		}
 
@@ -2674,7 +2674,7 @@ skip_stream(struct archive_read *a, size_t skip_bytes)
 		if (skipped_bytes == 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Truncated 7Zip file body");
+			    "Truncated 7-Zip file body");
 			return (ARCHIVE_FATAL);
 		}
 		bytes -= skipped_bytes;
