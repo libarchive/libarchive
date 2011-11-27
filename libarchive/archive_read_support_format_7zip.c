@@ -1766,7 +1766,7 @@ read_Header(struct _7zip *zip, struct _7z_header_info *h,
 	struct _7zip_entry *entries;
 	uint32_t folderIndex, indexInFolder;
 	unsigned i;
-	int eindex, empty_streams, external, r, sindex;
+	int eindex, empty_streams, r, sindex;
 
 	if (len < 2 || *p++ != kHeader)
 		return (-1);
@@ -1906,8 +1906,7 @@ read_Header(struct _7zip *zip, struct _7z_header_info *h,
 
 			if (ll < 1)
 				return (-1);
-			external = *p++;
-			ll--;
+			p++; ll--;/* Skip one byte. */
 			if ((ll & 1) || ll < zip->numFiles * 4)
 				return (-1);
 
@@ -1945,8 +1944,7 @@ read_Header(struct _7zip *zip, struct _7z_header_info *h,
 				return (-1);
 			allAreDefined = *p++;
 			--ll;
-			external = *p++;
-			--ll;
+			p++; --ll;/* Skip one byte. */
 			h->attrBools = calloc(zip->numFiles,
 			    sizeof(*h->attrBools));
 			if (h->attrBools == NULL)
