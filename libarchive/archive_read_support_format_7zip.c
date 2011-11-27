@@ -2223,8 +2223,6 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 				    "Malformed 7Zip archive");
 			return (ARCHIVE_FATAL);
 		}
-		p += r;
-		len -= r;
 
 		if (si->pi.numPackStreams == 0 || si->ci.numFolders == 0) {
 			archive_set_error(&a->archive, -1,
