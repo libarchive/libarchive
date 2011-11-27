@@ -1,3 +1,5 @@
+Nov 27, 2011: libarchive 3.0.1b released
+
 Nov 26, 2011: 7Zip reader
 Nov 26, 2011: Small fixes to ISO and Zip to improve robustness with corrupted input
 Nov 24, 2011: Improve streaming Zip reader's support for uncompressed entries
