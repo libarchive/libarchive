@@ -467,6 +467,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_lzma1_2.7z.uu		\
 	libarchive/test/test_read_format_7zip_lzma1_lzma2.7z.uu		\
 	libarchive/test/test_read_format_7zip_lzma2.7z.uu		\
+	libarchive/test/test_read_format_7zip_ppmd.7z.uu		\
 	libarchive/test/test_read_format_ar.ar.uu			\
 	libarchive/test/test_read_format_cab_1.cab.uu			\
 	libarchive/test/test_read_format_cab_2.cab.uu			\

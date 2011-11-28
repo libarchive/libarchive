@@ -445,7 +445,7 @@ test_delta_lzma(const char *refname)
 	struct archive *a;
 	size_t remaining;
 	ssize_t bytes;
-	char buff[128];
+	char buff[1024];
 
 	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
@@ -499,7 +499,7 @@ test_bcj_lzma(const char *refname)
 	struct archive *a;
 	size_t remaining;
 	ssize_t bytes;
-	char buff[128];
+	char buff[1024];
 
 	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
@@ -543,6 +543,61 @@ test_bcj_lzma(const char *refname)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+/*
+ * Extract a file compressed with PPMd.
+ */
+static void
+test_ppmd()
+{
+	const char *refname = "test_read_format_7zip_ppmd.7z";
+	struct archive_entry *ae;
+	struct archive *a;
+	size_t remaining;
+	ssize_t bytes;
+	char buff[1024];
+
+	extract_reference_file(refname);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+
+	/* Verify regular file1. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt((AE_IFREG | 0777), archive_entry_mode(ae));
+	assertEqualString("ppmd_test.txt", archive_entry_pathname(ae));
+	assertEqualInt(1322464589, archive_entry_mtime(ae));
+	assertEqualInt(102400, archive_entry_size(ae));
+	remaining = (size_t)archive_entry_size(ae);
+	while (remaining) {
+		if (remaining < sizeof(buff))
+			assertEqualInt(remaining,
+			    bytes = archive_read_data(a, buff, sizeof(buff)));
+		else
+			assertEqualInt(sizeof(buff),
+			    bytes = archive_read_data(a, buff, sizeof(buff)));
+		if (bytes > 0)
+			remaining -= bytes;
+		else
+			break;
+	}
+	assertEqualInt(0, remaining);
+
+	assertEqualInt(1, archive_file_count(a));
+
+	/* End of archive. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	/* Verify archive format. */
+	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
+
+	/* Close the archive. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_read_format_7zip)
 {
 	struct archive *a;
@@ -550,6 +605,7 @@ DEFINE_TEST(test_read_format_7zip)
 	test_copy();
 	test_empty_archive();
 	test_empty_file();
+	test_ppmd();
 
 	assert((a = archive_read_new()) != NULL);
 

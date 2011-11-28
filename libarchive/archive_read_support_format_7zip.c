@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include "archive.h"
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
+#include "archive_ppmd7_private.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
 #include "archive_endian.h"
@@ -245,6 +246,20 @@ struct _7zip {
 	z_stream		 stream;
 	int			 stream_valid;
 #endif
+	int			 ppmd7_stat;
+	CPpmd7			 ppmd7_context;
+	CPpmd7z_RangeDec	 range_dec;
+	IByteIn			 bytein;
+	struct {
+		const unsigned char	*next_in;
+		int64_t			 avail_in;
+		int64_t			 total_in;
+		unsigned char		*next_out;
+		int64_t			 avail_out;
+		int64_t			 total_out;
+		int			 overconsumed;
+	} ppstream;
+	int			 ppmd7_valid;
 
 	struct archive_string_conv *sconv;
 	char			 format_name[64];
@@ -718,6 +733,39 @@ decode_codec_id(const unsigned char *codecId, size_t id_size)
 	return (id);
 }
 
+static void *
+ppmd_alloc(void *p, size_t size)
+{
+	(void)p;
+	return malloc(size);
+}
+static void
+ppmd_free(void *p, void *address)
+{
+	(void)p;
+	free(address);
+}
+static Byte
+ppmd_read(void *p)
+{
+	struct archive_read *a = ((IByteIn*)p)->a;
+	struct _7zip *zip = (struct _7zip *)(a->format->data);
+	Byte b;
+
+	if (zip->ppstream.avail_in == 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Truncated RAR file data");
+		zip->ppstream.overconsumed = 1;
+		return (0);
+	}
+	b = *zip->ppstream.next_in++;
+	zip->ppstream.avail_in--;
+	zip->ppstream.total_in++;
+	return (b);
+}
+
+static ISzAlloc g_szalloc = { ppmd_alloc, ppmd_free };
+
 static int
 init_decompression(struct archive_read *a, struct _7zip *zip,
     struct _7z_folder *folder)
@@ -920,10 +968,48 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 		return (ARCHIVE_FAILED);
 #endif
 	case _7Z_PPMD:
-		/* TODO: Can we use archive_ppmd7.c ? */
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "PPMD codec is unsupported");
-		return (ARCHIVE_FAILED);
+	{
+		unsigned order;
+		uint32_t msize;
+
+		if (zip->ppmd7_valid) {
+			__archive_ppmd7_functions.Ppmd7_Free(
+			    &zip->ppmd7_context, &g_szalloc);
+			zip->ppmd7_valid = 0;
+		}
+
+		if (folder->coders[0].propertiesSize < 5) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Malformed PPMd parameter");
+			return (ARCHIVE_FAILED);
+		}
+		order = folder->coders[0].properties[0];
+		msize = archive_le32dec(&(folder->coders[0].properties[1]));
+		if (order < PPMD7_MIN_ORDER || order > PPMD7_MAX_ORDER ||
+		    msize < PPMD7_MIN_MEM_SIZE || msize > PPMD7_MAX_MEM_SIZE) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Malformed PPMd parameter");
+			return (ARCHIVE_FAILED);
+		}
+		__archive_ppmd7_functions.Ppmd7_Construct(&zip->ppmd7_context);
+		r = __archive_ppmd7_functions.Ppmd7_Alloc(
+			&zip->ppmd7_context, msize, &g_szalloc);
+		if (r == 0) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Coludn't allocate memory for PPMd");
+			return (ARCHIVE_FATAL);
+		}
+		__archive_ppmd7_functions.Ppmd7_Init(
+			&zip->ppmd7_context, order);
+		__archive_ppmd7_functions.Ppmd7z_RangeDec_CreateVTable(
+			&zip->range_dec);
+		zip->ppmd7_valid = 1;
+		zip->ppmd7_stat = 0;
+		zip->ppstream.overconsumed = 0;
+		zip->ppstream.total_in = 0;
+		zip->ppstream.total_out = 0;
+		break;
+	}
 	case _7Z_X86:
 	case _7Z_POWERPC:
 	case _7Z_IA64:
@@ -1035,9 +1121,77 @@ decompress(struct archive_read *a, struct _7zip *zip,
 		*outbytes = avail_out - zip->stream.avail_out;
 		break;
 #endif
+	case _7Z_PPMD:
+	{
+		uint64_t flush_bytes;
+
+		if (!zip->ppmd7_valid || zip->ppmd7_stat < 0 ||
+		    avail_in < 0 || avail_out <= 0) {
+			archive_set_error(&(a->archive),
+			    ARCHIVE_ERRNO_MISC,
+			    "Decompression internal error");
+			return (ARCHIVE_FAILED);
+		}
+		zip->ppstream.next_in = b;
+		zip->ppstream.avail_in = avail_in;
+		zip->ppstream.next_out = buff;
+		zip->ppstream.avail_out = avail_out;
+		if (zip->ppmd7_stat == 0) {
+			zip->bytein.a = a;
+			zip->bytein.Read = &ppmd_read;
+			zip->range_dec.Stream = &zip->bytein;
+			r = __archive_ppmd7_functions.Ppmd7z_RangeDec_Init(
+				&(zip->range_dec));
+			if (r == 0) {
+				zip->ppmd7_stat = -1;
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "Failed to initialize PPMd range decorder");
+				return (ARCHIVE_FAILED);
+			}
+			if (zip->ppstream.overconsumed) {
+				zip->ppmd7_stat = -1;
+				return (ARCHIVE_FAILED);
+			}
+			zip->ppmd7_stat = 1;
+		}
+
+		if (avail_in == 0)
+			/* XXX Flush out remaining decoded data XXX */
+			flush_bytes = zip->unpack_stream_bytes_remaining;
+		else
+			flush_bytes = 0;
+
+		do {
+			int sym;
+			
+			sym = __archive_ppmd7_functions.Ppmd7_DecodeSymbol(
+				&(zip->ppmd7_context), &(zip->range_dec.p));
+			if (sym < 0) {
+				zip->ppmd7_stat = -1;
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Failed to decode PPMd");
+				return (ARCHIVE_FAILED);
+			}
+			if (zip->ppstream.overconsumed) {
+				zip->ppmd7_stat = -1;
+				return (ARCHIVE_FAILED);
+			}
+			*zip->ppstream.next_out++ = (unsigned char)sym;
+			zip->ppstream.avail_out--;
+			zip->ppstream.total_out++;
+			if (flush_bytes)
+				flush_bytes--;
+		} while (zip->ppstream.avail_out &&
+			(zip->ppstream.avail_in || flush_bytes));
+
+		*used = avail_in - zip->ppstream.avail_in;
+		*outbytes = avail_out - zip->ppstream.avail_out;
+		break;
+	}
 	default:
-		archive_set_error(&(a->archive),
-		    ARCHIVE_ERRNO_MISC,
+		archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
 		    "Decompression internal error");
 		return (ARCHIVE_FAILED);
 	}
@@ -1061,6 +1215,7 @@ free_decompression(struct archive_read *a, struct _7zip *zip)
 			    "Failed to clean up bzip2 decompressor");
 			r = ARCHIVE_FATAL;
 		}
+		zip->bzstream_valid = 0;
 	}
 #endif
 #ifdef HAVE_ZLIB_H
@@ -1071,8 +1226,14 @@ free_decompression(struct archive_read *a, struct _7zip *zip)
 			    "Failed to clean up zlib decompressor");
 			r = ARCHIVE_FATAL;
 		}
+		zip->stream_valid = 0;
 	}
 #endif
+	if (zip->ppmd7_valid) {
+		__archive_ppmd7_functions.Ppmd7_Free(
+			&zip->ppmd7_context, &g_szalloc);
+		zip->ppmd7_valid = 0;
+	}
 	return (r);
 }
 
