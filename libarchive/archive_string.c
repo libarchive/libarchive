@@ -105,10 +105,13 @@ struct archive_string_conv {
 #define SCONV_FROM_UTF16BE 	(1<<11)	/* "from charset" side is UTF-16BE. */
 #define SCONV_TO_UTF16LE 	(1<<12)	/* "to charset" side is UTF-16LE. */
 #define SCONV_FROM_UTF16LE 	(1<<13)	/* "from charset" side is UTF-16LE. */
+#define SCONV_TO_UTF16		(SCONV_TO_UTF16BE | SCONV_TO_UTF16LE)
 #define SCONV_FROM_UTF16	(SCONV_FROM_UTF16BE | SCONV_FROM_UTF16LE)
 
 #if HAVE_ICONV
 	iconv_t				 cd;
+	iconv_t				 cd_w;/* Use at archive_mstring on
+				 	       * Windows. */
 #endif
 	/* A temporary buffer for normalization. */
 	struct archive_string		 utftmp;
@@ -1306,12 +1309,14 @@ create_sconv_object(const char *fc, const char *tc,
 	}
 
 #if defined(HAVE_ICONV)
+	sc->cd_w = (iconv_t)-1;
 	/*
 	 * Create an iconv object.
 	 */
-	if ((flag & (SCONV_TO_UTF8 | SCONV_TO_UTF16BE)) &&
-	    (flag & (SCONV_FROM_UTF8 | SCONV_FROM_UTF16))) {
-		/* This case does not use iconv. */
+	if (((flag & (SCONV_TO_UTF8 | SCONV_TO_UTF16BE)) &&
+	    (flag & (SCONV_FROM_UTF8 | SCONV_FROM_UTF16))) ||
+	    (flag & SCONV_WIN_CP)) {
+		/* This case we won't use iconv. */
 		sc->cd = (iconv_t)-1;
 #if defined(__APPLE__)
 	} else if ((flag & SCONV_FROM_CHARSET) && (flag & SCONV_TO_UTF8)) {
@@ -1366,6 +1371,22 @@ create_sconv_object(const char *fc, const char *tc,
 			else if (strcmp(fc, "CP932") == 0)
 				sc->cd = iconv_open(tc, "SJIS");
 		}
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		/*
+		 * archive_mstring on Windows directly convert multi-bytes
+		 * into archive_wstring in order not to depend on locale
+		 * so that you can do a I18N programing. This will be
+		 * used only in archive_mstring_copy_mbs_len_l so far.
+		 */
+		if (flag & SCONV_FROM_CHARSET) {
+			sc->cd_w = iconv_open("UTF-8", fc);
+			if (sc->cd_w == (iconv_t)-1 &&
+			    (sc->flag & SCONV_BEST_EFFORT)) {
+				if (strcmp(fc, "CP932") == 0)
+					sc->cd_w = iconv_open("UTF-8", "SJIS");
+			}
+		}
+#endif /* _WIN32 && !__CYGWIN__ */
 	}
 #endif	/* HAVE_ICONV */
 
@@ -1391,6 +1412,8 @@ free_sconv_object(struct archive_string_conv *sc)
 #if HAVE_ICONV
 	if (sc->cd != (iconv_t)-1)
 		iconv_close(sc->cd);
+	if (sc->cd_w != (iconv_t)-1)
+		iconv_close(sc->cd_w);
 #endif
 #if defined(__APPLE__)
 	archive_string_free(&sc->utf16nfc);
@@ -2017,7 +2040,7 @@ archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
 	 * or copy. This simulates archive_string_append behavior. */
 	if (_p == NULL || n == 0) {
 		int tn = 1;
-		if (sc != NULL && (sc->flag & SCONV_TO_UTF16BE))
+		if (sc != NULL && (sc->flag & SCONV_TO_UTF16))
 			tn = 2;
 		if (archive_string_ensure(as, as->length + tn) == NULL)
 			return (-1);
@@ -2083,7 +2106,7 @@ iconv_strncat_in_locale(struct archive_string *as, const void *_p,
 	int return_value = 0; /* success */
 	int to_size, from_size;
 
-	if (sc->flag & SCONV_TO_UTF16BE)
+	if (sc->flag & SCONV_TO_UTF16)
 		to_size = 2;
 	else
 		to_size = 1;
@@ -2100,7 +2123,7 @@ iconv_strncat_in_locale(struct archive_string *as, const void *_p,
 	remaining = length;
 	outp = as->s + as->length;
 	avail = as->buffer_length - as->length - to_size;
-	while (remaining >= from_size) {
+	while (remaining >= (size_t)from_size) {
 		size_t result = iconv(cd, &inp, &remaining, &outp, &avail);
 
 		if (result != (size_t)-1)
@@ -4021,9 +4044,48 @@ archive_mstring_copy_mbs_len_l(struct archive_mstring *aes,
 	 * characters because Windows platform cannot make locale UTF-8.
 	 */
 	if (sc == NULL) {
-		archive_string_append(&(aes->aes_mbs), mbs, mbsnbytes(mbs, len));
+		archive_string_append(&(aes->aes_mbs),
+		    mbs, mbsnbytes(mbs, len));
 		aes->aes_set = AES_SET_MBS;
 		r = 0;
+#if defined(HAVE_ICONV)
+	} else if (sc != NULL && sc->cd_w != (iconv_t)-1) {
+		/*
+		 * This case happens only when MultiByteToWideChar() cannot
+		 * handle sc->from_cp, and we have to iconv in order to
+		 * translate character-set to wchar_t,UTF-16.
+		 */
+		iconv_t cd = sc->cd;
+		unsigned from_cp;
+		int flag;
+
+		/*
+		 * Translate multi-bytes from some character-set to UTF-8.
+		 */ 
+		sc->cd = sc->cd_w;
+		r = archive_strncpy_in_locale(&(aes->aes_utf8), mbs, len, sc);
+		sc->cd = cd;
+		if (r != 0) {
+			aes->aes_set = 0;
+			return (r);
+		}
+		aes->aes_set = AES_SET_UTF8;
+
+		/*
+		 * Append the UTF-8 string into wstring.
+		 */ 
+		flag = sc->flag;
+		sc->flag &= ~(SCONV_NORMALIZATION_C
+				| SCONV_TO_UTF16| SCONV_FROM_UTF16);
+		from_cp = sc->from_cp;
+		sc->from_cp = CP_UTF8;
+		r = archive_wstring_append_from_mbs_in_codepage(&(aes->aes_wcs),
+			aes->aes_utf8.s, aes->aes_utf8.length, sc);
+		sc->flag = flag;
+		sc->from_cp = from_cp;
+		if (r == 0)
+			aes->aes_set |= AES_SET_WCS;
+#endif
 	} else {
 		r = archive_wstring_append_from_mbs_in_codepage(
 		    &(aes->aes_wcs), mbs, len, sc);
@@ -4086,7 +4148,7 @@ archive_mstring_update_utf8(struct archive *a, struct archive_mstring *aes,
 
 	/* Try converting MBS to WCS, return false on failure. */
 	if (archive_wstring_append_from_mbs(&(aes->aes_wcs), aes->aes_mbs.s,
-	    aes->aes_utf8.length))
+	    aes->aes_mbs.length))
 		return (-1);
 	aes->aes_set = AES_SET_UTF8 | AES_SET_WCS | AES_SET_MBS;
 
