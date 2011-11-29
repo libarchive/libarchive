@@ -634,6 +634,7 @@ DEFINE_TEST(test_read_format_7zip)
 		test_extract_last_file("test_read_format_7zip_copy_2.7z");
 		test_extract_last_file("test_read_format_7zip_lzma1_2.7z");
 		test_extract_all_files2("test_read_format_7zip_lzma1_lzma2.7z");
+		test_bcj_lzma("test_read_format_7zip_bcj_lzma1.7z");
 		test_bcj_lzma("test_read_format_7zip_bcj_lzma2.7z");
 		test_delta_lzma("test_read_format_7zip_delta_lzma1.7z");
 		test_delta_lzma("test_read_format_7zip_delta_lzma2.7z");

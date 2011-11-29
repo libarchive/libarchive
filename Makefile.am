@@ -454,6 +454,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_fuzz.cab.uu				\
 	libarchive/test/test_fuzz.lzh.uu				\
 	libarchive/test/test_pax_filename_encoding.tar.uu		\
+	libarchive/test/test_read_format_7zip_bcj_lzma1.7z.uu		\
 	libarchive/test/test_read_format_7zip_bcj_lzma2.7z.uu		\
 	libarchive/test/test_read_format_7zip_bzip2.7z.uu		\
 	libarchive/test/test_read_format_7zip_copy.7z.uu		\

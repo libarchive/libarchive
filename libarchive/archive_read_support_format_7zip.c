@@ -233,7 +233,9 @@ struct _7zip {
 
 	unsigned char 		*uncompressed_buffer;
 	size_t 			 uncompressed_buffer_size;
+
 	unsigned long		 codec;
+	unsigned long		 codec2;
 #ifdef HAVE_LZMA_H
 	lzma_stream		 lzstream;
 	int			 lzstream_valid;
@@ -260,6 +262,10 @@ struct _7zip {
 		int			 overconsumed;
 	} ppstream;
 	int			 ppmd7_valid;
+
+	uint32_t		 bcj_state;
+	size_t			 odd_bcj_size;
+	unsigned char		 odd_bcj[4];
 
 	struct archive_string_conv *sconv;
 	char			 format_name[64];
@@ -315,6 +321,7 @@ static int64_t	skip_stream(struct archive_read *, size_t);
 static int	skip_sfx(struct archive_read *, ssize_t);
 static int	slurp_central_directory(struct archive_read *, struct _7zip *,
 		    struct _7z_header_info *);
+static size_t	x86_Convert(unsigned char *, size_t, uint32_t, uint32_t *);
 
 
 int
@@ -775,6 +782,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 
 	codec = decode_codec_id(folder->coders[0].codecId,
 		    folder->coders[0].codecIdSize);
+	zip->codec2 = -1;
 
 	switch (zip->codec = codec) {
 	case _7Z_COPY:
@@ -803,26 +811,32 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 		}
 
 		/*
-		 * NOTE: BCJ+LZMA2 is OK, but it seems BCJ+LZMA does not
-		 * correctly work. With BCJ, liblzma did not return all
-		 * bytes I expected; it was four or three bytes lost.
+		 * NOTE: BCJ+LZMA does not correctly work with liblzma
+		 * because that packed data made by 7-Zip does not have
+		 * End-Of-Payload Marker(EOPM), and liblzma does not
+		 * know the end of the stream without EOPM or the
+		 * uncompressed size. So consequently liblzma will not
+		 * return last three or four bytes because LZMA_FILTER_X86
+		 * filter does not handle input data if its data size is
+		 * less than five bytes. And thereby we have to use our
+		 * converting program in order to decode BCJ+LZMA.
+		 * If we were able to tell the uncompressed size to liblzma
+		 * when using lzma_raw_decoder(), but unfortunately there
+		 * is no way to do that. 
 		 */
 		if (folder->numCoders >= 2) {
 			codec = decode_codec_id(folder->coders[1].codecId,
 				    folder->coders[1].codecIdSize);
 
 			filters[fi].options = NULL;
-			switch (codec) {
+			switch (zip->codec2 = codec) {
 			case _7Z_X86:
-#if 1
-				if (zip->codec == _7Z_LZMA) {
-					archive_set_error(&a->archive,
-					    ARCHIVE_ERRNO_MISC,
-					    "LZMA + BCJ is unsupported");
-					return (ARCHIVE_FAILED);
-				}
-#endif
-				filters[fi].id = LZMA_FILTER_X86;
+				if (zip->codec == _7Z_LZMA2) {
+					filters[fi].id = LZMA_FILTER_X86;
+					fi++;
+				} else
+					/* Use our filter. */
+					zip->bcj_state = 0;
 				break;
 			case _7Z_DELTA:
 				filters[fi].id = LZMA_FILTER_DELTA;
@@ -830,22 +844,28 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 				delta_opt.type = LZMA_DELTA_TYPE_BYTE;
 				delta_opt.dist = 1;
 				filters[fi].options = &delta_opt;
+				fi++;
 				break;
 			/* Following filters have not been tested yet. */
 			case _7Z_POWERPC:
 				filters[fi].id = LZMA_FILTER_POWERPC;
+				fi++;
 				break;
 			case _7Z_IA64:
 				filters[fi].id = LZMA_FILTER_IA64;
+				fi++;
 				break;
 			case _7Z_ARM:
 				filters[fi].id = LZMA_FILTER_ARM;
+				fi++;
 				break;
 			case _7Z_ARMTHUMB:
 				filters[fi].id = LZMA_FILTER_ARMTHUMB;
+				fi++;
 				break;
 			case _7Z_SPARC:
 				filters[fi].id = LZMA_FILTER_SPARC;
+				fi++;
 				break;
 			default:
 				archive_set_error(&a->archive,
@@ -853,7 +873,6 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 				    "Unexpected codec ID: %lX", codec);
 				return (ARCHIVE_FAILED);
 			}
-			fi++;
 		}
 
 		if (zip->codec == _7Z_LZMA2)
@@ -1042,10 +1061,27 @@ decompress(struct archive_read *a, struct _7zip *zip,
 	switch (zip->codec) {
 #ifdef HAVE_LZMA_H
 	case _7Z_LZMA: case _7Z_LZMA2:
+	{
+		int i;
+
 		zip->lzstream.next_in = b;
 		zip->lzstream.avail_in = avail_in;
 		zip->lzstream.next_out = buff;
 		zip->lzstream.avail_out = avail_out;
+
+		if (zip->codec == _7Z_LZMA && zip->codec2 == _7Z_X86) {
+			for (i = 0; zip->odd_bcj_size > 0 &&
+			    zip->lzstream.avail_out; i++) {
+				*zip->lzstream.next_out++ = zip->odd_bcj[i];
+				zip->lzstream.avail_out--;
+				zip->odd_bcj_size--;
+			}
+			if (avail_in == 0 || zip->lzstream.avail_out == 0) {
+				*used = avail_in - zip->lzstream.avail_in;
+				*outbytes = avail_out - zip->lzstream.avail_out;
+				return (ARCHIVE_OK);
+			}
+		}
 		r = lzma_code(&(zip->lzstream), LZMA_RUN);
 		switch (r) {
 		case LZMA_STREAM_END: /* Found end of stream. */
@@ -1064,7 +1100,21 @@ decompress(struct archive_read *a, struct _7zip *zip,
 		}
 		*used = avail_in - zip->lzstream.avail_in;
 		*outbytes = avail_out - zip->lzstream.avail_out;
+		if (zip->codec == _7Z_LZMA && zip->codec2 == _7Z_X86) {
+			size_t l = x86_Convert(buff, *outbytes, 0,
+			      &(zip->bcj_state));
+			zip->odd_bcj_size = *outbytes - l;
+			if (zip->odd_bcj_size > 0 && zip->odd_bcj_size <= 4 &&
+			    avail_in) {
+				memcpy(zip->odd_bcj,
+				    ((unsigned char *)buff) + l,
+				    zip->odd_bcj_size);
+				*outbytes = l;
+			} else
+				zip->odd_bcj_size = 0;
+		}
 		break;
+	}
 #endif
 #if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
 	case _7Z_BZ2:
@@ -2800,5 +2850,91 @@ skip_stream(struct archive_read *a, size_t skip_bytes)
 		}
 	}
 	return (skip_bytes);
+}
+
+/*
+ * Brought from LZMA SDK.
+ *
+ * Bra86.c -- Converter for x86 code (BCJ)
+ * 2008-10-04 : Igor Pavlov : Public domain
+ *
+ */
+
+#define Test86MSByte(b) ((b) == 0 || (b) == 0xFF)
+
+static const unsigned char kMaskToAllowedStatus[8] = {1, 1, 1, 0, 1, 0, 0, 0};
+static const unsigned char kMaskToBitNumber[8] = {0, 1, 2, 2, 3, 3, 3, 3};
+
+static size_t
+x86_Convert(unsigned char *data, size_t size, uint32_t ip, uint32_t *state)
+{
+	size_t bufferPos = 0, prevPosT;
+	uint32_t prevMask = *state & 0x7;
+	if (size < 5)
+		return 0;
+	ip += 5;
+	prevPosT = (size_t)0 - 1;
+
+	for (;;) {
+		unsigned char *p = data + bufferPos;
+		unsigned char *limit = data + size - 4;
+
+		for (; p < limit; p++)
+			if ((*p & 0xFE) == 0xE8)
+				break;
+		bufferPos = (size_t)(p - data);
+		if (p >= limit)
+			break;
+		prevPosT = bufferPos - prevPosT;
+		if (prevPosT > 3)
+			prevMask = 0;
+		else {
+			prevMask = (prevMask << ((int)prevPosT - 1)) & 0x7;
+			if (prevMask != 0) {
+				unsigned char b =
+					p[4 - kMaskToBitNumber[prevMask]];
+				if (!kMaskToAllowedStatus[prevMask] ||
+				    Test86MSByte(b)) {
+					prevPosT = bufferPos;
+					prevMask = ((prevMask << 1) & 0x7) | 1;
+					bufferPos++;
+					continue;
+				}
+			}
+		}
+		prevPosT = bufferPos;
+
+		if (Test86MSByte(p[4])) {
+			uint32_t src = ((UInt32)p[4] << 24) |
+				((UInt32)p[3] << 16) | ((UInt32)p[2] << 8) |
+				((UInt32)p[1]);
+			uint32_t dest;
+			for (;;) {
+				unsigned char b;
+				int index;
+
+				dest = src - (ip + (uint32_t)bufferPos);
+				if (prevMask == 0)
+					break;
+				index = kMaskToBitNumber[prevMask] * 8;
+				b = (unsigned char)(dest >> (24 - index));
+				if (!Test86MSByte(b))
+					break;
+				src = dest ^ ((1 << (32 - index)) - 1);
+			}
+			p[4] = (unsigned char)(~(((dest >> 24) & 1) - 1));
+			p[3] = (unsigned char)(dest >> 16);
+			p[2] = (unsigned char)(dest >> 8);
+			p[1] = (unsigned char)dest;
+			bufferPos += 5;
+		} else {
+			prevMask = ((prevMask << 1) & 0x7) | 1;
+			bufferPos++;
+		}
+	}
+	prevPosT = bufferPos - prevPosT;
+	*state = ((prevPosT > 3) ? 
+			0 : ((prevMask << ((int)prevPosT - 1)) & 0x7));
+	return (bufferPos);
 }
 

@@ -63,6 +63,7 @@ static struct {
 	{0, "test_compat_xz_1.txz"}, /* Exercise xz decompressor. */
 	{0, "test_compat_zip_1.zip"},
 	{0, "test_read_format_7zip_bzip2.7z"},
+	{0, "test_read_format_7zip_bcj_lzma1.7z"},
 	{0, "test_read_format_7zip_bcj_lzma2.7z"},
 	{0, "test_read_format_7zip_copy.7z"},
 	{0, "test_read_format_7zip_deflate.7z"},
