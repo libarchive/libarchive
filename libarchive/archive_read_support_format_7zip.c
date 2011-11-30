@@ -58,6 +58,9 @@ __FBSDID("$FreeBSD$");
 
 #define _7ZIP_SIGNATURE	"7z\xBC\xAF\x27\x1C"
 
+/*
+ * 7-Zip header property IDs.
+ */
 #define kEnd			0x00
 #define kHeader			0x01
 #define kArchiveProperties	0x02
@@ -680,7 +683,7 @@ archive_read_format_7zip_cleanup(struct archive_read *a)
 #ifdef HAVE_LZMA_H
 
 /*
- * Set an error code and choose an error message
+ * Set an error code and choose an error message for liblzma.
  */
 static void
 set_error(struct archive_read *a, int ret)
@@ -813,18 +816,21 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 		}
 
 		/*
-		 * NOTE: BCJ+LZMA does not correctly work with liblzma
-		 * because that packed data made by 7-Zip does not have
-		 * End-Of-Payload Marker(EOPM), and liblzma does not
-		 * know the end of the stream without EOPM or the
-		 * uncompressed size. So consequently liblzma will not
-		 * return last three or four bytes because LZMA_FILTER_X86
-		 * filter does not handle input data if its data size is
-		 * less than five bytes. And thereby we have to use our
-		 * converting program in order to decode BCJ+LZMA.
-		 * If we were able to tell the uncompressed size to liblzma
-		 * when using lzma_raw_decoder(), but unfortunately there
-		 * is no way to do that. 
+		 * NOTE: liblzma incompletely handle the BCJ+LZMA compressed
+		 * data made by 7-Zip because 7-Zip does not add End-Of-
+		 * Payload Marker(EOPM) at the end of LZMA compressed data,
+		 * and so liblzma cannot know the end of the compressed data
+		 * without EOPM. So consequently liblzma will not return last
+		 * three or four bytes of uncompressed data because
+		 * LZMA_FILTER_X86 filter does not handle input data if its
+		 * data size is less than five bytes. If liblzma detect EOPM
+		 * or know the uncompressed data size, liblzma will flush out
+		 * the remaining that three or four bytes of uncompressed
+		 * data. That is why we have to use our converting program
+		 * for BCJ+LZMA. If we were able to tell the uncompressed
+		 * size to liblzma when using lzma_raw_decoder() liblzma
+		 * could correctly deal with BCJ+LZMA. But unfortunately
+		 * there is no way to do that. 
 		 */
 		if (folder->numCoders >= 2) {
 			codec = decode_codec_id(folder->coders[1].codecId,
