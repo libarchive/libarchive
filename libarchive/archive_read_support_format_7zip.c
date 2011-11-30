@@ -321,7 +321,9 @@ static int64_t	skip_stream(struct archive_read *, size_t);
 static int	skip_sfx(struct archive_read *, ssize_t);
 static int	slurp_central_directory(struct archive_read *, struct _7zip *,
 		    struct _7z_header_info *);
+#ifdef HAVE_LZMA_H
 static size_t	x86_Convert(unsigned char *, size_t, uint32_t, uint32_t *);
+#endif
 
 
 int
@@ -2852,6 +2854,7 @@ skip_stream(struct archive_read *a, size_t skip_bytes)
 	return (skip_bytes);
 }
 
+#ifdef HAVE_LZMA_H
 /*
  * Brought from LZMA SDK.
  *
@@ -2937,4 +2940,4 @@ x86_Convert(unsigned char *data, size_t size, uint32_t ip, uint32_t *state)
 			0 : ((prevMask << ((int)prevPosT - 1)) & 0x7));
 	return (bufferPos);
 }
-
+#endif
