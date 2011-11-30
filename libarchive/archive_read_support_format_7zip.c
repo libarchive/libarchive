@@ -166,6 +166,7 @@ struct _7z_header_info {
 #define _7Z_DELTA	0x03
 #define _7Z_CRYPTO	0x06F10701
 #define _7Z_X86		0x03030103
+#define _7Z_X86_BCJ2	0x0303011B
 #define _7Z_POWERPC	0x03030205
 #define _7Z_IA64	0x03030401
 #define _7Z_ARM		0x03030501
@@ -846,6 +847,13 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 					/* Use our filter. */
 					zip->bcj_state = 0;
 				break;
+			case _7Z_X86_BCJ2:
+				/* liblzma will not support this. */
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "BCJ2 is not supported");
+				return (ARCHIVE_FAILED);
+				break;
 			case _7Z_DELTA:
 				filters[fi].id = LZMA_FILTER_DELTA;
 				memset(&delta_opt, 0, sizeof(delta_opt));
@@ -1038,6 +1046,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 		break;
 	}
 	case _7Z_X86:
+	case _7Z_X86_BCJ2:
 	case _7Z_POWERPC:
 	case _7Z_IA64:
 	case _7Z_ARM:
