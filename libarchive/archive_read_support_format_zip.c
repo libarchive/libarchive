@@ -367,11 +367,6 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 	if ((h = __archive_read_ahead(a, 4, NULL)) == NULL)
 		return (ARCHIVE_FATAL);
 
-	if (memcmp(h, "PK\003\004", 4) != 0) {
-		archive_set_error(&a->archive, -1, "Damaged Zip archive");
-		return ARCHIVE_FATAL;
-	}
-
 	r = zip_read_local_file_header(a, entry, zip);
 	return (r);
 }
@@ -440,7 +435,6 @@ static int
 archive_read_format_zip_streamable_read_header(struct archive_read *a,
     struct archive_entry *entry)
 {
-	const void *h;
 	const char *signature;
 	struct zip *zip;
 	int r = ARCHIVE_OK, r1;
@@ -455,10 +449,8 @@ archive_read_format_zip_streamable_read_header(struct archive_read *a,
 	zip->entry_uncompressed_bytes_read = 0;
 	zip->entry_compressed_bytes_read = 0;
 	zip->entry_crc32 = crc32(0, NULL, 0);
-	if ((h = __archive_read_ahead(a, 4, NULL)) == NULL)
+	if ((signature = __archive_read_ahead(a, 4, NULL)) == NULL)
 		return (ARCHIVE_FATAL);
-
-	signature = (const char *)h;
 
 	/* If we don't see a PK signature here, scan forward. */
 	if (signature[0] != 'P' || signature[1] != 'K') {
@@ -469,9 +461,8 @@ archive_read_format_zip_streamable_read_header(struct archive_read *a,
 			    "Unable to find next valid PK marker");
 			return (ARCHIVE_FATAL);
 		}
-		if ((h = __archive_read_ahead(a, 4, NULL)) == NULL)
+		if ((signature = __archive_read_ahead(a, 4, NULL)) == NULL)
 			return (ARCHIVE_FATAL);
-		signature = (const char *)h;
 	}
 
 	/*
@@ -481,9 +472,8 @@ archive_read_format_zip_streamable_read_header(struct archive_read *a,
 	 */
 	if (signature[2] == '0' && signature[3] == '0') {
 		__archive_read_consume(a, 4);
-		if ((h = __archive_read_ahead(a, 4, NULL)) == NULL)
+		if ((signature = __archive_read_ahead(a, 4, NULL)) == NULL)
 			return (ARCHIVE_FATAL);
-		signature = (const char *)h;
 		if (signature[0] != 'P' || signature[1] != 'K') {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
@@ -560,6 +550,9 @@ search_next_signature(struct archive_read *a)
 	}
 }
 
+/*
+ * Assumes file pointer is at beginning of local file header.
+ */
 static int
 zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
     struct zip *zip)
@@ -589,6 +582,10 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		return (ARCHIVE_FATAL);
 	}
 
+	if (memcmp(p, "PK\003\004", 4) != 0) {
+		archive_set_error(&a->archive, -1, "Damaged Zip archive");
+		return ARCHIVE_FATAL;
+	}
 	version = p[4];
 	zip_entry->system = p[5];
 	zip_entry->flags = archive_le16dec(p + 6);
