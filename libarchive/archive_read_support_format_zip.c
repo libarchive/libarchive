@@ -128,7 +128,6 @@ static int	archive_read_format_zip_seekable_read_header(struct archive_read *,
 		    struct archive_entry *);
 static int	archive_read_format_zip_streamable_read_header(struct archive_read *,
 		    struct archive_entry *);
-static int	search_next_signature(struct archive_read *);
 #ifdef HAVE_ZLIB_H
 static int	zip_read_data_deflate(struct archive_read *a, const void **buff,
 		    size_t *size, int64_t *offset);
@@ -334,7 +333,6 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 	struct archive_entry *entry)
 {
 	struct zip *zip = (struct zip *)a->format->data;
-	const char *h;
 	int r;
 
 	a->archive.archive_format = ARCHIVE_FORMAT_ZIP;
@@ -355,20 +353,11 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 		return ARCHIVE_EOF;
 	--zip->entries_remaining;
 
-	zip->decompress_init = 0;
-	zip->end_of_entry = 0;
-	zip->entry_uncompressed_bytes_read = 0;
-	zip->entry_compressed_bytes_read = 0;
-	zip->entry_crc32 = crc32(0, NULL, 0);
 	/* TODO: If entries are sorted by offset within the file, we
 	   should be able to skip here instead of seeking.  Skipping is
 	   typically faster (easier for I/O layer to optimize). */
 	__archive_read_seek(a, zip->entry->local_header_offset, SEEK_SET);
-	if ((h = __archive_read_ahead(a, 4, NULL)) == NULL)
-		return (ARCHIVE_FATAL);
-
-	r = zip_read_local_file_header(a, entry, zip);
-	return (r);
+	return zip_read_local_file_header(a, entry, zip);
 }
 
 static int
@@ -435,118 +424,56 @@ static int
 archive_read_format_zip_streamable_read_header(struct archive_read *a,
     struct archive_entry *entry)
 {
-	const char *signature;
 	struct zip *zip;
-	int r = ARCHIVE_OK, r1;
 
 	a->archive.archive_format = ARCHIVE_FORMAT_ZIP;
 	if (a->archive.archive_format_name == NULL)
 		a->archive.archive_format_name = "ZIP";
 
 	zip = (struct zip *)(a->format->data);
-	zip->decompress_init = 0;
-	zip->end_of_entry = 0;
-	zip->entry_uncompressed_bytes_read = 0;
-	zip->entry_compressed_bytes_read = 0;
-	zip->entry_crc32 = crc32(0, NULL, 0);
-	if ((signature = __archive_read_ahead(a, 4, NULL)) == NULL)
-		return (ARCHIVE_FATAL);
 
-	/* If we don't see a PK signature here, scan forward. */
-	if (signature[0] != 'P' || signature[1] != 'K') {
-		r = search_next_signature(a);
-		if (r != ARCHIVE_OK) {
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Unable to find next valid PK marker");
-			return (ARCHIVE_FATAL);
-		}
-		if ((signature = __archive_read_ahead(a, 4, NULL)) == NULL)
-			return (ARCHIVE_FATAL);
-	}
-
-	/*
-	 * "PK00" signature is used for "split" archives that
-	 * only have a single segment.  This means we can just
-	 * skip the PK00; the first real file header should follow.
-	 */
-	if (signature[2] == '0' && signature[3] == '0') {
-		__archive_read_consume(a, 4);
-		if ((signature = __archive_read_ahead(a, 4, NULL)) == NULL)
-			return (ARCHIVE_FATAL);
-		if (signature[0] != 'P' || signature[1] != 'K') {
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "No valid marker found after PK00");
-			return (ARCHIVE_FATAL);
-		}
-	}
-
-	if (signature[2] == '\001' && signature[3] == '\002') {
-		/* Beginning of central directory. */
-		return (ARCHIVE_EOF);
-	}
-
-	if (signature[2] == '\003' && signature[3] == '\004') {
-		/* Regular file entry. */
+	/* Make sure we have a zip_entry structure to use. */
+	if (zip->zip_entries == NULL) {
+		zip->zip_entries = malloc(sizeof(struct zip_entry));
 		if (zip->zip_entries == NULL) {
-			zip->zip_entries = malloc(sizeof(struct zip_entry));
-			if (zip->zip_entries == NULL) {
-				archive_set_error(&a->archive, ENOMEM, "Out  of memory");
-				return ARCHIVE_FATAL;
-			}
+			archive_set_error(&a->archive, ENOMEM, "Out  of memory");
+			return ARCHIVE_FATAL;
 		}
-		zip->entry = zip->zip_entries;
-		memset(zip->entry, 0, sizeof(struct zip_entry));
-		r1 = zip_read_local_file_header(a, entry, zip);
-		if (r1 != ARCHIVE_OK)
-			return (r1);
-		return (r);
 	}
+	zip->entry = zip->zip_entries;
+	memset(zip->entry, 0, sizeof(struct zip_entry));
 
-	if (signature[2] == '\005' && signature[3] == '\006') {
-		/* End of central directory. */
-		return (ARCHIVE_EOF);
-	}
-
-	archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-	    "Unable to make sense of PK marker (%d,%d)",
-	    signature[2], signature[3]);
-	return (ARCHIVE_FATAL);
-}
-
-static int
-search_next_signature(struct archive_read *a)
-{
-	const void *h;
-	const char *p, *q;
-	size_t skip;
-	ssize_t bytes;
-	int64_t skipped = 0;
-
+	/* Search ahead for the next local file header. */
 	for (;;) {
-		h = __archive_read_ahead(a, 4, &bytes);
-		if (h == NULL)
-			return (ARCHIVE_FATAL);
-		p = h;
-		q = p + bytes;
+		int64_t skipped = 0;
+		const char *p, *end;
+		ssize_t bytes;
 
-		while (p + 4 <= q) {
+		p = __archive_read_ahead(a, 4, &bytes);
+		if (p == NULL)
+			return (ARCHIVE_FATAL);
+		end = p + bytes;
+
+		while (p + 4 <= end) {
 			if (p[0] == 'P' && p[1] == 'K') {
-				if ((p[2] == '\001' && p[3] == '\002')
-				    || (p[2] == '\003' && p[3] == '\004')
-				    || (p[2] == '\005' && p[3] == '\006')
-				    || (p[2] == '0' && p[3] == '0')) {
-					skip = p - (const char *)h;
-					__archive_read_consume(a, skip);
-					return (ARCHIVE_OK);
+				if (p[2] == '\001' && p[3] == '\002')
+					/* Beginning of central directory. */
+					return (ARCHIVE_EOF);
+
+				if (p[2] == '\003' && p[3] == '\004') {
+					/* Regular file entry. */
+					__archive_read_consume(a, skipped);
+					return zip_read_local_file_header(a, entry, zip);
 				}
+
+				if (p[2] == '\005' && p[3] == '\006')
+					/* End of central directory. */
+					return (ARCHIVE_EOF);
 			}
 			++p;
+			++skipped;
 		}
-		skip = p - (const char *)h;
-		__archive_read_consume(a, skip);
-		skipped += skip;
+		__archive_read_consume(a, skipped);
 	}
 }
 
@@ -564,10 +491,16 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	size_t len, filename_length, extra_length;
 	struct archive_string_conv *sconv;
 	struct zip_entry *zip_entry = zip->entry;
-	uint32_t crc32;
+	uint32_t local_crc32;
 	int64_t compressed_size, uncompressed_size;
 	int ret = ARCHIVE_OK;
 	char version;
+
+	zip->decompress_init = 0;
+	zip->end_of_entry = 0;
+	zip->entry_uncompressed_bytes_read = 0;
+	zip->entry_compressed_bytes_read = 0;
+	zip->entry_crc32 = crc32(0, NULL, 0);
 
 	/* Setup default conversion. */
 	if (zip->sconv == NULL && !zip->init_default_conversion) {
@@ -591,7 +524,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	zip_entry->flags = archive_le16dec(p + 6);
 	zip_entry->compression = archive_le16dec(p + 8);
 	zip_entry->mtime = zip_time(p + 10);
-	crc32 = archive_le32dec(p + 14);
+	local_crc32 = archive_le32dec(p + 14);
 	compressed_size = archive_le32dec(p + 18);
 	uncompressed_size = archive_le32dec(p + 22);
 	filename_length = archive_le16dec(p + 26);
@@ -608,7 +541,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		   which might indicate a damaged file.  But some
 		   writers always put zero in the local header; don't
 		   bother warning about that. */
-		if (crc32 != 0 && crc32 != zip_entry->crc32) {
+		if (local_crc32 != 0 && local_crc32 != zip_entry->crc32) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Inconsistent CRC32 values");
 			ret = ARCHIVE_WARN;
@@ -627,7 +560,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		}
 	} else {
 		/* If we don't have the CD info, use whatever we do have. */
-		zip_entry->crc32 = crc32;
+		zip_entry->crc32 = local_crc32;
 		zip_entry->compressed_size = compressed_size;
 		zip_entry->uncompressed_size = uncompressed_size;
 	}
@@ -828,7 +761,7 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		} else {
 			/* We can't decompress this entry, but we will
 			 * be able to skip() it and try the next entry. */
-			r = ARCHIVE_WARN;
+			r = ARCHIVE_FAILED;
 		}
 		break;
 	}
