@@ -129,8 +129,10 @@ static int	archive_read_format_zip_seekable_read_header(struct archive_read *,
 static int	archive_read_format_zip_streamable_read_header(struct archive_read *,
 		    struct archive_entry *);
 static int	search_next_signature(struct archive_read *);
+#ifdef HAVE_ZLIB_H
 static int	zip_read_data_deflate(struct archive_read *a, const void **buff,
 		    size_t *size, int64_t *offset);
+#endif
 static int	zip_read_data_none(struct archive_read *a, const void **buff,
 		    size_t *size, int64_t *offset);
 static int	zip_read_local_file_header(struct archive_read *a,
@@ -801,6 +803,7 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		r =  zip_read_data_none(a, buff, size, offset);
 		reset_buff = 1;
 		break;
+#ifdef HAVE_ZLIB_H
 	case 8: /* Deflate compression. */
 		r =  zip_read_data_deflate(a, buff, size, offset);
 		if (zip->entry_bytes_unconsumed) {
@@ -808,6 +811,7 @@ archive_read_format_zip_read_data(struct archive_read *a,
 			zip->entry_bytes_unconsumed = 0;
 		}
 		break;
+#endif
 	default: /* Unsupported compression. */
 		*buff = NULL;
 		*size = 0;
@@ -1108,18 +1112,6 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	*buff = zip->uncompressed_buffer;
 	zip->entry_offset += *size;
 	return (ARCHIVE_OK);
-}
-#else
-static int
-zip_read_data_deflate(struct archive_read *a, const void **buff,
-    size_t *size, int64_t *offset)
-{
-	*buff = NULL;
-	*size = 0;
-	*offset = 0;
-	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-	    "libarchive compiled without deflate support (no libz)");
-	return (ARCHIVE_FATAL);
 }
 #endif
 
