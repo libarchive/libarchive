@@ -144,11 +144,10 @@ test_compat_zip_3(void)
 		assertEqualInt(s, 1030);
 		assertEqualMem(p, "<?xml versio", 12);
 		free(p);
-		assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	} else {
 		skipping("Skipping ZIP compression check, no libz support");
-		assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
 	}
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
