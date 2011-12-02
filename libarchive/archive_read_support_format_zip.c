@@ -741,19 +741,9 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Unsupported ZIP compression method (%s)",
 		    compression_name(zip->entry->compression));
-		if (zip->entry->flags & ZIP_LENGTH_AT_END) {
-			/*
-			 * ZIP_LENGTH_AT_END requires us to
-			 * decompress the entry in order to
-			 * skip it, but we don't know this
-			 * compression method, so we give up.
-			 */
-			r = ARCHIVE_FATAL;
-		} else {
-			/* We can't decompress this entry, but we will
-			 * be able to skip() it and try the next entry. */
-			r = ARCHIVE_FAILED;
-		}
+		/* We can't decompress this entry, but we will
+		 * be able to skip() it and try the next entry. */
+		return (ARCHIVE_FAILED);
 		break;
 	}
 	if (r != ARCHIVE_OK)
@@ -1022,7 +1012,6 @@ static int
 archive_read_format_zip_read_data_skip(struct archive_read *a)
 {
 	struct zip *zip;
-	int r;
 
 	zip = (struct zip *)(a->format->data);
 
@@ -1045,47 +1034,48 @@ archive_read_format_zip_read_data_skip(struct archive_read *a)
 	}
 
 	/* We're streaming and we don't know the length. */
-	while (!zip->end_of_entry) {
-		const void *buff = NULL;
-		size_t size = 0;
-		int64_t offset = 0;
-
+	/* If the body is compressed and we know the format, we can
+	 * find an exact end-of-entry by decompressing it. */
+	switch (zip->entry->compression) {
+#ifdef HAVE_ZLIB_H
+	case 8: /* Deflate compression. */
+		while (!zip->end_of_entry) {
+			int64_t offset = 0;
+			const void *buff = NULL;
+			size_t size = 0;
+			int r;
+			r =  zip_read_data_deflate(a, &buff, &size, &offset);
+			if (r != ARCHIVE_OK)
+				return (r);
+		}
+		break;
+#endif
+	default: /* Uncompressed or unknown. */
+		/* Scan for a PK\007\010 signature. */
 		__archive_read_consume(a, zip->unconsumed);
 		zip->unconsumed = 0;
-
-		switch(zip->entry->compression) {
-		case 0:  /* No compression. */
-			r =  zip_read_data_none(a, &buff, &size, &offset);
-			break;
-#ifdef HAVE_ZLIB_H
-		case 8: /* Deflate compression. */
-			r =  zip_read_data_deflate(a, &buff, &size, &offset);
-			break;
-#endif
-		default: /* Unsupported compression. */
-			/* Return a warning. */
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Unsupported ZIP compression method (%s)",
-			    compression_name(zip->entry->compression));
-			if (zip->entry->flags & ZIP_LENGTH_AT_END) {
-				/*
-				 * ZIP_LENGTH_AT_END requires us to
-				 * decompress the entry in order to
-				 * skip it, but we don't know this
-				 * compression method, so we give up.
-				 */
-				return ARCHIVE_FATAL;
-			} else {
-				/* We can't decompress this entry, but we will
-				 * be able to skip() it and try the next entry. */
-				return ARCHIVE_FAILED;
+		for (;;) {
+			const char *p, *buff;
+			ssize_t bytes_avail;
+			buff = __archive_read_ahead(a, 16, &bytes_avail);
+			if (bytes_avail < 16) {
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Truncated ZIP file data");
+				return (ARCHIVE_FATAL);
 			}
-			break;
+			p = buff;
+			while (p < buff + bytes_avail - 16) {
+				if (p[3] == 'P') { p += 3; }
+				else if (p[3] == 'K') { p += 2; }
+				else if (p[3] == '\007') { p += 1; }
+				else if (p[3] == '\010' && p[2] == '\007'
+				    && p[1] == 'K' && p[0] == 'P') {
+					__archive_read_consume(a, p - buff + 16);
+					return ARCHIVE_OK;
+				} else { p += 4; }
+			}
+			__archive_read_consume(a, p - buff);
 		}
-		if (size)
-			zip->entry_crc32 = crc32(zip->entry_crc32, buff, size);
-		if (r != ARCHIVE_OK)
-			return (r);
 	}
 	return ARCHIVE_OK;
 }

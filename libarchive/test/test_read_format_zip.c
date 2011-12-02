@@ -67,9 +67,9 @@ verify_basic(struct archive *a, int seek_checks)
 		assertEqualInt(18, archive_read_data(a, buff, 19));
 		assertEqualMem(buff, "hello\nhello\nhello\n", 18);
 	} else {
-		assertEqualInt(ARCHIVE_FATAL, archive_read_data(a, buff, 19));
+		assertEqualInt(ARCHIVE_FAILED, archive_read_data(a, buff, 19));
 		assertEqualString(archive_error_string(a),
-		    "libarchive compiled without deflate support (no libz)");
+		    "Unsupported ZIP compression method (deflation)");
 		assert(archive_errno(a) != 0);
 	}
 
@@ -89,11 +89,12 @@ verify_basic(struct archive *a, int seek_checks)
 		assertEqualInt(ARCHIVE_WARN, archive_read_data(a, buff, 19));
 		assertEqualMem(buff, "aaaaaaaaaaaaaaaaaaa", 19);
 	} else {
-		assertEqualInt(ARCHIVE_FATAL, archive_read_data(a, buff, 19));
+		assertEqualInt(ARCHIVE_FAILED, archive_read_data(a, buff, 19));
 		assertEqualString(archive_error_string(a),
-		    "libarchive compiled without deflate support (no libz)");
+		    "Unsupported ZIP compression method (deflation)");
 		assert(archive_errno(a) != 0);
 	}
+	assertEqualInt(ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	/* Verify the number of files read. */
 	failure("the archive file has three files");
 	assertEqualInt(3, archive_file_count(a));
@@ -148,14 +149,14 @@ verify_info_zip_ux(struct archive *a, int seek_checks)
 	failure("zip reader should read Info-ZIP New Unix Extra Field");
 	assertEqualInt(1001, archive_entry_uid(ae));
 	assertEqualInt(1001, archive_entry_gid(ae));
-	failure("archive_read_data() returns number of bytes read");
 	if (libz_enabled) {
+		failure("archive_read_data() returns number of bytes read");
 		assertEqualInt(18, archive_read_data(a, buff, 19));
 		assertEqualMem(buff, "hello\nhello\nhello\n", 18);
 	} else {
-		assertEqualInt(ARCHIVE_FATAL, archive_read_data(a, buff, 19));
+		assertEqualInt(ARCHIVE_FAILED, archive_read_data(a, buff, 19));
 		assertEqualString(archive_error_string(a),
-		    "libarchive compiled without deflate support (no libz)");
+		    "Unsupported ZIP compression method (deflation)");
 		assert(archive_errno(a) != 0);
 	}
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
@@ -221,9 +222,9 @@ verify_extract_length_at_end(struct archive *a, int seek_checks)
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_extract(a, ae, 0));
 		assertFileContents("hello\x0A", 6, "hello.txt");
 	} else {
-		assertEqualIntA(a, ARCHIVE_FATAL, archive_read_extract(a, ae, 0));
+		assertEqualIntA(a, ARCHIVE_FAILED, archive_read_extract(a, ae, 0));
 		assertEqualString(archive_error_string(a),
-		    "libarchive compiled without deflate support (no libz)");
+		    "Unsupported ZIP compression method (deflation)");
 		assert(archive_errno(a) != 0);
 	}
 
