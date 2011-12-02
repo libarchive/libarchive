@@ -83,7 +83,6 @@ struct zip {
 
 	/* entry_bytes_remaining is the number of bytes we expect. */
 	int64_t			entry_bytes_remaining;
-	int64_t			entry_offset;
 
 	/* These count the number of bytes actually read for the entry. */
 	int64_t			entry_compressed_bytes_read;
@@ -648,7 +647,6 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		archive_entry_set_size(entry, zip_entry->uncompressed_size);
 
 	zip->entry_bytes_remaining = zip_entry->compressed_size;
-	zip->entry_offset = 0;
 
 	/* If there's no body, force read_data() to return EOF immediately. */
 	if (0 == (zip_entry->flags & ZIP_LENGTH_AT_END)
@@ -872,7 +870,7 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 	zip = (struct zip *)(a->format->data);
 	*_buff = NULL;
 	*size = 0;
-	*offset = zip->entry_offset;
+	*offset = zip->entry_uncompressed_bytes_read;
 
 	if (zip->entry->flags & ZIP_LENGTH_AT_END) {
 		const char *p;
@@ -930,7 +928,6 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 			bytes_avail = zip->entry_bytes_remaining;
 	}
 	*size = bytes_avail;
-	zip->entry_offset += bytes_avail;
 	zip->entry_bytes_remaining -= bytes_avail;
 	zip->entry_uncompressed_bytes_read += bytes_avail;
 	zip->entry_compressed_bytes_read += bytes_avail;
@@ -1034,11 +1031,10 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	zip->entry_bytes_remaining -= bytes_avail;
 	zip->entry_compressed_bytes_read += bytes_avail;
 
-	*offset = zip->entry_offset;
+	*offset = zip->entry_uncompressed_bytes_read;
 	*size = zip->stream.total_out;
 	zip->entry_uncompressed_bytes_read += *size;
 	*buff = zip->uncompressed_buffer;
-	zip->entry_offset += *size;
 	return (ARCHIVE_OK);
 }
 #endif
