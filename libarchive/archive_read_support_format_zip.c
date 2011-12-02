@@ -709,10 +709,9 @@ static int
 archive_read_format_zip_read_data(struct archive_read *a,
     const void **buff, size_t *size, int64_t *offset)
 {
-	int r, reset_buff = 0;
-	struct zip *zip;
+	int r;
+	struct zip *zip = (struct zip *)(a->format->data);
 
-	zip = (struct zip *)(a->format->data);
 	*offset = zip->entry_uncompressed_bytes_read;
 	*size = 0;
 	*buff = NULL;
@@ -731,7 +730,6 @@ archive_read_format_zip_read_data(struct archive_read *a,
 	switch(zip->entry->compression) {
 	case 0:  /* No compression. */
 		r =  zip_read_data_none(a, buff, size, offset);
-		reset_buff = 1;
 		break;
 #ifdef HAVE_ZLIB_H
 	case 8: /* Deflate compression. */
@@ -765,46 +763,14 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		zip->entry_crc32 = crc32(zip->entry_crc32, *buff, *size);
 	/* If we hit the end, swallow any end-of-data marker. */
 	if (zip->end_of_entry) {
-		if (zip->entry->flags & ZIP_LENGTH_AT_END) {
-			const char *p;
-
-			/* since we're screwing with the exposed window,
-			 * it's possible this will cross a forced move/realloc
-			 * w/in that layer... in other words, the previous
-			 * read_ahead's returned pointer isn't trustable.
-			 * thus we redo the window, and reset buff if needed.
-			 * note that decompression sidesteps this via the
-			 * flushing of entry_bytes_unconsumed
-			 */
-			if (NULL == (p = __archive_read_ahead(a,
-			    zip->unconsumed + 16, NULL))) {
-				archive_set_error(&a->archive,
-				    ARCHIVE_ERRNO_FILE_FORMAT,
-				    "Truncated ZIP end-of-file record");
-				return (ARCHIVE_FATAL);
-			}
-			/* update the ptr, and set p to just the 16 bytes
-			 * we care about */
-			if (reset_buff) {
-				*buff = p;
-				p += zip->unconsumed;
-			}
-			/* Consume the optional PK\007\010 marker. */
-			if (p[0] == 'P' && p[1] == 'K' && p[2] == '\007' && p[3] == '\010') {
-				zip->unconsumed += 4;
-				p += 4;
-			}
-			zip->entry->crc32 = archive_le32dec(p);
-			zip->entry->compressed_size = archive_le32dec(p + 4);
-			zip->entry->uncompressed_size = archive_le32dec(p + 8);
-			zip->unconsumed += 12;
-		}
 		/* Check file size, CRC against these values. */
 		if (zip->entry->compressed_size != zip->entry_compressed_bytes_read) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "ZIP compressed data is wrong size (read %jd, expected %jd)",
 			    (intmax_t)zip->entry_compressed_bytes_read,
 			    (intmax_t)zip->entry->compressed_size);
+			fprintf(stderr, "compression: %d\n", zip->entry->compression);
+			fprintf(stderr, "length_at_end: %s\n", (zip->entry->flags & ZIP_LENGTH_AT_END) ? "YES": "NO");
 			return (ARCHIVE_WARN);
 		}
 		/* Size field only stores the lower 32 bits of the actual
@@ -884,7 +850,11 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 		    && archive_le32dec(p + 4) == zip->entry_crc32
 		    && archive_le32dec(p + 8) == zip->entry_compressed_bytes_read
 		    && archive_le32dec(p + 12) == zip->entry_uncompressed_bytes_read) {
+			zip->entry->crc32 = archive_le32dec(p + 4);
+			zip->entry->compressed_size = archive_le32dec(p + 8);
+			zip->entry->uncompressed_size = archive_le32dec(p + 12);
 			zip->end_of_entry = 1;
+			zip->unconsumed = 16;
 			return (ARCHIVE_OK);
 		}
 		/* If not at EOF, ensure we consume at least one byte. */
@@ -1023,8 +993,27 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	zip->entry_compressed_bytes_read += bytes_avail;
 
 	*size = zip->stream.total_out;
-	zip->entry_uncompressed_bytes_read += *size;
+	zip->entry_uncompressed_bytes_read += zip->stream.total_out;
 	*buff = zip->uncompressed_buffer;
+
+	if (zip->end_of_entry && (zip->entry->flags & ZIP_LENGTH_AT_END)) {
+		const char *p;
+
+		if (NULL == (p = __archive_read_ahead(a, 16, NULL))) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Truncated ZIP end-of-file record");
+			return (ARCHIVE_FATAL);
+		}
+		/* Consume the optional PK\007\010 marker. */
+		if (p[0] == 'P' && p[1] == 'K' && p[2] == '\007' && p[3] == '\010') {
+			zip->entry->crc32 = archive_le32dec(p + 4);
+			zip->entry->compressed_size = archive_le32dec(p + 8);
+			zip->entry->uncompressed_size = archive_le32dec(p + 12);
+			zip->unconsumed = 16;
+		}
+	}
+
 	return (ARCHIVE_OK);
 }
 #endif
