@@ -713,17 +713,17 @@ archive_read_format_zip_read_data(struct archive_read *a,
 	struct zip *zip;
 
 	zip = (struct zip *)(a->format->data);
+	*offset = zip->entry_uncompressed_bytes_read;
+	*size = 0;
+	*buff = NULL;
 
-	/*
-	 * If we hit end-of-entry last time, clean up and return
-	 * ARCHIVE_EOF this time.
-	 */
-	if (zip->end_of_entry) {
-		*offset = zip->entry_uncompressed_bytes_read;
-		*size = 0;
-		*buff = NULL;
+	/* If we hit end-of-entry last time, return ARCHIVE_EOF. */
+	if (zip->end_of_entry)
 		return (ARCHIVE_EOF);
-	}
+
+	/* Return EOF immediately if this is a non-regular file. */
+	if (AE_IFREG != (zip->entry->mode & AE_IFMT))
+		return (ARCHIVE_EOF);
 
 	__archive_read_consume(a, zip->unconsumed);
 	zip->unconsumed = 0;
@@ -739,9 +739,6 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		break;
 #endif
 	default: /* Unsupported compression. */
-		*buff = NULL;
-		*size = 0;
-		*offset = 0;
 		/* Return a warning. */
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Unsupported ZIP compression method (%s)",
@@ -830,9 +827,6 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		}
 	}
 
-	/* Return EOF immediately if this is a non-regular file. */
-	if (AE_IFREG != (zip->entry->mode & AE_IFMT))
-		return (ARCHIVE_EOF);
 	return (ARCHIVE_OK);
 }
 
@@ -868,9 +862,6 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 	ssize_t bytes_avail;
 
 	zip = (struct zip *)(a->format->data);
-	*_buff = NULL;
-	*size = 0;
-	*offset = zip->entry_uncompressed_bytes_read;
 
 	if (zip->entry->flags & ZIP_LENGTH_AT_END) {
 		const char *p;
@@ -1031,7 +1022,6 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	zip->entry_bytes_remaining -= bytes_avail;
 	zip->entry_compressed_bytes_read += bytes_avail;
 
-	*offset = zip->entry_uncompressed_bytes_read;
 	*size = zip->stream.total_out;
 	zip->entry_uncompressed_bytes_read += *size;
 	*buff = zip->uncompressed_buffer;
