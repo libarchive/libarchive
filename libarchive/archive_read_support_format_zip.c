@@ -1071,8 +1071,6 @@ archive_read_format_zip_read_data_skip(struct archive_read *a)
 		return (r);
 	}
 
-	#undef flush_consumed
-
 	/*
 	 * If the length is at the beginning, we can skip the
 	 * compressed data much more quickly.
