@@ -1022,43 +1022,37 @@ static int
 archive_read_format_zip_read_data_skip(struct archive_read *a)
 {
 	struct zip *zip;
-	int64_t bytes_skipped;
+	int r;
 
 	zip = (struct zip *)(a->format->data);
 
 	/* If we've already read to end of data, we're done. */
 	if (zip->end_of_entry)
 		return (ARCHIVE_OK);
+	/* If we're seeking, we're done. */
+	if (zip->have_central_directory)
+		return (ARCHIVE_OK);
 
-	/*
-	 * If the length is at the end, we have no choice but
-	 * to decompress all the data to find the end marker.
-	 */
-	if (zip->entry->flags & ZIP_LENGTH_AT_END) {
-		size_t size;
-		int64_t offset;
-		int r;
-		do {
-			const void *buff = NULL;
-			r = archive_read_format_zip_read_data(a, &buff,
-			    &size, &offset);
-		} while (r == ARCHIVE_OK);
-		return (r);
+	/* So we know we're streaming... */
+	if (0 == (zip->entry->flags & ZIP_LENGTH_AT_END)) {
+		/* We know the compressed length, so we can just skip. */
+		int64_t bytes_skipped = __archive_read_consume(a,
+		    zip->entry_bytes_remaining + zip->unconsumed);
+		if (bytes_skipped < 0)
+			return (ARCHIVE_FATAL);
+		zip->unconsumed = 0;
+		return (ARCHIVE_OK);
 	}
 
-	/*
-	 * If the length is at the beginning, we can skip the
-	 * compressed data much more quickly.
-	 */
-	bytes_skipped = __archive_read_consume(a,
-	    zip->entry_bytes_remaining + zip->unconsumed);
-	if (bytes_skipped < 0)
-		return (ARCHIVE_FATAL);
-	zip->unconsumed = 0;
-
-	/* This entry is finished and done. */
-	zip->end_of_entry = 1;
-	return (ARCHIVE_OK);
+	/* We're streaming and we don't know the length. */
+	do {
+		const void *buff = NULL;
+		size_t size;
+		int64_t offset;
+		r = archive_read_format_zip_read_data(a, &buff,
+		    &size, &offset);
+	} while (r == ARCHIVE_OK);
+	return (r == ARCHIVE_EOF) ? ARCHIVE_OK : r;
 }
 
 static int
