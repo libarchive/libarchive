@@ -1045,14 +1045,49 @@ archive_read_format_zip_read_data_skip(struct archive_read *a)
 	}
 
 	/* We're streaming and we don't know the length. */
-	do {
+	while (!zip->end_of_entry) {
 		const void *buff = NULL;
-		size_t size;
-		int64_t offset;
-		r = archive_read_format_zip_read_data(a, &buff,
-		    &size, &offset);
-	} while (r == ARCHIVE_OK);
-	return (r == ARCHIVE_EOF) ? ARCHIVE_OK : r;
+		size_t size = 0;
+		int64_t offset = 0;
+
+		__archive_read_consume(a, zip->unconsumed);
+		zip->unconsumed = 0;
+
+		switch(zip->entry->compression) {
+		case 0:  /* No compression. */
+			r =  zip_read_data_none(a, &buff, &size, &offset);
+			break;
+#ifdef HAVE_ZLIB_H
+		case 8: /* Deflate compression. */
+			r =  zip_read_data_deflate(a, &buff, &size, &offset);
+			break;
+#endif
+		default: /* Unsupported compression. */
+			/* Return a warning. */
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Unsupported ZIP compression method (%s)",
+			    compression_name(zip->entry->compression));
+			if (zip->entry->flags & ZIP_LENGTH_AT_END) {
+				/*
+				 * ZIP_LENGTH_AT_END requires us to
+				 * decompress the entry in order to
+				 * skip it, but we don't know this
+				 * compression method, so we give up.
+				 */
+				return ARCHIVE_FATAL;
+			} else {
+				/* We can't decompress this entry, but we will
+				 * be able to skip() it and try the next entry. */
+				return ARCHIVE_FAILED;
+			}
+			break;
+		}
+		if (size)
+			zip->entry_crc32 = crc32(zip->entry_crc32, buff, size);
+		if (r != ARCHIVE_OK)
+			return (r);
+	}
+	return ARCHIVE_OK;
 }
 
 static int
