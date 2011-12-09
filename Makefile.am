@@ -136,6 +136,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_read_support_format_7zip.c		\
 	libarchive/archive_read_support_format_all.c		\
 	libarchive/archive_read_support_format_ar.c		\
+	libarchive/archive_read_support_format_by_code.c	\
 	libarchive/archive_read_support_format_cab.c		\
 	libarchive/archive_read_support_format_cpio.c		\
 	libarchive/archive_read_support_format_empty.c		\

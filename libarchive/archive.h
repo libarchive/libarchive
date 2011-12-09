@@ -349,6 +349,7 @@ __LA_DECL int archive_read_support_filter_xz(struct archive *);
 __LA_DECL int archive_read_support_format_7zip(struct archive *);
 __LA_DECL int archive_read_support_format_all(struct archive *);
 __LA_DECL int archive_read_support_format_ar(struct archive *);
+__LA_DECL int archive_read_support_format_by_code(struct archive *, int);
 __LA_DECL int archive_read_support_format_cab(struct archive *);
 __LA_DECL int archive_read_support_format_cpio(struct archive *);
 __LA_DECL int archive_read_support_format_empty(struct archive *);

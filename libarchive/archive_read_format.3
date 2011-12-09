@@ -28,23 +28,35 @@
 .Dt archive_read_format 3
 .Os
 .Sh NAME
+.Nm archive_read_support_format_7zip ,
 .Nm archive_read_support_format_all ,
 .Nm archive_read_support_format_ar ,
+.Nm archive_read_support_format_by_code ,
+.Nm archive_read_support_format_cab ,
 .Nm archive_read_support_format_cpio ,
 .Nm archive_read_support_format_empty ,
 .Nm archive_read_support_format_iso9660 ,
+.Nm archive_read_support_format_lha ,
 .Nm archive_read_support_format_mtree,
+.Nm archive_read_support_format_rar,
 .Nm archive_read_support_format_raw,
 .Nm archive_read_support_format_tar ,
+.Nm archive_read_support_format_xar ,
 .Nm archive_read_support_format_zip
 .Nd functions for reading streaming archives
 .\"
 .Sh SYNOPSIS
 .In archive.h
 .Ft int
+.Fn archive_read_support_format_7zip "struct archive *"
+.Ft int
 .Fn archive_read_support_format_all "struct archive *"
 .Ft int
 .Fn archive_read_support_format_ar "struct archive *"
+.Ft int
+.Fn archive_read_support_format_by_code "struct archive *" "int"
+.Ft int
+.Fn archive_read_support_format_cab "struct archive *"
 .Ft int
 .Fn archive_read_support_format_cpio "struct archive *"
 .Ft int
@@ -52,24 +64,34 @@
 .Ft int
 .Fn archive_read_support_format_iso9660 "struct archive *"
 .Ft int
+.Fn archive_read_support_format_lha "struct archive *"
+.Ft int
 .Fn archive_read_support_format_mtree "struct archive *"
+.Ft int
+.Fn archive_read_support_format_rar "struct archive *"
 .Ft int
 .Fn archive_read_support_format_raw "struct archive *"
 .Ft int
 .Fn archive_read_support_format_tar "struct archive *"
+.Ft int
+.Fn archive_read_support_format_xar "struct archive *"
 .Ft int
 .Fn archive_read_support_format_zip "struct archive *"
 .\"
 .Sh DESCRIPTION
 .Bl -tag -compact -width indent
 .It Xo
-.Fn archive_read_support_format_all ,
+.Fn archive_read_support_format_7zip ,
 .Fn archive_read_support_format_ar ,
+.Fn archive_read_support_format_cab ,
 .Fn archive_read_support_format_cpio ,
-.Fn archive_read_support_format_empty ,
 .Fn archive_read_support_format_iso9660 ,
+.Fn archive_read_support_format_lha ,
 .Fn archive_read_support_format_mtree ,
+.Fn archive_read_support_format_rar ,
+.Fn archive_read_support_format_raw ,
 .Fn archive_read_support_format_tar ,
+.Fn archive_read_support_format_xar ,
 .Fn archive_read_support_format_zip
 .Xc
 Enables support---including auto-detection code---for the
@@ -78,11 +100,30 @@ For example,
 .Fn archive_read_support_format_tar
 enables support for a variety of standard tar formats, old-style tar,
 ustar, pax interchange format, and many common variants.
-For convenience,
-.Fn archive_read_support_format_all
-enables support for all available formats.
-Only empty archives are supported by default.
-.It Fn archive_read_support_format_raw
+.It Fn archive_read_support_format_all 
+Enables support for all available formats except the
+.Dq raw
+format (see below).
+.It Fn archive_read_support_format_by_code
+Enables a single format specified by the format code.
+This can be useful when reading a single archive twice;
+use
+.Fn archive_format
+after reading the first time and pass the resulting code
+to this function to selectively enable only the necessary
+format support.
+Note:  In statically-linked executables, this will cause
+your program to include support for every format.
+If executable size is a concern, you may wish to avoid
+using this function.
+.It Fn archive_read_support_format_empty
+Enables support for treating empty files as empty archives.
+Because empty files are valid for several different formats,
+it is not possible to accurately determine a format for
+an empty file based purely on contents.
+So empty files are treated by libarchive as a distinct
+format.
+.It Fn archive_read_support_format_raw 
 The
 .Dq raw
 format handler allows libarchive to be used to read arbitrary data.
@@ -127,3 +168,8 @@ by inspecting the contents, so this library treats empty files as
 having a special
 .Dq empty
 format.
+.Pp
+Using the
+.Dq raw
+handler together with any other handler will often work
+but can produce surprising results.
