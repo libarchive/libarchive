@@ -533,7 +533,7 @@ AC_DEFUN([CRYPTO_CHECK], [
   if test "$found_$1" != yes; then
     saved_LIBS="$LIBS"
     saved_CPPFLAGS="$CPPFLAGS"
-    CPPFLAGS="$CPPFLAGS -I$srcdir -I$srcdir/libarchive"
+    CPPFLAGS="$CPPFLAGS -I. -I$srcdir -I$srcdir/libarchive"
     LIBS="$LIBS $4"
     touch "check_crypto_md.h"
     AC_MSG_CHECKING([support for ARCHIVE_CRYPTO_$1_$2])
