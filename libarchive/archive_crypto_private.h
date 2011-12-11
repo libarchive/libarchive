@@ -82,6 +82,9 @@
 #if defined(ARCHIVE_CRYPTO_MD5_LIBMD)
 #include <md5.h>
 #endif
+#if defined(ARCHIVE_CRYPTO_RMD160_LIBMD)
+#include <ripemd.h>
+#endif
 #if defined(ARCHIVE_CRYPTO_SHA1_LIBMD)
 #include <sha.h>
 #endif
@@ -158,6 +161,8 @@ typedef unsigned char archive_md5_ctx;
 
 #if defined(ARCHIVE_CRYPTO_RMD160_LIBC)
 typedef RMD160_CTX archive_rmd160_ctx;
+#elif defined(ARCHIVE_CRYPTO_RMD160_LIBMD)
+typedef RIPEMD160_CTX archive_rmd160_ctx;
 #elif defined(ARCHIVE_CRYPTO_RMD160_NETTLE)
 typedef struct ripemd160_ctx archive_rmd160_ctx;
 #elif defined(ARCHIVE_CRYPTO_RMD160_OPENSSL)
