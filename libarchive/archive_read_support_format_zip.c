@@ -759,8 +759,6 @@ archive_read_format_zip_read_data(struct archive_read *a,
 			    "ZIP compressed data is wrong size (read %jd, expected %jd)",
 			    (intmax_t)zip->entry_compressed_bytes_read,
 			    (intmax_t)zip->entry->compressed_size);
-			fprintf(stderr, "compression: %d\n", zip->entry->compression);
-			fprintf(stderr, "length_at_end: %s\n", (zip->entry->flags & ZIP_LENGTH_AT_END) ? "YES": "NO");
 			return (ARCHIVE_WARN);
 		}
 		/* Size field only stores the lower 32 bits of the actual
