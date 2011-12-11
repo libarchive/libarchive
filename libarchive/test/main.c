@@ -468,6 +468,8 @@ _utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 	int cnt;
 	uint32_t wc;
 
+	*pwc = 0;
+
 	/* Sanity check. */
 	if (n == 0)
 		return (0);

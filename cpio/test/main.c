@@ -192,6 +192,8 @@ invalid_parameter_handler(const wchar_t * expression,
 static int dump_on_failure = 0;
 /* Default is to remove temp dirs and log data for successful tests. */
 static int keep_temp_files = 0;
+/* Default is to run the specified tests once and report errors. */
+static int until_failure = 0;
 /* Default is to just report pass/fail for each test. */
 static int verbosity = 0;
 #define	VERBOSITY_SUMMARY_ONLY -1 /* -q */
@@ -467,6 +469,8 @@ _utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 	int ch;
 	int cnt;
 	uint32_t wc;
+
+	*pwc = 0;
 
 	/* Sanity check. */
 	if (n == 0)
@@ -2138,6 +2142,7 @@ usage(const char *program)
 	printf("  -q  Quiet.\n");
 	printf("  -r <dir>   Path to dir containing reference files.\n");
 	printf("      Default: Current directory.\n");
+	printf("  -u  Keep running specifies tests until one fails.\n");
 	printf("  -v  Verbose.\n");
 	printf("Available tests:\n");
 	for (i = 0; i < limit; i++)
@@ -2239,6 +2244,7 @@ main(int argc, char **argv)
 	time_t now;
 	char *refdir_alloc = NULL;
 	const char *progname;
+	char **saved_argv;
 	const char *tmp, *option_arg, *p;
 	char tmpdir[256], *pwd, *testprogdir, *tmp2 = NULL;
 	char tmpdir_timestamp[256];
@@ -2369,6 +2375,9 @@ main(int argc, char **argv)
 			case 'r':
 				refdir = option_arg;
 				break;
+			case 'u':
+				until_failure++;
+				break;
 			case 'v':
 				verbosity++;
 				break;
@@ -2480,72 +2489,84 @@ main(int argc, char **argv)
 	/*
 	 * Run some or all of the individual tests.
 	 */
-	if (*argv == NULL) {
-		/* Default: Run all tests. */
-		for (i = 0; i < limit; i++) {
-			if (test_run(i, tmpdir))
-				tests_failed++;
-			tests_run++;
-		}
-	} else {
-		while (*(argv) != NULL) {
-			if (**argv >= '0' && **argv <= '9') {
-				char *p = *argv;
-				start = 0;
-				while (*p >= '0' && *p <= '9') {
-					start *= 10;
-					start += *p - '0';
-					++p;
+	saved_argv = argv;
+	do {
+		argv = saved_argv;
+		if (*argv == NULL) {
+			/* Default: Run all tests. */
+			for (i = 0; i < limit; i++) {
+				tests_run++;
+				if (test_run(i, tmpdir)) {
+					tests_failed++;
+					if (until_failure)
+						goto finish;
 				}
-				if (*p == '\0') {
-					end = start;
-				} else if (*p == '-') {
-					++p;
+			}
+		} else {
+			while (*(argv) != NULL) {
+				if (**argv >= '0' && **argv <= '9') {
+					char *p = *argv;
+					start = 0;
+					while (*p >= '0' && *p <= '9') {
+						start *= 10;
+						start += *p - '0';
+						++p;
+					}
 					if (*p == '\0') {
-						end = limit - 1;
-					} else {
-						end = 0;
-						while (*p >= '0' && *p <= '9') {
-							end *= 10;
-							end += *p - '0';
-							++p;
+						end = start;
+					} else if (*p == '-') {
+						++p;
+						if (*p == '\0') {
+							end = limit - 1;
+						} else {
+							end = 0;
+							while (*p >= '0' && *p <= '9') {
+								end *= 10;
+								end += *p - '0';
+								++p;
+							}
 						}
+					} else {
+						printf("*** INVALID Test %s\n", *argv);
+						free(refdir_alloc);
+						usage(progname);
+						return (1);
+					}
+					if (start < 0 || end >= limit || start > end) {
+						printf("*** INVALID Test %s\n", *argv);
+						free(refdir_alloc);
+						usage(progname);
+						return (1);
 					}
 				} else {
-					printf("*** INVALID Test %s\n", *argv);
-					free(refdir_alloc);
-					usage(progname);
-					return (1);
+					for (start = 0; start < limit; ++start) {
+						if (strcmp(*argv, tests[start].name) == 0)
+							break;
+					}
+					end = start;
+					if (start >= limit) {
+						printf("*** INVALID Test ``%s''\n",
+						    *argv);
+						free(refdir_alloc);
+						usage(progname);
+						/* usage() never returns */
+					}
 				}
-				if (start < 0 || end >= limit || start > end) {
-					printf("*** INVALID Test %s\n", *argv);
-					free(refdir_alloc);
-					usage(progname);
-					return (1);
+				while (start <= end) {
+					tests_run++;
+					if (test_run(start, tmpdir)) {
+						tests_failed++;
+						if (until_failure)
+							goto finish;
+					}
+					++start;
 				}
-			} else {
-				for (start = 0; start < limit; ++start) {
-					if (strcmp(*argv, tests[start].name) == 0)
-						break;
-				}
-				end = start;
-				if (start >= limit) {
-					printf("*** INVALID Test ``%s''\n",
-					       *argv);
-					free(refdir_alloc);
-					usage(progname);
-					/* usage() never returns */
-				}
+				argv++;
 			}
-			while (start <= end) {
-				if (test_run(start, tmpdir))
-					tests_failed++;
-				tests_run++;
-				++start;
-			}
-			argv++;
 		}
-	}
+	} while (until_failure);
+
+finish:
 	/* Must be freed after all tests run */
 	free(tmp2);
 	free(testprogdir);
