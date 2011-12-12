@@ -1517,7 +1517,7 @@ check_symlinks(struct archive_write_disk *a)
 	(void)a; /* UNUSED */
 	return (ARCHIVE_OK);
 #else
-	char *pn, *p;
+	char *pn;
 	char c;
 	int r;
 	struct stat st;
@@ -1528,9 +1528,11 @@ check_symlinks(struct archive_write_disk *a)
 	 */
 	/* Whatever we checked last time doesn't need to be re-checked. */
 	pn = a->name;
-	p = a->path_safe.s;
-	while ((*pn != '\0') && (*p == *pn))
-		++p, ++pn;
+	if (archive_strlen(&(a->path_safe)) > 0) {
+		char *p = a->path_safe.s;
+		while ((*pn != '\0') && (*p == *pn))
+			++p, ++pn;
+	}
 	c = pn[0];
 	/* Keep going until we've checked the entire name. */
 	while (pn[0] != '\0' && (pn[0] != '/' || pn[1] != '\0')) {
