@@ -2696,6 +2696,11 @@ get_uncompressed_data(struct archive_read *a, const void **buff, size_t size)
 			bytes_avail = (ssize_t)size;
 
 		zip->pack_stream_bytes_unconsumed = bytes_avail;
+	} else if (zip->uncompressed_buffer_pointer == NULL) {
+		/* Decompression has failed. */
+		archive_set_error(&(a->archive),
+		    ARCHIVE_ERRNO_MISC, "Damaged 7-Zip archive");
+		return (ARCHIVE_FATAL);
 	} else {
 		/* Packed mode. */
 		if (size > zip->uncompressed_buffer_bytes_remaining)
@@ -2737,6 +2742,7 @@ extract_pack_stream(struct archive_read *a)
 		}
 	}
 	zip->uncompressed_buffer_bytes_remaining = 0;
+	zip->uncompressed_buffer_pointer = NULL;
 	for (;;) {
 		size_t bytes_in, bytes_out;
 		const void *buff_in;
