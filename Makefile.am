@@ -457,6 +457,10 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_pax_filename_encoding.tar.uu		\
 	libarchive/test/test_read_format_7zip_bcj_lzma1.7z.uu		\
 	libarchive/test/test_read_format_7zip_bcj_lzma2.7z.uu		\
+	libarchive/test/test_read_format_7zip_bcj2_lzma1_1.7z.uu	\
+	libarchive/test/test_read_format_7zip_bcj2_lzma1_2.7z.uu	\
+	libarchive/test/test_read_format_7zip_bcj2_lzma2_1.7z.uu	\
+	libarchive/test/test_read_format_7zip_bcj2_lzma2_2.7z.uu	\
 	libarchive/test/test_read_format_7zip_bzip2.7z.uu		\
 	libarchive/test/test_read_format_7zip_copy.7z.uu		\
 	libarchive/test/test_read_format_7zip_copy_2.7z.uu		\
