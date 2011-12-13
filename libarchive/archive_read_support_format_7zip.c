@@ -1146,6 +1146,8 @@ decompress(struct archive_read *a, struct _7zip *zip,
 		zip->lzstream.avail_in = avail_in;
 		zip->lzstream.next_out = buff;
 		zip->lzstream.avail_out = avail_out;
+		bcj2_out = buff;
+		bcj2_avail = avail_out;
 
 		if (zip->codec == _7Z_LZMA && zip->codec2 == _7Z_X86) {
 			for (i = 0; zip->odd_bcj_size > 0 &&
@@ -1163,8 +1165,6 @@ decompress(struct archive_read *a, struct _7zip *zip,
 			}
 		}
 		if (zip->codec2 == _7Z_X86_BCJ2) {
-			bcj2_out = zip->lzstream.next_out;
-			bcj2_avail = zip->lzstream.avail_out;
 			if (zip->tmp_stream_bytes_remaining > 0) {
 				ssize_t bytes;
 				size_t remaining = zip->tmp_stream_bytes_remaining;
