@@ -664,7 +664,7 @@ archive_read_format_rar_bid(struct archive_read *a, int best_bid)
   if (memcmp(p, RAR_SIGNATURE, 7) == 0)
     return (30);
 
-  if (p[0] == 'M' && p[1] == 'Z') {
+  if ((p[0] == 'M' && p[1] == 'Z') || memcmp(p, "\x7F\x45LF", 4) == 0) {
     /* This is a PE file */
     ssize_t offset = 0x10000;
     ssize_t window = 4096;
@@ -682,7 +682,7 @@ archive_read_format_rar_bid(struct archive_read *a, int best_bid)
       while (p + 7 < buff + bytes_avail) {
         if (memcmp(p, RAR_SIGNATURE, 7) == 0)
           return (30);
-        p += 0x100;
+        p += 0x10;
       }
       offset = p - buff;
     }
@@ -724,7 +724,7 @@ skip_sfx(struct archive_read *a)
       	__archive_read_consume(a, skip);
       	return (ARCHIVE_OK);
       }
-      p += 0x100;
+      p += 0x10;
     }
     skip = p - (const char *)h;
     __archive_read_consume(a, skip);
@@ -789,7 +789,8 @@ archive_read_format_rar_read_header(struct archive_read *a,
     return (ARCHIVE_EOF);
 
   p = h;
-  if (rar->found_first_header == 0 && p[0] == 'M' && p[1] == 'Z') {
+  if (rar->found_first_header == 0 &&
+     ((p[0] == 'M' && p[1] == 'Z') || memcmp(p, "\x7F\x45LF", 4) == 0)) {
     /* This is an executable ? Must be self-extracting... */
     ret = skip_sfx(a);
     if (ret < ARCHIVE_WARN)
