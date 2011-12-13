@@ -3420,7 +3420,7 @@ Bcj2_Decode(struct _7zip *zip, uint8_t *outBuf, size_t outSize)
 	const uint8_t *buf0, *buf1, *buf2, *buf3;
 	size_t size0, size1, size2, size3;
 	const uint8_t *buffer, *bufferLim;
-	unsigned int i;
+	unsigned int i, j;
 
 	size0 = zip->tmp_stream_bytes_remaining;
 	buf0 = zip->tmp_stream_buff + zip->tmp_stream_bytes_avail - size0;
@@ -3538,8 +3538,8 @@ Bcj2_Decode(struct _7zip *zip, uint8_t *outBuf, size_t outSize)
 				 */
 				zip->odd_bcj_size = 4 -i;
 				for (; i < 4; i++) {
-					zip->odd_bcj[
-					  i - 4 + zip->odd_bcj_size] = out[i];
+					j = i - 4 + zip->odd_bcj_size;
+					zip->odd_bcj[j] = out[i];
 				}
 				break;
 			}
