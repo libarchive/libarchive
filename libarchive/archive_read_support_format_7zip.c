@@ -57,6 +57,9 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #define _7ZIP_SIGNATURE	"7z\xBC\xAF\x27\x1C"
+#define SFX_MIN_ADDR	0x27000
+#define SFX_MAX_ADDR	0x60000
+
 
 /*
  * Codec ID
@@ -320,6 +323,7 @@ static int	archive_read_format_7zip_read_data(struct archive_read *,
 static int	archive_read_format_7zip_read_data_skip(struct archive_read *);
 static int	archive_read_format_7zip_read_header(struct archive_read *,
 		    struct archive_entry *);
+static int	check_7zip_header_in_sfx(const char *);
 static unsigned long decode_codec_id(const unsigned char *, size_t);
 static ssize_t	decode_header_image(struct archive_read *, struct _7zip *,
 		    struct _7z_stream_info *, const unsigned char *, uint64_t,
@@ -427,15 +431,17 @@ archive_read_format_7zip_bid(struct archive_read *a, int best_bid)
 
 	/*
 	 * It may a 7-Zip SFX archive file. If first two bytes are
-	 * 'M' and 'Z', seek the 7-Zip signature. Although we will
-	 * perform a seek when reading a header, what we do not use
-	 * __archive_read_seek() here is due to a bidding performance.
+	 * 'M' and 'Z' available on Windows or first four bytes are
+	 * "\x7F\x45LF" available on posix like system, seek the 7-Zip
+	 * signature. Although we will perform a seek when reading
+	 * a header, what we do not use __archive_read_seek() here is
+	 * due to a bidding performance.
 	 */
-	if (p[0] == 'M' && p[1] == 'Z') {
-		ssize_t offset = 0x27000;
+	if ((p[0] == 'M' && p[1] == 'Z') || memcmp(p, "\x7F\x45LF", 4) == 0) {
+		ssize_t offset = SFX_MIN_ADDR;
 		ssize_t window = 4096;
 		ssize_t bytes_avail;
-		while (offset + window <= (0x30000)) {
+		while (offset + window <= (SFX_MAX_ADDR)) {
 			const char *buff = __archive_read_ahead(a,
 					offset + window, &bytes_avail);
 			if (buff == NULL) {
@@ -446,15 +452,42 @@ archive_read_format_7zip_bid(struct archive_read *a, int best_bid)
 				continue;
 			}
 			p = buff + offset;
-			while (p + 6 < buff + bytes_avail) {
-				if (memcmp(p, _7ZIP_SIGNATURE, 6) == 0)
+			while (p + 32 < buff + bytes_avail) {
+				int step = check_7zip_header_in_sfx(p);
+				if (step == 0)
 					return (48);
-				p += 0x100;
+				p += step;
 			}
 			offset = p - buff;
 		}
 	}
 	return (0);
+}
+
+static int
+check_7zip_header_in_sfx(const char *p)
+{
+	switch ((unsigned char)p[5]) {
+	case 0x1C:
+		if (memcmp(p, _7ZIP_SIGNATURE, 6) != 0)
+			return (6); 
+		/*
+		 * Test the CRC because its extraction code has 7-Zip
+		 * Magic Code, so we should do this in order not to
+		 * make a mis-detection.
+		 */
+		if (crc32(0, (unsigned char *)p + 12, 20)
+			!= archive_le32dec(p + 8))
+			return (6); 
+		/* Hit the header! */
+		return (0);
+	case 0x37: return (5); 
+	case 0x7A: return (4); 
+	case 0xBC: return (3); 
+	case 0xAF: return (2); 
+	case 0x27: return (1); 
+	default: return (6); 
+	}
 }
 
 static int
@@ -466,18 +499,18 @@ skip_sfx(struct archive_read *a, ssize_t bytes_avail)
 	ssize_t bytes, window;
 
 	/*
-	 * If bytes_avail > 0x27000 we do not have to call
+	 * If bytes_avail > SFX_MIN_ADDR we do not have to call
 	 * __archive_read_seek() at this time since we have
 	 * alredy had enough data.
 	 */
-	if (bytes_avail > 0x27000)
-		__archive_read_consume(a, 0x27000);
-	else if (__archive_read_seek(a, 0x27000, SEEK_SET) < 0)
+	if (bytes_avail > SFX_MIN_ADDR)
+		__archive_read_consume(a, SFX_MIN_ADDR);
+	else if (__archive_read_seek(a, SFX_MIN_ADDR, SEEK_SET) < 0)
 		return (ARCHIVE_FATAL);
 
 	offset = 0;
 	window = 1;
-	while (offset + window <= 0x30000 - 0x27000) {
+	while (offset + window <= SFX_MAX_ADDR - SFX_MIN_ADDR) {
 		h = __archive_read_ahead(a, window, &bytes);
 		if (h == NULL) {
 			/* Remaining bytes are less than window. */
@@ -498,16 +531,17 @@ skip_sfx(struct archive_read *a, ssize_t bytes_avail)
 		 * Scan ahead until we find something that looks
 		 * like the 7-Zip header.
 		 */
-		while (p + 6 < q) {
-			if (memcmp(p, _7ZIP_SIGNATURE, 6) == 0) {
+		while (p + 32 < q) {
+			int step = check_7zip_header_in_sfx(p);
+			if (step == 0) {
 				struct _7zip *zip =
 				    (struct _7zip *)a->format->data;
 				skip = p - (const char *)h;
 				__archive_read_consume(a, skip);
-				zip->seek_base = 0x27000 + offset + skip;
+				zip->seek_base = SFX_MIN_ADDR + offset + skip;
 				return (ARCHIVE_OK);
 			}
-			p += 0x100;
+			p += step;
 		}
 		skip = p - (const char *)h;
 		__archive_read_consume(a, skip);
@@ -2652,7 +2686,7 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 	if ((p = __archive_read_ahead(a, 32, &bytes_avail)) == NULL)
 		return (ARCHIVE_FATAL);
 
-	if (p[0] == 'M' && p[1] == 'Z') {
+	if ((p[0] == 'M' && p[1] == 'Z') || memcmp(p, "\x7F\x45LF", 4) == 0) {
 		/* This is an executable ? Must be self-extracting... */
 		r = skip_sfx(a, bytes_avail);
 		if (r < ARCHIVE_WARN)
