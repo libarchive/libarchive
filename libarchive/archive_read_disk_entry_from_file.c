@@ -182,7 +182,7 @@ archive_read_disk_entry_from_file(struct archive *_a,
 		archive_entry_set_fflags(entry, st->st_flags, 0);
 #endif
 
-#ifdef EXT2_IOC_GETFLAGS
+#if defined(EXT2_IOC_GETFLAGS) && defined(HAVE_WORKING_EXT2_IOC_GETFLAGS)
 	/* Linux requires an extra ioctl to pull the flags.  Although
 	 * this is an extra step, it has a nice side-effect: We get an
 	 * open file descriptor which we can use in the subsequent lookups. */

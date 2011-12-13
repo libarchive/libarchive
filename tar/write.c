@@ -860,7 +860,7 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 			continue;
 #endif
 
-#if defined(EXT2_IOC_GETFLAGS) && defined(EXT2_NODUMP_FL)
+#if defined(EXT2_IOC_GETFLAGS) && defined(EXT2_NODUMP_FL) && defined(HAVE_WORKING_EXT2_IOC_GETFLAGS)
 		/* Linux uses ioctl to read flags. */
 		if (bsdtar->option_honor_nodump) {
 			int fd = open(name, O_RDONLY | O_NONBLOCK | O_BINARY);
