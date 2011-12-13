@@ -235,7 +235,7 @@ struct _7zip {
 	int64_t			 stream_offset;
 
 	/*
-	 * Decompressing control.
+	 * Decompressing control data.
 	 */
 	unsigned		 folder_index;
 	uint64_t		 folder_outbytes_reamining;
@@ -248,19 +248,25 @@ struct _7zip {
 	unsigned long		 codec;
 	unsigned long		 codec2;
 
-	/* Decompressor control. */
+	/*
+	 * Decompressor controllers.
+	 */
+	/* Decording LZMA1 and LZMA2 data. */
 #ifdef HAVE_LZMA_H
 	lzma_stream		 lzstream;
 	int			 lzstream_valid;
 #endif
+	/* Decording bzip2 data. */
 #if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
 	bz_stream		 bzstream;
 	int			 bzstream_valid;
 #endif
+	/* Decording deflate data. */
 #ifdef HAVE_ZLIB_H
 	z_stream		 stream;
 	int			 stream_valid;
 #endif
+	/* Decording PPMd data. */
 	int			 ppmd7_stat;
 	CPpmd7			 ppmd7_context;
 	CPpmd7z_RangeDec	 range_dec;
@@ -276,12 +282,34 @@ struct _7zip {
 	} ppstream;
 	int			 ppmd7_valid;
 
-	/* Used for decoding BCJ. */
+	/* Decoding BCJ and BCJ2 data. */
 	uint32_t		 bcj_state;
 	size_t			 odd_bcj_size;
 	unsigned char		 odd_bcj[4];
 
+	/* Decoding BCJ2 data. */
+	size_t			 main_stream_bytes_remaining;
+	unsigned char		*sub_stream_buff[3];
+	size_t			 sub_stream_size[3];
+	size_t			 sub_stream_bytes_remaining[3];
+	unsigned char		*tmp_stream_buff;
+	size_t			 tmp_stream_buff_size;
+	size_t			 tmp_stream_bytes_avail;
+	size_t			 tmp_stream_bytes_remaining;
+#ifdef _LZMA_PROB32
+#define CProb uint32_t
+#else
+#define CProb uint16_t
+#endif
+	CProb			 bcj2_p[256 + 2];
+	uint8_t			 bcj2_prevByte;
+	uint32_t		 bcj2_range;
+	uint32_t		 bcj2_code;
+	uint64_t		 bcj2_outPos;
+
+	/* Filename character-set convertion data. */
 	struct archive_string_conv *sconv;
+
 	char			 format_name[64];
 };
 
@@ -312,7 +340,7 @@ static int	free_decompression(struct archive_read *, struct _7zip *);
 static ssize_t	get_uncompressed_data(struct archive_read *, const void **,
 		    size_t);
 static int	init_decompression(struct archive_read *, struct _7zip *,
-		    struct _7z_coder *, struct _7z_coder *);
+		    const struct _7z_coder *, const struct _7z_coder *);
 static int	parse_7zip_uint64(const unsigned char *, size_t, uint64_t *);
 static int	read_Bools(unsigned char *, size_t, const unsigned char *,
 		    size_t);
@@ -342,7 +370,8 @@ static int	slurp_central_directory(struct archive_read *, struct _7zip *,
 static int	setup_decode_folder(struct archive_read *, struct _7z_folder *,
 		    int);
 #ifdef HAVE_LZMA_H
-static size_t	x86_Convert(unsigned char *, size_t, uint32_t, uint32_t *);
+static size_t	x86_Convert(uint8_t *, size_t, uint32_t, uint32_t *);
+ssize_t		Bcj2_Decode(struct _7zip *, uint8_t *, size_t);
 #endif
 
 
@@ -588,6 +617,7 @@ archive_read_format_7zip_read_data(struct archive_read *a,
 {
 	struct _7zip *zip;
 	ssize_t bytes;
+	int ret = ARCHIVE_OK;
 
 	zip = (struct _7zip *)(a->format->data);
 
@@ -633,7 +663,7 @@ archive_read_format_7zip_read_data(struct archive_read *a,
 			    (unsigned long)zip->entry_crc32,
 			    (unsigned long)zip->si.ss.digests[
 			    		zip->entry->ssIndex]);
-			return (ARCHIVE_WARN);
+			ret = ARCHIVE_WARN;
 		}
 	}
 
@@ -641,7 +671,7 @@ archive_read_format_7zip_read_data(struct archive_read *a,
 	*offset = zip->entry_offset;
 	zip->entry_offset += bytes;
 
-	return (ARCHIVE_OK);
+	return (ret);
 }
 
 static int
@@ -684,6 +714,10 @@ archive_read_format_7zip_cleanup(struct archive_read *a)
 	free(zip->entry_names);
 	free_decompression(a, zip);
 	free(zip->uncompressed_buffer);
+	free(zip->sub_stream_buff[0]);
+	free(zip->sub_stream_buff[1]);
+	free(zip->sub_stream_buff[2]);
+	free(zip->tmp_stream_buff);
 	free(zip);
 	(a->format->data) = NULL;
 	return (ARCHIVE_OK);
@@ -801,7 +835,7 @@ static ISzAlloc g_szalloc = { ppmd_alloc, ppmd_free };
 
 static int
 init_decompression(struct archive_read *a, struct _7zip *zip,
-    struct _7z_coder *coder1, struct _7z_coder *coder2)
+    const struct _7z_coder *coder1, const struct _7z_coder *coder2)
 {
 	int r;
 
@@ -869,6 +903,10 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 				} else
 					/* Use our filter. */
 					zip->bcj_state = 0;
+				break;
+			case _7Z_X86_BCJ2:
+				/* Use our filter. */
+				zip->bcj_state = 0;
 				break;
 			case _7Z_DELTA:
 				filters[fi].id = LZMA_FILTER_DELTA;
@@ -1100,6 +1138,8 @@ decompress(struct archive_read *a, struct _7zip *zip,
 #ifdef HAVE_LZMA_H
 	case _7Z_LZMA: case _7Z_LZMA2:
 	{
+		uint8_t *bcj2_out;
+		size_t bcj2_avail;
 		int i;
 
 		zip->lzstream.next_in = b;
@@ -1117,9 +1157,40 @@ decompress(struct archive_read *a, struct _7zip *zip,
 			if (avail_in == 0 || zip->lzstream.avail_out == 0) {
 				*used = avail_in - zip->lzstream.avail_in;
 				*outbytes = avail_out - zip->lzstream.avail_out;
-				return (ARCHIVE_OK);
+				if (avail_in == 0)
+					ret = ARCHIVE_EOF;
+				return (ret);
 			}
 		}
+		if (zip->codec2 == _7Z_X86_BCJ2) {
+			bcj2_out = zip->lzstream.next_out;
+			bcj2_avail = zip->lzstream.avail_out;
+			if (zip->tmp_stream_bytes_remaining > 0) {
+				ssize_t bytes;
+				size_t remaining = zip->tmp_stream_bytes_remaining;
+				bytes = Bcj2_Decode(zip, bcj2_out, bcj2_avail);
+				if (bytes < 0) {
+					archive_set_error(&(a->archive),
+					    ARCHIVE_ERRNO_MISC,
+					    "BCJ2 conversion Failed");
+					return (ARCHIVE_FAILED);
+				}
+				zip->main_stream_bytes_remaining -=
+				    remaining - zip->tmp_stream_bytes_remaining;
+				bcj2_avail -= bytes;
+				if (avail_in == 0 || bcj2_avail == 0) {
+					*used = 0;
+					*outbytes = avail_out - bcj2_avail;
+					if (avail_in == 0)
+						ret = ARCHIVE_EOF;
+					return (ret);
+				}
+				bcj2_out += bytes;
+			}
+			zip->lzstream.next_out = zip->tmp_stream_buff;
+			zip->lzstream.avail_out = zip->tmp_stream_buff_size;
+		}
+
 		r = lzma_code(&(zip->lzstream), LZMA_RUN);
 		switch (r) {
 		case LZMA_STREAM_END: /* Found end of stream. */
@@ -1150,6 +1221,29 @@ decompress(struct archive_read *a, struct _7zip *zip,
 				*outbytes = l;
 			} else
 				zip->odd_bcj_size = 0;
+		} else if (zip->codec2 == _7Z_X86_BCJ2) {
+			ssize_t bytes;
+
+			zip->tmp_stream_bytes_avail =
+			    zip->tmp_stream_buff_size - zip->lzstream.avail_out;
+			if (zip->tmp_stream_bytes_avail >
+			      zip->main_stream_bytes_remaining)
+				zip->tmp_stream_bytes_avail =
+				    zip->main_stream_bytes_remaining;
+			zip->tmp_stream_bytes_remaining =
+			    zip->tmp_stream_bytes_avail;
+			bytes = Bcj2_Decode(zip, bcj2_out, bcj2_avail);
+			if (bytes < 0) {
+				archive_set_error(&(a->archive),
+				    ARCHIVE_ERRNO_MISC,
+				    "BCJ2 conversion Failed");
+				return (ARCHIVE_FAILED);
+			}
+			zip->main_stream_bytes_remaining -=
+			    zip->tmp_stream_bytes_avail
+			      - zip->tmp_stream_bytes_remaining;
+			bcj2_avail -= bytes;
+			*outbytes = avail_out - bcj2_avail;
 		}
 		break;
 	}
@@ -2723,10 +2817,20 @@ extract_pack_stream(struct archive_read *a)
 	int r;
 
 	if (zip->codec == _7Z_COPY) {
-		zip->uncompressed_buffer_bytes_remaining =
-		    zip->pack_stream_inbytes_reamining;
-		zip->pack_stream_inbytes_reamining = 0;
-		zip->folder_outbytes_reamining = 0;
+		if (__archive_read_ahead(a, 1, &bytes_avail) == NULL
+		    || bytes_avail <= 0) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Truncated 7-Zip file body");
+			return (ARCHIVE_FATAL);
+		}
+		if (bytes_avail > zip->pack_stream_inbytes_reamining)
+			bytes_avail = zip->pack_stream_inbytes_reamining;
+		zip->pack_stream_inbytes_reamining -= bytes_avail;
+		if (bytes_avail > zip->folder_outbytes_reamining)
+			bytes_avail = zip->folder_outbytes_reamining;
+		zip->folder_outbytes_reamining -= bytes_avail;
+		zip->uncompressed_buffer_bytes_remaining = bytes_avail;
 		return (ARCHIVE_OK);
 	}
 
@@ -2810,11 +2914,36 @@ extract_pack_stream(struct archive_read *a)
 	return (ARCHIVE_OK);
 }
 
+static int
+seek_pack(struct archive_read *a)
+{
+	struct _7zip *zip = (struct _7zip *)a->format->data;
+	uint64_t pack_offset;
+
+	if (zip->pack_stream_remaining <= 0) {
+		archive_set_error(&(a->archive),
+		    ARCHIVE_ERRNO_MISC, "Damaged 7-Zip archive");
+		return (ARCHIVE_FATAL);
+	}
+	zip->pack_stream_inbytes_reamining =
+	    zip->si.pi.sizes[zip->pack_stream_index];
+	pack_offset = zip->si.pi.positions[zip->pack_stream_index];
+	if (zip->stream_offset != pack_offset) {
+		if (0 > __archive_read_seek(a, pack_offset + zip->seek_base,
+		    SEEK_SET))
+			return (ARCHIVE_FATAL);
+		zip->stream_offset = pack_offset;
+	}
+	zip->pack_stream_index++;
+	zip->pack_stream_remaining--;
+	return (ARCHIVE_OK);
+}
+
 static ssize_t
 read_stream(struct archive_read *a, const void **buff, size_t size)
 {
 	struct _7zip *zip = (struct _7zip *)a->format->data;
-	uint64_t skip_bytes = 0, pack_offset;
+	uint64_t skip_bytes = 0;
 	int r;
 
 	if (zip->uncompressed_buffer_bytes_remaining == 0) {
@@ -2868,17 +2997,9 @@ read_stream(struct archive_read *a, const void **buff, size_t size)
 	/*
 	 * Switch to next pack stream.
 	 */
-	zip->pack_stream_inbytes_reamining =
-	    zip->si.pi.sizes[zip->pack_stream_index];
-	pack_offset = zip->si.pi.positions[zip->pack_stream_index];
-	if (zip->stream_offset != pack_offset) {
-		if (0 > __archive_read_seek(a, pack_offset + zip->seek_base,
-		    SEEK_SET))
-			return (ARCHIVE_FATAL);
-		zip->stream_offset = pack_offset;
-	}
-	zip->pack_stream_index++;
-	zip->pack_stream_remaining--;
+	r = seek_pack(a);
+	if (r < 0)
+		return (r);
 
 	/* Extract a new pack stream. */
 	r = extract_pack_stream(a);
@@ -2910,15 +3031,27 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 	struct _7z_coder *coder1, *coder2;
 	const char *cname = (header)?"archive header":"file content";
 	unsigned i;
-	int r;
+	int r, found_bcj2 = 0;
 
+	/*
+	 * Release the memory which the previous folder used for BCJ2.
+	 */
+	for (i = 0; i < 3; i++) {
+		if (zip->sub_stream_buff[i] != NULL)
+			free(zip->sub_stream_buff[i]);
+		zip->sub_stream_buff[i] = NULL;
+	}
+
+	/*
+	 * Initialize a stream reader.
+	 */
 	zip->pack_stream_remaining = (unsigned)folder->numPackedStreams;
 	zip->pack_stream_index = (unsigned)folder->packIndex;
 	zip->folder_outbytes_reamining = folder_uncompressed_size(folder);
 	zip->uncompressed_buffer_bytes_remaining = 0;
+
 	/*
-	 * We have to initialize the decompressor for
-	 * the new folder's pack streams.
+	 * Check coder types.
 	 */
 	for (i = 0; i < folder->numCoders; i++) {
 		if (folder->coders[i].codec == _7Z_CRYPTO) {
@@ -2928,15 +3061,10 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 			    "but currently not supported", cname);
 			return (ARCHIVE_FATAL);
 		}
-		if (folder->coders[i].codec == _7Z_X86_BCJ2) {
-			archive_set_error(&(a->archive),
-			    ARCHIVE_ERRNO_MISC,
-			    "The %s is encoded with BCJ2, "
-			    "but currently not supported", cname);
-			return (ARCHIVE_FATAL);
-		}
+		if (folder->coders[i].codec == _7Z_X86_BCJ2)
+			found_bcj2++;
 	}
-	if (folder->numCoders > 2) {
+	if (folder->numCoders > 2 && !found_bcj2) {
 		archive_set_error(&(a->archive),
 		    ARCHIVE_ERRNO_MISC,
 		    "The %s is encoded with many filters, "
@@ -2948,6 +3076,150 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 		coder2 = &(folder->coders[1]);
 	else
 		coder2 = NULL;
+
+	if (found_bcj2) {
+		/*
+		 * Preparation to decode BCJ2.
+		 * Decoding BCJ2 requires four sources. Those are at least,
+		 * as far as I know, two types of the storage form.
+		 */
+		const void *buff;
+		ssize_t bytes;
+		unsigned char *b[3] = {NULL, NULL, NULL};
+		size_t s[3] = {0, 0, 0};
+		int idx[3];
+		int stream_type = -1;
+
+		if (found_bcj2 && folder->numCoders == 4 &&
+		    folder->coders[3].codec == _7Z_X86_BCJ2) {
+			/* Source type 1 made by 7zr */
+			if (zip->pack_stream_remaining == 4 &&
+			    folder->numInStreams == 7 &&
+			    folder->numOutStreams == 4) {
+				stream_type = 1;
+				coder1 = &(folder->coders[2]);
+				coder2 = &(folder->coders[3]);
+				zip->main_stream_bytes_remaining =
+					folder->unPackSize[2];
+				idx[0] = 1; idx[1] = 2; idx[2] = 0;
+			}
+		} else if (coder2 != NULL && coder2->codec == _7Z_X86_BCJ2) {
+			/* Source type 0 made by 7z */
+			if (zip->pack_stream_remaining == 4 &&
+				folder->numInStreams == 5 &&
+				folder->numOutStreams == 2) {
+				stream_type = 0;
+				zip->main_stream_bytes_remaining =
+					folder->unPackSize[0];
+				idx[0] = 0; idx[1] = 1; idx[2] = 2;
+			}
+		}
+		if (stream_type == -1 || found_bcj2 != 1) {
+			/* We got an unexpected form. */
+			archive_set_error(&(a->archive),
+			    ARCHIVE_ERRNO_MISC,
+			    "Unsupported form of BCJ2 streams");
+			return (ARCHIVE_FATAL);
+		}
+
+		/* Skip the main stream at this time. */
+		if ((r = seek_pack(a)) < 0)
+			return (r);
+		zip->pack_stream_bytes_unconsumed =
+		    zip->pack_stream_inbytes_reamining;
+		read_consume(a);
+
+		/* Read following three sub streams. */
+		for (i = 0; i < 3; i++) {
+			static const struct _7z_coder coder_copy =
+				{ 0, 0, 0, 0, NULL};
+			const struct _7z_coder *coder;
+
+			if ((r = seek_pack(a)) < 0)
+				return (r);
+
+			if (stream_type == 0) {
+				coder = &coder_copy;
+				zip->folder_outbytes_reamining =
+				    zip->pack_stream_inbytes_reamining;
+			} else {
+				if (i == 1) {
+					coder = &(folder->coders[1]);
+					zip->folder_outbytes_reamining =
+						folder->unPackSize[1];
+				} else if (i == 2) {
+					coder = &(folder->coders[0]);
+					zip->folder_outbytes_reamining =
+						folder->unPackSize[0];
+				} else {
+					coder = &coder_copy;
+					zip->folder_outbytes_reamining =
+					    zip->pack_stream_inbytes_reamining;
+				}
+			}
+
+			r = init_decompression(a, zip, coder, NULL);
+			if (r != ARCHIVE_OK)
+				return (ARCHIVE_FATAL);
+			while (zip->pack_stream_inbytes_reamining > 0) {
+				/* Extract a new pack stream. */
+				r = extract_pack_stream(a);
+				if (r < 0)
+					return (r);
+				bytes = get_uncompressed_data(a, &buff,
+				    zip->uncompressed_buffer_bytes_remaining);
+				if (bytes < 0)
+					return ((int)bytes);
+				b[i] = realloc(b[i], bytes+s[i]);
+				if (b[i] == NULL) {
+					archive_set_error(&a->archive, ENOMEM,
+					    "No memory for 7-Zip decompression");
+					return (ARCHIVE_FATAL);
+				}
+				memcpy(b[i]+s[i], buff, bytes);
+				s[i] += bytes;
+				if (zip->pack_stream_bytes_unconsumed)
+					read_consume(a);
+			}
+		}
+
+		/* Set the sub streams to the right place. */
+		for (i = 0; i < 3; i++) {
+			zip->sub_stream_buff[i] = b[idx[i]];
+			zip->sub_stream_size[i] = s[idx[i]];
+			zip->sub_stream_bytes_remaining[i] = s[idx[i]];
+		}
+
+		/* Allocate memory used for decoded main stream bytes. */
+		if (zip->tmp_stream_buff == NULL) {
+			zip->tmp_stream_buff_size = 32 * 1024;
+			zip->tmp_stream_buff =
+			    malloc(zip->tmp_stream_buff_size);
+			if (zip->tmp_stream_buff == NULL) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "No memory for 7-Zip decompression");
+				return (ARCHIVE_FATAL);
+			}
+		}
+		zip->tmp_stream_bytes_avail = 0;
+		zip->tmp_stream_bytes_remaining = 0;
+		zip->odd_bcj_size = 0;
+		zip->bcj2_outPos = 0;
+
+		/*
+		 * Reset a stream reader in order to read the main stream
+		 * of BCJ2.
+		 */
+		zip->pack_stream_remaining = 1;
+		zip->pack_stream_index = (unsigned)folder->packIndex;
+		zip->folder_outbytes_reamining =
+		    folder_uncompressed_size(folder);
+		zip->uncompressed_buffer_bytes_remaining = 0;
+	}
+
+	/*
+	 * Initialize the decompressor for the new folder's pack streams.
+	 */
 	r = init_decompression(a, zip, coder1, coder2);
 	if (r != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
@@ -3004,7 +3276,7 @@ static const unsigned char kMaskToAllowedStatus[8] = {1, 1, 1, 0, 1, 0, 0, 0};
 static const unsigned char kMaskToBitNumber[8] = {0, 1, 2, 2, 3, 3, 3, 3};
 
 static size_t
-x86_Convert(unsigned char *data, size_t size, uint32_t ip, uint32_t *state)
+x86_Convert(uint8_t *data, size_t size, uint32_t ip, uint32_t *state)
 {
 	size_t bufferPos = 0, prevPosT;
 	uint32_t prevMask = *state & 0x7;
@@ -3014,8 +3286,8 @@ x86_Convert(unsigned char *data, size_t size, uint32_t ip, uint32_t *state)
 	prevPosT = (size_t)0 - 1;
 
 	for (;;) {
-		unsigned char *p = data + bufferPos;
-		unsigned char *limit = data + size - 4;
+		uint8_t *p = data + bufferPos;
+		uint8_t *limit = data + size - 4;
 
 		for (; p < limit; p++)
 			if ((*p & 0xFE) == 0xE8)
@@ -3043,27 +3315,27 @@ x86_Convert(unsigned char *data, size_t size, uint32_t ip, uint32_t *state)
 		prevPosT = bufferPos;
 
 		if (Test86MSByte(p[4])) {
-			uint32_t src = ((UInt32)p[4] << 24) |
-				((UInt32)p[3] << 16) | ((UInt32)p[2] << 8) |
-				((UInt32)p[1]);
+			uint32_t src = ((uint32_t)p[4] << 24) |
+				((uint32_t)p[3] << 16) | ((uint32_t)p[2] << 8) |
+				((uint32_t)p[1]);
 			uint32_t dest;
 			for (;;) {
-				unsigned char b;
+				uint8_t b;
 				int index;
 
 				dest = src - (ip + (uint32_t)bufferPos);
 				if (prevMask == 0)
 					break;
 				index = kMaskToBitNumber[prevMask] * 8;
-				b = (unsigned char)(dest >> (24 - index));
+				b = (uint8_t)(dest >> (24 - index));
 				if (!Test86MSByte(b))
 					break;
 				src = dest ^ ((1 << (32 - index)) - 1);
 			}
-			p[4] = (unsigned char)(~(((dest >> 24) & 1) - 1));
-			p[3] = (unsigned char)(dest >> 16);
-			p[2] = (unsigned char)(dest >> 8);
-			p[1] = (unsigned char)dest;
+			p[4] = (uint8_t)(~(((dest >> 24) & 1) - 1));
+			p[3] = (uint8_t)(dest >> 16);
+			p[2] = (uint8_t)(dest >> 8);
+			p[1] = (uint8_t)dest;
 			bufferPos += 5;
 		} else {
 			prevMask = ((prevMask << 1) & 0x7) | 1;
@@ -3075,4 +3347,177 @@ x86_Convert(unsigned char *data, size_t size, uint32_t ip, uint32_t *state)
 			0 : ((prevMask << ((int)prevPosT - 1)) & 0x7));
 	return (bufferPos);
 }
+
+/*
+ * Brought from LZMA SDK.
+ *
+ * Bcj2.c -- Converter for x86 code (BCJ2)
+ * 2008-10-04 : Igor Pavlov : Public domain
+ *
+ */
+
+#define SZ_ERROR_DATA	 ARCHIVE_FAILED
+
+#define IsJcc(b0, b1) ((b0) == 0x0F && ((b1) & 0xF0) == 0x80)
+#define IsJ(b0, b1) ((b1 & 0xFE) == 0xE8 || IsJcc(b0, b1))
+
+#define kNumTopBits 24
+#define kTopValue ((uint32_t)1 << kNumTopBits)
+
+#define kNumBitModelTotalBits 11
+#define kBitModelTotal (1 << kNumBitModelTotalBits)
+#define kNumMoveBits 5
+
+#define RC_READ_BYTE (*buffer++)
+#define RC_TEST { if (buffer == bufferLim) return SZ_ERROR_DATA; }
+#define RC_INIT2 zip->bcj2_code = 0; zip->bcj2_range = 0xFFFFFFFF; \
+  { int i; for (i = 0; i < 5; i++) { RC_TEST; zip->bcj2_code = (zip->bcj2_code << 8) | RC_READ_BYTE; }}
+
+#define NORMALIZE if (zip->bcj2_range < kTopValue) { RC_TEST; zip->bcj2_range <<= 8; zip->bcj2_code = (zip->bcj2_code << 8) | RC_READ_BYTE; }
+
+#define IF_BIT_0(p) ttt = *(p); bound = (zip->bcj2_range >> kNumBitModelTotalBits) * ttt; if (zip->bcj2_code < bound)
+#define UPDATE_0(p) zip->bcj2_range = bound; *(p) = (CProb)(ttt + ((kBitModelTotal - ttt) >> kNumMoveBits)); NORMALIZE;
+#define UPDATE_1(p) zip->bcj2_range -= bound; zip->bcj2_code -= bound; *(p) = (CProb)(ttt - (ttt >> kNumMoveBits)); NORMALIZE;
+
+ssize_t
+Bcj2_Decode(struct _7zip *zip, uint8_t *outBuf, size_t outSize)
+{
+	size_t inPos = 0, outPos = 0;
+	const uint8_t *buf0, *buf1, *buf2, *buf3;
+	size_t size0, size1, size2, size3;
+	const uint8_t *buffer, *bufferLim;
+	unsigned int i;
+
+	size0 = zip->tmp_stream_bytes_remaining;
+	buf0 = zip->tmp_stream_buff + zip->tmp_stream_bytes_avail - size0;
+	size1 = zip->sub_stream_bytes_remaining[0];
+	buf1 = zip->sub_stream_buff[0] + zip->sub_stream_size[0] - size1;
+	size2 = zip->sub_stream_bytes_remaining[1];
+	buf2 = zip->sub_stream_buff[1] + zip->sub_stream_size[1] - size2;
+	size3 = zip->sub_stream_bytes_remaining[2];
+	buf3 = zip->sub_stream_buff[2] + zip->sub_stream_size[2] - size3;
+
+	buffer = buf3;
+	bufferLim = buffer + size3;
+
+	if (zip->bcj_state == 0) {
+		/*
+		 * Initialize.
+		 */
+		zip->bcj2_prevByte = 0;
+		for (i = 0;
+		    i < sizeof(zip->bcj2_p) / sizeof(zip->bcj2_p[0]); i++)
+			zip->bcj2_p[i] = kBitModelTotal >> 1;
+		RC_INIT2;
+		zip->bcj_state = 1;
+	}
+
+	/*
+	 * Gather the odd bytes of a previous call.
+	 */
+	for (i = 0; zip->odd_bcj_size > 0 && outPos < outSize; i++) {
+		outBuf[outPos++] = zip->odd_bcj[i];
+		zip->odd_bcj_size--;
+	}
+
+	if (outSize == 0) {
+		zip->bcj2_outPos += outPos;
+		return (outPos);
+	}
+
+	for (;;) {
+		uint8_t b;
+		CProb *prob;
+		uint32_t bound;
+		uint32_t ttt;
+
+		size_t limit = size0 - inPos;
+		if (outSize - outPos < limit)
+			limit = outSize - outPos;
+
+		if (zip->bcj_state == 1) {
+			while (limit != 0) {
+				uint8_t b = buf0[inPos];
+				outBuf[outPos++] = b;
+				if (IsJ(zip->bcj2_prevByte, b)) {
+					zip->bcj_state = 2;
+					break;
+				}
+				inPos++;
+				zip->bcj2_prevByte = b;
+				limit--;
+			}
+		}
+
+		if (limit == 0 || outPos == outSize)
+			break;
+		zip->bcj_state = 1;
+
+		b = buf0[inPos++];
+
+		if (b == 0xE8)
+			prob = zip->bcj2_p + zip->bcj2_prevByte;
+		else if (b == 0xE9)
+			prob = zip->bcj2_p + 256;
+		else
+			prob = zip->bcj2_p + 257;
+
+		IF_BIT_0(prob) {
+			UPDATE_0(prob)
+			zip->bcj2_prevByte = b;
+		} else {
+			uint32_t dest;
+			const uint8_t *v;
+			uint8_t out[4];
+
+			UPDATE_1(prob)
+			if (b == 0xE8) {
+				v = buf1;
+				if (size1 < 4)
+					return SZ_ERROR_DATA;
+				buf1 += 4;
+				size1 -= 4;
+			} else {
+				v = buf2;
+				if (size2 < 4)
+					return SZ_ERROR_DATA;
+				buf2 += 4;
+				size2 -= 4;
+			}
+			dest = (((uint32_t)v[0] << 24) |
+			    ((uint32_t)v[1] << 16) |
+			    ((uint32_t)v[2] << 8) |
+			    ((uint32_t)v[3])) -
+			    ((uint32_t)zip->bcj2_outPos + outPos + 4);
+			out[0] = (uint8_t)dest;
+			out[1] = (uint8_t)(dest >> 8);
+			out[2] = (uint8_t)(dest >> 16);
+			out[3] = zip->bcj2_prevByte = (uint8_t)(dest >> 24);
+
+			for (i = 0; i < 4 && outPos < outSize; i++)
+				outBuf[outPos++] = out[i];
+			if (i < 4) {
+				/*
+				 * Save odd bytes, which we cannot add into
+				 * the output buffer we have reached the
+				 * end of the output buffer.
+				 */
+				zip->odd_bcj_size = 4 -i;
+				for (; i < 4; i++) {
+					zip->odd_bcj[
+					  i - 4 + zip->odd_bcj_size] = out[i];
+				}
+				break;
+			}
+		}
+	}
+	zip->tmp_stream_bytes_remaining -= inPos;
+	zip->sub_stream_bytes_remaining[0] = size1;
+	zip->sub_stream_bytes_remaining[1] = size2;
+	zip->sub_stream_bytes_remaining[2] = bufferLim - buffer;
+	zip->bcj2_outPos += outPos;
+
+	return ((ssize_t)outPos);
+}
+
 #endif
