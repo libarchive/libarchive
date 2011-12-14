@@ -241,10 +241,10 @@ struct _7zip {
 	 * Decompressing control data.
 	 */
 	unsigned		 folder_index;
-	uint64_t		 folder_outbytes_reamining;
+	uint64_t		 folder_outbytes_remaining;
 	unsigned		 pack_stream_index;
 	unsigned		 pack_stream_remaining;
-	uint64_t		 pack_stream_inbytes_reamining;
+	uint64_t		 pack_stream_inbytes_remaining;
 	size_t			 pack_stream_bytes_unconsumed;
 
 	/* The codec information of a folder. */
@@ -1374,7 +1374,7 @@ decompress(struct archive_read *a, struct _7zip *zip,
 
 		if (avail_in == 0)
 			/* XXX Flush out remaining decoded data XXX */
-			flush_bytes = zip->folder_outbytes_reamining;
+			flush_bytes = zip->folder_outbytes_remaining;
 		else
 			flush_bytes = 0;
 
@@ -2600,7 +2600,7 @@ decode_header_image(struct archive_read *a, struct _7zip *zip,
 		return (ARCHIVE_FATAL);
 
 	/* Get an uncompressed header size. */
-	vsize = (size_t)zip->folder_outbytes_reamining;
+	vsize = (size_t)zip->folder_outbytes_remaining;
 
 	/*
 	 * Allocate an uncompressed buffer for the header image.
@@ -2616,7 +2616,7 @@ decode_header_image(struct archive_read *a, struct _7zip *zip,
 	}
 
 	/* Get the bytes we can read to decode the header. */
-	zip->pack_stream_inbytes_reamining = si->pi.sizes[0];
+	zip->pack_stream_inbytes_remaining = si->pi.sizes[0];
 
 	/* Seek the read point. */
 	if (__archive_read_seek(a, si->pi.pos + zip->seek_base, SEEK_SET) < 0)
@@ -2655,7 +2655,7 @@ decode_header_image(struct archive_read *a, struct _7zip *zip,
 	 * archive header */
 	zip->pack_stream_remaining = 0;
 	zip->pack_stream_index = 0;
-	zip->folder_outbytes_reamining = 0;
+	zip->folder_outbytes_remaining = 0;
 	zip->uncompressed_buffer_bytes_remaining = 0;
 	zip->pack_stream_bytes_unconsumed = 0;
 
@@ -2858,12 +2858,12 @@ extract_pack_stream(struct archive_read *a)
 			    "Truncated 7-Zip file body");
 			return (ARCHIVE_FATAL);
 		}
-		if (bytes_avail > zip->pack_stream_inbytes_reamining)
-			bytes_avail = zip->pack_stream_inbytes_reamining;
-		zip->pack_stream_inbytes_reamining -= bytes_avail;
-		if (bytes_avail > zip->folder_outbytes_reamining)
-			bytes_avail = zip->folder_outbytes_reamining;
-		zip->folder_outbytes_reamining -= bytes_avail;
+		if (bytes_avail > zip->pack_stream_inbytes_remaining)
+			bytes_avail = zip->pack_stream_inbytes_remaining;
+		zip->pack_stream_inbytes_remaining -= bytes_avail;
+		if (bytes_avail > zip->folder_outbytes_remaining)
+			bytes_avail = zip->folder_outbytes_remaining;
+		zip->folder_outbytes_remaining -= bytes_avail;
 		zip->uncompressed_buffer_bytes_remaining = bytes_avail;
 		return (ARCHIVE_OK);
 	}
@@ -2906,8 +2906,8 @@ extract_pack_stream(struct archive_read *a)
 		bytes_out = zip->uncompressed_buffer_size
 			- zip->uncompressed_buffer_bytes_remaining;
 		bytes_in = bytes_avail;
-		if (bytes_in > zip->pack_stream_inbytes_reamining)
-			bytes_in = zip->pack_stream_inbytes_reamining;
+		if (bytes_in > zip->pack_stream_inbytes_remaining)
+			bytes_in = zip->pack_stream_inbytes_remaining;
 		/* Drive decompression. */
 		r = decompress(a, zip, buff_out, &bytes_out,
 			buff_in, &bytes_in);
@@ -2921,10 +2921,10 @@ extract_pack_stream(struct archive_read *a)
 		default:
 			return (ARCHIVE_FATAL);
 		}
-		zip->pack_stream_inbytes_reamining -= bytes_in;
-		if (bytes_out > zip->folder_outbytes_reamining)
-			bytes_out = zip->folder_outbytes_reamining;
-		zip->folder_outbytes_reamining -= bytes_out;
+		zip->pack_stream_inbytes_remaining -= bytes_in;
+		if (bytes_out > zip->folder_outbytes_remaining)
+			bytes_out = zip->folder_outbytes_remaining;
+		zip->folder_outbytes_remaining -= bytes_out;
 		zip->uncompressed_buffer_bytes_remaining += bytes_out;
 		zip->pack_stream_bytes_unconsumed = bytes_in;
 
@@ -2934,8 +2934,8 @@ extract_pack_stream(struct archive_read *a)
 		if (zip->uncompressed_buffer_bytes_remaining ==
 		    zip->uncompressed_buffer_size)
 			break;
-		if (zip->pack_stream_inbytes_reamining == 0 &&
-		    zip->folder_outbytes_reamining == 0)
+		if (zip->pack_stream_inbytes_remaining == 0 &&
+		    zip->folder_outbytes_remaining == 0)
 			break;
 		if (eof || (bytes_in == 0 && bytes_out == 0)) {
 			archive_set_error(&(a->archive),
@@ -2959,7 +2959,7 @@ seek_pack(struct archive_read *a)
 		    ARCHIVE_ERRNO_MISC, "Damaged 7-Zip archive");
 		return (ARCHIVE_FATAL);
 	}
-	zip->pack_stream_inbytes_reamining =
+	zip->pack_stream_inbytes_remaining =
 	    zip->si.pi.sizes[zip->pack_stream_index];
 	pack_offset = zip->si.pi.positions[zip->pack_stream_index];
 	if (zip->stream_offset != pack_offset) {
@@ -2981,12 +2981,12 @@ read_stream(struct archive_read *a, const void **buff, size_t size)
 	int r;
 
 	if (zip->uncompressed_buffer_bytes_remaining == 0) {
-		if (zip->pack_stream_inbytes_reamining > 0) {
+		if (zip->pack_stream_inbytes_remaining > 0) {
 			r = extract_pack_stream(a);
 			if (r < 0)
 				return (r);
 			return (get_uncompressed_data(a, buff, size));
-		} else if (zip->folder_outbytes_reamining > 0) {
+		} else if (zip->folder_outbytes_remaining > 0) {
 			/* Extract a remaining pack stream. */
 			r = extract_pack_stream(a);
 			if (r < 0)
@@ -3081,7 +3081,7 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 	 */
 	zip->pack_stream_remaining = (unsigned)folder->numPackedStreams;
 	zip->pack_stream_index = (unsigned)folder->packIndex;
-	zip->folder_outbytes_reamining = folder_uncompressed_size(folder);
+	zip->folder_outbytes_remaining = folder_uncompressed_size(folder);
 	zip->uncompressed_buffer_bytes_remaining = 0;
 
 	/*
@@ -3160,7 +3160,7 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 		if ((r = seek_pack(a)) < 0)
 			return (r);
 		zip->pack_stream_bytes_unconsumed =
-		    zip->pack_stream_inbytes_reamining;
+		    zip->pack_stream_inbytes_remaining;
 		read_consume(a);
 
 		/* Read following three sub streams. */
@@ -3174,21 +3174,21 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 
 			if (stream_type == 0) {
 				coder = &coder_copy;
-				zip->folder_outbytes_reamining =
-				    zip->pack_stream_inbytes_reamining;
+				zip->folder_outbytes_remaining =
+				    zip->pack_stream_inbytes_remaining;
 			} else {
 				if (i == 1) {
 					coder = &(folder->coders[1]);
-					zip->folder_outbytes_reamining =
+					zip->folder_outbytes_remaining =
 						folder->unPackSize[1];
 				} else if (i == 2) {
 					coder = &(folder->coders[0]);
-					zip->folder_outbytes_reamining =
+					zip->folder_outbytes_remaining =
 						folder->unPackSize[0];
 				} else {
 					coder = &coder_copy;
-					zip->folder_outbytes_reamining =
-					    zip->pack_stream_inbytes_reamining;
+					zip->folder_outbytes_remaining =
+					    zip->pack_stream_inbytes_remaining;
 				}
 			}
 
@@ -3198,7 +3198,7 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 
 			/* Allocate memory for the decorded data of a sub
 			 * stream. */
-			b[i] = malloc(zip->folder_outbytes_reamining);
+			b[i] = malloc(zip->folder_outbytes_remaining);
 			if (b[i] == NULL) {
 				archive_set_error(&a->archive, ENOMEM,
 				    "No memory for 7-Zip decompression");
@@ -3206,7 +3206,7 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 			}
 
 			/* Extract a sub stream. */
-			while (zip->pack_stream_inbytes_reamining > 0) {
+			while (zip->pack_stream_inbytes_remaining > 0) {
 				r = extract_pack_stream(a);
 				if (r < 0)
 					return (r);
@@ -3250,7 +3250,7 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 		 */
 		zip->pack_stream_remaining = 1;
 		zip->pack_stream_index = (unsigned)folder->packIndex;
-		zip->folder_outbytes_reamining =
+		zip->folder_outbytes_remaining =
 		    folder_uncompressed_size(folder);
 		zip->uncompressed_buffer_bytes_remaining = 0;
 	}
