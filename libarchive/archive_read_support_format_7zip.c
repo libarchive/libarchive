@@ -924,6 +924,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 		 * size to liblzma when using lzma_raw_decoder() liblzma
 		 * could correctly deal with BCJ+LZMA. But unfortunately
 		 * there is no way to do that. 
+		 * Discussion about this can be found at XZ Utils forum.
 		 */
 		if (coder2 != NULL) {
 			zip->codec2 = coder2->codec;
@@ -1199,6 +1200,9 @@ decompress(struct archive_read *a, struct _7zip *zip,
 			}
 		}
 		if (zip->codec2 == _7Z_X86_BCJ2) {
+			/*
+			 * Decord a remaining decompressed main stream for BCJ2.
+			 */
 			if (zip->tmp_stream_bytes_remaining > 0) {
 				ssize_t bytes;
 				size_t remaining = zip->tmp_stream_bytes_remaining;
@@ -1256,6 +1260,9 @@ decompress(struct archive_read *a, struct _7zip *zip,
 			} else
 				zip->odd_bcj_size = 0;
 		} else if (zip->codec2 == _7Z_X86_BCJ2) {
+			/*
+			 * Decord a decompressed main stream for BCJ2.
+			 */
 			ssize_t bytes;
 
 			zip->tmp_stream_bytes_avail =
@@ -3536,9 +3543,8 @@ Bcj2_Decode(struct _7zip *zip, uint8_t *outBuf, size_t outSize)
 				outBuf[outPos++] = out[i];
 			if (i < 4) {
 				/*
-				 * Save odd bytes, which we cannot add into
-				 * the output buffer we have reached the
-				 * end of the output buffer.
+				 * Save odd bytes which we could not add into
+				 * the output buffer because of out of space.
 				 */
 				zip->odd_bcj_size = 4 -i;
 				for (; i < 4; i++) {
