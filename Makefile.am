@@ -455,8 +455,16 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_fuzz.cab.uu				\
 	libarchive/test/test_fuzz.lzh.uu				\
 	libarchive/test/test_pax_filename_encoding.tar.uu		\
+	libarchive/test/test_read_format_7zip_bcj_bzip2.7z.uu		\
+	libarchive/test/test_read_format_7zip_bcj_copy.7z.uu		\
+	libarchive/test/test_read_format_7zip_bcj_deflate.7z.uu		\
 	libarchive/test/test_read_format_7zip_bcj_lzma1.7z.uu		\
 	libarchive/test/test_read_format_7zip_bcj_lzma2.7z.uu		\
+	libarchive/test/test_read_format_7zip_bcj2_bzip2.7z.uu		\
+	libarchive/test/test_read_format_7zip_bcj2_copy_1.7z.uu		\
+	libarchive/test/test_read_format_7zip_bcj2_copy_2.7z.uu		\
+	libarchive/test/test_read_format_7zip_bcj2_copy_lzma.7z.uu	\
+	libarchive/test/test_read_format_7zip_bcj2_deflate.7z.uu	\
 	libarchive/test/test_read_format_7zip_bcj2_lzma1_1.7z.uu	\
 	libarchive/test/test_read_format_7zip_bcj2_lzma1_2.7z.uu	\
 	libarchive/test/test_read_format_7zip_bcj2_lzma2_1.7z.uu	\

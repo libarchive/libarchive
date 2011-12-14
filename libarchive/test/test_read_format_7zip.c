@@ -493,7 +493,7 @@ test_delta_lzma(const char *refname)
  * Extract a file compressed with BCJ + LZMA2.
  */
 static void
-test_bcj_lzma(const char *refname)
+test_bcj(const char *refname)
 {
 	struct archive_entry *ae;
 	struct archive *a;
@@ -606,6 +606,9 @@ DEFINE_TEST(test_read_format_7zip)
 	test_empty_archive();
 	test_empty_file();
 	test_ppmd();
+	test_bcj("test_read_format_7zip_bcj_copy.7z");
+	test_bcj("test_read_format_7zip_bcj2_copy_1.7z");
+	test_bcj("test_read_format_7zip_bcj2_copy_2.7z");
 
 	assert((a = archive_read_new()) != NULL);
 
@@ -614,6 +617,8 @@ DEFINE_TEST(test_read_format_7zip)
 		skipping("7zip:bzip2 decoding is not supported on this platform");
 	} else {
 		text_plain_header("test_read_format_7zip_bzip2.7z");
+		test_bcj("test_read_format_7zip_bcj_bzip2.7z");
+		test_bcj("test_read_format_7zip_bcj2_bzip2.7z");
 	}
 
 	/* Extracting with libz */
@@ -621,6 +626,8 @@ DEFINE_TEST(test_read_format_7zip)
 		skipping("7zip:deflate decoding is not supported on this platform");
 	} else {
 		text_plain_header("test_read_format_7zip_deflate.7z");
+		test_bcj("test_read_format_7zip_bcj_deflate.7z");
+		test_bcj("test_read_format_7zip_bcj2_deflate.7z");
 	}
 
 	/* Extracting with liblzma */
@@ -634,12 +641,13 @@ DEFINE_TEST(test_read_format_7zip)
 		test_extract_last_file("test_read_format_7zip_copy_2.7z");
 		test_extract_last_file("test_read_format_7zip_lzma1_2.7z");
 		test_extract_all_files2("test_read_format_7zip_lzma1_lzma2.7z");
-		test_bcj_lzma("test_read_format_7zip_bcj_lzma1.7z");
-		test_bcj_lzma("test_read_format_7zip_bcj_lzma2.7z");
-		test_bcj_lzma("test_read_format_7zip_bcj2_lzma1_1.7z");
-		test_bcj_lzma("test_read_format_7zip_bcj2_lzma1_2.7z");
-		test_bcj_lzma("test_read_format_7zip_bcj2_lzma2_1.7z");
-		test_bcj_lzma("test_read_format_7zip_bcj2_lzma2_2.7z");
+		test_bcj("test_read_format_7zip_bcj_lzma1.7z");
+		test_bcj("test_read_format_7zip_bcj_lzma2.7z");
+		test_bcj("test_read_format_7zip_bcj2_copy_lzma.7z");
+		test_bcj("test_read_format_7zip_bcj2_lzma1_1.7z");
+		test_bcj("test_read_format_7zip_bcj2_lzma1_2.7z");
+		test_bcj("test_read_format_7zip_bcj2_lzma2_1.7z");
+		test_bcj("test_read_format_7zip_bcj2_lzma2_2.7z");
 		test_delta_lzma("test_read_format_7zip_delta_lzma1.7z");
 		test_delta_lzma("test_read_format_7zip_delta_lzma2.7z");
 	}
