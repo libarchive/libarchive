@@ -3195,8 +3195,18 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 			r = init_decompression(a, zip, coder, NULL);
 			if (r != ARCHIVE_OK)
 				return (ARCHIVE_FATAL);
+
+			/* Allocate memory for the decorded data of a sub
+			 * stream. */
+			b[i] = malloc(zip->folder_outbytes_reamining);
+			if (b[i] == NULL) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "No memory for 7-Zip decompression");
+				return (ARCHIVE_FATAL);
+			}
+
+			/* Extract a sub stream. */
 			while (zip->pack_stream_inbytes_reamining > 0) {
-				/* Extract a new pack stream. */
 				r = extract_pack_stream(a);
 				if (r < 0)
 					return (r);
@@ -3204,12 +3214,6 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 				    zip->uncompressed_buffer_bytes_remaining);
 				if (bytes < 0)
 					return ((int)bytes);
-				b[i] = realloc(b[i], bytes+s[i]);
-				if (b[i] == NULL) {
-					archive_set_error(&a->archive, ENOMEM,
-					    "No memory for 7-Zip decompression");
-					return (ARCHIVE_FATAL);
-				}
 				memcpy(b[i]+s[i], buff, bytes);
 				s[i] += bytes;
 				if (zip->pack_stream_bytes_unconsumed)
