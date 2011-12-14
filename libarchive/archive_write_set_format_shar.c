@@ -267,12 +267,12 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 				    shar->quoted_name.s, shar->quoted_name.s);
 			} else {
 				if (shar->dump) {
+					unsigned int mode = archive_entry_mode(entry) & 0777;
 					archive_string_sprintf(&shar->work,
 					    "uudecode -p > %s << 'SHAR_END'\n",
 					    shar->quoted_name.s);
 					archive_string_sprintf(&shar->work,
-					    "begin %o ",
-					    archive_entry_mode(entry) & 0777);
+					    "begin %o ", mode);
 					shar_quote(&shar->work, name, 0);
 					archive_strcat(&shar->work, "\n");
 				} else {
@@ -534,7 +534,7 @@ archive_write_shar_finish_entry(struct archive_write *a)
 		 * directories; defer that to end of script.
 		 */
 		archive_string_sprintf(&shar->work, "chmod %o ",
-		    archive_entry_mode(shar->entry) & 07777);
+		    (unsigned int)(archive_entry_mode(shar->entry) & 07777));
 		shar_quote(&shar->work, archive_entry_pathname(shar->entry), 1);
 		archive_strcat(&shar->work, "\n");
 
