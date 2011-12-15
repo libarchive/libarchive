@@ -3154,7 +3154,6 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 		uint64_t sunpack[3] ={-1, -1, -1};
 		size_t s[3] = {0, 0, 0};
 		int idx[3] = {0, 1, 2};
-		int stream_type;
 
 		if (folder->numCoders == 4 && fc[3].codec == _7Z_X86_BCJ2 &&
 		    folder->numInStreams == 7 && folder->numOutStreams == 4 &&
@@ -3204,7 +3203,6 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 					return (ARCHIVE_FATAL);
 				}
 			}
-			stream_type = 1;
 			coder2 = &(fc[3]);
 			zip->main_stream_bytes_remaining =
 				folder->unPackSize[2];
@@ -3212,7 +3210,6 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 		    zip->pack_stream_remaining == 4 &&
 		    folder->numInStreams == 5 && folder->numOutStreams == 2) {
 			/* Source type 0 made by 7z */
-			stream_type = 0;
 			zip->main_stream_bytes_remaining =
 				folder->unPackSize[0];
 		} else {
