@@ -156,6 +156,7 @@ struct _7z_pack_info {
 };
 
 struct _7z_substream_info {
+	size_t			 unpack_streams;
 	uint64_t		*unpackSizes;
 	unsigned char		*digestsDefined;
 	uint32_t		*digests;
@@ -2029,6 +2030,7 @@ read_SubStreamsInfo(struct _7z_substream_info *ss, struct _7z_folder *f,
 	} else
 		unpack_streams = numFolders;
 
+	ss->unpack_streams = unpack_streams;
 	if (unpack_streams) {
 		ss->unpackSizes = calloc(unpack_streams,
 		    sizeof(*ss->unpackSizes));
@@ -2447,6 +2449,8 @@ read_Header(struct _7zip *zip, struct _7z_header_info *h,
 		/* The high 16 bits of attributes is a posix file mode. */
 		entries[i].mode = entries[i].attr >> 16;
 		if (entries[i].flg & HAS_STREAM) {
+			if (sindex >= si->ss.unpack_streams)
+				return (-1);
 			entries[i].mode = AE_IFREG | 0777;
 			if (si->ss.digestsDefined[sindex])
 				entries[i].flg |= CRC32_IS_SET;
