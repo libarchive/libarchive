@@ -30,6 +30,12 @@
 #include "archive.h"
 #include "archive_crypto_private.h"
 
+/* In particular, force the configure probe to break if it tries
+ * to test a combination of OpenSSL and libmd. */
+#if defined(ARCHIVE_CRYPTO_OPENSSL) && defined(ARCHIVE_CRYPTO_LIBMD)
+#error Cannot use both OpenSSL and libmd.
+#endif
+
 /*
  * Message digest functions for Windows platform.
  */

@@ -79,6 +79,14 @@
 #endif
 
 /* libmd crypto headers */
+#if defined(ARCHIVE_CRYPTO_MD5_LIBMD) ||\
+  defined(ARCHIVE_CRYPTO_RMD160_LIBMD) ||\
+  defined(ARCHIVE_CRYPTO_SHA1_LIBMD) ||\
+  defined(ARCHIVE_CRYPTO_SHA256_LIBMD) ||\
+  defined(ARCHIVE_CRYPTO_SHA512_LIBMD)
+#define	ARCHIVE_CRYPTO_LIBMD 1
+#endif
+
 #if defined(ARCHIVE_CRYPTO_MD5_LIBMD)
 #include <md5.h>
 #endif
@@ -125,6 +133,7 @@
   defined(ARCHIVE_CRYPTO_SHA256_OPENSSL) ||\
   defined(ARCHIVE_CRYPTO_SHA384_OPENSSL) ||\
   defined(ARCHIVE_CRYPTO_SHA512_OPENSSL)
+#define	ARCHIVE_CRYPTO_OPENSSL 1
 #include <openssl/evp.h>
 #endif
 
