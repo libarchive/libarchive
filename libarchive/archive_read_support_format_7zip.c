@@ -2444,6 +2444,8 @@ read_Header(struct _7zip *zip, struct _7z_header_info *h,
 		if (h->emptyStreamBools == NULL ||
 		    h->emptyStreamBools[i] == 0)
 			entries[i].flg |= HAS_STREAM;
+		/* The high 16 bits of attributes is a posix file mode. */
+		entries[i].mode = entries[i].attr >> 16;
 		if (entries[i].flg & HAS_STREAM) {
 			entries[i].mode = AE_IFREG | 0777;
 			if (si->ss.digestsDefined[sindex])
@@ -2451,14 +2453,19 @@ read_Header(struct _7zip *zip, struct _7z_header_info *h,
 			entries[i].ssIndex = sindex;
 			sindex++;
 		} else {
+			int dir;
 			if (h->emptyFileBools == NULL)
-				entries[i].mode = AE_IFDIR | 0777;
+				dir = 1;
 			else {
 				if (h->emptyFileBools[eindex])
-					entries[i].mode = AE_IFREG | 0777;
+					dir = 0;
 				else
-					entries[i].mode = AE_IFDIR | 0777;
+					dir = 1;
 				eindex++;
+			}
+			if (dir && (entries[i].mode & AE_IFMT) != AE_IFDIR) {
+				entries[i].mode &= ~AE_IFMT;
+				entries[i].mode |= AE_IFDIR;
 			}
 			entries[i].ssIndex = -1;
 		}

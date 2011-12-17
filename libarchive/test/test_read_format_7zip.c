@@ -118,7 +118,7 @@ test_empty_file()
 
 	/* Verify regular empty. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt((AE_IFREG | 0777), archive_entry_mode(ae));
+	assertEqualInt((AE_IFREG | 0644), archive_entry_mode(ae));
 	assertEqualString("empty", archive_entry_pathname(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(0, archive_entry_size(ae));
@@ -235,7 +235,7 @@ test_extract_all_files(const char *refname)
 
 	/* Verify directory dir1. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt((AE_IFDIR | 0777), archive_entry_mode(ae));
+	assertEqualInt((AE_IFDIR | 0755), archive_entry_mode(ae));
 	assertEqualString("dir1", archive_entry_pathname(ae));
 	assertEqualInt(2764801, archive_entry_mtime(ae));
 
@@ -304,7 +304,7 @@ test_extract_last_file(const char *refname)
 
 	/* Verify directory dir1. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt((AE_IFDIR | 0777), archive_entry_mode(ae));
+	assertEqualInt((AE_IFDIR | 0755), archive_entry_mode(ae));
 	assertEqualString("dir1", archive_entry_pathname(ae));
 	assertEqualInt(2764801, archive_entry_mtime(ae));
 
@@ -417,7 +417,7 @@ test_extract_all_files2(const char *refname)
 
 	/* Verify directory dir1. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt((AE_IFDIR | 0777), archive_entry_mode(ae));
+	assertEqualInt((AE_IFDIR | 0755), archive_entry_mode(ae));
 	assertEqualString("dir1", archive_entry_pathname(ae));
 	assertEqualInt(2764801, archive_entry_mtime(ae));
 
