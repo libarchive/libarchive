@@ -598,6 +598,52 @@ test_ppmd()
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+static void
+test_symname()
+{
+	const char *refname = "test_read_format_7zip_symbolic_name.7z";
+	struct archive_entry *ae;
+	struct archive *a;
+	char buff[128];
+
+	extract_reference_file(refname);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+
+	/* Verify regular file1. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt((AE_IFREG | 0644), archive_entry_mode(ae));
+	assertEqualString("file1", archive_entry_pathname(ae));
+	assertEqualInt(86401, archive_entry_mtime(ae));
+	assertEqualInt(32, archive_entry_size(ae));
+	assertEqualInt(32, archive_read_data(a, buff, sizeof(buff)));
+	assertEqualMem(buff, "hellohellohello\nhellohellohello\n", 32);
+
+	/* Verify symbolic-linke symlinkfile. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt((AE_IFLNK | 0755), archive_entry_mode(ae));
+	assertEqualString("symlinkfile", archive_entry_pathname(ae));
+	assertEqualString("file1", archive_entry_symlink(ae));
+	assertEqualInt(86401, archive_entry_mtime(ae));
+
+	assertEqualInt(2, archive_file_count(a));
+
+	/* End of archive. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	/* Verify archive format. */
+	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
+
+	/* Close the archive. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+
 DEFINE_TEST(test_read_format_7zip)
 {
 	struct archive *a;
@@ -634,6 +680,7 @@ DEFINE_TEST(test_read_format_7zip)
 	if (ARCHIVE_OK != archive_read_support_filter_xz(a)) {
 		skipping("7zip:lzma decoding is not supported on this platform");
 	} else {
+		test_symname();
 		text_plain_header("test_read_format_7zip_lzma1.7z");
 		text_plain_header("test_read_format_7zip_lzma2.7z");
 		test_extract_all_files("test_read_format_7zip_copy_2.7z");

@@ -637,6 +637,46 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 	if (zip->entry_bytes_remaining < 1)
 		zip->end_of_entry = 1;
 
+	if ((zip_entry->mode & AE_IFMT) == AE_IFLNK) {
+		unsigned char *symname = NULL;
+		size_t symsize = 0;
+		int r;
+
+		/*
+		 * Symbolic-name is recorded as its contents. We have to read the
+		 * contents at this time.
+		 */
+		while (zip->entry_bytes_remaining > 0) {
+			const void *buff;
+			size_t size;
+			int64_t offset;
+
+			r = archive_read_format_7zip_read_data(a, &buff, &size,
+				&offset);
+			if (r < ARCHIVE_WARN)
+				return (r);
+			symname = realloc(symname, symsize + size + 1);
+			if (symname == NULL) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "Can't allocate memory for Symname");
+				return (ARCHIVE_FATAL);
+			}
+			memcpy(symname+symsize, buff, size);
+			symsize += size;
+		}
+		if (symsize == 0) {
+			/* If there is no synname, handle it as a regular file. */
+			zip_entry->mode &= ~AE_IFMT;
+			zip_entry->mode |= AE_IFREG;
+			archive_entry_set_mode(entry, zip_entry->mode);
+		} else {
+			symname[symsize] = '\0';
+			archive_entry_copy_symlink(entry, (const char *)symname);
+			free(symname);
+		}
+		archive_entry_set_size(entry, 0);
+	}
+
 	/* Set up a more descriptive format name. */
 	sprintf(zip->format_name, "7-Zip");
 	a->archive.archive_format_name = zip->format_name;
@@ -2451,7 +2491,8 @@ read_Header(struct _7zip *zip, struct _7z_header_info *h,
 		if (entries[i].flg & HAS_STREAM) {
 			if (sindex >= si->ss.unpack_streams)
 				return (-1);
-			entries[i].mode = AE_IFREG | 0777;
+			if (entries[i].mode == 0)
+				entries[i].mode = AE_IFREG | 0777;
 			if (si->ss.digestsDefined[sindex])
 				entries[i].flg |= CRC32_IS_SET;
 			entries[i].ssIndex = sindex;
@@ -2467,7 +2508,13 @@ read_Header(struct _7zip *zip, struct _7z_header_info *h,
 					dir = 1;
 				eindex++;
 			}
-			if (dir && (entries[i].mode & AE_IFMT) != AE_IFDIR) {
+			if (entries[i].mode == 0) {
+				if (dir)
+					entries[i].mode = AE_IFDIR | 0777;
+				else
+					entries[i].mode = AE_IFREG | 0777;
+			} else if (dir &&
+			    (entries[i].mode & AE_IFMT) != AE_IFDIR) {
 				entries[i].mode &= ~AE_IFMT;
 				entries[i].mode |= AE_IFDIR;
 			}
@@ -3084,6 +3131,23 @@ read_stream(struct archive_read *a, const void **buff, size_t size)
 	while (skip_bytes) {
 		ssize_t skipped;
 
+		if (zip->uncompressed_buffer_bytes_remaining == 0) {
+			if (zip->pack_stream_inbytes_remaining > 0) {
+				r = extract_pack_stream(a);
+				if (r < 0)
+					return (r);
+			} else if (zip->folder_outbytes_remaining > 0) {
+				/* Extract a remaining pack stream. */
+				r = extract_pack_stream(a);
+				if (r < 0)
+					return (r);
+			} else {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Truncated 7-Zip file body");
+				return (ARCHIVE_FATAL);
+			}
+		}
 		skipped = get_uncompressed_data(a, buff, skip_bytes);
 		if (skipped < 0)
 			return (skipped);
