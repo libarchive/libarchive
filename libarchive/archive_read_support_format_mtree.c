@@ -89,7 +89,6 @@ struct mtree {
 	char			*buff;
 	int64_t			 offset;
 	int			 fd;
-	int			 filetype;
 	int			 archive_format;
 	const char		*archive_format_name;
 	struct mtree_entry	*entries;
@@ -938,12 +937,12 @@ parse_file(struct archive_read *a, struct archive_entry *entry,
 	struct stat st_storage, *st;
 	struct mtree_entry *mp;
 	struct archive_entry *sparse_entry;
-	int r = ARCHIVE_OK, r1, parsed_kws, mismatched_type;
+	int r = ARCHIVE_OK, r1, parsed_kws;
 
 	mentry->used = 1;
 
 	/* Initialize reasonable defaults. */
-	mtree->filetype = AE_IFREG;
+	archive_entry_set_filetype(entry, AE_IFREG);
 	archive_entry_set_size(entry, 0);
 	archive_string_empty(&mtree->contents_name);
 
@@ -1038,54 +1037,49 @@ parse_file(struct archive_read *a, struct archive_entry *entry,
 	 * the type of the contents object on disk.
 	 */
 	if (st != NULL) {
-		mismatched_type = 0;
-		if ((st->st_mode & S_IFMT) == S_IFREG &&
-		    archive_entry_filetype(entry) != AE_IFREG)
-			mismatched_type = 1;
+		if (
+		    ((st->st_mode & S_IFMT) == S_IFREG &&
+		     archive_entry_filetype(entry) == AE_IFREG)
 #ifdef S_IFLNK
-		if ((st->st_mode & S_IFMT) == S_IFLNK &&
-		    archive_entry_filetype(entry) != AE_IFLNK)
-			mismatched_type = 1;
+		    || ((st->st_mode & S_IFMT) == S_IFLNK &&
+			archive_entry_filetype(entry) == AE_IFLNK)
 #endif
 #ifdef S_IFSOCK
-		if ((st->st_mode & S_IFSOCK) == S_IFSOCK &&
-		    archive_entry_filetype(entry) != AE_IFSOCK)
-			mismatched_type = 1;
+		    || ((st->st_mode & S_IFSOCK) == S_IFSOCK &&
+			archive_entry_filetype(entry) == AE_IFSOCK)
 #endif
 #ifdef S_IFCHR
-		if ((st->st_mode & S_IFMT) == S_IFCHR &&
-		    archive_entry_filetype(entry) != AE_IFCHR)
-			mismatched_type = 1;
+		    || ((st->st_mode & S_IFMT) == S_IFCHR &&
+			archive_entry_filetype(entry) == AE_IFCHR)
 #endif
 #ifdef S_IFBLK
-		if ((st->st_mode & S_IFMT) == S_IFBLK &&
-		    archive_entry_filetype(entry) != AE_IFBLK)
-			mismatched_type = 1;
+		    || ((st->st_mode & S_IFMT) == S_IFBLK &&
+			archive_entry_filetype(entry) == AE_IFBLK)
 #endif
-		if ((st->st_mode & S_IFMT) == S_IFDIR &&
-		    archive_entry_filetype(entry) != AE_IFDIR)
-			mismatched_type = 1;
+		    || ((st->st_mode & S_IFMT) == S_IFDIR &&
+			archive_entry_filetype(entry) == AE_IFDIR)
 #ifdef S_IFIFO
-		if ((st->st_mode & S_IFMT) == S_IFIFO &&
-		    archive_entry_filetype(entry) != AE_IFIFO)
-			mismatched_type = 1;
+		    || ((st->st_mode & S_IFMT) == S_IFIFO &&
+			archive_entry_filetype(entry) == AE_IFIFO)
 #endif
-
-		if (mismatched_type) {
-			if ((parsed_kws & MTREE_HAS_OPTIONAL) == 0) {
+		    ) {
+			/* Types match. */
+		} else {
+			/* Types don't match; bail out gracefully. */
+			if (mtree->fd >= 0)
+				close(mtree->fd);
+			mtree->fd = -1;
+			if (parsed_kws & MTREE_HAS_OPTIONAL) {
+				/* It's not an error for an optional entry
+				   to not match disk. */
+				*use_next = 1;
+			} else if (r == ARCHIVE_OK) {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
 				    "mtree specification has different type for %s",
 				    archive_entry_pathname(entry));
 				r = ARCHIVE_WARN;
-			} else {
-				*use_next = 1;
 			}
-			/* Don't hold a non-regular file open. */
-			if (mtree->fd >= 0)
-				close(mtree->fd);
-			mtree->fd = -1;
-			st = NULL;
 			return r;
 		}
 	}
@@ -1165,7 +1159,7 @@ parse_line(struct archive_read *a, struct archive_entry *entry,
 		if (r1 < r)
 			r = r1;
 	}
-	if ((*parsed_kws & MTREE_HAS_TYPE) == 0) {
+	if (r == ARCHIVE_OK && (*parsed_kws & MTREE_HAS_TYPE) == 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Missing type keyword in mtree specification");
 		return (ARCHIVE_WARN);
@@ -1353,44 +1347,44 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			break;
 		}
 		if (strcmp(key, "type") == 0) {
-			*parsed_kws |= MTREE_HAS_TYPE;
 			switch (val[0]) {
 			case 'b':
 				if (strcmp(val, "block") == 0) {
-					mtree->filetype = AE_IFBLK;
+					archive_entry_set_filetype(entry, AE_IFBLK);
 					break;
 				}
 			case 'c':
 				if (strcmp(val, "char") == 0) {
-					mtree->filetype = AE_IFCHR;
+					archive_entry_set_filetype(entry, AE_IFCHR);
 					break;
 				}
 			case 'd':
 				if (strcmp(val, "dir") == 0) {
-					mtree->filetype = AE_IFDIR;
+					archive_entry_set_filetype(entry, AE_IFDIR);
 					break;
 				}
 			case 'f':
 				if (strcmp(val, "fifo") == 0) {
-					mtree->filetype = AE_IFIFO;
+					archive_entry_set_filetype(entry, AE_IFIFO);
 					break;
 				}
 				if (strcmp(val, "file") == 0) {
-					mtree->filetype = AE_IFREG;
+					archive_entry_set_filetype(entry, AE_IFREG);
 					break;
 				}
 			case 'l':
 				if (strcmp(val, "link") == 0) {
-					mtree->filetype = AE_IFLNK;
+					archive_entry_set_filetype(entry, AE_IFLNK);
 					break;
 				}
 			default:
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
-				    "Unrecognized file type \"%s\"", val);
+				    "Unrecognized file type \"%s\"; assuming \"file\"", val);
+				archive_entry_set_filetype(entry, AE_IFREG);
 				return (ARCHIVE_WARN);
 			}
-			archive_entry_set_filetype(entry, mtree->filetype);
+			*parsed_kws |= MTREE_HAS_TYPE;
 			break;
 		}
 	case 'u':
