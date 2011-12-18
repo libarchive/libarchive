@@ -184,10 +184,9 @@ scan_unicode_pattern(char *out, wchar_t *wout, char *u16be,
 }
 
 static int
-is_wc_is_unicode(void)
+is_wc_unicode(void)
 {
-#if (defined(_WIN32) && !defined(__CYGWIN__)) \
-	 || defined(__STDC_ISO_10646__) || defined(__APPLE__)
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	return (1);
 #else
 	return (0);
@@ -216,7 +215,7 @@ test_archive_string_normalization(void)
 	int locale_is_utf8, wc_is_unicode;
 
 	locale_is_utf8 = (NULL != setlocale(LC_ALL, "en_US.UTF-8"));
-	wc_is_unicode = is_wc_is_unicode();
+	wc_is_unicode = is_wc_unicode();
 	/* If it doesn't exist, just warn and return. */
 	if (!locale_is_utf8 && !wc_is_unicode) {
 		skipping("invalid encoding tests require a suitable locale;"
