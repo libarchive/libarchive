@@ -142,7 +142,7 @@ test_empty_file()
  * The header of the 7z archive files is not encdoed.
  */
 static void
-text_plain_header(const char *refname)
+test_plain_header(const char *refname)
 {
 	struct archive_entry *ae;
 	struct archive *a;
@@ -662,7 +662,7 @@ DEFINE_TEST(test_read_format_7zip)
 	if (ARCHIVE_OK != archive_read_support_filter_bzip2(a)) {
 		skipping("7zip:bzip2 decoding is not supported on this platform");
 	} else {
-		text_plain_header("test_read_format_7zip_bzip2.7z");
+		test_plain_header("test_read_format_7zip_bzip2.7z");
 		test_bcj("test_read_format_7zip_bcj_bzip2.7z");
 		test_bcj("test_read_format_7zip_bcj2_bzip2.7z");
 	}
@@ -671,7 +671,7 @@ DEFINE_TEST(test_read_format_7zip)
 	if (ARCHIVE_OK != archive_read_support_filter_gzip(a)) {
 		skipping("7zip:deflate decoding is not supported on this platform");
 	} else {
-		text_plain_header("test_read_format_7zip_deflate.7z");
+		test_plain_header("test_read_format_7zip_deflate.7z");
 		test_bcj("test_read_format_7zip_bcj_deflate.7z");
 		test_bcj("test_read_format_7zip_bcj2_deflate.7z");
 	}
@@ -681,8 +681,8 @@ DEFINE_TEST(test_read_format_7zip)
 		skipping("7zip:lzma decoding is not supported on this platform");
 	} else {
 		test_symname();
-		text_plain_header("test_read_format_7zip_lzma1.7z");
-		text_plain_header("test_read_format_7zip_lzma2.7z");
+		test_plain_header("test_read_format_7zip_lzma1.7z");
+		test_plain_header("test_read_format_7zip_lzma2.7z");
 		test_extract_all_files("test_read_format_7zip_copy_2.7z");
 		test_extract_all_files("test_read_format_7zip_lzma1_2.7z");
 		test_extract_last_file("test_read_format_7zip_copy_2.7z");
