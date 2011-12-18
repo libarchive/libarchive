@@ -170,12 +170,16 @@ static int win_strncat_from_utf16le(struct archive_string *, const void *, size_
     struct archive_string_conv *);
 static int win_strncat_to_utf16be(struct archive_string *, const void *, size_t,
     struct archive_string_conv *);
+static int win_strncat_to_utf16le(struct archive_string *, const void *, size_t,
+    struct archive_string_conv *);
 #endif
 static int best_effort_strncat_from_utf16be(struct archive_string *, const void *,
     size_t, struct archive_string_conv *);
 static int best_effort_strncat_from_utf16le(struct archive_string *, const void *,
     size_t, struct archive_string_conv *);
 static int best_effort_strncat_to_utf16be(struct archive_string *, const void *,
+    size_t, struct archive_string_conv *);
+static int best_effort_strncat_to_utf16le(struct archive_string *, const void *,
     size_t, struct archive_string_conv *);
 #if defined(HAVE_ICONV)
 static int iconv_strncat_in_locale(struct archive_string *, const void *,
@@ -725,7 +729,7 @@ archive_string_append_from_wcs_in_codepage(struct archive_string *as,
 				*p++ = (char)*wp++;
 			count++;
 		}
-	} else if (sc != NULL && (sc->flag & SCONV_TO_UTF16BE)) {
+	} else if (sc != NULL && (sc->flag & SCONV_TO_UTF16)) {
 		uint16_t *u16;
 
 		if (NULL ==
@@ -734,10 +738,18 @@ archive_string_append_from_wcs_in_codepage(struct archive_string *as,
 		u16 = (uint16_t *)(as->s + as->length);
 		count = 0;
 		defchar_used = 0;
-		while (count < (int)len && *ws) {
-			archive_be16enc(u16+count, *ws);
-			ws++;
-			count++;
+		if (sc->flag & SCONV_TO_UTF16BE) {
+			while (count < (int)len && *ws) {
+				archive_be16enc(u16+count, *ws);
+				ws++;
+				count++;
+			}
+		} else {
+			while (count < (int)len && *ws) {
+				archive_le16enc(u16+count, *ws);
+				ws++;
+				count++;
+			}
 		}
 		count <<= 1; /* to be byte size */
 	} else {
@@ -1013,9 +1025,9 @@ setup_converter(struct archive_string_conv *sc)
 	}
 
 	/*
-	 * Convert a string to UTF-16BE.
+	 * Convert a string to UTF-16BE/LE.
 	 */
-	if (sc->flag & SCONV_TO_UTF16BE) {
+	if (sc->flag & SCONV_TO_UTF16) {
 		/*
 		 * If the current locale is UTF-8, we can translate
 		 * a UTF-8 string into a UTF-16BE string.
@@ -1027,7 +1039,10 @@ setup_converter(struct archive_string_conv *sc)
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 		if (sc->flag & SCONV_WIN_CP) {
-			add_converter(sc, win_strncat_to_utf16be);
+			if (sc->flag & SCONV_TO_UTF16BE)
+				add_converter(sc, win_strncat_to_utf16be);
+			else
+				add_converter(sc, win_strncat_to_utf16le);
 			return;
 		}
 #endif
@@ -1039,9 +1054,12 @@ setup_converter(struct archive_string_conv *sc)
 		}
 #endif
 
-		if (sc->flag & SCONV_BEST_EFFORT)
-			add_converter(sc, best_effort_strncat_to_utf16be);
-		else
+		if (sc->flag & SCONV_BEST_EFFORT) {
+			if (sc->flag & SCONV_TO_UTF16BE)
+				add_converter(sc, best_effort_strncat_to_utf16be);
+			else
+				add_converter(sc, best_effort_strncat_to_utf16le);
+		} else
 			/* Make sure we have no converter. */
 			sc->nconverter = 0;
 		return;
@@ -1065,7 +1083,7 @@ setup_converter(struct archive_string_conv *sc)
 		if (sc->flag & SCONV_TO_UTF8) {
 			/*
 			 * If the current locale is UTF-8, we can translate
-			 * a UTF-16BE string into a UTF-8 string directly.
+			 * a UTF-16BE/LE string into a UTF-8 string directly.
 			 */
 			if (!(sc->flag &
 			    (SCONV_NORMALIZATION_D |SCONV_NORMALIZATION_C)))
@@ -1192,6 +1210,9 @@ canonical_charset_name(const char *charset)
 	if (strcmp(cs, "UTF-16BE") == 0 ||
 	    strcmp(cs, "UTF16BE") == 0)
 		return ("UTF-16BE");
+	if (strcmp(cs, "UTF-16LE") == 0 ||
+	    strcmp(cs, "UTF16LE") == 0)
+		return ("UTF-16LE");
 	if (strcmp(cs, "CP932") == 0)
 		return ("CP932");
 	return (charset);
@@ -1261,12 +1282,14 @@ create_sconv_object(const char *fc, const char *tc,
 		sc->same = 0;
 
 	/*
-	 * Mark if "from charset" or "to charset" are UTF-8 or UTF-16BE.
+	 * Mark if "from charset" or "to charset" are UTF-8 or UTF-16BE/LE.
 	 */
 	if (strcmp(tc, "UTF-8") == 0)
 		flag |= SCONV_TO_UTF8;
 	else if (strcmp(tc, "UTF-16BE") == 0)
 		flag |= SCONV_TO_UTF16BE;
+	else if (strcmp(tc, "UTF-16LE") == 0)
+		flag |= SCONV_TO_UTF16LE;
 	if (strcmp(fc, "UTF-8") == 0)
 		flag |= SCONV_FROM_UTF8;
 	else if (strcmp(fc, "UTF-16BE") == 0)
@@ -1278,6 +1301,8 @@ create_sconv_object(const char *fc, const char *tc,
 		flag |= SCONV_TO_UTF8;
 	else if (sc->to_cp == CP_UTF16BE)
 		flag |= SCONV_TO_UTF16BE | SCONV_WIN_CP;
+	else if (sc->to_cp == CP_UTF16LE)
+		flag |= SCONV_TO_UTF16LE | SCONV_WIN_CP;
 	if (sc->from_cp == CP_UTF8)
 		flag |= SCONV_FROM_UTF8;
 	else if (sc->from_cp == CP_UTF16BE)
@@ -1313,7 +1338,7 @@ create_sconv_object(const char *fc, const char *tc,
 	/*
 	 * Create an iconv object.
 	 */
-	if (((flag & (SCONV_TO_UTF8 | SCONV_TO_UTF16BE)) &&
+	if (((flag & (SCONV_TO_UTF8 | SCONV_TO_UTF16)) &&
 	    (flag & (SCONV_FROM_UTF8 | SCONV_FROM_UTF16))) ||
 	    (flag & SCONV_WIN_CP)) {
 		/* This case we won't use iconv. */
@@ -2131,11 +2156,11 @@ iconv_strncat_in_locale(struct archive_string *as, const void *_p,
 
 		if (errno == EILSEQ || errno == EINVAL) {
 			/*
-		 	 * If an output charset is UTF-8 or UTF-16BE,
+		 	 * If an output charset is UTF-8 or UTF-16BE/LE,
 			 * unknown character should be U+FFFD
 			 * (replacement character).
 			 */
-			if (sc->flag & (SCONV_TO_UTF8 | SCONV_TO_UTF16BE)) {
+			if (sc->flag & (SCONV_TO_UTF8 | SCONV_TO_UTF16)) {
 				size_t rbytes;
 				if (sc->flag & SCONV_TO_UTF8)
 					rbytes = UTF8_R_CHAR_SIZE;
@@ -2155,8 +2180,10 @@ iconv_strncat_in_locale(struct archive_string *as, const void *_p,
 				}
 				if (sc->flag & SCONV_TO_UTF8)
 					UTF8_SET_R_CHAR(outp);
-				else
+				else if (sc->flag & SCONV_TO_UTF16BE)
 					archive_be16enc(outp, UNICODE_R_CHAR);
+				else
+					archive_le16enc(outp, UNICODE_R_CHAR);
 				outp += rbytes;
 				avail -= rbytes;
 			} else {
@@ -3619,37 +3646,40 @@ is_big_endian(void)
 }
 
 /*
- * Convert a current locale string to UTF-16BE and copy the result.
+ * Convert a current locale string to UTF-16BE/LE and copy the result.
  * Return -1 if conversion failes.
  */
 static int
-win_strncat_to_utf16be(struct archive_string *a16be, const void *_p, size_t length,
-    struct archive_string_conv *sc)
+win_strncat_to_utf16(struct archive_string *as16, const void *_p, size_t length,
+    struct archive_string_conv *sc, int bigendian)
 {
 	const char *s = (const char *)_p;
 	char *u16;
 	size_t count, avail;
 
-	if (archive_string_ensure(a16be,
-	    a16be->length + (length + 1) * 2) == NULL)
+	if (archive_string_ensure(as16,
+	    as16->length + (length + 1) * 2) == NULL)
 		return (-1);
 
-	u16 = a16be->s + a16be->length;
-	avail = a16be->buffer_length - 2;
+	u16 = as16->s + as16->length;
+	avail = as16->buffer_length - 2;
 	if (sc->from_cp == CP_C_LOCALE) {
 		/*
 		 * "C" locale special process.
 		 */
 		count = 0;
 		while (count < length && *s) {
-			archive_be16enc(u16, *s);
+			if (bigendian)
+				archive_be16enc(u16, *s);
+			else
+				archive_le16enc(u16, *s);
 			u16 += 2;
 			s++;
 			count++;
 		}
-		a16be->length += count << 1;
-		a16be->s[a16be->length] = 0;
-		a16be->s[a16be->length+1] = 0;
+		as16->length += count << 1;
+		as16->s[as16->length] = 0;
+		as16->s[as16->length+1] = 0;
 		return (0);
 	}
 	do {
@@ -3660,29 +3690,54 @@ win_strncat_to_utf16be(struct archive_string *a16be, const void *_p, size_t leng
 			/* Need more buffer for UTF-16 string */
 			count = MultiByteToWideChar(sc->from_cp,
 			    MB_PRECOMPOSED, s, length, NULL, 0);
-			if (archive_string_ensure(a16be, (count +1) * 2)
+			if (archive_string_ensure(as16, (count +1) * 2)
 			    == NULL)
 				return (-1);
-			u16 = a16be->s + a16be->length;
-			avail = a16be->buffer_length - 2;
+			u16 = as16->s + as16->length;
+			avail = as16->buffer_length - 2;
 			continue;
 		}
 	} while (0);
-	a16be->length += count * 2;
-	a16be->s[a16be->length] = 0;
-	a16be->s[a16be->length+1] = 0;
+	as16->length += count * 2;
+	as16->s[as16->length] = 0;
+	as16->s[as16->length+1] = 0;
 	if (count == 0)
 		return (-1);
 
-	if (!is_big_endian()) {
-		while (count > 0) {
-			uint16_t v = archive_le16dec(u16);
-			archive_be16enc(u16, v);
-			u16 += 2;
-			count--;
+	if (is_big_endian()) {
+		if (!bigendian) {
+			while (count > 0) {
+				uint16_t v = archive_be16dec(u16);
+				archive_le16enc(u16, v);
+				u16 += 2;
+				count--;
+			}
+		}
+	} else {
+		if (bigendian) {
+			while (count > 0) {
+				uint16_t v = archive_le16dec(u16);
+				archive_be16enc(u16, v);
+				u16 += 2;
+				count--;
+			}
 		}
 	}
 	return (0);
+}
+
+static int
+win_strncat_to_utf16be(struct archive_string *as16, const void *_p, size_t length,
+    struct archive_string_conv *sc)
+{
+	return (win_strncat_to_utf16(as16, _p, length, sc, 1));
+}
+
+static int
+win_strncat_to_utf16le(struct archive_string *as16, const void *_p, size_t length,
+    struct archive_string_conv *sc)
+{
+	return (win_strncat_to_utf16(as16, _p, length, sc, 0));
 }
 
 #endif /* _WIN32 && !__CYGWIN__ */
@@ -3753,12 +3808,12 @@ best_effort_strncat_from_utf16le(struct archive_string *as, const void *_p,
 }
 
 /*
- * Convert a current locale string to UTF-16BE and copy the result.
+ * Convert a current locale string to UTF-16BE/LE and copy the result.
  * Return -1 if conversion failes.
  */
 static int
-best_effort_strncat_to_utf16be(struct archive_string *a16be, const void *_p,
-    size_t length, struct archive_string_conv *sc)
+best_effort_strncat_to_utf16(struct archive_string *as16, const void *_p,
+    size_t length, struct archive_string_conv *sc, int bigendian)
 {
 	const char *s = (const char *)_p;
 	char *utf16;
@@ -3774,11 +3829,11 @@ best_effort_strncat_to_utf16be(struct archive_string *a16be, const void *_p,
 	ret = 0;
 	remaining = length;
 
-	if (archive_string_ensure(a16be,
-	    a16be->length + (length + 1) * 2) == NULL)
+	if (archive_string_ensure(as16,
+	    as16->length + (length + 1) * 2) == NULL)
 		return (-1);
 
-	utf16 = a16be->s + a16be->length;
+	utf16 = as16->s + as16->length;
 	while (remaining--) {
 		unsigned c = *s++;
 		if (c > 127) {
@@ -3786,15 +3841,31 @@ best_effort_strncat_to_utf16be(struct archive_string *a16be, const void *_p,
 			c = UNICODE_R_CHAR;
 			ret = -1;
 		}
-		archive_be16enc(utf16, c);
+		if (bigendian)
+			archive_be16enc(utf16, c);
+		else
+			archive_le16enc(utf16, c);
 		utf16 += 2;
 	}
-	a16be->length = utf16 - a16be->s;
-	a16be->s[a16be->length] = 0;
-	a16be->s[a16be->length+1] = 0;
+	as16->length = utf16 - as16->s;
+	as16->s[as16->length] = 0;
+	as16->s[as16->length+1] = 0;
 	return (ret);
 }
 
+static int
+best_effort_strncat_to_utf16be(struct archive_string *as16, const void *_p,
+    size_t length, struct archive_string_conv *sc)
+{
+	return (best_effort_strncat_to_utf16(as16, _p, length, sc, 1));
+}
+
+static int
+best_effort_strncat_to_utf16le(struct archive_string *as16, const void *_p,
+    size_t length, struct archive_string_conv *sc)
+{
+	return (best_effort_strncat_to_utf16(as16, _p, length, sc, 0));
+}
 
 
 /*
