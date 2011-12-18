@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format.c 201168 2009-1
 static
 struct { int code; int (*setter)(struct archive *); } codes[] =
 {
+	{ ARCHIVE_FORMAT_7ZIP,		archive_write_set_format_7zip },
 	{ ARCHIVE_FORMAT_CPIO,		archive_write_set_format_cpio },
 	{ ARCHIVE_FORMAT_CPIO_POSIX,	archive_write_set_format_cpio },
 	{ ARCHIVE_FORMAT_CPIO_SVR4_NOCRC,	archive_write_set_format_cpio_newc },

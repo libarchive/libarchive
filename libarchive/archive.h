@@ -596,6 +596,7 @@ __LA_DECL int archive_write_set_format(struct archive *, int format_code);
 __LA_DECL int archive_write_set_format_by_name(struct archive *,
 		     const char *name);
 /* To minimize link pollution, use one or more of the following. */
+__LA_DECL int archive_write_set_format_7zip(struct archive *);
 __LA_DECL int archive_write_set_format_ar_bsd(struct archive *);
 __LA_DECL int archive_write_set_format_ar_svr4(struct archive *);
 __LA_DECL int archive_write_set_format_cpio(struct archive *);

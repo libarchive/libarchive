@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_by_name.c 20116
 static
 struct { const char *name; int (*setter)(struct archive *); } names[] =
 {
+	{ "7zip",	archive_write_set_format_7zip },
 	{ "ar",		archive_write_set_format_ar_bsd },
 	{ "arbsd",	archive_write_set_format_ar_bsd },
 	{ "argnu",	archive_write_set_format_ar_svr4 },

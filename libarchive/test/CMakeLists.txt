@@ -147,6 +147,7 @@ IF(ENABLE_TEST)
     test_write_disk_sparse.c
     test_write_disk_symlink.c
     test_write_disk_times.c
+    test_write_format_7zip.c
     test_write_format_ar.c
     test_write_format_cpio.c
     test_write_format_cpio_empty.c

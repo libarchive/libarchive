@@ -170,6 +170,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_write_add_filter_program.c	\
 	libarchive/archive_write_add_filter_xz.c		\
 	libarchive/archive_write_set_format.c			\
+	libarchive/archive_write_set_format_7zip.c		\
 	libarchive/archive_write_set_format_ar.c		\
 	libarchive/archive_write_set_format_by_name.c		\
 	libarchive/archive_write_set_format_cpio.c		\
@@ -386,6 +387,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_disk_sparse.c		\
 	libarchive/test/test_write_disk_symlink.c		\
 	libarchive/test/test_write_disk_times.c			\
+	libarchive/test/test_write_format_7zip.c		\
 	libarchive/test/test_write_format_ar.c			\
 	libarchive/test/test_write_format_cpio.c		\
 	libarchive/test/test_write_format_cpio_empty.c		\
