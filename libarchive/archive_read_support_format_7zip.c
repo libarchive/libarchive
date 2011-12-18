@@ -179,7 +179,7 @@ struct _7z_header_info {
 
 struct _7zip_entry {
 	size_t			 name_len;
-	const unsigned char	*utf16name;
+	unsigned char		*utf16name;
 #if defined(_WIN32) && !defined(__CYGWIN__) && defined(_DEBUG)
 	const wchar_t		*wname;
 #endif
@@ -2517,6 +2517,14 @@ read_Header(struct _7zip *zip, struct _7z_header_info *h,
 			    (entries[i].mode & AE_IFMT) != AE_IFDIR) {
 				entries[i].mode &= ~AE_IFMT;
 				entries[i].mode |= AE_IFDIR;
+			}
+			if ((entries[i].mode & AE_IFMT) == AE_IFDIR &&
+			    entries[i].name_len >= 2 &&
+			    (entries[i].utf16name[entries[i].name_len-2] != '/' ||
+			     entries[i].utf16name[entries[i].name_len-1] != 0)) {
+				entries[i].utf16name[entries[i].name_len] = '/';
+				entries[i].utf16name[entries[i].name_len+1] = 0;
+				entries[i].name_len += 2;
 			}
 			entries[i].ssIndex = -1;
 		}
