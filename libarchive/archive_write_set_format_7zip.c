@@ -407,10 +407,6 @@ _7z_write_header(struct archive_write *a, struct archive_entry *entry)
 		    &a->archive, "UTF-16LE", 1);
 		if (zip->sconv == NULL)
 			return (ARCHIVE_FATAL);
-		r = _7z_compression_init_encoder(a, zip->opt_compression,
-			zip->opt_compression_level);
-		if (r < 0)
-			return (r);
 	}
 
 	r = file_new(a, entry, &file);
@@ -441,6 +437,20 @@ _7z_write_header(struct archive_write *a, struct archive_entry *entry)
 			file_register_empty(zip, file);
 		return (r);
 	}
+
+	/*
+	 * Init compression.
+	 */
+	if ((zip->total_number_entry - zip->total_number_empty_entry) == 1) {
+		r = _7z_compression_init_encoder(a, zip->opt_compression,
+			zip->opt_compression_level);
+		if (r < 0) {
+			file_free(file);
+			return (ARCHIVE_FATAL);
+		}
+	}
+
+	/* Register a non-empty file. */
 	file_register(zip, file);
 
 	/*
