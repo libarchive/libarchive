@@ -335,7 +335,7 @@ test_archive_string_normalization(void)
 		 * Convert an NFC pattern to UTF-8 bytes.
 		 */
 #if defined(__APPLE__)
-		if (scan_unicode_pattern(utf8_nfc, wc_nfc, utf16be_nfc,
+		if (scan_unicode_pattern(utf8_nfc, wc_nfc, utf16be_nfc, utf16le_nfc,
 		    nfc, 1) != 0)
 			continue;
 #else
