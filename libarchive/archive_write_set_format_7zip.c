@@ -247,8 +247,10 @@ static int	compression_code_bzip2(struct archive *,
 		    struct la_zstream *, enum la_zaction);
 static int	compression_end_bzip2(struct archive *, struct la_zstream *);
 #endif
-static int	compression_init_encoder_lzma(struct archive *,
-		    struct la_zstream *, int, uint64_t);
+static int	compression_init_encoder_lzma1(struct archive *,
+		    struct la_zstream *, int);
+static int	compression_init_encoder_lzma2(struct archive *,
+		    struct la_zstream *, int);
 #if defined(HAVE_LZMA_H)
 static int	compression_code_lzma(struct archive *,
 		    struct la_zstream *, enum la_zaction);
@@ -1535,6 +1537,20 @@ file_init_register_empty(struct _7zip *zip)
 	zip->empty_list.last = &(zip->empty_list.first);
 }
 
+#if !defined(HAVE_BZLIB_H) || !defined(BZ_CONFIG_ERROR) || !defined(HAVE_LZMA_H)
+static int
+compression_unsupported_encoder(struct archive *a,
+    struct la_zstream *lastrm, const char *name)
+{
+
+	archive_set_error(a, ARCHIVE_ERRNO_MISC,
+	    "%s compression not supported on this platform", name);
+	lastrm->valid = 0;
+	lastrm->real_stream = NULL;
+	return (ARCHIVE_FAILED);
+}
+#endif
+
 static int
 compression_init_encoder_copy(struct archive *a, struct la_zstream *lastrm)
 {
@@ -1811,7 +1827,7 @@ compression_init_encoder_lzma(struct archive *a,
 	strm = calloc(1, sizeof(*strm) + sizeof(*lzmafilters) * 2);
 	if (strm == NULL) {
 		archive_set_error(a, ENOMEM,
-		    "Can't allocate memory for xz stream");
+		    "Can't allocate memory for lzma stream");
 		return (ARCHIVE_FATAL);
 	}
 	lzmafilters = (lzma_filter *)(strm+1);
@@ -1885,6 +1901,22 @@ compression_init_encoder_lzma(struct archive *a,
 }
 
 static int
+compression_init_encoder_lzma1(struct archive *a,
+    struct la_zstream *lastrm, int level)
+{
+	return compression_init_encoder_lzma(a, lastrm, level,
+		    LZMA_FILTER_LZMA1);
+}
+
+static int
+compression_init_encoder_lzma2(struct archive *a,
+    struct la_zstream *lastrm, int level)
+{
+	return compression_init_encoder_lzma(a, lastrm, level,
+		    LZMA_FILTER_LZMA2);
+}
+
+static int
 compression_code_lzma(struct archive *a,
     struct la_zstream *lastrm, enum la_zaction action)
 {
@@ -1944,7 +1976,7 @@ compression_end_lzma(struct archive *a, struct la_zstream *lastrm)
 }
 #else
 static int
-compression_init_encoder_lzma(struct archive *a,
+compression_init_encoder_lzma1(struct archive *a,
     struct la_zstream *lastrm, int level)
 {
 
@@ -1954,14 +1986,14 @@ compression_init_encoder_lzma(struct archive *a,
 	return (compression_unsupported_encoder(a, lastrm, "lzma"));
 }
 static int
-compression_init_encoder_xz(struct archive *a,
+compression_init_encoder_lzma2(struct archive *a,
     struct la_zstream *lastrm, int level)
 {
 
 	(void) level; /* UNUSED */
 	if (lastrm->valid)
 		compression_end(a, lastrm);
-	return (compression_unsupported_encoder(a, lastrm, "xz"));
+	return (compression_unsupported_encoder(a, lastrm, "lzma"));
 }
 #endif
 
@@ -1985,16 +2017,14 @@ _7z_compression_init_encoder(struct archive_write *a, unsigned compression,
 		    compression_level);
 		break;
 	case _7Z_LZMA1:
-		r = compression_init_encoder_lzma(
+		r = compression_init_encoder_lzma1(
 		    &(a->archive), &(zip->stream),
-		    compression_level,
-		    LZMA_FILTER_LZMA1);
+		    compression_level);
 		break;
 	case _7Z_LZMA2:
-		r = compression_init_encoder_lzma(
+		r = compression_init_encoder_lzma2(
 		    &(a->archive), &(zip->stream),
-		    compression_level,
-		    LZMA_FILTER_LZMA2);
+		    compression_level);
 		break;
 	case _7Z_COPY:
 	default:
