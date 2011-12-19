@@ -42,7 +42,8 @@ test_basic(const char *compression_type)
 	/* Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_7zip(a));
-	if (ARCHIVE_OK != archive_write_set_format_option(a, "7zip",
+	if (compression_type != NULL &&
+	    ARCHIVE_OK != archive_write_set_format_option(a, "7zip",
 	    "compression", compression_type)) {
 		skipping("%s writing not fully supported on this platform",
 		   compression_type);
@@ -583,6 +584,9 @@ test_only_empty_files(void)
 
 DEFINE_TEST(test_write_format_7zip)
 {
+	/* Test that making a 7-Zip archive file by default compression
+	 * in whatever compressions are supported on the running platform. */
+	test_basic(NULL);
 	/* Test that making a 7-Zip archive file without compression. */
 	test_basic("copy");
 	/* Test that making a 7-Zip archive file with deflate compression. */

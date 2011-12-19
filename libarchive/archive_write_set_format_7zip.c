@@ -300,8 +300,16 @@ archive_write_set_format_7zip(struct archive *_a)
 	file_init_register(zip);
 	file_init_register_empty(zip);
 
-	/* Set default compression type and level. */
+	/* Set default compression type and its level. */
+#if HAVE_LZMA_H
 	zip->opt_compression = _7Z_LZMA1;
+#elif defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
+	zip->opt_compression = _7Z_BZIP2;
+#elif defined(HAVE_ZLIB_H)
+	zip->opt_compression = _7Z_DEFLATE;
+#else
+	zip->opt_compression = _7Z_COPY;
+#endif
 	zip->opt_compression_level = 6;
 
 	a->format_data = zip;
