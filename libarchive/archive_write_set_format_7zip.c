@@ -54,6 +54,9 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include "archive.h"
+#ifndef HAVE_ZLIB_H
+#include "archive_crc32.h"
+#endif
 #include "archive_endian.h"
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
@@ -237,9 +240,11 @@ static int	compression_code_copy(struct archive *,
 static int	compression_end_copy(struct archive *, struct la_zstream *);
 static int	compression_init_encoder_deflate(struct archive *,
 		    struct la_zstream *, int, int);
+#ifdef HAVE_ZLIB_H
 static int	compression_code_deflate(struct archive *,
 		    struct la_zstream *, enum la_zaction);
 static int	compression_end_deflate(struct archive *, struct la_zstream *);
+#endif
 static int	compression_init_encoder_bzip2(struct archive *,
 		    struct la_zstream *, int);
 #if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
@@ -1606,6 +1611,7 @@ compression_end_copy(struct archive *a, struct la_zstream *lastrm)
 	return (ARCHIVE_OK);
 }
 
+#ifdef HAVE_ZLIB_H
 static int
 compression_init_encoder_deflate(struct archive *a,
     struct la_zstream *lastrm, int level, int withheader)
@@ -1701,6 +1707,19 @@ compression_end_deflate(struct archive *a, struct la_zstream *lastrm)
 	}
 	return (ARCHIVE_OK);
 }
+#else
+static int
+compression_init_encoder_deflate(struct archive *a,
+    struct la_zstream *lastrm, int level, int withheader)
+{
+
+	(void) level; /* UNUSED */
+	(void) withheader; /* UNUSED */
+	if (lastrm->valid)
+		compression_end(a, lastrm);
+	return (compression_unsupported_encoder(a, lastrm, "deflate"));
+}
+#endif
 
 #if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
 static int
