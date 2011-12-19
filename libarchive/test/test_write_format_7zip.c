@@ -597,6 +597,8 @@ DEFINE_TEST(test_write_format_7zip)
 	test_basic("lzma1");
 	/* Test that making a 7-Zip archive file with lzma2 compression. */
 	test_basic("lzma2");
+	/* Test that making a 7-Zip archive file with PPMd compression. */
+	test_basic("ppmd");
 	/* Test that making an empty 7-Zip archive file. */
 	test_empty_archive();
 	/* Test that write an empty file. */

@@ -65,7 +65,7 @@ typedef struct
 
 typedef struct
 {
-  struct archive_read *a;
+  struct archive_write *a;
   void (*Write)(void *p, Byte b);
 } IByteOut;
 

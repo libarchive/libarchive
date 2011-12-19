@@ -82,14 +82,14 @@ typedef struct
 
 /* ---------- Encode ---------- */
 
-/*typedef struct
+typedef struct
 {
   UInt64 Low;
   UInt32 Range;
   Byte Cache;
   UInt64 CacheSize;
   IByteOut *Stream;
-} CPpmd7z_RangeEnc;*/
+} CPpmd7z_RangeEnc;
 
 typedef struct
 {
@@ -109,10 +109,10 @@ typedef struct
   int (*Ppmd7_DecodeSymbol)(CPpmd7 *p, IPpmd7_RangeDec *rc);
 
   /* Encode Functions */
-  /*void (*Ppmd7z_RangeEnc_Init)(CPpmd7z_RangeEnc *p);
+  void (*Ppmd7z_RangeEnc_Init)(CPpmd7z_RangeEnc *p);
   void (*Ppmd7z_RangeEnc_FlushData)(CPpmd7z_RangeEnc *p);
 
-  void (*Ppmd7_EncodeSymbol)(CPpmd7 *p, CPpmd7z_RangeEnc *rc, int symbol);*/
+  void (*Ppmd7_EncodeSymbol)(CPpmd7 *p, CPpmd7z_RangeEnc *rc, int symbol);
 } IPpmd7;
 
 extern const IPpmd7 __archive_ppmd7_functions;

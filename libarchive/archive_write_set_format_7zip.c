@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include "archive_endian.h"
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
+#include "archive_ppmd7_private.h"
 #include "archive_private.h"
 #include "archive_rb.h"
 #include "archive_string.h"
@@ -60,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #define _7Z_LZMA2	0x21
 #define _7Z_DEFLATE	0x040108
 #define _7Z_BZIP2	0x040202
+#define _7Z_PPMD	0x030401
 
 /*
  * 7-Zip header property IDs.
@@ -97,11 +99,11 @@ enum la_zaction {
  * Universal zstream.
  */
 struct la_zstream {
-	const unsigned char	*next_in;
+	const uint8_t		*next_in;
 	size_t			 avail_in;
 	uint64_t		 total_in;
 
-	unsigned char		*next_out;
+	uint8_t			*next_out;
 	size_t			 avail_out;
 	uint64_t		 total_out;
 
@@ -115,6 +117,20 @@ struct la_zstream {
 				    enum la_zaction action);
 	int			 (*end)(struct archive *a,
 				    struct la_zstream *lastrm);
+};
+
+#define PPMD7_DEFAULT_ORDER	6
+#define PPMD7_DEFAULT_MEM_SIZE	(1 << 24)
+
+struct ppmd_stream {
+	int			 stat;
+	CPpmd7			 ppmd7_context;
+	CPpmd7z_RangeEnc	 range_enc;
+	IByteOut		 byteout;
+	uint8_t			*buff;
+	uint8_t			*buff_ptr;
+	uint8_t			*buff_end;
+	size_t			 buff_bytes;
 };
 
 struct coder {
@@ -248,6 +264,11 @@ static int	compression_code_lzma(struct archive *,
 		    struct la_zstream *, enum la_zaction);
 static int	compression_end_lzma(struct archive *, struct la_zstream *);
 #endif
+static int	compression_init_encoder_ppmd(struct archive *,
+		    struct la_zstream *, unsigned, uint32_t);
+static int	compression_code_ppmd(struct archive *,
+		    struct la_zstream *, enum la_zaction);
+static int	compression_end_ppmd(struct archive *, struct la_zstream *);
 static int	_7z_compression_init_encoder(struct archive_write *, unsigned,
 		    int);
 static int	compression_code(struct archive *,
@@ -357,6 +378,10 @@ _7z_options(struct archive_write *a, const char *key, const char *value)
 #else
 			name = "lzma2";
 #endif
+		else if (strcmp(value, "ppmd") == 0 ||
+		    strcmp(value, "PPMD") == 0 ||
+		    strcmp(value, "PPMd") == 0)
+			zip->opt_compression = _7Z_PPMD;
 		else {
 			archive_set_error(&(a->archive),
 			    ARCHIVE_ERRNO_MISC,
@@ -526,8 +551,8 @@ compress_out(struct archive_write *a, const void *buff, size_t s,
 	if ((zip->crc32flg & PRECODE_CRC32) && s)
 		zip->precode_crc32 = crc32(zip->precode_crc32, buff, s);
 	zip->stream.next_in = (const unsigned char *)buff;
+	zip->stream.avail_in = s;
 	do {
-		zip->stream.avail_in = s;
 		/* Compress file data. */
 		r = compression_code(&(a->archive), &(zip->stream), run);
 		if (r != ARCHIVE_OK && r != ARCHIVE_EOF)
@@ -2021,6 +2046,161 @@ compression_init_encoder_lzma2(struct archive *a,
 }
 #endif
 
+/*
+ * PPMd compression.
+ */
+static void *
+ppmd_alloc(void *p, size_t size)
+{
+	(void)p;
+	return malloc(size);
+}
+static void
+ppmd_free(void *p, void *address)
+{
+	(void)p;
+	free(address);
+}
+static ISzAlloc g_szalloc = { ppmd_alloc, ppmd_free };
+static void
+ppmd_write(void *p, Byte b)
+{
+	struct archive_write *a = ((IByteOut *)p)->a;
+	struct _7zip *zip = (struct _7zip *)(a->format_data);
+	struct la_zstream *lastrm = &(zip->stream);
+	struct ppmd_stream *strm;
+
+	if (lastrm->avail_out) {
+		*lastrm->next_out++ = b;
+		lastrm->avail_out--;
+		lastrm->total_out++;
+		return;
+	}
+	strm = (struct ppmd_stream *)lastrm->real_stream;
+	if (strm->buff_ptr < strm->buff_end) {
+		*strm->buff_ptr++ = b;
+		strm->buff_bytes++;
+	}
+}
+
+static int
+compression_init_encoder_ppmd(struct archive *a,
+    struct la_zstream *lastrm, unsigned maxOrder, uint32_t msize)
+{
+	struct ppmd_stream *strm;
+	uint8_t *props;
+	int r;
+
+	if (lastrm->valid)
+		compression_end(a, lastrm);
+	strm = calloc(1, sizeof(*strm));
+	if (strm == NULL) {
+		archive_set_error(a, ENOMEM,
+		    "Can't allocate memory for PPMd");
+		return (ARCHIVE_FATAL);
+	}
+	strm->buff = malloc(32);
+	if (strm->buff == NULL) {
+		free(strm);
+		archive_set_error(a, ENOMEM,
+		    "Can't allocate memory for PPMd");
+		return (ARCHIVE_FATAL);
+	}
+	strm->buff_ptr = strm->buff;
+	strm->buff_end = strm->buff + 32;
+
+	props = malloc(1+4);
+	if (props == NULL) {
+		free(strm->buff);
+		free(strm);
+		archive_set_error(a, ENOMEM,
+		    "Coludn't allocate memory for PPMd");
+		return (ARCHIVE_FATAL);
+	}
+	props[0] = maxOrder;
+	archive_le32enc(props+1, msize);
+	__archive_ppmd7_functions.Ppmd7_Construct(&strm->ppmd7_context);
+	r = __archive_ppmd7_functions.Ppmd7_Alloc(
+		&strm->ppmd7_context, msize, &g_szalloc);
+	if (r == 0) {
+		free(strm->buff);
+		free(strm);
+		free(props);
+		archive_set_error(a, ENOMEM,
+		    "Coludn't allocate memory for PPMd");
+		return (ARCHIVE_FATAL);
+	}
+	__archive_ppmd7_functions.Ppmd7_Init(&(strm->ppmd7_context), maxOrder);
+	strm->byteout.a = (struct archive_write *)a;
+	strm->byteout.Write = ppmd_write;
+	strm->range_enc.Stream = &(strm->byteout);
+	__archive_ppmd7_functions.Ppmd7z_RangeEnc_Init(&(strm->range_enc));
+	strm->stat = 0;
+
+	lastrm->real_stream = strm;
+	lastrm->valid = 1;
+	lastrm->code = compression_code_ppmd;
+	lastrm->end = compression_end_ppmd;
+	lastrm->prop_size = 5;
+	lastrm->props = props;
+	return (ARCHIVE_OK);
+}
+
+static int
+compression_code_ppmd(struct archive *a,
+    struct la_zstream *lastrm, enum la_zaction action)
+{
+	struct ppmd_stream *strm;
+
+	strm = (struct ppmd_stream *)lastrm->real_stream;
+
+	/* Copy encoded data if there are remaining bytes from previous call. */
+	if (strm->buff_bytes) {
+		uint8_t *p = strm->buff_ptr - strm->buff_bytes;
+		while (lastrm->avail_out && strm->buff_bytes) {
+			*lastrm->next_out++ = *p++;
+			lastrm->avail_out--;
+			lastrm->total_out++;
+			strm->buff_bytes--;
+		}
+		if (strm->buff_bytes)
+			return (ARCHIVE_OK);
+		if (strm->stat == 1)
+			return (ARCHIVE_EOF);
+		strm->buff_ptr = strm->buff;
+	}
+	while (lastrm->avail_in && lastrm->avail_out) {
+		__archive_ppmd7_functions.Ppmd7_EncodeSymbol(
+			&(strm->ppmd7_context), &(strm->range_enc),
+			*lastrm->next_in++);
+		lastrm->avail_in--;
+		lastrm->total_in++;
+	}
+	if (lastrm->avail_in == 0 && action == ARCHIVE_Z_FINISH) {
+		__archive_ppmd7_functions.Ppmd7z_RangeEnc_FlushData(
+			&(strm->range_enc));
+		strm->stat = 1;
+		/* Return EOF if there are no remaining bytes. */
+		if (strm->buff_bytes == 0)
+			return (ARCHIVE_EOF);
+	}
+	return (ARCHIVE_OK);
+}
+
+static int
+compression_end_ppmd(struct archive *a, struct la_zstream *lastrm)
+{
+	struct ppmd_stream *strm;
+
+	strm = (struct ppmd_stream *)lastrm->real_stream;
+	__archive_ppmd7_functions.Ppmd7_Free(&strm->ppmd7_context, &g_szalloc);
+	free(strm->buff);
+	free(strm);
+	lastrm->real_stream = NULL;
+	lastrm->valid = 0;
+	return (ARCHIVE_OK);
+}
+
 static int
 _7z_compression_init_encoder(struct archive_write *a, unsigned compression,
     int compression_level)
@@ -2049,6 +2229,11 @@ _7z_compression_init_encoder(struct archive_write *a, unsigned compression,
 		r = compression_init_encoder_lzma2(
 		    &(a->archive), &(zip->stream),
 		    compression_level);
+		break;
+	case _7Z_PPMD:
+		r = compression_init_encoder_ppmd(
+		    &(a->archive), &(zip->stream),
+		    PPMD7_DEFAULT_ORDER, PPMD7_DEFAULT_MEM_SIZE);
 		break;
 	case _7Z_COPY:
 	default:
