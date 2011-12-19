@@ -25,16 +25,12 @@
 
 #include "archive_platform.h"
 
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif
-#include <stdio.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif

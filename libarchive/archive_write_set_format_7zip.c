@@ -26,23 +26,10 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
-#ifdef HAVE_LIMITS_H
-#include <limits.h>
-#endif
-#include <stdio.h>
 #include <stdlib.h>
-#ifdef HAVE_STRING_H
-#include <string.h>
-#endif
-#ifdef HAVE_TIME_H
-#include <time.h>
-#endif
 #ifdef HAVE_BZLIB_H
 #include <bzlib.h>
 #endif

@@ -29,11 +29,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
-#include <stdio.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#include <time.h>
 #ifdef HAVE_BZLIB_H
 #include <bzlib.h>
 #endif

@@ -30,11 +30,9 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_support_format_zip.c 201102
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
-#include <stdio.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#include <time.h>
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>
 #endif
