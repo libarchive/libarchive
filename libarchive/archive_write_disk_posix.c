@@ -286,8 +286,6 @@ static int	set_times(struct archive_write_disk *, int, int, const char *,
 		    time_t, long, time_t, long, time_t, long, time_t, long);
 static int	set_times_from_entry(struct archive_write_disk *);
 static struct fixup_entry *sort_dir_list(struct fixup_entry *p);
-static int64_t	trivial_lookup_gid(void *, const char *, int64_t);
-static int64_t	trivial_lookup_uid(void *, const char *, int64_t);
 static ssize_t	write_data_block(struct archive_write_disk *,
 		    const char *, size_t);
 
@@ -805,14 +803,14 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	 * TODO: the TODO_SGID condition can be dropped here, can't it?
 	 */
 	if (a->todo & (TODO_OWNER | TODO_SUID | TODO_SGID)) {
-		a->uid = a->lookup_uid(a->lookup_uid_data,
+		a->uid = archive_write_disk_uid(&a->archive,
 		    archive_entry_uname(a->entry),
 		    archive_entry_uid(a->entry));
 	}
 	/* Look up the "real" GID only if we're going to need it. */
 	/* TODO: the TODO_SUID condition can be dropped here, can't it? */
 	if (a->todo & (TODO_OWNER | TODO_SGID | TODO_SUID)) {
-		a->gid = a->lookup_gid(a->lookup_gid_data,
+		a->gid = archive_write_disk_gid(&a->archive,
 		    archive_entry_gname(a->entry),
 		    archive_entry_gid(a->entry));
 	 }
@@ -910,6 +908,9 @@ archive_write_disk_set_group_lookup(struct archive *_a,
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
 	    ARCHIVE_STATE_ANY, "archive_write_disk_set_group_lookup");
 
+	if (a->cleanup_gid != NULL && a->lookup_gid_data != NULL)
+		(a->cleanup_gid)(a->lookup_gid_data);
+
 	a->lookup_gid = lookup_gid;
 	a->cleanup_gid = cleanup_gid;
 	a->lookup_gid_data = private_data;
@@ -926,12 +927,36 @@ archive_write_disk_set_user_lookup(struct archive *_a,
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
 	    ARCHIVE_STATE_ANY, "archive_write_disk_set_user_lookup");
 
+	if (a->cleanup_uid != NULL && a->lookup_uid_data != NULL)
+		(a->cleanup_uid)(a->lookup_uid_data);
+
 	a->lookup_uid = lookup_uid;
 	a->cleanup_uid = cleanup_uid;
 	a->lookup_uid_data = private_data;
 	return (ARCHIVE_OK);
 }
 
+int64_t
+archive_write_disk_gid(struct archive *_a, const char *name, int64_t id)
+{
+       struct archive_write_disk *a = (struct archive_write_disk *)_a;
+       archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
+           ARCHIVE_STATE_ANY, "archive_write_disk_gid");
+       if (a->lookup_gid)
+               return (a->lookup_gid)(a->lookup_gid_data, name, id);
+       return (id);
+}
+ 
+int64_t
+archive_write_disk_uid(struct archive *_a, const char *name, int64_t id)
+{
+       struct archive_write_disk *a = (struct archive_write_disk *)_a;
+       archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
+           ARCHIVE_STATE_ANY, "archive_write_disk_uid");
+       if (a->lookup_uid)
+               return (a->lookup_uid)(a->lookup_uid_data, name, id);
+       return (id);
+}
 
 /*
  * Create a new archive_write_disk object and initialize it with global state.
@@ -949,8 +974,6 @@ archive_write_disk_new(void)
 	/* We're ready to write a header immediately. */
 	a->archive.state = ARCHIVE_STATE_HEADER;
 	a->archive.vtable = archive_write_disk_vtable();
-	a->lookup_uid = trivial_lookup_uid;
-	a->lookup_gid = trivial_lookup_gid;
 	a->start_time = time(NULL);
 	/* Query and restore the umask. */
 	umask(a->user_umask = umask(0));
@@ -1386,10 +1409,8 @@ _archive_write_disk_free(struct archive *_a)
 	    ARCHIVE_STATE_ANY | ARCHIVE_STATE_FATAL, "archive_write_disk_free");
 	a = (struct archive_write_disk *)_a;
 	ret = _archive_write_disk_close(&a->archive);
-	if (a->cleanup_gid != NULL && a->lookup_gid_data != NULL)
-		(a->cleanup_gid)(a->lookup_gid_data);
-	if (a->cleanup_uid != NULL && a->lookup_uid_data != NULL)
-		(a->cleanup_uid)(a->lookup_uid_data);
+	archive_write_disk_set_group_lookup(&a->archive, NULL, NULL, NULL);
+	archive_write_disk_set_user_lookup(&a->archive, NULL, NULL, NULL);
 	if (a->entry)
 		archive_entry_free(a->entry);
 	archive_string_free(&a->_name_data);
@@ -2571,13 +2592,13 @@ set_acl(struct archive_write_disk *a, int fd, const char *name,
 		switch (ae_tag) {
 		case ARCHIVE_ENTRY_ACL_USER:
 			acl_set_tag_type(acl_entry, ACL_USER);
-			ae_uid = a->lookup_uid(a->lookup_uid_data,
+			ae_uid = archive_write_disk_uid(&a->archive,
 			    ae_name, ae_id);
 			acl_set_qualifier(acl_entry, &ae_uid);
 			break;
 		case ARCHIVE_ENTRY_ACL_GROUP:
 			acl_set_tag_type(acl_entry, ACL_GROUP);
-			ae_gid = a->lookup_gid(a->lookup_gid_data,
+			ae_gid = archive_write_disk_gid(&a->archive,
 			    ae_name, ae_id);
 			acl_set_qualifier(acl_entry, &ae_gid);
 			break;
@@ -2777,28 +2798,6 @@ set_xattrs(struct archive_write_disk *a)
 	return (ARCHIVE_OK);
 }
 #endif
-
-
-/*
- * Trivial implementations of gid/uid lookup functions.
- * These are normally overridden by the client, but these stub
- * versions ensure that we always have something that works.
- */
-static int64_t
-trivial_lookup_gid(void *private_data, const char *gname, int64_t gid)
-{
-	(void)private_data; /* UNUSED */
-	(void)gname; /* UNUSED */
-	return (gid);
-}
-
-static int64_t
-trivial_lookup_uid(void *private_data, const char *uname, int64_t uid)
-{
-	(void)private_data; /* UNUSED */
-	(void)uname; /* UNUSED */
-	return (uid);
-}
 
 /*
  * Test if file on disk is older than entry.
