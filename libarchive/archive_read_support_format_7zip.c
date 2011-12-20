@@ -293,6 +293,10 @@ struct _7zip {
 	uint32_t		 bcj_state;
 	size_t			 odd_bcj_size;
 	unsigned char		 odd_bcj[4];
+	/* Decoding BCJ data. */
+	size_t			 bcj_prevPosT;
+	uint32_t		 bcj_prevMask;
+	uint32_t		 bcj_ip;
 
 	/* Decoding BCJ2 data. */
 	size_t			 main_stream_bytes_remaining;
@@ -375,7 +379,8 @@ static int	slurp_central_directory(struct archive_read *, struct _7zip *,
 		    struct _7z_header_info *);
 static int	setup_decode_folder(struct archive_read *, struct _7z_folder *,
 		    int);
-static size_t	x86_Convert(uint8_t *, size_t, uint32_t, uint32_t *);
+static void	x86_Init(struct _7zip *);
+static size_t	x86_Convert(struct _7zip *, uint8_t *, size_t);
 ssize_t		Bcj2_Decode(struct _7zip *, uint8_t *, size_t);
 
 
@@ -934,6 +939,8 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 			}
 			zip->codec2 = coder2->codec;
 			zip->bcj_state = 0;
+			if (coder2->codec == _7Z_X86)
+				x86_Init(zip);
 		}
 		break;
 	default:
@@ -995,7 +1002,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 					fi++;
 				} else
 					/* Use our filter. */
-					zip->bcj_state = 0;
+					x86_Init(zip);
 				break;
 			case _7Z_X86_BCJ2:
 				/* Use our filter. */
@@ -1218,6 +1225,14 @@ decompress(struct archive_read *a, struct _7zip *zip,
 
 	if (zip->codec != _7Z_LZMA2 && zip->codec2 == _7Z_X86) {
 		int i;
+
+		/* Do not copy out the BCJ remaining bytes when the output
+		 * buffer size is less than five bytes. */
+		if (o_avail_in != 0 && t_avail_out < 5 && zip->odd_bcj_size) {
+			*used = 0;
+			*outbytes = 0;
+			return (ret);
+		}
 		for (i = 0; zip->odd_bcj_size > 0 && t_avail_out; i++) {
 			*t_next_out++ = zip->odd_bcj[i];
 			t_avail_out--;
@@ -1238,7 +1253,7 @@ decompress(struct archive_read *a, struct _7zip *zip,
 		/*
 		 * Decord a remaining decompressed main stream for BCJ2.
 		 */
-		if (zip->tmp_stream_bytes_remaining > 0) {
+		if (zip->tmp_stream_bytes_remaining) {
 			ssize_t bytes;
 			size_t remaining = zip->tmp_stream_bytes_remaining;
 			bytes = Bcj2_Decode(zip, t_next_out, t_avail_out);
@@ -1254,7 +1269,8 @@ decompress(struct archive_read *a, struct _7zip *zip,
 			if (o_avail_in == 0 || t_avail_out == 0) {
 				*used = 0;
 				*outbytes = o_avail_out - t_avail_out;
-				if (o_avail_in == 0)
+				if (o_avail_in == 0 &&
+				    zip->tmp_stream_bytes_remaining)
 					ret = ARCHIVE_EOF;
 				return (ret);
 			}
@@ -1445,7 +1461,7 @@ decompress(struct archive_read *a, struct _7zip *zip,
 	 * Decord BCJ.
 	 */
 	if (zip->codec != _7Z_LZMA2 && zip->codec2 == _7Z_X86) {
-		size_t l = x86_Convert(buff, *outbytes, 0, &(zip->bcj_state));
+		size_t l = x86_Convert(zip, buff, *outbytes);
 		zip->odd_bcj_size = *outbytes - l;
 		if (zip->odd_bcj_size > 0 && zip->odd_bcj_size <= 4 &&
 		    o_avail_in && ret != ARCHIVE_EOF) {
@@ -2967,6 +2983,10 @@ extract_pack_stream(struct archive_read *a, size_t minimum)
 		if (zip->uncompressed_buffer_bytes_remaining ==
 		    zip->uncompressed_buffer_size)
 			break;
+		if (zip->codec2 == _7Z_X86 && zip->odd_bcj_size &&
+		    zip->uncompressed_buffer_bytes_remaining + 5 >
+		    zip->uncompressed_buffer_size)
+			break;
 		if (zip->pack_stream_inbytes_remaining == 0 &&
 		    zip->folder_outbytes_remaining == 0)
 			break;
@@ -3394,18 +3414,30 @@ skip_stream(struct archive_read *a, size_t skip_bytes)
 
 #define Test86MSByte(b) ((b) == 0 || (b) == 0xFF)
 
-static const unsigned char kMaskToAllowedStatus[8] = {1, 1, 1, 0, 1, 0, 0, 0};
-static const unsigned char kMaskToBitNumber[8] = {0, 1, 2, 2, 3, 3, 3, 3};
+static void
+x86_Init(struct _7zip *zip)
+{
+	zip->bcj_state = 0;
+	zip->bcj_prevPosT = (size_t)0 - 1;
+	zip->bcj_prevMask = 0;
+	zip->bcj_ip = 5;
+}
 
 static size_t
-x86_Convert(uint8_t *data, size_t size, uint32_t ip, uint32_t *state)
+x86_Convert(struct _7zip *zip, uint8_t *data, size_t size)
 {
-	size_t bufferPos = 0, prevPosT;
-	uint32_t prevMask = *state & 0x7;
+	static const uint8_t kMaskToAllowedStatus[8] = {1, 1, 1, 0, 1, 0, 0, 0};
+	static const uint8_t kMaskToBitNumber[8] = {0, 1, 2, 2, 3, 3, 3, 3};
+	size_t bufferPos, prevPosT;
+	uint32_t ip, prevMask;
+
 	if (size < 5)
 		return 0;
-	ip += 5;
-	prevPosT = (size_t)0 - 1;
+
+	bufferPos = 0;
+	prevPosT = zip->bcj_prevPosT;
+	prevMask = zip->bcj_prevMask;
+	ip = zip->bcj_ip;
 
 	for (;;) {
 		uint8_t *p = data + bufferPos;
@@ -3464,9 +3496,9 @@ x86_Convert(uint8_t *data, size_t size, uint32_t ip, uint32_t *state)
 			bufferPos++;
 		}
 	}
-	prevPosT = bufferPos - prevPosT;
-	*state = ((prevPosT > 3) ? 
-			0 : ((prevMask << ((int)prevPosT - 1)) & 0x7));
+	zip->bcj_prevPosT = prevPosT;
+	zip->bcj_prevMask = prevMask;
+	zip->bcj_ip += bufferPos;
 	return (bufferPos);
 }
 
