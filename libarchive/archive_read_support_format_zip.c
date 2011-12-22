@@ -375,6 +375,7 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 		archive_entry_set_size(entry, 0);
 		p = __archive_read_ahead(a, linkname_length, NULL);
 		if (p == NULL) {
+			free(linkname);
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Truncated Zip file");
 			return ARCHIVE_FATAL;
@@ -383,6 +384,7 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 		memcpy(linkname, p, linkname_length);
 		linkname[linkname_length] = '\0';
 		archive_entry_copy_symlink(entry, linkname);
+		free(linkname);
 		/* TODO: handle character-set issues? */
 	}
 	return ARCHIVE_OK;
