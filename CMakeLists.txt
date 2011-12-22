@@ -38,9 +38,10 @@ SET(LIBARCHIVE_VERSION_STRING  "${VERSION}")
 # INTERFACE_VERSION increments with every release
 # libarchive 2.7 == interface version 9 = 2 + 7 
 # libarchive 2.8 == interface version 10 = 2 + 8
-# libarchive 3.0 == interface version 11
-# libarchive 3.x == interface version 11 + x
-math(EXPR INTERFACE_VERSION  "11 + ${_minor}")
+# libarchive 2.9 == interface version 11 = 2 + 9
+# libarchive 3.0 == interface version 12
+# libarchive 3.x == interface version 12 + x
+math(EXPR INTERFACE_VERSION  "12 + ${_minor}")
 
 # Set SOVERSION == Interface version
 # ?? Should there be more here ??
