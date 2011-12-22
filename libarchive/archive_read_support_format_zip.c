@@ -112,6 +112,8 @@ struct zip {
 };
 
 #define ZIP_LENGTH_AT_END	8
+#define ZIP_ENCRYPTED		(1<<0)	
+#define ZIP_STRONG_ENCRYPTED	(1<<6)	
 #define ZIP_UTF8_NAME		(1<<11)	
 
 static int	archive_read_format_zip_streamable_bid(struct archive_read *, int);
@@ -748,6 +750,12 @@ archive_read_format_zip_read_data(struct archive_read *a,
 	/* Return EOF immediately if this is a non-regular file. */
 	if (AE_IFREG != (zip->entry->mode & AE_IFMT))
 		return (ARCHIVE_EOF);
+
+	if (zip->entry->flags & (ZIP_ENCRYPTED | ZIP_STRONG_ENCRYPTED)) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Encrypted file is unsupported");
+		return (ARCHIVE_FAILED);
+	}
 
 	__archive_read_consume(a, zip->unconsumed);
 	zip->unconsumed = 0;
