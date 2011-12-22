@@ -65,7 +65,8 @@ DEFINE_TEST(test_read_large)
 	assertA(0 == archive_read_support_filter_all(a));
 	assertA(0 == archive_read_open_memory(a, buff, sizeof(buff)));
 	assertA(0 == archive_read_next_header(a, &entry));
-	assertA(0 == archive_read_data_into_buffer(a, testdatacopy, sizeof(testdatacopy)));
+	assertEqualIntA(a, sizeof(testdatacopy),
+	    archive_read_data(a, testdatacopy, sizeof(testdatacopy)));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	assertEqualMem(testdata, testdatacopy, sizeof(testdata));
 

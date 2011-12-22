@@ -45,8 +45,8 @@ verify_read_positions(struct archive *a)
 		    (intmax_t)archive_read_header_position(a));
 		/* Every other entry: read, then skip */
 		if (j & 1)
-			assertEqualInt(ARCHIVE_OK,
-			    archive_read_data_into_buffer(a, tmp, 1));
+			assertEqualInt(1,
+			    archive_read_data(a, tmp, 1));
 		assertA(0 == archive_read_data_skip(a));
 		/* read_data_skip() doesn't change header_position */
 		assertEqualInt(read_position,
