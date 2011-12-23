@@ -339,7 +339,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 
 	/* Entries other than a regular file or a folder are skipped. */
 	type = archive_entry_filetype(entry);
-	if ((type != AE_IFREG) & (type != AE_IFDIR)) {
+	if (type != AE_IFREG && type != AE_IFDIR && type != AE_IFLNK) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Filetype not supported");
 		return ARCHIVE_FAILED;
@@ -414,8 +414,20 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 
 	/* Initialize the CRC variable and potentially the local crc32(). */
 	l->crc32 = crc32(0, NULL, 0);
-	l->compression = zip->compression;
-	l->compressed_size = 0;
+	if (type == AE_IFLNK) {
+		const char *p = archive_entry_symlink(l->entry);
+		if (p != NULL)
+			size = strlen(p);
+		else
+			size = 0;
+		zip->remaining_data_bytes = 0;
+		archive_entry_set_size(l->entry, size);
+		l->compression = COMPRESSION_STORE;
+		l->compressed_size = size;
+	} else {
+		l->compression = zip->compression;
+		l->compressed_size = 0;
+	}
 	l->next = NULL;
 	if (zip->central_directory == NULL) {
 		zip->central_directory = l;
@@ -432,11 +444,11 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	archive_le32enc(&h.signature, ZIP_SIGNATURE_LOCAL_FILE_HEADER);
 	archive_le16enc(&h.version, ZIP_VERSION_EXTRACT);
 	archive_le16enc(&h.flags, l->flags);
-	archive_le16enc(&h.compression, zip->compression);
+	archive_le16enc(&h.compression, l->compression);
 	archive_le32enc(&h.timedate, dos_time(archive_entry_mtime(entry)));
 	archive_le16enc(&h.filename_length, (uint16_t)path_length(l->entry));
 
-	switch (zip->compression) {
+	switch (l->compression) {
 	case COMPRESSION_STORE:
 		/* Setting compressed and uncompressed sizes even when
 		 * specification says to set to zero when using data
@@ -501,6 +513,17 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		return (ARCHIVE_FATAL);
 	zip->written_bytes += sizeof(e);
 
+	if (type == AE_IFLNK) {
+		const unsigned char *p;
+
+		p = (const unsigned char *)archive_entry_symlink(l->entry);
+		ret = __archive_write_output(a, p, size);
+		if (ret != ARCHIVE_OK)
+			return (ARCHIVE_FATAL);
+		zip->written_bytes += size;
+		l->crc32 = crc32(l->crc32, p, size);
+	}
+
 	if (ret2 != ARCHIVE_OK)
 		return (ret2);
 	return (ARCHIVE_OK);
@@ -518,7 +541,7 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 
 	if (s == 0) return 0;
 
-	switch (zip->compression) {
+	switch (l->compression) {
 	case COMPRESSION_STORE:
 		ret = __archive_write_output(a, buff, s);
 		if (ret != ARCHIVE_OK) return (ret);
@@ -571,7 +594,7 @@ archive_write_zip_finish_entry(struct archive_write *a)
 	size_t reminder;
 #endif
 
-	switch(zip->compression) {
+	switch(l->compression) {
 	case COMPRESSION_STORE:
 		break;
 #if HAVE_ZLIB_H

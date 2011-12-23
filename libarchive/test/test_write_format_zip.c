@@ -78,6 +78,24 @@ verify_contents(struct archive *a, int expect_details)
 	assertEqualMem(filedata, "1234", 4);
 
 	/*
+	 * Read the third file back.
+	 */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(1, archive_entry_mtime(ae));
+	assertEqualInt(0, archive_entry_mtime_nsec(ae));
+	assertEqualInt(0, archive_entry_atime(ae));
+	assertEqualInt(0, archive_entry_ctime(ae));
+	assertEqualString("symlink", archive_entry_pathname(ae));
+	if (expect_details) {
+		assertEqualInt(AE_IFLNK | 0755, archive_entry_mode(ae));
+		assertEqualInt(0, archive_entry_size(ae));
+		assertEqualString("file1", archive_entry_symlink(ae));
+	} else {
+		assertEqualInt(AE_IFREG | 0777, archive_entry_mode(ae));
+		assertEqualInt(0, archive_entry_size(ae));
+	}
+
+	/*
 	 * Read the dir entry back.
 	 */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -131,7 +149,7 @@ DEFINE_TEST(test_write_format_zip)
 	assertEqualInt(10, archive_entry_mtime_nsec(ae));
 	archive_entry_copy_pathname(ae, "file");
 	assertEqualString("file", archive_entry_pathname(ae));
-	archive_entry_set_mode(ae, S_IFREG | 0755);
+	archive_entry_set_mode(ae, AE_IFREG | 0755);
 	assertEqualInt((S_IFREG | 0755), archive_entry_mode(ae));
 	archive_entry_set_size(ae, 8);
 
@@ -149,13 +167,31 @@ DEFINE_TEST(test_write_format_zip)
 	assertEqualInt(10, archive_entry_mtime_nsec(ae));
 	archive_entry_copy_pathname(ae, "file2");
 	assertEqualString("file2", archive_entry_pathname(ae));
-	archive_entry_set_mode(ae, S_IFREG | 0755);
+	archive_entry_set_mode(ae, AE_IFREG | 0755);
 	assertEqualInt((S_IFREG | 0755), archive_entry_mode(ae));
 	archive_entry_set_size(ae, 4);
 
 	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
 	archive_entry_free(ae);
 	assertEqualInt(4, archive_write_data(a, "1234", 5));
+
+	/*
+	 * Write symbolic like file to it.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 1, 10);
+	assertEqualInt(1, archive_entry_mtime(ae));
+	assertEqualInt(10, archive_entry_mtime_nsec(ae));
+	archive_entry_copy_pathname(ae, "symlink");
+	assertEqualString("symlink", archive_entry_pathname(ae));
+	archive_entry_copy_symlink(ae, "file1");
+	assertEqualString("file1", archive_entry_symlink(ae));
+	archive_entry_set_mode(ae, AE_IFLNK | 0755);
+	assertEqualInt((S_IFLNK | 0755), archive_entry_mode(ae));
+	archive_entry_set_size(ae, 4);
+
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
 
 	/*
 	 * Write a directory to it.
