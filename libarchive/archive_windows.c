@@ -368,22 +368,6 @@ __la_read(int fd, void *buf, size_t nbytes)
 	if (nbytes == 0)
 		return (0);
 	handle = (HANDLE)_get_osfhandle(fd);
-	if (GetFileType(handle) == FILE_TYPE_PIPE) {
-		DWORD sta;
-		if (GetNamedPipeHandleState(
-		    handle, &sta, NULL, NULL, NULL, NULL, 0) != 0 &&
-		    (sta & PIPE_NOWAIT) == 0) {
-			DWORD avail = -1;
-			int cnt = 3;
-
-			while (PeekNamedPipe(
-			    handle, NULL, 0, NULL, &avail, NULL) != 0 &&
-			    avail == 0 && --cnt)
-				Sleep(100);
-			if (avail == 0)
-				return (0);
-		}
-	}
 	r = ReadFile(handle, buf, (uint32_t)nbytes,
 	    &bytes_read, NULL);
 	if (r == 0) {
