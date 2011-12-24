@@ -381,7 +381,7 @@ static int	setup_decode_folder(struct archive_read *, struct _7z_folder *,
 		    int);
 static void	x86_Init(struct _7zip *);
 static size_t	x86_Convert(struct _7zip *, uint8_t *, size_t);
-ssize_t		Bcj2_Decode(struct _7zip *, uint8_t *, size_t);
+static ssize_t		Bcj2_Decode(struct _7zip *, uint8_t *, size_t);
 
 
 int
