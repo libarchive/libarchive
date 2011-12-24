@@ -968,6 +968,7 @@ write_entry(struct bsdtar *bsdtar, struct archive *a,
 		fd = open(pathname, O_RDONLY | O_BINARY);
 		align = 4096;
 		if (fd == -1) {
+			bsdtar->return_value = 1;
 			if (!bsdtar->verbose)
 				lafe_warnc(errno,
 				    "%s: could not open file", pathname);
@@ -1075,6 +1076,12 @@ write_file_data(struct bsdtar *bsdtar, struct archive *a,
 		}
 		progress += bytes_written;
 		bytes_read = read(fd, buff, buff_size);
+	}
+	if (bytes_read < 0) {
+		lafe_warnc(errno,
+			     "%s: Read error",
+			     archive_entry_pathname(entry));
+		bsdtar->return_value = 1;
 	}
 	return 0;
 }

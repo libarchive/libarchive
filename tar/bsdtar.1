@@ -50,9 +50,9 @@
 .Sh DESCRIPTION
 .Nm
 creates and manipulates streaming archive files.
-This implementation can extract from tar, pax, cpio, zip, jar, ar,
-xar, and ISO 9660 cdrom images and can create tar, pax, cpio, ar, zip,
-and shar archives.
+This implementation can extract from tar, pax, cpio, zip, jar, ar, xar,
+rpm, 7-zip, and ISO 9660 cdrom images and can create tar, pax, cpio, ar, zip,
+7-zip, and shar archives.
 .Pp
 The first synopsis form shows a
 .Dq bundled
@@ -656,8 +656,6 @@ Note that, unlike other
 implementations, this implementation recognizes gzip compression
 automatically when reading archives.
 .El
-.Sh EXIT STATUS
-.Ex -std
 .Sh ENVIRONMENT
 The following environment variables affect the execution of
 .Nm :
@@ -681,6 +679,8 @@ See
 .Xr environ 7
 for more information.
 .El
+.Sh EXIT STATUS
+.Ex -std
 .Sh EXAMPLES
 The following creates a new archive
 called
