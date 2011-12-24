@@ -187,7 +187,7 @@ DEFINE_TEST(test_write_format_zip)
 	archive_entry_copy_symlink(ae, "file1");
 	assertEqualString("file1", archive_entry_symlink(ae));
 	archive_entry_set_mode(ae, AE_IFLNK | 0755);
-	assertEqualInt((S_IFLNK | 0755), archive_entry_mode(ae));
+	assertEqualInt((AE_IFLNK | 0755), archive_entry_mode(ae));
 	archive_entry_set_size(ae, 4);
 
 	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
