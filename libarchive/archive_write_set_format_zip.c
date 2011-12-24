@@ -399,15 +399,37 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			}
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Can't translate pathname '%s' to %s",
+			    "Can't translate Pathname '%s' to %s",
 			    archive_entry_pathname(entry),
 			    archive_string_conversion_charset_name(sconv));
 			ret2 = ARCHIVE_WARN;
 		}
 		if (len > 0)
 			archive_entry_set_pathname(l->entry, p);
+
+		/*
+		 * Although there is no character-set regulation for Symlink,
+		 * it is suitable to convert a character-set of Symlinke to
+		 * what those of the Pathname has been converted to.
+		 */
+		if (type == AE_IFLNK) {
+			if (archive_entry_symlink_l(entry, &p, &len, sconv)) {
+				if (errno == ENOMEM) {
+					archive_set_error(&a->archive, ENOMEM,
+					    "Can't allocate memory "
+					    " for Symlink");
+					return (ARCHIVE_FATAL);
+				}
+				/*
+				 * Even if the strng conversion failed,
+				 * we should not report the error since
+				 * thre is no regulation for.
+				 */
+			} else if (len > 0)
+				archive_entry_set_symlink(l->entry, p);
+		}
 	}
-	/* If all character of a filename is ASCII, Reset UTF-8 Name flag. */
+	/* If all characters in a filename are ASCII, Reset UTF-8 Name flag. */
 	if ((l->flags & ZIP_FLAGS_UTF8_NAME) != 0 &&
 	    is_all_ascii(archive_entry_pathname(l->entry)))
 		l->flags &= ~ZIP_FLAGS_UTF8_NAME;

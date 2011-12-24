@@ -333,7 +333,7 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 	struct archive_entry *entry)
 {
 	struct zip *zip = (struct zip *)a->format->data;
-	int r;
+	int r, ret = ARCHIVE_OK;
 
 	a->archive.archive_format = ARCHIVE_FORMAT_ZIP;
 	if (a->archive.archive_format_name == NULL)
@@ -363,6 +363,7 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 		return r;
 	if ((zip->entry->mode & AE_IFMT) == AE_IFLNK) {
 		const void *p;
+		struct archive_string_conv *sconv;
 		size_t linkname_length = archive_entry_size(entry);
 
 		archive_entry_set_size(entry, 0);
@@ -373,17 +374,40 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 			return ARCHIVE_FATAL;
 		}
 
+		sconv = zip->sconv;
+		if (sconv == NULL && (zip->entry->flags & ZIP_UTF8_NAME))
+			sconv = zip->sconv_utf8;
+		if (sconv == NULL)
+			sconv = zip->sconv_default;
 		if (archive_entry_copy_symlink_l(entry, p, linkname_length,
-		    NULL) != 0) {
-			/* NOTE: If the last argument is NULL, this will
-			 * fail only by memeory allocation failure. */
-			archive_set_error(&a->archive, ENOMEM,
-			    "Can't allocate memory for Symlink");
-			return (ARCHIVE_FATAL);
+		    sconv) != 0) {
+			if (errno != ENOMEM && sconv == zip->sconv_utf8 &&
+			    (zip->entry->flags & ZIP_UTF8_NAME))
+			    archive_entry_copy_symlink_l(entry, p,
+				linkname_length, NULL);
+			if (errno == ENOMEM) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "Can't allocate memory for Symlink");
+				return (ARCHIVE_FATAL);
+			}
+			/*
+			 * Since there is no character-set regulation for
+			 * symlink name, do not report the conversion error
+			 * in an automatic conversion.
+			 */
+			if (sconv != zip->sconv_utf8 ||
+			    (zip->entry->flags & ZIP_UTF8_NAME) == 0) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Symlink cannot be converted "
+				    "from %s to current locale.",
+				    archive_string_conversion_charset_name(
+					sconv));
+				ret = ARCHIVE_WARN;
+			}
 		}
-		/* TODO: handle character-set issues? */
 	}
-	return ARCHIVE_OK;
+	return (ret);
 }
 
 static int
