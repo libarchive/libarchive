@@ -3564,7 +3564,7 @@ x86_Convert(struct _7zip *zip, uint8_t *data, size_t size)
 #define UPDATE_0(p) zip->bcj2_range = bound; *(p) = (CProb)(ttt + ((kBitModelTotal - ttt) >> kNumMoveBits)); NORMALIZE;
 #define UPDATE_1(p) zip->bcj2_range -= bound; zip->bcj2_code -= bound; *(p) = (CProb)(ttt - (ttt >> kNumMoveBits)); NORMALIZE;
 
-ssize_t
+static ssize_t
 Bcj2_Decode(struct _7zip *zip, uint8_t *outBuf, size_t outSize)
 {
 	size_t inPos = 0, outPos = 0;
