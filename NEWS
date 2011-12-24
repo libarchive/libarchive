@@ -1,3 +1,8 @@
+Dec 24, 2011: libarchive 3.0.2 released
+Dec 23, 2011: Various fixes merged from FreeBSD
+Dec 23, 2011: Symlink support in Zip reader and writer
+Dec 23, 2011: Robustness fixes to 7Zip reader
+
 Nov 27, 2011: libarchive 3.0.1b released
 
 Nov 26, 2011: 7Zip reader
