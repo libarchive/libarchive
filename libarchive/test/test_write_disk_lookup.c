@@ -107,12 +107,22 @@ DEFINE_TEST(test_write_disk_lookup)
 		if (id != 0)
 			id = archive_write_disk_gid(a, "root", 8);
 		failure("Unable to verify lookup of group #0");
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		/* Not yet implemented on Windows. */
+		assertEqualInt(8, id);
+#else
 		assertEqualInt(0, id);
+#endif
 
 		/* Try a few common names for user #0. */
 		id = archive_write_disk_uid(a, "root", 8);
 		failure("Unable to verify lookup of user #0");
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		/* Not yet implemented on Windows. */
+		assertEqualInt(8, id);
+#else
 		assertEqualInt(0, id);
+#endif
 	}
 
 	/* Deregister again and verify the default lookups again. */
