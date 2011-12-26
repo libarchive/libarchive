@@ -319,6 +319,12 @@ tree_open(const char *path)
 	pathname[l] = '\0';
 	free(wcs);
 	base = pathname;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/* ASCII version APIs do not accept the path which begin with
+	 * "//?/" prefix. */
+	if (strncmp(base, "//?/", 4) == 0)
+		base += 4;
+#endif
 
 	t = malloc(sizeof(*t));
 	memset(t, 0, sizeof(*t));
