@@ -360,7 +360,7 @@ test_sparse_whole_file_data()
 
 DEFINE_TEST(test_sparse_basic)
 {
-	char cwd[PATH_MAX+1];
+	char *cwd;
 	struct archive *a;
 	/*
 	 * The alignment of the hole of sparse files deeply depends
@@ -420,9 +420,15 @@ DEFINE_TEST(test_sparse_basic)
 
 	/* Check if the filesystem where CWD on can
 	 * report the number of the holes of a sparse file. */
-	if (!assert(getcwd(cwd, sizeof(cwd)-1) != NULL))
+#ifdef PATH_MAX
+	cwd = getcwd(NULL, PATH_MAX);/* Solaris getcwd needs the size. */
+#else
+	cwd = getcwd(NULL, 0);
+#endif
+	if (!assert(cwd != NULL))
 		return;
 	if (!is_sparse_supported(cwd)) {
+		free(cwd);
 		skipping("This filesystem or platform do not support "
 		    "the reporting of the holes of a sparse file through "
 		    "API such as lseek(HOLE)");
@@ -450,4 +456,5 @@ DEFINE_TEST(test_sparse_basic)
 	verify_sparse_file2(a, "file0", sparse_file0, 5, 1);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	free(cwd);
 }
