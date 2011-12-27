@@ -234,27 +234,6 @@ la_CreateFile(const char *path, DWORD dwDesiredAccess, DWORD dwShareMode,
 	return (handle);
 }
 
-/*
- * This fcntl is limited implementation.
- */
-int
-__la_fcntl(int fd, int cmd, int val)
-{
-	HANDLE handle;
-
-	handle = (HANDLE)_get_osfhandle(fd);
-	if (GetFileType(handle) == FILE_TYPE_PIPE) {
-		if (cmd == F_SETFL && val == 0) {
-			DWORD mode = PIPE_WAIT;
-			if (SetNamedPipeHandleState(
-			    handle, &mode, NULL, NULL) != 0)
-				return (0);
-		}
-	}
-	errno = EINVAL;
-	return (-1);
-}
-
 /* This can exceed MAX_PATH limitation. */
 int
 __la_open(const char *path, int flags, ...)
