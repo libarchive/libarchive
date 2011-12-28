@@ -2232,6 +2232,7 @@ create_dir(struct archive_write_disk *a, wchar_t *path)
 			le->fixup |=TODO_MODE_BASE;
 			le->mode = mode_final;
 		}
+		free(full);
 		return (ARCHIVE_OK);
 	} else {
 		la_dosmaperr(GetLastError());
