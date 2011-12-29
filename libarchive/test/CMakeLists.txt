@@ -196,7 +196,7 @@ IF(ENABLE_TEST)
   # test.  We can use that to define the tests for cmake by
   # defining a DEFINE_TEST macro and reading list.h in.
   MACRO (DEFINE_TEST _testname)
-    ADD_TEST_28(
+    ADD_TEST(
       NAME libarchive_${_testname}
       COMMAND libarchive_test -vv
                               -r ${CMAKE_CURRENT_SOURCE_DIR}
