@@ -68,6 +68,7 @@ test_basic(void)
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
 		if (strcmp(archive_entry_pathname(ae), "dir1") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
+			assertEqualInt(1, archive_read_disk_can_descend(a));
 		} else if (strcmp(archive_entry_pathname(ae),
 		    "dir1/file1") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
@@ -81,6 +82,7 @@ test_basic(void)
 			    archive_read_data_block(a, &p, &size, &offset));
 			assertEqualInt((int)size, 0);
 			assertEqualInt((int)offset, 10);
+			assertEqualInt(0, archive_read_disk_can_descend(a));
 		} else if (strcmp(archive_entry_pathname(ae),
 		    "dir1/file2") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
@@ -94,9 +96,11 @@ test_basic(void)
 			    archive_read_data_block(a, &p, &size, &offset));
 			assertEqualInt((int)size, 0);
 			assertEqualInt((int)offset, 11);
+			assertEqualInt(0, archive_read_disk_can_descend(a));
 		} else if (strcmp(archive_entry_pathname(ae),
 		    "dir1/sub1") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
+			assertEqualInt(1, archive_read_disk_can_descend(a));
 		} else if (strcmp(archive_entry_pathname(ae),
 		    "dir1/sub1/file1") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
@@ -110,9 +114,11 @@ test_basic(void)
 			    archive_read_data_block(a, &p, &size, &offset));
 			assertEqualInt((int)size, 0);
 			assertEqualInt((int)offset, 10);
+			assertEqualInt(0, archive_read_disk_can_descend(a));
 		} else if (strcmp(archive_entry_pathname(ae),
 		    "dir1/sub2") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
+			assertEqualInt(1, archive_read_disk_can_descend(a));
 		} else if (strcmp(archive_entry_pathname(ae),
 		    "dir1/sub2/file1") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
@@ -126,6 +132,7 @@ test_basic(void)
 			    archive_read_data_block(a, &p, &size, &offset));
 			assertEqualInt((int)size, 0);
 			assertEqualInt((int)offset, 10);
+			assertEqualInt(0, archive_read_disk_can_descend(a));
 		} else if (strcmp(archive_entry_pathname(ae),
 		    "dir1/sub2/file2") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
@@ -139,15 +146,19 @@ test_basic(void)
 			    archive_read_data_block(a, &p, &size, &offset));
 			assertEqualInt((int)size, 0);
 			assertEqualInt((int)offset, 10);
+			assertEqualInt(0, archive_read_disk_can_descend(a));
 		} else if (strcmp(archive_entry_pathname(ae),
 		    "dir1/sub2/sub1") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
+			assertEqualInt(1, archive_read_disk_can_descend(a));
 		} else if (strcmp(archive_entry_pathname(ae),
 		    "dir1/sub2/sub2") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
+			assertEqualInt(1, archive_read_disk_can_descend(a));
 		} else if (strcmp(archive_entry_pathname(ae),
 		    "dir1/sub2/sub3") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
+			assertEqualInt(1, archive_read_disk_can_descend(a));
 		} else if (strcmp(archive_entry_pathname(ae),
 		    "dir1/sub2/sub3/file") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
@@ -161,6 +172,7 @@ test_basic(void)
 			    archive_read_data_block(a, &p, &size, &offset));
 			assertEqualInt((int)size, 0);
 			assertEqualInt((int)offset, 3);
+			assertEqualInt(0, archive_read_disk_can_descend(a));
 		}
 		if (archive_entry_filetype(ae) == AE_IFDIR) {
 			/* Descend into the current object */
@@ -184,6 +196,7 @@ test_basic(void)
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
 		if (wcscmp(archive_entry_pathname_w(ae), L"dir1") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
+			assertEqualInt(1, archive_read_disk_can_descend(a));
 		} else if (wcscmp(archive_entry_pathname_w(ae),
 		    L"dir1/file1") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
@@ -197,6 +210,7 @@ test_basic(void)
 			    archive_read_data_block(a, &p, &size, &offset));
 			assertEqualInt((int)size, 0);
 			assertEqualInt((int)offset, 10);
+			assertEqualInt(0, archive_read_disk_can_descend(a));
 		} else if (wcscmp(archive_entry_pathname_w(ae),
 		    L"dir1/file2") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
@@ -210,9 +224,11 @@ test_basic(void)
 			    archive_read_data_block(a, &p, &size, &offset));
 			assertEqualInt((int)size, 0);
 			assertEqualInt((int)offset, 11);
+			assertEqualInt(0, archive_read_disk_can_descend(a));
 		} else if (wcscmp(archive_entry_pathname_w(ae),
 		    L"dir1/sub1") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
+			assertEqualInt(1, archive_read_disk_can_descend(a));
 		} else if (wcscmp(archive_entry_pathname_w(ae),
 		    L"dir1/sub1/file1") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
@@ -226,9 +242,11 @@ test_basic(void)
 			    archive_read_data_block(a, &p, &size, &offset));
 			assertEqualInt((int)size, 0);
 			assertEqualInt((int)offset, 10);
+			assertEqualInt(0, archive_read_disk_can_descend(a));
 		} else if (wcscmp(archive_entry_pathname_w(ae),
 		    L"dir1/sub2") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
+			assertEqualInt(1, archive_read_disk_can_descend(a));
 		} else if (wcscmp(archive_entry_pathname_w(ae),
 		    L"dir1/sub2/file1") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
@@ -242,6 +260,7 @@ test_basic(void)
 			    archive_read_data_block(a, &p, &size, &offset));
 			assertEqualInt((int)size, 0);
 			assertEqualInt((int)offset, 10);
+			assertEqualInt(0, archive_read_disk_can_descend(a));
 		} else if (wcscmp(archive_entry_pathname_w(ae),
 		    L"dir1/sub2/file2") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
@@ -255,15 +274,19 @@ test_basic(void)
 			    archive_read_data_block(a, &p, &size, &offset));
 			assertEqualInt((int)size, 0);
 			assertEqualInt((int)offset, 10);
+			assertEqualInt(0, archive_read_disk_can_descend(a));
 		} else if (wcscmp(archive_entry_pathname_w(ae),
 		    L"dir1/sub2/sub1") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
+			assertEqualInt(1, archive_read_disk_can_descend(a));
 		} else if (wcscmp(archive_entry_pathname_w(ae),
 		    L"dir1/sub2/sub2") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
+			assertEqualInt(1, archive_read_disk_can_descend(a));
 		} else if (wcscmp(archive_entry_pathname_w(ae),
 		    L"dir1/sub2/sub3") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
+			assertEqualInt(1, archive_read_disk_can_descend(a));
 		} else if (wcscmp(archive_entry_pathname_w(ae),
 		    L"dir1/sub2/sub3/file") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
@@ -277,6 +300,7 @@ test_basic(void)
 			    archive_read_data_block(a, &p, &size, &offset));
 			assertEqualInt((int)size, 0);
 			assertEqualInt((int)offset, 3);
+			assertEqualInt(0, archive_read_disk_can_descend(a));
 		}
 		if (archive_entry_filetype(ae) == AE_IFDIR) {
 			/* Descend into the current object */
@@ -297,6 +321,7 @@ test_basic(void)
 
 	/* dir1/file1 */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+	assertEqualInt(0, archive_read_disk_can_descend(a));
 	assertEqualString(archive_entry_pathname(ae), "dir1/file1");
 	assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
 	assertEqualInt(archive_entry_size(ae), 10);
@@ -321,6 +346,7 @@ test_basic(void)
 
 	/* dir1/file1 */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+	assertEqualInt(0, archive_read_disk_can_descend(a));
 	assertEqualString(archive_entry_pathname(ae), "dir1/file1");
 	assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
 	assertEqualInt(archive_entry_size(ae), 10);
@@ -332,6 +358,7 @@ test_basic(void)
 
 	/* dir1/sub1 */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+	assertEqualInt(1, archive_read_disk_can_descend(a));
 	assertEqualString(archive_entry_pathname(ae), "dir1/sub1");
 	assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
 
@@ -340,6 +367,7 @@ test_basic(void)
 
 	/* dir1/sub1/file1 */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+	assertEqualInt(0, archive_read_disk_can_descend(a));
 	assertEqualString(archive_entry_pathname(ae), "dir1/sub1/file1");
 	assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
 	assertEqualInt(archive_entry_size(ae), 10);
@@ -370,6 +398,7 @@ test_basic(void)
 
 	/* dir1/file1 */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+	assertEqualInt(0, archive_read_disk_can_descend(a));
 	assertEqualWString(archive_entry_pathname_w(ae), fullpath);
 	assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
 	assertEqualInt(archive_entry_size(ae), 10);

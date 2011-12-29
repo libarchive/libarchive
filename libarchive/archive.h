@@ -757,6 +757,7 @@ __LA_DECL int	archive_read_disk_open_w(struct archive *, const wchar_t *);
  * you invoke this on every returned path, you'll get a full logical
  * traversal.
  */
+__LA_DECL int	archive_read_disk_can_descend(struct archive *);
 __LA_DECL int	archive_read_disk_descend(struct archive *);
 __LA_DECL int	archive_read_disk_current_filesystem(struct archive *);
 __LA_DECL int	archive_read_disk_current_filesystem_is_synthetic(struct archive *);
