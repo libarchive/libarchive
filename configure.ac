@@ -571,7 +571,7 @@ main(int argc, char **argv)
     [ AC_MSG_RESULT([yes])
       found_$1=yes
       if [[ -n "$4" ]]; then
-        test -n "$(echo $mdLIBS | grep -e $4)" || mdLIBS="$mdLIBS $4"
+        test -n "$(echo $mdLIBS | $GREP .$4)" || mdLIBS="$mdLIBS $4"
       fi
       AC_DEFINE(ARCHIVE_CRYPTO_$1_$2, 1, [ $1 via ARCHIVE_CRYPTO_$1_$2 supported.])
     ],
