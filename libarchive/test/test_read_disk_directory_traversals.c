@@ -42,6 +42,9 @@ test_basic(void)
 	size_t size;
 	int64_t offset;
 	int file_count;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	wchar_t *wcwd, *fullpath;
+#endif
 
 	assertMakeDir("dir1", 0755);
 	assertMakeFile("dir1/file1", 0644, "0123456789");
@@ -351,6 +354,38 @@ test_basic(void)
 
 	/* Close the disk object. */
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+
+	/*
+	 * Test for a full-path beginning with "//?/"
+	 */
+	wcwd = _wgetcwd(NULL, 0);
+	fullpath = malloc(sizeof(wchar_t) * (wcslen(wcwd) + 32));
+	wcscpy(fullpath, L"//?/");
+	wcscat(fullpath, wcwd);
+	wcscat(fullpath, L"/dir1/file1");
+	free(wcwd);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open_w(a, fullpath));
+	while ((wcwd = wcschr(fullpath, L'\\')) != NULL)
+		*wcwd = L'/';
+
+	/* dir1/file1 */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+	assertEqualWString(archive_entry_pathname_w(ae), fullpath);
+	assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
+	assertEqualInt(archive_entry_size(ae), 10);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_data_block(a, &p, &size, &offset));
+	assertEqualInt((int)size, 10);
+	assertEqualInt((int)offset, 0);
+	assertEqualMem(p, "0123456789", 10);
+
+	/* There is no entry. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
+
+	/* Close the disk object. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	free(fullpath);
+
 #endif
 
 	/*

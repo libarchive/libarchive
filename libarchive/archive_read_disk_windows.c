@@ -1277,8 +1277,9 @@ tree_reopen(struct tree *t, const wchar_t *path, int restore_time)
 
 	/* First item is set up a lot like a symlink traversal. */
 	/* printf("Looking for wildcard in %s\n", path); */
-	/* TODO: wildcard detection here screws up on \\?\c:\ UNC names */
-	if (wcschr(base, L'*') || wcschr(base, L'?')) {
+	if (!(base[0] == L'/' && base[1] == L'/' &&
+	      base[2] == L'?' && base[3] == L'/') &&
+	    (wcschr(base, L'*') || wcschr(base, L'?'))) {
 		// It has a wildcard in it...
 		// Separate the last element.
 		p = wcsrchr(base, L'/');
@@ -1374,7 +1375,9 @@ tree_next(struct tree *t)
 		if (t->stack->flags & needsFirstVisit) {
 			wchar_t *d = t->stack->name.s;
 			t->stack->flags &= ~needsFirstVisit;
-			if (wcschr(d, L'*') || wcschr(d, L'?')) {
+			if (!(d[0] == L'/' && d[1] == L'/' &&
+			      d[2] == L'?' && d[3] == L'/') &&
+			    (wcschr(d, L'*') || wcschr(d, L'?'))) {
 				r = tree_dir_next_windows(t, d);
 				if (r == 0)
 					continue;
