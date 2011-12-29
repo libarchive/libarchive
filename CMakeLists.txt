@@ -2,7 +2,7 @@
 #
 PROJECT(libarchive C)
 #
-CMAKE_MINIMUM_REQUIRED(VERSION 2.6.3 FATAL_ERROR)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8 FATAL_ERROR)
 SET(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/build/cmake")
 if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${libarchive_BINARY_DIR}/bin)
@@ -57,10 +57,6 @@ ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
 
 # Enable CTest/CDash support
 include(CTest)
-
-# Provide ADD_TEST_28 macro to approximate CMake 2.8 ADD_TEST(NAME).
-# TODO: Require CMake 2.8 and drop this workaround (perhaps late 2010).
-INCLUDE(AddTest28)
 
 OPTION(ENABLE_NETTLE "Enable use of Nettle" ON)
 OPTION(ENABLE_OPENSSL "Enable use of OpenSSL" ON)
