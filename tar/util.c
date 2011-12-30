@@ -115,8 +115,21 @@ safe_fprintf(FILE *f, const char *fmt, ...)
 	va_end(ap);
 
 	/* If the result was too large, allocate a buffer on the heap. */
-	if (length >= fmtbuff_length) {
-		fmtbuff_length = length+1;
+	while (length < 0 || length >= fmtbuff_length) {
+		if (length >= fmtbuff_length)
+			fmtbuff_length = length+1;
+		else if (fmtbuff_length < 8192)
+			fmtbuff_length *= 2;
+		else {
+			int old_length = fmtbuff_length;
+			fmtbuff_length += fmtbuff_length / 4;
+			if (old_length > fmtbuff_length) {
+				length = old_length;
+				fmtbuff_heap[length-1] = '\0';
+				break;
+			}
+		}
+		free(fmtbuff_heap);
 		fmtbuff_heap = malloc(fmtbuff_length);
 
 		/* Reformat the result into the heap buffer if we can. */
@@ -129,6 +142,7 @@ safe_fprintf(FILE *f, const char *fmt, ...)
 			/* Leave fmtbuff pointing to the truncated
 			 * string in fmtbuff_stack. */
 			length = sizeof(fmtbuff_stack) - 1;
+			break;
 		}
 	}
 

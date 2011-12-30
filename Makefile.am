@@ -663,6 +663,7 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_option_s.c				\
 	tar/test/test_option_uid_uname.c			\
 	tar/test/test_patterns.c				\
+	tar/test/test_print_longpath.c				\
 	tar/test/test_stdio.c					\
 	tar/test/test_strip_components.c			\
 	tar/test/test_symlink_dir.c				\
@@ -692,6 +693,7 @@ bsdtar_test_EXTRA_DIST=			\
 	tar/test/test_patterns_2.tar.uu	\
 	tar/test/test_patterns_3.tar.uu	\
 	tar/test/test_patterns_4.tar.uu	\
+	tar/test/test_print_longpath.tar.Z.uu \
 	tar/test/CMakeLists.txt
 
 
