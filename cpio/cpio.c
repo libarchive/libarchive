@@ -891,7 +891,8 @@ mode_in(struct cpio *cpio)
 			fprintf(stderr, "%s: %s\n",
 			    archive_entry_pathname(entry),
 			    archive_error_string(ext));
-		} else if (archive_entry_size(entry) > 0) {
+		} else if (!archive_entry_size_is_set(entry)
+		    || archive_entry_size(entry) > 0) {
 			r = extract_data(a, ext);
 			if (r != ARCHIVE_OK)
 				cpio->return_value = 1;
