@@ -1570,7 +1570,7 @@ static int
 read_Bools(struct archive_read *a, unsigned char *data, size_t num)
 {
 	const unsigned char *p;
-	unsigned i, mask = 0, avail;
+	unsigned i, mask = 0, avail = 0;
 
 	for (i = 0; i < num; i++) {
 		if (mask == 0) {
