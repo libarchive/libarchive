@@ -24,12 +24,25 @@
  */
 
 #include "test.h"
+#ifdef HAVE_SYS_IOCTL_H
+#include <sys/ioctl.h>
+#endif
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #include <errno.h>
 #ifdef HAVE_ICONV_H
 #include <iconv.h>
+#endif
+/*
+ * Some Linux distributions have both linux/ext2_fs.h and ext2fs/ext2_fs.h.
+ * As the include guards don't agree, the order of include is important.
+ */
+#ifdef HAVE_LINUX_EXT2_FS_H
+#include <linux/ext2_fs.h>      /* for Linux file flags */
+#endif
+#if defined(HAVE_EXT2FS_EXT2_FS_H) && !defined(__CYGWIN__)
+#include <ext2fs/ext2_fs.h>     /* Linux file flags, broken on Cygwin */
 #endif
 #include <limits.h>
 #include <locale.h>
@@ -1716,6 +1729,52 @@ assertion_utimes(const char *file, int line,
 #endif /* defined(_WIN32) && !defined(__CYGWIN__) */
 }
 
+/* Set nodump, report failures. */
+int
+assertion_nodump(const char *file, int line, const char *pathname)
+{
+#if defined(HAVE_STRUCT_STAT_ST_FLAGS) && defined(UF_NODUMP)
+	int r;
+
+	assertion_count(file, line);
+	r = chflags(pathname, UF_NODUMP);
+	if (r < 0) {
+		failure_start(file, line, "Can't set nodump %s\n", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+#elif defined(EXT2_IOC_GETFLAGS) && defined(HAVE_WORKING_EXT2_IOC_GETFLAGS)\
+	 && defined(EXT2_NODUMP_FL)
+	int fd, r, flags;
+
+	assertion_count(file, line);
+	fd = open(pathname, O_RDONLY | O_NONBLOCK);
+	if (fd < 0) {
+		failure_start(file, line, "Can't open %s\n", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+	r = ioctl(fd, EXT2_IOC_GETFLAGS, &flags);
+	if (r < 0) {
+		failure_start(file, line, "Can't get flags %s\n", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+	flags |= EXT2_NODUMP_FL;
+	r = ioctl(fd, EXT2_IOC_SETFLAGS, &flags);
+	if (r < 0) {
+		failure_start(file, line, "Can't set nodump %s\n", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+	close(fd);
+#else
+	(void)pathname; /* UNUSED */
+	assertion_count(file, line);
+#endif
+	return (1);
+}
+
 /*
  *
  *  UTILITIES for use by tests.
@@ -1792,6 +1851,70 @@ canGunzip(void)
 	}
 	return (value);
 }
+
+/*
+ * Can this filesystem handle nodump flags.
+ */
+#if defined(HAVE_STRUCT_STAT_ST_FLAGS) && defined(UF_NODUMP)
+
+int
+canNodump(void)
+{
+	const char *path = "cannodumptest";
+	struct stat sb;
+
+	assertion_make_file(__FILE__, __LINE__, path, 0644, NULL);
+	if (chflags(path, UF_NODUMP) < 0)
+		return (0);
+	if (stat(path, &sb) < 0)
+		return (0);
+	if (sb.st_flags & UF_NODUMP)
+		return (1);
+	return (0);
+}
+
+#elif defined(EXT2_IOC_GETFLAGS) && defined(HAVE_WORKING_EXT2_IOC_GETFLAGS)\
+	 && defined(EXT2_NODUMP_FL)
+
+int
+canNodump(void)
+{
+	const char *path = "cannodumptest";
+	int fd, r, flags;
+
+	assertion_make_file(__FILE__, __LINE__, path, 0644, NULL);
+	fd = open(path, O_RDONLY | O_NONBLOCK);
+	if (fd < 0)
+		return (0);
+	r = ioctl(fd, EXT2_IOC_GETFLAGS, &flags);
+	if (r < 0)
+		return (0);
+	flags |= EXT2_NODUMP_FL;
+	r = ioctl(fd, EXT2_IOC_SETFLAGS, &flags);
+	if (r < 0)
+		return (0);
+	close(fd);
+	fd = open(path, O_RDONLY | O_NONBLOCK);
+	if (fd < 0)
+		return (0);
+	r = ioctl(fd, EXT2_IOC_GETFLAGS, &flags);
+	if (r < 0)
+		return (0);
+	close(fd);
+	if (flags & EXT2_NODUMP_FL)
+		return (1);
+	return (0);
+}
+
+#else
+
+int
+canNodump()
+{
+	return (0);
+}
+
+#endif
 
 /*
  * Sleep as needed; useful for verifying disk timestamp changes by
