@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010-2011 Michihiro NAKAJIMA
+ * Copyright (c) 2010-2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,13 +25,7 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
 #include <limits.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
 #if defined(_WIN32) && !defined(__CYGWIN__)
 # if !defined(__BORLANDC__)
 #  define getcwd _getcwd
@@ -1237,46 +1231,6 @@ test_callbacks(void)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	archive_entry_free(ae);
 }
-
-#if defined(HAVE_STRUCT_STAT_ST_FLAGS) && defined(UF_NODUMP)
-static int
-canNodump()
-{
-	const char *path = "cannodumptest";
-	struct stat sb;
-
-	assertMakeFile(path, 0644, NULL);
-	if (chflags(path, UF_NODUMP) < 0)
-		return (0);
-	if (stat(path, &sb) < 0)
-		return (0);
-	if (sb.st_flags & UF_NODUMP)
-		return (1);
-	return (0);
-}
-
-static int
-assertNodump(const char *path)
-{
-	return (assertEqualInt(0, chflags(path, UF_NODUMP)));
-}
-
-#else
-
-static int
-canNodump()
-{
-	return (0);
-}
-
-static int
-assertNodump(const char *path)
-{
-	(void)path; /* UNUSED */
-	return (0);
-}
-
-#endif
 
 static void
 test_nodump(void)
