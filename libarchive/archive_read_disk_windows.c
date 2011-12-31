@@ -536,6 +536,16 @@ archive_read_disk_set_atime_restored(struct archive *_a)
 	return (ARCHIVE_OK);
 }
 
+int
+archive_read_disk_honor_nodump(struct archive *_a)
+{
+	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
+	    ARCHIVE_STATE_ANY, "archive_read_disk_honor_nodump");
+	a->honor_nodump = 1;
+	return (ARCHIVE_OK);
+}
+
 /*
  * Trivial implementations of gname/uname lookup functions.
  * These are normally overridden by the client, but these stub

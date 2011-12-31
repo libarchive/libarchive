@@ -52,6 +52,19 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_LINUX_MAGIC_H
 #include <linux/magic.h>
 #endif
+#ifdef HAVE_LINUX_FS_H
+#include <linux/fs.h>
+#endif
+/*
+ * Some Linux distributions have both linux/ext2_fs.h and ext2fs/ext2_fs.h.
+ * As the include guards don't agree, the order of include is important.
+ */
+#ifdef HAVE_LINUX_EXT2_FS_H
+#include <linux/ext2_fs.h>      /* for Linux file flags */
+#endif
+#if defined(HAVE_EXT2FS_EXT2_FS_H) && !defined(__CYGWIN__)
+#include <ext2fs/ext2_fs.h>     /* Linux file flags, broken on Cygwin */
+#endif
 #ifdef HAVE_DIRECT_H
 #include <direct.h>
 #endif
@@ -555,6 +568,16 @@ archive_read_disk_set_atime_restored(struct archive *_a)
 #endif
 }
 
+int
+archive_read_disk_honor_nodump(struct archive *_a)
+{
+	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
+	    ARCHIVE_STATE_ANY, "archive_read_disk_honor_nodump");
+	a->honor_nodump = 1;
+	return (ARCHIVE_OK);
+}
+
 /*
  * Trivial implementations of gname/uname lookup functions.
  * These are normally overridden by the client, but these stub
@@ -918,6 +941,19 @@ next_entry:
 			goto next_entry;
 		}
 	}
+
+#if defined(HAVE_STRUCT_STAT_ST_FLAGS) && defined(UF_NODUMP)
+	if (a->honor_nodump) {
+		if (st->st_flags & UF_NODUMP) {
+			archive_entry_unset_atime(entry);
+			archive_entry_unset_birthtime(entry);
+			archive_entry_unset_ctime(entry);
+			archive_entry_unset_mtime(entry);
+			goto next_entry;
+		}
+	}
+#endif
+
 	archive_entry_copy_sourcepath(entry, tree_current_access_path(t));
 
 	/* Save the times to be restored. */
@@ -957,6 +993,21 @@ next_entry:
 	 * metadata at archive_read_disk_entry_from_file(). */
 	if (fd >= 0)
 		close(fd);
+
+#if defined(EXT2_IOC_GETFLAGS) && defined(EXT2_NODUMP_FL) && defined(HAVE_WORKING_EXT2_IOC_GETFLAGS)
+	/* Linux uses ioctl to read flags. */
+	if (r == ARCHIVE_OK && a->honor_nodump) {
+		unsigned long flags, clear;
+		archive_entry_fflags(entry, &flags, &clear);
+		if (flags & EXT2_NODUMP_FL) {
+			archive_entry_unset_atime(entry);
+			archive_entry_unset_birthtime(entry);
+			archive_entry_unset_ctime(entry);
+			archive_entry_unset_mtime(entry);
+			goto next_entry;
+		}
+	}
+#endif
 
 	/* Return to the initial directory. */
 	tree_enter_initial_dir(t);

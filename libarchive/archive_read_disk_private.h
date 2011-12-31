@@ -59,6 +59,8 @@ struct archive_read_disk {
 
 	/* Set 1 if users request to restore atime . */
 	int		 restore_time;
+	/* Set 1 if users request to honor nodump flag . */
+	int		 honor_nodump;
 	int		 entry_wd_fd;
 
 	const char * (*lookup_gname)(void *private, int64_t gid);
@@ -68,12 +70,12 @@ struct archive_read_disk {
 	void	(*cleanup_uname)(void *private);
 	void	 *lookup_uname_data;
 
-	int			(*name_filter_func)(struct archive *,
-				void *, struct archive_entry *);
-	void			*name_filter_data;
-	int			(*time_filter_func)(struct archive *,
-				void *, struct archive_entry *);
-	void			*time_filter_data;
+	int	(*name_filter_func)(struct archive *, void *,
+			struct archive_entry *);
+	void	*name_filter_data;
+	int	(*time_filter_func)(struct archive *, void *,
+			struct archive_entry *);
+	void	*time_filter_data;
 
 };
 
