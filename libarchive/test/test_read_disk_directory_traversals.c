@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 Michihiro NAKAJIMA
+ * Copyright (c) 2010-2011 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1080,6 +1080,159 @@ test_restore_atime(void)
 	archive_entry_free(ae);
 }
 
+static int
+name_filter(struct archive *a, void *data, struct archive_entry *ae)
+{
+	failure("ATime should not be set");
+	assertEqualInt(0, archive_entry_atime_is_set(ae));
+	failure("BirthTime should not be set");
+	assertEqualInt(0, archive_entry_birthtime_is_set(ae));
+	failure("CTime should not be set");
+	assertEqualInt(0, archive_entry_ctime_is_set(ae));
+	failure("MTime should not be set");
+	assertEqualInt(0, archive_entry_mtime_is_set(ae));
+
+	if (strcmp(archive_entry_pathname(ae), "cb/f2") == 0)
+		return (0);
+	return (1);
+}
+
+static int
+time_filter(struct archive *a, void *data, struct archive_entry *ae)
+{
+	failure("CTime should be set");
+	assertEqualInt(8, archive_entry_ctime_is_set(ae));
+	failure("MTime should be set");
+	assertEqualInt(16, archive_entry_mtime_is_set(ae));
+
+	if (archive_entry_mtime(ae) < 886611)
+		return (0);
+	if (archive_read_disk_can_descend(a)) {
+		/* Descend into the current object */
+		failure("archive_read_disk_can_descend should work"
+			"in time filter");
+		assertEqualIntA(a, 1, archive_read_disk_can_descend(a));
+		failure("archive_read_disk_descend should work in time filter");
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_descend(a));
+	}
+	return (1);
+}
+
+static void
+test_callbacks(void)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	const void *p;
+	size_t size;
+	int64_t offset;
+	int file_count;
+
+	assertMakeDir("cb", 0755);
+	assertMakeFile("cb/f1", 0644, "0123456789");
+	assertMakeFile("cb/f2", 0644, "hello world");
+	assertMakeFile("cb/fe", 0644, NULL);
+	assertUtimes("cb/f1", 886600, 0, 886600, 0);
+	assertUtimes("cb/f2", 886611, 0, 886611, 0);
+	assertUtimes("cb/fe", 886611, 0, 886611, 0);
+	assertUtimes("cb", 886622, 0, 886622, 0);
+
+	assert((ae = archive_entry_new()) != NULL);
+	assert((a = archive_read_disk_new()) != NULL);
+
+	/*
+	 * Test1: Traversals with a name filter.
+	 */
+	file_count = 3;
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_disk_set_name_filter_callback(a, name_filter, NULL));
+	failure("Directory traversals should work as well");
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, "cb"));
+	while (file_count--) {
+		archive_entry_clear(ae);
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+		failure("File 'cb/f2' should be exclueded");
+		assert(strcmp(archive_entry_pathname(ae), "cb/f2") != 0);
+		if (strcmp(archive_entry_pathname(ae), "cb") == 0) {
+			assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
+		} else if (strcmp(archive_entry_pathname(ae), "cb/f1") == 0) {
+			assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
+			assertEqualInt(archive_entry_size(ae), 10);
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_data_block(a, &p, &size, &offset));
+			assertEqualInt((int)size, 10);
+			assertEqualInt((int)offset, 0);
+			assertEqualMem(p, "0123456789", 10);
+			assertEqualInt(ARCHIVE_EOF,
+			    archive_read_data_block(a, &p, &size, &offset));
+			assertEqualInt((int)size, 0);
+			assertEqualInt((int)offset, 10);
+		} else if (strcmp(archive_entry_pathname(ae), "cb/fe") == 0) {
+			assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
+			assertEqualInt(archive_entry_size(ae), 0);
+		}
+		if (archive_read_disk_can_descend(a)) {
+			/* Descend into the current object */
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_disk_descend(a));
+		}
+	}
+	/* There is no entry. */
+	failure("There should be no entry");
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
+
+	/* Close the disk object. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+
+	/*
+	 * Test2: Traversals with a time filter.
+	 */
+	assertUtimes("cb/f1", 886600, 0, 886600, 0);
+	assertUtimes("cb/f2", 886611, 0, 886611, 0);
+	assertUtimes("cb/fe", 886611, 0, 886611, 0);
+	assertUtimes("cb", 886622, 0, 886622, 0);
+	file_count = 3;
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_disk_set_name_filter_callback(a, NULL, NULL));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_disk_set_time_filter_callback(a, time_filter, NULL));
+	failure("Directory traversals should work as well");
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, "cb"));
+
+	while (file_count--) {
+		archive_entry_clear(ae);
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+		failure("File 'cb/f1' should be exclueded");
+		assert(strcmp(archive_entry_pathname(ae), "cb/f1") != 0);
+		if (strcmp(archive_entry_pathname(ae), "cb") == 0) {
+			assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
+		} else if (strcmp(archive_entry_pathname(ae), "cb/f2") == 0) {
+			assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
+			assertEqualInt(archive_entry_size(ae), 11);
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_data_block(a, &p, &size, &offset));
+			assertEqualInt((int)size, 11);
+			assertEqualInt((int)offset, 0);
+			assertEqualMem(p, "hello world", 11);
+			assertEqualInt(ARCHIVE_EOF,
+			    archive_read_data_block(a, &p, &size, &offset));
+			assertEqualInt((int)size, 0);
+			assertEqualInt((int)offset, 11);
+		} else if (strcmp(archive_entry_pathname(ae), "cb/fe") == 0) {
+			assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
+			assertEqualInt(archive_entry_size(ae), 0);
+		}
+	}
+	/* There is no entry. */
+	failure("There should be no entry");
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
+
+	/* Destroy the disk object. */
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	archive_entry_free(ae);
+}
+
+
 DEFINE_TEST(test_read_disk_directory_traversals)
 {
 	/* Basic test. */
@@ -1092,4 +1245,6 @@ DEFINE_TEST(test_read_disk_directory_traversals)
 	test_symlink_logical_loop();
 	/* Test to restore atime. */
 	test_restore_atime();
+	/* Test callbacks. */
+	test_callbacks();
 }

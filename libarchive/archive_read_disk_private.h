@@ -34,6 +34,7 @@
 #define ARCHIVE_READ_DISK_PRIVATE_H_INCLUDED
 
 struct tree;
+struct archive_entry;
 
 struct archive_read_disk {
 	struct archive	archive;
@@ -66,6 +67,14 @@ struct archive_read_disk {
 	const char * (*lookup_uname)(void *private, int64_t uid);
 	void	(*cleanup_uname)(void *private);
 	void	 *lookup_uname_data;
+
+	int			(*name_filter_func)(struct archive *,
+				void *, struct archive_entry *);
+	void			*name_filter_data;
+	int			(*time_filter_func)(struct archive *,
+				void *, struct archive_entry *);
+	void			*time_filter_data;
+
 };
 
 #endif

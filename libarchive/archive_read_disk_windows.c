@@ -690,8 +690,11 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 		close_and_restore_time(t->entry_fh, t, &t->restore_time);
 		t->entry_fh = INVALID_HANDLE_VALUE;
 	}
+
+next_entry:
 	st = NULL;
 	lst = NULL;
+	t->descend = 0;
 	do {
 		switch (tree_next(t)) {
 		case TREE_ERROR_FATAL:
@@ -721,6 +724,12 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 			break;
 		}	
 	} while (lst == NULL);
+
+	archive_entry_copy_pathname_w(entry, tree_current_path(t));
+	if (a->name_filter_func) {
+		if (!a->name_filter_func(_a, a->name_filter_data, entry))
+			goto next_entry;
+	}
 
 	/*
 	 * Distinguish 'L'/'P'/'H' symlink following.
@@ -761,9 +770,17 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	}
 	t->descend = descend;
 
-	archive_entry_copy_pathname_w(entry, tree_current_path(t));
-	archive_entry_copy_sourcepath_w(entry, tree_current_access_path(t));
 	tree_archive_entry_copy_bhfi(entry, t, st);
+	if (a->time_filter_func) {
+		if (!a->time_filter_func(_a, a->time_filter_data, entry)) {
+			archive_entry_unset_atime(entry);
+			archive_entry_unset_birthtime(entry);
+			archive_entry_unset_ctime(entry);
+			archive_entry_unset_mtime(entry);
+			goto next_entry;
+		}
+	}
+	archive_entry_copy_sourcepath_w(entry, tree_current_access_path(t));
 
 	/* Save the times to be restored. */
 	t->restore_time.lastWriteTime = st->ftLastWriteTime;
@@ -869,12 +886,43 @@ setup_sparse(struct archive_read_disk *a, struct archive_entry *entry)
 }
 
 int
+archive_read_disk_set_name_filter_callback(struct archive *_a,
+    int (*_name_filter_func)(struct archive *, void *, struct archive_entry *),
+    void *_client_data)
+{
+	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC, ARCHIVE_STATE_ANY,
+	    "archive_read_disk_set_name_filter_callback");
+
+	a->name_filter_func = _name_filter_func;
+	a->name_filter_data = _client_data;
+	return (ARCHIVE_OK);
+}
+
+int
+archive_read_disk_set_time_filter_callback(struct archive *_a,
+    int (*_time_filter_func)(struct archive *, void *, struct archive_entry *),
+    void *_client_data)
+{
+	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC, ARCHIVE_STATE_ANY,
+	    "archive_read_disk_set_time_filter_callback");
+
+	a->time_filter_func = _time_filter_func;
+	a->time_filter_data = _client_data;
+	return (ARCHIVE_OK);
+}
+
+int
 archive_read_disk_can_descend(struct archive *_a)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
 	struct tree *t = a->tree;
 
-	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC, ARCHIVE_STATE_DATA,
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
+	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
 	    "archive_read_disk_can_descend");
 
 	return (t->visit_type == TREE_REGULAR && t->descend);
@@ -890,7 +938,8 @@ archive_read_disk_descend(struct archive *_a)
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
 	struct tree *t = a->tree;
 
-	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC, ARCHIVE_STATE_DATA,
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
+	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
 	    "archive_read_disk_descend");
 
 	if (t->visit_type != TREE_REGULAR || !t->descend) {

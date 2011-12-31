@@ -765,6 +765,13 @@ __LA_DECL int	archive_read_disk_current_filesystem_is_remote(struct archive *);
 /* Request that the access time of the entry visited by travesal be restored. */
 __LA_DECL int  archive_read_disk_set_atime_restored(struct archive *);
 
+__LA_DECL int	archive_read_disk_set_name_filter_callback(struct archive *,
+		    int (*_name_filter_func)(struct archive *, void *,
+		    	struct archive_entry *), void *_client_data);
+__LA_DECL int	archive_read_disk_set_time_filter_callback(struct archive *,
+		    int (*_time_filter_func)(struct archive *, void *,
+		    	struct archive_entry *), void *_client_data);
+
 /*
  * Accessor functions to read/set various information in
  * the struct archive object:
