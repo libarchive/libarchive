@@ -165,15 +165,14 @@ archive_read_disk_entry_from_file(struct archive *_a,
 			st = &s;
 		}
 		archive_entry_copy_stat(entry, st);
+		/* Lookup uname/gname */
+		name = archive_read_disk_uname(_a, archive_entry_uid(entry));
+		if (name != NULL)
+			archive_entry_copy_uname(entry, name);
+		name = archive_read_disk_gname(_a, archive_entry_gid(entry));
+		if (name != NULL)
+			archive_entry_copy_gname(entry, name);
 	}
-
-	/* Lookup uname/gname */
-	name = archive_read_disk_uname(_a, archive_entry_uid(entry));
-	if (name != NULL)
-		archive_entry_copy_uname(entry, name);
-	name = archive_read_disk_gname(_a, archive_entry_gid(entry));
-	if (name != NULL)
-		archive_entry_copy_gname(entry, name);
 
 #ifdef HAVE_STRUCT_STAT_ST_FLAGS
 	/* On FreeBSD, we get flags for free with the stat. */

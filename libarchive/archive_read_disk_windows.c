@@ -781,12 +781,17 @@ next_entry:
 	t->descend = descend;
 
 	tree_archive_entry_copy_bhfi(entry, t, st);
+	/* Lookup uname/gname */
+	name = archive_read_disk_uname(_a, archive_entry_uid(entry));
+	if (name != NULL)
+		archive_entry_copy_uname(entry, name);
+	name = archive_read_disk_gname(_a, archive_entry_gid(entry));
+	if (name != NULL)
+		archive_entry_copy_gname(entry, name);
+	/* Invoke a filter callback. */
 	if (a->time_filter_func) {
 		if (!a->time_filter_func(_a, a->time_filter_data, entry)) {
-			archive_entry_unset_atime(entry);
-			archive_entry_unset_birthtime(entry);
-			archive_entry_unset_ctime(entry);
-			archive_entry_unset_mtime(entry);
+			archive_entry_clear(entry);
 			goto next_entry;
 		}
 	}
@@ -796,14 +801,6 @@ next_entry:
 	t->restore_time.lastWriteTime = st->ftLastWriteTime;
 	t->restore_time.lastAccessTime = st->ftLastAccessTime;
 	t->restore_time.filetype = archive_entry_filetype(entry);
-
-	/* Lookup uname/gname */
-	name = archive_read_disk_uname(_a, archive_entry_uid(entry));
-	if (name != NULL)
-		archive_entry_copy_uname(entry, name);
-	name = archive_read_disk_gname(_a, archive_entry_gid(entry));
-	if (name != NULL)
-		archive_entry_copy_gname(entry, name);
 
 	r = ARCHIVE_OK;
 	if (archive_entry_filetype(entry) == AE_IFREG &&
