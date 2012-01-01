@@ -1098,7 +1098,7 @@ name_filter(struct archive *a, void *data, struct archive_entry *ae)
 }
 
 static int
-time_filter(struct archive *a, void *data, struct archive_entry *ae)
+metadata_filter(struct archive *a, void *data, struct archive_entry *ae)
 {
 	failure("CTime should be set");
 	assertEqualInt(8, archive_entry_ctime_is_set(ae));
@@ -1110,9 +1110,10 @@ time_filter(struct archive *a, void *data, struct archive_entry *ae)
 	if (archive_read_disk_can_descend(a)) {
 		/* Descend into the current object */
 		failure("archive_read_disk_can_descend should work"
-			"in time filter");
+			" in metadata filter");
 		assertEqualIntA(a, 1, archive_read_disk_can_descend(a));
-		failure("archive_read_disk_descend should work in time filter");
+		failure("archive_read_disk_descend should work"
+			" in metadata filter");
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_descend(a));
 	}
 	return (1);
@@ -1185,7 +1186,7 @@ test_callbacks(void)
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 
 	/*
-	 * Test2: Traversals with a time filter.
+	 * Test2: Traversals with a metadata filter.
 	 */
 	assertUtimes("cb/f1", 886600, 0, 886600, 0);
 	assertUtimes("cb/f2", 886611, 0, 886611, 0);
@@ -1195,7 +1196,8 @@ test_callbacks(void)
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_disk_set_name_filter_callback(a, NULL, NULL));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_disk_set_time_filter_callback(a, time_filter, NULL));
+	    archive_read_disk_set_metadata_filter_callback(a, metadata_filter,
+		    NULL));
 	failure("Directory traversals should work as well");
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, "cb"));
 

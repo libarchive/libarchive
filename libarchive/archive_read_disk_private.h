@@ -73,9 +73,9 @@ struct archive_read_disk {
 	int	(*name_filter_func)(struct archive *, void *,
 			struct archive_entry *);
 	void	*name_filter_data;
-	int	(*time_filter_func)(struct archive *, void *,
+	int	(*metadata_filter_func)(struct archive *, void *,
 			struct archive_entry *);
-	void	*time_filter_data;
+	void	*metadata_filter_data;
 
 };
 

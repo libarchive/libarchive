@@ -769,8 +769,8 @@ __LA_DECL int  archive_read_disk_honor_nodump(struct archive *);
 __LA_DECL int	archive_read_disk_set_name_filter_callback(struct archive *,
 		    int (*_name_filter_func)(struct archive *, void *,
 		    	struct archive_entry *), void *_client_data);
-__LA_DECL int	archive_read_disk_set_time_filter_callback(struct archive *,
-		    int (*_time_filter_func)(struct archive *, void *,
+__LA_DECL int	archive_read_disk_set_metadata_filter_callback(struct archive *,
+		    int (*_metadata_filter_func)(struct archive *, void *,
 		    	struct archive_entry *), void *_client_data);
 
 /*

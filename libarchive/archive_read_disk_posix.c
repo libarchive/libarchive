@@ -941,8 +941,9 @@ next_entry:
 	if (name != NULL)
 		archive_entry_copy_gname(entry, name);
 	/* Invoke a filter callback. */
-	if (a->time_filter_func) {
-		if (!a->time_filter_func(_a, a->time_filter_data, entry)) {
+	if (a->metadata_filter_func) {
+		if (!a->metadata_filter_func(_a,
+		    a->metadata_filter_data, entry)) {
 			archive_entry_clear(entry);
 			goto next_entry;
 		}
@@ -1102,17 +1103,17 @@ archive_read_disk_set_name_filter_callback(struct archive *_a,
 }
 
 int
-archive_read_disk_set_time_filter_callback(struct archive *_a,
-    int (*_time_filter_func)(struct archive *, void *, struct archive_entry *),
-    void *_client_data)
+archive_read_disk_set_metadata_filter_callback(struct archive *_a,
+    int (*_metadata_filter_func)(struct archive *, void *,
+    struct archive_entry *), void *_client_data)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
 
 	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC, ARCHIVE_STATE_ANY,
-	    "archive_read_disk_set_time_filter_callback");
+	    "archive_read_disk_set_metadata_filter_callback");
 
-	a->time_filter_func = _time_filter_func;
-	a->time_filter_data = _client_data;
+	a->metadata_filter_func = _metadata_filter_func;
+	a->metadata_filter_data = _client_data;
 	return (ARCHIVE_OK);
 }
 
