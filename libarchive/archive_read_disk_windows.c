@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2003-2009 Tim Kientzle
- * Copyright (c) 2010-2011 Michihiro NAKAJIMA
+ * Copyright (c) 2010-2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -153,6 +153,7 @@ struct filesystem {
 	int64_t		dev;
 	int		synthetic;
 	int		remote;
+	DWORD		bytesPerSector;
 };
 
 /* Definitions for tree_entry.flags bitmap. */
@@ -567,6 +568,16 @@ trivial_lookup_uname(void *private_data, int64_t uid)
 	return (NULL);
 }
 
+//#define NO_BUFFER	1
+static int64_t
+align_num_per_sector(struct tree *t, int64_t size)
+{
+	size += t->current_filesystem->bytesPerSector -1;
+	size /= t->current_filesystem->bytesPerSector;
+	size *= t->current_filesystem->bytesPerSector;
+	return (size);
+}
+
 static int
 _archive_read_data_block(struct archive *_a, const void **buff,
     size_t *size, int64_t *offset)
@@ -587,15 +598,18 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 
 	/* Allocate read buffer. */
 	if (t->entry_buff == NULL) {
-		t->entry_buff = malloc(1024 * 64);
-		if (t->entry_buff == NULL) {
+		void *p;
+		size_t s = (size_t)align_num_per_sector(t, 1024 * 64);
+		p = VirtualAlloc(NULL, s, MEM_COMMIT, PAGE_READWRITE);
+		if (p == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Couldn't allocate memory");
 			r = ARCHIVE_FATAL;
 			a->archive.state = ARCHIVE_STATE_FATAL;
 			goto abort_read_data;
 		}
-		t->entry_buff_size = 1024 * 64;
+		t->entry_buff = p;
+		t->entry_buff_size = s;
 	}
 
 	buffbytes = t->entry_buff_size;
@@ -608,7 +622,8 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	if (t->current_sparse->offset > t->entry_total) {
 		LARGE_INTEGER distance;
 		distance.QuadPart = t->current_sparse->offset;
-		if (!SetFilePointerEx_perso(t->entry_fh, distance, NULL, FILE_BEGIN)) {
+		if (!SetFilePointerEx_perso(t->entry_fh, distance, NULL,
+		    FILE_BEGIN)) {
 			DWORD lasterr;
 
 			lasterr = GetLastError();
@@ -808,7 +823,11 @@ next_entry:
 	    archive_entry_size(entry) > 0) {
 		t->entry_fh = CreateFileW(tree_current_access_path(t),
 		    GENERIC_READ, 0, NULL, OPEN_EXISTING,
+#ifdef NO_BUFFER
+		    FILE_FLAG_NO_BUFFERING, NULL);
+#else
 		    FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+#endif
 		if (t->entry_fh == INVALID_HANDLE_VALUE) {
 			archive_set_error(&a->archive, errno,
 			    "Couldn't open %ls", tree_current_path(a->tree));
@@ -859,7 +878,7 @@ static int
 setup_sparse(struct archive_read_disk *a, struct archive_entry *entry)
 {
 	struct tree *t = a->tree;
-	int64_t length, offset;
+	int64_t aligned, length, offset;
 	int i;
 
 	t->sparse_count = archive_entry_sparse_reset(entry);
@@ -876,17 +895,53 @@ setup_sparse(struct archive_read_disk *a, struct archive_entry *entry)
 			return (ARCHIVE_FATAL);
 		}
 	}
+	/*
+	 * Get sparse list and make sure those offsets and lengths are
+	 * aligned by a sector size.
+	 */
 	for (i = 0; i < t->sparse_count; i++) {
 		archive_entry_sparse_next(entry, &offset, &length);
-		t->sparse_list[i].offset = offset;
-		t->sparse_list[i].length = length;
+		aligned = align_num_per_sector(t, offset);
+		if (aligned != offset) {
+			aligned -= t->current_filesystem->bytesPerSector;
+			length += offset - aligned;
+		}
+		t->sparse_list[i].offset = aligned;
+		aligned = align_num_per_sector(t, length);
+		t->sparse_list[i].length = aligned;
 	}
+
+	aligned = align_num_per_sector(t, archive_entry_size(entry));
 	if (i == 0) {
 		t->sparse_list[i].offset = 0;
-		t->sparse_list[i].length = archive_entry_size(entry);
+		t->sparse_list[i].length = aligned;
 	} else {
-		t->sparse_list[i].offset = archive_entry_size(entry);
+		int j, last = i;
+
+		t->sparse_list[i].offset = aligned;
 		t->sparse_list[i].length = 0;
+		for (i = 0; i < last; i++) {
+			if ((t->sparse_list[i].offset +
+			       t->sparse_list[i].length) <= 
+					t->sparse_list[i+1].offset)
+				continue;
+			/*
+			 * Now sparse_list[i+1] is overlapped by sparse_list[i].
+			 * Merge those two.
+			 */
+			length = t->sparse_list[i+1].offset -
+					t->sparse_list[i].offset;
+			t->sparse_list[i+1].offset = t->sparse_list[i].offset;
+			t->sparse_list[i+1].length += length;
+			/* Remove sparse_list[i]. */
+			for (j = i; j < last; j++) {
+				t->sparse_list[j].offset =
+				    t->sparse_list[j+1].offset;
+				t->sparse_list[j].length =
+				    t->sparse_list[j+1].length;
+			}
+			last--;
+		}
 	}
 	t->current_sparse = t->sparse_list;
 
@@ -1160,6 +1215,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 	if (!GetVolumePathNameW(path, vol, sizeof(vol)/sizeof(vol[0]))) {
 		free(path);
 		t->current_filesystem->remote = -1;
+		t->current_filesystem->bytesPerSector = 0;
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
                         "GetVolumePathName failed: %d", (int)GetLastError());
 		return (ARCHIVE_FAILED);
@@ -1176,6 +1232,14 @@ setup_current_filesystem(struct archive_read_disk *a)
 	default:
 		t->current_filesystem->remote = 0;
 		break;
+	}
+
+	if (!GetDiskFreeSpaceW(vol, NULL,
+	    &(t->current_filesystem->bytesPerSector), NULL, NULL)) {
+		t->current_filesystem->bytesPerSector = 0;
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+                        "GetDiskFreeSpace failed: %d", (int)GetLastError());
+		return (ARCHIVE_FAILED);
 	}
 
 	return (ARCHIVE_OK);
@@ -1807,7 +1871,7 @@ tree_free(struct tree *t)
 	archive_wstring_free(&t->full_path);
 	free(t->sparse_list);
 	free(t->filesystem_table);
-	free(t->entry_buff);
+	VirtualFree(t->entry_buff, t->entry_buff_size, MEM_DECOMMIT);
 	free(t);
 }
 
