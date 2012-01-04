@@ -137,7 +137,7 @@ static ssize_t
 memory_read(struct archive *a, void *client_data, const void **buff)
 {
 	struct read_memory_data *mine = (struct read_memory_data *)client_data;
-	size_t size;
+	ssize_t size;
 
 	(void)a; /* UNUSED */
 	size = mine->end - mine->p;
