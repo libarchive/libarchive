@@ -29,48 +29,13 @@ __FBSDID("$FreeBSD$");
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 
-#ifdef HAVE_SYS_PARAM_H
-#include <sys/param.h>
-#endif
-#ifdef HAVE_SYS_MOUNT_H
-#include <sys/mount.h>
-#endif
-#ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
-#ifdef HAVE_SYS_STATVFS_H
-#include <sys/statvfs.h>
-#endif
-#ifdef HAVE_SYS_VFS_H
-#include <sys/vfs.h>
-#endif
-#ifdef HAVE_LINUX_MAGIC_H
-#include <linux/magic.h>
-#endif
-#ifdef HAVE_DIRECT_H
-#include <direct.h>
-#endif
-#ifdef HAVE_DIRENT_H
-#include <dirent.h>
-#endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
-#endif
-#ifdef HAVE_FCNTL_H
-#include <fcntl.h>
 #endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#ifdef HAVE_STRING_H
-#include <string.h>
-#endif
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-#if defined(HAVE_WINIOCTL_H) && !defined(__CYGWIN__)
 #include <winioctl.h>
-#endif
 
 #include "archive.h"
 #include "archive_string.h"
@@ -163,7 +128,6 @@ struct tree {
 	struct tree_entry	*stack;
 	struct tree_entry	*current;
 	HANDLE d;
-#define	INVALID_DIR_HANDLE INVALID_HANDLE_VALUE
 	WIN32_FIND_DATAW	_findData;
 	WIN32_FIND_DATAW	*findData;
 	int			 flags;
@@ -243,13 +207,6 @@ struct tree {
 
 static int
 tree_dir_next_windows(struct tree *t, const wchar_t *pattern);
-
-#ifdef HAVE_DIRENT_D_NAMLEN
-/* BSD extension; avoids need for a strlen() call. */
-#define	D_NAMELEN(dp)	(dp)->d_namlen
-#else
-#define	D_NAMELEN(dp)	(strlen((dp)->d_name))
-#endif
 
 /* Initiate/terminate a tree traversal. */
 static struct tree *tree_open(const wchar_t *, int, int);
@@ -1453,7 +1410,7 @@ tree_reopen(struct tree *t, const wchar_t *path, int restore_time)
 	t->depth = 0;
 	t->descend = 0;
 	t->current = NULL;
-	t->d = INVALID_DIR_HANDLE;
+	t->d = INVALID_HANDLE_VALUE;
 	t->symlink_mode = t->initial_symlink_mode;
 	archive_string_empty(&(t->full_path));
 	archive_string_empty(&t->path);
@@ -1555,7 +1512,7 @@ tree_ascend(struct tree *t)
 
 	te = t->stack;
 	t->depth--;
-	close_and_restore_time(INVALID_DIR_HANDLE, t, &te->restore_time);
+	close_and_restore_time(INVALID_HANDLE_VALUE, t, &te->restore_time);
 	return (0);
 }
 
@@ -1595,7 +1552,7 @@ tree_next(struct tree *t)
 
 	while (t->stack != NULL) {
 		/* If there's an open dir, get the next entry from there. */
-		if (t->d != INVALID_DIR_HANDLE) {
+		if (t->d != INVALID_HANDLE_VALUE) {
 			r = tree_dir_next_windows(t, NULL);
 			if (r == 0)
 				continue;
@@ -1614,7 +1571,7 @@ tree_next(struct tree *t)
 				return (r);
 			} else {
 				HANDLE h = FindFirstFileW(d, &t->_findData);
-				if (h == INVALID_DIR_HANDLE) {
+				if (h == INVALID_HANDLE_VALUE) {
 					t->tree_errno = errno;
 					t->visit_type = TREE_ERROR_DIR;
 					return (t->visit_type);
@@ -1685,7 +1642,7 @@ tree_dir_next_windows(struct tree *t, const wchar_t *pattern)
 			archive_wstrcat(&pt, pattern);
 			t->d = FindFirstFileW(pt.s, &t->_findData);
 			archive_wstring_free(&pt);
-			if (t->d == INVALID_DIR_HANDLE) {
+			if (t->d == INVALID_HANDLE_VALUE) {
 				r = tree_ascend(t); /* Undo "chdir" */
 				tree_pop(t);
 				t->tree_errno = errno;
@@ -1696,7 +1653,7 @@ tree_dir_next_windows(struct tree *t, const wchar_t *pattern)
 			pattern = NULL;
 		} else if (!FindNextFileW(t->d, &t->_findData)) {
 			FindClose(t->d);
-			t->d = INVALID_DIR_HANDLE;
+			t->d = INVALID_HANDLE_VALUE;
 			t->findData = NULL;
 			return (0);
 		}
@@ -1946,9 +1903,9 @@ tree_close(struct tree *t)
 		t->entry_fh = INVALID_HANDLE_VALUE;
 	}
 	/* Close the handle of FindFirstFileW */
-	if (t->d != INVALID_DIR_HANDLE) {
+	if (t->d != INVALID_HANDLE_VALUE) {
 		FindClose(t->d);
-		t->d = INVALID_DIR_HANDLE;
+		t->d = INVALID_HANDLE_VALUE;
 		t->findData = NULL;
 	}
 	/* Release anything remaining in the stack. */
@@ -2024,7 +1981,7 @@ archive_read_disk_entry_from_file(struct archive *_a,
 			DWORD flag, desiredAccess;
 	
 			h = FindFirstFileW(path, &findData);
-			if (h == INVALID_DIR_HANDLE) {
+			if (h == INVALID_HANDLE_VALUE) {
 				archive_set_error(&a->archive, GetLastError(),
 				    "Can't FindFirstFileW");
 				return (ARCHIVE_FAILED);
@@ -2064,7 +2021,7 @@ archive_read_disk_entry_from_file(struct archive *_a,
 		fileAttributes = bhfi.dwFileAttributes;
 	} else {
 		archive_entry_copy_stat(entry, st);
-		h = INVALID_DIR_HANDLE;
+		h = INVALID_HANDLE_VALUE;
 	}
 
 	/* Lookup uname/gname */
