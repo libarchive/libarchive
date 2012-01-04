@@ -43,7 +43,7 @@ test_basic(void)
 	int64_t offset;
 	int file_count;
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	wchar_t *wcwd, *fullpath;
+	wchar_t *wcwd, *wp, *fullpath;
 #endif
 
 	assertMakeDir("dir1", 0755);
@@ -397,6 +397,63 @@ test_basic(void)
 		*wcwd = L'/';
 
 	/* dir1/file1 */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+	assertEqualInt(0, archive_read_disk_can_descend(a));
+	assertEqualWString(archive_entry_pathname_w(ae), fullpath);
+	assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
+	assertEqualInt(archive_entry_size(ae), 10);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_data_block(a, &p, &size, &offset));
+	assertEqualInt((int)size, 10);
+	assertEqualInt((int)offset, 0);
+	assertEqualMem(p, "0123456789", 10);
+
+	/* There is no entry. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
+
+	/* Close the disk object. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	free(fullpath);
+
+	/*
+	 * Test for wild card '*' or '?' with "//?/" prefix.
+	 */
+	wcwd = _wgetcwd(NULL, 0);
+	fullpath = malloc(sizeof(wchar_t) * (wcslen(wcwd) + 32));
+	wcscpy(fullpath, L"//?/");
+	wcscat(fullpath, wcwd);
+	wcscat(fullpath, L"/dir1/*1");
+	free(wcwd);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open_w(a, fullpath));
+	while ((wcwd = wcschr(fullpath, L'\\')) != NULL)
+		*wcwd = L'/';
+
+	/* dir1/file1 */
+	wp = wcsrchr(fullpath, L'/');
+	wcscpy(wp+1, L"file1");
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+	assertEqualInt(0, archive_read_disk_can_descend(a));
+	assertEqualWString(archive_entry_pathname_w(ae), fullpath);
+	assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
+	assertEqualInt(archive_entry_size(ae), 10);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_data_block(a, &p, &size, &offset));
+	assertEqualInt((int)size, 10);
+	assertEqualInt((int)offset, 0);
+	assertEqualMem(p, "0123456789", 10);
+
+	/* dir1/sub1 */
+	wcscpy(wp+1, L"sub1");
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+	assertEqualInt(1, archive_read_disk_can_descend(a));
+	assertEqualWString(archive_entry_pathname_w(ae), fullpath);
+	assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
+
+	/* Descend into the current object */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_descend(a));
+
+	/* dir1/sub1/file1 */
+	wcscpy(wp+1, L"sub1/file1");
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
 	assertEqualInt(0, archive_read_disk_can_descend(a));
 	assertEqualWString(archive_entry_pathname_w(ae), fullpath);
