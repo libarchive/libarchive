@@ -917,6 +917,7 @@ archive_write_disk_set_skip_file(struct archive *_a, int64_t d, int64_t i)
 static ssize_t
 write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 {
+	OVERLAPPED ol;
 	uint64_t start_size = size;
 	DWORD bytes_written = 0;
 	ssize_t block_size = 0, bytes_to_write;
@@ -970,24 +971,11 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 			if (a->offset + bytes_to_write > block_end)
 				bytes_to_write = block_end - a->offset;
 		}
-		/* Seek if necessary to the specified offset. */
-		if (a->offset != a->fd_offset) {
-			LARGE_INTEGER distance;
-			distance.QuadPart = a->offset;
-			if (SetFilePointerEx_perso(a->fh, distance, NULL, FILE_BEGIN) == 0) {
-				DWORD lasterr = GetLastError();
-				if (lasterr == ERROR_ACCESS_DENIED)
-					errno = EBADF;
-				else
-					la_dosmaperr(lasterr);
-				archive_set_error(&a->archive, errno,
-				    "Seek failed");
-				return (ARCHIVE_FATAL);
-			}
-			a->fd_offset = a->offset;
- 		}
+		memset(&ol, 0, sizeof(ol));
+		ol.Offset = (DWORD)(a->offset & 0xFFFFFFFF);
+		ol.OffsetHigh = (DWORD)(a->offset >> 32);
 		if (!WriteFile(a->fh, buff, (uint32_t)bytes_to_write,
-		    &bytes_written, NULL)) {
+		    &bytes_written, &ol)) {
 			DWORD lasterr;
 
 			lasterr = GetLastError();
@@ -1079,20 +1067,13 @@ _archive_write_disk_finish_entry(struct archive *_a)
 		/* We can use lseek()/write() to extend the file if
 		 * ftruncate didn't work or isn't available. */
 		if (bhfi_size(&(a->st)) < a->filesize) {
+			OVERLAPPED ol;
 			const char nul = '\0';
-			LARGE_INTEGER distance;
-			distance.QuadPart = a->filesize - 1;
-			if (!SetFilePointerEx_perso(a->fh, distance, NULL, FILE_BEGIN)) {
-				DWORD lasterr = GetLastError();
-				if (lasterr == ERROR_ACCESS_DENIED)
-					errno = EBADF;
-				else
-					la_dosmaperr(lasterr);
-				archive_set_error(&a->archive, errno,
-				    "Seek failed");
-				return (ARCHIVE_FATAL);
-			}
-			if (!WriteFile(a->fh, &nul, 1, NULL, NULL)) {
+
+			memset(&ol, 0, sizeof(ol));
+			ol.Offset = (DWORD)((a->filesize -1) & 0xFFFFFFFF);
+			ol.OffsetHigh = (DWORD)((a->filesize -1) >> 32);
+			if (!WriteFile(a->fh, &nul, 1, NULL, &ol)) {
 				DWORD lasterr = GetLastError();
 				if (lasterr == ERROR_ACCESS_DENIED)
 					errno = EBADF;
