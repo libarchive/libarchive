@@ -86,21 +86,6 @@ __FBSDID("$FreeBSD$");
 #define	IO_REPARSE_TAG_SYMLINK 0xA000000CL
 #endif
 
-static BOOL SetFilePointerEx_perso(HANDLE hFile,
-                             LARGE_INTEGER liDistanceToMove,
-                             PLARGE_INTEGER lpNewFilePointer,
-                             DWORD dwMoveMethod)
-{
-	LARGE_INTEGER li;
-	li.QuadPart = liDistanceToMove.QuadPart;
-	li.LowPart = SetFilePointer(
-	    hFile, li.LowPart, &li.HighPart, dwMoveMethod);
-	if(lpNewFilePointer) {
-		lpNewFilePointer->QuadPart = li.QuadPart;
-	}
-	return li.LowPart != -1 || GetLastError() == NO_ERROR;
-}
-
 /*-
  * This is a new directory-walking system that addresses a number
  * of problems I've had with fts(3).  In particular, it has no
@@ -119,11 +104,6 @@ static BOOL SetFilePointerEx_perso(HANDLE hFile,
  * string length of the parent directory's pathname), and some markers
  * indicating how to get back to the parent (via chdir("..") for a
  * regular dir or via fchdir(2) for a symlink).
- */
-/*
- * TODO:
- *    1) Loop checking.
- *    3) Arbitrary logical traversals by closing/reopening intermediate fds.
  */
 
 struct restore_time {
@@ -170,6 +150,11 @@ struct filesystem {
  * file patterns are handled within the application.  On Posix,
  * "first visit" is just returned to the client.
  */
+
+#define MAX_OVERLAPPED	8
+#define BUFFER_SIZE	(1024 * 8)
+#define DIRECT_IO	0/* Disabled */
+#define ASYNC_IO	1/* Enabled */
 
 /*
  * Local data for this package.
@@ -224,8 +209,24 @@ struct tree {
 	int			 entry_eof;
 	int64_t			 entry_remaining_bytes;
 	int64_t			 entry_total;
-	unsigned char		*entry_buff;
-	size_t			 entry_buff_size;
+
+	int			 ol_idx_doing;
+	int			 ol_idx_done;
+	int			 ol_num_doing;
+	int			 ol_num_done;
+	int64_t			 ol_remaining_bytes;
+	int64_t			 ol_total;
+	struct la_overlapped {
+		OVERLAPPED	 ol;
+		struct archive * _a;
+		unsigned char	*buff;
+		size_t		 buff_size;
+		int64_t		 offset;
+		size_t		 bytes_expected;
+		size_t		 bytes_transferred;
+	}			 ol[MAX_OVERLAPPED];
+	int			 direct_io;
+	int			 async_io;
 };
 
 #define bhfi_dev(bhfi)	((bhfi)->dwVolumeSerialNumber)
@@ -568,14 +569,107 @@ trivial_lookup_uname(void *private_data, int64_t uid)
 	return (NULL);
 }
 
-//#define NO_BUFFER	1
 static int64_t
 align_num_per_sector(struct tree *t, int64_t size)
 {
+	int surplus;
+
 	size += t->current_filesystem->bytesPerSector -1;
-	size /= t->current_filesystem->bytesPerSector;
-	size *= t->current_filesystem->bytesPerSector;
+	surplus = size % t->current_filesystem->bytesPerSector;
+	size -= surplus;
 	return (size);
+}
+
+static int
+start_next_async_read(struct archive_read_disk *a, struct tree *t)
+{
+	struct la_overlapped *olp;
+	DWORD buffbytes, rbytes;
+
+	if (t->ol_remaining_bytes == 0)
+		return (ARCHIVE_EOF);
+
+	olp = &(t->ol[t->ol_idx_doing]);
+	t->ol_idx_doing = (t->ol_idx_doing + 1) % MAX_OVERLAPPED;
+
+	/* Allocate read buffer. */
+	if (olp->buff == NULL) {
+		void *p;
+		size_t s = (size_t)align_num_per_sector(t, BUFFER_SIZE);
+		p = VirtualAlloc(NULL, s, MEM_COMMIT, PAGE_READWRITE);
+		if (p == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Couldn't allocate memory");
+			a->archive.state = ARCHIVE_STATE_FATAL;
+			return (ARCHIVE_FATAL);
+		}
+		olp->buff = p;
+		olp->buff_size = s;
+		olp->_a = &a->archive;
+		olp->ol.hEvent = CreateEventW(NULL, TRUE, FALSE, NULL);
+		if (olp->ol.hEvent == NULL) {
+			la_dosmaperr(GetLastError());
+			archive_set_error(&a->archive, errno,
+			    "CreateEvent failed");
+			a->archive.state = ARCHIVE_STATE_FATAL;
+			return (ARCHIVE_FATAL);
+		}
+	} else
+		ResetEvent(olp->ol.hEvent);
+
+	buffbytes = olp->buff_size;
+	if (buffbytes > t->current_sparse->length)
+		buffbytes = t->current_sparse->length;
+
+	/* Skip hole. */
+	if (t->current_sparse->offset > t->ol_total) {
+		t->ol_remaining_bytes -=
+			t->current_sparse->offset - t->ol_total;
+	}
+
+	olp->offset = t->current_sparse->offset;
+	olp->ol.Offset = (DWORD)(olp->offset & 0xffffffff);
+	olp->ol.OffsetHigh = (DWORD)(olp->offset >> 32);
+
+	if (t->ol_remaining_bytes > buffbytes) {
+		olp->bytes_expected = buffbytes;
+		t->ol_remaining_bytes -= buffbytes;
+	} else {
+		olp->bytes_expected = t->ol_remaining_bytes;
+		t->ol_remaining_bytes = 0;
+	}
+	olp->bytes_transferred = 0;
+	t->current_sparse->offset += buffbytes;
+	t->current_sparse->length -= buffbytes;
+	t->ol_total = t->current_sparse->offset;
+	if (t->current_sparse->length == 0 && t->ol_remaining_bytes > 0)
+		t->current_sparse++;
+
+	if (!ReadFile(t->entry_fh, olp->buff, buffbytes, &rbytes, &(olp->ol))) {
+		DWORD lasterr;
+
+		lasterr = GetLastError();
+		if (lasterr == ERROR_HANDLE_EOF) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Reading file truncated");
+			a->archive.state = ARCHIVE_STATE_FATAL;
+			return (ARCHIVE_FATAL);
+		} else if (lasterr != ERROR_IO_PENDING) {
+			if (lasterr == ERROR_NO_DATA)
+				errno = EAGAIN;
+			else if (lasterr == ERROR_ACCESS_DENIED)
+				errno = EBADF;
+			else
+				la_dosmaperr(lasterr);
+			archive_set_error(&a->archive, errno, "Read error");
+			a->archive.state = ARCHIVE_STATE_FATAL;
+			return (ARCHIVE_FATAL);
+		}
+	} else
+		olp->bytes_transferred = rbytes;
+	t->ol_num_doing++;
+
+	return (t->ol_remaining_bytes == 0)? ARCHIVE_EOF: ARCHIVE_OK;
 }
 
 static int
@@ -584,9 +678,9 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
 	struct tree *t = a->tree;
+	struct la_overlapped *olp;
+	DWORD bytes_transferred;
 	int r;
-	int64_t bytes;
-	size_t buffbytes;
 
 	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC, ARCHIVE_STATE_DATA,
 	    "archive_read_data_block");
@@ -596,95 +690,66 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 		goto abort_read_data;
 	}
 
-	/* Allocate read buffer. */
-	if (t->entry_buff == NULL) {
-		void *p;
-		size_t s = (size_t)align_num_per_sector(t, 1024 * 64);
-		p = VirtualAlloc(NULL, s, MEM_COMMIT, PAGE_READWRITE);
-		if (p == NULL) {
-			archive_set_error(&a->archive, ENOMEM,
-			    "Couldn't allocate memory");
-			r = ARCHIVE_FATAL;
-			a->archive.state = ARCHIVE_STATE_FATAL;
-			goto abort_read_data;
-		}
-		t->entry_buff = p;
-		t->entry_buff_size = s;
-	}
-
-	buffbytes = t->entry_buff_size;
-	if (buffbytes > t->current_sparse->length)
-		buffbytes = t->current_sparse->length;
-
 	/*
-	 * Skip hole.
+	 * Make a request to read the file in asynchronous.
 	 */
-	if (t->current_sparse->offset > t->entry_total) {
-		LARGE_INTEGER distance;
-		distance.QuadPart = t->current_sparse->offset;
-		if (!SetFilePointerEx_perso(t->entry_fh, distance, NULL,
-		    FILE_BEGIN)) {
-			DWORD lasterr;
-
-			lasterr = GetLastError();
-			if (lasterr == ERROR_ACCESS_DENIED)
-				errno = EBADF;
-			else
-				la_dosmaperr(lasterr);
-			archive_set_error(&a->archive, errno, "Seek error");
-			r = ARCHIVE_FATAL;
-			a->archive.state = ARCHIVE_STATE_FATAL;
+	if (t->ol_num_doing == 0) {
+		do {
+			r = start_next_async_read(a, t);
+			if (r == ARCHIVE_FATAL)
+				goto abort_read_data;
+			if (!t->async_io)
+				break;
+		} while (r == ARCHIVE_OK && t->ol_num_doing < MAX_OVERLAPPED);
+	} else {
+		if (start_next_async_read(a, t) == ARCHIVE_FATAL)
 			goto abort_read_data;
-		}
-		bytes = t->current_sparse->offset - t->entry_total;
-		t->entry_remaining_bytes -= bytes;
-		t->entry_total += bytes;
 	}
-	if (buffbytes > 0) {
-		DWORD bytes_read;
-		if (!ReadFile(t->entry_fh, t->entry_buff,
-		    (uint32_t)buffbytes, &bytes_read, NULL)) {
-			DWORD lasterr;
 
-			lasterr = GetLastError();
-			if (lasterr == ERROR_NO_DATA)
-				errno = EAGAIN;
-			else if (lasterr == ERROR_ACCESS_DENIED)
-				errno = EBADF;
-			else
-				la_dosmaperr(lasterr);
-			archive_set_error(&a->archive, errno, "Read error");
-			r = ARCHIVE_FATAL;
-			a->archive.state = ARCHIVE_STATE_FATAL;
-			goto abort_read_data;
-		}
-		bytes = bytes_read;
-	} else
-		bytes = 0;
-	if (bytes == 0) {
-		/* Get EOF */
-		t->entry_eof = 1;
-		r = ARCHIVE_EOF;
+	olp = &(t->ol[t->ol_idx_done]);
+	t->ol_idx_done = (t->ol_idx_done + 1) % MAX_OVERLAPPED;
+	if (olp->bytes_transferred)
+		bytes_transferred = olp->bytes_transferred;
+	else if (!GetOverlappedResult(t->entry_fh, &(olp->ol),
+	    &bytes_transferred, TRUE)) {
+		la_dosmaperr(GetLastError());
+		archive_set_error(&a->archive, errno,
+		    "GetOverlappedResult failed");
+		a->archive.state = ARCHIVE_STATE_FATAL;
+		r = ARCHIVE_FATAL;
 		goto abort_read_data;
 	}
-	*buff = t->entry_buff;
-	*size = bytes;
-	*offset = t->entry_total;
-	t->entry_total += bytes;
-	t->entry_remaining_bytes -= bytes;
+	t->ol_num_done++;
+
+	if (bytes_transferred == 0 ||
+	    olp->bytes_expected != bytes_transferred) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Reading file truncated");
+		a->archive.state = ARCHIVE_STATE_FATAL;
+		r = ARCHIVE_FATAL;
+		goto abort_read_data;
+	}
+
+	*buff = olp->buff;
+	*size = bytes_transferred;
+	*offset = olp->offset;
+	if (olp->offset > t->entry_total)
+		t->entry_remaining_bytes -= olp->offset - t->entry_total;
+	t->entry_total = olp->offset + *size;
+	t->entry_remaining_bytes -= *size;
 	if (t->entry_remaining_bytes == 0) {
 		/* Close the current file descriptor */
 		close_and_restore_time(t->entry_fh, t, &t->restore_time);
 		t->entry_fh = INVALID_HANDLE_VALUE;
 		t->entry_eof = 1;
 	}
-	t->current_sparse->offset += bytes;
-	t->current_sparse->length -= bytes;
-	if (t->current_sparse->length == 0 && !t->entry_eof)
-		t->current_sparse++;
 	return (ARCHIVE_OK);
 
 abort_read_data:
+	if (t->ol_num_doing != t->ol_num_done) {
+		CancelIo(t->entry_fh);
+		t->ol_num_doing = t->ol_num_done = 0;
+	}
 	*buff = NULL;
 	*size = 0;
 	*offset = t->entry_total;
@@ -821,13 +886,15 @@ next_entry:
 	r = ARCHIVE_OK;
 	if (archive_entry_filetype(entry) == AE_IFREG &&
 	    archive_entry_size(entry) > 0) {
+		DWORD flags = FILE_FLAG_BACKUP_SEMANTICS;
+		if (t->async_io)
+			flags |= FILE_FLAG_OVERLAPPED;
+		if (t->direct_io)
+			flags |= FILE_FLAG_NO_BUFFERING;
+		else
+			flags |= FILE_FLAG_SEQUENTIAL_SCAN;
 		t->entry_fh = CreateFileW(tree_current_access_path(t),
-		    GENERIC_READ, 0, NULL, OPEN_EXISTING,
-#ifdef NO_BUFFER
-		    FILE_FLAG_NO_BUFFERING, NULL);
-#else
-		    FILE_FLAG_SEQUENTIAL_SCAN, NULL);
-#endif
+		    GENERIC_READ, 0, NULL, OPEN_EXISTING, flags, NULL);
 		if (t->entry_fh == INVALID_HANDLE_VALUE) {
 			archive_set_error(&a->archive, errno,
 			    "Couldn't open %ls", tree_current_path(a->tree));
@@ -862,6 +929,10 @@ next_entry:
 			t->entry_remaining_bytes = 0;
 			t->entry_eof = 1;
 		}
+		t->ol_idx_doing = t->ol_idx_done = 0;
+		t->ol_num_doing = t->ol_num_done = 0;
+		t->ol_remaining_bytes = t->entry_remaining_bytes;
+		t->ol_total = 0;
 		a->archive.state = ARCHIVE_STATE_DATA;
 		break;
 	case ARCHIVE_RETRY:
@@ -1432,6 +1503,32 @@ tree_reopen(struct tree *t, const wchar_t *path, int restore_time)
 	tree_push(t, base, t->full_path.s, 0, 0, 0, NULL);
 	archive_wstring_free(&ws);
 	t->stack->flags = needsFirstVisit;
+	/*
+	 * Debug flag for Direct IO(No buffering) or Async IO.
+	 * Those dependant on environment variable switches
+	 * will be removed until next release.
+	 */
+	{
+		const char *e;
+		if ((e = getenv("LIBARCHIVE_DIRECT_IO")) != NULL) {
+			if (e[0] == '0')
+				t->direct_io = 0;
+			else
+				t->direct_io = 1;
+			fprintf(stderr, "LIBARCHIVE_DIRECT_IO=%s\n",
+				(t->direct_io)?"Enabled":"Disabled");
+		} else
+			t->direct_io = DIRECT_IO;
+		if ((e = getenv("LIBARCHIVE_ASYNC_IO")) != NULL) {
+			if (e[0] == '0')
+				t->async_io = 0;
+			else
+				t->async_io = 1;
+			fprintf(stderr, "LIBARCHIVE_ASYNC_IO=%s\n",
+			    (t->async_io)?"Enabled":"Disabled");
+		} else
+			t->async_io = ASYNC_IO;
+	}
 	return (t);
 failed:
 	archive_wstring_free(&ws);
@@ -1865,13 +1962,19 @@ tree_close(struct tree *t)
 static void
 tree_free(struct tree *t)
 {
+	int i;
+
 	if (t == NULL)
 		return;
 	archive_wstring_free(&t->path);
 	archive_wstring_free(&t->full_path);
 	free(t->sparse_list);
 	free(t->filesystem_table);
-	VirtualFree(t->entry_buff, t->entry_buff_size, MEM_DECOMMIT);
+	for (i = 0; i < MAX_OVERLAPPED; i++) {
+		if (t->ol[i].buff)
+			VirtualFree(t->ol[i].buff, t->ol[i].buff_size, MEM_DECOMMIT);
+		CloseHandle(t->ol[i].ol.hEvent);
+	}
 	free(t);
 }
 
