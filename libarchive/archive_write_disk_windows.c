@@ -1050,40 +1050,10 @@ _archive_write_disk_finish_entry(struct archive *_a)
 		/* Last write ended at exactly the filesize; we're done. */
 		/* Hopefully, this is the common case. */
 	} else {
-		if (la_ftruncate(a->fh, a->filesize) == -1 &&
-		    a->filesize == 0) {
+		if (la_ftruncate(a->fh, a->filesize) == -1) {
 			archive_set_error(&a->archive, errno,
 			    "File size could not be restored");
 			return (ARCHIVE_FAILED);
-		}
-		/*
-		 * Not all platforms implement the XSI option to
-		 * extend files via ftruncate.  Stat() the file again
-		 * to see what happened.
-		 */
-		a->pst = NULL;
-		if ((ret = lazy_stat(a)) != ARCHIVE_OK)
-			return (ret);
-		/* We can use lseek()/write() to extend the file if
-		 * ftruncate didn't work or isn't available. */
-		if (bhfi_size(&(a->st)) < a->filesize) {
-			OVERLAPPED ol;
-			const char nul = '\0';
-
-			memset(&ol, 0, sizeof(ol));
-			ol.Offset = (DWORD)((a->filesize -1) & 0xFFFFFFFF);
-			ol.OffsetHigh = (DWORD)((a->filesize -1) >> 32);
-			if (!WriteFile(a->fh, &nul, 1, NULL, &ol)) {
-				DWORD lasterr = GetLastError();
-				if (lasterr == ERROR_ACCESS_DENIED)
-					errno = EBADF;
-				else
-					la_dosmaperr(lasterr);
-				archive_set_error(&a->archive, errno,
-				    "Write to restore size failed");
-				return (ARCHIVE_FATAL);
-			}
-			a->pst = NULL;
 		}
 	}
 
