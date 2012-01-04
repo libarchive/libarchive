@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2003-2010 Tim Kientzle
- * Copyright (c) 2011 Michihiro NAKAJIMA
+ * Copyright (c) 2011-2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,9 +33,6 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
-#ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
 #ifdef HAVE_SYS_UTIME_H
 #include <sys/utime.h>
 #endif
@@ -48,12 +45,8 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif
-#include <stdio.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
-#endif
-#ifdef HAVE_STRING_H
-#include <string.h>
 #endif
 #include <winioctl.h>
 
@@ -214,26 +207,22 @@ struct archive_write_disk {
 
 static int	check_symlinks(struct archive_write_disk *);
 static int	create_filesystem_object(struct archive_write_disk *);
-static struct fixup_entry *current_fixup(struct archive_write_disk *, const wchar_t *pathname);
-#if defined(HAVE_FCHDIR) && defined(PATH_MAX)
-static void	edit_deep_directories(struct archive_write_disk *ad);
-#endif
+static struct fixup_entry *current_fixup(struct archive_write_disk *,
+		    const wchar_t *pathname);
 static int	cleanup_pathname(struct archive_write_disk *);
 static int	create_dir(struct archive_write_disk *, wchar_t *);
 static int	create_parent_dir(struct archive_write_disk *, wchar_t *);
 static int	older(BY_HANDLE_FILE_INFORMATION *, struct archive_entry *);
 static int	restore_entry(struct archive_write_disk *);
-#ifdef HAVE_POSIX_ACL
-static int	set_acl(struct archive_write_disk *, int fd, const char *, struct archive_acl *,
-		    acl_type_t, int archive_entry_acl_type, const char *tn);
-#endif
-static int	set_acls(struct archive_write_disk *, HANDLE h, const wchar_t *, struct archive_acl *);
+static int	set_acls(struct archive_write_disk *, HANDLE h,
+		    const wchar_t *, struct archive_acl *);
 static int	set_xattrs(struct archive_write_disk *);
 static int	set_fflags(struct archive_write_disk *);
 static int	set_ownership(struct archive_write_disk *);
 static int	set_mode(struct archive_write_disk *, int mode);
-static int	set_times(struct archive_write_disk *, HANDLE, int, const wchar_t *,
-		    time_t, long, time_t, long, time_t, long, time_t, long);
+static int	set_times(struct archive_write_disk *, HANDLE, int,
+		    const wchar_t *, time_t, long, time_t, long, time_t,
+		    long, time_t, long);
 static int	set_times_from_entry(struct archive_write_disk *);
 static struct fixup_entry *sort_dir_list(struct fixup_entry *p);
 static ssize_t	write_data_block(struct archive_write_disk *,
@@ -243,11 +232,14 @@ static struct archive_vtable *archive_write_disk_vtable(void);
 
 static int	_archive_write_disk_close(struct archive *);
 static int	_archive_write_disk_free(struct archive *);
-static int	_archive_write_disk_header(struct archive *, struct archive_entry *);
+static int	_archive_write_disk_header(struct archive *,
+		    struct archive_entry *);
 static int64_t	_archive_write_disk_filter_bytes(struct archive *, int);
 static int	_archive_write_disk_finish_entry(struct archive *);
-static ssize_t	_archive_write_disk_data(struct archive *, const void *, size_t);
-static ssize_t	_archive_write_disk_data_block(struct archive *, const void *, size_t, int64_t);
+static ssize_t	_archive_write_disk_data(struct archive *, const void *,
+		    size_t);
+static ssize_t	_archive_write_disk_data_block(struct archive *, const void *,
+		    size_t, int64_t);
 
 #define bhfi_dev(bhfi)	((bhfi)->dwVolumeSerialNumber)
 /* Treat FileIndex as i-node. We should remove a sequence number
@@ -424,10 +416,12 @@ permissive_name_w(struct archive_write_disk *a)
 				wn = _wcsdup(wnp);
 				if (wn == NULL)
 					return (-1);
-				archive_wstring_ensure(&(a->_name_data), 8 + wcslen(wn) + 1);
+				archive_wstring_ensure(&(a->_name_data),
+					8 + wcslen(wn) + 1);
 				a->name = a->_name_data.s;
 				/* Prepend "\\?\UNC\" */
-				archive_wstrncpy(&(a->_name_data), L"\\\\?\\UNC\\", 8);
+				archive_wstrncpy(&(a->_name_data),
+					L"\\\\?\\UNC\\", 8);
 				archive_wstrcat(&(a->_name_data), wn+2);
 				free(wn);
 				return (0);
@@ -457,7 +451,8 @@ permissive_name_w(struct archive_write_disk *a)
 		wn = _wcsdup(wnp);
 		if (wn == NULL)
 			return (-1);
-		archive_wstring_ensure(&(a->_name_data), 4 + 2 + wcslen(wn) + 1);
+		archive_wstring_ensure(&(a->_name_data),
+			4 + 2 + wcslen(wn) + 1);
 		a->name = a->_name_data.s;
 		/* Prepend "\\?\" and drive name. */
 		archive_wstrncpy(&(a->_name_data), L"\\\\?\\", 4);
@@ -1381,7 +1376,8 @@ restore_entry(struct archive_write_disk *a)
 		if (a->skip_file_set &&
 		    bhfi_dev(&a->st) == a->skip_file_dev &&
 		    bhfi_ino(&a->st) == a->skip_file_ino) {
-			archive_set_error(&a->archive, 0, "Refusing to overwrite archive");
+			archive_set_error(&a->archive, 0,
+			    "Refusing to overwrite archive");
 			return (ARCHIVE_FAILED);
 		}
 
@@ -1856,8 +1852,8 @@ check_symlinks(struct archive_write_disk *a)
 				/* User asked us to remove problems. */
 				if (disk_unlink(a->name) != 0) {
 					archive_set_error(&a->archive, 0,
-					    "Cannot remove intervening symlink %s",
-					    a->name);
+					    "Cannot remove intervening "
+					    "symlink %s", a->name);
 					pn[0] = c;
 					return (ARCHIVE_FAILED);
 				}
@@ -2147,7 +2143,8 @@ create_dir(struct archive_write_disk *a, wchar_t *path)
 		}
 	} else if (errno != ENOENT && errno != ENOTDIR) {
 		/* Stat failed? */
-		archive_set_error(&a->archive, errno, "Can't test directory '%s'", path);
+		archive_set_error(&a->archive, errno,
+		    "Can't test directory '%s'", path);
 		return (ARCHIVE_FAILED);
 	} else if (slash != NULL) {
 		*slash = '\0';
@@ -2196,7 +2193,8 @@ create_dir(struct archive_write_disk *a, wchar_t *path)
 	 * don't add it to the fixup list here, as it's already been
 	 * added.
 	 */
-	if (file_information(a, path, &st, &st_mode, 0) == 0 && S_ISDIR(st_mode))
+	if (file_information(a, path, &st, &st_mode, 0) == 0 &&
+	    S_ISDIR(st_mode))
 		return (ARCHIVE_OK);
 
 	archive_set_error(&a->archive, errno, "Failed to create dir '%s'",
