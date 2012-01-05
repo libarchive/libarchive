@@ -629,6 +629,15 @@ start_next_async_read(struct archive_read_disk *a, struct tree *t)
 	return (t->ol_remaining_bytes == 0)? ARCHIVE_EOF: ARCHIVE_OK;
 }
 
+static void
+cancel_async(struct tree *t)
+{
+	if (t->ol_num_doing != t->ol_num_done) {
+		CancelIo(t->entry_fh);
+		t->ol_num_doing = t->ol_num_done = 0;
+	}
+}
+
 static int
 _archive_read_data_block(struct archive *_a, const void **buff,
     size_t *size, int64_t *offset)
@@ -703,14 +712,11 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	return (ARCHIVE_OK);
 
 abort_read_data:
-	if (t->ol_num_doing != t->ol_num_done) {
-		CancelIo(t->entry_fh);
-		t->ol_num_doing = t->ol_num_done = 0;
-	}
 	*buff = NULL;
 	*size = 0;
 	*offset = t->entry_total;
 	if (t->entry_fh != INVALID_HANDLE_VALUE) {
+		cancel_async(t);
 		/* Close the current file descriptor */
 		close_and_restore_time(t->entry_fh, t, &t->restore_time);
 		t->entry_fh = INVALID_HANDLE_VALUE;
@@ -734,6 +740,7 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 
 	t = a->tree;
 	if (t->entry_fh != INVALID_HANDLE_VALUE) {
+		cancel_async(t);
 		close_and_restore_time(t->entry_fh, t, &t->restore_time);
 		t->entry_fh = INVALID_HANDLE_VALUE;
 	}
@@ -1902,6 +1909,7 @@ tree_close(struct tree *t)
 	if (t == NULL)
 		return;
 	if (t->entry_fh != INVALID_HANDLE_VALUE) {
+		cancel_async(t);
 		close_and_restore_time(t->entry_fh, t, &t->restore_time);
 		t->entry_fh = INVALID_HANDLE_VALUE;
 	}
