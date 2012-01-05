@@ -111,6 +111,7 @@ struct bsdtar {
 	struct name_cache	*gname_cache;	/* for write.c */
 	char			*buff;		/* for write.c */
 	size_t			 buff_size;	/* for write.c */
+	int			 first_fs;	/* for write.c */
 	struct lafe_matching	*matching;	/* for matching.c */
 	struct security		*security;	/* for read.c */
 	struct name_cache	*uname_cache;	/* for write.c */
