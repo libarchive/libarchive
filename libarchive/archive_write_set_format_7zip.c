@@ -199,7 +199,7 @@ struct _7zip {
 	/*
 	 * Compressed data buffer.
 	 */
-	unsigned char		 wbuff[1024 * 64];
+	unsigned char		 wbuff[512 * 20 * 6];
 	size_t			 wbuff_remaining;
 
 	/*

@@ -148,6 +148,7 @@ archive_compressor_compress_open(struct archive_write_filter *f)
 {
 	int ret;
 	struct private_data *state;
+	size_t bs = 65536, bpb;
 
 	f->code = ARCHIVE_COMPRESSION_COMPRESS;
 	f->name = "compress";
@@ -163,7 +164,16 @@ archive_compressor_compress_open(struct archive_write_filter *f)
 		return (ARCHIVE_FATAL);
 	}
 
-	state->compressed_buffer_size = 65536;
+	if (f->archive->magic == ARCHIVE_WRITE_MAGIC) {
+		/* Buffer size should be a multiple number of the of bytes
+		 * per block for performance. */
+		bpb = archive_write_get_bytes_per_block(f->archive);
+		if (bpb > bs)
+			bs = bpb;
+		else if (bpb != 0)
+			bs -= bs % bpb;
+	}
+	state->compressed_buffer_size = bs;
 	state->compressed = malloc(state->compressed_buffer_size);
 
 	if (state->compressed == NULL) {

@@ -380,7 +380,7 @@ archive_write_client_write(struct archive_write_filter *f,
 		}
 	}
 
-	while ((size_t)remaining > state->buffer_size) {
+	while ((size_t)remaining >= state->buffer_size) {
 		/* Write out full blocks directly to client. */
 		bytes_written = (a->client_writer)(&a->archive,
 		    a->client_data, buff, state->buffer_size);
