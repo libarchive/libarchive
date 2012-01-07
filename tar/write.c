@@ -435,6 +435,8 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 	/* Skip a file if it has nodump flag. */
 	if (bsdtar->option_honor_nodump)
 		archive_read_disk_honor_nodump(bsdtar->diskreader);
+	if (!bsdtar->enable_copyfile)
+		archive_read_disk_disable_mac_copyfile(bsdtar->diskreader);
 	archive_read_disk_set_standard_lookup(bsdtar->diskreader);
 
 	if (bsdtar->names_from_file != NULL)
@@ -718,20 +720,6 @@ name_filter(struct archive *a, void *_data, struct archive_entry *entry)
 	 */
 	if (lafe_excluded(bsdtar->matching, archive_entry_pathname(entry)))
 		return (0);
-
-#ifdef __APPLE__
-	if (bsdtar->enable_copyfile) {
-		/* If we're using copyfile(), ignore "._XXX" files. */
-		const char *bname = strrchr(
-			archive_entry_pathname(entry), '/');
-		if (bname == NULL)
-			bname = name;
-		else
-			++bname;
-		if (bname[0] == '.' && bname[1] == '_')
-			return (0);
-	}
-#endif
 	return (1);
 }
 
@@ -848,14 +836,6 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 			archive_entry_set_uname(entry, bsdtar->uname);
 		if (bsdtar->gname)
 			archive_entry_set_gname(entry, bsdtar->gname);
-
-#ifdef __APPLE__
-		if (!bsdtar->enable_copyfile) {
-			/* If we aren't using copyfile, drop the copyfile()
-			 * data. */
-			archive_entry_copy_mac_metadata(entry, NULL, 0);
-		}
-#endif
 
 		/*
 		 * Rewrite the pathname to be archived.  If rewrite

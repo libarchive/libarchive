@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2003-2009 Tim Kientzle
- * Copyright (c) 2010,2011 Michihiro NAKAJIMA
+ * Copyright (c) 2010-2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -443,15 +443,15 @@ archive_read_disk_new(void)
 {
 	struct archive_read_disk *a;
 
-	a = (struct archive_read_disk *)malloc(sizeof(*a));
+	a = (struct archive_read_disk *)calloc(1, sizeof(*a));
 	if (a == NULL)
 		return (NULL);
-	memset(a, 0, sizeof(*a));
 	a->archive.magic = ARCHIVE_READ_DISK_MAGIC;
 	a->archive.state = ARCHIVE_STATE_NEW;
 	a->archive.vtable = archive_read_disk_vtable();
 	a->lookup_uname = trivial_lookup_uname;
 	a->lookup_gname = trivial_lookup_gname;
+	a->enable_copyfile = 1;
 	a->entry_wd_fd = -1;
 	return (&a->archive);
 }
@@ -575,6 +575,16 @@ archive_read_disk_honor_nodump(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
 	    ARCHIVE_STATE_ANY, "archive_read_disk_honor_nodump");
 	a->honor_nodump = 1;
+	return (ARCHIVE_OK);
+}
+
+int
+archive_read_disk_disable_mac_copyfile(struct archive *_a)
+{
+	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
+	    ARCHIVE_STATE_ANY, "archive_read_disk_disable_mac_copyfile");
+	a->enable_copyfile = 0;
 	return (ARCHIVE_OK);
 }
 
@@ -886,6 +896,18 @@ next_entry:
 		}	
 	} while (lst == NULL);
 
+#ifdef __APPLE__
+	if (a->enable_copyfile) {
+		/* If we're using copyfile(), ignore "._XXX" files. */
+		const char *bname = strrchr(tree_current_path(t), '/');
+		if (bname == NULL)
+			bname = tree_current_path(t);
+		else
+			++bname;
+		if (bname[0] == '.' && bname[1] == '_')
+			goto next_entry;
+	}
+#endif
 	archive_entry_copy_pathname(entry, tree_current_path(t));
 	if (a->name_filter_func) {
 		if (!a->name_filter_func(_a, a->name_filter_data, entry))
@@ -1007,6 +1029,12 @@ next_entry:
 			archive_entry_clear(entry);
 			goto next_entry;
 		}
+	}
+#endif
+#ifdef __APPLE__
+	if (!a->enable_copyfile) {
+		/* If we aren't using copyfile, drop the copyfile() data. */
+		archive_entry_copy_mac_metadata(entry, NULL, 0);
 	}
 #endif
 

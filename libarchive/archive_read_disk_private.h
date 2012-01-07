@@ -61,6 +61,9 @@ struct archive_read_disk {
 	int		 restore_time;
 	/* Set 1 if users request to honor nodump flag . */
 	int		 honor_nodump;
+	/* Set 1 if users request to enable mac copyfile. */
+	int		 enable_copyfile;
+
 	int		 entry_wd_fd;
 
 	const char * (*lookup_gname)(void *private, int64_t gid);

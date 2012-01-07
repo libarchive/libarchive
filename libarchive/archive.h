@@ -765,6 +765,7 @@ __LA_DECL int	archive_read_disk_current_filesystem_is_remote(struct archive *);
 /* Request that the access time of the entry visited by travesal be restored. */
 __LA_DECL int  archive_read_disk_set_atime_restored(struct archive *);
 __LA_DECL int  archive_read_disk_honor_nodump(struct archive *);
+__LA_DECL int  archive_read_disk_disable_mac_copyfile(struct archive *);
 
 __LA_DECL int	archive_read_disk_set_name_filter_callback(struct archive *,
 		    int (*_name_filter_func)(struct archive *, void *,
