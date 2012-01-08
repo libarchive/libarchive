@@ -3250,8 +3250,8 @@ archive_string_normalize_C(struct archive_string *as, const void *_p,
 
 				/*
 				 * Remove ucx[i] by shifting
-				 * follwoing code points.
-				 */ 
+				 * following code points.
+				 */
 				for (j = i; j+1 < ucx_size; j++) {
 					ucx[j] = ucx[j+1];
 					ccx[j] = ccx[j+1];
@@ -3424,7 +3424,7 @@ archive_string_normalize_D(struct archive_string *as, const void *_p,
 
 return_no_changed_data:
 	/*
-	 * Something conversion error happend, so we return a no normalized
+	 * Something conversion error happened, so we return a no normalized
 	 * string with an error.
 	 */
 	(void)archive_string_append_unicode(as, _p, len, sc);
@@ -3434,8 +3434,8 @@ return_no_changed_data:
 #endif /* __APPLE__ */
 
 /*
- * libarchive 2.x made incorrect UTF-8 strings in the wrong assumuption
- * that WCS is Unicode. it is true for servel platforms but some are false.
+ * libarchive 2.x made incorrect UTF-8 strings in the wrong assumption
+ * that WCS is Unicode. It is true for several platforms but some are false.
  * And then people who did not use UTF-8 locale on the non Unicode WCS
  * platform and made a tar file with libarchive(mostly bsdtar) 2.x. Those
  * now cannot get right filename from libarchive 3.x and later since we

@@ -110,7 +110,7 @@ archive_entry_stat(struct archive_entry *entry)
 	/*
 	 * TODO: On Linux, store 32 or 64 here depending on whether
 	 * the cached stat structure is a stat32 or a stat64.  This
-	 * will allow us to support both variants interchangably.
+	 * will allow us to support both variants interchangeably.
 	 */
 	entry->stat_valid = 1;
 

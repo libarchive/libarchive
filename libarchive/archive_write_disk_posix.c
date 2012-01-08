@@ -1223,7 +1223,7 @@ create_filesystem_object(struct archive_write_disk *a)
 		 *
 		 * If the hardlink was successfully created and
 		 * the archive doesn't have carry data for it,
-		 * consider it to be non-authoritive for meta data.
+		 * consider it to be non-authoritative for meta data.
 		 * This is consistent with GNU tar and BSD pax.
 		 * If the hardlink does carry data, let the last
 		 * archive entry decide ownership.

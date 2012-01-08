@@ -400,7 +400,7 @@ archive_write_gnutar_header(struct archive_write *a,
 		size_t todo = gnutar->linkname_length;
 		struct archive_entry *temp = archive_entry_new2(&a->archive);
 
-		/* Uname/gname here don't really matter since noone reads them;
+		/* Uname/gname here don't really matter since no one reads them;
 		 * these are the values that GNU tar happens to use on FreeBSD. */
 		archive_entry_set_uname(temp, "root");
 		archive_entry_set_gname(temp, "wheel");
@@ -429,7 +429,7 @@ archive_write_gnutar_header(struct archive_write *a,
 		size_t todo = gnutar->pathname_length;
 		struct archive_entry *temp = archive_entry_new2(&a->archive);
 
-		/* Uname/gname here don't really matter since noone reads them;
+		/* Uname/gname here don't really matter since no one reads them;
 		 * these are the values that GNU tar happens to use on FreeBSD. */
 		archive_entry_set_uname(temp, "root");
 		archive_entry_set_gname(temp, "wheel");

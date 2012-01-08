@@ -2321,7 +2321,7 @@ gnu_sparse_10_read(struct archive_read *a, struct tar *tar, size_t *unconsumed)
 
 /*
  * Solaris pax extension for a sparse file. This is recorded with the
- * data and hole pairs. The way recording sparse infomation by Solaris'
+ * data and hole pairs. The way recording sparse information by Solaris'
  * pax simply indicates where data and sparse are, so the stored contents
  * consist of both data and hole.
  */

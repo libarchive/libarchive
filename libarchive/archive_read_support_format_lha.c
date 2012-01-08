@@ -696,7 +696,7 @@ archive_read_format_lha_read_header(struct archive_read *a,
 		archive_entry_set_symlink(entry, NULL);
 	archive_string_free(&linkname);
 	/*
-	 * When a header level is 0, there is a possibilty that
+	 * When a header level is 0, there is a possibility that
 	 * a pathname and a symlink has '\' character, a directory
 	 * separator in DOS/Windows. So we should convert it to '/'.
 	 */

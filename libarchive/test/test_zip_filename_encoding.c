@@ -64,7 +64,7 @@ test_zip_filename_encoding_UTF8(void)
 	archive_entry_free(entry);
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
-	/* A bit 11 of general purpos flag should be 0x08,
+	/* A bit 11 of general purpose flag should be 0x08,
 	 * which indicates the filename charset is UTF-8. */
 	assertEqualInt(0x08, buff[7]);
 	assertEqualMem(buff + 30, "\xD0\xBF\xD1\x80\xD0\xB8", 6);
@@ -87,13 +87,13 @@ test_zip_filename_encoding_UTF8(void)
 	archive_entry_free(entry);
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
-	/* A bit 11 of general purpos flag should be 0x08,
+	/* A bit 11 of general purpose flag should be 0x08,
 	 * which indicates the filename charset is UTF-8. */
 	assertEqualInt(0x08, buff[7]);
 	assertEqualMem(buff + 30, "\xD0\xBF\xD1\x80\xD0\xB8", 6);
 
 	/*
-	 * Verify that A bit 11 of general purpos flag is not set
+	 * Verify that A bit 11 of general purpose flag is not set
 	 * when ASCII filenames are stored.
 	 */
 	a = archive_write_new();
@@ -110,8 +110,8 @@ test_zip_filename_encoding_UTF8(void)
 	archive_entry_free(entry);
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
-	/* A bit 11 of general purpos flag should be 0,
-	 * which indicates the filename charset is unkown. */
+	/* A bit 11 of general purpose flag should be 0,
+	 * which indicates the filename charset is unknown. */
 	assertEqualInt(0, buff[7]);
 	assertEqualMem(buff + 30, "abcABC", 6);
 }
@@ -152,7 +152,7 @@ test_zip_filename_encoding_KOI8R(void)
 	archive_entry_free(entry);
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
-	/* A bit 11 of general purpos flag should be 0x08,
+	/* A bit 11 of general purpose flag should be 0x08,
 	 * which indicates the filename charset is UTF-8. */
 	assertEqualInt(0x08, buff[7]);
 	/* Above three characters in KOI8-R should translate to the following
@@ -176,15 +176,15 @@ test_zip_filename_encoding_KOI8R(void)
 	archive_entry_free(entry);
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
-	/* A bit 11 of general purpos flag should be 0,
-	 * which indicates the filename charset is unkown. */
+	/* A bit 11 of general purpose flag should be 0,
+	 * which indicates the filename charset is unknown. */
 	assertEqualInt(0, buff[7]);
 	/* Above three characters in KOI8-R should not translate to
 	 * any character-set. */
 	assertEqualMem(buff + 30, "\xD0\xD2\xC9", 3);
 
 	/*
-	 * Verify that A bit 11 of general purpos flag is not set
+	 * Verify that A bit 11 of general purpose flag is not set
 	 * when ASCII filenames are stored even if hdrcharset=UTF-8
 	 * is specified.
 	 */
@@ -208,8 +208,8 @@ test_zip_filename_encoding_KOI8R(void)
 	archive_entry_free(entry);
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
-	/* A bit 11 of general purpos flag should be 0,
-	 * which indicates the filename charset is unkown. */
+	/* A bit 11 of general purpose flag should be 0,
+	 * which indicates the filename charset is unknown. */
 	assertEqualInt(0, buff[7]);
 	assertEqualMem(buff + 30, "abcABC", 6);
 }
@@ -248,8 +248,8 @@ test_zip_filename_encoding_ru_RU_CP1251(void)
 	archive_entry_free(entry);
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
-	/* A bit 11 of general purpos flag should be 0,
-	 * which indicates the filename charset is unkown. */
+	/* A bit 11 of general purpose flag should be 0,
+	 * which indicates the filename charset is unknown. */
 	assertEqualInt(0, buff[7]);
 	/* Above three characters in CP1251 should not translate into
 	 * any other character-set. */
@@ -298,7 +298,7 @@ test_zip_filename_encoding_Russian_Russia(void)
 	archive_entry_free(entry);
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
-	/* A bit 11 of general purpos flag should be 0x08,
+	/* A bit 11 of general purpose flag should be 0x08,
 	 * which indicates the filename charset is UTF-8. */
 	assertEqualInt(0x08, buff[7]);
 	/* Above three characters in CP1251 should translate to the following
@@ -323,8 +323,8 @@ test_zip_filename_encoding_Russian_Russia(void)
 	archive_entry_free(entry);
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
-	/* A bit 11 of general purpos flag should be 0,
-	 * which indicates the filename charset is unkown. */
+	/* A bit 11 of general purpose flag should be 0,
+	 * which indicates the filename charset is unknown. */
 	assertEqualInt(0, buff[7]);
 	/* Above three characters in CP1251 should translate to the following
 	 * three characters in CP866. */
@@ -368,7 +368,7 @@ test_zip_filename_encoding_EUCJP(void)
 	archive_entry_free(entry);
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
-	/* A bit 11 of general purpos flag should be 0x08,
+	/* A bit 11 of general purpose flag should be 0x08,
 	 * which indicates the filename charset is UTF-8. */
 	assertEqualInt(0x08, buff[7]);
 	/* Check UTF-8 version. */
@@ -392,15 +392,15 @@ test_zip_filename_encoding_EUCJP(void)
 	archive_entry_free(entry);
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
-	/* A bit 11 of general purpos flag should be 0,
-	 * which indicates the filename charset is unkown. */
+	/* A bit 11 of general purpose flag should be 0,
+	 * which indicates the filename charset is unknown. */
 	assertEqualInt(0, buff[7]);
 	/* Above three characters in EUC-JP should not translate to
 	 * any character-set. */
 	assertEqualMem(buff + 30, "\xC9\xBD.txt", 6);
 
 	/*
-	 * Verify that A bit 11 of general purpos flag is not set
+	 * Verify that A bit 11 of general purpose flag is not set
 	 * when ASCII filenames are stored even if hdrcharset=UTF-8
 	 * is specified.
 	 */
@@ -425,8 +425,8 @@ test_zip_filename_encoding_EUCJP(void)
 	archive_entry_free(entry);
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
-	/* A bit 11 of general purpos flag should be 0,
-	 * which indicates the filename charset is unkown. */
+	/* A bit 11 of general purpose flag should be 0,
+	 * which indicates the filename charset is unknown. */
 	assertEqualInt(0, buff[7]);
 	assertEqualMem(buff + 30, "abcABC", 6);
 }
@@ -469,7 +469,7 @@ test_zip_filename_encoding_CP932(void)
 	archive_entry_free(entry);
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
-	/* A bit 11 of general purpos flag should be 0x08,
+	/* A bit 11 of general purpose flag should be 0x08,
 	 * which indicates the filename charset is UTF-8. */
 	assertEqualInt(0x08, buff[7]);
 	/* Check UTF-8 version. */
@@ -493,15 +493,15 @@ test_zip_filename_encoding_CP932(void)
 	archive_entry_free(entry);
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
-	/* A bit 11 of general purpos flag should be 0,
-	 * which indicates the filename charset is unkown. */
+	/* A bit 11 of general purpose flag should be 0,
+	 * which indicates the filename charset is unknown. */
 	assertEqualInt(0, buff[7]);
 	/* Above three characters in CP932/SJIS should not translate to
 	 * any character-set. */
 	assertEqualMem(buff + 30, "\x95\x5C.txt", 6);
 
 	/*
-	 * Verify that A bit 11 of general purpos flag is not set
+	 * Verify that A bit 11 of general purpose flag is not set
 	 * when ASCII filenames are stored even if hdrcharset=UTF-8
 	 * is specified.
 	 */
@@ -526,8 +526,8 @@ test_zip_filename_encoding_CP932(void)
 	archive_entry_free(entry);
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
-	/* A bit 11 of general purpos flag should be 0,
-	 * which indicates the filename charset is unkown. */
+	/* A bit 11 of general purpose flag should be 0,
+	 * which indicates the filename charset is unknown. */
 	assertEqualInt(0, buff[7]);
 	assertEqualMem(buff + 30, "abcABC", 6);
 }
