@@ -377,13 +377,13 @@ __archive_rb_tree_swap_prune_and_rebalance(struct archive_rb_tree *rbt,
 
 	if (standin_father == self) {
 		/*
-		 * As a child of self, any childen would be opposite of
+		 * As a child of self, any children would be opposite of
 		 * our parent.
 		 */
 		standin_son = standin->rb_nodes[standin_which];
 	} else {
 		/*
-		 * Since we aren't a child of self, any childen would be
+		 * Since we aren't a child of self, any children would be
 		 * on the same side as our parent.
 		 */
 		standin_son = standin->rb_nodes[standin_other];
@@ -410,7 +410,7 @@ __archive_rb_tree_swap_prune_and_rebalance(struct archive_rb_tree *rbt,
 		/*
 		 * If we are about to delete the standin's father, then when
 		 * we call rebalance, we need to use ourselves as our father.
-		 * Otherwise remember our original father.  Also, sincef we are
+		 * Otherwise remember our original father.  Also, since we are
 		 * our standin's father we only need to reparent the standin's
 		 * brother.
 		 *
@@ -466,7 +466,7 @@ __archive_rb_tree_swap_prune_and_rebalance(struct archive_rb_tree *rbt,
  *	__archive_rb_tree_node_swap(rbt, self, which);
  *	__archive_rb_tree_prune_node(rbt, self, F);
  *
- * But it's more efficient to just evalate and recolor the child.
+ * But it's more efficient to just evaluate and recolor the child.
  */
 static void
 __archive_rb_tree_prune_blackred_branch(
@@ -505,7 +505,7 @@ __archive_rb_tree_remove_node(struct archive_rb_tree *rbt,
 	 * red-black tree.  So if we must remove a node, attempt to rearrange
 	 * the tree so we can remove a red node.
 	 *
-	 * The simpliest case is a childless red node or a childless root node:
+	 * The simplest case is a childless red node or a childless root node:
 	 *
 	 * |    T  -->    T  |    or    |  R  -->  *  |
 	 * |  s    -->  *    |
@@ -517,7 +517,7 @@ __archive_rb_tree_remove_node(struct archive_rb_tree *rbt,
 	}
 	if (!RB_TWOCHILDREN_P(self)) {
 		/*
-		 * The next simpliest case is the node we are deleting is
+		 * The next simplest case is the node we are deleting is
 		 * black and has one red child.
 		 *
 		 * |      T  -->      T  -->      T  |

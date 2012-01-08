@@ -42,7 +42,7 @@ And following works are:
 5. Then you will see that there is a cabinet file, test.cab
 6. Move test.cab to posix platform
 7. Extract test.cab with this version of bsdtar
-8. Excecute the following command to make uuencoded files.
+8. Execute the following command to make uuencoded files.
  uuencode test_read_format_cab_1.cab test_read_format_cab_1.cab > test_read_format_cab_1.cab.uu
  uuencode test_read_format_cab_2.cab test_read_format_cab_2.cab > test_read_format_cab_2.cab.uu
  uuencode test_read_format_cab_3.cab test_read_format_cab_3.cab > test_read_format_cab_3.cab.uu

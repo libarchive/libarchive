@@ -56,7 +56,7 @@ DEFINE_TEST(test_0)
 	}
 
 	/*
-	 * Try to succesfully run the program; this requires that
+	 * Try to successfully run the program; this requires that
 	 * we know some option that will succeed.
 	 */
 	if (0 == systemf("%s --version >" DEV_NULL, testprog)) {

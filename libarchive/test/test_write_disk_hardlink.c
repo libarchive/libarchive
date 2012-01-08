@@ -37,8 +37,8 @@ __FBSDID("$FreeBSD: head/lib/libarchive/test/test_write_disk_hardlink.c 201247 2
 /*
  * Exercise hardlink recreation.
  *
- * File permissions are chosen so that the authoritive entry
- * has the correct permission and the non-authoritive versions
+ * File permissions are chosen so that the authoritative entry
+ * has the correct permission and the non-authoritative versions
  * are just writeable files.
  */
 DEFINE_TEST(test_write_disk_hardlink)
@@ -181,7 +181,7 @@ DEFINE_TEST(test_write_disk_hardlink)
 	/* Test #1 */
 	/* If the hardlink was successfully created and the archive
 	 * doesn't carry data for it, we consider it to be
-	 * non-authoritive for meta data as well.  This is consistent
+	 * non-authoritative for meta data as well.  This is consistent
 	 * with GNU tar and BSD pax.  */
 	assertIsReg("link1a", 0755 & ~UMASK);
 	assertFileSize("link1a", sizeof(data));

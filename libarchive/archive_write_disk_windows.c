@@ -610,7 +610,7 @@ lazy_stat(struct archive_write_disk *a)
 
 	/*
 	 * XXX At this point, symlinks should not be hit, otherwise
-	 * XXX a race occured.  Do we want to check explicitly for that?
+	 * XXX a race occurred.  Do we want to check explicitly for that?
 	 */
 	if (file_information(a, a->name, &a->st, NULL, 1) == 0) {
 		a->pst = &a->st;
@@ -1520,7 +1520,7 @@ create_filesystem_object(struct archive_write_disk *a)
 		 *
 		 * If the hardlink was successfully created and
 		 * the archive doesn't have carry data for it,
-		 * consider it to be non-authoritive for meta data.
+		 * consider it to be non-authoritative for meta data.
 		 * This is consistent with GNU tar and BSD pax.
 		 * If the hardlink does carry data, let the last
 		 * archive entry decide ownership.

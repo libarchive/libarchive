@@ -136,7 +136,7 @@
 #define MAX_SYMBOLS       20
 
 /*
- * Considering L1,L2 cache miss and a calling of write sytem-call,
+ * Considering L1,L2 cache miss and a calling of write system-call,
  * the best size of the output buffer(uncompressed buffer) is 128K.
  * If the structure of extracting process is changed, this value
  * might be researched again.

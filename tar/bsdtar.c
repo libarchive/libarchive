@@ -337,8 +337,8 @@ main(int argc, char **argv)
 			break;
 		case OPTION_INCLUDE:
 			/*
-			 * Noone else has the @archive extension, so
-			 * noone else needs this to filter entries
+			 * No one else has the @archive extension, so
+			 * no one else needs this to filter entries
 			 * when transforming archives.
 			 */
 			if (lafe_include(&bsdtar->matching, bsdtar->argument))

@@ -1,4 +1,4 @@
-ODP: [Bug-tar] GNU tar, star and BSD tar speed comparision +new script
+ODP: [Bug-tar] GNU tar, star and BSD tar speed comparison +new script
 
 Jan Psota
 Thu, 25 Oct 2007 06:51:13 -0700

@@ -136,7 +136,7 @@ __la_win_permissive_name_w(const wchar_t *wname)
 	if (l == 0)
 		return (NULL);
 	/* NOTE: GetFullPathNameW has a bug that if the length of the file
-	 * name is just one that return imcomplete buffer size. Thus, we 
+	 * name is just 1 then it returns incomplete buffer size. Thus, we
 	 * have to add three to the size to allocate a sufficient buffer
 	 * size for the full-pathname of the file name. */
 	l += 3;

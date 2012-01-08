@@ -1852,7 +1852,7 @@ iso9660_close(struct archive_write *a)
 	iso9660 = a->format_data;
 
 	/*
-	 * Write remaining data out to the temprary file.
+	 * Write remaining data out to the temporary file.
 	 */
 	if (wb_remaining(a) > 0) {
 		ret = wb_write_out(a);
@@ -1881,7 +1881,7 @@ iso9660_close(struct archive_write *a)
 		ret = zisofs_rewind_boot_file(a);
 		if (ret < 0)
 			return (ret);
-		/* Write remaining data out to the temprary file. */
+		/* Write remaining data out to the temporary file. */
 		if (wb_remaining(a) > 0) {
 			ret = wb_write_out(a);
 			if (ret < 0)
@@ -6280,7 +6280,7 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 		}
 
 		/* Make an offset of the number which is used to be set
-		 * hexadecimal number to avoid duplicate identififier. */
+		 * hexadecimal number to avoid duplicate identifier. */
 		if ((int)l == ffmax)
 			noff = ext_off - 6;
 		else if ((int)l == ffmax-2)
@@ -6300,7 +6300,7 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 }
 
 /*
- * This comparing rule is acording to ISO9660 Standard 9.3
+ * This comparing rule is according to ISO9660 Standard 9.3
  */
 static int
 isoent_cmp_iso9660_identifier(const struct isoent *p1, const struct isoent *p2)

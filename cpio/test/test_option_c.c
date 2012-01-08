@@ -191,7 +191,7 @@ DEFINE_TEST(test_option_c)
 	/* Group members bits and others bits do not work. */
 	assertEqualMem(e + 18, "040777", 6); /* Mode */
 #else
-	/* Accept 042775 to accomodate systems where sgid bit propagates. */
+	/* Accept 042775 to accommodate systems where sgid bit propagates. */
 	if (memcmp(e + 18, "042775", 6) != 0)
 		assertEqualMem(e + 18, "040775", 6); /* Mode */
 #endif

@@ -318,7 +318,7 @@ struct _7zip {
 	uint32_t		 bcj2_code;
 	uint64_t		 bcj2_outPos;
 
-	/* Filename character-set convertion data. */
+	/* Filename character-set conversion data. */
 	struct archive_string_conv *sconv;
 
 	char			 format_name[64];

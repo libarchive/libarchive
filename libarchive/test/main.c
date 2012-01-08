@@ -268,7 +268,7 @@ failure(const char *fmt, ...)
  * pass __FILE__, __LINE__ directly into the function instead of using
  * this hook.  I suspect this machinery is used so rarely that we
  * would be better off just removing it entirely.  That would simplify
- * the code here noticably.
+ * the code here noticeably.
  */
 static const char *skipping_filename;
 static int skipping_line;

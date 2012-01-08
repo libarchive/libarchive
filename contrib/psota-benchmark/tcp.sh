@@ -1,9 +1,9 @@
 #!/bin/sh
-# tar comparision program
+# tar comparison program
 # 2007-10-25 Jan Psota
 
 n=3                                     # number of repetitions
-TAR="bsdtar gnutar star"                # TApeArchivers to compare
+TAR="bsdtar gnutar star"                # Tape archivers to compare
 OPT=("" "--seek" "-no-fsync")
 pax="--format=pax"                      # comment out for defaults
 OPN=(create list extract compare)       # operations
@@ -16,9 +16,9 @@ test $# -ge 2 || {
 [where_to_extract_it]
 
 TCP, version $version
-TCP stands for Tar Comparision Program here.
+TCP stands for Tar Comparison Program here.
 It currently compares: BSD tar (bsdtar), GNU tar (gnutar) and star in archive
-creation, listing, extraction and archive-to-extracted comparision.
+creation, listing, extraction and archive-to-extracted comparison.
 Tcp prints out best time of n=$n repetitions.
 
 Tcp creates temporary archive named tcp.tar with $pax and some native
