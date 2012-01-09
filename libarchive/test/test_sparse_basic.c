@@ -183,14 +183,16 @@ is_sparse_supported(const char *path)
 	d = strtol(p, &e, 10);
 	if (d < 2 || *e != '.')
 		return (0);
-	p = e + 1;
-	d = strtol(p, &e, 10);
-	if (d < 6 || *e != '.')
-		return (0);
-	p = e + 1;
-	d = strtol(p, NULL, 10);
-	if (d < 28)
-		return (0);
+	if (d == 2) {
+		p = e + 1;
+		d = strtol(p, &e, 10);
+		if (d < 6 || *e != '.')
+			return (0);
+		p = e + 1;
+		d = strtol(p, NULL, 10);
+		if (d < 28)
+			return (0);
+	}
 	create_sparse_file(testfile, sparse_file);
 	fd = open(testfile,  O_RDWR);
 	if (fd < 0)
