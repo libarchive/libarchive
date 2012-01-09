@@ -1647,7 +1647,7 @@ archive_write_pax_data(struct archive_write *a, const void *buff, size_t s)
 			return (total);
 
 		p = ((const unsigned char *)buff) + total;
-		ws = s;
+		ws = s - total;
 		if (ws > pax->sparse_list->remaining)
 			ws = pax->sparse_list->remaining;
 
