@@ -650,8 +650,8 @@ copy_file_data_block(struct bsdtar *bsdtar, struct archive *a,
 		if (need_report())
 			report_write(bsdtar, a, entry, progress);
 
-		if (offset < progress) {
-			int64_t sparse = progress - offset;
+		if (offset > progress) {
+			int64_t sparse = offset - progress;
 			size_t ns;
 
 			if (null_buff == NULL) {
