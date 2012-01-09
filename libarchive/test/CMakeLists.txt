@@ -166,6 +166,7 @@ IF(ENABLE_TEST)
     test_write_format_shar_empty.c
     test_write_format_tar.c
     test_write_format_tar_empty.c
+    test_write_format_tar_sparse.c
     test_write_format_tar_ustar.c
     test_write_format_xar.c
     test_write_format_xar_empty.c
