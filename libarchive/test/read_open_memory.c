@@ -137,7 +137,7 @@ static ssize_t
 memory_read(struct archive *a, void *client_data, const void **buff)
 {
 	struct read_memory_data *mine = (struct read_memory_data *)client_data;
-	size_t size;
+	ssize_t size;
 
 	(void)a; /* UNUSED */
 	size = mine->end - mine->p;
@@ -145,7 +145,7 @@ memory_read(struct archive *a, void *client_data, const void **buff)
 		buff = NULL;
 		return 0;
 	}
-	if (size > mine->read_size)
+	if ((size_t)size > mine->read_size)
 		size = mine->read_size;
 	else
 		memset(mine->copy_buff, 0xA5, mine->copy_buff_size);
