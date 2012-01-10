@@ -1596,7 +1596,8 @@ archive_write_pax_finish_entry(struct archive_write *a)
 	if (remaining == 0) {
 		while (pax->sparse_list) {
 			struct sparse_block *sb;
-			remaining += pax->sparse_list->remaining;
+			if (!pax->sparse_list->is_hole)
+				remaining += pax->sparse_list->remaining;
 			sb = pax->sparse_list->next;
 			free(pax->sparse_list);
 			pax->sparse_list = sb;
@@ -1647,7 +1648,7 @@ archive_write_pax_data(struct archive_write *a, const void *buff, size_t s)
 			return (total);
 
 		p = ((const unsigned char *)buff) + total;
-		ws = s;
+		ws = s - total;
 		if (ws > pax->sparse_list->remaining)
 			ws = pax->sparse_list->remaining;
 
