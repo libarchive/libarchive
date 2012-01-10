@@ -25,11 +25,58 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_SYS_PARAM_H
+#include <sys/param.h>
+#endif
+#ifdef HAVE_SYS_MOUNT_H
+#include <sys/mount.h>
+#endif
+#ifdef HAVE_SYS_STATFS_H
+#include <sys/statfs.h>
+#endif
+#ifdef HAVE_SYS_STATVFS_H
+#include <sys/statvfs.h>
+#endif
 #include <limits.h>
 #if defined(_WIN32) && !defined(__CYGWIN__)
 # if !defined(__BORLANDC__)
 #  define getcwd _getcwd
 # endif
+#endif
+
+/*
+ * Test if the current filesytem can restore atime.
+ */
+#if defined(HAVE_STATVFS) && defined(ST_NOATIME)
+static int
+canRestoreAtime(void)
+{
+	struct statvfs sfs;
+	int r;
+
+	r = statvfs(".", &sfs);
+	if (r != 0)
+		return (1);
+	return (sfs.f_flag & ST_NOATIME)?0:1;
+}
+#elif defined(HAVE_STATFS) && defined(MNT_NOATIME)
+static int
+canRestoreAtime(void)
+{
+	struct statfs sfs;
+	int r;
+
+	r = statfs(".", &sfs);
+	if (r != 0)
+		return (1);
+	return (sfs.f_flags & MNT_NOATIME)?0:1;
+}
+#else
+static int
+canRestoreAtime(void)
+{
+	return (1);
+}
 #endif
 
 static void
@@ -1000,6 +1047,11 @@ test_restore_atime(void)
 	size_t size;
 	int64_t offset;
 	int file_count;
+
+	if (!canRestoreAtime()) {
+		skipping("Can't test restoring atime on this filesystem");
+		return;
+	}
 
 	assertMakeDir("at", 0755);
 	assertMakeFile("at/f1", 0644, "0123456789");
