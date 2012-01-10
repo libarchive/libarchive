@@ -46,6 +46,10 @@ __FBSDID("$FreeBSD$");
 #include <zlib.h>
 #endif
 
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
+
 #include "archive.h"
 #include "archive_crypto_private.h"
 #include "archive_endian.h"
