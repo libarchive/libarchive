@@ -25,18 +25,6 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef HAVE_SYS_PARAM_H
-#include <sys/param.h>
-#endif
-#ifdef HAVE_SYS_MOUNT_H
-#include <sys/mount.h>
-#endif
-#ifdef HAVE_SYS_STATFS_H
-#include <sys/statfs.h>
-#endif
-#ifdef HAVE_SYS_STATVFS_H
-#include <sys/statvfs.h>
-#endif
 #include <limits.h>
 #if defined(_WIN32) && !defined(__CYGWIN__)
 # if !defined(__BORLANDC__)
@@ -45,39 +33,28 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /*
- * Test if the current filesytem can restore atime.
+ * Test if the current filesytem is mounted with noatime option.
  */
-#if defined(HAVE_STATVFS) && defined(ST_NOATIME)
 static int
-canRestoreAtime(void)
+atimeIsUpdated(void)
 {
-	struct statvfs sfs;
-	int r;
+	const char *fn = "fs_noatime";
+	struct stat st;
 
-	r = statvfs(".", &sfs);
-	if (r != 0)
+	if (!assertMakeFile(fn, 0666, "a"))
+		return (0);
+	if (!assertUtimes(fn, 1, 0, 1, 0))
+		return (0);
+	/* Test the file contents in order to update its atime. */
+	if (!assertTextFileContents("a", fn))
+		return (0);
+	if (stat(fn, &st) != 0)
+		return (0);
+	/* Is atime updated? */
+	if (st.st_atime > 1)
 		return (1);
-	return (sfs.f_flag & ST_NOATIME)?0:1;
+	return (0);
 }
-#elif defined(HAVE_STATFS) && defined(MNT_NOATIME)
-static int
-canRestoreAtime(void)
-{
-	struct statfs sfs;
-	int r;
-
-	r = statfs(".", &sfs);
-	if (r != 0)
-		return (1);
-	return (sfs.f_flags & MNT_NOATIME)?0:1;
-}
-#else
-static int
-canRestoreAtime(void)
-{
-	return (1);
-}
-#endif
 
 static void
 test_basic(void)
@@ -1048,7 +1025,7 @@ test_restore_atime(void)
 	int64_t offset;
 	int file_count;
 
-	if (!canRestoreAtime()) {
+	if (!atimeIsUpdated()) {
 		skipping("Can't test restoring atime on this filesystem");
 		return;
 	}
