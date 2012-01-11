@@ -1823,9 +1823,12 @@ read_Folder(struct archive_read *a, struct _7z_folder *f)
 	f->numBindPairs = numOutStreamsTotal - 1;
 	if (zip->header_bytes_remaining < f->numBindPairs)
 			return (-1);
-	f->bindPairs = calloc(f->numBindPairs, sizeof(*f->bindPairs));
-	if (f->bindPairs == NULL)
-		return (-1);
+	if (f->numBindPairs > 0) {
+		f->bindPairs = calloc(f->numBindPairs, sizeof(*f->bindPairs));
+		if (f->bindPairs == NULL)
+			return (-1);
+	} else
+		f->bindPairs = NULL;
 	for (i = 0; i < f->numBindPairs; i++) {
 		if (parse_7zip_uint64(a, &(f->bindPairs[i].inIndex)) < 0)
 			return (-1);
@@ -2318,6 +2321,12 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 			}
 			break;
 		case kEmptyFile:
+			if (empty_streams <= 0) {
+				/* Unexcepted sequence. Skip this. */
+				if (header_bytes(a, ll) == NULL)
+					return (-1);
+				break;
+			}
 			h->emptyFileBools = calloc(empty_streams,
 			    sizeof(*h->emptyFileBools));
 			if (h->emptyFileBools == NULL)
@@ -2326,6 +2335,12 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 				return (-1);
 			break;
 		case kAnti:
+			if (empty_streams <= 0) {
+				/* Unexcepted sequence. Skip this. */
+				if (header_bytes(a, ll) == NULL)
+					return (-1);
+				break;
+			}
 			h->antiBools = calloc(empty_streams,
 			    sizeof(*h->antiBools));
 			if (h->antiBools == NULL)
