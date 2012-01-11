@@ -364,6 +364,12 @@ AC_CHECK_MEMBERS([struct statfs.f_namemax],,,
 #include <sys/mount.h>
 ])
 
+# Check for f_iosize in struct statvfs
+AC_CHECK_MEMBERS([struct statvfs.f_iosize],,,
+[
+#include <sys/statvfs.h>
+])
+
 # Check for birthtime in struct stat
 AC_CHECK_MEMBERS([struct stat.st_birthtime])
 
