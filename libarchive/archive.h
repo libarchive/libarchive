@@ -56,23 +56,14 @@
 # else
 #  define	__LA_SSIZE_T	long
 # endif
-# if defined(__BORLANDC__)
-#  define	__LA_UID_T	uid_t
-#  define	__LA_GID_T	gid_t
-# else
-#  define	__LA_UID_T	short
-#  define	__LA_GID_T	short
-# endif
 #else
-# include <unistd.h>  /* ssize_t, uid_t, and gid_t */
+# include <unistd.h>  /* ssize_t */
 # if defined(_SCO_DS)
 #  define	__LA_INT64_T	long long
 # else
 #  define	__LA_INT64_T	int64_t
 # endif
 # define	__LA_SSIZE_T	ssize_t
-# define	__LA_UID_T	uid_t
-# define	__LA_GID_T	gid_t
 #endif
 
 /*
@@ -818,8 +809,6 @@ __LA_DECL int		 archive_file_count(struct archive *);
 
 /* These are meaningless outside of this header. */
 #undef __LA_DECL
-#undef __LA_GID_T
-#undef __LA_UID_T
 
 /* These need to remain defined because they're used in the
  * callback type definitions.  XXX Fix this.  This is ugly. XXX */
