@@ -1,3 +1,15 @@
+Jan 10, 2012: Issue 223: Skip atime tests if atime not supported
+Jan 09, 2012: Issue 222: Errors saving sparse files to pax archives
+Jan 09, 2012: Issue 221: allow archive_*_free(NULL)
+Dec 31, 2011: Issue 212: configure script on Solaris
+Dec 30, 2011: Issue 218: empty contents extracting Zip files with bsdcpio
+Dec 30, 2011: Issue 217: fix compile warning
+Dec 30, 2011: Issue 216: truncated filenames in listings
+Dec 28, 2011: Issue 210: memory leak on Windows
+Dec 28, 2011: Issue 206: fix hardlink tests on Windows 2000
+Dec 27, 2011: Issue 208: Don't hang when using external compression
+   program on Windows
+
 Dec 24, 2011: libarchive 3.0.2 released
 Dec 23, 2011: Various fixes merged from FreeBSD
 Dec 23, 2011: Symlink support in Zip reader and writer
