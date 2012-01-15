@@ -958,16 +958,6 @@ next_entry:
 	}
 	t->descend = descend;
 
-	archive_entry_copy_stat(entry, st);
-	archive_entry_copy_sourcepath(entry, tree_current_access_path(t));
-	/* Save the times to be restored. */
-	t->restore_time.mtime = archive_entry_mtime(entry);
-	t->restore_time.mtime_nsec = archive_entry_mtime_nsec(entry);
-	t->restore_time.atime = archive_entry_atime(entry);
-	t->restore_time.atime_nsec = archive_entry_atime_nsec(entry);
-	t->restore_time.filetype = archive_entry_filetype(entry);
-	t->restore_time.noatime = t->current_filesystem->noatime;
-
 	/*
 	 * Honor nodump flag.
 	 * If the file is marked with nodump flag, do not return this entry.
@@ -996,8 +986,7 @@ next_entry:
 			if (fd >= 0) {
 				r = ioctl(fd, EXT2_IOC_GETFLAGS, &stflags);
 				if (r == 0 && (stflags & EXT2_NODUMP_FL) != 0) {
-					close_and_restore_time(fd, t,
-					    &t->restore_time);
+					close(fd);
 					archive_entry_clear(entry);
 					goto next_entry;
 				}
@@ -1005,6 +994,17 @@ next_entry:
 		}
 #endif
 	}
+
+	archive_entry_copy_stat(entry, st);
+	/* Save the times to be restored. This must be in before
+	 * calling archive_read_disk_descend() or any chance of it,
+	 * especially, invokng a callback. */
+	t->restore_time.mtime = archive_entry_mtime(entry);
+	t->restore_time.mtime_nsec = archive_entry_mtime_nsec(entry);
+	t->restore_time.atime = archive_entry_atime(entry);
+	t->restore_time.atime_nsec = archive_entry_atime_nsec(entry);
+	t->restore_time.filetype = archive_entry_filetype(entry);
+	t->restore_time.noatime = t->current_filesystem->noatime;
 
 	/* Lookup uname/gname */
 	name = archive_read_disk_uname(_a, archive_entry_uid(entry));
@@ -1024,6 +1024,8 @@ next_entry:
 			goto next_entry;
 		}
 	}
+
+	archive_entry_copy_sourcepath(entry, tree_current_access_path(t));
 
 #if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_FDOPENDIR)
 	/*
