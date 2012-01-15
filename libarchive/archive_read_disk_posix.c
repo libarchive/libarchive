@@ -842,7 +842,7 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	const struct stat *st; /* info to use for this entry */
 	const struct stat *lst;/* lstat() information */
 	const char *name;
-	int descend, fd = -1, r;
+	int descend, fd, r;
 
 	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
 	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
@@ -909,6 +909,10 @@ next_entry:
 	}
 #endif
 	archive_entry_copy_pathname(entry, tree_current_path(t));
+
+	/*
+	 * Invoke a name filter callback.
+	 */
 	if (a->name_filter_func) {
 		if (!a->name_filter_func(_a, a->name_filter_data, entry))
 			goto next_entry;
@@ -955,33 +959,7 @@ next_entry:
 	t->descend = descend;
 
 	archive_entry_copy_stat(entry, st);
-	/* Lookup uname/gname */
-	name = archive_read_disk_uname(_a, archive_entry_uid(entry));
-	if (name != NULL)
-		archive_entry_copy_uname(entry, name);
-	name = archive_read_disk_gname(_a, archive_entry_gid(entry));
-	if (name != NULL)
-		archive_entry_copy_gname(entry, name);
-	/* Invoke a filter callback. */
-	if (a->metadata_filter_func) {
-		if (!a->metadata_filter_func(_a,
-		    a->metadata_filter_data, entry)) {
-			archive_entry_clear(entry);
-			goto next_entry;
-		}
-	}
-
-#if defined(HAVE_STRUCT_STAT_ST_FLAGS) && defined(UF_NODUMP)
-	if (a->honor_nodump) {
-		if (st->st_flags & UF_NODUMP) {
-			archive_entry_clear(entry);
-			goto next_entry;
-		}
-	}
-#endif
-
 	archive_entry_copy_sourcepath(entry, tree_current_access_path(t));
-
 	/* Save the times to be restored. */
 	t->restore_time.mtime = archive_entry_mtime(entry);
 	t->restore_time.mtime_nsec = archive_entry_mtime_nsec(entry);
@@ -990,13 +968,71 @@ next_entry:
 	t->restore_time.filetype = archive_entry_filetype(entry);
 	t->restore_time.noatime = t->current_filesystem->noatime;
 
+	/*
+	 * Honor nodump flag.
+	 * If the file is marked with nodump flag, do not return this entry.
+	 */
+	fd = -1;
+	if (a->honor_nodump) {
+#if defined(HAVE_STRUCT_STAT_ST_FLAGS) && defined(UF_NODUMP)
+		if (st->st_flags & UF_NODUMP) {
+			archive_entry_clear(entry);
+			goto next_entry;
+		}
+#elif defined(EXT2_IOC_GETFLAGS) && defined(EXT2_NODUMP_FL) &&\
+      defined(HAVE_WORKING_EXT2_IOC_GETFLAGS)
+		if (S_ISREG(st->st_mode) || S_ISDIR(st->st_mode)) {
+			unsigned long stflags;
+
+#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_FDOPENDIR)
+			fd = openat(tree_current_dir_fd(t),
+			    tree_current_access_path(t), O_RDONLY | O_NONBLOCK);
+#else
+			tree_enter_working_dir(t);
+			fd = open(tree_current_access_path(t),
+			    O_RDONLY | O_NONBLOCK);
+			
+#endif
+			if (fd >= 0) {
+				r = ioctl(fd, EXT2_IOC_GETFLAGS, &stflags);
+				if (r == 0 && (stflags & EXT2_NODUMP_FL) != 0) {
+					close_and_restore_time(fd, t,
+					    &t->restore_time);
+					archive_entry_clear(entry);
+					goto next_entry;
+				}
+			}
+		}
+#endif
+	}
+
+	/* Lookup uname/gname */
+	name = archive_read_disk_uname(_a, archive_entry_uid(entry));
+	if (name != NULL)
+		archive_entry_copy_uname(entry, name);
+	name = archive_read_disk_gname(_a, archive_entry_gid(entry));
+	if (name != NULL)
+		archive_entry_copy_gname(entry, name);
+
+	/*
+	 * Invoke a meta data filter callback.
+	 */
+	if (a->metadata_filter_func) {
+		if (!a->metadata_filter_func(_a,
+		    a->metadata_filter_data, entry)) {
+			archive_entry_clear(entry);
+			goto next_entry;
+		}
+	}
+
 #if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_FDOPENDIR)
 	/*
 	 * Open the current file to freely gather its metadata anywhere in
 	 * working directory.
 	 * Note: A symbolic link file cannot be opened with O_NOFOLLOW.
 	 */
-	if (a->follow_symlinks || archive_entry_filetype(entry) != AE_IFLNK)
+	if (fd < 0 &&
+	    (a->follow_symlinks || archive_entry_filetype(entry) != AE_IFLNK))
 		fd = openat(tree_current_dir_fd(t), tree_current_access_path(t),
 		    O_RDONLY | O_NONBLOCK);
 	/* Restore working directory if openat() operation failed or
@@ -1020,17 +1056,6 @@ next_entry:
 	if (fd >= 0)
 		close(fd);
 
-#if defined(EXT2_IOC_GETFLAGS) && defined(EXT2_NODUMP_FL) && defined(HAVE_WORKING_EXT2_IOC_GETFLAGS)
-	/* Linux uses ioctl to read flags. */
-	if (r == ARCHIVE_OK && a->honor_nodump) {
-		unsigned long flags, clear;
-		archive_entry_fflags(entry, &flags, &clear);
-		if (flags & EXT2_NODUMP_FL) {
-			archive_entry_clear(entry);
-			goto next_entry;
-		}
-	}
-#endif
 #ifdef __APPLE__
 	if (!a->enable_copyfile) {
 		/* If we aren't using copyfile, drop the copyfile() data. */
