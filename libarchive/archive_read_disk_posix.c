@@ -1058,13 +1058,6 @@ next_entry:
 	if (fd >= 0)
 		close(fd);
 
-#ifdef __APPLE__
-	if (!a->enable_copyfile) {
-		/* If we aren't using copyfile, drop the copyfile() data. */
-		archive_entry_copy_mac_metadata(entry, NULL, 0);
-	}
-#endif
-
 	/* Return to the initial directory. */
 	tree_enter_initial_dir(t);
 	archive_entry_copy_sourcepath(entry, tree_current_path(t));

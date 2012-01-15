@@ -235,9 +235,11 @@ archive_read_disk_entry_from_file(struct archive *_a,
 	r1 = setup_xattrs(a, entry, fd);
 	if (r1 < r)
 		r = r1;
-	r1 = setup_mac_metadata(a, entry, fd);
-	if (r1 < r)
-		r = r1;
+	if (a->enable_copyfile) {
+		r1 = setup_mac_metadata(a, entry, fd);
+		if (r1 < r)
+			r = r1;
+	}
 	r1 = setup_sparse(a, entry, fd);
 	if (r1 < r)
 		r = r1;
