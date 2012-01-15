@@ -1025,16 +1025,13 @@ next_entry:
 		}
 	}
 
-	archive_entry_copy_sourcepath(entry, tree_current_access_path(t));
-
 #if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_FDOPENDIR)
 	/*
 	 * Open the current file to freely gather its metadata anywhere in
 	 * working directory.
 	 * Note: A symbolic link file cannot be opened with O_NOFOLLOW.
 	 */
-	if (fd < 0 &&
-	    (a->follow_symlinks || archive_entry_filetype(entry) != AE_IFLNK))
+	if (fd < 0 && archive_entry_filetype(entry) != AE_IFLNK)
 		fd = openat(tree_current_dir_fd(t), tree_current_access_path(t),
 		    O_RDONLY | O_NONBLOCK);
 	/* Restore working directory if openat() operation failed or
@@ -1051,6 +1048,7 @@ next_entry:
 	/*
 	 * Populate the archive_entry with metadata from the disk.
 	 */
+	archive_entry_copy_sourcepath(entry, tree_current_access_path(t));
 	r = archive_read_disk_entry_from_file(&(a->archive), entry, fd, st);
 
 	/* Close the file descriptor used for reding the current file
@@ -1060,6 +1058,7 @@ next_entry:
 
 	/* Return to the initial directory. */
 	tree_enter_initial_dir(t);
+	/* Overwrite the sourcepath based on the initial directory. */
 	archive_entry_copy_sourcepath(entry, tree_current_path(t));
 
 	/*
