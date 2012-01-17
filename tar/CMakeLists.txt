@@ -13,8 +13,6 @@ IF(ENABLE_TAR)
     getdate.c
     read.c
     subst.c
-    tree.c
-    tree.h
     util.c
     write.c
     ../libarchive_fe/err.c

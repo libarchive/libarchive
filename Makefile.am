@@ -598,8 +598,6 @@ bsdtar_SOURCES=				\
 		tar/getdate.c		\
 		tar/read.c		\
 		tar/subst.c		\
-		tar/tree.c		\
-		tar/tree.h		\
 		tar/util.c		\
 		tar/write.c
 
