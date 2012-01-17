@@ -28,8 +28,11 @@ SET(libarchive_SOURCES
   archive_entry_stat.c
   archive_entry_strmode.c
   archive_entry_xattr.c
+  archive_matching.c
   archive_options.c
   archive_options_private.h
+  archive_pathmatch.c
+  archive_pathmatch.h
   archive_platform.h
   archive_ppmd_private.h
   archive_ppmd7.c

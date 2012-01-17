@@ -94,6 +94,7 @@ archive_handle_type_name(unsigned m)
 	case ARCHIVE_READ_MAGIC:	return ("archive_read");
 	case ARCHIVE_WRITE_DISK_MAGIC:	return ("archive_write_disk");
 	case ARCHIVE_READ_DISK_MAGIC:	return ("archive_read_disk");
+	case ARCHIVE_MATCHING_MAGIC:	return ("archive_matching");
 	default:			return NULL;
 	}
 }
