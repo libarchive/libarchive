@@ -28,7 +28,7 @@
 
 #ifndef __LIBARCHIVE_BUILD
 #error This header is only to be used internally to libarchive.
-#endi
+#endif
 
 #ifndef ARCHIVE_PATHMATCH_H
 #define ARCHIVE_PATHMATCH_H
