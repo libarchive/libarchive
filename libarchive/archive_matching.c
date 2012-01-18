@@ -818,7 +818,7 @@ archive_matching_newer_ctime_than(struct archive *_a,
 		archive_set_error(&(a->archive), EINVAL, "pathname is empty");
 		return (ARCHIVE_FAILED);
 	}
-	r = get_filetime_mbs(a, pathname, 0, &(a->newer_ctime_sec),
+	r = get_filetime_mbs(a, pathname, 1, &(a->newer_ctime_sec),
 	    &(a->newer_ctime_nsec));
 	if (r != ARCHIVE_OK)
 		return (r);
@@ -841,7 +841,7 @@ archive_matching_newer_ctime_than_w(struct archive *_a, const wchar_t *pathname)
 		archive_set_error(&(a->archive), EINVAL, "pathname is empty");
 		return (ARCHIVE_FAILED);
 	}
-	r = get_filetime_wcs(a, pathname, 0, &(a->newer_ctime_sec),
+	r = get_filetime_wcs(a, pathname, 1, &(a->newer_ctime_sec),
 		&(a->newer_ctime_nsec));
 	if (r != ARCHIVE_OK)
 		return (r);
@@ -942,7 +942,7 @@ archive_matching_older_ctime_than(struct archive *_a, const char *pathname)
 		archive_set_error(&(a->archive), EINVAL, "pathname is empty");
 		return (ARCHIVE_FAILED);
 	}
-	r = get_filetime_mbs(a, pathname, 0, &(a->older_ctime_sec),
+	r = get_filetime_mbs(a, pathname, 1, &(a->older_ctime_sec),
 		&(a->older_ctime_nsec));
 	if (r != ARCHIVE_OK)
 		return (r);
@@ -965,7 +965,7 @@ archive_matching_older_ctime_than_w(struct archive *_a, const wchar_t *pathname)
 		archive_set_error(&(a->archive), EINVAL, "pathname is empty");
 		return (ARCHIVE_FAILED);
 	}
-	r = get_filetime_wcs(a, pathname, 0, &(a->older_ctime_sec),
+	r = get_filetime_wcs(a, pathname, 1, &(a->older_ctime_sec),
 		&(a->older_ctime_nsec));
 	if (r != ARCHIVE_OK)
 		return (r);

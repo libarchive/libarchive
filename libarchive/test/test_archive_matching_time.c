@@ -146,6 +146,9 @@ test_newer_than_file_mbs(void)
 		archive_read_free(a);
 		return;
 	}
+	assertUtimes("old", 10002, 0, 10002, 0);
+	assertUtimes("mid", 10001, 0, 10001, 0);
+	assertUtimes("new", 10000, 0, 10000, 0);
 	assertEqualIntA(m, 0, archive_matching_newer_ctime_than(m, "mid"));
 
 	/* Verify 'old' file. */
@@ -251,6 +254,9 @@ test_newer_than_file_wcs(void)
 		archive_read_free(a);
 		return;
 	}
+	assertUtimes("old", 10002, 0, 10002, 0);
+	assertUtimes("mid", 10001, 0, 10001, 0);
+	assertUtimes("new", 10000, 0, 10000, 0);
 	assertEqualIntA(m, 0, archive_matching_newer_ctime_than_w(m, L"mid"));
 
 	/* Verify 'old' file. */
@@ -407,6 +413,9 @@ test_older_than_file_mbs(void)
 		archive_read_free(a);
 		return;
 	}
+	assertUtimes("old", 10002, 0, 10002, 0);
+	assertUtimes("mid", 10001, 0, 10001, 0);
+	assertUtimes("new", 10000, 0, 10000, 0);
 	assertEqualIntA(m, 0, archive_matching_older_ctime_than(m, "mid"));
 
 	/* Verify 'old' file. */
@@ -512,6 +521,9 @@ test_older_than_file_wcs(void)
 		archive_read_free(a);
 		return;
 	}
+	assertUtimes("old", 10002, 0, 10002, 0);
+	assertUtimes("mid", 10001, 0, 10001, 0);
+	assertUtimes("new", 10000, 0, 10000, 0);
 	assertEqualIntA(m, 0, archive_matching_older_ctime_than_w(m, L"mid"));
 
 	/* Verify 'old' file. */
