@@ -121,7 +121,6 @@ need_report(void)
 /* External function to parse a date/time string */
 time_t get_date(time_t, const char *);
 
-static int		 get_filetime(const char *, int, time_t *, long *);
 static void		 long_help(void);
 static void		 only_mode(struct bsdtar *, const char *opt,
 			     const char *valid);
@@ -247,6 +246,9 @@ main(int argc, char **argv)
 	if (getenv(COPYFILE_DISABLE_VAR))
 		bsdtar->enable_copyfile = 0;
 #endif
+	bsdtar->matching = archive_matching_new();
+	if (bsdtar->matching == NULL)
+		lafe_errc(1, errno, "Out of memory");
 
 	bsdtar->argv = argv;
 	bsdtar->argc = argc;
@@ -291,7 +293,8 @@ main(int argc, char **argv)
 			bsdtar->enable_copyfile = 0;
 			break;
 		case OPTION_EXCLUDE: /* GNU tar */
-			if (lafe_exclude(&bsdtar->matching, bsdtar->argument))
+			if (archive_matching_exclude_pattern(
+			    bsdtar->matching, bsdtar->argument) != ARCHIVE_OK)
 				lafe_errc(1, 0,
 				    "Couldn't exclude %s\n", bsdtar->argument);
 			break;
@@ -342,7 +345,8 @@ main(int argc, char **argv)
 			 * no one else needs this to filter entries
 			 * when transforming archives.
 			 */
-			if (lafe_include(&bsdtar->matching, bsdtar->argument))
+			if (archive_matching_include_pattern(bsdtar->matching,
+			    bsdtar->argument) != ARCHIVE_OK)
 				lafe_errc(1, 0,
 				    "Failed to add %s to inclusion list",
 				    bsdtar->argument);
@@ -396,30 +400,28 @@ main(int argc, char **argv)
 		 * TODO: Add corresponding "older" options to reverse these.
 		 */
 		case OPTION_NEWER_CTIME: /* GNU tar */
-			bsdtar->newer_ctime_filter = 1;
-			bsdtar->newer_ctime_sec = get_date(now, bsdtar->argument);
+			if (archive_matching_newer_ctime(bsdtar->matching,
+			    get_date(now, bsdtar->argument), 0) != ARCHIVE_OK)
+				lafe_errc(1, 0, "Error : %s",
+				    archive_error_string(bsdtar->matching));
 			break;
 		case OPTION_NEWER_CTIME_THAN:
-			if (get_filetime(bsdtar->argument, 1/*ctime*/,
-			    &bsdtar->newer_ctime_sec,
-			    &bsdtar->newer_ctime_nsec) == 0)
-				bsdtar->newer_ctime_filter = 1;
-			else
-				lafe_errc(1, 0,
-				    "Can't open file %s", bsdtar->argument);
+			if (archive_matching_newer_ctime_than(bsdtar->matching,
+			    bsdtar->argument) != ARCHIVE_OK)
+				lafe_errc(1, 0, "Error : %s",
+				    archive_error_string(bsdtar->matching));
 			break;
 		case OPTION_NEWER_MTIME: /* GNU tar */
-			bsdtar->newer_mtime_filter = 1;
-			bsdtar->newer_mtime_sec = get_date(now, bsdtar->argument);
+			if (archive_matching_newer_mtime(bsdtar->matching,
+			    get_date(now, bsdtar->argument), 0) != ARCHIVE_OK)
+				lafe_errc(1, 0, "Error : %s",
+				    archive_error_string(bsdtar->matching));
 			break;
 		case OPTION_NEWER_MTIME_THAN:
-			if (get_filetime(bsdtar->argument, 0/*mtime*/,
-			    &bsdtar->newer_mtime_sec,
-			    &bsdtar->newer_mtime_nsec) == 0)
-				bsdtar->newer_mtime_filter = 1;
-			else
-				lafe_errc(1, 0,
-				    "Can't open file %s", bsdtar->argument);
+			if (archive_matching_newer_mtime_than(bsdtar->matching,
+			    bsdtar->argument) != ARCHIVE_OK)
+				lafe_errc(1, 0, "Error : %s",
+				    archive_error_string(bsdtar->matching));
 			break;
 		case OPTION_NODUMP: /* star */
 			bsdtar->option_honor_nodump = 1;
@@ -554,7 +556,8 @@ main(int argc, char **argv)
 			bsdtar->option_interactive = 1;
 			break;
 		case 'X': /* GNU tar */
-			if (lafe_exclude_from_file(&bsdtar->matching, bsdtar->argument))
+			if (lafe_exclude_from_file(bsdtar->matching,
+			    bsdtar->argument))
 				lafe_errc(1, 0,
 				    "failed to process exclusions from file %s",
 				    bsdtar->argument);
@@ -679,7 +682,7 @@ main(int argc, char **argv)
 		break;
 	}
 
-	lafe_cleanup_exclusions(&bsdtar->matching);
+	archive_matching_free(bsdtar->matching);
 #if HAVE_REGEX_H
 	cleanup_substitution(bsdtar);
 #endif
@@ -688,50 +691,6 @@ main(int argc, char **argv)
 		lafe_warnc(0,
 		    "Error exit delayed from previous errors.");
 	return (bsdtar->return_value);
-}
-
-static int
-get_filetime(const char *path, int is_ctime, time_t *time, long *ns)
-{
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	/* NOTE: stat() on Windows cannot handle nano seconds. */
-#define EPOC_TIME (116444736000000000ui64)
-	HANDLE h;
-	WIN32_FIND_DATA d;
-	ULARGE_INTEGER utc;
-
-	h = FindFirstFile(path, &d);
-	if (h == INVALID_HANDLE_VALUE)
-		return (-1);
-	FindClose(h);
-	if (is_ctime) {
-		utc.HighPart = d.ftCreationTime.dwHighDateTime;
-		utc.LowPart = d.ftCreationTime.dwLowDateTime;
-	} else {
-		utc.HighPart = d.ftLastWriteTime.dwHighDateTime;
-		utc.LowPart = d.ftLastWriteTime.dwLowDateTime;
-	}
-	if (utc.QuadPart >= EPOC_TIME) {
-		utc.QuadPart -= EPOC_TIME;
-		*time = (time_t)(utc.QuadPart / 10000000);
-		*ns = (long)(utc.QuadPart % 10000000) * 100;
-	} else {
-		*time = 0;
-		*ns = 0;
-	}
-#else
-	struct stat st;
-	if (stat(path, &st) != 0)
-		return (-1);
-	if (is_ctime) {
-		*time = st.st_ctime;
-		*ns = ARCHIVE_STAT_CTIME_NANOS(&st);
-	} else {
-		*time = st.st_mtime;
-		*ns = ARCHIVE_STAT_MTIME_NANOS(&st);
-	}
-#endif
-	return (0);
 }
 
 static void

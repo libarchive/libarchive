@@ -261,6 +261,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_archive_matching_owner.c		\
 	libarchive/test/test_archive_matching_path.c		\
 	libarchive/test/test_archive_matching_time.c		\
+	libarchive/test/test_archive_pathmatch.c		\
 	libarchive/test/test_archive_read_close_twice.c		\
 	libarchive/test/test_archive_read_close_twice_open_fd.c	\
 	libarchive/test/test_archive_read_close_twice_open_filename.c	\
@@ -580,9 +581,7 @@ libarchive_fe_la_SOURCES=			\
 	libarchive_fe/line_reader.c		\
 	libarchive_fe/line_reader.h		\
 	libarchive_fe/matching.c		\
-	libarchive_fe/matching.h		\
-	libarchive_fe/pathmatch.c		\
-	libarchive_fe/pathmatch.h
+	libarchive_fe/matching.h
 
 #
 #
@@ -789,8 +788,7 @@ bsdcpio_test_SOURCES=						\
 	cpio/test/test_option_z.c				\
 	cpio/test/test_owner_parse.c				\
 	cpio/test/test_passthrough_dotdot.c			\
-	cpio/test/test_passthrough_reverse.c			\
-	cpio/test/test_pathmatch.c
+	cpio/test/test_passthrough_reverse.c
 
 bsdcpio_test_CPPFLAGS= \
 	-I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe \

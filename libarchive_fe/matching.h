@@ -29,18 +29,10 @@
 #ifndef MATCHING_H
 #define MATCHING_H
 
-struct lafe_matching;
+#include "archive.h" 
 
-int	lafe_exclude(struct lafe_matching **matching, const char *pattern);
-int	lafe_exclude_from_file(struct lafe_matching **matching,
-			       const char *pathname);
-int	lafe_include(struct lafe_matching **matching, const char *pattern);
-int	lafe_include_from_file(struct lafe_matching **matching,
+int	lafe_exclude_from_file(struct archive *, const char *pathname);
+int	lafe_include_from_file(struct archive *,
 			       const char *pathname, int nullSeparator);
-
-int	lafe_excluded(struct lafe_matching *, const char *pathname);
-void	lafe_cleanup_exclusions(struct lafe_matching **);
-int	lafe_unmatched_inclusions(struct lafe_matching *);
-int	lafe_unmatched_inclusions_warn(struct lafe_matching *, const char *msg);
 
 #endif

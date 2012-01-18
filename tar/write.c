@@ -93,8 +93,6 @@ struct archive_dir {
 	struct archive_dir_entry *head, *tail;
 };
 
-static void		 add_dir_list(struct bsdtar *bsdtar, const char *path,
-			     time_t mtime_sec, int mtime_nsec);
 static int		 append_archive(struct bsdtar *, struct archive *,
 			     struct archive *ina);
 static int		 append_archive_filename(struct bsdtar *,
@@ -106,7 +104,6 @@ static int		 copy_file_data_block(struct bsdtar *,
 			     struct archive_entry *);
 static int		 name_filter(struct archive *, void *,
 			     struct archive_entry *);
-static int		 new_enough(struct bsdtar *, struct archive_entry *);
 static void		 report_write(struct bsdtar *, struct archive *,
 			     struct archive_entry *, int64_t progress);
 static void		 test_for_append(struct bsdtar *);
@@ -345,9 +342,10 @@ tar_mode_u(struct bsdtar *bsdtar)
 			lafe_errc(1, 0,
 			    "Cannot append to compressed archive.");
 		}
-		add_dir_list(bsdtar, archive_entry_pathname(entry),
-		    archive_entry_mtime(entry),
-		    archive_entry_mtime_nsec(entry));
+		if (archive_matching_pathname_newer_mtime_ae(bsdtar->matching,
+		    entry) != ARCHIVE_OK)
+			lafe_errc(1, 0, "Error : %s",
+			    archive_error_string(bsdtar->matching));
 		/* Record the last format determination we see */
 		format = archive_format(a);
 		/* Keep going until we hit end-of-archive */
@@ -593,10 +591,11 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 	int e;
 
 	while (ARCHIVE_OK == (e = archive_read_next_header(ina, &in_entry))) {
-		if (!new_enough(bsdtar, in_entry))
+		if (archive_matching_time_excluded_ae(bsdtar->matching,
+		    in_entry))
 			continue;
-		if (lafe_excluded(bsdtar->matching,
-		    archive_entry_pathname(in_entry)))
+		if (archive_matching_path_excluded_ae(bsdtar->matching,
+		    in_entry))
 			continue;
 		if (bsdtar->option_interactive &&
 		    !yes("copy '%s'", archive_entry_pathname(in_entry)))
@@ -718,7 +717,7 @@ name_filter(struct archive *a, void *_data, struct archive_entry *entry)
 	 * If this file/dir is excluded by a filename
 	 * pattern, skip it.
 	 */
-	if (lafe_excluded(bsdtar->matching, archive_entry_pathname(entry)))
+	if (archive_matching_path_excluded_ae(bsdtar->matching, entry))
 		return (0);
 	return (1);
 }
@@ -732,7 +731,7 @@ metadata_filter(struct archive *a, void *_data, struct archive_entry *entry)
 	 * In -u mode, check that the file is newer than what's
 	 * already in the archive; in all modes, obey --newerXXX flags.
 	 */
-	if (!new_enough(bsdtar, entry)) {
+	if (archive_matching_time_excluded_ae(bsdtar->matching, entry)) {
 		if (bsdtar->option_no_subdirs)
 			return (0);
 		if (!archive_read_disk_can_descend(a))
@@ -941,95 +940,6 @@ report_write(struct bsdtar *bsdtar, struct archive *a,
 	    tar_i64toa(progress));
 	fprintf(stderr, "/%s bytes)\n",
 	    tar_i64toa(archive_entry_size(entry)));
-}
-
-/*
- * Test if the specified file is new enough to include in the archive.
- */
-static int
-new_enough(struct bsdtar *bsdtar, struct archive_entry *e)
-{
-	struct archive_dir_entry *p;
-
-	/*
-	 * If this file/dir is excluded by a time comparison, skip it.
-	 */
-	if (bsdtar->newer_ctime_filter) {
-		if (archive_entry_ctime(e) < bsdtar->newer_ctime_sec)
-			return (0); /* Too old, skip it. */
-		if (archive_entry_ctime(e) == bsdtar->newer_ctime_sec
-		    && archive_entry_ctime_nsec(e) <= bsdtar->newer_ctime_nsec)
-			return (0); /* Too old, skip it. */
-	}
-	if (bsdtar->newer_mtime_filter) {
-		if (archive_entry_mtime(e) < bsdtar->newer_mtime_sec)
-			return (0); /* Too old, skip it. */
-		if (archive_entry_mtime(e) == bsdtar->newer_mtime_sec
-		    && archive_entry_mtime_nsec(e) <= bsdtar->newer_mtime_nsec)
-			return (0); /* Too old, skip it. */
-	}
-
-	/*
-	 * In -u mode, we only write an entry if it's newer than
-	 * what was already in the archive.
-	 */
-	if (bsdtar->archive_dir != NULL &&
-	    bsdtar->archive_dir->head != NULL) {
-		const char *path = archive_entry_pathname(e);
-		for (p = bsdtar->archive_dir->head; p != NULL; p = p->next) {
-			if (pathcmp(path, p->name)==0)
-				return (p->mtime_sec < archive_entry_mtime(e) ||
-				    (p->mtime_sec == archive_entry_mtime(e) &&
-					p->mtime_nsec
-					< archive_entry_mtime_nsec(e)));
-		}
-	}
-
-	/* If the file wasn't rejected, include it. */
-	return (1);
-}
-
-/*
- * Add an entry to the dir list for 'u' mode.
- *
- * XXX TODO: Make this fast.
- */
-static void
-add_dir_list(struct bsdtar *bsdtar, const char *path,
-    time_t mtime_sec, int mtime_nsec)
-{
-	struct archive_dir_entry	*p;
-
-	/*
-	 * Search entire list to see if this file has appeared before.
-	 * If it has, override the timestamp data.
-	 */
-	p = bsdtar->archive_dir->head;
-	while (p != NULL) {
-		if (strcmp(path, p->name)==0) {
-			p->mtime_sec = mtime_sec;
-			p->mtime_nsec = mtime_nsec;
-			return;
-		}
-		p = p->next;
-	}
-
-	p = malloc(sizeof(*p));
-	if (p == NULL)
-		lafe_errc(1, ENOMEM, "Can't read archive directory");
-
-	p->name = strdup(path);
-	if (p->name == NULL)
-		lafe_errc(1, ENOMEM, "Can't read archive directory");
-	p->mtime_sec = mtime_sec;
-	p->mtime_nsec = mtime_nsec;
-	p->next = NULL;
-	if (bsdtar->archive_dir->tail == NULL) {
-		bsdtar->archive_dir->head = bsdtar->archive_dir->tail = p;
-	} else {
-		bsdtar->archive_dir->tail->next = p;
-		bsdtar->archive_dir->tail = p;
-	}
 }
 
 static void

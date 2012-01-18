@@ -29,61 +29,17 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/matching.c,v 1.2 2008/06/21 02:20:20 kientz
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
-#ifdef HAVE_STDLIB_H
-#include <stdlib.h>
-#endif
-#ifdef HAVE_STRING_H
-#include <string.h>
-#endif
 
 #include "err.h"
 #include "line_reader.h"
 #include "matching.h"
-#include "pathmatch.h"
-
-struct match {
-	struct match	 *next;
-	int		  matches;
-	char		  pattern[1];
-};
-
-struct lafe_matching {
-	struct match	 *exclusions;
-	int		  exclusions_count;
-	struct match	 *inclusions;
-	int		  inclusions_count;
-	int		  inclusions_unmatched_count;
-};
-
-static void	add_pattern(struct match **list, const char *pattern);
-static void	initialize_matching(struct lafe_matching **);
-static int	match_exclusion(struct match *, const char *pathname);
-static int	match_inclusion(struct match *, const char *pathname);
-
-/*
- * The matching logic here needs to be re-thought.  I started out to
- * try to mimic gtar's matching logic, but it's not entirely
- * consistent.  In particular 'tar -t' and 'tar -x' interpret patterns
- * on the command line as anchored, but --exclude doesn't.
- */
 
 /*
  * Utility functions to manage exclusion/inclusion patterns
  */
 
 int
-lafe_exclude(struct lafe_matching **matching, const char *pattern)
-{
-
-	if (*matching == NULL)
-		initialize_matching(matching);
-	add_pattern(&((*matching)->exclusions), pattern);
-	(*matching)->exclusions_count++;
-	return (0);
-}
-
-int
-lafe_exclude_from_file(struct lafe_matching **matching, const char *pathname)
+lafe_exclude_from_file(struct archive *matching, const char *pathname)
 {
 	struct lafe_line_reader *lr;
 	const char *p;
@@ -91,27 +47,16 @@ lafe_exclude_from_file(struct lafe_matching **matching, const char *pathname)
 
 	lr = lafe_line_reader(pathname, 0);
 	while ((p = lafe_line_reader_next(lr)) != NULL) {
-		if (lafe_exclude(matching, p) != 0)
-			ret = -1;
+		ret = archive_matching_exclude_pattern(matching, p);
+		if (ret == ARCHIVE_FATAL)
+			lafe_errc(1, errno, "Out of memory");
 	}
 	lafe_line_reader_free(lr);
 	return (ret);
 }
 
 int
-lafe_include(struct lafe_matching **matching, const char *pattern)
-{
-
-	if (*matching == NULL)
-		initialize_matching(matching);
-	add_pattern(&((*matching)->inclusions), pattern);
-	(*matching)->inclusions_count++;
-	(*matching)->inclusions_unmatched_count++;
-	return (0);
-}
-
-int
-lafe_include_from_file(struct lafe_matching **matching, const char *pathname,
+lafe_include_from_file(struct archive *matching, const char *pathname,
     int nullSeparator)
 {
 	struct lafe_line_reader *lr;
@@ -120,162 +65,11 @@ lafe_include_from_file(struct lafe_matching **matching, const char *pathname,
 
 	lr = lafe_line_reader(pathname, nullSeparator);
 	while ((p = lafe_line_reader_next(lr)) != NULL) {
-		if (lafe_include(matching, p) != 0)
-			ret = -1;
+		ret = archive_matching_include_pattern(matching, p);
+		if (ret == ARCHIVE_FATAL)
+			lafe_errc(1, errno, "Out of memory");
 	}
 	lafe_line_reader_free(lr);
 	return (ret);
 }
 
-static void
-add_pattern(struct match **list, const char *pattern)
-{
-	struct match *match;
-	size_t len;
-
-	len = strlen(pattern);
-	match = malloc(sizeof(*match) + len + 1);
-	if (match == NULL)
-		lafe_errc(1, errno, "Out of memory");
-	strcpy(match->pattern, pattern);
-	/* Both "foo/" and "foo" should match "foo/bar". */
-	if (len && match->pattern[len - 1] == '/')
-		match->pattern[len - 1] = '\0';
-	match->next = *list;
-	*list = match;
-	match->matches = 0;
-}
-
-
-int
-lafe_excluded(struct lafe_matching *matching, const char *pathname)
-{
-	struct match *match;
-	struct match *matched;
-
-	if (matching == NULL)
-		return (0);
-
-	/* Mark off any unmatched inclusions. */
-	/* In particular, if a filename does appear in the archive and
-	 * is explicitly included and excluded, then we don't report
-	 * it as missing even though we don't extract it.
-	 */
-	matched = NULL;
-	for (match = matching->inclusions; match != NULL; match = match->next){
-		if (match->matches == 0
-		    && match_inclusion(match, pathname)) {
-			matching->inclusions_unmatched_count--;
-			match->matches++;
-			matched = match;
-		}
-	}
-
-	/* Exclusions take priority */
-	for (match = matching->exclusions; match != NULL; match = match->next){
-		if (match_exclusion(match, pathname))
-			return (1);
-	}
-
-	/* It's not excluded and we found an inclusion above, so it's included. */
-	if (matched != NULL)
-		return (0);
-
-
-	/* We didn't find an unmatched inclusion, check the remaining ones. */
-	for (match = matching->inclusions; match != NULL; match = match->next){
-		/* We looked at previously-unmatched inclusions already. */
-		if (match->matches > 0
-		    && match_inclusion(match, pathname)) {
-			match->matches++;
-			return (0);
-		}
-	}
-
-	/* If there were inclusions, default is to exclude. */
-	if (matching->inclusions != NULL)
-	    return (1);
-
-	/* No explicit inclusions, default is to match. */
-	return (0);
-}
-
-/*
- * This is a little odd, but it matches the default behavior of
- * gtar.  In particular, 'a*b' will match 'foo/a1111/222b/bar'
- *
- */
-static int
-match_exclusion(struct match *match, const char *pathname)
-{
-	return (lafe_pathmatch(match->pattern,
-		    pathname,
-		    PATHMATCH_NO_ANCHOR_START | PATHMATCH_NO_ANCHOR_END));
-}
-
-/*
- * Again, mimic gtar:  inclusions are always anchored (have to match
- * the beginning of the path) even though exclusions are not anchored.
- */
-static int
-match_inclusion(struct match *match, const char *pathname)
-{
-	return (lafe_pathmatch(match->pattern, pathname, PATHMATCH_NO_ANCHOR_END));
-}
-
-void
-lafe_cleanup_exclusions(struct lafe_matching **matching)
-{
-	struct match *p, *q;
-
-	if (*matching == NULL)
-		return;
-
-	for (p = (*matching)->inclusions; p != NULL; ) {
-		q = p;
-		p = p->next;
-		free(q);
-	}
-
-	for (p = (*matching)->exclusions; p != NULL; ) {
-		q = p;
-		p = p->next;
-		free(q);
-	}
-
-	free(*matching);
-	*matching = NULL;
-}
-
-static void
-initialize_matching(struct lafe_matching **matching)
-{
-	*matching = calloc(sizeof(**matching), 1);
-	if (*matching == NULL)
-		lafe_errc(1, errno, "No memory");
-}
-
-int
-lafe_unmatched_inclusions(struct lafe_matching *matching)
-{
-
-	if (matching == NULL)
-		return (0);
-	return (matching->inclusions_unmatched_count);
-}
-
-int
-lafe_unmatched_inclusions_warn(struct lafe_matching *matching, const char *msg)
-{
-	struct match *p;
-
-	if (matching == NULL)
-		return (0);
-
-	for (p = matching->inclusions; p != NULL; p = p->next) {
-		if (p->matches == 0)
-			lafe_warnc(0, "%s: %s", p->pattern, msg);
-	}
-
-	return (matching->inclusions_unmatched_count);
-}
