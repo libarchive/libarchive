@@ -583,6 +583,7 @@ libarchive_fe_la_SOURCES=			\
 	libarchive_fe/matching.c		\
 	libarchive_fe/matching.h
 
+libarchive_fe_la_CPPFLAGS= -I$(top_srcdir)/libarchive
 #
 #
 # bsdtar source, docs, etc.

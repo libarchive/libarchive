@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/matching.c,v 1.2 2008/06/21 02:20:20 kientz
 #include <errno.h>
 #endif
 
+#include "archive.h"
 #include "err.h"
 #include "line_reader.h"
 #include "matching.h"
