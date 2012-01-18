@@ -1337,19 +1337,33 @@ time_excluded(struct archive_matching *a, struct archive_entry *entry)
 	 * If this file/dir is excluded by a time comparison, skip it.
 	 */
 	if (a->newer_ctime_filter) {
-		sec = archive_entry_ctime(entry);
+		/* If ctime is not set, use mtime instead. */
+		if (archive_entry_ctime_is_set(entry))
+			sec = archive_entry_ctime(entry);
+		else
+			sec = archive_entry_mtime(entry);
 		if (sec < a->newer_ctime_sec)
 			return (1); /* Too old, skip it. */
-		nsec = archive_entry_ctime_nsec(entry);
+		if (archive_entry_ctime_is_set(entry))
+			nsec = archive_entry_ctime_nsec(entry);
+		else
+			nsec = archive_entry_mtime_nsec(entry);
 		if (sec == a->newer_ctime_sec
 		    && nsec <= a->newer_ctime_nsec)
 			return (1); /* Too old, skip it. */
 	}
 	if (a->older_ctime_filter) {
-		sec = archive_entry_ctime(entry);
+		/* If ctime is not set, use mtime instead. */
+		if (archive_entry_ctime_is_set(entry))
+			sec = archive_entry_ctime(entry);
+		else
+			sec = archive_entry_mtime(entry);
 		if (sec > a->older_ctime_sec)
 			return (1); /* Too new, skip it. */
-		nsec = archive_entry_ctime_nsec(entry);
+		if (archive_entry_ctime_is_set(entry))
+			nsec = archive_entry_ctime_nsec(entry);
+		else
+			nsec = archive_entry_mtime_nsec(entry);
 		if (sec == a->older_ctime_sec
 		    && nsec >= a->older_ctime_nsec)
 			return (1); /* Too new, skip it. */
