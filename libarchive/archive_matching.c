@@ -244,7 +244,7 @@ archive_matching_free(struct archive *_a)
  * Returns <0 if something error happened.
  */
 int
-archive_matching_excluded_ae(struct archive *_a, struct archive_entry *entry)
+archive_matching_excluded(struct archive *_a, struct archive_entry *entry)
 {
 	struct archive_matching *a;
 	int r;
@@ -368,51 +368,13 @@ archive_matching_include_pattern_w(struct archive *_a, const wchar_t *pattern)
  * Returns <0 if something error happened.
  */
 int
-archive_matching_path_excluded(struct archive *_a, const char *pathname)
-{
-	struct archive_matching *a;
-
-	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_matching_path_excluded");
-
-	if (pathname == NULL || *pathname == L'\0')
-		return (0);
-	a = (struct archive_matching *)_a;
-
-	/* If we don't have exclusion/inclusion pattern set at all,
-	 * the pathname is always not excluded. */
-	if ((a->setflag & PATTERN_IS_SET) == 0)
-		return (0);
-	return (path_excluded(a, 1, pathname));
-}
-
-int
-archive_matching_path_excluded_w(struct archive *_a, const wchar_t *pathname)
-{
-	struct archive_matching *a;
-
-	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_matching_path_excluded_w");
-
-	if (pathname == NULL || *pathname == L'\0')
-		return (0);
-	a = (struct archive_matching *)_a;
-
-	/* If we don't have exclusion/inclusion pattern set at all,
-	 * the pathname is always not excluded. */
-	if ((a->setflag & PATTERN_IS_SET) == 0)
-		return (0);
-	return (path_excluded(a, 0, pathname));
-}
-
-int
-archive_matching_path_excluded_ae(struct archive *_a,
+archive_matching_path_excluded(struct archive *_a,
     struct archive_entry *entry)
 {
 	struct archive_matching *a;
 
 	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_matching_path_excluded_ae");
+	    ARCHIVE_STATE_NEW, "archive_matching_path_excluded");
 
 	a = (struct archive_matching *)_a;
 	if (entry == NULL) {
@@ -1051,7 +1013,7 @@ archive_matching_pathname_newer_mtime_ae(struct archive *_a,
  * Returns <0 if something error happened.
  */
 int
-archive_matching_time_excluded_ae(struct archive *_a,
+archive_matching_time_excluded(struct archive *_a,
     struct archive_entry *entry)
 {
 	struct archive_matching *a;
@@ -1492,7 +1454,7 @@ archive_matching_include_gname_w(struct archive *_a, const wchar_t *gname)
  * Returns <0 if something error happened.
  */
 int
-archive_matching_owner_excluded_ae(struct archive *_a,
+archive_matching_owner_excluded(struct archive *_a,
     struct archive_entry *entry)
 {
 	struct archive_matching *a;

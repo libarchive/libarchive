@@ -43,24 +43,26 @@ test_exclusion_mbs(void)
 	assertEqualIntA(m, 0, archive_matching_exclude_pattern(m, "^aa*"));
 
 	/* Test with 'aa1234', which should be excluded. */
-	failure("'aa1234' should be excluded");
-	assertEqualInt(1, archive_matching_path_excluded(m, "aa1234"));
-	failure("'aa1234' should be excluded");
-	assertEqualInt(1, archive_matching_path_excluded_w(m, L"aa1234"));
 	archive_entry_copy_pathname(ae, "aa1234");
 	failure("'aa1234' should be excluded");
-	assertEqualInt(1, archive_matching_path_excluded_ae(m, ae));
-	assertEqualInt(1, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(1, archive_matching_path_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
+	archive_entry_clear(ae);
+	archive_entry_copy_pathname_w(ae, L"aa1234");
+	failure("'aa1234' should be excluded");
+	assertEqualInt(1, archive_matching_path_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
 
 	/* Test with 'a1234', which should not be excluded. */
-	failure("'a1234' should not be excluded");
-	assertEqualInt(0, archive_matching_path_excluded(m, "a1234"));
-	failure("'a1234' should not be excluded");
-	assertEqualInt(0, archive_matching_path_excluded_w(m, L"a1234"));
 	archive_entry_copy_pathname(ae, "a1234");
 	failure("'a1234' should not be excluded");
-	assertEqualInt(0, archive_matching_path_excluded_ae(m, ae));
-	assertEqualInt(0, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(0, archive_matching_path_excluded(m, ae));
+	assertEqualInt(0, archive_matching_excluded(m, ae));
+	archive_entry_clear(ae);
+	archive_entry_copy_pathname_w(ae, L"a1234");
+	failure("'a1234' should not be excluded");
+	assertEqualInt(0, archive_matching_path_excluded(m, ae));
+	assertEqualInt(0, archive_matching_excluded(m, ae));
 
 	/* Clean up. */
 	archive_entry_free(ae);
@@ -84,24 +86,26 @@ test_exclusion_wcs(void)
 	assertEqualIntA(m, 0, archive_matching_exclude_pattern_w(m, L"^aa*"));
 
 	/* Test with 'aa1234', which should be excluded. */
-	failure("'aa1234' should be excluded");
-	assertEqualInt(1, archive_matching_path_excluded(m, "aa1234"));
-	failure("'aa1234' should be excluded");
-	assertEqualInt(1, archive_matching_path_excluded_w(m, L"aa1234"));
 	archive_entry_copy_pathname(ae, "aa1234");
 	failure("'aa1234' should be excluded");
-	assertEqualInt(1, archive_matching_path_excluded_ae(m, ae));
-	assertEqualInt(1, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(1, archive_matching_path_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
+	archive_entry_clear(ae);
+	archive_entry_copy_pathname_w(ae, L"aa1234");
+	failure("'aa1234' should be excluded");
+	assertEqualInt(1, archive_matching_path_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
 
 	/* Test with 'a1234', which should not be excluded. */
-	failure("'a1234' should not be excluded");
-	assertEqualInt(0, archive_matching_path_excluded(m, "a1234"));
-	failure("'a1234' should not be excluded");
-	assertEqualInt(0, archive_matching_path_excluded_w(m, L"a1234"));
 	archive_entry_copy_pathname(ae, "a1234");
 	failure("'a1234' should not be excluded");
-	assertEqualInt(0, archive_matching_path_excluded_ae(m, ae));
-	assertEqualInt(0, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(0, archive_matching_path_excluded(m, ae));
+	assertEqualInt(0, archive_matching_excluded(m, ae));
+	archive_entry_clear(ae);
+	archive_entry_copy_pathname_w(ae, L"a1234");
+	failure("'a1234' should not be excluded");
+	assertEqualInt(0, archive_matching_path_excluded(m, ae));
+	assertEqualInt(0, archive_matching_excluded(m, ae));
 
 	/* Clean up. */
 	archive_entry_free(ae);
@@ -126,24 +130,26 @@ test_inclusion_mbs(void)
 	assertEqualIntA(m, 0, archive_matching_include_pattern(m, "^aa*"));
 
 	/* Test with 'aa1234', which should not be excluded. */
-	failure("'aa1234' should not be excluded");
-	assertEqualInt(0, archive_matching_path_excluded(m, "aa1234"));
-	failure("'aa1234' should not be excluded");
-	assertEqualInt(0, archive_matching_path_excluded_w(m, L"aa1234"));
 	archive_entry_copy_pathname(ae, "aa1234");
 	failure("'aa1234' should not be excluded");
-	assertEqualInt(0, archive_matching_path_excluded_ae(m, ae));
-	assertEqualInt(0, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(0, archive_matching_path_excluded(m, ae));
+	assertEqualInt(0, archive_matching_excluded(m, ae));
+	archive_entry_clear(ae);
+	archive_entry_copy_pathname_w(ae, L"aa1234");
+	failure("'aa1234' should not be excluded");
+	assertEqualInt(0, archive_matching_path_excluded(m, ae));
+	assertEqualInt(0, archive_matching_excluded(m, ae));
 
 	/* Test with 'a1234', which should be excluded. */
-	failure("'a1234' should be excluded");
-	assertEqualInt(1, archive_matching_path_excluded(m, "a1234"));
-	failure("'a1234' should be excluded");
-	assertEqualInt(1, archive_matching_path_excluded_w(m, L"a1234"));
 	archive_entry_copy_pathname(ae, "a1234");
 	failure("'a1234' should be excluded");
-	assertEqualInt(1, archive_matching_path_excluded_ae(m, ae));
-	assertEqualInt(1, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(1, archive_matching_path_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
+	archive_entry_clear(ae);
+	archive_entry_copy_pathname_w(ae, L"a1234");
+	failure("'a1234' should be excluded");
+	assertEqualInt(1, archive_matching_path_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
 
 	/* Verify unmatched_inclusions. */
 	assertEqualInt(0, archive_matching_path_unmatched_inclusions(m));
@@ -173,24 +179,26 @@ test_inclusion_wcs(void)
 	assertEqualIntA(m, 0, archive_matching_include_pattern_w(m, L"^aa*"));
 
 	/* Test with 'aa1234', which should not be excluded. */
-	failure("'aa1234' should not be excluded");
-	assertEqualInt(0, archive_matching_path_excluded(m, "aa1234"));
-	failure("'aa1234' should not be excluded");
-	assertEqualInt(0, archive_matching_path_excluded_w(m, L"aa1234"));
 	archive_entry_copy_pathname(ae, "aa1234");
 	failure("'aa1234' should not be excluded");
-	assertEqualInt(0, archive_matching_path_excluded_ae(m, ae));
-	assertEqualInt(0, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(0, archive_matching_path_excluded(m, ae));
+	assertEqualInt(0, archive_matching_excluded(m, ae));
+	archive_entry_clear(ae);
+	archive_entry_copy_pathname_w(ae, L"aa1234");
+	failure("'aa1234' should not be excluded");
+	assertEqualInt(0, archive_matching_path_excluded(m, ae));
+	assertEqualInt(0, archive_matching_excluded(m, ae));
 
 	/* Test with 'a1234', which should be excluded. */
-	failure("'a1234' should be excluded");
-	assertEqualInt(1, archive_matching_path_excluded(m, "a1234"));
-	failure("'a1234' should be excluded");
-	assertEqualInt(1, archive_matching_path_excluded_w(m, L"a1234"));
 	archive_entry_copy_pathname(ae, "a1234");
 	failure("'a1234' should be excluded");
-	assertEqualInt(1, archive_matching_path_excluded_ae(m, ae));
-	assertEqualInt(1, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(1, archive_matching_path_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
+	archive_entry_clear(ae);
+	archive_entry_copy_pathname_w(ae, L"a1234");
+	failure("'a1234' should be excluded");
+	assertEqualInt(1, archive_matching_path_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
 
 	/* Verify unmatched_inclusions. */
 	assertEqualInt(0, archive_matching_path_unmatched_inclusions(m));
@@ -222,24 +230,26 @@ test_exclusion_and_inclusion(void)
 	assertEqualIntA(m, 0, archive_matching_include_pattern(m, "^a1*"));
 
 	/* Test with 'aa1234', which should not be excluded. */
-	failure("'aa1234' should not be excluded");
-	assertEqualInt(0, archive_matching_path_excluded(m, "aa1234"));
-	failure("'aa1234' should not be excluded");
-	assertEqualInt(0, archive_matching_path_excluded_w(m, L"aa1234"));
 	archive_entry_copy_pathname(ae, "aa1234");
 	failure("'aa1234' should not be excluded");
-	assertEqualInt(0, archive_matching_path_excluded_ae(m, ae));
-	assertEqualInt(0, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(0, archive_matching_path_excluded(m, ae));
+	assertEqualInt(0, archive_matching_excluded(m, ae));
+	archive_entry_clear(ae);
+	archive_entry_copy_pathname_w(ae, L"aa1234");
+	failure("'aa1234' should not be excluded");
+	assertEqualInt(0, archive_matching_path_excluded(m, ae));
+	assertEqualInt(0, archive_matching_excluded(m, ae));
 
 	/* Test with 'aaa1234', which should be excluded. */
-	failure("'aaa1234' should be excluded");
-	assertEqualInt(1, archive_matching_path_excluded(m, "aaa1234"));
-	failure("'aaa1234' should be excluded");
-	assertEqualInt(1, archive_matching_path_excluded_w(m, L"aaa1234"));
 	archive_entry_copy_pathname(ae, "aaa1234");
 	failure("'aaa1234' should be excluded");
-	assertEqualInt(1, archive_matching_path_excluded_ae(m, ae));
-	assertEqualInt(1, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(1, archive_matching_path_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
+	archive_entry_clear(ae);
+	archive_entry_copy_pathname_w(ae, L"aaa1234");
+	failure("'aaa1234' should be excluded");
+	assertEqualInt(1, archive_matching_path_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
 
 	/* Verify unmatched_inclusions. */
 	assertEqualInt(1, archive_matching_path_unmatched_inclusions(m));

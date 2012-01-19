@@ -237,12 +237,6 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 			archive_entry_set_gname(entry, bsdtar->gname);
 
 		/*
-		 * Exclude entries that are too old.
-		 */
-		if (archive_matching_time_excluded_ae(bsdtar->matching, entry))
-			continue; /* skip it. */
-
-		/*
 		 * Note that pattern exclusions are checked before
 		 * pathname rewrites are handled.  This gives more
 		 * control over exclusions, since rewrites always lose
@@ -251,8 +245,7 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 		 * rewrite, there would be no way to exclude foo1/bar
 		 * while allowing foo2/bar.)
 		 */
-		if (archive_matching_path_excluded_ae(bsdtar->matching,
-		    entry))
+		if (archive_matching_excluded(bsdtar->matching, entry))
 			continue; /* Excluded by a pattern test. */
 
 		if (mode == 't') {

@@ -44,24 +44,24 @@ test_uid(void)
 
 	archive_entry_set_uid(ae, 0);
 	failure("uid 0 should be excluded");
-	assertEqualInt(1, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(1, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(1, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
 	archive_entry_set_uid(ae, 1000);
 	failure("uid 1000 should not be excluded");
-	assertEqualInt(0, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(0, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(0, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(0, archive_matching_excluded(m, ae));
 	archive_entry_set_uid(ae, 1001);
 	failure("uid 1001 should be excluded");
-	assertEqualInt(1, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(1, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(1, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
 	archive_entry_set_uid(ae, 1002);
 	failure("uid 1002 should not be excluded");
-	assertEqualInt(0, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(0, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(0, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(0, archive_matching_excluded(m, ae));
 	archive_entry_set_uid(ae, 1003);
 	failure("uid 1003 should be excluded");
-	assertEqualInt(1, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(1, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(1, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
 
 	/* Clean up. */
 	archive_entry_free(ae);
@@ -86,24 +86,24 @@ test_gid(void)
 
 	archive_entry_set_gid(ae, 0);
 	failure("uid 0 should be excluded");
-	assertEqualInt(1, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(1, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(1, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
 	archive_entry_set_gid(ae, 1000);
 	failure("uid 1000 should not be excluded");
-	assertEqualInt(0, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(0, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(0, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(0, archive_matching_excluded(m, ae));
 	archive_entry_set_gid(ae, 1001);
 	failure("uid 1001 should be excluded");
-	assertEqualInt(1, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(1, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(1, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
 	archive_entry_set_gid(ae, 1002);
 	failure("uid 1002 should not be excluded");
-	assertEqualInt(0, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(0, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(0, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(0, archive_matching_excluded(m, ae));
 	archive_entry_set_gid(ae, 1003);
 	failure("uid 1003 should be excluded");
-	assertEqualInt(1, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(1, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(1, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
 
 	/* Clean up. */
 	archive_entry_free(ae);
@@ -128,24 +128,24 @@ test_uname_mbs(void)
 
 	archive_entry_copy_uname(ae, "unknown");
 	failure("User 'unknown' should be excluded");
-	assertEqualInt(1, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(1, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(1, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
 	archive_entry_copy_uname(ae, "foo");
 	failure("User 'foo' should not be excluded");
-	assertEqualInt(0, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(0, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(0, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(0, archive_matching_excluded(m, ae));
 	archive_entry_copy_uname(ae, "foo1");
 	failure("User 'foo1' should be excluded");
-	assertEqualInt(1, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(1, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(1, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
 	archive_entry_copy_uname(ae, "bar");
 	failure("User 'bar' should not be excluded");
-	assertEqualInt(0, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(0, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(0, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(0, archive_matching_excluded(m, ae));
 	archive_entry_copy_uname(ae, "bar1");
 	failure("User 'bar1' should be excluded");
-	assertEqualInt(1, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(1, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(1, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
 
 	/* Clean up. */
 	archive_entry_free(ae);
@@ -170,24 +170,24 @@ test_uname_wcs(void)
 
 	archive_entry_copy_uname_w(ae, L"unknown");
 	failure("User 'unknown' should be excluded");
-	assertEqualInt(1, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(1, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(1, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
 	archive_entry_copy_uname_w(ae, L"foo");
 	failure("User 'foo' should not be excluded");
-	assertEqualInt(0, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(0, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(0, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(0, archive_matching_excluded(m, ae));
 	archive_entry_copy_uname_w(ae, L"foo1");
 	failure("User 'foo1' should be excluded");
-	assertEqualInt(1, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(1, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(1, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
 	archive_entry_copy_uname_w(ae, L"bar");
 	failure("User 'bar' should not be excluded");
-	assertEqualInt(0, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(0, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(0, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(0, archive_matching_excluded(m, ae));
 	archive_entry_copy_uname_w(ae, L"bar1");
 	failure("User 'bar1' should be excluded");
-	assertEqualInt(1, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(1, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(1, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
 
 	/* Clean up. */
 	archive_entry_free(ae);
@@ -212,24 +212,24 @@ test_gname_mbs(void)
 
 	archive_entry_copy_gname(ae, "unknown");
 	failure("Group 'unknown' should be excluded");
-	assertEqualInt(1, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(1, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(1, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
 	archive_entry_copy_gname(ae, "foo");
 	failure("Group 'foo' should not be excluded");
-	assertEqualInt(0, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(0, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(0, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(0, archive_matching_excluded(m, ae));
 	archive_entry_copy_gname(ae, "foo1");
 	failure("Group 'foo1' should be excluded");
-	assertEqualInt(1, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(1, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(1, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
 	archive_entry_copy_gname(ae, "bar");
 	failure("Group 'bar' should not be excluded");
-	assertEqualInt(0, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(0, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(0, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(0, archive_matching_excluded(m, ae));
 	archive_entry_copy_gname(ae, "bar1");
 	failure("Group 'bar1' should be excluded");
-	assertEqualInt(1, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(1, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(1, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
 
 	/* Clean up. */
 	archive_entry_free(ae);
@@ -254,24 +254,24 @@ test_gname_wcs(void)
 
 	archive_entry_copy_gname_w(ae, L"unknown");
 	failure("Group 'unknown' should be excluded");
-	assertEqualInt(1, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(1, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(1, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
 	archive_entry_copy_gname_w(ae, L"foo");
 	failure("Group 'foo' should not be excluded");
-	assertEqualInt(0, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(0, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(0, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(0, archive_matching_excluded(m, ae));
 	archive_entry_copy_gname_w(ae, L"foo1");
 	failure("Group 'foo1' should be excluded");
-	assertEqualInt(1, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(1, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(1, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
 	archive_entry_copy_gname_w(ae, L"bar");
 	failure("Group 'bar' should not be excluded");
-	assertEqualInt(0, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(0, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(0, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(0, archive_matching_excluded(m, ae));
 	archive_entry_copy_gname_w(ae, L"bar1");
 	failure("Group 'bar1' should be excluded");
-	assertEqualInt(1, archive_matching_owner_excluded_ae(m, ae));
-	assertEqualInt(1, archive_matching_excluded_ae(m, ae));
+	assertEqualInt(1, archive_matching_owner_excluded(m, ae));
+	assertEqualInt(1, archive_matching_excluded(m, ae));
 
 	/* Clean up. */
 	archive_entry_free(ae);

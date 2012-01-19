@@ -818,27 +818,23 @@ __LA_DECL int	archive_matching_free(struct archive *);
 /*
  * Test if archive_entry is excluded.
  * This is a convenience function. This is the same as calling all
- * archive_matching_path_excluded_ae, archive_matching_time_excluded_ae
- * and archive_matching_owner_excluded_ae.
+ * archive_matching_path_excluded, archive_matching_time_excluded
+ * and archive_matching_owner_excluded.
  */
-__LA_DECL int	archive_matching_excluded_ae(struct archive *,
+__LA_DECL int	archive_matching_excluded(struct archive *,
 		    struct archive_entry *);
 
 /*
- * Test if filename is excluded. The conditions are set by following functions.
+ * Test if pathname is excluded. The conditions are set by following functions.
  */
 __LA_DECL int	archive_matching_path_excluded(struct archive *,
-		    const char *_filename);
-__LA_DECL int	archive_matching_path_excluded_w(struct archive *,
-		    const wchar_t *_filename);
-__LA_DECL int	archive_matching_path_excluded_ae(struct archive *,
 		    struct archive_entry *);
-/* Add exclusion fielname pattern. */
+/* Add exclusion pathname pattern. */
 __LA_DECL int	archive_matching_exclude_pattern(struct archive *,
 		    const char *);
 __LA_DECL int	archive_matching_exclude_pattern_w(struct archive *,
 		    const wchar_t *);
-/* Add inclusion fielname pattern. */
+/* Add inclusion pathname pattern. */
 __LA_DECL int	archive_matching_include_pattern(struct archive *,
 		    const char *);
 __LA_DECL int	archive_matching_include_pattern_w(struct archive *,
@@ -860,7 +856,7 @@ __LA_DECL int	archive_matching_path_unmatched_inclusions_next_w(
  * Test if a file is excluded by its time stamp.
  * The conditions are set by following functions.
  */
-__LA_DECL int	archive_matching_time_excluded_ae(struct archive *,
+__LA_DECL int	archive_matching_time_excluded(struct archive *,
 		    struct archive_entry *);
 /* Set inclusion file times. */
 __LA_DECL int	archive_matching_newer_mtime(struct archive *,
@@ -901,7 +897,7 @@ __LA_DECL int	archive_matching_pathname_newer_mtime_ae(
  * Test if a file is excluded by its uid ,gid, uname or gname.
  * The conditions are set by following functions.
  */
-__LA_DECL int	archive_matching_owner_excluded_ae(struct archive *,
+__LA_DECL int	archive_matching_owner_excluded(struct archive *,
 		    struct archive_entry *);
 /* Add inclusion uid, gid, uname and gname. */
 __LA_DECL int	archive_matching_include_uid(struct archive *,

@@ -591,11 +591,7 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 	int e;
 
 	while (ARCHIVE_OK == (e = archive_read_next_header(ina, &in_entry))) {
-		if (archive_matching_time_excluded_ae(bsdtar->matching,
-		    in_entry))
-			continue;
-		if (archive_matching_path_excluded_ae(bsdtar->matching,
-		    in_entry))
+		if (archive_matching_excluded(bsdtar->matching, in_entry))
 			continue;
 		if (bsdtar->option_interactive &&
 		    !yes("copy '%s'", archive_entry_pathname(in_entry)))
