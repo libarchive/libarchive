@@ -430,11 +430,9 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 	    bsdtar->matching, excluded_callback, bsdtar);
 	archive_read_disk_set_metadata_filter_callback(
 	    bsdtar->diskreader, metadata_filter, bsdtar);
-	/* Skip a file if it has nodump flag. */
-	if (bsdtar->option_honor_nodump)
-		archive_read_disk_honor_nodump(bsdtar->diskreader);
-	if (!bsdtar->enable_copyfile)
-		archive_read_disk_disable_mac_copyfile(bsdtar->diskreader);
+	/* Set the behavior of archive_read_disk. */
+	archive_read_disk_set_behavior(bsdtar->diskreader,
+	    bsdtar->readdisk_flags);
 	archive_read_disk_set_standard_lookup(bsdtar->diskreader);
 
 	if (bsdtar->names_from_file != NULL)

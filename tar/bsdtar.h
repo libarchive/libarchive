@@ -50,6 +50,7 @@ struct bsdtar {
 	int		  bytes_in_last_block; /* See -b handling. */
 	int		  verbose;   /* -v */
 	int		  extract_flags; /* Flags for extract operation */
+	int		  readdisk_flags; /* Flags for read disk operation */
 	int		  strip_components; /* Remove this many leading dirs */
 	int		  gid;  /* --gid */
 	const char	 *gname; /* --gname */
@@ -64,7 +65,6 @@ struct bsdtar {
 	char		  option_dont_traverse_mounts; /* --one-file-system */
 	char		  option_fast_read; /* --fast-read */
 	const char	 *option_options; /* --options */
-	char		  option_honor_nodump; /* --nodump */
 	char		  option_interactive; /* -w */
 	char		  option_no_owner; /* -o */
 	char		  option_no_subdirs; /* -n */
@@ -75,7 +75,6 @@ struct bsdtar {
 	char		  option_unlink_first; /* -U */
 	char		  option_warn_links; /* --check-links */
 	char		  day_first; /* show day before month in -tv output */
-	char		  enable_copyfile; /* For Mac OS */
 
 	/* Option parser state */
 	int		  getopt_state;

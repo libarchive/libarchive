@@ -755,8 +755,23 @@ __LA_DECL int	archive_read_disk_current_filesystem_is_synthetic(struct archive *
 __LA_DECL int	archive_read_disk_current_filesystem_is_remote(struct archive *);
 /* Request that the access time of the entry visited by travesal be restored. */
 __LA_DECL int  archive_read_disk_set_atime_restored(struct archive *);
-__LA_DECL int  archive_read_disk_honor_nodump(struct archive *);
-__LA_DECL int  archive_read_disk_disable_mac_copyfile(struct archive *);
+/*
+ * Set behavior. The "flags" argument selects optional behavior.
+ */
+/* Request that the access time of the entry visited by travesal be restored.
+ * This is the same as archive_read_disk_set_atime_restored. */
+#define	ARCHIVE_READDISK_RESTORE_ATIME		(0x0001)
+/* Default: Do not skip an entry which has nodump flags. */
+#define	ARCHIVE_READDISK_HONOR_NODUMP		(0x0002)
+/* Default: Skip a mac resource fork file whose prefix is "._" because of
+ * using copyfile. */
+#define	ARCHIVE_READDISK_MAC_COPYFILE		(0x0004)
+/* Default: Do not traverse mount points. */
+#define	ARCHIVE_READDISK_NO_TRAVERSE_MOUNTS	(0x0008)
+
+__LA_DECL int  archive_read_disk_set_behavior(struct archive *,
+		    int flags);
+
 /*
  * Set archive_matching object that will be used in archive_read_disk to
  * know whether an entry should be skipped. The callback function

@@ -452,6 +452,7 @@ archive_read_disk_new(void)
 	a->lookup_uname = trivial_lookup_uname;
 	a->lookup_gname = trivial_lookup_gname;
 	a->enable_copyfile = 1;
+	a->traversal_mount_points = 1;
 	a->entry_wd_fd = -1;
 	return (&a->archive);
 }
@@ -569,23 +570,34 @@ archive_read_disk_set_atime_restored(struct archive *_a)
 }
 
 int
-archive_read_disk_honor_nodump(struct archive *_a)
+archive_read_disk_set_behavior(struct archive *_a, int flags)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+	int r = ARCHIVE_OK;
+
 	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
 	    ARCHIVE_STATE_ANY, "archive_read_disk_honor_nodump");
-	a->honor_nodump = 1;
-	return (ARCHIVE_OK);
-}
 
-int
-archive_read_disk_disable_mac_copyfile(struct archive *_a)
-{
-	struct archive_read_disk *a = (struct archive_read_disk *)_a;
-	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
-	    ARCHIVE_STATE_ANY, "archive_read_disk_disable_mac_copyfile");
-	a->enable_copyfile = 0;
-	return (ARCHIVE_OK);
+	if (flags & ARCHIVE_READDISK_RESTORE_ATIME)
+		r = archive_read_disk_set_atime_restored(_a);
+	else {
+		a->restore_time = 0;
+		if (a->tree != NULL)
+			a->tree->flags &= ~needsRestoreTimes;
+	}
+	if (flags & ARCHIVE_READDISK_HONOR_NODUMP)
+		a->honor_nodump = 1;
+	else
+		a->honor_nodump = 0;
+	if (flags & ARCHIVE_READDISK_MAC_COPYFILE)
+		a->enable_copyfile = 1;
+	else
+		a->enable_copyfile = 0;
+	if (flags & ARCHIVE_READDISK_NO_TRAVERSE_MOUNTS)
+		a->traversal_mount_points = 0;
+	else
+		a->traversal_mount_points = 1;
+	return (r);
 }
 
 /*

@@ -1236,8 +1236,8 @@ test_restore_atime(void)
 	assertUtimes("at/fe", 886611, 0, 886611, 0);
 	assertUtimes("at", 886622, 0, 886622, 0);
 	file_count = 2;
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_set_atime_restored(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_honor_nodump(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_set_behavior(a,
+		ARCHIVE_READDISK_RESTORE_ATIME | ARCHIVE_READDISK_HONOR_NODUMP));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, "at"));
 
 	failure("Directory traversals should work as well");
@@ -1509,8 +1509,8 @@ test_nodump(void)
 	assertUtimes("nd/fe", 886611, 0, 886611, 0);
 	assertUtimes("nd", 886622, 0, 886622, 0);
 
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_honor_nodump(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_set_atime_restored(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_set_behavior(a,
+		ARCHIVE_READDISK_RESTORE_ATIME | ARCHIVE_READDISK_HONOR_NODUMP));
 	failure("Directory traversals should work as well");
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, "nd"));
 

@@ -241,10 +241,10 @@ main(int argc, char **argv)
 	 * Enable Mac OS "copyfile()" extension by default.
 	 * This has no effect on other platforms.
 	 */
-	bsdtar->enable_copyfile = 1;
+	bsdtar->readdisk_flags |= ARCHIVE_READDISK_MAC_COPYFILE;
 #ifdef COPYFILE_DISABLE_VAR
 	if (getenv(COPYFILE_DISABLE_VAR))
-		bsdtar->enable_copyfile = 0;
+		bsdtar->readdisk_flags &= ~ARCHIVE_READDISK_MAC_COPYFILE;
 #endif
 	bsdtar->matching = archive_matching_new();
 	if (bsdtar->matching == NULL)
@@ -290,7 +290,7 @@ main(int argc, char **argv)
 			bsdtar->option_chroot = 1;
 			break;
 		case OPTION_DISABLE_COPYFILE: /* Mac OS X */
-			bsdtar->enable_copyfile = 0;
+			bsdtar->readdisk_flags &= ~ARCHIVE_READDISK_MAC_COPYFILE;
 			break;
 		case OPTION_EXCLUDE: /* GNU tar */
 			if (archive_matching_exclude_pattern(
@@ -424,7 +424,7 @@ main(int argc, char **argv)
 				    archive_error_string(bsdtar->matching));
 			break;
 		case OPTION_NODUMP: /* star */
-			bsdtar->option_honor_nodump = 1;
+			bsdtar->readdisk_flags |= ARCHIVE_READDISK_HONOR_NODUMP;
 			break;
 		case OPTION_NO_SAME_OWNER: /* GNU tar */
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_OWNER;
@@ -614,7 +614,7 @@ main(int argc, char **argv)
 		only_mode(bsdtar, "--one-file-system", "cru");
 	if (bsdtar->option_fast_read)
 		only_mode(bsdtar, "--fast-read", "xt");
-	if (bsdtar->option_honor_nodump)
+	if (bsdtar->readdisk_flags & ARCHIVE_READDISK_HONOR_NODUMP)
 		only_mode(bsdtar, "--nodump", "cru");
 	if (option_o > 0) {
 		switch (bsdtar->mode) {

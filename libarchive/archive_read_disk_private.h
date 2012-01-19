@@ -63,6 +63,8 @@ struct archive_read_disk {
 	int		 honor_nodump;
 	/* Set 1 if users request to enable mac copyfile. */
 	int		 enable_copyfile;
+	/* Set 1 if users request to traversal mount points. */
+	int		 traversal_mount_points;
 
 	int		 entry_wd_fd;
 
