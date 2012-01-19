@@ -711,14 +711,6 @@ excluded_callback(struct archive *a, void *_data, struct archive_entry *entry)
 		return;
 	if (!archive_read_disk_can_descend(a))
 		return;
-	if (bsdtar->option_dont_traverse_mounts) {
-		if (bsdtar->first_fs == -1)
-			bsdtar->first_fs =
-			    archive_read_disk_current_filesystem(a);
-		else if (bsdtar->first_fs !=
-		    archive_read_disk_current_filesystem(a))
-			return;
-	}
 	if (bsdtar->option_interactive &&
 	    !yes("add '%s'", archive_entry_pathname(entry)))
 		return;
@@ -730,27 +722,19 @@ metadata_filter(struct archive *a, void *_data, struct archive_entry *entry)
 {
 	struct bsdtar *bsdtar = (struct bsdtar *)_data;
 
-	if (bsdtar->option_dont_traverse_mounts) {
-		if (bsdtar->first_fs == -1)
-			bsdtar->first_fs =
-			    archive_read_disk_current_filesystem(a);
-		else if (bsdtar->first_fs !=
-		    archive_read_disk_current_filesystem(a))
-			return (0);
-		/* XXX TODO: check whether this filesystem is
-		 * synthetic and/or local.  Add a new
-		 * --local-only option to skip non-local
-		 * filesystems.  Skip synthetic filesystems
-		 * regardless.
-		 *
-		 * The results should be cached, since
-		 * tree.c doesn't usually visit a directory
-		 * and the directory contents together.  A simple
-		 * move-to-front list should perform quite well.
-		 *
-		 * Use archive_read_disk_current_filesystem_is_remote().
-		 */
-	}
+	/* XXX TODO: check whether this filesystem is
+	 * synthetic and/or local.  Add a new
+	 * --local-only option to skip non-local
+	 * filesystems.  Skip synthetic filesystems
+	 * regardless.
+	 *
+	 * The results should be cached, since
+	 * tree.c doesn't usually visit a directory
+	 * and the directory contents together.  A simple
+	 * move-to-front list should perform quite well.
+	 *
+	 * Use archive_read_disk_current_filesystem_is_remote().
+	 */
 
 	/*
 	 * If the user vetoes this file/directory, skip it.

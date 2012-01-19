@@ -451,7 +451,8 @@ main(int argc, char **argv)
 			option_o = 1; /* Record it and resolve it later. */
 			break;
 		case OPTION_ONE_FILE_SYSTEM: /* GNU tar */
-			bsdtar->option_dont_traverse_mounts = 1;
+			bsdtar->readdisk_flags |=
+			    ARCHIVE_READDISK_NO_TRAVERSE_MOUNTS;
 			break;
 		case OPTION_OPTIONS:
 			bsdtar->option_options = bsdtar->argument;
@@ -610,7 +611,7 @@ main(int argc, char **argv)
 		    "Must specify one of -c, -r, -t, -u, -x");
 
 	/* Check boolean options only permitted in certain modes. */
-	if (bsdtar->option_dont_traverse_mounts)
+	if (bsdtar->readdisk_flags & ARCHIVE_READDISK_NO_TRAVERSE_MOUNTS)
 		only_mode(bsdtar, "--one-file-system", "cru");
 	if (bsdtar->option_fast_read)
 		only_mode(bsdtar, "--fast-read", "xt");

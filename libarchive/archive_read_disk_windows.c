@@ -165,6 +165,7 @@ struct tree {
 	char			 symlink_mode;
 	struct filesystem	*current_filesystem;
 	struct filesystem	*filesystem_table;
+	int			 initial_filesystem_id;
 	int			 current_filesystem_id;
 	int			 max_filesystem_id;
 	int			 allocated_filesytem;
@@ -395,7 +396,7 @@ archive_read_disk_new(void)
 	a->lookup_uname = trivial_lookup_uname;
 	a->lookup_gname = trivial_lookup_gname;
 	a->enable_copyfile = 1;
-	a->traversal_mount_points = 1;
+	a->traverse_mount_points = 1;
 	a->entry_wd_fd = -1;
 	return (&a->archive);
 }
@@ -522,9 +523,9 @@ archive_read_disk_set_behavior(struct archive *_a, int flags)
 	else
 		a->enable_copyfile = 0;
 	if (flags & ARCHIVE_READDISK_NO_TRAVERSE_MOUNTS)
-		a->traversal_mount_points = 0;
+		a->traverse_mount_points = 0;
 	else
-		a->traversal_mount_points = 1;
+		a->traverse_mount_points = 1;
 	return (r);
 }
 
@@ -859,6 +860,14 @@ next_entry:
 	if (update_current_filesystem(a, bhfi_dev(st)) != ARCHIVE_OK) {
 		a->archive.state = ARCHIVE_STATE_FATAL;
 		return (ARCHIVE_FATAL);
+	}
+	if (t->initial_filesystem_id == -1)
+		t->initial_filesystem_id = t->current_filesystem_id;
+	if (!a->traverse_mount_points) {
+		if (t->initial_filesystem_id != t->current_filesystem_id) {
+			archive_entry_clear(entry);
+			goto next_entry;
+		}
 	}
 	t->descend = descend;
 
@@ -1505,6 +1514,7 @@ tree_reopen(struct tree *t, const wchar_t *path, int restore_time)
 	t->entry_fh = INVALID_HANDLE_VALUE;
 	t->entry_eof = 0;
 	t->entry_remaining_bytes = 0;
+	t->initial_filesystem_id = -1;
 
 	/* Get wchar_t strings from char strings. */
 	archive_string_init(&ws);
