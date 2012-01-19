@@ -914,7 +914,7 @@ next_entry:
 	 * Perform path matching.
 	 */
 	if (a->matching) {
-		r = archive_matching_path_excluded_w(a->matching,
+		r = archive_matching_path_excluded(a->matching,
 			tree_current_path(t));
 		if (r < 0) {
 			archive_set_error(&(a->archive), errno,
