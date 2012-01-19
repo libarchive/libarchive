@@ -1274,23 +1274,6 @@ test_restore_atime(void)
 }
 
 static int
-name_filter(struct archive *a, void *data, struct archive_entry *ae)
-{
-	failure("ATime should not be set");
-	assertEqualInt(0, archive_entry_atime_is_set(ae));
-	failure("BirthTime should not be set");
-	assertEqualInt(0, archive_entry_birthtime_is_set(ae));
-	failure("CTime should not be set");
-	assertEqualInt(0, archive_entry_ctime_is_set(ae));
-	failure("MTime should not be set");
-	assertEqualInt(0, archive_entry_mtime_is_set(ae));
-
-	if (strcmp(archive_entry_pathname(ae), "cb/f2") == 0)
-		return (0);
-	return (1);
-}
-
-static int
 metadata_filter(struct archive *a, void *data, struct archive_entry *ae)
 {
 	failure("CTime should be set");
@@ -1316,6 +1299,7 @@ static void
 test_callbacks(void)
 {
 	struct archive *a;
+	struct archive *m;
 	struct archive_entry *ae;
 	const void *p;
 	size_t size;
@@ -1332,14 +1316,24 @@ test_callbacks(void)
 	assertUtimes("cb", 886622, 0, 886622, 0);
 
 	assert((ae = archive_entry_new()) != NULL);
-	assert((a = archive_read_disk_new()) != NULL);
+	if (assert((a = archive_read_disk_new()) != NULL)) {
+		archive_entry_free(ae);
+		return;
+	}
+	if (assert((m = archive_matching_new()) != NULL)) {
+		archive_entry_free(ae);
+		archive_read_free(a);
+		return;
+	}
 
 	/*
 	 * Test1: Traversals with a name filter.
 	 */
 	file_count = 3;
+	assertEqualIntA(m, ARCHIVE_OK,
+	    archive_matching_exclude_pattern(m, "cb/f2"));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_disk_set_name_filter_callback(a, name_filter, NULL));
+	    archive_read_disk_set_matching(a, m, NULL, NULL));
 	failure("Directory traversals should work as well");
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, "cb"));
 	while (file_count--) {
@@ -1387,8 +1381,6 @@ test_callbacks(void)
 	assertUtimes("cb", 886622, 0, 886622, 0);
 	file_count = 3;
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_disk_set_name_filter_callback(a, NULL, NULL));
-	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_disk_set_metadata_filter_callback(a, metadata_filter,
 		    NULL));
 	failure("Directory traversals should work as well");
@@ -1424,6 +1416,7 @@ test_callbacks(void)
 
 	/* Destroy the disk object. */
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_matching_free(m));
 	archive_entry_free(ae);
 }
 

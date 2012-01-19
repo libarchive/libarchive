@@ -790,9 +790,25 @@ next_entry:
 	} while (lst == NULL);
 
 	archive_entry_copy_pathname_w(entry, tree_current_path(t));
-	if (a->name_filter_func) {
-		if (!a->name_filter_func(_a, a->name_filter_data, entry))
+
+	/*
+	 * Perform path matching.
+	 */
+	if (a->matching) {
+		r = archive_matching_path_excluded_w(a->matching,
+			tree_current_path(t));
+		if (r < 0) {
+			archive_set_error(&(a->archive), errno,
+			    "Faild : %s", archive_error_string(a->matching));
+			return (r);
+		}
+		if (r) {
+			if (a->excluded_cb_func)
+				a->excluded_cb_func(&(a->archive),
+				    a->excluded_cb_data, entry);
+			archive_entry_clear(entry);
 			goto next_entry;
+		}
 	}
 
 	/*
@@ -835,6 +851,33 @@ next_entry:
 	t->descend = descend;
 
 	tree_archive_entry_copy_bhfi(entry, t, st);
+
+	/* Save the times to be restored. This must be in before
+	 * calling archive_read_disk_descend() or any chance of it,
+	 * especially, invokng a callback. */
+	t->restore_time.lastWriteTime = st->ftLastWriteTime;
+	t->restore_time.lastAccessTime = st->ftLastAccessTime;
+	t->restore_time.filetype = archive_entry_filetype(entry);
+
+	/*
+	 * Perform time matching.
+	 */
+	if (a->matching) {
+		r = archive_matching_time_excluded_ae(a->matching, entry);
+		if (r < 0) {
+			archive_set_error(&(a->archive), errno,
+			    "Faild : %s", archive_error_string(a->matching));
+			return (r);
+		}
+		if (r) {
+			if (a->excluded_cb_func)
+				a->excluded_cb_func(&(a->archive),
+				    a->excluded_cb_data, entry);
+			archive_entry_clear(entry);
+			goto next_entry;
+		}
+	}
+
 	/* Lookup uname/gname */
 	name = archive_read_disk_uname(_a, archive_entry_uid(entry));
 	if (name != NULL)
@@ -842,7 +885,29 @@ next_entry:
 	name = archive_read_disk_gname(_a, archive_entry_gid(entry));
 	if (name != NULL)
 		archive_entry_copy_gname(entry, name);
-	/* Invoke a filter callback. */
+
+	/*
+	 * Perform owner matching.
+	 */
+	if (a->matching) {
+		r = archive_matching_owner_excluded_ae(a->matching, entry);
+		if (r < 0) {
+			archive_set_error(&(a->archive), errno,
+			    "Faild : %s", archive_error_string(a->matching));
+			return (r);
+		}
+		if (r) {
+			if (a->excluded_cb_func)
+				a->excluded_cb_func(&(a->archive),
+				    a->excluded_cb_data, entry);
+			archive_entry_clear(entry);
+			goto next_entry;
+		}
+	}
+
+	/*
+	 * Invoke a meta data filter callback.
+	 */
 	if (a->metadata_filter_func) {
 		if (!a->metadata_filter_func(_a,
 		    a->metadata_filter_data, entry)) {
@@ -851,11 +916,6 @@ next_entry:
 		}
 	}
 	archive_entry_copy_sourcepath_w(entry, tree_current_access_path(t));
-
-	/* Save the times to be restored. */
-	t->restore_time.lastWriteTime = st->ftLastWriteTime;
-	t->restore_time.lastAccessTime = st->ftLastAccessTime;
-	t->restore_time.filetype = archive_entry_filetype(entry);
 
 	r = ARCHIVE_OK;
 	if (archive_entry_filetype(entry) == AE_IFREG &&
@@ -994,17 +1054,16 @@ setup_sparse(struct archive_read_disk *a, struct archive_entry *entry)
 }
 
 int
-archive_read_disk_set_name_filter_callback(struct archive *_a,
-    int (*_name_filter_func)(struct archive *, void *, struct archive_entry *),
+archive_read_disk_set_matching(struct archive *_a, struct archive *_ma,
+    void (*_excluded_func)(struct archive *, void *, struct archive_entry *),
     void *_client_data)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
-
-	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC, ARCHIVE_STATE_ANY,
-	    "archive_read_disk_set_name_filter_callback");
-
-	a->name_filter_func = _name_filter_func;
-	a->name_filter_data = _client_data;
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
+	    ARCHIVE_STATE_ANY, "archive_read_disk_set_matching");
+	a->matching = _ma;
+	a->excluded_cb_func = _excluded_func;
+	a->excluded_cb_data = _client_data;
 	return (ARCHIVE_OK);
 }
 

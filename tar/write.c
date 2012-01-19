@@ -102,7 +102,7 @@ static void		 archive_names_from_file(struct bsdtar *bsdtar,
 static int		 copy_file_data_block(struct bsdtar *,
 			     struct archive *a, struct archive *,
 			     struct archive_entry *);
-static int		 name_filter(struct archive *, void *,
+static void		 excluded_callback(struct archive *, void *,
 			     struct archive_entry *);
 static void		 report_write(struct bsdtar *, struct archive *,
 			     struct archive_entry *, int64_t progress);
@@ -426,8 +426,8 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 		break;
 	}
 	/* Register entry filters. */
-	archive_read_disk_set_name_filter_callback(bsdtar->diskreader,
-	    name_filter, bsdtar);
+	archive_read_disk_set_matching(bsdtar->diskreader,
+	    bsdtar->matching, excluded_callback, bsdtar);
 	archive_read_disk_set_metadata_filter_callback(
 	    bsdtar->diskreader, metadata_filter, bsdtar);
 	/* Skip a file if it has nodump flag. */
@@ -708,40 +708,33 @@ copy_file_data_block(struct bsdtar *bsdtar, struct archive *a,
 	return (0);
 }
 
-static int
-name_filter(struct archive *a, void *_data, struct archive_entry *entry)
+static void
+excluded_callback(struct archive *a, void *_data, struct archive_entry *entry)
 {
 	struct bsdtar *bsdtar = (struct bsdtar *)_data;
 
-	/*
-	 * If this file/dir is excluded by a filename
-	 * pattern, skip it.
-	 */
-	if (archive_matching_path_excluded_ae(bsdtar->matching, entry))
-		return (0);
-	return (1);
+	if (bsdtar->option_no_subdirs)
+		return;
+	if (!archive_read_disk_can_descend(a))
+		return;
+	if (bsdtar->option_dont_traverse_mounts) {
+		if (bsdtar->first_fs == -1)
+			bsdtar->first_fs =
+			    archive_read_disk_current_filesystem(a);
+		else if (bsdtar->first_fs !=
+		    archive_read_disk_current_filesystem(a))
+			return;
+	}
+	if (bsdtar->option_interactive &&
+	    !yes("add '%s'", archive_entry_pathname(entry)))
+		return;
+	archive_read_disk_descend(a);
 }
 
 static int
 metadata_filter(struct archive *a, void *_data, struct archive_entry *entry)
 {
 	struct bsdtar *bsdtar = (struct bsdtar *)_data;
-
-	/*
-	 * In -u mode, check that the file is newer than what's
-	 * already in the archive; in all modes, obey --newerXXX flags.
-	 */
-	if (archive_matching_time_excluded_ae(bsdtar->matching, entry)) {
-		if (bsdtar->option_no_subdirs)
-			return (0);
-		if (!archive_read_disk_can_descend(a))
-			return (0);
-		if (bsdtar->option_interactive &&
-		    !yes("add '%s'", archive_entry_pathname(entry)))
-			return (0);
-		archive_read_disk_descend(a);
-		return (0);
-	}
 
 	if (bsdtar->option_dont_traverse_mounts) {
 		if (bsdtar->first_fs == -1)

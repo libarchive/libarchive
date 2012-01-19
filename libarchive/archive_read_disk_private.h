@@ -73,13 +73,17 @@ struct archive_read_disk {
 	void	(*cleanup_uname)(void *private);
 	void	 *lookup_uname_data;
 
-	int	(*name_filter_func)(struct archive *, void *,
-			struct archive_entry *);
-	void	*name_filter_data;
 	int	(*metadata_filter_func)(struct archive *, void *,
 			struct archive_entry *);
 	void	*metadata_filter_data;
 
+	/* ARCHIVE_MATCHING object. */
+	struct archive	*matching;
+	/* Callback function, this will be invoked when ARCHIVE_MATCHING
+	 * archive_matching_*_excluded_ae return true. */
+	void	(*excluded_cb_func)(struct archive *, void *,
+			 struct archive_entry *);
+	void	*excluded_cb_data;
 };
 
 #endif

@@ -908,14 +908,26 @@ next_entry:
 			goto next_entry;
 	}
 #endif
-	archive_entry_copy_pathname(entry, tree_current_path(t));
 
+	archive_entry_copy_pathname(entry, tree_current_path(t));
 	/*
-	 * Invoke a name filter callback.
+	 * Perform path matching.
 	 */
-	if (a->name_filter_func) {
-		if (!a->name_filter_func(_a, a->name_filter_data, entry))
+	if (a->matching) {
+		r = archive_matching_path_excluded_w(a->matching,
+			tree_current_path(t));
+		if (r < 0) {
+			archive_set_error(&(a->archive), errno,
+			    "Faild : %s", archive_error_string(a->matching));
+			return (r);
+		}
+		if (r) {
+			if (a->excluded_cb_func)
+				a->excluded_cb_func(&(a->archive),
+				    a->excluded_cb_data, entry);
+			archive_entry_clear(entry);
 			goto next_entry;
+		}
 	}
 
 	/*
@@ -965,10 +977,8 @@ next_entry:
 	fd = -1;
 	if (a->honor_nodump) {
 #if defined(HAVE_STRUCT_STAT_ST_FLAGS) && defined(UF_NODUMP)
-		if (st->st_flags & UF_NODUMP) {
-			archive_entry_clear(entry);
+		if (st->st_flags & UF_NODUMP)
 			goto next_entry;
-		}
 #elif defined(EXT2_IOC_GETFLAGS) && defined(EXT2_NODUMP_FL) &&\
       defined(HAVE_WORKING_EXT2_IOC_GETFLAGS)
 		if (S_ISREG(st->st_mode) || S_ISDIR(st->st_mode)) {
@@ -987,7 +997,6 @@ next_entry:
 				r = ioctl(fd, EXT2_IOC_GETFLAGS, &stflags);
 				if (r == 0 && (stflags & EXT2_NODUMP_FL) != 0) {
 					close(fd);
-					archive_entry_clear(entry);
 					goto next_entry;
 				}
 			}
@@ -996,6 +1005,7 @@ next_entry:
 	}
 
 	archive_entry_copy_stat(entry, st);
+
 	/* Save the times to be restored. This must be in before
 	 * calling archive_read_disk_descend() or any chance of it,
 	 * especially, invokng a callback. */
@@ -1006,6 +1016,25 @@ next_entry:
 	t->restore_time.filetype = archive_entry_filetype(entry);
 	t->restore_time.noatime = t->current_filesystem->noatime;
 
+	/*
+	 * Perform time matching.
+	 */
+	if (a->matching) {
+		r = archive_matching_time_excluded_ae(a->matching, entry);
+		if (r < 0) {
+			archive_set_error(&(a->archive), errno,
+			    "Faild : %s", archive_error_string(a->matching));
+			return (r);
+		}
+		if (r) {
+			if (a->excluded_cb_func)
+				a->excluded_cb_func(&(a->archive),
+				    a->excluded_cb_data, entry);
+			archive_entry_clear(entry);
+			goto next_entry;
+		}
+	}
+
 	/* Lookup uname/gname */
 	name = archive_read_disk_uname(_a, archive_entry_uid(entry));
 	if (name != NULL)
@@ -1013,6 +1042,25 @@ next_entry:
 	name = archive_read_disk_gname(_a, archive_entry_gid(entry));
 	if (name != NULL)
 		archive_entry_copy_gname(entry, name);
+
+	/*
+	 * Perform owner matching.
+	 */
+	if (a->matching) {
+		r = archive_matching_owner_excluded_ae(a->matching, entry);
+		if (r < 0) {
+			archive_set_error(&(a->archive), errno,
+			    "Faild : %s", archive_error_string(a->matching));
+			return (r);
+		}
+		if (r) {
+			if (a->excluded_cb_func)
+				a->excluded_cb_func(&(a->archive),
+				    a->excluded_cb_data, entry);
+			archive_entry_clear(entry);
+			goto next_entry;
+		}
+	}
 
 	/*
 	 * Invoke a meta data filter callback.
@@ -1135,17 +1183,16 @@ setup_sparse(struct archive_read_disk *a, struct archive_entry *entry)
 }
 
 int
-archive_read_disk_set_name_filter_callback(struct archive *_a,
-    int (*_name_filter_func)(struct archive *, void *, struct archive_entry *),
+archive_read_disk_set_matching(struct archive *_a, struct archive *_ma,
+    void (*_excluded_func)(struct archive *, void *, struct archive_entry *),
     void *_client_data)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
-
-	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC, ARCHIVE_STATE_ANY,
-	    "archive_read_disk_set_name_filter_callback");
-
-	a->name_filter_func = _name_filter_func;
-	a->name_filter_data = _client_data;
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
+	    ARCHIVE_STATE_ANY, "archive_read_disk_set_matching");
+	a->matching = _ma;
+	a->excluded_cb_func = _excluded_func;
+	a->excluded_cb_data = _client_data;
 	return (ARCHIVE_OK);
 }
 

@@ -748,8 +748,8 @@ __LA_DECL int	archive_read_disk_open_w(struct archive *, const wchar_t *);
  * you invoke this on every returned path, you'll get a full logical
  * traversal.
  */
-__LA_DECL int	archive_read_disk_can_descend(struct archive *);
 __LA_DECL int	archive_read_disk_descend(struct archive *);
+__LA_DECL int	archive_read_disk_can_descend(struct archive *);
 __LA_DECL int	archive_read_disk_current_filesystem(struct archive *);
 __LA_DECL int	archive_read_disk_current_filesystem_is_synthetic(struct archive *);
 __LA_DECL int	archive_read_disk_current_filesystem_is_remote(struct archive *);
@@ -757,10 +757,16 @@ __LA_DECL int	archive_read_disk_current_filesystem_is_remote(struct archive *);
 __LA_DECL int  archive_read_disk_set_atime_restored(struct archive *);
 __LA_DECL int  archive_read_disk_honor_nodump(struct archive *);
 __LA_DECL int  archive_read_disk_disable_mac_copyfile(struct archive *);
-
-__LA_DECL int	archive_read_disk_set_name_filter_callback(struct archive *,
-		    int (*_name_filter_func)(struct archive *, void *,
-		    	struct archive_entry *), void *_client_data);
+/*
+ * Set archive_matching object that will be used in archive_read_disk to
+ * know whether an entry should be skipped. The callback function
+ * _excluded_func will be invoked when an entry is skipped by the result
+ * of archive_matching.
+ */
+__LA_DECL int	archive_read_disk_set_matching(struct archive *,
+		    struct archive *_matching, void (*_excluded_func)
+		    (struct archive *, void *, struct archive_entry *),
+		    void *_client_data);
 __LA_DECL int	archive_read_disk_set_metadata_filter_callback(struct archive *,
 		    int (*_metadata_filter_func)(struct archive *, void *,
 		    	struct archive_entry *), void *_client_data);
