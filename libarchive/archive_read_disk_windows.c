@@ -782,7 +782,7 @@ next_entry:
 			a->archive.state = ARCHIVE_STATE_FATAL;
 			return (ARCHIVE_FATAL);
 		case TREE_ERROR_DIR:
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			archive_set_error(&a->archive, t->tree_errno,
 			    "%ls: Couldn't visit directory",
 			    tree_current_path(t));
 			return (ARCHIVE_FAILED);
@@ -794,7 +794,7 @@ next_entry:
 		case TREE_REGULAR:
 			lst = tree_current_lstat(t);
 			if (lst == NULL) {
-				archive_set_error(&a->archive, errno,
+				archive_set_error(&a->archive, t->tree_errno,
 				    "%ls: Cannot stat",
 				    tree_current_path(t));
 				return (ARCHIVE_FAILED);
@@ -1670,6 +1670,7 @@ tree_next(struct tree *t)
 			} else {
 				HANDLE h = FindFirstFileW(d, &t->_findData);
 				if (h == INVALID_HANDLE_VALUE) {
+					la_dosmaperr(GetLastError());
 					t->tree_errno = errno;
 					t->visit_type = TREE_ERROR_DIR;
 					return (t->visit_type);
@@ -1741,9 +1742,10 @@ tree_dir_next_windows(struct tree *t, const wchar_t *pattern)
 			t->d = FindFirstFileW(pt.s, &t->_findData);
 			archive_wstring_free(&pt);
 			if (t->d == INVALID_HANDLE_VALUE) {
+				la_dosmaperr(GetLastError());
+				t->tree_errno = errno;
 				r = tree_ascend(t); /* Undo "chdir" */
 				tree_pop(t);
-				t->tree_errno = errno;
 				t->visit_type = r != 0 ? r : TREE_ERROR_DIR;
 				return (t->visit_type);
 			}
@@ -1877,8 +1879,11 @@ tree_current_file_information(struct tree *t, BY_HANDLE_FILE_INFORMATION *st,
 		flag |= FILE_FLAG_OPEN_REPARSE_POINT;
 	h = CreateFileW(tree_current_access_path(t), 0, 0, NULL,
 	    OPEN_EXISTING, flag, NULL);
-	if (h == INVALID_HANDLE_VALUE)
+	if (h == INVALID_HANDLE_VALUE) {
+		la_dosmaperr(GetLastError());
+		t->tree_errno = errno;
 		return (0);
+	}
 	r = GetFileInformationByHandle(h, st);
 	CloseHandle(h);
 	return (r);
@@ -2070,7 +2075,8 @@ archive_read_disk_entry_from_file(struct archive *_a,
 			h = (HANDLE)_get_osfhandle(fd);
 			r = GetFileInformationByHandle(h, &bhfi);
 			if (r == 0) {
-				archive_set_error(&a->archive, GetLastError(),
+				la_dosmaperr(GetLastError());
+				archive_set_error(&a->archive, errno,
 				    "Can't GetFileInformationByHandle");
 				return (ARCHIVE_FAILED);
 			}
@@ -2081,7 +2087,8 @@ archive_read_disk_entry_from_file(struct archive *_a,
 	
 			h = FindFirstFileW(path, &findData);
 			if (h == INVALID_HANDLE_VALUE) {
-				archive_set_error(&a->archive, GetLastError(),
+				la_dosmaperr(GetLastError());
+				archive_set_error(&a->archive, errno,
 				    "Can't FindFirstFileW");
 				return (ARCHIVE_FAILED);
 			}
@@ -2102,15 +2109,15 @@ archive_read_disk_entry_from_file(struct archive *_a,
 			h = CreateFileW(path, desiredAccess, 0, NULL,
 			    OPEN_EXISTING, flag, NULL);
 			if (h == INVALID_HANDLE_VALUE) {
-				archive_set_error(&a->archive,
-				    GetLastError(),
+				la_dosmaperr(GetLastError());
+				archive_set_error(&a->archive, errno,
 				    "Can't CreateFileW");
 				return (ARCHIVE_FAILED);
 			}
 			r = GetFileInformationByHandle(h, &bhfi);
 			if (r == 0) {
-				archive_set_error(&a->archive,
-				    GetLastError(),
+				la_dosmaperr(GetLastError());
+				archive_set_error(&a->archive, errno,
 				    "Can't GetFileInformationByHandle");
 				CloseHandle(h);
 				return (ARCHIVE_FAILED);
@@ -2149,14 +2156,16 @@ archive_read_disk_entry_from_file(struct archive *_a,
 			h = CreateFileW(path, GENERIC_READ, 0, NULL,
 			    OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
 			if (h == INVALID_HANDLE_VALUE) {
-				archive_set_error(&a->archive, GetLastError(),
+				la_dosmaperr(GetLastError());
+				archive_set_error(&a->archive, errno,
 				    "Can't CreateFileW");
 				return (ARCHIVE_FAILED);
 			}
 		}
 		r = GetFileInformationByHandle(h, &bhfi);
 		if (r == 0) {
-			archive_set_error(&a->archive, GetLastError(),
+			la_dosmaperr(GetLastError());
+			archive_set_error(&a->archive, errno,
 			    "Can't GetFileInformationByHandle");
 			if (h != INVALID_HANDLE_VALUE && fd < 0)
 				CloseHandle(h);
@@ -2204,7 +2213,7 @@ setup_sparse_from_disk(struct archive_read_disk *a,
 	outranges_size = 2048;
 	outranges = (FILE_ALLOCATED_RANGE_BUFFER *)malloc(outranges_size);
 	if (outranges == NULL) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		archive_set_error(&a->archive, ENOMEM,
 			"Couldn't allocate memory");
 		exit_sts = ARCHIVE_FATAL;
 		goto exit_setup_sparse;
@@ -2225,8 +2234,7 @@ setup_sparse_from_disk(struct archive_read_disk *a,
 				outranges = (FILE_ALLOCATED_RANGE_BUFFER *)
 				    malloc(outranges_size);
 				if (outranges == NULL) {
-					archive_set_error(&a->archive,
-					    ARCHIVE_ERRNO_MISC,
+					archive_set_error(&a->archive, ENOMEM,
 					    "Couldn't allocate memory");
 					exit_sts = ARCHIVE_FATAL;
 					goto exit_setup_sparse;
@@ -2263,7 +2271,8 @@ setup_sparse_from_disk(struct archive_read_disk *a,
 			}
 			break;
 		} else {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			la_dosmaperr(GetLastError());
+			archive_set_error(&a->archive, errno,
 			    "DeviceIoControl Failed: %lu", GetLastError());
 			exit_sts = ARCHIVE_FAILED;
 			goto exit_setup_sparse;
