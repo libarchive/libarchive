@@ -1163,7 +1163,7 @@ restore_entry(struct archive_write_disk *a)
 			/* A dir is in the way of a non-dir, rmdir it. */
 			if (rmdir(a->name) != 0) {
 				archive_set_error(&a->archive, errno,
-				    "Can't remove already-existing dir");
+				    "Can't replace existing directory with non-directory");
 				return (ARCHIVE_FAILED);
 			}
 			/* Try again. */
