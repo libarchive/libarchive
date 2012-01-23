@@ -393,6 +393,36 @@ test_compat_zip_6(void)
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, p, s, 7));
 	compat_zip_6_verify(a);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+	free(p);
+}
+
+/*
+ * Issue 226: Try to reproduce hang when reading archives where the
+ * length-at-end marker ends exactly on a block boundary.
+ */
+static void
+test_compat_zip_7(void)
+{
+	const char *refname = "test_compat_zip_7.xps";
+	struct archive *a;
+	struct archive_entry *ae;
+	void *p;
+	size_t s;
+	int i;
+
+	extract_reference_file(refname);
+	p = slurpfile(&s, refname);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory2(a, p, s, 16));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+	free(p);
 }
 
 DEFINE_TEST(test_compat_zip)
@@ -403,6 +433,7 @@ DEFINE_TEST(test_compat_zip)
 	test_compat_zip_4();
 	test_compat_zip_5();
 	test_compat_zip_6();
+	test_compat_zip_7();
 }
 
 
