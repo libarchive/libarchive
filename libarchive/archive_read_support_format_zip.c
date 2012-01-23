@@ -217,14 +217,13 @@ archive_read_support_format_zip(struct archive *a)
 }
 
 /*
- * TODO: This is a performance sink because it forces
- * the read core to drop buffered data from the start
- * of file, which will then have to be re-read again
- * if this bidder loses.
+ * TODO: This is a performance sink because it forces the read core to
+ * drop buffered data from the start of file, which will then have to
+ * be re-read again if this bidder loses.
  *
- * Consider passing in the winning bid value to subsequent
- * bidders so that this bidder in particular can avoid
- * seeking if it knows it's going to lose anyway.
+ * We workaround this a little by passing in the best bid so far so
+ * that later bidders can do nothing if they know they'll never
+ * outbid.  But we can certainly do better...
  */
 static int
 archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
@@ -311,19 +310,29 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 		external_attributes = archive_le32dec(p + 38);
 		zip_entry->local_header_offset = archive_le32dec(p + 42);
 
+		/* If we can't guess the mode, leave it zero here;
+		   when we read the local file header we might get
+		   more information. */
+		zip_entry->mode = 0;
 		if (zip_entry->system == 3) {
 			zip_entry->mode = external_attributes >> 16;
-		} else {
-			zip_entry->mode = AE_IFREG | 0777;
 		}
 
-		/* Do we need to parse filename here? */
-		/* Or can we wait until we read the local header? */
+		/* We don't read the filename until we get to the
+		   local file header.  Reading it here would speed up
+		   table-of-contents operations (removing the need to
+		   find and read local file header to get the
+		   filename) at the cost of requiring a lot of extra
+		   space. */
+		/* We don't read the extra block here.  We assume it
+		   will be duplicated at the local file header. */
 		__archive_read_consume(a,
 		    46 + filename_length + extra_length + comment_length);
 	}
 
-	/* TODO: Sort zip entries. */
+	/* TODO: Sort zip entries by file offset so that we
+	   can optimize get_next_header() to use skip instead of
+	   seek. */
 
 	return ARCHIVE_OK;
 }
@@ -433,6 +442,11 @@ archive_read_format_zip_streamable_bid(struct archive_read *a, int best_bid)
 		    || (p[2] == '0' && p[3] == '0'))
 			return (30);
 	}
+
+	/* TODO: It's worth looking ahead a little bit for a valid
+	 * PK signature.  In particular, that would make it possible
+	 * to read some UUEncoded SFX files or SFX files coming from
+	 * a network socket. */
 
 	return (0);
 }
