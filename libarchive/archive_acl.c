@@ -419,8 +419,11 @@ archive_acl_next(struct archive *a, struct archive_acl *acl, int want_type, int 
 	*permset = acl->acl_p->permset;
 	*tag = acl->acl_p->tag;
 	*id = acl->acl_p->id;
-	if (archive_mstring_get_mbs(a, &acl->acl_p->name, name) != 0)
+	if (archive_mstring_get_mbs(a, &acl->acl_p->name, name) != 0) {
+		if (errno == ENOMEM)
+			__archive_errx(1, "No memory");
 		*name = NULL;
+	}
 	acl->acl_p = acl->acl_p->next;
 	return (ARCHIVE_OK);
 }
@@ -438,7 +441,7 @@ archive_acl_text_w(struct archive *a, struct archive_acl *acl, int flags)
 	const wchar_t *prefix;
 	wchar_t separator;
 	struct archive_acl_entry *ap;
-	int id;
+	int id, r;
 	wchar_t *wp;
 
 	if (acl->acl_text_w != NULL) {
@@ -458,9 +461,12 @@ archive_acl_text_w(struct archive *a, struct archive_acl *acl, int flags)
 				length += 8; /* "default:" */
 			length += 5; /* tag name */
 			length += 1; /* colon */
-			if (archive_mstring_get_wcs(a, &ap->name, &wname) == 0 &&
-			    wname != NULL)
+			r = archive_mstring_get_wcs(a, &ap->name, &wname);
+			if (r == 0 && wname != NULL)
 				length += wcslen(wname);
+			else if (r < 0 && errno == ENOMEM)
+				__archive_errx(1, "No memory to generate "
+				    "the text version of the ACL");
 			else
 				length += sizeof(uid_t) * 3 + 1;
 			length ++; /* colon */
@@ -499,8 +505,10 @@ archive_acl_text_w(struct archive *a, struct archive_acl *acl, int flags)
 
 		ap = acl->acl_head;
 		while (ap != NULL) {
+			r = 0;
 			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0 &&
-				archive_mstring_get_wcs(a, &ap->name, &wname) == 0) {
+			    (r = archive_mstring_get_wcs(a, &ap->name, &wname))
+			      == 0) {
 				*wp++ = separator;
 				if (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)
 					id = ap->id;
@@ -509,7 +517,9 @@ archive_acl_text_w(struct archive *a, struct archive_acl *acl, int flags)
 				append_entry_w(&wp, NULL, ap->tag, wname,
 				    ap->permset, id);
 				count++;
-			}
+			} else if (r < 0 && errno == ENOMEM)
+				__archive_errx(1, "No memory to generate "
+				    "the text version of the ACL");
 			ap = ap->next;
 		}
 	}
@@ -524,7 +534,8 @@ archive_acl_text_w(struct archive *a, struct archive_acl *acl, int flags)
 		count = 0;
 		while (ap != NULL) {
 			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) != 0 &&
-				archive_mstring_get_wcs(a, &ap->name, &wname) == 0) {
+			    (r = archive_mstring_get_wcs(a, &ap->name,
+					&wname)) == 0) {
 				if (count > 0)
 					*wp++ = separator;
 				if (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)
@@ -534,7 +545,9 @@ archive_acl_text_w(struct archive *a, struct archive_acl *acl, int flags)
 				append_entry_w(&wp, prefix, ap->tag,
 				    wname, ap->permset, id);
 				count ++;
-			}
+			} else if (r < 0 && errno == ENOMEM)
+				__archive_errx(1, "No memory to generate "
+				    "the text version of the ACL");
 			ap = ap->next;
 		}
 	}

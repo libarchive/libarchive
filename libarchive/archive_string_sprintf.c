@@ -146,7 +146,9 @@ archive_string_vsprintf(struct archive_string *as, const char *fmt,
 				pw = va_arg(ap, wchar_t *);
 				if (pw == NULL)
 					pw = L"(null)";
-				archive_string_append_from_wcs(as, pw, wcslen(pw));
+				if (archive_string_append_from_wcs(as, pw,
+				    wcslen(pw)) != 0 && errno == ENOMEM)
+					__archive_errx(1, "Out of memory");
 				break;
 			default:
 				p2 = va_arg(ap, char *);
@@ -160,7 +162,9 @@ archive_string_vsprintf(struct archive_string *as, const char *fmt,
 			pw = va_arg(ap, wchar_t *);
 			if (pw == NULL)
 				pw = L"(null)";
-			archive_string_append_from_wcs(as, pw, wcslen(pw));
+			if (archive_string_append_from_wcs(as, pw,
+			    wcslen(pw)) != 0 && errno == ENOMEM)
+				__archive_errx(1, "Out of memory");
 			break;
 		case 'o': case 'u': case 'x': case 'X':
 			/* Common handling for unsigned integer formats. */

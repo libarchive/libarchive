@@ -443,10 +443,7 @@ int
 archive_wstring_append_from_mbs(struct archive_wstring *dest,
     const char *p, size_t len)
 {
-	int r = archive_wstring_append_from_mbs_in_codepage(dest, p, len, NULL);
-	if (r != 0 && errno == ENOMEM)
-		__archive_errx(1, "No memory");
-	return (r);
+	return archive_wstring_append_from_mbs_in_codepage(dest, p, len, NULL);
 }
 
 static int
@@ -612,8 +609,7 @@ archive_wstring_append_from_mbs(struct archive_wstring *dest,
 
 	memset(&shift_state, 0, sizeof(shift_state));
 	if (NULL == archive_wstring_ensure(dest, dest->length + wcs_length + 1))
-		__archive_errx(1,
-		    "No memory for archive_wstring_append_from_mbs()");
+		return (-1);
 	wcs = dest->s + dest->length;
 	r = mbsnrtowcs(wcs, &mbs, mbs_length, wcs_length, &shift_state);
 	if (r != (size_t)-1) {
@@ -650,8 +646,7 @@ archive_wstring_append_from_mbs(struct archive_wstring *dest,
 	memset(&shift_state, 0, sizeof(shift_state));
 #endif
 	if (NULL == archive_wstring_ensure(dest, dest->length + wcs_length + 1))
-		__archive_errx(1,
-		    "No memory for archive_wstring_append_from_mbs()");
+		return (-1);
 	wcs = dest->s + dest->length;
 	/*
 	 * We cannot use mbsrtowcs/mbstowcs here because those may convert
@@ -697,10 +692,7 @@ int
 archive_string_append_from_wcs(struct archive_string *as,
     const wchar_t *w, size_t len)
 {
-	int r = archive_string_append_from_wcs_in_codepage(as, w, len, NULL);
-	if (r != 0 && errno == ENOMEM)
-		__archive_errx(1, "No memory");
-	return (r);
+	return archive_string_append_from_wcs_in_codepage(as, w, len, NULL);
 }
 
 static int
@@ -817,7 +809,7 @@ archive_string_append_from_wcs(struct archive_string *as,
 	while (nwc > 0) {
 		/* Allocate buffer for MBS. */
 		if (archive_string_ensure(as, as->length + ndest + 1) == NULL)
-			__archive_errx(1, "Out of memory");
+			return (-1);
 
 		dest = as->s + as->length;
 		wpp = wp;
@@ -893,7 +885,7 @@ archive_string_append_from_wcs(struct archive_string *as,
 	 * as->s is still NULL.
 	 */
 	if (archive_string_ensure(as, as->length + len + 1) == NULL)
-		__archive_errx(1, "Out of memory");
+		return (-1);
 
 	p = as->s + as->length;
 	end = as->s + as->buffer_length - MB_CUR_MAX -1;
@@ -946,6 +938,7 @@ archive_string_append_from_wcs(struct archive_string *as,
 	(void)as;/* UNUSED */
 	(void)w;/* UNUSED */
 	(void)len;/* UNUSED */
+	errno = ENOSYS;
 	return (-1);
 }
 

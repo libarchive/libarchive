@@ -4810,13 +4810,19 @@ isofile_gen_utility_names(struct archive_write *a, struct isofile *file)
 		struct archive_wstring ws;
 
 		if (wp != NULL) {
+			int r;
 			archive_string_init(&ws);
 			archive_wstrcpy(&ws, wp);
 			cleanup_backslash_2(ws.s);
 			archive_string_empty(&(file->parentdir));
-			archive_string_append_from_wcs(&(file->parentdir),
+			r = archive_string_append_from_wcs(&(file->parentdir),
 			    ws.s, ws.length);
 			archive_wstring_free(&ws);
+			if (r < 0 && errno == ENOMEM) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "Can't allocate memory");
+				return (ARCHIVE_FATAL);
+			}
 		}
 	}
 #endif
@@ -4919,14 +4925,20 @@ isofile_gen_utility_names(struct archive_write *a, struct isofile *file)
 			struct archive_wstring ws;
 
 			if (wp != NULL) {
+				int r;
 				archive_string_init(&ws);
 				archive_wstrcpy(&ws, wp);
 				cleanup_backslash_2(ws.s);
 				archive_string_empty(&(file->symlink));
-				archive_string_append_from_wcs(
+				r = archive_string_append_from_wcs(
 				    &(file->symlink),
 				    ws.s, ws.length);
 				archive_wstring_free(&ws);
+				if (r < 0 && errno == ENOMEM) {
+					archive_set_error(&a->archive, ENOMEM,
+					    "Can't allocate memory");
+					return (ARCHIVE_FATAL);
+				}
 			}
 		}
 #endif
@@ -6258,9 +6270,14 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 		 * Get a length of MBS of a full-pathname.
 		 */
 		if ((int)np->file->basename_utf16.length > ffmax) {
-			archive_strncpy_in_locale(&iso9660->mbs,
+			if (archive_strncpy_in_locale(&iso9660->mbs,
 			    (const char *)np->identifier, l,
-			    iso9660->sconv_from_utf16be);
+				iso9660->sconv_from_utf16be) != 0 &&
+			    errno == ENOMEM) {
+				archive_set_error(&a->archive, errno,
+				    "No memory");
+				return (ARCHIVE_FATAL);
+			}
 			np->mb_len = iso9660->mbs.length;
 			if (np->mb_len != (int)np->file->basename.length)
 				weight = np->mb_len;
