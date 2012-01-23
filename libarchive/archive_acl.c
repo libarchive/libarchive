@@ -421,7 +421,7 @@ archive_acl_next(struct archive *a, struct archive_acl *acl, int want_type, int 
 	*id = acl->acl_p->id;
 	if (archive_mstring_get_mbs(a, &acl->acl_p->name, name) != 0) {
 		if (errno == ENOMEM)
-			__archive_errx(1, "No memory");
+			return (ARCHIVE_FATAL);
 		*name = NULL;
 	}
 	acl->acl_p = acl->acl_p->next;
@@ -465,8 +465,7 @@ archive_acl_text_w(struct archive *a, struct archive_acl *acl, int flags)
 			if (r == 0 && wname != NULL)
 				length += wcslen(wname);
 			else if (r < 0 && errno == ENOMEM)
-				__archive_errx(1, "No memory to generate "
-				    "the text version of the ACL");
+				return (NULL);
 			else
 				length += sizeof(uid_t) * 3 + 1;
 			length ++; /* colon */
@@ -490,7 +489,7 @@ archive_acl_text_w(struct archive *a, struct archive_acl *acl, int flags)
 	/* Now, allocate the string and actually populate it. */
 	wp = acl->acl_text_w = (wchar_t *)malloc(length * sizeof(wchar_t));
 	if (wp == NULL)
-		__archive_errx(1, "No memory to generate the text version of the ACL");
+		return (NULL);
 	count = 0;
 	if ((flags & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
 		append_entry_w(&wp, NULL, ARCHIVE_ENTRY_ACL_USER_OBJ, NULL,
@@ -518,8 +517,7 @@ archive_acl_text_w(struct archive *a, struct archive_acl *acl, int flags)
 				    ap->permset, id);
 				count++;
 			} else if (r < 0 && errno == ENOMEM)
-				__archive_errx(1, "No memory to generate "
-				    "the text version of the ACL");
+				return (NULL);
 			ap = ap->next;
 		}
 	}
@@ -546,8 +544,7 @@ archive_acl_text_w(struct archive *a, struct archive_acl *acl, int flags)
 				    wname, ap->permset, id);
 				count ++;
 			} else if (r < 0 && errno == ENOMEM)
-				__archive_errx(1, "No memory to generate "
-				    "the text version of the ACL");
+				return (NULL);
 			ap = ap->next;
 		}
 	}
@@ -685,7 +682,7 @@ archive_acl_text_l(struct archive_acl *acl, int flags,
 	/* Now, allocate the string and actually populate it. */
 	p = acl->acl_text = (char *)malloc(length);
 	if (p == NULL)
-		__archive_errx(1, "No memory to generate the text version of the ACL");
+		return (-1);
 	count = 0;
 	if ((flags & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
 		append_entry(&p, NULL, ARCHIVE_ENTRY_ACL_USER_OBJ, NULL,

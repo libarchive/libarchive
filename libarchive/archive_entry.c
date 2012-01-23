@@ -1318,7 +1318,12 @@ int
 archive_entry_acl_next(struct archive_entry *entry, int want_type, int *type,
     int *permset, int *tag, int *id, const char **name)
 {
-	return archive_acl_next(entry->archive, &entry->acl, want_type, type, permset, tag, id, name);
+	int r;
+	r = archive_acl_next(entry->archive, &entry->acl, want_type, type,
+		permset, tag, id, name);
+	if (r == ARCHIVE_FATAL && errno == ENOMEM)
+		__archive_errx(1, "No memory");
+	return (r);
 }
 
 /*
@@ -1328,7 +1333,11 @@ archive_entry_acl_next(struct archive_entry *entry, int want_type, int *type,
 const wchar_t *
 archive_entry_acl_text_w(struct archive_entry *entry, int flags)
 {
-	return archive_acl_text_w(entry->archive, &entry->acl, flags);
+	const wchar_t *r;
+	r = archive_acl_text_w(entry->archive, &entry->acl, flags);
+	if (r == NULL && errno == ENOMEM)
+		__archive_errx(1, "No memory");
+	return (r);
 }
 
 const char *
@@ -1337,7 +1346,7 @@ archive_entry_acl_text(struct archive_entry *entry, int flags)
 	const char *p;
 	if (archive_acl_text_l(&entry->acl, flags, &p, NULL, NULL) != 0
 	    && errno == ENOMEM)
-		return (NULL);
+		__archive_errx(1, "No memory");
 	return (p);
 }
 

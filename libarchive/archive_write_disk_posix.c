@@ -2572,7 +2572,7 @@ set_acl(struct archive_write_disk *a, int fd, const char *name,
 	acl_t		 acl;
 	acl_entry_t	 acl_entry;
 	acl_permset_t	 acl_permset;
-	int		 ret;
+	int		 ret, r;
 	int		 ae_type, ae_permset, ae_tag, ae_id;
 	uid_t		 ae_uid;
 	gid_t		 ae_gid;
@@ -2584,9 +2584,9 @@ set_acl(struct archive_write_disk *a, int fd, const char *name,
 	if (entries == 0)
 		return (ARCHIVE_OK);
 	acl = acl_init(entries);
-	while (archive_acl_next(&a->archive, abstract_acl,
+	while ((r = archive_acl_next(&a->archive, abstract_acl,
 	    ae_requested_type, &ae_type, &ae_permset, &ae_tag, &ae_id,
-	    &ae_name) == ARCHIVE_OK) {
+	    &ae_name)) == ARCHIVE_OK) {
 		acl_create_entry(&acl, &acl_entry);
 
 		switch (ae_tag) {
@@ -2627,6 +2627,12 @@ set_acl(struct archive_write_disk *a, int fd, const char *name,
 			acl_add_perm(acl_permset, ACL_WRITE);
 		if (ae_permset & ARCHIVE_ENTRY_ACL_READ)
 			acl_add_perm(acl_permset, ACL_READ);
+	}
+	if (r == ARCHIVE_FATAL) {
+		acl_free(acl);
+		archive_set_error(&a->archive, errno,
+		    "Failed to archive_acl_next");
+		return (r);
 	}
 
 	/* Try restoring the ACL through 'fd' if we can. */
