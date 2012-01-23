@@ -1143,6 +1143,7 @@ get_filetime_wcs(struct archive_matching *a, const wchar_t *path,
 
 	archive_string_init(&as);
 	if (archive_string_append_from_wcs(&as, path, wcslen(path)) < 0) {
+		archive_string_free(&as);
 		if (errno == ENOMEM)
 			return (error_nomem(a));
 		archive_set_error(&(a->archive), -1,
