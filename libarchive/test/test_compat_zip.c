@@ -408,14 +408,13 @@ test_compat_zip_7(void)
 	struct archive_entry *ae;
 	void *p;
 	size_t s;
-	int i;
 
 	extract_reference_file(refname);
 	p = slurpfile(&s, refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, read_open_memory2(a, p, s, 16));
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_minimal(a, p, s, 16));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
