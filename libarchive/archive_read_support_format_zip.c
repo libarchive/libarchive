@@ -38,17 +38,19 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_support_format_zip.c 201102
 #endif
 
 #include "archive.h"
+#include "archive_endian.h"
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
 #include "archive_private.h"
+#include "archive_rb.h"
 #include "archive_read_private.h"
-#include "archive_endian.h"
 
 #ifndef HAVE_ZLIB_H
 #include "archive_crc32.h"
 #endif
 
 struct zip_entry {
+	struct archive_rb_node	node;
 	int64_t			local_header_offset;
 	int64_t			compressed_size;
 	int64_t			uncompressed_size;
@@ -71,11 +73,13 @@ struct zip {
 	size_t			central_directory_size;
 	size_t			central_directory_entries;
 	char			have_central_directory;
+	int64_t			offset;
 
 	/* List of entries (seekable Zip only) */
 	size_t			entries_remaining;
 	struct zip_entry	*zip_entries;
 	struct zip_entry	*entry;
+	struct archive_rb_tree	tree;
 
 	size_t			unconsumed;
 
@@ -272,13 +276,37 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 }
 
 static int
+cmp_node(const struct archive_rb_node *n1, const struct archive_rb_node *n2)
+{
+	const struct zip_entry *e1 = (const struct zip_entry *)n1;
+	const struct zip_entry *e2 = (const struct zip_entry *)n2;
+
+	return ((int)(e2->local_header_offset - e1->local_header_offset));
+}
+
+static int
+cmp_key(const struct archive_rb_node *n, const void *key)
+{
+	/* This function won't be called */
+	(void)n; /* UNUSED */
+	(void)key; /* UNUSED */
+	return 1;
+}
+
+static int
 slurp_central_directory(struct archive_read *a, struct zip *zip)
 {
 	unsigned i;
+	static const struct archive_rb_tree_ops rb_ops = {
+		&cmp_node, &cmp_key
+	};
 
 	__archive_read_seek(a, zip->central_directory_offset, SEEK_SET);
+	zip->offset = zip->central_directory_offset;
+	__archive_rb_tree_init(&zip->tree, &rb_ops);
 
-	zip->zip_entries = calloc(zip->central_directory_entries, sizeof(struct zip_entry));
+	zip->zip_entries = calloc(zip->central_directory_entries,
+				sizeof(struct zip_entry));
 	for (i = 0; i < zip->central_directory_entries; ++i) {
 		struct zip_entry *zip_entry = &zip->zip_entries[i];
 		size_t filename_length, extra_length, comment_length;
@@ -317,6 +345,8 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 		if (zip_entry->system == 3) {
 			zip_entry->mode = external_attributes >> 16;
 		}
+		/* Register an entry to RB tree to sort it by file offset. */
+		__archive_rb_tree_insert_node(&zip->tree, &zip_entry->node);
 
 		/* We don't read the filename until we get to the
 		   local file header.  Reading it here would speed up
@@ -330,11 +360,19 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 		    46 + filename_length + extra_length + comment_length);
 	}
 
-	/* TODO: Sort zip entries by file offset so that we
-	   can optimize get_next_header() to use skip instead of
-	   seek. */
-
 	return ARCHIVE_OK;
+}
+
+static int64_t
+zip_read_consume(struct archive_read *a, int64_t bytes)
+{
+	struct zip *zip = (struct zip *)a->format->data;
+	int64_t skip;
+
+	skip = __archive_read_consume(a, bytes);
+	if (skip > 0)
+		zip->offset += skip;
+	return (skip);
 }
 
 static int
@@ -353,19 +391,25 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 		zip->entries_remaining = zip->central_directory_entries;
 		if (r != ARCHIVE_OK)
 			return r;
-		zip->entry = zip->zip_entries;
-	} else {
-		++zip->entry;
+		/* Get first entry whose local header offset is lower than
+		 * other entries in the archive file. */
+		zip->entry =
+		    (struct zip_entry *)ARCHIVE_RB_TREE_MIN(&zip->tree);
+	} else if (zip->entry != NULL) {
+		/* Get next entry in local header offset order. */
+		zip->entry = (struct zip_entry *)__archive_rb_tree_iterate(
+		    &zip->tree, &zip->entry->node, ARCHIVE_RB_DIR_RIGHT);
 	}
 
-	if (zip->entries_remaining <= 0)
+	if (zip->entries_remaining <= 0 || zip->entry == NULL)
 		return ARCHIVE_EOF;
 	--zip->entries_remaining;
 
-	/* TODO: If entries are sorted by offset within the file, we
-	   should be able to skip here instead of seeking.  Skipping is
-	   typically faster (easier for I/O layer to optimize). */
-	__archive_read_seek(a, zip->entry->local_header_offset, SEEK_SET);
+	if (zip->offset != zip->entry->local_header_offset) {
+		__archive_read_seek(a, zip->entry->local_header_offset,
+			SEEK_SET);
+		zip->offset = zip->entry->local_header_offset;
+	}
 	zip->unconsumed = 0;
 	r = zip_read_local_file_header(a, entry, zip);
 	if (r != ARCHIVE_OK)
@@ -508,7 +552,7 @@ archive_read_format_zip_streamable_read_header(struct archive_read *a,
 	memset(zip->entry, 0, sizeof(struct zip_entry));
 
 	/* Search ahead for the next local file header. */
-	__archive_read_consume(a, zip->unconsumed);
+	zip_read_consume(a, zip->unconsumed);
 	zip->unconsumed = 0;
 	for (;;) {
 		int64_t skipped = 0;
@@ -528,7 +572,7 @@ archive_read_format_zip_streamable_read_header(struct archive_read *a,
 
 				if (p[2] == '\003' && p[3] == '\004') {
 					/* Regular file entry. */
-					__archive_read_consume(a, skipped);
+					zip_read_consume(a, skipped);
 					return zip_read_local_file_header(a, entry, zip);
 				}
 
@@ -539,7 +583,7 @@ archive_read_format_zip_streamable_read_header(struct archive_read *a,
 			++p;
 			++skipped;
 		}
-		__archive_read_consume(a, skipped);
+		zip_read_consume(a, skipped);
 	}
 }
 
@@ -596,7 +640,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	filename_length = archive_le16dec(p + 26);
 	extra_length = archive_le16dec(p + 28);
 
-	__archive_read_consume(a, 30);
+	zip_read_consume(a, 30);
 
 	if (zip->have_central_directory) {
 		/* If we read the central dir entry, we must have size information
@@ -666,7 +710,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		    archive_string_conversion_charset_name(sconv));
 		ret = ARCHIVE_WARN;
 	}
-	__archive_read_consume(a, filename_length);
+	zip_read_consume(a, filename_length);
 
 	if (zip_entry->mode == 0) {
 		/* Especially in streaming mode, we can end up
@@ -696,7 +740,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		return (ARCHIVE_FATAL);
 	}
 	process_extra(h, extra_length, zip_entry);
-	__archive_read_consume(a, extra_length);
+	zip_read_consume(a, extra_length);
 
 	/* Populate some additional entry fields: */
 	archive_entry_set_mode(entry, zip_entry->mode);
@@ -793,7 +837,7 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		return (ARCHIVE_FAILED);
 	}
 
-	__archive_read_consume(a, zip->unconsumed);
+	zip_read_consume(a, zip->unconsumed);
 	zip->unconsumed = 0;
 
 	switch(zip->entry->compression) {
@@ -1045,7 +1089,7 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 
 	/* Consume as much as the compressor actually used. */
 	bytes_avail = zip->stream.total_in;
-	__archive_read_consume(a, bytes_avail);
+	zip_read_consume(a, bytes_avail);
 	zip->entry_bytes_remaining -= bytes_avail;
 	zip->entry_compressed_bytes_read += bytes_avail;
 
@@ -1085,14 +1129,11 @@ archive_read_format_zip_read_data_skip(struct archive_read *a)
 	/* If we've already read to end of data, we're done. */
 	if (zip->end_of_entry)
 		return (ARCHIVE_OK);
-	/* If we're seeking, we're done. */
-	if (zip->have_central_directory)
-		return (ARCHIVE_OK);
 
 	/* So we know we're streaming... */
 	if (0 == (zip->entry->flags & ZIP_LENGTH_AT_END)) {
 		/* We know the compressed length, so we can just skip. */
-		int64_t bytes_skipped = __archive_read_consume(a,
+		int64_t bytes_skipped = zip_read_consume(a,
 		    zip->entry_bytes_remaining + zip->unconsumed);
 		if (bytes_skipped < 0)
 			return (ARCHIVE_FATAL);
@@ -1119,7 +1160,7 @@ archive_read_format_zip_read_data_skip(struct archive_read *a)
 #endif
 	default: /* Uncompressed or unknown. */
 		/* Scan for a PK\007\010 signature. */
-		__archive_read_consume(a, zip->unconsumed);
+		zip_read_consume(a, zip->unconsumed);
 		zip->unconsumed = 0;
 		for (;;) {
 			const char *p, *buff;
@@ -1137,11 +1178,11 @@ archive_read_format_zip_read_data_skip(struct archive_read *a)
 				else if (p[3] == '\007') { p += 1; }
 				else if (p[3] == '\010' && p[2] == '\007'
 				    && p[1] == 'K' && p[0] == 'P') {
-					__archive_read_consume(a, p - buff + 16);
+					zip_read_consume(a, p - buff + 16);
 					return ARCHIVE_OK;
 				} else { p += 4; }
 			}
-			__archive_read_consume(a, p - buff);
+			zip_read_consume(a, p - buff);
 		}
 	}
 	return ARCHIVE_OK;
