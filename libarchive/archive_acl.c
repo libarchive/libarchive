@@ -504,20 +504,20 @@ archive_acl_text_w(struct archive *a, struct archive_acl *acl, int flags)
 
 		ap = acl->acl_head;
 		while (ap != NULL) {
-			r = 0;
-			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0 &&
-			    (r = archive_mstring_get_wcs(a, &ap->name, &wname))
-			      == 0) {
-				*wp++ = separator;
-				if (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)
-					id = ap->id;
-				else
-					id = -1;
-				append_entry_w(&wp, NULL, ap->tag, wname,
-				    ap->permset, id);
-				count++;
-			} else if (r < 0 && errno == ENOMEM)
-				return (NULL);
+			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
+				r = archive_mstring_get_wcs(a, &ap->name, &wname);
+				if (r == 0) {
+					*wp++ = separator;
+					if (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)
+						id = ap->id;
+					else
+						id = -1;
+					append_entry_w(&wp, NULL, ap->tag, wname,
+					    ap->permset, id);
+					count++;
+				} else if (r < 0 && errno == ENOMEM)
+					return (NULL);
+			}
 			ap = ap->next;
 		}
 	}
@@ -531,20 +531,21 @@ archive_acl_text_w(struct archive *a, struct archive_acl *acl, int flags)
 		ap = acl->acl_head;
 		count = 0;
 		while (ap != NULL) {
-			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) != 0 &&
-			    (r = archive_mstring_get_wcs(a, &ap->name,
-					&wname)) == 0) {
-				if (count > 0)
-					*wp++ = separator;
-				if (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)
-					id = ap->id;
-				else
-					id = -1;
-				append_entry_w(&wp, prefix, ap->tag,
-				    wname, ap->permset, id);
-				count ++;
-			} else if (r < 0 && errno == ENOMEM)
-				return (NULL);
+			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) != 0) {
+				r = archive_mstring_get_wcs(a, &ap->name, &wname);
+				if (r == 0) {
+					if (count > 0)
+						*wp++ = separator;
+					if (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)
+						id = ap->id;
+					else
+						id = -1;
+					append_entry_w(&wp, prefix, ap->tag,
+					    wname, ap->permset, id);
+					count ++;
+				} else if (r < 0 && errno == ENOMEM)
+					return (NULL);
+			}
 			ap = ap->next;
 		}
 	}
