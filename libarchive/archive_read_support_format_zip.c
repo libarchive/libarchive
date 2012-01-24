@@ -1107,7 +1107,7 @@ archive_read_format_zip_read_data_skip(struct archive_read *a)
 				return (ARCHIVE_FATAL);
 			}
 			p = buff;
-			while (p < buff + bytes_avail - 16) {
+			while (p <= buff + bytes_avail - 16) {
 				if (p[3] == 'P') { p += 3; }
 				else if (p[3] == 'K') { p += 2; }
 				else if (p[3] == '\007') { p += 1; }

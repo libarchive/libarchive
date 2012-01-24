@@ -454,6 +454,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_zip_4.zip.uu			\
 	libarchive/test/test_compat_zip_5.zip.uu			\
 	libarchive/test/test_compat_zip_6.zip.uu			\
+	libarchive/test/test_compat_zip_7.xps.uu			\
 	libarchive/test/test_fuzz_1.iso.Z.uu				\
 	libarchive/test/test_fuzz.cab.uu				\
 	libarchive/test/test_fuzz.lzh.uu				\
