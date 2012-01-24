@@ -348,6 +348,53 @@ test_compat_zip_5(void)
 	free(p);
 }
 
+/*
+ * Issue 225: Errors extracting MSDOS Zip archives with directories.
+ */
+static void
+compat_zip_6_verify(struct archive *a)
+{
+	struct archive_entry *ae;
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("New Folder/New Folder/", archive_entry_pathname(ae));
+	assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
+	assertEqualInt(1327314468, archive_entry_mtime(ae));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("New Folder/New Folder/New Text Document.txt", archive_entry_pathname(ae));
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assertEqualInt(1327314476, archive_entry_mtime(ae));
+	assertEqualInt(11, archive_entry_size(ae));
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+}
+
+static void
+test_compat_zip_6(void)
+{
+	const char *refname = "test_compat_zip_6.zip";
+	struct archive *a;
+	void *p;
+	size_t s;
+
+	extract_reference_file(refname);
+	p = slurpfile(&s, refname);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, p, s, 7));
+	compat_zip_6_verify(a);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, p, s, 7));
+	compat_zip_6_verify(a);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_compat_zip)
 {
 	test_compat_zip_1();
@@ -355,6 +402,7 @@ DEFINE_TEST(test_compat_zip)
 	test_compat_zip_3();
 	test_compat_zip_4();
 	test_compat_zip_5();
+	test_compat_zip_6();
 }
 
 
