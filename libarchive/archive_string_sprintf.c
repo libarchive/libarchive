@@ -38,7 +38,9 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_string_sprintf.c 189435 2009-03-
  * here.  This is only used to format error messages, so doesn't
  * require any floating-point support or field-width handling.
  */
-
+#ifdef HAVE_ERRNO_H
+#include <errno.h>
+#endif
 #include <stdio.h>
 
 #include "archive_string.h"
