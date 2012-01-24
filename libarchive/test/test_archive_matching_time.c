@@ -618,6 +618,10 @@ excluded(struct archive *m)
 	assertEqualInt(1, archive_matching_time_excluded(m, ae));
 	assertEqualInt(1, archive_matching_excluded(m, ae));
 
+	/*
+	 * "file4" is not registered, that sort of a file should not be
+	 * excluded with any mtime.
+	 */
 	archive_entry_copy_pathname(ae, "file4");
 	archive_entry_set_mtime(ae, 7879, 999);
 	failure("It should not be excluded");
@@ -638,49 +642,7 @@ excluded(struct archive *m)
 }
 
 static void
-test_newer_pathname_mbs(void)
-{
-	struct archive *m;
-
-	if (!assert((m = archive_matching_new()) != NULL))
-		return;
-
-	assertEqualIntA(m, 0,
-	    archive_matching_pathname_newer_mtime(m, "file1", 7880, 0));
-	assertEqualIntA(m, 0,
-	    archive_matching_pathname_newer_mtime(m, "file2", 1, 0));
-	assertEqualIntA(m, 0,
-	    archive_matching_pathname_newer_mtime(m, "file3", 99999, 0));
-
-	excluded(m);
-
-	/* Clean up. */
-	archive_matching_free(m);
-}
-
-static void
-test_newer_pathname_wcs(void)
-{
-	struct archive *m;
-
-	if (!assert((m = archive_matching_new()) != NULL))
-		return;
-
-	assertEqualIntA(m, 0,
-	    archive_matching_pathname_newer_mtime_w(m, L"file1", 7880, 0));
-	assertEqualIntA(m, 0,
-	    archive_matching_pathname_newer_mtime_w(m, L"file2", 1, 0));
-	assertEqualIntA(m, 0,
-	    archive_matching_pathname_newer_mtime_w(m, L"file3", 99999, 0));
-
-	excluded(m);
-
-	/* Clean up. */
-	archive_matching_free(m);
-}
-
-static void
-test_newer_archive_entry(void)
+test_pathname_newer_mtime(void)
 {
 	struct archive_entry *ae;
 	struct archive *m;
@@ -694,13 +656,13 @@ test_newer_archive_entry(void)
 
 	archive_entry_copy_pathname(ae, "file1");
 	archive_entry_set_mtime(ae, 7880, 0);
-	assertEqualIntA(m, 0, archive_matching_pathname_newer_mtime_ae(m, ae));
+	assertEqualIntA(m, 0, archive_matching_pathname_newer_mtime(m, ae));
 	archive_entry_copy_pathname(ae, "file2");
 	archive_entry_set_mtime(ae, 1, 0);
-	assertEqualIntA(m, 0, archive_matching_pathname_newer_mtime_ae(m, ae));
+	assertEqualIntA(m, 0, archive_matching_pathname_newer_mtime(m, ae));
 	archive_entry_copy_pathname(ae, "file3");
 	archive_entry_set_mtime(ae, 99999, 0);
-	assertEqualIntA(m, 0, archive_matching_pathname_newer_mtime_ae(m, ae));
+	assertEqualIntA(m, 0, archive_matching_pathname_newer_mtime(m, ae));
 
 	excluded(m);
 
@@ -717,7 +679,5 @@ DEFINE_TEST(test_archive_matching_time)
 	test_older_time();
 	test_older_than_file_mbs();
 	test_older_than_file_wcs();
-	test_newer_pathname_mbs();
-	test_newer_pathname_wcs();
-	test_newer_archive_entry();
+	test_pathname_newer_mtime();
 }

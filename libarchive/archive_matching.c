@@ -125,8 +125,8 @@ struct archive_matching {
 	struct match_list	 inclusion_gnames;
 };
 
-static int	add_newer_mtime_pathname(struct archive_matching *, int,
-		    const void *, time_t sec, long nsec);
+static int	add_newer_mtime_pathname(struct archive_matching *,
+		    struct archive_entry *);
 static int	add_owner_id(struct archive_matching *, struct id_array *,
 		    int64_t);
 static int	add_owner_name(struct archive_matching *, struct match_list *,
@@ -938,47 +938,9 @@ archive_matching_older_ctime_than_w(struct archive *_a, const wchar_t *pathname)
 
 int
 archive_matching_pathname_newer_mtime(struct archive *_a,
-    const char *pathname, time_t sec, long nsec)
-{
-	struct archive_matching *a;
-
-	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_matching_add_newer_mtime_pathname");
-	a = (struct archive_matching *)_a;
-
-	if (pathname == NULL || *pathname == '\0') {
-		archive_set_error(&(a->archive), EINVAL, "pathname is empty");
-		return (ARCHIVE_FAILED);
-	}
-	a->newer_tree.rbt_ops = &rb_ops_mbs;
-	return (add_newer_mtime_pathname(a, 1, pathname, sec, nsec));
-}
-
-int
-archive_matching_pathname_newer_mtime_w(struct archive *_a,
-    const wchar_t *pathname, time_t sec, long nsec)
-{
-	struct archive_matching *a;
-
-	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_matching_add_newer_mtime_pathname_w");
-	a = (struct archive_matching *)_a;
-
-	if (pathname == NULL || *pathname == '\0') {
-		archive_set_error(&(a->archive), EINVAL, "pathname is empty");
-		return (ARCHIVE_FAILED);
-	}
-	a->newer_tree.rbt_ops = &rb_ops_wcs;
-	return (add_newer_mtime_pathname(a, 0, pathname, sec, nsec));
-}
-
-int
-archive_matching_pathname_newer_mtime_ae(struct archive *_a,
     struct archive_entry *entry)
 {
 	struct archive_matching *a;
-	const void *pathname;
-	int mbs;
 
 	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_matching_add_newer_mtime_ae");
@@ -988,21 +950,7 @@ archive_matching_pathname_newer_mtime_ae(struct archive *_a,
 		archive_set_error(&(a->archive), EINVAL, "entry is NULL");
 		return (ARCHIVE_FAILED);
 	}
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	a->newer_tree.rbt_ops = &rb_ops_wcs;
-	pathname = archive_entry_pathname_w(entry);
-	mbs = 0;
-#else
-	a->newer_tree.rbt_ops = &rb_ops_mbs;
-	pathname = archive_entry_pathname(entry);
-	mbs = 1;
-#endif
-	if (pathname == NULL) {
-		archive_set_error(&(a->archive), EINVAL, "pathname is NULL");
-		return (ARCHIVE_FAILED);
-	}
-	return (add_newer_mtime_pathname(a, mbs, pathname,
-		archive_entry_mtime(entry), archive_entry_mtime_nsec(entry)));
+	return (add_newer_mtime_pathname(a, entry));
 }
 
 /*
@@ -1248,21 +1196,38 @@ newer_file_list_add(struct newer_file_list *list, struct newer_file *file)
 }
 
 static int
-add_newer_mtime_pathname(struct archive_matching *a, int mbs,
-    const void *pathname, time_t sec, long nsec)
+add_newer_mtime_pathname(struct archive_matching *a,
+    struct archive_entry *entry)
 {
 	struct newer_file *f;
+	const void *pathname;
 	int r;
 
 	f = calloc(1, sizeof(*f));
 	if (f == NULL)
 		return (error_nomem(a));
-	if (mbs)
-		archive_mstring_copy_mbs(&(f->pathname), pathname);
-	else
-		archive_mstring_copy_wcs(&(f->pathname), pathname);
-	f->mtime_sec = sec;
-	f->mtime_nsec = nsec;
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	pathname = archive_entry_pathname_w(entry);
+	if (pathname == NULL) {
+		free(f);
+		archive_set_error(&(a->archive), EINVAL, "pathname is NULL");
+		return (ARCHIVE_FAILED);
+	}
+	archive_mstring_copy_wcs(&(f->pathname), pathname);
+	a->newer_tree.rbt_ops = &rb_ops_wcs;
+#else
+	pathname = archive_entry_pathname(entry);
+	if (pathname == NULL) {
+		free(f);
+		archive_set_error(&(a->archive), EINVAL, "pathname is NULL");
+		return (ARCHIVE_FAILED);
+	}
+	archive_mstring_copy_mbs(&(f->pathname), pathname);
+	a->newer_tree.rbt_ops = &rb_ops_mbs;
+#endif
+	f->mtime_sec = archive_entry_mtime(entry);
+	f->mtime_nsec = archive_entry_mtime_nsec(entry);
 	r = __archive_rb_tree_insert_node(&(a->newer_tree), &(f->node));
 	if (!r) {
 		struct newer_file *f2;

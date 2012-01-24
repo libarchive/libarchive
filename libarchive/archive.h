@@ -900,12 +900,6 @@ __LA_DECL int	archive_matching_older_ctime_than_w(struct archive *,
 		    const wchar_t *_pathname);
 /* Add inclusion file times with its filename. */
 __LA_DECL int	archive_matching_pathname_newer_mtime(
-		    struct archive *, const char *_pathname,
-		    time_t _sec, long _nsec);
-__LA_DECL int	archive_matching_pathname_newer_mtime_w(
-		    struct archive *, const wchar_t *_pathname,
-		    time_t _sec, long _nsec);
-__LA_DECL int	archive_matching_pathname_newer_mtime_ae(
 		    struct archive *, struct archive_entry *);
 
 /*
