@@ -78,7 +78,7 @@ test_newer_time(void)
 }
 
 static void
-test_newer_than_file_mbs(void)
+test_newer_mtime_than_file_mbs(void)
 {
 	struct archive *a;
 	struct archive_entry *ae;
@@ -96,8 +96,8 @@ test_newer_than_file_mbs(void)
 		return;
 	}
 
-	assertMakeDir("test_newer_than_file_mbs", 0777);
-	assertChdir("test_newer_than_file_mbs");
+	assertMakeDir("test_newer_mtime_than_file_mbs", 0777);
+	assertChdir("test_newer_mtime_than_file_mbs");
 
 	assertMakeFile("old", 0666, "old");
 	sleepUntilAfter(time(NULL));
@@ -136,21 +136,47 @@ test_newer_than_file_mbs(void)
 	assertEqualInt(0, archive_matching_time_excluded(m, ae));
 	assertEqualInt(0, archive_matching_excluded(m, ae));
 
+	assertChdir("..");
+	/* Clean up. */
+	archive_read_free(a);
+	archive_entry_free(ae);
+	archive_matching_free(m);
+}
+
+static void
+test_newer_ctime_than_file_mbs(void)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	struct archive *m;
+
+	if (!assert((m = archive_matching_new()) != NULL))
+		return;
+	if (!assert((ae = archive_entry_new()) != NULL)) {
+		archive_matching_free(m);
+		return;
+	}
+	if (!assert((a = archive_read_disk_new()) != NULL)) {
+		archive_matching_free(m);
+		archive_entry_free(ae);
+		return;
+	}
+
+	assertMakeDir("test_newer_ctime_than_file_mbs", 0777);
+	assertChdir("test_newer_ctime_than_file_mbs");
+
+	assertMakeFile("old", 0666, "old");
+	assertUtimes("old", 10002, 0, 10002, 0);
+	sleepUntilAfter(time(NULL));
+	assertMakeFile("mid", 0666, "mid");
+	assertUtimes("mid", 10001, 0, 10001, 0);
+	sleepUntilAfter(time(NULL));
+	assertMakeFile("new", 0666, "new");
+	assertUtimes("new", 10000, 0, 10000, 0);
+
 	/*
 	 * Test 'newer ctime than'.
 	 */
-	archive_matching_free(m);
-	if (!assert((m = archive_matching_new()) != NULL)) {
-		assertChdir("..");
-		archive_entry_free(ae);
-		archive_read_free(a);
-		return;
-	}
-	assertUtimes("old", 10002, 0, 10002, 0);
-	sleepUntilAfter(time(NULL));
-	assertUtimes("mid", 10001, 0, 10001, 0);
-	sleepUntilAfter(time(NULL));
-	assertUtimes("new", 10000, 0, 10000, 0);
 	assertEqualIntA(m, 0, archive_matching_newer_ctime_than(m, "mid"));
 
 	/* Verify 'old' file. */
@@ -188,7 +214,7 @@ test_newer_than_file_mbs(void)
 }
 
 static void
-test_newer_than_file_wcs(void)
+test_newer_mtime_than_file_wcs(void)
 {
 	struct archive *a;
 	struct archive_entry *ae;
@@ -206,8 +232,8 @@ test_newer_than_file_wcs(void)
 		return;
 	}
 
-	assertMakeDir("test_newer_than_file_wcs", 0777);
-	assertChdir("test_newer_than_file_wcs");
+	assertMakeDir("test_newer_mtime_than_file_wcs", 0777);
+	assertChdir("test_newer_mtime_than_file_wcs");
 
 	assertMakeFile("old", 0666, "old");
 	sleepUntilAfter(time(NULL));
@@ -246,21 +272,47 @@ test_newer_than_file_wcs(void)
 	assertEqualInt(0, archive_matching_time_excluded(m, ae));
 	assertEqualInt(0, archive_matching_excluded(m, ae));
 
+	assertChdir("..");
+	/* Clean up. */
+	archive_read_free(a);
+	archive_entry_free(ae);
+	archive_matching_free(m);
+}
+
+static void
+test_newer_ctime_than_file_wcs(void)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	struct archive *m;
+
+	if (!assert((m = archive_matching_new()) != NULL))
+		return;
+	if (!assert((ae = archive_entry_new()) != NULL)) {
+		archive_matching_free(m);
+		return;
+	}
+	if (!assert((a = archive_read_disk_new()) != NULL)) {
+		archive_matching_free(m);
+		archive_entry_free(ae);
+		return;
+	}
+
+	assertMakeDir("test_newer_ctime_than_file_wcs", 0777);
+	assertChdir("test_newer_ctime_than_file_wcs");
+
+	assertMakeFile("old", 0666, "old");
+	assertUtimes("old", 10002, 0, 10002, 0);
+	sleepUntilAfter(time(NULL));
+	assertMakeFile("mid", 0666, "mid");
+	assertUtimes("mid", 10001, 0, 10001, 0);
+	sleepUntilAfter(time(NULL));
+	assertMakeFile("new", 0666, "new");
+	assertUtimes("new", 10000, 0, 10000, 0);
+
 	/*
 	 * Test 'newer ctime than'.
 	 */
-	archive_matching_free(m);
-	if (!assert((m = archive_matching_new()) != NULL)) {
-		assertChdir("..");
-		archive_entry_free(ae);
-		archive_read_free(a);
-		return;
-	}
-	assertUtimes("old", 10002, 0, 10002, 0);
-	sleepUntilAfter(time(NULL));
-	assertUtimes("mid", 10001, 0, 10001, 0);
-	sleepUntilAfter(time(NULL));
-	assertUtimes("new", 10000, 0, 10000, 0);
 	assertEqualIntA(m, 0, archive_matching_newer_ctime_than_w(m, L"mid"));
 
 	/* Verify 'old' file. */
@@ -349,7 +401,7 @@ test_older_time(void)
 }
 
 static void
-test_older_than_file_mbs(void)
+test_older_mtime_than_file_mbs(void)
 {
 	struct archive *a;
 	struct archive_entry *ae;
@@ -367,8 +419,8 @@ test_older_than_file_mbs(void)
 		return;
 	}
 
-	assertMakeDir("test_older_than_file_mbs", 0777);
-	assertChdir("test_older_than_file_mbs");
+	assertMakeDir("test_older_mtime_than_file_mbs", 0777);
+	assertChdir("test_older_mtime_than_file_mbs");
 
 	assertMakeFile("old", 0666, "old");
 	sleepUntilAfter(time(NULL));
@@ -407,21 +459,47 @@ test_older_than_file_mbs(void)
 	assertEqualInt(1, archive_matching_time_excluded(m, ae));
 	assertEqualInt(1, archive_matching_excluded(m, ae));
 
+	assertChdir("..");
+	/* Clean up. */
+	archive_read_free(a);
+	archive_entry_free(ae);
+	archive_matching_free(m);
+}
+
+static void
+test_older_ctime_than_file_mbs(void)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	struct archive *m;
+
+	if (!assert((m = archive_matching_new()) != NULL))
+		return;
+	if (!assert((ae = archive_entry_new()) != NULL)) {
+		archive_matching_free(m);
+		return;
+	}
+	if (!assert((a = archive_read_disk_new()) != NULL)) {
+		archive_matching_free(m);
+		archive_entry_free(ae);
+		return;
+	}
+
+	assertMakeDir("test_older_ctime_than_file_mbs", 0777);
+	assertChdir("test_older_ctime_than_file_mbs");
+
+	assertMakeFile("old", 0666, "old");
+	assertUtimes("old", 10002, 0, 10002, 0);
+	sleepUntilAfter(time(NULL));
+	assertMakeFile("mid", 0666, "mid");
+	assertUtimes("mid", 10001, 0, 10001, 0);
+	sleepUntilAfter(time(NULL));
+	assertMakeFile("new", 0666, "new");
+	assertUtimes("new", 10000, 0, 10000, 0);
+
 	/*
 	 * Test 'older ctime than'.
 	 */
-	archive_matching_free(m);
-	if (!assert((m = archive_matching_new()) != NULL)) {
-		assertChdir("..");
-		archive_entry_free(ae);
-		archive_read_free(a);
-		return;
-	}
-	assertUtimes("old", 10002, 0, 10002, 0);
-	sleepUntilAfter(time(NULL));
-	assertUtimes("mid", 10001, 0, 10001, 0);
-	sleepUntilAfter(time(NULL));
-	assertUtimes("new", 10000, 0, 10000, 0);
 	assertEqualIntA(m, 0, archive_matching_older_ctime_than(m, "mid"));
 
 	/* Verify 'old' file. */
@@ -459,7 +537,7 @@ test_older_than_file_mbs(void)
 }
 
 static void
-test_older_than_file_wcs(void)
+test_older_mtime_than_file_wcs(void)
 {
 	struct archive *a;
 	struct archive_entry *ae;
@@ -477,8 +555,8 @@ test_older_than_file_wcs(void)
 		return;
 	}
 
-	assertMakeDir("test_older_than_file_wcs", 0777);
-	assertChdir("test_older_than_file_wcs");
+	assertMakeDir("test_older_mtime_than_file_wcs", 0777);
+	assertChdir("test_older_mtime_than_file_wcs");
 
 	assertMakeFile("old", 0666, "old");
 	sleepUntilAfter(time(NULL));
@@ -517,21 +595,47 @@ test_older_than_file_wcs(void)
 	assertEqualInt(1, archive_matching_time_excluded(m, ae));
 	assertEqualInt(1, archive_matching_excluded(m, ae));
 
+	assertChdir("..");
+	/* Clean up. */
+	archive_read_free(a);
+	archive_entry_free(ae);
+	archive_matching_free(m);
+}
+
+static void
+test_older_ctime_than_file_wcs(void)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	struct archive *m;
+
+	if (!assert((m = archive_matching_new()) != NULL))
+		return;
+	if (!assert((ae = archive_entry_new()) != NULL)) {
+		archive_matching_free(m);
+		return;
+	}
+	if (!assert((a = archive_read_disk_new()) != NULL)) {
+		archive_matching_free(m);
+		archive_entry_free(ae);
+		return;
+	}
+
+	assertMakeDir("test_older_ctime_than_file_wcs", 0777);
+	assertChdir("test_older_ctime_than_file_wcs");
+
+	assertMakeFile("old", 0666, "old");
+	assertUtimes("old", 10002, 0, 10002, 0);
+	sleepUntilAfter(time(NULL));
+	assertMakeFile("mid", 0666, "mid");
+	assertUtimes("mid", 10001, 0, 10001, 0);
+	sleepUntilAfter(time(NULL));
+	assertMakeFile("new", 0666, "new");
+	assertUtimes("new", 10000, 0, 10000, 0);
+
 	/*
 	 * Test 'older ctime than'.
 	 */
-	archive_matching_free(m);
-	if (!assert((m = archive_matching_new()) != NULL)) {
-		assertChdir("..");
-		archive_entry_free(ae);
-		archive_read_free(a);
-		return;
-	}
-	assertUtimes("old", 10002, 0, 10002, 0);
-	sleepUntilAfter(time(NULL));
-	assertUtimes("mid", 10001, 0, 10001, 0);
-	sleepUntilAfter(time(NULL));
-	assertUtimes("new", 10000, 0, 10000, 0);
 	assertEqualIntA(m, 0, archive_matching_older_ctime_than_w(m, L"mid"));
 
 	/* Verify 'old' file. */
@@ -674,10 +778,14 @@ test_pathname_newer_mtime(void)
 DEFINE_TEST(test_archive_matching_time)
 {
 	test_newer_time();
-	test_newer_than_file_mbs();
-	test_newer_than_file_wcs();
 	test_older_time();
-	test_older_than_file_mbs();
-	test_older_than_file_wcs();
+	test_newer_mtime_than_file_mbs();
+	test_newer_mtime_than_file_wcs();
+	test_older_mtime_than_file_mbs();
+	test_older_mtime_than_file_wcs();
+	test_newer_ctime_than_file_mbs();
+	test_newer_ctime_than_file_wcs();
+	test_older_ctime_than_file_mbs();
+	test_older_ctime_than_file_wcs();
 	test_pathname_newer_mtime();
 }
