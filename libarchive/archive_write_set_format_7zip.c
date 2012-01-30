@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 Michihiro NAKAJIMA
+ * Copyright (c) 2011-2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -727,8 +727,10 @@ _7z_close(struct archive_write *a)
 		    zip->total_number_entry - zip->total_number_empty_entry;
 
 		/* Connect an empty file list. */
-		*zip->file_list.last = zip->empty_list.first;
-		zip->file_list.last = zip->empty_list.last;
+		if (zip->empty_list.first != NULL) {
+			*zip->file_list.last = zip->empty_list.first;
+			zip->file_list.last = zip->empty_list.last;
+		}
 		/* Connect a directory file list. */
 		ARCHIVE_RB_TREE_FOREACH(n, &(zip->rbtree)) {
 			file_register(zip, (struct file *)n);
