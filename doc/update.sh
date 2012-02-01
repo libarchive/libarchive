@@ -16,12 +16,7 @@ the mdoc man pages stored in each project.\n\
 while [ "$#" -gt "0" ]; do
   case "$1" in
     --mediawiki)
-      if [ -x "$(which html2wiki)" >/dev/null 2>&1 ]; then
-          USE_MEDIAWIKI=1
-      else
-          echo "html2wiki program not found or is not executable."
-          exit 1
-      fi
+      USE_MEDIAWIKI=1
       shift
       ;;
     -h|--help|*)
@@ -128,9 +123,8 @@ for f in $MANPAGES; do
         echo $outname: ../mdoc2wiki.awk $f >> Makefile
         echo "	awk -f ../mdoc2wiki.awk < $f > $outname" >> Makefile
     else
-        inname="../html/$(basename $f).html"
-        echo $outname: $inname $f >> Makefile
-        echo "	html2wiki --dialect MediaWiki --encoding utf-8 $inname > $outname" >> Makefile
+        echo $outname: ../mdoc2mediawiki.awk $f >> Makefile
+        echo "	awk -f ../mdoc2mediawiki.awk < $f > $outname" >> Makefile
     fi
     all="$all $outname"
 done
