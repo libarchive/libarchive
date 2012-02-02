@@ -231,7 +231,7 @@ function splitwords(l, dest, n, o, w) {
       section=wtail()
       linecmd("== " section " ==")
     } else if(match(words[w],"^Xr$")) {
-      add("'''" words[++w] "'''(" words[++w] ")" words[++w])
+      add("'''" words[++w] "'''(" words[++w] ")" words[++w] " ")
     } else if(match(words[w],"^Nm$")) {
       if(match(section,"SYNOPSIS"))
         breakline()
