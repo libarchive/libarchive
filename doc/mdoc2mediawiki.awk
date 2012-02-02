@@ -258,16 +258,16 @@ function splitwords(l, dest, n, o, w) {
       addopen("-")
     } else if(match(words[w],"^Ar$")) {
       if(w==nwords)
-	add("''file ...''")
+	add("''file ...''" " ")
       else {
 	++w
 	gsub("<", "&lt;", words[w])
-	add("''" words[w] "''")
+	add("''" words[w] "''" " ")
       }
     } else if(match(words[w],"^Cm$")) {
       ++w
       if (displaylines == 0) {
-	add("'''" words[w] "'''")
+	add("'''" words[w] "'''" " ")
       } else
 	add(words[w])
     } else if(match(words[w],"^Op$")) {
