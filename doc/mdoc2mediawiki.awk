@@ -401,9 +401,9 @@ function splitwords(l, dest, n, o, w) {
 	  # Suppress trailer
 	  w++
 	} else if(match(words[w+1],"^Pa$|^Ev$")) {
-	  addopen("*")
+	  addopen("'''")
 	  w++
-	  add(words[++w] "*")
+	  add(words[++w] "'''")
 	} else {
 	  trailer = listnext[listdepth] "<dd>" trailer
 	  listnext[listdepth] = "</dd>"
