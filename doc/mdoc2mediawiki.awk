@@ -270,6 +270,8 @@ function splitwords(l, dest, n, o, w) {
 	add("'''" words[w] "'''" " ")
       } else
 	add(words[w])
+	l = wtail()
+	add(l " ")
     } else if(match(words[w],"^Op$")) {
       addopen("<nowiki>[</nowiki>")
       option=1
