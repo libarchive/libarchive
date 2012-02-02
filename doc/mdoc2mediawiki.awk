@@ -340,6 +340,8 @@ function splitwords(l, dest, n, o, w) {
 	add(words[w])
     } else if(match(words[w],"^Dv$")) {
       linecmd()
+      l = wtail()
+      add(l " ")
     } else if(match(words[w],"^Em|Ev$")) {
       add(".IR")
     } else if(match(words[w],"^Pq$")) {
