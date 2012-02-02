@@ -138,7 +138,7 @@ function splitwords(l, dest, n, o, w) {
 }
 
 ! /^\./ {
-  out = $0
+  out = $0 " "
   endline()
   next
 }
