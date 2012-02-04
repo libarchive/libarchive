@@ -63,7 +63,7 @@ function endline() {
   addclose(trailer)
   trailer = ""
   if(length(out) > 0) {
-    print out
+    print out " "
     out=""
   }
   if(displaylines > 0) {
@@ -138,7 +138,7 @@ function splitwords(l, dest, n, o, w) {
 }
 
 ! /^\./ {
-  out = $0 " "
+  out = $0
   endline()
   next
 }
@@ -231,7 +231,7 @@ function splitwords(l, dest, n, o, w) {
       section=wtail()
       linecmd("== " section " ==")
     } else if(match(words[w],"^Xr$")) {
-      add("'''" words[++w] "'''(" words[++w] ")" words[++w] " ")
+      add("'''" words[++w] "'''(" words[++w] ")" words[++w])
     } else if(match(words[w],"^Nm$")) {
       if(match(section,"SYNOPSIS"))
         breakline()
@@ -258,20 +258,18 @@ function splitwords(l, dest, n, o, w) {
       addopen("-")
     } else if(match(words[w],"^Ar$")) {
       if(w==nwords)
-	add("''file ...''" " ")
+	add("''file ...''")
       else {
 	++w
 	gsub("<", "&lt;", words[w])
-	add("''" words[w] "''" " ")
+	add("''" words[w] "''")
       }
     } else if(match(words[w],"^Cm$")) {
       ++w
       if (displaylines == 0) {
-	add("'''" words[w] "'''" " ")
+	add("'''" words[w] "'''")
       } else
 	add(words[w])
-	l = wtail()
-	add(l " ")
     } else if(match(words[w],"^Op$")) {
       addopen("<nowiki>[</nowiki>")
       option=1
@@ -342,8 +340,6 @@ function splitwords(l, dest, n, o, w) {
 	add(words[w])
     } else if(match(words[w],"^Dv$")) {
       linecmd()
-      l = wtail()
-      add(l " ")
     } else if(match(words[w],"^Em|Ev$")) {
       add(".IR")
     } else if(match(words[w],"^Pq$")) {
