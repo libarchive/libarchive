@@ -26,6 +26,10 @@ BEGIN {
   sep = ""
   nextsep = " "
   spaces = "                    "
+
+  NORMAL_STATE = 0
+  PRETAG_STATE = 1
+  STATE = NORMAL_STATE
 }
 
 # Add a word with appropriate preceding whitespace
@@ -63,7 +67,11 @@ function endline() {
   addclose(trailer)
   trailer = ""
   if(length(out) > 0) {
-    print out " "
+    if (STATE == PRETAG_STATE) {
+      print out
+    } else {
+      print out " "
+    }
     out=""
   }
   if(displaylines > 0) {
@@ -159,6 +167,7 @@ function splitwords(l, dest, n, o, w) {
       dispstart()
       displaylines = 1
     } else if(match(words[w],"^Bd$")) { # Begin display
+      STATE = PRETAG_STATE
       if(match(words[w+1],"-literal")) {
         dispstart()
 	displaylines=10000
@@ -167,6 +176,7 @@ function splitwords(l, dest, n, o, w) {
     } else if(match(words[w],"^Ed$")) { # End display
       displaylines = 0
       dispend()
+      STATE = NORMAL_STATE
     } else if(match(words[w],"^Ns$")) { # Suppress space before next word
       sep=""
     } else if(match(words[w],"^No$")) { # Normal text
