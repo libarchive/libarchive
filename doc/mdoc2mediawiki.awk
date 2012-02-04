@@ -95,12 +95,12 @@ function breakline() {
 
 # Start an indented display
 function dispstart() {
-  linecmd("<pre>")
+  linecmd("```text")
 }
 
 # End an indented display
 function dispend() {
-  linecmd("</pre>")
+  linecmd("```")
 }
 
 # Collect rest of input line
