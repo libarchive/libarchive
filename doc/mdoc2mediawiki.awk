@@ -26,6 +26,10 @@ BEGIN {
   sep = ""
   nextsep = " "
   spaces = "                    "
+
+  NORMAL_STATE = 0
+  PRETAG_STATE = 1
+  STATE = NORMAL_STATE
 }
 
 # Add a word with appropriate preceding whitespace
@@ -63,7 +67,11 @@ function endline() {
   addclose(trailer)
   trailer = ""
   if(length(out) > 0) {
-    print out
+    if (STATE == PRETAG_STATE) {
+      print out
+    } else {
+      print out " "
+    }
     out=""
   }
   if(displaylines > 0) {
@@ -87,12 +95,12 @@ function breakline() {
 
 # Start an indented display
 function dispstart() {
-  linecmd("<pre>")
+  linecmd("```text")
 }
 
 # End an indented display
 function dispend() {
-  linecmd("</pre>")
+  linecmd("```")
 }
 
 # Collect rest of input line
@@ -138,7 +146,7 @@ function splitwords(l, dest, n, o, w) {
 }
 
 ! /^\./ {
-  out = $0 " "
+  out = $0
   endline()
   next
 }
@@ -159,6 +167,7 @@ function splitwords(l, dest, n, o, w) {
       dispstart()
       displaylines = 1
     } else if(match(words[w],"^Bd$")) { # Begin display
+      STATE = PRETAG_STATE
       if(match(words[w+1],"-literal")) {
         dispstart()
 	displaylines=10000
@@ -167,6 +176,7 @@ function splitwords(l, dest, n, o, w) {
     } else if(match(words[w],"^Ed$")) { # End display
       displaylines = 0
       dispend()
+      STATE = NORMAL_STATE
     } else if(match(words[w],"^Ns$")) { # Suppress space before next word
       sep=""
     } else if(match(words[w],"^No$")) { # Normal text
@@ -231,7 +241,7 @@ function splitwords(l, dest, n, o, w) {
       section=wtail()
       linecmd("== " section " ==")
     } else if(match(words[w],"^Xr$")) {
-      add("'''" words[++w] "'''(" words[++w] ")" words[++w] " ")
+      add("'''" words[++w] "'''(" words[++w] ")" words[++w])
     } else if(match(words[w],"^Nm$")) {
       if(match(section,"SYNOPSIS"))
         breakline()
@@ -258,20 +268,18 @@ function splitwords(l, dest, n, o, w) {
       addopen("-")
     } else if(match(words[w],"^Ar$")) {
       if(w==nwords)
-	add("''file ...''" " ")
+	add("''file ...''")
       else {
 	++w
 	gsub("<", "&lt;", words[w])
-	add("''" words[w] "''" " ")
+	add("''" words[w] "''")
       }
     } else if(match(words[w],"^Cm$")) {
       ++w
       if (displaylines == 0) {
-	add("'''" words[w] "'''" " ")
+	add("'''" words[w] "'''")
       } else
 	add(words[w])
-	l = wtail()
-	add(l " ")
     } else if(match(words[w],"^Op$")) {
       addopen("<nowiki>[</nowiki>")
       option=1
@@ -342,8 +350,6 @@ function splitwords(l, dest, n, o, w) {
 	add(words[w])
     } else if(match(words[w],"^Dv$")) {
       linecmd()
-      l = wtail()
-      add(l " ")
     } else if(match(words[w],"^Em|Ev$")) {
       add(".IR")
     } else if(match(words[w],"^Pq$")) {
