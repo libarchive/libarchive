@@ -1,3 +1,8 @@
+Feb 05, 2012: libarchive development now hosted at GitHub.
+    http://libarchive.github.com/
+Feb 05, 2012: libarchive's issue tracker remains at Google Code.
+    http://code.google.com/p/libarchive/issues/list
+
 Dec 24, 2011: libarchive 3.0.2 released
 Dec 23, 2011: Various fixes merged from FreeBSD
 Dec 23, 2011: Symlink support in Zip reader and writer
