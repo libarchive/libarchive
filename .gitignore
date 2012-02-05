@@ -61,3 +61,11 @@ libarchive/CMakeFiles/
 libarchive/test/CMakeFiles/
 tar/CMakeFiles/
 tar/test/CMakeFiles/
+
+doc/html/*.html
+doc/man/*.1
+doc/man/*.3
+doc/man/*.5
+doc/pdf/*.pdf
+doc/text/*.txt
+doc/wiki/*.wiki
