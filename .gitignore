@@ -69,3 +69,5 @@ doc/man/*.5
 doc/pdf/*.pdf
 doc/text/*.txt
 doc/wiki/*.wiki
+
+libarchive-*.tar.gz
