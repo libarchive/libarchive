@@ -1,5 +1,6 @@
 *.o
 *.lo
+*.cmake
 .libs/
 Makefile
 Makefile.in
@@ -50,3 +51,13 @@ tar/.dirstamp
 tar/test/.deps/
 tar/test/.dirstamp
 tar/test/list.h
+CMakeCache.txt
+CMakeFiles/
+DartConfiguration.tcl
+cmake.tmp/
+cpio/CMakeFiles/
+cpio/test/CMakeFiles/
+libarchive/CMakeFiles/
+libarchive/test/CMakeFiles/
+tar/CMakeFiles/
+tar/test/CMakeFiles/
