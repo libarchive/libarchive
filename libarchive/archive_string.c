@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2003-2011 Tim Kientzle
- * Copyright (c) 2011 Michihiro NAKAJIMA
+ * Copyright (c) 2011-2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -164,29 +164,29 @@ static int archive_string_append_from_wcs_in_codepage(struct archive_string *,
 static int is_big_endian(void);
 static int strncat_in_codepage(struct archive_string *, const void *,
     size_t, struct archive_string_conv *);
-static int win_strncat_from_utf16be(struct archive_string *, const void *, size_t,
-    struct archive_string_conv *);
-static int win_strncat_from_utf16le(struct archive_string *, const void *, size_t,
-    struct archive_string_conv *);
-static int win_strncat_to_utf16be(struct archive_string *, const void *, size_t,
-    struct archive_string_conv *);
-static int win_strncat_to_utf16le(struct archive_string *, const void *, size_t,
-    struct archive_string_conv *);
+static int win_strncat_from_utf16be(struct archive_string *, const void *,
+    size_t, struct archive_string_conv *);
+static int win_strncat_from_utf16le(struct archive_string *, const void *,
+    size_t, struct archive_string_conv *);
+static int win_strncat_to_utf16be(struct archive_string *, const void *,
+    size_t, struct archive_string_conv *);
+static int win_strncat_to_utf16le(struct archive_string *, const void *,
+    size_t, struct archive_string_conv *);
 #endif
-static int best_effort_strncat_from_utf16be(struct archive_string *, const void *,
-    size_t, struct archive_string_conv *);
-static int best_effort_strncat_from_utf16le(struct archive_string *, const void *,
-    size_t, struct archive_string_conv *);
-static int best_effort_strncat_to_utf16be(struct archive_string *, const void *,
-    size_t, struct archive_string_conv *);
-static int best_effort_strncat_to_utf16le(struct archive_string *, const void *,
-    size_t, struct archive_string_conv *);
+static int best_effort_strncat_from_utf16be(struct archive_string *,
+    const void *, size_t, struct archive_string_conv *);
+static int best_effort_strncat_from_utf16le(struct archive_string *,
+    const void *, size_t, struct archive_string_conv *);
+static int best_effort_strncat_to_utf16be(struct archive_string *,
+    const void *, size_t, struct archive_string_conv *);
+static int best_effort_strncat_to_utf16le(struct archive_string *,
+    const void *, size_t, struct archive_string_conv *);
 #if defined(HAVE_ICONV)
 static int iconv_strncat_in_locale(struct archive_string *, const void *,
     size_t, struct archive_string_conv *);
 #endif
-static int best_effort_strncat_in_locale(struct archive_string *, const void *,
-    size_t, struct archive_string_conv *);
+static int best_effort_strncat_in_locale(struct archive_string *,
+    const void *, size_t, struct archive_string_conv *);
 static int _utf8_to_unicode(uint32_t *, const char *, size_t);
 static int utf8_to_unicode(uint32_t *, const char *, size_t);
 static inline uint32_t combine_surrogate_pair(uint32_t, uint32_t);
@@ -238,7 +238,8 @@ archive_string_concat(struct archive_string *dest, struct archive_string *src)
 }
 
 void
-archive_wstring_concat(struct archive_wstring *dest, struct archive_wstring *src)
+archive_wstring_concat(struct archive_wstring *dest,
+    struct archive_wstring *src)
 {
 	if (archive_wstring_append(dest, src->s, src->length) == NULL)
 		__archive_errx(1, "Out of memory");
@@ -972,9 +973,11 @@ setup_converter(struct archive_string_conv *sc)
 
 		if (sc->flag & SCONV_BEST_EFFORT) {
 			if (sc->flag & SCONV_TO_UTF16BE)
-				add_converter(sc, best_effort_strncat_to_utf16be);
+				add_converter(sc,
+					best_effort_strncat_to_utf16be);
 			else
-				add_converter(sc, best_effort_strncat_to_utf16le);
+				add_converter(sc,
+					best_effort_strncat_to_utf16le);
 		} else
 			/* Make sure we have no converter. */
 			sc->nconverter = 0;
@@ -2679,8 +2682,8 @@ unicode_to_utf16le(char *p, size_t remaining, uint32_t uc)
  * If any surrogate pair are found, it would be canonicalized.
  */
 static int
-strncat_from_utf8_to_utf8(struct archive_string *as, const void *_p, size_t len,
-    struct archive_string_conv *sc)
+strncat_from_utf8_to_utf8(struct archive_string *as, const void *_p,
+    size_t len, struct archive_string_conv *sc)
 {
 	const char *s;
 	char *p, *endp;
@@ -3535,15 +3538,15 @@ win_strncat_from_utf16(struct archive_string *as, const void *_p, size_t bytes,
 }
 
 static int
-win_strncat_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
-    struct archive_string_conv *sc)
+win_strncat_from_utf16be(struct archive_string *as, const void *_p,
+    size_t bytes, struct archive_string_conv *sc)
 {
 	return (win_strncat_from_utf16(as, _p, bytes, sc, 1));
 }
 
 static int
-win_strncat_from_utf16le(struct archive_string *as, const void *_p, size_t bytes,
-    struct archive_string_conv *sc)
+win_strncat_from_utf16le(struct archive_string *as, const void *_p,
+    size_t bytes, struct archive_string_conv *sc)
 {
 	return (win_strncat_from_utf16(as, _p, bytes, sc, 0));
 }
@@ -3561,8 +3564,8 @@ is_big_endian(void)
  * Return -1 if conversion failes.
  */
 static int
-win_strncat_to_utf16(struct archive_string *as16, const void *_p, size_t length,
-    struct archive_string_conv *sc, int bigendian)
+win_strncat_to_utf16(struct archive_string *as16, const void *_p,
+    size_t length, struct archive_string_conv *sc, int bigendian)
 {
 	const char *s = (const char *)_p;
 	char *u16;
@@ -3638,15 +3641,15 @@ win_strncat_to_utf16(struct archive_string *as16, const void *_p, size_t length,
 }
 
 static int
-win_strncat_to_utf16be(struct archive_string *as16, const void *_p, size_t length,
-    struct archive_string_conv *sc)
+win_strncat_to_utf16be(struct archive_string *as16, const void *_p,
+    size_t length, struct archive_string_conv *sc)
 {
 	return (win_strncat_to_utf16(as16, _p, length, sc, 1));
 }
 
 static int
-win_strncat_to_utf16le(struct archive_string *as16, const void *_p, size_t length,
-    struct archive_string_conv *sc)
+win_strncat_to_utf16le(struct archive_string *as16, const void *_p,
+    size_t length, struct archive_string_conv *sc)
 {
 	return (win_strncat_to_utf16(as16, _p, length, sc, 0));
 }
@@ -3990,7 +3993,8 @@ archive_mstring_copy_mbs_len(struct archive_mstring *aes, const char *mbs,
 int
 archive_mstring_copy_wcs(struct archive_mstring *aes, const wchar_t *wcs)
 {
-	return archive_mstring_copy_wcs_len(aes, wcs, wcs == NULL ? 0 : wcslen(wcs));
+	return archive_mstring_copy_wcs_len(aes, wcs,
+				wcs == NULL ? 0 : wcslen(wcs));
 }
 
 int
