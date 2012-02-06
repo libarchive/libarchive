@@ -586,41 +586,6 @@ archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
 	return (ret);
 }
 
-#elif defined(HAVE_MBSNRTOWCS)
-
-/*
- * Convert MBS to WCS.
- * Note: returns -1 if conversion fails.
- */
-int
-archive_wstring_append_from_mbs(struct archive_wstring *dest,
-    const char *p, size_t len)
-{
-	size_t r;
-	/*
-	 * No single byte will be more than one wide character,
-	 * so this length estimate will always be big enough.
-	 */
-	size_t wcs_length = len;
-	size_t mbs_length = len;
-	const char *mbs = p;
-	wchar_t *wcs;
-	mbstate_t shift_state;
-
-	memset(&shift_state, 0, sizeof(shift_state));
-	if (NULL == archive_wstring_ensure(dest, dest->length + wcs_length + 1))
-		return (-1);
-	wcs = dest->s + dest->length;
-	r = mbsnrtowcs(wcs, &mbs, mbs_length, wcs_length, &shift_state);
-	if (r != (size_t)-1) {
-		dest->length += r;
-		dest->s[dest->length] = L'\0';
-		return (0);
-	}
-	dest->s[dest->length] = L'\0';
-	return (-1);
-}
-
 #else
 
 /*
@@ -632,6 +597,7 @@ archive_wstring_append_from_mbs(struct archive_wstring *dest,
     const char *p, size_t len)
 {
 	size_t r;
+	int ret_val = 0;
 	/*
 	 * No single byte will be more than one wide character,
 	 * so this length estimate will always be big enough.
@@ -653,15 +619,29 @@ archive_wstring_append_from_mbs(struct archive_wstring *dest,
 	 * extra MBS when strlen(p) > len and one wide character consis of
 	 * multi bytes.
 	 */
-	while (wcs_length > 0 && *mbs && mbs_length > 0) {
+	while (*mbs && mbs_length > 0) {
+		if (wcs_length == 0) {
+			dest->length = wcs - dest->s;
+			dest->s[dest->length] = L'\0';
+			wcs_length = mbs_length;
+			if (NULL == archive_wstring_ensure(dest,
+			    dest->length + wcs_length + 1))
+				return (-1);
+			wcs = dest->s + dest->length;
+		}
 #if HAVE_MBRTOWC
 		r = mbrtowc(wcs, mbs, wcs_length, &shift_state);
 #else
 		r = mbtowc(wcs, mbs, wcs_length);
 #endif
 		if (r == (size_t)-1 || r == (size_t)-2) {
-			dest->s[dest->length] = L'\0';
-			return (-1);
+			ret_val = -1;
+			if (errno == EILSEQ) {
+				++mbs;
+				--mbs_length;
+				continue;
+			} else
+				break;
 		}
 		if (r == 0 || r > mbs_length)
 			break;
@@ -672,7 +652,7 @@ archive_wstring_append_from_mbs(struct archive_wstring *dest,
 	}
 	dest->length = wcs - dest->s;
 	dest->s[dest->length] = L'\0';
-	return (0);
+	return (ret_val);
 }
 
 #endif
@@ -784,73 +764,6 @@ archive_string_append_from_wcs_in_codepage(struct archive_string *as,
 	return (defchar_used?-1:ret);
 }
 
-#elif defined(HAVE_WCSNRTOMBS)
-
-/*
- * Translates a wide character string into current locale character set
- * and appends to the archive_string.  Note: returns -1 if conversion
- * fails.
- */
-int
-archive_string_append_from_wcs(struct archive_string *as,
-    const wchar_t *w, size_t len)
-{
-	mbstate_t shift_state;
-	size_t r, ndest, nwc;
-	char *dest;
-	const wchar_t *wp, *wpp;
-	int ret_val = 0;
-
-	wp = w;
-	nwc = len;
-	ndest = len * 2;
-	/* Initialize the shift state. */
-	memset(&shift_state, 0, sizeof(shift_state));
-	while (nwc > 0) {
-		/* Allocate buffer for MBS. */
-		if (archive_string_ensure(as, as->length + ndest + 1) == NULL)
-			return (-1);
-
-		dest = as->s + as->length;
-		wpp = wp;
-		r = wcsnrtombs(dest, &wp, nwc,
-		    as->buffer_length - as->length -1,
-		    &shift_state);
-		if (r == (size_t)-1) {
-			if (errno == EILSEQ) {
-				/* Retry conversion just for safe WCS. */
-				size_t xwc = wp - wpp;
-				wp = wpp;
-				r = wcsnrtombs(dest, &wp, xwc,
-				    as->buffer_length - as->length -1,
-				    &shift_state);
-				if (r == (size_t)-1)
-					/* This would not happen. */
-					return (-1);
-				as->length += r;
-				nwc -= wp - wpp;
-				/* Skip an illegal wide char. */
-				as->s[as->length++] = '?';
-				wp++;
-				nwc--;
-				ret_val = -1;
-				continue;
-			} else {
-				ret_val = -1;
-				break;
-			}
-		}
-		as->length += r;
-		if (wp == NULL || (wp - wpp) >= nwc)
-			break;
-		/* Get a remaining WCS lenth. */
-		nwc -= wp - wpp;
-	}
-	/* All wide characters are translated to MBS. */
-	as->s[as->length] = '\0';
-	return (ret_val);
-}
-
 #elif defined(HAVE_WCTOMB) || defined(HAVE_WCRTOMB)
 
 /*
@@ -896,7 +809,7 @@ archive_string_append_from_wcs(struct archive_string *as,
 			/* Re-allocate buffer for MBS. */
 			if (archive_string_ensure(as,
 			    as->length + len * 2 + 1) == NULL)
-				__archive_errx(1, "Out of memory");
+				return (-1);
 			p = as->s + as->length;
 			end = as->s + as->buffer_length - MB_CUR_MAX -1;
 		}
