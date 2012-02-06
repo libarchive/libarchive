@@ -859,16 +859,9 @@ setup_sparse(struct archive_read_disk *a,
 
 		r = ioctl(fd, FS_IOC_FIEMAP, fm); 
 		if (r < 0) {
-			/* When errno is ENOTTY, it is better we should
-			 * return ARCHIVE_OK because an earlier version
-			 *(<2.6.28) cannot perfom FS_IOC_FIEMAP.
-			 * We should also check if errno is EOPNOTSUPP,
-			 * it means "Operation not supported". */
-			if (errno != ENOTTY && errno != EOPNOTSUPP) {
-				archive_set_error(&a->archive, errno,
-				    "FIEMAP failed");
-				exit_sts = ARCHIVE_FAILED;
-			}
+			/* When something error happens, it is better we
+			 * should return ARCHIVE_OK because an earlier
+			 * version(<2.6.28) cannot perfom FS_IOC_FIEMAP. */
 			goto exit_setup_sparse;
 		}
 		if (fm->fm_mapped_extents == 0)
