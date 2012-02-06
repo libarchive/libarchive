@@ -397,10 +397,10 @@ ${ARCHIVE_CRYPTO_C}
 int
 main(int argc, char **argv)
 {
-  archive_${lower_crypto}_ctx ctx;
-  archive_${lower_crypto}_init(&ctx);
-  archive_${lower_crypto}_update(&ctx, *argv, argc);
-  archive_${lower_crypto}_final(&ctx, NULL);
+  archive_${lower_algorithm}_ctx ctx;
+  archive_${lower_algorithm}_init(&ctx);
+  archive_${lower_algorithm}_update(&ctx, *argv, argc);
+  archive_${lower_algorithm}_final(&ctx, NULL);
   return 0;
 }
 ")
