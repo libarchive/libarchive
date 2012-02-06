@@ -118,9 +118,6 @@ need_report(void)
 }
 #endif
 
-/* External function to parse a date/time string */
-time_t get_date(time_t, const char *);
-
 static void		 long_help(void);
 static void		 only_mode(struct bsdtar *, const char *opt,
 			     const char *valid);
@@ -140,7 +137,6 @@ main(int argc, char **argv)
 	char			 option_o;
 	char			 possible_help_request;
 	char			 buff[16];
-	time_t			 now;
 
 	/*
 	 * Use a pointer for consistency, but stack-allocated storage
@@ -191,8 +187,6 @@ main(int argc, char **argv)
 		else
 			lafe_progname = *argv;
 	}
-
-	time(&now);
 
 #if HAVE_SETLOCALE
 	if (setlocale(LC_ALL, "") == NULL)
@@ -400,8 +394,8 @@ main(int argc, char **argv)
 		 * TODO: Add corresponding "older" options to reverse these.
 		 */
 		case OPTION_NEWER_CTIME: /* GNU tar */
-			if (archive_matching_newer_ctime(bsdtar->matching,
-			    get_date(now, bsdtar->argument), 0) != ARCHIVE_OK)
+			if (archive_matching_newer_ctime_str(bsdtar->matching,
+			    bsdtar->argument) != ARCHIVE_OK)
 				lafe_errc(1, 0, "Error : %s",
 				    archive_error_string(bsdtar->matching));
 			break;
@@ -412,8 +406,8 @@ main(int argc, char **argv)
 				    archive_error_string(bsdtar->matching));
 			break;
 		case OPTION_NEWER_MTIME: /* GNU tar */
-			if (archive_matching_newer_mtime(bsdtar->matching,
-			    get_date(now, bsdtar->argument), 0) != ARCHIVE_OK)
+			if (archive_matching_newer_mtime_str(bsdtar->matching,
+			    bsdtar->argument) != ARCHIVE_OK)
 				lafe_errc(1, 0, "Error : %s",
 				    archive_error_string(bsdtar->matching));
 			break;

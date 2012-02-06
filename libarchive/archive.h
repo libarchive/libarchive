@@ -873,32 +873,69 @@ __LA_DECL int	archive_matching_path_unmatched_inclusions_next_w(
  */
 __LA_DECL int	archive_matching_time_excluded(struct archive *,
 		    struct archive_entry *);
-/* Set inclusion file times. */
+/* Set inclusion mtime. */
 __LA_DECL int	archive_matching_newer_mtime(struct archive *,
 		    time_t _sec, long _nsec);
+__LA_DECL int	archive_matching_newer_ctime(struct archive *,
+		    time_t _sec, long _nsec);
+__LA_DECL int	archive_matching_older_mtime(struct archive *,
+		    time_t _sec, long _nsec);
+__LA_DECL int	archive_matching_older_ctime(struct archive *,
+		    time_t _sec, long _nsec);
+/* Set inclusion mtime by string. */
+__LA_DECL int	archive_matching_newer_mtime_str(struct archive *,
+		    const char *_datestr);
+__LA_DECL int	archive_matching_newer_mtime_str_w(struct archive *,
+		    const wchar_t *_datestr);
+__LA_DECL int	archive_matching_equal_or_newer_mtime_str(struct archive *,
+		    const char *_datestr);
+__LA_DECL int	archive_matching_equal_or_newer_mtime_str_w(struct archive *,
+		    const wchar_t *_datestr);
+__LA_DECL int	archive_matching_newer_ctime_str(struct archive *,
+		    const char *_datestr);
+__LA_DECL int	archive_matching_newer_ctime_str_w(struct archive *,
+		    const wchar_t *_datestr);
+__LA_DECL int	archive_matching_equal_or_newer_ctime_str(struct archive *,
+		    const char *_datestr);
+__LA_DECL int	archive_matching_equal_or_newer_ctime_str_w(struct archive *,
+		    const wchar_t *_datestr);
+__LA_DECL int	archive_matching_older_mtime_str(struct archive *,
+		    const char *_datestr);
+__LA_DECL int	archive_matching_older_mtime_str_w(struct archive *,
+		    const wchar_t *_datestr);
+__LA_DECL int	archive_matching_equal_or_older_mtime_str(struct archive *,
+		    const char *_datestr);
+__LA_DECL int	archive_matching_equal_or_older_mtime_str_w(struct archive *,
+		    const wchar_t *_datestr);
+__LA_DECL int	archive_matching_older_ctime_str(struct archive *,
+		    const char *_datestr);
+__LA_DECL int	archive_matching_older_ctime_str_w(struct archive *,
+		    const wchar_t *_datestr);
+__LA_DECL int	archive_matching_equal_or_older_ctime_str(struct archive *,
+		    const char *_datestr);
+__LA_DECL int	archive_matching_equal_or_older_ctime_str_w(struct archive *,
+		    const wchar_t *_datestr);
+/* Set inclusion mtime by a particluar file. */
 __LA_DECL int	archive_matching_newer_mtime_than(struct archive *,
 		    const char *_pathname);
 __LA_DECL int	archive_matching_newer_mtime_than_w(struct archive *,
 		    const wchar_t *_pathname);
-__LA_DECL int	archive_matching_newer_ctime(struct archive *,
-		    time_t _sec, long _nsec);
 __LA_DECL int	archive_matching_newer_ctime_than(struct archive *,
 		    const char *_pathname);
 __LA_DECL int	archive_matching_newer_ctime_than_w(struct archive *,
 		    const wchar_t *_pathname);
-__LA_DECL int	archive_matching_older_mtime(struct archive *,
-		    time_t _sec, long _nsec);
 __LA_DECL int	archive_matching_older_mtime_than(struct archive *,
 		    const char *_pathname);
 __LA_DECL int	archive_matching_older_mtime_than_w(struct archive *,
 		    const wchar_t *_pathname);
-__LA_DECL int	archive_matching_older_ctime(struct archive *,
-		    time_t _sec, long _nsec);
 __LA_DECL int	archive_matching_older_ctime_than(struct archive *,
 		    const char *_pathname);
 __LA_DECL int	archive_matching_older_ctime_than_w(struct archive *,
 		    const wchar_t *_pathname);
-/* Add inclusion file times with its filename. */
+/* Add inclusion a pair of a pathname and its mtime.
+ * If a pathname does not match any pathnames, the entry will be treated
+ * as matched. If the pathname matchs some pathnames, those mtimes will be
+ * tested. */
 __LA_DECL int	archive_matching_pathname_newer_mtime(
 		    struct archive *, struct archive_entry *);
 

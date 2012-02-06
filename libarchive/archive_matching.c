@@ -83,6 +83,22 @@ struct id_array {
 #define TIME_IS_SET		2
 #define ID_IS_SET		4
 
+#define TTYPE_MTIME		0x10
+#define TTYPE_CTIME		0x20
+#define TCOND_EQUAL		0x01
+#define TCOND_NEWER		0x02
+#define TCOND_OLDER		0x04
+#define TIMETYPE_IS_CTIME(t)	((t) & TTYPE_CTIME)
+#define MATCH_NEWER_MTIME	(TTYPE_MTIME | TCOND_NEWER)
+#define MATCH_EQ_NEWER_MTIME	(TTYPE_MTIME | TCOND_NEWER | TCOND_EQUAL)
+#define MATCH_OLDER_MTIME	(TTYPE_MTIME | TCOND_OLDER)
+#define MATCH_EQ_OLDER_MTIME	(TTYPE_MTIME | TCOND_OLDER | TCOND_EQUAL)
+#define MATCH_NEWER_CTIME	(TTYPE_CTIME | TCOND_NEWER)
+#define MATCH_EQ_NEWER_CTIME	(TTYPE_CTIME | TCOND_NEWER | TCOND_EQUAL)
+#define MATCH_OLDER_CTIME	(TTYPE_CTIME | TCOND_OLDER)
+#define MATCH_EQ_OLDER_CTIME	(TTYPE_CTIME | TCOND_OLDER | TCOND_EQUAL)
+
+
 struct archive_matching {
 	struct archive		 archive;
 
@@ -98,6 +114,7 @@ struct archive_matching {
 	/*
 	 * Matching time stamps.
 	 */
+	time_t			 now;
 	int			 newer_mtime_filter;
 	time_t			 newer_mtime_sec;
 	long			 newer_mtime_nsec;
@@ -142,10 +159,6 @@ static int	cmp_node_mbs(const struct archive_rb_node *,
 static int	cmp_node_wcs(const struct archive_rb_node *,
 		    const struct archive_rb_node *);
 static int	error_nomem(struct archive_matching *);
-static int	get_filetime_mbs(struct archive_matching *, const char *,
-		    int, time_t *, long *);
-static int	get_filetime_wcs(struct archive_matching *, const wchar_t *,
-		    int, time_t *, long *);
 static void	match_list_add(struct match_list *, struct match *);
 static void	match_list_free(struct match_list *);
 static void	match_list_init(struct match_list *);
@@ -170,8 +183,20 @@ static void	newer_file_list_init(struct newer_file_list *);
 static int	owner_excluded(struct archive_matching *,
 		    struct archive_entry *);
 static int	path_excluded(struct archive_matching *, int, const void *);
+static int	set_timefilter(struct archive_matching *, int, time_t, long);
+static int	set_timefilter_pathname_mbs(struct archive_matching *,
+		    int, const char *);
+static int	set_timefilter_pathname_wcs(struct archive_matching *,
+		    int, const wchar_t *);
+static int	set_time_str(struct archive *, const char *, int,
+		    const char *);
+static int	set_time_str_w(struct archive *, const char *, int,
+		    const wchar_t *);
 static int	time_excluded(struct archive_matching *,
 		    struct archive_entry *);
+
+time_t __archive_get_date(time_t now, const char *);
+#define get_date __archive_get_date
 
 static const struct archive_rb_tree_ops rb_ops_mbs = {
 	cmp_node_mbs, cmp_key_mbs
@@ -212,6 +237,7 @@ archive_matching_new(void)
 	newer_file_list_init(&(a->newer_list));
 	match_list_init(&(a->inclusion_unames));
 	match_list_init(&(a->inclusion_gnames));
+	time(&a->now);
 	return (&(a->archive));
 }
 
@@ -696,57 +722,31 @@ archive_matching_newer_mtime(struct archive *_a, time_t sec, long nsec)
 	    ARCHIVE_STATE_NEW, "archive_matching_newer_mtime");
 	a = (struct archive_matching *)_a;
 
-	a->newer_mtime_filter = 1;
-	a->newer_mtime_sec = sec;
-	a->newer_mtime_nsec = nsec;
-	a->setflag |= TIME_IS_SET;
-	return (ARCHIVE_OK);
+	return set_timefilter(a, MATCH_NEWER_MTIME, sec, nsec);
 }
 
 int
 archive_matching_newer_mtime_than(struct archive *_a, const char *pathname)
 {
 	struct archive_matching *a;
-	int r;
 
 	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_matching_newer_mtime_than");
 	a = (struct archive_matching *)_a;
 
-	if (pathname == NULL || *pathname == '\0') {
-		archive_set_error(&(a->archive), EINVAL, "pathname is empty");
-		return (ARCHIVE_FAILED);
-	}
-	r = get_filetime_mbs(a, pathname, 0, &(a->newer_mtime_sec),
-		&(a->newer_mtime_nsec));
-	if (r != ARCHIVE_OK)
-		return (r);
-	a->newer_mtime_filter = 1;
-	a->setflag |= TIME_IS_SET;
-	return (ARCHIVE_OK);
+	return set_timefilter_pathname_mbs(a, MATCH_NEWER_MTIME, pathname);
 }
 
 int
 archive_matching_newer_mtime_than_w(struct archive *_a, const wchar_t *pathname)
 {
 	struct archive_matching *a;
-	int r;
 
 	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_matching_newer_mtime_than_w");
 	a = (struct archive_matching *)_a;
 
-	if (pathname == NULL || *pathname == L'\0') {
-		archive_set_error(&(a->archive), EINVAL, "pathname is empty");
-		return (ARCHIVE_FAILED);
-	}
-	r = get_filetime_wcs(a, pathname, 0, &(a->newer_mtime_sec),
-		&(a->newer_mtime_nsec));
-	if (r != ARCHIVE_OK)
-		return (r);
-	a->newer_mtime_filter = 1;
-	a->setflag |= TIME_IS_SET;
-	return (ARCHIVE_OK);
+	return set_timefilter_pathname_wcs(a, MATCH_NEWER_MTIME, pathname);
 }
 
 int
@@ -758,11 +758,7 @@ archive_matching_newer_ctime(struct archive *_a, time_t sec, long nsec)
 	    ARCHIVE_STATE_NEW, "archive_matching_newer_ctime");
 	a = (struct archive_matching *)_a;
 
-	a->newer_ctime_filter = 1;
-	a->newer_ctime_sec = sec;
-	a->newer_ctime_nsec = nsec;
-	a->setflag |= TIME_IS_SET;
-	return (ARCHIVE_OK);
+	return set_timefilter(a, MATCH_NEWER_CTIME, sec, nsec);
 }
 
 int
@@ -770,46 +766,24 @@ archive_matching_newer_ctime_than(struct archive *_a,
     const char *pathname)
 {
 	struct archive_matching *a;
-	int r;
 
 	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_matching_newer_ctime_than");
 	a = (struct archive_matching *)_a;
 
-	if (pathname == NULL || *pathname == '\0') {
-		archive_set_error(&(a->archive), EINVAL, "pathname is empty");
-		return (ARCHIVE_FAILED);
-	}
-	r = get_filetime_mbs(a, pathname, 1, &(a->newer_ctime_sec),
-	    &(a->newer_ctime_nsec));
-	if (r != ARCHIVE_OK)
-		return (r);
-	a->newer_ctime_filter = 1;
-	a->setflag |= TIME_IS_SET;
-	return (ARCHIVE_OK);
+	return set_timefilter_pathname_mbs(a, MATCH_NEWER_CTIME, pathname);
 }
 
 int
 archive_matching_newer_ctime_than_w(struct archive *_a, const wchar_t *pathname)
 {
 	struct archive_matching *a;
-	int r;
 
 	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_matching_newer_ctime_than_w");
 	a = (struct archive_matching *)_a;
 
-	if (pathname == NULL || *pathname == L'\0') {
-		archive_set_error(&(a->archive), EINVAL, "pathname is empty");
-		return (ARCHIVE_FAILED);
-	}
-	r = get_filetime_wcs(a, pathname, 1, &(a->newer_ctime_sec),
-		&(a->newer_ctime_nsec));
-	if (r != ARCHIVE_OK)
-		return (r);
-	a->newer_ctime_filter = 1;
-	a->setflag |= TIME_IS_SET;
-	return (ARCHIVE_OK);
+	return set_timefilter_pathname_wcs(a, MATCH_NEWER_CTIME, pathname);
 }
 
 int
@@ -821,57 +795,31 @@ archive_matching_older_mtime(struct archive *_a, time_t sec, long nsec)
 	    ARCHIVE_STATE_NEW, "archive_matching_older_mtime");
 	a = (struct archive_matching *)_a;
 
-	a->older_mtime_filter = 1;
-	a->older_mtime_sec = sec;
-	a->older_mtime_nsec = nsec;
-	a->setflag |= TIME_IS_SET;
-	return (ARCHIVE_OK);
+	return set_timefilter(a, MATCH_OLDER_MTIME, sec, nsec);
 }
 
 int
 archive_matching_older_mtime_than(struct archive *_a, const char *pathname)
 {
 	struct archive_matching *a;
-	int r;
 
 	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_matching_older_mtime_than");
 	a = (struct archive_matching *)_a;
 
-	if (pathname == NULL || *pathname == '\0') {
-		archive_set_error(&(a->archive), EINVAL, "pathname is empty");
-		return (ARCHIVE_FAILED);
-	}
-	r = get_filetime_mbs(a, pathname, 0, &(a->older_mtime_sec),
-		&(a->older_mtime_nsec));
-	if (r != ARCHIVE_OK)
-		return (r);
-	a->older_mtime_filter = 1;
-	a->setflag |= TIME_IS_SET;
-	return (ARCHIVE_OK);
+	return set_timefilter_pathname_mbs(a, MATCH_OLDER_MTIME, pathname);
 }
 
 int
 archive_matching_older_mtime_than_w(struct archive *_a, const wchar_t *pathname)
 {
 	struct archive_matching *a;
-	int r;
 
 	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_matching_older_mtime_than_w");
 	a = (struct archive_matching *)_a;
 
-	if (pathname == NULL || *pathname == L'\0') {
-		archive_set_error(&(a->archive), EINVAL, "pathname is empty");
-		return (ARCHIVE_FAILED);
-	}
-	r = get_filetime_wcs(a, pathname, 0, &(a->older_mtime_sec),
-	    &(a->older_mtime_nsec));
-	if (r != ARCHIVE_OK)
-		return (r);
-	a->older_mtime_filter = 1;
-	a->setflag |= TIME_IS_SET;
-	return (ARCHIVE_OK);
+	return set_timefilter_pathname_wcs(a, MATCH_OLDER_MTIME, pathname);
 }
 
 int
@@ -883,57 +831,31 @@ archive_matching_older_ctime(struct archive *_a, time_t sec, long nsec)
 	    ARCHIVE_STATE_NEW, "archive_matching_older_ctime");
 	a = (struct archive_matching *)_a;
 
-	a->older_ctime_filter = 1;
-	a->older_ctime_sec = sec;
-	a->older_ctime_nsec = nsec;
-	a->setflag |= TIME_IS_SET;
-	return (ARCHIVE_OK);
+	return set_timefilter(a, MATCH_OLDER_CTIME, sec, nsec);
 }
 
 int
 archive_matching_older_ctime_than(struct archive *_a, const char *pathname)
 {
 	struct archive_matching *a;
-	int r;
 
 	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_matching_older_ctime_than");
 	a = (struct archive_matching *)_a;
 
-	if (pathname == NULL || *pathname == '\0') {
-		archive_set_error(&(a->archive), EINVAL, "pathname is empty");
-		return (ARCHIVE_FAILED);
-	}
-	r = get_filetime_mbs(a, pathname, 1, &(a->older_ctime_sec),
-		&(a->older_ctime_nsec));
-	if (r != ARCHIVE_OK)
-		return (r);
-	a->older_ctime_filter = 1;
-	a->setflag |= TIME_IS_SET;
-	return (ARCHIVE_OK);
+	return set_timefilter_pathname_mbs(a, MATCH_OLDER_CTIME, pathname);
 }
 
 int
 archive_matching_older_ctime_than_w(struct archive *_a, const wchar_t *pathname)
 {
 	struct archive_matching *a;
-	int r;
 
 	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_matching_older_ctime_than_w");
 	a = (struct archive_matching *)_a;
 
-	if (pathname == NULL || *pathname == '\0') {
-		archive_set_error(&(a->archive), EINVAL, "pathname is empty");
-		return (ARCHIVE_FAILED);
-	}
-	r = get_filetime_wcs(a, pathname, 1, &(a->older_ctime_sec),
-		&(a->older_ctime_nsec));
-	if (r != ARCHIVE_OK)
-		return (r);
-	a->older_ctime_filter = 1;
-	a->setflag |= TIME_IS_SET;
-	return (ARCHIVE_OK);
+	return set_timefilter_pathname_wcs(a, MATCH_OLDER_CTIME, pathname);
 }
 
 int
@@ -951,6 +873,133 @@ archive_matching_pathname_newer_mtime(struct archive *_a,
 		return (ARCHIVE_FAILED);
 	}
 	return (add_newer_mtime_pathname(a, entry));
+}
+
+int
+archive_matching_newer_mtime_str(struct archive *_a, const char *_datestr)
+{
+	return set_time_str(_a, "archive_matching_newer_mtime_str",
+			MATCH_NEWER_MTIME, _datestr);
+}
+
+int
+archive_matching_newer_mtime_str_w(struct archive *_a,
+    const wchar_t *_datestr)
+{
+	return set_time_str_w(_a, "archive_matching_newer_mtime_str_w",
+			MATCH_NEWER_MTIME, _datestr);
+}
+
+int
+archive_matching_equal_or_newer_mtime_str(struct archive *_a,
+    const char *_datestr)
+{
+	return set_time_str(_a, "archive_matching_equal_or_newer_mtime_str",
+			MATCH_EQ_NEWER_MTIME, _datestr);
+}
+
+int
+archive_matching_equal_or_newer_mtime_str_w(struct archive *_a,
+    const wchar_t *_datestr)
+{
+	return set_time_str_w(_a, "archive_matching_equal_or_newer_mtime_str_w",
+			MATCH_EQ_NEWER_MTIME, _datestr);
+}
+
+int
+archive_matching_newer_ctime_str(struct archive *_a,
+    const char *_datestr)
+{
+	return set_time_str(_a, "archive_matching_newer_ctime_str",
+			MATCH_NEWER_CTIME, _datestr);
+}
+
+int
+archive_matching_newer_ctime_str_w(struct archive *_a,
+    const wchar_t *_datestr)
+{
+	return set_time_str_w(_a, "archive_matching_newer_ctime_str_w",
+			MATCH_NEWER_CTIME, _datestr);
+}
+
+int
+archive_matching_equal_or_newer_ctime_str(struct archive *_a,
+    const char *_datestr)
+{
+	return set_time_str(_a, "archive_matching_equal_or_newer_ctime_str",
+			MATCH_EQ_NEWER_CTIME, _datestr);
+}
+
+int
+archive_matching_equal_or_newer_ctime_str_w(struct archive *_a,
+    const wchar_t *_datestr)
+{
+	return set_time_str_w(_a, "archive_matching_equal_or_newer_ctime_str_w",
+			MATCH_EQ_NEWER_CTIME, _datestr);
+}
+
+int
+archive_matching_older_mtime_str(struct archive *_a,
+    const char *_datestr)
+{
+	return set_time_str(_a, "archive_matching_older_mtime_str",
+			MATCH_OLDER_MTIME, _datestr);
+}
+
+int
+archive_matching_older_mtime_str_w(struct archive *_a,
+    const wchar_t *_datestr)
+{
+	return set_time_str_w(_a, "archive_matching_older_mtime_str_w",
+			MATCH_OLDER_MTIME, _datestr);
+}
+
+int
+archive_matching_equal_or_older_mtime_str(struct archive *_a,
+    const char *_datestr)
+{
+	return set_time_str(_a, "archive_matching_equal_or_older_mtime_str",
+			MATCH_EQ_OLDER_MTIME, _datestr);
+}
+
+int
+archive_matching_equal_or_older_mtime_str_w(struct archive *_a,
+    const wchar_t *_datestr)
+{
+	return set_time_str_w(_a, "archive_matching_equal_or_older_mtime_str_w",
+			MATCH_EQ_OLDER_MTIME, _datestr);
+}
+
+int
+archive_matching_older_ctime_str(struct archive *_a,
+    const char *_datestr)
+{
+	return set_time_str(_a, "archive_matching_older_ctime_str",
+			MATCH_OLDER_CTIME, _datestr);
+}
+
+int
+archive_matching_older_ctime_str_w(struct archive *_a,
+    const wchar_t *_datestr)
+{
+	return set_time_str_w(_a, "archive_matching_older_ctime_str_w",
+			MATCH_OLDER_CTIME, _datestr);
+}
+
+int
+archive_matching_equal_or_older_ctime_str(struct archive *_a,
+    const char *_datestr)
+{
+	return set_time_str(_a, "archive_matching_equal_or_older_ctime_str",
+			MATCH_EQ_OLDER_CTIME, _datestr);
+}
+
+int
+archive_matching_equal_or_older_ctime_str_w(struct archive *_a,
+    const wchar_t *_datestr)
+{
+	return set_time_str_w(_a, "archive_matching_equal_or_older_ctime_str_w",
+			MATCH_EQ_OLDER_CTIME, _datestr);
 }
 
 /*
@@ -982,41 +1031,140 @@ archive_matching_time_excluded(struct archive *_a,
 	return (time_excluded(a, entry));
 }
 
+static int
+set_timefilter(struct archive_matching *a, int timetype, time_t sec, long nsec)
+{
+
+	switch (timetype) {
+	case MATCH_NEWER_MTIME:
+	case MATCH_EQ_NEWER_MTIME:
+		a->newer_mtime_filter = timetype;
+		a->newer_mtime_sec = sec;
+		a->newer_mtime_nsec = nsec;
+		break;
+	case MATCH_OLDER_MTIME:
+	case MATCH_EQ_OLDER_MTIME:
+		a->older_mtime_filter = timetype;
+		a->older_mtime_sec = sec;
+		a->older_mtime_nsec = nsec;
+		break;
+	case MATCH_NEWER_CTIME:
+	case MATCH_EQ_NEWER_CTIME:
+		a->newer_ctime_filter = timetype;
+		a->newer_ctime_sec = sec;
+		a->newer_ctime_nsec = nsec;
+		break;
+	case MATCH_OLDER_CTIME:
+	case MATCH_EQ_OLDER_CTIME:
+		a->older_ctime_filter = timetype;
+		a->older_ctime_sec = sec;
+		a->older_ctime_nsec = nsec;
+		break;
+	}
+	a->setflag |= TIME_IS_SET;
+	return (ARCHIVE_OK);
+}
+
+static int
+set_time_str(struct archive *_a, const char *_fn, int timetype,
+    const char *datestr)
+{
+	struct archive_matching *a;
+	time_t time;
+
+	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
+	    ARCHIVE_STATE_NEW, _fn);
+	a = (struct archive_matching *)_a;
+
+	if (datestr == NULL || *datestr == '\0') {
+		archive_set_error(&(a->archive), EINVAL, "date is empty");
+		return (ARCHIVE_FAILED);
+	}
+	time = get_date(a->now, datestr);
+	if (time == (time_t)-1) {
+		archive_set_error(&(a->archive), EINVAL, "invalid date string");
+		return (ARCHIVE_FAILED);
+	}
+	return set_timefilter(a, timetype, time, 0);
+}
+
+static int
+set_time_str_w(struct archive *_a, const char *_fn, int timetype,
+    const wchar_t *datestr)
+{
+	struct archive_matching *a;
+	struct archive_string as;
+	time_t time;
+
+	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
+	    ARCHIVE_STATE_NEW, _fn);
+	a = (struct archive_matching *)_a;
+
+	if (datestr == NULL || *datestr == L'\0') {
+		archive_set_error(&(a->archive), EINVAL, "date is empty");
+		return (ARCHIVE_FAILED);
+	}
+
+	archive_string_init(&as);
+	if (archive_string_append_from_wcs(&as, datestr, wcslen(datestr)) < 0) {
+		archive_string_free(&as);
+		if (errno == ENOMEM)
+			return (error_nomem(a));
+		archive_set_error(&(a->archive), -1,
+		    "Failed to convert WCS to MBS");
+		return (ARCHIVE_FAILED);
+	}
+	time = get_date(a->now, as.s);
+	archive_string_free(&as);
+	if (time == (time_t)-1) {
+		archive_set_error(&(a->archive), EINVAL, "invalid date string");
+		return (ARCHIVE_FAILED);
+	}
+	return set_timefilter(a, timetype, time, 0);
+}
+
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #define EPOC_TIME (116444736000000000ui64)
 #else
 static int
-get_time(struct archive_matching *a, struct stat *st, int is_ctime,
-    time_t *time, long *ns)
+set_timefilter_stat(struct archive_matching *a, int timetype, struct stat *st)
 {
 	struct archive_entry *ae;
+	time_t time;
+	long ns;
 
 	ae = archive_entry_new();
 	if (ae == NULL)
 		return (error_nomem(a));
 	archive_entry_copy_stat(ae, st);
-	if (is_ctime) {
-		*time = archive_entry_ctime(ae);
-		*ns = archive_entry_ctime_nsec(ae);
+	if (TIMETYPE_IS_CTIME(timetype)) {
+		time = archive_entry_ctime(ae);
+		ns = archive_entry_ctime_nsec(ae);
 	} else {
-		*time = archive_entry_mtime(ae);
-		*ns = archive_entry_mtime_nsec(ae);
+		time = archive_entry_mtime(ae);
+		ns = archive_entry_mtime_nsec(ae);
 	}
 	archive_entry_free(ae);
-	return (ARCHIVE_OK);
+	return set_timefilter(a, timetype, time, ns);
 }
 #endif
 
 static int
-get_filetime_mbs(struct archive_matching *a, const char *path,
-    int is_ctime, time_t *time, long *ns)
+set_timefilter_pathname_mbs(struct archive_matching *a, int timetype,
+    const char *path)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	/* NOTE: stat() on Windows cannot handle nano seconds. */
 	HANDLE h;
 	WIN32_FIND_DATA d;
 	ULARGE_INTEGER utc;
+	time_t time;
+	long ns;
 
+	if (path == NULL || *path == '\0') {
+		archive_set_error(&(a->archive), EINVAL, "pathname is empty");
+		return (ARCHIVE_FAILED);
+	}
 	h = FindFirstFileA(path, &d);
 	if (h == INVALID_HANDLE_VALUE) {
 		la_dosmaperr(GetLastError());
@@ -1025,7 +1173,7 @@ get_filetime_mbs(struct archive_matching *a, const char *path,
 		return (ARCHIVE_FAILED);
 	}
 	FindClose(h);
-	if (is_ctime) {
+	if (TIMETYPE_IS_CTIME(timetype)) {
 		utc.HighPart = d.ftCreationTime.dwHighDateTime;
 		utc.LowPart = d.ftCreationTime.dwLowDateTime;
 	} else {
@@ -1034,33 +1182,43 @@ get_filetime_mbs(struct archive_matching *a, const char *path,
 	}
 	if (utc.QuadPart >= EPOC_TIME) {
 		utc.QuadPart -= EPOC_TIME;
-		*time = (time_t)(utc.QuadPart / 10000000);
-		*ns = (long)(utc.QuadPart % 10000000) * 100;
+		time = (time_t)(utc.QuadPart / 10000000);
+		ns = (long)(utc.QuadPart % 10000000) * 100;
 	} else {
-		*time = 0;
-		*ns = 0;
+		time = 0;
+		ns = 0;
 	}
-	return (ARCHIVE_OK);
+	return set_timefilter(a, timetype, time, ns);
 #else
 	struct stat st;
 
+	if (path == NULL || *path == '\0') {
+		archive_set_error(&(a->archive), EINVAL, "pathname is empty");
+		return (ARCHIVE_FAILED);
+	}
 	if (stat(path, &st) != 0) {
 		archive_set_error(&(a->archive), errno, "Failed to stat()");
 		return (ARCHIVE_FAILED);
 	}
-	return (get_time(a, &st, is_ctime, time, ns));
+	return (set_timefilter_stat(a, timetype, &st));
 #endif
 }
 
 static int
-get_filetime_wcs(struct archive_matching *a, const wchar_t *path,
-    int is_ctime, time_t *time, long *ns)
+set_timefilter_pathname_wcs(struct archive_matching *a, int timetype,
+    const wchar_t *path)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	HANDLE h;
 	WIN32_FIND_DATAW d;
 	ULARGE_INTEGER utc;
+	time_t time;
+	long ns;
 
+	if (path == NULL || *path == L'\0') {
+		archive_set_error(&(a->archive), EINVAL, "pathname is empty");
+		return (ARCHIVE_FAILED);
+	}
 	h = FindFirstFileW(path, &d);
 	if (h == INVALID_HANDLE_VALUE) {
 		la_dosmaperr(GetLastError());
@@ -1069,7 +1227,7 @@ get_filetime_wcs(struct archive_matching *a, const wchar_t *path,
 		return (ARCHIVE_FAILED);
 	}
 	FindClose(h);
-	if (is_ctime) {
+	if (TIMETYPE_IS_CTIME(timetype)) {
 		utc.HighPart = d.ftCreationTime.dwHighDateTime;
 		utc.LowPart = d.ftCreationTime.dwLowDateTime;
 	} else {
@@ -1078,17 +1236,21 @@ get_filetime_wcs(struct archive_matching *a, const wchar_t *path,
 	}
 	if (utc.QuadPart >= EPOC_TIME) {
 		utc.QuadPart -= EPOC_TIME;
-		*time = (time_t)(utc.QuadPart / 10000000);
-		*ns = (long)(utc.QuadPart % 10000000) * 100;
+		time = (time_t)(utc.QuadPart / 10000000);
+		ns = (long)(utc.QuadPart % 10000000) * 100;
 	} else {
-		*time = 0;
-		*ns = 0;
+		time = 0;
+		ns = 0;
 	}
-	return (ARCHIVE_OK);
+	return set_timefilter(a, timetype, time, ns);
 #else
 	struct stat st;
 	struct archive_string as;
 
+	if (path == NULL || *path == L'\0') {
+		archive_set_error(&(a->archive), EINVAL, "pathname is empty");
+		return (ARCHIVE_FAILED);
+	}
 	archive_string_init(&as);
 	if (archive_string_append_from_wcs(&as, path, wcslen(path)) < 0) {
 		archive_string_free(&as);
@@ -1104,7 +1266,7 @@ get_filetime_wcs(struct archive_matching *a, const wchar_t *path,
 		return (ARCHIVE_FAILED);
 	}
 	archive_string_free(&as);
-	return (get_time(a, &st, is_ctime, time, ns));
+	return (set_timefilter_stat(a, timetype, &st));
 #endif
 }
 
@@ -1272,13 +1434,17 @@ time_excluded(struct archive_matching *a, struct archive_entry *entry)
 			sec = archive_entry_mtime(entry);
 		if (sec < a->newer_ctime_sec)
 			return (1); /* Too old, skip it. */
-		if (archive_entry_ctime_is_set(entry))
-			nsec = archive_entry_ctime_nsec(entry);
-		else
-			nsec = archive_entry_mtime_nsec(entry);
-		if (sec == a->newer_ctime_sec
-		    && nsec <= a->newer_ctime_nsec)
-			return (1); /* Too old, skip it. */
+		if (sec == a->newer_ctime_sec) {
+			if (archive_entry_ctime_is_set(entry))
+				nsec = archive_entry_ctime_nsec(entry);
+			else
+				nsec = archive_entry_mtime_nsec(entry);
+			if (nsec < a->newer_ctime_nsec)
+				return (1); /* Too old, skip it. */
+			if (nsec == a->newer_ctime_nsec &&
+			    (a->newer_ctime_filter & TCOND_EQUAL) == 0)
+				return (1); /* Equal, skip it. */
+		}
 	}
 	if (a->older_ctime_filter) {
 		/* If ctime is not set, use mtime instead. */
@@ -1288,31 +1454,43 @@ time_excluded(struct archive_matching *a, struct archive_entry *entry)
 			sec = archive_entry_mtime(entry);
 		if (sec > a->older_ctime_sec)
 			return (1); /* Too new, skip it. */
-		if (archive_entry_ctime_is_set(entry))
-			nsec = archive_entry_ctime_nsec(entry);
-		else
-			nsec = archive_entry_mtime_nsec(entry);
-		if (sec == a->older_ctime_sec
-		    && nsec >= a->older_ctime_nsec)
-			return (1); /* Too new, skip it. */
+		if (sec == a->older_ctime_sec) {
+			if (archive_entry_ctime_is_set(entry))
+				nsec = archive_entry_ctime_nsec(entry);
+			else
+				nsec = archive_entry_mtime_nsec(entry);
+			if (nsec > a->older_ctime_nsec)
+				return (1); /* Too new, skip it. */
+			if (nsec == a->older_ctime_nsec &&
+			    (a->older_ctime_filter & TCOND_EQUAL) == 0)
+				return (1); /* Eeual, skip it. */
+		}
 	}
 	if (a->newer_mtime_filter) {
 		sec = archive_entry_mtime(entry);
 		if (sec < a->newer_mtime_sec)
 			return (1); /* Too old, skip it. */
-		nsec = archive_entry_mtime_nsec(entry);
-		if (sec == a->newer_mtime_sec
-		    && nsec <= a->newer_mtime_nsec)
-			return (1); /* Too old, skip it. */
+		if (sec == a->newer_mtime_sec) {
+			nsec = archive_entry_mtime_nsec(entry);
+			if (nsec < a->newer_mtime_nsec)
+				return (1); /* Too old, skip it. */
+			if (nsec == a->newer_mtime_nsec &&
+			    (a->newer_mtime_filter & TCOND_EQUAL) == 0)
+				return (1); /* Equal, skip it. */
+		}
 	}
 	if (a->older_mtime_filter) {
 		sec = archive_entry_mtime(entry);
 		if (sec > a->older_mtime_sec)
 			return (1); /* Too new, skip it. */
 		nsec = archive_entry_mtime_nsec(entry);
-		if (sec == a->older_mtime_sec
-		    && nsec >= a->older_mtime_nsec)
-			return (1); /* Too new, skip it. */
+		if (sec == a->older_mtime_sec) {
+			if (nsec > a->older_mtime_nsec)
+				return (1); /* Too new, skip it. */
+			if (nsec == a->older_mtime_nsec &&
+			    (a->older_mtime_filter & TCOND_EQUAL) == 0)
+				return (1); /* Equal, skip it. */
+		}
 	}
 
 	/* If there is no incluson list, include the file. */

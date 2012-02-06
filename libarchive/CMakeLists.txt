@@ -28,6 +28,7 @@ SET(libarchive_SOURCES
   archive_entry_stat.c
   archive_entry_strmode.c
   archive_entry_xattr.c
+  archive_getdate.c
   archive_matching.c
   archive_options.c
   archive_options_private.h

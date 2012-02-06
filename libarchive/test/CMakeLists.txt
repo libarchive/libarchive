@@ -15,6 +15,7 @@ IF(ENABLE_TEST)
     test_archive_api_feature.c
     test_archive_clear_error.c
     test_archive_crypto.c
+    test_archive_getdate.c
     test_archive_matching_owner.c
     test_archive_matching_path.c
     test_archive_matching_time.c
