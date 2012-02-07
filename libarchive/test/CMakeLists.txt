@@ -16,9 +16,9 @@ IF(ENABLE_TEST)
     test_archive_clear_error.c
     test_archive_crypto.c
     test_archive_getdate.c
-    test_archive_matching_owner.c
-    test_archive_matching_path.c
-    test_archive_matching_time.c
+    test_archive_match_owner.c
+    test_archive_match_path.c
+    test_archive_match_time.c
     test_archive_pathmatch.c
     test_archive_read_close_twice.c
     test_archive_read_close_twice_open_fd.c

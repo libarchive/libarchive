@@ -809,7 +809,7 @@ next_entry:
 	 * Perform path matching.
 	 */
 	if (a->matching) {
-		r = archive_matching_path_excluded(a->matching, entry);
+		r = archive_match_path_excluded(a->matching, entry);
 		if (r < 0) {
 			archive_set_error(&(a->archive), errno,
 			    "Faild : %s", archive_error_string(a->matching));
@@ -884,7 +884,7 @@ next_entry:
 	 * Perform time matching.
 	 */
 	if (a->matching) {
-		r = archive_matching_time_excluded(a->matching, entry);
+		r = archive_match_time_excluded(a->matching, entry);
 		if (r < 0) {
 			archive_set_error(&(a->archive), errno,
 			    "Faild : %s", archive_error_string(a->matching));
@@ -911,7 +911,7 @@ next_entry:
 	 * Perform owner matching.
 	 */
 	if (a->matching) {
-		r = archive_matching_owner_excluded(a->matching, entry);
+		r = archive_match_owner_excluded(a->matching, entry);
 		if (r < 0) {
 			archive_set_error(&(a->archive), errno,
 			    "Faild : %s", archive_error_string(a->matching));

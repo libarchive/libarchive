@@ -189,7 +189,7 @@ main(int argc, char *argv[])
 	cpio->bytes_per_block = 512;
 	cpio->filename = NULL;
 
-	cpio->matching = archive_matching_new();
+	cpio->matching = archive_match_new();
 	if (cpio->matching == NULL)
 		lafe_errc(1, 0, "Out of memory");
 
@@ -226,7 +226,7 @@ main(int argc, char *argv[])
 			cpio->filename = cpio->argument;
 			break;
 		case 'f': /* POSIX 1997 */
-			if (archive_matching_exclude_pattern(cpio->matching,
+			if (archive_match_exclude_pattern(cpio->matching,
 			    cpio->argument) != ARCHIVE_OK)
 				lafe_errc(1, 0, "Error : %s",
 				    archive_error_string(cpio->matching));
@@ -391,7 +391,7 @@ main(int argc, char *argv[])
 		break;
 	case 'i':
 		while (*cpio->argv != NULL) {
-			if (archive_matching_include_pattern(cpio->matching,
+			if (archive_match_include_pattern(cpio->matching,
 			    *cpio->argv) != ARCHIVE_OK)
 				lafe_errc(1, 0, "Error : %s",
 				    archive_error_string(cpio->matching));
@@ -414,7 +414,7 @@ main(int argc, char *argv[])
 		    "Must specify at least one of -i, -o, or -p");
 	}
 
-	archive_matching_free(cpio->matching);
+	archive_match_free(cpio->matching);
 	free_cache(cpio->gname_cache);
 	free_cache(cpio->uname_cache);
 	return (cpio->return_value);
@@ -880,7 +880,7 @@ mode_in(struct cpio *cpio)
 			lafe_errc(1, archive_errno(a),
 			    "%s", archive_error_string(a));
 		}
-		if (archive_matching_path_excluded(cpio->matching, entry))
+		if (archive_match_path_excluded(cpio->matching, entry))
 			continue;
 		if (cpio->option_rename) {
 			destpath = cpio_rename(archive_entry_pathname(entry));
@@ -982,7 +982,7 @@ mode_list(struct cpio *cpio)
 			lafe_errc(1, archive_errno(a),
 			    "%s", archive_error_string(a));
 		}
-		if (archive_matching_path_excluded(cpio->matching, entry))
+		if (archive_match_path_excluded(cpio->matching, entry))
 			continue;
 		if (cpio->verbose)
 			list_item_verbose(cpio, entry);

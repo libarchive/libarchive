@@ -1320,7 +1320,7 @@ test_callbacks(void)
 		archive_entry_free(ae);
 		return;
 	}
-	if (assert((m = archive_matching_new()) != NULL)) {
+	if (assert((m = archive_match_new()) != NULL)) {
 		archive_entry_free(ae);
 		archive_read_free(a);
 		return;
@@ -1331,7 +1331,7 @@ test_callbacks(void)
 	 */
 	file_count = 3;
 	assertEqualIntA(m, ARCHIVE_OK,
-	    archive_matching_exclude_pattern(m, "cb/f2"));
+	    archive_match_exclude_pattern(m, "cb/f2"));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_disk_set_matching(a, m, NULL, NULL));
 	failure("Directory traversals should work as well");
@@ -1416,7 +1416,7 @@ test_callbacks(void)
 
 	/* Destroy the disk object. */
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-	assertEqualInt(ARCHIVE_OK, archive_matching_free(m));
+	assertEqualInt(ARCHIVE_OK, archive_match_free(m));
 	archive_entry_free(ae);
 }
 

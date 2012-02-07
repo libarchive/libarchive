@@ -48,7 +48,7 @@ lafe_exclude_from_file(struct archive *matching, const char *pathname)
 
 	lr = lafe_line_reader(pathname, 0);
 	while ((p = lafe_line_reader_next(lr)) != NULL) {
-		ret = archive_matching_exclude_pattern(matching, p);
+		ret = archive_match_exclude_pattern(matching, p);
 		if (ret == ARCHIVE_FATAL)
 			lafe_errc(1, errno, "Out of memory");
 	}
@@ -66,7 +66,7 @@ lafe_include_from_file(struct archive *matching, const char *pathname,
 
 	lr = lafe_line_reader(pathname, nullSeparator);
 	while ((p = lafe_line_reader_next(lr)) != NULL) {
-		ret = archive_matching_include_pattern(matching, p);
+		ret = archive_match_include_pattern(matching, p);
 		if (ret == ARCHIVE_FATAL)
 			lafe_errc(1, errno, "Out of memory");
 	}

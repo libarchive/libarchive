@@ -79,10 +79,10 @@ struct archive_read_disk {
 			struct archive_entry *);
 	void	*metadata_filter_data;
 
-	/* ARCHIVE_MATCHING object. */
+	/* ARCHIVE_MATCH object. */
 	struct archive	*matching;
-	/* Callback function, this will be invoked when ARCHIVE_MATCHING
-	 * archive_matching_*_excluded_ae return true. */
+	/* Callback function, this will be invoked when ARCHIVE_MATCH
+	 * archive_match_*_excluded_ae return true. */
 	void	(*excluded_cb_func)(struct archive *, void *,
 			 struct archive_entry *);
 	void	*excluded_cb_data;

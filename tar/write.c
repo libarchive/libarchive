@@ -342,9 +342,9 @@ tar_mode_u(struct bsdtar *bsdtar)
 			lafe_errc(1, 0,
 			    "Cannot append to compressed archive.");
 		}
-		if (archive_matching_exclude_entry(bsdtar->matching,
-		    ARCHIVE_MATCHING_MTIME | ARCHIVE_MATCHING_OLDER |
-		    ARCHIVE_MATCHING_EQUAL, entry) != ARCHIVE_OK)
+		if (archive_match_exclude_entry(bsdtar->matching,
+		    ARCHIVE_MATCH_MTIME | ARCHIVE_MATCH_OLDER |
+		    ARCHIVE_MATCH_EQUAL, entry) != ARCHIVE_OK)
 			lafe_errc(1, 0, "Error : %s",
 			    archive_error_string(bsdtar->matching));
 		/* Record the last format determination we see */
@@ -590,7 +590,7 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 	int e;
 
 	while (ARCHIVE_OK == (e = archive_read_next_header(ina, &in_entry))) {
-		if (archive_matching_excluded(bsdtar->matching, in_entry))
+		if (archive_match_excluded(bsdtar->matching, in_entry))
 			continue;
 		if (bsdtar->option_interactive &&
 		    !yes("copy '%s'", archive_entry_pathname(in_entry)))

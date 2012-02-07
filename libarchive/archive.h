@@ -773,10 +773,10 @@ __LA_DECL int  archive_read_disk_set_behavior(struct archive *,
 		    int flags);
 
 /*
- * Set archive_matching object that will be used in archive_read_disk to
+ * Set archive_match object that will be used in archive_read_disk to
  * know whether an entry should be skipped. The callback function
  * _excluded_func will be invoked when an entry is skipped by the result
- * of archive_matching.
+ * of archive_match.
  */
 __LA_DECL int	archive_read_disk_set_matching(struct archive *,
 		    struct archive *_matching, void (*_excluded_func)
@@ -825,104 +825,97 @@ __LA_DECL void		 archive_copy_error(struct archive *dest,
 __LA_DECL int		 archive_file_count(struct archive *);
 
 /*
- * ARCHIVE_MATCHING API
+ * ARCHIVE_MATCH API
  */
-__LA_DECL struct archive *archive_matching_new(void);
-__LA_DECL int	archive_matching_free(struct archive *);
+__LA_DECL struct archive *archive_match_new(void);
+__LA_DECL int	archive_match_free(struct archive *);
 
 /*
  * Test if archive_entry is excluded.
  * This is a convenience function. This is the same as calling all
- * archive_matching_path_excluded, archive_matching_time_excluded
- * and archive_matching_owner_excluded.
+ * archive_match_path_excluded, archive_match_time_excluded
+ * and archive_match_owner_excluded.
  */
-__LA_DECL int	archive_matching_excluded(struct archive *,
+__LA_DECL int	archive_match_excluded(struct archive *,
 		    struct archive_entry *);
 
 /*
  * Test if pathname is excluded. The conditions are set by following functions.
  */
-__LA_DECL int	archive_matching_path_excluded(struct archive *,
+__LA_DECL int	archive_match_path_excluded(struct archive *,
 		    struct archive_entry *);
 /* Add exclusion pathname pattern. */
-__LA_DECL int	archive_matching_exclude_pattern(struct archive *,
-		    const char *);
-__LA_DECL int	archive_matching_exclude_pattern_w(struct archive *,
+__LA_DECL int	archive_match_exclude_pattern(struct archive *, const char *);
+__LA_DECL int	archive_match_exclude_pattern_w(struct archive *,
 		    const wchar_t *);
 /* Add inclusion pathname pattern. */
-__LA_DECL int	archive_matching_include_pattern(struct archive *,
-		    const char *);
-__LA_DECL int	archive_matching_include_pattern_w(struct archive *,
+__LA_DECL int	archive_match_include_pattern(struct archive *, const char *);
+__LA_DECL int	archive_match_include_pattern_w(struct archive *,
 		    const wchar_t *);
 /*
  * How to get statistic information for inclusion patterns.
  */
 /* Return the amount number of unmatched inclusion patterns. */
-__LA_DECL int	archive_matching_path_unmatched_inclusions(
-		    struct archive *);
+__LA_DECL int	archive_match_path_unmatched_inclusions(struct archive *);
 /* Return the pattern of unmatched inclusion with ARCHIVE_OK.
  * Return ARCHIVE_EOF if there is no inclusion pattern. */
-__LA_DECL int	archive_matching_path_unmatched_inclusions_next(
+__LA_DECL int	archive_match_path_unmatched_inclusions_next(
 		    struct archive *, const char **);
-__LA_DECL int	archive_matching_path_unmatched_inclusions_next_w(
+__LA_DECL int	archive_match_path_unmatched_inclusions_next_w(
 		    struct archive *, const wchar_t **);
 
 /*
  * Test if a file is excluded by its time stamp.
  * The conditions are set by following functions.
  */
-__LA_DECL int	archive_matching_time_excluded(struct archive *,
+__LA_DECL int	archive_match_time_excluded(struct archive *,
 		    struct archive_entry *);
 
 /*
  * Flags to tell a matching type of time stamps. These are used for
- * following functinos archive_matching_time*().
+ * following functinos.
  */
 /* Time flag: mtime to be tested. */
-#define ARCHIVE_MATCHING_MTIME	(0x0100)
+#define ARCHIVE_MATCH_MTIME	(0x0100)
 /* Time flag: ctime to be tested. */
-#define ARCHIVE_MATCHING_CTIME	(0x0200)
+#define ARCHIVE_MATCH_CTIME	(0x0200)
 /* Comparison flag: Match the time if it is newer than. */
-#define ARCHIVE_MATCHING_NEWER	(0x0001)
+#define ARCHIVE_MATCH_NEWER	(0x0001)
 /* Comparison flag: Match the time if it is older than. */
-#define ARCHIVE_MATCHING_OLDER	(0x0002)
+#define ARCHIVE_MATCH_OLDER	(0x0002)
 /* Comparison flag: Match the time if it is equal to. */
-#define ARCHIVE_MATCHING_EQUAL	(0x0010)
+#define ARCHIVE_MATCH_EQUAL	(0x0010)
 /* Set inclusion time. */
-__LA_DECL int	archive_matching_include_time(struct archive *, int _flag,
+__LA_DECL int	archive_match_include_time(struct archive *, int _flag,
 		    time_t _sec, long _nsec);
 /* Set inclusion time by a date string. */
-__LA_DECL int	archive_matching_include_date(struct archive *, int _flag,
+__LA_DECL int	archive_match_include_date(struct archive *, int _flag,
 		    const char *_datestr);
-__LA_DECL int	archive_matching_include_date_w(struct archive *, int _flag,
+__LA_DECL int	archive_match_include_date_w(struct archive *, int _flag,
 		    const wchar_t *_datestr);
 /* Set inclusion time by a particluar file. */
-__LA_DECL int	archive_matching_include_time_pathname(struct archive *,
+__LA_DECL int	archive_match_include_file_time(struct archive *,
 		    int _flag, const char *_pathname);
-__LA_DECL int	archive_matching_include_time_pathname_w(struct archive *,
+__LA_DECL int	archive_match_include_file_time_w(struct archive *,
 		    int _flag, const wchar_t *_pathname);
 /* Add exclusion entry. */
-__LA_DECL int	archive_matching_exclude_entry(struct archive *,
+__LA_DECL int	archive_match_exclude_entry(struct archive *,
 		    int _flag, struct archive_entry *);
 
 /*
  * Test if a file is excluded by its uid ,gid, uname or gname.
  * The conditions are set by following functions.
  */
-__LA_DECL int	archive_matching_owner_excluded(struct archive *,
+__LA_DECL int	archive_match_owner_excluded(struct archive *,
 		    struct archive_entry *);
 /* Add inclusion uid, gid, uname and gname. */
-__LA_DECL int	archive_matching_include_uid(struct archive *,
-		    int64_t);
-__LA_DECL int	archive_matching_include_gid(struct archive *,
-		    int64_t);
-__LA_DECL int	archive_matching_include_uname(struct archive *,
-		    const char *);
-__LA_DECL int	archive_matching_include_uname_w(struct archive *,
+__LA_DECL int	archive_match_include_uid(struct archive *, int64_t);
+__LA_DECL int	archive_match_include_gid(struct archive *, int64_t);
+__LA_DECL int	archive_match_include_uname(struct archive *, const char *);
+__LA_DECL int	archive_match_include_uname_w(struct archive *,
 		    const wchar_t *);
-__LA_DECL int	archive_matching_include_gname(struct archive *,
-		    const char *);
-__LA_DECL int	archive_matching_include_gname_w(struct archive *,
+__LA_DECL int	archive_match_include_gname(struct archive *, const char *);
+__LA_DECL int	archive_match_include_gname_w(struct archive *,
 		    const wchar_t *);
 
 #ifdef __cplusplus

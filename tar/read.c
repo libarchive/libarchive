@@ -158,7 +158,7 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 	int			  r;
 
 	while (*bsdtar->argv) {
-		if (archive_matching_include_pattern(bsdtar->matching,
+		if (archive_match_include_pattern(bsdtar->matching,
 		    *bsdtar->argv) != ARCHIVE_OK)
 			lafe_errc(1, 0, "Error inclusion pattern: %s",
 			    archive_error_string(bsdtar->matching));
@@ -204,7 +204,7 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 	for (;;) {
 		/* Support --fast-read option */
 		if (bsdtar->option_fast_read &&
-		    archive_matching_path_unmatched_inclusions(bsdtar->matching) == 0)
+		    archive_match_path_unmatched_inclusions(bsdtar->matching) == 0)
 			break;
 
 		r = archive_read_next_header(a, &entry);
@@ -245,7 +245,7 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 		 * rewrite, there would be no way to exclude foo1/bar
 		 * while allowing foo2/bar.)
 		 */
-		if (archive_matching_excluded(bsdtar->matching, entry))
+		if (archive_match_excluded(bsdtar->matching, entry))
 			continue; /* Excluded by a pattern test. */
 
 		if (mode == 't') {
@@ -450,11 +450,11 @@ unmatched_inclusions_warn(struct archive *matching, const char *msg)
 	if (matching == NULL)
 		return (0);
 
-	while ((r = archive_matching_path_unmatched_inclusions_next(
+	while ((r = archive_match_path_unmatched_inclusions_next(
 	    matching, &p)) == ARCHIVE_OK)
 		lafe_warnc(0, "%s: %s", p, msg);
 	if (r == ARCHIVE_FATAL)
 		lafe_errc(1, errno, "Out of memory");
 
-	return (archive_matching_path_unmatched_inclusions(matching));
+	return (archive_match_path_unmatched_inclusions(matching));
 }

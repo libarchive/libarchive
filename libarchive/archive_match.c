@@ -86,7 +86,7 @@ struct id_array {
 #define TIME_IS_SET		2
 #define ID_IS_SET		4
 
-struct archive_matching {
+struct archive_match {
 	struct archive		 archive;
 
 	/* exclusion/inclusion set flag. */
@@ -129,15 +129,15 @@ struct archive_matching {
 	struct match_list	 inclusion_gnames;
 };
 
-static int	add_entry(struct archive_matching *, int,
+static int	add_entry(struct archive_match *, int,
 		    struct archive_entry *);
-static int	add_owner_id(struct archive_matching *, struct id_array *,
+static int	add_owner_id(struct archive_match *, struct id_array *,
 		    int64_t);
-static int	add_owner_name(struct archive_matching *, struct match_list *,
+static int	add_owner_name(struct archive_match *, struct match_list *,
 		    int, const void *);
-static int	add_pattern_mbs(struct archive_matching *, struct match_list *,
+static int	add_pattern_mbs(struct archive_match *, struct match_list *,
 		    const char *);
-static int	add_pattern_wcs(struct archive_matching *, struct match_list *,
+static int	add_pattern_wcs(struct archive_match *, struct match_list *,
 		    const wchar_t *);
 static int	cmp_key_mbs(const struct archive_rb_node *, const void *);
 static int	cmp_key_wcs(const struct archive_rb_node *, const void *);
@@ -148,36 +148,36 @@ static int	cmp_node_wcs(const struct archive_rb_node *,
 static void	entry_list_add(struct entry_list *, struct match_file *);
 static void	entry_list_free(struct entry_list *);
 static void	entry_list_init(struct entry_list *);
-static int	error_nomem(struct archive_matching *);
+static int	error_nomem(struct archive_match *);
 static void	match_list_add(struct match_list *, struct match *);
 static void	match_list_free(struct match_list *);
 static void	match_list_init(struct match_list *);
-static int	match_list_unmatched_inclusions_next(struct archive_matching *,
+static int	match_list_unmatched_inclusions_next(struct archive_match *,
 		    struct match_list *, int, const void **);
 static int	match_owner_id(struct id_array *, int64_t);
 #if !defined(_WIN32) || defined(__CYGWIN__)
-static int	match_owner_name_mbs(struct archive_matching *,
+static int	match_owner_name_mbs(struct archive_match *,
 		    struct match_list *, const char *);
 #else
-static int	match_owner_name_wcs(struct archive_matching *,
+static int	match_owner_name_wcs(struct archive_match *,
 		    struct match_list *, const wchar_t *);
 #endif
-static int	match_path_exclusion(struct archive_matching *,
+static int	match_path_exclusion(struct archive_match *,
 		    struct match *, int, const void *);
-static int	match_path_inclusion(struct archive_matching *,
+static int	match_path_inclusion(struct archive_match *,
 		    struct match *, int, const void *);
-static int	owner_excluded(struct archive_matching *,
+static int	owner_excluded(struct archive_match *,
 		    struct archive_entry *);
-static int	path_excluded(struct archive_matching *, int, const void *);
-static int	set_timefilter(struct archive_matching *, int, time_t, long,
+static int	path_excluded(struct archive_match *, int, const void *);
+static int	set_timefilter(struct archive_match *, int, time_t, long,
 		    time_t, long);
-static int	set_timefilter_pathname_mbs(struct archive_matching *,
+static int	set_timefilter_pathname_mbs(struct archive_match *,
 		    int, const char *);
-static int	set_timefilter_pathname_wcs(struct archive_matching *,
+static int	set_timefilter_pathname_wcs(struct archive_match *,
 		    int, const wchar_t *);
-static int	set_time_str(struct archive_matching *, int, const char *);
-static int	set_time_str_w(struct archive_matching *, int, const wchar_t *);
-static int	time_excluded(struct archive_matching *,
+static int	set_time_str(struct archive_match *, int, const char *);
+static int	set_time_str_w(struct archive_match *, int, const wchar_t *);
+static int	time_excluded(struct archive_match *,
 		    struct archive_entry *);
 static int	validate_time_flag(struct archive *, int, const char *);
 
@@ -200,7 +200,7 @@ static const struct archive_rb_tree_ops rb_ops_wcs = {
  */
 
 static int
-error_nomem(struct archive_matching *a)
+error_nomem(struct archive_match *a)
 {
 	archive_set_error(&(a->archive), ENOMEM, "No memory");
 	a->archive.state = ARCHIVE_STATE_FATAL;
@@ -208,14 +208,14 @@ error_nomem(struct archive_matching *a)
 }
 
 struct archive *
-archive_matching_new(void)
+archive_match_new(void)
 {
-	struct archive_matching *a;
+	struct archive_match *a;
 
-	a = (struct archive_matching *)calloc(1, sizeof(*a));
+	a = (struct archive_match *)calloc(1, sizeof(*a));
 	if (a == NULL)
 		return (NULL);
-	a->archive.magic = ARCHIVE_MATCHING_MAGIC;
+	a->archive.magic = ARCHIVE_MATCH_MAGIC;
 	a->archive.state = ARCHIVE_STATE_NEW;
 	match_list_init(&(a->inclusions));
 	match_list_init(&(a->exclusions));
@@ -228,15 +228,15 @@ archive_matching_new(void)
 }
 
 int
-archive_matching_free(struct archive *_a)
+archive_match_free(struct archive *_a)
 {
-	struct archive_matching *a;
+	struct archive_match *a;
 
 	if (_a == NULL)
 		return (ARCHIVE_OK);
-	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
-	    ARCHIVE_STATE_ANY | ARCHIVE_STATE_FATAL, "archive_matching_free");
-	a = (struct archive_matching *)_a;
+	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
+	    ARCHIVE_STATE_ANY | ARCHIVE_STATE_FATAL, "archive_match_free");
+	a = (struct archive_match *)_a;
 	match_list_free(&(a->inclusions));
 	match_list_free(&(a->exclusions));
 	entry_list_free(&(a->entry_list));
@@ -256,15 +256,15 @@ archive_matching_free(struct archive *_a)
  * Returns <0 if something error happened.
  */
 int
-archive_matching_excluded(struct archive *_a, struct archive_entry *entry)
+archive_match_excluded(struct archive *_a, struct archive_entry *entry)
 {
-	struct archive_matching *a;
+	struct archive_match *a;
 	int r;
 
-	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_matching_excluded_ae");
+	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_match_excluded_ae");
 
-	a = (struct archive_matching *)_a;
+	a = (struct archive_match *)_a;
 	if (entry == NULL) {
 		archive_set_error(&(a->archive), EINVAL, "entry is NULL");
 		return (ARCHIVE_FAILED);
@@ -297,14 +297,14 @@ archive_matching_excluded(struct archive *_a, struct archive_entry *entry)
  */
 
 int
-archive_matching_exclude_pattern(struct archive *_a, const char *pattern)
+archive_match_exclude_pattern(struct archive *_a, const char *pattern)
 {
-	struct archive_matching *a;
+	struct archive_match *a;
 	int r;
 
-	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_matching_exclude_pattern");
-	a = (struct archive_matching *)_a;
+	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_match_exclude_pattern");
+	a = (struct archive_match *)_a;
 
 	if (pattern == NULL || *pattern == '\0') {
 		archive_set_error(&(a->archive), EINVAL, "pattern is empty");
@@ -316,14 +316,14 @@ archive_matching_exclude_pattern(struct archive *_a, const char *pattern)
 }
 
 int
-archive_matching_exclude_pattern_w(struct archive *_a, const wchar_t *pattern)
+archive_match_exclude_pattern_w(struct archive *_a, const wchar_t *pattern)
 {
-	struct archive_matching *a;
+	struct archive_match *a;
 	int r;
 
-	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_matching_exclude_pattern_w");
-	a = (struct archive_matching *)_a;
+	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_match_exclude_pattern_w");
+	a = (struct archive_match *)_a;
 
 	if (pattern == NULL || *pattern == L'\0') {
 		archive_set_error(&(a->archive), EINVAL, "pattern is empty");
@@ -335,14 +335,14 @@ archive_matching_exclude_pattern_w(struct archive *_a, const wchar_t *pattern)
 }
 
 int
-archive_matching_include_pattern(struct archive *_a, const char *pattern)
+archive_match_include_pattern(struct archive *_a, const char *pattern)
 {
-	struct archive_matching *a;
+	struct archive_match *a;
 	int r;
 
-	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_matching_include_pattern");
-	a = (struct archive_matching *)_a;
+	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_match_include_pattern");
+	a = (struct archive_match *)_a;
 
 	if (pattern == NULL || *pattern == '\0') {
 		archive_set_error(&(a->archive), EINVAL, "pattern is empty");
@@ -354,14 +354,14 @@ archive_matching_include_pattern(struct archive *_a, const char *pattern)
 }
 
 int
-archive_matching_include_pattern_w(struct archive *_a, const wchar_t *pattern)
+archive_match_include_pattern_w(struct archive *_a, const wchar_t *pattern)
 {
-	struct archive_matching *a;
+	struct archive_match *a;
 	int r;
 
-	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_matching_include_pattern_w");
-	a = (struct archive_matching *)_a;
+	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_match_include_pattern_w");
+	a = (struct archive_match *)_a;
 
 	if (pattern == NULL || *pattern == L'\0') {
 		archive_set_error(&(a->archive), EINVAL, "pattern is empty");
@@ -380,15 +380,15 @@ archive_matching_include_pattern_w(struct archive *_a, const wchar_t *pattern)
  * Returns <0 if something error happened.
  */
 int
-archive_matching_path_excluded(struct archive *_a,
+archive_match_path_excluded(struct archive *_a,
     struct archive_entry *entry)
 {
-	struct archive_matching *a;
+	struct archive_match *a;
 
-	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_matching_path_excluded");
+	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_match_path_excluded");
 
-	a = (struct archive_matching *)_a;
+	a = (struct archive_match *)_a;
 	if (entry == NULL) {
 		archive_set_error(&(a->archive), EINVAL, "entry is NULL");
 		return (ARCHIVE_FAILED);
@@ -409,28 +409,28 @@ archive_matching_path_excluded(struct archive *_a,
  * Utilty functions to get statistic information for inclusion patterns.
  */
 int
-archive_matching_path_unmatched_inclusions(struct archive *_a)
+archive_match_path_unmatched_inclusions(struct archive *_a)
 {
-	struct archive_matching *a;
+	struct archive_match *a;
 
-	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_matching_unmatched_inclusions");
-	a = (struct archive_matching *)_a;
+	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_match_unmatched_inclusions");
+	a = (struct archive_match *)_a;
 
 	return (a->inclusions.unmatched_count);
 }
 
 int
-archive_matching_path_unmatched_inclusions_next(struct archive *_a,
+archive_match_path_unmatched_inclusions_next(struct archive *_a,
     const char **_p)
 {
-	struct archive_matching *a;
+	struct archive_match *a;
 	const void *v;
 	int r;
 
-	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_matching_unmatched_inclusions_next");
-	a = (struct archive_matching *)_a;
+	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_match_unmatched_inclusions_next");
+	a = (struct archive_match *)_a;
 
 	r = match_list_unmatched_inclusions_next(a, &(a->inclusions), 1, &v);
 	*_p = (const char *)v;
@@ -438,16 +438,16 @@ archive_matching_path_unmatched_inclusions_next(struct archive *_a,
 }
 
 int
-archive_matching_path_unmatched_inclusions_next_w(struct archive *_a,
+archive_match_path_unmatched_inclusions_next_w(struct archive *_a,
     const wchar_t **_p)
 {
-	struct archive_matching *a;
+	struct archive_match *a;
 	const void *v;
 	int r;
 
-	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_matching_unmatched_inclusions_next_w");
-	a = (struct archive_matching *)_a;
+	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_match_unmatched_inclusions_next_w");
+	a = (struct archive_match *)_a;
 
 	r = match_list_unmatched_inclusions_next(a, &(a->inclusions), 0, &v);
 	*_p = (const wchar_t *)v;
@@ -455,7 +455,7 @@ archive_matching_path_unmatched_inclusions_next_w(struct archive *_a,
 }
 
 static int
-add_pattern_mbs(struct archive_matching *a, struct match_list *list,
+add_pattern_mbs(struct archive_match *a, struct match_list *list,
     const char *pattern)
 {
 	struct match *match;
@@ -475,7 +475,7 @@ add_pattern_mbs(struct archive_matching *a, struct match_list *list,
 }
 
 static int
-add_pattern_wcs(struct archive_matching *a, struct match_list *list,
+add_pattern_wcs(struct archive_match *a, struct match_list *list,
     const wchar_t *pattern)
 {
 	struct match *match;
@@ -495,7 +495,7 @@ add_pattern_wcs(struct archive_matching *a, struct match_list *list,
 }
 
 static int
-path_excluded(struct archive_matching *a, int mbs, const void *pathname)
+path_excluded(struct archive_match *a, int mbs, const void *pathname)
 {
 	struct match *match;
 	struct match *matched;
@@ -563,7 +563,7 @@ path_excluded(struct archive_matching *a, int mbs, const void *pathname)
  *
  */
 static int
-match_path_exclusion(struct archive_matching *a, struct match *m,
+match_path_exclusion(struct archive_match *a, struct match *m,
     int mbs, const void *pn)
 {
 	int flag = PATHMATCH_NO_ANCHOR_START | PATHMATCH_NO_ANCHOR_END;
@@ -591,7 +591,7 @@ match_path_exclusion(struct archive_matching *a, struct match *m,
  * the beginning of the path) even though exclusions are not anchored.
  */
 static int
-match_path_inclusion(struct archive_matching *a, struct match *m,
+match_path_inclusion(struct archive_match *a, struct match *m,
     int mbs, const void *pn)
 {
 	int flag = PATHMATCH_NO_ANCHOR_END;
@@ -645,7 +645,7 @@ match_list_add(struct match_list *list, struct match *m)
 }
 
 static int
-match_list_unmatched_inclusions_next(struct archive_matching *a,
+match_list_unmatched_inclusions_next(struct archive_match *a,
     struct match_list *list, int mbs, const void **vp)
 {
 	struct match *m;
@@ -699,80 +699,78 @@ match_list_unmatched_inclusions_next(struct archive_matching *a,
  * Utility functions to manage inclusion timestamps.
  */
 int
-archive_matching_include_time(struct archive *_a, int flag, time_t sec,
+archive_match_include_time(struct archive *_a, int flag, time_t sec,
     long nsec)
 {
 	int r;
 
-	r = validate_time_flag(_a, flag, "archive_matching_include_time");
+	r = validate_time_flag(_a, flag, "archive_match_include_time");
 	if (r != ARCHIVE_OK)
 		return (r);
-	return set_timefilter((struct archive_matching *)_a, flag,
+	return set_timefilter((struct archive_match *)_a, flag,
 			sec, nsec, sec, nsec);
 }
 
 int
-archive_matching_include_date(struct archive *_a, int flag,
+archive_match_include_date(struct archive *_a, int flag,
     const char *datestr)
 {
 	int r;
 
-	r = validate_time_flag(_a, flag, "archive_matching_include_date");
+	r = validate_time_flag(_a, flag, "archive_match_include_date");
 	if (r != ARCHIVE_OK)
 		return (r);
-	return set_time_str((struct archive_matching *)_a, flag, datestr);
+	return set_time_str((struct archive_match *)_a, flag, datestr);
 }
 
 int
-archive_matching_include_date_w(struct archive *_a, int flag,
+archive_match_include_date_w(struct archive *_a, int flag,
     const wchar_t *datestr)
 {
 	int r;
 
-	r = validate_time_flag(_a, flag, "archive_matching_include_date_w");
+	r = validate_time_flag(_a, flag, "archive_match_include_date_w");
 	if (r != ARCHIVE_OK)
 		return (r);
 
-	return set_time_str_w((struct archive_matching *)_a, flag, datestr);
+	return set_time_str_w((struct archive_match *)_a, flag, datestr);
 }
 
 int
-archive_matching_include_time_pathname(struct archive *_a, int flag,
+archive_match_include_file_time(struct archive *_a, int flag,
     const char *pathname)
 {
 	int r;
 
-	r = validate_time_flag(_a, flag,
-		"archive_matching_include_time_pathname");
+	r = validate_time_flag(_a, flag, "archive_match_include_file_time");
 	if (r != ARCHIVE_OK)
 		return (r);
-	return set_timefilter_pathname_mbs((struct archive_matching *)_a,
+	return set_timefilter_pathname_mbs((struct archive_match *)_a,
 			flag, pathname);
 }
 
 int
-archive_matching_include_time_pathname_w(struct archive *_a, int flag,
+archive_match_include_file_time_w(struct archive *_a, int flag,
     const wchar_t *pathname)
 {
 	int r;
 
-	r = validate_time_flag(_a, flag,
-		"archive_matching_include_time_pathname_w");
+	r = validate_time_flag(_a, flag, "archive_match_include_file_time_w");
 	if (r != ARCHIVE_OK)
 		return (r);
-	return set_timefilter_pathname_wcs((struct archive_matching *)_a,
+	return set_timefilter_pathname_wcs((struct archive_match *)_a,
 			flag, pathname);
 }
 
 int
-archive_matching_exclude_entry(struct archive *_a, int flag,
+archive_match_exclude_entry(struct archive *_a, int flag,
     struct archive_entry *entry)
 {
-	struct archive_matching *a;
+	struct archive_match *a;
 
-	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_matching_time_include_entry");
-	a = (struct archive_matching *)_a;
+	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_match_time_include_entry");
+	a = (struct archive_match *)_a;
 
 	if (entry == NULL) {
 		archive_set_error(&(a->archive), EINVAL, "entry is NULL");
@@ -789,15 +787,15 @@ archive_matching_exclude_entry(struct archive *_a, int flag,
  * Returns <0 if something error happened.
  */
 int
-archive_matching_time_excluded(struct archive *_a,
+archive_match_time_excluded(struct archive *_a,
     struct archive_entry *entry)
 {
-	struct archive_matching *a;
+	struct archive_match *a;
 
-	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_matching_time_excluded_ae");
+	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_match_time_excluded_ae");
 
-	a = (struct archive_matching *)_a;
+	a = (struct archive_match *)_a;
 	if (entry == NULL) {
 		archive_set_error(&(a->archive), EINVAL, "entry is NULL");
 		return (ARCHIVE_FAILED);
@@ -813,29 +811,29 @@ archive_matching_time_excluded(struct archive *_a,
 static int
 validate_time_flag(struct archive *_a, int flag, const char *_fn)
 {
-	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
+	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
 	    ARCHIVE_STATE_NEW, _fn);
 
 	/* Check a type of time. */
 	if (flag &
-	   ((~(ARCHIVE_MATCHING_MTIME | ARCHIVE_MATCHING_CTIME)) & 0xff00)) {
+	   ((~(ARCHIVE_MATCH_MTIME | ARCHIVE_MATCH_CTIME)) & 0xff00)) {
 		archive_set_error(_a, EINVAL, "Invalid time flag");
 		return (ARCHIVE_FAILED);
 	}
-	if ((flag & (ARCHIVE_MATCHING_MTIME | ARCHIVE_MATCHING_CTIME)) == 0) {
+	if ((flag & (ARCHIVE_MATCH_MTIME | ARCHIVE_MATCH_CTIME)) == 0) {
 		archive_set_error(_a, EINVAL, "No time flag");
 		return (ARCHIVE_FAILED);
 	}
 
 	/* Check a type of comparison. */
 	if (flag &
-	   ((~(ARCHIVE_MATCHING_NEWER | ARCHIVE_MATCHING_OLDER
-					| ARCHIVE_MATCHING_EQUAL)) & 0x00ff)) {
+	   ((~(ARCHIVE_MATCH_NEWER | ARCHIVE_MATCH_OLDER
+			| ARCHIVE_MATCH_EQUAL)) & 0x00ff)) {
 		archive_set_error(_a, EINVAL, "Invalid comparison flag");
 		return (ARCHIVE_FAILED);
 	}
-	if ((flag & (ARCHIVE_MATCHING_NEWER | ARCHIVE_MATCHING_OLDER
-	    | ARCHIVE_MATCHING_EQUAL)) == 0) {
+	if ((flag & (ARCHIVE_MATCH_NEWER | ARCHIVE_MATCH_OLDER
+	    | ARCHIVE_MATCH_EQUAL)) == 0) {
 		archive_set_error(_a, EINVAL, "No comparison flag");
 		return (ARCHIVE_FAILED);
 	}
@@ -843,37 +841,36 @@ validate_time_flag(struct archive *_a, int flag, const char *_fn)
 	return (ARCHIVE_OK);
 }
 
-#define JUST_EQUAL(t) (((t) &  (ARCHIVE_MATCHING_EQUAL |\
-	ARCHIVE_MATCHING_NEWER | ARCHIVE_MATCHING_OLDER))\
-	== ARCHIVE_MATCHING_EQUAL)
+#define JUST_EQUAL(t) (((t) &  (ARCHIVE_MATCH_EQUAL |\
+	ARCHIVE_MATCH_NEWER | ARCHIVE_MATCH_OLDER)) == ARCHIVE_MATCH_EQUAL)
 static int
-set_timefilter(struct archive_matching *a, int timetype,
+set_timefilter(struct archive_match *a, int timetype,
     time_t mtime_sec, long mtime_nsec, time_t ctime_sec, long ctime_nsec)
 {
-	if (timetype & ARCHIVE_MATCHING_MTIME) {
-		if ((timetype & ARCHIVE_MATCHING_NEWER) ||
+	if (timetype & ARCHIVE_MATCH_MTIME) {
+		if ((timetype & ARCHIVE_MATCH_NEWER) ||
 		    JUST_EQUAL(timetype)) {
 			a->newer_mtime_filter = timetype;
 			a->newer_mtime_sec = mtime_sec;
 			a->newer_mtime_nsec = mtime_nsec;
 			a->setflag |= TIME_IS_SET;
 		}
-		if (timetype & ARCHIVE_MATCHING_OLDER) {
+		if (timetype & ARCHIVE_MATCH_OLDER) {
 			a->older_mtime_filter = timetype;
 			a->older_mtime_sec = mtime_sec;
 			a->older_mtime_nsec = mtime_nsec;
 			a->setflag |= TIME_IS_SET;
 		}
 	}
-	if (timetype & ARCHIVE_MATCHING_CTIME) {
-		if ((timetype & ARCHIVE_MATCHING_NEWER) ||
+	if (timetype & ARCHIVE_MATCH_CTIME) {
+		if ((timetype & ARCHIVE_MATCH_NEWER) ||
 		    JUST_EQUAL(timetype)) {
 			a->newer_ctime_filter = timetype;
 			a->newer_ctime_sec = ctime_sec;
 			a->newer_ctime_nsec = ctime_nsec;
 			a->setflag |= TIME_IS_SET;
 		}
-		if (timetype & ARCHIVE_MATCHING_OLDER) {
+		if (timetype & ARCHIVE_MATCH_OLDER) {
 			a->older_ctime_filter = timetype;
 			a->older_ctime_sec = ctime_sec;
 			a->older_ctime_nsec = ctime_nsec;
@@ -884,7 +881,7 @@ set_timefilter(struct archive_matching *a, int timetype,
 }
 
 static int
-set_time_str(struct archive_matching *a, int timetype, const char *datestr)
+set_time_str(struct archive_match *a, int timetype, const char *datestr)
 {
 	time_t time;
 
@@ -901,7 +898,7 @@ set_time_str(struct archive_matching *a, int timetype, const char *datestr)
 }
 
 static int
-set_time_str_w(struct archive_matching *a, int timetype, const wchar_t *datestr)
+set_time_str_w(struct archive_match *a, int timetype, const wchar_t *datestr)
 {
 	struct archive_string as;
 	time_t time;
@@ -932,7 +929,7 @@ set_time_str_w(struct archive_matching *a, int timetype, const wchar_t *datestr)
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #define EPOC_TIME (116444736000000000ui64)
 static int
-set_timefilter_find_data(struct archive_matching *a, int timetype,
+set_timefilter_find_data(struct archive_match *a, int timetype,
     DWORD ftLastWriteTime_dwHighDateTime, DWORD ftLastWriteTime_dwLowDateTime,
     DWORD ftCreationTime_dwHighDateTime, DWORD ftCreationTime_dwLowDateTime)
 {
@@ -964,7 +961,7 @@ set_timefilter_find_data(struct archive_matching *a, int timetype,
 }
 #else
 static int
-set_timefilter_stat(struct archive_matching *a, int timetype, struct stat *st)
+set_timefilter_stat(struct archive_match *a, int timetype, struct stat *st)
 {
 	struct archive_entry *ae;
 	time_t ctime, mtime;
@@ -984,7 +981,7 @@ set_timefilter_stat(struct archive_matching *a, int timetype, struct stat *st)
 #endif
 
 static int
-set_timefilter_pathname_mbs(struct archive_matching *a, int timetype,
+set_timefilter_pathname_mbs(struct archive_match *a, int timetype,
     const char *path)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -1023,7 +1020,7 @@ set_timefilter_pathname_mbs(struct archive_matching *a, int timetype,
 }
 
 static int
-set_timefilter_pathname_wcs(struct archive_matching *a, int timetype,
+set_timefilter_pathname_wcs(struct archive_match *a, int timetype,
     const wchar_t *path)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -1160,7 +1157,7 @@ entry_list_add(struct entry_list *list, struct match_file *file)
 }
 
 static int
-add_entry(struct archive_matching *a, int flag,
+add_entry(struct archive_match *a, int flag,
     struct archive_entry *entry)
 {
 	struct match_file *f;
@@ -1230,7 +1227,7 @@ add_entry(struct archive_matching *a, int flag,
 }
 
 static int
-time_excluded(struct archive_matching *a, struct archive_entry *entry)
+time_excluded(struct archive_match *a, struct archive_entry *entry)
 {
 	struct match_file *f;
 	const void *pathname;
@@ -1256,7 +1253,7 @@ time_excluded(struct archive_matching *a, struct archive_entry *entry)
 			if (nsec < a->newer_ctime_nsec)
 				return (1); /* Too old, skip it. */
 			if (nsec == a->newer_ctime_nsec &&
-			    (a->newer_ctime_filter & ARCHIVE_MATCHING_EQUAL)
+			    (a->newer_ctime_filter & ARCHIVE_MATCH_EQUAL)
 			      == 0)
 				return (1); /* Equal, skip it. */
 		} else if (JUST_EQUAL(a->newer_ctime_filter))
@@ -1278,7 +1275,7 @@ time_excluded(struct archive_matching *a, struct archive_entry *entry)
 			if (nsec > a->older_ctime_nsec)
 				return (1); /* Too new, skip it. */
 			if (nsec == a->older_ctime_nsec &&
-			    (a->older_ctime_filter & ARCHIVE_MATCHING_EQUAL)
+			    (a->older_ctime_filter & ARCHIVE_MATCH_EQUAL)
 			      == 0)
 				return (1); /* Eeual, skip it. */
 		}
@@ -1292,7 +1289,7 @@ time_excluded(struct archive_matching *a, struct archive_entry *entry)
 			if (nsec < a->newer_mtime_nsec)
 				return (1); /* Too old, skip it. */
 			if (nsec == a->newer_mtime_nsec &&
-			    (a->newer_mtime_filter & ARCHIVE_MATCHING_EQUAL)
+			    (a->newer_mtime_filter & ARCHIVE_MATCH_EQUAL)
 			       == 0)
 				return (1); /* Equal, skip it. */
 		} else if (JUST_EQUAL(a->newer_mtime_filter))
@@ -1307,7 +1304,7 @@ time_excluded(struct archive_matching *a, struct archive_entry *entry)
 			if (nsec > a->older_mtime_nsec)
 				return (1); /* Too new, skip it. */
 			if (nsec == a->older_mtime_nsec &&
-			    (a->older_mtime_filter & ARCHIVE_MATCHING_EQUAL)
+			    (a->older_mtime_filter & ARCHIVE_MATCH_EQUAL)
 			       == 0)
 				return (1); /* Equal, skip it. */
 		}
@@ -1333,43 +1330,43 @@ time_excluded(struct archive_matching *a, struct archive_entry *entry)
 	if (f == NULL)
 		return (0);
 
-	if (f->flag & ARCHIVE_MATCHING_CTIME) {
+	if (f->flag & ARCHIVE_MATCH_CTIME) {
 		sec = archive_entry_ctime(entry);
 		if (f->ctime_sec > sec) {
-			if (f->flag & ARCHIVE_MATCHING_OLDER)
+			if (f->flag & ARCHIVE_MATCH_OLDER)
 				return (1);
 		} else if (f->ctime_sec < sec) {
-			if (f->flag & ARCHIVE_MATCHING_NEWER)
+			if (f->flag & ARCHIVE_MATCH_NEWER)
 				return (1);
 		} else {
 			nsec = archive_entry_ctime_nsec(entry);
 			if (f->ctime_nsec > nsec) {
-				if (f->flag & ARCHIVE_MATCHING_OLDER)
+				if (f->flag & ARCHIVE_MATCH_OLDER)
 					return (1);
 			} else if (f->ctime_nsec < nsec) {
-				if (f->flag & ARCHIVE_MATCHING_NEWER)
+				if (f->flag & ARCHIVE_MATCH_NEWER)
 					return (1);
-			} else if (f->flag & ARCHIVE_MATCHING_EQUAL)
+			} else if (f->flag & ARCHIVE_MATCH_EQUAL)
 				return (1);
 		}
 	}
-	if (f->flag & ARCHIVE_MATCHING_MTIME) {
+	if (f->flag & ARCHIVE_MATCH_MTIME) {
 		sec = archive_entry_mtime(entry);
 		if (f->mtime_sec > sec) {
-			if (f->flag & ARCHIVE_MATCHING_OLDER)
+			if (f->flag & ARCHIVE_MATCH_OLDER)
 				return (1);
 		} else if (f->mtime_sec < sec) {
-			if (f->flag & ARCHIVE_MATCHING_NEWER)
+			if (f->flag & ARCHIVE_MATCH_NEWER)
 				return (1);
 		} else {
 			nsec = archive_entry_mtime_nsec(entry);
 			if (f->mtime_nsec > nsec) {
-				if (f->flag & ARCHIVE_MATCHING_OLDER)
+				if (f->flag & ARCHIVE_MATCH_OLDER)
 					return (1);
 			} else if (f->mtime_nsec < nsec) {
-				if (f->flag & ARCHIVE_MATCHING_NEWER)
+				if (f->flag & ARCHIVE_MATCH_NEWER)
 					return (1);
-			} else if (f->flag & ARCHIVE_MATCHING_EQUAL)
+			} else if (f->flag & ARCHIVE_MATCH_EQUAL)
 				return (1);
 		}
 	}
@@ -1381,68 +1378,68 @@ time_excluded(struct archive_matching *a, struct archive_entry *entry)
  */
 
 int
-archive_matching_include_uid(struct archive *_a, int64_t uid)
+archive_match_include_uid(struct archive *_a, int64_t uid)
 {
-	struct archive_matching *a;
+	struct archive_match *a;
 
-	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_matching_include_uid");
-	a = (struct archive_matching *)_a;
+	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_match_include_uid");
+	a = (struct archive_match *)_a;
 	return (add_owner_id(a, &(a->inclusion_uids), uid));
 }
 
 int
-archive_matching_include_gid(struct archive *_a, int64_t gid)
+archive_match_include_gid(struct archive *_a, int64_t gid)
 {
-	struct archive_matching *a;
+	struct archive_match *a;
 
-	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_matching_include_gid");
-	a = (struct archive_matching *)_a;
+	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_match_include_gid");
+	a = (struct archive_match *)_a;
 	return (add_owner_id(a, &(a->inclusion_gids), gid));
 }
 
 int
-archive_matching_include_uname(struct archive *_a, const char *uname)
+archive_match_include_uname(struct archive *_a, const char *uname)
 {
-	struct archive_matching *a;
+	struct archive_match *a;
 
-	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_matching_include_uname");
-	a = (struct archive_matching *)_a;
+	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_match_include_uname");
+	a = (struct archive_match *)_a;
 	return (add_owner_name(a, &(a->inclusion_unames), 1, uname));
 }
 
 int
-archive_matching_include_uname_w(struct archive *_a, const wchar_t *uname)
+archive_match_include_uname_w(struct archive *_a, const wchar_t *uname)
 {
-	struct archive_matching *a;
+	struct archive_match *a;
 
-	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_matching_include_uname_w");
-	a = (struct archive_matching *)_a;
+	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_match_include_uname_w");
+	a = (struct archive_match *)_a;
 	return (add_owner_name(a, &(a->inclusion_unames), 0, uname));
 }
 
 int
-archive_matching_include_gname(struct archive *_a, const char *gname)
+archive_match_include_gname(struct archive *_a, const char *gname)
 {
-	struct archive_matching *a;
+	struct archive_match *a;
 
-	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_matching_include_gname");
-	a = (struct archive_matching *)_a;
+	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_match_include_gname");
+	a = (struct archive_match *)_a;
 	return (add_owner_name(a, &(a->inclusion_gnames), 1, gname));
 }
 
 int
-archive_matching_include_gname_w(struct archive *_a, const wchar_t *gname)
+archive_match_include_gname_w(struct archive *_a, const wchar_t *gname)
 {
-	struct archive_matching *a;
+	struct archive_match *a;
 
-	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_matching_include_gname_w");
-	a = (struct archive_matching *)_a;
+	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_match_include_gname_w");
+	a = (struct archive_match *)_a;
 	return (add_owner_name(a, &(a->inclusion_gnames), 0, gname));
 }
 
@@ -1454,15 +1451,15 @@ archive_matching_include_gname_w(struct archive *_a, const wchar_t *gname)
  * Returns <0 if something error happened.
  */
 int
-archive_matching_owner_excluded(struct archive *_a,
+archive_match_owner_excluded(struct archive *_a,
     struct archive_entry *entry)
 {
-	struct archive_matching *a;
+	struct archive_match *a;
 
-	archive_check_magic(_a, ARCHIVE_MATCHING_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_matching_id_excluded_ae");
+	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_match_id_excluded_ae");
 
-	a = (struct archive_matching *)_a;
+	a = (struct archive_match *)_a;
 	if (entry == NULL) {
 		archive_set_error(&(a->archive), EINVAL, "entry is NULL");
 		return (ARCHIVE_FAILED);
@@ -1476,7 +1473,7 @@ archive_matching_owner_excluded(struct archive *_a,
 }
 
 static int
-add_owner_id(struct archive_matching *a, struct id_array *ids, int64_t id)
+add_owner_id(struct archive_match *a, struct id_array *ids, int64_t id)
 {
 	if (ids->count + 1 >= ids->size) {
 		if (ids->size == 0)
@@ -1508,7 +1505,7 @@ match_owner_id(struct id_array *ids, int64_t id)
 }
 
 static int
-add_owner_name(struct archive_matching *a, struct match_list *list,
+add_owner_name(struct archive_match *a, struct match_list *list,
     int mbs, const void *name)
 {
 	struct match *match;
@@ -1527,7 +1524,7 @@ add_owner_name(struct archive_matching *a, struct match_list *list,
 
 #if !defined(_WIN32) || defined(__CYGWIN__)
 static int
-match_owner_name_mbs(struct archive_matching *a, struct match_list *list,
+match_owner_name_mbs(struct archive_match *a, struct match_list *list,
     const char *name)
 {
 	struct match *m;
@@ -1548,7 +1545,7 @@ match_owner_name_mbs(struct archive_matching *a, struct match_list *list,
 }
 #else
 static int
-match_owner_name_wcs(struct archive_matching *a, struct match_list *list,
+match_owner_name_wcs(struct archive_match *a, struct match_list *list,
     const wchar_t *name)
 {
 	struct match *m;
@@ -1570,7 +1567,7 @@ match_owner_name_wcs(struct archive_matching *a, struct match_list *list,
 #endif
 
 static int
-owner_excluded(struct archive_matching *a, struct archive_entry *entry)
+owner_excluded(struct archive_match *a, struct archive_entry *entry)
 {
 	int r;
 
