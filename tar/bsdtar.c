@@ -394,25 +394,31 @@ main(int argc, char **argv)
 		 * TODO: Add corresponding "older" options to reverse these.
 		 */
 		case OPTION_NEWER_CTIME: /* GNU tar */
-			if (archive_matching_newer_ctime_str(bsdtar->matching,
+			if (archive_matching_include_date(bsdtar->matching,
+			    ARCHIVE_MATCHING_CTIME | ARCHIVE_MATCHING_NEWER,
 			    bsdtar->argument) != ARCHIVE_OK)
 				lafe_errc(1, 0, "Error : %s",
 				    archive_error_string(bsdtar->matching));
 			break;
 		case OPTION_NEWER_CTIME_THAN:
-			if (archive_matching_newer_ctime_than(bsdtar->matching,
+			if (archive_matching_include_time_pathname(
+			    bsdtar->matching,
+			    ARCHIVE_MATCHING_CTIME | ARCHIVE_MATCHING_NEWER,
 			    bsdtar->argument) != ARCHIVE_OK)
 				lafe_errc(1, 0, "Error : %s",
 				    archive_error_string(bsdtar->matching));
 			break;
 		case OPTION_NEWER_MTIME: /* GNU tar */
-			if (archive_matching_newer_mtime_str(bsdtar->matching,
+			if (archive_matching_include_date(bsdtar->matching,
+			    ARCHIVE_MATCHING_MTIME | ARCHIVE_MATCHING_NEWER,
 			    bsdtar->argument) != ARCHIVE_OK)
 				lafe_errc(1, 0, "Error : %s",
 				    archive_error_string(bsdtar->matching));
 			break;
 		case OPTION_NEWER_MTIME_THAN:
-			if (archive_matching_newer_mtime_than(bsdtar->matching,
+			if (archive_matching_include_time_pathname(
+			    bsdtar->matching,
+			    ARCHIVE_MATCHING_MTIME | ARCHIVE_MATCHING_NEWER,
 			    bsdtar->argument) != ARCHIVE_OK)
 				lafe_errc(1, 0, "Error : %s",
 				    archive_error_string(bsdtar->matching));
