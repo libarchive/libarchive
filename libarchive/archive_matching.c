@@ -1336,40 +1336,40 @@ time_excluded(struct archive_matching *a, struct archive_entry *entry)
 	if (f->flag & ARCHIVE_MATCHING_CTIME) {
 		sec = archive_entry_ctime(entry);
 		if (f->ctime_sec > sec) {
-			if (f->flag & ARCHIVE_MATCHING_NEWER)
+			if (f->flag & ARCHIVE_MATCHING_OLDER)
 				return (1);
 		} else if (f->ctime_sec < sec) {
-			if (f->flag & ARCHIVE_MATCHING_OLDER)
+			if (f->flag & ARCHIVE_MATCHING_NEWER)
 				return (1);
 		} else {
 			nsec = archive_entry_ctime_nsec(entry);
 			if (f->ctime_nsec > nsec) {
-				if (f->flag & ARCHIVE_MATCHING_NEWER)
-					return (1);
-			} else if (f->ctime_nsec < nsec) {
 				if (f->flag & ARCHIVE_MATCHING_OLDER)
 					return (1);
-			} else if ((f->flag & ARCHIVE_MATCHING_EQUAL) == 0)
+			} else if (f->ctime_nsec < nsec) {
+				if (f->flag & ARCHIVE_MATCHING_NEWER)
+					return (1);
+			} else if (f->flag & ARCHIVE_MATCHING_EQUAL)
 				return (1);
 		}
 	}
 	if (f->flag & ARCHIVE_MATCHING_MTIME) {
 		sec = archive_entry_mtime(entry);
 		if (f->mtime_sec > sec) {
-			if (f->flag & ARCHIVE_MATCHING_NEWER)
+			if (f->flag & ARCHIVE_MATCHING_OLDER)
 				return (1);
 		} else if (f->mtime_sec < sec) {
-			if (f->flag & ARCHIVE_MATCHING_OLDER)
+			if (f->flag & ARCHIVE_MATCHING_NEWER)
 				return (1);
 		} else {
 			nsec = archive_entry_mtime_nsec(entry);
 			if (f->mtime_nsec > nsec) {
-				if (f->flag & ARCHIVE_MATCHING_NEWER)
-					return (1);
-			} else if (f->mtime_nsec < nsec) {
 				if (f->flag & ARCHIVE_MATCHING_OLDER)
 					return (1);
-			} else if ((f->flag & ARCHIVE_MATCHING_EQUAL) == 0)
+			} else if (f->mtime_nsec < nsec) {
+				if (f->flag & ARCHIVE_MATCHING_NEWER)
+					return (1);
+			} else if (f->flag & ARCHIVE_MATCHING_EQUAL)
 				return (1);
 		}
 	}

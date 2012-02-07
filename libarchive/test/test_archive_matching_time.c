@@ -1272,15 +1272,18 @@ test_pathname_newer_mtime(void)
 	archive_entry_copy_pathname(ae, "file1");
 	archive_entry_set_mtime(ae, 7880, 0);
 	assertEqualIntA(m, 0, archive_matching_exclude_entry(m,
-	    ARCHIVE_MATCHING_MTIME | ARCHIVE_MATCHING_NEWER, ae));
+	    ARCHIVE_MATCHING_MTIME | ARCHIVE_MATCHING_OLDER |
+	    ARCHIVE_MATCHING_EQUAL, ae));
 	archive_entry_copy_pathname(ae, "file2");
 	archive_entry_set_mtime(ae, 1, 0);
 	assertEqualIntA(m, 0, archive_matching_exclude_entry(m,
-	    ARCHIVE_MATCHING_MTIME | ARCHIVE_MATCHING_NEWER, ae));
+	    ARCHIVE_MATCHING_MTIME | ARCHIVE_MATCHING_OLDER |
+	    ARCHIVE_MATCHING_EQUAL, ae));
 	archive_entry_copy_pathname(ae, "file3");
 	archive_entry_set_mtime(ae, 99999, 0);
 	assertEqualIntA(m, 0, archive_matching_exclude_entry(m,
-	    ARCHIVE_MATCHING_MTIME | ARCHIVE_MATCHING_NEWER, ae));
+	    ARCHIVE_MATCHING_MTIME | ARCHIVE_MATCHING_OLDER |
+	    ARCHIVE_MATCHING_EQUAL, ae));
 
 	excluded(m);
 
