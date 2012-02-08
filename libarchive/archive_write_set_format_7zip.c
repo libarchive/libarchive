@@ -1130,11 +1130,11 @@ make_streamsInfo(struct archive_write *a, uint64_t offset, uint64_t pack_size,
 
 #define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
 static uint64_t
-utcToFiletime(time_t time, long ns)
+utcToFiletime(time_t t, long ns)
 {
 	uint64_t fileTime;
 
-	fileTime = time;
+	fileTime = t;
 	fileTime *= 10000000;
 	fileTime += ns / 100;
 	fileTime += EPOC_TIME;
