@@ -98,13 +98,13 @@ verify_file(struct archive *a, enum vtype type, struct fns *fns)
 	for (i = 0; i < fns->cnt; i++) {
 		const char *p;
 		const char *pathname = archive_entry_pathname(ae);
-		const char *symlink = archive_entry_symlink(ae);
+		const char *symlinkname = archive_entry_symlink(ae);
 		size_t length;
 
-		if (symlink != NULL) {
-			length = strlen(symlink);
+		if (symlinkname != NULL) {
+			length = strlen(symlinkname);
 			assert(length == 1 || length == 128 || length == 255);
-			assertEqualInt(symlink[length-1], 'x');
+			assertEqualInt(symlinkname[length-1], 'x');
 		}
 		failure("Found duplicate for %s", pathname);
 		assert(strcmp(fns->names[i], pathname) != 0);

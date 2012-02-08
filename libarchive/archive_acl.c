@@ -65,7 +65,7 @@ static int	isint(const char *start, const char *end, int *result);
 static int	ismode(const char *start, const char *end, int *result);
 static void	next_field(const char **p, const char **start,
 		    const char **end, char *sep);
-static int	prefix(const char *start, const char *end,
+static int	prefix_c(const char *start, const char *end,
 		    const char *test);
 static void	append_entry(char **p, const char *prefix, int tag,
 		    const char *name, int perm, int id);
@@ -1099,7 +1099,7 @@ archive_acl_parse_l(struct archive_acl *acl,
 			type = default_type;
 
 		name.start = name.end = NULL;
-		if (prefix(field[0].start, field[0].end, "user")) {
+		if (prefix_c(field[0].start, field[0].end, "user")) {
 			if (!ismode(field[2].start, field[2].end, &permset))
 				return (ARCHIVE_WARN);
 			if (id != -1 || field[1].start < field[1].end) {
@@ -1107,7 +1107,7 @@ archive_acl_parse_l(struct archive_acl *acl,
 				name = field[1];
 			} else
 				tag = ARCHIVE_ENTRY_ACL_USER_OBJ;
-		} else if (prefix(field[0].start, field[0].end, "group")) {
+		} else if (prefix_c(field[0].start, field[0].end, "group")) {
 			if (!ismode(field[2].start, field[2].end, &permset))
 				return (ARCHIVE_WARN);
 			if (id != -1 || field[1].start < field[1].end) {
@@ -1115,7 +1115,7 @@ archive_acl_parse_l(struct archive_acl *acl,
 				name = field[1];
 			} else
 				tag = ARCHIVE_ENTRY_ACL_GROUP_OBJ;
-		} else if (prefix(field[0].start, field[0].end, "other")) {
+		} else if (prefix_c(field[0].start, field[0].end, "other")) {
 			if (fields == 2
 			    && field[1].start < field[1].end
 			    && ismode(field[1].start, field[1].end, &permset)) {
@@ -1128,7 +1128,7 @@ archive_acl_parse_l(struct archive_acl *acl,
 			} else
 				return (ARCHIVE_WARN);
 			tag = ARCHIVE_ENTRY_ACL_OTHER;
-		} else if (prefix(field[0].start, field[0].end, "mask")) {
+		} else if (prefix_c(field[0].start, field[0].end, "mask")) {
 			if (fields == 2
 			    && field[1].start < field[1].end
 			    && ismode(field[1].start, field[1].end, &permset)) {
@@ -1257,7 +1257,7 @@ next_field(const char **p, const char **start,
  * This makes it easy to handle the obvious abbreviations: 'u' for 'user', etc.
  */
 static int
-prefix(const char *start, const char *end, const char *test)
+prefix_c(const char *start, const char *end, const char *test)
 {
 	if (start == end)
 		return (0);

@@ -646,7 +646,6 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 	if ((zip_entry->mode & AE_IFMT) == AE_IFLNK) {
 		unsigned char *symname = NULL;
 		size_t symsize = 0;
-		int r;
 
 		/*
 		 * Symbolic-name is recorded as its contents. We have to
@@ -2532,17 +2531,17 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 
 #define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
 static void
-fileTimeToUtc(uint64_t fileTime, time_t *time, long *ns)
+fileTimeToUtc(uint64_t fileTime, time_t *timep, long *ns)
 {
 
 	if (fileTime >= EPOC_TIME) {
 		fileTime -= EPOC_TIME;
 		/* milli seconds base */
-		*time = (time_t)(fileTime / 10000000);
+		*timep = (time_t)(fileTime / 10000000);
 		/* nano seconds base */
 		*ns = (long)(fileTime % 10000000) * 100;
 	} else {
-		*time = 0;
+		*timep = 0;
 		*ns = 0;
 	}
 }
@@ -3521,16 +3520,16 @@ x86_Convert(struct _7zip *zip, uint8_t *data, size_t size)
 			uint32_t dest;
 			for (;;) {
 				uint8_t b;
-				int index;
+				int b_index;
 
 				dest = src - (ip + (uint32_t)bufferPos);
 				if (prevMask == 0)
 					break;
-				index = kMaskToBitNumber[prevMask] * 8;
-				b = (uint8_t)(dest >> (24 - index));
+				b_index = kMaskToBitNumber[prevMask] * 8;
+				b = (uint8_t)(dest >> (24 - b_index));
 				if (!Test86MSByte(b))
 					break;
-				src = dest ^ ((1 << (32 - index)) - 1);
+				src = dest ^ ((1 << (32 - b_index)) - 1);
 			}
 			p[4] = (uint8_t)(~(((dest >> 24) & 1) - 1));
 			p[3] = (uint8_t)(dest >> 16);
@@ -3571,7 +3570,7 @@ x86_Convert(struct _7zip *zip, uint8_t *data, size_t size)
 #define RC_READ_BYTE (*buffer++)
 #define RC_TEST { if (buffer == bufferLim) return SZ_ERROR_DATA; }
 #define RC_INIT2 zip->bcj2_code = 0; zip->bcj2_range = 0xFFFFFFFF; \
-  { int i; for (i = 0; i < 5; i++) { RC_TEST; zip->bcj2_code = (zip->bcj2_code << 8) | RC_READ_BYTE; }}
+  { int ii; for (ii = 0; ii < 5; ii++) { RC_TEST; zip->bcj2_code = (zip->bcj2_code << 8) | RC_READ_BYTE; }}
 
 #define NORMALIZE if (zip->bcj2_range < kTopValue) { RC_TEST; zip->bcj2_range <<= 8; zip->bcj2_code = (zip->bcj2_code << 8) | RC_READ_BYTE; }
 
@@ -3637,14 +3636,14 @@ Bcj2_Decode(struct _7zip *zip, uint8_t *outBuf, size_t outSize)
 
 		if (zip->bcj_state == 1) {
 			while (limit != 0) {
-				uint8_t b = buf0[inPos];
-				outBuf[outPos++] = b;
-				if (IsJ(zip->bcj2_prevByte, b)) {
+				uint8_t bb = buf0[inPos];
+				outBuf[outPos++] = bb;
+				if (IsJ(zip->bcj2_prevByte, bb)) {
 					zip->bcj_state = 2;
 					break;
 				}
 				inPos++;
-				zip->bcj2_prevByte = b;
+				zip->bcj2_prevByte = bb;
 				limit--;
 			}
 		}

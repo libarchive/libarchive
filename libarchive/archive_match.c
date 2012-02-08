@@ -896,18 +896,18 @@ set_timefilter(struct archive_match *a, int timetype,
 static int
 set_timefilter_date(struct archive_match *a, int timetype, const char *datestr)
 {
-	time_t time;
+	time_t t;
 
 	if (datestr == NULL || *datestr == '\0') {
 		archive_set_error(&(a->archive), EINVAL, "date is empty");
 		return (ARCHIVE_FAILED);
 	}
-	time = get_date(a->now, datestr);
-	if (time == (time_t)-1) {
+	t = get_date(a->now, datestr);
+	if (t == (time_t)-1) {
 		archive_set_error(&(a->archive), EINVAL, "invalid date string");
 		return (ARCHIVE_FAILED);
 	}
-	return set_timefilter(a, timetype, time, 0, time, 0);
+	return set_timefilter(a, timetype, t, 0, t, 0);
 }
 
 static int
@@ -915,7 +915,7 @@ set_timefilter_date_w(struct archive_match *a, int timetype,
     const wchar_t *datestr)
 {
 	struct archive_string as;
-	time_t time;
+	time_t t;
 
 	if (datestr == NULL || *datestr == L'\0') {
 		archive_set_error(&(a->archive), EINVAL, "date is empty");
@@ -931,13 +931,13 @@ set_timefilter_date_w(struct archive_match *a, int timetype,
 		    "Failed to convert WCS to MBS");
 		return (ARCHIVE_FAILED);
 	}
-	time = get_date(a->now, as.s);
+	t = get_date(a->now, as.s);
 	archive_string_free(&as);
-	if (time == (time_t)-1) {
+	if (t == (time_t)-1) {
 		archive_set_error(&(a->archive), EINVAL, "invalid date string");
 		return (ARCHIVE_FAILED);
 	}
-	return set_timefilter(a, timetype, time, 0, time, 0);
+	return set_timefilter(a, timetype, t, 0, t, 0);
 }
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -1029,19 +1029,20 @@ static int
 set_timefilter_stat(struct archive_match *a, int timetype, struct stat *st)
 {
 	struct archive_entry *ae;
-	time_t ctime, mtime;
+	time_t ctime_sec, mtime_sec;
 	long ctime_ns, mtime_ns;
 
 	ae = archive_entry_new();
 	if (ae == NULL)
 		return (error_nomem(a));
 	archive_entry_copy_stat(ae, st);
-	ctime = archive_entry_ctime(ae);
+	ctime_sec = archive_entry_ctime(ae);
 	ctime_ns = archive_entry_ctime_nsec(ae);
-	mtime = archive_entry_mtime(ae);
+	mtime_sec = archive_entry_mtime(ae);
 	mtime_ns = archive_entry_mtime_nsec(ae);
 	archive_entry_free(ae);
-	return set_timefilter(a, timetype, mtime, mtime_ns, ctime, ctime_ns);
+	return set_timefilter(a, timetype, mtime_sec, mtime_ns,
+			ctime_sec, ctime_ns);
 }
 
 static int
