@@ -2086,6 +2086,9 @@ set_times(struct archive_write_disk *a,
 			   mtime_nanos, ctime, ctime_nanos) == 0) {
 		return (ARCHIVE_OK);
 	}
+#else /* Tru64 */
+	(void)ctime; /* UNUSED */
+	(void)ctime_nanos; /* UNUSED */
 #endif /* Tru64 */
 
 #ifdef HAVE_STRUCT_STAT_ST_BIRTHTIME

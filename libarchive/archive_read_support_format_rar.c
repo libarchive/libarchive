@@ -2408,9 +2408,9 @@ expand(struct archive_read *a, int64_t end)
 
       if ((lensymbol = read_next_symbol(a, &rar->lengthcode)) < 0)
         goto bad_data;
-      if (lensymbol > sizeof(lengthbases)/sizeof(lengthbases[0]))
+      if (lensymbol > (int)(sizeof(lengthbases)/sizeof(lengthbases[0])))
         goto bad_data;
-      if (lensymbol > sizeof(lengthbits)/sizeof(lengthbits[0]))
+      if (lensymbol > (int)(sizeof(lengthbits)/sizeof(lengthbits[0])))
         goto bad_data;
       len = lengthbases[lensymbol] + 2;
       if (lengthbits[lensymbol] > 0) {
@@ -2442,9 +2442,9 @@ expand(struct archive_read *a, int64_t end)
     }
     else
     {
-      if (symbol-271 > sizeof(lengthbases)/sizeof(lengthbases[0]))
+      if (symbol-271 > (int)(sizeof(lengthbases)/sizeof(lengthbases[0])))
         goto bad_data;
-      if (symbol-271 > sizeof(lengthbits)/sizeof(lengthbits[0]))
+      if (symbol-271 > (int)(sizeof(lengthbits)/sizeof(lengthbits[0])))
         goto bad_data;
       len = lengthbases[symbol-271]+3;
       if(lengthbits[symbol-271] > 0) {
@@ -2456,9 +2456,9 @@ expand(struct archive_read *a, int64_t end)
 
       if ((offssymbol = read_next_symbol(a, &rar->offsetcode)) < 0)
         goto bad_data;
-      if (offssymbol > sizeof(offsetbases)/sizeof(offsetbases[0]))
+      if (offssymbol > (int)(sizeof(offsetbases)/sizeof(offsetbases[0])))
         goto bad_data;
-      if (offssymbol > sizeof(offsetbits)/sizeof(offsetbits[0]))
+      if (offssymbol > (int)(sizeof(offsetbits)/sizeof(offsetbits[0])))
         goto bad_data;
       offs = offsetbases[offssymbol]+1;
       if(offsetbits[offssymbol] > 0)
