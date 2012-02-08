@@ -846,7 +846,7 @@ enc_uint64(struct archive_write *a, uint64_t val)
 	int i;
 
 	numdata[0] = 0;
-	for (i = 1; i < sizeof(numdata); i++) {
+	for (i = 1; i < (int)sizeof(numdata); i++) {
 		if (val < mask) {
 			numdata[0] |= (uint8_t)val;
 			break;
@@ -2179,6 +2179,8 @@ compression_code_ppmd(struct archive *a,
 {
 	struct ppmd_stream *strm;
 
+	(void)a; /* UNUSED */
+
 	strm = (struct ppmd_stream *)lastrm->real_stream;
 
 	/* Copy encoded data if there are remaining bytes from previous call. */
@@ -2218,6 +2220,8 @@ static int
 compression_end_ppmd(struct archive *a, struct la_zstream *lastrm)
 {
 	struct ppmd_stream *strm;
+
+	(void)a; /* UNUSED */
 
 	strm = (struct ppmd_stream *)lastrm->real_stream;
 	__archive_ppmd7_functions.Ppmd7_Free(&strm->ppmd7_context, &g_szalloc);

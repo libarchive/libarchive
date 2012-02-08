@@ -228,11 +228,11 @@ create_iso_image(unsigned char *buff, size_t buffsize, size_t *used,
 
 	sym1[0] = 'x';
 	sym1[1] = '\0';
-	for (i = 0; i < sizeof(sym128)-2; i++)
+	for (i = 0; i < (int)sizeof(sym128)-2; i++)
 		sym128[i] = 'a';
 	sym128[sizeof(sym128)-2] = 'x';
 	sym128[sizeof(sym128)-1] = '\0';
-	for (i = 0; i < sizeof(sym255)-2; i++)
+	for (i = 0; i < (int)sizeof(sym255)-2; i++)
 		sym255[i] = 'a';
 	sym255[sizeof(sym255)-2] = 'x';
 	sym255[sizeof(sym255)-1] = '\0';

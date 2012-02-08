@@ -630,7 +630,7 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 	if (zip_entry->flg & ATIME_IS_SET)
 		archive_entry_set_atime(entry, zip_entry->atime,
 		    zip_entry->atime_ns);
-	if (zip_entry->ssIndex != -1) {
+	if (zip_entry->ssIndex != (uint32_t)-1) {
 		zip->entry_bytes_remaining =
 		    zip->si.ss.unpackSizes[zip_entry->ssIndex];
 		archive_entry_set_size(entry, zip->entry_bytes_remaining);
@@ -1988,7 +1988,7 @@ folder_uncompressed_size(struct _7z_folder *f)
 	while (--n >= 0) {
 		unsigned i;
 		for (i = 0; i < pairs; i++) {
-			if (f->bindPairs[i].outIndex == n)
+			if (f->bindPairs[i].outIndex == (uint64_t)n)
 				break;
 		}
 		if (i >= pairs)
@@ -2729,7 +2729,7 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 	}
 	__archive_read_consume(a, 32);
 	if (next_header_offset != 0) {
-		if (bytes_avail >= next_header_offset)
+		if (bytes_avail >= (ssize_t)next_header_offset)
 			__archive_read_consume(a, next_header_offset);
 		else if (__archive_read_seek(a,
 		    next_header_offset + zip->seek_base, SEEK_SET) < 0)
@@ -2842,7 +2842,7 @@ get_uncompressed_data(struct archive_read *a, const void **buff, size_t size,
 	struct _7zip *zip = (struct _7zip *)a->format->data;
 	ssize_t bytes_avail;
 
-	if (zip->codec == _7Z_COPY && zip->codec2 == -1) {
+	if (zip->codec == _7Z_COPY && zip->codec2 == (unsigned long)-1) {
 		/* Copy mode. */
 
 		/*
@@ -2901,7 +2901,7 @@ extract_pack_stream(struct archive_read *a, size_t minimum)
 	ssize_t bytes_avail;
 	int r;
 
-	if (zip->codec == _7Z_COPY && zip->codec2 == -1) {
+	if (zip->codec == _7Z_COPY && zip->codec2 == (unsigned long)-1) {
 		if (minimum == 0)
 			minimum = 1;
 		if (__archive_read_ahead(a, minimum, &bytes_avail) == NULL
@@ -2911,10 +2911,10 @@ extract_pack_stream(struct archive_read *a, size_t minimum)
 			    "Truncated 7-Zip file body");
 			return (ARCHIVE_FATAL);
 		}
-		if (bytes_avail > zip->pack_stream_inbytes_remaining)
+		if (bytes_avail > (ssize_t)zip->pack_stream_inbytes_remaining)
 			bytes_avail = zip->pack_stream_inbytes_remaining;
 		zip->pack_stream_inbytes_remaining -= bytes_avail;
-		if (bytes_avail > zip->folder_outbytes_remaining)
+		if (bytes_avail > (ssize_t)zip->folder_outbytes_remaining)
 			bytes_avail = zip->folder_outbytes_remaining;
 		zip->folder_outbytes_remaining -= bytes_avail;
 		zip->uncompressed_buffer_bytes_remaining = bytes_avail;
@@ -3056,7 +3056,7 @@ static int
 seek_pack(struct archive_read *a)
 {
 	struct _7zip *zip = (struct _7zip *)a->format->data;
-	uint64_t pack_offset;
+	int64_t pack_offset;
 
 	if (zip->pack_stream_remaining <= 0) {
 		archive_set_error(&(a->archive),
@@ -3336,7 +3336,7 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 			if ((r = seek_pack(a)) < 0)
 				return (r);
 
-			if (sunpack[i] == -1)
+			if (sunpack[i] == (uint64_t)-1)
 				zip->folder_outbytes_remaining =
 				    zip->pack_stream_inbytes_remaining;
 			else

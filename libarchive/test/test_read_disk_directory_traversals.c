@@ -1276,6 +1276,8 @@ test_restore_atime(void)
 static int
 metadata_filter(struct archive *a, void *data, struct archive_entry *ae)
 {
+	(void)data; /* UNUSED */
+
 	failure("CTime should be set");
 	assertEqualInt(8, archive_entry_ctime_is_set(ae));
 	failure("MTime should be set");

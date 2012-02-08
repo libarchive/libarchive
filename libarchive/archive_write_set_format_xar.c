@@ -676,7 +676,7 @@ xar_write_data(struct archive_write *a, const void *buff, size_t s)
 	}
 #if !defined(_WIN32) || defined(__CYGWIN__)
 	if (xar->bytes_remaining ==
-	    archive_entry_size(xar->cur_file->entry)) {
+	    (uint64_t)archive_entry_size(xar->cur_file->entry)) {
 		/*
 		 * Get the path of a shell script if so.
 		 */
@@ -1937,6 +1937,8 @@ file_create_virtual_dir(struct archive_write *a, struct xar *xar,
     const char *pathname)
 {
 	struct file *file;
+
+	(void)xar; /* UNUSED */
 
 	file = file_new(a, NULL);
 	if (file == NULL)
