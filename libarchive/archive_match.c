@@ -175,8 +175,9 @@ static int	set_timefilter_pathname_mbs(struct archive_match *,
 		    int, const char *);
 static int	set_timefilter_pathname_wcs(struct archive_match *,
 		    int, const wchar_t *);
-static int	set_time_str(struct archive_match *, int, const char *);
-static int	set_time_str_w(struct archive_match *, int, const wchar_t *);
+static int	set_timefilter_date(struct archive_match *, int, const char *);
+static int	set_timefilter_date_w(struct archive_match *, int,
+		    const wchar_t *);
 static int	time_excluded(struct archive_match *,
 		    struct archive_entry *);
 static int	validate_time_flag(struct archive *, int, const char *);
@@ -720,7 +721,7 @@ archive_match_include_date(struct archive *_a, int flag,
 	r = validate_time_flag(_a, flag, "archive_match_include_date");
 	if (r != ARCHIVE_OK)
 		return (r);
-	return set_time_str((struct archive_match *)_a, flag, datestr);
+	return set_timefilter_date((struct archive_match *)_a, flag, datestr);
 }
 
 int
@@ -733,7 +734,7 @@ archive_match_include_date_w(struct archive *_a, int flag,
 	if (r != ARCHIVE_OK)
 		return (r);
 
-	return set_time_str_w((struct archive_match *)_a, flag, datestr);
+	return set_timefilter_date_w((struct archive_match *)_a, flag, datestr);
 }
 
 int
@@ -881,7 +882,7 @@ set_timefilter(struct archive_match *a, int timetype,
 }
 
 static int
-set_time_str(struct archive_match *a, int timetype, const char *datestr)
+set_timefilter_date(struct archive_match *a, int timetype, const char *datestr)
 {
 	time_t time;
 
@@ -898,7 +899,8 @@ set_time_str(struct archive_match *a, int timetype, const char *datestr)
 }
 
 static int
-set_time_str_w(struct archive_match *a, int timetype, const wchar_t *datestr)
+set_timefilter_date_w(struct archive_match *a, int timetype,
+    const wchar_t *datestr)
 {
 	struct archive_string as;
 	time_t time;
