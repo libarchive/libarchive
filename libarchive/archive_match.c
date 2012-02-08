@@ -117,8 +117,8 @@ struct archive_match {
 	/*
 	 * Matching time stamps with its filename.
 	 */
-	struct archive_rb_tree	 newer_tree;
-	struct entry_list 	 entry_list;
+	struct archive_rb_tree	 exclusion_tree;
+	struct entry_list 	 exclusion_entry_list;
 
 	/*
 	 * Matching file owners.
@@ -208,6 +208,9 @@ error_nomem(struct archive_match *a)
 	return (ARCHIVE_FATAL);
 }
 
+/*
+ * Create an ARCHIVE_MATCH object.
+ */
 struct archive *
 archive_match_new(void)
 {
@@ -220,14 +223,17 @@ archive_match_new(void)
 	a->archive.state = ARCHIVE_STATE_NEW;
 	match_list_init(&(a->inclusions));
 	match_list_init(&(a->exclusions));
-	__archive_rb_tree_init(&(a->newer_tree), &rb_ops_mbs);
-	entry_list_init(&(a->entry_list));
+	__archive_rb_tree_init(&(a->exclusion_tree), &rb_ops_mbs);
+	entry_list_init(&(a->exclusion_entry_list));
 	match_list_init(&(a->inclusion_unames));
 	match_list_init(&(a->inclusion_gnames));
 	time(&a->now);
 	return (&(a->archive));
 }
 
+/*
+ * Free an ARCHIVE_MATCH object.
+ */
 int
 archive_match_free(struct archive *_a)
 {
@@ -240,7 +246,7 @@ archive_match_free(struct archive *_a)
 	a = (struct archive_match *)_a;
 	match_list_free(&(a->inclusions));
 	match_list_free(&(a->exclusions));
-	entry_list_free(&(a->entry_list));
+	entry_list_free(&(a->exclusion_entry_list));
 	free(a->inclusion_uids.ids);
 	free(a->inclusion_gids.ids);
 	match_list_free(&(a->inclusion_unames));
@@ -455,6 +461,9 @@ archive_match_path_unmatched_inclusions_next_w(struct archive *_a,
 	return (r);
 }
 
+/*
+ * Add inclusion/exclusion patterns.
+ */
 static int
 add_pattern_mbs(struct archive_match *a, struct match_list *list,
     const char *pattern)
@@ -495,6 +504,9 @@ add_pattern_wcs(struct archive_match *a, struct match_list *list,
 	return (ARCHIVE_OK);
 }
 
+/*
+ * Test if pathname is excluded by inclusion/exclusion patterns.
+ */
 static int
 path_excluded(struct archive_match *a, int mbs, const void *pathname)
 {
@@ -1079,6 +1091,9 @@ set_timefilter_pathname_wcs(struct archive_match *a, int timetype,
 }
 #endif /* _WIN32 && !__CYGWIN__ */
 
+/*
+ * Call back funtions for archive_rb.
+ */
 static int
 cmp_node_mbs(const struct archive_rb_node *n1,
     const struct archive_rb_node *n2)
@@ -1186,7 +1201,7 @@ add_entry(struct archive_match *a, int flag,
 		return (ARCHIVE_FAILED);
 	}
 	archive_mstring_copy_wcs(&(f->pathname), pathname);
-	a->newer_tree.rbt_ops = &rb_ops_wcs;
+	a->exclusion_tree.rbt_ops = &rb_ops_wcs;
 #else
 	pathname = archive_entry_pathname(entry);
 	if (pathname == NULL) {
@@ -1195,22 +1210,28 @@ add_entry(struct archive_match *a, int flag,
 		return (ARCHIVE_FAILED);
 	}
 	archive_mstring_copy_mbs(&(f->pathname), pathname);
-	a->newer_tree.rbt_ops = &rb_ops_mbs;
+	a->exclusion_tree.rbt_ops = &rb_ops_mbs;
 #endif
 	f->flag = flag;
 	f->mtime_sec = archive_entry_mtime(entry);
 	f->mtime_nsec = archive_entry_mtime_nsec(entry);
 	f->ctime_sec = archive_entry_ctime(entry);
 	f->ctime_nsec = archive_entry_ctime_nsec(entry);
-	r = __archive_rb_tree_insert_node(&(a->newer_tree), &(f->node));
+	r = __archive_rb_tree_insert_node(&(a->exclusion_tree), &(f->node));
 	if (!r) {
 		struct match_file *f2;
 
 		/* Get the duplicated file. */
 		f2 = (struct match_file *)__archive_rb_tree_find_node(
-			&(a->newer_tree), pathname);
+			&(a->exclusion_tree), pathname);
 
-		/* Overwrite comparison condision. */
+		/*
+		 * We always overwrite comparison condision.
+		 * If you do not want to overwrite it, you should not
+		 * call archive_match_exclude_entry(). We cannot know
+		 * what behavior you really expect since overwriting
+		 * condition might be different with the flag.
+		 */
 		if (f2 != NULL) {
 			f2->flag = f->flag;
 			f2->mtime_sec = f->mtime_sec;
@@ -1223,11 +1244,14 @@ add_entry(struct archive_match *a, int flag,
 		free(f);
 		return (ARCHIVE_OK);
 	}
-	entry_list_add(&(a->entry_list), f);
+	entry_list_add(&(a->exclusion_entry_list), f);
 	a->setflag |= TIME_IS_SET;
 	return (ARCHIVE_OK);
 }
 
+/*
+ * Test if entry is excluded by its timestamp.
+ */
 static int
 time_excluded(struct archive_match *a, struct archive_entry *entry)
 {
@@ -1312,22 +1336,22 @@ time_excluded(struct archive_match *a, struct archive_entry *entry)
 		}
 	}
 
-	/* If there is no incluson list, include the file. */
-	if (a->entry_list.count == 0)
+	/* If there is no excluson list, include the file. */
+	if (a->exclusion_entry_list.count == 0)
 		return (0);
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	pathname = archive_entry_pathname_w(entry);
-	a->newer_tree.rbt_ops = &rb_ops_wcs;
+	a->exclusion_tree.rbt_ops = &rb_ops_wcs;
 #else
 	pathname = archive_entry_pathname(entry);
-	a->newer_tree.rbt_ops = &rb_ops_mbs;
+	a->exclusion_tree.rbt_ops = &rb_ops_mbs;
 #endif
 	if (pathname == NULL)
 		return (0);
 
 	f = (struct match_file *)__archive_rb_tree_find_node(
-		&(a->newer_tree), pathname);
+		&(a->exclusion_tree), pathname);
 	/* If the file wasn't rejected, include it. */
 	if (f == NULL)
 		return (0);
@@ -1589,6 +1613,9 @@ match_owner_name_wcs(struct archive_match *a, struct match_list *list,
 }
 #endif
 
+/*
+ * Test if entry is excluded by uid, gid, uname or gname.
+ */
 static int
 owner_excluded(struct archive_match *a, struct archive_entry *entry)
 {
