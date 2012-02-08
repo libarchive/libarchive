@@ -961,32 +961,11 @@ set_timefilter_find_data(struct archive_match *a, int timetype,
 	}
 	return set_timefilter(a, timetype, mtime, mtime_ns, ctime, ctime_ns);
 }
-#else
-static int
-set_timefilter_stat(struct archive_match *a, int timetype, struct stat *st)
-{
-	struct archive_entry *ae;
-	time_t ctime, mtime;
-	long ctime_ns, mtime_ns;
-
-	ae = archive_entry_new();
-	if (ae == NULL)
-		return (error_nomem(a));
-	archive_entry_copy_stat(ae, st);
-	ctime = archive_entry_ctime(ae);
-	ctime_ns = archive_entry_ctime_nsec(ae);
-	mtime = archive_entry_mtime(ae);
-	mtime_ns = archive_entry_mtime_nsec(ae);
-	archive_entry_free(ae);
-	return set_timefilter(a, timetype, mtime, mtime_ns, ctime, ctime_ns);
-}
-#endif
 
 static int
 set_timefilter_pathname_mbs(struct archive_match *a, int timetype,
     const char *path)
 {
-#if defined(_WIN32) && !defined(__CYGWIN__)
 	/* NOTE: stat() on Windows cannot handle nano seconds. */
 	HANDLE h;
 	WIN32_FIND_DATA d;
@@ -1006,26 +985,12 @@ set_timefilter_pathname_mbs(struct archive_match *a, int timetype,
 	return set_timefilter_find_data(a, timetype,
 	    d.ftLastWriteTime.dwHighDateTime, d.ftLastWriteTime.dwLowDateTime,
 	    d.ftCreationTime.dwHighDateTime, d.ftCreationTime.dwLowDateTime);
-#else
-	struct stat st;
-
-	if (path == NULL || *path == '\0') {
-		archive_set_error(&(a->archive), EINVAL, "pathname is empty");
-		return (ARCHIVE_FAILED);
-	}
-	if (stat(path, &st) != 0) {
-		archive_set_error(&(a->archive), errno, "Failed to stat()");
-		return (ARCHIVE_FAILED);
-	}
-	return (set_timefilter_stat(a, timetype, &st));
-#endif
 }
 
 static int
 set_timefilter_pathname_wcs(struct archive_match *a, int timetype,
     const wchar_t *path)
 {
-#if defined(_WIN32) && !defined(__CYGWIN__)
 	HANDLE h;
 	WIN32_FIND_DATAW d;
 
@@ -1044,14 +1009,59 @@ set_timefilter_pathname_wcs(struct archive_match *a, int timetype,
 	return set_timefilter_find_data(a, timetype,
 	    d.ftLastWriteTime.dwHighDateTime, d.ftLastWriteTime.dwLowDateTime,
 	    d.ftCreationTime.dwHighDateTime, d.ftCreationTime.dwLowDateTime);
-#else
+}
+
+#else /* _WIN32 && !__CYGWIN__ */
+
+static int
+set_timefilter_stat(struct archive_match *a, int timetype, struct stat *st)
+{
+	struct archive_entry *ae;
+	time_t ctime, mtime;
+	long ctime_ns, mtime_ns;
+
+	ae = archive_entry_new();
+	if (ae == NULL)
+		return (error_nomem(a));
+	archive_entry_copy_stat(ae, st);
+	ctime = archive_entry_ctime(ae);
+	ctime_ns = archive_entry_ctime_nsec(ae);
+	mtime = archive_entry_mtime(ae);
+	mtime_ns = archive_entry_mtime_nsec(ae);
+	archive_entry_free(ae);
+	return set_timefilter(a, timetype, mtime, mtime_ns, ctime, ctime_ns);
+}
+
+static int
+set_timefilter_pathname_mbs(struct archive_match *a, int timetype,
+    const char *path)
+{
 	struct stat st;
+
+	if (path == NULL || *path == '\0') {
+		archive_set_error(&(a->archive), EINVAL, "pathname is empty");
+		return (ARCHIVE_FAILED);
+	}
+	if (stat(path, &st) != 0) {
+		archive_set_error(&(a->archive), errno, "Failed to stat()");
+		return (ARCHIVE_FAILED);
+	}
+	return (set_timefilter_stat(a, timetype, &st));
+}
+
+static int
+set_timefilter_pathname_wcs(struct archive_match *a, int timetype,
+    const wchar_t *path)
+{
 	struct archive_string as;
+	int r;
 
 	if (path == NULL || *path == L'\0') {
 		archive_set_error(&(a->archive), EINVAL, "pathname is empty");
 		return (ARCHIVE_FAILED);
 	}
+
+	/* Convert WCS filename to MBS filename. */
 	archive_string_init(&as);
 	if (archive_string_append_from_wcs(&as, path, wcslen(path)) < 0) {
 		archive_string_free(&as);
@@ -1061,15 +1071,13 @@ set_timefilter_pathname_wcs(struct archive_match *a, int timetype,
 		    "Failed to convert WCS to MBS");
 		return (ARCHIVE_FAILED);
 	}
-	if (stat(as.s, &st) != 0) {
-		archive_set_error(&(a->archive), errno, "Failed to stat()");
-		archive_string_free(&as);
-		return (ARCHIVE_FAILED);
-	}
+
+	r = set_timefilter_pathname_mbs(a, timetype, as.s);
 	archive_string_free(&as);
-	return (set_timefilter_stat(a, timetype, &st));
-#endif
+
+	return (r);
 }
+#endif /* _WIN32 && !__CYGWIN__ */
 
 static int
 cmp_node_mbs(const struct archive_rb_node *n1,
