@@ -144,6 +144,9 @@ static time_t	zip_time(const char *);
 static const char *compression_name(int compression);
 static void process_extra(const char *, size_t, struct zip_entry *);
 
+int	archive_read_support_format_zip_streamable(struct archive *);
+int	archive_read_support_format_zip_seekable(struct archive *);
+
 int
 archive_read_support_format_zip_streamable(struct archive *_a)
 {
