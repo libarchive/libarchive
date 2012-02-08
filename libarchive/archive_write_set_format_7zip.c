@@ -512,7 +512,7 @@ static int
 write_to_temp(struct archive_write *a, const void *buff, size_t s)
 {
 	struct _7zip *zip;
-	unsigned char *p;
+	const unsigned char *p;
 	ssize_t ws;
 
 	zip = (struct _7zip *)a->format_data;
@@ -530,7 +530,7 @@ write_to_temp(struct archive_write *a, const void *buff, size_t s)
 		}
 	}
 
-	p = (unsigned char *)buff;
+	p = (const unsigned char *)buff;
 	while (s) {
 		ws = write(zip->temp_fd, p, s);
 		if (ws < 0) {
@@ -1451,8 +1451,8 @@ static int
 file_cmp_node(const struct archive_rb_node *n1,
     const struct archive_rb_node *n2)
 {
-	struct file *f1 = (struct file *)n1;
-	struct file *f2 = (struct file *)n2;
+	const struct file *f1 = (const struct file *)n1;
+	const struct file *f2 = (const struct file *)n2;
 
 	if (f1->name_len == f2->name_len)
 		return (memcmp(f1->utf16name, f2->utf16name, f1->name_len));
@@ -1462,7 +1462,7 @@ file_cmp_node(const struct archive_rb_node *n1,
 static int
 file_cmp_key(const struct archive_rb_node *n, const void *key)
 {
-	struct file *f = (struct file *)n;
+	const struct file *f = (const struct file *)n;
 
 	return (f->name_len - *(const char *)key);
 }

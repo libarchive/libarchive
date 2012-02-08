@@ -97,6 +97,8 @@ archive_write_set_format_xar(struct archive *_a)
 
 /*#define DEBUG_PRINT_TOC		1 */
 
+#define BAD_CAST_CONST (const xmlChar *)
+
 #define HEADER_MAGIC	0x78617221
 #define HEADER_SIZE	28
 #define HEADER_VERSION	1
@@ -621,11 +623,11 @@ static int
 write_to_temp(struct archive_write *a, const void *buff, size_t s)
 {
 	struct xar *xar;
-	unsigned char *p;
+	const unsigned char *p;
 	ssize_t ws;
 
 	xar = (struct xar *)a->format_data;
-	p = (unsigned char *)buff;
+	p = (const unsigned char *)buff;
 	while (s) {
 		ws = write(xar->temp_fd, p, s);
 		if (ws < 0) {
@@ -756,7 +758,7 @@ xmlwrite_string_attr(struct archive_write *a, xmlTextWriterPtr writer,
 {
 	int r;
 
-	r = xmlTextWriterStartElement(writer, BAD_CAST(key));
+	r = xmlTextWriterStartElement(writer, BAD_CAST_CONST(key));
 	if (r < 0) {
 		archive_set_error(&a->archive,
 		    ARCHIVE_ERRNO_MISC,
@@ -765,7 +767,7 @@ xmlwrite_string_attr(struct archive_write *a, xmlTextWriterPtr writer,
 	}
 	if (attrkey != NULL && attrvalue != NULL) {
 		r = xmlTextWriterWriteAttribute(writer,
-		    BAD_CAST(attrkey), BAD_CAST(attrvalue));
+		    BAD_CAST_CONST(attrkey), BAD_CAST_CONST(attrvalue));
 		if (r < 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_MISC,
@@ -774,7 +776,7 @@ xmlwrite_string_attr(struct archive_write *a, xmlTextWriterPtr writer,
 		}
 	}
 	if (value != NULL) {
-		r = xmlTextWriterWriteString(writer, BAD_CAST(value));
+		r = xmlTextWriterWriteString(writer, BAD_CAST_CONST(value));
 		if (r < 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_MISC,
@@ -801,7 +803,7 @@ xmlwrite_string(struct archive_write *a, xmlTextWriterPtr writer,
 	if (value == NULL)
 		return (ARCHIVE_OK);
 	
-	r = xmlTextWriterStartElement(writer, BAD_CAST(key));
+	r = xmlTextWriterStartElement(writer, BAD_CAST_CONST(key));
 	if (r < 0) {
 		archive_set_error(&a->archive,
 		    ARCHIVE_ERRNO_MISC,
@@ -809,7 +811,7 @@ xmlwrite_string(struct archive_write *a, xmlTextWriterPtr writer,
 		return (ARCHIVE_FATAL);
 	}
 	if (value != NULL) {
-		r = xmlTextWriterWriteString(writer, BAD_CAST(value));
+		r = xmlTextWriterWriteString(writer, BAD_CAST_CONST(value));
 		if (r < 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_MISC,
@@ -1062,7 +1064,7 @@ make_fflags_entry(struct archive_write *a, xmlTextWriterPtr writer,
 	} while (p != NULL);
 
 	if (n > 0) {
-		r = xmlTextWriterStartElement(writer, BAD_CAST(element));
+		r = xmlTextWriterStartElement(writer, BAD_CAST_CONST(element));
 		if (r < 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_MISC,
@@ -1557,7 +1559,7 @@ make_toc(struct archive_write *a)
 			goto exit_toc;
 		}
 		r = xmlTextWriterWriteAttribute(writer, BAD_CAST("style"),
-		    BAD_CAST(getalgname(xar->opt_toc_sumalg)));
+		    BAD_CAST_CONST(getalgname(xar->opt_toc_sumalg)));
 		if (r < 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_MISC,
@@ -1865,8 +1867,8 @@ static int
 file_cmp_node(const struct archive_rb_node *n1,
     const struct archive_rb_node *n2)
 {
-	struct file *f1 = (struct file *)n1;
-	struct file *f2 = (struct file *)n2;
+	const struct file *f1 = (const struct file *)n1;
+	const struct file *f2 = (const struct file *)n2;
 
 	return (strcmp(f1->basename.s, f2->basename.s));
 }
@@ -1874,7 +1876,7 @@ file_cmp_node(const struct archive_rb_node *n1,
 static int
 file_cmp_key(const struct archive_rb_node *n, const void *key)
 {
-	struct file *f = (struct file *)n;
+	const struct file *f = (const struct file *)n;
 
 	return (strcmp(f->basename.s, (const char *)key));
 }
@@ -2466,8 +2468,8 @@ static int
 file_hd_cmp_node(const struct archive_rb_node *n1,
     const struct archive_rb_node *n2)
 {
-	struct hardlink *h1 = (struct hardlink *)n1;
-	struct hardlink *h2 = (struct hardlink *)n2;
+	const struct hardlink *h1 = (const struct hardlink *)n1;
+	const struct hardlink *h2 = (const struct hardlink *)n2;
 
 	return (strcmp(archive_entry_pathname(h1->file_list.first->entry),
 		       archive_entry_pathname(h2->file_list.first->entry)));
@@ -2476,7 +2478,7 @@ file_hd_cmp_node(const struct archive_rb_node *n1,
 static int
 file_hd_cmp_key(const struct archive_rb_node *n, const void *key)
 {
-	struct hardlink *h = (struct hardlink *)n;
+	const struct hardlink *h = (const struct hardlink *)n;
 
 	return (strcmp(archive_entry_pathname(h->file_list.first->entry),
 		       (const char *)key));

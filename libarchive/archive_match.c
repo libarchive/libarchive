@@ -1099,8 +1099,8 @@ static int
 cmp_node_mbs(const struct archive_rb_node *n1,
     const struct archive_rb_node *n2)
 {
-	struct match_file *f1 = (struct match_file *)n1;
-	struct match_file *f2 = (struct match_file *)n2;
+	struct match_file *f1 = (struct match_file *)(uintptr_t)n1;
+	struct match_file *f2 = (struct match_file *)(uintptr_t)n2;
 	const char *p1, *p2;
 
 	archive_mstring_get_mbs(NULL, &(f1->pathname), &p1);
@@ -1115,7 +1115,7 @@ cmp_node_mbs(const struct archive_rb_node *n1,
 static int
 cmp_key_mbs(const struct archive_rb_node *n, const void *key)
 {
-	struct match_file *f = (struct match_file *)n;
+	struct match_file *f = (struct match_file *)(uintptr_t)n;
 	const char *p;
 
 	archive_mstring_get_mbs(NULL, &(f->pathname), &p);
@@ -1128,8 +1128,8 @@ static int
 cmp_node_wcs(const struct archive_rb_node *n1,
     const struct archive_rb_node *n2)
 {
-	struct match_file *f1 = (struct match_file *)n1;
-	struct match_file *f2 = (struct match_file *)n2;
+	struct match_file *f1 = (struct match_file *)(uintptr_t)n1;
+	struct match_file *f2 = (struct match_file *)(uintptr_t)n2;
 	const wchar_t *p1, *p2;
 
 	archive_mstring_get_wcs(NULL, &(f1->pathname), &p1);
@@ -1144,7 +1144,7 @@ cmp_node_wcs(const struct archive_rb_node *n1,
 static int
 cmp_key_wcs(const struct archive_rb_node *n, const void *key)
 {
-	struct match_file *f = (struct match_file *)n;
+	struct match_file *f = (struct match_file *)(uintptr_t)n;
 	const wchar_t *p;
 
 	archive_mstring_get_wcs(NULL, &(f->pathname), &p);
