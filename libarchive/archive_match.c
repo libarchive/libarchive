@@ -1200,26 +1200,18 @@ add_entry(struct archive_match *a, int flag,
 		f2 = (struct match_file *)__archive_rb_tree_find_node(
 			&(a->newer_tree), pathname);
 
-		/* Overwrite mtime condision if it is newer than. */
+		/* Overwrite comparison condision. */
 		if (f2 != NULL) {
 			f2->flag = f->flag;
-			if ((f2->mtime_sec < f->mtime_sec) ||
-			      (f2->mtime_sec == f->mtime_sec &&
-			       f2->mtime_nsec < f->mtime_nsec)) {
-				f2->mtime_sec = f->mtime_sec;
-				f2->mtime_nsec = f->mtime_nsec;
-			}
-			if ((f2->ctime_sec < f->ctime_sec) ||
-			      (f2->ctime_sec == f->ctime_sec &&
-			       f2->ctime_nsec < f->ctime_nsec)) {
-				f2->ctime_sec = f->ctime_sec;
-				f2->ctime_nsec = f->ctime_nsec;
-			}
-			/* Release the duplicated file. */ 
-			archive_mstring_clean(&(f->pathname));
-			free(f);
-			return (ARCHIVE_OK);
+			f2->mtime_sec = f->mtime_sec;
+			f2->mtime_nsec = f->mtime_nsec;
+			f2->ctime_sec = f->ctime_sec;
+			f2->ctime_nsec = f->ctime_nsec;
 		}
+		/* Release the duplicated file. */
+		archive_mstring_clean(&(f->pathname));
+		free(f);
+		return (ARCHIVE_OK);
 	}
 	entry_list_add(&(a->entry_list), f);
 	a->setflag |= TIME_IS_SET;
