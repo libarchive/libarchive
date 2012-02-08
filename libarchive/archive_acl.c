@@ -52,6 +52,9 @@ static int	acl_special(struct archive_acl *acl,
 		    int type, int permset, int tag);
 static struct archive_acl_entry *acl_new_entry(struct archive_acl *acl,
 		    int type, int permset, int tag, int id);
+static int	archive_acl_add_entry_len_l(struct archive_acl *acl,
+		    int type, int permset, int tag, int id, const char *name,
+		    size_t len, struct archive_string_conv *sc);
 static int	isint_w(const wchar_t *start, const wchar_t *end, int *result);
 static int	ismode_w(const wchar_t *start, const wchar_t *end, int *result);
 static void	next_field_w(const wchar_t **wp, const wchar_t **start,
@@ -152,7 +155,7 @@ archive_acl_add_entry_w_len(struct archive_acl *acl,
 	return ARCHIVE_OK;
 }
 
-int
+static int
 archive_acl_add_entry_len_l(struct archive_acl *acl,
     int type, int permset, int tag, int id, const char *name, size_t len,
     struct archive_string_conv *sc)
