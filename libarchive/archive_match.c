@@ -1477,6 +1477,8 @@ archive_match_owner_excluded(struct archive *_a,
 static int
 add_owner_id(struct archive_match *a, struct id_array *ids, int64_t id)
 {
+	unsigned i;
+
 	if (ids->count + 1 >= ids->size) {
 		if (ids->size == 0)
 			ids->size = 8;
@@ -1486,10 +1488,22 @@ add_owner_id(struct archive_match *a, struct id_array *ids, int64_t id)
 		if (ids->ids == NULL)
 			return (error_nomem(a));
 	}
-	/*
-	 * TODO: sort id list.
-	 */
-	ids->ids[ids->count++] = id;
+
+	/* Find an insert point. */
+	for (i = 0; i < ids->count; i++) {
+		if (ids->ids[i] >= id)
+			break;
+	}
+
+	/* Add oowner id. */
+	if (i == ids->count)
+		ids->ids[ids->count++] = id;
+	else if (ids->ids[i] != id) {
+		memmove(&(ids->ids[i+1]), &(ids->ids[i]),
+		    (ids->count - i) * sizeof(ids->ids[0]));
+		ids->ids[i] = id;
+		ids->count++;
+	}
 	a->setflag |= ID_IS_SET;
 	return (ARCHIVE_OK);
 }
@@ -1497,11 +1511,18 @@ add_owner_id(struct archive_match *a, struct id_array *ids, int64_t id)
 static int
 match_owner_id(struct id_array *ids, int64_t id)
 {
-	int i;
+	unsigned b, m, t;
 
-	for (i = 0; i < (int)ids->count; i++) {
-		if (ids->ids[i] == id)
+	t = 0;
+	b = ids->count;
+	while (t < b) {
+		m = (t + b)>>1;
+		if (ids->ids[m] == id)
 			return (1);
+		if (ids->ids[m] < id)
+			t = m + 1;
+		else
+			b = m;
 	}
 	return (0);
 }
