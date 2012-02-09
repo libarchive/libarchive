@@ -71,6 +71,7 @@ Currently, the library automatically detects and reads the following fomats:
   * ZIP archives (with uncompressed or "deflate" compressed entries)
   * GNU and BSD 'ar' archives
   * 'mtree' format
+  * 7-Zip archives
   * Microsoft CAB format
   * LHA and LZH archives
   * RAR archives
@@ -97,6 +98,7 @@ The library can create archives in any of the following formats:
   * GNU and BSD 'ar' archives
   * 'mtree' format
   * ISO9660 format
+  * 7-Zip archives
   * XAR archives
 
 When creating archives, the result can be filtered with any of the following:
