@@ -849,7 +849,7 @@ archive_string_append_from_wcs(struct archive_string *as,
 			}
 		}
 		as->length += r;
-		if (wp == NULL || (wp - wpp) >= nwc)
+		if (wp == NULL || (wp - wpp) >= (int64_t)nwc)
 			break;
 		/* Get a remaining WCS lenth. */
 		nwc -= wp - wpp;
