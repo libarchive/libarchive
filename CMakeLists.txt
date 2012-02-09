@@ -51,7 +51,7 @@ SET(SOVERSION "${INTERFACE_VERSION}")
 # aggressive about diagnosing build problems; this can get
 # relaxed somewhat in final shipping versions.
 IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
-  ADD_DEFINITIONS(-Wall -Werror)
+  ADD_DEFINITIONS(-Wall -Werror -Wextra -Wunused -Wshadow -Wmissing-prototypes -Wcast-qual)
   SET(CMAKE_REQUIRED_FLAGS "-Wall -Werror")
 ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
 

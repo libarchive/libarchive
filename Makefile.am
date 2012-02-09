@@ -23,7 +23,7 @@ TESTS_ENVIRONMENT= $(libarchive_TESTS_ENVIRONMENT) $(bsdtar_TESTS_ENVIRONMENT) $
 DISTCHECK_CONFIGURE_FLAGS = --enable-bsdtar --enable-bsdcpio
 # The next line is commented out by default in shipping libarchive releases.
 # It is uncommented by default in trunk.
-AM_CFLAGS=-Wall -Werror
+AM_CFLAGS=-Wall -Werror -Wextra -Wunused -Wshadow -Wmissing-prototypes -Wcast-qual
 PLATFORMCPPFLAGS = @PLATFORMCPPFLAGS@
 AM_CPPFLAGS=$(PLATFORMCPPFLAGS)
 
