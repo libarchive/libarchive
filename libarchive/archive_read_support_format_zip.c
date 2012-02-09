@@ -787,7 +787,7 @@ compression_name(int compression)
 		"deflation"
 	};
 
-	if (compression <
+	if (0 <= compression && compression <
 	    (int)(sizeof(compression_names)/sizeof(compression_names[0])))
 		return compression_names[compression];
 	else
