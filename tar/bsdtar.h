@@ -28,8 +28,6 @@
 #include "bsdtar_platform.h"
 #include <stdio.h>
 
-#include "matching.h"
-
 #define	DEFAULT_BYTES_PER_BLOCK	(20*512)
 
 /*

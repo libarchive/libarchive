@@ -166,8 +166,11 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 	}
 
 	if (bsdtar->names_from_file != NULL)
-		lafe_include_from_file(bsdtar->matching,
-		    bsdtar->names_from_file, bsdtar->option_null);
+		if (archive_match_include_pattern_from_file(
+		    bsdtar->matching, bsdtar->names_from_file,
+		    bsdtar->option_null) != ARCHIVE_OK)
+			lafe_errc(1, 0, "Error inclusion pattern: %s",
+			    archive_error_string(bsdtar->matching));
 
 	a = archive_read_new();
 	if (bsdtar->compress_program != NULL)

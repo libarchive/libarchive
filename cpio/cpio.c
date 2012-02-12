@@ -82,7 +82,6 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/cpio.c,v 1.15 2008/12/06 07:30:40 kientzle 
 #include "cpio.h"
 #include "err.h"
 #include "line_reader.h"
-#include "matching.h"
 
 /* Fixed size of uname/gname caches. */
 #define	name_cache_size 101
@@ -219,8 +218,11 @@ main(int argc, char *argv[])
 			cpio->extract_flags &= ~ARCHIVE_EXTRACT_NO_AUTODIR;
 			break;
 		case 'E': /* NetBSD/OpenBSD */
-			lafe_include_from_file(cpio->matching,
-			    cpio->argument, cpio->option_null);
+			if (archive_match_include_pattern_from_file(
+			    cpio->matching, cpio->argument,
+			    cpio->option_null) != ARCHIVE_OK)
+				lafe_errc(1, 0, "Error : %s",
+				    archive_error_string(cpio->matching));
 			break;
 		case 'F': /* NetBSD/OpenBSD/GNU cpio */
 			cpio->filename = cpio->argument;

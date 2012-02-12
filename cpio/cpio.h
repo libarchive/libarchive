@@ -31,8 +31,6 @@
 #include "cpio_platform.h"
 #include <stdio.h>
 
-#include "matching.h"
-
 /*
  * The internal state for the "cpio" program.
  *

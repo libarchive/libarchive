@@ -848,10 +848,20 @@ __LA_DECL int	archive_match_path_excluded(struct archive *,
 __LA_DECL int	archive_match_exclude_pattern(struct archive *, const char *);
 __LA_DECL int	archive_match_exclude_pattern_w(struct archive *,
 		    const wchar_t *);
+/* Add exclusion pathname pattern from file. */
+__LA_DECL int	archive_match_exclude_pattern_from_file(struct archive *,
+		    const char *, int _nullSeparator);
+__LA_DECL int	archive_match_exclude_pattern_from_file_w(struct archive *,
+		    const wchar_t *, int _nullSeparator);
 /* Add inclusion pathname pattern. */
 __LA_DECL int	archive_match_include_pattern(struct archive *, const char *);
 __LA_DECL int	archive_match_include_pattern_w(struct archive *,
 		    const wchar_t *);
+/* Add inclusion pathname pattern from file. */
+__LA_DECL int	archive_match_include_pattern_from_file(struct archive *,
+		    const char *, int _nullSeparator);
+__LA_DECL int	archive_match_include_pattern_from_file_w(struct archive *,
+		    const wchar_t *, int _nullSeparator);
 /*
  * How to get statistic information for inclusion patterns.
  */

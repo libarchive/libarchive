@@ -555,11 +555,11 @@ main(int argc, char **argv)
 			bsdtar->option_interactive = 1;
 			break;
 		case 'X': /* GNU tar */
-			if (lafe_exclude_from_file(bsdtar->matching,
-			    bsdtar->argument))
-				lafe_errc(1, 0,
-				    "failed to process exclusions from file %s",
-				    bsdtar->argument);
+			if (archive_match_exclude_pattern_from_file(
+			    bsdtar->matching, bsdtar->argument, 0)
+			    != ARCHIVE_OK)
+				lafe_errc(1, 0, "Error : %s",
+				    archive_error_string(bsdtar->matching));
 			break;
 		case 'x': /* SUSv2 */
 			set_mode(bsdtar, opt);

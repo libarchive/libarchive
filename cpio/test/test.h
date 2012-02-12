@@ -194,7 +194,9 @@
 #define assertMakeDir(dirname, mode)	\
   assertion_make_dir(__FILE__, __LINE__, dirname, mode)
 #define assertMakeFile(path, mode, contents) \
-  assertion_make_file(__FILE__, __LINE__, path, mode, contents)
+  assertion_make_file(__FILE__, __LINE__, path, mode, -1, contents)
+#define assertMakeBinFile(path, mode, csize, contents) \
+  assertion_make_file(__FILE__, __LINE__, path, mode, csize, contents)
 #define assertMakeHardlink(newfile, oldfile)	\
   assertion_make_hardlink(__FILE__, __LINE__, newfile, oldfile)
 #define assertMakeSymlink(newfile, linkto)	\
@@ -243,7 +245,7 @@ int assertion_is_not_hardlink(const char *, int, const char *, const char *);
 int assertion_is_reg(const char *, int, const char *, int);
 int assertion_is_symlink(const char *, int, const char *, const char *);
 int assertion_make_dir(const char *, int, const char *, int);
-int assertion_make_file(const char *, int, const char *, int, const char *);
+int assertion_make_file(const char *, int, const char *, int, int, const void *);
 int assertion_make_hardlink(const char *, int, const char *newpath, const char *);
 int assertion_make_symlink(const char *, int, const char *newpath, const char *);
 int assertion_nodump(const char *, int, const char *);

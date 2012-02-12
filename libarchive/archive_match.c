@@ -129,6 +129,8 @@ struct archive_match {
 	struct match_list	 inclusion_gnames;
 };
 
+static int	add_pattern_from_file(struct archive_match *,
+		    struct match_list *, int, const void *, int);
 static int	add_entry(struct archive_match *, int,
 		    struct archive_entry *);
 static int	add_owner_id(struct archive_match *, struct id_array *,
@@ -342,6 +344,34 @@ archive_match_exclude_pattern_w(struct archive *_a, const wchar_t *pattern)
 }
 
 int
+archive_match_exclude_pattern_from_file(struct archive *_a,
+    const char *pathname, int nullSeparator)
+{
+	struct archive_match *a;
+
+	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_match_exclude_pattern_from_file");
+	a = (struct archive_match *)_a;
+
+	return add_pattern_from_file(a, &(a->exclusions), 1, pathname,
+		nullSeparator);
+}
+
+int
+archive_match_exclude_pattern_from_file_w(struct archive *_a,
+    const wchar_t *pathname, int nullSeparator)
+{
+	struct archive_match *a;
+
+	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_match_exclude_pattern_from_file_w");
+	a = (struct archive_match *)_a;
+
+	return add_pattern_from_file(a, &(a->exclusions), 0, pathname,
+		nullSeparator);
+}
+
+int
 archive_match_include_pattern(struct archive *_a, const char *pattern)
 {
 	struct archive_match *a;
@@ -377,6 +407,34 @@ archive_match_include_pattern_w(struct archive *_a, const wchar_t *pattern)
 	if ((r = add_pattern_wcs(a, &(a->inclusions), pattern)) != ARCHIVE_OK)
 		return (r);
 	return (ARCHIVE_OK);
+}
+
+int
+archive_match_include_pattern_from_file(struct archive *_a,
+    const char *pathname, int nullSeparator)
+{
+	struct archive_match *a;
+
+	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_match_include_pattern_from_file");
+	a = (struct archive_match *)_a;
+
+	return add_pattern_from_file(a, &(a->inclusions), 1, pathname,
+		nullSeparator);
+}
+
+int
+archive_match_include_pattern_from_file_w(struct archive *_a,
+    const wchar_t *pathname, int nullSeparator)
+{
+	struct archive_match *a;
+
+	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_match_include_pattern_from_file_w");
+	a = (struct archive_match *)_a;
+
+	return add_pattern_from_file(a, &(a->inclusions), 0, pathname,
+		nullSeparator);
 }
 
 /*
@@ -501,6 +559,117 @@ add_pattern_wcs(struct archive_match *a, struct match_list *list,
 	archive_mstring_copy_wcs_len(&(match->pattern), pattern, len);
 	match_list_add(list, match);
 	a->setflag |= PATTERN_IS_SET;
+	return (ARCHIVE_OK);
+}
+
+static int
+add_pattern_from_file(struct archive_match *a, struct match_list *mlist,
+    int mbs, const void *pathname, int nullSeparator)
+{
+	struct archive *ar;
+	struct archive_entry *ae;
+	struct archive_string as;
+	const void *buff;
+	size_t size;
+	int64_t offset;
+	int r;
+
+	ar = archive_read_new(); 
+	if (ar == NULL) {
+		archive_set_error(&(a->archive), ENOMEM, "No memory");
+		return (ARCHIVE_FATAL);
+	}
+	r = archive_read_support_format_raw(ar);
+	if (r != ARCHIVE_OK) {
+		archive_copy_error(&(a->archive), ar);
+		archive_read_free(ar);
+		return (r);
+	}
+	if (mbs)
+		r = archive_read_open_filename(ar, pathname, 512*20);
+	else
+		r = archive_read_open_filename_w(ar, pathname, 512*20);
+	if (r != ARCHIVE_OK) {
+		archive_copy_error(&(a->archive), ar);
+		archive_read_free(ar);
+		return (r);
+	}
+	r = archive_read_next_header(ar, &ae);
+	if (r != ARCHIVE_OK) {
+		archive_copy_error(&(a->archive), ar);
+		archive_read_free(ar);
+		return (r);
+	}
+
+	archive_string_init(&as);
+
+	while ((r = archive_read_data_block(ar, &buff, &size, &offset))
+	    == ARCHIVE_OK) {
+		const char *b = (const char *)buff;
+
+		while (size) {
+			const char *s = (const char *)b;
+			size_t length = 0;
+			int found_separator = 0;
+
+			while (length < size) {
+				if (nullSeparator) {
+					if (*b == '\0') {
+						found_separator = 1;
+						break;
+					}
+				} else {
+			            	if (*b == 0x0d || *b == 0x0a) {
+						found_separator = 1;
+						break;
+					}
+				}
+				b++;
+				length++;
+			}
+			if (!found_separator) {
+				archive_strncat(&as, s, length);
+				/* Read next data block. */
+				break;
+			}
+			b++;
+			size -= length + 1;
+			archive_strncat(&as, s, length);
+
+			/* If the line is not empty, add the pattern. */
+			if (archive_strlen(&as) > 0) {
+				/* Add pattern. */
+				r = add_pattern_mbs(a, mlist, as.s);
+				if (r != ARCHIVE_OK) {
+					archive_read_free(ar);
+					archive_string_free(&as);
+					return (r);
+				}
+				archive_string_empty(&as);
+			}
+		}
+	}
+
+	/* If something error happend, report it immediately. */ 
+	if (r < ARCHIVE_OK) {
+		archive_copy_error(&(a->archive), ar);
+		archive_read_free(ar);
+		archive_string_free(&as);
+		return (r);
+	}
+
+	/* If the line is not empty, add the pattern. */
+	if (r == ARCHIVE_EOF && archive_strlen(&as) > 0) {
+		/* Add pattern. */
+		r = add_pattern_mbs(a, mlist, as.s);
+		if (r != ARCHIVE_OK) {
+			archive_read_free(ar);
+			archive_string_free(&as);
+			return (r);
+		}
+	}
+	archive_read_free(ar);
+	archive_string_free(&as);
 	return (ARCHIVE_OK);
 }
 

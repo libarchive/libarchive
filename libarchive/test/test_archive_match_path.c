@@ -113,6 +113,114 @@ test_exclusion_wcs(void)
 }
 
 static void
+exclusion_from_file(struct archive *m)
+{
+	struct archive_entry *ae;
+
+	if (!assert((ae = archive_entry_new()) != NULL)) {
+		archive_match_free(m);
+		return;
+	}
+
+	/* Test with 'first', which should not be excluded. */
+	archive_entry_copy_pathname(ae, "first");
+	failure("'first' should not be excluded");
+	assertEqualInt(0, archive_match_path_excluded(m, ae));
+	assertEqualInt(0, archive_match_excluded(m, ae));
+	archive_entry_clear(ae);
+	archive_entry_copy_pathname_w(ae, L"first");
+	failure("'first' should not be excluded");
+	assertEqualInt(0, archive_match_path_excluded(m, ae));
+	assertEqualInt(0, archive_match_excluded(m, ae));
+
+	/* Test with 'second', which should be excluded. */
+	archive_entry_copy_pathname(ae, "second");
+	failure("'second' should be excluded");
+	assertEqualInt(1, archive_match_path_excluded(m, ae));
+	assertEqualInt(1, archive_match_excluded(m, ae));
+	archive_entry_clear(ae);
+	archive_entry_copy_pathname_w(ae, L"second");
+	failure("'second' should be excluded");
+	assertEqualInt(1, archive_match_path_excluded(m, ae));
+	assertEqualInt(1, archive_match_excluded(m, ae));
+
+	/* Test with 'third', which should not be excluded. */
+	archive_entry_copy_pathname(ae, "third");
+	failure("'third' should not be excluded");
+	assertEqualInt(0, archive_match_path_excluded(m, ae));
+	assertEqualInt(0, archive_match_excluded(m, ae));
+	archive_entry_clear(ae);
+	archive_entry_copy_pathname_w(ae, L"third");
+	failure("'third' should not be excluded");
+	assertEqualInt(0, archive_match_path_excluded(m, ae));
+	assertEqualInt(0, archive_match_excluded(m, ae));
+
+	/* Test with 'four', which should be excluded. */
+	archive_entry_copy_pathname(ae, "four");
+	failure("'four' should be excluded");
+	assertEqualInt(1, archive_match_path_excluded(m, ae));
+	assertEqualInt(1, archive_match_excluded(m, ae));
+	archive_entry_clear(ae);
+	archive_entry_copy_pathname_w(ae, L"four");
+	failure("'four' should be excluded");
+	assertEqualInt(1, archive_match_path_excluded(m, ae));
+	assertEqualInt(1, archive_match_excluded(m, ae));
+
+	/* Clean up. */
+	archive_entry_free(ae);
+}
+
+static void
+test_exclusion_from_file_mbs(void)
+{
+	struct archive *m;
+
+	/* Test1: read exclusion patterns from file */
+	if (!assert((m = archive_match_new()) != NULL))
+		return;
+	assertEqualIntA(m, 0,
+	    archive_match_exclude_pattern_from_file(m, "exclusion", 0));
+	exclusion_from_file(m);
+	/* Clean up. */
+	archive_match_free(m);
+
+	/* Test2: read exclusion patterns in a null separator from file */
+	if (!assert((m = archive_match_new()) != NULL))
+		return;
+	/* Test for pattern reading from file */
+	assertEqualIntA(m, 0,
+	    archive_match_exclude_pattern_from_file(m, "exclusion_null", 1));
+	exclusion_from_file(m);
+	/* Clean up. */
+	archive_match_free(m);
+}
+
+static void
+test_exclusion_from_file_wcs(void)
+{
+	struct archive *m;
+
+	/* Test1: read exclusion patterns from file */
+	if (!assert((m = archive_match_new()) != NULL))
+		return;
+	assertEqualIntA(m, 0,
+	    archive_match_exclude_pattern_from_file_w(m, L"exclusion", 0));
+	exclusion_from_file(m);
+	/* Clean up. */
+	archive_match_free(m);
+
+	/* Test2: read exclusion patterns in a null separator from file */
+	if (!assert((m = archive_match_new()) != NULL))
+		return;
+	/* Test for pattern reading from file */
+	assertEqualIntA(m, 0,
+	    archive_match_exclude_pattern_from_file_w(m, L"exclusion_null", 1));
+	exclusion_from_file(m);
+	/* Clean up. */
+	archive_match_free(m);
+}
+
+static void
 test_inclusion_mbs(void)
 {
 	struct archive_entry *ae;
@@ -211,6 +319,56 @@ test_inclusion_wcs(void)
 }
 
 static void
+test_inclusion_from_file_mbs(void)
+{
+	struct archive *m;
+
+	/* Test1: read inclusion patterns from file */
+	if (!assert((m = archive_match_new()) != NULL))
+		return;
+	assertEqualIntA(m, 0,
+	    archive_match_include_pattern_from_file(m, "inclusion", 0));
+	exclusion_from_file(m);
+	/* Clean up. */
+	archive_match_free(m);
+
+	/* Test2: read inclusion patterns in a null separator from file */
+	if (!assert((m = archive_match_new()) != NULL))
+		return;
+	assertEqualIntA(m, 0,
+	    archive_match_include_pattern_from_file(m, "inclusion_null", 1));
+	exclusion_from_file(m);
+	/* Clean up. */
+	archive_match_free(m);
+}
+
+static void
+test_inclusion_from_file_wcs(void)
+{
+	struct archive *m;
+
+	/* Test1: read inclusion patterns from file */
+	if (!assert((m = archive_match_new()) != NULL))
+		return;
+	/* Test for pattern reading from file */
+	assertEqualIntA(m, 0,
+	    archive_match_include_pattern_from_file_w(m, L"inclusion", 0));
+	exclusion_from_file(m);
+	/* Clean up. */
+	archive_match_free(m);
+
+	/* Test2: read inclusion patterns in a null separator from file */
+	if (!assert((m = archive_match_new()) != NULL))
+		return;
+	/* Test for pattern reading from file */
+	assertEqualIntA(m, 0,
+	    archive_match_include_pattern_from_file_w(m, L"inclusion_null", 1));
+	exclusion_from_file(m);
+	/* Clean up. */
+	archive_match_free(m);
+}
+
+static void
 test_exclusion_and_inclusion(void)
 {
 	struct archive_entry *ae;
@@ -273,9 +431,20 @@ test_exclusion_and_inclusion(void)
 
 DEFINE_TEST(test_archive_match_path)
 {
+	/* Make exclusion sample files which contain exclusion patterns. */
+	assertMakeFile("exclusion", 0666, "second\nfour\n");
+	assertMakeBinFile("exclusion_null", 0666, 12, "second\0four\0");
+	/* Make inclusion sample files which contain inclusion patterns. */
+	assertMakeFile("inclusion", 0666, "first\nthird\n");
+	assertMakeBinFile("inclusion_null", 0666, 12, "first\0third\0");
+
 	test_exclusion_mbs();
 	test_exclusion_wcs();
+	test_exclusion_from_file_mbs();
+	test_exclusion_from_file_wcs();
 	test_inclusion_mbs();
 	test_inclusion_wcs();
+	test_inclusion_from_file_mbs();
+	test_inclusion_from_file_wcs();
 	test_exclusion_and_inclusion();
 }
