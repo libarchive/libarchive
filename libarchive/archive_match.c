@@ -949,6 +949,7 @@ archive_match_exclude_entry(struct archive *_a, int flag,
     struct archive_entry *entry)
 {
 	struct archive_match *a;
+	int r;
 
 	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_match_time_include_entry");
@@ -958,6 +959,9 @@ archive_match_exclude_entry(struct archive *_a, int flag,
 		archive_set_error(&(a->archive), EINVAL, "entry is NULL");
 		return (ARCHIVE_FAILED);
 	}
+	r = validate_time_flag(_a, flag, "archive_match_exclude_entry");
+	if (r != ARCHIVE_OK)
+		return (r);
 	return (add_entry(a, flag, entry));
 }
 
@@ -1030,14 +1034,13 @@ set_timefilter(struct archive_match *a, int timetype,
     time_t mtime_sec, long mtime_nsec, time_t ctime_sec, long ctime_nsec)
 {
 	if (timetype & ARCHIVE_MATCH_MTIME) {
-		if ((timetype & ARCHIVE_MATCH_NEWER) ||
-		    JUST_EQUAL(timetype)) {
+		if ((timetype & ARCHIVE_MATCH_NEWER) || JUST_EQUAL(timetype)) {
 			a->newer_mtime_filter = timetype;
 			a->newer_mtime_sec = mtime_sec;
 			a->newer_mtime_nsec = mtime_nsec;
 			a->setflag |= TIME_IS_SET;
 		}
-		if (timetype & ARCHIVE_MATCH_OLDER) {
+		if ((timetype & ARCHIVE_MATCH_OLDER) || JUST_EQUAL(timetype)) {
 			a->older_mtime_filter = timetype;
 			a->older_mtime_sec = mtime_sec;
 			a->older_mtime_nsec = mtime_nsec;
@@ -1045,14 +1048,13 @@ set_timefilter(struct archive_match *a, int timetype,
 		}
 	}
 	if (timetype & ARCHIVE_MATCH_CTIME) {
-		if ((timetype & ARCHIVE_MATCH_NEWER) ||
-		    JUST_EQUAL(timetype)) {
+		if ((timetype & ARCHIVE_MATCH_NEWER) || JUST_EQUAL(timetype)) {
 			a->newer_ctime_filter = timetype;
 			a->newer_ctime_sec = ctime_sec;
 			a->newer_ctime_nsec = ctime_nsec;
 			a->setflag |= TIME_IS_SET;
 		}
-		if (timetype & ARCHIVE_MATCH_OLDER) {
+		if ((timetype & ARCHIVE_MATCH_OLDER) || JUST_EQUAL(timetype)) {
 			a->older_ctime_filter = timetype;
 			a->older_ctime_sec = ctime_sec;
 			a->older_ctime_nsec = ctime_nsec;
@@ -1452,8 +1454,7 @@ time_excluded(struct archive_match *a, struct archive_entry *entry)
 			    (a->newer_ctime_filter & ARCHIVE_MATCH_EQUAL)
 			      == 0)
 				return (1); /* Equal, skip it. */
-		} else if (JUST_EQUAL(a->newer_ctime_filter))
-			return (1);
+		}
 	}
 	if (a->older_ctime_filter) {
 		/* If ctime is not set, use mtime instead. */
@@ -1488,8 +1489,7 @@ time_excluded(struct archive_match *a, struct archive_entry *entry)
 			    (a->newer_mtime_filter & ARCHIVE_MATCH_EQUAL)
 			       == 0)
 				return (1); /* Equal, skip it. */
-		} else if (JUST_EQUAL(a->newer_mtime_filter))
-			return (1);
+		}
 	}
 	if (a->older_mtime_filter) {
 		sec = archive_entry_mtime(entry);
