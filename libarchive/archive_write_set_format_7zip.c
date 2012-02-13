@@ -413,7 +413,10 @@ _7z_options(struct archive_write *a, const char *key, const char *value)
 		return (ARCHIVE_OK);
 	}
 
-	return (ARCHIVE_FAILED);
+	/* Note: The "warn" return is just to inform the options
+	 * supervisor that we didn't handle it.  It will generate
+	 * a suitable error if no one used this option. */
+	return (ARCHIVE_WARN);
 }
 
 static int

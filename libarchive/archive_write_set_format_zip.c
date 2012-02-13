@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2008 Anselm Strauss
  * Copyright (c) 2009 Joerg Sonnenberger
- * Copyright (c) 2011 Michihiro NAKAJIMA
+ * Copyright (c) 2011-2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -233,6 +233,7 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 			zip->compression = COMPRESSION_STORE;
 			ret = ARCHIVE_OK;
 		}
+		return (ret);
 	} else if (strcmp(key, "hdrcharset")  == 0) {
 		if (val == NULL || val[0] == 0) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -246,10 +247,13 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 			else
 				ret = ARCHIVE_FATAL;
 		}
-	} else
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "%s: unknown keyword ``%s''", a->format_name, key);
-	return (ret);
+		return (ret);
+	}
+
+	/* Note: The "warn" return is just to inform the options
+	 * supervisor that we didn't handle it.  It will generate
+	 * a suitable error if no one used this option. */
+	return (ARCHIVE_WARN);
 }
 
 int

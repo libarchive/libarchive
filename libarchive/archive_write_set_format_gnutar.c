@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
  * Author: Jonas Gastal <jgastal@profusion.mobi>
- * Copyright (c) 2011 Michihiro NAKAJIMA
+ * Copyright (c) 2011-2012 Michihiro NAKAJIMA
  *
  * All rights reserved.
  *
@@ -177,7 +177,8 @@ archive_write_set_format_gnutar(struct archive *_a)
 
 	gnutar = (struct gnutar *)calloc(1, sizeof(*gnutar));
 	if (gnutar == NULL) {
-		archive_set_error(&a->archive, ENOMEM, "Can't allocate gnutar data");
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate gnutar data");
 		return (ARCHIVE_FATAL);
 	}
 	a->format_data = gnutar;
@@ -213,11 +214,13 @@ archive_write_gnutar_options(struct archive_write *a, const char *key,
 			else
 				ret = ARCHIVE_FATAL;
 		}
-	} else
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "%s: unknown keyword ``%s''", a->format_name, key);
+		return (ret);
+	}
 
-	return (ret);
+	/* Note: The "warn" return is just to inform the options
+	 * supervisor that we didn't handle it.  It will generate
+	 * a suitable error if no one used this option. */
+	return (ARCHIVE_WARN);
 }
 
 static int
