@@ -654,7 +654,7 @@ copy_file_data_block(struct bsdtar *bsdtar, struct archive *a,
 			}
 
 			while (sparse > 0) {
-				if (sparse > bsdtar->buff_size)
+				if (sparse > (int64_t)bsdtar->buff_size)
 					ns = bsdtar->buff_size;
 				else
 					ns = (size_t)sparse;
