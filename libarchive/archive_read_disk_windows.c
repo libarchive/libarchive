@@ -397,7 +397,6 @@ archive_read_disk_new(void)
 	a->lookup_gname = trivial_lookup_gname;
 	a->enable_copyfile = 1;
 	a->traverse_mount_points = 1;
-	a->entry_wd_fd = -1;
 	return (&a->archive);
 }
 
