@@ -2066,14 +2066,9 @@ parse_rockridge(struct archive_read *a, struct file_info *file,
 		int data_length = p[2] - 4;
 		int version = p[3];
 
-		/*
-		 * Yes, each 'if' here does test p[0] again.
-		 * Otherwise, the fall-through handling to catch
-		 * unsupported extensions doesn't work.
-		 */
 		switch(p[0]) {
 		case 'C':
-			if (p[0] == 'C' && p[1] == 'E') {
+			if (p[1] == 'E') {
 				if (version == 1 && data_length == 24) {
 					/*
 					 * CE extension comprises:
@@ -2091,53 +2086,42 @@ parse_rockridge(struct archive_read *a, struct file_info *file,
 					    != ARCHIVE_OK)
 						return (ARCHIVE_FATAL);
 				}
-				break;
 			}
-			if (p[0] == 'C' && p[1] == 'L') {
+			else if (p[1] == 'L') {
 				if (version == 1 && data_length == 8) {
 					file->cl_offset = (uint64_t)
 					    iso9660->logical_block_size *
 					    (uint64_t)archive_le32dec(data);
 					iso9660->seenRockridge = 1;
 				}
-				break;
 			}
-			/* FALLTHROUGH */
+			break;
 		case 'N':
-			if (p[0] == 'N' && p[1] == 'M') {
+			if (p[1] == 'M') {
 				if (version == 1) {
 					parse_rockridge_NM1(file,
 					    data, data_length);
 					iso9660->seenRockridge = 1;
 				}
-				break;
 			}
-			/* FALLTHROUGH */
+			break;
 		case 'P':
-			if (p[0] == 'P' && p[1] == 'D') {
-				/*
-				 * PD extension is padding;
-				 * contents are always ignored.
-				 */
-				break;
-			}
-			if (p[0] == 'P' && p[1] == 'L') {
-				/*
-				 * PL extension won't appear;
-				 * contents are always ignored.
-				 */
-				break;
-			}
-			if (p[0] == 'P' && p[1] == 'N') {
+			/*
+			 * PD extension is padding;
+			 * contents are always ignored.
+			 *
+			 * PL extension won't appear;
+			 * contents are always ignored.
+			 */
+			if (p[1] == 'N') {
 				if (version == 1 && data_length == 16) {
 					file->rdev = toi(data,4);
 					file->rdev <<= 32;
 					file->rdev |= toi(data + 8, 4);
 					iso9660->seenRockridge = 1;
 				}
-				break;
 			}
-			if (p[0] == 'P' && p[1] == 'X') {
+			else if (p[1] == 'X') {
 				/*
 				 * PX extension comprises:
 				 *   8 bytes for mode,
@@ -2164,35 +2148,31 @@ parse_rockridge(struct archive_read *a, struct file_info *file,
 						    = toi(data + 32, 4);
 					iso9660->seenRockridge = 1;
 				}
-				break;
 			}
-			/* FALLTHROUGH */
+			break;
 		case 'R':
-			if (p[0] == 'R' && p[1] == 'E' && version == 1) {
+			if (p[1] == 'E' && version == 1) {
 				file->re = 1;
 				iso9660->seenRockridge = 1;
-				break;
 			}
-			if (p[0] == 'R' && p[1] == 'R' && version == 1) {
+			else if (p[1] == 'R' && version == 1) {
 				/*
 				 * RR extension comprises:
 				 *    one byte flag value
 				 * This extension is obsolete,
 				 * so contents are always ignored.
 				 */
-				break;
 			}
-			/* FALLTHROUGH */
+			break;
 		case 'S':
-			if (p[0] == 'S' && p[1] == 'L') {
+			if (p[1] == 'L') {
 				if (version == 1) {
 					parse_rockridge_SL1(file,
 					    data, data_length);
 					iso9660->seenRockridge = 1;
 				}
-				break;
 			}
-			if (p[0] == 'S' && p[1] == 'T'
+			else if (p[1] == 'T'
 			    && data_length == 0 && version == 1) {
 				/*
 				 * ST extension marks end of this
@@ -2207,31 +2187,26 @@ parse_rockridge(struct archive_read *a, struct file_info *file,
 				iso9660->seenRockridge = 0;
 				return (ARCHIVE_OK);
 			}
+			break;
 		case 'T':
-			if (p[0] == 'T' && p[1] == 'F') {
+			if (p[1] == 'F') {
 				if (version == 1) {
 					parse_rockridge_TF1(file,
 					    data, data_length);
 					iso9660->seenRockridge = 1;
 				}
-				break;
 			}
-			/* FALLTHROUGH */
+			break;
 		case 'Z':
-			if (p[0] == 'Z' && p[1] == 'F') {
+			if (p[1] == 'F') {
 				if (version == 1)
 					parse_rockridge_ZF1(file,
 					    data, data_length);
-				break;
 			}
-			/* FALLTHROUGH */
+			break;
 		default:
-			/* The FALLTHROUGHs above leave us here for
-			 * any unsupported extension. */
 			break;
 		}
-
-
 
 		p += p[2];
 	}
