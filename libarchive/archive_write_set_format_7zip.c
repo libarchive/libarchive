@@ -1590,7 +1590,8 @@ file_init_register_empty(struct _7zip *zip)
 	zip->empty_list.last = &(zip->empty_list.first);
 }
 
-#if !defined(HAVE_BZLIB_H) || !defined(BZ_CONFIG_ERROR) || !defined(HAVE_LZMA_H)
+#if !defined(HAVE_ZLIB_H) || !defined(HAVE_BZLIB_H) ||\
+	 !defined(BZ_CONFIG_ERROR) || !defined(HAVE_LZMA_H)
 static int
 compression_unsupported_encoder(struct archive *a,
     struct la_zstream *lastrm, const char *name)
