@@ -56,6 +56,9 @@ struct archive_read_disk {
 
 	/* Directory traversals. */
 	struct tree *tree;
+	int	(*open_on_current_dir)(struct tree*, const char *, int);
+	int	(*tree_current_dir_fd)(struct tree*);
+	int	(*tree_enter_working_dir)(struct tree*);
 
 	/* Set 1 if users request to restore atime . */
 	int		 restore_time;
@@ -65,8 +68,6 @@ struct archive_read_disk {
 	int		 enable_copyfile;
 	/* Set 1 if users request to traverse mount points. */
 	int		 traverse_mount_points;
-
-	int		 entry_wd_fd;
 
 	const char * (*lookup_gname)(void *private, int64_t gid);
 	void	(*cleanup_gname)(void *private);
