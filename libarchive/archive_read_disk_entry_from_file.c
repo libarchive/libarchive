@@ -898,7 +898,7 @@ setup_sparse(struct archive_read_disk *a,
 		path = archive_entry_sourcepath(entry);
 		if (path == NULL)
 			path = archive_entry_pathname(entry);
-		if (a->tree != NULL) {
+		if (a->tree != NULL)
 			*fd = a->open_on_current_dir(a->tree, path,
 				O_RDONLY | O_NONBLOCK);
 		else
