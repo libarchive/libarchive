@@ -2042,12 +2042,24 @@ tree_reopen(struct tree *t, const char *path, int restore_time)
 static int
 tree_descent(struct tree *t)
 {
-	int r = 0;
+	int flag, new_fd, r = 0;
 
-#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_FDOPENDIR)
-	int new_fd;
 	t->dirname_length = archive_strlen(&t->path);
-	new_fd = openat(t->working_dir_fd, t->stack->name.s, O_RDONLY);
+	flag = O_RDONLY;
+#if defined(O_DIRECTORY)
+	flag |= O_DIRECTORY;
+#endif
+#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_FDOPENDIR)
+	new_fd = openat(t->working_dir_fd, t->stack->name.s, flag);
+#else
+	new_fd = open(t->stack->name.s, flag);
+	if (new_fd >= 0) {
+		if (fchdir(new_fd) != 0) {
+			close(new_fd);
+			new_fd = -1;
+		}
+	}
+#endif
 	if (new_fd < 0) {
 		t->tree_errno = errno;
 		r = TREE_ERROR_DIR;
@@ -2063,28 +2075,6 @@ tree_descent(struct tree *t)
 			close(t->working_dir_fd);
 		t->working_dir_fd = new_fd;
 	}
-#else
-	/* If it is a link, set up fd for the ascent. */
-	if (t->stack->flags & isDirLink)
-		t->stack->symlink_parent_fd = t->working_dir_fd;
-	else {
-		close(t->working_dir_fd);
-		t->openCount--;
-	}
-	t->working_dir_fd = -1;
-	t->dirname_length = archive_strlen(&t->path);
-	if (chdir(t->stack->name.s) != 0)
-	{
-		t->tree_errno = errno;
-		r = TREE_ERROR_DIR;
-	} else {
-		t->depth++;
-		t->working_dir_fd = open(".", O_RDONLY);
-		t->openCount++;
-		if (t->openCount > t->maxOpenCount)
-			t->maxOpenCount = t->openCount;
-	}
-#endif
 	return (r);
 }
 
@@ -2095,37 +2085,33 @@ static int
 tree_ascend(struct tree *t)
 {
 	struct tree_entry *te;
-	int r = 0, prev_dir_fd;
+	int new_fd, r = 0, prev_dir_fd;
 
 	te = t->stack;
 	prev_dir_fd = t->working_dir_fd;
 #if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_FDOPENDIR)
 	if (te->flags & isDirLink)
-		t->working_dir_fd = te->symlink_parent_fd;
-	else {
-		int new_fd = openat(t->working_dir_fd, "..", O_RDONLY);
-		if (new_fd < 0) {
-			t->tree_errno = errno;
-			r = TREE_ERROR_FATAL;
-		} else
-			t->working_dir_fd = new_fd;
-	}
+		new_fd = te->symlink_parent_fd;
+	else
+		new_fd = openat(t->working_dir_fd, "..", O_RDONLY);
 #else
-	if (te->flags & isDirLink) {
-		if (fchdir(te->symlink_parent_fd) != 0) {
-			t->tree_errno = errno;
-			r = TREE_ERROR_FATAL;
-		} else
-			t->working_dir_fd = te->symlink_parent_fd;
-	} else {
-		if (chdir("..") != 0) {
-			t->tree_errno = errno;
-			r = TREE_ERROR_FATAL;
-		} else
-			t->working_dir_fd = open(".", O_RDONLY);
+	if (te->flags & isDirLink)
+		new_fd = te->symlink_parent_fd;
+	else
+		new_fd = open("..", O_RDONLY);
+	if (new_fd >= 0) {
+		if (fchdir(new_fd) != 0) {
+			if ((te->flags & isDirLink) == 0)
+				close(new_fd);
+			new_fd = -1;
+		}
 	}
 #endif
-	if (r == 0) {
+	if (new_fd < 0) {
+		t->tree_errno = errno;
+		r = TREE_ERROR_FATAL;
+	} else {
+		t->working_dir_fd = new_fd;
 		/* Current directory has been changed, we should
 		 * close an fd of previous working directory. */
 		close_and_restore_time(prev_dir_fd, t, &te->restore_time);
