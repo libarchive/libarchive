@@ -1112,37 +1112,38 @@ set_timefilter_date_w(struct archive_match *a, int timetype,
 }
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
-#define EPOC_TIME (116444736000000000ui64)
+#define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
 static int
 set_timefilter_find_data(struct archive_match *a, int timetype,
     DWORD ftLastWriteTime_dwHighDateTime, DWORD ftLastWriteTime_dwLowDateTime,
     DWORD ftCreationTime_dwHighDateTime, DWORD ftCreationTime_dwLowDateTime)
 {
 	ULARGE_INTEGER utc;
-	time_t ctime, mtime;
+	time_t ctime_sec, mtime_sec;
 	long ctime_ns, mtime_ns;
 
 	utc.HighPart = ftCreationTime_dwHighDateTime;
 	utc.LowPart = ftCreationTime_dwLowDateTime;
 	if (utc.QuadPart >= EPOC_TIME) {
 		utc.QuadPart -= EPOC_TIME;
-		ctime = (time_t)(utc.QuadPart / 10000000);
+		ctime_sec = (time_t)(utc.QuadPart / 10000000);
 		ctime_ns = (long)(utc.QuadPart % 10000000) * 100;
 	} else {
-		ctime = 0;
+		ctime_sec = 0;
 		ctime_ns = 0;
 	}
 	utc.HighPart = ftLastWriteTime_dwHighDateTime;
 	utc.LowPart = ftLastWriteTime_dwLowDateTime;
 	if (utc.QuadPart >= EPOC_TIME) {
 		utc.QuadPart -= EPOC_TIME;
-		mtime = (time_t)(utc.QuadPart / 10000000);
+		mtime_sec = (time_t)(utc.QuadPart / 10000000);
 		mtime_ns = (long)(utc.QuadPart % 10000000) * 100;
 	} else {
-		mtime = 0;
+		mtime_sec = 0;
 		mtime_ns = 0;
 	}
-	return set_timefilter(a, timetype, mtime, mtime_ns, ctime, ctime_ns);
+	return set_timefilter(a, timetype,
+			mtime_sec, mtime_ns, ctime_sec, ctime_ns);
 }
 
 static int

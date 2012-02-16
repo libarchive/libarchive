@@ -1151,7 +1151,7 @@ make_time(struct archive_write *a, uint8_t type, unsigned flg, int ti)
 	struct _7zip *zip = (struct _7zip *)a->format_data;
 	struct file *file;
 	int r;
-	uint8_t mask, byte;
+	uint8_t b, mask;
 
 	/*
 	 * Make Time Bools.
@@ -1188,23 +1188,23 @@ make_time(struct archive_write *a, uint8_t type, unsigned flg, int ti)
 		if (r < 0)
 			return (r);
 
-		byte = 0;
+		b = 0;
 		mask = 0x80;
 		file = zip->file_list.first;
 		for (;file != NULL; file = file->next) {
 			if (file->flg & flg)
-				byte |= mask;
+				b |= mask;
 			mask >>= 1;
 			if (mask == 0) {
-				r = compress_out(a, &byte, 1, ARCHIVE_Z_RUN);
+				r = compress_out(a, &b, 1, ARCHIVE_Z_RUN);
 				if (r < 0)
 					return (r);
 				mask = 0x80;
-				byte = 0;
+				b = 0;
 			}
 		}
 		if (mask != 0x80) {
-			r = compress_out(a, &byte, 1, ARCHIVE_Z_RUN);
+			r = compress_out(a, &b, 1, ARCHIVE_Z_RUN);
 			if (r < 0)
 				return (r);
 		}
@@ -1240,7 +1240,7 @@ make_header(struct archive_write *a, uint64_t offset, uint64_t pack_size,
 	struct _7zip *zip = (struct _7zip *)a->format_data;
 	struct file *file;
 	int r;
-	uint8_t mask, byte;
+	uint8_t b, mask;
 
 	/*
 	 * Make FilesInfo.
@@ -1288,23 +1288,23 @@ make_header(struct archive_write *a, uint64_t offset, uint64_t pack_size,
 		if (r < 0)
 			return (r);
 
-		byte = 0;
+		b = 0;
 		mask = 0x80;
 		file = zip->file_list.first;
 		for (;file != NULL; file = file->next) {
 			if (file->size == 0)
-				byte |= mask;
+				b |= mask;
 			mask >>= 1;
 			if (mask == 0) {
-				r = compress_out(a, &byte, 1, ARCHIVE_Z_RUN);
+				r = compress_out(a, &b, 1, ARCHIVE_Z_RUN);
 				if (r < 0)
 					return (r);
 				mask = 0x80;
-				byte = 0;
+				b = 0;
 			}
 		}
 		if (mask != 0x80) {
-			r = compress_out(a, &byte, 1, ARCHIVE_Z_RUN);
+			r = compress_out(a, &b, 1, ARCHIVE_Z_RUN);
 			if (r < 0)
 				return (r);
 		}
@@ -1321,25 +1321,25 @@ make_header(struct archive_write *a, uint64_t offset, uint64_t pack_size,
 		if (r < 0)
 			return (r);
 
-		byte = 0;
+		b = 0;
 		mask = 0x80;
 		file = zip->file_list.first;
 		for (;file != NULL; file = file->next) {
 			if (file->size)
 				continue;
 			if (!file->dir)
-				byte |= mask;
+				b |= mask;
 			mask >>= 1;
 			if (mask == 0) {
-				r = compress_out(a, &byte, 1, ARCHIVE_Z_RUN);
+				r = compress_out(a, &b, 1, ARCHIVE_Z_RUN);
 				if (r < 0)
 					return (r);
 				mask = 0x80;
-				byte = 0;
+				b = 0;
 			}
 		}
 		if (mask != 0x80) {
-			r = compress_out(a, &byte, 1, ARCHIVE_Z_RUN);
+			r = compress_out(a, &b, 1, ARCHIVE_Z_RUN);
 			if (r < 0)
 				return (r);
 		}

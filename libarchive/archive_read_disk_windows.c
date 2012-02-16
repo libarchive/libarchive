@@ -1775,7 +1775,7 @@ tree_dir_next_windows(struct tree *t, const wchar_t *pattern)
 
 #define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
 static void
-fileTimeToUtc(const FILETIME *filetime, time_t *time, long *ns)
+fileTimeToUtc(const FILETIME *filetime, time_t *t, long *ns)
 {
 	ULARGE_INTEGER utc;
 
@@ -1784,11 +1784,11 @@ fileTimeToUtc(const FILETIME *filetime, time_t *time, long *ns)
 	if (utc.QuadPart >= EPOC_TIME) {
 		utc.QuadPart -= EPOC_TIME;
 		/* milli seconds base */
-		*time = (time_t)(utc.QuadPart / 10000000);
+		*t = (time_t)(utc.QuadPart / 10000000);
 		/* nano seconds base */
 		*ns = (long)(utc.QuadPart % 10000000) * 100;
 	} else {
-		*time = 0;
+		*t = 0;
 		*ns = 0;
 	}
 }

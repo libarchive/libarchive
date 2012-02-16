@@ -517,7 +517,7 @@ archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
 		if (NULL == archive_wstring_ensure(dest,
 		    dest->length + count + 1))
 			return (-1);
-		wmemcpy(dest->s + dest->length, (wchar_t *)s, count);
+		wmemcpy(dest->s + dest->length, (const wchar_t *)s, count);
 		if ((sc->flag & SCONV_FROM_UTF16BE) && !is_big_endian()) {
 			uint16_t *u16 = (uint16_t *)(dest->s + dest->length);
 			int b;

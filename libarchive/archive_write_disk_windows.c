@@ -82,7 +82,7 @@ static BOOL SetFilePointerEx_perso(HANDLE hFile,
 	if(lpNewFilePointer) {
 		lpNewFilePointer->QuadPart = li.QuadPart;
 	}
-	return li.LowPart != -1 || GetLastError() == NO_ERROR;
+	return li.LowPart != (DWORD)-1 || GetLastError() == NO_ERROR;
 }
 
 struct fixup_entry {
@@ -212,7 +212,9 @@ static struct fixup_entry *current_fixup(struct archive_write_disk *,
 static int	cleanup_pathname(struct archive_write_disk *);
 static int	create_dir(struct archive_write_disk *, wchar_t *);
 static int	create_parent_dir(struct archive_write_disk *, wchar_t *);
+static int	la_chmod(const wchar_t *, mode_t);
 static int	older(BY_HANDLE_FILE_INFORMATION *, struct archive_entry *);
+static int	permissive_name_w(struct archive_write_disk *);
 static int	restore_entry(struct archive_write_disk *);
 static int	set_acls(struct archive_write_disk *, HANDLE h,
 		    const wchar_t *, struct archive_acl *);
@@ -353,7 +355,7 @@ file_information(struct archive_write_disk *a, wchar_t *path,
  * So we have to make the full-pathname in another way, which does not
  * break "../" path string.
  */
-int
+static int
 permissive_name_w(struct archive_write_disk *a)
 {
 	wchar_t *wn, *wnp;
@@ -479,7 +481,7 @@ permissive_name_w(struct archive_write_disk *a)
 	return (0);
 }
 
-int
+static int
 la_chmod(const wchar_t *path, mode_t mode)
 {
 	DWORD attr;
@@ -2237,7 +2239,7 @@ set_times(struct archive_write_disk *a,
     time_t atime, long atime_nanos,
     time_t birthtime, long birthtime_nanos,
     time_t mtime, long mtime_nanos,
-    time_t ctime, long ctime_nanos)
+    time_t ctime_sec, long ctime_nanos)
 {
 #define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
 #define WINTIME(sec, nsec) ((Int32x32To64(sec, 10000000) + EPOC_TIME)\
@@ -2248,7 +2250,7 @@ set_times(struct archive_write_disk *a,
 	FILETIME *pfbtime;
 	FILETIME fatime, fbtime, fmtime;
 
-	(void)ctime; /* UNUSED */
+	(void)ctime_sec; /* UNUSED */
 	(void)ctime_nanos; /* UNUSED */
 
 	if (h != INVALID_HANDLE_VALUE) {
@@ -2299,11 +2301,11 @@ settimes_failed:
 static int
 set_times_from_entry(struct archive_write_disk *a)
 {
-	time_t atime, birthtime, mtime, ctime;
+	time_t atime, birthtime, mtime, ctime_sec;
 	long atime_nsec, birthtime_nsec, mtime_nsec, ctime_nsec;
 
 	/* Suitable defaults. */
-	atime = birthtime = mtime = ctime = a->start_time;
+	atime = birthtime = mtime = ctime_sec = a->start_time;
 	atime_nsec = birthtime_nsec = mtime_nsec = ctime_nsec = 0;
 
 	/* If no time was provided, we're done. */
@@ -2325,7 +2327,7 @@ set_times_from_entry(struct archive_write_disk *a)
 		mtime_nsec = archive_entry_mtime_nsec(a->entry);
 	}
 	if (archive_entry_ctime_is_set(a->entry)) {
-		ctime = archive_entry_ctime(a->entry);
+		ctime_sec = archive_entry_ctime(a->entry);
 		ctime_nsec = archive_entry_ctime_nsec(a->entry);
 	}
 
@@ -2333,7 +2335,7 @@ set_times_from_entry(struct archive_write_disk *a)
 			 atime, atime_nsec,
 			 birthtime, birthtime_nsec,
 			 mtime, mtime_nsec,
-			 ctime, ctime_nsec);
+			 ctime_sec, ctime_nsec);
 }
 
 static int
@@ -2456,7 +2458,7 @@ set_xattrs(struct archive_write_disk *a)
 }
 
 static void
-fileTimeToUtc(const FILETIME *filetime, time_t *time, long *ns)
+fileTimeToUtc(const FILETIME *filetime, time_t *t, long *ns)
 {
 	ULARGE_INTEGER utc;
 
@@ -2465,11 +2467,11 @@ fileTimeToUtc(const FILETIME *filetime, time_t *time, long *ns)
 	if (utc.QuadPart >= EPOC_TIME) {
 		utc.QuadPart -= EPOC_TIME;
 		/* milli seconds base */
-		*time = (time_t)(utc.QuadPart / 10000000);
+		*t = (time_t)(utc.QuadPart / 10000000);
 		/* nano seconds base */
 		*ns = (long)(utc.QuadPart % 10000000) * 100;
 	} else {
-		*time = 0;
+		*t = 0;
 		*ns = 0;
 	}
 }

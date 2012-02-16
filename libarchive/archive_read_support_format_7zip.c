@@ -2980,7 +2980,7 @@ extract_pack_stream(struct archive_read *a, size_t minimum)
 		size_t bytes_in, bytes_out;
 		const void *buff_in;
 		unsigned char *buff_out;
-		int eof;
+		int end_of_data;
 
 		/*
 		 * Note: '1' here is a performance optimization.
@@ -3008,10 +3008,10 @@ extract_pack_stream(struct archive_read *a, size_t minimum)
 			buff_in, &bytes_in);
 		switch (r) {
 		case ARCHIVE_OK:
-			eof = 0;
+			end_of_data = 0;
 			break;
 		case ARCHIVE_EOF:
-			eof = 1;
+			end_of_data = 1;
 			break;
 		default:
 			return (ARCHIVE_FATAL);
@@ -3036,7 +3036,7 @@ extract_pack_stream(struct archive_read *a, size_t minimum)
 		if (zip->pack_stream_inbytes_remaining == 0 &&
 		    zip->folder_outbytes_remaining == 0)
 			break;
-		if (eof || (bytes_in == 0 && bytes_out == 0)) {
+		if (end_of_data || (bytes_in == 0 && bytes_out == 0)) {
 			archive_set_error(&(a->archive),
 			    ARCHIVE_ERRNO_MISC, "Damaged 7-Zip archive");
 			return (ARCHIVE_FATAL);

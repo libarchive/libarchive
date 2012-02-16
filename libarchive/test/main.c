@@ -127,7 +127,14 @@ __FBSDID("$FreeBSD: head/lib/libarchive/test/main.c 201247 2009-12-30 05:59:21Z 
 #endif
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
-void *GetFunctionKernel32(const char *name)
+static void	*GetFunctionKernel32(const char *);
+static int	 my_CreateSymbolicLinkA(const char *, const char *, int);
+static int	 my_CreateHardLinkA(const char *, const char *);
+static int	 my_GetFileInformationByName(const char *,
+		     BY_HANDLE_FILE_INFORMATION *);
+
+static void *
+GetFunctionKernel32(const char *name)
 {
 	static HINSTANCE lib;
 	static int set;
@@ -166,7 +173,7 @@ my_CreateHardLinkA(const char *linkname, const char *target)
 	return f == NULL ? 0 : (*f)(linkname, target, NULL);
 }
 
-int
+static int
 my_GetFileInformationByName(const char *path, BY_HANDLE_FILE_INFORMATION *bhfi)
 {
 	HANDLE h;
