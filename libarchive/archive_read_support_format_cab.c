@@ -2068,6 +2068,7 @@ lzx_decode_init(struct lzx_stream *strm, int w_bits)
 	struct lzx_dec *ds;
 	int slot, w_size, w_slot;
 	int base, footer;
+	int base_inc[18];
 
 	if (strm->ds == NULL) {
 		strm->ds = calloc(1, sizeof(*strm->ds));
@@ -2102,13 +2103,15 @@ lzx_decode_init(struct lzx_stream *strm, int w_bits)
 		lzx_huffman_free(&(ds->mt));
 	}
 
+	for (footer = 0; footer < 18; footer++)
+		base_inc[footer] = 1 << footer;
 	base = footer = 0;
 	for (slot = 0; slot < w_slot; slot++) {
 		int n;
 		if (footer == 0)
 			base = slot;
 		else
-			base += 1 << footer;
+			base += base_inc[footer];
 		if (footer < 17) {
 			footer = -2;
 			for (n = base; n; n >>= 1)
