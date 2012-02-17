@@ -919,8 +919,8 @@ __LA_DECL int	archive_match_exclude_entry(struct archive *,
 __LA_DECL int	archive_match_owner_excluded(struct archive *,
 		    struct archive_entry *);
 /* Add inclusion uid, gid, uname and gname. */
-__LA_DECL int	archive_match_include_uid(struct archive *, int64_t);
-__LA_DECL int	archive_match_include_gid(struct archive *, int64_t);
+__LA_DECL int	archive_match_include_uid(struct archive *, __LA_INT64_T);
+__LA_DECL int	archive_match_include_gid(struct archive *, __LA_INT64_T);
 __LA_DECL int	archive_match_include_uname(struct archive *, const char *);
 __LA_DECL int	archive_match_include_uname_w(struct archive *,
 		    const wchar_t *);
