@@ -1505,6 +1505,10 @@ free_decompression(struct archive_read *a, struct _7zip *zip)
 {
 	int r = ARCHIVE_OK;
 
+#if !defined(HAVE_ZLIB_H) &&\
+	!(defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR))
+	(void)a;/* UNUSED */
+#endif
 #ifdef HAVE_LZMA_H
 	if (zip->lzstream_valid)
 		lzma_end(&(zip->lzstream));

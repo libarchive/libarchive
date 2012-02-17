@@ -2529,7 +2529,7 @@ set_mac_metadata(struct archive_write_disk *a, const char *pathname,
 	}
 	written = write(fd, metadata, metadata_size);
 	close(fd);
-	if (written != metadata_size
+	if ((size_t)written != metadata_size
 	    || copyfile(tmp.s, pathname, 0,
 			COPYFILE_UNPACK | COPYFILE_NOFOLLOW
 			| COPYFILE_ACL | COPYFILE_XATTR)) {
