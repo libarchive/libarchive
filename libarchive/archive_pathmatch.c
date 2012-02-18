@@ -125,7 +125,7 @@ pm_list_w(const wchar_t *start, const wchar_t *end, const wchar_t c, int flags)
 				if (*p == c)
 					return (match);
 			} else {
-				char rangeEnd = *++p;
+				wchar_t rangeEnd = *++p;
 				if (rangeEnd == L'\\')
 					rangeEnd = *++p;
 				if ((rangeStart <= c) && (c <= rangeEnd))
