@@ -137,8 +137,8 @@ struct archive_write_disk {
 	struct fixup_entry	*current_fixup;
 	int64_t			 user_uid;
 	int			 skip_file_set;
-	dev_t			 skip_file_dev;
-	ino_t			 skip_file_ino;
+	int64_t			 skip_file_dev;
+	int64_t			 skip_file_ino;
 	time_t			 start_time;
 
 	int64_t (*lookup_gid)(void *private, const char *gname, int64_t gid);
@@ -966,7 +966,7 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 			 * truncate it to the block boundary. */
 			bytes_to_write = size;
 			if (a->offset + bytes_to_write > block_end)
-				bytes_to_write = block_end - a->offset;
+				bytes_to_write = (DWORD)(block_end - a->offset);
 		}
 		memset(&ol, 0, sizeof(ol));
 		ol.Offset = (DWORD)(a->offset & 0xFFFFFFFF);
@@ -989,7 +989,7 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 		a->offset += bytes_written;
 		a->fd_offset = a->offset;
 	}
-	return (start_size - size);
+	return ((ssize_t)(start_size - size));
 }
 
 static ssize_t

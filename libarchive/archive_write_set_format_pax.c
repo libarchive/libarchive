@@ -1263,7 +1263,7 @@ archive_write_pax_header(struct archive_write *a,
 			return (ARCHIVE_FATAL);
 		}
 		/* Pad out the end of the entry. */
-		r = __archive_write_nulls(a, pax->entry_padding);
+		r = __archive_write_nulls(a, (size_t)pax->entry_padding);
 		if (r != ARCHIVE_OK) {
 			/* If a write fails, we're pretty much toast. */
 			return (ARCHIVE_FATAL);
@@ -1605,7 +1605,7 @@ archive_write_pax_finish_entry(struct archive_write *a)
 			pax->sparse_list = sb;
 		}
 	}
-	ret = __archive_write_nulls(a, remaining + pax->entry_padding);
+	ret = __archive_write_nulls(a, (size_t)(remaining + pax->entry_padding));
 	pax->entry_bytes_remaining = pax->entry_padding = 0;
 	return (ret);
 }
@@ -1652,7 +1652,7 @@ archive_write_pax_data(struct archive_write *a, const void *buff, size_t s)
 		p = ((const unsigned char *)buff) + total;
 		ws = s - total;
 		if (ws > pax->sparse_list->remaining)
-			ws = pax->sparse_list->remaining;
+			ws = (size_t)pax->sparse_list->remaining;
 
 		if (pax->sparse_list->is_hole) {
 			/* Current block is hole thus we do not write

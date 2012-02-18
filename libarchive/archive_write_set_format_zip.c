@@ -478,12 +478,15 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		 * specification says to set to zero when using data
 		 * descriptors. Otherwise the end of the data for an
 		 * entry is rather difficult to find. */
-		archive_le32enc(&h[LOCAL_FILE_HEADER_COMPRESSED_SIZE], size);
-		archive_le32enc(&h[LOCAL_FILE_HEADER_UNCOMPRESSED_SIZE], size);
+		archive_le32enc(&h[LOCAL_FILE_HEADER_COMPRESSED_SIZE],
+		    (uint32_t)size);
+		archive_le32enc(&h[LOCAL_FILE_HEADER_UNCOMPRESSED_SIZE],
+		    (uint32_t)size);
 		break;
 #ifdef HAVE_ZLIB_H
 	case COMPRESSION_DEFLATE:
-		archive_le32enc(&h[LOCAL_FILE_HEADER_UNCOMPRESSED_SIZE], size);
+		archive_le32enc(&h[LOCAL_FILE_HEADER_UNCOMPRESSED_SIZE],
+		    (uint32_t)size);
 
 		zip->stream.zalloc = Z_NULL;
 		zip->stream.zfree = Z_NULL;
@@ -506,9 +509,12 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		ZIP_SIGNATURE_EXTRA_TIMESTAMP);
 	archive_le16enc(&e[EXTRA_DATA_LOCAL_TIME_SIZE], 1 + 4 * 3);
 	e[EXTRA_DATA_LOCAL_TIME_FLAG] = 0x07;
-	archive_le32enc(&e[EXTRA_DATA_LOCAL_MTIME], archive_entry_mtime(entry));
-	archive_le32enc(&e[EXTRA_DATA_LOCAL_ATIME], archive_entry_atime(entry));
-	archive_le32enc(&e[EXTRA_DATA_LOCAL_CTIME], archive_entry_ctime(entry));
+	archive_le32enc(&e[EXTRA_DATA_LOCAL_MTIME],
+	    (uint32_t)archive_entry_mtime(entry));
+	archive_le32enc(&e[EXTRA_DATA_LOCAL_ATIME],
+	    (uint32_t)archive_entry_atime(entry));
+	archive_le32enc(&e[EXTRA_DATA_LOCAL_CTIME],
+	    (uint32_t)archive_entry_ctime(entry));
 
 	archive_le16enc(&e[EXTRA_DATA_LOCAL_UNIX_ID],
 		ZIP_SIGNATURE_EXTRA_NEW_UNIX);
@@ -516,12 +522,13 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	e[EXTRA_DATA_LOCAL_UNIX_VERSION] = 1;
 	e[EXTRA_DATA_LOCAL_UNIX_UID_SIZE] = 4;
 	archive_le32enc(&e[EXTRA_DATA_LOCAL_UNIX_UID],
-		archive_entry_uid(entry));
+		(uint32_t)archive_entry_uid(entry));
 	e[EXTRA_DATA_LOCAL_UNIX_GID_SIZE] = 4;
 	archive_le32enc(&e[EXTRA_DATA_LOCAL_UNIX_GID],
-		archive_entry_gid(entry));
+		(uint32_t)archive_entry_gid(entry));
 
-	archive_le32enc(&d[DATA_DESCRIPTOR_UNCOMPRESSED_SIZE], size);
+	archive_le32enc(&d[DATA_DESCRIPTOR_UNCOMPRESSED_SIZE],
+	    (uint32_t)size);
 
 	ret = __archive_write_output(a, h, sizeof(h));
 	if (ret != ARCHIVE_OK)
@@ -542,11 +549,11 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		const unsigned char *p;
 
 		p = (const unsigned char *)archive_entry_symlink(l->entry);
-		ret = __archive_write_output(a, p, size);
+		ret = __archive_write_output(a, p, (size_t)size);
 		if (ret != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
 		zip->written_bytes += size;
-		l->crc32 = crc32(l->crc32, p, size);
+		l->crc32 = crc32(l->crc32, p, (unsigned)size);
 	}
 
 	if (ret2 != ARCHIVE_OK)
@@ -646,7 +653,7 @@ archive_write_zip_finish_entry(struct archive_write *a)
 
 	archive_le32enc(&d[DATA_DESCRIPTOR_CRC32], l->crc32);
 	archive_le32enc(&d[DATA_DESCRIPTOR_COMPRESSED_SIZE],
-		l->compressed_size);
+		(uint32_t)l->compressed_size);
 	ret = __archive_write_output(a, d, SIZE_DATA_DESCRIPTOR);
 	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
@@ -695,15 +702,15 @@ archive_write_zip_close(struct archive_write *a)
 			dos_time(archive_entry_mtime(l->entry)));
 		archive_le32enc(&h[FILE_HEADER_CRC32], l->crc32);
 		archive_le32enc(&h[FILE_HEADER_COMPRESSED_SIZE],
-			l->compressed_size);
+			(uint32_t)l->compressed_size);
 		archive_le32enc(&h[FILE_HEADER_UNCOMPRESSED_SIZE],
-			archive_entry_size(l->entry));
+			(uint32_t)archive_entry_size(l->entry));
 		archive_le16enc(&h[FILE_HEADER_FILENAME_LENGTH],
 			(uint16_t)path_length(l->entry));
 		archive_le16enc(&h[FILE_HEADER_EXTRA_LENGTH], sizeof(e));
 		archive_le16enc(&h[FILE_HEADER_ATTRIBUTES_EXTERNAL+2],
 			archive_entry_mode(l->entry));
-		archive_le32enc(&h[FILE_HEADER_OFFSET], l->offset);
+		archive_le32enc(&h[FILE_HEADER_OFFSET], (uint32_t)l->offset);
 
 		/* Formatting extra data. */
 		archive_le16enc(&e[EXTRA_DATA_CENTRAL_TIME_ID],
@@ -711,7 +718,7 @@ archive_write_zip_close(struct archive_write *a)
 		archive_le16enc(&e[EXTRA_DATA_CENTRAL_TIME_SIZE], 1 + 4);
 		e[EXTRA_DATA_CENTRAL_TIME_FLAG] = 0x07;
 		archive_le32enc(&e[EXTRA_DATA_CENTRAL_MTIME],
-			archive_entry_mtime(l->entry));
+			(uint32_t)archive_entry_mtime(l->entry));
 		archive_le16enc(&e[EXTRA_DATA_CENTRAL_UNIX_ID],
 			ZIP_SIGNATURE_EXTRA_NEW_UNIX);
 		archive_le16enc(&e[EXTRA_DATA_CENTRAL_UNIX_SIZE], 0x0000);
@@ -743,8 +750,9 @@ archive_write_zip_close(struct archive_write *a)
 	archive_le16enc(&end[CENTRAL_DIRECTORY_END_ENTRIES_DISK], entries);
 	archive_le16enc(&end[CENTRAL_DIRECTORY_END_ENTRIES], entries);
 	archive_le32enc(&end[CENTRAL_DIRECTORY_END_SIZE],
-		offset_end - offset_start);
-	archive_le32enc(&end[CENTRAL_DIRECTORY_END_OFFSET], offset_start);
+		(uint32_t)(offset_end - offset_start));
+	archive_le32enc(&end[CENTRAL_DIRECTORY_END_OFFSET],
+		(uint32_t)offset_start);
 
 	/* Writing end of central directory. */
 	ret = __archive_write_output(a, end, sizeof(end));

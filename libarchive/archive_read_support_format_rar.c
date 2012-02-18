@@ -453,7 +453,7 @@ rar_br_fillup(struct archive_read *a, struct rar_br *br)
       if (br->next_in == NULL)
         return (0);
       if (br->avail_in > rar->bytes_remaining)
-        br->avail_in = rar->bytes_remaining;
+        br->avail_in = (ssize_t)rar->bytes_remaining;
       if (br->avail_in == 0)
         return (0);
     }
@@ -481,7 +481,7 @@ rar_br_preparation(struct archive_read *a, struct rar_br *br)
       return (ARCHIVE_FATAL);
     }
     if (br->avail_in > rar->bytes_remaining)
-      br->avail_in = rar->bytes_remaining;
+      br->avail_in = (ssize_t)rar->bytes_remaining;
     if (br->cache_avail == 0)
       (void)rar_br_fillup(a, br);
   }
@@ -522,7 +522,7 @@ lzss_size(struct lzss *lzss)
 static inline int
 lzss_offset_for_position(struct lzss *lzss, int64_t pos)
 {
-  return pos & lzss->mask;
+  return (int)(pos & lzss->mask);
 }
 
 static inline unsigned char *
@@ -1084,11 +1084,11 @@ read_header(struct archive_read *a, struct archive_entry *entry,
     return (ARCHIVE_FATAL);
   }
 
-  if ((h = __archive_read_ahead(a, header_size - 7, NULL)) == NULL)
+  if ((h = __archive_read_ahead(a, (size_t)header_size - 7, NULL)) == NULL)
     return (ARCHIVE_FATAL);
 
   /* File Header CRC check. */
-  crc32_val = crc32(crc32_val, h, header_size - 7);
+  crc32_val = crc32(crc32_val, h, (unsigned)(header_size - 7));
   if ((crc32_val & 0xffff) != archive_le16dec(rar_header.crc)) {
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
       "Header CRC error");
@@ -1148,7 +1148,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
     size_t distance = p - (const char *)h;
     header_size += rar->packed_size;
     /* Make sure we have the extended data. */
-    if ((h = __archive_read_ahead(a, header_size - 7, NULL)) == NULL)
+    if ((h = __archive_read_ahead(a, (size_t)header_size - 7, NULL)) == NULL)
         return (ARCHIVE_FATAL);
     p = h;
     endp = p + header_size - 7;
@@ -1322,7 +1322,8 @@ read_header(struct archive_read *a, struct archive_entry *entry,
 
   rar->bytes_remaining = rar->packed_size;
   rar->bytes_uncopied = rar->bytes_unconsumed = 0;
-  rar->lzss.position = rar->dictionary_size = rar->offset = 0;
+  rar->lzss.position = rar->offset = 0;
+  rar->dictionary_size = 0;
   rar->offset_outgoing = 0;
   rar->br.cache_avail = 0;
   rar->br.avail_in = 0;
@@ -1477,11 +1478,12 @@ read_symlink_stored(struct archive_read *a, struct archive_entry *entry,
   int ret = (ARCHIVE_OK);
 
   rar = (struct rar *)(a->format->data);
-  if ((h = __archive_read_ahead(a, rar->packed_size, NULL)) == NULL)
+  if ((h = __archive_read_ahead(a, (size_t)rar->packed_size, NULL)) == NULL)
     return (ARCHIVE_FATAL);
   p = h;
 
-  if (archive_entry_copy_symlink_l(entry, p, rar->packed_size, sconv))
+  if (archive_entry_copy_symlink_l(entry,
+      p, (size_t)rar->packed_size, sconv))
   {
     if (errno == ENOMEM)
     {
@@ -1528,7 +1530,7 @@ read_data_stored(struct archive_read *a, const void **buff, size_t *size,
     return (ARCHIVE_FATAL);
   }
   if (bytes_avail > rar->bytes_remaining)
-    bytes_avail = rar->bytes_remaining;
+    bytes_avail = (ssize_t)rar->bytes_remaining;
 
   *size = bytes_avail;
   *offset = rar->offset;
@@ -1587,7 +1589,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
       if (rar->bytes_uncopied > (rar->unp_buffer_size - rar->unp_offset))
         bs = rar->unp_buffer_size - rar->unp_offset;
       else
-        bs = rar->bytes_uncopied;
+        bs = (size_t)rar->bytes_uncopied;
       ret = copy_from_lzss_window(a, buff, rar->offset, bs);
       if (ret != ARCHIVE_OK)
         return (ret);
@@ -1715,7 +1717,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
     if (rar->bytes_uncopied > (rar->unp_buffer_size - rar->unp_offset))
       bs = rar->unp_buffer_size - rar->unp_offset;
     else
-      bs = rar->bytes_uncopied;
+      bs = (size_t)rar->bytes_uncopied;
     ret = copy_from_lzss_window(a, buff, rar->offset, bs);
     if (ret != ARCHIVE_OK)
       return (ret);
@@ -1978,7 +1980,7 @@ parse_codes(struct archive_read *a)
     if (rar->unp_size >= DICTIONARY_MAX_SIZE)
       rar->dictionary_size = DICTIONARY_MAX_SIZE;
     else
-      rar->dictionary_size = rar_fls(rar->unp_size) << 1;
+      rar->dictionary_size = rar_fls((unsigned int)rar->unp_size) << 1;
     rar->lzss.window = (unsigned char *)realloc(rar->lzss.window,
                                                 rar->dictionary_size);
     if (rar->lzss.window == NULL) {

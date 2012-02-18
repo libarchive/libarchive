@@ -561,11 +561,11 @@ skip_hole:
 		return (ARCHIVE_FATAL);
 	}
 	if (bytes_read > tar->entry_bytes_remaining)
-		bytes_read = tar->entry_bytes_remaining;
+		bytes_read = (ssize_t)tar->entry_bytes_remaining;
 	/* Don't read more than is available in the
 	 * current sparse block. */
 	if (tar->sparse_list->remaining < bytes_read)
-		bytes_read = tar->sparse_list->remaining;
+		bytes_read = (ssize_t)tar->sparse_list->remaining;
 	*size = bytes_read;
 	*offset = tar->sparse_list->offset;
 	tar->sparse_list->remaining -= bytes_read;
@@ -786,7 +786,7 @@ checksum(struct archive_read *a, const void *h)
 	 * Test the checksum.  Note that POSIX specifies _unsigned_
 	 * bytes for this calculation.
 	 */
-	sum = tar_atol(header->checksum, sizeof(header->checksum));
+	sum = (int)tar_atol(header->checksum, sizeof(header->checksum));
 	check = 0;
 	for (i = 0; i < 148; i++)
 		check += (unsigned char)bytes[i];
@@ -847,7 +847,7 @@ header_Solaris_ACL(struct archive_read *a, struct tar *tar,
 	 * more to make sure that we don't overrun acl_text later.
 	 */
 	header = (const struct archive_entry_header_ustar *)h;
-	size = tar_atol(header->size, sizeof(header->size));
+	size = (size_t)tar_atol(header->size, sizeof(header->size));
 	err = read_body_to_string(a, tar, &(tar->acl_text), h, unconsumed);
 	if (err != ARCHIVE_OK)
 		return (err);
@@ -1021,7 +1021,7 @@ read_body_to_string(struct archive_read *a, struct tar *tar,
 	}
 
 	/* Fail if we can't make our buffer big enough. */
-	if (archive_string_ensure(as, size+1) == NULL) {
+	if (archive_string_ensure(as, (size_t)size+1) == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "No memory");
 		return (ARCHIVE_FATAL);
@@ -1030,15 +1030,15 @@ read_body_to_string(struct archive_read *a, struct tar *tar,
 	tar_flush_unconsumed(a, unconsumed);
 
 	/* Read the body into the string. */
-	*unconsumed = (size + 511) & ~ 511;
+	*unconsumed = (size_t)((size + 511) & ~ 511);
 	src = __archive_read_ahead(a, *unconsumed, NULL);
 	if (src == NULL) {
 		*unconsumed = 0;
 		return (ARCHIVE_FATAL);
 	}
-	memcpy(as->s, src, size);
+	memcpy(as->s, src, (size_t)size);
 	as->s[size] = '\0';
-	as->length = size;
+	as->length = (size_t)size;
 	return (ARCHIVE_OK);
 }
 
@@ -1068,7 +1068,8 @@ header_common(struct archive_read *a, struct tar *tar,
 		archive_string_empty(&(tar->entry_linkpath));
 
 	/* Parse out the numeric fields (all are octal) */
-	archive_entry_set_mode(entry, tar_atol(header->mode, sizeof(header->mode)));
+	archive_entry_set_mode(entry,
+		(mode_t)tar_atol(header->mode, sizeof(header->mode)));
 	archive_entry_set_uid(entry, tar_atol(header->uid, sizeof(header->uid)));
 	archive_entry_set_gid(entry, tar_atol(header->gid, sizeof(header->gid)));
 	tar->entry_bytes_remaining = tar_atol(header->size, sizeof(header->size));
@@ -1310,13 +1311,13 @@ read_mac_metadata_blob(struct archive_read *a, struct tar *tar,
 	 * Q: Is the above idea really possible?  Even
 	 * when there are GNU or pax extension entries?
 	 */
-	data = __archive_read_ahead(a, size, NULL);
+	data = __archive_read_ahead(a, (size_t)size, NULL);
 	if (data == NULL) {
 		*unconsumed = 0;
 		return (ARCHIVE_FATAL);
 	}
-	archive_entry_copy_mac_metadata(entry, data, size);
-	*unconsumed = (size + 511) & ~ 511;
+	archive_entry_copy_mac_metadata(entry, data, (size_t)size);
+	*unconsumed = (size_t)((size + 511) & ~ 511);
 	tar_flush_unconsumed(a, unconsumed);
 	return (tar_read_header(a, tar, entry, unconsumed));
 }
@@ -1424,9 +1425,9 @@ header_ustar(struct archive_read *a, struct tar *tar,
 
 	/* Parse out device numbers only for char and block specials. */
 	if (header->typeflag[0] == '3' || header->typeflag[0] == '4') {
-		archive_entry_set_rdevmajor(entry,
+		archive_entry_set_rdevmajor(entry, (dev_t)
 		    tar_atol(header->rdevmajor, sizeof(header->rdevmajor)));
-		archive_entry_set_rdevminor(entry,
+		archive_entry_set_rdevminor(entry, (dev_t)
 		    tar_atol(header->rdevminor, sizeof(header->rdevminor)));
 	}
 
@@ -1709,11 +1710,11 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 
 		/* GNU "1.0" sparse pax format */
 		if (strcmp(key, "GNU.sparse.major") == 0) {
-			tar->sparse_gnu_major = tar_atol10(value, strlen(value));
+			tar->sparse_gnu_major = (int)tar_atol10(value, strlen(value));
 			tar->sparse_gnu_pending = 1;
 		}
 		if (strcmp(key, "GNU.sparse.minor") == 0) {
-			tar->sparse_gnu_minor = tar_atol10(value, strlen(value));
+			tar->sparse_gnu_minor = (int)tar_atol10(value, strlen(value));
 			tar->sparse_gnu_pending = 1;
 		}
 		if (strcmp(key, "GNU.sparse.name") == 0) {
@@ -1796,20 +1797,20 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 			}
 		} else if (strcmp(key, "SCHILY.devmajor") == 0) {
 			archive_entry_set_rdevmajor(entry,
-			    tar_atol10(value, strlen(value)));
+			    (dev_t)tar_atol10(value, strlen(value)));
 		} else if (strcmp(key, "SCHILY.devminor") == 0) {
 			archive_entry_set_rdevminor(entry,
-			    tar_atol10(value, strlen(value)));
+			    (dev_t)tar_atol10(value, strlen(value)));
 		} else if (strcmp(key, "SCHILY.fflags") == 0) {
 			archive_entry_copy_fflags_text(entry, value);
 		} else if (strcmp(key, "SCHILY.dev") == 0) {
 			archive_entry_set_dev(entry,
-			    tar_atol10(value, strlen(value)));
+			    (dev_t)tar_atol10(value, strlen(value)));
 		} else if (strcmp(key, "SCHILY.ino") == 0) {
 			archive_entry_set_ino(entry,
 			    tar_atol10(value, strlen(value)));
 		} else if (strcmp(key, "SCHILY.nlink") == 0) {
-			archive_entry_set_nlink(entry,
+			archive_entry_set_nlink(entry, (unsigned)
 			    tar_atol10(value, strlen(value)));
 		} else if (strcmp(key, "SCHILY.realsize") == 0) {
 			tar->realsize = tar_atol10(value, strlen(value));
@@ -2018,9 +2019,9 @@ header_gnutar(struct archive_read *a, struct tar *tar,
 
 	/* Parse out device numbers only for char and block specials */
 	if (header->typeflag[0] == '3' || header->typeflag[0] == '4') {
-		archive_entry_set_rdevmajor(entry,
+		archive_entry_set_rdevmajor(entry, (dev_t)
 		    tar_atol(header->rdevmajor, sizeof(header->rdevmajor)));
-		archive_entry_set_rdevminor(entry,
+		archive_entry_set_rdevminor(entry, (dev_t)
 		    tar_atol(header->rdevminor, sizeof(header->rdevminor)));
 	} else
 		archive_entry_set_rdev(entry, 0);
@@ -2255,7 +2256,8 @@ gnu_sparse_10_atol(struct archive_read *a, struct tar *tar,
 	 * don't require this, but they should.
 	 */
 	do {
-		bytes_read = readline(a, tar, &p, tar_min(*remaining, 100), unconsumed);
+		bytes_read = readline(a, tar, &p,
+			(ssize_t)tar_min(*remaining, 100), unconsumed);
 		if (bytes_read <= 0)
 			return (ARCHIVE_FATAL);
 		*remaining -= bytes_read;
@@ -2296,7 +2298,7 @@ gnu_sparse_10_read(struct archive_read *a, struct tar *tar, size_t *unconsumed)
 	remaining = tar->entry_bytes_remaining;
 
 	/* Parse entries. */
-	entries = gnu_sparse_10_atol(a, tar, &remaining, unconsumed);
+	entries = (int)gnu_sparse_10_atol(a, tar, &remaining, unconsumed);
 	if (entries < 0)
 		return (ARCHIVE_FATAL);
 	/* Parse the individual entries. */
@@ -2314,11 +2316,11 @@ gnu_sparse_10_read(struct archive_read *a, struct tar *tar, size_t *unconsumed)
 	}
 	/* Skip rest of block... */
 	tar_flush_unconsumed(a, unconsumed);
-	bytes_read = tar->entry_bytes_remaining - remaining;
+	bytes_read = (ssize_t)(tar->entry_bytes_remaining - remaining);
 	to_skip = 0x1ff & -bytes_read;
 	if (to_skip != __archive_read_consume(a, to_skip))
 		return (ARCHIVE_FATAL);
-	return (bytes_read + to_skip);
+	return ((ssize_t)(bytes_read + to_skip));
 }
 
 /*

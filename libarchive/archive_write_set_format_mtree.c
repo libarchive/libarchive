@@ -1079,7 +1079,7 @@ archive_write_mtree_data(struct archive_write *a, const void *buff, size_t n)
 	struct mtree_writer *mtree= a->format_data;
 
 	if (n > mtree->entry_bytes_remaining)
-		n = mtree->entry_bytes_remaining;
+		n = (size_t)mtree->entry_bytes_remaining;
 	mtree->entry_bytes_remaining -= n;
 
 	/* We don't need to compute a regular file sum */

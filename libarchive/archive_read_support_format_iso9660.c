@@ -975,8 +975,8 @@ read_children(struct archive_read *a, struct file_info *parent)
 		iso9660->current_position = parent->offset;
 	}
 
-	step = ((parent->size + iso9660->logical_block_size -1) /
-	    iso9660->logical_block_size) * iso9660->logical_block_size;
+	step = (size_t)(((parent->size + iso9660->logical_block_size -1) /
+	    iso9660->logical_block_size) * iso9660->logical_block_size);
 	b = __archive_read_ahead(a, step, NULL);
 	if (b == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -1397,7 +1397,7 @@ zisofs_read_data(struct archive_read *a,
 		return (ARCHIVE_FATAL);
 	}
 	if (bytes_read > iso9660->entry_bytes_remaining)
-		bytes_read = iso9660->entry_bytes_remaining;
+		bytes_read = (ssize_t)iso9660->entry_bytes_remaining;
 	avail = bytes_read;
 	uncompressed_size = 0;
 
@@ -1405,9 +1405,9 @@ zisofs_read_data(struct archive_read *a,
 		size_t ceil, xsize;
 
 		/* Allocate block pointers buffer. */
-		ceil = (zisofs->pz_uncompressed_size +
+		ceil = (size_t)((zisofs->pz_uncompressed_size +
 			(((int64_t)1) << zisofs->pz_log2_bs) - 1)
-			>> zisofs->pz_log2_bs;
+			>> zisofs->pz_log2_bs);
 		xsize = (ceil + 1) * 4;
 		if (zisofs->block_pointers_alloc < xsize) {
 			size_t alloc;
@@ -1671,7 +1671,7 @@ archive_read_format_iso9660_read_data(struct archive_read *a,
 	if (*buff == NULL)
 		return (ARCHIVE_FATAL);
 	if (bytes_read > iso9660->entry_bytes_remaining)
-		bytes_read = iso9660->entry_bytes_remaining;
+		bytes_read = (ssize_t)iso9660->entry_bytes_remaining;
 	*size = bytes_read;
 	*offset = iso9660->entry_sparse_offset;
 	iso9660->entry_sparse_offset += bytes_read;

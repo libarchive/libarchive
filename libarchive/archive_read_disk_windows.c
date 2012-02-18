@@ -552,7 +552,7 @@ trivial_lookup_uname(void *private_data, int64_t uid)
 static int64_t
 align_num_per_sector(struct tree *t, int64_t size)
 {
-	int surplus;
+	int64_t surplus;
 
 	size += t->current_filesystem->bytesPerSector -1;
 	surplus = size % t->current_filesystem->bytesPerSector;
@@ -599,7 +599,7 @@ start_next_async_read(struct archive_read_disk *a, struct tree *t)
 
 	buffbytes = olp->buff_size;
 	if (buffbytes > t->current_sparse->length)
-		buffbytes = t->current_sparse->length;
+		buffbytes = (DWORD)t->current_sparse->length;
 
 	/* Skip hole. */
 	if (t->current_sparse->offset > t->ol_total) {
@@ -615,7 +615,7 @@ start_next_async_read(struct archive_read_disk *a, struct tree *t)
 		olp->bytes_expected = buffbytes;
 		t->ol_remaining_bytes -= buffbytes;
 	} else {
-		olp->bytes_expected = t->ol_remaining_bytes;
+		olp->bytes_expected = (size_t)t->ol_remaining_bytes;
 		t->ol_remaining_bytes = 0;
 	}
 	olp->bytes_transferred = 0;

@@ -328,7 +328,7 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 		zip_entry->system = p[5];
 		/* version_required = archive_le16dec(p + 6); */
 		zip_entry->flags = archive_le16dec(p + 8);
-		zip_entry->compression = archive_le16dec(p + 10);
+		zip_entry->compression = (char)archive_le16dec(p + 10);
 		zip_entry->mtime = zip_time(p + 12);
 		zip_entry->crc32 = archive_le32dec(p + 16);
 		zip_entry->compressed_size = archive_le32dec(p + 20);
@@ -420,7 +420,7 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 	if ((zip->entry->mode & AE_IFMT) == AE_IFLNK) {
 		const void *p;
 		struct archive_string_conv *sconv;
-		size_t linkname_length = archive_entry_size(entry);
+		size_t linkname_length = (size_t)archive_entry_size(entry);
 
 		archive_entry_set_size(entry, 0);
 		p = __archive_read_ahead(a, linkname_length, NULL);
@@ -637,7 +637,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	version = p[4];
 	zip_entry->system = p[5];
 	zip_entry->flags = archive_le16dec(p + 6);
-	zip_entry->compression = archive_le16dec(p + 8);
+	zip_entry->compression = (char)archive_le16dec(p + 8);
 	zip_entry->mtime = zip_time(p + 10);
 	local_crc32 = archive_le32dec(p + 14);
 	compressed_size = archive_le32dec(p + 18);
@@ -994,7 +994,7 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 			return (ARCHIVE_FATAL);
 		}
 		if (bytes_avail > zip->entry_bytes_remaining)
-			bytes_avail = zip->entry_bytes_remaining;
+			bytes_avail = (ssize_t)zip->entry_bytes_remaining;
 	}
 	*size = bytes_avail;
 	zip->entry_bytes_remaining -= bytes_avail;
@@ -1058,7 +1058,7 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	compressed_buff = __archive_read_ahead(a, 1, &bytes_avail);
 	if (0 == (zip->entry->flags & ZIP_LENGTH_AT_END)
 	    && bytes_avail > zip->entry_bytes_remaining) {
-		bytes_avail = zip->entry_bytes_remaining;
+		bytes_avail = (ssize_t)zip->entry_bytes_remaining;
 	}
 	if (bytes_avail <= 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,

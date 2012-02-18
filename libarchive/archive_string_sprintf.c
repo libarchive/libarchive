@@ -131,7 +131,7 @@ archive_string_vsprintf(struct archive_string *as, const char *fmt,
 			break;
 		case 'c':
 			s = va_arg(ap, int);
-			archive_strappend_char(as, s);
+			archive_strappend_char(as, (char)s);
 			break;
 		case 'd':
 			switch(long_flag) {

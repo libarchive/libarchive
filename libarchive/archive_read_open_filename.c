@@ -454,7 +454,7 @@ static int64_t
 file_seek(struct archive *a, void *client_data, int64_t request, int whence)
 {
 	struct read_file_data *mine = (struct read_file_data *)client_data;
-	off_t r;
+	int64_t r;
 
 	/* We use off_t here because lseek() is declared that way. */
 	/* See above for notes about when off_t is less than 64 bits. */
