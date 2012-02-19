@@ -54,6 +54,10 @@ IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
   ADD_DEFINITIONS(-Wall -Werror -Wextra -Wunused -Wshadow -Wmissing-prototypes -Wcast-qual)
   SET(CMAKE_REQUIRED_FLAGS "-Wall -Werror")
 ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
+IF (MSVC)
+  ADD_DEFINITIONS(/WX)
+  SET(CMAKE_REQUIRED_FLAGS "/WX")
+ENDIF (MSVC)
 
 # Enable CTest/CDash support
 include(CTest)
