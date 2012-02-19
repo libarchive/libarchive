@@ -70,6 +70,11 @@ IF (MSVC)
   SET(CMAKE_REQUIRED_FLAGS "/WX")
   # Set compile flags for all build types.
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /WX")
+  # Set compile flags for debug build.
+  # This is added into CMAKE_C_FLAGS when CMAKE_BUILD_TYPE is "Debug"
+  # Enable level 4 C4706: The test value in a conditional expression was the
+  #                       result of an assignment.
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4706")
 ENDIF (MSVC)
 
 # Enable CTest/CDash support
