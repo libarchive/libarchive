@@ -778,7 +778,7 @@ static void Range_Normalize(CPpmd7z_RangeDec *p)
       if(p->Range >= p->Bottom)
         break;
       else
-        p->Range = -p->Low & (p->Bottom - 1);
+        p->Range = ((uint32_t)(-(int32_t)p->Low)) & (p->Bottom - 1);
     }
     p->Code = (p->Code << 8) | p->Stream->Read((void *)p->Stream);
     p->Range <<= 8;
