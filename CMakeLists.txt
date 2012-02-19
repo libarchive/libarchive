@@ -84,7 +84,9 @@ IF (MSVC)
   # Enable level 4 C4706: The test value in a conditional expression was the
   #                       result of an assignment.
   SET(CMAKE_C_FLAGS_DEBUG
-      "${CMAKE_C_FLAGS_DEBUG} /we4061 /we4296 /we4389 /we4505 /we4706")
+      "${CMAKE_C_FLAGS_DEBUG} /Oi /we4061 /we4296 /we4389 /we4505 /we4706")
+  # Set compile flags for release build.
+  SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Oi")
 ENDIF (MSVC)
 
 # Enable CTest/CDash support
