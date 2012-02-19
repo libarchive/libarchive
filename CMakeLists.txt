@@ -7,7 +7,13 @@ SET(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/build/cmake")
 if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${libarchive_BINARY_DIR}/bin)
 endif()
-SET(CMAKE_BUILD_TYPE "Debug")
+#
+# Set the Build type for make based generators.
+#
+SET(CMAKE_BUILD_TYPE "Debug")		# Debug build
+#SET(CMAKE_BUILD_TYPE "Release")		# Release build
+#SET(CMAKE_BUILD_TYPE "RelWithDebInfo")	# Release build with Debug Info
+#SET(CMAKE_BUILD_TYPE "MinSizeRel")	# Release Min Size build
 
 # On MacOS, prefer MacPorts libraries to system libraries.
 # I haven't come up with a compelling argument for this to be conditional.
@@ -51,12 +57,19 @@ SET(SOVERSION "${INTERFACE_VERSION}")
 # aggressive about diagnosing build problems; this can get
 # relaxed somewhat in final shipping versions.
 IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
-  ADD_DEFINITIONS(-Wall -Werror -Wextra -Wunused -Wshadow -Wmissing-prototypes -Wcast-qual)
-  SET(CMAKE_REQUIRED_FLAGS "-Wall -Werror")
+  SET(CMAKE_REQUIRED_FLAGS "-Wall")
+  # Set compile flags for all build types.
+  SET(CMAKE_C_FLAGS "-Wall")
+  # Set compile flags for debug build.
+  # This is added into CMAKE_C_FLAGS when CMAKE_BUILD_TYPE is "Debug"
+  SET(CMAKE_C_FLAGS_DEBUG
+      "-Werror -Wextra -Wunused -Wshadow -Wmissing-prototypes -Wcast-qual")
 ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
 IF (MSVC)
-  ADD_DEFINITIONS(/WX)
+  # NOTE: /WX option is the same as gcc's -Werror option.
   SET(CMAKE_REQUIRED_FLAGS "/WX")
+  # Set compile flags for all build types.
+  SET(CMAKE_C_FLAGS "/WX")
 ENDIF (MSVC)
 
 # Enable CTest/CDash support
