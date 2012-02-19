@@ -59,17 +59,17 @@ SET(SOVERSION "${INTERFACE_VERSION}")
 IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
   SET(CMAKE_REQUIRED_FLAGS "-Wall")
   # Set compile flags for all build types.
-  SET(CMAKE_C_FLAGS "-Wall")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
   # Set compile flags for debug build.
   # This is added into CMAKE_C_FLAGS when CMAKE_BUILD_TYPE is "Debug"
   SET(CMAKE_C_FLAGS_DEBUG
-      "-Werror -Wextra -Wunused -Wshadow -Wmissing-prototypes -Wcast-qual")
+      "${CMAKE_C_FLAGS_DEBUG} -Werror -Wextra -Wunused -Wshadow -Wmissing-prototypes -Wcast-qual")
 ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
 IF (MSVC)
   # NOTE: /WX option is the same as gcc's -Werror option.
   SET(CMAKE_REQUIRED_FLAGS "/WX")
   # Set compile flags for all build types.
-  SET(CMAKE_C_FLAGS "/WX")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /WX")
 ENDIF (MSVC)
 
 # Enable CTest/CDash support
