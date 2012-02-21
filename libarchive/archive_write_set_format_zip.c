@@ -385,7 +385,21 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		    "Can't allocate zip header data");
 		return (ARCHIVE_FATAL);
 	}
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/* Make sure the path separators in pahtname, hardlink and symlink
+	 * are all slash '/', not the Windows path separator '\'. */
+	l->entry = __la_win_entry_in_posix_pathseparator(entry);
+	if (l->entry == entry)
+		l->entry = archive_entry_clone(entry);
+#else
 	l->entry = archive_entry_clone(entry);
+#endif
+	if (l->entry == NULL) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate zip header data");
+		free(l);
+		return (ARCHIVE_FATAL);
+	}
 	l->flags = zip->flags;
 	if (zip->opt_sconv != NULL)
 		sconv = zip->opt_sconv;
