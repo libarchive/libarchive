@@ -545,6 +545,16 @@ ENDMACRO(CHECK_CRYPTO_WIN CRYPTO_LIST)
 #
 MACRO(CHECK_ICONV LIB TRY_ICONV_CONST)
   IF(NOT HAVE_ICONV)
+    IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
+      #
+      # During checking iconv proto type, we should use -Werror to avoid the
+      # success of iconv detection with a warnig which success is a miss
+      # detection. So this needs for all build mode(even it's a release mode).
+      #
+      SET(SAVE_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
+      SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Werror")
+    ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
+    #
     CHECK_C_SOURCE_COMPILES(
       "#include <stdlib.h>
        #include <iconv.h>
@@ -560,6 +570,12 @@ MACRO(CHECK_ICONV LIB TRY_ICONV_CONST)
       SET(HAVE_ICONV true)
       SET(ICONV_CONST ${TRY_ICONV_CONST})
     ENDIF(HAVE_ICONV_${LIB}_${TRY_ICONV_CONST})
+    #
+    # Restore CMAKE_REQUIRED_FLAGS
+    #
+    IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
+      SET(CMAKE_REQUIRED_FLAGS ${SAVE_CMAKE_REQUIRED_FLAGS})
+    ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
   ENDIF(NOT HAVE_ICONV)
 ENDMACRO(CHECK_ICONV TRY_ICONV_CONST)
 
