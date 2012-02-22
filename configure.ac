@@ -268,8 +268,8 @@ AC_ARG_WITH([iconv],
   AS_HELP_STRING([--without-iconv], [Don't try to link against iconv]))
 
 if test "x$with_iconv" != "xno"; then
-  AC_CHECK_HEADERS([iconv.h],[],[],[#include <stdlib.h>])
   AM_ICONV
+  AC_CHECK_HEADERS([iconv.h],[],[],[#include <stdlib.h>])
   if test "x$am_cv_func_iconv" = "xyes"; then
     AC_CHECK_HEADERS([localcharset.h])
     am_save_LIBS="$LIBS"
