@@ -66,10 +66,6 @@ IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
       "${CMAKE_C_FLAGS_DEBUG} -Werror -Wextra -Wunused -Wshadow -Wmissing-prototypes -Wcast-qual")
 ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
 IF (MSVC)
-  # NOTE: /WX option is the same as gcc's -Werror option.
-  SET(CMAKE_REQUIRED_FLAGS "/WX")
-  # Set compile flags for all build types.
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /WX")
   # Set compile flags for debug build.
   # This is added into CMAKE_C_FLAGS when CMAKE_BUILD_TYPE is "Debug"
   # Enable level 4 C4061: The enumerate has no associated handler in a switch
@@ -83,8 +79,10 @@ IF (MSVC)
   #                       dead code.
   # Enable level 4 C4706: The test value in a conditional expression was the
   #                       result of an assignment.
+  # /WX option is the same as gcc's -Werror option.
+  # /Oi option enables built-in functions.
   SET(CMAKE_C_FLAGS_DEBUG
-      "${CMAKE_C_FLAGS_DEBUG} /Oi /we4061 /we4296 /we4389 /we4505 /we4706")
+      "${CMAKE_C_FLAGS_DEBUG} /WX /Oi /we4061 /we4296 /we4389 /we4505 /we4706")
   # Set compile flags for release build.
   SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Oi")
 ENDIF (MSVC)
@@ -565,6 +563,11 @@ MACRO(CHECK_ICONV LIB TRY_ICONV_CONST)
       SET(SAVE_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
       SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Werror")
     ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
+    IF (MSVC)
+      # NOTE: /WX option is the same as gcc's -Werror option.
+      SET(SAVE_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
+      SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} /WX")
+    ENDIF (MSVC)
     #
     CHECK_C_SOURCE_COMPILES(
       "#include <stdlib.h>
@@ -584,9 +587,9 @@ MACRO(CHECK_ICONV LIB TRY_ICONV_CONST)
     #
     # Restore CMAKE_REQUIRED_FLAGS
     #
-    IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
+    IF (("CMAKE_C_COMPILER_ID" MATCHES "^GNU$") OR MSVC)
       SET(CMAKE_REQUIRED_FLAGS ${SAVE_CMAKE_REQUIRED_FLAGS})
-    ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
+    ENDIF (("CMAKE_C_COMPILER_ID" MATCHES "^GNU$") OR MSVC)
   ENDIF(NOT HAVE_ICONV)
 ENDMACRO(CHECK_ICONV TRY_ICONV_CONST)
 
