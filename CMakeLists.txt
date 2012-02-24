@@ -57,9 +57,9 @@ SET(SOVERSION "${INTERFACE_VERSION}")
 # aggressive about diagnosing build problems; this can get
 # relaxed somewhat in final shipping versions.
 IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
-  SET(CMAKE_REQUIRED_FLAGS "-Wall")
+  SET(CMAKE_REQUIRED_FLAGS "-Wall -Wformat -Wformat-security")
   # Set compile flags for all build types.
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wformat -Wformat-security")
   # Set compile flags for debug build.
   # This is added into CMAKE_C_FLAGS when CMAKE_BUILD_TYPE is "Debug"
   SET(CMAKE_C_FLAGS_DEBUG
