@@ -2101,6 +2101,14 @@ is_LargeInode(const char *file)
 	return (ino > 0xffffffff);
 #endif
 }
+
+void
+extract_reference_files(const char **names)
+{
+	while (names && *names)
+		extract_reference_file(*names++);
+}
+
 /*
  *
  * TEST management

@@ -46,56 +46,195 @@ __FBSDID("$FreeBSD: head/lib/libarchive/test/test_fuzz.c 201247 2009-12-30 05:59
 
 /* Because this works for any archive, we can just re-use the archives
  * developed for other tests. */
-static struct {
+struct files {
 	int uncompress; /* If 1, decompress the file before fuzzing. */
-	const char *name;
-} files[] = {
-	{0, "test_fuzz_1.iso.Z"}, /* Exercise compress decompressor. */
-	{1, "test_fuzz_1.iso.Z"},
-	{0, "test_fuzz.cab"},
-	{0, "test_fuzz.lzh"},
-	{0, "test_compat_bzip2_1.tbz"}, /* Exercise bzip2 decompressor. */
-	{1, "test_compat_bzip2_1.tbz"},
-	{0, "test_compat_gtar_1.tar"},
-	{0, "test_compat_gzip_1.tgz"}, /* Exercise gzip decompressor. */
-	{0, "test_compat_gzip_2.tgz"}, /* Exercise gzip decompressor. */
-	{0, "test_compat_tar_hardlink_1.tar"},
-	{0, "test_compat_xz_1.txz"}, /* Exercise xz decompressor. */
-	{0, "test_compat_zip_1.zip"},
-	{0, "test_read_format_7zip_bzip2.7z"},
-	{0, "test_read_format_7zip_bcj_lzma1.7z"},
-	{0, "test_read_format_7zip_bcj_lzma2.7z"},
-	{0, "test_read_format_7zip_bcj2_lzma1_1.7z"},
-	{0, "test_read_format_7zip_bcj2_lzma1_2.7z"},
-	{0, "test_read_format_7zip_bcj2_lzma2_1.7z"},
-	{0, "test_read_format_7zip_bcj2_lzma2_2.7z"},
-	{0, "test_read_format_7zip_copy.7z"},
-	{0, "test_read_format_7zip_deflate.7z"},
-	{0, "test_read_format_7zip_lzma1.7z"},
-	{0, "test_read_format_7zip_lzma1_lzma2.7z"},
-	{0, "test_read_format_7zip_ppmd.7z"},
-	{0, "test_read_format_ar.ar"},
-	{0, "test_read_format_cpio_bin_be.cpio"},
-	{0, "test_read_format_cpio_svr4_gzip_rpm.rpm"}, /* Test RPM unwrapper */
-	{0, "test_read_format_rar.rar"}, /* Uncompressed RAR test */
-	{0, "test_read_format_rar_binary_data.rar"}, /* RAR file with binary data */
-	{0, "test_read_format_rar_compress_best.rar"}, /* Best Compressed RAR test */
-	{0, "test_read_format_rar_compress_normal.rar"}, /* Normal Compressed RAR
+	const char **names;
+};
+
+static const char *fileset1[] =
+{
+	"test_fuzz_1.iso.Z", /* Exercise compress decompressor. */
+	NULL
+};
+static const char *fileset2[] =
+{
+	"test_fuzz_1.iso.Z",
+	NULL
+};
+static const char *fileset3[] =
+{
+	"test_fuzz.cab",
+	NULL
+};
+static const char *fileset4[] =
+{
+	"test_fuzz.lzh",
+	NULL
+};
+static const char *fileset5[] =
+{
+	"test_compat_bzip2_1.tbz", /* Exercise bzip2 decompressor. */
+	NULL
+};
+static const char *fileset6[] =
+{
+	"test_compat_bzip2_1.tbz",
+	NULL
+};
+static const char *fileset7[] =
+{
+	"test_compat_gtar_1.tar",
+	NULL
+};
+static const char *fileset8[] =
+{
+	"test_compat_gzip_1.tgz", /* Exercise gzip decompressor. */
+	NULL
+};
+static const char *fileset9[] =
+{
+	"test_compat_gzip_2.tgz", /* Exercise gzip decompressor. */
+	NULL
+};
+static const char *fileset10[] =
+{
+	"test_compat_tar_hardlink_1.tar",
+	NULL
+};
+static const char *fileset11[] =
+{
+	"test_compat_xz_1.txz", /* Exercise xz decompressor. */
+	NULL
+};
+static const char *fileset12[] =
+{
+	"test_compat_zip_1.zip",
+	NULL
+};
+static const char *fileset13[] =
+{
+	"test_read_format_ar.ar",
+	NULL
+};
+static const char *fileset14[] =
+{
+	"test_read_format_cpio_bin_be.cpio",
+	NULL
+};
+static const char *fileset15[] =
+{
+	"test_read_format_cpio_svr4_gzip_rpm.rpm", /* Test RPM unwrapper */
+	NULL
+};
+static const char *fileset16[] =
+{
+	"test_read_format_rar.rar", /* Uncompressed RAR test */
+	NULL
+};
+static const char *fileset17[] =
+{
+	"test_read_format_rar_binary_data.rar", /* RAR file with binary data */
+	NULL
+};
+static const char *fileset18[] =
+{
+	"test_read_format_rar_compress_best.rar", /* Best Compressed RAR test */
+	NULL
+};
+static const char *fileset19[] =
+{
+	"test_read_format_rar_compress_normal.rar", /* Normal Compressed RAR
 	                                                  * test */
-	{0, "test_read_format_rar_multi_lzss_blocks.rar"}, /* Normal Compressed Multi
-	                                                    * LZSS blocks RAR test */
-	{0, "test_read_format_rar_noeof.rar"}, /* RAR with no EOF header */
-	{0, "test_read_format_rar_ppmd_lzss_conversion.rar"}, /* Best Compressed
-	                                                       * RAR file with both
-	                                                       * PPMd and LZSS
-	                                                       * blocks */
-	{0, "test_read_format_rar_sfx.exe"}, /* RAR SFX archive */
-	{0, "test_read_format_rar_subblock.rar"}, /* RAR with subblocks */
-	{0, "test_read_format_rar_unicode.rar"}, /* RAR with Unicode filenames */
-	{0, "test_read_format_gtar_sparse_1_17_posix10_modified.tar"},
-	{0, "test_read_format_mtree.mtree"},
-	{0, "test_read_format_tar_empty_filename.tar"},
-	{0, "test_read_format_zip.zip"},
+	NULL
+};
+static const char *fileset20[] =
+{
+	"test_read_format_rar_multi_lzss_blocks.rar", /* Normal Compressed Multi
+	                                               * LZSS blocks RAR test */
+	NULL
+};
+static const char *fileset21[] =
+{
+	"test_read_format_rar_noeof.rar", /* RAR with no EOF header */
+	NULL
+};
+static const char *fileset22[] =
+{
+	"test_read_format_rar_ppmd_lzss_conversion.rar", /* Best Compressed
+	                                                  * RAR file with both
+	                                                  * PPMd and LZSS
+	                                                  * blocks */
+	NULL
+};
+static const char *fileset23[] =
+{
+	"test_read_format_rar_subblock.rar", /* RAR with subblocks */
+	NULL
+};
+static const char *fileset24[] =
+{
+	"test_read_format_rar_unicode.rar", /* RAR with Unicode filenames */
+	NULL
+};
+static const char *fileset25[] =
+{
+	"test_read_format_gtar_sparse_1_17_posix10_modified.tar",
+	NULL
+};
+static const char *fileset26[] =
+{
+	"test_read_format_mtree.mtree",
+	NULL
+};
+static const char *fileset27[] =
+{
+	"test_read_format_tar_empty_filename.tar",
+	NULL
+};
+static const char *fileset28[] =
+{
+	"test_read_format_zip.zip",
+	NULL
+};
+static const char *fileset29[] =
+{
+	"test_read_splitted_rar_aa",
+	"test_read_splitted_rar_ab",
+	"test_read_splitted_rar_ac",
+	"test_read_splitted_rar_ad",
+	NULL
+};
+
+static const struct files filesets[] = {
+	{0, fileset1},
+	{1, fileset2},
+	{0, fileset3},
+	{0, fileset4},
+	{0, fileset5},
+	{1, fileset6},
+	{0, fileset7},
+	{0, fileset8},
+	{0, fileset9},
+	{0, fileset10},
+	{0, fileset11},
+	{0, fileset12},
+	{0, fileset13},
+	{0, fileset14},
+	{0, fileset15},
+	{0, fileset16},
+	{0, fileset17},
+	{0, fileset18},
+	{0, fileset19},
+	{0, fileset20},
+	{0, fileset21},
+	{0, fileset22},
+	{0, fileset23},
+	{0, fileset24},
+	{0, fileset25},
+	{0, fileset26},
+	{0, fileset27},
+	{0, fileset28},
+	{0, fileset29},
 	{1, NULL}
 };
 
@@ -106,17 +245,16 @@ DEFINE_TEST(test_fuzz)
 	int64_t blk_offset;
 	int n;
 
-	for (n = 0; files[n].name != NULL; ++n) {
+	for (n = 0; filesets[n].names != NULL; ++n) {
 		const size_t buffsize = 30000000;
-		const char *filename = files[n].name;
 		struct archive_entry *ae;
 		struct archive *a;
-		char *rawimage, *image;
-		size_t size;
+		char *rawimage = NULL, *image = NULL, *tmp = NULL;
+		size_t size, oldsize = 0;
 		int i, q;
 
-		extract_reference_file(filename);
-		if (files[n].uncompress) {
+		extract_reference_files(filesets[n].names);
+		if (filesets[n].uncompress) {
 			int r;
 			/* Use format_raw to decompress the data. */
 			assert((a = archive_read_new()) != NULL);
@@ -124,10 +262,14 @@ DEFINE_TEST(test_fuzz)
 			    archive_read_support_filter_all(a));
 			assertEqualIntA(a, ARCHIVE_OK,
 			    archive_read_support_format_raw(a));
-			r = archive_read_open_filename(a, filename, 16384);
+			r = archive_read_open_filenames(a, filesets[n].names, 16384);
 			if (r != ARCHIVE_OK) {
 				archive_read_free(a);
-				skipping("Cannot uncompress %s", filename);
+				if (filesets[n].names[0] == NULL || filesets[n].names[1] == NULL) {
+					skipping("Cannot uncompress fileset");
+				} else {
+					skipping("Cannot uncompress %s", filesets[n].names[0]);
+				}
 				continue;
 			}
 			assertEqualIntA(a, ARCHIVE_OK,
@@ -139,16 +281,29 @@ DEFINE_TEST(test_fuzz)
 			assertEqualInt(ARCHIVE_OK,
 			    archive_read_free(a));
 			assert(size > 0);
-			failure("Internal buffer is not big enough for "
-			    "uncompressed test file: %s", filename);
+			if (filesets[n].names[0] == NULL || filesets[n].names[1] == NULL) {
+				failure("Internal buffer is not big enough for "
+					"uncompressed test files");
+			} else {
+				failure("Internal buffer is not big enough for "
+					"uncompressed test file: %s", filesets[n].names[0]);
+			}
 			if (!assert(size < buffsize)) {
 				free(rawimage);
 				continue;
 			}
 		} else {
-			rawimage = slurpfile(&size, filename);
-			if (!assert(rawimage != NULL))
-				continue;
+			for (i = 0; filesets[n].names[i] != NULL; ++i)
+			{
+				tmp = slurpfile(&size, filesets[n].names[i]);
+				rawimage = (char *)realloc(rawimage, oldsize + size);
+				memcpy(rawimage + oldsize, tmp, size);
+				oldsize += size;
+				size = oldsize;
+				free(tmp);
+				if (!assert(rawimage != NULL))
+					continue;
+			}
 		}
 		image = malloc(size);
 		assert(image != NULL);

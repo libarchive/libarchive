@@ -194,6 +194,13 @@ typedef int	archive_open_callback(struct archive *, void *_client_data);
 
 typedef int	archive_close_callback(struct archive *, void *_client_data);
 
+/* Switches from one client data object to the next/prev client data object.
+ * This is useful for reading from different data blocks such as a set of files
+ * that make up one large file.
+ */
+typedef int archive_switch_callback(struct archive *, void *_client_data1,
+			    void *_client_data2);
+
 /*
  * Codes to identify various stream filters.
  */
@@ -354,8 +361,23 @@ __LA_DECL int archive_read_set_skip_callback(struct archive *,
     archive_skip_callback *);
 __LA_DECL int archive_read_set_close_callback(struct archive *,
     archive_close_callback *);
-/* The callback data is provided to all of the callbacks above. */
+/* Callback used to switch between one data object to the next */
+__LA_DECL int archive_read_set_switch_callback(struct archive *,
+    archive_switch_callback *);
+
+/* This sets the first data object. */
 __LA_DECL int archive_read_set_callback_data(struct archive *, void *);
+/* This sets data object at specified index */
+__LA_DECL int archive_read_set_callback_data2(struct archive *, void *,
+    unsigned int);
+/* This adds a data object at the specified index. */
+__LA_DECL int archive_read_add_callback_data(struct archive *, void *,
+    unsigned int);
+/* This appends a data object to the end of list */
+__LA_DECL int archive_read_append_callback_data(struct archive *, void *);
+/* This prepends a data object to the beginning of list */
+__LA_DECL int archive_read_prepend_callback_data(struct archive *, void *);
+
 /* Opening freezes the callbacks. */
 __LA_DECL int archive_read_open1(struct archive *);
 
@@ -375,6 +397,10 @@ __LA_DECL int archive_read_open2(struct archive *, void *_client_data,
 /* Use this if you know the filename.  Note: NULL indicates stdin. */
 __LA_DECL int archive_read_open_filename(struct archive *,
 		     const char *_filename, size_t _block_size);
+/* Use this for reading multivolume files by filenames.
+ * NOTE: Must be NULL terminated. Sorting is NOT done. */
+__LA_DECL int archive_read_open_filenames(struct archive *,
+		     const char **_filenames, size_t _block_size);
 __LA_DECL int archive_read_open_filename_w(struct archive *,
 		     const wchar_t *_filename, size_t _block_size);
 /* archive_read_open_file() is a deprecated synonym for ..._open_filename(). */
