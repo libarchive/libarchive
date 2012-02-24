@@ -198,10 +198,10 @@ static const char *fileset28[] =
 };
 static const char *fileset29[] =
 {
-	"test_read_splitted_rar_aa",
-	"test_read_splitted_rar_ab",
-	"test_read_splitted_rar_ac",
-	"test_read_splitted_rar_ad",
+	"test_read_format_rar_multivolume.part0001.rar",
+	"test_read_format_rar_multivolume.part0002.rar",
+	"test_read_format_rar_multivolume.part0003.rar",
+	"test_read_format_rar_multivolume.part0004.rar",
 	NULL
 };
 
