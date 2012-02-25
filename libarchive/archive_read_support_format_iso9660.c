@@ -2527,9 +2527,6 @@ parse_rockridge_SL1(struct file_info *file, const unsigned char *data,
 
 	if (!file->symlink_continues || file->symlink.length < 1)
 		archive_string_empty(&file->symlink);
-	else if (!file->symlink_continues &&
-	    file->symlink.s[file->symlink.length - 1] != '/')
-		separator = "/";
 	file->symlink_continues = 0;
 
 	/*
