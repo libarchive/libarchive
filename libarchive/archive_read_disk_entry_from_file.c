@@ -959,7 +959,7 @@ setup_sparse(struct archive_read_disk *a,
 			goto exit_setup_sparse;
 		}
 		off_e = lseek(fd, off_s, SEEK_HOLE);
-		if (off_s == (off_t)-1) {
+		if (off_e == (off_t)-1) {
 			if (errno == ENXIO) {
 				off_e = lseek(fd, 0, SEEK_END);
 				if (off_e != (off_t)-1)
