@@ -201,7 +201,6 @@ client_skip_proxy(struct archive_read_filter *self, int64_t request)
 			request -= get;
 			total += get;
 		}
-		return total;
 	} else if (self->archive->client.seeker != NULL
 		&& request > 64 * 1024) {
 		/* If the client provided a seeker but not a skipper,

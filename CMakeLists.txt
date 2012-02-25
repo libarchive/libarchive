@@ -76,6 +76,13 @@ IF (MSVC)
   # Enable level 4 C4061: The enumerate has no associated handler in a switch
   #                       statement.
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4061")
+  # Enable level 4 C4254: A larger bit field was assigned to a smaller bit
+  #                       field.
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4254")
+  # Enable level 4 C4295: An array was initialized but the last character in
+  #                       the array is not a null; accessing the array may
+  #                       produce unexpected results.
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4295")
   # Enable level 4 C4296: An unsigned variable was used in a comparison
   #                       operation with zero.
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4296")
@@ -86,6 +93,11 @@ IF (MSVC)
   #                       the body of the module; therefore, the function is
   #                       dead code.
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4505")
+  # Enable level 4 C4514: The optimizer removed an inline function that is not
+  #                       called.
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4514")
+  # Enable level 4 C4702: Unreachable code.
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4702")
   # Enable level 4 C4706: The test value in a conditional expression was the
   #                       result of an assignment.
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4706")
