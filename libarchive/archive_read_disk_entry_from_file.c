@@ -1005,13 +1005,6 @@ setup_sparse(struct archive_read_disk *a,
 	} else {
 		const char *path;
 
-		if (a->tree != NULL) {
-			if (a->tree_enter_working_dir(a->tree) != 0) {
-				archive_set_error(&a->archive, errno,
-				    "Couldn't change dir");
-				return (ARCHIVE_FAILED);
-			}
-		}
 		path = archive_entry_sourcepath(entry);
 		if (path == NULL)
 			path = archive_entry_pathname(entry);
