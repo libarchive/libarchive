@@ -850,26 +850,14 @@ abort_read_data:
 }
 
 static int
-_archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
+next_entry(struct archive_read_disk *a, struct tree *t,
+    struct archive_entry *entry)
 {
-	struct archive_read_disk *a = (struct archive_read_disk *)_a;
-	struct tree *t;
 	const struct stat *st; /* info to use for this entry */
 	const struct stat *lst;/* lstat() information */
 	const char *name;
-	int descend, fd, r;
+	int descend, r;
 
-	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
-	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
-	    "archive_read_next_header2");
-
-	t = a->tree;
-	if (t->entry_fd >= 0) {
-		close_and_restore_time(t->entry_fd, t, &t->restore_time);
-		t->entry_fd = -1;
-	}
-
-next_entry:
 	st = NULL;
 	lst = NULL;
 	t->descend = 0;
@@ -916,7 +904,7 @@ next_entry:
 		else
 			++bname;
 		if (bname[0] == '.' && bname[1] == '_')
-			goto next_entry;
+			return (ARCHIVE_RETRY);
 	}
 #endif
 
@@ -935,8 +923,7 @@ next_entry:
 			if (a->excluded_cb_func)
 				a->excluded_cb_func(&(a->archive),
 				    a->excluded_cb_data, entry);
-			archive_entry_clear(entry);
-			goto next_entry;
+			return (ARCHIVE_RETRY);
 		}
 	}
 
@@ -981,10 +968,8 @@ next_entry:
 	if (t->initial_filesystem_id == -1)
 		t->initial_filesystem_id = t->current_filesystem_id;
 	if (!a->traverse_mount_points) {
-		if (t->initial_filesystem_id != t->current_filesystem_id) {
-			archive_entry_clear(entry);
-			goto next_entry;
-		}
+		if (t->initial_filesystem_id != t->current_filesystem_id)
+			return (ARCHIVE_RETRY);
 	}
 	t->descend = descend;
 
@@ -992,24 +977,22 @@ next_entry:
 	 * Honor nodump flag.
 	 * If the file is marked with nodump flag, do not return this entry.
 	 */
-	fd = -1;
 	if (a->honor_nodump) {
 #if defined(HAVE_STRUCT_STAT_ST_FLAGS) && defined(UF_NODUMP)
 		if (st->st_flags & UF_NODUMP)
-			goto next_entry;
+			return (ARCHIVE_RETRY);
 #elif defined(EXT2_IOC_GETFLAGS) && defined(EXT2_NODUMP_FL) &&\
       defined(HAVE_WORKING_EXT2_IOC_GETFLAGS)
 		if (S_ISREG(st->st_mode) || S_ISDIR(st->st_mode)) {
 			unsigned long stflags;
 
-			fd = open_on_current_dir(t,
+			t->entry_fd = fd = open_on_current_dir(t,
 			    tree_current_access_path(t), O_RDONLY | O_NONBLOCK);
-			if (fd >= 0) {
-				r = ioctl(fd, EXT2_IOC_GETFLAGS, &stflags);
-				if (r == 0 && (stflags & EXT2_NODUMP_FL) != 0) {
-					close(fd);
-					goto next_entry;
-				}
+			if (t->entry_fd >= 0) {
+				r = ioctl(t->entry_fd, EXT2_IOC_GETFLAGS,
+					&stflags);
+				if (r == 0 && (stflags & EXT2_NODUMP_FL) != 0)
+					return (ARCHIVE_RETRY);
 			}
 		}
 #endif
@@ -1041,16 +1024,15 @@ next_entry:
 			if (a->excluded_cb_func)
 				a->excluded_cb_func(&(a->archive),
 				    a->excluded_cb_data, entry);
-			archive_entry_clear(entry);
-			goto next_entry;
+			return (ARCHIVE_RETRY);
 		}
 	}
 
 	/* Lookup uname/gname */
-	name = archive_read_disk_uname(_a, archive_entry_uid(entry));
+	name = archive_read_disk_uname(&(a->archive), archive_entry_uid(entry));
 	if (name != NULL)
 		archive_entry_copy_uname(entry, name);
-	name = archive_read_disk_gname(_a, archive_entry_gid(entry));
+	name = archive_read_disk_gname(&(a->archive), archive_entry_gid(entry));
 	if (name != NULL)
 		archive_entry_copy_gname(entry, name);
 
@@ -1068,8 +1050,7 @@ next_entry:
 			if (a->excluded_cb_func)
 				a->excluded_cb_func(&(a->archive),
 				    a->excluded_cb_data, entry);
-			archive_entry_clear(entry);
-			goto next_entry;
+			return (ARCHIVE_RETRY);
 		}
 	}
 
@@ -1077,28 +1058,54 @@ next_entry:
 	 * Invoke a meta data filter callback.
 	 */
 	if (a->metadata_filter_func) {
-		if (!a->metadata_filter_func(_a,
-		    a->metadata_filter_data, entry)) {
-			archive_entry_clear(entry);
-			goto next_entry;
-		}
+		if (!a->metadata_filter_func(&(a->archive),
+		    a->metadata_filter_data, entry))
+			return (ARCHIVE_RETRY);
 	}
 
 	/*
 	 * Populate the archive_entry with metadata from the disk.
 	 */
 	archive_entry_copy_sourcepath(entry, tree_current_access_path(t));
-	r = archive_read_disk_entry_from_file(&(a->archive), entry, fd, st);
+	r = archive_read_disk_entry_from_file(&(a->archive), entry,
+		t->entry_fd, st);
 
-	/* Close the file descriptor used for reding the current file
-	 * metadata at archive_read_disk_entry_from_file(). */
-	if (fd >= 0)
-		close(fd);
+	return (r);
+}
+
+static int
+_archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
+{
+	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+	struct tree *t;
+	int r;
+
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
+	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
+	    "archive_read_next_header2");
+
+	t = a->tree;
+	if (t->entry_fd >= 0) {
+		close_and_restore_time(t->entry_fd, t, &t->restore_time);
+		t->entry_fd = -1;
+	}
+
+	for (;;) {
+		r = next_entry(a, t, entry);
+		if (t->entry_fd >= 0) {
+			close(t->entry_fd);
+			t->entry_fd = -1;
+		}
+
+		if (r == ARCHIVE_RETRY) {
+			archive_entry_clear(entry);
+			continue;
+		}
+		break;
+	}
 
 	/* Return to the initial directory. */
 	tree_enter_initial_dir(t);
-	/* Overwrite the sourcepath based on the initial directory. */
-	archive_entry_copy_sourcepath(entry, tree_current_path(t));
 
 	/*
 	 * EOF and FATAL are persistent at this layer.  By
@@ -1111,6 +1118,8 @@ next_entry:
 		break;
 	case ARCHIVE_OK:
 	case ARCHIVE_WARN:
+		/* Overwrite the sourcepath based on the initial directory. */
+		archive_entry_copy_sourcepath(entry, tree_current_path(t));
 		t->entry_total = 0;
 		if (archive_entry_filetype(entry) == AE_IFREG) {
 			t->nlink = archive_entry_nlink(entry);
