@@ -378,9 +378,6 @@ main(int argc, char *argv[])
 	/* -v overrides -V */
 	if (cpio->dot && cpio->verbose)
 		cpio->dot = 0;
-	/* -v overrides -V */
-	if (cpio->dot && cpio->verbose)
-		cpio->dot = 0;
 	/* TODO: Flag other nonsensical combinations. */
 
 	switch (cpio->mode) {
