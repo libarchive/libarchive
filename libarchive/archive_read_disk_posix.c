@@ -986,7 +986,7 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 		if (S_ISREG(st->st_mode) || S_ISDIR(st->st_mode)) {
 			unsigned long stflags;
 
-			t->entry_fd = fd = open_on_current_dir(t,
+			t->entry_fd = open_on_current_dir(t,
 			    tree_current_access_path(t), O_RDONLY | O_NONBLOCK);
 			if (t->entry_fd >= 0) {
 				r = ioctl(t->entry_fd, EXT2_IOC_GETFLAGS,
