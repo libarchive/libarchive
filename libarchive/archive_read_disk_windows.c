@@ -748,27 +748,14 @@ abort_read_data:
 }
 
 static int
-_archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
+next_entry(struct archive_read_disk *a, struct tree *t,
+    struct archive_entry *entry)
 {
-	struct archive_read_disk *a = (struct archive_read_disk *)_a;
-	struct tree *t;
 	const BY_HANDLE_FILE_INFORMATION *st;
 	const BY_HANDLE_FILE_INFORMATION *lst;
 	const char*name;
 	int descend, r;
 
-	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
-	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
-	    "archive_read_next_header2");
-
-	t = a->tree;
-	if (t->entry_fh != INVALID_HANDLE_VALUE) {
-		cancel_async(t);
-		close_and_restore_time(t->entry_fh, t, &t->restore_time);
-		t->entry_fh = INVALID_HANDLE_VALUE;
-	}
-
-next_entry:
 	st = NULL;
 	lst = NULL;
 	t->descend = 0;
@@ -818,8 +805,7 @@ next_entry:
 			if (a->excluded_cb_func)
 				a->excluded_cb_func(&(a->archive),
 				    a->excluded_cb_data, entry);
-			archive_entry_clear(entry);
-			goto next_entry;
+			return (ARCHIVE_RETRY);
 		}
 	}
 
@@ -863,10 +849,8 @@ next_entry:
 	if (t->initial_filesystem_id == -1)
 		t->initial_filesystem_id = t->current_filesystem_id;
 	if (!a->traverse_mount_points) {
-		if (t->initial_filesystem_id != t->current_filesystem_id) {
-			archive_entry_clear(entry);
-			goto next_entry;
-		}
+		if (t->initial_filesystem_id != t->current_filesystem_id)
+			return (ARCHIVE_RETRY);
 	}
 	t->descend = descend;
 
@@ -893,16 +877,15 @@ next_entry:
 			if (a->excluded_cb_func)
 				a->excluded_cb_func(&(a->archive),
 				    a->excluded_cb_data, entry);
-			archive_entry_clear(entry);
-			goto next_entry;
+			return (ARCHIVE_RETRY);
 		}
 	}
 
 	/* Lookup uname/gname */
-	name = archive_read_disk_uname(_a, archive_entry_uid(entry));
+	name = archive_read_disk_uname(&(a->archive), archive_entry_uid(entry));
 	if (name != NULL)
 		archive_entry_copy_uname(entry, name);
-	name = archive_read_disk_gname(_a, archive_entry_gid(entry));
+	name = archive_read_disk_gname(&(a->archive), archive_entry_gid(entry));
 	if (name != NULL)
 		archive_entry_copy_gname(entry, name);
 
@@ -920,8 +903,7 @@ next_entry:
 			if (a->excluded_cb_func)
 				a->excluded_cb_func(&(a->archive),
 				    a->excluded_cb_data, entry);
-			archive_entry_clear(entry);
-			goto next_entry;
+			return (ARCHIVE_RETRY);
 		}
 	}
 
@@ -929,12 +911,11 @@ next_entry:
 	 * Invoke a meta data filter callback.
 	 */
 	if (a->metadata_filter_func) {
-		if (!a->metadata_filter_func(_a,
-		    a->metadata_filter_data, entry)) {
-			archive_entry_clear(entry);
-			goto next_entry;
-		}
+		if (!a->metadata_filter_func(&(a->archive),
+		    a->metadata_filter_data, entry))
+			return (ARCHIVE_RETRY);
 	}
+
 	archive_entry_copy_sourcepath_w(entry, tree_current_access_path(t));
 
 	r = ARCHIVE_OK;
@@ -960,6 +941,29 @@ next_entry:
 		    (st->dwFileAttributes & FILE_ATTRIBUTE_SPARSE_FILE) != 0)
 			r = setup_sparse_from_disk(a, entry, t->entry_fh);
 	}
+	return (r);
+}
+
+static int
+_archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
+{
+	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+	struct tree *t;
+	int r;
+
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
+	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
+	    "archive_read_next_header2");
+
+	t = a->tree;
+	if (t->entry_fh != INVALID_HANDLE_VALUE) {
+		cancel_async(t);
+		close_and_restore_time(t->entry_fh, t, &t->restore_time);
+		t->entry_fh = INVALID_HANDLE_VALUE;
+	}
+
+	while ((r = next_entry(a, t, entry)) == ARCHIVE_RETRY)
+		archive_entry_clear(entry);
 
 	/*
 	 * EOF and FATAL are persistent at this layer.  By
