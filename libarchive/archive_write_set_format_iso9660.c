@@ -6381,7 +6381,7 @@ isoent_cmp_iso9660_identifier(const struct isoent *p1, const struct isoent *p2)
 			if (0x20 != *s2++)
 				return (0x20
 				    - *(const unsigned char *)(s2 - 1));
-	} else if (p1->ext_len < p2->ext_len) {
+	} else if (p1->ext_len > p2->ext_len) {
 		s1 += l;
 		l = p1->ext_len - p2->ext_len;
 		while (l--)
@@ -6469,7 +6469,7 @@ isoent_cmp_joliet_identifier(const struct isoent *p1, const struct isoent *p2)
 		while (l--)
 			if (0 != *s2++)
 				return (- *(const unsigned char *)(s2 - 1));
-	} else if (p1->ext_len < p2->ext_len) {
+	} else if (p1->ext_len > p2->ext_len) {
 		s1 += l;
 		l = p1->ext_len - p2->ext_len;
 		while (l--)
