@@ -1165,7 +1165,7 @@ archive_read_format_zip_read_data_skip(struct archive_read *a)
 			if (r != ARCHIVE_OK)
 				return (r);
 		}
-		break;
+		return ARCHIVE_OK;
 #endif
 	default: /* Uncompressed or unknown. */
 		/* Scan for a PK\007\010 signature. */
@@ -1194,7 +1194,6 @@ archive_read_format_zip_read_data_skip(struct archive_read *a)
 			zip_read_consume(a, p - buff);
 		}
 	}
-	return ARCHIVE_OK;
 }
 
 static int
