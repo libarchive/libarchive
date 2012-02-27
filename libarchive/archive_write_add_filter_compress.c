@@ -396,7 +396,7 @@ archive_compressor_compress_write(struct archive_write_filter *f,
 
 		state->checkpoint = state->in_count + CHECK_GAP;
 
-		if (state->in_count <= 0x007fffff)
+		if (state->in_count <= 0x007fffff && state->out_count != 0)
 			ratio = (int)(state->in_count * 256 / state->out_count);
 		else if ((ratio = (int)(state->out_count / 256)) == 0)
 			ratio = 0x7fffffff;
