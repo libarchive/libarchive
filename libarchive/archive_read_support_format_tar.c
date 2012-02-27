@@ -1665,6 +1665,9 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 	long n;
 	int err = ARCHIVE_OK, r;
 
+	if (value == NULL)
+		value = "";	/* Disable compiler warning; do not pass
+				 * NULL pointer to strlen().  */
 	switch (key[0]) {
 	case 'G':
 		/* GNU "0.0" sparse pax format. */
