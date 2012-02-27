@@ -2872,6 +2872,7 @@ compression_init_encoder_xz(struct archive *a,
 	if (level > 6)
 		level = 6;
 	if (lzma_lzma_preset(&lzma_opt, level)) {
+		free(strm);
 		lastrm->real_stream = NULL;
 		archive_set_error(a, ENOMEM,
 		    "Internal error initializing compression library");
