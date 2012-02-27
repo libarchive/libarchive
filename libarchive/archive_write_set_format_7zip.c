@@ -1492,6 +1492,7 @@ file_new(struct archive_write *a, struct archive_entry *entry,
 
 	if (0 > archive_entry_pathname_l(entry, &u16, &u16len, zip->sconv)) {
 		if (errno == ENOMEM) {
+			free(file);
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory for UTF-16LE");
 			return (ARCHIVE_FATAL);
@@ -1503,6 +1504,7 @@ file_new(struct archive_write *a, struct archive_entry *entry,
 	}
 	file->utf16name = malloc(u16len + 2);
 	if (file->utf16name == NULL) {
+		free(file);
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate memory for Name");
 		return (ARCHIVE_FATAL);
@@ -1914,6 +1916,7 @@ compression_init_encoder_lzma(struct archive *a,
 	if (level > 6)
 		level = 6;
 	if (lzma_lzma_preset(&lzma_opt, level)) {
+		free(strm);
 		lastrm->real_stream = NULL;
 		archive_set_error(a, ENOMEM,
 		    "Internal error initializing compression library");

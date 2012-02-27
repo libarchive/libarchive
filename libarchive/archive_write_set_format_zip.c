@@ -286,6 +286,7 @@ archive_write_set_format_zip(struct archive *_a)
 	zip->len_buf = 65536;
 	zip->buf = malloc(zip->len_buf);
 	if (zip->buf == NULL) {
+		free(zip);
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate compression buffer");
 		return (ARCHIVE_FATAL);
@@ -406,6 +407,8 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 
 		if (archive_entry_pathname_l(entry, &p, &len, sconv) != 0) {
 			if (errno == ENOMEM) {
+				archive_entry_free(l->entry);
+				free(l);
 				archive_set_error(&a->archive, ENOMEM,
 				    "Can't allocate memory for Pathname");
 				return (ARCHIVE_FATAL);
@@ -428,6 +431,8 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		if (type == AE_IFLNK) {
 			if (archive_entry_symlink_l(entry, &p, &len, sconv)) {
 				if (errno == ENOMEM) {
+					archive_entry_free(l->entry);
+					free(l);
 					archive_set_error(&a->archive, ENOMEM,
 					    "Can't allocate memory "
 					    " for Symlink");

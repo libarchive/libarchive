@@ -653,19 +653,24 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 		 */
 		while (zip->entry_bytes_remaining > 0) {
 			const void *buff;
+			unsigned char *mem;
 			size_t size;
 			int64_t offset;
 
 			r = archive_read_format_7zip_read_data(a, &buff,
 				&size, &offset);
-			if (r < ARCHIVE_WARN)
+			if (r < ARCHIVE_WARN) {
+				free(symname);
 				return (r);
-			symname = realloc(symname, symsize + size + 1);
-			if (symname == NULL) {
+			}
+			mem = realloc(symname, symsize + size + 1);
+			if (mem == NULL) {
+				free(symname);
 				archive_set_error(&a->archive, ENOMEM,
 				    "Can't allocate memory for Symname");
 				return (ARCHIVE_FATAL);
 			}
+			symname = mem;
 			memcpy(symname+symsize, buff, size);
 			symsize += size;
 		}
@@ -2585,7 +2590,7 @@ read_Times(struct archive_read *a, struct _7z_header_info *h, int type)
 		if (parse_7zip_uint64(a, &(h->dataIndex)) < 0)
 			goto failed;
 		if (1000000 < h->dataIndex)
-			return (-1);
+			goto failed;
 	}
 
 	for (i = 0; i < zip->numFiles; i++) {
