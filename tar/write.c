@@ -394,6 +394,7 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 {
 	const char *arg;
 	struct archive_entry *entry, *sparse_entry;
+	struct archive *disk, *disk_saved;
 
 	/* Choose a suitable copy buffer size */
 	bsdtar->buff_size = 64 * 1024;
@@ -474,13 +475,63 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 	}
 
 	entry = NULL;
+	disk = NULL;
+	disk_saved = bsdtar->diskreader;
 	archive_entry_linkify(bsdtar->resolver, &entry, &sparse_entry);
 	while (entry != NULL) {
+		int r;
+		struct archive_entry *entry2;
+
+		/*
+		 * This tricky code here is to correctly read the cotents
+		 * of the entry because the disk reader bsdtar->diskreader
+		 * is pointing at does not have any information about the
+		 * entry by this time and using archive_read_data_block()
+		 * with the disk reader consequently must fail. And we
+		 * have to create a new disk reader object to read the
+		 * contents.
+		 */
+		if (disk == NULL && (disk = archive_read_disk_new()) == NULL)
+			lafe_errc(1, 0, "Cannot create read_disk object");
+		else
+			bsdtar->diskreader = disk;
+
+		/* TODO: Work with -C option as well. */
+		r = archive_read_disk_open(disk,
+			archive_entry_sourcepath(entry));
+		if (r != ARCHIVE_OK) {
+			lafe_warnc(archive_errno(disk),
+			    "%s", archive_error_string(disk));
+			bsdtar->return_value = 1;
+			archive_entry_free(entry);
+			continue;
+		}
+
+		/*
+		 * Invoke archive_read_next_header2() to work
+		 * archive_read_data_block(), which is called via write_file(),
+		 * without failure.
+		 */
+		entry2 = archive_entry_new();
+		r = archive_read_next_header2(disk, entry2);
+		archive_entry_free(entry2);
+		if (r != ARCHIVE_OK) {
+			lafe_warnc(archive_errno(disk),
+			    "%s", archive_error_string(disk));
+			if (r == ARCHIVE_FATAL)
+				bsdtar->return_value = 1;
+			archive_entry_free(entry);
+			continue;
+		}
+
 		write_file(bsdtar, a, entry);
 		archive_entry_free(entry);
 		entry = NULL;
 		archive_entry_linkify(bsdtar->resolver, &entry, &sparse_entry);
 	}
+	bsdtar->diskreader = disk_saved;
+	if (disk != NULL)
+		archive_read_free(disk);
 
 	if (archive_write_close(a)) {
 		lafe_warnc(0, "%s", archive_error_string(a));
