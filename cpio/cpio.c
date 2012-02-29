@@ -1316,7 +1316,8 @@ lookup_uname_helper(struct cpio *cpio, const char **name, id_t id)
 	if (pwent == NULL) {
 		*name = NULL;
 		if (errno != 0 && errno != ENOENT)
-			lafe_warnc(errno, "getpwuid(%d) failed", id);
+			lafe_warnc(errno, "getpwuid(%s) failed",
+			    cpio_i64toa((int64_t)id));
 		return (errno);
 	}
 
@@ -1343,7 +1344,8 @@ lookup_gname_helper(struct cpio *cpio, const char **name, id_t id)
 	if (grent == NULL) {
 		*name = NULL;
 		if (errno != 0)
-			lafe_warnc(errno, "getgrgid(%d) failed", id);
+			lafe_warnc(errno, "getgrgid(%s) failed",
+			    cpio_i64toa((int64_t)id));
 		return (errno);
 	}
 
