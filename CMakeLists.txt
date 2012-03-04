@@ -53,6 +53,17 @@ math(EXPR INTERFACE_VERSION  "12 + ${_minor}")
 # ?? Should there be more here ??
 SET(SOVERSION "${INTERFACE_VERSION}")
 
+# Enalbe CMAKE_PUSH_CHECK_STATE() and CMAKE_POP_CHECK_STATE() macros
+# saving and restoring the state of the variables.
+INCLUDE(CMakePushCheckState)
+
+# Initialize the state of the variables. This initialization is not
+# necessary but this shows you what value the variables initially have.
+SET(CMAKE_REQUIRED_DEFINITIONS)
+SET(CMAKE_REQUIRED_INCLUDES)
+SET(CMAKE_REQUIRED_LIBRARIES)
+SET(CMAKE_REQUIRED_FLAGS)
+
 # Especially for early development, we want to be a little
 # aggressive about diagnosing build problems; this can get
 # relaxed somewhat in final shipping versions.
@@ -235,13 +246,16 @@ IF(ZLIB_FOUND)
   INCLUDE_DIRECTORIES(${ZLIB_INCLUDE_DIR})
   LIST(APPEND ADDITIONAL_LIBS ${ZLIB_LIBRARIES})
   IF(WIN32 AND NOT CYGWIN)
+    #
+    # Test if ZLIB_WINAPI macro is needed to use.
+    #
+    CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
     SET(CMAKE_REQUIRED_INCLUDES ${ZLIB_INCLUDE_DIR})
     SET(CMAKE_REQUIRED_LIBRARIES ${ZLIB_LIBRARIES})
     CHECK_C_SOURCE_Runs(
       "#ifndef ZLIB_WINAPI\n#define ZLIB_WINAPI\n#endif\n#include <zlib.h>\nint main() {uLong f = zlibCompileFlags(); return (f&(1U<<10))?0:-1; }"
       ZLIB_WINAPI)
-    SET(CMAKE_REQUIRED_INCLUDES)
-    SET(CMAKE_REQUIRED_LIBRARIES)
+    CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
   ENDIF(WIN32 AND NOT CYGWIN)
 ENDIF(ZLIB_FOUND)
 MARK_AS_ADVANCED(CLEAR ZLIB_INCLUDE_DIR)
@@ -373,9 +387,11 @@ CHECK_C_SOURCE_COMPILES(
 IF(ENABLE_NETTLE)
   CHECK_LIBRARY_EXISTS(nettle "nettle_sha1_digest" "" NETTLE_FOUND)
   IF(NETTLE_FOUND)
+    CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
     SET(CMAKE_REQUIRED_LIBRARIES "nettle")
     FIND_LIBRARY(NETTLE_LIBRARY NAMES nettle)
     LIST(APPEND ADDITIONAL_LIBS ${NETTLE_LIBRARY})
+    CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
   ELSE(NETTLE_FOUND)
     SET(ENABLE_NETTLE OFF)
   ENDIF(NETTLE_FOUND)
@@ -394,9 +410,11 @@ ENDIF()
 # FreeBSD libmd
 CHECK_LIBRARY_EXISTS(md "MD5Init" "" LIBMD_FOUND)
 IF(LIBMD_FOUND)
+  CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
   SET(CMAKE_REQUIRED_LIBRARIES "md")
   FIND_LIBRARY(LIBMD_LIBRARY NAMES md)
   LIST(APPEND ADDITIONAL_LIBS ${LIBMD_LIBRARY})
+  CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
 ENDIF(LIBMD_FOUND)
 
 #
@@ -577,18 +595,17 @@ ENDMACRO(CHECK_CRYPTO_WIN CRYPTO_LIST)
 #
 MACRO(CHECK_ICONV LIB TRY_ICONV_CONST)
   IF(NOT HAVE_ICONV)
+    CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
     IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
       #
       # During checking iconv proto type, we should use -Werror to avoid the
       # success of iconv detection with a warnig which success is a miss
       # detection. So this needs for all build mode(even it's a release mode).
       #
-      SET(SAVE_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
       SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Werror")
     ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
     IF (MSVC)
       # NOTE: /WX option is the same as gcc's -Werror option.
-      SET(SAVE_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
       SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} /WX")
     ENDIF (MSVC)
     #
@@ -607,16 +624,12 @@ MACRO(CHECK_ICONV LIB TRY_ICONV_CONST)
       SET(HAVE_ICONV true)
       SET(ICONV_CONST ${TRY_ICONV_CONST})
     ENDIF(HAVE_ICONV_${LIB}_${TRY_ICONV_CONST})
-    #
-    # Restore CMAKE_REQUIRED_FLAGS
-    #
-    IF (("CMAKE_C_COMPILER_ID" MATCHES "^GNU$") OR MSVC)
-      SET(CMAKE_REQUIRED_FLAGS ${SAVE_CMAKE_REQUIRED_FLAGS})
-    ENDIF (("CMAKE_C_COMPILER_ID" MATCHES "^GNU$") OR MSVC)
+    CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
   ENDIF(NOT HAVE_ICONV)
 ENDMACRO(CHECK_ICONV TRY_ICONV_CONST)
 
 IF(ENABLE_ICONV)
+  CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
   FIND_PATH(ICONV_INCLUDE_DIR iconv.h)
   IF(ICONV_INCLUDE_DIR)
     #SET(INCLUDES ${INCLUDES} "iconv.h")
@@ -654,6 +667,7 @@ IF(ENABLE_ICONV)
       ENDIF(LIBCHARSET_PATH)
     ENDIF(NOT HAVE_LOCALE_CHARSET)
   ENDIF(LIBICONV_PATH)
+  CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
 ELSE(ENABLE_ICONV)
   # Make sure ICONV variables are not in CACHE after ENABLE_ICONV disabled
   # (once enabled).
@@ -672,6 +686,7 @@ ENDIF(ENABLE_ICONV)
 #
 FIND_PACKAGE(LibXml2)
 IF(LIBXML2_FOUND)
+  CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
   INCLUDE_DIRECTORIES(${LIBXML2_INCLUDE_DIR})
   LIST(APPEND ADDITIONAL_LIBS ${LIBXML2_LIBRARIES})
   SET(HAVE_LIBXML2 1)
@@ -679,17 +694,19 @@ IF(LIBXML2_FOUND)
   SET(CMAKE_REQUIRED_INCLUDES ${ICONV_INCLUDE_DIR} ${LIBXML2_INCLUDE_DIR})
   CHECK_INCLUDE_FILES("libxml/xmlreader.h" HAVE_LIBXML_XMLREADER_H)
   CHECK_INCLUDE_FILES("libxml/xmlwriter.h" HAVE_LIBXML_XMLWRITER_H)
-  SET(CMAKE_REQUIRED_INCLUDES "")
+  CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
 ELSE(LIBXML2_FOUND)
   #
   # Find Expat
   #
   FIND_PACKAGE(EXPAT)
   IF(EXPAT_FOUND)
+    CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
     INCLUDE_DIRECTORIES(${EXPAT_INCLUDE_DIR})
     LIST(APPEND ADDITIONAL_LIBS ${EXPAT_LIBRARIES})
     SET(HAVE_LIBEXPAT 1)
     LA_CHECK_INCLUDE_FILE("expat.h" HAVE_EXPAT_H)
+    CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
   ENDIF(EXPAT_FOUND)
 ENDIF(LIBXML2_FOUND)
 
@@ -703,6 +720,7 @@ IF(REGEX_INCLUDE_DIR)
   # If libc does not provide regex, find libregex.
   #
   IF(NOT HAVE_REGCOMP_LIBC)
+    CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
     FIND_LIBRARY(REGEX_LIBRARY regex)
     IF(REGEX_LIBRARY)
       SET(CMAKE_REQUIRED_LIBRARIES ${REGEX_LIBRARY})
@@ -721,19 +739,20 @@ IF(REGEX_INCLUDE_DIR)
         ENDIF(NOT HAVE_REGEX_H)
       ENDIF(HAVE_REGCOMP_LIBREGEX)
     ENDIF(REGEX_LIBRARY)
+    CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
   ENDIF(NOT HAVE_REGCOMP_LIBC)
 ENDIF(REGEX_INCLUDE_DIR)
 
 #
 # Check functions
 #
+CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
 IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
   #
   # During checking functions, we should use -fno-builtin to avoid the
   # failure of function detection which failure is an error "conflicting
   # types for built-in function" caused by using -Werror option.
   #
-  SET(SAVE_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
   SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -fno-builtin")
 ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
 CHECK_SYMBOL_EXISTS(_CrtSetReportMode "crtdbg.h" HAVE__CrtSetReportMode)
@@ -821,10 +840,7 @@ CHECK_FUNCTION_EXISTS(vprintf HAVE_VPRINTF)
 CHECK_FUNCTION_EXISTS(wmemcmp HAVE_WMEMCMP)
 CHECK_FUNCTION_EXISTS(wmemcpy HAVE_WMEMCPY)
 
-# Restore CMAKE_REQUIRED_FLAGS
-IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
-  SET(CMAKE_REQUIRED_FLAGS ${SAVE_CMAKE_REQUIRED_FLAGS})
-ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
+CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
 
 # Make sure we have the POSIX version of readdir_r, not the
 # older 2-argument version.
