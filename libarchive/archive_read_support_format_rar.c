@@ -1176,7 +1176,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   {
     if (filename_size != strlen(filename))
     {
-      unsigned char highbyte, flagbits, flagbyte, length, offset;
+      unsigned char highbyte, flagbits, flagbyte, offset;
 
       end = filename_size;
       filename_size = 0;
@@ -1210,12 +1210,19 @@ read_header(struct archive_read *a, struct archive_entry *entry,
             break;
           case 3:
           {
-            length = *(p + offset++);
-            while (length)
-            {
-	          if (filename_size >= end)
-			    break;
-              filename[filename_size++] = *(p + offset);
+            char extra, high;
+            uint8_t length = *(p + offset++);
+
+            if (length & 0x80) {
+              extra = *(p + offset++);
+              high = (char)highbyte;
+            } else
+              extra = high = 0;
+            length = (length & 0x7f) + 2;
+            while (length && filename_size < end) {
+              unsigned cp = filename_size >> 1;
+              filename[filename_size++] = high;
+              filename[filename_size++] = p[cp] + extra;
               length--;
             }
           }
