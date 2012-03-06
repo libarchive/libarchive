@@ -7,7 +7,30 @@ SET(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/build/cmake")
 if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${libarchive_BINARY_DIR}/bin)
 endif()
-SET(CMAKE_BUILD_TYPE "Release")
+#
+# Set the Build type for make based generators.
+# You can choose following types:
+#   Debug          : Debug build
+#   Release        : Release build
+#   RelWithDebInfo : Release build with Debug Info
+#   MinSizeRel     : Release Min Size build
+IF(NOT CMAKE_BUILD_TYPE)
+  SET(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build Type" FORCE)
+ENDIF(NOT CMAKE_BUILD_TYPE)
+# Set a value type to properly display CMAKE_BUILD_TYPE on GUI if the
+# value type is "UNINITIALIZED".
+GET_PROPERTY(cached_type CACHE CMAKE_BUILD_TYPE PROPERTY TYPE)
+IF("${cached_type}" STREQUAL "UNINITIALIZED")
+  SET(CMAKE_BUILD_TYPE "${CMAKE_BUILD_TYPE}" CACHE STRING "Build Type" FORCE)
+ENDIF("${cached_type}" STREQUAL "UNINITIALIZED")
+# Check the Build Type.
+IF(NOT "${CMAKE_BUILD_TYPE}"
+       MATCHES "^(Debug|Release|RelWithDebInfo|MinSizeRel)\$")
+  MESSAGE(FATAL_ERROR
+          "Unknown keyword for CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}\n"
+          "Acceptable keywords: Debug,Release,RelWithDebInfo,MinSizeRel")
+ENDIF(NOT "${CMAKE_BUILD_TYPE}"
+          MATCHES "^(Debug|Release|RelWithDebInfo|MinSizeRel)\$")
 
 # On MacOS, prefer MacPorts libraries to system libraries.
 # I haven't come up with a compelling argument for this to be conditional.
