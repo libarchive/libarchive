@@ -93,6 +93,7 @@ SET(libarchive_SOURCES
   archive_write_open_file.c
   archive_write_open_filename.c
   archive_write_open_memory.c
+  archive_write_add_filter.c
   archive_write_add_filter_bzip2.c
   archive_write_add_filter_compress.c
   archive_write_add_filter_gzip.c
