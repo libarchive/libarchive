@@ -600,9 +600,6 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `link' function. */
 #cmakedefine HAVE_LINK 1
 
-/* Define to 1 if you have the <linux/types.h> header file. */
-#cmakedefine HAVE_LINUX_TYPES_H 1
-
 /* Define to 1 if you have the <linux/fiemap.h> header file. */
 #cmakedefine HAVE_LINUX_FIEMAP_H 1
 
@@ -611,6 +608,9 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the <linux/magic.h> header file. */
 #cmakedefine HAVE_LINUX_MAGIC_H 1
+
+/* Define to 1 if you have the <linux/types.h> header file. */
+#cmakedefine HAVE_LINUX_TYPES_H 1
 
 /* Define to 1 if you have the `listea' function. */
 #cmakedefine HAVE_LISTEA 1
