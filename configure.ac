@@ -223,7 +223,7 @@ AS_VAR_IF([ac_cv_have_decl_EXT2_IOC_GETFLAGS], [yes],
                     [Define to 1 if you have a working EXT2_IOC_GETFLAGS])])
 
 AC_CHECK_HEADERS([inttypes.h io.h langinfo.h limits.h])
-AC_CHECK_HEADERS([linux/fiemap.h linux/fs.h linux/magic.h])
+AC_CHECK_HEADERS([linux/fiemap.h linux/fs.h linux/magic.h linux/types.h])
 AC_CHECK_HEADERS([locale.h paths.h poll.h pwd.h regex.h signal.h stdarg.h])
 AC_CHECK_HEADERS([stdint.h stdlib.h string.h])
 AC_CHECK_HEADERS([sys/acl.h sys/cdefs.h sys/extattr.h sys/ioctl.h])
