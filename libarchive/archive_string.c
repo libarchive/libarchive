@@ -535,6 +535,7 @@ archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
 		}
 	} else {
 		DWORD mbflag;
+		size_t buffsize;
 
 		if (sc == NULL)
 			mbflag = 0;
@@ -546,41 +547,24 @@ archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
 		} else
 			mbflag = MB_PRECOMPOSED;
 
-		if (length == 0) {
-			/*
-			 * We do not need to convert any characters but make
-			 * sure `dest' has a valid buffer(no NULL pointer).
-			 */
-			if (NULL == archive_wstring_ensure(dest,
-			    dest->length + 1))
+		buffsize = dest->length + length + 1;
+		do {
+			/* Allocate memory for WCS. */
+			if (NULL == archive_wstring_ensure(dest, buffsize))
 				return (-1);
-			dest->s[dest->length] = L'\0';
-			return (0);
-		}
-
-		/*
-		 * Count how many bytes are needed for WCS.
-		 */
-		count = MultiByteToWideChar(from_cp,
-		    mbflag, s, length, NULL, 0);
-		if (count == 0) {
-			if (dest->s == NULL) {
-				if (NULL == archive_wstring_ensure(dest,
-				    dest->length + 1))
-					return (-1);
+			/* Convert MBS to WCS. */
+			count = MultiByteToWideChar(from_cp,
+			    mbflag, s, length, dest->s + dest->length,
+			    (dest->buffer_length >> 1) -1);
+			if (count == 0 &&
+			    GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
+				/* Expand the WCS buffer. */
+				buffsize = dest->buffer_length << 1;
+				continue;
 			}
-			dest->s[dest->length] = L'\0';
-			return (-1);
-		}
-		/* Allocate memory for WCS. */
-		if (NULL == archive_wstring_ensure(dest,
-		    dest->length + count + 1))
-			return (-1);
-		/* Convert MBS to WCS. */
-		count = MultiByteToWideChar(from_cp,
-		    mbflag, s, length, dest->s + dest->length, count);
-		if (count == 0)
-			ret = -1;
+			if (count == 0 && length != 0)
+				ret = -1;
+		} while (0);
 	}
 	dest->length += count;
 	dest->s[dest->length] = L'\0';
