@@ -1793,9 +1793,8 @@ cab_consume_cfdata(struct archive_read *a, int64_t consumed_bytes)
 		rbytes -= cbytes;
 
 		if (cfdata->uncompressed_avail == 0 &&
-		    (cab->entry_cffolder->comptype == COMPTYPE_NONE ||
-		     cab->entry_cffile->folder == iFoldCONTINUED_PREV_AND_NEXT ||
-			 cab->entry_cffile->folder == iFoldCONTINUED_FROM_PREV)) {
+		   (cab->entry_cffile->folder == iFoldCONTINUED_PREV_AND_NEXT ||
+		    cab->entry_cffile->folder == iFoldCONTINUED_FROM_PREV)) {
 			/* We have not read any data yet. */
 			if (cbytes == cfdata->uncompressed_bytes_remaining) {
 				/* Skip whole current CFDATA. */
