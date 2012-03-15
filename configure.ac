@@ -197,13 +197,6 @@ case $host in
   ;;
 esac
 
-# We need CoreServices on Mac OS.
-case $host in
-  *darwin* )
-  LIBS="${LIBS} -framework CoreServices"
-  ;;
-esac
-
 # Checks for header files.
 AC_HEADER_DIRENT
 AC_HEADER_SYS_WAIT
