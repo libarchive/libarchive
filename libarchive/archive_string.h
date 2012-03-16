@@ -117,13 +117,13 @@ archive_string_conversion_set_opt(struct archive_string_conv *, int);
 /* Copy one archive_string to another in locale conversion.
  * Return -1 if conversion failes. */
 int
-archive_strncpy_in_locale(struct archive_string *, const void *, size_t,
+archive_strncpy_l(struct archive_string *, const void *, size_t,
     struct archive_string_conv *);
 
 /* Copy one archive_string to another in locale conversion.
  * Return -1 if conversion failes. */
 int
-archive_strncat_in_locale(struct archive_string *, const void *, size_t,
+archive_strncat_l(struct archive_string *, const void *, size_t,
     struct archive_string_conv *);
 
 
@@ -164,8 +164,8 @@ archive_wstrcat(struct archive_wstring *, const wchar_t *);
 	archive_strncpy((as), (p), ((p) == NULL ? 0 : strlen(p)))
 #define	archive_wstrcpy(as,p) \
 	archive_wstrncpy((as), (p), ((p) == NULL ? 0 : wcslen(p)))
-#define	archive_strcpy_in_locale(as,p,lo) \
-	archive_strncpy_in_locale((as), (p), ((p) == NULL ? 0 : strlen(p)), (lo))
+#define	archive_strcpy_l(as,p,lo) \
+	archive_strncpy_l((as), (p), ((p) == NULL ? 0 : strlen(p)), (lo))
 
 /* Copy a C string to an archive_string with limit, resizing as necessary. */
 #define	archive_strncpy(as,p,l) \

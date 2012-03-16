@@ -380,7 +380,7 @@ test_archive_string_normalization(int mac_nfd)
 			/*
 			 * Normalize an NFC string for import.
 			 */
-			assertEqualInt(0, archive_strcpy_in_locale(
+			assertEqualInt(0, archive_strcpy_l(
 			    &utf8, utf8_nfc, f_sconv8));
 			if (should_be_nfc) {
 				failure("NFC(%s) should not be converted to"
@@ -396,7 +396,7 @@ test_archive_string_normalization(int mac_nfd)
 			/*
 			 * Normalize an NFD string for import.
 			 */
-			assertEqualInt(0, archive_strcpy_in_locale(
+			assertEqualInt(0, archive_strcpy_l(
 			    &utf8, utf8_nfd, f_sconv8));
 			failure("NFD(%s) should not be any changed:%d",
 			    nfd, line);
@@ -405,7 +405,7 @@ test_archive_string_normalization(int mac_nfd)
 			/*
 			 * Copy an NFD string for export.
 			 */
-			assertEqualInt(0, archive_strcpy_in_locale(
+			assertEqualInt(0, archive_strcpy_l(
 			    &utf8, utf8_nfd, t_sconv8));
 			failure("NFD(%s) should not be any changed:%d",
 			    nfd, line);
@@ -414,7 +414,7 @@ test_archive_string_normalization(int mac_nfd)
 			/*
 			 * Normalize an NFC string in UTF-16BE for import.
 			 */
-			assertEqualInt(0, archive_strncpy_in_locale(
+			assertEqualInt(0, archive_strncpy_l(
 			    &utf8, utf16be_nfc, 100000, f_sconv16be));
 			if (should_be_nfc) {
 				failure("NFC(%s) should not be converted to"
@@ -429,7 +429,7 @@ test_archive_string_normalization(int mac_nfd)
 			/*
 			 * Normalize an NFC string in UTF-16LE for import.
 			 */
-			assertEqualInt(0, archive_strncpy_in_locale(
+			assertEqualInt(0, archive_strncpy_l(
 			    &utf8, utf16le_nfc, 100000, f_sconv16le));
 			if (should_be_nfc) {
 				failure("NFC(%s) should not be converted to"
@@ -445,7 +445,7 @@ test_archive_string_normalization(int mac_nfd)
 			/*
 			 * Normalize an NFD string for import.
 			 */
-			assertEqualInt(0, archive_strcpy_in_locale(
+			assertEqualInt(0, archive_strcpy_l(
 			    &utf8, utf8_nfd, f_sconv8));
 			failure("NFD(%s) should be converted to NFC(%s):%d",
 			    nfd, nfc, line);
@@ -454,7 +454,7 @@ test_archive_string_normalization(int mac_nfd)
 			/*
 			 * Normalize an NFC string for import.
 			 */
-			assertEqualInt(0, archive_strcpy_in_locale(
+			assertEqualInt(0, archive_strcpy_l(
 			    &utf8, utf8_nfc, f_sconv8));
 			failure("NFC(%s) should not be any changed:%d",
 			    nfc, line);
@@ -463,7 +463,7 @@ test_archive_string_normalization(int mac_nfd)
 			/*
 			 * Copy an NFC string for export.
 			 */
-			assertEqualInt(0, archive_strcpy_in_locale(
+			assertEqualInt(0, archive_strcpy_l(
 			    &utf8, utf8_nfc, t_sconv8));
 			failure("NFC(%s) should not be any changed:%d",
 			    nfc, line);
@@ -472,7 +472,7 @@ test_archive_string_normalization(int mac_nfd)
 			/*
 			 * Normalize an NFD string in UTF-16BE for import.
 			 */
-			assertEqualInt(0, archive_strncpy_in_locale(
+			assertEqualInt(0, archive_strncpy_l(
 			    &utf8, utf16be_nfd, 100000, f_sconv16be));
 			failure("NFD(%s) should be converted to NFC(%s):%d",
 			    nfd, nfc, line);
@@ -481,7 +481,7 @@ test_archive_string_normalization(int mac_nfd)
 			/*
 			 * Normalize an NFD string in UTF-16LE for import.
 			 */
-			assertEqualInt(0, archive_strncpy_in_locale(
+			assertEqualInt(0, archive_strncpy_l(
 			    &utf8, utf16le_nfd, 100000, f_sconv16le));
 			failure("NFD(%s) should be converted to NFC(%s):%d",
 			    nfd, nfc, line);

@@ -334,8 +334,7 @@ archive_write_pax_header_xattrs(struct archive_write *a,
 		url_encoded_name = url_encode(name);
 		if (url_encoded_name != NULL) {
 			/* Convert narrow-character to UTF-8. */
-			r = archive_strcpy_in_locale(
-			    &(pax->l_url_encoded_name),
+			r = archive_strcpy_l(&(pax->l_url_encoded_name),
 			    url_encoded_name, pax->sconv_utf8);
 			free(url_encoded_name); /* Done with this. */
 			if (r == 0)

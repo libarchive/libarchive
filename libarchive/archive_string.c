@@ -1879,8 +1879,8 @@ archive_string_conversion_set_opt(struct archive_string_conv *sc, int opt)
  *
  * Copy one archive_string to another in locale conversion.
  *
- *	archive_strncpy_in_locale();
- *	archive_strcpy_in_locale();
+ *	archive_strncat_l();
+ *	archive_strncpy_l();
  *
  */
 
@@ -1926,15 +1926,15 @@ utf16nbytes(const void *_p, size_t n)
 }
 
 int
-archive_strncpy_in_locale(struct archive_string *as, const void *_p, size_t n,
+archive_strncpy_l(struct archive_string *as, const void *_p, size_t n,
     struct archive_string_conv *sc)
 {
 	as->length = 0;
-	return (archive_strncat_in_locale(as, _p, n, sc));
+	return (archive_strncat_l(as, _p, n, sc));
 }
 
 int
-archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
+archive_strncat_l(struct archive_string *as, const void *_p, size_t n,
     struct archive_string_conv *sc)
 {
 	const void *s;
@@ -3887,7 +3887,7 @@ archive_mstring_get_utf8(struct archive *a, struct archive_mstring *aes,
 		sc = archive_string_conversion_to_charset(a, "UTF-8", 1);
 		if (sc == NULL)
 			return (-1);/* Couldn't allocate memory for sc. */
-		r = archive_strncpy_in_locale(&(aes->aes_mbs), aes->aes_mbs.s,
+		r = archive_strncpy_l(&(aes->aes_mbs), aes->aes_mbs.s,
 		    aes->aes_mbs.length, sc);
 		if (a == NULL)
 			free_sconv_object(sc);
@@ -4016,7 +4016,7 @@ archive_mstring_get_mbs_l(struct archive_mstring *aes,
 				*length = aes->aes_mbs.length;
 			return (0);
 		}
-		ret = archive_strncpy_in_locale(&(aes->aes_mbs_in_locale),
+		ret = archive_strncpy_l(&(aes->aes_mbs_in_locale),
 		    aes->aes_mbs.s, aes->aes_mbs.length, sc);
 		*p = aes->aes_mbs_in_locale.s;
 		if (length != NULL)
@@ -4117,7 +4117,7 @@ archive_mstring_copy_mbs_len_l(struct archive_mstring *aes,
 		 * Translate multi-bytes from some character-set to UTF-8.
 		 */ 
 		sc->cd = sc->cd_w;
-		r = archive_strncpy_in_locale(&(aes->aes_utf8), mbs, len, sc);
+		r = archive_strncpy_l(&(aes->aes_utf8), mbs, len, sc);
 		sc->cd = cd;
 		if (r != 0) {
 			aes->aes_set = 0;
@@ -4149,7 +4149,7 @@ archive_mstring_copy_mbs_len_l(struct archive_mstring *aes,
 			aes->aes_set = 0;
 	}
 #else
-	r = archive_strncpy_in_locale(&(aes->aes_mbs), mbs, len, sc);
+	r = archive_strncpy_l(&(aes->aes_mbs), mbs, len, sc);
 	if (r == 0)
 		aes->aes_set = AES_SET_MBS; /* Only MBS form is set now. */
 	else
@@ -4193,7 +4193,7 @@ archive_mstring_update_utf8(struct archive *a, struct archive_mstring *aes,
 	sc = archive_string_conversion_from_charset(a, "UTF-8", 1);
 	if (sc == NULL)
 		return (-1);/* Couldn't allocate memory for sc. */
-	r = archive_strcpy_in_locale(&(aes->aes_mbs), utf8, sc);
+	r = archive_strcpy_l(&(aes->aes_mbs), utf8, sc);
 	if (a == NULL)
 		free_sconv_object(sc);
 	if (r != 0)

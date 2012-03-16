@@ -2244,7 +2244,7 @@ set_str_utf16be(struct archive_write *a, unsigned char *p, const char *s,
 		onepad = 0;
 	if (vdc == VDC_UCS2) {
 		struct iso9660 *iso9660 = a->format_data;
-		if (archive_strncpy_in_locale(&iso9660->utf16be, s, strlen(s),
+		if (archive_strncpy_l(&iso9660->utf16be, s, strlen(s),
 		    iso9660->sconv_to_utf16be) != 0 && errno == ENOMEM) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory for UTF-16BE");
@@ -6274,7 +6274,7 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 		 * Get a length of MBS of a full-pathname.
 		 */
 		if ((int)np->file->basename_utf16.length > ffmax) {
-			if (archive_strncpy_in_locale(&iso9660->mbs,
+			if (archive_strncpy_l(&iso9660->mbs,
 			    (const char *)np->identifier, l,
 				iso9660->sconv_from_utf16be) != 0 &&
 			    errno == ENOMEM) {
