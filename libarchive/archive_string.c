@@ -1036,6 +1036,16 @@ setup_converter(struct archive_string_conv *sc)
 #if HAVE_ICONV
 	if (sc->cd != (iconv_t)-1) {
 		add_converter(sc, iconv_strncat_in_locale);
+		/*
+		 * iconv generally does not support UTF-8-MAC and so
+		 * we have to the output of iconv from NFC to NFD if
+		 * need.
+		 */
+		if ((sc->flag & SCONV_FROM_CHARSET) &&
+		    (sc->flag & SCONV_TO_UTF8)) {
+			if (sc->flag & SCONV_NORMALIZATION_D)
+				add_converter(sc, archive_string_normalize_D);
+		}
 		return;
 	}
 #endif
@@ -1199,6 +1209,29 @@ create_sconv_object(const char *fc, const char *tc,
 #endif
 			flag |= SCONV_NORMALIZATION_C;
 	}
+#if defined(__APPLE__)
+	/*
+	 * In case writing an archive file, make sure that a filename
+	 * going to be passed to iconv is a Unicode NFC string since
+	 * a filename in HFS Plus filesystem is a Unicode NFD one and
+	 * iconv cannot handle it with "UTF-8" charset. It is simpler
+	 * than a use of "UTF-8-MAC" charset.
+	 */
+	if ((flag & SCONV_TO_CHARSET) &&
+	    (flag & (SCONV_FROM_UTF16 | SCONV_FROM_UTF8)) &&
+	    !(flag & (SCONV_TO_UTF16 | SCONV_TO_UTF8)))
+		flag |= SCONV_NORMALIZATION_C;
+	/*
+	 * In case reading an archive file. make sure that a filename
+	 * will be passed to users is a Unicode NFD string in order to
+	 * correctly compare the filename with other one which comes
+	 * from HFS Plus filesystem.
+	 */
+	if ((flag & SCONV_FROM_CHARSET) &&
+	   !(flag & (SCONV_FROM_UTF16 | SCONV_FROM_UTF8)) &&
+	    (flag & SCONV_TO_UTF8))
+		flag |= SCONV_NORMALIZATION_D;
+#endif
 
 #if defined(HAVE_ICONV)
 	sc->cd_w = (iconv_t)-1;
@@ -1210,46 +1243,6 @@ create_sconv_object(const char *fc, const char *tc,
 	    (flag & SCONV_WIN_CP)) {
 		/* This case we won't use iconv. */
 		sc->cd = (iconv_t)-1;
-#if defined(__APPLE__)
-	} else if ((flag & SCONV_FROM_CHARSET) && (flag & SCONV_TO_UTF8)) {
-		/*
-		 * In case reading an archive file.
-		 * Translate non-Unicode filenames in an archive file to
-		 * UTF-8-MAC filenames.
-		 */
-		sc->cd = iconv_open("UTF-8-MAC", fc);
-		if (sc->cd == (iconv_t)-1) {
-			if ((sc->flag & SCONV_BEST_EFFORT) &&
-			    strcmp(fc, "CP932") == 0) {
-				sc->cd = iconv_open("UTF-8-MAC", "SJIS");
-				if (sc->cd == (iconv_t)-1) {
-					sc->cd = iconv_open(tc, fc);
-					if (sc->cd == (iconv_t)-1)
-						sc->cd = iconv_open(tc, "SJIS");
-				}
-			} else
-				sc->cd = iconv_open(tc, fc);
-		}
-	} else if ((flag & SCONV_TO_CHARSET) && (flag & SCONV_FROM_UTF8)) {
-		/*
-		 * In case writing an archive file.
-		 * Translate UTF-8-MAC filenames in HFS Plus to non-Unicode
-		 * filenames.
-		 */
-		sc->cd = iconv_open(tc, "UTF-8-MAC");
-		if (sc->cd == (iconv_t)-1) {
-			if ((sc->flag & SCONV_BEST_EFFORT) &&
-			    strcmp(tc, "CP932") == 0) {
-				sc->cd = iconv_open("SJIS", "UTF-8-MAC");
-				if (sc->cd == (iconv_t)-1) {
-					sc->cd = iconv_open(tc, fc);
-					if (sc->cd == (iconv_t)-1)
-						sc->cd = iconv_open("SJIS", fc);
-				}
-			} else
-				sc->cd = iconv_open(tc, fc);
-		}
-#endif
 	} else {
 		sc->cd = iconv_open(tc, fc);
 		if (sc->cd == (iconv_t)-1 && (sc->flag & SCONV_BEST_EFFORT)) {
@@ -1285,7 +1278,7 @@ create_sconv_object(const char *fc, const char *tc,
 	sc->flag = flag;
 
 	/*
-	 * Setup converters.
+	 * Set up converters.
 	 */
 	setup_converter(sc);
 
@@ -1846,7 +1839,7 @@ archive_string_conversion_set_opt(struct archive_string_conv *sc, int opt)
 #else
 		if ((sc->flag & SCONV_UTF8_LIBARCHIVE_2) == 0) {
 			sc->flag |= SCONV_UTF8_LIBARCHIVE_2;
-			/* Re-setup string converters. */
+			/* Set up string converters. */
 			setup_converter(sc);
 		}
 #endif
@@ -1855,15 +1848,25 @@ archive_string_conversion_set_opt(struct archive_string_conv *sc, int opt)
 		if ((sc->flag & SCONV_NORMALIZATION_C) == 0) {
 			sc->flag |= SCONV_NORMALIZATION_C;
 			sc->flag &= ~SCONV_NORMALIZATION_D;
-			/* Re-setup string converters. */
+			/* Set up string converters. */
 			setup_converter(sc);
 		}
 		break;
 	case SCONV_SET_OPT_NORMALIZATION_D:
+#if defined(HAVE_ICONV)
+		/*
+		 * If iconv will take the string, do not change the
+		 * setting of the normalization.
+		 */
+		if (!(sc->flag & SCONV_WIN_CP) &&
+		     (sc->flag & (SCONV_FROM_UTF16 | SCONV_FROM_UTF8)) &&
+		    !(sc->flag & (SCONV_TO_UTF16 | SCONV_TO_UTF8)))
+			break;
+#endif
 		if ((sc->flag & SCONV_NORMALIZATION_D) == 0) {
 			sc->flag |= SCONV_NORMALIZATION_D;
 			sc->flag &= ~SCONV_NORMALIZATION_C;
-			/* Re-setup string converters. */
+			/* Set up string converters. */
 			setup_converter(sc);
 		}
 		break;
