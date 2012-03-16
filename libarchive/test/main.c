@@ -2385,7 +2385,7 @@ main(int argc, char **argv)
 	const char *progname;
 	char **saved_argv;
 	const char *tmp, *option_arg, *p;
-	char tmpdir[256], *pwd, *testprogdir, *tmp2 = NULL;
+	char tmpdir[256], *pwd, *testprogdir, *tmp2 = NULL, *vlevel = NULL;
 	char tmpdir_timestamp[256];
 
 	(void)argc; /* UNUSED */
@@ -2471,6 +2471,19 @@ main(int argc, char **argv)
 	if (getenv(ENVBASE "_DEBUG") != NULL)
 		dump_on_failure = 1;
 
+	/* Allow -v to be controlled through the environment. */
+	if (getenv("_VERBOSITY_LEVEL") != NULL)
+	{
+		vlevel = getenv("_VERBOSITY_LEVEL");
+		verbosity = atoi(vlevel);
+		if (verbosity < VERBOSITY_SUMMARY_ONLY || verbosity > VERBOSITY_FULL)
+		{
+			/* Unsupported verbosity levels are silently ignored */
+			vlevel = NULL;
+			verbosity = VERBOSITY_PASSFAIL;
+		}
+	}
+
 	/* Get the directory holding test files from environment. */
 	refdir = getenv(ENVBASE "_TEST_FILES");
 
@@ -2518,7 +2531,8 @@ main(int argc, char **argv)
 #endif
 				break;
 			case 'q':
-				verbosity--;
+				if (!vlevel)
+					verbosity--;
 				break;
 			case 'r':
 				refdir = option_arg;
@@ -2527,7 +2541,8 @@ main(int argc, char **argv)
 				until_failure++;
 				break;
 			case 'v':
-				verbosity++;
+				if (!vlevel)
+					verbosity++;
 				break;
 			default:
 				fprintf(stderr, "Unrecognized option '%c'\n",
