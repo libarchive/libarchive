@@ -2215,7 +2215,9 @@ lzx_translation(struct lzx_stream *strm, void *p, size_t size, uint32_t offset)
 
 /* Notify how many bits we consumed. */
 #define lzx_br_consume(br, n)	((br)->cache_avail -= (n))
-#define lzx_br_consume_unalined_bits(br) ((br)->cache_avail &= ~0x0f)
+#define lzx_br_consume_unaligned_bits(br) ((br)->cache_avail &= ~0x0f)
+
+#define lzx_br_is_unaligned(br)	((br)->cache_avail & 0x0f)
 
 static const uint32_t cache_masks[] = {
 	0x00000000, 0x00000001, 0x00000003, 0x00000007,
@@ -2342,24 +2344,25 @@ lzx_cleanup_bitstream(struct lzx_stream *strm)
 #define ST_RD_TRANSLATION_SIZE	1
 #define ST_RD_BLOCK_TYPE	2
 #define ST_RD_BLOCK_SIZE	3
-#define ST_RD_R0		4
-#define ST_RD_R1		5
-#define ST_RD_R2		6
-#define ST_COPY_UNCOMP1		7
-#define ST_COPY_UNCOMP2		8
-#define ST_RD_ALIGNED_OFFSET	9
-#define ST_RD_VERBATIM		10
-#define ST_RD_PRE_MAIN_TREE_256	11
-#define ST_MAIN_TREE_256	12
-#define ST_RD_PRE_MAIN_TREE_REM	13
-#define ST_MAIN_TREE_REM	14
-#define ST_RD_PRE_LENGTH_TREE	15
-#define ST_LENGTH_TREE		16
-#define ST_MAIN			17
-#define ST_LENGTH		18
-#define ST_OFFSET		19
-#define ST_REAL_POS		20
-#define ST_COPY			21
+#define ST_RD_ALIGNMENT		4
+#define ST_RD_R0		5
+#define ST_RD_R1		6
+#define ST_RD_R2		7
+#define ST_COPY_UNCOMP1		8
+#define ST_COPY_UNCOMP2		9
+#define ST_RD_ALIGNED_OFFSET	10
+#define ST_RD_VERBATIM		11
+#define ST_RD_PRE_MAIN_TREE_256	12
+#define ST_MAIN_TREE_256	13
+#define ST_RD_PRE_MAIN_TREE_REM	14
+#define ST_MAIN_TREE_REM	15
+#define ST_RD_PRE_LENGTH_TREE	16
+#define ST_LENGTH_TREE		17
+#define ST_MAIN			18
+#define ST_LENGTH		19
+#define ST_OFFSET		20
+#define ST_REAL_POS		21
+#define ST_COPY			22
 
 static int
 lzx_decode(struct lzx_stream *strm, int last)
@@ -2463,15 +2466,25 @@ lzx_read_blocks(struct lzx_stream *strm, int last)
 					ds->state = ST_RD_ALIGNED_OFFSET;
 				break;
 			}
+			/* FALL THROUGH */
+		case ST_RD_ALIGNMENT:
 			/*
 			 * Handle an Uncompressed Block.
 			 */
 			/* Skip padding to align following field on
 			 * 16-bit boundary. */
-			if (br->cache_avail == 32 || br->cache_avail == 16)
-				lzx_br_consume(br, 16);
-			else
-				lzx_br_consume_unalined_bits(br);
+			if (lzx_br_is_unaligned(br))
+				lzx_br_consume_unaligned_bits(br);
+			else {
+				if (lzx_br_read_ahead(strm, br, 16))
+					lzx_br_consume(br, 16);
+				else {
+					ds->state = ST_RD_ALIGNMENT;
+					if (last)
+						goto failed;
+					return (ARCHIVE_OK);
+				}
+			}
 			/* Preparation to read repeated offsets R0,R1 and R2. */
 			ds->rbytes_avail = 0;
 			ds->state = ST_RD_R0;
@@ -2496,8 +2509,7 @@ lzx_read_blocks(struct lzx_stream *strm, int last)
 					lzx_br_consume(br, 16);
 					archive_le16enc(ds->rbytes, u16);
 					ds->rbytes_avail = 2;
-				} else
-					ds->rbytes_avail = 0;
+				}
 				if (ds->rbytes_avail < 4 && ds->br.have_odd) {
 					ds->rbytes[ds->rbytes_avail++] =
 					    ds->br.odd;
@@ -2513,6 +2525,7 @@ lzx_read_blocks(struct lzx_stream *strm, int last)
 					    *strm->next_in++;
 					strm->avail_in--;
 				}
+				ds->rbytes_avail = 0;
 				if (ds->state == ST_RD_R0) {
 					ds->r0 = archive_le32dec(ds->rbytes);
 					if (ds->r0 < 0)
