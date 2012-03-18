@@ -2375,11 +2375,71 @@ success:
 	return strdup(buff);
 }
 
+static int
+get_test_set(int *test_set, int limit, const char *test)
+{
+	int start, end;
+	int idx = 0;
+
+	if (test == NULL) {
+		/* Default: Run all tests. */
+		for (;idx < limit; idx++)
+			test_set[idx] = idx;
+		return (limit);
+	}
+	if (*test >= '0' && *test <= '9') {
+		const char *vp = test;
+		start = 0;
+		while (*vp >= '0' && *vp <= '9') {
+			start *= 10;
+			start += *vp - '0';
+			++vp;
+		}
+		if (*vp == '\0') {
+			end = start;
+		} else if (*vp == '-') {
+			++vp;
+			if (*vp == '\0') {
+				end = limit - 1;
+			} else {
+				end = 0;
+				while (*vp >= '0' && *vp <= '9') {
+					end *= 10;
+					end += *vp - '0';
+					++vp;
+				}
+			}
+		} else
+			return (-1);
+		if (start < 0 || end >= limit || start > end)
+			return (-1);
+		while (start <= end)
+			test_set[idx++] = start++;
+	} else {
+		size_t len = strlen(test);
+		for (start = 0; start < limit; ++start) {
+			const char *name = tests[start].name;
+			const char *p;
+
+			while ((p = strchr(name, test[0])) != NULL) {
+				if (strncmp(p, test, len) == 0) {
+					test_set[idx++] = start;
+					break;
+				} else
+					name = p + 1;
+			}
+
+		}
+	}
+	return ((idx == 0)?-1:idx);
+}
+
 int
 main(int argc, char **argv)
 {
 	static const int limit = sizeof(tests) / sizeof(tests[0]);
-	int i = 0, j = 0, start, end, tests_run = 0, tests_failed = 0, option;
+	int test_set[sizeof(tests) / sizeof(tests[0])];
+	int i = 0, j = 0, tests_run = 0, tests_failed = 0, option;
 	time_t now;
 	char *refdir_alloc = NULL;
 	const char *progname;
@@ -2655,78 +2715,27 @@ main(int argc, char **argv)
 	saved_argv = argv;
 	do {
 		argv = saved_argv;
-		if (*argv == NULL) {
-			/* Default: Run all tests. */
-			for (i = 0; i < limit; i++) {
+		do {
+			int test_num;
+
+			test_num = get_test_set(test_set, limit, *argv);
+			if (test_num < 0) {
+				printf("*** INVALID Test %s\n", *argv);
+				free(refdir_alloc);
+				usage(progname);
+				return (1);
+			}
+			for (i = 0; i < test_num; i++) {
 				tests_run++;
-				if (test_run(i, tmpdir)) {
+				if (test_run(test_set[i], tmpdir)) {
 					tests_failed++;
 					if (until_failure)
 						goto finish;
 				}
 			}
-		} else {
-			while (*(argv) != NULL) {
-				if (**argv >= '0' && **argv <= '9') {
-					char *vp = *argv;
-					start = 0;
-					while (*vp >= '0' && *vp <= '9') {
-						start *= 10;
-						start += *vp - '0';
-						++vp;
-					}
-					if (*vp == '\0') {
-						end = start;
-					} else if (*vp == '-') {
-						++vp;
-						if (*vp == '\0') {
-							end = limit - 1;
-						} else {
-							end = 0;
-							while (*vp >= '0' && *vp <= '9') {
-								end *= 10;
-								end += *vp - '0';
-								++vp;
-							}
-						}
-					} else {
-						printf("*** INVALID Test %s\n", *argv);
-						free(refdir_alloc);
-						usage(progname);
-						return (1);
-					}
-					if (start < 0 || end >= limit || start > end) {
-						printf("*** INVALID Test %s\n", *argv);
-						free(refdir_alloc);
-						usage(progname);
-						return (1);
-					}
-				} else {
-					for (start = 0; start < limit; ++start) {
-						if (strcmp(*argv, tests[start].name) == 0)
-							break;
-					}
-					end = start;
-					if (start >= limit) {
-						printf("*** INVALID Test ``%s''\n",
-						    *argv);
-						free(refdir_alloc);
-						usage(progname);
-						/* usage() never returns */
-					}
-				}
-				while (start <= end) {
-					tests_run++;
-					if (test_run(start, tmpdir)) {
-						tests_failed++;
-						if (until_failure)
-							goto finish;
-					}
-					++start;
-				}
+			if (*argv != NULL)
 				argv++;
-			}
-		}
+		} while (*argv != NULL);
 	} while (until_failure);
 
 finish:
