@@ -1932,6 +1932,11 @@ cab_read_data(struct archive_read *a, const void **buff,
 	if (cab->entry_bytes_remaining == 0)
 		cab->end_of_entry = 1;
 	cab->entry_unconsumed = bytes_avail;
+	if (cab->entry_cffolder->comptype == COMPTYPE_NONE) {
+		/* Don't consume more than current entry used. */
+		if (cab->entry_cfdata->unconsumed > cab->entry_unconsumed)
+			cab->entry_cfdata->unconsumed = cab->entry_unconsumed;
+	}
 	return (ARCHIVE_OK);
 }
 
