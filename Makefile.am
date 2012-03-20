@@ -169,6 +169,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_write_open_filename.c		\
 	libarchive/archive_write_open_memory.c			\
 	libarchive/archive_write_private.h			\
+	libarchive/archive_write_add_filter.c			\
 	libarchive/archive_write_add_filter_bzip2.c	\
 	libarchive/archive_write_add_filter_compress.c	\
 	libarchive/archive_write_add_filter_gzip.c		\
