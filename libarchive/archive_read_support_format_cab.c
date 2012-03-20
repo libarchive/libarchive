@@ -1358,46 +1358,25 @@ cab_read_ahead_cfdata_none(struct archive_read *a, ssize_t *avail)
 	struct cab *cab = (struct cab *)(a->format->data);
 	struct cfdata *cfdata;
 	const void *d;
-	int64_t skipped_bytes;
 
 	cfdata = cab->entry_cfdata;
 
-	if (cfdata->uncompressed_avail == 0 &&
-		cfdata->read_offset > 0) {
-		/* we've already skipped some bytes before really read. */
-		skipped_bytes = cfdata->read_offset;
-		cfdata->read_offset = 0;
-		cfdata->uncompressed_bytes_remaining += skipped_bytes;
-	} else
-		skipped_bytes = 0;
-	do {
-		/*
-		 * Note: '1' here is a performance optimization.
-		 * Recall that the decompression layer returns a count of
-		 * available bytes; asking for more than that forces the
-		 * decompressor to combine reads by copying data.
-		 */
-		d = __archive_read_ahead(a, 1, avail);
-		if (*avail <= 0) {
-			*avail = truncated_error(a);
-			return (NULL);
-		}
-		if (*avail > cfdata->uncompressed_bytes_remaining)
-			*avail = cfdata->uncompressed_bytes_remaining;
-		cfdata->uncompressed_avail = cfdata->uncompressed_size;
-		cfdata->unconsumed = *avail;
-		cfdata->sum_ptr = d;
-		if (skipped_bytes > 0) {
-			skipped_bytes =
-			    cab_minimum_consume_cfdata(a, skipped_bytes);
-			if (skipped_bytes < 0) {
-				*avail = ARCHIVE_FATAL;
-				return (NULL);
-			}
-			continue;
-		}
-	} while (0);
-
+	/*
+	 * Note: '1' here is a performance optimization.
+	 * Recall that the decompression layer returns a count of
+	 * available bytes; asking for more than that forces the
+	 * decompressor to combine reads by copying data.
+	 */
+	d = __archive_read_ahead(a, 1, avail);
+	if (*avail <= 0) {
+		*avail = truncated_error(a);
+		return (NULL);
+	}
+	if (*avail > cfdata->uncompressed_bytes_remaining)
+		*avail = cfdata->uncompressed_bytes_remaining;
+	cfdata->uncompressed_avail = cfdata->uncompressed_size;
+	cfdata->unconsumed = *avail;
+	cfdata->sum_ptr = d;
 	return (d);
 }
 
@@ -1991,6 +1970,11 @@ archive_read_format_cab_read_data_skip(struct archive_read *a)
 	bytes_skipped = cab_consume_cfdata(a, cab->entry_bytes_remaining);
 	if (bytes_skipped < 0)
 		return (ARCHIVE_FATAL);
+
+	/* If the compression type is none(uncompressed), we've already
+	 * consumed data as much as the current entry size. */
+	if (cab->entry_cffolder->comptype == COMPTYPE_NONE)
+		cab->entry_cfdata->unconsumed = 0;
 
 	/* This entry is finished and done. */
 	cab->end_of_entry_cleanup = cab->end_of_entry = 1;

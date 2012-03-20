@@ -324,16 +324,66 @@ verify2(const char *refname, enum comp_type comp)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+/*
+ * Skip all file like 'bsdtar tvf foo.cab'.
+ */
+static void
+verify3(const char *refname, enum comp_type comp)
+{
+	struct archive_entry *ae;
+	struct archive *a;
+	char zero[128];
+
+	memset(zero, 0, sizeof(zero));
+	extract_reference_file(refname);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+
+	/* Verify regular empty. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	if (comp != STORE) {
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	}
+	/* Verify regular file1. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+
+	/* Verify regular file2. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+
+	/* End of archive. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	if (comp != STORE) {
+		assertEqualInt(4, archive_file_count(a));
+	} else {
+		assertEqualInt(3, archive_file_count(a));
+	}
+
+	/* Verify archive format. */
+	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FORMAT_CAB, archive_format(a));
+
+	/* Close the archive. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_read_format_cab)
 {
 	/* Verify Cabinet file in no compression. */
 	verify("test_read_format_cab_1.cab", STORE);
 	verify2("test_read_format_cab_1.cab", STORE);
+	verify3("test_read_format_cab_1.cab", STORE);
 	/* Verify Cabinet file in MSZIP. */
 	verify("test_read_format_cab_2.cab", MSZIP);
 	verify2("test_read_format_cab_2.cab", MSZIP);
+	verify3("test_read_format_cab_2.cab", MSZIP);
 	/* Verify Cabinet file in LZX. */
 	verify("test_read_format_cab_3.cab", LZX);
 	verify2("test_read_format_cab_3.cab", LZX);
+	verify3("test_read_format_cab_3.cab", LZX);
 }
 
