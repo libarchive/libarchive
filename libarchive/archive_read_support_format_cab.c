@@ -2550,8 +2550,7 @@ lzx_read_blocks(struct lzx_stream *strm, int last)
 			 * Copy bytes form next_in to next_out directly.
 			 */
 			while (ds->block_bytes_avail) {
-				unsigned char *d;
-				int l,ll;
+				int l;
 
 				if (strm->avail_out <= 0)
 					/* Output buffer is empty. */
@@ -2569,17 +2568,16 @@ lzx_read_blocks(struct lzx_stream *strm, int last)
 					l = (int)strm->avail_out;
 				if (l > strm->avail_in)
 					l = (int)strm->avail_in;
-				ll = l;
-				d = &(ds->w_buff[ds->w_pos]);
-				while (--l >= 0) {
-					*strm->next_out++ = *strm->next_in;
-					*d++ = *strm->next_in++;
-				}
-				strm->avail_out -= ll;
-				strm->total_out += ll;
-				strm->avail_in -= ll;
-				ds->w_pos = (ds->w_pos + ll) & ds->w_mask;
-				ds->block_bytes_avail -= ll;
+				memcpy(strm->next_out, strm->next_in, l);
+				memcpy(&(ds->w_buff[ds->w_pos]),
+				    strm->next_in, l);
+				strm->next_in += l;
+				strm->avail_in -= l;
+				strm->next_out += l;
+				strm->avail_out -= l;
+				strm->total_out += l;
+				ds->w_pos = (ds->w_pos + l) & ds->w_mask;
+				ds->block_bytes_avail -= l;
 			}
 			/* FALL THROUGH */
 		case ST_COPY_UNCOMP2:
