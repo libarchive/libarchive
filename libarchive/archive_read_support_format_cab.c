@@ -292,6 +292,8 @@ struct cab {
 	char			 end_of_archive;
 	char			 end_of_entry;
 	char			 end_of_entry_cleanup;
+	char			 read_data_invoked;
+	int64_t			 bytes_skipped;
 
 	unsigned char		*uncompressed_buffer;
 	size_t			 uncompressed_buffer_size;
@@ -1025,6 +1027,19 @@ archive_read_format_cab_read_data(struct archive_read *a,
 		return (ARCHIVE_FAILED);
 	default:
 		break;
+	}
+	if (cab->read_data_invoked == 0) {
+		if (cab->bytes_skipped) {
+			if (cab->entry_cfdata == NULL) {
+				int r = cab_next_cfdata(a);
+				if (r < 0)
+					return (r);
+			}
+			if (cab_consume_cfdata(a, cab->bytes_skipped) < 0)
+				return (ARCHIVE_FATAL);
+			cab->bytes_skipped = 0;
+		}
+		cab->read_data_invoked = 1;
 	}
 	if (cab->entry_unconsumed) {
 		/* Consume as much as the compressor actually used. */
@@ -1952,6 +1967,14 @@ archive_read_format_cab_read_data_skip(struct archive_read *a)
 	if (cab->end_of_archive)
 		return (ARCHIVE_EOF);
 
+	if (!cab->read_data_invoked) {
+		cab->bytes_skipped += cab->entry_bytes_remaining;
+		cab->entry_bytes_remaining = 0;
+		/* This entry is finished and done. */
+		cab->end_of_entry_cleanup = cab->end_of_entry = 1;
+		return (ARCHIVE_OK);
+	}
+
 	if (cab->entry_unconsumed) {
 		/* Consume as much as the compressor actually used. */
 		r = cab_consume_cfdata(a, cab->entry_unconsumed);
@@ -2550,8 +2573,7 @@ lzx_read_blocks(struct lzx_stream *strm, int last)
 			 * Copy bytes form next_in to next_out directly.
 			 */
 			while (ds->block_bytes_avail) {
-				unsigned char *d;
-				int l,ll;
+				int l;
 
 				if (strm->avail_out <= 0)
 					/* Output buffer is empty. */
@@ -2569,17 +2591,16 @@ lzx_read_blocks(struct lzx_stream *strm, int last)
 					l = (int)strm->avail_out;
 				if (l > strm->avail_in)
 					l = (int)strm->avail_in;
-				ll = l;
-				d = &(ds->w_buff[ds->w_pos]);
-				while (--l >= 0) {
-					*strm->next_out++ = *strm->next_in;
-					*d++ = *strm->next_in++;
-				}
-				strm->avail_out -= ll;
-				strm->total_out += ll;
-				strm->avail_in -= ll;
-				ds->w_pos = (ds->w_pos + ll) & ds->w_mask;
-				ds->block_bytes_avail -= ll;
+				memcpy(strm->next_out, strm->next_in, l);
+				memcpy(&(ds->w_buff[ds->w_pos]),
+				    strm->next_in, l);
+				strm->next_in += l;
+				strm->avail_in -= l;
+				strm->next_out += l;
+				strm->avail_out -= l;
+				strm->total_out += l;
+				ds->w_pos = (ds->w_pos + l) & ds->w_mask;
+				ds->block_bytes_avail -= l;
 			}
 			/* FALL THROUGH */
 		case ST_COPY_UNCOMP2:
