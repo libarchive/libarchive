@@ -292,6 +292,8 @@ struct cab {
 	char			 end_of_archive;
 	char			 end_of_entry;
 	char			 end_of_entry_cleanup;
+	char			 read_data_invoked;
+	int64_t			 bytes_skipped;
 
 	unsigned char		*uncompressed_buffer;
 	size_t			 uncompressed_buffer_size;
@@ -1025,6 +1027,19 @@ archive_read_format_cab_read_data(struct archive_read *a,
 		return (ARCHIVE_FAILED);
 	default:
 		break;
+	}
+	if (cab->read_data_invoked == 0) {
+		if (cab->bytes_skipped) {
+			if (cab->entry_cfdata == NULL) {
+				int r = cab_next_cfdata(a);
+				if (r < 0)
+					return (r);
+			}
+			if (cab_consume_cfdata(a, cab->bytes_skipped) < 0)
+				return (ARCHIVE_FATAL);
+			cab->bytes_skipped = 0;
+		}
+		cab->read_data_invoked = 1;
 	}
 	if (cab->entry_unconsumed) {
 		/* Consume as much as the compressor actually used. */
@@ -1951,6 +1966,14 @@ archive_read_format_cab_read_data_skip(struct archive_read *a)
 
 	if (cab->end_of_archive)
 		return (ARCHIVE_EOF);
+
+	if (!cab->read_data_invoked) {
+		cab->bytes_skipped += cab->entry_bytes_remaining;
+		cab->entry_bytes_remaining = 0;
+		/* This entry is finished and done. */
+		cab->end_of_entry_cleanup = cab->end_of_entry = 1;
+		return (ARCHIVE_OK);
+	}
 
 	if (cab->entry_unconsumed) {
 		/* Consume as much as the compressor actually used. */
