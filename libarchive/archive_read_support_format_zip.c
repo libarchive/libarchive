@@ -727,14 +727,14 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 			if (len > 0 && wp[len - 1] == L'/')
 				zip_entry->mode = AE_IFDIR | 0777;
 			else
-				zip_entry->mode = AE_IFREG | 0777;
+				zip_entry->mode = AE_IFREG | 0666;
 		} else {
 			cp = archive_entry_pathname(entry);
 			len = (cp != NULL)?strlen(cp):0;
 			if (len > 0 && cp[len - 1] == '/')
 				zip_entry->mode = AE_IFDIR | 0777;
 			else
-				zip_entry->mode = AE_IFREG | 0777;
+				zip_entry->mode = AE_IFREG | 0666;
 		}
 	}
 
