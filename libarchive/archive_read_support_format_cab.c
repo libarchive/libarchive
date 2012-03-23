@@ -1031,7 +1031,7 @@ archive_read_format_cab_read_data(struct archive_read *a,
 	if (cab->read_data_invoked == 0) {
 		if (cab->bytes_skipped) {
 			if (cab->entry_cfdata == NULL) {
-				int r = cab_next_cfdata(a);
+				r = cab_next_cfdata(a);
 				if (r < 0)
 					return (r);
 			}
