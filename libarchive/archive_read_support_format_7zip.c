@@ -2472,7 +2472,7 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 			if ((size_t)sindex >= si->ss.unpack_streams)
 				return (-1);
 			if (entries[i].mode == 0)
-				entries[i].mode = AE_IFREG | 0777;
+				entries[i].mode = AE_IFREG | 0666;
 			if (si->ss.digestsDefined[sindex])
 				entries[i].flg |= CRC32_IS_SET;
 			entries[i].ssIndex = sindex;
@@ -2492,7 +2492,7 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 				if (dir)
 					entries[i].mode = AE_IFDIR | 0777;
 				else
-					entries[i].mode = AE_IFREG | 0777;
+					entries[i].mode = AE_IFREG | 0666;
 			} else if (dir &&
 			    (entries[i].mode & AE_IFMT) != AE_IFDIR) {
 				entries[i].mode &= ~AE_IFMT;

@@ -199,7 +199,7 @@ verify(const char *refname, enum comp_type comp)
 
 	/* Verify regular empty. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt((AE_IFREG | 0777), archive_entry_mode(ae));
+	assertEqualInt((AE_IFREG | 0666), archive_entry_mode(ae));
 	assertEqualString("empty", archive_entry_pathname(ae));
 	assertEqualInt(0, archive_entry_uid(ae));
 	assertEqualInt(0, archive_entry_gid(ae));
@@ -211,7 +211,7 @@ verify(const char *refname, enum comp_type comp)
 		 * file to check if we properly handle multiple CFDATA.
 		 */
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-		assertEqualInt((AE_IFREG | 0777), archive_entry_mode(ae));
+		assertEqualInt((AE_IFREG | 0666), archive_entry_mode(ae));
 		assertEqualString("zero", archive_entry_pathname(ae));
 		assertEqualInt(0, archive_entry_uid(ae));
 		assertEqualInt(0, archive_entry_gid(ae));
@@ -232,7 +232,7 @@ verify(const char *refname, enum comp_type comp)
 
 	/* Verify regular file1. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt((AE_IFREG | 0777), archive_entry_mode(ae));
+	assertEqualInt((AE_IFREG | 0666), archive_entry_mode(ae));
 	assertEqualString("dir1/file1", archive_entry_pathname(ae));
 	assertEqualInt(0, archive_entry_uid(ae));
 	assertEqualInt(0, archive_entry_gid(ae));
@@ -242,7 +242,7 @@ verify(const char *refname, enum comp_type comp)
 
 	/* Verify regular file2. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt((AE_IFREG | 0777), archive_entry_mode(ae));
+	assertEqualInt((AE_IFREG | 0666), archive_entry_mode(ae));
 	assertEqualString("dir2/file2", archive_entry_pathname(ae));
 	assertEqualInt(0, archive_entry_uid(ae));
 	assertEqualInt(0, archive_entry_gid(ae));
@@ -298,7 +298,7 @@ verify2(const char *refname, enum comp_type comp)
 
 	/* Verify regular file2. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt((AE_IFREG | 0777), archive_entry_mode(ae));
+	assertEqualInt((AE_IFREG | 0666), archive_entry_mode(ae));
 	assertEqualString("dir2/file2", archive_entry_pathname(ae));
 	assertEqualInt(0, archive_entry_uid(ae));
 	assertEqualInt(0, archive_entry_gid(ae));
