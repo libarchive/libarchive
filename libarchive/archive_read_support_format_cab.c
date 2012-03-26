@@ -800,7 +800,7 @@ cab_read_header(struct archive_read *a)
 		file->offset = archive_le32dec(p + CFFILE_uoffFolderStart);
 		file->folder = archive_le16dec(p + CFFILE_iFolder);
 		file->mtime = cab_dos_time(p + CFFILE_date_time);
-		file->attr = archive_le16dec(p + CFFILE_attribs);
+		file->attr = (uint8_t)archive_le16dec(p + CFFILE_attribs);
 		__archive_read_consume(a, 16);
 
 		cab->cab_offset += 16;
@@ -990,7 +990,7 @@ archive_read_format_cab_read_header(struct archive_read *a,
 	if (file->attr & ATTR_RDONLY)
 		archive_entry_set_mode(entry, AE_IFREG | 0555);
 	else
-		archive_entry_set_mode(entry, AE_IFREG | 0777);
+		archive_entry_set_mode(entry, AE_IFREG | 0666);
 	archive_entry_set_mtime(entry, file->mtime, 0);
 
 	cab->entry_bytes_remaining = file->uncompressed_size;
@@ -1043,7 +1043,7 @@ archive_read_format_cab_read_data(struct archive_read *a,
 	}
 	if (cab->entry_unconsumed) {
 		/* Consume as much as the compressor actually used. */
-		r = cab_consume_cfdata(a, cab->entry_unconsumed);
+		r = (int)cab_consume_cfdata(a, cab->entry_unconsumed);
 		cab->entry_unconsumed = 0;
 		if (r < 0)
 			return (r);
@@ -1537,7 +1537,7 @@ cab_read_ahead_cfdata_deflate(struct archive_read *a, ssize_t *avail)
 			return (NULL);
 		}
 	}
-	uavail = cab->stream.total_out;
+	uavail = (uint16_t)cab->stream.total_out;
 
 	if (uavail < cfdata->uncompressed_size) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -1715,7 +1715,7 @@ cab_read_ahead_cfdata_lzx(struct archive_read *a, ssize_t *avail)
 		}
 	}
 
-	uavail = cab->xstrm.total_out;
+	uavail = (uint16_t)cab->xstrm.total_out;
 	/*
 	 * Make sure a read pointer advances to next CFDATA.
 	 */
@@ -1814,8 +1814,8 @@ cab_consume_cfdata(struct archive_read *a, int64_t consumed_bytes)
 				}
 				continue;
 			}
-			cfdata->read_offset += cbytes;
-			cfdata->uncompressed_bytes_remaining -= cbytes;
+			cfdata->read_offset += (uint16_t)cbytes;
+			cfdata->uncompressed_bytes_remaining -= (uint16_t)cbytes;
 			break;
 		} else if (cbytes == 0) {
 			err = cab_next_cfdata(a);
@@ -1839,7 +1839,7 @@ cab_consume_cfdata(struct archive_read *a, int64_t consumed_bytes)
 			if (avail <= 0)
 				return (ARCHIVE_FATAL);
 			if (avail > cbytes)
-				avail = cbytes;
+				avail = (ssize_t)cbytes;
 			if (cab_minimum_consume_cfdata(a, avail) < 0)
 				return (ARCHIVE_FATAL);
 			cbytes -= avail;
@@ -1868,8 +1868,8 @@ cab_minimum_consume_cfdata(struct archive_read *a, int64_t consumed_bytes)
 		else
 			cbytes = cfdata->unconsumed;
 		rbytes -= cbytes; 
-		cfdata->read_offset += cbytes;
-		cfdata->uncompressed_bytes_remaining -= cbytes;
+		cfdata->read_offset += (uint16_t)cbytes;
+		cfdata->uncompressed_bytes_remaining -= (uint16_t)cbytes;
 		cfdata->unconsumed -= cbytes;
 	} else {
 		cbytes = cfdata->uncompressed_avail - cfdata->read_offset;
@@ -1877,8 +1877,8 @@ cab_minimum_consume_cfdata(struct archive_read *a, int64_t consumed_bytes)
 			if (consumed_bytes < cbytes)
 				cbytes = consumed_bytes;
 			rbytes -= cbytes;
-			cfdata->read_offset += cbytes;
-			cfdata->uncompressed_bytes_remaining -= cbytes;
+			cfdata->read_offset += (uint16_t)cbytes;
+			cfdata->uncompressed_bytes_remaining -= (uint16_t)cbytes;
 		}
 
 		if (cfdata->unconsumed) {
@@ -1889,12 +1889,12 @@ cab_minimum_consume_cfdata(struct archive_read *a, int64_t consumed_bytes)
 	}
 	if (cbytes) {
 		/* Compute the sum. */
-		cab_checksum_update(a, cbytes);
+		cab_checksum_update(a, (size_t)cbytes);
 
 		/* Consume as much as the compressor actually used. */
 		__archive_read_consume(a, cbytes);
 		cab->cab_offset += cbytes;
-		cfdata->compressed_bytes_remaining -= cbytes;
+		cfdata->compressed_bytes_remaining -= (uint16_t)cbytes;
 		if (cfdata->compressed_bytes_remaining == 0) {
 			err = cab_checksum_finish(a);
 			if (err < 0)
@@ -1938,7 +1938,7 @@ cab_read_data(struct archive_read *a, const void **buff,
 			return (bytes_avail);
 	}
 	if (bytes_avail > cab->entry_bytes_remaining)
-		bytes_avail = cab->entry_bytes_remaining;
+		bytes_avail = (ssize_t)cab->entry_bytes_remaining;
 
 	*size = bytes_avail;
 	*offset = cab->entry_offset;
@@ -1977,7 +1977,7 @@ archive_read_format_cab_read_data_skip(struct archive_read *a)
 
 	if (cab->entry_unconsumed) {
 		/* Consume as much as the compressor actually used. */
-		r = cab_consume_cfdata(a, cab->entry_unconsumed);
+		r = (int)cab_consume_cfdata(a, cab->entry_unconsumed);
 		cab->entry_unconsumed = 0;
 		if (r < 0)
 			return (r);

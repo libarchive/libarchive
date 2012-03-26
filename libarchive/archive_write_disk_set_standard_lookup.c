@@ -158,7 +158,7 @@ lookup_gid(void *private_data, const char *gname, int64_t gid)
 #else
 	#error No way to perform gid lookups on this platform
 #endif
-	b->id = gid;
+	b->id = (gid_t)gid;
 
 	return (gid);
 }
@@ -228,7 +228,7 @@ lookup_uid(void *private_data, const char *uname, int64_t uid)
 #else
 	#error No way to look up uids on this platform
 #endif
-	b->id = uid;
+	b->id = (uid_t)uid;
 
 	return (uid);
 }

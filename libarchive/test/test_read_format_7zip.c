@@ -46,7 +46,7 @@ test_copy()
 
 	/* Verify regular file1. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt((AE_IFREG | 0777), archive_entry_mode(ae));
+	assertEqualInt((AE_IFREG | 0666), archive_entry_mode(ae));
 	assertEqualString("file1", archive_entry_pathname(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(60, archive_entry_size(ae));
@@ -510,7 +510,7 @@ test_bcj(const char *refname)
 
 	/* Verify regular x86exe. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt((AE_IFREG | 0555), archive_entry_mode(ae));
+	assertEqualInt((AE_IFREG | 0444), archive_entry_mode(ae) & ~0111);
 	assertEqualString("x86exe", archive_entry_pathname(ae));
 	assertEqualInt(172802, archive_entry_mtime(ae));
 	assertEqualInt(27328, archive_entry_size(ae));
@@ -565,7 +565,7 @@ test_ppmd()
 
 	/* Verify regular file1. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt((AE_IFREG | 0777), archive_entry_mode(ae));
+	assertEqualInt((AE_IFREG | 0666), archive_entry_mode(ae));
 	assertEqualString("ppmd_test.txt", archive_entry_pathname(ae));
 	assertEqualInt(1322464589, archive_entry_mtime(ae));
 	assertEqualInt(102400, archive_entry_size(ae));

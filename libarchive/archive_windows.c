@@ -110,7 +110,7 @@ getino(struct ustat *ub)
 	ULARGE_INTEGER ino64;
 	ino64.QuadPart = ub->st_ino;
 	/* I don't know this hashing is correct way */
-	return (ino64.LowPart ^ (ino64.LowPart >> INOSIZE));
+	return ((ino_t)(ino64.LowPart ^ (ino64.LowPart >> INOSIZE)));
 }
 
 /*
@@ -559,7 +559,7 @@ copy_stat(struct stat *st, struct ustat *us)
 	st->st_ino = getino(us);
 	st->st_mode = us->st_mode;
 	st->st_nlink = us->st_nlink;
-	st->st_size = us->st_size;
+	st->st_size = (off_t)us->st_size;
 	st->st_uid = us->st_uid;
 	st->st_dev = us->st_dev;
 	st->st_rdev = us->st_rdev;
@@ -904,7 +904,7 @@ __la_dosmaperr(unsigned long e)
 		return;
 	}
 
-	for (i = 0; i < sizeof(doserrors); i++)
+	for (i = 0; i < (int)sizeof(doserrors); i++)
 	{
 		if (doserrors[i].winerr == e)
 		{

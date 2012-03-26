@@ -4,8 +4,8 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[3.0.3])
-m4_define([LIBARCHIVE_VERSION_N],[3000003])
+m4_define([LIBARCHIVE_VERSION_S],[3.0.200a])
+m4_define([LIBARCHIVE_VERSION_N],[3000200])
 
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
@@ -17,7 +17,7 @@ AC_PREREQ(2.65)
 # Now starts the "real" configure script.
 #
 
-AC_INIT([libarchive],LIBARCHIVE_VERSION_S(),[kientzle@FreeBSD.org])
+AC_INIT([libarchive],LIBARCHIVE_VERSION_S(),[libarchive-discuss@googlegroups.com])
 # Make sure the srcdir contains "libarchive" directory
 AC_CONFIG_SRCDIR([libarchive])
 # Use auxiliary subscripts from this subdirectory (cleans up root)
@@ -194,13 +194,6 @@ case $host in
   *mingw* | *cygwin* )
   AC_DEFINE([_WIN32_WINNT], 0x0500, [Define to '0x0500' for Windows 2000 APIs.])
   AC_DEFINE([WINVER], 0x0500, [Define to '0x0500' for Windows 2000 APIs.])
-  ;;
-esac
-
-# We need CoreServices on Mac OS.
-case $host in
-  *darwin* )
-  LIBS="${LIBS} -framework CoreServices"
   ;;
 esac
 
@@ -446,13 +439,13 @@ AC_CHECK_FUNCS([futimens futimes futimesat])
 AC_CHECK_FUNCS([geteuid getpid getgrgid_r getgrnam_r])
 AC_CHECK_FUNCS([getpwnam_r getpwuid_r getvfsbyname gmtime_r])
 AC_CHECK_FUNCS([lchflags lchmod lchown link localtime_r lstat lutimes])
-AC_CHECK_FUNCS([mbrtowc mbsnrtowcs memmove memset])
+AC_CHECK_FUNCS([mbrtowc memmove memset])
 AC_CHECK_FUNCS([mkdir mkfifo mknod mkstemp])
 AC_CHECK_FUNCS([nl_langinfo openat pipe poll readlink readlinkat])
 AC_CHECK_FUNCS([select setenv setlocale sigaction statfs statvfs])
 AC_CHECK_FUNCS([strchr strdup strerror strncpy_s strrchr symlink timegm])
 AC_CHECK_FUNCS([tzset unsetenv utime utimensat utimes vfork])
-AC_CHECK_FUNCS([wcrtomb wcscmp wcscpy wcslen wcsnrtombs wctomb wmemcmp wmemcpy])
+AC_CHECK_FUNCS([wcrtomb wcscmp wcscpy wcslen wctomb wmemcmp wmemcpy])
 AC_CHECK_FUNCS([_ctime64_s _fseeki64])
 AC_CHECK_FUNCS([_get_timezone _localtime64_s _mkgmtime64])
 # detects cygwin-1.7, as opposed to older versions
