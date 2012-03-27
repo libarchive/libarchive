@@ -2447,11 +2447,12 @@ combine_surrogate_pair(uint32_t uc, uint32_t uc2)
 static int
 cesu8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 {
-	uint32_t wc, wc2;
+	uint32_t wc = 0;
 	int cnt;
 
 	cnt = _utf8_to_unicode(&wc, s, n);
 	if (cnt == 3 && IS_HIGH_SURROGATE_LA(wc)) {
+		uint32_t wc2 = 0;
 		if (n - 3 < 3) {
 			/* Invalid byte sequence. */
 			goto invalid_sequence;

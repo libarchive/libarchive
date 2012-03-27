@@ -37,7 +37,8 @@ test_read_format_mtree1(void)
 	 * without relying on overflow.  This assumes that long long
 	 * is at least 64 bits. */
 	static const long long max_int64 = ((((long long)1) << 62) - 1) + (((long long)1) << 62);
-	time_t min_time, t;
+	time_t min_time;
+	volatile time_t t;
 
 	extract_reference_file(reffile);
 
