@@ -1933,6 +1933,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	if (iso9660->seenRockridge) {
 		if (parent != NULL && parent->parent == NULL &&
 		    (flags & 0x02) && iso9660->rr_moved == NULL &&
+		    file->name.s &&
 		    (strcmp(file->name.s, "rr_moved") == 0 ||
 		     strcmp(file->name.s, ".rr_moved") == 0)) {
 			iso9660->rr_moved = file;
