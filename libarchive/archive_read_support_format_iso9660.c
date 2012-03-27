@@ -1873,9 +1873,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	if (iso9660->opt_support_rockridge) {
 		if (parent == NULL && rr_end - rr_start >= 7) {
 			p = rr_start;
-			if (p[0] == 'S' && p[1] == 'P'
-			    && p[2] == 7 && p[3] == 1
-			    && p[4] == 0xBE && p[5] == 0xEF) {
+			if (memcmp(p, "SP\x07\x01\xbe\xef", 6) == 0) {
 				/*
 				 * SP extension stores the suspOffset
 				 * (Number of bytes to skip between
