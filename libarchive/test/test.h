@@ -285,6 +285,11 @@ char *slurpfile(size_t *, const char *fmt, ...);
 /* Extracts named reference file to the current directory. */
 void extract_reference_file(const char *);
 
+/* Extracts a list of files to the current directory.
+ * List must be NULL terminated.
+ */
+void extract_reference_files(const char **);
+
 /* Path to working directory for current test */
 const char *testworkdir;
 
