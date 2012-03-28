@@ -270,6 +270,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_archive_read_close_twice.c		\
 	libarchive/test/test_archive_read_close_twice_open_fd.c	\
 	libarchive/test/test_archive_read_close_twice_open_filename.c	\
+	libarchive/test/test_archive_read_multiple_data_objects.c	\
 	libarchive/test/test_archive_read_next_header_empty.c	\
 	libarchive/test/test_archive_read_next_header_raw.c	\
 	libarchive/test/test_archive_read_open2.c		\
@@ -473,6 +474,9 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_fuzz.cab.uu				\
 	libarchive/test/test_fuzz.lzh.uu				\
 	libarchive/test/test_pax_filename_encoding.tar.uu		\
+	libarchive/test/test_rar_multivolume_single_file.part1.rar.uu	\
+	libarchive/test/test_rar_multivolume_single_file.part2.rar.uu	\
+	libarchive/test/test_rar_multivolume_single_file.part3.rar.uu	\
 	libarchive/test/test_read_format_7zip_bcj_bzip2.7z.uu		\
 	libarchive/test/test_read_format_7zip_bcj_copy.7z.uu		\
 	libarchive/test/test_read_format_7zip_bcj_deflate.7z.uu		\
@@ -552,6 +556,10 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar_compress_best.rar.uu	\
 	libarchive/test/test_read_format_rar_compress_normal.rar.uu	\
 	libarchive/test/test_read_format_rar_multi_lzss_blocks.rar.uu	\
+	libarchive/test/test_read_format_rar_multivolume.part0001.rar.uu\
+	libarchive/test/test_read_format_rar_multivolume.part0002.rar.uu\
+	libarchive/test/test_read_format_rar_multivolume.part0003.rar.uu\
+	libarchive/test/test_read_format_rar_multivolume.part0004.rar.uu\
 	libarchive/test/test_read_format_rar_noeof.rar.uu		\
 	libarchive/test/test_read_format_rar_ppmd_lzss_conversion.rar.uu\
 	libarchive/test/test_read_format_rar_sfx.exe.uu			\
@@ -575,6 +583,15 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_length_at_end.zip.uu	\
 	libarchive/test/test_read_format_zip_symlink.zip.uu		\
 	libarchive/test/test_read_format_zip_ux.zip.uu			\
+	libarchive/test/test_read_large_splitted_rar_aa.uu		\
+	libarchive/test/test_read_large_splitted_rar_ab.uu		\
+	libarchive/test/test_read_large_splitted_rar_ac.uu		\
+	libarchive/test/test_read_large_splitted_rar_ad.uu		\
+	libarchive/test/test_read_large_splitted_rar_ae.uu		\
+	libarchive/test/test_read_splitted_rar_aa.uu			\
+	libarchive/test/test_read_splitted_rar_ab.uu			\
+	libarchive/test/test_read_splitted_rar_ac.uu			\
+	libarchive/test/test_read_splitted_rar_ad.uu			\
 	libarchive/test/CMakeLists.txt					\
 	libarchive/test/README
 
