@@ -487,14 +487,16 @@ ELSE()
 ENDIF()
 
 # FreeBSD libmd
-CHECK_LIBRARY_EXISTS(md "MD5Init" "" LIBMD_FOUND)
-IF(LIBMD_FOUND)
-  CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
-  SET(CMAKE_REQUIRED_LIBRARIES "md")
-  FIND_LIBRARY(LIBMD_LIBRARY NAMES md)
-  LIST(APPEND ADDITIONAL_LIBS ${LIBMD_LIBRARY})
-  CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
-ENDIF(LIBMD_FOUND)
+IF(NOT OPENSSL_FOUND)
+  CHECK_LIBRARY_EXISTS(md "MD5Init" "" LIBMD_FOUND)
+  IF(LIBMD_FOUND)
+    CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
+    SET(CMAKE_REQUIRED_LIBRARIES "md")
+    FIND_LIBRARY(LIBMD_LIBRARY NAMES md)
+    LIST(APPEND ADDITIONAL_LIBS ${LIBMD_LIBRARY})
+    CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
+  ENDIF(LIBMD_FOUND)
+ENDIF(NOT OPENSSL_FOUND)
 
 #
 # How to prove that CRYPTO functions, which have several names on various
