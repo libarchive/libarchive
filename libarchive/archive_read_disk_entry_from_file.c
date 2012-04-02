@@ -911,6 +911,8 @@ setup_sparse(struct archive_read_disk *a,
 		}
 	}
 
+	/* Initialize buffer to avoid the error valgrind complains about. */
+	memset(buff, 0, sizeof(buff));
 	count = (sizeof(buff) - sizeof(*fm))/sizeof(*fe);
 	fm = (struct fiemap *)buff;
 	fm->fm_start = 0;
