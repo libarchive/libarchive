@@ -1344,7 +1344,8 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   }
 
   rar->bytes_uncopied = rar->bytes_unconsumed = 0;
-  rar->lzss.position = rar->dictionary_size = rar->offset = 0;
+  rar->lzss.position = rar->offset = 0;
+  rar->dictionary_size = 0;
   rar->offset_outgoing = 0;
   rar->br.cache_avail = 0;
   rar->br.avail_in = 0;
@@ -2606,7 +2607,7 @@ rar_read_ahead(struct archive_read *a, size_t min, ssize_t *avail)
   if (avail)
   {
     if (*avail > rar->bytes_remaining)
-      *avail = rar->bytes_remaining;
+      *avail = (ssize_t)rar->bytes_remaining;
     if (*avail < 0)
       return NULL;
     else if (*avail == 0 && rar->main_flags & MHD_VOLUME &&
