@@ -27,6 +27,13 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#define open _open
+#define close _close
+#define read _read
+#define lseek(f, o, w) _lseek(f, (long)(o), (int)(w))
+#endif
+
 static void
 test_splitted_file(void)
 {
@@ -162,11 +169,12 @@ struct mydata {
   void *buffer;
   int fd;
 };
+
 static int
 file_open(struct archive *a, void *data)
 {
-	(void)a;
   struct mydata *mydata = (struct mydata *)data;
+  (void)a;
   if (mydata->fd < 0)
   {
     mydata->fd = open(mydata->filename, O_RDONLY | O_BINARY);
@@ -181,8 +189,8 @@ file_open(struct archive *a, void *data)
 static ssize_t
 file_read(struct archive *a, void *data, const void **buff)
 {
-	(void)a;
   struct mydata *mydata = (struct mydata *)data;
+  (void)a;
   *buff = mydata->buffer;
   return read(mydata->fd, mydata->buffer, BLOCK_SIZE);
 }
@@ -199,10 +207,11 @@ file_skip(struct archive *a, void *data, int64_t request)
 static int
 file_switch(struct archive *a, void *data1, void *data2)
 {
-	(void)a;
   struct mydata *mydata1 = (struct mydata *)data1;
   struct mydata *mydata2 = (struct mydata *)data2;
   int r = (ARCHIVE_OK);
+
+  (void)a;
   if (mydata1 && mydata1->fd >= 0)
   {
     close(mydata1->fd);
@@ -228,9 +237,10 @@ file_close(struct archive *a, void *data)
 static int64_t
 file_seek(struct archive *a, void *data, int64_t request, int whence)
 {
-	(void)a;
   struct mydata *mine = (struct mydata *)data;
-  off_t r;
+  int64_t r;
+
+  (void)a;
   r = lseek(mine->fd, request, whence);
   if (r >= 0)
     return r;
