@@ -185,6 +185,7 @@ archive_read_open_filename_w(struct archive *a, const wchar_t *wfilename,
 				    "Failed to convert a wide-character"
 				    " filename to a multi-byte filename");
 			archive_string_free(&fn);
+			free(mine);
 			return (ARCHIVE_FATAL);
 		}
 		mine->filename_type = FNT_MBS;
