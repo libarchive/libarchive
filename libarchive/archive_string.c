@@ -3397,7 +3397,6 @@ check_first_code:
 			break;
 		REPLACE_UC_WITH(uc2);
 		n = n2;
-		ucptr = s;
 		goto check_first_code;
 	}
 	as->length = p - as->s;
