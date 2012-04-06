@@ -2001,7 +2001,8 @@ archive_read_format_cab_read_data_skip(struct archive_read *a)
 
 	/* If the compression type is none(uncompressed), we've already
 	 * consumed data as much as the current entry size. */
-	if (cab->entry_cffolder->comptype == COMPTYPE_NONE)
+	if (cab->entry_cffolder->comptype == COMPTYPE_NONE &&
+	    cab->entry_cfdata != NULL)
 		cab->entry_cfdata->unconsumed = 0;
 
 	/* This entry is finished and done. */
