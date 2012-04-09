@@ -85,6 +85,7 @@ SET(libarchive_SOURCES
   archive_util.c
   archive_virtual.c
   archive_write.c
+  archive_write_disk_acl.c
   archive_write_disk_posix.c
   archive_write_disk_private.h
   archive_write_disk_set_standard_lookup.c

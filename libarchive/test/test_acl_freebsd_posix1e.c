@@ -185,7 +185,7 @@ compare_acls(acl_t acl, struct myacl_t *myacls)
  * Verify ACL restore-to-disk.  This test is FreeBSD-specific.
  */
 
-DEFINE_TEST(test_acl_freebsd)
+DEFINE_TEST(test_acl_freebsd_posix1e)
 {
 #if !defined(__FreeBSD__)
 	skipping("FreeBSD-specific ACL restore test");
