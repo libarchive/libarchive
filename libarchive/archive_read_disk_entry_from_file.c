@@ -642,7 +642,7 @@ translate_acl(struct archive_read_disk *a,
 #else
 static int
 setup_acls(struct archive_read_disk *a,
-    struct archive_entry *entry, int fd)
+    struct archive_entry *entry, int *fd)
 {
 	(void)a;      /* UNUSED */
 	(void)entry;  /* UNUSED */
