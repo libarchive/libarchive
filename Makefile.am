@@ -134,6 +134,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_read_support_filter_bzip2.c		\
 	libarchive/archive_read_support_filter_compress.c	\
 	libarchive/archive_read_support_filter_gzip.c		\
+	libarchive/archive_read_support_filter_lrzip.c		\
 	libarchive/archive_read_support_filter_none.c		\
 	libarchive/archive_read_support_filter_program.c	\
 	libarchive/archive_read_support_filter_rpm.c		\
@@ -173,6 +174,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_write_add_filter_bzip2.c	\
 	libarchive/archive_write_add_filter_compress.c	\
 	libarchive/archive_write_add_filter_gzip.c		\
+	libarchive/archive_write_add_filter_lrzip.c		\
 	libarchive/archive_write_add_filter_none.c		\
 	libarchive/archive_write_add_filter_program.c	\
 	libarchive/archive_write_add_filter_xz.c		\
@@ -291,6 +293,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_compat_cpio.c			\
 	libarchive/test/test_compat_gtar.c			\
 	libarchive/test/test_compat_gzip.c			\
+	libarchive/test/test_compat_lrzip.c			\
 	libarchive/test/test_compat_lzip.c			\
 	libarchive/test/test_compat_lzma.c			\
 	libarchive/test/test_compat_mac.c			\
@@ -388,6 +391,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_compress.c			\
 	libarchive/test/test_write_compress_bzip2.c		\
 	libarchive/test/test_write_compress_gzip.c		\
+	libarchive/test/test_write_compress_lrzip.c		\
 	libarchive/test/test_write_compress_lzip.c		\
 	libarchive/test/test_write_compress_lzma.c		\
 	libarchive/test/test_write_compress_program.c		\
@@ -438,7 +442,7 @@ libarchive_test_LDADD= $(LTLIBICONV)
 libarchive/test/list.h: Makefile
 	cat $(top_srcdir)/libarchive/test/test_*.c | grep DEFINE_TEST > libarchive/test/list.h
 
-libarchive_TESTS_ENVIRONMENT= LIBARCHIVE_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/libarchive/test
+libarchive_TESTS_ENVIRONMENT= LIBARCHIVE_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/libarchive/test LRZIP=NOCONFIG
 
 libarchive_test_EXTRA_DIST=\
 	libarchive/test/list.h		\
