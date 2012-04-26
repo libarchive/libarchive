@@ -161,6 +161,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_util.c				\
 	libarchive/archive_virtual.c				\
 	libarchive/archive_write.c				\
+	libarchive/archive_write_disk_acl.c			\
 	libarchive/archive_write_disk_posix.c			\
 	libarchive/archive_write_disk_private.h			\
 	libarchive/archive_write_disk_set_standard_lookup.c	\
@@ -255,7 +256,8 @@ libarchive_test_SOURCES=					\
 	libarchive/test/main.c					\
 	libarchive/test/read_open_memory.c			\
 	libarchive/test/test.h					\
-	libarchive/test/test_acl_freebsd.c			\
+	libarchive/test/test_acl_freebsd_posix1e.c		\
+	libarchive/test/test_acl_freebsd_nfs4.c			\
 	libarchive/test/test_acl_nfs4.c				\
 	libarchive/test/test_acl_pax.c				\
 	libarchive/test/test_acl_posix1e.c			\
