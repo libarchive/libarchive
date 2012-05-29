@@ -648,6 +648,10 @@ __LA_DECL __LA_SSIZE_T	 archive_write_data_block(struct archive *,
 
 __LA_DECL int		 archive_write_finish_entry(struct archive *);
 __LA_DECL int		 archive_write_close(struct archive *);
+/* Marks the archive as FATAL so that a subsequent free() operation
+ * won't try to close() cleanly.  Provides a fast abort capability
+ * when the client discovers that things have gone wrong. */
+__LA_DECL int            archive_write_fail(struct archive *);
 /* This can fail if the archive wasn't already closed, in which case
  * archive_write_free() will implicitly call archive_write_close(). */
 __LA_DECL int		 archive_write_free(struct archive *);
