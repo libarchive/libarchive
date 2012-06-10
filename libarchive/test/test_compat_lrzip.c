@@ -71,7 +71,11 @@ verify(const char *name)
 
 DEFINE_TEST(test_compat_lrzip)
 {
-	verify("test_compat_lrzip.tar.lrz");
+	if (canLrzip()) {
+		verify("test_compat_lrzip.tar.lrz");
+	} else {
+		skipping("lrzip command-line program not found");
+	}
 }
 
 
