@@ -579,7 +579,6 @@ __LA_DECL int archive_write_set_skip_file(struct archive *,
 __LA_DECL int archive_write_set_compression_bzip2(struct archive *);
 __LA_DECL int archive_write_set_compression_compress(struct archive *);
 __LA_DECL int archive_write_set_compression_gzip(struct archive *);
-__LA_DECL int archive_write_set_compression_lrzip(struct archive *);
 __LA_DECL int archive_write_set_compression_lzip(struct archive *);
 __LA_DECL int archive_write_set_compression_lzma(struct archive *);
 __LA_DECL int archive_write_set_compression_none(struct archive *);

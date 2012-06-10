@@ -43,15 +43,6 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_compression_lrzip.c 20
 #include "archive_write_private.h"
 
 
-#if ARCHIVE_VERSION_NUMBER < 4000000
-int
-archive_write_set_compression_lrzip(struct archive *a)
-{
-	__archive_write_filters_free(a);
-	return (archive_write_add_filter_lrzip(a));
-}
-#endif
-
 int
 archive_write_add_filter_lrzip(struct archive *a)
 {
