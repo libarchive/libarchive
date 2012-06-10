@@ -40,6 +40,11 @@ DEFINE_TEST(test_write_compress_lrzip)
 	size_t used1, used2;
 	int i, r;
 
+	if (!canLrzip()) {
+		skipping("lrzip command-line program not found");
+		return;
+	}
+
 	buffsize = 2000000;
 	assert(NULL != (buff = (char *)malloc(buffsize)));
 
