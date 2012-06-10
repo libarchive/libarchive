@@ -272,6 +272,9 @@ int canGzip(void);
 /* Return true if this platform can run the "gunzip" program. */
 int canGunzip(void);
 
+/* Return true if this platform can run the "lrzip" program. */
+int canLrzip(void);
+
 /* Return true if this filesystem can handle nodump flags. */
 int canNodump(void);
 
