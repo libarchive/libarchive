@@ -118,6 +118,7 @@ archive_write_add_filter_program(struct archive *_a, const char *cmd)
 	f->data = data;
 	f->open = &archive_compressor_program_open;
 	f->code = ARCHIVE_COMPRESSION_PROGRAM;
+	f->free = archive_compressor_program_free;
 	return (ARCHIVE_OK);
 }
 
@@ -155,7 +156,6 @@ archive_compressor_program_open(struct archive_write_filter *f)
 
 	f->write = archive_compressor_program_write;
 	f->close = archive_compressor_program_close;
-	f->free = archive_compressor_program_free;
 	return (0);
 }
 
