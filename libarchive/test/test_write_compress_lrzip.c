@@ -87,23 +87,18 @@ DEFINE_TEST(test_write_compress_lrzip)
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	r = archive_read_support_filter_lrzip(a);
-	if (r == ARCHIVE_WARN) {
-		skipping("Can't verify lrzip writing by reading back;"
-		    " lrzip reading not fully supported on this platform");
-	} else {
-		assertEqualIntA(a, ARCHIVE_OK,
-		    archive_read_open_memory(a, buff, used1));
-		for (i = 0; i < 100; i++) {
-			sprintf(path, "file%03d", i);
-			if (!assertEqualInt(ARCHIVE_OK,
-				archive_read_next_header(a, &ae)))
-				break;
-			assertEqualString(path, archive_entry_pathname(ae));
-			assertEqualInt((int)datasize, archive_entry_size(ae));
-		}
-		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_lrzip(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, buff, used1));
+	for (i = 0; i < 100; i++) {
+		sprintf(path, "file%03d", i);
+		if (!assertEqualInt(ARCHIVE_OK,
+			archive_read_next_header(a, &ae)))
+			break;
+		assertEqualString(path, archive_entry_pathname(ae));
+		assertEqualInt((int)datasize, archive_entry_size(ae));
 	}
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/*
