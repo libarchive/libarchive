@@ -235,14 +235,32 @@ libarchive_man_MANS=						\
 	libarchive/archive_entry_stat.3				\
 	libarchive/archive_entry_time.3				\
 	libarchive/archive_read.3				\
+	libarchive/archive_read_data.3				\
 	libarchive/archive_read_disk.3				\
+	libarchive/archive_read_extract.3			\
+	libarchive/archive_read_filter.3			\
+	libarchive/archive_read_format.3			\
+	libarchive/archive_read_free.3				\
+	libarchive/archive_read_header.3			\
+	libarchive/archive_read_new.3				\
+	libarchive/archive_read_open.3				\
 	libarchive/archive_read_set_options.3			\
 	libarchive/archive_util.3				\
 	libarchive/archive_write.3				\
+	libarchive/archive_write_blocksize.3			\
+	libarchive/archive_write_data.3				\
 	libarchive/archive_write_disk.3				\
+	libarchive/archive_write_filter.3			\
+	libarchive/archive_write_finish_entry.3	 		\
+	libarchive/archive_write_format.3			\
+	libarchive/archive_write_free.3				\
+	libarchive/archive_write_header.3			\
+	libarchive/archive_write_new.3				\
+	libarchive/archive_write_open.3				\
 	libarchive/archive_write_set_options.3			\
 	libarchive/cpio.5					\
 	libarchive/libarchive.3					\
+	libarchive/libarchive_changes.3				\
 	libarchive/libarchive_internals.3			\
 	libarchive/libarchive-formats.5				\
 	libarchive/mtree.5					\
