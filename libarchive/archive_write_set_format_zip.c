@@ -343,7 +343,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Filetype not supported");
 		return ARCHIVE_FAILED;
-	}; 
+	};
 
 	/* Directory entries should have a size of 0. */
 	if (type == AE_IFDIR)
