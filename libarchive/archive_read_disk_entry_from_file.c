@@ -398,6 +398,9 @@ setup_acls(struct archive_read_disk *a,
 {
 	const char	*accpath;
 	acl_t		 acl;
+#if HAVE_ACL_IS_TRIVIAL_NP
+	int		r;
+#endif
 
 	accpath = archive_entry_sourcepath(entry);
 	if (accpath == NULL)
