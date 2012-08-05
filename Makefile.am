@@ -162,6 +162,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_util.c				\
 	libarchive/archive_virtual.c				\
 	libarchive/archive_write.c				\
+	libarchive/archive_write_disk_acl.c			\
 	libarchive/archive_write_disk_posix.c			\
 	libarchive/archive_write_disk_private.h			\
 	libarchive/archive_write_disk_set_standard_lookup.c	\
