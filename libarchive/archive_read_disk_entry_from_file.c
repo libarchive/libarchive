@@ -198,7 +198,7 @@ archive_read_disk_entry_from_file(struct archive *_a,
 				fd = open(path, O_RDONLY | O_NONBLOCK);
 		}
 		if (fd >= 0) {
-			unsigned long stflags;
+			int stflags;
 			r = ioctl(fd, EXT2_IOC_GETFLAGS, &stflags);
 			if (r == 0 && stflags != 0)
 				archive_entry_set_fflags(entry, stflags, 0);
