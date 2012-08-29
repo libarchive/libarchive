@@ -2398,8 +2398,8 @@ set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
 {
 	int		 ret;
 	int		 myfd = fd;
-	unsigned long newflags, oldflags;
-	unsigned long sf_mask = 0;
+	int newflags, oldflags;
+	int sf_mask = 0;
 
 	if (set == 0  && clear == 0)
 		return (ARCHIVE_OK);
