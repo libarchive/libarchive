@@ -258,7 +258,8 @@ libarchive_test_SOURCES=					\
 	libarchive/test/main.c					\
 	libarchive/test/read_open_memory.c			\
 	libarchive/test/test.h					\
-	libarchive/test/test_acl_freebsd.c			\
+	libarchive/test/test_acl_freebsd_posix1e.c		\
+	libarchive/test/test_acl_freebsd_nfs4.c			\
 	libarchive/test/test_acl_nfs4.c				\
 	libarchive/test/test_acl_pax.c				\
 	libarchive/test/test_acl_posix1e.c			\
@@ -432,6 +433,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_format_zip_empty.c		\
 	libarchive/test/test_write_format_zip_no_compression.c	\
 	libarchive/test/test_write_open_memory.c		\
+	libarchive/test/test_write_zip_set_compression_store.c	\
 	libarchive/test/test_zip_filename_encoding.c
 
 libarchive_test_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_builddir)/libarchive/test -DLIBARCHIVE_STATIC $(PLATFORMCPPFLAGS)
