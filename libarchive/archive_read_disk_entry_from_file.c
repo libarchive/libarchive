@@ -388,7 +388,7 @@ setup_mac_metadata(struct archive_read_disk *a,
 #endif
 
 
-#ifdef HAVE_POSIX_ACL
+#if defined(HAVE_POSIX_ACL) && defined(ACL_TYPE_NFS4)
 static int translate_acl(struct archive_read_disk *a,
     struct archive_entry *entry, acl_t acl, int archive_entry_acl_type);
 
