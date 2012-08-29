@@ -59,7 +59,7 @@ DEFINE_TEST(test_write_compress_lrzip)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_gnutar(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_compression_compress(a));
-	r = archive_write_set_compression_lrzip(a);
+	r = archive_write_add_filter_lrzip(a);
 	if (r == ARCHIVE_FATAL) {
 		skipping("lrzip writing not supported on this platform");
 		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
@@ -106,23 +106,23 @@ DEFINE_TEST(test_write_compress_lrzip)
 	 * don't crash or leak memory.
 	 */
 	assert((a = archive_write_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_lrzip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_lrzip(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_write_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_lrzip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_lrzip(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_lrzip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_lrzip(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_lrzip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_lrzip(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, buffsize, &used2));
 	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
