@@ -984,7 +984,7 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 #elif defined(EXT2_IOC_GETFLAGS) && defined(EXT2_NODUMP_FL) &&\
       defined(HAVE_WORKING_EXT2_IOC_GETFLAGS)
 		if (S_ISREG(st->st_mode) || S_ISDIR(st->st_mode)) {
-			unsigned long stflags;
+			int stflags;
 
 			t->entry_fd = open_on_current_dir(t,
 			    tree_current_access_path(t), O_RDONLY | O_NONBLOCK);
