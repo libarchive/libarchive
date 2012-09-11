@@ -2264,7 +2264,7 @@ make_table(struct archive_read *a, struct huffman_code *code)
     code->tablesize = code->maxlength;
 
   code->table =
-    (struct huffman_table_entry *)malloc(sizeof(*code->table)
+    (struct huffman_table_entry *)calloc(1, sizeof(*code->table)
     * (1 << code->tablesize));
 
   return make_table_recurse(a, code, 0, code->table, 0, code->tablesize);
