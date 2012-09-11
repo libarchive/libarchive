@@ -442,6 +442,14 @@ _7z_write_header(struct archive_write *a, struct archive_entry *entry)
 		file_free(file);
 		return (r);
 	}
+	if (file->size == 0 && file->dir) {
+		if (!__archive_rb_tree_insert_node(&(zip->rbtree),
+		    (struct archive_rb_node *)file)) {
+			/* We have already had the same file. */
+			file_free(file);
+			return (ARCHIVE_OK);
+		}
+	}
 
 	if (file->flg & MTIME_IS_SET)
 		zip->total_number_time_defined[MTIME]++;
@@ -450,11 +458,6 @@ _7z_write_header(struct archive_write *a, struct archive_entry *entry)
 	if (file->flg & ATIME_IS_SET)
 		zip->total_number_time_defined[ATIME]++;
 
-	if (file->size == 0 && file->dir) {
-		if (!__archive_rb_tree_insert_node(&(zip->rbtree),
-		    (struct archive_rb_node *)file))
-			file_free(file);
-	}
 	zip->total_number_entry++;
 	zip->total_bytes_entry_name += file->name_len + 2;
 	if (file->size == 0) {
