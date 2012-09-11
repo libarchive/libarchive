@@ -684,8 +684,8 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 			symname[symsize] = '\0';
 			archive_entry_copy_symlink(entry,
 			    (const char *)symname);
-			free(symname);
 		}
+		free(symname);
 		archive_entry_set_size(entry, 0);
 	}
 
@@ -709,16 +709,15 @@ archive_read_format_7zip_read_data(struct archive_read *a,
 	if (zip->pack_stream_bytes_unconsumed)
 		read_consume(a);
 
+	*offset = zip->entry_offset;
+	*size = 0;
+	*buff = NULL;
 	/*
 	 * If we hit end-of-entry last time, clean up and return
 	 * ARCHIVE_EOF this time.
 	 */
-	if (zip->end_of_entry) {
-		*offset = zip->entry_offset;
-		*size = 0;
-		*buff = NULL;
+	if (zip->end_of_entry)
 		return (ARCHIVE_EOF);
-	}
 
 	bytes = read_stream(a, buff,
 		(size_t)zip->entry_bytes_remaining, 0);
@@ -1607,8 +1606,9 @@ read_Digests(struct archive_read *a, struct _7z_digests *d, size_t num)
 	const unsigned char *p;
 	unsigned i;
 
+	if (num == 0)
+		return (-1);
 	memset(d, 0, sizeof(*d));
-
 
 	d->defineds = malloc(num);
 	if (d->defineds == NULL)
@@ -3346,8 +3346,10 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 		for (i = 0; i < 3; i++) {
 			const struct _7z_coder *coder = scoder[i];
 
-			if ((r = seek_pack(a)) < 0)
+			if ((r = seek_pack(a)) < 0) {
+				free(b[0]); free(b[1]); free(b[2]);
 				return (r);
+			}
 
 			if (sunpack[i] == (uint64_t)-1)
 				zip->folder_outbytes_remaining =
@@ -3356,13 +3358,16 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 				zip->folder_outbytes_remaining = sunpack[i];
 
 			r = init_decompression(a, zip, coder, NULL);
-			if (r != ARCHIVE_OK)
+			if (r != ARCHIVE_OK) {
+				free(b[0]); free(b[1]); free(b[2]);
 				return (ARCHIVE_FATAL);
+			}
 
 			/* Allocate memory for the decorded data of a sub
 			 * stream. */
 			b[i] = malloc((size_t)zip->folder_outbytes_remaining);
 			if (b[i] == NULL) {
+				free(b[0]); free(b[1]); free(b[2]);
 				archive_set_error(&a->archive, ENOMEM,
 				    "No memory for 7-Zip decompression");
 				return (ARCHIVE_FATAL);
@@ -3371,13 +3376,17 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 			/* Extract a sub stream. */
 			while (zip->pack_stream_inbytes_remaining > 0) {
 				r = extract_pack_stream(a, 0);
-				if (r < 0)
+				if (r < 0) {
+					free(b[0]); free(b[1]); free(b[2]);
 					return (r);
+				}
 				bytes = get_uncompressed_data(a, &buff,
 				    zip->uncompressed_buffer_bytes_remaining,
 				    0);
-				if (bytes < 0)
+				if (bytes < 0) {
+					free(b[0]); free(b[1]); free(b[2]);
 					return ((int)bytes);
+				}
 				memcpy(b[i]+s[i], buff, bytes);
 				s[i] += bytes;
 				if (zip->pack_stream_bytes_unconsumed)
