@@ -3090,8 +3090,10 @@ save_xattrs(struct archive_write *a, struct file *file)
 			checksum_update(&(xar->a_sumwrk), value, size);
 			checksum_final(&(xar->a_sumwrk), &(heap->a_sum));
 			if (write_to_temp(a, value, size)
-			    != ARCHIVE_OK)
+			    != ARCHIVE_OK) {
+				free(heap);
 				return (ARCHIVE_FATAL);
+			}
 			heap->length = size;
 			/* Add heap to the tail of file->xattr. */
 			heap->next = NULL;
