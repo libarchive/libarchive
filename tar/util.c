@@ -148,7 +148,7 @@ safe_fprintf(FILE *f, const char *fmt, ...)
 
 	/* Note: mbrtowc() has a cleaner API, but mbtowc() seems a bit
 	 * more portable, so we use that here instead. */
-	n = mbtowc(NULL, NULL, 1); /* Reset the shift state. */
+	(void)mbtowc(NULL, NULL, 1); /* Reset the shift state. */
 
 	/* Write data, expanding unprintable characters. */
 	p = fmtbuff;
