@@ -1862,7 +1862,7 @@ _sparse_list_add_block(struct pax *pax, int64_t offset, int64_t length,
 	sb->is_hole = is_hole;
 	sb->offset = offset;
 	sb->remaining = length;
-	if (pax->sparse_list == NULL)
+	if (pax->sparse_list == NULL || pax->sparse_tail == NULL)
 		pax->sparse_list = pax->sparse_tail = sb;
 	else {
 		pax->sparse_tail->next = sb;

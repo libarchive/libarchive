@@ -2391,7 +2391,7 @@ tree_current_is_dir(struct tree *t)
 			return 1;
 		/* Not a dir; might be a link to a dir. */
 		/* If it's not a link, then it's not a link to a dir. */
-		if (!S_ISLNK(tree_current_lstat(t)->st_mode))
+		if (!S_ISLNK(st->st_mode))
 			return 0;
 		/*
 		 * It's a link, but we don't know what it's a link to,

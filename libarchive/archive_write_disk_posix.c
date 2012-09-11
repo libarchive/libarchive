@@ -525,6 +525,8 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	 */
 	if (a->deferred & TODO_MODE) {
 		fe = current_fixup(a, archive_entry_pathname(entry));
+		if (fe == NULL)
+			return (ARCHIVE_FATAL);
 		fe->fixup |= TODO_MODE_BASE;
 		fe->mode = a->mode;
 	}
@@ -533,6 +535,8 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		&& (archive_entry_mtime_is_set(entry)
 		    || archive_entry_atime_is_set(entry))) {
 		fe = current_fixup(a, archive_entry_pathname(entry));
+		if (fe == NULL)
+			return (ARCHIVE_FATAL);
 		fe->mode = a->mode;
 		fe->fixup |= TODO_TIMES;
 		if (archive_entry_atime_is_set(entry)) {
@@ -563,6 +567,8 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 
 	if (a->deferred & TODO_ACLS) {
 		fe = current_fixup(a, archive_entry_pathname(entry));
+		if (fe == NULL)
+			return (ARCHIVE_FATAL);
 		fe->fixup |= TODO_ACLS;
 		archive_acl_copy(&fe->acl, archive_entry_acl(entry));
 	}
@@ -573,6 +579,8 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		metadata = archive_entry_mac_metadata(a->entry, &metadata_size);
 		if (metadata != NULL && metadata_size > 0) {
 			fe = current_fixup(a, archive_entry_pathname(entry));
+			if (fe == NULL)
+				return (ARCHIVE_FATAL);
 			fe->mac_metadata = malloc(metadata_size);
 			if (fe->mac_metadata != NULL) {
 				memcpy(fe->mac_metadata, metadata, metadata_size);
@@ -584,6 +592,8 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 
 	if (a->deferred & TODO_FFLAGS) {
 		fe = current_fixup(a, archive_entry_pathname(entry));
+		if (fe == NULL)
+			return (ARCHIVE_FATAL);
 		fe->fixup |= TODO_FFLAGS;
 		/* TODO: Complete this.. defer fflags from below. */
 	}
@@ -1495,8 +1505,11 @@ new_fixup(struct archive_write_disk *a, const char *pathname)
 	struct fixup_entry *fe;
 
 	fe = (struct fixup_entry *)calloc(1, sizeof(struct fixup_entry));
-	if (fe == NULL)
+	if (fe == NULL) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate memory for a fixup");
 		return (NULL);
+	}
 	fe->next = a->fixup_list;
 	a->fixup_list = fe;
 	fe->fixup = 0;
@@ -1883,6 +1896,8 @@ create_dir(struct archive_write_disk *a, char *path)
 	if (mkdir(path, mode) == 0) {
 		if (mode != mode_final) {
 			le = new_fixup(a, path);
+			if (le == NULL)
+				return (ARCHIVE_FATAL);
 			le->fixup |=TODO_MODE_BASE;
 			le->mode = mode_final;
 		}
@@ -2320,6 +2335,8 @@ set_fflags(struct archive_write_disk *a)
 		 */
 		if ((critical_flags != 0)  &&  (set & critical_flags)) {
 			le = current_fixup(a, a->name);
+			if (le == NULL)
+				return (ARCHIVE_FATAL);
 			le->fixup |= TODO_FFLAGS;
 			le->fflags_set = set;
 			/* Store the mode if it's not already there. */
