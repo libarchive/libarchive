@@ -417,6 +417,7 @@ main(int argc, char *argv[])
 	archive_match_free(cpio->matching);
 	free_cache(cpio->gname_cache);
 	free_cache(cpio->uname_cache);
+	free(cpio->destdir);
 	return (cpio->return_value);
 }
 
