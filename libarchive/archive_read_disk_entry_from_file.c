@@ -532,7 +532,6 @@ translate_acl(struct archive_read_disk *a,
 		switch (default_entry_acl_type) {
 		case ARCHIVE_ENTRY_ACL_TYPE_ACCESS:
 		case ARCHIVE_ENTRY_ACL_TYPE_DEFAULT:
-			entry_acl_type = default_entry_acl_type;
 			break;
 		default:
 			// XXX set warning message?
