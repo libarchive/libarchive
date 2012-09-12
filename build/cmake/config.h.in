@@ -706,6 +706,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <poll.h> header file. */
 #cmakedefine HAVE_POLL_H 1
 
+/* Define to 1 if you have the `posix_spawnp' function. */
+#cmakedefine HAVE_POSIX_SPAWNP 1
+
 /* Define to 1 if you have the <process.h> header file. */
 #cmakedefine HAVE_PROCESS_H 1
 
@@ -738,6 +741,9 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the <signal.h> header file. */
 #cmakedefine HAVE_SIGNAL_H 1
+
+/* Define to 1 if you have the <spawn.h> header file. */
+#cmakedefine HAVE_SPAWN_H 1
 
 /* Define to 1 if you have the `statfs' function. */
 #cmakedefine HAVE_STATFS 1
