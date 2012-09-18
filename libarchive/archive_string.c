@@ -306,9 +306,6 @@ archive_string_ensure(struct archive_string *as, size_t s)
 	/* Now we can reallocate the buffer. */
 	p = (char *)realloc(as->s, new_length);
 	if (p == NULL) {
-		/* Prevent the duble free of as->s in archive_string_free
-		 * since realloc function already freed the memory. */
-		as->s = NULL;
 		/* On failure, wipe the string and return NULL. */
 		archive_string_free(as);
 		errno = ENOMEM;/* Make sure errno has ENOMEM. */
