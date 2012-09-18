@@ -1675,13 +1675,16 @@ add_owner_id(struct archive_match *a, struct id_array *ids, int64_t id)
 	unsigned i;
 
 	if (ids->count + 1 >= ids->size) {
+		void *p;
+
 		if (ids->size == 0)
 			ids->size = 8;
 		else
 			ids->size *= 2;
-		ids->ids = realloc(ids->ids, sizeof(*ids->ids) * ids->size);
-		if (ids->ids == NULL)
+		p = realloc(ids->ids, sizeof(*ids->ids) * ids->size);
+		if (p == NULL)
 			return (error_nomem(a));
+		ids->ids = (int64_t *)p;
 	}
 
 	/* Find an insert point. */
