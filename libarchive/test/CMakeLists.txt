@@ -215,6 +215,7 @@ IF(ENABLE_TEST)
   ENDMACRO (DEFINE_TEST _testname)
 
   INCLUDE(${CMAKE_CURRENT_BINARY_DIR}/list.h)
+  INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 
   # Experimental new test handling
   ADD_CUSTOM_TARGET(run_libarchive_test
