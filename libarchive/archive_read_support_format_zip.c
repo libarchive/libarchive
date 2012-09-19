@@ -988,7 +988,7 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 		}
 		/* Grab a bunch of bytes. */
 		buff = __archive_read_ahead(a, 1, &bytes_avail);
-		if (bytes_avail <= 0) {
+		if (bytes_avail < 0) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Truncated ZIP file data");
 			return (ARCHIVE_FATAL);
