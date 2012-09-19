@@ -61,6 +61,8 @@ libarchive/CMakeFiles/
 libarchive/test/CMakeFiles/
 tar/CMakeFiles/
 tar/test/CMakeFiles/
+test_utils/.deps/
+test_utils/.dirstamp
 
 doc/html/*.html
 doc/man/*.1

@@ -24,6 +24,7 @@
  */
 
 #include "test.h"
+#include "test_utils.h"
 #ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
 #endif
@@ -2124,7 +2125,7 @@ is_LargeInode(const char *file)
 /* Use "list.h" to create a list of all tests (functions and names). */
 #undef DEFINE_TEST
 #define	DEFINE_TEST(n) { n, #n, 0 },
-struct { void (*func)(void); const char *name; int failures; } tests[] = {
+struct test_list_t tests[] = {
 	#include "list.h"
 };
 
@@ -2375,65 +2376,6 @@ success:
 	free(p);
 	free(pwd);
 	return strdup(buff);
-}
-
-static int
-get_test_set(int *test_set, int limit, const char *test)
-{
-	int start, end;
-	int idx = 0;
-
-	if (test == NULL) {
-		/* Default: Run all tests. */
-		for (;idx < limit; idx++)
-			test_set[idx] = idx;
-		return (limit);
-	}
-	if (*test >= '0' && *test <= '9') {
-		const char *vp = test;
-		start = 0;
-		while (*vp >= '0' && *vp <= '9') {
-			start *= 10;
-			start += *vp - '0';
-			++vp;
-		}
-		if (*vp == '\0') {
-			end = start;
-		} else if (*vp == '-') {
-			++vp;
-			if (*vp == '\0') {
-				end = limit - 1;
-			} else {
-				end = 0;
-				while (*vp >= '0' && *vp <= '9') {
-					end *= 10;
-					end += *vp - '0';
-					++vp;
-				}
-			}
-		} else
-			return (-1);
-		if (start < 0 || end >= limit || start > end)
-			return (-1);
-		while (start <= end)
-			test_set[idx++] = start++;
-	} else {
-		size_t len = strlen(test);
-		for (start = 0; start < limit; ++start) {
-			const char *name = tests[start].name;
-			const char *p;
-
-			while ((p = strchr(name, test[0])) != NULL) {
-				if (strncmp(p, test, len) == 0) {
-					test_set[idx++] = start;
-					break;
-				} else
-					name = p + 1;
-			}
-
-		}
-	}
-	return ((idx == 0)?-1:idx);
 }
 
 int
@@ -2720,7 +2662,7 @@ main(int argc, char **argv)
 		do {
 			int test_num;
 
-			test_num = get_test_set(test_set, limit, *argv);
+			test_num = get_test_set(test_set, limit, *argv, tests);
 			if (test_num < 0) {
 				printf("*** INVALID Test %s\n", *argv);
 				free(refdir_alloc);

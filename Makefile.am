@@ -248,6 +248,10 @@ libarchive_EXTRA_DIST=			\
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = build/pkgconfig/libarchive.pc
 
+# Sources needed by all test programs
+test_utils_SOURCES= \
+	test_utils/test_utils.c
+
 #
 #
 # libarchive_test program
@@ -255,6 +259,7 @@ pkgconfig_DATA = build/pkgconfig/libarchive.pc
 #
 libarchive_test_SOURCES=					\
 	$(libarchive_la_SOURCES)				\
+	$(test_utils_SOURCES)					\
 	libarchive/test/main.c					\
 	libarchive/test/read_open_memory.c			\
 	libarchive/test/test.h					\
@@ -436,7 +441,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_zip_set_compression_store.c	\
 	libarchive/test/test_zip_filename_encoding.c
 
-libarchive_test_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_builddir)/libarchive/test -DLIBARCHIVE_STATIC $(PLATFORMCPPFLAGS)
+libarchive_test_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/test_utils -I$(top_builddir)/libarchive/test -DLIBARCHIVE_STATIC $(PLATFORMCPPFLAGS)
 libarchive_test_LDADD= $(LTLIBICONV)
 
 # The "list.h" file just lists all of the tests defined in all of the sources.
@@ -670,6 +675,7 @@ endif
 #
 
 bsdtar_test_SOURCES=						\
+	$(test_utils_SOURCES)					\
 	tar/test/main.c						\
 	tar/test/test.h						\
 	tar/test/test_0.c					\
@@ -707,6 +713,7 @@ bsdtar_test_SOURCES=						\
 
 bsdtar_test_CPPFLAGS=\
 	-I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe \
+	-I$(top_srcdir)/test_utils \
 	-I$(top_srcdir)/tar -I$(top_builddir)/tar/test \
 	$(PLATFORMCPPFLAGS)
 
@@ -787,6 +794,7 @@ endif
 #
 
 bsdcpio_test_SOURCES=						\
+	$(test_utils_SOURCES)					\
 	cpio/cmdline.c						\
 	cpio/test/main.c					\
 	cpio/test/test.h					\
@@ -820,6 +828,7 @@ bsdcpio_test_SOURCES=						\
 
 bsdcpio_test_CPPFLAGS= \
 	-I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe \
+	-I$(top_srcdir)/test_utils \
 	-I$(top_srcdir)/cpio -I$(top_builddir)/cpio/test \
 	$(PLATFORMCPPFLAGS)
 bsdcpio_test_LDADD=libarchive_fe.la
