@@ -73,3 +73,8 @@ doc/text/*.txt
 doc/wiki/*.wiki
 
 libarchive-*.tar.gz
+
+Testing/
+libarchive/libarchive.a
+libarchive/libarchive.so
+libarchive/libarchive.so.*
