@@ -29,6 +29,51 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* Filter tests against a glob pattern. Returns non-zero if test matches
+ * pattern, zero otherwise. A '^' at the beginning of the pattern negates
+ * the return values (i.e. returns zero for a match, non-zero otherwise.
+ */
+static int
+test_filter(const char *pattern, const char *test)
+{
+	int retval = 0;
+	int negate = 0;
+	const char *p = pattern;
+	const char *t = test;
+
+	if (p[0] == '^')
+	{
+		negate = 1;
+		p++;
+	}
+
+	while (1)
+	{
+		if (p[0] == '\\')
+			p++;
+		else if (p[0] == '*')
+		{
+			while (p[0] == '*')
+				p++;
+			if (p[0] == '\\')
+				p++;
+			while (p[0] != t[0])
+				t++;
+		}
+		if (p[0] != t[0])
+			break;
+		if (p[0] == '\0' && t[0] == '\0')
+		{
+			retval = 1;
+			break;
+		}
+		p++;
+		t++;
+	}
+
+	return (negate) ? !retval : retval;
+}
+
 int get_test_set(int *test_set, int limit, const char *test,
 	struct test_list_t *tests)
 {
@@ -70,19 +115,10 @@ int get_test_set(int *test_set, int limit, const char *test,
 		while (start <= end)
 			test_set[idx++] = start++;
 	} else {
-		size_t len = strlen(test);
 		for (start = 0; start < limit; ++start) {
 			const char *name = tests[start].name;
-			const char *p;
-
-			while ((p = strchr(name, test[0])) != NULL) {
-				if (strncmp(p, test, len) == 0) {
-					test_set[idx++] = start;
-					break;
-				} else
-					name = p + 1;
-			}
-
+			if (test_filter(test, name))
+				test_set[idx++] = start;
 		}
 	}
 	return ((idx == 0)?-1:idx);
