@@ -887,6 +887,9 @@ write_entry(struct archive_write *a, struct mtree_entry *me)
 
 	archive_string_empty(&mtree->ebuf);
 	str = (mtree->indent)? &mtree->ebuf : &mtree->buf;
+	if (strchr(me->pathname, '/') == NULL ) {
+		archive_strcat(str, "./");
+	}
 	mtree_quote(str, me->pathname);
 	keys = get_keys(mtree, me);
 	if ((keys & F_NLINK) != 0 &&
