@@ -897,6 +897,9 @@ write_entry(struct archive_write *a, struct mtree_entry *me)
 	    strcmp(me->pathname, ".") != 0) {
 		archive_strcat(str, "./");
 	}
+	/* mtree reader does not accept an absolute path. */
+	else if (me->pathname[0] == '/')
+		archive_strappend_char(str, '.');
 	mtree_quote(str, me->pathname);
 	keys = get_keys(mtree, me);
 	if ((keys & F_NLINK) != 0 &&
