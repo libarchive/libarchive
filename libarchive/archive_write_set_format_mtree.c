@@ -887,7 +887,14 @@ write_entry(struct archive_write *a, struct mtree_entry *me)
 
 	archive_string_empty(&mtree->ebuf);
 	str = (mtree->indent)? &mtree->ebuf : &mtree->buf;
-	if (strchr(me->pathname, '/') == NULL ) {
+
+	/* If the pathname does not have a path separator, we have to
+	 * add "./" to the head of the pathename because mtree reader
+	 * will suppose that it is v1(a.k.a classic) mtree format and
+	 * change the directory unexpectedly and so it will make a wrong
+	 * path. */
+	if (strchr(me->pathname, '/') == NULL &&
+	    strcmp(me->pathname, ".") != 0) {
 		archive_strcat(str, "./");
 	}
 	mtree_quote(str, me->pathname);

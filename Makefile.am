@@ -426,6 +426,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_format_iso9660_zisofs.c	\
 	libarchive/test/test_write_format_mtree.c		\
 	libarchive/test/test_write_format_mtree_fflags.c	\
+	libarchive/test/test_write_format_mtree_no_separator.c	\
 	libarchive/test/test_write_format_pax.c			\
 	libarchive/test/test_write_format_shar_empty.c		\
 	libarchive/test/test_write_format_tar.c			\
