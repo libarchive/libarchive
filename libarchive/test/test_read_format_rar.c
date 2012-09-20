@@ -28,8 +28,7 @@
 
 #include <locale.h>
 
-static void
-test_basic(void)
+DEFINE_TEST(test_read_format_rar_basic)
 {
   char buff[64];
   const char reffile[] = "test_read_format_rar.rar";
@@ -102,8 +101,7 @@ test_basic(void)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_subblock(void)
+DEFINE_TEST(test_read_format_rar_subblock)
 {
   char buff[64];
   const char reffile[] = "test_read_format_rar_subblock.rar";
@@ -136,8 +134,7 @@ test_subblock(void)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_noeof(void)
+DEFINE_TEST(test_read_format_rar_noeof)
 {
   char buff[64];
   const char reffile[] = "test_read_format_rar_noeof.rar";
@@ -170,8 +167,7 @@ test_noeof(void)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_unicode_UTF8(void)
+DEFINE_TEST(test_read_format_rar_unicode_UTF8)
 {
   char buff[30];
   const char reffile[] = "test_read_format_rar_unicode.rar";
@@ -296,8 +292,7 @@ test_unicode_UTF8(void)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_unicode_CP932(void)
+DEFINE_TEST(test_read_format_rar_unicode_CP932)
 {
   char buff[30];
   const char reffile[] = "test_read_format_rar_unicode.rar";
@@ -392,8 +387,7 @@ test_unicode_CP932(void)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_compress_normal(void)
+DEFINE_TEST(test_read_format_rar_compress_normal)
 {
   const char reffile[] = "test_read_format_rar_compress_normal.rar";
   char file1_buff[20111];
@@ -490,8 +484,7 @@ test_compress_normal(void)
 /* This test is for sufficiently large files that would have been compressed
  * using multiple lzss blocks.
  */
-static void
-test_multi_lzss_blocks(void)
+DEFINE_TEST(test_read_format_rar_multi_lzss_blocks)
 {
   const char reffile[] = "test_read_format_rar_multi_lzss_blocks.rar";
   const char test_txt[] = "-bottom: 0in\"><BR>\n</P>\n</BODY>\n</HTML>";
@@ -529,8 +522,7 @@ test_multi_lzss_blocks(void)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_compress_best(void)
+DEFINE_TEST(test_read_format_rar_compress_best)
 {
   const char reffile[] = "test_read_format_rar_compress_best.rar";
   char file1_buff[20111];
@@ -627,8 +619,7 @@ test_compress_best(void)
 /* This is a test for RAR files compressed using a technique where compression
  * switches back and forth to and from ppmd and lzss decoding.
  */
-static void
-test_ppmd_lzss_conversion(void)
+DEFINE_TEST(test_read_format_rar_ppmd_lzss_conversion)
 {
   const char reffile[] = "test_read_format_rar_ppmd_lzss_conversion.rar";
   const char test_txt[] = "gin-bottom: 0in\"><BR>\n</P>\n</BODY>\n</HTML>";
@@ -667,8 +658,7 @@ test_ppmd_lzss_conversion(void)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_binary(void)
+DEFINE_TEST(test_read_format_rar_binary)
 {
   const char reffile[] = "test_read_format_rar_binary_data.rar";
   char file1_buff[1048576];
@@ -725,8 +715,7 @@ test_binary(void)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_windows(void)
+DEFINE_TEST(test_read_format_rar_windows)
 {
   char buff[441];
   const char reffile[] = "test_read_format_rar_windows.rar";
@@ -798,8 +787,7 @@ test_windows(void)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_multivolume_rar(void)
+DEFINE_TEST(test_read_format_rar_multivolume)
 {
   const char *reffiles[] =
   {
@@ -922,8 +910,7 @@ test_multivolume_rar(void)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_multivolume_rar_skip(void)
+DEFINE_TEST(test_read_format_rar_multivolume_skip)
 {
   const char *reffiles[] =
   {
@@ -1018,8 +1005,7 @@ test_multivolume_rar_skip(void)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_sfx(void)
+DEFINE_TEST(test_read_format_rar_sfx)
 {
   char buff[441];
   const char reffile[] = "test_read_format_rar_sfx.exe";
@@ -1091,8 +1077,7 @@ test_sfx(void)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_rar_multivolume_stored_file(void)
+DEFINE_TEST(test_read_format_rar_multivolume_stored_file)
 {
   const char *reffiles[] =
   {
@@ -1135,8 +1120,7 @@ test_rar_multivolume_stored_file(void)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_rar_multivolume_stored_file_skip(void)
+DEFINE_TEST(test_read_format_rar_multivolume_stored_file_skip)
 {
   const char *reffiles[] =
   {
@@ -1169,24 +1153,4 @@ test_rar_multivolume_stored_file_skip(void)
   assertEqualInt(1, archive_file_count(a));
   assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-}
-
-DEFINE_TEST(test_read_format_rar)
-{
-  test_basic();
-  test_subblock();
-  test_noeof();
-  test_unicode_UTF8();
-  test_unicode_CP932();
-  test_compress_normal();
-  test_multi_lzss_blocks();
-  test_compress_best();
-  test_ppmd_lzss_conversion();
-  test_binary();
-  test_windows();
-  test_multivolume_rar();
-  test_multivolume_rar_skip();
-  test_sfx();
-  test_rar_multivolume_stored_file();
-  test_rar_multivolume_stored_file_skip();
 }

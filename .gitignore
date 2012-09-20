@@ -61,6 +61,8 @@ libarchive/CMakeFiles/
 libarchive/test/CMakeFiles/
 tar/CMakeFiles/
 tar/test/CMakeFiles/
+test_utils/.deps/
+test_utils/.dirstamp
 
 doc/html/*.html
 doc/man/*.1
@@ -71,3 +73,8 @@ doc/text/*.txt
 doc/wiki/*.wiki
 
 libarchive-*.tar.gz
+
+Testing/
+libarchive/libarchive.a
+libarchive/libarchive.so
+libarchive/libarchive.so.*

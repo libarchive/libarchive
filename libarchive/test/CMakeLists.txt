@@ -5,6 +5,7 @@
 ############################################
 IF(ENABLE_TEST)
   SET(libarchive_test_SOURCES
+    ../../test_utils/test_utils.c
    main.c
     read_open_memory.c
     test.h
@@ -216,6 +217,7 @@ IF(ENABLE_TEST)
 
   INCLUDE(${CMAKE_CURRENT_BINARY_DIR}/list.h)
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/test_utils)
 
   # Experimental new test handling
   ADD_CUSTOM_TARGET(run_libarchive_test
