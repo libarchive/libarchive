@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2011-2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -340,6 +341,146 @@ test_read_format_mtree5(void)
 	assertChdir("..");
 }
 
+/*
+ * Test for a format that NetBSD mtree -C generates.
+ */
+static void
+test_read_format_mtree6(void)
+{
+	const char reffile[] = "test_read_format_mtree_nomagic2.mtree";
+	char buff[16];
+	struct archive_entry *ae;
+	struct archive *a;
+	FILE *f;
+
+	assertMakeDir("mtree6", 0777);
+	assertChdir("mtree6");
+
+	extract_reference_file(reffile);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_file(a, reffile, 11));
+
+	/*
+	 * Read "file", whose data is available on disk.
+	 */
+	f = fopen("file", "wb");
+	assert(f != NULL);
+	assertEqualInt(3, fwrite("hi\n", 1, 3, f));
+	fclose(f);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_MTREE);
+	assertEqualString(archive_entry_pathname(ae), "./file");
+	assertEqualInt(archive_entry_uid(ae), 18);
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assertEqualInt(archive_entry_mode(ae), AE_IFREG | 0123);
+	assertEqualInt(archive_entry_size(ae), 3);
+	assertEqualInt(3, archive_read_data(a, buff, 3));
+	assertEqualMem(buff, "hi\n", 3);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "./dir");
+	assertEqualInt(archive_entry_mode(ae), AE_IFDIR | 0755);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "./dir/file with space");
+	assertEqualInt(archive_entry_uid(ae), 18);
+	assertEqualInt(archive_entry_mode(ae), AE_IFREG | 0644);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "./file with space");
+	assertEqualInt(archive_entry_mode(ae), AE_IFREG | 0644);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "./dir2");
+	assertEqualInt(archive_entry_mode(ae), AE_IFDIR | 0755);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "./dir2/dir3a");
+	assertEqualInt(archive_entry_mode(ae), AE_IFDIR | 0755);
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualInt(6, archive_file_count(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	assertChdir("..");
+}
+
+/*
+ * Test for a format that NetBSD mtree -D generates.
+ */
+static void
+test_read_format_mtree7(void)
+{
+	const char reffile[] = "test_read_format_mtree_nomagic3.mtree";
+	char buff[16];
+	struct archive_entry *ae;
+	struct archive *a;
+	FILE *f;
+
+	assertMakeDir("mtree7", 0777);
+	assertChdir("mtree7");
+
+	extract_reference_file(reffile);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_file(a, reffile, 11));
+
+	/*
+	 * Read "file", whose data is available on disk.
+	 */
+	f = fopen("file", "wb");
+	assert(f != NULL);
+	assertEqualInt(3, fwrite("hi\n", 1, 3, f));
+	fclose(f);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_MTREE);
+	assertEqualString(archive_entry_pathname(ae), "./file");
+	assertEqualInt(archive_entry_uid(ae), 18);
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assertEqualInt(archive_entry_mode(ae), AE_IFREG | 0123);
+	assertEqualInt(archive_entry_size(ae), 3);
+	assertEqualInt(3, archive_read_data(a, buff, 3));
+	assertEqualMem(buff, "hi\n", 3);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "./dir");
+	assertEqualInt(archive_entry_mode(ae), AE_IFDIR | 0755);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "./dir/file with space");
+	assertEqualInt(archive_entry_uid(ae), 18);
+	assertEqualInt(archive_entry_mode(ae), AE_IFREG | 0644);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "./file with space");
+	assertEqualInt(archive_entry_mode(ae), AE_IFREG | 0644);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "./dir2");
+	assertEqualInt(archive_entry_mode(ae), AE_IFDIR | 0755);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "./dir2/dir3a");
+	assertEqualInt(archive_entry_mode(ae), AE_IFDIR | 0755);
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualInt(6, archive_file_count(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	assertChdir("..");
+}
+
 DEFINE_TEST(test_read_format_mtree)
 {
 	test_read_format_mtree1();
@@ -347,4 +488,6 @@ DEFINE_TEST(test_read_format_mtree)
 	test_read_format_mtree3();
 	test_read_format_mtree4();
 	test_read_format_mtree5();
+	test_read_format_mtree6();
+	test_read_format_mtree7();
 }
