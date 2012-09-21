@@ -56,6 +56,7 @@ struct { const char *name; int (*setter)(struct archive *); } names[] =
 	{ "iso",	archive_write_set_format_iso9660 },
 	{ "iso9660",	archive_write_set_format_iso9660 },
 	{ "mtree",	archive_write_set_format_mtree },
+	{ "mtree-classic",	archive_write_set_format_mtree_classic },
 	{ "newc",	archive_write_set_format_cpio_newc },
 	{ "odc",	archive_write_set_format_cpio },
 	{ "pax",	archive_write_set_format_pax },

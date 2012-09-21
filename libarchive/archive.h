@@ -614,6 +614,7 @@ __LA_DECL int archive_write_set_format_cpio_newc(struct archive *);
 __LA_DECL int archive_write_set_format_gnutar(struct archive *);
 __LA_DECL int archive_write_set_format_iso9660(struct archive *);
 __LA_DECL int archive_write_set_format_mtree(struct archive *);
+__LA_DECL int archive_write_set_format_mtree_classic(struct archive *);
 /* TODO: int archive_write_set_format_old_tar(struct archive *); */
 __LA_DECL int archive_write_set_format_pax(struct archive *);
 __LA_DECL int archive_write_set_format_pax_restricted(struct archive *);
