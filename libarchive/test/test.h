@@ -275,6 +275,9 @@ int canGrzip(void);
 /* Return true if this platform can run the "gzip" program. */
 int canGzip(void);
 
+/* Return true if this platform can run the specified command. */
+int canRunCommand(const char *);
+
 /* Return true if this platform can run the "lrzip" program. */
 int canLrzip(void);
 
