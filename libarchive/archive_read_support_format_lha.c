@@ -319,6 +319,7 @@ archive_read_support_format_lha(struct archive *_a)
 	    archive_read_format_lha_read_header,
 	    archive_read_format_lha_read_data,
 	    archive_read_format_lha_read_data_skip,
+	    NULL,
 	    archive_read_format_lha_cleanup);
 
 	if (r != ARCHIVE_OK)
