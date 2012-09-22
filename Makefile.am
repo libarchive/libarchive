@@ -409,6 +409,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_large.c			\
 	libarchive/test/test_read_pax_truncated.c		\
 	libarchive/test/test_read_position.c			\
+	libarchive/test/test_read_set_format.c			\
 	libarchive/test/test_read_truncated.c			\
 	libarchive/test/test_read_truncated_filter.c		\
 	libarchive/test/test_sparse_basic.c			\

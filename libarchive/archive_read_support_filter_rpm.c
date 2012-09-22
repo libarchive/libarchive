@@ -85,6 +85,7 @@ archive_read_support_filter_rpm(struct archive *_a)
 		return (ARCHIVE_FATAL);
 
 	bidder->data = NULL;
+	bidder->name = "rpm";
 	bidder->bid = rpm_bidder_bid;
 	bidder->init = rpm_bidder_init;
 	bidder->options = NULL;

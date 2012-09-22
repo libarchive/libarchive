@@ -455,7 +455,7 @@ int
 archive_read_open1(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	struct archive_read_filter *filter;
+	struct archive_read_filter *filter, *tmp;
 	int slot, e;
 	unsigned int i;
 
@@ -499,25 +499,37 @@ archive_read_open1(struct archive *_a)
 	filter->sswitch = client_switch_proxy;
 	filter->name = "none";
 	filter->code = ARCHIVE_FILTER_NONE;
-	a->filter = filter;
 
-	client_switch_proxy(a->filter, 0);
 	a->client.dataset[0].begin_position = 0;
-
-	/* Build out the input pipeline. */
-	e = choose_filters(a);
-	if (e < ARCHIVE_WARN) {
-		a->archive.state = ARCHIVE_STATE_FATAL;
-		return (ARCHIVE_FATAL);
+	if (!a->filter || !a->bypass_filter_bidding)
+	{
+		a->filter = filter;
+		/* Build out the input pipeline. */
+		e = choose_filters(a);
+		if (e < ARCHIVE_WARN) {
+			a->archive.state = ARCHIVE_STATE_FATAL;
+			return (ARCHIVE_FATAL);
+		}
+	}
+	else
+	{
+		/* Need to add "NONE" type filter at the end of the filter chain */
+		tmp = a->filter;
+		while (tmp->upstream)
+			tmp = tmp->upstream;
+		tmp->upstream = filter;
 	}
 
-	slot = choose_format(a);
-	if (slot < 0) {
-		close_filters(a);
-		a->archive.state = ARCHIVE_STATE_FATAL;
-		return (ARCHIVE_FATAL);
+	if (!a->format)
+	{
+		slot = choose_format(a);
+		if (slot < 0) {
+			close_filters(a);
+			a->archive.state = ARCHIVE_STATE_FATAL;
+			return (ARCHIVE_FATAL);
+		}
+		a->format = &(a->formats[slot]);
 	}
-	a->format = &(a->formats[slot]);
 
 	a->archive.state = ARCHIVE_STATE_HEADER;
 
@@ -1621,4 +1633,237 @@ __archive_read_filter_seek(struct archive_read_filter *filter, int64_t offset,
 		filter->end_of_file = 0;
 	}
 	return r;
+}
+
+int
+archive_read_set_format(struct archive *_a, int code)
+{
+  int r1, r2, slots, i;
+  char str[10];
+  struct archive_read *a = (struct archive_read *)_a;
+
+  if ((r1 = archive_read_support_format_by_code(_a, code)) < (ARCHIVE_OK))
+    return r1;
+
+  r1 = r2 = (ARCHIVE_OK);
+  if (a->format)
+    r2 = (ARCHIVE_WARN);
+  switch (code & ARCHIVE_FORMAT_BASE_MASK)
+  {
+    case ARCHIVE_FORMAT_7ZIP:
+      strcpy(str, "7zip");
+      break;
+    case ARCHIVE_FORMAT_AR:
+      strcpy(str, "ar");
+      break;
+    case ARCHIVE_FORMAT_CAB:
+      strcpy(str, "cab");
+      break;
+    case ARCHIVE_FORMAT_CPIO:
+      strcpy(str, "cpio");
+      break;
+    case ARCHIVE_FORMAT_ISO9660:
+      strcpy(str, "iso9660");
+      break;
+    case ARCHIVE_FORMAT_LHA:
+      strcpy(str, "lha");
+      break;
+    case ARCHIVE_FORMAT_MTREE:
+      strcpy(str, "mtree");
+      break;
+    case ARCHIVE_FORMAT_RAR:
+      strcpy(str, "rar");
+      break;
+    case ARCHIVE_FORMAT_TAR:
+      strcpy(str, "tar");
+      break;
+    case ARCHIVE_FORMAT_XAR:
+      strcpy(str, "xar");
+      break;
+    case ARCHIVE_FORMAT_ZIP:
+      strcpy(str, "zip");
+      break;
+    default:
+      archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
+          "Invalid format code specified");
+      return (ARCHIVE_FATAL);
+  }
+
+  slots = sizeof(a->formats) / sizeof(a->formats[0]);
+  a->format = &(a->formats[0]);
+  for (i = 0; i < slots; i++, a->format++) {
+    if (!a->format->name || !strcmp(a->format->name, str))
+      break;
+  }
+  if (!a->format->name || strcmp(a->format->name, str))
+  {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
+        "Internal error: Unable to set format");
+    r1 = (ARCHIVE_FATAL);
+  }
+
+  return (r1 < r2) ? r1 : r2;
+}
+
+int
+archive_read_append_filter(struct archive *_a, int code)
+{
+  int r1, r2, number_bidders, i;
+  char str[10];
+  struct archive_read_filter_bidder *bidder;
+  struct archive_read_filter *filter;
+  struct archive_read *a = (struct archive_read *)_a;
+
+  r1 = r2 = (ARCHIVE_OK);
+  switch (code)
+  {
+    case ARCHIVE_FILTER_NONE:
+      /* No filter to add, so do nothing.
+       * NOTE: An initial "NONE" type filter is always set at the end of the
+       * filter chain.
+       */
+      r1 = (ARCHIVE_OK);
+      break;
+    case ARCHIVE_FILTER_GZIP:
+      strcpy(str, "gzip");
+      r1 = archive_read_support_filter_gzip(_a);
+      break;
+    case ARCHIVE_FILTER_BZIP2:
+      strcpy(str, "bzip2");
+      r1 = archive_read_support_filter_bzip2(_a);
+      break;
+    case ARCHIVE_FILTER_COMPRESS:
+      strcpy(str, "compress (.Z)");
+      r1 = archive_read_support_filter_compress(_a);
+      break;
+    case ARCHIVE_FILTER_PROGRAM:
+      archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
+          "Cannot append program filter using archive_read_append_filter");
+      return (ARCHIVE_FATAL);
+    case ARCHIVE_FILTER_LZMA:
+      strcpy(str, "lzma");
+      r1 = archive_read_support_filter_lzma(_a);
+      break;
+    case ARCHIVE_FILTER_XZ:
+      strcpy(str, "xz");
+      r1 = archive_read_support_filter_xz(_a);
+      break;
+    case ARCHIVE_FILTER_UU:
+      strcpy(str, "uu");
+      r1 = archive_read_support_filter_uu(_a);
+      break;
+    case ARCHIVE_FILTER_RPM:
+      strcpy(str, "rpm");
+      r1 = archive_read_support_filter_rpm(_a);
+      break;
+    case ARCHIVE_FILTER_LZIP:
+      strcpy(str, "lzip");
+      r1 = archive_read_support_filter_lzip(_a);
+      break;
+    case ARCHIVE_FILTER_LRZIP:
+      strcpy(str, "lrzip");
+      r1 = archive_read_support_filter_lrzip(_a);
+      break;
+    default:
+      archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
+          "Invalid filter code specified");
+      return (ARCHIVE_FATAL);
+  }
+
+  if (code != ARCHIVE_FILTER_NONE)
+  {
+    number_bidders = sizeof(a->bidders) / sizeof(a->bidders[0]);
+
+    bidder = a->bidders;
+    for (i = 0; i < number_bidders; i++, bidder++)
+    {
+      if (!bidder->name || !strcmp(bidder->name, str))
+        break;
+    }
+    if (!bidder->name || strcmp(bidder->name, str))
+    {
+      archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
+          "Internal error: Unable to append filter");
+      return (ARCHIVE_FATAL);
+    }
+
+    filter
+        = (struct archive_read_filter *)calloc(1, sizeof(*filter));
+    if (filter == NULL)
+    {
+      archive_set_error(&a->archive, ENOMEM, "Out of memory");
+      return (ARCHIVE_FATAL);
+    }
+    filter->bidder = bidder;
+    filter->archive = a;
+    filter->upstream = a->filter;
+    a->filter = filter;
+    r2 = (bidder->init)(a->filter);
+    if (r2 != ARCHIVE_OK) {
+      close_filters(a);
+      free_filters(a);
+      return (ARCHIVE_FATAL);
+    }
+  }
+
+  a->bypass_filter_bidding = 1;
+  return (r1 < r2) ? r1 : r2;
+}
+
+int
+archive_read_append_filter_program(struct archive *_a, const char *cmd)
+{
+  return (archive_read_append_filter_program_signature(_a, cmd, NULL, 0));
+}
+
+int
+archive_read_append_filter_program_signature(struct archive *_a,
+  const char *cmd, const void *signature, size_t signature_len)
+{
+  int r, number_bidders, i;
+  struct archive_read_filter_bidder *bidder;
+  struct archive_read_filter *filter;
+  struct archive_read *a = (struct archive_read *)_a;
+
+  if (archive_read_support_filter_program_signature(_a, cmd, signature,
+    signature_len) != (ARCHIVE_OK))
+    return (ARCHIVE_FATAL);
+
+  number_bidders = sizeof(a->bidders) / sizeof(a->bidders[0]);
+
+  bidder = a->bidders;
+  for (i = 0; i < number_bidders; i++, bidder++)
+  {
+    /* Program bidder name set to filter name after initialization */
+    if (bidder->data && !bidder->name)
+      break;
+  }
+  if (!bidder->data)
+  {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
+        "Internal error: Unable to append program filter");
+    return (ARCHIVE_FATAL);
+  }
+
+  filter
+      = (struct archive_read_filter *)calloc(1, sizeof(*filter));
+  if (filter == NULL)
+  {
+    archive_set_error(&a->archive, ENOMEM, "Out of memory");
+    return (ARCHIVE_FATAL);
+  }
+  filter->bidder = bidder;
+  filter->archive = a;
+  filter->upstream = a->filter;
+  a->filter = filter;
+  r = (bidder->init)(a->filter);
+  if (r != ARCHIVE_OK) {
+    close_filters(a);
+    free_filters(a);
+    return (ARCHIVE_FATAL);
+  }
+  bidder->name = a->filter->name;
+
+  a->bypass_filter_bidding = 1;
+  return r;
 }
