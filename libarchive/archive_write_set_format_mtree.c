@@ -1758,13 +1758,10 @@ static int
 mtree_entry_setup_filenames(struct archive_write *a, struct mtree_entry *file,
     struct archive_entry *entry)
 {
-	struct mtree_writer *mtree;
 	const char *pathname;
 	char *p, *dirname, *slash;
 	size_t len;
 	int ret = ARCHIVE_OK;
-
-	mtree = (struct mtree_writer *)a->format_data;
 
 	archive_strcpy(&file->pathname, archive_entry_pathname(entry));
 #if defined(_WIN32) || defined(__CYGWIN__)
@@ -1791,6 +1788,8 @@ mtree_entry_setup_filenames(struct archive_write *a, struct mtree_entry *file,
 			}
 		}
 	}
+#else
+	(void)a; /* UNUSED */
 #endif
 	pathname =  file->pathname.s;
 	if (strcmp(pathname, ".") == 0) {
@@ -2051,7 +2050,8 @@ mtree_entry_tree(struct archive_write *a, struct mtree_entry *file)
 	const char *fn, *p;
 	int l, r;
 
-	if (strcmp(file->pathname.s, ".") == 0) {
+	if (file->parentdir.length == 0 && file->basename.length == 1 &&
+	    file->basename.s[0] == '.') {
 		file->parent = file;
 		if (mtree->root != NULL) {
 			np = mtree->root;
@@ -2065,10 +2065,15 @@ mtree_entry_tree(struct archive_write *a, struct mtree_entry *file)
 		return (ARCHIVE_OK);
 	}
 
-	if (file->parentdir.length > 0)
-		fn = p = file->parentdir.s;
-	else
-		fn = p = "";
+	if (file->parentdir.length == 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Internal programing error "
+		    "in generating canonical name for %s",
+		    file->pathname.s);
+		return (ARCHIVE_FAILED);
+	}
+
+	fn = p = file->parentdir.s;
 
 	/*
 	 * If the path of the parent directory of `file' entry is
