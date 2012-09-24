@@ -510,7 +510,8 @@ bid_entry(const char *p, ssize_t len, ssize_t nl, int *last_is_path)
 	/*
 	 * Skip the path-name which is quoted.
 	 */
-	while (ll > 0 && *pp != ' ' && *pp != '\t') {
+	while (ll > 0 && *pp != ' ' &&*pp != '\t' && *pp != '\r' &&
+	    *pp != '\n') {
 		if (!safe_char[*(const unsigned char *)pp]) {
 			f = 0;
 			break;
@@ -525,6 +526,7 @@ bid_entry(const char *p, ssize_t len, ssize_t nl, int *last_is_path)
 	if (f == 0) {
 		const char *pb = p + len - nl;
 		int name_len = 0;
+		int slash;
 
 		/* Do not accept multi lines for form D. */
 		if (pb-2 >= p &&
@@ -533,12 +535,17 @@ bid_entry(const char *p, ssize_t len, ssize_t nl, int *last_is_path)
 		if (pb-1 >= p && pb[-1] == '\\')
 			return (-1);
 
+		slash = 0;
 		while (p <= --pb && *pb != ' ' && *pb != '\t') {
 			if (!safe_char[*(const unsigned char *)pb])
 				return (-1);
 			name_len++;
+			/* The pathname should have a slash in this
+			 * format. */
+			if (*pb == '/')
+				slash = 1;
 		}
-		if (name_len == 0)
+		if (name_len == 0 || slash == 0)
 			return (-1);
 		ll = len - nl - name_len;
 		pp = p;
