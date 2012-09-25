@@ -426,11 +426,12 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_format_iso9660_filename.c	\
 	libarchive/test/test_write_format_iso9660_zisofs.c	\
 	libarchive/test/test_write_format_mtree.c		\
+	libarchive/test/test_write_format_mtree_absolute_path.c	\
 	libarchive/test/test_write_format_mtree_classic.c	\
 	libarchive/test/test_write_format_mtree_classic_indent.c\
 	libarchive/test/test_write_format_mtree_fflags.c	\
 	libarchive/test/test_write_format_mtree_no_separator.c	\
-	libarchive/test/test_write_format_mtree_absolute_path.c	\
+	libarchive/test/test_write_format_mtree_quoted_filename.c\
 	libarchive/test/test_write_format_pax.c			\
 	libarchive/test/test_write_format_shar_empty.c		\
 	libarchive/test/test_write_format_tar.c			\

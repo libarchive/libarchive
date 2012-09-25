@@ -314,26 +314,30 @@ static const uint32_t crctab[] = {
 	0xa2f33668, 0xbcb4666d, 0xb8757bda, 0xb5365d03, 0xb1f740b4
 };
 
-static int
-mtree_safe_char(char c)
-{
-	if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))
-		return 1;
-	if (c >= '0' && c <= '9')
-		return 1;
-	if (c == 35 || c == 61 || c == 92)
-		return 0; /* #, = and \ are always quoted */
-	
-	if (c >= 33 && c <= 47) /* !"$%&'()*+,-./ */
-		return 1;
-	if (c >= 58 && c <= 64) /* :;<>?@ */
-		return 1;
-	if (c >= 91 && c <= 96) /* []^_` */
-		return 1;
-	if (c >= 123 && c <= 126) /* {|}~ */
-		return 1;
-	return 0;
-}
+static const unsigned char safe_char[256] = {
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 00 - 0F */
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 10 - 1F */
+	/* !"$%&'()*+,-./  EXCLUSION:0x20( ) 0x23(#) */
+	0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, /* 20 - 2F */
+	/* 0123456789:;<>?  EXCLUSION:0x3d(=) */
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, /* 30 - 3F */
+	/* @ABCDEFGHIJKLMNO */
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, /* 40 - 4F */
+	/* PQRSTUVWXYZ[]^_ EXCLUSION:0x5c(\)  */
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, /* 50 - 5F */
+	/* `abcdefghijklmno */
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, /* 60 - 6F */
+	/* pqrstuvwxyz{|}~ */
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, /* 70 - 7F */
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 80 - 8F */
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 90 - 9F */
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* A0 - AF */
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* B0 - BF */
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* C0 - CF */
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* D0 - DF */
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* E0 - EF */
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* F0 - FF */
+};
 
 static void
 mtree_quote(struct archive_string *s, const char *str)
@@ -343,7 +347,7 @@ mtree_quote(struct archive_string *s, const char *str)
 	unsigned char c;
 
 	for (start = str; *str != '\0'; ++str) {
-		if (mtree_safe_char(*str))
+		if (safe_char[*(const unsigned char *)str])
 			continue;
 		if (start != str)
 			archive_strncat(s, start, str - start);
