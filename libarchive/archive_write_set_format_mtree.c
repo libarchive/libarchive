@@ -225,7 +225,6 @@ struct mtree_writer {
 			 | F_UNAME)
 #define attr_counter_set_reset	attr_counter_set_free
 
-static int attr_counter_dec(struct attr_counter **, struct attr_counter *);
 static void attr_counter_free(struct attr_counter **);
 static int attr_counter_inc(struct attr_counter **, struct attr_counter *,
 	struct attr_counter *, struct mtree_entry *);
@@ -625,38 +624,6 @@ attr_counter_inc(struct attr_counter **top, struct attr_counter *ac,
 		if (ac == NULL)
 			return (-1);
 		last->next = ac;
-	}
-	return (0);
-}
-
-static int
-attr_counter_dec(struct attr_counter **top, struct attr_counter *ac)
-{
-	struct attr_counter *pac, *lpac;
-
-	if (ac == NULL)
-		return (0);
-
-	ac->count--;
-	if (ac->next == NULL || ac->next->count <= ac->count)
-		return (0);
-	for (lpac = pac = ac->next; pac; pac = pac->next) {
-		if (pac->count <= ac->count)
-			break;
-		lpac = pac;
-	}
-	if (ac->prev == NULL)
-		*top = ac->next;
-	else
-		ac->prev->next = ac->next;
-	ac->next->prev = ac->prev;
-	if (pac != NULL) {
-		ac->prev = pac->prev;
-		ac->next = pac;
-		pac->prev = ac;
-	} else {
-		ac->prev = lpac;
-		ac->next = NULL;
 	}
 	return (0);
 }
@@ -2181,7 +2148,6 @@ static int
 mtree_entry_exchange_same_entry(struct archive_write *a, struct mtree_entry *np,
     struct mtree_entry *file)
 {
-	struct mtree_writer *mtree = (struct mtree_writer *)a->format_data;
 
 	if ((np->mode & AE_IFMT) != (file->mode & AE_IFMT)) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
