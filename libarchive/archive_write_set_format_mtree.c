@@ -233,7 +233,7 @@ static struct attr_counter * attr_counter_new(struct mtree_entry *,
 static int attr_counter_set_collect(struct mtree_writer *,
 	struct mtree_entry *);
 static void attr_counter_set_free(struct mtree_writer *);
-static int get_keys(struct mtree_writer *, struct mtree_entry *);
+static int get_global_set_keys(struct mtree_writer *, struct mtree_entry *);
 static int mtree_entry_add_child_tail(struct mtree_entry *,
 	struct mtree_entry *);
 static int mtree_entry_create_virtual_dir(struct archive_write *, const char *,
@@ -488,6 +488,15 @@ write_global(struct mtree_writer *mtree)
 				mtree->set.fflags_clear))
 				effkeys &= ~F_FLAGS;
 		}
+	} else {
+		if (acs->uid_list == NULL)
+			keys &= ~(F_UNAME | F_UID);
+		if (acs->gid_list == NULL)
+			keys &= ~(F_GNAME | F_GID);
+		if (acs->mode_list == NULL)
+			keys &= ~F_MODE;
+		if (acs->flags_list == NULL)
+			keys &= ~F_FLAGS;
 	}
 	if ((keys & effkeys & F_TYPE) != 0) {
 		if (mtree->dironly) {
@@ -720,7 +729,7 @@ attr_counter_set_free(struct mtree_writer *mtree)
 }
 
 static int
-get_keys(struct mtree_writer *mtree, struct mtree_entry *me)
+get_global_set_keys(struct mtree_writer *mtree, struct mtree_entry *me)
 {
 	int keys;
 
@@ -813,7 +822,7 @@ mtree_entry_new(struct archive_write *a, struct archive_entry *entry,
 	me->rdevminor = archive_entry_rdevminor(entry);
 	me->size = archive_entry_size(entry);
 	if (me->filetype == AE_IFDIR) {
-		me->dir_info = malloc(sizeof(*me->dir_info));
+		me->dir_info = calloc(1, sizeof(*me->dir_info));
 		if (me->dir_info == NULL) {
 			mtree_entry_free(me);
 			archive_set_error(&a->archive, ENOMEM,
@@ -937,7 +946,7 @@ write_mtree_entry(struct archive_write *a, struct mtree_entry *me)
 	}
 	mtree_quote(str, me->basename.s);
 
-	keys = get_keys(mtree, me);
+	keys = get_global_set_keys(mtree, me);
 	if ((keys & F_NLINK) != 0 &&
 	    me->nlink != 1 && me->filetype != AE_IFDIR)
 		archive_string_sprintf(str, " nlink=%u", me->nlink);
@@ -1100,6 +1109,14 @@ write_mtree_entry_tree(struct archive_write *a)
 			ret = write_mtree_entry(a, np);
 			if (ret != ARCHIVE_OK)
 				return (ARCHIVE_FATAL);
+		} else {
+			/* Whenever output_global_set is enabled
+			 * output global value(/set keywords)
+			 * even if the directory entry is not allowd
+			 * to be written because the global values
+			 * can be used for the children. */
+			if (mtree->output_global_set)
+				write_global(mtree);
 		}
 		/*
 		 * Output the attribute of all files except directory files.

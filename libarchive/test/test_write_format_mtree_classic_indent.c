@@ -53,9 +53,9 @@ static struct {
 
 static const char image [] = {
 "#mtree\n"
-"/set type=file uid=1001 gid=1001 mode=644\n"
 "\n"
 "# .\n"
+"/set type=file uid=1001 gid=1001 mode=644\n"
 ".               time=1231975636.0 mode=755 type=dir\n"
 "    COPYING         time=1231975636.0 size=8\n"
 "    Makefile        time=1233041050.0 size=8\n"
@@ -89,8 +89,8 @@ static const char image [] = {
 
 static const char image_dironly [] = {
 "#mtree\n"
-"/set type=dir uid=1001 gid=1001 mode=755\n"
 "# .\n"
+"/set type=dir uid=1001 gid=1001 mode=755\n"
 ".               time=1231975636.0\n"
 "# ./subdir\n"
 "    subdir          time=1233504586.0\n"
