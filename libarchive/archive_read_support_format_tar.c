@@ -2416,23 +2416,27 @@ tar_atol8(const char *p, unsigned char_cnt)
 	limit = INT64_MAX / base;
 	last_digit_limit = INT64_MAX % base;
 
-	while (*p == ' ' || *p == '\t')
+	while (char_cnt-- > 0 && (*p == ' ' || *p == '\t'))
 		p++;
-	if (*p == '-') {
+
+	sign = 1;
+	if (char_cnt > 0 && *p == '-') {
 		sign = -1;
 		p++;
-	} else
-		sign = 1;
+		char_cnt--;
+	}
 
 	l = 0;
-	digit = *p - '0';
-	while (digit >= 0 && digit < base  && char_cnt-- > 0) {
-		if (l>limit || (l == limit && digit > last_digit_limit)) {
-			l = INT64_MAX; /* Truncate on overflow. */
-			break;
+	if (char_cnt > 0) {
+		digit = *p - '0';
+		while (digit >= 0 && digit < base  && char_cnt-- > 0) {
+			if (l>limit || (l == limit && digit > last_digit_limit)) {
+				l = INT64_MAX; /* Truncate on overflow. */
+				break;
+			}
+			l = (l * base) + digit;
+			digit = *++p - '0';
 		}
-		l = (l * base) + digit;
-		digit = *++p - '0';
 	}
 	return (sign < 0) ? -l : l;
 }
@@ -2452,23 +2456,27 @@ tar_atol10(const char *p, unsigned char_cnt)
 	limit = INT64_MAX / base;
 	last_digit_limit = INT64_MAX % base;
 
-	while (*p == ' ' || *p == '\t')
+	while (char_cnt-- > 0 && (*p == ' ' || *p == '\t'))
 		p++;
-	if (*p == '-') {
+
+	sign = 1;
+	if (char_cnt > 0 && *p == '-') {
 		sign = -1;
 		p++;
-	} else
-		sign = 1;
+		char_cnt--;
+	}
 
 	l = 0;
-	digit = *p - '0';
-	while (digit >= 0 && digit < base  && char_cnt-- > 0) {
-		if (l > limit || (l == limit && digit > last_digit_limit)) {
-			l = INT64_MAX; /* Truncate on overflow. */
-			break;
+	if (char_cnt > 0) {
+		digit = *p - '0';
+		while (digit >= 0 && digit < base  && char_cnt-- > 0) {
+			if (l > limit || (l == limit && digit > last_digit_limit)) {
+				l = INT64_MAX; /* Truncate on overflow. */
+				break;
+			}
+			l = (l * base) + digit;
+			digit = *++p - '0';
 		}
-		l = (l * base) + digit;
-		digit = *++p - '0';
 	}
 	return (sign < 0) ? -l : l;
 }
