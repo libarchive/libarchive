@@ -250,7 +250,7 @@ static void mtree_entry_register_free(struct mtree_writer *);
 static void mtree_entry_register_init(struct mtree_writer *);
 static int mtree_entry_setup_filenames(struct archive_write *,
 	struct mtree_entry *, struct archive_entry *);
-static int mtree_entry_tree(struct archive_write *, struct mtree_entry *);
+static int mtree_entry_tree_add(struct archive_write *, struct mtree_entry **);
 static void sum_init(struct mtree_writer *);
 static void sum_update(struct mtree_writer *, const void *, size_t);
 static void sum_final(struct mtree_writer *, struct reg_info *);
@@ -886,15 +886,15 @@ archive_write_mtree_header(struct archive_write *a,
 	if (mtree->dironly && archive_entry_filetype(entry) != AE_IFDIR)
 		return (ARCHIVE_OK);
 
-	mtree->mtree_entry = NULL;
 	r2 = mtree_entry_new(a, entry, &mtree_entry);
 	if (r2 < ARCHIVE_WARN)
 		return (r2);
-	r = mtree_entry_tree(a, mtree_entry);
+	r = mtree_entry_tree_add(a, &mtree_entry);
 	if (r < ARCHIVE_WARN) {
 		mtree_entry_free(mtree_entry);
 		return (r);
 	}
+	mtree->mtree_entry = mtree_entry;
 
 	/* If the current file is a regular file, we have to
 	 * compute the sum of its content.
@@ -1968,7 +1968,7 @@ get_path_component(char *name, int n, const char *fn)
  * Add a new entry into the tree.
  */
 static int
-mtree_entry_tree(struct archive_write *a, struct mtree_entry *file)
+mtree_entry_tree_add(struct archive_write *a, struct mtree_entry **filep)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	char name[_MAX_FNAME];/* Included null terminator size. */
@@ -1978,10 +1978,11 @@ mtree_entry_tree(struct archive_write *a, struct mtree_entry *file)
 	char name[256];
 #endif
 	struct mtree_writer *mtree = (struct mtree_writer *)a->format_data;
-	struct mtree_entry *dent, *np;
+	struct mtree_entry *dent, *file, *np;
 	const char *fn, *p;
 	int l, r;
 
+	file = *filep;
 	if (file->parentdir.length == 0 && file->basename.length == 1 &&
 	    file->basename.s[0] == '.') {
 		file->parent = file;
@@ -1991,7 +1992,6 @@ mtree_entry_tree(struct archive_write *a, struct mtree_entry *file)
 		}
 		mtree->root = file;
 		mtree_entry_register_add(mtree, file);
-		mtree->mtree_entry = file;
 		return (ARCHIVE_OK);
 	}
 
@@ -2024,7 +2024,6 @@ mtree_entry_tree(struct archive_write *a, struct mtree_entry *file)
 		}
 		file->parent = mtree->cur_dirent;
 		mtree_entry_register_add(mtree, file);
-		mtree->mtree_entry = file;
 		return (ARCHIVE_OK);
 	}
 
@@ -2142,7 +2141,6 @@ mtree_entry_tree(struct archive_write *a, struct mtree_entry *file)
 		}
 		file->parent = dent;
 		mtree_entry_register_add(mtree, file);
-		mtree->mtree_entry = file;
 		return (ARCHIVE_OK);
 	}
 
@@ -2156,7 +2154,7 @@ same_entry:
 		return (r);
 	if (np->dir_info)
 		np->dir_info->virtual = 0;
-	mtree->mtree_entry = np;
+	*filep = np;
 	mtree_entry_free(file);
 	return (ARCHIVE_WARN);
 }
