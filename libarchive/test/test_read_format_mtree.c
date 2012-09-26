@@ -340,7 +340,9 @@ DEFINE_TEST(test_read_format_mtree_nochange)
 	    archive_read_open_memory(a, archive2, sizeof(archive2)));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString(archive_entry_pathname(ae), "./a");
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	assertEqualInt(archive_entry_mode(ae), AE_IFREG | 0640);
+#endif
 	assert(archive_entry_mtime(ae) != 123);
 	assertEqualInt(archive_entry_size(ae), 5);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -350,7 +352,9 @@ DEFINE_TEST(test_read_format_mtree_nochange)
 	assertEqualInt(archive_entry_size(ae), 6);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString(archive_entry_pathname(ae), "./c");
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	assertEqualInt(archive_entry_mode(ae), AE_IFREG | 0755);
+#endif
 	assert(archive_entry_mtime(ae) != 345);
 	assertEqualInt(archive_entry_size(ae), 7);
 
