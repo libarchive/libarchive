@@ -548,6 +548,10 @@ bid_entry(const char *p, ssize_t len, ssize_t nl, int *last_is_path)
 		}
 		if (name_len == 0 || slash == 0)
 			return (-1);
+		/* If '/' is placed at the first in this field, this is not
+		 * a valid filename. */
+		if (pb[1] == '/')
+			return (-1);
 		ll = len - nl - name_len;
 		pp = p;
 		*last_is_path = 1;
