@@ -120,16 +120,12 @@ safe_fprintf(FILE *f, const char *fmt, ...)
 			fmtbuff_length = length+1;
 		else if (fmtbuff_length < 8192)
 			fmtbuff_length *= 2;
+		else if (fmtbuff_length < 1000000)
+			fmtbuff_length += fmtbuff_length / 4;
 		else {
-			int old_length = fmtbuff_length;
-			/* Convert to unsigned to avoid signed overflow,
-			 * otherwise the check may be optimized away. */
-			fmtbuff_length += (unsigned)fmtbuff_length / 4;
-			if (old_length > fmtbuff_length) {
-				length = old_length;
-				fmtbuff_heap[length-1] = '\0';
-				break;
-			}
+			length = old_length;
+			fmtbuff_heap[length-1] = '\0';
+			break;
 		}
 		free(fmtbuff_heap);
 		fmtbuff_heap = malloc(fmtbuff_length);
@@ -153,8 +149,7 @@ safe_fprintf(FILE *f, const char *fmt, ...)
 	if (mbtowc(NULL, NULL, 1) == -1) { /* Reset the shift state. */
 		/* NOTE: This case may not happen, but it needs to be compiled
 		 * safely without warnings by both gcc on linux and clang. */
-		if (fmtbuff_heap != NULL)
-			free(fmtbuff_heap);
+		free(fmtbuff_heap);
 		return;
 	}
 
