@@ -2407,70 +2407,55 @@ tar_atol(const char *p, unsigned char_cnt)
  * it does obey locale.
  */
 static int64_t
-tar_atol8(const char *p, unsigned char_cnt)
+tar_atol_base_n(const char *p, unsigned char_cnt, int base)
 {
 	int64_t	l, limit, last_digit_limit;
-	int digit, sign, base;
+	int digit, sign;
 
-	base = 8;
 	limit = INT64_MAX / base;
 	last_digit_limit = INT64_MAX % base;
 
-	while (*p == ' ' || *p == '\t')
+	/* the pointer will not be dereferenced if char_cnt is zero
+	 * due to the way the && operator is evaulated.
+	 */
+	while (char_cnt != 0 && (*p == ' ' || *p == '\t')) {
 		p++;
-	if (*p == '-') {
+		char_cnt--;
+	}
+
+	sign = 1;
+	if (char_cnt != 0 && *p == '-') {
 		sign = -1;
 		p++;
-	} else
-		sign = 1;
+		char_cnt--;
+	}
 
 	l = 0;
-	digit = *p - '0';
-	while (digit >= 0 && digit < base  && char_cnt-- > 0) {
-		if (l>limit || (l == limit && digit > last_digit_limit)) {
-			l = INT64_MAX; /* Truncate on overflow. */
-			break;
+	if (char_cnt != 0) {
+		digit = *p - '0';
+		while (digit >= 0 && digit < base  && char_cnt != 0) {
+			if (l>limit || (l == limit && digit > last_digit_limit)) {
+				l = INT64_MAX; /* Truncate on overflow. */
+				break;
+			}
+			l = (l * base) + digit;
+			digit = *++p - '0';
+			char_cnt--;
 		}
-		l = (l * base) + digit;
-		digit = *++p - '0';
 	}
 	return (sign < 0) ? -l : l;
 }
 
-/*
- * Note that this implementation does not (and should not!) obey
- * locale settings; you cannot simply substitute strtol here, since
- * it does obey locale.
- */
+static int64_t
+tar_atol8(const char *p, unsigned char_cnt)
+{
+	return tar_atol_base_n(p, char_cnt, 8);
+}
+
 static int64_t
 tar_atol10(const char *p, unsigned char_cnt)
 {
-	int64_t l, limit, last_digit_limit;
-	int base, digit, sign;
-
-	base = 10;
-	limit = INT64_MAX / base;
-	last_digit_limit = INT64_MAX % base;
-
-	while (*p == ' ' || *p == '\t')
-		p++;
-	if (*p == '-') {
-		sign = -1;
-		p++;
-	} else
-		sign = 1;
-
-	l = 0;
-	digit = *p - '0';
-	while (digit >= 0 && digit < base  && char_cnt-- > 0) {
-		if (l > limit || (l == limit && digit > last_digit_limit)) {
-			l = INT64_MAX; /* Truncate on overflow. */
-			break;
-		}
-		l = (l * base) + digit;
-		digit = *++p - '0';
-	}
-	return (sign < 0) ? -l : l;
+	return tar_atol_base_n(p, char_cnt, 10);
 }
 
 /*
