@@ -122,7 +122,9 @@ safe_fprintf(FILE *f, const char *fmt, ...)
 			fmtbuff_length *= 2;
 		else {
 			int old_length = fmtbuff_length;
-			fmtbuff_length += fmtbuff_length / 4;
+			/* Convert to unsigned to avoid signed overflow,
+			 * otherwise the check may be optimized away. */
+			fmtbuff_length += (unsigned)fmtbuff_length / 4;
 			if (old_length > fmtbuff_length) {
 				length = old_length;
 				fmtbuff_heap[length-1] = '\0';
