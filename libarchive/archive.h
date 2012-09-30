@@ -440,6 +440,9 @@ __LA_DECL __LA_INT64_T		 archive_read_header_position(struct archive *);
 __LA_DECL __LA_SSIZE_T		 archive_read_data(struct archive *,
 				    void *, size_t);
 
+/* Seek within the body of an entry.  Similar to lseek(2). */
+__LA_DECL __LA_INT64_T archive_seek_data(struct archive *, __LA_INT64_T, int);
+
 /*
  * A zero-copy version of archive_read_data that also exposes the file offset
  * of each returned block.  Note that the client has no way to specify

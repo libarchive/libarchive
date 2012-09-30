@@ -173,6 +173,7 @@ archive_read_support_format_zip_streamable(struct archive *_a)
 	    archive_read_format_zip_streamable_read_header,
 	    archive_read_format_zip_read_data,
 	    archive_read_format_zip_read_data_skip,
+	    NULL,
 	    archive_read_format_zip_cleanup);
 
 	if (r != ARCHIVE_OK)
@@ -206,6 +207,7 @@ archive_read_support_format_zip_seekable(struct archive *_a)
 	    archive_read_format_zip_seekable_read_header,
 	    archive_read_format_zip_read_data,
 	    archive_read_format_zip_read_data_skip,
+	    NULL,
 	    archive_read_format_zip_cleanup);
 
 	if (r != ARCHIVE_OK)

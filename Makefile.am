@@ -492,6 +492,12 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_fuzz.cab.uu				\
 	libarchive/test/test_fuzz.lzh.uu				\
 	libarchive/test/test_pax_filename_encoding.tar.uu		\
+	libarchive/test/test_rar_multivolume_multiple_files.part1.rar.uu \
+	libarchive/test/test_rar_multivolume_multiple_files.part2.rar.uu \
+	libarchive/test/test_rar_multivolume_multiple_files.part3.rar.uu \
+	libarchive/test/test_rar_multivolume_multiple_files.part4.rar.uu \
+	libarchive/test/test_rar_multivolume_multiple_files.part5.rar.uu \
+	libarchive/test/test_rar_multivolume_multiple_files.part6.rar.uu \
 	libarchive/test/test_rar_multivolume_single_file.part1.rar.uu	\
 	libarchive/test/test_rar_multivolume_single_file.part2.rar.uu	\
 	libarchive/test/test_rar_multivolume_single_file.part3.rar.uu	\
@@ -612,6 +618,9 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_splitted_rar_ab.uu			\
 	libarchive/test/test_read_splitted_rar_ac.uu			\
 	libarchive/test/test_read_splitted_rar_ad.uu			\
+	libarchive/test/test_splitted_rar_seek_support_aa.uu		\
+	libarchive/test/test_splitted_rar_seek_support_ab.uu		\
+	libarchive/test/test_splitted_rar_seek_support_ac.uu		\
 	libarchive/test/CMakeLists.txt					\
 	libarchive/test/README
 

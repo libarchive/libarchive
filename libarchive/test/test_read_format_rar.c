@@ -1154,3 +1154,196 @@ DEFINE_TEST(test_read_format_rar_multivolume_stored_file_skip)
   assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+DEFINE_TEST(test_read_format_rar_multivolume_seek_data)
+{
+  const char *reffiles[] =
+  {
+    "test_rar_multivolume_single_file.part1.rar",
+    "test_rar_multivolume_single_file.part2.rar",
+    "test_rar_multivolume_single_file.part3.rar",
+    NULL
+  };
+  char buff[64];
+  int file_size = 20111;
+  const char file_test_txt1[] = "d. \n</P>\n<P STYLE=\"margin-bottom: 0in\">"
+                                "<BR>\n</P>\n</BODY>\n</HTML>";
+  const char file_test_txt2[] = "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4."
+                                "0 Transitional//EN\">\n<";
+  const char file_test_txt3[] = "mplify writing such tests,\ntry to use plat"
+                                "form-independent codin";
+  const char file_test_txt4[] = "lString</TT> in the example above)\ngenerat"
+                                "e detailed log message";
+  const char file_test_txt5[] = "SS=\"western\">make check</TT> will usually"
+                                " run\n\tall of the tests.";
+  struct archive_entry *ae;
+  struct archive *a;
+
+  extract_reference_files(reffiles);
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_support_filter_all(a));
+  assertA(0 == archive_read_support_format_all(a));
+  assertA(0 == archive_read_open_filenames(a, reffiles, 10240));
+
+  /* First header. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("LibarchiveAddingTest.html", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(file_size, archive_entry_size(ae));
+  assertEqualInt(33188, archive_entry_mode(ae));
+
+  /* Seek to the end minus 64 bytes */
+  assertA(file_size - (int)sizeof(buff) ==
+    archive_seek_data(a, file_size - sizeof(buff), SEEK_SET));
+  assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
+  assertEqualMem(buff, file_test_txt1, sizeof(file_test_txt1) - 1);
+
+  /* Seek back to the beginning */
+  assertA(0 == archive_seek_data(a, 0, SEEK_SET));
+  assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
+  assertEqualMem(buff, file_test_txt2, sizeof(file_test_txt2) - 1);
+
+  /* Seek to the middle of the combined data block */
+  assertA(10054 == archive_seek_data(a, 10054, SEEK_SET));
+  assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
+  assertEqualMem(buff, file_test_txt3, sizeof(file_test_txt3) - 1);
+
+  /* Seek to 32 bytes before the end of the first data sub-block */
+  assertA(6860 == archive_seek_data(a, 6860, SEEK_SET));
+  assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
+  assertEqualMem(buff, file_test_txt4, sizeof(file_test_txt4) - 1);
+
+  /* Seek to 32 bytes before the end of the second data sub-block */
+  assertA(13752 == archive_seek_data(a, 13752, SEEK_SET));
+  assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
+  assertEqualMem(buff, file_test_txt5, sizeof(file_test_txt5) - 1);
+
+  /* Test EOF */
+  assertA(1 == archive_read_next_header(a, &ae));
+  assertEqualInt(1, archive_file_count(a));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_rar_multivolume_seek_multiple_files)
+{
+  const char *reffiles[] =
+  {
+    "test_rar_multivolume_multiple_files.part1.rar",
+    "test_rar_multivolume_multiple_files.part2.rar",
+    "test_rar_multivolume_multiple_files.part3.rar",
+    "test_rar_multivolume_multiple_files.part4.rar",
+    "test_rar_multivolume_multiple_files.part5.rar",
+    "test_rar_multivolume_multiple_files.part6.rar",
+    NULL
+  };
+  char buff[64];
+  int file_size = 20111;
+  const char file_test_txt1[] = "d. \n</P>\n<P STYLE=\"margin-bottom: 0in\">"
+                                "<BR>\n</P>\n</BODY>\n</HTML>";
+  const char file_test_txt2[] = "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4."
+                                "0 Transitional//EN\">\n<";
+  const char file_test_txt3[] = "mplify writing such tests,\ntry to use plat"
+                                "form-independent codin";
+  const char file_test_txt4[] = "\nfailures. \n</P>\n<H1 CLASS=\"western\"><"
+                                "A NAME=\"Life_cycle_of_a_te";
+  const char file_test_txt5[] = "LE=\"margin-bottom: 0in\">DO use runtime te"
+                                "sts for platform\n\tfeatu";
+  const char file_test_txt6[] = "rough test suite is essential\nboth for ver"
+                                "ifying new ports and f";
+  const char file_test_txt7[] = "m: 0in\">Creates a temporary directory\n\tw"
+                                "hose name matches the na";
+  const char file_test_txt8[] = "lt\ninput file and verify the results. Thes"
+                                "e use <TT CLASS=\"weste";
+  struct archive_entry *ae;
+  struct archive *a;
+
+  extract_reference_files(reffiles);
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_support_filter_all(a));
+  assertA(0 == archive_read_support_format_all(a));
+  assertA(0 == archive_read_open_filenames(a, reffiles, 10240));
+
+  /* First header. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("LibarchiveAddingTest2.html", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(file_size, archive_entry_size(ae));
+  assertEqualInt(33188, archive_entry_mode(ae));
+
+  /* Seek to the end minus 64 bytes */
+  assertA(file_size - (int)sizeof(buff) ==
+    archive_seek_data(a, file_size - sizeof(buff), SEEK_SET));
+  assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
+  assertEqualMem(buff, file_test_txt1, sizeof(file_test_txt1) - 1);
+
+  /* Seek back to the beginning */
+  assertA(0 == archive_seek_data(a, 0, SEEK_SET));
+  assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
+  assertEqualMem(buff, file_test_txt2, sizeof(file_test_txt2) - 1);
+
+  /* Seek to the middle of the combined data block */
+  assertA(10054 == archive_seek_data(a, 10054, SEEK_SET));
+  assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
+  assertEqualMem(buff, file_test_txt3, sizeof(file_test_txt3) - 1);
+
+  /* Seek to 32 bytes before the end of the first data sub-block */
+  assertA(7027 == archive_seek_data(a, 7027, SEEK_SET));
+  assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
+  assertEqualMem(buff, file_test_txt4, sizeof(file_test_txt4) - 1);
+
+  /* Seek to 32 bytes before the end of the second data sub-block */
+  assertA(14086 == archive_seek_data(a, 14086, SEEK_SET));
+  assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
+  assertEqualMem(buff, file_test_txt5, sizeof(file_test_txt5) - 1);
+
+  /* Second header. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("LibarchiveAddingTest.html", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(file_size, archive_entry_size(ae));
+  assertEqualInt(33188, archive_entry_mode(ae));
+
+  /* Seek to the end minus 64 bytes */
+  assertA(file_size - (int)sizeof(buff) ==
+    archive_seek_data(a, file_size - sizeof(buff), SEEK_SET));
+  assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
+  assertEqualMem(buff, file_test_txt1, sizeof(file_test_txt1) - 1);
+
+  /* Seek back to the beginning */
+  assertA(0 == archive_seek_data(a, 0, SEEK_SET));
+  assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
+  assertEqualMem(buff, file_test_txt2, sizeof(file_test_txt2) - 1);
+
+  /* Seek to the middle of the combined data block */
+  assertA(10054 == archive_seek_data(a, 10054, SEEK_SET));
+  assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
+  assertEqualMem(buff, file_test_txt3, sizeof(file_test_txt3) - 1);
+
+  /* Seek to 32 bytes before the end of the first data sub-block */
+  assertA(969 == archive_seek_data(a, 969, SEEK_SET));
+  assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
+  assertEqualMem(buff, file_test_txt6, sizeof(file_test_txt4) - 1);
+
+  /* Seek to 32 bytes before the end of the second data sub-block */
+  assertA(8029 == archive_seek_data(a, 8029, SEEK_SET));
+  assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
+  assertEqualMem(buff, file_test_txt7, sizeof(file_test_txt5) - 1);
+
+  /* Seek to 32 bytes before the end of the third data sub-block */
+  assertA(15089 == archive_seek_data(a, 15089, SEEK_SET));
+  assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
+  assertEqualMem(buff, file_test_txt8, sizeof(file_test_txt5) - 1);
+
+  /* Test EOF */
+  assertA(1 == archive_read_next_header(a, &ae));
+  assertEqualInt(2, archive_file_count(a));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
