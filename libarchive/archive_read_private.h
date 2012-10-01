@@ -123,6 +123,8 @@ struct archive_read_filter {
  * so should be deferred at least until libarchive 3.0.
  */
 struct archive_read_data_node {
+	int64_t begin_position;
+	int64_t total_size;
 	void *data;
 };
 struct archive_read_client {
@@ -134,6 +136,7 @@ struct archive_read_client {
 	archive_switch_callback *switcher;
 	unsigned int nodes;
 	unsigned int cursor;
+	int64_t position;
 	struct archive_read_data_node *dataset;
 };
 
@@ -168,6 +171,10 @@ struct archive_read {
 	/* File offset of beginning of most recently-read header. */
 	int64_t		  header_position;
 
+	/* Nodes and offsets of compressed data block */
+	unsigned int data_start_node;
+	unsigned int data_end_node;
+
 	/*
 	 * Format detection is mostly the same as compression
 	 * detection, with one significant difference: The bidders
@@ -185,6 +192,7 @@ struct archive_read {
 		int	(*read_header)(struct archive_read *, struct archive_entry *);
 		int	(*read_data)(struct archive_read *, const void **, size_t *, int64_t *);
 		int	(*read_data_skip)(struct archive_read *);
+		int64_t	(*seek_data)(struct archive_read *, int64_t, int);
 		int	(*cleanup)(struct archive_read *);
 	}	formats[16];
 	struct archive_format_descriptor	*format; /* Active format. */
@@ -204,6 +212,7 @@ int	__archive_read_register_format(struct archive_read *a,
 	    int (*read_header)(struct archive_read *, struct archive_entry *),
 	    int (*read_data)(struct archive_read *, const void **, size_t *, int64_t *),
 	    int (*read_data_skip)(struct archive_read *),
+	    int64_t (*seek_data)(struct archive_read *, int64_t, int),
 	    int (*cleanup)(struct archive_read *));
 
 int __archive_read_get_bidder(struct archive_read *a,
