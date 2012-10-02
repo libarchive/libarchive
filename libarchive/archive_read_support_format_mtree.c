@@ -55,6 +55,9 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_support_format_mtree.c 2011
 #ifndef O_BINARY
 #define	O_BINARY 0
 #endif
+#ifndef O_CLOEXEC
+#define O_CLOEXEC	0
+#endif
 
 #define	MTREE_HAS_DEVICE	0x0001
 #define	MTREE_HAS_FFLAGS	0x0002
@@ -1119,7 +1122,8 @@ parse_file(struct archive_read *a, struct archive_entry *entry,
 
 	if (archive_entry_filetype(entry) == AE_IFREG ||
 	    archive_entry_filetype(entry) == AE_IFDIR) {
-		mtree->fd = open(path, O_RDONLY | O_BINARY);
+		mtree->fd = open(path, O_RDONLY | O_BINARY | O_CLOEXEC);
+		__archive_ensure_cloexec_flag(mtree->fd);
 		if (mtree->fd == -1 &&
 		    (errno != ENOENT ||
 		     archive_strlen(&mtree->contents_name) > 0)) {

@@ -104,6 +104,10 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk_entry_from_file.c 2010
 #include "archive_private.h"
 #include "archive_read_disk_private.h"
 
+#ifndef O_CLOEXEC
+#define O_CLOEXEC	0
+#endif
+
 /*
  * Linux and FreeBSD plug this obvious hole in POSIX.1e in
  * different ways.
@@ -193,9 +197,11 @@ archive_read_disk_entry_from_file(struct archive *_a,
 		if (fd < 0) {
 			if (a->tree != NULL)
 				fd = a->open_on_current_dir(a->tree, path,
-					O_RDONLY | O_NONBLOCK);
+					O_RDONLY | O_NONBLOCK | O_CLOEXEC);
 			else
-				fd = open(path, O_RDONLY | O_NONBLOCK);
+				fd = open(path, O_RDONLY | O_NONBLOCK |
+						O_CLOEXEC);
+			__archive_ensure_cloexec_flag(fd);
 		}
 		if (fd >= 0) {
 			int stflags;
@@ -335,13 +341,14 @@ setup_mac_metadata(struct archive_read_disk *a,
 		ret = ARCHIVE_WARN;
 		goto cleanup;
 	}
-	tempfd = open(tempfile, O_RDONLY);
+	tempfd = open(tempfile, O_RDONLY | O_CLOEXEC);
 	if (tempfd < 0) {
 		archive_set_error(&a->archive, errno,
 		    "Could not open extended attribute file");
 		ret = ARCHIVE_WARN;
 		goto cleanup;
 	}
+	__archive_ensure_cloexec_flag(tempfd);
 	if (fstat(tempfd, &copyfile_stat)) {
 		archive_set_error(&a->archive, errno,
 		    "Could not check size of extended attributes");
@@ -1035,14 +1042,15 @@ setup_sparse(struct archive_read_disk *a,
 			path = archive_entry_pathname(entry);
 		if (a->tree != NULL)
 			*fd = a->open_on_current_dir(a->tree, path,
-				O_RDONLY | O_NONBLOCK);
+				O_RDONLY | O_NONBLOCK | O_CLOEXEC);
 		else
-			*fd = open(path, O_RDONLY | O_NONBLOCK);
+			*fd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
 		if (*fd < 0) {
 			archive_set_error(&a->archive, errno,
 			    "Can't open `%s'", path);
 			return (ARCHIVE_FAILED);
 		}
+		__archive_ensure_cloexec_flag(*fd);
 	}
 
 	/* Initialize buffer to avoid the error valgrind complains about. */
@@ -1148,12 +1156,13 @@ setup_sparse(struct archive_read_disk *a,
 			
 		if (pathconf(path, _PC_MIN_HOLE_SIZE) <= 0)
 			return (ARCHIVE_OK);
-		*fd = open(path, O_RDONLY | O_NONBLOCK);
+		*fd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
 		if (*fd < 0) {
 			archive_set_error(&a->archive, errno,
 			    "Can't open `%s'", path);
 			return (ARCHIVE_FAILED);
 		}
+		__archive_ensure_cloexec_flag(*fd);
 		initial_off = 0;
 	}
 

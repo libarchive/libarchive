@@ -131,6 +131,9 @@ __FBSDID("$FreeBSD$");
 #ifndef O_BINARY
 #define O_BINARY 0
 #endif
+#ifndef O_CLOEXEC
+#define O_CLOEXEC	0
+#endif
 
 struct fixup_entry {
 	struct fixup_entry	*next;
@@ -1012,7 +1015,8 @@ edit_deep_directories(struct archive_write_disk *a)
 		return;
 
 	/* Try to record our starting dir. */
-	a->restore_pwd = open(".", O_RDONLY | O_BINARY);
+	a->restore_pwd = open(".", O_RDONLY | O_BINARY | O_CLOEXEC);
+	__archive_ensure_cloexec_flag(a->restore_pwd);
 	if (a->restore_pwd < 0)
 		return;
 
@@ -1237,7 +1241,9 @@ create_filesystem_object(struct archive_write_disk *a)
 			a->todo = 0;
 			a->deferred = 0;
 		} else if (r == 0 && a->filesize > 0) {
-			a->fd = open(a->name, O_WRONLY | O_TRUNC | O_BINARY);
+			a->fd = open(a->name,
+				     O_WRONLY | O_TRUNC | O_BINARY | O_CLOEXEC);
+			__archive_ensure_cloexec_flag(a->fd);
 			if (a->fd < 0)
 				r = errno;
 		}
@@ -1274,7 +1280,8 @@ create_filesystem_object(struct archive_write_disk *a)
 		/* FALLTHROUGH */
 	case AE_IFREG:
 		a->fd = open(a->name,
-		    O_WRONLY | O_CREAT | O_EXCL | O_BINARY, mode);
+		    O_WRONLY | O_CREAT | O_EXCL | O_BINARY | O_CLOEXEC, mode);
+		__archive_ensure_cloexec_flag(a->fd);
 		r = (a->fd < 0);
 		break;
 	case AE_IFCHR:
@@ -2425,8 +2432,10 @@ set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
 		return (ARCHIVE_OK);
 
 	/* If we weren't given an fd, open it ourselves. */
-	if (myfd < 0)
-		myfd = open(name, O_RDONLY | O_NONBLOCK | O_BINARY);
+	if (myfd < 0) {
+		myfd = open(name, O_RDONLY | O_NONBLOCK | O_BINARY | O_CLOEXEC);
+		__archive_ensure_cloexec_flag(myfd);
+	}
 	if (myfd < 0)
 		return (ARCHIVE_OK);
 
