@@ -699,6 +699,12 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_basic.c					\
 	tar/test/test_copy.c					\
 	tar/test/test_empty_mtree.c				\
+	tar/test/test_extract_tar_bz2.c				\
+	tar/test/test_extract_tar_gz.c				\
+	tar/test/test_extract_tar_lrz.c				\
+	tar/test/test_extract_tar_lz.c				\
+	tar/test/test_extract_tar_lzma.c			\
+	tar/test/test_extract_tar_xz.c				\
 	tar/test/test_format_newc.c				\
 	tar/test/test_help.c					\
 	tar/test/test_option_C_upper.c				\

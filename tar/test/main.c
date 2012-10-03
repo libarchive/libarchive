@@ -1835,15 +1835,30 @@ canSymlink(void)
 	return (value);
 }
 
-/*
- * Can this platform run the gzip program?
- */
 /* Platform-dependent options for hiding the output of a subcommand. */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 static const char *redirectArgs = ">NUL 2>NUL"; /* Win32 cmd.exe */
 #else
 static const char *redirectArgs = ">/dev/null 2>/dev/null"; /* POSIX 'sh' */
 #endif
+/*
+ * Can this platform run the bunzip2 program?
+ */
+int
+canBunzip2(void)
+{
+	static int tested = 0, value = 0;
+	if (!tested) {
+		tested = 1;
+		if (systemf("bunzip2 -V %s", redirectArgs) == 0)
+			value = 1;
+	}
+	return (value);
+}
+
+/*
+ * Can this platform run the gzip program?
+ */
 int
 canGzip(void)
 {
@@ -1866,6 +1881,81 @@ canGunzip(void)
 	if (!tested) {
 		tested = 1;
 		if (systemf("gunzip -V %s", redirectArgs) == 0)
+			value = 1;
+	}
+	return (value);
+}
+
+/*
+ * Can this platform run the lrzip program?
+ */
+int
+canLrzip(void)
+{
+	static int tested = 0, value = 0;
+	if (!tested) {
+		tested = 1;
+		if (systemf("lrzip -V %s", redirectArgs) == 0)
+			value = 1;
+	}
+	return (value);
+}
+
+/*
+ * Can this platform run the lrunzip program?
+ */
+int
+canLrunzip(void)
+{
+	static int tested = 0, value = 0;
+	if (!tested) {
+		tested = 1;
+		if (systemf("lrunzip -V %s", redirectArgs) == 0)
+			value = 1;
+	}
+	return (value);
+}
+
+/*
+ * Can this platform run the lunzip program?
+ */
+int
+canLunzip(void)
+{
+	static int tested = 0, value = 0;
+	if (!tested) {
+		tested = 1;
+		if (systemf("lunzip -V %s", redirectArgs) == 0)
+			value = 1;
+	}
+	return (value);
+}
+
+/*
+ * Can this platform run the unlzma program?
+ */
+int
+canUnlzma(void)
+{
+	static int tested = 0, value = 0;
+	if (!tested) {
+		tested = 1;
+		if (systemf("unlzma -V %s", redirectArgs) == 0)
+			value = 1;
+	}
+	return (value);
+}
+
+/*
+ * Can this platform run the unxz program?
+ */
+int
+canUnxz(void)
+{
+	static int tested = 0, value = 0;
+	if (!tested) {
+		tested = 1;
+		if (systemf("unxz -V %s", redirectArgs) == 0)
 			value = 1;
 	}
 	return (value);
