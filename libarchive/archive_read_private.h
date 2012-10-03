@@ -163,7 +163,7 @@ struct archive_read {
 	struct archive_read_client client;
 
 	/* Registered filter bidders. */
-	struct archive_read_filter_bidder bidders[9];
+	struct archive_read_filter_bidder bidders[10];
 
 	/* Last filter in chain */
 	struct archive_read_filter *filter;
