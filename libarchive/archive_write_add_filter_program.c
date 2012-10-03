@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_compression_program.c 
 #include "archive.h"
 #include "archive_private.h"
 #include "archive_write_private.h"
+#include "filter_fork.h"
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
 int
@@ -54,26 +55,6 @@ archive_write_set_compression_program(struct archive *a, const char *cmd)
 	return (archive_write_add_filter_program(a, cmd));
 }
 #endif
-
-/* This capability is only available on POSIX systems. */
-#if (!defined(HAVE_PIPE) || !defined(HAVE_FCNTL) || \
-    !(defined(HAVE_FORK) || defined(HAVE_VFORK))) && (!defined(_WIN32) || defined(__CYGWIN__))
-
-/*
- * On non-Posix systems, allow the program to build, but choke if
- * this function is actually invoked.
- */
-int
-archive_write_add_filter_program(struct archive *_a, const char *cmd)
-{
-	archive_set_error(_a, -1,
-	    "External compression programs not supported on this platform");
-	return (ARCHIVE_FATAL);
-}
-
-#else
-
-#include "filter_fork.h"
 
 struct private_data {
 	char		*cmd;
@@ -325,5 +306,3 @@ archive_compressor_program_free(struct archive_write_filter *f)
 	f->data = NULL;
 	return (ARCHIVE_OK);
 }
-
-#endif /* !defined(HAVE_PIPE) || !defined(HAVE_VFORK) || !defined(HAVE_FCNTL) */
