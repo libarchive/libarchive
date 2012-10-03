@@ -51,9 +51,12 @@ DEFINE_TEST(test_option_older_than)
 
 	/* Test --older-than on create */
 	assertEqualInt(0,
-		systemf("%s -cf ../test1.tar --older-than middle.txt *.txt a",
+		systemf("%s --format pax -cf ../test1.tar "
+			"--older-than middle.txt *.txt a",
 			testprog));
-	assertEqualInt(0, systemf("%s -cf ../test2.tar *.txt a", testprog));
+	assertEqualInt(0,
+		systemf("%s --format pax -cf ../test2.tar *.txt a",
+			testprog));
 	assertChdir("..");
 
 	/* Extract test1.tar to a clean dir and verify what got archived. */
