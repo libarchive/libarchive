@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 24, 2011
+.Dd October 3, 2012
 .Dt TAR 1
 .Os
 .Sh NAME
@@ -381,6 +381,24 @@ the archive will be discarded.
 (c, r, u mode)
 A synonym for
 .Fl Fl format Ar ustar
+.It Fl Fl older Ar date
+(c, r, u modes only)
+Only include files and directories older than the specified date.
+This compares ctime entries.
+.It Fl Fl older-mtime Ar date
+(c, r, u modes only)
+Like
+.Fl Fl older ,
+except it compares mtime entries instead of ctime entries.
+.It Fl Fl older-than Pa file
+(c, r, u modes only)
+Only include files and directories older than the specified file.
+This compares ctime entries.
+.It Fl Fl older-mtime-than Pa file
+(c, r, u modes only)
+Like
+.Fl Fl older-than ,
+except it compares mtime entries instead of ctime entries.
 .It Fl Fl one-file-system
 (c, r, and u modes)
 Do not cross mount points.

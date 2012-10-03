@@ -391,7 +391,6 @@ main(int argc, char **argv)
 		 *    --newer-?time='date' Only files newer than 'date'
 		 *    --newer-?time-than='file' Only files newer than time
 		 *         on specified file (useful for incremental backups)
-		 * TODO: Add corresponding "older" options to reverse these.
 		 */
 		case OPTION_NEWER_CTIME: /* GNU tar */
 			if (archive_match_include_date(bsdtar->matching,
@@ -447,6 +446,40 @@ main(int argc, char **argv)
 			break;
 		case 'o': /* SUSv2 and GNU conflict here, but not fatally */
 			option_o = 1; /* Record it and resolve it later. */
+			break;
+	        /*
+		 * Selecting files by time:
+		 *    --older-?time='date' Only files older than 'date'
+		 *    --older-?time-than='file' Only files older than time
+		 *         on specified file
+		 */
+		case OPTION_OLDER_CTIME:
+			if (archive_match_include_date(bsdtar->matching,
+			    ARCHIVE_MATCH_CTIME | ARCHIVE_MATCH_OLDER,
+			    bsdtar->argument) != ARCHIVE_OK)
+				lafe_errc(1, 0, "Error : %s",
+				    archive_error_string(bsdtar->matching));
+			break;
+		case OPTION_OLDER_CTIME_THAN:
+			if (archive_match_include_file_time(bsdtar->matching,
+			    ARCHIVE_MATCH_CTIME | ARCHIVE_MATCH_OLDER,
+			    bsdtar->argument) != ARCHIVE_OK)
+				lafe_errc(1, 0, "Error : %s",
+				    archive_error_string(bsdtar->matching));
+			break;
+		case OPTION_OLDER_MTIME:
+			if (archive_match_include_date(bsdtar->matching,
+			    ARCHIVE_MATCH_MTIME | ARCHIVE_MATCH_OLDER,
+			    bsdtar->argument) != ARCHIVE_OK)
+				lafe_errc(1, 0, "Error : %s",
+				    archive_error_string(bsdtar->matching));
+			break;
+		case OPTION_OLDER_MTIME_THAN:
+			if (archive_match_include_file_time(bsdtar->matching,
+			    ARCHIVE_MATCH_MTIME | ARCHIVE_MATCH_OLDER,
+			    bsdtar->argument) != ARCHIVE_OK)
+				lafe_errc(1, 0, "Error : %s",
+				    archive_error_string(bsdtar->matching));
 			break;
 		case OPTION_ONE_FILE_SYSTEM: /* GNU tar */
 			bsdtar->readdisk_flags |=
