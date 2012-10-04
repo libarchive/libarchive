@@ -2748,8 +2748,8 @@ lzx_decode_blocks(struct lzx_stream *strm, int last)
 	struct lzx_br bre = ds->br;
 	struct huffman *at = &(ds->at), *lt = &(ds->lt), *mt = &(ds->mt);
 	const struct lzx_pos_tbl *pos_tbl = ds->pos_tbl;
-	unsigned char *outp = strm->next_out;
-	unsigned char *endp = outp + strm->avail_out;
+	unsigned char *noutp = strm->next_out;
+	unsigned char *endp = noutp + strm->avail_out;
 	unsigned char *w_buff = ds->w_buff;
 	unsigned char *at_bitlen = at->bitlen;
 	unsigned char *lt_bitlen = lt->bitlen;
@@ -2783,10 +2783,10 @@ lzx_decode_blocks(struct lzx_stream *strm, int last)
 					ds->position_slot = position_slot;
 					ds->r0 = r0; ds->r1 = r1; ds->r2 = r2;
 					ds->w_pos = w_pos;
-					strm->avail_out = endp - outp;
+					strm->avail_out = endp - noutp;
 					return (ARCHIVE_EOF);
 				}
-				if (outp >= endp)
+				if (noutp >= endp)
 					/* Output buffer is empty. */
 					goto next_data;
 
@@ -2820,7 +2820,7 @@ lzx_decode_blocks(struct lzx_stream *strm, int last)
 				w_buff[w_pos] = c;
 				w_pos = (w_pos + 1) & w_mask;
 				/* Store the decoded code to output buffer. */
-				*outp++ = c;
+				*noutp++ = c;
 				block_bytes_avail--;
 			}
 			/*
@@ -2965,22 +2965,22 @@ lzx_decode_blocks(struct lzx_stream *strm, int last)
 					if (l > w_size - w_pos)
 						l = w_size - w_pos;
 				}
-				if (outp + l >= endp)
-					l = endp - outp;
+				if (noutp + l >= endp)
+					l = endp - noutp;
 				s = w_buff + copy_pos;
 				if (l >= 8 && ((copy_pos + l < w_pos)
 				  || (w_pos + l < copy_pos))) {
 					memcpy(w_buff + w_pos, s, l);
-					memcpy(outp, s, l);
+					memcpy(noutp, s, l);
 				} else {
 					unsigned char *d;
 					int li;
 
 					d = w_buff + w_pos;
 					for (li = 0; li < l; li++)
-						outp[li] = d[li] = s[li];
+						noutp[li] = d[li] = s[li];
 				}
-				outp += l;
+				noutp += l;
 				copy_pos = (copy_pos + l) & w_mask;
 				w_pos = (w_pos + l) & w_mask;
 				block_bytes_avail -= l;
@@ -2988,7 +2988,7 @@ lzx_decode_blocks(struct lzx_stream *strm, int last)
 					/* A copy of current pattern ended. */
 					break;
 				copy_len -= l;
-				if (outp >= endp) {
+				if (noutp >= endp) {
 					/* Output buffer is empty. */
 					state = ST_COPY;
 					goto next_data;
@@ -3011,7 +3011,7 @@ next_data:
 	ds->r0 = r0; ds->r1 = r1; ds->r2 = r2;
 	ds->state = state;
 	ds->w_pos = w_pos;
-	strm->avail_out = endp - outp;
+	strm->avail_out = endp - noutp;
 	return (ARCHIVE_OK);
 }
 

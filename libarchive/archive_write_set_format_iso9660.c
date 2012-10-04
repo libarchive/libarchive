@@ -7391,7 +7391,7 @@ zisofs_init(struct archive_write *a,  struct isofile *file)
 	struct iso9660 *iso9660 = a->format_data;
 #ifdef HAVE_ZLIB_H
 	uint64_t tsize;
-	size_t ceil, bpsize;
+	size_t _ceil, bpsize;
 	int r;
 #endif
 
@@ -7430,9 +7430,9 @@ zisofs_init(struct archive_write *a,  struct isofile *file)
 		(uint32_t)archive_entry_size(file->entry);
 
 	/* Calculate a size of Block Pointers of zisofs. */
-	ceil = (file->zisofs.uncompressed_size + ZF_BLOCK_SIZE -1)
+	_ceil = (file->zisofs.uncompressed_size + ZF_BLOCK_SIZE -1)
 		>> file->zisofs.log2_bs;
-	iso9660->zisofs.block_pointers_cnt = ceil + 1;
+	iso9660->zisofs.block_pointers_cnt = _ceil + 1;
 	iso9660->zisofs.block_pointers_idx = 0;
 
 	/* Ensure a buffer size used for Block Pointers */
@@ -7484,7 +7484,7 @@ zisofs_detect_magic(struct archive_write *a, const void *buff, size_t s)
 	uint32_t uncompressed_size;
 	unsigned char header_size;
 	unsigned char log2_bs;
-	size_t ceil, doff;
+	size_t _ceil, doff;
 	uint32_t bst, bed;
 	int magic_max;
 	int64_t entry_size;
@@ -7532,16 +7532,16 @@ zisofs_detect_magic(struct archive_write *a, const void *buff, size_t s)
 		return;/* Invalid or not supported header. */
 
 	/* Calculate a size of Block Pointers of zisofs. */
-	ceil = (uncompressed_size +
+	_ceil = (uncompressed_size +
 	        (ARCHIVE_LITERAL_LL(1) << log2_bs) -1) >> log2_bs;
-	doff = (ceil + 1) * 4 + 16;
+	doff = (_ceil + 1) * 4 + 16;
 	if (entry_size < (int64_t)doff)
 		return;/* Invalid data. */
 
 	/* Check every Block Pointer has valid value. */
 	p = magic_buff + 16;
 	endp = magic_buff + magic_max;
-	while (ceil && p + 8 <= endp) {
+	while (_ceil && p + 8 <= endp) {
 		bst = archive_le32dec(p);
 		if (bst != doff)
 			return;/* Invalid data. */
@@ -7550,7 +7550,7 @@ zisofs_detect_magic(struct archive_write *a, const void *buff, size_t s)
 		if (bed < bst || bed > entry_size)
 			return;/* Invalid data. */
 		doff += bed - bst;
-		ceil--;
+		_ceil--;
 	}
 
 	file->zisofs.uncompressed_size = uncompressed_size;
@@ -7793,13 +7793,13 @@ zisofs_extract_init(struct archive_write *a, struct zisofs_extract *zisofs,
     const unsigned char *p, size_t bytes)
 {
 	size_t avail = bytes;
-	size_t ceil, xsize;
+	size_t _ceil, xsize;
 
 	/* Allocate block pointers buffer. */
-	ceil = (size_t)((zisofs->pz_uncompressed_size +
+	_ceil = (size_t)((zisofs->pz_uncompressed_size +
 		(((int64_t)1) << zisofs->pz_log2_bs) - 1)
 		>> zisofs->pz_log2_bs);
-	xsize = (ceil + 1) * 4;
+	xsize = (_ceil + 1) * 4;
 	if (zisofs->block_pointers == NULL) {
 		size_t alloc = ((xsize >> 10) + 1) << 10;
 		zisofs->block_pointers = malloc(alloc);
