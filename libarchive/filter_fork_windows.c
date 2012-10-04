@@ -24,19 +24,43 @@
  */
 
 #include "archive_platform.h"
+#include "archive_string.h"
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 
 #include "filter_fork.h"
 
 pid_t
-__archive_create_child(const char *path, int *child_stdin, int *child_stdout)
+__archive_create_child(const char *path, char * const argv[], int *child_stdin,
+    int *child_stdout)
 {
 	HANDLE childStdout[2], childStdin[2],childStderr;
 	SECURITY_ATTRIBUTES secAtts;
 	STARTUPINFO staInfo;
 	PROCESS_INFORMATION childInfo;
-	char cmd[MAX_PATH];
+	struct archive_string appname;
+	struct archive_string cmdline;
+	int i, l;
+
+	archive_string_init(&appname);
+	archive_string_init(&cmdline);
+	if (archive_string_ensure(&appname, strlen(path) + 1) == NULL)
+		goto fail;
+	archive_strcpy(&appname, path);
+	for (l = 0, i = 0;  argv[i] != NULL; i++) {
+		if (i == 0)
+			continue;
+		l += strlen(argv[i]) + 1;
+	}
+	if (archive_string_ensure(&cmdline, l + 1) == NULL)
+		goto fail;
+	for (i = 0;  argv[i] != NULL; i++) {
+		if (i == 0)
+			continue;
+		if (i > 1)
+			archive_strappend_char(&cmdline, ' ');
+		archive_strcat(&cmdline, argv[i]);
+	}
 
 	secAtts.nLength = sizeof(SECURITY_ATTRIBUTES);
 	secAtts.bInheritHandle = TRUE;
@@ -79,10 +103,8 @@ __archive_create_child(const char *path, int *child_stdin, int *child_stdout)
 	staInfo.hStdInput = childStdin[0];
 	staInfo.wShowWindow = SW_HIDE;
 	staInfo.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
-	strncpy(cmd, path, sizeof(cmd)-1);
-	cmd[sizeof(cmd)-1] = '\0';
-	if (CreateProcessA(NULL, cmd, NULL, NULL, TRUE, 0, NULL, NULL,
-	    &staInfo, &childInfo) == 0) {
+	if (CreateProcessA(appname.s, cmdline.s, NULL, NULL, TRUE, 0,
+	      NULL, NULL, &staInfo, &childInfo) == 0) {
 		CloseHandle(childStdout[0]);
 		CloseHandle(childStdout[1]);
 		CloseHandle(childStdin[0]);
@@ -100,9 +122,13 @@ __archive_create_child(const char *path, int *child_stdin, int *child_stdout)
 	CloseHandle(childStdout[1]);
 	CloseHandle(childStdin[0]);
 
+	archive_string_free(&appname);
+	archive_string_free(&cmdline);
 	return (childInfo.dwProcessId);
 
 fail:
+	archive_string_free(&appname);
+	archive_string_free(&cmdline);
 	return (-1);
 }
 

@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: head/lib/libarchive/test/test_read_compress_program.c 201247 2009-12-30 05:59:21Z kientzle $");
+__FBSDID("$FreeBSD$");
 
 static unsigned char archive[] = {
 31,139,8,0,222,'C','p','C',0,3,211,'c',160,'=','0','0','0','0','7','5','U',
@@ -32,8 +32,11 @@ static unsigned char archive[] = {
 24,24,26,152,154,25,'2','(',152,210,193,'m',12,165,197,'%',137,'E','@',167,
 148,'d',230,226,'U','G','H',30,234,15,'8','=',10,'F',193,'(',24,5,131,28,
 0,0,29,172,5,240,0,6,0,0};
+#define signature archive
+#define badsignature (&archive[1])
+#define signature_len 4
 
-DEFINE_TEST(test_read_compress_program)
+DEFINE_TEST(test_read_filter_program_signature)
 {
 	int r;
 	struct archive_entry *ae;
@@ -69,7 +72,8 @@ DEFINE_TEST(test_read_compress_program)
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_filter_none(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_filter_program(a, "gunzip"));
+	    archive_read_support_filter_program_signature(a, "gunzip",
+		signature, signature_len));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
@@ -80,10 +84,26 @@ DEFINE_TEST(test_read_compress_program)
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/*
+	 * Test bad signature.
+	 */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_filter_none(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_filter_program_signature(a, "gunzip",
+		badsignature, signature_len));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_FATAL,
+	    archive_read_open_memory(a, archive, sizeof(archive)));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 
-DEFINE_TEST(test_read_compress_programl)
+DEFINE_TEST(test_read_filter_programl_signature)
 {
 	int r;
 	struct archive_entry *ae;
@@ -116,8 +136,8 @@ DEFINE_TEST(test_read_compress_programl)
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_filter_none(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_filter_programl(a, "gzip", "gzip",
-		"-d", NULL));
+	    archive_read_support_filter_programl_signature(a, "gzip", "gzip",
+		"-d", NULL, signature, signature_len));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
@@ -128,9 +148,25 @@ DEFINE_TEST(test_read_compress_programl)
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/*
+	 * Test bad signature.
+	 */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_filter_none(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_filter_programl_signature(a, "gzip", "gzip",
+		"-d", NULL, badsignature, signature_len));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_FATAL,
+	    archive_read_open_memory(a, archive, sizeof(archive)));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-DEFINE_TEST(test_read_compress_programv)
+DEFINE_TEST(test_read_filter_programv_signature)
 {
 	int r;
 	struct archive_entry *ae;
@@ -164,7 +200,8 @@ DEFINE_TEST(test_read_compress_programv)
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_filter_none(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_filter_programv(a, "gzip", argv));
+	    archive_read_support_filter_programv_signature(a, "gzip", argv,
+		signature, signature_len));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
@@ -173,6 +210,22 @@ DEFINE_TEST(test_read_compress_programv)
 	    archive_read_next_header(a, &ae));
 	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_PROGRAM);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/*
+	 * Test bad signature.
+	 */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_filter_none(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_filter_programv_signature(a, "gzip", argv,
+		badsignature, signature_len));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_FATAL,
+	    archive_read_open_memory(a, archive, sizeof(archive)));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

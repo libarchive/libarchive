@@ -328,9 +328,22 @@ __LA_DECL int archive_read_support_filter_lzma(struct archive *);
 __LA_DECL int archive_read_support_filter_none(struct archive *);
 __LA_DECL int archive_read_support_filter_program(struct archive *,
 		     const char *command);
+__LA_DECL int archive_read_support_filter_programl(struct archive *,
+		     const char *command, const char *arg,
+		     .../* (char *)0 */);
+__LA_DECL int archive_read_support_filter_programv(struct archive *,
+		     const char *command, char * const argv[]);
 __LA_DECL int archive_read_support_filter_program_signature
-		(struct archive *, const char *,
+		(struct archive *, const char * /* cmd */,
 				    const void * /* match */, size_t);
+__LA_DECL int archive_read_support_filter_programl_signature
+		(struct archive *, const char * /* cmd */,
+		 const char * /* arg */,
+		 .../* , (char *)0, const void *, size_t */);
+__LA_DECL int archive_read_support_filter_programv_signature
+		(struct archive *, const char * /* cmd */,
+		 char * const [] /* argv */,
+		 const void * /* match */, size_t);
 
 __LA_DECL int archive_read_support_filter_rpm(struct archive *);
 __LA_DECL int archive_read_support_filter_uu(struct archive *);
@@ -601,6 +614,10 @@ __LA_DECL int archive_write_add_filter_lzma(struct archive *);
 __LA_DECL int archive_write_add_filter_none(struct archive *);
 __LA_DECL int archive_write_add_filter_program(struct archive *,
 		     const char *cmd);
+__LA_DECL int archive_write_add_filter_programl(struct archive *,
+		     const char *cmd, const char *arg, .../*, (char *)0 */);
+__LA_DECL int archive_write_add_filter_programv(struct archive *,
+		     const char *cmd, char * const argv[]);
 __LA_DECL int archive_write_add_filter_xz(struct archive *);
 
 

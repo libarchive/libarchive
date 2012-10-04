@@ -33,7 +33,8 @@
 #define FILTER_FORK_H
 
 pid_t
-__archive_create_child(const char *path, int *child_stdin, int *child_stdout);
+__archive_create_child(const char *path, char * const argv[], int *child_stdin,
+	int *child_stdout);
 
 void
 __archive_check_child(int in, int out);

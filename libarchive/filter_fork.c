@@ -70,13 +70,13 @@ __FBSDID("$FreeBSD: head/lib/libarchive/filter_fork.c 182958 2008-09-12 05:33:00
 #include "filter_fork.h"
 
 pid_t
-__archive_create_child(const char *path, int *child_stdin, int *child_stdout)
+__archive_create_child(const char *path, char * const argv[], int *child_stdin,
+    int *child_stdout)
 {
 	pid_t child;
 	int stdin_pipe[2], stdout_pipe[2], tmp;
 #if HAVE_POSIX_SPAWNP
 	posix_spawn_file_actions_t actions;
-	char *argv[2];
 	int r;
 #endif
 
@@ -128,13 +128,7 @@ __archive_create_child(const char *path, int *child_stdin, int *child_stdout)
 		if (r != 0)
 			goto actions_inited;
 	}
-	argv[0] = strdup(path);
-	if (argv[0] == NULL)
-		goto actions_inited2;
-	argv[1] = NULL;
-	r = posix_spawnp(&child, path, &actions, NULL,
-		(char ** const)argv, NULL);
-	free(argv[0]);
+	r = posix_spawnp(&child, path, &actions, NULL, argv, NULL);
 	if (r != 0)
 		goto actions_inited;
 	posix_spawn_file_actions_destroy(&actions);
@@ -159,7 +153,7 @@ __archive_create_child(const char *path, int *child_stdin, int *child_stdout)
 			_exit(254);
 		if (stdout_pipe[1] != 1 /* stdout */)
 			close(stdout_pipe[1]);
-		execlp(path, path, (char *)NULL);
+		execvp(path, argv);
 		_exit(254);
 	}
 #endif /* HAVE_POSIX_SPAWNP */
@@ -177,7 +171,6 @@ __archive_create_child(const char *path, int *child_stdin, int *child_stdout)
 #if HAVE_POSIX_SPAWNP
 actions_inited:
 	errno = r;
-actions_inited2:
 	posix_spawn_file_actions_destroy(&actions);
 #endif
 stdout_opened:
