@@ -49,6 +49,9 @@
 #define	LIBARCHIVE_ARCHIVE_WINDOWS_H_INCLUDED
 
 /* Start of configuration for native Win32  */
+#ifndef MINGW_HAS_SECURE_API
+#define MINGW_HAS_SECURE_API 1
+#endif
 
 #include <errno.h>
 #define	set_errno(val)	((errno)=val)
@@ -90,8 +93,14 @@
 #ifndef fileno
 #define	fileno		_fileno
 #endif
+#ifdef fstat
+#undef fstat
+#endif
 #define	fstat		__la_fstat
 #if !defined(__BORLANDC__)
+#ifdef lseek
+#undef lseek
+#endif
 #define	lseek		_lseeki64
 #else
 #define	lseek		__la_lseek
@@ -102,6 +111,9 @@
 #define	read		__la_read
 #if !defined(__BORLANDC__)
 #define setmode		_setmode
+#endif
+#ifdef stat
+#undef stat
 #endif
 #define	stat(path,stref)		__la_stat(path,stref)
 #if !defined(__BORLANDC__)

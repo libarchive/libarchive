@@ -92,6 +92,7 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/test/main.c,v 1.3 2008/08/24 04:58:22 kient
  */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #include <io.h>
+#include <direct.h>
 #include <windows.h>
 #ifndef F_OK
 #define F_OK (0)
@@ -1177,11 +1178,11 @@ assertion_file_time(const char *file, int line,
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #define EPOC_TIME	(116444736000000000ULL)
-	FILETIME ftime, fbirthtime, fatime, fmtime;
+	FILETIME fxtime, fbirthtime, fatime, fmtime;
 	ULARGE_INTEGER wintm;
 	HANDLE h;
-	ftime.dwLowDateTime = 0;
-	ftime.dwHighDateTime = 0;
+	fxtime.dwLowDateTime = 0;
+	fxtime.dwHighDateTime = 0;
 
 	assertion_count(file, line);
 	/* Note: FILE_FLAG_BACKUP_SEMANTICS applies to open
@@ -1196,9 +1197,9 @@ assertion_file_time(const char *file, int line,
 	}
 	r = GetFileTime(h, &fbirthtime, &fatime, &fmtime);
 	switch (type) {
-	case 'a': ftime = fatime; break;
-	case 'b': ftime = fbirthtime; break;
-	case 'm': ftime = fmtime; break;
+	case 'a': fxtime = fatime; break;
+	case 'b': fxtime = fbirthtime; break;
+	case 'm': fxtime = fmtime; break;
 	}
 	CloseHandle(h);
 	if (r == 0) {
@@ -1206,8 +1207,8 @@ assertion_file_time(const char *file, int line,
 		failure_finish(NULL);
 		return (0);
 	}
-	wintm.LowPart = ftime.dwLowDateTime;
-	wintm.HighPart = ftime.dwHighDateTime;
+	wintm.LowPart = fxtime.dwLowDateTime;
+	wintm.HighPart = fxtime.dwHighDateTime;
 	filet = (wintm.QuadPart - EPOC_TIME) / 10000000;
 	filet_nsec = ((wintm.QuadPart - EPOC_TIME) % 10000000) * 100;
 	nsec = (nsec / 100) * 100; /* Round the request */

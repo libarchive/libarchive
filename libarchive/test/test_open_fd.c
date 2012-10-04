@@ -28,6 +28,9 @@ __FBSDID("$FreeBSD: head/lib/libarchive/test/test_open_fd.c 201247 2009-12-30 05
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #define open _open
 #if !defined(__BORLANDC__)
+#ifdef lseek
+#undef lseek
+#endif
 #define lseek _lseek
 #endif
 #define close _close

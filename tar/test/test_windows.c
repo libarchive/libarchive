@@ -25,6 +25,7 @@
 #include "test.h"
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
+#include <direct.h>
 #include <windows.h>
 
 static void
