@@ -280,6 +280,11 @@ verify2(const char *refname, enum comp_type comp)
 	char buff[128];
 	char zero[128];
 
+	if (comp == MSZIP && !libz_enabled) {
+		skipping("Skipping CAB format(MSZIP) check for %s",
+		  refname);
+		return;
+	}
 	memset(zero, 0, sizeof(zero));
 	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
