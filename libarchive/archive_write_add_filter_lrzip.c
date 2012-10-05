@@ -25,7 +25,7 @@
 
 #include "archive_platform.h"
 
-__FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_compression_lrzip.c 201081 2009-12-28 02:04:42Z kientzle $");
+__FBSDID("$FreeBSD$");
 
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
@@ -46,5 +46,6 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_compression_lrzip.c 20
 int
 archive_write_add_filter_lrzip(struct archive *a)
 {
-	return archive_write_add_filter_program(a, "lrzip");
+	return archive_write_add_filter_programl(a, "lrzip", "lrzip",
+		   "-q", NULL);
 }
