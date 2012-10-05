@@ -171,7 +171,11 @@ static int	program_bidder_free(struct archive_read_filter_bidder *);
  */
 struct program_filter {
 	struct archive_string description;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	HANDLE		 child;
+#else
 	pid_t		 child;
+#endif
 	int		 exit_status;
 	int		 waitpid_return;
 	int		 child_stdin, child_stdout;
@@ -435,6 +439,9 @@ child_stop(struct archive_read_filter *self, struct program_filter *state)
 			state->waitpid_return
 			    = waitpid(state->child, &state->exit_status, 0);
 		} while (state->waitpid_return == -1 && errno == EINTR);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		CloseHandle(state->child);
+#endif
 		state->child = 0;
 	}
 
@@ -487,11 +494,35 @@ child_read(struct archive_read_filter *self, char *buf, size_t buf_len)
 	struct program_filter *state = self->data;
 	ssize_t ret, requested, avail;
 	const char *p;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	HANDLE handle = (HANDLE)_get_osfhandle(state->child_stdout);
+#endif
 
 	requested = buf_len > SSIZE_MAX ? SSIZE_MAX : buf_len;
 
 	for (;;) {
 		do {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+			/* Avoid infinity wait.
+			 * Note: If there is no data in the pipe, ReadFile()
+			 * called in read() never returns and so we won't
+			 * write remaining encoded data to the pipe.
+			 * Note: This way may cause performance problem.
+			 * we are looking forward to great code to resolve
+			 * this.  */
+			DWORD pipe_avail = -1;
+			int cnt = 2;
+
+			while (PeekNamedPipe(handle, NULL, 0, NULL,
+			    &pipe_avail, NULL) != 0 && pipe_avail == 0 &&
+			    cnt--)
+				Sleep(5);
+			if (pipe_avail == 0) {
+				ret = -1;
+				errno = EAGAIN;
+				break;
+			}
+#endif
 			ret = read(state->child_stdout, buf, requested);
 		} while (ret == -1 && errno == EINTR);
 
@@ -624,6 +655,7 @@ __archive_read_programv(struct archive_read_filter *self, const char *cmd,
 	static const size_t out_buf_len = 65536;
 	char *out_buf;
 	const char *prefix = "Program: ";
+	pid_t child;
 	int i;
 	size_t l;
 
@@ -654,8 +686,9 @@ __archive_read_programv(struct archive_read_filter *self, const char *cmd,
 	state->out_buf = out_buf;
 	state->out_buf_len = out_buf_len;
 
-	if ((state->child = __archive_create_child(cmd, argv,
-		 &state->child_stdin, &state->child_stdout)) == -1) {
+	child = __archive_create_child(cmd, argv, &state->child_stdin,
+	    &state->child_stdout);
+	if (child == -1) {
 		free(state->out_buf);
 		free(state);
 		archive_set_error(&self->archive->archive, EINVAL,
@@ -663,6 +696,20 @@ __archive_read_programv(struct archive_read_filter *self, const char *cmd,
 		    cmd);
 		return (ARCHIVE_FATAL);
 	}
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	state->child = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, child);
+	if (state->child == NULL) {
+		child_stop(self, state);
+		free(state->out_buf);
+		free(state);
+		archive_set_error(&self->archive->archive, EINVAL,
+		    "Can't initialize filter; unable to run program \"%s\"",
+		    cmd);
+		return (ARCHIVE_FATAL);
+	}
+#else
+	state->child = child;
+#endif
 
 	self->data = state;
 	self->read = program_filter_read;

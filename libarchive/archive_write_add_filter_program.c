@@ -62,7 +62,11 @@ struct private_data {
 	char		*cmd;
 	char		**argv;
 	struct archive_string description;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	HANDLE		 child;
+#else
 	pid_t		 child;
+#endif
 	int		 child_stdin, child_stdout;
 
 	char		*child_buf;
@@ -235,6 +239,7 @@ static int
 archive_compressor_program_open(struct archive_write_filter *f)
 {
 	struct private_data *data = (struct private_data *)f->data;
+	pid_t child;
 	int ret;
 
 	ret = __archive_write_open_filter(f->next_filter);
@@ -253,13 +258,27 @@ archive_compressor_program_open(struct archive_write_filter *f)
 		}
 	}
 
-	if ((data->child = __archive_create_child(data->cmd,
-		 (char * const *)data->argv,
-		 &data->child_stdin, &data->child_stdout)) == -1) {
+	child = __archive_create_child(data->cmd, (char * const *)data->argv,
+		 &data->child_stdin, &data->child_stdout);
+	if (child == -1) {
 		archive_set_error(f->archive, EINVAL,
 		    "Can't initialise filter");
 		return (ARCHIVE_FATAL);
 	}
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	data->child = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, child);
+	if (data->child == NULL) {
+		close(data->child_stdin);
+		data->child_stdin = -1;
+		close(data->child_stdout);
+		data->child_stdout = -1;
+		archive_set_error(f->archive, EINVAL,
+		    "Can't initialise filter");
+		return (ARCHIVE_FATAL);
+	}
+#else
+	data->child = child;
+#endif
 
 	f->write = archive_compressor_program_write;
 	f->close = archive_compressor_program_close;
@@ -411,6 +430,10 @@ cleanup:
 		close(data->child_stdout);
 	while (waitpid(data->child, &status, 0) == -1 && errno == EINTR)
 		continue;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	CloseHandle(data->child);
+#endif
+	data->child = 0;
 
 	if (status != 0) {
 		archive_set_error(f->archive, EIO,
@@ -427,6 +450,10 @@ archive_compressor_program_free(struct archive_write_filter *f)
 	struct private_data *data = (struct private_data *)f->data;
 
 	if (data) {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		if (data->child)
+			CloseHandle(data->child);
+#endif
 		if (data->argv != NULL) {
 			int i;
 			for (i = 0; data->argv[i] != NULL; i++)
