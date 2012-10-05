@@ -77,6 +77,7 @@ IF(ENABLE_TEST)
     test_read_file_nonexistent.c
     test_read_filter_program.c
     test_read_filter_program_signature.c
+    test_read_filter_uudecode.c
     test_read_format_7zip.c
     test_read_format_ar.c
     test_read_format_cab.c
@@ -136,7 +137,6 @@ IF(ENABLE_TEST)
     test_read_position.c
     test_read_truncated.c
     test_read_truncated_filter.c
-    test_read_uu.c
     test_sparse_basic.c
     test_tar_filenames.c
     test_tar_large.c

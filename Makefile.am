@@ -332,6 +332,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_file_nonexistent.c		\
 	libarchive/test/test_read_filter_program.c		\
 	libarchive/test/test_read_filter_program_signature.c	\
+	libarchive/test/test_read_filter_uudecode.c		\
 	libarchive/test/test_read_format_7zip.c			\
 	libarchive/test/test_read_format_ar.c			\
 	libarchive/test/test_read_format_cab.c			\
@@ -391,7 +392,6 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_position.c			\
 	libarchive/test/test_read_truncated.c			\
 	libarchive/test/test_read_truncated_filter.c		\
-	libarchive/test/test_read_uu.c				\
 	libarchive/test/test_sparse_basic.c			\
 	libarchive/test/test_tar_filenames.c			\
 	libarchive/test/test_tar_large.c			\

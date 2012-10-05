@@ -159,17 +159,20 @@ test_read_uu_sub(const char *uudata, size_t uusize, int no_nl)
 	free(buff);
 }
 
-DEFINE_TEST(test_read_uu)
+DEFINE_TEST(test_read_filter_uudecode)
 {
 	/* Read the traditional uuencoded data. */
 	test_read_uu_sub(archive, sizeof(archive)-1, 0);
-	/* Read the Base64 uuencoded data. */
-	test_read_uu_sub(archive64, sizeof(archive64)-1, 0);
 	/* Read the traditional uuencoded data with very long line extra
 	 * data in front of it. */
 	test_read_uu_sub(archive, sizeof(archive)-1, 1);
+}
+
+DEFINE_TEST(test_read_filter_uudecode_base64)
+{
+	/* Read the Base64 uuencoded data. */
+	test_read_uu_sub(archive64, sizeof(archive64)-1, 0);
 	/* Read the Base64 uuencoded data with very long line extra data
 	 * in front of it. */
 	test_read_uu_sub(archive64, sizeof(archive64)-1, 1);
 }
-
