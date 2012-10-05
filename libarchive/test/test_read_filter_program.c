@@ -33,7 +33,7 @@ static unsigned char archive[] = {
 148,'d',230,226,'U','G','H',30,234,15,'8','=',10,'F',193,'(',24,5,131,28,
 0,0,29,172,5,240,0,6,0,0};
 
-DEFINE_TEST(test_read_compress_program)
+DEFINE_TEST(test_read_filter_program)
 {
 	int r;
 	struct archive_entry *ae;
@@ -83,7 +83,7 @@ DEFINE_TEST(test_read_compress_program)
 }
 
 
-DEFINE_TEST(test_read_compress_programl)
+DEFINE_TEST(test_read_filter_programl)
 {
 	int r;
 	struct archive_entry *ae;
@@ -130,7 +130,7 @@ DEFINE_TEST(test_read_compress_programl)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-DEFINE_TEST(test_read_compress_programv)
+DEFINE_TEST(test_read_filter_programv)
 {
 	int r;
 	struct archive_entry *ae;
