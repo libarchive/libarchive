@@ -1501,96 +1501,95 @@ __archive_read_filter_seek(struct archive_read_filter *filter, int64_t offset, i
 	if (filter->seek == NULL)
 		return (ARCHIVE_FAILED);
 
-	switch (whence)
-	{
-		case SEEK_CUR:
-			/* Adjust the offset and use SEEK_SET instead */
-			offset += filter->position;			
-		case SEEK_SET:
-			cursor = 0;
-			while (1)
-			{
-				if (filter->archive->client.dataset[cursor].begin_position < 0 ||
-					filter->archive->client.dataset[cursor].total_size < 0 ||
-					filter->archive->client.dataset[cursor].begin_position +
-					filter->archive->client.dataset[cursor].total_size - 1 > offset ||
-					cursor + 1 >= filter->archive->client.nodes)
-					break;
-				r = filter->archive->client.dataset[cursor].begin_position +
-					filter->archive->client.dataset[cursor].total_size;
-				filter->archive->client.dataset[++cursor].begin_position = r;
-			}
-			while (1)
-			{
-				if ((r = client_switch_proxy(filter, cursor)) != (ARCHIVE_OK))
-					return r;
-				if ((r = client_seek_proxy(filter, 0, SEEK_END)) < 0)
-					return r;
-				filter->archive->client.dataset[cursor].total_size = r;
-				if (filter->archive->client.dataset[cursor].begin_position +
-					filter->archive->client.dataset[cursor].total_size - 1 > offset ||
-					cursor + 1 >= filter->archive->client.nodes)
-					break;
-				r = filter->archive->client.dataset[cursor].begin_position +
-					filter->archive->client.dataset[cursor].total_size;
-				filter->archive->client.dataset[++cursor].begin_position = r;
-			}
-			offset -= filter->archive->client.dataset[cursor].begin_position;
-			if (offset < 0)
-				offset = 0;
-			else if (offset > filter->archive->client.dataset[cursor].total_size - 1)
-				offset = filter->archive->client.dataset[cursor].total_size - 1;
-			if ((r = client_seek_proxy(filter, offset, SEEK_SET)) < 0)
-				return r;
-			break;
-
-		case SEEK_END:
-			cursor = 0;
-			while (1)
-			{
-				if (filter->archive->client.dataset[cursor].begin_position < 0 ||
-					filter->archive->client.dataset[cursor].total_size < 0 ||
-					cursor + 1 >= filter->archive->client.nodes)
-					break;
-				r = filter->archive->client.dataset[cursor].begin_position +
-					filter->archive->client.dataset[cursor].total_size;
-				filter->archive->client.dataset[++cursor].begin_position = r;
-			}
-			while (1)
-			{
-				if ((r = client_switch_proxy(filter, cursor)) != (ARCHIVE_OK))
-					return r;
-				if ((r = client_seek_proxy(filter, 0, SEEK_END)) < 0)
-					return r;
-				filter->archive->client.dataset[cursor].total_size = r;
-				r = filter->archive->client.dataset[cursor].begin_position +
-					filter->archive->client.dataset[cursor].total_size;
-				if (cursor + 1 >= filter->archive->client.nodes)
-					break;
-				filter->archive->client.dataset[++cursor].begin_position = r;
-			}
-			while (1)
-			{
-				if (r + offset >=
-					filter->archive->client.dataset[cursor].begin_position)
-					break;
-				offset += filter->archive->client.dataset[cursor].total_size;
-				if (cursor == 0)
-					break;
-				cursor--;
-				r = filter->archive->client.dataset[cursor].begin_position +
-					filter->archive->client.dataset[cursor].total_size;
-			}
-			offset = (r + offset) -
-				filter->archive->client.dataset[cursor].begin_position;
+	switch (whence) {
+	case SEEK_CUR:
+		/* Adjust the offset and use SEEK_SET instead */
+		offset += filter->position;			
+	case SEEK_SET:
+		cursor = 0;
+		while (1)
+		{
+			if (filter->archive->client.dataset[cursor].begin_position < 0 ||
+				filter->archive->client.dataset[cursor].total_size < 0 ||
+				filter->archive->client.dataset[cursor].begin_position +
+				filter->archive->client.dataset[cursor].total_size - 1 > offset ||
+				cursor + 1 >= filter->archive->client.nodes)
+				break;
+			r = filter->archive->client.dataset[cursor].begin_position +
+				filter->archive->client.dataset[cursor].total_size;
+			filter->archive->client.dataset[++cursor].begin_position = r;
+		}
+		while (1)
+		{
 			if ((r = client_switch_proxy(filter, cursor)) != (ARCHIVE_OK))
 				return r;
-			if ((r = client_seek_proxy(filter, offset, SEEK_SET)) < (ARCHIVE_OK))
+			if ((r = client_seek_proxy(filter, 0, SEEK_END)) < 0)
 				return r;
-			break;
+			filter->archive->client.dataset[cursor].total_size = r;
+			if (filter->archive->client.dataset[cursor].begin_position +
+				filter->archive->client.dataset[cursor].total_size - 1 > offset ||
+				cursor + 1 >= filter->archive->client.nodes)
+				break;
+			r = filter->archive->client.dataset[cursor].begin_position +
+				filter->archive->client.dataset[cursor].total_size;
+			filter->archive->client.dataset[++cursor].begin_position = r;
+		}
+		offset -= filter->archive->client.dataset[cursor].begin_position;
+		if (offset < 0)
+			offset = 0;
+		else if (offset > filter->archive->client.dataset[cursor].total_size - 1)
+			offset = filter->archive->client.dataset[cursor].total_size - 1;
+		if ((r = client_seek_proxy(filter, offset, SEEK_SET)) < 0)
+			return r;
+		break;
 
-		default:
-			return (ARCHIVE_FATAL);
+	case SEEK_END:
+		cursor = 0;
+		while (1)
+		{
+			if (filter->archive->client.dataset[cursor].begin_position < 0 ||
+				filter->archive->client.dataset[cursor].total_size < 0 ||
+				cursor + 1 >= filter->archive->client.nodes)
+				break;
+			r = filter->archive->client.dataset[cursor].begin_position +
+				filter->archive->client.dataset[cursor].total_size;
+			filter->archive->client.dataset[++cursor].begin_position = r;
+		}
+		while (1)
+		{
+			if ((r = client_switch_proxy(filter, cursor)) != (ARCHIVE_OK))
+				return r;
+			if ((r = client_seek_proxy(filter, 0, SEEK_END)) < 0)
+				return r;
+			filter->archive->client.dataset[cursor].total_size = r;
+			r = filter->archive->client.dataset[cursor].begin_position +
+				filter->archive->client.dataset[cursor].total_size;
+			if (cursor + 1 >= filter->archive->client.nodes)
+				break;
+			filter->archive->client.dataset[++cursor].begin_position = r;
+		}
+		while (1)
+		{
+			if (r + offset >=
+				filter->archive->client.dataset[cursor].begin_position)
+				break;
+			offset += filter->archive->client.dataset[cursor].total_size;
+			if (cursor == 0)
+				break;
+			cursor--;
+			r = filter->archive->client.dataset[cursor].begin_position +
+				filter->archive->client.dataset[cursor].total_size;
+		}
+		offset = (r + offset) -
+			filter->archive->client.dataset[cursor].begin_position;
+		if ((r = client_switch_proxy(filter, cursor)) != (ARCHIVE_OK))
+			return r;
+		if ((r = client_seek_proxy(filter, offset, SEEK_SET)) < (ARCHIVE_OK))
+			return r;
+		break;
+
+	default:
+		return (ARCHIVE_FATAL);
 	}
 	r += filter->archive->client.dataset[cursor].begin_position;
 
