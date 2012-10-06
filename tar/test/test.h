@@ -280,9 +280,6 @@ int canGunzip(void);
 /* Return true if this platform can run the "lrzip" program. */
 int canLrzip(void);
 
-/* Return true if this platform can run the "lrunzip" program. */
-int canLrunzip(void);
-
 /* Return true if this platform can run the "lunzip" program. */
 int canLunzip(void);
 
