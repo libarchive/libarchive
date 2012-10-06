@@ -61,8 +61,8 @@ DEFINE_TEST(test_read_filter_program)
 	/*
 	 * If we have "gzip -d", try using that.
 	 */
-	if (!canGzip()) {
-		skipping("Can't run gzip program on this platform");
+	if (!canGunzip()) {
+		skipping("Can't run gunzip program on this platform");
 		return;
 	}
 	assert((a = archive_read_new()) != NULL);
