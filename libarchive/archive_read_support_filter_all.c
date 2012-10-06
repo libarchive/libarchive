@@ -48,7 +48,7 @@ archive_read_support_filter_all(struct archive *a)
 	archive_read_support_filter_bzip2(a);
 	/* The decompress code doesn't use an outside library. */
 	archive_read_support_filter_compress(a);
-	/* Gzip decompress falls back to "gunzip" command-line. */
+	/* Gzip decompress falls back to "gzip -d" command-line. */
 	archive_read_support_filter_gzip(a);
 	/* Lzip falls back to "unlzip" command-line program. */
 	archive_read_support_filter_lzip(a);
@@ -63,7 +63,7 @@ archive_read_support_filter_all(struct archive *a)
 	archive_read_support_filter_uu(a);
 	/* The decode code doesn't use an outside library. */
 	archive_read_support_filter_rpm(a);
-	/* The decode code doesn't use an outside library. */
+	/* The decode code always uses "lrzip -d" command-line. */
 	archive_read_support_filter_lrzip(a);
 
 	/* Note: We always return ARCHIVE_OK here, even if some of the

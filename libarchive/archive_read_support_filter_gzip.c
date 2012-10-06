@@ -72,7 +72,7 @@ static int	gzip_filter_close(struct archive_read_filter *);
  *
  * TODO: If zlib is unavailable, gzip_bidder_init() should
  * use the compress_program framework to try to fire up an external
- * gunzip program.
+ * gzip program.
  */
 static int	gzip_bidder_bid(struct archive_read_filter_bidder *,
 		    struct archive_read_filter *);
@@ -109,7 +109,7 @@ archive_read_support_filter_gzip(struct archive *_a)
 	return (ARCHIVE_OK);
 #else
 	archive_set_error(_a, ARCHIVE_ERRNO_MISC,
-	    "Using external gunzip program");
+	    "Using external gzip program");
 	return (ARCHIVE_WARN);
 #endif
 }
@@ -223,7 +223,7 @@ gzip_bidder_bid(struct archive_read_filter_bidder *self,
 
 /*
  * If we don't have the library on this system, we can't do the
- * decompression directly.  We can, however, try to run gunzip
+ * decompression directly.  We can, however, try to run "gzip -d"
  * in case that's available.
  */
 static int
