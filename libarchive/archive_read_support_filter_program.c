@@ -579,24 +579,6 @@ child_read(struct archive_read_filter *self, char *buf, size_t buf_len)
 }
 
 int
-__archive_read_program(struct archive_read_filter *self, const char *cmd)
-{
-	char *argv[2];
-	int r;
-
-	argv[0] = strdup(cmd);
-	if (argv[0] == NULL) {
-		archive_set_error(&self->archive->archive, ENOMEM,
-		    "Can't allocate input data");
-		return (ARCHIVE_FATAL);
-	}
-	argv[1] = NULL;
-	r = __archive_read_programv(self, cmd, argv);
-	free(argv[0]);
-	return (r);
-}
-
-int
 __archive_read_programl(struct archive_read_filter *self, const char *cmd,
     const char *arg, ...)
 {

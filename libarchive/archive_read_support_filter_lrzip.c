@@ -118,7 +118,7 @@ lrzip_bidder_init(struct archive_read_filter *self)
 	int r;
 
 	r = __archive_read_programl(self, "lrzip", "lrzip", "-q", "-d", NULL);
-	/* Note: We set the format here even if __archive_read_program()
+	/* Note: We set the format here even if __archive_read_programl()
 	 * above fails.  We do, after all, know what the format is
 	 * even if we weren't able to read it. */
 	self->code = ARCHIVE_COMPRESSION_LRZIP;
