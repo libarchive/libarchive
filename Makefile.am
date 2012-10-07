@@ -725,6 +725,7 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_option_gid_gname.c			\
 	tar/test/test_option_k.c				\
 	tar/test/test_option_keep_newer_files.c			\
+	tar/test/test_option_lzma.c				\
 	tar/test/test_option_lzop.c				\
 	tar/test/test_option_n.c				\
 	tar/test/test_option_newer_than.c			\
