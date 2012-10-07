@@ -55,7 +55,7 @@ DEFINE_TEST(test_open_fd)
 	/* Write an archive through this fd. */
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_none(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_fd(a, fd));
 
 	/*

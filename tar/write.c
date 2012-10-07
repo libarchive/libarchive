@@ -166,35 +166,35 @@ tar_mode_c(struct bsdtar *bsdtar)
 	archive_write_set_bytes_in_last_block(a, bsdtar->bytes_in_last_block);
 
 	if (bsdtar->compress_program) {
-		archive_write_set_compression_program(a, bsdtar->compress_program);
+		archive_write_add_filter_program(a, bsdtar->compress_program);
 	} else {
 		switch (bsdtar->create_compression) {
 		case 0:
 			r = ARCHIVE_OK;
 			break;
 		case 'j': case 'y':
-			r = archive_write_set_compression_bzip2(a);
+			r = archive_write_add_filter_bzip2(a);
 			break;
 		case 'J':
-			r = archive_write_set_compression_xz(a);
+			r = archive_write_add_filter_xz(a);
 			break;
 		case OPTION_LRZIP:
 			r = archive_write_add_filter_lrzip(a);
 			break;
 		case OPTION_LZIP:
-			r = archive_write_set_compression_lzip(a);
+			r = archive_write_add_filter_lzip(a);
 			break;
 		case OPTION_LZMA:
-			r = archive_write_set_compression_lzma(a);
+			r = archive_write_add_filter_lzma(a);
 			break;
 		case OPTION_LZOP:
 			r = archive_write_add_filter_lzop(a);
 			break;
 		case 'z':
-			r = archive_write_set_compression_gzip(a);
+			r = archive_write_add_filter_gzip(a);
 			break;
 		case 'Z':
-			r = archive_write_set_compression_compress(a);
+			r = archive_write_add_filter_compress(a);
 			break;
 		default:
 			lafe_errc(1, 0,

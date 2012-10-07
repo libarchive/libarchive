@@ -35,7 +35,7 @@ test(int pristine)
 	struct archive* a = archive_write_new();
 
 	if (!pristine)
-		archive_write_set_compression_gzip(a);
+		archive_write_add_filter_gzip(a);
 
 	should(a, ARCHIVE_OK, NULL, NULL, NULL);
 	should(a, ARCHIVE_OK, "", "", "");

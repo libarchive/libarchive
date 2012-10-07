@@ -54,7 +54,7 @@ DEFINE_TEST(test_write_compress_lzma)
 	 */
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
-	r = archive_write_set_compression_lzma(a);
+	r = archive_write_add_filter_lzma(a);
 	if (r == ARCHIVE_FATAL) {
 		skipping("lzma writing not supported on this platform");
 		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
@@ -113,7 +113,7 @@ DEFINE_TEST(test_write_compress_lzma)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_bytes_per_block(a, 10));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_lzma(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_lzma(a));
 	assertEqualIntA(a, ARCHIVE_FAILED,
 	    archive_write_set_filter_option(a, NULL, "nonexistent-option", "0"));
 	assertEqualIntA(a, ARCHIVE_FAILED,
@@ -167,7 +167,7 @@ DEFINE_TEST(test_write_compress_lzma)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_bytes_per_block(a, 10));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_lzma(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_lzma(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_filter_option(a, NULL, "compression-level", "0"));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, buffsize, &used2));
@@ -222,23 +222,23 @@ DEFINE_TEST(test_write_compress_lzma)
 	 * don't crash or leak memory.
 	 */
 	assert((a = archive_write_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_lzma(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_lzma(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_write_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_lzma(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_lzma(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_lzma(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_lzma(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_lzma(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_lzma(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, buffsize, &used2));
 	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));

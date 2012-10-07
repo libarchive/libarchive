@@ -110,7 +110,7 @@ test_write_format_iso9660_zisofs_1(void)
 	/* ISO9660 format: Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, 0, archive_write_set_format_iso9660(a));
-	assertEqualIntA(a, 0, archive_write_set_compression_none(a));
+	assertEqualIntA(a, 0, archive_write_add_filter_none(a));
 	r = archive_write_set_option(a, NULL, "zisofs", "1");
 	if (r == ARCHIVE_FATAL) {
 		skipping("zisofs option not supported on this platform");
@@ -339,7 +339,7 @@ test_write_format_iso9660_zisofs_2(void)
 	/* ISO9660 format: Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, 0, archive_write_set_format_iso9660(a));
-	assertEqualIntA(a, 0, archive_write_set_compression_none(a));
+	assertEqualIntA(a, 0, archive_write_add_filter_none(a));
 	r = archive_write_set_option(a, NULL, "zisofs", "1");
 	if (r == ARCHIVE_FATAL) {
 		skipping("zisofs option not supported on this platform");
@@ -589,7 +589,7 @@ test_write_format_iso9660_zisofs_3(void)
 	/* ISO9660 format: Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, 0, archive_write_set_format_iso9660(a));
-	assertEqualIntA(a, 0, archive_write_set_compression_none(a));
+	assertEqualIntA(a, 0, archive_write_add_filter_none(a));
 	r = archive_write_set_option(a, NULL, "zisofs", "1");
 	if (r == ARCHIVE_FATAL) {
 		skipping("zisofs option not supported on this platform");

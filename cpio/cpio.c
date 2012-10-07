@@ -520,28 +520,28 @@ mode_out(struct cpio *cpio)
 		lafe_errc(1, 0, "Failed to allocate archive object");
 	switch (cpio->compress) {
 	case 'J':
-		r = archive_write_set_compression_xz(cpio->archive);
+		r = archive_write_add_filter_xz(cpio->archive);
 		break;
 	case OPTION_LRZIP:
 		r = archive_write_add_filter_lrzip(cpio->archive);
 		break;
 	case OPTION_LZMA:
-		r = archive_write_set_compression_lzma(cpio->archive);
+		r = archive_write_add_filter_lzma(cpio->archive);
 		break;
 	case OPTION_LZOP:
 		r = archive_write_add_filter_lzop(cpio->archive);
 		break;
 	case 'j': case 'y':
-		r = archive_write_set_compression_bzip2(cpio->archive);
+		r = archive_write_add_filter_bzip2(cpio->archive);
 		break;
 	case 'z':
-		r = archive_write_set_compression_gzip(cpio->archive);
+		r = archive_write_add_filter_gzip(cpio->archive);
 		break;
 	case 'Z':
-		r = archive_write_set_compression_compress(cpio->archive);
+		r = archive_write_add_filter_compress(cpio->archive);
 		break;
 	default:
-		r = archive_write_set_compression_none(cpio->archive);
+		r = archive_write_add_filter_none(cpio->archive);
 		break;
 	}
 	if (r < ARCHIVE_WARN)

@@ -55,7 +55,7 @@ test_truncation(const char *compression, int (*set_compression)(struct archive *
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_compression_compress(a));
+	    archive_write_add_filter_compress(a));
 	r = (*set_compression)(a);
 	if (r == ARCHIVE_FATAL) {
 		skipping("%s writing not supported on this platform", compression);
@@ -123,10 +123,10 @@ test_truncation(const char *compression, int (*set_compression)(struct archive *
 
 DEFINE_TEST(test_read_truncated_filter)
 {
-	test_truncation("bzip2", archive_write_set_compression_bzip2);
-	test_truncation("compress", archive_write_set_compression_compress);
-	test_truncation("gzip", archive_write_set_compression_gzip);
-	test_truncation("lzip", archive_write_set_compression_lzip);
-	test_truncation("lzma", archive_write_set_compression_lzma);
-	test_truncation("xz", archive_write_set_compression_xz);
+	test_truncation("bzip2", archive_write_add_filter_bzip2);
+	test_truncation("compress", archive_write_add_filter_compress);
+	test_truncation("gzip", archive_write_add_filter_gzip);
+	test_truncation("lzip", archive_write_add_filter_lzip);
+	test_truncation("lzma", archive_write_add_filter_lzma);
+	test_truncation("xz", archive_write_add_filter_xz);
 }

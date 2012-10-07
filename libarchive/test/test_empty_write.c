@@ -40,7 +40,7 @@ DEFINE_TEST(test_empty_write)
 	/* Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
 	assertA(0 == archive_write_set_format_ustar(a));
-	r = archive_write_set_compression_gzip(a);
+	r = archive_write_add_filter_gzip(a);
 	if (r == ARCHIVE_FATAL) {
 		skipping("Empty write to gzip-compressed archive");
 	} else {
@@ -71,7 +71,7 @@ DEFINE_TEST(test_empty_write)
 	/* Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
 	assertA(0 == archive_write_set_format_ustar(a));
-	r = archive_write_set_compression_bzip2(a);
+	r = archive_write_add_filter_bzip2(a);
 	if (r == ARCHIVE_FATAL) {
 		skipping("Empty write to bzip2-compressed archive");
 	} else {
@@ -101,7 +101,7 @@ DEFINE_TEST(test_empty_write)
 	/* Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
 	assertA(0 == archive_write_set_format_ustar(a));
-	assertA(0 == archive_write_set_compression_none(a));
+	assertA(0 == archive_write_add_filter_none(a));
 	assertA(0 == archive_write_open_memory(a, buff, sizeof(buff), &used));
 	/* Write a file to it. */
 	assert((ae = archive_entry_new()) != NULL);

@@ -37,7 +37,7 @@ test(int pristine)
 	int known_option_rv = pristine ? ARCHIVE_FAILED : ARCHIVE_OK;
 
 	if (!pristine) {
-		archive_write_set_compression_gzip(a);
+		archive_write_add_filter_gzip(a);
 		archive_write_set_format_iso9660(a);
 	}
 

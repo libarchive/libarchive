@@ -56,7 +56,7 @@ write_test(void)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_bytes_per_block(a, 10));
 
-	if(ARCHIVE_OK != archive_write_set_compression_bzip2(a)) {
+	if(ARCHIVE_OK != archive_write_add_filter_bzip2(a)) {
 		skipping("bzip2 unsupported");
 		return;
 	}
