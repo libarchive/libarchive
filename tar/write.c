@@ -253,7 +253,7 @@ tar_mode_r(struct bsdtar *bsdtar)
 		    "Can't read archive %s: %s", bsdtar->filename,
 		    archive_error_string(a));
 	while (0 == archive_read_next_header(a, &entry)) {
-		if (archive_compression(a) != ARCHIVE_COMPRESSION_NONE) {
+		if (archive_filter_code(a, 0) != ARCHIVE_COMPRESSION_NONE) {
 			archive_read_free(a);
 			close(bsdtar->fd);
 			lafe_errc(1, 0,
@@ -346,7 +346,7 @@ tar_mode_u(struct bsdtar *bsdtar)
 
 	/* Build a list of all entries and their recorded mod times. */
 	while (0 == archive_read_next_header(a, &entry)) {
-		if (archive_compression(a) != ARCHIVE_COMPRESSION_NONE) {
+		if (archive_filter_code(a, 0) != ARCHIVE_COMPRESSION_NONE) {
 			archive_read_free(a);
 			close(bsdtar->fd);
 			lafe_errc(1, 0,

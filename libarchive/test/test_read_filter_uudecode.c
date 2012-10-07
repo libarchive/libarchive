@@ -128,7 +128,7 @@ test_read_uu_sub(const char *uudata, size_t uusize, int no_nl)
 		failure("archive_compression_name(a)=\"%s\""
 		    "extra %d, NL %d",
 		    archive_compression_name(a), extra, !no_nl);
-		assertEqualInt(archive_compression(a),
+		assertEqualInt(archive_filter_code(a, 0),
 		    ARCHIVE_COMPRESSION_COMPRESS);
 		failure("archive_format_name(a)=\"%s\""
 		    "extra %d, NL %d",

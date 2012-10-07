@@ -70,7 +70,7 @@ static void verifyEmpty(void)
 	assertA(0 == archive_read_support_format_all(a));
 	assertA(0 == archive_read_open_memory(a, archiveEmpty, 512));
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
-	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_NONE);
+	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_COMPRESSION_NONE);
 	assertEqualString(archive_compression_name(a), "none");
 	failure("512 zero bytes should be recognized as a tar archive.");
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR);
@@ -437,7 +437,7 @@ static void verify(unsigned char *d, size_t s,
 	assertA(0 == archive_read_support_format_all(a));
 	assertA(0 == archive_read_open_memory(a, buff, s + 1024));
 	assertA(0 == archive_read_next_header(a, &ae));
-	assertEqualInt(archive_compression(a), compression);
+	assertEqualInt(archive_filter_code(a, 0), compression);
 	assertEqualInt(archive_format(a), format);
 
 	/* Verify the only entry. */

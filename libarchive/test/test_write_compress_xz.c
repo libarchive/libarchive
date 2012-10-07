@@ -63,10 +63,10 @@ DEFINE_TEST(test_write_compress_xz)
 	}
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_bytes_per_block(a, 10));
-	assertEqualInt(ARCHIVE_COMPRESSION_XZ, archive_compression(a));
+	assertEqualInt(ARCHIVE_COMPRESSION_XZ, archive_filter_code(a, 0));
 	assertEqualString("xz", archive_compression_name(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, buffsize, &used1));
-	assertEqualInt(ARCHIVE_COMPRESSION_XZ, archive_compression(a));
+	assertEqualInt(ARCHIVE_COMPRESSION_XZ, archive_filter_code(a, 0));
 	assertEqualString("xz", archive_compression_name(a));
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_set_filetype(ae, AE_IFREG);
