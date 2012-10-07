@@ -338,7 +338,7 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 
 	if (bsdtar->verbose > 2)
 		fprintf(stdout, "Archive Format: %s,  Compression: %s\n",
-		    archive_format_name(a), archive_compression_name(a));
+		    archive_format_name(a), archive_filter_name(a, 0));
 
 	archive_read_free(a);
 }

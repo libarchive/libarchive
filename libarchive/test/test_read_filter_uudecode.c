@@ -125,9 +125,9 @@ test_read_uu_sub(const char *uudata, size_t uusize, int no_nl)
 		    read_open_memory(a, buff, size, 2));
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_next_header(a, &ae));
-		failure("archive_compression_name(a)=\"%s\""
+		failure("archive_filter_name(a, 0)=\"%s\""
 		    "extra %d, NL %d",
-		    archive_compression_name(a), extra, !no_nl);
+		    archive_filter_name(a, 0), extra, !no_nl);
 		assertEqualInt(archive_filter_code(a, 0),
 		    ARCHIVE_COMPRESSION_COMPRESS);
 		failure("archive_format_name(a)=\"%s\""

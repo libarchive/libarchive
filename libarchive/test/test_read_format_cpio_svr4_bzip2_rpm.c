@@ -118,7 +118,7 @@ DEFINE_TEST(test_read_format_cpio_svr4_bzip2_rpm)
   
 	/* Verify that the format detection worked. */
 	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_COMPRESSION_BZIP2);
-	assertEqualString(archive_compression_name(a), "bzip2");
+	assertEqualString(archive_filter_name(a, 0), "bzip2");
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_CPIO_SVR4_NOCRC);
  
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
