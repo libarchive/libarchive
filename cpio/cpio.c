@@ -265,6 +265,7 @@ main(int argc, char *argv[])
 		case 'l': /* POSIX 1997 */
 			cpio->option_link = 1;
 			break;
+		case OPTION_LRZIP:
 		case OPTION_LZMA: /* GNU tar, others */
 		case OPTION_LZOP: /* GNU tar, others */
 			cpio->compress = opt;
@@ -520,6 +521,9 @@ mode_out(struct cpio *cpio)
 	switch (cpio->compress) {
 	case 'J':
 		r = archive_write_set_compression_xz(cpio->archive);
+		break;
+	case OPTION_LRZIP:
+		r = archive_write_add_filter_lrzip(cpio->archive);
 		break;
 	case OPTION_LZMA:
 		r = archive_write_set_compression_lzma(cpio->archive);

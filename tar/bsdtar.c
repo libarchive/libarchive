@@ -372,6 +372,7 @@ main(int argc, char **argv)
 			/* GNU tar 1.13  used -l for --one-file-system */
 			bsdtar->option_warn_links = 1;
 			break;
+		case OPTION_LRZIP:
 		case OPTION_LZIP: /* GNU tar beginning with 1.23 */
 		case OPTION_LZMA: /* GNU tar beginning with 1.20 */
 		case OPTION_LZOP: /* GNU tar beginning with 1.21 */

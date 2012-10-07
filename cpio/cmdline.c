@@ -70,6 +70,7 @@ static const struct option {
 	{ "insecure",			0, OPTION_INSECURE },
 	{ "link",			0, 'l' },
 	{ "list",			0, 't' },
+	{ "lrzip",			0, OPTION_LRZIP },
 	{ "lzma",			0, OPTION_LZMA },
 	{ "lzop",			0, OPTION_LZOP },
 	{ "make-directories",		0, 'd' },

@@ -725,6 +725,7 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_option_gid_gname.c			\
 	tar/test/test_option_k.c				\
 	tar/test/test_option_keep_newer_files.c			\
+	tar/test/test_option_lrzip.c				\
 	tar/test/test_option_lzma.c				\
 	tar/test/test_option_lzop.c				\
 	tar/test/test_option_n.c				\
@@ -848,6 +849,7 @@ bsdcpio_test_SOURCES=						\
 	cpio/test/test_option_f.c				\
 	cpio/test/test_option_help.c				\
 	cpio/test/test_option_l.c				\
+	cpio/test/test_option_lrzip.c				\
 	cpio/test/test_option_lzma.c				\
 	cpio/test/test_option_lzop.c				\
 	cpio/test/test_option_m.c				\
