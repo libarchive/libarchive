@@ -98,6 +98,7 @@ const char *owner_parse(const char *, int *, int *);
 enum {
 	OPTION_INSECURE = 1,
 	OPTION_LZMA,
+	OPTION_LZOP,
 	OPTION_NO_PRESERVE_OWNER,
 	OPTION_PRESERVE_OWNER,
 	OPTION_QUIET,

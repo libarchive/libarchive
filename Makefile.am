@@ -135,6 +135,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_read_support_filter_compress.c	\
 	libarchive/archive_read_support_filter_gzip.c		\
 	libarchive/archive_read_support_filter_lrzip.c		\
+	libarchive/archive_read_support_filter_lzop.c		\
 	libarchive/archive_read_support_filter_none.c		\
 	libarchive/archive_read_support_filter_program.c	\
 	libarchive/archive_read_support_filter_rpm.c		\
@@ -176,6 +177,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_write_add_filter_compress.c	\
 	libarchive/archive_write_add_filter_gzip.c		\
 	libarchive/archive_write_add_filter_lrzip.c		\
+	libarchive/archive_write_add_filter_lzop.c		\
 	libarchive/archive_write_add_filter_none.c		\
 	libarchive/archive_write_add_filter_program.c	\
 	libarchive/archive_write_add_filter_xz.c		\
@@ -333,6 +335,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_filter_program.c		\
 	libarchive/test/test_read_filter_program_signature.c	\
 	libarchive/test/test_read_filter_uudecode.c		\
+	libarchive/test/test_read_filter_lzop.c			\
 	libarchive/test/test_read_format_7zip.c			\
 	libarchive/test/test_read_format_ar.c			\
 	libarchive/test/test_read_format_cab.c			\
@@ -403,6 +406,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_compress_lrzip.c		\
 	libarchive/test/test_write_compress_lzip.c		\
 	libarchive/test/test_write_compress_lzma.c		\
+	libarchive/test/test_write_compress_lzop.c		\
 	libarchive/test/test_write_compress_program.c		\
 	libarchive/test/test_write_compress_xz.c		\
 	libarchive/test/test_write_disk.c			\
@@ -502,6 +506,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_rar_multivolume_single_file.part1.rar.uu	\
 	libarchive/test/test_rar_multivolume_single_file.part2.rar.uu	\
 	libarchive/test/test_rar_multivolume_single_file.part3.rar.uu	\
+	libarchive/test/test_read_filter_lzop.tar.lzo.uu		\
 	libarchive/test/test_read_format_7zip_bcj_bzip2.7z.uu		\
 	libarchive/test/test_read_format_7zip_bcj_copy.7z.uu		\
 	libarchive/test/test_read_format_7zip_bcj_deflate.7z.uu		\
@@ -720,6 +725,7 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_option_gid_gname.c			\
 	tar/test/test_option_k.c				\
 	tar/test/test_option_keep_newer_files.c			\
+	tar/test/test_option_lzop.c				\
 	tar/test/test_option_n.c				\
 	tar/test/test_option_newer_than.c			\
 	tar/test/test_option_nodump.c				\
@@ -841,6 +847,7 @@ bsdcpio_test_SOURCES=						\
 	cpio/test/test_option_help.c				\
 	cpio/test/test_option_l.c				\
 	cpio/test/test_option_lzma.c				\
+	cpio/test/test_option_lzop.c				\
 	cpio/test/test_option_m.c				\
 	cpio/test/test_option_t.c				\
 	cpio/test/test_option_u.c				\

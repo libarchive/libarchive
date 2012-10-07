@@ -59,6 +59,7 @@ SET(libarchive_SOURCES
   archive_read_support_filter_compress.c
   archive_read_support_filter_gzip.c
   archive_read_support_filter_lrzip.c
+  archive_read_support_filter_lzop.c
   archive_read_support_filter_none.c
   archive_read_support_filter_program.c
   archive_read_support_filter_rpm.c

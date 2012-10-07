@@ -71,6 +71,7 @@ static const struct option {
 	{ "link",			0, 'l' },
 	{ "list",			0, 't' },
 	{ "lzma",			0, OPTION_LZMA },
+	{ "lzop",			0, OPTION_LZOP },
 	{ "make-directories",		0, 'd' },
 	{ "no-preserve-owner",		0, OPTION_NO_PRESERVE_OWNER },
 	{ "null",			0, '0' },

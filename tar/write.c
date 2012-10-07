@@ -184,6 +184,9 @@ tar_mode_c(struct bsdtar *bsdtar)
 		case OPTION_LZMA:
 			r = archive_write_set_compression_lzma(a);
 			break;
+		case OPTION_LZOP:
+			r = archive_write_add_filter_lzop(a);
+			break;
 		case 'z':
 			r = archive_write_set_compression_gzip(a);
 			break;
@@ -195,7 +198,7 @@ tar_mode_c(struct bsdtar *bsdtar)
 			    "Unrecognized compression option -%c",
 			    bsdtar->create_compression);
 		}
-		if (r != ARCHIVE_OK) {
+		if (r < ARCHIVE_WARN) {
 			lafe_errc(1, 0,
 			    "Unsupported compression option -%c",
 			    bsdtar->create_compression);

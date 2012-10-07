@@ -78,6 +78,7 @@ IF(ENABLE_TEST)
     test_read_filter_program.c
     test_read_filter_program_signature.c
     test_read_filter_uudecode.c
+    test_read_filter_lzop.c
     test_read_format_7zip.c
     test_read_format_ar.c
     test_read_format_cab.c
@@ -148,6 +149,7 @@ IF(ENABLE_TEST)
     test_write_compress_lrzip.c
     test_write_compress_lzip.c
     test_write_compress_lzma.c
+    test_write_compress_lzop.c
     test_write_compress_program.c
     test_write_compress_xz.c
     test_write_disk.c

@@ -98,6 +98,7 @@ static const struct bsdtar_option {
 	{ "list",                 0, 't' },
 	{ "lzip",                 0, OPTION_LZIP },
 	{ "lzma",                 0, OPTION_LZMA },
+	{ "lzop",                 0, OPTION_LZOP },
 	{ "modification-time",    0, 'm' },
 	{ "newer",		  1, OPTION_NEWER_CTIME },
 	{ "newer-ctime",	  1, OPTION_NEWER_CTIME },

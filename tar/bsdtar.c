@@ -374,6 +374,7 @@ main(int argc, char **argv)
 			break;
 		case OPTION_LZIP: /* GNU tar beginning with 1.23 */
 		case OPTION_LZMA: /* GNU tar beginning with 1.20 */
+		case OPTION_LZOP: /* GNU tar beginning with 1.21 */
 			if (bsdtar->create_compression != '\0')
 				lafe_errc(1, 0,
 				    "Can't specify both -%c and -%c", opt,
