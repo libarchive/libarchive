@@ -735,6 +735,7 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_option_r.c				\
 	tar/test/test_option_s.c				\
 	tar/test/test_option_uid_uname.c			\
+	tar/test/test_option_xz.c				\
 	tar/test/test_patterns.c				\
 	tar/test/test_print_longpath.c				\
 	tar/test/test_stdio.c					\
@@ -853,6 +854,7 @@ bsdcpio_test_SOURCES=						\
 	cpio/test/test_option_t.c				\
 	cpio/test/test_option_u.c				\
 	cpio/test/test_option_version.c				\
+	cpio/test/test_option_xz.c				\
 	cpio/test/test_option_y.c				\
 	cpio/test/test_option_z.c				\
 	cpio/test/test_owner_parse.c				\
