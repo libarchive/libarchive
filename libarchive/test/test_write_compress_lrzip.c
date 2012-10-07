@@ -57,20 +57,18 @@ DEFINE_TEST(test_write_compress_lrzip)
 	 */
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_gnutar(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_compression_compress(a));
 	r = archive_write_add_filter_lrzip(a);
 	if (r == ARCHIVE_FATAL) {
 		skipping("lrzip writing not supported on this platform");
 		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 		return;
 	}
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_bytes_per_block(a, 10));
-	assertEqualInt(ARCHIVE_COMPRESSION_PROGRAM, archive_compression(a));
-	assertEqualString("Program: lrzip", archive_compression_name(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, buffsize, &used1));
-	assertEqualInt(ARCHIVE_COMPRESSION_PROGRAM, archive_compression(a));
-	assertEqualString("Program: lrzip", archive_compression_name(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+		archive_write_set_bytes_per_block(a, 10));
+	assertEqualInt(ARCHIVE_FILTER_PROGRAM, archive_filter_code(a, 0));
+	assertEqualString("Program: lrzip lrzip -q", archive_filter_name(a, 0));
+	assertEqualIntA(a, ARCHIVE_OK,
+		archive_write_open_memory(a, buff, buffsize, &used1));
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_set_filetype(ae, AE_IFREG);
 	archive_entry_set_size(ae, datasize);
@@ -98,6 +96,8 @@ DEFINE_TEST(test_write_compress_lrzip)
 		assertEqualString(path, archive_entry_pathname(ae));
 		assertEqualInt((int)datasize, archive_entry_size(ae));
 	}
+	assertEqualInt(ARCHIVE_FILTER_LRZIP, archive_filter_code(a, 0));
+	assertEqualString("lrzip", archive_filter_name(a, 0));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
@@ -123,7 +123,8 @@ DEFINE_TEST(test_write_compress_lrzip)
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_lrzip(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, buffsize, &used2));
+	assertEqualIntA(a, ARCHIVE_OK,
+		archive_write_open_memory(a, buff, buffsize, &used2));
 	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
