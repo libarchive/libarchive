@@ -344,14 +344,9 @@ child_write(struct archive_write_filter *f, const char *buf, size_t buf_len)
 
 		ret = __archive_write_filter(f->next_filter,
 		    data->child_buf, data->child_buf_avail);
-		if (ret <= 0)
+		if (ret != ARCHIVE_OK)
 			return (-1);
-
-		if ((size_t)ret < data->child_buf_avail) {
-			memmove(data->child_buf, data->child_buf + ret,
-			    data->child_buf_avail - ret);
-		}
-		data->child_buf_avail -= ret;
+		data->child_buf_avail = 0;
 	}
 }
 
