@@ -213,7 +213,7 @@ write_add_filter_programv(struct archive *_a, const char *cmd,
 	if (archive_string_ensure(&data->description, l) == NULL)
 		goto memerr;
 	archive_strcpy(&data->description, prefix);
-	archive_strcpy(&data->description, cmd);
+	archive_strcat(&data->description, cmd);
 	for (i = 0; argv[i] != NULL; i++) {
 		archive_strappend_char(&data->description, ' ');
 		archive_strcat(&data->description, data->argv[i]);
