@@ -210,7 +210,7 @@ tar_mode_c(struct bsdtar *bsdtar)
 
 	if (ARCHIVE_OK != archive_write_set_options(a, bsdtar->option_options))
 		lafe_errc(1, 0, "%s", archive_error_string(a));
-	if (ARCHIVE_OK != archive_write_open_file(a, bsdtar->filename))
+	if (ARCHIVE_OK != archive_write_open_filename(a, bsdtar->filename))
 		lafe_errc(1, 0, "%s", archive_error_string(a));
 	write_archive(a, bsdtar);
 }
@@ -621,7 +621,8 @@ append_archive_filename(struct bsdtar *bsdtar, struct archive *a,
 	ina = archive_read_new();
 	archive_read_support_format_all(ina);
 	archive_read_support_filter_all(ina);
-	if (archive_read_open_file(ina, filename, bsdtar->bytes_per_block)) {
+	if (archive_read_open_filename(ina, filename,
+					bsdtar->bytes_per_block)) {
 		lafe_warnc(0, "%s", archive_error_string(ina));
 		bsdtar->return_value = 1;
 		return (0);

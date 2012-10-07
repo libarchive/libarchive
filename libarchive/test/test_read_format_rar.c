@@ -41,7 +41,7 @@ DEFINE_TEST(test_read_format_rar_basic)
   assert((a = archive_read_new()) != NULL);
   assertA(0 == archive_read_support_filter_all(a));
   assertA(0 == archive_read_support_format_all(a));
-  assertA(0 == archive_read_open_file(a, reffile, 10240));
+  assertA(0 == archive_read_open_filename(a, reffile, 10240));
 
   /* First header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -114,7 +114,7 @@ DEFINE_TEST(test_read_format_rar_subblock)
   assert((a = archive_read_new()) != NULL);
   assertA(0 == archive_read_support_filter_all(a));
   assertA(0 == archive_read_support_format_all(a));
-  assertA(0 == archive_read_open_file(a, reffile, 10240));
+  assertA(0 == archive_read_open_filename(a, reffile, 10240));
 
   /* First header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -147,7 +147,7 @@ DEFINE_TEST(test_read_format_rar_noeof)
   assert((a = archive_read_new()) != NULL);
   assertA(0 == archive_read_support_filter_all(a));
   assertA(0 == archive_read_support_format_all(a));
-  assertA(0 == archive_read_open_file(a, reffile, 10240));
+  assertA(0 == archive_read_open_filename(a, reffile, 10240));
 
   /* First header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -184,7 +184,7 @@ DEFINE_TEST(test_read_format_rar_unicode_UTF8)
   assert((a = archive_read_new()) != NULL);
   assertA(0 == archive_read_support_filter_all(a));
   assertA(0 == archive_read_support_format_all(a));
-  assertA(0 == archive_read_open_file(a, reffile, 10240));
+  assertA(0 == archive_read_open_filename(a, reffile, 10240));
 
   /* First header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -317,7 +317,7 @@ DEFINE_TEST(test_read_format_rar_unicode_CP932)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	return;
   }
-  assertA(0 == archive_read_open_file(a, reffile, 10240));
+  assertA(0 == archive_read_open_filename(a, reffile, 10240));
 
   /* First header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -406,7 +406,7 @@ DEFINE_TEST(test_read_format_rar_compress_normal)
   assert((a = archive_read_new()) != NULL);
   assertA(0 == archive_read_support_filter_all(a));
   assertA(0 == archive_read_support_format_all(a));
-  assertA(0 == archive_read_open_file(a, reffile, 10240));
+  assertA(0 == archive_read_open_filename(a, reffile, 10240));
 
   /* First header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -497,7 +497,7 @@ DEFINE_TEST(test_read_format_rar_multi_lzss_blocks)
   assert((a = archive_read_new()) != NULL);
   assertA(0 == archive_read_support_filter_all(a));
   assertA(0 == archive_read_support_format_all(a));
-  assertA(0 == archive_read_open_file(a, reffile, 10240));
+  assertA(0 == archive_read_open_filename(a, reffile, 10240));
 
   /* First header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -541,7 +541,7 @@ DEFINE_TEST(test_read_format_rar_compress_best)
   assert((a = archive_read_new()) != NULL);
   assertA(0 == archive_read_support_filter_all(a));
   assertA(0 == archive_read_support_format_all(a));
-  assertA(0 == archive_read_open_file(a, reffile, 10240));
+  assertA(0 == archive_read_open_filename(a, reffile, 10240));
 
   /* First header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -632,7 +632,7 @@ DEFINE_TEST(test_read_format_rar_ppmd_lzss_conversion)
   assert((a = archive_read_new()) != NULL);
   assertA(0 == archive_read_support_filter_all(a));
   assertA(0 == archive_read_support_format_all(a));
-  assertA(0 == archive_read_open_file(a, reffile, 10240));
+  assertA(0 == archive_read_open_filename(a, reffile, 10240));
 
   /* First header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -682,7 +682,7 @@ DEFINE_TEST(test_read_format_rar_binary)
   assert((a = archive_read_new()) != NULL);
   assertA(0 == archive_read_support_filter_all(a));
   assertA(0 == archive_read_support_format_all(a));
-  assertA(0 == archive_read_open_file(a, reffile, 10240));
+  assertA(0 == archive_read_open_filename(a, reffile, 10240));
 
   /* First header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -728,7 +728,7 @@ DEFINE_TEST(test_read_format_rar_windows)
   assert((a = archive_read_new()) != NULL);
   assertA(0 == archive_read_support_filter_all(a));
   assertA(0 == archive_read_support_format_all(a));
-  assertA(0 == archive_read_open_file(a, reffile, 10240));
+  assertA(0 == archive_read_open_filename(a, reffile, 10240));
 
   /* First header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -1018,7 +1018,7 @@ DEFINE_TEST(test_read_format_rar_sfx)
   assert((a = archive_read_new()) != NULL);
   assertA(0 == archive_read_support_filter_all(a));
   assertA(0 == archive_read_support_format_all(a));
-  assertA(0 == archive_read_open_file(a, reffile, 10240));
+  assertA(0 == archive_read_open_filename(a, reffile, 10240));
 
   /* First header. */
   assertA(0 == archive_read_next_header(a, &ae));

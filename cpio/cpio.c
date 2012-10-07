@@ -557,7 +557,7 @@ mode_out(struct cpio *cpio)
 	/*
 	 * The main loop:  Copy each file into the output archive.
 	 */
-	r = archive_write_open_file(cpio->archive, cpio->filename);
+	r = archive_write_open_filename(cpio->archive, cpio->filename);
 	if (r != ARCHIVE_OK)
 		lafe_errc(1, 0, "%s", archive_error_string(cpio->archive));
 	lr = lafe_line_reader("-", cpio->option_null);
@@ -917,7 +917,8 @@ mode_in(struct cpio *cpio)
 	archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
 
-	if (archive_read_open_file(a, cpio->filename, cpio->bytes_per_block))
+	if (archive_read_open_filename(a, cpio->filename,
+					cpio->bytes_per_block))
 		lafe_errc(1, archive_errno(a),
 		    "%s", archive_error_string(a));
 	for (;;) {
@@ -1019,7 +1020,8 @@ mode_list(struct cpio *cpio)
 	archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
 
-	if (archive_read_open_file(a, cpio->filename, cpio->bytes_per_block))
+	if (archive_read_open_filename(a, cpio->filename,
+					cpio->bytes_per_block))
 		lafe_errc(1, archive_errno(a),
 		    "%s", archive_error_string(a));
 	for (;;) {
