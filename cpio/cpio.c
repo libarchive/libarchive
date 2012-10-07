@@ -586,7 +586,7 @@ mode_out(struct cpio *cpio)
 
 	if (!cpio->quiet) {
 		int64_t blocks =
-			(archive_position_uncompressed(cpio->archive) + 511)
+			(archive_filter_bytes(cpio->archive, 0) + 511)
 			/ 512;
 		fprintf(stderr, "%lu %s\n", (unsigned long)blocks,
 		    blocks == 1 ? "block" : "blocks");
@@ -966,7 +966,7 @@ mode_in(struct cpio *cpio)
 	if (r != ARCHIVE_OK)
 		lafe_errc(1, 0, "%s", archive_error_string(ext));
 	if (!cpio->quiet) {
-		int64_t blocks = (archive_position_uncompressed(a) + 511)
+		int64_t blocks = (archive_filter_bytes(a, 0) + 511)
 			      / 512;
 		fprintf(stderr, "%lu %s\n", (unsigned long)blocks,
 		    blocks == 1 ? "block" : "blocks");
@@ -1041,7 +1041,7 @@ mode_list(struct cpio *cpio)
 	if (r != ARCHIVE_OK)
 		lafe_errc(1, 0, "%s", archive_error_string(a));
 	if (!cpio->quiet) {
-		int64_t blocks = (archive_position_uncompressed(a) + 511)
+		int64_t blocks = (archive_filter_bytes(a, 0) + 511)
 			      / 512;
 		fprintf(stderr, "%lu %s\n", (unsigned long)blocks,
 		    blocks == 1 ? "block" : "blocks");
@@ -1176,7 +1176,7 @@ mode_pass(struct cpio *cpio, const char *destdir)
 
 	if (!cpio->quiet) {
 		int64_t blocks =
-			(archive_position_uncompressed(cpio->archive) + 511)
+			(archive_filter_bytes(cpio->archive, 0) + 511)
 			/ 512;
 		fprintf(stderr, "%lu %s\n", (unsigned long)blocks,
 		    blocks == 1 ? "block" : "blocks");

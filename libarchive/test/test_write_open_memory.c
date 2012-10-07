@@ -74,7 +74,7 @@ DEFINE_TEST(test_write_open_memory)
 			assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 			assertEqualInt(used, archive_position_compressed(a));
 			assertEqualInt(archive_position_compressed(a),
-			    archive_position_uncompressed(a));
+			    archive_filter_bytes(a, 0));
 		}
 		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 		assertEqualInt(buff[i], 0xAE);
