@@ -650,8 +650,10 @@ __archive_read_programv(struct archive_read_filter *self, const char *cmd,
 	    archive_string_ensure(&state->description, l) == NULL) {
 		archive_set_error(&self->archive->archive, ENOMEM,
 		    "Can't allocate input data");
-		archive_string_free(&state->description);
-		free(state);
+		if (state != NULL) {
+			archive_string_free(&state->description);
+			free(state);
+		}
 		free(out_buf);
 		return (ARCHIVE_FATAL);
 	}

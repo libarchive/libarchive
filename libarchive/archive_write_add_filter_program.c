@@ -226,6 +226,7 @@ write_add_filter_programv(struct archive *_a, const char *cmd,
 	f->free = archive_compressor_program_free;
 	return (ARCHIVE_OK);
 memerr:
+	free(data);
 	archive_compressor_program_free(f);
 	archive_set_error(_a, ENOMEM,
 	    "Can't allocate memory for filter program");
