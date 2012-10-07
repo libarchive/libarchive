@@ -32,20 +32,14 @@ DEFINE_TEST(test_read_filter_lrzip)
 		"d1/", "d1/f1", "d1/f2", "d1/f3", "f1", "f2", "f3", NULL };
 	struct archive_entry *ae;
 	struct archive *a;
-	int i, r;
+	int i;
 
 	if (!canLrzip()) {
 		skipping("lrzip command-line program not found");
 	}
 
 	assert((a = archive_read_new()) != NULL);
-	r = archive_read_support_filter_lrzip(a);
-	if (r == ARCHIVE_WARN) {
-		skipping("lrzip reading not fully supported on this platform");
-		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-		return;
-	}
-	assertEqualIntA(a, ARCHIVE_OK, r);
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_support_filter_lrzip(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	extract_reference_file(name);
 	assertEqualIntA(a, ARCHIVE_OK,
@@ -56,10 +50,6 @@ DEFINE_TEST(test_read_filter_lrzip)
 		failure("Could not read file %d (%s) from %s", i, n[i], name);
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_next_header(a, &ae));
-		if (r != ARCHIVE_OK) {
-			archive_read_free(a);
-			return;
-		}
 		assertEqualString(n[i], archive_entry_pathname(ae));
 	}
 

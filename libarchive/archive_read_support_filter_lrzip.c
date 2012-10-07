@@ -48,7 +48,8 @@ __FBSDID("$FreeBSD$");
 #define LRZIP_HEADER_MAGIC "LRZI"
 #define LRZIP_HEADER_MAGIC_LEN 4
 
-static int	lrzip_bidder_bid(struct archive_read_filter_bidder *, struct archive_read_filter *);
+static int	lrzip_bidder_bid(struct archive_read_filter_bidder *,
+		    struct archive_read_filter *);
 static int	lrzip_bidder_init(struct archive_read_filter *);
 
 
@@ -58,7 +59,6 @@ lrzip_reader_free(struct archive_read_filter_bidder *self)
 	(void)self; /* UNUSED */
 	return (ARCHIVE_OK);
 }
-
 
 int
 archive_read_support_filter_lrzip(struct archive *_a)
@@ -77,14 +77,16 @@ archive_read_support_filter_lrzip(struct archive *_a)
 	reader->init = lrzip_bidder_init;
 	reader->options = NULL;
 	reader->free = lrzip_reader_free;
-	return (ARCHIVE_OK);
+	/* This filter always uses an external program. */
+	return (ARCHIVE_WARN);
 }
 
 /*
  * Bidder just verifies the header and returns the number of verified bits.
  */
 static int
-lrzip_bidder_bid(struct archive_read_filter_bidder *self, struct archive_read_filter *filter)
+lrzip_bidder_bid(struct archive_read_filter_bidder *self,
+    struct archive_read_filter *filter)
 {
 	const unsigned char *p;
 	ssize_t avail, len;

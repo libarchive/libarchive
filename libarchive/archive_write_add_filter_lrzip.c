@@ -27,25 +27,16 @@
 
 __FBSDID("$FreeBSD$");
 
-#ifdef HAVE_ERRNO_H
-#include <errno.h>
-#endif
-#ifdef HAVE_STDLIB_H
-#include <stdlib.h>
-#endif
-#ifdef HAVE_STRING_H
-#include <string.h>
-#endif
-#include <time.h>
-
 #include "archive.h"
-#include "archive_private.h"
-#include "archive_write_private.h"
-
 
 int
 archive_write_add_filter_lrzip(struct archive *a)
 {
-	return archive_write_add_filter_programl(a, "lrzip", "lrzip",
+	int r;
+	r = archive_write_add_filter_programl(a, "lrzip", "lrzip",
 		   "-q", NULL);
+	if (r == ARCHIVE_OK)
+		/* This filter always uses an external program. */
+		r = ARCHIVE_WARN;
+	return (r);
 }
