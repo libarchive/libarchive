@@ -37,6 +37,7 @@ DEFINE_TEST(test_read_filter_lzop)
 
 	if (!canLzop()) {
 		skipping("lzop command-line program not found");
+		return;
 	}
 
 	extract_reference_file(reference);

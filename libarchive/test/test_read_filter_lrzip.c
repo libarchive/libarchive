@@ -36,6 +36,7 @@ DEFINE_TEST(test_read_filter_lrzip)
 
 	if (!canLrzip()) {
 		skipping("lrzip command-line program not found");
+		return;
 	}
 
 	assert((a = archive_read_new()) != NULL);
