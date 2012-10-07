@@ -303,7 +303,6 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_compat_cpio.c			\
 	libarchive/test/test_compat_gtar.c			\
 	libarchive/test/test_compat_gzip.c			\
-	libarchive/test/test_compat_lrzip.c			\
 	libarchive/test/test_compat_lzip.c			\
 	libarchive/test/test_compat_lzma.c			\
 	libarchive/test/test_compat_mac.c			\
@@ -335,6 +334,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_filter_program.c		\
 	libarchive/test/test_read_filter_program_signature.c	\
 	libarchive/test/test_read_filter_uudecode.c		\
+	libarchive/test/test_read_filter_lrzip.c		\
 	libarchive/test/test_read_filter_lzop.c			\
 	libarchive/test/test_read_format_7zip.c			\
 	libarchive/test/test_read_format_ar.c			\
