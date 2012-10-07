@@ -125,7 +125,7 @@ progress_func(void *cookie)
 	if (bsdtar->verbose)
 		fprintf(stderr, "\n");
 	if (a != NULL) {
-		comp = archive_position_compressed(a);
+		comp = archive_filter_bytes(a, -1);
 		uncomp = archive_filter_bytes(a, 0);
 		if (comp > uncomp)
 			compression = 0;

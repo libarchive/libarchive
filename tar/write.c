@@ -553,7 +553,7 @@ cleanup:
 
 	if (bsdtar->option_totals) {
 		fprintf(stderr, "Total bytes written: %s\n",
-		    tar_i64toa(archive_position_compressed(a)));
+		    tar_i64toa(archive_filter_bytes(a, -1)));
 	}
 
 	archive_write_free(a);
@@ -951,7 +951,7 @@ report_write(struct bsdtar *bsdtar, struct archive *a,
 
 	if (bsdtar->verbose)
 		fprintf(stderr, "\n");
-	comp = archive_position_compressed(a);
+	comp = archive_filter_bytes(a, -1);
 	uncomp = archive_filter_bytes(a, 0);
 	fprintf(stderr, "In: %d files, %s bytes;",
 	    archive_file_count(a), tar_i64toa(uncomp));
