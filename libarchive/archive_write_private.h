@@ -133,4 +133,8 @@ __archive_write_format_header_ustar(struct archive_write *, char buff[512],
     struct archive_entry *, int tartype, int strict,
     struct archive_string_conv *);
 
+int
+__archive_write_programv(struct archive *, const char *, int, const char *,
+    char * const *);
+
 #endif

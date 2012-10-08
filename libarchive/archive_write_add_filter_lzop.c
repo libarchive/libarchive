@@ -28,12 +28,16 @@
 __FBSDID("$FreeBSD$");
 
 #include "archive.h"
+#include "archive_write_private.h"
 
 int
 archive_write_add_filter_lzop(struct archive *a)
 {
+	char * const argv[] = { "lzop", NULL };
 	int r;
-	r = archive_write_add_filter_programl(a, "lzop", "lzop", NULL);
+
+	r = __archive_write_programv(a, "lzop", ARCHIVE_FILTER_LZOP,
+		"lzop", argv);
 	/* Return ARCHIVE_WARN since this always uses an external program. */
 	if (r == ARCHIVE_OK)
 		r = ARCHIVE_WARN;

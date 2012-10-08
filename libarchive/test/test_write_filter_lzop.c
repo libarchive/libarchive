@@ -64,8 +64,8 @@ DEFINE_TEST(test_write_filter_lzop)
 	assertEqualIntA(a, ARCHIVE_OK,
 		archive_write_set_bytes_in_last_block(a, blocksize));
 	assertEqualInt(blocksize, archive_write_get_bytes_in_last_block(a));
-	assertEqualInt(ARCHIVE_FILTER_PROGRAM, archive_filter_code(a, 0));
-	assertEqualString("Program: lzop lzop", archive_filter_name(a, 0));
+	assertEqualInt(ARCHIVE_FILTER_LZOP, archive_filter_code(a, 0));
+	assertEqualString("lzop", archive_filter_name(a, 0));
 	assertEqualIntA(a, ARCHIVE_OK,
 		archive_write_open_memory(a, buff, buffsize, &used1));
 	assertEqualInt(blocksize, archive_write_get_bytes_in_last_block(a));

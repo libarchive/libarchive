@@ -60,8 +60,8 @@ DEFINE_TEST(test_write_filter_lrzip)
 	assertEqualIntA(a, ARCHIVE_WARN, archive_write_add_filter_lrzip(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 		archive_write_set_bytes_per_block(a, 10));
-	assertEqualInt(ARCHIVE_FILTER_PROGRAM, archive_filter_code(a, 0));
-	assertEqualString("Program: lrzip lrzip -q", archive_filter_name(a, 0));
+	assertEqualInt(ARCHIVE_FILTER_LRZIP, archive_filter_code(a, 0));
+	assertEqualString("lrzip", archive_filter_name(a, 0));
 	assertEqualIntA(a, ARCHIVE_OK,
 		archive_write_open_memory(a, buff, buffsize, &used1));
 	assert((ae = archive_entry_new()) != NULL);

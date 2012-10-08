@@ -28,13 +28,16 @@
 __FBSDID("$FreeBSD$");
 
 #include "archive.h"
+#include "archive_write_private.h"
 
 int
 archive_write_add_filter_lrzip(struct archive *a)
 {
+	char * const argv[] = { "lrzip", "-q", NULL };
 	int r;
-	r = archive_write_add_filter_programl(a, "lrzip", "lrzip",
-		   "-q", NULL);
+
+	r = __archive_write_programv(a, "lrzip", ARCHIVE_FILTER_LRZIP,
+		"lrzip", argv);
 	if (r == ARCHIVE_OK)
 		/* This filter always uses an external program. */
 		r = ARCHIVE_WARN;

@@ -78,8 +78,6 @@ static int archive_compressor_program_write(struct archive_write_filter *,
 		    const void *, size_t);
 static int archive_compressor_program_close(struct archive_write_filter *);
 static int archive_compressor_program_free(struct archive_write_filter *);
-static int write_add_filter_programv(struct archive *, const char *,
-    char * const *);
 
 /*
  * Add a filter to this write handle that passes all data through an
@@ -101,7 +99,8 @@ archive_write_add_filter_program(struct archive *_a, const char *cmd)
 		return (ARCHIVE_FATAL);
 	}
 	argv[1] = NULL;
-	r = write_add_filter_programv(_a, cmd, argv);
+	r = __archive_write_programv(_a, NULL, ARCHIVE_FILTER_PROGRAM,
+		cmd, argv);
 	free(argv[0]);
 	return (r);
 }
@@ -150,7 +149,8 @@ archive_write_add_filter_programl(struct archive *_a, const char *cmd,
 		argv[1] = NULL;
 	}
 
-	r = write_add_filter_programv(_a, cmd, argv);
+	r = __archive_write_programv(_a, NULL, ARCHIVE_FILTER_PROGRAM,
+		cmd, argv);
 	for (i = 0; argv[i] != NULL; i++)
 		free(argv[i]);
 	free(argv);
@@ -174,12 +174,13 @@ archive_write_add_filter_programv(struct archive *_a, const char *cmd,
 	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_add_filter_programv");
 
-	return write_add_filter_programv(_a, cmd, argv);
+	return __archive_write_programv(_a, NULL, ARCHIVE_FILTER_PROGRAM,
+		   cmd, argv);
 }
 
-static int
-write_add_filter_programv(struct archive *_a, const char *cmd,
-    char * const argv[])
+int
+__archive_write_programv(struct archive *_a, const char *name, int code,
+    const char *cmd, char * const argv[])
 {
 
 	struct archive_write_filter *f = __archive_write_allocate_filter(_a);
@@ -209,20 +210,22 @@ write_add_filter_programv(struct archive *_a, const char *cmd,
 		l += strlen(data->argv[i]) + 1;
 	}
 
-	/* Make up a description string. */
-	if (archive_string_ensure(&data->description, l) == NULL)
-		goto memerr;
-	archive_strcpy(&data->description, prefix);
-	archive_strcat(&data->description, cmd);
-	for (i = 0; argv[i] != NULL; i++) {
-		archive_strappend_char(&data->description, ' ');
-		archive_strcat(&data->description, data->argv[i]);
-	}
-
-	f->name = data->description.s;
+	if (name == NULL) {
+		/* Make up a description string. */
+		if (archive_string_ensure(&data->description, l) == NULL)
+			goto memerr;
+		archive_strcpy(&data->description, prefix);
+		archive_strcat(&data->description, cmd);
+		for (i = 0; argv[i] != NULL; i++) {
+			archive_strappend_char(&data->description, ' ');
+			archive_strcat(&data->description, data->argv[i]);
+		}
+		f->name = data->description.s;
+	} else
+		f->name = name;
+	f->code = code;
 	f->data = data;
 	f->open = &archive_compressor_program_open;
-	f->code = ARCHIVE_COMPRESSION_PROGRAM;
 	f->free = archive_compressor_program_free;
 	return (ARCHIVE_OK);
 memerr:
