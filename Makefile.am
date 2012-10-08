@@ -199,7 +199,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_write_set_format_zip.c		\
 	libarchive/archive_write_set_options.c			\
 	libarchive/config_freebsd.h				\
-	libarchive/filter_fork.c				\
+	libarchive/filter_fork_posix.c				\
 	libarchive/filter_fork.h
 
 if INC_WINDOWS_FILES

@@ -122,7 +122,7 @@ SET(libarchive_SOURCES
   archive_write_set_format_xar.c
   archive_write_set_format_zip.c
   archive_write_set_options.c
-  filter_fork.c
+  filter_fork_posix.c
   filter_fork.h
 )
 
