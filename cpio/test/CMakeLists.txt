@@ -13,6 +13,14 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     test_0.c
     test_basic.c
     test_cmdline.c
+    test_extract_cpio_Z
+    test_extract_cpio_bz2
+    test_extract_cpio_gz
+    test_extract_cpio_lrz
+    test_extract_cpio_lz
+    test_extract_cpio_lzma
+    test_extract_cpio_lzo
+    test_extract_cpio_xz
     test_format_newc.c
     test_gcpio_compat.c
     test_option_0.c

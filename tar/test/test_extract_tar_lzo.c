@@ -25,14 +25,14 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-DEFINE_TEST(test_extract_tar_lrz)
+DEFINE_TEST(test_extract_tar_lzo)
 {
-	const char *reffile = "test_extract.tar.lrz";
+	const char *reffile = "test_extract.tar.lzo";
 	int f;
 
 	extract_reference_file(reffile);
 	f = systemf("%s -tf %s >test.out 2>test.err", testprog, reffile);
-	if (f == 0 || canLrzip()) {
+	if (f == 0 || canLzop()) {
 		assertEqualInt(0, systemf("%s -xf %s >test.out 2>test.err",
 		    testprog, reffile));
 

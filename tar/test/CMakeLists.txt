@@ -12,11 +12,13 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_basic.c
     test_copy.c
     test_empty_mtree.c
+    test_extract_tar_Z.c
     test_extract_tar_bz2.c
     test_extract_tar_gz.c
     test_extract_tar_lrz.c
     test_extract_tar_lz.c
     test_extract_tar_lzma.c
+    test_extract_tar_lzo.c
     test_extract_tar_xz.c
     test_format_newc.c
     test_help.c

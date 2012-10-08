@@ -710,11 +710,13 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_basic.c					\
 	tar/test/test_copy.c					\
 	tar/test/test_empty_mtree.c				\
+	tar/test/test_extract_tar_Z.c				\
 	tar/test/test_extract_tar_bz2.c				\
 	tar/test/test_extract_tar_gz.c				\
 	tar/test/test_extract_tar_lrz.c				\
 	tar/test/test_extract_tar_lz.c				\
 	tar/test/test_extract_tar_lzma.c			\
+	tar/test/test_extract_tar_lzo.c				\
 	tar/test/test_extract_tar_xz.c				\
 	tar/test/test_format_newc.c				\
 	tar/test/test_help.c					\
@@ -771,6 +773,14 @@ endif
 
 bsdtar_test_EXTRA_DIST=			\
 	tar/test/list.h \
+	tar/test/test_extract.tar.Z.uu	 \
+	tar/test/test_extract.tar.bz2.uu \
+	tar/test/test_extract.tar.gz.uu	 \
+	tar/test/test_extract.tar.lrz.uu \
+	tar/test/test_extract.tar.lz.uu  \
+	tar/test/test_extract.tar.lzma.uu \
+	tar/test/test_extract.tar.lzo.uu \
+	tar/test/test_extract.tar.xz.uu \
 	tar/test/test_option_keep_newer_files.tar.Z.uu \
 	tar/test/test_option_s.tar.Z.uu \
 	tar/test/test_patterns_2.tar.uu	\
@@ -842,6 +852,14 @@ bsdcpio_test_SOURCES=						\
 	cpio/test/test_0.c					\
 	cpio/test/test_basic.c					\
 	cpio/test/test_cmdline.c				\
+	cpio/test/test_extract_cpio_Z.c				\
+	cpio/test/test_extract_cpio_bz2.c			\
+	cpio/test/test_extract_cpio_gz.c			\
+	cpio/test/test_extract_cpio_lrz.c			\
+	cpio/test/test_extract_cpio_lz.c			\
+	cpio/test/test_extract_cpio_lzma.c			\
+	cpio/test/test_extract_cpio_lzo.c			\
+	cpio/test/test_extract_cpio_xz.c			\
 	cpio/test/test_format_newc.c				\
 	cpio/test/test_gcpio_compat.c				\
 	cpio/test/test_option_0.c				\
@@ -892,6 +910,14 @@ endif
 
 bsdcpio_test_EXTRA_DIST=			\
 	cpio/test/list.h	\
+	cpio/test/test_extract.cpio.Z.uu	\
+	cpio/test/test_extract.cpio.bz2.uu	\
+	cpio/test/test_extract.cpio.gz.uu	\
+	cpio/test/test_extract.cpio.lrz.uu	\
+	cpio/test/test_extract.cpio.lz.uu	\
+	cpio/test/test_extract.cpio.lzma.uu	\
+	cpio/test/test_extract.cpio.lzo.uu	\
+	cpio/test/test_extract.cpio.xz.uu	\
 	cpio/test/test_gcpio_compat_ref.bin.uu	\
 	cpio/test/test_gcpio_compat_ref.crc.uu	\
 	cpio/test/test_gcpio_compat_ref.newc.uu	\
