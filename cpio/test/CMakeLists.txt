@@ -33,6 +33,7 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     test_option_m.c
     test_option_t.c
     test_option_u.c
+    test_option_uuencode.c
     test_option_version.c
     test_option_xz.c
     test_option_y.c

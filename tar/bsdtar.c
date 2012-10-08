@@ -572,6 +572,9 @@ main(int argc, char **argv)
 		case OPTION_UNAME: /* cpio */
 			bsdtar->uname = bsdtar->argument;
 			break;
+		case OPTION_UUENCODE:
+			bsdtar->add_filter = opt;
+			break;
 		case 'v': /* SUSv2 */
 			bsdtar->verbose++;
 			break;

@@ -627,6 +627,7 @@ __LA_DECL int archive_write_add_filter_programl(struct archive *,
 		     const char *cmd, const char *arg, .../*, (char *)0 */);
 __LA_DECL int archive_write_add_filter_programv(struct archive *,
 		     const char *cmd, char * const argv[]);
+__LA_DECL int archive_write_add_filter_uuencode(struct archive *);
 __LA_DECL int archive_write_add_filter_xz(struct archive *);
 
 

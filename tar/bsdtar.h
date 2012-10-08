@@ -58,6 +58,7 @@ struct bsdtar {
 	char		  symlink_mode; /* H or L, per BSD conventions */
 	char		  create_compression; /* j, y, or z */
 	const char	 *compress_program;
+	char		  add_filter; /* uuencode */
 	char		  option_absolute_paths; /* -P */
 	char		  option_chroot; /* --chroot */
 	char		  option_fast_read; /* --fast-read */
@@ -147,6 +148,7 @@ enum {
 	OPTION_UID,
 	OPTION_UNAME,
 	OPTION_USE_COMPRESS_PROGRAM,
+	OPTION_UUENCODE,
 	OPTION_VERSION
 };
 

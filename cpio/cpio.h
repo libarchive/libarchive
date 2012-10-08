@@ -44,6 +44,7 @@ struct cpio {
 	const char	 *argument;
 
 	/* Options */
+	int		  add_filter; /* --uuencode */
 	const char	 *filename;
 	int		  mode; /* -i -o -p */
 	int		  compress; /* -j, -y, or -z */
@@ -103,6 +104,7 @@ enum {
 	OPTION_NO_PRESERVE_OWNER,
 	OPTION_PRESERVE_OWNER,
 	OPTION_QUIET,
+	OPTION_UUENCODE,
 	OPTION_VERSION
 };
 

@@ -168,6 +168,8 @@ tar_mode_c(struct bsdtar *bsdtar)
 	if (bsdtar->compress_program) {
 		archive_write_add_filter_program(a, bsdtar->compress_program);
 	} else {
+		const char *name;
+
 		switch (bsdtar->create_compression) {
 		case 0:
 			r = ARCHIVE_OK;
@@ -205,6 +207,23 @@ tar_mode_c(struct bsdtar *bsdtar)
 			lafe_errc(1, 0,
 			    "Unsupported compression option -%c",
 			    bsdtar->create_compression);
+		}
+		switch (bsdtar->add_filter) {
+		case 0:
+			r = ARCHIVE_OK;
+			break;
+		case OPTION_UUENCODE:
+			r = archive_write_add_filter_uuencode(a);
+			name = "uuencode";
+			break;
+		default:
+			lafe_errc(1, 0,
+			    "Unrecognized compression option -%c",
+			    bsdtar->add_filter);
+		}
+		if (r < ARCHIVE_WARN) {
+			lafe_errc(1, 0,
+			    "Unsupported filter option --%s", name);
 		}
 	}
 

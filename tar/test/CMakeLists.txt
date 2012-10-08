@@ -43,6 +43,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_option_r.c
     test_option_s.c
     test_option_uid_uname.c
+    test_option_uuencode.c
     test_option_xz.c
     test_patterns.c
     test_print_longpath.c

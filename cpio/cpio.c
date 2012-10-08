@@ -328,6 +328,9 @@ main(int argc, char *argv[])
 			cpio->extract_flags
 			    &= ~ARCHIVE_EXTRACT_NO_OVERWRITE_NEWER;
 			break;
+		case OPTION_UUENCODE:
+			cpio->add_filter = opt;
+			break;
 		case 'v': /* POSIX 1997 */
 			cpio->verbose++;
 			break;
@@ -546,6 +549,16 @@ mode_out(struct cpio *cpio)
 	}
 	if (r < ARCHIVE_WARN)
 		lafe_errc(1, 0, "Requested compression not available");
+	switch (cpio->add_filter) {
+	case 0:
+		r = ARCHIVE_OK;
+		break;
+	case OPTION_UUENCODE:
+		r = archive_write_add_filter_uuencode(cpio->archive);
+		break;
+	}
+	if (r < ARCHIVE_WARN)
+		lafe_errc(1, 0, "Requested filter not available");
 	r = archive_write_set_format_by_name(cpio->archive, cpio->format);
 	if (r != ARCHIVE_OK)
 		lafe_errc(1, 0, "%s", archive_error_string(cpio->archive));

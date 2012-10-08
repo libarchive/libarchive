@@ -180,6 +180,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_write_add_filter_lzop.c		\
 	libarchive/archive_write_add_filter_none.c		\
 	libarchive/archive_write_add_filter_program.c	\
+	libarchive/archive_write_add_filter_uuencode.c		\
 	libarchive/archive_write_add_filter_xz.c		\
 	libarchive/archive_write_set_format.c			\
 	libarchive/archive_write_set_format_7zip.c		\
@@ -419,6 +420,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_disk_sparse.c		\
 	libarchive/test/test_write_disk_symlink.c		\
 	libarchive/test/test_write_disk_times.c			\
+	libarchive/test/test_write_filter_uuencode.c		\
 	libarchive/test/test_write_format_7zip.c		\
 	libarchive/test/test_write_format_ar.c			\
 	libarchive/test/test_write_format_cpio.c		\
@@ -737,6 +739,7 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_option_r.c				\
 	tar/test/test_option_s.c				\
 	tar/test/test_option_uid_uname.c			\
+	tar/test/test_option_uuencode.c				\
 	tar/test/test_option_xz.c				\
 	tar/test/test_patterns.c				\
 	tar/test/test_print_longpath.c				\
@@ -856,6 +859,7 @@ bsdcpio_test_SOURCES=						\
 	cpio/test/test_option_m.c				\
 	cpio/test/test_option_t.c				\
 	cpio/test/test_option_u.c				\
+	cpio/test/test_option_uuencode.c			\
 	cpio/test/test_option_version.c				\
 	cpio/test/test_option_xz.c				\
 	cpio/test/test_option_y.c				\

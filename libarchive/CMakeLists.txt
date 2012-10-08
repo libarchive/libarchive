@@ -104,6 +104,7 @@ SET(libarchive_SOURCES
   archive_write_add_filter_lzop.c
   archive_write_add_filter_none.c
   archive_write_add_filter_program.c
+  archive_write_add_filter_uuencode.c
   archive_write_add_filter_xz.c
   archive_write_set_format.c
   archive_write_set_format_7zip.c

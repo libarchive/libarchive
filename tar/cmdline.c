@@ -137,6 +137,7 @@ static const struct bsdtar_option {
 	{ "unlink-first",	  0, 'U' },
 	{ "update",               0, 'u' },
 	{ "use-compress-program", 1, OPTION_USE_COMPRESS_PROGRAM },
+	{ "uuencode",             0, OPTION_UUENCODE },
 	{ "verbose",              0, 'v' },
 	{ "version",              0, OPTION_VERSION },
 	{ "xz",                   0, 'J' },

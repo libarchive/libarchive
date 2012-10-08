@@ -83,6 +83,7 @@ static const struct option {
 	{ "preserve-owner",		0, OPTION_PRESERVE_OWNER },
 	{ "quiet",			0, OPTION_QUIET },
 	{ "unconditional",		0, 'u' },
+	{ "uuencode",			0, OPTION_UUENCODE },
 	{ "verbose",			0, 'v' },
 	{ "version",			0, OPTION_VERSION },
 	{ "xz",				0, 'J' },
