@@ -173,6 +173,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_write_open_memory.c			\
 	libarchive/archive_write_private.h			\
 	libarchive/archive_write_add_filter.c			\
+	libarchive/archive_write_add_filter_b64encode.c		\
 	libarchive/archive_write_add_filter_bzip2.c	\
 	libarchive/archive_write_add_filter_compress.c	\
 	libarchive/archive_write_add_filter_gzip.c		\
@@ -420,6 +421,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_disk_sparse.c		\
 	libarchive/test/test_write_disk_symlink.c		\
 	libarchive/test/test_write_disk_times.c			\
+	libarchive/test/test_write_filter_b64encode.c		\
 	libarchive/test/test_write_filter_uuencode.c		\
 	libarchive/test/test_write_format_7zip.c		\
 	libarchive/test/test_write_format_ar.c			\
@@ -724,6 +726,7 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_option_U_upper.c				\
 	tar/test/test_option_X_upper.c				\
 	tar/test/test_option_b.c				\
+	tar/test/test_option_b64encode.c			\
 	tar/test/test_option_exclude.c				\
 	tar/test/test_option_gid_gname.c			\
 	tar/test/test_option_k.c				\
@@ -848,6 +851,7 @@ bsdcpio_test_SOURCES=						\
 	cpio/test/test_option_L_upper.c				\
 	cpio/test/test_option_Z_upper.c				\
 	cpio/test/test_option_a.c				\
+	cpio/test/test_option_b64encode.c			\
 	cpio/test/test_option_c.c				\
 	cpio/test/test_option_d.c				\
 	cpio/test/test_option_f.c				\

@@ -207,6 +207,9 @@ main(int argc, char *argv[])
 		case 'B': /* POSIX 1997 */
 			cpio->bytes_per_block = 5120;
 			break;
+		case OPTION_B64ENCODE:
+			cpio->add_filter = opt;
+			break;
 		case 'C': /* NetBSD/OpenBSD */
 			cpio->bytes_per_block = atoi(cpio->argument);
 			if (cpio->bytes_per_block <= 0)
@@ -552,6 +555,9 @@ mode_out(struct cpio *cpio)
 	switch (cpio->add_filter) {
 	case 0:
 		r = ARCHIVE_OK;
+		break;
+	case OPTION_B64ENCODE:
+		r = archive_write_add_filter_b64encode(cpio->archive);
 		break;
 	case OPTION_UUENCODE:
 		r = archive_write_add_filter_uuencode(cpio->archive);

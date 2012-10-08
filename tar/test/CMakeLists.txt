@@ -28,6 +28,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_option_U_upper.c
     test_option_X_upper.c
     test_option_b.c
+    test_option_b64encode.c
     test_option_exclude.c
     test_option_gid_gname.c
     test_option_k.c

@@ -61,6 +61,7 @@ static const struct option {
 	int required;	/* 1 if this option requires an argument */
 	int equivalent;	/* Equivalent short option. */
 } cpio_longopts[] = {
+	{ "b64encode",			0, OPTION_B64ENCODE },
 	{ "create",			0, 'o' },
 	{ "dot",			0, 'V' },
 	{ "extract",			0, 'i' },

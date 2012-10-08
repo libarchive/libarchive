@@ -22,6 +22,7 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     test_option_L_upper.c
     test_option_Z_upper.c
     test_option_a.c
+    test_option_b64encode.c
     test_option_c.c
     test_option_d.c
     test_option_f.c

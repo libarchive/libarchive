@@ -168,7 +168,7 @@ tar_mode_c(struct bsdtar *bsdtar)
 	if (bsdtar->compress_program) {
 		archive_write_add_filter_program(a, bsdtar->compress_program);
 	} else {
-		const char *name;
+		const char *name = "?";
 
 		switch (bsdtar->create_compression) {
 		case 0:
@@ -211,6 +211,10 @@ tar_mode_c(struct bsdtar *bsdtar)
 		switch (bsdtar->add_filter) {
 		case 0:
 			r = ARCHIVE_OK;
+			break;
+		case OPTION_B64ENCODE:
+			r = archive_write_add_filter_b64encode(a);
+			name = "b64encode";
 			break;
 		case OPTION_UUENCODE:
 			r = archive_write_add_filter_uuencode(a);

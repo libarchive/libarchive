@@ -112,7 +112,8 @@ struct bsdtar {
 
 /* Fake short equivalents for long options that otherwise lack them. */
 enum {
-	OPTION_CHECK_LINKS = 1,
+	OPTION_B64ENCODE = 1,
+	OPTION_CHECK_LINKS,
 	OPTION_CHROOT,
 	OPTION_DISABLE_COPYFILE,
 	OPTION_EXCLUDE,

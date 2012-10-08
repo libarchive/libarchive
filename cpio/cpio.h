@@ -97,7 +97,8 @@ const char *owner_parse(const char *, int *, int *);
 
 /* Fake short equivalents for long options that otherwise lack them. */
 enum {
-	OPTION_INSECURE = 1,
+	OPTION_B64ENCODE = 1,
+	OPTION_INSECURE,
 	OPTION_LRZIP,
 	OPTION_LZMA,
 	OPTION_LZOP,

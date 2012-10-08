@@ -65,6 +65,7 @@ static const struct bsdtar_option {
 } tar_longopts[] = {
 	{ "absolute-paths",       0, 'P' },
 	{ "append",               0, 'r' },
+	{ "b64encode",            0, OPTION_B64ENCODE },
 	{ "block-size",           1, 'b' },
 	{ "bunzip2",              0, 'j' },
 	{ "bzip",                 0, 'j' },
