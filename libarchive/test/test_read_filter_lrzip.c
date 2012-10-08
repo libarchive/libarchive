@@ -26,7 +26,7 @@
 
 DEFINE_TEST(test_read_filter_lrzip)
 {
-	const char *name = "test_compat_lrzip.tar.lrz";
+	const char *name = "test_read_filter_lrzip.tar.lrz";
 	/* lrzip tracks directories as files, ensure that we list everything */
 	const char *n[] = {
 		"d1/", "d1/f1", "d1/f2", "d1/f3", "f1", "f2", "f3", NULL };
