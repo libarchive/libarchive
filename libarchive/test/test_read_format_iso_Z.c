@@ -45,7 +45,7 @@ test1(void)
 	    archive_read_next_header(a, &ae));
 	assertEqualInt(1, archive_file_count(a));
 	assertEqualInt(archive_filter_code(a, 0),
-	    ARCHIVE_COMPRESSION_COMPRESS);
+	    ARCHIVE_FILTER_COMPRESS);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_ISO9660);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
@@ -86,7 +86,7 @@ test2(void)
 	    archive_read_next_header(a, &ae));
 	assertEqualInt(5, archive_file_count(a));
 	assertEqualInt(archive_filter_code(a, 0),
-	    ARCHIVE_COMPRESSION_COMPRESS);
+	    ARCHIVE_FILTER_COMPRESS);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_ISO9660);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));

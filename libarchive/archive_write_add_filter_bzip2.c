@@ -115,7 +115,7 @@ archive_write_add_filter_bzip2(struct archive *_a)
 	f->close = &archive_compressor_bzip2_close;
 	f->free = &archive_compressor_bzip2_free;
 	f->open = &archive_compressor_bzip2_open;
-	f->code = ARCHIVE_COMPRESSION_BZIP2;
+	f->code = ARCHIVE_FILTER_BZIP2;
 	f->name = "bzip2";
 	return (ARCHIVE_OK);
 }

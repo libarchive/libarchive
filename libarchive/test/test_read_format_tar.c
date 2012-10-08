@@ -70,7 +70,7 @@ static void verifyEmpty(void)
 	assertA(0 == archive_read_support_format_all(a));
 	assertA(0 == archive_read_open_memory(a, archiveEmpty, 512));
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
-	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_COMPRESSION_NONE);
+	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_NONE);
 	assertEqualString(archive_filter_name(a, 0), "none");
 	failure("512 zero bytes should be recognized as a tar archive.");
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR);
@@ -452,21 +452,21 @@ DEFINE_TEST(test_read_format_tar)
 {
 	verifyEmpty();
 	verify(archive1, sizeof(archive1), verify1,
-	    ARCHIVE_COMPRESSION_NONE, ARCHIVE_FORMAT_TAR_USTAR);
+	    ARCHIVE_FILTER_NONE, ARCHIVE_FORMAT_TAR_USTAR);
 	verify(archive2, sizeof(archive2), verify2,
-	    ARCHIVE_COMPRESSION_NONE, ARCHIVE_FORMAT_TAR_USTAR);
+	    ARCHIVE_FILTER_NONE, ARCHIVE_FORMAT_TAR_USTAR);
 	verify(archive3, sizeof(archive3), verify3,
-	    ARCHIVE_COMPRESSION_NONE, ARCHIVE_FORMAT_TAR_USTAR);
+	    ARCHIVE_FILTER_NONE, ARCHIVE_FORMAT_TAR_USTAR);
 	verify(archive4, sizeof(archive4), verify4,
-	    ARCHIVE_COMPRESSION_NONE, ARCHIVE_FORMAT_TAR_USTAR);
+	    ARCHIVE_FILTER_NONE, ARCHIVE_FORMAT_TAR_USTAR);
 	verify(archive5, sizeof(archive5), verify5,
-	    ARCHIVE_COMPRESSION_NONE, ARCHIVE_FORMAT_TAR_USTAR);
+	    ARCHIVE_FILTER_NONE, ARCHIVE_FORMAT_TAR_USTAR);
 	verify(archive6, sizeof(archive6), verify6,
-	    ARCHIVE_COMPRESSION_NONE, ARCHIVE_FORMAT_TAR_USTAR);
+	    ARCHIVE_FILTER_NONE, ARCHIVE_FORMAT_TAR_USTAR);
 	verify(archiveK, sizeof(archiveK), verifyK,
-	    ARCHIVE_COMPRESSION_NONE, ARCHIVE_FORMAT_TAR_GNUTAR);
+	    ARCHIVE_FILTER_NONE, ARCHIVE_FORMAT_TAR_GNUTAR);
 	verify(archivexL, sizeof(archivexL), verifyxL,
-	    ARCHIVE_COMPRESSION_NONE, ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE);
+	    ARCHIVE_FILTER_NONE, ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE);
 }
 
 

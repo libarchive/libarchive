@@ -664,7 +664,7 @@ __archive_read_programv(struct archive_read_filter *self, const char *cmd,
 		archive_strcat(&state->description, argv[i]);
 	}
 
-	self->code = ARCHIVE_COMPRESSION_PROGRAM;
+	self->code = ARCHIVE_FILTER_PROGRAM;
 	self->name = state->description.s;
 
 	state->out_buf = out_buf;

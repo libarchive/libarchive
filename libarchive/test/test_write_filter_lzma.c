@@ -62,11 +62,11 @@ DEFINE_TEST(test_write_filter_lzma)
 	}
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_bytes_per_block(a, 10));
-	assertEqualInt(ARCHIVE_COMPRESSION_LZMA, archive_filter_code(a, 0));
+	assertEqualInt(ARCHIVE_FILTER_LZMA, archive_filter_code(a, 0));
 	assertEqualString("lzma", archive_filter_name(a, 0));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used1));
-	assertEqualInt(ARCHIVE_COMPRESSION_LZMA, archive_filter_code(a, 0));
+	assertEqualInt(ARCHIVE_FILTER_LZMA, archive_filter_code(a, 0));
 	assertEqualString("lzma", archive_filter_name(a, 0));
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_set_filetype(ae, AE_IFREG);

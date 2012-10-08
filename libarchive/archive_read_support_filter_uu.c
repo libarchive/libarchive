@@ -378,7 +378,7 @@ uudecode_bidder_init(struct archive_read_filter *self)
 	void *out_buff;
 	void *in_buff;
 
-	self->code = ARCHIVE_COMPRESSION_UU;
+	self->code = ARCHIVE_FILTER_UU;
 	self->name = "uu";
 	self->read = uudecode_filter_read;
 	self->skip = NULL; /* not supported */

@@ -69,7 +69,7 @@ compat_xz(const char *name)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify that the format detection worked. */
-	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_COMPRESSION_XZ);
+	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_XZ);
 	assertEqualString(archive_filter_name(a, 0), "xz");
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
 

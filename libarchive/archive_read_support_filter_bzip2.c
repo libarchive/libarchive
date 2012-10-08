@@ -174,7 +174,7 @@ bzip2_reader_init(struct archive_read_filter *self)
 	/* Note: We set the format here even if __archive_read_programl()
 	 * above fails.  We do, after all, know what the format is
 	 * even if we weren't able to read it. */
-	self->code = ARCHIVE_COMPRESSION_BZIP2;
+	self->code = ARCHIVE_FILTER_BZIP2;
 	self->name = "bzip2";
 	return (r);
 }
@@ -192,7 +192,7 @@ bzip2_reader_init(struct archive_read_filter *self)
 	void *out_block;
 	struct private_data *state;
 
-	self->code = ARCHIVE_COMPRESSION_BZIP2;
+	self->code = ARCHIVE_FILTER_BZIP2;
 	self->name = "bzip2";
 
 	state = (struct private_data *)calloc(sizeof(*state), 1);

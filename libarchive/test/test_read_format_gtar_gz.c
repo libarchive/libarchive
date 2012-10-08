@@ -52,7 +52,7 @@ DEFINE_TEST(test_read_format_gtar_gz)
 	assertEqualInt(ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt(1, archive_file_count(a));
 	assertEqualInt(archive_filter_code(a, 0),
-	    ARCHIVE_COMPRESSION_GZIP);
+	    ARCHIVE_FILTER_GZIP);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_GNUTAR);
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));

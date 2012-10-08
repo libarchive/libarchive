@@ -115,7 +115,7 @@ archive_write_add_filter_gzip(struct archive *_a)
 	f->options = &archive_compressor_gzip_options;
 	f->close = &archive_compressor_gzip_close;
 	f->free = &archive_compressor_gzip_free;
-	f->code = ARCHIVE_COMPRESSION_GZIP;
+	f->code = ARCHIVE_FILTER_GZIP;
 	f->name = "gzip";
 	return (ARCHIVE_OK);
 }

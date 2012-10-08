@@ -500,7 +500,7 @@ archive_read_open1(struct archive *_a)
 	filter->close = client_close_proxy;
 	filter->sswitch = client_switch_proxy;
 	filter->name = "none";
-	filter->code = ARCHIVE_COMPRESSION_NONE;
+	filter->code = ARCHIVE_FILTER_NONE;
 	a->filter = filter;
 
 	client_switch_proxy(a->filter, 0);

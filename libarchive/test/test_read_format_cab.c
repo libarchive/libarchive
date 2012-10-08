@@ -260,7 +260,7 @@ verify(const char *refname, enum comp_type comp)
 	}
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_filter_code(a, 0));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_CAB, archive_format(a));
 
 	/* Close the archive. */
@@ -321,7 +321,7 @@ verify2(const char *refname, enum comp_type comp)
 	}
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_filter_code(a, 0));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_CAB, archive_format(a));
 
 	/* Close the archive. */
@@ -368,7 +368,7 @@ verify3(const char *refname, enum comp_type comp)
 	}
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_filter_code(a, 0));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_CAB, archive_format(a));
 
 	/* Close the archive. */
