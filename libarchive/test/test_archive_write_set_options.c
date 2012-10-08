@@ -116,7 +116,7 @@ test(int pristine)
 		    archive_error_string(a));
 	}
 
-	archive_write_finish(a);
+	archive_write_free(a);
 }
 
 DEFINE_TEST(test_archive_write_set_options)
