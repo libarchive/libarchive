@@ -545,7 +545,7 @@ read_more:
 			break;
 		case ST_READ_UU:
 			if (total + len * 2 > OUT_BUFF_SIZE)
-				break;
+				goto finish;
 			body = len - nl;
 			if (!uuchar[*b] || body <= 0) {
 				archive_set_error(&self->archive->archive,
@@ -611,7 +611,7 @@ read_more:
 			break;
 		case ST_READ_BASE64:
 			if (total + len * 2 > OUT_BUFF_SIZE)
-				break;
+				goto finish;
 			l = len - nl;
 			if (l >= 3 && b[0] == '=' && b[1] == '=' &&
 			    b[2] == '=') {
@@ -657,8 +657,10 @@ read_more:
 			break;
 		}
 	}
-
-	__archive_read_filter_consume(self->upstream, ravail);
+finish:
+	if (ravail < avail_in)
+		used -= avail_in - ravail;
+	__archive_read_filter_consume(self->upstream, used);
 
 	*buff = uudecode->out_buff;
 	uudecode->total += total;
