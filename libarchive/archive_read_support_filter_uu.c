@@ -56,6 +56,7 @@ struct uudecode {
 #define ST_READ_UU	1
 #define ST_UUEND	2
 #define ST_READ_BASE64	3
+#define ST_IGNORE	4
 };
 
 static int	uudecode_bidder_bid(struct archive_read_filter_bidder *,
@@ -470,6 +471,10 @@ read_more:
 	total = 0;
 	out = uudecode->out_buff;
 	ravail = avail_in;
+	if (uudecode->state == ST_IGNORE) {
+		used = avail_in;
+		goto finish;
+	}
 	if (uudecode->in_cnt) {
 		/*
 		 * If there is remaining data which is saved by
@@ -491,6 +496,12 @@ read_more:
 		len = get_line(b, avail_in - used, &nl);
 		if (len < 0) {
 			/* Non-ascii character is found. */
+			if (uudecode->state == ST_FIND_HEAD &&
+			    (uudecode->total > 0 || total > 0)) {
+				uudecode->state = ST_IGNORE;
+				used = avail_in;
+				goto finish;
+			}
 			archive_set_error(&self->archive->archive,
 			    ARCHIVE_ERRNO_MISC,
 			    "Insufficient compressed data");
