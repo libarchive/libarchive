@@ -144,15 +144,6 @@ IF(ENABLE_TEST)
     test_tar_large.c
     test_ustar_filenames.c
     test_ustar_filename_encoding.c
-    test_write_compress.c
-    test_write_compress_bzip2.c
-    test_write_compress_gzip.c
-    test_write_compress_lrzip.c
-    test_write_compress_lzip.c
-    test_write_compress_lzma.c
-    test_write_compress_lzop.c
-    test_write_compress_program.c
-    test_write_compress_xz.c
     test_write_disk.c
     test_write_disk_failures.c
     test_write_disk_hardlink.c
@@ -163,7 +154,16 @@ IF(ENABLE_TEST)
     test_write_disk_symlink.c
     test_write_disk_times.c
     test_write_filter_b64encode.c
+    test_write_filter_bzip2.c
+    test_write_filter_compress.c
+    test_write_filter_gzip.c
+    test_write_filter_lrzip.c
+    test_write_filter_lzip.c
+    test_write_filter_lzma.c
+    test_write_filter_lzop.c
+    test_write_filter_program.c
     test_write_filter_uuencode.c
+    test_write_filter_xz.c
     test_write_format_7zip.c
     test_write_format_ar.c
     test_write_format_cpio.c

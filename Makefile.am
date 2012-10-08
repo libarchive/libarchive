@@ -403,15 +403,6 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_tar_large.c			\
 	libarchive/test/test_ustar_filenames.c			\
 	libarchive/test/test_ustar_filename_encoding.c		\
-	libarchive/test/test_write_compress.c			\
-	libarchive/test/test_write_compress_bzip2.c		\
-	libarchive/test/test_write_compress_gzip.c		\
-	libarchive/test/test_write_compress_lrzip.c		\
-	libarchive/test/test_write_compress_lzip.c		\
-	libarchive/test/test_write_compress_lzma.c		\
-	libarchive/test/test_write_compress_lzop.c		\
-	libarchive/test/test_write_compress_program.c		\
-	libarchive/test/test_write_compress_xz.c		\
 	libarchive/test/test_write_disk.c			\
 	libarchive/test/test_write_disk_failures.c		\
 	libarchive/test/test_write_disk_hardlink.c		\
@@ -422,7 +413,16 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_disk_symlink.c		\
 	libarchive/test/test_write_disk_times.c			\
 	libarchive/test/test_write_filter_b64encode.c		\
+	libarchive/test/test_write_filter_bzip2.c		\
+	libarchive/test/test_write_filter_compress.c		\
+	libarchive/test/test_write_filter_gzip.c		\
+	libarchive/test/test_write_filter_lrzip.c		\
+	libarchive/test/test_write_filter_lzip.c		\
+	libarchive/test/test_write_filter_lzma.c		\
+	libarchive/test/test_write_filter_lzop.c		\
+	libarchive/test/test_write_filter_program.c		\
 	libarchive/test/test_write_filter_uuencode.c		\
+	libarchive/test/test_write_filter_xz.c			\
 	libarchive/test/test_write_format_7zip.c		\
 	libarchive/test/test_write_format_ar.c			\
 	libarchive/test/test_write_format_cpio.c		\

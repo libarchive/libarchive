@@ -32,7 +32,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/test/test_write_compress_lzma.c 191183 2
  *
  */
 
-DEFINE_TEST(test_write_compress_lzma)
+DEFINE_TEST(test_write_filter_lzma)
 {
 	struct archive_entry *ae;
 	struct archive* a;

@@ -29,7 +29,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/test/test_write_compress_program.c 20124
 char buff[1000000];
 char buff2[64];
 
-DEFINE_TEST(test_write_compress_program)
+DEFINE_TEST(test_write_filter_program)
 {
 	struct archive_entry *ae;
 	struct archive *a;
@@ -123,7 +123,7 @@ DEFINE_TEST(test_write_compress_program)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-DEFINE_TEST(test_write_compress_programl)
+DEFINE_TEST(test_write_filter_programl)
 {
 	struct archive_entry *ae;
 	struct archive *a;
@@ -217,7 +217,7 @@ DEFINE_TEST(test_write_compress_programl)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-DEFINE_TEST(test_write_compress_programv)
+DEFINE_TEST(test_write_filter_programv)
 {
 	struct archive_entry *ae;
 	struct archive *a;
