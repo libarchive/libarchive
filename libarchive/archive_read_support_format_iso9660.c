@@ -935,8 +935,10 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 	if (!iso9660->primary.location) {
 		iso9660->logical_block_size = logical_block_size;
 		iso9660->volume_block = volume_block;
-		iso9660->volume_size = logical_block_size * (uint64_t)volume_block;
-		iso9660->primary.location = archive_le32dec(p + DR_extent_offset);
+		iso9660->volume_size =
+		    logical_block_size * (uint64_t)volume_block;
+		iso9660->primary.location =
+		    archive_le32dec(p + DR_extent_offset);
 		iso9660->primary.size = archive_le32dec(p + DR_size_offset);
 	}
 
@@ -1061,6 +1063,94 @@ read_children(struct archive_read *a, struct file_info *parent)
 }
 
 static int
+choose_volume(struct archive_read *a, struct iso9660 *iso9660)
+{
+	struct file_info *file;
+	int64_t skipsize;
+	struct vd *vd;
+	const void *block;
+	char seenJoliet;
+
+	vd = &(iso9660->primary);
+	if (!iso9660->opt_support_joliet)
+		iso9660->seenJoliet = 0;
+	if (iso9660->seenJoliet &&
+		vd->location > iso9660->joliet.location)
+		/* This condition is unlikely; by way of caution. */
+		vd = &(iso9660->joliet);
+
+	skipsize = LOGICAL_BLOCK_SIZE * vd->location;
+	skipsize = __archive_read_consume(a, skipsize);
+	if (skipsize < 0)
+		return ((int)skipsize);
+	iso9660->current_position = skipsize;
+
+	block = __archive_read_ahead(a, vd->size, NULL);
+	if (block == NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Failed to read full block when scanning "
+		    "ISO9660 directory list");
+		return (ARCHIVE_FATAL);
+	}
+
+	/*
+	 * While reading Root Directory, flag seenJoliet must be zero to
+	 * avoid converting special name 0x00(Current Directory) and
+	 * next byte to UCS2.
+	 */
+	seenJoliet = iso9660->seenJoliet;/* Save flag. */
+	iso9660->seenJoliet = 0;
+	file = parse_file_info(a, NULL, block);
+	if (file == NULL)
+		return (ARCHIVE_FATAL);
+	iso9660->seenJoliet = seenJoliet;
+
+	/*
+	 * If the iso image has both RockRidge and Joliet, we preferentially
+	 * use RockRidge Extensions rather than Joliet ones.
+	 */
+	if (vd == &(iso9660->primary) && iso9660->seenRockridge
+	    && iso9660->seenJoliet)
+		iso9660->seenJoliet = 0;
+
+	if (vd == &(iso9660->primary) && !iso9660->seenRockridge
+	    && iso9660->seenJoliet) {
+		/* Switch reading data from primary to joliet. */
+		vd = &(iso9660->joliet);
+		skipsize = LOGICAL_BLOCK_SIZE * vd->location;
+		skipsize -= iso9660->current_position;
+		skipsize = __archive_read_consume(a, skipsize);
+		if (skipsize < 0)
+			return ((int)skipsize);
+		iso9660->current_position += skipsize;
+
+		block = __archive_read_ahead(a, vd->size, NULL);
+		if (block == NULL) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Failed to read full block when scanning "
+			    "ISO9660 directory list");
+			return (ARCHIVE_FATAL);
+		}
+		iso9660->seenJoliet = 0;
+		file = parse_file_info(a, NULL, block);
+		if (file == NULL)
+			return (ARCHIVE_FATAL);
+		iso9660->seenJoliet = seenJoliet;
+	}
+
+	/* Store the root directory in the pending list. */
+	if (add_entry(a, iso9660, file) != ARCHIVE_OK)
+		return (ARCHIVE_FATAL);
+	if (iso9660->seenRockridge) {
+		a->archive.archive_format = ARCHIVE_FORMAT_ISO9660_ROCKRIDGE;
+		a->archive.archive_format_name =
+		    "ISO9660 with Rockridge extensions";
+	}
+
+	return (ARCHIVE_OK);
+}
+
+static int
 archive_read_format_iso9660_read_header(struct archive_read *a,
     struct archive_entry *entry)
 {
@@ -1076,86 +1166,9 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 	}
 
 	if (iso9660->current_position == 0) {
-		int64_t skipsize;
-		struct vd *vd;
-		const void *block;
-		char seenJoliet;
-
-		vd = &(iso9660->primary);
-		if (!iso9660->opt_support_joliet)
-			iso9660->seenJoliet = 0;
-		if (iso9660->seenJoliet &&
-			vd->location > iso9660->joliet.location)
-			/* This condition is unlikely; by way of caution. */
-			vd = &(iso9660->joliet);
-
-		skipsize = LOGICAL_BLOCK_SIZE * vd->location;
-		skipsize = __archive_read_consume(a, skipsize);
-		if (skipsize < 0)
-			return ((int)skipsize);
-		iso9660->current_position = skipsize;
-
-		block = __archive_read_ahead(a, vd->size, NULL);
-		if (block == NULL) {
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_MISC,
-			    "Failed to read full block when scanning "
-			    "ISO9660 directory list");
-			return (ARCHIVE_FATAL);
-		}
-
-		/*
-		 * While reading Root Directory, flag seenJoliet
-		 * must be zero to avoid converting special name
-		 * 0x00(Current Directory) and next byte to UCS2.
-		 */
-		seenJoliet = iso9660->seenJoliet;/* Save flag. */
-		iso9660->seenJoliet = 0;
-		file = parse_file_info(a, NULL, block);
-		if (file == NULL)
-			return (ARCHIVE_FATAL);
-		iso9660->seenJoliet = seenJoliet;
-		if (vd == &(iso9660->primary) && iso9660->seenRockridge
-		    && iso9660->seenJoliet)
-			/*
-			 * If iso image has RockRidge and Joliet,
-			 * we use RockRidge Extensions.
-			 */
-			iso9660->seenJoliet = 0;
-		if (vd == &(iso9660->primary) && !iso9660->seenRockridge
-		    && iso9660->seenJoliet) {
-			/* Switch reading data from primary to joliet. */ 
-			vd = &(iso9660->joliet);
-			skipsize = LOGICAL_BLOCK_SIZE * vd->location;
-			skipsize -= iso9660->current_position;
-			skipsize = __archive_read_consume(a, skipsize);
-			if (skipsize < 0)
-				return ((int)skipsize);
-			iso9660->current_position += skipsize;
-
-			block = __archive_read_ahead(a, vd->size, NULL);
-			if (block == NULL) {
-				archive_set_error(&a->archive,
-				    ARCHIVE_ERRNO_MISC,
-				    "Failed to read full block when scanning "
-				    "ISO9660 directory list");
-				return (ARCHIVE_FATAL);
-			}
-			iso9660->seenJoliet = 0;
-			file = parse_file_info(a, NULL, block);
-			if (file == NULL)
-				return (ARCHIVE_FATAL);
-			iso9660->seenJoliet = seenJoliet;
-		}
-		/* Store the root directory in the pending list. */
-		if (add_entry(a, iso9660, file) != ARCHIVE_OK)
-			return (ARCHIVE_FATAL);
-		if (iso9660->seenRockridge) {
-			a->archive.archive_format =
-			    ARCHIVE_FORMAT_ISO9660_ROCKRIDGE;
-			a->archive.archive_format_name =
-			    "ISO9660 with Rockridge extensions";
-		}
+		r = choose_volume(a, iso9660);
+		if (r != ARCHIVE_OK)
+			return (r);
 	}
 
 	file = NULL;/* Eliminate a warning. */
@@ -1228,7 +1241,8 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 	}
 
 	iso9660->entry_bytes_remaining = file->size;
-	iso9660->entry_sparse_offset = 0; /* Offset for sparse-file-aware clients. */
+	/* Offset for sparse-file-aware clients. */
+	iso9660->entry_sparse_offset = 0;
 
 	if (file->offset + file->size > iso9660->volume_size) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -3201,10 +3215,12 @@ dump_isodirrec(FILE *out, const unsigned char *isodirrec)
 	fprintf(out, " ilv %d,",
 	    toi(isodirrec + DR_interleave_offset, DR_interleave_size));
 	fprintf(out, " seq %d,",
-	    toi(isodirrec + DR_volume_sequence_number_offset, DR_volume_sequence_number_size));
+	    toi(isodirrec + DR_volume_sequence_number_offset,
+		DR_volume_sequence_number_size));
 	fprintf(out, " nl %d:",
 	    toi(isodirrec + DR_name_len_offset, DR_name_len_size));
 	fprintf(out, " `%.*s'",
-	    toi(isodirrec + DR_name_len_offset, DR_name_len_size), isodirrec + DR_name_offset);
+	    toi(isodirrec + DR_name_len_offset, DR_name_len_size),
+		isodirrec + DR_name_offset);
 }
 #endif
