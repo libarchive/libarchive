@@ -447,9 +447,7 @@ file_skip_lseek(struct archive *a, void *client_data, int64_t request)
 	/* TODO: Deal with case where off_t isn't 64 bits.
 	 * This shouldn't be a problem on Linux or other POSIX
 	 * systems, since the configuration logic for libarchive
-	 * tries to obtain a 64-bit off_t.  It's still an issue
-	 * on Windows, though, so it might suffice to just use
-	 * _lseeki64() on Windows.
+	 * tries to obtain a 64-bit off_t.
 	 */
 	if ((old_offset = lseek(mine->fd, 0, SEEK_CUR)) >= 0 &&
 	    (new_offset = lseek(mine->fd, request, SEEK_CUR)) >= 0)
