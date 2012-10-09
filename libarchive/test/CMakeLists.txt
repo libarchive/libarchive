@@ -75,11 +75,12 @@ IF(ENABLE_TEST)
     test_read_disk_entry_from_file.c
     test_read_extract.c
     test_read_file_nonexistent.c
+    test_read_filter_grzip.c
+    test_read_filter_lrzip.c
+    test_read_filter_lzop.c
     test_read_filter_program.c
     test_read_filter_program_signature.c
     test_read_filter_uudecode.c
-    test_read_filter_lrzip.c
-    test_read_filter_lzop.c
     test_read_format_7zip.c
     test_read_format_ar.c
     test_read_format_cab.c

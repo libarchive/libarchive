@@ -58,6 +58,7 @@ SET(libarchive_SOURCES
   archive_read_support_filter_bzip2.c
   archive_read_support_filter_compress.c
   archive_read_support_filter_gzip.c
+  archive_read_support_filter_grzip.c
   archive_read_support_filter_lrzip.c
   archive_read_support_filter_lzop.c
   archive_read_support_filter_none.c
@@ -100,6 +101,7 @@ SET(libarchive_SOURCES
   archive_write_add_filter_b64encode.c
   archive_write_add_filter_bzip2.c
   archive_write_add_filter_compress.c
+  archive_write_add_filter_grzip.c
   archive_write_add_filter_gzip.c
   archive_write_add_filter_lrzip.c
   archive_write_add_filter_lzop.c

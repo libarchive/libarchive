@@ -222,6 +222,7 @@ typedef int archive_switch_callback(struct archive *, void *_client_data1,
 #define	ARCHIVE_FILTER_LZIP	9
 #define	ARCHIVE_FILTER_LRZIP	10
 #define	ARCHIVE_FILTER_LZOP	11
+#define	ARCHIVE_FILTER_GRZIP	12
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
 #define	ARCHIVE_COMPRESSION_NONE	ARCHIVE_FILTER_NONE
@@ -339,6 +340,7 @@ __LA_DECL int archive_read_support_filter_all(struct archive *);
 __LA_DECL int archive_read_support_filter_bzip2(struct archive *);
 __LA_DECL int archive_read_support_filter_compress(struct archive *);
 __LA_DECL int archive_read_support_filter_gzip(struct archive *);
+__LA_DECL int archive_read_support_filter_grzip(struct archive *);
 __LA_DECL int archive_read_support_filter_lrzip(struct archive *);
 __LA_DECL int archive_read_support_filter_lzip(struct archive *);
 __LA_DECL int archive_read_support_filter_lzma(struct archive *);
@@ -633,6 +635,7 @@ __LA_DECL int archive_write_add_filter(struct archive *, int filter_code);
 __LA_DECL int archive_write_add_filter_b64encode(struct archive *);
 __LA_DECL int archive_write_add_filter_bzip2(struct archive *);
 __LA_DECL int archive_write_add_filter_compress(struct archive *);
+__LA_DECL int archive_write_add_filter_grzip(struct archive *);
 __LA_DECL int archive_write_add_filter_gzip(struct archive *);
 __LA_DECL int archive_write_add_filter_lrzip(struct archive *);
 __LA_DECL int archive_write_add_filter_lzip(struct archive *);

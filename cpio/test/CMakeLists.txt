@@ -15,6 +15,7 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     test_cmdline.c
     test_extract_cpio_Z
     test_extract_cpio_bz2
+    test_extract_cpio_grz
     test_extract_cpio_gz
     test_extract_cpio_lrz
     test_extract_cpio_lz
@@ -34,6 +35,7 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     test_option_c.c
     test_option_d.c
     test_option_f.c
+    test_option_grzip.c
     test_option_help.c
     test_option_l.c
     test_option_lrzip.c

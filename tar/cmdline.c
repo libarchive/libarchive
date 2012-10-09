@@ -88,6 +88,7 @@ static const struct bsdtar_option {
 	{ "format",               1, OPTION_FORMAT },
 	{ "gid",		  1, OPTION_GID },
 	{ "gname",		  1, OPTION_GNAME },
+	{ "grzip",                0, OPTION_GRZIP },
 	{ "gunzip",               0, 'z' },
 	{ "gzip",                 0, 'z' },
 	{ "help",                 0, OPTION_HELP },

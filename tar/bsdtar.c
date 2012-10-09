@@ -315,6 +315,13 @@ main(int argc, char **argv)
 		case OPTION_GNAME: /* cpio */
 			bsdtar->gname = bsdtar->argument;
 			break;
+		case OPTION_GRZIP:
+			if (bsdtar->create_compression != '\0')
+				lafe_errc(1, 0,
+				    "Can't specify both -%c and -%c", opt,
+				    bsdtar->create_compression);
+			bsdtar->create_compression = opt;
+			break;
 		case 'H': /* BSD convention */
 			bsdtar->symlink_mode = 'H';
 			break;

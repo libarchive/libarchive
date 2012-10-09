@@ -133,6 +133,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_read_support_filter_all.c		\
 	libarchive/archive_read_support_filter_bzip2.c		\
 	libarchive/archive_read_support_filter_compress.c	\
+	libarchive/archive_read_support_filter_grzip.c		\
 	libarchive/archive_read_support_filter_gzip.c		\
 	libarchive/archive_read_support_filter_lrzip.c		\
 	libarchive/archive_read_support_filter_lzop.c		\
@@ -174,13 +175,14 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_write_private.h			\
 	libarchive/archive_write_add_filter.c			\
 	libarchive/archive_write_add_filter_b64encode.c		\
-	libarchive/archive_write_add_filter_bzip2.c	\
-	libarchive/archive_write_add_filter_compress.c	\
+	libarchive/archive_write_add_filter_bzip2.c		\
+	libarchive/archive_write_add_filter_compress.c		\
+	libarchive/archive_write_add_filter_grzip.c		\
 	libarchive/archive_write_add_filter_gzip.c		\
 	libarchive/archive_write_add_filter_lrzip.c		\
 	libarchive/archive_write_add_filter_lzop.c		\
 	libarchive/archive_write_add_filter_none.c		\
-	libarchive/archive_write_add_filter_program.c	\
+	libarchive/archive_write_add_filter_program.c		\
 	libarchive/archive_write_add_filter_uuencode.c		\
 	libarchive/archive_write_add_filter_xz.c		\
 	libarchive/archive_write_set_format.c			\
@@ -334,11 +336,12 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_disk_entry_from_file.c	\
 	libarchive/test/test_read_extract.c			\
 	libarchive/test/test_read_file_nonexistent.c		\
+	libarchive/test/test_read_filter_grzip.c		\
+	libarchive/test/test_read_filter_lrzip.c		\
+	libarchive/test/test_read_filter_lzop.c			\
 	libarchive/test/test_read_filter_program.c		\
 	libarchive/test/test_read_filter_program_signature.c	\
 	libarchive/test/test_read_filter_uudecode.c		\
-	libarchive/test/test_read_filter_lrzip.c		\
-	libarchive/test/test_read_filter_lzop.c			\
 	libarchive/test/test_read_format_7zip.c			\
 	libarchive/test/test_read_format_ar.c			\
 	libarchive/test/test_read_format_cab.c			\
@@ -511,6 +514,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_rar_multivolume_single_file.part1.rar.uu	\
 	libarchive/test/test_rar_multivolume_single_file.part2.rar.uu	\
 	libarchive/test/test_rar_multivolume_single_file.part3.rar.uu	\
+	libarchive/test/test_read_filter_grzip.tar.grz.uu		\
 	libarchive/test/test_read_filter_lrzip.tar.lrz.uu		\
 	libarchive/test/test_read_filter_lzop.tar.lzo.uu		\
 	libarchive/test/test_read_format_7zip_bcj_bzip2.7z.uu		\
@@ -713,6 +717,7 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_empty_mtree.c				\
 	tar/test/test_extract_tar_Z.c				\
 	tar/test/test_extract_tar_bz2.c				\
+	tar/test/test_extract_tar_grz.c				\
 	tar/test/test_extract_tar_gz.c				\
 	tar/test/test_extract_tar_lrz.c				\
 	tar/test/test_extract_tar_lz.c				\
@@ -732,6 +737,7 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_option_b64encode.c			\
 	tar/test/test_option_exclude.c				\
 	tar/test/test_option_gid_gname.c			\
+	tar/test/test_option_grzip.c				\
 	tar/test/test_option_k.c				\
 	tar/test/test_option_keep_newer_files.c			\
 	tar/test/test_option_lrzip.c				\
@@ -776,6 +782,7 @@ bsdtar_test_EXTRA_DIST=			\
 	tar/test/list.h \
 	tar/test/test_extract.tar.Z.uu	 \
 	tar/test/test_extract.tar.bz2.uu \
+	tar/test/test_extract.tar.grz.uu \
 	tar/test/test_extract.tar.gz.uu	 \
 	tar/test/test_extract.tar.lrz.uu \
 	tar/test/test_extract.tar.lz.uu  \
@@ -855,6 +862,7 @@ bsdcpio_test_SOURCES=						\
 	cpio/test/test_cmdline.c				\
 	cpio/test/test_extract_cpio_Z.c				\
 	cpio/test/test_extract_cpio_bz2.c			\
+	cpio/test/test_extract_cpio_grz.c			\
 	cpio/test/test_extract_cpio_gz.c			\
 	cpio/test/test_extract_cpio_lrz.c			\
 	cpio/test/test_extract_cpio_lz.c			\
@@ -874,6 +882,7 @@ bsdcpio_test_SOURCES=						\
 	cpio/test/test_option_c.c				\
 	cpio/test/test_option_d.c				\
 	cpio/test/test_option_f.c				\
+	cpio/test/test_option_grzip.c				\
 	cpio/test/test_option_help.c				\
 	cpio/test/test_option_l.c				\
 	cpio/test/test_option_lrzip.c				\
@@ -913,6 +922,7 @@ bsdcpio_test_EXTRA_DIST=			\
 	cpio/test/list.h	\
 	cpio/test/test_extract.cpio.Z.uu	\
 	cpio/test/test_extract.cpio.bz2.uu	\
+	cpio/test/test_extract.cpio.grz.uu	\
 	cpio/test/test_extract.cpio.gz.uu	\
 	cpio/test/test_extract.cpio.lrz.uu	\
 	cpio/test/test_extract.cpio.lz.uu	\

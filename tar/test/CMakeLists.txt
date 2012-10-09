@@ -14,6 +14,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_empty_mtree.c
     test_extract_tar_Z.c
     test_extract_tar_bz2.c
+    test_extract_tar_grz.c
     test_extract_tar_gz.c
     test_extract_tar_lrz.c
     test_extract_tar_lz.c
@@ -33,6 +34,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_option_b64encode.c
     test_option_exclude.c
     test_option_gid_gname.c
+    test_option_grzip.c
     test_option_k.c
     test_option_keep_newer_files.c
     test_option_lrzip.c

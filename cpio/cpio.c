@@ -237,6 +237,9 @@ main(int argc, char *argv[])
 				lafe_errc(1, 0, "Error : %s",
 				    archive_error_string(cpio->matching));
 			break;
+		case OPTION_GRZIP:
+			cpio->compress = opt;
+			break;
 		case 'H': /* GNU cpio (also --format) */
 			cpio->format = cpio->argument;
 			break;
@@ -525,6 +528,9 @@ mode_out(struct cpio *cpio)
 	if (cpio->archive == NULL)
 		lafe_errc(1, 0, "Failed to allocate archive object");
 	switch (cpio->compress) {
+	case OPTION_GRZIP:
+		r = archive_write_add_filter_grzip(cpio->archive);
+		break;
 	case 'J':
 		r = archive_write_add_filter_xz(cpio->archive);
 		break;

@@ -67,6 +67,7 @@ static const struct option {
 	{ "extract",			0, 'i' },
 	{ "file",			1, 'F' },
 	{ "format",             	1, 'H' },
+	{ "grzip",			0, OPTION_GRZIP },
 	{ "help",			0, 'h' },
 	{ "insecure",			0, OPTION_INSECURE },
 	{ "link",			0, 'l' },
