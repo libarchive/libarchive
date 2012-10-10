@@ -33,12 +33,17 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
 
 #include "archive.h"
 #include "archive_write_private.h"
 
 struct write_lrzip {
 	struct archive_write_program_data *pdata;
+	int	compression_level;
+	enum { lzma = 0, bzip2, gzip, lzo, zpaq } compression;
 };
 
 static int archive_write_lrzip_open(struct archive_write_filter *);
@@ -88,9 +93,29 @@ static int
 archive_write_lrzip_options(struct archive_write_filter *f, const char *key,
     const char *value)
 {
-	(void)f; /* UNUSED */
-	(void)key; /* UNUSED */
-	(void)value; /* UNUSED */
+	struct write_lrzip *data = (struct write_lrzip *)f->data;
+
+	if (strcmp(key, "compression") == 0) {
+		if (value == NULL)
+			return (ARCHIVE_WARN);
+		else if (strcmp(value, "bzip2") == 0)
+			data->compression = bzip2;
+		else if (strcmp(value, "gzip") == 0)
+			data->compression = gzip;
+		else if (strcmp(value, "lzo") == 0)
+			data->compression = lzo;
+		else if (strcmp(value, "zpaq") == 0)
+			data->compression = zpaq;
+		else
+			return (ARCHIVE_WARN);
+		return (ARCHIVE_OK);
+	} else if (strcmp(key, "compression-level") == 0) {
+		if (value == NULL || !(value[0] >= '1' && value[0] <= '9') ||
+		    value[1] != '\0')
+			return (ARCHIVE_WARN);
+		data->compression_level = value[0] - '0';
+		return (ARCHIVE_OK);
+	}
 	/* Note: The "warn" return is just to inform the options
 	 * supervisor that we didn't handle it.  It will generate
 	 * a suitable error if no one used this option. */
@@ -112,6 +137,45 @@ archive_write_lrzip_open(struct archive_write_filter *f)
 	r = __archive_write_program_add_arg(data->pdata, "-q");
 	if (r != ARCHIVE_OK)
 		goto memerr;
+
+	/* Specify compression type. */
+	switch (data->compression) {
+	case lzma:/* default compression */
+		break;
+	case bzip2:
+		r = __archive_write_program_add_arg(data->pdata, "-b");
+		if (r != ARCHIVE_OK)
+			goto memerr;
+		break;
+	case gzip:
+		r = __archive_write_program_add_arg(data->pdata, "-g");
+		if (r != ARCHIVE_OK)
+			goto memerr;
+		break;
+	case lzo:
+		r = __archive_write_program_add_arg(data->pdata, "-l");
+		if (r != ARCHIVE_OK)
+			goto memerr;
+		break;
+	case zpaq:
+		r = __archive_write_program_add_arg(data->pdata, "-z");
+		if (r != ARCHIVE_OK)
+			goto memerr;
+		break;
+	}
+
+	/* Specify compression level. */
+	if (data->compression_level > 0) {
+		char level[2];
+		r = __archive_write_program_add_arg(data->pdata, "-L");
+		if (r != ARCHIVE_OK)
+			goto memerr;
+		level[0] = '0' + data->compression_level;
+		level[1] = '\0';
+		r = __archive_write_program_add_arg(data->pdata, level);
+		if (r != ARCHIVE_OK)
+			goto memerr;
+	}
 
 	r = __archive_write_program_open(f, data->pdata);
 	return (r);
