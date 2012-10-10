@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 struct write_lzop {
 	struct archive_write_program_data *pdata;
+	int compression_level;
 };
 
 static int archive_write_lzop_open(struct archive_write_filter *);
@@ -88,9 +89,15 @@ static int
 archive_write_lzop_options(struct archive_write_filter *f, const char *key,
     const char *value)
 {
-	(void)f; /* UNUSED */
-	(void)key; /* UNUSED */
-	(void)value; /* UNUSED */
+	struct write_lzop *data = (struct write_lzop *)f->data;
+
+	if (strcmp(key, "compression-level") == 0) {
+		if (value == NULL || !(value[0] >= '1' && value[0] <= '9') ||
+		    value[1] != '\0')
+			return (ARCHIVE_WARN);
+		data->compression_level = value[0] - '0';
+		return (ARCHIVE_OK);
+	}
 	/* Note: The "warn" return is just to inform the options
 	 * supervisor that we didn't handle it.  It will generate
 	 * a suitable error if no one used this option. */
@@ -109,6 +116,16 @@ archive_write_lzop_open(struct archive_write_filter *f)
 	r = __archive_write_program_add_arg(data->pdata, "lzop");
 	if (r != ARCHIVE_OK)
 		goto memerr;
+	/* Specify compression level. */
+	if (data->compression_level > 0) {
+		char level[3];
+		level[0] = '-';
+		level[1] = '0' + data->compression_level;
+		level[2] = '\0';
+		r = __archive_write_program_add_arg(data->pdata, level);
+		if (r != ARCHIVE_OK)
+			goto memerr;
+	}
 	r = __archive_write_program_open(f, data->pdata);
 	return (r);
 memerr:
