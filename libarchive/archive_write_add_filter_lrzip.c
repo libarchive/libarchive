@@ -27,19 +27,122 @@
 
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_ERRNO_H
+#include <errno.h>
+#endif
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+
 #include "archive.h"
 #include "archive_write_private.h"
 
+struct write_lrzip {
+	struct archive_write_program_data *pdata;
+};
+
+static int archive_write_lrzip_open(struct archive_write_filter *);
+static int archive_write_lrzip_options(struct archive_write_filter *,
+		    const char *, const char *);
+static int archive_write_lrzip_write(struct archive_write_filter *,
+		    const void *, size_t);
+static int archive_write_lrzip_close(struct archive_write_filter *);
+static int archive_write_lrzip_free(struct archive_write_filter *);
+
 int
-archive_write_add_filter_lrzip(struct archive *a)
+archive_write_add_filter_lrzip(struct archive *_a)
 {
-	char * const argv[] = { "lrzip", "-q", NULL };
+	struct archive_write_filter *f = __archive_write_allocate_filter(_a);
+	struct write_lrzip *data;
+
+	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_write_add_filter_lrzip");
+
+	data = calloc(1, sizeof(*data));
+	if (data == NULL) {
+		archive_set_error(_a, ENOMEM, "Can't allocate memory");
+		return (ARCHIVE_FATAL);
+	}
+	data->pdata = __archive_write_program_allocate();
+	if (data->pdata == NULL) {
+		free(data);
+		archive_set_error(_a, ENOMEM, "Can't allocate memory");
+		return (ARCHIVE_FATAL);
+	}
+
+	f->name = "lrzip";
+	f->code = ARCHIVE_FILTER_LRZIP;
+	f->data = data;
+	f->open = archive_write_lrzip_open;
+	f->options = archive_write_lrzip_options;
+	f->write = archive_write_lrzip_write;
+	f->close = archive_write_lrzip_close;
+	f->free = archive_write_lrzip_free;
+
+	/* Note: This filter always uses an external program, so we
+	 * return "warn" to inform of the fact. */
+	return (ARCHIVE_WARN);
+}
+
+static int
+archive_write_lrzip_options(struct archive_write_filter *f, const char *key,
+    const char *value)
+{
+	(void)f; /* UNUSED */
+	(void)key; /* UNUSED */
+	(void)value; /* UNUSED */
+	/* Note: The "warn" return is just to inform the options
+	 * supervisor that we didn't handle it.  It will generate
+	 * a suitable error if no one used this option. */
+	return (ARCHIVE_WARN);
+}
+
+static int
+archive_write_lrzip_open(struct archive_write_filter *f)
+{
+	struct write_lrzip *data = (struct write_lrzip *)f->data;
 	int r;
 
-	r = __archive_write_programv(a, "lrzip", ARCHIVE_FILTER_LRZIP,
-		"lrzip", argv);
-	if (r == ARCHIVE_OK)
-		/* This filter always uses an external program. */
-		r = ARCHIVE_WARN;
+	r = __archive_write_program_set_cmd(data->pdata, "lrzip");
+	if (r != ARCHIVE_OK)
+		goto memerr;
+	r = __archive_write_program_add_arg(data->pdata, "lrzip");
+	if (r != ARCHIVE_OK)
+		goto memerr;
+	r = __archive_write_program_add_arg(data->pdata, "-q");
+	if (r != ARCHIVE_OK)
+		goto memerr;
+
+	r = __archive_write_program_open(f, data->pdata);
 	return (r);
+memerr:
+	archive_set_error(f->archive, ENOMEM, "Can't allocate memory");
+	return (ARCHIVE_FATAL);
+}
+
+static int
+archive_write_lrzip_write(struct archive_write_filter *f,
+    const void *buff, size_t length)
+{
+	struct write_lrzip *data = (struct write_lrzip *)f->data;
+
+	return __archive_write_program_write(f, data->pdata, buff, length);
+}
+
+static int
+archive_write_lrzip_close(struct archive_write_filter *f)
+{
+	struct write_lrzip *data = (struct write_lrzip *)f->data;
+
+	return __archive_write_program_close(f, data->pdata);
+}
+
+static int
+archive_write_lrzip_free(struct archive_write_filter *f)
+{
+	struct write_lrzip *data = (struct write_lrzip *)f->data;
+
+	__archive_write_program_free(data->pdata);
+	free(data);
+	return (ARCHIVE_OK);
 }
