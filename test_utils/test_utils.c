@@ -57,13 +57,12 @@ test_filter(const char *pattern, const char *test)
 				p++;
 			if (p[0] == '\\')
 				p++;
-			while (p[0] != t[0])
-				t++;
+			if ((t = strchr(t, p[0])) == 0)
+				break;
 		}
 		if (p[0] != t[0])
 			break;
-		if (p[0] == '\0' && t[0] == '\0')
-		{
+		if (p[0] == '\0') {
 			retval = 1;
 			break;
 		}
