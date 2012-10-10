@@ -40,7 +40,7 @@ __archive_create_child(const char *cmd, char * const argv[], int *child_stdin,
 	PROCESS_INFORMATION childInfo;
 	struct archive_string cmdline;
 	struct archive_string fullpath;
-	char *ext;
+	char *arg0, *ext;
 	int i, l;
 	DWORD fl, fl_old;
 
@@ -69,7 +69,7 @@ __archive_create_child(const char *cmd, char * const argv[], int *child_stdin,
 		if (archive_string_ensure(&fullpath, fl) == NULL)
 			goto fail;
 		fl_old = fl;
-		fl = SearchPath(NULL, cmd, ext, fl, fullpath.s, NULL);
+		fl = SearchPathA(NULL, cmd, ext, fl, fullpath.s, &arg0);
 	} while (fl != 0 && fl > fl_old);
 	if (fl == 0)
 		goto fail;
@@ -85,12 +85,33 @@ __archive_create_child(const char *cmd, char * const argv[], int *child_stdin,
 	if (archive_string_ensure(&cmdline, l + 1) == NULL)
 		goto fail;
 	for (i = 0;  argv[i] != NULL; i++) {
-		if (i > 0)
+		if (i == 0) {
+			const char *p, *sp;
+
+			if ((p = strchr(argv[i], '/')) != NULL ||
+			    (p = strchr(argv[i], '\\')) != NULL)
+				p++;
+			else
+				p = argv[i];
+			if ((sp = strchr(p, ' ')) != NULL)
+				archive_strappend_char(&cmdline, '"');
+			archive_strcat(&cmdline, p);
+			if (sp != NULL)
+				archive_strappend_char(&cmdline, '"');
+		} else {
 			archive_strappend_char(&cmdline, ' ');
-		archive_strcat(&cmdline, argv[i]);
+			archive_strcat(&cmdline, argv[i]);
+		}
 	}
-	if (i <= 1)
-		cmdline.s[0] = 0;
+	if (i <= 1) {
+		const char *sp;
+
+		if ((sp = strchr(arg0, ' ')) != NULL)
+			archive_strappend_char(&cmdline, '"');
+		archive_strcat(&cmdline, arg0);
+		if (sp != NULL)
+			archive_strappend_char(&cmdline, '"');
+	}
 
 	secAtts.nLength = sizeof(SECURITY_ATTRIBUTES);
 	secAtts.bInheritHandle = TRUE;
