@@ -371,7 +371,7 @@ __archive_write_program_close(struct archive_write_filter *f,
 	ssize_t bytes_read;
 
 	if (data->child == 0)
-		return (ARCHIVE_OK);
+		return __archive_write_close_filter(f->next_filter);
 
 	ret = 0;
 	close(data->child_stdin);
