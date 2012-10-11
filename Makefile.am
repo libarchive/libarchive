@@ -279,6 +279,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_acl_posix1e.c			\
 	libarchive/test/test_archive_api_feature.c		\
 	libarchive/test/test_archive_clear_error.c		\
+	libarchive/test/test_archive_cmdline.c			\
 	libarchive/test/test_archive_crypto.c			\
 	libarchive/test/test_archive_getdate.c			\
 	libarchive/test/test_archive_match_owner.c		\
