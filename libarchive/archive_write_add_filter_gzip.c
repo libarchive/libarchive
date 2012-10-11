@@ -137,8 +137,8 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 	if (data->compressed == NULL) {
 		size_t bs = 65536, bpb;
 		if (f->archive->magic == ARCHIVE_WRITE_MAGIC) {
-			/* Buffer size should be a multiple number of the of bytes
-			 * per block for performance. */
+			/* Buffer size should be a multiple number of
+			 * the of bytes per block for performance. */
 			bpb = archive_write_get_bytes_per_block(f->archive);
 			if (bpb > bs)
 				bs = bpb;
@@ -201,8 +201,8 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 		    "compression library: invalid setup parameter");
 		break;
 	case Z_MEM_ERROR:
-		archive_set_error(f->archive, ENOMEM, "Internal error initializing "
-		    "compression library");
+		archive_set_error(f->archive, ENOMEM,
+		    "Internal error initializing compression library");
 		break;
 	case Z_VERSION_ERROR:
 		archive_set_error(f->archive, ARCHIVE_ERRNO_MISC,
