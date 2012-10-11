@@ -81,6 +81,8 @@ archive_write_add_filter_grzip(struct archive *_a)
 
 	/* Note: This filter always uses an external program, so we
 	 * return "warn" to inform of the fact. */
+	archive_set_error(_a, ARCHIVE_ERRNO_MISC,
+	    "Using external grzip program for grzip compression");
 	return (ARCHIVE_WARN);
 }
 

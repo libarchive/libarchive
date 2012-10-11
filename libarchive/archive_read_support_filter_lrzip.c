@@ -78,6 +78,8 @@ archive_read_support_filter_lrzip(struct archive *_a)
 	reader->options = NULL;
 	reader->free = lrzip_reader_free;
 	/* This filter always uses an external program. */
+	archive_set_error(_a, ARCHIVE_ERRNO_MISC,
+	    "Using external lrzip program for lrzip decompression");
 	return (ARCHIVE_WARN);
 }
 

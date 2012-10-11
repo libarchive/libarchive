@@ -72,6 +72,8 @@ archive_read_support_filter_lzop(struct archive *_a)
 	reader->options = NULL;
 	reader->free = lzop_reader_free;
 	/* Return ARCHIVE_WARN since this always uses an external program. */
+	archive_set_error(_a, ARCHIVE_ERRNO_MISC,
+	    "Using external lzop program for lzop decompression");
 	return (ARCHIVE_WARN);
 }
 
