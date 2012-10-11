@@ -120,6 +120,39 @@ archive_write_add_filter_gzip(struct archive *_a)
 	return (ARCHIVE_OK);
 }
 
+static int
+archive_compressor_gzip_free(struct archive_write_filter *f)
+{
+	struct private_data *data = (struct private_data *)f->data;
+	free(data->compressed);
+	free(data);
+	f->data = NULL;
+	return (ARCHIVE_OK);
+}
+
+/*
+ * Set write options.
+ */
+static int
+archive_compressor_gzip_options(struct archive_write_filter *f, const char *key,
+    const char *value)
+{
+	struct private_data *data = (struct private_data *)f->data;
+
+	if (strcmp(key, "compression-level") == 0) {
+		if (value == NULL || !(value[0] >= '0' && value[0] <= '9') ||
+		    value[1] != '\0')
+			return (ARCHIVE_WARN);
+		data->compression_level = value[0] - '0';
+		return (ARCHIVE_OK);
+	}
+
+	/* Note: The "warn" return is just to inform the options
+	 * supervisor that we didn't handle it.  It will generate
+	 * a suitable error if no one used this option. */
+	return (ARCHIVE_WARN);
+}
+
 /*
  * Setup callback.
  */
@@ -215,29 +248,6 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 }
 
 /*
- * Set write options.
- */
-static int
-archive_compressor_gzip_options(struct archive_write_filter *f, const char *key,
-    const char *value)
-{
-	struct private_data *data = (struct private_data *)f->data;
-
-	if (strcmp(key, "compression-level") == 0) {
-		if (value == NULL || !(value[0] >= '0' && value[0] <= '9') ||
-		    value[1] != '\0')
-			return (ARCHIVE_WARN);
-		data->compression_level = value[0] - '0';
-		return (ARCHIVE_OK);
-	}
-
-	/* Note: The "warn" return is just to inform the options
-	 * supervisor that we didn't handle it.  It will generate
-	 * a suitable error if no one used this option. */
-	return (ARCHIVE_WARN);
-}
-
-/*
  * Write data to the compressed stream.
  */
 static int
@@ -301,16 +311,6 @@ archive_compressor_gzip_close(struct archive_write_filter *f)
 	}
 	r1 = __archive_write_close_filter(f->next_filter);
 	return (r1 < ret ? r1 : ret);
-}
-
-static int
-archive_compressor_gzip_free(struct archive_write_filter *f)
-{
-	struct private_data *data = (struct private_data *)f->data;
-	free(data->compressed);
-	free(data);
-	f->data = NULL;
-	return (ARCHIVE_OK);
 }
 
 /*
