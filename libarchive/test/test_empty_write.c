@@ -41,10 +41,13 @@ DEFINE_TEST(test_empty_write)
 	assert((a = archive_write_new()) != NULL);
 	assertA(0 == archive_write_set_format_ustar(a));
 	r = archive_write_add_filter_gzip(a);
-	if (r == ARCHIVE_FATAL) {
+	if (r != ARCHIVE_OK && !canGzip()) {
 		skipping("Empty write to gzip-compressed archive");
 	} else {
-		assertEqualIntA(a, ARCHIVE_OK, r);
+		if (r != ARCHIVE_OK && canGzip())
+			assertEqualIntA(a, ARCHIVE_WARN, r);
+		else
+			assertEqualIntA(a, ARCHIVE_OK, r);
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_write_open_memory(a, buff, sizeof(buff), &used));
 		/* Write a file to it. */
