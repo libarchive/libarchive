@@ -46,14 +46,19 @@ extract_quotation(struct archive_string *as, const char *p)
 {
 	const char *s;
 
-	for (s = p + 1; *s; s++) {
+	for (s = p + 1; *s;) {
 		if (*s == '\\') {
-			if (s[1] != '\0')
-				archive_strappend_char(as, s[0]);
+			if (s[1] != '\0') {
+				archive_strappend_char(as, s[1]);
+				s += 2;
+			} else
+				s++;
 		} else if (*s == '"')
 			break;
-		else
+		else {
 			archive_strappend_char(as, s[0]);
+			s++;
+		}
 	}
 	if (*s != '"')
 		return (ARCHIVE_FAILED);/* Invalid sequence. */
@@ -197,7 +202,7 @@ struct archive_cmdline *
 __archive_cmdline_allocate(void)
 {
 	return (struct archive_cmdline *)
-		calloc(1, sizeof(struct archive_cmdline *));
+		calloc(1, sizeof(struct archive_cmdline));
 }
 
 /*
