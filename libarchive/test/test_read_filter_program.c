@@ -61,53 +61,6 @@ DEFINE_TEST(test_read_filter_program)
 	/*
 	 * If we have "gzip -d", try using that.
 	 */
-	if (!canGunzip()) {
-		skipping("Can't run gunzip program on this platform");
-		return;
-	}
-	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_filter_none(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_filter_program(a, "gunzip"));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_open_memory(a, archive, sizeof(archive)));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_next_header(a, &ae));
-	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_PROGRAM);
-	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-}
-
-
-DEFINE_TEST(test_read_filter_programl)
-{
-	int r;
-	struct archive_entry *ae;
-	struct archive *a;
-
-	/*
-	 * First, test handling when a non-existent compression
-	 * program is requested.
-	 */
-	assert((a = archive_read_new()) != NULL);
-	r = archive_read_support_filter_program(a, "nonexistent");
-	if (r == ARCHIVE_FATAL) {
-		skipping("archive_read_support_filter_program() "
-		    "unsupported on this platform");
-		return;
-	}
-	assertEqualIntA(a, ARCHIVE_OK, r);
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_FATAL,
-	    archive_read_open_memory(a, archive, sizeof(archive)));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-
 	if (!canGzip()) {
 		skipping("Can't run gzip program on this platform");
 		return;
@@ -116,55 +69,7 @@ DEFINE_TEST(test_read_filter_programl)
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_filter_none(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_filter_programl(a, "gzip", "gzip",
-		"-d", NULL));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_open_memory(a, archive, sizeof(archive)));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_next_header(a, &ae));
-	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_PROGRAM);
-	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-}
-
-DEFINE_TEST(test_read_filter_programv)
-{
-	int r;
-	struct archive_entry *ae;
-	struct archive *a;
-	char * const argv[] = {"gzip", "-d", NULL};
-
-	/*
-	 * First, test handling when a non-existent compression
-	 * program is requested.
-	 */
-	assert((a = archive_read_new()) != NULL);
-	r = archive_read_support_filter_program(a, "nonexistent");
-	if (r == ARCHIVE_FATAL) {
-		skipping("archive_read_support_filter_program() "
-		    "unsupported on this platform");
-		return;
-	}
-	assertEqualIntA(a, ARCHIVE_OK, r);
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_FATAL,
-	    archive_read_open_memory(a, archive, sizeof(archive)));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-
-	if (!canGzip()) {
-		skipping("Can't run gzip program on this platform");
-		return;
-	}
-	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_filter_none(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_filter_programv(a, "gzip", argv));
+	    archive_read_support_filter_program(a, "gzip -d"));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,

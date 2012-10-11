@@ -64,15 +64,15 @@ DEFINE_TEST(test_read_filter_program_signature)
 	/*
 	 * If we have "gzip -d", try using that.
 	 */
-	if (!canGunzip()) {
-		skipping("Can't run gunzip program on this platform");
+	if (!canGzip()) {
+		skipping("Can't run gzip program on this platform");
 		return;
 	}
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_filter_none(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_filter_program_signature(a, "gunzip",
+	    archive_read_support_filter_program_signature(a, "gzip -d",
 		signature, signature_len));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_all(a));
@@ -93,134 +93,6 @@ DEFINE_TEST(test_read_filter_program_signature)
 	    archive_read_support_filter_none(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_filter_program_signature(a, "gunzip",
-		badsignature, signature_len));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_FATAL,
-	    archive_read_open_memory(a, archive, sizeof(archive)));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-}
-
-
-DEFINE_TEST(test_read_filter_programl_signature)
-{
-	int r;
-	struct archive_entry *ae;
-	struct archive *a;
-
-	/*
-	 * First, test handling when a non-existent compression
-	 * program is requested.
-	 */
-	assert((a = archive_read_new()) != NULL);
-	r = archive_read_support_filter_program(a, "nonexistent");
-	if (r == ARCHIVE_FATAL) {
-		skipping("archive_read_support_filter_program() "
-		    "unsupported on this platform");
-		return;
-	}
-	assertEqualIntA(a, ARCHIVE_OK, r);
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_FATAL,
-	    archive_read_open_memory(a, archive, sizeof(archive)));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-
-	if (!canGzip()) {
-		skipping("Can't run gzip program on this platform");
-		return;
-	}
-	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_filter_none(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_filter_programl_signature(a, "gzip", "gzip",
-		"-d", NULL, signature, signature_len));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_open_memory(a, archive, sizeof(archive)));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_next_header(a, &ae));
-	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_PROGRAM);
-	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-
-	/*
-	 * Test bad signature.
-	 */
-	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_filter_none(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_filter_programl_signature(a, "gzip", "gzip",
-		"-d", NULL, badsignature, signature_len));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_FATAL,
-	    archive_read_open_memory(a, archive, sizeof(archive)));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-}
-
-DEFINE_TEST(test_read_filter_programv_signature)
-{
-	int r;
-	struct archive_entry *ae;
-	struct archive *a;
-	char * const argv[] = {"gzip", "-d", NULL};
-
-	/*
-	 * First, test handling when a non-existent compression
-	 * program is requested.
-	 */
-	assert((a = archive_read_new()) != NULL);
-	r = archive_read_support_filter_program(a, "nonexistent");
-	if (r == ARCHIVE_FATAL) {
-		skipping("archive_read_support_filter_program() "
-		    "unsupported on this platform");
-		return;
-	}
-	assertEqualIntA(a, ARCHIVE_OK, r);
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_FATAL,
-	    archive_read_open_memory(a, archive, sizeof(archive)));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-
-	if (!canGzip()) {
-		skipping("Can't run gzip program on this platform");
-		return;
-	}
-	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_filter_none(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_filter_programv_signature(a, "gzip", argv,
-		signature, signature_len));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_open_memory(a, archive, sizeof(archive)));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_next_header(a, &ae));
-	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_PROGRAM);
-	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-
-	/*
-	 * Test bad signature.
-	 */
-	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_filter_none(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_filter_programv_signature(a, "gzip", argv,
 		badsignature, signature_len));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_all(a));

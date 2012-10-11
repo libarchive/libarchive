@@ -140,10 +140,8 @@ int	__archive_write_program_open(struct archive_write_filter *,
 	    struct archive_write_program_data *);
 int	__archive_write_program_close(struct archive_write_filter *,
 	    struct archive_write_program_data *);
-int	__archive_write_program_write(struct archive_write_filter *,
-	    struct archive_write_program_data *, const void *, size_t);
 int	__archive_write_program_set_cmd(struct archive_write_program_data *,
 	    const char *);
-int	__archive_write_program_add_arg(struct archive_write_program_data *,
-	    const char *);
+int	__archive_write_program_write(struct archive_write_filter *,
+	    struct archive_write_program_data *, const void *, size_t);
 #endif

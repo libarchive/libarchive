@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include "archive.h"
+#include "archive_string.h"
 #include "archive_write_private.h"
 
 struct write_lrzip {
@@ -126,60 +127,44 @@ static int
 archive_write_lrzip_open(struct archive_write_filter *f)
 {
 	struct write_lrzip *data = (struct write_lrzip *)f->data;
+	struct archive_string as;
 	int r;
 
-	r = __archive_write_program_set_cmd(data->pdata, "lrzip");
-	if (r != ARCHIVE_OK)
-		goto memerr;
-	r = __archive_write_program_add_arg(data->pdata, "lrzip");
-	if (r != ARCHIVE_OK)
-		goto memerr;
-	r = __archive_write_program_add_arg(data->pdata, "-q");
-	if (r != ARCHIVE_OK)
-		goto memerr;
+	archive_string_init(&as);
+	archive_strcpy(&as, "lrzip -q");
 
 	/* Specify compression type. */
 	switch (data->compression) {
 	case lzma:/* default compression */
 		break;
 	case bzip2:
-		r = __archive_write_program_add_arg(data->pdata, "-b");
-		if (r != ARCHIVE_OK)
-			goto memerr;
+		archive_strcat(&as, " -b");
 		break;
 	case gzip:
-		r = __archive_write_program_add_arg(data->pdata, "-g");
-		if (r != ARCHIVE_OK)
-			goto memerr;
+		archive_strcat(&as, " -g");
 		break;
 	case lzo:
-		r = __archive_write_program_add_arg(data->pdata, "-l");
-		if (r != ARCHIVE_OK)
-			goto memerr;
+		archive_strcat(&as, " -l");
 		break;
 	case zpaq:
-		r = __archive_write_program_add_arg(data->pdata, "-z");
-		if (r != ARCHIVE_OK)
-			goto memerr;
+		archive_strcat(&as, " -z");
 		break;
 	}
 
 	/* Specify compression level. */
 	if (data->compression_level > 0) {
-		char level[2];
-		r = __archive_write_program_add_arg(data->pdata, "-L");
-		if (r != ARCHIVE_OK)
-			goto memerr;
-		level[0] = '0' + data->compression_level;
-		level[1] = '\0';
-		r = __archive_write_program_add_arg(data->pdata, level);
-		if (r != ARCHIVE_OK)
-			goto memerr;
+		archive_strcat(&as, " -L ");
+		archive_strappend_char(&as, '0' + data->compression_level);
 	}
+	r = __archive_write_program_set_cmd(data->pdata, as.s);
+	if (r != ARCHIVE_OK)
+		goto memerr;
+	archive_string_free(&as);
 
 	r = __archive_write_program_open(f, data->pdata);
 	return (r);
 memerr:
+	archive_string_free(&as);
 	archive_set_error(f->archive, ENOMEM, "Can't allocate memory");
 	return (ARCHIVE_FATAL);
 }

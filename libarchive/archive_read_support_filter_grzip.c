@@ -109,8 +109,8 @@ grzip_bidder_init(struct archive_read_filter *self)
 {
 	int r;
 
-	r = __archive_read_programl(self, "grzip", "grzip", "-d", NULL);
-	/* Note: We set the format here even if __archive_read_programl()
+	r = __archive_read_program(self, "grzip -d");
+	/* Note: We set the format here even if __archive_read_program()
 	 * above fails.  We do, after all, know what the format is
 	 * even if we weren't able to read it. */
 	self->code = ARCHIVE_FILTER_GRZIP;

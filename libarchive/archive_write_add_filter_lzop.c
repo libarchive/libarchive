@@ -33,8 +33,12 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
 
 #include "archive.h"
+#include "archive_string.h"
 #include "archive_write_private.h"
 
 struct write_lzop {
@@ -108,27 +112,25 @@ static int
 archive_write_lzop_open(struct archive_write_filter *f)
 {
 	struct write_lzop *data = (struct write_lzop *)f->data;
+	struct archive_string as;
 	int r;
 
-	r = __archive_write_program_set_cmd(data->pdata, "lzop");
-	if (r != ARCHIVE_OK)
-		goto memerr;
-	r = __archive_write_program_add_arg(data->pdata, "lzop");
-	if (r != ARCHIVE_OK)
-		goto memerr;
+	archive_string_init(&as);
+	archive_strcpy(&as, "lzop");
 	/* Specify compression level. */
 	if (data->compression_level > 0) {
-		char level[3];
-		level[0] = '-';
-		level[1] = '0' + data->compression_level;
-		level[2] = '\0';
-		r = __archive_write_program_add_arg(data->pdata, level);
-		if (r != ARCHIVE_OK)
-			goto memerr;
+		archive_strappend_char(&as, '-');
+		archive_strappend_char(&as, '0' + data->compression_level);
 	}
+	r = __archive_write_program_set_cmd(data->pdata, as.s);
+	if (r != ARCHIVE_OK)
+		goto memerr;
+	archive_string_free(&as);
+
 	r = __archive_write_program_open(f, data->pdata);
 	return (r);
 memerr:
+	archive_string_free(&as);
 	archive_set_error(f->archive, ENOMEM, "Can't allocate memory");
 	return (ARCHIVE_FATAL);
 }

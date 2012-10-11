@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Joerg Sonnenberger
+ * Copyright (c) 2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,20 +22,24 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD: head/lib/libarchive/filter_fork.h 201087 2009-12-28 02:18:26Z kientzle $
+ * $FreeBSD$
  */
 
 #ifndef __LIBARCHIVE_BUILD
 #error This header is only to be used internally to libarchive.
 #endif
 
-#ifndef FILTER_FORK_H
-#define FILTER_FORK_H
+#ifndef ARCHIVE_CMDLINE_PRIVATE_H
+#define ARCHIVE_CMDLINE_PRIVATE_H
 
-pid_t
-__archive_create_child(const char *cmd, int *child_stdin, int *child_stdout);
+struct archive_cmdline {
+        char            *path;
+        char            **argv;
+        int              argc;
+};
 
-void
-__archive_check_child(int in, int out);
+struct archive_cmdline *__archive_cmdline_allocate(void);
+int __archive_cmdline_parse(struct archive_cmdline *, const char *);
+int __archive_cmdline_free(struct archive_cmdline *);
 
 #endif

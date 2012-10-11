@@ -90,6 +90,8 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_acl.c				\
 	libarchive/archive_acl_private.h			\
 	libarchive/archive_check_magic.c			\
+	libarchive/archive_cmdline.c				\
+	libarchive/archive_cmdline_private.h			\
 	libarchive/archive_crc32.h				\
 	libarchive/archive_crypto.c				\
 	libarchive/archive_crypto_private.h			\

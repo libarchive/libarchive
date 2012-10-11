@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Michihiro NAKAJIMA
+ * Copyright (c) 2009-2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,15 +24,15 @@
  */
 
 #include "archive_platform.h"
-#include "archive_string.h"
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
+#include "archive_cmdline_private.h"
+#include "archive_string.h"
 
 #include "filter_fork.h"
 
 pid_t
-__archive_create_child(const char *cmd, char * const argv[], int *child_stdin,
-    int *child_stdout)
+__archive_create_child(const char *cmd, int *child_stdin, int *child_stdout)
 {
 	HANDLE childStdout[2], childStdin[2],childStderr;
 	SECURITY_ATTRIBUTES secAtts;
@@ -40,6 +40,7 @@ __archive_create_child(const char *cmd, char * const argv[], int *child_stdin,
 	PROCESS_INFORMATION childInfo;
 	struct archive_string cmdline;
 	struct archive_string fullpath;
+	struct archive_cmdline *acmd;
 	char *arg0, *ext;
 	int i, l;
 	DWORD fl, fl_old;
@@ -50,26 +51,33 @@ __archive_create_child(const char *cmd, char * const argv[], int *child_stdin,
 	archive_string_init(&cmdline);
 	archive_string_init(&fullpath);
 
+	acmd = __archive_cmdline_allocate();
+	if (acmd == NULL)
+		goto fail;
+	if (__archive_cmdline_parse(acmd, cmd) != ARCHIVE_OK)
+		goto fail;
+
 	/*
-	 * Search the full path of 'cmd'.
-	 * NOTE: This does not need if we give CreateProcessA 'cmd' as a part
-	 * of the cmdline and give CreateProcessA NULL as first parameter,
-	 * but I do not like that way.
+	 * Search the full path of 'path'.
+	 * NOTE: This does not need if we give CreateProcessA 'path' as
+	 * a part of the cmdline and give CreateProcessA NULL as first
+	 * parameter, but I do not like that way.
 	 */
-	ext = strrchr(cmd, '.');
+	ext = strrchr(acmd->path, '.');
 	if (ext == NULL || strlen(ext) > 4)
-		/* 'cmd' does not have a proper extension, so we have to
+		/* 'path' does not have a proper extension, so we have to
 		 * give SearchPath() ".exe" as the extension. */
 		ext = ".exe";
 	else
-		ext = NULL;/* 'cmd' has an extension. */
+		ext = NULL;/* 'path' has an extension. */
 
 	fl = MAX_PATH;
 	do {
 		if (archive_string_ensure(&fullpath, fl) == NULL)
 			goto fail;
 		fl_old = fl;
-		fl = SearchPathA(NULL, cmd, ext, fl, fullpath.s, &arg0);
+		fl = SearchPathA(NULL, acmd->path, ext, fl, fullpath.s,
+			&arg0);
 	} while (fl != 0 && fl > fl_old);
 	if (fl == 0)
 		goto fail;
@@ -77,22 +85,22 @@ __archive_create_child(const char *cmd, char * const argv[], int *child_stdin,
 	/*
 	 * Make a command line.
 	 */
-	for (l = 0, i = 0;  argv[i] != NULL; i++) {
+	for (l = 0, i = 0;  acmd->argv[i] != NULL; i++) {
 		if (i == 0)
 			continue;
-		l += strlen(argv[i]) + 1;
+		l += strlen(acmd->argv[i]) + 1;
 	}
 	if (archive_string_ensure(&cmdline, l + 1) == NULL)
 		goto fail;
-	for (i = 0;  argv[i] != NULL; i++) {
+	for (i = 0;  acmd->argv[i] != NULL; i++) {
 		if (i == 0) {
 			const char *p, *sp;
 
-			if ((p = strchr(argv[i], '/')) != NULL ||
-			    (p = strchr(argv[i], '\\')) != NULL)
+			if ((p = strchr(acmd->argv[i], '/')) != NULL ||
+			    (p = strchr(acmd->argv[i], '\\')) != NULL)
 				p++;
 			else
-				p = argv[i];
+				p = acmd->argv[i];
 			if ((sp = strchr(p, ' ')) != NULL)
 				archive_strappend_char(&cmdline, '"');
 			archive_strcat(&cmdline, p);
@@ -100,7 +108,7 @@ __archive_create_child(const char *cmd, char * const argv[], int *child_stdin,
 				archive_strappend_char(&cmdline, '"');
 		} else {
 			archive_strappend_char(&cmdline, ' ');
-			archive_strcat(&cmdline, argv[i]);
+			archive_strcat(&cmdline, acmd->argv[i]);
 		}
 	}
 	if (i <= 1) {
@@ -151,6 +159,7 @@ __archive_create_child(const char *cmd, char * const argv[], int *child_stdin,
 
 	archive_string_free(&cmdline);
 	archive_string_free(&fullpath);
+	__archive_cmdline_free(acmd);
 	return (childInfo.dwProcessId);
 
 fail:
@@ -166,6 +175,7 @@ fail:
 		CloseHandle(childStderr);
 	archive_string_free(&cmdline);
 	archive_string_free(&fullpath);
+	__archive_cmdline_free(acmd);
 	return (-1);
 }
 

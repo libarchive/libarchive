@@ -941,8 +941,8 @@ lzma_bidder_init(struct archive_read_filter *self)
 {
 	int r;
 
-	r = __archive_read_programl(self, "unlzma", "unlzma", NULL);
-	/* Note: We set the format here even if __archive_read_programl()
+	r = __archive_read_program(self, "unlzma");
+	/* Note: We set the format here even if __archive_read_program()
 	 * above fails.  We do, after all, know what the format is
 	 * even if we weren't able to read it. */
 	self->code = ARCHIVE_FILTER_LZMA;
@@ -958,8 +958,8 @@ xz_bidder_init(struct archive_read_filter *self)
 {
 	int r;
 
-	r = __archive_read_programl(self, "unxz", "unxz", NULL);
-	/* Note: We set the format here even if __archive_read_programl()
+	r = __archive_read_program(self, "unxz");
+	/* Note: We set the format here even if __archive_read_program()
 	 * above fails.  We do, after all, know what the format is
 	 * even if we weren't able to read it. */
 	self->code = ARCHIVE_FILTER_XZ;
@@ -972,8 +972,8 @@ lzip_bidder_init(struct archive_read_filter *self)
 {
 	int r;
 
-	r = __archive_read_programl(self, "unlzip", "unlzip", NULL);
-	/* Note: We set the format here even if __archive_read_programl()
+	r = __archive_read_program(self, "unlzip");
+	/* Note: We set the format here even if __archive_read_program()
 	 * above fails.  We do, after all, know what the format is
 	 * even if we weren't able to read it. */
 	self->code = ARCHIVE_FILTER_LZIP;

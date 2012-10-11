@@ -15,6 +15,9 @@ SET(include_HEADERS
 SET(libarchive_SOURCES
   archive_acl.c
   archive_check_magic.c
+  archive_cmdline.c
+  archive_cmdline_private.h
+  archive_crc32.h
   archive_crypto.c
   archive_crypto_private.h
   archive_endian.h

@@ -60,8 +60,6 @@ archive_write_set_compression_program(struct archive *a, const char *cmd)
 
 struct archive_write_program_data {
 	char		*cmd;
-	char		**argv;
-	int		 argc;
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	HANDLE		 child;
 #else
@@ -84,8 +82,6 @@ static int archive_compressor_program_write(struct archive_write_filter *,
 static int archive_compressor_program_close(struct archive_write_filter *);
 static int archive_compressor_program_free(struct archive_write_filter *);
 
-static int init_filter_program(struct archive *,
-	    struct archive_write_program_data *data);
 /*
  * Add a filter to this write handle that passes all data through an
  * external program.
@@ -93,7 +89,10 @@ static int init_filter_program(struct archive *,
 int
 archive_write_add_filter_program(struct archive *_a, const char *cmd)
 {
+	struct archive_write_filter *f = __archive_write_allocate_filter(_a);
 	struct archive_write_program_data *pdata;
+	struct private_data *data;
+	static const char *prefix = "Program: ";
 	int r;
 
 	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
@@ -105,129 +104,18 @@ archive_write_add_filter_program(struct archive *_a, const char *cmd)
 	r = __archive_write_program_set_cmd(pdata, cmd);
 	if (r != ARCHIVE_OK)
 		goto memerr;
-	r = __archive_write_program_add_arg(pdata, cmd);
-	if (r != ARCHIVE_OK)
-		goto memerr;
-	r = init_filter_program(_a, pdata);
-	if (r == ARCHIVE_OK)
-		return (r);
-memerr:
-	__archive_write_program_free(pdata);
-	archive_set_error(_a, ENOMEM,
-	    "Can't allocate memory for filter program");
-	return (ARCHIVE_FATAL);
-}
-
-int
-archive_write_add_filter_programl(struct archive *_a, const char *cmd,
-    const char *arg, ...)
-{
-	struct archive_write_program_data *pdata;
-	va_list ap;
-	char *val;
-	int r;
-
-	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_write_add_filter_programl");
-
-	pdata = __archive_write_program_allocate();
-	if (pdata == NULL)
-		goto memerr;
-	r = __archive_write_program_set_cmd(pdata, cmd);
-	if (r != ARCHIVE_OK)
-		goto memerr;
-	if (arg != NULL) {
-		r = __archive_write_program_add_arg(pdata, arg);
-		if (r != ARCHIVE_OK)
-			goto memerr;
-		va_start(ap, arg);
-		while ((val = va_arg(ap, char *)) != NULL) {
-			r = __archive_write_program_add_arg(pdata, val);
-			if (r != ARCHIVE_OK)
-				goto memerr;
-		}
-		va_end(ap);
-	} else {
-		r = __archive_write_program_add_arg(pdata, cmd);
-		if (r != ARCHIVE_OK)
-			goto memerr;
-	}
-	r = init_filter_program(_a, pdata);
-	if (r == ARCHIVE_OK)
-		return (r);
-memerr:
-	__archive_write_program_free(pdata);
-	archive_set_error(_a, ENOMEM,
-	    "Can't allocate memory for filter program");
-	return (ARCHIVE_FATAL);
-}
-
-int
-archive_write_add_filter_programv(struct archive *_a, const char *cmd,
-    char * const argv[])
-{
-	struct archive_write_program_data *pdata;
-	int i, r;
-
-	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_write_add_filter_programv");
-
-	pdata = __archive_write_program_allocate();
-	if (pdata == NULL)
-		goto memerr;
-	r = __archive_write_program_set_cmd(pdata, cmd);
-	if (r != ARCHIVE_OK)
-		goto memerr;
-	for (i = 0; argv[i] != NULL; i++) {
-		r = __archive_write_program_add_arg(pdata, argv[i]);
-		if (r != ARCHIVE_OK)
-			goto memerr;
-	}
-	if (i == 0) {
-		r = __archive_write_program_add_arg(pdata, cmd);
-		if (r != ARCHIVE_OK)
-			goto memerr;
-	}
-	r = init_filter_program(_a, pdata);
-	if (r == ARCHIVE_OK)
-		return (r);
-memerr:
-	__archive_write_program_free(pdata);
-	archive_set_error(_a, ENOMEM,
-	    "Can't allocate memory for filter program");
-	return (ARCHIVE_FATAL);
-}
-
-/*
- * Setup callback.
- */
-static int
-init_filter_program(struct archive *_a,
-    struct archive_write_program_data *pdata)
-{
-
-	struct archive_write_filter *f = __archive_write_allocate_filter(_a);
-	struct private_data *data;
-	static const char *prefix = "Program: ";
-	int i;
-	size_t l;
 
 	data = calloc(1, sizeof(*data));
 	if (data == NULL)
 		goto memerr;
-	l = strlen(prefix) + strlen(pdata->cmd) + 1;
-	for (i = 0; pdata->argv[i] != NULL; i++)
-		l += strlen(pdata->argv[i]) + 1;
 
 	/* Make up a description string. */
-	if (archive_string_ensure(&data->description, l) == NULL)
+	if (archive_string_ensure(&data->description,
+	    strlen(prefix) + strlen(cmd) + 1) == NULL)
 		goto memerr;
 	archive_strcpy(&data->description, prefix);
-	archive_strcat(&data->description, pdata->cmd);
-	for (i = 0; pdata->argv[i] != NULL; i++) {
-		archive_strappend_char(&data->description, ' ');
-		archive_strcat(&data->description, pdata->argv[i]);
-	}
+	archive_strcat(&data->description, cmd);
+
 	data->pdata = pdata;
 	f->name = data->description.s;
 	f->code = ARCHIVE_FILTER_PROGRAM;
@@ -238,7 +126,7 @@ init_filter_program(struct archive *_a,
 	f->free = archive_compressor_program_free;
 	return (ARCHIVE_OK);
 memerr:
-	archive_compressor_program_free(f);
+	__archive_write_program_free(pdata);
 	archive_set_error(_a, ENOMEM,
 	    "Can't allocate memory for filter program");
 	return (ARCHIVE_FATAL);
@@ -308,13 +196,6 @@ __archive_write_program_free(struct archive_write_program_data *data)
 		if (data->child)
 			CloseHandle(data->child);
 #endif
-		free(data->cmd);
-		if (data->argv != NULL) {
-			int i;
-			for (i = 0; data->argv[i] != NULL; i++)
-				free(data->argv[i]);
-			free(data->argv);
-		}
 		free(data->child_buf);
 		free(data);
 	}
@@ -322,49 +203,22 @@ __archive_write_program_free(struct archive_write_program_data *data)
 }
 
 /*
- * Set the program path.
+ * Set up command line arguments.
+ * Returns ARChIVE_OK if everything okey.
+ * Returns ARChIVE_FAILED if there is a lack of the `"' terminator or an
+ * empty command line.
+ * Returns ARChIVE_FATAL if no memory.
  */
 int
 __archive_write_program_set_cmd(struct archive_write_program_data *data,
     const char *cmd)
 {
-	char *newptr;
 
-	newptr = realloc(data->cmd, strlen(cmd) + 1);
-	if (newptr == NULL)
-		return (ARCHIVE_FATAL);
-	data->cmd = newptr;
-	strcpy(data->cmd, cmd);
-	return (ARCHIVE_OK);
-}
-
-/*
- * Add a argument for the program.
- */
-int
-__archive_write_program_add_arg(struct archive_write_program_data *data,
-    const char *arg)
-{
-	char **newargv;
-	int i;
-
+	free(data->cmd);
+	data->cmd = strdup(cmd);
 	if (data->cmd == NULL)
 		return (ARCHIVE_FATAL);
-
-	newargv = realloc(data->argv, (data->argc + 2) * sizeof(char *));
-	if (newargv == NULL)
-		return (ARCHIVE_FATAL);
-	if (newargv != data->argv && data->argv != NULL) {
-		for (i = 0; i <= data->argc; i++)
-			newargv[i] = data->argv[i];
-	}
-	data->argv = newargv;
-	data->argv[data->argc] = strdup(arg);
-	if (data->argv[data->argc] == NULL)
-		return (ARCHIVE_FATAL);
-	/* Set the terminator of argv. */
-	data->argv[++data->argc] = NULL;
-	return (ARCHIVE_OK);
+	return ARCHIVE_OK;
 }
 
 int
@@ -390,7 +244,7 @@ __archive_write_program_open(struct archive_write_filter *f,
 		}
 	}
 
-	child = __archive_create_child(data->cmd, data->argv,
+	child = __archive_create_child(data->cmd,
 		 &data->child_stdin, &data->child_stdout);
 	if (child == -1) {
 		archive_set_error(f->archive, EINVAL,
