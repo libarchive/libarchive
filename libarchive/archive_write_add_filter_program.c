@@ -59,7 +59,6 @@ archive_write_set_compression_program(struct archive *a, const char *cmd)
 #endif
 
 struct archive_write_program_data {
-	char		*cmd;
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	HANDLE		 child;
 #else
@@ -74,6 +73,7 @@ struct archive_write_program_data {
 struct private_data {
 	struct archive_write_program_data *pdata;
 	struct archive_string description;
+	char		*cmd;
 };
 
 static int archive_compressor_program_open(struct archive_write_filter *);
@@ -90,23 +90,23 @@ int
 archive_write_add_filter_program(struct archive *_a, const char *cmd)
 {
 	struct archive_write_filter *f = __archive_write_allocate_filter(_a);
-	struct archive_write_program_data *pdata;
 	struct private_data *data;
 	static const char *prefix = "Program: ";
-	int r;
 
 	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_add_filter_program");
 
-	pdata = __archive_write_program_allocate();
-	if (pdata == NULL)
+	f->data = calloc(1, sizeof(*data));
+	if (f->data == NULL)
 		goto memerr;
-	r = __archive_write_program_set_cmd(pdata, cmd);
-	if (r != ARCHIVE_OK)
+	data = (struct private_data *)f->data;
+
+	data->cmd = strdup(cmd);
+	if (data->cmd == NULL)
 		goto memerr;
 
-	data = calloc(1, sizeof(*data));
-	if (data == NULL)
+	data->pdata = __archive_write_program_allocate();
+	if (data->pdata == NULL)
 		goto memerr;
 
 	/* Make up a description string. */
@@ -116,17 +116,15 @@ archive_write_add_filter_program(struct archive *_a, const char *cmd)
 	archive_strcpy(&data->description, prefix);
 	archive_strcat(&data->description, cmd);
 
-	data->pdata = pdata;
 	f->name = data->description.s;
 	f->code = ARCHIVE_FILTER_PROGRAM;
-	f->data = data;
 	f->open = archive_compressor_program_open;
 	f->write = archive_compressor_program_write;
 	f->close = archive_compressor_program_close;
 	f->free = archive_compressor_program_free;
 	return (ARCHIVE_OK);
 memerr:
-	__archive_write_program_free(pdata);
+	archive_compressor_program_free(f);
 	archive_set_error(_a, ENOMEM,
 	    "Can't allocate memory for filter program");
 	return (ARCHIVE_FATAL);
@@ -137,7 +135,7 @@ archive_compressor_program_open(struct archive_write_filter *f)
 {
 	struct private_data *data = (struct private_data *)f->data;
 
-	return __archive_write_program_open(f, data->pdata);
+	return __archive_write_program_open(f, data->pdata, data->cmd);
 }
 
 static int
@@ -162,6 +160,7 @@ archive_compressor_program_free(struct archive_write_filter *f)
 {
 	struct private_data *data = (struct private_data *)f->data;
 
+	free(data->cmd);
 	archive_string_free(&data->description);
 	__archive_write_program_free(data->pdata);
 	free(data);
@@ -202,28 +201,9 @@ __archive_write_program_free(struct archive_write_program_data *data)
 	return (ARCHIVE_OK);
 }
 
-/*
- * Set up command line arguments.
- * Returns ARChIVE_OK if everything okey.
- * Returns ARChIVE_FAILED if there is a lack of the `"' terminator or an
- * empty command line.
- * Returns ARChIVE_FATAL if no memory.
- */
-int
-__archive_write_program_set_cmd(struct archive_write_program_data *data,
-    const char *cmd)
-{
-
-	free(data->cmd);
-	data->cmd = strdup(cmd);
-	if (data->cmd == NULL)
-		return (ARCHIVE_FATAL);
-	return ARCHIVE_OK;
-}
-
 int
 __archive_write_program_open(struct archive_write_filter *f,
-    struct archive_write_program_data *data)
+    struct archive_write_program_data *data, const char *cmd)
 {
 	pid_t child;
 	int ret;
@@ -244,8 +224,8 @@ __archive_write_program_open(struct archive_write_filter *f,
 		}
 	}
 
-	child = __archive_create_child(data->cmd,
-		 &data->child_stdin, &data->child_stdout);
+	child = __archive_create_child(cmd, &data->child_stdin,
+		    &data->child_stdout);
 	if (child == -1) {
 		archive_set_error(f->archive, EINVAL,
 		    "Can't initialise filter");

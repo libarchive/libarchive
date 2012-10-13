@@ -103,14 +103,8 @@ static int
 archive_write_grzip_open(struct archive_write_filter *f)
 {
 	struct write_grzip *data = (struct write_grzip *)f->data;
-	int r;
 
-	r = __archive_write_program_set_cmd(data->pdata, "grzip");
-	if (r != ARCHIVE_OK) {
-		archive_set_error(f->archive, ENOMEM, "Can't allocate memory");
-		return (ARCHIVE_FATAL);
-	}
-	return __archive_write_program_open(f, data->pdata);
+	return __archive_write_program_open(f, data->pdata, "grzip");
 }
 
 static int

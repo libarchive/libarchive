@@ -124,17 +124,10 @@ archive_write_lzop_open(struct archive_write_filter *f)
 		archive_strappend_char(&as, '-');
 		archive_strappend_char(&as, '0' + data->compression_level);
 	}
-	r = __archive_write_program_set_cmd(data->pdata, as.s);
-	if (r != ARCHIVE_OK)
-		goto memerr;
-	archive_string_free(&as);
 
-	r = __archive_write_program_open(f, data->pdata);
-	return (r);
-memerr:
+	r = __archive_write_program_open(f, data->pdata, as.s);
 	archive_string_free(&as);
-	archive_set_error(f->archive, ENOMEM, "Can't allocate memory");
-	return (ARCHIVE_FATAL);
+	return (r);
 }
 
 static int
