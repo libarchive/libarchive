@@ -32,7 +32,7 @@ DEFINE_TEST(test_extract_cpio_bz2)
 
 	extract_reference_file(reffile);
 	f = systemf("%s -it < %s >test.out 2>test.err", testprog, reffile);
-	if (f == 0 || canBunzip2()) {
+	if (f == 0 || canBzip2()) {
 		assertEqualInt(0, systemf("%s -i < %s >test.out 2>test.err",
 		    testprog, reffile));
 

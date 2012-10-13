@@ -268,8 +268,8 @@ void sleepUntilAfter(time_t);
 /* Return true if this platform can create symlinks. */
 int canSymlink(void);
 
-/* Return true if this platform can run the "bunzip2" program. */
-int canBunzip2(void);
+/* Return true if this platform can run the "bzip2" program. */
+int canBzip2(void);
 
 /* Return true if this platform can run the "grzip" program. */
 int canGrzip(void);

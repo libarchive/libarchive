@@ -1843,15 +1843,15 @@ static const char *redirectArgs = ">NUL 2>NUL"; /* Win32 cmd.exe */
 static const char *redirectArgs = ">/dev/null 2>/dev/null"; /* POSIX 'sh' */
 #endif
 /*
- * Can this platform run the bunzip2 program?
+ * Can this platform run the bzip2 program?
  */
 int
-canBunzip2(void)
+canBzip2(void)
 {
 	static int tested = 0, value = 0;
 	if (!tested) {
 		tested = 1;
-		if (systemf("bunzip2 -V %s", redirectArgs) == 0)
+		if (systemf("bzip2 -V %s", redirectArgs) == 0)
 			value = 1;
 	}
 	return (value);
