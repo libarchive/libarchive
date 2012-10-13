@@ -43,6 +43,6 @@ DEFINE_TEST(test_extract_cpio_lz)
 		assertEmptyFile("test.out");
 		assertTextFileContents("1 block\n", "test.err");
 	} else {
-		skipping("It seems lzma is not supported on this platform");
+		skipping("It seems lzip is not supported on this platform");
 	}
 }

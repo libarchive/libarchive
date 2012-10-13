@@ -43,6 +43,6 @@ DEFINE_TEST(test_extract_cpio_lzo)
 		assertEmptyFile("test.out");
 		assertTextFileContents("1 block\n", "test.err");
 	} else {
-		skipping("It seems lrzip is not supported on this platform");
+		skipping("It seems lzop is not supported on this platform");
 	}
 }

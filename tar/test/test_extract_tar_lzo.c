@@ -43,6 +43,6 @@ DEFINE_TEST(test_extract_tar_lzo)
 		assertEmptyFile("test.out");
 		assertEmptyFile("test.err");
 	} else {
-		skipping("It seems lrzip is not supported on this platform");
+		skipping("It seems lzop is not supported on this platform");
 	}
 }
