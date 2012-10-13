@@ -41,7 +41,7 @@ DEFINE_TEST(test_write_filter_bzip2)
 	size_t buffsize, datasize;
 	char path[16];
 	size_t used1, used2;
-	int i, r;
+	int i, r, use_prog;
 
 	buffsize = 2000000;
 	assert(NULL != (buff = (char *)malloc(buffsize)));
@@ -56,16 +56,19 @@ DEFINE_TEST(test_write_filter_bzip2)
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
 	r = archive_write_add_filter_bzip2(a);
-	if (r == ARCHIVE_FATAL) {
+	use_prog = (r == ARCHIVE_WARN && canBzip2());
+	if (r != ARCHIVE_OK && !use_prog) {
 		skipping("bzip2 writing not supported on this platform");
 		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 		return;
 	}
+
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_bytes_per_block(a, 10));
 	assertEqualInt(ARCHIVE_FILTER_BZIP2, archive_filter_code(a, 0));
 	assertEqualString("bzip2", archive_filter_name(a, 0));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, buffsize, &used1));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, buffsize, &used1));
 	assertEqualInt(ARCHIVE_FILTER_BZIP2, archive_filter_code(a, 0));
 	assertEqualString("bzip2", archive_filter_name(a, 0));
 	assert((ae = archive_entry_new()) != NULL);
@@ -85,7 +88,8 @@ DEFINE_TEST(test_write_filter_bzip2)
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used1));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, buff, used1));
 	for (i = 0; i < 999; i++) {
 		sprintf(path, "file%03d", i);
 		if (!assertEqualInt(0, archive_read_next_header(a, &ae)))
@@ -104,16 +108,22 @@ DEFINE_TEST(test_write_filter_bzip2)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_bytes_per_block(a, 10));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_bzip2(a));
-	assertEqualIntA(a, ARCHIVE_FAILED,
-	    archive_write_set_filter_option(a, NULL, "nonexistent-option", "0"));
-	assertEqualIntA(a, ARCHIVE_FAILED,
-	    archive_write_set_filter_option(a, NULL, "compression-level", "abc"));
-	assertEqualIntA(a, ARCHIVE_FAILED,
-	    archive_write_set_filter_option(a, NULL, "compression-level", "99"));
+	if (use_prog)
+		assertEqualIntA(a, ARCHIVE_WARN,
+		    archive_write_add_filter_bzip2(a));
+	else
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_write_add_filter_bzip2(a));
+	assertEqualIntA(a, ARCHIVE_FAILED, archive_write_set_filter_option(a,
+	    NULL, "nonexistent-option", "0"));
+	assertEqualIntA(a, ARCHIVE_FAILED, archive_write_set_filter_option(a,
+	    NULL, "compression-level", "abc"));
+	assertEqualIntA(a, ARCHIVE_FAILED, archive_write_set_filter_option(a,
+	    NULL, "compression-level", "99"));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_filter_option(a,
+	    NULL, "compression-level", "9"));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_filter_option(a, NULL, "compression-level", "9"));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, buffsize, &used2));
+	    archive_write_open_memory(a, buff, buffsize, &used2));
 	for (i = 0; i < 999; i++) {
 		sprintf(path, "file%03d", i);
 		assert((ae = archive_entry_new()) != NULL);
@@ -121,7 +131,8 @@ DEFINE_TEST(test_write_filter_bzip2)
 		archive_entry_set_size(ae, datasize);
 		archive_entry_set_filetype(ae, AE_IFREG);
 		assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
-		assertA(datasize == (size_t)archive_write_data(a, data, datasize));
+		assertA(datasize == (size_t)archive_write_data(a, data,
+		    datasize));
 		archive_entry_free(ae);
 	}
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
@@ -138,7 +149,8 @@ DEFINE_TEST(test_write_filter_bzip2)
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used2));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, buff, used2));
 	for (i = 0; i < 999; i++) {
 		sprintf(path, "file%03d", i);
 		if (!assertEqualInt(0, archive_read_next_header(a, &ae)))
@@ -156,10 +168,16 @@ DEFINE_TEST(test_write_filter_bzip2)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_bytes_per_block(a, 10));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_bzip2(a));
+	if (use_prog)
+		assertEqualIntA(a, ARCHIVE_WARN,
+		    archive_write_add_filter_bzip2(a));
+	else
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_write_add_filter_bzip2(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_filter_option(a,
+	    NULL, "compression-level", "1"));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_filter_option(a, NULL, "compression-level", "1"));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, buffsize, &used2));
+	    archive_write_open_memory(a, buff, buffsize, &used2));
 	for (i = 0; i < 999; i++) {
 		sprintf(path, "file%03d", i);
 		assert((ae = archive_entry_new()) != NULL);
@@ -183,7 +201,8 @@ DEFINE_TEST(test_write_filter_bzip2)
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used2));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, buff, used2));
 	for (i = 0; i < 999; i++) {
 		sprintf(path, "file%03d", i);
 		if (!assertEqualInt(0, archive_read_next_header(a, &ae)))
@@ -199,24 +218,45 @@ DEFINE_TEST(test_write_filter_bzip2)
 	 * don't crash or leak memory.
 	 */
 	assert((a = archive_write_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_bzip2(a));
+	if (use_prog)
+		assertEqualIntA(a, ARCHIVE_WARN,
+		    archive_write_add_filter_bzip2(a));
+	else
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_write_add_filter_bzip2(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_write_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_bzip2(a));
+	if (use_prog)
+		assertEqualIntA(a, ARCHIVE_WARN,
+		    archive_write_add_filter_bzip2(a));
+	else
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_write_add_filter_bzip2(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_bzip2(a));
+	if (use_prog)
+		assertEqualIntA(a, ARCHIVE_WARN,
+		    archive_write_add_filter_bzip2(a));
+	else
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_write_add_filter_bzip2(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_bzip2(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, buffsize, &used2));
+	if (use_prog)
+		assertEqualIntA(a, ARCHIVE_WARN,
+		    archive_write_add_filter_bzip2(a));
+	else
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_write_add_filter_bzip2(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, buffsize, &used2));
 	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 

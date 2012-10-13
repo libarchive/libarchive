@@ -131,7 +131,7 @@ test_truncation(const char *compression,
 
 DEFINE_TEST(test_read_truncated_filter)
 {
-	test_truncation("bzip2", archive_write_add_filter_bzip2, 0);
+	test_truncation("bzip2", archive_write_add_filter_bzip2, canBzip2());
 	test_truncation("compress", archive_write_add_filter_compress, 0);
 	test_truncation("gzip", archive_write_add_filter_gzip, canGzip());
 	test_truncation("lzip", archive_write_add_filter_lzip, 0);

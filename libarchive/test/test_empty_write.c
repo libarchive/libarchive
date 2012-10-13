@@ -75,7 +75,7 @@ DEFINE_TEST(test_empty_write)
 	assert((a = archive_write_new()) != NULL);
 	assertA(0 == archive_write_set_format_ustar(a));
 	r = archive_write_add_filter_bzip2(a);
-	if (r == ARCHIVE_FATAL) {
+	if (r != ARCHIVE_OK && !canBzip2()) {
 		skipping("Empty write to bzip2-compressed archive");
 	} else {
 		assertEqualIntA(a, ARCHIVE_OK, r);
