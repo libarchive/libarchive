@@ -2339,11 +2339,21 @@ tree_dir_next_posix(struct tree *t)
 #endif /* HAVE_READDIR_R */
 	}
 	for (;;) {
+		errno = 0;
 #if defined(HAVE_READDIR_R)
 		r = readdir_r(t->d, t->dirent, &t->de);
+#ifdef _AIX
+		/* Note: According to the man page, return value 9 indicates
+		 * that the readdir_r was not successful and the error code
+		 * is set to the global errno variable. And then if the end
+		 * of directory entries was reached, the return value is 9
+		 * and the third parameter is set to NULL and errno is
+		 * unchanged. */
+		if (r == 9)
+			r = errno;
+#endif /* _AIX */
 		if (r != 0 || t->de == NULL) {
 #else
-		errno = 0;
 		t->de = readdir(t->d);
 		if (t->de == NULL) {
 			r = errno;
