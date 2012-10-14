@@ -1948,15 +1948,15 @@ canLzop(void)
 }
 
 /*
- * Can this platform run the unxz program?
+ * Can this platform run the xz program?
  */
 int
-canUnxz(void)
+canXz(void)
 {
 	static int tested = 0, value = 0;
 	if (!tested) {
 		tested = 1;
-		if (systemf("unxz -V %s", redirectArgs) == 0)
+		if (systemf("xz -V %s", redirectArgs) == 0)
 			value = 1;
 	}
 	return (value);

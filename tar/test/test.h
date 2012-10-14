@@ -289,8 +289,8 @@ int canLzma(void);
 /* Return true if this platform can run the "lzop" program. */
 int canLzop(void);
 
-/* Return true if this platform can run the "unxz" program. */
-int canUnxz(void);
+/* Return true if this platform can run the "xz" program. */
+int canXz(void);
 
 /* Return true if this filesystem can handle nodump flags. */
 int canNodump(void);

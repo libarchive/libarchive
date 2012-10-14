@@ -32,7 +32,7 @@ DEFINE_TEST(test_extract_tar_xz)
 
 	extract_reference_file(reffile);
 	f = systemf("%s -tf %s >test.out 2>test.err", testprog, reffile);
-	if (f == 0 || canUnxz()) {
+	if (f == 0 || canXz()) {
 		assertEqualInt(0, systemf("%s -xf %s >test.out 2>test.err",
 		    testprog, reffile));
 

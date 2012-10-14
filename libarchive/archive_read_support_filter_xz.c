@@ -144,7 +144,7 @@ archive_read_support_filter_xz(struct archive *_a)
 	return (ARCHIVE_OK);
 #else
 	archive_set_error(_a, ARCHIVE_ERRNO_MISC,
-	    "Using external unxz program for xz decompression");
+	    "Using external xz program for xz decompression");
 	return (ARCHIVE_WARN);
 #endif
 }
@@ -958,7 +958,7 @@ xz_bidder_init(struct archive_read_filter *self)
 {
 	int r;
 
-	r = __archive_read_program(self, "unxz");
+	r = __archive_read_program(self, "xz -d");
 	/* Note: We set the format here even if __archive_read_program()
 	 * above fails.  We do, after all, know what the format is
 	 * even if we weren't able to read it. */
