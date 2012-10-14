@@ -1918,15 +1918,15 @@ canLzip(void)
 }
 
 /*
- * Can this platform run the unlzma program?
+ * Can this platform run the lzma program?
  */
 int
-canUnlzma(void)
+canLzma(void)
 {
 	static int tested = 0, value = 0;
 	if (!tested) {
 		tested = 1;
-		if (systemf("unlzma -V %s", redirectArgs) == 0)
+		if (systemf("lzma -V %s", redirectArgs) == 0)
 			value = 1;
 	}
 	return (value);

@@ -281,8 +281,8 @@ int canLrzip(void);
 /* Return true if this platform can run the "lzip" program. */
 int canLzip(void);
 
-/* Return true if this platform can run the "unlzma" program. */
-int canUnlzma(void);
+/* Return true if this platform can run the "lzma" program. */
+int canLzma(void);
 
 /* Return true if this platform can run the "lzop" program. */
 int canLzop(void);
