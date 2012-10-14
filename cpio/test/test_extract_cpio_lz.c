@@ -32,7 +32,7 @@ DEFINE_TEST(test_extract_cpio_lz)
 
 	extract_reference_file(reffile);
 	f = systemf("%s -it < %s >test.out 2>test.err", testprog, reffile);
-	if (f == 0 || canLunzip()) {
+	if (f == 0 || canLzip()) {
 		assertEqualInt(0, systemf("%s -i < %s >test.out 2>test.err",
 		    testprog, reffile));
 

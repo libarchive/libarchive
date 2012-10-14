@@ -1901,15 +1901,15 @@ canLrzip(void)
 }
 
 /*
- * Can this platform run the lunzip program?
+ * Can this platform run the lzip program?
  */
 int
-canLunzip(void)
+canLzip(void)
 {
 	static int tested = 0, value = 0;
 	if (!tested) {
 		tested = 1;
-		if (systemf("lunzip -V %s", redirectArgs) == 0)
+		if (systemf("lzip -V %s", redirectArgs) == 0)
 			value = 1;
 	}
 	return (value);
