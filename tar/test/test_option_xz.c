@@ -41,8 +41,8 @@ DEFINE_TEST(test_option_xz)
 	p = slurpfile(&s, "archive.err");
 	p[s] = '\0';
 	if (r != 0) {
-		if (strstr(p, "compression not available") != NULL) {
-			skipping("This version of bsdcpio was compiled "
+		if (strstr(p, "Unsupported compression") != NULL) {
+			skipping("This version of bsdtar was compiled "
 			    "without xz support");
 			return;
 		}
