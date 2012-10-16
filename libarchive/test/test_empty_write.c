@@ -78,7 +78,10 @@ DEFINE_TEST(test_empty_write)
 	if (r != ARCHIVE_OK && !canBzip2()) {
 		skipping("Empty write to bzip2-compressed archive");
 	} else {
-		assertEqualIntA(a, ARCHIVE_OK, r);
+		if (r != ARCHIVE_OK && canBzip2())
+			assertEqualIntA(a, ARCHIVE_WARN, r);
+		else
+			assertEqualIntA(a, ARCHIVE_OK, r);
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_write_open_memory(a, buff, sizeof(buff), &used));
 		/* Write a file to it. */
