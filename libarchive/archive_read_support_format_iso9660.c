@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2003-2007 Tim Kientzle
  * Copyright (c) 2009 Andreas Henriksson <andreas@fatal.se>
- * Copyright (c) 2009-2011 Michihiro NAKAJIMA
+ * Copyright (c) 2009-2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1249,7 +1249,6 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 		    "File is beyond end-of-media: %s",
 		    archive_entry_pathname(entry));
 		iso9660->entry_bytes_remaining = 0;
-		iso9660->entry_sparse_offset = 0;
 		return (ARCHIVE_WARN);
 	}
 
@@ -1301,7 +1300,6 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 			    iso9660->previous_pathname.s);
 		archive_entry_unset_size(entry);
 		iso9660->entry_bytes_remaining = 0;
-		iso9660->entry_sparse_offset = 0;
 		return (rd_r);
 	}
 
@@ -1326,7 +1324,6 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 			    (intmax_t)file->offset,
 			    (intmax_t)iso9660->current_position);
 			iso9660->entry_bytes_remaining = 0;
-			iso9660->entry_sparse_offset = 0;
 			return (ARCHIVE_WARN);
 		}
 		iso9660->current_position = (uint64_t)r64;
@@ -1370,7 +1367,6 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 		archive_entry_set_nlink(entry, 2 + file->subdirs);
 		/* Directory data has been read completely. */
 		iso9660->entry_bytes_remaining = 0;
-		iso9660->entry_sparse_offset = 0;
 	}
 
 	if (rd_r != ARCHIVE_OK)
