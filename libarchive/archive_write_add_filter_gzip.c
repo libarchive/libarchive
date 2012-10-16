@@ -401,15 +401,11 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 		archive_strcat(&as, " -");
 		archive_strappend_char(&as, '0' + data->compression_level);
 	}
-	r = __archive_write_program_set_cmd(data->pdata, as.s);
-	archive_string_free(&as);
-	if (r != ARCHIVE_OK) {
-		archive_set_error(f->archive, ENOMEM, "Can't allocate memory");
-		return (ARCHIVE_FATAL);
-	}
-	f->write = archive_compressor_gzip_write;
 
-	return __archive_write_program_open(f, data->pdata);
+	f->write = archive_compressor_gzip_write;
+	r = __archive_write_program_open(f, data->pdata, as.s);
+	archive_string_free(&as);
+	return (r);
 }
 
 static int
