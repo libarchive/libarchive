@@ -756,6 +756,7 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_option_uid_uname.c			\
 	tar/test/test_option_uuencode.c				\
 	tar/test/test_option_xz.c				\
+	tar/test/test_option_z.c				\
 	tar/test/test_patterns.c				\
 	tar/test/test_print_longpath.c				\
 	tar/test/test_stdio.c					\
