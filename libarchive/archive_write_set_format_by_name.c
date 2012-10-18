@@ -59,6 +59,7 @@ struct { const char *name; int (*setter)(struct archive *); } names[] =
 	{ "mtree-classic",	archive_write_set_format_mtree_classic },
 	{ "newc",	archive_write_set_format_cpio_newc },
 	{ "odc",	archive_write_set_format_cpio },
+	{ "oldtar",	archive_write_set_format_v7tar },
 	{ "pax",	archive_write_set_format_pax },
 	{ "paxr",	archive_write_set_format_pax_restricted },
 	{ "posix",	archive_write_set_format_pax },
@@ -66,6 +67,8 @@ struct { const char *name; int (*setter)(struct archive *); } names[] =
 	{ "shar",	archive_write_set_format_shar },
 	{ "shardump",	archive_write_set_format_shar_dump },
 	{ "ustar",	archive_write_set_format_ustar },
+	{ "v7tar",	archive_write_set_format_v7tar },
+	{ "v7",		archive_write_set_format_v7tar },
 	{ "xar",	archive_write_set_format_xar },
 	{ "zip",	archive_write_set_format_zip },
 	{ NULL,		NULL }
