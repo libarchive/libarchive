@@ -585,6 +585,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `lzmadec' library (-llzmadec). */
 #cmakedefine HAVE_LIBLZMADEC 1
 
+/* Define to 1 if you have the `lzo2' library (-llzo2). */
+#cmakedefine HAVE_LIBLZO2 1
+
 /* Define to 1 if you have the `xml2' library (-lxml2). */
 #cmakedefine HAVE_LIBXML2 1
 
@@ -663,6 +666,12 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the <lzma.h> header file. */
 #cmakedefine HAVE_LZMA_H 1
+
+/* Define to 1 if you have the <lzo/lzo1x.h> header file. */
+#cmakedefine HAVE_LZO_LZO1X_H 1
+
+/* Define to 1 if you have the <lzo/lzoconf.h> header file. */
+#cmakedefine HAVE_LZO_LZOCONF_H 1
 
 /* Define to 1 if you have the `mbrtowc' function. */
 #cmakedefine HAVE_MBRTOWC 1

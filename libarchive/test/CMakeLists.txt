@@ -49,6 +49,7 @@ IF(ENABLE_TEST)
     test_compat_gzip.c
     test_compat_lzip.c
     test_compat_lzma.c
+    test_compat_lzop.c
     test_compat_mac.c
     test_compat_pax_libarchive_2x.c
     test_compat_solaris_tar_acl.c
@@ -79,6 +80,7 @@ IF(ENABLE_TEST)
     test_read_filter_grzip.c
     test_read_filter_lrzip.c
     test_read_filter_lzop.c
+    test_read_filter_lzop_multiple_parts.c
     test_read_filter_program.c
     test_read_filter_program_signature.c
     test_read_filter_uudecode.c

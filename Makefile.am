@@ -312,6 +312,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_compat_gzip.c			\
 	libarchive/test/test_compat_lzip.c			\
 	libarchive/test/test_compat_lzma.c			\
+	libarchive/test/test_compat_lzop.c			\
 	libarchive/test/test_compat_mac.c			\
 	libarchive/test/test_compat_pax_libarchive_2x.c		\
 	libarchive/test/test_compat_solaris_tar_acl.c		\
@@ -342,6 +343,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_filter_grzip.c		\
 	libarchive/test/test_read_filter_lrzip.c		\
 	libarchive/test/test_read_filter_lzop.c			\
+	libarchive/test/test_read_filter_lzop_multiple_parts.c	\
 	libarchive/test/test_read_filter_program.c		\
 	libarchive/test/test_read_filter_program_signature.c	\
 	libarchive/test/test_read_filter_uudecode.c		\
@@ -489,6 +491,9 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_lzma_1.tlz.uu			\
 	libarchive/test/test_compat_lzma_2.tlz.uu			\
 	libarchive/test/test_compat_lzma_3.tlz.uu			\
+	libarchive/test/test_compat_lzop_1.tar.lzo.uu			\
+	libarchive/test/test_compat_lzop_2.tar.lzo.uu			\
+	libarchive/test/test_compat_lzop_3.tar.lzo.uu			\
 	libarchive/test/test_compat_mac-1.tar.Z.uu			\
 	libarchive/test/test_compat_mac-2.tar.Z.uu			\
 	libarchive/test/test_compat_pax_libarchive_2x.tar.Z.uu		\
@@ -520,6 +525,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_filter_grzip.tar.grz.uu		\
 	libarchive/test/test_read_filter_lrzip.tar.lrz.uu		\
 	libarchive/test/test_read_filter_lzop.tar.lzo.uu		\
+	libarchive/test/test_read_filter_lzop_multiple_parts.tar.lzo.uu	\
 	libarchive/test/test_read_format_7zip_bcj_bzip2.7z.uu		\
 	libarchive/test/test_read_format_7zip_bcj_copy.7z.uu		\
 	libarchive/test/test_read_format_7zip_bcj_deflate.7z.uu		\

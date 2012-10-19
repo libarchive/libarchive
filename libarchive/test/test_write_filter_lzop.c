@@ -39,12 +39,19 @@ DEFINE_TEST(test_write_filter_lzop)
 	char path[16];
 	size_t used1, used2;
 	int blocksize = 1024;
-	int i;
+	int r, i, use_prog;
 
-	if (!canLzop()) {
-		skipping("lzop command-line program not found");
+	assert((a = archive_read_new()) != NULL);
+	r = archive_read_support_filter_lzop(a);
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	if (r != ARCHIVE_OK && !canLzop()) {
+		skipping("lzop is not supported on this platform");
 		return;
 	}
+	if (r == ARCHIVE_OK)
+		use_prog = 0;
+	else
+		use_prog = 1;
 
 	buffsize = 2000000;
 	assert(NULL != (buff = (char *)malloc(buffsize)));
@@ -86,7 +93,12 @@ DEFINE_TEST(test_write_filter_lzop)
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_WARN, archive_read_support_filter_lzop(a));
+	if (use_prog)
+		assertEqualIntA(a, ARCHIVE_WARN,
+		    archive_read_support_filter_lzop(a));
+	else
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_support_filter_lzop(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_open_memory(a, buff, used1));
 	for (i = 0; i < 100; i++) {

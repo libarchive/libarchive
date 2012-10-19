@@ -285,6 +285,14 @@ if test "x$with_lzma" != "xno"; then
   AC_CHECK_LIB(lzma,lzma_stream_decoder)
 fi
 
+AC_ARG_WITH([lzo2],
+  AS_HELP_STRING([--without-lzo2], [Don't build support for lzop through liblzo2]))
+
+if test "x$with_lzo2" != "xno"; then
+  AC_CHECK_HEADERS([lzo/lzoconf.h lzo/lzo1x.h])
+  AC_CHECK_LIB(lzo2,lzo1x_decompress_safe)
+fi
+
 AC_ARG_WITH([nettle],
   AS_HELP_STRING([--without-nettle], [Don't build with crypto support from Nettle]))
 AC_ARG_WITH([openssl],
