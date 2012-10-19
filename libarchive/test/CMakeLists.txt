@@ -181,7 +181,12 @@ IF(ENABLE_TEST)
     test_write_format_iso9660_filename.c
     test_write_format_iso9660_zisofs.c
     test_write_format_mtree.c
+    test_write_format_mtree_absolute_path.c
+    test_write_format_mtree_classic.c
+    test_write_format_mtree_classic_indent.c
     test_write_format_mtree_fflags.c
+    test_write_format_mtree_no_separator.c
+    test_write_format_mtree_quoted_filename.c
     test_write_format_pax.c
     test_write_format_shar_empty.c
     test_write_format_tar.c
