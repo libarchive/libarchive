@@ -29,22 +29,26 @@ __FBSDID("$FreeBSD$");
 DEFINE_TEST(test_option_lzop)
 {
 	char *p;
+	int r;
 	size_t s;
-
-	if (!canLzop()) {
-		skipping("lzop is not supported on this platform");
-		return;
-	}
 
 	/* Create a file. */
 	assertMakeFile("f", 0644, "a");
 
 	/* Archive it with lzop compression. */
-	assertEqualInt(0,
-	    systemf("echo f | %s -o --lzop >archive.out 2>archive.err",
-	    testprog));
+	r = systemf("echo f | %s -o --lzop >archive.out 2>archive.err",
+	    testprog);
 	p = slurpfile(&s, "archive.err");
 	p[s] = '\0';
+	if (r != 0) {
+		if (!canLzop()) {
+			skipping("lzop is not supported on this platform");
+			return;
+		}
+		failure("--lzop option is broken");
+		assertEqualInt(r, 0);
+		return;
+	}
 	/* Check that the archive file has an lzma signature. */
 	p = slurpfile(&s, "archive.out");
 	assert(s > 2);

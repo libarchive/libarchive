@@ -135,6 +135,7 @@ DEFINE_TEST(test_read_truncated_filter)
 	test_truncation("compress", archive_write_add_filter_compress, 0);
 	test_truncation("gzip", archive_write_add_filter_gzip, canGzip());
 	test_truncation("lzip", archive_write_add_filter_lzip, 0);
+	test_truncation("lzop", archive_write_add_filter_lzop, canLzop());
 	test_truncation("lzma", archive_write_add_filter_lzma, 0);
 	test_truncation("xz", archive_write_add_filter_xz, 0);
 }
