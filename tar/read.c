@@ -173,9 +173,7 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 			    archive_error_string(bsdtar->matching));
 
 	a = archive_read_new();
-	if (bsdtar->compress_program != NULL)
-		archive_read_support_filter_program(a, bsdtar->compress_program);
-	else
+	if (cset_read_support_filter_program(bsdtar->cset, a) == 0)
 		archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
 	if (ARCHIVE_OK != archive_read_set_options(a, bsdtar->option_options))

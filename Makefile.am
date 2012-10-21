@@ -177,6 +177,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_write_private.h			\
 	libarchive/archive_write_add_filter.c			\
 	libarchive/archive_write_add_filter_b64encode.c		\
+	libarchive/archive_write_add_filter_by_name.c		\
 	libarchive/archive_write_add_filter_bzip2.c		\
 	libarchive/archive_write_add_filter_compress.c		\
 	libarchive/archive_write_add_filter_grzip.c		\
@@ -673,6 +674,7 @@ bsdtar_SOURCES=				\
 		tar/bsdtar.h		\
 		tar/bsdtar_platform.h	\
 		tar/cmdline.c		\
+		tar/creation_set.c	\
 		tar/read.c		\
 		tar/subst.c		\
 		tar/util.c		\
@@ -744,6 +746,7 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_option_T_upper.c				\
 	tar/test/test_option_U_upper.c				\
 	tar/test/test_option_X_upper.c				\
+	tar/test/test_option_a.c				\
 	tar/test/test_option_b.c				\
 	tar/test/test_option_b64encode.c			\
 	tar/test/test_option_exclude.c				\

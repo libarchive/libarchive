@@ -30,6 +30,7 @@
 
 #define	DEFAULT_BYTES_PER_BLOCK	(20*512)
 
+struct creation_set;
 /*
  * The internal state for the "bsdtar" program.
  *
@@ -41,7 +42,6 @@
 struct bsdtar {
 	/* Options */
 	const char	 *filename; /* -f filename */
-	const char	 *create_format; /* -F format */
 	char		 *pending_chdir; /* -C dir */
 	const char	 *names_from_file; /* -T file */
 	int		  bytes_per_block; /* -b block_size */
@@ -56,9 +56,6 @@ struct bsdtar {
 	const char	 *uname; /* --uname */
 	char		  mode; /* Program mode: 'c', 't', 'r', 'u', 'x' */
 	char		  symlink_mode; /* H or L, per BSD conventions */
-	char		  create_compression; /* j, y, or z */
-	const char	 *compress_program;
-	char		  add_filter; /* uuencode */
 	char		  option_absolute_paths; /* -P */
 	char		  option_chroot; /* --chroot */
 	char		  option_fast_read; /* --fast-read */
@@ -73,6 +70,7 @@ struct bsdtar {
 	char		  option_unlink_first; /* -U */
 	char		  option_warn_links; /* --check-links */
 	char		  day_first; /* show day before month in -tv output */
+	struct creation_set *cset;
 
 	/* Option parser state */
 	int		  getopt_state;
@@ -175,3 +173,16 @@ void	add_substitution(struct bsdtar *, const char *);
 int	apply_substitution(struct bsdtar *, const char *, char **, int, int);
 void	cleanup_substitution(struct bsdtar *);
 #endif
+
+void		cset_add_filter(struct creation_set *, const char *);
+void		cset_add_filter_program(struct creation_set *, const char *);
+int		cset_auto_compress(struct creation_set *, const char *);
+void		cset_free(struct creation_set *);
+const char *	cset_get_format(struct creation_set *);
+struct creation_set *cset_new(void);
+int		cset_read_support_filter_program(struct creation_set *,
+		    struct archive *);
+void		cset_set_format(struct creation_set *, const char *);
+int		cset_write_add_filters(struct creation_set *,
+		    struct archive *, const void **);
+

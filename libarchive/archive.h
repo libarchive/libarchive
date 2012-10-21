@@ -618,6 +618,8 @@ __LA_DECL int archive_write_set_compression_xz(struct archive *)
 
 /* A convenience function to set the filter based on the code. */
 __LA_DECL int archive_write_add_filter(struct archive *, int filter_code);
+__LA_DECL int archive_write_add_filter_by_name(struct archive *,
+		     const char *name);
 __LA_DECL int archive_write_add_filter_b64encode(struct archive *);
 __LA_DECL int archive_write_add_filter_bzip2(struct archive *);
 __LA_DECL int archive_write_add_filter_compress(struct archive *);
