@@ -59,6 +59,10 @@ __FBSDID("$FreeBSD$");
 #include "archive_private.h"
 #include "archive_read_private.h"
 
+#ifndef HAVE_ZLIB_H
+#define adler32	lzo_adler32
+#endif
+
 #define LZOP_HEADER_MAGIC "\x89\x4c\x5a\x4f\x00\x0d\x0a\x1a\x0a"
 #define LZOP_HEADER_MAGIC_LEN 9
 
@@ -93,9 +97,6 @@ static int	lzop_filter_close(struct archive_read_filter *);
 static int lzop_bidder_bid(struct archive_read_filter_bidder *,
     struct archive_read_filter *);
 static int lzop_bidder_init(struct archive_read_filter *);
-#ifndef HAVE_ZLIB_H
-static unsigned long adler32(unsigned long, const void *, size_t);
-#endif
 
 int
 archive_read_support_filter_lzop(struct archive *_a)
@@ -478,44 +479,5 @@ lzop_filter_close(struct archive_read_filter *self)
 	free(state);
 	return (ARCHIVE_OK);
 }
-
-#ifndef HAVE_ZLIB_H
-static unsigned long
-adler32(unsigned long adler, const void *_p, size_t len)
-{
-	const unsigned char *p;
-	uint32_t a, b;
-
-	if (_p == NULL)
-		return (1);
-	p = (const unsigned char *)_p;
-	a = adler & 0xffff;
-	b = (adler >> 16) & 0xffff;
-	while (len) {
-		size_t xlen, tlen = (len > 4096)? 4096: len;
-		len -= tlen;
-		xlen = tlen >> 4;
-		tlen &= 0x0f;
-		while (xlen--) {
-			a += p[0]; b += a; a += p[1]; b += a;
-			a += p[2]; b += a; a += p[3]; b += a;
-			a += p[4]; b += a; a += p[5]; b += a;
-			a += p[6]; b += a; a += p[7]; b += a;
-			a += p[8]; b += a; a += p[9]; b += a;
-			a += p[10]; b += a; a += p[11]; b += a;
-			a += p[12]; b += a; a += p[13]; b += a;
-			a += p[14]; b += a; a += p[15]; b += a;
-			p += 16;
-		}
-		while (tlen--) {
-			a += *p++;
-			b += a;
-		}
-		a %= 65521;
-		b %= 65521;
-	}
-	return ((b << 16) | a);
-}
-#endif
 
 #endif
