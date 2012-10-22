@@ -478,6 +478,16 @@ Store timestamp. This is enabled by default, use
 or
 .Cm gzip:!timestamp
 to disable.
+.It Cm lrzip:compression Ns = Ns Ar type
+Use
+.Ar type
+as compression method.
+Supported values are bzip2, gzip, lzo (ultra fast),
+and zpaq (best, extremely slow).
+.It Cm lrzip:compression-level
+A decimal integer from 1 to 9 specifying the lrzip compression level.
+.It Cm lzop:compression-level
+A decimal integer from 1 to 9 specifying the lzop compression level.
 .It Cm xz:compression-level
 A decimal integer from 0 to 9 specifying the xz compression level.
 .It Cm mtree: Ns Ar keyword
