@@ -426,6 +426,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_filter_bzip2.c		\
 	libarchive/test/test_write_filter_compress.c		\
 	libarchive/test/test_write_filter_gzip.c		\
+	libarchive/test/test_write_filter_gzip_timestamp.c	\
 	libarchive/test/test_write_filter_lrzip.c		\
 	libarchive/test/test_write_filter_lzip.c		\
 	libarchive/test/test_write_filter_lzma.c		\

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 22, 2012
+.Dd October 23, 2012
 .Dt TAR 1
 .Os
 .Sh NAME
@@ -472,6 +472,12 @@ or
 to disable.
 .It Cm gzip:compression-level
 A decimal integer from 0 to 9 specifying the gzip compression level.
+.It Cm gzip:timestamp
+Store timestamp. This is enabled by default, use
+.Cm !timestamp
+or
+.Cm gzip:!timestamp
+to disable.
 .It Cm xz:compression-level
 A decimal integer from 0 to 9 specifying the xz compression level.
 .It Cm mtree: Ns Ar keyword

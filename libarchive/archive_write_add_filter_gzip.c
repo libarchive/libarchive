@@ -59,6 +59,7 @@ archive_write_set_compression_gzip(struct archive *a)
 
 struct private_data {
 	int		 compression_level;
+	int		 timestamp;
 #ifdef HAVE_ZLIB_H
 	z_stream	 stream;
 	int64_t		 total_in;
@@ -162,6 +163,10 @@ archive_compressor_gzip_options(struct archive_write_filter *f, const char *key,
 		data->compression_level = value[0] - '0';
 		return (ARCHIVE_OK);
 	}
+	if (strcmp(key, "timestamp") == 0) {
+		data->timestamp = (value == NULL)?-1:1;
+		return (ARCHIVE_OK);
+	}
 
 	/* Note: The "warn" return is just to inform the options
 	 * supervisor that we didn't handle it.  It will generate
@@ -178,7 +183,6 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 {
 	struct private_data *data = (struct private_data *)f->data;
 	int ret;
-	time_t t;
 
 	ret = __archive_write_open_filter(f->next_filter);
 	if (ret != ARCHIVE_OK)
@@ -210,15 +214,18 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 	data->stream.avail_out = data->compressed_buffer_size;
 
 	/* Prime output buffer with a gzip header. */
-	t = time(NULL);
 	data->compressed[0] = 0x1f; /* GZip signature bytes */
 	data->compressed[1] = 0x8b;
 	data->compressed[2] = 0x08; /* "Deflate" compression */
 	data->compressed[3] = 0; /* No options */
-	data->compressed[4] = (uint8_t)(t)&0xff;  /* Timestamp */
-	data->compressed[5] = (uint8_t)(t>>8)&0xff;
-	data->compressed[6] = (uint8_t)(t>>16)&0xff;
-	data->compressed[7] = (uint8_t)(t>>24)&0xff;
+	if (data->timestamp >= 0) {
+		time_t t = time(NULL);
+		data->compressed[4] = (uint8_t)(t)&0xff;  /* Timestamp */
+		data->compressed[5] = (uint8_t)(t>>8)&0xff;
+		data->compressed[6] = (uint8_t)(t>>16)&0xff;
+		data->compressed[7] = (uint8_t)(t>>24)&0xff;
+	} else
+		memset(&data->compressed[4], 0, 4);
 	data->compressed[8] = 0; /* No deflate options */
 	data->compressed[9] = 3; /* OS=Unix */
 	data->stream.next_out += 10;
@@ -401,6 +408,31 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 		archive_strcat(&as, " -");
 		archive_strappend_char(&as, '0' + data->compression_level);
 	}
+	if (data->timestamp < 0)
+		/* Do not save timestamp. */
+		archive_strcat(&as, " -n");
+	else if (data->timestamp > 0)
+		/* Save timestamp. */
+		archive_strcat(&as, " -N");
+
+	f->write = archive_compressor_gzip_write;
+	r = __archive_write_program_open(f, data->pdata, as.s);
+	archive_string_free(&as);
+	return (r);
+}
+
+static int
+archive_compressor_gzip_write(struct archive_write_filter *f, const void *buff,
+    size_t length)
+{
+	struct private_data *data = (struct private_data *)f->data;
+
+	return __archive_write_program_write(f, data->pdata, buff, length);
+}
+
+static int
+archive_compressor_gzip_close(struct archive_write_filter *f)
+{
 
 	f->write = archive_compressor_gzip_write;
 	r = __archive_write_program_open(f, data->pdata, as.s);
