@@ -1206,6 +1206,14 @@ fprintf(stderr, "\nblock count = %u, file size = %u\n", a->decmpfs_block_count, 
 		/*
 		 * Set up a resource fork.
 		 */
+		if ((ret = lazy_stat(a)) != ARCHIVE_OK)
+			return (ret);
+		if (fchflags(a->fd, a->st.st_flags | UF_COMPRESSED) != 0) {
+			archive_set_error(&a->archive, errno,
+			    "failed fchflags for decmpfs");
+			return (ARCHIVE_FAILED);
+		}
+
 		/* If the resource fork exists, remove it since we cannot
 		 * truncate and we may use decmpfs xattr only. */
 		ret = hfs_check_resource_fork_existing(a);
