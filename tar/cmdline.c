@@ -93,6 +93,7 @@ static const struct bsdtar_option {
 	{ "gunzip",               0, 'z' },
 	{ "gzip",                 0, 'z' },
 	{ "help",                 0, OPTION_HELP },
+	{ "hfsCompression",       0, OPTION_HFS_COMPRESSION },
 	{ "include",              1, OPTION_INCLUDE },
 	{ "insecure",             0, 'P' },
 	{ "interactive",          0, 'w' },

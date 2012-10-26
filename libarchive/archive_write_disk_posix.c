@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003-2010 Tim Kientzle
+ * Copyright (c) 2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,6 +32,9 @@ __FBSDID("$FreeBSD$");
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_DECMPFS_H
+#include <sys/decmpfs.h>
 #endif
 #ifdef HAVE_SYS_EXTATTR_H
 #include <sys/extattr.h>
@@ -115,6 +119,10 @@ __FBSDID("$FreeBSD$");
 #endif
 #endif
 
+#ifdef HAVE_ZLIB_H
+#include <zlib.h>
+#endif
+
 /* TODO: Support Mac OS 'quarantine' feature.  This is really just a
  * standard tag to mark files that have been downloaded as "tainted".
  * On Mac OS, we should mark the extracted files as tainted if the
@@ -124,6 +132,7 @@ __FBSDID("$FreeBSD$");
 #include "archive.h"
 #include "archive_acl_private.h"
 #include "archive_string.h"
+#include "archive_endian.h"
 #include "archive_entry.h"
 #include "archive_private.h"
 #include "archive_write_disk_private.h"
@@ -180,6 +189,7 @@ struct fixup_entry {
 #define	TODO_ACLS		ARCHIVE_EXTRACT_ACL
 #define	TODO_XATTR		ARCHIVE_EXTRACT_XATTR
 #define	TODO_MAC_METADATA	ARCHIVE_EXTRACT_MAC_METADATA
+#define	TODO_HFS_COMPRESSION	ARCHIVE_EXTRACT_HFS_COMPRESSION
 
 struct archive_write_disk {
 	struct archive	archive;
@@ -240,6 +250,36 @@ struct archive_write_disk {
 	/* UID/GID to use in restoring this entry. */
 	int64_t			 uid;
 	int64_t			 gid;
+	/*
+	 * HFS+ Compression.
+	 */
+#ifdef HAVE_SYS_DECMPFS_H
+	/* Xattr "com.apple.decmpfs". */
+	decmpfs_header		*decmpfs_header_p;
+#endif
+	/* ResourceFork set options used for fsetxattr. */
+	int			 rsrc_xattr_options;
+	/* Xattr "com.apple.ResourceFork". */
+	unsigned char		*resource_fork;
+	size_t			 resource_fork_allocated_size;
+	unsigned int		 decmpfs_block_count;
+	uint32_t		*decmpfs_block_info;
+	/* Buffer for compressed data. */
+	unsigned char		*compressed_buffer;
+	size_t			 compressed_buffer_size;
+	size_t			 compressed_buffer_remaining;
+	/* The offset of the ResourceFork where compressed data will
+	 * be placed. */
+	uint32_t		 compressed_rsrc_position;
+	/* Buffer for uncompressed data. */
+	char			*uncompressed_buffer;
+	size_t			 block_remaining_bytes;
+	size_t			 file_remaining_bytes;
+#ifdef HAVE_ZLIB_H
+	z_stream		 stream;
+	int			 stream_valid;
+	int			 decmpfs_compression_level;
+#endif
 };
 
 /*
@@ -257,6 +297,24 @@ struct archive_write_disk {
 #define	MINIMUM_DIR_MODE 0700
 #define	MAXIMUM_DIR_MODE 0775
 
+/*
+ * Maxinum uncompressed size of a decmpfs block.
+ */
+#define MAX_DECMPFS_BLOCK_SIZE	(64 * 1024)
+/*
+ * HFS+ compression type.
+ */
+#define CMP_XATTR		3/* Compressed data in xattr. */
+#define CMP_RESOURCE_FORK	4/* Compressed data in resource fork. */
+/*
+ * HFS+ compression resource fork.
+ */
+#define RSRC_H_SIZE	260	/* Base size of Resource fork header. */
+#define RSRC_F_SIZE	50	/* Size of Resource fork footer. */
+/* Size to write compressed data to resource fork. */
+#define COMPRESSED_W_SIZE	(64 * 1024)
+
+
 static int	check_symlinks(struct archive_write_disk *);
 static int	create_filesystem_object(struct archive_write_disk *);
 static struct fixup_entry *current_fixup(struct archive_write_disk *, const char *pathname);
@@ -266,6 +324,8 @@ static void	edit_deep_directories(struct archive_write_disk *ad);
 static int	cleanup_pathname(struct archive_write_disk *);
 static int	create_dir(struct archive_write_disk *, char *);
 static int	create_parent_dir(struct archive_write_disk *, char *);
+static ssize_t	hfs_write_data_block(struct archive_write_disk *,
+		    const char *, size_t);
 static int	older(struct stat *, struct archive_entry *);
 static int	restore_entry(struct archive_write_disk *);
 static int	set_mac_metadata(struct archive_write_disk *, const char *,
@@ -480,6 +540,11 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 			a->deferred |= TODO_MAC_METADATA;
 		else
 			a->todo |= TODO_MAC_METADATA;
+	}
+	if ((a->flags & ARCHIVE_EXTRACT_HFS_COMPRESSION) != 0 &&
+	    (a->mode & AE_IFMT) == AE_IFREG && a->filesize > 0) {
+		a->todo |= TODO_HFS_COMPRESSION | TODO_FFLAGS;
+		a->decmpfs_block_count = (unsigned)-1;
 	}
 	if (a->flags & ARCHIVE_EXTRACT_XATTR)
 		a->todo |= TODO_XATTR;
@@ -714,6 +779,567 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 	return (start_size - size);
 }
 
+#if defined(HAVE_ZLIB_H) && defined(HAVE_SYS_DECMPFS_H)
+
+/*
+ * HFS+ Compression decmpfs
+ *
+ *     +------------------------------+
+ *     |      Magic(LE 4 bytes)       |
+ *     +------------------------------+
+ *     |      Type(LE 4 bytes)        |
+ *     +------------------------------+
+ *     | Uncompressed size(LE 8 bytes)|
+ *     +------------------------------+
+ *     |                              |
+ *     |       Compressed data        |
+ *     |  (Placed only if Type == 3)  |
+ *     |                              |
+ *     +------------------------------+  +3802 = MAX_DECMPFS_XATTR_SIZE
+ *
+ *  Type is 3: decmpfs has compressed data.
+ *  Type is 4: Resource Fork has compressed data.
+ */
+/*
+ * Write "com.apple.decmpfs"
+ */
+static int
+hfs_write_decmpfs(struct archive_write_disk *a)
+{
+	decmpfs_disk_header *disk_header;
+	int r;
+
+	/* Convert the endianess of decmpfs_header. */
+	disk_header = (decmpfs_disk_header *)
+	    &a->decmpfs_header_p->compression_magic;
+	archive_le32enc(&disk_header->compression_magic,
+	    a->decmpfs_header_p->compression_magic);
+	archive_le32enc(&disk_header->compression_type,
+	    a->decmpfs_header_p->compression_type);
+	archive_le64enc(&disk_header->uncompressed_size,
+	    a->decmpfs_header_p->uncompressed_size);
+
+	r = fsetxattr(a->fd, DECMPFS_XATTR_NAME, disk_header,
+	    a->decmpfs_header_p->attr_size, 0, 0);
+	if (r < 0) {
+		archive_set_error(&a->archive, errno,
+		    "Cannot restore xattr:%s", DECMPFS_XATTR_NAME);
+		if (a->decmpfs_header_p->compression_type == CMP_RESOURCE_FORK)
+			fremovexattr(a->fd, XATTR_RESOURCEFORK_NAME,
+			    XATTR_SHOWCOMPRESSION);
+		return (ARCHIVE_WARN);
+	}
+	return (ARCHIVE_OK);
+}
+
+/*
+ * HFS+ Compression Resource Fork
+ *
+ *     +-----------------------------+
+ *     |     Header(260 bytes)       |
+ *     +-----------------------------+
+ *     |   Block count(LE 4 bytes)   |
+ *     +-----------------------------+  --+
+ *     |Uncompressed size(LE 4 bytes)|    |
+ *     +-----------------------------+    | Block 0
+ * +-- | Compressed size(LE 4 bytes) |    |
+ * |   +-----------------------------+  --+
+ * |   |                             |
+ * |   |      ..................     |
+ * |   |                             |
+ * |   +-----------------------------+  --+
+ * |   |Uncompressed size(LE 4 bytes)|    |
+ * |   +-----------------------------+    | Block (Block count -1)
+ * |   | Compressed size(LE 4 bytes) |    |
+ * |   +-----------------------------+  --+
+ * +-> |   Compressed data(n bytes)  |  Block 0
+ *     +-----------------------------+
+ *     |                             |
+ *     |      ..................     |
+ *     |                             |
+ *     +-----------------------------+
+ *     |   Compressed data(n bytes)  |  Block (Block count -1)
+ *     +-----------------------------+
+ *     |      Footer(50 bytes)       |
+ *     +-----------------------------+
+ *
+ */
+/*
+ * Write the header of "com.apple.ResourceFork"
+ */
+static int
+hfs_write_resource_fork(struct archive_write_disk *a, unsigned char *buff,
+    size_t bytes, uint32_t position)
+{
+	int ret;
+
+	ret = fsetxattr(a->fd, XATTR_RESOURCEFORK_NAME, buff, bytes,
+	    position, a->rsrc_xattr_options);
+	if (ret < 0) {
+		archive_set_error(&a->archive, errno,
+		    "Cannot restore xattr: %s at %u pos %u bytes",
+		    XATTR_RESOURCEFORK_NAME,
+		    (unsigned)position,
+		    (unsigned)bytes);
+		return (ARCHIVE_WARN);
+	}
+	a->rsrc_xattr_options &= ~XATTR_CREATE;
+	return (ARCHIVE_OK);
+}
+
+static int
+hfs_write_compressed_data(struct archive_write_disk *a, size_t bytes_compressed)
+{
+	int ret;
+
+	ret = hfs_write_resource_fork(a, a->compressed_buffer,
+	    bytes_compressed, a->compressed_rsrc_position);
+	if (ret == ARCHIVE_OK)
+		a->compressed_rsrc_position += bytes_compressed;
+	return (ret);
+}
+
+static int
+hfs_write_resource_fork_header(struct archive_write_disk *a)
+{
+	unsigned char *buff;
+	uint32_t rsrc_bytes;
+	uint32_t rsrc_header_bytes;
+
+	/*
+	 * Write resource fork header + block info.
+	 */
+	buff = a->resource_fork;
+	rsrc_bytes = a->compressed_rsrc_position;
+	rsrc_header_bytes =
+		RSRC_H_SIZE +		/* Header base size. */
+		4 +			/* Block count. */
+		(a->decmpfs_block_count * 8);/* Block info */
+	archive_be32enc(buff, 0x100);
+	archive_be32enc(buff + 4, rsrc_bytes);
+	archive_be32enc(buff + 8, rsrc_bytes - 256);
+	archive_be32enc(buff + 12, 0x32);
+	memset(buff + 16, 0, 240);
+	archive_be32enc(buff + 256, rsrc_bytes - 260);
+	return hfs_write_resource_fork(a, buff, rsrc_header_bytes, 0);
+}
+
+static size_t
+hfs_set_resource_fork_footer(unsigned char *buff, size_t buff_size)
+{
+	static const char rsrc_footer[RSRC_F_SIZE] = {
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x1c, 0x00, 0x32, 0x00, 0x00, 'c',  'm',
+		'p', 'f',   0x00, 0x00, 0x00, 0x0a, 0x00, 0x01,
+		0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00
+	};
+	if (buff_size < sizeof(rsrc_footer))
+		return (0);
+	memcpy(buff, rsrc_footer, sizeof(rsrc_footer));
+	return (sizeof(rsrc_footer));
+}
+
+static int
+hfs_check_resource_fork_existing(struct archive_write_disk *a)
+{
+	char *nl, *nlp;
+	ssize_t r;
+	int exisiting;
+
+	r = flistxattr(a->fd, NULL, 0, XATTR_SHOWCOMPRESSION);
+	if (r < 0) {
+		archive_set_error(&a->archive, errno, "flistxattr failed");
+		return (ARCHIVE_WARN);
+	}
+	if (r == 0)
+		return (0);
+
+	nl = malloc(r);
+	if (nl == NULL) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate memory for decmpfs");
+		return (ARCHIVE_FATAL);
+	}
+	r = flistxattr(a->fd, nl, r, XATTR_SHOWCOMPRESSION);
+	if (r < 0) {
+		archive_set_error(&a->archive, errno, "flistxattr failed");
+		free(nl);
+		return (ARCHIVE_WARN);
+	}
+
+	exisiting = 0;
+	for (nlp = nl; nlp < nl + r; nlp += strlen(nlp) + 1) {
+		if (strcmp(nlp, XATTR_RESOURCEFORK_NAME) == 0) {
+			exisiting = 1;
+			break;
+		}
+	}
+	free(nl);
+	return (exisiting);
+}
+
+static int
+hfs_reset_compressor(struct archive_write_disk *a)
+{
+	int ret;
+
+	if (a->stream_valid)
+		ret = deflateReset(&a->stream);
+	else
+		ret = deflateInit(&a->stream, a->decmpfs_compression_level);
+
+	if (ret != Z_OK) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Failed to initialize compressor");
+		return (ARCHIVE_FATAL);
+	} else
+		a->stream_valid = 1;
+
+	return (ARCHIVE_OK);
+}
+
+static int
+hfs_drive_compressor(struct archive_write_disk *a, const char *buff,
+    size_t size)
+{
+	unsigned char *buffer_compressed;
+	size_t bytes_compressed;
+	int ret;
+
+	ret = hfs_reset_compressor(a);
+	if (ret != ARCHIVE_OK)
+		return (ret);
+
+	if (a->compressed_buffer == NULL) {
+		size_t block_size;
+
+		block_size = COMPRESSED_W_SIZE + RSRC_F_SIZE +
+		    + compressBound(MAX_DECMPFS_BLOCK_SIZE);
+		a->compressed_buffer = malloc(block_size);
+		if (a->compressed_buffer == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Resource Fork");
+			return (ARCHIVE_FATAL);
+		}
+		a->compressed_buffer_size = block_size;
+		a->compressed_buffer_remaining = block_size;
+	}
+
+	buffer_compressed = a->compressed_buffer +
+	    a->compressed_buffer_size - a->compressed_buffer_remaining;
+	a->stream.next_in = (Bytef *)(uintptr_t)(const void *)buff;
+	a->stream.avail_in = size;
+	a->stream.next_out = buffer_compressed;
+	a->stream.avail_out = a->compressed_buffer_remaining;
+	do {
+		ret = deflate(&a->stream, Z_FINISH);
+		switch (ret) {
+		case Z_OK:
+		case Z_STREAM_END:
+			break;
+		default:
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Failed to compress data");
+			return (ARCHIVE_FAILED);
+		}
+	} while (ret == Z_OK);
+	bytes_compressed = a->compressed_buffer_remaining - a->stream.avail_out;
+
+	/*
+	 * If the compressed size is larger than the original size,
+	 * throw away compressed data, use uncompressed data instead.
+	 */
+	if (bytes_compressed > size) {
+		buffer_compressed[0] = 0xFF;/* uncompressed marker. */
+		memcpy(buffer_compressed + 1, buff, size);
+		bytes_compressed = size + 1;
+	}
+	a->compressed_buffer_remaining -= bytes_compressed;
+
+	/*
+	 * If the compressed size is smaller than MAX_DECMPFS_XATTR_SIZE
+	 * and the block count in the file is only one, store compressed
+	 * data to decmpfs xattr instead of the resource fork.
+	 */
+	if (a->decmpfs_block_count == 1 &&
+	    (a->decmpfs_header_p->attr_size + bytes_compressed)
+	      <= MAX_DECMPFS_XATTR_SIZE) {
+#if DECMPFS_DEBUG
+fprintf(stderr, "block %u bytes --> %u bytes in decmpfs xattr\n", (unsigned)size, (unsigned)bytes_compressed);
+#endif
+		a->decmpfs_header_p->compression_type = CMP_XATTR;
+		memcpy(a->decmpfs_header_p->attr_bytes,
+		    buffer_compressed, bytes_compressed);
+		a->decmpfs_header_p->attr_size += bytes_compressed;
+		/*
+		 * Write the decmpfs xattr.
+		 */
+		return hfs_write_decmpfs(a);
+	}
+
+	/* Update block info. */
+	archive_le32enc(a->decmpfs_block_info++, size);
+	archive_le32enc(a->decmpfs_block_info++, bytes_compressed);
+
+#if DECMPFS_DEBUG
+fprintf(stderr, "block %u bytes --> %u bytes in resource fork\n", (unsigned)size, (unsigned)bytes_compressed);
+#endif
+	/*
+	 * Write the compressed data to the resource fork.
+	 */
+	if (a->file_remaining_bytes == 0) {
+		size_t rsrc_size;
+
+		/*
+		 * Write the remaining compressed data with the resource
+		 * fork footer.
+		 */
+		rsrc_size = hfs_set_resource_fork_footer(
+		    buffer_compressed + bytes_compressed,
+		    a->compressed_buffer_remaining);
+		ret = hfs_write_compressed_data(a, a->compressed_buffer_size
+		    - a->compressed_buffer_remaining + rsrc_size);
+		a->compressed_buffer_remaining = a->compressed_buffer_size;
+		/*
+		 * Write the resourcefork header.
+		 */
+		if (ret == ARCHIVE_OK)
+			ret = hfs_write_resource_fork_header(a);
+		/*
+		 * Write the decmpfs xattr.
+		 */
+		if (ret == ARCHIVE_OK)
+			ret = hfs_write_decmpfs(a);
+	} else {
+		size_t bytes_used =
+		    a->compressed_buffer_size - a->compressed_buffer_remaining;
+		while (bytes_used >= COMPRESSED_W_SIZE) {
+			ret = hfs_write_compressed_data(a, COMPRESSED_W_SIZE);
+			if (ret != ARCHIVE_OK)
+				return (ret);
+			bytes_used -= COMPRESSED_W_SIZE;
+			if (bytes_used > COMPRESSED_W_SIZE)
+				memmove(a->compressed_buffer,
+				    a->compressed_buffer + COMPRESSED_W_SIZE,
+				    bytes_used);
+			else
+				memcpy(a->compressed_buffer,
+				    a->compressed_buffer + COMPRESSED_W_SIZE,
+				    bytes_used);
+		}
+		a->compressed_buffer_remaining =
+		    a->compressed_buffer_size - bytes_used;
+	}
+	return (ret);
+}
+
+static ssize_t
+hfs_write_decmpfs_block(struct archive_write_disk *a, const char *buff,
+    size_t size)
+{
+	const char *buffer_to_write;
+	size_t bytes_to_write;
+	int ret;
+
+	if (a->decmpfs_block_count == (unsigned)-1) {
+		void *new_block;
+		size_t new_size;
+
+		if (a->decmpfs_header_p == NULL) {
+			new_block = malloc(MAX_DECMPFS_XATTR_SIZE
+			    + sizeof(uint32_t));
+			if (new_block == NULL) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "Can't allocate memory for decmpfs");
+				return (ARCHIVE_FATAL);
+			}
+			a->decmpfs_header_p = new_block;
+		}
+		a->decmpfs_header_p->attr_size = sizeof(decmpfs_disk_header);
+		a->decmpfs_header_p->compression_magic = DECMPFS_MAGIC;
+		a->decmpfs_header_p->compression_type = CMP_RESOURCE_FORK;
+		a->decmpfs_header_p->uncompressed_size = a->filesize;
+
+		/* Calculate a block count of the file. */
+		a->decmpfs_block_count =
+		    (a->filesize + MAX_DECMPFS_BLOCK_SIZE -1) /
+			MAX_DECMPFS_BLOCK_SIZE;
+#if DECMPFS_DEBUG
+fprintf(stderr, "\nblock count = %u, file size = %u\n", a->decmpfs_block_count, (unsigned)a->filesize);
+#endif
+		/*
+		 * Allocate buffer for resource fork.
+		 * Set up related pointers;
+		 */
+		new_size =
+		    RSRC_H_SIZE + /* header */
+		    4 + /* Block count */
+		    (a->decmpfs_block_count * sizeof(uint32_t) * 2) +
+		    RSRC_F_SIZE; /* footer */
+		if (new_size > a->resource_fork_allocated_size) {
+			new_block = realloc(a->resource_fork, new_size);
+			if (new_block == NULL) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "Can't allocate memory for ResourceFork");
+				return (ARCHIVE_FATAL);
+			}
+			a->resource_fork_allocated_size = new_size;
+			a->resource_fork = new_block;
+		}
+
+		/* Allocate uncompressed buffer */
+		if (a->uncompressed_buffer == NULL) {
+			new_block = malloc(MAX_DECMPFS_BLOCK_SIZE);
+			if (new_block == NULL) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "Can't allocate memory for decmpfs");
+				return (ARCHIVE_FATAL);
+			}
+			a->uncompressed_buffer = new_block;
+		}
+		a->block_remaining_bytes = MAX_DECMPFS_BLOCK_SIZE;
+		a->file_remaining_bytes = a->filesize;
+
+		/*
+		 * Set up a resource fork.
+		 */
+		/* If the resource fork exists, remove it since we cannot
+		 * truncate and we may use decmpfs xattr only. */
+		ret = hfs_check_resource_fork_existing(a);
+		if (ret < 0)
+			return (ret);
+		if (ret > 0)
+			fremovexattr(a->fd, XATTR_RESOURCEFORK_NAME,
+			    XATTR_SHOWCOMPRESSION);
+		a->rsrc_xattr_options = XATTR_CREATE;
+		/* Get the position where we are going to set a bunch
+		 * of block info. */
+		a->decmpfs_block_info =
+		    (uint32_t *)(a->resource_fork + RSRC_H_SIZE);
+		/* Set the block count to the resource fork. */
+		archive_le32enc(a->decmpfs_block_info++,
+		    a->decmpfs_block_count);
+		/* Get the position where we are goint to set compressed
+		 * data. */
+		a->compressed_rsrc_position =
+		    RSRC_H_SIZE + 4 + (a->decmpfs_block_count * 8);
+	}
+
+	/* Ignore redundant bytes. */
+	if (a->file_remaining_bytes == 0)
+		return ((ssize_t)size);
+
+	/* Do not overrun a block size. */
+	if (size > a->block_remaining_bytes)
+		bytes_to_write = a->block_remaining_bytes;
+	else
+		bytes_to_write = size;
+	/* Do not overrun the file size. */
+	if (bytes_to_write > a->file_remaining_bytes)
+		bytes_to_write = a->file_remaining_bytes;
+
+	/* For efficiency, if a copy length is full of the uncompressed
+	 * buffer size, do not copy writing data to it. */
+	if (bytes_to_write == MAX_DECMPFS_BLOCK_SIZE)
+		buffer_to_write = buff;
+	else {
+		memcpy(a->uncompressed_buffer +
+		    MAX_DECMPFS_BLOCK_SIZE - a->block_remaining_bytes,
+		    buff, bytes_to_write);
+		buffer_to_write = a->uncompressed_buffer;
+	}
+	a->block_remaining_bytes -= bytes_to_write;
+	a->file_remaining_bytes -= bytes_to_write;
+
+	if (a->block_remaining_bytes == 0 || a->file_remaining_bytes == 0) {
+		ret = hfs_drive_compressor(a, buffer_to_write,
+		    MAX_DECMPFS_BLOCK_SIZE - a->block_remaining_bytes);
+		if (ret < 0)
+			return (ret);
+		a->block_remaining_bytes = MAX_DECMPFS_BLOCK_SIZE;
+	}
+	/* Ignore redundant bytes. */
+	if (a->file_remaining_bytes == 0)
+		return ((ssize_t)size);
+	return (bytes_to_write);
+}
+
+static ssize_t
+hfs_write_data_block(struct archive_write_disk *a, const char *buff,
+    size_t size)
+{
+	uint64_t start_size = size;
+	ssize_t bytes_written = 0;
+	ssize_t bytes_to_write;
+
+	if (size == 0)
+		return (ARCHIVE_OK);
+
+	if (a->filesize == 0 || a->fd < 0) {
+		archive_set_error(&a->archive, 0,
+		    "Attempt to write to an empty file");
+		return (ARCHIVE_WARN);
+	}
+
+	/* If this write would run beyond the file size, truncate it. */
+	if (a->filesize >= 0 && (int64_t)(a->offset + size) > a->filesize)
+		start_size = size = (size_t)(a->filesize - a->offset);
+
+	/* Write the data. */
+	while (size > 0) {
+		bytes_to_write = size;
+		/* Seek if necessary to the specified offset. */
+		if (a->offset < a->fd_offset) {
+			/* Can't support backword move. */
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Seek failed");
+			return (ARCHIVE_FATAL);
+		} else if (a->offset > a->fd_offset) {
+			int64_t skip = a->offset - a->fd_offset;
+			char nullblock[1024];
+
+			memset(nullblock, 0, sizeof(nullblock));
+			while (skip > 0) {
+				if (skip > sizeof(nullblock))
+					bytes_written = hfs_write_decmpfs_block(
+					    a, nullblock, sizeof(nullblock));
+				else
+					bytes_written = hfs_write_decmpfs_block(
+					    a, nullblock, skip);
+				if (bytes_written < 0) {
+					archive_set_error(&a->archive, errno,
+					    "Write failed");
+					return (ARCHIVE_WARN);
+				}
+				skip -= bytes_written;
+			}
+
+			a->fd_offset = a->offset;
+		}
+		bytes_written =
+		    hfs_write_decmpfs_block(a, buff, bytes_to_write);
+		if (bytes_written < 0)
+			return (bytes_written);
+		buff += bytes_written;
+		size -= bytes_written;
+		a->total_bytes_written += bytes_written;
+		a->offset += bytes_written;
+		a->fd_offset = a->offset;
+	}
+	return (start_size - size);
+}
+#else
+static ssize_t
+hfs_write_data_block(struct archive_write_disk *a, const char *buff,
+    size_t size)
+{
+	return (write_data_block(a, buff, size));
+}
+#endif
+
 static ssize_t
 _archive_write_disk_data_block(struct archive *_a,
     const void *buff, size_t size, int64_t offset)
@@ -725,7 +1351,10 @@ _archive_write_disk_data_block(struct archive *_a,
 	    ARCHIVE_STATE_DATA, "archive_write_data_block");
 
 	a->offset = offset;
-	r = write_data_block(a, buff, size);
+	if (a->todo & TODO_HFS_COMPRESSION)
+		r = hfs_write_data_block(a, buff, size);
+	else
+		r = write_data_block(a, buff, size);
 	if (r < ARCHIVE_OK)
 		return (r);
 	if ((size_t)r < size) {
@@ -744,6 +1373,8 @@ _archive_write_disk_data(struct archive *_a, const void *buff, size_t size)
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
 	    ARCHIVE_STATE_DATA, "archive_write_data");
 
+	if (a->todo & TODO_HFS_COMPRESSION)
+		return (hfs_write_data_block(a, buff, size));
 	return (write_data_block(a, buff, size));
 }
 
@@ -768,6 +1399,24 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	} else if (a->fd_offset == a->filesize) {
 		/* Last write ended at exactly the filesize; we're done. */
 		/* Hopefully, this is the common case. */
+#if defined(HAVE_ZLIB_H) && defined(HAVE_SYS_DECMPFS_H)
+	} else if (a->todo & TODO_HFS_COMPRESSION) {
+		char null_d[1024];
+		ssize_t r;
+
+		if (a->file_remaining_bytes)
+			memset(null_d, 0, sizeof(null_d));
+		while (a->file_remaining_bytes) {
+			if (a->file_remaining_bytes > sizeof(null_d))
+				r = hfs_write_data_block(
+				    a, null_d, sizeof(null_d));
+			else
+				r = hfs_write_data_block(
+				    a, null_d, a->file_remaining_bytes);
+			if (r < 0)
+				return ((int)r);
+		}
+#endif
 	} else {
 #if HAVE_FTRUNCATE
 		if (ftruncate(a->fd, a->filesize) == -1 &&
@@ -991,6 +1640,9 @@ archive_write_disk_new(void)
 		free(a);
 		return (NULL);
 	}
+#ifdef HAVE_ZLIB_H
+	a->decmpfs_compression_level = Z_DEFAULT_COMPRESSION;
+#endif
 	return (&a->archive);
 }
 
@@ -1431,6 +2083,25 @@ _archive_write_disk_free(struct archive *_a)
 	archive_string_free(&a->path_safe);
 	a->archive.magic = 0;
 	__archive_clean(&a->archive);
+#ifdef HAVE_SYS_DECMPFS_H
+	free(a->decmpfs_header_p);
+#endif
+	free(a->resource_fork);
+	free(a->compressed_buffer);
+	free(a->uncompressed_buffer);
+#ifdef HAVE_ZLIB_H
+	if (a->stream_valid) {
+		switch (deflateEnd(&a->stream)) {
+		case Z_OK:
+			break;
+		default:
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Failed to clean up compressor");
+			ret = ARCHIVE_FATAL;
+			break;
+		}
+	}
+#endif
 	free(a);
 	return (ret);
 }
@@ -2371,6 +3042,13 @@ set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
 	int r;
 
 	(void)mode; /* UNUSED */
+
+#ifdef UF_COMPRESSED
+	if (a->todo & TODO_HFS_COMPRESSION)
+		set |= UF_COMPRESSED;
+	else if (set & UF_COMPRESSED)
+		clear |= UF_COMPRESSED;
+#endif
 	if (set == 0  && clear == 0)
 		return (ARCHIVE_OK);
 
@@ -2563,7 +3241,6 @@ set_mac_metadata(struct archive_write_disk *a, const char *pathname,
 	return (ret);
 }
 #endif
-
 
 #if HAVE_LSETXATTR || HAVE_LSETEA
 /*

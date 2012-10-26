@@ -348,6 +348,9 @@ main(int argc, char **argv)
 			long_help();
 			exit(0);
 			break;
+		case OPTION_HFS_COMPRESSION: /* Mac OS X v10.6 or later */
+			bsdtar->extract_flags |= ARCHIVE_EXTRACT_HFS_COMPRESSION;
+			break;
 		case 'I': /* GNU tar */
 			/*
 			 * TODO: Allow 'names' to come from an archive,
@@ -697,6 +700,8 @@ main(int argc, char **argv)
 		only_mode(bsdtar, "--one-file-system", "cru");
 	if (bsdtar->option_fast_read)
 		only_mode(bsdtar, "--fast-read", "xt");
+	if (bsdtar->extract_flags & ARCHIVE_EXTRACT_HFS_COMPRESSION)
+		only_mode(bsdtar, "--hfsCompression", "x");
 	if (bsdtar->readdisk_flags & ARCHIVE_READDISK_HONOR_NODUMP)
 		only_mode(bsdtar, "--nodump", "cru");
 	if (option_o > 0) {
