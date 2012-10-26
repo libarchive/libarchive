@@ -155,6 +155,7 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 	FILE			 *out;
 	struct archive		 *a;
 	struct archive_entry	 *entry;
+	const char		 *reader_options;
 	int			  r;
 
 	while (*bsdtar->argv) {
@@ -176,6 +177,28 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 	if (cset_read_support_filter_program(bsdtar->cset, a) == 0)
 		archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
+
+	reader_options = getenv(ENV_READER_OPTIONS);
+	if (reader_options != NULL) {
+		char *p;
+		/* Set default read options. */
+		p = malloc(sizeof(IGNORE_WRONG_MODULE_NAME)
+		    + strlen(reader_options) + 1);
+		if (p == NULL)
+			lafe_errc(1, errno, "Out of memory");
+		/* Prepend magic code to ignore options for
+		 * a format or  modules which are not added to
+		 *  the archive read object. */
+		strncpy(p, IGNORE_WRONG_MODULE_NAME,
+		    sizeof(IGNORE_WRONG_MODULE_NAME) -1);
+		strcpy(p + sizeof(IGNORE_WRONG_MODULE_NAME) -1, reader_options);
+		r = archive_read_set_options(a, p);
+		free(p);
+		if (r == ARCHIVE_FATAL)
+			lafe_errc(1, 0, "%s", archive_error_string(a));
+		else
+			archive_clear_error(a);
+	}
 	if (ARCHIVE_OK != archive_read_set_options(a, bsdtar->option_options))
 		lafe_errc(1, 0, "%s", archive_error_string(a));
 	if (archive_read_open_filename(a, bsdtar->filename,

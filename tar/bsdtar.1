@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 31, 2012
+.Dd November 1, 2012
 .Dt TAR 1
 .Os
 .Sh NAME
@@ -737,6 +737,16 @@ automatically when reading archives.
 The following environment variables affect the execution of
 .Nm :
 .Bl -tag -width ".Ev BLOCKSIZE"
+.It Ev TAR_READER_OPTIONS
+The default options for format readers and compression readers.
+The
+.Fl Fl options
+option overrides this.
+.It Ev TAR_WRITER_OPTIONS
+The default options for format writers and compression writers.
+The
+.Fl Fl options
+option overrides this.
 .It Ev LANG
 The locale to use.
 See
