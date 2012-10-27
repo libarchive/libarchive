@@ -845,9 +845,6 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <sys/cdefs.h> header file. */
 #cmakedefine HAVE_SYS_CDEFS_H 1
 
-/* Define to 1 if you have the <sys/decmpfs.h> header file. */
-#cmakedefine HAVE_SYS_DECMPFS_H 1
-
 /* Define to 1 if you have the <sys/dir.h> header file, and it defines `DIR'.
    */
 #cmakedefine HAVE_SYS_DIR_H 1
