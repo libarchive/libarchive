@@ -815,21 +815,13 @@ hfs_write_decmpfs(struct archive_write_disk *a)
 	int r;
 	uint32_t compression_type;
 
-	compression_type =
-	    *(uint32_t *)&a->decmpfs_header_p[DECMPFS_COMPRESSION_TYPE];
-	/* Convert the endianess of decmpfs_header. */
-	archive_le32enc(a->decmpfs_header_p + DECMPFS_COMPRESSION_MAGIC,
-	    *(uint32_t *)(a->decmpfs_header_p + DECMPFS_COMPRESSION_MAGIC));
-	archive_le32enc(a->decmpfs_header_p + DECMPFS_COMPRESSION_TYPE,
-	    *(uint32_t *)(a->decmpfs_header_p + DECMPFS_COMPRESSION_TYPE));
-	archive_le64enc(a->decmpfs_header_p + DECMPFS_UNCOMPRESSED_SIZE,
-	    *(uint64_t *)(a->decmpfs_header_p + DECMPFS_UNCOMPRESSED_SIZE));
-
 	r = fsetxattr(a->fd, DECMPFS_XATTR_NAME, a->decmpfs_header_p,
 	    a->decmpfs_attr_size, 0, 0);
 	if (r < 0) {
 		archive_set_error(&a->archive, errno,
 		    "Cannot restore xattr:%s", DECMPFS_XATTR_NAME);
+		compression_type = archive_le32dec(
+		    &a->decmpfs_header_p[DECMPFS_COMPRESSION_TYPE]);
 		if (compression_type == CMP_RESOURCE_FORK)
 			fremovexattr(a->fd, XATTR_RESOURCEFORK_NAME,
 			    XATTR_SHOWCOMPRESSION);
@@ -1013,6 +1005,7 @@ hfs_drive_compressor(struct archive_write_disk *a, const char *buff,
 {
 	unsigned char *buffer_compressed;
 	size_t bytes_compressed;
+	size_t bytes_used;
 	int ret;
 
 	ret = hfs_reset_compressor(a);
@@ -1076,11 +1069,12 @@ hfs_drive_compressor(struct archive_write_disk *a, const char *buff,
 #if DECMPFS_DEBUG
 fprintf(stderr, "block %u bytes --> %u bytes in decmpfs xattr\n", (unsigned)size, (unsigned)bytes_compressed);
 #endif
-		*(uint32_t *)&a->decmpfs_header_p[DECMPFS_COMPRESSION_TYPE]
-		    = CMP_XATTR;
+		archive_le32enc(&a->decmpfs_header_p[DECMPFS_COMPRESSION_TYPE],
+		    CMP_XATTR);
 		memcpy(a->decmpfs_header_p + DECMPFS_HEADER_SIZE,
 		    buffer_compressed, bytes_compressed);
 		a->decmpfs_attr_size += bytes_compressed;
+		a->compressed_buffer_remaining = a->compressed_buffer_size;
 		/*
 		 * Write the decmpfs xattr.
 		 */
@@ -1097,18 +1091,35 @@ fprintf(stderr, "block %u bytes --> %u bytes in resource fork\n", (unsigned)size
 	/*
 	 * Write the compressed data to the resource fork.
 	 */
+	bytes_used = a->compressed_buffer_size - a->compressed_buffer_remaining;
+	while (bytes_used >= COMPRESSED_W_SIZE) {
+		ret = hfs_write_compressed_data(a, COMPRESSED_W_SIZE);
+		if (ret != ARCHIVE_OK)
+			return (ret);
+		bytes_used -= COMPRESSED_W_SIZE;
+		if (bytes_used > COMPRESSED_W_SIZE)
+			memmove(a->compressed_buffer,
+			    a->compressed_buffer + COMPRESSED_W_SIZE,
+			    bytes_used);
+		else
+			memcpy(a->compressed_buffer,
+			    a->compressed_buffer + COMPRESSED_W_SIZE,
+			    bytes_used);
+	}
+	a->compressed_buffer_remaining = a->compressed_buffer_size - bytes_used;
+
+	/*
+	 * If the current block is the last block, write the remaining
+	 * compressed data and the resource fork footer.
+	 */
 	if (a->file_remaining_bytes == 0) {
 		size_t rsrc_size;
 
-		/*
-		 * Write the remaining compressed data with the resource
-		 * fork footer.
-		 */
+		/* Append the resource footer. */
 		rsrc_size = hfs_set_resource_fork_footer(
-		    buffer_compressed + bytes_compressed,
+		    buffer_compressed + bytes_used,
 		    a->compressed_buffer_remaining);
-		ret = hfs_write_compressed_data(a, a->compressed_buffer_size
-		    - a->compressed_buffer_remaining + rsrc_size);
+		ret = hfs_write_compressed_data(a, bytes_used + rsrc_size);
 		a->compressed_buffer_remaining = a->compressed_buffer_size;
 		/*
 		 * Write the resourcefork header.
@@ -1120,25 +1131,6 @@ fprintf(stderr, "block %u bytes --> %u bytes in resource fork\n", (unsigned)size
 		 */
 		if (ret == ARCHIVE_OK)
 			ret = hfs_write_decmpfs(a);
-	} else {
-		size_t bytes_used =
-		    a->compressed_buffer_size - a->compressed_buffer_remaining;
-		while (bytes_used >= COMPRESSED_W_SIZE) {
-			ret = hfs_write_compressed_data(a, COMPRESSED_W_SIZE);
-			if (ret != ARCHIVE_OK)
-				return (ret);
-			bytes_used -= COMPRESSED_W_SIZE;
-			if (bytes_used > COMPRESSED_W_SIZE)
-				memmove(a->compressed_buffer,
-				    a->compressed_buffer + COMPRESSED_W_SIZE,
-				    bytes_used);
-			else
-				memcpy(a->compressed_buffer,
-				    a->compressed_buffer + COMPRESSED_W_SIZE,
-				    bytes_used);
-		}
-		a->compressed_buffer_remaining =
-		    a->compressed_buffer_size - bytes_used;
 	}
 	return (ret);
 }
@@ -1166,12 +1158,12 @@ hfs_write_decmpfs_block(struct archive_write_disk *a, const char *buff,
 			a->decmpfs_header_p = new_block;
 		}
 		a->decmpfs_attr_size = DECMPFS_HEADER_SIZE;
-		*(uint32_t *)&a->decmpfs_header_p[DECMPFS_COMPRESSION_MAGIC]
-		    = DECMPFS_MAGIC;
-		*(uint32_t *)&a->decmpfs_header_p[DECMPFS_COMPRESSION_TYPE]
-		     = CMP_RESOURCE_FORK;
-		*(uint64_t *)&a->decmpfs_header_p[DECMPFS_UNCOMPRESSED_SIZE]
-		     = a->filesize;
+		archive_le32enc(&a->decmpfs_header_p[DECMPFS_COMPRESSION_MAGIC],
+		    DECMPFS_MAGIC);
+		archive_le32enc(&a->decmpfs_header_p[DECMPFS_COMPRESSION_TYPE],
+		    CMP_RESOURCE_FORK);
+		archive_le64enc(&a->decmpfs_header_p[DECMPFS_UNCOMPRESSED_SIZE],
+		    a->filesize);
 
 		/* Calculate a block count of the file. */
 		a->decmpfs_block_count =
@@ -1212,6 +1204,7 @@ fprintf(stderr, "\nblock count = %u, file size = %u\n", a->decmpfs_block_count, 
 		}
 		a->block_remaining_bytes = MAX_DECMPFS_BLOCK_SIZE;
 		a->file_remaining_bytes = a->filesize;
+		a->compressed_buffer_remaining = a->compressed_buffer_size;
 
 		/*
 		 * Set up a resource fork.
