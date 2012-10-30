@@ -1146,6 +1146,7 @@ hfs_write_decmpfs_block(struct archive_write_disk *a, const char *buff,
 	if (a->decmpfs_block_count == (unsigned)-1) {
 		void *new_block;
 		size_t new_size;
+		unsigned int block_count;
 
 		if (a->decmpfs_header_p == NULL) {
 			new_block = malloc(MAX_DECMPFS_XATTR_SIZE
@@ -1166,11 +1167,11 @@ hfs_write_decmpfs_block(struct archive_write_disk *a, const char *buff,
 		    a->filesize);
 
 		/* Calculate a block count of the file. */
-		a->decmpfs_block_count =
+		block_count =
 		    (a->filesize + MAX_DECMPFS_BLOCK_SIZE -1) /
 			MAX_DECMPFS_BLOCK_SIZE;
 #if DECMPFS_DEBUG
-fprintf(stderr, "\nblock count = %u, file size = %u\n", a->decmpfs_block_count, (unsigned)a->filesize);
+fprintf(stderr, "\nblock count = %u, file size = %u\n", block_count, (unsigned)a->filesize);
 #endif
 		/*
 		 * Allocate buffer for resource fork.
@@ -1179,7 +1180,7 @@ fprintf(stderr, "\nblock count = %u, file size = %u\n", a->decmpfs_block_count, 
 		new_size =
 		    RSRC_H_SIZE + /* header */
 		    4 + /* Block count */
-		    (a->decmpfs_block_count * sizeof(uint32_t) * 2) +
+		    (block_count * sizeof(uint32_t) * 2) +
 		    RSRC_F_SIZE; /* footer */
 		if (new_size > a->resource_fork_allocated_size) {
 			new_block = realloc(a->resource_fork, new_size);
@@ -1233,12 +1234,12 @@ fprintf(stderr, "\nblock count = %u, file size = %u\n", a->decmpfs_block_count, 
 		a->decmpfs_block_info =
 		    (uint32_t *)(a->resource_fork + RSRC_H_SIZE);
 		/* Set the block count to the resource fork. */
-		archive_le32enc(a->decmpfs_block_info++,
-		    a->decmpfs_block_count);
+		archive_le32enc(a->decmpfs_block_info++, block_count);
 		/* Get the position where we are goint to set compressed
 		 * data. */
 		a->compressed_rsrc_position =
-		    RSRC_H_SIZE + 4 + (a->decmpfs_block_count * 8);
+		    RSRC_H_SIZE + 4 + (block_count * 8);
+		a->decmpfs_block_count = block_count;
 	}
 
 	/* Ignore redundant bytes. */
