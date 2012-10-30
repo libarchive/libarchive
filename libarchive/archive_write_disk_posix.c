@@ -267,6 +267,7 @@ struct archive_write_disk {
 	/* The offset of the ResourceFork where compressed data will
 	 * be placed. */
 	uint32_t		 compressed_rsrc_position;
+	uint32_t		 compressed_rsrc_position_v;
 	/* Buffer for uncompressed data. */
 	char			*uncompressed_buffer;
 	size_t			 block_remaining_bytes;
@@ -838,19 +839,20 @@ hfs_write_decmpfs(struct archive_write_disk *a)
  *     +-----------------------------+
  *     |   Block count(LE 4 bytes)   |
  *     +-----------------------------+  --+
- *     |Uncompressed size(LE 4 bytes)|    |
- *     +-----------------------------+    | Block 0
- * +-- | Compressed size(LE 4 bytes) |    |
+ * +-- |     Offset (LE 4 bytes)     |    |
+ * |   | [distance from Block count] |    | Block 0
+ * |   +-----------------------------+    |
+ * |   | Compressed size(LE 4 bytes) |    |
  * |   +-----------------------------+  --+
  * |   |                             |
  * |   |      ..................     |
  * |   |                             |
  * |   +-----------------------------+  --+
- * |   |Uncompressed size(LE 4 bytes)|    |
+ * |   |     Offset (LE 4 bytes)     |    |
  * |   +-----------------------------+    | Block (Block count -1)
  * |   | Compressed size(LE 4 bytes) |    |
- * |   +-----------------------------+  --+
- * +-> |   Compressed data(n bytes)  |  Block 0
+ * +-> +-----------------------------+  --+
+ *     |   Compressed data(n bytes)  |  Block 0
  *     +-----------------------------+
  *     |                             |
  *     |      ..................     |
@@ -908,7 +910,7 @@ hfs_write_resource_fork_header(struct archive_write_disk *a)
 	 * Write resource fork header + block info.
 	 */
 	buff = a->resource_fork;
-	rsrc_bytes = a->compressed_rsrc_position;
+	rsrc_bytes = a->compressed_rsrc_position - RSRC_F_SIZE;
 	rsrc_header_bytes =
 		RSRC_H_SIZE +		/* Header base size. */
 		4 +			/* Block count. */
@@ -1043,8 +1045,10 @@ fprintf(stderr, "block %u bytes --> %u bytes in decmpfs xattr\n", (unsigned)size
 	}
 
 	/* Update block info. */
-	archive_le32enc(a->decmpfs_block_info++, size);
+	archive_le32enc(a->decmpfs_block_info++,
+	    a->compressed_rsrc_position_v - RSRC_H_SIZE);
 	archive_le32enc(a->decmpfs_block_info++, bytes_compressed);
+	a->compressed_rsrc_position_v += bytes_compressed;
 
 #if DECMPFS_DEBUG
 fprintf(stderr, "block %u bytes --> %u bytes in resource fork\n", (unsigned)size, (unsigned)bytes_compressed);
@@ -1078,7 +1082,7 @@ fprintf(stderr, "block %u bytes --> %u bytes in resource fork\n", (unsigned)size
 
 		/* Append the resource footer. */
 		rsrc_size = hfs_set_resource_fork_footer(
-		    buffer_compressed + bytes_used,
+		    buffer_compressed + bytes_compressed,
 		    a->compressed_buffer_remaining);
 		ret = hfs_write_compressed_data(a, bytes_used + rsrc_size);
 		a->compressed_buffer_remaining = a->compressed_buffer_size;
@@ -1182,6 +1186,7 @@ fprintf(stderr, "\nblock count = %u, file size = %u\n", block_count, (unsigned)a
 		 * data. */
 		a->compressed_rsrc_position =
 		    RSRC_H_SIZE + 4 + (block_count * 8);
+		a->compressed_rsrc_position_v = a->compressed_rsrc_position;
 		a->decmpfs_block_count = block_count;
 	}
 
@@ -1598,7 +1603,7 @@ archive_write_disk_new(void)
 		return (NULL);
 	}
 #ifdef HAVE_ZLIB_H
-	a->decmpfs_compression_level = Z_DEFAULT_COMPRESSION;
+	a->decmpfs_compression_level = 5;
 #endif
 	return (&a->archive);
 }
