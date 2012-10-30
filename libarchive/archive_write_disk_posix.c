@@ -941,45 +941,6 @@ hfs_set_resource_fork_footer(unsigned char *buff, size_t buff_size)
 }
 
 static int
-hfs_check_resource_fork_existing(struct archive_write_disk *a)
-{
-	char *nl, *nlp;
-	ssize_t r;
-	int exisiting;
-
-	r = flistxattr(a->fd, NULL, 0, XATTR_SHOWCOMPRESSION);
-	if (r < 0) {
-		archive_set_error(&a->archive, errno, "flistxattr failed");
-		return (ARCHIVE_WARN);
-	}
-	if (r == 0)
-		return (0);
-
-	nl = malloc(r);
-	if (nl == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate memory for decmpfs");
-		return (ARCHIVE_FATAL);
-	}
-	r = flistxattr(a->fd, nl, r, XATTR_SHOWCOMPRESSION);
-	if (r < 0) {
-		archive_set_error(&a->archive, errno, "flistxattr failed");
-		free(nl);
-		return (ARCHIVE_WARN);
-	}
-
-	exisiting = 0;
-	for (nlp = nl; nlp < nl + r; nlp += strlen(nlp) + 1) {
-		if (strcmp(nlp, XATTR_RESOURCEFORK_NAME) == 0) {
-			exisiting = 1;
-			break;
-		}
-	}
-	free(nl);
-	return (exisiting);
-}
-
-static int
 hfs_reset_compressor(struct archive_write_disk *a)
 {
 	int ret;
@@ -1210,24 +1171,6 @@ fprintf(stderr, "\nblock count = %u, file size = %u\n", block_count, (unsigned)a
 		/*
 		 * Set up a resource fork.
 		 */
-		if ((ret = lazy_stat(a)) != ARCHIVE_OK)
-			return (ret);
-#if 0
-		if (fchflags(a->fd, a->st.st_flags | UF_COMPRESSED) != 0) {
-			archive_set_error(&a->archive, errno,
-			    "failed fchflags for decmpfs");
-			return (ARCHIVE_FAILED);
-		}
-#endif
-
-		/* If the resource fork exists, remove it since we cannot
-		 * truncate and we may use decmpfs xattr only. */
-		ret = hfs_check_resource_fork_existing(a);
-		if (ret < 0)
-			return (ret);
-		if (ret > 0)
-			fremovexattr(a->fd, XATTR_RESOURCEFORK_NAME,
-			    XATTR_SHOWCOMPRESSION);
 		a->rsrc_xattr_options = XATTR_CREATE;
 		/* Get the position where we are going to set a bunch
 		 * of block info. */
