@@ -30,7 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/xattr.h>
 #endif
 
-#ifdef __APPLE__
+#if defined(__APPLE__) && defined(UF_COMPRESSED)
 static int
 has_xattr(const char *filename, const char *xattrname)
 {
@@ -71,7 +71,7 @@ has_xattr(const char *filename, const char *xattrname)
  */
 DEFINE_TEST(test_write_disk_hfs_compression)
 {
-#ifndef __APPLE__
+#if !defined(__APPLE__) || !defined(UF_COMPRESSED)
 	skipping("MacOS-specific HFS+ Compression test");
 #else
 	const char *refname = "test_write_disk_hfs_compression.tgz";
