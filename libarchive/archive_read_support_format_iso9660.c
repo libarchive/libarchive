@@ -2885,7 +2885,7 @@ fatal_rr:
 	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 	    "Failed to connect 'CL' pointer to 'RE' rr_moved pointer of "
 	    "Rockridge extensions: current position = %jd, CL offset = %jd",
-	    iso9660->current_position, file->cl_offset);
+	    (intmax_t)iso9660->current_position, (intmax_t)file->cl_offset);
 	return (ARCHIVE_FATAL);
 }
 

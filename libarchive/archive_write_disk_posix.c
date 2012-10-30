@@ -1316,7 +1316,7 @@ hfs_write_data_block(struct archive_write_disk *a, const char *buff,
 
 			memset(nullblock, 0, sizeof(nullblock));
 			while (skip > 0) {
-				if (skip > sizeof(nullblock))
+				if (skip > (int64_t)sizeof(nullblock))
 					bytes_written = hfs_write_decmpfs_block(
 					    a, nullblock, sizeof(nullblock));
 				else
