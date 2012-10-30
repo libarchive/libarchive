@@ -839,6 +839,11 @@ assertion_equal_file(const char *filename, int line, const char *fn1, const char
 
 	f1 = fopen(fn1, "rb");
 	f2 = fopen(fn2, "rb");
+	if (f1 == NULL || f2 == NULL) {
+		if (f1) fclose(f1);
+		if (f2) fclose(f2);
+		return (0);
+	}
 	for (;;) {
 		n1 = fread(buff1, 1, sizeof(buff1), f1);
 		n2 = fread(buff2, 1, sizeof(buff2), f2);
