@@ -569,6 +569,26 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 
 	ret = restore_entry(a);
 
+#if defined(UF_COMPRESSED) && defined(HAVE_STRUCT_STAT_ST_FLAGS) && \
+      defined(HAVE_FCHFLAGS)
+	/*
+	 * Check if the filesystem the file is restoring on supports
+	 * HFS+ Compression. If not, cancel HFS+ Compression.
+	 */
+	if (a->todo | TODO_HFS_COMPRESSION) {
+		/*
+		 * NOTE: UF_COMPRESSED is ignored even if the filesystem
+		 * supports HFS+ Compression because the file should
+		 * have at least an extended attriute "com.apple.decmpfs"
+		 * before the flag is set to indicate that the file have
+		 * been compressed. If hte filesystem does not support
+		 * HFS+ Compression the system call will fail.
+		 */
+		if (a->fd < 0 || fchflags(a->fd, UF_COMPRESSED) != 0)
+			a->todo &= ~TODO_HFS_COMPRESSION;
+	}
+#endif
+
 	/*
 	 * TODO: There are rumours that some extended attributes must
 	 * be restored before file data is written.  If this is true,
