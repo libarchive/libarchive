@@ -105,6 +105,9 @@ __FBSDID("$FreeBSD$");
 #ifndef O_BINARY
 #define O_BINARY	0
 #endif
+#ifndef O_CLOEXEC
+#define O_CLOEXEC	0
+#endif
 
 /*-
  * This is a new directory-walking system that addresses a number
@@ -361,6 +364,7 @@ static int	setup_sparse(struct archive_read_disk *, struct archive_entry *);
 static int	close_and_restore_time(int fd, struct tree *,
 		    struct restore_time *);
 static int	open_on_current_dir(struct tree *, const char *, int);
+static int	tree_dup(int);
 
 
 static struct archive_vtable *
@@ -717,7 +721,7 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	 * Open the current file.
 	 */
 	if (t->entry_fd < 0) {
-		int flags = O_RDONLY | O_BINARY;
+		int flags = O_RDONLY | O_BINARY | O_CLOEXEC;
 
 		/*
 		 * Eliminate or reduce cache effects if we can.
@@ -740,6 +744,7 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 #endif
 			t->entry_fd = open_on_current_dir(t,
 			    tree_current_access_path(t), flags);
+			__archive_ensure_cloexec_flag(t->entry_fd);
 #if defined(O_NOATIME)
 			/*
 			 * When we did open the file with O_NOATIME flag,
@@ -987,7 +992,9 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 			int stflags;
 
 			t->entry_fd = open_on_current_dir(t,
-			    tree_current_access_path(t), O_RDONLY | O_NONBLOCK);
+			    tree_current_access_path(t),
+			    O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+			__archive_ensure_cloexec_flag(t->entry_fd);
 			if (t->entry_fd >= 0) {
 				r = ioctl(t->entry_fd, EXT2_IOC_GETFLAGS,
 					&stflags);
@@ -1484,7 +1491,8 @@ setup_current_filesystem(struct archive_read_disk *a)
 		 * where current is.
 		 */
 		int fd = openat(tree_current_dir_fd(t),
-		    tree_current_access_path(t), O_RDONLY);
+		    tree_current_access_path(t), O_RDONLY | O_CLOEXEC);
+		__archive_ensure_cloexec_flag(fd);
 		if (fd < 0) {
 			archive_set_error(&a->archive, errno,
 			    "openat failed");
@@ -1662,7 +1670,8 @@ setup_current_filesystem(struct archive_read_disk *a)
 		 * where current is.
 		 */
 		int fd = openat(tree_current_dir_fd(t),
-		    tree_current_access_path(t), O_RDONLY);
+		    tree_current_access_path(t), O_RDONLY | O_CLOEXEC);
+		__archive_ensure_cloexec_flag(fd);
 		if (fd < 0) {
 			archive_set_error(&a->archive, errno,
 			    "openat failed");
@@ -1770,7 +1779,8 @@ setup_current_filesystem(struct archive_read_disk *a)
 		 * where current is.
 		 */
 		int fd = openat(tree_current_dir_fd(t),
-		    tree_current_access_path(t), O_RDONLY);
+		    tree_current_access_path(t), O_RDONLY | O_CLOEXEC);
+		__archive_ensure_cloexec_flag(fd);
 		if (fd < 0) {
 			archive_set_error(&a->archive, errno,
 			    "openat failed");
@@ -1954,6 +1964,28 @@ open_on_current_dir(struct tree *t, const char *path, int flags)
 #endif
 }
 
+static int
+tree_dup(int fd)
+{
+	int new_fd;
+#ifdef F_DUPFD_CLOEXEC
+	static volatile int can_dupfd_cloexec = 1;
+
+	if (can_dupfd_cloexec) {
+		new_fd = fcntl(fd, F_DUPFD_CLOEXEC);
+		if (new_fd != -1)
+			return (new_fd);
+		/* Linux 2.6.18 - 2.6.23 declare F_DUPFD_CLOEXEC,
+		 * but it cannot be used. So we have to try dup(). */
+		/* We won't try F_DUPFD_CLOEXEC. */
+		can_dupfd_cloexec = 0;
+	}
+#endif /* F_DUPFD_CLOEXEC */
+	new_fd = dup(fd);
+	__archive_ensure_cloexec_flag(new_fd);
+	return (new_fd);
+}
+
 /*
  * Add a directory path to the current stack.
  */
@@ -2054,8 +2086,9 @@ tree_reopen(struct tree *t, const char *path, int restore_time)
 	tree_push(t, path, 0, 0, 0, NULL);
 	t->stack->flags = needsFirstVisit;
 	t->maxOpenCount = t->openCount = 1;
-	t->initial_dir_fd = open(".", O_RDONLY);
-	t->working_dir_fd = dup(t->initial_dir_fd);
+	t->initial_dir_fd = open(".", O_RDONLY | O_CLOEXEC);
+	__archive_ensure_cloexec_flag(t->initial_dir_fd);
+	t->working_dir_fd = tree_dup(t->initial_dir_fd);
 	return (t);
 }
 
@@ -2065,11 +2098,12 @@ tree_descent(struct tree *t)
 	int flag, new_fd, r = 0;
 
 	t->dirname_length = archive_strlen(&t->path);
-	flag = O_RDONLY;
+	flag = O_RDONLY | O_CLOEXEC;
 #if defined(O_DIRECTORY)
 	flag |= O_DIRECTORY;
 #endif
 	new_fd = open_on_current_dir(t, t->stack->name.s, flag);
+	__archive_ensure_cloexec_flag(new_fd);
 	if (new_fd < 0) {
 		t->tree_errno = errno;
 		r = TREE_ERROR_DIR;
@@ -2103,8 +2137,10 @@ tree_ascend(struct tree *t)
 	prev_dir_fd = t->working_dir_fd;
 	if (te->flags & isDirLink)
 		new_fd = te->symlink_parent_fd;
-	else
-		new_fd = open_on_current_dir(t, "..", O_RDONLY);
+	else {
+		new_fd = open_on_current_dir(t, "..", O_RDONLY | O_CLOEXEC);
+		__archive_ensure_cloexec_flag(new_fd);
+	}
 	if (new_fd < 0) {
 		t->tree_errno = errno;
 		r = TREE_ERROR_FATAL;
@@ -2267,11 +2303,16 @@ tree_dir_next_posix(struct tree *t)
 #endif
 
 #if defined(HAVE_FDOPENDIR)
-		if ((t->d = fdopendir(dup(t->working_dir_fd))) == NULL) {
-#else
-		if (tree_enter_working_dir(t) != 0 ||
-		    (t->d = opendir(".")) == NULL) {
+		t->d = fdopendir(tree_dup(t->working_dir_fd));
+#else /* HAVE_FDOPENDIR */
+		if (tree_enter_working_dir(t) == 0) {
+			t->d = opendir(".");
+#if HAVE_DIRFD || defined(dirfd)
+			__archive_ensure_cloexec_flag(dirfd(t->d));
 #endif
+		}
+#endif /* HAVE_FDOPENDIR */
+		if (t->d == NULL) {
 			r = tree_ascend(t); /* Undo "chdir" */
 			tree_pop(t);
 			t->tree_errno = errno;
@@ -2298,11 +2339,21 @@ tree_dir_next_posix(struct tree *t)
 #endif /* HAVE_READDIR_R */
 	}
 	for (;;) {
+		errno = 0;
 #if defined(HAVE_READDIR_R)
 		r = readdir_r(t->d, t->dirent, &t->de);
+#ifdef _AIX
+		/* Note: According to the man page, return value 9 indicates
+		 * that the readdir_r was not successful and the error code
+		 * is set to the global errno variable. And then if the end
+		 * of directory entries was reached, the return value is 9
+		 * and the third parameter is set to NULL and errno is
+		 * unchanged. */
+		if (r == 9)
+			r = errno;
+#endif /* _AIX */
 		if (r != 0 || t->de == NULL) {
 #else
-		errno = 0;
 		t->de = readdir(t->d);
 		if (t->de == NULL) {
 			r = errno;

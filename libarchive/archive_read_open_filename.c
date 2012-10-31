@@ -60,10 +60,14 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_open_filename.c 201093 2009
 #endif
 
 #include "archive.h"
+#include "archive_private.h"
 #include "archive_string.h"
 
 #ifndef O_BINARY
 #define O_BINARY 0
+#endif
+#ifndef O_CLOEXEC
+#define O_CLOEXEC	0
 #endif
 
 struct read_file_data {
@@ -244,7 +248,8 @@ file_open(struct archive *a, void *client_data)
 		filename = "";
 	} else if (mine->filename_type == FNT_MBS) {
 		filename = mine->filename.m;
-		fd = open(filename, O_RDONLY | O_BINARY);
+		fd = open(filename, O_RDONLY | O_BINARY | O_CLOEXEC);
+		__archive_ensure_cloexec_flag(fd);
 		if (fd < 0) {
 			archive_set_error(a, errno,
 			    "Failed to open '%s'", filename);
@@ -442,9 +447,7 @@ file_skip_lseek(struct archive *a, void *client_data, int64_t request)
 	/* TODO: Deal with case where off_t isn't 64 bits.
 	 * This shouldn't be a problem on Linux or other POSIX
 	 * systems, since the configuration logic for libarchive
-	 * tries to obtain a 64-bit off_t.  It's still an issue
-	 * on Windows, though, so it might suffice to just use
-	 * _lseeki64() on Windows.
+	 * tries to obtain a 64-bit off_t.
 	 */
 	if ((old_offset = lseek(mine->fd, 0, SEEK_CUR)) >= 0 &&
 	    (new_offset = lseek(mine->fd, request, SEEK_CUR)) >= 0)

@@ -125,8 +125,8 @@ progress_func(void *cookie)
 	if (bsdtar->verbose)
 		fprintf(stderr, "\n");
 	if (a != NULL) {
-		comp = archive_position_compressed(a);
-		uncomp = archive_position_uncompressed(a);
+		comp = archive_filter_bytes(a, -1);
+		uncomp = archive_filter_bytes(a, 0);
 		if (comp > uncomp)
 			compression = 0;
 		else
@@ -173,14 +173,13 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 			    archive_error_string(bsdtar->matching));
 
 	a = archive_read_new();
-	if (bsdtar->compress_program != NULL)
-		archive_read_support_filter_program(a, bsdtar->compress_program);
-	else
+	if (cset_read_support_filter_program(bsdtar->cset, a) == 0)
 		archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
 	if (ARCHIVE_OK != archive_read_set_options(a, bsdtar->option_options))
 		lafe_errc(1, 0, "%s", archive_error_string(a));
-	if (archive_read_open_file(a, bsdtar->filename, bsdtar->bytes_per_block))
+	if (archive_read_open_filename(a, bsdtar->filename,
+					bsdtar->bytes_per_block))
 		lafe_errc(1, 0, "Error opening archive: %s",
 		    archive_error_string(a));
 
@@ -338,7 +337,7 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 
 	if (bsdtar->verbose > 2)
 		fprintf(stdout, "Archive Format: %s,  Compression: %s\n",
-		    archive_format_name(a), archive_compression_name(a));
+		    archive_format_name(a), archive_filter_name(a, 0));
 
 	archive_read_free(a);
 }

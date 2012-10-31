@@ -1997,7 +1997,7 @@ static int
 iconv_strncat_in_locale(struct archive_string *as, const void *_p,
     size_t length, struct archive_string_conv *sc)
 {
-	ICONV_CONST char *inp;
+	ICONV_CONST char *itp;
 	size_t remaining;
 	iconv_t cd;
 	char *outp;
@@ -2018,12 +2018,12 @@ iconv_strncat_in_locale(struct archive_string *as, const void *_p,
 		return (-1);
 
 	cd = sc->cd;
-	inp = (char *)(uintptr_t)_p;
+	itp = (char *)(uintptr_t)_p;
 	remaining = length;
 	outp = as->s + as->length;
 	avail = as->buffer_length - as->length - to_size;
 	while (remaining >= (size_t)from_size) {
-		size_t result = iconv(cd, &inp, &remaining, &outp, &avail);
+		size_t result = iconv(cd, &itp, &remaining, &outp, &avail);
 
 		if (result != (size_t)-1)
 			break; /* Conversion completed. */
@@ -2065,7 +2065,7 @@ iconv_strncat_in_locale(struct archive_string *as, const void *_p,
 				*outp++ = '?';
 				avail--;
 			}
-			inp += from_size;
+			itp += from_size;
 			remaining -= from_size;
 			return_value = -1; /* failure */
 		} else {
@@ -2202,8 +2202,8 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
     size_t length, struct archive_string_conv *sc)
 {
 	size_t remaining;
-	char *outp;
-	const uint8_t *inp;
+	char *otp;
+	const uint8_t *itp;
 	size_t avail;
 	int return_value = 0; /* success */
 
@@ -2227,41 +2227,41 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 		return (-1);
 
 	remaining = length;
-	inp = (const uint8_t *)_p;
-	outp = as->s + as->length;
+	itp = (const uint8_t *)_p;
+	otp = as->s + as->length;
 	avail = as->buffer_length - as->length -1;
-	while (*inp && remaining > 0) {
-		if (*inp > 127 && (sc->flag & SCONV_TO_UTF8)) {
+	while (*itp && remaining > 0) {
+		if (*itp > 127 && (sc->flag & SCONV_TO_UTF8)) {
 			if (avail < UTF8_R_CHAR_SIZE) {
-				as->length = outp - as->s;
+				as->length = otp - as->s;
 				if (NULL == archive_string_ensure(as,
 				    as->buffer_length + remaining +
 				    UTF8_R_CHAR_SIZE))
 					return (-1);
-				outp = as->s + as->length;
+				otp = as->s + as->length;
 				avail = as->buffer_length - as->length -1;
 			}
 			/*
 		 	 * When coping a string in UTF-8, unknown character
 			 * should be U+FFFD (replacement character).
 			 */
-			UTF8_SET_R_CHAR(outp);
-			outp += UTF8_R_CHAR_SIZE;
+			UTF8_SET_R_CHAR(otp);
+			otp += UTF8_R_CHAR_SIZE;
 			avail -= UTF8_R_CHAR_SIZE;
-			inp++;
+			itp++;
 			remaining--;
 			return_value = -1;
-		} else if (*inp > 127) {
-			*outp++ = '?';
-			inp++;
+		} else if (*itp > 127) {
+			*otp++ = '?';
+			itp++;
 			remaining--;
 			return_value = -1;
 		} else {
-			*outp++ = (char)*inp++;
+			*otp++ = (char)*itp++;
 			remaining--;
 		}
 	}
-	as->length = outp - as->s;
+	as->length = otp - as->s;
 	as->s[as->length] = '\0';
 	return (return_value);
 }

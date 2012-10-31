@@ -31,7 +31,12 @@ __FBSDID("$FreeBSD$");
 #define open _open
 #define close _close
 #define read _read
+#if !defined(__BORLANDC__)
+#ifdef lseek
+#undef lseek
+#endif
 #define lseek(f, o, w) _lseek(f, (long)(o), (int)(w))
+#endif
 #endif
 
 static void

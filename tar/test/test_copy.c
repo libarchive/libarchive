@@ -29,6 +29,9 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/test/test_copy.c,v 1.3 2008/08/15 06:12:02 k
 # include <limits.h>
 # include <sys/cygwin.h>
 #endif
+#if defined(_WIN32) && !defined(__CYGWIN__)
+# include <direct.h>
+#endif
 
 /*
  * Try to figure out how deep we can go in our tests.  Assumes that

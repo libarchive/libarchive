@@ -204,6 +204,11 @@ static const char *fileset29[] =
 	"test_read_format_rar_multivolume.part0004.rar",
 	NULL
 };
+static const char *fileset30[] =
+{
+	"test_compat_lzop_1.tar.lzo",
+	NULL
+};
 
 static const struct files filesets[] = {
 	{0, fileset1},
@@ -235,6 +240,7 @@ static const struct files filesets[] = {
 	{0, fileset27},
 	{0, fileset28},
 	{0, fileset29},
+	{0, fileset30},
 	{1, NULL}
 };
 

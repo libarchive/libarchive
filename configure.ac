@@ -218,10 +218,10 @@ AS_VAR_IF([ac_cv_have_decl_EXT2_IOC_GETFLAGS], [yes],
 
 AC_CHECK_HEADERS([inttypes.h io.h langinfo.h limits.h])
 AC_CHECK_HEADERS([linux/fiemap.h linux/fs.h linux/magic.h linux/types.h])
-AC_CHECK_HEADERS([locale.h paths.h poll.h pwd.h regex.h signal.h stdarg.h])
-AC_CHECK_HEADERS([stdint.h stdlib.h string.h])
-AC_CHECK_HEADERS([sys/acl.h sys/cdefs.h sys/extattr.h sys/ioctl.h])
-AC_CHECK_HEADERS([sys/mkdev.h sys/mount.h])
+AC_CHECK_HEADERS([locale.h paths.h poll.h pwd.h regex.h signal.h spawn.h])
+AC_CHECK_HEADERS([stdarg.h stdint.h stdlib.h string.h])
+AC_CHECK_HEADERS([sys/acl.h sys/cdefs.h sys/extattr.h])
+AC_CHECK_HEADERS([sys/ioctl.h sys/mkdev.h sys/mount.h])
 AC_CHECK_HEADERS([sys/param.h sys/poll.h sys/select.h sys/statfs.h sys/statvfs.h])
 AC_CHECK_HEADERS([sys/time.h sys/utime.h sys/utsname.h sys/vfs.h])
 AC_CHECK_HEADERS([time.h unistd.h utime.h wchar.h wctype.h])
@@ -283,6 +283,14 @@ AC_ARG_WITH([lzma],
 if test "x$with_lzma" != "xno"; then
   AC_CHECK_HEADERS([lzma.h])
   AC_CHECK_LIB(lzma,lzma_stream_decoder)
+fi
+
+AC_ARG_WITH([lzo2],
+  AS_HELP_STRING([--without-lzo2], [Don't build support for lzop through liblzo2]))
+
+if test "x$with_lzo2" != "xno"; then
+  AC_CHECK_HEADERS([lzo/lzoconf.h lzo/lzo1x.h])
+  AC_CHECK_LIB(lzo2,lzo1x_decompress_safe)
 fi
 
 AC_ARG_WITH([nettle],
@@ -433,7 +441,7 @@ AC_FUNC_VPRINTF
 # To avoid necessity for including windows.h or special forward declaration
 # workarounds, we use 'void *' for 'struct SECURITY_ATTRIBUTES *'
 AC_CHECK_STDCALL_FUNC([CreateHardLinkA],[const char *, const char *, void *])
-AC_CHECK_FUNCS([chflags chown chroot ctime_r])
+AC_CHECK_FUNCS([chflags chown chroot ctime_r dirfd])
 AC_CHECK_FUNCS([fchdir fchflags fchmod fchown fcntl fdopendir fork])
 AC_CHECK_FUNCS([fstat fstatat fstatfs fstatvfs ftruncate])
 AC_CHECK_FUNCS([futimens futimes futimesat])
@@ -442,7 +450,7 @@ AC_CHECK_FUNCS([getpwnam_r getpwuid_r getvfsbyname gmtime_r])
 AC_CHECK_FUNCS([lchflags lchmod lchown link localtime_r lstat lutimes])
 AC_CHECK_FUNCS([mbrtowc memmove memset])
 AC_CHECK_FUNCS([mkdir mkfifo mknod mkstemp])
-AC_CHECK_FUNCS([nl_langinfo openat pipe poll readlink readlinkat])
+AC_CHECK_FUNCS([nl_langinfo openat pipe poll posix_spawnp readlink readlinkat])
 AC_CHECK_FUNCS([select setenv setlocale sigaction statfs statvfs])
 AC_CHECK_FUNCS([strchr strdup strerror strncpy_s strrchr symlink timegm])
 AC_CHECK_FUNCS([tzset unsetenv utime utimensat utimes vfork])
@@ -593,23 +601,61 @@ main(int argc, char **argv)
   fi
 ])
 
-CRYPTO_CHECK(MD5, LIBC, md5)
-CRYPTO_CHECK(MD5, LIBSYSTEM, md5)
-CRYPTO_CHECK(RMD160, LIBC, rmd160)
-CRYPTO_CHECK(SHA1, LIBC, sha1)
-CRYPTO_CHECK(SHA1, LIBSYSTEM, sha1)
-CRYPTO_CHECK(SHA256, LIBC, sha256)
-CRYPTO_CHECK(SHA256, LIBC2, sha256)
-CRYPTO_CHECK(SHA256, LIBC3, sha256)
-CRYPTO_CHECK(SHA256, LIBSYSTEM, sha256)
-CRYPTO_CHECK(SHA384, LIBC, sha384)
-CRYPTO_CHECK(SHA384, LIBC2, sha384)
-CRYPTO_CHECK(SHA384, LIBC3, sha384)
-CRYPTO_CHECK(SHA384, LIBSYSTEM, sha384)
-CRYPTO_CHECK(SHA512, LIBC, sha512)
-CRYPTO_CHECK(SHA512, LIBC2, sha512)
-CRYPTO_CHECK(SHA512, LIBC3, sha512)
-CRYPTO_CHECK(SHA512, LIBSYSTEM, sha512)
+AC_DEFUN([CRYPTO_CHECK_WIN], [
+  if test "$found_$1" != yes; then
+    AC_MSG_CHECKING([support for ARCHIVE_CRYPTO_$1_WIN])
+    AC_LINK_IFELSE([AC_LANG_SOURCE([
+#define _WIN32_WINNT 0x0500
+#define WINVER 0x0500
+#define ARCHIVE_$1_COMPILE_TEST
+#include <windows.h>
+#include <wincrypt.h>
+
+int
+main(int argc, char **argv)
+{
+	(void)argc;
+	(void)argv;
+
+	return ($2);
+}
+])],
+    [ AC_MSG_RESULT([yes])
+      found_$1=yes
+      AC_DEFINE(ARCHIVE_CRYPTO_$1_WIN, 1, [ $1 via ARCHIVE_CRYPTO_$1_WIN supported.])
+    ],
+    [ AC_MSG_RESULT([no])])
+  fi
+])
+
+case "$host_os" in
+  *mingw* )
+	CRYPTO_CHECK_WIN(MD5, CALG_MD5)
+	CRYPTO_CHECK_WIN(SHA1, CALG_SHA1)
+	CRYPTO_CHECK_WIN(SHA256, CALG_SHA_256)
+	CRYPTO_CHECK_WIN(SHA384, CALG_SHA_384)
+	CRYPTO_CHECK_WIN(SHA512, CALG_SHA_512)
+	;;
+  *)
+	CRYPTO_CHECK(MD5, LIBC, md5)
+	CRYPTO_CHECK(MD5, LIBSYSTEM, md5)
+	CRYPTO_CHECK(RMD160, LIBC, rmd160)
+	CRYPTO_CHECK(SHA1, LIBC, sha1)
+	CRYPTO_CHECK(SHA1, LIBSYSTEM, sha1)
+	CRYPTO_CHECK(SHA256, LIBC, sha256)
+	CRYPTO_CHECK(SHA256, LIBC2, sha256)
+	CRYPTO_CHECK(SHA256, LIBC3, sha256)
+	CRYPTO_CHECK(SHA256, LIBSYSTEM, sha256)
+	CRYPTO_CHECK(SHA384, LIBC, sha384)
+	CRYPTO_CHECK(SHA384, LIBC2, sha384)
+	CRYPTO_CHECK(SHA384, LIBC3, sha384)
+	CRYPTO_CHECK(SHA384, LIBSYSTEM, sha384)
+	CRYPTO_CHECK(SHA512, LIBC, sha512)
+	CRYPTO_CHECK(SHA512, LIBC2, sha512)
+	CRYPTO_CHECK(SHA512, LIBC3, sha512)
+	CRYPTO_CHECK(SHA512, LIBSYSTEM, sha512)
+	;;
+esac
 
 if test "x$with_nettle" != "xno"; then
     CRYPTO_CHECK(MD5, NETTLE, md5, -lnettle)

@@ -97,7 +97,7 @@ DEFINE_TEST(test_read_format_cpio_afio)
 	 */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt(17, archive_entry_size(ae));
-	assertA(archive_compression(a) == ARCHIVE_COMPRESSION_NONE);
+	assertA(archive_filter_code(a, 0) == ARCHIVE_FILTER_NONE);
 	assertA(archive_format(a) == ARCHIVE_FORMAT_CPIO_POSIX);
 	/*
 	 * Second entry is afio large ASCII format.
@@ -106,7 +106,7 @@ DEFINE_TEST(test_read_format_cpio_afio)
 	assertEqualInt(17, archive_entry_size(ae));
 	if (uid_size() > 4)
 		assertEqualInt(65536, archive_entry_uid(ae));
-	assertA(archive_compression(a) == ARCHIVE_COMPRESSION_NONE);
+	assertA(archive_filter_code(a, 0) == ARCHIVE_FILTER_NONE);
 	assertA(archive_format(a) == ARCHIVE_FORMAT_CPIO_AFIO_LARGE);
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));

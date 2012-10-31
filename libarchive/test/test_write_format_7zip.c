@@ -51,7 +51,7 @@ test_basic(const char *compression_type)
 		free(buff);
 		return;
 	}
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_none(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used));
 
@@ -308,7 +308,7 @@ test_basic(const char *compression_type)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
@@ -341,7 +341,7 @@ test_basic2(const char *compression_type)
 		free(buff);
 		return;
 	}
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_none(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used));
 
@@ -515,7 +515,7 @@ test_basic2(const char *compression_type)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
@@ -540,7 +540,7 @@ test_empty_archive(void)
 	/* Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_7zip(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_none(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used));
 
@@ -578,7 +578,7 @@ test_only_empty_file(void)
 	/* Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_7zip(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_none(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used));
 
@@ -644,7 +644,7 @@ test_only_empty_file(void)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
@@ -667,7 +667,7 @@ test_only_empty_files(void)
 	/* Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_7zip(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_none(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used));
 
@@ -780,7 +780,7 @@ test_only_empty_files(void)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));

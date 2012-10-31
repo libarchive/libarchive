@@ -207,6 +207,9 @@ main(int argc, char *argv[])
 		case 'B': /* POSIX 1997 */
 			cpio->bytes_per_block = 5120;
 			break;
+		case OPTION_B64ENCODE:
+			cpio->add_filter = opt;
+			break;
 		case 'C': /* NetBSD/OpenBSD */
 			cpio->bytes_per_block = atoi(cpio->argument);
 			if (cpio->bytes_per_block <= 0)
@@ -233,6 +236,9 @@ main(int argc, char *argv[])
 			    cpio->argument) != ARCHIVE_OK)
 				lafe_errc(1, 0, "Error : %s",
 				    archive_error_string(cpio->matching));
+			break;
+		case OPTION_GRZIP:
+			cpio->compress = opt;
 			break;
 		case 'H': /* GNU cpio (also --format) */
 			cpio->format = cpio->argument;
@@ -265,7 +271,9 @@ main(int argc, char *argv[])
 		case 'l': /* POSIX 1997 */
 			cpio->option_link = 1;
 			break;
+		case OPTION_LRZIP:
 		case OPTION_LZMA: /* GNU tar, others */
+		case OPTION_LZOP: /* GNU tar, others */
 			cpio->compress = opt;
 			break;
 		case 'm': /* POSIX 1997 */
@@ -325,6 +333,9 @@ main(int argc, char *argv[])
 		case 'u': /* POSIX 1997 */
 			cpio->extract_flags
 			    &= ~ARCHIVE_EXTRACT_NO_OVERWRITE_NEWER;
+			break;
+		case OPTION_UUENCODE:
+			cpio->add_filter = opt;
 			break;
 		case 'v': /* POSIX 1997 */
 			cpio->verbose++;
@@ -517,27 +528,49 @@ mode_out(struct cpio *cpio)
 	if (cpio->archive == NULL)
 		lafe_errc(1, 0, "Failed to allocate archive object");
 	switch (cpio->compress) {
+	case OPTION_GRZIP:
+		r = archive_write_add_filter_grzip(cpio->archive);
+		break;
 	case 'J':
-		r = archive_write_set_compression_xz(cpio->archive);
+		r = archive_write_add_filter_xz(cpio->archive);
+		break;
+	case OPTION_LRZIP:
+		r = archive_write_add_filter_lrzip(cpio->archive);
 		break;
 	case OPTION_LZMA:
-		r = archive_write_set_compression_lzma(cpio->archive);
+		r = archive_write_add_filter_lzma(cpio->archive);
+		break;
+	case OPTION_LZOP:
+		r = archive_write_add_filter_lzop(cpio->archive);
 		break;
 	case 'j': case 'y':
-		r = archive_write_set_compression_bzip2(cpio->archive);
+		r = archive_write_add_filter_bzip2(cpio->archive);
 		break;
 	case 'z':
-		r = archive_write_set_compression_gzip(cpio->archive);
+		r = archive_write_add_filter_gzip(cpio->archive);
 		break;
 	case 'Z':
-		r = archive_write_set_compression_compress(cpio->archive);
+		r = archive_write_add_filter_compress(cpio->archive);
 		break;
 	default:
-		r = archive_write_set_compression_none(cpio->archive);
+		r = archive_write_add_filter_none(cpio->archive);
 		break;
 	}
 	if (r < ARCHIVE_WARN)
 		lafe_errc(1, 0, "Requested compression not available");
+	switch (cpio->add_filter) {
+	case 0:
+		r = ARCHIVE_OK;
+		break;
+	case OPTION_B64ENCODE:
+		r = archive_write_add_filter_b64encode(cpio->archive);
+		break;
+	case OPTION_UUENCODE:
+		r = archive_write_add_filter_uuencode(cpio->archive);
+		break;
+	}
+	if (r < ARCHIVE_WARN)
+		lafe_errc(1, 0, "Requested filter not available");
 	r = archive_write_set_format_by_name(cpio->archive, cpio->format);
 	if (r != ARCHIVE_OK)
 		lafe_errc(1, 0, "%s", archive_error_string(cpio->archive));
@@ -549,7 +582,7 @@ mode_out(struct cpio *cpio)
 	/*
 	 * The main loop:  Copy each file into the output archive.
 	 */
-	r = archive_write_open_file(cpio->archive, cpio->filename);
+	r = archive_write_open_filename(cpio->archive, cpio->filename);
 	if (r != ARCHIVE_OK)
 		lafe_errc(1, 0, "%s", archive_error_string(cpio->archive));
 	lr = lafe_line_reader("-", cpio->option_null);
@@ -578,7 +611,7 @@ mode_out(struct cpio *cpio)
 
 	if (!cpio->quiet) {
 		int64_t blocks =
-			(archive_position_uncompressed(cpio->archive) + 511)
+			(archive_filter_bytes(cpio->archive, 0) + 511)
 			/ 512;
 		fprintf(stderr, "%lu %s\n", (unsigned long)blocks,
 		    blocks == 1 ? "block" : "blocks");
@@ -909,7 +942,8 @@ mode_in(struct cpio *cpio)
 	archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
 
-	if (archive_read_open_file(a, cpio->filename, cpio->bytes_per_block))
+	if (archive_read_open_filename(a, cpio->filename,
+					cpio->bytes_per_block))
 		lafe_errc(1, archive_errno(a),
 		    "%s", archive_error_string(a));
 	for (;;) {
@@ -958,7 +992,7 @@ mode_in(struct cpio *cpio)
 	if (r != ARCHIVE_OK)
 		lafe_errc(1, 0, "%s", archive_error_string(ext));
 	if (!cpio->quiet) {
-		int64_t blocks = (archive_position_uncompressed(a) + 511)
+		int64_t blocks = (archive_filter_bytes(a, 0) + 511)
 			      / 512;
 		fprintf(stderr, "%lu %s\n", (unsigned long)blocks,
 		    blocks == 1 ? "block" : "blocks");
@@ -1011,7 +1045,8 @@ mode_list(struct cpio *cpio)
 	archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
 
-	if (archive_read_open_file(a, cpio->filename, cpio->bytes_per_block))
+	if (archive_read_open_filename(a, cpio->filename,
+					cpio->bytes_per_block))
 		lafe_errc(1, archive_errno(a),
 		    "%s", archive_error_string(a));
 	for (;;) {
@@ -1033,7 +1068,7 @@ mode_list(struct cpio *cpio)
 	if (r != ARCHIVE_OK)
 		lafe_errc(1, 0, "%s", archive_error_string(a));
 	if (!cpio->quiet) {
-		int64_t blocks = (archive_position_uncompressed(a) + 511)
+		int64_t blocks = (archive_filter_bytes(a, 0) + 511)
 			      / 512;
 		fprintf(stderr, "%lu %s\n", (unsigned long)blocks,
 		    blocks == 1 ? "block" : "blocks");
@@ -1168,7 +1203,7 @@ mode_pass(struct cpio *cpio, const char *destdir)
 
 	if (!cpio->quiet) {
 		int64_t blocks =
-			(archive_position_uncompressed(cpio->archive) + 511)
+			(archive_filter_bytes(cpio->archive, 0) + 511)
 			/ 512;
 		fprintf(stderr, "%lu %s\n", (unsigned long)blocks,
 		    blocks == 1 ? "block" : "blocks");

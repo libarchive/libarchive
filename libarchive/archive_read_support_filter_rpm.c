@@ -137,7 +137,7 @@ rpm_bidder_init(struct archive_read_filter *self)
 {
 	struct rpm   *rpm;
 
-	self->code = ARCHIVE_COMPRESSION_RPM;
+	self->code = ARCHIVE_FILTER_RPM;
 	self->name = "rpm";
 	self->read = rpm_filter_read;
 	self->skip = NULL; /* not supported */

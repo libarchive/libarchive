@@ -90,6 +90,8 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_acl.c				\
 	libarchive/archive_acl_private.h			\
 	libarchive/archive_check_magic.c			\
+	libarchive/archive_cmdline.c				\
+	libarchive/archive_cmdline_private.h			\
 	libarchive/archive_crc32.h				\
 	libarchive/archive_crypto.c				\
 	libarchive/archive_crypto_private.h			\
@@ -133,8 +135,10 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_read_support_filter_all.c		\
 	libarchive/archive_read_support_filter_bzip2.c		\
 	libarchive/archive_read_support_filter_compress.c	\
+	libarchive/archive_read_support_filter_grzip.c		\
 	libarchive/archive_read_support_filter_gzip.c		\
 	libarchive/archive_read_support_filter_lrzip.c		\
+	libarchive/archive_read_support_filter_lzop.c		\
 	libarchive/archive_read_support_filter_none.c		\
 	libarchive/archive_read_support_filter_program.c	\
 	libarchive/archive_read_support_filter_rpm.c		\
@@ -172,12 +176,17 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_write_open_memory.c			\
 	libarchive/archive_write_private.h			\
 	libarchive/archive_write_add_filter.c			\
-	libarchive/archive_write_add_filter_bzip2.c	\
-	libarchive/archive_write_add_filter_compress.c	\
+	libarchive/archive_write_add_filter_b64encode.c		\
+	libarchive/archive_write_add_filter_by_name.c		\
+	libarchive/archive_write_add_filter_bzip2.c		\
+	libarchive/archive_write_add_filter_compress.c		\
+	libarchive/archive_write_add_filter_grzip.c		\
 	libarchive/archive_write_add_filter_gzip.c		\
 	libarchive/archive_write_add_filter_lrzip.c		\
+	libarchive/archive_write_add_filter_lzop.c		\
 	libarchive/archive_write_add_filter_none.c		\
-	libarchive/archive_write_add_filter_program.c	\
+	libarchive/archive_write_add_filter_program.c		\
+	libarchive/archive_write_add_filter_uuencode.c		\
 	libarchive/archive_write_add_filter_xz.c		\
 	libarchive/archive_write_set_format.c			\
 	libarchive/archive_write_set_format_7zip.c		\
@@ -190,12 +199,13 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_write_set_format_pax.c		\
 	libarchive/archive_write_set_format_shar.c		\
 	libarchive/archive_write_set_format_ustar.c		\
+	libarchive/archive_write_set_format_v7tar.c		\
 	libarchive/archive_write_set_format_gnutar.c		\
 	libarchive/archive_write_set_format_xar.c		\
 	libarchive/archive_write_set_format_zip.c		\
 	libarchive/archive_write_set_options.c			\
 	libarchive/config_freebsd.h				\
-	libarchive/filter_fork.c				\
+	libarchive/filter_fork_posix.c				\
 	libarchive/filter_fork.h
 
 if INC_WINDOWS_FILES
@@ -271,6 +281,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_acl_posix1e.c			\
 	libarchive/test/test_archive_api_feature.c		\
 	libarchive/test/test_archive_clear_error.c		\
+	libarchive/test/test_archive_cmdline.c			\
 	libarchive/test/test_archive_crypto.c			\
 	libarchive/test/test_archive_getdate.c			\
 	libarchive/test/test_archive_match_owner.c		\
@@ -301,14 +312,15 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_compat_cpio.c			\
 	libarchive/test/test_compat_gtar.c			\
 	libarchive/test/test_compat_gzip.c			\
-	libarchive/test/test_compat_lrzip.c			\
 	libarchive/test/test_compat_lzip.c			\
 	libarchive/test/test_compat_lzma.c			\
+	libarchive/test/test_compat_lzop.c			\
 	libarchive/test/test_compat_mac.c			\
 	libarchive/test/test_compat_pax_libarchive_2x.c		\
 	libarchive/test/test_compat_solaris_tar_acl.c		\
 	libarchive/test/test_compat_solaris_pax_sparse.c	\
 	libarchive/test/test_compat_tar_hardlink.c		\
+	libarchive/test/test_compat_uudecode.c			\
 	libarchive/test/test_compat_xz.c			\
 	libarchive/test/test_compat_zip.c			\
 	libarchive/test/test_empty_write.c			\
@@ -324,13 +336,19 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_open_file.c			\
 	libarchive/test/test_open_filename.c			\
 	libarchive/test/test_pax_filename_encoding.c		\
-	libarchive/test/test_read_compress_program.c		\
 	libarchive/test/test_read_data_large.c			\
 	libarchive/test/test_read_disk.c			\
 	libarchive/test/test_read_disk_directory_traversals.c	\
 	libarchive/test/test_read_disk_entry_from_file.c	\
 	libarchive/test/test_read_extract.c			\
 	libarchive/test/test_read_file_nonexistent.c		\
+	libarchive/test/test_read_filter_grzip.c		\
+	libarchive/test/test_read_filter_lrzip.c		\
+	libarchive/test/test_read_filter_lzop.c			\
+	libarchive/test/test_read_filter_lzop_multiple_parts.c	\
+	libarchive/test/test_read_filter_program.c		\
+	libarchive/test/test_read_filter_program_signature.c	\
+	libarchive/test/test_read_filter_uudecode.c		\
 	libarchive/test/test_read_format_7zip.c			\
 	libarchive/test/test_read_format_ar.c			\
 	libarchive/test/test_read_format_cab.c			\
@@ -390,29 +408,34 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_position.c			\
 	libarchive/test/test_read_truncated.c			\
 	libarchive/test/test_read_truncated_filter.c		\
-	libarchive/test/test_read_uu.c				\
 	libarchive/test/test_sparse_basic.c			\
 	libarchive/test/test_tar_filenames.c			\
 	libarchive/test/test_tar_large.c			\
 	libarchive/test/test_ustar_filenames.c			\
 	libarchive/test/test_ustar_filename_encoding.c		\
-	libarchive/test/test_write_compress.c			\
-	libarchive/test/test_write_compress_bzip2.c		\
-	libarchive/test/test_write_compress_gzip.c		\
-	libarchive/test/test_write_compress_lrzip.c		\
-	libarchive/test/test_write_compress_lzip.c		\
-	libarchive/test/test_write_compress_lzma.c		\
-	libarchive/test/test_write_compress_program.c		\
-	libarchive/test/test_write_compress_xz.c		\
 	libarchive/test/test_write_disk.c			\
 	libarchive/test/test_write_disk_failures.c		\
 	libarchive/test/test_write_disk_hardlink.c		\
+	libarchive/test/test_write_disk_hfs_compression.c	\
 	libarchive/test/test_write_disk_lookup.c		\
+	libarchive/test/test_write_disk_no_hfs_compression.c	\
 	libarchive/test/test_write_disk_perms.c			\
 	libarchive/test/test_write_disk_secure.c		\
 	libarchive/test/test_write_disk_sparse.c		\
 	libarchive/test/test_write_disk_symlink.c		\
 	libarchive/test/test_write_disk_times.c			\
+	libarchive/test/test_write_filter_b64encode.c		\
+	libarchive/test/test_write_filter_bzip2.c		\
+	libarchive/test/test_write_filter_compress.c		\
+	libarchive/test/test_write_filter_gzip.c		\
+	libarchive/test/test_write_filter_gzip_timestamp.c	\
+	libarchive/test/test_write_filter_lrzip.c		\
+	libarchive/test/test_write_filter_lzip.c		\
+	libarchive/test/test_write_filter_lzma.c		\
+	libarchive/test/test_write_filter_lzop.c		\
+	libarchive/test/test_write_filter_program.c		\
+	libarchive/test/test_write_filter_uuencode.c		\
+	libarchive/test/test_write_filter_xz.c			\
 	libarchive/test/test_write_format_7zip.c		\
 	libarchive/test/test_write_format_ar.c			\
 	libarchive/test/test_write_format_cpio.c		\
@@ -438,6 +461,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_format_tar_empty.c		\
 	libarchive/test/test_write_format_tar_sparse.c		\
 	libarchive/test/test_write_format_tar_ustar.c		\
+	libarchive/test/test_write_format_tar_v7tar.c		\
 	libarchive/test/test_write_format_xar.c			\
 	libarchive/test/test_write_format_xar_empty.c		\
 	libarchive/test/test_write_format_zip.c			\
@@ -473,6 +497,9 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_lzma_1.tlz.uu			\
 	libarchive/test/test_compat_lzma_2.tlz.uu			\
 	libarchive/test/test_compat_lzma_3.tlz.uu			\
+	libarchive/test/test_compat_lzop_1.tar.lzo.uu			\
+	libarchive/test/test_compat_lzop_2.tar.lzo.uu			\
+	libarchive/test/test_compat_lzop_3.tar.lzo.uu			\
 	libarchive/test/test_compat_mac-1.tar.Z.uu			\
 	libarchive/test/test_compat_mac-2.tar.Z.uu			\
 	libarchive/test/test_compat_pax_libarchive_2x.tar.Z.uu		\
@@ -492,9 +519,19 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_fuzz.cab.uu				\
 	libarchive/test/test_fuzz.lzh.uu				\
 	libarchive/test/test_pax_filename_encoding.tar.uu		\
+	libarchive/test/test_rar_multivolume_multiple_files.part1.rar.uu \
+	libarchive/test/test_rar_multivolume_multiple_files.part2.rar.uu \
+	libarchive/test/test_rar_multivolume_multiple_files.part3.rar.uu \
+	libarchive/test/test_rar_multivolume_multiple_files.part4.rar.uu \
+	libarchive/test/test_rar_multivolume_multiple_files.part5.rar.uu \
+	libarchive/test/test_rar_multivolume_multiple_files.part6.rar.uu \
 	libarchive/test/test_rar_multivolume_single_file.part1.rar.uu	\
 	libarchive/test/test_rar_multivolume_single_file.part2.rar.uu	\
 	libarchive/test/test_rar_multivolume_single_file.part3.rar.uu	\
+	libarchive/test/test_read_filter_grzip.tar.grz.uu		\
+	libarchive/test/test_read_filter_lrzip.tar.lrz.uu		\
+	libarchive/test/test_read_filter_lzop.tar.lzo.uu		\
+	libarchive/test/test_read_filter_lzop_multiple_parts.tar.lzo.uu	\
 	libarchive/test/test_read_format_7zip_bcj_bzip2.7z.uu		\
 	libarchive/test/test_read_format_7zip_bcj_copy.7z.uu		\
 	libarchive/test/test_read_format_7zip_bcj_deflate.7z.uu		\
@@ -612,6 +649,11 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_splitted_rar_ab.uu			\
 	libarchive/test/test_read_splitted_rar_ac.uu			\
 	libarchive/test/test_read_splitted_rar_ad.uu			\
+	libarchive/test/test_splitted_rar_seek_support_aa.uu		\
+	libarchive/test/test_splitted_rar_seek_support_ab.uu		\
+	libarchive/test/test_splitted_rar_seek_support_ac.uu		\
+	libarchive/test/test_write_disk_hfs_compression.tgz.uu		\
+	libarchive/test/test_write_disk_no_hfs_compression.tgz.uu	\
 	libarchive/test/CMakeLists.txt					\
 	libarchive/test/README
 
@@ -637,6 +679,7 @@ bsdtar_SOURCES=				\
 		tar/bsdtar.h		\
 		tar/bsdtar_platform.h	\
 		tar/cmdline.c		\
+		tar/creation_set.c	\
 		tar/read.c		\
 		tar/subst.c		\
 		tar/util.c		\
@@ -690,6 +733,15 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_basic.c					\
 	tar/test/test_copy.c					\
 	tar/test/test_empty_mtree.c				\
+	tar/test/test_extract_tar_Z.c				\
+	tar/test/test_extract_tar_bz2.c				\
+	tar/test/test_extract_tar_grz.c				\
+	tar/test/test_extract_tar_gz.c				\
+	tar/test/test_extract_tar_lrz.c				\
+	tar/test/test_extract_tar_lz.c				\
+	tar/test/test_extract_tar_lzma.c			\
+	tar/test/test_extract_tar_lzo.c				\
+	tar/test/test_extract_tar_xz.c				\
 	tar/test/test_format_newc.c				\
 	tar/test/test_help.c					\
 	tar/test/test_option_C_upper.c				\
@@ -699,18 +751,29 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_option_T_upper.c				\
 	tar/test/test_option_U_upper.c				\
 	tar/test/test_option_X_upper.c				\
+	tar/test/test_option_a.c				\
 	tar/test/test_option_b.c				\
+	tar/test/test_option_b64encode.c			\
 	tar/test/test_option_exclude.c				\
 	tar/test/test_option_gid_gname.c			\
+	tar/test/test_option_grzip.c				\
+	tar/test/test_option_j.c				\
 	tar/test/test_option_k.c				\
 	tar/test/test_option_keep_newer_files.c			\
+	tar/test/test_option_lrzip.c				\
+	tar/test/test_option_lzma.c				\
+	tar/test/test_option_lzop.c				\
 	tar/test/test_option_n.c				\
 	tar/test/test_option_newer_than.c			\
 	tar/test/test_option_nodump.c				\
+	tar/test/test_option_older_than.c			\
 	tar/test/test_option_q.c				\
 	tar/test/test_option_r.c				\
 	tar/test/test_option_s.c				\
 	tar/test/test_option_uid_uname.c			\
+	tar/test/test_option_uuencode.c				\
+	tar/test/test_option_xz.c				\
+	tar/test/test_option_z.c				\
 	tar/test/test_patterns.c				\
 	tar/test/test_print_longpath.c				\
 	tar/test/test_stdio.c					\
@@ -738,6 +801,15 @@ endif
 
 bsdtar_test_EXTRA_DIST=			\
 	tar/test/list.h \
+	tar/test/test_extract.tar.Z.uu	 \
+	tar/test/test_extract.tar.bz2.uu \
+	tar/test/test_extract.tar.grz.uu \
+	tar/test/test_extract.tar.gz.uu	 \
+	tar/test/test_extract.tar.lrz.uu \
+	tar/test/test_extract.tar.lz.uu  \
+	tar/test/test_extract.tar.lzma.uu \
+	tar/test/test_extract.tar.lzo.uu \
+	tar/test/test_extract.tar.xz.uu \
 	tar/test/test_option_keep_newer_files.tar.Z.uu \
 	tar/test/test_option_s.tar.Z.uu \
 	tar/test/test_patterns_2.tar.uu	\
@@ -809,6 +881,15 @@ bsdcpio_test_SOURCES=						\
 	cpio/test/test_0.c					\
 	cpio/test/test_basic.c					\
 	cpio/test/test_cmdline.c				\
+	cpio/test/test_extract_cpio_Z.c				\
+	cpio/test/test_extract_cpio_bz2.c			\
+	cpio/test/test_extract_cpio_grz.c			\
+	cpio/test/test_extract_cpio_gz.c			\
+	cpio/test/test_extract_cpio_lrz.c			\
+	cpio/test/test_extract_cpio_lz.c			\
+	cpio/test/test_extract_cpio_lzma.c			\
+	cpio/test/test_extract_cpio_lzo.c			\
+	cpio/test/test_extract_cpio_xz.c			\
 	cpio/test/test_format_newc.c				\
 	cpio/test/test_gcpio_compat.c				\
 	cpio/test/test_option_0.c				\
@@ -818,16 +899,22 @@ bsdcpio_test_SOURCES=						\
 	cpio/test/test_option_L_upper.c				\
 	cpio/test/test_option_Z_upper.c				\
 	cpio/test/test_option_a.c				\
+	cpio/test/test_option_b64encode.c			\
 	cpio/test/test_option_c.c				\
 	cpio/test/test_option_d.c				\
 	cpio/test/test_option_f.c				\
+	cpio/test/test_option_grzip.c				\
 	cpio/test/test_option_help.c				\
 	cpio/test/test_option_l.c				\
+	cpio/test/test_option_lrzip.c				\
 	cpio/test/test_option_lzma.c				\
+	cpio/test/test_option_lzop.c				\
 	cpio/test/test_option_m.c				\
 	cpio/test/test_option_t.c				\
 	cpio/test/test_option_u.c				\
+	cpio/test/test_option_uuencode.c			\
 	cpio/test/test_option_version.c				\
+	cpio/test/test_option_xz.c				\
 	cpio/test/test_option_y.c				\
 	cpio/test/test_option_z.c				\
 	cpio/test/test_owner_parse.c				\
@@ -854,6 +941,15 @@ endif
 
 bsdcpio_test_EXTRA_DIST=			\
 	cpio/test/list.h	\
+	cpio/test/test_extract.cpio.Z.uu	\
+	cpio/test/test_extract.cpio.bz2.uu	\
+	cpio/test/test_extract.cpio.grz.uu	\
+	cpio/test/test_extract.cpio.gz.uu	\
+	cpio/test/test_extract.cpio.lrz.uu	\
+	cpio/test/test_extract.cpio.lz.uu	\
+	cpio/test/test_extract.cpio.lzma.uu	\
+	cpio/test/test_extract.cpio.lzo.uu	\
+	cpio/test/test_extract.cpio.xz.uu	\
 	cpio/test/test_gcpio_compat_ref.bin.uu	\
 	cpio/test/test_gcpio_compat_ref.crc.uu	\
 	cpio/test/test_gcpio_compat_ref.newc.uu	\

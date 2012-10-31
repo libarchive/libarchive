@@ -72,7 +72,7 @@ static int	gzip_filter_close(struct archive_read_filter *);
  *
  * TODO: If zlib is unavailable, gzip_bidder_init() should
  * use the compress_program framework to try to fire up an external
- * gunzip program.
+ * gzip program.
  */
 static int	gzip_bidder_bid(struct archive_read_filter_bidder *,
 		    struct archive_read_filter *);
@@ -109,7 +109,7 @@ archive_read_support_filter_gzip(struct archive *_a)
 	return (ARCHIVE_OK);
 #else
 	archive_set_error(_a, ARCHIVE_ERRNO_MISC,
-	    "Using external gunzip program");
+	    "Using external gzip program");
 	return (ARCHIVE_WARN);
 #endif
 }
@@ -223,7 +223,7 @@ gzip_bidder_bid(struct archive_read_filter_bidder *self,
 
 /*
  * If we don't have the library on this system, we can't do the
- * decompression directly.  We can, however, try to run gunzip
+ * decompression directly.  We can, however, try to run "gzip -d"
  * in case that's available.
  */
 static int
@@ -231,11 +231,11 @@ gzip_bidder_init(struct archive_read_filter *self)
 {
 	int r;
 
-	r = __archive_read_program(self, "gunzip");
+	r = __archive_read_program(self, "gzip -d");
 	/* Note: We set the format here even if __archive_read_program()
 	 * above fails.  We do, after all, know what the format is
 	 * even if we weren't able to read it. */
-	self->code = ARCHIVE_COMPRESSION_GZIP;
+	self->code = ARCHIVE_FILTER_GZIP;
 	self->name = "gzip";
 	return (r);
 }
@@ -252,7 +252,7 @@ gzip_bidder_init(struct archive_read_filter *self)
 	static const size_t out_block_size = 64 * 1024;
 	void *out_block;
 
-	self->code = ARCHIVE_COMPRESSION_GZIP;
+	self->code = ARCHIVE_FILTER_GZIP;
 	self->name = "gzip";
 
 	state = (struct private_data *)calloc(sizeof(*state), 1);

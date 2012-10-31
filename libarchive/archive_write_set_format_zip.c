@@ -260,7 +260,6 @@ int
 archive_write_zip_set_compression_deflate(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;
-	struct zip *zip = a->format_data;
 	int ret = ARCHIVE_FAILED;
 	
 	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
@@ -273,6 +272,7 @@ archive_write_zip_set_compression_deflate(struct archive *_a)
 		ret = ARCHIVE_FATAL;
 	} else {
 #ifdef HAVE_ZLIB_H
+		struct zip *zip = a->format_data;
 		zip->compression = COMPRESSION_DEFLATE;
 		ret = ARCHIVE_OK;
 #else

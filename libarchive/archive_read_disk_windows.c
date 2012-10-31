@@ -669,7 +669,7 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	struct tree *t = a->tree;
 	struct la_overlapped *olp;
 	DWORD bytes_transferred;
-	int r;
+	int r = ARCHIVE_FATAL;
 
 	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC, ARCHIVE_STATE_DATA,
 	    "archive_read_data_block");

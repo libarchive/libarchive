@@ -131,6 +131,9 @@ seek_file(int fd, int64_t offset, int whence)
 #define	open _open
 #define	close _close
 #define	read _read
+#ifdef lseek
+#undef lseek
+#endif
 #define	lseek seek_file
 #endif
 
@@ -138,6 +141,7 @@ void
 tar_mode_c(struct bsdtar *bsdtar)
 {
 	struct archive *a;
+	const void *filter_name;
 	int r;
 
 	if (*bsdtar->argv == NULL && bsdtar->names_from_file == NULL)
@@ -146,15 +150,16 @@ tar_mode_c(struct bsdtar *bsdtar)
 	a = archive_write_new();
 
 	/* Support any format that the library supports. */
-	if (bsdtar->create_format == NULL) {
+	if (cset_get_format(bsdtar->cset) == NULL) {
 		r = archive_write_set_format_pax_restricted(a);
-		bsdtar->create_format = "pax restricted";
+		cset_set_format(bsdtar->cset, "pax restricted");
 	} else {
-		r = archive_write_set_format_by_name(a, bsdtar->create_format);
+		r = archive_write_set_format_by_name(a,
+			cset_get_format(bsdtar->cset));
 	}
 	if (r != ARCHIVE_OK) {
 		fprintf(stderr, "Can't use format %s: %s\n",
-		    bsdtar->create_format,
+		    cset_get_format(bsdtar->cset),
 		    archive_error_string(a));
 		usage();
 	}
@@ -162,46 +167,15 @@ tar_mode_c(struct bsdtar *bsdtar)
 	archive_write_set_bytes_per_block(a, bsdtar->bytes_per_block);
 	archive_write_set_bytes_in_last_block(a, bsdtar->bytes_in_last_block);
 
-	if (bsdtar->compress_program) {
-		archive_write_set_compression_program(a, bsdtar->compress_program);
-	} else {
-		switch (bsdtar->create_compression) {
-		case 0:
-			r = ARCHIVE_OK;
-			break;
-		case 'j': case 'y':
-			r = archive_write_set_compression_bzip2(a);
-			break;
-		case 'J':
-			r = archive_write_set_compression_xz(a);
-			break;
-		case OPTION_LZIP:
-			r = archive_write_set_compression_lzip(a);
-			break;
-		case OPTION_LZMA:
-			r = archive_write_set_compression_lzma(a);
-			break;
-		case 'z':
-			r = archive_write_set_compression_gzip(a);
-			break;
-		case 'Z':
-			r = archive_write_set_compression_compress(a);
-			break;
-		default:
-			lafe_errc(1, 0,
-			    "Unrecognized compression option -%c",
-			    bsdtar->create_compression);
-		}
-		if (r != ARCHIVE_OK) {
-			lafe_errc(1, 0,
-			    "Unsupported compression option -%c",
-			    bsdtar->create_compression);
-		}
+	r = cset_write_add_filters(bsdtar->cset, a, &filter_name);
+	if (r < ARCHIVE_WARN) {
+		lafe_errc(1, 0, "Unsupported compression option --%s",
+		    (const char *)filter_name);
 	}
 
 	if (ARCHIVE_OK != archive_write_set_options(a, bsdtar->option_options))
 		lafe_errc(1, 0, "%s", archive_error_string(a));
-	if (ARCHIVE_OK != archive_write_open_file(a, bsdtar->filename))
+	if (ARCHIVE_OK != archive_write_open_filename(a, bsdtar->filename))
 		lafe_errc(1, 0, "%s", archive_error_string(a));
 	write_archive(a, bsdtar);
 }
@@ -244,7 +218,7 @@ tar_mode_r(struct bsdtar *bsdtar)
 		    "Can't read archive %s: %s", bsdtar->filename,
 		    archive_error_string(a));
 	while (0 == archive_read_next_header(a, &entry)) {
-		if (archive_compression(a) != ARCHIVE_COMPRESSION_NONE) {
+		if (archive_filter_code(a, 0) != ARCHIVE_FILTER_NONE) {
 			archive_read_free(a);
 			close(bsdtar->fd);
 			lafe_errc(1, 0,
@@ -267,17 +241,17 @@ tar_mode_r(struct bsdtar *bsdtar)
 	 * of arcane ugliness.
 	 */
 
-	if (bsdtar->create_format != NULL) {
+	if (cset_get_format(bsdtar->cset) != NULL) {
 		/* If the user requested a format, use that, but ... */
 		archive_write_set_format_by_name(a,
-		    bsdtar->create_format);
+		    cset_get_format(bsdtar->cset));
 		/* ... complain if it's not compatible. */
 		format &= ARCHIVE_FORMAT_BASE_MASK;
 		if (format != (int)(archive_format(a) & ARCHIVE_FORMAT_BASE_MASK)
 		    && format != ARCHIVE_FORMAT_EMPTY) {
 			lafe_errc(1, 0,
 			    "Format %s is incompatible with the archive %s.",
-			    bsdtar->create_format, bsdtar->filename);
+			    cset_get_format(bsdtar->cset), bsdtar->filename);
 		}
 	} else {
 		/*
@@ -337,7 +311,7 @@ tar_mode_u(struct bsdtar *bsdtar)
 
 	/* Build a list of all entries and their recorded mod times. */
 	while (0 == archive_read_next_header(a, &entry)) {
-		if (archive_compression(a) != ARCHIVE_COMPRESSION_NONE) {
+		if (archive_filter_code(a, 0) != ARCHIVE_FILTER_NONE) {
 			archive_read_free(a);
 			close(bsdtar->fd);
 			lafe_errc(1, 0,
@@ -544,7 +518,7 @@ cleanup:
 
 	if (bsdtar->option_totals) {
 		fprintf(stderr, "Total bytes written: %s\n",
-		    tar_i64toa(archive_position_compressed(a)));
+		    tar_i64toa(archive_filter_bytes(a, -1)));
 	}
 
 	archive_write_free(a);
@@ -612,7 +586,8 @@ append_archive_filename(struct bsdtar *bsdtar, struct archive *a,
 	ina = archive_read_new();
 	archive_read_support_format_all(ina);
 	archive_read_support_filter_all(ina);
-	if (archive_read_open_file(ina, filename, bsdtar->bytes_per_block)) {
+	if (archive_read_open_filename(ina, filename,
+					bsdtar->bytes_per_block)) {
 		lafe_warnc(0, "%s", archive_error_string(ina));
 		bsdtar->return_value = 1;
 		return (0);
@@ -942,8 +917,8 @@ report_write(struct bsdtar *bsdtar, struct archive *a,
 
 	if (bsdtar->verbose)
 		fprintf(stderr, "\n");
-	comp = archive_position_compressed(a);
-	uncomp = archive_position_uncompressed(a);
+	comp = archive_filter_bytes(a, -1);
+	uncomp = archive_filter_bytes(a, 0);
 	fprintf(stderr, "In: %d files, %s bytes;",
 	    archive_file_count(a), tar_i64toa(uncomp));
 	if (comp > uncomp)
@@ -970,10 +945,6 @@ test_for_append(struct bsdtar *bsdtar)
 		lafe_errc(1, 0, "no files or directories specified");
 	if (bsdtar->filename == NULL)
 		lafe_errc(1, 0, "Cannot append to stdout.");
-
-	if (bsdtar->create_compression != 0)
-		lafe_errc(1, 0,
-		    "Cannot append to %s with compression", bsdtar->filename);
 
 	if (stat(bsdtar->filename, &s) != 0)
 		return;

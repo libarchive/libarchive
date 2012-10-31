@@ -13,6 +13,15 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     test_0.c
     test_basic.c
     test_cmdline.c
+    test_extract_cpio_Z
+    test_extract_cpio_bz2
+    test_extract_cpio_grz
+    test_extract_cpio_gz
+    test_extract_cpio_lrz
+    test_extract_cpio_lz
+    test_extract_cpio_lzma
+    test_extract_cpio_lzo
+    test_extract_cpio_xz
     test_format_newc.c
     test_gcpio_compat.c
     test_option_0.c
@@ -22,16 +31,22 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     test_option_L_upper.c
     test_option_Z_upper.c
     test_option_a.c
+    test_option_b64encode.c
     test_option_c.c
     test_option_d.c
     test_option_f.c
+    test_option_grzip.c
     test_option_help.c
     test_option_l.c
+    test_option_lrzip.c
     test_option_lzma.c
+    test_option_lzop.c
     test_option_m.c
     test_option_t.c
     test_option_u.c
+    test_option_uuencode.c
     test_option_version.c
+    test_option_xz.c
     test_option_y.c
     test_option_z.c
     test_owner_parse.c

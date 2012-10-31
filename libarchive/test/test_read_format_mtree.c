@@ -57,7 +57,8 @@ test_read_format_mtree1(void)
 	    archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_file(a, reffile, 11));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, reffile, 11));
 
 	/*
 	 * Read "file", whose data is available on disk.
@@ -379,7 +380,8 @@ DEFINE_TEST(test_read_format_mtree_nomagic_v1_form)
 	    archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_file(a, reffile, 11));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, reffile, 11));
 
 	/*
 	 * Read "file", whose data is available on disk.
@@ -457,7 +459,8 @@ DEFINE_TEST(test_read_format_mtree_nomagic_v2_form)
 	    archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_file(a, reffile, 11));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, reffile, 11));
 
 	/*
 	 * Read "file", whose data is available on disk.
@@ -521,7 +524,8 @@ DEFINE_TEST(test_read_format_mtree_nomagic_v2_netbsd_form)
 	    archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_file(a, reffile, 11));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, reffile, 11));
 
 	/*
 	 * Read "file", whose data is available on disk.

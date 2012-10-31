@@ -56,6 +56,7 @@ struct uudecode {
 #define ST_READ_UU	1
 #define ST_UUEND	2
 #define ST_READ_BASE64	3
+#define ST_IGNORE	4
 };
 
 static int	uudecode_bidder_bid(struct archive_read_filter_bidder *,
@@ -377,7 +378,7 @@ uudecode_bidder_init(struct archive_read_filter *self)
 	void *out_buff;
 	void *in_buff;
 
-	self->code = ARCHIVE_COMPRESSION_UU;
+	self->code = ARCHIVE_FILTER_UU;
 	self->name = "uu";
 	self->read = uudecode_filter_read;
 	self->skip = NULL; /* not supported */
@@ -470,6 +471,10 @@ read_more:
 	total = 0;
 	out = uudecode->out_buff;
 	ravail = avail_in;
+	if (uudecode->state == ST_IGNORE) {
+		used = avail_in;
+		goto finish;
+	}
 	if (uudecode->in_cnt) {
 		/*
 		 * If there is remaining data which is saved by
@@ -491,6 +496,12 @@ read_more:
 		len = get_line(b, avail_in - used, &nl);
 		if (len < 0) {
 			/* Non-ascii character is found. */
+			if (uudecode->state == ST_FIND_HEAD &&
+			    (uudecode->total > 0 || total > 0)) {
+				uudecode->state = ST_IGNORE;
+				used = avail_in;
+				goto finish;
+			}
 			archive_set_error(&self->archive->archive,
 			    ARCHIVE_ERRNO_MISC,
 			    "Insufficient compressed data");
@@ -545,7 +556,7 @@ read_more:
 			break;
 		case ST_READ_UU:
 			if (total + len * 2 > OUT_BUFF_SIZE)
-				break;
+				goto finish;
 			body = len - nl;
 			if (!uuchar[*b] || body <= 0) {
 				archive_set_error(&self->archive->archive,
@@ -611,7 +622,7 @@ read_more:
 			break;
 		case ST_READ_BASE64:
 			if (total + len * 2 > OUT_BUFF_SIZE)
-				break;
+				goto finish;
 			l = len - nl;
 			if (l >= 3 && b[0] == '=' && b[1] == '=' &&
 			    b[2] == '=') {
@@ -657,8 +668,10 @@ read_more:
 			break;
 		}
 	}
-
-	__archive_read_filter_consume(self->upstream, ravail);
+finish:
+	if (ravail < avail_in)
+		used -= avail_in - ravail;
+	__archive_read_filter_consume(self->upstream, used);
 
 	*buff = uudecode->out_buff;
 	uudecode->total += total;

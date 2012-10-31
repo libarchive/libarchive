@@ -16,6 +16,7 @@ IF(ENABLE_TEST)
     test_acl_posix1e.c
     test_archive_api_feature.c
     test_archive_clear_error.c
+    test_archive_cmdline.c
     test_archive_crypto.c
     test_archive_getdate.c
     test_archive_match_owner.c
@@ -46,14 +47,15 @@ IF(ENABLE_TEST)
     test_compat_cpio.c
     test_compat_gtar.c
     test_compat_gzip.c
-    test_compat_lrzip.c
     test_compat_lzip.c
     test_compat_lzma.c
+    test_compat_lzop.c
     test_compat_mac.c
     test_compat_pax_libarchive_2x.c
     test_compat_solaris_tar_acl.c
     test_compat_solaris_pax_sparse.c
     test_compat_tar_hardlink.c
+    test_compat_uudecode.c
     test_compat_xz.c
     test_compat_zip.c
     test_empty_write.c
@@ -69,13 +71,19 @@ IF(ENABLE_TEST)
     test_open_file.c
     test_open_filename.c
     test_pax_filename_encoding.c
-    test_read_compress_program.c
     test_read_data_large.c
     test_read_disk.c
     test_read_disk_directory_traversals.c
     test_read_disk_entry_from_file.c
     test_read_extract.c
     test_read_file_nonexistent.c
+    test_read_filter_grzip.c
+    test_read_filter_lrzip.c
+    test_read_filter_lzop.c
+    test_read_filter_lzop_multiple_parts.c
+    test_read_filter_program.c
+    test_read_filter_program_signature.c
+    test_read_filter_uudecode.c
     test_read_format_7zip.c
     test_read_format_ar.c
     test_read_format_cab.c
@@ -135,29 +143,34 @@ IF(ENABLE_TEST)
     test_read_position.c
     test_read_truncated.c
     test_read_truncated_filter.c
-    test_read_uu.c
     test_sparse_basic.c
     test_tar_filenames.c
     test_tar_large.c
     test_ustar_filenames.c
     test_ustar_filename_encoding.c
-    test_write_compress.c
-    test_write_compress_bzip2.c
-    test_write_compress_gzip.c
-    test_write_compress_lrzip.c
-    test_write_compress_lzip.c
-    test_write_compress_lzma.c
-    test_write_compress_program.c
-    test_write_compress_xz.c
     test_write_disk.c
     test_write_disk_failures.c
     test_write_disk_hardlink.c
+    test_write_disk_hfs_compression.c
     test_write_disk_lookup.c
+    test_write_disk_no_hfs_compression.c
     test_write_disk_perms.c
     test_write_disk_secure.c
     test_write_disk_sparse.c
     test_write_disk_symlink.c
     test_write_disk_times.c
+    test_write_filter_b64encode.c
+    test_write_filter_bzip2.c
+    test_write_filter_compress.c
+    test_write_filter_gzip.c
+    test_write_filter_gzip_timestamp.c
+    test_write_filter_lrzip.c
+    test_write_filter_lzip.c
+    test_write_filter_lzma.c
+    test_write_filter_lzop.c
+    test_write_filter_program.c
+    test_write_filter_uuencode.c
+    test_write_filter_xz.c
     test_write_format_7zip.c
     test_write_format_ar.c
     test_write_format_cpio.c
@@ -171,13 +184,19 @@ IF(ENABLE_TEST)
     test_write_format_iso9660_filename.c
     test_write_format_iso9660_zisofs.c
     test_write_format_mtree.c
+    test_write_format_mtree_absolute_path.c
+    test_write_format_mtree_classic.c
+    test_write_format_mtree_classic_indent.c
     test_write_format_mtree_fflags.c
+    test_write_format_mtree_no_separator.c
+    test_write_format_mtree_quoted_filename.c
     test_write_format_pax.c
     test_write_format_shar_empty.c
     test_write_format_tar.c
     test_write_format_tar_empty.c
     test_write_format_tar_sparse.c
     test_write_format_tar_ustar.c
+    test_write_format_tar_v7tar.c
     test_write_format_xar.c
     test_write_format_xar_empty.c
     test_write_format_zip.c

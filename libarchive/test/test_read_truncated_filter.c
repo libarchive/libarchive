@@ -33,14 +33,15 @@ __FBSDID("$FreeBSD$");
  */
 
 static void
-test_truncation(const char *compression, int (*set_compression)(struct archive *))
+test_truncation(const char *compression,
+    int (*set_compression)(struct archive *), int can_prog)
 {
 	struct archive_entry *ae;
 	struct archive* a;
 	char path[16];
 	char *buff, *data;
 	size_t buffsize, datasize, used1;
-	int i, j, r;
+	int i, j, r, use_prog;
 
 	buffsize = 2000000;
 	assert(NULL != (buff = (char *)malloc(buffsize)));
@@ -55,16 +56,19 @@ test_truncation(const char *compression, int (*set_compression)(struct archive *
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_compression_compress(a));
+	    archive_write_add_filter_compress(a));
 	r = (*set_compression)(a);
-	if (r == ARCHIVE_FATAL) {
-		skipping("%s writing not supported on this platform", compression);
+	if (r != ARCHIVE_OK && !can_prog) {
+		skipping("%s writing not supported on this platform",
+		    compression);
 		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 		return;
 	}
+	use_prog = (r == ARCHIVE_WARN && can_prog);
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_bytes_per_block(a, 10));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, buffsize, &used1));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, buffsize, &used1));
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_set_filetype(ae, AE_IFREG);
 	archive_entry_set_size(ae, datasize);
@@ -72,7 +76,8 @@ test_truncation(const char *compression, int (*set_compression)(struct archive *
 		sprintf(path, "%s%d", compression, i);
 		archive_entry_copy_pathname(ae, path);
 		failure(path);
-		if (!assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae))) {
+		if (!assertEqualIntA(a, ARCHIVE_OK,
+		    archive_write_header(a, ae))) {
 			archive_write_free(a);
 			free(data);
 			free(buff);
@@ -82,7 +87,8 @@ test_truncation(const char *compression, int (*set_compression)(struct archive *
 			data[j] = (char)(rand() % 256);
 		}
 		failure(path);
-		if (!assertEqualIntA(a, datasize, archive_write_data(a, data, datasize))) {
+		if (!assertEqualIntA(a, datasize,
+		    archive_write_data(a, data, datasize))) {
 			archive_write_free(a);
 			free(data);
 			free(buff);
@@ -97,7 +103,8 @@ test_truncation(const char *compression, int (*set_compression)(struct archive *
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used1 - used1/64));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, buff, used1 - used1/64));
 	for (i = 0; i < 100; i++) {
 		if (ARCHIVE_OK != archive_read_next_header(a, &ae)) {
 			failure("Should have non-NULL error message for %s",
@@ -114,7 +121,8 @@ test_truncation(const char *compression, int (*set_compression)(struct archive *
 			break;
 		}
 	}
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, (use_prog)?ARCHIVE_WARN:ARCHIVE_OK,
+	    archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	free(data);
@@ -123,10 +131,11 @@ test_truncation(const char *compression, int (*set_compression)(struct archive *
 
 DEFINE_TEST(test_read_truncated_filter)
 {
-	test_truncation("bzip2", archive_write_set_compression_bzip2);
-	test_truncation("compress", archive_write_set_compression_compress);
-	test_truncation("gzip", archive_write_set_compression_gzip);
-	test_truncation("lzip", archive_write_set_compression_lzip);
-	test_truncation("lzma", archive_write_set_compression_lzma);
-	test_truncation("xz", archive_write_set_compression_xz);
+	test_truncation("bzip2", archive_write_add_filter_bzip2, canBzip2());
+	test_truncation("compress", archive_write_add_filter_compress, 0);
+	test_truncation("gzip", archive_write_add_filter_gzip, canGzip());
+	test_truncation("lzip", archive_write_add_filter_lzip, 0);
+	test_truncation("lzop", archive_write_add_filter_lzop, canLzop());
+	test_truncation("lzma", archive_write_add_filter_lzma, 0);
+	test_truncation("xz", archive_write_add_filter_xz, 0);
 }
