@@ -349,7 +349,8 @@ main(int argc, char **argv)
 			exit(0);
 			break;
 		case OPTION_HFS_COMPRESSION: /* Mac OS X v10.6 or later */
-			bsdtar->extract_flags |= ARCHIVE_EXTRACT_HFS_COMPRESSION;
+			bsdtar->extract_flags |=
+			    ARCHIVE_EXTRACT_HFS_COMPRESSION_FORCED;
 			break;
 		case 'I': /* GNU tar */
 			/*
@@ -463,6 +464,11 @@ main(int argc, char **argv)
 			break;
 		case OPTION_NODUMP: /* star */
 			bsdtar->readdisk_flags |= ARCHIVE_READDISK_HONOR_NODUMP;
+			break;
+		case OPTION_NOPRESERVE_HFS_COMPRESSION:
+			/* Mac OS X v10.6 or later */
+			bsdtar->extract_flags |=
+			    ARCHIVE_EXTRACT_NO_HFS_COMPRESSION;
 			break;
 		case OPTION_NO_SAME_OWNER: /* GNU tar */
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_OWNER;
@@ -700,8 +706,10 @@ main(int argc, char **argv)
 		only_mode(bsdtar, "--one-file-system", "cru");
 	if (bsdtar->option_fast_read)
 		only_mode(bsdtar, "--fast-read", "xt");
-	if (bsdtar->extract_flags & ARCHIVE_EXTRACT_HFS_COMPRESSION)
+	if (bsdtar->extract_flags & ARCHIVE_EXTRACT_HFS_COMPRESSION_FORCED)
 		only_mode(bsdtar, "--hfsCompression", "x");
+	if (bsdtar->extract_flags & ARCHIVE_EXTRACT_NO_HFS_COMPRESSION)
+		only_mode(bsdtar, "--nopreserveHFSCompression", "x");
 	if (bsdtar->readdisk_flags & ARCHIVE_READDISK_HONOR_NODUMP)
 		only_mode(bsdtar, "--nodump", "cru");
 	if (option_o > 0) {

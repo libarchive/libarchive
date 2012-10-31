@@ -545,9 +545,12 @@ __LA_DECL int archive_read_set_options(struct archive *_a,
 /* Default: Do not restore Mac extended metadata. */
 /* This has no effect except on Mac OS. */
 #define	ARCHIVE_EXTRACT_MAC_METADATA		(0x2000)
-/* Default: Do not use HFS+ compression. */
+/* Default: Use HFS+ compression if it was compressed. */
 /* This has no effect except on Mac OS v10.6 or later. */
-#define	ARCHIVE_EXTRACT_HFS_COMPRESSION		(0x4000)
+#define	ARCHIVE_EXTRACT_NO_HFS_COMPRESSION	(0x4000)
+/* Default: Do not use HFS+ compression if it was not compressed. */
+/* This has no effect except on Mac OS v10.6 or later. */
+#define	ARCHIVE_EXTRACT_HFS_COMPRESSION_FORCED	(0x8000)
 
 __LA_DECL int archive_read_extract(struct archive *, struct archive_entry *,
 		     int flags);

@@ -418,6 +418,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_disk_hardlink.c		\
 	libarchive/test/test_write_disk_hfs_compression.c	\
 	libarchive/test/test_write_disk_lookup.c		\
+	libarchive/test/test_write_disk_no_hfs_compression.c	\
 	libarchive/test/test_write_disk_perms.c			\
 	libarchive/test/test_write_disk_secure.c		\
 	libarchive/test/test_write_disk_sparse.c		\
@@ -652,6 +653,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_splitted_rar_seek_support_ab.uu		\
 	libarchive/test/test_splitted_rar_seek_support_ac.uu		\
 	libarchive/test/test_write_disk_hfs_compression.tgz.uu		\
+	libarchive/test/test_write_disk_no_hfs_compression.tgz.uu	\
 	libarchive/test/CMakeLists.txt					\
 	libarchive/test/README
 

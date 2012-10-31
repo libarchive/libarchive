@@ -69,12 +69,12 @@ has_xattr(const char *filename, const char *xattrname)
 /*
  * Exercise HFS+ Compression.
  */
-DEFINE_TEST(test_write_disk_hfs_compression)
+DEFINE_TEST(test_write_disk_no_hfs_compression)
 {
 #if !defined(__APPLE__) || !defined(UF_COMPRESSED)
 	skipping("MacOS-specific HFS+ Compression test");
 #else
-	const char *refname = "test_write_disk_hfs_compression.tgz";
+	const char *refname = "test_write_disk_no_hfs_compression.tgz";
 	struct archive *ad, *a;
 	struct archive_entry *ae;
 	struct stat st;
@@ -82,7 +82,8 @@ DEFINE_TEST(test_write_disk_hfs_compression)
 	extract_reference_file(refname);
 
 	/*
-	 * Extract an archive to disk with HFS+ Compression.
+	 * Extract an archive to disk with HFS+ Compression
+	 * the file was compressed.
 	 */
 	assert((ad = archive_write_disk_new()) != NULL);
 	assertEqualIntA(ad, ARCHIVE_OK,
@@ -91,8 +92,7 @@ DEFINE_TEST(test_write_disk_hfs_compression)
 	    archive_write_disk_set_options(ad,
 		ARCHIVE_EXTRACT_TIME |
 		ARCHIVE_EXTRACT_SECURE_SYMLINKS |
-		ARCHIVE_EXTRACT_SECURE_NODOTDOT |
-		ARCHIVE_EXTRACT_HFS_COMPRESSION_FORCED));
+		ARCHIVE_EXTRACT_SECURE_NODOTDOT));
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -123,10 +123,10 @@ DEFINE_TEST(test_write_disk_hfs_compression)
 
 	/* Test file1. */
 	assertEqualInt(0, stat("file1", &st));
-	assertEqualInt(UF_COMPRESSED, st.st_flags & UF_COMPRESSED);
+	assertEqualInt(0, st.st_flags & UF_COMPRESSED);
 	assertFileSize("file1", 8);
 	assertEqualInt(0, has_xattr("file1", "com.apple.ResourceFork"));
-	assertEqualInt(1, has_xattr("file1", "com.apple.decmpfs"));
+	assertEqualInt(0, has_xattr("file1", "com.apple.decmpfs"));
 
 	/* Test README. */
 	assertEqualInt(0, stat("README", &st));
@@ -137,15 +137,15 @@ DEFINE_TEST(test_write_disk_hfs_compression)
 
 	/* Test NEWS. */
 	assertEqualInt(0, stat("NEWS", &st));
-	assertEqualInt(UF_COMPRESSED, st.st_flags & UF_COMPRESSED);
+	assertEqualInt(0, st.st_flags & UF_COMPRESSED);
 	assertFileSize("NEWS", 28438);
-	assertEqualInt(1, has_xattr("NEWS", "com.apple.ResourceFork"));
-	assertEqualInt(1, has_xattr("NEWS", "com.apple.decmpfs"));
+	assertEqualInt(0, has_xattr("NEWS", "com.apple.ResourceFork"));
+	assertEqualInt(0, has_xattr("NEWS", "com.apple.decmpfs"));
 
 	/* Test Makefile. */
 	assertEqualInt(0, stat("Makefile", &st));
 	assertEqualInt(UF_COMPRESSED, st.st_flags & UF_COMPRESSED);
-	assertFileSize("Makefile", 1264000);
+	assertFileSize("Makefile", 1238119);
 	assertEqualInt(1, has_xattr("Makefile", "com.apple.ResourceFork"));
 	assertEqualInt(1, has_xattr("Makefile", "com.apple.decmpfs"));
 
@@ -161,7 +161,8 @@ DEFINE_TEST(test_write_disk_hfs_compression)
 	    archive_write_disk_set_options(ad,
 		ARCHIVE_EXTRACT_TIME |
 		ARCHIVE_EXTRACT_SECURE_SYMLINKS |
-		ARCHIVE_EXTRACT_SECURE_NODOTDOT));
+		ARCHIVE_EXTRACT_SECURE_NODOTDOT |
+		ARCHIVE_EXTRACT_NO_HFS_COMPRESSION));
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -214,7 +215,7 @@ DEFINE_TEST(test_write_disk_hfs_compression)
 	/* Test Makefile. */
 	assertEqualInt(0, stat("Makefile", &st));
 	assertEqualInt(0, st.st_flags & UF_COMPRESSED);
-	assertFileSize("Makefile", 1264000);
+	assertFileSize("Makefile", 1238119);
 	assertEqualInt(0, has_xattr("Makefile", "com.apple.ResourceFork"));
 	assertEqualInt(0, has_xattr("Makefile", "com.apple.decmpfs"));
 

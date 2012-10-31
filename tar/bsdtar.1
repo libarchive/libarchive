@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 23, 2012
+.Dd October 31, 2012
 .Dt TAR 1
 .Os
 .Sh NAME
@@ -356,6 +356,11 @@ except it compares mtime entries instead of ctime entries.
 .It Fl Fl nodump
 (c and r modes only)
 Honor the nodump file flag by skipping this file.
+.It Fl Fl nopreserveHFSCompression
+(x mode only)
+Mac OS X specific(v10.6 or later). Do not compress extracted regular files
+which were compressed with HFS+ compression before archived.
+By default, compress the regular files again with HFS+ compression.
 .It Fl Fl null
 (use with
 .Fl I

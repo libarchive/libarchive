@@ -153,6 +153,7 @@ IF(ENABLE_TEST)
     test_write_disk_hardlink.c
     test_write_disk_hfs_compression.c
     test_write_disk_lookup.c
+    test_write_disk_no_hfs_compression.c
     test_write_disk_perms.c
     test_write_disk_secure.c
     test_write_disk_sparse.c

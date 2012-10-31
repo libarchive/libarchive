@@ -186,7 +186,7 @@ struct fixup_entry {
 #define	TODO_ACLS		ARCHIVE_EXTRACT_ACL
 #define	TODO_XATTR		ARCHIVE_EXTRACT_XATTR
 #define	TODO_MAC_METADATA	ARCHIVE_EXTRACT_MAC_METADATA
-#define	TODO_HFS_COMPRESSION	ARCHIVE_EXTRACT_HFS_COMPRESSION
+#define	TODO_HFS_COMPRESSION	ARCHIVE_EXTRACT_HFS_COMPRESSION_FORCED
 
 struct archive_write_disk {
 	struct archive	archive;
@@ -548,11 +548,22 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		else
 			a->todo |= TODO_MAC_METADATA;
 	}
-	if ((a->flags & ARCHIVE_EXTRACT_HFS_COMPRESSION) != 0 &&
+#if defined(UF_COMPRESSED)
+	if ((a->flags & ARCHIVE_EXTRACT_NO_HFS_COMPRESSION) == 0) {
+		unsigned long set, clear;
+		archive_entry_fflags(a->entry, &set, &clear);
+		if ((set & ~clear) & UF_COMPRESSED) {
+			a->todo |= TODO_HFS_COMPRESSION | TODO_FFLAGS;
+			a->decmpfs_block_count = (unsigned)-1;
+		}
+	}
+	if ((a->flags & ARCHIVE_EXTRACT_HFS_COMPRESSION_FORCED) != 0 &&
 	    (a->mode & AE_IFMT) == AE_IFREG && a->filesize > 0) {
 		a->todo |= TODO_HFS_COMPRESSION | TODO_FFLAGS;
 		a->decmpfs_block_count = (unsigned)-1;
 	}
+#endif
+
 	if (a->flags & ARCHIVE_EXTRACT_XATTR)
 		a->todo |= TODO_XATTR;
 	if (a->flags & ARCHIVE_EXTRACT_FFLAGS)
