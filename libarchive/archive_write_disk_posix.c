@@ -548,18 +548,18 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		else
 			a->todo |= TODO_MAC_METADATA;
 	}
-#if defined(UF_COMPRESSED)
+#if defined(HAVE_ZLIB_H) && defined(UF_COMPRESSED)
 	if ((a->flags & ARCHIVE_EXTRACT_NO_HFS_COMPRESSION) == 0) {
 		unsigned long set, clear;
 		archive_entry_fflags(a->entry, &set, &clear);
 		if ((set & ~clear) & UF_COMPRESSED) {
-			a->todo |= TODO_HFS_COMPRESSION | TODO_FFLAGS;
+			a->todo |= TODO_HFS_COMPRESSION;
 			a->decmpfs_block_count = (unsigned)-1;
 		}
 	}
 	if ((a->flags & ARCHIVE_EXTRACT_HFS_COMPRESSION_FORCED) != 0 &&
 	    (a->mode & AE_IFMT) == AE_IFREG && a->filesize > 0) {
-		a->todo |= TODO_HFS_COMPRESSION | TODO_FFLAGS;
+		a->todo |= TODO_HFS_COMPRESSION;
 		a->decmpfs_block_count = (unsigned)-1;
 	}
 #endif
@@ -580,8 +580,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 
 	ret = restore_entry(a);
 
-#if defined(UF_COMPRESSED) && defined(HAVE_STRUCT_STAT_ST_FLAGS) && \
-      defined(HAVE_FCHFLAGS)
+#if defined(HAVE_ZLIB_H) && defined(UF_COMPRESSED)
 	/*
 	 * Check if the filesystem the file is restoring on supports
 	 * HFS+ Compression. If not, cancel HFS+ Compression.
@@ -820,15 +819,37 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 #if defined(HAVE_ZLIB_H) && defined(UF_COMPRESSED)
 
 /*
+ * Set UF_COMPRESSED file flag.
+ * This have to be called after hfs_write_decmpfs() because if the
+ * file does not have "com.apple.decmpfs" xattr the flag is ignored.
+ */
+static int
+hfs_set_compressed_fflag(struct archive_write_disk *a)
+{
+	int r;
+
+	if ((r = lazy_stat(a)) != ARCHIVE_OK)
+		return (r);
+
+	a->st.st_flags |= UF_COMPRESSED;
+	if (fchflags(a->fd, a->st.st_flags) != 0) {
+		archive_set_error(&a->archive, errno,
+		    "Failed to set UF_COMPRESSED file flag");
+		return (ARCHIVE_WARN);
+	}
+	return (ARCHIVE_OK);
+}
+
+/*
  * HFS+ Compression decmpfs
  *
- *     +------------------------------+
+ *     +------------------------------+ +0
  *     |      Magic(LE 4 bytes)       |
  *     +------------------------------+
  *     |      Type(LE 4 bytes)        |
  *     +------------------------------+
  *     | Uncompressed size(LE 8 bytes)|
- *     +------------------------------+
+ *     +------------------------------+ +16
  *     |                              |
  *     |       Compressed data        |
  *     |  (Placed only if Type == 3)  |
@@ -1070,9 +1091,14 @@ fprintf(stderr, "block %u bytes --> %u bytes in decmpfs xattr\n", (unsigned)size
 		a->decmpfs_attr_size += bytes_compressed;
 		a->compressed_buffer_remaining = a->compressed_buffer_size;
 		/*
-		 * Write the decmpfs xattr.
+		 * Finish HFS+ Compression.
+		 * - Write the decmpfs xattr.
+		 * - Set the UF_COMPRESSED file flag.
 		 */
-		return hfs_write_decmpfs(a);
+		ret = hfs_write_decmpfs(a);
+		if (ret == ARCHIVE_OK)
+			ret = hfs_set_compressed_fflag(a);
+		return (ret);
 	}
 
 	/* Update block info. */
@@ -1123,10 +1149,14 @@ fprintf(stderr, "block %u bytes --> %u bytes in resource fork\n", (unsigned)size
 		if (ret == ARCHIVE_OK)
 			ret = hfs_write_resource_fork_header(a);
 		/*
-		 * Write the decmpfs xattr.
+		 * Finish HFS+ Compression.
+		 * - Write the decmpfs xattr.
+		 * - Set the UF_COMPRESSED file flag.
 		 */
 		if (ret == ARCHIVE_OK)
 			ret = hfs_write_decmpfs(a);
+		if (ret == ARCHIVE_OK)
+			ret = hfs_set_compressed_fflag(a);
 	}
 	return (ret);
 }
@@ -3033,13 +3063,6 @@ set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
 	int r;
 
 	(void)mode; /* UNUSED */
-
-#ifdef UF_COMPRESSED
-	if (a->todo & TODO_HFS_COMPRESSION)
-		set |= UF_COMPRESSED;
-	else if (set & UF_COMPRESSED)
-		clear |= UF_COMPRESSED;
-#endif
 	if (set == 0  && clear == 0)
 		return (ARCHIVE_OK);
 
