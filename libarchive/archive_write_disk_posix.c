@@ -179,6 +179,7 @@ struct fixup_entry {
 #define	TODO_SUID_CHECK		0x08000000
 #define	TODO_SGID		0x04000000
 #define	TODO_SGID_CHECK		0x02000000
+#define	TODO_APPLEDOUBLE	0x01000000
 #define	TODO_MODE		(TODO_MODE_BASE|TODO_SUID|TODO_SGID)
 #define	TODO_TIMES		ARCHIVE_EXTRACT_TIME
 #define	TODO_OWNER		ARCHIVE_EXTRACT_OWNER
@@ -333,6 +334,7 @@ static int	create_dir(struct archive_write_disk *, char *);
 static int	create_parent_dir(struct archive_write_disk *, char *);
 static ssize_t	hfs_write_data_block(struct archive_write_disk *,
 		    const char *, size_t);
+static int	fixup_appledouble(struct archive_write_disk *, const char *);
 static int	older(struct stat *, struct archive_entry *);
 static int	restore_entry(struct archive_write_disk *);
 static int	set_mac_metadata(struct archive_write_disk *, const char *,
@@ -562,9 +564,23 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		a->todo |= TODO_HFS_COMPRESSION;
 		a->decmpfs_block_count = (unsigned)-1;
 	}
-	/* Do not compress "._XXX" files. */
-	if (a->name[0] == '.' && a->name[1] == '_')
-		a->todo &= ~TODO_HFS_COMPRESSION;
+	{
+		const char *p;
+
+		/* Check if the current file name is a type of the
+		 * resource fork file. */
+		p = strrchr(a->name, '/');
+		if (p == NULL)
+			p = a->name;
+		else
+			p++;
+		if (p[0] == '.' && p[1] == '_') {
+			/* Do not compress "._XXX" files. */
+			a->todo &= ~TODO_HFS_COMPRESSION;
+			if (a->filesize > 0)
+				a->todo |= TODO_APPLEDOUBLE;
+		}
+	}
 #endif
 
 	if (a->flags & ARCHIVE_EXTRACT_XATTR)
@@ -1481,6 +1497,22 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	/* Restore metadata. */
 
 	/*
+	 * This is specific to Mac OS X.
+	 * If the current file is an AppleDouble file, it should be
+	 * linked with the data fork file and remove it.
+	 */
+	if (a->todo & TODO_APPLEDOUBLE) {
+		int r2 = fixup_appledouble(a, a->name);
+		if (r2 == ARCHIVE_EOF) {
+			/* The current file has been successfully linked
+			 * with the data fork file and removed. So there
+			 * is nothing to do on the current file.  */
+			goto finish_metadata;
+		}
+		if (r2 < ret) ret = r2;
+	}
+
+	/*
 	 * Look up the "real" UID only if we're going to need it.
 	 * TODO: the TODO_SGID condition can be dropped here, can't it?
 	 */
@@ -1502,8 +1534,10 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	 * bits.  If we set the owner, we know what it is and can skip
 	 * a stat() call to examine the ownership of the file on disk.
 	 */
-	if (a->todo & TODO_OWNER)
-		ret = set_ownership(a);
+	if (a->todo & TODO_OWNER) {
+		int r2 = set_ownership(a);
+		if (r2 < ret) ret = r2;
+	}
 
 	/*
 	 * set_mode must precede ACLs on systems such as Solaris and
@@ -1550,7 +1584,8 @@ _archive_write_disk_finish_entry(struct archive *_a)
 		size_t metadata_size;
 		metadata = archive_entry_mac_metadata(a->entry, &metadata_size);
 		if (metadata != NULL && metadata_size > 0) {
-			int r2 = set_mac_metadata(a, archive_entry_pathname(a->entry), metadata, metadata_size);
+			int r2 = set_mac_metadata(a, archive_entry_pathname(
+			    a->entry), metadata, metadata_size);
 			if (r2 < ret) ret = r2;
 		}
 	}
@@ -1566,6 +1601,7 @@ _archive_write_disk_finish_entry(struct archive *_a)
 		if (r2 < ret) ret = r2;
 	}
 
+finish_metadata:
 	/* If there's an fd, we can close it now. */
 	if (a->fd >= 0) {
 		close(a->fd);
@@ -3215,6 +3251,14 @@ set_mac_metadata(struct archive_write_disk *a, const char *pathname,
 	(void)metadata_size; /* UNUSED */
 	return (ARCHIVE_OK);
 }
+
+static int
+fixup_appledouble(struct archive_write_disk *a, const char *pathname)
+{
+	(void)a; /* UNUSED */
+	(void)pathname; /* UNUSED */
+	return (ARCHIVE_OK);
+}
 #else
 
 /*
@@ -3257,6 +3301,78 @@ set_mac_metadata(struct archive_write_disk *a, const char *pathname,
 	}
 	unlink(tmp.s);
 	archive_string_free(&tmp);
+	return (ret);
+}
+
+static int
+fixup_appledouble(struct archive_write_disk *a, const char *pathname)
+{
+	char buff[8];
+	struct stat st;
+	const char *p;
+	struct archive_string datafork;
+	int fd = -1, ret = ARCHIVE_OK;
+
+	archive_string_init(&datafork);
+	/* Check if the current file name is a type of the resource
+	 * fork file. */
+	p = strrchr(pathname, '/');
+	if (p == NULL)
+		p = pathname;
+	else
+		p++;
+	if (p[0] != '.' || p[1] != '_')
+		goto skip_appledouble;
+
+	/*
+	 * Check if the data fork file exists.
+	 *
+	 * TODO: Check if this write disk object has handled it.
+	 */
+	archive_strncpy(&datafork, pathname, p - pathname);
+	archive_strcat(&datafork, p + 2);
+	if (lstat(datafork.s, &st) == -1 &&
+	    (st.st_mode & AE_IFMT) != AE_IFREG)
+		goto skip_appledouble;
+
+	/*
+	 * Check if the file is in the AppleDouble form.
+	 */
+	fd = open(a->name, O_RDONLY | O_BINARY | O_CLOEXEC);
+	__archive_ensure_cloexec_flag(fd);
+	if (fd == -1) {
+		archive_set_error(&a->archive, errno,
+		    "Failed to open a restoring file");
+		ret = ARCHIVE_WARN;
+		goto skip_appledouble;
+	}
+	if (read(fd, buff, 8) == -1) {
+		archive_set_error(&a->archive, errno,
+		    "Failed to read a restoring file");
+		ret = ARCHIVE_WARN;
+		goto skip_appledouble;
+	}
+	/* Check AppleDouble Magic Code. */
+	if (archive_be32dec(buff) != 0x00051607)
+		goto skip_appledouble;
+	/* Check AppleDouble Version. */
+	if (archive_be32dec(buff+4) != 0x00020000)
+		goto skip_appledouble;
+
+	if (copyfile(pathname, datafork.s, 0,
+		COPYFILE_UNPACK | COPYFILE_NOFOLLOW
+		| COPYFILE_ACL | COPYFILE_XATTR) < 0) {
+		archive_set_error(&a->archive, errno,
+			  "Failed to restore metadata");
+		ret = ARCHIVE_WARN;
+		goto skip_appledouble;
+	}
+	unlink(pathname);
+	ret = ARCHIVE_EOF;
+skip_appledouble:
+	if (fd >= 0)
+		close(fd);
+	archive_string_free(&datafork);
 	return (ret);
 }
 #endif
