@@ -3216,6 +3216,7 @@ set_mac_metadata(struct archive_write_disk *a, const char *pathname,
 	if (fd < 0) {
 		archive_set_error(&a->archive, errno,
 				  "Failed to restore metadata");
+		archive_string_free(&tmp);
 		return (ARCHIVE_WARN);
 	}
 	written = write(fd, metadata, metadata_size);
@@ -3229,6 +3230,7 @@ set_mac_metadata(struct archive_write_disk *a, const char *pathname,
 		ret = ARCHIVE_WARN;
 	}
 	unlink(tmp.s);
+	archive_string_free(&tmp);
 	return (ret);
 }
 #endif
