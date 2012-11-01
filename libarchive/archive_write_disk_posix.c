@@ -562,6 +562,11 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		a->todo |= TODO_HFS_COMPRESSION;
 		a->decmpfs_block_count = (unsigned)-1;
 	}
+#ifdef __APPLE__
+	/* Do not compress "._XXX" files. */
+	if (a->name[0] == '.' && a->name[1] == '_')
+		a->todo &= ~TODO_HFS_COMPRESSION;
+#endif
 #endif
 
 	if (a->flags & ARCHIVE_EXTRACT_XATTR)
