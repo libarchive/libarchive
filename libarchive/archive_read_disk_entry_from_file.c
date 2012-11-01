@@ -294,7 +294,8 @@ setup_mac_metadata(struct archive_read_disk *a,
 	int ret = ARCHIVE_OK;
 	void *buff;
 	int have_attrs;
-	const char *name, *tempdir, *tempfile = NULL;
+	const char *name, *tempdir;
+	struct archive_string tempfile;
 
 	(void)fd; /* UNUSED */
 	name = archive_entry_sourcepath(entry);
@@ -329,19 +330,10 @@ setup_mac_metadata(struct archive_read_disk *a,
 		tempdir = getenv("TMPDIR");
 	if (tempdir == NULL)
 		tempdir = _PATH_TMP;
-	tempfile = tempnam(tempdir, "tar.md.");
-
-	/* XXX I wish copyfile() could pack directly to a memory
-	 * buffer; that would avoid the temp file here.  For that
-	 * matter, it would be nice if fcopyfile() actually worked,
-	 * that would reduce the many open/close races here. */
-	if (copyfile(name, tempfile, 0, copyfile_flags | COPYFILE_PACK)) {
-		archive_set_error(&a->archive, errno,
-		    "Could not pack extended attributes");
-		ret = ARCHIVE_WARN;
-		goto cleanup;
-	}
-	tempfd = open(tempfile, O_RDONLY | O_CLOEXEC);
+	archive_string_init(&tempfile);
+	archive_strcpy(&tempfile, tempdir);
+	archive_strcat(&tempfile, "tar.md.XXXXXX");
+	tempfd = mkstemp(tempfile.s);
 	if (tempfd < 0) {
 		archive_set_error(&a->archive, errno,
 		    "Could not open extended attribute file");
@@ -349,6 +341,17 @@ setup_mac_metadata(struct archive_read_disk *a,
 		goto cleanup;
 	}
 	__archive_ensure_cloexec_flag(tempfd);
+
+	/* XXX I wish copyfile() could pack directly to a memory
+	 * buffer; that would avoid the temp file here.  For that
+	 * matter, it would be nice if fcopyfile() actually worked,
+	 * that would reduce the many open/close races here. */
+	if (copyfile(name, tempfile.s, 0, copyfile_flags | COPYFILE_PACK)) {
+		archive_set_error(&a->archive, errno,
+		    "Could not pack extended attributes");
+		ret = ARCHIVE_WARN;
+		goto cleanup;
+	}
 	if (fstat(tempfd, &copyfile_stat)) {
 		archive_set_error(&a->archive, errno,
 		    "Could not check size of extended attributes");
@@ -371,10 +374,11 @@ setup_mac_metadata(struct archive_read_disk *a,
 	archive_entry_copy_mac_metadata(entry, buff, copyfile_stat.st_size);
 
 cleanup:
-	if (tempfd >= 0)
+	if (tempfd >= 0) {
 		close(tempfd);
-	if (tempfile != NULL)
-		unlink(tempfile);
+		unlink(tempfile.s);
+	}
+	archive_string_free(&tempfile);
 	return (ret);
 }
 
