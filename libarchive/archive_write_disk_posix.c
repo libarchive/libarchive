@@ -1158,7 +1158,7 @@ fprintf(stderr, "block %u bytes --> %u bytes in resource fork\n", (unsigned)size
 
 		/* Append the resource footer. */
 		rsrc_size = hfs_set_resource_fork_footer(
-		    buffer_compressed + bytes_compressed,
+		    a->compressed_buffer + bytes_used,
 		    a->compressed_buffer_remaining);
 		ret = hfs_write_compressed_data(a, bytes_used + rsrc_size);
 		a->compressed_buffer_remaining = a->compressed_buffer_size;
