@@ -33,6 +33,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
+#ifdef HAVE_SYS_ACL_H
+#include <sys/acl.h>
+#endif
 #ifdef HAVE_SYS_EXTATTR_H
 #include <sys/extattr.h>
 #endif
@@ -3337,6 +3340,178 @@ fixup_appledouble(struct archive_write_disk *a, const char *pathname)
  * On Mac OS, we use copyfile() to unpack the metadata and
  * apply it to the target file.
  */
+
+static int
+copy_xattrs(struct archive_write_disk *a, int tmpfd, int dffd)
+{
+	ssize_t xattr_size;
+	char *xattr_names = NULL, *xattr_val = NULL;
+	int ret = ARCHIVE_OK, xattr_i;
+
+	xattr_size = flistxattr(tmpfd, NULL, 0, 0);
+	if (xattr_size == -1) {
+		archive_set_error(&a->archive, errno,
+		    "Failed to read metadata(xattr)");
+		ret = ARCHIVE_WARN;
+		goto exit_xattr;
+	}
+	xattr_names = malloc(xattr_size);
+	if (xattr_names == NULL) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate memory for metadata(xattr)");
+		ret = ARCHIVE_FATAL;
+		goto exit_xattr;
+	}
+	xattr_size = flistxattr(tmpfd, xattr_names, xattr_size, 0);
+	if (xattr_size == -1) {
+		archive_set_error(&a->archive, errno,
+		    "Failed to read metadata(xattr)");
+		ret = ARCHIVE_WARN;
+		goto exit_xattr;
+	}
+	for (xattr_i = 0; xattr_i < xattr_size;
+	    xattr_i += strlen(xattr_names + xattr_i) + 1) {
+		ssize_t s;
+		int f;
+
+		s = fgetxattr(tmpfd, xattr_names + xattr_i, NULL, 0, 0, 0);
+		if (s == -1) {
+			archive_set_error(&a->archive, errno,
+			    "Failed to get metadata(xattr)");
+			ret = ARCHIVE_WARN;
+			goto exit_xattr;
+		}
+		xattr_val = realloc(xattr_val, s);
+		if (xattr_val == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Failed to get metadata(xattr)");
+			ret = ARCHIVE_WARN;
+			goto exit_xattr;
+		}
+		s = fgetxattr(tmpfd, xattr_names + xattr_i, xattr_val, s, 0, 0);
+		if (s == -1) {
+			archive_set_error(&a->archive, errno,
+			    "Failed to get metadata(xattr)");
+			ret = ARCHIVE_WARN;
+			goto exit_xattr;
+		}
+		f = fsetxattr(dffd, xattr_names + xattr_i, xattr_val, s, 0, 0);
+		if (f == -1) {
+			archive_set_error(&a->archive, errno,
+			    "Failed to get metadata(xattr)");
+			ret = ARCHIVE_WARN;
+			goto exit_xattr;
+		}
+	}
+exit_xattr:
+	free(xattr_names);
+	free(xattr_val);
+	return (ret);
+}
+
+static int
+copy_acls(struct archive_write_disk *a, int tmpfd, int dffd)
+{
+	acl_t acl, dfacl = NULL;
+	int acl_r, ret = ARCHIVE_OK;
+
+	acl = acl_get_fd(tmpfd);
+	if (acl == NULL) {
+		if (errno == ENOENT)
+			/* There are not any ACLs. */
+			return (ret);
+		archive_set_error(&a->archive, errno,
+		    "Failed to get metadata(acl)");
+		ret = ARCHIVE_WARN;
+		goto exit_acl;
+	}
+	dfacl = acl_dup(acl);
+	acl_r = acl_set_fd(dffd, dfacl);
+	if (acl_r == -1) {
+		archive_set_error(&a->archive, errno,
+		    "Failed to get metadata(acl)");
+		ret = ARCHIVE_WARN;
+		goto exit_acl;
+	}
+exit_acl:
+	if (acl)
+		acl_free(acl);
+	if (dfacl)
+		acl_free(dfacl);
+	return (ret);
+}
+
+static int
+create_tempdatafork(struct archive_write_disk *a, const char *pathname)
+{
+	struct archive_string tmpdatafork;
+	int tmpfd;
+
+	archive_string_init(&tmpdatafork);
+	archive_strcpy(&tmpdatafork, "tar.md.XXXXXX");
+	tmpfd = mkstemp(tmpdatafork.s);
+	if (tmpfd < 0) {
+		archive_set_error(&a->archive, errno,
+		    "Failed to mkstemp");
+		archive_string_free(&tmpdatafork);
+		return (-1);
+	}
+	if (copyfile(pathname, tmpdatafork.s, 0,
+	    COPYFILE_UNPACK | COPYFILE_NOFOLLOW
+	    | COPYFILE_ACL | COPYFILE_XATTR) < 0) {
+		archive_set_error(&a->archive, errno,
+		    "Failed to restore metadata");
+		close(tmpfd);
+		tmpfd = -1;
+	}
+	unlink(tmpdatafork.s);
+	archive_string_free(&tmpdatafork);
+	return (tmpfd);
+}
+
+static int
+copy_metadata(struct archive_write_disk *a, const char *metadata,
+    const char *datafork, int datafork_compressed)
+{
+	int ret = ARCHIVE_OK;
+
+	if (datafork_compressed) {
+		int dffd, tmpfd;
+
+		tmpfd = create_tempdatafork(a, metadata);
+		if (tmpfd == -1)
+			return (ARCHIVE_WARN);
+
+		/*
+		 * Do not open the data fork compressed by HFS+ compression
+		 * with at least a writing mode(O_RDWR or O_WRONLY). it
+		 * makes the data fork uncompressed.
+		 */
+		dffd = open(datafork, 0);
+		if (dffd == -1) {
+			archive_set_error(&a->archive, errno,
+			    "Failed to open the data fork for metadata");
+			close(tmpfd);
+			return (ARCHIVE_WARN);
+		}
+
+		ret = copy_xattrs(a, tmpfd, dffd);
+		if (ret == ARCHIVE_OK)
+			ret = copy_acls(a, tmpfd, dffd);
+		close(tmpfd);
+		close(dffd);
+	} else {
+		if (copyfile(metadata, datafork, 0,
+		    COPYFILE_UNPACK | COPYFILE_NOFOLLOW
+		    | COPYFILE_ACL | COPYFILE_XATTR) < 0) {
+			archive_set_error(&a->archive, errno,
+			    "Failed to restore metadata");
+			ret = ARCHIVE_WARN;
+		}
+	}
+	return (ret);
+}
+
 static int
 set_mac_metadata(struct archive_write_disk *a, const char *pathname,
 		 const void *metadata, size_t metadata_size)
@@ -3363,13 +3538,19 @@ set_mac_metadata(struct archive_write_disk *a, const char *pathname,
 	}
 	written = write(fd, metadata, metadata_size);
 	close(fd);
-	if ((size_t)written != metadata_size
-	    || copyfile(tmp.s, pathname, 0,
-			COPYFILE_UNPACK | COPYFILE_NOFOLLOW
-			| COPYFILE_ACL | COPYFILE_XATTR)) {
+	if ((size_t)written != metadata_size) {
 		archive_set_error(&a->archive, errno,
 				  "Failed to restore metadata");
 		ret = ARCHIVE_WARN;
+	} else {
+		int compressed;
+
+		if ((a->todo & TODO_HFS_COMPRESSION) != 0 &&
+		    (ret = lazy_stat(a)) == ARCHIVE_OK)
+			compressed = a->st.st_flags & UF_COMPRESSED;
+		else
+			compressed = 0;
+		ret = copy_metadata(a, tmp.s, pathname, compressed);
 	}
 	unlink(tmp.s);
 	archive_string_free(&tmp);
@@ -3403,14 +3584,14 @@ fixup_appledouble(struct archive_write_disk *a, const char *pathname)
 	 */
 	archive_strncpy(&datafork, pathname, p - pathname);
 	archive_strcat(&datafork, p + 2);
-	if (lstat(datafork.s, &st) == -1 &&
+	if (lstat(datafork.s, &st) == -1 ||
 	    (st.st_mode & AE_IFMT) != AE_IFREG)
 		goto skip_appledouble;
 
 	/*
 	 * Check if the file is in the AppleDouble form.
 	 */
-	fd = open(a->name, O_RDONLY | O_BINARY | O_CLOEXEC);
+	fd = open(pathname, O_RDONLY | O_BINARY | O_CLOEXEC);
 	__archive_ensure_cloexec_flag(fd);
 	if (fd == -1) {
 		archive_set_error(&a->archive, errno,
@@ -3421,9 +3602,11 @@ fixup_appledouble(struct archive_write_disk *a, const char *pathname)
 	if (read(fd, buff, 8) == -1) {
 		archive_set_error(&a->archive, errno,
 		    "Failed to read a restoring file");
+		close(fd);
 		ret = ARCHIVE_WARN;
 		goto skip_appledouble;
 	}
+	close(fd);
 	/* Check AppleDouble Magic Code. */
 	if (archive_be32dec(buff) != 0x00051607)
 		goto skip_appledouble;
@@ -3431,19 +3614,13 @@ fixup_appledouble(struct archive_write_disk *a, const char *pathname)
 	if (archive_be32dec(buff+4) != 0x00020000)
 		goto skip_appledouble;
 
-	if (copyfile(pathname, datafork.s, 0,
-		COPYFILE_UNPACK | COPYFILE_NOFOLLOW
-		| COPYFILE_ACL | COPYFILE_XATTR) < 0) {
-		archive_set_error(&a->archive, errno,
-			  "Failed to restore metadata");
-		ret = ARCHIVE_WARN;
-		goto skip_appledouble;
+	ret = copy_metadata(a, pathname, datafork.s,
+	    st.st_flags & UF_COMPRESSED);
+	if (ret == ARCHIVE_OK) {
+		unlink(pathname);
+		ret = ARCHIVE_EOF;
 	}
-	unlink(pathname);
-	ret = ARCHIVE_EOF;
 skip_appledouble:
-	if (fd >= 0)
-		close(fd);
 	archive_string_free(&datafork);
 	return (ret);
 }
