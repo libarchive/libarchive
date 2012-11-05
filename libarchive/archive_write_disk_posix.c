@@ -1165,9 +1165,6 @@ hfs_drive_compressor(struct archive_write_disk *a, const char *buff,
 	if (a->decmpfs_block_count == 1 &&
 	    (a->decmpfs_attr_size + bytes_compressed)
 	      <= MAX_DECMPFS_XATTR_SIZE) {
-#if DECMPFS_DEBUG
-fprintf(stderr, "block %u bytes --> %u bytes in decmpfs xattr\n", (unsigned)size, (unsigned)bytes_compressed);
-#endif
 		archive_le32enc(&a->decmpfs_header_p[DECMPFS_COMPRESSION_TYPE],
 		    CMP_XATTR);
 		memcpy(a->decmpfs_header_p + DECMPFS_HEADER_SIZE,
@@ -1191,9 +1188,6 @@ fprintf(stderr, "block %u bytes --> %u bytes in decmpfs xattr\n", (unsigned)size
 	archive_le32enc(a->decmpfs_block_info++, bytes_compressed);
 	a->compressed_rsrc_position_v += bytes_compressed;
 
-#if DECMPFS_DEBUG
-fprintf(stderr, "block %u bytes --> %u bytes in resource fork\n", (unsigned)size, (unsigned)bytes_compressed);
-#endif
 	/*
 	 * Write the compressed data to the resource fork.
 	 */
@@ -1290,9 +1284,6 @@ hfs_write_decmpfs_block(struct archive_write_disk *a, const char *buff,
 		block_count =
 		    (a->filesize + MAX_DECMPFS_BLOCK_SIZE -1) /
 			MAX_DECMPFS_BLOCK_SIZE;
-#if DECMPFS_DEBUG
-fprintf(stderr, "\nblock count = %u, file size = %u\n", block_count, (unsigned)a->filesize);
-#endif
 		/*
 		 * Allocate buffer for resource fork.
 		 * Set up related pointers;
