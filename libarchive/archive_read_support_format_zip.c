@@ -120,18 +120,20 @@ struct zip {
 #define ZIP_STRONG_ENCRYPTED	(1<<6)	
 #define ZIP_UTF8_NAME		(1<<11)	
 
-static int	archive_read_format_zip_streamable_bid(struct archive_read *, int);
-static int	archive_read_format_zip_seekable_bid(struct archive_read *, int);
+static int	archive_read_format_zip_streamable_bid(struct archive_read *,
+		    int);
+static int	archive_read_format_zip_seekable_bid(struct archive_read *,
+		    int);
 static int	archive_read_format_zip_options(struct archive_read *,
 		    const char *, const char *);
 static int	archive_read_format_zip_cleanup(struct archive_read *);
 static int	archive_read_format_zip_read_data(struct archive_read *,
 		    const void **, size_t *, int64_t *);
 static int	archive_read_format_zip_read_data_skip(struct archive_read *a);
-static int	archive_read_format_zip_seekable_read_header(struct archive_read *,
-		    struct archive_entry *);
-static int	archive_read_format_zip_streamable_read_header(struct archive_read *,
-		    struct archive_entry *);
+static int	archive_read_format_zip_seekable_read_header(
+		    struct archive_read *, struct archive_entry *);
+static int	archive_read_format_zip_streamable_read_header(
+		    struct archive_read *, struct archive_entry *);
 #ifdef HAVE_ZLIB_H
 static int	zip_read_data_deflate(struct archive_read *a, const void **buff,
 		    size_t *size, int64_t *offset);
@@ -139,10 +141,10 @@ static int	zip_read_data_deflate(struct archive_read *a, const void **buff,
 static int	zip_read_data_none(struct archive_read *a, const void **buff,
 		    size_t *size, int64_t *offset);
 static int	zip_read_local_file_header(struct archive_read *a,
-    struct archive_entry *entry, struct zip *);
+		    struct archive_entry *entry, struct zip *);
 static time_t	zip_time(const char *);
 static const char *compression_name(int compression);
-static void process_extra(const char *, size_t, struct zip_entry *);
+static void	process_extra(const char *, size_t, struct zip_entry *);
 
 int	archive_read_support_format_zip_streamable(struct archive *);
 int	archive_read_support_format_zip_seekable(struct archive *);
@@ -312,7 +314,8 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 	if (zip->central_directory_entries != archive_le16dec(p + 8))
 		return 0;
 	/* Central directory can't extend beyond end of this file. */
-	if (zip->central_directory_offset + (int64_t)zip->central_directory_size > filesize)
+	if (zip->central_directory_offset +
+	    (int64_t)zip->central_directory_size > filesize)
 		return 0;
 
 	/* This is just a tiny bit higher than the maximum returned by
@@ -556,7 +559,8 @@ archive_read_format_zip_options(struct archive_read *a,
 	} else if (strcmp(key, "hdrcharset")  == 0) {
 		if (val == NULL || val[0] == 0)
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "zip: hdrcharset option needs a character-set name");
+			    "zip: hdrcharset option needs a character-set name"
+			);
 		else {
 			zip->sconv = archive_string_conversion_from_charset(
 			    &a->archive, val, 0);
@@ -592,7 +596,8 @@ archive_read_format_zip_streamable_read_header(struct archive_read *a,
 	if (zip->zip_entries == NULL) {
 		zip->zip_entries = malloc(sizeof(struct zip_entry));
 		if (zip->zip_entries == NULL) {
-			archive_set_error(&a->archive, ENOMEM, "Out  of memory");
+			archive_set_error(&a->archive, ENOMEM,
+			    "Out  of memory");
 			return ARCHIVE_FATAL;
 		}
 	}
@@ -621,7 +626,8 @@ archive_read_format_zip_streamable_read_header(struct archive_read *a,
 				if (p[2] == '\003' && p[3] == '\004') {
 					/* Regular file entry. */
 					zip_read_consume(a, skipped);
-					return zip_read_local_file_header(a, entry, zip);
+					return zip_read_local_file_header(a,
+					    entry, zip);
 				}
 
 				if (p[2] == '\005' && p[3] == '\006')
@@ -691,8 +697,8 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	zip_read_consume(a, 30);
 
 	if (zip->have_central_directory) {
-		/* If we read the central dir entry, we must have size information
-		   as well, so ignore the length-at-end flag. */
+		/* If we read the central dir entry, we must have size
+		 * information as well, so ignore the length-at-end flag. */
 		zip_entry->flags &= ~ZIP_LENGTH_AT_END;
 		/* If we have values from both the local file header
 		   and the central directory, warn about mismatches
@@ -700,19 +706,22 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		   writers always put zero in the local header; don't
 		   bother warning about that. */
 		if (local_crc32 != 0 && local_crc32 != zip_entry->crc32) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Inconsistent CRC32 values");
 			ret = ARCHIVE_WARN;
 		}
 		if (compressed_size != 0
 		    && compressed_size != zip_entry->compressed_size) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Inconsistent compressed size");
 			ret = ARCHIVE_WARN;
 		}
 		if (uncompressed_size != 0
 		    && uncompressed_size != zip_entry->uncompressed_size) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Inconsistent uncompressed size");
 			ret = ARCHIVE_WARN;
 		}
@@ -915,9 +924,11 @@ archive_read_format_zip_read_data(struct archive_read *a,
 	/* If we hit the end, swallow any end-of-data marker. */
 	if (zip->end_of_entry) {
 		/* Check file size, CRC against these values. */
-		if (zip->entry->compressed_size != zip->entry_compressed_bytes_read) {
+		if (zip->entry->compressed_size !=
+		    zip->entry_compressed_bytes_read) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "ZIP compressed data is wrong size (read %jd, expected %jd)",
+			    "ZIP compressed data is wrong size "
+			    "(read %jd, expected %jd)",
 			    (intmax_t)zip->entry_compressed_bytes_read,
 			    (intmax_t)zip->entry->compressed_size);
 			return (ARCHIVE_WARN);
@@ -927,7 +938,8 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		if ((zip->entry->uncompressed_size & UINT32_MAX)
 		    != (zip->entry_uncompressed_bytes_read & UINT32_MAX)) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "ZIP uncompressed data is wrong size (read %jd, expected %jd)",
+			    "ZIP uncompressed data is wrong size "
+			    "(read %jd, expected %jd)",
 			    (intmax_t)zip->entry_uncompressed_bytes_read,
 			    (intmax_t)zip->entry->uncompressed_size);
 			return (ARCHIVE_WARN);
@@ -990,7 +1002,8 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 			   that are longer than this, so a failure to get at
 			   least 16 bytes really does indicate a truncated
 			   file. */
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Truncated ZIP file data");
 			return (ARCHIVE_FATAL);
 		}
@@ -999,8 +1012,10 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 		if (p[0] == 'P' && p[1] == 'K' 
 		    && p[2] == '\007' && p[3] == '\010'
 		    && archive_le32dec(p + 4) == zip->entry_crc32
-		    && archive_le32dec(p + 8) == zip->entry_compressed_bytes_read
-		    && archive_le32dec(p + 12) == zip->entry_uncompressed_bytes_read) {
+		    && archive_le32dec(p + 8) ==
+			    zip->entry_compressed_bytes_read
+		    && archive_le32dec(p + 12) ==
+			    zip->entry_uncompressed_bytes_read) {
 			zip->entry->crc32 = archive_le32dec(p + 4);
 			zip->entry->compressed_size = archive_le32dec(p + 8);
 			zip->entry->uncompressed_size = archive_le32dec(p + 12);
@@ -1011,9 +1026,10 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 		/* If not at EOF, ensure we consume at least one byte. */
 		++p;
 
-		/* Scan forward until we see where a PK\007\010 signature might be. */
-		/* Return bytes up until that point.  On the next call, the code
-		   above will verify the data descriptor. */
+		/* Scan forward until we see where a PK\007\010 signature
+		 * might be. */
+		/* Return bytes up until that point.  On the next call,
+		 * the code above will verify the data descriptor. */
 		while (p < buff + bytes_avail - 4) {
 			if (p[3] == 'P') { p += 3; }
 			else if (p[3] == 'K') { p += 2; }
@@ -1032,7 +1048,8 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 		/* Grab a bunch of bytes. */
 		buff = __archive_read_ahead(a, 1, &bytes_avail);
 		if (bytes_avail <= 0) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Truncated ZIP file data");
 			return (ARCHIVE_FATAL);
 		}
@@ -1159,7 +1176,8 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 			return (ARCHIVE_FATAL);
 		}
 		/* Consume the optional PK\007\010 marker. */
-		if (p[0] == 'P' && p[1] == 'K' && p[2] == '\007' && p[3] == '\010') {
+		if (p[0] == 'P' && p[1] == 'K' &&
+		    p[2] == '\007' && p[3] == '\010') {
 			zip->entry->crc32 = archive_le32dec(p + 4);
 			zip->entry->compressed_size = archive_le32dec(p + 8);
 			zip->entry->uncompressed_size = archive_le32dec(p + 12);
@@ -1219,7 +1237,8 @@ archive_read_format_zip_read_data_skip(struct archive_read *a)
 			ssize_t bytes_avail;
 			buff = __archive_read_ahead(a, 16, &bytes_avail);
 			if (bytes_avail < 16) {
-				archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Truncated ZIP file data");
 				return (ARCHIVE_FATAL);
 			}
@@ -1331,11 +1350,14 @@ process_extra(const char *p, size_t extra_length, struct zip_entry* zip_entry)
 			/* Info-ZIP Unix Extra Field (old version) "UX". */
 			if (datasize >= 8) {
 				zip_entry->atime = archive_le32dec(p + offset);
-				zip_entry->mtime = archive_le32dec(p + offset + 4);
+				zip_entry->mtime =
+				    archive_le32dec(p + offset + 4);
 			}
 			if (datasize >= 12) {
-				zip_entry->uid = archive_le16dec(p + offset + 8);
-				zip_entry->gid = archive_le16dec(p + offset + 10);
+				zip_entry->uid =
+				    archive_le16dec(p + offset + 8);
+				zip_entry->gid =
+				    archive_le16dec(p + offset + 10);
 			}
 			break;
 		}
@@ -1349,7 +1371,8 @@ process_extra(const char *p, size_t extra_length, struct zip_entry* zip_entry)
 			if (datasize >= 2)
 				zip_entry->uid = archive_le16dec(p + offset);
 			if (datasize >= 4)
-				zip_entry->gid = archive_le16dec(p + offset + 2);
+				zip_entry->gid =
+				    archive_le16dec(p + offset + 2);
 			break;
 		case 0x7875:
 		{
@@ -1361,22 +1384,26 @@ process_extra(const char *p, size_t extra_length, struct zip_entry* zip_entry)
 					/* get a uid size. */
 					uidsize = p[offset+1];
 					if (uidsize == 2)
-						zip_entry->uid = archive_le16dec(
-						     p + offset + 2);
+						zip_entry->uid =
+						    archive_le16dec(
+						        p + offset + 2);
 					else if (uidsize == 4 && datasize >= 6)
-						zip_entry->uid = archive_le32dec(
-						     p + offset + 2);
+						zip_entry->uid =
+						    archive_le32dec(
+						        p + offset + 2);
 				}
 				if (datasize >= (2 + uidsize + 3)) {
 					/* get a gid size. */
 					gidsize = p[offset+2+uidsize];
 					if (gidsize == 2)
-						zip_entry->gid = archive_le16dec(
-						    p+offset+2+uidsize+1);
+						zip_entry->gid =
+						    archive_le16dec(
+						        p+offset+2+uidsize+1);
 					else if (gidsize == 4 &&
 					    datasize >= (2 + uidsize + 5))
-						zip_entry->gid = archive_le32dec(
-						    p+offset+2+uidsize+1);
+						zip_entry->gid =
+						    archive_le32dec(
+						        p+offset+2+uidsize+1);
 				}
 			}
 			break;
