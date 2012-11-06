@@ -257,8 +257,49 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 	/* First four bytes are signature for end of central directory
 	   record.  Four zero bytes ensure this isn't a multi-volume
 	   Zip file (which we don't yet support). */
-	if (memcmp(p, "PK\005\006\000\000\000\000", 8) != 0)
-		return 0;
+	if (memcmp(p, "PK\005\006\000\000\000\000", 8) != 0) {
+		int64_t i, tail;
+		int found;
+
+		/*
+		 * If there is a comment in the end of central directory
+		 * record, 22 bytes are too short. we have to read more
+		 * to properly detect the end of central directory record.
+		 * Hopefully, a length of the comment is not longer than
+		 * 1002 bytes. should we read more?
+		 */
+		if (filesize + 22 > 1024) {
+			tail = 1024;
+			filesize = __archive_read_seek(a, tail * -1, SEEK_END);
+		} else {
+			tail = filesize + 22;
+			filesize = __archive_read_seek(a, 0, SEEK_SET);
+		}
+		if (filesize < 0)
+			return 0;
+		if ((p = __archive_read_ahead(a, tail, NULL)) == NULL)
+			return 0;
+		for (found = 0, i = 0;!found && i < tail - 22;) {
+			switch (p[i]) {
+			case 'P':
+				if (memcmp(p+i,
+				    "PK\005\006\000\000\000\000", 8) == 0) {
+					p += i;
+					filesize += tail -
+					    (22 + archive_le16dec(p+20));
+					found = 1;
+				} else
+					i += 8;
+				break;
+			case 'K': i += 7; break;
+			case 005: i += 6; break;
+			case 006: i += 5; break;
+			default: i += 1; break;
+			}
+		}
+		if (!found)
+			return 0;
+	}
 
 	/* Since we've already done the hard work of finding the
 	   end of central directory record, let's save the important

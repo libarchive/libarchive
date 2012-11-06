@@ -137,6 +137,7 @@ IF(ENABLE_TEST)
     test_read_format_ustar_filename.c
     test_read_format_xar.c
     test_read_format_zip.c
+    test_read_format_zip_comment_stored.c
     test_read_format_zip_filename.c
     test_read_large.c
     test_read_pax_truncated.c
