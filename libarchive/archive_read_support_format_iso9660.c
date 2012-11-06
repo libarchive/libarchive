@@ -374,6 +374,8 @@ struct iso9660 {
 	size_t		 utf16be_path_len;
 	unsigned char *utf16be_previous_path;
 	size_t		 utf16be_previous_path_len;
+	/* Null buufer used in bidder to improve its performance. */
+	unsigned char	 null[2048];
 };
 
 static int	archive_read_format_iso9660_bid(struct archive_read *, int);
@@ -589,6 +591,23 @@ archive_read_format_iso9660_options(struct archive_read *a,
 }
 
 static int
+isNull(struct iso9660 *iso9660, const unsigned char *h, unsigned offset,
+unsigned bytes)
+{
+
+	while (bytes >= sizeof(iso9660->null)) {
+		if (!memcmp(iso9660->null, h + offset, sizeof(iso9660->null)))
+			return (0);
+		offset += sizeof(iso9660->null);
+		bytes -= sizeof(iso9660->null);
+	}
+	if (bytes)
+		return memcmp(iso9660->null, h + offset, bytes) == 0;
+	else
+		return (1);
+}
+
+static int
 isBootRecord(struct iso9660 *iso9660, const unsigned char *h)
 {
 	(void)iso9660; /* UNUSED */
@@ -633,8 +652,6 @@ isVolumePartition(struct iso9660 *iso9660, const unsigned char *h)
 static int
 isVDSetTerminator(struct iso9660 *iso9660, const unsigned char *h)
 {
-	int i;
-
 	(void)iso9660; /* UNUSED */
 
 	/* Type of the Volume Descriptor Set Terminator must be 255. */
@@ -646,9 +663,8 @@ isVDSetTerminator(struct iso9660 *iso9660, const unsigned char *h)
 		return (0);
 
 	/* Reserved field must be 0. */
-	for (i = 7; i < 2048; ++i)
-		if (h[i] != 0)
-			return (0);
+	if (!isNull(iso9660, h, 7, 2048-7))
+		return (0);
 
 	return (1);
 }
@@ -709,7 +725,6 @@ isSVD(struct iso9660 *iso9660, const unsigned char *h)
 	ssize_t logical_block_size;
 	int32_t volume_block;
 	int32_t location;
-	int i;
 
 	(void)iso9660; /* UNUSED */
 
@@ -718,15 +733,12 @@ isSVD(struct iso9660 *iso9660, const unsigned char *h)
 		return (0);
 
 	/* Reserved field must be 0. */
-	for (i = 0; i < SVD_reserved1_size; ++i)
-		if (h[SVD_reserved1_offset + i] != 0)
-			return (0);
-	for (i = 0; i < SVD_reserved2_size; ++i)
-		if (h[SVD_reserved2_offset + i] != 0)
-			return (0);
-	for (i = 0; i < SVD_reserved3_size; ++i)
-		if (h[SVD_reserved3_offset + i] != 0)
-			return (0);
+	if (!isNull(iso9660, h, SVD_reserved1_offset, SVD_reserved1_size))
+		return (0);
+	if (!isNull(iso9660, h, SVD_reserved2_offset, SVD_reserved2_size))
+		return (0);
+	if (!isNull(iso9660, h, SVD_reserved3_offset, SVD_reserved3_size))
+		return (0);
 
 	/* File structure version must be 1 for ISO9660/ECMA119. */
 	if (h[SVD_file_structure_version_offset] != 1)
@@ -772,7 +784,6 @@ isEVD(struct iso9660 *iso9660, const unsigned char *h)
 	ssize_t logical_block_size;
 	int32_t volume_block;
 	int32_t location;
-	int i;
 
 	(void)iso9660; /* UNUSED */
 
@@ -789,14 +800,12 @@ isEVD(struct iso9660 *iso9660, const unsigned char *h)
 		return (0);
 
 	/* Reserved field must be 0. */
-	for (i = 0; i < PVD_reserved2_size; ++i)
-		if (h[PVD_reserved2_offset + i] != 0)
-			return (0);
+	if (!isNull(iso9660, h, PVD_reserved2_offset, PVD_reserved2_size))
+		return (0);
 
 	/* Reserved field must be 0. */
-	for (i = 0; i < PVD_reserved3_size; ++i)
-		if (h[PVD_reserved3_offset + i] != 0)
-			return (0);
+	if (!isNull(iso9660, h, PVD_reserved3_offset, PVD_reserved3_size))
+		return (0);
 
 	/* Logical block size must be > 0. */
 	/* I've looked at Ecma 119 and can't find any stronger
@@ -831,14 +840,12 @@ isEVD(struct iso9660 *iso9660, const unsigned char *h)
 		return (0);
 
 	/* Reserved field must be 0. */
-	for (i = 0; i < PVD_reserved4_size; ++i)
-		if (h[PVD_reserved4_offset + i] != 0)
-			return (0);
+	if (!isNull(iso9660, h, PVD_reserved4_offset, PVD_reserved4_size))
+		return (0);
 
 	/* Reserved field must be 0. */
-	for (i = 0; i < PVD_reserved5_size; ++i)
-		if (h[PVD_reserved5_offset + i] != 0)
-			return (0);
+	if (!isNull(iso9660, h, PVD_reserved5_offset, PVD_reserved5_size))
+		return (0);
 
 	/* Read Root Directory Record in Volume Descriptor. */
 	p = h + PVD_root_directory_record_offset;
@@ -870,14 +877,12 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 		return (0);
 
 	/* Reserved field must be 0. */
-	for (i = 0; i < PVD_reserved2_size; ++i)
-		if (h[PVD_reserved2_offset + i] != 0)
-			return (0);
+	if (!isNull(iso9660, h, PVD_reserved2_offset, PVD_reserved2_size))
+		return (0);
 
 	/* Reserved field must be 0. */
-	for (i = 0; i < PVD_reserved3_size; ++i)
-		if (h[PVD_reserved3_offset + i] != 0)
-			return (0);
+	if (!isNull(iso9660, h, PVD_reserved3_offset, PVD_reserved3_size))
+		return (0);
 
 	/* Logical block size must be > 0. */
 	/* I've looked at Ecma 119 and can't find any stronger
@@ -920,9 +925,8 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 			return (0);
 
 	/* Reserved field must be 0. */
-	for (i = 0; i < PVD_reserved5_size; ++i)
-		if (h[PVD_reserved5_offset + i] != 0)
-			return (0);
+	if (!isNull(iso9660, h, PVD_reserved5_offset, PVD_reserved5_size))
+		return (0);
 
 	/* XXX TODO: Check other values for sanity; reject more
 	 * malformed PVDs. XXX */
