@@ -264,14 +264,13 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 		int found;
 
 		/*
-		 * If there is a comment in the end of central directory
+		 * If there is a comment in end of central directory
 		 * record, 22 bytes are too short. we have to read more
-		 * to properly detect the end of central directory record.
-		 * Hopefully, a length of the comment is not longer than
-		 * 1002 bytes. should we read more?
+		 * to properly detect the record. Hopefully, a length
+		 * of the comment is not longer than 16362 bytes(16K-22).
 		 */
-		if (filesize + 22 > 1024) {
-			tail = 1024;
+		if (filesize + 22 > 1024 * 16) {
+			tail = 1024 * 16;
 			filesize = __archive_read_seek(a, tail * -1, SEEK_END);
 		} else {
 			tail = filesize + 22;
