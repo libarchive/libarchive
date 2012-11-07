@@ -504,7 +504,7 @@ _7z_write_header(struct archive_write *a, struct archive_entry *entry)
 		bytes = compress_out(a, p, (size_t)file->size, ARCHIVE_Z_RUN);
 		if (bytes < 0)
 			return ((int)bytes);
-		zip->entry_crc32 = crc32(zip->entry_crc32, p, bytes);
+		zip->entry_crc32 = crc32(zip->entry_crc32, p, (uInt)bytes);
 		zip->entry_bytes_remaining -= bytes;
 	}
 
@@ -562,7 +562,7 @@ compress_out(struct archive_write *a, const void *buff, size_t s,
 		return (0);
 
 	if ((zip->crc32flg & PRECODE_CRC32) && s)
-		zip->precode_crc32 = crc32(zip->precode_crc32, buff, s);
+		zip->precode_crc32 = crc32(zip->precode_crc32, buff, (uInt)s);
 	zip->stream.next_in = (const unsigned char *)buff;
 	zip->stream.avail_in = s;
 	do {
@@ -608,7 +608,7 @@ _7z_write_data(struct archive_write *a, const void *buff, size_t s)
 	bytes = compress_out(a, buff, s, ARCHIVE_Z_RUN);
 	if (bytes < 0)
 		return (bytes);
-	zip->entry_crc32 = crc32(zip->entry_crc32, buff, bytes);
+	zip->entry_crc32 = crc32(zip->entry_crc32, buff, (uInt)bytes);
 	zip->entry_bytes_remaining -= bytes;
 	return (bytes);
 }
@@ -1680,10 +1680,10 @@ compression_init_encoder_deflate(struct archive *a,
 	 * of ugly hackery to convert a const * pointer to
 	 * a non-const pointer. */
 	strm->next_in = (Bytef *)(uintptr_t)(const void *)lastrm->next_in;
-	strm->avail_in = lastrm->avail_in;
+	strm->avail_in = (uInt)lastrm->avail_in;
 	strm->total_in = (uLong)lastrm->total_in;
 	strm->next_out = lastrm->next_out;
-	strm->avail_out = lastrm->avail_out;
+	strm->avail_out = (uInt)lastrm->avail_out;
 	strm->total_out = (uLong)lastrm->total_out;
 	if (deflateInit2(strm, level, Z_DEFLATED,
 	    (withheader)?15:-15,
@@ -1713,10 +1713,10 @@ compression_code_deflate(struct archive *a,
 	 * of ugly hackery to convert a const * pointer to
 	 * a non-const pointer. */
 	strm->next_in = (Bytef *)(uintptr_t)(const void *)lastrm->next_in;
-	strm->avail_in = lastrm->avail_in;
+	strm->avail_in = (uInt)lastrm->avail_in;
 	strm->total_in = (uLong)lastrm->total_in;
 	strm->next_out = lastrm->next_out;
-	strm->avail_out = lastrm->avail_out;
+	strm->avail_out = (uInt)lastrm->avail_out;
 	strm->total_out = (uLong)lastrm->total_out;
 	r = deflate(strm,
 	    (action == ARCHIVE_Z_FINISH)? Z_FINISH: Z_NO_FLUSH);

@@ -560,7 +560,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		zip->stream.zfree = Z_NULL;
 		zip->stream.opaque = Z_NULL;
 		zip->stream.next_out = zip->buf;
-		zip->stream.avail_out = zip->len_buf;
+		zip->stream.avail_out = (uInt)zip->len_buf;
 		if (deflateInit2(&zip->stream, Z_DEFAULT_COMPRESSION,
 		    Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY) != Z_OK) {
 			archive_set_error(&a->archive, ENOMEM,
@@ -648,12 +648,12 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 		zip->written_bytes += s;
 		zip->remaining_data_bytes -= s;
 		l->compressed_size += s;
-		l->crc32 = crc32(l->crc32, buff, s);
+		l->crc32 = crc32(l->crc32, buff, (uInt)s);
 		return (s);
 #if HAVE_ZLIB_H
 	case COMPRESSION_DEFLATE:
 		zip->stream.next_in = (unsigned char*)(uintptr_t)buff;
-		zip->stream.avail_in = s;
+		zip->stream.avail_in = (uInt)s;
 		do {
 			ret = deflate(&zip->stream, Z_NO_FLUSH);
 			if (ret == Z_STREAM_ERROR)
@@ -666,12 +666,12 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 				l->compressed_size += zip->len_buf;
 				zip->written_bytes += zip->len_buf;
 				zip->stream.next_out = zip->buf;
-				zip->stream.avail_out = zip->len_buf;
+				zip->stream.avail_out = (uInt)zip->len_buf;
 			}
 		} while (zip->stream.avail_in != 0);
 		zip->remaining_data_bytes -= s;
 		/* If we have it, use zlib's fast crc32() */
-		l->crc32 = crc32(l->crc32, buff, s);
+		l->crc32 = crc32(l->crc32, buff, (uInt)s);
 		return (s);
 #endif
 
@@ -712,7 +712,7 @@ archive_write_zip_finish_entry(struct archive_write *a)
 			zip->stream.next_out = zip->buf;
 			if (zip->stream.avail_out != 0)
 				break;
-			zip->stream.avail_out = zip->len_buf;
+			zip->stream.avail_out = (uInt)zip->len_buf;
 		}
 		deflateEnd(&zip->stream);
 		break;

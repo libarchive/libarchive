@@ -920,7 +920,7 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		return (r);
 	/* Update checksum */
 	if (*size)
-		zip->entry_crc32 = crc32(zip->entry_crc32, *buff, *size);
+		zip->entry_crc32 = crc32(zip->entry_crc32, *buff, (uInt)*size);
 	/* If we hit the end, swallow any end-of-data marker. */
 	if (zip->end_of_entry) {
 		/* Check file size, CRC against these values. */
@@ -1133,10 +1133,10 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	 * cast to remove 'const'.
 	 */
 	zip->stream.next_in = (Bytef *)(uintptr_t)(const void *)compressed_buff;
-	zip->stream.avail_in = bytes_avail;
+	zip->stream.avail_in = (uInt)bytes_avail;
 	zip->stream.total_in = 0;
 	zip->stream.next_out = zip->uncompressed_buffer;
-	zip->stream.avail_out = zip->uncompressed_buffer_size;
+	zip->stream.avail_out = (uInt)zip->uncompressed_buffer_size;
 	zip->stream.total_out = 0;
 
 	r = inflate(&zip->stream, 0);

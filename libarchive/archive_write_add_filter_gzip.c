@@ -211,7 +211,7 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 
 	data->crc = crc32(0L, NULL, 0);
 	data->stream.next_out = data->compressed;
-	data->stream.avail_out = data->compressed_buffer_size;
+	data->stream.avail_out = (uInt)data->compressed_buffer_size;
 
 	/* Prime output buffer with a gzip header. */
 	data->compressed[0] = 0x1f; /* GZip signature bytes */
@@ -282,12 +282,12 @@ archive_compressor_gzip_write(struct archive_write_filter *f, const void *buff,
 	int ret;
 
 	/* Update statistics */
-	data->crc = crc32(data->crc, (const Bytef *)buff, length);
+	data->crc = crc32(data->crc, (const Bytef *)buff, (uInt)length);
 	data->total_in += length;
 
 	/* Compress input data to output buffer */
 	SET_NEXT_IN(data, buff);
-	data->stream.avail_in = length;
+	data->stream.avail_in = (uInt)length;
 	if ((ret = drive_compressor(f, data, 0)) != ARCHIVE_OK)
 		return (ret);
 
@@ -358,7 +358,8 @@ drive_compressor(struct archive_write_filter *f,
 			if (ret != ARCHIVE_OK)
 				return (ARCHIVE_FATAL);
 			data->stream.next_out = data->compressed;
-			data->stream.avail_out = data->compressed_buffer_size;
+			data->stream.avail_out =
+			    (uInt)data->compressed_buffer_size;
 		}
 
 		/* If there's nothing to do, we're done. */

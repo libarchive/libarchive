@@ -1487,7 +1487,7 @@ cab_read_ahead_cfdata_deflate(struct archive_read *a, ssize_t *avail)
 		 * cast to remove 'const'.
 		 */
 		cab->stream.next_in = (Bytef *)(uintptr_t)d;
-		cab->stream.avail_in = bytes_avail;
+		cab->stream.avail_in = (uInt)bytes_avail;
 		cab->stream.total_in = 0;
 
 		/* Cut out a tow-byte MSZIP signature(0x43, 0x4b). */
@@ -1508,7 +1508,7 @@ cab_read_ahead_cfdata_deflate(struct archive_read *a, ssize_t *avail)
 					*avail = ARCHIVE_FATAL;
 					return (NULL);
 				}
-				mszip -= bytes_avail;
+				mszip -= (int)bytes_avail;
 				continue;
 			}
 			if (mszip == 1 && cab->stream.next_in[0] != 0x4b)

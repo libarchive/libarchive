@@ -1446,7 +1446,7 @@ zisofs_read_data(struct archive_read *a,
 		zisofs->block_pointers_size = xsize;
 
 		/* Allocate uncompressed data buffer. */
-		xsize = 1UL << zisofs->pz_log2_bs;
+		xsize = (size_t)1UL << zisofs->pz_log2_bs;
 		if (zisofs->uncompressed_buffer_size < xsize) {
 			if (zisofs->uncompressed_buffer != NULL)
 				free(zisofs->uncompressed_buffer);
@@ -1583,9 +1583,10 @@ zisofs_read_data(struct archive_read *a,
 		if (avail > zisofs->block_avail)
 			zisofs->stream.avail_in = zisofs->block_avail;
 		else
-			zisofs->stream.avail_in = avail;
+			zisofs->stream.avail_in = (uInt)avail;
 		zisofs->stream.next_out = zisofs->uncompressed_buffer;
-		zisofs->stream.avail_out = zisofs->uncompressed_buffer_size;
+		zisofs->stream.avail_out =
+		    (uInt)zisofs->uncompressed_buffer_size;
 
 		r = inflate(&zisofs->stream, 0);
 		switch (r) {
@@ -1600,7 +1601,7 @@ zisofs_read_data(struct archive_read *a,
 		uncompressed_size =
 		    zisofs->uncompressed_buffer_size - zisofs->stream.avail_out;
 		avail -= zisofs->stream.next_in - p;
-		zisofs->block_avail -= zisofs->stream.next_in - p;
+		zisofs->block_avail -= (uint32_t)(zisofs->stream.next_in - p);
 	}
 next_data:
 	bytes_read -= avail;
@@ -1610,7 +1611,7 @@ next_data:
 	iso9660->entry_sparse_offset += uncompressed_size;
 	iso9660->entry_bytes_remaining -= bytes_read;
 	iso9660->current_position += bytes_read;
-	zisofs->pz_offset += bytes_read;
+	zisofs->pz_offset += (uint32_t)bytes_read;
 	iso9660->entry_bytes_unconsumed += bytes_read;
 
 	return (ARCHIVE_OK);

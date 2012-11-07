@@ -7433,7 +7433,7 @@ zisofs_init(struct archive_write *a,  struct isofile *file)
 	/* Calculate a size of Block Pointers of zisofs. */
 	_ceil = (file->zisofs.uncompressed_size + ZF_BLOCK_SIZE -1)
 		>> file->zisofs.log2_bs;
-	iso9660->zisofs.block_pointers_cnt = _ceil + 1;
+	iso9660->zisofs.block_pointers_cnt = (int)_ceil + 1;
 	iso9660->zisofs.block_pointers_idx = 0;
 
 	/* Ensure a buffer size used for Block Pointers */
@@ -7579,7 +7579,7 @@ zisofs_write_to_temp(struct archive_write *a, const void *buff, size_t s)
 
 	zstrm = &(iso9660->zisofs.stream);
 	zstrm->next_out = wb_buffptr(a);
-	zstrm->avail_out = wb_remaining(a);
+	zstrm->avail_out = (uInt)wb_remaining(a);
 	b = (const unsigned char *)buff;
 	do {
 		avail = ZF_BLOCK_SIZE - zstrm->total_in;
@@ -7593,7 +7593,7 @@ zisofs_write_to_temp(struct archive_write *a, const void *buff, size_t s)
 			flush = Z_FINISH;
 
 		zstrm->next_in = (Bytef *)(uintptr_t)(const void *)b;
-		zstrm->avail_in = avail;
+		zstrm->avail_in = (uInt)avail;
 
 		/*
 		 * Check if current data block are all zero.
@@ -7649,7 +7649,7 @@ zisofs_write_to_temp(struct archive_write *a, const void *buff, size_t s)
 				iso9660->zisofs.total_size += csize;
 				iso9660->cur_file->cur_content->size += csize;
 				zstrm->next_out = wb_buffptr(a);
-				zstrm->avail_out = wb_remaining(a);
+				zstrm->avail_out = (uInt)wb_remaining(a);
 				break;
 			default:
 				archive_set_error(&a->archive,
@@ -7813,7 +7813,7 @@ zisofs_extract_init(struct archive_write *a, struct zisofs_extract *zisofs,
 	zisofs->block_pointers_size = xsize;
 
 	/* Allocate uncompressed data buffer. */
-	zisofs->uncompressed_buffer_size = 1UL << zisofs->pz_log2_bs;
+	zisofs->uncompressed_buffer_size = (size_t)1UL << zisofs->pz_log2_bs;
 
 	/*
 	 * Read the file header, and check the magic code of zisofs.
@@ -7883,7 +7883,7 @@ zisofs_extract(struct archive_write *a, struct zisofs_extract *zisofs,
 			return (rs);
 		if (!zisofs->initialized) {
 			/* We need more data. */
-			zisofs->pz_offset += bytes;
+			zisofs->pz_offset += (uint32_t)bytes;
 			return (bytes);
 		}
 		avail = rs;
@@ -7966,9 +7966,9 @@ zisofs_extract(struct archive_write *a, struct zisofs_extract *zisofs,
 		if (avail > zisofs->block_avail)
 			zisofs->stream.avail_in = zisofs->block_avail;
 		else
-			zisofs->stream.avail_in = avail;
+			zisofs->stream.avail_in = (uInt)avail;
 		zisofs->stream.next_out = wb_buffptr(a);
-		zisofs->stream.avail_out = wb_remaining(a);
+		zisofs->stream.avail_out = (uInt)wb_remaining(a);
 
 		r = inflate(&zisofs->stream, 0);
 		switch (r) {
@@ -7981,12 +7981,12 @@ zisofs_extract(struct archive_write *a, struct zisofs_extract *zisofs,
 			return (ARCHIVE_FATAL);
 		}
 		avail -= zisofs->stream.next_in - p;
-		zisofs->block_avail -= zisofs->stream.next_in - p;
+		zisofs->block_avail -= (uint32_t)(zisofs->stream.next_in - p);
 		r = wb_consume(a, wb_remaining(a) - zisofs->stream.avail_out);
 		if (r < 0)
 			return (r);
 	}
-	zisofs->pz_offset += bytes;
+	zisofs->pz_offset += (uint32_t)bytes;
 	return (bytes - avail);
 }
 

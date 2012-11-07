@@ -736,7 +736,7 @@ archive_read_format_7zip_read_data(struct archive_read *a,
 
 	/* Update checksum */
 	if ((zip->entry->flg & CRC32_IS_SET) && bytes)
-		zip->entry_crc32 = crc32(zip->entry_crc32, *buff, bytes);
+		zip->entry_crc32 = crc32(zip->entry_crc32, *buff, (uInt)bytes);
 
 	/* If we hit the end, swallow any end-of-data marker. */
 	if (zip->end_of_entry) {
@@ -1363,9 +1363,9 @@ decompress(struct archive_read *a, struct _7zip *zip,
 #ifdef HAVE_ZLIB_H
 	case _7Z_DEFLATE:
 		zip->stream.next_in = (Bytef *)(uintptr_t)t_next_in;
-		zip->stream.avail_in = t_avail_in;
+		zip->stream.avail_in = (uInt)t_avail_in;
 		zip->stream.next_out = t_next_out;
-		zip->stream.avail_out = t_avail_out;
+		zip->stream.avail_out = (uInt)t_avail_out;
 		r = inflate(&(zip->stream), 0);
 		switch (r) {
 		case Z_STREAM_END: /* Found end of stream. */
@@ -2688,7 +2688,7 @@ header_bytes(struct archive_read *a, size_t rbytes)
 	}
 
 	/* Update checksum */
-	zip->header_crc32 = crc32(zip->header_crc32, p, rbytes);
+	zip->header_crc32 = crc32(zip->header_crc32, p, (uInt)rbytes);
 	return (p);
 }
 
