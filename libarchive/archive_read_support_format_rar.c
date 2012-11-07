@@ -1287,13 +1287,13 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   {
     if (filename_size != strlen(filename))
     {
-      unsigned char highbyte, flagbits, flagbyte, offset;
-      unsigned fn_end;
+      unsigned char highbyte, flagbits, flagbyte;
+      unsigned fn_end, offset;
 
       end = filename_size;
       fn_end = filename_size * 2;
       filename_size = 0;
-      offset = strlen(filename) + 1;
+      offset = (unsigned)strlen(filename) + 1;
       highbyte = *(p + offset++);
       flagbits = 0;
       flagbyte = 0;
@@ -1753,7 +1753,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
         bs = rar->unp_buffer_size - rar->unp_offset;
       else
         bs = (size_t)rar->bytes_uncopied;
-      ret = copy_from_lzss_window(a, buff, rar->offset, bs);
+      ret = copy_from_lzss_window(a, buff, rar->offset, (int)bs);
       if (ret != ARCHIVE_OK)
         return (ret);
       rar->offset += bs;
@@ -1881,7 +1881,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
       bs = rar->unp_buffer_size - rar->unp_offset;
     else
       bs = (size_t)rar->bytes_uncopied;
-    ret = copy_from_lzss_window(a, buff, rar->offset, bs);
+    ret = copy_from_lzss_window(a, buff, rar->offset, (int)bs);
     if (ret != ARCHIVE_OK)
       return (ret);
     rar->offset += bs;
@@ -2413,7 +2413,7 @@ make_table(struct archive_read *a, struct huffman_code *code)
 
   code->table =
     (struct huffman_table_entry *)calloc(1, sizeof(*code->table)
-    * (1 << code->tablesize));
+    * ((size_t)1 << code->tablesize));
 
   return make_table_recurse(a, code, 0, code->table, 0, code->tablesize);
 }

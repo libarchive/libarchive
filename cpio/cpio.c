@@ -840,18 +840,21 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 		exit(1);
 
 	if (r >= ARCHIVE_WARN && archive_entry_size(entry) > 0 && fd >= 0) {
-		bytes_read = read(fd, cpio->buff, cpio->buff_size);
+		bytes_read = read(fd, cpio->buff, (unsigned)cpio->buff_size);
 		while (bytes_read > 0) {
-			r = archive_write_data(cpio->archive,
+			ssize_t bytes_write;
+			bytes_write = archive_write_data(cpio->archive,
 			    cpio->buff, bytes_read);
-			if (r < 0)
+			if (bytes_write < 0)
 				lafe_errc(1, archive_errno(cpio->archive),
 				    "%s", archive_error_string(cpio->archive));
-			if (r < bytes_read) {
+			if (bytes_write < bytes_read) {
 				lafe_warnc(0,
-				    "Truncated write; file may have grown while being archived.");
+				    "Truncated write; file may have "
+				    "grown while being archived.");
 			}
-			bytes_read = read(fd, cpio->buff, cpio->buff_size);
+			bytes_read = read(fd, cpio->buff,
+			    (unsigned)cpio->buff_size);
 		}
 	}
 
@@ -1023,7 +1026,7 @@ extract_data(struct archive *ar, struct archive *aw)
 			    "%s", archive_error_string(ar));
 			exit(1);
 		}
-		r = archive_write_data_block(aw, block, size, offset);
+		r = (int)archive_write_data_block(aw, block, size, offset);
 		if (r != ARCHIVE_OK) {
 			lafe_warnc(archive_errno(aw),
 			    "%s", archive_error_string(aw));

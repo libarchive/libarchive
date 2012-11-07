@@ -158,7 +158,7 @@ archive_read_format_raw_read_data(struct archive_read *a,
 		/* Record and return an error. */
 		*size = 0;
 		*offset = info->offset;
-		return (avail);
+		return ((int)avail);
 	}
 }
 

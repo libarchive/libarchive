@@ -597,7 +597,7 @@ start_next_async_read(struct archive_read_disk *a, struct tree *t)
 	} else
 		ResetEvent(olp->ol.hEvent);
 
-	buffbytes = olp->buff_size;
+	buffbytes = (DWORD)olp->buff_size;
 	if (buffbytes > t->current_sparse->length)
 		buffbytes = (DWORD)t->current_sparse->length;
 
@@ -698,7 +698,7 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	olp = &(t->ol[t->ol_idx_done]);
 	t->ol_idx_done = (t->ol_idx_done + 1) % MAX_OVERLAPPED;
 	if (olp->bytes_transferred)
-		bytes_transferred = olp->bytes_transferred;
+		bytes_transferred = (DWORD)olp->bytes_transferred;
 	else if (!GetOverlappedResult(t->entry_fh, &(olp->ol),
 	    &bytes_transferred, TRUE)) {
 		la_dosmaperr(GetLastError());
@@ -1268,7 +1268,7 @@ update_current_filesystem(struct archive_read_disk *a, int64_t dev)
 			return (ARCHIVE_FATAL);
 		}
 		t->filesystem_table = (struct filesystem *)p;
-		t->allocated_filesytem = s;
+		t->allocated_filesytem = (int)s;
 	}
 	t->current_filesystem_id = fid;
 	t->current_filesystem = &(t->filesystem_table[fid]);
@@ -2236,7 +2236,7 @@ setup_sparse_from_disk(struct archive_read_disk *a,
 			ret = DeviceIoControl(handle,
 			    FSCTL_QUERY_ALLOCATED_RANGES,
 			    &range, sizeof(range), outranges,
-			    outranges_size, &retbytes, NULL);
+			    (DWORD)outranges_size, &retbytes, NULL);
 			if (ret == 0 && GetLastError() == ERROR_MORE_DATA) {
 				free(outranges);
 				outranges_size *= 2;

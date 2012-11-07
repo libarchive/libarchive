@@ -624,8 +624,8 @@ assertion_equal_string(const char *file, int line,
 	if (v1 == v2 || (v1 != NULL && v2 != NULL && strcmp(v1, v2) == 0))
 		return (1);
 	failure_start(file, line, "%s != %s", e1, e2);
-	l1 = strlen(e1);
-	l2 = strlen(e2);
+	l1 = (int)strlen(e1);
+	l2 = (int)strlen(e2);
 	if (l1 < l2)
 		l1 = l2;
 	strdump(e1, v1, l1, utf8);
@@ -847,8 +847,8 @@ assertion_equal_file(const char *filename, int line, const char *fn1, const char
 		return (0);
 	}
 	for (;;) {
-		n1 = fread(buff1, 1, sizeof(buff1), f1);
-		n2 = fread(buff2, 1, sizeof(buff2), f2);
+		n1 = (int)fread(buff1, 1, sizeof(buff1), f1);
+		n2 = (int)fread(buff2, 1, sizeof(buff2), f2);
 		if (n1 != n2)
 			break;
 		if (n1 == 0 && n2 == 0) {
@@ -922,7 +922,7 @@ assertion_file_contents(const char *filename, int line, const void *buff, int s,
 		return (0);
 	}
 	contents = malloc(s * 2);
-	n = fread(contents, 1, s * 2, f);
+	n = (int)fread(contents, 1, s * 2, f);
 	fclose(f);
 	if (n == s && memcmp(buff, contents, s) == 0) {
 		free(contents);
@@ -958,9 +958,9 @@ assertion_text_file_contents(const char *filename, int line, const char *buff, c
 		failure_finish(NULL);
 		return (0);
 	}
-	s = strlen(buff);
+	s = (int)strlen(buff);
 	contents = malloc(s * 2 + 128);
-	n = fread(contents, 1, s * 2 + 128 - 1, f);
+	n = (int)fread(contents, 1, s * 2 + 128 - 1, f);
 	if (n >= 0)
 		contents[n] = '\0';
 	fclose(f);

@@ -210,10 +210,10 @@ static int	read_body_to_string(struct archive_read *, struct tar *,
 		    struct archive_string *, const void *h, size_t *);
 static int	solaris_sparse_parse(struct archive_read *, struct tar *,
 		    struct archive_entry *, const char *);
-static int64_t	tar_atol(const char *, unsigned);
-static int64_t	tar_atol10(const char *, unsigned);
-static int64_t	tar_atol256(const char *, unsigned);
-static int64_t	tar_atol8(const char *, unsigned);
+static int64_t	tar_atol(const char *, size_t);
+static int64_t	tar_atol10(const char *, size_t);
+static int64_t	tar_atol256(const char *, size_t);
+static int64_t	tar_atol8(const char *, size_t);
 static int	tar_read_header(struct archive_read *, struct tar *,
 		    struct archive_entry *, size_t *);
 static int	tohex(int c);
@@ -623,7 +623,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 	/* Read 512-byte header record */
 	h = __archive_read_ahead(a, 512, &bytes);
 	if (bytes < 0)
-		return (bytes);
+		return ((int)bytes);
 	if (bytes == 0) { /* EOF at a block boundary. */
 		/* Some writers do omit the block of nulls. <sigh> */
 		return (ARCHIVE_EOF);
@@ -753,7 +753,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 				bytes_read = gnu_sparse_10_read(a, tar, unconsumed);
 				tar->entry_bytes_remaining -= bytes_read;
 				if (bytes_read < 0)
-					return (bytes_read);
+					return ((int)bytes_read);
 			} else {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
@@ -2391,7 +2391,7 @@ solaris_sparse_parse(struct archive_read *a, struct tar *tar,
  * On read, this implementation supports both extensions.
  */
 static int64_t
-tar_atol(const char *p, unsigned char_cnt)
+tar_atol(const char *p, size_t char_cnt)
 {
 	/*
 	 * Technically, GNU tar considers a field to be in base-256
@@ -2408,7 +2408,7 @@ tar_atol(const char *p, unsigned char_cnt)
  * it does obey locale.
  */
 static int64_t
-tar_atol_base_n(const char *p, unsigned char_cnt, int base)
+tar_atol_base_n(const char *p, size_t char_cnt, int base)
 {
 	int64_t	l, limit, last_digit_limit;
 	int digit, sign;
@@ -2448,13 +2448,13 @@ tar_atol_base_n(const char *p, unsigned char_cnt, int base)
 }
 
 static int64_t
-tar_atol8(const char *p, unsigned char_cnt)
+tar_atol8(const char *p, size_t char_cnt)
 {
 	return tar_atol_base_n(p, char_cnt, 8);
 }
 
 static int64_t
-tar_atol10(const char *p, unsigned char_cnt)
+tar_atol10(const char *p, size_t char_cnt)
 {
 	return tar_atol_base_n(p, char_cnt, 10);
 }
@@ -2465,7 +2465,7 @@ tar_atol10(const char *p, unsigned char_cnt)
  * ignored.
  */
 static int64_t
-tar_atol256(const char *_p, unsigned char_cnt)
+tar_atol256(const char *_p, size_t char_cnt)
 {
 	int64_t	l, upper_limit, lower_limit;
 	const unsigned char *p = (const unsigned char *)_p;

@@ -126,5 +126,5 @@ DEFINE_TEST(test_option_r)
 	assertEmptyFile("extract.err");
 
 	/* Verify that the second copy of f1 overwrote the first. */
-	assertFileContents(buff, strlen(buff), "f1");
+	assertFileContents(buff, (int)strlen(buff), "f1");
 }

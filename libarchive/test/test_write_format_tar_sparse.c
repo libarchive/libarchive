@@ -85,7 +85,7 @@ test_1(void)
 				ws = 0x81000 - i;
 			assertEqualInt(ws,
 				archive_write_data(a, buff2, ws));
-			i += ws;
+			i += (long)ws;
 		}
 
 		/* Close out the archive. */

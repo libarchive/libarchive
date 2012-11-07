@@ -321,7 +321,7 @@ DEFINE_TEST(test_fuzz)
 
 			/* Fuzz < 1% of the bytes in the archive. */
 			memcpy(image, rawimage, size);
-			q = size / 100;
+			q = (int)size / 100;
 			if (!q) q = 1;
 			numbytes = (int)(rand() % q);
 			for (j = 0; j < numbytes; ++j)

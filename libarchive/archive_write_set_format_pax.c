@@ -691,7 +691,8 @@ archive_write_pax_header(struct archive_write *a,
 			return (r);
 		if (r < ret)
 			ret = r;
-		r = archive_write_pax_data(a, mac_metadata, mac_metadata_size);
+		r = (int)archive_write_pax_data(a, mac_metadata,
+		    mac_metadata_size);
 		if (r < ARCHIVE_WARN)
 			return (r);
 		if (r < ret)

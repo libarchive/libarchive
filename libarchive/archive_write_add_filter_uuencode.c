@@ -173,7 +173,7 @@ uu_encode(struct archive_string *as, const unsigned char *p, size_t len)
 {
 	int c;
 
-	c = len;
+	c = (int)len;
 	archive_strappend_char(as, c?c + 0x20:'`');
 	for (; len >= 3; p += 3, len -= 3) {
 		c = p[0] >> 2;

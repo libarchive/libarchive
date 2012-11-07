@@ -121,7 +121,7 @@ archive_read_support_filter_gzip(struct archive *_a)
  * number of bytes in header.  If pbits is non-NULL, it receives a
  * count of bits verified, suitable for use by bidder.
  */
-static int
+static ssize_t
 peek_at_header(struct archive_read_filter *filter, int *pbits)
 {
 	const unsigned char *p;

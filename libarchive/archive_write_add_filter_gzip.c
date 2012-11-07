@@ -433,25 +433,6 @@ archive_compressor_gzip_write(struct archive_write_filter *f, const void *buff,
 static int
 archive_compressor_gzip_close(struct archive_write_filter *f)
 {
-
-	f->write = archive_compressor_gzip_write;
-	r = __archive_write_program_open(f, data->pdata, as.s);
-	archive_string_free(&as);
-	return (r);
-}
-
-static int
-archive_compressor_gzip_write(struct archive_write_filter *f, const void *buff,
-    size_t length)
-{
-	struct private_data *data = (struct private_data *)f->data;
-
-	return __archive_write_program_write(f, data->pdata, buff, length);
-}
-
-static int
-archive_compressor_gzip_close(struct archive_write_filter *f)
-{
 	struct private_data *data = (struct private_data *)f->data;
 
 	return __archive_write_program_close(f, data->pdata);

@@ -122,7 +122,7 @@ compute_filenames(void)
 		if (i > 9) {
 			buff[j--] = '0' + ((i / 10) % 10);
 			if (i > 99)
-				buff[j--] = '0' + (i / 100);
+				buff[j--] = '0' + (char)(i / 100);
 		}
 		buff[j] = '_';
 		/* Guard against obvious screwups in the above code. */
@@ -205,7 +205,7 @@ verify_tree(size_t limit)
 		sprintf(name1, "f/%s", filenames[i]);
 		if (i <= limit) {
 			assertFileExists(name1);
-			assertFileContents(name1, strlen(name1), name1);
+			assertFileContents(name1, (int)strlen(name1), name1);
 		}
 
 		sprintf(name2, "l/%s", filenames[i]);

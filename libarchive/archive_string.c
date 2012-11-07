@@ -486,13 +486,13 @@ archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
 			 *  UTF-16BE/LE NFD ===> UTF-16 NFC
 			 *  UTF-16BE/LE NFC ===> UTF-16 NFD
 			 */
-			count = utf16nbytes(s, length);
+			count = (int)utf16nbytes(s, length);
 		} else {
 			/*
 			 *  UTF-8 NFD ===> UTF-16 NFC
 			 *  UTF-8 NFC ===> UTF-16 NFD
 			 */
-			count = mbsnbytes(s, length);
+			count = (int)mbsnbytes(s, length);
 		}
 		u16.s = (char *)dest->s;
 		u16.length = dest->length << 1;;
@@ -507,7 +507,7 @@ archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
 		sc->flag = saved_flag;/* restore the saved flag. */
 		return (ret);
 	} else if (sc != NULL && (sc->flag & SCONV_FROM_UTF16)) {
-		count = utf16nbytes(s, length);
+		count = (int)utf16nbytes(s, length);
 		count >>= 1; /* to be WCS length */
 		/* Allocate memory for WCS. */
 		if (NULL == archive_wstring_ensure(dest,
@@ -550,8 +550,8 @@ archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
 				return (-1);
 			/* Convert MBS to WCS. */
 			count = MultiByteToWideChar(from_cp,
-			    mbflag, s, length, dest->s + dest->length,
-			    (dest->buffer_length >> 1) -1);
+			    mbflag, s, (int)length, dest->s + dest->length,
+			    (int)(dest->buffer_length >> 1) -1);
 			if (count == 0 &&
 			    GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
 				/* Expand the WCS buffer. */
@@ -727,7 +727,7 @@ archive_string_append_from_wcs_in_codepage(struct archive_string *as,
 			else
 				dp = &defchar_used;
 			count = WideCharToMultiByte(to_cp, 0, ws, wslen,
-			    as->s + as->length, as->buffer_length-1, NULL, dp);
+			    as->s + as->length, (int)as->buffer_length-1, NULL, dp);
 			if (count == 0 &&
 			    GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
 				/* Expand the MBS buffer and retry. */
@@ -2145,7 +2145,7 @@ invalid_mbs(const void *_p, size_t n, struct archive_string_conv *sc)
 	if (codepage != CP_UTF8)
 		mbflag |= MB_PRECOMPOSED;
 
-	if (MultiByteToWideChar(codepage, mbflag, p, n, NULL, 0) == 0)
+	if (MultiByteToWideChar(codepage, mbflag, p, (int)n, NULL, 0) == 0)
 		return (-1); /* Invalid */
 	return (0); /* Okay */
 }
@@ -2322,7 +2322,7 @@ _utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 
 	/* Invalide sequence or there are not plenty bytes. */
 	if ((int)n < cnt) {
-		cnt = n;
+		cnt = (int)n;
 		for (i = 1; i < cnt; i++) {
 			if ((s[i] & 0xc0) != 0x80) {
 				cnt = i;
@@ -2391,7 +2391,7 @@ _utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 		else
 			cnt = 1;
 		if ((int)n < cnt)
-			cnt = n;
+			cnt = (int)n;
 		for (i = 1; i < cnt; i++) {
 			if ((s[i] & 0xc0) != 0x80) {
 				cnt = i;
@@ -3478,9 +3478,9 @@ strncat_from_utf8_libarchive2(struct archive_string *as,
 		 * Translates the wide-character into the current locale MBS.
 		 */
 #if HAVE_WCRTOMB
-		n = wcrtomb(p, wc, &shift_state);
+		n = (int)wcrtomb(p, wc, &shift_state);
 #else
-		n = wctomb(p, wc);
+		n = (int)wctomb(p, wc);
 #endif
 		if (n == -1)
 			return (-1);
@@ -3579,13 +3579,13 @@ win_strncat_from_utf16(struct archive_string *as, const void *_p, size_t bytes,
 	do {
 		defchar = 0;
 		ll = WideCharToMultiByte(sc->to_cp, 0,
-		    (LPCWSTR)u16, bytes>>1, mbs, mbs_size,
+		    (LPCWSTR)u16, (int)bytes>>1, mbs, (int)mbs_size,
 			NULL, &defchar);
 		if (ll == 0 &&
 		    GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
 			/* Need more buffer for MBS. */
 			ll = WideCharToMultiByte(sc->to_cp, 0,
-			    (LPCWSTR)u16, bytes, NULL, 0, NULL, NULL);
+			    (LPCWSTR)u16, (int)bytes, NULL, 0, NULL, NULL);
 			if (archive_string_ensure(as, ll +1) == NULL)
 				return (-1);
 			mbs = as->s + as->length;
@@ -3662,12 +3662,12 @@ win_strncat_to_utf16(struct archive_string *as16, const void *_p,
 	}
 	do {
 		count = MultiByteToWideChar(sc->from_cp,
-		    MB_PRECOMPOSED, s, length, (LPWSTR)u16, (int)avail>>1);
+		    MB_PRECOMPOSED, s, (int)length, (LPWSTR)u16, (int)avail>>1);
 		if (count == 0 &&
 		    GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
 			/* Need more buffer for UTF-16 string */
 			count = MultiByteToWideChar(sc->from_cp,
-			    MB_PRECOMPOSED, s, length, NULL, 0);
+			    MB_PRECOMPOSED, s, (int)length, NULL, 0);
 			if (archive_string_ensure(as16, (count +1) * 2)
 			    == NULL)
 				return (-1);

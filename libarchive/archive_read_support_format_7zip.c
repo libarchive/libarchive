@@ -3099,7 +3099,7 @@ read_stream(struct archive_read *a, const void **buff, size_t size,
 {
 	struct _7zip *zip = (struct _7zip *)a->format->data;
 	uint64_t skip_bytes = 0;
-	int r;
+	ssize_t r;
 
 	if (zip->uncompressed_buffer_bytes_remaining == 0) {
 		if (zip->pack_stream_inbytes_remaining > 0) {
@@ -3379,7 +3379,7 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 
 			/* Extract a sub stream. */
 			while (zip->pack_stream_inbytes_remaining > 0) {
-				r = extract_pack_stream(a, 0);
+				r = (int)extract_pack_stream(a, 0);
 				if (r < 0) {
 					free(b[0]); free(b[1]); free(b[2]);
 					return (r);
@@ -3570,7 +3570,7 @@ x86_Convert(struct _7zip *zip, uint8_t *data, size_t size)
 	}
 	zip->bcj_prevPosT = prevPosT;
 	zip->bcj_prevMask = prevMask;
-	zip->bcj_ip += bufferPos;
+	zip->bcj_ip += (uint32_t)bufferPos;
 	return (bufferPos);
 }
 
@@ -3714,7 +3714,7 @@ Bcj2_Decode(struct _7zip *zip, uint8_t *outBuf, size_t outSize)
 			    ((uint32_t)v[1] << 16) |
 			    ((uint32_t)v[2] << 8) |
 			    ((uint32_t)v[3])) -
-			    ((uint32_t)zip->bcj2_outPos + outPos + 4);
+			    ((uint32_t)zip->bcj2_outPos + (uint32_t)outPos + 4);
 			out[0] = (uint8_t)dest;
 			out[1] = (uint8_t)(dest >> 8);
 			out[2] = (uint8_t)(dest >> 16);
@@ -3729,7 +3729,7 @@ Bcj2_Decode(struct _7zip *zip, uint8_t *outBuf, size_t outSize)
 				 */
 				zip->odd_bcj_size = 4 -i;
 				for (; i < 4; i++) {
-					j = i - 4 + zip->odd_bcj_size;
+					j = i - 4 + (unsigned)zip->odd_bcj_size;
 					zip->odd_bcj[j] = out[i];
 				}
 				break;

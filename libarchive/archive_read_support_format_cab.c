@@ -540,7 +540,7 @@ truncated_error(struct archive_read *a)
 	return (ARCHIVE_FATAL);
 }
 
-static int
+static ssize_t
 cab_strnlen(const unsigned char *p, size_t maxlen)
 {
 	size_t i;
@@ -551,7 +551,7 @@ cab_strnlen(const unsigned char *p, size_t maxlen)
 	}
 	if (i > maxlen)
 		return (-1);/* invalid */
-	return (i);
+	return ((ssize_t)i);
 }
 
 /* Read bytes as much as remaining. */
@@ -627,8 +627,9 @@ cab_read_header(struct archive_read *a)
 	struct cab *cab;
 	struct cfheader *hd;
 	size_t bytes, used;
+	ssize_t len;
 	int64_t skip;
-	int err, i, len;
+	int err, i;
 	int cur_folder, prev_folder;
 	uint32_t offset32;
 	
@@ -1067,13 +1068,13 @@ static uint32_t
 cab_checksum_cfdata_4(const void *p, size_t bytes, uint32_t seed)
 {
 	const unsigned char *b;
-	int u32num;
+	unsigned u32num;
 	uint32_t sum;
 
-	u32num = bytes / 4;
+	u32num = (unsigned)bytes / 4;
 	sum = seed;
 	b = p;
-	while (--u32num >= 0) {
+	for (;u32num > 0; --u32num) {
 		sum ^= archive_le32dec(b);
 		b += 4;
 	}
@@ -1936,7 +1937,7 @@ cab_read_data(struct archive_read *a, const void **buff,
 			    ARCHIVE_ERRNO_FILE_FORMAT, "Invalid CFDATA");
 			return (ARCHIVE_FATAL);
 		} else
-			return (bytes_avail);
+			return ((int)bytes_avail);
 	}
 	if (bytes_avail > cab->entry_bytes_remaining)
 		bytes_avail = (ssize_t)cab->entry_bytes_remaining;
@@ -2200,7 +2201,7 @@ lzx_translation(struct lzx_stream *strm, void *p, size_t size, uint32_t offset)
 		size_t i = b - (unsigned char *)p;
 		int32_t cp, displacement, value;
 
-		cp = offset + i;
+		cp = (int32_t)(offset + (uint32_t)i);
 		value = archive_le32dec(&b[1]);
 		if (value >= -cp && value < (int32_t)ds->translation_size) {
 			if (value >= 0)
@@ -2586,7 +2587,7 @@ lzx_read_blocks(struct lzx_stream *strm, int last)
 						goto failed;
 					return (ARCHIVE_OK);
 				}
-				l = ds->block_bytes_avail;
+				l = (int)ds->block_bytes_avail;
 				if (l > ds->w_size - ds->w_pos)
 					l = ds->w_size - ds->w_pos;
 				if (l > strm->avail_out)
@@ -2966,7 +2967,7 @@ lzx_decode_blocks(struct lzx_stream *strm, int last)
 						l = w_size - w_pos;
 				}
 				if (noutp + l >= endp)
-					l = endp - noutp;
+					l = (int)(endp - noutp);
 				s = w_buff + copy_pos;
 				if (l >= 8 && ((copy_pos + l < w_pos)
 				  || (w_pos + l < copy_pos))) {
@@ -3128,7 +3129,7 @@ lzx_huffman_init(struct huffman *hf, size_t len_size, int tbl_bits)
 		hf->bitlen = calloc(len_size,  sizeof(hf->bitlen[0]));
 		if (hf->bitlen == NULL)
 			return (ARCHIVE_FATAL);
-		hf->len_size = len_size;
+		hf->len_size = (int)len_size;
 	} else
 		memset(hf->bitlen, 0, len_size *  sizeof(hf->bitlen[0]));
 	if (hf->tbl == NULL) {
@@ -3136,7 +3137,7 @@ lzx_huffman_init(struct huffman *hf, size_t len_size, int tbl_bits)
 			bits = tbl_bits;
 		else
 			bits = HTBL_BITS;
-		hf->tbl = malloc((1 << bits) * sizeof(hf->tbl[0]));
+		hf->tbl = malloc(((size_t)1 << bits) * sizeof(hf->tbl[0]));
 		if (hf->tbl == NULL)
 			return (ARCHIVE_FATAL);
 		hf->tbl_bits = tbl_bits;

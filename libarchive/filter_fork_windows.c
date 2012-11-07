@@ -88,7 +88,7 @@ __archive_create_child(const char *cmd, int *child_stdin, int *child_stdout)
 	for (l = 0, i = 0;  acmd->argv[i] != NULL; i++) {
 		if (i == 0)
 			continue;
-		l += strlen(acmd->argv[i]) + 1;
+		l += (int)strlen(acmd->argv[i]) + 1;
 	}
 	if (archive_string_ensure(&cmdline, l + 1) == NULL)
 		goto fail;
