@@ -736,7 +736,8 @@ archive_read_format_7zip_read_data(struct archive_read *a,
 
 	/* Update checksum */
 	if ((zip->entry->flg & CRC32_IS_SET) && bytes)
-		zip->entry_crc32 = crc32(zip->entry_crc32, *buff, (uInt)bytes);
+		zip->entry_crc32 = crc32(zip->entry_crc32, *buff,
+		    (unsigned)bytes);
 
 	/* If we hit the end, swallow any end-of-data marker. */
 	if (zip->end_of_entry) {
@@ -2688,7 +2689,7 @@ header_bytes(struct archive_read *a, size_t rbytes)
 	}
 
 	/* Update checksum */
-	zip->header_crc32 = crc32(zip->header_crc32, p, (uInt)rbytes);
+	zip->header_crc32 = crc32(zip->header_crc32, p, (unsigned)rbytes);
 	return (p);
 }
 

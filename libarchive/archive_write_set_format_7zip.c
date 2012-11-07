@@ -504,7 +504,7 @@ _7z_write_header(struct archive_write *a, struct archive_entry *entry)
 		bytes = compress_out(a, p, (size_t)file->size, ARCHIVE_Z_RUN);
 		if (bytes < 0)
 			return ((int)bytes);
-		zip->entry_crc32 = crc32(zip->entry_crc32, p, (uInt)bytes);
+		zip->entry_crc32 = crc32(zip->entry_crc32, p, (unsigned)bytes);
 		zip->entry_bytes_remaining -= bytes;
 	}
 
@@ -562,7 +562,8 @@ compress_out(struct archive_write *a, const void *buff, size_t s,
 		return (0);
 
 	if ((zip->crc32flg & PRECODE_CRC32) && s)
-		zip->precode_crc32 = crc32(zip->precode_crc32, buff, (uInt)s);
+		zip->precode_crc32 = crc32(zip->precode_crc32, buff,
+		    (unsigned)s);
 	zip->stream.next_in = (const unsigned char *)buff;
 	zip->stream.avail_in = s;
 	do {
@@ -608,7 +609,7 @@ _7z_write_data(struct archive_write *a, const void *buff, size_t s)
 	bytes = compress_out(a, buff, s, ARCHIVE_Z_RUN);
 	if (bytes < 0)
 		return (bytes);
-	zip->entry_crc32 = crc32(zip->entry_crc32, buff, (uInt)bytes);
+	zip->entry_crc32 = crc32(zip->entry_crc32, buff, (unsigned)bytes);
 	zip->entry_bytes_remaining -= bytes;
 	return (bytes);
 }

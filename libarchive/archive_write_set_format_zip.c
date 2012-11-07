@@ -648,7 +648,7 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 		zip->written_bytes += s;
 		zip->remaining_data_bytes -= s;
 		l->compressed_size += s;
-		l->crc32 = crc32(l->crc32, buff, (uInt)s);
+		l->crc32 = crc32(l->crc32, buff, (unsigned)s);
 		return (s);
 #if HAVE_ZLIB_H
 	case COMPRESSION_DEFLATE:

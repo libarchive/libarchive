@@ -862,7 +862,7 @@ archive_read_format_rar_read_header(struct archive_read *a,
         return (ARCHIVE_FATAL);
       }
 
-      crc32_val = crc32(0, (const unsigned char *)p + 2, (uInt)skip - 2);
+      crc32_val = crc32(0, (const unsigned char *)p + 2, (unsigned)skip - 2);
       if ((crc32_val & 0xffff) != archive_le16dec(p)) {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
           "Header CRC error");
@@ -905,7 +905,7 @@ archive_read_format_rar_read_header(struct archive_read *a,
         p = h;
       }
 
-      crc32_val = crc32(0, (const unsigned char *)p + 2, (uInt)skip - 2);
+      crc32_val = crc32(0, (const unsigned char *)p + 2, (unsigned)skip - 2);
       if ((crc32_val & 0xffff) != archive_le16dec(p)) {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
           "Header CRC error");
@@ -1701,7 +1701,8 @@ read_data_stored(struct archive_read *a, const void **buff, size_t *size,
   rar->bytes_remaining -= bytes_avail;
   rar->bytes_unconsumed = bytes_avail;
   /* Calculate File CRC. */
-  rar->crc_calculated = crc32(rar->crc_calculated, *buff, (uInt)bytes_avail);
+  rar->crc_calculated = crc32(rar->crc_calculated, *buff,
+    (unsigned)bytes_avail);
   return (ARCHIVE_OK);
 }
 
@@ -1731,7 +1732,8 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
         *offset = rar->offset_outgoing;
         rar->offset_outgoing += *size;
         /* Calculate File CRC. */
-        rar->crc_calculated = crc32(rar->crc_calculated, *buff, (uInt)*size);
+        rar->crc_calculated = crc32(rar->crc_calculated, *buff,
+          (unsigned)*size);
         rar->unp_offset = 0;
         return (ARCHIVE_OK);
       }
@@ -1764,7 +1766,8 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
         *offset = rar->offset_outgoing;
         rar->offset_outgoing += *size;
         /* Calculate File CRC. */
-        rar->crc_calculated = crc32(rar->crc_calculated, *buff, (uInt)*size);
+        rar->crc_calculated = crc32(rar->crc_calculated, *buff,
+          (unsigned)*size);
         return (ret);
       }
       continue;
@@ -1897,7 +1900,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
   *offset = rar->offset_outgoing;
   rar->offset_outgoing += *size;
   /* Calculate File CRC. */
-  rar->crc_calculated = crc32(rar->crc_calculated, *buff, (uInt)*size);
+  rar->crc_calculated = crc32(rar->crc_calculated, *buff, (unsigned)*size);
   return ret;
 }
 

@@ -919,7 +919,8 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		return (r);
 	/* Update checksum */
 	if (*size)
-		zip->entry_crc32 = crc32(zip->entry_crc32, *buff, (uInt)*size);
+		zip->entry_crc32 = crc32(zip->entry_crc32, *buff,
+		    (unsigned)*size);
 	/* If we hit the end, swallow any end-of-data marker. */
 	if (zip->end_of_entry) {
 		/* Check file size, CRC against these values. */
