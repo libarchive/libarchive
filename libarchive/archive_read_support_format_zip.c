@@ -57,6 +57,7 @@ struct zip_entry {
 	int64_t			gid;
 	int64_t			uid;
 	struct archive_entry	*entry;
+	struct archive_string	rsrcname;
 	time_t			mtime;
 	time_t			atime;
 	time_t			ctime;
@@ -80,6 +81,7 @@ struct zip {
 	struct zip_entry	*zip_entries;
 	struct zip_entry	*entry;
 	struct archive_rb_tree	tree;
+	struct archive_rb_tree	tree_rsrc;
 
 	size_t			unconsumed;
 
@@ -134,7 +136,9 @@ static int	archive_read_format_zip_seekable_read_header(
 		    struct archive_read *, struct archive_entry *);
 static int	archive_read_format_zip_streamable_read_header(
 		    struct archive_read *, struct archive_entry *);
+static ssize_t	zip_get_local_file_header_size(struct archive_read *, size_t);
 #ifdef HAVE_ZLIB_H
+static int	zip_deflate_init(struct archive_read *, struct zip *);
 static int	zip_read_data_deflate(struct archive_read *a, const void **buff,
 		    size_t *size, int64_t *offset);
 #endif
@@ -342,16 +346,79 @@ cmp_key(const struct archive_rb_node *n, const void *key)
 }
 
 static int
+rsrc_cmp_node(const struct archive_rb_node *n1,
+    const struct archive_rb_node *n2)
+{
+	const struct zip_entry *e1 = (const struct zip_entry *)n1;
+	const struct zip_entry *e2 = (const struct zip_entry *)n2;
+
+	return (strcmp(e2->rsrcname.s, e1->rsrcname.s));
+}
+
+static int
+rsrc_cmp_key(const struct archive_rb_node *n, const void *key)
+{
+	const struct zip_entry *e = (const struct zip_entry *)n;
+	return (strcmp((const char *)key, e->rsrcname.s));
+}
+
+static const char *
+basename(const char *name, size_t name_length)
+{
+	const char *s, *r;
+
+	r = s = name;
+	for (;;) {
+		s = memchr(s, '/', name_length - (s - name));
+		if (s == NULL)
+			break;
+		r = ++s;
+	}
+	return (r);
+}
+
+static void
+expose_parent_dirs(struct zip *zip, const char *name, size_t name_length)
+{
+	struct archive_string str;
+	struct zip_entry *dir;
+	char *s;
+
+	archive_string_init(&str);
+	archive_strncpy(&str, name, name_length);
+	for (;;) {
+		s = strrchr(str.s, '/');
+		if (s == NULL)
+			break;
+		*s = '\0';
+		/* Transfer the parent directory from zip->tree_rsrc RB
+		 * tree to zip->tree RB tree to expose. */
+		dir = (struct zip_entry *)
+		    __archive_rb_tree_find_node(&zip->tree_rsrc, str.s);
+		if (dir == NULL)
+			break;
+		__archive_rb_tree_remove_node(&zip->tree_rsrc, &dir->node);
+		archive_string_free(&dir->rsrcname);
+		__archive_rb_tree_insert_node(&zip->tree, &dir->node);
+	}
+	archive_string_free(&str);
+}
+
+static int
 slurp_central_directory(struct archive_read *a, struct zip *zip)
 {
 	unsigned i;
 	static const struct archive_rb_tree_ops rb_ops = {
 		&cmp_node, &cmp_key
 	};
+	static const struct archive_rb_tree_ops rb_rsrc_ops = {
+		&rsrc_cmp_node, &rsrc_cmp_key
+	};
 
 	__archive_read_seek(a, zip->central_directory_offset, SEEK_SET);
 	zip->offset = zip->central_directory_offset;
 	__archive_rb_tree_init(&zip->tree, &rb_ops);
+	__archive_rb_tree_init(&zip->tree_rsrc, &rb_rsrc_ops);
 
 	zip->zip_entries = calloc(zip->central_directory_entries,
 				sizeof(struct zip_entry));
@@ -359,7 +426,7 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 		struct zip_entry *zip_entry = &zip->zip_entries[i];
 		size_t filename_length, extra_length, comment_length;
 		uint32_t external_attributes;
-		const char *p;
+		const char *name, *p, *r;
 
 		if ((p = __archive_read_ahead(a, 46, NULL)) == NULL)
 			return ARCHIVE_FATAL;
@@ -393,8 +460,50 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 		if (zip_entry->system == 3) {
 			zip_entry->mode = external_attributes >> 16;
 		}
-		/* Register an entry to RB tree to sort it by file offset. */
-		__archive_rb_tree_insert_node(&zip->tree, &zip_entry->node);
+
+		/*
+		 * Mac resource fork files are stored under the
+		 * "__MACOSX/" directory, so we should check if
+		 * it is.
+		 */
+		/* Make sure we have the file name. */
+		if ((p = __archive_read_ahead(a, 46 + filename_length, NULL))
+		    == NULL)
+			return ARCHIVE_FATAL;
+		name = p + 46;
+		r = basename(name, filename_length);
+		if (filename_length >= 9 &&
+		    strncmp("__MACOSX/", name, 9) == 0) {
+			/* If this file is not a resource fork nor
+			 * a directory. We should treat it as a non
+			 * resource fork file to expose it. */
+			if (name[filename_length-1] != '/' &&
+			    (r - name < 3 || r[0] != '.' || r[1] != '_')) {
+				__archive_rb_tree_insert_node(&zip->tree,
+				    &zip_entry->node);
+				/* Expose its parent directories. */
+				expose_parent_dirs(zip, name, filename_length);
+			} else {
+				/* This file is a resource fork file or
+				 * a directory. */
+				archive_strncpy(&(zip_entry->rsrcname), name,
+				    filename_length);
+				__archive_rb_tree_insert_node(&zip->tree_rsrc,
+				    &zip_entry->node);
+			}
+		} else {
+			/* Generate resource fork name to find its resource
+			 * file at zip->tree_rsrc. */
+			archive_strcpy(&(zip_entry->rsrcname), "__MACOSX/");
+			archive_strncat(&(zip_entry->rsrcname), name, r - name);
+			archive_strcat(&(zip_entry->rsrcname), "._");
+			archive_strncat(&(zip_entry->rsrcname),
+			    name + (r - name), filename_length - (r - name));
+			/* Register an entry to RB tree to sort it by
+			 * file offset. */
+			__archive_rb_tree_insert_node(&zip->tree,
+			    &zip_entry->node);
+		}
 
 		/* We don't read the filename until we get to the
 		   local file header.  Reading it here would speed up
@@ -424,10 +533,142 @@ zip_read_consume(struct archive_read *a, int64_t bytes)
 }
 
 static int
+zip_read_mac_metadata(struct archive_read *a, struct archive_entry *entry,
+    struct zip_entry *rsrc)
+{
+	struct zip *zip = (struct zip *)a->format->data;
+	unsigned char *metadata, *mp;
+	int64_t offset = zip->offset;
+	size_t remaining_bytes, metadata_bytes;
+	ssize_t hsize;
+	int r, ret = ARCHIVE_OK, eof;
+
+	switch(rsrc->compression) {
+	case 0:  /* No compression. */
+#ifdef HAVE_ZLIB_H
+	case 8: /* Deflate compression. */
+#endif
+		break;
+	default: /* Unsupported compression. */
+		/* Return a warning. */
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Unsupported ZIP compression method (%s)",
+		    compression_name(rsrc->compression));
+		/* We can't decompress this entry, but we will
+		 * be able to skip() it and try the next entry. */
+		return (ARCHIVE_WARN);
+	}
+
+	if (rsrc->uncompressed_size > (128 * 1024)) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Mac metadata is too large: %jd > 128K bytes",
+		    (intmax_t)rsrc->uncompressed_size);
+		return (ARCHIVE_WARN);
+	}
+
+	metadata = malloc(rsrc->uncompressed_size);
+	if (metadata == NULL) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate memory for Mac metadata");
+		return (ARCHIVE_FATAL);
+	}
+
+	if (zip->offset < rsrc->local_header_offset)
+		zip_read_consume(a, rsrc->local_header_offset - zip->offset);
+	else if (zip->offset != rsrc->local_header_offset) {
+		__archive_read_seek(a, rsrc->local_header_offset, SEEK_SET);
+		zip->offset = zip->entry->local_header_offset;
+	}
+
+	hsize = zip_get_local_file_header_size(a, 0);
+	zip_read_consume(a, hsize);
+
+	remaining_bytes = rsrc->compressed_size;
+	metadata_bytes = rsrc->uncompressed_size;
+	mp = metadata;
+	eof = 0;
+	while (!eof && remaining_bytes) {
+		const unsigned char *p;
+		ssize_t bytes_avail;
+		size_t bytes_used;
+
+		p = __archive_read_ahead(a, 1, &bytes_avail);
+		if (p == NULL) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Truncated ZIP file header");
+			ret = ARCHIVE_WARN;
+			goto exit_mac_metadata;
+		}
+		if ((size_t)bytes_avail > remaining_bytes)
+			bytes_avail = remaining_bytes;
+		switch(rsrc->compression) {
+		case 0:  /* No compression. */
+			memcpy(mp, p, bytes_avail);
+			bytes_used = (size_t)bytes_avail;
+			metadata_bytes -= bytes_used;
+			mp += bytes_used;
+			if (metadata_bytes == 0)
+				eof = 1;
+			break;
+#ifdef HAVE_ZLIB_H
+		case 8: /* Deflate compression. */
+			ret = zip_deflate_init(a, zip);
+			if (ret != ARCHIVE_OK)
+				goto exit_mac_metadata;
+			zip->stream.next_in =
+			    (Bytef *)(uintptr_t)(const void *)p;
+			zip->stream.avail_in = (uInt)bytes_avail;
+			zip->stream.total_in = 0;
+			zip->stream.next_out = mp;
+			zip->stream.avail_out = (uInt)metadata_bytes;
+			zip->stream.total_out = 0;
+
+			r = inflate(&zip->stream, 0);
+			switch (r) {
+			case Z_OK:
+				break;
+			case Z_STREAM_END:
+				eof = 1;
+				break;
+			case Z_MEM_ERROR:
+				archive_set_error(&a->archive, ENOMEM,
+				    "Out of memory for ZIP decompression");
+				ret = ARCHIVE_FATAL;
+				goto exit_mac_metadata;
+			default:
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "ZIP decompression failed (%d)", r);
+				ret = ARCHIVE_FATAL;
+				goto exit_mac_metadata;
+			}
+			bytes_used = zip->stream.total_in;
+			metadata_bytes -= zip->stream.total_out;
+			mp += zip->stream.total_out;
+			break;
+#endif
+		}
+		zip_read_consume(a, bytes_used);
+		remaining_bytes -= bytes_used;
+	}
+	archive_entry_copy_mac_metadata(entry, metadata,
+	    rsrc->uncompressed_size - metadata_bytes);
+
+	__archive_read_seek(a, offset, SEEK_SET);
+	zip->offset = offset;
+exit_mac_metadata:
+	zip->decompress_init = 0;
+	free(metadata);
+	return (ret);
+}
+
+static int
 archive_read_format_zip_seekable_read_header(struct archive_read *a,
 	struct archive_entry *entry)
 {
 	struct zip *zip = (struct zip *)a->format->data;
+	struct zip_entry *rsrc;
 	int r, ret = ARCHIVE_OK;
 
 	a->archive.archive_format = ARCHIVE_FORMAT_ZIP;
@@ -453,7 +694,19 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 		return ARCHIVE_EOF;
 	--zip->entries_remaining;
 
-	if (zip->offset != zip->entry->local_header_offset) {
+	if (zip->entry->rsrcname.s)
+		rsrc = (struct zip_entry *)__archive_rb_tree_find_node(
+		    &zip->tree_rsrc, zip->entry->rsrcname.s);
+	else
+		rsrc = NULL;
+
+	/* File entries are sorted by the header offset, we should mostly
+	 * use zip_read_consume to advance a read point to avoid redundant
+	 * data reading.  */
+	if (zip->offset < zip->entry->local_header_offset)
+		zip_read_consume(a,
+		    zip->entry->local_header_offset - zip->offset);
+	else if (zip->offset != zip->entry->local_header_offset) {
 		__archive_read_seek(a, zip->entry->local_header_offset,
 			SEEK_SET);
 		zip->offset = zip->entry->local_header_offset;
@@ -507,6 +760,11 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 				ret = ARCHIVE_WARN;
 			}
 		}
+	}
+	if (rsrc) {
+		int ret2 = zip_read_mac_metadata(a, entry, rsrc);
+		if (ret2 < ret)
+			ret = ret2;
 	}
 	return (ret);
 }
@@ -638,6 +896,29 @@ archive_read_format_zip_streamable_read_header(struct archive_read *a,
 		}
 		zip_read_consume(a, skipped);
 	}
+}
+
+static ssize_t
+zip_get_local_file_header_size(struct archive_read *a, size_t extra)
+{
+	const char *p;
+	ssize_t filename_length, extra_length;
+
+	if ((p = __archive_read_ahead(a, extra + 30, NULL)) == NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Truncated ZIP file header");
+		return (ARCHIVE_WARN);
+	}
+	p += extra;
+
+	if (memcmp(p, "PK\003\004", 4) != 0) {
+		archive_set_error(&a->archive, -1, "Damaged Zip archive");
+		return ARCHIVE_WARN;
+	}
+	filename_length = archive_le16dec(p + 26);
+	extra_length = archive_le16dec(p + 28);
+
+	return (30 + filename_length + extra_length);
 }
 
 /*
@@ -1067,6 +1348,31 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 
 #ifdef HAVE_ZLIB_H
 static int
+zip_deflate_init(struct archive_read *a, struct zip *zip)
+{
+	int r;
+
+	/* If we haven't yet read any data, initialize the decompressor. */
+	if (!zip->decompress_init) {
+		if (zip->stream_valid)
+			r = inflateReset(&zip->stream);
+		else
+			r = inflateInit2(&zip->stream,
+			    -15 /* Don't check for zlib header */);
+		if (r != Z_OK) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Can't initialize ZIP decompression.");
+			return (ARCHIVE_FATAL);
+		}
+		/* Stream structure has been set up. */
+		zip->stream_valid = 1;
+		/* We've initialized decompression for this stream. */
+		zip->decompress_init = 1;
+	}
+	return (ARCHIVE_OK);
+}
+
+static int
 zip_read_data_deflate(struct archive_read *a, const void **buff,
     size_t *size, int64_t *offset)
 {
@@ -1091,23 +1397,9 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 		}
 	}
 
-	/* If we haven't yet read any data, initialize the decompressor. */
-	if (!zip->decompress_init) {
-		if (zip->stream_valid)
-			r = inflateReset(&zip->stream);
-		else
-			r = inflateInit2(&zip->stream,
-			    -15 /* Don't check for zlib header */);
-		if (r != Z_OK) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "Can't initialize ZIP decompression.");
-			return (ARCHIVE_FATAL);
-		}
-		/* Stream structure has been set up. */
-		zip->stream_valid = 1;
-		/* We've initialized decompression for this stream. */
-		zip->decompress_init = 1;
-	}
+	r = zip_deflate_init(a, zip);
+	if (r != ARCHIVE_OK)
+		return (r);
 
 	/*
 	 * Note: '1' here is a performance optimization.
@@ -1268,6 +1560,11 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 	if (zip->stream_valid)
 		inflateEnd(&zip->stream);
 #endif
+	if (zip->zip_entries && zip->central_directory_entries) {
+		unsigned i;
+		for (i = 0; i < zip->central_directory_entries; i++)
+			archive_string_free(&(zip->zip_entries[i].rsrcname));
+	}
 	free(zip->zip_entries);
 	free(zip->uncompressed_buffer);
 	archive_string_free(&(zip->extra));
