@@ -288,6 +288,7 @@ cset_auto_compress(struct creation_set *cset, const char *filename)
 			lafe_errc(1, 0, "No memory");
 		strcat(name, code);
 	}
+	free(name);
 	if (cset->filters) {
 		struct filter_set *v;
 		int i, r;
