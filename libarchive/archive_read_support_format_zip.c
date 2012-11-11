@@ -541,7 +541,7 @@ zip_read_mac_metadata(struct archive_read *a, struct archive_entry *entry,
 	int64_t offset = zip->offset;
 	size_t remaining_bytes, metadata_bytes;
 	ssize_t hsize;
-	int r, ret = ARCHIVE_OK, eof;
+	int ret = ARCHIVE_OK, eof;
 
 	switch(rsrc->compression) {
 	case 0:  /* No compression. */
@@ -613,6 +613,9 @@ zip_read_mac_metadata(struct archive_read *a, struct archive_entry *entry,
 			break;
 #ifdef HAVE_ZLIB_H
 		case 8: /* Deflate compression. */
+		{
+			int r;
+
 			ret = zip_deflate_init(a, zip);
 			if (ret != ARCHIVE_OK)
 				goto exit_mac_metadata;
@@ -647,6 +650,7 @@ zip_read_mac_metadata(struct archive_read *a, struct archive_entry *entry,
 			metadata_bytes -= zip->stream.total_out;
 			mp += zip->stream.total_out;
 			break;
+		}
 #endif
 		default:
 			bytes_used = 0;
