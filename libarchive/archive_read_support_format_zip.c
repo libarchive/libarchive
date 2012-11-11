@@ -648,6 +648,9 @@ zip_read_mac_metadata(struct archive_read *a, struct archive_entry *entry,
 			mp += zip->stream.total_out;
 			break;
 #endif
+		default:
+			bytes_used = 0;
+			break;
 		}
 		zip_read_consume(a, bytes_used);
 		remaining_bytes -= bytes_used;
