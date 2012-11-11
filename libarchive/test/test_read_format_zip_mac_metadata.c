@@ -25,6 +25,12 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_LIBZ
+static const int libz_enabled = 1;
+#else
+static const int libz_enabled = 0;
+#endif
+
 /*
  * Read a zip file that has a zip comment in the end of the central
  * directory record.
@@ -33,7 +39,6 @@ DEFINE_TEST(test_read_format_zip_mac_metadata)
 {
 	const char *refname = "test_read_format_zip_mac_metadata.zip";
 	char *p;
-	const void *metadata;
 	size_t s;
 	struct archive *a;
 	struct archive_entry *ae;
@@ -84,14 +89,29 @@ DEFINE_TEST(test_read_format_zip_mac_metadata)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, p, s, 1));
 
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	if (libz_enabled) {
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_next_header(a, &ae));
+	} else {
+		assertEqualIntA(a, ARCHIVE_WARN,
+		    archive_read_next_header(a, &ae));
+		assertEqualString(archive_error_string(a),
+		    "Unsupported ZIP compression method (deflation)");
+		assert(archive_errno(a) != 0);
+	}
 	assertEqualString("file3", archive_entry_pathname(ae));
 	assertEqualInt(AE_IFREG | 0644, archive_entry_mode(ae));
 	failure("Mac metadata should be set");
-	if (assert((metadata = archive_entry_mac_metadata(ae, &s)) != NULL)) {
-		assertEqualMem(metadata, appledouble, sizeof(appledouble));
+	if (libz_enabled) {
+		const void *metadata;
+		if (assert((metadata = archive_entry_mac_metadata(ae, &s))
+		    != NULL)) {
+			assertEqualMem(metadata, appledouble,
+			    sizeof(appledouble));
+		}
+	} else {
+		assert(archive_entry_mac_metadata(ae, &s) == NULL);
 	}
-
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
