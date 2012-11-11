@@ -363,7 +363,7 @@ rsrc_cmp_key(const struct archive_rb_node *n, const void *key)
 }
 
 static const char *
-basename(const char *name, size_t name_length)
+rsrc_basename(const char *name, size_t name_length)
 {
 	const char *s, *r;
 
@@ -471,7 +471,7 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 		    == NULL)
 			return ARCHIVE_FATAL;
 		name = p + 46;
-		r = basename(name, filename_length);
+		r = rsrc_basename(name, filename_length);
 		if (filename_length >= 9 &&
 		    strncmp("__MACOSX/", name, 9) == 0) {
 			/* If this file is not a resource fork nor
