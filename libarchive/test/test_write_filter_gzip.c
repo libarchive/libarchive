@@ -45,9 +45,15 @@ DEFINE_TEST(test_write_filter_gzip)
 
 	buffsize = 2000000;
 	assert(NULL != (buff = (char *)malloc(buffsize)));
+	if (buff == NULL)
+		return;
 
 	datasize = 10000;
 	assert(NULL != (data = (char *)malloc(datasize)));
+	if (data == NULL) {
+		free(buff);
+		return;
+	}
 	memset(data, 0, datasize);
 
 	/*
@@ -62,6 +68,8 @@ DEFINE_TEST(test_write_filter_gzip)
 		else {
 			skipping("gzip writing not supported on this platform");
 			assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+			free(buff);
+			free(data);
 			return;
 		}
 	}

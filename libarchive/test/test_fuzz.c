@@ -256,7 +256,7 @@ DEFINE_TEST(test_fuzz)
 		struct archive_entry *ae;
 		struct archive *a;
 		char *rawimage = NULL, *image = NULL, *tmp = NULL;
-		size_t size, oldsize = 0;
+		size_t size = 0, oldsize = 0;
 		int i, q;
 
 		extract_reference_files(filesets[n].names);
@@ -311,8 +311,12 @@ DEFINE_TEST(test_fuzz)
 					continue;
 			}
 		}
+		if (size == 0)
+			continue;
 		image = malloc(size);
 		assert(image != NULL);
+		if (image == NULL)
+			return;
 		srand((unsigned)time(NULL));
 
 		for (i = 0; i < 100; ++i) {

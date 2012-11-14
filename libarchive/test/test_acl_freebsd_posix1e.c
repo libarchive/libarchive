@@ -139,9 +139,14 @@ compare_acls(acl_t acl, struct myacl_t *myacls)
 	/* Count ACL entries in myacls array and allocate an indirect array. */
 	for (n = 0; myacls[n].name != NULL; ++n)
 		continue;
-	marker = malloc(sizeof(marker[0]) * n);
-	for (i = 0; i < n; i++)
-		marker[i] = i;
+	if (n) {
+		marker = malloc(sizeof(marker[0]) * n);
+		if (marker == NULL)
+			return;
+		for (i = 0; i < n; i++)
+			marker[i] = i;
+	} else
+		marker = NULL;
 
 	/*
 	 * Iterate over acls in system acl object, try to match each

@@ -748,6 +748,8 @@ assertion_equal_mem(const char *file, int line,
 	assertion_count(file, line);
 	if (v1 == v2 || (v1 != NULL && v2 != NULL && memcmp(v1, v2, l) == 0))
 		return (1);
+	if (v1 == NULL || v2 == NULL)
+		return (0);
 
 	failure_start(file, line, "%s != %s", e1, e2);
 	logprintf("      size %s = %d\n", ld, (int)l);
@@ -1011,8 +1013,8 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 	char *buff;
 	size_t buff_size;
 	size_t expected_count, actual_count, i, j;
-	char **expected;
-	char *p, **actual;
+	char **expected = NULL;
+	char *p, **actual = NULL;
 	char c;
 	int expected_failure = 0, actual_failure = 0;
 
@@ -1025,14 +1027,21 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 		return (0);
 	}
 
-	/* Make a copy of the provided lines and count up the expected file size. */
-	expected_count = 0;
+	/* Make a copy of the provided lines and count up the expected
+	 * file size. */
 	for (i = 0; lines[i] != NULL; ++i) {
 	}
 	expected_count = i;
-	expected = malloc(sizeof(char *) * expected_count);
-	for (i = 0; lines[i] != NULL; ++i) {
-		expected[i] = strdup(lines[i]);
+	if (expected_count) {
+		expected = malloc(sizeof(char *) * expected_count);
+		if (expected == NULL) {
+			failure_start(pathname, line, "Can't allocate memory");
+			failure_finish(NULL);
+			return (0);
+		}
+		for (i = 0; lines[i] != NULL; ++i) {
+			expected[i] = strdup(lines[i]);
+		}
 	}
 
 	/* Break the file into lines */
@@ -1044,11 +1053,19 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 			++actual_count;
 		c = *p;
 	}
-	actual = malloc(sizeof(char *) * actual_count);
-	for (j = 0, p = buff; p < buff + buff_size; p += 1 + strlen(p)) {
-		if (*p != '\0') {
-			actual[j] = p;
-			++j;
+	if (actual_count) {
+		actual = calloc(sizeof(char *), actual_count);
+		if (actual == NULL) {
+			failure_start(pathname, line, "Can't allocate memory");
+			failure_finish(NULL);
+			free(expected);
+			return (0);
+		}
+		for (j = 0, p = buff; p < buff + buff_size; p += 1 + strlen(p)) {
+			if (*p != '\0') {
+				actual[j] = p;
+				++j;
+			}
 		}
 	}
 
@@ -2762,6 +2779,7 @@ main(int argc, char **argv)
 			if (test_num < 0) {
 				printf("*** INVALID Test %s\n", *argv);
 				free(refdir_alloc);
+				free(testprogdir);
 				usage(progname);
 				return (1);
 			}

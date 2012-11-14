@@ -234,6 +234,8 @@ static int
 file_close(struct archive *a, void *data)
 {
   struct mydata *mydata = (struct mydata *)data;
+  if (mydata == NULL)
+    return (ARCHIVE_FATAL);
   file_switch(a, mydata, NULL);
   free(mydata->filename);
   free(mydata);
@@ -280,8 +282,17 @@ test_customized_multiple_data_objects(void)
   for (i = 0; filename != NULL;)
   {
     assert((mydata = (struct mydata *)calloc(1, sizeof(*mydata))) != NULL);
+    if (mydata == NULL) {
+      assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+      return;
+    }
     assert((mydata->filename =
       (char *)calloc(1, strlen(filename) + 1)) != NULL);
+    if (mydata->filename == NULL) {
+      free(mydata);
+      assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+      return;
+    }
     strcpy(mydata->filename, filename);
     mydata->fd = -1;
     filename = reffiles[++i];
