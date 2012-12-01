@@ -312,6 +312,8 @@ DEFINE_TEST(test_write_format_iso9660_filename)
 
 	buff = malloc(buffsize);
 	assert(buff != NULL);
+	if (buff == NULL)
+		return;
 	memset(&fns, 0, sizeof(fns));
 
 	/*
@@ -321,6 +323,10 @@ DEFINE_TEST(test_write_format_iso9660_filename)
 
 	fns.names = (char **)malloc(sizeof(char *) * fcnt);
 	assert(fns.names != NULL);
+	if (fns.names == NULL) {
+		free(buff);
+		return;
+	}
 	fns.alloc = fcnt;
 
 	/* Verify rockridge filenames. */

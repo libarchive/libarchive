@@ -113,7 +113,7 @@ lrzip_bidder_bid(struct archive_read_filter_bidder *self,
 	if ((i < 6) || (i > 10))
 		return 0;
 
-	return len;
+	return (int)len;
 }
 
 static int

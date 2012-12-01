@@ -29,6 +29,9 @@
 #include <stdio.h>
 
 #define	DEFAULT_BYTES_PER_BLOCK	(20*512)
+#define ENV_READER_OPTIONS	"TAR_READER_OPTIONS"
+#define ENV_WRITER_OPTIONS	"TAR_WRITER_OPTIONS"
+#define IGNORE_WRONG_MODULE_NAME "__ignore_wrong_module_name__,"
 
 struct creation_set;
 /*

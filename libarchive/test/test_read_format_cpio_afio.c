@@ -84,7 +84,8 @@ DEFINE_TEST(test_read_format_cpio_afio)
 
 	/* The default block size of afio is 5120. we simulate it */
 	size = (sizeof(archive) + 5120 -1 / 5120) * 5120;
-	if (!assert((p = malloc(size)) != NULL))
+	assert((p = malloc(size)) != NULL);
+	if (p == NULL)
 		return;
 	memset(p, 0, size);
 	memcpy(p, archive, sizeof(archive));

@@ -45,9 +45,15 @@ DEFINE_TEST(test_write_filter_bzip2)
 
 	buffsize = 2000000;
 	assert(NULL != (buff = (char *)malloc(buffsize)));
+	if (buff == NULL)
+		return;
 
 	datasize = 10000;
 	assert(NULL != (data = (char *)malloc(datasize)));
+	if (data == NULL) {
+		free(buff);
+		return;
+	}
 	memset(data, 0, datasize);
 
 	/*
@@ -60,6 +66,8 @@ DEFINE_TEST(test_write_filter_bzip2)
 	if (r != ARCHIVE_OK && !use_prog) {
 		skipping("bzip2 writing not supported on this platform");
 		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+		free(buff);
+		free(data);
 		return;
 	}
 

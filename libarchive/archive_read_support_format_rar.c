@@ -862,7 +862,7 @@ archive_read_format_rar_read_header(struct archive_read *a,
         return (ARCHIVE_FATAL);
       }
 
-      crc32_val = crc32(0, (const unsigned char *)p + 2, skip - 2);
+      crc32_val = crc32(0, (const unsigned char *)p + 2, (unsigned)skip - 2);
       if ((crc32_val & 0xffff) != archive_le16dec(p)) {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
           "Header CRC error");
@@ -905,7 +905,7 @@ archive_read_format_rar_read_header(struct archive_read *a,
         p = h;
       }
 
-      crc32_val = crc32(0, (const unsigned char *)p + 2, skip - 2);
+      crc32_val = crc32(0, (const unsigned char *)p + 2, (unsigned)skip - 2);
       if ((crc32_val & 0xffff) != archive_le16dec(p)) {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
           "Header CRC error");
@@ -1287,13 +1287,13 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   {
     if (filename_size != strlen(filename))
     {
-      unsigned char highbyte, flagbits, flagbyte, offset;
-      unsigned fn_end;
+      unsigned char highbyte, flagbits, flagbyte;
+      unsigned fn_end, offset;
 
       end = filename_size;
       fn_end = filename_size * 2;
       filename_size = 0;
-      offset = strlen(filename) + 1;
+      offset = (unsigned)strlen(filename) + 1;
       highbyte = *(p + offset++);
       flagbits = 0;
       flagbyte = 0;
@@ -1701,7 +1701,8 @@ read_data_stored(struct archive_read *a, const void **buff, size_t *size,
   rar->bytes_remaining -= bytes_avail;
   rar->bytes_unconsumed = bytes_avail;
   /* Calculate File CRC. */
-  rar->crc_calculated = crc32(rar->crc_calculated, *buff, bytes_avail);
+  rar->crc_calculated = crc32(rar->crc_calculated, *buff,
+    (unsigned)bytes_avail);
   return (ARCHIVE_OK);
 }
 
@@ -1731,7 +1732,8 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
         *offset = rar->offset_outgoing;
         rar->offset_outgoing += *size;
         /* Calculate File CRC. */
-        rar->crc_calculated = crc32(rar->crc_calculated, *buff, *size);
+        rar->crc_calculated = crc32(rar->crc_calculated, *buff,
+          (unsigned)*size);
         rar->unp_offset = 0;
         return (ARCHIVE_OK);
       }
@@ -1753,7 +1755,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
         bs = rar->unp_buffer_size - rar->unp_offset;
       else
         bs = (size_t)rar->bytes_uncopied;
-      ret = copy_from_lzss_window(a, buff, rar->offset, bs);
+      ret = copy_from_lzss_window(a, buff, rar->offset, (int)bs);
       if (ret != ARCHIVE_OK)
         return (ret);
       rar->offset += bs;
@@ -1764,7 +1766,8 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
         *offset = rar->offset_outgoing;
         rar->offset_outgoing += *size;
         /* Calculate File CRC. */
-        rar->crc_calculated = crc32(rar->crc_calculated, *buff, *size);
+        rar->crc_calculated = crc32(rar->crc_calculated, *buff,
+          (unsigned)*size);
         return (ret);
       }
       continue;
@@ -1881,7 +1884,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
       bs = rar->unp_buffer_size - rar->unp_offset;
     else
       bs = (size_t)rar->bytes_uncopied;
-    ret = copy_from_lzss_window(a, buff, rar->offset, bs);
+    ret = copy_from_lzss_window(a, buff, rar->offset, (int)bs);
     if (ret != ARCHIVE_OK)
       return (ret);
     rar->offset += bs;
@@ -1897,7 +1900,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
   *offset = rar->offset_outgoing;
   rar->offset_outgoing += *size;
   /* Calculate File CRC. */
-  rar->crc_calculated = crc32(rar->crc_calculated, *buff, *size);
+  rar->crc_calculated = crc32(rar->crc_calculated, *buff, (unsigned)*size);
   return ret;
 }
 
@@ -2413,7 +2416,7 @@ make_table(struct archive_read *a, struct huffman_code *code)
 
   code->table =
     (struct huffman_table_entry *)calloc(1, sizeof(*code->table)
-    * (1 << code->tablesize));
+    * ((size_t)1 << code->tablesize));
 
   return make_table_recurse(a, code, 0, code->table, 0, code->tablesize);
 }

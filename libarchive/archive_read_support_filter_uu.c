@@ -490,7 +490,7 @@ read_more:
 		uudecode->in_cnt = 0;
 	}
 	for (;used < avail_in; d += llen, used += llen) {
-		int l, body;
+		int64_t l, body;
 
 		b = d;
 		len = get_line(b, avail_in - used, &nl);
@@ -518,7 +518,7 @@ read_more:
 				return (ARCHIVE_FATAL);
 			if (uudecode->in_buff != b)
 				memmove(uudecode->in_buff, b, len);
-			uudecode->in_cnt = len;
+			uudecode->in_cnt = (int)len;
 			if (total == 0) {
 				/* Do not return 0; it means end-of-file.
 				 * We should try to read bytes more. */

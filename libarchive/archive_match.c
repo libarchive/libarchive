@@ -1712,7 +1712,7 @@ match_owner_id(struct id_array *ids, int64_t id)
 	unsigned b, m, t;
 
 	t = 0;
-	b = ids->count;
+	b = (unsigned)ids->count;
 	while (t < b) {
 		m = (t + b)>>1;
 		if (ids->ids[m] == id)

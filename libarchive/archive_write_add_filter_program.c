@@ -160,10 +160,13 @@ archive_compressor_program_free(struct archive_write_filter *f)
 {
 	struct private_data *data = (struct private_data *)f->data;
 
-	free(data->cmd);
-	archive_string_free(&data->description);
-	__archive_write_program_free(data->pdata);
-	free(data);
+	if (data) {
+		free(data->cmd);
+		archive_string_free(&data->description);
+		__archive_write_program_free(data->pdata);
+		free(data);
+		f->data = NULL;
+	}
 	return (ARCHIVE_OK);
 }
 

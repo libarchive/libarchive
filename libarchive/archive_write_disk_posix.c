@@ -33,6 +33,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
+#ifdef HAVE_SYS_ACL_H
+#include <sys/acl.h>
+#endif
 #ifdef HAVE_SYS_EXTATTR_H
 #include <sys/extattr.h>
 #endif
@@ -179,6 +182,7 @@ struct fixup_entry {
 #define	TODO_SUID_CHECK		0x08000000
 #define	TODO_SGID		0x04000000
 #define	TODO_SGID_CHECK		0x02000000
+#define	TODO_APPLEDOUBLE	0x01000000
 #define	TODO_MODE		(TODO_MODE_BASE|TODO_SUID|TODO_SGID)
 #define	TODO_TIMES		ARCHIVE_EXTRACT_TIME
 #define	TODO_OWNER		ARCHIVE_EXTRACT_OWNER
@@ -321,6 +325,7 @@ struct archive_write_disk {
 #define DECMPFS_UNCOMPRESSED_SIZE	8
 #define DECMPFS_HEADER_SIZE		16
 
+#define HFS_BLOCKS(s)	((s) >> 12)
 
 static int	check_symlinks(struct archive_write_disk *);
 static int	create_filesystem_object(struct archive_write_disk *);
@@ -333,6 +338,7 @@ static int	create_dir(struct archive_write_disk *, char *);
 static int	create_parent_dir(struct archive_write_disk *, char *);
 static ssize_t	hfs_write_data_block(struct archive_write_disk *,
 		    const char *, size_t);
+static int	fixup_appledouble(struct archive_write_disk *, const char *);
 static int	older(struct stat *, struct archive_entry *);
 static int	restore_entry(struct archive_write_disk *);
 static int	set_mac_metadata(struct archive_write_disk *, const char *,
@@ -548,19 +554,36 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		else
 			a->todo |= TODO_MAC_METADATA;
 	}
-#if defined(UF_COMPRESSED)
+#if defined(__APPLE__) && defined(UF_COMPRESSED)
 	if ((a->flags & ARCHIVE_EXTRACT_NO_HFS_COMPRESSION) == 0) {
 		unsigned long set, clear;
 		archive_entry_fflags(a->entry, &set, &clear);
 		if ((set & ~clear) & UF_COMPRESSED) {
-			a->todo |= TODO_HFS_COMPRESSION | TODO_FFLAGS;
+			a->todo |= TODO_HFS_COMPRESSION;
 			a->decmpfs_block_count = (unsigned)-1;
 		}
 	}
 	if ((a->flags & ARCHIVE_EXTRACT_HFS_COMPRESSION_FORCED) != 0 &&
 	    (a->mode & AE_IFMT) == AE_IFREG && a->filesize > 0) {
-		a->todo |= TODO_HFS_COMPRESSION | TODO_FFLAGS;
+		a->todo |= TODO_HFS_COMPRESSION;
 		a->decmpfs_block_count = (unsigned)-1;
+	}
+	{
+		const char *p;
+
+		/* Check if the current file name is a type of the
+		 * resource fork file. */
+		p = strrchr(a->name, '/');
+		if (p == NULL)
+			p = a->name;
+		else
+			p++;
+		if (p[0] == '.' && p[1] == '_') {
+			/* Do not compress "._XXX" files. */
+			a->todo &= ~TODO_HFS_COMPRESSION;
+			if (a->filesize > 0)
+				a->todo |= TODO_APPLEDOUBLE;
+		}
 	}
 #endif
 
@@ -580,8 +603,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 
 	ret = restore_entry(a);
 
-#if defined(UF_COMPRESSED) && defined(HAVE_STRUCT_STAT_ST_FLAGS) && \
-      defined(HAVE_FCHFLAGS)
+#if defined(__APPLE__) && defined(UF_COMPRESSED)
 	/*
 	 * Check if the filesystem the file is restoring on supports
 	 * HFS+ Compression. If not, cancel HFS+ Compression.
@@ -817,18 +839,40 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 	return (start_size - size);
 }
 
-#if defined(HAVE_ZLIB_H) && defined(UF_COMPRESSED)
+#if defined(__APPLE__) && defined(UF_COMPRESSED)
+
+/*
+ * Set UF_COMPRESSED file flag.
+ * This have to be called after hfs_write_decmpfs() because if the
+ * file does not have "com.apple.decmpfs" xattr the flag is ignored.
+ */
+static int
+hfs_set_compressed_fflag(struct archive_write_disk *a)
+{
+	int r;
+
+	if ((r = lazy_stat(a)) != ARCHIVE_OK)
+		return (r);
+
+	a->st.st_flags |= UF_COMPRESSED;
+	if (fchflags(a->fd, a->st.st_flags) != 0) {
+		archive_set_error(&a->archive, errno,
+		    "Failed to set UF_COMPRESSED file flag");
+		return (ARCHIVE_WARN);
+	}
+	return (ARCHIVE_OK);
+}
 
 /*
  * HFS+ Compression decmpfs
  *
- *     +------------------------------+
+ *     +------------------------------+ +0
  *     |      Magic(LE 4 bytes)       |
  *     +------------------------------+
  *     |      Type(LE 4 bytes)        |
  *     +------------------------------+
  *     | Uncompressed size(LE 8 bytes)|
- *     +------------------------------+
+ *     +------------------------------+ +16
  *     |                              |
  *     |       Compressed data        |
  *     |  (Placed only if Type == 3)  |
@@ -994,6 +1038,67 @@ hfs_reset_compressor(struct archive_write_disk *a)
 }
 
 static int
+hfs_decompress(struct archive_write_disk *a)
+{
+	uint32_t *block_info;
+	unsigned int block_count;
+	uint32_t data_pos, data_size;
+	ssize_t r;
+	ssize_t bytes_written, bytes_to_write;
+	unsigned char *b;
+
+	block_info = (uint32_t *)(a->resource_fork + RSRC_H_SIZE);
+	block_count = archive_le32dec(block_info++);
+	while (block_count--) {
+		data_pos = RSRC_H_SIZE + archive_le32dec(block_info++);
+		data_size = archive_le32dec(block_info++);
+		r = fgetxattr(a->fd, XATTR_RESOURCEFORK_NAME,
+		    a->compressed_buffer, data_size, data_pos, 0);
+		if (r != data_size)  {
+			archive_set_error(&a->archive,
+			    (r < 0)?errno:ARCHIVE_ERRNO_MISC,
+			    "Failed to read resource fork");
+			return (ARCHIVE_WARN);
+		}
+		if (a->compressed_buffer[0] == 0xff) {
+			bytes_to_write = data_size -1;
+			b = a->compressed_buffer + 1;
+		} else {
+			uLong dest_len = MAX_DECMPFS_BLOCK_SIZE;
+			int zr;
+
+			zr = uncompress((Bytef *)a->uncompressed_buffer,
+			    &dest_len, a->compressed_buffer, data_size);
+			if (zr != Z_OK) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "Failed to decompress resource fork");
+				return (ARCHIVE_WARN);
+			}
+			bytes_to_write = dest_len;
+			b = (unsigned char *)a->uncompressed_buffer;
+		}
+		do {
+			bytes_written = write(a->fd, b, bytes_to_write);
+			if (bytes_written < 0) {
+				archive_set_error(&a->archive, errno,
+				    "Write failed");
+				return (ARCHIVE_WARN);
+			}
+			bytes_to_write -= bytes_written;
+			b += bytes_written;
+		} while (bytes_to_write > 0);
+	}
+	r = fremovexattr(a->fd, XATTR_RESOURCEFORK_NAME, 0);
+	if (r == -1)  {
+		archive_set_error(&a->archive, errno,
+		    "Failed to remove resource fork");
+		return (ARCHIVE_WARN);
+	}
+	return (ARCHIVE_OK);
+}
+
+static int
 hfs_drive_compressor(struct archive_write_disk *a, const char *buff,
     size_t size)
 {
@@ -1060,9 +1165,6 @@ hfs_drive_compressor(struct archive_write_disk *a, const char *buff,
 	if (a->decmpfs_block_count == 1 &&
 	    (a->decmpfs_attr_size + bytes_compressed)
 	      <= MAX_DECMPFS_XATTR_SIZE) {
-#if DECMPFS_DEBUG
-fprintf(stderr, "block %u bytes --> %u bytes in decmpfs xattr\n", (unsigned)size, (unsigned)bytes_compressed);
-#endif
 		archive_le32enc(&a->decmpfs_header_p[DECMPFS_COMPRESSION_TYPE],
 		    CMP_XATTR);
 		memcpy(a->decmpfs_header_p + DECMPFS_HEADER_SIZE,
@@ -1070,9 +1172,14 @@ fprintf(stderr, "block %u bytes --> %u bytes in decmpfs xattr\n", (unsigned)size
 		a->decmpfs_attr_size += bytes_compressed;
 		a->compressed_buffer_remaining = a->compressed_buffer_size;
 		/*
-		 * Write the decmpfs xattr.
+		 * Finish HFS+ Compression.
+		 * - Write the decmpfs xattr.
+		 * - Set the UF_COMPRESSED file flag.
 		 */
-		return hfs_write_decmpfs(a);
+		ret = hfs_write_decmpfs(a);
+		if (ret == ARCHIVE_OK)
+			ret = hfs_set_compressed_fflag(a);
+		return (ret);
 	}
 
 	/* Update block info. */
@@ -1081,9 +1188,6 @@ fprintf(stderr, "block %u bytes --> %u bytes in decmpfs xattr\n", (unsigned)size
 	archive_le32enc(a->decmpfs_block_info++, bytes_compressed);
 	a->compressed_rsrc_position_v += bytes_compressed;
 
-#if DECMPFS_DEBUG
-fprintf(stderr, "block %u bytes --> %u bytes in resource fork\n", (unsigned)size, (unsigned)bytes_compressed);
-#endif
 	/*
 	 * Write the compressed data to the resource fork.
 	 */
@@ -1110,23 +1214,37 @@ fprintf(stderr, "block %u bytes --> %u bytes in resource fork\n", (unsigned)size
 	 */
 	if (a->file_remaining_bytes == 0) {
 		size_t rsrc_size;
+		int64_t bk;
 
 		/* Append the resource footer. */
 		rsrc_size = hfs_set_resource_fork_footer(
-		    buffer_compressed + bytes_compressed,
+		    a->compressed_buffer + bytes_used,
 		    a->compressed_buffer_remaining);
 		ret = hfs_write_compressed_data(a, bytes_used + rsrc_size);
 		a->compressed_buffer_remaining = a->compressed_buffer_size;
+
+		/* If the compressed size is not enouph smaller than
+		 * the uncompressed size. cancel HFS+ compression.
+		 * TODO: study a behavior of ditto utility and improve
+		 * the condition to fall back into no HFS+ compression. */
+		bk = HFS_BLOCKS(a->compressed_rsrc_position);
+		bk += bk >> 7;
+		if (bk > HFS_BLOCKS(a->filesize))
+			return hfs_decompress(a);
 		/*
 		 * Write the resourcefork header.
 		 */
 		if (ret == ARCHIVE_OK)
 			ret = hfs_write_resource_fork_header(a);
 		/*
-		 * Write the decmpfs xattr.
+		 * Finish HFS+ Compression.
+		 * - Write the decmpfs xattr.
+		 * - Set the UF_COMPRESSED file flag.
 		 */
 		if (ret == ARCHIVE_OK)
 			ret = hfs_write_decmpfs(a);
+		if (ret == ARCHIVE_OK)
+			ret = hfs_set_compressed_fflag(a);
 	}
 	return (ret);
 }
@@ -1166,9 +1284,6 @@ hfs_write_decmpfs_block(struct archive_write_disk *a, const char *buff,
 		block_count =
 		    (a->filesize + MAX_DECMPFS_BLOCK_SIZE -1) /
 			MAX_DECMPFS_BLOCK_SIZE;
-#if DECMPFS_DEBUG
-fprintf(stderr, "\nblock count = %u, file size = %u\n", block_count, (unsigned)a->filesize);
-#endif
 		/*
 		 * Allocate buffer for resource fork.
 		 * Set up related pointers;
@@ -1392,7 +1507,7 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	} else if (a->fd_offset == a->filesize) {
 		/* Last write ended at exactly the filesize; we're done. */
 		/* Hopefully, this is the common case. */
-#if defined(HAVE_ZLIB_H) && defined(UF_COMPRESSED)
+#if defined(__APPLE__) && defined(UF_COMPRESSED)
 	} else if (a->todo & TODO_HFS_COMPRESSION) {
 		char null_d[1024];
 		ssize_t r;
@@ -1448,6 +1563,22 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	/* Restore metadata. */
 
 	/*
+	 * This is specific to Mac OS X.
+	 * If the current file is an AppleDouble file, it should be
+	 * linked with the data fork file and remove it.
+	 */
+	if (a->todo & TODO_APPLEDOUBLE) {
+		int r2 = fixup_appledouble(a, a->name);
+		if (r2 == ARCHIVE_EOF) {
+			/* The current file has been successfully linked
+			 * with the data fork file and removed. So there
+			 * is nothing to do on the current file.  */
+			goto finish_metadata;
+		}
+		if (r2 < ret) ret = r2;
+	}
+
+	/*
 	 * Look up the "real" UID only if we're going to need it.
 	 * TODO: the TODO_SGID condition can be dropped here, can't it?
 	 */
@@ -1469,8 +1600,10 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	 * bits.  If we set the owner, we know what it is and can skip
 	 * a stat() call to examine the ownership of the file on disk.
 	 */
-	if (a->todo & TODO_OWNER)
-		ret = set_ownership(a);
+	if (a->todo & TODO_OWNER) {
+		int r2 = set_ownership(a);
+		if (r2 < ret) ret = r2;
+	}
 
 	/*
 	 * set_mode must precede ACLs on systems such as Solaris and
@@ -1517,7 +1650,8 @@ _archive_write_disk_finish_entry(struct archive *_a)
 		size_t metadata_size;
 		metadata = archive_entry_mac_metadata(a->entry, &metadata_size);
 		if (metadata != NULL && metadata_size > 0) {
-			int r2 = set_mac_metadata(a, archive_entry_pathname(a->entry), metadata, metadata_size);
+			int r2 = set_mac_metadata(a, archive_entry_pathname(
+			    a->entry), metadata, metadata_size);
 			if (r2 < ret) ret = r2;
 		}
 	}
@@ -1533,6 +1667,7 @@ _archive_write_disk_finish_entry(struct archive *_a)
 		if (r2 < ret) ret = r2;
 	}
 
+finish_metadata:
 	/* If there's an fd, we can close it now. */
 	if (a->fd >= 0) {
 		close(a->fd);
@@ -3033,13 +3168,6 @@ set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
 	int r;
 
 	(void)mode; /* UNUSED */
-
-#ifdef UF_COMPRESSED
-	if (a->todo & TODO_HFS_COMPRESSION)
-		set |= UF_COMPRESSED;
-	else if (set & UF_COMPRESSED)
-		clear |= UF_COMPRESSED;
-#endif
 	if (set == 0  && clear == 0)
 		return (ARCHIVE_OK);
 
@@ -3189,12 +3317,192 @@ set_mac_metadata(struct archive_write_disk *a, const char *pathname,
 	(void)metadata_size; /* UNUSED */
 	return (ARCHIVE_OK);
 }
+
+static int
+fixup_appledouble(struct archive_write_disk *a, const char *pathname)
+{
+	(void)a; /* UNUSED */
+	(void)pathname; /* UNUSED */
+	return (ARCHIVE_OK);
+}
 #else
 
 /*
  * On Mac OS, we use copyfile() to unpack the metadata and
  * apply it to the target file.
  */
+
+static int
+copy_xattrs(struct archive_write_disk *a, int tmpfd, int dffd)
+{
+	ssize_t xattr_size;
+	char *xattr_names = NULL, *xattr_val = NULL;
+	int ret = ARCHIVE_OK, xattr_i;
+
+	xattr_size = flistxattr(tmpfd, NULL, 0, 0);
+	if (xattr_size == -1) {
+		archive_set_error(&a->archive, errno,
+		    "Failed to read metadata(xattr)");
+		ret = ARCHIVE_WARN;
+		goto exit_xattr;
+	}
+	xattr_names = malloc(xattr_size);
+	if (xattr_names == NULL) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate memory for metadata(xattr)");
+		ret = ARCHIVE_FATAL;
+		goto exit_xattr;
+	}
+	xattr_size = flistxattr(tmpfd, xattr_names, xattr_size, 0);
+	if (xattr_size == -1) {
+		archive_set_error(&a->archive, errno,
+		    "Failed to read metadata(xattr)");
+		ret = ARCHIVE_WARN;
+		goto exit_xattr;
+	}
+	for (xattr_i = 0; xattr_i < xattr_size;
+	    xattr_i += strlen(xattr_names + xattr_i) + 1) {
+		ssize_t s;
+		int f;
+
+		s = fgetxattr(tmpfd, xattr_names + xattr_i, NULL, 0, 0, 0);
+		if (s == -1) {
+			archive_set_error(&a->archive, errno,
+			    "Failed to get metadata(xattr)");
+			ret = ARCHIVE_WARN;
+			goto exit_xattr;
+		}
+		xattr_val = realloc(xattr_val, s);
+		if (xattr_val == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Failed to get metadata(xattr)");
+			ret = ARCHIVE_WARN;
+			goto exit_xattr;
+		}
+		s = fgetxattr(tmpfd, xattr_names + xattr_i, xattr_val, s, 0, 0);
+		if (s == -1) {
+			archive_set_error(&a->archive, errno,
+			    "Failed to get metadata(xattr)");
+			ret = ARCHIVE_WARN;
+			goto exit_xattr;
+		}
+		f = fsetxattr(dffd, xattr_names + xattr_i, xattr_val, s, 0, 0);
+		if (f == -1) {
+			archive_set_error(&a->archive, errno,
+			    "Failed to get metadata(xattr)");
+			ret = ARCHIVE_WARN;
+			goto exit_xattr;
+		}
+	}
+exit_xattr:
+	free(xattr_names);
+	free(xattr_val);
+	return (ret);
+}
+
+static int
+copy_acls(struct archive_write_disk *a, int tmpfd, int dffd)
+{
+	acl_t acl, dfacl = NULL;
+	int acl_r, ret = ARCHIVE_OK;
+
+	acl = acl_get_fd(tmpfd);
+	if (acl == NULL) {
+		if (errno == ENOENT)
+			/* There are not any ACLs. */
+			return (ret);
+		archive_set_error(&a->archive, errno,
+		    "Failed to get metadata(acl)");
+		ret = ARCHIVE_WARN;
+		goto exit_acl;
+	}
+	dfacl = acl_dup(acl);
+	acl_r = acl_set_fd(dffd, dfacl);
+	if (acl_r == -1) {
+		archive_set_error(&a->archive, errno,
+		    "Failed to get metadata(acl)");
+		ret = ARCHIVE_WARN;
+		goto exit_acl;
+	}
+exit_acl:
+	if (acl)
+		acl_free(acl);
+	if (dfacl)
+		acl_free(dfacl);
+	return (ret);
+}
+
+static int
+create_tempdatafork(struct archive_write_disk *a, const char *pathname)
+{
+	struct archive_string tmpdatafork;
+	int tmpfd;
+
+	archive_string_init(&tmpdatafork);
+	archive_strcpy(&tmpdatafork, "tar.md.XXXXXX");
+	tmpfd = mkstemp(tmpdatafork.s);
+	if (tmpfd < 0) {
+		archive_set_error(&a->archive, errno,
+		    "Failed to mkstemp");
+		archive_string_free(&tmpdatafork);
+		return (-1);
+	}
+	if (copyfile(pathname, tmpdatafork.s, 0,
+	    COPYFILE_UNPACK | COPYFILE_NOFOLLOW
+	    | COPYFILE_ACL | COPYFILE_XATTR) < 0) {
+		archive_set_error(&a->archive, errno,
+		    "Failed to restore metadata");
+		close(tmpfd);
+		tmpfd = -1;
+	}
+	unlink(tmpdatafork.s);
+	archive_string_free(&tmpdatafork);
+	return (tmpfd);
+}
+
+static int
+copy_metadata(struct archive_write_disk *a, const char *metadata,
+    const char *datafork, int datafork_compressed)
+{
+	int ret = ARCHIVE_OK;
+
+	if (datafork_compressed) {
+		int dffd, tmpfd;
+
+		tmpfd = create_tempdatafork(a, metadata);
+		if (tmpfd == -1)
+			return (ARCHIVE_WARN);
+
+		/*
+		 * Do not open the data fork compressed by HFS+ compression
+		 * with at least a writing mode(O_RDWR or O_WRONLY). it
+		 * makes the data fork uncompressed.
+		 */
+		dffd = open(datafork, 0);
+		if (dffd == -1) {
+			archive_set_error(&a->archive, errno,
+			    "Failed to open the data fork for metadata");
+			close(tmpfd);
+			return (ARCHIVE_WARN);
+		}
+
+		ret = copy_xattrs(a, tmpfd, dffd);
+		if (ret == ARCHIVE_OK)
+			ret = copy_acls(a, tmpfd, dffd);
+		close(tmpfd);
+		close(dffd);
+	} else {
+		if (copyfile(metadata, datafork, 0,
+		    COPYFILE_UNPACK | COPYFILE_NOFOLLOW
+		    | COPYFILE_ACL | COPYFILE_XATTR) < 0) {
+			archive_set_error(&a->archive, errno,
+			    "Failed to restore metadata");
+			ret = ARCHIVE_WARN;
+		}
+	}
+	return (ret);
+}
+
 static int
 set_mac_metadata(struct archive_write_disk *a, const char *pathname,
 		 const void *metadata, size_t metadata_size)
@@ -3216,19 +3524,95 @@ set_mac_metadata(struct archive_write_disk *a, const char *pathname,
 	if (fd < 0) {
 		archive_set_error(&a->archive, errno,
 				  "Failed to restore metadata");
+		archive_string_free(&tmp);
 		return (ARCHIVE_WARN);
 	}
 	written = write(fd, metadata, metadata_size);
 	close(fd);
-	if ((size_t)written != metadata_size
-	    || copyfile(tmp.s, pathname, 0,
-			COPYFILE_UNPACK | COPYFILE_NOFOLLOW
-			| COPYFILE_ACL | COPYFILE_XATTR)) {
+	if ((size_t)written != metadata_size) {
 		archive_set_error(&a->archive, errno,
 				  "Failed to restore metadata");
 		ret = ARCHIVE_WARN;
+	} else {
+		int compressed;
+
+		if ((a->todo & TODO_HFS_COMPRESSION) != 0 &&
+		    (ret = lazy_stat(a)) == ARCHIVE_OK)
+			compressed = a->st.st_flags & UF_COMPRESSED;
+		else
+			compressed = 0;
+		ret = copy_metadata(a, tmp.s, pathname, compressed);
 	}
 	unlink(tmp.s);
+	archive_string_free(&tmp);
+	return (ret);
+}
+
+static int
+fixup_appledouble(struct archive_write_disk *a, const char *pathname)
+{
+	char buff[8];
+	struct stat st;
+	const char *p;
+	struct archive_string datafork;
+	int fd = -1, ret = ARCHIVE_OK;
+
+	archive_string_init(&datafork);
+	/* Check if the current file name is a type of the resource
+	 * fork file. */
+	p = strrchr(pathname, '/');
+	if (p == NULL)
+		p = pathname;
+	else
+		p++;
+	if (p[0] != '.' || p[1] != '_')
+		goto skip_appledouble;
+
+	/*
+	 * Check if the data fork file exists.
+	 *
+	 * TODO: Check if this write disk object has handled it.
+	 */
+	archive_strncpy(&datafork, pathname, p - pathname);
+	archive_strcat(&datafork, p + 2);
+	if (lstat(datafork.s, &st) == -1 ||
+	    (st.st_mode & AE_IFMT) != AE_IFREG)
+		goto skip_appledouble;
+
+	/*
+	 * Check if the file is in the AppleDouble form.
+	 */
+	fd = open(pathname, O_RDONLY | O_BINARY | O_CLOEXEC);
+	__archive_ensure_cloexec_flag(fd);
+	if (fd == -1) {
+		archive_set_error(&a->archive, errno,
+		    "Failed to open a restoring file");
+		ret = ARCHIVE_WARN;
+		goto skip_appledouble;
+	}
+	if (read(fd, buff, 8) == -1) {
+		archive_set_error(&a->archive, errno,
+		    "Failed to read a restoring file");
+		close(fd);
+		ret = ARCHIVE_WARN;
+		goto skip_appledouble;
+	}
+	close(fd);
+	/* Check AppleDouble Magic Code. */
+	if (archive_be32dec(buff) != 0x00051607)
+		goto skip_appledouble;
+	/* Check AppleDouble Version. */
+	if (archive_be32dec(buff+4) != 0x00020000)
+		goto skip_appledouble;
+
+	ret = copy_metadata(a, pathname, datafork.s,
+	    st.st_flags & UF_COMPRESSED);
+	if (ret == ARCHIVE_OK) {
+		unlink(pathname);
+		ret = ARCHIVE_EOF;
+	}
+skip_appledouble:
+	archive_string_free(&datafork);
 	return (ret);
 }
 #endif

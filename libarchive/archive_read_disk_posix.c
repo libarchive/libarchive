@@ -1901,7 +1901,8 @@ static int
 close_and_restore_time(int fd, struct tree *t, struct restore_time *rt)
 {
 #ifndef HAVE_UTIMES
-	(void)a; /* UNUSED */
+	(void)t; /* UNUSED */
+	(void)rt; /* UNUSED */
 	return (close(fd));
 #else
 #if defined(HAVE_FUTIMENS) && !defined(__CYGWIN__)

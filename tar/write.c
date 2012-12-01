@@ -137,6 +137,68 @@ seek_file(int fd, int64_t offset, int whence)
 #define	lseek seek_file
 #endif
 
+static void
+set_writer_options(struct bsdtar *bsdtar, struct archive *a)
+{
+	const char *writer_options;
+	int r;
+
+	writer_options = getenv(ENV_WRITER_OPTIONS);
+	if (writer_options != NULL) {
+		char *p;
+		/* Set default write options. */
+		p = malloc(sizeof(IGNORE_WRONG_MODULE_NAME)
+		    + strlen(writer_options) + 1);
+		if (p == NULL)
+			lafe_errc(1, errno, "Out of memory");
+		/* Prepend magic code to ignore options for
+		 * a format or filters which are not added to
+		 * the archive write object. */
+		strncpy(p, IGNORE_WRONG_MODULE_NAME,
+		    sizeof(IGNORE_WRONG_MODULE_NAME) -1);
+		strcpy(p + sizeof(IGNORE_WRONG_MODULE_NAME) -1, writer_options);
+		r = archive_write_set_options(a, p);
+		free(p);
+		if (r < ARCHIVE_WARN)
+			lafe_errc(1, 0, "%s", archive_error_string(a));
+		else
+			archive_clear_error(a);
+	}
+	if (ARCHIVE_OK != archive_write_set_options(a, bsdtar->option_options))
+		lafe_errc(1, 0, "%s", archive_error_string(a));
+}
+
+static void
+set_reader_options(struct bsdtar *bsdtar, struct archive *a)
+{
+	const char *reader_options;
+	int r;
+
+	(void)bsdtar; /* UNUSED */
+
+	reader_options = getenv(ENV_READER_OPTIONS);
+	if (reader_options != NULL) {
+		char *p;
+		/* Set default write options. */
+		p = malloc(sizeof(IGNORE_WRONG_MODULE_NAME)
+		    + strlen(reader_options) + 1);
+		if (p == NULL)
+			lafe_errc(1, errno, "Out of memory");
+		/* Prepend magic code to ignore options for
+		 * a format or filters which are not added to
+		 * the archive write object. */
+		strncpy(p, IGNORE_WRONG_MODULE_NAME,
+		    sizeof(IGNORE_WRONG_MODULE_NAME) -1);
+		strcpy(p + sizeof(IGNORE_WRONG_MODULE_NAME) -1, reader_options);
+		r = archive_read_set_options(a, p);
+		free(p);
+		if (r < ARCHIVE_WARN)
+			lafe_errc(1, 0, "%s", archive_error_string(a));
+		else
+			archive_clear_error(a);
+	}
+}
+
 void
 tar_mode_c(struct bsdtar *bsdtar)
 {
@@ -173,8 +235,7 @@ tar_mode_c(struct bsdtar *bsdtar)
 		    (const char *)filter_name);
 	}
 
-	if (ARCHIVE_OK != archive_write_set_options(a, bsdtar->option_options))
-		lafe_errc(1, 0, "%s", archive_error_string(a));
+	set_writer_options(bsdtar, a);
 	if (ARCHIVE_OK != archive_write_open_filename(a, bsdtar->filename))
 		lafe_errc(1, 0, "%s", archive_error_string(a));
 	write_archive(a, bsdtar);
@@ -212,6 +273,7 @@ tar_mode_r(struct bsdtar *bsdtar)
 	archive_read_support_format_empty(a);
 	archive_read_support_format_tar(a);
 	archive_read_support_format_gnutar(a);
+	set_reader_options(bsdtar, a);
 	r = archive_read_open_fd(a, bsdtar->fd, 10240);
 	if (r != ARCHIVE_OK)
 		lafe_errc(1, archive_errno(a),
@@ -264,8 +326,7 @@ tar_mode_r(struct bsdtar *bsdtar)
 	}
 	if (lseek(bsdtar->fd, end_offset, SEEK_SET) < 0)
 		lafe_errc(1, errno, "Could not seek to archive end");
-	if (ARCHIVE_OK != archive_write_set_options(a, bsdtar->option_options))
-		lafe_errc(1, 0, "%s", archive_error_string(a));
+	set_writer_options(bsdtar, a);
 	if (ARCHIVE_OK != archive_write_open_fd(a, bsdtar->fd))
 		lafe_errc(1, 0, "%s", archive_error_string(a));
 
@@ -302,6 +363,7 @@ tar_mode_u(struct bsdtar *bsdtar)
 	archive_read_support_filter_all(a);
 	archive_read_support_format_tar(a);
 	archive_read_support_format_gnutar(a);
+	set_reader_options(bsdtar, a);
 	if (archive_read_open_fd(a, bsdtar->fd, bsdtar->bytes_per_block)
 	    != ARCHIVE_OK) {
 		lafe_errc(1, 0,
@@ -341,8 +403,7 @@ tar_mode_u(struct bsdtar *bsdtar)
 
 	if (lseek(bsdtar->fd, end_offset, SEEK_SET) < 0)
 		lafe_errc(1, errno, "Could not seek to archive end");
-	if (ARCHIVE_OK != archive_write_set_options(a, bsdtar->option_options))
-		lafe_errc(1, 0, "%s", archive_error_string(a));
+	set_writer_options(bsdtar, a);
 	if (ARCHIVE_OK != archive_write_open_fd(a, bsdtar->fd))
 		lafe_errc(1, 0, "%s", archive_error_string(a));
 
@@ -586,6 +647,7 @@ append_archive_filename(struct bsdtar *bsdtar, struct archive *a,
 	ina = archive_read_new();
 	archive_read_support_format_all(ina);
 	archive_read_support_filter_all(ina);
+	set_reader_options(bsdtar, a);
 	if (archive_read_open_filename(ina, filename,
 					bsdtar->bytes_per_block)) {
 		lafe_warnc(0, "%s", archive_error_string(ina));

@@ -39,9 +39,15 @@ DEFINE_TEST(test_write_filter_gzip_timestamp)
 
 	buffsize = 10000;
 	assert(NULL != (buff = (char *)malloc(buffsize)));
+	if (buff == NULL)
+		return;
 
 	datasize = 10000;
 	assert(NULL != (data = (char *)malloc(datasize)));
+	if (data == NULL) {
+		free(buff);
+		return;
+	}
 	memset(data, 0, datasize);
 
 	/* Test1: set "gzip:timestamp" option. */
@@ -54,6 +60,8 @@ DEFINE_TEST(test_write_filter_gzip_timestamp)
 		else {
 			skipping("gzip writing not supported on this platform");
 			assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+			free(buff);
+			free(data);
 			return;
 		}
 	}
@@ -63,7 +71,7 @@ DEFINE_TEST(test_write_filter_gzip_timestamp)
 	    archive_write_set_bytes_per_block(a, 10));
 	assertEqualInt(ARCHIVE_FILTER_GZIP, archive_filter_code(a, 0));
 	assertEqualString("gzip", archive_filter_name(a, 0));
-	assertEqualIntA(a, (use_prog)?ARCHIVE_WARN:ARCHIVE_OK,
+	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used1));
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_set_filetype(ae, AE_IFREG);
@@ -88,7 +96,7 @@ DEFINE_TEST(test_write_filter_gzip_timestamp)
 	    archive_write_set_bytes_per_block(a, 10));
 	assertEqualInt(ARCHIVE_FILTER_GZIP, archive_filter_code(a, 0));
 	assertEqualString("gzip", archive_filter_name(a, 0));
-	assertEqualIntA(a, (use_prog)?ARCHIVE_WARN:ARCHIVE_OK,
+	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used1));
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_set_filetype(ae, AE_IFREG);

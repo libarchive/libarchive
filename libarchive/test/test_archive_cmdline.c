@@ -35,6 +35,8 @@ DEFINE_TEST(test_archive_cmdline)
 
 	/* Command name only. */
 	assert((cl = __archive_cmdline_allocate()) != NULL);
+	if (cl == NULL)
+		return;
 	assertEqualInt(ARCHIVE_OK, __archive_cmdline_parse(cl, "gzip"));
 	assertEqualInt(1, cl->argc);
 	assertEqualString("gzip", cl->path);
@@ -42,6 +44,8 @@ DEFINE_TEST(test_archive_cmdline)
 	assertEqualInt(ARCHIVE_OK, __archive_cmdline_free(cl));
 
 	assert((cl = __archive_cmdline_allocate()) != NULL);
+	if (cl == NULL)
+		return;
 	assertEqualInt(ARCHIVE_OK, __archive_cmdline_parse(cl, "gzip "));
 	assertEqualInt(1, cl->argc);
 	failure("path should not include a space character");
@@ -51,6 +55,8 @@ DEFINE_TEST(test_archive_cmdline)
 	assertEqualInt(ARCHIVE_OK, __archive_cmdline_free(cl));
 
 	assert((cl = __archive_cmdline_allocate()) != NULL);
+	if (cl == NULL)
+		return;
 	assertEqualInt(ARCHIVE_OK, __archive_cmdline_parse(cl,
 	    "/usr/bin/gzip "));
 	assertEqualInt(1, cl->argc);
@@ -62,6 +68,8 @@ DEFINE_TEST(test_archive_cmdline)
 
 	/* A command line includes space characer. */
 	assert((cl = __archive_cmdline_allocate()) != NULL);
+	if (cl == NULL)
+		return;
 	assertEqualInt(ARCHIVE_OK, __archive_cmdline_parse(cl, "\"gzip \""));
 	assertEqualInt(1, cl->argc);
 	failure("path should include a space character");
@@ -72,6 +80,8 @@ DEFINE_TEST(test_archive_cmdline)
 
 	/* A command line includes space characer: pattern 2.*/
 	assert((cl = __archive_cmdline_allocate()) != NULL);
+	if (cl == NULL)
+		return;
 	assertEqualInt(ARCHIVE_OK, __archive_cmdline_parse(cl, "\"gzip \"x"));
 	assertEqualInt(1, cl->argc);
 	failure("path should include a space character");
@@ -82,6 +92,8 @@ DEFINE_TEST(test_archive_cmdline)
 
 	/* A command line includes space characer: pattern 3.*/
 	assert((cl = __archive_cmdline_allocate()) != NULL);
+	if (cl == NULL)
+		return;
 	assertEqualInt(ARCHIVE_OK, __archive_cmdline_parse(cl,
 	    "\"gzip \"x\" s \""));
 	assertEqualInt(1, cl->argc);
@@ -93,6 +105,8 @@ DEFINE_TEST(test_archive_cmdline)
 
 	/* A command line includes space characer: pattern 4.*/
 	assert((cl = __archive_cmdline_allocate()) != NULL);
+	if (cl == NULL)
+		return;
 	assertEqualInt(ARCHIVE_OK, __archive_cmdline_parse(cl,
 	    "\"gzip\\\" \""));
 	assertEqualInt(1, cl->argc);
@@ -104,6 +118,8 @@ DEFINE_TEST(test_archive_cmdline)
 
 	/* A command name with a argument. */
 	assert((cl = __archive_cmdline_allocate()) != NULL);
+	if (cl == NULL)
+		return;
 	assertEqualInt(ARCHIVE_OK, __archive_cmdline_parse(cl, "gzip -d"));
 	assertEqualInt(2, cl->argc);
 	assertEqualString("gzip", cl->path);
@@ -113,6 +129,8 @@ DEFINE_TEST(test_archive_cmdline)
 
 	/* A command name with two arguments. */
 	assert((cl = __archive_cmdline_allocate()) != NULL);
+	if (cl == NULL)
+		return;
 	assertEqualInt(ARCHIVE_OK, __archive_cmdline_parse(cl, "gzip -d -q"));
 	assertEqualInt(3, cl->argc);
 	assertEqualString("gzip", cl->path);

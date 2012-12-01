@@ -243,7 +243,7 @@ __archive_mktemp(const char *tmpdir)
 			errno = ENOMEM;
 			goto exit_tmpfile;
 		}
-		GetTempPathW(l, tmp);
+		GetTempPathW((DWORD)l, tmp);
 		archive_wstrcpy(&temp_name, tmp);
 		free(tmp);
 	} else {
@@ -297,7 +297,8 @@ __archive_mktemp(const char *tmpdir)
 
 		/* Generate a random file name through CryptGenRandom(). */
 		p = xp;
-		if (!CryptGenRandom(hProv, (ep - p)*sizeof(wchar_t), (BYTE*)p)) {
+		if (!CryptGenRandom(hProv, (DWORD)(ep - p)*sizeof(wchar_t),
+		    (BYTE*)p)) {
 			la_dosmaperr(GetLastError());
 			goto exit_tmpfile;
 		}

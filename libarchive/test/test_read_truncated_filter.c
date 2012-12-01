@@ -45,9 +45,15 @@ test_truncation(const char *compression,
 
 	buffsize = 2000000;
 	assert(NULL != (buff = (char *)malloc(buffsize)));
+	if (buff == NULL)
+		return;
 
 	datasize = 10000;
 	assert(NULL != (data = (char *)malloc(datasize)));
+	if (data == NULL) {
+		free(buff);
+		return;
+	}
 	memset(data, 0, datasize);
 
 	/*
@@ -62,6 +68,8 @@ test_truncation(const char *compression,
 		skipping("%s writing not supported on this platform",
 		    compression);
 		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+		free(buff);
+		free(data);
 		return;
 	}
 	use_prog = (r == ARCHIVE_WARN && can_prog);

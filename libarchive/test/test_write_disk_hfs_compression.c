@@ -64,6 +64,22 @@ has_xattr(const char *filename, const char *xattrname)
 	free(nl);
 	return (exisiting);
 }
+static int
+get_rsrc_footer(const char *filename, char *buff, size_t s)
+{
+	ssize_t r;
+
+	r = getxattr(filename, "com.apple.ResourceFork", NULL, 0, 0,
+	    XATTR_SHOWCOMPRESSION);
+	if (r < (ssize_t)s)
+		return (-1);
+	r = getxattr(filename, "com.apple.ResourceFork", buff, s,
+	    r - s, XATTR_SHOWCOMPRESSION);
+	if (r < (ssize_t)s)
+		return (-1);
+	return (0);
+}
+
 #endif
 
 /*
@@ -78,6 +94,16 @@ DEFINE_TEST(test_write_disk_hfs_compression)
 	struct archive *ad, *a;
 	struct archive_entry *ae;
 	struct stat st;
+	char rsrc[50];
+	static const char rsrc_footer[50] = {
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x1c, 0x00, 0x32, 0x00, 0x00, 'c',  'm',
+		'p', 'f',   0x00, 0x00, 0x00, 0x0a, 0x00, 0x01,
+		0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00
+	};
 
 	extract_reference_file(refname);
 
@@ -125,29 +151,43 @@ DEFINE_TEST(test_write_disk_hfs_compression)
 	assertEqualInt(0, stat("file1", &st));
 	assertEqualInt(UF_COMPRESSED, st.st_flags & UF_COMPRESSED);
 	assertFileSize("file1", 8);
+	failure("'%s' should not have Resource Fork", "file1");
 	assertEqualInt(0, has_xattr("file1", "com.apple.ResourceFork"));
+	failure("'%s' should have decompfs xattr", "file1");
 	assertEqualInt(1, has_xattr("file1", "com.apple.decmpfs"));
 
 	/* Test README. */
 	assertEqualInt(0, stat("README", &st));
 	assertEqualInt(UF_COMPRESSED, st.st_flags & UF_COMPRESSED);
 	assertFileSize("README", 6586);
+	failure("'%s' should not have Resource Fork", "README");
 	assertEqualInt(0, has_xattr("README", "com.apple.ResourceFork"));
+	failure("'%s' should have decompfs xattr", "README");
 	assertEqualInt(1, has_xattr("README", "com.apple.decmpfs"));
 
 	/* Test NEWS. */
 	assertEqualInt(0, stat("NEWS", &st));
 	assertEqualInt(UF_COMPRESSED, st.st_flags & UF_COMPRESSED);
 	assertFileSize("NEWS", 28438);
+	failure("'%s' should have Resource Fork", "NEWS");
 	assertEqualInt(1, has_xattr("NEWS", "com.apple.ResourceFork"));
+	failure("'%s' should have decompfs xattr", "NEWS");
 	assertEqualInt(1, has_xattr("NEWS", "com.apple.decmpfs"));
+	assertEqualInt(0, get_rsrc_footer("NEWS", rsrc, sizeof(rsrc)));
+	failure("Resource Fork should have consistent 50 bytes data");
+	assertEqualMem(rsrc_footer, rsrc, sizeof(rsrc));
 
 	/* Test Makefile. */
 	assertEqualInt(0, stat("Makefile", &st));
 	assertEqualInt(UF_COMPRESSED, st.st_flags & UF_COMPRESSED);
 	assertFileSize("Makefile", 1264000);
+	failure("'%s' should have Resource Fork", "Makefile");
 	assertEqualInt(1, has_xattr("Makefile", "com.apple.ResourceFork"));
+	failure("'%s' should have decompfs xattr", "Makefile");
 	assertEqualInt(1, has_xattr("Makefile", "com.apple.decmpfs"));
+	assertEqualInt(0, get_rsrc_footer("Makefile", rsrc, sizeof(rsrc)));
+	failure("Resource Fork should have consistent 50 bytes data");
+	assertEqualMem(rsrc_footer, rsrc, sizeof(rsrc));
 
 	assertChdir("..");
 
@@ -194,28 +234,36 @@ DEFINE_TEST(test_write_disk_hfs_compression)
 	assertEqualInt(0, stat("file1", &st));
 	assertEqualInt(0, st.st_flags & UF_COMPRESSED);
 	assertFileSize("file1", 8);
+	failure("'%s' should not have Resource Fork", "file1");
 	assertEqualInt(0, has_xattr("file1", "com.apple.ResourceFork"));
+	failure("'%s' should not have decmpfs", "file1");
 	assertEqualInt(0, has_xattr("file1", "com.apple.decmpfs"));
 
 	/* Test README. */
 	assertEqualInt(0, stat("README", &st));
 	assertEqualInt(0, st.st_flags & UF_COMPRESSED);
 	assertFileSize("README", 6586);
+	failure("'%s' should not have Resource Fork", "README");
 	assertEqualInt(0, has_xattr("README", "com.apple.ResourceFork"));
+	failure("'%s' should not have decmpfs", "README");
 	assertEqualInt(0, has_xattr("README", "com.apple.decmpfs"));
 
 	/* Test NEWS. */
 	assertEqualInt(0, stat("NEWS", &st));
 	assertEqualInt(0, st.st_flags & UF_COMPRESSED);
 	assertFileSize("NEWS", 28438);
+	failure("'%s' should not have Resource Fork", "NEWS");
 	assertEqualInt(0, has_xattr("NEWS", "com.apple.ResourceFork"));
+	failure("'%s' should not have decmpfs", "NEWS");
 	assertEqualInt(0, has_xattr("NEWS", "com.apple.decmpfs"));
 
 	/* Test Makefile. */
 	assertEqualInt(0, stat("Makefile", &st));
 	assertEqualInt(0, st.st_flags & UF_COMPRESSED);
 	assertFileSize("Makefile", 1264000);
+	failure("'%s' should not have Resource Fork", "Makefile");
 	assertEqualInt(0, has_xattr("Makefile", "com.apple.ResourceFork"));
+	failure("'%s' should not have decmpfs", "Makefile");
 	assertEqualInt(0, has_xattr("Makefile", "com.apple.decmpfs"));
 
 	assertChdir("..");

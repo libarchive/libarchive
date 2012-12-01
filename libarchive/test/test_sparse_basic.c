@@ -118,14 +118,15 @@ create_sparse_file(const char *path, const struct sparse *s)
 			assert(SetFilePointerEx(handle, distance,
 			    NULL, FILE_CURRENT) != 0);
 		} else {
-			DWORD w, wr, size;
+			DWORD w, wr;
+			size_t size;
 
 			size = s->size;
 			while (size) {
 				if (size > sizeof(buff))
 					w = sizeof(buff);
 				else
-					w = size;
+					w = (DWORD)size;
 				assert(WriteFile(handle, buff, w, &wr, NULL) != 0);
 				size -= wr;
 			}

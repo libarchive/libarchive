@@ -31,7 +31,7 @@ static char buff[4096];
 
 static const char image [] = {
 "#mtree\n"
-"./a\\040!$\\043&\\075_\\134^z\\177~ mode=644 type=file\n"
+"./a\\040!$\\043&\\075_^z\\177~ mode=644 type=file\n"
 };
 
 
@@ -57,7 +57,7 @@ DEFINE_TEST(test_write_format_mtree_quoted_filename)
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_set_mode(ae, AE_IFREG | 0644);
 	assertEqualInt(AE_IFREG | 0644, archive_entry_mode(ae));
-	archive_entry_copy_pathname(ae, "./a !$#&=_\\^z\177~");
+	archive_entry_copy_pathname(ae, "./a !$#&=_^z\177~");
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	archive_entry_free(ae);
 
@@ -79,7 +79,7 @@ DEFINE_TEST(test_write_format_mtree_quoted_filename)
 	/* Read entry */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt(AE_IFREG | 0644, archive_entry_mode(ae));
-	assertEqualString("./a !$#&=_\\^z\177~", archive_entry_pathname(ae));
+	assertEqualString("./a !$#&=_^z\177~", archive_entry_pathname(ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

@@ -58,6 +58,8 @@ DEFINE_TEST(test_write_format_iso9660_empty)
 
 	buff = malloc(buffsize);
 	assert(buff != NULL);
+	if (buff == NULL)
+		return;
 
 	/* ISO9660 format: Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);

@@ -121,7 +121,7 @@ archive_read_support_filter_gzip(struct archive *_a)
  * number of bytes in header.  If pbits is non-NULL, it receives a
  * count of bits verified, suitable for use by bidder.
  */
-static int
+static ssize_t
 peek_at_header(struct archive_read_filter *filter, int *pbits)
 {
 	const unsigned char *p;
@@ -299,7 +299,7 @@ consume_header(struct archive_read_filter *self)
 	/* Initialize compression library. */
 	state->stream.next_in = (unsigned char *)(uintptr_t)
 	    __archive_read_filter_ahead(self->upstream, 1, &avail);
-	state->stream.avail_in = avail;
+	state->stream.avail_in = (uInt)avail;
 	ret = inflateInit2(&(state->stream),
 	    -15 /* Don't check for zlib header */);
 
@@ -380,7 +380,7 @@ gzip_filter_read(struct archive_read_filter *self, const void **p)
 
 	/* Empty our output buffer. */
 	state->stream.next_out = state->out_block;
-	state->stream.avail_out = state->out_block_size;
+	state->stream.avail_out = (uInt)state->out_block_size;
 
 	/* Try to fill the output buffer. */
 	while (state->stream.avail_out > 0 && !state->eof) {
@@ -407,7 +407,7 @@ gzip_filter_read(struct archive_read_filter *self, const void **p)
 			    "truncated gzip input");
 			return (ARCHIVE_FATAL);
 		}
-		state->stream.avail_in = avail_in;
+		state->stream.avail_in = (uInt)avail_in;
 
 		/* Decompress and consume some of that data. */
 		ret = inflate(&(state->stream), 0);
