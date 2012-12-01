@@ -123,7 +123,7 @@ safe_fprintf(FILE *f, const char *fmt, ...)
 		else if (fmtbuff_length < 1000000)
 			fmtbuff_length += fmtbuff_length / 4;
 		else {
-			length = old_length;
+			length = fmtbuff_length;
 			fmtbuff_heap[length-1] = '\0';
 			break;
 		}
@@ -191,8 +191,7 @@ safe_fprintf(FILE *f, const char *fmt, ...)
 	fprintf(f, "%s", outbuff);
 
 	/* If we allocated a heap-based formatting buffer, free it now. */
-	if (fmtbuff_heap != NULL)
-		free(fmtbuff_heap);
+	free(fmtbuff_heap);
 }
 
 /*
