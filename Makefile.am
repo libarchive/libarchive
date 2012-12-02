@@ -441,6 +441,8 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_filter_uuencode.c		\
 	libarchive/test/test_write_filter_xz.c			\
 	libarchive/test/test_write_format_7zip.c		\
+	libarchive/test/test_write_format_7zip_empty.c		\
+	libarchive/test/test_write_format_7zip_large.c		\
 	libarchive/test/test_write_format_ar.c			\
 	libarchive/test/test_write_format_cpio.c		\
 	libarchive/test/test_write_format_cpio_empty.c		\

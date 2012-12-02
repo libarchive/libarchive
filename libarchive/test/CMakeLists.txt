@@ -176,6 +176,8 @@ IF(ENABLE_TEST)
     test_write_filter_uuencode.c
     test_write_filter_xz.c
     test_write_format_7zip.c
+    test_write_format_7zip_empty.c
+    test_write_format_7zip_large.c
     test_write_format_ar.c
     test_write_format_cpio.c
     test_write_format_cpio_empty.c
