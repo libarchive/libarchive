@@ -894,25 +894,59 @@ DEFINE_TEST(test_write_format_7zip)
 	/* Test that making a 7-Zip archive file by default compression
 	 * in whatever compressions are supported on the running platform. */
 	test_basic(NULL);
-	/* Test that making a 7-Zip archive file without compression. */
-	test_basic("copy");
-	/* Test that making a 7-Zip archive file with deflate compression. */
-	test_basic("deflate");
-	/* Test that making a 7-Zip archive file with bzip2 compression. */
-	test_basic("bzip2");
-	/* Test that making a 7-Zip archive file with lzma1 compression. */
-	test_basic("lzma1");
-	/* Test that making a 7-Zip archive file with lzma2 compression. */
-	test_basic("lzma2");
-	/* Test that making a 7-Zip archive file with PPMd compression. */
-	test_basic("ppmd");
 	/* Test that making a 7-Zip archive file without empty files. */
 	test_basic2(NULL);
+}
+
+DEFINE_TEST(test_write_format_7zip_basic_bzip2)
+{
+	/* Test that making a 7-Zip archive file with bzip2 compression. */
+	test_basic("bzip2");
+}
+
+DEFINE_TEST(test_write_format_7zip_basic_copy)
+{
+	/* Test that making a 7-Zip archive file without compression. */
+	test_basic("copy");
+}
+
+DEFINE_TEST(test_write_format_7zip_basic_deflate)
+{
+	/* Test that making a 7-Zip archive file with deflate compression. */
+	test_basic("deflate");
+}
+
+DEFINE_TEST(test_write_format_7zip_basic_lzma1)
+{
+	/* Test that making a 7-Zip archive file with lzma1 compression. */
+	test_basic("lzma1");
+}
+
+DEFINE_TEST(test_write_format_7zip_basic_lzma2)
+{
+	/* Test that making a 7-Zip archive file with lzma2 compression. */
+	test_basic("lzma2");
+}
+
+DEFINE_TEST(test_write_format_7zip_basic_ppmd)
+{
+	/* Test that making a 7-Zip archive file with PPMd compression. */
+	test_basic("ppmd");
+}
+
+DEFINE_TEST(test_write_format_7zip_empty)
+{
 	/* Test that making an empty 7-Zip archive file. */
 	test_empty_archive();
 	/* Test that write an empty file. */
 	test_only_empty_file();
 	test_only_empty_files();
+}
+
+DEFINE_TEST(test_write_format_7zip_large_bzip2)
+{
+	/* Test that making a 7-Zip archive file with bzip2 compression. */
+	test_large("bzip2");
 }
 
 DEFINE_TEST(test_write_format_7zip_large_copy)
@@ -925,12 +959,6 @@ DEFINE_TEST(test_write_format_7zip_large_deflate)
 {
 	/* Test that making a 7-Zip archive file with deflate compression. */
 	test_large("deflate");
-}
-
-DEFINE_TEST(test_write_format_7zip_large_bzip2)
-{
-	/* Test that making a 7-Zip archive file with bzip2 compression. */
-	test_large("bzip2");
 }
 
 DEFINE_TEST(test_write_format_7zip_large_lzma1)
