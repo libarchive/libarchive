@@ -617,6 +617,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 	int err;
 	const char *h;
 	const struct archive_entry_header_ustar *header;
+	const struct archive_entry_header_gnutar *gnuheader;
 
 	tar_flush_unconsumed(a, unconsumed);
 
@@ -704,7 +705,8 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 		err = header_pax_extensions(a, tar, entry, h, unconsumed);
 		break;
 	default:
-		if (memcmp(header->magic, "ustar  \0", 8) == 0) {
+		gnuheader = (const struct archive_entry_header_gnutar *)h;
+		if (memcmp(gnuheader->magic, "ustar  \0", 8) == 0) {
 			a->archive.archive_format = ARCHIVE_FORMAT_TAR_GNUTAR;
 			a->archive.archive_format_name = "GNU tar format";
 			err = header_gnutar(a, tar, entry, h, unconsumed);
