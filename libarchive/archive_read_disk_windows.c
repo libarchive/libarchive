@@ -2042,7 +2042,7 @@ tree_free(struct tree *t)
 	free(t->filesystem_table);
 	for (i = 0; i < MAX_OVERLAPPED; i++) {
 		if (t->ol[i].buff)
-			VirtualFree(t->ol[i].buff, t->ol[i].buff_size, MEM_DECOMMIT);
+			VirtualFree(t->ol[i].buff, 0, MEM_RELEASE);
 		CloseHandle(t->ol[i].ol.hEvent);
 	}
 	free(t);
