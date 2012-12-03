@@ -283,7 +283,7 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 		}
 		if (filesize < 0)
 			return 0;
-		if ((p = __archive_read_ahead(a, tail, NULL)) == NULL)
+		if ((p = __archive_read_ahead(a, (size_t)tail, NULL)) == NULL)
 			return 0;
 		for (found = 0, i = 0;!found && i < tail - 22;) {
 			switch (p[i]) {
@@ -581,7 +581,7 @@ zip_read_mac_metadata(struct archive_read *a, struct archive_entry *entry,
 		return (ARCHIVE_WARN);
 	}
 
-	metadata = malloc(rsrc->uncompressed_size);
+	metadata = malloc((size_t)rsrc->uncompressed_size);
 	if (metadata == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate memory for Mac metadata");
@@ -598,8 +598,8 @@ zip_read_mac_metadata(struct archive_read *a, struct archive_entry *entry,
 	hsize = zip_get_local_file_header_size(a, 0);
 	zip_read_consume(a, hsize);
 
-	remaining_bytes = rsrc->compressed_size;
-	metadata_bytes = rsrc->uncompressed_size;
+	remaining_bytes = (size_t)rsrc->compressed_size;
+	metadata_bytes = (size_t)rsrc->uncompressed_size;
 	mp = metadata;
 	eof = 0;
 	while (!eof && remaining_bytes) {
@@ -675,7 +675,7 @@ zip_read_mac_metadata(struct archive_read *a, struct archive_entry *entry,
 		remaining_bytes -= bytes_used;
 	}
 	archive_entry_copy_mac_metadata(entry, metadata,
-	    rsrc->uncompressed_size - metadata_bytes);
+	    (size_t)rsrc->uncompressed_size - metadata_bytes);
 
 	__archive_read_seek(a, offset, SEEK_SET);
 	zip->offset = offset;
