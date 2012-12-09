@@ -666,9 +666,9 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_splitted_rar_seek_support_aa.uu		\
 	libarchive/test/test_splitted_rar_seek_support_ab.uu		\
 	libarchive/test/test_splitted_rar_seek_support_ac.uu		\
-	libarchive/test/test_write_disk_hfs_appledouble.cpio.gz.uu	\
+	libarchive/test/test_write_disk_appledouble.cpio.gz.uu	\
 	libarchive/test/test_write_disk_hfs_compression.tgz.uu		\
-	libarchive/test/test_write_disk_mac_metaata.tar.gz.uu		\
+	libarchive/test/test_write_disk_mac_metadata.tar.gz.uu		\
 	libarchive/test/test_write_disk_no_hfs_compression.tgz.uu	\
 	libarchive/test/CMakeLists.txt					\
 	libarchive/test/README
