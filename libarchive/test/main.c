@@ -1912,6 +1912,18 @@ canGzip(void)
  * Can this platform run the lrzip program?
  */
 int
+canRunCommand(const char *cmd)
+{
+  static int tested = 0, value = 0;
+  if (!tested) {
+    tested = 1;
+    if (systemf("%s %s", cmd, redirectArgs) == 0)
+      value = 1;
+  }
+  return (value);
+}
+
+int
 canLrzip(void)
 {
 	static int tested = 0, value = 0;

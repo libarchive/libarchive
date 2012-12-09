@@ -94,6 +94,7 @@ archive_read_support_filter_bzip2(struct archive *_a)
 		return (ARCHIVE_FATAL);
 
 	reader->data = NULL;
+	reader->name = "bzip2";
 	reader->bid = bzip2_reader_bid;
 	reader->init = bzip2_reader_init;
 	reader->options = NULL;

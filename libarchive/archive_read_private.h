@@ -58,6 +58,8 @@ struct archive_read_filter;
 struct archive_read_filter_bidder {
 	/* Configuration data for the bidder. */
 	void *data;
+	/* Name of the filter */
+	const char *name;
 	/* Taste the upstream filter to see if we handle this. */
 	int (*bid)(struct archive_read_filter_bidder *,
 	    struct archive_read_filter *);
@@ -168,6 +170,9 @@ struct archive_read {
 	/* Last filter in chain */
 	struct archive_read_filter *filter;
 
+	/* Whether to bypass filter bidding process */
+	int bypass_filter_bidding;
+
 	/* File offset of beginning of most recently-read header. */
 	int64_t		  header_position;
 
@@ -226,4 +231,6 @@ int64_t	__archive_read_filter_seek(struct archive_read_filter *, int64_t, int);
 int64_t	__archive_read_consume(struct archive_read *, int64_t);
 int64_t	__archive_read_filter_consume(struct archive_read_filter *, int64_t);
 int __archive_read_program(struct archive_read_filter *, const char *);
+void __archive_read_free_filters(struct archive_read *);
+int  __archive_read_close_filters(struct archive_read *);
 #endif

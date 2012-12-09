@@ -100,6 +100,7 @@ archive_read_support_filter_gzip(struct archive *_a)
 		return (ARCHIVE_FATAL);
 
 	bidder->data = NULL;
+	bidder->name = "gzip";
 	bidder->bid = gzip_bidder_bid;
 	bidder->init = gzip_bidder_init;
 	bidder->options = NULL;
