@@ -73,6 +73,7 @@ archive_read_support_filter_lrzip(struct archive *_a)
 		return (ARCHIVE_FATAL);
 
 	reader->data = NULL;
+	reader->name = "lrzip";
 	reader->bid = lrzip_bidder_bid;
 	reader->init = lrzip_bidder_init;
 	reader->options = NULL;

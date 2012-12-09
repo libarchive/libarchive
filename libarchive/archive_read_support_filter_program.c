@@ -88,6 +88,7 @@ archive_read_support_filter_program(struct archive *a, const char *cmd)
  * bid twice in the same pipeline.
  */
 struct program_bidder {
+	char *description;
 	char *cmd;
 	void *signature;
 	size_t signature_len;

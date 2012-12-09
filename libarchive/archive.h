@@ -372,6 +372,17 @@ __LA_DECL int archive_read_support_format_tar(struct archive *);
 __LA_DECL int archive_read_support_format_xar(struct archive *);
 __LA_DECL int archive_read_support_format_zip(struct archive *);
 
+/* Functions to manually set the format and filters to be used. This is
+ * useful to bypass the bidding process when the format and filters to use
+ * is known in advance.
+ */
+__LA_DECL int archive_read_set_format(struct archive *, int);
+__LA_DECL int archive_read_append_filter(struct archive *, int);
+__LA_DECL int archive_read_append_filter_program(struct archive *,
+    const char *);
+__LA_DECL int archive_read_append_filter_program_signature
+    (struct archive *, const char *, const void * /* match */, size_t);
+
 /* Set various callbacks. */
 __LA_DECL int archive_read_set_open_callback(struct archive *,
     archive_open_callback *);
