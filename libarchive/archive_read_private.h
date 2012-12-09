@@ -231,4 +231,6 @@ int64_t	__archive_read_filter_seek(struct archive_read_filter *, int64_t, int);
 int64_t	__archive_read_consume(struct archive_read *, int64_t);
 int64_t	__archive_read_filter_consume(struct archive_read_filter *, int64_t);
 int __archive_read_program(struct archive_read_filter *, const char *);
+void __archive_read_free_filters(struct archive_read *);
+int  __archive_read_close_filters(struct archive_read *);
 #endif

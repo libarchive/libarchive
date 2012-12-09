@@ -120,6 +120,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_rb.c					\
 	libarchive/archive_rb.h					\
 	libarchive/archive_read.c				\
+	libarchive/archive_read_append_filter.c			\
 	libarchive/archive_read_data_into_fd.c			\
 	libarchive/archive_read_disk_entry_from_file.c		\
 	libarchive/archive_read_disk_posix.c			\
@@ -131,6 +132,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_read_open_filename.c			\
 	libarchive/archive_read_open_memory.c			\
 	libarchive/archive_read_private.h			\
+	libarchive/archive_read_set_format.c			\
 	libarchive/archive_read_set_options.c			\
 	libarchive/archive_read_support_filter_all.c		\
 	libarchive/archive_read_support_filter_bzip2.c		\
