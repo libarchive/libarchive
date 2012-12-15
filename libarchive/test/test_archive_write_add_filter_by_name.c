@@ -54,6 +54,15 @@ test_filter_by_name(const char *filter_name, int filter_code,
 			free(buff);
 			return;
 		}
+	} else if (r == ARCHIVE_FATAL &&
+	    (strcmp(archive_error_string(a),
+		   "lzma compression not supported on this platform") == 0 ||
+	     strcmp(archive_error_string(a),
+		   "xz compression not supported on this platform") == 0)) {
+		skipping("%s filter not suported on this platform", filter_name);
+		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+		free(buff);
+		return;
 	} else {
 		if (!assertEqualIntA(a, ARCHIVE_OK, r)) {
 			assertEqualInt(ARCHIVE_OK, archive_write_free(a));

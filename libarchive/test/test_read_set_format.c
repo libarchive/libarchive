@@ -133,7 +133,7 @@ DEFINE_TEST(test_read_append_filter)
   assert((a = archive_read_new()) != NULL);
   assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_TAR));
   r = archive_read_append_filter(a, ARCHIVE_FILTER_GZIP);
-  if (r == ARCHIVE_WARN) {
+  if (r == ARCHIVE_WARN && !canGzip()) {
     skipping("gzip reading not fully supported on this platform");
     assertEqualInt(ARCHIVE_OK, archive_read_free(a));
     return;
