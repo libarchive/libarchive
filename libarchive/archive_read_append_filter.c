@@ -38,7 +38,7 @@ int
 archive_read_append_filter(struct archive *_a, int code)
 {
   int r1, r2, number_bidders, i;
-  char str[10];
+  char str[20];
   struct archive_read_filter_bidder *bidder;
   struct archive_read_filter *filter;
   struct archive_read *a = (struct archive_read *)_a;
