@@ -554,7 +554,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		else
 			a->todo |= TODO_MAC_METADATA;
 	}
-#if defined(__APPLE__) && defined(UF_COMPRESSED)
+#if defined(__APPLE__) && defined(UF_COMPRESSED) && defined(HAVE_ZLIB_H)
 	if ((a->flags & ARCHIVE_EXTRACT_NO_HFS_COMPRESSION) == 0) {
 		unsigned long set, clear;
 		archive_entry_fflags(a->entry, &set, &clear);
@@ -603,7 +603,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 
 	ret = restore_entry(a);
 
-#if defined(__APPLE__) && defined(UF_COMPRESSED)
+#if defined(__APPLE__) && defined(UF_COMPRESSED) && defined(HAVE_ZLIB_H)
 	/*
 	 * Check if the filesystem the file is restoring on supports
 	 * HFS+ Compression. If not, cancel HFS+ Compression.
@@ -839,7 +839,8 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 	return (start_size - size);
 }
 
-#if defined(__APPLE__) && defined(UF_COMPRESSED) && defined(HAVE_SYS_XATTR_H)
+#if defined(__APPLE__) && defined(UF_COMPRESSED) && defined(HAVE_SYS_XATTR_H)\
+	&& defined(HAVE_ZLIB_H)
 
 /*
  * Set UF_COMPRESSED file flag.
@@ -1507,7 +1508,7 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	} else if (a->fd_offset == a->filesize) {
 		/* Last write ended at exactly the filesize; we're done. */
 		/* Hopefully, this is the common case. */
-#if defined(__APPLE__) && defined(UF_COMPRESSED)
+#if defined(__APPLE__) && defined(UF_COMPRESSED) && defined(HAVE_ZLIB_H)
 	} else if (a->todo & TODO_HFS_COMPRESSION) {
 		char null_d[1024];
 		ssize_t r;

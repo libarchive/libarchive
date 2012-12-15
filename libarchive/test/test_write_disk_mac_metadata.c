@@ -33,7 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/xattr.h>
 #endif
 
-#if defined(__APPLE__) && defined(UF_COMPRESSED) && defined(HAVE_SYS_XATTR_H)
+#if defined(__APPLE__) && defined(UF_COMPRESSED) && defined(HAVE_SYS_XATTR_H)\
+	&& defined(HAVE_ZLIB_H)
 static int
 has_xattr(const char *filename, const char *xattrname)
 {
@@ -75,7 +76,8 @@ has_xattr(const char *filename, const char *xattrname)
  */
 DEFINE_TEST(test_write_disk_mac_metadata)
 {
-#if !defined(__APPLE__) || !defined(UF_COMPRESSED) || !defined(HAVE_SYS_XATTR_H)
+#if !defined(__APPLE__) || !defined(UF_COMPRESSED) || !defined(HAVE_SYS_XATTR_H)\
+	|| !defined(HAVE_ZLIB_H)
 	skipping("MacOS-specific Mac Metadata test");
 #else
 	const char *refname = "test_write_disk_mac_metadata.tar.gz";
