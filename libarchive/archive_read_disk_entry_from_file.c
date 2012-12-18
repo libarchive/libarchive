@@ -292,7 +292,7 @@ setup_mac_metadata(struct archive_read_disk *a,
 	int copyfile_flags = COPYFILE_NOFOLLOW | COPYFILE_ACL | COPYFILE_XATTR;
 	struct stat copyfile_stat;
 	int ret = ARCHIVE_OK;
-	void *buff;
+	void *buff = NULL;
 	int have_attrs;
 	const char *name, *tempdir;
 	struct archive_string tempfile;
@@ -379,6 +379,7 @@ cleanup:
 		unlink(tempfile.s);
 	}
 	archive_string_free(&tempfile);
+	free(buff);
 	return (ret);
 }
 
