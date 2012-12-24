@@ -470,7 +470,7 @@ archive_read_open1(struct archive *_a)
 
 	/* Open data source. */
 	if (a->client.opener != NULL) {
-		e =(a->client.opener)(&a->archive, a->client.dataset[0].data);
+		e = (a->client.opener)(&a->archive, a->client.dataset[0].data);
 		if (e != 0) {
 			/* If the open failed, call the closer to clean up. */
 			if (a->client.closer) {
