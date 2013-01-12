@@ -58,6 +58,7 @@ struct { int code; int (*setter)(struct archive *); } codes[] =
 	{ ARCHIVE_FORMAT_TAR_USTAR,	archive_write_set_format_ustar },
 	{ ARCHIVE_FORMAT_XAR,		archive_write_set_format_xar },
 	{ ARCHIVE_FORMAT_ZIP,	archive_write_set_format_zip },
+	{ ARCHIVE_FORMAT_RAW,	archive_write_set_format_raw },
 	{ 0,		NULL }
 };
 

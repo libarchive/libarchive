@@ -71,6 +71,7 @@ struct { const char *name; int (*setter)(struct archive *); } names[] =
 	{ "v7",		archive_write_set_format_v7tar },
 	{ "xar",	archive_write_set_format_xar },
 	{ "zip",	archive_write_set_format_zip },
+	{ "raw",	archive_write_set_format_raw },
 	{ NULL,		NULL }
 };
 
