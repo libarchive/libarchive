@@ -188,7 +188,7 @@ DEFINE_TEST(test_read_append_filter_program)
   assert((a = archive_read_new()) != NULL);
   assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_TAR));
   assertEqualIntA(a, ARCHIVE_OK,
-      archive_read_append_filter_program(a, "gunzip"));
+      archive_read_append_filter_program(a, "gzip -d"));
   assertEqualIntA(a, ARCHIVE_OK,
       archive_read_open_memory(a, archive, sizeof(archive)));
   assertEqualIntA(a, ARCHIVE_OK,
