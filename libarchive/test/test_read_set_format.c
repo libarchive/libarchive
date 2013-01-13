@@ -178,11 +178,8 @@ DEFINE_TEST(test_read_append_filter_program)
   struct archive_entry *ae;
   struct archive *a;
 
-  /*
-   * If we have "gzip -d", try using that.
-   */
   if (!canGzip()) {
-    skipping("Can't run gunzip program on this platform");
+    skipping("Can't run gzip program on this platform");
     return;
   }
   assert((a = archive_read_new()) != NULL);
