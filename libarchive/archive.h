@@ -124,13 +124,13 @@ extern "C" {
  * assert that ARCHIVE_VERSION_NUMBER >= 2012108.
  */
 /* Note: Compiler will complain if this does not match archive_entry.h! */
-#define	ARCHIVE_VERSION_NUMBER 3000005
+#define	ARCHIVE_VERSION_NUMBER 3001000
 __LA_DECL int		archive_version_number(void);
 
 /*
  * Textual name/version of the library, useful for version displays.
  */
-#define	ARCHIVE_VERSION_STRING "libarchive 3.0.5"
+#define	ARCHIVE_VERSION_STRING "libarchive 3.1.0"
 __LA_DECL const char *	archive_version_string(void);
 
 /* Declare our basic types. */
