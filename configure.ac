@@ -37,8 +37,8 @@ ARCHIVE_MINOR=$(( (LIBARCHIVE_VERSION_N() / 1000) % 1000 ))
 # Libarchive 2.8 == libtool interface 10 = 2 + 8
 # Libarchive 2.9 == libtool interface 11 = 2 + 8
 # Libarchive 3.0 == libtool interface 12
-# Libarchive 3.x == libtool interface 12 + x
-ARCHIVE_INTERFACE=`echo $((12 + ${ARCHIVE_MINOR}))`
+# Libarchive 3.1 == libtool interface 13
+ARCHIVE_INTERFACE=`echo $((13 + ${ARCHIVE_MINOR}))`
 # Libarchive revision is bumped on any source change === libtool revision
 ARCHIVE_REVISION=$(( LIBARCHIVE_VERSION_N() % 1000 ))
 # Libarchive minor is bumped on any interface addition === libtool age
