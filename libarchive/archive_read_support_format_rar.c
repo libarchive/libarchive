@@ -1019,7 +1019,7 @@ archive_read_format_rar_seek_data(struct archive_read *a, int64_t offset,
   unsigned int i;
   struct rar *rar = (struct rar *)(a->format->data);
 
-  if (rar->compression_method & COMPRESS_METHOD_STORE)
+  if (rar->compression_method == COMPRESS_METHOD_STORE)
   {
     /* Modify the offset for use with SEEK_SET */
     switch (whence)
