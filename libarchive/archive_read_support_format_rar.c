@@ -201,6 +201,7 @@ struct lzss
 
 struct data_block_offsets
 {
+  int64_t header_size;
   int64_t start_offset;
   int64_t end_offset;
 };
@@ -241,6 +242,7 @@ struct rar
   int64_t bytes_uncopied;
   int64_t offset;
   int64_t offset_outgoing;
+  int64_t offset_seek;
   char valid;
   unsigned int unp_offset;
   unsigned int unp_buffer_size;
@@ -1025,25 +1027,49 @@ archive_read_format_rar_seek_data(struct archive_read *a, int64_t offset,
     switch (whence)
     {
       case SEEK_SET:
+        client_offset = 0;
         break;
-
       case SEEK_CUR:
-        offset += rar->offset;
+        client_offset = rar->offset_seek;
         break;
-
       case SEEK_END:
-        offset += rar->unp_size - 1;
-        break;
+        client_offset = rar->unp_size;
     }
-    if (offset < 0)
-      offset = 0;
-    else if (offset > rar->unp_size - 1)
-      offset = rar->unp_size - 1;
+    client_offset += offset;
+    if (client_offset < 0)
+    {
+      /* Can't seek past beginning of data block */
+      return -1;
+    }
+    else if (client_offset > rar->unp_size)
+    {
+      /*
+       * Set the returned offset but only seek to the end of
+       * the data block.
+       */
+      rar->offset_seek = client_offset;
+      client_offset = rar->unp_size;
+    }
 
     /* Find the appropriate offset in the client */
     i = 0;
-    client_offset = offset;
     client_offset += rar->dbo[i].start_offset;
+    if (rar->main_flags & MHD_VOLUME &&
+      client_offset < rar->dbo[rar->cursor].start_offset)
+    {
+      /* The header of the first multivolume file must be re-read */
+      ret = __archive_read_seek(a,
+        rar->dbo[i].start_offset - rar->dbo[i].header_size, SEEK_SET);
+      if (ret < (ARCHIVE_OK))
+        return ret;
+      ret = archive_read_format_rar_read_header(a, a->entry);
+      if (ret != (ARCHIVE_OK))
+      {
+        archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+          "Error during seek of RAR file");
+        return (ARCHIVE_FAILED);
+      }
+    }
     while (rar->main_flags & MHD_VOLUME &&
       client_offset > rar->dbo[i].end_offset)
     {
@@ -1088,7 +1114,16 @@ archive_read_format_rar_seek_data(struct archive_read *a, int64_t offset,
     rar->bytes_unconsumed = 0;
     rar->offset = 0;
 
-    return ret;
+    /*
+     * If a seek past the end of file was requested, return the requested
+     * offset.
+     */
+    if (ret == rar->unp_size && rar->offset_seek > rar->unp_size)
+      return rar->offset_seek;
+
+    /* Return the new offset */
+    rar->offset_seek = ret;
+    return rar->offset_seek;
   }
   else
   {
@@ -1409,6 +1444,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
         archive_set_error(&a->archive, ENOMEM, "Couldn't allocate memory.");
         return (ARCHIVE_FATAL);
       }
+      rar->dbo[rar->cursor].header_size = header_size;
       rar->dbo[rar->cursor].start_offset = -1;
       rar->dbo[rar->cursor].end_offset = -1;
     }
@@ -1432,6 +1468,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
     archive_set_error(&a->archive, ENOMEM, "Couldn't allocate memory.");
     return (ARCHIVE_FATAL);
   }
+  rar->dbo[0].header_size = header_size;
   rar->dbo[0].start_offset = -1;
   rar->dbo[0].end_offset = -1;
   rar->cursor = 0;
@@ -1487,6 +1524,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
 
   rar->bytes_uncopied = rar->bytes_unconsumed = 0;
   rar->lzss.position = rar->offset = 0;
+  rar->offset_seek = 0;
   rar->dictionary_size = 0;
   rar->offset_outgoing = 0;
   rar->br.cache_avail = 0;
@@ -1698,6 +1736,7 @@ read_data_stored(struct archive_read *a, const void **buff, size_t *size,
   *size = bytes_avail;
   *offset = rar->offset;
   rar->offset += bytes_avail;
+  rar->offset_seek += bytes_avail;
   rar->bytes_remaining -= bytes_avail;
   rar->bytes_unconsumed = bytes_avail;
   /* Calculate File CRC. */

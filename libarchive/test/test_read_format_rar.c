@@ -1166,6 +1166,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_seek_data)
   };
   char buff[64];
   int file_size = 20111;
+  int64_t result;
   const char file_test_txt1[] = "d. \n</P>\n<P STYLE=\"margin-bottom: 0in\">"
                                 "<BR>\n</P>\n</BODY>\n</HTML>";
   const char file_test_txt2[] = "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4."
@@ -1220,6 +1221,55 @@ DEFINE_TEST(test_read_format_rar_multivolume_seek_data)
   assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
   assertEqualMem(buff, file_test_txt5, sizeof(file_test_txt5) - 1);
 
+  /* Use various combinations of SEEK_SET, SEEK_CUR, and SEEK_END */
+  assertEqualInt(file_size, archive_seek_data(a, 0, SEEK_END));
+  assertEqualInt(0, archive_seek_data(a, 0, SEEK_SET));
+  assertEqualInt(0, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualInt(-1, archive_seek_data(a, -10, SEEK_CUR));
+  assertEqualInt(10, archive_seek_data(a, 10, SEEK_CUR));
+  assertEqualInt(-1, archive_seek_data(a, -20, SEEK_CUR));
+  assertEqualInt(10, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualInt(file_size, archive_seek_data(a, 0, SEEK_END));
+  assertEqualInt(file_size - 20, archive_seek_data(a, -20, SEEK_END));
+  assertEqualInt(file_size + 40, archive_seek_data(a, 40, SEEK_END));
+  assertEqualInt(file_size + 40, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualInt(file_size + 40 + 20, archive_seek_data(a, 20, SEEK_CUR));
+  assertEqualInt(file_size + 40 + 20 + 20, archive_seek_data(a, 20, SEEK_CUR));
+  assertEqualInt(file_size + 20, archive_seek_data(a, 20, SEEK_END));
+  assertEqualInt(file_size - 20, archive_seek_data(a, -20, SEEK_END));
+
+  /* Seek to the end minus 64 bytes */
+  assertA(0 == archive_seek_data(a, 0, SEEK_SET));
+  assertA(file_size - (int)sizeof(buff) ==
+    archive_seek_data(a, -sizeof(buff), SEEK_END));
+  assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
+  assertEqualMem(buff, file_test_txt1, sizeof(file_test_txt1) - 1);
+
+  /* The file position should be at the end of the file here */
+  assertA(file_size == archive_seek_data(a, 0, SEEK_CUR));
+
+  /* Seek back to the beginning */
+  assertA(0 == archive_seek_data(a, -file_size, SEEK_CUR));
+  assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
+  assertEqualMem(buff, file_test_txt2, sizeof(file_test_txt2) - 1);
+
+  /* Seek to the middle of the combined data block */
+  result = archive_seek_data(a, 0, SEEK_CUR);
+  assertA(10054 == archive_seek_data(a, 10054 - result, SEEK_CUR));
+  assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
+  assertEqualMem(buff, file_test_txt3, sizeof(file_test_txt3) - 1);
+
+  /* Seek to 32 bytes before the end of the first data sub-block */
+  result = archive_seek_data(a, 0, SEEK_CUR);
+  assertA(6860 == archive_seek_data(a, 6860 - result, SEEK_CUR));
+  assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
+  assertEqualMem(buff, file_test_txt4, sizeof(file_test_txt4) - 1);
+
+  /* Seek to 32 bytes before the end of the second data sub-block */
+  assertA(13752 == archive_seek_data(a, 13752 - file_size, SEEK_END));
+  assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
+  assertEqualMem(buff, file_test_txt5, sizeof(file_test_txt5) - 1);
+
   /* Test EOF */
   assertA(1 == archive_read_next_header(a, &ae));
   assertEqualInt(1, archive_file_count(a));
@@ -1241,6 +1291,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_seek_multiple_files)
   };
   char buff[64];
   int file_size = 20111;
+  int64_t result;
   const char file_test_txt1[] = "d. \n</P>\n<P STYLE=\"margin-bottom: 0in\">"
                                 "<BR>\n</P>\n</BODY>\n</HTML>";
   const char file_test_txt2[] = "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4."
@@ -1277,27 +1328,29 @@ DEFINE_TEST(test_read_format_rar_multivolume_seek_multiple_files)
 
   /* Seek to the end minus 64 bytes */
   assertA(file_size - (int)sizeof(buff) ==
-    archive_seek_data(a, file_size - sizeof(buff), SEEK_SET));
+    archive_seek_data(a, -sizeof(buff), SEEK_END));
   assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
   assertEqualMem(buff, file_test_txt1, sizeof(file_test_txt1) - 1);
 
   /* Seek back to the beginning */
-  assertA(0 == archive_seek_data(a, 0, SEEK_SET));
+  assertA(0 == archive_seek_data(a, -file_size, SEEK_END));
   assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
   assertEqualMem(buff, file_test_txt2, sizeof(file_test_txt2) - 1);
 
   /* Seek to the middle of the combined data block */
-  assertA(10054 == archive_seek_data(a, 10054, SEEK_SET));
+  result = archive_seek_data(a, 0, SEEK_CUR);
+  assertA(10054 == archive_seek_data(a, 10054 - result, SEEK_CUR));
   assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
   assertEqualMem(buff, file_test_txt3, sizeof(file_test_txt3) - 1);
 
   /* Seek to 32 bytes before the end of the first data sub-block */
-  assertA(7027 == archive_seek_data(a, 7027, SEEK_SET));
+  result = archive_seek_data(a, 0, SEEK_CUR);
+  assertA(7027 == archive_seek_data(a, 7027 - result, SEEK_CUR));
   assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
   assertEqualMem(buff, file_test_txt4, sizeof(file_test_txt4) - 1);
 
   /* Seek to 32 bytes before the end of the second data sub-block */
-  assertA(14086 == archive_seek_data(a, 14086, SEEK_SET));
+  assertA(14086 == archive_seek_data(a, 14086 - file_size, SEEK_END));
   assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
   assertEqualMem(buff, file_test_txt5, sizeof(file_test_txt5) - 1);
 
@@ -1322,22 +1375,24 @@ DEFINE_TEST(test_read_format_rar_multivolume_seek_multiple_files)
   assertEqualMem(buff, file_test_txt2, sizeof(file_test_txt2) - 1);
 
   /* Seek to the middle of the combined data block */
-  assertA(10054 == archive_seek_data(a, 10054, SEEK_SET));
+  result = archive_seek_data(a, 0, SEEK_CUR);
+  assertA(10054 == archive_seek_data(a, 10054 - result, SEEK_CUR));
   assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
   assertEqualMem(buff, file_test_txt3, sizeof(file_test_txt3) - 1);
 
   /* Seek to 32 bytes before the end of the first data sub-block */
-  assertA(969 == archive_seek_data(a, 969, SEEK_SET));
+  result = archive_seek_data(a, 0, SEEK_CUR);
+  assertA(969 == archive_seek_data(a, 969 - result, SEEK_CUR));
   assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
   assertEqualMem(buff, file_test_txt6, sizeof(file_test_txt4) - 1);
 
   /* Seek to 32 bytes before the end of the second data sub-block */
-  assertA(8029 == archive_seek_data(a, 8029, SEEK_SET));
+  assertA(8029 == archive_seek_data(a, 8029 - file_size, SEEK_END));
   assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
   assertEqualMem(buff, file_test_txt7, sizeof(file_test_txt5) - 1);
 
   /* Seek to 32 bytes before the end of the third data sub-block */
-  assertA(15089 == archive_seek_data(a, 15089, SEEK_SET));
+  assertA(15089 == archive_seek_data(a, 15089 - file_size, SEEK_END));
   assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
   assertEqualMem(buff, file_test_txt8, sizeof(file_test_txt5) - 1);
 
