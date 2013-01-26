@@ -1237,6 +1237,15 @@ DEFINE_TEST(test_read_format_rar_multivolume_seek_data)
   assertEqualInt(file_size + 20, archive_seek_data(a, 20, SEEK_END));
   assertEqualInt(file_size - 20, archive_seek_data(a, -20, SEEK_END));
 
+  /*
+   * Attempt to read from the end of the file. These should return
+   * 0 for end of file.
+   */
+  assertEqualInt(file_size, archive_seek_data(a, 0, SEEK_END));
+  assertA(0 == archive_read_data(a, buff, sizeof(buff)));
+  assertEqualInt(file_size + 40, archive_seek_data(a, 40, SEEK_CUR));
+  assertA(0 == archive_read_data(a, buff, sizeof(buff)));
+
   /* Seek to the end minus 64 bytes */
   assertA(0 == archive_seek_data(a, 0, SEEK_SET));
   assertA(file_size - (int)sizeof(buff) ==
