@@ -1026,14 +1026,15 @@ archive_read_format_rar_seek_data(struct archive_read *a, int64_t offset,
     /* Modify the offset for use with SEEK_SET */
     switch (whence)
     {
-      case SEEK_SET:
-        client_offset = 0;
-        break;
       case SEEK_CUR:
         client_offset = rar->offset_seek;
         break;
       case SEEK_END:
         client_offset = rar->unp_size;
+        break;
+      case SEEK_SET:
+      default:
+        client_offset = 0;
     }
     client_offset += offset;
     if (client_offset < 0)
