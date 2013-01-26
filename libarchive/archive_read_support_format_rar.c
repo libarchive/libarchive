@@ -944,10 +944,12 @@ archive_read_format_rar_read_data(struct archive_read *a, const void **buff,
       rar->bytes_unconsumed = 0;
   }
 
-  if (rar->entry_eof) {
+  if (rar->entry_eof || rar->offset_seek >= rar->unp_size) {
     *buff = NULL;
     *size = 0;
     *offset = rar->offset;
+    if (*offset < rar->unp_size)
+      *offset = rar->unp_size;
     return (ARCHIVE_EOF);
   }
 
