@@ -2796,6 +2796,8 @@ rar_read_ahead(struct archive_read *a, size_t min, ssize_t *avail)
   int ret;
   if (avail)
   {
+    if (a->read_data_is_posix_read && *avail > (ssize_t)a->read_data_requested)
+      *avail = a->read_data_requested;
     if (*avail > rar->bytes_remaining)
       *avail = (ssize_t)rar->bytes_remaining;
     if (*avail < 0)
