@@ -1054,60 +1054,95 @@ archive_read_format_rar_seek_data(struct archive_read *a, int64_t offset,
       client_offset = rar->unp_size;
     }
 
-    /* Find the appropriate offset in the client */
+    client_offset += rar->dbo[0].start_offset;
     i = 0;
-    client_offset += rar->dbo[i].start_offset;
-    if (rar->main_flags & MHD_VOLUME &&
-      client_offset < rar->dbo[rar->cursor].start_offset)
-    {
-      /* The header of the first multivolume file must be re-read */
-      ret = __archive_read_seek(a,
-        rar->dbo[i].start_offset - rar->dbo[i].header_size, SEEK_SET);
-      if (ret < (ARCHIVE_OK))
-        return ret;
-      ret = archive_read_format_rar_read_header(a, a->entry);
-      if (ret != (ARCHIVE_OK))
-      {
-        archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-          "Error during seek of RAR file");
-        return (ARCHIVE_FAILED);
-      }
-    }
-    while (rar->main_flags & MHD_VOLUME &&
-      client_offset > rar->dbo[i].end_offset)
+    while (i < rar->cursor)
     {
       i++;
-      if (i >= rar->nodes || client_offset <= rar->dbo[i].end_offset)
+      client_offset += rar->dbo[i].start_offset - rar->dbo[i-1].end_offset;
+    }
+    if (rar->main_flags & MHD_VOLUME)
+    {
+      /* Find the appropriate offset among the multivolume archive */
+      while (1)
       {
-        ret = __archive_read_seek(a, rar->dbo[i-1].end_offset + 1, SEEK_SET);
-        if (ret < (ARCHIVE_OK))
-          return ret;
-        ret = archive_read_format_rar_read_header(a, a->entry);
-        if (ret == (ARCHIVE_EOF))
+        if (client_offset < rar->dbo[rar->cursor].start_offset &&
+          rar->file_flags & FHD_SPLIT_BEFORE)
         {
-          rar->has_endarc_header = 1;
+          /* Search backwards for the correct data block */
+          if (rar->cursor == 0)
+          {
+            archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+              "Attempt to seek past beginning of RAR data block");
+            return (ARCHIVE_FAILED);
+          }
+          rar->cursor--;
+          client_offset -= rar->dbo[rar->cursor+1].start_offset -
+            rar->dbo[rar->cursor].end_offset;
+          if (client_offset < rar->dbo[rar->cursor].start_offset)
+            continue;
+          ret = __archive_read_seek(a, rar->dbo[rar->cursor].start_offset -
+            rar->dbo[rar->cursor].header_size, SEEK_SET);
+          if (ret < (ARCHIVE_OK))
+            return ret;
           ret = archive_read_format_rar_read_header(a, a->entry);
+          if (ret != (ARCHIVE_OK))
+          {
+            archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+              "Error during seek of RAR file");
+            return (ARCHIVE_FAILED);
+          }
+          rar->cursor--;
+          break;
         }
-        if (ret != (ARCHIVE_OK))
+        else if (client_offset > rar->dbo[rar->cursor].end_offset &&
+          rar->file_flags & FHD_SPLIT_AFTER)
         {
-          archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-            "Error during seek of RAR file");
-          return (ARCHIVE_FAILED);
+          /* Search forward for the correct data block */
+          rar->cursor++;
+          if (rar->cursor < rar->nodes &&
+            client_offset > rar->dbo[rar->cursor].end_offset)
+          {
+            client_offset += rar->dbo[rar->cursor].start_offset -
+              rar->dbo[rar->cursor-1].end_offset;
+            continue;
+          }
+          rar->cursor--;
+          ret = __archive_read_seek(a, rar->dbo[rar->cursor].end_offset,
+                                    SEEK_SET);
+          if (ret < (ARCHIVE_OK))
+            return ret;
+          ret = archive_read_format_rar_read_header(a, a->entry);
+          if (ret == (ARCHIVE_EOF))
+          {
+            rar->has_endarc_header = 1;
+            ret = archive_read_format_rar_read_header(a, a->entry);
+          }
+          if (ret != (ARCHIVE_OK))
+          {
+            archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+              "Error during seek of RAR file");
+            return (ARCHIVE_FAILED);
+          }
+          client_offset += rar->dbo[rar->cursor].start_offset -
+            rar->dbo[rar->cursor-1].end_offset;
+          continue;
         }
+        break;
       }
-      client_offset += rar->dbo[i].start_offset - rar->dbo[i-1].end_offset - 1;
     }
 
     ret = __archive_read_seek(a, client_offset, SEEK_SET);
     if (ret < (ARCHIVE_OK))
       return ret;
-    rar->bytes_remaining = rar->dbo[i].end_offset - ret + 1;
+    rar->bytes_remaining = rar->dbo[rar->cursor].end_offset - ret;
+    i = rar->cursor;
     while (i > 0)
     {
-      ret -= rar->dbo[i].start_offset - rar->dbo[i-1].end_offset - 1;
       i--;
+      ret -= rar->dbo[i+1].start_offset - rar->dbo[i].end_offset;
     }
-    ret -= rar->dbo[i].start_offset;
+    ret -= rar->dbo[0].start_offset;
 
     /* Always restart reading the file after a seek */
     a->read_data_block = NULL;
@@ -1455,7 +1490,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
     {
       rar->dbo[rar->cursor].start_offset = a->filter->position;
       rar->dbo[rar->cursor].end_offset = rar->dbo[rar->cursor].start_offset +
-        rar->packed_size - 1;
+        rar->packed_size;
     }
     return ret;
   }
@@ -1498,7 +1533,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
 
   __archive_read_consume(a, header_size - 7);
   rar->dbo[0].start_offset = a->filter->position;
-  rar->dbo[0].end_offset = rar->dbo[0].start_offset + rar->packed_size - 1;
+  rar->dbo[0].end_offset = rar->dbo[0].start_offset + rar->packed_size;
 
   switch(file_header.host_os)
   {
