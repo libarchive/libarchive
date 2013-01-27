@@ -1332,6 +1332,12 @@ DEFINE_TEST(test_read_format_rar_multivolume_seek_multiple_files)
   assertEqualInt(file_size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
 
+  /* Attempt to read past end of file */
+  assertEqualInt(file_size, archive_seek_data(a, 0, SEEK_END));
+  assertA(0 == archive_read_data(a, buff, sizeof(buff)));
+  assertEqualInt(file_size + 40, archive_seek_data(a, 40, SEEK_CUR));
+  assertA(0 == archive_read_data(a, buff, sizeof(buff)));
+
   /* Seek to the end minus 64 bytes */
   assertA(file_size - (int)sizeof(buff) ==
     archive_seek_data(a, -sizeof(buff), SEEK_END));
@@ -1359,6 +1365,12 @@ DEFINE_TEST(test_read_format_rar_multivolume_seek_multiple_files)
   assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
   assertEqualMem(buff, file_test_txt5, sizeof(file_test_txt5) - 1);
 
+  /* Attempt to read past end of file */
+  assertEqualInt(file_size, archive_seek_data(a, 0, SEEK_END));
+  assertA(0 == archive_read_data(a, buff, sizeof(buff)));
+  assertEqualInt(file_size + 40, archive_seek_data(a, 40, SEEK_CUR));
+  assertA(0 == archive_read_data(a, buff, sizeof(buff)));
+
   /* Second header. */
   assertA(0 == archive_read_next_header(a, &ae));
   assertEqualString("LibarchiveAddingTest.html", archive_entry_pathname(ae));
@@ -1367,6 +1379,12 @@ DEFINE_TEST(test_read_format_rar_multivolume_seek_multiple_files)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(file_size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+
+  /* Attempt to read past end of file */
+  assertEqualInt(file_size, archive_seek_data(a, 0, SEEK_END));
+  assertA(0 == archive_read_data(a, buff, sizeof(buff)));
+  assertEqualInt(file_size + 40, archive_seek_data(a, 40, SEEK_CUR));
+  assertA(0 == archive_read_data(a, buff, sizeof(buff)));
 
   /* Seek to the end minus 64 bytes */
   assertA(file_size - (int)sizeof(buff) ==
@@ -1398,6 +1416,12 @@ DEFINE_TEST(test_read_format_rar_multivolume_seek_multiple_files)
   assertA(15089 == archive_seek_data(a, 15089 - file_size, SEEK_END));
   assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
   assertEqualMem(buff, file_test_txt8, sizeof(file_test_txt5) - 1);
+
+  /* Attempt to read past end of file */
+  assertEqualInt(file_size, archive_seek_data(a, 0, SEEK_END));
+  assertA(0 == archive_read_data(a, buff, sizeof(buff)));
+  assertEqualInt(file_size + 40, archive_seek_data(a, 40, SEEK_CUR));
+  assertA(0 == archive_read_data(a, buff, sizeof(buff)));
 
   /* Test EOF */
   assertA(1 == archive_read_next_header(a, &ae));
