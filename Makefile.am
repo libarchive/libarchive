@@ -540,6 +540,16 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_rar_multivolume_single_file.part1.rar.uu	\
 	libarchive/test/test_rar_multivolume_single_file.part2.rar.uu	\
 	libarchive/test/test_rar_multivolume_single_file.part3.rar.uu	\
+	libarchive/test/test_rar_multivolume_uncompressed_files.part01.rar.uu \
+	libarchive/test/test_rar_multivolume_uncompressed_files.part02.rar.uu \
+	libarchive/test/test_rar_multivolume_uncompressed_files.part03.rar.uu \
+	libarchive/test/test_rar_multivolume_uncompressed_files.part04.rar.uu \
+	libarchive/test/test_rar_multivolume_uncompressed_files.part05.rar.uu \
+	libarchive/test/test_rar_multivolume_uncompressed_files.part06.rar.uu \
+	libarchive/test/test_rar_multivolume_uncompressed_files.part07.rar.uu \
+	libarchive/test/test_rar_multivolume_uncompressed_files.part08.rar.uu \
+	libarchive/test/test_rar_multivolume_uncompressed_files.part09.rar.uu \
+	libarchive/test/test_rar_multivolume_uncompressed_files.part10.rar.uu \
 	libarchive/test/test_read_filter_grzip.tar.grz.uu		\
 	libarchive/test/test_read_filter_lrzip.tar.lrz.uu		\
 	libarchive/test/test_read_filter_lzop.tar.lzo.uu		\

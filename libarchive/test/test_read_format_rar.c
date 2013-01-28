@@ -1429,3 +1429,2656 @@ DEFINE_TEST(test_read_format_rar_multivolume_seek_multiple_files)
   assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
+{
+  const char *reffiles[] =
+  {
+    "test_rar_multivolume_uncompressed_files.part01.rar",
+    "test_rar_multivolume_uncompressed_files.part02.rar",
+    "test_rar_multivolume_uncompressed_files.part03.rar",
+    "test_rar_multivolume_uncompressed_files.part04.rar",
+    "test_rar_multivolume_uncompressed_files.part05.rar",
+    "test_rar_multivolume_uncompressed_files.part06.rar",
+    "test_rar_multivolume_uncompressed_files.part07.rar",
+    "test_rar_multivolume_uncompressed_files.part08.rar",
+    "test_rar_multivolume_uncompressed_files.part09.rar",
+    "test_rar_multivolume_uncompressed_files.part10.rar",
+    NULL
+  };
+  char buff[64];
+  ssize_t bytes_read;
+  struct archive *a;
+  struct archive_entry *ae;
+
+  extract_reference_files(reffiles);
+  assert((a = archive_read_new()) != NULL);
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+  assertEqualIntA(a, ARCHIVE_OK,
+                  archive_read_open_filenames(a, reffiles, 10240));
+
+  /*
+   * First header.
+   */
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+  assertEqualStringA(a, "testdir/LibarchiveAddingTest2.html",
+                     archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualIntA(a, 20111, archive_entry_size(ae));
+  assertEqualIntA(a, 33188, archive_entry_mode(ae));
+
+  /* Do checks for seeks/reads past beginning and end of file */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD "
+                        "HTML 4.0 Transitional//EN\">\n", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -((sizeof(buff)-1)*2), SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "<HTML>\n<HEAD>\n\t<META HTTP-EQUIV=\"CONTENT-TYPE\" "
+                        "CONTENT=\"text/ht", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -(20111+32), SEEK_END));
+  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, ((sizeof(buff)-1)*3), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "ml; charset=utf-8\">\n\t<TITLE></TITLE>\n\t<META "
+                        "NAME=\"GENERATOR\" CO", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 20111, SEEK_SET));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
+    archive_seek_data(a, (sizeof(buff)-1), SEEK_CUR));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
+    archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
+    archive_seek_data(a, ((sizeof(buff)-1)*2), SEEK_END));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
+    archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+
+  /* Read from the beginning to the end of the file */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  do
+  {
+    memset(buff, 0, sizeof(buff));
+    bytes_read = archive_read_data(a, buff, (sizeof(buff)-1));
+  } while (bytes_read > 0);
+
+  /* Seek to the end minus (sizeof(buff)-1) bytes */
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  /* Seek back to the beginning */
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0, archive_seek_data(a, -20111, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  /* Test that SEEK_SET works correctly between data blocks */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 13164,
+    archive_seek_data(a, 13164, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "ertEqualInt,\n\tassertEqualString, "
+                        "assertEqualMem to test equalit", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, 0, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 20111 - (int)(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 13164,
+    archive_seek_data(a, 13164, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "ertEqualInt,\n\tassertEqualString, "
+                        "assertEqualMem to test equalit", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 20111 - (int)(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, 0, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 20111 - (int)(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 13164,
+    archive_seek_data(a, 13164, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "ertEqualInt,\n\tassertEqualString, "
+                        "assertEqualMem to test equalit", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, 0, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  /* Test that SEEK_CUR works correctly between data blocks */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 13164,
+    archive_seek_data(a, 13164, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "ertEqualInt,\n\tassertEqualString, "
+                        "assertEqualMem to test equalit", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -13227, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 19985, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 13164,
+    archive_seek_data(a, -6947, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "ertEqualInt,\n\tassertEqualString, "
+                        "assertEqualMem to test equalit", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 6821, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -20111, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 19985, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 13164,
+    archive_seek_data(a, -6947, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "ertEqualInt,\n\tassertEqualString, "
+                        "assertEqualMem to test equalit", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -13227, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  /* Test that SEEK_END works correctly between data blocks */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 13164,
+    archive_seek_data(a, -6947, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "ertEqualInt,\n\tassertEqualString, "
+                        "assertEqualMem to test equalit", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -20111, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 13164,
+    archive_seek_data(a, -6947, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "ertEqualInt,\n\tassertEqualString, "
+                        "assertEqualMem to test equalit", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -20111, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 13164,
+    archive_seek_data(a, -6947, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "ertEqualInt,\n\tassertEqualString, "
+                        "assertEqualMem to test equalit", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -20111, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  /* Do checks for seeks/reads past beginning and end of file */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD "
+                        "HTML 4.0 Transitional//EN\">\n", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -((sizeof(buff)-1)*2), SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "<HTML>\n<HEAD>\n\t<META HTTP-EQUIV=\"CONTENT-TYPE\" "
+                        "CONTENT=\"text/ht", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -(20111+32), SEEK_END));
+  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, ((sizeof(buff)-1)*3), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "ml; charset=utf-8\">\n\t<TITLE></TITLE>\n\t<META "
+                        "NAME=\"GENERATOR\" CO", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 20111, SEEK_SET));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
+    archive_seek_data(a, (sizeof(buff)-1), SEEK_CUR));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
+    archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
+    archive_seek_data(a, ((sizeof(buff)-1)*2), SEEK_END));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
+    archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+
+  /*
+   * Second header.
+   */
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+  assertEqualStringA(a, "testdir/testsubdir/LibarchiveAddingTest2.html",
+                     archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualIntA(a, 20111, archive_entry_size(ae));
+  assertEqualIntA(a, 33188, archive_entry_mode(ae));
+
+  /* Do checks for seeks/reads past beginning and end of file */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD "
+                        "HTML 4.0 Transitional//EN\">\n", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -((sizeof(buff)-1)*2), SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "<HTML>\n<HEAD>\n\t<META HTTP-EQUIV=\"CONTENT-TYPE\" "
+                        "CONTENT=\"text/ht", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -(20111+32), SEEK_END));
+  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, ((sizeof(buff)-1)*3), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "ml; charset=utf-8\">\n\t<TITLE></TITLE>\n\t<META "
+                        "NAME=\"GENERATOR\" CO", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 20111, SEEK_SET));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
+    archive_seek_data(a, (sizeof(buff)-1), SEEK_CUR));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
+    archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
+    archive_seek_data(a, ((sizeof(buff)-1)*2), SEEK_END));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
+    archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+
+  /* Read from the beginning to the end of the file */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  do
+  {
+    memset(buff, 0, sizeof(buff));
+    bytes_read = archive_read_data(a, buff, (sizeof(buff)-1));
+  } while (bytes_read > 0);
+
+  /* Seek to the end minus (sizeof(buff)-1) bytes */
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  /* Seek back to the beginning */
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0, archive_seek_data(a, -20111, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  /* Test that SEEK_SET works correctly between data blocks */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 6162,
+    archive_seek_data(a, 6162, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "arguments satisfy certain conditions. "
+                        "If the assertion fails--f", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 19347,
+    archive_seek_data(a, 19347, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, " when a block being written out by\n"
+                        "the archive writer is the sa", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 20111 - (int)(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 19347,
+    archive_seek_data(a, 19347, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, " when a block being written out by\n"
+                        "the archive writer is the sa", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 6162,
+    archive_seek_data(a, 6162, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "arguments satisfy certain conditions. "
+                        "If the assertion fails--f", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, 0, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 20111 - (int)(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 6162,
+    archive_seek_data(a, 6162, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "arguments satisfy certain conditions. "
+                        "If the assertion fails--f", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 19347,
+    archive_seek_data(a, 19347, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, " when a block being written out by\n"
+                        "the archive writer is the sa", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, 0, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 20111 - (int)(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, 0, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 19347,
+    archive_seek_data(a, 19347, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, " when a block being written out by\n"
+                        "the archive writer is the sa", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 6162,
+    archive_seek_data(a, 6162, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "arguments satisfy certain conditions. "
+                        "If the assertion fails--f", buff);
+
+  /* Test that SEEK_CUR works correctly between data blocks */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 6162,
+    archive_seek_data(a, 6162, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "arguments satisfy certain conditions. "
+                        "If the assertion fails--f", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 19347,
+    archive_seek_data(a, 13122, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, " when a block being written out by\n"
+                        "the archive writer is the sa", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 638, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 19347,
+    archive_seek_data(a, -764, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, " when a block being written out by\n"
+                        "the archive writer is the sa", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 6162,
+    archive_seek_data(a, -13248, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "arguments satisfy certain conditions. "
+                        "If the assertion fails--f", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -6225, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 19985, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 6162,
+    archive_seek_data(a, -13949, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "arguments satisfy certain conditions. "
+                        "If the assertion fails--f", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 19347,
+    archive_seek_data(a, 13122, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, " when a block being written out by\n"
+                        "the archive writer is the sa", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -19410, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 19985, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -20111, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 19347,
+    archive_seek_data(a, 19284, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, " when a block being written out by\n"
+                        "the archive writer is the sa", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 6162,
+    archive_seek_data(a, -13248, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "arguments satisfy certain conditions. "
+                        "If the assertion fails--f", buff);
+
+  /* Test that SEEK_END works correctly between data blocks */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 6162,
+    archive_seek_data(a, -13949, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "arguments satisfy certain conditions. "
+                        "If the assertion fails--f", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 19347,
+    archive_seek_data(a, -764, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, " when a block being written out by\n"
+                        "the archive writer is the sa", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 19347,
+    archive_seek_data(a, -764, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, " when a block being written out by\n"
+                        "the archive writer is the sa", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 6162,
+    archive_seek_data(a, -13949, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "arguments satisfy certain conditions. "
+                        "If the assertion fails--f", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -20111, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 6162,
+    archive_seek_data(a, -13949, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "arguments satisfy certain conditions. "
+                        "If the assertion fails--f", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 19347,
+    archive_seek_data(a, -764, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, " when a block being written out by\n"
+                        "the archive writer is the sa", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -20111, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -20111, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 19347,
+    archive_seek_data(a, -764, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, " when a block being written out by\n"
+                        "the archive writer is the sa", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 6162,
+    archive_seek_data(a, -13949, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "arguments satisfy certain conditions. "
+                        "If the assertion fails--f", buff);
+
+  /* Do checks for seeks/reads past beginning and end of file */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD "
+                        "HTML 4.0 Transitional//EN\">\n", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -((sizeof(buff)-1)*2), SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "<HTML>\n<HEAD>\n\t<META HTTP-EQUIV=\"CONTENT-TYPE\" "
+                        "CONTENT=\"text/ht", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -(20111+32), SEEK_END));
+  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, ((sizeof(buff)-1)*3), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "ml; charset=utf-8\">\n\t<TITLE></TITLE>\n\t<META "
+                        "NAME=\"GENERATOR\" CO", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 20111, SEEK_SET));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
+    archive_seek_data(a, (sizeof(buff)-1), SEEK_CUR));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
+    archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
+    archive_seek_data(a, ((sizeof(buff)-1)*2), SEEK_END));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
+    archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+
+  /*
+   * Third header.
+   */
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+  assertEqualStringA(a, "LibarchiveAddingTest2.html",
+                     archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualIntA(a, 20111, archive_entry_size(ae));
+  assertEqualIntA(a, 33188, archive_entry_mode(ae));
+
+  /* Do checks for seeks/reads past beginning and end of file */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD "
+                        "HTML 4.0 Transitional//EN\">\n", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -((sizeof(buff)-1)*2), SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "<HTML>\n<HEAD>\n\t<META HTTP-EQUIV=\"CONTENT-TYPE\" "
+                        "CONTENT=\"text/ht", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -(20111+32), SEEK_END));
+  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, ((sizeof(buff)-1)*3), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "ml; charset=utf-8\">\n\t<TITLE></TITLE>\n\t<META "
+                        "NAME=\"GENERATOR\" CO", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 20111, SEEK_SET));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
+    archive_seek_data(a, (sizeof(buff)-1), SEEK_CUR));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
+    archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
+    archive_seek_data(a, ((sizeof(buff)-1)*2), SEEK_END));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
+    archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+
+  /* Read from the beginning to the end of the file */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  do
+  {
+    memset(buff, 0, sizeof(buff));
+    bytes_read = archive_read_data(a, buff, (sizeof(buff)-1));
+  } while (bytes_read > 0);
+
+  /* Seek to the end minus (sizeof(buff)-1) bytes */
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  /* Seek back to the beginning */
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0, archive_seek_data(a, -20111, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  /* Test that SEEK_SET works correctly between data blocks */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 12353,
+    archive_seek_data(a, 12353, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, " 0.2in\">&nbsp; &nbsp; "
+                        "extract_reference_file(&quot;test_foo.tar", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, 0, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 20111 - (int)(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 12353,
+    archive_seek_data(a, 12353, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, " 0.2in\">&nbsp; &nbsp; "
+                        "extract_reference_file(&quot;test_foo.tar", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 20111 - (int)(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, 0, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 20111 - (int)(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 12353,
+    archive_seek_data(a, 12353, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, " 0.2in\">&nbsp; &nbsp; "
+                        "extract_reference_file(&quot;test_foo.tar", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, 0, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  /* Test that SEEK_CUR works correctly between data blocks */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 12353,
+    archive_seek_data(a, 12353, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, " 0.2in\">&nbsp; &nbsp; "
+                        "extract_reference_file(&quot;test_foo.tar", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -12416, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 19985, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 12353,
+    archive_seek_data(a, -7758, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, " 0.2in\">&nbsp; &nbsp; "
+                        "extract_reference_file(&quot;test_foo.tar", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 7632, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -20111, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 19985, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 12353,
+    archive_seek_data(a, -7758, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, " 0.2in\">&nbsp; &nbsp; "
+                        "extract_reference_file(&quot;test_foo.tar", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -12416, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  /* Test that SEEK_END works correctly between data blocks */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 12353,
+    archive_seek_data(a, -7758, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, " 0.2in\">&nbsp; &nbsp; "
+                        "extract_reference_file(&quot;test_foo.tar", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -20111, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 12353,
+    archive_seek_data(a, -7758, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, " 0.2in\">&nbsp; &nbsp; "
+                        "extract_reference_file(&quot;test_foo.tar", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -20111, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 12353,
+    archive_seek_data(a, -7758, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, " 0.2in\">&nbsp; &nbsp; "
+                        "extract_reference_file(&quot;test_foo.tar", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -20111, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  /* Do checks for seeks/reads past beginning and end of file */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD "
+                        "HTML 4.0 Transitional//EN\">\n", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -((sizeof(buff)-1)*2), SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "<HTML>\n<HEAD>\n\t<META HTTP-EQUIV=\"CONTENT-TYPE\" "
+                        "CONTENT=\"text/ht", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -(20111+32), SEEK_END));
+  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, ((sizeof(buff)-1)*3), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "ml; charset=utf-8\">\n\t<TITLE></TITLE>\n\t<META "
+                        "NAME=\"GENERATOR\" CO", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 20111, SEEK_SET));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
+    archive_seek_data(a, (sizeof(buff)-1), SEEK_CUR));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
+    archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
+    archive_seek_data(a, ((sizeof(buff)-1)*2), SEEK_END));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
+    archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+
+  /*
+   * Fourth header.
+   */
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+  assertEqualStringA(a, "testdir/LibarchiveAddingTest.html",
+                     archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualIntA(a, 20111, archive_entry_size(ae));
+  assertEqualIntA(a, 33188, archive_entry_mode(ae));
+
+  /* Do checks for seeks/reads past beginning and end of file */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD "
+                        "HTML 4.0 Transitional//EN\">\n", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -((sizeof(buff)-1)*2), SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "<HTML>\n<HEAD>\n\t<META HTTP-EQUIV=\"CONTENT-TYPE\" "
+                        "CONTENT=\"text/ht", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -(20111+32), SEEK_END));
+  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, ((sizeof(buff)-1)*3), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "ml; charset=utf-8\">\n\t<TITLE></TITLE>\n\t<META "
+                        "NAME=\"GENERATOR\" CO", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 20111, SEEK_SET));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
+    archive_seek_data(a, (sizeof(buff)-1), SEEK_CUR));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
+    archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
+    archive_seek_data(a, ((sizeof(buff)-1)*2), SEEK_END));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
+    archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+
+  /* Read from the beginning to the end of the file */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  do
+  {
+    memset(buff, 0, sizeof(buff));
+    bytes_read = archive_read_data(a, buff, (sizeof(buff)-1));
+  } while (bytes_read > 0);
+
+  /* Seek to the end minus (sizeof(buff)-1) bytes */
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  /* Seek back to the beginning */
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0, archive_seek_data(a, -20111, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  /* Test that SEEK_SET works correctly between data blocks */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 5371,
+    archive_seek_data(a, 5371, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "zip)\n&nbsp; {\n&nbsp; &nbsp; "
+                        "/* ... setup omitted ... */\n&nbsp; ", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 13165,
+    archive_seek_data(a, 13165, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "rtEqualInt,\n\tassertEqualString, "
+                        "assertEqualMem to test equality", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 20111 - (int)(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 13165,
+    archive_seek_data(a, 13165, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "rtEqualInt,\n\tassertEqualString, "
+                        "assertEqualMem to test equality", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 5371,
+    archive_seek_data(a, 5371, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "zip)\n&nbsp; {\n&nbsp; &nbsp; "
+                        "/* ... setup omitted ... */\n&nbsp; ", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, 0, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 20111 - (int)(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 5371,
+    archive_seek_data(a, 5371, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "zip)\n&nbsp; {\n&nbsp; &nbsp; "
+                        "/* ... setup omitted ... */\n&nbsp; ", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 13165,
+    archive_seek_data(a, 13165, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "rtEqualInt,\n\tassertEqualString, "
+                        "assertEqualMem to test equality", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, 0, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 20111 - (int)(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, 0, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 13165,
+    archive_seek_data(a, 13165, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "rtEqualInt,\n\tassertEqualString, "
+                        "assertEqualMem to test equality", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 5371,
+    archive_seek_data(a, 5371, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "zip)\n&nbsp; {\n&nbsp; &nbsp; "
+                        "/* ... setup omitted ... */\n&nbsp; ", buff);
+
+  /* Test that SEEK_CUR works correctly between data blocks */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 5371,
+    archive_seek_data(a, 5371, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "zip)\n&nbsp; {\n&nbsp; &nbsp; "
+                        "/* ... setup omitted ... */\n&nbsp; ", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 13165,
+    archive_seek_data(a, 7731, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "rtEqualInt,\n\tassertEqualString, "
+                        "assertEqualMem to test equality", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 6820, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 13165,
+    archive_seek_data(a, -6946, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "rtEqualInt,\n\tassertEqualString, "
+                        "assertEqualMem to test equality", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 5371,
+    archive_seek_data(a, -7857, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "zip)\n&nbsp; {\n&nbsp; &nbsp; "
+                        "/* ... setup omitted ... */\n&nbsp; ", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -5434, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 19985, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 5371,
+    archive_seek_data(a, -14740, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "zip)\n&nbsp; {\n&nbsp; &nbsp; "
+                        "/* ... setup omitted ... */\n&nbsp; ", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 13165,
+    archive_seek_data(a, 7731, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "rtEqualInt,\n\tassertEqualString, "
+                        "assertEqualMem to test equality", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -13228, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 19985, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -20111, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 13165,
+    archive_seek_data(a, 13102, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "rtEqualInt,\n\tassertEqualString, "
+                        "assertEqualMem to test equality", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 5371,
+    archive_seek_data(a, -7857, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "zip)\n&nbsp; {\n&nbsp; &nbsp; "
+                        "/* ... setup omitted ... */\n&nbsp; ", buff);
+
+  /* Test that SEEK_END works correctly between data blocks */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 5371,
+    archive_seek_data(a, -14740, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "zip)\n&nbsp; {\n&nbsp; &nbsp; "
+                        "/* ... setup omitted ... */\n&nbsp; ", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 13165,
+    archive_seek_data(a, -6946, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "rtEqualInt,\n\tassertEqualString, "
+                        "assertEqualMem to test equality", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 13165,
+    archive_seek_data(a, -6946, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "rtEqualInt,\n\tassertEqualString, "
+                        "assertEqualMem to test equality", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 5371,
+    archive_seek_data(a, -14740, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "zip)\n&nbsp; {\n&nbsp; &nbsp; "
+                        "/* ... setup omitted ... */\n&nbsp; ", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -20111, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 5371,
+    archive_seek_data(a, -14740, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "zip)\n&nbsp; {\n&nbsp; &nbsp; "
+                        "/* ... setup omitted ... */\n&nbsp; ", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 13165,
+    archive_seek_data(a, -6946, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "rtEqualInt,\n\tassertEqualString, "
+                        "assertEqualMem to test equality", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -20111, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -20111, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 13165,
+    archive_seek_data(a, -6946, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "rtEqualInt,\n\tassertEqualString, "
+                        "assertEqualMem to test equality", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 5371,
+    archive_seek_data(a, -14740, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "zip)\n&nbsp; {\n&nbsp; &nbsp; "
+                        "/* ... setup omitted ... */\n&nbsp; ", buff);
+
+  /* Do checks for seeks/reads past beginning and end of file */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD "
+                        "HTML 4.0 Transitional//EN\">\n", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -((sizeof(buff)-1)*2), SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "<HTML>\n<HEAD>\n\t<META HTTP-EQUIV=\"CONTENT-TYPE\" "
+                        "CONTENT=\"text/ht", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -(20111+32), SEEK_END));
+  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, ((sizeof(buff)-1)*3), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "ml; charset=utf-8\">\n\t<TITLE></TITLE>\n\t<META "
+                        "NAME=\"GENERATOR\" CO", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 20111, SEEK_SET));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
+    archive_seek_data(a, (sizeof(buff)-1), SEEK_CUR));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
+    archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
+    archive_seek_data(a, ((sizeof(buff)-1)*2), SEEK_END));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
+    archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+
+  /*
+   * Fifth header.
+   */
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+  assertEqualStringA(a, "testdir/testsubdir/LibarchiveAddingTest.html",
+                     archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualIntA(a, 20111, archive_entry_size(ae));
+  assertEqualIntA(a, 33188, archive_entry_mode(ae));
+
+  /* Do checks for seeks/reads past beginning and end of file */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD "
+                        "HTML 4.0 Transitional//EN\">\n", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -((sizeof(buff)-1)*2), SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "<HTML>\n<HEAD>\n\t<META HTTP-EQUIV=\"CONTENT-TYPE\" "
+                        "CONTENT=\"text/ht", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -(20111+32), SEEK_END));
+  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, ((sizeof(buff)-1)*3), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "ml; charset=utf-8\">\n\t<TITLE></TITLE>\n\t<META "
+                        "NAME=\"GENERATOR\" CO", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 20111, SEEK_SET));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
+    archive_seek_data(a, (sizeof(buff)-1), SEEK_CUR));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
+    archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
+    archive_seek_data(a, ((sizeof(buff)-1)*2), SEEK_END));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
+    archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+
+  /* Read from the beginning to the end of the file */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  do
+  {
+    memset(buff, 0, sizeof(buff));
+    bytes_read = archive_read_data(a, buff, (sizeof(buff)-1));
+  } while (bytes_read > 0);
+
+  /* Seek to the end minus (sizeof(buff)-1) bytes */
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  /* Seek back to the beginning */
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0, archive_seek_data(a, -20111, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  /* Test that SEEK_SET works correctly between data blocks */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 11568,
+    archive_seek_data(a, 11568, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ", <TT CLASS=\"western\">assertFileContents</TT>,"
+                        "\n\t<TT CLASS=\"west", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, 0, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 20111 - (int)(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 11568,
+    archive_seek_data(a, 11568, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ", <TT CLASS=\"western\">assertFileContents</TT>,"
+                        "\n\t<TT CLASS=\"west", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 20111 - (int)(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, 0, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 20111 - (int)(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 11568,
+    archive_seek_data(a, 11568, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ", <TT CLASS=\"western\">assertFileContents</TT>,"
+                        "\n\t<TT CLASS=\"west", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, 0, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  /* Test that SEEK_CUR works correctly between data blocks */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 11568,
+    archive_seek_data(a, 11568, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ", <TT CLASS=\"western\">assertFileContents</TT>,"
+                        "\n\t<TT CLASS=\"west", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -11631, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 19985, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 11568,
+    archive_seek_data(a, -8543, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ", <TT CLASS=\"western\">assertFileContents</TT>,"
+                        "\n\t<TT CLASS=\"west", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 8417, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -20111, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 19985, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 11568,
+    archive_seek_data(a, -8543, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ", <TT CLASS=\"western\">assertFileContents</TT>,"
+                        "\n\t<TT CLASS=\"west", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -11631, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  /* Test that SEEK_END works correctly between data blocks */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 11568,
+    archive_seek_data(a, -8543, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ", <TT CLASS=\"western\">assertFileContents</TT>,"
+                        "\n\t<TT CLASS=\"west", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -20111, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 11568,
+    archive_seek_data(a, -8543, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ", <TT CLASS=\"western\">assertFileContents</TT>,"
+                        "\n\t<TT CLASS=\"west", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -20111, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 11568,
+    archive_seek_data(a, -8543, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ", <TT CLASS=\"western\">assertFileContents</TT>,"
+                        "\n\t<TT CLASS=\"west", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -20111, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  /* Do checks for seeks/reads past beginning and end of file */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD "
+                        "HTML 4.0 Transitional//EN\">\n", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -((sizeof(buff)-1)*2), SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "<HTML>\n<HEAD>\n\t<META HTTP-EQUIV=\"CONTENT-TYPE\" "
+                        "CONTENT=\"text/ht", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -(20111+32), SEEK_END));
+  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, ((sizeof(buff)-1)*3), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "ml; charset=utf-8\">\n\t<TITLE></TITLE>\n\t<META "
+                        "NAME=\"GENERATOR\" CO", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 20111, SEEK_SET));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
+    archive_seek_data(a, (sizeof(buff)-1), SEEK_CUR));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
+    archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
+    archive_seek_data(a, ((sizeof(buff)-1)*2), SEEK_END));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
+    archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+
+  /*
+   * Sixth header.
+   */
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+  assertEqualStringA(a, "LibarchiveAddingTest.html",
+                     archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualIntA(a, 20111, archive_entry_size(ae));
+  assertEqualIntA(a, 33188, archive_entry_mode(ae));
+
+  /* Do checks for seeks/reads past beginning and end of file */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD "
+                        "HTML 4.0 Transitional//EN\">\n", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -((sizeof(buff)-1)*2), SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "<HTML>\n<HEAD>\n\t<META HTTP-EQUIV=\"CONTENT-TYPE\" "
+                        "CONTENT=\"text/ht", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -(20111+32), SEEK_END));
+  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, ((sizeof(buff)-1)*3), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "ml; charset=utf-8\">\n\t<TITLE></TITLE>\n\t<META "
+                        "NAME=\"GENERATOR\" CO", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 20111, SEEK_SET));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
+    archive_seek_data(a, (sizeof(buff)-1), SEEK_CUR));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
+    archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
+    archive_seek_data(a, ((sizeof(buff)-1)*2), SEEK_END));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
+    archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+
+  /* Read from the beginning to the end of the file */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  do
+  {
+    memset(buff, 0, sizeof(buff));
+    bytes_read = archive_read_data(a, buff, (sizeof(buff)-1));
+  } while (bytes_read > 0);
+
+  /* Seek to the end minus (sizeof(buff)-1) bytes */
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  /* Seek back to the beginning */
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0, archive_seek_data(a, -20111, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  /* Test that SEEK_SET works correctly between data blocks */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 4576,
+    archive_seek_data(a, 4576, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "hat was expected. \n</P>\n<H1 CLASS=\"western\"><A "
+                        "NAME=\"Basic_test", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 17749,
+    archive_seek_data(a, 17749, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "\"></A>Large tar tester</H2>\n<P>The "
+                        "large tar tester attempts to", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 20111 - (int)(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 17749,
+    archive_seek_data(a, 17749, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "\"></A>Large tar tester</H2>\n<P>The "
+                        "large tar tester attempts to", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 4576,
+    archive_seek_data(a, 4576, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "hat was expected. \n</P>\n<H1 CLASS=\"western\"><A "
+                        "NAME=\"Basic_test", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, 0, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 20111 - (int)(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 4576,
+    archive_seek_data(a, 4576, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "hat was expected. \n</P>\n<H1 CLASS=\"western\"><A "
+                        "NAME=\"Basic_test", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 17749,
+    archive_seek_data(a, 17749, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "\"></A>Large tar tester</H2>\n<P>The "
+                        "large tar tester attempts to", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, 0, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 20111 - (int)(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, 0, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 17749,
+    archive_seek_data(a, 17749, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "\"></A>Large tar tester</H2>\n<P>The "
+                        "large tar tester attempts to", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 4576,
+    archive_seek_data(a, 4576, SEEK_SET));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "hat was expected. \n</P>\n<H1 CLASS=\"western\"><A "
+                        "NAME=\"Basic_test", buff);
+
+  /* Test that SEEK_CUR works correctly between data blocks */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 4576,
+    archive_seek_data(a, 4576, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "hat was expected. \n</P>\n<H1 CLASS=\"western\"><A "
+                        "NAME=\"Basic_test", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 17749,
+    archive_seek_data(a, 13110, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "\"></A>Large tar tester</H2>\n<P>The "
+                        "large tar tester attempts to", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 2236, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 17749,
+    archive_seek_data(a, -2362, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "\"></A>Large tar tester</H2>\n<P>The "
+                        "large tar tester attempts to", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 4576,
+    archive_seek_data(a, -13236, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "hat was expected. \n</P>\n<H1 CLASS=\"western\"><A "
+                        "NAME=\"Basic_test", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -4639, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 19985, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 4576,
+    archive_seek_data(a, -15535, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "hat was expected. \n</P>\n<H1 CLASS=\"western\"><A "
+                        "NAME=\"Basic_test", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 17749,
+    archive_seek_data(a, 13110, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "\"></A>Large tar tester</H2>\n<P>The "
+                        "large tar tester attempts to", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -17812, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, 19985, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -20111, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 17749,
+    archive_seek_data(a, 17686, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "\"></A>Large tar tester</H2>\n<P>The "
+                        "large tar tester attempts to", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 4576,
+    archive_seek_data(a, -13236, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "hat was expected. \n</P>\n<H1 CLASS=\"western\"><A "
+                        "NAME=\"Basic_test", buff);
+
+  /* Test that SEEK_END works correctly between data blocks */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 4576,
+    archive_seek_data(a, -15535, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "hat was expected. \n</P>\n<H1 CLASS=\"western\"><A "
+                        "NAME=\"Basic_test", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 17749,
+    archive_seek_data(a, -2362, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "\"></A>Large tar tester</H2>\n<P>The "
+                        "large tar tester attempts to", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 17749,
+    archive_seek_data(a, -2362, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "\"></A>Large tar tester</H2>\n<P>The "
+                        "large tar tester attempts to", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 4576,
+    archive_seek_data(a, -15535, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "hat was expected. \n</P>\n<H1 CLASS=\"western\"><A "
+                        "NAME=\"Basic_test", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -20111, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 4576,
+    archive_seek_data(a, -15535, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "hat was expected. \n</P>\n<H1 CLASS=\"western\"><A "
+                        "NAME=\"Basic_test", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 17749,
+    archive_seek_data(a, -2362, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "\"></A>Large tar tester</H2>\n<P>The "
+                        "large tar tester attempts to", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -20111, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
+    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
+                        "</P>\n</BODY>\n</HTML>", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 0,
+    archive_seek_data(a, -20111, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
+                        "Transitional//EN\">\n", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 17749,
+    archive_seek_data(a, -2362, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "\"></A>Large tar tester</H2>\n<P>The "
+                        "large tar tester attempts to", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 4576,
+    archive_seek_data(a, -15535, SEEK_END));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualStringA(a, "hat was expected. \n</P>\n<H1 CLASS=\"western\"><A "
+                        "NAME=\"Basic_test", buff);
+
+  /* Do checks for seeks/reads past beginning and end of file */
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD "
+                        "HTML 4.0 Transitional//EN\">\n", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -((sizeof(buff)-1)*2), SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "<HTML>\n<HEAD>\n\t<META HTTP-EQUIV=\"CONTENT-TYPE\" "
+                        "CONTENT=\"text/ht", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, -1, archive_seek_data(a, -(20111+32), SEEK_END));
+  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, (sizeof(buff)-1),
+    archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, ((sizeof(buff)-1)*3), archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "ml; charset=utf-8\">\n\t<TITLE></TITLE>\n\t<META "
+                        "NAME=\"GENERATOR\" CO", buff);
+
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 20111, SEEK_SET));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
+    archive_seek_data(a, (sizeof(buff)-1), SEEK_CUR));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
+    archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+  memset(buff, 0, sizeof(buff));
+  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
+    archive_seek_data(a, ((sizeof(buff)-1)*2), SEEK_END));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
+  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
+    archive_seek_data(a, 0, SEEK_CUR));
+  assertEqualStringA(a, "", buff);
+
+  /*
+   * Seventh header.
+   */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("testdir/testsymlink5", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(0, archive_entry_size(ae));
+  assertEqualInt(41471, archive_entry_mode(ae));
+  assertEqualString("testsubdir/LibarchiveAddingTest.html",
+    archive_entry_symlink(ae));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
+
+  /*
+   * Eigth header.
+   */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("testdir/testsymlink6", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(0, archive_entry_size(ae));
+  assertEqualInt(41471, archive_entry_mode(ae));
+  assertEqualString("testsubdir/LibarchiveAddingTest2.html",
+    archive_entry_symlink(ae));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
+
+  /*
+   * Ninth header.
+   */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("testsymlink", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(0, archive_entry_size(ae));
+  assertEqualInt(41471, archive_entry_mode(ae));
+  assertEqualString("testdir/LibarchiveAddingTest.html",
+    archive_entry_symlink(ae));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
+
+  /*
+   * Tenth header.
+   */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("testsymlink2", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(0, archive_entry_size(ae));
+  assertEqualInt(41471, archive_entry_mode(ae));
+  assertEqualString("testdir/LibarchiveAddingTest2.html",
+    archive_entry_symlink(ae));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
+
+  /*
+   * Eleventh header.
+   */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("testsymlink3", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(0, archive_entry_size(ae));
+  assertEqualInt(41471, archive_entry_mode(ae));
+  assertEqualString("testdir/testsubdir/LibarchiveAddingTest.html",
+    archive_entry_symlink(ae));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
+
+  /*
+   * Twelfth header.
+   */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("testsymlink4", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(0, archive_entry_size(ae));
+  assertEqualInt(41471, archive_entry_mode(ae));
+  assertEqualString("testdir/testsubdir/LibarchiveAddingTest2.html",
+    archive_entry_symlink(ae));
+  assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
+
+  /*
+   * Thirteenth header.
+   */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("testdir/testemptysubdir", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(0, archive_entry_size(ae));
+  assertEqualInt(16877, archive_entry_mode(ae));
+
+  /*
+   * Fourteenth header.
+   */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("testdir/testsubdir", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(0, archive_entry_size(ae));
+  assertEqualInt(16877, archive_entry_mode(ae));
+
+  /*
+   * Fifteenth header.
+   */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("testdir", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(0, archive_entry_size(ae));
+  assertEqualInt(16877, archive_entry_mode(ae));
+
+  /*
+   * Sixteenth header.
+   */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("testemptydir", archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualInt(0, archive_entry_size(ae));
+  assertEqualInt(16877, archive_entry_mode(ae));
+
+  /* Test EOF */
+  assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+  assertEqualIntA(a, 16, archive_file_count(a));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+}
