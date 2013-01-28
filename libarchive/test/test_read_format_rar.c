@@ -1430,45 +1430,10 @@ DEFINE_TEST(test_read_format_rar_multivolume_seek_multiple_files)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
+static void
+test_read_format_rar_multivolume_uncompressed_files_helper(struct archive *a)
 {
-  const char *reffiles[] =
-  {
-    "test_rar_multivolume_uncompressed_files.part01.rar",
-    "test_rar_multivolume_uncompressed_files.part02.rar",
-    "test_rar_multivolume_uncompressed_files.part03.rar",
-    "test_rar_multivolume_uncompressed_files.part04.rar",
-    "test_rar_multivolume_uncompressed_files.part05.rar",
-    "test_rar_multivolume_uncompressed_files.part06.rar",
-    "test_rar_multivolume_uncompressed_files.part07.rar",
-    "test_rar_multivolume_uncompressed_files.part08.rar",
-    "test_rar_multivolume_uncompressed_files.part09.rar",
-    "test_rar_multivolume_uncompressed_files.part10.rar",
-    NULL
-  };
   char buff[64];
-  ssize_t bytes_read;
-  struct archive *a;
-  struct archive_entry *ae;
-
-  extract_reference_files(reffiles);
-  assert((a = archive_read_new()) != NULL);
-  assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
-  assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-  assertEqualIntA(a, ARCHIVE_OK,
-                  archive_read_open_filenames(a, reffiles, 10240));
-
-  /*
-   * First header.
-   */
-  assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-  assertEqualStringA(a, "testdir/LibarchiveAddingTest2.html",
-                     archive_entry_pathname(ae));
-  assertA((int)archive_entry_mtime(ae));
-  assertA((int)archive_entry_ctime(ae));
-  assertA((int)archive_entry_atime(ae));
-  assertEqualIntA(a, 20111, archive_entry_size(ae));
-  assertEqualIntA(a, 33188, archive_entry_mode(ae));
 
   /* Do checks for seeks/reads past beginning and end of file */
   assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
@@ -1517,6 +1482,49 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
     archive_seek_data(a, 0, SEEK_CUR));
   assertEqualStringA(a, "", buff);
+}
+
+DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
+{
+  const char *reffiles[] =
+  {
+    "test_rar_multivolume_uncompressed_files.part01.rar",
+    "test_rar_multivolume_uncompressed_files.part02.rar",
+    "test_rar_multivolume_uncompressed_files.part03.rar",
+    "test_rar_multivolume_uncompressed_files.part04.rar",
+    "test_rar_multivolume_uncompressed_files.part05.rar",
+    "test_rar_multivolume_uncompressed_files.part06.rar",
+    "test_rar_multivolume_uncompressed_files.part07.rar",
+    "test_rar_multivolume_uncompressed_files.part08.rar",
+    "test_rar_multivolume_uncompressed_files.part09.rar",
+    "test_rar_multivolume_uncompressed_files.part10.rar",
+    NULL
+  };
+  char buff[64];
+  ssize_t bytes_read;
+  struct archive *a;
+  struct archive_entry *ae;
+
+  extract_reference_files(reffiles);
+  assert((a = archive_read_new()) != NULL);
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+  assertEqualIntA(a, ARCHIVE_OK,
+                  archive_read_open_filenames(a, reffiles, 10240));
+
+  /*
+   * First header.
+   */
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+  assertEqualStringA(a, "testdir/LibarchiveAddingTest2.html",
+                     archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertA((int)archive_entry_ctime(ae));
+  assertA((int)archive_entry_atime(ae));
+  assertEqualIntA(a, 20111, archive_entry_size(ae));
+  assertEqualIntA(a, 33188, archive_entry_mode(ae));
+
+  test_read_format_rar_multivolume_uncompressed_files_helper(a);
 
   /* Read from the beginning to the end of the file */
   assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
@@ -1765,53 +1773,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
                         "Transitional//EN\">\n", buff);
 
-  /* Do checks for seeks/reads past beginning and end of file */
-  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -(sizeof(buff)-1), SEEK_SET));
-  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD "
-                        "HTML 4.0 Transitional//EN\">\n", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -((sizeof(buff)-1)*2), SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "<HTML>\n<HEAD>\n\t<META HTTP-EQUIV=\"CONTENT-TYPE\" "
-                        "CONTENT=\"text/ht", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -(20111+32), SEEK_END));
-  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, ((sizeof(buff)-1)*3), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "ml; charset=utf-8\">\n\t<TITLE></TITLE>\n\t<META "
-                        "NAME=\"GENERATOR\" CO", buff);
-
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 20111, SEEK_SET));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
-    archive_seek_data(a, (sizeof(buff)-1), SEEK_CUR));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
-    archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
-    archive_seek_data(a, ((sizeof(buff)-1)*2), SEEK_END));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
-    archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
+  test_read_format_rar_multivolume_uncompressed_files_helper(a);
 
   /*
    * Second header.
@@ -1825,53 +1787,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertEqualIntA(a, 20111, archive_entry_size(ae));
   assertEqualIntA(a, 33188, archive_entry_mode(ae));
 
-  /* Do checks for seeks/reads past beginning and end of file */
-  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -(sizeof(buff)-1), SEEK_SET));
-  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD "
-                        "HTML 4.0 Transitional//EN\">\n", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -((sizeof(buff)-1)*2), SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "<HTML>\n<HEAD>\n\t<META HTTP-EQUIV=\"CONTENT-TYPE\" "
-                        "CONTENT=\"text/ht", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -(20111+32), SEEK_END));
-  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, ((sizeof(buff)-1)*3), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "ml; charset=utf-8\">\n\t<TITLE></TITLE>\n\t<META "
-                        "NAME=\"GENERATOR\" CO", buff);
-
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 20111, SEEK_SET));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
-    archive_seek_data(a, (sizeof(buff)-1), SEEK_CUR));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
-    archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
-    archive_seek_data(a, ((sizeof(buff)-1)*2), SEEK_END));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
-    archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
+  test_read_format_rar_multivolume_uncompressed_files_helper(a);
 
   /* Read from the beginning to the end of the file */
   assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
@@ -2240,53 +2156,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertEqualStringA(a, "arguments satisfy certain conditions. "
                         "If the assertion fails--f", buff);
 
-  /* Do checks for seeks/reads past beginning and end of file */
-  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -(sizeof(buff)-1), SEEK_SET));
-  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD "
-                        "HTML 4.0 Transitional//EN\">\n", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -((sizeof(buff)-1)*2), SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "<HTML>\n<HEAD>\n\t<META HTTP-EQUIV=\"CONTENT-TYPE\" "
-                        "CONTENT=\"text/ht", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -(20111+32), SEEK_END));
-  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, ((sizeof(buff)-1)*3), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "ml; charset=utf-8\">\n\t<TITLE></TITLE>\n\t<META "
-                        "NAME=\"GENERATOR\" CO", buff);
-
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 20111, SEEK_SET));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
-    archive_seek_data(a, (sizeof(buff)-1), SEEK_CUR));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
-    archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
-    archive_seek_data(a, ((sizeof(buff)-1)*2), SEEK_END));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
-    archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
+  test_read_format_rar_multivolume_uncompressed_files_helper(a);
 
   /*
    * Third header.
@@ -2300,53 +2170,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertEqualIntA(a, 20111, archive_entry_size(ae));
   assertEqualIntA(a, 33188, archive_entry_mode(ae));
 
-  /* Do checks for seeks/reads past beginning and end of file */
-  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -(sizeof(buff)-1), SEEK_SET));
-  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD "
-                        "HTML 4.0 Transitional//EN\">\n", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -((sizeof(buff)-1)*2), SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "<HTML>\n<HEAD>\n\t<META HTTP-EQUIV=\"CONTENT-TYPE\" "
-                        "CONTENT=\"text/ht", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -(20111+32), SEEK_END));
-  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, ((sizeof(buff)-1)*3), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "ml; charset=utf-8\">\n\t<TITLE></TITLE>\n\t<META "
-                        "NAME=\"GENERATOR\" CO", buff);
-
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 20111, SEEK_SET));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
-    archive_seek_data(a, (sizeof(buff)-1), SEEK_CUR));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
-    archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
-    archive_seek_data(a, ((sizeof(buff)-1)*2), SEEK_END));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
-    archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
+  test_read_format_rar_multivolume_uncompressed_files_helper(a);
 
   /* Read from the beginning to the end of the file */
   assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
@@ -2595,53 +2419,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
                         "Transitional//EN\">\n", buff);
 
-  /* Do checks for seeks/reads past beginning and end of file */
-  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -(sizeof(buff)-1), SEEK_SET));
-  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD "
-                        "HTML 4.0 Transitional//EN\">\n", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -((sizeof(buff)-1)*2), SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "<HTML>\n<HEAD>\n\t<META HTTP-EQUIV=\"CONTENT-TYPE\" "
-                        "CONTENT=\"text/ht", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -(20111+32), SEEK_END));
-  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, ((sizeof(buff)-1)*3), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "ml; charset=utf-8\">\n\t<TITLE></TITLE>\n\t<META "
-                        "NAME=\"GENERATOR\" CO", buff);
-
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 20111, SEEK_SET));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
-    archive_seek_data(a, (sizeof(buff)-1), SEEK_CUR));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
-    archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
-    archive_seek_data(a, ((sizeof(buff)-1)*2), SEEK_END));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
-    archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
+  test_read_format_rar_multivolume_uncompressed_files_helper(a);
 
   /*
    * Fourth header.
@@ -2655,53 +2433,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertEqualIntA(a, 20111, archive_entry_size(ae));
   assertEqualIntA(a, 33188, archive_entry_mode(ae));
 
-  /* Do checks for seeks/reads past beginning and end of file */
-  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -(sizeof(buff)-1), SEEK_SET));
-  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD "
-                        "HTML 4.0 Transitional//EN\">\n", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -((sizeof(buff)-1)*2), SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "<HTML>\n<HEAD>\n\t<META HTTP-EQUIV=\"CONTENT-TYPE\" "
-                        "CONTENT=\"text/ht", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -(20111+32), SEEK_END));
-  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, ((sizeof(buff)-1)*3), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "ml; charset=utf-8\">\n\t<TITLE></TITLE>\n\t<META "
-                        "NAME=\"GENERATOR\" CO", buff);
-
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 20111, SEEK_SET));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
-    archive_seek_data(a, (sizeof(buff)-1), SEEK_CUR));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
-    archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
-    archive_seek_data(a, ((sizeof(buff)-1)*2), SEEK_END));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
-    archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
+  test_read_format_rar_multivolume_uncompressed_files_helper(a);
 
   /* Read from the beginning to the end of the file */
   assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
@@ -3070,53 +2802,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertEqualStringA(a, "zip)\n&nbsp; {\n&nbsp; &nbsp; "
                         "/* ... setup omitted ... */\n&nbsp; ", buff);
 
-  /* Do checks for seeks/reads past beginning and end of file */
-  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -(sizeof(buff)-1), SEEK_SET));
-  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD "
-                        "HTML 4.0 Transitional//EN\">\n", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -((sizeof(buff)-1)*2), SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "<HTML>\n<HEAD>\n\t<META HTTP-EQUIV=\"CONTENT-TYPE\" "
-                        "CONTENT=\"text/ht", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -(20111+32), SEEK_END));
-  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, ((sizeof(buff)-1)*3), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "ml; charset=utf-8\">\n\t<TITLE></TITLE>\n\t<META "
-                        "NAME=\"GENERATOR\" CO", buff);
-
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 20111, SEEK_SET));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
-    archive_seek_data(a, (sizeof(buff)-1), SEEK_CUR));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
-    archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
-    archive_seek_data(a, ((sizeof(buff)-1)*2), SEEK_END));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
-    archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
+  test_read_format_rar_multivolume_uncompressed_files_helper(a);
 
   /*
    * Fifth header.
@@ -3130,53 +2816,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertEqualIntA(a, 20111, archive_entry_size(ae));
   assertEqualIntA(a, 33188, archive_entry_mode(ae));
 
-  /* Do checks for seeks/reads past beginning and end of file */
-  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -(sizeof(buff)-1), SEEK_SET));
-  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD "
-                        "HTML 4.0 Transitional//EN\">\n", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -((sizeof(buff)-1)*2), SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "<HTML>\n<HEAD>\n\t<META HTTP-EQUIV=\"CONTENT-TYPE\" "
-                        "CONTENT=\"text/ht", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -(20111+32), SEEK_END));
-  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, ((sizeof(buff)-1)*3), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "ml; charset=utf-8\">\n\t<TITLE></TITLE>\n\t<META "
-                        "NAME=\"GENERATOR\" CO", buff);
-
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 20111, SEEK_SET));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
-    archive_seek_data(a, (sizeof(buff)-1), SEEK_CUR));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
-    archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
-    archive_seek_data(a, ((sizeof(buff)-1)*2), SEEK_END));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
-    archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
+  test_read_format_rar_multivolume_uncompressed_files_helper(a);
 
   /* Read from the beginning to the end of the file */
   assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
@@ -3425,53 +3065,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 "
                         "Transitional//EN\">\n", buff);
 
-  /* Do checks for seeks/reads past beginning and end of file */
-  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -(sizeof(buff)-1), SEEK_SET));
-  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD "
-                        "HTML 4.0 Transitional//EN\">\n", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -((sizeof(buff)-1)*2), SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "<HTML>\n<HEAD>\n\t<META HTTP-EQUIV=\"CONTENT-TYPE\" "
-                        "CONTENT=\"text/ht", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -(20111+32), SEEK_END));
-  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, ((sizeof(buff)-1)*3), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "ml; charset=utf-8\">\n\t<TITLE></TITLE>\n\t<META "
-                        "NAME=\"GENERATOR\" CO", buff);
-
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 20111, SEEK_SET));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
-    archive_seek_data(a, (sizeof(buff)-1), SEEK_CUR));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
-    archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
-    archive_seek_data(a, ((sizeof(buff)-1)*2), SEEK_END));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
-    archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
+  test_read_format_rar_multivolume_uncompressed_files_helper(a);
 
   /*
    * Sixth header.
@@ -3485,53 +3079,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertEqualIntA(a, 20111, archive_entry_size(ae));
   assertEqualIntA(a, 33188, archive_entry_mode(ae));
 
-  /* Do checks for seeks/reads past beginning and end of file */
-  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -(sizeof(buff)-1), SEEK_SET));
-  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD "
-                        "HTML 4.0 Transitional//EN\">\n", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -((sizeof(buff)-1)*2), SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "<HTML>\n<HEAD>\n\t<META HTTP-EQUIV=\"CONTENT-TYPE\" "
-                        "CONTENT=\"text/ht", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -(20111+32), SEEK_END));
-  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, ((sizeof(buff)-1)*3), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "ml; charset=utf-8\">\n\t<TITLE></TITLE>\n\t<META "
-                        "NAME=\"GENERATOR\" CO", buff);
-
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 20111, SEEK_SET));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
-    archive_seek_data(a, (sizeof(buff)-1), SEEK_CUR));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
-    archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
-    archive_seek_data(a, ((sizeof(buff)-1)*2), SEEK_END));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
-    archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
+  test_read_format_rar_multivolume_uncompressed_files_helper(a);
 
   /* Read from the beginning to the end of the file */
   assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
@@ -3900,53 +3448,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertEqualStringA(a, "hat was expected. \n</P>\n<H1 CLASS=\"western\"><A "
                         "NAME=\"Basic_test", buff);
 
-  /* Do checks for seeks/reads past beginning and end of file */
-  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -(sizeof(buff)-1), SEEK_SET));
-  assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD "
-                        "HTML 4.0 Transitional//EN\">\n", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -((sizeof(buff)-1)*2), SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "<HTML>\n<HEAD>\n\t<META HTTP-EQUIV=\"CONTENT-TYPE\" "
-                        "CONTENT=\"text/ht", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -(20111+32), SEEK_END));
-  assertEqualIntA(a, ((sizeof(buff)-1)*2), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, (sizeof(buff)-1),
-    archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, ((sizeof(buff)-1)*3), archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "ml; charset=utf-8\">\n\t<TITLE></TITLE>\n\t<META "
-                        "NAME=\"GENERATOR\" CO", buff);
-
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 20111, SEEK_SET));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111, archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
-    archive_seek_data(a, (sizeof(buff)-1), SEEK_CUR));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111 + (sizeof(buff)-1),
-    archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
-  memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
-    archive_seek_data(a, ((sizeof(buff)-1)*2), SEEK_END));
-  assertEqualIntA(a, 0, archive_read_data(a, buff, (sizeof(buff)-1)));
-  assertEqualIntA(a, 20111 + ((sizeof(buff)-1)*2),
-    archive_seek_data(a, 0, SEEK_CUR));
-  assertEqualStringA(a, "", buff);
+  test_read_format_rar_multivolume_uncompressed_files_helper(a);
 
   /*
    * Seventh header.
