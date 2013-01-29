@@ -1117,3 +1117,15 @@ typedef uint64_t uintmax_t;
 
 /* Define to `unsigned int' if <sys/types.h> does not define. */
 #cmakedefine uintptr_t ${uintptr_t}
+
+#define	BUILD_7ZIP_FORMAT 1
+#define	BUILD_AR_FORMAT 1
+#define	BUILD_CAB_FORMAT 1
+#define	BUILD_CPIO_FORMAT 1
+#define	BUILD_ISO_FORMAT 1
+#define	BUILD_LHA_FORMAT 1
+#define	BUILD_MTREE_FORMAT 1
+#define	BUILD_RAR_FORMAT 1
+#define	BUILD_SHAR_FORMAT 1
+#define	BUILD_XAR_FORMAT 1
+#define	BUILD_ZIP_FORMAT 1

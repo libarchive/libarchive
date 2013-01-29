@@ -44,33 +44,53 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_by_name.c 20116
 static
 struct { const char *name; int (*setter)(struct archive *); } names[] =
 {
+#ifdef BUILD_7ZIP_FORMAT
 	{ "7zip",	archive_write_set_format_7zip },
+#endif
+#ifdef BUILD_AR_FORMAT
 	{ "ar",		archive_write_set_format_ar_bsd },
 	{ "arbsd",	archive_write_set_format_ar_bsd },
 	{ "argnu",	archive_write_set_format_ar_svr4 },
 	{ "arsvr4",	archive_write_set_format_ar_svr4 },
+#endif
 	{ "bsdtar",	archive_write_set_format_pax_restricted },
+#ifdef BUILD_ISO_FORMAT
 	{ "cd9660",	archive_write_set_format_iso9660 },
+#endif
+#ifdef BUILD_CPIO_FORMAT
 	{ "cpio",	archive_write_set_format_cpio },
+#endif
 	{ "gnutar",	archive_write_set_format_gnutar },
+#ifdef BUILD_ISO_FORMAT
 	{ "iso",	archive_write_set_format_iso9660 },
 	{ "iso9660",	archive_write_set_format_iso9660 },
+#endif
+#ifdef BUILD_MTREE_FORMAT
 	{ "mtree",	archive_write_set_format_mtree },
 	{ "mtree-classic",	archive_write_set_format_mtree_classic },
+#endif
+#ifdef BUILD_CPIO_FORMAT
 	{ "newc",	archive_write_set_format_cpio_newc },
 	{ "odc",	archive_write_set_format_cpio },
+#endif
 	{ "oldtar",	archive_write_set_format_v7tar },
 	{ "pax",	archive_write_set_format_pax },
 	{ "paxr",	archive_write_set_format_pax_restricted },
 	{ "posix",	archive_write_set_format_pax },
 	{ "rpax",	archive_write_set_format_pax_restricted },
+#ifdef BUILD_SHAR_FORMAT
 	{ "shar",	archive_write_set_format_shar },
 	{ "shardump",	archive_write_set_format_shar_dump },
+#endif
 	{ "ustar",	archive_write_set_format_ustar },
 	{ "v7tar",	archive_write_set_format_v7tar },
 	{ "v7",		archive_write_set_format_v7tar },
+#ifdef BUILD_XAR_FORMAT
 	{ "xar",	archive_write_set_format_xar },
+#endif
+#ifdef BUILD_ZIP_FORMAT
 	{ "zip",	archive_write_set_format_zip },
+#endif
 	{ NULL,		NULL }
 };
 

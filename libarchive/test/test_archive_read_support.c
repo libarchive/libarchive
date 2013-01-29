@@ -72,18 +72,36 @@ test_filter_or_format(enabler enable)
 
 DEFINE_TEST(test_archive_read_support)
 {
+#ifdef BUILD_7ZIP_FORMAT
 	test_filter_or_format(archive_read_support_format_7zip);
+#endif
 	test_filter_or_format(archive_read_support_format_all);
+#ifdef BUILD_AR_FORMAT
 	test_filter_or_format(archive_read_support_format_ar);
+#endif
+#ifdef BUILD_CAB_FORMAT
 	test_filter_or_format(archive_read_support_format_cab);
+#endif
+#ifdef BUILD_CPIO_FORMAT
 	test_filter_or_format(archive_read_support_format_cpio);
+#endif
 	test_filter_or_format(archive_read_support_format_empty);
+#ifdef BUILD_ISO_FORMAT
 	test_filter_or_format(archive_read_support_format_iso9660);
+#endif
+#ifdef BUILD_LHA_FORMAT
 	test_filter_or_format(archive_read_support_format_lha);
+#endif
+#ifdef BUILD_MTREE_FORMAT
 	test_filter_or_format(archive_read_support_format_mtree);
+#endif
 	test_filter_or_format(archive_read_support_format_tar);
+#ifdef BUILD_XAR_FORMAT
 	test_filter_or_format(archive_read_support_format_xar);
+#endif
+#ifdef BUILD_ZIP_FORMAT
 	test_filter_or_format(archive_read_support_format_zip);
+#endif
 
 	test_filter_or_format(archive_read_support_filter_all);
 	test_filter_or_format(archive_read_support_filter_bzip2);
