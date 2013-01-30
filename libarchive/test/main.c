@@ -389,7 +389,6 @@ failure_finish(void *extra)
 		fprintf(stderr,
 		    " *** forcing core dump so failure can be debugged ***\n");
 		abort();
-		exit(1);
 	}
 }
 
