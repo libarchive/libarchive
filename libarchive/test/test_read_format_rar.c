@@ -1249,7 +1249,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_seek_data)
   /* Seek to the end minus 64 bytes */
   assertA(0 == archive_seek_data(a, 0, SEEK_SET));
   assertA(file_size - (int)sizeof(buff) ==
-    archive_seek_data(a, -sizeof(buff), SEEK_END));
+    archive_seek_data(a, -(int)sizeof(buff), SEEK_END));
   assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
   assertEqualMem(buff, file_test_txt1, sizeof(file_test_txt1) - 1);
 
@@ -1340,7 +1340,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_seek_multiple_files)
 
   /* Seek to the end minus 64 bytes */
   assertA(file_size - (int)sizeof(buff) ==
-    archive_seek_data(a, -sizeof(buff), SEEK_END));
+    archive_seek_data(a, -(int)sizeof(buff), SEEK_END));
   assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
   assertEqualMem(buff, file_test_txt1, sizeof(file_test_txt1) - 1);
 
@@ -1438,7 +1438,7 @@ test_read_format_rar_multivolume_uncompressed_files_helper(struct archive *a)
   /* Do checks for seeks/reads past beginning and end of file */
   assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_SET));
   memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -(sizeof(buff)-1), SEEK_SET));
+  assertEqualIntA(a, -1, archive_seek_data(a, -((int)sizeof(buff)-1), SEEK_SET));
   assertEqualIntA(a, 0, archive_seek_data(a, 0, SEEK_CUR));
   assertEqualIntA(a, (sizeof(buff)-1),
     archive_read_data(a, buff, (sizeof(buff)-1)));
@@ -1446,7 +1446,7 @@ test_read_format_rar_multivolume_uncompressed_files_helper(struct archive *a)
   assertEqualStringA(a, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD "
                         "HTML 4.0 Transitional//EN\">\n", buff);
   memset(buff, 0, sizeof(buff));
-  assertEqualIntA(a, -1, archive_seek_data(a, -((sizeof(buff)-1)*2), SEEK_CUR));
+  assertEqualIntA(a, -1, archive_seek_data(a, -(((int)sizeof(buff)-1)*2), SEEK_CUR));
   assertEqualIntA(a, (sizeof(buff)-1), archive_seek_data(a, 0, SEEK_CUR));
   assertEqualIntA(a, (sizeof(buff)-1),
     archive_read_data(a, buff, (sizeof(buff)-1)));
@@ -1537,7 +1537,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   /* Seek to the end minus (sizeof(buff)-1) bytes */
   memset(buff, 0, sizeof(buff));
   assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
-    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+    archive_seek_data(a, -((int)sizeof(buff)-1), SEEK_END));
   assertEqualIntA(a, (sizeof(buff)-1),
     archive_read_data(a, buff, (sizeof(buff)-1)));
   assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
@@ -1719,7 +1719,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
 
   memset(buff, 0, sizeof(buff));
   assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
-    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+    archive_seek_data(a, -((int)sizeof(buff)-1), SEEK_END));
   assertEqualIntA(a, (sizeof(buff)-1),
     archive_read_data(a, buff, (sizeof(buff)-1)));
   assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
@@ -1735,7 +1735,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
 
   memset(buff, 0, sizeof(buff));
   assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
-    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+    archive_seek_data(a, -((int)sizeof(buff)-1), SEEK_END));
   assertEqualIntA(a, (sizeof(buff)-1),
     archive_read_data(a, buff, (sizeof(buff)-1)));
   assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
@@ -1751,7 +1751,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
 
   memset(buff, 0, sizeof(buff));
   assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
-    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+    archive_seek_data(a, -((int)sizeof(buff)-1), SEEK_END));
   assertEqualIntA(a, (sizeof(buff)-1),
     archive_read_data(a, buff, (sizeof(buff)-1)));
   assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
@@ -1800,7 +1800,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   /* Seek to the end minus (sizeof(buff)-1) bytes */
   memset(buff, 0, sizeof(buff));
   assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
-    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+    archive_seek_data(a, -((int)sizeof(buff)-1), SEEK_END));
   assertEqualIntA(a, (sizeof(buff)-1),
     archive_read_data(a, buff, (sizeof(buff)-1)));
   assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
@@ -2062,7 +2062,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
 
   memset(buff, 0, sizeof(buff));
   assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
-    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+    archive_seek_data(a, -((int)sizeof(buff)-1), SEEK_END));
   assertEqualIntA(a, (sizeof(buff)-1),
     archive_read_data(a, buff, (sizeof(buff)-1)));
   assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
@@ -2094,7 +2094,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
 
   memset(buff, 0, sizeof(buff));
   assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
-    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+    archive_seek_data(a, -((int)sizeof(buff)-1), SEEK_END));
   assertEqualIntA(a, (sizeof(buff)-1),
     archive_read_data(a, buff, (sizeof(buff)-1)));
   assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
@@ -2126,7 +2126,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
 
   memset(buff, 0, sizeof(buff));
   assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
-    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+    archive_seek_data(a, -((int)sizeof(buff)-1), SEEK_END));
   assertEqualIntA(a, (sizeof(buff)-1),
     archive_read_data(a, buff, (sizeof(buff)-1)));
   assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
@@ -2183,7 +2183,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   /* Seek to the end minus (sizeof(buff)-1) bytes */
   memset(buff, 0, sizeof(buff));
   assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
-    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+    archive_seek_data(a, -((int)sizeof(buff)-1), SEEK_END));
   assertEqualIntA(a, (sizeof(buff)-1),
     archive_read_data(a, buff, (sizeof(buff)-1)));
   assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
@@ -2365,7 +2365,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
 
   memset(buff, 0, sizeof(buff));
   assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
-    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+    archive_seek_data(a, -((int)sizeof(buff)-1), SEEK_END));
   assertEqualIntA(a, (sizeof(buff)-1),
     archive_read_data(a, buff, (sizeof(buff)-1)));
   assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
@@ -2381,7 +2381,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
 
   memset(buff, 0, sizeof(buff));
   assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
-    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+    archive_seek_data(a, -((int)sizeof(buff)-1), SEEK_END));
   assertEqualIntA(a, (sizeof(buff)-1),
     archive_read_data(a, buff, (sizeof(buff)-1)));
   assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
@@ -2397,7 +2397,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
 
   memset(buff, 0, sizeof(buff));
   assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
-    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+    archive_seek_data(a, -((int)sizeof(buff)-1), SEEK_END));
   assertEqualIntA(a, (sizeof(buff)-1),
     archive_read_data(a, buff, (sizeof(buff)-1)));
   assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
@@ -2446,7 +2446,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   /* Seek to the end minus (sizeof(buff)-1) bytes */
   memset(buff, 0, sizeof(buff));
   assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
-    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+    archive_seek_data(a, -((int)sizeof(buff)-1), SEEK_END));
   assertEqualIntA(a, (sizeof(buff)-1),
     archive_read_data(a, buff, (sizeof(buff)-1)));
   assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
@@ -2708,7 +2708,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
 
   memset(buff, 0, sizeof(buff));
   assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
-    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+    archive_seek_data(a, -((int)sizeof(buff)-1), SEEK_END));
   assertEqualIntA(a, (sizeof(buff)-1),
     archive_read_data(a, buff, (sizeof(buff)-1)));
   assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
@@ -2740,7 +2740,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
 
   memset(buff, 0, sizeof(buff));
   assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
-    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+    archive_seek_data(a, -((int)sizeof(buff)-1), SEEK_END));
   assertEqualIntA(a, (sizeof(buff)-1),
     archive_read_data(a, buff, (sizeof(buff)-1)));
   assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
@@ -2772,7 +2772,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
 
   memset(buff, 0, sizeof(buff));
   assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
-    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+    archive_seek_data(a, -((int)sizeof(buff)-1), SEEK_END));
   assertEqualIntA(a, (sizeof(buff)-1),
     archive_read_data(a, buff, (sizeof(buff)-1)));
   assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
@@ -2829,7 +2829,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   /* Seek to the end minus (sizeof(buff)-1) bytes */
   memset(buff, 0, sizeof(buff));
   assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
-    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+    archive_seek_data(a, -((int)sizeof(buff)-1), SEEK_END));
   assertEqualIntA(a, (sizeof(buff)-1),
     archive_read_data(a, buff, (sizeof(buff)-1)));
   assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
@@ -3011,7 +3011,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
 
   memset(buff, 0, sizeof(buff));
   assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
-    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+    archive_seek_data(a, -((int)sizeof(buff)-1), SEEK_END));
   assertEqualIntA(a, (sizeof(buff)-1),
     archive_read_data(a, buff, (sizeof(buff)-1)));
   assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
@@ -3027,7 +3027,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
 
   memset(buff, 0, sizeof(buff));
   assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
-    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+    archive_seek_data(a, -((int)sizeof(buff)-1), SEEK_END));
   assertEqualIntA(a, (sizeof(buff)-1),
     archive_read_data(a, buff, (sizeof(buff)-1)));
   assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
@@ -3043,7 +3043,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
 
   memset(buff, 0, sizeof(buff));
   assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
-    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+    archive_seek_data(a, -((int)sizeof(buff)-1), SEEK_END));
   assertEqualIntA(a, (sizeof(buff)-1),
     archive_read_data(a, buff, (sizeof(buff)-1)));
   assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
@@ -3092,7 +3092,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   /* Seek to the end minus (sizeof(buff)-1) bytes */
   memset(buff, 0, sizeof(buff));
   assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
-    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+    archive_seek_data(a, -((int)sizeof(buff)-1), SEEK_END));
   assertEqualIntA(a, (sizeof(buff)-1),
     archive_read_data(a, buff, (sizeof(buff)-1)));
   assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
@@ -3354,7 +3354,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
 
   memset(buff, 0, sizeof(buff));
   assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
-    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+    archive_seek_data(a, -((int)sizeof(buff)-1), SEEK_END));
   assertEqualIntA(a, (sizeof(buff)-1),
     archive_read_data(a, buff, (sizeof(buff)-1)));
   assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
@@ -3386,7 +3386,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
 
   memset(buff, 0, sizeof(buff));
   assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
-    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+    archive_seek_data(a, -((int)sizeof(buff)-1), SEEK_END));
   assertEqualIntA(a, (sizeof(buff)-1),
     archive_read_data(a, buff, (sizeof(buff)-1)));
   assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
@@ -3418,7 +3418,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
 
   memset(buff, 0, sizeof(buff));
   assertEqualIntA(a, 20111 - (int)(sizeof(buff)-1),
-    archive_seek_data(a, -(sizeof(buff)-1), SEEK_END));
+    archive_seek_data(a, -((int)sizeof(buff)-1), SEEK_END));
   assertEqualIntA(a, (sizeof(buff)-1),
     archive_read_data(a, buff, (sizeof(buff)-1)));
   assertEqualStringA(a, ". \n</P>\n<P STYLE=\"margin-bottom: 0in\"><BR>\n"
