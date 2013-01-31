@@ -173,7 +173,7 @@ void	tar_mode_x(struct bsdtar *bsdtar);
 void	usage(void);
 int	yes(const char *fmt, ...);
 
-#if HAVE_REGEX_H
+#if defined(HAVE_REGEX_H) || defined(HAVE_PCREPOSIX_H)
 void	add_substitution(struct bsdtar *, const char *);
 int	apply_substitution(struct bsdtar *, const char *, char **, int, int);
 void	cleanup_substitution(struct bsdtar *);

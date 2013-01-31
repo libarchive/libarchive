@@ -150,6 +150,7 @@ OPTION(ENABLE_CPIO_SHARED "Enable dynamic build of cpio" FALSE)
 OPTION(ENABLE_XATTR "Enable extended attribute support" ON)
 OPTION(ENABLE_ACL "Enable ACL support" ON)
 OPTION(ENABLE_ICONV "Enable iconv support" ON)
+OPTION(ENABLE_PCREPOSIX "Enable POSIX regular expression support using PCRE" OFF)
 OPTION(ENABLE_TEST "Enable unit and regression tests" ON)
 
 IF(ENABLE_TEST)
@@ -868,50 +869,107 @@ ELSE(LIBXML2_FOUND)
 ENDIF(LIBXML2_FOUND)
 MARK_AS_ADVANCED(CLEAR LIBXML2_INCLUDE_DIR)
 MARK_AS_ADVANCED(CLEAR LIBXML2_LIBRARIES)
-#
-# Find Libregex
-#
-FIND_PATH(REGEX_INCLUDE_DIR regex.h)
-IF(REGEX_INCLUDE_DIR)
-  CHECK_FUNCTION_EXISTS_GLIBC(regcomp HAVE_REGCOMP_LIBC)
-  #
-  # If libc does not provide regex, find libregex.
-  #
-  IF(NOT HAVE_REGCOMP_LIBC)
-    CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
-    FIND_LIBRARY(REGEX_LIBRARY regex)
-    IF(REGEX_LIBRARY)
-      SET(CMAKE_REQUIRED_LIBRARIES ${REGEX_LIBRARY})
-      CHECK_FUNCTION_EXISTS_GLIBC(regcomp HAVE_REGCOMP_LIBREGEX)
-      IF(HAVE_REGCOMP_LIBREGEX)
-        LIST(APPEND ADDITIONAL_LIBS ${REGEX_LIBRARY})
-        #
-        # If regex.h is not found, retry looking for regex.h at
-        # REGEX_INCLUDE_DIR
-        #
-        IF(NOT HAVE_REGEX_H)
-          UNSET(HAVE_REGEX_H CACHE)
-          INCLUDE_DIRECTORIES(${REGEX_INCLUDE_DIR})
-          SET(CMAKE_REQUIRED_INCLUDES ${REGEX_INCLUDE_DIR})
-          LA_CHECK_INCLUDE_FILE("regex.h" HAVE_REGEX_H)
-        ENDIF(NOT HAVE_REGEX_H)
-        # Test if a macro is needed for the library.
-        TRY_MACRO_FOR_LIBRARY(
-          "${REGEX_INCLUDE_DIR}" "${REGEX_LIBRARY}"
-          COMPILES
-          "#include <stddef.h>\n#include <regex.h>\nint main() {regex_t r;return regcomp(&r, \"\", 0);}"
-          "USE_REGEX_DLL;USE_REGEX_STATIC")
-        IF(USE_REGEX_DLL)
-          ADD_DEFINITIONS(-DUSE_REGEX_DLL)
-        ELSEIF(USE_REGEX_STATIC)
-          ADD_DEFINITIONS(-DUSE_REGEX_STATIC)
-        ENDIF(USE_REGEX_DLL)
-      ENDIF(HAVE_REGCOMP_LIBREGEX)
-    ENDIF(REGEX_LIBRARY)
-    CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
-  ENDIF(NOT HAVE_REGCOMP_LIBC)
-ENDIF(REGEX_INCLUDE_DIR)
 
+#
+# POSIX Regular Expression support
+#
+IF(ENABLE_PCREPOSIX)
+  #
+  # If requested, try finding library for PCREPOSIX
+  #
+  IF (PCREPOSIX_INCLUDE_DIRS)
+    # Already in cache, be silent
+    SET(PCREPOSIX_FIND_QUIETLY TRUE)
+  ENDIF (PCREPOSIX_INCLUDE_DIRS)
+
+  FIND_PATH(PCREPOSIX_INCLUDE_DIR pcreposix.h)
+
+  SET(PCREPOSIX_NAMES pcreposix)
+  FIND_LIBRARY(PCREPOSIX_LIBRARY NAMES ${PCREPOSIX_NAMES} )
+
+  # handle the QUIETLY and REQUIRED arguments and set PCREPOSIX_FOUND to TRUE if 
+  # all listed variables are TRUE
+  INCLUDE(FindPackageHandleStandardArgs)
+  FIND_PACKAGE_HANDLE_STANDARD_ARGS(PCREPOSIX DEFAULT_MSG PCREPOSIX_LIBRARY PCREPOSIX_INCLUDE_DIR)
+
+  IF(PCREPOSIX_FOUND)
+    SET( PCREPOSIX_LIBRARIES ${PCREPOSIX_LIBRARY} )
+    SET( PCREPOSIX_INCLUDE_DIRS ${PCREPOSIX_INCLUDE_DIR} )
+
+    IF(PCREPOSIX_LIBRARY)
+      SET(CMAKE_REQUIRED_LIBRARIES ${PCREPOSIX_LIBRARY})
+	ENDIF(PCREPOSIX_LIBRARY)
+
+    IF(PCREPOSIX_INCLUDE_DIR)
+      INCLUDE_DIRECTORIES(${PCREPOSIX_INCLUDE_DIR})
+      SET(CMAKE_REQUIRED_INCLUDES ${PCREPOSIX_INCLUDE_DIR})
+    ENDIF(PCREPOSIX_INCLUDE_DIR)
+	LA_CHECK_INCLUDE_FILE("pcreposix.h" HAVE_PCREPOSIX_H)
+
+    # Test if a macro is needed for the library.
+    TRY_MACRO_FOR_LIBRARY(
+      "${PCREPOSIX_INCLUDE_DIR}" "${PCREPOSIX_LIBRARY}"
+      COMPILES
+      "#include <stddef.h>\n#include <pcreposix.h>\nint main() {regex_t r;return regcomp(&r, \"\", 0);}"
+      "PCRE_STATIC")
+    IF(PCRE_STATIC)
+	  # TODO: Need to link against libpcre if static linking
+      ADD_DEFINITIONS(-DPCRE_STATIC)
+    ENDIF(PCRE_STATIC)
+  ELSE(PCREPOSIX_FOUND)
+    SET( PCREPOSIX_LIBRARIES )
+    SET( PCREPOSIX_INCLUDE_DIRS )
+  ENDIF(PCREPOSIX_FOUND)
+
+  MARK_AS_ADVANCED( PCREPOSIX_LIBRARIES PCREPOSIX_INCLUDE_DIRS )
+ENDIF(ENABLE_PCREPOSIX)
+
+IF(NOT PCREPOSIX_FOUND)
+  #
+  # If PCREPOSIX is not found or not requested, try using regex
+  # from libc or libregex
+  #
+  FIND_PATH(REGEX_INCLUDE_DIR regex.h)
+  IF(REGEX_INCLUDE_DIR)
+    CHECK_FUNCTION_EXISTS_GLIBC(regcomp HAVE_REGCOMP_LIBC)
+    #
+    # If libc does not provide regex, find libregex.
+    #
+    IF(NOT HAVE_REGCOMP_LIBC)
+      CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
+      FIND_LIBRARY(REGEX_LIBRARY regex)
+      IF(REGEX_LIBRARY)
+        SET(CMAKE_REQUIRED_LIBRARIES ${REGEX_LIBRARY})
+        CHECK_FUNCTION_EXISTS_GLIBC(regcomp HAVE_REGCOMP_LIBREGEX)
+        IF(HAVE_REGCOMP_LIBREGEX)
+          LIST(APPEND ADDITIONAL_LIBS ${REGEX_LIBRARY})
+          #
+          # If regex.h is not found, retry looking for regex.h at
+          # REGEX_INCLUDE_DIR
+          #
+          IF(NOT HAVE_REGEX_H)
+            UNSET(HAVE_REGEX_H CACHE)
+            INCLUDE_DIRECTORIES(${REGEX_INCLUDE_DIR})
+            SET(CMAKE_REQUIRED_INCLUDES ${REGEX_INCLUDE_DIR})
+            LA_CHECK_INCLUDE_FILE("regex.h" HAVE_REGEX_H)
+          ENDIF(NOT HAVE_REGEX_H)
+          # Test if a macro is needed for the library.
+          TRY_MACRO_FOR_LIBRARY(
+            "${REGEX_INCLUDE_DIR}" "${REGEX_LIBRARY}"
+            COMPILES
+            "#include <stddef.h>\n#include <regex.h>\nint main() {regex_t r;return regcomp(&r, \"\", 0);}"
+            "USE_REGEX_DLL;USE_REGEX_STATIC")
+          IF(USE_REGEX_DLL)
+            ADD_DEFINITIONS(-DUSE_REGEX_DLL)
+          ELSEIF(USE_REGEX_STATIC)
+            ADD_DEFINITIONS(-DUSE_REGEX_STATIC)
+          ENDIF(USE_REGEX_DLL)
+        ENDIF(HAVE_REGCOMP_LIBREGEX)
+      ENDIF(REGEX_LIBRARY)
+      CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
+    ENDIF(NOT HAVE_REGCOMP_LIBC)
+  ENDIF(REGEX_INCLUDE_DIR)
+ENDIF(NOT PCREPOSIX_FOUND)
 #
 # Check functions
 #
