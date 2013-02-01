@@ -1,0 +1,25 @@
+# - Find pcreposix
+# Find the native PCREPOSIX include and library
+#
+#  PCRE_INCLUDE_DIR    - where to find pcreposix.h, etc.
+#  PCREPOSIX_LIBRARIES - List of libraries when using libpcreposix.
+#  PCREPOSIX_FOUND     - True if libpcreposix found.
+
+IF (PCRE_INCLUDE_DIR)
+  # Already in cache, be silent
+  SET(PCRE_FIND_QUIETLY TRUE)
+ENDIF (PCRE_INCLUDE_DIR)
+
+FIND_PATH(PCRE_INCLUDE_DIR pcreposix.h)
+FIND_LIBRARY(PCREPOSIX_LIBRARY NAMES pcreposix libpcreposix)
+FIND_LIBRARY(PCRE_LIBRARY NAMES pcre libpcre)
+
+# handle the QUIETLY and REQUIRED arguments and set PCREPOSIX_FOUND to TRUE if 
+# all listed variables are TRUE
+INCLUDE(FindPackageHandleStandardArgs)
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(PCREPOSIX DEFAULT_MSG PCREPOSIX_LIBRARY PCRE_INCLUDE_DIR)
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(PCRE DEFAULT_MSG PCRE_LIBRARY PCRE_INCLUDE_DIR)
+
+IF(PCREPOSIX_FOUND AND PCRE_FOUND)
+  SET(PCREPOSIX_LIBRARIES ${PCREPOSIX_LIBRARY} ${PCRE_LIBRARY})
+ENDIF(PCREPOSIX_FOUND AND PCRE_FOUND)

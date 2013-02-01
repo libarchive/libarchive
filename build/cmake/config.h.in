@@ -588,6 +588,12 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `lzo2' library (-llzo2). */
 #cmakedefine HAVE_LIBLZO2 1
 
+/* Define to 1 if you have the `pcre' library (-lpcre). */
+#cmakedefine HAVE_LIBPCRE 1
+
+/* Define to 1 if you have the `pcreposix' library (-lpcreposix). */
+#cmakedefine HAVE_LIBPCREPOSIX 1
+
 /* Define to 1 if you have the `xml2' library (-lxml2). */
 #cmakedefine HAVE_LIBXML2 1
 
