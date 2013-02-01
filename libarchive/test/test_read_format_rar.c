@@ -1196,7 +1196,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_seek_data)
 
   /* Seek to the end minus 64 bytes */
   assertA(file_size - (int)sizeof(buff) ==
-    archive_seek_data(a, file_size - sizeof(buff), SEEK_SET));
+    archive_seek_data(a, file_size - (int)sizeof(buff), SEEK_SET));
   assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
   assertEqualMem(buff, file_test_txt1, sizeof(file_test_txt1) - 1);
 
@@ -1262,12 +1262,12 @@ DEFINE_TEST(test_read_format_rar_multivolume_seek_data)
   assertEqualMem(buff, file_test_txt2, sizeof(file_test_txt2) - 1);
 
   /* Seek to the middle of the combined data block */
-  assertA(10054 == archive_seek_data(a, 10054 - sizeof(buff), SEEK_CUR));
+  assertA(10054 == archive_seek_data(a, 10054 - (int)sizeof(buff), SEEK_CUR));
   assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
   assertEqualMem(buff, file_test_txt3, sizeof(file_test_txt3) - 1);
 
   /* Seek to 32 bytes before the end of the first data sub-block */
-  assertA(6860 == archive_seek_data(a, 6860 - (10054 + sizeof(buff)),
+  assertA(6860 == archive_seek_data(a, 6860 - (10054 + (int)sizeof(buff)),
                                     SEEK_CUR));
   assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
   assertEqualMem(buff, file_test_txt4, sizeof(file_test_txt4) - 1);
@@ -1350,12 +1350,12 @@ DEFINE_TEST(test_read_format_rar_multivolume_seek_multiple_files)
   assertEqualMem(buff, file_test_txt2, sizeof(file_test_txt2) - 1);
 
   /* Seek to the middle of the combined data block */
-  assertA(10054 == archive_seek_data(a, 10054 - sizeof(buff), SEEK_CUR));
+  assertA(10054 == archive_seek_data(a, 10054 - (int)sizeof(buff), SEEK_CUR));
   assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
   assertEqualMem(buff, file_test_txt3, sizeof(file_test_txt3) - 1);
 
   /* Seek to 32 bytes before the end of the first data sub-block */
-  assertA(7027 == archive_seek_data(a, 7027 - (10054 + sizeof(buff)),
+  assertA(7027 == archive_seek_data(a, 7027 - (10054 + (int)sizeof(buff)),
                                     SEEK_CUR));
   assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
   assertEqualMem(buff, file_test_txt4, sizeof(file_test_txt4) - 1);
@@ -1388,7 +1388,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_seek_multiple_files)
 
   /* Seek to the end minus 64 bytes */
   assertA(file_size - (int)sizeof(buff) ==
-    archive_seek_data(a, file_size - sizeof(buff), SEEK_SET));
+    archive_seek_data(a, file_size - (int)sizeof(buff), SEEK_SET));
   assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
   assertEqualMem(buff, file_test_txt1, sizeof(file_test_txt1) - 1);
 
@@ -1398,12 +1398,12 @@ DEFINE_TEST(test_read_format_rar_multivolume_seek_multiple_files)
   assertEqualMem(buff, file_test_txt2, sizeof(file_test_txt2) - 1);
 
   /* Seek to the middle of the combined data block */
-  assertA(10054 == archive_seek_data(a, 10054 - sizeof(buff), SEEK_CUR));
+  assertA(10054 == archive_seek_data(a, 10054 - (int)sizeof(buff), SEEK_CUR));
   assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
   assertEqualMem(buff, file_test_txt3, sizeof(file_test_txt3) - 1);
 
   /* Seek to 32 bytes before the end of the first data sub-block */
-  assertA(969 == archive_seek_data(a, 969 - (10054 + sizeof(buff)), SEEK_CUR));
+  assertA(969 == archive_seek_data(a, 969 - (10054 + (int)sizeof(buff)), SEEK_CUR));
   assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
   assertEqualMem(buff, file_test_txt6, sizeof(file_test_txt4) - 1);
 
