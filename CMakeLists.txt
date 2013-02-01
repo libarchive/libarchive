@@ -902,7 +902,7 @@ IF(ENABLE_PCREPOSIX)
       "${PCRE_INCLUDE_DIR}" "${PCREPOSIX_LIBRARIES}"
       COMPILES
       "#include <pcreposix.h>\nint main() {regex_t r;return regcomp(&r, \"\", 0);}"
-      "PCRE_STATIC")
+      "WITHOUT_PCRE_STATIC;PCRE_STATIC")
     IF(PCRE_STATIC)
       ADD_DEFINITIONS(-DPCRE_STATIC)
     ENDIF(PCRE_STATIC)
