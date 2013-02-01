@@ -911,13 +911,13 @@ IF(ENABLE_PCREPOSIX)
 
     IF(PCREPOSIX_LIBRARY)
       SET(CMAKE_REQUIRED_LIBRARIES ${PCREPOSIX_LIBRARY})
-	ENDIF(PCREPOSIX_LIBRARY)
+    ENDIF(PCREPOSIX_LIBRARY)
 
     IF(PCRE_INCLUDE_DIR)
       INCLUDE_DIRECTORIES(${PCRE_INCLUDE_DIR})
       SET(CMAKE_REQUIRED_INCLUDES ${PCRE_INCLUDE_DIR})
     ENDIF(PCRE_INCLUDE_DIR)
-	LA_CHECK_INCLUDE_FILE("pcreposix.h" HAVE_PCREPOSIX_H)
+    LA_CHECK_INCLUDE_FILE("pcreposix.h" HAVE_PCREPOSIX_H)
 
     # Test if a macro is needed for the library.
     TRY_MACRO_FOR_LIBRARY(
@@ -926,7 +926,7 @@ IF(ENABLE_PCREPOSIX)
       "#include <stddef.h>\n#include <pcreposix.h>\nint main() {regex_t r;return regcomp(&r, \"\", 0);}"
       "PCRE_STATIC")
     IF(PCRE_STATIC)
-	  # TODO: Need to link against libpcre if static linking
+      # TODO: Need to link against libpcre if static linking
       ADD_DEFINITIONS(-DPCRE_STATIC)
     ENDIF(PCRE_STATIC)
   ELSE(PCREPOSIX_FOUND)
