@@ -150,8 +150,8 @@ OPTION(ENABLE_CPIO_SHARED "Enable dynamic build of cpio" FALSE)
 OPTION(ENABLE_XATTR "Enable extended attribute support" ON)
 OPTION(ENABLE_ACL "Enable ACL support" ON)
 OPTION(ENABLE_ICONV "Enable iconv support" ON)
-OPTION(ENABLE_PCREPOSIX "Enable POSIX regular expression support using PCRE" OFF)
 OPTION(ENABLE_TEST "Enable unit and regression tests" ON)
+SET(POSIX_REGEX_LIB "AUTO" CACHE STRING "Choose what library should provide POSIX regular expression support")
 SET(ENABLE_SAFESEH "AUTO" CACHE STRING "Enable use of /SAFESEH linker flag (MSVC only)")
 SET(WINDOWS_VERSION "WINXP" CACHE STRING "Set Windows version to use (Windows only)")
 
@@ -912,7 +912,7 @@ MARK_AS_ADVANCED(CLEAR LIBXML2_LIBRARIES)
 #
 # POSIX Regular Expression support
 #
-IF(ENABLE_PCREPOSIX)
+IF(POSIX_REGEX_LIB MATCHES "^(AUTO|LIBPCREPOSIX)$")
   #
   # If requested, try finding library for PCREPOSIX
   #
@@ -935,9 +935,9 @@ IF(ENABLE_PCREPOSIX)
   ENDIF(PCREPOSIX_FOUND)
   MARK_AS_ADVANCED(CLEAR PCRE_INCLUDE_DIR)
   MARK_AS_ADVANCED(CLEAR PCREPOSIX_LIBRARIES)
-ENDIF(ENABLE_PCREPOSIX)
+ENDIF(POSIX_REGEX_LIB MATCHES "^(AUTO|LIBPCREPOSIX)$")
 
-IF(NOT PCREPOSIX_FOUND)
+IF(NOT PCREPOSIX_FOUND AND POSIX_REGEX_LIB MATCHES "^(AUTO|LIBC|LIBREGEX)$")
   #
   # If PCREPOSIX is not found or not requested, try using regex
   # from libc or libregex
@@ -982,7 +982,7 @@ IF(NOT PCREPOSIX_FOUND)
       CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
     ENDIF(NOT HAVE_REGCOMP_LIBC)
   ENDIF(REGEX_INCLUDE_DIR)
-ENDIF(NOT PCREPOSIX_FOUND)
+ENDIF(NOT PCREPOSIX_FOUND AND POSIX_REGEX_LIB MATCHES "^(AUTO|LIBC|LIBREGEX)$")
 #
 # Check functions
 #
