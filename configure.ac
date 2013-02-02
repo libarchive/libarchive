@@ -218,7 +218,7 @@ AS_VAR_IF([ac_cv_have_decl_EXT2_IOC_GETFLAGS], [yes],
 
 AC_CHECK_HEADERS([inttypes.h io.h langinfo.h limits.h])
 AC_CHECK_HEADERS([linux/fiemap.h linux/fs.h linux/magic.h linux/types.h])
-AC_CHECK_HEADERS([locale.h paths.h poll.h pwd.h regex.h signal.h spawn.h])
+AC_CHECK_HEADERS([locale.h paths.h poll.h pwd.h signal.h spawn.h])
 AC_CHECK_HEADERS([stdarg.h stdint.h stdlib.h string.h])
 AC_CHECK_HEADERS([sys/acl.h sys/cdefs.h sys/extattr.h])
 AC_CHECK_HEADERS([sys/ioctl.h sys/mkdev.h sys/mount.h])
@@ -324,13 +324,25 @@ if test "x$ac_cv_header_libxml_xmlreader_h" != "xyes"; then
   fi
 fi
 
-AC_ARG_WITH([libregex],
-  AS_HELP_STRING([--without-libregex], [Don't build support for regex through libregex]))
+AC_ARG_ENABLE([posix-regex-lib],
+  [AS_HELP_STRING([--enable-posix-regex-lib],
+    [choose what library to use for POSIX regular expression support (default: auto)])
+  AS_HELP_STRING([--enable-posix-regex-lib=libc], [use libc POSIX regular expression support])
+  AS_HELP_STRING([--enable-posix-regex-lib=libregex], [use libregex POSIX regular expression support])
+  AS_HELP_STRING([--enable-posix-regex-lib=libpcreposix], [use libpcreposix POSIX regular expression support])
+  AS_HELP_STRING([--disable-posix-regex-lib], [don't enable POSIX regular expression support])],
+  [], [enable_posix_regex_lib=auto])
 
-if test "x$with_libregex" != "xno"; then
+posix_regex_lib_found=
+if test "$enable_posix_regex_lib" = "auto" || test "$enable_posix_regex_lib" = "libc" || test "$enable_posix_regex_lib" = "libregex"; then
+  AC_CHECK_HEADERS([regex.h])
   if test "x$ac_cv_header_regex_h" != "xno"; then
-    AC_CHECK_FUNC(regcomp, , [AC_CHECK_LIB(regex,regcomp)])
+    AC_CHECK_FUNC(regcomp, posix_regex_lib_found=1, [AC_CHECK_LIB(regex,regcomp,posix_regex_lib_found=1;LIBS="-lregex $LIBS";AC_DEFINE([HAVE_LIBREGEX], [1], [Define to 1 if you have the `regex' library (-lregex).]))])
   fi
+fi
+if test -z $posix_regex_lib_found && (test "$enable_posix_regex_lib" = "auto" || test "$enable_posix_regex_lib" = "libpcreposix"); then
+  AC_CHECK_HEADERS([pcreposix.h])
+  AC_CHECK_LIB(pcreposix,regcomp,posix_regex_lib_found=1;LIBS="-lpcreposix $LIBS";AC_DEFINE([HAVE_LIBPCREPOSIX], [1], [Define to 1 if you have the `pcreposix' library (-lpcreposix).]))
 fi
 
 # TODO: Give the user the option of using a pre-existing system
