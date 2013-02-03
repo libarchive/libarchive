@@ -247,7 +247,29 @@ AC_ARG_WITH([bz2lib],
 
 if test "x$with_bz2lib" != "xno"; then
   AC_CHECK_HEADERS([bzlib.h])
-  AC_CHECK_LIB(bz2,BZ2_bzDecompressInit)
+  case "$host_os" in
+    *mingw* | *cygwin*)
+      dnl AC_CHECK_LIB cannot be used on the Windows port of libbz2, therefore
+	  dnl use AC_LINK_IFELSE.
+	  AC_MSG_CHECKING([for BZ2_bzDecompressInit in -lbz2])
+      old_LIBS="$LIBS"
+      LIBS="-lbz2 $LIBS"
+      AC_LINK_IFELSE(
+        [AC_LANG_SOURCE(#include <bzlib.h>
+          int main() { return BZ2_bzDecompressInit(NULL, 0, 0); })],
+        [ac_cv_lib_bz2_BZ2_bzDecompressInit=yes],
+        [ac_cv_lib_bz2_BZ2_bzDecompressInit=no])
+      LIBS="$old_LIBS"
+	  AC_MSG_RESULT($ac_cv_lib_bz2_BZ2_bzDecompressInit)
+      if test "x$ac_cv_lib_bz2_BZ2_bzDecompressInit" = xyes; then
+        AC_DEFINE([HAVE_LIBBZ2], [1], [Define to 1 if you have the `bz2' library (-lbz2).])
+        LIBS="-lbz2 $LIBS"
+      fi
+    ;;
+    *)
+      AC_CHECK_LIB(bz2,BZ2_bzDecompressInit)
+    ;;
+  esac
 fi
 
 AC_ARG_WITH([lzmadec],
