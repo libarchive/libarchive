@@ -1857,7 +1857,7 @@ mtree_entry_setup_filenames(struct archive_write *a, struct mtree_entry *file,
 
 	/* Make a basename from dirname and slash */
 	*slash  = '\0';
-	file->parentdir.length = slash - dirname;
+	file->parentdir.length = slash - file->parentdir.s;
 	archive_strcpy(&(file->basename),  slash + 1);
 	return (ret);
 }
