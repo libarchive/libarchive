@@ -693,7 +693,7 @@ main(int argc, char **argv)
 ])
 
 case "$host_os" in
-  *mingw* )
+  *mingw* | *cygwin*)
 	CRYPTO_CHECK_WIN(MD5, CALG_MD5)
 	CRYPTO_CHECK_WIN(SHA1, CALG_SHA1)
 	CRYPTO_CHECK_WIN(SHA256, CALG_SHA_256)
