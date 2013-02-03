@@ -1222,8 +1222,10 @@ __archive_stub_sha512final(archive_sha512_ctx *ctx, void *md)
  * 2. libc2
  * 3. libc3
  * 4. libSystem
- * 5. OpenSSL
- * 6. Windows API
+ * 5. Nettle
+ * 6. OpenSSL
+ * 7. libmd
+ * 8. Windows API
  */
 const struct archive_crypto __archive_crypto =
 {
