@@ -1,8 +1,9 @@
 # - Find pcreposix
-# Find the native PCREPOSIX include and library
+# Find the native PCRE and PCREPOSIX include and libraries
 #
 #  PCRE_INCLUDE_DIR    - where to find pcreposix.h, etc.
 #  PCREPOSIX_LIBRARIES - List of libraries when using libpcreposix.
+#  PCRE_LIBRARIES      - List of libraries when using libpcre.
 #  PCREPOSIX_FOUND     - True if libpcreposix found.
 #  PCRE_FOUND          - True if libpcre found.
 
@@ -28,6 +29,6 @@ IF(PCREPOSIX_FOUND)
 ENDIF(PCREPOSIX_FOUND)
 
 IF(PCRE_FOUND)
-  SET(PCREPOSIX_LIBRARIES ${PCREPOSIX_LIBRARIES} ${PCRE_LIBRARY})
+  SET(PCRE_LIBRARIES ${PCRE_LIBRARY})
   SET(HAVE_LIBPCRE 1)
 ENDIF(PCRE_FOUND)
