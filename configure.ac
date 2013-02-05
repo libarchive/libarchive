@@ -669,8 +669,6 @@ AC_DEFUN([CRYPTO_CHECK_WIN], [
   if test "$found_$1" != yes; then
     AC_MSG_CHECKING([support for ARCHIVE_CRYPTO_$1_WIN])
     AC_LINK_IFELSE([AC_LANG_SOURCE([
-#define _WIN32_WINNT 0x0500
-#define WINVER 0x0500
 #define ARCHIVE_$1_COMPILE_TEST
 #include <windows.h>
 #include <wincrypt.h>
