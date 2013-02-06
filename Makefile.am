@@ -205,6 +205,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_write_set_format_gnutar.c		\
 	libarchive/archive_write_set_format_xar.c		\
 	libarchive/archive_write_set_format_zip.c		\
+	libarchive/archive_write_set_format_raw.c		\
 	libarchive/archive_write_set_options.c			\
 	libarchive/config_freebsd.h				\
 	libarchive/filter_fork_posix.c				\
