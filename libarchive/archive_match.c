@@ -1376,6 +1376,7 @@ add_entry(struct archive_match *a, int flag,
 	archive_mstring_copy_wcs(&(f->pathname), pathname);
 	a->exclusion_tree.rbt_ops = &rb_ops_wcs;
 #else
+	(void)rb_ops_wcs;
 	pathname = archive_entry_pathname(entry);
 	if (pathname == NULL) {
 		free(f);
@@ -1515,6 +1516,7 @@ time_excluded(struct archive_match *a, struct archive_entry *entry)
 	pathname = archive_entry_pathname_w(entry);
 	a->exclusion_tree.rbt_ops = &rb_ops_wcs;
 #else
+	(void)rb_ops_wcs;
 	pathname = archive_entry_pathname(entry);
 	a->exclusion_tree.rbt_ops = &rb_ops_mbs;
 #endif
