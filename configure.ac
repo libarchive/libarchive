@@ -372,28 +372,35 @@ if test "$enable_posix_regex_lib" = "auto" || test "$enable_posix_regex_lib" = "
 fi
 if test -z $posix_regex_lib_found && (test "$enable_posix_regex_lib" = "auto" || test "$enable_posix_regex_lib" = "libpcreposix"); then
   AC_CHECK_HEADERS([pcreposix.h])
-  AC_CHECK_LIB(pcre,pcre_exec)
   AC_CHECK_LIB(pcreposix,regcomp)
-  if test "x$ac_cv_lib_pcreposix_regcomp" = xyes; then
-    posix_regex_lib_found=1
-    AC_MSG_CHECKING(if PCRE_STATIC needs to be defined)
-    AC_LINK_IFELSE(
-      [AC_LANG_SOURCE(#include <pcreposix.h>
-        int main() { return regcomp(NULL, NULL, 0); })],
-      [without_pcre_static=yes],
-      [without_pcre_static=no])
-    AC_LINK_IFELSE(
-      [AC_LANG_SOURCE(#define PCRE_STATIC
-        #include <pcreposix.h>
-        int main() { return regcomp(NULL, NULL, 0); })],
-      [with_pcre_static=yes],
-      [with_pcre_static=no])
-    if test "x$without_pcre_static" != xyes && test "x$with_pcre_static" = xyes; then
-      AC_MSG_RESULT(yes)
-      AC_DEFINE([PCRE_STATIC], [1], [Define to 1 if PCRE_STATIC needs to be defined.])
-    else
-      AC_MSG_RESULT(no)
+  if test "x$ac_cv_lib_pcreposix_regcomp" != xyes; then
+    AC_MSG_NOTICE(trying libpcreposix check again with libpcre)
+	unset ac_cv_lib_pcreposix_regcomp
+	AC_CHECK_LIB(pcre,pcre_exec)
+    AC_CHECK_LIB(pcreposix,regcomp)
+    if test "x$ac_cv_lib_pcre_pcre_exec" = xyes && test "x$ac_cv_lib_pcreposix_regcomp" = xyes; then
+      AC_MSG_CHECKING(if PCRE_STATIC needs to be defined)
+      AC_LINK_IFELSE(
+        [AC_LANG_SOURCE(#include <pcreposix.h>
+          int main() { return regcomp(NULL, NULL, 0); })],
+        [without_pcre_static=yes],
+        [without_pcre_static=no])
+      AC_LINK_IFELSE(
+        [AC_LANG_SOURCE(#define PCRE_STATIC
+          #include <pcreposix.h>
+          int main() { return regcomp(NULL, NULL, 0); })],
+        [with_pcre_static=yes],
+        [with_pcre_static=no])
+      if test "x$without_pcre_static" != xyes && test "x$with_pcre_static" = xyes; then
+        AC_MSG_RESULT(yes)
+        AC_DEFINE([PCRE_STATIC], [1], [Define to 1 if PCRE_STATIC needs to be defined.])
+      elif test "x$without_pcre_static" = xyes || test "x$with_pcre_static" = xyes; then
+        AC_MSG_RESULT(no)
+      fi
+      posix_regex_lib_found=1
     fi
+  else
+    posix_regex_lib_found=1
   fi
 fi
 
