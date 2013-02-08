@@ -633,10 +633,8 @@ AC_SYS_LARGEFILE
 dnl NOTE: Crypto checks must run last.
 AC_DEFUN([CRYPTO_CHECK], [
   if test "$found_$1" != yes; then
-    saved_LIBS="$LIBS"
     saved_CPPFLAGS="$CPPFLAGS"
     CPPFLAGS="$CPPFLAGS -I. -I$srcdir -I$srcdir/libarchive"
-    LIBS="$LIBS $mdLIBS $4"
     touch "check_crypto_md.h"
     AC_MSG_CHECKING([support for ARCHIVE_CRYPTO_$1_$2])
     AC_LINK_IFELSE([AC_LANG_SOURCE([
@@ -658,15 +656,10 @@ main(int argc, char **argv)
 ])],
     [ AC_MSG_RESULT([yes])
       found_$1=yes
-      if [[ -n "$4" ]]; then
-        # The .$4 avoids -e, which doesn't work on Solaris 10
-	# The _$mdLIBS allows .$4 to match at beginning of string <sigh>
-        test -n "$(echo _$mdLIBS | $GREP .$4)" || mdLIBS="$mdLIBS $4"
-      fi
+      found_$2=yes
       AC_DEFINE(ARCHIVE_CRYPTO_$1_$2, 1, [ $1 via ARCHIVE_CRYPTO_$1_$2 supported.])
     ],
     [ AC_MSG_RESULT([no])])
-    LIBS="$saved_LIBS"
     CPPFLAGS="$saved_CPPFLAGS"
     rm "check_crypto_md.h"
   fi
@@ -691,6 +684,7 @@ main(int argc, char **argv)
 ])],
     [ AC_MSG_RESULT([yes])
       found_$1=yes
+      found_WIN=yes
       AC_DEFINE(ARCHIVE_CRYPTO_$1_WIN, 1, [ $1 via ARCHIVE_CRYPTO_$1_WIN supported.])
     ],
     [ AC_MSG_RESULT([no])])
@@ -722,31 +716,47 @@ case "$host_os" in
 esac
 
 if test "x$with_nettle" != "xno"; then
-    CRYPTO_CHECK(MD5, NETTLE, md5, -lnettle)
-    CRYPTO_CHECK(RMD160, NETTLE, rmd160, -lnettle)
-    CRYPTO_CHECK(SHA1, NETTLE, sha1, -lnettle)
-    CRYPTO_CHECK(SHA256, NETTLE, sha256, -lnettle)
-    CRYPTO_CHECK(SHA384, NETTLE, sha384, -lnettle)
-    CRYPTO_CHECK(SHA512, NETTLE, sha512, -lnettle)
+    AC_CHECK_HEADERS([nettle/md5.h nettle/ripemd160.h nettle/sha.h])
+    saved_LIBS=$LIBS
+    AC_CHECK_LIB(nettle,main)
+    CRYPTO_CHECK(MD5, NETTLE, md5)
+    CRYPTO_CHECK(RMD160, NETTLE, rmd160)
+    CRYPTO_CHECK(SHA1, NETTLE, sha1)
+    CRYPTO_CHECK(SHA256, NETTLE, sha256)
+    CRYPTO_CHECK(SHA384, NETTLE, sha384)
+    CRYPTO_CHECK(SHA512, NETTLE, sha512)
+    if test "x$found_NETTLE" != "xyes"; then
+      LIBS=$saved_LIBS
+    fi
 fi
 if test "x$with_openssl" != "xno"; then
+    AC_CHECK_HEADERS([openssl/evp.h])
+    saved_LIBS=$LIBS
+    AC_CHECK_LIB(crypto,main)
     CRYPTO_CHECK(MD5, OPENSSL, md5, -lcrypto)
     CRYPTO_CHECK(RMD160, OPENSSL, rmd160, -lcrypto)
     CRYPTO_CHECK(SHA1, OPENSSL, sha1, -lcrypto)
     CRYPTO_CHECK(SHA256, OPENSSL, sha256, -lcrypto)
     CRYPTO_CHECK(SHA384, OPENSSL, sha384, -lcrypto)
     CRYPTO_CHECK(SHA512, OPENSSL, sha512, -lcrypto)
+    if test "x$found_OPENSSL" != "xyes"; then
+      LIBS=$saved_LIBS
+    fi
 fi
 
 # Probe libmd AFTER OpenSSL/libcrypto.
 # The two are incompatible and OpenSSL is more complete.
+AC_CHECK_HEADERS([md5.h ripemd.h sha.h sha256.h sha512.h])
+saved_LIBS=$LIBS
+AC_CHECK_LIB(md,main)
 CRYPTO_CHECK(MD5, LIBMD, md5, -lmd)
 CRYPTO_CHECK(RMD160, LIBMD, rmd160, -lmd)
 CRYPTO_CHECK(SHA1, LIBMD, sha1, -lmd)
 CRYPTO_CHECK(SHA256, LIBMD, sha256, -lmd)
 CRYPTO_CHECK(SHA512, LIBMD, sha512, -lmd)
-
-LIBS="$LIBS $mdLIBS"
+if test "x$found_LIBMD" != "xyes"; then
+  LIBS=$saved_LIBS
+fi
 
 case "$host_os" in
   *mingw* | *cygwin*)
