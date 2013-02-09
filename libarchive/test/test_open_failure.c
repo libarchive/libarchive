@@ -183,6 +183,7 @@ DEFINE_TEST(test_open_failure)
 	assertEqualInt(0, private.write_called);
 	assertEqualInt(1, private.close_called);
 
+#ifdef BUILD_ZIP_FORMAT
 	memset(&private, 0, sizeof(private));
 	private.magic = MAGIC;
 	private.open_return = ARCHIVE_FATAL;
@@ -198,6 +199,7 @@ DEFINE_TEST(test_open_failure)
 	assertEqualInt(1, private.open_called);
 	assertEqualInt(0, private.write_called);
 	assertEqualInt(1, private.close_called);
+#endif
 
 	memset(&private, 0, sizeof(private));
 	private.magic = MAGIC;

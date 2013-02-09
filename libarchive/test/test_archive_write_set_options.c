@@ -33,12 +33,16 @@ static void
 test(int pristine)
 {
 	struct archive* a = archive_write_new();
+#ifdef BUILD_ISO_FORMAT
 	int halfempty_options_rv = pristine ? ARCHIVE_FAILED : ARCHIVE_OK;
 	int known_option_rv = pristine ? ARCHIVE_FAILED : ARCHIVE_OK;
+#endif
 
 	if (!pristine) {
 		archive_write_add_filter_gzip(a);
+#ifdef BUILD_ISO_FORMAT
 		archive_write_set_format_iso9660(a);
+#endif
 	}
 
 	/* NULL and "" denote `no option', so they're ok no matter
@@ -62,6 +66,7 @@ test(int pristine)
 	assertEqualString("Undefined option: `snafu'",
 	    archive_error_string(a));
 
+#ifdef BUILD_ISO_FORMAT
 	/* ARCHIVE_OK with iso9660 loaded, ARCHIVE_FAILED otherwise */
 	should(a, known_option_rv, "iso9660:joliet");
 	if (pristine) {
@@ -115,6 +120,7 @@ test(int pristine)
 		assertEqualString("Undefined option: `iso9660:snafu'",
 		    archive_error_string(a));
 	}
+#endif
 
 	archive_write_free(a);
 }

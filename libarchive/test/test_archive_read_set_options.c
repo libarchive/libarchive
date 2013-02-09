@@ -33,8 +33,10 @@ static void
 test(int pristine)
 {
 	struct archive* a = archive_read_new();
+#ifdef BUILD_ISO_FORMAT
 	int halfempty_options_rv = pristine ? ARCHIVE_FAILED : ARCHIVE_OK;
 	int known_option_rv = pristine ? ARCHIVE_FAILED : ARCHIVE_OK;
+#endif
 
 	if (!pristine) {
 		archive_read_support_filter_all(a);
@@ -62,6 +64,7 @@ test(int pristine)
 	assertEqualString("Undefined option: `snafu'",
 	    archive_error_string(a));
 
+#ifdef BUILD_ISO_FORMAT
 	/* ARCHIVE_OK with iso9660 loaded, ARCHIVE_FAILED otherwise */
 	should(a, known_option_rv, "iso9660:joliet");
 	if (pristine) {
@@ -83,10 +86,12 @@ test(int pristine)
 		assertEqualString("Undefined option: `joliet'",
 		    archive_error_string(a));
 	}
+#endif
 
 	should(a, ARCHIVE_OK, ",");
 	should(a, ARCHIVE_OK, ",,");
 
+#ifdef BUILD_ISO_FORMAT
 	should(a, halfempty_options_rv, ",joliet");
 	if (pristine) {
 		assertEqualString("Undefined option: `joliet'",
@@ -115,6 +120,7 @@ test(int pristine)
 		assertEqualString("Undefined option: `iso9660:snafu'",
 		    archive_error_string(a));
 	}
+#endif
 
 	archive_read_free(a);
 }

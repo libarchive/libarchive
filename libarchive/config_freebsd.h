@@ -152,6 +152,17 @@
 #define	HAVE_WMEMCPY 1
 #define	HAVE_ZLIB_H 1
 #define	TIME_WITH_SYS_TIME 1
+#define	BUILD_7ZIP_FORMAT 1
+#define	BUILD_AR_FORMAT 1
+#define	BUILD_CAB_FORMAT 1
+#define	BUILD_CPIO_FORMAT 1
+#define	BUILD_ISO_FORMAT 1
+#define	BUILD_LHA_FORMAT 1
+#define	BUILD_MTREE_FORMAT 1
+#define	BUILD_RAR_FORMAT 1
+#define	BUILD_SHAR_FORMAT 1
+#define	BUILD_XAR_FORMAT 1
+#define	BUILD_ZIP_FORMAT 1
 
 /* FreeBSD 4 and earlier lack intmax_t/uintmax_t */
 #if __FreeBSD__ < 5

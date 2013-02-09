@@ -49,39 +49,59 @@ archive_read_set_format(struct archive *_a, int code)
     r2 = (ARCHIVE_WARN);
   switch (code & ARCHIVE_FORMAT_BASE_MASK)
   {
+#ifdef BUILD_7ZIP_FORMAT
     case ARCHIVE_FORMAT_7ZIP:
       strcpy(str, "7zip");
       break;
+#endif
+#ifdef BUILD_AR_FORMAT
     case ARCHIVE_FORMAT_AR:
       strcpy(str, "ar");
       break;
+#endif
+#ifdef BUILD_CAB_FORMAT
     case ARCHIVE_FORMAT_CAB:
       strcpy(str, "cab");
       break;
+#endif
+#ifdef BUILD_CPIO_FORMAT
     case ARCHIVE_FORMAT_CPIO:
       strcpy(str, "cpio");
       break;
+#endif
+#ifdef BUILD_ISO_FORMAT
     case ARCHIVE_FORMAT_ISO9660:
       strcpy(str, "iso9660");
       break;
+#endif
+#ifdef BUILD_LHA_FORMAT
     case ARCHIVE_FORMAT_LHA:
       strcpy(str, "lha");
       break;
+#endif
+#ifdef BUILD_MTREE_FORMAT
     case ARCHIVE_FORMAT_MTREE:
       strcpy(str, "mtree");
       break;
+#endif
+#ifdef BUILD_RAR_FORMAT
     case ARCHIVE_FORMAT_RAR:
       strcpy(str, "rar");
       break;
+#endif
     case ARCHIVE_FORMAT_TAR:
       strcpy(str, "tar");
       break;
+#ifdef BUILD_XAR_FORMAT
     case ARCHIVE_FORMAT_XAR:
       strcpy(str, "xar");
       break;
+#endif
+#ifdef BUILD_ZIP_FORMAT
     case ARCHIVE_FORMAT_ZIP:
       strcpy(str, "zip");
       break;
+#endif
     default:
       archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
           "Invalid format code specified");

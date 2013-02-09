@@ -64,6 +64,7 @@ DEFINE_TEST(test_option_a)
 	failure("The archive should be uuencoded");
 	assertEqualMem(p, "begin 644 -\n", 12);
 
+#ifdef BUILD_ZIP_FORMAT
 	/* Test4: archive it with .zip suffix. */
 	assertEqualInt(0,
 	    systemf("%s -acf test4.zip f 2>test4.err", testprog));
@@ -73,6 +74,7 @@ DEFINE_TEST(test_option_a)
 	assert(s > 4);
 	failure("The archive should be zipped");
 	assertEqualMem(p, "\x50\x4b\x03\x04", 4);
+#endif
 
 	/* Test5: archive it with .tar.Z suffix and --uuencode option. */
 	assertEqualInt(0,

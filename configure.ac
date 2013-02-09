@@ -627,6 +627,152 @@ if test "x$enable_acl" != "xno"; then
 		[#include <sys/acl.h>])
 fi
 
+# Disable 7zip Format
+AC_ARG_ENABLE([7zip-format],
+		AS_HELP_STRING([--disable-7zip-format],
+		[Disable 7zip format]),
+		[sevenzip_format=$enableval],
+		[sevenzip_format=yes])
+
+AM_CONDITIONAL([BUILD_7ZIP_FORMAT], [ test "$sevenzip_format" = yes ])
+
+if test "x$sevenzip_format" == "xyes"; then
+  AC_DEFINE_UNQUOTED(BUILD_7ZIP_FORMAT, 1, [Build support for 7zip format])
+fi
+
+# Disable ar Format
+AC_ARG_ENABLE([ar-format],
+		AS_HELP_STRING([--disable-ar-format],
+		[Disable ar format]),
+		[ar_format=$enableval],
+		[ar_format=yes])
+
+AM_CONDITIONAL([BUILD_AR_FORMAT], [ test "$ar_format" = yes ])
+
+if test "x$ar_format" == "xyes"; then
+  AC_DEFINE_UNQUOTED(BUILD_AR_FORMAT, 1, [Build support for ar format])
+fi
+
+# Disable CAB Format
+AC_ARG_ENABLE([cab-format],
+		AS_HELP_STRING([--disable-cab-format],
+		[Disable CAB format]),
+		[cab_format=$enableval],
+		[cab_format=yes])
+
+AM_CONDITIONAL([BUILD_CAB_FORMAT], [ test "$cab_format" = yes ])
+
+if test "x$cab_format" == "xyes"; then
+  AC_DEFINE_UNQUOTED(BUILD_CAB_FORMAT, 1, [Build support for CAB format])
+fi
+
+# Disable cpio Format
+AC_ARG_ENABLE([cpio-format],
+		AS_HELP_STRING([--disable-cpio-format],
+		[Disable cpio format]),
+		[cpio_format=$enableval],
+		[cpio_format=yes])
+
+AM_CONDITIONAL([BUILD_CPIO_FORMAT], [ test "$cpio_format" = yes ])
+
+if test "x$cpio_format" == "xyes"; then
+  AC_DEFINE_UNQUOTED(BUILD_CPIO_FORMAT, 1, [Build support for cpio format])
+elif test "x$enable_bsdcpio" != "xno"; then
+  AC_MSG_FAILURE([bsdcpio must be disabled when cpio format is disabled.
+    Use --disable-bsdcpio.])
+fi
+
+# Disable ISO Format
+AC_ARG_ENABLE([iso-format],
+		AS_HELP_STRING([--disable-iso-format],
+		[Disable ISO format]),
+		[iso_format=$enableval],
+		[iso_format=yes])
+
+AM_CONDITIONAL([BUILD_ISO_FORMAT], [ test "$iso_format" = yes ])
+
+if test "x$iso_format" == "xyes"; then
+  AC_DEFINE_UNQUOTED(BUILD_ISO_FORMAT, 1, [Build support for ISO format])
+fi
+
+# Disable LHA Format
+AC_ARG_ENABLE([lha-format],
+		AS_HELP_STRING([--disable-lha-format],
+		[Disable LHA format]),
+		[lha_format=$enableval],
+		[lha_format=yes])
+
+AM_CONDITIONAL([BUILD_LHA_FORMAT], [ test "$lha_format" = yes ])
+
+if test "x$lha_format" == "xyes"; then
+  AC_DEFINE_UNQUOTED(BUILD_LHA_FORMAT, 1, [Build support for LHA format])
+fi
+
+# Disable mtree Format
+AC_ARG_ENABLE([mtree-format],
+		AS_HELP_STRING([--disable-mtree-format],
+		[Disable mtree format]),
+		[mtree_format=$enableval],
+		[mtree_format=yes])
+
+AM_CONDITIONAL([BUILD_MTREE_FORMAT], [ test "$mtree_format" = yes ])
+
+if test "x$mtree_format" == "xyes"; then
+  AC_DEFINE_UNQUOTED(BUILD_MTREE_FORMAT, 1, [Build support for mtree format])
+fi
+
+# Disable RAR Format
+AC_ARG_ENABLE([rar-format],
+		AS_HELP_STRING([--disable-rar-format],
+		[Disable RAR format]),
+		[rar_format=$enableval],
+		[rar_format=yes])
+
+AM_CONDITIONAL([BUILD_RAR_FORMAT], [ test "$rar_format" = yes ])
+
+if test "x$rar_format" == "xyes"; then
+  AC_DEFINE_UNQUOTED(BUILD_RAR_FORMAT, 1, [Build support for RAR format])
+fi
+
+# Disable shar Format
+AC_ARG_ENABLE([shar-format],
+		AS_HELP_STRING([--disable-shar-format],
+		[Disable shar format]),
+		[shar_format=$enableval],
+		[shar_format=yes])
+
+AM_CONDITIONAL([BUILD_SHAR_FORMAT], [ test "$shar_format" = yes ])
+
+if test "x$shar_format" == "xyes"; then
+  AC_DEFINE_UNQUOTED(BUILD_SHAR_FORMAT, 1, [Build support for shar format])
+fi
+
+# Disable xar Format
+AC_ARG_ENABLE([xar-format],
+		AS_HELP_STRING([--disable-xar-format],
+		[Disable xar format]),
+		[xar_format=$enableval],
+		[xar_format=yes])
+
+AM_CONDITIONAL([BUILD_XAR_FORMAT], [ test "$xar_format" = yes ])
+
+if test "x$xar_format" == "xyes"; then
+  AC_DEFINE_UNQUOTED(BUILD_XAR_FORMAT, 1, [Build support for xar format])
+fi
+
+# Disable zip Format
+AC_ARG_ENABLE([zip-format],
+		AS_HELP_STRING([--disable-zip-format],
+		[Disable zip format]),
+		[zip_format=$enableval],
+		[zip_format=yes])
+
+AM_CONDITIONAL([BUILD_ZIP_FORMAT], [ test "$zip_format" = yes ])
+
+if test "x$zip_format" == "xyes"; then
+  AC_DEFINE_UNQUOTED(BUILD_ZIP_FORMAT, 1, [Build support for zip format])
+fi
+
 # Additional requirements
 AC_SYS_LARGEFILE
 

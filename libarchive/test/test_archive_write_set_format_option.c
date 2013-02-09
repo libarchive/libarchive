@@ -33,10 +33,14 @@ static void
 test(int pristine)
 {
 	struct archive* a = archive_write_new();
+#ifdef BUILD_ISO_FORMAT
 	int known_option_rv = pristine ? ARCHIVE_FAILED : ARCHIVE_OK;
 
 	if (!pristine)
 		archive_write_set_format_iso9660(a);
+#else
+	pristine=pristine;
+#endif
 
 	/* NULL and "" denote `no option', so they're ok no matter
 	 * what, if any, formats are registered */
@@ -51,11 +55,13 @@ test(int pristine)
 	should(a, ARCHIVE_FAILED, NULL, "snafu", NULL);
 	should(a, ARCHIVE_FAILED, NULL, "snafu", "betcha");
 
+#ifdef BUILD_ISO_FORMAT
 	/* ARCHIVE_OK with iso9660 loaded, ARCHIVE_WARN otherwise */
 	should(a, known_option_rv, "iso9660", "joliet", NULL);
 	should(a, known_option_rv, "iso9660", "joliet", NULL);
 	should(a, known_option_rv, NULL, "joliet", NULL);
 	should(a, known_option_rv, NULL, "joliet", NULL);
+#endif
 
 	archive_write_free(a);
 }

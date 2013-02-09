@@ -36,39 +36,59 @@ archive_read_support_format_by_code(struct archive *a, int format_code)
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_by_code");
 
 	switch (format_code & ARCHIVE_FORMAT_BASE_MASK) {
+#ifdef BUILD_7ZIP_FORMAT
 	case ARCHIVE_FORMAT_7ZIP:
 		return archive_read_support_format_7zip(a);
 		break;
+#endif
+#ifdef BUILD_AR_FORMAT
 	case ARCHIVE_FORMAT_AR:
 		return archive_read_support_format_ar(a);
 		break;
+#endif
+#ifdef BUILD_CAB_FORMAT
 	case ARCHIVE_FORMAT_CAB:
 		return archive_read_support_format_cab(a);
 		break;
+#endif
+#ifdef BUILD_CPIO_FORMAT
 	case ARCHIVE_FORMAT_CPIO:
 		return archive_read_support_format_cpio(a);
 		break;
+#endif
+#ifdef BUILD_ISO_FORMAT
 	case ARCHIVE_FORMAT_ISO9660:
 		return archive_read_support_format_iso9660(a);
 		break;
+#endif
+#ifdef BUILD_LHA_FORMAT
 	case ARCHIVE_FORMAT_LHA:
 		return archive_read_support_format_lha(a);
 		break;
+#endif
+#ifdef BUILD_MTREE_FORMAT
 	case ARCHIVE_FORMAT_MTREE:
 		return archive_read_support_format_mtree(a);
 		break;
+#endif
+#ifdef BUILD_RAR_FORMAT
 	case ARCHIVE_FORMAT_RAR:
 		return archive_read_support_format_rar(a);
 		break;
+#endif
 	case ARCHIVE_FORMAT_TAR:
 		return archive_read_support_format_tar(a);
 		break;
+#ifdef BUILD_XAR_FORMAT
 	case ARCHIVE_FORMAT_XAR:
 		return archive_read_support_format_xar(a);
 		break;
+#endif
+#ifdef BUILD_ZIP_FORMAT
 	case ARCHIVE_FORMAT_ZIP:
 		return archive_read_support_format_zip(a);
 		break;
+#endif
 	}
 	return (ARCHIVE_FATAL);
 }
