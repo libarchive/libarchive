@@ -750,12 +750,12 @@ if test "x$with_openssl" != "xno"; then
         AC_CHECK_LIB(crypto,main)
         ;;
     esac
-    CRYPTO_CHECK(MD5, OPENSSL, md5, -lcrypto)
-    CRYPTO_CHECK(RMD160, OPENSSL, rmd160, -lcrypto)
-    CRYPTO_CHECK(SHA1, OPENSSL, sha1, -lcrypto)
-    CRYPTO_CHECK(SHA256, OPENSSL, sha256, -lcrypto)
-    CRYPTO_CHECK(SHA384, OPENSSL, sha384, -lcrypto)
-    CRYPTO_CHECK(SHA512, OPENSSL, sha512, -lcrypto)
+    CRYPTO_CHECK(MD5, OPENSSL, md5)
+    CRYPTO_CHECK(RMD160, OPENSSL, rmd160)
+    CRYPTO_CHECK(SHA1, OPENSSL, sha1)
+    CRYPTO_CHECK(SHA256, OPENSSL, sha256)
+    CRYPTO_CHECK(SHA384, OPENSSL, sha384)
+    CRYPTO_CHECK(SHA512, OPENSSL, sha512)
     if test "x$found_OPENSSL" != "xyes"; then
       LIBS=$saved_LIBS
     fi
@@ -766,11 +766,11 @@ fi
 AC_CHECK_HEADERS([md5.h ripemd.h sha.h sha256.h sha512.h])
 saved_LIBS=$LIBS
 AC_CHECK_LIB(md,main)
-CRYPTO_CHECK(MD5, LIBMD, md5, -lmd)
-CRYPTO_CHECK(RMD160, LIBMD, rmd160, -lmd)
-CRYPTO_CHECK(SHA1, LIBMD, sha1, -lmd)
-CRYPTO_CHECK(SHA256, LIBMD, sha256, -lmd)
-CRYPTO_CHECK(SHA512, LIBMD, sha512, -lmd)
+CRYPTO_CHECK(MD5, LIBMD, md5)
+CRYPTO_CHECK(RMD160, LIBMD, rmd160)
+CRYPTO_CHECK(SHA1, LIBMD, sha1)
+CRYPTO_CHECK(SHA256, LIBMD, sha256)
+CRYPTO_CHECK(SHA512, LIBMD, sha512)
 if test "x$found_LIBMD" != "xyes"; then
   LIBS=$saved_LIBS
 fi
