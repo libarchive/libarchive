@@ -427,6 +427,9 @@ msg(const char *m)
 static void
 errmsg(const char *m)
 {
+	if (m == NULL) {
+		m = "Error: No error description provided.\n";
+	}
 	write(2, m, strlen(m));
 }
 
