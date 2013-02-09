@@ -400,7 +400,7 @@ copy_data(struct archive *ar, struct archive *aw)
 	int r;
 	const void *buff;
 	size_t size;
-	off_t offset;
+	int64_t offset;
 
 	for (;;) {
 		r = archive_read_data_block(ar, &buff, &size, &offset);
