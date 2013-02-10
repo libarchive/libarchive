@@ -54,6 +54,8 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_util.c 201098 2009-12-28 02:58:1
 #define O_CLOEXEC	0
 #endif
 
+static int archive_utility_string_sort_helper(char **, unsigned int);
+
 /* Generic initialization of 'struct archive' objects. */
 int
 __archive_clean(struct archive *a)
@@ -498,4 +500,44 @@ __archive_ensure_cloexec_flag(int fd)
 			fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
 	}
 #endif
+}
+
+/*
+ * Utility function to sort a group of strings using quicksort.
+ */
+static int
+archive_utility_string_sort_helper(char **strings, unsigned int n)
+{
+  unsigned int i, j, pivot;
+  char *tmp;
+
+  if (n <= 1)
+    return (ARCHIVE_OK);
+
+  pivot = 0;
+  for (i = 1; i < n; i++)
+  {
+    if (strcmp(strings[i], strings[pivot]) < 0)
+    {
+      tmp = strings[i];
+      for (j = i; j > pivot; j--)
+      {
+        strings[j] = strings[j - 1];
+      }
+      strings[pivot] = tmp;
+      pivot++;
+    }
+  }
+  archive_utility_string_sort_helper(strings, pivot + 1);
+  archive_utility_string_sort_helper(strings + pivot + 1, n - (pivot + 1));
+  return (ARCHIVE_OK);
+}
+
+int
+archive_utility_string_sort(char **strings)
+{
+  unsigned int size = 0;
+  while (strings[size] != NULL)
+    size++;
+  return archive_utility_string_sort_helper(strings, size);
 }
