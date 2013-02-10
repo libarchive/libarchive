@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
- * Copyright (c) 2011-2012 Michihiro NAKAJIMA
+ * Copyright (c) 2013 Marek Kubica
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +24,6 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_raw.c 201170 2009-12-29 06:34:23Z kientzle $");
 
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
@@ -100,7 +98,6 @@ archive_write_raw_header(struct archive_write *a, struct archive_entry __attribu
 		return (ARCHIVE_FATAL);
 	}
 
-	//return write_header(a, entry);
 	return (ARCHIVE_OK);
 }
 
