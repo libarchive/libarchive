@@ -29,10 +29,6 @@
 #include <errno.h>
 #endif
 
-#include "archive.h"
-#include "archive_entry.h"
-#include "archive_entry_locale.h"
-#include "archive_private.h"
 #include "archive_write_private.h"
 
 static ssize_t	archive_write_raw_data(struct archive_write *,
