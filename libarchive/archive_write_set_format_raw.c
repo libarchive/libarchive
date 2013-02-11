@@ -33,7 +33,6 @@
 
 static ssize_t	archive_write_raw_data(struct archive_write *,
 		    const void *buff, size_t s);
-static int	archive_write_raw_close(struct archive_write *);
 static int	archive_write_raw_free(struct archive_write *);
 static int	archive_write_raw_finish_entry(struct archive_write *);
 static int	archive_write_raw_header(struct archive_write *,
@@ -67,10 +66,13 @@ archive_write_set_format_raw(struct archive *_a)
 	raw->entries_written = 0;
 	a->format_data = raw;
 	a->format_name = "raw";
+        /* no options exist for this format */
+	a->format_options = NULL;
 	a->format_write_header = archive_write_raw_header;
 	a->format_write_data = archive_write_raw_data;
 	a->format_finish_entry = archive_write_raw_finish_entry;
-	a->format_close = archive_write_raw_close;
+        /* nothing needs to be done on closing */
+	a->format_close = NULL;
 	a->format_free = archive_write_raw_free;
 	a->archive.archive_format = ARCHIVE_FORMAT_RAW;
 	a->archive.archive_format_name = "RAW";
@@ -100,12 +102,6 @@ archive_write_raw_data(struct archive_write *a, const void *buff, size_t s)
 		return (s);
 	else
 		return (ret);
-}
-
-static int
-archive_write_raw_close(struct archive_write __attribute__((unused))*a)
-{
-	return (ARCHIVE_OK);
 }
 
 static int
