@@ -80,9 +80,11 @@ archive_write_set_format_raw(struct archive *_a)
 }
 
 static int
-archive_write_raw_header(struct archive_write *a, struct archive_entry __attribute__((unused))*entry)
+archive_write_raw_header(struct archive_write *a, struct archive_entry *entry)
 {
 	struct raw *raw = (struct raw *)a->format_data;
+	(void)entry; /* UNUSED */
+
 	if (raw->entries_written > 1) {
 		archive_set_error(&a->archive, ERANGE,
 		    "Too many files for the raw format");
