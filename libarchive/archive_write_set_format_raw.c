@@ -29,6 +29,7 @@
 #include <errno.h>
 #endif
 
+#include "archive_entry.h"
 #include "archive_write_private.h"
 
 static ssize_t	archive_write_raw_data(struct archive_write *,
@@ -84,7 +85,13 @@ static int
 archive_write_raw_header(struct archive_write *a, struct archive_entry *entry)
 {
 	struct raw *raw = (struct raw *)a->format_data;
-	(void)entry; /* UNUSED */
+
+	if (archive_entry_filetype(entry) == AE_IFDIR) {
+		archive_set_error(&a->archive, ERANGE,
+		    "Directories not supported by raw format");
+		return (ARCHIVE_FATAL);
+	}
+
 
 	if (raw->entries_written > 0) {
 		archive_set_error(&a->archive, ERANGE,

@@ -91,6 +91,25 @@ test_format(int	(*set_format)(struct archive *))
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
+	/* Create a new archive */
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, (*set_format)(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, buffsize, &used));
+
+	/* write a directory: this should fail */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "dir");
+	archive_entry_set_filetype(ae, AE_IFDIR);
+	archive_entry_set_size(ae, 512);
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_write_header(a, ae));
+	err = archive_error_string(a);
+	assertEqualMem(err, "Directories not supported by raw format", 40);
+	archive_entry_free(ae);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
 	free(buff);
 }
 
