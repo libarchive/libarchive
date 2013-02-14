@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 2, 2012
+.Dd February 14, 2013
 .Dt ARCHIVE_WRITE_FORMAT 3
 .Os
 .Sh NAME
@@ -33,7 +33,8 @@
 .Nm archive_write_set_format_pax_restricted ,
 .Nm archive_write_set_format_shar ,
 .Nm archive_write_set_format_shar_dump ,
-.Nm archive_write_set_format_ustar
+.Nm archive_write_set_format_ustar ,
+.Nm archive_write_set_format_raw
 .Nd functions for creating archives
 .Sh LIBRARY
 Streaming Archive Library (libarchive, -larchive)
@@ -51,6 +52,8 @@ Streaming Archive Library (libarchive, -larchive)
 .Fn archive_write_set_format_shar_dump "struct archive *"
 .Ft int
 .Fn archive_write_set_format_ustar "struct archive *"
+.Ft int
+.Fn archive_write_set_format_raw "struct archive *"
 .Sh DESCRIPTION
 These functions set the format that will be used for the archive.
 .Pp
