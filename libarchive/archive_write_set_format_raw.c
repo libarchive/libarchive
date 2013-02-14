@@ -70,6 +70,7 @@ archive_write_set_format_raw(struct archive *_a)
 	a->format_options = NULL;
 	a->format_write_header = archive_write_raw_header;
 	a->format_write_data = archive_write_raw_data;
+	/* this can't be NULL */
 	a->format_finish_entry = archive_write_raw_finish_entry;
         /* nothing needs to be done on closing */
 	a->format_close = NULL;
@@ -85,11 +86,12 @@ archive_write_raw_header(struct archive_write *a, struct archive_entry *entry)
 	struct raw *raw = (struct raw *)a->format_data;
 	(void)entry; /* UNUSED */
 
-	if (raw->entries_written > 1) {
+	if (raw->entries_written > 0) {
 		archive_set_error(&a->archive, ERANGE,
 		    "Too many files for the raw format");
 		return (ARCHIVE_FATAL);
 	}
+	raw->entries_written++;
 
 	return (ARCHIVE_OK);
 }
@@ -120,9 +122,7 @@ archive_write_raw_free(struct archive_write *a)
 static int
 archive_write_raw_finish_entry(struct archive_write *a)
 {
-	struct raw *raw;
+	(void)a; /* UNUSED */
 
-	raw = (struct raw *)a->format_data;
-	raw->entries_written++;
 	return (ARCHIVE_OK);
 }

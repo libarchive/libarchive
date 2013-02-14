@@ -33,6 +33,7 @@ test_format(int	(*set_format)(struct archive *))
 	size_t used;
 	size_t buffsize = 1000000;
 	char *buff;
+	char *err;
 
 	buff = malloc(buffsize);
 
@@ -67,6 +68,28 @@ test_format(int	(*set_format)(struct archive *))
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	/* free fails for some reason */
 	/* assertEqualInt(ARCHIVE_OK, archive_read_free(a)); */
+
+	/* Create a new archive */
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, (*set_format)(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, buffsize, &used));
+
+	/* write first file: that should succeed */
+	assert((ae = archive_entry_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualIntA(a, 9, archive_write_data(a, "12345678", 9));
+
+	/* write second file: this should fail */
+	assert((ae = archive_entry_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_write_header(a, ae));
+	err = archive_error_string(a);
+	assertEqualMem(err, "Too many files for the raw format", 34);
+	archive_entry_free(ae);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	free(buff);
 }
