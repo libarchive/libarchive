@@ -499,6 +499,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_format_zip_empty.c		\
 	libarchive/test/test_write_format_zip_no_compression.c	\
 	libarchive/test/test_write_format_raw.c			\
+	libarchive/test/test_write_format_raw_b64.c		\
 	libarchive/test/test_write_open_memory.c		\
 	libarchive/test/test_write_zip_set_compression_store.c	\
 	libarchive/test/test_zip_filename_encoding.c

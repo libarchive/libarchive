@@ -213,6 +213,7 @@ IF(ENABLE_TEST)
     test_write_format_zip_empty.c
     test_write_format_zip_no_compression.c
     test_write_format_raw.c
+    test_write_format_raw_b64.c
     test_write_zip_set_compression_store.c
     test_write_open_memory.c
     test_zip_filename_encoding.c
