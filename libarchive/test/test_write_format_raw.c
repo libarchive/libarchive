@@ -33,7 +33,7 @@ test_format(int	(*set_format)(struct archive *))
 	size_t used;
 	size_t buffsize = 1000000;
 	char *buff;
-	char *err;
+	const char *err;
 
 	buff = malloc(buffsize);
 
