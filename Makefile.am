@@ -199,13 +199,13 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_write_set_format_iso9660.c		\
 	libarchive/archive_write_set_format_mtree.c		\
 	libarchive/archive_write_set_format_pax.c		\
+	libarchive/archive_write_set_format_raw.c		\
 	libarchive/archive_write_set_format_shar.c		\
 	libarchive/archive_write_set_format_ustar.c		\
 	libarchive/archive_write_set_format_v7tar.c		\
 	libarchive/archive_write_set_format_gnutar.c		\
 	libarchive/archive_write_set_format_xar.c		\
 	libarchive/archive_write_set_format_zip.c		\
-	libarchive/archive_write_set_format_raw.c		\
 	libarchive/archive_write_set_options.c			\
 	libarchive/config_freebsd.h				\
 	libarchive/filter_fork_posix.c				\
@@ -487,6 +487,8 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_format_mtree_no_separator.c	\
 	libarchive/test/test_write_format_mtree_quoted_filename.c\
 	libarchive/test/test_write_format_pax.c			\
+	libarchive/test/test_write_format_raw.c			\
+	libarchive/test/test_write_format_raw_b64.c		\
 	libarchive/test/test_write_format_shar_empty.c		\
 	libarchive/test/test_write_format_tar.c			\
 	libarchive/test/test_write_format_tar_empty.c		\
@@ -498,8 +500,6 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_format_zip.c			\
 	libarchive/test/test_write_format_zip_empty.c		\
 	libarchive/test/test_write_format_zip_no_compression.c	\
-	libarchive/test/test_write_format_raw.c			\
-	libarchive/test/test_write_format_raw_b64.c		\
 	libarchive/test/test_write_open_memory.c		\
 	libarchive/test/test_write_zip_set_compression_store.c	\
 	libarchive/test/test_zip_filename_encoding.c

@@ -201,6 +201,8 @@ IF(ENABLE_TEST)
     test_write_format_mtree_no_separator.c
     test_write_format_mtree_quoted_filename.c
     test_write_format_pax.c
+    test_write_format_raw.c
+    test_write_format_raw_b64.c
     test_write_format_shar_empty.c
     test_write_format_tar.c
     test_write_format_tar_empty.c
@@ -212,8 +214,6 @@ IF(ENABLE_TEST)
     test_write_format_zip.c
     test_write_format_zip_empty.c
     test_write_format_zip_no_compression.c
-    test_write_format_raw.c
-    test_write_format_raw_b64.c
     test_write_zip_set_compression_store.c
     test_write_open_memory.c
     test_zip_filename_encoding.c
