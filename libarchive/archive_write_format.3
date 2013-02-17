@@ -31,10 +31,10 @@
 .Nm archive_write_set_format_cpio ,
 .Nm archive_write_set_format_pax ,
 .Nm archive_write_set_format_pax_restricted ,
+.Nm archive_write_set_format_raw ,
 .Nm archive_write_set_format_shar ,
 .Nm archive_write_set_format_shar_dump ,
-.Nm archive_write_set_format_ustar ,
-.Nm archive_write_set_format_raw
+.Nm archive_write_set_format_ustar
 .Nd functions for creating archives
 .Sh LIBRARY
 Streaming Archive Library (libarchive, -larchive)
@@ -47,13 +47,13 @@ Streaming Archive Library (libarchive, -larchive)
 .Ft int
 .Fn archive_write_set_format_pax_restricted "struct archive *"
 .Ft int
+.Fn archive_write_set_format_raw "struct archive *"
+.Ft int
 .Fn archive_write_set_format_shar "struct archive *"
 .Ft int
 .Fn archive_write_set_format_shar_dump "struct archive *"
 .Ft int
 .Fn archive_write_set_format_ustar "struct archive *"
-.Ft int
-.Fn archive_write_set_format_raw "struct archive *"
 .Sh DESCRIPTION
 These functions set the format that will be used for the archive.
 .Pp
