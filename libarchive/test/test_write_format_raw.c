@@ -47,6 +47,8 @@ test_format(int	(*set_format)(struct archive *))
 	 * Write a file to it.
 	 */
 	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_pathname(ae, "test");
+	archive_entry_set_filetype(ae, AE_IFREG);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	archive_entry_free(ae);
 	assertEqualIntA(a, 9, archive_write_data(a, "12345678", 9));
@@ -76,15 +78,19 @@ test_format(int	(*set_format)(struct archive *))
 
 	/* write first file: that should succeed */
 	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_pathname(ae, "test");
+	archive_entry_set_filetype(ae, AE_IFREG);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	archive_entry_free(ae);
 	assertEqualIntA(a, 9, archive_write_data(a, "12345678", 9));
 
 	/* write second file: this should fail */
 	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_pathname(ae, "test2");
+	archive_entry_set_filetype(ae, AE_IFREG);
 	assertEqualIntA(a, ARCHIVE_FATAL, archive_write_header(a, ae));
 	err = archive_error_string(a);
-	assertEqualMem(err, "Too many files for the raw format", 34);
+	assertEqualMem(err, "Raw format only supports one entry per archive", 47);
 	archive_entry_free(ae);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
@@ -103,7 +109,7 @@ test_format(int	(*set_format)(struct archive *))
 	archive_entry_set_size(ae, 512);
 	assertEqualIntA(a, ARCHIVE_FATAL, archive_write_header(a, ae));
 	err = archive_error_string(a);
-	assertEqualMem(err, "Directories not supported by raw format", 40);
+	assertEqualMem(err, "Raw format only supports filetype AE_IFREG", 43);
 	archive_entry_free(ae);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));

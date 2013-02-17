@@ -46,6 +46,8 @@ test_format(int	(*set_format)(struct archive *))
 	 * Write a file to it.
 	 */
 	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_pathname(ae, "test");
+	archive_entry_set_filetype(ae, AE_IFREG);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	archive_entry_free(ae);
 	assertEqualIntA(a, 9, archive_write_data(a, "12345678", 9));
