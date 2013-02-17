@@ -65,7 +65,6 @@ test_format(int	(*set_format)(struct archive *))
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, 37, archive_read_data(a, filedata, 64));
 	assertEqualMem(filedata, "begin-base64 644 -\nMTIzNDU2NzgA\n====\n", 37);
-	archive_entry_free(ae);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
