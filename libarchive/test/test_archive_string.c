@@ -384,7 +384,7 @@ DEFINE_TEST(test_archive_string_sort)
   size = sizeof(strings) / sizeof(char *);
   assert((test_strings = (char **)calloc(1, sizeof(strings))) != NULL);
   for (i = 0; i < size; i++)
-    test_strings[i] = strings[i];
+    test_strings[i] = (char*)strings[i];
 
   /* Shuffle the test strings */
   for (i = 0; i < (size - 1); i++)
