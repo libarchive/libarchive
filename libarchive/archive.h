@@ -676,6 +676,7 @@ __LA_DECL int archive_write_set_format_ustar(struct archive *);
 __LA_DECL int archive_write_set_format_v7tar(struct archive *);
 __LA_DECL int archive_write_set_format_xar(struct archive *);
 __LA_DECL int archive_write_set_format_zip(struct archive *);
+__LA_DECL int archive_write_set_format_raw(struct archive *);
 __LA_DECL int archive_write_zip_set_compression_deflate(struct archive *);
 __LA_DECL int archive_write_zip_set_compression_store(struct archive *);
 __LA_DECL int archive_write_open(struct archive *, void *,
