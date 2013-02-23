@@ -25,7 +25,8 @@ COMMON_CFLAGS=-Wall -Wformat -Wformat-security
 # The next line is commented out by default in shipping libarchive releases.
 # It is uncommented by default in trunk.
 DEV_CFLAGS=-Werror -Wextra -Wunused -Wshadow -Wmissing-prototypes -Wcast-qual
-AM_CFLAGS=$(COMMON_CFLAGS) $(DEV_CFLAGS)
+EXTRA_CFLAGS = @EXTRA_CFLAGS@
+AM_CFLAGS=$(COMMON_CFLAGS) $(DEV_CFLAGS) $(EXTRA_CFLAGS)
 PLATFORMCPPFLAGS = @PLATFORMCPPFLAGS@
 AM_CPPFLAGS=$(PLATFORMCPPFLAGS)
 
