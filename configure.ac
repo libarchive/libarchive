@@ -190,12 +190,6 @@ esac
 AM_CONDITIONAL([BUILD_BSDCPIO], [ test "$build_bsdcpio" = yes ])
 AM_CONDITIONAL([STATIC_BSDCPIO], [ test "$static_bsdcpio" = yes ])
 
-AC_ARG_WITH([extra-cflags],
-  [AS_HELP_STRING([--with-extra-cflags=CFLAGS], [use extra CFLAGS])],
-  [], [enable_extra_cflags= ])
-
-EXTRA_CFLAGS=$with_extra_cflags
-
 # Set up defines needed before including any headers
 case $host in
   *mingw* | *cygwin* )
@@ -791,5 +785,4 @@ case "$host_os" in
 	;;
 esac
 
-AC_SUBST(EXTRA_CFLAGS)
 AC_OUTPUT
