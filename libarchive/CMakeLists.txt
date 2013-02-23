@@ -125,6 +125,7 @@ SET(libarchive_SOURCES
   archive_write_set_format_iso9660.c
   archive_write_set_format_mtree.c
   archive_write_set_format_pax.c
+  archive_write_set_format_raw.c
   archive_write_set_format_shar.c
   archive_write_set_format_ustar.c
   archive_write_set_format_v7tar.c
