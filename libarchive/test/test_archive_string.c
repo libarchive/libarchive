@@ -383,8 +383,8 @@ DEFINE_TEST(test_archive_string_sort)
   srand(time(NULL));
   size = sizeof(strings) / sizeof(char *);
   assert((test_strings = (char **)calloc(1, sizeof(strings))) != NULL);
-  for (i = 0; i < size; i++)
-    test_strings[i] = (char*)strings[i];
+  for (i = 0; i < (size - 1); i++)
+    assert((test_strings[i] = strdup(strings[i])) != NULL);
 
   /* Shuffle the test strings */
   for (i = 0; i < (size - 1); i++)
@@ -401,5 +401,7 @@ DEFINE_TEST(test_archive_string_sort)
   for (i = 0; i < (size - 1); i++)
     assertEqualString(test_strings[i], strings[i]);
 
+  for (i = 0; i < (size - 1); i++)
+    free(test_strings[i]);
   free(test_strings);
 }
