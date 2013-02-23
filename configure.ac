@@ -191,7 +191,8 @@ AM_CONDITIONAL([BUILD_BSDCPIO], [ test "$build_bsdcpio" = yes ])
 AM_CONDITIONAL([STATIC_BSDCPIO], [ test "$static_bsdcpio" = yes ])
 
 AC_ARG_WITH([extra-cflags],
-  [AS_HELP_STRING([--with-extra-cflags=CFLAGS], [use extra CFLAGS])])
+  [AS_HELP_STRING([--with-extra-cflags=CFLAGS], [use extra CFLAGS])],
+  [], [enable_extra_cflags= ])
 
 EXTRA_CFLAGS=$with_extra_cflags
 
