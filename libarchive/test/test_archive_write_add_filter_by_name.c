@@ -38,7 +38,7 @@ test_filter_by_name(const char *filter_name, int filter_code,
 	char *buff;
 	int r;
 
-	assert((buff = malloc(buffsize)) != NULL);
+	assert((buff = calloc(1, buffsize)) != NULL);
 	if (buff == NULL)
 		return;
 
