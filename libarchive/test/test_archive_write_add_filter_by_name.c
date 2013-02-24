@@ -70,6 +70,16 @@ test_filter_by_name(const char *filter_name, int filter_code,
 			return;
 		}
 	}
+	if (filter_code == ARCHIVE_FILTER_LRZIP)
+	{
+		/*
+		 * There's a bug in lrzip (as of release 0.612) where 2nd stage
+		 * compression can't be performed on smaller files. Set lrzip to
+		 * use no 2nd stage compression.
+		 */
+		assertEqualIntA(a, ARCHIVE_OK,
+			archive_write_set_options(a, "lrzip:compression=none"));
+	}
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_bytes_per_block(a, 10));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used));
