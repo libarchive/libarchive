@@ -16,6 +16,7 @@ IF(ENABLE_CPIO)
     ../libarchive_fe/line_reader.c
     ../libarchive_fe/line_reader.h
   )
+  INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/test_utils)
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/../libarchive_fe)
   IF(WIN32 AND NOT CYGWIN)
     LIST(APPEND bsdcpio_SOURCES cpio_windows.c)
