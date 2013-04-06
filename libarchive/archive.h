@@ -880,6 +880,10 @@ __LA_DECL int	archive_read_disk_set_metadata_filter_callback(struct archive *,
 		    int (*_metadata_filter_func)(struct archive *, void *,
 		    	struct archive_entry *), void *_client_data);
 
+/* Simplified cleanup interface;
+ * This calls archive_read_free() or archive_write_free() as needed. */
+__LA_DECL int	archive_free(struct archive *);
+
 /*
  * Accessor functions to read/set various information in
  * the struct archive object:
