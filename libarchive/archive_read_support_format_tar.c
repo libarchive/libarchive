@@ -683,6 +683,8 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 		a->archive.archive_format = ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE;
 		a->archive.archive_format_name = "POSIX pax interchange format";
 		err = header_pax_global(a, tar, entry, h, unconsumed);
+		if (err == ARCHIVE_EOF)
+			return (err);
 		break;
 	case 'K': /* Long link name (GNU tar, others) */
 		err = header_longlink(a, tar, entry, h, unconsumed);

@@ -415,6 +415,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_format_rar.c			\
 	libarchive/test/test_read_format_raw.c			\
 	libarchive/test/test_read_format_tar.c			\
+	libarchive/test/test_read_format_tar_empty_pax.c	\
 	libarchive/test/test_read_format_tar_empty_filename.c	\
 	libarchive/test/test_read_format_tar_filename.c		\
 	libarchive/test/test_read_format_tbz.c			\
@@ -668,6 +669,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar_windows.rar.uu		\
 	libarchive/test/test_read_format_raw.data.Z.uu			\
 	libarchive/test/test_read_format_raw.data.uu			\
+	libarchive/test/test_read_format_tar_empty_pax.tar.Z.uu		\
 	libarchive/test/test_read_format_tar_empty_filename.tar.uu	\
 	libarchive/test/test_read_format_tar_filename_koi8r.tar.Z.uu	\
 	libarchive/test/test_read_format_ustar_filename_cp866.tar.Z.uu	\
