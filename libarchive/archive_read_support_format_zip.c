@@ -1619,10 +1619,12 @@ process_extra(const char *p, size_t extra_length, struct zip_entry* zip_entry)
 		switch (headerid) {
 		case 0x0001:
 			/* Zip64 extended information extra field. */
-			if (datasize >= 8)
+			if (datasize >= 8 &&
+			    zip_entry->uncompressed_size == 0xffffffff)
 				zip_entry->uncompressed_size =
 				    archive_le64dec(p + offset);
-			if (datasize >= 16)
+			if (datasize >= 16 &&
+			    zip_entry->compressed_size == 0xffffffff)
 				zip_entry->compressed_size =
 				    archive_le64dec(p + offset + 8);
 			break;
