@@ -143,6 +143,13 @@ include(CTest)
 
 OPTION(ENABLE_NETTLE "Enable use of Nettle" ON)
 OPTION(ENABLE_OPENSSL "Enable use of OpenSSL" ON)
+OPTION(ENABLE_LZMA "Enable the use of the system found LZMA library if found" ON)
+OPTION(ENABLE_ZLIB "Enable the use of the system found ZLIB library if found" ON)
+OPTION(ENABLE_BZip2 "Enable the use of the system found BZip2 library if found" ON)
+OPTION(ENABLE_EXPAT "Enable the use of the system found EXPAT library if found" ON)
+OPTION(ENABLE_PCREPOSIX "Enable the use of the system found PCREPOSIX library if found" ON)
+OPTION(ENABLE_LibGCC "Enable the use of the system found LibGCC library if found" ON)
+
 OPTION(ENABLE_TAR "Enable tar building" ON)
 OPTION(ENABLE_TAR_SHARED "Enable dynamic build of tar" FALSE)
 OPTION(ENABLE_CPIO "Enable cpio building" ON)
@@ -151,6 +158,7 @@ OPTION(ENABLE_XATTR "Enable extended attribute support" ON)
 OPTION(ENABLE_ACL "Enable ACL support" ON)
 OPTION(ENABLE_ICONV "Enable iconv support" ON)
 OPTION(ENABLE_TEST "Enable unit and regression tests" ON)
+
 SET(POSIX_REGEX_LIB "AUTO" CACHE STRING "Choose what library should provide POSIX regular expression support")
 SET(ENABLE_SAFESEH "AUTO" CACHE STRING "Enable use of /SAFESEH linker flag (MSVC only)")
 SET(WINDOWS_VERSION "" CACHE STRING "Set Windows version to use (Windows only)")
@@ -315,7 +323,11 @@ SET(ADDITIONAL_LIBS "")
 #
 # Find ZLIB
 #
-FIND_PACKAGE(ZLIB)
+IF(ENABLE_ZLIB)
+  FIND_PACKAGE(ZLIB)
+ELSE()
+  SET(ZLIB_FOUND FALSE) # Override cached value
+ENDIF()
 IF(ZLIB_FOUND)
   SET(HAVE_LIBZ 1)
   SET(HAVE_ZLIB_H 1)
@@ -350,7 +362,11 @@ MARK_AS_ADVANCED(CLEAR ZLIB_LIBRARY)
 #
 # Find BZip2
 #
-FIND_PACKAGE(BZip2)
+IF(ENABLE_BZip2)
+  FIND_PACKAGE(BZip2)
+ELSE()
+  SET(BZIP2_FOUND FALSE) # Override cached value
+ENDIF()
 IF(BZIP2_FOUND)
   SET(HAVE_LIBBZ2 1)
   SET(HAVE_BZLIB_H 1)
@@ -370,10 +386,18 @@ IF(BZIP2_FOUND)
 ENDIF(BZIP2_FOUND)
 MARK_AS_ADVANCED(CLEAR BZIP2_INCLUDE_DIR)
 MARK_AS_ADVANCED(CLEAR BZIP2_LIBRARIES)
+
+
 #
 # Find LZMA
 #
-FIND_PACKAGE(LZMA)
+IF(ENABLE_LZMA)
+  FIND_PACKAGE(LZMA)
+ELSE()
+  SET(LZMA_FOUND FALSE) # Override cached value
+  SET(LZMADEC_FOUND FALSE) # Override cached value
+ENDIF()
+
 IF(LZMA_FOUND)
   SET(HAVE_LIBLZMA 1)
   SET(HAVE_LZMA_H 1)
@@ -393,6 +417,8 @@ ELSEIF(LZMADEC_FOUND)
   SET(HAVE_LZMADEC_H 1)
   INCLUDE_DIRECTORIES(${LZMADEC_INCLUDE_DIR})
   LIST(APPEND ADDITIONAL_LIBS ${LZMADEC_LIBRARIES})
+ELSE(LZMA_FOUND)
+# LZMA not found and will not be used.
 ENDIF(LZMA_FOUND)
 #
 # Find LZO2
@@ -883,8 +909,8 @@ ENDIF(ENABLE_ICONV)
 
 #
 # Find Libxml2
+FIND_PACKAGE(LibXml2 REQUIRED)
 #
-FIND_PACKAGE(LibXml2)
 IF(LIBXML2_FOUND)
   CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
   INCLUDE_DIRECTORIES(${LIBXML2_INCLUDE_DIR})
@@ -979,8 +1005,16 @@ IF(NOT FOUND_POSIX_REGEX_LIB AND POSIX_REGEX_LIB MATCHES "^(AUTO|LIBPCREPOSIX)$"
   #
   # If requested, try finding library for PCREPOSIX
   #
-  FIND_PACKAGE(LibGCC)
-  FIND_PACKAGE(PCREPOSIX)
+  IF(ENABLE_LibGCC)
+    FIND_PACKAGE(LibGCC)
+  ELSE()
+    SET(LIBGCC_FOUND FALSE) # Override cached value
+  ENDIF()
+  IF(ENABLE_PCREPOSIX)
+    FIND_PACKAGE(PCREPOSIX)
+  ELSE()
+    SET(PCREPOSIX_FOUND FALSE) # Override cached value
+  ENDIF()
   IF(PCREPOSIX_FOUND)
     INCLUDE_DIRECTORIES(${PCRE_INCLUDE_DIR})
     LIST(APPEND ADDITIONAL_LIBS ${PCREPOSIX_LIBRARIES})
