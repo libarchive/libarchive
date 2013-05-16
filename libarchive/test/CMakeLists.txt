@@ -3,8 +3,8 @@
 # How to build libarchive_test
 #
 ############################################
-IF(ENABLE_TEST)
-  SET(libarchive_test_SOURCES
+if(ENABLE_TEST)
+  set(libarchive_test_SOURCES
     ../../test_utils/test_utils.c
    main.c
     read_open_memory.c
@@ -223,9 +223,9 @@ IF(ENABLE_TEST)
   #
   # Register target
   #
-  ADD_EXECUTABLE(libarchive_test ${libarchive_test_SOURCES})
-  TARGET_LINK_LIBRARIES(libarchive_test archive_static ${ADDITIONAL_LIBS})
-  SET_PROPERTY(TARGET libarchive_test PROPERTY COMPILE_DEFINITIONS
+  add_executable(libarchive_test ${libarchive_test_SOURCES})
+  target_link_libraries(libarchive_test archive_static ${ADDITIONAL_LIBS})
+  set_property(TARGET libarchive_test PROPERTY COMPILE_DEFINITIONS
     LIBARCHIVE_STATIC LIST_H)
 
   #
@@ -233,27 +233,27 @@ IF(ENABLE_TEST)
   #
   GENERATE_LIST_H(${CMAKE_CURRENT_BINARY_DIR}/list.h
     ${CMAKE_CURRENT_LIST_FILE} ${libarchive_test_SOURCES})
-  SET_PROPERTY(DIRECTORY APPEND PROPERTY INCLUDE_DIRECTORIES
+  set_property(DIRECTORY APPEND PROPERTY INCLUDE_DIRECTORIES
     ${CMAKE_CURRENT_BINARY_DIR})
 
   # list.h has a line DEFINE_TEST(testname) for every
   # test.  We can use that to define the tests for cmake by
   # defining a DEFINE_TEST macro and reading list.h in.
-  MACRO (DEFINE_TEST _testname)
-    ADD_TEST(
+  macro (DEFINE_TEST _testname)
+    add_test(
       NAME libarchive_${_testname}
       COMMAND libarchive_test -vv
                               -r ${CMAKE_CURRENT_SOURCE_DIR}
                               ${_testname})
-  ENDMACRO (DEFINE_TEST _testname)
+  endmacro (DEFINE_TEST _testname)
 
-  INCLUDE(${CMAKE_CURRENT_BINARY_DIR}/list.h)
-  INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
-  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/test_utils)
+  include(${CMAKE_CURRENT_BINARY_DIR}/list.h)
+  include_directories(${CMAKE_CURRENT_BINARY_DIR})
+  include_directories(${CMAKE_SOURCE_DIR}/test_utils)
 
   # Experimental new test handling
-  ADD_CUSTOM_TARGET(run_libarchive_test
+  add_custom_target(run_libarchive_test
 	COMMAND	libarchive_test -r ${CMAKE_CURRENT_SOURCE_DIR})
-  ADD_DEPENDENCIES(run_all_tests run_libarchive_test)
-ENDIF(ENABLE_TEST)
+  add_dependencies(run_all_tests run_libarchive_test)
+endif(ENABLE_TEST)
 

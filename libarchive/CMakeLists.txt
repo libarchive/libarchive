@@ -6,13 +6,13 @@
 ############################################
 
 # Public headers
-SET(include_HEADERS
+set(include_HEADERS
   archive.h
   archive_entry.h
 )
 
 # Sources and private headers
-SET(libarchive_SOURCES
+set(libarchive_SOURCES
   archive_acl.c
   archive_check_magic.c
   archive_cmdline.c
@@ -137,7 +137,7 @@ SET(libarchive_SOURCES
 )
 
 # Man pages
-SET(libarchive_MANS
+set(libarchive_MANS
   archive_entry.3
   archive_entry_acl.3
   archive_entry_linkify.3
@@ -160,35 +160,35 @@ SET(libarchive_MANS
   tar.5
 )
 
-IF(WIN32 AND NOT CYGWIN)
-  LIST(APPEND libarchive_SOURCES archive_entry_copy_bhfi.c)
-  LIST(APPEND libarchive_SOURCES archive_read_disk_windows.c)
-  LIST(APPEND libarchive_SOURCES archive_windows.c)
-  LIST(APPEND libarchive_SOURCES archive_windows.h)
-  LIST(APPEND libarchive_SOURCES archive_write_disk_windows.c)
-  LIST(APPEND libarchive_SOURCES filter_fork_windows.c)
-ENDIF(WIN32 AND NOT CYGWIN)
+if(WIN32 AND NOT CYGWIN)
+  list(APPEND libarchive_SOURCES archive_entry_copy_bhfi.c)
+  list(APPEND libarchive_SOURCES archive_read_disk_windows.c)
+  list(APPEND libarchive_SOURCES archive_windows.c)
+  list(APPEND libarchive_SOURCES archive_windows.h)
+  list(APPEND libarchive_SOURCES archive_write_disk_windows.c)
+  list(APPEND libarchive_SOURCES filter_fork_windows.c)
+endif(WIN32 AND NOT CYGWIN)
 
 # Libarchive is a shared library
-ADD_LIBRARY(archive SHARED ${libarchive_SOURCES} ${include_HEADERS})
-TARGET_LINK_LIBRARIES(archive ${ADDITIONAL_LIBS})
-SET_TARGET_PROPERTIES(archive PROPERTIES SOVERSION ${SOVERSION})
+add_library(archive SHARED ${libarchive_SOURCES} ${include_HEADERS})
+target_link_libraries(archive ${ADDITIONAL_LIBS})
+set_target_properties(archive PROPERTIES SOVERSION ${SOVERSION})
 
 # archive_static is a static library
-ADD_LIBRARY(archive_static STATIC ${libarchive_SOURCES} ${include_HEADERS})
-SET_TARGET_PROPERTIES(archive_static PROPERTIES COMPILE_DEFINITIONS
+add_library(archive_static STATIC ${libarchive_SOURCES} ${include_HEADERS})
+set_target_properties(archive_static PROPERTIES COMPILE_DEFINITIONS
   LIBARCHIVE_STATIC)
 # On Posix systems, libarchive.so and libarchive.a can co-exist.
-IF(NOT WIN32 OR CYGWIN)
-  SET_TARGET_PROPERTIES(archive_static PROPERTIES OUTPUT_NAME archive)
-ENDIF(NOT WIN32 OR CYGWIN)
+if(NOT WIN32 OR CYGWIN)
+  set_target_properties(archive_static PROPERTIES OUTPUT_NAME archive)
+endif(NOT WIN32 OR CYGWIN)
 
 # How to install the libraries
-INSTALL(TARGETS archive archive_static
+install(TARGETS archive archive_static
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib)
 INSTALL_MAN(${libarchive_MANS})
-INSTALL(FILES ${include_HEADERS} DESTINATION include)
+install(FILES ${include_HEADERS} DESTINATION include)
 
 add_subdirectory(test)

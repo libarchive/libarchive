@@ -3,8 +3,8 @@
 # How to build bsdcpio_test
 #
 ############################################
-IF(ENABLE_CPIO AND ENABLE_TEST)
-  SET(bsdcpio_test_SOURCES
+if(ENABLE_CPIO AND ENABLE_TEST)
+  set(bsdcpio_test_SOURCES
     ../cmdline.c
     ../../libarchive_fe/err.c
     ../../test_utils/test_utils.c
@@ -57,37 +57,37 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
   #
   # Register target
   #
-  ADD_EXECUTABLE(bsdcpio_test ${bsdcpio_test_SOURCES})
-  SET_PROPERTY(TARGET bsdcpio_test PROPERTY COMPILE_DEFINITIONS LIST_H)
+  add_executable(bsdcpio_test ${bsdcpio_test_SOURCES})
+  set_property(TARGET bsdcpio_test PROPERTY COMPILE_DEFINITIONS LIST_H)
 
   #
   # Generate list.h by grepping DEFINE_TEST() lines out of the C sources.
   #
   GENERATE_LIST_H(${CMAKE_CURRENT_BINARY_DIR}/list.h
     ${CMAKE_CURRENT_LIST_FILE} ${bsdcpio_test_SOURCES})
-  SET_PROPERTY(DIRECTORY APPEND PROPERTY INCLUDE_DIRECTORIES
+  set_property(DIRECTORY APPEND PROPERTY INCLUDE_DIRECTORIES
     ${CMAKE_CURRENT_BINARY_DIR})
 
   # list.h has a line DEFINE_TEST(testname) for every
   # test.  We can use that to define the tests for cmake by
   # defining a DEFINE_TEST macro and reading list.h in.
-  MACRO (DEFINE_TEST _testname)
-    ADD_TEST(
+  macro (DEFINE_TEST _testname)
+    add_test(
       NAME bsdcpio_${_testname}
       COMMAND bsdcpio_test -vv
                            -p $<TARGET_FILE:bsdcpio>
                            -r ${CMAKE_CURRENT_SOURCE_DIR}
                            ${_testname})
-  ENDMACRO (DEFINE_TEST _testname)
+  endmacro (DEFINE_TEST _testname)
 
-  INCLUDE(${CMAKE_CURRENT_BINARY_DIR}/list.h)
-  INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
-  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/test_utils)
+  include(${CMAKE_CURRENT_BINARY_DIR}/list.h)
+  include_directories(${CMAKE_CURRENT_BINARY_DIR})
+  include_directories(${CMAKE_SOURCE_DIR}/test_utils)
 
   # Experimental new test handling
-  ADD_CUSTOM_TARGET(run_bsdcpio_test
+  add_custom_target(run_bsdcpio_test
 	COMMAND	bsdcpio_test -p ${BSDCPIO} -r ${CMAKE_CURRENT_SOURCE_DIR})
-  ADD_DEPENDENCIES(run_bsdcpio_test bsdcpio)
-  ADD_DEPENDENCIES(run_all_tests run_bsdcpio_test)
-ENDIF(ENABLE_CPIO AND ENABLE_TEST)
+  add_dependencies(run_bsdcpio_test bsdcpio)
+  add_dependencies(run_all_tests run_bsdcpio_test)
+endif(ENABLE_CPIO AND ENABLE_TEST)
 
