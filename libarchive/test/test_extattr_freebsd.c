@@ -160,9 +160,18 @@ DEFINE_TEST(test_extattr_freebsd)
 	archive_entry_set_pathname(ae, "test0");
 	assertEqualInt(ARCHIVE_OK,
 	    archive_read_disk_entry_from_file(a, ae, -1, NULL));
-	assertEqualInt(1, archive_entry_xattr_reset(ae));
-	assertEqualInt(ARCHIVE_OK,
-	    archive_entry_xattr_next(ae, &xname, &xval, &xsize));
+	/* If the system has MAC enabled, unexpected xattrs can
+	 * appear here; skip them.
+	 */
+	n = archive_entry_xattr_reset(ae);
+	while (n--) {
+		assertEqualInt(ARCHIVE_OK,
+		    archive_entry_xattr_next(ae, &xname, &xval, &xsize));
+		if (xname != NULL) {
+			if (strncmp(xname, "user.foo", 8) == 0)
+				break;
+		}
+	}
 	assertEqualString(xname, "user.foo");
 	assertEqualInt(xsize, 5);
 	assertEqualMem(xval, "12345", xsize);

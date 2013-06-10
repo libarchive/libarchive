@@ -568,6 +568,7 @@ AC_ARG_ENABLE([xattr],
 if test "x$enable_xattr" != "xno"; then
 	AC_CHECK_HEADERS([attr/xattr.h])
 	AC_CHECK_HEADERS([sys/xattr.h sys/ea.h])
+	AC_CHECK_HEADERS([sys/mac.h])
 	AC_CHECK_LIB(attr,setxattr)
 	AC_CHECK_FUNCS([extattr_get_file extattr_list_file])
 	AC_CHECK_FUNCS([extattr_set_fd extattr_set_file])
