@@ -84,6 +84,9 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk_entry_from_file.c 2010
 #ifdef HAVE_SYS_MAC_H
 #include <sys/mac.h>
 #endif
+#ifdef HAVE_SYS_SYSCTL_H
+#include <sys/sysctl.h>
+#endif
 /*
  * Some Linux distributions have both linux/ext2_fs.h and ext2fs/ext2_fs.h.
  * As the include guards don't agree, the order of include is important.
@@ -918,6 +921,11 @@ setup_xattrs(struct archive_read_disk *a,
 	const char *path;
 	int namespace = EXTATTR_NAMESPACE_USER;
 	int ret;
+#if defined (HAVE_SYS_MAC_H) && defined (HAVE_SYS_SYSCTL_H) && \
+    defined (__FreeBSD__)
+	uint64_t mac_labeled = 0;
+	size_t ml_len = sizeof(uint64_t);
+#endif
 
 	path = archive_entry_sourcepath(entry);
 	if (path == NULL)
@@ -994,7 +1002,8 @@ setup_xattrs(struct archive_read_disk *a,
 		free(list);
 	}
 
-#if defined (HAVE_SYS_MAC_H) && defined (__FreeBSD__)
+#if defined (HAVE_SYS_MAC_H) && defined (HAVE_SYS_SYSCTL_H) && \
+    defined (__FreeBSD__)
 	/* Handle FreeBSD MAC labels. This is a simplified hack that
 	 * stores the label in textual representation as an xattr
 	 * with the name "system.mac". There is no name clash under
@@ -1002,7 +1011,10 @@ setup_xattrs(struct archive_read_disk *a,
 	 * extracting archives that contain this data on other, xattr
 	 * capable systems may potentially break.
 	 */
-	if (mac_is_present(NULL)) {
+	/* if (mac_is_present(NULL) == 1) { */
+	if (!sysctlbyname("security.mac.labeled",
+	    &mac_labeled, &ml_len, NULL, 0) && \
+	    mac_labeled != 0) {
 		mac_t mac;
 		char *labeltext;
 
@@ -1022,7 +1034,7 @@ setup_xattrs(struct archive_read_disk *a,
 				archive_set_error(&a->archive, errno,
 				    "Couldn't read MAC label");
 				mac_free(mac);
-				ret = ARCHIVE_WARN;
+				return (ARCHIVE_WARN);
 			}
 
 			if (mac_to_text(mac, &labeltext)) {

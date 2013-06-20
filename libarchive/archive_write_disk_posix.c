@@ -80,6 +80,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_SYS_MAC_H
 #include <sys/mac.h>
 #endif
+#ifdef HAVE_SYS_SYSCTL_H
+#include <sys/sysctl.h>
+#endif
 /*
  * Some Linux distributions have both linux/ext2_fs.h and ext2fs/ext2_fs.h.
  * As the include guards don't agree, the order of include is important.
@@ -3694,7 +3697,8 @@ set_xattrs(struct archive_write_disk *a)
 }
 #elif HAVE_EXTATTR_SET_FILE && HAVE_DECL_EXTATTR_NAMESPACE_USER
 
-#if defined (HAVE_SYS_MAC_H) && defined (__FreeBSD__)
+#if defined (HAVE_SYS_MAC_H) && defined (HAVE_SYS_SYSCTL_H) && \
+    defined (__FreeBSD__)
 /*
  * Set FreeBSD MAC labels.
  * Converts a text representation to a label and applies it.
@@ -3703,8 +3707,13 @@ static int
 set_maclabel(struct archive_write_disk *a, const char *labeltext, size_t size)
 {
 	int ret = ARCHIVE_OK;
+	uint64_t mac_labeled = 0;
+	size_t ml_len = sizeof(uint64_t);
 
-	if (mac_is_present(NULL)) {
+	/* if (mac_is_present(NULL) == 1) { */
+	if (!sysctlbyname("security.mac.labeled",
+	    &mac_labeled, &ml_len, NULL, 0) && \
+	    mac_labeled != 0) {
 		mac_t mac;
 		char buff[512];
 
@@ -3764,7 +3773,8 @@ set_xattrs(struct archive_write_disk *a)
 				/* "user." attributes go to user namespace */
 				name += 5;
 				namespace = EXTATTR_NAMESPACE_USER;
-#if defined (HAVE_SYS_MAC_H) && defined (__FreeBSD__)
+#if defined (HAVE_SYS_MAC_H) && defined (HAVE_SYS_SYSCTL_H) && \
+    defined (__FreeBSD__)
 			} else if (strncmp(name, "system.mac", 10) == 0) {
 				ret = set_maclabel(a, value, size);
 				continue;

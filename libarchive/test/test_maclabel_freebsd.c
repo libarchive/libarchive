@@ -201,7 +201,7 @@ DEFINE_TEST(test_maclabel_freebsd)
 	pretest_done = 0;
 	i = 0;
 	while (poltests[i].polname) {
-		if (!mac_is_present(poltests[i].polname)) {
+		if (!mac_is_present(poltests[i].polname) == 1) {
 			skipping("MAC policy `%s' is not present",
 			    poltests[i].polname);
 			i++;
