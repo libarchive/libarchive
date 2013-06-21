@@ -55,7 +55,7 @@ create_labeled_file(char *filename, const char *labeltext)
 		ret = 1; /* success */
 
 done:
-	if (mac) free(mac);
+	if (mac) mac_free(mac);
 	if (fd >= 0) close(fd);
 	return ret;
 }
@@ -78,7 +78,7 @@ get_file_maclabel(char *filename, char *buf, size_t buflen)
 		ret = 1;
 	}
 done:
-	if (mac) free(mac);
+	if (mac) mac_free(mac);
 	if (labeltext) free(labeltext);
 	return ret;
 }
@@ -224,7 +224,7 @@ DEFINE_TEST(test_maclabel_freebsd)
 			err = mac_set_fd(fd, mac);
 			if (err && errno == EOPNOTSUPP) {
 				close(fd);
-				free(mac);
+				mac_free(mac);
 				skipping("MAC labels are not supported on"\
 				    "this filesystem");
 				return;
@@ -232,7 +232,7 @@ DEFINE_TEST(test_maclabel_freebsd)
 			failure("mac_set_fd(): errno=%d (%s)",
 			    errno, strerror(errno));
 			assertEqualInt(0, err);
-			free(mac);
+			mac_free(mac);
 			close(fd);
 
 			pretest_done = 1;

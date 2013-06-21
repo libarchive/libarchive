@@ -3741,7 +3741,7 @@ set_maclabel(struct archive_write_disk *a, const char *labeltext, size_t size)
 				    "Couldn't set MAC label");
 				ret = ARCHIVE_WARN;
 			}
-			free(mac);
+			mac_free(mac);
 		}
 	}
 
@@ -3776,7 +3776,9 @@ set_xattrs(struct archive_write_disk *a)
 #if defined (HAVE_SYS_MAC_H) && defined (HAVE_SYS_SYSCTL_H) && \
     defined (__FreeBSD__)
 			} else if (strncmp(name, "system.mac", 10) == 0) {
-				ret = set_maclabel(a, value, size);
+				int r1 = set_maclabel(a, value, size);
+				if (r1 < ret)
+					ret = r1;
 				continue;
 #endif
 			} else {
