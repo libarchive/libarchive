@@ -74,9 +74,11 @@ struct zip {
 	int64_t			end_of_central_directory_offset;
 	int64_t			central_directory_offset;
 	size_t			central_directory_size;
-	size_t			central_directory_entries;
+	size_t			central_directory_entries_total;
+	size_t			central_directory_entries_on_this_disk;
 	char			have_central_directory;
 	int64_t			offset;
+	char			has_encrypted_entries;
 
 	/* List of entries (seekable Zip only) */
 	size_t			entries_remaining;
@@ -120,10 +122,16 @@ struct zip {
 };
 
 #define ZIP_LENGTH_AT_END	8
-#define ZIP_ENCRYPTED		(1<<0)	
-#define ZIP_STRONG_ENCRYPTED	(1<<6)	
-#define ZIP_UTF8_NAME		(1<<11)	
+#define ZIP_ENCRYPTED	(1<<0)
+#define ZIP_STRONG_ENCRYPTED	(1<<6)
+/* See "7.2 Single Password Symmetric Encryption Method"
+   in http://www.pkware.com/documents/casestudies/APPNOTE.TXT */
+#define ZIP_CENTRAL_DIRECTORY_ENCRYPTED	(1<<13)	
+#define ZIP_UTF8_NAME	(1<<11)	
 
+static int	archive_read_format_zip_has_encrypted_entries(struct archive_read *);
+static int	archive_read_support_format_zip_capabilities_seekable(struct archive_read *a);
+static int	archive_read_support_format_zip_capabilities_streamable(struct archive_read *a);
 static int	archive_read_format_zip_streamable_bid(struct archive_read *,
 		    int);
 static int	archive_read_format_zip_seekable_bid(struct archive_read *,
@@ -182,7 +190,9 @@ archive_read_support_format_zip_streamable(struct archive *_a)
 	    archive_read_format_zip_read_data,
 	    archive_read_format_zip_read_data_skip,
 	    NULL,
-	    archive_read_format_zip_cleanup);
+	    archive_read_format_zip_cleanup,
+	    archive_read_support_format_zip_capabilities_streamable,
+	    archive_read_format_zip_has_encrypted_entries);
 
 	if (r != ARCHIVE_OK)
 		free(zip);
@@ -216,11 +226,40 @@ archive_read_support_format_zip_seekable(struct archive *_a)
 	    archive_read_format_zip_read_data,
 	    archive_read_format_zip_read_data_skip,
 	    NULL,
-	    archive_read_format_zip_cleanup);
+	    archive_read_format_zip_cleanup,
+	    archive_read_support_format_zip_capabilities_seekable,
+	    archive_read_format_zip_has_encrypted_entries);
 
 	if (r != ARCHIVE_OK)
 		free(zip);
 	return (ARCHIVE_OK);
+}
+
+static int
+archive_read_support_format_zip_capabilities_seekable(struct archive_read * a)
+{
+	(void)a; /* UNUSED */
+	return (ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_DATA | ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA);
+}
+
+static int
+archive_read_support_format_zip_capabilities_streamable(struct archive_read * a)
+{
+	(void)a; /* UNUSED */
+	return (ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_DATA | ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA);
+}
+
+
+static int
+archive_read_format_zip_has_encrypted_entries(struct archive_read *_a)
+{
+	if (_a && _a->format) {
+		struct zip * zip = (struct zip *)_a->format->data;
+		if (zip && zip->has_encrypted_entries) {
+			return 1;
+		}
+	}
+	return 0;
 }
 
 int
@@ -307,18 +346,20 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 		if (!found)
 			return 0;
 	}
-
+    
 	/* Since we've already done the hard work of finding the
 	   end of central directory record, let's save the important
 	   information. */
-	zip->central_directory_entries = archive_le16dec(p + 10);
+	zip->central_directory_entries_on_this_disk = archive_le16dec(p + 8);
+	zip->central_directory_entries_total = archive_le16dec(p + 10);
 	zip->central_directory_size = archive_le32dec(p + 12);
 	zip->central_directory_offset = archive_le32dec(p + 16);
 	zip->end_of_central_directory_offset = filesize;
-
+	
 	/* Just one volume, so central dir must all be on this volume. */
-	if (zip->central_directory_entries != archive_le16dec(p + 8))
+	if (zip->central_directory_entries_total != zip->central_directory_entries_on_this_disk) {
 		return 0;
+	}
 	/* Central directory can't extend beyond end of this file. */
 	if (zip->central_directory_offset +
 	    (int64_t)zip->central_directory_size > filesize)
@@ -435,9 +476,9 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 	__archive_rb_tree_init(&zip->tree, &rb_ops);
 	__archive_rb_tree_init(&zip->tree_rsrc, &rb_rsrc_ops);
 
-	zip->zip_entries = calloc(zip->central_directory_entries,
+	zip->zip_entries = calloc(zip->central_directory_entries_total,
 				sizeof(struct zip_entry));
-	for (i = 0; i < zip->central_directory_entries; ++i) {
+	for (i = 0; i < zip->central_directory_entries_total; ++i) {
 		struct zip_entry *zip_entry = &zip->zip_entries[i];
 		size_t filename_length, extra_length, comment_length;
 		uint32_t external_attributes;
@@ -455,6 +496,9 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 		zip_entry->system = p[5];
 		/* version_required = archive_le16dec(p + 6); */
 		zip_entry->flags = archive_le16dec(p + 8);
+		if (zip_entry->flags & (ZIP_ENCRYPTED | ZIP_STRONG_ENCRYPTED)){
+			zip->has_encrypted_entries = 1;
+		}
 		zip_entry->compression = (char)archive_le16dec(p + 10);
 		zip_entry->mtime = zip_time(p + 12);
 		zip_entry->crc32 = archive_le32dec(p + 16);
@@ -468,7 +512,7 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 		external_attributes = archive_le32dec(p + 38);
 		zip_entry->local_header_offset =
 		    archive_le32dec(p + 42) + correction;
-
+		
 		/* If we can't guess the mode, leave it zero here;
 		   when we read the local file header we might get
 		   more information. */
@@ -520,7 +564,6 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 			__archive_rb_tree_insert_node(&zip->tree,
 			    &zip_entry->node);
 		}
-
 		/* We don't read the filename until we get to the
 		   local file header.  Reading it here would speed up
 		   table-of-contents operations (removing the need to
@@ -700,7 +743,7 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 
 	if (zip->zip_entries == NULL) {
 		r = slurp_central_directory(a, zip);
-		zip->entries_remaining = zip->central_directory_entries;
+		zip->entries_remaining = zip->central_directory_entries_total;
 		if (r != ARCHIVE_OK)
 			return r;
 		/* Get first entry whose local header offset is lower than
@@ -716,7 +759,7 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 	if (zip->entries_remaining <= 0 || zip->entry == NULL)
 		return ARCHIVE_EOF;
 	--zip->entries_remaining;
-
+	
 	if (zip->entry->rsrcname.s)
 		rsrc = (struct zip_entry *)__archive_rb_tree_find_node(
 		    &zip->tree_rsrc, zip->entry->rsrcname.s);
@@ -989,6 +1032,16 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	version = p[4];
 	zip_entry->system = p[5];
 	zip_entry->flags = archive_le16dec(p + 6);
+	if (zip_entry->flags & (ZIP_ENCRYPTED | ZIP_STRONG_ENCRYPTED)) {
+		zip->has_encrypted_entries = 1;
+		archive_entry_set_is_data_encrypted(entry, 1);
+		if (zip_entry->flags & ZIP_CENTRAL_DIRECTORY_ENCRYPTED &&
+			zip_entry->flags & ZIP_ENCRYPTED &&
+			zip_entry->flags & ZIP_STRONG_ENCRYPTED) {
+			archive_entry_set_is_metadata_encrypted(entry, 1);
+			return ARCHIVE_FATAL;
+        }
+	}	
 	zip_entry->compression = (char)archive_le16dec(p + 8);
 	zip_entry->mtime = zip_time(p + 10);
 	local_crc32 = archive_le32dec(p + 14);
@@ -1211,6 +1264,7 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		return (ARCHIVE_EOF);
 
 	if (zip->entry->flags & (ZIP_ENCRYPTED | ZIP_STRONG_ENCRYPTED)) {
+		zip->has_encrypted_entries = 1;
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Encrypted file is unsupported");
 		return (ARCHIVE_FAILED);
@@ -1602,9 +1656,9 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 	if (zip->stream_valid)
 		inflateEnd(&zip->stream);
 #endif
-	if (zip->zip_entries && zip->central_directory_entries) {
+	if (zip->zip_entries && zip->central_directory_entries_total) {
 		unsigned i;
-		for (i = 0; i < zip->central_directory_entries; i++)
+		for (i = 0; i < zip->central_directory_entries_total; i++)
 			archive_string_free(&(zip->zip_entries[i].rsrcname));
 	}
 	free(zip->zip_entries);

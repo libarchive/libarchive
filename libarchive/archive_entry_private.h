@@ -154,6 +154,9 @@ struct archive_entry {
 	/* Not used within libarchive; useful for some clients. */
 	struct archive_mstring ae_sourcepath;	/* Path this entry is sourced from. */
 
+	char is_data_encrypted;
+	char is_metadata_encrypted;
+	
 	void *mac_metadata;
 	size_t mac_metadata_size;
 

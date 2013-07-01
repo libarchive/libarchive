@@ -285,6 +285,18 @@ typedef int archive_switch_callback(struct archive *, void *_client_data1,
 #define	ARCHIVE_FORMAT_RAR			0xD0000
 #define	ARCHIVE_FORMAT_7ZIP			0xE0000
 
+/*
+ * Codes returned by archive_read_format_capabilities().
+ *
+ * This list can be extended with values between 0 and 0xffff.
+ * The original purpose of this list was to let different archive
+ * format readers expose their general capabilities in terms of
+ * encryption.
+ */
+#define ARCHIVE_READ_FORMAT_CAPS_NONE (0) /* no special capabilities */
+#define ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_DATA (1<<0)  /* reader can detect encrypted data */
+#define ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA (1<<1)  /* reader can detect encryptable metadata (pathname, mtime, etc.) */
+
 /*-
  * Basic outline for reading an archive:
  *   1) Ask archive_read_new for an archive reader object.
@@ -465,6 +477,15 @@ __LA_DECL int archive_read_next_header2(struct archive *,
  * header started.
  */
 __LA_DECL __LA_INT64_T		 archive_read_header_position(struct archive *);
+
+/* Returns "true" (non-zero) if the archive contains encrypted entries; otherwise 0 is returned. */
+__LA_DECL int		 archive_read_has_encrypted_entries(struct archive *);
+
+/*
+ * Returns a bitmask of capabilities that are supported by the archive format reader.
+ * If the reader has no special capabilities, ARCHIVE_READ_FORMAT_CAPS_NONE is returned.
+ */
+__LA_DECL int		 archive_read_format_capabilities(struct archive *);
 
 /* Read data from the body of an entry.  Similar to read(2). */
 __LA_DECL __LA_SSIZE_T		 archive_read_data(struct archive *,

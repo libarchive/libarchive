@@ -201,6 +201,10 @@ archive_entry_clone(struct archive_entry *entry)
 	entry2->ae_set = entry->ae_set;
 	archive_mstring_copy(&entry2->ae_uname, &entry->ae_uname);
 
+	/* Copy encryption status */
+	entry2->is_data_encrypted = entry->is_data_encrypted;
+	entry2->is_metadata_encrypted = entry->is_metadata_encrypted;
+	
 	/* Copy ACL data over. */
 	archive_acl_copy(&entry2->acl, &entry->acl);
 
@@ -693,6 +697,25 @@ _archive_entry_uname_l(struct archive_entry *entry,
     const char **p, size_t *len, struct archive_string_conv *sc)
 {
 	return (archive_mstring_get_mbs_l(&entry->ae_uname, p, len, sc));
+}
+
+int
+archive_entry_is_data_encrypted(struct archive_entry *entry)
+{
+	return (entry && entry->is_data_encrypted);
+}
+
+int
+archive_entry_is_metadata_encrypted(struct archive_entry *entry)
+{
+	return (entry && entry->is_metadata_encrypted);
+}
+
+int
+archive_entry_is_encrypted(struct archive_entry *entry)
+{
+	return (entry && (entry->is_data_encrypted 
+					|| entry->is_metadata_encrypted));
 }
 
 /*
@@ -1214,6 +1237,22 @@ archive_entry_update_uname_utf8(struct archive_entry *entry, const char *name)
 	if (errno == ENOMEM)
 		__archive_errx(1, "No memory");
 	return (0);
+}
+
+void
+archive_entry_set_is_data_encrypted(struct archive_entry *entry, char encrypted)
+{
+    if (entry) {
+        entry->is_data_encrypted = encrypted;
+    }
+}
+
+void
+archive_entry_set_is_metadata_encrypted(struct archive_entry *entry, char encrypted)
+{
+    if (entry) {
+        entry->is_metadata_encrypted = encrypted;
+    }
 }
 
 int
