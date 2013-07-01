@@ -410,7 +410,8 @@ archive_read_support_format_7zip(struct archive *_a)
 	    archive_read_format_7zip_read_data,
 	    archive_read_format_7zip_read_data_skip,
 	    NULL,
-	    archive_read_format_7zip_cleanup);
+	    archive_read_format_7zip_cleanup,
+	    NULL);
 
 	if (r != ARCHIVE_OK)
 		free(zip);

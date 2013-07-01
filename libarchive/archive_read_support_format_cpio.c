@@ -243,7 +243,8 @@ archive_read_support_format_cpio(struct archive *_a)
 	    archive_read_format_cpio_read_data,
 	    archive_read_format_cpio_skip,
 	    NULL,
-	    archive_read_format_cpio_cleanup);
+	    archive_read_format_cpio_cleanup,
+	    NULL);
 
 	if (r != ARCHIVE_OK)
 		free(cpio);

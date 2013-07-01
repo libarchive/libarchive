@@ -466,6 +466,9 @@ __LA_DECL int archive_read_next_header2(struct archive *,
  */
 __LA_DECL __LA_INT64_T		 archive_read_header_position(struct archive *);
 
+/* Returns 1 if the archive contains encrypted entries; otherwise 0 is returned. */
+__LA_DECL int		 archive_read_has_encrypted_entires(struct archive *);
+
 /* Read data from the body of an entry.  Similar to read(2). */
 __LA_DECL __LA_SSIZE_T		 archive_read_data(struct archive *,
 				    void *, size_t);

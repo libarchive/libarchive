@@ -746,6 +746,17 @@ archive_read_header_position(struct archive *_a)
 	return (a->header_position);
 }
 
+/* Returns 1 if the archive contains encrypted entries; otherwise 0 is returned. */
+int
+archive_read_has_encrypted_entires(struct archive *_a)
+{
+	struct archive_read *a = (struct archive_read *)_a;
+	if (a && a->format && a->format->has_encrypted_entries) {
+		return (a->format->has_encrypted_entries)(a);
+	}
+	return 0;
+}
+
 /*
  * Read data from an archive entry, using a read(2)-style interface.
  * This is a convenience routine that just calls
@@ -1094,7 +1105,8 @@ __archive_read_register_format(struct archive_read *a,
     int (*read_data)(struct archive_read *, const void **, size_t *, int64_t *),
     int (*read_data_skip)(struct archive_read *),
     int64_t (*seek_data)(struct archive_read *, int64_t, int),
-    int (*cleanup)(struct archive_read *))
+    int (*cleanup)(struct archive_read *),
+    int (*has_encrypted_entries)(struct archive_read *))
 {
 	int i, number_slots;
 
@@ -1117,6 +1129,7 @@ __archive_read_register_format(struct archive_read *a,
 			a->formats[i].cleanup = cleanup;
 			a->formats[i].data = format_data;
 			a->formats[i].name = name;
+			a->formats[i].has_encrypted_entries = has_encrypted_entries;
 			return (ARCHIVE_OK);
 		}
 	}
