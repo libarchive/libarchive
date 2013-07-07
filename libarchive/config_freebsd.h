@@ -41,6 +41,8 @@
 #define	HAVE_EXTATTR_SET_FILE 1
 #define	HAVE_SYS_ACL_H 1
 #define	HAVE_SYS_EXTATTR_H 1
+#define	HAVE_SYS_MAC_H 1
+#define	HAVE_SYS_SYSCTL_H 1
 #endif
 
 #ifdef WITH_OPENSSL
