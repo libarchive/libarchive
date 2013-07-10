@@ -62,6 +62,8 @@ test_read_format_gtar_filename_eucJP_UTF8(const char *refname)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("\xe8\xa1\xa8.txt", archive_entry_pathname(ae));
 	assertEqualInt(4, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 
 	/* End of archive. */

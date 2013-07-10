@@ -41,11 +41,12 @@ test_is_encrypted(void)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 10240));
 
-	// We cannot tell whether a file is encrypted or if there're
-	// encrypted files within the archive unless we've read the
-	// first header
-	assertEqualInt(0, archive_entry_is_encrypted(ae));
-	assertEqualInt(0, archive_read_has_encrypted_entries(a));
+	/* We cannot tell whether a file is encrypted or if there're
+	 * encrypted files within the archive unless we've read the
+	 * first header
+	 */
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("the_password_is_tester.txt", archive_entry_pathname(ae));

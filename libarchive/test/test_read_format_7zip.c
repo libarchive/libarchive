@@ -50,6 +50,8 @@ test_copy()
 	assertEqualString("file1", archive_entry_pathname(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(60, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	assertEqualInt(60, archive_read_data(a, buff, sizeof(buff)));
 	assertEqualMem(buff, "    ", 4);
 
@@ -122,6 +124,8 @@ test_empty_file()
 	assertEqualString("empty", archive_entry_pathname(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(0, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	assertEqualInt(1, archive_file_count(a));
 
@@ -161,6 +165,8 @@ test_plain_header(const char *refname)
 	assertEqualString("file1", archive_entry_pathname(ae));
 	assertEqualInt(1322058763, archive_entry_mtime(ae));
 	assertEqualInt(2844, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	assertEqualInt(sizeof(buff), archive_read_data(a, buff, sizeof(buff)));
 	assertEqualMem(buff, "The libarchive distribution ", 28);
 
@@ -202,6 +208,8 @@ test_extract_all_files(const char *refname)
 	assertEqualString("dir1/file1", archive_entry_pathname(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(13, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	assertEqualInt(13, archive_read_data(a, buff, sizeof(buff)));
 	assertEqualMem(buff, "aaaaaaaaaaaa\n", 13);
 
@@ -211,6 +219,8 @@ test_extract_all_files(const char *refname)
 	assertEqualString("file2", archive_entry_pathname(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(26, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	assertEqualInt(26, archive_read_data(a, buff, sizeof(buff)));
 	assertEqualMem(buff, "aaaaaaaaaaaa\nbbbbbbbbbbbb\n", 26);
 
@@ -220,6 +230,8 @@ test_extract_all_files(const char *refname)
 	assertEqualString("file3", archive_entry_pathname(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(39, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	assertEqualInt(39, archive_read_data(a, buff, sizeof(buff)));
 	assertEqualMem(buff, "aaaaaaaaaaaa\nbbbbbbbbbbbb\ncccccccccccc\n", 39);
 
@@ -229,6 +241,8 @@ test_extract_all_files(const char *refname)
 	assertEqualString("file4", archive_entry_pathname(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(52, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	assertEqualInt(52, archive_read_data(a, buff, sizeof(buff)));
 	assertEqualMem(buff,
 	    "aaaaaaaaaaaa\nbbbbbbbbbbbb\ncccccccccccc\ndddddddddddd\n", 52);
@@ -238,6 +252,8 @@ test_extract_all_files(const char *refname)
 	assertEqualInt((AE_IFDIR | 0755), archive_entry_mode(ae));
 	assertEqualString("dir1/", archive_entry_pathname(ae));
 	assertEqualInt(2764801, archive_entry_mtime(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	assertEqualInt(5, archive_file_count(a));
 
@@ -277,6 +293,8 @@ test_extract_last_file(const char *refname)
 	assertEqualString("dir1/file1", archive_entry_pathname(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(13, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* Verify regular file2. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -284,6 +302,8 @@ test_extract_last_file(const char *refname)
 	assertEqualString("file2", archive_entry_pathname(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(26, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* Verify regular file3. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -291,6 +311,8 @@ test_extract_last_file(const char *refname)
 	assertEqualString("file3", archive_entry_pathname(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(39, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* Verify regular file4. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -298,6 +320,8 @@ test_extract_last_file(const char *refname)
 	assertEqualString("file4", archive_entry_pathname(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(52, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	assertEqualInt(52, archive_read_data(a, buff, sizeof(buff)));
 	assertEqualMem(buff,
 	    "aaaaaaaaaaaa\nbbbbbbbbbbbb\ncccccccccccc\ndddddddddddd\n", 52);
@@ -307,6 +331,8 @@ test_extract_last_file(const char *refname)
 	assertEqualInt((AE_IFDIR | 0755), archive_entry_mode(ae));
 	assertEqualString("dir1/", archive_entry_pathname(ae));
 	assertEqualInt(2764801, archive_entry_mtime(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	assertEqualInt(5, archive_file_count(a));
 
@@ -347,6 +373,8 @@ test_extract_all_files2(const char *refname)
 	assertEqualString("dir1/file1", archive_entry_pathname(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(13, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	assertEqualInt(13, archive_read_data(a, buff, sizeof(buff)));
 	assertEqualMem(buff, "aaaaaaaaaaaa\n", 13);
 
@@ -356,6 +384,8 @@ test_extract_all_files2(const char *refname)
 	assertEqualString("file2", archive_entry_pathname(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(26, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	assertEqualInt(26, archive_read_data(a, buff, sizeof(buff)));
 	assertEqualMem(buff, "aaaaaaaaaaaa\nbbbbbbbbbbbb\n", 26);
 
@@ -365,6 +395,8 @@ test_extract_all_files2(const char *refname)
 	assertEqualString("file3", archive_entry_pathname(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(39, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	assertEqualInt(39, archive_read_data(a, buff, sizeof(buff)));
 	assertEqualMem(buff, "aaaaaaaaaaaa\nbbbbbbbbbbbb\ncccccccccccc\n", 39);
 
@@ -374,6 +406,8 @@ test_extract_all_files2(const char *refname)
 	assertEqualString("file4", archive_entry_pathname(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(52, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	assertEqualInt(52, archive_read_data(a, buff, sizeof(buff)));
 	assertEqualMem(buff,
 	    "aaaaaaaaaaaa\nbbbbbbbbbbbb\ncccccccccccc\ndddddddddddd\n", 52);
@@ -384,6 +418,8 @@ test_extract_all_files2(const char *refname)
 	assertEqualString("dir1/zfile1", archive_entry_pathname(ae));
 	assertEqualInt(5184001, archive_entry_mtime(ae));
 	assertEqualInt(13, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	assertEqualInt(13, archive_read_data(a, buff, sizeof(buff)));
 	assertEqualMem(buff, "aaaaaaaaaaaa\n", 13);
 
@@ -393,6 +429,8 @@ test_extract_all_files2(const char *refname)
 	assertEqualString("zfile2", archive_entry_pathname(ae));
 	assertEqualInt(5184001, archive_entry_mtime(ae));
 	assertEqualInt(26, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	assertEqualInt(26, archive_read_data(a, buff, sizeof(buff)));
 	assertEqualMem(buff, "aaaaaaaaaaaa\nbbbbbbbbbbbb\n", 26);
 
@@ -402,6 +440,8 @@ test_extract_all_files2(const char *refname)
 	assertEqualString("zfile3", archive_entry_pathname(ae));
 	assertEqualInt(5184001, archive_entry_mtime(ae));
 	assertEqualInt(39, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	assertEqualInt(39, archive_read_data(a, buff, sizeof(buff)));
 	assertEqualMem(buff, "aaaaaaaaaaaa\nbbbbbbbbbbbb\ncccccccccccc\n", 39);
 
@@ -411,6 +451,8 @@ test_extract_all_files2(const char *refname)
 	assertEqualString("zfile4", archive_entry_pathname(ae));
 	assertEqualInt(5184001, archive_entry_mtime(ae));
 	assertEqualInt(52, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	assertEqualInt(52, archive_read_data(a, buff, sizeof(buff)));
 	assertEqualMem(buff,
 	    "aaaaaaaaaaaa\nbbbbbbbbbbbb\ncccccccccccc\ndddddddddddd\n", 52);
@@ -420,6 +462,8 @@ test_extract_all_files2(const char *refname)
 	assertEqualInt((AE_IFDIR | 0755), archive_entry_mode(ae));
 	assertEqualString("dir1/", archive_entry_pathname(ae));
 	assertEqualInt(2764801, archive_entry_mtime(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	assertEqualInt(9, archive_file_count(a));
 
@@ -460,6 +504,8 @@ test_delta_lzma(const char *refname)
 	assertEqualString("file1", archive_entry_pathname(ae));
 	assertEqualInt(172802, archive_entry_mtime(ae));
 	assertEqualInt(27627, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	remaining = (size_t)archive_entry_size(ae);
 	while (remaining) {
 		if (remaining < sizeof(buff))
@@ -514,6 +560,8 @@ test_bcj(const char *refname)
 	assertEqualString("x86exe", archive_entry_pathname(ae));
 	assertEqualInt(172802, archive_entry_mtime(ae));
 	assertEqualInt(27328, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	remaining = (size_t)archive_entry_size(ae);
 	while (remaining) {
 		if (remaining < sizeof(buff))
@@ -569,6 +617,8 @@ test_ppmd()
 	assertEqualString("ppmd_test.txt", archive_entry_pathname(ae));
 	assertEqualInt(1322464589, archive_entry_mtime(ae));
 	assertEqualInt(102400, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	remaining = (size_t)archive_entry_size(ae);
 	while (remaining) {
 		if (remaining < sizeof(buff))
@@ -619,6 +669,8 @@ test_symname()
 	assertEqualString("file1", archive_entry_pathname(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(32, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	assertEqualInt(32, archive_read_data(a, buff, sizeof(buff)));
 	assertEqualMem(buff, "hellohellohello\nhellohellohello\n", 32);
 
@@ -628,6 +680,8 @@ test_symname()
 	assertEqualString("symlinkfile", archive_entry_pathname(ae));
 	assertEqualString("file1", archive_entry_symlink(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	assertEqualInt(2, archive_file_count(a));
 
