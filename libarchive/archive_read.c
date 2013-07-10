@@ -748,7 +748,7 @@ archive_read_header_position(struct archive *_a)
 
 /* Returns 1 if the archive contains encrypted entries; otherwise 0 is returned. */
 int
-archive_read_has_encrypted_entires(struct archive *_a)
+archive_read_has_encrypted_entries(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 	if (a && a->format && a->format->has_encrypted_entries) {
