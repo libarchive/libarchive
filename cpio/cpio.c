@@ -1235,8 +1235,10 @@ cpio_rename(const char *name)
 	if (t == NULL)
 		return (name);
 	to = fopen("CONOUT$", "w");
-	if (to == NULL)
+	if (to == NULL) {
+		fclose(t);
 		return (name);
+	}
 	fprintf(to, "%s (Enter/./(new name))? ", name);
 	fclose(to);
 #else
