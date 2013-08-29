@@ -28,7 +28,7 @@
 .\"     From: @(#)mtree.8       8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd May 6, 2008
+.Dd August 29, 2013
 .Dt MTREE 5
 .Os
 .Sh NAME
@@ -192,6 +192,24 @@ message digest of the file.
 .It Cm sha256digest
 A synonym for
 .Cm sha256 .
+.It Cm sha384
+The
+.Tn FIPS
+180-2
+.Pq Dq Tn SHA-384
+message digest of the file.
+.It Cm sha384digest
+A synonym for
+.Cm sha384 .
+.It Cm sha512
+The
+.Tn FIPS
+180-2
+.Pq Dq Tn SHA-512
+message digest of the file.
+.It Cm sha512digest
+A synonym for
+.Cm sha512 .
 .It Cm size
 The size, in bytes, of the file.
 .It Cm time
