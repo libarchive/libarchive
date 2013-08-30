@@ -882,7 +882,7 @@ archive_write_mtree_header(struct archive_write *a,
 		mtree->first = 0;
 		archive_strcat(&mtree->buf, "#mtree\n");
 		if ((mtree->keys & SET_KEYS) == 0)
-			mtree->output_global_set = 0;/* Disalbed. */
+			mtree->output_global_set = 0;/* Disabled. */
 	}
 
 	mtree->entry_bytes_remaining = archive_entry_size(entry);
