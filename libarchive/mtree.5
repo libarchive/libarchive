@@ -134,6 +134,39 @@ The checksum of the file using the default algorithm specified by
 the
 .Xr cksum 1
 utility.
+.It Cm device
+The device number for
+.Sy block
+or
+.Sy char
+file types.
+The value must be one of the following forms:
+.Pp
+.Bl -tag -width 4n
+.It Ar format , Ns Ar major , Ns Ar minor Ns Bo , Ns Ar subunit Bc
+A device with
+.Ar major , minor
+and optional
+.Ar subunit
+fields.
+Their meaning is specified by the operating's system
+.Ar format .
+See below for valid formats.
+.It Ar number
+Opaque number (as stored on the file system).
+.El
+.Pp
+The following values for
+.Ar format
+are recognized:
+.Bl -tag -width xxxxxx -offset xx
+.It Sy native
+Native format as used by the operating system.
+.El
+.Pp
+See
+.Xr mknod 8
+for more details.
 .It Cm contents
 The full pathname of a file that holds the contents of this file.
 .It Cm flags
