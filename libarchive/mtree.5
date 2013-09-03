@@ -28,7 +28,7 @@
 .\"     From: @(#)mtree.8       8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd August 29, 2013
+.Dd September 3, 2013
 .Dt MTREE 5
 .Os
 .Sh NAME
@@ -159,10 +159,23 @@ Opaque number (as stored on the file system).
 The following values for
 .Ar format
 are recognized:
-.Bl -tag -width xxxxxx -offset xx
-.It Sy native
-Native format as used by the operating system.
-.El
+.Sy native ,
+.Sy 386bsd ,
+.Sy 4bsd ,
+.Sy bsdos ,
+.Sy freebsd ,
+.Sy hpux ,
+.Sy isc ,
+.Sy linux ,
+.Sy netbsd ,
+.Sy osf1 ,
+.Sy sco ,
+.Sy solaris ,
+.Sy sunos ,
+.Sy svr3 ,
+.Sy svr4 ,  
+and 
+.Sy ultrix .
 .Pp
 See
 .Xr mknod 8

@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_support_format_mtree.c 2011
 #include "archive_private.h"
 #include "archive_read_private.h"
 #include "archive_string.h"
+#include "archive_pack_dev.h"
 
 #ifndef O_BINARY
 #define	O_BINARY 0
@@ -1292,33 +1293,63 @@ parse_line(struct archive_read *a, struct archive_entry *entry,
 
 /*
  * Device entries have one of the following forms:
- * raw dev_t
- * format,major,minor[,subdevice]
- *
- * Just use major and minor, no translation etc is done
- * between formats.
+ *  - raw dev_t
+ *  - format,major,minor[,subdevice]
  */
 static int
 parse_device(struct archive *a, struct archive_entry *entry, char *val)
 {
-	char *comma1, *comma2;
+#define MAX_PACK_ARGS 3
+	unsigned long numbers[MAX_PACK_ARGS];
+	char *p, *dev;
+	int argc;
+	pack_t *pack;
+	dev_t result;
+	const char *error = NULL;
 
-	comma1 = strchr(val, ',');
-	if (comma1 == NULL) {
-		archive_entry_set_dev(entry, (dev_t)mtree_atol10(&val));
-		return (ARCHIVE_OK);
+	if ((dev = strchr(val, ',')) != NULL) {
+		/*
+		 * Device's major/minor are given in a specified format.
+		 * Decode and pack it accordingly.
+		 */
+		*dev++ = '\0';
+		if ((pack = pack_find(val)) == NULL) {
+			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Unknown format `%s'", val);
+			return ARCHIVE_WARN;
+		}
+		argc = 0;
+		while ((p = strsep(&dev, ",")) != NULL) {
+			if (*p == '\0') {
+				archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Missing number");
+				return ARCHIVE_WARN;
+			}
+			numbers[argc++] = mtree_atol(&p);
+			if (argc > MAX_PACK_ARGS) {
+				archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Too many arguments");
+				return ARCHIVE_WARN;
+			}
+		}
+		if (argc < 2) {
+			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Not enough arguments");
+			return ARCHIVE_WARN;
+		}
+		result = (*pack)(argc, numbers, &error);
+		if (error != NULL) {
+			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "%s", error);
+			return ARCHIVE_WARN;
+		}
+		archive_entry_set_rdev(entry, result);
+	} else {
+		/* file system raw value. */
+		archive_entry_set_rdev(entry, (dev_t)mtree_atol(&val));
 	}
-	++comma1;
-	comma2 = strchr(comma1, ',');
-	if (comma2 == NULL) {
-		archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Malformed device attribute");
-		return (ARCHIVE_WARN);
-	}
-	++comma2;
-	archive_entry_set_rdevmajor(entry, (dev_t)mtree_atol(&comma1));
-	archive_entry_set_rdevminor(entry, (dev_t)mtree_atol(&comma2));
-	return (ARCHIVE_OK);
+	return ARCHIVE_OK;
+#undef MAX_PACK_ARGS
 }
 
 /*
