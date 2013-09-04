@@ -368,7 +368,7 @@ bid_keyword(const char *p,  ssize_t len)
 		"gid", "gname", NULL
 	};
 	static const char *keys_il[] = {
-		"ignore", "link", NULL
+		"ignore", "inode", "link", NULL
 	};
 	static const char *keys_m[] = {
 		"md5", "md5digest", "mode", NULL
@@ -1433,6 +1433,11 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 		if (strcmp(key, "gname") == 0) {
 			*parsed_kws |= MTREE_HAS_GNAME;
 			archive_entry_copy_gname(entry, val);
+			break;
+		}
+	case 'i':
+		if (strcmp(key, "inode") == 0) {
+			archive_entry_set_ino(entry, mtree_atol10(&val));
 			break;
 		}
 	case 'l':
