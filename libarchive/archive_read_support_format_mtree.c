@@ -377,7 +377,7 @@ bid_keyword(const char *p,  ssize_t len)
 		"nlink", "nochange", "optional", NULL
 	};
 	static const char *keys_r[] = {
-		"rmd160", "rmd160digest", NULL
+		"resdevice", "rmd160", "rmd160digest", NULL
 	};
 	static const char *keys_s[] = {
 		"sha1", "sha1digest",
@@ -1295,9 +1295,10 @@ parse_line(struct archive_read *a, struct archive_entry *entry,
  * Device entries have one of the following forms:
  *  - raw dev_t
  *  - format,major,minor[,subdevice]
+ * When parsing succeeded, `dev' will contain the appropriate dev_t value.
  */
 static int
-parse_device(struct archive *a, struct archive_entry *entry, char *val)
+parse_device(dev_t *pdev, struct archive *a, char *val)
 {
 #define MAX_PACK_ARGS 3
 	unsigned long numbers[MAX_PACK_ARGS];
@@ -1307,6 +1308,7 @@ parse_device(struct archive *a, struct archive_entry *entry, char *val)
 	dev_t result;
 	const char *error = NULL;
 
+	memset(pdev, 0, sizeof(*pdev));
 	if ((dev = strchr(val, ',')) != NULL) {
 		/*
 		 * Device's major/minor are given in a specified format.
@@ -1343,11 +1345,11 @@ parse_device(struct archive *a, struct archive_entry *entry, char *val)
 			    "%s", error);
 			return ARCHIVE_WARN;
 		}
-		archive_entry_set_rdev(entry, result);
 	} else {
 		/* file system raw value. */
-		archive_entry_set_rdev(entry, (dev_t)mtree_atol(&val));
+		result = (dev_t)mtree_atol(&val);
 	}
+	*pdev = result;
 	return ARCHIVE_OK;
 #undef MAX_PACK_ARGS
 }
@@ -1405,8 +1407,16 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			break;
 	case 'd':
 		if (strcmp(key, "device") == 0) {
+			/* stat(2) st_rdev field, e.g. the major/minor IDs
+			 * of a char/block special file */
+			int r;
+			dev_t dev;
+
 			*parsed_kws |= MTREE_HAS_DEVICE;
-			return parse_device(&a->archive, entry, val);
+			r = parse_device(&dev, &a->archive, val);
+			if (r == ARCHIVE_OK)
+				archive_entry_set_rdev(entry, dev);
+			return r;
 		}
 	case 'f':
 		if (strcmp(key, "flags") == 0) {
@@ -1454,6 +1464,17 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			break;
 		}
 	case 'r':
+		if (strcmp(key, "resdevice") == 0) {
+			/* stat(2) st_dev field, e.g. the device ID where the
+			 * inode resides */
+			int r;
+			dev_t dev;
+
+			r = parse_device(&dev, &a->archive, val);
+			if (r == ARCHIVE_OK)
+				archive_entry_set_dev(entry, dev);
+			return r;
+		}
 		if (strcmp(key, "rmd160") == 0 ||
 		    strcmp(key, "rmd160digest") == 0)
 			break;
