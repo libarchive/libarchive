@@ -1295,7 +1295,7 @@ parse_line(struct archive_read *a, struct archive_entry *entry,
  * Device entries have one of the following forms:
  *  - raw dev_t
  *  - format,major,minor[,subdevice]
- * When parsing succeeded, `dev' will contain the appropriate dev_t value.
+ * When parsing succeeded, `pdev' will contain the appropriate dev_t value.
  */
 static int
 parse_device(dev_t *pdev, struct archive *a, char *val)
