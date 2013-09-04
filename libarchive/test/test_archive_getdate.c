@@ -45,6 +45,10 @@ DEFINE_TEST(test_archive_getdate)
 	assertEqualInt(get_date(now, "02/17/99 7:11am est"), 919253460);
 	assertEqualInt(get_date(now, "now - 2 hours"),
 	    get_date(now, "2 hours ago"));
+	assertEqualInt(get_date(now, "2 hours ago"),
+	    get_date(now, "+2 hours ago"));
+	assertEqualInt(get_date(now, "now - 2 hours"),
+	    get_date(now, "-2 hours"));
 	/* It's important that we handle ctime() format. */
 	assertEqualInt(get_date(now, "Sun Feb 22 17:38:26 PST 2009"),
 	    1235353106);
