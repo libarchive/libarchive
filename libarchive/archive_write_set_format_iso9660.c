@@ -6918,12 +6918,22 @@ isoent_make_path_table_2(struct archive_write *a, struct vdd *vdd,
 	switch (vdd->vdd_type) {
 	case VDD_PRIMARY:
 	case VDD_ENHANCED:
+#ifdef __COMPAR_FN_T
+		qsort(enttbl, pt->cnt, sizeof(struct isoent *),
+		    (__compar_fn_t)_compare_path_table);
+#else
 		qsort(enttbl, pt->cnt, sizeof(struct isoent *),
 		    _compare_path_table);
+#endif
 		break;
 	case VDD_JOLIET:
+#ifdef __COMPAR_FN_T
+		qsort(enttbl, pt->cnt, sizeof(struct isoent *),
+		    (__compar_fn_t)_compare_path_table_joliet);
+#else
 		qsort(enttbl, pt->cnt, sizeof(struct isoent *),
 		    _compare_path_table_joliet);
+#endif
 		break;
 	}
 	for (i = 0; i < pt->cnt; i++)

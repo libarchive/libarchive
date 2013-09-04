@@ -599,7 +599,7 @@ __la_stat(const char *path, struct stat *st)
 	struct ustat u;
 	int ret;
 
-	handle = la_CreateFile(path, 0, 0, NULL, OPEN_EXISTING,
+	handle = la_CreateFile(path, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING,
 		FILE_FLAG_BACKUP_SEMANTICS,
 		NULL);
 	if (handle == INVALID_HANDLE_VALUE) {

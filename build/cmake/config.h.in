@@ -579,6 +579,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `expat' library (-lexpat). */
 #cmakedefine HAVE_LIBEXPAT 1
 
+/* Define to 1 if you have the `gcc' library (-lgcc). */
+#cmakedefine HAVE_LIBGCC 1
+
 /* Define to 1 if you have the `lzma' library (-llzma). */
 #cmakedefine HAVE_LIBLZMA 1
 
@@ -587,6 +590,15 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the `lzo2' library (-llzo2). */
 #cmakedefine HAVE_LIBLZO2 1
+
+/* Define to 1 if you have the `nettle' library (-lnettle). */
+#cmakedefine HAVE_LIBNETTLE 1
+
+/* Define to 1 if you have the `pcre' library (-lpcre). */
+#cmakedefine HAVE_LIBPCRE 1
+
+/* Define to 1 if you have the `pcreposix' library (-lpcreposix). */
+#cmakedefine HAVE_LIBPCREPOSIX 1
 
 /* Define to 1 if you have the `xml2' library (-lxml2). */
 #cmakedefine HAVE_LIBXML2 1
@@ -697,6 +709,15 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
 #cmakedefine HAVE_NDIR_H 1
 
+/* Define to 1 if you have the <nettle/md5.h> header file. */
+#cmakedefine HAVE_NETTLE_MD5_H 1
+
+/* Define to 1 if you have the <nettle/ripemd160.h> header file. */
+#cmakedefine HAVE_NETTLE_RIPEMD160_H 1
+
+/* Define to 1 if you have the <nettle/sha.h> header file. */
+#cmakedefine HAVE_NETTLE_SHA_H 1
+
 /* Define to 1 if you have the `nl_langinfo' function. */
 #cmakedefine HAVE_NL_LANGINFO 1
 
@@ -705,6 +726,9 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the <paths.h> header file. */
 #cmakedefine HAVE_PATHS_H 1
+
+/* Define to 1 if you have the <pcreposix.h> header file. */
+#cmakedefine HAVE_PCREPOSIX_H 1
 
 /* Define to 1 if you have the `pipe' function. */
 #cmakedefine HAVE_PIPE 1

@@ -57,8 +57,6 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read.c 201157 2009-12-29 05:30:2
 
 static int	choose_filters(struct archive_read *);
 static int	choose_format(struct archive_read *);
-static void	free_filters(struct archive_read *);
-static int	close_filters(struct archive_read *);
 static struct archive_vtable *archive_read_vtable(void);
 static int64_t	_archive_filter_bytes(struct archive *, int);
 static int	_archive_filter_code(struct archive *, int);
@@ -455,7 +453,7 @@ int
 archive_read_open1(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	struct archive_read_filter *filter;
+	struct archive_read_filter *filter, *tmp;
 	int slot, e;
 	unsigned int i;
 
@@ -472,7 +470,7 @@ archive_read_open1(struct archive *_a)
 
 	/* Open data source. */
 	if (a->client.opener != NULL) {
-		e =(a->client.opener)(&a->archive, a->client.dataset[0].data);
+		e = (a->client.opener)(&a->archive, a->client.dataset[0].data);
 		if (e != 0) {
 			/* If the open failed, call the closer to clean up. */
 			if (a->client.closer) {
@@ -499,25 +497,37 @@ archive_read_open1(struct archive *_a)
 	filter->sswitch = client_switch_proxy;
 	filter->name = "none";
 	filter->code = ARCHIVE_FILTER_NONE;
-	a->filter = filter;
 
-	client_switch_proxy(a->filter, 0);
 	a->client.dataset[0].begin_position = 0;
-
-	/* Build out the input pipeline. */
-	e = choose_filters(a);
-	if (e < ARCHIVE_WARN) {
-		a->archive.state = ARCHIVE_STATE_FATAL;
-		return (ARCHIVE_FATAL);
+	if (!a->filter || !a->bypass_filter_bidding)
+	{
+		a->filter = filter;
+		/* Build out the input pipeline. */
+		e = choose_filters(a);
+		if (e < ARCHIVE_WARN) {
+			a->archive.state = ARCHIVE_STATE_FATAL;
+			return (ARCHIVE_FATAL);
+		}
+	}
+	else
+	{
+		/* Need to add "NONE" type filter at the end of the filter chain */
+		tmp = a->filter;
+		while (tmp->upstream)
+			tmp = tmp->upstream;
+		tmp->upstream = filter;
 	}
 
-	slot = choose_format(a);
-	if (slot < 0) {
-		close_filters(a);
-		a->archive.state = ARCHIVE_STATE_FATAL;
-		return (ARCHIVE_FATAL);
+	if (!a->format)
+	{
+		slot = choose_format(a);
+		if (slot < 0) {
+			__archive_read_close_filters(a);
+			a->archive.state = ARCHIVE_STATE_FATAL;
+			return (ARCHIVE_FATAL);
+		}
+		a->format = &(a->formats[slot]);
 	}
-	a->format = &(a->formats[slot]);
 
 	a->archive.state = ARCHIVE_STATE_HEADER;
 
@@ -562,8 +572,8 @@ choose_filters(struct archive_read *a)
 			/* Verify the filter by asking it for some data. */
 			__archive_read_filter_ahead(a->filter, 1, &avail);
 			if (avail < 0) {
-				close_filters(a);
-				free_filters(a);
+				__archive_read_close_filters(a);
+				__archive_read_free_filters(a);
 				return (ARCHIVE_FATAL);
 			}
 			a->archive.compression_name = a->filter->name;
@@ -581,8 +591,8 @@ choose_filters(struct archive_read *a)
 		a->filter = filter;
 		r = (best_bidder->init)(a->filter);
 		if (r != ARCHIVE_OK) {
-			close_filters(a);
-			free_filters(a);
+			__archive_read_close_filters(a);
+			__archive_read_free_filters(a);
 			return (ARCHIVE_FATAL);
 		}
 	}
@@ -650,6 +660,8 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 
 	a->read_data_output_offset = 0;
 	a->read_data_remaining = 0;
+	a->read_data_is_posix_read = 0;
+	a->read_data_requested = 0;
 	a->data_start_node = a->client.cursor;
 	/* EOF always wins; otherwise return the worst error. */
 	return (r2 < r1 || r2 == ARCHIVE_EOF) ? r2 : r1;
@@ -761,6 +773,8 @@ archive_read_data(struct archive *_a, void *buff, size_t s)
 	while (s > 0) {
 		if (a->read_data_remaining == 0) {
 			read_buf = a->read_data_block;
+			a->read_data_is_posix_read = 1;
+			a->read_data_requested = s;
 			r = _archive_read_data_block(&a->archive, &read_buf,
 			    &a->read_data_remaining, &a->read_data_offset);
 			a->read_data_block = read_buf;
@@ -814,6 +828,8 @@ archive_read_data(struct archive *_a, void *buff, size_t s)
 			bytes_read += len;
 		}
 	}
+	a->read_data_is_posix_read = 0;
+	a->read_data_requested = 0;
 	return (bytes_read);
 }
 
@@ -891,8 +907,8 @@ _archive_read_data_block(struct archive *_a,
 	return (a->format->read_data)(a, buff, size, offset);
 }
 
-static int
-close_filters(struct archive_read *a)
+int
+__archive_read_close_filters(struct archive_read *a)
 {
 	struct archive_read_filter *f = a->filter;
 	int r = ARCHIVE_OK;
@@ -912,8 +928,8 @@ close_filters(struct archive_read *a)
 	return r;
 }
 
-static void
-free_filters(struct archive_read *a)
+void
+__archive_read_free_filters(struct archive_read *a)
 {
 	while (a->filter != NULL) {
 		struct archive_read_filter *t = a->filter->upstream;
@@ -957,7 +973,7 @@ _archive_read_close(struct archive *_a)
 	/* TODO: Clean up the formatters. */
 
 	/* Release the filter objects. */
-	r1 = close_filters(a);
+	r1 = __archive_read_close_filters(a);
 	if (r1 < r)
 		r = r1;
 
@@ -996,7 +1012,7 @@ _archive_read_free(struct archive *_a)
 	}
 
 	/* Free the filters */
-	free_filters(a);
+	__archive_read_free_filters(a);
 
 	/* Release the bidder objects. */
 	n = sizeof(a->bidders)/sizeof(a->bidders[0]);

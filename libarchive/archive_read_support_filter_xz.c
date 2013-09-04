@@ -136,6 +136,7 @@ archive_read_support_filter_xz(struct archive *_a)
 		return (ARCHIVE_FATAL);
 
 	bidder->data = NULL;
+	bidder->name = "xz";
 	bidder->bid = xz_bidder_bid;
 	bidder->init = xz_bidder_init;
 	bidder->options = NULL;
@@ -170,6 +171,7 @@ archive_read_support_filter_lzma(struct archive *_a)
 		return (ARCHIVE_FATAL);
 
 	bidder->data = NULL;
+	bidder->name = "lzma";
 	bidder->bid = lzma_bidder_bid;
 	bidder->init = lzma_bidder_init;
 	bidder->options = NULL;
@@ -207,6 +209,7 @@ archive_read_support_filter_lzip(struct archive *_a)
 		return (ARCHIVE_FATAL);
 
 	bidder->data = NULL;
+	bidder->name = "lzip";
 	bidder->bid = lzip_bidder_bid;
 	bidder->init = lzip_bidder_init;
 	bidder->options = NULL;

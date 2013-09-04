@@ -566,7 +566,7 @@ compress_out(struct archive_write *a, const void *buff, size_t s,
 		    (unsigned)s);
 	zip->stream.next_in = (const unsigned char *)buff;
 	zip->stream.avail_in = s;
-	do {
+	for (;;) {
 		/* Compress file data. */
 		r = compression_code(&(a->archive), &(zip->stream), run);
 		if (r != ARCHIVE_OK && r != ARCHIVE_EOF)
@@ -580,8 +580,12 @@ compress_out(struct archive_write *a, const void *buff, size_t s,
 			if (zip->crc32flg & ENCODED_CRC32)
 				zip->encoded_crc32 = crc32(zip->encoded_crc32,
 				    zip->wbuff, sizeof(zip->wbuff));
+			if (run == ARCHIVE_Z_FINISH && r != ARCHIVE_EOF)
+				continue;
 		}
-	} while (zip->stream.avail_in);
+		if (zip->stream.avail_in == 0)
+			break;
+	}
 	if (run == ARCHIVE_Z_FINISH) {
 		uint64_t bytes = sizeof(zip->wbuff) - zip->stream.avail_out;
 		if (write_to_temp(a, zip->wbuff, (size_t)bytes) != ARCHIVE_OK)

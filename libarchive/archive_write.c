@@ -503,8 +503,9 @@ _archive_write_close(struct archive *_a)
 
 	archive_clear_error(&a->archive);
 
-	/* Finish the last entry. */
-	if (a->archive.state == ARCHIVE_STATE_DATA)
+	/* Finish the last entry if a finish callback is specified */
+	if (a->archive.state == ARCHIVE_STATE_DATA
+	    && a->format_finish_entry != NULL)
 		r = ((a->format_finish_entry)(a));
 
 	/* Finish off the archive. */
@@ -658,7 +659,8 @@ _archive_write_finish_entry(struct archive *_a)
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
 	    "archive_write_finish_entry");
-	if (a->archive.state & ARCHIVE_STATE_DATA)
+	if (a->archive.state & ARCHIVE_STATE_DATA
+	    && a->format_finish_entry != NULL)
 		ret = (a->format_finish_entry)(a);
 	a->archive.state = ARCHIVE_STATE_HEADER;
 	return (ret);
@@ -671,8 +673,13 @@ static ssize_t
 _archive_write_data(struct archive *_a, const void *buff, size_t s)
 {
 	struct archive_write *a = (struct archive_write *)_a;
+	const size_t max_write = INT_MAX;
+
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_DATA, "archive_write_data");
+	/* In particular, this catches attempts to pass negative values. */
+	if (s > max_write)
+		s = max_write;
 	archive_clear_error(&a->archive);
 	return ((a->format_write_data)(a, buff, s));
 }

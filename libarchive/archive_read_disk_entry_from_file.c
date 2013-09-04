@@ -49,17 +49,16 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk_entry_from_file.c 2010
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
-#ifdef HAVE_SYS_XATTR_H
+#if defined(HAVE_SYS_XATTR_H)
 #include <sys/xattr.h>
+#elif defined(HAVE_ATTR_XATTR_H)
+#include <attr/xattr.h>
 #endif
 #ifdef HAVE_SYS_EA_H
 #include <sys/ea.h>
 #endif
 #ifdef HAVE_ACL_LIBACL_H
 #include <acl/libacl.h>
-#endif
-#ifdef HAVE_ATTR_XATTR_H
-#include <attr/xattr.h>
 #endif
 #ifdef HAVE_COPYFILE_H
 #include <copyfile.h>
@@ -292,7 +291,7 @@ setup_mac_metadata(struct archive_read_disk *a,
 	int copyfile_flags = COPYFILE_NOFOLLOW | COPYFILE_ACL | COPYFILE_XATTR;
 	struct stat copyfile_stat;
 	int ret = ARCHIVE_OK;
-	void *buff;
+	void *buff = NULL;
 	int have_attrs;
 	const char *name, *tempdir;
 	struct archive_string tempfile;
@@ -379,6 +378,7 @@ cleanup:
 		unlink(tempfile.s);
 	}
 	archive_string_free(&tempfile);
+	free(buff);
 	return (ret);
 }
 

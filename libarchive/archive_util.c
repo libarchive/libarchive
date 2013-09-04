@@ -54,6 +54,8 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_util.c 201098 2009-12-28 02:58:1
 #define O_CLOEXEC	0
 #endif
 
+static int archive_utility_string_sort_helper(char **, unsigned int);
+
 /* Generic initialization of 'struct archive' objects. */
 int
 __archive_clean(struct archive *a)
@@ -498,4 +500,70 @@ __archive_ensure_cloexec_flag(int fd)
 			fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
 	}
 #endif
+}
+
+/*
+ * Utility function to sort a group of strings using quicksort.
+ */
+static int
+archive_utility_string_sort_helper(char **strings, unsigned int n)
+{
+  unsigned int i, lesser_count, greater_count;
+  char **lesser, **greater, **tmp, *pivot;
+  int retval1, retval2;
+
+  /* A list of 0 or 1 elements is already sorted */
+  if (n <= 1)
+    return (ARCHIVE_OK);
+
+  lesser_count = greater_count = 0;
+  lesser = greater = NULL;
+  pivot = strings[0];
+  for (i = 1; i < n; i++)
+  {
+    if (strcmp(strings[i], pivot) < 0)
+    {
+      lesser_count++;
+      tmp = (char **)realloc(lesser, lesser_count * sizeof(char *));
+      if (!tmp)
+        return (ARCHIVE_FATAL);
+      lesser = tmp;
+      lesser[lesser_count - 1] = strings[i];
+    }
+    else
+    {
+      greater_count++;
+      tmp = (char **)realloc(greater, greater_count * sizeof(char *));
+      if (!tmp)
+        return (ARCHIVE_FATAL);
+      greater = tmp;
+      greater[greater_count - 1] = strings[i];
+    }
+  }
+
+  /* quicksort(lesser) */
+  retval1 = archive_utility_string_sort_helper(lesser, lesser_count);
+  for (i = 0; i < lesser_count; i++)
+    strings[i] = lesser[i];
+  free(lesser);
+
+  /* pivot */
+  strings[lesser_count] = pivot;
+
+  /* quicksort(greater) */
+  retval2 = archive_utility_string_sort_helper(greater, greater_count);
+  for (i = 0; i < greater_count; i++)
+    strings[lesser_count + 1 + i] = greater[i];
+  free(greater);
+
+  return (retval1 < retval2) ? retval1 : retval2;
+}
+
+int
+archive_utility_string_sort(char **strings)
+{
+  unsigned int size = 0;
+  while (strings[size] != NULL)
+    size++;
+  return archive_utility_string_sort_helper(strings, size);
 }

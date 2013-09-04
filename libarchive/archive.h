@@ -124,13 +124,13 @@ extern "C" {
  * assert that ARCHIVE_VERSION_NUMBER >= 2012108.
  */
 /* Note: Compiler will complain if this does not match archive_entry.h! */
-#define	ARCHIVE_VERSION_NUMBER 3000200
+#define	ARCHIVE_VERSION_NUMBER 3001002
 __LA_DECL int		archive_version_number(void);
 
 /*
  * Textual name/version of the library, useful for version displays.
  */
-#define	ARCHIVE_VERSION_STRING "libarchive 3.0.200a"
+#define	ARCHIVE_VERSION_STRING "libarchive 3.1.2"
 __LA_DECL const char *	archive_version_string(void);
 
 /* Declare our basic types. */
@@ -371,6 +371,17 @@ __LA_DECL int archive_read_support_format_raw(struct archive *);
 __LA_DECL int archive_read_support_format_tar(struct archive *);
 __LA_DECL int archive_read_support_format_xar(struct archive *);
 __LA_DECL int archive_read_support_format_zip(struct archive *);
+
+/* Functions to manually set the format and filters to be used. This is
+ * useful to bypass the bidding process when the format and filters to use
+ * is known in advance.
+ */
+__LA_DECL int archive_read_set_format(struct archive *, int);
+__LA_DECL int archive_read_append_filter(struct archive *, int);
+__LA_DECL int archive_read_append_filter_program(struct archive *,
+    const char *);
+__LA_DECL int archive_read_append_filter_program_signature
+    (struct archive *, const char *, const void * /* match */, size_t);
 
 /* Set various callbacks. */
 __LA_DECL int archive_read_set_open_callback(struct archive *,
@@ -659,6 +670,7 @@ __LA_DECL int archive_write_set_format_mtree_classic(struct archive *);
 /* TODO: int archive_write_set_format_old_tar(struct archive *); */
 __LA_DECL int archive_write_set_format_pax(struct archive *);
 __LA_DECL int archive_write_set_format_pax_restricted(struct archive *);
+__LA_DECL int archive_write_set_format_raw(struct archive *);
 __LA_DECL int archive_write_set_format_shar(struct archive *);
 __LA_DECL int archive_write_set_format_shar_dump(struct archive *);
 __LA_DECL int archive_write_set_format_ustar(struct archive *);
@@ -868,6 +880,10 @@ __LA_DECL int	archive_read_disk_set_metadata_filter_callback(struct archive *,
 		    int (*_metadata_filter_func)(struct archive *, void *,
 		    	struct archive_entry *), void *_client_data);
 
+/* Simplified cleanup interface;
+ * This calls archive_read_free() or archive_write_free() as needed. */
+__LA_DECL int	archive_free(struct archive *);
+
 /*
  * Accessor functions to read/set various information in
  * the struct archive object:
@@ -1013,6 +1029,10 @@ __LA_DECL int	archive_match_include_uname_w(struct archive *,
 __LA_DECL int	archive_match_include_gname(struct archive *, const char *);
 __LA_DECL int	archive_match_include_gname_w(struct archive *,
 		    const wchar_t *);
+
+/* Utility functions */
+/* Convenience function to sort a NULL terminated list of strings */
+__LA_DECL int archive_utility_string_sort(char **);
 
 #ifdef __cplusplus
 }

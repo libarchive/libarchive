@@ -45,6 +45,7 @@ SET(libarchive_SOURCES
   archive_rb.c
   archive_rb.h
   archive_read.c
+  archive_read_append_filter.c
   archive_read_data_into_fd.c
   archive_read_disk_entry_from_file.c
   archive_read_disk_posix.c
@@ -56,6 +57,7 @@ SET(libarchive_SOURCES
   archive_read_open_filename.c
   archive_read_open_memory.c
   archive_read_private.h
+  archive_read_set_format.c
   archive_read_set_options.c
   archive_read_support_filter_all.c
   archive_read_support_filter_bzip2.c
@@ -123,6 +125,7 @@ SET(libarchive_SOURCES
   archive_write_set_format_iso9660.c
   archive_write_set_format_mtree.c
   archive_write_set_format_pax.c
+  archive_write_set_format_raw.c
   archive_write_set_format_shar.c
   archive_write_set_format_ustar.c
   archive_write_set_format_v7tar.c

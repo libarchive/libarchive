@@ -38,7 +38,9 @@ IF(ENABLE_TEST)
     test_archive_set_error.c
     test_archive_string.c
     test_archive_string_conversion.c
+    test_archive_write_add_filter_by_name.c
     test_archive_write_set_filter_option.c
+    test_archive_write_set_format_by_name.c
     test_archive_write_set_format_option.c
     test_archive_write_set_option.c
     test_archive_write_set_options.c
@@ -127,6 +129,7 @@ IF(ENABLE_TEST)
     test_read_format_rar.c
     test_read_format_raw.c
     test_read_format_tar.c
+    test_read_format_tar_empty_pax.c
     test_read_format_tar_empty_filename.c
     test_read_format_tar_filename.c
     test_read_format_tbz.c
@@ -140,9 +143,11 @@ IF(ENABLE_TEST)
     test_read_format_zip_comment_stored.c
     test_read_format_zip_filename.c
     test_read_format_zip_mac_metadata.c
+    test_read_format_zip_sfx.c
     test_read_large.c
     test_read_pax_truncated.c
     test_read_position.c
+    test_read_set_format.c
     test_read_truncated.c
     test_read_truncated_filter.c
     test_sparse_basic.c
@@ -176,6 +181,8 @@ IF(ENABLE_TEST)
     test_write_filter_uuencode.c
     test_write_filter_xz.c
     test_write_format_7zip.c
+    test_write_format_7zip_empty.c
+    test_write_format_7zip_large.c
     test_write_format_ar.c
     test_write_format_cpio.c
     test_write_format_cpio_empty.c
@@ -195,6 +202,8 @@ IF(ENABLE_TEST)
     test_write_format_mtree_no_separator.c
     test_write_format_mtree_quoted_filename.c
     test_write_format_pax.c
+    test_write_format_raw.c
+    test_write_format_raw_b64.c
     test_write_format_shar_empty.c
     test_write_format_tar.c
     test_write_format_tar_empty.c

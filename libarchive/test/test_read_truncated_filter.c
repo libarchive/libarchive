@@ -137,13 +137,37 @@ test_truncation(const char *compression,
 	free(buff);
 }
 
-DEFINE_TEST(test_read_truncated_filter)
+DEFINE_TEST(test_read_truncated_filter_bzip2)
 {
 	test_truncation("bzip2", archive_write_add_filter_bzip2, canBzip2());
+}
+
+DEFINE_TEST(test_read_truncated_filter_compress)
+{
 	test_truncation("compress", archive_write_add_filter_compress, 0);
+}
+
+DEFINE_TEST(test_read_truncated_filter_gzip)
+{
 	test_truncation("gzip", archive_write_add_filter_gzip, canGzip());
+}
+
+DEFINE_TEST(test_read_truncated_filter_lzip)
+{
 	test_truncation("lzip", archive_write_add_filter_lzip, 0);
-	test_truncation("lzop", archive_write_add_filter_lzop, canLzop());
+}
+
+DEFINE_TEST(test_read_truncated_filter_lzma)
+{
 	test_truncation("lzma", archive_write_add_filter_lzma, 0);
+}
+
+DEFINE_TEST(test_read_truncated_filter_lzop)
+{
+	test_truncation("lzop", archive_write_add_filter_lzop, canLzop());
+}
+
+DEFINE_TEST(test_read_truncated_filter_xz)
+{
 	test_truncation("xz", archive_write_add_filter_xz, 0);
 }

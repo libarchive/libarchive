@@ -39,14 +39,13 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_SYS_EXTATTR_H
 #include <sys/extattr.h>
 #endif
-#ifdef HAVE_SYS_XATTR_H
+#if defined(HAVE_SYS_XATTR_H)
 #include <sys/xattr.h>
+#elif defined(HAVE_ATTR_XATTR_H)
+#include <attr/xattr.h>
 #endif
 #ifdef HAVE_SYS_EA_H
 #include <sys/ea.h>
-#endif
-#ifdef HAVE_ATTR_XATTR_H
-#include <attr/xattr.h>
 #endif
 #ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
@@ -554,7 +553,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		else
 			a->todo |= TODO_MAC_METADATA;
 	}
-#if defined(__APPLE__) && defined(UF_COMPRESSED)
+#if defined(__APPLE__) && defined(UF_COMPRESSED) && defined(HAVE_ZLIB_H)
 	if ((a->flags & ARCHIVE_EXTRACT_NO_HFS_COMPRESSION) == 0) {
 		unsigned long set, clear;
 		archive_entry_fflags(a->entry, &set, &clear);
@@ -603,7 +602,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 
 	ret = restore_entry(a);
 
-#if defined(__APPLE__) && defined(UF_COMPRESSED)
+#if defined(__APPLE__) && defined(UF_COMPRESSED) && defined(HAVE_ZLIB_H)
 	/*
 	 * Check if the filesystem the file is restoring on supports
 	 * HFS+ Compression. If not, cancel HFS+ Compression.
@@ -839,7 +838,8 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 	return (start_size - size);
 }
 
-#if defined(__APPLE__) && defined(UF_COMPRESSED)
+#if defined(__APPLE__) && defined(UF_COMPRESSED) && defined(HAVE_SYS_XATTR_H)\
+	&& defined(HAVE_ZLIB_H)
 
 /*
  * Set UF_COMPRESSED file flag.
@@ -1507,7 +1507,7 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	} else if (a->fd_offset == a->filesize) {
 		/* Last write ended at exactly the filesize; we're done. */
 		/* Hopefully, this is the common case. */
-#if defined(__APPLE__) && defined(UF_COMPRESSED)
+#if defined(__APPLE__) && defined(UF_COMPRESSED) && defined(HAVE_ZLIB_H)
 	} else if (a->todo & TODO_HFS_COMPRESSION) {
 		char null_d[1024];
 		ssize_t r;
@@ -3332,6 +3332,7 @@ fixup_appledouble(struct archive_write_disk *a, const char *pathname)
  * apply it to the target file.
  */
 
+#if defined(HAVE_SYS_XATTR_H)
 static int
 copy_xattrs(struct archive_write_disk *a, int tmpfd, int dffd)
 {
@@ -3399,6 +3400,7 @@ exit_xattr:
 	free(xattr_val);
 	return (ret);
 }
+#endif
 
 static int
 copy_acls(struct archive_write_disk *a, int tmpfd, int dffd)
@@ -3486,8 +3488,10 @@ copy_metadata(struct archive_write_disk *a, const char *metadata,
 			return (ARCHIVE_WARN);
 		}
 
+#if defined(HAVE_SYS_XATTR_H)
 		ret = copy_xattrs(a, tmpfd, dffd);
 		if (ret == ARCHIVE_OK)
+#endif
 			ret = copy_acls(a, tmpfd, dffd);
 		close(tmpfd);
 		close(dffd);
@@ -3536,10 +3540,12 @@ set_mac_metadata(struct archive_write_disk *a, const char *pathname,
 	} else {
 		int compressed;
 
+#if defined(UF_COMPRESSED)
 		if ((a->todo & TODO_HFS_COMPRESSION) != 0 &&
 		    (ret = lazy_stat(a)) == ARCHIVE_OK)
 			compressed = a->st.st_flags & UF_COMPRESSED;
 		else
+#endif
 			compressed = 0;
 		ret = copy_metadata(a, tmp.s, pathname, compressed);
 	}
@@ -3606,7 +3612,11 @@ fixup_appledouble(struct archive_write_disk *a, const char *pathname)
 		goto skip_appledouble;
 
 	ret = copy_metadata(a, pathname, datafork.s,
+#if defined(UF_COMPRESSED)
 	    st.st_flags & UF_COMPRESSED);
+#else
+	    0);
+#endif
 	if (ret == ARCHIVE_OK) {
 		unlink(pathname);
 		ret = ARCHIVE_EOF;

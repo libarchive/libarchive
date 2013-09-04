@@ -617,6 +617,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 	int err;
 	const char *h;
 	const struct archive_entry_header_ustar *header;
+	const struct archive_entry_header_gnutar *gnuheader;
 
 	tar_flush_unconsumed(a, unconsumed);
 
@@ -682,6 +683,8 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 		a->archive.archive_format = ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE;
 		a->archive.archive_format_name = "POSIX pax interchange format";
 		err = header_pax_global(a, tar, entry, h, unconsumed);
+		if (err == ARCHIVE_EOF)
+			return (err);
 		break;
 	case 'K': /* Long link name (GNU tar, others) */
 		err = header_longlink(a, tar, entry, h, unconsumed);
@@ -704,7 +707,8 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 		err = header_pax_extensions(a, tar, entry, h, unconsumed);
 		break;
 	default:
-		if (memcmp(header->magic, "ustar  \0", 8) == 0) {
+		gnuheader = (const struct archive_entry_header_gnutar *)h;
+		if (memcmp(gnuheader->magic, "ustar  \0", 8) == 0) {
 			a->archive.archive_format = ARCHIVE_FORMAT_TAR_GNUTAR;
 			a->archive.archive_format_name = "GNU tar format";
 			err = header_gnutar(a, tar, entry, h, unconsumed);
@@ -2473,20 +2477,16 @@ tar_atol256(const char *_p, size_t char_cnt)
 	upper_limit = INT64_MAX / 256;
 	lower_limit = INT64_MIN / 256;
 
-	/* Pad with 1 or 0 bits, depending on sign. */
+	/* Sign-extend the 7-bit value to 64 bits. */
 	if ((0x40 & *p) == 0x40)
-		l = (int64_t)-1;
+		l = ~((int64_t)0x3f) | *p++;
 	else
-		l = 0;
-	l = (l << 6) | (0x3f & *p++);
+		l = 0x3f & *p++;
 	while (--char_cnt > 0) {
-		if (l > upper_limit) {
-			l = INT64_MAX; /* Truncate on overflow */
-			break;
-		} else if (l < lower_limit) {
-			l = INT64_MIN;
-			break;
-		}
+		if (l > upper_limit)
+			return (INT64_MAX); /* Truncate on overflow */
+		else if (l < lower_limit)
+			return (INT64_MIN);
 		l = (l << 8) | (0xff & (int64_t)*p++);
 	}
 	return (l);

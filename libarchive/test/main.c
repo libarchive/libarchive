@@ -389,7 +389,6 @@ failure_finish(void *extra)
 		fprintf(stderr,
 		    " *** forcing core dump so failure can be debugged ***\n");
 		abort();
-		exit(1);
 	}
 }
 
@@ -1911,6 +1910,18 @@ canGzip(void)
 /*
  * Can this platform run the lrzip program?
  */
+int
+canRunCommand(const char *cmd)
+{
+  static int tested = 0, value = 0;
+  if (!tested) {
+    tested = 1;
+    if (systemf("%s %s", cmd, redirectArgs) == 0)
+      value = 1;
+  }
+  return (value);
+}
+
 int
 canLrzip(void)
 {

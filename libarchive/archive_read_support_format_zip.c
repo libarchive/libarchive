@@ -70,6 +70,7 @@ struct zip_entry {
 
 struct zip {
 	/* Structural information about the archive. */
+	int64_t			end_of_central_directory_offset;
 	int64_t			central_directory_offset;
 	size_t			central_directory_size;
 	size_t			central_directory_entries;
@@ -282,7 +283,7 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 		}
 		if (filesize < 0)
 			return 0;
-		if ((p = __archive_read_ahead(a, tail, NULL)) == NULL)
+		if ((p = __archive_read_ahead(a, (size_t)tail, NULL)) == NULL)
 			return 0;
 		for (found = 0, i = 0;!found && i < tail - 22;) {
 			switch (p[i]) {
@@ -312,6 +313,7 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 	zip->central_directory_entries = archive_le16dec(p + 10);
 	zip->central_directory_size = archive_le32dec(p + 12);
 	zip->central_directory_offset = archive_le32dec(p + 16);
+	zip->end_of_central_directory_offset = filesize;
 
 	/* Just one volume, so central dir must all be on this volume. */
 	if (zip->central_directory_entries != archive_le16dec(p + 8))
@@ -408,12 +410,24 @@ static int
 slurp_central_directory(struct archive_read *a, struct zip *zip)
 {
 	unsigned i;
+	int64_t correction;
 	static const struct archive_rb_tree_ops rb_ops = {
 		&cmp_node, &cmp_key
 	};
 	static const struct archive_rb_tree_ops rb_rsrc_ops = {
 		&rsrc_cmp_node, &rsrc_cmp_key
 	};
+
+	/*
+	 * Consider the archive file we are reading may be SFX.
+	 * So we have to calculate a SFX header size to revise
+	 * ZIP header offsets.
+	 */
+	correction = zip->end_of_central_directory_offset -
+	    (zip->central_directory_offset + zip->central_directory_size);
+	/* The central directory offset is relative value, and so
+	 * we revise this offset for SFX. */
+	zip->central_directory_offset += correction;
 
 	__archive_read_seek(a, zip->central_directory_offset, SEEK_SET);
 	zip->offset = zip->central_directory_offset;
@@ -451,7 +465,8 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 		/* disk_start = archive_le16dec(p + 34); */ /* Better be zero. */
 		/* internal_attributes = archive_le16dec(p + 36); */ /* text bit */
 		external_attributes = archive_le32dec(p + 38);
-		zip_entry->local_header_offset = archive_le32dec(p + 42);
+		zip_entry->local_header_offset =
+		    archive_le32dec(p + 42) + correction;
 
 		/* If we can't guess the mode, leave it zero here;
 		   when we read the local file header we might get
@@ -566,7 +581,7 @@ zip_read_mac_metadata(struct archive_read *a, struct archive_entry *entry,
 		return (ARCHIVE_WARN);
 	}
 
-	metadata = malloc(rsrc->uncompressed_size);
+	metadata = malloc((size_t)rsrc->uncompressed_size);
 	if (metadata == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate memory for Mac metadata");
@@ -583,8 +598,8 @@ zip_read_mac_metadata(struct archive_read *a, struct archive_entry *entry,
 	hsize = zip_get_local_file_header_size(a, 0);
 	zip_read_consume(a, hsize);
 
-	remaining_bytes = rsrc->compressed_size;
-	metadata_bytes = rsrc->uncompressed_size;
+	remaining_bytes = (size_t)rsrc->compressed_size;
+	metadata_bytes = (size_t)rsrc->uncompressed_size;
 	mp = metadata;
 	eof = 0;
 	while (!eof && remaining_bytes) {
@@ -660,7 +675,7 @@ zip_read_mac_metadata(struct archive_read *a, struct archive_entry *entry,
 		remaining_bytes -= bytes_used;
 	}
 	archive_entry_copy_mac_metadata(entry, metadata,
-	    rsrc->uncompressed_size - metadata_bytes);
+	    (size_t)rsrc->uncompressed_size - metadata_bytes);
 
 	__archive_read_seek(a, offset, SEEK_SET);
 	zip->offset = offset;
@@ -1604,10 +1619,12 @@ process_extra(const char *p, size_t extra_length, struct zip_entry* zip_entry)
 		switch (headerid) {
 		case 0x0001:
 			/* Zip64 extended information extra field. */
-			if (datasize >= 8)
+			if (datasize >= 8 &&
+			    zip_entry->uncompressed_size == 0xffffffff)
 				zip_entry->uncompressed_size =
 				    archive_le64dec(p + offset);
-			if (datasize >= 16)
+			if (datasize >= 16 &&
+			    zip_entry->compressed_size == 0xffffffff)
 				zip_entry->compressed_size =
 				    archive_le64dec(p + offset + 8);
 			break;

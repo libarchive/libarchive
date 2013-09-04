@@ -648,13 +648,24 @@ DEFINE_TEST(test_read_format_7zip)
 {
 	struct archive *a;
 
-	test_copy();
-	test_empty_archive();
-	test_empty_file();
-	test_ppmd();
-	test_bcj("test_read_format_7zip_bcj_copy.7z");
-	test_bcj("test_read_format_7zip_bcj2_copy_1.7z");
-	test_bcj("test_read_format_7zip_bcj2_copy_2.7z");
+	assert((a = archive_read_new()) != NULL);
+
+	/* Extracting with liblzma */
+	if (ARCHIVE_OK != archive_read_support_filter_xz(a)) {
+		skipping("7zip:lzma decoding is not supported on this platform");
+	} else {
+		test_symname();
+		test_extract_all_files("test_read_format_7zip_copy_2.7z");
+		test_extract_last_file("test_read_format_7zip_copy_2.7z");
+		test_extract_all_files2("test_read_format_7zip_lzma1_lzma2.7z");
+		test_bcj("test_read_format_7zip_bcj2_copy_lzma.7z");
+	}
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_7zip_bzip2)
+{
+	struct archive *a;
 
 	assert((a = archive_read_new()) != NULL);
 
@@ -667,37 +678,83 @@ DEFINE_TEST(test_read_format_7zip)
 		test_bcj("test_read_format_7zip_bcj2_bzip2.7z");
 	}
 
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_7zip_copy)
+{
+	test_copy();
+	test_bcj("test_read_format_7zip_bcj_copy.7z");
+	test_bcj("test_read_format_7zip_bcj2_copy_1.7z");
+	test_bcj("test_read_format_7zip_bcj2_copy_2.7z");
+}
+
+DEFINE_TEST(test_read_format_7zip_deflate)
+{
+	struct archive *a;
+
+	assert((a = archive_read_new()) != NULL);
+
 	/* Extracting with libz */
 	if (ARCHIVE_OK != archive_read_support_filter_gzip(a)) {
-		skipping("7zip:deflate decoding is not supported on this platform");
+		skipping(
+		    "7zip:deflate decoding is not supported on this platform");
 	} else {
 		test_plain_header("test_read_format_7zip_deflate.7z");
 		test_bcj("test_read_format_7zip_bcj_deflate.7z");
 		test_bcj("test_read_format_7zip_bcj2_deflate.7z");
 	}
 
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_7zip_empty)
+{
+	test_empty_archive();
+	test_empty_file();
+}
+
+DEFINE_TEST(test_read_format_7zip_lzma1)
+{
+	struct archive *a;
+
+	assert((a = archive_read_new()) != NULL);
+
 	/* Extracting with liblzma */
 	if (ARCHIVE_OK != archive_read_support_filter_xz(a)) {
 		skipping("7zip:lzma decoding is not supported on this platform");
 	} else {
-		test_symname();
 		test_plain_header("test_read_format_7zip_lzma1.7z");
-		test_plain_header("test_read_format_7zip_lzma2.7z");
-		test_extract_all_files("test_read_format_7zip_copy_2.7z");
 		test_extract_all_files("test_read_format_7zip_lzma1_2.7z");
-		test_extract_last_file("test_read_format_7zip_copy_2.7z");
 		test_extract_last_file("test_read_format_7zip_lzma1_2.7z");
-		test_extract_all_files2("test_read_format_7zip_lzma1_lzma2.7z");
 		test_bcj("test_read_format_7zip_bcj_lzma1.7z");
-		test_bcj("test_read_format_7zip_bcj_lzma2.7z");
-		test_bcj("test_read_format_7zip_bcj2_copy_lzma.7z");
 		test_bcj("test_read_format_7zip_bcj2_lzma1_1.7z");
 		test_bcj("test_read_format_7zip_bcj2_lzma1_2.7z");
+		test_delta_lzma("test_read_format_7zip_delta_lzma1.7z");
+	}
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_7zip_lzma2)
+{
+	struct archive *a;
+
+	assert((a = archive_read_new()) != NULL);
+
+	/* Extracting with liblzma */
+	if (ARCHIVE_OK != archive_read_support_filter_xz(a)) {
+		skipping("7zip:lzma decoding is not supported on this platform");
+	} else {
+		test_plain_header("test_read_format_7zip_lzma2.7z");
+		test_bcj("test_read_format_7zip_bcj_lzma2.7z");
 		test_bcj("test_read_format_7zip_bcj2_lzma2_1.7z");
 		test_bcj("test_read_format_7zip_bcj2_lzma2_2.7z");
-		test_delta_lzma("test_read_format_7zip_delta_lzma1.7z");
 		test_delta_lzma("test_read_format_7zip_delta_lzma2.7z");
 	}
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+DEFINE_TEST(test_read_format_7zip_ppmd)
+{
+	test_ppmd();
+}

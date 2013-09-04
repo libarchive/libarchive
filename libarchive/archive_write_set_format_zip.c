@@ -891,7 +891,10 @@ path_length(struct archive_entry *entry)
 	type = archive_entry_filetype(entry);
 	path = archive_entry_pathname(entry);
 
-	if ((type == AE_IFDIR) & (path[strlen(path) - 1] != '/')) {
+	if (path == NULL)
+		return (0);
+	if (type == AE_IFDIR &&
+	    (path[0] == '\0' || path[strlen(path) - 1] != '/')) {
 		return strlen(path) + 1;
 	} else {
 		return strlen(path);
