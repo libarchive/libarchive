@@ -28,7 +28,7 @@
 .\"     From: @(#)mtree.8       8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd September 3, 2013
+.Dd September 4, 2013
 .Dt MTREE 5
 .Os
 .Sh NAME
@@ -196,6 +196,8 @@ The file group as a numeric value.
 The file group as a symbolic name.
 .It Cm ignore
 Ignore any file hierarchy below this file.
+.It Cm inode
+The inode number.
 .It Cm link
 The target of the symbolic link when type=link.
 .It Cm md5
@@ -213,6 +215,13 @@ Make sure this file or directory exists but otherwise ignore all attributes.
 .It Cm optional
 The file is optional; do not complain about the file if it is not in
 the file hierarchy.
+.It Cm resdevice
+The
+.Dq resident
+device number of the file, e.g. the ID of the device that
+contains the file.
+Its format is the same as the one for
+.Cm device .
 .It Cm ripemd160digest
 The
 .Tn RIPEMD160
