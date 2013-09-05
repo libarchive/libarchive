@@ -997,8 +997,8 @@ write_mtree_entry(struct archive_write *a, struct mtree_entry *me)
 	if ((keys & F_RESDEV) != 0) {
 		archive_string_sprintf(str,
 		    " resdevice=native,%ju,%ju",
-		    (uintmax_t)me->rdevmajor,
-		    (uintmax_t)me->rdevminor);
+		    (uintmax_t)me->devmajor,
+		    (uintmax_t)me->devminor);
 	}
 
 	switch (me->filetype) {
