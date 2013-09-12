@@ -204,6 +204,8 @@ verify(const char *refname, enum comp_type comp)
 	assertEqualInt(0, archive_entry_uid(ae));
 	assertEqualInt(0, archive_entry_gid(ae));
 	assertEqualInt(0, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	if (comp != STORE) {
 		/* Verify regular zero.
@@ -215,6 +217,8 @@ verify(const char *refname, enum comp_type comp)
 		assertEqualString("zero", archive_entry_pathname(ae));
 		assertEqualInt(0, archive_entry_uid(ae));
 		assertEqualInt(0, archive_entry_gid(ae));
+		assertEqualInt(archive_entry_is_encrypted(ae), 0);
+		assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 		assertEqualInt(33000, archive_entry_size(ae));
 		for (s = 0; s + sizeof(buff) < 33000; s+= sizeof(buff)) {
 			ssize_t rsize = archive_read_data(a, buff, sizeof(buff));
@@ -236,6 +240,8 @@ verify(const char *refname, enum comp_type comp)
 	assertEqualString("dir1/file1", archive_entry_pathname(ae));
 	assertEqualInt(0, archive_entry_uid(ae));
 	assertEqualInt(0, archive_entry_gid(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	assertEqualInt(file1_size, archive_entry_size(ae));
 	assertEqualInt(file1_size, archive_read_data(a, buff, file1_size));
 	assertEqualMem(buff, file1, file1_size);
@@ -246,6 +252,8 @@ verify(const char *refname, enum comp_type comp)
 	assertEqualString("dir2/file2", archive_entry_pathname(ae));
 	assertEqualInt(0, archive_entry_uid(ae));
 	assertEqualInt(0, archive_entry_gid(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	assertEqualInt(file2_size, archive_entry_size(ae));
 	assertEqualInt(file2_size, archive_read_data(a, buff, file2_size));
 	assertEqualMem(buff, file2, file2_size);
@@ -295,11 +303,17 @@ verify2(const char *refname, enum comp_type comp)
 
 	/* Verify regular empty. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	if (comp != STORE) {
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+		assertEqualInt(archive_entry_is_encrypted(ae), 0);
+		assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	}
 	/* Verify regular file1. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* Verify regular file2. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -349,14 +363,22 @@ verify3(const char *refname, enum comp_type comp)
 
 	/* Verify regular empty. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	if (comp != STORE) {
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+		assertEqualInt(archive_entry_is_encrypted(ae), 0);
+		assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	}
 	/* Verify regular file1. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* Verify regular file2. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	/* End of archive. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));

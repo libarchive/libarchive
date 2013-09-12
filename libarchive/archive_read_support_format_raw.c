@@ -78,7 +78,8 @@ archive_read_support_format_raw(struct archive *_a)
 	    archive_read_format_raw_read_data,
 	    archive_read_format_raw_read_data_skip,
 	    NULL,
-	    archive_read_format_raw_cleanup);
+	    archive_read_format_raw_cleanup,
+	    NULL);
 	if (r != ARCHIVE_OK)
 		free(info);
 	return (r);

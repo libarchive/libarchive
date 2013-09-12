@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2011 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,41 +24,42 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: head/lib/libarchive/test/test_read_format_cpio_svr4_gzip.c 191183 2009-04-17 01:06:31Z kientzle $");
+__FBSDID("$FreeBSD$");
 
-static unsigned char archive[] = {
-31,139,8,0,236,'c',217,'D',0,3,'3','0','7','0','7','0','4','0','0',181,'0',
-183,'L',2,210,6,6,'&',134,169,')',' ',218,192,'8',213,2,133,'6','0','0','2',
-'1','6','7','0','5','0','N','6','@',5,'&',16,202,208,212,0,';','0',130,'1',
-244,24,12,160,246,17,5,136,'U',135,14,146,'`',140,144,' ','G','O',31,215,
-' ','E','E','E',134,'Q',128,21,0,0,'%',215,202,221,0,2,0,0};
 
-DEFINE_TEST(test_read_format_cpio_svr4_gzip)
+static void
+test_is_encrypted(void)
 {
-	struct archive_entry *ae;
+	const char *refname = "test_read_format_zip_encryption.zip";
 	struct archive *a;
-	int r;
-
+	struct archive_entry *ae;
+	
+	extract_reference_file(refname);
+	
 	assert((a = archive_read_new()) != NULL);
-	assertEqualInt(ARCHIVE_OK, archive_read_support_filter_all(a));
-	r = archive_read_support_filter_gzip(a);
-	if (r == ARCHIVE_WARN) {
-		skipping("gzip reading not fully supported on this platform");
-		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-		return;
-	}
-	assertEqualInt(ARCHIVE_OK, archive_read_support_format_all(a));
-	assertEqualInt(ARCHIVE_OK,
-	    archive_read_open_memory(a, archive, sizeof(archive)));
-	assertEqualInt(ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt(archive_filter_code(a, 0),
-	    ARCHIVE_FILTER_GZIP);
-	assertEqualInt(archive_format(a),
-	    ARCHIVE_FORMAT_CPIO_SVR4_NOCRC);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 10240));
+
+	/* We cannot tell whether a file is encrypted or if there're
+	 * encrypted files within the archive unless we've read the
+	 * first header
+	 */
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
 	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("the_password_is_tester.txt", archive_entry_pathname(ae));
+	assertEqualInt(1, archive_entry_is_encrypted(ae));
+	assertEqualInt(1, archive_read_has_encrypted_entries(a));
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
 }
 
-
+DEFINE_TEST(test_read_format_zip_encryption)
+{
+	test_is_encrypted();
+}
