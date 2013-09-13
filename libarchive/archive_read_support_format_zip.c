@@ -1129,12 +1129,10 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	return (ret);
 }
 
-struct compression_method {
+static struct {
 	int id;
 	const char * name;
-};
-
-static const struct compression_method compression_methods[] = {
+} compression_methods[] = {
 	{0, "uncompressed"}, /* The file is stored (no compression) */
 	{1, "shrinking"}, /* The file is Shrunk */
 	{2, "reduced-1"}, /* The file is Reduced with compression factor 1 */
@@ -1162,7 +1160,7 @@ static const struct compression_method compression_methods[] = {
 static const char *
 compression_name(const int compression)
 {
-	static const int num_compression_methods = sizeof(compression_methods)/sizeof(struct compression_method);
+	static const int num_compression_methods = sizeof(compression_methods)/sizeof(compression_methods[0]);
 	int i=0;
 	while(compression >= 0 && i++ < num_compression_methods) {
 		if (compression_methods[i].id == compression) {
