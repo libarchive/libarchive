@@ -1132,33 +1132,31 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 struct compression_method {
 	int id;
 	const char * name;
-	const char * description;
 };
 
 static const struct compression_method compression_methods[] = {
-/*	ID		NAME				DESCRIPTION					*/
-	{0,		"uncompressed",		"The file is stored (no compression)"},
-	{1,		"shrinking",		"The file is Shrunk"},
-	{2,		"reduced-1",		"The file is Reduced with compression factor 1"},
-	{3,		"reduced-2",		"The file is Reduced with compression factor 2"},
-	{4,		"reduced-3",		"The file is Reduced with compression factor 3"},
-	{5,		"reduced-4",		"The file is Reduced with compression factor 4"},
-	{6,		"imploded",			"The file is Imploded"},
-	{7,		"reserved",			"Reserved for Tokenizing compression algorithm"},
-	{8,		"deflation",		"The file is Deflated"},
-	{9,		"deflation-64-bit",	"Enhanced Deflating using Deflate64(tm)"},
-	{10,	"imb-terse",		"PKWARE Data Compression Library Imploding (old IBM TERSE)"},
-	{11,	"reserved",			"Reserved by PKWARE"},
-	{12,	"bzip",				"File is compressed using BZIP2 algorithm"},
-	{13,	"reserved",			"Reserved by PKWARE"},
-	{14,	"lzma",				"LZMA (EFS)"},
-	{15,	"reserved",			"Reserved by PKWARE"},
-	{16,	"reserved",			"Reserved by PKWARE"},
-	{17,	"reserved",			"Reserved by PKWARE"},
-	{18,	"imb-terse-new",	"File is compressed using IBM TERSE (new)"},
-	{19,	"imb-lz777",		"IBM LZ77 z Architecture (PFS)"},
-	{97,	"wav-pack",			"WavPack compressed data"},
-	{98,	"ppmd-1",			"PPMd version I, Rev 1"}
+	{0, "uncompressed"}, /* The file is stored (no compression) */
+	{1, "shrinking"}, /* The file is Shrunk */
+	{2, "reduced-1"}, /* The file is Reduced with compression factor 1 */
+	{3, "reduced-2"}, /* The file is Reduced with compression factor 2 */
+	{4, "reduced-3"}, /* The file is Reduced with compression factor 3 */
+	{5, "reduced-4"}, /* The file is Reduced with compression factor 4 */
+	{6, "imploded"}, /* The file is Imploded */
+	{7, "reserved"}, /* Reserved for Tokenizing compression algorithm */
+	{8, "deflation"}, /* The file is Deflated */
+	{9, "deflation-64-bit"}, /* Enhanced Deflating using Deflate64(tm) */
+	{10, "ibm-terse"}, /* PKWARE Data Compression Library Imploding (old IBM TERSE) */
+	{11, "reserved"}, /* Reserved by PKWARE */
+	{12, "bzip"}, /* File is compressed using BZIP2 algorithm */
+	{13, "reserved"}, /* Reserved by PKWARE */
+	{14, "lzma"}, /* LZMA (EFS) */
+	{15, "reserved"}, /* Reserved by PKWARE */
+	{16, "reserved"}, /* Reserved by PKWARE */
+	{17, "reserved"}, /* Reserved by PKWARE */
+	{18, "ibm-terse-new"}, /* File is compressed using IBM TERSE (new) */
+	{19, "ibm-lz777"}, /* IBM LZ77 z Architecture (PFS) */
+	{97, "wav-pack"}, /* WavPack compressed data */
+	{98, "ppmd-1"} /* PPMd version I, Rev 1 */
 };
 
 static const char *
