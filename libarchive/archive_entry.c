@@ -202,8 +202,7 @@ archive_entry_clone(struct archive_entry *entry)
 	archive_mstring_copy(&entry2->ae_uname, &entry->ae_uname);
 
 	/* Copy encryption status */
-	entry2->is_data_encrypted = entry->is_data_encrypted;
-	entry2->is_metadata_encrypted = entry->is_metadata_encrypted;
+	entry2->encryption = entry->encryption;
 	
 	/* Copy ACL data over. */
 	archive_acl_copy(&entry2->acl, &entry->acl);
@@ -702,20 +701,19 @@ _archive_entry_uname_l(struct archive_entry *entry,
 int
 archive_entry_is_data_encrypted(struct archive_entry *entry)
 {
-	return (entry && entry->is_data_encrypted);
+	return (entry && (entry->encryption & AE_ENCRYPTION_DATA) == AE_ENCRYPTION_DATA);
 }
 
 int
 archive_entry_is_metadata_encrypted(struct archive_entry *entry)
 {
-	return (entry && entry->is_metadata_encrypted);
+	return (entry && (entry->encryption & AE_ENCRYPTION_METADATA) == AE_ENCRYPTION_METADATA);
 }
 
 int
 archive_entry_is_encrypted(struct archive_entry *entry)
 {
-	return (entry && (entry->is_data_encrypted 
-					|| entry->is_metadata_encrypted));
+	return (entry && entry->encryption & (AE_ENCRYPTION_DATA|AE_ENCRYPTION_METADATA));
 }
 
 /*
@@ -1240,18 +1238,26 @@ archive_entry_update_uname_utf8(struct archive_entry *entry, const char *name)
 }
 
 void
-archive_entry_set_is_data_encrypted(struct archive_entry *entry, char encrypted)
+archive_entry_set_is_data_encrypted(struct archive_entry *entry, char is_encrypted)
 {
     if (entry) {
-        entry->is_data_encrypted = encrypted;
+		if (is_encrypted) {
+			entry->encryption |= AE_ENCRYPTION_DATA;
+		} else {
+			entry->encryption &= ~AE_ENCRYPTION_DATA;
+		}
     }
 }
 
 void
-archive_entry_set_is_metadata_encrypted(struct archive_entry *entry, char encrypted)
+archive_entry_set_is_metadata_encrypted(struct archive_entry *entry, char is_encrypted)
 {
-    if (entry) {
-        entry->is_metadata_encrypted = encrypted;
+	if (entry) {
+		if (is_encrypted) {
+			entry->encryption |= AE_ENCRYPTION_METADATA;
+		} else {
+			entry->encryption &= ~AE_ENCRYPTION_METADATA;
+		}
     }
 }
 
