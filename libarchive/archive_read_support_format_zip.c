@@ -129,7 +129,7 @@ struct zip {
 #define ZIP_CENTRAL_DIRECTORY_ENCRYPTED	(1<<13)	
 #define ZIP_UTF8_NAME	(1<<11)	
 
-static int	archive_read_format_zip_has_encrypted_entries(struct archive_read *);
+static char	archive_read_format_zip_has_encrypted_entries(struct archive_read *);
 static int	archive_read_support_format_zip_capabilities_seekable(struct archive_read *a);
 static int	archive_read_support_format_zip_capabilities_streamable(struct archive_read *a);
 static int	archive_read_format_zip_streamable_bid(struct archive_read *,
@@ -181,6 +181,12 @@ archive_read_support_format_zip_streamable(struct archive *_a)
 	}
 	memset(zip, 0, sizeof(*zip));
 
+	/*
+	 * Until enough data has been read, we cannot tell about
+	 * any encrypted entries yet.
+	 */
+	zip->has_encrypted_entries = ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
+
 	r = __archive_read_register_format(a,
 	    zip,
 	    "zip",
@@ -217,6 +223,13 @@ archive_read_support_format_zip_seekable(struct archive *_a)
 	}
 	memset(zip, 0, sizeof(*zip));
 
+	/*
+	 * Until enough data has been read, we cannot tell about
+	 * any encrypted entries yet.
+	 */
+	zip->has_encrypted_entries = ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
+
+	
 	r = __archive_read_register_format(a,
 	    zip,
 	    "zip",
@@ -250,16 +263,16 @@ archive_read_support_format_zip_capabilities_streamable(struct archive_read * a)
 }
 
 
-static int
+static char
 archive_read_format_zip_has_encrypted_entries(struct archive_read *_a)
 {
 	if (_a && _a->format) {
 		struct zip * zip = (struct zip *)_a->format->data;
-		if (zip && zip->has_encrypted_entries) {
-			return 1;
+		if (zip) {
+			return zip->has_encrypted_entries;
 		}
 	}
-	return 0;
+	return ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
 }
 
 int
@@ -737,6 +750,17 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 	struct zip_entry *rsrc;
 	int r, ret = ARCHIVE_OK;
 
+	/*
+	 * It should be sufficient to call archive_read_next_header() for
+	 * a reader to determine if an entry is encrypted or not. If the
+	 * encryption of an entry is only detectable when calling
+	 * archive_read_data(), so be it. We'll do the same check there
+	 * as well.
+	 */
+	if (zip->has_encrypted_entries == ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW) {
+		zip->has_encrypted_entries = 0;
+	}
+
 	a->archive.archive_format = ARCHIVE_FORMAT_ZIP;
 	if (a->archive.archive_format_name == NULL)
 		a->archive.archive_format_name = "ZIP";
@@ -914,6 +938,17 @@ archive_read_format_zip_streamable_read_header(struct archive_read *a,
 		a->archive.archive_format_name = "ZIP";
 
 	zip = (struct zip *)(a->format->data);
+
+	/*
+	 * It should be sufficient to call archive_read_next_header() for
+	 * a reader to determine if an entry is encrypted or not. If the
+	 * encryption of an entry is only detectable when calling
+	 * archive_read_data(), so be it. We'll do the same check there
+	 * as well.
+	 */
+	if (zip->has_encrypted_entries == ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW) {
+		zip->has_encrypted_entries = 0;
+	}
 
 	/* Make sure we have a zip_entry structure to use. */
 	if (zip->zip_entries == NULL) {
@@ -1250,6 +1285,10 @@ archive_read_format_zip_read_data(struct archive_read *a,
 {
 	int r;
 	struct zip *zip = (struct zip *)(a->format->data);
+
+	if (zip->has_encrypted_entries == ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW) {
+		zip->has_encrypted_entries = 0;
+	}
 
 	*offset = zip->entry_uncompressed_bytes_read;
 	*size = 0;

@@ -326,12 +326,12 @@ struct _7zip {
 	struct archive_string_conv *sconv;
 
 	char			 format_name[64];
-	
+
 	/* Custom value that is non-zero if this archive contains encrypted entries. */
 	char has_encrypted_entries;
 };
 
-static int	archive_read_format_7zip_has_encrypted_entries(struct archive_read *);
+static char	archive_read_format_7zip_has_encrypted_entries(struct archive_read *);
 static int	archive_read_support_format_7zip_capabilities(struct archive_read *a);
 static int	archive_read_format_7zip_bid(struct archive_read *, int);
 static int	archive_read_format_7zip_cleanup(struct archive_read *);
@@ -410,6 +410,13 @@ archive_read_support_format_7zip(struct archive *_a)
 		return (ARCHIVE_FATAL);
 	}
 
+	/*
+	 * Until enough data has been read, we cannot tell about
+	 * any encrypted entries yet.
+	 */
+	zip->has_encrypted_entries = ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
+
+
 	r = __archive_read_register_format(a,
 	    zip,
 	    "7zip",
@@ -437,16 +444,15 @@ archive_read_support_format_7zip_capabilities(struct archive_read * a)
 }
 
 
-static int
-archive_read_format_7zip_has_encrypted_entries(struct archive_read *_a)
+static char archive_read_format_7zip_has_encrypted_entries(struct archive_read *_a)
 {
 	if (_a && _a->format) {
 		struct _7zip * zip = (struct _7zip *)_a->format->data;
-		if (zip && zip->has_encrypted_entries) {
-			return 1;
+		if (zip) {
+			return zip->has_encrypted_entries;
 		}
 	}
-	return 0;
+	return ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
 }
 
 static int
@@ -603,6 +609,17 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 	struct _7z_folder *folder = 0;
 	uint64_t fidx = 0;
 
+	/*
+	 * It should be sufficient to call archive_read_next_header() for
+	 * a reader to determine if an entry is encrypted or not. If the
+	 * encryption of an entry is only detectable when calling
+	 * archive_read_data(), so be it. We'll do the same check there
+	 * as well.
+	 */
+	if (zip->has_encrypted_entries == ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW) {
+		zip->has_encrypted_entries = 0;
+	}
+
 	a->archive.archive_format = ARCHIVE_FORMAT_7ZIP;
 	if (a->archive.archive_format_name == NULL)
 		a->archive.archive_format_name = "7-Zip";
@@ -655,6 +672,13 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 				}
 			}
 		}
+	}
+
+	/* Now that we've checked for encryption, if there were still no
+	 * encrypted entries found we can say for sure that there are none.
+	 */
+	if (zip->has_encrypted_entries == ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW) {
+		zip->has_encrypted_entries = 0;
 	}
 
 	if (archive_entry_copy_pathname_l(entry,
@@ -759,6 +783,10 @@ archive_read_format_7zip_read_data(struct archive_read *a,
 	int ret = ARCHIVE_OK;
 
 	zip = (struct _7zip *)(a->format->data);
+
+	if (zip->has_encrypted_entries == ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW) {
+		zip->has_encrypted_entries = 0;
+	}
 
 	if (zip->pack_stream_bytes_unconsumed)
 		read_consume(a);
@@ -3323,6 +3351,13 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 			}
 		}
 	}
+	/* Now that we've checked for encryption, if there were still no
+	 * encrypted entries found we can say for sure that there are none.
+	 */
+	if (zip->has_encrypted_entries == ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW) {
+		zip->has_encrypted_entries = 0;
+	}
+
 	if ((folder->numCoders > 2 && !found_bcj2) || found_bcj2 > 1) {
 		archive_set_error(&(a->archive),
 		    ARCHIVE_ERRNO_MISC,

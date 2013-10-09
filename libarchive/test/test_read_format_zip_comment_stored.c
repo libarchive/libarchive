@@ -59,10 +59,10 @@ verify(const char *refname)
 	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
-	assertEqualInt(archive_entry_is_encrypted(ae), 0);
-	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 }
 
 DEFINE_TEST(test_read_format_zip_comment_stored)

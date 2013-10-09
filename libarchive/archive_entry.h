@@ -309,8 +309,8 @@ __LA_DECL void	archive_entry_set_uname(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_uname(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_uname_w(struct archive_entry *, const wchar_t *);
 __LA_DECL int	archive_entry_update_uname_utf8(struct archive_entry *, const char *);
-__LA_DECL void	archive_entry_set_is_data_encrypted(struct archive_entry *, char encrypted);
-__LA_DECL void	archive_entry_set_is_metadata_encrypted(struct archive_entry *, char encrypted);
+__LA_DECL void	archive_entry_set_is_data_encrypted(struct archive_entry *, char is_encrypted);
+__LA_DECL void	archive_entry_set_is_metadata_encrypted(struct archive_entry *, char is_encrypted);
 /*
  * Routines to bulk copy fields to/from a platform-native "struct
  * stat."  Libarchive used to just store a struct stat inside of each

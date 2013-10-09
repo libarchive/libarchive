@@ -42,6 +42,8 @@ DEFINE_TEST(test_read_format_rar_encryption_partially)
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_open_filename(a, refname, 10240));
 
+	assertEqualIntA(a, ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW, archive_read_has_encrypted_entries(a));
+
 	/* Verify encrypted file "foo.txt". */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt((AE_IFREG | 0664), archive_entry_mode(ae));

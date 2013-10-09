@@ -81,7 +81,7 @@ test_read_format_tar_filename_KOI8R_CP866(const char *refname)
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
-	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* Verify regular second file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -89,7 +89,7 @@ test_read_format_tar_filename_KOI8R_CP866(const char *refname)
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
-	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 
 	/* End of archive. */
@@ -128,7 +128,7 @@ next_test:
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
-	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/*
 	 * Verify regular second file.
@@ -139,7 +139,7 @@ next_test:
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
-	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 
 	/* End of archive. */
@@ -188,7 +188,7 @@ test_read_format_tar_filename_KOI8R_UTF8(const char *refname)
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
-	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -196,11 +196,11 @@ test_read_format_tar_filename_KOI8R_UTF8(const char *refname)
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
-	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* Verify encryption status */
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
-	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* End of archive. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
@@ -212,7 +212,7 @@ test_read_format_tar_filename_KOI8R_UTF8(const char *refname)
 	
 	/* Verify encryption status */
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
-	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* Close the archive. */
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
@@ -242,7 +242,7 @@ test_read_format_tar_filename_KOI8R_UTF8(const char *refname)
 	
 	/* Verify encryption status */
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
-	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/*
 	 * Verify regular second file.
@@ -310,7 +310,7 @@ test_read_format_tar_filename_KOI8R_CP1251(const char *refname)
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
-	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* Verify regular second file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -318,7 +318,7 @@ test_read_format_tar_filename_KOI8R_CP1251(const char *refname)
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
-	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 
 	/* End of archive. */
@@ -356,7 +356,7 @@ next_test:
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
-	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/*
 	 * Verify regular second file.
@@ -366,7 +366,7 @@ next_test:
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
-	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 
 	/* End of archive. */

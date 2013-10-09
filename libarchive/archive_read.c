@@ -746,15 +746,43 @@ archive_read_header_position(struct archive *_a)
 	return (a->header_position);
 }
 
-/* Returns "true" (non-zero) if the archive contains encrypted entries; otherwise 0 is returned. */
-int
+/*
+ * Returns 1 if the archive contains at least one encrypted entry.
+ * If the archive format not support encryption at all
+ * ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED is returned.
+ * If for any other reason (e.g. not enough data read so far)
+ * we cannot say whether there are encrypted entries, then
+ * ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW is returned.
+ * In general, this function will return values below zero when the
+ * reader is uncertain or totally uncapable of encryption support.
+ * When this function returns 0 you can be sure that the reader
+ * supports encryption detection but no encrypted entries have
+ * been found yet.
+ *
+ * NOTE: If the metadata/header of an archive is also encrypted, you
+ * cannot rely on the number of encrypted entries. That is why this
+ * function does not return the number of encrypted entries but#
+ * just shows that there are some.
+ */
+char
 archive_read_has_encrypted_entries(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	if (a && a->format && a->format->has_encrypted_entries) {
+	int format_supports_encryption = archive_read_format_capabilities(_a)
+			& (ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_DATA | ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA);
+
+	if (!_a || !format_supports_encryption) {
+		/* Format in general doesn't support encryption */
+		return ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED;
+	}
+
+	/* A reader potentially has read enough data now. */
+	if (a->format && a->format->has_encrypted_entries) {
 		return (a->format->has_encrypted_entries)(a);
 	}
-	return 0;
+
+	/* For any other reason we cannot say how many entries are there. */
+	return ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
 }
 
 /*
@@ -1121,7 +1149,7 @@ __archive_read_register_format(struct archive_read *a,
     int64_t (*seek_data)(struct archive_read *, int64_t, int),
     int (*cleanup)(struct archive_read *),
     int (*format_capabilities)(struct archive_read *),
-    int (*has_encrypted_entries)(struct archive_read *))
+    char (*has_encrypted_entries)(struct archive_read *))
 {
 	int i, number_slots;
 

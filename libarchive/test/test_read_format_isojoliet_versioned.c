@@ -59,7 +59,7 @@ DEFINE_TEST(test_read_format_isojoliet_versioned)
 	assertEqualString("test", archive_entry_pathname(ae));
 	assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
-	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* A regular file which is called test.txt and has
 	 * ;1 appended to it because apparently Nero always
@@ -72,7 +72,7 @@ DEFINE_TEST(test_read_format_isojoliet_versioned)
 	    archive_entry_pathname(ae));
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
-	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* End of archive. */
 	assertEqualInt(ARCHIVE_EOF, archive_read_next_header(a, &ae));

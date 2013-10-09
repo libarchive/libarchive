@@ -50,7 +50,7 @@ DEFINE_TEST(test_read_format_tar_empty_pax)
 	    archive_read_open_filename(a, refname, 10240));
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
-	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 	assertEqualInt(ARCHIVE_FILTER_COMPRESS, archive_filter_code(a, 0));
 	assertEqualInt(ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE, archive_format(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));

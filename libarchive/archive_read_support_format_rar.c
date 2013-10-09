@@ -312,7 +312,7 @@ struct rar
 };
 
 static int archive_read_support_format_rar_capabilities(struct archive_read *);
-static int archive_read_format_rar_has_encrypted_entries(struct archive_read *);
+static char archive_read_format_rar_has_encrypted_entries(struct archive_read *);
 static int archive_read_format_rar_bid(struct archive_read *, int);
 static int archive_read_format_rar_options(struct archive_read *,
     const char *, const char *);
@@ -653,6 +653,12 @@ archive_read_support_format_rar(struct archive *_a)
   }
   memset(rar, 0, sizeof(*rar));
 
+	/*
+	 * Until enough data has been read, we cannot tell about
+	 * any encrypted entries yet.
+	 */
+	rar->has_encrypted_entries = ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
+
   r = __archive_read_register_format(a,
                                      rar,
                                      "rar",
@@ -679,16 +685,15 @@ archive_read_support_format_rar_capabilities(struct archive_read * a)
 			| ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA);
 }
 
-static int
-archive_read_format_rar_has_encrypted_entries(struct archive_read *_a)
+static char archive_read_format_rar_has_encrypted_entries(struct archive_read *_a)
 {
 	if (_a && _a->format) {
 		struct rar * rar = (struct rar *)_a->format->data;
-		if (rar && rar->has_encrypted_entries) {
-			return 1;
+		if (rar) {
+			return rar->has_encrypted_entries;
 		}
 	}
-	return 0;
+	return ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
 }
 
 
@@ -826,6 +831,17 @@ archive_read_format_rar_read_header(struct archive_read *a,
     a->archive.archive_format_name = "RAR";
 
   rar = (struct rar *)(a->format->data);
+
+  /*
+   * It should be sufficient to call archive_read_next_header() for
+   * a reader to determine if an entry is encrypted or not. If the
+   * encryption of an entry is only detectable when calling
+   * archive_read_data(), so be it. We'll do the same check there
+   * as well.
+   */
+  if (rar->has_encrypted_entries == ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW) {
+	  rar->has_encrypted_entries = 0;
+  }
 
   /* RAR files can be generated without EOF headers, so return ARCHIVE_EOF if
   * this fails.
@@ -972,6 +988,10 @@ archive_read_format_rar_read_data(struct archive_read *a, const void **buff,
 {
   struct rar *rar = (struct rar *)(a->format->data);
   int ret;
+
+  if (rar->has_encrypted_entries == ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW) {
+	  rar->has_encrypted_entries = 0;
+  }
 
   if (rar->bytes_unconsumed > 0) {
       /* Consume as much as the decompressor actually used. */

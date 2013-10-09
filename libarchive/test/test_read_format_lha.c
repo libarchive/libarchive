@@ -170,7 +170,7 @@ verify(const char *refname, int posix)
 	    archive_read_data_block(a, &pv, &s, &o));
 	assertEqualInt(s, 0);
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
-	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* Verify directory2.  */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -184,7 +184,7 @@ verify(const char *refname, int posix)
 	    archive_read_data_block(a, &pv, &s, &o));
 	assertEqualInt(s, 0);
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
-	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	if (posix) {
 		/* Verify symbolic link file1. */
@@ -197,7 +197,7 @@ verify(const char *refname, int posix)
 		assertEqualInt(gid, archive_entry_gid(ae));
 		assertEqualInt(0, archive_entry_size(ae));
 		assertEqualInt(archive_entry_is_encrypted(ae), 0);
-		assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+		assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 		/* Verify symbolic link file2. */
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -209,7 +209,7 @@ verify(const char *refname, int posix)
 		assertEqualInt(gid, archive_entry_gid(ae));
 		assertEqualInt(0, archive_entry_size(ae));
 		assertEqualInt(archive_entry_is_encrypted(ae), 0);
-		assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+		assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 	}
 
 	/* Verify regular file1. */
@@ -223,7 +223,7 @@ verify(const char *refname, int posix)
 	assertEqualInt(file1_size, archive_read_data(a, buff, file1_size));
 	assertEqualMem(buff, file1, file1_size);
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
-	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* Verify regular file2. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -239,7 +239,7 @@ verify(const char *refname, int posix)
 	assertEqualInt(file2_size, archive_read_data(a, buff, file2_size));
 	assertEqualMem(buff, file2, file2_size);
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
-	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* Verify the number of files read. */
 	if (posix) {
@@ -257,10 +257,10 @@ verify(const char *refname, int posix)
 	} else {
 		assertEqualInt(4, archive_file_count(a));
 	}
-	
+
 	/* Verify encryption status */
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
-	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* Verify archive format. */
 	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
