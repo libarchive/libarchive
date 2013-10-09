@@ -87,6 +87,9 @@ IF(ENABLE_TEST)
     test_read_filter_program_signature.c
     test_read_filter_uudecode.c
     test_read_format_7zip.c
+    test_read_format_7zip_encryption_data.c
+    test_read_format_7zip_encryption_partially.c
+    test_read_format_7zip_encryption_header.c
     test_read_format_ar.c
     test_read_format_cab.c
     test_read_format_cab_filename.c
@@ -127,6 +130,9 @@ IF(ENABLE_TEST)
     test_read_format_mtree.c
     test_read_format_pax_bz2.c
     test_read_format_rar.c
+    test_read_format_rar_encryption_data.c
+    test_read_format_rar_encryption_partially.c
+    test_read_format_rar_encryption_header.c
     test_read_format_raw.c
     test_read_format_tar.c
     test_read_format_tar_empty_pax.c
@@ -141,6 +147,9 @@ IF(ENABLE_TEST)
     test_read_format_xar.c
     test_read_format_zip.c
     test_read_format_zip_comment_stored.c
+    test_read_format_zip_encryption_data.c
+    test_read_format_zip_encryption_partially.c
+    test_read_format_zip_encryption_header.c
     test_read_format_zip_filename.c
     test_read_format_zip_mac_metadata.c
     test_read_format_zip_sfx.c

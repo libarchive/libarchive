@@ -285,6 +285,30 @@ typedef int archive_switch_callback(struct archive *, void *_client_data1,
 #define	ARCHIVE_FORMAT_RAR			0xD0000
 #define	ARCHIVE_FORMAT_7ZIP			0xE0000
 
+/*
+ * Codes returned by archive_read_format_capabilities().
+ *
+ * This list can be extended with values between 0 and 0xffff.
+ * The original purpose of this list was to let different archive
+ * format readers expose their general capabilities in terms of
+ * encryption.
+ */
+#define ARCHIVE_READ_FORMAT_CAPS_NONE (0) /* no special capabilities */
+#define ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_DATA (1<<0)  /* reader can detect encrypted data */
+#define ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA (1<<1)  /* reader can detect encryptable metadata (pathname, mtime, etc.) */
+
+/*
+ * Codes returned by archive_read_has_encrypted_entries().
+ *
+ * In case the archive does not support encryption detection at all
+ * ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED is returned. If the reader
+ * for some other reason (e.g. not enough bytes read) cannot say if
+ * there are encrypted entries, ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW
+ * is returned.
+ */
+#define ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED -2
+#define ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW -1
+
 /*-
  * Basic outline for reading an archive:
  *   1) Ask archive_read_new for an archive reader object.
@@ -465,6 +489,32 @@ __LA_DECL int archive_read_next_header2(struct archive *,
  * header started.
  */
 __LA_DECL __LA_INT64_T		 archive_read_header_position(struct archive *);
+
+/*
+ * Returns 1 if the archive contains at least one encrypted entry.
+ * If the archive format not support encryption at all
+ * ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED is returned.
+ * If for any other reason (e.g. not enough data read so far)
+ * we cannot say whether there are encrypted entries, then
+ * ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW is returned.
+ * In general, this function will return values below zero when the
+ * reader is uncertain or totally uncapable of encryption support.
+ * When this function returns 0 you can be sure that the reader
+ * supports encryption detection but no encrypted entries have
+ * been found yet.
+ *
+ * NOTE: If the metadata/header of an archive is also encrypted, you
+ * cannot rely on the number of encrypted entries. That is why this
+ * function does not return the number of encrypted entries but#
+ * just shows that there are some.
+ */
+__LA_DECL char archive_read_has_encrypted_entries(struct archive *);
+
+/*
+ * Returns a bitmask of capabilities that are supported by the archive format reader.
+ * If the reader has no special capabilities, ARCHIVE_READ_FORMAT_CAPS_NONE is returned.
+ */
+__LA_DECL int		 archive_read_format_capabilities(struct archive *);
 
 /* Read data from the body of an entry.  Similar to read(2). */
 __LA_DECL __LA_SSIZE_T		 archive_read_data(struct archive *,

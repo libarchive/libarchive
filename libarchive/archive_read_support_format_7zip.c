@@ -69,7 +69,11 @@ __FBSDID("$FreeBSD$");
 #define _7Z_BZ2		0x040202
 #define _7Z_PPMD	0x030401
 #define _7Z_DELTA	0x03
-#define _7Z_CRYPTO	0x06F10701
+#define _7Z_CRYPTO_MAIN_ZIP			0x06F10101 /* Main Zip crypto algo */
+#define _7Z_CRYPTO_RAR_29			0x06F10303 /* Rar29 AES-128 + (modified SHA-1) */
+#define _7Z_CRYPTO_AES_256_SHA_256	0x06F10701 /* AES-256 + SHA-256 */
+
+
 #define _7Z_X86		0x03030103
 #define _7Z_X86_BCJ2	0x0303011B
 #define _7Z_POWERPC	0x03030205
@@ -322,8 +326,13 @@ struct _7zip {
 	struct archive_string_conv *sconv;
 
 	char			 format_name[64];
+
+	/* Custom value that is non-zero if this archive contains encrypted entries. */
+	char has_encrypted_entries;
 };
 
+static char	archive_read_format_7zip_has_encrypted_entries(struct archive_read *);
+static int	archive_read_support_format_7zip_capabilities(struct archive_read *a);
 static int	archive_read_format_7zip_bid(struct archive_read *, int);
 static int	archive_read_format_7zip_cleanup(struct archive_read *);
 static int	archive_read_format_7zip_read_data(struct archive_read *,
@@ -401,6 +410,13 @@ archive_read_support_format_7zip(struct archive *_a)
 		return (ARCHIVE_FATAL);
 	}
 
+	/*
+	 * Until enough data has been read, we cannot tell about
+	 * any encrypted entries yet.
+	 */
+	zip->has_encrypted_entries = ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
+
+
 	r = __archive_read_register_format(a,
 	    zip,
 	    "7zip",
@@ -410,11 +426,33 @@ archive_read_support_format_7zip(struct archive *_a)
 	    archive_read_format_7zip_read_data,
 	    archive_read_format_7zip_read_data_skip,
 	    NULL,
-	    archive_read_format_7zip_cleanup);
+	    archive_read_format_7zip_cleanup,
+	    archive_read_support_format_7zip_capabilities,
+	    archive_read_format_7zip_has_encrypted_entries);
 
 	if (r != ARCHIVE_OK)
 		free(zip);
 	return (ARCHIVE_OK);
+}
+
+static int
+archive_read_support_format_7zip_capabilities(struct archive_read * a)
+{
+	(void)a; /* UNUSED */
+	return (ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_DATA |
+			ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA);
+}
+
+
+static char archive_read_format_7zip_has_encrypted_entries(struct archive_read *_a)
+{
+	if (_a && _a->format) {
+		struct _7zip * zip = (struct _7zip *)_a->format->data;
+		if (zip) {
+			return zip->has_encrypted_entries;
+		}
+	}
+	return ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
 }
 
 static int
@@ -568,6 +606,19 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 	struct _7zip *zip = (struct _7zip *)a->format->data;
 	struct _7zip_entry *zip_entry;
 	int r, ret = ARCHIVE_OK;
+	struct _7z_folder *folder = 0;
+	uint64_t fidx = 0;
+
+	/*
+	 * It should be sufficient to call archive_read_next_header() for
+	 * a reader to determine if an entry is encrypted or not. If the
+	 * encryption of an entry is only detectable when calling
+	 * archive_read_data(), so be it. We'll do the same check there
+	 * as well.
+	 */
+	if (zip->has_encrypted_entries == ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW) {
+		zip->has_encrypted_entries = 0;
+	}
 
 	a->archive.archive_format = ARCHIVE_FORMAT_7ZIP;
 	if (a->archive.archive_format_name == NULL)
@@ -602,6 +653,32 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 		    &a->archive, "UTF-16LE", 1);
 		if (zip->sconv == NULL)
 			return (ARCHIVE_FATAL);
+	}
+	
+	/* Figure out if the entry is encrypted by looking at the folder
+	   that is associated to the current 7zip entry. If the folder
+	   has a coder with a _7Z_CRYPTO codec then the folder is encrypted.
+	   Hence the entry must also be encrypted. */
+	if (zip_entry && zip_entry->folderIndex < zip->si.ci.numFolders) {
+		folder = &(zip->si.ci.folders[zip_entry->folderIndex]);
+		for (fidx=0; folder && fidx<folder->numCoders; fidx++) {
+			switch(folder->coders[fidx].codec) {
+				case _7Z_CRYPTO_MAIN_ZIP:
+				case _7Z_CRYPTO_RAR_29:
+				case _7Z_CRYPTO_AES_256_SHA_256: {
+					archive_entry_set_is_data_encrypted(entry, 1);
+					zip->has_encrypted_entries = 1;
+					break;
+				}
+			}
+		}
+	}
+
+	/* Now that we've checked for encryption, if there were still no
+	 * encrypted entries found we can say for sure that there are none.
+	 */
+	if (zip->has_encrypted_entries == ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW) {
+		zip->has_encrypted_entries = 0;
 	}
 
 	if (archive_entry_copy_pathname_l(entry,
@@ -706,6 +783,10 @@ archive_read_format_7zip_read_data(struct archive_read *a,
 	int ret = ARCHIVE_OK;
 
 	zip = (struct _7zip *)(a->format->data);
+
+	if (zip->has_encrypted_entries == ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW) {
+		zip->has_encrypted_entries = 0;
+	}
 
 	if (zip->pack_stream_bytes_unconsumed)
 		read_consume(a);
@@ -1202,6 +1283,17 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 	case _7Z_DELTA:
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Unexpected codec ID: %lX", zip->codec);
+		return (ARCHIVE_FAILED);
+	case _7Z_CRYPTO_MAIN_ZIP:
+	case _7Z_CRYPTO_RAR_29:
+	case _7Z_CRYPTO_AES_256_SHA_256:
+		if (a->entry) {
+			archive_entry_set_is_metadata_encrypted(a->entry, 1);
+			archive_entry_set_is_data_encrypted(a->entry, 1);
+			zip->has_encrypted_entries = 1;
+		}
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Crypto codec not supported yet (ID: 0x%lX)", zip->codec);
 		return (ARCHIVE_FAILED);
 	default:
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -2755,6 +2847,7 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 	zip->header_crc32 = 0;
 	zip->header_is_encoded = 0;
 	zip->header_is_being_read = 1;
+	zip->has_encrypted_entries = 0;
 	check_header_crc = 1;
 
 	if ((p = header_bytes(a, 1)) == NULL) {
@@ -3235,16 +3328,36 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 	 * Check coder types.
 	 */
 	for (i = 0; i < folder->numCoders; i++) {
-		if (folder->coders[i].codec == _7Z_CRYPTO) {
-			archive_set_error(&(a->archive),
-			    ARCHIVE_ERRNO_MISC,
-			    "The %s is encrypted, "
-			    "but currently not supported", cname);
-			return (ARCHIVE_FATAL);
+		switch(folder->coders[i].codec) {
+			case _7Z_CRYPTO_MAIN_ZIP:
+			case _7Z_CRYPTO_RAR_29:
+			case _7Z_CRYPTO_AES_256_SHA_256: {
+				/* For entry that is associated with this folder, mark
+				   it as encrypted (data+metadata). */
+				zip->has_encrypted_entries = 1;
+				if (a->entry) {
+					archive_entry_set_is_data_encrypted(a->entry, 1);
+					archive_entry_set_is_metadata_encrypted(a->entry, 1);
+				}
+				archive_set_error(&(a->archive),
+					ARCHIVE_ERRNO_MISC,
+					"The %s is encrypted, "
+					"but currently not supported", cname);
+				return (ARCHIVE_FATAL);
+			}
+			case _7Z_X86_BCJ2: {
+				found_bcj2++;
+				break;
+			}
 		}
-		if (folder->coders[i].codec == _7Z_X86_BCJ2)
-			found_bcj2++;
 	}
+	/* Now that we've checked for encryption, if there were still no
+	 * encrypted entries found we can say for sure that there are none.
+	 */
+	if (zip->has_encrypted_entries == ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW) {
+		zip->has_encrypted_entries = 0;
+	}
+
 	if ((folder->numCoders > 2 && !found_bcj2) || found_bcj2 > 1) {
 		archive_set_error(&(a->archive),
 		    ARCHIVE_ERRNO_MISC,
