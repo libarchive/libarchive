@@ -682,7 +682,7 @@ AC_ARG_ENABLE([xattr],
 		[Disable Extended Attributes support (default: check)]))
 
 if test "x$enable_xattr" != "xno"; then
-    AC_SEARCH_LIBS([setxattr], [attr])
+    AC_SEARCH_LIBS([setxattr], [attr gnu])
     AC_CHECK_DECLS([EXTATTR_NAMESPACE_USER], [], [], [#include <sys/types.h>
 #include <sys/extattr.h>
 ])
