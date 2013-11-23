@@ -2498,6 +2498,7 @@ get_refdir(const char *d)
 failure:
 	printf("Unable to locate known reference file %s\n", KNOWNREF);
 	printf("  Checked following directories:\n%s\n", tried);
+	printf("Use -r option to specify full path to libarchive/test directory\n");
 #if defined(_WIN32) && !defined(__CYGWIN__) && defined(_DEBUG)
 	DebugBreak();
 #endif
