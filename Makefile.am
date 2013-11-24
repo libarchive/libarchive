@@ -682,10 +682,14 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_filename_cp932.zip.uu	\
 	libarchive/test/test_read_format_zip_filename_koi8r.zip.uu	\
 	libarchive/test/test_read_format_zip_filename_utf8_jp.zip.uu	\
-	libarchive/test/test_read_format_zip_filename_utf8_ru2.zip.uu	\
 	libarchive/test/test_read_format_zip_filename_utf8_ru.zip.uu	\
+	libarchive/test/test_read_format_zip_filename_utf8_ru2.zip.uu	\
 	libarchive/test/test_read_format_zip_length_at_end.zip.uu	\
 	libarchive/test/test_read_format_zip_mac_metadata.zip.uu	\
+	libarchive/test/test_read_format_zip_nofiletype.zip.uu		\
+	libarchive/test/test_read_format_zip_padded1.zip.uu		\
+	libarchive/test/test_read_format_zip_padded2.zip.uu		\
+	libarchive/test/test_read_format_zip_padded3.zip.uu		\
 	libarchive/test/test_read_format_zip_sfx.uu			\
 	libarchive/test/test_read_format_zip_symlink.zip.uu		\
 	libarchive/test/test_read_format_zip_ux.zip.uu			\

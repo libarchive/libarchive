@@ -1071,24 +1071,29 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	}
 	zip_read_consume(a, filename_length);
 
-	if (zip_entry->mode == 0) {
+	if ((zip_entry->mode & AE_IFMT) == 0) {
 		/* Especially in streaming mode, we can end up
-		   here without having seen any mode information.
+		   here without having seen proper mode information.
 		   Guess from the filename. */
 		wp = archive_entry_pathname_w(entry);
 		if (wp != NULL) {
 			len = wcslen(wp);
 			if (len > 0 && wp[len - 1] == L'/')
-				zip_entry->mode = AE_IFDIR | 0777;
+				zip_entry->mode |= AE_IFDIR;
 			else
-				zip_entry->mode = AE_IFREG | 0666;
+				zip_entry->mode |= AE_IFREG;
 		} else {
 			cp = archive_entry_pathname(entry);
 			len = (cp != NULL)?strlen(cp):0;
 			if (len > 0 && cp[len - 1] == '/')
-				zip_entry->mode = AE_IFDIR | 0777;
+				zip_entry->mode |= AE_IFDIR;
 			else
-				zip_entry->mode = AE_IFREG | 0666;
+				zip_entry->mode |= AE_IFREG;
+		}
+		if (zip_entry->mode == AE_IFDIR) {
+			zip_entry->mode |= 0777;
+		} else if (zip_entry->mode == AE_IFREG) {
+			zip_entry->mode |= 0666;
 		}
 	}
 
