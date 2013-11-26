@@ -179,28 +179,31 @@ static int write_path(struct archive_entry *, struct archive_write *);
 #define CENTRAL_DIRECTORY_END_COMMENT_LENGTH	20
 #define SIZE_CENTRAL_DIRECTORY_END		22
 
-struct zip_file_header_link {
-	struct zip_file_header_link *next;
-	struct archive_entry *entry;
+struct zip_entry {
 	int64_t offset;
-	unsigned long crc32;
 	int64_t compressed_size;
+	struct zip_entry *next;
+	struct archive_entry *entry;
+	uint32_t crc32;
 	enum compression compression;
 	int flags;
 };
 
 struct zip {
+	struct zip_entry entry; // Details about current entry.
+
 	uint8_t data_descriptor[SIZE_DATA_DESCRIPTOR];
-	struct zip_file_header_link *central_directory;
-	struct zip_file_header_link *central_directory_end;
 	int64_t offset;
 	int64_t written_bytes;
 	int64_t remaining_data_bytes;
-	enum compression compression;
-	int flags;
+	struct zip_entry *central_directory;
+	struct zip_entry *central_directory_end;
 	struct archive_string_conv *opt_sconv;
 	struct archive_string_conv *sconv_default;
-	int	init_default_conversion;
+	enum compression default_compression;
+	int flags;
+	int init_default_conversion;
+	char force_zip64;
 
 #ifdef HAVE_ZLIB_H
 	z_stream stream;
@@ -223,14 +226,14 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 			    a->format_name);
 		} else if (strcmp(val, "deflate") == 0) {
 #ifdef HAVE_ZLIB_H
-			zip->compression = COMPRESSION_DEFLATE;
+			zip->default_compression = COMPRESSION_DEFLATE;
 			ret = ARCHIVE_OK;
 #else
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "deflate compression not supported");
 #endif
 		} else if (strcmp(val, "store") == 0) {
-			zip->compression = COMPRESSION_STORE;
+			zip->default_compression = COMPRESSION_STORE;
 			ret = ARCHIVE_OK;
 		}
 		return (ret);
@@ -248,6 +251,9 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 				ret = ARCHIVE_FATAL;
 		}
 		return (ret);
+	} else if (strcmp(key, "zip64") == 0) {
+		zip->force_zip64 = (val != NULL);
+		return (ARCHIVE_OK);
 	}
 
 	/* Note: The "warn" return is just to inform the options
@@ -273,7 +279,7 @@ archive_write_zip_set_compression_deflate(struct archive *_a)
 	} else {
 #ifdef HAVE_ZLIB_H
 		struct zip *zip = a->format_data;
-		zip->compression = COMPRESSION_DEFLATE;
+		zip->default_compression = COMPRESSION_DEFLATE;
 		ret = ARCHIVE_OK;
 #else
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -299,7 +305,7 @@ archive_write_zip_set_compression_store(struct archive *_a)
 			" with zip format");
 		ret = ARCHIVE_FATAL;
 	} else {
-		zip->compression = COMPRESSION_STORE;
+		zip->default_compression = COMPRESSION_STORE;
 		ret = ARCHIVE_OK;
 	}
 	return (ret);
@@ -331,7 +337,7 @@ archive_write_set_format_zip(struct archive *_a)
 	zip->remaining_data_bytes = 0;
 
 #ifdef HAVE_ZLIB_H
-	zip->compression = COMPRESSION_DEFLATE;
+	zip->default_compression = COMPRESSION_DEFLATE;
 	zip->len_buf = 65536;
 	zip->buf = malloc(zip->len_buf);
 	if (zip->buf == NULL) {
@@ -341,7 +347,7 @@ archive_write_set_format_zip(struct archive *_a)
 		return (ARCHIVE_FATAL);
 	}
 #else
-	zip->compression = COMPRESSION_STORE;
+	zip->default_compression = COMPRESSION_STORE;
 #endif
 
 	a->format_data = zip;
@@ -380,7 +386,6 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	uint8_t h[SIZE_LOCAL_FILE_HEADER];
 	uint8_t e[SIZE_EXTRA_DATA_LOCAL];
 	uint8_t *d;
-	struct zip_file_header_link *l;
 	struct archive_string_conv *sconv;
 	int ret, ret2 = ARCHIVE_OK;
 	int64_t size;
@@ -423,29 +428,27 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	size = archive_entry_size(entry);
 	zip->remaining_data_bytes = size;
 
-	/* Append archive entry to the central directory data. */
-	l = (struct zip_file_header_link *) malloc(sizeof(*l));
-	if (l == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate zip header data");
-		return (ARCHIVE_FATAL);
+	/* Clear out old entry information. */
+	if (zip->entry.entry != NULL) {
+		archive_entry_free(zip->entry.entry);
 	}
+	memset(&zip->entry, 0, sizeof(zip->entry));
+
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	/* Make sure the path separators in pahtname, hardlink and symlink
 	 * are all slash '/', not the Windows path separator '\'. */
-	l->entry = __la_win_entry_in_posix_pathseparator(entry);
-	if (l->entry == entry)
-		l->entry = archive_entry_clone(entry);
+	zip->entry.entry = __la_win_entry_in_posix_pathseparator(entry);
+	if (zip->entry.entry == entry)
+		zip->entry.entry = archive_entry_clone(entry);
 #else
-	l->entry = archive_entry_clone(entry);
+	zip->entry.entry = archive_entry_clone(entry);
 #endif
-	if (l->entry == NULL) {
+	if (zip->entry.entry == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate zip header data");
-		free(l);
 		return (ARCHIVE_FATAL);
 	}
-	l->flags = zip->flags;
+	zip->entry.flags = zip->flags;
 	if (zip->opt_sconv != NULL)
 		sconv = zip->opt_sconv;
 	else
@@ -456,8 +459,6 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 
 		if (archive_entry_pathname_l(entry, &p, &len, sconv) != 0) {
 			if (errno == ENOMEM) {
-				archive_entry_free(l->entry);
-				free(l);
 				archive_set_error(&a->archive, ENOMEM,
 				    "Can't allocate memory for Pathname");
 				return (ARCHIVE_FATAL);
@@ -470,7 +471,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			ret2 = ARCHIVE_WARN;
 		}
 		if (len > 0)
-			archive_entry_set_pathname(l->entry, p);
+			archive_entry_set_pathname(zip->entry.entry, p);
 
 		/*
 		 * Although there is no character-set regulation for Symlink,
@@ -480,8 +481,6 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		if (type == AE_IFLNK) {
 			if (archive_entry_symlink_l(entry, &p, &len, sconv)) {
 				if (errno == ENOMEM) {
-					archive_entry_free(l->entry);
-					free(l);
 					archive_set_error(&a->archive, ENOMEM,
 					    "Can't allocate memory "
 					    " for Symlink");
@@ -493,54 +492,47 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 				 * thre is no regulation for.
 				 */
 			} else if (len > 0)
-				archive_entry_set_symlink(l->entry, p);
+				archive_entry_set_symlink(zip->entry.entry, p);
 		}
 	}
 	/* If all characters in a filename are ASCII, Reset UTF-8 Name flag. */
-	if ((l->flags & ZIP_FLAGS_UTF8_NAME) != 0 &&
-	    is_all_ascii(archive_entry_pathname(l->entry)))
-		l->flags &= ~ZIP_FLAGS_UTF8_NAME;
+	if ((zip->entry.flags & ZIP_FLAGS_UTF8_NAME) != 0 &&
+	    is_all_ascii(archive_entry_pathname(zip->entry.entry)))
+		zip->entry.flags &= ~ZIP_FLAGS_UTF8_NAME;
 
 	/* Initialize the CRC variable and potentially the local crc32(). */
-	l->crc32 = crc32(0, NULL, 0);
+	zip->entry.crc32 = crc32(0, NULL, 0);
 	if (type == AE_IFLNK) {
-		const char *p = archive_entry_symlink(l->entry);
+		const char *p = archive_entry_symlink(zip->entry.entry);
 		if (p != NULL)
 			size = strlen(p);
 		else
 			size = 0;
 		zip->remaining_data_bytes = 0;
-		archive_entry_set_size(l->entry, size);
-		l->compression = COMPRESSION_STORE;
-		l->compressed_size = size;
+		archive_entry_set_size(zip->entry.entry, size);
+		zip->entry.compression = COMPRESSION_STORE;
+		zip->entry.compressed_size = size;
 	} else {
-		l->compression = zip->compression;
-		l->compressed_size = 0;
+		zip->entry.compression = zip->default_compression;
+		zip->entry.compressed_size = 0;
 	}
-	l->next = NULL;
-	if (zip->central_directory == NULL) {
-		zip->central_directory = l;
-	} else {
-		zip->central_directory_end->next = l;
-	}
-	zip->central_directory_end = l;
 
 	/* Store the offset of this header for later use in central
 	 * directory. */
-	l->offset = zip->written_bytes;
+	zip->entry.offset = zip->written_bytes;
 
 	memset(h, 0, sizeof(h));
 	archive_le32enc(&h[LOCAL_FILE_HEADER_SIGNATURE],
 		ZIP_SIGNATURE_LOCAL_FILE_HEADER);
 	archive_le16enc(&h[LOCAL_FILE_HEADER_VERSION], ZIP_VERSION_EXTRACT);
-	archive_le16enc(&h[LOCAL_FILE_HEADER_FLAGS], l->flags);
-	archive_le16enc(&h[LOCAL_FILE_HEADER_COMPRESSION], l->compression);
+	archive_le16enc(&h[LOCAL_FILE_HEADER_FLAGS], zip->entry.flags);
+	archive_le16enc(&h[LOCAL_FILE_HEADER_COMPRESSION], zip->entry.compression);
 	archive_le32enc(&h[LOCAL_FILE_HEADER_TIMEDATE],
-		dos_time(archive_entry_mtime(entry)));
+		dos_time(archive_entry_mtime(zip->entry.entry)));
 	archive_le16enc(&h[LOCAL_FILE_HEADER_FILENAME_LENGTH],
-		(uint16_t)path_length(l->entry));
+		(uint16_t)path_length(zip->entry.entry));
 
-	switch (l->compression) {
+	switch (zip->entry.compression) {
 	case COMPRESSION_STORE:
 		/* Setting compressed and uncompressed sizes even when
 		 * specification says to set to zero when using data
@@ -590,10 +582,10 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	e[EXTRA_DATA_LOCAL_UNIX_VERSION] = 1;
 	e[EXTRA_DATA_LOCAL_UNIX_UID_SIZE] = 4;
 	archive_le32enc(&e[EXTRA_DATA_LOCAL_UNIX_UID],
-		(uint32_t)archive_entry_uid(entry));
+		(uint32_t)archive_entry_uid(zip->entry.entry));
 	e[EXTRA_DATA_LOCAL_UNIX_GID_SIZE] = 4;
 	archive_le32enc(&e[EXTRA_DATA_LOCAL_UNIX_GID],
-		(uint32_t)archive_entry_gid(entry));
+		(uint32_t)archive_entry_gid(zip->entry.entry));
 
 	archive_le32enc(&d[DATA_DESCRIPTOR_UNCOMPRESSED_SIZE],
 	    (uint32_t)size);
@@ -603,7 +595,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		return (ARCHIVE_FATAL);
 	zip->written_bytes += sizeof(h);
 
-	ret = write_path(l->entry, a);
+	ret = write_path(zip->entry.entry, a);
 	if (ret <= ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 	zip->written_bytes += ret;
@@ -616,12 +608,12 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	if (type == AE_IFLNK) {
 		const unsigned char *p;
 
-		p = (const unsigned char *)archive_entry_symlink(l->entry);
+		p = (const unsigned char *)archive_entry_symlink(zip->entry.entry);
 		ret = __archive_write_output(a, p, (size_t)size);
 		if (ret != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
 		zip->written_bytes += size;
-		l->crc32 = crc32(l->crc32, p, (unsigned)size);
+		zip->entry.crc32 = crc32(zip->entry.crc32, p, (unsigned)size);
 	}
 
 	if (ret2 != ARCHIVE_OK)
@@ -634,21 +626,20 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 {
 	int ret;
 	struct zip *zip = a->format_data;
-	struct zip_file_header_link *l = zip->central_directory_end;
 
 	if ((int64_t)s > zip->remaining_data_bytes)
 		s = (size_t)zip->remaining_data_bytes;
 
 	if (s == 0) return 0;
 
-	switch (l->compression) {
+	switch (zip->entry.compression) {
 	case COMPRESSION_STORE:
 		ret = __archive_write_output(a, buff, s);
 		if (ret != ARCHIVE_OK) return (ret);
 		zip->written_bytes += s;
 		zip->remaining_data_bytes -= s;
-		l->compressed_size += s;
-		l->crc32 = crc32(l->crc32, buff, (unsigned)s);
+		zip->entry.compressed_size += s;
+		zip->entry.crc32 = crc32(zip->entry.crc32, buff, (unsigned)s);
 		return (s);
 #if HAVE_ZLIB_H
 	case COMPRESSION_DEFLATE:
@@ -663,7 +654,7 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 					zip->len_buf);
 				if (ret != ARCHIVE_OK)
 					return (ret);
-				l->compressed_size += zip->len_buf;
+				zip->entry.compressed_size += zip->len_buf;
 				zip->written_bytes += zip->len_buf;
 				zip->stream.next_out = zip->buf;
 				zip->stream.avail_out = (uInt)zip->len_buf;
@@ -671,7 +662,7 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 		} while (zip->stream.avail_in != 0);
 		zip->remaining_data_bytes -= s;
 		/* If we have it, use zlib's fast crc32() */
-		l->crc32 = crc32(l->crc32, buff, (uInt)s);
+		zip->entry.crc32 = crc32(zip->entry.crc32, buff, (uInt)s);
 		return (s);
 #endif
 
@@ -689,12 +680,12 @@ archive_write_zip_finish_entry(struct archive_write *a)
 	int ret;
 	struct zip *zip = a->format_data;
 	uint8_t *d = zip->data_descriptor;
-	struct zip_file_header_link *l = zip->central_directory_end;
+	struct zip_entry *l;
 #if HAVE_ZLIB_H
 	size_t reminder;
 #endif
 
-	switch(l->compression) {
+	switch(zip->entry.compression) {
 	case COMPRESSION_STORE:
 		break;
 #if HAVE_ZLIB_H
@@ -707,7 +698,7 @@ archive_write_zip_finish_entry(struct archive_write *a)
 			ret = __archive_write_output(a, zip->buf, reminder);
 			if (ret != ARCHIVE_OK)
 				return (ret);
-			l->compressed_size += reminder;
+			zip->entry.compressed_size += reminder;
 			zip->written_bytes += reminder;
 			zip->stream.next_out = zip->buf;
 			if (zip->stream.avail_out != 0)
@@ -719,13 +710,32 @@ archive_write_zip_finish_entry(struct archive_write *a)
 #endif
 	}
 
-	archive_le32enc(&d[DATA_DESCRIPTOR_CRC32], l->crc32);
+	archive_le32enc(&d[DATA_DESCRIPTOR_CRC32], zip->entry.crc32);
 	archive_le32enc(&d[DATA_DESCRIPTOR_COMPRESSED_SIZE],
-		(uint32_t)l->compressed_size);
+		(uint32_t)zip->entry.compressed_size);
 	ret = __archive_write_output(a, d, SIZE_DATA_DESCRIPTOR);
 	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 	zip->written_bytes += SIZE_DATA_DESCRIPTOR;
+
+	/* Add details to list for formatting central directory. */
+	/* TODO: Actually format it now and store the central dir data
+	 * as a block of bytes. */
+	l = calloc(1, sizeof(*l));
+	if (l == NULL) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate zip header data");
+		return (ARCHIVE_FATAL);
+	}
+	*l = zip->entry;
+	zip->entry.entry = NULL; // This has moved.
+	if (zip->central_directory == NULL) {
+		zip->central_directory = l;
+	} else {
+		zip->central_directory_end->next = l;
+	}
+	zip->central_directory_end = l;
+
 	return (ARCHIVE_OK);
 }
 
@@ -733,7 +743,7 @@ static int
 archive_write_zip_close(struct archive_write *a)
 {
 	struct zip *zip;
-	struct zip_file_header_link *l;
+	struct zip_entry *l;
 	uint8_t h[SIZE_FILE_HEADER];
 	uint8_t end[SIZE_CENTRAL_DIRECTORY_END];
 	uint8_t e[SIZE_EXTRA_DATA_CENTRAL];
@@ -834,7 +844,7 @@ static int
 archive_write_zip_free(struct archive_write *a)
 {
 	struct zip *zip;
-	struct zip_file_header_link *l;
+	struct zip_entry *l;
 
 	zip = a->format_data;
 	while (zip->central_directory != NULL) {
