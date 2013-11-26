@@ -2305,7 +2305,7 @@ test_run(int i, const char *tmpdir)
 	case VERBOSITY_SUMMARY_ONLY: /* No per-test reports at all */
 		break;
 	case VERBOSITY_PASSFAIL: /* rest of line will include ok/FAIL marker */
-		printf("%3d: %-50s", i, tests[i].name);
+		printf("%3d: %-64s", i, tests[i].name);
 		fflush(stdout);
 		break;
 	default: /* Title of test, details will follow */
