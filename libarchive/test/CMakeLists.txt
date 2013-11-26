@@ -146,6 +146,7 @@ IF(ENABLE_TEST)
     test_read_format_zip_nofiletype.c
     test_read_format_zip_padded.c
     test_read_format_zip_sfx.c
+    test_read_format_zip_zip64.c
     test_read_large.c
     test_read_pax_truncated.c
     test_read_position.c
