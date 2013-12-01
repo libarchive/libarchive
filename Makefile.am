@@ -500,9 +500,8 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_format_xar_empty.c		\
 	libarchive/test/test_write_format_zip.c			\
 	libarchive/test/test_write_format_zip_empty.c		\
-	libarchive/test/test_write_format_zip_no_compression.c	\
+	libarchive/test/test_write_format_zip_compression_store.c	\
 	libarchive/test/test_write_open_memory.c		\
-	libarchive/test/test_write_zip_set_compression_store.c	\
 	libarchive/test/test_zip_filename_encoding.c
 
 libarchive_test_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/test_utils -I$(top_builddir)/libarchive/test -DLIBARCHIVE_STATIC $(PLATFORMCPPFLAGS)

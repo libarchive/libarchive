@@ -217,8 +217,7 @@ IF(ENABLE_TEST)
     test_write_format_xar_empty.c
     test_write_format_zip.c
     test_write_format_zip_empty.c
-    test_write_format_zip_no_compression.c
-    test_write_zip_set_compression_store.c
+    test_write_format_zip_compression_store.c
     test_write_open_memory.c
     test_zip_filename_encoding.c
   )
