@@ -32,14 +32,16 @@
 __FBSDID("$FreeBSD: head/lib/libarchive/test/test_write_format_zip.c 201247 2009-12-30 05:59:21Z kientzle $");
 
 static void
-verify_contents(struct archive *a, int expect_details)
+verify_contents(struct archive *a, int seeking)
 {
 	char filedata[64];
 	struct archive_entry *ae;
 
 	/*
-	 * Read and verify first file.
+	 * Default compression options:
 	 */
+
+	/* Read and verify first file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt(1, archive_entry_mtime(ae));
 	/* Zip doesn't store high-resolution mtime. */
@@ -47,7 +49,95 @@ verify_contents(struct archive *a, int expect_details)
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("file", archive_entry_pathname(ae));
-	if (expect_details) {
+	if (seeking) {
+		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
+		assertEqualInt(8, archive_entry_size(ae));
+	} else {
+		assertEqualInt(0, archive_entry_size_is_set(ae));
+	}
+	assertEqualIntA(a, 8,
+	    archive_read_data(a, filedata, sizeof(filedata)));
+	assertEqualMem(filedata, "12345678", 8);
+
+
+	/* Read the second file back. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(1, archive_entry_mtime(ae));
+	assertEqualInt(0, archive_entry_mtime_nsec(ae));
+	assertEqualInt(0, archive_entry_atime(ae));
+	assertEqualInt(0, archive_entry_ctime(ae));
+	assertEqualString("file2", archive_entry_pathname(ae));
+	if (seeking) {
+		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
+		assertEqualInt(4, archive_entry_size(ae));
+	} else {
+		assertEqualInt(0, archive_entry_size_is_set(ae));
+	}
+	assertEqualIntA(a, 4,
+	    archive_read_data(a, filedata, sizeof(filedata)));
+	assertEqualMem(filedata, "1234", 4);
+
+	/* Read the third file back. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(2, archive_entry_mtime(ae));
+	assertEqualInt(0, archive_entry_mtime_nsec(ae));
+	assertEqualInt(0, archive_entry_atime(ae));
+	assertEqualInt(0, archive_entry_ctime(ae));
+	assertEqualString("file3", archive_entry_pathname(ae));
+	if (seeking) {
+		assertEqualInt(5, archive_entry_size(ae));
+		assertEqualInt(AE_IFREG | 0621, archive_entry_mode(ae));
+	} else {
+		assertEqualInt(0, archive_entry_size_is_set(ae));
+	}
+	assertEqualIntA(a, 5,
+	    archive_read_data(a, filedata, sizeof(filedata)));
+	assertEqualMem(filedata, "mnopq", 5);
+
+	/* Read symlink. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(1, archive_entry_mtime(ae));
+	assertEqualInt(0, archive_entry_mtime_nsec(ae));
+	assertEqualInt(0, archive_entry_atime(ae));
+	assertEqualInt(0, archive_entry_ctime(ae));
+	assertEqualString("symlink", archive_entry_pathname(ae));
+	if (seeking) {
+		assertEqualInt(AE_IFLNK | 0755, archive_entry_mode(ae));
+		assertEqualInt(0, archive_entry_size(ae));
+		assertEqualString("file1", archive_entry_symlink(ae));
+	} else {
+		/* Streaming cannot read file type, so
+		 * symlink body shows as regular file contents. */
+		assertEqualInt(AE_IFREG | 0664, archive_entry_mode(ae));
+		assertEqualInt(5, archive_entry_size(ae));
+	}
+
+	/* Read the dir entry back. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(11, archive_entry_mtime(ae));
+	assertEqualInt(0, archive_entry_mtime_nsec(ae));
+	assertEqualInt(0, archive_entry_atime(ae));
+	assertEqualInt(0, archive_entry_ctime(ae));
+	assertEqualString("dir/", archive_entry_pathname(ae));
+	if (seeking)
+		assertEqualInt(AE_IFDIR | 0755, archive_entry_mode(ae));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertEqualIntA(a, 0, archive_read_data(a, filedata, 10));
+
+#ifdef HAVE_ZLIB_H
+	/*
+	 * Deflate compression option:
+	 */
+
+	/* Read and verify first file. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(1, archive_entry_mtime(ae));
+	/* Zip doesn't store high-resolution mtime. */
+	assertEqualInt(0, archive_entry_mtime_nsec(ae));
+	assertEqualInt(0, archive_entry_atime(ae));
+	assertEqualInt(0, archive_entry_ctime(ae));
+	assertEqualString("file_deflate", archive_entry_pathname(ae));
+	if (seeking) {
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
 		assertEqualInt(8, archive_entry_size(ae));
 	} else {
@@ -58,16 +148,14 @@ verify_contents(struct archive *a, int expect_details)
 	assertEqualMem(filedata, "12345678", 8);
 
 
-	/*
-	 * Read the second file back.
-	 */
+	/* Read the second file back. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt(1, archive_entry_mtime(ae));
 	assertEqualInt(0, archive_entry_mtime_nsec(ae));
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
-	assertEqualString("file2", archive_entry_pathname(ae));
-	if (expect_details) {
+	assertEqualString("file2_deflate", archive_entry_pathname(ae));
+	if (seeking) {
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
 		assertEqualInt(4, archive_entry_size(ae));
 	} else {
@@ -77,34 +165,139 @@ verify_contents(struct archive *a, int expect_details)
 	    archive_read_data(a, filedata, sizeof(filedata)));
 	assertEqualMem(filedata, "1234", 4);
 
-	/*
-	 * Read the third file back.
-	 */
+	/* Read the third file back. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(2, archive_entry_mtime(ae));
+	assertEqualInt(0, archive_entry_mtime_nsec(ae));
+	assertEqualInt(0, archive_entry_atime(ae));
+	assertEqualInt(0, archive_entry_ctime(ae));
+	assertEqualString("file3_deflate", archive_entry_pathname(ae));
+	if (seeking) {
+		assertEqualInt(5, archive_entry_size(ae));
+		assertEqualInt(AE_IFREG | 0621, archive_entry_mode(ae));
+	} else {
+		assertEqualInt(0, archive_entry_size_is_set(ae));
+	}
+	assertEqualIntA(a, 5,
+	    archive_read_data(a, filedata, sizeof(filedata)));
+	assertEqualMem(filedata, "ghijk", 4);
+
+	/* Read symlink. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt(1, archive_entry_mtime(ae));
 	assertEqualInt(0, archive_entry_mtime_nsec(ae));
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
-	assertEqualString("symlink", archive_entry_pathname(ae));
-	if (expect_details) {
+	assertEqualString("symlink_deflate", archive_entry_pathname(ae));
+	if (seeking) {
 		assertEqualInt(AE_IFLNK | 0755, archive_entry_mode(ae));
 		assertEqualInt(0, archive_entry_size(ae));
 		assertEqualString("file1", archive_entry_symlink(ae));
 	} else {
 		assertEqualInt(AE_IFREG | 0664, archive_entry_mode(ae));
-		assertEqualInt(0, archive_entry_size(ae));
+		assertEqualInt(5, archive_entry_size(ae));
+		assertEqualIntA(a, 5, archive_read_data(a, filedata, 10));
+		assertEqualMem(filedata, "file1", 5);
 	}
 
-	/*
-	 * Read the dir entry back.
-	 */
+	/* Read the dir entry back. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt(11, archive_entry_mtime(ae));
 	assertEqualInt(0, archive_entry_mtime_nsec(ae));
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
-	assertEqualString("dir/", archive_entry_pathname(ae));
-	if (expect_details)
+	assertEqualString("dir_deflate/", archive_entry_pathname(ae));
+	if (seeking) {
+		assertEqualInt(AE_IFDIR | 0755, archive_entry_mode(ae));
+	}
+	assertEqualInt(0, archive_entry_size(ae));
+	assertEqualIntA(a, 0, archive_read_data(a, filedata, 10));
+#endif
+
+	/*
+	 * Store compression option:
+	 */
+
+	/* Read and verify first file. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(1, archive_entry_mtime(ae));
+	/* Zip doesn't store high-resolution mtime. */
+	assertEqualInt(0, archive_entry_mtime_nsec(ae));
+	assertEqualInt(0, archive_entry_atime(ae));
+	assertEqualInt(0, archive_entry_ctime(ae));
+	assertEqualString("file_stored", archive_entry_pathname(ae));
+	if (seeking) {
+		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
+		assert(archive_entry_size_is_set(ae));
+		assertEqualInt(8, archive_entry_size(ae));
+	} else {
+		assertEqualInt(0, archive_entry_size_is_set(ae));
+	}
+	assertEqualIntA(a, 8,
+	    archive_read_data(a, filedata, sizeof(filedata)));
+	assertEqualMem(filedata, "12345678", 8);
+
+
+	/* Read the second file back. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(1, archive_entry_mtime(ae));
+	assertEqualInt(0, archive_entry_mtime_nsec(ae));
+	assertEqualInt(0, archive_entry_atime(ae));
+	assertEqualInt(0, archive_entry_ctime(ae));
+	assertEqualString("file2_stored", archive_entry_pathname(ae));
+	if (seeking) {
+		assertEqualInt(4, archive_entry_size(ae));
+		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
+	} else {
+		assertEqualInt(0, archive_entry_size_is_set(ae));
+	}
+	assertEqualIntA(a, 4,
+	    archive_read_data(a, filedata, sizeof(filedata)));
+	assertEqualMem(filedata, "ACEG", 4);
+
+	/* Read the third file back. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(2, archive_entry_mtime(ae));
+	assertEqualInt(0, archive_entry_mtime_nsec(ae));
+	assertEqualInt(0, archive_entry_atime(ae));
+	assertEqualInt(0, archive_entry_ctime(ae));
+	assertEqualString("file3_stored", archive_entry_pathname(ae));
+	if (seeking) {
+		assertEqualInt(5, archive_entry_size(ae));
+		assertEqualInt(AE_IFREG | 0621, archive_entry_mode(ae));
+	} else {
+		assertEqualInt(0, archive_entry_size_is_set(ae));
+	}
+	assertEqualIntA(a, 5,
+	    archive_read_data(a, filedata, sizeof(filedata)));
+	assertEqualMem(filedata, "ijklm", 4);
+
+	/* Read symlink. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(1, archive_entry_mtime(ae));
+	assertEqualInt(0, archive_entry_mtime_nsec(ae));
+	assertEqualInt(0, archive_entry_atime(ae));
+	assertEqualInt(0, archive_entry_ctime(ae));
+	assertEqualString("symlink_stored", archive_entry_pathname(ae));
+	if (seeking) {
+		assertEqualInt(AE_IFLNK | 0755, archive_entry_mode(ae));
+		assertEqualInt(0, archive_entry_size(ae));
+		assertEqualString("file1", archive_entry_symlink(ae));
+	} else {
+		assertEqualInt(AE_IFREG | 0664, archive_entry_mode(ae));
+		assertEqualInt(5, archive_entry_size(ae));
+		assertEqualIntA(a, 5, archive_read_data(a, filedata, 10));
+		assertEqualMem(filedata, "file1", 5);
+	}
+
+	/* Read the dir entry back. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(11, archive_entry_mtime(ae));
+	assertEqualInt(0, archive_entry_mtime_nsec(ae));
+	assertEqualInt(0, archive_entry_atime(ae));
+	assertEqualInt(0, archive_entry_ctime(ae));
+	assertEqualString("dir_stored/", archive_entry_pathname(ae));
+	if (seeking)
 		assertEqualInt(AE_IFDIR | 0755, archive_entry_mode(ae));
 	assertEqualInt(0, archive_entry_size(ae));
 	assertEqualIntA(a, 0, archive_read_data(a, filedata, 10));
@@ -129,30 +322,24 @@ DEFINE_TEST(test_write_format_zip)
 	/* Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_zip(a));
-#ifdef HAVE_ZLIB_H
-	compression_type = "deflate";
-#else
-	compression_type = "store";
-#endif
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_format_option(a, "zip", "compression", compression_type));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used));
+
+	/*
+	 * First write things with the "default" compression.
+	 * The library will choose "deflate" for most things if it's
+	 * available, else "store".
+	 */
 
 	/*
 	 * Write a file to it.
 	 */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_set_mtime(ae, 1, 10);
-	assertEqualInt(1, archive_entry_mtime(ae));
-	assertEqualInt(10, archive_entry_mtime_nsec(ae));
 	archive_entry_copy_pathname(ae, "file");
-	assertEqualString("file", archive_entry_pathname(ae));
 	archive_entry_set_mode(ae, AE_IFREG | 0755);
-	assertEqualInt((S_IFREG | 0755), archive_entry_mode(ae));
 	archive_entry_set_size(ae, 8);
-
 	assertEqualInt(0, archive_write_header(a, ae));
 	archive_entry_free(ae);
 	assertEqualInt(8, archive_write_data(a, "12345678", 9));
@@ -163,20 +350,27 @@ DEFINE_TEST(test_write_format_zip)
 	 */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_set_mtime(ae, 1, 10);
-	assertEqualInt(1, archive_entry_mtime(ae));
-	assertEqualInt(10, archive_entry_mtime_nsec(ae));
 	archive_entry_copy_pathname(ae, "file2");
-	assertEqualString("file2", archive_entry_pathname(ae));
 	archive_entry_set_mode(ae, AE_IFREG | 0755);
-	assertEqualInt((S_IFREG | 0755), archive_entry_mode(ae));
 	archive_entry_set_size(ae, 4);
-
 	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
 	archive_entry_free(ae);
-	assertEqualInt(4, archive_write_data(a, "1234", 5));
+	assertEqualInt(4, archive_write_data(a, "1234", 4));
 
 	/*
-	 * Write symbolic like file to it.
+	 * Write a file with an unknown size.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 2, 15);
+	archive_entry_copy_pathname(ae, "file3");
+	archive_entry_set_mode(ae, AE_IFREG | 0621);
+	archive_entry_unset_size(ae);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualInt(5, archive_write_data(a, "mnopq", 5));
+
+	/*
+	 * Write symbolic link.
 	 */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_set_mtime(ae, 1, 10);
@@ -201,16 +395,157 @@ DEFINE_TEST(test_write_format_zip)
 	archive_entry_copy_pathname(ae, "dir");
 	archive_entry_set_mode(ae, S_IFDIR | 0755);
 	archive_entry_set_size(ae, 512);
-
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	failure("size should be zero so that applications know not to write");
 	assertEqualInt(0, archive_entry_size(ae));
 	archive_entry_free(ae);
 	assertEqualIntA(a, 0, archive_write_data(a, "12345678", 9));
 
+	/*
+	 * Force "deflate" compression if the platform supports it.
+	 */
+#ifdef HAVE_ZLIB_H
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_zip_set_compression_deflate(a));
+
+	/*
+	 * Write a file to it.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 1, 10);
+	archive_entry_copy_pathname(ae, "file_deflate");
+	archive_entry_set_mode(ae, AE_IFREG | 0755);
+	archive_entry_set_size(ae, 8);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualInt(8, archive_write_data(a, "12345678", 9));
+	assertEqualInt(0, archive_write_data(a, "1", 1));
+
+	/*
+	 * Write another file to it.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 1, 10);
+	archive_entry_copy_pathname(ae, "file2_deflate");
+	archive_entry_set_mode(ae, AE_IFREG | 0755);
+	archive_entry_set_size(ae, 4);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualInt(4, archive_write_data(a, "1234", 4));
+
+	/*
+	 * Write a file with an unknown size.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 2, 15);
+	archive_entry_copy_pathname(ae, "file3_deflate");
+	archive_entry_set_mode(ae, AE_IFREG | 0621);
+	archive_entry_unset_size(ae);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualInt(5, archive_write_data(a, "ghijk", 5));
+
+	/*
+	 * Write symbolic like file to it.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 1, 10);
+	archive_entry_copy_pathname(ae, "symlink_deflate");
+	archive_entry_copy_symlink(ae, "file1");
+	archive_entry_set_mode(ae, AE_IFLNK | 0755);
+	archive_entry_set_size(ae, 4);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+
+	/*
+	 * Write a directory to it.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 11, 110);
+	archive_entry_copy_pathname(ae, "dir_deflate");
+	archive_entry_set_mode(ae, S_IFDIR | 0755);
+	archive_entry_set_size(ae, 512);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	failure("size should be zero so that applications know not to write");
+	assertEqualInt(0, archive_entry_size(ae));
+	archive_entry_free(ae);
+	assertEqualIntA(a, 0, archive_write_data(a, "12345678", 9));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_finish_entry(a));
+#endif
+
+	/*
+	 * Now write a bunch of entries with "store" compression.
+	 */
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_zip_set_compression_store(a));
+
+	/*
+	 * Write a file to it.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 1, 10);
+	archive_entry_copy_pathname(ae, "file_stored");
+	archive_entry_set_mode(ae, AE_IFREG | 0755);
+	archive_entry_set_size(ae, 8);
+	assertEqualInt(0, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualInt(8, archive_write_data(a, "12345678", 9));
+	assertEqualInt(0, archive_write_data(a, "1", 1));
+
+	/*
+	 * Write another file to it.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 1, 10);
+	archive_entry_copy_pathname(ae, "file2_stored");
+	archive_entry_set_mode(ae, AE_IFREG | 0755);
+	archive_entry_set_size(ae, 4);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualInt(4, archive_write_data(a, "ACEG", 4));
+
+	/*
+	 * Write a file with an unknown size.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 2, 15);
+	archive_entry_copy_pathname(ae, "file3_stored");
+	archive_entry_set_mode(ae, AE_IFREG | 0621);
+	archive_entry_unset_size(ae);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualInt(5, archive_write_data(a, "ijklm", 5));
+
+	/*
+	 * Write symbolic like file to it.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 1, 10);
+	archive_entry_copy_pathname(ae, "symlink_stored");
+	archive_entry_copy_symlink(ae, "file1");
+	archive_entry_set_mode(ae, AE_IFLNK | 0755);
+	archive_entry_set_size(ae, 4);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+
+	/*
+	 * Write a directory to it.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 11, 110);
+	archive_entry_copy_pathname(ae, "dir_stored");
+	archive_entry_set_mode(ae, S_IFDIR | 0755);
+	archive_entry_set_size(ae, 512);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	failure("size should be zero so that applications know not to write");
+	assertEqualInt(0, archive_entry_size(ae));
+	archive_entry_free(ae);
+	assertEqualIntA(a, 0, archive_write_data(a, "12345678", 9));
+
+
 	/* Close out the archive. */
 	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	dumpfile("constructed.zip", buff, used);
 
 	/*
 	 * Now, read the data back.

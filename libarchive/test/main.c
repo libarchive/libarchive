@@ -2146,6 +2146,28 @@ slurpfile(size_t * sizep, const char *fmt, ...)
 	return (p);
 }
 
+/*
+ * Slurp a file into memory for ease of comparison and testing.
+ * Returns size of file in 'sizep' if non-NULL, null-terminates
+ * data in memory for ease of use.
+ */
+void
+dumpfile(const char *filename, void *data, size_t len)
+{
+	ssize_t bytes_written;
+	FILE *f;
+
+	f = fopen(filename, "wb");
+	if (f == NULL) {
+		logprintf("Can't open file %s for writing\n", filename);
+		return;
+	}
+	bytes_written = fwrite(data, 1, len, f);
+	if (bytes_written < len)
+		logprintf("Can't write file %s\n", filename);
+	fclose(f);
+}
+
 /* Read a uuencoded file from the reference directory, decode, and
  * write the result into the current directory. */
 #define	UUDECODE(c) (((c) - 0x20) & 0x3f)

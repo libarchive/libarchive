@@ -114,8 +114,7 @@ DEFINE_TEST(test_write_format_zip_no_compression)
 	archive_entry_set_uid(entry, file_uid);
 	archive_entry_set_gid(entry, file_gid);
 	archive_entry_set_mtime(entry, t, 0);
-	archive_entry_set_atime(entry, t, 0);
-	archive_entry_set_ctime(entry, t, 0);
+	archive_entry_set_atime(entry, t + 3, 0);
 	assertEqualIntA(a, 0, archive_write_header(a, entry));
 	assertEqualIntA(a, sizeof(file_data1), archive_write_data(a, file_data1, sizeof(file_data1)));
 	assertEqualIntA(a, sizeof(file_data2), archive_write_data(a, file_data2, sizeof(file_data2)));
@@ -129,14 +128,15 @@ DEFINE_TEST(test_write_format_zip_no_compression)
 	archive_entry_set_uid(entry, folder_uid);
 	archive_entry_set_gid(entry, folder_gid);
 	archive_entry_set_mtime(entry, t, 0);
-	archive_entry_set_atime(entry, t, 0);
-	archive_entry_set_ctime(entry, t, 0);
+	archive_entry_set_ctime(entry, t + 5, 0);
 	assertEqualIntA(a, 0, archive_write_header(a, entry));
 	archive_entry_free(entry);
 
 	/* Close the archive . */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	dumpfile("constructed.zip", buff, used);
 
 	/* Remember the end of the archive in memory. */
 	buffend = buff + used;
@@ -166,8 +166,8 @@ DEFINE_TEST(test_write_format_zip_no_compression)
 
 	/* Verify file entry in central directory. */
 	assertEqualMem(p, "PK\001\002", 4); /* Signature */
-	assertEqualInt(i2(p + 4), 3 * 256 + 20); /* Version made by */
-	assertEqualInt(i2(p + 6), 20); /* Version needed to extract */
+	assertEqualInt(i2(p + 4), 3 * 256 + 10); /* Version made by */
+	assertEqualInt(i2(p + 6), 10); /* Version needed to extract */
 	assertEqualInt(i2(p + 8), 8); /* Flags */
 	assertEqualInt(i2(p + 10), 0); /* Compression method */
 	assertEqualInt(i2(p + 12), (tm->tm_hour * 2048) + (tm->tm_min * 32) + (tm->tm_sec / 2)); /* File time */
@@ -178,7 +178,7 @@ DEFINE_TEST(test_write_format_zip_no_compression)
 	assertEqualInt(i4(p + 20), sizeof(file_data1) + sizeof(file_data2)); /* Compressed size */
 	assertEqualInt(i4(p + 24), sizeof(file_data1) + sizeof(file_data2)); /* Uncompressed size */
 	assertEqualInt(i2(p + 28), strlen(file_name)); /* Pathname length */
-	assertEqualInt(i2(p + 30), 13); /* Extra field length */
+	assertEqualInt(i2(p + 30), 28); /* Extra field length */
 	assertEqualInt(i2(p + 32), 0); /* File comment length */
 	assertEqualInt(i2(p + 34), 0); /* Disk number start */
 	assertEqualInt(i2(p + 36), 0); /* Internal file attrs */
@@ -187,18 +187,20 @@ DEFINE_TEST(test_write_format_zip_no_compression)
 	assertEqualMem(p + 46, file_name, strlen(file_name)); /* Pathname */
 	p = p + 46 + strlen(file_name);
 	assertEqualInt(i2(p), 0x5455); /* 'UT' extension header */
-	assertEqualInt(i2(p + 2), 5); /* 'UT' size */
-	assertEqualInt(p[4], 7); /* 'UT' flags */
+	assertEqualInt(i2(p + 2), 9); /* 'UT' size */
+	assertEqualInt(p[4], 3); /* 'UT' flags */
 	assertEqualInt(i4(p + 5), t); /* 'UT' mtime */
-	p = p + 9;
+	assertEqualInt(i4(p + 9), t + 3); /* 'UT' atime */
+	p = p + 4 + i2(p + 2);
 	assertEqualInt(i2(p), 0x7875); /* 'ux' extension header */
-	assertEqualInt(i2(p + 2), 0); /* 'ux' size */
-	p = p + 4;
+	assertEqualInt(i2(p + 2), 11); /* 'ux' size */
+/* TODO */
+	p = p + 4 + i2(p + 2);
 
 	/* Verify local header of file entry. */
 	q = buff;
 	assertEqualMem(q, "PK\003\004", 4); /* Signature */
-	assertEqualInt(i2(q + 4), 20); /* Version needed to extract */
+	assertEqualInt(i2(q + 4), 10); /* Version needed to extract */
 	assertEqualInt(i2(q + 6), 8); /* Flags */
 	assertEqualInt(i2(q + 8), 0); /* Compression method */
 	assertEqualInt(i2(q + 10), (tm->tm_hour * 2048) + (tm->tm_min * 32) + (tm->tm_sec / 2)); /* File time */
@@ -207,16 +209,15 @@ DEFINE_TEST(test_write_format_zip_no_compression)
 	assertEqualInt(i4(q + 18), sizeof(file_data1) + sizeof(file_data2)); /* Compressed size */
 	assertEqualInt(i4(q + 22), sizeof(file_data1) + sizeof(file_data2)); /* Uncompressed size */
 	assertEqualInt(i2(q + 26), strlen(file_name)); /* Pathname length */
-	assertEqualInt(i2(q + 28), 32); /* Extra field length */
+	assertEqualInt(i2(q + 28), 28); /* Extra field length */
 	assertEqualMem(q + 30, file_name, strlen(file_name)); /* Pathname */
 	q = q + 30 + strlen(file_name);
 	assertEqualInt(i2(q), 0x5455); /* 'UT' extension header */
-	assertEqualInt(i2(q + 2), 13); /* 'UT' size */
-	assertEqualInt(q[4], 7); /* 'UT' flags */
+	assertEqualInt(i2(q + 2), 9); /* 'UT' size */
+	assertEqualInt(q[4], 3); /* 'UT' flags */
 	assertEqualInt(i4(q + 5), t); /* 'UT' mtime */
-	assertEqualInt(i4(q + 9), t); /* 'UT' atime */
-	assertEqualInt(i4(q + 13), t); /* 'UT' ctime */
-	q = q + 17;
+	assertEqualInt(i4(q + 9), t + 3); /* 'UT' atime */
+	q = q + 4 + i2(q + 2);
 	assertEqualInt(i2(q), 0x7875); /* 'ux' extension header */
 	assertEqualInt(i2(q + 2), 11); /* 'ux' size */
 	assertEqualInt(q[4], 1); /* 'ux' version */
@@ -224,7 +225,7 @@ DEFINE_TEST(test_write_format_zip_no_compression)
 	assertEqualInt(i4(q + 6), file_uid); /* 'Ux' UID */
 	assertEqualInt(q[10], 4); /* 'ux' gid size */
 	assertEqualInt(i4(q + 11), file_gid); /* 'Ux' GID */
-	q = q + 15;
+	q = q + 4 + i2(q + 2);
 
 	/* Verify data of file entry. */
 	assertEqualMem(q, file_data1, sizeof(file_data1));
@@ -242,7 +243,7 @@ DEFINE_TEST(test_write_format_zip_no_compression)
 	assertEqualMem(p, "PK\001\002", 4); /* Signature */
 	assertEqualInt(i2(p + 4), 3 * 256 + 20); /* Version made by */
 	assertEqualInt(i2(p + 6), 20); /* Version needed to extract */
-	assertEqualInt(i2(p + 8), 8); /* Flags */
+	assertEqualInt(i2(p + 8), 0); /* Flags */
 	assertEqualInt(i2(p + 10), 0); /* Compression method */
 	assertEqualInt(i2(p + 12), (tm->tm_hour * 2048) + (tm->tm_min * 32) + (tm->tm_sec / 2)); /* File time */
 	assertEqualInt(i2(p + 14), ((tm->tm_year - 80) * 512) + ((tm->tm_mon + 1) * 32) + tm->tm_mday); /* File date */
@@ -251,7 +252,7 @@ DEFINE_TEST(test_write_format_zip_no_compression)
 	assertEqualInt(i4(p + 20), 0); /* Compressed size */
 	assertEqualInt(i4(p + 24), 0); /* Uncompressed size */
 	assertEqualInt(i2(p + 28), strlen(folder_name)); /* Pathname length */
-	assertEqualInt(i2(p + 30), 13); /* Extra field length */
+	assertEqualInt(i2(p + 30), 28); /* Extra field length */
 	assertEqualInt(i2(p + 32), 0); /* File comment length */
 	assertEqualInt(i2(p + 34), 0); /* Disk number start */
 	assertEqualInt(i2(p + 36), 0); /* Internal file attrs */
@@ -260,18 +261,24 @@ DEFINE_TEST(test_write_format_zip_no_compression)
 	assertEqualMem(p + 46, folder_name, strlen(folder_name)); /* Pathname */
 	p = p + 46 + strlen(folder_name);
 	assertEqualInt(i2(p), 0x5455); /* 'UT' extension header */
-	assertEqualInt(i2(p + 2), 5); /* 'UT' size */
-	assertEqualInt(p[4], 7); /* 'UT' flags */
+	assertEqualInt(i2(p + 2), 9); /* 'UT' size */
+	assertEqualInt(p[4], 5); /* 'UT' flags */
 	assertEqualInt(i4(p + 5), t); /* 'UT' mtime */
-	p = p + 9;
+	assertEqualInt(i4(p + 9), t + 5); /* 'UT' atime */
+	p = p + 4 + i2(p + 2);
 	assertEqualInt(i2(p), 0x7875); /* 'ux' extension header */
-	assertEqualInt(i2(p + 2), 0); /* 'ux' size */
-	/*p = p + 4;*/
+	assertEqualInt(i2(p + 2), 11); /* 'ux' size */
+	assertEqualInt(p[4], 1); /* 'ux' version */
+	assertEqualInt(p[5], 4); /* 'ux' uid size */
+	assertEqualInt(i4(p + 6), folder_uid); /* 'ux' UID */
+	assertEqualInt(p[10], 4); /* 'ux' gid size */
+	assertEqualInt(i4(p + 11), folder_gid); /* 'ux' GID */
+	/*p = p + 4 + i2(p + 2);*/
 
 	/* Verify local header of folder entry. */
 	assertEqualMem(q, "PK\003\004", 4); /* Signature */
 	assertEqualInt(i2(q + 4), 20); /* Version needed to extract */
-	assertEqualInt(i2(q + 6), 8); /* Flags */
+	assertEqualInt(i2(q + 6), 0); /* Flags */
 	assertEqualInt(i2(q + 8), 0); /* Compression method */
 	assertEqualInt(i2(q + 10), (tm->tm_hour * 2048) + (tm->tm_min * 32) + (tm->tm_sec / 2)); /* File time */
 	assertEqualInt(i2(q + 12), ((tm->tm_year - 80) * 512) + ((tm->tm_mon + 1) * 32) + tm->tm_mday); /* File date */
@@ -279,16 +286,15 @@ DEFINE_TEST(test_write_format_zip_no_compression)
 	assertEqualInt(i4(q + 18), 0); /* Compressed size */
 	assertEqualInt(i4(q + 22), 0); /* Uncompressed size */
 	assertEqualInt(i2(q + 26), strlen(folder_name)); /* Pathname length */
-	assertEqualInt(i2(q + 28), 32); /* Extra field length */
+	assertEqualInt(i2(q + 28), 28); /* Extra field length */
 	assertEqualMem(q + 30, folder_name, strlen(folder_name)); /* Pathname */
 	q = q + 30 + strlen(folder_name);
 	assertEqualInt(i2(q), 0x5455); /* 'UT' extension header */
-	assertEqualInt(i2(q + 2), 13); /* 'UT' size */
-	assertEqualInt(q[4], 7); /* 'UT' flags */
+	assertEqualInt(i2(q + 2), 9); /* 'UT' size */
+	assertEqualInt(q[4], 5); /* 'UT' flags */
 	assertEqualInt(i4(q + 5), t); /* 'UT' mtime */
-	assertEqualInt(i4(q + 9), t); /* 'UT' atime */
-	assertEqualInt(i4(q + 13), t); /* 'UT' ctime */
-	q = q + 17;
+	assertEqualInt(i4(q + 9), t + 5); /* 'UT' atime */
+	q = q + 4 + i2(q + 2);
 	assertEqualInt(i2(q), 0x7875); /* 'ux' extension header */
 	assertEqualInt(i2(q + 2), 11); /* 'ux' size */
 	assertEqualInt(q[4], 1); /* 'ux' version */
@@ -296,15 +302,9 @@ DEFINE_TEST(test_write_format_zip_no_compression)
 	assertEqualInt(i4(q + 6), folder_uid); /* 'ux' UID */
 	assertEqualInt(q[10], 4); /* 'ux' gid size */
 	assertEqualInt(i4(q + 11), folder_gid); /* 'ux' GID */
-	q = q + 15;
+	q = q + 4 + i2(q + 2);
 
 	/* There should not be any data in the folder entry,
-	 * meaning next is the data descriptor header. */
-
-	/* Verify data descriptor of folder entry. */
-	assertEqualMem(q, "PK\007\010", 4); /* Signature */
-	assertEqualInt(i4(q + 4), crc); /* CRC-32 */
-	assertEqualInt(i4(q + 8), 0); /* Compressed size */
-	assertEqualInt(i4(q + 12), 0); /* Uncompressed size */
-	/*q = q + 16;*/
+	 * so the first central directory entry should be next: */
+	assertEqualMem(q, "PK\001\002", 4); /* Signature */
 }

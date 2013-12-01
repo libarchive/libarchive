@@ -1760,6 +1760,7 @@ process_extra(const char *p, size_t extra_length, struct zip_entry* zip_entry)
 			/* Info-Zip Unix Extra Field (type 3) "ux". */
 			int uidsize = 0, gidsize = 0;
 
+			/* TODO: support arbitrary uidsize/gidsize. */
 			if (datasize >= 1 && p[offset] == 1) {/* version=1 */
 				if (datasize >= 4) {
 					/* get a uid size. */
