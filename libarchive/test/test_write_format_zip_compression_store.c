@@ -62,7 +62,7 @@ bitcrc32(unsigned long c, void *_p, size_t s)
 static int i2(const char *p) { return ((p[0] & 0xff) | ((p[1] & 0xff) << 8)); }
 static int i4(const char *p) { return (i2(p) | (i2(p + 2) << 16)); }
 
-DEFINE_TEST(test_write_format_zip_no_compression)
+DEFINE_TEST(test_write_format_zip_compression_store)
 {
 	/* Buffer data */
 	struct archive *a;
