@@ -934,7 +934,6 @@ write_path(struct archive_entry *entry, struct archive_write *archive)
 static void
 copy_path(struct archive_entry *entry, unsigned char *p)
 {
-	int ret;
 	const char *path;
 	size_t pathlen;
 	mode_t type;
@@ -956,8 +955,6 @@ copy_path(struct archive_entry *entry, unsigned char *p)
 static struct archive_string_conv *
 get_sconv(struct archive_write *a, struct zip *zip)
 {
-	struct archive_string_conv *sconv;
-
 	if (zip->opt_sconv != NULL)
 		return (zip->opt_sconv);
 
