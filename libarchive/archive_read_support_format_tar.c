@@ -2480,8 +2480,8 @@ tar_atol10(const char *p, size_t char_cnt)
 static int64_t
 tar_atol256(const char *_p, size_t char_cnt)
 {
-        uint64_t l;
-        const unsigned char *p = (const unsigned char *)_p;
+	uint64_t l;
+	const unsigned char *p = (const unsigned char *)_p;
 	unsigned char c, neg;
 
 	/* Extend 7-bit 2s-comp to 8-bit 2s-comp, decide sign. */
@@ -2489,11 +2489,11 @@ tar_atol256(const char *_p, size_t char_cnt)
 	if (c & 0x40) {
 		neg = 0xff;
 		c |= 0x80;
-                l = ~0ULL;
+		l = ~0ULL;
 	} else {
 		neg = 0;
 		c &= 0x7f;
-                l = 0;
+		l = 0;
 	}
 
 	/* If more than 8 bytes, check that we can ignore
@@ -2511,13 +2511,13 @@ tar_atol256(const char *_p, size_t char_cnt)
 	}
 
 	/* Accumulate remaining bytes. */
-        while (--char_cnt > 0) {
-                l = (l << 8) | c;
+	while (--char_cnt > 0) {
+		l = (l << 8) | c;
 		c = *++p;
-        }
+	}
 	l = (l << 8) | c;
 	/* Return signed twos-complement value. */
-        return (int64_t)(l);
+	return (int64_t)(l);
 }
 
 /*
