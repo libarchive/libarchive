@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_support_format_mtree.c 2011
 #include "archive_private.h"
 #include "archive_read_private.h"
 #include "archive_string.h"
+#include "archive_pack_dev.h"
 
 #ifndef O_BINARY
 #define	O_BINARY 0
@@ -367,7 +368,7 @@ bid_keyword(const char *p,  ssize_t len)
 		"gid", "gname", NULL
 	};
 	static const char *keys_il[] = {
-		"ignore", "link", NULL
+		"ignore", "inode", "link", NULL
 	};
 	static const char *keys_m[] = {
 		"md5", "md5digest", "mode", NULL
@@ -376,7 +377,7 @@ bid_keyword(const char *p,  ssize_t len)
 		"nlink", "nochange", "optional", NULL
 	};
 	static const char *keys_r[] = {
-		"rmd160", "rmd160digest", NULL
+		"resdevice", "rmd160", "rmd160digest", NULL
 	};
 	static const char *keys_s[] = {
 		"sha1", "sha1digest",
@@ -1292,33 +1293,65 @@ parse_line(struct archive_read *a, struct archive_entry *entry,
 
 /*
  * Device entries have one of the following forms:
- * raw dev_t
- * format,major,minor[,subdevice]
- *
- * Just use major and minor, no translation etc is done
- * between formats.
+ *  - raw dev_t
+ *  - format,major,minor[,subdevice]
+ * When parsing succeeded, `pdev' will contain the appropriate dev_t value.
  */
 static int
-parse_device(struct archive *a, struct archive_entry *entry, char *val)
+parse_device(dev_t *pdev, struct archive *a, char *val)
 {
-	char *comma1, *comma2;
+#define MAX_PACK_ARGS 3
+	unsigned long numbers[MAX_PACK_ARGS];
+	char *p, *dev;
+	int argc;
+	pack_t *pack;
+	dev_t result;
+	const char *error = NULL;
 
-	comma1 = strchr(val, ',');
-	if (comma1 == NULL) {
-		archive_entry_set_dev(entry, (dev_t)mtree_atol10(&val));
-		return (ARCHIVE_OK);
+	memset(pdev, 0, sizeof(*pdev));
+	if ((dev = strchr(val, ',')) != NULL) {
+		/*
+		 * Device's major/minor are given in a specified format.
+		 * Decode and pack it accordingly.
+		 */
+		*dev++ = '\0';
+		if ((pack = pack_find(val)) == NULL) {
+			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Unknown format `%s'", val);
+			return ARCHIVE_WARN;
+		}
+		argc = 0;
+		while ((p = strsep(&dev, ",")) != NULL) {
+			if (*p == '\0') {
+				archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Missing number");
+				return ARCHIVE_WARN;
+			}
+			numbers[argc++] = mtree_atol(&p);
+			if (argc > MAX_PACK_ARGS) {
+				archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Too many arguments");
+				return ARCHIVE_WARN;
+			}
+		}
+		if (argc < 2) {
+			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Not enough arguments");
+			return ARCHIVE_WARN;
+		}
+		result = (*pack)(argc, numbers, &error);
+		if (error != NULL) {
+			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "%s", error);
+			return ARCHIVE_WARN;
+		}
+	} else {
+		/* file system raw value. */
+		result = (dev_t)mtree_atol(&val);
 	}
-	++comma1;
-	comma2 = strchr(comma1, ',');
-	if (comma2 == NULL) {
-		archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Malformed device attribute");
-		return (ARCHIVE_WARN);
-	}
-	++comma2;
-	archive_entry_set_rdevmajor(entry, (dev_t)mtree_atol(&comma1));
-	archive_entry_set_rdevminor(entry, (dev_t)mtree_atol(&comma2));
-	return (ARCHIVE_OK);
+	*pdev = result;
+	return ARCHIVE_OK;
+#undef MAX_PACK_ARGS
 }
 
 /*
@@ -1374,8 +1407,16 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			break;
 	case 'd':
 		if (strcmp(key, "device") == 0) {
+			/* stat(2) st_rdev field, e.g. the major/minor IDs
+			 * of a char/block special file */
+			int r;
+			dev_t dev;
+
 			*parsed_kws |= MTREE_HAS_DEVICE;
-			return parse_device(&a->archive, entry, val);
+			r = parse_device(&dev, &a->archive, val);
+			if (r == ARCHIVE_OK)
+				archive_entry_set_rdev(entry, dev);
+			return r;
 		}
 	case 'f':
 		if (strcmp(key, "flags") == 0) {
@@ -1392,6 +1433,11 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 		if (strcmp(key, "gname") == 0) {
 			*parsed_kws |= MTREE_HAS_GNAME;
 			archive_entry_copy_gname(entry, val);
+			break;
+		}
+	case 'i':
+		if (strcmp(key, "inode") == 0) {
+			archive_entry_set_ino(entry, mtree_atol10(&val));
 			break;
 		}
 	case 'l':
@@ -1423,6 +1469,17 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			break;
 		}
 	case 'r':
+		if (strcmp(key, "resdevice") == 0) {
+			/* stat(2) st_dev field, e.g. the device ID where the
+			 * inode resides */
+			int r;
+			dev_t dev;
+
+			r = parse_device(&dev, &a->archive, val);
+			if (r == ARCHIVE_OK)
+				archive_entry_set_dev(entry, dev);
+			return r;
+		}
 		if (strcmp(key, "rmd160") == 0 ||
 		    strcmp(key, "rmd160digest") == 0)
 			break;
