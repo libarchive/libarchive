@@ -156,7 +156,9 @@ SET(POSIX_REGEX_LIB "AUTO" CACHE STRING "Choose what library should provide POSI
 SET(ENABLE_SAFESEH "AUTO" CACHE STRING "Enable use of /SAFESEH linker flag (MSVC only)")
 SET(WINDOWS_VERSION "" CACHE STRING "Set Windows version to use (Windows only)")
 
-include(LibarchiveCodeCoverage)
+IF(ENABLE_COVERAGE)
+	include(LibarchiveCodeCoverage)
+ENDIF(ENABLE_COVERAGE)
 
 IF(ENABLE_TEST)
 	ENABLE_TESTING()
