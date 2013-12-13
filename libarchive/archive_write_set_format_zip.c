@@ -29,24 +29,6 @@
  * Development supported by Google Summer of Code 2008.
  */
 
-/*
- * The current implementation is very limited:
- *
- *   - No encryption support.
- *   - No ZIP64 support.
- *   - No support for splitting and spanning.
- *   - Only supports regular file and folder entries.
- *
- * Note that generally data in ZIP files is little-endian encoded,
- * with some exceptions.
- *
- * TODO: Since Libarchive is generally 64bit oriented, but this implementation
- * does not yet support sizes exceeding 32bit, it is highly fragile for
- * big archives. This should change when ZIP64 is finally implemented, otherwise
- * some serious checking has to be done.
- *
- */
-
 #include "archive_platform.h"
 __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_zip.c 201168 2009-12-29 06:15:32Z kientzle $");
 
@@ -795,7 +777,7 @@ archive_write_zip_finish_entry(struct archive_write *a)
 static int
 archive_write_zip_close(struct archive_write *a)
 {
-	uint8_t end[22];
+	uint8_t buff[64];
 	int64_t offset_start, offset_end;
 	struct zip *zip = a->format_data;
 	struct cd_segment *segment;
@@ -813,19 +795,51 @@ archive_write_zip_close(struct archive_write *a)
 	}
 	offset_end = zip->written_bytes;
 
-	/* TODO: If central dir info is too large, write Zip64 end-of-cd */
+	/* If central dir info is too large, write Zip64 end-of-cd */
+	if (offset_end - offset_start > 0xffffffffULL
+	    || offset_start > 0xffffffffULL
+	    || zip->central_directory_entries > 0xffffUL
+	    || zip->force_zip64) {
+	  /* Zip64 end-of-cd record */
+	  memset(buff, 0, 56);
+	  memcpy(buff, "PK\006\006", 4);
+	  archive_le64enc(buff + 4, 44);
+	  archive_le16enc(buff + 12, 45);
+	  archive_le16enc(buff + 14, 45);
+	  /* This is disk 0 of 0. */
+	  archive_le64enc(buff + 24, zip->central_directory_entries);
+	  archive_le64enc(buff + 32, zip->central_directory_entries);
+	  archive_le64enc(buff + 40, offset_end - offset_start);
+	  archive_le64enc(buff + 48, offset_start);
+	  ret = __archive_write_output(a, buff, 56);
+	  if (ret != ARCHIVE_OK)
+		  return (ARCHIVE_FATAL);
+	  zip->written_bytes += 56;
+
+	  /* Zip64 end-of-cd locator record. */
+	  memset(buff, 0, 20);
+	  memcpy(buff, "PK\006\007", 4);
+	  archive_le32enc(buff + 4, 0);
+	  archive_le64enc(buff + 8, offset_end);
+	  archive_le32enc(buff + 16, 1);
+	  ret = __archive_write_output(a, buff, 20);
+	  if (ret != ARCHIVE_OK)
+		  return (ARCHIVE_FATAL);
+	  zip->written_bytes += 20;
+
+	}
 
 	/* Format and write end of central directory. */
-	memset(end, 0, sizeof(end));
-	memcpy(end, "PK\005\006", 4);
-	archive_le16enc(end + 8, zip->central_directory_entries);
-	archive_le16enc(end + 10, zip->central_directory_entries);
-	archive_le32enc(end + 12, (uint32_t)(offset_end - offset_start));
-	archive_le32enc(end + 16, (uint32_t)offset_start);
-	ret = __archive_write_output(a, end, sizeof(end));
+	memset(buff, 0, sizeof(buff));
+	memcpy(buff, "PK\005\006", 4);
+	archive_le16enc(buff + 8, zipmin(0xffffU, zip->central_directory_entries));
+	archive_le16enc(buff + 10, zipmin(0xffffU, zip->central_directory_entries));
+	archive_le32enc(buff + 12, zipmin(0xffffffffULL, (uint32_t)(offset_end - offset_start)));
+	archive_le32enc(buff + 16, zipmin(0xffffffffULL, (uint32_t)offset_start));
+	ret = __archive_write_output(a, buff, 22);
 	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
-	zip->written_bytes += sizeof(end);
+	zip->written_bytes += 22;
 	return (ARCHIVE_OK);
 }
 

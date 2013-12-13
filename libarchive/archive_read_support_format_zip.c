@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_support_format_zip.c 201102
 
 struct zip_entry {
 	struct archive_rb_node	node;
+	struct zip_entry	*next;
 	int64_t			local_header_offset;
 	int64_t			compressed_size;
 	int64_t			uncompressed_size;
@@ -245,8 +246,9 @@ static int
 archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 {
 	struct zip *zip = (struct zip *)a->format->data;
-	int64_t end_of_central_directory_offset;
+	int64_t file_size, end_of_central_directory_offset;
 	const char *p;
+	int i, tail, found;
 
 	/* If someone has already bid more than 32, then avoid
 	   trashing the look-ahead buffers with a seek. */
@@ -255,78 +257,74 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 
 	/* end-of-central-directory record is 22 bytes; first check
 	 * for it at very end of file. */
-	end_of_central_directory_offset = __archive_read_seek(a, -22, SEEK_END);
+	file_size = __archive_read_seek(a, 0, SEEK_END);
 	/* If we can't seek, then we can't bid. */
-	if (end_of_central_directory_offset <= 0)
+	if (file_size <= 0)
 		return 0;
 
-	if ((p = __archive_read_ahead(a, 22, NULL)) == NULL)
+	/* Search last 16k of file for end-of-central-directory
+	 * record (which starts with PK\005\006) or Zip64 locator
+	 * record (which begins with PK\006\007) */
+	tail = zipmin(1024 * 16, file_size);
+	end_of_central_directory_offset
+	    = __archive_read_seek(a, -tail, SEEK_END);
+	if (end_of_central_directory_offset < 0)
 		return 0;
-	/* First four bytes are signature for end of central directory
-	 * record.  Four zero bytes ensure this isn't a multi-volume
-	 * Zip file (which we don't yet support). */
-	if (memcmp(p, "PK\005\006\000\000\000\000", 8) != 0) {
-		int64_t i, tail;
-		int found;
-
-		/*
-		 * End-of-central-directory isn't exactly at end of file.
-		 * Try reading last 16k of file and search for it.
-		 */
-		if (end_of_central_directory_offset + 22 > 1024 * 16) {
-			tail = 1024 * 16;
-			end_of_central_directory_offset
-			    = __archive_read_seek(a, tail * -1, SEEK_END);
-		} else {
-			tail = end_of_central_directory_offset + 22;
-			end_of_central_directory_offset
-			    = __archive_read_seek(a, 0, SEEK_SET);
+	if ((p = __archive_read_ahead(a, (size_t)tail, NULL)) == NULL)
+		return 0;
+	for (found = 0, i = 0; !found_eocd && !found_zip64 && i < tail - 22;) {
+		switch (p[i + 3]) {
+		case 'P': i += 3; break;
+		case 'K': i += 2; break;
+		case 005: i += 1; break;
+		case 006:
+			if (memcmp(p + i,
+				"PK\005\006\000\000\000\000", 8) == 0) {
+				p += i;
+				end_of_central_directory_offset += i;
+				found_eocd = 1;
+			} else
+				i += 1; /* Look for PK\006\007 next */
+			break;
+		case 007:
+			if (memcmp(p + i, "PK\006\007", 4) == 0) {
+				p += i;
+				end_of_central_directory_offset += i;
+				found_zip64 = 1;
+			} else
+				i += 4;
+			break;
+		default: i += 4; break;
 		}
-		if (end_of_central_directory_offset < 0)
-			return 0;
-		if ((p = __archive_read_ahead(a, (size_t)tail, NULL)) == NULL)
-			return 0;
-		for (found = 0, i = 0; !found && i < tail - 22;) {
-			switch (p[i]) {
-			case 'P':
-				if (memcmp(p+i,
-				    "PK\005\006\000\000\000\000", 8) == 0) {
-					p += i;
-					end_of_central_directory_offset += i;
-					found = 1;
-				} else
-					i += 8;
-				break;
-			case 'K': i += 7; break;
-			case 005: i += 6; break;
-			case 006: i += 5; break;
-			default: i += 1; break;
-			}
-		}
-		if (!found)
-			return 0;
 	}
 
-	/* Since we've already done the hard work of finding the
-	   end of central directory record, let's save the important
-	   information. */
-	zip->central_directory_entries = archive_le16dec(p + 10);
-	zip->central_directory_size = archive_le32dec(p + 12);
-	zip->central_directory_offset = archive_le32dec(p + 16);
-	zip->end_of_central_directory_offset = end_of_central_directory_offset;
+	if (found_eocd) {
+		/* Since we've already done the hard work of finding the
+		   end of central directory record, let's save the important
+		   information. */
+		zip->central_directory_entries = archive_le16dec(p + 10);
+		zip->central_directory_size = archive_le32dec(p + 12);
+		zip->central_directory_offset = archive_le32dec(p + 16);
+		zip->end_of_central_directory_offset
+		    = end_of_central_directory_offset;
+		/* Just one volume: central dir must all be on this volume. */
+		if (zip->central_directory_entries != archive_le16dec(p + 8))
+			return 0;
+		/* Central directory can't extend beyond start of EOCD record. */
+		if (zip->central_directory_offset
+		    + (int64_t)zip->central_directory_size
+		    > end_of_central_directory_offset)
+			return 0;
+		/* This is just a tiny bit higher than the maximum
+		   returned by the streaming Zip bidder.  This ensures
+		   that the more accurate seeking Zip parser wins
+		   whenever seek is available. */
+		return 32;
+	}
 
-	/* Just one volume, so central dir must all be on this volume. */
-	if (zip->central_directory_entries != archive_le16dec(p + 8))
-		return 0;
-	/* Central directory can't extend beyond start of EOCD record. */
-	if (zip->central_directory_offset +
-	    (int64_t)zip->central_directory_size > end_of_central_directory_offset)
-		return 0;
-
-	/* This is just a tiny bit higher than the maximum returned by
-	   the streaming Zip bidder.  This ensures that the more accurate
-	   seeking Zip parser wins whenever seek is available. */
-	return 32;
+	/* Looking at Zip64 end-of-cd locator... */
+	XXX Seek to zip64 end-of-cd record;
+	XXX parse out zip64 data;
 }
 
 static int
@@ -406,12 +404,25 @@ expose_parent_dirs(struct zip *zip, const char *name, size_t name_length)
 	archive_string_free(&str);
 }
 
+static int64_t
+zip_read_consume(struct archive_read *a, int64_t bytes)
+{
+	struct zip *zip = (struct zip *)a->format->data;
+	int64_t skip;
+
+	skip = __archive_read_consume(a, bytes);
+	if (skip > 0)
+		zip->offset += skip;
+	return (skip);
+}
+
 static int
 slurp_central_directory(struct archive_read *a, struct zip *zip)
 {
-	unsigned i;
+	unsigned i, found;
 	int64_t correction;
-	const char *p;
+	ssize_t bytes_avail;
+	const char *p, *end;
 	static const struct archive_rb_tree_ops rb_ops = {
 		&cmp_node, &cmp_key
 	};
@@ -420,36 +431,69 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 	};
 
 	/*
-	 * Consider the archive file we are reading may be SFX.
-	 * So we have to calculate a SFX header size to revise
-	 * ZIP header offsets.
+	 * Find the start of the central directory.  The end-of-CD
+	 * record has our starting point, but there are lots of
+	 * Zip archives which have had other data prepended to the
+	 * file, which makes the recorded offsets all too small.
+	 * So we search forward from the specified offset until we
+	 * find the real start of the central directory.  Then we
+	 * know the correction we need to apply to account for leading
+	 * padding.
 	 */
-	correction = zip->end_of_central_directory_offset -
-	    (zip->central_directory_offset + zip->central_directory_size);
-	/* The central directory offset is relative value, and so
-	 * we revise this offset for SFX. */
-	zip->central_directory_offset += correction;
+	__archive_read_seek(a, zip->central_directory_offset - 13, SEEK_SET);
+	zip->offset = zip->central_directory_offset - 13;
 
-	__archive_read_seek(a, zip->central_directory_offset, SEEK_SET);
-	zip->offset = zip->central_directory_offset;
+	found = 0;
+	while (!found) {
+		if ((p = __archive_read_ahead(a, 20, &bytes_avail)) == NULL)
+			return ARCHIVE_FATAL;
+		for (found = 0, i = 0; !found && i < bytes_avail - 4;) {
+			switch (p[i + 3]) {
+			case 'P': i += 3; break;
+			case 'K': i += 2; break;
+			case 001: i += 1; break;
+			case 002:
+				if (memcmp(p + i, "PK\001\002", 4) == 0) {
+					p += i;
+					found = 1;
+				} else
+					i += 4;
+				break;
+			default: i += 4; break;
+			}
+		}
+		zip_read_consume(a, i);
+	}
+	correction = zip->offset - zip->central_directory_offset;
+
 	__archive_rb_tree_init(&zip->tree, &rb_ops);
 	__archive_rb_tree_init(&zip->tree_rsrc, &rb_rsrc_ops);
 
-	zip->zip_entries = calloc(zip->central_directory_entries,
-				sizeof(struct zip_entry));
-	for (i = 0; i < zip->central_directory_entries; ++i) {
-		struct zip_entry *zip_entry = &zip->zip_entries[i];
+	zip->central_directory_entries = 0;
+	while (1) {
+		struct zip_entry *zip_entry;
 		size_t filename_length, extra_length, comment_length;
 		uint32_t external_attributes;
 		const char *name, *r;
 
-		if ((p = __archive_read_ahead(a, 46, NULL)) == NULL)
+		if ((p = __archive_read_ahead(a, 4, NULL)) == NULL)
 			return ARCHIVE_FATAL;
-		if (memcmp(p, "PK\001\002", 4) != 0) {
+		if (memcmp(p, "PK\006\006", 4) == 0
+		    || memcmp(p, "PK\005\006", 4) == 0) {
+			break;
+		} else if (memcmp(p, "PK\001\002", 4) != 0) {
 			archive_set_error(&a->archive,
 			    -1, "Invalid central directory signature");
 			return ARCHIVE_FATAL;
 		}
+		if ((p = __archive_read_ahead(a, 46, NULL)) == NULL)
+			return ARCHIVE_FATAL;
+
+		zip_entry = calloc(1, sizeof(struct zip_entry));
+		zip_entry->next = zip->zip_entries;
+		zip->zip_entries = zip_entry;
+		zip->central_directory_entries++;
+
 		zip->have_central_directory = 1;
 		/* version = p[4]; */
 		zip_entry->system = p[5];
@@ -543,18 +587,6 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 	}
 
 	return ARCHIVE_OK;
-}
-
-static int64_t
-zip_read_consume(struct archive_read *a, int64_t bytes)
-{
-	struct zip *zip = (struct zip *)a->format->data;
-	int64_t skip;
-
-	skip = __archive_read_consume(a, bytes);
-	if (skip > 0)
-		zip->offset += skip;
-	return (skip);
 }
 
 static int
@@ -1616,6 +1648,7 @@ static int
 archive_read_format_zip_cleanup(struct archive_read *a)
 {
 	struct zip *zip;
+	struct zip_entry *zip_entry, *next_zip_entry;
 
 	zip = (struct zip *)(a->format->data);
 #ifdef HAVE_ZLIB_H
@@ -1623,11 +1656,14 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 		inflateEnd(&zip->stream);
 #endif
 	if (zip->zip_entries && zip->central_directory_entries) {
-		unsigned i;
-		for (i = 0; i < zip->central_directory_entries; i++)
-			archive_string_free(&(zip->zip_entries[i].rsrcname));
+		zip_entry = zip->zip_entries;
+		while (zip_entry != NULL) {
+			next_zip_entry = zip_entry->next;
+			archive_string_free(&zip_entry->rsrcname);
+			free(zip_entry);
+			zip_entry = next_zip_entry;
+		}
 	}
-	free(zip->zip_entries);
 	free(zip->uncompressed_buffer);
 	archive_string_free(&(zip->extra));
 	free(zip);
