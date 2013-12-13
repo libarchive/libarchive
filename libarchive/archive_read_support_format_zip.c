@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2004 Tim Kientzle
  * Copyright (c) 2011-2012 Michihiro NAKAJIMA
+ * Copyright (c) 2013 Konrad Kleine
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1133,26 +1134,45 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	return (ret);
 }
 
-static const char *
-compression_name(int compression)
-{
-	static const char *compression_names[] = {
-		"uncompressed",
-		"shrinking",
-		"reduced-1",
-		"reduced-2",
-		"reduced-3",
-		"reduced-4",
-		"imploded",
-		"reserved",
-		"deflation"
-	};
+static struct {
+	int id;
+	const char * name;
+} compression_methods[] = {
+	{0, "uncompressed"}, /* The file is stored (no compression) */
+	{1, "shrinking"}, /* The file is Shrunk */
+	{2, "reduced-1"}, /* The file is Reduced with compression factor 1 */
+	{3, "reduced-2"}, /* The file is Reduced with compression factor 2 */
+	{4, "reduced-3"}, /* The file is Reduced with compression factor 3 */
+	{5, "reduced-4"}, /* The file is Reduced with compression factor 4 */
+	{6, "imploded"}, /* The file is Imploded */
+	{7, "reserved"}, /* Reserved for Tokenizing compression algorithm */
+	{8, "deflation"}, /* The file is Deflated */
+	{9, "deflation-64-bit"}, /* Enhanced Deflating using Deflate64(tm) */
+	{10, "ibm-terse"}, /* PKWARE Data Compression Library Imploding (old IBM TERSE) */
+	{11, "reserved"}, /* Reserved by PKWARE */
+	{12, "bzip"}, /* File is compressed using BZIP2 algorithm */
+	{13, "reserved"}, /* Reserved by PKWARE */
+	{14, "lzma"}, /* LZMA (EFS) */
+	{15, "reserved"}, /* Reserved by PKWARE */
+	{16, "reserved"}, /* Reserved by PKWARE */
+	{17, "reserved"}, /* Reserved by PKWARE */
+	{18, "ibm-terse-new"}, /* File is compressed using IBM TERSE (new) */
+	{19, "ibm-lz777"}, /* IBM LZ77 z Architecture (PFS) */
+	{97, "wav-pack"}, /* WavPack compressed data */
+	{98, "ppmd-1"} /* PPMd version I, Rev 1 */
+};
 
-	if (0 <= compression && compression <
-	    (int)(sizeof(compression_names)/sizeof(compression_names[0])))
-		return compression_names[compression];
-	else
-		return "??";
+static const char *
+compression_name(const int compression)
+{
+	static const int num_compression_methods = sizeof(compression_methods)/sizeof(compression_methods[0]);
+	int i=0;
+	while(compression >= 0 && i++ < num_compression_methods) {
+		if (compression_methods[i].id == compression) {
+			return compression_methods[i].name;
+		}
+	}
+	return "??";
 }
 
 /* Convert an MSDOS-style date/time into Unix-style time. */
