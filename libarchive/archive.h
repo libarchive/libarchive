@@ -370,7 +370,15 @@ __LA_DECL int archive_read_support_format_rar(struct archive *);
 __LA_DECL int archive_read_support_format_raw(struct archive *);
 __LA_DECL int archive_read_support_format_tar(struct archive *);
 __LA_DECL int archive_read_support_format_xar(struct archive *);
+/* archive_read_support_format_zip() enables both streamable and seekable
+ * zip readers. */
 __LA_DECL int archive_read_support_format_zip(struct archive *);
+/* Reads Zip archives as stream from beginning to end.  Doesn't
+ * correctly handle SFX ZIP files or ZIP archives that have been modified
+ * in-place. */
+__LA_DECL int archive_read_support_format_zip_streamable(struct archive *);
+/* Reads starting from central directory; requires seekable input. */
+__LA_DECL int archive_read_support_format_zip_seekable(struct archive *);
 
 /* Functions to manually set the format and filters to be used. This is
  * useful to bypass the bidding process when the format and filters to use
