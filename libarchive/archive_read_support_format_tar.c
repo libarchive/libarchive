@@ -151,6 +151,7 @@ struct tar {
 	struct archive_string_conv *sconv_default;
 	int			 init_default_conversion;
 	int			 compat_2x;
+	int			 process_mac_extensions;
 };
 
 static int	archive_block_is_null(const char *p);
@@ -241,6 +242,10 @@ archive_read_support_format_tar(struct archive *_a)
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_tar");
 
 	tar = (struct tar *)calloc(1, sizeof(*tar));
+#ifdef HAVE_COPYFILE_H
+	/* Set this by default on Mac OS. */
+	tar->process_mac_extensions = 1;
+#endif
 	if (tar == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate tar data");
@@ -368,7 +373,7 @@ archive_read_format_tar_options(struct archive_read *a,
 	tar = (struct tar *)(a->format->data);
 	if (strcmp(key, "compat-2x")  == 0) {
 		/* Handle UTF-8 filnames as libarchive 2.x */
-		tar->compat_2x = (val != NULL)?1:0;
+		tar->compat_2x = (val != NULL && val[0] != 0);
 		tar->init_default_conversion = tar->compat_2x;
 		return (ARCHIVE_OK);
 	} else if (strcmp(key, "hdrcharset")  == 0) {
@@ -385,6 +390,9 @@ archive_read_format_tar_options(struct archive_read *a,
 				ret = ARCHIVE_FATAL;
 		}
 		return (ret);
+	} else if (strcmp(key, "mac-ext") == 0) {
+		tar->process_mac_extensions = (val != NULL && val[0] != 0);
+		return (ARCHIVE_OK);
 	}
 
 	/* Note: The "warn" return is just to inform the options
@@ -737,9 +745,9 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 	 * extensions for both the AppleDouble extension entry and the
 	 * regular entry.
 	 */
-	/* TODO: Should this be disabled on non-Mac platforms? */
 	if ((err == ARCHIVE_WARN || err == ARCHIVE_OK) &&
-	    tar->header_recursion_depth == 0) {
+	    tar->header_recursion_depth == 0 &&
+	    tar->process_mac_extensions) {
 		int err2 = read_mac_metadata_blob(a, tar, entry, h, unconsumed);
 		if (err2 < err)
 			err = err2;
