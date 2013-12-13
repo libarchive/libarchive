@@ -62,10 +62,6 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_windows.c
   )
 
-  INCLUDE(${CMAKE_CURRENT_BINARY_DIR}/list.h)
-  INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
-  INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/test_utils)
-
   #
   # Register target
   #
@@ -92,6 +88,9 @@ IF(ENABLE_TAR AND ENABLE_TEST)
                           ${_testname})
   ENDMACRO (DEFINE_TEST _testname)
 
+  INCLUDE(${CMAKE_CURRENT_BINARY_DIR}/list.h)
+  INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/test_utils)
 
   # Experimental new test handling
   ADD_CUSTOM_TARGET(run_bsdtar_test
