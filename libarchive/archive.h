@@ -133,6 +133,11 @@ __LA_DECL int		archive_version_number(void);
 #define	ARCHIVE_VERSION_STRING "libarchive 3.1.2"
 __LA_DECL const char *	archive_version_string(void);
 
+/*
+ * Detailed textual name/version of the library and its dependencies.
+ */
+__LA_DECL const char *	archive_version_details(void);
+
 /* Declare our basic types. */
 struct archive;
 struct archive_entry;
