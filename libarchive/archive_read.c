@@ -764,7 +764,7 @@ archive_read_header_position(struct archive *_a)
  * function does not return the number of encrypted entries but#
  * just shows that there are some.
  */
-char
+int
 archive_read_has_encrypted_entries(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
@@ -1149,7 +1149,7 @@ __archive_read_register_format(struct archive_read *a,
     int64_t (*seek_data)(struct archive_read *, int64_t, int),
     int (*cleanup)(struct archive_read *),
     int (*format_capabilities)(struct archive_read *),
-    char (*has_encrypted_entries)(struct archive_read *))
+    int (*has_encrypted_entries)(struct archive_read *))
 {
 	int i, number_slots;
 

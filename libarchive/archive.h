@@ -521,7 +521,7 @@ __LA_DECL __LA_INT64_T		 archive_read_header_position(struct archive *);
  * function does not return the number of encrypted entries but#
  * just shows that there are some.
  */
-__LA_DECL char archive_read_has_encrypted_entries(struct archive *);
+__LA_DECL int	archive_read_has_encrypted_entries(struct archive *);
 
 /*
  * Returns a bitmask of capabilities that are supported by the archive format reader.

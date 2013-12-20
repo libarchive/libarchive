@@ -129,7 +129,7 @@ struct zip {
 #define ZIP_CENTRAL_DIRECTORY_ENCRYPTED	(1<<13)	
 #define ZIP_UTF8_NAME	(1<<11)	
 
-static char	archive_read_format_zip_has_encrypted_entries(struct archive_read *);
+static int	archive_read_format_zip_has_encrypted_entries(struct archive_read *);
 static int	archive_read_support_format_zip_capabilities_seekable(struct archive_read *a);
 static int	archive_read_support_format_zip_capabilities_streamable(struct archive_read *a);
 static int	archive_read_format_zip_streamable_bid(struct archive_read *,
@@ -263,7 +263,7 @@ archive_read_support_format_zip_capabilities_streamable(struct archive_read * a)
 }
 
 
-static char
+static int
 archive_read_format_zip_has_encrypted_entries(struct archive_read *_a)
 {
 	if (_a && _a->format) {

@@ -328,10 +328,10 @@ struct _7zip {
 	char			 format_name[64];
 
 	/* Custom value that is non-zero if this archive contains encrypted entries. */
-	char has_encrypted_entries;
+	char			 has_encrypted_entries;
 };
 
-static char	archive_read_format_7zip_has_encrypted_entries(struct archive_read *);
+static int	archive_read_format_7zip_has_encrypted_entries(struct archive_read *);
 static int	archive_read_support_format_7zip_capabilities(struct archive_read *a);
 static int	archive_read_format_7zip_bid(struct archive_read *, int);
 static int	archive_read_format_7zip_cleanup(struct archive_read *);
@@ -444,7 +444,8 @@ archive_read_support_format_7zip_capabilities(struct archive_read * a)
 }
 
 
-static char archive_read_format_7zip_has_encrypted_entries(struct archive_read *_a)
+static int
+archive_read_format_7zip_has_encrypted_entries(struct archive_read *_a)
 {
 	if (_a && _a->format) {
 		struct _7zip * zip = (struct _7zip *)_a->format->data;

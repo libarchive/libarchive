@@ -312,7 +312,7 @@ struct rar
 };
 
 static int archive_read_support_format_rar_capabilities(struct archive_read *);
-static char archive_read_format_rar_has_encrypted_entries(struct archive_read *);
+static int archive_read_format_rar_has_encrypted_entries(struct archive_read *);
 static int archive_read_format_rar_bid(struct archive_read *, int);
 static int archive_read_format_rar_options(struct archive_read *,
     const char *, const char *);
@@ -685,7 +685,8 @@ archive_read_support_format_rar_capabilities(struct archive_read * a)
 			| ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA);
 }
 
-static char archive_read_format_rar_has_encrypted_entries(struct archive_read *_a)
+static int
+archive_read_format_rar_has_encrypted_entries(struct archive_read *_a)
 {
 	if (_a && _a->format) {
 		struct rar * rar = (struct rar *)_a->format->data;

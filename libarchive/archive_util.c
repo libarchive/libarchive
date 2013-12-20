@@ -106,7 +106,7 @@ archive_version_details(void)
 #ifdef HAVE_BZLIB_H
 		{
 			const char *p = BZ2_bzlibVersion();
-			char *sep = strchr(p, ',');
+			const char *sep = strchr(p, ',');
 			if (sep == NULL)
 				sep = p + strlen(p);
 			archive_strcat(&str, " bz2lib/");
