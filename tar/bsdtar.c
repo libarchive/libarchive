@@ -178,21 +178,10 @@ main(int argc, char **argv)
 	}
 #endif
 
-
-	/* Need lafe_progname before calling lafe_warnc. */
+	/* Set lafe_progname before calling lafe_warnc. */
 	if (*argv == NULL)
-		lafe_progname = "bsdtar";
-	else {
-#if defined(_WIN32) && !defined(__CYGWIN__)
-		lafe_progname = strrchr(*argv, '\\');
-		if (strrchr(*argv, '/') > lafe_progname)
-#endif
-		lafe_progname = strrchr(*argv, '/');
-		if (lafe_progname != NULL)
-			lafe_progname++;
-		else
-			lafe_progname = *argv;
-	}
+		*argv = "bsdtar";
+	lafe_setprogname(*argv);
 
 #if HAVE_SETLOCALE
 	if (setlocale(LC_ALL, "") == NULL)
@@ -844,7 +833,7 @@ usage(void)
 {
 	const char	*p;
 
-	p = lafe_progname;
+	p = lafe_getprogname();
 
 	fprintf(stderr, "Usage:\n");
 	fprintf(stderr, "  List:    %s -tf <archive-filename>\n", p);
@@ -904,7 +893,7 @@ long_help(void)
 	const char	*prog;
 	const char	*p;
 
-	prog = lafe_progname;
+	prog = lafe_getprogname();
 
 	fflush(stderr);
 

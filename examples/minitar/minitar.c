@@ -249,7 +249,7 @@ create(const char *filename, int compress, const char **argv)
 		break;
 	}
 	archive_write_set_format_ustar(a);
-	if (strcmp(filename, "-") == 0)
+	if (filename != NULL && strcmp(filename, "-") == 0)
 		filename = NULL;
 	archive_write_open_filename(a, filename);
 
