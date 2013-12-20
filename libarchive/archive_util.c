@@ -88,28 +88,33 @@ archive_version_string(void)
 const char *
 archive_version_details(void)
 {
-	static char version[80];
-#ifdef HAVE_BZLIB_H
-	char *bzlib_version = strdup(BZ2_bzlibVersion());
-	char *ptr = strchr(bzlib_version, ',');
-	if (ptr)
-		*ptr = '\0';
-#endif
-	snprintf(version, sizeof(version), ARCHIVE_VERSION_STRING
+	static struct archive_string str;
+	static int init = 0;
+
+	if (!init) {
+		archive_string_init(&str);
+
+		archive_strcat(&str, ARCHIVE_VERSION_STRING);
 #ifdef HAVE_ZLIB_H
-		" zlib/" ZLIB_VERSION
+		archive_strcat(&str, " zlib/");
+		archive_strcat(&str, ZLIB_VERSION);
 #endif
 #ifdef HAVE_LZMA_H
-		" liblzma/" LZMA_VERSION_STRING
+		archive_strcat(&str, " liblzma/");
+		archive_strcat(&str, LZMA_VERSION_STRING);
 #endif
 #ifdef HAVE_BZLIB_H
-		" bz2lib/%s", bzlib_version
+		{
+			const char *p = BZ2_bzlibVersion();
+			char *sep = strchr(p, ',');
+			if (sep == NULL)
+				sep = p + strlen(p);
+			archive_strcat(&str, " bz2lib/");
+			archive_strncat(&str, p, sep - p);
+		}
 #endif
-		);
-#ifdef HAVE_BZLIB_H
-	free(bzlib_version);
-#endif
-	return (version);
+	    }
+	return str.s;
 }
 
 int
