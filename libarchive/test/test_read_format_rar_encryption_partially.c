@@ -48,7 +48,6 @@ DEFINE_TEST(test_read_format_rar_encryption_partially)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt((AE_IFREG | 0664), archive_entry_mode(ae));
 	assertEqualString("foo.txt", archive_entry_pathname(ae));
-	assertEqualInt(1379403430, archive_entry_mtime(ae));	
 	assertEqualInt(16, archive_entry_size(ae));
 	assertEqualInt(1, archive_entry_is_data_encrypted(ae));
 	assertEqualInt(0, archive_entry_is_metadata_encrypted(ae));
@@ -59,7 +58,6 @@ DEFINE_TEST(test_read_format_rar_encryption_partially)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt((AE_IFREG | 0664), archive_entry_mode(ae));
 	assertEqualString("bar.txt", archive_entry_pathname(ae));
-	assertEqualInt(1379403432, archive_entry_mtime(ae));
 	assertEqualInt(16, archive_entry_size(ae));
 	assertEqualInt(0, archive_entry_is_data_encrypted(ae));
 	assertEqualInt(0, archive_entry_is_metadata_encrypted(ae));
