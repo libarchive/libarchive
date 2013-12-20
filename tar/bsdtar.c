@@ -179,9 +179,7 @@ main(int argc, char **argv)
 #endif
 
 	/* Set lafe_progname before calling lafe_warnc. */
-	if (*argv == NULL)
-		*argv = "bsdtar";
-	lafe_setprogname(*argv);
+	lafe_setprogname(*argv, "bsdtar");
 
 #if HAVE_SETLOCALE
 	if (setlocale(LC_ALL, "") == NULL)

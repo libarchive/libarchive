@@ -150,9 +150,7 @@ main(int argc, char *argv[])
 #endif
 
 	/* Set lafe_progname before calling lafe_warnc. */
-	if (*argv == NULL)
-		*argv = "bsdcpio";
-	lafe_setprogname(*argv);
+	lafe_setprogname(*argv, "bsdcpio");
 
 #if HAVE_SETLOCALE
 	if (setlocale(LC_ALL, "") == NULL)

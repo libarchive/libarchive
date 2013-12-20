@@ -52,9 +52,11 @@ lafe_getprogname(void)
 }
 
 void
-lafe_setprogname(const char *name)
+lafe_setprogname(const char *name, const char *defaultname)
 {
-	
+
+	if (name == NULL)
+		name = defaultname;
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	lafe_progname = strrchr(name, '\\');
 	if (strrchr(name, '/') > lafe_progname)

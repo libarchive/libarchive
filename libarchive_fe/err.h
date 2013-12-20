@@ -45,6 +45,6 @@ void	lafe_errc(int eval, int code, const char *fmt, ...) __LA_DEAD
 		  __LA_PRINTFLIKE(3, 4);
 
 const char *	lafe_getprogname(void);
-void		lafe_setprogname(const char *);
+void		lafe_setprogname(const char *name, const char *defaultname);
 
 #endif
