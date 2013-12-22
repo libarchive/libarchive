@@ -26,6 +26,7 @@
  */
 #ifndef CPIO_WINDOWS_H
 #define CPIO_WINDOWS_H 1
+#include <windows.h>
 
 #include <io.h>
 #include <string.h>
