@@ -43,6 +43,10 @@
 #include <stddef.h>  /* for wchar_t */
 #include <time.h>
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#include <windows.h>
+#endif
+
 /* Get a suitable 64-bit integer type. */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 # define	__LA_INT64_T	__int64
