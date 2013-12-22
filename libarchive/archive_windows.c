@@ -301,7 +301,7 @@ __la_open(const char *path, int flags, ...)
 	ws = NULL;
 	if ((flags & ~O_BINARY) == O_RDONLY) {
 		/*
-		 * When we open a directory, _open function returns 
+		 * When we open a directory, _open function returns
 		 * "Permission denied" error.
 		 */
 		attr = GetFileAttributesA(path);
@@ -515,9 +515,9 @@ __hstat(HANDLE handle, struct ustat *st)
 	else
 		mode |= S_IFREG;
 	st->st_mode = mode;
-	
+
 	fileTimeToUTC(&info.ftLastAccessTime, &t, &ns);
-	st->st_atime = t; 
+	st->st_atime = t;
 	st->st_atime_nsec = ns;
 	fileTimeToUTC(&info.ftLastWriteTime, &t, &ns);
 	st->st_mtime = t;
@@ -525,7 +525,7 @@ __hstat(HANDLE handle, struct ustat *st)
 	fileTimeToUTC(&info.ftCreationTime, &t, &ns);
 	st->st_ctime = t;
 	st->st_ctime_nsec = ns;
-	st->st_size = 
+	st->st_size =
 	    ((int64_t)(info.nFileSizeHigh) * ((int64_t)MAXDWORD + 1))
 		+ (int64_t)(info.nFileSizeLow);
 #ifdef SIMULATE_WIN_STAT
@@ -903,6 +903,21 @@ __la_dosmaperr(unsigned long e)
 	/* fprintf(stderr, "unrecognized win32 error code: %lu", e); */
 	errno = EINVAL;
 	return;
+}
+
+/* Taken from http://unixpapa.com/incnote/string.html */
+char *
+__la_strsep(char **sp, char *sep)
+{
+	char *p, *s;
+	if (sp == NULL || *sp == NULL || **sp == '\0')
+		return(NULL);
+	s = *sp;
+	p = s + strcspn(s, sep);
+	if (*p != '\0')
+		*p++ = '\0';
+	*sp = p;
+	return(s);
 }
 
 #endif /* _WIN32 && !__CYGWIN__ */

@@ -89,7 +89,7 @@
 
 /* Alias the Windows _function to the POSIX equivalent. */
 #define	close		_close
-#define	fcntl(fd, cmd, flg)	/* No operation. */		
+#define	fcntl(fd, cmd, flg)	/* No operation. */
 #ifndef fileno
 #define	fileno		_fileno
 #endif
@@ -203,7 +203,7 @@
 #define	_S_IXGRP        (_S_IXUSR >> 3) /* read permission, group */
 #define	_S_IWGRP        (_S_IWUSR >> 3) /* write permission, group */
 #define	_S_IRGRP        (_S_IRUSR >> 3) /* execute/search permission, group */
-#define	_S_IRWXO        (_S_IRWXG >> 3) 
+#define	_S_IRWXO        (_S_IRWXG >> 3)
 #define	_S_IXOTH        (_S_IXGRP >> 3) /* read permission, other */
 #define	_S_IWOTH        (_S_IWGRP >> 3) /* write permission, other */
 #define	_S_IROTH        (_S_IRGRP  >> 3) /* execute/search permission, other */
@@ -277,6 +277,8 @@ extern wchar_t *__la_win_permissive_name(const char *name);
 extern wchar_t *__la_win_permissive_name_w(const wchar_t *wname);
 extern void __la_dosmaperr(unsigned long e);
 #define la_dosmaperr(e) __la_dosmaperr(e)
+extern char *__la_strsep(char **sp, char *sep);
+#define strsep(sp, sep) __la_strsep(sp, sep)
 extern struct archive_entry *__la_win_entry_in_posix_pathseparator(
     struct archive_entry *);
 

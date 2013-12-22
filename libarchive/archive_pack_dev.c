@@ -76,14 +76,39 @@ static const char iMajorError[] = "invalid major number";
 static const char iMinorError[] = "invalid minor number";
 static const char tooManyFields[] = "too many fields for format";
 
-	/* exported */
+/* This is balatantly stolen from libarchive/archive_entry.c,
+ * in an attempt to get this to play nice on MinGW... */
+#if !defined(HAVE_MAJOR) && !defined(major)
+/* Replacement for major/minor/makedev. */
+#define major(x) ((int)(0x00ff & ((x) >> 8)))
+#define minor(x) ((int)(0xffff00ff & (x)))
+#define makedev(maj,min) ((0xff00 & ((maj)<<8)) | (0xffff00ff & (min)))
+#endif
+
+/* Play games to come up with a suitable makedev() definition. */
+#ifdef __QNXNTO__
+/* QNX.  <sigh> */
+#include <sys/netmgr.h>
+#define apd_makedev(maj, min) makedev(ND_LOCAL_NODE, (maj), (min))
+#elif defined makedev
+/* There's a "makedev" macro. */
+#define apd_makedev(maj, min) makedev((maj), (min))
+#elif defined mkdev || ((defined _WIN32 || defined __WIN32__) && !defined(__CYGWIN__))
+/* Windows. <sigh> */
+#define apd_makedev(maj, min) mkdev((maj), (min))
+#else
+/* There's a "makedev" function. */
+#define apd_makedev(maj, min) makedev((maj), (min))
+#endif
+
+/* exported */
 dev_t
 pack_native(int n, u_long numbers[], const char **error)
 {
 	dev_t dev = 0;
 
 	if (n == 2) {
-		dev = makedev(numbers[0], numbers[1]);
+		dev = apd_makedev(numbers[0], numbers[1]);
 		if ((u_long)major(dev) != numbers[0])
 			*error = iMajorError;
 		else if ((u_long)minor(dev) != numbers[1])
