@@ -110,6 +110,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_match.c				\
 	libarchive/archive_options.c				\
 	libarchive/archive_options_private.h			\
+	libarchive/archive_pack_dev.c				\
 	libarchive/archive_pathmatch.c				\
 	libarchive/archive_pathmatch.h				\
 	libarchive/archive_platform.h				\
@@ -373,6 +374,9 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_filter_program_signature.c	\
 	libarchive/test/test_read_filter_uudecode.c		\
 	libarchive/test/test_read_format_7zip.c			\
+	libarchive/test/test_read_format_7zip_encryption_data.c	\
+	libarchive/test/test_read_format_7zip_encryption_partially.c	\
+	libarchive/test/test_read_format_7zip_encryption_header.c	\
 	libarchive/test/test_read_format_ar.c			\
 	libarchive/test/test_read_format_cab.c			\
 	libarchive/test/test_read_format_cab_filename.c		\
@@ -413,6 +417,9 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_format_mtree.c		\
 	libarchive/test/test_read_format_pax_bz2.c		\
 	libarchive/test/test_read_format_rar.c			\
+	libarchive/test/test_read_format_rar_encryption_data.c	\
+	libarchive/test/test_read_format_rar_encryption_partially.c	\
+	libarchive/test/test_read_format_rar_encryption_header.c	\
 	libarchive/test/test_read_format_raw.c			\
 	libarchive/test/test_read_format_tar.c			\
 	libarchive/test/test_read_format_tar_empty_pax.c	\
@@ -427,8 +434,13 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_format_xar.c			\
 	libarchive/test/test_read_format_zip.c			\
 	libarchive/test/test_read_format_zip_comment_stored.c	\
+	libarchive/test/test_read_format_zip_encryption_data.c	\
+	libarchive/test/test_read_format_zip_encryption_partially.c	\
+	libarchive/test/test_read_format_zip_encryption_header.c	\
 	libarchive/test/test_read_format_zip_filename.c		\
 	libarchive/test/test_read_format_zip_mac_metadata.c	\
+	libarchive/test/test_read_format_zip_nofiletype.c	\
+	libarchive/test/test_read_format_zip_padded.c		\
 	libarchive/test/test_read_format_zip_sfx.c		\
 	libarchive/test/test_read_large.c			\
 	libarchive/test/test_read_pax_truncated.c		\
