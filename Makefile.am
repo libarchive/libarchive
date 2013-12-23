@@ -440,6 +440,8 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_format_zip_encryption_header.c	\
 	libarchive/test/test_read_format_zip_filename.c		\
 	libarchive/test/test_read_format_zip_mac_metadata.c	\
+	libarchive/test/test_read_format_zip_nofiletype.c	\
+	libarchive/test/test_read_format_zip_padded.c		\
 	libarchive/test/test_read_format_zip_sfx.c		\
 	libarchive/test/test_read_large.c			\
 	libarchive/test/test_read_pax_truncated.c		\
