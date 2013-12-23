@@ -328,7 +328,7 @@ struct _7zip {
 	char			 format_name[64];
 
 	/* Custom value that is non-zero if this archive contains encrypted entries. */
-	char			 has_encrypted_entries;
+	int			 has_encrypted_entries;
 };
 
 static int	archive_read_format_7zip_has_encrypted_entries(struct archive_read *);
@@ -515,7 +515,7 @@ check_7zip_header_in_sfx(const char *p)
 	switch ((unsigned char)p[5]) {
 	case 0x1C:
 		if (memcmp(p, _7ZIP_SIGNATURE, 6) != 0)
-			return (6); 
+			return (6);
 		/*
 		 * Test the CRC because its extraction code has 7-Zip
 		 * Magic Code, so we should do this in order not to
@@ -523,15 +523,15 @@ check_7zip_header_in_sfx(const char *p)
 		 */
 		if (crc32(0, (const unsigned char *)p + 12, 20)
 			!= archive_le32dec(p + 8))
-			return (6); 
+			return (6);
 		/* Hit the header! */
 		return (0);
-	case 0x37: return (5); 
-	case 0x7A: return (4); 
-	case 0xBC: return (3); 
-	case 0xAF: return (2); 
-	case 0x27: return (1); 
-	default: return (6); 
+	case 0x37: return (5);
+	case 0x7A: return (4);
+	case 0xBC: return (3);
+	case 0xAF: return (2);
+	case 0x27: return (1);
+	default: return (6);
 	}
 }
 
@@ -655,7 +655,7 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 		if (zip->sconv == NULL)
 			return (ARCHIVE_FATAL);
 	}
-	
+
 	/* Figure out if the entry is encrypted by looking at the folder
 	   that is associated to the current 7zip entry. If the folder
 	   has a coder with a _7Z_CRYPTO codec then the folder is encrypted.
@@ -1076,7 +1076,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 		 * for BCJ+LZMA. If we were able to tell the uncompressed
 		 * size to liblzma when using lzma_raw_decoder() liblzma
 		 * could correctly deal with BCJ+LZMA. But unfortunately
-		 * there is no way to do that. 
+		 * there is no way to do that.
 		 * Discussion about this can be found at XZ Utils forum.
 		 */
 		if (coder2 != NULL) {
@@ -1519,7 +1519,7 @@ decompress(struct archive_read *a, struct _7zip *zip,
 
 		do {
 			int sym;
-			
+
 			sym = __archive_ppmd7_functions.Ppmd7_DecodeSymbol(
 				&(zip->ppmd7_context), &(zip->range_dec.p));
 			if (sym < 0) {
@@ -3264,7 +3264,7 @@ read_stream(struct archive_read *a, const void **buff, size_t size,
 		return (r);
 
 	/*
-	 * Skip the bytes we alrady has skipped in skip_stream(). 
+	 * Skip the bytes we alrady has skipped in skip_stream().
 	 */
 	while (skip_bytes) {
 		ssize_t skipped;
