@@ -304,11 +304,11 @@ struct rar
     ssize_t		 avail_in;
     const unsigned char *next_in;
   } br;
-  
+
   /*
    * Custom field to denote that this archive contains encrypted entries
    */
-  char has_encrypted_entries;
+  int has_encrypted_entries;
 };
 
 static int archive_read_support_format_rar_capabilities(struct archive_read *);
@@ -791,7 +791,7 @@ archive_read_format_rar_options(struct archive_read *a,
 {
   struct rar *rar;
   int ret = ARCHIVE_FAILED;
-        
+
   rar = (struct rar *)(a->format->data);
   if (strcmp(key, "hdrcharset")  == 0) {
     if (val == NULL || val[0] == 0)
@@ -1013,7 +1013,7 @@ archive_read_format_rar_read_data(struct archive_read *a, const void **buff,
   {
   case COMPRESS_METHOD_STORE:
     ret = read_data_stored(a, buff, size, offset);
-    break; 
+    break;
 
   case COMPRESS_METHOD_FASTEST:
   case COMPRESS_METHOD_FAST:
@@ -1023,13 +1023,13 @@ archive_read_format_rar_read_data(struct archive_read *a, const void **buff,
     ret = read_data_compressed(a, buff, size, offset);
     if (ret != ARCHIVE_OK && ret != ARCHIVE_WARN)
       __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context, &g_szalloc);
-    break; 
+    break;
 
   default:
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                       "Unsupported compression method for RAR file.");
     ret = ARCHIVE_FATAL;
-    break; 
+    break;
   }
   return (ret);
 }
@@ -1438,7 +1438,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
           flagbyte = *(p + offset++);
           flagbits = 8;
         }
-	
+
         flagbits -= 2;
         switch((flagbyte >> flagbits) & 3)
         {
@@ -2672,7 +2672,7 @@ expand(struct archive_read *a, int64_t end)
     if ((symbol = read_next_symbol(a, &rar->maincode)) < 0)
       return (ARCHIVE_FATAL);
     rar->output_last_match = 0;
-    
+
     if (symbol < 256)
     {
       lzss_emit_literal(rar, symbol);

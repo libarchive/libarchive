@@ -78,7 +78,7 @@ struct zip {
 	size_t			central_directory_entries_on_this_disk;
 	char			have_central_directory;
 	int64_t			offset;
-	char			has_encrypted_entries;
+	int			has_encrypted_entries;
 
 	/* List of entries (seekable Zip only) */
 	size_t			entries_remaining;
@@ -126,8 +126,8 @@ struct zip {
 #define ZIP_STRONG_ENCRYPTED	(1<<6)
 /* See "7.2 Single Password Symmetric Encryption Method"
    in http://www.pkware.com/documents/casestudies/APPNOTE.TXT */
-#define ZIP_CENTRAL_DIRECTORY_ENCRYPTED	(1<<13)	
-#define ZIP_UTF8_NAME	(1<<11)	
+#define ZIP_CENTRAL_DIRECTORY_ENCRYPTED	(1<<13)
+#define ZIP_UTF8_NAME	(1<<11)
 
 static int	archive_read_format_zip_has_encrypted_entries(struct archive_read *);
 static int	archive_read_support_format_zip_capabilities_seekable(struct archive_read *a);
@@ -229,7 +229,7 @@ archive_read_support_format_zip_seekable(struct archive *_a)
 	 */
 	zip->has_encrypted_entries = ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
 
-	
+
 	r = __archive_read_register_format(a,
 	    zip,
 	    "zip",
@@ -359,7 +359,7 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 		if (!found)
 			return 0;
 	}
-    
+
 	/* Since we've already done the hard work of finding the
 	   end of central directory record, let's save the important
 	   information. */
@@ -525,7 +525,7 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 		external_attributes = archive_le32dec(p + 38);
 		zip_entry->local_header_offset =
 		    archive_le32dec(p + 42) + correction;
-		
+
 		/* If we can't guess the mode, leave it zero here;
 		   when we read the local file header we might get
 		   more information. */
@@ -783,7 +783,7 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 	if (zip->entries_remaining <= 0 || zip->entry == NULL)
 		return ARCHIVE_EOF;
 	--zip->entries_remaining;
-	
+
 	if (zip->entry->rsrcname.s)
 		rsrc = (struct zip_entry *)__archive_rb_tree_find_node(
 		    &zip->tree_rsrc, zip->entry->rsrcname.s);
@@ -1076,7 +1076,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 			archive_entry_set_is_metadata_encrypted(entry, 1);
 			return ARCHIVE_FATAL;
         }
-	}	
+	}
 	zip_entry->compression = (char)archive_le16dec(p + 8);
 	zip_entry->mtime = zip_time(p + 10);
 	local_crc32 = archive_le32dec(p + 14);
@@ -1430,7 +1430,7 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 		}
 		/* Check for a complete PK\007\010 signature. */
 		p = buff;
-		if (p[0] == 'P' && p[1] == 'K' 
+		if (p[0] == 'P' && p[1] == 'K'
 		    && p[2] == '\007' && p[3] == '\010'
 		    && archive_le32dec(p + 4) == zip->entry_crc32
 		    && archive_le32dec(p + 8) ==
