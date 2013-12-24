@@ -76,7 +76,7 @@ static const char iMajorError[] = "invalid major number";
 static const char iMinorError[] = "invalid minor number";
 static const char tooManyFields[] = "too many fields for format";
 
-/* This is balatantly stolen from libarchive/archive_entry.c,
+/* This is blatantly stolen from libarchive/archive_entry.c,
  * in an attempt to get this to play nice on MinGW... */
 #if !defined(HAVE_MAJOR) && !defined(major)
 /* Replacement for major/minor/makedev. */
