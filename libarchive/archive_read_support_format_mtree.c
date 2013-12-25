@@ -1297,6 +1297,23 @@ parse_line(struct archive_read *a, struct archive_entry *entry,
  *  - format,major,minor[,subdevice]
  * When parsing succeeded, `pdev' will contain the appropriate dev_t value.
  */
+
+/* strsep() is not in C90, but strcspn() is. */
+/* Taken from http://unixpapa.com/incnote/string.html */
+static char *
+la_strsep(char **sp, char *sep)
+{
+	char *p, *s;
+	if (sp == NULL || *sp == NULL || **sp == '\0')
+		return(NULL);
+	s = *sp;
+	p = s + strcspn(s, sep);
+	if (*p != '\0')
+		*p++ = '\0';
+	*sp = p;
+	return(s);
+}
+
 static int
 parse_device(dev_t *pdev, struct archive *a, char *val)
 {
@@ -1321,7 +1338,7 @@ parse_device(dev_t *pdev, struct archive *a, char *val)
 			return ARCHIVE_WARN;
 		}
 		argc = 0;
-		while ((p = strsep(&dev, ",")) != NULL) {
+		while ((p = la_strsep(&dev, ",")) != NULL) {
 			if (*p == '\0') {
 				archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Missing number");

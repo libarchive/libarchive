@@ -277,8 +277,6 @@ extern wchar_t *__la_win_permissive_name(const char *name);
 extern wchar_t *__la_win_permissive_name_w(const wchar_t *wname);
 extern void __la_dosmaperr(unsigned long e);
 #define la_dosmaperr(e) __la_dosmaperr(e)
-extern char *__la_strsep(char **sp, char *sep);
-#define strsep(sp, sep) __la_strsep(sp, sep)
 extern struct archive_entry *__la_win_entry_in_posix_pathseparator(
     struct archive_entry *);
 
