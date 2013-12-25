@@ -99,6 +99,8 @@ DEFINE_TEST(test_read_format_zip_mac_metadata)
 		    "Unsupported ZIP compression method (deflation)");
 		assert(archive_errno(a) != 0);
 	}
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	assertEqualString("file3", archive_entry_pathname(ae));
 	assertEqualInt(AE_IFREG | 0644, archive_entry_mode(ae));
 	failure("Mac metadata should be set");

@@ -149,20 +149,9 @@ main(int argc, char *argv[])
 	}
 #endif
 
-	/* Need lafe_progname before calling lafe_warnc. */
-	if (*argv == NULL)
-		lafe_progname = "bsdcpio";
-	else {
-#if defined(_WIN32) && !defined(__CYGWIN__)
-		lafe_progname = strrchr(*argv, '\\');
-		if (strrchr(*argv, '/') > lafe_progname)
-#endif
-		lafe_progname = strrchr(*argv, '/');
-		if (lafe_progname != NULL)
-			lafe_progname++;
-		else
-			lafe_progname = *argv;
-	}
+	/* Set lafe_progname before calling lafe_warnc. */
+	lafe_setprogname(*argv, "bsdcpio");
+
 #if HAVE_SETLOCALE
 	if (setlocale(LC_ALL, "") == NULL)
 		lafe_warnc(0, "Failed to set default locale");
@@ -437,7 +426,7 @@ usage(void)
 {
 	const char	*p;
 
-	p = lafe_progname;
+	p = lafe_getprogname();
 
 	fprintf(stderr, "Brief Usage:\n");
 	fprintf(stderr, "  List:    %s -it < archive\n", p);
@@ -475,7 +464,7 @@ long_help(void)
 	const char	*prog;
 	const char	*p;
 
-	prog = lafe_progname;
+	prog = lafe_getprogname();
 
 	fflush(stderr);
 
@@ -500,7 +489,7 @@ version(void)
 {
 	fprintf(stdout,"bsdcpio %s -- %s\n",
 	    BSDCPIO_VERSION_STRING,
-	    archive_version_string());
+	    archive_version_details());
 	exit(0);
 }
 

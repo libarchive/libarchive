@@ -45,6 +45,15 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_util.c 201098 2009-12-28 02:58:1
 #if defined(HAVE_WINCRYPT_H) && !defined(__CYGWIN__)
 #include <wincrypt.h>
 #endif
+#ifdef HAVE_ZLIB_H
+#include <zlib.h>
+#endif
+#ifdef HAVE_LZMA_H
+#include <lzma.h>
+#endif
+#ifdef HAVE_BZLIB_H
+#include <bzlib.h>
+#endif
 
 #include "archive.h"
 #include "archive_private.h"
@@ -74,6 +83,38 @@ const char *
 archive_version_string(void)
 {
 	return (ARCHIVE_VERSION_STRING);
+}
+
+const char *
+archive_version_details(void)
+{
+	static struct archive_string str;
+	static int init = 0;
+
+	if (!init) {
+		archive_string_init(&str);
+
+		archive_strcat(&str, ARCHIVE_VERSION_STRING);
+#ifdef HAVE_ZLIB_H
+		archive_strcat(&str, " zlib/");
+		archive_strcat(&str, ZLIB_VERSION);
+#endif
+#ifdef HAVE_LZMA_H
+		archive_strcat(&str, " liblzma/");
+		archive_strcat(&str, LZMA_VERSION_STRING);
+#endif
+#ifdef HAVE_BZLIB_H
+		{
+			const char *p = BZ2_bzlibVersion();
+			const char *sep = strchr(p, ',');
+			if (sep == NULL)
+				sep = p + strlen(p);
+			archive_strcat(&str, " bz2lib/");
+			archive_strncat(&str, p, sep - p);
+		}
+#endif
+	    }
+	return str.s;
 }
 
 int
