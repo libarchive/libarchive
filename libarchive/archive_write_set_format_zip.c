@@ -511,7 +511,6 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	}
 
 	/* Decide whether to use Zip64 extension for this entry. */
-	if (
 	if (zip->entry_uses_zip64) {
 		version_needed = 45;
 	}
