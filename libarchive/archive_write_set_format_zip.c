@@ -112,6 +112,7 @@ struct zip {
 	uint32_t entry_crc32;
 	enum compression entry_compression;
 	int entry_flags;
+	int entry_uses_zip64;
 
 	unsigned char *file_header;
 	size_t file_header_extra_offset;
@@ -353,9 +354,9 @@ is_all_ascii(const char *p)
 static int
 archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 {
-	struct zip *zip = a->format_data;
-	unsigned char local_header[30];
+	unsigned char local_header[32];
 	unsigned char local_extra[64];
+	struct zip *zip = a->format_data;
 	unsigned char *e;
 	unsigned char *cd_extra;
 	size_t filename_length;
@@ -388,6 +389,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	zip->entry_compressed_written = 0;
 	zip->entry_uncompressed_written = 0;
 	zip->entry_flags = 0;
+	zip->entry_uses_zip64 = 0;
 	zip->entry_crc32 = crc32(0, NULL, 0);
 	if (zip->entry != NULL) {
 		archive_entry_free(zip->entry);
@@ -508,7 +510,11 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		}
 	}
 
-	/* TODO: Set version_needed = 45 if zip64 gets triggered. */
+	/* Decide whether to use Zip64 extension for this entry. */
+	if (
+	if (zip->entry_uses_zip64) {
+		version_needed = 45;
+	}
 
 	/* Format the local header. */
 	memset(local_header, 0, sizeof(local_header));
@@ -518,10 +524,13 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	archive_le16enc(local_header + 8, zip->entry_compression);
 	archive_le32enc(local_header + 10, dos_time(archive_entry_mtime(zip->entry)));
 	archive_le32enc(local_header + 14, zip->entry_crc32);
-	archive_le32enc(local_header + 18,
-	    zipmin(zip->entry_compressed_size, 0xffffffffLL));
-	archive_le32enc(local_header + 22,
-	    zipmin(zip->entry_uncompressed_size, 0xffffffffLL));
+	if (zip->entry_uses_zip64) {
+		archive_le32enc(local_header + 18, 0xffffffffLL);
+		archive_le32enc(local_header + 22, 0xffffffffLL);
+	} else {
+		archive_le32enc(local_header + 18, zip->entry_compressed_size);
+		archive_le32enc(local_header + 22, zip->entry_uncompressed_size);
+	}
 	archive_le16enc(local_header + 26, filename_length);
 
 	/* Format as much of central directory file header as we can: */
@@ -529,9 +538,8 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	/* If (zip->file_header == NULL) XXXX */
 	++zip->central_directory_entries;
 	memset(zip->file_header, 0, 46);
-	/* "Made by PKZip 2.0 on Unix." */
-	/* TODO: Change extract-version to 4.5 if Zip64 gets triggered. */
 	memcpy(zip->file_header, "PK\001\002", 4);
+	/* "Made by PKZip 2.0 on Unix." */
 	archive_le16enc(zip->file_header + 4, 3 * 256 + version_needed);
 	archive_le16enc(zip->file_header + 6, version_needed);
 	archive_le16enc(zip->file_header + 8, zip->entry_flags);
@@ -592,22 +600,18 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	cd_extra = cd_alloc(zip, e - local_extra);
 	memcpy(cd_extra, local_extra, e - local_extra);
 
-	/* Zip64 field with variable size. */
-#if 0	/* XXX THIS IS WRONG XXX */
-	if ((zip->entry_flags & ZIP_FLAGS_LENGTH_AT_END) == 0
-	    && size > 0xffffffffLL) {
+	/* "[Zip64 entry] in the local header MUST include BOTH
+	 * original [uncompressed] and compressed size fields." */
+	if (zip->entry_uses_zip64) {
 		unsigned char *zip64_start = e;
 		memcpy(e, "\001\000\020\000", 4);
 		e += 4;
-		if (zip->entry_uncompressed_size > 0xffffffffLL)
-			archive_le64enc(e, zip->entry_uncompressed_size);
+		archive_le64enc(e, zip->entry_uncompressed_size);
 		e += 8;
-		if (zip->entry_compressed_size > 0xffffffffLL)
-			archive_le64enc(e, zip->entry_compressed_size);
+		archive_le64enc(e, zip->entry_compressed_size);
 		e += 8;
 		archive_le16enc(zip64_start + 2, e - zip64_start + 4);
 	}
-#endif
 
 	/* Update local header with size of extra data and write it all out: */
 	archive_le16enc(local_header + 28, e - local_extra);
@@ -738,17 +742,23 @@ archive_write_zip_finish_entry(struct archive_write *a)
 #endif
 
 	/* Write trailing data descriptor. */
-	/* XXX IF ZIP64 XXX */
 	if ((zip->entry_flags & ZIP_FLAGS_LENGTH_AT_END) != 0) {
 		char d[24];
 		memcpy(d, "PK\007\010", 4);
 		archive_le32enc(d + 4, zip->entry_crc32);
-		archive_le32enc(d + 8, (uint32_t)zip->entry_compressed_written);
-		archive_le32enc(d + 12, (uint32_t)zip->entry_uncompressed_written);
-		ret = __archive_write_output(a, d, 16);
+		if (zip->entry_uses_zip64) {
+			archive_le64enc(d + 8, (uint64_t)zip->entry_compressed_written);
+			archive_le64enc(d + 16, (uint64_t)zip->entry_uncompressed_written);
+			ret = __archive_write_output(a, d, 24);
+			zip->written_bytes += 24;
+		} else {
+			archive_le32enc(d + 8, (uint32_t)zip->entry_compressed_written);
+			archive_le32enc(d + 12, (uint32_t)zip->entry_uncompressed_written);
+			ret = __archive_write_output(a, d, 16);
+			zip->written_bytes += 16;
+		}
 		if (ret != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
-		zip->written_bytes += 16;
 	}
 
 	/* Append Zip64 extra data to central directory information. */
@@ -759,15 +769,18 @@ archive_write_zip_finish_entry(struct archive_write *a)
 		unsigned char *z = zip64, *zd;
 		memcpy(z, "\001\000\000\000", 4);
 		z += 4;
-		if (zip->entry_uncompressed_written > 0xffffffffLL)
+		if (zip->entry_uncompressed_written > 0xffffffffLL) {
 			archive_le64enc(z, zip->entry_uncompressed_written);
-		z += 8;
-		if (zip->entry_compressed_written > 0xffffffffLL)
+			z += 8;
+		}
+		if (zip->entry_compressed_written > 0xffffffffLL) {
 			archive_le64enc(z, zip->entry_compressed_written);
-		z += 8;
-		if (zip->entry_offset > 0xffffffffLL)
+			z += 8;
+		}
+		if (zip->entry_offset > 0xffffffffLL) {
 			archive_le64enc(z, zip->entry_offset);
-		z += 8;
+			z += 8;
+		}
 		archive_le16enc(zip64 + 2, z - zip64 + 4);
 		zd = cd_alloc(zip, z - zip64);
 		if (zd == NULL) {
@@ -776,6 +789,9 @@ archive_write_zip_finish_entry(struct archive_write *a)
 			return (ARCHIVE_FATAL);
 		}
 		memcpy(zd, zip64, z - zip64);
+		/* Zip64 means version needs to be set to at least 4.5 */
+		if (archive_le16dec(zip->file_header + 6) < 45)
+			archive_le16enc(zip->file_header + 6, 45);
 	}
 
 	/* Fix up central directory file header. */
