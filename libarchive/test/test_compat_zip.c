@@ -32,8 +32,7 @@ static const int libz_enabled = 0;
 #endif
 
 /* Copy this function for each test file and adjust it accordingly. */
-static void
-test_compat_zip_1(void)
+DEFINE_TEST(test_compat_zip_1)
 {
 	char name[] = "test_compat_zip_1.zip";
 	struct archive_entry *ae;
@@ -76,8 +75,7 @@ finish:
  * junk is routinely introduced by some Zip writers when they manipulate
  * existing zip archives.
  */
-static void
-test_compat_zip_2(void)
+DEFINE_TEST(test_compat_zip_2)
 {
 	char name[] = "test_compat_zip_2.zip";
 	struct archive_entry *ae;
@@ -106,8 +104,7 @@ test_compat_zip_2(void)
  * Issue 185:  Test a regression that got in between 2.6 and 2.7 that
  * broke extraction of Zip entries with length-at-end.
  */
-static void
-test_compat_zip_3(void)
+DEFINE_TEST(test_compat_zip_3)
 {
 	const char *refname = "test_compat_zip_3.zip";
 	struct archive_entry *ae;
@@ -156,8 +153,7 @@ test_compat_zip_3(void)
 /**
  * A file with leading garbage (similar to an SFX file).
  */
-static void
-test_compat_zip_4(void)
+DEFINE_TEST(test_compat_zip_4)
 {
 	const char *refname = "test_compat_zip_4.zip";
 	struct archive_entry *ae;
@@ -215,8 +211,7 @@ test_compat_zip_4(void)
  * believe in populating local file headers at all.  This
  * is only readable with the seeking reader.
  */
-static void
-test_compat_zip_5(void)
+DEFINE_TEST(test_compat_zip_5)
 {
 	const char *refname = "test_compat_zip_5.zip";
 	struct archive_entry *ae;
@@ -373,8 +368,7 @@ compat_zip_6_verify(struct archive *a)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 }
 
-static void
-test_compat_zip_6(void)
+DEFINE_TEST(test_compat_zip_6)
 {
 	const char *refname = "test_compat_zip_6.zip";
 	struct archive *a;
@@ -404,8 +398,7 @@ test_compat_zip_6(void)
  * Issue 226: Try to reproduce hang when reading archives where the
  * length-at-end marker ends exactly on a block boundary.
  */
-static void
-test_compat_zip_7(void)
+DEFINE_TEST(test_compat_zip_7)
 {
 	const char *refname = "test_compat_zip_7.xps";
 	struct archive *a;
@@ -435,16 +428,3 @@ test_compat_zip_7(void)
 	}
 	free(p);
 }
-
-DEFINE_TEST(test_compat_zip)
-{
-	test_compat_zip_1();
-	test_compat_zip_2();
-	test_compat_zip_3();
-	test_compat_zip_4();
-	test_compat_zip_5();
-	test_compat_zip_6();
-	test_compat_zip_7();
-}
-
-
