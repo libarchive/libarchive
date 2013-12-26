@@ -110,7 +110,7 @@ struct zip {
 	struct archive_string_conv *sconv_default;
 	enum compression requested_compression;
 	int init_default_conversion;
-	char force_zip64;
+	char avoid_zip64, force_zip64;
 
 #ifdef HAVE_ZLIB_H
 	z_stream stream;
@@ -213,7 +213,8 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 		}
 		return (ret);
 	} else if (strcmp(key, "zip64") == 0) {
-		zip->force_zip64 = (val != NULL);
+		zip->force_zip64 = (val != NULL && *val != '\0');
+		zip->avoid_zip64 = !zip->force_zip64;
 		return (ARCHIVE_OK);
 	}
 
@@ -472,6 +473,9 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		if (zip->entry_compression == COMPRESSION_UNSPECIFIED) {
 			zip->entry_compression = COMPRESSION_DEFAULT;
 		}
+		if (zip->force_zip64 /* User has forced it. */
+		    || zip->entry_uncompressed_size > 0xffffffffLL) /* Large entry. */
+			zip->entry_uses_zip64 = 1;
 		if (zip->entry_compression == COMPRESSION_STORE) {
 			zip->entry_compressed_size = size;
 			zip->entry_uncompressed_size = size;
@@ -485,14 +489,15 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		/* Prefer deflate if it's available. */
 		zip->entry_compression = COMPRESSION_DEFAULT;
 		zip->entry_flags |= ZIP_FLAGS_LENGTH_AT_END;
-		if (zip->entry_compression == COMPRESSION_STORE) {
+		if (!zip->avoid_zip64) {
+			zip->entry_uses_zip64 = 1;
+		} else if (zip->entry_compression == COMPRESSION_STORE) {
 			version_needed = 10;
 		} else {
 			version_needed = 20;
 		}
 	}
 
-	/* Decide whether to use Zip64 extension for this entry. */
 	if (zip->entry_uses_zip64) {
 		version_needed = 45;
 	}
@@ -506,6 +511,11 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	archive_le32enc(local_header + 10, dos_time(archive_entry_mtime(zip->entry)));
 	archive_le32enc(local_header + 14, zip->entry_crc32);
 	if (zip->entry_uses_zip64) {
+		/* Zip64 data in the local header "must" include both
+		 * compressed and uncompressed sizes AND those fields
+		 * are included only if these are 0xffffffff;
+		 * THEREFORE these must be set this way, even if we
+		 * know one of them is smaller. */
 		archive_le32enc(local_header + 18, 0xffffffffLL);
 		archive_le32enc(local_header + 22, 0xffffffffLL);
 	} else {
@@ -591,7 +601,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		e += 8;
 		archive_le64enc(e, zip->entry_compressed_size);
 		e += 8;
-		archive_le16enc(zip64_start + 2, e - zip64_start + 4);
+		archive_le16enc(zip64_start + 2, e - (zip64_start + 4));
 	}
 
 	/* Update local header with size of extra data and write it all out: */
@@ -762,7 +772,7 @@ archive_write_zip_finish_entry(struct archive_write *a)
 			archive_le64enc(z, zip->entry_offset);
 			z += 8;
 		}
-		archive_le16enc(zip64 + 2, z - zip64 + 4);
+		archive_le16enc(zip64 + 2, z - (zip64 + 4));
 		zd = cd_alloc(zip, z - zip64);
 		if (zd == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
