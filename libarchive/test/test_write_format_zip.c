@@ -31,6 +31,9 @@
 #include "test.h"
 __FBSDID("$FreeBSD: head/lib/libarchive/test/test_write_format_zip.c 201247 2009-12-30 05:59:21Z kientzle $");
 
+/*
+ * Write a variety of different file types into the archive.
+ */
 static void
 write_contents(struct archive *a)
 {
@@ -256,6 +259,9 @@ write_contents(struct archive *a)
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 }
 
+/*
+ * Read back all of the entries and verify their values.
+ */
 static void
 verify_contents(struct archive *a, int seeking)
 {
@@ -533,6 +539,9 @@ verify_contents(struct archive *a, int seeking)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+/*
+ * Do a write-then-read roundtrip.
+ */
 DEFINE_TEST(test_write_format_zip)
 {
 	struct archive *a;
@@ -548,9 +557,7 @@ DEFINE_TEST(test_write_format_zip)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used));
-
 	write_contents(a);
-
 	dumpfile("constructed.zip", buff, used);
 
 	/*
@@ -581,6 +588,9 @@ DEFINE_TEST(test_write_format_zip)
 	free(buff);
 }
 
+/*
+ * Do a write-then-read roundtrip with Zip64 enabled.
+ */
 DEFINE_TEST(test_write_format_zip64)
 {
 	struct archive *a;
@@ -597,10 +607,8 @@ DEFINE_TEST(test_write_format_zip64)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_options(a, "zip:zip64"));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used));
-
 	write_contents(a);
-
-	dumpfile("constructed.zip", buff, used);
+	dumpfile("constructed64.zip", buff, used);
 
 	/*
 	 * Now, read the data back.
