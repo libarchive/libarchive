@@ -72,9 +72,7 @@ struct zip_entry {
 
 struct zip {
 	/* Structural information about the archive. */
-	int64_t			end_of_central_directory_offset;
 	int64_t			central_directory_offset;
-	size_t			central_directory_size;
 	size_t			central_directory_entries_total;
 	size_t			central_directory_entries_on_this_disk;
 	char			have_central_directory;
@@ -129,6 +127,9 @@ struct zip {
    in http://www.pkware.com/documents/casestudies/APPNOTE.TXT */
 #define ZIP_CENTRAL_DIRECTORY_ENCRYPTED	(1<<13)
 #define ZIP_UTF8_NAME	(1<<11)
+
+/* Many systems define min or MIN, but not all. */
+#define	zipmin(a,b) ((a) < (b) ? (a) : (b))
 
 static int	archive_read_format_zip_has_encrypted_entries(struct archive_read *);
 static int	archive_read_support_format_zip_capabilities_seekable(struct archive_read *a);
@@ -296,22 +297,61 @@ archive_read_support_format_zip(struct archive *a)
  * outbid.  But we can certainly do better...
  */
 static int
+read_eocd(struct zip *zip, const char *p, int64_t current_offset)
+{
+	/* Sanity-check the EOCD we've found. */
+
+	/* This must be the first volume. */
+	if (archive_le16dec(p + 4) != 0) {
+		return 0;
+	}
+	/* Central directory must be on this volume. */
+	if (archive_le16dec(p + 4) != archive_le16dec(p + 6)) {
+		return 0;
+	}
+	/* All central directory entries must be on this volume. */
+	if (archive_le16dec(p + 10) != archive_le16dec(p + 8))
+		return 0;
+	/* Central directory can't extend beyond start of EOCD record. */
+	if (archive_le32dec(p + 16) + archive_le32dec(p + 12)
+	    > current_offset)
+		return 0;
+
+	/* Save the central directory location for later use. */
+	zip->central_directory_offset = archive_le32dec(p + 16);
+
+	/* This is just a tiny bit higher than the maximum
+	   returned by the streaming Zip bidder.  This ensures
+	   that the more accurate seeking Zip parser wins
+	   whenever seek is available. */
+	return 32;
+}
+
+static int
+read_zip64_eocd(struct zip *zip, const char *p, int64_t current_offset)
+{
+	(void)zip; /* UNUSED */
+	(void)p; /* UNUSED */
+	(void)current_offset; /* UNUSED */
+	/* Not yet supported. */
+	return 0;
+}
+
+
+static int
 archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 {
 	struct zip *zip = (struct zip *)a->format->data;
-	int64_t file_size, end_of_central_directory_offset;
+	int64_t file_size, current_offset;
 	const char *p;
-	int i, tail, found;
+	int i, tail;
 
 	/* If someone has already bid more than 32, then avoid
 	   trashing the look-ahead buffers with a seek. */
 	if (best_bid > 32)
 		return (-1);
 
-	/* end-of-central-directory record is 22 bytes; first check
-	 * for it at very end of file. */
 	file_size = __archive_read_seek(a, 0, SEEK_END);
-	/* If we can't seek, then we can't bid. */
 	if (file_size <= 0)
 		return 0;
 
@@ -319,65 +359,36 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 	 * record (which starts with PK\005\006) or Zip64 locator
 	 * record (which begins with PK\006\007) */
 	tail = zipmin(1024 * 16, file_size);
-	end_of_central_directory_offset
-	    = __archive_read_seek(a, -tail, SEEK_END);
-	if (end_of_central_directory_offset < 0)
+	current_offset = __archive_read_seek(a, -tail, SEEK_END);
+	if (current_offset < 0)
 		return 0;
 	if ((p = __archive_read_ahead(a, (size_t)tail, NULL)) == NULL)
 		return 0;
-	for (found = 0, i = 0; !found_eocd && !found_zip64 && i < tail - 22;) {
+	for (i = 0; i <= tail - 22;) {
 		switch (p[i + 3]) {
 		case 'P': i += 3; break;
 		case 'K': i += 2; break;
 		case 005: i += 1; break;
 		case 006:
-			if (memcmp(p + i,
-				"PK\005\006\000\000\000\000", 8) == 0) {
-				p += i;
-				end_of_central_directory_offset += i;
-				found_eocd = 1;
-			} else
-				i += 1; /* Look for PK\006\007 next */
+			if (memcmp(p + i, "PK\005\006", 4) == 0) {
+				int ret = read_eocd(zip, p + i, current_offset + i);
+				if (ret > 0)
+					return (ret);
+			}
+			i += 1; /* Look for PK\006\007 next */
 			break;
 		case 007:
 			if (memcmp(p + i, "PK\006\007", 4) == 0) {
-				p += i;
-				end_of_central_directory_offset += i;
-				found_zip64 = 1;
-			} else
-				i += 4;
+				int ret = read_zip64_eocd(zip, p + i, current_offset + i);
+				if (ret > 0)
+					return (ret);
+			}
+			i += 4;
 			break;
 		default: i += 4; break;
 		}
 	}
-
-	if (found_eocd) {
-		/* Since we've already done the hard work of finding the
-		   end of central directory record, let's save the important
-		   information. */
-		zip->central_directory_entries = archive_le16dec(p + 10);
-		zip->central_directory_size = archive_le32dec(p + 12);
-		zip->central_directory_offset = archive_le32dec(p + 16);
-		zip->end_of_central_directory_offset
-		    = end_of_central_directory_offset;
-		/* Just one volume: central dir must all be on this volume. */
-		if (zip->central_directory_entries != archive_le16dec(p + 8))
-			return 0;
-		/* Central directory can't extend beyond start of EOCD record. */
-		if (zip->central_directory_offset
-		    + (int64_t)zip->central_directory_size
-		    > end_of_central_directory_offset)
-			return 0;
-		/* This is just a tiny bit higher than the maximum
-		   returned by the streaming Zip bidder.  This ensures
-		   that the more accurate seeking Zip parser wins
-		   whenever seek is available. */
-		return 32;
-	}
-
-	/* Looking at Zip64 end-of-cd locator... */
-	XXX Seek to zip64 end-of-cd record;
-	XXX parse out zip64 data;
+	return 0;
 }
 
 static int
@@ -475,7 +486,7 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 	unsigned i, found;
 	int64_t correction;
 	ssize_t bytes_avail;
-	const char *p, *end;
+	const char *p;
 	static const struct archive_rb_tree_ops rb_ops = {
 		&cmp_node, &cmp_key
 	};
@@ -493,8 +504,9 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 	 * know the correction we need to apply to account for leading
 	 * padding.
 	 */
-	__archive_read_seek(a, zip->central_directory_offset - 13, SEEK_SET);
-	zip->offset = zip->central_directory_offset - 13;
+	if (__archive_read_seek(a, zip->central_directory_offset, SEEK_SET) < 0)
+		return ARCHIVE_FATAL;
+	zip->offset = zip->central_directory_offset;
 
 	found = 0;
 	while (!found) {
@@ -512,6 +524,17 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 				} else
 					i += 4;
 				break;
+			case 005: i += 1; break;
+			case 006:
+				if (memcmp(p + i, "PK\005\006", 4) == 0) {
+					p += i;
+					found = 1;
+				} else if (memcmp(p + i, "PK\006\006", 4) == 0) {
+					p += i;
+					found = 1;
+				} else
+					i += 1;
+				break;
 			default: i += 4; break;
 			}
 		}
@@ -522,7 +545,7 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 	__archive_rb_tree_init(&zip->tree, &rb_ops);
 	__archive_rb_tree_init(&zip->tree_rsrc, &rb_rsrc_ops);
 
-	zip->central_directory_entries = 0;
+	zip->central_directory_entries_total = 0;
 	while (1) {
 		struct zip_entry *zip_entry;
 		size_t filename_length, extra_length, comment_length;
@@ -545,7 +568,7 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 		zip_entry = calloc(1, sizeof(struct zip_entry));
 		zip_entry->next = zip->zip_entries;
 		zip->zip_entries = zip_entry;
-		zip->central_directory_entries++;
+		zip->central_directory_entries_total++;
 
 		zip->have_central_directory = 1;
 		/* version = p[4]; */
@@ -1766,7 +1789,7 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 	if (zip->stream_valid)
 		inflateEnd(&zip->stream);
 #endif
-	if (zip->zip_entries && zip->central_directory_entries) {
+	if (zip->zip_entries) {
 		zip_entry = zip->zip_entries;
 		while (zip_entry != NULL) {
 			next_zip_entry = zip_entry->next;
