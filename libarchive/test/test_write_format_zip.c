@@ -32,6 +32,231 @@
 __FBSDID("$FreeBSD: head/lib/libarchive/test/test_write_format_zip.c 201247 2009-12-30 05:59:21Z kientzle $");
 
 static void
+write_contents(struct archive *a)
+{
+	struct archive_entry *ae;
+
+	/*
+	 * First write things with the "default" compression.
+	 * The library will choose "deflate" for most things if it's
+	 * available, else "store".
+	 */
+
+	/*
+	 * Write a file to it.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 1, 10);
+	archive_entry_copy_pathname(ae, "file");
+	archive_entry_set_mode(ae, AE_IFREG | 0755);
+	archive_entry_set_size(ae, 8);
+	assertEqualInt(0, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualInt(8, archive_write_data(a, "12345678", 9));
+	assertEqualInt(0, archive_write_data(a, "1", 1));
+
+	/*
+	 * Write another file to it.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 1, 10);
+	archive_entry_copy_pathname(ae, "file2");
+	archive_entry_set_mode(ae, AE_IFREG | 0755);
+	archive_entry_set_size(ae, 4);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualInt(4, archive_write_data(a, "1234", 4));
+
+	/*
+	 * Write a file with an unknown size.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 2, 15);
+	archive_entry_copy_pathname(ae, "file3");
+	archive_entry_set_mode(ae, AE_IFREG | 0621);
+	archive_entry_unset_size(ae);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualInt(5, archive_write_data(a, "mnopq", 5));
+
+	/*
+	 * Write symbolic link.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 1, 10);
+	assertEqualInt(1, archive_entry_mtime(ae));
+	assertEqualInt(10, archive_entry_mtime_nsec(ae));
+	archive_entry_copy_pathname(ae, "symlink");
+	assertEqualString("symlink", archive_entry_pathname(ae));
+	archive_entry_copy_symlink(ae, "file1");
+	assertEqualString("file1", archive_entry_symlink(ae));
+	archive_entry_set_mode(ae, AE_IFLNK | 0755);
+	assertEqualInt((AE_IFLNK | 0755), archive_entry_mode(ae));
+	archive_entry_set_size(ae, 4);
+
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+
+	/*
+	 * Write a directory to it.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 11, 110);
+	archive_entry_copy_pathname(ae, "dir");
+	archive_entry_set_mode(ae, S_IFDIR | 0755);
+	archive_entry_set_size(ae, 512);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	failure("size should be zero so that applications know not to write");
+	assertEqualInt(0, archive_entry_size(ae));
+	archive_entry_free(ae);
+	assertEqualIntA(a, 0, archive_write_data(a, "12345678", 9));
+
+	/*
+	 * Force "deflate" compression if the platform supports it.
+	 */
+#ifdef HAVE_ZLIB_H
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_zip_set_compression_deflate(a));
+
+	/*
+	 * Write a file to it.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 1, 10);
+	archive_entry_copy_pathname(ae, "file_deflate");
+	archive_entry_set_mode(ae, AE_IFREG | 0755);
+	archive_entry_set_size(ae, 8);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualInt(8, archive_write_data(a, "12345678", 9));
+	assertEqualInt(0, archive_write_data(a, "1", 1));
+
+	/*
+	 * Write another file to it.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 1, 10);
+	archive_entry_copy_pathname(ae, "file2_deflate");
+	archive_entry_set_mode(ae, AE_IFREG | 0755);
+	archive_entry_set_size(ae, 4);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualInt(4, archive_write_data(a, "1234", 4));
+
+	/*
+	 * Write a file with an unknown size.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 2, 15);
+	archive_entry_copy_pathname(ae, "file3_deflate");
+	archive_entry_set_mode(ae, AE_IFREG | 0621);
+	archive_entry_unset_size(ae);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualInt(5, archive_write_data(a, "ghijk", 5));
+
+	/*
+	 * Write symbolic like file to it.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 1, 10);
+	archive_entry_copy_pathname(ae, "symlink_deflate");
+	archive_entry_copy_symlink(ae, "file1");
+	archive_entry_set_mode(ae, AE_IFLNK | 0755);
+	archive_entry_set_size(ae, 4);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+
+	/*
+	 * Write a directory to it.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 11, 110);
+	archive_entry_copy_pathname(ae, "dir_deflate");
+	archive_entry_set_mode(ae, S_IFDIR | 0755);
+	archive_entry_set_size(ae, 512);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	failure("size should be zero so that applications know not to write");
+	assertEqualInt(0, archive_entry_size(ae));
+	archive_entry_free(ae);
+	assertEqualIntA(a, 0, archive_write_data(a, "12345678", 9));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_finish_entry(a));
+#endif
+
+	/*
+	 * Now write a bunch of entries with "store" compression.
+	 */
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_zip_set_compression_store(a));
+
+	/*
+	 * Write a file to it.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 1, 10);
+	archive_entry_copy_pathname(ae, "file_stored");
+	archive_entry_set_mode(ae, AE_IFREG | 0755);
+	archive_entry_set_size(ae, 8);
+	assertEqualInt(0, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualInt(8, archive_write_data(a, "12345678", 9));
+	assertEqualInt(0, archive_write_data(a, "1", 1));
+
+	/*
+	 * Write another file to it.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 1, 10);
+	archive_entry_copy_pathname(ae, "file2_stored");
+	archive_entry_set_mode(ae, AE_IFREG | 0755);
+	archive_entry_set_size(ae, 4);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualInt(4, archive_write_data(a, "ACEG", 4));
+
+	/*
+	 * Write a file with an unknown size.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 2, 15);
+	archive_entry_copy_pathname(ae, "file3_stored");
+	archive_entry_set_mode(ae, AE_IFREG | 0621);
+	archive_entry_unset_size(ae);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualInt(5, archive_write_data(a, "ijklm", 5));
+
+	/*
+	 * Write symbolic like file to it.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 1, 10);
+	archive_entry_copy_pathname(ae, "symlink_stored");
+	archive_entry_copy_symlink(ae, "file1");
+	archive_entry_set_mode(ae, AE_IFLNK | 0755);
+	archive_entry_set_size(ae, 4);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+
+	/*
+	 * Write a directory to it.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 11, 110);
+	archive_entry_copy_pathname(ae, "dir_stored");
+	archive_entry_set_mode(ae, S_IFDIR | 0755);
+	archive_entry_set_size(ae, 512);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	failure("size should be zero so that applications know not to write");
+	assertEqualInt(0, archive_entry_size(ae));
+	archive_entry_free(ae);
+	assertEqualIntA(a, 0, archive_write_data(a, "12345678", 9));
+
+
+	/* Close out the archive. */
+	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+}
+
+static void
 verify_contents(struct archive *a, int seeking)
 {
 	char filedata[64];
@@ -310,7 +535,6 @@ verify_contents(struct archive *a, int seeking)
 
 DEFINE_TEST(test_write_format_zip)
 {
-	struct archive_entry *ae;
 	struct archive *a;
 	size_t used;
 	size_t buffsize = 1000000;
@@ -325,224 +549,56 @@ DEFINE_TEST(test_write_format_zip)
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used));
 
-	/*
-	 * First write things with the "default" compression.
-	 * The library will choose "deflate" for most things if it's
-	 * available, else "store".
-	 */
+	write_contents(a);
+
+	dumpfile("constructed.zip", buff, used);
 
 	/*
-	 * Write a file to it.
+	 * Now, read the data back.
 	 */
-	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_mtime(ae, 1, 10);
-	archive_entry_copy_pathname(ae, "file");
-	archive_entry_set_mode(ae, AE_IFREG | 0755);
-	archive_entry_set_size(ae, 8);
-	assertEqualInt(0, archive_write_header(a, ae));
-	archive_entry_free(ae);
-	assertEqualInt(8, archive_write_data(a, "12345678", 9));
-	assertEqualInt(0, archive_write_data(a, "1", 1));
+	/* With the standard memory reader. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
+	verify_contents(a, 1);
 
-	/*
-	 * Write another file to it.
-	 */
-	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_mtime(ae, 1, 10);
-	archive_entry_copy_pathname(ae, "file2");
-	archive_entry_set_mode(ae, AE_IFREG | 0755);
-	archive_entry_set_size(ae, 4);
-	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
-	archive_entry_free(ae);
-	assertEqualInt(4, archive_write_data(a, "1234", 4));
+	/* With the test memory reader -- streaming mode. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, buff, used, 7));
+	/* Streaming reader doesn't see mode information from Central Directory. */
+	verify_contents(a, 0);
 
-	/*
-	 * Write a file with an unknown size.
-	 */
-	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_mtime(ae, 2, 15);
-	archive_entry_copy_pathname(ae, "file3");
-	archive_entry_set_mode(ae, AE_IFREG | 0621);
-	archive_entry_unset_size(ae);
-	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
-	archive_entry_free(ae);
-	assertEqualInt(5, archive_write_data(a, "mnopq", 5));
+	/* With the test memory reader -- seeking mode. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, buff, used, 7));
+	verify_contents(a, 1);
 
-	/*
-	 * Write symbolic link.
-	 */
-	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_mtime(ae, 1, 10);
-	assertEqualInt(1, archive_entry_mtime(ae));
-	assertEqualInt(10, archive_entry_mtime_nsec(ae));
-	archive_entry_copy_pathname(ae, "symlink");
-	assertEqualString("symlink", archive_entry_pathname(ae));
-	archive_entry_copy_symlink(ae, "file1");
-	assertEqualString("file1", archive_entry_symlink(ae));
-	archive_entry_set_mode(ae, AE_IFLNK | 0755);
-	assertEqualInt((AE_IFLNK | 0755), archive_entry_mode(ae));
-	archive_entry_set_size(ae, 4);
+	free(buff);
+}
 
-	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
-	archive_entry_free(ae);
+DEFINE_TEST(test_write_format_zip64)
+{
+	struct archive *a;
+	size_t used;
+	size_t buffsize = 1000000;
+	char *buff;
 
-	/*
-	 * Write a directory to it.
-	 */
-	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_mtime(ae, 11, 110);
-	archive_entry_copy_pathname(ae, "dir");
-	archive_entry_set_mode(ae, S_IFDIR | 0755);
-	archive_entry_set_size(ae, 512);
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
-	failure("size should be zero so that applications know not to write");
-	assertEqualInt(0, archive_entry_size(ae));
-	archive_entry_free(ae);
-	assertEqualIntA(a, 0, archive_write_data(a, "12345678", 9));
+	buff = malloc(buffsize);
 
-	/*
-	 * Force "deflate" compression if the platform supports it.
-	 */
-#ifdef HAVE_ZLIB_H
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_zip_set_compression_deflate(a));
+	/* Create a new archive in memory. */
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_options(a, "zip:zip64"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, buffsize, &used));
 
-	/*
-	 * Write a file to it.
-	 */
-	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_mtime(ae, 1, 10);
-	archive_entry_copy_pathname(ae, "file_deflate");
-	archive_entry_set_mode(ae, AE_IFREG | 0755);
-	archive_entry_set_size(ae, 8);
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
-	archive_entry_free(ae);
-	assertEqualInt(8, archive_write_data(a, "12345678", 9));
-	assertEqualInt(0, archive_write_data(a, "1", 1));
-
-	/*
-	 * Write another file to it.
-	 */
-	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_mtime(ae, 1, 10);
-	archive_entry_copy_pathname(ae, "file2_deflate");
-	archive_entry_set_mode(ae, AE_IFREG | 0755);
-	archive_entry_set_size(ae, 4);
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
-	archive_entry_free(ae);
-	assertEqualInt(4, archive_write_data(a, "1234", 4));
-
-	/*
-	 * Write a file with an unknown size.
-	 */
-	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_mtime(ae, 2, 15);
-	archive_entry_copy_pathname(ae, "file3_deflate");
-	archive_entry_set_mode(ae, AE_IFREG | 0621);
-	archive_entry_unset_size(ae);
-	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
-	archive_entry_free(ae);
-	assertEqualInt(5, archive_write_data(a, "ghijk", 5));
-
-	/*
-	 * Write symbolic like file to it.
-	 */
-	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_mtime(ae, 1, 10);
-	archive_entry_copy_pathname(ae, "symlink_deflate");
-	archive_entry_copy_symlink(ae, "file1");
-	archive_entry_set_mode(ae, AE_IFLNK | 0755);
-	archive_entry_set_size(ae, 4);
-	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
-	archive_entry_free(ae);
-
-	/*
-	 * Write a directory to it.
-	 */
-	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_mtime(ae, 11, 110);
-	archive_entry_copy_pathname(ae, "dir_deflate");
-	archive_entry_set_mode(ae, S_IFDIR | 0755);
-	archive_entry_set_size(ae, 512);
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
-	failure("size should be zero so that applications know not to write");
-	assertEqualInt(0, archive_entry_size(ae));
-	archive_entry_free(ae);
-	assertEqualIntA(a, 0, archive_write_data(a, "12345678", 9));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_finish_entry(a));
-#endif
-
-	/*
-	 * Now write a bunch of entries with "store" compression.
-	 */
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_zip_set_compression_store(a));
-
-	/*
-	 * Write a file to it.
-	 */
-	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_mtime(ae, 1, 10);
-	archive_entry_copy_pathname(ae, "file_stored");
-	archive_entry_set_mode(ae, AE_IFREG | 0755);
-	archive_entry_set_size(ae, 8);
-	assertEqualInt(0, archive_write_header(a, ae));
-	archive_entry_free(ae);
-	assertEqualInt(8, archive_write_data(a, "12345678", 9));
-	assertEqualInt(0, archive_write_data(a, "1", 1));
-
-	/*
-	 * Write another file to it.
-	 */
-	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_mtime(ae, 1, 10);
-	archive_entry_copy_pathname(ae, "file2_stored");
-	archive_entry_set_mode(ae, AE_IFREG | 0755);
-	archive_entry_set_size(ae, 4);
-	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
-	archive_entry_free(ae);
-	assertEqualInt(4, archive_write_data(a, "ACEG", 4));
-
-	/*
-	 * Write a file with an unknown size.
-	 */
-	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_mtime(ae, 2, 15);
-	archive_entry_copy_pathname(ae, "file3_stored");
-	archive_entry_set_mode(ae, AE_IFREG | 0621);
-	archive_entry_unset_size(ae);
-	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
-	archive_entry_free(ae);
-	assertEqualInt(5, archive_write_data(a, "ijklm", 5));
-
-	/*
-	 * Write symbolic like file to it.
-	 */
-	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_mtime(ae, 1, 10);
-	archive_entry_copy_pathname(ae, "symlink_stored");
-	archive_entry_copy_symlink(ae, "file1");
-	archive_entry_set_mode(ae, AE_IFLNK | 0755);
-	archive_entry_set_size(ae, 4);
-	assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
-	archive_entry_free(ae);
-
-	/*
-	 * Write a directory to it.
-	 */
-	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_mtime(ae, 11, 110);
-	archive_entry_copy_pathname(ae, "dir_stored");
-	archive_entry_set_mode(ae, S_IFDIR | 0755);
-	archive_entry_set_size(ae, 512);
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
-	failure("size should be zero so that applications know not to write");
-	assertEqualInt(0, archive_entry_size(ae));
-	archive_entry_free(ae);
-	assertEqualIntA(a, 0, archive_write_data(a, "12345678", 9));
-
-
-	/* Close out the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+	write_contents(a);
 
 	dumpfile("constructed.zip", buff, used);
 
