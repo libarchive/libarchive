@@ -33,8 +33,6 @@ __FBSDID("$FreeBSD$");
 static void
 verify_file0_seek(struct archive *a)
 {
-	char *p;
-	size_t s;
 	struct archive_entry *ae;
 	char data[16];
 
@@ -53,8 +51,6 @@ verify_file0_seek(struct archive *a)
 static void
 verify_file0_stream(struct archive *a)
 {
-	char *p;
-	size_t s;
 	struct archive_entry *ae;
 	char data[16];
 

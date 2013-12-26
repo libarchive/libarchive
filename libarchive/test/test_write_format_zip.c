@@ -315,7 +315,6 @@ DEFINE_TEST(test_write_format_zip)
 	size_t used;
 	size_t buffsize = 1000000;
 	char *buff;
-	const char *compression_type;
 
 	buff = malloc(buffsize);
 

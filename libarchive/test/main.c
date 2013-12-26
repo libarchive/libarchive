@@ -2163,7 +2163,7 @@ dumpfile(const char *filename, void *data, size_t len)
 		return;
 	}
 	bytes_written = fwrite(data, 1, len, f);
-	if (bytes_written < len)
+	if (bytes_written < (ssize_t)len)
 		logprintf("Can't write file %s\n", filename);
 	fclose(f);
 }
