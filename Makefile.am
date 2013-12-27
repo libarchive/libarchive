@@ -515,6 +515,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_format_zip_empty.c		\
 	libarchive/test/test_write_format_zip_empty_zip64.c	\
 	libarchive/test/test_write_format_zip_file.c		\
+	libarchive/test/test_write_format_zip_file_zip64.c	\
 	libarchive/test/test_write_format_zip_compression_store.c	\
 	libarchive/test/test_write_open_memory.c		\
 	libarchive/test/test_zip_filename_encoding.c

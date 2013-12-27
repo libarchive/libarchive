@@ -473,33 +473,36 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		if (zip->entry_compression == COMPRESSION_UNSPECIFIED) {
 			zip->entry_compression = COMPRESSION_DEFAULT;
 		}
-		if (zip->force_zip64 /* User has forced it. */
-		    || zip->entry_uncompressed_size > 0xffffffffLL) /* Large entry. */
-			zip->entry_uses_zip64 = 1;
 		if (zip->entry_compression == COMPRESSION_STORE) {
 			zip->entry_compressed_size = size;
 			zip->entry_uncompressed_size = size;
 			version_needed = 10;
 		} else {
+			zip->entry_uncompressed_size = size;
 			version_needed = 20;
 		}
+		if (zip->force_zip64 /* User has forced it. */
+		    || zip->entry_uncompressed_size > 0xffffffffLL) { /* Large entry. */
+			zip->entry_uses_zip64 = 1;
+			version_needed = 45;
+		}
+
 		/* We may know the size, but never the CRC. */
 		zip->entry_flags |= ZIP_FLAGS_LENGTH_AT_END;
 	} else {
-		/* Prefer deflate if it's available. */
+		/* Prefer deflate if it's available, because deflate
+		 * has a clear end-of-data marker that makes
+		 * length-at-end more reliable. */
 		zip->entry_compression = COMPRESSION_DEFAULT;
 		zip->entry_flags |= ZIP_FLAGS_LENGTH_AT_END;
 		if (!zip->avoid_zip64) {
 			zip->entry_uses_zip64 = 1;
+			version_needed = 45;
 		} else if (zip->entry_compression == COMPRESSION_STORE) {
 			version_needed = 10;
 		} else {
 			version_needed = 20;
 		}
-	}
-
-	if (zip->entry_uses_zip64) {
-		version_needed = 45;
 	}
 
 	/* Format the local header. */
