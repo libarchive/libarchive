@@ -32,6 +32,13 @@
 __FBSDID("$FreeBSD: head/lib/libarchive/test/test_write_format_zip.c 201247 2009-12-30 05:59:21Z kientzle $");
 
 /*
+ * This test doesn't actually check that the zip writer is
+ * correct, just that our zip reader can read the output of
+ * our zip writer.  We do more detailed checks of the bits
+ * elsewhere.
+ */
+
+/*
  * Write a variety of different file types into the archive.
  */
 static void

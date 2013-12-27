@@ -34,15 +34,18 @@ static void
 verify_file0_seek(struct archive *a)
 {
 	struct archive_entry *ae;
-	char data[16];
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("-", archive_entry_pathname(ae));
 	assertEqualInt(AE_IFREG | 0660, archive_entry_mode(ae));
 	assertEqualInt(6, archive_entry_size(ae));
-	assertEqualIntA(a, 6, archive_read_data(a, data, 16));
-	assertEqualMem(data, "file0\x0a", 6);
-
+#ifdef HAVE_ZLIB_H
+	{
+		char data[16];
+		assertEqualIntA(a, 6, archive_read_data(a, data, 16));
+		assertEqualMem(data, "file0\x0a", 6);
+	}
+#endif
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
@@ -52,15 +55,18 @@ static void
 verify_file0_stream(struct archive *a)
 {
 	struct archive_entry *ae;
-	char data[16];
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("-", archive_entry_pathname(ae));
 	assertEqualInt(AE_IFREG | 0664, archive_entry_mode(ae));
 	assertEqualInt(0, archive_entry_size_is_set(ae));
-	assertEqualIntA(a, 6, archive_read_data(a, data, 16));
-	assertEqualMem(data, "file0\x0a", 6);
-
+#ifdef HAVE_ZLIB_H
+	{
+		char data[16];
+		assertEqualIntA(a, 6, archive_read_data(a, data, 16));
+		assertEqualMem(data, "file0\x0a", 6);
+	}
+#endif
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
