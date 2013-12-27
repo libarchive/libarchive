@@ -144,7 +144,7 @@ cd_alloc(struct zip *zip, size_t length)
 	unsigned char *p;
 
 	if (zip->central_directory == NULL
-	    || (zip->central_directory_last->p + length 
+	    || (zip->central_directory_last->p + length
 		> zip->central_directory_last->buff + zip->central_directory_last->buff_size)) {
 		struct cd_segment *segment = calloc(1, sizeof(*segment));
 		if (segment == NULL)
@@ -779,7 +779,7 @@ archive_write_zip_finish_entry(struct archive_write *a)
 		zd = cd_alloc(zip, z - zip64);
 		if (zd == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
-	    			"Can't allocate zip data");
+				"Can't allocate zip data");
 			return (ARCHIVE_FATAL);
 		}
 		memcpy(zd, zip64, z - zip64);
