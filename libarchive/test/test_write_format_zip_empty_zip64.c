@@ -60,17 +60,24 @@ DEFINE_TEST(test_write_format_zip_empty_zip64)
 	    "\x2d\0" /* Extract with Zip 4.5 or later */
 	    "\0\0\0\0" /* This is disk #0 */
 	    "\0\0\0\0" /* Central dir starts on disk #0 */
-	    "\0\0\0\0\0\0\0\0" /* There are 0 entries in directory on this disk*/
-	    "\0\0\0\0\0\0\0\0" /* There are 0 entries in directory */
-	    "\0\0\0\0\0\0\0\0" /* There are 0 bytes in directory */
+	    "\0\0\0\0\0\0\0\0" /* There are 0 entries on this disk ... */
+	    "\0\0\0\0\0\0\0\0" /* ... out of 0 entries total ... */
+	    "\0\0\0\0\0\0\0\0" /* ... requiring a total of 0 bytes. */
 	    "\0\0\0\0\0\0\0\0" /* Directory starts at offset 0 */
 
 	    "PK\006\007" /* Zip64 end-of-central-directory locator */
-	    "\0\0\0\0" /* Zip64 EOCD is on disk #0 .. */
+	    "\0\0\0\0" /* Zip64 EOCD record is on disk #0 .. */
 	    "\0\0\0\0\0\0\0\0" /* .. at offset 0 .. */
 	    "\1\0\0\0"  /* .. of 1 total disks. */
 
-	    "PK\005\006\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0",
+	    "PK\005\006" /* Regular Zip end-of-central-directory record */
+	    "\0\0" /* This is disk #0 */
+	    "\0\0" /* Central dir is on disk #0 */
+	    "\0\0" /* There are 0 entries on this disk ... */
+	    "\0\0" /* ... out of 0 total entries ... */
+	    "\0\0\0\0" /* ... requiring a total of 0 bytes. */
+	    "\0\0\0\0" /* Directory starts at offset 0. */
+	    "\0\0" /* File comment is zero bytes long. */,
 	    98);
 
 	/* Verify that we read this kind of empty archive correctly. */
