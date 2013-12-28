@@ -97,6 +97,8 @@ struct zip {
 
 	/* Running CRC32 of the decompressed data */
 	unsigned long		entry_crc32;
+	unsigned long		(*crc32func)(unsigned long, const void *, size_t);
+	char			ignore_crc32;
 
 	/* Flags to mark progress of decompression. */
 	char			decompress_init;
@@ -161,6 +163,21 @@ static int	zip_read_local_file_header(struct archive_read *a,
 static time_t	zip_time(const char *);
 static const char *compression_name(int compression);
 static void	process_extra(const char *, size_t, struct zip_entry *);
+
+static unsigned long
+real_crc32(unsigned long crc, const void *buff, size_t len)
+{
+	return crc32(crc, buff, len);
+}
+
+static unsigned long
+fake_crc32(unsigned long crc, const void *buff, size_t len)
+{
+	(void)crc; /* UNUSED */
+	(void)buff; /* UNUSED */
+	(void)len; /* UNUSED */
+	return 0;
+}
 
 int
 archive_read_support_format_zip_streamable(struct archive *_a)
@@ -432,7 +449,11 @@ cmp_node(const struct archive_rb_node *n1, const struct archive_rb_node *n2)
 	const struct zip_entry *e1 = (const struct zip_entry *)n1;
 	const struct zip_entry *e2 = (const struct zip_entry *)n2;
 
-	return ((int)(e2->local_header_offset - e1->local_header_offset));
+	if (e1->local_header_offset > e2->local_header_offset)
+		return -1;
+	if (e1->local_header_offset < e2->local_header_offset)
+		return 1;
+	return 0;
 }
 
 static int
@@ -443,6 +464,10 @@ cmp_key(const struct archive_rb_node *n, const void *key)
 	(void)key; /* UNUSED */
 	return 1;
 }
+
+static const struct archive_rb_tree_ops rb_ops = {
+	&cmp_node, &cmp_key
+};
 
 static int
 rsrc_cmp_node(const struct archive_rb_node *n1,
@@ -460,6 +485,10 @@ rsrc_cmp_key(const struct archive_rb_node *n, const void *key)
 	const struct zip_entry *e = (const struct zip_entry *)n;
 	return (strcmp((const char *)key, e->rsrcname.s));
 }
+
+static const struct archive_rb_tree_ops rb_rsrc_ops = {
+	&rsrc_cmp_node, &rsrc_cmp_key
+};
 
 static const char *
 rsrc_basename(const char *name, size_t name_length)
@@ -522,12 +551,6 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 	int64_t correction;
 	ssize_t bytes_avail;
 	const char *p;
-	static const struct archive_rb_tree_ops rb_ops = {
-		&cmp_node, &cmp_key
-	};
-	static const struct archive_rb_tree_ops rb_rsrc_ops = {
-		&rsrc_cmp_node, &rsrc_cmp_key
-	};
 
 	/*
 	 * Find the start of the central directory.  The end-of-CD
@@ -1018,6 +1041,16 @@ archive_read_format_zip_options(struct archive_read *a,
 				ret = ARCHIVE_FATAL;
 		}
 		return (ret);
+	} else if (strcmp(key, "ignorecrc32") == 0) {
+		/* Mostly useful for testing. */
+		if (val == NULL || val[0] == 0) {
+			zip->crc32func = real_crc32;
+			zip->ignore_crc32 = 0;
+		} else {
+			zip->crc32func = fake_crc32;
+			zip->ignore_crc32 = 1;
+		}
+		return (ARCHIVE_OK);
 	}
 
 	/* Note: The "warn" return is just to inform the options
@@ -1145,7 +1178,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	zip->end_of_entry = 0;
 	zip->entry_uncompressed_bytes_read = 0;
 	zip->entry_compressed_bytes_read = 0;
-	zip->entry_crc32 = crc32(0, NULL, 0);
+	zip->entry_crc32 = zip->crc32func(0, NULL, 0);
 
 	/* Setup default conversion. */
 	if (zip->sconv == NULL && !zip->init_default_conversion) {
@@ -1276,7 +1309,8 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		   writers always put zero in the local header; don't
 		   bother warning about that. */
 		if (zip_entry->crc32 != 0
-		    && zip_entry->crc32 != zip_entry_original.crc32) {
+		    && zip_entry->crc32 != zip_entry_original.crc32
+		    && !zip->ignore_crc32) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Inconsistent CRC32 values");
@@ -1454,7 +1488,7 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		return (r);
 	/* Update checksum */
 	if (*size)
-		zip->entry_crc32 = crc32(zip->entry_crc32, *buff,
+		zip->entry_crc32 = zip->crc32func(zip->entry_crc32, *buff,
 		    (unsigned)*size);
 	/* If we hit the end, swallow any end-of-data marker. */
 	if (zip->end_of_entry) {
@@ -1480,7 +1514,8 @@ archive_read_format_zip_read_data(struct archive_read *a,
 			return (ARCHIVE_WARN);
 		}
 		/* Check computed CRC against header */
-		if (zip->entry->crc32 != zip->entry_crc32) {
+		if (zip->entry->crc32 != zip->entry_crc32
+		    && !zip->ignore_crc32) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "ZIP bad CRC: 0x%lx should be 0x%lx",
 			    (unsigned long)zip->entry_crc32,
@@ -1548,7 +1583,8 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 		p = buff;
 		if (p[0] == 'P' && p[1] == 'K'
 		    && p[2] == '\007' && p[3] == '\010'
-		    && archive_le32dec(p + 4) == zip->entry_crc32) {
+		    && (archive_le32dec(p + 4) == zip->entry_crc32
+			|| zip->ignore_crc32)) {
 			if (zip->entry->have_zip64) {
 				zip->entry->crc32 = archive_le32dec(p + 4);
 				zip->entry->compressed_size = archive_le64dec(p + 8);

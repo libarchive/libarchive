@@ -98,6 +98,7 @@ struct zip {
 
 	unsigned char *file_header;
 	size_t file_header_extra_offset;
+	unsigned long (*crc32func)(unsigned long crc, const void *buff, size_t len);
 
 	struct cd_segment *central_directory;
 	struct cd_segment *central_directory_last;
@@ -173,6 +174,21 @@ cd_alloc(struct zip *zip, size_t length)
 	return (p);
 }
 
+static unsigned long
+real_crc32(unsigned long crc, const void *buff, size_t len)
+{
+	return crc32(crc, buff, len);
+}
+
+static unsigned long
+fake_crc32(unsigned long crc, const void *buff, size_t len)
+{
+	(void)crc; /* UNUSED */
+	(void)buff; /* UNUSED */
+	(void)len; /* UNUSED */
+	return 0;
+}
+
 static int
 archive_write_zip_options(struct archive_write *a, const char *key,
     const char *val)
@@ -198,6 +214,14 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 			ret = ARCHIVE_OK;
 		}
 		return (ret);
+	} else if (strcmp(key, "fakecrc32") == 0) {
+		/* FOR TESTING ONLY:  turn off CRC calculator to speed up
+		 * certain complex tests. */
+		if (val == NULL || val[0] == 0) {
+			zip->crc32func = real_crc32;
+		} else {
+			zip->crc32func = fake_crc32;
+		}
 	} else if (strcmp(key, "hdrcharset")  == 0) {
 		if (val == NULL || val[0] == 0) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -296,6 +320,7 @@ archive_write_set_format_zip(struct archive *_a)
 
 	/* "Unspecified" lets us choose the appropriate compression. */
 	zip->requested_compression = COMPRESSION_UNSPECIFIED;
+	zip->crc32func = real_crc32;
 
 #ifdef HAVE_ZLIB_H
 	zip->len_buf = 65536;
@@ -373,7 +398,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	zip->entry_uncompressed_written = 0;
 	zip->entry_flags = 0;
 	zip->entry_uses_zip64 = 0;
-	zip->entry_crc32 = crc32(0, NULL, 0);
+	zip->entry_crc32 = zip->crc32func(0, NULL, 0);
 	if (zip->entry != NULL) {
 		archive_entry_free(zip->entry);
 		zip->entry = NULL;
@@ -457,7 +482,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		zip->entry_uncompressed_limit = symlink_size;
 		zip->entry_compressed_size = symlink_size;
 		zip->entry_uncompressed_size = symlink_size;
-		zip->entry_crc32 = crc32(zip->entry_crc32,
+		zip->entry_crc32 = zip->crc32func(zip->entry_crc32,
 		    (const unsigned char *)symlink, symlink_size);
 		zip->entry_compression = COMPRESSION_STORE;
 		version_needed = 20;
@@ -702,7 +727,7 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 	}
 
 	zip->entry_uncompressed_limit -= s;
-	zip->entry_crc32 = crc32(zip->entry_crc32, buff, (unsigned)s);
+	zip->entry_crc32 = zip->crc32func(zip->entry_crc32, buff, (unsigned)s);
 	return (s);
 
 }
@@ -763,15 +788,15 @@ archive_write_zip_finish_entry(struct archive_write *a)
 		unsigned char *z = zip64, *zd;
 		memcpy(z, "\001\000\000\000", 4);
 		z += 4;
-		if (zip->entry_uncompressed_written > 0xffffffffLL) {
+		if (zip->entry_uncompressed_written >= 0xffffffffLL) {
 			archive_le64enc(z, zip->entry_uncompressed_written);
 			z += 8;
 		}
-		if (zip->entry_compressed_written > 0xffffffffLL) {
+		if (zip->entry_compressed_written >= 0xffffffffLL) {
 			archive_le64enc(z, zip->entry_compressed_written);
 			z += 8;
 		}
-		if (zip->entry_offset > 0xffffffffLL) {
+		if (zip->entry_offset >= 0xffffffffLL) {
 			archive_le64enc(z, zip->entry_offset);
 			z += 8;
 		}

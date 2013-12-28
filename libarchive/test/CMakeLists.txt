@@ -225,11 +225,12 @@ IF(ENABLE_TEST)
     test_write_format_xar.c
     test_write_format_xar_empty.c
     test_write_format_zip.c
+    test_write_format_zip_compression_store.c
     test_write_format_zip_empty.c
     test_write_format_zip_empty_zip64.c
     test_write_format_zip_file.c
     test_write_format_zip_file_zip64.c
-    test_write_format_zip_compression_store.c
+    test_write_format_zip_large.c
     test_write_open_memory.c
     test_zip_filename_encoding.c
   )
