@@ -1102,10 +1102,6 @@ archive_read_format_zip_streamable_read_header(struct archive_read *a,
 
 		while (p + 4 <= end) {
 			if (p[0] == 'P' && p[1] == 'K') {
-				if (p[2] == '\001' && p[3] == '\002')
-					/* Beginning of central directory. */
-					return (ARCHIVE_EOF);
-
 				if (p[2] == '\003' && p[3] == '\004') {
 					/* Regular file entry. */
 					zip_read_consume(a, skipped);
@@ -1113,9 +1109,26 @@ archive_read_format_zip_streamable_read_header(struct archive_read *a,
 					    entry, zip);
 				}
 
-				if (p[2] == '\005' && p[3] == '\006')
-					/* End of central directory. */
-					return (ARCHIVE_EOF);
+                              /*
+                               * TODO: We cannot restore symlinks or
+                               * permissions based only on the local
+                               * file headers.  Consider scanning
+                               * the central directory and returning
+                               * additional entries for at least
+                               * symlinks and directories.  This
+                               * would allow us to correctly restore
+                               * symlinks and directory permissions
+                               * even when streaming.
+                               */
+                              if (p[2] == '\001' && p[3] == '\002') {
+                                      return (ARCHIVE_EOF);
+                              }
+
+                              /* End of central directory?  Must be an
+                               * empty archive. */
+                              if ((p[2] == '\005' && p[3] == '\006')
+                                  || (p[2] == '\006' && p[3] == '\006'))
+                                      return (ARCHIVE_EOF);
 			}
 			++p;
 			++skipped;
@@ -1161,11 +1174,14 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	size_t len, filename_length, extra_length;
 	struct archive_string_conv *sconv;
 	struct zip_entry *zip_entry = zip->entry;
-	struct zip_entry zip_entry_original = *zip_entry;
+	struct zip_entry zip_entry_original;
 	uint32_t local_crc32;
 	int64_t compressed_size, uncompressed_size;
 	int ret = ARCHIVE_OK;
 	char version;
+
+	/* Save a copy of the original for consistency checks. */
+	zip_entry_original = *zip_entry;
 
 	zip->decompress_init = 0;
 	zip->end_of_entry = 0;
