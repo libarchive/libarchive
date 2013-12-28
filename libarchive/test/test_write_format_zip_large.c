@@ -232,21 +232,63 @@ memory_read_skip(struct archive *a, void *_private, int64_t skip)
 	return (new_position - old_position);
 }
 
+/* The sizes of the entries we're going to generate. */
+static int64_t test_sizes[] = {
+	/* Test for 32-bit signed overflow. */
+	2 * GB - 1, 2 * GB, 2 * GB + 1,
+	/* Test for 32-bit unsigned overflow. */
+	4 * GB - 1, 4 * GB, 4 * GB + 1,
+	/* And beyond ... because we can. */
+	16 * GB - 1, 16 * GB, 16 * GB + 1,
+	64 * GB - 1, 64 * GB, 64 * GB + 1,
+	256 * GB - 1, 256 * GB, 256 * GB + 1,
+	1 * TB,
+	0
+};
+
+
+static void
+verify_large_zip(struct archive *a, struct fileblocks *fileblocks)
+{
+	char namebuff[64];
+	struct archive_entry *ae;
+	int i;
+
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_options(a, "zip:ignorecrc32"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_open_callback(a, memory_read_open));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_read_callback(a, memory_read));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_skip_callback(a, memory_read_skip));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_seek_callback(a, memory_read_seek));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_callback_data(a, fileblocks));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open1(a));
+
+	/*
+	 * Read entries back.
+	 */
+	for (i = 0; test_sizes[i] > 0; i++) {
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_next_header(a, &ae));
+		sprintf(namebuff, "file_%d", i);
+		assertEqualString(namebuff, archive_entry_pathname(ae));
+		assertEqualInt(test_sizes[i], archive_entry_size(ae));
+	}
+	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
+	assertEqualString("lastfile", archive_entry_pathname(ae));
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	/* Close out the archive. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+}
+
 DEFINE_TEST(test_write_format_zip_large)
 {
-	/* The sizes of the entries we're going to generate. */
-	static int64_t tests[] = {
-		/* Test for 32-bit signed overflow. */
-		2 * GB - 1, 2 * GB, 2 * GB + 1,
-		/* Test for 32-bit unsigned overflow. */
-		4 * GB - 1, 4 * GB, 4 * GB + 1,
-		/* And beyond ... because we can. */
-		16 * GB - 1, 16 * GB, 16 * GB + 1,
-		64 * GB - 1, 64 * GB, 64 * GB + 1,
-		256 * GB - 1, 256 * GB, 256 * GB + 1,
-		1 * TB,
-		0
-	};
 	int i;
 	char namebuff[64];
 	struct fileblocks fileblocks;
@@ -273,12 +315,12 @@ DEFINE_TEST(test_write_format_zip_large)
 	/*
 	 * Write a series of large files to it.
 	 */
-	for (i = 0; tests[i] != 0; i++) {
+	for (i = 0; test_sizes[i] != 0; i++) {
 		assert((ae = archive_entry_new()) != NULL);
 		sprintf(namebuff, "file_%d", i);
 		archive_entry_copy_pathname(ae, namebuff);
 		archive_entry_set_mode(ae, S_IFREG | 0755);
-		filesize = tests[i];
+		filesize = test_sizes[i];
 
 		archive_entry_set_size(ae, filesize);
 
@@ -310,42 +352,21 @@ DEFINE_TEST(test_write_format_zip_large)
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/*
-	 * Open the same archive for reading.
+	 * Read back with seeking reader:
 	 */
 	a = archive_read_new();
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_zip_seekable(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_set_options(a, "zip:ignorecrc32"));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_set_open_callback(a, memory_read_open));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_set_read_callback(a, memory_read));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_set_skip_callback(a, memory_read_skip));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_set_seek_callback(a, memory_read_seek));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_set_callback_data(a, &fileblocks));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_open1(a));
+	verify_large_zip(a, &fileblocks);
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/*
-	 * Read entries back.
+	 * Read back with streaming reader:
 	 */
-	for (i = 0; tests[i] > 0; i++) {
-		assertEqualIntA(a, ARCHIVE_OK,
-		    archive_read_next_header(a, &ae));
-		sprintf(namebuff, "file_%d", i);
-		assertEqualString(namebuff, archive_entry_pathname(ae));
-		assertEqualInt(tests[i], archive_entry_size(ae));
-	}
-	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualString("lastfile", archive_entry_pathname(ae));
-
-	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
-
-	/* Close out the archive. */
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	a = archive_read_new();
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_zip_streamable(a));
+	verify_large_zip(a, &fileblocks);
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	free(fileblocks.buff);
