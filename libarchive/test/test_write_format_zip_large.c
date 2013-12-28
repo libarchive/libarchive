@@ -241,9 +241,12 @@ DEFINE_TEST(test_write_format_zip_large)
 		/* Test for 32-bit unsigned overflow. */
 		4 * GB - 1, 4 * GB, 4 * GB + 1,
 		/* And beyond ... because we can. */
-		8 * GB - 1, 8 * GB, 8 * GB + 1,
+		16 * GB - 1, 16 * GB, 16 * GB + 1,
 		64 * GB - 1, 64 * GB, 64 * GB + 1,
-		256 * GB, 1 * TB, 0 };
+		256 * GB - 1, 256 * GB, 256 * GB + 1,
+		1 * TB,
+		0
+	};
 	int i;
 	char namebuff[64];
 	struct fileblocks fileblocks;
