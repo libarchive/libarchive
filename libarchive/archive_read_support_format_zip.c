@@ -1305,10 +1305,9 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		    "Truncated ZIP file header");
 		return (ARCHIVE_FATAL);
 	}
-	process_extra(h, extra_length, zip_entry);
-	zip_read_consume(a, extra_length);
 
 	if (zip->have_central_directory) {
+		process_extra(h, extra_length, zip_entry);
 		/* If we read the central dir entry, we must have size
 		 * information as well, so ignore the length-at-end flag. */
 		zip_entry->flags &= ~ZIP_LENGTH_AT_END;
@@ -1350,7 +1349,9 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		zip_entry->crc32 = local_crc32;
 		zip_entry->compressed_size = compressed_size;
 		zip_entry->uncompressed_size = uncompressed_size;
+		process_extra(h, extra_length, zip_entry);
 	}
+	zip_read_consume(a, extra_length);
 
 	/* Populate some additional entry fields: */
 	archive_entry_set_mode(entry, zip_entry->mode);
@@ -1798,21 +1799,25 @@ static int
 archive_read_format_zip_read_data_skip(struct archive_read *a)
 {
 	struct zip *zip;
+	int64_t bytes_skipped;
 
 	zip = (struct zip *)(a->format->data);
+	bytes_skipped = zip_read_consume(a, zip->unconsumed);
+	if (bytes_skipped < 0)
+		return (ARCHIVE_FATAL);
+	zip->unconsumed = 0;
 
 	/* If we've already read to end of data, we're done. */
 	if (zip->end_of_entry)
 		return (ARCHIVE_OK);
 
 	/* So we know we're streaming... */
-	if (0 == (zip->entry->flags & ZIP_LENGTH_AT_END)) {
+	if (0 == (zip->entry->flags & ZIP_LENGTH_AT_END)
+	    || zip->entry->compressed_size > 0) {
 		/* We know the compressed length, so we can just skip. */
-		int64_t bytes_skipped = zip_read_consume(a,
-		    zip->entry_bytes_remaining + zip->unconsumed);
+		bytes_skipped = zip_read_consume(a, zip->entry_bytes_remaining);
 		if (bytes_skipped < 0)
 			return (ARCHIVE_FATAL);
-		zip->unconsumed = 0;
 		return (ARCHIVE_OK);
 	}
 
@@ -1835,7 +1840,6 @@ archive_read_format_zip_read_data_skip(struct archive_read *a)
 #endif
 	default: /* Uncompressed or unknown. */
 		/* Scan for a PK\007\010 signature. */
-		zip_read_consume(a, zip->unconsumed);
 		zip->unconsumed = 0;
 		for (;;) {
 			const char *p, *buff;
