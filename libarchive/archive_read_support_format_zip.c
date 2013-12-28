@@ -202,6 +202,7 @@ archive_read_support_format_zip_streamable(struct archive *_a)
 	 * any encrypted entries yet.
 	 */
 	zip->has_encrypted_entries = ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
+	zip->crc32func = real_crc32;
 
 	r = __archive_read_register_format(a,
 	    zip,
@@ -244,7 +245,7 @@ archive_read_support_format_zip_seekable(struct archive *_a)
 	 * any encrypted entries yet.
 	 */
 	zip->has_encrypted_entries = ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
-
+	zip->crc32func = real_crc32;
 
 	r = __archive_read_register_format(a,
 	    zip,
@@ -658,16 +659,23 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 			zip_entry->mode = external_attributes >> 16;
 		}
 
+		/* We're done with the regular data; get the filename and
+		 * extra data. */
+		__archive_read_consume(a, 46);
+		if ((p = __archive_read_ahead(a, filename_length + extra_length, NULL))
+		    == NULL) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Truncated ZIP file header");
+			return ARCHIVE_FATAL;
+		}
+		process_extra(p + filename_length, extra_length, zip_entry);
+
 		/*
 		 * Mac resource fork files are stored under the
 		 * "__MACOSX/" directory, so we should check if
 		 * it is.
 		 */
-		/* Make sure we have the file name. */
-		if ((p = __archive_read_ahead(a, 46 + filename_length, NULL))
-		    == NULL)
-			return ARCHIVE_FATAL;
-		name = p + 46;
+		name = p;
 		r = rsrc_basename(name, filename_length);
 		if (filename_length >= 9 &&
 		    strncmp("__MACOSX/", name, 9) == 0) {
@@ -701,25 +709,10 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 			__archive_rb_tree_insert_node(&zip->tree,
 			    &zip_entry->node);
 		}
-		/* We don't read the filename until we get to the
-		   local file header.  Reading it here would speed up
-		   table-of-contents operations (removing the need to
-		   find and read local file header to get the
-		   filename) at the cost of requiring a lot of extra
-		   space. */
-		__archive_read_consume(a, 46 + filename_length);
 
-		/* Read and process the extra data. */
-		if ((p = __archive_read_ahead(a, extra_length, NULL)) == NULL) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Truncated ZIP file header");
-			return (ARCHIVE_FATAL);
-		}
-		process_extra(p, extra_length, zip_entry);
-		__archive_read_consume(a, extra_length);
-
-		/* Skip the comment, if any. */
-		__archive_read_consume(a, comment_length);
+		/* Skip the comment too ... */
+		__archive_read_consume(a,
+		    filename_length + extra_length + comment_length);
 	}
 
 	return ARCHIVE_OK;
