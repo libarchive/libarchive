@@ -1361,7 +1361,8 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	archive_entry_set_ctime(entry, zip_entry->ctime, 0);
 	archive_entry_set_atime(entry, zip_entry->atime, 0);
 	/* Set the size only if it's meaningful. */
-	if (0 == (zip_entry->flags & ZIP_LENGTH_AT_END))
+	if (0 == (zip_entry->flags & ZIP_LENGTH_AT_END)
+	    || zip_entry->uncompressed_size > 0)
 		archive_entry_set_size(entry, zip_entry->uncompressed_size);
 
 	zip->entry_bytes_remaining = zip_entry->compressed_size;

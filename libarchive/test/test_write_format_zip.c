@@ -289,10 +289,9 @@ verify_contents(struct archive *a, int seeking)
 	assertEqualString("file", archive_entry_pathname(ae));
 	if (seeking) {
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
-		assertEqualInt(8, archive_entry_size(ae));
-	} else {
-		assertEqualInt(0, archive_entry_size_is_set(ae));
 	}
+	assert(archive_entry_size_is_set(ae));
+	assertEqualInt(8, archive_entry_size(ae));
 	assertEqualIntA(a, 8,
 	    archive_read_data(a, filedata, sizeof(filedata)));
 	assertEqualMem(filedata, "12345678", 8);
@@ -307,10 +306,9 @@ verify_contents(struct archive *a, int seeking)
 	assertEqualString("file2", archive_entry_pathname(ae));
 	if (seeking) {
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
-		assertEqualInt(4, archive_entry_size(ae));
-	} else {
-		assertEqualInt(0, archive_entry_size_is_set(ae));
 	}
+	assertEqualInt(4, archive_entry_size(ae));
+	assert(archive_entry_size_is_set(ae));
 	assertEqualIntA(a, 4,
 	    archive_read_data(a, filedata, sizeof(filedata)));
 	assertEqualMem(filedata, "1234", 4);
@@ -375,12 +373,10 @@ verify_contents(struct archive *a, int seeking)
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("file_deflate", archive_entry_pathname(ae));
-	if (seeking) {
+	if (seeking)
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
-		assertEqualInt(8, archive_entry_size(ae));
-	} else {
-		assertEqualInt(0, archive_entry_size(ae));
-	}
+	assertEqualInt(8, archive_entry_size(ae));
+	assert(archive_entry_size_is_set(ae));
 	assertEqualIntA(a, 8,
 	    archive_read_data(a, filedata, sizeof(filedata)));
 	assertEqualMem(filedata, "12345678", 8);
@@ -393,12 +389,10 @@ verify_contents(struct archive *a, int seeking)
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("file2_deflate", archive_entry_pathname(ae));
-	if (seeking) {
+	if (seeking)
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
-		assertEqualInt(4, archive_entry_size(ae));
-	} else {
-		assertEqualInt(0, archive_entry_size(ae));
-	}
+	assertEqualInt(4, archive_entry_size(ae));
+	assert(archive_entry_size_is_set(ae));
 	assertEqualIntA(a, 4,
 	    archive_read_data(a, filedata, sizeof(filedata)));
 	assertEqualMem(filedata, "1234", 4);
@@ -464,13 +458,10 @@ verify_contents(struct archive *a, int seeking)
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("file_stored", archive_entry_pathname(ae));
-	if (seeking) {
+	if (seeking)
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
-		assert(archive_entry_size_is_set(ae));
-		assertEqualInt(8, archive_entry_size(ae));
-	} else {
-		assertEqualInt(0, archive_entry_size_is_set(ae));
-	}
+	assert(archive_entry_size_is_set(ae));
+	assertEqualInt(8, archive_entry_size(ae));
 	assertEqualIntA(a, 8,
 	    archive_read_data(a, filedata, sizeof(filedata)));
 	assertEqualMem(filedata, "12345678", 8);
@@ -483,12 +474,10 @@ verify_contents(struct archive *a, int seeking)
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("file2_stored", archive_entry_pathname(ae));
-	if (seeking) {
-		assertEqualInt(4, archive_entry_size(ae));
+	if (seeking)
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
-	} else {
-		assertEqualInt(0, archive_entry_size_is_set(ae));
-	}
+	assertEqualInt(4, archive_entry_size(ae));
+	assert(archive_entry_size_is_set(ae));
 	assertEqualIntA(a, 4,
 	    archive_read_data(a, filedata, sizeof(filedata)));
 	assertEqualMem(filedata, "ACEG", 4);
