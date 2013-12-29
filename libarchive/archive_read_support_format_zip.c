@@ -179,6 +179,30 @@ fake_crc32(unsigned long crc, const void *buff, size_t len)
 	return 0;
 }
 
+static int64_t
+zip_read_consume(struct archive_read *a, int64_t bytes)
+{
+	struct zip *zip = (struct zip *)a->format->data;
+	int64_t skip;
+
+	skip = __archive_read_consume(a, bytes);
+	if (skip > 0)
+		zip->offset += skip;
+	return (skip);
+}
+
+static int64_t
+zip_read_seek(struct archive_read *a, int64_t offset, int whence)
+{
+	struct zip *zip = (struct zip *)a->format->data;
+	int64_t position;
+
+	position = __archive_read_seek(a, offset, whence);
+	if (position > 0)
+		zip->offset = position;
+	return (position);
+}
+
 int
 archive_read_support_format_zip_streamable(struct archive *_a)
 {
@@ -341,8 +365,7 @@ read_eocd(struct zip *zip, const char *p, int64_t current_offset)
 }
 
 static int
-read_zip64_eocd(struct archive_read *a, struct zip *zip,
-    const char *p, int64_t current_offset)
+read_zip64_eocd(struct archive_read *a, struct zip *zip, const char *p)
 {
 	int64_t eocd64_offset;
 	int64_t eocd64_size;
@@ -358,8 +381,7 @@ read_zip64_eocd(struct archive_read *a, struct zip *zip,
 
 	/* Find the Zip64 EOCD record. */
 	eocd64_offset = archive_le64dec(p + 8);
-	current_offset = __archive_read_seek(a, eocd64_offset, SEEK_SET);
-	if (current_offset < 0)
+	if (zip_read_seek(a, eocd64_offset, SEEK_SET) < 0)
 		return 0;
 	if ((p = __archive_read_ahead(a, 56, NULL)) == NULL)
 		return 0;
@@ -399,7 +421,7 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 	if (best_bid > 32)
 		return (-1);
 
-	file_size = __archive_read_seek(a, 0, SEEK_END);
+	file_size = zip_read_seek(a, 0, SEEK_END);
 	if (file_size <= 0)
 		return 0;
 
@@ -407,7 +429,7 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 	 * record (which starts with PK\005\006) or Zip64 locator
 	 * record (which begins with PK\006\007) */
 	tail = zipmin(1024 * 16, file_size);
-	current_offset = __archive_read_seek(a, -tail, SEEK_END);
+	current_offset = zip_read_seek(a, -tail, SEEK_END);
 	if (current_offset < 0)
 		return 0;
 	if ((p = __archive_read_ahead(a, (size_t)tail, NULL)) == NULL)
@@ -431,8 +453,7 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 			break;
 		case 007:
 			if (memcmp(p + i, "PK\006\007", 4) == 0) {
-				int ret = read_zip64_eocd(a, zip,
-				    p + i, current_offset + i);
+				int ret = read_zip64_eocd(a, zip, p + i);
 				if (ret > 0)
 					return (ret);
 			}
@@ -533,18 +554,6 @@ expose_parent_dirs(struct zip *zip, const char *name, size_t name_length)
 	archive_string_free(&str);
 }
 
-static int64_t
-zip_read_consume(struct archive_read *a, int64_t bytes)
-{
-	struct zip *zip = (struct zip *)a->format->data;
-	int64_t skip;
-
-	skip = __archive_read_consume(a, bytes);
-	if (skip > 0)
-		zip->offset += skip;
-	return (skip);
-}
-
 static int
 slurp_central_directory(struct archive_read *a, struct zip *zip)
 {
@@ -563,9 +572,8 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 	 * know the correction we need to apply to account for leading
 	 * padding.
 	 */
-	if (__archive_read_seek(a, zip->central_directory_offset, SEEK_SET) < 0)
+	if (zip_read_seek(a, zip->central_directory_offset, SEEK_SET) < 0)
 		return ARCHIVE_FATAL;
-	zip->offset = zip->central_directory_offset;
 
 	found = 0;
 	while (!found) {
@@ -762,8 +770,7 @@ zip_read_mac_metadata(struct archive_read *a, struct archive_entry *entry,
 	if (zip->offset < rsrc->local_header_offset)
 		zip_read_consume(a, rsrc->local_header_offset - zip->offset);
 	else if (zip->offset != rsrc->local_header_offset) {
-		__archive_read_seek(a, rsrc->local_header_offset, SEEK_SET);
-		zip->offset = zip->entry->local_header_offset;
+		zip_read_seek(a, rsrc->local_header_offset, SEEK_SET);
 	}
 
 	hsize = zip_get_local_file_header_size(a, 0);
@@ -848,8 +855,7 @@ zip_read_mac_metadata(struct archive_read *a, struct archive_entry *entry,
 	archive_entry_copy_mac_metadata(entry, metadata,
 	    (size_t)rsrc->uncompressed_size - metadata_bytes);
 
-	__archive_read_seek(a, offset, SEEK_SET);
-	zip->offset = offset;
+	zip_read_seek(a, offset, SEEK_SET);
 exit_mac_metadata:
 	zip->decompress_init = 0;
 	free(metadata);
@@ -911,9 +917,7 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 		zip_read_consume(a,
 		    zip->entry->local_header_offset - zip->offset);
 	else if (zip->offset != zip->entry->local_header_offset) {
-		__archive_read_seek(a, zip->entry->local_header_offset,
-			SEEK_SET);
-		zip->offset = zip->entry->local_header_offset;
+		zip_read_seek(a, zip->entry->local_header_offset, SEEK_SET);
 	}
 	zip->unconsumed = 0;
 	r = zip_read_local_file_header(a, entry, zip);
