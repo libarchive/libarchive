@@ -132,6 +132,9 @@ struct zip {
 
 /*
  * Common code for streaming or seeking modes.
+ *
+ * Includes code to read local file headers, decompress data
+ * from entry bodies, and common API.
  */
 
 static unsigned long
@@ -209,74 +212,6 @@ zip_time(const char *p)
 	ts.tm_sec = (msTime << 1) & 0x3e;
 	ts.tm_isdst = -1;
 	return mktime(&ts);
-}
-
-static int
-archive_read_format_zip_has_encrypted_entries(struct archive_read *_a)
-{
-	if (_a && _a->format) {
-		struct zip * zip = (struct zip *)_a->format->data;
-		if (zip) {
-			return zip->has_encrypted_entries;
-		}
-	}
-	return ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
-}
-
-int
-archive_read_support_format_zip(struct archive *a)
-{
-	int r;
-	r = archive_read_support_format_zip_streamable(a);
-	if (r != ARCHIVE_OK)
-		return r;
-	return (archive_read_support_format_zip_seekable(a));
-}
-
-static int
-archive_read_format_zip_options(struct archive_read *a,
-    const char *key, const char *val)
-{
-	struct zip *zip;
-	int ret = ARCHIVE_FAILED;
-
-	zip = (struct zip *)(a->format->data);
-	if (strcmp(key, "compat-2x")  == 0) {
-		/* Handle filenames as libarchive 2.x */
-		zip->init_default_conversion = (val != NULL) ? 1 : 0;
-		return (ARCHIVE_OK);
-	} else if (strcmp(key, "hdrcharset")  == 0) {
-		if (val == NULL || val[0] == 0)
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "zip: hdrcharset option needs a character-set name"
-			);
-		else {
-			zip->sconv = archive_string_conversion_from_charset(
-			    &a->archive, val, 0);
-			if (zip->sconv != NULL) {
-				if (strcmp(val, "UTF-8") == 0)
-					zip->sconv_utf8 = zip->sconv;
-				ret = ARCHIVE_OK;
-			} else
-				ret = ARCHIVE_FATAL;
-		}
-		return (ret);
-	} else if (strcmp(key, "ignorecrc32") == 0) {
-		/* Mostly useful for testing. */
-		if (val == NULL || val[0] == 0) {
-			zip->crc32func = real_crc32;
-			zip->ignore_crc32 = 0;
-		} else {
-			zip->crc32func = fake_crc32;
-			zip->ignore_crc32 = 1;
-		}
-		return (ARCHIVE_OK);
-	}
-
-	/* Note: The "warn" return is just to inform the options
-	 * supervisor that we didn't handle it.  It will generate
-	 * a suitable error if no one used this option. */
-	return (ARCHIVE_WARN);
 }
 
 /*
@@ -1046,6 +981,74 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 	return (ARCHIVE_OK);
 }
 
+static int
+archive_read_format_zip_has_encrypted_entries(struct archive_read *_a)
+{
+	if (_a && _a->format) {
+		struct zip * zip = (struct zip *)_a->format->data;
+		if (zip) {
+			return zip->has_encrypted_entries;
+		}
+	}
+	return ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
+}
+
+static int
+archive_read_format_zip_options(struct archive_read *a,
+    const char *key, const char *val)
+{
+	struct zip *zip;
+	int ret = ARCHIVE_FAILED;
+
+	zip = (struct zip *)(a->format->data);
+	if (strcmp(key, "compat-2x")  == 0) {
+		/* Handle filenames as libarchive 2.x */
+		zip->init_default_conversion = (val != NULL) ? 1 : 0;
+		return (ARCHIVE_OK);
+	} else if (strcmp(key, "hdrcharset")  == 0) {
+		if (val == NULL || val[0] == 0)
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "zip: hdrcharset option needs a character-set name"
+			);
+		else {
+			zip->sconv = archive_string_conversion_from_charset(
+			    &a->archive, val, 0);
+			if (zip->sconv != NULL) {
+				if (strcmp(val, "UTF-8") == 0)
+					zip->sconv_utf8 = zip->sconv;
+				ret = ARCHIVE_OK;
+			} else
+				ret = ARCHIVE_FATAL;
+		}
+		return (ret);
+	} else if (strcmp(key, "ignorecrc32") == 0) {
+		/* Mostly useful for testing. */
+		if (val == NULL || val[0] == 0) {
+			zip->crc32func = real_crc32;
+			zip->ignore_crc32 = 0;
+		} else {
+			zip->crc32func = fake_crc32;
+			zip->ignore_crc32 = 1;
+		}
+		return (ARCHIVE_OK);
+	}
+
+	/* Note: The "warn" return is just to inform the options
+	 * supervisor that we didn't handle it.  It will generate
+	 * a suitable error if no one used this option. */
+	return (ARCHIVE_WARN);
+}
+
+int
+archive_read_support_format_zip(struct archive *a)
+{
+	int r;
+	r = archive_read_support_format_zip_streamable(a);
+	if (r != ARCHIVE_OK)
+		return r;
+	return (archive_read_support_format_zip_seekable(a));
+}
+
 /* ------------------------------------------------------------------------ */
 
 /*
@@ -1154,15 +1157,17 @@ archive_read_format_zip_streamable_read_header(struct archive_read *a,
 				}
 
                               /*
-                               * TODO: We cannot restore symlinks or
-                               * permissions based only on the local
-                               * file headers.  Consider scanning
-                               * the central directory and returning
-                               * additional entries for at least
-                               * symlinks and directories.  This
-                               * would allow us to correctly restore
-                               * symlinks and directory permissions
-                               * even when streaming.
+                               * TODO: We cannot restore permissions
+                               * based only on the local file headers.
+                               * Consider scanning the central
+                               * directory and returning additional
+                               * entries for at least directories.
+                               * This would allow us to properly set
+                               * directory permissions.
+			       *
+			       * This won't help us fix symlinks
+			       * and may not help with regular file
+			       * permissions, either.  <sigh>
                                */
                               if (p[2] == '\001' && p[3] == '\002') {
                                       return (ARCHIVE_EOF);
