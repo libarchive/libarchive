@@ -64,18 +64,31 @@ struct zip_entry {
 	time_t			ctime;
 	uint32_t		crc32;
 	uint16_t		mode;
-	uint16_t		flags;
-	char			compression;
-	char			system;
-	char			have_zip64;
+	uint16_t		zip_flags; /* From GP Flags Field */
+	unsigned char		compression;
+	unsigned char		system; /* From "version written by" */
+	unsigned char		flags; /* Our extra markers. */
 };
+
+/* Bits used in zip_flags. */
+#define ZIP_ENCRYPTED	(1 << 0)
+#define ZIP_LENGTH_AT_END	(1 << 3)
+#define ZIP_STRONG_ENCRYPTED	(1 << 6)
+#define ZIP_UTF8_NAME	(1 << 11)
+/* See "7.2 Single Password Symmetric Encryption Method"
+   in http://www.pkware.com/documents/casestudies/APPNOTE.TXT */
+#define ZIP_CENTRAL_DIRECTORY_ENCRYPTED	(1 << 13)
+
+/* Bits used in flags. */
+#define LA_USED_ZIP64	(1 << 0)
+#define LA_FROM_CENTRAL_DIRECTORY (1 << 1)
 
 struct zip {
 	/* Structural information about the archive. */
+	char			format_name[64];
 	int64_t			central_directory_offset;
 	size_t			central_directory_entries_total;
 	size_t			central_directory_entries_on_this_disk;
-	char			have_central_directory;
 	int			has_encrypted_entries;
 
 	/* List of entries (seekable Zip only) */
@@ -114,16 +127,7 @@ struct zip {
 	struct archive_string_conv *sconv_default;
 	struct archive_string_conv *sconv_utf8;
 	int			init_default_conversion;
-	char			format_name[64];
 };
-
-#define ZIP_LENGTH_AT_END	8
-#define ZIP_ENCRYPTED	(1<<0)
-#define ZIP_STRONG_ENCRYPTED	(1<<6)
-/* See "7.2 Single Password Symmetric Encryption Method"
-   in http://www.pkware.com/documents/casestudies/APPNOTE.TXT */
-#define ZIP_CENTRAL_DIRECTORY_ENCRYPTED	(1<<13)
-#define ZIP_UTF8_NAME	(1<<11)
 
 /* Many systems define min or MIN, but not all. */
 #define	zipmin(a,b) ((a) < (b) ? (a) : (b))
@@ -238,7 +242,7 @@ process_extra(const char *p, size_t extra_length, struct zip_entry* zip_entry)
 		switch (headerid) {
 		case 0x0001:
 			/* Zip64 extended information extra field. */
-			zip_entry->have_zip64 = 1;
+			zip_entry->flags |= LA_USED_ZIP64;
 			if (zip_entry->uncompressed_size == 0xffffffff) {
 				if (datasize < 8)
 					break;
@@ -429,13 +433,13 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	}
 	version = p[4];
 	zip_entry->system = p[5];
-	zip_entry->flags = archive_le16dec(p + 6);
-	if (zip_entry->flags & (ZIP_ENCRYPTED | ZIP_STRONG_ENCRYPTED)) {
+	zip_entry->zip_flags = archive_le16dec(p + 6);
+	if (zip_entry->zip_flags & (ZIP_ENCRYPTED | ZIP_STRONG_ENCRYPTED)) {
 		zip->has_encrypted_entries = 1;
 		archive_entry_set_is_data_encrypted(entry, 1);
-		if (zip_entry->flags & ZIP_CENTRAL_DIRECTORY_ENCRYPTED &&
-			zip_entry->flags & ZIP_ENCRYPTED &&
-			zip_entry->flags & ZIP_STRONG_ENCRYPTED) {
+		if (zip_entry->zip_flags & ZIP_CENTRAL_DIRECTORY_ENCRYPTED &&
+			zip_entry->zip_flags & ZIP_ENCRYPTED &&
+			zip_entry->zip_flags & ZIP_STRONG_ENCRYPTED) {
 			archive_entry_set_is_metadata_encrypted(entry, 1);
 			return ARCHIVE_FATAL;
 		}
@@ -456,7 +460,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		    "Truncated ZIP file header");
 		return (ARCHIVE_FATAL);
 	}
-	if (zip_entry->flags & ZIP_UTF8_NAME) {
+	if (zip_entry->zip_flags & ZIP_UTF8_NAME) {
 		/* The filename is stored to be UTF-8. */
 		if (zip->sconv_utf8 == NULL) {
 			zip->sconv_utf8 =
@@ -530,10 +534,10 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	process_extra(h, extra_length, zip_entry);
 	__archive_read_consume(a, extra_length);
 
-	if (zip->have_central_directory) {
-		/* If we read the central dir entry, we must have size
-		 * information as well, so ignore the length-at-end flag. */
-		zip_entry->flags &= ~ZIP_LENGTH_AT_END;
+	if (zip_entry->flags & LA_FROM_CENTRAL_DIRECTORY) {
+		/* If this came from the central dir, it's size info
+		 * is definitive, so ignore the length-at-end flag. */
+		zip_entry->zip_flags &= ~ZIP_LENGTH_AT_END;
 		/* If local header is missing a value, use the one from
 		   the central directory.  If both have it, warn about
 		   mismatches. */
@@ -582,14 +586,14 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	archive_entry_set_ctime(entry, zip_entry->ctime, 0);
 	archive_entry_set_atime(entry, zip_entry->atime, 0);
 	/* Set the size only if it's meaningful. */
-	if (0 == (zip_entry->flags & ZIP_LENGTH_AT_END)
+	if (0 == (zip_entry->zip_flags & ZIP_LENGTH_AT_END)
 	    || zip_entry->uncompressed_size > 0)
 		archive_entry_set_size(entry, zip_entry->uncompressed_size);
 
 	zip->entry_bytes_remaining = zip_entry->compressed_size;
 
 	/* If there's no body, force read_data() to return EOF immediately. */
-	if (0 == (zip_entry->flags & ZIP_LENGTH_AT_END)
+	if (0 == (zip_entry->zip_flags & ZIP_LENGTH_AT_END)
 	    && zip->entry_bytes_remaining < 1)
 		zip->end_of_entry = 1;
 
@@ -638,7 +642,7 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 
 	zip = (struct zip *)(a->format->data);
 
-	if (zip->entry->flags & ZIP_LENGTH_AT_END) {
+	if (zip->entry->zip_flags & ZIP_LENGTH_AT_END) {
 		const char *p;
 
 		/* Grab at least 24 bytes. */
@@ -660,7 +664,7 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 		    && p[2] == '\007' && p[3] == '\010'
 		    && (archive_le32dec(p + 4) == zip->entry_crc32
 			|| zip->ignore_crc32)) {
-			if (zip->entry->have_zip64) {
+			if (zip->entry->flags & LA_USED_ZIP64) {
 				zip->entry->crc32 = archive_le32dec(p + 4);
 				zip->entry->compressed_size = archive_le64dec(p + 8);
 				zip->entry->uncompressed_size = archive_le64dec(p + 16);
@@ -778,7 +782,7 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	 * decompressor to combine reads by copying data.
 	 */
 	compressed_buff = __archive_read_ahead(a, 1, &bytes_avail);
-	if (0 == (zip->entry->flags & ZIP_LENGTH_AT_END)
+	if (0 == (zip->entry->zip_flags & ZIP_LENGTH_AT_END)
 	    && bytes_avail > zip->entry_bytes_remaining) {
 		bytes_avail = (ssize_t)zip->entry_bytes_remaining;
 	}
@@ -828,7 +832,7 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	zip->entry_uncompressed_bytes_read += zip->stream.total_out;
 	*buff = zip->uncompressed_buffer;
 
-	if (zip->end_of_entry && (zip->entry->flags & ZIP_LENGTH_AT_END)) {
+	if (zip->end_of_entry && (zip->entry->zip_flags & ZIP_LENGTH_AT_END)) {
 		const char *p;
 
 		if (NULL == (p = __archive_read_ahead(a, 24, NULL))) {
@@ -843,7 +847,7 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 			p += 4;
 			zip->unconsumed = 4;
 		}
-		if (zip->entry->have_zip64) {
+		if (zip->entry->flags & LA_USED_ZIP64) {
 			zip->entry->crc32 = archive_le32dec(p);
 			zip->entry->compressed_size = archive_le64dec(p + 4);
 			zip->entry->uncompressed_size = archive_le64dec(p + 12);
@@ -883,7 +887,7 @@ archive_read_format_zip_read_data(struct archive_read *a,
 	if (AE_IFREG != (zip->entry->mode & AE_IFMT))
 		return (ARCHIVE_EOF);
 
-	if (zip->entry->flags & (ZIP_ENCRYPTED | ZIP_STRONG_ENCRYPTED)) {
+	if (zip->entry->zip_flags & (ZIP_ENCRYPTED | ZIP_STRONG_ENCRYPTED)) {
 		zip->has_encrypted_entries = 1;
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Encrypted file is unsupported");
@@ -1203,7 +1207,7 @@ archive_read_format_zip_read_data_skip_streamable(struct archive_read *a)
 		return (ARCHIVE_OK);
 
 	/* So we know we're streaming... */
-	if (0 == (zip->entry->flags & ZIP_LENGTH_AT_END)
+	if (0 == (zip->entry->zip_flags & ZIP_LENGTH_AT_END)
 	    || zip->entry->compressed_size > 0) {
 		/* We know the compressed length, so we can just skip. */
 		bytes_skipped = __archive_read_consume(a, zip->entry_bytes_remaining);
@@ -1248,7 +1252,7 @@ archive_read_format_zip_read_data_skip_streamable(struct archive_read *a)
 				else if (p[3] == '\007') { p += 1; }
 				else if (p[3] == '\010' && p[2] == '\007'
 				    && p[1] == 'K' && p[0] == 'P') {
-					if (zip->entry->have_zip64)
+					if (zip->entry->flags & LA_USED_ZIP64)
 						__archive_read_consume(a, p - buff + 24);
 					else
 						__archive_read_consume(a, p - buff + 16);
@@ -1626,15 +1630,15 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 
 		zip_entry = calloc(1, sizeof(struct zip_entry));
 		zip_entry->next = zip->zip_entries;
+		zip_entry->flags |= LA_FROM_CENTRAL_DIRECTORY;
 		zip->zip_entries = zip_entry;
 		zip->central_directory_entries_total++;
 
-		zip->have_central_directory = 1;
 		/* version = p[4]; */
 		zip_entry->system = p[5];
 		/* version_required = archive_le16dec(p + 6); */
-		zip_entry->flags = archive_le16dec(p + 8);
-		if (zip_entry->flags & (ZIP_ENCRYPTED | ZIP_STRONG_ENCRYPTED)){
+		zip_entry->zip_flags = archive_le16dec(p + 8);
+		if (zip_entry->zip_flags & (ZIP_ENCRYPTED | ZIP_STRONG_ENCRYPTED)){
 			zip->has_encrypted_entries = 1;
 		}
 		zip_entry->compression = (char)archive_le16dec(p + 10);
@@ -1952,14 +1956,14 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 		}
 
 		sconv = zip->sconv;
-		if (sconv == NULL && (zip->entry->flags & ZIP_UTF8_NAME))
+		if (sconv == NULL && (zip->entry->zip_flags & ZIP_UTF8_NAME))
 			sconv = zip->sconv_utf8;
 		if (sconv == NULL)
 			sconv = zip->sconv_default;
 		if (archive_entry_copy_symlink_l(entry, p, linkname_length,
 		    sconv) != 0) {
 			if (errno != ENOMEM && sconv == zip->sconv_utf8 &&
-			    (zip->entry->flags & ZIP_UTF8_NAME))
+			    (zip->entry->zip_flags & ZIP_UTF8_NAME))
 			    archive_entry_copy_symlink_l(entry, p,
 				linkname_length, NULL);
 			if (errno == ENOMEM) {
@@ -1973,7 +1977,7 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 			 * in an automatic conversion.
 			 */
 			if (sconv != zip->sconv_utf8 ||
-			    (zip->entry->flags & ZIP_UTF8_NAME) == 0) {
+			    (zip->entry->zip_flags & ZIP_UTF8_NAME) == 0) {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Symlink cannot be converted "
