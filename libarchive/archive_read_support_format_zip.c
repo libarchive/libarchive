@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Tim Kientzle
+ * Copyright (c) 2004-2013 Tim Kientzle
  * Copyright (c) 2011-2012 Michihiro NAKAJIMA
  * Copyright (c) 2013 Konrad Kleine
  * All rights reserved.
@@ -242,7 +242,7 @@ archive_read_format_zip_options(struct archive_read *a,
 
 	zip = (struct zip *)(a->format->data);
 	if (strcmp(key, "compat-2x")  == 0) {
-		/* Handle filnames as libarchive 2.x */
+		/* Handle filenames as libarchive 2.x */
 		zip->init_default_conversion = (val != NULL) ? 1 : 0;
 		return (ARCHIVE_OK);
 	} else if (strcmp(key, "hdrcharset")  == 0) {
@@ -1071,9 +1071,12 @@ archive_read_format_zip_streamable_bid(struct archive_read *a, int best_bid)
 		return (-1);
 
 	/*
-	 * Bid of 30 here is: 16 bits for "PK",
-	 * next 16-bit field has four options (-2 bits).
-	 * 16 + 16-2 = 30.
+	 * Bid of 29 here comes from:
+	 *  + 16 bits for "PK",
+	 *  + next 16-bit field has 6 options so contributes
+	 *    about 16 - log_2(6) ~= 16 - 2.6 ~= 13 bits
+	 *
+	 * So we've effectively verified ~29 total bits of check data.
 	 */
 	if (p[0] == 'P' && p[1] == 'K') {
 		if ((p[2] == '\001' && p[3] == '\002')
@@ -1082,7 +1085,7 @@ archive_read_format_zip_streamable_bid(struct archive_read *a, int best_bid)
 		    || (p[2] == '\006' && p[3] == '\006')
 		    || (p[2] == '\007' && p[3] == '\010')
 		    || (p[2] == '0' && p[3] == '0'))
-			return (30);
+			return (29);
 	}
 
 	/* TODO: It's worth looking ahead a little bit for a valid
