@@ -145,6 +145,7 @@ static int	archive_read_format_zip_cleanup(struct archive_read *);
 static int	archive_read_format_zip_read_data(struct archive_read *,
 		    const void **, size_t *, int64_t *);
 static int	archive_read_format_zip_read_data_skip(struct archive_read *a);
+static int	archive_read_format_zip_read_data_skip_seekable(struct archive_read *a);
 static int	archive_read_format_zip_seekable_read_header(
 		    struct archive_read *, struct archive_entry *);
 static int	archive_read_format_zip_streamable_read_header(
@@ -253,7 +254,7 @@ archive_read_support_format_zip_seekable(struct archive *_a)
 	    archive_read_format_zip_options,
 	    archive_read_format_zip_seekable_read_header,
 	    archive_read_format_zip_read_data,
-	    archive_read_format_zip_read_data_skip,
+	    archive_read_format_zip_read_data_skip_seekable,
 	    NULL,
 	    archive_read_format_zip_cleanup,
 	    archive_read_support_format_zip_capabilities_seekable,
@@ -1774,6 +1775,21 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	return (ARCHIVE_OK);
 }
 #endif
+
+/*
+ * We're going to seek for the next header anyway, so we don't
+ * need to bother doing anything here.
+ */
+static int
+archive_read_format_zip_read_data_skip_seekable(struct archive_read *a)
+{
+	struct zip *zip;
+	zip = (struct zip *)(a->format->data);
+
+	zip->unconsumed = 0;
+	return (ARCHIVE_OK);
+}
+
 
 static int
 archive_read_format_zip_read_data_skip(struct archive_read *a)
