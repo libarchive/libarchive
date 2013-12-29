@@ -28,6 +28,20 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_support_format_zip.c 201102 2009-12-28 03:11:36Z kientzle $");
 
+/*
+ * The definitive documentation of the Zip file format is:
+ *   http://www.pkware.com/documents/casestudies/APPNOTE.TXT
+ *
+ * The Info-Zip project has pioneered various extensions to better
+ * support Zip on Unix, including the 0x5455 "UT", 0x5855 "UX", 0x7855
+ * "Ux", and 0x7875 "ux" extensions for time and ownership
+ * information.
+ *
+ * History of this code: The streaming Zip reader was first added to
+ * libarchive in January 2005.  Support for seekable input sources was
+ * added in Nov 2011.
+ */
+
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
