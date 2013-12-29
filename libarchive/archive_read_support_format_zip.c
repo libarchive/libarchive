@@ -1174,14 +1174,12 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	size_t len, filename_length, extra_length;
 	struct archive_string_conv *sconv;
 	struct zip_entry *zip_entry = zip->entry;
-	struct zip_entry zip_entry_original;
-	uint32_t local_crc32;
-	int64_t compressed_size, uncompressed_size;
+	struct zip_entry zip_entry_central_dir;
 	int ret = ARCHIVE_OK;
 	char version;
 
 	/* Save a copy of the original for consistency checks. */
-	zip_entry_original = *zip_entry;
+	zip_entry_central_dir = *zip_entry;
 
 	zip->decompress_init = 0;
 	zip->end_of_entry = 0;
@@ -1217,13 +1215,13 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 			zip_entry->flags & ZIP_STRONG_ENCRYPTED) {
 			archive_entry_set_is_metadata_encrypted(entry, 1);
 			return ARCHIVE_FATAL;
-        }
+		}
 	}
 	zip_entry->compression = (char)archive_le16dec(p + 8);
 	zip_entry->mtime = zip_time(p + 10);
-	local_crc32 = archive_le32dec(p + 14);
-	compressed_size = archive_le32dec(p + 18);
-	uncompressed_size = archive_le32dec(p + 22);
+	zip_entry->crc32 = archive_le32dec(p + 14);
+	zip_entry->compressed_size = archive_le32dec(p + 18);
+	zip_entry->uncompressed_size = archive_le32dec(p + 22);
 	filename_length = archive_le16dec(p + 26);
 	extra_length = archive_le16dec(p + 28);
 
@@ -1306,52 +1304,52 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		return (ARCHIVE_FATAL);
 	}
 
+	process_extra(h, extra_length, zip_entry);
+	zip_read_consume(a, extra_length);
+
 	if (zip->have_central_directory) {
-		process_extra(h, extra_length, zip_entry);
 		/* If we read the central dir entry, we must have size
 		 * information as well, so ignore the length-at-end flag. */
 		zip_entry->flags &= ~ZIP_LENGTH_AT_END;
-		/* If we have values from both the local file header
-		   and the central directory, warn about mismatches
-		   which might indicate a damaged file.  But some
-		   writers always put zero in the local header; don't
-		   bother warning about that. */
-		if (zip_entry->crc32 != 0
-		    && zip_entry->crc32 != zip_entry_original.crc32
-		    && !zip->ignore_crc32) {
+		/* If local header is missing a value, use the one from
+		   the central directory.  If both have it, warn about
+		   mismatches. */
+		if (zip_entry->crc32 == 0) {
+			zip_entry->crc32 = zip_entry_central_dir.crc32;
+		} else if (!zip->ignore_crc32
+		    && zip_entry->crc32 != zip_entry_central_dir.crc32) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Inconsistent CRC32 values");
 			ret = ARCHIVE_WARN;
 		}
-		if (zip_entry->compressed_size != 0
-		    && zip_entry->compressed_size != zip_entry_original.compressed_size) {
+		if (zip_entry->compressed_size == 0) {
+			zip_entry->compressed_size
+			    = zip_entry_central_dir.compressed_size;
+		} else if (zip_entry->compressed_size
+		    != zip_entry_central_dir.compressed_size) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Inconsistent compressed size: "
 			    "%jd in central directory, %jd in local header",
-			    (intmax_t)zip_entry_original.compressed_size,
+			    (intmax_t)zip_entry_central_dir.compressed_size,
 			    (intmax_t)zip_entry->compressed_size);
 			ret = ARCHIVE_WARN;
 		}
-		if (zip_entry->uncompressed_size != 0
-		    && zip_entry->uncompressed_size != zip_entry_original.uncompressed_size) {
+		if (zip_entry->uncompressed_size == 0) {
+			zip_entry->uncompressed_size
+			    = zip_entry_central_dir.uncompressed_size;
+		} else if (zip_entry->uncompressed_size
+		    != zip_entry_central_dir.uncompressed_size) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Inconsistent uncompressed size: "
 			    "%jd in central directory, %jd in local header",
-			    (intmax_t)zip_entry_original.uncompressed_size,
+			    (intmax_t)zip_entry_central_dir.uncompressed_size,
 			    (intmax_t)zip_entry->uncompressed_size);
 			ret = ARCHIVE_WARN;
 		}
-	} else {
-		/* If we don't have the CD info, use whatever we do have. */
-		zip_entry->crc32 = local_crc32;
-		zip_entry->compressed_size = compressed_size;
-		zip_entry->uncompressed_size = uncompressed_size;
-		process_extra(h, extra_length, zip_entry);
 	}
-	zip_read_consume(a, extra_length);
 
 	/* Populate some additional entry fields: */
 	archive_entry_set_mode(entry, zip_entry->mode);

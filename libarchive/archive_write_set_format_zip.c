@@ -694,7 +694,8 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 	switch (zip->entry_compression) {
 	case COMPRESSION_STORE:
 		ret = __archive_write_output(a, buff, s);
-		if (ret != ARCHIVE_OK) return (ret);
+		if (ret != ARCHIVE_OK)
+			return (ret);
 		zip->written_bytes += s;
 		zip->entry_compressed_written += s;
 		break;
