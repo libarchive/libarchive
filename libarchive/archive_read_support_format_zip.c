@@ -76,7 +76,6 @@ struct zip {
 	size_t			central_directory_entries_total;
 	size_t			central_directory_entries_on_this_disk;
 	char			have_central_directory;
-	int64_t			offset;
 	int			has_encrypted_entries;
 
 	/* List of entries (seekable Zip only) */
@@ -177,30 +176,6 @@ fake_crc32(unsigned long crc, const void *buff, size_t len)
 	(void)buff; /* UNUSED */
 	(void)len; /* UNUSED */
 	return 0;
-}
-
-static int64_t
-zip_read_consume(struct archive_read *a, int64_t bytes)
-{
-	struct zip *zip = (struct zip *)a->format->data;
-	int64_t skip;
-
-	skip = __archive_read_consume(a, bytes);
-	if (skip > 0)
-		zip->offset += skip;
-	return (skip);
-}
-
-static int64_t
-zip_read_seek(struct archive_read *a, int64_t offset, int whence)
-{
-	struct zip *zip = (struct zip *)a->format->data;
-	int64_t position;
-
-	position = __archive_read_seek(a, offset, whence);
-	if (position > 0)
-		zip->offset = position;
-	return (position);
 }
 
 int
@@ -381,7 +356,7 @@ read_zip64_eocd(struct archive_read *a, struct zip *zip, const char *p)
 
 	/* Find the Zip64 EOCD record. */
 	eocd64_offset = archive_le64dec(p + 8);
-	if (zip_read_seek(a, eocd64_offset, SEEK_SET) < 0)
+	if (__archive_read_seek(a, eocd64_offset, SEEK_SET) < 0)
 		return 0;
 	if ((p = __archive_read_ahead(a, 56, NULL)) == NULL)
 		return 0;
@@ -421,7 +396,7 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 	if (best_bid > 32)
 		return (-1);
 
-	file_size = zip_read_seek(a, 0, SEEK_END);
+	file_size = __archive_read_seek(a, 0, SEEK_END);
 	if (file_size <= 0)
 		return 0;
 
@@ -429,7 +404,7 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 	 * record (which starts with PK\005\006) or Zip64 locator
 	 * record (which begins with PK\006\007) */
 	tail = zipmin(1024 * 16, file_size);
-	current_offset = zip_read_seek(a, -tail, SEEK_END);
+	current_offset = __archive_read_seek(a, -tail, SEEK_END);
 	if (current_offset < 0)
 		return 0;
 	if ((p = __archive_read_ahead(a, (size_t)tail, NULL)) == NULL)
@@ -572,7 +547,7 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 	 * know the correction we need to apply to account for leading
 	 * padding.
 	 */
-	if (zip_read_seek(a, zip->central_directory_offset, SEEK_SET) < 0)
+	if (__archive_read_seek(a, zip->central_directory_offset, SEEK_SET) < 0)
 		return ARCHIVE_FATAL;
 
 	found = 0;
@@ -605,9 +580,9 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 			default: i += 4; break;
 			}
 		}
-		zip_read_consume(a, i);
+		__archive_read_consume(a, i);
 	}
-	correction = zip->offset - zip->central_directory_offset;
+	correction = archive_filter_bytes(&a->archive, 0) - zip->central_directory_offset;
 
 	__archive_rb_tree_init(&zip->tree, &rb_ops);
 	__archive_rb_tree_init(&zip->tree_rsrc, &rb_rsrc_ops);
@@ -732,7 +707,7 @@ zip_read_mac_metadata(struct archive_read *a, struct archive_entry *entry,
 {
 	struct zip *zip = (struct zip *)a->format->data;
 	unsigned char *metadata, *mp;
-	int64_t offset = zip->offset;
+	int64_t offset = archive_filter_bytes(&a->archive, 0);
 	size_t remaining_bytes, metadata_bytes;
 	ssize_t hsize;
 	int ret = ARCHIVE_OK, eof;
@@ -767,14 +742,14 @@ zip_read_mac_metadata(struct archive_read *a, struct archive_entry *entry,
 		return (ARCHIVE_FATAL);
 	}
 
-	if (zip->offset < rsrc->local_header_offset)
-		zip_read_consume(a, rsrc->local_header_offset - zip->offset);
-	else if (zip->offset != rsrc->local_header_offset) {
-		zip_read_seek(a, rsrc->local_header_offset, SEEK_SET);
+	if (offset < rsrc->local_header_offset)
+		__archive_read_consume(a, rsrc->local_header_offset - offset);
+	else if (offset != rsrc->local_header_offset) {
+		__archive_read_seek(a, rsrc->local_header_offset, SEEK_SET);
 	}
 
 	hsize = zip_get_local_file_header_size(a, 0);
-	zip_read_consume(a, hsize);
+	__archive_read_consume(a, hsize);
 
 	remaining_bytes = (size_t)rsrc->compressed_size;
 	metadata_bytes = (size_t)rsrc->uncompressed_size;
@@ -849,14 +824,14 @@ zip_read_mac_metadata(struct archive_read *a, struct archive_entry *entry,
 			bytes_used = 0;
 			break;
 		}
-		zip_read_consume(a, bytes_used);
+		__archive_read_consume(a, bytes_used);
 		remaining_bytes -= bytes_used;
 	}
 	archive_entry_copy_mac_metadata(entry, metadata,
 	    (size_t)rsrc->uncompressed_size - metadata_bytes);
 
-	zip_read_seek(a, offset, SEEK_SET);
 exit_mac_metadata:
+	__archive_read_seek(a, offset, SEEK_SET);
 	zip->decompress_init = 0;
 	free(metadata);
 	return (ret);
@@ -868,6 +843,7 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 {
 	struct zip *zip = (struct zip *)a->format->data;
 	struct zip_entry *rsrc;
+	int64_t offset;
 	int r, ret = ARCHIVE_OK;
 
 	/*
@@ -911,13 +887,14 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 		rsrc = NULL;
 
 	/* File entries are sorted by the header offset, we should mostly
-	 * use zip_read_consume to advance a read point to avoid redundant
+	 * use __archive_read_consume to advance a read point to avoid redundant
 	 * data reading.  */
-	if (zip->offset < zip->entry->local_header_offset)
-		zip_read_consume(a,
-		    zip->entry->local_header_offset - zip->offset);
-	else if (zip->offset != zip->entry->local_header_offset) {
-		zip_read_seek(a, zip->entry->local_header_offset, SEEK_SET);
+	offset = archive_filter_bytes(&a->archive, 0);
+	if (offset < zip->entry->local_header_offset)
+		__archive_read_consume(a,
+		    zip->entry->local_header_offset - offset);
+	else if (offset != zip->entry->local_header_offset) {
+		__archive_read_seek(a, zip->entry->local_header_offset, SEEK_SET);
 	}
 	zip->unconsumed = 0;
 	r = zip_read_local_file_header(a, entry, zip);
@@ -1092,7 +1069,7 @@ archive_read_format_zip_streamable_read_header(struct archive_read *a,
 	memset(zip->entry, 0, sizeof(struct zip_entry));
 
 	/* Search ahead for the next local file header. */
-	zip_read_consume(a, zip->unconsumed);
+	__archive_read_consume(a, zip->unconsumed);
 	zip->unconsumed = 0;
 	for (;;) {
 		int64_t skipped = 0;
@@ -1108,7 +1085,7 @@ archive_read_format_zip_streamable_read_header(struct archive_read *a,
 			if (p[0] == 'P' && p[1] == 'K') {
 				if (p[2] == '\003' && p[3] == '\004') {
 					/* Regular file entry. */
-					zip_read_consume(a, skipped);
+					__archive_read_consume(a, skipped);
 					return zip_read_local_file_header(a,
 					    entry, zip);
 				}
@@ -1137,7 +1114,7 @@ archive_read_format_zip_streamable_read_header(struct archive_read *a,
 			++p;
 			++skipped;
 		}
-		zip_read_consume(a, skipped);
+		__archive_read_consume(a, skipped);
 	}
 }
 
@@ -1229,7 +1206,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	filename_length = archive_le16dec(p + 26);
 	extra_length = archive_le16dec(p + 28);
 
-	zip_read_consume(a, 30);
+	__archive_read_consume(a, 30);
 
 	/* Read the filename. */
 	if ((h = __archive_read_ahead(a, filename_length, NULL)) == NULL) {
@@ -1266,7 +1243,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		    archive_string_conversion_charset_name(sconv));
 		ret = ARCHIVE_WARN;
 	}
-	zip_read_consume(a, filename_length);
+	__archive_read_consume(a, filename_length);
 
 	/* Work around a bug in Info-Zip: When reading from a pipe, it
 	 * stats the pipe instead of synthesizing a file entry. */
@@ -1309,7 +1286,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	}
 
 	process_extra(h, extra_length, zip_entry);
-	zip_read_consume(a, extra_length);
+	__archive_read_consume(a, extra_length);
 
 	if (zip->have_central_directory) {
 		/* If we read the central dir entry, we must have size
@@ -1475,7 +1452,7 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		return (ARCHIVE_FAILED);
 	}
 
-	zip_read_consume(a, zip->unconsumed);
+	__archive_read_consume(a, zip->unconsumed);
 	zip->unconsumed = 0;
 
 	switch(zip->entry->compression) {
@@ -1758,7 +1735,7 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 
 	/* Consume as much as the compressor actually used. */
 	bytes_avail = zip->stream.total_in;
-	zip_read_consume(a, bytes_avail);
+	__archive_read_consume(a, bytes_avail);
 	zip->entry_bytes_remaining -= bytes_avail;
 	zip->entry_compressed_bytes_read += bytes_avail;
 
@@ -1805,7 +1782,7 @@ archive_read_format_zip_read_data_skip(struct archive_read *a)
 	int64_t bytes_skipped;
 
 	zip = (struct zip *)(a->format->data);
-	bytes_skipped = zip_read_consume(a, zip->unconsumed);
+	bytes_skipped = __archive_read_consume(a, zip->unconsumed);
 	if (bytes_skipped < 0)
 		return (ARCHIVE_FATAL);
 	zip->unconsumed = 0;
@@ -1818,7 +1795,7 @@ archive_read_format_zip_read_data_skip(struct archive_read *a)
 	if (0 == (zip->entry->flags & ZIP_LENGTH_AT_END)
 	    || zip->entry->compressed_size > 0) {
 		/* We know the compressed length, so we can just skip. */
-		bytes_skipped = zip_read_consume(a, zip->entry_bytes_remaining);
+		bytes_skipped = __archive_read_consume(a, zip->entry_bytes_remaining);
 		if (bytes_skipped < 0)
 			return (ARCHIVE_FATAL);
 		return (ARCHIVE_OK);
@@ -1862,13 +1839,13 @@ archive_read_format_zip_read_data_skip(struct archive_read *a)
 				else if (p[3] == '\010' && p[2] == '\007'
 				    && p[1] == 'K' && p[0] == 'P') {
 					if (zip->entry->have_zip64)
-						zip_read_consume(a, p - buff + 24);
+						__archive_read_consume(a, p - buff + 24);
 					else
-						zip_read_consume(a, p - buff + 16);
+						__archive_read_consume(a, p - buff + 16);
 					return ARCHIVE_OK;
 				} else { p += 4; }
 			}
-			zip_read_consume(a, p - buff);
+			__archive_read_consume(a, p - buff);
 		}
 	}
 }
