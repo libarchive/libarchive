@@ -363,7 +363,7 @@ static int
 archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 {
 	unsigned char local_header[32];
-	unsigned char local_extra[64];
+	unsigned char local_extra[128];
 	struct zip *zip = a->format_data;
 	unsigned char *e;
 	unsigned char *cd_extra;
@@ -630,6 +630,21 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		archive_le64enc(e, zip->entry_compressed_size);
 		e += 8;
 		archive_le16enc(zip64_start + 2, e - (zip64_start + 4));
+	}
+
+	{ /* Experimental 'at' extension to support streaming. */
+		unsigned char *external_info = e;
+		memcpy(e, "at\000\000", 4);
+		e += 4;
+		archive_le16enc(e, /* system + version written by */
+		    3 * 256 + version_needed);
+		e += 2;
+		archive_le16enc(e, 0); /* internal file attributes */
+		e += 2;
+		archive_le32enc(e,  /* external file attributes */
+		    archive_entry_mode(zip->entry) << 16);
+		e += 4;
+		archive_le16enc(external_info + 2, e - (external_info + 4));
 	}
 
 	/* Update local header with size of extra data and write it all out: */

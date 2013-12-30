@@ -337,16 +337,9 @@ verify_contents(struct archive *a, int seeking)
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("symlink", archive_entry_pathname(ae));
-	if (seeking) {
-		assertEqualInt(AE_IFLNK | 0755, archive_entry_mode(ae));
-		assertEqualInt(0, archive_entry_size(ae));
-		assertEqualString("file1", archive_entry_symlink(ae));
-	} else {
-		/* Streaming cannot read file type, so
-		 * symlink body shows as regular file contents. */
-		assertEqualInt(AE_IFREG | 0664, archive_entry_mode(ae));
-		assertEqualInt(5, archive_entry_size(ae));
-	}
+	assertEqualInt(AE_IFLNK | 0755, archive_entry_mode(ae));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertEqualString("file1", archive_entry_symlink(ae));
 
 	/* Read the dir entry back. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -421,16 +414,9 @@ verify_contents(struct archive *a, int seeking)
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("symlink_deflate", archive_entry_pathname(ae));
-	if (seeking) {
-		assertEqualInt(AE_IFLNK | 0755, archive_entry_mode(ae));
-		assertEqualInt(0, archive_entry_size(ae));
-		assertEqualString("file1", archive_entry_symlink(ae));
-	} else {
-		assertEqualInt(AE_IFREG | 0664, archive_entry_mode(ae));
-		assertEqualInt(5, archive_entry_size(ae));
-		assertEqualIntA(a, 5, archive_read_data(a, filedata, 10));
-		assertEqualMem(filedata, "file1", 5);
-	}
+	assertEqualInt(AE_IFLNK | 0755, archive_entry_mode(ae));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertEqualString("file1", archive_entry_symlink(ae));
 
 	/* Read the dir entry back. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -506,16 +492,9 @@ verify_contents(struct archive *a, int seeking)
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("symlink_stored", archive_entry_pathname(ae));
-	if (seeking) {
-		assertEqualInt(AE_IFLNK | 0755, archive_entry_mode(ae));
-		assertEqualInt(0, archive_entry_size(ae));
-		assertEqualString("file1", archive_entry_symlink(ae));
-	} else {
-		assertEqualInt(AE_IFREG | 0664, archive_entry_mode(ae));
-		assertEqualInt(5, archive_entry_size(ae));
-		assertEqualIntA(a, 5, archive_read_data(a, filedata, 10));
-		assertEqualMem(filedata, "file1", 5);
-	}
+	assertEqualInt(AE_IFLNK | 0755, archive_entry_mode(ae));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertEqualString("file1", archive_entry_symlink(ae));
 
 	/* Read the dir entry back. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));

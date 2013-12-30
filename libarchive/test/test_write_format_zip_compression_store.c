@@ -71,7 +71,7 @@ DEFINE_TEST(test_write_format_zip_compression_store)
 	const char *buffend;
 	/* p is the pointer to walk over the central directory,
 	 * q walks over the local headers, the data and the data descriptors. */
-	const char *p, *q;
+	const char *p, *q, *local_header, *extra_start;
 	size_t used;
 
 	/* File data */
@@ -198,7 +198,7 @@ DEFINE_TEST(test_write_format_zip_compression_store)
 	p = p + 4 + i2(p + 2);
 
 	/* Verify local header of file entry. */
-	q = buff;
+	local_header = q = buff;
 	assertEqualMem(q, "PK\003\004", 4); /* Signature */
 	assertEqualInt(i2(q + 4), 10); /* Version needed to extract */
 	assertEqualInt(i2(q + 6), 8); /* Flags */
@@ -209,15 +209,16 @@ DEFINE_TEST(test_write_format_zip_compression_store)
 	assertEqualInt(i4(q + 18), sizeof(file_data1) + sizeof(file_data2)); /* Compressed size */
 	assertEqualInt(i4(q + 22), sizeof(file_data1) + sizeof(file_data2)); /* Uncompressed size */
 	assertEqualInt(i2(q + 26), strlen(file_name)); /* Pathname length */
-	assertEqualInt(i2(q + 28), 28); /* Extra field length */
+	assertEqualInt(i2(q + 28), 40); /* Extra field length */
 	assertEqualMem(q + 30, file_name, strlen(file_name)); /* Pathname */
-	q = q + 30 + strlen(file_name);
+	extra_start = q = q + 30 + strlen(file_name);
 	assertEqualInt(i2(q), 0x5455); /* 'UT' extension header */
 	assertEqualInt(i2(q + 2), 9); /* 'UT' size */
 	assertEqualInt(q[4], 3); /* 'UT' flags */
 	assertEqualInt(i4(q + 5), t); /* 'UT' mtime */
 	assertEqualInt(i4(q + 9), t + 3); /* 'UT' atime */
 	q = q + 4 + i2(q + 2);
+
 	assertEqualInt(i2(q), 0x7875); /* 'ux' extension header */
 	assertEqualInt(i2(q + 2), 11); /* 'ux' size */
 	assertEqualInt(q[4], 1); /* 'ux' version */
@@ -226,6 +227,16 @@ DEFINE_TEST(test_write_format_zip_compression_store)
 	assertEqualInt(q[10], 4); /* 'ux' gid size */
 	assertEqualInt(i4(q + 11), file_gid); /* 'Ux' GID */
 	q = q + 4 + i2(q + 2);
+
+	assertEqualInt(i2(q), 0x7461); /* 'at' experimental extension header */
+	assertEqualInt(i2(q + 2), 8); /* 'at' size */
+	assertEqualInt(i2(q + 4), 3 * 256 + 10); /* version made by */
+	assertEqualInt(i2(q + 6), 0); /* internal file attributes */
+	assertEqualInt(i4(q + 8) >> 16 & 01777, file_perm); /* external file attributes */
+	q = q + 4 + i2(q + 2);
+
+	assert(q == extra_start + i2(local_header + 28));
+	q = extra_start + i2(local_header + 28);
 
 	/* Verify data of file entry. */
 	assertEqualMem(q, file_data1, sizeof(file_data1));
@@ -276,6 +287,7 @@ DEFINE_TEST(test_write_format_zip_compression_store)
 	/*p = p + 4 + i2(p + 2);*/
 
 	/* Verify local header of folder entry. */
+	local_header = q;
 	assertEqualMem(q, "PK\003\004", 4); /* Signature */
 	assertEqualInt(i2(q + 4), 20); /* Version needed to extract */
 	assertEqualInt(i2(q + 6), 0); /* Flags */
@@ -286,9 +298,9 @@ DEFINE_TEST(test_write_format_zip_compression_store)
 	assertEqualInt(i4(q + 18), 0); /* Compressed size */
 	assertEqualInt(i4(q + 22), 0); /* Uncompressed size */
 	assertEqualInt(i2(q + 26), strlen(folder_name)); /* Pathname length */
-	assertEqualInt(i2(q + 28), 28); /* Extra field length */
+	assertEqualInt(i2(q + 28), 40); /* Extra field length */
 	assertEqualMem(q + 30, folder_name, strlen(folder_name)); /* Pathname */
-	q = q + 30 + strlen(folder_name);
+	extra_start = q = q + 30 + strlen(folder_name);
 	assertEqualInt(i2(q), 0x5455); /* 'UT' extension header */
 	assertEqualInt(i2(q + 2), 9); /* 'UT' size */
 	assertEqualInt(q[4], 5); /* 'UT' flags */
@@ -303,6 +315,16 @@ DEFINE_TEST(test_write_format_zip_compression_store)
 	assertEqualInt(q[10], 4); /* 'ux' gid size */
 	assertEqualInt(i4(q + 11), folder_gid); /* 'ux' GID */
 	q = q + 4 + i2(q + 2);
+
+	assertEqualInt(i2(q), 0x7461); /* 'at' experimental extension header */
+	assertEqualInt(i2(q + 2), 8); /* 'at' size */
+	assertEqualInt(i2(q + 4), 3 * 256 + 20); /* version made by */
+	assertEqualInt(i2(q + 6), 0); /* internal file attributes */
+	assertEqualInt(i4(q + 8) >> 16 & 01777, folder_perm); /* external file attributes */
+	q = q + 4 + i2(q + 2);
+
+	assert(q == extra_start + i2(local_header + 28));
+	q = extra_start + i2(local_header + 28);
 
 	/* There should not be any data in the folder entry,
 	 * so the first central directory entry should be next: */

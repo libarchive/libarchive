@@ -339,6 +339,30 @@ process_extra(const char *p, size_t extra_length, struct zip_entry* zip_entry)
 			}
 			break;
 		}
+		case 0x7461:
+			/* Experimental 'at' field */
+			if (datasize >= 2) {
+				zip_entry->system
+				    = archive_le16dec(p + offset) >> 8;
+				offset += 2;
+				datasize -= 2;
+			}
+			if (datasize >= 2) {
+				// 2 byte "internal file attributes"
+				offset += 2;
+				datasize -= 2;
+			}
+			if (datasize >= 4) {
+				uint32_t external_attributes
+				    = archive_le32dec(p + offset);
+				if (zip_entry->system == 3) {
+					zip_entry->mode
+					    = external_attributes >> 16;
+				}
+				offset += 4;
+				datasize -= 4;
+			}
+			break;
 		case 0x7855:
 			/* Info-ZIP Unix Extra Field (type 2) "Ux". */
 #ifdef DEBUG
@@ -599,11 +623,61 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	archive_entry_set_mtime(entry, zip_entry->mtime, 0);
 	archive_entry_set_ctime(entry, zip_entry->ctime, 0);
 	archive_entry_set_atime(entry, zip_entry->atime, 0);
-	/* Set the size only if it's meaningful. */
-	if (0 == (zip_entry->zip_flags & ZIP_LENGTH_AT_END)
-	    || zip_entry->uncompressed_size > 0)
-		archive_entry_set_size(entry, zip_entry->uncompressed_size);
 
+	if ((zip->entry->mode & AE_IFMT) == AE_IFLNK) {
+		size_t linkname_length = zip_entry->compressed_size;
+
+		archive_entry_set_size(entry, 0);
+		p = __archive_read_ahead(a, linkname_length, NULL);
+		if (p == NULL) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Truncated Zip file");
+			return ARCHIVE_FATAL;
+		}
+		if (__archive_read_consume(a, linkname_length) < 0) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Read error skipping symlink target name");
+			return ARCHIVE_FATAL;
+		}
+
+		sconv = zip->sconv;
+		if (sconv == NULL && (zip->entry->zip_flags & ZIP_UTF8_NAME))
+			sconv = zip->sconv_utf8;
+		if (sconv == NULL)
+			sconv = zip->sconv_default;
+		if (archive_entry_copy_symlink_l(entry, p, linkname_length,
+		    sconv) != 0) {
+			if (errno != ENOMEM && sconv == zip->sconv_utf8 &&
+			    (zip->entry->zip_flags & ZIP_UTF8_NAME))
+			    archive_entry_copy_symlink_l(entry, p,
+				linkname_length, NULL);
+			if (errno == ENOMEM) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "Can't allocate memory for Symlink");
+				return (ARCHIVE_FATAL);
+			}
+			/*
+			 * Since there is no character-set regulation for
+			 * symlink name, do not report the conversion error
+			 * in an automatic conversion.
+			 */
+			if (sconv != zip->sconv_utf8 ||
+			    (zip->entry->zip_flags & ZIP_UTF8_NAME) == 0) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Symlink cannot be converted "
+				    "from %s to current locale.",
+				    archive_string_conversion_charset_name(
+					sconv));
+				ret = ARCHIVE_WARN;
+			}
+		}
+		zip_entry->uncompressed_size = zip_entry->compressed_size = 0;
+	} else if (0 == (zip_entry->zip_flags & ZIP_LENGTH_AT_END)
+	    || zip_entry->uncompressed_size > 0) {
+		/* Set the size only if it's meaningful. */
+		archive_entry_set_size(entry, zip_entry->uncompressed_size);
+	}
 	zip->entry_bytes_remaining = zip_entry->compressed_size;
 
 	/* If there's no body, force read_data() to return EOF immediately. */
@@ -1956,52 +2030,6 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 	r = zip_read_local_file_header(a, entry, zip);
 	if (r != ARCHIVE_OK)
 		return r;
-	if ((zip->entry->mode & AE_IFMT) == AE_IFLNK) {
-		const void *p;
-		struct archive_string_conv *sconv;
-		size_t linkname_length = (size_t)archive_entry_size(entry);
-
-		archive_entry_set_size(entry, 0);
-		p = __archive_read_ahead(a, linkname_length, NULL);
-		if (p == NULL) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "Truncated Zip file");
-			return ARCHIVE_FATAL;
-		}
-
-		sconv = zip->sconv;
-		if (sconv == NULL && (zip->entry->zip_flags & ZIP_UTF8_NAME))
-			sconv = zip->sconv_utf8;
-		if (sconv == NULL)
-			sconv = zip->sconv_default;
-		if (archive_entry_copy_symlink_l(entry, p, linkname_length,
-		    sconv) != 0) {
-			if (errno != ENOMEM && sconv == zip->sconv_utf8 &&
-			    (zip->entry->zip_flags & ZIP_UTF8_NAME))
-			    archive_entry_copy_symlink_l(entry, p,
-				linkname_length, NULL);
-			if (errno == ENOMEM) {
-				archive_set_error(&a->archive, ENOMEM,
-				    "Can't allocate memory for Symlink");
-				return (ARCHIVE_FATAL);
-			}
-			/*
-			 * Since there is no character-set regulation for
-			 * symlink name, do not report the conversion error
-			 * in an automatic conversion.
-			 */
-			if (sconv != zip->sconv_utf8 ||
-			    (zip->entry->zip_flags & ZIP_UTF8_NAME) == 0) {
-				archive_set_error(&a->archive,
-				    ARCHIVE_ERRNO_FILE_FORMAT,
-				    "Symlink cannot be converted "
-				    "from %s to current locale.",
-				    archive_string_conversion_charset_name(
-					sconv));
-				ret = ARCHIVE_WARN;
-			}
-		}
-	}
 	if (rsrc) {
 		int ret2 = zip_read_mac_metadata(a, entry, rsrc);
 		if (ret2 < ret)
