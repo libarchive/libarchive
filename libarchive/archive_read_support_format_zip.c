@@ -340,15 +340,26 @@ process_extra(const char *p, size_t extra_length, struct zip_entry* zip_entry)
 			break;
 		}
 		case 0x414C:
+		{
 			/* Experimental 'LA' field */
-			if (datasize >= 1) {
-				// 1 byte system identifier
-				zip_entry->system = p[offset];
-				offset += 1;
-				datasize -= 1;
+			/*
+			 * Introduced Dec 2013 to provide a way to
+			 * include external file attributes in local file
+			 * header.  This provides file type and permission
+			 * information necessary to support full streaming
+			 * extraction.  Currently being discussed with
+			 * other Zip developers... subject to change.
+			 */
+			if (datasize >= 2) {
+				// 2 byte "version made by"
+				zip_entry->system
+				    = archive_le16dec(p + offset) >> 8;
+				offset += 2;
+				datasize -= 2;
 			}
 			if (datasize >= 2) {
 				// 2 byte "internal file attributes"
+				// Not yet used.
 				offset += 2;
 				datasize -= 2;
 			}
@@ -364,6 +375,7 @@ process_extra(const char *p, size_t extra_length, struct zip_entry* zip_entry)
 				datasize -= 4;
 			}
 			break;
+		}
 		case 0x7855:
 			/* Info-ZIP Unix Extra Field (type 2) "Ux". */
 #ifdef DEBUG

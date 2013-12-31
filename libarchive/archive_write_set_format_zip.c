@@ -416,6 +416,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	int64_t size;
 	mode_t type;
 	int version_needed = 10;
+	int version_made_by = 45; /* We support features from PKZip 4.5 */
 
 	/* Ignore types of entries that we don't support. */
 	type = archive_entry_filetype(entry);
@@ -687,9 +688,11 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		unsigned char *external_info = e;
 		memcpy(e, "LA\000\000", 4); // 0x414C + 2-byte length
 		e += 4;
-		e[0] = 3; /* system */
-		e += 1;
-		archive_le16enc(e, 0); /* internal file attributes */
+		/* Version made by */
+		archive_le16enc(e, 3 * 256 + version_made_by);
+		e += 2;
+		/* internal file attributes */
+		archive_le16enc(e, 0);
 		e += 2;
 		archive_le32enc(e,  /* external file attributes */
 		    archive_entry_mode(zip->entry) << 16);

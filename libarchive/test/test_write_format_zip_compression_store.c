@@ -212,7 +212,7 @@ DEFINE_TEST(test_write_format_zip_compression_store)
 	assertEqualInt(i4(q + 18), sizeof(file_data1) + sizeof(file_data2)); /* Compressed size */
 	assertEqualInt(i4(q + 22), sizeof(file_data1) + sizeof(file_data2)); /* Uncompressed size */
 	assertEqualInt(i2(q + 26), strlen(file_name)); /* Pathname length */
-	assertEqualInt(i2(q + 28), 39); /* Extra field length */
+	assertEqualInt(i2(q + 28), 40); /* Extra field length */
 	assertEqualMem(q + 30, file_name, strlen(file_name)); /* Pathname */
 	extra_start = q = q + 30 + strlen(file_name);
 	assertEqualInt(i2(q), 0x5455); /* 'UT' extension header */
@@ -232,10 +232,10 @@ DEFINE_TEST(test_write_format_zip_compression_store)
 	q = q + 4 + i2(q + 2);
 
 	assertEqualInt(i2(q), 0x414c); /* 'LA' experimental extension header */
-	assertEqualInt(i2(q + 2), 7); /* size */
-	assertEqualInt(q[4], 3); /* system */
-	assertEqualInt(i2(q + 5), 0); /* internal file attributes */
-	assertEqualInt(i4(q + 7) >> 16 & 01777, file_perm); /* external file attributes */
+	assertEqualInt(i2(q + 2), 8); /* size */
+	assertEqualInt(i2(q + 4) >> 8, 3); /* system */
+	assertEqualInt(i2(q + 6), 0); /* internal file attributes */
+	assertEqualInt(i4(q + 8) >> 16 & 01777, file_perm); /* external file attributes */
 	q = q + 4 + i2(q + 2);
 
 	assert(q == extra_start + i2(local_header + 28));
@@ -301,7 +301,7 @@ DEFINE_TEST(test_write_format_zip_compression_store)
 	assertEqualInt(i4(q + 18), 0); /* Compressed size */
 	assertEqualInt(i4(q + 22), 0); /* Uncompressed size */
 	assertEqualInt(i2(q + 26), strlen(folder_name)); /* Pathname length */
-	assertEqualInt(i2(q + 28), 39); /* Extra field length */
+	assertEqualInt(i2(q + 28), 40); /* Extra field length */
 	assertEqualMem(q + 30, folder_name, strlen(folder_name)); /* Pathname */
 	extra_start = q = q + 30 + strlen(folder_name);
 	assertEqualInt(i2(q), 0x5455); /* 'UT' extension header */
@@ -320,10 +320,10 @@ DEFINE_TEST(test_write_format_zip_compression_store)
 	q = q + 4 + i2(q + 2);
 
 	assertEqualInt(i2(q), 0x414c); /* 'LA' experimental extension header */
-	assertEqualInt(i2(q + 2), 7); /* size */
-	assertEqualInt(q[4], 3); /* system */
-	assertEqualInt(i2(q + 5), 0); /* internal file attributes */
-	assertEqualInt(i4(q + 7) >> 16 & 01777, folder_perm); /* external file attributes */
+	assertEqualInt(i2(q + 2), 8); /* size */
+	assertEqualInt(i2(q + 4) >> 8, 3); /* system */
+	assertEqualInt(i2(q + 6), 0); /* internal file attributes */
+	assertEqualInt(i4(q + 8) >> 16 & 01777, folder_perm); /* external file attributes */
 	q = q + 4 + i2(q + 2);
 
 	assert(q == extra_start + i2(local_header + 28));
