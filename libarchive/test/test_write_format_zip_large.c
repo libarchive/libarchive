@@ -232,6 +232,28 @@ memory_read_skip(struct archive *a, void *_private, int64_t skip)
 	return (new_position - old_position);
 }
 
+static struct fileblocks *
+fileblocks_new(void)
+{
+	struct fileblocks *fileblocks;
+
+	fileblocks = calloc(1, sizeof(struct fileblocks));
+	return fileblocks;
+}
+
+static void
+fileblocks_free(struct fileblocks *fileblocks)
+{
+	while (fileblocks->first != NULL) {
+		struct fileblock *b = fileblocks->first;
+		fileblocks->first = fileblocks->first->next;
+		free(b->buff);
+		free(b);
+	}
+	free(fileblocks);
+}
+
+
 /* The sizes of the entries we're going to generate. */
 static int64_t test_sizes[] = {
 	/* Test for 32-bit signed overflow. */
@@ -291,7 +313,7 @@ DEFINE_TEST(test_write_format_zip_large)
 {
 	int i;
 	char namebuff[64];
-	struct fileblocks fileblocks;
+	struct fileblocks *fileblocks = fileblocks_new();
 	struct archive_entry *ae;
 	struct archive *a;
 	int64_t  filesize;
@@ -300,17 +322,20 @@ DEFINE_TEST(test_write_format_zip_large)
 	nullsize = (size_t)(1 * MB);
 	nulldata = malloc(nullsize);
 	memset(nulldata, 0xAA, nullsize);
-	memset(&fileblocks, 0, sizeof(fileblocks));
 
 	/*
 	 * Open an archive for writing.
 	 */
 	a = archive_write_new();
 	archive_write_set_format_zip(a);
-	archive_write_set_options(a, "zip:compression=store");
-	archive_write_set_options(a, "zip:fakecrc32");
-	archive_write_set_bytes_per_block(a, 0); /* No buffering. */
-	archive_write_open(a, &fileblocks, NULL, memory_write, NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_options(a, "zip:compression=store"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_options(a, "zip:fakecrc32"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_bytes_per_block(a, 0)); /* No buffering. */
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open(a, fileblocks, NULL, memory_write, NULL));
 
 	/*
 	 * Write a series of large files to it.
@@ -321,10 +346,10 @@ DEFINE_TEST(test_write_format_zip_large)
 		archive_entry_copy_pathname(ae, namebuff);
 		archive_entry_set_mode(ae, S_IFREG | 0755);
 		filesize = test_sizes[i];
-
 		archive_entry_set_size(ae, filesize);
 
-		assertA(0 == archive_write_header(a, ae));
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_write_header(a, ae));
 		archive_entry_free(ae);
 
 		/*
@@ -334,8 +359,8 @@ DEFINE_TEST(test_write_format_zip_large)
 			writesize = nullsize;
 			if ((int64_t)writesize > filesize)
 				writesize = (size_t)filesize;
-			assertA((int)writesize
-			    == archive_write_data(a, nulldata, writesize));
+			assertEqualIntA(a, (int)writesize,
+			    (int)archive_write_data(a, nulldata, writesize));
 			filesize -= writesize;
 		}
 	}
@@ -345,7 +370,6 @@ DEFINE_TEST(test_write_format_zip_large)
 	archive_entry_set_mode(ae, S_IFREG | 0755);
 	assertA(0 == archive_write_header(a, ae));
 	archive_entry_free(ae);
-
 
 	/* Close out the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
@@ -357,7 +381,7 @@ DEFINE_TEST(test_write_format_zip_large)
 	a = archive_read_new();
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_zip_seekable(a));
-	verify_large_zip(a, &fileblocks);
+	verify_large_zip(a, fileblocks);
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/*
@@ -366,9 +390,9 @@ DEFINE_TEST(test_write_format_zip_large)
 	a = archive_read_new();
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_zip_streamable(a));
-	verify_large_zip(a, &fileblocks);
+	verify_large_zip(a, fileblocks);
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
-	free(fileblocks.buff);
+	fileblocks_free(fileblocks);
 	free(nulldata);
 }

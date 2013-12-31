@@ -253,6 +253,7 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 		} else {
 			zip->crc32func = fake_crc32;
 		}
+		return (ARCHIVE_OK);
 	} else if (strcmp(key, "hdrcharset")  == 0) {
 		/*
 		 * Set the character set used in translating filenames.
