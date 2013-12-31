@@ -82,6 +82,10 @@ struct cd_segment {
 	unsigned char *p;
 };
 
+/* Bits used to enable/disable certain experimental features. */
+#define	EXPERIMENT_LA 1
+#define	EXPERIMENTS_ALL 0xffff
+
 struct zip {
 
 	int64_t entry_offset;
@@ -95,6 +99,7 @@ struct zip {
 	enum compression entry_compression;
 	int entry_flags;
 	int entry_uses_zip64;
+	int experiments;
 
 	unsigned char *file_header;
 	size_t file_header_extra_offset;
@@ -197,6 +202,10 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 	int ret = ARCHIVE_FAILED;
 
 	if (strcmp(key, "compression") == 0) {
+		/*
+		 * Set compression to use on all future entries.
+		 * This only affects regular files.
+		 */
 		if (val == NULL || val[0] == 0) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "%s: compression option needs a compression name",
@@ -214,15 +223,40 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 			ret = ARCHIVE_OK;
 		}
 		return (ret);
+	} else if (strcmp(key, "experimental") == 0) {
+		/*
+		 * Enable/disable experimental features.
+		 */
+		if (val != NULL && *val != '\0') {
+			zip->experiments = EXPERIMENTS_ALL;
+		} else {
+			zip->experiments = 0;
+		}
+		return (ARCHIVE_OK);
+	} else if (strcmp(key, "experiment_la") == 0) {
+		/*
+		 * Enable/disable experimental 'LA' extra block.
+		 */
+		if (val != NULL && *val != '\0') {
+			zip->experiments |= EXPERIMENT_LA;
+		} else {
+			zip->experiments &= ~EXPERIMENT_LA;
+		}
+		return (ARCHIVE_OK);
 	} else if (strcmp(key, "fakecrc32") == 0) {
-		/* FOR TESTING ONLY:  turn off CRC calculator to speed up
-		 * certain complex tests. */
+		/*
+		 * FOR TESTING ONLY:  disable CRC calculation to speed up
+		 * certain complex tests.
+		 */
 		if (val == NULL || val[0] == 0) {
 			zip->crc32func = real_crc32;
 		} else {
 			zip->crc32func = fake_crc32;
 		}
 	} else if (strcmp(key, "hdrcharset")  == 0) {
+		/*
+		 * Set the character set used in translating filenames.
+		 */
 		if (val == NULL || val[0] == 0) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "%s: hdrcharset option needs a character-set name",
@@ -237,6 +271,12 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 		}
 		return (ret);
 	} else if (strcmp(key, "zip64") == 0) {
+		/*
+		 * Bias decisions about Zip64: force them to be
+		 * generated in certain cases where they are not
+		 * forbidden or avoid them in certain cases where they
+		 * are not strictly required.
+		 */
 		zip->force_zip64 = (val != NULL && *val != '\0');
 		zip->avoid_zip64 = !zip->force_zip64;
 		return (ARCHIVE_OK);
@@ -641,7 +681,8 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		archive_le16enc(zip64_start + 2, e - (zip64_start + 4));
 	}
 
-	{ /* Experimental 'LA' extension to improve streaming. */
+	if (zip->experiments & EXPERIMENT_LA) {
+		/* Experimental 'LA' extension to improve streaming. */
 		unsigned char *external_info = e;
 		memcpy(e, "LA\000\000", 4); // 0x414C + 2-byte length
 		e += 4;

@@ -98,7 +98,10 @@ DEFINE_TEST(test_write_format_zip_compression_store)
 	/* Create new ZIP archive in memory without padding. */
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_zip(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_options(a, "zip:compression=store"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_options(a, "zip:compression=store"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_options(a, "zip:experimental"));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_bytes_per_block(a, 1));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_bytes_in_last_block(a, 1));
