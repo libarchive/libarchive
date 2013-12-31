@@ -196,7 +196,7 @@ DEFINE_TEST(test_write_format_zip_file)
 	/* assertEqualInt(i4(p + 18), sizeof(file_data)); */ /* Compressed size */
 	/* assertEqualInt(i4(p + 22), sizeof(file_data)); */ /* Uncompressed size not stored because we're using length-at-end. */
 	assertEqualInt(i2(p + 26), strlen(file_name)); /* Pathname length */
-	assertEqualInt(i2(p + 28), 36); /* Extra field length */
+	assertEqualInt(i2(p + 28), 35); /* Extra field length */
 	assertEqualMem(p + 30, file_name, strlen(file_name)); /* Pathname */
 	p = extension_start = local_header + 30 + strlen(file_name);
 	extension_end = extension_start + i2(local_header + 28);
@@ -216,11 +216,11 @@ DEFINE_TEST(test_write_format_zip_file)
 	assertEqualInt(i4(p + 11), file_gid); /* 'Ux' GID */
 	p += 4 + i2(p + 2);
 
-	assertEqualInt(i2(p), 0x7461); /* 'at' experimental extension header */
-	assertEqualInt(i2(p + 2), 8); /* 'at' size */
-	assertEqualInt(i2(p + 4), 3 * 256 + 20); /* version made by */
-	assertEqualInt(i2(p + 6), 0); /* internal file attributes */
-	assertEqualInt(i4(p + 8) >> 16 & 01777, file_perm); /* external file attributes */
+	assertEqualInt(i2(p), 0x414c); /* 'LA' experimental extension header */
+	assertEqualInt(i2(p + 2), 7); /* 'at' size */
+	assertEqualInt(p[4], 3); /* system */
+	assertEqualInt(i2(p + 5), 0); /* internal file attributes */
+	assertEqualInt(i4(p + 7) >> 16 & 01777, file_perm); /* external file attributes */
 	p += 4 + i2(p + 2);
 
 	/* Just in case: Report any extra extensions. */

@@ -576,6 +576,10 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	memset(local_extra, 0, sizeof(local_extra));
 	e = local_extra;
 
+	/* First, extra blocks that are the same between
+	 * the local file header and the central directory.
+	 * We format them once and then duplicate them. */
+
 	/* UT timestamp, length depends on what timestamps are set. */
 	memcpy(e, "UT", 2);
 	archive_le16enc(e + 2,
@@ -613,11 +617,16 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	e += 4;
 
 	/* Copy UT and ux into central directory as well. */
-	/* (Zip64 extended data varies between local header and
-	 * central directory, so we cannot just copy it.) */
 	zip->file_header_extra_offset = zip->central_directory_bytes;
 	cd_extra = cd_alloc(zip, e - local_extra);
 	memcpy(cd_extra, local_extra, e - local_extra);
+
+	/*
+	 * Following extra blocks vary between local header and
+	 * central directory. These are the local header versions.
+	 * Central directory versions get formatted in
+	 * archive_write_zip_finish_entry() below.
+	 */
 
 	/* "[Zip64 entry] in the local header MUST include BOTH
 	 * original [uncompressed] and compressed size fields." */
@@ -632,13 +641,12 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		archive_le16enc(zip64_start + 2, e - (zip64_start + 4));
 	}
 
-	{ /* Experimental 'at' extension to support streaming. */
+	{ /* Experimental 'LA' extension to improve streaming. */
 		unsigned char *external_info = e;
-		memcpy(e, "at\000\000", 4);
+		memcpy(e, "LA\000\000", 4); // 0x414C + 2-byte length
 		e += 4;
-		archive_le16enc(e, /* system + version written by */
-		    3 * 256 + version_needed);
-		e += 2;
+		e[0] = 3; /* system */
+		e += 1;
 		archive_le16enc(e, 0); /* internal file attributes */
 		e += 2;
 		archive_le32enc(e,  /* external file attributes */

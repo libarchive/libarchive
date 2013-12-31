@@ -339,13 +339,13 @@ process_extra(const char *p, size_t extra_length, struct zip_entry* zip_entry)
 			}
 			break;
 		}
-		case 0x7461:
-			/* Experimental 'at' field */
-			if (datasize >= 2) {
-				zip_entry->system
-				    = archive_le16dec(p + offset) >> 8;
-				offset += 2;
-				datasize -= 2;
+		case 0x414C:
+			/* Experimental 'LA' field */
+			if (datasize >= 1) {
+				// 1 byte system identifier
+				zip_entry->system = p[offset];
+				offset += 1;
+				datasize -= 1;
 			}
 			if (datasize >= 2) {
 				// 2 byte "internal file attributes"
@@ -353,6 +353,7 @@ process_extra(const char *p, size_t extra_length, struct zip_entry* zip_entry)
 				datasize -= 2;
 			}
 			if (datasize >= 4) {
+				// 4 byte "external file attributes"
 				uint32_t external_attributes
 				    = archive_le32dec(p + offset);
 				if (zip_entry->system == 3) {
