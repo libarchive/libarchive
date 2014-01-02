@@ -645,8 +645,11 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		unsigned char *external_info = e;
 		memcpy(e, "LA\000\000", 4); // 0x414C + 2-byte length
 		e += 4;
-		e[0] = 3; /* system */
+		e[0] = 5; /* bitmap of included fields */
 		e += 1;
+		archive_le16enc(e, /* "Version created by" */
+		    3 * 256 + version_needed);
+		e += 2;
 		archive_le16enc(e, 0); /* internal file attributes */
 		e += 2;
 		archive_le32enc(e,  /* external file attributes */

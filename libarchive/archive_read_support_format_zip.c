@@ -340,21 +340,51 @@ process_extra(const char *p, size_t extra_length, struct zip_entry* zip_entry)
 			break;
 		}
 		case 0x414C:
+		{
 			/* Experimental 'LA' field */
-			if (datasize >= 1) {
-				// 1 byte system identifier
-				zip_entry->system = p[offset];
+			int bitmap, bitmap_last;
+
+			if (datasize < 1)
+				break;
+			bitmap_last = bitmap = 0xff & p[offset];
+			offset += 1;
+			datasize -= 1;
+
+			/* We only support first 7 bits of bitmap; skip rest. */
+			while ((bitmap_last & 0x80) != 0
+			    && datasize >= 1) {
+				bitmap_last = p[offset];
 				offset += 1;
 				datasize -= 1;
 			}
-			if (datasize >= 2) {
-				// 2 byte "internal file attributes"
+
+			if (bitmap & 1) {
+				// 2 byte "version made by"
+				if (datasize < 2)
+					break;
+				zip_entry->system
+				    = archive_le16dec(p + offset) >> 8;
 				offset += 2;
 				datasize -= 2;
 			}
-			if (datasize >= 4) {
+			if (bitmap & 2) {
+				// 2 byte "internal file attributes"
+				uint32_t internal_attributes;
+				if (datasize < 2)
+					break;
+				internal_attributes
+				    = archive_le16dec(p + offset);
+				// Not used by libarchive at present.
+				(void)internal_attributes; /* UNUSED */
+				offset += 2;
+				datasize -= 2;
+			}
+			if (bitmap & 4) {
 				// 4 byte "external file attributes"
-				uint32_t external_attributes
+				uint32_t external_attributes;
+				if (datasize < 4)
+					break;
+				external_attributes
 				    = archive_le32dec(p + offset);
 				if (zip_entry->system == 3) {
 					zip_entry->mode
@@ -363,7 +393,24 @@ process_extra(const char *p, size_t extra_length, struct zip_entry* zip_entry)
 				offset += 4;
 				datasize -= 4;
 			}
+			if (bitmap & 8) {
+				// 2 byte comment length + comment
+				uint32_t comment_length;
+				if (datasize < 2)
+					break;
+				comment_length
+				    = archive_le16dec(p + offset);
+				offset += 2;
+				datasize -= 2;
+
+				if (datasize < comment_length)
+					break;
+				// Comment is not supported by libarchive
+				offset += comment_length;
+				datasize -= comment_length;
+			}
 			break;
+		}
 		case 0x7855:
 			/* Info-ZIP Unix Extra Field (type 2) "Ux". */
 #ifdef DEBUG
