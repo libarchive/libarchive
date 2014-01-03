@@ -641,11 +641,11 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		archive_le16enc(zip64_start + 2, e - (zip64_start + 4));
 	}
 
-	{ /* Experimental 'LA' extension to improve streaming. */
+	{ /* Experimental 'el' extension to improve streaming. */
 		unsigned char *external_info = e;
-		memcpy(e, "LA\000\000", 4); // 0x414C + 2-byte length
+		memcpy(e, "el\000\000", 4); // 0x6c65 + 2-byte length
 		e += 4;
-		e[0] = 5; /* bitmap of included fields */
+		e[0] = 7; /* bitmap of included fields */
 		e += 1;
 		archive_le16enc(e, /* "Version created by" */
 		    3 * 256 + version_needed);
@@ -655,6 +655,8 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		archive_le32enc(e,  /* external file attributes */
 		    archive_entry_mode(zip->entry) << 16);
 		e += 4;
+		// Libarchive does not currently support file comments.
+		
 		archive_le16enc(external_info + 2, e - (external_info + 4));
 	}
 

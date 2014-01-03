@@ -249,7 +249,7 @@ DEFINE_TEST(test_write_format_zip_file_zip64)
 	/* compressed file size we can't verify here */
 	p += 4 + i2(p + 2);
 
-	assertEqualInt(i2(p), 0x414c); /* 'LA' experimental extension header */
+	assertEqualInt(i2(p), 0x6c65); /* 'el' experimental extension header */
 	assertEqualInt(i2(p + 2), 9); /* size */
 	assertEqualInt(p[4], 7); /* bitmap of included fields */
 	assertEqualInt(i2(p + 5) >> 8, 3); /* system & version made by */

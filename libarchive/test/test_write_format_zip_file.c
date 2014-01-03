@@ -216,7 +216,7 @@ DEFINE_TEST(test_write_format_zip_file)
 	assertEqualInt(i4(p + 11), file_gid); /* 'Ux' GID */
 	p += 4 + i2(p + 2);
 
-	assertEqualInt(i2(p), 0x414c); /* 'LA' experimental extension block */
+	assertEqualInt(i2(p), 0x6c65); /* 'el' experimental extension block */
 	assertEqualInt(i2(p + 2), 9); /* size */
 	assertEqualInt(p[4], 7); /* bitmap of fields in this block */
 	assertEqualInt(i2(p + 5) >> 8, 3); /* System & version made by */

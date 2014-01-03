@@ -339,9 +339,9 @@ process_extra(const char *p, size_t extra_length, struct zip_entry* zip_entry)
 			}
 			break;
 		}
-		case 0x414C:
+		case 0x6c65:
 		{
-			/* Experimental 'LA' field */
+			/* Experimental 'el' field */
 			int bitmap, bitmap_last;
 
 			if (datasize < 1)
