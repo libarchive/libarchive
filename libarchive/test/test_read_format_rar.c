@@ -721,8 +721,8 @@ DEFINE_TEST(test_read_format_rar_ppmd_lzss_conversion)
 DEFINE_TEST(test_read_format_rar_binary)
 {
   const char reffile[] = "test_read_format_rar_binary_data.rar";
-  char file1_buff[1048576];
-  int file1_size = sizeof(file1_buff);
+  char *file1_buff = malloc(1048576);
+  int file1_size = 1048576;
   const char file1_test_txt[] = "\x37\xef\xb2\xbe\x33\xf6\xcc\xcb\xee\x2a\x10"
                                 "\x9d\x2e\x01\xe9\xf6\xf9\xe5\xe6\x67\x0c\x2b"
                                 "\xd8\x6b\xa0\x26\x9a\xf7\x93\x87\x42\xf1\x08"
@@ -777,6 +777,8 @@ DEFINE_TEST(test_read_format_rar_binary)
   assertEqualInt(2, archive_file_count(a));
   assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+  free(file1_buff);
 }
 
 DEFINE_TEST(test_read_format_rar_windows)

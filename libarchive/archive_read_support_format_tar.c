@@ -798,6 +798,13 @@ checksum(struct archive_read *a, const void *h)
 	bytes = (const unsigned char *)h;
 	header = (const struct archive_entry_header_ustar *)h;
 
+	/* Checksum field must hold an octal number */
+	for (i = 0; i < sizeof(header->checksum); ++i) {
+		char c = header->checksum[i];
+		if (c != ' ' && c != '\0' && (c < '0' || c > '7'))
+			return 0;
+	}
+
 	/*
 	 * Test the checksum.  Note that POSIX specifies _unsigned_
 	 * bytes for this calculation.
