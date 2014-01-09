@@ -59,8 +59,8 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_zip.c 201168 20
 #include "archive_crc32.h"
 #endif
 
-#define ZIP_FLAGS_LENGTH_AT_END	(1<<3)
-#define ZIP_FLAGS_UTF8_NAME	(1 << 11)
+#define ZIP_ENTRY_FLAG_LENGTH_AT_END	(1<<3)
+#define ZIP_ENTRY_FLAG_UTF8_NAME	(1 << 11)
 
 
 enum compression {
@@ -111,7 +111,11 @@ struct zip {
 	struct archive_string_conv *sconv_default;
 	enum compression requested_compression;
 	int init_default_conversion;
-	char avoid_zip64, force_zip64;
+
+#define ZIP_FLAG_AVOID_ZIP64 1
+#define ZIP_FLAG_FORCE_ZIP64 2
+#define ZIP_FLAG_EXPERIMENT_EL 4
+	int flags;
 
 #ifdef HAVE_ZLIB_H
 	z_stream stream;
@@ -214,6 +218,13 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 			ret = ARCHIVE_OK;
 		}
 		return (ret);
+	} else if (strcmp(key, "experimental") == 0) {
+		if (val == NULL || val[0] == 0) {
+			zip->flags &= ~ ZIP_FLAG_EXPERIMENT_EL;
+		} else {
+			zip->flags |= ZIP_FLAG_EXPERIMENT_EL;
+		}
+		return (ARCHIVE_OK);
 	} else if (strcmp(key, "fakecrc32") == 0) {
 		/* FOR TESTING ONLY:  turn off CRC calculator to speed up
 		 * certain complex tests. */
@@ -222,6 +233,7 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 		} else {
 			zip->crc32func = fake_crc32;
 		}
+		return (ARCHIVE_OK);
 	} else if (strcmp(key, "hdrcharset")  == 0) {
 		if (val == NULL || val[0] == 0) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -237,8 +249,13 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 		}
 		return (ret);
 	} else if (strcmp(key, "zip64") == 0) {
-		zip->force_zip64 = (val != NULL && *val != '\0');
-		zip->avoid_zip64 = !zip->force_zip64;
+		if (val != NULL && *val != '\0') {
+			zip->flags |= ZIP_FLAG_FORCE_ZIP64;
+			zip->flags &= ~ZIP_FLAG_AVOID_ZIP64;
+		} else {
+			zip->flags &= ~ZIP_FLAG_FORCE_ZIP64;
+			zip->flags |= ZIP_FLAG_AVOID_ZIP64;
+		}
 		return (ARCHIVE_OK);
 	}
 
@@ -463,10 +480,10 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		if (zip->opt_sconv != NULL) {
 			if (strcmp(archive_string_conversion_charset_name(
 					zip->opt_sconv), "UTF-8") == 0)
-				zip->entry_flags |= ZIP_FLAGS_UTF8_NAME;
+				zip->entry_flags |= ZIP_ENTRY_FLAG_UTF8_NAME;
 #if HAVE_NL_LANGINFO
 		} else if (strcmp(nl_langinfo(CODESET), "UTF-8") == 0) {
-			zip->entry_flags |= ZIP_FLAGS_UTF8_NAME;
+			zip->entry_flags |= ZIP_ENTRY_FLAG_UTF8_NAME;
 #endif
 		}
 	}
@@ -506,21 +523,21 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			zip->entry_uncompressed_size = size;
 			version_needed = 20;
 		}
-		if (zip->force_zip64 /* User has forced it. */
-		    || zip->entry_uncompressed_size > 0xffffffffLL) { /* Large entry. */
+		if ((zip->flags & ZIP_FLAG_FORCE_ZIP64) /* User asked. */
+		    || (zip->entry_uncompressed_size > 0xffffffffLL)) { /* Large entry. */
 			zip->entry_uses_zip64 = 1;
 			version_needed = 45;
 		}
 
 		/* We may know the size, but never the CRC. */
-		zip->entry_flags |= ZIP_FLAGS_LENGTH_AT_END;
+		zip->entry_flags |= ZIP_ENTRY_FLAG_LENGTH_AT_END;
 	} else {
 		/* Prefer deflate if it's available, because deflate
 		 * has a clear end-of-data marker that makes
 		 * length-at-end more reliable. */
 		zip->entry_compression = COMPRESSION_DEFAULT;
-		zip->entry_flags |= ZIP_FLAGS_LENGTH_AT_END;
-		if (!zip->avoid_zip64) {
+		zip->entry_flags |= ZIP_ENTRY_FLAG_LENGTH_AT_END;
+		if ((zip->flags & ZIP_FLAG_AVOID_ZIP64) == 0) {
 			zip->entry_uses_zip64 = 1;
 			version_needed = 45;
 		} else if (zip->entry_compression == COMPRESSION_STORE) {
@@ -641,22 +658,31 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		archive_le16enc(zip64_start + 2, e - (zip64_start + 4));
 	}
 
-	{ /* Experimental 'el' extension to improve streaming. */
+	if (zip->flags & ZIP_FLAG_EXPERIMENT_EL) {
+		/* Experimental 'el' extension to improve streaming. */
 		unsigned char *external_info = e;
+		int included = 7;
 		memcpy(e, "el\000\000", 4); // 0x6c65 + 2-byte length
 		e += 4;
-		e[0] = 7; /* bitmap of included fields */
+		e[0] = included; /* bitmap of included fields */
 		e += 1;
-		archive_le16enc(e, /* "Version created by" */
-		    3 * 256 + version_needed);
-		e += 2;
-		archive_le16enc(e, 0); /* internal file attributes */
-		e += 2;
-		archive_le32enc(e,  /* external file attributes */
-		    archive_entry_mode(zip->entry) << 16);
-		e += 4;
-		// Libarchive does not currently support file comments.
-		
+		if (included & 1) {
+			archive_le16enc(e, /* "Version created by" */
+			    3 * 256 + version_needed);
+			e += 2;
+		}
+		if (included & 2) {
+			archive_le16enc(e, 0); /* internal file attributes */
+			e += 2;
+		}
+		if (included & 4) {
+			archive_le32enc(e,  /* external file attributes */
+			    archive_entry_mode(zip->entry) << 16);
+			e += 4;
+		}
+		if (included & 8) {
+			// Libarchive does not currently support file comments.
+		}
 		archive_le16enc(external_info + 2, e - (external_info + 4));
 	}
 
@@ -790,7 +816,7 @@ archive_write_zip_finish_entry(struct archive_write *a)
 #endif
 
 	/* Write trailing data descriptor. */
-	if ((zip->entry_flags & ZIP_FLAGS_LENGTH_AT_END) != 0) {
+	if ((zip->entry_flags & ZIP_ENTRY_FLAG_LENGTH_AT_END) != 0) {
 		char d[24];
 		memcpy(d, "PK\007\010", 4);
 		archive_le32enc(d + 4, zip->entry_crc32);
@@ -881,7 +907,7 @@ archive_write_zip_close(struct archive_write *a)
 	if (offset_end - offset_start > 0xffffffffLL
 	    || offset_start > 0xffffffffLL
 	    || zip->central_directory_entries > 0xffffUL
-	    || zip->force_zip64) {
+	    || (zip->flags & ZIP_FLAG_FORCE_ZIP64)) {
 	  /* Zip64 end-of-cd record */
 	  memset(buff, 0, 56);
 	  memcpy(buff, "PK\006\006", 4);
