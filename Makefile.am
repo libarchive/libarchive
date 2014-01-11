@@ -423,6 +423,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_format_rar_encryption_header.c	\
 	libarchive/test/test_read_format_raw.c			\
 	libarchive/test/test_read_format_tar.c			\
+	libarchive/test/test_read_format_tar_concatenated.c	\
 	libarchive/test/test_read_format_tar_empty_pax.c	\
 	libarchive/test/test_read_format_tar_empty_filename.c	\
 	libarchive/test/test_read_format_tar_filename.c		\
