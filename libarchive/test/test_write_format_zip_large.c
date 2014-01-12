@@ -116,7 +116,7 @@ memory_read(struct archive *a, void *_private, const void **buff)
 	}
 
 	if (private->current == NULL)
-		return (ARCHIVE_EOF);
+		return (0);
 
 	/* If there's real data, return that. */
 	if (private->buff != NULL) {
@@ -316,8 +316,10 @@ DEFINE_TEST(test_write_format_zip_large)
 	struct fileblocks *fileblocks = fileblocks_new();
 	struct archive_entry *ae;
 	struct archive *a;
+	const char *p;
+	char *buff;
 	int64_t  filesize;
-	size_t writesize;
+	size_t writesize, buffsize, s;
 
 	nullsize = (size_t)(1 * MB);
 	nulldata = malloc(nullsize);
@@ -392,6 +394,41 @@ DEFINE_TEST(test_write_format_zip_large)
 	    archive_read_support_format_zip_streamable(a));
 	verify_large_zip(a, fileblocks);
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/*
+	 * Manually verify some of the final bytes of the archives.
+	 */
+	/* Collect the final bytes together */
+#define FINAL_SIZE 512	
+	buff = malloc(FINAL_SIZE);
+	buffsize = 0;
+	memory_read_open(NULL, fileblocks);
+	memory_read_seek(NULL, fileblocks, -FINAL_SIZE, SEEK_END);
+	while ((s = memory_read(NULL, fileblocks, (const void **)&p)) > 0) {
+		memcpy(buff + buffsize, p, s);
+		buffsize += s;
+	}
+	assertEqualInt(buffsize, FINAL_SIZE);
+
+	p = buff + buffsize;
+	/* TODO: Verify Zip64 end-of-cd record. */
+
+	/* Verify Zip64 locator */
+	assertEqualMem(p - 42, "PK\006\007\0\0\0\0", 8);
+	/* TODO: Verify 8 byte offset of Zip64 end-of-cd record. */
+	assertEqualMem(p - 26, "\001\0\0\0", 4);
+
+	/* Verify regular end-of-central-directory record */
+	assertEqualMem(p - 22, "PK\005\006\0\0\0\0", 8);
+	/* Number of entries (17 including 'lastfile'). */
+	assertEqualMem(p - 14, "\021\0\021\0", 4);
+	/* TODO: Check size of central directory?  Maybe verify
+	   that this matches size in Zip64 end-of-cd record? */
+	/* assertEqualMem(p - 10, ..., 4); */
+	/* Start of CD offset should be 0xffffffff */
+	assertEqualMem(p - 6, "\xff\xff\xff\xff", 4);
+	/* No Zip comment */
+	assertEqualMem(p - 2, "\0\0", 2);
 
 	fileblocks_free(fileblocks);
 	free(nulldata);

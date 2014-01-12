@@ -979,8 +979,8 @@ archive_write_zip_close(struct archive_write *a)
 	memcpy(buff, "PK\005\006", 4);
 	archive_le16enc(buff + 8, zipmin(0xffffU, zip->central_directory_entries));
 	archive_le16enc(buff + 10, zipmin(0xffffU, zip->central_directory_entries));
-	archive_le32enc(buff + 12, zipmin(0xffffffffULL, (uint32_t)(offset_end - offset_start)));
-	archive_le32enc(buff + 16, zipmin(0xffffffffULL, (uint32_t)offset_start));
+	archive_le32enc(buff + 12, (uint32_t)zipmin(0xffffffffLL, (offset_end - offset_start)));
+	archive_le32enc(buff + 16, (uint32_t)zipmin(0xffffffffLL, offset_start));
 	ret = __archive_write_output(a, buff, 22);
 	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
