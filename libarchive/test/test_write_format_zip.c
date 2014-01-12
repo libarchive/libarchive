@@ -586,6 +586,8 @@ DEFINE_TEST(test_write_format_zip64)
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_options(a, "zip:experimental"));
 	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_options(a, "zip:experimental"));
+	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used));
 	write_contents(a);
 	dumpfile("constructed64.zip", buff, used);
