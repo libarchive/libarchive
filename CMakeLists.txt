@@ -902,7 +902,7 @@ ENDIF(ENABLE_ICONV)
 
 #
 # Find Libxml2
-FIND_PACKAGE(LibXml2 REQUIRED)
+FIND_PACKAGE(LibXml2)
 #
 IF(LIBXML2_FOUND)
   CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
