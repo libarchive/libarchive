@@ -77,6 +77,12 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_LINUX_FS_H
 #include <linux/fs.h>	/* for Linux file flags */
 #endif
+#ifdef HAVE_SYS_MAC_H
+#include <sys/mac.h>
+#endif
+#ifdef HAVE_SYS_SYSCTL_H
+#include <sys/sysctl.h>
+#endif
 /*
  * Some Linux distributions have both linux/ext2_fs.h and ext2fs/ext2_fs.h.
  * As the include guards don't agree, the order of include is important.
@@ -3690,6 +3696,59 @@ set_xattrs(struct archive_write_disk *a)
 	return (ret);
 }
 #elif HAVE_EXTATTR_SET_FILE && HAVE_DECL_EXTATTR_NAMESPACE_USER
+
+#if defined (HAVE_SYS_MAC_H) && defined (HAVE_SYS_SYSCTL_H) && \
+    defined (__FreeBSD__)
+/*
+ * Set FreeBSD MAC labels.
+ * Converts a text representation to a label and applies it.
+ */
+static int
+set_maclabel(struct archive_write_disk *a, const char *labeltext, size_t size)
+{
+	int ret = ARCHIVE_OK;
+	uint64_t mac_labeled = 0;
+	size_t ml_len = sizeof(uint64_t);
+
+	/* if (mac_is_present(NULL) == 1) { */
+	if (!sysctlbyname("security.mac.labeled",
+	    &mac_labeled, &ml_len, NULL, 0) && \
+	    mac_labeled != 0) {
+		mac_t mac;
+		char buff[512];
+
+		if (size > 511)
+			size = 511;
+		memcpy(buff, labeltext, size);
+		buff[size] = '\0';
+
+		if (mac_from_text(&mac, buff)) {
+			archive_set_error(&a->archive, errno,
+			    "Couldn't convert MAC label");
+			return (ARCHIVE_WARN);
+		} else {
+			int err = 0;
+
+			if (a->fd >= 0)
+				err = mac_set_fd(a->fd, mac);
+			else
+				err = mac_set_link(
+				    archive_entry_pathname(a->entry),
+				    mac);
+
+			if (err) {
+				archive_set_error(&a->archive, errno,
+				    "Couldn't set MAC label");
+				ret = ARCHIVE_WARN;
+			}
+			mac_free(mac);
+		}
+	}
+
+	return (ret);
+}
+#endif
+
 /*
  * Restore extended attributes -  FreeBSD implementation
  */
@@ -3714,6 +3773,14 @@ set_xattrs(struct archive_write_disk *a)
 				/* "user." attributes go to user namespace */
 				name += 5;
 				namespace = EXTATTR_NAMESPACE_USER;
+#if defined (HAVE_SYS_MAC_H) && defined (HAVE_SYS_SYSCTL_H) && \
+    defined (__FreeBSD__)
+			} else if (strncmp(name, "system.mac", 10) == 0) {
+				int r1 = set_maclabel(a, value, size);
+				if (r1 < ret)
+					ret = r1;
+				continue;
+#endif
 			} else {
 				/* Warn about other extended attributes. */
 				archive_set_error(&a->archive,

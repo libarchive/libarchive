@@ -81,6 +81,12 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk_entry_from_file.c 2010
 #ifdef HAVE_LINUX_FS_H
 #include <linux/fs.h>
 #endif
+#ifdef HAVE_SYS_MAC_H
+#include <sys/mac.h>
+#endif
+#ifdef HAVE_SYS_SYSCTL_H
+#include <sys/sysctl.h>
+#endif
 /*
  * Some Linux distributions have both linux/ext2_fs.h and ext2fs/ext2_fs.h.
  * As the include guards don't agree, the order of include is important.
@@ -925,10 +931,15 @@ setup_xattrs(struct archive_read_disk *a,
     struct archive_entry *entry, int *fd)
 {
 	char buff[512];
-	char *list, *p;
 	ssize_t list_size;
 	const char *path;
 	int namespace = EXTATTR_NAMESPACE_USER;
+	int ret;
+#if defined (HAVE_SYS_MAC_H) && defined (HAVE_SYS_SYSCTL_H) && \
+    defined (__FreeBSD__)
+	uint64_t mac_labeled = 0;
+	size_t ml_len = sizeof(uint64_t);
+#endif
 
 	path = archive_entry_sourcepath(entry);
 	if (path == NULL)
@@ -955,51 +966,107 @@ setup_xattrs(struct archive_read_disk *a,
 	else
 		list_size = extattr_list_file(path, namespace, NULL, 0);
 
-	if (list_size == -1 && errno == EOPNOTSUPP)
-		return (ARCHIVE_OK);
-	if (list_size == -1) {
+	ret = ARCHIVE_OK;
+	if (list_size == -1 && errno != EOPNOTSUPP) {
 		archive_set_error(&a->archive, errno,
 			"Couldn't list extended attributes");
-		return (ARCHIVE_WARN);
+		ret = ARCHIVE_WARN;
 	}
 
-	if (list_size == 0)
-		return (ARCHIVE_OK);
+	if (list_size > 0) {
+		char *list, *p;
 
-	if ((list = malloc(list_size)) == NULL) {
-		archive_set_error(&a->archive, errno, "Out of memory");
-		return (ARCHIVE_FATAL);
-	}
+		if ((list = malloc(list_size)) == NULL) {
+			archive_set_error(&a->archive, errno, "Out of memory");
+			return (ARCHIVE_FATAL);
+		}
 
-	if (*fd >= 0)
-		list_size = extattr_list_fd(*fd, namespace, list, list_size);
-	else if (!a->follow_symlinks)
-		list_size = extattr_list_link(path, namespace, list, list_size);
-	else
-		list_size = extattr_list_file(path, namespace, list, list_size);
+		if (*fd >= 0)
+			list_size = extattr_list_fd(*fd,
+			    namespace, list, list_size);
+		else if (!a->follow_symlinks)
+			list_size = extattr_list_link(path,
+			    namespace, list, list_size);
+		else
+			list_size = extattr_list_file(path,
+			    namespace, list, list_size);
 
-	if (list_size == -1) {
-		archive_set_error(&a->archive, errno,
-			"Couldn't retrieve extended attributes");
+		if (list_size == -1) {
+			archive_set_error(&a->archive, errno,
+				"Couldn't retrieve extended attributes");
+			free(list);
+			ret = ARCHIVE_WARN;
+		} else {
+
+			p = list;
+			while ((p - list) < list_size) {
+				size_t len = 255 & (int)*p;
+				char *name;
+
+				strcpy(buff, "user.");
+				name = buff + strlen(buff);
+				memcpy(name, p + 1, len);
+				name[len] = '\0';
+				setup_xattr(a, entry, namespace,
+				    name, buff, *fd);
+				p += 1 + len;
+			}
+		}
+
 		free(list);
-		return (ARCHIVE_WARN);
 	}
 
-	p = list;
-	while ((p - list) < list_size) {
-		size_t len = 255 & (int)*p;
-		char *name;
+#if defined (HAVE_SYS_MAC_H) && defined (HAVE_SYS_SYSCTL_H) && \
+    defined (__FreeBSD__)
+	/* Handle FreeBSD MAC labels. This is a simplified hack that
+	 * stores the label in textual representation as an xattr
+	 * with the name "system.mac". There is no name clash under
+	 * FreeBSD, as only the user namespace is otherwise touched;
+	 * extracting archives that contain this data on other, xattr
+	 * capable systems may potentially break.
+	 */
+	/* if (mac_is_present(NULL) == 1) { */
+	if (!sysctlbyname("security.mac.labeled",
+	    &mac_labeled, &ml_len, NULL, 0) && \
+	    mac_labeled != 0) {
+		mac_t mac;
+		char *labeltext;
 
-		strcpy(buff, "user.");
-		name = buff + strlen(buff);
-		memcpy(name, p + 1, len);
-		name[len] = '\0';
-		setup_xattr(a, entry, namespace, name, buff, *fd);
-		p += 1 + len;
+		if (mac_prepare_file_label(&mac)) {
+			archive_set_error(&a->archive, errno,
+			    "Failed to prepare MAC label");
+			return (ARCHIVE_FATAL);
+		} else {
+			int err = 0;
+			if (*fd >= 0)
+				err = mac_get_fd(*fd, mac);
+			else if (!a->follow_symlinks)
+				err = mac_get_link(path, mac);
+			else
+				err = mac_get_file(path, mac);
+			if (err) {
+				archive_set_error(&a->archive, errno,
+				    "Couldn't read MAC label");
+				mac_free(mac);
+				return (ARCHIVE_WARN);
+			}
+
+			if (mac_to_text(mac, &labeltext)) {
+				archive_set_error(&a->archive, errno,
+				    "Couldn't convert MAC label");
+				mac_free(mac);
+				return (ARCHIVE_FATAL);
+			} else {
+				archive_entry_xattr_add_entry(entry,
+				    "system.mac",
+				    labeltext, strlen(labeltext));
+				free(labeltext);
+			}
+			mac_free(mac);
+		}
 	}
-
-	free(list);
-	return (ARCHIVE_OK);
+#endif
+	return (ret);
 }
 
 #else

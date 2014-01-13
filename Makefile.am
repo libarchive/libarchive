@@ -356,6 +356,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_fuzz.c				\
 	libarchive/test/test_gnutar_filename_encoding.c		\
 	libarchive/test/test_link_resolver.c			\
+	libarchive/test/test_maclabel_freebsd.c			\
 	libarchive/test/test_open_failure.c			\
 	libarchive/test/test_open_fd.c				\
 	libarchive/test/test_open_file.c			\
