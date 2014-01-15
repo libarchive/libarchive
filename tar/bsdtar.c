@@ -339,6 +339,9 @@ main(int argc, char **argv)
 			bsdtar->extract_flags |=
 			    ARCHIVE_EXTRACT_HFS_COMPRESSION_FORCED;
 			break;
+		case OPTION_IGNORE_ZEROS:
+			bsdtar->option_ignore_zeros = 1;
+			break;
 		case 'I': /* GNU tar */
 			/*
 			 * TODO: Allow 'names' to come from an archive,

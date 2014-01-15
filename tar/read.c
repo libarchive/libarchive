@@ -201,6 +201,10 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 	}
 	if (ARCHIVE_OK != archive_read_set_options(a, bsdtar->option_options))
 		lafe_errc(1, 0, "%s", archive_error_string(a));
+	if (bsdtar->option_ignore_zeros)
+		if (archive_read_set_options(a,
+		    "read_concatenated_archives") != ARCHIVE_OK)
+			lafe_errc(1, 0, "%s", archive_error_string(a));
 	if (archive_read_open_filename(a, bsdtar->filename,
 					bsdtar->bytes_per_block))
 		lafe_errc(1, 0, "Error opening archive: %s",
