@@ -2146,6 +2146,28 @@ slurpfile(size_t * sizep, const char *fmt, ...)
 	return (p);
 }
 
+/*
+ * Slurp a file into memory for ease of comparison and testing.
+ * Returns size of file in 'sizep' if non-NULL, null-terminates
+ * data in memory for ease of use.
+ */
+void
+dumpfile(const char *filename, void *data, size_t len)
+{
+	ssize_t bytes_written;
+	FILE *f;
+
+	f = fopen(filename, "wb");
+	if (f == NULL) {
+		logprintf("Can't open file %s for writing\n", filename);
+		return;
+	}
+	bytes_written = fwrite(data, 1, len, f);
+	if (bytes_written < (ssize_t)len)
+		logprintf("Can't write file %s\n", filename);
+	fclose(f);
+}
+
 /* Read a uuencoded file from the reference directory, decode, and
  * write the result into the current directory. */
 #define	UUDECODE(c) (((c) - 0x20) & 0x3f)
@@ -2305,7 +2327,7 @@ test_run(int i, const char *tmpdir)
 	case VERBOSITY_SUMMARY_ONLY: /* No per-test reports at all */
 		break;
 	case VERBOSITY_PASSFAIL: /* rest of line will include ok/FAIL marker */
-		printf("%3d: %-50s", i, tests[i].name);
+		printf("%3d: %-64s", i, tests[i].name);
 		fflush(stdout);
 		break;
 	default: /* Title of test, details will follow */

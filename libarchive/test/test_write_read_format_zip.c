@@ -32,10 +32,8 @@
 __FBSDID("$FreeBSD: head/lib/libarchive/test/test_write_format_zip.c 201247 2009-12-30 05:59:21Z kientzle $");
 
 /*
- * This test doesn't actually check that the zip writer is
- * correct, just that our zip reader can read the output of
- * our zip writer.  We do more detailed checks of the bits
- * elsewhere.
+ * These tests verify that our reader can read files
+ * created by our writer.
  */
 
 /*
@@ -289,9 +287,10 @@ verify_contents(struct archive *a, int seeking)
 	assertEqualString("file", archive_entry_pathname(ae));
 	if (seeking) {
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
+		assertEqualInt(8, archive_entry_size(ae));
+	} else {
+		assertEqualInt(0, archive_entry_size_is_set(ae));
 	}
-	assert(archive_entry_size_is_set(ae));
-	assertEqualInt(8, archive_entry_size(ae));
 	assertEqualIntA(a, 8,
 	    archive_read_data(a, filedata, sizeof(filedata)));
 	assertEqualMem(filedata, "12345678", 8);
@@ -306,9 +305,10 @@ verify_contents(struct archive *a, int seeking)
 	assertEqualString("file2", archive_entry_pathname(ae));
 	if (seeking) {
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
+		assertEqualInt(4, archive_entry_size(ae));
+	} else {
+		assertEqualInt(0, archive_entry_size_is_set(ae));
 	}
-	assertEqualInt(4, archive_entry_size(ae));
-	assert(archive_entry_size_is_set(ae));
 	assertEqualIntA(a, 4,
 	    archive_read_data(a, filedata, sizeof(filedata)));
 	assertEqualMem(filedata, "1234", 4);
@@ -337,9 +337,16 @@ verify_contents(struct archive *a, int seeking)
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("symlink", archive_entry_pathname(ae));
-	assertEqualInt(AE_IFLNK | 0755, archive_entry_mode(ae));
-	assertEqualInt(0, archive_entry_size(ae));
-	assertEqualString("file1", archive_entry_symlink(ae));
+	if (seeking) {
+		assertEqualInt(AE_IFLNK | 0755, archive_entry_mode(ae));
+		assertEqualInt(0, archive_entry_size(ae));
+		assertEqualString("file1", archive_entry_symlink(ae));
+	} else {
+		/* Streaming cannot read file type, so
+		 * symlink body shows as regular file contents. */
+		assertEqualInt(AE_IFREG | 0664, archive_entry_mode(ae));
+		assertEqualInt(5, archive_entry_size(ae));
+	}
 
 	/* Read the dir entry back. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -366,10 +373,12 @@ verify_contents(struct archive *a, int seeking)
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("file_deflate", archive_entry_pathname(ae));
-	if (seeking)
+	if (seeking) {
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
-	assertEqualInt(8, archive_entry_size(ae));
-	assert(archive_entry_size_is_set(ae));
+		assertEqualInt(8, archive_entry_size(ae));
+	} else {
+		assertEqualInt(0, archive_entry_size(ae));
+	}
 	assertEqualIntA(a, 8,
 	    archive_read_data(a, filedata, sizeof(filedata)));
 	assertEqualMem(filedata, "12345678", 8);
@@ -382,10 +391,12 @@ verify_contents(struct archive *a, int seeking)
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("file2_deflate", archive_entry_pathname(ae));
-	if (seeking)
+	if (seeking) {
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
-	assertEqualInt(4, archive_entry_size(ae));
-	assert(archive_entry_size_is_set(ae));
+		assertEqualInt(4, archive_entry_size(ae));
+	} else {
+		assertEqualInt(0, archive_entry_size(ae));
+	}
 	assertEqualIntA(a, 4,
 	    archive_read_data(a, filedata, sizeof(filedata)));
 	assertEqualMem(filedata, "1234", 4);
@@ -414,9 +425,16 @@ verify_contents(struct archive *a, int seeking)
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("symlink_deflate", archive_entry_pathname(ae));
-	assertEqualInt(AE_IFLNK | 0755, archive_entry_mode(ae));
-	assertEqualInt(0, archive_entry_size(ae));
-	assertEqualString("file1", archive_entry_symlink(ae));
+	if (seeking) {
+		assertEqualInt(AE_IFLNK | 0755, archive_entry_mode(ae));
+		assertEqualInt(0, archive_entry_size(ae));
+		assertEqualString("file1", archive_entry_symlink(ae));
+	} else {
+		assertEqualInt(AE_IFREG | 0664, archive_entry_mode(ae));
+		assertEqualInt(5, archive_entry_size(ae));
+		assertEqualIntA(a, 5, archive_read_data(a, filedata, 10));
+		assertEqualMem(filedata, "file1", 5);
+	}
 
 	/* Read the dir entry back. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -444,10 +462,13 @@ verify_contents(struct archive *a, int seeking)
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("file_stored", archive_entry_pathname(ae));
-	if (seeking)
+	if (seeking) {
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
-	assert(archive_entry_size_is_set(ae));
-	assertEqualInt(8, archive_entry_size(ae));
+		assert(archive_entry_size_is_set(ae));
+		assertEqualInt(8, archive_entry_size(ae));
+	} else {
+		assertEqualInt(0, archive_entry_size_is_set(ae));
+	}
 	assertEqualIntA(a, 8,
 	    archive_read_data(a, filedata, sizeof(filedata)));
 	assertEqualMem(filedata, "12345678", 8);
@@ -460,10 +481,12 @@ verify_contents(struct archive *a, int seeking)
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("file2_stored", archive_entry_pathname(ae));
-	if (seeking)
+	if (seeking) {
+		assertEqualInt(4, archive_entry_size(ae));
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
-	assertEqualInt(4, archive_entry_size(ae));
-	assert(archive_entry_size_is_set(ae));
+	} else {
+		assertEqualInt(0, archive_entry_size_is_set(ae));
+	}
 	assertEqualIntA(a, 4,
 	    archive_read_data(a, filedata, sizeof(filedata)));
 	assertEqualMem(filedata, "ACEG", 4);
@@ -492,9 +515,16 @@ verify_contents(struct archive *a, int seeking)
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("symlink_stored", archive_entry_pathname(ae));
-	assertEqualInt(AE_IFLNK | 0755, archive_entry_mode(ae));
-	assertEqualInt(0, archive_entry_size(ae));
-	assertEqualString("file1", archive_entry_symlink(ae));
+	if (seeking) {
+		assertEqualInt(AE_IFLNK | 0755, archive_entry_mode(ae));
+		assertEqualInt(0, archive_entry_size(ae));
+		assertEqualString("file1", archive_entry_symlink(ae));
+	} else {
+		assertEqualInt(AE_IFREG | 0664, archive_entry_mode(ae));
+		assertEqualInt(5, archive_entry_size(ae));
+		assertEqualIntA(a, 5, archive_read_data(a, filedata, 10));
+		assertEqualMem(filedata, "file1", 5);
+	}
 
 	/* Read the dir entry back. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -517,7 +547,7 @@ verify_contents(struct archive *a, int seeking)
 /*
  * Do a write-then-read roundtrip.
  */
-DEFINE_TEST(test_write_format_zip)
+DEFINE_TEST(test_write_read_format_zip)
 {
 	struct archive *a;
 	size_t used;
@@ -530,8 +560,6 @@ DEFINE_TEST(test_write_format_zip)
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_zip(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_options(a, "zip:experimental"));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used));
 	write_contents(a);
@@ -568,7 +596,7 @@ DEFINE_TEST(test_write_format_zip)
 /*
  * Do a write-then-read roundtrip with Zip64 enabled.
  */
-DEFINE_TEST(test_write_format_zip64)
+DEFINE_TEST(test_write_read_format_zip64)
 {
 	struct archive *a;
 	size_t used;
@@ -581,12 +609,7 @@ DEFINE_TEST(test_write_format_zip64)
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_zip(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_options(a, "zip:zip64"));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_options(a, "zip:experimental"));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_options(a, "zip:experimental"));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_options(a, "zip:zip64"));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used));
 	write_contents(a);

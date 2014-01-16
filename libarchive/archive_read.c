@@ -1614,10 +1614,9 @@ __archive_read_filter_seek(struct archive_read_filter *filter, int64_t offset,
 			client->dataset[++cursor].begin_position = r;
 		}
 		offset -= client->dataset[cursor].begin_position;
-		if (offset < 0)
-			offset = 0;
-		else if (offset > client->dataset[cursor].total_size - 1)
-			offset = client->dataset[cursor].total_size - 1;
+		if (offset < 0
+		    || offset > client->dataset[cursor].total_size)
+			return ARCHIVE_FATAL;
 		if ((r = client_seek_proxy(filter, offset, SEEK_SET)) < 0)
 			return r;
 		break;
