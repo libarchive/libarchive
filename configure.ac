@@ -785,4 +785,8 @@ case "$host_os" in
 	;;
 esac
 
+# Ensure test directories are present if building out-of-tree
+AC_CONFIG_COMMANDS([mkdirs],
+		   [mkdir -p {libarchive,tar,cpio}/test])
+
 AC_OUTPUT
