@@ -444,6 +444,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_read_format_zip_nofiletype.c	\
 	libarchive/test/test_read_format_zip_padded.c		\
 	libarchive/test/test_read_format_zip_sfx.c		\
+	libarchive/test/test_read_format_zip_zip64.c		\
 	libarchive/test/test_read_large.c			\
 	libarchive/test/test_read_pax_truncated.c		\
 	libarchive/test/test_read_position.c			\
@@ -521,6 +522,7 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_write_format_zip_large.c		\
 	libarchive/test/test_write_format_zip_zip64.c		\
 	libarchive/test/test_write_open_memory.c		\
+	libarchive/test/test_write_read_format_zip.c		\
 	libarchive/test/test_zip_filename_encoding.c
 
 libarchive_test_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/test_utils -I$(top_builddir)/libarchive/test -DLIBARCHIVE_STATIC $(PLATFORMCPPFLAGS)
