@@ -97,6 +97,20 @@ IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wmissing-prototypes")
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wcast-qual")
 ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
+IF ("CMAKE_C_COMPILER_ID" MATCHES "^Clang$")
+  SET(CMAKE_REQUIRED_FLAGS "-Wall -Wformat -Wformat-security")
+  #################################################################
+  # Set compile flags for all build types.
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wformat -Wformat-security")
+  #################################################################
+  # Set compile flags for debug build.
+  # This is added into CMAKE_C_FLAGS when CMAKE_BUILD_TYPE is "Debug"
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Werror -Wextra -Wunused")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wshadow")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wmissing-prototypes")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wcast-qual")
+ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^Clang$")
 IF (MSVC)
   #################################################################
   # Set compile flags for debug build.
@@ -902,7 +916,7 @@ ENDIF(ENABLE_ICONV)
 
 #
 # Find Libxml2
-FIND_PACKAGE(LibXml2 REQUIRED)
+FIND_PACKAGE(LibXml2)
 #
 IF(LIBXML2_FOUND)
   CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables

@@ -46,7 +46,7 @@ DEFINE_TEST(test_read_format_zip_encryption_partially)
 
 	/* Verify unencrypted file "bar.txt". */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt((AE_IFREG | 0666), archive_entry_mode(ae));
+	assertEqualInt((AE_IFREG | 0664), archive_entry_mode(ae));
 	assertEqualString("bar.txt", archive_entry_pathname(ae));
 	assertEqualInt(20, archive_entry_size(ae));
 	assertEqualInt(0, archive_entry_is_data_encrypted(ae));
@@ -56,7 +56,7 @@ DEFINE_TEST(test_read_format_zip_encryption_partially)
 	
 	/* Verify encrypted file "foo.txt". */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt((AE_IFREG | 0666), archive_entry_mode(ae));
+	assertEqualInt((AE_IFREG | 0664), archive_entry_mode(ae));
 	assertEqualString("foo.txt", archive_entry_pathname(ae));
 	assertEqualInt(20, archive_entry_size(ae));
 	assertEqualInt(1, archive_entry_is_data_encrypted(ae));

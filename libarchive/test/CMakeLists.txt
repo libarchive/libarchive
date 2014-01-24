@@ -9,8 +9,8 @@ IF(ENABLE_TEST)
    main.c
     read_open_memory.c
     test.h
-    test_acl_freebsd_posix1e.c
     test_acl_freebsd_nfs4.c
+    test_acl_freebsd_posix1e.c
     test_acl_nfs4.c
     test_acl_pax.c
     test_acl_posix1e.c
@@ -54,8 +54,8 @@ IF(ENABLE_TEST)
     test_compat_lzop.c
     test_compat_mac.c
     test_compat_pax_libarchive_2x.c
-    test_compat_solaris_tar_acl.c
     test_compat_solaris_pax_sparse.c
+    test_compat_solaris_tar_acl.c
     test_compat_tar_hardlink.c
     test_compat_uudecode.c
     test_compat_xz.c
@@ -88,8 +88,8 @@ IF(ENABLE_TEST)
     test_read_filter_uudecode.c
     test_read_format_7zip.c
     test_read_format_7zip_encryption_data.c
-    test_read_format_7zip_encryption_partially.c
     test_read_format_7zip_encryption_header.c
+    test_read_format_7zip_encryption_partially.c
     test_read_format_ar.c
     test_read_format_cab.c
     test_read_format_cab_filename.c
@@ -131,12 +131,13 @@ IF(ENABLE_TEST)
     test_read_format_pax_bz2.c
     test_read_format_rar.c
     test_read_format_rar_encryption_data.c
-    test_read_format_rar_encryption_partially.c
     test_read_format_rar_encryption_header.c
+    test_read_format_rar_encryption_partially.c
     test_read_format_raw.c
     test_read_format_tar.c
-    test_read_format_tar_empty_pax.c
+    test_read_format_tar_concatenated.c
     test_read_format_tar_empty_filename.c
+    test_read_format_tar_empty_pax.c
     test_read_format_tar_filename.c
     test_read_format_tbz.c
     test_read_format_tgz.c
@@ -148,13 +149,14 @@ IF(ENABLE_TEST)
     test_read_format_zip.c
     test_read_format_zip_comment_stored.c
     test_read_format_zip_encryption_data.c
-    test_read_format_zip_encryption_partially.c
     test_read_format_zip_encryption_header.c
+    test_read_format_zip_encryption_partially.c
     test_read_format_zip_filename.c
     test_read_format_zip_mac_metadata.c
     test_read_format_zip_nofiletype.c
     test_read_format_zip_padded.c
     test_read_format_zip_sfx.c
+    test_read_format_zip_zip64.c
     test_read_large.c
     test_read_pax_truncated.c
     test_read_position.c
@@ -164,8 +166,8 @@ IF(ENABLE_TEST)
     test_sparse_basic.c
     test_tar_filenames.c
     test_tar_large.c
-    test_ustar_filenames.c
     test_ustar_filename_encoding.c
+    test_ustar_filenames.c
     test_write_disk.c
     test_write_disk_appledouble.c
     test_write_disk_failures.c
@@ -224,10 +226,15 @@ IF(ENABLE_TEST)
     test_write_format_xar.c
     test_write_format_xar_empty.c
     test_write_format_zip.c
+    test_write_format_zip_compression_store.c
     test_write_format_zip_empty.c
-    test_write_format_zip_no_compression.c
-    test_write_zip_set_compression_store.c
+    test_write_format_zip_empty_zip64.c
+    test_write_format_zip_file.c
+    test_write_format_zip_file_zip64.c
+    test_write_format_zip_large.c
+    test_write_format_zip_zip64.c
     test_write_open_memory.c
+    test_write_read_format_zip.c
     test_zip_filename_encoding.c
   )
 

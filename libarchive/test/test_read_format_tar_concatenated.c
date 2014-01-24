@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Konrad Kleine
+ * Copyright (c) 2014 Kevin Locke
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,57 +23,64 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD");
 
-DEFINE_TEST(test_read_format_zip_encryption_data)
+/*
+ * The sample tar file is the result of concatenating two tar files,
+ * the first containing file1 the second containing file2.
+ *
+ * When the read_concatenated_archives option is specified, both files should
+ * be read.  Otherwise, only file1 should be read.
+ */
+DEFINE_TEST(test_read_format_tar_concatenated)
 {
-	/* This file is password protected (encrypted). The headers
-	   are NOT encrypted. Password is "12345678". */
-	const char *refname = "test_read_format_zip_encryption_data.zip";
+	char name[] = "test_read_format_tar_concatenated.tar";
 	struct archive_entry *ae;
 	struct archive *a;
-	char buff[128];
 
-	extract_reference_file(refname);
+	/*
+	 * First test that when read_concatenated_archives is not specified
+	 * only file1 is present.
+	 */
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, 
-               archive_read_open_filename(a, refname, 10240));
+	extract_reference_file(name);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, name, 10240));
 
-	assertEqualIntA(a, ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW, archive_read_has_encrypted_entries(a));
-
-	/* Verify encrypted file "bar.txt" */
+	/* Read first entry. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt((AE_IFREG | 0664), archive_entry_mode(ae));
-	assertEqualString("bar.txt", archive_entry_pathname(ae));
-	assertEqualInt(20, archive_entry_size(ae));
-	assertEqualInt(1, archive_entry_is_data_encrypted(ae));
-	assertEqualInt(0, archive_entry_is_metadata_encrypted(ae));
-	assertEqualIntA(a, 1, archive_read_has_encrypted_entries(a));
-	assertEqualInt(ARCHIVE_FAILED, archive_read_data(a, buff, sizeof(buff)));
-	
-	/* Verify encrypted file "foo.txt" */
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt((AE_IFREG | 0664), archive_entry_mode(ae));
-	assertEqualString("foo.txt", archive_entry_pathname(ae));
-	assertEqualInt(20, archive_entry_size(ae));
-	assertEqualInt(1, archive_entry_is_data_encrypted(ae));
-	assertEqualInt(0, archive_entry_is_metadata_encrypted(ae));
-	assertEqualIntA(a, 1, archive_read_has_encrypted_entries(a));
-	assertEqualInt(ARCHIVE_FAILED, archive_read_data(a, buff, sizeof(buff)));
-	
-	assertEqualInt(2, archive_file_count(a));
+	assertEqualString("file1", archive_entry_pathname(ae));
 
-	/* End of archive. */
+	/* Verify the end-of-archive. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
-	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
-	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
-	/* Close the archive. */
+
+	/*
+	 * Next test that when read_concatenated_archives is specified both
+	 * file1 and file2 are present.
+	 */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_set_options(a, "read_concatenated_archives"));
+	extract_reference_file(name);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, name, 10240));
+
+	/* Read first entry. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("file1", archive_entry_pathname(ae));
+
+	/* Read second entry. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("file2", archive_entry_pathname(ae));
+
+	/* Verify the end-of-archive. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
-

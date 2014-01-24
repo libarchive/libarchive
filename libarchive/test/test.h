@@ -303,6 +303,9 @@ int is_LargeInode(const char *);
 /* Supports printf-style args: slurpfile(NULL, "%s/myfile", refdir); */
 char *slurpfile(size_t *, const char *fmt, ...);
 
+/* Dump block of bytes to a file. */
+void dumpfile(const char *filename, void *, size_t);
+
 /* Extracts named reference file to the current directory. */
 void extract_reference_file(const char *);
 

@@ -152,6 +152,7 @@ struct tar {
 	int			 init_default_conversion;
 	int			 compat_2x;
 	int			 process_mac_extensions;
+	int			 read_concatenated_archives;
 };
 
 static int	archive_block_is_null(const char *p);
@@ -395,6 +396,9 @@ archive_read_format_tar_options(struct archive_read *a,
 	} else if (strcmp(key, "mac-ext") == 0) {
 		tar->process_mac_extensions = (val != NULL && val[0] != 0);
 		return (ARCHIVE_OK);
+	} else if (strcmp(key, "read_concatenated_archives") == 0) {
+		tar->read_concatenated_archives = (val != NULL && val[0] != 0);
+		return (ARCHIVE_OK);
 	}
 
 	/* Note: The "warn" return is just to inform the options
@@ -407,7 +411,7 @@ archive_read_format_tar_options(struct archive_read *a,
  * how much unconsumed data we have floating around, and to consume
  * anything outstanding since we're going to do read_aheads
  */
-static void 
+static void
 tar_flush_unconsumed(struct archive_read *a, size_t *unconsumed)
 {
 	if (*unconsumed) {
@@ -600,7 +604,7 @@ archive_read_format_tar_skip(struct archive_read *a)
 	tar = (struct tar *)(a->format->data);
 
 	bytes_skipped = __archive_read_consume(a,
-	    tar->entry_bytes_remaining + tar->entry_padding + 
+	    tar->entry_bytes_remaining + tar->entry_padding +
 	    tar->entry_bytes_unconsumed);
 	if (bytes_skipped < 0)
 		return (ARCHIVE_FATAL);
@@ -629,36 +633,50 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 	const struct archive_entry_header_ustar *header;
 	const struct archive_entry_header_gnutar *gnuheader;
 
-	tar_flush_unconsumed(a, unconsumed);
-
-	/* Read 512-byte header record */
-	h = __archive_read_ahead(a, 512, &bytes);
-	if (bytes < 0)
-		return ((int)bytes);
-	if (bytes == 0) { /* EOF at a block boundary. */
-		/* Some writers do omit the block of nulls. <sigh> */
-		return (ARCHIVE_EOF);
-	}
-	if (bytes < 512) {  /* Short block at EOF; this is bad. */
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Truncated tar archive");
-		return (ARCHIVE_FATAL);
-	}
-	*unconsumed = 512;
-
-	/* Check for end-of-archive mark. */
-	if (h[0] == 0 && archive_block_is_null(h)) {
-		/* Try to consume a second all-null record, as well. */
+	/* Loop until we find a workable header record. */
+	for (;;) {
 		tar_flush_unconsumed(a, unconsumed);
-		h = __archive_read_ahead(a, 512, NULL);
-		if (h != NULL)
-			__archive_read_consume(a, 512);
-		archive_clear_error(&a->archive);
+
+		/* Read 512-byte header record */
+		h = __archive_read_ahead(a, 512, &bytes);
+		if (bytes < 0)
+			return ((int)bytes);
+		if (bytes == 0) { /* EOF at a block boundary. */
+			/* Some writers do omit the block of nulls. <sigh> */
+			return (ARCHIVE_EOF);
+		}
+		if (bytes < 512) {  /* Short block at EOF; this is bad. */
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Truncated tar archive");
+			return (ARCHIVE_FATAL);
+		}
+		*unconsumed = 512;
+
+		/* Header is workable if it's not an end-of-archive mark. */
+		if (h[0] != 0 || !archive_block_is_null(h))
+			break;
+
+		/* Ensure format is set for archives with only null blocks. */
 		if (a->archive.archive_format_name == NULL) {
 			a->archive.archive_format = ARCHIVE_FORMAT_TAR;
 			a->archive.archive_format_name = "tar";
 		}
-		return (ARCHIVE_EOF);
+
+		if (!tar->read_concatenated_archives) {
+			/* Try to consume a second all-null record, as well. */
+			tar_flush_unconsumed(a, unconsumed);
+			h = __archive_read_ahead(a, 512, NULL);
+			if (h != NULL && h[0] == 0 && archive_block_is_null(h))
+				__archive_read_consume(a, 512);
+			archive_clear_error(&a->archive);
+			return (ARCHIVE_EOF);
+		}
+
+		/*
+		 * We're reading concatenated archives, ignore this block and
+		 * loop to get the next.
+		 */
 	}
 
 	/*
@@ -792,7 +810,8 @@ checksum(struct archive_read *a, const void *h)
 {
 	const unsigned char *bytes;
 	const struct archive_entry_header_ustar	*header;
-	int check, i, sum;
+	int check, sum;
+	size_t i;
 
 	(void)a; /* UNUSED */
 	bytes = (const unsigned char *)h;
@@ -1296,7 +1315,7 @@ read_mac_metadata_blob(struct archive_read *a, struct tar *tar,
 			if (wp[0] == '/' && wp[1] != L'\0')
 				wname = wp + 1;
 		}
-		/* 
+		/*
 		 * If last path element starts with "._", then
 		 * this is a Mac extension.
 		 */
@@ -1311,7 +1330,7 @@ read_mac_metadata_blob(struct archive_read *a, struct tar *tar,
 			if (p[0] == '/' && p[1] != '\0')
 				name = p + 1;
 		}
-		/* 
+		/*
 		 * If last path element starts with "._", then
 		 * this is a Mac extension.
 		 */

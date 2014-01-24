@@ -524,6 +524,13 @@ Use
 .Ar type
 as compression method.
 Supported values are store (uncompressed) and deflate (gzip algorithm).
+.It Cm read_concatenated_archives
+Ignore zeroed blocks in the archive, which occurs when multiple tar archives
+have been concatenated together.  Without this option, only the contents of
+the first concatenated archive would be read.  This option is comparable to
+the
+.Fl i , Fl Fl ignore-zeros
+option of GNU tar.
 .El
 If a provided option is not supported by any module, that
 is a fatal error.

@@ -84,11 +84,9 @@ verify_basic(struct archive *a, int seek_checks)
 	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	if (seek_checks) {
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
-		assertEqualInt(64, archive_entry_size_is_set(ae));
-	} else {
-		failure("file2 has length-at-end, so we shouldn't see a valid size when streaming");
-		assertEqualInt(0, archive_entry_size_is_set(ae));
 	}
+	assert(archive_entry_size_is_set(ae));
+	assertEqualInt(18, archive_entry_size(ae));
 	if (libz_enabled) {
 		failure("file2 has a bad CRC, so read should fail and not change buff");
 		memset(buff, 'a', 19);

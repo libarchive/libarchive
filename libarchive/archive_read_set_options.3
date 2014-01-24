@@ -210,6 +210,10 @@ Defaults to enabled on Mac OS, disabled on other platforms.
 Use
 .Cm !mac-ext
 to disable.
+.It Cm read_concatenated_archives
+Ignore zeroed blocks in the archive, which occurs when multiple tar archives
+have been concatenated together.  Without this option, only the contents of
+the first concatenated archive would be read.
 .El
 .El
 .\"

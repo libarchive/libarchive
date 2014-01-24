@@ -27,7 +27,6 @@ build/autoconf/missing
 build/pkgconfig/libarchive.pc
 config.h
 config.h.in
-config.h.in~
 config.log
 config.status
 configure
