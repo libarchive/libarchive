@@ -290,7 +290,7 @@ archive_write_zip_set_compression_deflate(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;
 	int ret = ARCHIVE_FAILED;
-	
+
 	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
 		ARCHIVE_STATE_NEW | ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
 		"archive_write_zip_set_compression_deflate");
@@ -319,7 +319,7 @@ archive_write_zip_set_compression_store(struct archive *_a)
 	struct archive_write *a = (struct archive_write *)_a;
 	struct zip *zip = a->format_data;
 	int ret = ARCHIVE_FAILED;
-	
+
 	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
 		ARCHIVE_STATE_NEW | ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
 		"archive_write_zip_set_compression_deflate");
@@ -406,7 +406,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	unsigned char *cd_extra;
 	size_t filename_length;
 	const char *symlink = NULL;
-	size_t symlink_size;
+	size_t symlink_size = 0;
 	struct archive_string_conv *sconv = get_sconv(a, zip);
 	int ret, ret2 = ARCHIVE_OK;
 	int64_t size;
