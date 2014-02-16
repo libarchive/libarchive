@@ -1697,7 +1697,8 @@ expose_parent_dirs(struct zip *zip, const char *name, size_t name_length)
 static int
 slurp_central_directory(struct archive_read *a, struct zip *zip)
 {
-	unsigned i, found;
+	ssize_t i;
+	unsigned found;
 	int64_t correction;
 	ssize_t bytes_avail;
 	const char *p;
