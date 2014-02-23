@@ -1430,10 +1430,8 @@ archive_read_support_format_zip_streamable(struct archive *_a)
 	}
 	memset(zip, 0, sizeof(*zip));
 
-#ifdef HAVE_COPYFILE_H
-	/* Set this by default on Mac OS. */
-	zip->process_mac_extensions = 1;
-#endif
+	/* Streamable reader doesn't support mac extensions. */
+	zip->process_mac_extensions = 0;
 
 	/*
 	 * Until enough data has been read, we cannot tell about
