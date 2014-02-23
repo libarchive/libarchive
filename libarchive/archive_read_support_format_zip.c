@@ -1833,7 +1833,11 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 		 * "__MACOSX/" directory, so we should check if
 		 * it is.
 		 */
-		if (zip->process_mac_extensions) {
+		if (!zip->process_mac_extensions) {
+			/* Treat every entry as a regular entry. */
+			__archive_rb_tree_insert_node(&zip->tree,
+			    &zip_entry->node);
+		} else {
 			name = p;
 			r = rsrc_basename(name, filename_length);
 			if (filename_length >= 9 &&
