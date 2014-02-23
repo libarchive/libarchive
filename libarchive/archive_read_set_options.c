@@ -96,9 +96,6 @@ archive_set_format_option(struct archive *_a, const char *m, const char *o,
 		if (r == ARCHIVE_FATAL)
 			return (ARCHIVE_FATAL);
 
-		if (m != NULL)
-			return (r);
-
 		if (r == ARCHIVE_OK)
 			rv = ARCHIVE_OK;
 	}
@@ -132,9 +129,6 @@ archive_set_filter_option(struct archive *_a, const char *m, const char *o,
 
 		if (r == ARCHIVE_FATAL)
 			return (ARCHIVE_FATAL);
-
-		if (m != NULL)
-			return (r);
 
 		if (r == ARCHIVE_OK)
 			rv = ARCHIVE_OK;
