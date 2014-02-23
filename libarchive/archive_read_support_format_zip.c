@@ -141,6 +141,7 @@ struct zip {
 	struct archive_string_conv *sconv_default;
 	struct archive_string_conv *sconv_utf8;
 	int			init_default_conversion;
+	int			process_mac_extensions;
 };
 
 /* Many systems define min or MIN, but not all. */
@@ -1179,6 +1180,9 @@ archive_read_format_zip_options(struct archive_read *a,
 			zip->ignore_crc32 = 1;
 		}
 		return (ARCHIVE_OK);
+	} else if (strcmp(key, "mac-ext") == 0) {
+		zip->process_mac_extensions = (val != NULL && val[0] != 0);
+		return (ARCHIVE_OK);
 	}
 
 	/* Note: The "warn" return is just to inform the options
@@ -1425,6 +1429,11 @@ archive_read_support_format_zip_streamable(struct archive *_a)
 		return (ARCHIVE_FATAL);
 	}
 	memset(zip, 0, sizeof(*zip));
+
+#ifdef HAVE_COPYFILE_H
+	/* Set this by default on Mac OS. */
+	zip->process_mac_extensions = 1;
+#endif
 
 	/*
 	 * Until enough data has been read, we cannot tell about
@@ -1824,39 +1833,41 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 		 * "__MACOSX/" directory, so we should check if
 		 * it is.
 		 */
-		name = p;
-		r = rsrc_basename(name, filename_length);
-		if (filename_length >= 9 &&
-		    strncmp("__MACOSX/", name, 9) == 0) {
-			/* If this file is not a resource fork nor
-			 * a directory. We should treat it as a non
-			 * resource fork file to expose it. */
-			if (name[filename_length-1] != '/' &&
-			    (r - name < 3 || r[0] != '.' || r[1] != '_')) {
+		if (zip->process_mac_extensions) {
+			name = p;
+			r = rsrc_basename(name, filename_length);
+			if (filename_length >= 9 &&
+			    strncmp("__MACOSX/", name, 9) == 0) {
+				/* If this file is not a resource fork nor
+				 * a directory. We should treat it as a non
+				 * resource fork file to expose it. */
+				if (name[filename_length-1] != '/' &&
+				    (r - name < 3 || r[0] != '.' || r[1] != '_')) {
+					__archive_rb_tree_insert_node(&zip->tree,
+					    &zip_entry->node);
+					/* Expose its parent directories. */
+					expose_parent_dirs(zip, name, filename_length);
+				} else {
+					/* This file is a resource fork file or
+					 * a directory. */
+					archive_strncpy(&(zip_entry->rsrcname), name,
+					    filename_length);
+					__archive_rb_tree_insert_node(&zip->tree_rsrc,
+					    &zip_entry->node);
+				}
+			} else {
+				/* Generate resource fork name to find its resource
+				 * file at zip->tree_rsrc. */
+				archive_strcpy(&(zip_entry->rsrcname), "__MACOSX/");
+				archive_strncat(&(zip_entry->rsrcname), name, r - name);
+				archive_strcat(&(zip_entry->rsrcname), "._");
+				archive_strncat(&(zip_entry->rsrcname),
+				    name + (r - name), filename_length - (r - name));
+				/* Register an entry to RB tree to sort it by
+				 * file offset. */
 				__archive_rb_tree_insert_node(&zip->tree,
 				    &zip_entry->node);
-				/* Expose its parent directories. */
-				expose_parent_dirs(zip, name, filename_length);
-			} else {
-				/* This file is a resource fork file or
-				 * a directory. */
-				archive_strncpy(&(zip_entry->rsrcname), name,
-				    filename_length);
-				__archive_rb_tree_insert_node(&zip->tree_rsrc,
-				    &zip_entry->node);
 			}
-		} else {
-			/* Generate resource fork name to find its resource
-			 * file at zip->tree_rsrc. */
-			archive_strcpy(&(zip_entry->rsrcname), "__MACOSX/");
-			archive_strncat(&(zip_entry->rsrcname), name, r - name);
-			archive_strcat(&(zip_entry->rsrcname), "._");
-			archive_strncat(&(zip_entry->rsrcname),
-			    name + (r - name), filename_length - (r - name));
-			/* Register an entry to RB tree to sort it by
-			 * file offset. */
-			__archive_rb_tree_insert_node(&zip->tree,
-			    &zip_entry->node);
 		}
 
 		/* Skip the comment too ... */
@@ -1917,9 +1928,9 @@ zip_read_mac_metadata(struct archive_read *a, struct archive_entry *entry,
 		return (ARCHIVE_WARN);
 	}
 
-	if (rsrc->uncompressed_size > (128 * 1024)) {
+	if (rsrc->uncompressed_size > (4 * 1024 * 1024)) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Mac metadata is too large: %jd > 128K bytes",
+		    "Mac metadata is too large: %jd > 4M bytes",
 		    (intmax_t)rsrc->uncompressed_size);
 		return (ARCHIVE_WARN);
 	}
@@ -2126,6 +2137,11 @@ archive_read_support_format_zip_seekable(struct archive *_a)
 		return (ARCHIVE_FATAL);
 	}
 	memset(zip, 0, sizeof(*zip));
+
+#ifdef HAVE_COPYFILE_H
+	/* Set this by default on Mac OS. */
+	zip->process_mac_extensions = 1;
+#endif
 
 	/*
 	 * Until enough data has been read, we cannot tell about
