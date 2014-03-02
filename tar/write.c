@@ -648,6 +648,7 @@ append_archive_filename(struct bsdtar *bsdtar, struct archive *a,
 	archive_read_support_format_all(ina);
 	archive_read_support_filter_all(ina);
 	set_reader_options(bsdtar, a);
+	archive_read_set_options(ina, "mtree:checkfs");
 	if (archive_read_open_filename(ina, filename,
 					bsdtar->bytes_per_block)) {
 		lafe_warnc(0, "%s", archive_error_string(ina));
