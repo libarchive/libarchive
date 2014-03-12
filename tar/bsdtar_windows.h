@@ -35,6 +35,8 @@
 #endif
 #define	geteuid()	0
 
+#ifndef __WATCOMC__
+
 #ifndef S_IFIFO
 #define	S_IFIFO	0010000 /* pipe */
 #endif
@@ -55,6 +57,8 @@ int __tar_chdir(const char *);
 #endif
 #ifndef S_ISBLK
 #define	S_ISBLK(a)	(0)
+#endif
+
 #endif
 
 #endif /* BSDTAR_WINDOWS_H */

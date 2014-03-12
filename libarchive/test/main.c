@@ -2557,7 +2557,7 @@ main(int argc, char **argv)
 	while (pwd[strlen(pwd) - 1] == '\n')
 		pwd[strlen(pwd) - 1] = '\0';
 
-#if defined(HAVE__CrtSetReportMode)
+#if defined(HAVE__CrtSetReportMode) && !defined(__WATCOMC__)
 	/* To stop to run the default invalid parameter handler. */
 	_set_invalid_parameter_handler(invalid_parameter_handler);
 	/* Disable annoying assertion message box. */
