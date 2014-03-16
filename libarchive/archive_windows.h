@@ -109,13 +109,14 @@
 #define	lstat		__la_stat
 #define	open		__la_open
 #define	read		__la_read
-#if !defined(__BORLANDC__)
+#if !defined(__BORLANDC__) && !defined(__WATCOMC__)
 #define setmode		_setmode
 #endif
 #ifdef stat
 #undef stat
 #endif
 #define	stat(path,stref)		__la_stat(path,stref)
+#if !defined(__WATCOMC__)
 #if !defined(__BORLANDC__)
 #define	strdup		_strdup
 #endif
@@ -123,8 +124,11 @@
 #if !defined(__BORLANDC__)
 #define	umask		_umask
 #endif
+#endif
 #define	waitpid		__la_waitpid
 #define	write		__la_write
+
+#if !defined(__WATCOMC__)
 
 #ifndef O_RDONLY
 #define	O_RDONLY	_O_RDONLY
@@ -222,6 +226,8 @@
 #define	S_IXOTH        _S_IXOTH
 #define	S_IWOTH        _S_IWOTH
 #define	S_IROTH        _S_IROTH
+
+#endif
 
 #define	F_DUPFD	  	0	/* Duplicate file descriptor.  */
 #define	F_GETFD		1	/* Get file descriptor flags.  */

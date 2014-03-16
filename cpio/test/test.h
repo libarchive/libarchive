@@ -305,17 +305,17 @@ char *slurpfile(size_t *, const char *fmt, ...);
 void extract_reference_file(const char *);
 
 /* Path to working directory for current test */
-const char *testworkdir;
+extern const char *testworkdir;
 
 /*
  * Special interfaces for program test harness.
  */
 
 /* Pathname of exe to be tested. */
-const char *testprogfile;
+extern const char *testprogfile;
 /* Name of exe to use in printf-formatted command strings. */
 /* On Windows, this includes leading/trailing quotes. */
-const char *testprog;
+extern const char *testprog;
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>

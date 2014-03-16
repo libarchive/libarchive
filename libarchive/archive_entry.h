@@ -44,7 +44,7 @@
 #include <time.h>
 
 /* Get a suitable 64-bit integer type. */
-#if defined(_WIN32) && !defined(__CYGWIN__)
+#if defined(_WIN32) && !defined(__CYGWIN__) && !defined(__WATCOMC__)
 # define	__LA_INT64_T	__int64
 #else
 #include <unistd.h>
@@ -59,7 +59,7 @@
 #if ARCHIVE_VERSION_NUMBER >= 3999000
 /* Switch to plain 'int' for libarchive 4.0.  It's less broken than 'mode_t' */
 # define	__LA_MODE_T	int
-#elif defined(_WIN32) && !defined(__CYGWIN__) && !defined(__BORLANDC__)
+#elif defined(_WIN32) && !defined(__CYGWIN__) && !defined(__BORLANDC__) && !defined(__WATCOMC__)
 # define	__LA_MODE_T	unsigned short
 #else
 # define	__LA_MODE_T	mode_t

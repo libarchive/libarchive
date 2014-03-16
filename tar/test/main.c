@@ -130,6 +130,14 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/test/main.c,v 1.6 2008/11/05 06:40:53 kientz
 # include <crtdbg.h>
 #endif
 
+/* Path to working directory for current test */
+const char *testworkdir;
+/* Pathname of exe to be tested. */
+const char *testprogfile;
+/* Name of exe to use in printf-formatted command strings. */
+/* On Windows, this includes leading/trailing quotes. */
+const char *testprog;
+
 #if defined(_WIN32) && !defined(__CYGWIN__)
 static void	*GetFunctionKernel32(const char *);
 static int	 my_CreateSymbolicLinkA(const char *, const char *, int);
@@ -194,7 +202,7 @@ my_GetFileInformationByName(const char *path, BY_HANDLE_FILE_INFORMATION *bhfi)
 }
 #endif
 
-#if defined(HAVE__CrtSetReportMode)
+#if defined(HAVE__CrtSetReportMode) && !defined(__WATCOMC__)
 static void
 invalid_parameter_handler(const wchar_t * expression,
     const wchar_t * function, const wchar_t * file,
@@ -2516,7 +2524,7 @@ main(int argc, char **argv)
 	while (pwd[strlen(pwd) - 1] == '\n')
 		pwd[strlen(pwd) - 1] = '\0';
 
-#if defined(HAVE__CrtSetReportMode)
+#if defined(HAVE__CrtSetReportMode) && !defined(__WATCOMC__)
 	/* To stop to run the default invalid parameter handler. */
 	_set_invalid_parameter_handler(invalid_parameter_handler);
 	/* Disable annoying assertion message box. */

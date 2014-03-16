@@ -315,7 +315,7 @@ void extract_reference_file(const char *);
 void extract_reference_files(const char **);
 
 /* Path to working directory for current test */
-const char *testworkdir;
+extern const char *testworkdir;
 
 /*
  * Special interfaces for libarchive test harness.

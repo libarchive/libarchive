@@ -121,8 +121,8 @@ memory_read(struct archive *a, void *_private, const void **buff)
 	/* If there's real data, return that. */
 	if (private->buff != NULL) {
 		*buff = private->buff;
-		size = (private->current->buff + private->current->size)
-		    - private->buff;
+		size = ((char *)private->current->buff + private->current->size)
+		    - (char *)private->buff;
 		private->buff = NULL;
 		private->fileposition += size;
 		return (size);
@@ -199,7 +199,7 @@ memory_read_seek(struct archive *a, void *_private, int64_t offset, int whence)
 	while (private->current != NULL) {
 		if (offset + private->current->size > private->fileposition) {
 			/* Position is in this block. */
-			private->buff = private->current->buff
+			private->buff = (char *)private->current->buff
 			    + private->fileposition - offset;
 			private->gap_remaining = private->current->gap_size;
 			return private->fileposition;

@@ -25,7 +25,7 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-char buff2[64];
+static char buff2[64];
 
 /* Some names 1026 characters long */
 static const char *longfilename = "abcdefghijklmnopqrstuvwxyz"
