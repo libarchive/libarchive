@@ -59,7 +59,7 @@ SET(LIBARCHIVE_VERSION_NUMBER  "${_version_number}")
 SET(LIBARCHIVE_VERSION_STRING  "${VERSION}")
 
 # INTERFACE_VERSION increments with every release
-# libarchive 2.7 == interface version 9 = 2 + 7 
+# libarchive 2.7 == interface version 9 = 2 + 7
 # libarchive 2.8 == interface version 10 = 2 + 8
 # libarchive 2.9 == interface version 11 = 2 + 9
 # libarchive 3.0 == interface version 12
@@ -328,7 +328,7 @@ IF(DEFINED __GNUWIN32PATH AND EXISTS "${__GNUWIN32PATH}")
   #--- zconf.h.orig	2005-07-21 00:40:26.000000000
   #+++ zconf.h	2009-01-19 11:39:10.093750000
   #@@ -286,7 +286,7 @@
-  # 
+  #
   # #if 1           /* HAVE_UNISTD_H -- this line is updated by ./configure */
   # #  include <sys/types.h> /* for off_t */
   #-#  include <unistd.h>    /* for SEEK_* and off_t */
@@ -1283,13 +1283,13 @@ CHECK_TYPE_SIZE("unsigned long long" SIZE_OF_UNSIGNED_LONG_LONG)
 CHECK_TYPE_SIZE("__int64" __INT64)
 CHECK_TYPE_SIZE("unsigned __int64" UNSIGNED___INT64)
 
-CHECK_TYPE_SIZE(int16_t INT16_T) 
+CHECK_TYPE_SIZE(int16_t INT16_T)
 CHECK_TYPE_SIZE(int32_t INT32_T)
 CHECK_TYPE_SIZE(int64_t INT64_T)
 CHECK_TYPE_SIZE(intmax_t INTMAX_T)
-CHECK_TYPE_SIZE(uint8_t UINT8_T) 
-CHECK_TYPE_SIZE(uint16_t UINT16_T) 
-CHECK_TYPE_SIZE(uint32_t UINT32_T) 
+CHECK_TYPE_SIZE(uint8_t UINT8_T)
+CHECK_TYPE_SIZE(uint16_t UINT16_T)
+CHECK_TYPE_SIZE(uint32_t UINT32_T)
 CHECK_TYPE_SIZE(uint64_t UINT64_T)
 CHECK_TYPE_SIZE(uintmax_t UINTMAX_T)
 
@@ -1531,6 +1531,9 @@ CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/build/cmake/config.h.in
 	${CMAKE_CURRENT_BINARY_DIR}/config.h)
 INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
+
+# Handle generation of the libarchive.pc file for pkg-config
+INCLUDE(CreatePkgConfigFile)
 
 #
 # Register installation of PDF documents.
