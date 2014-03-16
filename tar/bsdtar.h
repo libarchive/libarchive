@@ -63,6 +63,7 @@ struct bsdtar {
 	char		  option_chroot; /* --chroot */
 	char		  option_fast_read; /* --fast-read */
 	const char	 *option_options; /* --options */
+	char		  option_ignore_zeros; /* --ignore-zeros */
 	char		  option_interactive; /* -w */
 	char		  option_no_owner; /* -o */
 	char		  option_no_subdirs; /* -n */
@@ -124,6 +125,7 @@ enum {
 	OPTION_GRZIP,
 	OPTION_HELP,
 	OPTION_HFS_COMPRESSION,
+	OPTION_IGNORE_ZEROS,
 	OPTION_INCLUDE,
 	OPTION_KEEP_NEWER_FILES,
 	OPTION_LRZIP,

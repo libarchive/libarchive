@@ -94,6 +94,7 @@ static const struct bsdtar_option {
 	{ "gzip",                 0, 'z' },
 	{ "help",                 0, OPTION_HELP },
 	{ "hfsCompression",       0, OPTION_HFS_COMPRESSION },
+	{ "ignore-zeros",         0, OPTION_IGNORE_ZEROS },
 	{ "include",              1, OPTION_INCLUDE },
 	{ "insecure",             0, 'P' },
 	{ "interactive",          0, 'w' },
