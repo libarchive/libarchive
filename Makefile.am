@@ -8,8 +8,8 @@ ACLOCAL_AMFLAGS = -I build/autoconf
 #
 lib_LTLIBRARIES=	libarchive.la
 noinst_LTLIBRARIES=	libarchive_fe.la
-bin_PROGRAMS=	$(bsdtar_programs) $(bsdcpio_programs)
-man_MANS= $(libarchive_man_MANS) $(bsdtar_man_MANS) $(bsdcpio_man_MANS)
+bin_PROGRAMS=	$(bsdtar_programs) $(bsdcpio_programs) $(bsdcat_programs)
+man_MANS= $(libarchive_man_MANS) $(bsdtar_man_MANS) $(bsdcpio_man_MANS) $(bsdcat_man_MANS)
 BUILT_SOURCES= libarchive/test/list.h tar/test/list.h cpio/test/list.h
 
 #
@@ -48,6 +48,7 @@ EXTRA_DIST= \
 	$(bsdtar_test_EXTRA_DIST) \
 	$(bsdcpio_EXTRA_DIST) \
 	$(bsdcpio_test_EXTRA_DIST)
+	$(bsdcat_EXTRA_DIST)
 
 # a) Clean out some unneeded files and directories
 # b) Collect all documentation and format it for distribution.
@@ -78,6 +79,7 @@ distclean-local:
 	-[ -f tar/test/Makefile ] && cd tar/test && make clean
 	-[ -f cpio/Makefile ] && cd cpio && make clean
 	-[ -f cpio/test/Makefile ] && cd cpio/test && make clean
+	-[ -f cat/Makefile ] && cd cat && make clean
 
 #
 # Libarchive headers, source, etc.
@@ -1051,3 +1053,46 @@ bsdcpio_test_EXTRA_DIST= \
 	cpio/test/test_option_t.stdout.uu \
 	cpio/test/test_option_tv.stdout.uu \
 	cpio/test/CMakeLists.txt
+
+#
+#
+# bsdcat source, docs, etc.
+#
+#
+
+bsdcat_SOURCES= \
+		cat/bsdcat.c \
+		cat/bsdcat.h
+
+if INC_WINDOWS_FILES
+bsdcat_SOURCES+=
+endif
+
+bsdcat_DEPENDENCIES = libarchive.la libarchive_fe.la
+
+
+if STATIC_BSDCAT
+bsdcat_ldstatic= -static
+bsdcat_ccstatic= -DLIBARCHIVE_STATIC
+else
+bsdcat_ldstatic=
+bsdcat_ccstatic=
+endif
+
+bsdcat_LDADD= libarchive_fe.la libarchive.la $(LTLIBICONV)
+bsdcat_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe $(bsdcat_ccstatic) $(PLATFORMCPPFLAGS)
+bsdcat_LDFLAGS= $(bsdcat_ldstatic)
+
+bsdcat_EXTRA_DIST= \
+	cat/bsdcat.1 \
+	cat/CMakeLists.txt
+
+
+if BUILD_BSDCAT
+# Manpages to install
+bsdcat_man_MANS= cat/bsdcat.1
+bsdcat_programs= bsdcat
+else
+bsdcat_man_MANS=
+bsdcat_programs=
+endif

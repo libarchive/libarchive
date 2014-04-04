@@ -12,6 +12,7 @@ bsdcpio
 bsdcpio_test
 bsdtar
 bsdtar_test
+bsdcat
 build/autoconf/compile
 build/autoconf/config.guess
 build/autoconf/config.sub
