@@ -25,7 +25,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <getopt.h>
+#include <unistd.h>
+#include <string.h>
 
 #include "bsdcat.h"
 #include "err.h"
@@ -35,14 +36,7 @@
 struct archive *a;
 struct archive_entry *ae;
 char *bsdcat_current_path;
-int c, err;
 
-
-static struct option long_options[] = {
-	{"help", 0, 0, 'h'},
-	{"version", 0, 0, 'v'},
-	{NULL, 0, NULL, 0}
-};
 
 void
 usage(void)
@@ -87,15 +81,16 @@ fail:
 int
 main(int argc, char **argv)
 {
+	int c;
+
 	lafe_setprogname(*argv, "bsdcat");
 
-	int option_index = 0;
-	while ((c = getopt_long(argc, argv, "h",
-	    long_options, &option_index)) != -1) {
+	while ((c = getopt(argc, argv, "h-")) != -1) {
 		switch (c) {
-			case 'v':
-				version();
-				break;
+			case '-':
+				if (strcmp(argv[optind], "--version") == 0) version();
+				if (c == '-' && strcmp(argv[optind], "--help") != 0)
+					lafe_warnc(0, "invalid option -- '%s'", argv[optind]);
 			default:
 				usage();
 		}
