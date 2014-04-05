@@ -93,7 +93,7 @@ main(int argc, char **argv)
 		switch (c) {
 			case '-':
 				if (strcmp(argv[optind], "--version") == 0) version();
-				if (c == '-' && strcmp(argv[optind], "--help") != 0)
+				if (strcmp(argv[optind], "--help") != 0)
 					lafe_warnc(0, "invalid option -- '%s'", argv[optind]);
 			default:
 				usage();
