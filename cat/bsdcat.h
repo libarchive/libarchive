@@ -36,4 +36,5 @@
 
 void usage(void);
 void bsdcat_next(void);
+void bsdcat_print_error(void);
 void bsdcat_read_to_stdout(char* filename);

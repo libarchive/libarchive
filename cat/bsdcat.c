@@ -65,17 +65,21 @@ bsdcat_next()
 }
 
 void
+bsdcat_print_error(void)
+{
+	lafe_warnc(0, "%s: %s",
+	    bsdcat_current_path, archive_error_string(a));
+}
+
+void
 bsdcat_read_to_stdout(char* filename)
 {
 	if ((archive_read_open_filename(a, filename, BYTES_PER_BLOCK) != ARCHIVE_OK)
 	    || (archive_read_next_header(a, &ae) != ARCHIVE_OK)
-	    || (archive_read_data_into_fd(a, 1) != ARCHIVE_OK)
-	    || (archive_read_free(a) != ARCHIVE_OK))
-		goto fail;
-	return;
-fail:
-	lafe_errc(1, 0, "Error: %s - %s",
-	    bsdcat_current_path, archive_error_string(a));
+	    || (archive_read_data_into_fd(a, 1) != ARCHIVE_OK))
+		bsdcat_print_error();
+	if (archive_read_free(a) != ARCHIVE_OK)
+		bsdcat_print_error();
 }
 
 int
