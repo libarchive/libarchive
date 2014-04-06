@@ -92,7 +92,8 @@ main(int argc, char **argv)
 	while ((c = getopt(argc, argv, "h-")) != -1) {
 		switch (c) {
 			case '-':
-				if (strcmp(argv[optind], "--version") == 0) version();
+				if (strcmp(argv[optind], "--version") == 0)
+					version();
 				if (strcmp(argv[optind], "--help") != 0)
 					lafe_warnc(0, "invalid option -- '%s'", argv[optind]);
 			default:
