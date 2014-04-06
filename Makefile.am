@@ -129,6 +129,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_read_disk_private.h \
 	libarchive/archive_read_disk_set_standard_lookup.c \
 	libarchive/archive_read_extract.c \
+	libarchive/archive_read_extract2.c \
 	libarchive/archive_read_open_fd.c \
 	libarchive/archive_read_open_file.c \
 	libarchive/archive_read_open_filename.c \
