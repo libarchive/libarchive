@@ -10,6 +10,7 @@ m4_define([LIBARCHIVE_VERSION_N],[3001002])
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
 m4_define([BSDCPIO_VERSION_S],LIBARCHIVE_VERSION_S())
+m4_define([BSDCAT_VERSION_S],LIBARCHIVE_VERSION_S())
 
 AC_PREREQ(2.65)
 
@@ -53,12 +54,15 @@ AC_DEFINE([BSDCPIO_VERSION_STRING],"BSDCPIO_VERSION_S()",
 	[Version number of bsdcpio])
 AC_DEFINE([BSDTAR_VERSION_STRING],"BSDTAR_VERSION_S()",
 	[Version number of bsdtar])
+AC_DEFINE([BSDCAT_VERSION_STRING],"BSDTAR_VERSION_S()",
+	[Version number of bsdcat])
 
 # The shell variables here must be the same as the AC_SUBST() variables
 # below, but the shell variable names apparently cannot be the same as
 # the m4 macro names above.  Why?  Ask autoconf.
 BSDCPIO_VERSION_STRING=BSDCPIO_VERSION_S()
 BSDTAR_VERSION_STRING=BSDTAR_VERSION_S()
+BSDCAT_VERSION_STRING=BSDCAT_VERSION_S()
 LIBARCHIVE_VERSION_STRING=LIBARCHIVE_VERSION_S()
 LIBARCHIVE_VERSION_NUMBER=LIBARCHIVE_VERSION_N()
 
@@ -68,6 +72,7 @@ LIBARCHIVE_VERSION_NUMBER=LIBARCHIVE_VERSION_N()
 AC_SUBST(ARCHIVE_LIBTOOL_VERSION)
 AC_SUBST(BSDCPIO_VERSION_STRING)
 AC_SUBST(BSDTAR_VERSION_STRING)
+AC_SUBST(BSDCAT_VERSION_STRING)
 AC_SUBST(LIBARCHIVE_VERSION_STRING)
 AC_SUBST(LIBARCHIVE_VERSION_NUMBER)
 
@@ -146,6 +151,50 @@ esac
 
 AM_CONDITIONAL([BUILD_BSDTAR], [ test "$build_bsdtar" = yes ])
 AM_CONDITIONAL([STATIC_BSDTAR], [ test "$static_bsdtar" = yes ])
+
+#
+# Options for building bsdcat.
+#
+# Default is to build bsdcat, but allow people to override that.
+#
+AC_ARG_ENABLE([bsdcat],
+	[AS_HELP_STRING([--enable-bsdcat], [enable build of bsdcat (default)])
+	AS_HELP_STRING([--enable-bsdcat=static], [force static build of bsdcat])
+	AS_HELP_STRING([--enable-bsdcat=shared], [force dynamic build of bsdcat])
+AS_HELP_STRING([--disable-bsdcat], [disable build of bsdcat])],
+	[], [enable_bsdcat=yes])
+
+case "$enable_bsdcat" in
+yes)
+	if test "$enable_static" = "no"; then
+		static_bsdcat=no
+	else
+		static_bsdcat=yes
+	fi
+	build_bsdcat=yes
+	;;
+dynamic|shared)
+	if test "$enable_shared" = "no"; then
+		AC_MSG_FAILURE([Shared linking of bsdcat requires shared libarchive])
+	fi
+	build_bsdcat=yes
+	static_bsdcat=no
+	;;
+static)
+	build_bsdcat=yes
+	static_bsdcat=yes
+	;;
+no)
+	build_bsdcat=no
+	static_bsdcat=no
+	;;
+*)
+	AC_MSG_FAILURE([Unsupported value for --enable-bsdcat])
+	;;
+esac
+
+AM_CONDITIONAL([BUILD_BSDCAT], [ test "$build_bsdcat" = yes ])
+AM_CONDITIONAL([STATIC_BSDCAT], [ test "$static_bsdcat" = yes ])
 
 #
 # Options for building bsdcpio.
@@ -787,6 +836,6 @@ esac
 
 # Ensure test directories are present if building out-of-tree
 AC_CONFIG_COMMANDS([mkdirs],
-		   [mkdir -p {libarchive,tar,cpio}/test])
+		   [mkdir -p {libarchive,tar,cat,cpio}/test])
 
 AC_OUTPUT

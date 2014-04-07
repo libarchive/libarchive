@@ -16,6 +16,8 @@ This distribution bundle includes the following components:
           replacement built on libarchive
    * cpio: the 'bsdcpio' program is a different interface to
           essentially the same functionality
+   * cat: the 'bsdcat' program is a simple replacement tool for
+          zcat, bzcat, xzcat, and such
    * examples: Some small example programs that you may find useful.
    * examples/minitar: a compact sample demonstrating use of libarchive.
    * contrib:  Various items sent to me by third parties;
@@ -39,6 +41,7 @@ The following files in the top-level directory are used by the
 Guide to Documentation installed by this system:
  * bsdtar.1 explains the use of the bsdtar program
  * bsdcpio.1 explains the use of the bsdcpio program
+ * bsdcat.1 explains the use of the bsdcat program
  * libarchive.3 gives an overview of the library as a whole
  * archive_read.3, archive_write.3, archive_write_disk.3, and
    archive_read_disk.3 provide detailed calling sequences for the read
