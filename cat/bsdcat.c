@@ -36,6 +36,7 @@
 struct archive *a;
 struct archive_entry *ae;
 char *bsdcat_current_path;
+int exit_status = 0;
 
 
 void
@@ -69,6 +70,7 @@ bsdcat_print_error(void)
 {
 	lafe_warnc(0, "%s: %s",
 	    bsdcat_current_path, archive_error_string(a));
+	exit_status = 1;
 }
 
 void
@@ -116,5 +118,5 @@ main(int argc, char **argv)
 			bsdcat_next();
 		}
 
-	exit(0);
+	exit(exit_status);
 }
