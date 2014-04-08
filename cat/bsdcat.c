@@ -39,12 +39,12 @@ char *bsdcat_current_path;
 
 
 void
-usage(void)
+usage(FILE *stream, int eval)
 {
 	const char *p;
 	p = lafe_getprogname();
-	fprintf(stderr, "Usage: %s [-h] [--help] [--version] [--] [filenames...]\n", p);
-	exit(1);
+	fprintf(stream, "Usage: %s [-h] [--help] [--version] [--] [filenames...]\n", p);
+	exit(eval);
 }
 
 static void
@@ -94,10 +94,14 @@ main(int argc, char **argv)
 			case '-':
 				if (strcmp(argv[optind], "--version") == 0)
 					version();
-				if (strcmp(argv[optind], "--help") != 0)
+				if (strcmp(argv[optind], "--help") != 0) {
 					lafe_warnc(0, "invalid option -- '%s'", argv[optind]);
+					usage(stderr, 1);
+				}
+			case 'h':
+				usage(stdout, 0);
 			default:
-				usage();
+				usage(stderr, 1);
 		}
 	}
 

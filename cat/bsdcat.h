@@ -34,7 +34,7 @@
 #include <archive.h>
 #include <archive_entry.h>
 
-void usage(void);
+void usage(FILE *stream, int eval);
 void bsdcat_next(void);
 void bsdcat_print_error(void);
 void bsdcat_read_to_stdout(char* filename);
