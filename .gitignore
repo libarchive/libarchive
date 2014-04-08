@@ -8,11 +8,11 @@ Makefile
 Makefile.in
 aclocal.m4
 autom4te.cache/
+bsdcat
 bsdcpio
 bsdcpio_test
 bsdtar
 bsdtar_test
-bsdcat
 build/autoconf/compile
 build/autoconf/config.guess
 build/autoconf/config.sub
@@ -26,6 +26,8 @@ build/autoconf/ltversion.m4
 build/autoconf/lt~obsolete.m4
 build/autoconf/missing
 build/pkgconfig/libarchive.pc
+cat/.deps/
+cat/.dirstamp
 config.h
 config.h.in
 config.log
