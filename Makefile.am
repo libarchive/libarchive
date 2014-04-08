@@ -47,7 +47,7 @@ EXTRA_DIST= \
 	$(bsdtar_EXTRA_DIST) \
 	$(bsdtar_test_EXTRA_DIST) \
 	$(bsdcpio_EXTRA_DIST) \
-	$(bsdcpio_test_EXTRA_DIST)
+	$(bsdcpio_test_EXTRA_DIST) \
 	$(bsdcat_EXTRA_DIST)
 
 # a) Clean out some unneeded files and directories
