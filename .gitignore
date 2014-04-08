@@ -9,6 +9,7 @@ Makefile.in
 aclocal.m4
 autom4te.cache/
 bsdcat
+bsdcat_test
 bsdcpio
 bsdcpio_test
 bsdtar
@@ -28,6 +29,9 @@ build/autoconf/missing
 build/pkgconfig/libarchive.pc
 cat/.deps/
 cat/.dirstamp
+cat/test/.deps/
+cat/test/.dirstamp
+cat/test/list.h
 config.h
 config.h.in
 config.log
