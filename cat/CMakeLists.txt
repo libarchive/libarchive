@@ -8,6 +8,9 @@ IF(ENABLE_CAT)
   SET(bsdcat_SOURCES
     bsdcat.c
     bsdcat.h
+    ../libarchive_fe/err.c
+    ../libarchive_fe/err.h
+    ../libarchive_fe/lafe_platform.h
   )
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/../libarchive_fe)
 
