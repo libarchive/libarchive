@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014, Mike Kazantsev
+ * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,19 +22,46 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "test.h"
 
-#if defined(PLATFORM_CONFIG_H)
-/* Use hand-built config.h in environments that need it. */
-#include PLATFORM_CONFIG_H
+/*
+ * This first test does basic sanity checks on the environment.  For
+ * most of these, we just exit on failure.
+ */
+#if !defined(_WIN32) || defined(__CYGWIN__)
+#define DEV_NULL "/dev/null"
 #else
-/* Not having a config.h of some sort is a serious problem. */
-#include "config.h"
+#define DEV_NULL "NUL"
 #endif
 
-#include <archive.h>
-#include <archive_entry.h>
+DEFINE_TEST(test_0)
+{
+	struct stat st;
 
-void usage(FILE *stream, int eval);
-void bsdcat_next(void);
-void bsdcat_print_error(void);
-void bsdcat_read_to_stdout(char* filename);
+	failure("File %s does not exist?!", testprog);
+	if (!assertEqualInt(0, stat(testprogfile, &st))) {
+		fprintf(stderr,
+		    "\nFile %s does not exist; aborting test.\n\n",
+		    testprog);
+		exit(1);
+	}
+
+	failure("%s is not executable?!", testprog);
+	if (!assert((st.st_mode & 0111) != 0)) {
+		fprintf(stderr,
+		    "\nFile %s not executable; aborting test.\n\n",
+		    testprog);
+		exit(1);
+	}
+
+	/*
+	 * Try to successfully run the program; this requires that
+	 * we know some option that will succeed.
+	 */
+	if (0 != systemf("%s --version >" DEV_NULL, testprog)) {
+		failure("Unable to successfully run: %s --version\n", testprog, testprog);
+		assert(0);
+	}
+
+	/* TODO: Ensure that our reference files are available. */
+}

@@ -10,15 +10,15 @@ lib_LTLIBRARIES=	libarchive.la
 noinst_LTLIBRARIES=	libarchive_fe.la
 bin_PROGRAMS=	$(bsdtar_programs) $(bsdcpio_programs) $(bsdcat_programs)
 man_MANS= $(libarchive_man_MANS) $(bsdtar_man_MANS) $(bsdcpio_man_MANS) $(bsdcat_man_MANS)
-BUILT_SOURCES= libarchive/test/list.h tar/test/list.h cpio/test/list.h
+BUILT_SOURCES= libarchive/test/list.h tar/test/list.h cpio/test/list.h cat/test/list.h
 
 #
 # What to test: We always test libarchive, test bsdtar and bsdcpio only
 # if we built them.
 #
-check_PROGRAMS= libarchive_test $(bsdtar_test_programs) $(bsdcpio_test_programs)
-TESTS= libarchive_test $(bsdtar_test_programs) $(bsdcpio_test_programs)
-TESTS_ENVIRONMENT= $(libarchive_TESTS_ENVIRONMENT) $(bsdtar_TESTS_ENVIRONMENT) $(bsdcpio_TESTS_ENVIRONMENT)
+check_PROGRAMS= libarchive_test $(bsdtar_test_programs) $(bsdcpio_test_programs) $(bsdcat_test_programs)
+TESTS= libarchive_test $(bsdtar_test_programs) $(bsdcpio_test_programs) $(bsdcat_test_programs)
+TESTS_ENVIRONMENT= $(libarchive_TESTS_ENVIRONMENT) $(bsdtar_TESTS_ENVIRONMENT) $(bsdcpio_TESTS_ENVIRONMENT) $(bsdcat_TESTS_ENVIRONMENT)
 # Always build and test both bsdtar and bsdcpio as part of 'distcheck'
 DISTCHECK_CONFIGURE_FLAGS = --enable-bsdtar --enable-bsdcpio
 COMMON_CFLAGS=-Wall -Wformat -Wformat-security
@@ -47,8 +47,9 @@ EXTRA_DIST= \
 	$(bsdtar_EXTRA_DIST) \
 	$(bsdtar_test_EXTRA_DIST) \
 	$(bsdcpio_EXTRA_DIST) \
-	$(bsdcpio_test_EXTRA_DIST)
-	$(bsdcat_EXTRA_DIST)
+	$(bsdcpio_test_EXTRA_DIST) \
+	$(bsdcat_EXTRA_DIST) \
+	$(bsdcat_test_EXTRA_DIST)
 
 # a) Clean out some unneeded files and directories
 # b) Collect all documentation and format it for distribution.
@@ -67,7 +68,8 @@ dist-hook:
 DISTCLEANFILES= \
 	libarchive/test/list.h \
 	tar/test/list.h \
-	cpio/test/list.h
+	cpio/test/list.h \
+	cat/test/list.h
 
 distclean-local:
 	-rm -rf .ref
@@ -80,6 +82,7 @@ distclean-local:
 	-[ -f cpio/Makefile ] && cd cpio && make clean
 	-[ -f cpio/test/Makefile ] && cd cpio/test && make clean
 	-[ -f cat/Makefile ] && cd cat && make clean
+	-[ -f cpio/test/Makefile ] && cd cat/test && make clean
 
 #
 # Libarchive headers, source, etc.
@@ -1097,3 +1100,50 @@ else
 bsdcat_man_MANS=
 bsdcat_programs=
 endif
+
+#
+# bsdcat_test
+#
+
+bsdcat_test_SOURCES= \
+	$(test_utils_SOURCES) \
+	cat/test/main.c \
+	cat/test/test.h \
+	cat/test/test_0.c \
+	cat/test/test_error.c \
+	cat/test/test_error_mixed.c \
+	cat/test/test_expand_Z.c \
+	cat/test/test_expand_bz2.c \
+	cat/test/test_expand_gz.c \
+	cat/test/test_expand_mixed.c \
+	cat/test/test_expand_plain.c \
+	cat/test/test_expand_xz.c \
+	cat/test/test_help.c \
+	cat/test/test_version.c
+
+bsdcat_test_CPPFLAGS= \
+	-I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe \
+	-I$(top_srcdir)/test_utils \
+	-I$(top_srcdir)/cat -I$(top_builddir)/cat/test \
+	$(PLATFORMCPPFLAGS)
+bsdcat_test_LDADD=libarchive_fe.la
+
+cat/test/list.h: Makefile
+	cat $(top_srcdir)/cat/test/test_*.c | grep DEFINE_TEST > cat/test/list.h
+
+if BUILD_BSDCAT
+bsdcat_test_programs= bsdcat_test
+bsdcat_TESTS_ENVIRONMENT= BSDCAT=`cd $(top_builddir);/bin/pwd`/bsdcat$(EXEEXT) BSDCAT_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/cat/test
+else
+bsdcat_test_programs=
+bsdcat_TESTS_ENVIRONMENT=
+endif
+
+bsdcat_test_EXTRA_DIST= \
+	cat/test/list.h \
+	cat/test/test_expand.Z.uu \
+	cat/test/test_expand.bz2.uu \
+	cat/test/test_expand.gz.uu \
+	cat/test/test_expand.plain.uu \
+	cat/test/test_expand.xz.uu \
+	cat/test/CMakeLists.txt

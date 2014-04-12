@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2014, Mike Kazantsev
+ * Copyright (c) 2014 Mike Kazantsev
+ * Copyright (c) 2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,19 +23,20 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "test.h"
 
-#if defined(PLATFORM_CONFIG_H)
-/* Use hand-built config.h in environments that need it. */
-#include PLATFORM_CONFIG_H
-#else
-/* Not having a config.h of some sort is a serious problem. */
-#include "config.h"
-#endif
+DEFINE_TEST(test_expand_bz2)
+{
+	const char *reffile = "test_expand.bz2";
+	int f;
 
-#include <archive.h>
-#include <archive_entry.h>
-
-void usage(FILE *stream, int eval);
-void bsdcat_next(void);
-void bsdcat_print_error(void);
-void bsdcat_read_to_stdout(char* filename);
+	extract_reference_file(reffile);
+	f = systemf("%s %s >test.out 2>test.err", testprog, reffile);
+	if (f == 0 || canBzip2()) {
+		assertEqualInt(0, f);
+		assertTextFileContents("contents of test_expand.bz2.\n", "test.out");
+		assertEmptyFile("test.err");
+	} else {
+		skipping("It seems bzip2 is not supported on this platform");
+	}
+}

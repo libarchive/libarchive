@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014, Mike Kazantsev
+ * Copyright (c) 2014 Mike Kazantsev
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,19 +22,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "test.h"
 
-#if defined(PLATFORM_CONFIG_H)
-/* Use hand-built config.h in environments that need it. */
-#include PLATFORM_CONFIG_H
-#else
-/* Not having a config.h of some sort is a serious problem. */
-#include "config.h"
-#endif
+DEFINE_TEST(test_error)
+{
+	const char *reffile = "test_expand.error";
 
-#include <archive.h>
-#include <archive_entry.h>
+	assertFileNotExists(reffile);
+	assertEqualInt(256, systemf("%s %s >test.out 2>test.err", testprog, reffile));
 
-void usage(FILE *stream, int eval);
-void bsdcat_next(void);
-void bsdcat_print_error(void);
-void bsdcat_read_to_stdout(char* filename);
+	assertEmptyFile("test.out");
+	assertNonEmptyFile("test.err");
+}

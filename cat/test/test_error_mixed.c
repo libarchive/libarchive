@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014, Mike Kazantsev
+ * Copyright (c) 2014 Mike Kazantsev
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,19 +22,22 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "test.h"
 
-#if defined(PLATFORM_CONFIG_H)
-/* Use hand-built config.h in environments that need it. */
-#include PLATFORM_CONFIG_H
-#else
-/* Not having a config.h of some sort is a serious problem. */
-#include "config.h"
-#endif
+DEFINE_TEST(test_error_mixed)
+{
+	const char *reffile1 = "test_expand.plain";
+	const char *reffile2 = "test_expand.error";
+	const char *reffile3 = "test_expand.Z";
 
-#include <archive.h>
-#include <archive_entry.h>
+	assertFileNotExists(reffile2);
+	extract_reference_file(reffile1);
+	extract_reference_file(reffile3);
+	assertEqualInt(256, systemf("%s %s %s %s >test.out 2>test.err",
+	    testprog, reffile1, reffile2, reffile3));
 
-void usage(FILE *stream, int eval);
-void bsdcat_next(void);
-void bsdcat_print_error(void);
-void bsdcat_read_to_stdout(char* filename);
+	assertTextFileContents(
+	    "contents of test_expand.plain.\n"
+	    "contents of test_expand.Z.\n", "test.out");
+	assertNonEmptyFile("test.err");
+}

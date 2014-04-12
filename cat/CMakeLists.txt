@@ -29,3 +29,5 @@ IF(ENABLE_CAT)
   INSTALL(TARGETS bsdcat RUNTIME DESTINATION bin)
   INSTALL_MAN(${bsdcat_MANS})
 ENDIF(ENABLE_CAT)
+
+add_subdirectory(test)
