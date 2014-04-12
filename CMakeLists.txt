@@ -1539,6 +1539,12 @@ ADD_DEFINITIONS(-DHAVE_CONFIG_H)
 INCLUDE(CreatePkgConfigFile)
 
 #
+# Expose ADDITIONAL_LIBS for projects using libarchive as a subdirectory
+# and linking against archive_static.
+#
+set(LIBARCHIVE_ADDITIONAL_LIBS ${ADDITIONAL_LIBS} PARENT_SCOPE)
+
+#
 # Register installation of PDF documents.
 #
 IF(WIN32 AND NOT CYGWIN)
