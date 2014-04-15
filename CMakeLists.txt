@@ -1542,7 +1542,7 @@ INCLUDE(CreatePkgConfigFile)
 # Expose ADDITIONAL_LIBS for projects using libarchive as a subdirectory
 # and linking against archive_static.
 #
-set(LIBARCHIVE_ADDITIONAL_LIBS ${ADDITIONAL_LIBS} PARENT_SCOPE)
+set(LIBARCHIVE_ADDITIONAL_LIBS ${ADDITIONAL_LIBS} CACHE INTERNAL "libarchive dependencies")
 
 #
 # Register installation of PDF documents.
