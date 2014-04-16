@@ -179,6 +179,7 @@ SET_TARGET_PROPERTIES(archive PROPERTIES SOVERSION ${SOVERSION})
 
 # archive_static is a static library
 ADD_LIBRARY(archive_static STATIC ${libarchive_SOURCES} ${include_HEADERS})
+TARGET_LINK_LIBRARIES(archive_static ${ADDITIONAL_LIBS})
 SET_TARGET_PROPERTIES(archive_static PROPERTIES COMPILE_DEFINITIONS
   LIBARCHIVE_STATIC)
 # On Posix systems, libarchive.so and libarchive.a can co-exist.
