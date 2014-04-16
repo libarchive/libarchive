@@ -395,7 +395,7 @@ __archive_pathmatch(const char *p, const char *s, int flags)
 		return (0);
 
 	/* Certain patterns and file names anchor implicitly. */
-	if (*p == '*' || *p == '/' || *p == '/') {
+	if (*p == '*' || *p == '/' || *s == '/') {
 		while (*p == '/')
 			++p;
 		while (*s == '/')
@@ -435,7 +435,7 @@ __archive_pathmatch_w(const wchar_t *p, const wchar_t *s, int flags)
 		return (0);
 
 	/* Certain patterns and file names anchor implicitly. */
-	if (*p == L'*' || *p == L'/' || *p == L'/') {
+	if (*p == L'*' || *p == L'/' || *s == L'/') {
 		while (*p == L'/')
 			++p;
 		while (*s == L'/')
