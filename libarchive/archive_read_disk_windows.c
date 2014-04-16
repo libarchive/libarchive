@@ -1851,8 +1851,6 @@ entry_copy_bhfi(struct archive_entry *entry, const wchar_t *path,
 				break;
 			case L'C': case L'c':
 				if (((p[2] == L'M' || p[2] == L'm' ) &&
-				    (p[3] == L'D' || p[3] == L'd' )) ||
-				    ((p[2] == L'M' || p[2] == L'm' ) &&
 				    (p[3] == L'D' || p[3] == L'd' )))
 					mode |= S_IXUSR | S_IXGRP | S_IXOTH;
 				break;
