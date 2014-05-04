@@ -82,10 +82,6 @@ struct cd_segment {
 	unsigned char *p;
 };
 
-/* Bits used to enable/disable certain experimental features. */
-#define	EXPERIMENT_LA 1
-#define	EXPERIMENTS_ALL 0xffff
-
 struct zip {
 
 	int64_t entry_offset;
@@ -119,7 +115,7 @@ struct zip {
 
 #define ZIP_FLAG_AVOID_ZIP64 1
 #define ZIP_FLAG_FORCE_ZIP64 2
-#define ZIP_FLAG_EXPERIMENT_EL 4
+#define ZIP_FLAG_EXPERIMENT_xl 4
 	int flags;
 
 #ifdef HAVE_ZLIB_H
@@ -229,9 +225,9 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 		return (ret);
 	} else if (strcmp(key, "experimental") == 0) {
 		if (val == NULL || val[0] == 0) {
-			zip->flags &= ~ ZIP_FLAG_EXPERIMENT_EL;
+			zip->flags &= ~ ZIP_FLAG_EXPERIMENT_xl;
 		} else {
-			zip->flags |= ZIP_FLAG_EXPERIMENT_EL;
+			zip->flags |= ZIP_FLAG_EXPERIMENT_xl;
 		}
 		return (ARCHIVE_OK);
 	} else if (strcmp(key, "fakecrc32") == 0) {
@@ -695,11 +691,11 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		archive_le16enc(zip64_start + 2, e - (zip64_start + 4));
 	}
 
-	if (zip->flags & ZIP_FLAG_EXPERIMENT_EL) {
-		/* Experimental 'el' extension to improve streaming. */
+	if (zip->flags & ZIP_FLAG_EXPERIMENT_xl) {
+		/* Experimental 'xl' extension to improve streaming. */
 		unsigned char *external_info = e;
 		int included = 7;
-		memcpy(e, "el\000\000", 4); // 0x6c65 + 2-byte length
+		memcpy(e, "xl\000\000", 4); // 0x6c65 + 2-byte length
 		e += 4;
 		e[0] = included; /* bitmap of included fields */
 		e += 1;

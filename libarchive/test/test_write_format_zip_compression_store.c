@@ -231,7 +231,7 @@ DEFINE_TEST(test_write_format_zip_compression_store)
 	assertEqualInt(i4(q + 11), file_gid); /* 'Ux' GID */
 	q = q + 4 + i2(q + 2);
 
-	assertEqualInt(i2(q), 0x6c65); /* 'el' experimental extension header */
+	assertEqualInt(i2(q), 0x6c78); /* 'xl' experimental extension header */
 	assertEqualInt(i2(q + 2), 9); /* size */
 	assertEqualInt(q[4], 7); /* Bitmap of fields included. */
 	assertEqualInt(i2(q + 5) >> 8, 3); /* system & version made by */
@@ -320,7 +320,7 @@ DEFINE_TEST(test_write_format_zip_compression_store)
 	assertEqualInt(i4(q + 11), folder_gid); /* 'ux' GID */
 	q = q + 4 + i2(q + 2);
 
-	assertEqualInt(i2(q), 0x6c65); /* 'el' experimental extension header */
+	assertEqualInt(i2(q), 0x6c78); /* 'xl' experimental extension header */
 	assertEqualInt(i2(q + 2), 9); /* size */
 	assertEqualInt(q[4], 7); /* bitmap of fields */
 	assertEqualInt(i2(q + 5) >> 8, 3); /* system & version made by */

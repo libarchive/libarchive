@@ -341,9 +341,9 @@ process_extra(const char *p, size_t extra_length, struct zip_entry* zip_entry)
 			}
 			break;
 		}
-		case 0x6c65:
+		case 0x6c78:
 		{
-			/* Experimental 'el' field */
+			/* Experimental 'xl' field */
 			/*
 			 * Introduced Dec 2013 to provide a way to
 			 * include external file attributes in local file
