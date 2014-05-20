@@ -167,6 +167,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_read_support_format_rar.c \
 	libarchive/archive_read_support_format_raw.c \
 	libarchive/archive_read_support_format_tar.c \
+	libarchive/archive_read_support_format_warc.c \
 	libarchive/archive_read_support_format_xar.c \
 	libarchive/archive_read_support_format_zip.c \
 	libarchive/archive_string.c \

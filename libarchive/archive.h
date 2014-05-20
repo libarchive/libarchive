@@ -399,6 +399,7 @@ __LA_DECL int archive_read_support_format_mtree(struct archive *);
 __LA_DECL int archive_read_support_format_rar(struct archive *);
 __LA_DECL int archive_read_support_format_raw(struct archive *);
 __LA_DECL int archive_read_support_format_tar(struct archive *);
+__LA_DECL int archive_read_support_format_warc(struct archive *);
 __LA_DECL int archive_read_support_format_xar(struct archive *);
 /* archive_read_support_format_zip() enables both streamable and seekable
  * zip readers. */

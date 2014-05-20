@@ -87,6 +87,7 @@ SET(libarchive_SOURCES
   archive_read_support_format_rar.c
   archive_read_support_format_raw.c
   archive_read_support_format_tar.c
+  archive_read_support_format_warc.c
   archive_read_support_format_xar.c
   archive_read_support_format_zip.c
   archive_string.c
