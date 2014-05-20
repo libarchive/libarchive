@@ -132,6 +132,7 @@ SET(libarchive_SOURCES
   archive_write_set_format_shar.c
   archive_write_set_format_ustar.c
   archive_write_set_format_v7tar.c
+  archive_write_set_format_warc.c
   archive_write_set_format_xar.c
   archive_write_set_format_zip.c
   archive_write_set_options.c
