@@ -54,6 +54,8 @@ struct warc_s {
 	time_t now;
 	mode_t typ;
 	unsigned int rng;
+	/* populated size */
+	size_t populz;
 };
 
 static const char warcinfo[] = "\
@@ -213,6 +215,7 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 	}
 
 	w->typ = archive_entry_filetype(entry);
+	w->populz = 0U;
 	if (w->typ == AE_IFREG) {
 		warc_essential_hdr_t rh = {
 			WT_RSRC,
@@ -235,6 +238,8 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 		}
 		/* otherwise append to output stream */
 		__archive_write_output(a, hdr, r);
+		/* and let subsequent calls to _data() know about the size */
+		w->populz = rh.cntlen;
 	}
 	/* just pretend it's all good */
 	return (ARCHIVE_OK);
@@ -246,8 +251,15 @@ _warc_data(struct archive_write *a, const void *buf, size_t len)
 	struct warc_s *w = a->format_data;
 
 	if (w->typ == AE_IFREG) {
-		int rc = __archive_write_output(a, buf, len);
+		int rc;
 
+		/* never write more bytes than announced */
+		if (len > w->populz) {
+			len = w->populz;
+		}
+
+		/* now then, out we put the whole shebang */
+		rc = __archive_write_output(a, buf, len);
 		if (rc != ARCHIVE_OK) {
 			return rc;
 		}
