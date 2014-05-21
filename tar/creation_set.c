@@ -97,6 +97,7 @@ get_format_code(const char *suffix)
 		{ ".mtree",	"mtree" },
 		{ ".shar",	"shar" },
 		{ ".tar",	"paxr" },
+		{ ".warc",	"warc" },
 		{ ".xar",	"xar" },
 		{ ".zip",	"zip" },
 		{ NULL,		NULL }
