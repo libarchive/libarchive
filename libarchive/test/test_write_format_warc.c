@@ -50,6 +50,7 @@ DEFINE_TEST(test_write_format_warc)
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_set_pathname(ae, "test");
 	archive_entry_set_filetype(ae, AE_IFREG);
+	archive_entry_set_size(ae, 9);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	archive_entry_free(ae);
 	assertEqualIntA(a, 9, archive_write_data(a, "12345678", 9));
@@ -81,6 +82,7 @@ DEFINE_TEST(test_write_format_warc)
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_set_pathname(ae, "test");
 	archive_entry_set_filetype(ae, AE_IFREG);
+	archive_entry_set_size(ae, 9);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	archive_entry_free(ae);
 	assertEqualIntA(a, 9, archive_write_data(a, "12345678", 9));
@@ -89,6 +91,7 @@ DEFINE_TEST(test_write_format_warc)
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_set_pathname(ae, "test2");
 	archive_entry_set_filetype(ae, AE_IFREG);
+	archive_entry_set_size(ae, 9);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	archive_entry_free(ae);
 	assertEqualIntA(a, 9, archive_write_data(a, "12345678", 9));
