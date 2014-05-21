@@ -180,7 +180,7 @@ _warc_bid(struct archive_read *a, int best_bid)
 static int
 _warc_rdhdr(struct archive_read *a, struct archive_entry *entry)
 {
-#define HDR_PROBE_LEN		(512U)
+#define HDR_PROBE_LEN		(12U)
 	struct warc_s *w = a->format->data;
 	unsigned int ver;
 	const char *buf;
@@ -199,13 +199,13 @@ start_over:
 	 * and reproduce that functionality here */
 	buf = __archive_read_ahead(a, HDR_PROBE_LEN, &nrd);
 
-	if (nrd < 0 || buf == NULL) {
+	if (nrd < 0) {
 		/* no good */
 		archive_set_error(
 			&a->archive, ARCHIVE_ERRNO_MISC,
 			"Bad record header");
 		return (ARCHIVE_FATAL);
-	} else if (nrd < 12U) {
+	} else if (nrd < 12U || buf == NULL) {
 		/* there should be room for at least WARC/bla\r\n
 		 * must be EOF therefore */
 		return (ARCHIVE_EOF);
