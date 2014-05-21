@@ -87,6 +87,8 @@ struct warc_s {
 	size_t cntlen;
 	/* and how much we've processed so far */
 	size_t cntoff;
+	/* and how much we need to consume between calls */
+	size_t unconsumed;
 
 	/* string pool */
 	warc_strbuf_t pool;
@@ -297,6 +299,11 @@ _warc_read(struct archive_read *a, const void **buf, size_t *bsz, int64_t *off)
 	const char *rab;
 	ssize_t nrd;
 
+	if (w->unconsumed) {
+		__archive_read_consume(a, w->unconsumed);
+		w->unconsumed = 0U;
+	}
+
 	if (w->cntoff >= w->cntlen) {
 	eof:
 		/* it's our lucky day, no work, we can leave early */
@@ -322,6 +329,7 @@ _warc_read(struct archive_read *a, const void **buf, size_t *bsz, int64_t *off)
 	*buf = rab;
 
 	w->cntoff += nrd;
+	w->unconsumed = (size_t)nrd;
 	return (ARCHIVE_OK);
 }
 
