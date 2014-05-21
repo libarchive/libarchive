@@ -205,7 +205,7 @@ start_over:
 			&a->archive, ARCHIVE_ERRNO_MISC,
 			"Bad record header");
 		return (ARCHIVE_FATAL);
-	} else if (nrd < 12U || buf == NULL) {
+	} else if (nrd < 12 || buf == NULL) {
 		/* there should be room for at least WARC/bla\r\n
 		 * must be EOF therefore */
 		return (ARCHIVE_EOF);
@@ -229,7 +229,7 @@ start_over:
 			&a->archive, ARCHIVE_ERRNO_MISC,
 			"Unsupported record version");
 		return (ARCHIVE_FATAL);
-	} else if ((cntlen = _warc_rdlen(buf, eoh - buf)) < 0U) {
+	} else if ((cntlen = _warc_rdlen(buf, eoh - buf)) < 0) {
 		/* nightmare!  the specs say content-length is mandatory
 		 * so I don't feel overly bad stopping the reader here */
 		archive_set_error(
@@ -263,6 +263,7 @@ start_over:
 		break;
 	default:
 		fnam.len = 0U;
+		fnam.str = NULL;
 		break;
 	}
 
@@ -312,7 +313,7 @@ _warc_read(struct archive_read *a, const void **buf, size_t *bsz, int64_t *off)
 		return (int)nrd;
 	} else if (nrd == 0) {
 		goto eof;
-	} else if (nrd > w->cntlen - w->cntoff) {
+	} else if ((size_t)nrd > w->cntlen - w->cntoff) {
 		/* clamp to content-length */
 		nrd = w->cntlen - w->cntoff;
 	}
@@ -495,7 +496,7 @@ _warc_rduri(const char *buf, size_t bsz)
 	const char *val;
 	const char *uri;
 	const char *eol;
-	warc_string_t res = {0U};
+	warc_string_t res = {0U, NULL};
 
 	if ((val = xmemmem(buf, bsz, _key, sizeof(_key) - 1U)) == NULL) {
 		/* no bother */
