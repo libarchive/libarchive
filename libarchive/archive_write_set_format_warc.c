@@ -88,7 +88,8 @@ typedef struct {
 	warc_type_t type;
 	const char *tgturi;
 	const char *recid;
-	time_t rectim;
+	time_t rtime;
+	time_t mtime;
 	const char *cnttyp;
 	size_t cntlen;
 } warc_essential_hdr_t;
@@ -188,7 +189,8 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 			WT_INFO,
 			/*uri*/NULL,
 			/*urn*/NULL,
-			/*tim*/w->now,
+			/*rtm*/w->now,
+			/*mtm*/w->now,
 			/*cty*/"application/warc-fields",
 			/*len*/sizeof(warcinfo) - 1U,
 		};
@@ -221,7 +223,8 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 			WT_RSRC,
 			/*uri*/archive_entry_pathname(entry),
 			/*urn*/NULL,
-			/*tim*/w->now,
+			/*rtm*/w->now,
+			/*mtm*/archive_entry_mtime(entry),
 			/*cty*/NULL,
 			/*len*/archive_entry_size(entry),
 		};
@@ -313,6 +316,19 @@ _warc_free(struct archive_write *a)
 		x += __r;			\
 	} while (0)
 
+static size_t
+xstrftime(char *s, size_t max, const char *fmt, time_t t)
+{
+/** like strftime(3) but for time_t objects */
+	struct tm *rt;
+
+	if ((rt = gmtime(&t)) == NULL) {
+		return 0U;
+	}
+	/* leave the hard yacker to our role model strftime() */
+	return strftime(s, max, fmt, rt);
+}
+
 static ssize_t
 _popul_ehdr(char *tgt, size_t tsz, warc_essential_hdr_t hdr)
 {
@@ -353,18 +369,15 @@ _popul_ehdr(char *tgt, size_t tsz, warc_essential_hdr_t hdr)
 			"WARC-Target-URI: %s%s\r\n", u, hdr.tgturi);
 	}
 
-	/* we could essentially put one of mtime/ctime/atime here */
-	{
-		struct tm *rt;
+	/* record time is usually when the http is sent off,
+	 * just treat the archive writing as such for a moment */
+	tp += xstrftime(tp, ep - tp,
+		"WARC-Date: %FT%H:%M:%SZ\r\n", hdr.rtime);
 
-		rt = gmtime(&hdr.rectim);
-		if (rt == NULL) {
-			return -1;
-		}
-		/* next one can't fail,
-		 * at least it won't set TP out of its bounds */
-		tp += strftime(tp, ep - tp, "WARC-Date: %FT%H:%M:%SZ\r\n", rt);
-	}
+	/* while we're at it, record the mtime */
+	tp += xstrftime(tp, ep - tp,
+		"Last-Modified: %FT%H:%M:%SZ\r\n", hdr.mtime);
+
 	if (hdr.recid == NULL) {
 		/* generate one, grrrr */
 		warc_uuid_t u;

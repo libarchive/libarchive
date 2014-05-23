@@ -44,6 +44,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_CTYPE_H
 #include <ctype.h>
 #endif
+#ifdef HAVE_TIME_H
+#include <time.h>
+#endif
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -105,6 +108,8 @@ static unsigned int _warc_rdver(const char buf[static 10U], size_t bsz);
 static unsigned int _warc_rdtyp(const char *buf, size_t bsz);
 static warc_string_t _warc_rduri(const char *buf, size_t bsz);
 static ssize_t _warc_rdlen(const char *buf, size_t bsz);
+static time_t _warc_rdrtm(const char *buf, size_t bsz);
+static time_t _warc_rdmtm(const char *buf, size_t bsz);
 static const char *_warc_find_eoh(const char *buf, size_t bsz);
 
 
@@ -194,6 +199,10 @@ _warc_rdhdr(struct archive_read *a, struct archive_entry *entry)
 	warc_type_t ftyp;
 	/* content-length+error monad */
 	ssize_t cntlen;
+	/* record time is the WARC-Date time we reinterpret it as ctime */
+	time_t rtime;
+	/* mtime is the Last-Modified time which will be the entry's mtime */
+	time_t mtime;
 
 start_over:
 	/* just use read_ahead() they keep track of unconsumed
@@ -238,6 +247,13 @@ start_over:
 			&a->archive, EINVAL,
 			"Bad content length");
 		return (ARCHIVE_FATAL);
+	} else if ((rtime = _warc_rdrtm(buf, eoh - buf)) == (time_t)-1) {
+		/* record time is mandatory as per WARC/1.0,
+		 * so just barf here, fast and loud */
+		archive_set_error(
+			&a->archive, EINVAL,
+			"Bad record time");
+		return (ARCHIVE_FATAL);
 	}
 
 	/* start off with the type */
@@ -262,6 +278,14 @@ start_over:
 		w->pool.str[fnam.len] = '\0';
 		/* let noone else know about the pool, it's a secret, shhh */
 		fnam.str = w->pool.str;
+
+		/* snarf mtime or deduce from rtime
+		 * this is a custom header added by our writer, it's quite
+		 * hard to believe anyone else would go through with it
+		 * (apart from being part of some http responses of course) */
+		if ((mtime = _warc_rdmtm(buf, eoh - buf)) == (time_t)-1) {
+			mtime = rtime;
+		}
 		break;
 	default:
 		fnam.len = 0U;
@@ -281,6 +305,9 @@ start_over:
 			archive_entry_copy_pathname(entry, fnam.str);
 			archive_entry_set_size(entry, cntlen);
 			archive_entry_set_perm(entry, 0644);
+			/* rtime is the new ctime, mtime stays mtime */
+			archive_entry_set_ctime(entry, rtime, 0L);
+			archive_entry_set_mtime(entry, mtime, 0L);
 			break;
 		}
 		/*@fallthrough@*/
@@ -409,6 +436,82 @@ xmemmem(const char *haystack, size_t hz, const char *needle, size_t nz)
 		}
 	}
 	return NULL;
+}
+
+static int
+strtoi_lim(const char *str, const char **ep, int llim, int ulim)
+{
+	int res = 0;
+	const char *sp;
+	/* we keep track of the number of digits via rulim */
+	int rulim;
+
+	for (sp = str, rulim = ulim > 10 ? ulim : 10;
+	     res * 10 <= ulim && rulim && *sp >= '0' && *sp <= '9';
+	     sp++, rulim /= 10) {
+		res *= 10;
+		res += *sp - '0';
+	}
+	if (sp == str) {
+		res = -1;
+	} else if (res < llim || res > ulim) {
+		res = -2;
+	}
+	*ep = (const char*)sp;
+	return res;
+}
+
+static time_t
+xstrpisotime(const char *s, char **endptr)
+{
+/** like strptime() but strictly for ISO 8601 Zulu strings */
+	struct tm tm;
+	time_t res = (time_t)-1;
+
+	/* make sure tm is clean */
+	memset(&tm, 0, sizeof(tm));
+
+	/* as a courtesy to our callers, and since this is a non-standard
+	 * routine, we skip leading whitespace */
+	for (; isspace(*s); s++);
+
+	/* read year */
+	if ((tm.tm_year = strtoi_lim(s, &s, 1583, 4095)) < 0 || *s++ != '-') {
+		goto out;
+	}
+	/* read month */
+	if ((tm.tm_mon = strtoi_lim(s, &s, 1, 12)) < 0 || *s++ != '-') {
+		goto out;
+	}
+	/* read day-of-month */
+	if ((tm.tm_mday = strtoi_lim(s, &s, 1, 31)) < 0 || *s++ != 'T') {
+		goto out;
+	}
+	/* read hour */
+	if ((tm.tm_hour = strtoi_lim(s, &s, 0, 23)) < 0 || *s++ != ':') {
+		goto out;
+	}
+	/* read minute */
+	if ((tm.tm_min = strtoi_lim(s, &s, 0, 59)) < 0 || *s++ != ':') {
+		goto out;
+	}
+	/* read second */
+	if ((tm.tm_sec = strtoi_lim(s, &s, 0, 60)) < 0 || *s++ != 'Z') {
+		goto out;
+	}
+
+	/* massage TM to fulfill some of POSIX' contraints */
+	tm.tm_year -= 1900;
+	tm.tm_mon--;
+
+	/* now convert our custom tm struct to a unix stamp */
+	res = mktime(&tm);
+
+out:
+	if (endptr != NULL) {
+		*endptr = deconst(s);
+	}
+	return res;
 }
 
 static unsigned int
@@ -567,6 +670,52 @@ _warc_rdlen(const char *buf, size_t bsz)
 		return -1;
 	}
 	return (size_t)len;
+}
+
+static time_t
+_warc_rdrtm(const char *buf, size_t bsz)
+{
+	static const char _key[] = "\r\nWARC-Date:";
+	const char *val;
+	char *on = NULL;
+	time_t res;
+
+	if ((val = xmemmem(buf, bsz, _key, sizeof(_key) - 1U)) == NULL) {
+		/* no bother */
+		return (time_t)-1;
+	}
+
+	/* xstrpisotime() kindly overreads whitespace for us, so use that */
+	val += sizeof(_key) - 1U;
+	res = xstrpisotime(val, &on);
+	if (on == NULL || !isspace(*on)) {
+		/* hm, can we trust that number?  Best not. */
+		return (time_t)-1;
+	}
+	return res;
+}
+
+static time_t
+_warc_rdmtm(const char *buf, size_t bsz)
+{
+	static const char _key[] = "\r\nLast-Modified:";
+	const char *val;
+	char *on = NULL;
+	time_t res;
+
+	if ((val = xmemmem(buf, bsz, _key, sizeof(_key) - 1U)) == NULL) {
+		/* no bother */
+		return (time_t)-1;
+	}
+
+	/* xstrpisotime() kindly overreads whitespace for us, so use that */
+	val += sizeof(_key) - 1U;
+	res = xstrpisotime(val, &on);
+	if (on == NULL || !isspace(*on)) {
+		/* hm, can we trust that number?  Best not. */
+		return (time_t)-1;
+	}
+	return res;
 }
 
 static const char*
