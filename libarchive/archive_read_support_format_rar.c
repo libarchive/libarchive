@@ -225,6 +225,7 @@ struct rar
   mode_t mode;
   char *filename;
   char *filename_save;
+  size_t filename_save_size;
   size_t filename_allocated;
 
   /* File header optional entries */
@@ -1530,6 +1531,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
 
   /* Split file in multivolume RAR. No more need to process header. */
   if (rar->filename_save &&
+    filename_size == rar->filename_save_size &&
     !memcmp(rar->filename, rar->filename_save, filename_size + 1))
   {
     __archive_read_consume(a, header_size - 7);
@@ -1559,6 +1561,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   rar->filename_save = (char*)realloc(rar->filename_save,
                                       filename_size + 1);
   memcpy(rar->filename_save, rar->filename, filename_size + 1);
+  rar->filename_save_size = filename_size;
 
   /* Set info for seeking */
   free(rar->dbo);
