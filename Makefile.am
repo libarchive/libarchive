@@ -167,6 +167,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_read_support_format_rar.c \
 	libarchive/archive_read_support_format_raw.c \
 	libarchive/archive_read_support_format_tar.c \
+	libarchive/archive_read_support_format_warc.c \
 	libarchive/archive_read_support_format_xar.c \
 	libarchive/archive_read_support_format_zip.c \
 	libarchive/archive_string.c \
@@ -212,6 +213,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_write_set_format_ustar.c \
 	libarchive/archive_write_set_format_v7tar.c \
 	libarchive/archive_write_set_format_gnutar.c \
+	libarchive/archive_write_set_format_warc.c \
 	libarchive/archive_write_set_format_xar.c \
 	libarchive/archive_write_set_format_zip.c \
 	libarchive/archive_write_set_options.c \
@@ -439,6 +441,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_txz.c \
 	libarchive/test/test_read_format_tz.c \
 	libarchive/test/test_read_format_ustar_filename.c \
+	libarchive/test/test_read_format_warc.c \
 	libarchive/test/test_read_format_xar.c \
 	libarchive/test/test_read_format_zip.c \
 	libarchive/test/test_read_format_zip_comment_stored.c \
@@ -517,6 +520,8 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_format_tar_sparse.c \
 	libarchive/test/test_write_format_tar_ustar.c \
 	libarchive/test/test_write_format_tar_v7tar.c \
+	libarchive/test/test_write_format_warc.c \
+	libarchive/test/test_write_format_warc_empty.c \
 	libarchive/test/test_write_format_xar.c \
 	libarchive/test/test_write_format_xar_empty.c \
 	libarchive/test/test_write_format_zip.c \

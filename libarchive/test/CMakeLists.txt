@@ -145,6 +145,7 @@ IF(ENABLE_TEST)
     test_read_format_txz.c
     test_read_format_tz.c
     test_read_format_ustar_filename.c
+    test_read_format_warc.c
     test_read_format_xar.c
     test_read_format_zip.c
     test_read_format_zip_comment_stored.c
@@ -223,6 +224,8 @@ IF(ENABLE_TEST)
     test_write_format_tar_sparse.c
     test_write_format_tar_ustar.c
     test_write_format_tar_v7tar.c
+    test_write_format_warc.c
+    test_write_format_warc_empty.c
     test_write_format_xar.c
     test_write_format_xar_empty.c
     test_write_format_zip.c

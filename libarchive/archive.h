@@ -289,6 +289,7 @@ typedef int archive_switch_callback(struct archive *, void *_client_data1,
 #define	ARCHIVE_FORMAT_CAB			0xC0000
 #define	ARCHIVE_FORMAT_RAR			0xD0000
 #define	ARCHIVE_FORMAT_7ZIP			0xE0000
+#define	ARCHIVE_FORMAT_WARC			0xF0000
 
 /*
  * Codes returned by archive_read_format_capabilities().
@@ -398,6 +399,7 @@ __LA_DECL int archive_read_support_format_mtree(struct archive *);
 __LA_DECL int archive_read_support_format_rar(struct archive *);
 __LA_DECL int archive_read_support_format_raw(struct archive *);
 __LA_DECL int archive_read_support_format_tar(struct archive *);
+__LA_DECL int archive_read_support_format_warc(struct archive *);
 __LA_DECL int archive_read_support_format_xar(struct archive *);
 /* archive_read_support_format_zip() enables both streamable and seekable
  * zip readers. */
@@ -738,6 +740,7 @@ __LA_DECL int archive_write_set_format_shar(struct archive *);
 __LA_DECL int archive_write_set_format_shar_dump(struct archive *);
 __LA_DECL int archive_write_set_format_ustar(struct archive *);
 __LA_DECL int archive_write_set_format_v7tar(struct archive *);
+__LA_DECL int archive_write_set_format_warc(struct archive *);
 __LA_DECL int archive_write_set_format_xar(struct archive *);
 __LA_DECL int archive_write_set_format_zip(struct archive *);
 __LA_DECL int archive_write_zip_set_compression_deflate(struct archive *);
