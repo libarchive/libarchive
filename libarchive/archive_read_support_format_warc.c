@@ -95,6 +95,10 @@ struct warc_s {
 
 	/* string pool */
 	warc_strbuf_t pool;
+	/* previous version */
+	unsigned int pver;
+	/* stringified format name */
+	char sver[16U];
 };
 
 static int _warc_bid(struct archive_read *a, int);
@@ -256,6 +260,15 @@ start_over:
 		return (ARCHIVE_FATAL);
 	}
 
+	/* let the world know we're a WARC archive */
+	a->archive.archive_format = ARCHIVE_FORMAT_WARC;
+	if (ver != w->pver) {
+		/* stringify this entry's version */
+		snprintf(w->sver, sizeof(w->sver),
+			"WARC/%u.%u", ver / 10000, ver % 10000);
+		/* remember the version */
+		w->pver = ver;
+	}
 	/* start off with the type */
 	ftyp = _warc_rdtyp(buf, eoh - buf);
 	/* and let future calls know about the content */
