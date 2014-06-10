@@ -441,6 +441,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_txz.c \
 	libarchive/test/test_read_format_tz.c \
 	libarchive/test/test_read_format_ustar_filename.c \
+	libarchive/test/test_read_format_warc.c \
 	libarchive/test/test_read_format_xar.c \
 	libarchive/test/test_read_format_zip.c \
 	libarchive/test/test_read_format_zip_comment_stored.c \
