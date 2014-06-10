@@ -26,6 +26,25 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+/**
+ * WARC is standardised by ISO TC46/SC4/WG12 and currently available as
+ * ISO 28500:2009.
+ * For the purposes of this file we used the final draft from:
+ * http://bibnum.bnf.fr/warc/WARC_ISO_28500_version1_latestdraft.pdf
+ *
+ * Todo:
+ * [ ] real-world warcs can contain resources at endpoints ending in /
+ *     e.g. http://bibnum.bnf.fr/warc/
+ *     if you're lucky their response contains a Content-Location: header
+ *     pointing to a unix-compliant filename, in the example above it's
+ *     Content-Location: http://bibnum.bnf.fr/warc/index.html
+ *     however, that's not mandated and github for example doesn't follow
+ *     this convention.
+ *     We need a set of archive options to control what to do with
+ *     entries like these, at the moment care is taken to skip them.
+ *
+ **/
+
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
@@ -281,6 +300,14 @@ start_over:
 		/* only try and read the filename in the cases that are
 		 * guaranteed to have one */
 		fnam = _warc_rduri(buf, eoh - buf);
+		/* check the last character in the URI to avoid creating
+		 * directory endpoints as files, see Todo above */
+		if (fnam.len == 0 || fnam.str[fnam.len - 1] == '/') {
+			/* break here for now */
+			fnam.len = 0U;
+			fnam.str = NULL;
+			break;
+		}
 		/* bang to our string pool, so we save a
 		 * malloc()+free() roundtrip */
 		if (fnam.len + 1U > w->pool.len) {
