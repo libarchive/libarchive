@@ -310,7 +310,7 @@ start_over:
 			archive_entry_set_mtime(entry, mtime, 0L);
 			break;
 		}
-		/*@fallthrough@*/
+		/* FALLTHROUGH */
 	default:
 		/* consume the content and start over */
 		_warc_skip(a);
@@ -552,7 +552,7 @@ _warc_rdver(const char buf[static 10U], size_t bsz)
 					break;
 				}
 			}
-			/*@fallthrough@*/
+			/* FALLTHROUGH */
 		case '9':
 		default:
 			/* just make the version ridiculously high */
