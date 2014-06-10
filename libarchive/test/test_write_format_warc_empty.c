@@ -30,7 +30,7 @@ DEFINE_TEST(test_write_format_warc_empty)
 {
 	struct archive *a;
 	struct archive_entry *ae;
-	char buff[256U];
+	char buff[512U];
 	size_t used;
 
 	/* Create a new archive in memory. */
