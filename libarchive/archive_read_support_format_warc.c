@@ -216,7 +216,7 @@ start_over:
 			&a->archive, ARCHIVE_ERRNO_MISC,
 			"Bad record header");
 		return (ARCHIVE_FATAL);
-	} else if (nrd < 12 || buf == NULL) {
+	} else if (buf == NULL) {
 		/* there should be room for at least WARC/bla\r\n
 		 * must be EOF therefore */
 		return (ARCHIVE_EOF);
