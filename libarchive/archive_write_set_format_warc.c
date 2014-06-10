@@ -216,6 +216,12 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 		w->omit_warcinfo = 1U;
 	}
 
+	if (archive_entry_pathname(entry) == NULL) {
+		archive_set_error(&a->archive, EINVAL,
+		    "Invalid filename");
+		return (ARCHIVE_WARN);
+	}
+
 	w->typ = archive_entry_filetype(entry);
 	w->populz = 0U;
 	if (w->typ == AE_IFREG) {
