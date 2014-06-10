@@ -111,11 +111,22 @@ DEFINE_TEST(test_write_format_warc)
 	archive_entry_copy_pathname(ae, "dir");
 	archive_entry_set_filetype(ae, AE_IFDIR);
 	archive_entry_set_size(ae, 512);
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	assertEqualIntA(a, ARCHIVE_FAILED, archive_write_header(a, ae));
 	archive_entry_free(ae);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* test whether last archive is indeed empty */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
+
+	/* Test EOF */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	free(buff);
 }

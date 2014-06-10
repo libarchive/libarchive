@@ -47,7 +47,7 @@ DEFINE_TEST(test_write_format_warc_empty)
 	archive_entry_set_mtime(ae, 5, 0);
 	archive_entry_copy_pathname(ae, ".");
 	archive_entry_set_mode(ae, S_IFDIR | 0755);
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	assertEqualIntA(a, ARCHIVE_FAILED, archive_write_header(a, ae));
 	archive_entry_free(ae);
 
 	/* Add ".." entry which must be ignored. */ 
@@ -57,7 +57,7 @@ DEFINE_TEST(test_write_format_warc_empty)
 	archive_entry_set_mtime(ae, 5, 0);
 	archive_entry_copy_pathname(ae, "..");
 	archive_entry_set_mode(ae, S_IFDIR | 0755);
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	assertEqualIntA(a, ARCHIVE_FAILED, archive_write_header(a, ae));
 	archive_entry_free(ae);
 
 	/* Add "/" entry which must be ignored. */ 
@@ -67,7 +67,7 @@ DEFINE_TEST(test_write_format_warc_empty)
 	archive_entry_set_mtime(ae, 5, 0);
 	archive_entry_copy_pathname(ae, "/");
 	archive_entry_set_mode(ae, S_IFDIR | 0755);
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	assertEqualIntA(a, ARCHIVE_FAILED, archive_write_header(a, ae));
 	archive_entry_free(ae);
 
 	/* Add "../" entry which must be ignored. */ 
@@ -77,7 +77,7 @@ DEFINE_TEST(test_write_format_warc_empty)
 	archive_entry_set_mtime(ae, 5, 0);
 	archive_entry_copy_pathname(ae, "../");
 	archive_entry_set_mode(ae, S_IFDIR | 0755);
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	assertEqualIntA(a, ARCHIVE_FAILED, archive_write_header(a, ae));
 	archive_entry_free(ae);
 
 	/* Add "../../." entry which must be ignored. */ 
@@ -87,7 +87,7 @@ DEFINE_TEST(test_write_format_warc_empty)
 	archive_entry_set_mtime(ae, 5, 0);
 	archive_entry_copy_pathname(ae, "../../.");
 	archive_entry_set_mode(ae, S_IFDIR | 0755);
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	assertEqualIntA(a, ARCHIVE_FAILED, archive_write_header(a, ae));
 	archive_entry_free(ae);
 
 	/* Add "..//.././" entry which must be ignored. */ 
@@ -97,10 +97,21 @@ DEFINE_TEST(test_write_format_warc_empty)
 	archive_entry_set_mtime(ae, 5, 0);
 	archive_entry_copy_pathname(ae, "..//.././");
 	archive_entry_set_mode(ae, S_IFDIR | 0755);
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	assertEqualIntA(a, ARCHIVE_FAILED, archive_write_header(a, ae));
 	archive_entry_free(ae);
 
 	/* Close out the archive without writing anything. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* Test whether last archive is empty indeed. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
+
+	/* Test EOF */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

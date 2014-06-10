@@ -243,9 +243,14 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 		__archive_write_output(a, hdr, r);
 		/* and let subsequent calls to _data() know about the size */
 		w->populz = rh.cntlen;
+		return (ARCHIVE_OK);
 	}
-	/* just pretend it's all good */
-	return (ARCHIVE_OK);
+	/* just resort to erroring as per Tim's advice */
+	archive_set_error(
+		&a->archive,
+		ARCHIVE_ERRNO_FILE_FORMAT,
+		"WARC can only process regular files");
+	return (ARCHIVE_FAILED);
 }
 
 static ssize_t
