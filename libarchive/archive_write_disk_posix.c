@@ -3056,9 +3056,21 @@ set_mode(struct archive_write_disk *a, int mode)
 		 * impact.
 		 */
 		if (lchmod(a->name, mode) != 0) {
-			archive_set_error(&a->archive, errno,
-			    "Can't set permissions to 0%o", (int)mode);
-			r = ARCHIVE_WARN;
+			switch (errno) {
+			case ENOTSUP:
+			case ENOSYS:
+			case EOPNOTSUPP:
+				/*
+				 * if lchmod is defined but the platform
+				 * doesn't support it, silently ignore
+				 * error
+				 */
+				break;
+			default:
+				archive_set_error(&a->archive, errno,
+				    "Can't set permissions to 0%o", (int)mode);
+				r = ARCHIVE_WARN;
+			}
 		}
 #endif
 	} else if (!S_ISDIR(a->mode)) {
