@@ -443,6 +443,8 @@ function splitwords(l, dest, n, o, w) {
 	  addopen("'''")
 	  w++
 	  add(words[++w] "'''")
+	  trailer = listnext[listdepth] "<dd>" trailer
+	  listnext[listdepth] = "</dd>"
 	} else {
 	  trailer = listnext[listdepth] "<dd>" trailer
 	  listnext[listdepth] = "</dd>"
