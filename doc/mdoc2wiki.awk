@@ -123,12 +123,14 @@ function crossref(name, sect, other) {
 
 # Start an indented display
 function dispstart() {
-  linecmd("```text")
+  endline()
+  print "```text"
 }
 
 # End an indented display
 function dispend() {
-  linecmd("```")
+  endline()
+  print "```"
 }
 
 # Collect rest of input line
