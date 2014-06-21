@@ -184,6 +184,7 @@ function splitwords(l, dest, n, o, w) {
 /^\.\\"/ { next }
 
 {
+  gsub("\\\\e", "\\")
   sub("^\\.","")
   nwords=splitwords($0, words)
   # TODO: Instead of iterating 'w' over the array, have a separate
