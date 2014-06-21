@@ -93,6 +93,34 @@ function breakline() {
   linecmd("<br>")
 }
 
+function crossref(name, sect, other) {
+  if (name == "cpio" && sect == 1) {
+    n = "ManPageBsdcpio1"
+  } else if (name == "cpio" && sect == 5) {
+    n = "ManPageCpio5"
+  } else if (name == "mtree" && sect == 5) {
+    n = "ManPageMtree5"
+  } else if (name == "tar" && sect == 1) {
+    n = "ManPageBsdtar1"
+  } else if (name == "tar" && sect == 5) {
+    n = "ManPageTar5"
+  } else if (!match(name, "^archive") && !match(name, "^libarchive")) {
+    n = name "(" sect ")|http://www.freebsd.org/cgi/man.cgi?query=" name "&sektion=" sect
+  } else {
+    n = "ManPage"
+    numbits = split(name, namebits, "[_-]")
+    for (i = 1; i <= numbits; ++i) {
+      p = namebits[i]
+      n = n toupper(substr(p, 0, 1)) substr(p, 2)
+    }
+    n = n sect
+  }
+  n = "[[" n "]]"
+  if (length other > 0)
+    n = n other
+  return n
+}
+
 # Start an indented display
 function dispstart() {
   linecmd("```text")
@@ -241,7 +269,8 @@ function splitwords(l, dest, n, o, w) {
       section=wtail()
       linecmd("== " section " ==")
     } else if(match(words[w],"^Xr$")) {
-      add("'''" words[++w] "'''(" words[++w] ")" words[++w])
+      add(crossref(words[w+1], words[w+2], words[w+3]))
+      w = w + 3
     } else if(match(words[w],"^Nm$")) {
       if(match(section,"SYNOPSIS"))
         breakline()
@@ -271,7 +300,7 @@ function splitwords(l, dest, n, o, w) {
 	add("''file ...''")
       else {
 	++w
-	gsub("<", "&lt;", words[w])
+	gsub("<", "\\&lt;", words[w])
 	add("''" words[w] "''")
       }
     } else if(match(words[w],"^Cm$")) {
@@ -300,7 +329,7 @@ function splitwords(l, dest, n, o, w) {
 	breakline()
       }
       l = wtail()
-      add("'''" l "'''")
+      add("''" l "''")
       if (match(section, "SYNOPSIS")) {
 	breakline()
       }
