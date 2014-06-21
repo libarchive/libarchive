@@ -125,7 +125,7 @@ copy_data(struct archive *ar, struct archive *aw)
 		r = (int)archive_write_data_block(aw, buff, size, offset);
 		if (r < ARCHIVE_WARN)
 			r = ARCHIVE_WARN;
-		if (r != ARCHIVE_OK) {
+		if (r < ARCHIVE_OK) {
 			archive_set_error(ar, archive_errno(aw),
 			    "%s", archive_error_string(aw));
 			return (r);
