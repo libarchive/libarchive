@@ -496,6 +496,28 @@ strtoi_lim(const char *str, const char **ep, int llim, int ulim)
 }
 
 static time_t
+time_from_tm(struct tm *t)
+{
+#if HAVE_TIMEGM
+        /* Use platform timegm() if available. */
+        return (timegm(t));
+#elif HAVE__MKGMTIME64
+        return (_mkgmtime64(t));
+#else
+        /* Else use direct calculation using POSIX assumptions. */
+        /* First, fix up tm_yday based on the year/month/day. */
+        if (mktime(t) == (time_t)-1)
+                return ((time_t)-1);
+        /* Then we can compute timegm() from first principles. */
+        return (t->tm_sec + t->tm_min * 60 + t->tm_hour * 3600
+            + t->tm_yday * 86400 + (t->tm_year - 70) * 31536000
+            + ((t->tm_year - 69) / 4) * 86400 -
+            ((t->tm_year - 1) / 100) * 86400
+            + ((t->tm_year + 299) / 400) * 86400);
+#endif
+}
+
+static time_t
 xstrpisotime(const char *s, char **endptr)
 {
 /** like strptime() but strictly for ISO 8601 Zulu strings */
@@ -538,8 +560,8 @@ xstrpisotime(const char *s, char **endptr)
 	tm.tm_year -= 1900;
 	tm.tm_mon--;
 
-	/* now convert our custom tm struct to a unix stamp */
-	res = mktime(&tm);
+	/* now convert our custom tm struct to a unix stamp using UTC */
+	res = time_from_tm(&tm);
 
 out:
 	if (endptr != NULL) {
