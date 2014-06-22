@@ -58,9 +58,9 @@ struct warc_s {
 	size_t populz;
 };
 
-static const char warcinfo[] = "\
-software: " PACKAGE_NAME "/" PACKAGE_VERSION "\r\n\
-format: WARC file version 1.0\r\n";
+static const char warcinfo[] =
+    "software: libarchive/" ARCHIVE_VERSION_ONLY_STRING "\r\n"
+    "format: WARC file version 1.0\r\n";
 
 typedef enum {
 	WT_NONE,

@@ -130,11 +130,16 @@ __LA_DECL int		archive_version_number(void);
 /*
  * Textual name/version of the library, useful for version displays.
  */
-#define	ARCHIVE_VERSION_STRING "libarchive 3.1.2"
+#define ARCHIVE_VERSION_ONLY_STRING "3.1.2"
+#define	ARCHIVE_VERSION_STRING "libarchive " ARCHIVE_VERSION_ONLY_STRING
 __LA_DECL const char *	archive_version_string(void);
 
 /*
  * Detailed textual name/version of the library and its dependencies.
+ * This has the form:
+ *    "libarchive x.y.z zlib/a.b.c liblzma/d.e.f ... etc ..."
+ * the list of libraries described here will vary depending on how
+ * libarchive was compiled.
  */
 __LA_DECL const char *	archive_version_details(void);
 
