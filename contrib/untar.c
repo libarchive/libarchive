@@ -1,4 +1,8 @@
 /*
+ * This file is in the public domain.  Use it as you see fit.
+ */
+
+/*
  * "untar" is an extremely simple tar extractor:
  *  * A single C source file, so it should be easy to compile
  *    and run on any system with a C compiler.

@@ -1009,7 +1009,11 @@ _archive_write_disk_data_block(struct archive *_a,
 		    "Write request too large");
 		return (ARCHIVE_WARN);
 	}
+#if ARCHIVE_VERSION_NUMBER < 3999000
 	return (ARCHIVE_OK);
+#else
+	return (size);
+#endif
 }
 
 static ssize_t

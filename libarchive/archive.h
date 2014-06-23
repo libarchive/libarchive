@@ -130,11 +130,16 @@ __LA_DECL int		archive_version_number(void);
 /*
  * Textual name/version of the library, useful for version displays.
  */
-#define	ARCHIVE_VERSION_STRING "libarchive 3.1.2"
+#define	ARCHIVE_VERSION_ONLY_STRING "3.1.2"
+#define	ARCHIVE_VERSION_STRING "libarchive " ARCHIVE_VERSION_ONLY_STRING
 __LA_DECL const char *	archive_version_string(void);
 
 /*
  * Detailed textual name/version of the library and its dependencies.
+ * This has the form:
+ *    "libarchive x.y.z zlib/a.b.c liblzma/d.e.f ... etc ..."
+ * the list of libraries described here will vary depending on how
+ * libarchive was compiled.
  */
 __LA_DECL const char *	archive_version_details(void);
 
@@ -289,6 +294,7 @@ typedef int archive_switch_callback(struct archive *, void *_client_data1,
 #define	ARCHIVE_FORMAT_CAB			0xC0000
 #define	ARCHIVE_FORMAT_RAR			0xD0000
 #define	ARCHIVE_FORMAT_7ZIP			0xE0000
+#define	ARCHIVE_FORMAT_WARC			0xF0000
 
 /*
  * Codes returned by archive_read_format_capabilities().
@@ -398,6 +404,7 @@ __LA_DECL int archive_read_support_format_mtree(struct archive *);
 __LA_DECL int archive_read_support_format_rar(struct archive *);
 __LA_DECL int archive_read_support_format_raw(struct archive *);
 __LA_DECL int archive_read_support_format_tar(struct archive *);
+__LA_DECL int archive_read_support_format_warc(struct archive *);
 __LA_DECL int archive_read_support_format_xar(struct archive *);
 /* archive_read_support_format_zip() enables both streamable and seekable
  * zip readers. */
@@ -738,6 +745,7 @@ __LA_DECL int archive_write_set_format_shar(struct archive *);
 __LA_DECL int archive_write_set_format_shar_dump(struct archive *);
 __LA_DECL int archive_write_set_format_ustar(struct archive *);
 __LA_DECL int archive_write_set_format_v7tar(struct archive *);
+__LA_DECL int archive_write_set_format_warc(struct archive *);
 __LA_DECL int archive_write_set_format_xar(struct archive *);
 __LA_DECL int archive_write_set_format_zip(struct archive *);
 __LA_DECL int archive_write_zip_set_compression_deflate(struct archive *);

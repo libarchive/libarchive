@@ -1470,7 +1470,11 @@ _archive_write_disk_data_block(struct archive *_a,
 		    "Write request too large");
 		return (ARCHIVE_WARN);
 	}
+#if ARCHIVE_VERSION_NUMBER < 3999000
 	return (ARCHIVE_OK);
+#else
+	return (size);
+#endif
 }
 
 static ssize_t
@@ -2862,7 +2866,7 @@ set_time(int fd, int mode, const char *name,
 #endif
 }
 
-#ifdef F_SETTIMES /* Tru64 */
+#ifdef F_SETTIMES
 static int
 set_time_tru64(int fd, int mode, const char *name,
     time_t atime, long atime_nsec,
@@ -2870,19 +2874,21 @@ set_time_tru64(int fd, int mode, const char *name,
     time_t ctime, long ctime_nsec)
 {
 	struct attr_timbuf tstamp;
-	struct timeval times[3];
-	times[0].tv_sec = atime;
-	times[0].tv_usec = atime_nsec / 1000;
-	times[1].tv_sec = mtime;
-	times[1].tv_usec = mtime_nsec / 1000;
-	times[2].tv_sec = ctime;
-	times[2].tv_usec = ctime_nsec / 1000;
-	tstamp.atime = times[0];
-	tstamp.mtime = times[1];
-	tstamp.ctime = times[2];
+	tstamp.atime.tv_sec = atime;
+	tstamp.mtime.tv_sec = mtime;
+	tstamp.ctime.tv_sec = ctime;
+#if defined (__hpux) && defined (__ia64)
+	tstamp.atime.tv_nsec = atime_nsec;
+	tstamp.mtime.tv_nsec = mtime_nsec;
+	tstamp.ctime.tv_nsec = ctime_nsec;
+#else
+	tstamp.atime.tv_usec = atime_nsec / 1000;
+	tstamp.mtime.tv_usec = mtime_nsec / 1000;
+	tstamp.ctime.tv_usec = ctime_nsec / 1000;
+#endif
 	return (fcntl(fd,F_SETTIMES,&tstamp));
 }
-#endif /* Tru64 */
+#endif /* F_SETTIMES */
 
 static int
 set_times(struct archive_write_disk *a,
@@ -3054,9 +3060,21 @@ set_mode(struct archive_write_disk *a, int mode)
 		 * impact.
 		 */
 		if (lchmod(a->name, mode) != 0) {
-			archive_set_error(&a->archive, errno,
-			    "Can't set permissions to 0%o", (int)mode);
-			r = ARCHIVE_WARN;
+			switch (errno) {
+			case ENOTSUP:
+			case ENOSYS:
+			case EOPNOTSUPP:
+				/*
+				 * if lchmod is defined but the platform
+				 * doesn't support it, silently ignore
+				 * error
+				 */
+				break;
+			default:
+				archive_set_error(&a->archive, errno,
+				    "Can't set permissions to 0%o", (int)mode);
+				r = ARCHIVE_WARN;
+			}
 		}
 #endif
 	} else if (!S_ISDIR(a->mode)) {
