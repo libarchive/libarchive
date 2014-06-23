@@ -223,6 +223,23 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 			ret = ARCHIVE_OK;
 		}
 		return (ret);
+	} else if (strcmp(key, "compression-level") == 0) {
+		if (val == NULL || !(val[0] >= '0' && val[0] <= '9') || val[1] != '\0') {
+			return ARCHIVE_WARN;
+		}
+
+		if (val[0] == '0') {
+			zip->requested_compression = COMPRESSION_STORE;
+			return ARCHIVE_OK;
+		}
+
+#ifdef HAVE_ZLIB_H
+		zip->requested_compression = val[0] - '0';
+		return ARCHIVE_OK;
+#else
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "deflate compression not supported");
+#endif
 	} else if (strcmp(key, "experimental") == 0) {
 		if (val == NULL || val[0] == 0) {
 			zip->flags &= ~ ZIP_FLAG_EXPERIMENT_xl;
