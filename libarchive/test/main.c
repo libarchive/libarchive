@@ -2289,7 +2289,7 @@ struct test_list_t tests[] = {
  * Summarize repeated failures in the just-completed test.
  */
 static void
-test_summarize(int failed, int skips)
+test_summarize(int failed, int skips_num)
 {
 	unsigned int i;
 
@@ -2299,7 +2299,7 @@ test_summarize(int failed, int skips)
 		fflush(stdout);
 		break;
 	case VERBOSITY_PASSFAIL:
-		printf(failed ? "FAIL\n" : skips ? "ok (S)\n" : "ok\n");
+		printf(failed ? "FAIL\n" : skips_num ? "ok (S)\n" : "ok\n");
 		break;
 	}
 
