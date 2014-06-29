@@ -58,6 +58,7 @@ IF(ENABLE_TEST)
     test_compat_solaris_tar_acl.c
     test_compat_tar_hardlink.c
     test_compat_uudecode.c
+    test_compat_uudecode_large.c
     test_compat_xz.c
     test_compat_zip.c
     test_empty_write.c

@@ -527,6 +527,7 @@ read_more:
 				    self->upstream, ravail);
 				goto read_more;
 			}
+			used += len;
 			break;
 		}
 		switch (uudecode->state) {
