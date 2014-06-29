@@ -308,6 +308,8 @@ void dumpfile(const char *filename, void *, size_t);
 
 /* Extracts named reference file to the current directory. */
 void extract_reference_file(const char *);
+/* Copies named reference file to the current directory. */
+void copy_reference_file(const char *);
 
 /* Extracts a list of files to the current directory.
  * List must be NULL terminated.

@@ -2204,6 +2204,29 @@ extract_reference_file(const char *name)
 	fclose(in);
 }
 
+void
+copy_reference_file(const char *name)
+{
+	char buff[1024];
+	FILE *in, *out;
+	size_t rbytes;
+
+	sprintf(buff, "%s/%s", refdir, name);
+	in = fopen(buff, "rb");
+	failure("Couldn't open reference file %s", buff);
+	assert(in != NULL);
+	if (in == NULL)
+		return;
+	/* Now, decode the rest and write it. */
+	/* Not a lot of error checking here; the input better be right. */
+	out = fopen(name, "wb");
+	while ((rbytes = fread(buff, 1, sizeof(buff), in)) > 0) {
+		fwrite(buff, 1, rbytes, out);
+	}
+	fclose(out);
+	fclose(in);
+}
+
 int
 is_LargeInode(const char *file)
 {
