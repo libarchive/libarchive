@@ -49,6 +49,7 @@ IF(ENABLE_TEST)
     test_compat_cpio.c
     test_compat_gtar.c
     test_compat_gzip.c
+    test_compat_lz4.c
     test_compat_lzip.c
     test_compat_lzma.c
     test_compat_lzop.c

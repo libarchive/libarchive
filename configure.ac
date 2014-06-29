@@ -348,6 +348,14 @@ if test "x$with_iconv" != "xno"; then
   fi
 fi
 
+AC_ARG_WITH([lz4],
+  AS_HELP_STRING([--without-lz4], [Don't build support for lz4 through liblz4]))
+
+if test "x$with_lz4" != "xno"; then
+  AC_CHECK_HEADERS([lz4.h lz4hc.h])
+  AC_CHECK_LIB(lz4,LZ4_decompress_safe)
+fi
+
 AC_ARG_WITH([lzma],
   AS_HELP_STRING([--without-lzma], [Don't build support for xz through lzma]))
 
