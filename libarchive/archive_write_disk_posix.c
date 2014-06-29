@@ -3063,7 +3063,9 @@ set_mode(struct archive_write_disk *a, int mode)
 			switch (errno) {
 			case ENOTSUP:
 			case ENOSYS:
+#if ENOTSUP != EOPNOTSUPP
 			case EOPNOTSUPP:
+#endif
 				/*
 				 * if lchmod is defined but the platform
 				 * doesn't support it, silently ignore
