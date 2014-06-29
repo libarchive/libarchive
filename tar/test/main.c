@@ -2254,7 +2254,7 @@ struct test_list_t tests[] = {
  * Summarize repeated failures in the just-completed test.
  */
 static void
-test_summarize(int failed)
+test_summarize(int failed, int skips_num)
 {
 	unsigned int i;
 
@@ -2264,7 +2264,7 @@ test_summarize(int failed)
 		fflush(stdout);
 		break;
 	case VERBOSITY_PASSFAIL:
-		printf(failed ? "FAIL\n" : "ok\n");
+		printf(failed ? "FAIL\n" : skips_num ? "ok (S)\n" : "ok\n");
 		break;
 	}
 
@@ -2289,6 +2289,7 @@ test_run(int i, const char *tmpdir)
 	char workdir[1024];
 	char logfilename[64];
 	int failures_before = failures;
+	int skips_before = skips;
 	int oldumask;
 
 	switch (verbosity) {
@@ -2345,7 +2346,7 @@ test_run(int i, const char *tmpdir)
 	}
 	/* Report per-test summaries. */
 	tests[i].failures = failures - failures_before;
-	test_summarize(tests[i].failures);
+	test_summarize(tests[i].failures, skips - skips_before);
 	/* Close the per-test log file. */
 	fclose(logfile);
 	logfile = NULL;
