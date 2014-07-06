@@ -639,7 +639,7 @@ attr_counter_inc(struct attr_counter **top, struct attr_counter *ac,
 			*top = ac;
 			ac->next->prev = ac;
 		}
-	} else {
+	} else if (last != NULL) {
 		ac = attr_counter_new(me, last);
 		if (ac == NULL)
 			return (-1);
