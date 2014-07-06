@@ -454,7 +454,7 @@ archive_read_open1(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 	struct archive_read_filter *filter, *tmp;
-	int slot, e;
+	int slot, e = ARCHIVE_OK;
 	unsigned int i;
 
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
