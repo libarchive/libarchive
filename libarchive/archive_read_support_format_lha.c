@@ -1390,13 +1390,14 @@ archive_read_format_lha_read_data(struct archive_read *a,
 		lha->entry_unconsumed = 0;
 	}
 	if (lha->end_of_entry) {
+		r = ARCHIVE_EOF;
 		if (!lha->end_of_entry_cleanup) {
 			if ((lha->setflag & CRC_IS_SET) &&
 			    lha->crc != lha->entry_crc_calculated) {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
 				    "LHa data CRC error");
-				return (ARCHIVE_WARN);
+				r = ARCHIVE_WARN;
 			}
 
 			/* End-of-entry cleanup done. */
@@ -1405,7 +1406,7 @@ archive_read_format_lha_read_data(struct archive_read *a,
 		*offset = lha->entry_offset;
 		*size = 0;
 		*buff = NULL;
-		return (ARCHIVE_EOF);
+		return (r);
 	}
 
 	if (lha->entry_is_compressed)
@@ -2742,7 +2743,7 @@ lzh_decode_huffman(struct huffman *hf, unsigned rbits)
 	 * If it fails, search a huffman tree for.
 	 */
 	c = hf->tbl[rbits >> hf->shift_bits];
-	if (c < hf->len_avail)
+	if (c < hf->len_avail || hf->len_avail == 0)
 		return (c);
 	/* This bit pattern needs to be found out at a huffman tree. */
 	return (lzh_decode_huffman_tree(hf, rbits, c));

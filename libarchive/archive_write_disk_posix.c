@@ -3063,7 +3063,9 @@ set_mode(struct archive_write_disk *a, int mode)
 			switch (errno) {
 			case ENOTSUP:
 			case ENOSYS:
+#if ENOTSUP != EOPNOTSUPP
 			case EOPNOTSUPP:
+#endif
 				/*
 				 * if lchmod is defined but the platform
 				 * doesn't support it, silently ignore
@@ -3382,6 +3384,7 @@ copy_xattrs(struct archive_write_disk *a, int tmpfd, int dffd)
 	}
 	for (xattr_i = 0; xattr_i < xattr_size;
 	    xattr_i += strlen(xattr_names + xattr_i) + 1) {
+		char *xattr_val_saved;
 		ssize_t s;
 		int f;
 
@@ -3392,11 +3395,13 @@ copy_xattrs(struct archive_write_disk *a, int tmpfd, int dffd)
 			ret = ARCHIVE_WARN;
 			goto exit_xattr;
 		}
+		xattr_val_saved = xattr_val;
 		xattr_val = realloc(xattr_val, s);
 		if (xattr_val == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Failed to get metadata(xattr)");
 			ret = ARCHIVE_WARN;
+			free(xattr_val_saved);
 			goto exit_xattr;
 		}
 		s = fgetxattr(tmpfd, xattr_names + xattr_i, xattr_val, s, 0, 0);

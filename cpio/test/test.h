@@ -303,6 +303,8 @@ char *slurpfile(size_t *, const char *fmt, ...);
 
 /* Extracts named reference file to the current directory. */
 void extract_reference_file(const char *);
+/* Copies named reference file to the current directory. */
+void copy_reference_file(const char *);
 
 /* Path to working directory for current test */
 extern const char *testworkdir;

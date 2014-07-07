@@ -293,6 +293,7 @@ start_over:
 	/* and let future calls know about the content */
 	w->cntlen = cntlen;
 	w->cntoff = 0U;
+	mtime = 0;/* Avoid compiling error on some platform. */
 
 	switch (ftyp) {
 	case WT_RSRC:

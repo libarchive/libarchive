@@ -3192,9 +3192,8 @@ xml2_read_toc(struct archive_read *a)
 		case XML_READER_TYPE_ELEMENT:
 			empty = xmlTextReaderIsEmptyElement(reader);
 			r = xml2_xmlattr_setup(a, &list, reader);
-			if (r != ARCHIVE_OK)
-				return (r);
-			r = xml_start(a, name, &list);
+			if (r == ARCHIVE_OK)
+				r = xml_start(a, name, &list);
 			xmlattr_cleanup(&list);
 			if (r != ARCHIVE_OK)
 				return (r);

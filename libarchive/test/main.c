@@ -2231,6 +2231,29 @@ extract_reference_file(const char *name)
 	fclose(in);
 }
 
+void
+copy_reference_file(const char *name)
+{
+	char buff[1024];
+	FILE *in, *out;
+	size_t rbytes;
+
+	sprintf(buff, "%s/%s", refdir, name);
+	in = fopen(buff, "rb");
+	failure("Couldn't open reference file %s", buff);
+	assert(in != NULL);
+	if (in == NULL)
+		return;
+	/* Now, decode the rest and write it. */
+	/* Not a lot of error checking here; the input better be right. */
+	out = fopen(name, "wb");
+	while ((rbytes = fread(buff, 1, sizeof(buff), in)) > 0) {
+		fwrite(buff, 1, rbytes, out);
+	}
+	fclose(out);
+	fclose(in);
+}
+
 int
 is_LargeInode(const char *file)
 {
@@ -2289,7 +2312,7 @@ struct test_list_t tests[] = {
  * Summarize repeated failures in the just-completed test.
  */
 static void
-test_summarize(int failed, int skips)
+test_summarize(int failed, int skips_num)
 {
 	unsigned int i;
 
@@ -2299,7 +2322,7 @@ test_summarize(int failed, int skips)
 		fflush(stdout);
 		break;
 	case VERBOSITY_PASSFAIL:
-		printf(failed ? "FAIL\n" : skips ? "ok (S)\n" : "ok\n");
+		printf(failed ? "FAIL\n" : skips_num ? "ok (S)\n" : "ok\n");
 		break;
 	}
 

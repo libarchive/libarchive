@@ -68,6 +68,7 @@ SET(libarchive_SOURCES
   archive_read_support_filter_gzip.c
   archive_read_support_filter_grzip.c
   archive_read_support_filter_lrzip.c
+  archive_read_support_filter_lz4.c
   archive_read_support_filter_lzop.c
   archive_read_support_filter_none.c
   archive_read_support_filter_program.c
@@ -137,8 +138,11 @@ SET(libarchive_SOURCES
   archive_write_set_format_xar.c
   archive_write_set_format_zip.c
   archive_write_set_options.c
+  archive_xxhash.h
   filter_fork_posix.c
   filter_fork.h
+  xxhash.c
+  xxhash.h
 )
 
 # Man pages

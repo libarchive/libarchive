@@ -49,6 +49,7 @@ IF(ENABLE_TEST)
     test_compat_cpio.c
     test_compat_gtar.c
     test_compat_gzip.c
+    test_compat_lz4.c
     test_compat_lzip.c
     test_compat_lzma.c
     test_compat_lzop.c
@@ -58,6 +59,7 @@ IF(ENABLE_TEST)
     test_compat_solaris_tar_acl.c
     test_compat_tar_hardlink.c
     test_compat_uudecode.c
+    test_compat_uudecode_large.c
     test_compat_xz.c
     test_compat_zip.c
     test_empty_write.c
@@ -126,6 +128,7 @@ IF(ENABLE_TEST)
     test_read_format_isorr_rr_moved.c
     test_read_format_isozisofs_bz2.c
     test_read_format_lha.c
+    test_read_format_lha_bugfix_0.c
     test_read_format_lha_filename.c
     test_read_format_mtree.c
     test_read_format_pax_bz2.c
