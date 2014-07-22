@@ -1090,8 +1090,10 @@ test_restore_atime(void)
 	failure("There must be no entry");
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
 
-	failure("Atime should be restored");
-	assertFileAtimeRecent("at");
+	/* On FreeBSD (and likely other systems), atime on
+	   dirs does not change when it is read. */
+	/* failure("Atime should be restored"); */
+	/* assertFileAtimeRecent("at"); */
 	failure("Atime should be restored");
 	assertFileAtimeRecent("at/f1");
 	failure("Atime should be restored");
