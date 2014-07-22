@@ -1,5 +1,6 @@
 README for libarchive bundle.
-[![Build Status](https://travis-ci.org/renenglish/libarchive#)]
+
+[![Build Status](https://travis-ci.org/renenglish/libarchive.svg?branch=master)](https://travis-ci.org/renenglish/libarchive)
 
 Questions?  Issues?
    * http://www.libarchive.org is the home for ongoing
