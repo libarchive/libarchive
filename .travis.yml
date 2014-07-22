@@ -1,0 +1,3 @@
+language: c
+install: apt-get install cmake
+script: cmake && make && bin/libarchive_test
