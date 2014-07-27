@@ -532,32 +532,34 @@ bid_entry(const char *p, ssize_t len, ssize_t nl, int *last_is_path)
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* E0 - EF */
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* F0 - FF */
 	};
-	ssize_t ll = len;
+	ssize_t ll;
 	const char *pp = p;
+	const char * const pp_end = pp + len;
 
 	*last_is_path = 0;
 	/*
 	 * Skip the path-name which is quoted.
 	 */
-	while (ll > 0 && *pp != ' ' &&*pp != '\t' && *pp != '\r' &&
-	    *pp != '\n') {
+	for (;pp < pp_end; ++pp) {
 		if (!safe_char[*(const unsigned char *)pp]) {
-			f = 0;
+			if (*pp != ' ' && *pp != '\t' && *pp != '\r'
+			    && *pp != '\n')
+				f = 0;
 			break;
 		}
-		++pp;
-		--ll;
-		++f;
+		f = 1;
 	}
+	ll = pp_end - pp;
+
 	/* If a path-name was not found at the first, try to check
-	 * a mtree format ``NetBSD's mtree -D'' creates, which
-	 * places the path-name at the last. */
+	 * a mtree format(a.k.a form D) ``NetBSD's mtree -D'' creates,
+	 * which places the path-name at the last. */
 	if (f == 0) {
 		const char *pb = p + len - nl;
 		int name_len = 0;
 		int slash;
 
-		/* Do not accept multi lines for form D. */
+		/* The form D accepts only a single line for an entry. */
 		if (pb-2 >= p &&
 		    pb[-1] == '\\' && (pb[-2] == ' ' || pb[-2] == '\t'))
 			return (-1);
