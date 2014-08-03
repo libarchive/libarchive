@@ -1663,7 +1663,7 @@ parse_7zip_uint64(struct archive_read *a, uint64_t *val)
 			mask >>= 1;
 			continue;
 		}
-		*val += (avail & (mask -1)) << (8 * i);
+		*val += ((uint64_t)(avail & (mask -1))) << (8 * i);
 		break;
 	}
 	return (0);
