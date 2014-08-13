@@ -192,6 +192,7 @@ IF(ENABLE_TEST)
     test_write_filter_gzip.c
     test_write_filter_gzip_timestamp.c
     test_write_filter_lrzip.c
+    test_write_filter_lz4.c
     test_write_filter_lzip.c
     test_write_filter_lzma.c
     test_write_filter_lzop.c

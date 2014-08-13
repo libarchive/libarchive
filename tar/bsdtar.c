@@ -397,6 +397,7 @@ main(int argc, char **argv)
 			bsdtar->option_warn_links = 1;
 			break;
 		case OPTION_LRZIP:
+		case OPTION_LZ4:
 		case OPTION_LZIP: /* GNU tar beginning with 1.23 */
 		case OPTION_LZMA: /* GNU tar beginning with 1.20 */
 		case OPTION_LZOP: /* GNU tar beginning with 1.21 */
@@ -407,6 +408,7 @@ main(int argc, char **argv)
 			compression = opt;
 			switch (opt) {
 			case OPTION_LRZIP: compression_name = "lrzip"; break;
+			case OPTION_LZ4:  compression_name = "lz4"; break;
 			case OPTION_LZIP: compression_name = "lzip"; break; 
 			case OPTION_LZMA: compression_name = "lzma"; break; 
 			case OPTION_LZOP: compression_name = "lzop"; break; 

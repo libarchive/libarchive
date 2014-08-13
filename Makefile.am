@@ -195,6 +195,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_write_add_filter_grzip.c \
 	libarchive/archive_write_add_filter_gzip.c \
 	libarchive/archive_write_add_filter_lrzip.c \
+	libarchive/archive_write_add_filter_lz4.c \
 	libarchive/archive_write_add_filter_lzop.c \
 	libarchive/archive_write_add_filter_none.c \
 	libarchive/archive_write_add_filter_program.c \
@@ -492,6 +493,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_filter_gzip.c \
 	libarchive/test/test_write_filter_gzip_timestamp.c \
 	libarchive/test/test_write_filter_lrzip.c \
+	libarchive/test/test_write_filter_lz4.c \
 	libarchive/test/test_write_filter_lzip.c \
 	libarchive/test/test_write_filter_lzma.c \
 	libarchive/test/test_write_filter_lzop.c \
@@ -882,6 +884,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_option_k.c \
 	tar/test/test_option_keep_newer_files.c \
 	tar/test/test_option_lrzip.c \
+	tar/test/test_option_lz4.c \
 	tar/test/test_option_lzma.c \
 	tar/test/test_option_lzop.c \
 	tar/test/test_option_n.c \
@@ -1028,6 +1031,7 @@ bsdcpio_test_SOURCES= \
 	cpio/test/test_option_help.c \
 	cpio/test/test_option_l.c \
 	cpio/test/test_option_lrzip.c \
+	cpio/test/test_option_lz4.c \
 	cpio/test/test_option_lzma.c \
 	cpio/test/test_option_lzop.c \
 	cpio/test/test_option_m.c \

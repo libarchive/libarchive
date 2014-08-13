@@ -75,6 +75,7 @@ get_filter_code(const char *suffix)
 		{ ".grz",	"grzip" },
 		{ ".lrz",	"lrzip" },
 		{ ".lz",	"lzip" },
+		{ ".lz4",	"lz4" },
 		{ ".lzo",	"lzop" },
 		{ ".lzma",	"lzma" },
 		{ ".uu",	"uuencode" },

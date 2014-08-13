@@ -18,6 +18,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_extract_tar_gz.c
     test_extract_tar_lrz.c
     test_extract_tar_lz.c
+    test_extract_tar_lz4.c
     test_extract_tar_lzma.c
     test_extract_tar_lzo.c
     test_extract_tar_xz.c

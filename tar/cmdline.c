@@ -102,6 +102,7 @@ static const struct bsdtar_option {
 	{ "keep-old-files",       0, 'k' },
 	{ "list",                 0, 't' },
 	{ "lrzip",                0, OPTION_LRZIP },
+	{ "lz4",                  0, OPTION_LZ4 },
 	{ "lzip",                 0, OPTION_LZIP },
 	{ "lzma",                 0, OPTION_LZMA },
 	{ "lzop",                 0, OPTION_LZOP },

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 7, 2012
+.Dd August 14, 2014
 .Dt CPIO 1
 .Os
 .Sh NAME
@@ -181,6 +181,11 @@ instead of copying.
 Compress the resulting archive with
 .Xr lrzip 1 .
 In input mode, this option is ignored.
+.It Fl Fl lz4
+(o mode only)
+Compress the archive with lz4-compatible compression before writing it.
+In input mode, this option is ignored; lz4 compression is recognized
+automatically on input.
 .It Fl Fl lzma
 (o mode only)
 Compress the file with lzma-compatible compression before writing it.

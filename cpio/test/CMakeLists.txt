@@ -39,6 +39,7 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     test_option_help.c
     test_option_l.c
     test_option_lrzip.c
+    test_option_lz4.c
     test_option_lzma.c
     test_option_lzop.c
     test_option_m.c

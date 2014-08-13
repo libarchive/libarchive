@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2012 Michihiro NAKAJIMA
+ * Copyright (c) 2009-2012,2014 Michihiro NAKAJIMA
  * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
  *
@@ -53,6 +53,9 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_util.c 201098 2009-12-28 02:58:1
 #endif
 #ifdef HAVE_BZLIB_H
 #include <bzlib.h>
+#endif
+#ifdef HAVE_LZ4_H
+#include <lz4.h>
 #endif
 
 #include "archive.h"
@@ -113,7 +116,11 @@ archive_version_details(void)
 			archive_strncat(&str, p, sep - p);
 		}
 #endif
-	    }
+#if defined(HAVE_LZ4_H) && defined(HAVE_LIBLZ4)
+		archive_string_sprintf(&str, " liblz4/%d.%d.%d",
+		    LZ4_VERSION_MAJOR, LZ4_VERSION_MINOR, LZ4_VERSION_RELEASE);
+#endif
+	}
 	return str.s;
 }
 

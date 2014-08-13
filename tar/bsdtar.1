@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 1, 2012
+.Dd August 14, 2014
 .Dt TAR 1
 .Os
 .Sh NAME
@@ -318,6 +318,11 @@ Issue a warning message unless all links to each file are archived.
 Compress the resulting archive with
 .Xr lrzip 1 .
 In extract or list modes, this option is ignored.
+.It Fl Fl lz4
+(c mode only)
+Compress the archive with lz4-compatible compression before writing it.
+In input mode, this option is ignored; lz4 compression is recognized
+automatically on input.
 .It Fl Fl lzma
 (c mode only) Compress the resulting archive with the original LZMA algorithm.
 Use of this option is discouraged and new archives should be created with
@@ -498,6 +503,20 @@ Supported values are bzip2, gzip, lzo (ultra fast),
 and zpaq (best, extremely slow).
 .It Cm lrzip:compression-level
 A decimal integer from 1 to 9 specifying the lrzip compression level.
+.It Cm lz4:compression-level
+A decimal integer from 1 to 9 specifying the lzop compression level.
+.It Cm lz4:stream-checksum
+Enalbe stream checksum. This is by default, use
+.Cm lz4:!stream-checksum
+to disable.
+.It Cm lz4:block-checksum
+Enable block checksum (Disabled by default).
+.It Cm lz4:block-size
+A decimal integer from 4 to 7 specifying the lz4 compression block size
+(7 is set by default).
+.It Cm lz4:block-dependence
+Use the previous block of the block being compressed for
+a compression dictionary to improve compression ratio.
 .It Cm lzop:compression-level
 A decimal integer from 1 to 9 specifying the lzop compression level.
 .It Cm xz:compression-level
