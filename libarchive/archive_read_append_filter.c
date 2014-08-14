@@ -85,6 +85,10 @@ archive_read_append_filter(struct archive *_a, int code)
       strcpy(str, "rpm");
       r1 = archive_read_support_filter_rpm(_a);
       break;
+    case ARCHIVE_FILTER_LZ4:
+      strcpy(str, "lz4");
+      r1 = archive_read_support_filter_lz4(_a);
+      break;
     case ARCHIVE_FILTER_LZIP:
       strcpy(str, "lzip");
       r1 = archive_read_support_filter_lzip(_a);
