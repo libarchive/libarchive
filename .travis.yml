@@ -1,0 +1,8 @@
+language: c
+before_install:
+    - sudo apt-get update -qq
+install: 
+    - sudo apt-get install -y cmake 
+    - sudo apt-get install -y libbz2-dev libzip-dev liblzma-dev
+script: 
+    - cmake . && make && bin/libarchive_test
