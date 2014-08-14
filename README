@@ -88,6 +88,7 @@ The library also detects and handles any of the following before evaluating the 
   * compress/LZW compression
   * lzma, lzip, and xz compression
   * lz4 compression
+  * lzop compression
 
 The library can create archives in any of the following formats:
   * POSIX ustar
@@ -111,6 +112,8 @@ When creating archives, the result can be filtered with any of the following:
   * bzip2 compression
   * compress/LZW compression
   * lzma, lzip, and xz compression
+  * lz4 compression
+  * lzop compression
 
 Notes about the library architecture:
 
