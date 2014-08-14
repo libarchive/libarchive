@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2004-2013 Tim Kientzle
- * Copyright (c) 2011-2012 Michihiro NAKAJIMA
+ * Copyright (c) 2011-2012,2014 Michihiro NAKAJIMA
  * Copyright (c) 2013 Konrad Kleine
  * All rights reserved.
  *
@@ -123,7 +123,8 @@ struct zip {
 
 	/* Running CRC32 of the decompressed data */
 	unsigned long		entry_crc32;
-	unsigned long		(*crc32func)(unsigned long, const void *, size_t);
+	unsigned long		(*crc32func)(unsigned long, const void *,
+				    size_t);
 	char			ignore_crc32;
 
 	/* Flags to mark progress of decompression. */
@@ -181,33 +182,35 @@ static struct {
 	{3, "reduced-2"}, /* The file is Reduced with compression factor 2 */
 	{4, "reduced-3"}, /* The file is Reduced with compression factor 3 */
 	{5, "reduced-4"}, /* The file is Reduced with compression factor 4 */
-	{6, "imploded"}, /* The file is Imploded */
-	{7, "reserved"}, /* Reserved for Tokenizing compression algorithm */
+	{6, "imploded"},  /* The file is Imploded */
+	{7, "reserved"},  /* Reserved for Tokenizing compression algorithm */
 	{8, "deflation"}, /* The file is Deflated */
 	{9, "deflation-64-bit"}, /* Enhanced Deflating using Deflate64(tm) */
-	{10, "ibm-terse"}, /* PKWARE Data Compression Library Imploding (old IBM TERSE) */
+	{10, "ibm-terse"},/* PKWARE Data Compression Library Imploding
+			   * (old IBM TERSE) */
 	{11, "reserved"}, /* Reserved by PKWARE */
-	{12, "bzip"}, /* File is compressed using BZIP2 algorithm */
+	{12, "bzip"},     /* File is compressed using BZIP2 algorithm */
 	{13, "reserved"}, /* Reserved by PKWARE */
-	{14, "lzma"}, /* LZMA (EFS) */
+	{14, "lzma"},     /* LZMA (EFS) */
 	{15, "reserved"}, /* Reserved by PKWARE */
 	{16, "reserved"}, /* Reserved by PKWARE */
 	{17, "reserved"}, /* Reserved by PKWARE */
 	{18, "ibm-terse-new"}, /* File is compressed using IBM TERSE (new) */
-	{19, "ibm-lz777"}, /* IBM LZ77 z Architecture (PFS) */
+	{19, "ibm-lz777"},/* IBM LZ77 z Architecture (PFS) */
 	{97, "wav-pack"}, /* WavPack compressed data */
-	{98, "ppmd-1"} /* PPMd version I, Rev 1 */
+	{98, "ppmd-1"}    /* PPMd version I, Rev 1 */
 };
 
 static const char *
 compression_name(const int compression)
 {
-	static const int num_compression_methods = sizeof(compression_methods)/sizeof(compression_methods[0]);
+	static const int num_compression_methods =
+		sizeof(compression_methods)/sizeof(compression_methods[0]);
 	int i=0;
+
 	while(compression >= 0 && i < num_compression_methods) {
-		if (compression_methods[i].id == compression) {
+		if (compression_methods[i].id == compression)
 			return compression_methods[i].name;
-		}
 		i++;
 	}
 	return "??";
@@ -244,10 +247,10 @@ process_extra(const char *p, size_t extra_length, struct zip_entry* zip_entry)
 {
 	unsigned offset = 0;
 
-	while (offset < extra_length - 4)
-	{
+	while (offset < extra_length - 4) {
 		unsigned short headerid = archive_le16dec(p + offset);
 		unsigned short datasize = archive_le16dec(p + offset + 2);
+
 		offset += 4;
 		if (offset + datasize > extra_length)
 			break;
@@ -812,13 +815,17 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 			|| zip->ignore_crc32)) {
 			if (zip->entry->flags & LA_USED_ZIP64) {
 				zip->entry->crc32 = archive_le32dec(p + 4);
-				zip->entry->compressed_size = archive_le64dec(p + 8);
-				zip->entry->uncompressed_size = archive_le64dec(p + 16);
+				zip->entry->compressed_size =
+					archive_le64dec(p + 8);
+				zip->entry->uncompressed_size =
+					archive_le64dec(p + 16);
 				zip->unconsumed = 24;
 			} else {
 				zip->entry->crc32 = archive_le32dec(p + 4);
-				zip->entry->compressed_size = archive_le32dec(p + 8);
-				zip->entry->uncompressed_size = archive_le32dec(p + 12);
+				zip->entry->compressed_size =
+					archive_le32dec(p + 8);
+				zip->entry->uncompressed_size =
+					archive_le32dec(p + 12);
 				zip->unconsumed = 16;
 			}
 			zip->end_of_entry = 1;
@@ -1017,7 +1024,8 @@ archive_read_format_zip_read_data(struct archive_read *a,
 	int r;
 	struct zip *zip = (struct zip *)(a->format->data);
 
-	if (zip->has_encrypted_entries == ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW) {
+	if (zip->has_encrypted_entries ==
+			ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW) {
 		zip->has_encrypted_entries = 0;
 	}
 
@@ -1213,7 +1221,8 @@ static int
 archive_read_support_format_zip_capabilities_streamable(struct archive_read * a)
 {
 	(void)a; /* UNUSED */
-	return (ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_DATA | ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA);
+	return (ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_DATA |
+		ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA);
 }
 
 static int
@@ -1271,9 +1280,9 @@ archive_read_format_zip_streamable_read_header(struct archive_read *a,
 	 * archive_read_data(), so be it. We'll do the same check there
 	 * as well.
 	 */
-	if (zip->has_encrypted_entries == ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW) {
+	if (zip->has_encrypted_entries ==
+			ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW)
 		zip->has_encrypted_entries = 0;
-	}
 
 	/* Make sure we have a zip_entry structure to use. */
 	if (zip->zip_entries == NULL) {
@@ -1359,7 +1368,8 @@ archive_read_format_zip_read_data_skip_streamable(struct archive_read *a)
 	if (0 == (zip->entry->zip_flags & ZIP_LENGTH_AT_END)
 	    || zip->entry->compressed_size > 0) {
 		/* We know the compressed length, so we can just skip. */
-		bytes_skipped = __archive_read_consume(a, zip->entry_bytes_remaining);
+		bytes_skipped = __archive_read_consume(a,
+					zip->entry_bytes_remaining);
 		if (bytes_skipped < 0)
 			return (ARCHIVE_FATAL);
 		return (ARCHIVE_OK);
@@ -1402,9 +1412,11 @@ archive_read_format_zip_read_data_skip_streamable(struct archive_read *a)
 				else if (p[3] == '\010' && p[2] == '\007'
 				    && p[1] == 'K' && p[0] == 'P') {
 					if (zip->entry->flags & LA_USED_ZIP64)
-						__archive_read_consume(a, p - buff + 24);
+						__archive_read_consume(a,
+						    p - buff + 24);
 					else
-						__archive_read_consume(a, p - buff + 16);
+						__archive_read_consume(a,
+						    p - buff + 16);
 					return ARCHIVE_OK;
 				} else { p += 4; }
 			}
@@ -1469,7 +1481,8 @@ static int
 archive_read_support_format_zip_capabilities_seekable(struct archive_read * a)
 {
 	(void)a; /* UNUSED */
-	return (ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_DATA | ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA);
+	return (ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_DATA |
+		ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA);
 }
 
 /*
@@ -1590,7 +1603,8 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 		case 005: i += 1; break;
 		case 006:
 			if (memcmp(p + i, "PK\005\006", 4) == 0) {
-				int ret = read_eocd(zip, p + i, current_offset + i);
+				int ret = read_eocd(zip, p + i,
+						current_offset + i);
 				if (ret > 0)
 					return (ret);
 			}
@@ -1756,7 +1770,8 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 		}
 		__archive_read_consume(a, i);
 	}
-	correction = archive_filter_bytes(&a->archive, 0) - zip->central_directory_offset;
+	correction = archive_filter_bytes(&a->archive, 0)
+			- zip->central_directory_offset;
 
 	__archive_rb_tree_init(&zip->tree, &rb_ops);
 	__archive_rb_tree_init(&zip->tree_rsrc, &rb_rsrc_ops);
@@ -1791,7 +1806,8 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 		zip_entry->system = p[5];
 		/* version_required = archive_le16dec(p + 6); */
 		zip_entry->zip_flags = archive_le16dec(p + 8);
-		if (zip_entry->zip_flags & (ZIP_ENCRYPTED | ZIP_STRONG_ENCRYPTED)){
+		if (zip_entry->zip_flags
+		      & (ZIP_ENCRYPTED | ZIP_STRONG_ENCRYPTED)){
 			zip->has_encrypted_entries = 1;
 		}
 		zip_entry->compression = (char)archive_le16dec(p + 10);
@@ -1819,9 +1835,11 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 		/* We're done with the regular data; get the filename and
 		 * extra data. */
 		__archive_read_consume(a, 46);
-		if ((p = __archive_read_ahead(a, filename_length + extra_length, NULL))
-		    == NULL) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		p = __archive_read_ahead(a, filename_length + extra_length,
+			NULL);
+		if (p == NULL) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Truncated ZIP file header");
 			return ARCHIVE_FATAL;
 		}
@@ -1846,26 +1864,30 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 				 * resource fork file to expose it. */
 				if (name[filename_length-1] != '/' &&
 				    (r - name < 3 || r[0] != '.' || r[1] != '_')) {
-					__archive_rb_tree_insert_node(&zip->tree,
-					    &zip_entry->node);
+					__archive_rb_tree_insert_node(
+					    &zip->tree, &zip_entry->node);
 					/* Expose its parent directories. */
-					expose_parent_dirs(zip, name, filename_length);
+					expose_parent_dirs(zip, name,
+					    filename_length);
 				} else {
 					/* This file is a resource fork file or
 					 * a directory. */
-					archive_strncpy(&(zip_entry->rsrcname), name,
-					    filename_length);
-					__archive_rb_tree_insert_node(&zip->tree_rsrc,
-					    &zip_entry->node);
+					archive_strncpy(&(zip_entry->rsrcname),
+					     name, filename_length);
+					__archive_rb_tree_insert_node(
+					    &zip->tree_rsrc, &zip_entry->node);
 				}
 			} else {
-				/* Generate resource fork name to find its resource
-				 * file at zip->tree_rsrc. */
-				archive_strcpy(&(zip_entry->rsrcname), "__MACOSX/");
-				archive_strncat(&(zip_entry->rsrcname), name, r - name);
+				/* Generate resource fork name to find its
+				 * resource file at zip->tree_rsrc. */
+				archive_strcpy(&(zip_entry->rsrcname),
+				    "__MACOSX/");
+				archive_strncat(&(zip_entry->rsrcname),
+				    name, r - name);
 				archive_strcat(&(zip_entry->rsrcname), "._");
 				archive_strncat(&(zip_entry->rsrcname),
-				    name + (r - name), filename_length - (r - name));
+				    name + (r - name),
+				    filename_length - (r - name));
 				/* Register an entry to RB tree to sort it by
 				 * file offset. */
 				__archive_rb_tree_insert_node(&zip->tree,
@@ -2056,9 +2078,9 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 	 * archive_read_data(), so be it. We'll do the same check there
 	 * as well.
 	 */
-	if (zip->has_encrypted_entries == ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW) {
+	if (zip->has_encrypted_entries ==
+			ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW)
 		zip->has_encrypted_entries = 0;
-	}
 
 	a->archive.archive_format = ARCHIVE_FORMAT_ZIP;
 	if (a->archive.archive_format_name == NULL)
@@ -2095,7 +2117,8 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 		__archive_read_consume(a,
 		    zip->entry->local_header_offset - offset);
 	else if (offset != zip->entry->local_header_offset) {
-		__archive_read_seek(a, zip->entry->local_header_offset, SEEK_SET);
+		__archive_read_seek(a, zip->entry->local_header_offset,
+		    SEEK_SET);
 	}
 	zip->unconsumed = 0;
 	r = zip_read_local_file_header(a, entry, zip);
