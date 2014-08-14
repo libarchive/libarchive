@@ -368,7 +368,11 @@ archive_filter_lz4_free(struct archive_write_filter *f)
 
 	if (data->lz4_stream != NULL) {
 		if (data->compression_level < 3)
+#if LZ4_VERSION_MINOR >= 3
+			LZ4_freeStream(data->lz4_stream);
+#else
 			LZ4_free(data->lz4_stream);
+#endif
 		else
 			LZ4_freeHC(data->lz4_stream);
 	}
