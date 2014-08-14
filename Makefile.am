@@ -223,8 +223,7 @@ libarchive_la_SOURCES= \
 	libarchive/config_freebsd.h \
 	libarchive/filter_fork_posix.c \
 	libarchive/filter_fork.h \
-	libarchive/xxhash.c \
-	libarchive/xxhash.h
+	libarchive/xxhash.c
 
 if INC_WINDOWS_FILES
 libarchive_la_SOURCES+= \
