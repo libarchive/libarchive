@@ -43,7 +43,7 @@ archive_read_append_filter(struct archive *_a, int code)
   struct archive_read_filter *filter;
   struct archive_read *a = (struct archive_read *)_a;
 
-  r1 = r2 = (ARCHIVE_OK);
+  r2 = (ARCHIVE_OK);
   switch (code)
   {
     case ARCHIVE_FILTER_NONE:
