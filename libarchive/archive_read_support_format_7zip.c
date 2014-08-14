@@ -640,7 +640,7 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 	}
 	zip_entry = zip->entry;
 
-	if (zip->entries_remaining <= 0)
+	if (zip->entries_remaining <= 0 || zip_entry == NULL)
 		return ARCHIVE_EOF;
 	--zip->entries_remaining;
 
