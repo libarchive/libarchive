@@ -27,9 +27,9 @@ __FBSDID("$FreeBSD");
 
 #include <locale.h>
 
-static void
-test_read_format_cpio_filename_eucJP_UTF8(const char *refname)
+DEFINE_TEST(test_read_format_cpio_filename_eucJP_UTF8)
 {
+	const char *refname = "test_read_format_cpio_filename_eucjp.cpio";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -40,6 +40,7 @@ test_read_format_cpio_filename_eucJP_UTF8(const char *refname)
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -81,9 +82,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_cpio_filename_UTF8_eucJP(const char *refname)
+DEFINE_TEST(test_read_format_cpio_filename_UTF8_eucJP)
 {
+	const char *refname = "test_read_format_cpio_filename_utf8_jp.cpio";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -94,6 +95,8 @@ test_read_format_cpio_filename_UTF8_eucJP(const char *refname)
 		skipping("ja_JP.eucJP locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
+
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -132,9 +135,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_cpio_filename_UTF8_UTF8_jp(const char *refname)
+DEFINE_TEST(test_read_format_cpio_filename_UTF8_UTF8_jp)
 {
+	const char *refname = "test_read_format_cpio_filename_utf8_jp.cpio";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -145,6 +148,7 @@ test_read_format_cpio_filename_UTF8_UTF8_jp(const char *refname)
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -178,9 +182,9 @@ test_read_format_cpio_filename_UTF8_UTF8_jp(const char *refname)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_cpio_filename_CP866_KOI8R(const char *refname)
+DEFINE_TEST(test_read_format_cpio_filename_CP866_KOI8R)
 {
+	const char *refname = "test_read_format_cpio_filename_cp866.cpio";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -192,6 +196,7 @@ test_read_format_cpio_filename_CP866_KOI8R(const char *refname)
 		skipping("ru_RU.KOI8-R locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -230,9 +235,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_cpio_filename_CP866_UTF8(const char *refname)
+DEFINE_TEST(test_read_format_cpio_filename_CP866_UTF8)
 {
+	const char *refname = "test_read_format_cpio_filename_cp866.cpio";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -243,6 +248,7 @@ test_read_format_cpio_filename_CP866_UTF8(const char *refname)
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -281,9 +287,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_cpio_filename_KOI8R_CP866(const char *refname)
+DEFINE_TEST(test_read_format_cpio_filename_KOI8R_CP866)
 {
+	const char *refname = "test_read_format_cpio_filename_koi8r.cpio";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -295,6 +301,7 @@ test_read_format_cpio_filename_KOI8R_CP866(const char *refname)
 		skipping("ru_RU.CP866 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -333,9 +340,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_cpio_filename_KOI8R_UTF8(const char *refname)
+DEFINE_TEST(test_read_format_cpio_filename_KOI8R_UTF8)
 {
+	const char *refname = "test_read_format_cpio_filename_koi8r.cpio";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -346,6 +353,7 @@ test_read_format_cpio_filename_KOI8R_UTF8(const char *refname)
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -384,9 +392,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_cpio_filename_UTF8_KOI8R(const char *refname)
+DEFINE_TEST(test_read_format_cpio_filename_UTF8_KOI8R)
 {
+	const char *refname = "test_read_format_cpio_filename_utf8_ru.cpio";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -398,6 +406,7 @@ test_read_format_cpio_filename_UTF8_KOI8R(const char *refname)
 		skipping("ru_RU.KOI8-R locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -436,9 +445,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_cpio_filename_UTF8_CP866(const char *refname)
+DEFINE_TEST(test_read_format_cpio_filename_UTF8_CP866)
 {
+	const char *refname = "test_read_format_cpio_filename_utf8_ru.cpio";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -450,6 +459,7 @@ test_read_format_cpio_filename_UTF8_CP866(const char *refname)
 		skipping("ru_RU.CP866 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -488,9 +498,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_cpio_filename_UTF8_UTF8_ru(const char *refname)
+DEFINE_TEST(test_read_format_cpio_filename_UTF8_UTF8_ru)
 {
+	const char *refname = "test_read_format_cpio_filename_utf8_ru.cpio";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -501,6 +511,7 @@ test_read_format_cpio_filename_UTF8_UTF8_ru(const char *refname)
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -533,9 +544,9 @@ test_read_format_cpio_filename_UTF8_UTF8_ru(const char *refname)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_cpio_filename_eucJP_CP932(const char *refname)
+DEFINE_TEST(test_read_format_cpio_filename_eucJP_CP932)
 {
+	const char *refname = "test_read_format_cpio_filename_eucjp.cpio";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -547,6 +558,7 @@ test_read_format_cpio_filename_eucJP_CP932(const char *refname)
 		skipping("CP932 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -583,9 +595,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_cpio_filename_UTF8_CP932(const char *refname)
+DEFINE_TEST(test_read_format_cpio_filename_UTF8_CP932)
 {
+	const char *refname = "test_read_format_cpio_filename_utf8_jp.cpio";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -597,6 +609,7 @@ test_read_format_cpio_filename_UTF8_CP932(const char *refname)
 		skipping("CP932 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -634,9 +647,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_cpio_filename_CP866_CP1251(const char *refname)
+DEFINE_TEST(test_read_format_cpio_filename_CP866_CP1251)
 {
+	const char *refname = "test_read_format_cpio_filename_cp866.cpio";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -648,6 +661,7 @@ test_read_format_cpio_filename_CP866_CP1251(const char *refname)
 		skipping("CP1251 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -692,9 +706,9 @@ cleanup:
  * filenames and store it in the cpio file and so we should read
  * it by default on Windows.
  */
-static void
-test_read_format_cpio_filename_CP866_CP1251_win(const char *refname)
+DEFINE_TEST(test_read_format_cpio_filename_CP866_CP1251_win)
 {
+	const char *refname = "test_read_format_cpio_filename_cp866.cpio";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -705,6 +719,7 @@ test_read_format_cpio_filename_CP866_CP1251_win(const char *refname)
 		skipping("Russian_Russia locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -737,9 +752,9 @@ test_read_format_cpio_filename_CP866_CP1251_win(const char *refname)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_cpio_filename_KOI8R_CP1251(const char *refname)
+DEFINE_TEST(test_read_format_cpio_filename_KOI8R_CP1251)
 {
+	const char *refname = "test_read_format_cpio_filename_koi8r.cpio";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -751,6 +766,7 @@ test_read_format_cpio_filename_KOI8R_CP1251(const char *refname)
 		skipping("CP1251 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -789,9 +805,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_cpio_filename_UTF8_CP1251(const char *refname)
+DEFINE_TEST(test_read_format_cpio_filename_UTF8_CP1251)
 {
+	const char *refname = "test_read_format_cpio_filename_utf8_ru.cpio";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -803,6 +819,7 @@ test_read_format_cpio_filename_UTF8_CP1251(const char *refname)
 		skipping("CP1251 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -841,38 +858,3 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-
-DEFINE_TEST(test_read_format_cpio_filename)
-{
-	const char *refname1 = "test_read_format_cpio_filename_eucjp.cpio";
-	const char *refname2 = "test_read_format_cpio_filename_utf8_jp.cpio";
-	const char *refname3 = "test_read_format_cpio_filename_cp866.cpio";
-	const char *refname4 = "test_read_format_cpio_filename_koi8r.cpio";
-	const char *refname5 = "test_read_format_cpio_filename_utf8_ru.cpio";
-
-	extract_reference_file(refname1);
-	test_read_format_cpio_filename_eucJP_UTF8(refname1);
-	test_read_format_cpio_filename_eucJP_CP932(refname1);
-
-	extract_reference_file(refname2);
-	test_read_format_cpio_filename_UTF8_eucJP(refname2);
-	test_read_format_cpio_filename_UTF8_UTF8_jp(refname2);
-	test_read_format_cpio_filename_UTF8_CP932(refname2);
-
-	extract_reference_file(refname3);
-	test_read_format_cpio_filename_CP866_KOI8R(refname3);
-	test_read_format_cpio_filename_CP866_UTF8(refname3);
-	test_read_format_cpio_filename_CP866_CP1251(refname3);
-	test_read_format_cpio_filename_CP866_CP1251_win(refname3);
-
-	extract_reference_file(refname4);
-	test_read_format_cpio_filename_KOI8R_CP866(refname4);
-	test_read_format_cpio_filename_KOI8R_UTF8(refname4);
-	test_read_format_cpio_filename_KOI8R_CP1251(refname4);
-
-	extract_reference_file(refname5);
-	test_read_format_cpio_filename_UTF8_KOI8R(refname5);
-	test_read_format_cpio_filename_UTF8_CP866(refname5);
-	test_read_format_cpio_filename_UTF8_UTF8_ru(refname5);
-	test_read_format_cpio_filename_UTF8_CP1251(refname5);
-}
