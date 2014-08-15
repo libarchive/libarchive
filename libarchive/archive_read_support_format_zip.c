@@ -82,6 +82,11 @@ struct zip_entry {
 	unsigned char		compression;
 	unsigned char		system; /* From "version written by" */
 	unsigned char		flags; /* Our extra markers. */
+	unsigned char		decdat;/* Used for Decryption check */
+};
+
+struct trad_enc_ctx {
+	uint32_t	keys[3];
 };
 
 /* Bits used in zip_flags. */
@@ -143,12 +148,80 @@ struct zip {
 	struct archive_string_conv *sconv_utf8;
 	int			init_default_conversion;
 	int			process_mac_extensions;
+
+	struct archive_string	password;
+	struct trad_enc_ctx	tctx;
+	char			tctx_valid;
+	unsigned char 		*decrypted_buffer;
+	size_t 			decrypted_buffer_size;
+	size_t 			decrypted_bytes_remaining;
 };
 
 /* Many systems define min or MIN, but not all. */
 #define	zipmin(a,b) ((a) < (b) ? (a) : (b))
 
 /* ------------------------------------------------------------------------ */
+
+/*
+  Traditional PKWARE Decryption functions.
+ */
+
+static void
+trad_enc_update_keys(struct trad_enc_ctx *ctx, uint8_t c)
+{
+	uint8_t t;
+#define CRC32(c, b) (crc32(c ^ 0xffffffffUL, &b, 1) ^ 0xffffffffUL)
+
+	ctx->keys[0] = CRC32(ctx->keys[0], c);
+	ctx->keys[1] = (ctx->keys[1] + (ctx->keys[0] & 0xff)) * 134775813L + 1;
+	t = (ctx->keys[1] >> 24) & 0xff;
+	ctx->keys[2] = CRC32(ctx->keys[2], t);
+#undef CRC32
+}
+
+static void
+trad_enc_init(struct trad_enc_ctx *ctx, const char *p, size_t l)
+{
+	ctx->keys[0] = 305419896L;
+	ctx->keys[1] = 591751049L;
+	ctx->keys[2] = 878082192L;
+
+	for (;l; --l)
+		trad_enc_update_keys(ctx, *p++);
+}
+
+static uint8_t
+trad_enc_decypt_byte(struct trad_enc_ctx *ctx)
+{
+	unsigned temp = ctx->keys[2] | 2;
+	return (uint8_t)((temp * (temp ^ 1)) >> 8) & 0xff;
+}
+
+static void
+trad_enc_decrypt(struct trad_enc_ctx *ctx, uint8_t *p, size_t l)
+{
+
+	for (; l; --l) {
+		uint8_t t = *p ^ trad_enc_decypt_byte(ctx);
+		*p++ = t;
+		trad_enc_update_keys(ctx, t);
+	}
+}
+
+static unsigned int
+trad_enc_read_encyption_header(struct trad_enc_ctx *ctx, const uint8_t *p,
+    size_t l)
+{
+	uint8_t header[12];
+
+	if (l < 12)
+		return -1;
+
+	memcpy(header, p, 12);
+	trad_enc_decrypt(ctx, header, 12);
+	/* Return the last byte for CRC check. */
+	return header[11];
+}
 
 /*
  * Common code for streaming or seeking modes.
@@ -546,6 +619,10 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	zip_entry->compression = (char)archive_le16dec(p + 8);
 	zip_entry->mtime = zip_time(p + 10);
 	zip_entry->crc32 = archive_le32dec(p + 14);
+	if (zip_entry->zip_flags & ZIP_LENGTH_AT_END)
+		zip_entry->decdat = p[11];
+	else
+		zip_entry->decdat = p[17];
 	zip_entry->compressed_size = archive_le32dec(p + 18);
 	zip_entry->uncompressed_size = archive_le32dec(p + 22);
 	filename_length = archive_le16dec(p + 26);
@@ -864,6 +941,16 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 		if (bytes_avail > zip->entry_bytes_remaining)
 			bytes_avail = (ssize_t)zip->entry_bytes_remaining;
 	}
+	if (zip->tctx_valid) {
+		size_t dec_size = bytes_avail;
+
+		if (dec_size > zip->decrypted_buffer_size)
+			dec_size = zip->decrypted_buffer_size;
+		memcpy(zip->decrypted_buffer, buff, dec_size);
+		trad_enc_decrypt(&zip->tctx, zip->decrypted_buffer, dec_size);
+		bytes_avail = dec_size;
+		buff = (const char *)zip->decrypted_buffer;
+	}
 	*size = bytes_avail;
 	zip->entry_bytes_remaining -= bytes_avail;
 	zip->entry_uncompressed_bytes_read += bytes_avail;
@@ -945,6 +1032,27 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 		return (ARCHIVE_FATAL);
 	}
 
+	if (zip->tctx_valid) {
+		size_t buff_remaining =
+		    zip->decrypted_buffer_size - zip->decrypted_bytes_remaining;
+
+		if (buff_remaining > (size_t)bytes_avail)
+			buff_remaining = (size_t)bytes_avail;
+		if ((int64_t)(zip->decrypted_bytes_remaining + buff_remaining)
+			> zip->entry_bytes_remaining)
+			buff_remaining = zip->entry_bytes_remaining
+			    - zip->decrypted_bytes_remaining;
+		memcpy(zip->decrypted_buffer + zip->decrypted_bytes_remaining,
+		    compressed_buff, buff_remaining);
+		__archive_read_consume(a, buff_remaining);
+		trad_enc_decrypt(&zip->tctx,
+		    zip->decrypted_buffer + zip->decrypted_bytes_remaining,
+		    buff_remaining);
+		zip->decrypted_bytes_remaining += buff_remaining;
+		bytes_avail = zip->decrypted_bytes_remaining;
+		compressed_buff = (const char *)zip->decrypted_buffer;
+	}
+
 	/*
 	 * A bug in zlib.h: stream.next_in should be marked 'const'
 	 * but isn't (the library never alters data through the
@@ -977,7 +1085,10 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 
 	/* Consume as much as the compressor actually used. */
 	bytes_avail = zip->stream.total_in;
-	__archive_read_consume(a, bytes_avail);
+	if (zip->tctx_valid)
+		zip->decrypted_bytes_remaining -= bytes_avail;
+	else
+		__archive_read_consume(a, bytes_avail);
 	zip->entry_bytes_remaining -= bytes_avail;
 	zip->entry_compressed_bytes_read += bytes_avail;
 
@@ -1041,15 +1152,72 @@ archive_read_format_zip_read_data(struct archive_read *a,
 	if (AE_IFREG != (zip->entry->mode & AE_IFMT))
 		return (ARCHIVE_EOF);
 
-	if (zip->entry->zip_flags & (ZIP_ENCRYPTED | ZIP_STRONG_ENCRYPTED)) {
-		zip->has_encrypted_entries = 1;
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Encrypted file is unsupported");
-		return (ARCHIVE_FAILED);
-	}
-
 	__archive_read_consume(a, zip->unconsumed);
 	zip->unconsumed = 0;
+
+	if (!zip->tctx_valid &&
+	    zip->entry->zip_flags & (ZIP_ENCRYPTED | ZIP_STRONG_ENCRYPTED)) {
+		zip->has_encrypted_entries = 1;
+		if (zip->entry->zip_flags & ZIP_STRONG_ENCRYPTED) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Encrypted file is unsupported");
+			return (ARCHIVE_FAILED);
+		} else if (archive_strlen(&zip->password) == 0) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_MISC,
+			    "This is encrypted file and passowrd is needed");
+			return (ARCHIVE_FAILED);
+		}
+
+		/*
+		 * Initialize ctx for Traditional PKWARE Decyption.
+		 */
+		if (!zip->tctx_valid) {
+			const void *p;
+			unsigned int crcchk;
+
+			trad_enc_init(&zip->tctx, zip->password.s,
+			    archive_strlen(&zip->password));
+
+			/*
+			   Read the 12 bytes encryption header stored at
+			   the start of the data area.
+			 */
+#define ENC_HEADER_SIZE	12
+			p = __archive_read_ahead(a, ENC_HEADER_SIZE, NULL);
+			if (p == NULL) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Truncated ZIP file data");
+				return (ARCHIVE_FATAL);
+			}
+			crcchk = trad_enc_read_encyption_header(&zip->tctx, p,
+			    ENC_HEADER_SIZE);
+			if (crcchk != zip->entry->decdat) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC, "Incorrect passowrd");
+				return (ARCHIVE_FAILED);
+			}
+			__archive_read_consume(a, ENC_HEADER_SIZE);
+			zip->tctx_valid = 1;
+			zip->entry_bytes_remaining -= ENC_HEADER_SIZE;
+			//zip->entry_uncompressed_bytes_read += ENC_HEADER_SIZE;
+			zip->entry_compressed_bytes_read += ENC_HEADER_SIZE;
+			if (zip->decrypted_buffer == NULL) {
+				size_t bs = 256 * 1024;
+				zip->decrypted_buffer_size = bs;
+				zip->decrypted_buffer = malloc(bs);
+				if (zip->decrypted_buffer == NULL) {
+					archive_set_error(&a->archive, ENOMEM,
+					    "No memory for ZIP decryption");
+					return (ARCHIVE_FATAL);
+				}
+			}
+			zip->decrypted_bytes_remaining = 0;
+#undef ENC_HEADER_SIZE
+		}
+	}
 
 	switch(zip->entry->compression) {
 	case 0:  /* No compression. */
@@ -1134,6 +1302,8 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 			zip_entry = next_zip_entry;
 		}
 	}
+	archive_string_free(&zip->password);
+	free(zip->decrypted_buffer);
 	free(zip);
 	(a->format->data) = NULL;
 	return (ARCHIVE_OK);
@@ -1191,6 +1361,12 @@ archive_read_format_zip_options(struct archive_read *a,
 		return (ARCHIVE_OK);
 	} else if (strcmp(key, "mac-ext") == 0) {
 		zip->process_mac_extensions = (val != NULL && val[0] != 0);
+		return (ARCHIVE_OK);
+	} else if (strcmp(key, "password") == 0) {
+		if (val != NULL)
+			archive_strcpy(&zip->password, val);
+		else
+			archive_string_empty(&zip->password);
 		return (ARCHIVE_OK);
 	}
 
@@ -1295,6 +1471,7 @@ archive_read_format_zip_streamable_read_header(struct archive_read *a,
 	}
 	zip->entry = zip->zip_entries;
 	memset(zip->entry, 0, sizeof(struct zip_entry));
+	zip->tctx_valid = 0;
 
 	/* Search ahead for the next local file header. */
 	__archive_read_consume(a, zip->unconsumed);
@@ -1435,13 +1612,12 @@ archive_read_support_format_zip_streamable(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_zip");
 
-	zip = (struct zip *)malloc(sizeof(*zip));
+	zip = (struct zip *)calloc(1, sizeof(*zip));
 	if (zip == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate zip data");
 		return (ARCHIVE_FATAL);
 	}
-	memset(zip, 0, sizeof(*zip));
 
 	/* Streamable reader doesn't support mac extensions. */
 	zip->process_mac_extensions = 0;
@@ -1813,6 +1989,10 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 		zip_entry->compression = (char)archive_le16dec(p + 10);
 		zip_entry->mtime = zip_time(p + 12);
 		zip_entry->crc32 = archive_le32dec(p + 16);
+		if (zip_entry->zip_flags & ZIP_LENGTH_AT_END)
+			zip_entry->decdat = p[13];
+		else
+			zip_entry->decdat = p[19];
 		zip_entry->compressed_size = archive_le32dec(p + 20);
 		zip_entry->uncompressed_size = archive_le32dec(p + 24);
 		filename_length = archive_le16dec(p + 28);
@@ -2109,6 +2289,8 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 	else
 		rsrc = NULL;
 
+	zip->tctx_valid = 0;
+
 	/* File entries are sorted by the header offset, we should mostly
 	 * use __archive_read_consume to advance a read point to avoid redundant
 	 * data reading.  */
@@ -2156,13 +2338,12 @@ archive_read_support_format_zip_seekable(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_zip_seekable");
 
-	zip = (struct zip *)malloc(sizeof(*zip));
+	zip = (struct zip *)calloc(1, sizeof(*zip));
 	if (zip == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate zip data");
 		return (ARCHIVE_FATAL);
 	}
-	memset(zip, 0, sizeof(*zip));
 
 #ifdef HAVE_COPYFILE_H
 	/* Set this by default on Mac OS. */
