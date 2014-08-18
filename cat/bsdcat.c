@@ -62,6 +62,7 @@ bsdcat_next()
 {
 	a = archive_read_new();
 	archive_read_support_filter_all(a);
+	archive_read_support_format_empty(a);
 	archive_read_support_format_raw(a);
 }
 
@@ -76,10 +77,20 @@ bsdcat_print_error(void)
 void
 bsdcat_read_to_stdout(char* filename)
 {
-	if ((archive_read_open_filename(a, filename, BYTES_PER_BLOCK) != ARCHIVE_OK)
-	    || (archive_read_next_header(a, &ae) != ARCHIVE_OK)
-	    || (archive_read_data_into_fd(a, 1) != ARCHIVE_OK))
+	int r;
+
+	if (archive_read_open_filename(a, filename, BYTES_PER_BLOCK) != ARCHIVE_OK)
+		goto err;
+	else if (r = archive_read_next_header(a, &ae),
+		 r != ARCHIVE_OK && r != ARCHIVE_EOF)
+		goto err;
+	else if (r == ARCHIVE_EOF)
+		/* for empty payloads don't try and read data */
+		;
+	else if (archive_read_data_into_fd(a, 1) != ARCHIVE_OK) {
+	err:
 		bsdcat_print_error();
+	}
 	if (archive_read_free(a) != ARCHIVE_OK)
 		bsdcat_print_error();
 }
