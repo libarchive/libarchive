@@ -41,6 +41,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_option_k.c
     test_option_keep_newer_files.c
     test_option_lrzip.c
+    test_option_lz4.c
     test_option_lzma.c
     test_option_lzop.c
     test_option_n.c

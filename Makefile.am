@@ -861,6 +861,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_extract_tar_gz.c \
 	tar/test/test_extract_tar_lrz.c \
 	tar/test/test_extract_tar_lz.c \
+	tar/test/test_extract_tar_lz4.c \
 	tar/test/test_extract_tar_lzma.c \
 	tar/test/test_extract_tar_lzo.c \
 	tar/test/test_extract_tar_xz.c \
@@ -930,6 +931,7 @@ bsdtar_test_EXTRA_DIST= \
 	tar/test/test_extract.tar.gz.uu \
 	tar/test/test_extract.tar.lrz.uu \
 	tar/test/test_extract.tar.lz.uu \
+	tar/test/test_extract.tar.lz4.uu \
 	tar/test/test_extract.tar.lzma.uu \
 	tar/test/test_extract.tar.lzo.uu \
 	tar/test/test_extract.tar.xz.uu \
@@ -1010,6 +1012,7 @@ bsdcpio_test_SOURCES= \
 	cpio/test/test_extract_cpio_gz.c \
 	cpio/test/test_extract_cpio_lrz.c \
 	cpio/test/test_extract_cpio_lz.c \
+	cpio/test/test_extract_cpio_lz4.c \
 	cpio/test/test_extract_cpio_lzma.c \
 	cpio/test/test_extract_cpio_lzo.c \
 	cpio/test/test_extract_cpio_xz.c \
@@ -1071,6 +1074,7 @@ bsdcpio_test_EXTRA_DIST= \
 	cpio/test/test_extract.cpio.gz.uu \
 	cpio/test/test_extract.cpio.lrz.uu \
 	cpio/test/test_extract.cpio.lz.uu \
+	cpio/test/test_extract.cpio.lz4.uu \
 	cpio/test/test_extract.cpio.lzma.uu \
 	cpio/test/test_extract.cpio.lzo.uu \
 	cpio/test/test_extract.cpio.xz.uu \
@@ -1149,6 +1153,7 @@ bsdcat_test_SOURCES= \
 	cat/test/test_expand_Z.c \
 	cat/test/test_expand_bz2.c \
 	cat/test/test_expand_gz.c \
+	cat/test/test_expand_lz4.c \
 	cat/test/test_expand_mixed.c \
 	cat/test/test_expand_plain.c \
 	cat/test/test_expand_xz.c \
@@ -1181,6 +1186,7 @@ bsdcat_test_EXTRA_DIST= \
 	cat/test/test_expand.Z.uu \
 	cat/test/test_expand.bz2.uu \
 	cat/test/test_expand.gz.uu \
+	cat/test/test_expand.lz4.uu \
 	cat/test/test_expand.plain.uu \
 	cat/test/test_expand.xz.uu \
 	cat/test/CMakeLists.txt
