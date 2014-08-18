@@ -1142,6 +1142,7 @@ bsdcat_test_SOURCES= \
 	cat/test/test.h \
 	cat/test/test_0.c \
 	cat/test/test_empty_gz.c \
+	cat/test/test_empty_lz4.c \
 	cat/test/test_empty_xz.c \
 	cat/test/test_error.c \
 	cat/test/test_error_mixed.c \
@@ -1175,6 +1176,7 @@ endif
 bsdcat_test_EXTRA_DIST= \
 	cat/test/list.h \
 	cat/test/test_empty.gz.uu \
+	cat/test/test_empty.lz4.uu \
 	cat/test/test_empty.xz.uu \
 	cat/test/test_expand.Z.uu \
 	cat/test/test_expand.bz2.uu \

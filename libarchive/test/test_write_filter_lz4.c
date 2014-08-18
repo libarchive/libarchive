@@ -44,7 +44,7 @@ DEFINE_TEST(test_write_filter_lz4)
 	assert((a = archive_write_new()) != NULL);
 	r = archive_write_add_filter_lz4(a);
 	if (r != ARCHIVE_OK) {
-		if (canLzop() && r == ARCHIVE_WARN)
+		if (canLz4() && r == ARCHIVE_WARN)
 			use_prog = 1;
 		else {
 			skipping("lz4 writing not supported on this platform");
@@ -281,7 +281,7 @@ test_options(const char *options)
 	assert((a = archive_write_new()) != NULL);
 	r = archive_write_add_filter_lz4(a);
 	if (r != ARCHIVE_OK) {
-		if (canLzop() && r == ARCHIVE_WARN)
+		if (canLz4() && r == ARCHIVE_WARN)
 			use_prog = 1;
 		else {
 			skipping("lz4 writing not supported on this platform");

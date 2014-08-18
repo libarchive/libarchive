@@ -1938,6 +1938,21 @@ canLrzip(void)
 }
 
 /*
+ * Can this platform run the lz4 program?
+ */
+int
+canLz4(void)
+{
+	static int tested = 0, value = 0;
+	if (!tested) {
+		tested = 1;
+		if (systemf("lz4 -V %s", redirectArgs) == 0)
+			value = 1;
+	}
+	return (value);
+}
+
+/*
  * Can this platform run the lzip program?
  */
 int

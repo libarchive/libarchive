@@ -279,6 +279,9 @@ int canGzip(void);
 /* Return true if this platform can run the "lrzip" program. */
 int canLrzip(void);
 
+/* Return true if this platform can run the "lz4" program. */
+int canLz4(void);
+
 /* Return true if this platform can run the "lzip" program. */
 int canLzip(void);
 

@@ -10,6 +10,7 @@ IF(ENABLE_CAT AND ENABLE_TEST)
     test.h
     test_0.c
     test_empty_gz.c
+    test_empty_lz4.c
     test_empty_xz.c
     test_error.c
     test_error_mixed.c
