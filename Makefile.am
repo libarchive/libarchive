@@ -112,6 +112,8 @@ libarchive_la_SOURCES= \
 	libarchive/archive_entry_strmode.c \
 	libarchive/archive_entry_xattr.c \
 	libarchive/archive_getdate.c \
+	libarchive/archive_hmac.c \
+	libarchive/archive_hmac.h \
 	libarchive/archive_match.c \
 	libarchive/archive_options.c \
 	libarchive/archive_options_private.h \
@@ -462,6 +464,8 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_zip_padded.c \
 	libarchive/test/test_read_format_zip_sfx.c \
 	libarchive/test/test_read_format_zip_traditional_encryption_data.c \
+	libarchive/test/test_read_format_zip_winzip_aes.c \
+	libarchive/test/test_read_format_zip_winzip_aes_large.c \
 	libarchive/test/test_read_format_zip_zip64.c \
 	libarchive/test/test_read_large.c \
 	libarchive/test/test_read_pax_truncated.c \
@@ -760,6 +764,10 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_symlink.zip.uu \
 	libarchive/test/test_read_format_zip_traditional_encryption_data.zip.uu \
 	libarchive/test/test_read_format_zip_ux.zip.uu \
+	libarchive/test/test_read_format_zip_winzip_aes128.zip.uu \
+	libarchive/test/test_read_format_zip_winzip_aes256.zip.uu \
+	libarchive/test/test_read_format_zip_winzip_aes256_large.zip.uu \
+	libarchive/test/test_read_format_zip_winzip_aes256_stored.zip.uu \
 	libarchive/test/test_read_format_zip_zip64a.zip.uu \
 	libarchive/test/test_read_format_zip_zip64b.zip.uu \
 	libarchive/test/test_read_large_splitted_rar_aa.uu \
