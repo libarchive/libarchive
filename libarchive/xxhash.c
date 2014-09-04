@@ -139,7 +139,7 @@ typedef struct _U32_S { U32 v; } _PACKED U32_S;
 #  pragma pack(pop)
 #endif
 
-#define A32(x) (((U32_S *)(x))->v)
+#define A32(x) (((const U32_S *)(x))->v)
 
 
 /****************************************
@@ -183,7 +183,7 @@ static inline U32 XXH_swap32 (U32 x) {
 typedef enum { XXH_bigEndian=0, XXH_littleEndian=1 } XXH_endianess;
 #ifndef XXH_CPU_LITTLE_ENDIAN   /* It is possible to define XXH_CPU_LITTLE_ENDIAN externally, for example using a compiler switch */
     static const int one = 1;
-#   define XXH_CPU_LITTLE_ENDIAN   (*(char*)(&one))
+#   define XXH_CPU_LITTLE_ENDIAN   (*(const char*)(&one))
 #endif
 
 
@@ -198,6 +198,7 @@ typedef enum { XXH_bigEndian=0, XXH_littleEndian=1 } XXH_endianess;
 ******************************/
 typedef enum { XXH_aligned, XXH_unaligned } XXH_alignment;
 
+static
 FORCE_INLINE U32 XXH_readLE32_align(const U32* ptr, XXH_endianess endian, XXH_alignment align)
 {
     if (align==XXH_unaligned)
@@ -206,12 +207,14 @@ FORCE_INLINE U32 XXH_readLE32_align(const U32* ptr, XXH_endianess endian, XXH_al
         return endian==XXH_littleEndian ? *ptr : XXH_swap32(*ptr);
 }
 
+static
 FORCE_INLINE U32 XXH_readLE32(const U32* ptr, XXH_endianess endian) { return XXH_readLE32_align(ptr, endian, XXH_unaligned); }
 
 
 /*****************************
 ** Simple Hash Functions
 ******************************/
+static
 FORCE_INLINE U32 XXH32_endian_align(const void* input, unsigned int len, U32 seed, XXH_endianess endian, XXH_alignment align)
 {
     const BYTE* p = (const BYTE*)input;
