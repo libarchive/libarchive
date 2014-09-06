@@ -118,6 +118,10 @@ struct trad_enc_ctx {
 #define LA_USED_ZIP64	(1 << 0)
 #define LA_FROM_CENTRAL_DIRECTORY (1 << 1)
 
+/* 
+ * See "WinZip - AES Encryption Information"
+ *     http://www.winzip.com/aes_info.htm
+ */
 /* Value used in compression method. */
 #define WINZIP_AES_ENCRYPTION	99
 /* Authentication code size. */
@@ -548,7 +552,7 @@ process_extra(const char *p, size_t extra_length, struct zip_entry* zip_entry)
 			}
 
 			if (bitmap & 1) {
-				// 2 byte "version made by"
+				/* 2 byte "version made by" */
 				if (datasize < 2)
 					break;
 				zip_entry->system
@@ -557,19 +561,19 @@ process_extra(const char *p, size_t extra_length, struct zip_entry* zip_entry)
 				datasize -= 2;
 			}
 			if (bitmap & 2) {
-				// 2 byte "internal file attributes"
+				/* 2 byte "internal file attributes" */
 				uint32_t internal_attributes;
 				if (datasize < 2)
 					break;
 				internal_attributes
 				    = archive_le16dec(p + offset);
-				// Not used by libarchive at present.
+				/* Not used by libarchive at present. */
 				(void)internal_attributes; /* UNUSED */
 				offset += 2;
 				datasize -= 2;
 			}
 			if (bitmap & 4) {
-				// 4 byte "external file attributes"
+				/* 4 byte "external file attributes" */
 				uint32_t external_attributes;
 				if (datasize < 4)
 					break;
@@ -583,7 +587,7 @@ process_extra(const char *p, size_t extra_length, struct zip_entry* zip_entry)
 				datasize -= 4;
 			}
 			if (bitmap & 8) {
-				// 2 byte comment length + comment
+				/* 2 byte comment length + comment */
 				uint32_t comment_length;
 				if (datasize < 2)
 					break;
@@ -594,7 +598,7 @@ process_extra(const char *p, size_t extra_length, struct zip_entry* zip_entry)
 
 				if (datasize < comment_length)
 					break;
-				// Comment is not supported by libarchive
+				/* Comment is not supported by libarchive */
 				offset += comment_length;
 				datasize -= comment_length;
 			}
@@ -1452,7 +1456,8 @@ read_decryption_header(struct archive_read *a)
 	zip->v_crc32 = archive_le32dec(p);
 	__archive_read_consume(a, 4);
 
-	//return (ARCHIVE_OK);
+	/*return (ARCHIVE_OK);
+	 * This is not fully implemnted yet.*/
 	archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 	    "Encrypted file is unsupported");
 	return (ARCHIVE_FAILED);
