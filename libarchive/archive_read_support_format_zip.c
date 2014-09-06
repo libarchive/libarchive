@@ -227,17 +227,6 @@ trad_enc_update_keys(struct trad_enc_ctx *ctx, uint8_t c)
 #undef CRC32
 }
 
-static void
-trad_enc_init(struct trad_enc_ctx *ctx, const char *p, size_t l)
-{
-	ctx->keys[0] = 305419896L;
-	ctx->keys[1] = 591751049L;
-	ctx->keys[2] = 878082192L;
-
-	for (;l; --l)
-		trad_enc_update_keys(ctx, *p++);
-}
-
 static uint8_t
 trad_enc_decypt_byte(struct trad_enc_ctx *ctx)
 {
@@ -246,8 +235,8 @@ trad_enc_decypt_byte(struct trad_enc_ctx *ctx)
 }
 
 static void
-trad_enc_decrypt(struct trad_enc_ctx *ctx, const uint8_t *in, size_t in_len,
-    uint8_t *out, size_t out_len)
+trad_enc_decrypt_update(struct trad_enc_ctx *ctx, const uint8_t *in,
+    size_t in_len, uint8_t *out, size_t out_len)
 {
 	size_t i;
 
@@ -258,18 +247,28 @@ trad_enc_decrypt(struct trad_enc_ctx *ctx, const uint8_t *in, size_t in_len,
 	}
 }
 
-static unsigned int
-trad_enc_read_encyption_header(struct trad_enc_ctx *ctx, const uint8_t *p,
-    size_t l)
+static int
+trad_enc_init(struct trad_enc_ctx *ctx, const char *pw, size_t pw_len,
+    const uint8_t *key, size_t key_len, uint8_t *crcchk)
 {
 	uint8_t header[12];
 
-	if (l < 12)
+	if (key_len < 12) {
+		*crcchk = 0xff;
 		return -1;
+	}
 
-	trad_enc_decrypt(ctx, p, 12, header, 12);
+	ctx->keys[0] = 305419896L;
+	ctx->keys[1] = 591751049L;
+	ctx->keys[2] = 878082192L;
+
+	for (;pw_len; --pw_len)
+		trad_enc_update_keys(ctx, *pw++);
+
+	trad_enc_decrypt_update(ctx, key, 12, header, 12);
 	/* Return the last byte for CRC check. */
-	return header[11];
+	*crcchk = header[11];
+	return 0;
 }
 
 #if 0
@@ -1064,7 +1063,7 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 		if (dec_size > zip->decrypted_buffer_size)
 			dec_size = zip->decrypted_buffer_size;
 		if (zip->tctx_valid) {
-			trad_enc_decrypt(&zip->tctx,
+			trad_enc_decrypt_update(&zip->tctx,
 			    (const uint8_t *)buff, dec_size,
 			    zip->decrypted_buffer, dec_size);
 		} else {
@@ -1177,7 +1176,7 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 		}
 		if (buff_remaining > 0) {
 			if (zip->tctx_valid) {
-				trad_enc_decrypt(&zip->tctx,
+				trad_enc_decrypt_update(&zip->tctx,
 				    compressed_buff, buff_remaining,
 				    zip->decrypted_ptr
 				      + zip->decrypted_bytes_remaining,
@@ -1495,7 +1494,8 @@ init_traditional_PKWARE_decryption(struct archive_read *a)
 {
 	struct zip *zip = (struct zip *)(a->format->data);
 	const void *p;
-	unsigned int crcchk;
+	uint8_t crcchk;
+	int r;
 
 	if (zip->tctx_valid)
 		return (ARCHIVE_OK);
@@ -1505,12 +1505,6 @@ init_traditional_PKWARE_decryption(struct archive_read *a)
 		    "Passowrd required for this entry");
 		return (ARCHIVE_FAILED);
 	}
-
-	/*
-	 * Initialize ctx for Traditional PKWARE Decyption.
-	 */
-	trad_enc_init(&zip->tctx, zip->password.s,
-	    archive_strlen(&zip->password));
 
 	/*
 	   Read the 12 bytes encryption header stored at
@@ -1523,12 +1517,17 @@ init_traditional_PKWARE_decryption(struct archive_read *a)
 		    "Truncated ZIP file data");
 		return (ARCHIVE_FATAL);
 	}
-	crcchk = trad_enc_read_encyption_header(&zip->tctx, p, ENC_HEADER_SIZE);
-	if (crcchk != zip->entry->decdat) {
+	/*
+	 * Initialize ctx for Traditional PKWARE Decyption.
+	 */
+	r = trad_enc_init(&zip->tctx, zip->password.s,
+	    archive_strlen(&zip->password), p, ENC_HEADER_SIZE, &crcchk);
+	if (crcchk != zip->entry->decdat || r != 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Incorrect passowrd");
 		return (ARCHIVE_FAILED);
 	}
+
 	__archive_read_consume(a, ENC_HEADER_SIZE);
 	zip->tctx_valid = 1;
 	zip->entry_bytes_remaining -= ENC_HEADER_SIZE;
@@ -1767,7 +1766,11 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 			zip_entry = next_zip_entry;
 		}
 	}
-	archive_string_free(&zip->password);
+	if (zip->password.s != NULL) {
+		/* Clean password characters up. */
+		memset(zip->password.s, 0, archive_strlen(&zip->password));
+		archive_string_free(&zip->password);
+	}
 	free(zip->decrypted_buffer);
 	if (zip->cctx_valid)
 		archive_decrypto_aes_ctr_release(&zip->cctx);
