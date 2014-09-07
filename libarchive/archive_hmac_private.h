@@ -27,8 +27,8 @@
 #error This header is only to be used internally to libarchive.
 #endif
 
-#ifndef ARCHIVE_HMAC_H_INCLUDED
-#define ARCHIVE_HMAC_H_INCLUDED
+#ifndef ARCHIVE_HMAC_PRIVATE_H_INCLUDED
+#define ARCHIVE_HMAC_PRIVATE_H_INCLUDED
 
 #ifdef __APPLE__
 #include <CommonCrypto/CommonHMAC.h>
@@ -68,4 +68,4 @@ struct archive_hmac {
 };
 
 extern const struct archive_hmac __archive_hmac;
-#endif /* ARCHIVE_HMAC_H_INCLUDED */
+#endif /* ARCHIVE_HMAC_PRIVATE_H_INCLUDED */

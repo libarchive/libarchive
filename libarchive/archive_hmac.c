@@ -29,7 +29,7 @@
 #include <string.h>
 #endif
 #include "archive.h"
-#include "archive_hmac.h"
+#include "archive_hmac_private.h"
 
 #ifdef __APPLE__
 

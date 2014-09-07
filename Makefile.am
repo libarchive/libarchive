@@ -113,7 +113,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_entry_xattr.c \
 	libarchive/archive_getdate.c \
 	libarchive/archive_hmac.c \
-	libarchive/archive_hmac.h \
+	libarchive/archive_hmac_private.h \
 	libarchive/archive_match.c \
 	libarchive/archive_options.c \
 	libarchive/archive_options_private.h \
