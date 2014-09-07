@@ -184,6 +184,7 @@ struct zip {
 	unsigned char 		*decrypted_ptr;
 	size_t 			decrypted_buffer_size;
 	size_t 			decrypted_bytes_remaining;
+	size_t 			decrypted_unconsumed_bytes;
 
 	/* Traditional PKWARE decryption. */
 	struct trad_enc_ctx	tctx;
@@ -242,9 +243,11 @@ static void
 trad_enc_decrypt_update(struct trad_enc_ctx *ctx, const uint8_t *in,
     size_t in_len, uint8_t *out, size_t out_len)
 {
-	size_t i;
+	unsigned i, max;
 
-	for (i = 0; i < in_len && i < out_len; i++) {
+	max = (unsigned)((in_len < out_len)? in_len: out_len);
+
+	for (i = 0; i < max; i++) {
 		uint8_t t = in[i] ^ trad_enc_decypt_byte(ctx);
 		out[i] = t;
 		trad_enc_update_keys(ctx, t);
@@ -736,6 +739,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 			return ARCHIVE_FATAL;
 		}
 	}
+	zip->init_decryption = (zip_entry->zip_flags & ZIP_ENCRYPTED);
 	zip_entry->compression = (char)archive_le16dec(p + 8);
 	zip_entry->mtime = zip_time(p + 10);
 	zip_entry->crc32 = archive_le32dec(p + 14);
@@ -1163,40 +1167,46 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	}
 
 	if (zip->tctx_valid || zip->cctx_valid) {
-		size_t buff_remaining = zip->decrypted_buffer_size
-		    - (zip->decrypted_ptr - zip->decrypted_buffer);
+		if (zip->decrypted_bytes_remaining < (size_t)bytes_avail) {
+			size_t buff_remaining = zip->decrypted_buffer_size
+			    - (zip->decrypted_ptr - zip->decrypted_buffer);
 
-		if (buff_remaining > (size_t)bytes_avail)
-			buff_remaining = (size_t)bytes_avail;
+			if (buff_remaining > (size_t)bytes_avail)
+				buff_remaining = (size_t)bytes_avail;
 
-		if ((int64_t)(zip->decrypted_bytes_remaining + buff_remaining)
-		      > zip->entry_bytes_remaining) {
-			if (zip->entry_bytes_remaining <
-			      (int64_t)zip->decrypted_bytes_remaining)
-				buff_remaining = 0;
-			else
-				buff_remaining = zip->entry_bytes_remaining
-				    - zip->decrypted_bytes_remaining;
-		}
-		if (buff_remaining > 0) {
-			if (zip->tctx_valid) {
-				trad_enc_decrypt_update(&zip->tctx,
-				    compressed_buff, buff_remaining,
-				    zip->decrypted_ptr
-				      + zip->decrypted_bytes_remaining,
-				    buff_remaining);
-			} else {
-				size_t dsize = buff_remaining;
-				archive_hmac_sha1_update(&zip->hctx,
-				    compressed_buff, buff_remaining);
-				archive_decrypto_aes_ctr_update(&zip->cctx,
-				    compressed_buff, buff_remaining,
-				    zip->decrypted_ptr
-				      + zip->decrypted_bytes_remaining,
-				    &dsize);
+			if (0 == (zip->entry->zip_flags & ZIP_LENGTH_AT_END) &&
+			      zip->entry_bytes_remaining > 0) {
+				if ((int64_t)(zip->decrypted_bytes_remaining
+				    + buff_remaining)
+				      > zip->entry_bytes_remaining) {
+					if (zip->entry_bytes_remaining <
+					      (int64_t)zip->decrypted_bytes_remaining)
+						buff_remaining = 0;
+					else
+						buff_remaining =
+						    zip->entry_bytes_remaining
+						      - zip->decrypted_bytes_remaining;
+				}
 			}
-			__archive_read_consume(a, buff_remaining);
-			zip->decrypted_bytes_remaining += buff_remaining;
+			if (buff_remaining > 0) {
+				if (zip->tctx_valid) {
+					trad_enc_decrypt_update(&zip->tctx,
+					    compressed_buff, buff_remaining,
+					    zip->decrypted_ptr
+					      + zip->decrypted_bytes_remaining,
+					    buff_remaining);
+				} else {
+					size_t dsize = buff_remaining;
+					archive_hmac_sha1_update(&zip->hctx,
+					    compressed_buff, buff_remaining);
+					archive_decrypto_aes_ctr_update(&zip->cctx,
+					    compressed_buff, buff_remaining,
+					    zip->decrypted_ptr
+					      + zip->decrypted_bytes_remaining,
+					    &dsize);
+				}
+				zip->decrypted_bytes_remaining += buff_remaining;
+			}
 		}
 		bytes_avail = zip->decrypted_bytes_remaining;
 		compressed_buff = (const char *)zip->decrypted_ptr;
@@ -1240,8 +1250,8 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 			zip->decrypted_ptr = zip->decrypted_buffer;
 		else
 			zip->decrypted_ptr += bytes_avail;
-	} else
-		__archive_read_consume(a, bytes_avail);
+	}
+	__archive_read_consume(a, bytes_avail);
 	zip->entry_bytes_remaining -= bytes_avail;
 	zip->entry_compressed_bytes_read += bytes_avail;
 
@@ -1697,15 +1707,15 @@ archive_read_format_zip_read_data(struct archive_read *a,
 
 			archive_hmac_sha1_final(&zip->hctx, hmac, &hmac_len);
 			/* Read authentication code. */
-			p = __archive_read_ahead(a, 10, NULL);
+			p = __archive_read_ahead(a, AUTH_CODE_SIZE, NULL);
 			if (p == NULL) {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Truncated ZIP file data");
 				return (ARCHIVE_FATAL);
 			}
-			cmp = memcmp(hmac, p, 10);
-			__archive_read_consume(a, 10);
+			cmp = memcmp(hmac, p, AUTH_CODE_SIZE);
+			__archive_read_consume(a, AUTH_CODE_SIZE);
 			if (cmp != 0) {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
@@ -1949,7 +1959,11 @@ archive_read_format_zip_streamable_read_header(struct archive_read *a,
 	}
 	zip->entry = zip->zip_entries;
 	memset(zip->entry, 0, sizeof(struct zip_entry));
-	zip->init_decryption = (zip->entry->zip_flags & ZIP_ENCRYPTED);
+
+	if (zip->cctx_valid) {
+		archive_decrypto_aes_ctr_release(&zip->cctx);
+		zip->cctx_valid = 0;
+	}
 	zip->tctx_valid = zip->cctx_valid = zip->hctx_valid = 0;
 
 	/* Search ahead for the next local file header. */
@@ -2029,6 +2043,21 @@ archive_read_format_zip_read_data_skip_streamable(struct archive_read *a)
 		if (bytes_skipped < 0)
 			return (ARCHIVE_FATAL);
 		return (ARCHIVE_OK);
+	}
+
+	if (zip->init_decryption) {
+		int r;
+
+		zip->has_encrypted_entries = 1;
+		if (zip->entry->zip_flags & ZIP_STRONG_ENCRYPTED)
+			r = read_decryption_header(a);
+		else if (zip->entry->compression == WINZIP_AES_ENCRYPTION)
+			r = init_WinZip_AES_decryption(a);
+		else
+			r = init_traditional_PKWARE_decryption(a);
+		if (r != ARCHIVE_OK)
+			return (r);
+		zip->init_decryption = 0;
 	}
 
 	/* We're streaming and we don't know the length. */
@@ -2768,9 +2797,10 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 	else
 		rsrc = NULL;
 
-	zip->init_decryption = (zip->entry->zip_flags & ZIP_ENCRYPTED);
-	if (zip->cctx_valid)
+	if (zip->cctx_valid) {
 		archive_decrypto_aes_ctr_release(&zip->cctx);
+		zip->cctx_valid = 0;
+	}
 	zip->tctx_valid = zip->cctx_valid = zip->hctx_valid = 0;
 
 	/* File entries are sorted by the header offset, we should mostly
