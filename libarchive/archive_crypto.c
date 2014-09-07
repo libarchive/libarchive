@@ -1,7 +1,7 @@
 /*-
 * Copyright (c) 2003-2007 Tim Kientzle
 * Copyright (c) 2011 Andres Mejia
-* Copyright (c) 2011,2014 Michihiro NAKAJIMA
+* Copyright (c) 2011 Michihiro NAKAJIMA
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -27,9 +27,6 @@
 
 #include "archive_platform.h"
 
-#ifdef HAVE_STRING_H
-#include <string.h>
-#endif
 #include "archive.h"
 #include "archive_crypto_private.h"
 
@@ -1219,253 +1216,6 @@ __archive_stub_sha512final(archive_sha512_ctx *ctx, void *md)
 
 #endif
 
-#ifdef __APPLE__
-
-static int
-pbkdf2_sha1(const char *pw, size_t pw_len, const uint8_t *salt,
-    size_t salt_len, unsigned rounds, uint8_t *derived_key,
-    size_t derived_key_len)
-{
-	CCKeyDerivationPBKDF(kCCPBKDF2, (const char *)pw,
-	    pw_len, salt, salt_len, kCCPRFHmacAlgSHA1, rounds,
-	    derived_key, derived_key_len);
-	return 0;
-}
-
-#elif defined(HAVE_LIBNETTLE)
-
-static int
-pbkdf2_sha1(const char *pw, size_t pw_len, const uint8_t *salt,
-    size_t salt_len, unsigned rounds, uint8_t *derived_key,
-    size_t derived_key_len) {
-	pbkdf2_hmac_sha1((unsigned)pw_len, (const uint8_t *)pw, rounds,
-	    salt_len, salt, derived_key_len, derived_key);
-	return 0;
-}
-
-#elif defined(HAVE_LIBCRYPTO)
-
-static int
-pbkdf2_sha1(const char *pw, size_t pw_len, const uint8_t *salt,
-    size_t salt_len, unsigned rounds, uint8_t *derived_key,
-    size_t derived_key_len) {
-
-	PKCS5_PBKDF2_HMAC_SHA1(pw, pw_len, salt, salt_len, rounds,
-	    derived_key_len, derived_key);
-	return 0;
-}
-
-#else
-
-/* Stub */
-static int
-pbkdf2_sha1(const char *pw, size_t pw_len, const uint8_t *salt,
-    size_t salt_len, unsigned rounds, uint8_t *derived_key,
-    size_t derived_key_len) {
-	(void)pw; /* UNUSED */
-	(void)pw_len; /* UNUSED */
-	(void)salt; /* UNUSED */
-	(void)salt_len; /* UNUSED */
-	(void)rounds; /* UNUSED */
-	(void)derived_key; /* UNUSED */
-	(void)derived_key_len; /* UNUSED */
-	return -1; /* UNSUPPORTED */
-}
-
-#endif
-
-#ifdef __APPLE__
-
-static int
-decrypto_aes_ctr_init(archive_crypto_ctx *ctx, const uint8_t *key,
-    size_t key_len)
-{
-	CCCryptorStatus r;
-
-	ctx->key_len = key_len;
-	memcpy(ctx->key, key, key_len);
-	memset(ctx->nonce, 0, sizeof(ctx->nonce));
-	ctx->encr_pos = AES_BLOCK_SIZE;
-	r = CCCryptorCreateWithMode(kCCEncrypt, kCCModeECB, kCCAlgorithmAES,
-	    ccNoPadding, NULL, key, key_len, NULL, 0, 0, 0, &ctx->ctx);
-	return (r == kCCSuccess)? 0: -1;
-}
-
-static int
-aes_ctr_encrypt_counter(archive_crypto_ctx *ctx)
-{
-	CCCryptorRef ref = ctx->ctx;
-	CCCryptorStatus r;
-
-	r = CCCryptorReset(ref, NULL);
-	if (r != kCCSuccess)
-		return -1;
-	r = CCCryptorUpdate(ref, ctx->nonce, AES_BLOCK_SIZE, ctx->encr_buf,
-	    AES_BLOCK_SIZE, NULL);
-	return (r == kCCSuccess)? 0: -1;
-}
-
-static int
-decrypto_aes_ctr_release(archive_crypto_ctx *ctx)
-{
-	memset(ctx->key, 0, ctx->key_len);
-	memset(ctx->nonce, 0, sizeof(ctx->nonce));
-	return 0;
-}
-
-#elif defined(HAVE_LIBNETTLE)
-
-static int
-decrypto_aes_ctr_init(archive_crypto_ctx *ctx, const uint8_t *key,
-    size_t key_len)
-{
-	ctx->key_len = key_len;
-	memcpy(ctx->key, key, key_len);
-	memset(ctx->nonce, 0, sizeof(ctx->nonce));
-	ctx->encr_pos = AES_BLOCK_SIZE;
-	memset(&ctx->ctx, 0, sizeof(ctx->ctx));
-	return 0;
-}
-
-static int
-aes_ctr_encrypt_counter(archive_crypto_ctx *ctx)
-{
-	aes_set_encrypt_key(&ctx->ctx, ctx->key_len, ctx->key);
-	aes_encrypt(&ctx->ctx, AES_BLOCK_SIZE, ctx->encr_buf, ctx->nonce);
-	return 0;
-}
-
-static int
-decrypto_aes_ctr_release(archive_crypto_ctx *ctx)
-{
-	memset(ctx, 0, sizeof(*ctx));
-	return 0;
-}
-
-#elif defined(HAVE_LIBCRYPTO)
-
-static int
-decrypto_aes_ctr_init(archive_crypto_ctx *ctx, const uint8_t *key,
-    size_t key_len)
-{
-
-	switch (key_len) {
-	case 16: ctx->type = EVP_aes_128_ecb(); break;
-	case 24: ctx->type = EVP_aes_192_ecb(); break;
-	case 32: ctx->type = EVP_aes_256_ecb(); break;
-	default: ctx->type = NULL; return -1;
-	}
-
-	ctx->key_len = key_len;
-	memcpy(ctx->key, key, key_len);
-	memset(ctx->nonce, 0, sizeof(ctx->nonce));
-	ctx->encr_pos = AES_BLOCK_SIZE;
-	EVP_CIPHER_CTX_init(&ctx->ctx);
-	return 0;
-}
-
-static int
-aes_ctr_encrypt_counter(archive_crypto_ctx *ctx)
-{
-	int outl = 0;
-	int r;
-
-	r = EVP_EncryptInit_ex(&ctx->ctx, ctx->type, NULL, ctx->key, NULL);
-	if (r == 0)
-		return -1;
-	r = EVP_EncryptUpdate(&ctx->ctx, ctx->encr_buf, &outl, ctx->nonce,
-	    AES_BLOCK_SIZE);
-	if (r == 0 || outl != AES_BLOCK_SIZE)
-		return -1;
-	return 0;
-}
-
-static int
-decrypto_aes_ctr_release(archive_crypto_ctx *ctx)
-{
-	EVP_CIPHER_CTX_cleanup(&ctx->ctx);
-	memset(ctx->key, 0, ctx->key_len);
-	memset(ctx->nonce, 0, sizeof(ctx->nonce));
-	return 0;
-}
-
-#else
-
-/* Stub */
-static int
-decrypto_aes_ctr_init(archive_crypto_ctx *ctx, const uint8_t *key,
-    size_t key_len)
-{
-	(void)ctx; /* UNUSED */
-	(void)key; /* UNUSED */
-	(void)key_len; /* UNUSED */
-	return -1;
-}
-
-static int
-aes_ctr_encrypt_counter(archive_crypto_ctx *ctx)
-{
-	(void)ctx; /* UNUSED */
-}
-
-static int
-decrypto_aes_ctr_release(archive_crypto_ctx *ctx)
-{
-	(void)ctx; /* UNUSED */
-	return 0;
-}
-
-#endif
-
-static void
-aes_ctr_increase_counter(archive_crypto_ctx *ctx)
-{
-	uint8_t *const nonce = ctx->nonce;
-	int j;
-
-	for (j = 0; j < 8; j++) {
-		if (++nonce[j])
-			break;
-	}
-}
-
-static int
-decrypto_aes_ctr_update(archive_crypto_ctx *ctx, const uint8_t * const in,
-    size_t in_len, uint8_t * const out, size_t *out_len)
-{
-	uint8_t *const ebuf = ctx->encr_buf;
-	unsigned pos = ctx->encr_pos;
-	unsigned max = (unsigned)((in_len < *out_len)? in_len: *out_len);
-	unsigned i;
-
-	for (i = 0; i < max; ) {
-		if (pos == AES_BLOCK_SIZE) {
-			aes_ctr_increase_counter(ctx);
-			if (aes_ctr_encrypt_counter(ctx) != 0)
-				return -1;
-			while (max -i >= AES_BLOCK_SIZE) {
-				for (pos = 0; pos < AES_BLOCK_SIZE; pos++)
-					out[i+pos] = in[i+pos] ^ ebuf[pos];
-				i += AES_BLOCK_SIZE;
-				aes_ctr_increase_counter(ctx);
-				if (aes_ctr_encrypt_counter(ctx) != 0)
-					return -1;
-			}
-			pos = 0;
-			if (i >= max)
-				break;
-		}
-		out[i] = in[i] ^ ebuf[pos++];
-		i++;
-	}
-	ctx->encr_pos = pos;
-	*out_len = i;
-
-	return 0;
-}
-
-
-
 /* NOTE: Crypto functions are set based on availability and by the following
  * order of preference.
  * 1. libc
@@ -1642,43 +1392,38 @@ const struct archive_crypto __archive_crypto =
 #if defined(ARCHIVE_CRYPTO_SHA512_LIBC)
   &__archive_libc_sha512init,
   &__archive_libc_sha512update,
-  &__archive_libc_sha512final,
+  &__archive_libc_sha512final
 #elif defined(ARCHIVE_CRYPTO_SHA512_LIBC2)
   &__archive_libc2_sha512init,
   &__archive_libc2_sha512update,
-  &__archive_libc2_sha512final,
+  &__archive_libc2_sha512final
 #elif defined(ARCHIVE_CRYPTO_SHA512_LIBC3)
   &__archive_libc3_sha512init,
   &__archive_libc3_sha512update,
-  &__archive_libc3_sha512final,
+  &__archive_libc3_sha512final
 #elif defined(ARCHIVE_CRYPTO_SHA512_LIBMD)
   &__archive_libmd_sha512init,
   &__archive_libmd_sha512update,
-  &__archive_libmd_sha512final,
+  &__archive_libmd_sha512final
 #elif defined(ARCHIVE_CRYPTO_SHA512_LIBSYSTEM)
   &__archive_libsystem_sha512init,
   &__archive_libsystem_sha512update,
-  &__archive_libsystem_sha512final,
+  &__archive_libsystem_sha512final
 #elif defined(ARCHIVE_CRYPTO_SHA512_NETTLE)
   &__archive_nettle_sha512init,
   &__archive_nettle_sha512update,
-  &__archive_nettle_sha512final,
+  &__archive_nettle_sha512final
 #elif defined(ARCHIVE_CRYPTO_SHA512_OPENSSL)
   &__archive_openssl_sha512init,
   &__archive_openssl_sha512update,
-  &__archive_openssl_sha512final,
+  &__archive_openssl_sha512final
 #elif defined(ARCHIVE_CRYPTO_SHA512_WIN)
   &__archive_windowsapi_sha512init,
   &__archive_windowsapi_sha512update,
-  &__archive_windowsapi_sha512final,
+  &__archive_windowsapi_sha512final
 #elif !defined(ARCHIVE_SHA512_COMPILE_TEST)
   &__archive_stub_sha512init,
   &__archive_stub_sha512update,
-  &__archive_stub_sha512final,
+  &__archive_stub_sha512final
 #endif
-  &pbkdf2_sha1,
-  &decrypto_aes_ctr_init,
-  &decrypto_aes_ctr_update,
-  &decrypto_aes_ctr_release,
-
 };

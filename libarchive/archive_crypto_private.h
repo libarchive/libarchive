@@ -1,7 +1,6 @@
 /*-
 * Copyright (c) 2003-2007 Tim Kientzle
 * Copyright (c) 2011 Andres Mejia
-* Copyright (c) 2014 Michihiro NAKAJIMA
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -255,51 +254,6 @@ typedef Digest_CTX archive_sha512_ctx;
 typedef unsigned char archive_sha512_ctx;
 #endif
 
-#ifdef __APPLE__
-#include <CommonCrypto/CommonCryptor.h>
-#include <CommonCrypto/CommonKeyDerivation.h>
-#define AES_BLOCK_SIZE	16
-#define AES_MAX_KEY_SIZE kCCKeySizeAES256
-
-typedef struct {
-	CCCryptorRef	ctx;
-	uint8_t		key[AES_MAX_KEY_SIZE];
-	unsigned	key_len;
-	uint8_t		nonce[AES_BLOCK_SIZE];
-	uint8_t		encr_buf[AES_BLOCK_SIZE];
-	unsigned	encr_pos;
-} archive_crypto_ctx;
-
-#elif defined(HAVE_LIBNETTLE)
-#include <nettle/pbkdf2.h>
-#include <nettle/aes.h>
-
-typedef struct {
-	struct aes_ctx	ctx;
-	uint8_t		key[AES_MAX_KEY_SIZE];
-	unsigned	key_len;
-	uint8_t		nonce[AES_BLOCK_SIZE];
-	uint8_t		encr_buf[AES_BLOCK_SIZE];
-	unsigned	encr_pos;
-} archive_crypto_ctx;
-
-#elif defined(HAVE_LIBCRYPTO)
-#include <openssl/evp.h>
-#define AES_BLOCK_SIZE	16
-#define AES_MAX_KEY_SIZE 32
-
-typedef struct {
-	EVP_CIPHER_CTX	ctx;
-	const EVP_CIPHER *type;
-	uint8_t		key[AES_MAX_KEY_SIZE];
-	unsigned	key_len;
-	uint8_t		nonce[AES_BLOCK_SIZE];
-	uint8_t		encr_buf[AES_BLOCK_SIZE];
-	unsigned	encr_pos;
-} archive_crypto_ctx;
-
-#endif
-
 /* defines */
 #if defined(ARCHIVE_CRYPTO_MD5_LIBC) ||\
   defined(ARCHIVE_CRYPTO_MD5_LIBMD) ||	\
@@ -393,18 +347,6 @@ typedef struct {
 #define archive_sha512_update(ctx, buf, n)\
   __archive_crypto.sha512update(ctx, buf, n)
 
-
-#define archive_pbkdf2_sha1(pw, pw_len, salt, salt_len, rounds, dk, dk_len)\
-  __archive_crypto.pbkdf2sha1(pw, pw_len, salt, salt_len, rounds, dk, dk_len)
-
-#define archive_decrypto_aes_ctr_init(ctx, key, key_len) \
-  __archive_crypto.decrypto_aes_ctr_init(ctx, key, key_len)
-#define archive_decrypto_aes_ctr_update(ctx, in, in_len, out, out_len) \
-  __archive_crypto.decrypto_aes_ctr_update(ctx, in, in_len, out, out_len)
-#define archive_decrypto_aes_ctr_release(ctx) \
-  __archive_crypto.decrypto_aes_ctr_release(ctx)
-
-
 /* Minimal interface to crypto functionality for internal use in libarchive */
 struct archive_crypto
 {
@@ -427,15 +369,6 @@ struct archive_crypto
   int (*sha512init)(archive_sha512_ctx *);
   int (*sha512update)(archive_sha512_ctx *, const void *, size_t);
   int (*sha512final)(archive_sha512_ctx *, void *);
-  /* PKCS5 PBKDF2 HMAC-SHA1 */
-  int (*pbkdf2sha1)(const char *pw, size_t pw_len, const uint8_t *salt,
-    size_t salt_len, unsigned rounds, uint8_t *derived_key,
-    size_t derived_key_len);
-  /* AES CTR mode */
-  int (*decrypto_aes_ctr_init)(archive_crypto_ctx *, const uint8_t *, size_t);
-  int (*decrypto_aes_ctr_update)(archive_crypto_ctx *, const uint8_t *,
-    size_t, uint8_t *, size_t *);
-  int (*decrypto_aes_ctr_release)(archive_crypto_ctx *);
 };
 
 extern const struct archive_crypto __archive_crypto;

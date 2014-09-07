@@ -100,6 +100,8 @@ libarchive_la_SOURCES= \
 	libarchive/archive_crc32.h \
 	libarchive/archive_crypto.c \
 	libarchive/archive_crypto_private.h \
+	libarchive/archive_cryptor.c \
+	libarchive/archive_cryptor_private.h \
 	libarchive/archive_endian.h \
 	libarchive/archive_entry.c \
 	libarchive/archive_entry.h \

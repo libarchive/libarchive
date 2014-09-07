@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_support_format_zip.c 201102
 
 #include "archive.h"
 #include "archive_crypto_private.h"
+#include "archive_cryptor_private.h"
 #include "archive_endian.h"
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
