@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2003-2008 Tim Kientzle
  * Copyright (c) 2008 Anselm Strauss
+ * Copyright (c) 2014 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -270,7 +271,7 @@ write_contents(struct archive *a)
  * Read back all of the entries and verify their values.
  */
 static void
-verify_contents(struct archive *a, int seeking)
+verify_contents(struct archive *a, int seeking, int content)
 {
 	char filedata[64];
 	struct archive_entry *ae;
@@ -292,10 +293,11 @@ verify_contents(struct archive *a, int seeking)
 	}
 	assert(archive_entry_size_is_set(ae));
 	assertEqualInt(8, archive_entry_size(ae));
-	assertEqualIntA(a, 8,
-	    archive_read_data(a, filedata, sizeof(filedata)));
-	assertEqualMem(filedata, "12345678", 8);
-
+	if (content) {
+		assertEqualIntA(a, 8,
+		    archive_read_data(a, filedata, sizeof(filedata)));
+		assertEqualMem(filedata, "12345678", 8);
+	}
 
 	/* Read the second file back. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -309,9 +311,11 @@ verify_contents(struct archive *a, int seeking)
 	}
 	assertEqualInt(4, archive_entry_size(ae));
 	assert(archive_entry_size_is_set(ae));
-	assertEqualIntA(a, 4,
-	    archive_read_data(a, filedata, sizeof(filedata)));
-	assertEqualMem(filedata, "1234", 4);
+	if (content) {
+		assertEqualIntA(a, 4,
+		    archive_read_data(a, filedata, sizeof(filedata)));
+		assertEqualMem(filedata, "1234", 4);
+	}
 
 	/* Read the third file back. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -326,9 +330,11 @@ verify_contents(struct archive *a, int seeking)
 	} else {
 		assertEqualInt(0, archive_entry_size_is_set(ae));
 	}
-	assertEqualIntA(a, 5,
-	    archive_read_data(a, filedata, sizeof(filedata)));
-	assertEqualMem(filedata, "mnopq", 5);
+	if (content) {
+		assertEqualIntA(a, 5,
+		    archive_read_data(a, filedata, sizeof(filedata)));
+		assertEqualMem(filedata, "mnopq", 5);
+	}
 
 	/* Read symlink. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -351,7 +357,9 @@ verify_contents(struct archive *a, int seeking)
 	if (seeking)
 		assertEqualInt(AE_IFDIR | 0755, archive_entry_mode(ae));
 	assertEqualInt(0, archive_entry_size(ae));
-	assertEqualIntA(a, 0, archive_read_data(a, filedata, 10));
+	if (content) {
+		assertEqualIntA(a, 0, archive_read_data(a, filedata, 10));
+	}
 
 #ifdef HAVE_ZLIB_H
 	/*
@@ -370,9 +378,11 @@ verify_contents(struct archive *a, int seeking)
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
 	assertEqualInt(8, archive_entry_size(ae));
 	assert(archive_entry_size_is_set(ae));
-	assertEqualIntA(a, 8,
-	    archive_read_data(a, filedata, sizeof(filedata)));
-	assertEqualMem(filedata, "12345678", 8);
+	if (content) {
+		assertEqualIntA(a, 8,
+		    archive_read_data(a, filedata, sizeof(filedata)));
+		assertEqualMem(filedata, "12345678", 8);
+	}
 
 
 	/* Read the second file back. */
@@ -386,9 +396,11 @@ verify_contents(struct archive *a, int seeking)
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
 	assertEqualInt(4, archive_entry_size(ae));
 	assert(archive_entry_size_is_set(ae));
-	assertEqualIntA(a, 4,
-	    archive_read_data(a, filedata, sizeof(filedata)));
-	assertEqualMem(filedata, "1234", 4);
+	if (content) {
+		assertEqualIntA(a, 4,
+		    archive_read_data(a, filedata, sizeof(filedata)));
+		assertEqualMem(filedata, "1234", 4);
+	}
 
 	/* Read the third file back. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -403,9 +415,11 @@ verify_contents(struct archive *a, int seeking)
 	} else {
 		assertEqualInt(0, archive_entry_size_is_set(ae));
 	}
-	assertEqualIntA(a, 5,
-	    archive_read_data(a, filedata, sizeof(filedata)));
-	assertEqualMem(filedata, "ghijk", 4);
+	if (content) {
+		assertEqualIntA(a, 5,
+		    archive_read_data(a, filedata, sizeof(filedata)));
+		assertEqualMem(filedata, "ghijk", 4);
+	}
 
 	/* Read symlink. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -429,7 +443,9 @@ verify_contents(struct archive *a, int seeking)
 		assertEqualInt(AE_IFDIR | 0755, archive_entry_mode(ae));
 	}
 	assertEqualInt(0, archive_entry_size(ae));
-	assertEqualIntA(a, 0, archive_read_data(a, filedata, 10));
+	if (content) {
+		assertEqualIntA(a, 0, archive_read_data(a, filedata, 10));
+	}
 #endif
 
 	/*
@@ -448,9 +464,11 @@ verify_contents(struct archive *a, int seeking)
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
 	assert(archive_entry_size_is_set(ae));
 	assertEqualInt(8, archive_entry_size(ae));
-	assertEqualIntA(a, 8,
-	    archive_read_data(a, filedata, sizeof(filedata)));
-	assertEqualMem(filedata, "12345678", 8);
+	if (content) {
+		assertEqualIntA(a, 8,
+		    archive_read_data(a, filedata, sizeof(filedata)));
+		assertEqualMem(filedata, "12345678", 8);
+	}
 
 
 	/* Read the second file back. */
@@ -464,9 +482,11 @@ verify_contents(struct archive *a, int seeking)
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
 	assertEqualInt(4, archive_entry_size(ae));
 	assert(archive_entry_size_is_set(ae));
-	assertEqualIntA(a, 4,
-	    archive_read_data(a, filedata, sizeof(filedata)));
-	assertEqualMem(filedata, "ACEG", 4);
+	if (content) {
+		assertEqualIntA(a, 4,
+		    archive_read_data(a, filedata, sizeof(filedata)));
+		assertEqualMem(filedata, "ACEG", 4);
+	}
 
 	/* Read the third file back. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -481,9 +501,11 @@ verify_contents(struct archive *a, int seeking)
 	} else {
 		assertEqualInt(0, archive_entry_size_is_set(ae));
 	}
-	assertEqualIntA(a, 5,
-	    archive_read_data(a, filedata, sizeof(filedata)));
-	assertEqualMem(filedata, "ijklm", 4);
+	if (content) {
+		assertEqualIntA(a, 5,
+		    archive_read_data(a, filedata, sizeof(filedata)));
+		assertEqualMem(filedata, "ijklm", 4);
+	}
 
 	/* Read symlink. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -506,7 +528,9 @@ verify_contents(struct archive *a, int seeking)
 	if (seeking)
 		assertEqualInt(AE_IFDIR | 0755, archive_entry_mode(ae));
 	assertEqualInt(0, archive_entry_size(ae));
-	assertEqualIntA(a, 0, archive_read_data(a, filedata, 10));
+	if (content) {
+		assertEqualIntA(a, 0, archive_read_data(a, filedata, 10));
+	}
 
 	/* Verify the end of the archive. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
@@ -545,7 +569,7 @@ DEFINE_TEST(test_write_format_zip)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
-	verify_contents(a, 1);
+	verify_contents(a, 1, 1);
 
 	/* With the test memory reader -- streaming mode. */
 	assert((a = archive_read_new()) != NULL);
@@ -553,14 +577,27 @@ DEFINE_TEST(test_write_format_zip)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, buff, used, 7));
 	/* Streaming reader doesn't see mode information from Central Directory. */
-	verify_contents(a, 0);
+	verify_contents(a, 0, 1);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, buff, used, 7));
+	/* Streaming reader doesn't see mode information from Central Directory. */
+	verify_contents(a, 0, 0);
 
 	/* With the test memory reader -- seeking mode. */
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, buff, used, 7));
-	verify_contents(a, 1);
+	verify_contents(a, 1, 1);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, buff, used, 7));
+	verify_contents(a, 1, 0);
 
 	free(buff);
 }
@@ -598,7 +635,7 @@ DEFINE_TEST(test_write_format_zip64)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
-	verify_contents(a, 1);
+	verify_contents(a, 1, 1);
 
 	/* With the test memory reader -- streaming mode. */
 	assert((a = archive_read_new()) != NULL);
@@ -606,14 +643,27 @@ DEFINE_TEST(test_write_format_zip64)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, buff, used, 7));
 	/* Streaming reader doesn't see mode information from Central Directory. */
-	verify_contents(a, 0);
+	verify_contents(a, 0, 1);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, buff, used, 7));
+	/* Streaming reader doesn't see mode information from Central Directory. */
+	verify_contents(a, 0, 0);
 
 	/* With the test memory reader -- seeking mode. */
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, buff, used, 7));
-	verify_contents(a, 1);
+	verify_contents(a, 1, 1);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, buff, used, 7));
+	verify_contents(a, 1, 0);
 
 	free(buff);
 }
@@ -652,7 +702,7 @@ DEFINE_TEST(test_write_format_zip_traditional_pkware_encryption)
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_set_options(a, "zip:password=password1234"));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
-	verify_contents(a, 1);
+	verify_contents(a, 1, 1);
 
 	/* With the test memory reader -- streaming mode. */
 	assert((a = archive_read_new()) != NULL);
@@ -662,7 +712,16 @@ DEFINE_TEST(test_write_format_zip_traditional_pkware_encryption)
 	    archive_read_set_options(a, "zip:password=password1234"));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, buff, used, 7));
 	/* Streaming reader doesn't see mode information from Central Directory. */
-	verify_contents(a, 0);
+	verify_contents(a, 0, 1);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_options(a, "zip:password=password1234"));
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, buff, used, 7));
+	/* Streaming reader doesn't see mode information from Central Directory. */
+	verify_contents(a, 0, 0);
 
 	/* With the test memory reader -- seeking mode. */
 	assert((a = archive_read_new()) != NULL);
@@ -671,7 +730,15 @@ DEFINE_TEST(test_write_format_zip_traditional_pkware_encryption)
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_set_options(a, "zip:password=password1234"));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, buff, used, 7));
-	verify_contents(a, 1);
+	verify_contents(a, 1, 1);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_options(a, "zip:password=password1234"));
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, buff, used, 7));
+	verify_contents(a, 1, 0);
 
 	free(buff);
 }
