@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2008 Anselm Strauss
  * Copyright (c) 2009 Joerg Sonnenberger
- * Copyright (c) 2011-2012 Michihiro NAKAJIMA
+ * Copyright (c) 2011-2012,2014 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,15 +53,16 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_zip.c 201168 20
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
 #include "archive_private.h"
+#include "archive_random_private.h"
 #include "archive_write_private.h"
 
 #ifndef HAVE_ZLIB_H
 #include "archive_crc32.h"
 #endif
 
+#define ZIP_ENTRY_FLAG_ENCRYPTED	(1<<0)
 #define ZIP_ENTRY_FLAG_LENGTH_AT_END	(1<<3)
 #define ZIP_ENTRY_FLAG_UTF8_NAME	(1 << 11)
-
 
 enum compression {
 	COMPRESSION_UNSPECIFIED = -1,
@@ -75,11 +76,25 @@ enum compression {
 #define COMPRESSION_DEFAULT	COMPRESSION_STORE
 #endif
 
+enum encryption {
+	ENCRYPTION_NONE	= 0,
+	ENCRYPTION_TRADITIONAL, /* Traditional PKWARE encryption. */
+	ENCRYPTION_WINZIP_AES128, /* WinZIP AES-128 encryption. */
+	ENCRYPTION_WINZIP_AES256, /* WinZIP AES-256 encryption. */
+};
+
+#define TRAD_HEADER_SIZE	12
+
+
 struct cd_segment {
 	struct cd_segment *next;
 	size_t buff_size;
 	unsigned char *buff;
 	unsigned char *p;
+};
+
+struct trad_enc_ctx {
+	uint32_t keys[3];
 };
 
 struct zip {
@@ -93,9 +108,13 @@ struct zip {
 	struct archive_entry *entry;
 	uint32_t entry_crc32;
 	enum compression entry_compression;
+	enum encryption  entry_encryption;
 	int entry_flags;
 	int entry_uses_zip64;
 	int experiments;
+	struct trad_enc_ctx tctx;
+	char tctx_valid;
+	unsigned char trad_chkdat;
 
 	unsigned char *file_header;
 	size_t file_header_extra_offset;
@@ -112,6 +131,8 @@ struct zip {
 	struct archive_string_conv *sconv_default;
 	enum compression requested_compression;
 	int init_default_conversion;
+	enum encryption  encryption_type;
+	struct archive_string password;
 
 #define ZIP_FLAG_AVOID_ZIP64 1
 #define ZIP_FLAG_FORCE_ZIP64 2
@@ -143,6 +164,9 @@ static size_t path_length(struct archive_entry *);
 static int write_path(struct archive_entry *, struct archive_write *);
 static void copy_path(struct archive_entry *, unsigned char *);
 static struct archive_string_conv *get_sconv(struct archive_write *, struct zip *);
+static int trad_enc_init(struct trad_enc_ctx *, const char *, size_t);
+static unsigned trad_enc_encrypt_update(struct trad_enc_ctx *, const uint8_t *,
+    size_t, uint8_t *, size_t);
 
 static unsigned char *
 cd_alloc(struct zip *zip, size_t length)
@@ -223,6 +247,19 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 			ret = ARCHIVE_OK;
 		}
 		return (ret);
+	} else if (strcmp(key, "encryption") == 0) {
+		if (val == NULL) {
+			zip->encryption_type = ENCRYPTION_NONE;
+			ret = ARCHIVE_OK;
+		} else if (val[0] == '1' || strcmp(val, "traditional") == 0) {
+			zip->encryption_type = ENCRYPTION_TRADITIONAL;
+			ret = ARCHIVE_OK;
+		} else {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "%s: unknown encryption '%s'",
+			    a->format_name, val);
+		}
+		return (ret);
 	} else if (strcmp(key, "experimental") == 0) {
 		if (val == NULL || val[0] == 0) {
 			zip->flags &= ~ ZIP_FLAG_EXPERIMENT_xl;
@@ -256,6 +293,16 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 				ret = ARCHIVE_OK;
 			else
 				ret = ARCHIVE_FATAL;
+		}
+		return (ret);
+	} else if (strcmp(key, "password") == 0) {
+		if (val == NULL || val[0] == 0) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "%s: password option needs its value",
+			    a->format_name);
+		} else {
+			archive_strcpy(&zip->password, val);
+			ret = ARCHIVE_OK;
 		}
 		return (ret);
 	} else if (strcmp(key, "zip64") == 0) {
@@ -355,7 +402,7 @@ archive_write_set_format_zip(struct archive *_a)
 	zip->requested_compression = COMPRESSION_UNSPECIFIED;
 	zip->crc32func = real_crc32;
 
-#ifdef HAVE_ZLIB_H
+	/* A buffer used for both compression and encryption. */
 	zip->len_buf = 65536;
 	zip->buf = malloc(zip->len_buf);
 	if (zip->buf == NULL) {
@@ -364,7 +411,6 @@ archive_write_set_format_zip(struct archive *_a)
 		    "Can't allocate compression buffer");
 		return (ARCHIVE_FATAL);
 	}
-#endif
 
 	a->format_data = zip;
 	a->format_name = "zip";
@@ -448,10 +494,12 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	zip->entry_flags = 0;
 	zip->entry_uses_zip64 = 0;
 	zip->entry_crc32 = zip->crc32func(0, NULL, 0);
+	zip->entry_encryption = 0;
 	if (zip->entry != NULL) {
 		archive_entry_free(zip->entry);
 		zip->entry = NULL;
 	}
+	zip->tctx_valid = 0;
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	/* Make sure the path separators in pahtname, hardlink and symlink
@@ -546,6 +594,8 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		if (zip->entry_compression == COMPRESSION_UNSPECIFIED) {
 			zip->entry_compression = COMPRESSION_DEFAULT;
 		}
+		if (archive_entry_size(zip->entry) > 0)
+			zip->entry_encryption = zip->encryption_type;
 		if (zip->entry_compression == COMPRESSION_STORE) {
 			zip->entry_compressed_size = size;
 			zip->entry_uncompressed_size = size;
@@ -553,6 +603,12 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		} else {
 			zip->entry_uncompressed_size = size;
 			version_needed = 20;
+		}
+		if (zip->entry_encryption == ENCRYPTION_TRADITIONAL) {
+			if (zip->entry_compression == COMPRESSION_STORE)
+				zip->entry_compressed_size += TRAD_HEADER_SIZE;
+			version_needed = 20;
+			zip->entry_flags |= ZIP_ENTRY_FLAG_ENCRYPTED;
 		}
 		if ((zip->flags & ZIP_FLAG_FORCE_ZIP64) /* User asked. */
 		    || (zip->entry_uncompressed_size > 0xffffffffLL)) {
@@ -569,6 +625,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		 * length-at-end more reliable. */
 		zip->entry_compression = COMPRESSION_DEFAULT;
 		zip->entry_flags |= ZIP_ENTRY_FLAG_LENGTH_AT_END;
+		zip->entry_encryption = zip->encryption_type;
 		if ((zip->flags & ZIP_FLAG_AVOID_ZIP64) == 0) {
 			zip->entry_uses_zip64 = 1;
 			version_needed = 45;
@@ -576,6 +633,11 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			version_needed = 10;
 		} else {
 			version_needed = 20;
+		}
+		if (zip->entry_encryption == ENCRYPTION_TRADITIONAL) {
+			zip->entry_flags |= ZIP_ENTRY_FLAG_ENCRYPTED;
+			if (version_needed < 20)
+				version_needed = 20;
 		}
 	}
 
@@ -601,6 +663,13 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		archive_le32enc(local_header + 22, zip->entry_uncompressed_size);
 	}
 	archive_le16enc(local_header + 26, filename_length);
+
+	if (zip->entry_encryption == ENCRYPTION_TRADITIONAL) {
+		if (zip->entry_flags & ZIP_ENTRY_FLAG_LENGTH_AT_END)
+			zip->trad_chkdat = local_header[11];
+		else
+			zip->trad_chkdat = local_header[17];
+	}
 
 	/* Format as much of central directory file header as we can: */
 	zip->file_header = cd_alloc(zip, 46);
@@ -779,13 +848,65 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 
 	if (s == 0) return 0;
 
-	switch (zip->entry_compression) {
-	case COMPRESSION_STORE:
-		ret = __archive_write_output(a, buff, s);
+	if (zip->entry_encryption == ENCRYPTION_TRADITIONAL
+	    && zip->tctx_valid == 0) {
+		/* Initialize traditoinal PKWARE encryption context. */
+		uint8_t key[TRAD_HEADER_SIZE];
+		uint8_t key_encrypted[TRAD_HEADER_SIZE];
+
+		if (zip->password.s == NULL
+		    || archive_strlen(&zip->password) == 0) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Encryption needs password");
+			return ARCHIVE_FAILED;
+		}
+		if (archive_random(key, sizeof(key)-1) != ARCHIVE_OK) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Can't generate random number for encryption");
+			return ARCHIVE_FATAL;
+		}
+		trad_enc_init(&zip->tctx, zip->password.s,
+		    archive_strlen(&zip->password));
+		/* Set the last key code which will be used as a check code
+		 * for ferifying password in decryption. */
+		key[TRAD_HEADER_SIZE-1] = zip->trad_chkdat;
+		trad_enc_encrypt_update(&zip->tctx, key, TRAD_HEADER_SIZE,
+		    key_encrypted, TRAD_HEADER_SIZE);
+		/* Write encrypted keys in the top of the file content. */
+		ret = __archive_write_output(a, key_encrypted,
+		    TRAD_HEADER_SIZE);
 		if (ret != ARCHIVE_OK)
 			return (ret);
-		zip->written_bytes += s;
-		zip->entry_compressed_written += s;
+		zip->written_bytes += TRAD_HEADER_SIZE;
+		zip->entry_compressed_written += TRAD_HEADER_SIZE;
+		zip->tctx_valid = 1;
+	}
+
+	switch (zip->entry_compression) {
+	case COMPRESSION_STORE:
+		if (zip->tctx_valid) {
+			const uint8_t *rb = (const uint8_t *)buff;
+			const uint8_t * const re = rb + s;
+
+			while (rb < re) {
+				size_t l;
+
+				l = trad_enc_encrypt_update(&zip->tctx,
+				    rb, re - rb, zip->buf, zip->len_buf);
+				ret = __archive_write_output(a, zip->buf, l);
+				if (ret != ARCHIVE_OK)
+					return (ret);
+				zip->entry_compressed_written += l;
+				zip->written_bytes += l;
+				rb += l;
+			}
+		} else {
+			ret = __archive_write_output(a, buff, s);
+			if (ret != ARCHIVE_OK)
+				return (ret);
+			zip->written_bytes += s;
+			zip->entry_compressed_written += s;
+		}
 		break;
 #if HAVE_ZLIB_H
 	case COMPRESSION_DEFLATE:
@@ -796,6 +917,11 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 			if (ret == Z_STREAM_ERROR)
 				return (ARCHIVE_FATAL);
 			if (zip->stream.avail_out == 0) {
+				if (zip->tctx_valid) {
+					trad_enc_encrypt_update(&zip->tctx,
+					    zip->buf, zip->len_buf,
+					    zip->buf, zip->len_buf);
+				}
 				ret = __archive_write_output(a, zip->buf,
 					zip->len_buf);
 				if (ret != ARCHIVE_OK)
@@ -835,6 +961,10 @@ archive_write_zip_finish_entry(struct archive_write *a)
 			if (ret == Z_STREAM_ERROR)
 				return (ARCHIVE_FATAL);
 			remainder = zip->len_buf - zip->stream.avail_out;
+			if (zip->tctx_valid) {
+				trad_enc_encrypt_update(&zip->tctx,
+				    zip->buf, remainder, zip->buf, remainder);
+			}
 			ret = __archive_write_output(a, zip->buf, remainder);
 			if (ret != ARCHIVE_OK)
 				return (ret);
@@ -1006,10 +1136,12 @@ archive_write_zip_free(struct archive_write *a)
 		free(segment->buff);
 		free(segment);
 	}
-#ifdef HAVE_ZLIB_H
 	free(zip->buf);
-#endif
 	archive_entry_free(zip->entry);
+	if (zip->password.s != NULL) {
+		memset(zip->password.s, 0, archive_strlen(&zip->password));
+		archive_string_free(&zip->password);
+	}
 	/* TODO: Free opt_sconv, sconv_default */
 
 	free(zip);
@@ -1128,4 +1260,57 @@ get_sconv(struct archive_write *a, struct zip *zip)
 		zip->init_default_conversion = 1;
 	}
 	return (zip->sconv_default);
+}
+
+/*
+  Traditional PKWARE Decryption functions.
+ */
+
+static void
+trad_enc_update_keys(struct trad_enc_ctx *ctx, uint8_t c)
+{
+	uint8_t t;
+#define CRC32(c, b) (crc32(c ^ 0xffffffffUL, &b, 1) ^ 0xffffffffUL)
+
+	ctx->keys[0] = CRC32(ctx->keys[0], c);
+	ctx->keys[1] = (ctx->keys[1] + (ctx->keys[0] & 0xff)) * 134775813L + 1;
+	t = (ctx->keys[1] >> 24) & 0xff;
+	ctx->keys[2] = CRC32(ctx->keys[2], t);
+#undef CRC32
+}
+
+static uint8_t
+trad_enc_decypt_byte(struct trad_enc_ctx *ctx)
+{
+	unsigned temp = ctx->keys[2] | 2;
+	return (uint8_t)((temp * (temp ^ 1)) >> 8) & 0xff;
+}
+
+static unsigned
+trad_enc_encrypt_update(struct trad_enc_ctx *ctx, const uint8_t *in,
+    size_t in_len, uint8_t *out, size_t out_len)
+{
+	unsigned i, max;
+
+	max = (unsigned)((in_len < out_len)? in_len: out_len);
+
+	for (i = 0; i < max; i++) {
+		uint8_t t = in[i];
+		out[i] = t ^ trad_enc_decypt_byte(ctx);
+		trad_enc_update_keys(ctx, t);
+	}
+	return i;
+}
+
+static int
+trad_enc_init(struct trad_enc_ctx *ctx, const char *pw, size_t pw_len)
+{
+
+	ctx->keys[0] = 305419896L;
+	ctx->keys[1] = 591751049L;
+	ctx->keys[2] = 878082192L;
+
+	for (;pw_len; --pw_len)
+		trad_enc_update_keys(ctx, *pw++);
+	return 0;
 }

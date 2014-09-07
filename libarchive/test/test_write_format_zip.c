@@ -586,8 +586,6 @@ DEFINE_TEST(test_write_format_zip64)
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_options(a, "zip:experimental"));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_options(a, "zip:experimental"));
-	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used));
 	write_contents(a);
 	dumpfile("constructed64.zip", buff, used);
@@ -614,6 +612,64 @@ DEFINE_TEST(test_write_format_zip64)
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, buff, used, 7));
+	verify_contents(a, 1);
+
+	free(buff);
+}
+
+DEFINE_TEST(test_write_format_zip_traditional_pkware_encryption)
+{
+	struct archive *a;
+	size_t used;
+	size_t buffsize = 1000000;
+	char *buff;
+
+	buff = malloc(buffsize);
+
+	/* Create a new archive in memory. */
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_options(a, "zip:encryption=traditional"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_options(a, "zip:password=password1234"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_options(a, "zip:experimental"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, buffsize, &used));
+	write_contents(a);
+	dumpfile("constructed.zip", buff, used);
+
+	/*
+	 * Now, read the data back.
+	 */
+	/* With the standard memory reader. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_options(a, "zip:password=password1234"));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
+	verify_contents(a, 1);
+
+	/* With the test memory reader -- streaming mode. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_options(a, "zip:password=password1234"));
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, buff, used, 7));
+	/* Streaming reader doesn't see mode information from Central Directory. */
+	verify_contents(a, 0);
+
+	/* With the test memory reader -- seeking mode. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_options(a, "zip:password=password1234"));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, buff, used, 7));
 	verify_contents(a, 1);
 
