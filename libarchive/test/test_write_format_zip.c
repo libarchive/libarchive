@@ -681,8 +681,12 @@ DEFINE_TEST(test_write_format_zip_traditional_pkware_encryption)
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_zip(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_options(a, "zip:encryption=traditional"));
+	if (ARCHIVE_OK != archive_write_set_options(a,
+		    "zip:encryption=traditional")) {
+		skipping("This system does not have cryptographic liberary");
+		archive_write_free(a);
+		return;
+	}
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_options(a, "zip:password=password1234"));
 	assertEqualIntA(a, ARCHIVE_OK,
@@ -756,8 +760,12 @@ DEFINE_TEST(test_write_format_zip_winzip_aes128_encryption)
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_zip(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_options(a, "zip:encryption=aes128"));
+	if (ARCHIVE_OK != archive_write_set_options(a, "zip:encryption=aes128"))
+	{
+		skipping("This system does not have cryptographic liberary");
+		archive_write_free(a);
+		return;
+	}
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_options(a, "zip:password=password1234"));
 	assertEqualIntA(a, ARCHIVE_OK,
@@ -831,8 +839,12 @@ DEFINE_TEST(test_write_format_zip_winzip_aes256_encryption)
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_zip(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_options(a, "zip:encryption=aes256"));
+	if (ARCHIVE_OK != archive_write_set_options(a, "zip:encryption=aes256"))
+	{
+		skipping("This system does not have cryptographic liberary");
+		archive_write_free(a);
+		return;
+	}
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_options(a, "zip:password=password1234"));
 	assertEqualIntA(a, ARCHIVE_OK,

@@ -36,6 +36,19 @@ DEFINE_TEST(test_read_format_zip_traditional_encryption_data)
 	struct archive *a;
 	char buff[512];
 
+	/* Check if running system has cryptographic functionarity. */
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
+	if (ARCHIVE_OK != archive_write_set_options(a,
+				"zip:encryption=traditional")) {
+		skipping("This system does not have cryptographic liberary");
+		archive_write_free(a);
+		return;
+	}
+	archive_write_free(a);
+
+
 	extract_reference_file(refname);
 
 	/*
