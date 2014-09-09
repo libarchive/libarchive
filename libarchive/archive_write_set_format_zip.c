@@ -49,9 +49,11 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_zip.c 201168 20
 #endif
 
 #include "archive.h"
+#include "archive_cryptor_private.h"
 #include "archive_endian.h"
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
+#include "archive_hmac_private.h"
 #include "archive_private.h"
 #include "archive_random_private.h"
 #include "archive_write_private.h"
@@ -84,7 +86,23 @@ enum encryption {
 };
 
 #define TRAD_HEADER_SIZE	12
-
+/*
+ * See "WinZip - AES Encryption Information"
+ *     http://www.winzip.com/aes_info.htm
+ */
+/* Value used in compression method. */
+#define WINZIP_AES_ENCRYPTION	99
+/* A WinZip AES header size which is stored at the beginning of
+ * file contents. */
+#define WINZIP_AES128_HEADER_SIZE	(8 + 2)
+#define WINZIP_AES256_HEADER_SIZE	(16 + 2)
+/* AES vendor version. */
+#define AES_VENDOR_AE_1 0x0001
+#define AES_VENDOR_AE_2 0x0002
+/* Authentication code size. */
+#define AUTH_CODE_SIZE		10
+/**/
+#define MAX_DERIVED_KEY_BUF_SIZE (AES_MAX_KEY_SIZE * 2 + 2)
 
 struct cd_segment {
 	struct cd_segment *next;
@@ -115,6 +133,11 @@ struct zip {
 	struct trad_enc_ctx tctx;
 	char tctx_valid;
 	unsigned char trad_chkdat;
+	unsigned aes_vendor;
+	archive_crypto_ctx cctx;
+	char cctx_valid;
+	archive_hmac_sha1_ctx hctx;
+	char hctx_valid;
 
 	unsigned char *file_header;
 	size_t file_header_extra_offset;
@@ -167,6 +190,10 @@ static struct archive_string_conv *get_sconv(struct archive_write *, struct zip 
 static int trad_enc_init(struct trad_enc_ctx *, const char *, size_t);
 static unsigned trad_enc_encrypt_update(struct trad_enc_ctx *, const uint8_t *,
     size_t, uint8_t *, size_t);
+static int init_traditional_pkware_encryption(struct archive_write *);
+static int is_traditional_pkware_encryption_supported(void);
+static int init_winzip_aes_encryption(struct archive_write *);
+static int is_winzip_aes_encryption_supported(int encryption);
 
 static unsigned char *
 cd_alloc(struct zip *zip, size_t length)
@@ -252,8 +279,34 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 			zip->encryption_type = ENCRYPTION_NONE;
 			ret = ARCHIVE_OK;
 		} else if (val[0] == '1' || strcmp(val, "traditional") == 0) {
-			zip->encryption_type = ENCRYPTION_TRADITIONAL;
-			ret = ARCHIVE_OK;
+			if (is_traditional_pkware_encryption_supported()) {
+				zip->encryption_type = ENCRYPTION_TRADITIONAL;
+				ret = ARCHIVE_OK;
+			} else {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "encryption not supported");
+			}
+		} else if (strcmp(val, "aes128") == 0) {
+			if (is_winzip_aes_encryption_supported(
+			    ENCRYPTION_WINZIP_AES128)) {
+				zip->encryption_type = ENCRYPTION_WINZIP_AES128;
+				ret = ARCHIVE_OK;
+			} else {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "encryption not supported");
+			}
+		} else if (strcmp(val, "aes256") == 0) {
+			if (is_winzip_aes_encryption_supported(
+			    ENCRYPTION_WINZIP_AES256)) {
+				zip->encryption_type = ENCRYPTION_WINZIP_AES256;
+				ret = ARCHIVE_OK;
+			} else {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "encryption not supported");
+			}
 		} else {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "%s: unknown encryption '%s'",
@@ -442,7 +495,7 @@ static int
 archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 {
 	unsigned char local_header[32];
-	unsigned char local_extra[128];
+	unsigned char local_extra[144];
 	struct zip *zip = a->format_data;
 	unsigned char *e;
 	unsigned char *cd_extra;
@@ -499,7 +552,28 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		archive_entry_free(zip->entry);
 		zip->entry = NULL;
 	}
-	zip->tctx_valid = 0;
+
+	if (zip->cctx_valid)
+		archive_encrypto_aes_ctr_release(&zip->cctx);
+	if (zip->hctx_valid)
+		archive_hmac_sha1_cleanup(&zip->hctx);
+	zip->tctx_valid = zip->cctx_valid = zip->hctx_valid = 0;
+
+	if (type == AE_IFREG
+		    &&(!archive_entry_size_is_set(entry)
+			|| archive_entry_size(entry) > 0)) {
+		switch (zip->encryption_type) {
+		case ENCRYPTION_TRADITIONAL:
+		case ENCRYPTION_WINZIP_AES128:
+		case ENCRYPTION_WINZIP_AES256:
+			zip->entry_flags |= ZIP_ENTRY_FLAG_ENCRYPTED;
+			zip->entry_encryption = zip->encryption_type;
+			break;
+		default:
+			break;
+		}
+	}
+
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	/* Make sure the path separators in pahtname, hardlink and symlink
@@ -589,13 +663,13 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		version_needed = 20;
 	} else if (archive_entry_size_is_set(zip->entry)) {
 		int64_t size = archive_entry_size(zip->entry);
+		int64_t additional_size = 0;
+
 		zip->entry_uncompressed_limit = size;
 		zip->entry_compression = zip->requested_compression;
 		if (zip->entry_compression == COMPRESSION_UNSPECIFIED) {
 			zip->entry_compression = COMPRESSION_DEFAULT;
 		}
-		if (archive_entry_size(zip->entry) > 0)
-			zip->entry_encryption = zip->encryption_type;
 		if (zip->entry_compression == COMPRESSION_STORE) {
 			zip->entry_compressed_size = size;
 			zip->entry_uncompressed_size = size;
@@ -604,12 +678,30 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			zip->entry_uncompressed_size = size;
 			version_needed = 20;
 		}
-		if (zip->entry_encryption == ENCRYPTION_TRADITIONAL) {
+
+		if (zip->entry_flags | ZIP_ENTRY_FLAG_ENCRYPTED) {
+			switch (zip->entry_encryption) {
+			case ENCRYPTION_TRADITIONAL:
+				additional_size = TRAD_HEADER_SIZE;
+				version_needed = 20;
+				break;
+			case ENCRYPTION_WINZIP_AES128:
+				additional_size = WINZIP_AES128_HEADER_SIZE
+				    + AUTH_CODE_SIZE;
+				version_needed = 20;
+				break;
+			case ENCRYPTION_WINZIP_AES256:
+				additional_size = WINZIP_AES256_HEADER_SIZE
+				    + AUTH_CODE_SIZE;
+				version_needed = 20;
+				break;
+			default:
+				break;
+			}
 			if (zip->entry_compression == COMPRESSION_STORE)
-				zip->entry_compressed_size += TRAD_HEADER_SIZE;
-			version_needed = 20;
-			zip->entry_flags |= ZIP_ENTRY_FLAG_ENCRYPTED;
+				zip->entry_compressed_size += additional_size;
 		}
+
 		if ((zip->flags & ZIP_FLAG_FORCE_ZIP64) /* User asked. */
 		    || (zip->entry_uncompressed_size > 0xffffffffLL)) {
 							/* Large entry. */
@@ -625,7 +717,6 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		 * length-at-end more reliable. */
 		zip->entry_compression = COMPRESSION_DEFAULT;
 		zip->entry_flags |= ZIP_ENTRY_FLAG_LENGTH_AT_END;
-		zip->entry_encryption = zip->encryption_type;
 		if ((zip->flags & ZIP_FLAG_AVOID_ZIP64) == 0) {
 			zip->entry_uses_zip64 = 1;
 			version_needed = 45;
@@ -634,10 +725,18 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		} else {
 			version_needed = 20;
 		}
-		if (zip->entry_encryption == ENCRYPTION_TRADITIONAL) {
-			zip->entry_flags |= ZIP_ENTRY_FLAG_ENCRYPTED;
-			if (version_needed < 20)
-				version_needed = 20;
+
+		if (zip->entry_flags | ZIP_ENTRY_FLAG_ENCRYPTED) {
+			switch (zip->entry_encryption) {
+			case ENCRYPTION_TRADITIONAL:
+			case ENCRYPTION_WINZIP_AES128:
+			case ENCRYPTION_WINZIP_AES256:
+				if (version_needed < 20)
+					version_needed = 20;
+				break;
+			default:
+				break;
+			}
 		}
 	}
 
@@ -646,7 +745,11 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	memcpy(local_header, "PK\003\004", 4);
 	archive_le16enc(local_header + 4, version_needed);
 	archive_le16enc(local_header + 6, zip->entry_flags);
-	archive_le16enc(local_header + 8, zip->entry_compression);
+	if (zip->entry_encryption == ENCRYPTION_WINZIP_AES128
+	    || zip->entry_encryption == ENCRYPTION_WINZIP_AES256)
+		archive_le16enc(local_header + 8, WINZIP_AES_ENCRYPTION);
+	else
+		archive_le16enc(local_header + 8, zip->entry_compression);
 	archive_le32enc(local_header + 10,
 		dos_time(archive_entry_mtime(zip->entry)));
 	archive_le32enc(local_header + 14, zip->entry_crc32);
@@ -681,7 +784,11 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	archive_le16enc(zip->file_header + 4, 3 * 256 + version_needed);
 	archive_le16enc(zip->file_header + 6, version_needed);
 	archive_le16enc(zip->file_header + 8, zip->entry_flags);
-	archive_le16enc(zip->file_header + 10, zip->entry_compression);
+	if (zip->entry_encryption == ENCRYPTION_WINZIP_AES128
+	    || zip->entry_encryption == ENCRYPTION_WINZIP_AES256)
+		archive_le16enc(zip->file_header + 10, WINZIP_AES_ENCRYPTION);
+	else
+		archive_le16enc(zip->file_header + 10, zip->entry_compression);
 	archive_le32enc(zip->file_header + 12,
 		dos_time(archive_entry_mtime(zip->entry)));
 	archive_le16enc(zip->file_header + 28, filename_length);
@@ -736,7 +843,33 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	archive_le32enc(e, (uint32_t)archive_entry_gid(entry));
 	e += 4;
 
-	/* Copy UT and ux into central directory as well. */
+	/* AES extra data field: WinZIP AES information, ID=0x9901 */
+	if ((zip->entry_flags | ZIP_ENTRY_FLAG_ENCRYPTED)
+	    && (zip->entry_encryption == ENCRYPTION_WINZIP_AES128
+	        || zip->entry_encryption == ENCRYPTION_WINZIP_AES256)) {
+
+		memcpy(e, "\001\231\007\000\001\000AE", 8);
+		/* AES vendoer version AE-2 does not store a CRC.
+		 * WinZip 11 uses AE-1, which does store the CRC,
+		 * but it does not store the CRC when the file size
+		 * is less than 20 bytes. So we simulate what
+		 * WinZip 11 does.
+		 * NOTE: WinZip 9.0 and 10.0 uses AE-2 by default. */
+		if (archive_entry_size_is_set(zip->entry)
+		    && archive_entry_size(zip->entry) < 20) {
+			archive_le16enc(e+4, AES_VENDOR_AE_2);
+			zip->aes_vendor = AES_VENDOR_AE_2;/* no CRC. */
+		} else
+			zip->aes_vendor = AES_VENDOR_AE_1;
+		e += 8;
+		/* AES encryption strength. */
+		*e++ = (zip->entry_encryption == ENCRYPTION_WINZIP_AES128)?1:3;
+		/* Actual compression method. */
+		archive_le16enc(e, zip->entry_compression);
+		e += 2;
+	}
+
+	/* Copy UT ,ux, and AES-extra into central directory as well. */
 	zip->file_header_extra_offset = zip->central_directory_bytes;
 	cd_extra = cd_alloc(zip, e - local_extra);
 	memcpy(cd_extra, local_extra, e - local_extra);
@@ -848,51 +981,58 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 
 	if (s == 0) return 0;
 
-	if (zip->entry_encryption == ENCRYPTION_TRADITIONAL
-	    && zip->tctx_valid == 0) {
-		/* Initialize traditoinal PKWARE encryption context. */
-		uint8_t key[TRAD_HEADER_SIZE];
-		uint8_t key_encrypted[TRAD_HEADER_SIZE];
-
-		if (zip->password.s == NULL
-		    || archive_strlen(&zip->password) == 0) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "Encryption needs password");
-			return ARCHIVE_FAILED;
+	if (zip->entry_flags | ZIP_ENTRY_FLAG_ENCRYPTED) {
+		switch (zip->entry_encryption) {
+		case ENCRYPTION_TRADITIONAL:
+			/* Initialize traditoinal PKWARE encryption context. */
+			if (!zip->tctx_valid) {
+				ret = init_traditional_pkware_encryption(a);
+				if (ret != ARCHIVE_OK)
+					return (ret);
+				zip->tctx_valid = 1;
+			}
+			break;
+		case ENCRYPTION_WINZIP_AES128:
+		case ENCRYPTION_WINZIP_AES256:
+			if (!zip->cctx_valid) {
+				ret = init_winzip_aes_encryption(a);
+				if (ret != ARCHIVE_OK)
+					return (ret);
+				zip->cctx_valid = zip->hctx_valid = 1;
+			}
+			break;
+		default:
+			break;
 		}
-		if (archive_random(key, sizeof(key)-1) != ARCHIVE_OK) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "Can't generate random number for encryption");
-			return ARCHIVE_FATAL;
-		}
-		trad_enc_init(&zip->tctx, zip->password.s,
-		    archive_strlen(&zip->password));
-		/* Set the last key code which will be used as a check code
-		 * for ferifying password in decryption. */
-		key[TRAD_HEADER_SIZE-1] = zip->trad_chkdat;
-		trad_enc_encrypt_update(&zip->tctx, key, TRAD_HEADER_SIZE,
-		    key_encrypted, TRAD_HEADER_SIZE);
-		/* Write encrypted keys in the top of the file content. */
-		ret = __archive_write_output(a, key_encrypted,
-		    TRAD_HEADER_SIZE);
-		if (ret != ARCHIVE_OK)
-			return (ret);
-		zip->written_bytes += TRAD_HEADER_SIZE;
-		zip->entry_compressed_written += TRAD_HEADER_SIZE;
-		zip->tctx_valid = 1;
 	}
 
 	switch (zip->entry_compression) {
 	case COMPRESSION_STORE:
-		if (zip->tctx_valid) {
+		if (zip->tctx_valid || zip->cctx_valid) {
 			const uint8_t *rb = (const uint8_t *)buff;
 			const uint8_t * const re = rb + s;
 
 			while (rb < re) {
 				size_t l;
 
-				l = trad_enc_encrypt_update(&zip->tctx,
-				    rb, re - rb, zip->buf, zip->len_buf);
+				if (zip->tctx_valid) {
+					l = trad_enc_encrypt_update(&zip->tctx,
+					    rb, re - rb,
+					    zip->buf, zip->len_buf);
+				} else {
+					l = zip->len_buf;
+					ret = archive_encrypto_aes_ctr_update(
+					    &zip->cctx,
+					    rb, re - rb, zip->buf, &l);
+					if (ret < 0) {
+						archive_set_error(&a->archive,
+						    ARCHIVE_ERRNO_MISC,
+						    "Failed to encrypt file");
+						return (ARCHIVE_FAILED);
+					}
+					archive_hmac_sha1_update(&zip->hctx,
+					    zip->buf, l);
+				}
 				ret = __archive_write_output(a, zip->buf, l);
 				if (ret != ARCHIVE_OK)
 					return (ret);
@@ -921,6 +1061,20 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 					trad_enc_encrypt_update(&zip->tctx,
 					    zip->buf, zip->len_buf,
 					    zip->buf, zip->len_buf);
+				} else if (zip->cctx_valid) {
+					size_t outl = zip->len_buf;
+					ret = archive_encrypto_aes_ctr_update(
+					    &zip->cctx,
+					    zip->buf, zip->len_buf,
+					    zip->buf, &outl);
+					if (ret < 0) {
+						archive_set_error(&a->archive,
+						    ARCHIVE_ERRNO_MISC,
+						    "Failed to encrypt file");
+						return (ARCHIVE_FAILED);
+					}
+					archive_hmac_sha1_update(&zip->hctx,
+					    zip->buf, zip->len_buf);
 				}
 				ret = __archive_write_output(a, zip->buf,
 					zip->len_buf);
@@ -942,7 +1096,9 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 	}
 
 	zip->entry_uncompressed_limit -= s;
-	zip->entry_crc32 = zip->crc32func(zip->entry_crc32, buff, (unsigned)s);
+	if (!zip->cctx_valid || zip->aes_vendor != AES_VENDOR_AE_2)
+		zip->entry_crc32 =
+		    zip->crc32func(zip->entry_crc32, buff, (unsigned)s);
 	return (s);
 
 }
@@ -957,6 +1113,7 @@ archive_write_zip_finish_entry(struct archive_write *a)
 	if (zip->entry_compression == COMPRESSION_DEFLATE) {
 		for (;;) {
 			size_t remainder;
+
 			ret = deflate(&zip->stream, Z_FINISH);
 			if (ret == Z_STREAM_ERROR)
 				return (ARCHIVE_FATAL);
@@ -964,6 +1121,19 @@ archive_write_zip_finish_entry(struct archive_write *a)
 			if (zip->tctx_valid) {
 				trad_enc_encrypt_update(&zip->tctx,
 				    zip->buf, remainder, zip->buf, remainder);
+			} else if (zip->cctx_valid) {
+				size_t outl = remainder;
+				ret = archive_encrypto_aes_ctr_update(
+				    &zip->cctx, zip->buf, remainder,
+				    zip->buf, &outl);
+				if (ret < 0) {
+					archive_set_error(&a->archive,
+					    ARCHIVE_ERRNO_MISC,
+					    "Failed to encrypt file");
+					return (ARCHIVE_FAILED);
+				}
+				archive_hmac_sha1_update(&zip->hctx,
+				    zip->buf, remainder);
 			}
 			ret = __archive_write_output(a, zip->buf, remainder);
 			if (ret != ARCHIVE_OK)
@@ -978,12 +1148,26 @@ archive_write_zip_finish_entry(struct archive_write *a)
 		deflateEnd(&zip->stream);
 	}
 #endif
+	if (zip->hctx_valid) {
+		uint8_t hmac[20];
+		size_t hmac_len = 20;
+
+		archive_hmac_sha1_final(&zip->hctx, hmac, &hmac_len);
+		ret = __archive_write_output(a, hmac, AUTH_CODE_SIZE);
+		if (ret != ARCHIVE_OK)
+			return (ret);
+		zip->entry_compressed_written += AUTH_CODE_SIZE;
+		zip->written_bytes += AUTH_CODE_SIZE;
+	}
 
 	/* Write trailing data descriptor. */
 	if ((zip->entry_flags & ZIP_ENTRY_FLAG_LENGTH_AT_END) != 0) {
 		char d[24];
 		memcpy(d, "PK\007\010", 4);
-		archive_le32enc(d + 4, zip->entry_crc32);
+		if (zip->cctx_valid && zip->aes_vendor == AES_VENDOR_AE_2)
+			archive_le32enc(d + 4, 0);/* no CRC.*/
+		else
+			archive_le32enc(d + 4, zip->entry_crc32);
 		if (zip->entry_uses_zip64) {
 			archive_le64enc(d + 8,
 				(uint64_t)zip->entry_compressed_written);
@@ -1037,7 +1221,10 @@ archive_write_zip_finish_entry(struct archive_write *a)
 	}
 
 	/* Fix up central directory file header. */
-	archive_le32enc(zip->file_header + 16, zip->entry_crc32);
+	if (zip->cctx_valid && zip->aes_vendor == AES_VENDOR_AE_2)
+		archive_le32enc(zip->file_header + 16, 0);/* no CRC.*/
+	else
+		archive_le32enc(zip->file_header + 16, zip->entry_crc32);
 	archive_le32enc(zip->file_header + 20,
 	    zipmin(zip->entry_compressed_written, 0xffffffffLL));
 	archive_le32enc(zip->file_header + 24,
@@ -1142,6 +1329,10 @@ archive_write_zip_free(struct archive_write *a)
 		memset(zip->password.s, 0, archive_strlen(&zip->password));
 		archive_string_free(&zip->password);
 	}
+	if (zip->cctx_valid)
+		archive_encrypto_aes_ctr_release(&zip->cctx);
+	if (zip->hctx_valid)
+		archive_hmac_sha1_cleanup(&zip->hctx);
 	/* TODO: Free opt_sconv, sconv_default */
 
 	free(zip);
@@ -1313,4 +1504,144 @@ trad_enc_init(struct trad_enc_ctx *ctx, const char *pw, size_t pw_len)
 	for (;pw_len; --pw_len)
 		trad_enc_update_keys(ctx, *pw++);
 	return 0;
+}
+
+static int
+is_traditional_pkware_encryption_supported(void)
+{
+	uint8_t key[TRAD_HEADER_SIZE];
+
+	if (archive_random(key, sizeof(key)-1) != ARCHIVE_OK)
+		return (0);
+	return (1);
+}
+
+static int
+init_traditional_pkware_encryption(struct archive_write *a)
+{
+	struct zip *zip = a->format_data;
+	uint8_t key[TRAD_HEADER_SIZE];
+	uint8_t key_encrypted[TRAD_HEADER_SIZE];
+	int ret;
+
+	if (zip->password.s == NULL
+	    || archive_strlen(&zip->password) == 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Encryption needs password");
+		return ARCHIVE_FAILED;
+	}
+	if (archive_random(key, sizeof(key)-1) != ARCHIVE_OK) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Can't generate random number for encryption");
+		return ARCHIVE_FATAL;
+	}
+	trad_enc_init(&zip->tctx, zip->password.s,
+	    archive_strlen(&zip->password));
+	/* Set the last key code which will be used as a check code
+	 * for ferifying password in decryption. */
+	key[TRAD_HEADER_SIZE-1] = zip->trad_chkdat;
+	trad_enc_encrypt_update(&zip->tctx, key, TRAD_HEADER_SIZE,
+	    key_encrypted, TRAD_HEADER_SIZE);
+	/* Write encrypted keys in the top of the file content. */
+	ret = __archive_write_output(a, key_encrypted, TRAD_HEADER_SIZE);
+	if (ret != ARCHIVE_OK)
+		return (ret);
+	zip->written_bytes += TRAD_HEADER_SIZE;
+	zip->entry_compressed_written += TRAD_HEADER_SIZE;
+	return (ret);
+}
+
+static int
+init_winzip_aes_encryption(struct archive_write *a)
+{
+	struct zip *zip = a->format_data;
+	size_t key_len, salt_len;
+	uint8_t salt[16 + 2];
+	uint8_t derived_key[MAX_DERIVED_KEY_BUF_SIZE];
+	int ret;
+
+	if (zip->password.s == NULL
+	    || archive_strlen(&zip->password) == 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Encryption needs password");
+		return (ARCHIVE_FAILED);
+	}
+	if (zip->entry_encryption == ENCRYPTION_WINZIP_AES128) {
+		salt_len = 8;
+		key_len = 16;
+	} else {
+		/* AES 256 */
+		salt_len = 16;
+		key_len = 32;
+	}
+	if (archive_random(salt, salt_len) != ARCHIVE_OK) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Can't generate random number for encryption");
+		return (ARCHIVE_FATAL);
+	}
+	archive_pbkdf2_sha1(zip->password.s, archive_strlen(&zip->password),
+	    salt, salt_len, 1000, derived_key, key_len * 2 + 2);
+
+	ret = archive_encrypto_aes_ctr_init(&zip->cctx, derived_key, key_len);
+	if (ret != 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Decryption is unsupported due to lack of crypto library");
+		return (ARCHIVE_FAILED);
+	}
+	ret = archive_hmac_sha1_init(&zip->hctx, derived_key + key_len,
+	    key_len);
+	if (ret != 0) {
+		archive_encrypto_aes_ctr_release(&zip->cctx);
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Failed to initialize HMAC-SHA1");
+		return (ARCHIVE_FAILED);
+        }
+
+	/* Set a passowrd verification value after the 'salt'. */
+	salt[salt_len] = derived_key[key_len * 2];
+	salt[salt_len + 1] = derived_key[key_len * 2 + 1];
+
+	/* Write encrypted keys in the top of the file content. */
+	ret = __archive_write_output(a, salt, salt_len + 2);
+	if (ret != ARCHIVE_OK)
+		return (ret);
+	zip->written_bytes += salt_len + 2;
+	zip->entry_compressed_written += salt_len + 2;
+
+	return (ARCHIVE_OK);
+}
+
+static int
+is_winzip_aes_encryption_supported(int encryption)
+{
+	size_t key_len, salt_len;
+	uint8_t salt[16 + 2];
+	uint8_t derived_key[MAX_DERIVED_KEY_BUF_SIZE];
+	archive_crypto_ctx cctx;
+	archive_hmac_sha1_ctx hctx;
+	int ret;
+
+	if (encryption == ENCRYPTION_WINZIP_AES128) {
+		salt_len = 8;
+		key_len = 16;
+	} else {
+		/* AES 256 */
+		salt_len = 16;
+		key_len = 32;
+	}
+	if (archive_random(salt, salt_len) != ARCHIVE_OK)
+		return (0);
+	archive_pbkdf2_sha1("p", 1, salt, salt_len, 1000,
+	    derived_key, key_len * 2 + 2);
+
+	ret = archive_encrypto_aes_ctr_init(&cctx, derived_key, key_len);
+	if (ret != 0)
+		return (0);
+	ret = archive_hmac_sha1_init(&hctx, derived_key + key_len,
+	    key_len);
+	archive_encrypto_aes_ctr_release(&cctx);
+	if (ret != 0)
+		return (0);
+	archive_hmac_sha1_cleanup(&hctx);
+	return (1);
 }

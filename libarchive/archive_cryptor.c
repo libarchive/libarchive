@@ -89,8 +89,7 @@ pbkdf2_sha1(const char *pw, size_t pw_len, const uint8_t *salt,
 #ifdef __APPLE__
 
 static int
-decrypto_aes_ctr_init(archive_crypto_ctx *ctx, const uint8_t *key,
-    size_t key_len)
+aes_ctr_init(archive_crypto_ctx *ctx, const uint8_t *key, size_t key_len)
 {
 	CCCryptorStatus r;
 
@@ -118,7 +117,7 @@ aes_ctr_encrypt_counter(archive_crypto_ctx *ctx)
 }
 
 static int
-decrypto_aes_ctr_release(archive_crypto_ctx *ctx)
+aes_ctr_release(archive_crypto_ctx *ctx)
 {
 	memset(ctx->key, 0, ctx->key_len);
 	memset(ctx->nonce, 0, sizeof(ctx->nonce));
@@ -128,8 +127,7 @@ decrypto_aes_ctr_release(archive_crypto_ctx *ctx)
 #elif defined(HAVE_LIBNETTLE)
 
 static int
-decrypto_aes_ctr_init(archive_crypto_ctx *ctx, const uint8_t *key,
-    size_t key_len)
+aes_ctr_init(archive_crypto_ctx *ctx, const uint8_t *key, size_t key_len)
 {
 	ctx->key_len = key_len;
 	memcpy(ctx->key, key, key_len);
@@ -148,7 +146,7 @@ aes_ctr_encrypt_counter(archive_crypto_ctx *ctx)
 }
 
 static int
-decrypto_aes_ctr_release(archive_crypto_ctx *ctx)
+aes_ctr_release(archive_crypto_ctx *ctx)
 {
 	memset(ctx, 0, sizeof(*ctx));
 	return 0;
@@ -157,8 +155,7 @@ decrypto_aes_ctr_release(archive_crypto_ctx *ctx)
 #elif defined(HAVE_LIBCRYPTO)
 
 static int
-decrypto_aes_ctr_init(archive_crypto_ctx *ctx, const uint8_t *key,
-    size_t key_len)
+aes_ctr_init(archive_crypto_ctx *ctx, const uint8_t *key, size_t key_len)
 {
 
 	switch (key_len) {
@@ -193,7 +190,7 @@ aes_ctr_encrypt_counter(archive_crypto_ctx *ctx)
 }
 
 static int
-decrypto_aes_ctr_release(archive_crypto_ctx *ctx)
+aes_ctr_release(archive_crypto_ctx *ctx)
 {
 	EVP_CIPHER_CTX_cleanup(&ctx->ctx);
 	memset(ctx->key, 0, ctx->key_len);
@@ -205,8 +202,7 @@ decrypto_aes_ctr_release(archive_crypto_ctx *ctx)
 
 /* Stub */
 static int
-decrypto_aes_ctr_init(archive_crypto_ctx *ctx, const uint8_t *key,
-    size_t key_len)
+aes_ctr_init(archive_crypto_ctx *ctx, const uint8_t *key, size_t key_len)
 {
 	(void)ctx; /* UNUSED */
 	(void)key; /* UNUSED */
@@ -221,7 +217,7 @@ aes_ctr_encrypt_counter(archive_crypto_ctx *ctx)
 }
 
 static int
-decrypto_aes_ctr_release(archive_crypto_ctx *ctx)
+aes_ctr_release(archive_crypto_ctx *ctx)
 {
 	(void)ctx; /* UNUSED */
 	return 0;
@@ -242,7 +238,7 @@ aes_ctr_increase_counter(archive_crypto_ctx *ctx)
 }
 
 static int
-decrypto_aes_ctr_update(archive_crypto_ctx *ctx, const uint8_t * const in,
+aes_ctr_update(archive_crypto_ctx *ctx, const uint8_t * const in,
     size_t in_len, uint8_t * const out, size_t *out_len)
 {
 	uint8_t *const ebuf = ctx->encr_buf;
@@ -280,8 +276,10 @@ decrypto_aes_ctr_update(archive_crypto_ctx *ctx, const uint8_t * const in,
 const struct archive_cryptor __archive_cryptor =
 {
   &pbkdf2_sha1,
-  &decrypto_aes_ctr_init,
-  &decrypto_aes_ctr_update,
-  &decrypto_aes_ctr_release,
-
+  &aes_ctr_init,
+  &aes_ctr_update,
+  &aes_ctr_release,
+  &aes_ctr_init,
+  &aes_ctr_update,
+  &aes_ctr_release,
 };

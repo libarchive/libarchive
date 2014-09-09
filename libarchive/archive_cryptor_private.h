@@ -86,7 +86,14 @@ typedef struct {
 #define archive_decrypto_aes_ctr_release(ctx) \
   __archive_cryptor.decrypto_aes_ctr_release(ctx)
 
-/* Minimal interface to cryptography functionality for internal use in
+#define archive_encrypto_aes_ctr_init(ctx, key, key_len) \
+  __archive_cryptor.encrypto_aes_ctr_init(ctx, key, key_len)
+#define archive_encrypto_aes_ctr_update(ctx, in, in_len, out, out_len) \
+  __archive_cryptor.encrypto_aes_ctr_update(ctx, in, in_len, out, out_len)
+#define archive_encrypto_aes_ctr_release(ctx) \
+  __archive_cryptor.encrypto_aes_ctr_release(ctx)
+
+/* Minimal interface to cryptographic functionality for internal use in
  * libarchive */
 struct archive_cryptor
 {
@@ -94,11 +101,15 @@ struct archive_cryptor
   int (*pbkdf2sha1)(const char *pw, size_t pw_len, const uint8_t *salt,
     size_t salt_len, unsigned rounds, uint8_t *derived_key,
     size_t derived_key_len);
-  /* AES CTR mode */
+  /* AES CTR mode(little endian version) */
   int (*decrypto_aes_ctr_init)(archive_crypto_ctx *, const uint8_t *, size_t);
   int (*decrypto_aes_ctr_update)(archive_crypto_ctx *, const uint8_t *,
     size_t, uint8_t *, size_t *);
   int (*decrypto_aes_ctr_release)(archive_crypto_ctx *);
+  int (*encrypto_aes_ctr_init)(archive_crypto_ctx *, const uint8_t *, size_t);
+  int (*encrypto_aes_ctr_update)(archive_crypto_ctx *, const uint8_t *,
+    size_t, uint8_t *, size_t *);
+  int (*encrypto_aes_ctr_release)(archive_crypto_ctx *);
 };
 
 extern const struct archive_cryptor __archive_cryptor;

@@ -957,6 +957,43 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	return (ret);
 }
 
+static int
+check_authentication_code(struct archive_read *a, const void *_p)
+{
+	struct zip *zip = (struct zip *)(a->format->data);
+
+	/* Check authentication code. */
+	if (zip->hctx_valid) {
+		const void *p;
+		uint8_t hmac[20];
+		size_t hmac_len = 20;
+		int cmp;
+
+		archive_hmac_sha1_final(&zip->hctx, hmac, &hmac_len);
+		if (_p == NULL) {
+			/* Read authentication code. */
+			p = __archive_read_ahead(a, AUTH_CODE_SIZE, NULL);
+			if (p == NULL) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Truncated ZIP file data");
+				return (ARCHIVE_FATAL);
+			}
+		} else {
+			p = _p;
+		}
+		cmp = memcmp(hmac, p, AUTH_CODE_SIZE);
+		__archive_read_consume(a, AUTH_CODE_SIZE);
+		if (cmp != 0) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_MISC,
+			    "ZIP bad Authentication code");
+			return (ARCHIVE_WARN);
+		}
+	}
+	return (ARCHIVE_OK);
+}
+
 /*
  * Read "uncompressed" data.  There are three cases:
  *  1) We know the size of the data.  This is always true for the
@@ -988,6 +1025,7 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 	struct zip *zip;
 	const char *buff;
 	ssize_t bytes_avail;
+	int r;
 
 	(void)offset; /* UNUSED */
 
@@ -995,10 +1033,13 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 
 	if (zip->entry->zip_flags & ZIP_LENGTH_AT_END) {
 		const char *p;
+		ssize_t grabbing_bytes = 24;
 
+		if (zip->hctx_valid)
+			grabbing_bytes += AUTH_CODE_SIZE;
 		/* Grab at least 24 bytes. */
-		buff = __archive_read_ahead(a, 24, &bytes_avail);
-		if (bytes_avail < 24) {
+		buff = __archive_read_ahead(a, grabbing_bytes, &bytes_avail);
+		if (bytes_avail < grabbing_bytes) {
 			/* Zip archives have end-of-archive markers
 			   that are longer than this, so a failure to get at
 			   least 24 bytes really does indicate a truncated
@@ -1011,10 +1052,14 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 		/* Check for a complete PK\007\010 signature, followed
 		 * by the correct 4-byte CRC. */
 		p = buff;
+		if (zip->hctx_valid)
+			p += AUTH_CODE_SIZE;
 		if (p[0] == 'P' && p[1] == 'K'
 		    && p[2] == '\007' && p[3] == '\010'
 		    && (archive_le32dec(p + 4) == zip->entry_crc32
-			|| zip->ignore_crc32)) {
+			|| zip->ignore_crc32
+			|| (zip->hctx_valid
+			 && zip->entry->aes_extra.vendor == AES_VENDOR_AE_2))) {
 			if (zip->entry->flags & LA_USED_ZIP64) {
 				zip->entry->crc32 = archive_le32dec(p + 4);
 				zip->entry->compressed_size =
@@ -1029,6 +1074,11 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 				zip->entry->uncompressed_size =
 					archive_le32dec(p + 12);
 				zip->unconsumed = 16;
+			}
+			if (zip->hctx_valid) {
+				r = check_authentication_code(a, buff);
+				if (r != ARCHIVE_OK)
+					return (r);
 			}
 			zip->end_of_entry = 1;
 			return (ARCHIVE_OK);
@@ -1046,6 +1096,8 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 			else if (p[3] == '\007') { p += 1; }
 			else if (p[3] == '\010' && p[2] == '\007'
 			    && p[1] == 'K' && p[0] == 'P') {
+				if (zip->hctx_valid)
+					p -= AUTH_CODE_SIZE;
 				break;
 			} else { p += 4; }
 		}
@@ -1053,6 +1105,11 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 	} else {
 		if (zip->entry_bytes_remaining == 0) {
 			zip->end_of_entry = 1;
+			if (zip->hctx_valid) {
+				r = check_authentication_code(a, NULL);
+				if (r != ARCHIVE_OK)
+					return (r);
+			}
 			return (ARCHIVE_OK);
 		}
 		/* Grab a bunch of bytes. */
@@ -1127,7 +1184,7 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 {
 	struct zip *zip;
 	ssize_t bytes_avail;
-	const void *compressed_buff;
+	const void *compressed_buff, *sp;
 	int r;
 
 	(void)offset; /* UNUSED */
@@ -1156,7 +1213,7 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	 * available bytes; asking for more than that forces the
 	 * decompressor to combine reads by copying data.
 	 */
-	compressed_buff = __archive_read_ahead(a, 1, &bytes_avail);
+	compressed_buff = sp = __archive_read_ahead(a, 1, &bytes_avail);
 	if (0 == (zip->entry->zip_flags & ZIP_LENGTH_AT_END)
 	    && bytes_avail > zip->entry_bytes_remaining) {
 		bytes_avail = (ssize_t)zip->entry_bytes_remaining;
@@ -1198,9 +1255,8 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 					    buff_remaining);
 				} else {
 					size_t dsize = buff_remaining;
-					archive_hmac_sha1_update(&zip->hctx,
-					    compressed_buff, buff_remaining);
-					archive_decrypto_aes_ctr_update(&zip->cctx,
+					archive_decrypto_aes_ctr_update(
+					    &zip->cctx,
 					    compressed_buff, buff_remaining,
 					    zip->decrypted_ptr
 					      + zip->decrypted_bytes_remaining,
@@ -1252,6 +1308,9 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 		else
 			zip->decrypted_ptr += bytes_avail;
 	}
+	/* Calculate compressed data as much as we used.*/
+	if (zip->hctx_valid)
+		archive_hmac_sha1_update(&zip->hctx, sp, bytes_avail);
 	__archive_read_consume(a, bytes_avail);
 	zip->entry_bytes_remaining -= bytes_avail;
 	zip->entry_compressed_bytes_read += bytes_avail;
@@ -1259,6 +1318,12 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	*size = zip->stream.total_out;
 	zip->entry_uncompressed_bytes_read += zip->stream.total_out;
 	*buff = zip->uncompressed_buffer;
+
+	if (zip->end_of_entry && zip->hctx_valid) {
+		r = check_authentication_code(a, NULL);
+		if (r != ARCHIVE_OK)
+			return (r);
+	}
 
 	if (zip->end_of_entry && (zip->entry->zip_flags & ZIP_LENGTH_AT_END)) {
 		const char *p;
@@ -1611,10 +1676,10 @@ init_WinZip_AES_decryption(struct archive_read *a)
 		return (ARCHIVE_FAILED);
 	}
 	zip->cctx_valid = zip->hctx_valid = 1;
-
 	__archive_read_consume(a, salt_len + 2);
 	zip->entry_bytes_remaining -= salt_len + 2 + AUTH_CODE_SIZE;
-	if (zip->entry_bytes_remaining < 0)
+	if (0 == (zip->entry->zip_flags & ZIP_LENGTH_AT_END)
+	    && zip->entry_bytes_remaining < 0)
 		goto corrupted;
 	zip->entry_compressed_bytes_read += salt_len + 2 + AUTH_CODE_SIZE;
 	zip->decrypted_bytes_remaining = 0;
@@ -1699,31 +1764,6 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		    (unsigned)*size);
 	/* If we hit the end, swallow any end-of-data marker. */
 	if (zip->end_of_entry) {
-		/* Check authentication code. */
-		if (zip->hctx_valid) {
-			const void *p;
-			uint8_t hmac[20];
-			size_t hmac_len = 20;
-			int cmp;
-
-			archive_hmac_sha1_final(&zip->hctx, hmac, &hmac_len);
-			/* Read authentication code. */
-			p = __archive_read_ahead(a, AUTH_CODE_SIZE, NULL);
-			if (p == NULL) {
-				archive_set_error(&a->archive,
-				    ARCHIVE_ERRNO_FILE_FORMAT,
-				    "Truncated ZIP file data");
-				return (ARCHIVE_FATAL);
-			}
-			cmp = memcmp(hmac, p, AUTH_CODE_SIZE);
-			__archive_read_consume(a, AUTH_CODE_SIZE);
-			if (cmp != 0) {
-				archive_set_error(&a->archive,
-				    ARCHIVE_ERRNO_MISC,
-				    "ZIP bad Authentication code");
-				return (ARCHIVE_WARN);
-			}
-		}
 		/* Check file size, CRC against these values. */
 		if (zip->entry->compressed_size !=
 		    zip->entry_compressed_bytes_read) {
@@ -1790,6 +1830,8 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 	free(zip->decrypted_buffer);
 	if (zip->cctx_valid)
 		archive_decrypto_aes_ctr_release(&zip->cctx);
+	if (zip->hctx_valid)
+		archive_hmac_sha1_cleanup(&zip->hctx);
 	free(zip->iv);
 	free(zip->erd);
 	free(zip->v_data);
@@ -1961,10 +2003,10 @@ archive_read_format_zip_streamable_read_header(struct archive_read *a,
 	zip->entry = zip->zip_entries;
 	memset(zip->entry, 0, sizeof(struct zip_entry));
 
-	if (zip->cctx_valid) {
+	if (zip->cctx_valid)
 		archive_decrypto_aes_ctr_release(&zip->cctx);
-		zip->cctx_valid = 0;
-	}
+	if (zip->hctx_valid)
+		archive_hmac_sha1_cleanup(&zip->hctx);
 	zip->tctx_valid = zip->cctx_valid = zip->hctx_valid = 0;
 
 	/* Search ahead for the next local file header. */
@@ -2798,10 +2840,10 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 	else
 		rsrc = NULL;
 
-	if (zip->cctx_valid) {
+	if (zip->cctx_valid)
 		archive_decrypto_aes_ctr_release(&zip->cctx);
-		zip->cctx_valid = 0;
-	}
+	if (zip->hctx_valid)
+		archive_hmac_sha1_cleanup(&zip->hctx);
 	zip->tctx_valid = zip->cctx_valid = zip->hctx_valid = 0;
 
 	/* File entries are sorted by the header offset, we should mostly
