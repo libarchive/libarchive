@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 14, 2014
+.Dd September 10, 2014
 .Dt TAR 1
 .Os
 .Sh NAME
@@ -547,6 +547,14 @@ Use
 .Ar type
 as compression method.
 Supported values are store (uncompressed) and deflate (gzip algorithm).
+.It Cm zip:encryption
+Enable encryption using traditional zip encryption.
+.It Cm zip:encryption Ns = Ns Ar type
+Use
+.Ar type
+as encryption type.
+Supported values are zipcrypt (traditional zip encryption),
+aes128 (WinZip AES-128 encryption) and aes256 (WinZip AES-256 encryption).
 .It Cm read_concatenated_archives
 Ignore zeroed blocks in the archive, which occurs when multiple tar archives
 have been concatenated together.  Without this option, only the contents of
