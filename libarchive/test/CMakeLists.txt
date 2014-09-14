@@ -23,6 +23,7 @@ IF(ENABLE_TEST)
     test_archive_match_path.c
     test_archive_match_time.c
     test_archive_pathmatch.c
+    test_archive_read_add_passphrase.c
     test_archive_read_close_twice.c
     test_archive_read_close_twice_open_fd.c
     test_archive_read_close_twice_open_filename.c
@@ -44,6 +45,7 @@ IF(ENABLE_TEST)
     test_archive_write_set_format_option.c
     test_archive_write_set_option.c
     test_archive_write_set_options.c
+    test_archive_write_set_passphrase.c
     test_bad_fd.c
     test_compat_bzip2.c
     test_compat_cpio.c

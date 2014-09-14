@@ -24,7 +24,7 @@ DISTCHECK_CONFIGURE_FLAGS = --enable-bsdtar --enable-bsdcpio
 COMMON_CFLAGS=-Wall -Wformat -Wformat-security
 # The next line is commented out by default in shipping libarchive releases.
 # It is uncommented by default in trunk.
-DEV_CFLAGS=-Werror -Wextra -Wunused -Wshadow -Wmissing-prototypes -Wcast-qual
+DEV_CFLAGS=-Werror -Wextra -Wunused -Wshadow -Wmissing-prototypes -Wcast-qual -g
 AM_CFLAGS=$(COMMON_CFLAGS) $(DEV_CFLAGS)
 PLATFORMCPPFLAGS = @PLATFORMCPPFLAGS@
 AM_CPPFLAGS=$(PLATFORMCPPFLAGS)
@@ -133,6 +133,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_rb.c \
 	libarchive/archive_rb.h \
 	libarchive/archive_read.c \
+	libarchive/archive_read_add_passphrase.c \
 	libarchive/archive_read_append_filter.c \
 	libarchive/archive_read_data_into_fd.c \
 	libarchive/archive_read_disk_entry_from_file.c \
@@ -225,6 +226,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_write_set_format_xar.c \
 	libarchive/archive_write_set_format_zip.c \
 	libarchive/archive_write_set_options.c \
+	libarchive/archive_write_set_passphrase.c \
 	libarchive/archive_xxhash.h \
 	libarchive/config_freebsd.h \
 	libarchive/filter_fork_posix.c \
@@ -256,6 +258,7 @@ libarchive_man_MANS= \
 	libarchive/archive_entry_stat.3 \
 	libarchive/archive_entry_time.3 \
 	libarchive/archive_read.3 \
+	libarchive/archive_read_add_passphrase.3 \
 	libarchive/archive_read_data.3 \
 	libarchive/archive_read_disk.3 \
 	libarchive/archive_read_extract.3 \
@@ -279,6 +282,7 @@ libarchive_man_MANS= \
 	libarchive/archive_write_new.3 \
 	libarchive/archive_write_open.3 \
 	libarchive/archive_write_set_options.3 \
+	libarchive/archive_write_set_passphrase.3 \
 	libarchive/cpio.5 \
 	libarchive/libarchive.3 \
 	libarchive/libarchive_changes.3 \
@@ -329,6 +333,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_archive_match_path.c \
 	libarchive/test/test_archive_match_time.c \
 	libarchive/test/test_archive_pathmatch.c \
+	libarchive/test/test_archive_read_add_passphrase.c \
 	libarchive/test/test_archive_read_close_twice.c \
 	libarchive/test/test_archive_read_close_twice_open_fd.c \
 	libarchive/test/test_archive_read_close_twice_open_filename.c \
@@ -350,6 +355,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_archive_write_set_format_option.c \
 	libarchive/test/test_archive_write_set_option.c \
 	libarchive/test/test_archive_write_set_options.c \
+	libarchive/test/test_archive_write_set_passphrase.c \
 	libarchive/test/test_bad_fd.c \
 	libarchive/test/test_compat_bzip2.c \
 	libarchive/test/test_compat_cpio.c \

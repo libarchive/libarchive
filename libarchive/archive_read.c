@@ -101,15 +101,16 @@ archive_read_new(void)
 {
 	struct archive_read *a;
 
-	a = (struct archive_read *)malloc(sizeof(*a));
+	a = (struct archive_read *)calloc(1, sizeof(*a));
 	if (a == NULL)
 		return (NULL);
-	memset(a, 0, sizeof(*a));
 	a->archive.magic = ARCHIVE_READ_MAGIC;
 
 	a->archive.state = ARCHIVE_STATE_NEW;
 	a->entry = archive_entry_new2(&a->archive);
 	a->archive.vtable = archive_read_vtable();
+
+	a->passphrases.last = &a->passphrases.first;
 
 	return (&a->archive);
 }
@@ -1043,6 +1044,7 @@ static int
 _archive_read_free(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
+	struct archive_read_passphrase *p;
 	int i, n;
 	int slots;
 	int r = ARCHIVE_OK;
@@ -1078,6 +1080,18 @@ _archive_read_free(struct archive *_a)
 			if (r1 < r)
 				r = r1;
 		}
+	}
+
+	/* Release passphrase list. */
+	p = a->passphrases.first;
+	while (p != NULL) {
+		struct archive_read_passphrase *np = p->next;
+
+		/* A passphrase should be cleaned. */
+		memset(p->passphrase, 0, strlen(p->passphrase));
+		free(p->passphrase);
+		free(p);
+		p = np;
 	}
 
 	archive_string_free(&a->archive.error_string);

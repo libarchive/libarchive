@@ -51,6 +51,7 @@ SET(libarchive_SOURCES
   archive_rb.c
   archive_rb.h
   archive_read.c
+  archive_read_add_passphrase.c
   archive_read_append_filter.c
   archive_read_data_into_fd.c
   archive_read_disk_entry_from_file.c
@@ -143,6 +144,7 @@ SET(libarchive_SOURCES
   archive_write_set_format_xar.c
   archive_write_set_format_zip.c
   archive_write_set_options.c
+  archive_write_set_passphrase.c
   archive_xxhash.h
   filter_fork_posix.c
   filter_fork.h
@@ -160,12 +162,14 @@ SET(libarchive_MANS
   archive_entry_stat.3
   archive_entry_time.3
   archive_read.3
+  archive_read_add_passphrase.3
   archive_read_disk.3
   archive_read_set_options.3
   archive_util.3
   archive_write.3
   archive_write_disk.3
   archive_write_set_options.3
+  archive_write_set_passphrase.3
   cpio.5
   libarchive.3
   libarchive_internals.3
