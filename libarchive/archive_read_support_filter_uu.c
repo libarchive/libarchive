@@ -509,7 +509,7 @@ read_more:
 			return (ARCHIVE_FATAL);
 		}
 		llen = len;
-		if (nl == 0) {
+		if ((nl == 0) && (uudecode->state != ST_UUEND)) {
 			/*
 			 * Save remaining data which does not contain
 			 * NL('\n','\r').
