@@ -143,7 +143,6 @@ SET(libarchive_SOURCES
   filter_fork_posix.c
   filter_fork.h
   xxhash.c
-  xxhash.h
 )
 
 # Man pages
