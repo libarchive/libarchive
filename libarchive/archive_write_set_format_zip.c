@@ -155,7 +155,6 @@ struct zip {
 	enum compression requested_compression;
 	int init_default_conversion;
 	enum encryption  encryption_type;
-	struct archive_string password;
 
 #define ZIP_FLAG_AVOID_ZIP64 1
 #define ZIP_FLAG_FORCE_ZIP64 2
@@ -348,16 +347,6 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 				ret = ARCHIVE_OK;
 			else
 				ret = ARCHIVE_FATAL;
-		}
-		return (ret);
-	} else if (strcmp(key, "password") == 0) {
-		if (val == NULL || val[0] == 0) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "%s: password option needs its value",
-			    a->format_name);
-		} else {
-			archive_strcpy(&zip->password, val);
-			ret = ARCHIVE_OK;
 		}
 		return (ret);
 	} else if (strcmp(key, "zip64") == 0) {
@@ -1327,10 +1316,6 @@ archive_write_zip_free(struct archive_write *a)
 	}
 	free(zip->buf);
 	archive_entry_free(zip->entry);
-	if (zip->password.s != NULL) {
-		memset(zip->password.s, 0, archive_strlen(&zip->password));
-		archive_string_free(&zip->password);
-	}
 	if (zip->cctx_valid)
 		archive_encrypto_aes_ctr_release(&zip->cctx);
 	if (zip->hctx_valid)
@@ -1522,14 +1507,15 @@ static int
 init_traditional_pkware_encryption(struct archive_write *a)
 {
 	struct zip *zip = a->format_data;
+	const char *passphrase;
 	uint8_t key[TRAD_HEADER_SIZE];
 	uint8_t key_encrypted[TRAD_HEADER_SIZE];
 	int ret;
 
-	if (zip->password.s == NULL
-	    || archive_strlen(&zip->password) == 0) {
+	passphrase = __archive_write_get_passphrase(a);
+	if (passphrase == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Encryption needs password");
+		    "Encryption needs passphrase");
 		return ARCHIVE_FAILED;
 	}
 	if (archive_random(key, sizeof(key)-1) != ARCHIVE_OK) {
@@ -1537,10 +1523,9 @@ init_traditional_pkware_encryption(struct archive_write *a)
 		    "Can't generate random number for encryption");
 		return ARCHIVE_FATAL;
 	}
-	trad_enc_init(&zip->tctx, zip->password.s,
-	    archive_strlen(&zip->password));
+	trad_enc_init(&zip->tctx, passphrase, strlen(passphrase));
 	/* Set the last key code which will be used as a check code
-	 * for ferifying password in decryption. */
+	 * for verifying passphrase in decryption. */
 	key[TRAD_HEADER_SIZE-1] = zip->trad_chkdat;
 	trad_enc_encrypt_update(&zip->tctx, key, TRAD_HEADER_SIZE,
 	    key_encrypted, TRAD_HEADER_SIZE);
@@ -1557,15 +1542,16 @@ static int
 init_winzip_aes_encryption(struct archive_write *a)
 {
 	struct zip *zip = a->format_data;
+	const char *passphrase;
 	size_t key_len, salt_len;
 	uint8_t salt[16 + 2];
 	uint8_t derived_key[MAX_DERIVED_KEY_BUF_SIZE];
 	int ret;
 
-	if (zip->password.s == NULL
-	    || archive_strlen(&zip->password) == 0) {
+	passphrase = __archive_write_get_passphrase(a);
+	if (passphrase == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Encryption needs password");
+		    "Encryption needs passphrase");
 		return (ARCHIVE_FAILED);
 	}
 	if (zip->entry_encryption == ENCRYPTION_WINZIP_AES128) {
@@ -1581,7 +1567,7 @@ init_winzip_aes_encryption(struct archive_write *a)
 		    "Can't generate random number for encryption");
 		return (ARCHIVE_FATAL);
 	}
-	archive_pbkdf2_sha1(zip->password.s, archive_strlen(&zip->password),
+	archive_pbkdf2_sha1(passphrase, strlen(passphrase),
 	    salt, salt_len, 1000, derived_key, key_len * 2 + 2);
 
 	ret = archive_encrypto_aes_ctr_init(&zip->cctx, derived_key, key_len);

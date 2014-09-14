@@ -688,7 +688,7 @@ DEFINE_TEST(test_write_format_zip_traditional_pkware_encryption)
 		return;
 	}
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_options(a, "zip:password=password1234"));
+	    archive_write_set_passphrase(a, "password1234"));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_options(a, "zip:experimental"));
 	assertEqualIntA(a, ARCHIVE_OK,
@@ -704,7 +704,7 @@ DEFINE_TEST(test_write_format_zip_traditional_pkware_encryption)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_set_options(a, "zip:password=password1234"));
+	    archive_read_add_passphrase(a, "password1234"));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
 	verify_contents(a, 1, 1);
 
@@ -713,7 +713,7 @@ DEFINE_TEST(test_write_format_zip_traditional_pkware_encryption)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_set_options(a, "zip:password=password1234"));
+	    archive_read_add_passphrase(a, "password1234"));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, buff, used, 7));
 	/* Streaming reader doesn't see mode information from Central Directory. */
 	verify_contents(a, 0, 1);
@@ -722,7 +722,7 @@ DEFINE_TEST(test_write_format_zip_traditional_pkware_encryption)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_set_options(a, "zip:password=password1234"));
+	    archive_read_add_passphrase(a, "password1234"));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, buff, used, 7));
 	/* Streaming reader doesn't see mode information from Central Directory. */
 	verify_contents(a, 0, 0);
@@ -732,7 +732,7 @@ DEFINE_TEST(test_write_format_zip_traditional_pkware_encryption)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_set_options(a, "zip:password=password1234"));
+	    archive_read_add_passphrase(a, "password1234"));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, buff, used, 7));
 	verify_contents(a, 1, 1);
 
@@ -740,7 +740,7 @@ DEFINE_TEST(test_write_format_zip_traditional_pkware_encryption)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_set_options(a, "zip:password=password1234"));
+	    archive_read_add_passphrase(a, "password1234"));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, buff, used, 7));
 	verify_contents(a, 1, 0);
 
@@ -767,7 +767,7 @@ DEFINE_TEST(test_write_format_zip_winzip_aes128_encryption)
 		return;
 	}
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_options(a, "zip:password=password1234"));
+	    archive_write_set_passphrase(a, "password1234"));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_options(a, "zip:experimental"));
 	assertEqualIntA(a, ARCHIVE_OK,
@@ -783,7 +783,7 @@ DEFINE_TEST(test_write_format_zip_winzip_aes128_encryption)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_set_options(a, "zip:password=password1234"));
+	    archive_read_add_passphrase(a, "password1234"));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
 	verify_contents(a, 1, 1);
 
@@ -792,7 +792,7 @@ DEFINE_TEST(test_write_format_zip_winzip_aes128_encryption)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_set_options(a, "zip:password=password1234"));
+	    archive_read_add_passphrase(a, "password1234"));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, buff, used, 7));
 	/* Streaming reader doesn't see mode information from Central Directory. */
 	verify_contents(a, 0, 1);
@@ -801,7 +801,7 @@ DEFINE_TEST(test_write_format_zip_winzip_aes128_encryption)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_set_options(a, "zip:password=password1234"));
+	    archive_read_add_passphrase(a, "password1234"));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, buff, used, 7));
 	/* Streaming reader doesn't see mode information from Central Directory. */
 	verify_contents(a, 0, 0);
@@ -811,7 +811,7 @@ DEFINE_TEST(test_write_format_zip_winzip_aes128_encryption)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_set_options(a, "zip:password=password1234"));
+	    archive_read_add_passphrase(a, "password1234"));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, buff, used, 7));
 	verify_contents(a, 1, 1);
 
@@ -819,7 +819,7 @@ DEFINE_TEST(test_write_format_zip_winzip_aes128_encryption)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_set_options(a, "zip:password=password1234"));
+	    archive_read_add_passphrase(a, "password1234"));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, buff, used, 7));
 	verify_contents(a, 1, 0);
 
@@ -846,7 +846,7 @@ DEFINE_TEST(test_write_format_zip_winzip_aes256_encryption)
 		return;
 	}
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_options(a, "zip:password=password1234"));
+	    archive_write_set_passphrase(a, "password1234"));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_options(a, "zip:experimental"));
 	assertEqualIntA(a, ARCHIVE_OK,
@@ -862,7 +862,7 @@ DEFINE_TEST(test_write_format_zip_winzip_aes256_encryption)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_set_options(a, "zip:password=password1234"));
+	    archive_read_add_passphrase(a, "password1234"));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
 	verify_contents(a, 1, 1);
 
@@ -871,7 +871,7 @@ DEFINE_TEST(test_write_format_zip_winzip_aes256_encryption)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_set_options(a, "zip:password=password1234"));
+	    archive_read_add_passphrase(a, "password1234"));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, buff, used, 7));
 	/* Streaming reader doesn't see mode information from Central Directory. */
 	verify_contents(a, 0, 1);
@@ -880,7 +880,7 @@ DEFINE_TEST(test_write_format_zip_winzip_aes256_encryption)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_set_options(a, "zip:password=password1234"));
+	    archive_read_add_passphrase(a, "password1234"));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, buff, used, 7));
 	/* Streaming reader doesn't see mode information from Central Directory. */
 	verify_contents(a, 0, 0);
@@ -890,7 +890,7 @@ DEFINE_TEST(test_write_format_zip_winzip_aes256_encryption)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_set_options(a, "zip:password=password1234"));
+	    archive_read_add_passphrase(a, "password1234"));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, buff, used, 7));
 	verify_contents(a, 1, 1);
 
@@ -898,7 +898,7 @@ DEFINE_TEST(test_write_format_zip_winzip_aes256_encryption)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_set_options(a, "zip:password=password1234"));
+	    archive_read_add_passphrase(a, "password1234"));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, buff, used, 7));
 	verify_contents(a, 1, 0);
 

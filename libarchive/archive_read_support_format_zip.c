@@ -177,7 +177,6 @@ struct zip {
 	int			init_default_conversion;
 	int			process_mac_extensions;
 
-	struct archive_string	password;
 	char			init_decryption;
 
 	/* Decryption buffer. */
@@ -1574,6 +1573,7 @@ static int
 init_traditional_PKWARE_decryption(struct archive_read *a)
 {
 	struct zip *zip = (struct zip *)(a->format->data);
+	const char *passphrase;
 	const void *p;
 	uint8_t crcchk;
 	int r;
@@ -1581,7 +1581,8 @@ init_traditional_PKWARE_decryption(struct archive_read *a)
 	if (zip->tctx_valid)
 		return (ARCHIVE_OK);
 
-	if (archive_strlen(&zip->password) == 0) {
+	passphrase = __archive_read_next_passphrase(a);
+	if (passphrase == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Passowrd required for this entry");
 		return (ARCHIVE_FAILED);
@@ -1601,8 +1602,8 @@ init_traditional_PKWARE_decryption(struct archive_read *a)
 	/*
 	 * Initialize ctx for Traditional PKWARE Decyption.
 	 */
-	r = trad_enc_init(&zip->tctx, zip->password.s,
-	    archive_strlen(&zip->password), p, ENC_HEADER_SIZE, &crcchk);
+	r = trad_enc_init(&zip->tctx, passphrase, strlen(passphrase),
+		p, ENC_HEADER_SIZE, &crcchk);
 	if (crcchk != zip->entry->decdat || r != 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Incorrect passowrd");
@@ -1624,6 +1625,7 @@ static int
 init_WinZip_AES_decryption(struct archive_read *a)
 {
 	struct zip *zip = (struct zip *)(a->format->data);
+	const char *passphrase;
 	const void *p;
 	const uint8_t *pv;
 	size_t key_len, salt_len;
@@ -1633,7 +1635,8 @@ init_WinZip_AES_decryption(struct archive_read *a)
 	if (zip->cctx_valid || zip->hctx_valid)
 		return (ARCHIVE_OK);
 
-	if (archive_strlen(&zip->password) == 0) {
+	passphrase = __archive_read_next_passphrase(a);
+	if (passphrase == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Passowrd required for this entry");
 		return (ARCHIVE_FAILED);
@@ -1650,7 +1653,7 @@ init_WinZip_AES_decryption(struct archive_read *a)
 		goto truncated;
 
 	memset(derived_key, 0, sizeof(derived_key));
-	archive_pbkdf2_sha1(zip->password.s, archive_strlen(&zip->password),
+	archive_pbkdf2_sha1(passphrase, strlen(passphrase),
 	    p, salt_len, 1000, derived_key, key_len * 2 + 2);
 
 	/* Check password verification value. */
@@ -1822,11 +1825,6 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 			zip_entry = next_zip_entry;
 		}
 	}
-	if (zip->password.s != NULL) {
-		/* Clean password characters up. */
-		memset(zip->password.s, 0, archive_strlen(&zip->password));
-		archive_string_free(&zip->password);
-	}
 	free(zip->decrypted_buffer);
 	if (zip->cctx_valid)
 		archive_decrypto_aes_ctr_release(&zip->cctx);
@@ -1892,12 +1890,6 @@ archive_read_format_zip_options(struct archive_read *a,
 		return (ARCHIVE_OK);
 	} else if (strcmp(key, "mac-ext") == 0) {
 		zip->process_mac_extensions = (val != NULL && val[0] != 0);
-		return (ARCHIVE_OK);
-	} else if (strcmp(key, "password") == 0) {
-		if (val != NULL)
-			archive_strcpy(&zip->password, val);
-		else
-			archive_string_empty(&zip->password);
 		return (ARCHIVE_OK);
 	}
 
@@ -2008,6 +2000,7 @@ archive_read_format_zip_streamable_read_header(struct archive_read *a,
 	if (zip->hctx_valid)
 		archive_hmac_sha1_cleanup(&zip->hctx);
 	zip->tctx_valid = zip->cctx_valid = zip->hctx_valid = 0;
+	__archive_read_reset_passphrase(a);
 
 	/* Search ahead for the next local file header. */
 	__archive_read_consume(a, zip->unconsumed);
@@ -2845,6 +2838,7 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 	if (zip->hctx_valid)
 		archive_hmac_sha1_cleanup(&zip->hctx);
 	zip->tctx_valid = zip->cctx_valid = zip->hctx_valid = 0;
+	__archive_read_reset_passphrase(a);
 
 	/* File entries are sorted by the header offset, we should mostly
 	 * use __archive_read_consume to advance a read point to avoid redundant

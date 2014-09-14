@@ -104,9 +104,9 @@ DEFINE_TEST(test_read_format_zip_traditional_encryption_data)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-		archive_read_set_options(a, "zip:password=12345678"));
+		archive_read_add_passphrase(a, "12345678"));
 	assertEqualIntA(a, ARCHIVE_OK, 
-               archive_read_open_filename(a, refname, 10240));
+		archive_read_open_filename(a, refname, 10240));
 
 	assertEqualIntA(a, ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW,
 		archive_read_has_encrypted_entries(a));
