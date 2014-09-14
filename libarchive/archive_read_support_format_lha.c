@@ -1712,10 +1712,11 @@ lha_crc16(uint16_t crc, const void *pp, size_t len)
 		 * remove the stament which will not be executed. */
 #ifdef _MSC_VER  /* Visual Studio */
 #  define bswap16(x) _byteswap_ushort(x)
-#elif defined(__GNUC__) || defined(__clang__)
+#elif (defined(__GNUC__) && __GNUC__ >= 4 && __GNUC_MINOR__ >= 8) \
+      || defined(__clang__)
 #  define bswap16(x) __builtin_bswap16(x)
 #else
-#  define bswap16(x) ((((b) >> 8) & 0xff) | ((b) << 8))
+#  define bswap16(x) ((((x) >> 8) & 0xff) | ((x) << 8))
 #endif
 #define CRC16W	do { 	\
 		if(u.c[0] == 1) { /* Big endian */		\

@@ -46,7 +46,9 @@ typedef struct {
 } archive_crypto_ctx;
 
 #elif defined(HAVE_LIBNETTLE)
+#if defined(HAVE_NETTLE_PBKDF2_H)
 #include <nettle/pbkdf2.h>
+#endif
 #include <nettle/aes.h>
 
 typedef struct {

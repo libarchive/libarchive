@@ -44,7 +44,7 @@ pbkdf2_sha1(const char *pw, size_t pw_len, const uint8_t *salt,
 	return 0;
 }
 
-#elif defined(HAVE_LIBNETTLE)
+#elif defined(HAVE_LIBNETTLE) && defined(HAVE_NETTLE_PBKDF2_H)
 
 static int
 pbkdf2_sha1(const char *pw, size_t pw_len, const uint8_t *salt,
@@ -55,7 +55,7 @@ pbkdf2_sha1(const char *pw, size_t pw_len, const uint8_t *salt,
 	return 0;
 }
 
-#elif defined(HAVE_LIBCRYPTO)
+#elif defined(HAVE_LIBCRYPTO) && defined(HAVE_PKCS5_PBKDF2_HMAC_SHA1)
 
 static int
 pbkdf2_sha1(const char *pw, size_t pw_len, const uint8_t *salt,

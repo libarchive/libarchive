@@ -727,6 +727,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <nettle/md5.h> header file. */
 #cmakedefine HAVE_NETTLE_MD5_H 1
 
+/* Define to 1 if you have the <nettle/pbkdf2.h> header file. */
+#cmakedefine HAVE_NETTLE_PBKDF2_H 1
+
 /* Define to 1 if you have the <nettle/ripemd160.h> header file. */
 #cmakedefine HAVE_NETTLE_RIPEMD160_H 1
 
@@ -747,6 +750,9 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the `pipe' function. */
 #cmakedefine HAVE_PIPE 1
+
+/* Define to 1 if you have the `PKCS5_PBKDF2_HMAC_SHA1' function. */
+#cmakedefine HAVE_PKCS5_PBKDF2_HMAC_SHA1 1
 
 /* Define to 1 if you have the `poll' function. */
 #cmakedefine HAVE_POLL 1

@@ -784,6 +784,8 @@ if test "x$with_nettle" != "xno"; then
     CRYPTO_CHECK(SHA512, NETTLE, sha512)
     if test "x$found_NETTLE" != "xyes"; then
       LIBS=$saved_LIBS
+    else
+      AC_CHECK_HEADERS([nettle/pbkdf2.h])
     fi
 fi
 if test "x$with_openssl" != "xno"; then
@@ -815,6 +817,8 @@ if test "x$with_openssl" != "xno"; then
     CRYPTO_CHECK(SHA512, OPENSSL, sha512)
     if test "x$found_OPENSSL" != "xyes"; then
       LIBS=$saved_LIBS
+    else
+      AC_CHECK_FUNCS([PKCS5_PBKDF2_HMAC_SHA1])
     fi
 fi
 
