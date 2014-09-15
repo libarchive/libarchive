@@ -103,6 +103,11 @@ DEFINE_TEST(test_read_format_zip_traditional_encryption_data)
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	/* Pass three passphrases to decrypt a file content. */
+	assertEqualIntA(a, ARCHIVE_OK,
+		archive_read_add_passphrase(a, "invalid_pass"));
+	assertEqualIntA(a, ARCHIVE_OK,
+		archive_read_add_passphrase(a, "invalid_phrase"));
 	assertEqualIntA(a, ARCHIVE_OK,
 		archive_read_add_passphrase(a, "12345678"));
 	assertEqualIntA(a, ARCHIVE_OK, 

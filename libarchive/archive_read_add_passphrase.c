@@ -51,6 +51,35 @@ remove_passphrases_from_head(struct archive_read *a)
 	return (p);
 }
 
+static void
+insert_passphrase_to_head(struct archive_read *a,
+    struct archive_read_passphrase *p)
+{
+	p->next = a->passphrases.first;
+	a->passphrases.first = p;
+}
+
+static struct archive_read_passphrase *
+new_read_passphrase(struct archive_read *a, const char *passphrase)
+{
+	struct archive_read_passphrase *p;
+
+	p = malloc(sizeof(*p));
+	if (p == NULL) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate memory");
+		return (NULL);
+	}
+	p->passphrase = strdup(passphrase);
+	if (p->passphrase == NULL) {
+		free(p);
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate memory");
+		return (NULL);
+	}
+	return (p);
+}
+
 int
 archive_read_add_passphrase(struct archive *_a, const char *passphrase)
 {
@@ -66,19 +95,9 @@ archive_read_add_passphrase(struct archive *_a, const char *passphrase)
 		return (ARCHIVE_FAILED);
 	}
 
-	p = malloc(sizeof(*p));
-	if (p == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate memory");
+	p = new_read_passphrase(a, passphrase);
+	if (p == NULL)
 		return (ARCHIVE_FATAL);
-	}
-	p->passphrase = strdup(passphrase);
-	if (p->passphrase == NULL) {
-		free(p);
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate memory");
-		return (ARCHIVE_FATAL);
-	}
 	add_passphrase_to_tail(a, p);
 
 	return (ARCHIVE_OK);
@@ -153,6 +172,13 @@ __archive_read_next_passphrase(struct archive_read *a)
 		 * have it. */
 		passphrase = a->passphrases.callback(&a->archive,
 		    a->passphrases.client_data);
+		if (passphrase != NULL) {
+			p = new_read_passphrase(a, passphrase);
+			if (p == NULL)
+				return (NULL);
+			insert_passphrase_to_head(a, p);
+			a->passphrases.candiate = 1;
+		}
 	} else
 		passphrase = NULL;
 

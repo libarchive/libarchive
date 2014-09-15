@@ -1573,20 +1573,12 @@ static int
 init_traditional_PKWARE_decryption(struct archive_read *a)
 {
 	struct zip *zip = (struct zip *)(a->format->data);
-	const char *passphrase;
 	const void *p;
-	uint8_t crcchk;
+	int retry;
 	int r;
 
 	if (zip->tctx_valid)
 		return (ARCHIVE_OK);
-
-	passphrase = __archive_read_next_passphrase(a);
-	if (passphrase == NULL) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Passowrd required for this entry");
-		return (ARCHIVE_FAILED);
-	}
 
 	/*
 	   Read the 12 bytes encryption header stored at
@@ -1599,15 +1591,33 @@ init_traditional_PKWARE_decryption(struct archive_read *a)
 		    "Truncated ZIP file data");
 		return (ARCHIVE_FATAL);
 	}
-	/*
-	 * Initialize ctx for Traditional PKWARE Decyption.
-	 */
-	r = trad_enc_init(&zip->tctx, passphrase, strlen(passphrase),
-		p, ENC_HEADER_SIZE, &crcchk);
-	if (crcchk != zip->entry->decdat || r != 0) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Incorrect passowrd");
-		return (ARCHIVE_FAILED);
+
+	for (retry = 0;; retry++) {
+		const char *passphrase;
+		uint8_t crcchk;
+
+		passphrase = __archive_read_next_passphrase(a);
+		if (passphrase == NULL) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    (retry > 0)?
+				"Incorrect passphrase":
+				"Passphrase required for this entry");
+			return (ARCHIVE_FAILED);
+		}
+
+		/*
+		 * Initialize ctx for Traditional PKWARE Decyption.
+		 */
+		r = trad_enc_init(&zip->tctx, passphrase, strlen(passphrase),
+			p, ENC_HEADER_SIZE, &crcchk);
+		if (r == 0 && crcchk == zip->entry->decdat)
+			break;/* The passphrase is OK. */
+		if (retry > 10000) {
+			/* Avoid infinity loop. */
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Too many incorrect passphrases");
+			return (ARCHIVE_FAILED);
+		}
 	}
 
 	__archive_read_consume(a, ENC_HEADER_SIZE);
@@ -1625,22 +1635,15 @@ static int
 init_WinZip_AES_decryption(struct archive_read *a)
 {
 	struct zip *zip = (struct zip *)(a->format->data);
-	const char *passphrase;
 	const void *p;
 	const uint8_t *pv;
 	size_t key_len, salt_len;
 	uint8_t derived_key[MAX_DERIVED_KEY_BUF_SIZE];
+	int retry;
 	int r;
 
 	if (zip->cctx_valid || zip->hctx_valid)
 		return (ARCHIVE_OK);
-
-	passphrase = __archive_read_next_passphrase(a);
-	if (passphrase == NULL) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Passowrd required for this entry");
-		return (ARCHIVE_FAILED);
-	}
 
 	switch (zip->entry->aes_extra.strength) {
 	case 1: salt_len = 8;  key_len = 16; break;
@@ -1652,17 +1655,38 @@ init_WinZip_AES_decryption(struct archive_read *a)
 	if (p == NULL)
 		goto truncated;
 
-	memset(derived_key, 0, sizeof(derived_key));
-	archive_pbkdf2_sha1(passphrase, strlen(passphrase),
-	    p, salt_len, 1000, derived_key, key_len * 2 + 2);
+	for (retry = 0;; retry++) {
+		const char *passphrase;
 
-	/* Check password verification value. */
-	pv = ((const uint8_t *)p) + salt_len;
-	if (derived_key[key_len * 2] != pv[0] ||
-	    derived_key[key_len * 2 + 1] != pv[1]) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Invalid passowrd");
-		return (ARCHIVE_FAILED);
+		passphrase = __archive_read_next_passphrase(a);
+		if (passphrase == NULL) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    (retry > 0)?
+				"Incorrect passphrase":
+				"Passphrase required for this entry");
+			return (ARCHIVE_FAILED);
+		}
+		memset(derived_key, 0, sizeof(derived_key));
+		r = archive_pbkdf2_sha1(passphrase, strlen(passphrase),
+		    p, salt_len, 1000, derived_key, key_len * 2 + 2);
+		if (r != 0) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Decryption is unsupported due to lack of "
+			    "crypto library");
+			return (ARCHIVE_FAILED);
+		}
+
+		/* Check password verification value. */
+		pv = ((const uint8_t *)p) + salt_len;
+		if (derived_key[key_len * 2] == pv[0] &&
+		    derived_key[key_len * 2 + 1] == pv[1])
+			break;/* The passphrase is OK. */
+		if (retry > 10000) {
+			/* Avoid infinity loop. */
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Too many incorrect passphrases");
+			return (ARCHIVE_FAILED);
+		}
 	}
 
 	r = archive_decrypto_aes_ctr_init(&zip->cctx, derived_key, key_len);
