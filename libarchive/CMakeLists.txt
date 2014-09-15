@@ -18,10 +18,10 @@ SET(libarchive_SOURCES
   archive_cmdline.c
   archive_cmdline_private.h
   archive_crc32.h
-  archive_crypto.c
-  archive_crypto_private.h
   archive_cryptor.c
   archive_cryptor_private.h
+  archive_digest.c
+  archive_digest_private.h
   archive_endian.h
   archive_entry.c
   archive_entry.h

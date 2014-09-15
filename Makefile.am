@@ -98,10 +98,10 @@ libarchive_la_SOURCES= \
 	libarchive/archive_cmdline.c \
 	libarchive/archive_cmdline_private.h \
 	libarchive/archive_crc32.h \
-	libarchive/archive_crypto.c \
-	libarchive/archive_crypto_private.h \
 	libarchive/archive_cryptor.c \
 	libarchive/archive_cryptor_private.h \
+	libarchive/archive_digest.c \
+	libarchive/archive_digest_private.h \
 	libarchive/archive_endian.h \
 	libarchive/archive_entry.c \
 	libarchive/archive_entry.h \
@@ -327,7 +327,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_archive_api_feature.c \
 	libarchive/test/test_archive_clear_error.c \
 	libarchive/test/test_archive_cmdline.c \
-	libarchive/test/test_archive_crypto.c \
+	libarchive/test/test_archive_digest.c \
 	libarchive/test/test_archive_getdate.c \
 	libarchive/test/test_archive_match_owner.c \
 	libarchive/test/test_archive_match_path.c \

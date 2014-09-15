@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_mtree.c 201171 
 #include <string.h>
 
 #include "archive.h"
-#include "archive_crypto_private.h"
+#include "archive_digest_private.h"
 #include "archive_entry.h"
 #include "archive_private.h"
 #include "archive_rb.h"
