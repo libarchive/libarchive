@@ -57,6 +57,7 @@ struct bsdtar {
 	const char	 *gname; /* --gname */
 	int		  uid;  /* --uid */
 	const char	 *uname; /* --uname */
+	const char	 *passphrase; /* --passphrase */
 	char		  mode; /* Program mode: 'c', 't', 'r', 'u', 'x' */
 	char		  symlink_mode; /* H or L, per BSD conventions */
 	char		  option_absolute_paths; /* -P */
@@ -149,6 +150,7 @@ enum {
 	OPTION_OLDER_MTIME_THAN,
 	OPTION_ONE_FILE_SYSTEM,
 	OPTION_OPTIONS,
+	OPTION_PASSPHRASE,
 	OPTION_POSIX,
 	OPTION_SAME_OWNER,
 	OPTION_STRIP_COMPONENTS,

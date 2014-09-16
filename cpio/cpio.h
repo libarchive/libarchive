@@ -71,6 +71,7 @@ struct cpio {
 	int		  gid_override;
 	char		 *gname_override;
 	int		  day_first; /* true if locale prefers day/mon */
+	const char	 *passphrase;
 
 	/* If >= 0, then close this when done. */
 	int		  fd;
@@ -104,6 +105,7 @@ enum {
 	OPTION_LZ4,
 	OPTION_LZMA,
 	OPTION_LZOP,
+	OPTION_PASSPHRASE,
 	OPTION_NO_PRESERVE_OWNER,
 	OPTION_PRESERVE_OWNER,
 	OPTION_QUIET,

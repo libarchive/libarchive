@@ -549,6 +549,9 @@ main(int argc, char **argv)
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_FFLAGS;
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_MAC_METADATA;
 			break;
+		case OPTION_PASSPHRASE:
+			bsdtar->passphrase = bsdtar->argument;
+			break;
 		case OPTION_POSIX: /* GNU tar */
 			cset_set_format(bsdtar->cset, "pax");
 			break;

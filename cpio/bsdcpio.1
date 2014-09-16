@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 14, 2014
+.Dd September 16, 2014
 .Dt CPIO 1
 .Os
 .Sh NAME
@@ -196,6 +196,15 @@ automatically on input.
 Compress the resulting archive with
 .Xr lzop 1 .
 In input mode, this option is ignored.
+.It Fl Fl passphrase Ar passphrase
+The
+.Pa passphrase
+is used to extract or create an encrypted archive.
+Currently, zip is only a format that
+.Nm
+can handle encrypted archives.
+You shouldn't use this option unless you realize how insecure
+use of this option is.
 .It Fl m , Fl Fl preserve-modification-time
 (i and p modes)
 Set file modification time on created files to match

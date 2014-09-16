@@ -291,6 +291,9 @@ main(int argc, char *argv[])
 			cpio->mode = opt;
 			cpio->extract_flags &= ~ARCHIVE_EXTRACT_SECURE_NODOTDOT;
 			break;
+		case OPTION_PASSPHRASE:
+			cpio->passphrase = cpio->argument;
+			break;
 		case OPTION_PRESERVE_OWNER:
 			cpio->extract_flags |= ARCHIVE_EXTRACT_OWNER;
 			break;
@@ -571,6 +574,12 @@ mode_out(struct cpio *cpio)
 	cpio->linkresolver = archive_entry_linkresolver_new();
 	archive_entry_linkresolver_set_strategy(cpio->linkresolver,
 	    archive_format(cpio->archive));
+	if (cpio->passphrase != NULL) {
+		if (archive_write_set_passphrase(cpio->archive,
+		    cpio->passphrase) != ARCHIVE_OK)
+			lafe_errc(1, 0, "%s",
+			    archive_error_string(cpio->archive));
+	}
 
 	/*
 	 * The main loop:  Copy each file into the output archive.
@@ -937,6 +946,11 @@ mode_in(struct cpio *cpio)
 		lafe_errc(1, 0, "Couldn't allocate archive object");
 	archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
+	if (cpio->passphrase != NULL) {
+		if (archive_read_add_passphrase(a,
+		    cpio->passphrase) != ARCHIVE_OK)
+			lafe_errc(1, 0, "%s", archive_error_string(a));
+	}
 
 	if (archive_read_open_filename(a, cpio->filename,
 					cpio->bytes_per_block))
@@ -1040,6 +1054,11 @@ mode_list(struct cpio *cpio)
 		lafe_errc(1, 0, "Couldn't allocate archive object");
 	archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
+	if (cpio->passphrase != NULL) {
+		if (archive_read_add_passphrase(a,
+		    cpio->passphrase) != ARCHIVE_OK)
+			lafe_errc(1, 0, "%s", archive_error_string(a));
+	}
 
 	if (archive_read_open_filename(a, cpio->filename,
 					cpio->bytes_per_block))

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 10, 2014
+.Dd September 16, 2014
 .Dt TAR 1
 .Os
 .Sh NAME
@@ -587,6 +587,15 @@ is being run by root and can be overridden by also specifying
 .Fl Fl no-same-owner
 and
 .Fl Fl no-same-permissions .
+.It Fl Fl passphrase Ar passphrase
+The
+.Pa passphrase
+is used to extract or create an encrypted archive.
+Currently, zip is only a format that
+.Nm
+can handle encrypted archives.
+You shouldn't use this option unless you realize how insecure
+use of this option is.
 .It Fl Fl posix
 (c, r, u mode only)
 Synonym for

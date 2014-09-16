@@ -129,6 +129,7 @@ static const struct bsdtar_option {
 	{ "older-than",		  1, OPTION_OLDER_CTIME_THAN },
 	{ "one-file-system",	  0, OPTION_ONE_FILE_SYSTEM },
 	{ "options",              1, OPTION_OPTIONS },
+	{ "passphrase",		  1, OPTION_PASSPHRASE },
 	{ "posix",		  0, OPTION_POSIX },
 	{ "preserve-permissions", 0, 'p' },
 	{ "read-full-blocks",	  0, 'B' },

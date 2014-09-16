@@ -81,6 +81,7 @@ static const struct option {
 	{ "null",			0, '0' },
 	{ "numeric-uid-gid",		0, 'n' },
 	{ "owner",			1, 'R' },
+	{ "passphrase",			1, OPTION_PASSPHRASE },
 	{ "pass-through",		0, 'p' },
 	{ "preserve-modification-time", 0, 'm' },
 	{ "preserve-owner",		0, OPTION_PRESERVE_OWNER },
