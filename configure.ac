@@ -699,7 +699,7 @@ AC_DEFUN([CRYPTO_CHECK], [
 #define ARCHIVE_CRYPTO_$1_$2
 #define PLATFORM_CONFIG_H "check_crypto_md.h"
 
-$(cat "$srcdir/libarchive/archive_crypto.c")
+$(cat "$srcdir/libarchive/archive_digest.c")
 
 int
 main(int argc, char **argv)

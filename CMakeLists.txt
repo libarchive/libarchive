@@ -631,7 +631,7 @@ ENDIF(NOT OPENSSL_FOUND)
 
 #
 # How to prove that CRYPTO functions, which have several names on various
-# platforms, just see if archive_crypto.c can compile and link against
+# platforms, just see if archive_digest.c can compile and link against
 # required libraries.
 #
 MACRO(CHECK_CRYPTO ALGORITHMS IMPLEMENTATION)
@@ -670,7 +670,7 @@ MACRO(CHECK_CRYPTO ALGORITHMS IMPLEMENTATION)
       ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeTmp/confdefs.h)
 	FILE(READ "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeTmp/confdefs.h"
 	     CONFDEFS_H)
-	FILE(READ "${CMAKE_CURRENT_SOURCE_DIR}/libarchive/archive_crypto.c"
+	FILE(READ "${CMAKE_CURRENT_SOURCE_DIR}/libarchive/archive_digest.c"
 	     ARCHIVE_CRYPTO_C)
 
 	SET(SOURCE "${CONFDEFS_H}
