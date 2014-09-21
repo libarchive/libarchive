@@ -91,6 +91,9 @@ readpassphrase(const char *prompt, char *buf, size_t bufsiz, int flags)
 #include <signal.h>
 #include <ctype.h>
 #include <fcntl.h>
+#ifdef HAVE_PATHS_H
+#include <paths.h>
+#endif
 #include <string.h>
 #include <unistd.h>
 
@@ -187,8 +190,10 @@ restart:
 
 	/* No I/O if we are already backgrounded. */
 	if (signo[SIGTTOU] != 1 && signo[SIGTTIN] != 1) {
-		if (!(flags & RPP_STDIN))
-			(void)write(output, prompt, strlen(prompt));
+		if (!(flags & RPP_STDIN)) {
+			int r = write(output, prompt, strlen(prompt));
+			(void)r;
+		}
 		end = buf + bufsiz - 1;
 		p = buf;
 		while ((nr = read(input, &ch, 1)) == 1 && ch != '\n' && ch != '\r') {
@@ -206,8 +211,10 @@ restart:
 		}
 		*p = '\0';
 		save_errno = errno;
-		if (!(term.c_lflag & ECHO))
-			(void)write(output, "\n", 1);
+		if (!(term.c_lflag & ECHO)) {
+			int r = write(output, "\n", 1);
+			(void)r;
+		}
 	}
 
 	/* Restore old terminal settings and signals. */
