@@ -60,3 +60,36 @@ DEFINE_TEST(test_archive_write_set_passphrase)
 	test(1);
 	test(0);
 }
+
+
+static const char *
+callback1(struct archive *a, void *_client_data)
+{
+	int *cnt;
+
+	(void)a; /* UNUSED */
+
+	cnt = (int *)_client_data;
+	*cnt += 1;
+	return ("passCallBack");
+}
+
+DEFINE_TEST(test_archive_write_set_passphrase_callback)
+{
+	struct archive* a = archive_write_new();
+	struct archive_write* aw = (struct archive_write *)a;
+	int cnt = 0;
+
+	archive_write_set_format_zip(a);
+
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_set_passphrase_callback(a, &cnt, callback1));
+	/* Check a passphrase. */
+	assertEqualString("passCallBack", __archive_write_get_passphrase(aw));
+	assertEqualInt(1, cnt);
+	/* Callback function should be called just once. */
+	assertEqualString("passCallBack", __archive_write_get_passphrase(aw));
+	assertEqualInt(1, cnt);
+
+	archive_write_free(a);
+}

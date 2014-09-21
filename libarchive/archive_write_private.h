@@ -124,6 +124,8 @@ struct archive_write {
 	 * Encryption passphrase.
 	 */
 	char		*passphrase;
+	archive_passphrase_callback *passphrase_callback;
+	void		*passphrase_client_data;
 };
 
 /*

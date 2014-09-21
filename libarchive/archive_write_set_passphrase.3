@@ -24,11 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 13, 2014
+.Dd September 21, 2014
 .Dt ARCHIVE_WRITE_SET_PASSPHRASE 3
 .Os
 .Sh NAME
-.Nm archive_write_set_passphrase
+.Nm archive_write_set_passphrase ,
+.Nm archive_write_set_passphrase_callback
 .Nd functions for writing encrypted archives
 .Sh LIBRARY
 Streaming Archive Library (libarchive, -larchive)
@@ -39,7 +40,15 @@ Streaming Archive Library (libarchive, -larchive)
 .Fa "struct archive *"
 .Fa "const char *passphrase"
 .Fc
+.Ft int
+.Fo archive_write_set_passphrase_callback
+.Fa "struct archive *"
+.Fa "void *client_data"
+.Fa "archive_passphrase_callback *"
+.Fc
 .Sh DESCRIPTION
+.Bl -tag -width indent
+.It Fn archive_write_set_passphrase
 Set a passphrase for writing an encryption archive.
 If
 .Ar passphrase
@@ -51,6 +60,11 @@ will be returned.
 Otherwise,
 .Cm ARCHIVE_OK
 will be returned. 
+.It Fn archive_write_set_passphrase_callback
+Register callback function that will be invoked to get a passphrase
+for encrption if the passphrase was not set by the
+.Fn archive_write_set_passphrase
+function.
 .\" .Sh ERRORS
 .Sh SEE ALSO
 .Xr tar 1 ,

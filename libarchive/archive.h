@@ -834,6 +834,8 @@ __LA_DECL int archive_write_set_options(struct archive *_a,
  * Set a encryption passphrase.
  */
 __LA_DECL int archive_write_set_passphrase(struct archive *_a, const char *p);
+__LA_DECL int archive_write_set_passphrase_callback(struct archive *,
+			    void *client_data, archive_passphrase_callback *);
 
 /*-
  * ARCHIVE_WRITE_DISK API
