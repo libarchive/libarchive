@@ -781,6 +781,12 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `readlinkat' function. */
 #cmakedefine HAVE_READLINKAT 1
 
+/* Define to 1 if you have the `readpassphrase' function. */
+#cmakedefine HAVE_READPASSPHRASE 1
+
+/* Define to 1 if you have the <readpassphrase.h> header file. */
+#cmakedefine HAVE_READPASSPHRASE_H 1
+
 /* Define to 1 if you have the <regex.h> header file. */
 #cmakedefine HAVE_REGEX_H 1
 

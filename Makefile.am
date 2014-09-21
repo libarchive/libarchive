@@ -807,7 +807,9 @@ libarchive_fe_la_SOURCES= \
 	libarchive_fe/err.h \
 	libarchive_fe/lafe_platform.h \
 	libarchive_fe/line_reader.c \
-	libarchive_fe/line_reader.h
+	libarchive_fe/line_reader.h \
+	libarchive_fe/passphrase.c \
+	libarchive_fe/passphrase.h
 
 libarchive_fe_la_CPPFLAGS= -I$(top_srcdir)/libarchive
 #

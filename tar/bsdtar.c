@@ -805,6 +805,7 @@ main(int argc, char **argv)
 	cleanup_substitution(bsdtar);
 #endif
 	cset_free(bsdtar->cset);
+	passphrase_free(bsdtar->ppbuff);
 
 	if (bsdtar->return_value != 0)
 		lafe_warnc(0,

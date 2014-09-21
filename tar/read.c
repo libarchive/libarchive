@@ -210,6 +210,7 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 		    bsdtar->passphrase) != ARCHIVE_OK)
 			lafe_errc(1, 0, "%s", archive_error_string(a));
 	}
+	archive_read_set_passphrase_callback(a, bsdtar, &passphrase_callback);
 	if (archive_read_open_filename(a, bsdtar->filename,
 					bsdtar->bytes_per_block))
 		lafe_errc(1, 0, "Error opening archive: %s",

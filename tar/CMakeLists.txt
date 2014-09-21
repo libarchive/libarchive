@@ -20,6 +20,8 @@ IF(ENABLE_TAR)
     ../libarchive_fe/lafe_platform.h
     ../libarchive_fe/line_reader.c
     ../libarchive_fe/line_reader.h
+    ../libarchive_fe/passphrase.c
+    ../libarchive_fe/passphrase.h
   )
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/../libarchive_fe)
   IF(WIN32 AND NOT CYGWIN)

@@ -91,6 +91,7 @@ struct cpio {
 	struct archive   *matching;
 	char		 *buff;
 	size_t		  buff_size;
+	char		 *ppbuff;
 };
 
 const char *owner_parse(const char *, int *, int *);

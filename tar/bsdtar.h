@@ -111,6 +111,7 @@ struct bsdtar {
 	struct name_cache	*uname_cache;	/* for write.c */
 	struct siginfo_data	*siginfo;	/* for siginfo.c */
 	struct substitution	*substitution;	/* for subst.c */
+	char			*ppbuff;	/* for util.c */
 };
 
 /* Fake short equivalents for long options that otherwise lack them. */
@@ -196,3 +197,5 @@ void		cset_set_format(struct creation_set *, const char *);
 int		cset_write_add_filters(struct creation_set *,
 		    struct archive *, const void **);
 
+const char * passphrase_callback(struct archive *, void *);
+void	     passphrase_free(char *);

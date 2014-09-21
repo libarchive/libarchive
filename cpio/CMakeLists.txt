@@ -15,6 +15,8 @@ IF(ENABLE_CPIO)
     ../libarchive_fe/lafe_platform.h
     ../libarchive_fe/line_reader.c
     ../libarchive_fe/line_reader.h
+    ../libarchive_fe/passphrase.c
+    ../libarchive_fe/passphrase.h
   )
   INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/test_utils)
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/../libarchive_fe)

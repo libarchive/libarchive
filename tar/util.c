@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/util.c,v 1.23 2008/12/15 06:00:25 kientzle E
 
 #include "bsdtar.h"
 #include "err.h"
+#include "passphrase.h"
 
 static size_t	bsdtar_expand_char(char *, size_t, char);
 static const char *strip_components(const char *path, int elements);
@@ -580,4 +581,29 @@ pathcmp(const char *a, const char *b)
 		return (0);
 	/* They're really different, return the correct sign. */
 	return (*(const unsigned char *)a - *(const unsigned char *)b);
+}
+
+#define PPBUFF_SIZE 1024
+const char *
+passphrase_callback(struct archive *a, void *_client_data)
+{
+	struct bsdtar *bsdtar = (struct bsdtar *)_client_data;
+	(void)a; /* UNUSED */
+
+	if (bsdtar->ppbuff == NULL) {
+		bsdtar->ppbuff = malloc(PPBUFF_SIZE);
+		if (bsdtar->ppbuff == NULL)
+			lafe_errc(1, errno, "Out of memory");
+	}
+	return lafe_readpassphrase("Enter passphrase:",
+		bsdtar->ppbuff, PPBUFF_SIZE);
+}
+
+void
+passphrase_free(char *ppbuff)
+{
+	if (ppbuff != NULL) {
+		memset(ppbuff, 0, PPBUFF_SIZE);
+		free(ppbuff);
+	}
 }
