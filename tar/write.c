@@ -653,7 +653,7 @@ append_archive_filename(struct bsdtar *bsdtar, struct archive *a,
 	ina = archive_read_new();
 	archive_read_support_format_all(ina);
 	archive_read_support_filter_all(ina);
-	set_reader_options(bsdtar, a);
+	set_reader_options(bsdtar, ina);
 	archive_read_set_options(ina, "mtree:checkfs");
 	if (bsdtar->passphrase != NULL) {
 		if (archive_read_add_passphrase(a,
