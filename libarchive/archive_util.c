@@ -330,10 +330,11 @@ __archive_mktemp(const char *tmpdir)
 	/*
 	 * Create a temporary file.
 	 */
+	const wchar_t *suffix = L"XXXXXXXXXX";
 	archive_wstrcat(&temp_name, L"libarchive_");
-	xp = temp_name.s + archive_strlen(&temp_name);
-	archive_wstrcat(&temp_name, L"XXXXXXXXXX");
+	archive_wstrcat(&temp_name, suffix);
 	ep = temp_name.s + archive_strlen(&temp_name);
+	xp = ep - wcslen(suffix);
 
 	if (!CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_FULL,
 		CRYPT_VERIFYCONTEXT)) {
