@@ -35,7 +35,7 @@ SET(libarchive_SOURCES
   archive_entry_xattr.c
   archive_getdate.c
   archive_hmac.c
-  archive_hmac_private.c
+  archive_hmac_private.h
   archive_match.c
   archive_options.c
   archive_options_private.h
@@ -48,6 +48,8 @@ SET(libarchive_SOURCES
   archive_ppmd7.c
   archive_ppmd7_private.h
   archive_private.h
+  archive_random.c
+  archive_random_private.h
   archive_rb.c
   archive_rb.h
   archive_read.c
