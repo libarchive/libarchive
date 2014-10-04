@@ -1777,7 +1777,6 @@ lzh_decode_init(struct lzh_stream *strm, const char *method)
 		return (ARCHIVE_FAILED);/* Not supported. */
 	}
 	ds->error = ARCHIVE_FATAL;
-	w_size = ds->w_size;
 	/* Expand a window size up to 128 KiB for decompressing process
 	 * performance whatever its original window size is. */
 	ds->w_size = 1U << 17;
