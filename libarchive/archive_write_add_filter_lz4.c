@@ -418,7 +418,7 @@ lz4_write_one_block(struct archive_write_filter *f, const char *p,
 	struct private_data *data = (struct private_data *)f->data;
 	ssize_t r;
 
-	if (p == NULL && length == 0) {
+	if (p == NULL) {
 		/* Compress remaining uncompressed data. */
 		if (data->in_buffer == data->in)
 			return 0;
