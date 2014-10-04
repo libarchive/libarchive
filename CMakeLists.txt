@@ -821,14 +821,16 @@ ENDMACRO(CHECK_CRYPTO_WIN CRYPTO_LIST)
 MACRO(CHECK_ICONV LIB TRY_ICONV_CONST)
   IF(NOT HAVE_ICONV)
     CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
-    IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
+    IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$" OR
+        "CMAKE_C_COMPILER_ID" MATCHES "^Clang$")
       #
       # During checking iconv proto type, we should use -Werror to avoid the
       # success of iconv detection with a warnig which success is a miss
       # detection. So this needs for all build mode(even it's a release mode).
       #
       SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Werror")
-    ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
+    ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$" OR
+           "CMAKE_C_COMPILER_ID" MATCHES "^Clang$")
     IF (MSVC)
       # NOTE: /WX option is the same as gcc's -Werror option.
       SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} /WX")
@@ -1106,14 +1108,16 @@ ENDIF(NOT FOUND_POSIX_REGEX_LIB AND POSIX_REGEX_LIB MATCHES "^(AUTO|LIBPCREPOSIX
 # Check functions
 #
 CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
-IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
+IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$" OR
+    "CMAKE_C_COMPILER_ID" MATCHES "^Clang$")
   #
   # During checking functions, we should use -fno-builtin to avoid the
   # failure of function detection which failure is an error "conflicting
   # types for built-in function" caused by using -Werror option.
   #
   SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -fno-builtin")
-ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
+ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$" OR
+       "CMAKE_C_COMPILER_ID" MATCHES "^Clang$")
 CHECK_SYMBOL_EXISTS(_CrtSetReportMode "crtdbg.h" HAVE__CrtSetReportMode)
 CHECK_FUNCTION_EXISTS_GLIBC(arc4random_buf HAVE_ARC4RANDOM_BUF)
 CHECK_FUNCTION_EXISTS_GLIBC(chflags HAVE_CHFLAGS)
