@@ -123,8 +123,10 @@ test_fuzz(const struct files *filesets)
 			continue;
 		image = malloc(size);
 		assert(image != NULL);
-		if (image == NULL)
+		if (image == NULL) {
+			free(rawimage);
 			return;
+		}
 		srand((unsigned)time(NULL));
 
 		for (i = 0; i < 100; ++i) {

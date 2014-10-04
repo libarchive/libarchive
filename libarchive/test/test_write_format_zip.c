@@ -685,6 +685,7 @@ DEFINE_TEST(test_write_format_zip_traditional_pkware_encryption)
 		    "zip:encryption=zipcrypt")) {
 		skipping("This system does not have cryptographic liberary");
 		archive_write_free(a);
+		free(buff);
 		return;
 	}
 	assertEqualIntA(a, ARCHIVE_OK,
@@ -764,6 +765,7 @@ DEFINE_TEST(test_write_format_zip_winzip_aes128_encryption)
 	{
 		skipping("This system does not have cryptographic liberary");
 		archive_write_free(a);
+		free(buff);
 		return;
 	}
 	assertEqualIntA(a, ARCHIVE_OK,
@@ -843,6 +845,7 @@ DEFINE_TEST(test_write_format_zip_winzip_aes256_encryption)
 	{
 		skipping("This system does not have cryptographic liberary");
 		archive_write_free(a);
+		free(buff);
 		return;
 	}
 	assertEqualIntA(a, ARCHIVE_OK,

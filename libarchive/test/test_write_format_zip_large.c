@@ -179,10 +179,8 @@ memory_read_seek(struct archive *a, void *_private, int64_t offset, int whence)
 	(void)a;
 	if (whence == SEEK_END) {
 		offset = private->filesize + offset;
-		whence = SEEK_SET;
 	} else if (whence == SEEK_CUR) {
 		offset = private->fileposition + offset;
-		whence = SEEK_SET;
 	}
 
 	if (offset < 0) {
