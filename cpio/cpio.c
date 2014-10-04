@@ -578,14 +578,14 @@ mode_out(struct cpio *cpio)
 	cpio->linkresolver = archive_entry_linkresolver_new();
 	archive_entry_linkresolver_set_strategy(cpio->linkresolver,
 	    archive_format(cpio->archive));
-	if (cpio->passphrase != NULL) {
-		if (archive_write_set_passphrase(cpio->archive,
-		    cpio->passphrase) != ARCHIVE_OK)
-			lafe_errc(1, 0, "%s",
-			    archive_error_string(cpio->archive));
-	}
-	archive_write_set_passphrase_callback(cpio->archive, cpio,
-		&passphrase_callback);
+	if (cpio->passphrase != NULL)
+		r = archive_write_set_passphrase(cpio->archive,
+			cpio->passphrase);
+	else
+		r = archive_write_set_passphrase_callback(cpio->archive, cpio,
+			&passphrase_callback);
+	if (r != ARCHIVE_OK)
+		lafe_errc(1, 0, "%s", archive_error_string(cpio->archive));
 
 	/*
 	 * The main loop:  Copy each file into the output archive.
@@ -952,12 +952,13 @@ mode_in(struct cpio *cpio)
 		lafe_errc(1, 0, "Couldn't allocate archive object");
 	archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
-	if (cpio->passphrase != NULL) {
-		if (archive_read_add_passphrase(a,
-		    cpio->passphrase) != ARCHIVE_OK)
-			lafe_errc(1, 0, "%s", archive_error_string(a));
-	}
-	archive_read_set_passphrase_callback(a, cpio, &passphrase_callback);
+	if (cpio->passphrase != NULL)
+		r = archive_read_add_passphrase(a, cpio->passphrase);
+	else
+		r = archive_read_set_passphrase_callback(a, cpio,
+			&passphrase_callback);
+	if (r != ARCHIVE_OK)
+		lafe_errc(1, 0, "%s", archive_error_string(a));
 
 	if (archive_read_open_filename(a, cpio->filename,
 					cpio->bytes_per_block))
@@ -1061,12 +1062,13 @@ mode_list(struct cpio *cpio)
 		lafe_errc(1, 0, "Couldn't allocate archive object");
 	archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
-	if (cpio->passphrase != NULL) {
-		if (archive_read_add_passphrase(a,
-		    cpio->passphrase) != ARCHIVE_OK)
-			lafe_errc(1, 0, "%s", archive_error_string(a));
-	}
-	archive_read_set_passphrase_callback(a, cpio, &passphrase_callback);
+	if (cpio->passphrase != NULL)
+		r = archive_read_add_passphrase(a, cpio->passphrase);
+	else
+		r = archive_read_set_passphrase_callback(a, cpio,
+			&passphrase_callback);
+	if (r != ARCHIVE_OK)
+		lafe_errc(1, 0, "%s", archive_error_string(a));
 
 	if (archive_read_open_filename(a, cpio->filename,
 					cpio->bytes_per_block))
