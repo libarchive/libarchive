@@ -913,6 +913,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_option_newer_than.c \
 	tar/test/test_option_nodump.c \
 	tar/test/test_option_older_than.c \
+	tar/test/test_option_passphrase.c \
 	tar/test/test_option_q.c \
 	tar/test/test_option_r.c \
 	tar/test/test_option_s.c \
@@ -958,6 +959,7 @@ bsdtar_test_EXTRA_DIST= \
 	tar/test/test_extract.tar.lzo.uu \
 	tar/test/test_extract.tar.xz.uu \
 	tar/test/test_option_keep_newer_files.tar.Z.uu \
+	tar/test/test_option_passphrase.zip.uu \
 	tar/test/test_option_s.tar.Z.uu \
 	tar/test/test_patterns_2.tar.uu \
 	tar/test/test_patterns_3.tar.uu \
@@ -1059,6 +1061,7 @@ bsdcpio_test_SOURCES= \
 	cpio/test/test_option_lzma.c \
 	cpio/test/test_option_lzop.c \
 	cpio/test/test_option_m.c \
+	cpio/test/test_option_passphrase.c \
 	cpio/test/test_option_t.c \
 	cpio/test/test_option_u.c \
 	cpio/test/test_option_uuencode.c \
@@ -1110,6 +1113,7 @@ bsdcpio_test_EXTRA_DIST= \
 	cpio/test/test_gcpio_compat_ref_nosym.ustar.uu \
 	cpio/test/test_option_f.cpio.uu \
 	cpio/test/test_option_m.cpio.uu \
+	cpio/test/test_option_passphrase.zip.uu \
 	cpio/test/test_option_t.cpio.uu \
 	cpio/test/test_option_t.stdout.uu \
 	cpio/test/test_option_tv.stdout.uu \
