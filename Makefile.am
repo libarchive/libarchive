@@ -1129,7 +1129,7 @@ bsdcat_SOURCES= \
 		cat/bsdcat.c \
 		cat/bsdcat.h \
 		cat/bsdcat_platform.h \
-		cat/cmdline.h
+		cat/cmdline.c
 
 if INC_WINDOWS_FILES
 bsdcat_SOURCES+=
