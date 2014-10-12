@@ -214,6 +214,7 @@ static int
 aes_ctr_encrypt_counter(archive_crypto_ctx *ctx)
 {
 	(void)ctx; /* UNUSED */
+	return -1;
 }
 
 static int

@@ -132,7 +132,7 @@ struct trad_enc_ctx {
 
 struct zip {
 	/* Structural information about the archive. */
-	char			format_name[64];
+	struct archive_string	format_name;
 	int64_t			central_directory_offset;
 	size_t			central_directory_entries_total;
 	size_t			central_directory_entries_on_this_disk;
@@ -948,10 +948,10 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		zip->end_of_entry = 1;
 
 	/* Set up a more descriptive format name. */
-	snprintf(zip->format_name, sizeof(zip->format_name), "ZIP %d.%d (%s)",
+	archive_string_sprintf(&zip->format_name, "ZIP %d.%d (%s)",
 	    version / 10, version % 10,
 	    compression_name(zip->entry->compression));
-	a->archive.archive_format_name = zip->format_name;
+	a->archive.archive_format_name = zip->format_name.s;
 
 	return (ret);
 }
@@ -1360,7 +1360,7 @@ static int
 read_decryption_header(struct archive_read *a)
 {
 	struct zip *zip = (struct zip *)(a->format->data);
-	const void *p;
+	const char *p;
 	unsigned int remaining_size;
 	unsigned int ts;
 
@@ -1857,6 +1857,7 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 	free(zip->iv);
 	free(zip->erd);
 	free(zip->v_data);
+	archive_string_free(&zip->format_name);
 	free(zip);
 	(a->format->data) = NULL;
 	return (ARCHIVE_OK);
@@ -2330,7 +2331,7 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 	/* Search last 16k of file for end-of-central-directory
 	 * record (which starts with PK\005\006) or Zip64 locator
 	 * record (which begins with PK\006\007) */
-	tail = zipmin(1024 * 16, file_size);
+	tail = (int)zipmin(1024 * 16, file_size);
 	current_offset = __archive_read_seek(a, -tail, SEEK_END);
 	if (current_offset < 0)
 		return 0;
