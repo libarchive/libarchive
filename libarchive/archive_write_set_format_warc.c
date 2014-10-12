@@ -106,8 +106,8 @@ static int _warc_close(struct archive_write *a);
 static int _warc_free(struct archive_write *a);
 
 /* private routines */
-static ssize_t _popul_ehdr(char *t, size_t z, warc_essential_hdr_t);
-static int _gen_uuid(warc_uuid_t tgt[static 1U]);
+static ssize_t _popul_ehdr(struct archive_string *t, size_t z, warc_essential_hdr_t);
+static int _gen_uuid(warc_uuid_t *tgt);
 
 
 /*
@@ -181,7 +181,8 @@ static int
 _warc_header(struct archive_write *a, struct archive_entry *entry)
 {
 	struct warc_s *w = a->format_data;
-	char hdr[512U];
+	struct archive_string hdr;
+#define MAX_HDR_SIZE 512
 
 	/* check whether warcinfo record needs outputting */
 	if (!w->omit_warcinfo) {
@@ -196,24 +197,22 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 		};
 		ssize_t r;
 
-		r = _popul_ehdr(hdr, sizeof(hdr), wi);
+		archive_string_init(&hdr);
+		r = _popul_ehdr(&hdr, MAX_HDR_SIZE, wi);
 		if (r >= 0) {
 			/* jackpot! */
 			/* now also use HDR buffer for the actual warcinfo */
-			memcpy(hdr + r, warcinfo, sizeof(warcinfo));
-			r += sizeof(warcinfo) - 1U;
+			archive_strncat(&hdr, warcinfo, sizeof(warcinfo) -1);
 
 			/* append end-of-record indicator */
-			hdr[r++] = '\r';
-			hdr[r++] = '\n';
-			hdr[r++] = '\r';
-			hdr[r++] = '\n';
+			archive_strncat(&hdr, "\r\n\r\n", 4);
 
 			/* write to output stream */
-			__archive_write_output(a, hdr, r);
+			__archive_write_output(a, hdr.s, archive_strlen(&hdr));
 		}
 		/* indicate we're done with file header writing */
 		w->omit_warcinfo = 1U;
+		archive_string_free(&hdr);
 	}
 
 	if (archive_entry_pathname(entry) == NULL) {
@@ -236,7 +235,8 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 		};
 		ssize_t r;
 
-		r = _popul_ehdr(hdr, sizeof(hdr), rh);
+		archive_string_init(&hdr);
+		r = _popul_ehdr(&hdr, MAX_HDR_SIZE, rh);
 		if (r < 0) {
 			/* don't bother */
 			archive_set_error(
@@ -246,9 +246,10 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 			return (ARCHIVE_WARN);
 		}
 		/* otherwise append to output stream */
-		__archive_write_output(a, hdr, r);
+		__archive_write_output(a, hdr.s, r);
 		/* and let subsequent calls to _data() know about the size */
 		w->populz = rh.cntlen;
+		archive_string_free(&hdr);
 		return (ARCHIVE_OK);
 	}
 	/* just resort to erroring as per Tim's advice */
@@ -318,48 +319,48 @@ _warc_free(struct archive_write *a)
 
 
 /* private routines */
-#define XNPRINTF(x, z, args...)			\
-	do {					\
-		int __r = snprintf(x, z, args);	\
-		if (__r < 0) {			\
-			return -1;		\
-		}				\
-		x += __r;			\
-	} while (0)
-
-static size_t
-xstrftime(char *s, size_t max, const char *fmt, time_t t)
+static void
+xstrftime(struct archive_string *as, const char *fmt, time_t t)
 {
 /** like strftime(3) but for time_t objects */
 	struct tm *rt;
+#if defined(HAVE_GMTIME_R) || defined(HAVE__GMTIME64_S)
+	struct tm time;
+#endif
+	char strtime[100];
+	size_t len;
 
-	if ((rt = gmtime(&t)) == NULL) {
-		return 0U;
-	}
+#ifdef HAVE_GMTIME_R
+	if ((rt = gmtime_r(&t, &time)) == NULL)
+		return;
+#elif defined(HAVE__GMTIME64_S)
+	_gmtime64_s(&time, &t);
+#else
+	if ((rt = gmtime(&t)) == NULL)
+		return;
+#endif
 	/* leave the hard yacker to our role model strftime() */
-	return strftime(s, max, fmt, rt);
+	len = strftime(strtime, sizeof(strtime)-1, fmt, rt);
+	archive_strncat(as, strtime, len);
 }
 
 static ssize_t
-_popul_ehdr(char *tgt, size_t tsz, warc_essential_hdr_t hdr)
+_popul_ehdr(struct archive_string *tgt, size_t tsz, warc_essential_hdr_t hdr)
 {
 	static const char _ver[] = "WARC/1.0\r\n";
 	static const char *_typ[LAST_WT] = {
 		NULL, "warcinfo", "metadata", "resource", NULL
 	};
 	char std_uuid[48U];
-	char *tp = tgt;
-	const char *const ep = tgt + tsz;
 
 	if (hdr.type == WT_NONE || hdr.type > WT_RSRC) {
 		/* brilliant, how exactly did we get here? */
 		return -1;
 	}
 
-	memcpy(tp, _ver, sizeof(_ver) - 1U);
-	tp += sizeof(_ver) - 1U;
+	archive_strcpy(tgt, _ver);
 
-	XNPRINTF(tp, ep - tp, "WARC-Type: %s\r\n", _typ[hdr.type]);
+	archive_string_sprintf(tgt, "WARC-Type: %s\r\n", _typ[hdr.type]);
 
 	if (hdr.tgturi != NULL) {
 		/* check if there's a xyz:// */
@@ -375,25 +376,29 @@ _popul_ehdr(char *tgt, size_t tsz, warc_essential_hdr_t hdr)
 			/* hm, best to prepend file:// then */
 			u = _fil;
 		}
-		XNPRINTF(
-			tp, ep - tp,
+		archive_string_sprintf(tgt,
 			"WARC-Target-URI: %s%s\r\n", u, hdr.tgturi);
 	}
 
 	/* record time is usually when the http is sent off,
 	 * just treat the archive writing as such for a moment */
-	tp += xstrftime(tp, ep - tp,
-		"WARC-Date: %FT%H:%M:%SZ\r\n", hdr.rtime);
+	xstrftime(tgt, "WARC-Date: %FT%H:%M:%SZ\r\n", hdr.rtime);
 
 	/* while we're at it, record the mtime */
-	tp += xstrftime(tp, ep - tp,
-		"Last-Modified: %FT%H:%M:%SZ\r\n", hdr.mtime);
+	xstrftime(tgt, "Last-Modified: %FT%H:%M:%SZ\r\n", hdr.mtime);
 
 	if (hdr.recid == NULL) {
 		/* generate one, grrrr */
 		warc_uuid_t u;
 
 		_gen_uuid(&u);
+		/* Unfortunately, archive_string_sprintf does not
+		 * handle the minimum number following '%'.
+		 * So we have to use snprintf function here instead
+		 * of archive_string_snprintf function. */
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#define snprintf _snprintf
+#endif
 		snprintf(
 			std_uuid, sizeof(std_uuid),
 			"<urn:uuid:%08x-%04x-%04x-%04x-%04x%08x>",
@@ -405,27 +410,22 @@ _popul_ehdr(char *tgt, size_t tsz, warc_essential_hdr_t hdr)
 	}
 
 	/* record-id is mandatory, fingers crossed we won't fail */
-	XNPRINTF(tp, ep - tp, "WARC-Record-ID: %s\r\n", hdr.recid);
+	archive_string_sprintf(tgt, "WARC-Record-ID: %s\r\n", hdr.recid);
 
 	if (hdr.cnttyp != NULL) {
-		XNPRINTF(tp, ep - tp, "Content-Type: %s\r\n", hdr.cnttyp);
+		archive_string_sprintf(tgt, "Content-Type: %s\r\n", hdr.cnttyp);
 	}
 
 	/* next one is mandatory */
-	XNPRINTF(tp, ep - tp, "Content-Length: %zu\r\n", hdr.cntlen);
+	archive_string_sprintf(tgt, "Content-Length: %zu\r\n", hdr.cntlen);
+	/**/
+	archive_strncat(tgt, "\r\n", 2);
 
-	if (tp + 2U >= ep) {
-		/* doesn't fit */
-		return -1;
-	}
-
-	*tp++ = '\r';
-	*tp++ = '\n';
-	return tp - tgt;
+	return (archive_strlen(tgt) >= tsz)? -1: archive_strlen(tgt);
 }
 
 static int
-_gen_uuid(warc_uuid_t tgt[static 1U])
+_gen_uuid(warc_uuid_t *tgt)
 {
 	tgt->u[0U] = (unsigned int)rand();
 	tgt->u[1U] = (unsigned int)rand();
