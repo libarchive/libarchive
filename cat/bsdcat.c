@@ -53,7 +53,8 @@ usage(FILE *stream, int eval)
 {
 	const char *p;
 	p = lafe_getprogname();
-	fprintf(stream, "Usage: %s [-h] [--help] [--version] [--] [filenames...]\n", p);
+	fprintf(stream,
+	    "Usage: %s [-h] [--help] [--version] [--] [filenames...]\n", p);
 	exit(eval);
 }
 
@@ -88,18 +89,17 @@ bsdcat_read_to_stdout(char* filename)
 {
 	int r;
 
-	if (archive_read_open_filename(a, filename, BYTES_PER_BLOCK) != ARCHIVE_OK)
-		goto err;
+	if (archive_read_open_filename(a, filename, BYTES_PER_BLOCK)
+	    != ARCHIVE_OK)
+		bsdcat_print_error();
 	else if (r = archive_read_next_header(a, &ae),
 		 r != ARCHIVE_OK && r != ARCHIVE_EOF)
-		goto err;
+		bsdcat_print_error();
 	else if (r == ARCHIVE_EOF)
 		/* for empty payloads don't try and read data */
 		;
-	else if (archive_read_data_into_fd(a, 1) != ARCHIVE_OK) {
-	err:
+	else if (archive_read_data_into_fd(a, 1) != ARCHIVE_OK)
 		bsdcat_print_error();
-	}
 	if (archive_read_free(a) != ARCHIVE_OK)
 		bsdcat_print_error();
 }
