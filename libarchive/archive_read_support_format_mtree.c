@@ -1377,7 +1377,7 @@ parse_device(dev_t *pdev, struct archive *a, char *val)
 				    "Missing number");
 				return ARCHIVE_WARN;
 			}
-			numbers[argc++] = mtree_atol(&p);
+			numbers[argc++] = (unsigned long)mtree_atol(&p);
 			if (argc > MAX_PACK_ARGS) {
 				archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Too many arguments");

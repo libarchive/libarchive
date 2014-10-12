@@ -142,10 +142,11 @@ __hmac_sha1_update(archive_hmac_sha1_ctx *ctx, const uint8_t *data,
 }
 
 static void
-__hmac_sha1_final(archive_hmac_sha1_ctx *ctx, uint8_t *out)
+__hmac_sha1_final(archive_hmac_sha1_ctx *ctx, uint8_t *out, size_t *out_len)
 {
 	(void)ctx;/* UNUSED */
 	(void)out;/* UNUSED */
+	(void)out_len;/* UNUSED */
 }
 
 static void

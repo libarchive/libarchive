@@ -51,16 +51,16 @@ __FBSDID("$FreeBSD$");
 #include <pthread.h>
 #endif
 
-#if defined(HAVE_WINCRYPT_H) && !defined(__CYGWIN__)
-#include <wincrypt.h>
-#endif
-
 static void arc4random_buf(void *, size_t);
 
 #endif /* HAVE_ARC4RANDOM_BUF */
 
 #include "archive.h"
 #include "archive_random_private.h"
+
+#if defined(HAVE_WINCRYPT_H) && !defined(__CYGWIN__)
+#include <wincrypt.h>
+#endif
 
 /*
  * Random number generator function.
@@ -81,7 +81,7 @@ archive_random(void *buf, size_t nbytes)
 		    PROV_RSA_FULL, CRYPT_NEWKEYSET);
 	}
 	if (success) {
-		success = CryptGenRandom(hProv, (DWORD)nbytes, (BYTE*)buf))
+		success = CryptGenRandom(hProv, (DWORD)nbytes, (BYTE*)buf);
 		CryptReleaseContext(hProv, 0);
 		if (success)
 			return ARCHIVE_OK;

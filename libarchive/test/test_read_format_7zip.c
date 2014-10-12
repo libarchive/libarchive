@@ -25,6 +25,11 @@
 #include "test.h"
 __FBSDID("$FreeBSD");
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#define	close		_close
+#define	open		_open
+#endif
+
 /*
  * Extract a non-encoded file.
  * The header of the 7z archive files is not encoded.

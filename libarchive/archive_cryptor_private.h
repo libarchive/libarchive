@@ -45,6 +45,19 @@ typedef struct {
 	unsigned	encr_pos;
 } archive_crypto_ctx;
 
+#elif defined(_WIN32) && !defined(__CYGWIN__)
+
+#define AES_MAX_KEY_SIZE 32
+#define AES_BLOCK_SIZE 16
+typedef struct {
+	int	ctx;
+	uint8_t		key[AES_MAX_KEY_SIZE];
+	unsigned	key_len;
+	uint8_t		nonce[AES_BLOCK_SIZE];
+	uint8_t		encr_buf[AES_BLOCK_SIZE];
+	unsigned	encr_pos;
+} archive_crypto_ctx;
+
 #elif defined(HAVE_LIBNETTLE)
 #if defined(HAVE_NETTLE_PBKDF2_H)
 #include <nettle/pbkdf2.h>

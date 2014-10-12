@@ -84,7 +84,7 @@ memory_write(struct archive *a, void *_private, const void *buff, size_t size)
 		/* It's header or metadata, copy and save it. */
 		block = (struct fileblock *)malloc(sizeof(*block));
 		memset(block, 0, sizeof(*block));
-		block->size = size;
+		block->size = (int)size;
 		block->buff = malloc(size);
 		memcpy(block->buff, buff, size);
 		if (private->last == NULL) {

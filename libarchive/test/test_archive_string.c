@@ -380,7 +380,7 @@ DEFINE_TEST(test_archive_string_sort)
   unsigned int i, j, size;
   char **test_strings, *tmp;
 
-  srand(time(NULL));
+  srand((unsigned int)time(NULL));
   size = sizeof(strings) / sizeof(char *);
   assert((test_strings = (char **)calloc(1, sizeof(strings))) != NULL);
   for (i = 0; i < (size - 1); i++)

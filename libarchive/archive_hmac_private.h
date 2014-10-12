@@ -35,6 +35,10 @@
 
 typedef	CCHmacContext archive_hmac_sha1_ctx;
 
+#elif defined(_WIN32) && !defined(__CYGWIN__)
+
+typedef int archive_hmac_sha1_ctx;
+
 #elif defined(HAVE_LIBNETTLE)
 #include <nettle/hmac.h>
 

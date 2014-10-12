@@ -1492,7 +1492,7 @@ lha_read_data_lzh(struct archive_read *a, const void **buff,
 	if (bytes_avail > lha->entry_bytes_remaining)
 		bytes_avail = (ssize_t)lha->entry_bytes_remaining;
 
-	lha->strm.avail_in = bytes_avail;
+	lha->strm.avail_in = (int)bytes_avail;
 	lha->strm.total_in = 0;
 	lha->strm.avail_out = 0;
 
@@ -2001,7 +2001,7 @@ static void
 lzh_emit_window(struct lzh_stream *strm, size_t s)
 {
 	strm->ref_ptr = strm->ds->w_buff;
-	strm->avail_out = s;
+	strm->avail_out = (int)s;
 	strm->total_out += s;
 }
 
