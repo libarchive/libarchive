@@ -173,6 +173,7 @@ _warc_cleanup(struct archive_read *a)
 	if (w->pool.len > 0U) {
 		free(w->pool.str);
 	}
+	archive_string_free(&w->sver);
 	free(w);
 	a->format->data = NULL;
 	return (ARCHIVE_OK);
