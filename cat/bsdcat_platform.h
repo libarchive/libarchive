@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014, Mike Kazantsev
+ * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,7 +21,18 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD: src/usr.bin/tar/bsdtar_platform.h,v 1.26 2008/12/06 07:37:14 kientzle Exp $
  */
+
+/*
+ * This header is the first thing included in any of the bsdtar
+ * source files.  As far as possible, platform-specific issues should
+ * be dealt with here and not within individual source files.
+ */
+
+#ifndef BSDCAT_PLATFORM_H_INCLUDED
+#define	BSDCAT_PLATFORM_H_INCLUDED
 
 #if defined(PLATFORM_CONFIG_H)
 /* Use hand-built config.h in environments that need it. */
@@ -31,26 +42,34 @@
 #include "config.h"
 #endif
 
+/* Get a real definition for __FBSDID if we can */
+#if HAVE_SYS_CDEFS_H
+#include <sys/cdefs.h>
+#endif
+
+/* If not, define it so as to avoid dangling semicolons. */
+#ifndef __FBSDID
+#define	__FBSDID(a)     struct _undefined_hack
+#endif
+
+#ifdef HAVE_LIBARCHIVE
+/* If we're using the platform libarchive, include system headers. */
 #include <archive.h>
 #include <archive_entry.h>
+#else
+/* Otherwise, include user headers. */
+#include "archive.h"
+#include "archive_entry.h"
+#endif
 
-struct bsdcat {
-	/* Option parser state */
-	int		  getopt_state;
-	char		 *getopt_word;
+/* How to mark functions that don't return. */
+/* This facilitates use of some newer static code analysis tools. */
+#undef __LA_DEAD
+#if defined(__GNUC__) && (__GNUC__ > 2 || \
+			  (__GNUC__ == 2 && __GNUC_MINOR__ >= 5))
+#define	__LA_DEAD	__attribute__((__noreturn__))
+#else
+#define	__LA_DEAD
+#endif
 
-	/* Miscellaneous state information */
-	int		  argc;
-	char		**argv;
-	const char	 *argument;
-};
-
-enum {
-	OPTION_VERSION
-};
-
-int bsdcat_getopt(struct bsdcat *);
-void usage(FILE *stream, int eval);
-void bsdcat_next(void);
-void bsdcat_print_error(void);
-void bsdcat_read_to_stdout(char* filename);
+#endif /* !BSDCAT_PLATFORM_H_INCLUDED */

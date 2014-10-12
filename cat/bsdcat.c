@@ -23,10 +23,19 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "bsdcat_platform.h"
+__FBSDID("$FreeBSD$");
+
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 
 #include "bsdcat.h"
 #include "err.h"
@@ -98,33 +107,37 @@ bsdcat_read_to_stdout(char* filename)
 int
 main(int argc, char **argv)
 {
+	struct bsdcat *bsdcat, bsdcat_storage;
 	int c;
+
+	bsdcat = &bsdcat_storage;
+	memset(bsdcat, 0, sizeof(*bsdcat));
 
 	lafe_setprogname(*argv, "bsdcat");
 
-	while ((c = getopt(argc, argv, "h-")) != -1) {
+	bsdcat->argv = argv;
+	bsdcat->argc = argc;
+
+	while ((c = bsdcat_getopt(bsdcat)) != -1) {
 		switch (c) {
-			case '-':
-				if (strcmp(argv[optind], "--version") == 0)
-					version();
-				if (strcmp(argv[optind], "--help") != 0) {
-					lafe_warnc(0, "invalid option -- '%s'", argv[optind]);
-					usage(stderr, 1);
-				}
-			case 'h':
-				usage(stdout, 0);
-			default:
-				usage(stderr, 1);
+		case 'h':
+			usage(stdout, 0);
+			break;
+		case OPTION_VERSION:
+			version();
+			break;
+		default:
+			usage(stderr, 1);
 		}
 	}
 
 	bsdcat_next();
-	if (optind >= argc) {
+	if (*bsdcat->argv == NULL) {
 		bsdcat_current_path = "<stdin>";
 		bsdcat_read_to_stdout(NULL);
 	} else
-		while (optind < argc) {
-			bsdcat_current_path = argv[optind++];
+		while (*bsdcat->argv) {
+			bsdcat_current_path = *bsdcat->argv++;
 			bsdcat_read_to_stdout(bsdcat_current_path);
 			bsdcat_next();
 		}

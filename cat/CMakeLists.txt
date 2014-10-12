@@ -8,6 +8,8 @@ IF(ENABLE_CAT)
   SET(bsdcat_SOURCES
     bsdcat.c
     bsdcat.h
+    bsdcat_platform.h
+    cmdline.c
     ../libarchive_fe/err.c
     ../libarchive_fe/err.h
     ../libarchive_fe/lafe_platform.h
