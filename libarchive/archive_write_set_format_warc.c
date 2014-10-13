@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
 #include "archive_private.h"
+#include "archive_random_private.h"
 #include "archive_write_private.h"
 
 struct warc_s {
@@ -141,7 +142,6 @@ archive_write_set_format_warc(struct archive *_a)
 	w->typ = 0;
 	/* also initialise our rng */
 	w->rng = (unsigned int)w->now;
-	srand(w->rng);
 
 	a->format_data = w;
 	a->format_name = "WARC/1.0";
@@ -427,10 +427,7 @@ _popul_ehdr(struct archive_string *tgt, size_t tsz, warc_essential_hdr_t hdr)
 static int
 _gen_uuid(warc_uuid_t *tgt)
 {
-	tgt->u[0U] = (unsigned int)rand();
-	tgt->u[1U] = (unsigned int)rand();
-	tgt->u[2U] = (unsigned int)rand();
-	tgt->u[3U] = (unsigned int)rand();
+	archive_random(tgt->u, sizeof(tgt->u));
 	/* obey uuid version 4 rules */
 	tgt->u[1U] &= 0xffff0fffU;
 	tgt->u[1U] |= 0x4000U;

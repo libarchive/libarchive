@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_util.c 201098 2009-12-28 02:58:1
 
 #include "archive.h"
 #include "archive_private.h"
+#include "archive_random_private.h"
 #include "archive_string.h"
 
 #ifndef O_CLOEXEC
@@ -471,7 +472,6 @@ __archive_mktemp(const char *tmpdir)
 	struct stat st;
 	int fd;
 	char *tp, *ep;
-	unsigned seed;
 
 	fd = -1;
 	archive_string_init(&temp_name);
@@ -495,21 +495,15 @@ __archive_mktemp(const char *tmpdir)
 	archive_strcat(&temp_name, "XXXXXXXXXX");
 	ep = temp_name.s + archive_strlen(&temp_name);
 
-	fd = open("/dev/random", O_RDONLY | O_CLOEXEC);
-	__archive_ensure_cloexec_flag(fd);
-	if (fd < 0)
-		seed = time(NULL);
-	else {
-		if (read(fd, &seed, sizeof(seed)) < 0)
-			seed = time(NULL);
-		close(fd);
-	}
 	do {
 		char *p;
 
 		p = tp;
-		while (p < ep)
-			*p++ = num[((unsigned)rand_r(&seed)) % sizeof(num)];
+		archive_random(p, ep - p);
+		while (p < ep) {
+			int d = *((unsigned char *)p) % sizeof(num);
+			*p++ = num[d];
+		}
 		fd = open(temp_name.s, O_CREAT | O_EXCL | O_RDWR | O_CLOEXEC,
 			  0600);
 	} while (fd < 0 && errno == EEXIST);
