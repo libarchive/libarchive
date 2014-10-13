@@ -26,6 +26,12 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_LIBZ
+static const int libz_enabled = 1;
+#else
+static const int libz_enabled = 0;
+#endif
+
 DEFINE_TEST(test_read_format_zip_winzip_aes256_large)
 {
 	const char *refname = "test_read_format_zip_winzip_aes256_large.zip";
@@ -137,7 +143,15 @@ DEFINE_TEST(test_read_format_zip_winzip_aes256_large)
 	assertEqualInt(1, archive_entry_is_data_encrypted(ae));
 	assertEqualInt(0, archive_entry_is_metadata_encrypted(ae));
 	assertEqualIntA(a, 1, archive_read_has_encrypted_entries(a));
-	assertEqualInt(512, archive_read_data(a, buff, sizeof(buff)));
+	if (libz_enabled) {
+		assertEqualInt(512, archive_read_data(a, buff, sizeof(buff)));
+	} else {
+		assertEqualInt(ARCHIVE_FAILED,
+			archive_read_data(a, buff, sizeof(buff)));
+		assertEqualString(archive_error_string(a),
+		    "Unsupported ZIP compression method (deflation)");
+		assert(archive_errno(a) != 0);
+	}
 
 	/* Verify encrypted file "NEWS" */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -147,7 +161,15 @@ DEFINE_TEST(test_read_format_zip_winzip_aes256_large)
 	assertEqualInt(1, archive_entry_is_data_encrypted(ae));
 	assertEqualInt(0, archive_entry_is_metadata_encrypted(ae));
 	assertEqualIntA(a, 1, archive_read_has_encrypted_entries(a));
-	assertEqualInt(512, archive_read_data(a, buff, sizeof(buff)));
+	if (libz_enabled) {
+		assertEqualInt(512, archive_read_data(a, buff, sizeof(buff)));
+	} else {
+		assertEqualInt(ARCHIVE_FAILED,
+			archive_read_data(a, buff, sizeof(buff)));
+		assertEqualString(archive_error_string(a),
+		    "Unsupported ZIP compression method (deflation)");
+		assert(archive_errno(a) != 0);
+	}
 
 	/* Verify encrypted file "README" */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -157,7 +179,15 @@ DEFINE_TEST(test_read_format_zip_winzip_aes256_large)
 	assertEqualInt(1, archive_entry_is_data_encrypted(ae));
 	assertEqualInt(0, archive_entry_is_metadata_encrypted(ae));
 	assertEqualIntA(a, 1, archive_read_has_encrypted_entries(a));
-	assertEqualInt(512, archive_read_data(a, buff, sizeof(buff)));
+	if (libz_enabled) {
+		assertEqualInt(512, archive_read_data(a, buff, sizeof(buff)));
+	} else {
+		assertEqualInt(ARCHIVE_FAILED,
+			archive_read_data(a, buff, sizeof(buff)));
+		assertEqualString(archive_error_string(a),
+		    "Unsupported ZIP compression method (deflation)");
+		assert(archive_errno(a) != 0);
+	}
 
 	/* Verify encrypted file "config.h" */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -167,7 +197,15 @@ DEFINE_TEST(test_read_format_zip_winzip_aes256_large)
 	assertEqualInt(1, archive_entry_is_data_encrypted(ae));
 	assertEqualInt(0, archive_entry_is_metadata_encrypted(ae));
 	assertEqualIntA(a, 1, archive_read_has_encrypted_entries(a));
-	assertEqualInt(512, archive_read_data(a, buff, sizeof(buff)));
+	if (libz_enabled) {
+		assertEqualInt(512, archive_read_data(a, buff, sizeof(buff)));
+	} else {
+		assertEqualInt(ARCHIVE_FAILED,
+			archive_read_data(a, buff, sizeof(buff)));
+		assertEqualString(archive_error_string(a),
+		    "Unsupported ZIP compression method (deflation)");
+		assert(archive_errno(a) != 0);
+	}
 	
 	assertEqualInt(4, archive_file_count(a));
 

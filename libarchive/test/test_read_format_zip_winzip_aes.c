@@ -26,8 +26,14 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_LIBZ
+static const int libz_enabled = 1;
+#else
+static const int libz_enabled = 0;
+#endif
+
 static void
-test_winzip_aes(const char *refname)
+test_winzip_aes(const char *refname, int need_libz)
 {
 	struct archive_entry *ae;
 	struct archive *a;
@@ -110,7 +116,14 @@ test_winzip_aes(const char *refname)
 	assertEqualInt(1, archive_entry_is_data_encrypted(ae));
 	assertEqualInt(0, archive_entry_is_metadata_encrypted(ae));
 	assertEqualIntA(a, 1, archive_read_has_encrypted_entries(a));
-	assertEqualInt(512, archive_read_data(a, buff, sizeof(buff)));
+	if (!need_libz || libz_enabled) {
+		assertEqualInt(512, archive_read_data(a, buff, sizeof(buff)));
+	} else {
+		assertEqualInt(ARCHIVE_FAILED, archive_read_data(a, buff, 19));
+		assertEqualString(archive_error_string(a),
+		    "Unsupported ZIP compression method (deflation)");
+		assert(archive_errno(a) != 0);
+	}
 	
 	assertEqualInt(1, archive_file_count(a));
 
@@ -129,17 +142,17 @@ test_winzip_aes(const char *refname)
 DEFINE_TEST(test_read_format_zip_winzip_aes128)
 {
 	/* WinZip AES-128 encryption. */
-	test_winzip_aes("test_read_format_zip_winzip_aes128.zip");
+	test_winzip_aes("test_read_format_zip_winzip_aes128.zip", 1);
 }
 
 DEFINE_TEST(test_read_format_zip_winzip_aes256)
 {
 	/* WinZip AES-256 encryption. */
-	test_winzip_aes("test_read_format_zip_winzip_aes256.zip");
+	test_winzip_aes("test_read_format_zip_winzip_aes256.zip", 1);
 }
 
 DEFINE_TEST(test_read_format_zip_winzip_aes256_stored)
 {
 	/* WinZip AES-256 encryption with stored data. */
-	test_winzip_aes("test_read_format_zip_winzip_aes256_stored.zip");
+	test_winzip_aes("test_read_format_zip_winzip_aes256_stored.zip", 0);
 }
