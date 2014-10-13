@@ -232,7 +232,7 @@ cd_alloc(struct zip *zip, size_t length)
 static unsigned long
 real_crc32(unsigned long crc, const void *buff, size_t len)
 {
-	return crc32(crc, buff, (uInt)len);
+	return crc32(crc, buff, (unsigned int)len);
 }
 
 static unsigned long

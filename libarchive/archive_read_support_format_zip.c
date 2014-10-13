@@ -325,7 +325,7 @@ crypt_derive_key_sha1(const void *p, int size, unsigned char *key,
 static unsigned long
 real_crc32(unsigned long crc, const void *buff, size_t len)
 {
-	return crc32(crc, buff, (uInt)len);
+	return crc32(crc, buff, (unsigned int)len);
 }
 
 static unsigned long
