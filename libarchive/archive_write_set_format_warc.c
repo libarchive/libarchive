@@ -421,7 +421,7 @@ _popul_ehdr(struct archive_string *tgt, size_t tsz, warc_essential_hdr_t hdr)
 	/**/
 	archive_strncat(tgt, "\r\n", 2);
 
-	return (archive_strlen(tgt) >= tsz)? -1: archive_strlen(tgt);
+	return (archive_strlen(tgt) >= tsz)? -1: (ssize_t)archive_strlen(tgt);
 }
 
 static int
