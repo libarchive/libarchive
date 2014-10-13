@@ -60,6 +60,75 @@ __hmac_sha1_cleanup(archive_hmac_sha1_ctx *ctx)
 	memset(ctx, 0, sizeof(*ctx));
 }
 
+#elif defined(_WIN32) && !defined(__CYGWIN__) && defined(HAVE_BCRYPT_H)
+
+static int
+__hmac_sha1_init(archive_hmac_sha1_ctx *ctx, const uint8_t *key, size_t key_len)
+{
+	BCRYPT_ALG_HANDLE hAlg;
+	BCRYPT_HASH_HANDLE hHash;
+	DWORD hash_len;
+	PBYTE hash;
+	ULONG result;
+	NTSTATUS status;
+
+	ctx->hAlg = NULL;
+	status = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_SHA1_ALGORITHM,
+		MS_PRIMITIVE_PROVIDER, BCRYPT_ALG_HANDLE_HMAC_FLAG);
+	if (!BCRYPT_SUCCESS(status))
+		return -1;
+	status = BCryptGetProperty(hAlg, BCRYPT_HASH_LENGTH, (PUCHAR)&hash_len,
+		sizeof(hash_len), &result, 0);
+	if (!BCRYPT_SUCCESS(status)) {
+		BCryptCloseAlgorithmProvider(hAlg, 0);
+		return -1;
+	}
+	hash = (PBYTE)HeapAlloc(GetProcessHeap(), 0, hash_len);
+	if (hash == NULL) {
+		BCryptCloseAlgorithmProvider(hAlg, 0);
+		return -1;
+	}
+	status = BCryptCreateHash(hAlg, &hHash, NULL, 0,
+		(PUCHAR)key, (ULONG)key_len, BCRYPT_HASH_REUSABLE_FLAG);
+	if (!BCRYPT_SUCCESS(status)) {
+		BCryptCloseAlgorithmProvider(hAlg, 0);
+		HeapFree(GetProcessHeap(), 0, hash);
+		return -1;
+	}
+
+	ctx->hAlg = hAlg;
+	ctx->hHash = hHash;
+	ctx->hash_len = hash_len;
+	ctx->hash = hash;
+
+	return 0;
+}
+
+static void
+__hmac_sha1_update(archive_hmac_sha1_ctx *ctx, const uint8_t *data,
+	size_t data_len)
+{
+	BCryptHashData(ctx->hHash, (PUCHAR)(uintptr_t)data, (ULONG)data_len, 0);
+}
+
+static void
+__hmac_sha1_final(archive_hmac_sha1_ctx *ctx, uint8_t *out, size_t *out_len)
+{
+	BCryptFinishHash(ctx->hHash, ctx->hash, ctx->hash_len, 0);
+	if (ctx->hash_len == *out_len)
+		memcpy(out, ctx->hash, *out_len);
+}
+
+static void
+__hmac_sha1_cleanup(archive_hmac_sha1_ctx *ctx)
+{
+	if (ctx->hAlg != NULL) {
+		BCryptCloseAlgorithmProvider(ctx->hAlg, 0);
+		HeapFree(GetProcessHeap(), 0, ctx->hash);
+		ctx->hAlg = NULL;
+	}
+}
+
 #elif defined(HAVE_LIBNETTLE)
 
 static int

@@ -44,6 +44,34 @@ pbkdf2_sha1(const char *pw, size_t pw_len, const uint8_t *salt,
 	return 0;
 }
 
+#elif defined(_WIN32) && !defined(__CYGWIN__) && defined(HAVE_BCRYPT_H)
+#ifdef _MSC_VER
+#pragma comment(lib, "Bcrypt.lib")
+#endif
+
+static int
+pbkdf2_sha1(const char *pw, size_t pw_len, const uint8_t *salt,
+	size_t salt_len, unsigned rounds, uint8_t *derived_key,
+	size_t derived_key_len)
+{
+	NTSTATUS status;
+	BCRYPT_ALG_HANDLE hAlg;
+
+	status = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_SHA1_ALGORITHM,
+		MS_PRIMITIVE_PROVIDER, BCRYPT_ALG_HANDLE_HMAC_FLAG);
+	if (!BCRYPT_SUCCESS(status))
+		return -1;
+
+	status = BCryptDeriveKeyPBKDF2(hAlg,
+		(PUCHAR)(uintptr_t)pw, (ULONG)pw_len,
+		(PUCHAR)(uintptr_t)salt, (ULONG)salt_len, rounds,
+		(PUCHAR)derived_key, (ULONG)derived_key_len, 0);
+
+	BCryptCloseAlgorithmProvider(hAlg, 0);
+
+	return (BCRYPT_SUCCESS(status)) ? 0: -1;
+}
+
 #elif defined(HAVE_LIBNETTLE) && defined(HAVE_NETTLE_PBKDF2_H)
 
 static int
@@ -121,6 +149,107 @@ aes_ctr_release(archive_crypto_ctx *ctx)
 {
 	memset(ctx->key, 0, ctx->key_len);
 	memset(ctx->nonce, 0, sizeof(ctx->nonce));
+	return 0;
+}
+
+#elif defined(_WIN32) && !defined(__CYGWIN__) && defined(HAVE_BCRYPT_H)
+
+static int
+aes_ctr_init(archive_crypto_ctx *ctx, const uint8_t *key, size_t key_len)
+{
+	BCRYPT_ALG_HANDLE hAlg;
+	BCRYPT_KEY_HANDLE hKey;
+	DWORD keyObj_len, aes_key_len;
+	PBYTE keyObj;
+	ULONG result;
+	NTSTATUS status;
+	BCRYPT_KEY_LENGTHS_STRUCT key_lengths;
+
+	ctx->hAlg = NULL;
+	ctx->hKey = NULL;
+	ctx->keyObj = NULL;
+	switch (key_len) {
+	case 16: aes_key_len = 128; break;
+	case 24: aes_key_len = 192; break;
+	case 32: aes_key_len = 256; break;
+	default: return -1;
+	}
+	status = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_AES_ALGORITHM,
+		MS_PRIMITIVE_PROVIDER, 0);
+	if (!BCRYPT_SUCCESS(status))
+		return -1;
+	status = BCryptGetProperty(hAlg, BCRYPT_KEY_LENGTHS, (PUCHAR)&key_lengths,
+		sizeof(key_lengths), &result, 0);
+	if (!BCRYPT_SUCCESS(status)) {
+		BCryptCloseAlgorithmProvider(hAlg, 0);
+		return -1;
+	}
+	if (key_lengths.dwMinLength > aes_key_len
+		|| key_lengths.dwMaxLength < aes_key_len) {
+		BCryptCloseAlgorithmProvider(hAlg, 0);
+		return -1;
+	}
+	status = BCryptGetProperty(hAlg, BCRYPT_OBJECT_LENGTH, (PUCHAR)&keyObj_len,
+		sizeof(keyObj_len), &result, 0);
+	if (!BCRYPT_SUCCESS(status)) {
+		BCryptCloseAlgorithmProvider(hAlg, 0);
+		return -1;
+	}
+	keyObj = (PBYTE)HeapAlloc(GetProcessHeap(), 0, keyObj_len);
+	if (keyObj == NULL) {
+		BCryptCloseAlgorithmProvider(hAlg, 0);
+		return -1;
+	}
+	status = BCryptSetProperty(hAlg, BCRYPT_CHAINING_MODE,
+		(PUCHAR)BCRYPT_CHAIN_MODE_ECB, sizeof(BCRYPT_CHAIN_MODE_ECB), 0);
+	if (!BCRYPT_SUCCESS(status)) {
+		BCryptCloseAlgorithmProvider(hAlg, 0);
+		HeapFree(GetProcessHeap(), 0, keyObj);
+		return -1;
+	}
+	status = BCryptGenerateSymmetricKey(hAlg, &hKey,
+		keyObj, keyObj_len,
+		(PUCHAR)(uintptr_t)key, (ULONG)key_len, 0);
+	if (!BCRYPT_SUCCESS(status)) {
+		BCryptCloseAlgorithmProvider(hAlg, 0);
+		HeapFree(GetProcessHeap(), 0, keyObj);
+		return -1;
+	}
+
+	ctx->hAlg = hAlg;
+	ctx->hKey = hKey;
+	ctx->keyObj = keyObj;
+	ctx->keyObj_len = keyObj_len;
+	ctx->encr_pos = AES_BLOCK_SIZE;
+
+	return 0;
+}
+
+static int
+aes_ctr_encrypt_counter(archive_crypto_ctx *ctx)
+{
+	NTSTATUS status;
+	ULONG result;
+
+	status = BCryptEncrypt(ctx->hKey, (PUCHAR)ctx->nonce, AES_BLOCK_SIZE,
+		NULL, NULL, 0, (PUCHAR)ctx->encr_buf, AES_BLOCK_SIZE,
+		&result, 0);
+	return BCRYPT_SUCCESS(status) ? 0 : -1;
+}
+
+static int
+aes_ctr_release(archive_crypto_ctx *ctx)
+{
+
+	if (ctx->hAlg != NULL) {
+		BCryptCloseAlgorithmProvider(ctx->hAlg, 0);
+		ctx->hAlg = NULL;
+		BCryptDestroyKey(ctx->hKey);
+		ctx->hKey = NULL;
+		HeapFree(GetProcessHeap(), 0, ctx->keyObj);
+		ctx->keyObj = NULL;
+	}
+	memset(ctx, 0, sizeof(*ctx));
 	return 0;
 }
 

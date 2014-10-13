@@ -276,6 +276,7 @@ AC_CHECK_HEADERS([sys/param.h sys/poll.h sys/select.h sys/statfs.h sys/statvfs.h
 AC_CHECK_HEADERS([sys/time.h sys/utime.h sys/utsname.h sys/vfs.h])
 AC_CHECK_HEADERS([time.h unistd.h utime.h wchar.h wctype.h])
 AC_CHECK_HEADERS([windows.h])
+AC_CHECK_HEADERS([Bcrypt.h])
 # check windows.h first; the other headers require it.
 AC_CHECK_HEADERS([wincrypt.h winioctl.h],[],[],
 [[#ifdef HAVE_WINDOWS_H

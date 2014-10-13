@@ -45,14 +45,16 @@ typedef struct {
 	unsigned	encr_pos;
 } archive_crypto_ctx;
 
-#elif defined(_WIN32) && !defined(__CYGWIN__)
+#elif defined(_WIN32) && !defined(__CYGWIN__) && defined(HAVE_BCRYPT_H)
+#include <Bcrypt.h>
 
 #define AES_MAX_KEY_SIZE 32
 #define AES_BLOCK_SIZE 16
 typedef struct {
-	int	ctx;
-	uint8_t		key[AES_MAX_KEY_SIZE];
-	unsigned	key_len;
+	BCRYPT_ALG_HANDLE hAlg;
+	BCRYPT_KEY_HANDLE hKey;
+	PBYTE		keyObj;
+	DWORD		keyObj_len;
 	uint8_t		nonce[AES_BLOCK_SIZE];
 	uint8_t		encr_buf[AES_BLOCK_SIZE];
 	unsigned	encr_pos;
@@ -87,6 +89,10 @@ typedef struct {
 	uint8_t		encr_buf[AES_BLOCK_SIZE];
 	unsigned	encr_pos;
 } archive_crypto_ctx;
+
+#else
+
+typedef int archive_crypto_ctx;
 
 #endif
 

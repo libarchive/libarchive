@@ -164,6 +164,8 @@ OPTION(ENABLE_BZip2 "Enable the use of the system found BZip2 library if found" 
 OPTION(ENABLE_EXPAT "Enable the use of the system found EXPAT library if found" ON)
 OPTION(ENABLE_PCREPOSIX "Enable the use of the system found PCREPOSIX library if found" ON)
 OPTION(ENABLE_LibGCC "Enable the use of the system found LibGCC library if found" ON)
+# CNG is used for encrypt/decrypt Zip archives on Windows.
+OPTION(ENABLE_CNG "Enable the use of CNG(Crypto Next Generation)" ON)
 
 OPTION(ENABLE_TAR "Enable tar building" ON)
 OPTION(ENABLE_TAR_SHARED "Enable dynamic build of tar" FALSE)
@@ -571,6 +573,11 @@ LA_CHECK_INCLUDE_FILE("utime.h" HAVE_UTIME_H)
 LA_CHECK_INCLUDE_FILE("wchar.h" HAVE_WCHAR_H)
 LA_CHECK_INCLUDE_FILE("wctype.h" HAVE_WCTYPE_H)
 LA_CHECK_INCLUDE_FILE("windows.h" HAVE_WINDOWS_H)
+IF(ENABLE_CNG)
+  LA_CHECK_INCLUDE_FILE("Bcrypt.h" HAVE_BCRYPT_H)
+ELSE(ENABLE_CNG)
+  UNSET(HAVE_BCRYPT_H CACHE)
+ENDIF(ENABLE_CNG)
 # Following files need windwos.h, so we should test it after windows.h test.
 LA_CHECK_INCLUDE_FILE("wincrypt.h" HAVE_WINCRYPT_H)
 LA_CHECK_INCLUDE_FILE("winioctl.h" HAVE_WINIOCTL_H)

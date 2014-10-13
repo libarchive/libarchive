@@ -36,8 +36,15 @@
 typedef	CCHmacContext archive_hmac_sha1_ctx;
 
 #elif defined(_WIN32) && !defined(__CYGWIN__)
+#include <Bcrypt.h>
 
-typedef int archive_hmac_sha1_ctx;
+typedef struct {
+	BCRYPT_ALG_HANDLE	hAlg;
+	BCRYPT_HASH_HANDLE	hHash;
+	DWORD				hash_len;
+	PBYTE				hash;
+
+} archive_hmac_sha1_ctx;
 
 #elif defined(HAVE_LIBNETTLE)
 #include <nettle/hmac.h>
@@ -48,6 +55,10 @@ typedef	struct hmac_sha1_ctx archive_hmac_sha1_ctx;
 #include <openssl/hmac.h>
 
 typedef	HMAC_CTX archive_hmac_sha1_ctx;
+
+#else
+
+typedef int archive_hmac_sha1_ctx;
 
 #endif
 
