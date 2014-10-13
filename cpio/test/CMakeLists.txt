@@ -89,7 +89,8 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
 
   # Experimental new test handling
   ADD_CUSTOM_TARGET(run_bsdcpio_test
-	COMMAND	bsdcpio_test -p ${BSDCPIO} -r ${CMAKE_CURRENT_SOURCE_DIR})
+	COMMAND	bsdcpio_test -p $<TARGET_FILE:bsdcpio>
+			     -r ${CMAKE_CURRENT_SOURCE_DIR})
   ADD_DEPENDENCIES(run_bsdcpio_test bsdcpio)
   ADD_DEPENDENCIES(run_all_tests run_bsdcpio_test)
 ENDIF(ENABLE_CPIO AND ENABLE_TEST)

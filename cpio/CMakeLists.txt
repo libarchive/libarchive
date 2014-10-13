@@ -37,8 +37,6 @@ IF(ENABLE_CPIO)
     SET_TARGET_PROPERTIES(bsdcpio PROPERTIES COMPILE_DEFINITIONS
     				  LIBARCHIVE_STATIC)
   ENDIF(ENABLE_CPIO_SHARED)
-  # Full path to the compiled executable (used by test suite)
-  GET_TARGET_PROPERTY(BSDCPIO bsdcpio LOCATION)
 
   # Installation rules
   INSTALL(TARGETS bsdcpio RUNTIME DESTINATION bin)
