@@ -1,5 +1,5 @@
 #
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.6 FATAL_ERROR)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12 FATAL_ERROR)
 #
 PROJECT(libarchive C)
 #
@@ -35,6 +35,9 @@ ENDIF(NOT "${CMAKE_BUILD_TYPE}"
 # On MacOS, prefer MacPorts libraries to system libraries.
 # I haven't come up with a compelling argument for this to be conditional.
 list(APPEND CMAKE_PREFIX_PATH /opt/local)
+# Enable @rpath in the install name.
+# detail in "cmake  --help-policy CMP0042"
+SET(CMAKE_MACOSX_RPATH ON)
 
 #
 # Version - read from 'version' file.
