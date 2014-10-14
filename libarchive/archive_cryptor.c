@@ -329,6 +329,7 @@ aes_ctr_release(archive_crypto_ctx *ctx)
 
 #else
 
+#define ARCHIVE_CRYPTOR_STUB
 /* Stub */
 static int
 aes_ctr_init(archive_crypto_ctx *ctx, const uint8_t *key, size_t key_len)
@@ -355,6 +356,20 @@ aes_ctr_release(archive_crypto_ctx *ctx)
 
 #endif
 
+#ifdef ARCHIVE_CRYPTOR_STUB
+static int
+aes_ctr_update(archive_crypto_ctx *ctx, const uint8_t * const in,
+    size_t in_len, uint8_t * const out, size_t *out_len)
+{
+	(void)ctx; /* UNUSED */
+	(void)in; /* UNUSED */
+	(void)in_len; /* UNUSED */
+	(void)out; /* UNUSED */
+	(void)out_len; /* UNUSED */
+	return -1;
+}
+
+#else
 static void
 aes_ctr_increase_counter(archive_crypto_ctx *ctx)
 {
@@ -401,6 +416,7 @@ aes_ctr_update(archive_crypto_ctx *ctx, const uint8_t * const in,
 
 	return 0;
 }
+#endif /* ARCHIVE_CRYPTOR_STUB */
 
 
 const struct archive_cryptor __archive_cryptor =
