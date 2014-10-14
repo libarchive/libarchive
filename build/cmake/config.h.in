@@ -585,6 +585,12 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `bz2' library (-lbz2). */
 #cmakedefine HAVE_LIBBZ2 1
 
+/* Define to 1 if you have the `charset' library (-lcharset). */
+#cmakedefine HAVE_LIBCHARSET 1
+
+/* Define to 1 if you have the `crypto' library (-lcrypto). */
+#cmakedefine HAVE_LIBCRYPTO 1
+
 /* Define to 1 if you have the `expat' library (-lexpat). */
 #cmakedefine HAVE_LIBEXPAT 1
 
