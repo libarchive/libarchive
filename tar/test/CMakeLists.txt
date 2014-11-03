@@ -24,6 +24,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_extract_tar_xz.c
     test_format_newc.c
     test_help.c
+    test_leading_slash.c
     test_option_C_upper.c
     test_option_H_upper.c
     test_option_L_upper.c
