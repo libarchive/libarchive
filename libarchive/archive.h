@@ -328,6 +328,13 @@ typedef const char *archive_passphrase_callback(struct archive *,
 #define ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED -2
 #define ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW -1
 
+/*
+ * Codes to identify the different matching format.
+ */
+#define ARCHIVE_MATCH_LOGIC_NONE	0 /* unused - placeholder */
+#define ARCHIVE_MATCH_LOGIC_DEFAULT	1 /* gtar */
+#define ARCHIVE_MATCH_LOGIC_MTREE	2 /* fnmatch(3) globbing (mtree) */
+
 /*-
  * Basic outline for reading an archive:
  *   1) Ask archive_read_new for an archive reader object.
@@ -1027,6 +1034,17 @@ __LA_DECL int		 archive_file_count(struct archive *);
  */
 __LA_DECL struct archive *archive_match_new(void);
 __LA_DECL int	archive_match_free(struct archive *);
+
+/*
+ * Set a given archive_match logic. The logic controls the rules that will
+ * be used to declare whether an entry matches (or not) a given
+ * parameter (typically: pathname).
+ * Default logic is the one found in gtar.
+ */
+__LA_DECL int	archive_match_set_logic(struct archive *, int);
+__LA_DECL int	archive_match_set_logic_default(struct archive *);
+__LA_DECL int	archive_match_set_logic_mtree(struct archive *);
+__LA_DECL int	archive_match_set_logic_none(struct archive *);
 
 /*
  * Test if archive_entry is excluded.
