@@ -814,61 +814,67 @@ path_excluded(struct archive_match *a, int mbs, const void *pathname)
 	return (0);
 }
 
-/*
- * This is a little odd, but it matches the default behavior of
- * gtar.  In particular, 'a*b' will match 'foo/a1111/222b/bar'
- *
- */
 static int
 match_path_exclusion(struct archive_match *a, struct match *m,
     int mbs, const void *pn)
 {
-	int flag = PATHMATCH_NO_ANCHOR_START | PATHMATCH_NO_ANCHOR_END;
-	int r;
+	int flag;
 
-	if (mbs) {
-		const char *p;
-		r = archive_mstring_get_mbs(&(a->archive), &(m->pattern), &p);
-		if (r == 0)
-			return (archive_pathmatch(p, (const char *)pn, flag));
+	if (a->logic == ARCHIVE_MATCH_LOGIC_DEFAULT) {
+		/*
+		 * This is a little odd, but it matches the default behavior of
+		 * gtar.  In particular, 'a*b' will match 'foo/a1111/222b/bar'
+		 */
+		flag = PATHMATCH_NO_ANCHOR_START | PATHMATCH_NO_ANCHOR_END;
 	} else {
-		const wchar_t *p;
-		r = archive_mstring_get_wcs(&(a->archive), &(m->pattern), &p);
-		if (r == 0)
-			return (archive_pathmatch_w(p, (const wchar_t *)pn,
-				flag));
+		flag = 0;
 	}
-	if (errno == ENOMEM)
-		return (error_nomem(a));
-	return (0);
+
+	return match_path(a, m, mbs, pn, flag);
 }
 
-/*
- * Again, mimic gtar:  inclusions are always anchored (have to match
- * the beginning of the path) even though exclusions are not anchored.
- */
 static int
 match_path_inclusion(struct archive_match *a, struct match *m,
     int mbs, const void *pn)
 {
-	int flag = PATHMATCH_NO_ANCHOR_END;
+	int flag;
+
+	if (a->logic == ARCHIVE_MATCH_LOGIC_DEFAULT) {
+		/*
+		 * Again, mimic gtar: inclusions are always anchored (have to
+		 * match the beginning of the path) even though exclusions are
+		 * not anchored.
+		 */
+		flag = PATHMATCH_NO_ANCHOR_END;
+	} else {
+		flag = 0;
+	}
+	 
+	return match_path(a, m, mbs, pn, flag);
+}
+
+static int
+match_path(struct archive_match *a, struct match *m,
+    int mbs, const void *pn, int flag)
+{
 	int r;
 
 	if (mbs) {
 		const char *p;
 		r = archive_mstring_get_mbs(&(a->archive), &(m->pattern), &p);
 		if (r == 0)
-			return (archive_pathmatch(p, (const char *)pn, flag));
+			r = (a->match_path_cb)(p, (const char *)pn, flag);
 	} else {
 		const wchar_t *p;
 		r = archive_mstring_get_wcs(&(a->archive), &(m->pattern), &p);
 		if (r == 0)
-			return (archive_pathmatch_w(p, (const wchar_t *)pn,
-				flag));
+			r = (a->match_path_w_cb)(p, (const wchar_t *)pn, flag);
 	}
-	if (errno == ENOMEM)
-		return (error_nomem(a));
-	return (0);
+	if (r < 0) {
+		archive_set_error(&(a->archive), errno, "%s", strerror(errno));
+		a->archive.state = ARCHIVE_STATE_FATAL;
+	}
+	return r;
 }
 
 static void
