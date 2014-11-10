@@ -472,9 +472,11 @@ zip_time(const char *p)
  *  triplets.  id and size are 2 bytes each.
  */
 static int
-process_extra(struct archive_read *a, const char *p, size_t extra_length, struct zip_entry* zip_entry)
+process_extra(struct archive_read *a, struct archive_entry *entry,
+		const char *p, size_t extra_length, struct zip_entry* zip_entry)
 {
 	unsigned offset = 0;
+	struct zip *zip = (struct zip *)(a->format->data);
 
 	if (extra_length == 0) {
 		return ARCHIVE_OK;
@@ -732,6 +734,35 @@ process_extra(struct archive_read *a, const char *p, size_t extra_length, struct
 			}
 			break;
 		}
+		case 0x7075:
+		{
+			/* Info-ZIP Unicode Path Extra Field. */
+			if (datasize < 5 || entry == NULL)
+				break;
+			offset += 5;
+			datasize -= 5;
+
+			/* The path name in this field is always encoded in UTF-8. */
+			if (zip->sconv_utf8 == NULL) {
+				zip->sconv_utf8 =
+					archive_string_conversion_from_charset(
+					&a->archive, "UTF-8", 1);
+				// If the converter from UTF-8 is not available, then the
+				// path name from the main field will more likely be correct.
+				if (zip->sconv_utf8 == NULL)
+					break;
+			}
+
+			if (archive_entry_copy_pathname_l(entry,
+			    p + offset, datasize, zip->sconv_utf8) != 0) {
+				// Ignore the error, and fallback to the path name from the main
+				// field.
+#ifdef DEBUG
+				fprintf(stderr, "Failed to read the ZIP 0x7075 extra field path.\n");
+#endif
+			}
+			break;
+		}
 		case 0x7855:
 			/* Info-ZIP Unix Extra Field (type 2) "Ux". */
 #ifdef DEBUG
@@ -928,7 +959,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		return (ARCHIVE_FATAL);
 	}
 
-	if (ARCHIVE_OK != process_extra(a, h, extra_length, zip_entry)) {
+	if (ARCHIVE_OK != process_extra(a, entry, h, extra_length, zip_entry)) {
 		return ARCHIVE_FATAL;
 	}
 	__archive_read_consume(a, extra_length);
@@ -3391,7 +3422,8 @@ expose_parent_dirs(struct zip *zip, const char *name, size_t name_length)
 }
 
 static int
-slurp_central_directory(struct archive_read *a, struct zip *zip)
+slurp_central_directory(struct archive_read *a, struct archive_entry* entry,
+    struct zip *zip)
 {
 	ssize_t i;
 	unsigned found;
@@ -3538,7 +3570,7 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 			    "Truncated ZIP file header");
 			return ARCHIVE_FATAL;
 		}
-		if (ARCHIVE_OK != process_extra(a, p + filename_length, extra_length, zip_entry)) {
+		if (ARCHIVE_OK != process_extra(a, entry, p + filename_length, extra_length, zip_entry)) {
 			return ARCHIVE_FATAL;
 		}
 
@@ -3797,7 +3829,7 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 		a->archive.archive_format_name = "ZIP";
 
 	if (zip->zip_entries == NULL) {
-		r = slurp_central_directory(a, zip);
+		r = slurp_central_directory(a, entry, zip);
 		if (r != ARCHIVE_OK)
 			return r;
 		/* Get first entry whose local header offset is lower than
