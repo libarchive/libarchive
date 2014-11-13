@@ -478,6 +478,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_zip_padded.c \
 	libarchive/test/test_read_format_zip_sfx.c \
 	libarchive/test/test_read_format_zip_traditional_encryption_data.c \
+	libarchive/test/test_read_format_zip_utf8_paths.c \
 	libarchive/test/test_read_format_zip_winzip_aes.c \
 	libarchive/test/test_read_format_zip_winzip_aes_large.c \
 	libarchive/test/test_read_format_zip_zip64.c \
@@ -783,6 +784,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_sfx.uu \
 	libarchive/test/test_read_format_zip_symlink.zip.uu \
 	libarchive/test/test_read_format_zip_traditional_encryption_data.zip.uu \
+	libarchive/test/test_read_format_zip_utf8_paths.zip.uu \
 	libarchive/test/test_read_format_zip_ux.zip.uu \
 	libarchive/test/test_read_format_zip_winzip_aes128.zip.uu \
 	libarchive/test/test_read_format_zip_winzip_aes256.zip.uu \
