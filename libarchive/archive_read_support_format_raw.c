@@ -80,6 +80,7 @@ archive_read_support_format_raw(struct archive *_a)
 	    NULL,
 	    archive_read_format_raw_cleanup,
 	    NULL,
+	    NULL,
 	    NULL);
 	if (r != ARCHIVE_OK)
 		free(info);
