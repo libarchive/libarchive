@@ -70,6 +70,8 @@ static int	_archive_read_next_header(struct archive *,
 		    struct archive_entry **);
 static int	_archive_read_next_header2(struct archive *,
 		    struct archive_entry *);
+static int	_archive_read_seek_header(struct archive *,
+		    size_t index);
 static int64_t  advance_file_pointer(struct archive_read_filter *, int64_t);
 
 static struct archive_vtable *
@@ -88,6 +90,7 @@ archive_read_vtable(void)
 		av.archive_read_next_header2 = _archive_read_next_header2;
 		av.archive_free = _archive_read_free;
 		av.archive_close = _archive_read_close;
+		av.archive_read_seek_header = _archive_read_seek_header;
 		inited = 1;
 	}
 	return (&av);
@@ -636,7 +639,10 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	/* Record start-of-header offset in uncompressed stream. */
 	a->header_position = a->filter->position;
 
-	++_a->file_count;
+	if (a->header_position > a->max_header_position) {
+		++_a->file_count;
+		a->max_header_position = a->header_position;
+	}
 	r2 = (a->format->read_header)(a, entry);
 
 	/*
@@ -679,6 +685,58 @@ _archive_read_next_header(struct archive *_a, struct archive_entry **entryp)
 	*entryp = NULL;
 	ret = _archive_read_next_header2(_a, a->entry);
 	*entryp = a->entry;
+	return ret;
+}
+
+/*
+ * Seek to header of n-th entry.
+ */
+static int
+_archive_read_seek_header(struct archive *_a, size_t index)
+{
+	struct archive_read *a = (struct archive_read *)_a;
+	int ret;
+
+	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
+	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA | ARCHIVE_STATE_EOF,
+	    "archive_read_seek_header");
+
+	if (a->format->seek_header == NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
+		    "Internal error: "
+		    "No format_seek_header function registered");
+		return (ARCHIVE_FATAL);
+	}
+
+	archive_clear_error(&a->archive);
+	ret = (a->format->seek_header)(a, index);
+
+	/*
+	 * FATAL is persistent at this layer.  By modifying the state, we guarantee
+	 * that future calls to read a header or read data will fail.
+	 */
+	switch (ret) {
+	case ARCHIVE_EOF:
+		a->archive.state = ARCHIVE_STATE_EOF;
+		break;
+	case ARCHIVE_OK:
+		a->archive.state = ARCHIVE_STATE_HEADER;
+		break;
+	case ARCHIVE_WARN:
+		a->archive.state = ARCHIVE_STATE_HEADER;
+		break;
+	case ARCHIVE_RETRY:
+		break;
+	case ARCHIVE_FATAL:
+		a->archive.state = ARCHIVE_STATE_FATAL;
+		break;
+	}
+
+	a->read_data_output_offset = 0;
+	a->read_data_remaining = 0;
+	a->read_data_is_posix_read = 0;
+	a->read_data_requested = 0;
+	a->data_start_node = a->client.cursor;
 	return ret;
 }
 
@@ -1166,7 +1224,8 @@ __archive_read_register_format(struct archive_read *a,
     int64_t (*seek_data)(struct archive_read *, int64_t, int),
     int (*cleanup)(struct archive_read *),
     int (*format_capabilities)(struct archive_read *),
-    int (*has_encrypted_entries)(struct archive_read *))
+    int (*has_encrypted_entries)(struct archive_read *),
+    int (*seek_header)(struct archive_read*, size_t))
 {
 	int i, number_slots;
 
@@ -1191,6 +1250,7 @@ __archive_read_register_format(struct archive_read *a,
 			a->formats[i].name = name;
 			a->formats[i].format_capabilties = format_capabilities;
 			a->formats[i].has_encrypted_entries = has_encrypted_entries;
+			a->formats[i].seek_header = seek_header;
 			return (ARCHIVE_OK);
 		}
 	}

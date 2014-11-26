@@ -612,7 +612,7 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 		case 0x7075:
 		{
 			/* Info-ZIP Unicode Path Extra Field. */
-			if (datasize < 5)
+			if (datasize < 5 || entry == NULL)
 				break;
 			offset += 5;
 			datasize -= 5;
@@ -2240,7 +2240,8 @@ archive_read_support_format_zip_streamable(struct archive *_a)
 	    NULL,
 	    archive_read_format_zip_cleanup,
 	    archive_read_support_format_zip_capabilities_streamable,
-	    archive_read_format_zip_has_encrypted_entries);
+	    archive_read_format_zip_has_encrypted_entries,
+	    NULL);
 
 	if (r != ARCHIVE_OK)
 		free(zip);
@@ -2419,10 +2420,12 @@ cmp_node(const struct archive_rb_node *n1, const struct archive_rb_node *n2)
 static int
 cmp_key(const struct archive_rb_node *n, const void *key)
 {
-	/* This function won't be called */
-	(void)n; /* UNUSED */
-	(void)key; /* UNUSED */
-	return 1;
+	const struct zip_entry *e = (const struct zip_entry *)n;
+	if (e->local_header_offset > *(int64_t *)key)
+		return -1;
+	if (e->local_header_offset < *(int64_t *)key)
+		return 1;
+	return 0;
 }
 
 static const struct archive_rb_tree_ops rb_ops = {
@@ -2493,8 +2496,7 @@ expose_parent_dirs(struct zip *zip, const char *name, size_t name_length)
 }
 
 static int
-slurp_central_directory(struct archive_read *a, struct archive_entry* entry,
-	struct zip *zip)
+slurp_central_directory(struct archive_read *a, struct zip *zip)
 {
 	ssize_t i;
 	unsigned found;
@@ -2624,7 +2626,7 @@ slurp_central_directory(struct archive_read *a, struct archive_entry* entry,
 			    "Truncated ZIP file header");
 			return ARCHIVE_FATAL;
 		}
-		process_extra(a, entry, p + filename_length, extra_length, zip_entry);
+		process_extra(a, NULL, p + filename_length, extra_length, zip_entry);
 
 		/*
 		 * Mac resource fork files are stored under the
@@ -2868,18 +2870,15 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 		a->archive.archive_format_name = "ZIP";
 
 	if (zip->zip_entries == NULL) {
-		r = slurp_central_directory(a, entry, zip);
+		r = slurp_central_directory(a, zip);
+		__archive_read_seek(a, 0, SEEK_SET);
 		if (r != ARCHIVE_OK)
 			return r;
-		/* Get first entry whose local header offset is lower than
-		 * other entries in the archive file. */
-		zip->entry =
-		    (struct zip_entry *)ARCHIVE_RB_TREE_MIN(&zip->tree);
-	} else if (zip->entry != NULL) {
-		/* Get next entry in local header offset order. */
-		zip->entry = (struct zip_entry *)__archive_rb_tree_iterate(
-		    &zip->tree, &zip->entry->node, ARCHIVE_RB_DIR_RIGHT);
 	}
+
+	offset = archive_filter_bytes(&a->archive, 0);
+	zip->entry = (struct zip_entry *)__archive_rb_tree_find_node_geq(
+	    &zip->tree, &offset);
 
 	if (zip->entry == NULL)
 		return ARCHIVE_EOF;
@@ -2908,16 +2907,62 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 		__archive_read_seek(a, zip->entry->local_header_offset,
 		    SEEK_SET);
 	}
+
 	zip->unconsumed = 0;
 	r = zip_read_local_file_header(a, entry, zip);
 	if (r != ARCHIVE_OK)
 		return r;
+
 	if (rsrc) {
 		int ret2 = zip_read_mac_metadata(a, entry, rsrc);
 		if (ret2 < ret)
 			ret = ret2;
 	}
 	return (ret);
+}
+
+static int
+archive_read_format_zip_seekable_seek_header(struct archive_read *a,
+		size_t index) {
+	struct zip *zip = (struct zip *)a->format->data;
+	size_t cur_index = 0;
+	int64_t offset;
+	int r;
+
+	zip->unconsumed = 0;
+
+	if (zip->zip_entries == NULL) {
+		r = slurp_central_directory(a, zip);
+		if (r != ARCHIVE_OK)
+			return r;
+	}
+
+	/* Iterate until getting the correct header starting from the first one.
+	 * This can be optimized, but since the headers are stored in balanced
+	 * trees, it should not be a performance bottleneck. */
+	zip->entry = (struct zip_entry *)ARCHIVE_RB_TREE_MIN(&zip->tree);
+	while (zip->entry && cur_index++ != index) {
+		/* Get next entry in local header offset order. */
+		zip->entry = (struct zip_entry *)__archive_rb_tree_iterate(
+		    &zip->tree, &zip->entry->node, ARCHIVE_RB_DIR_RIGHT);
+	}
+
+	if (zip->entry == NULL)
+		return ARCHIVE_EOF;
+
+	/* File entries are sorted by the header offset, we should mostly
+	 * use __archive_read_consume to advance a read point to avoid redundant
+	 * data reading.  */
+	offset = archive_filter_bytes(&a->archive, 0);
+	if (offset < zip->entry->local_header_offset)
+		__archive_read_consume(a,
+		    zip->entry->local_header_offset - offset);
+	else if (offset != zip->entry->local_header_offset) {
+		__archive_read_seek(a, zip->entry->local_header_offset,
+		    SEEK_SET);
+	}
+
+	return ARCHIVE_OK;
 }
 
 /*
@@ -2974,7 +3019,8 @@ archive_read_support_format_zip_seekable(struct archive *_a)
 	    NULL,
 	    archive_read_format_zip_cleanup,
 	    archive_read_support_format_zip_capabilities_seekable,
-	    archive_read_format_zip_has_encrypted_entries);
+	    archive_read_format_zip_has_encrypted_entries,
+	    archive_read_format_zip_seekable_seek_header);
 
 	if (r != ARCHIVE_OK)
 		free(zip);

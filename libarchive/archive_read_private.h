@@ -198,6 +198,10 @@ struct archive_read {
 	/* File offset of beginning of most recently-read header. */
 	int64_t		  header_position;
 
+	/* Offset of the farthest read header. Used for counting files while
+	 * seeking between headers */
+	int64_t		  max_header_position;
+
 	/* Nodes and offsets of compressed data block */
 	unsigned int data_start_node;
 	unsigned int data_end_node;
@@ -223,6 +227,7 @@ struct archive_read {
 		int	(*cleanup)(struct archive_read *);
 		int	(*format_capabilties)(struct archive_read *);
 		int	(*has_encrypted_entries)(struct archive_read *);
+		int	(*seek_header)(struct archive_read *, size_t);
 	}	formats[16];
 	struct archive_format_descriptor	*format; /* Active format. */
 
@@ -255,7 +260,8 @@ int	__archive_read_register_format(struct archive_read *a,
 		int64_t (*seek_data)(struct archive_read *, int64_t, int),
 		int (*cleanup)(struct archive_read *),
 		int (*format_capabilities)(struct archive_read *),
-		int (*has_encrypted_entries)(struct archive_read *));
+		int (*has_encrypted_entries)(struct archive_read *),
+		int (*seek_header)(struct archive_read *, size_t));
 
 int __archive_read_get_bidder(struct archive_read *a,
     struct archive_read_filter_bidder **bidder);
