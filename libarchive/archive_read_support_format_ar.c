@@ -124,6 +124,7 @@ archive_read_support_format_ar(struct archive *_a)
 	    NULL,
 	    archive_read_format_ar_cleanup,
 	    NULL,
+	    NULL,
 	    NULL);
 
 	if (r != ARCHIVE_OK) {

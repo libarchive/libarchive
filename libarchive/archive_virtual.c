@@ -155,6 +155,12 @@ archive_read_next_header2(struct archive *a, struct archive_entry *entry)
 }
 
 int
+archive_read_seek_header(struct archive *a, size_t index)
+{
+	return ((a->vtable->archive_read_seek_header)(a, index));
+}
+
+int
 archive_read_data_block(struct archive *a,
     const void **buff, size_t *s, int64_t *o)
 {
