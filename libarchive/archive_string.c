@@ -4062,6 +4062,19 @@ archive_mstring_copy_wcs(struct archive_mstring *aes, const wchar_t *wcs)
 }
 
 int
+archive_mstring_copy_utf8(struct archive_mstring *aes, const char *utf8)
+{
+  if (utf8 == NULL) {
+    aes->aes_set = 0;
+  }
+  aes->aes_set = AES_SET_UTF8;
+  archive_string_empty(&(aes->aes_mbs));
+  archive_string_empty(&(aes->aes_wcs));
+  archive_strncpy(&(aes->aes_utf8), utf8, strlen(utf8));
+  return strlen(utf8);
+}
+
+int
 archive_mstring_copy_wcs_len(struct archive_mstring *aes, const wchar_t *wcs,
     size_t len)
 {
