@@ -328,6 +328,7 @@ real_crc32(unsigned long crc, const void *buff, size_t len)
 	return crc32(crc, buff, (unsigned int)len);
 }
 
+/* Used by "ignorecrc32" option to speed up tests. */
 static unsigned long
 fake_crc32(unsigned long crc, const void *buff, size_t len)
 {
@@ -532,11 +533,29 @@ process_extra(const char *p, size_t extra_length, struct zip_entry* zip_entry)
 			/* Experimental 'xl' field */
 			/*
 			 * Introduced Dec 2013 to provide a way to
-			 * include external file attributes in local file
-			 * header.  This provides file type and permission
-			 * information necessary to support full streaming
-			 * extraction.  Currently being discussed with
-			 * other Zip developers... subject to change.
+			 * include external file attributes (and other
+			 * fields that ordinarily appear only in
+			 * central directory) in local file header.
+			 * This provides file type and permission
+			 * information necessary to support full
+			 * streaming extraction.  Currently being
+			 * discussed with other Zip developers
+			 * ... subject to change.
+			 *
+			 * Format:
+			 *  The field starts with a bitmap that specifies
+			 *  which additional fields are included.  The
+			 *  bitmap is variable length and can be extended in
+			 *  the future.
+			 *
+			 *  n bytes - feature bitmap: first byte has low-order
+			 *    7 bits.  If high-order bit is set, a subsequent
+			 *    byte holds the next 7 bits, etc.
+			 *
+			 *  if bitmap & 1, 2 byte "version made by"
+			 *  if bitmap & 2, 2 byte "internal file attributes"
+			 *  if bitmap & 4, 4 byte "external file attributes"
+			 *  if bitmap * 7, 2 byte comment length + n byte comment
 			 */
 			int bitmap, bitmap_last;
 
@@ -2268,7 +2287,11 @@ read_eocd(struct zip *zip, const char *p, int64_t current_offset)
 	return 32;
 }
 
-static int
+/*
+ * Examine Zip64 EOCD locator:  If it's valid, store the information
+ * from it.
+ */
+static void
 read_zip64_eocd(struct archive_read *a, struct zip *zip, const char *p)
 {
 	int64_t eocd64_offset;
@@ -2278,37 +2301,35 @@ read_zip64_eocd(struct archive_read *a, struct zip *zip, const char *p)
 
 	/* Central dir must be on first volume. */
 	if (archive_le32dec(p + 4) != 0)
-		return 0;
+		return;
 	/* Must be only a single volume. */
 	if (archive_le32dec(p + 16) != 1)
-		return 0;
+		return;
 
 	/* Find the Zip64 EOCD record. */
 	eocd64_offset = archive_le64dec(p + 8);
 	if (__archive_read_seek(a, eocd64_offset, SEEK_SET) < 0)
-		return 0;
+		return;
 	if ((p = __archive_read_ahead(a, 56, NULL)) == NULL)
-		return 0;
+		return;
 	/* Make sure we can read all of it. */
 	eocd64_size = archive_le64dec(p + 4) + 12;
 	if (eocd64_size < 56 || eocd64_size > 16384)
-		return 0;
+		return;
 	if ((p = __archive_read_ahead(a, eocd64_size, NULL)) == NULL)
-		return 0;
+		return;
 
 	/* Sanity-check the EOCD64 */
 	if (archive_le32dec(p + 16) != 0) /* Must be disk #0 */
-		return 0;
+		return;
 	if (archive_le32dec(p + 20) != 0) /* CD must be on disk #0 */
-		return 0;
+		return;
 	/* CD can't be split. */
 	if (archive_le64dec(p + 24) != archive_le64dec(p + 32))
-		return 0;
+		return;
 
 	/* Save the central directory offset for later use. */
 	zip->central_directory_offset = archive_le64dec(p + 48);
-
-	return 32;
 }
 
 static int
@@ -2329,41 +2350,39 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 		return 0;
 
 	/* Search last 16k of file for end-of-central-directory
-	 * record (which starts with PK\005\006) or Zip64 locator
-	 * record (which begins with PK\006\007) */
+	 * record (which starts with PK\005\006) */
 	tail = (int)zipmin(1024 * 16, file_size);
 	current_offset = __archive_read_seek(a, -tail, SEEK_END);
 	if (current_offset < 0)
 		return 0;
 	if ((p = __archive_read_ahead(a, (size_t)tail, NULL)) == NULL)
 		return 0;
-	/* TODO: Rework this to search backwards from the end.  We
-	 * normally expect the EOCD record to be at the very end, so
-	 * that should be significantly faster.  Tricky part: Make
-	 * sure we still prefer the Zip64 locator if it's present. */
-	for (i = 0; i <= tail - 22;) {
-		switch (p[i + 3]) {
-		case 'P': i += 3; break;
-		case 'K': i += 2; break;
-		case 005: i += 1; break;
-		case 006:
+	/* Boyer-Moore search backwards from the end, since we want
+	 * to match the last EOCD in the file (there can be more than
+	 * one if there is an uncompressed Zip archive as a member
+	 * within this Zip archive). */
+	for (i = tail - 22; i > 0;) {
+		switch (p[i]) {
+		case 'P':
 			if (memcmp(p + i, "PK\005\006", 4) == 0) {
 				int ret = read_eocd(zip, p + i,
-						current_offset + i);
-				if (ret > 0)
+				    current_offset + i);
+				if (ret > 0) {
+					/* Zip64 EOCD locator precedes
+					 * regular EOCD if present. */
+					if (i >= 20
+					    && memcmp(p + i - 20, "PK\006\007", 4) == 0) {
+						read_zip64_eocd(a, zip, p + i);
+					}
 					return (ret);
+				}
 			}
-			i += 1; /* Look for PK\006\007 next */
+			i -= 4;
 			break;
-		case 007:
-			if (memcmp(p + i, "PK\006\007", 4) == 0) {
-				int ret = read_zip64_eocd(a, zip, p + i);
-				if (ret > 0)
-					return (ret);
-			}
-			i += 4;
-			break;
-		default: i += 4; break;
+		case 'K': i -= 1; break;
+		case 005: i -= 2; break;
+		case 006: i -= 3; break;
+		default: i -= 4; break;
 		}
 	}
 	return 0;
