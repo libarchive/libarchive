@@ -116,6 +116,7 @@ static const struct bsdtar_option {
 	{ "no-recursion",         0, 'n' },
 	{ "no-same-owner",	  0, OPTION_NO_SAME_OWNER },
 	{ "no-same-permissions",  0, OPTION_NO_SAME_PERMISSIONS },
+	{ "no-xattr",             0, OPTION_NO_XATTR },
 	{ "nodump",               0, OPTION_NODUMP },
 	{ "nopreserveHFSCompression",0, OPTION_NOPRESERVE_HFS_COMPRESSION },
 	{ "norecurse",            0, 'n' },
