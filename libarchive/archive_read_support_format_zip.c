@@ -2372,7 +2372,7 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 					 * regular EOCD if present. */
 					if (i >= 20
 					    && memcmp(p + i - 20, "PK\006\007", 4) == 0) {
-						read_zip64_eocd(a, zip, p + i);
+						read_zip64_eocd(a, zip, p + i - 20);
 					}
 					return (ret);
 				}
