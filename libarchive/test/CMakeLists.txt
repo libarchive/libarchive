@@ -172,6 +172,7 @@ IF(ENABLE_TEST)
     test_read_pax_truncated.c
     test_read_position.c
     test_read_set_format.c
+    test_read_too_many_filters.c
     test_read_truncated.c
     test_read_truncated_filter.c
     test_sparse_basic.c
