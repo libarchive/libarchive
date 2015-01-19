@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
-#include <Windows.h>
+#include <windows.h>
 
 static char *
 readpassphrase(const char *prompt, char *buf, size_t bufsiz, int flags)
