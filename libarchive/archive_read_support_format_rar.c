@@ -186,6 +186,7 @@ struct huffman_code
 {
   struct huffman_tree_node *tree;
   int numentries;
+  int numallocatedentries;
   int minlength;
   int maxlength;
   int tablesize;
@@ -2409,6 +2410,8 @@ create_code(struct archive_read *a, struct huffman_code *code,
 {
   int i, j, codebits = 0, symbolsleft = numsymbols;
 
+  code->numentries = 0;
+  code->numallocatedentries = 0;
   if (new_node(code) < 0) {
     archive_set_error(&a->archive, ENOMEM,
                       "Unable to allocate memory for node data.");
@@ -2537,11 +2540,17 @@ static int
 new_node(struct huffman_code *code)
 {
   void *new_tree;
-
-  new_tree = realloc(code->tree, (code->numentries + 1) * sizeof(*code->tree));
-  if (new_tree == NULL)
-    return (-1);
-  code->tree = (struct huffman_tree_node *)new_tree;
+  if (code->numallocatedentries == code->numentries) {
+    int new_num_entries = 256;
+    if (code->numentries > 0) {
+        new_num_entries = code->numentries * 2;
+    }
+    new_tree = realloc(code->tree, new_num_entries * sizeof(*code->tree));
+    if (new_tree == NULL)
+        return (-1);
+    code->tree = (struct huffman_tree_node *)new_tree;
+    code->numallocatedentries = new_num_entries;
+  }
   code->tree[code->numentries].branches[0] = -1;
   code->tree[code->numentries].branches[1] = -2;
   return 1;
