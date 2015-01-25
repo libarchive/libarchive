@@ -119,7 +119,7 @@ struct trad_enc_ctx {
 #define LA_USED_ZIP64	(1 << 0)
 #define LA_FROM_CENTRAL_DIRECTORY (1 << 1)
 
-/* 
+/*
  * See "WinZip - AES Encryption Information"
  *     http://www.winzip.com/aes_info.htm
  */
@@ -906,7 +906,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	archive_entry_set_atime(entry, zip_entry->atime, 0);
 
 	if ((zip->entry->mode & AE_IFMT) == AE_IFLNK) {
-		size_t linkname_length = zip_entry->compressed_size;
+		size_t linkname_length = (size_t)zip_entry->compressed_size;
 
 		archive_entry_set_size(entry, 0);
 		p = __archive_read_ahead(a, linkname_length, NULL);
@@ -1260,7 +1260,7 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 						buff_remaining = 0;
 					else
 						buff_remaining =
-						    zip->entry_bytes_remaining
+						    (size_t)zip->entry_bytes_remaining
 						      - zip->decrypted_bytes_remaining;
 				}
 			}
@@ -2316,7 +2316,7 @@ read_zip64_eocd(struct archive_read *a, struct zip *zip, const char *p)
 	eocd64_size = archive_le64dec(p + 4) + 12;
 	if (eocd64_size < 56 || eocd64_size > 16384)
 		return;
-	if ((p = __archive_read_ahead(a, eocd64_size, NULL)) == NULL)
+	if ((p = __archive_read_ahead(a, (size_t)eocd64_size, NULL)) == NULL)
 		return;
 
 	/* Sanity-check the EOCD64 */
