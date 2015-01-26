@@ -237,6 +237,12 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 #endif
 	}
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	if (mode == 'x' && bsdtar->option_stdout) {
+		_setmode(1, _O_BINARY);
+	}
+#endif
+
 	for (;;) {
 		/* Support --fast-read option */
 		if (bsdtar->option_fast_read &&
