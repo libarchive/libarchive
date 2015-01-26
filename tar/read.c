@@ -335,11 +335,13 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 			    !yes("extract '%s'", archive_entry_pathname(entry)))
 				continue;
 
-			/*
-			 * Format here is from SUSv2, including the
-			 * deferred '\n'.
-			 */
-			if (bsdtar->verbose) {
+			if (bsdtar->verbose > 1) {
+				/* GNU tar uses -tv format with -xvv */
+				list_item_verbose(bsdtar, stderr, entry);
+				fflush(stderr);
+			} else if (bsdtar->verbose > 0) {
+				/* Format follows SUSv2, including the
+				 * deferred '\n'. */
 				safe_fprintf(stderr, "x %s",
 				    archive_entry_pathname(entry));
 				fflush(stderr);
