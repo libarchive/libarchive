@@ -103,6 +103,7 @@ IF(ENABLE_TEST)
     test_read_format_cpio_bin_be.c
     test_read_format_cpio_bin_bz2.c
     test_read_format_cpio_bin_gz.c
+    test_read_format_cpio_bin_le.c
     test_read_format_cpio_bin_lzip.c
     test_read_format_cpio_bin_lzma.c
     test_read_format_cpio_bin_xz.c
