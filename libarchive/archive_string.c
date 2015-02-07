@@ -71,6 +71,10 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_string.c 201095 2009-12-28 02:33
 #define wmemcpy(a,b,i)  (wchar_t *)memcpy((a), (b), (i) * sizeof(wchar_t))
 #endif
 
+#if !defined(HAVE_WMEMMOVE) && !defined(wmemmove)
+#define wmemmove(a,b,i)  (wchar_t *)memmove((a), (b), (i) * sizeof(wchar_t))
+#endif
+
 struct archive_string_conv {
 	struct archive_string_conv	*next;
 	char				*from_charset;
@@ -203,7 +207,7 @@ archive_string_append(struct archive_string *as, const char *p, size_t s)
 {
 	if (archive_string_ensure(as, as->length + s + 1) == NULL)
 		return (NULL);
-	memcpy(as->s + as->length, p, s);
+	memmove(as->s + as->length, p, s);
 	as->length += s;
 	as->s[as->length] = 0;
 	return (as);
@@ -214,7 +218,7 @@ archive_wstring_append(struct archive_wstring *as, const wchar_t *p, size_t s)
 {
 	if (archive_wstring_ensure(as, as->length + s + 1) == NULL)
 		return (NULL);
-	wmemcpy(as->s + as->length, p, s);
+	wmemmove(as->s + as->length, p, s);
 	as->length += s;
 	as->s[as->length] = 0;
 	return (as);
