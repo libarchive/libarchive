@@ -139,15 +139,6 @@ static size_t wcslen(const wchar_t *s)
 	return p - s;
 }
 #endif
-#ifndef HAVE_WCSCMP
-static wchar_t * wcscmp(wchar_t *s1, const wchar_t *s2)
-{
-	while(*s1 && (*s1 == *s2))
-		s1++,s2++;
-	unsigned long c1 = *s1, c2 = *s2;
-	return (c1 < c2) ? -1 : c1 > c2;
-}
-#endif
 #ifndef HAVE_WMEMCMP
 /* Good enough for simple equality testing, but not for sorting. */
 #define wmemcmp(a,b,i)  memcmp((a), (b), (i) * sizeof(wchar_t))
@@ -1753,13 +1744,17 @@ ae_strtofflags(const char *s, unsigned long *setp, unsigned long *clrp)
 		while (*end != '\0'  &&  *end != '\t'  &&
 		    *end != ' '  &&  *end != ',')
 			end++;
+		size_t length = end - start;
 		for (flag = flags; flag->name != NULL; flag++) {
-			if (strcmp(start, flag->name) == 0) {
+			size_t flag_length = strlen(flag->name);
+			if (length == flag_length
+			    && memcmp(start, flag->name, length) == 0) {
 				/* Matched "noXXXX", so reverse the sense. */
 				clear |= flag->set;
 				set |= flag->clear;
 				break;
-			} else if (strcmp(start, flag->name + 2) == 0) {
+			} else if (length == flag_length - 2
+			    && memcmp(start, flag->name + 2, length) == 0) {
 				/* Matched "XXXX", so don't reverse. */
 				set |= flag->set;
 				clear |= flag->clear;
@@ -1816,13 +1811,17 @@ ae_wcstofflags(const wchar_t *s, unsigned long *setp, unsigned long *clrp)
 		while (*end != L'\0'  &&  *end != L'\t'  &&
 		    *end != L' '  &&  *end != L',')
 			end++;
+		size_t length = end - start;
 		for (flag = flags; flag->wname != NULL; flag++) {
-			if (wcscmp(start, flag->wname) == 0) {
+			size_t flag_length = wcslen(flag->wname);
+			if (length == flag_length
+			    && wmemcmp(start, flag->wname, length) == 0) {
 				/* Matched "noXXXX", so reverse the sense. */
 				clear |= flag->set;
 				set |= flag->clear;
 				break;
-			} else if (wcscmp(start, flag->wname + 2) == 0) {
+			} else if (length == flag_length - 2
+			    && wmemcmp(start, flag->wname + 2, length) == 0) {
 				/* Matched "XXXX", so don't reverse. */
 				set |= flag->set;
 				clear |= flag->clear;
