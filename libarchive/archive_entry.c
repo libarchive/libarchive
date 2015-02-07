@@ -139,6 +139,15 @@ static size_t wcslen(const wchar_t *s)
 	return p - s;
 }
 #endif
+#ifndef HAVE_WCSCMP
+static wchar_t * wcscmp(wchar_t *s1, const wchar_t *s2)
+{
+	while(*s1 && (*s1 == *s2))
+		s1++,s2++;
+	unsigned long c1 = *s1, c2 = *s2;
+	return (c1 < c2) ? -1 : c1 > c2;
+}
+#endif
 #ifndef HAVE_WMEMCMP
 /* Good enough for simple equality testing, but not for sorting. */
 #define wmemcmp(a,b,i)  memcmp((a), (b), (i) * sizeof(wchar_t))
@@ -1808,12 +1817,12 @@ ae_wcstofflags(const wchar_t *s, unsigned long *setp, unsigned long *clrp)
 		    *end != L' '  &&  *end != L',')
 			end++;
 		for (flag = flags; flag->wname != NULL; flag++) {
-			if (wstrcmp(start, flag->wname) == 0) {
+			if (wcscmp(start, flag->wname) == 0) {
 				/* Matched "noXXXX", so reverse the sense. */
 				clear |= flag->set;
 				set |= flag->clear;
 				break;
-			} else if (wstrcmp(start, flag->wname + 2) == 0) {
+			} else if (wcscmp(start, flag->wname + 2) == 0) {
 				/* Matched "XXXX", so don't reverse. */
 				set |= flag->set;
 				clear |= flag->clear;
