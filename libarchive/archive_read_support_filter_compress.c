@@ -368,7 +368,8 @@ next_code(struct archive_read_filter *self)
 		return (next_code(self));
 	}
 
-	if (code > state->free_ent) {
+	if (code > state->free_ent
+	    || (code == state->free_ent && state->oldcode < 0)) {
 		/* An invalid code is a fatal error. */
 		archive_set_error(&(self->archive->archive), -1,
 		    "Invalid compressed data");
