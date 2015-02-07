@@ -264,6 +264,12 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 		}
 		if (r == ARCHIVE_FATAL)
 			break;
+		const char *p = archive_entry_pathname(entry);
+		if (p == NULL || p[0] == '\0') {
+			lafe_warnc(0, "Archive entry has empty or unreadable filename ... skipping.");
+			bsdtar->return_value = 1;
+			continue;
+		}
 
 		if (bsdtar->uid >= 0) {
 			archive_entry_set_uid(entry, bsdtar->uid);
