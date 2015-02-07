@@ -1745,13 +1745,12 @@ ae_strtofflags(const char *s, unsigned long *setp, unsigned long *clrp)
 		    *end != ' '  &&  *end != ',')
 			end++;
 		for (flag = flags; flag->name != NULL; flag++) {
-			if (memcmp(start, flag->name, end - start) == 0) {
+			if (strcmp(start, flag->name) == 0) {
 				/* Matched "noXXXX", so reverse the sense. */
 				clear |= flag->set;
 				set |= flag->clear;
 				break;
-			} else if (memcmp(start, flag->name + 2, end - start)
-			    == 0) {
+			} else if (strcmp(start, flag->name + 2) == 0) {
 				/* Matched "XXXX", so don't reverse. */
 				set |= flag->set;
 				clear |= flag->clear;
@@ -1809,13 +1808,12 @@ ae_wcstofflags(const wchar_t *s, unsigned long *setp, unsigned long *clrp)
 		    *end != L' '  &&  *end != L',')
 			end++;
 		for (flag = flags; flag->wname != NULL; flag++) {
-			if (wmemcmp(start, flag->wname, end - start) == 0) {
+			if (wstrcmp(start, flag->wname) == 0) {
 				/* Matched "noXXXX", so reverse the sense. */
 				clear |= flag->set;
 				set |= flag->clear;
 				break;
-			} else if (wmemcmp(start, flag->wname + 2, end - start)
-			    == 0) {
+			} else if (wstrcmp(start, flag->wname + 2) == 0) {
 				/* Matched "XXXX", so don't reverse. */
 				set |= flag->set;
 				clear |= flag->clear;
