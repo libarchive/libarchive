@@ -2038,7 +2038,16 @@ read_CodersInfo(struct archive_read *a, struct _7z_coders_info *ci)
 			return (-1);
 		if (UMAX_ENTRY < ci->dataStreamIndex)
 			return (-1);
+		if (ci->numFolders > 0) {
+			archive_set_error(&a->archive, -1,
+			    "Malformed 7-Zip archive");
+			goto failed;
+		}
 		break;
+	default:
+		archive_set_error(&a->archive, -1,
+		    "Malformed 7-Zip archive");
+		goto failed;
 	}
 
 	if ((p = header_bytes(a, 1)) == NULL)
