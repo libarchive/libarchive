@@ -648,7 +648,7 @@ process_extra(const char *p, size_t extra_length, struct zip_entry* zip_entry)
 			if (datasize >= 1 && p[offset] == 1) {/* version=1 */
 				if (datasize >= 4) {
 					/* get a uid size. */
-					uidsize = p[offset+1];
+					uidsize = 0xff & (int)p[offset+1];
 					if (uidsize == 2)
 						zip_entry->uid =
 						    archive_le16dec(
@@ -660,7 +660,7 @@ process_extra(const char *p, size_t extra_length, struct zip_entry* zip_entry)
 				}
 				if (datasize >= (2 + uidsize + 3)) {
 					/* get a gid size. */
-					gidsize = p[offset+2+uidsize];
+					gidsize = 0xff & (int)p[offset+2+uidsize];
 					if (gidsize == 2)
 						zip_entry->gid =
 						    archive_le16dec(
