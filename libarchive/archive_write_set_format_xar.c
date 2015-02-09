@@ -114,7 +114,7 @@ enum sumalg {
 #define MAX_SUM_SIZE	20
 #define MD5_NAME	"md5"
 #define SHA1_NAME	"sha1"
- 
+
 enum enctype {
 	NONE,
 	GZIP,
@@ -805,7 +805,7 @@ xmlwrite_string(struct archive_write *a, xmlTextWriterPtr writer,
 
 	if (value == NULL)
 		return (ARCHIVE_OK);
-	
+
 	r = xmlTextWriterStartElement(writer, BAD_CAST_CONST(key));
 	if (r < 0) {
 		archive_set_error(&a->archive,
@@ -1875,7 +1875,7 @@ file_cmp_node(const struct archive_rb_node *n1,
 
 	return (strcmp(f1->basename.s, f2->basename.s));
 }
-        
+
 static int
 file_cmp_key(const struct archive_rb_node *n, const void *key)
 {
@@ -2494,7 +2494,7 @@ file_init_hardlinks(struct xar *xar)
 	static const struct archive_rb_tree_ops rb_ops = {
 		file_hd_cmp_node, file_hd_cmp_key,
 	};
- 
+
 	__archive_rb_tree_init(&(xar->hardlink_rbtree), &rb_ops);
 }
 
@@ -2855,6 +2855,9 @@ compression_init_encoder_xz(struct archive *a,
 	lzma_filter *lzmafilters;
 	lzma_options_lzma lzma_opt;
 	int r;
+#ifdef HAVE_LZMA_STREAM_ENCODER_MT
+	lzma_mt mt_options;
+#endif
 
 	if (lastrm->valid)
 		compression_end(a, lastrm);
@@ -2879,7 +2882,17 @@ compression_init_encoder_xz(struct archive *a,
 	lzmafilters[1].id = LZMA_VLI_UNKNOWN;/* Terminate */
 
 	*strm = lzma_init_data;
-	r = lzma_stream_encoder(strm, lzmafilters, LZMA_CHECK_CRC64);
+#ifdef HAVE_LZMA_STREAM_ENCODER_MT
+	if (lzma_cputhreads() > 1) {
+		bzero(&mt_options, sizeof(mt_options));
+		mt_options.threads = lzma_cputhreads();
+		mt_options.timeout = 300;
+		mt_options.filters = lzmafilters;
+		mt_options.check = LZMA_CHECK_CRC64;
+		r = lzma_stream_encoder_mt(strm, &mt_options);
+	} else
+#endif
+		r = lzma_stream_encoder(strm, lzmafilters, LZMA_CHECK_CRC64);
 	switch (r) {
 	case LZMA_OK:
 		lastrm->real_stream = strm;
@@ -3178,4 +3191,3 @@ getalgname(enum sumalg sumalg)
 }
 
 #endif /* Support xar format */
-
