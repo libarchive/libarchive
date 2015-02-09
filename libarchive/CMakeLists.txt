@@ -145,6 +145,7 @@ SET(libarchive_SOURCES
   archive_write_set_format_warc.c
   archive_write_set_format_xar.c
   archive_write_set_format_zip.c
+  archive_write_set_format_filter_by_ext.c
   archive_write_set_options.c
   archive_write_set_passphrase.c
   archive_xxhash.h
