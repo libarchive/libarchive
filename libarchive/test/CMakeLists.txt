@@ -42,6 +42,7 @@ IF(ENABLE_TEST)
     test_archive_write_add_filter_by_name.c
     test_archive_write_set_filter_option.c
     test_archive_write_set_format_by_name.c
+    test_archive_write_set_format_filter_by_ext.c
     test_archive_write_set_format_option.c
     test_archive_write_set_option.c
     test_archive_write_set_options.c
