@@ -651,6 +651,8 @@ __LA_DECL int archive_read_set_passphrase_callback(struct archive *,
 #define	ARCHIVE_EXTRACT_HFS_COMPRESSION_FORCED	(0x8000)
 /* Default: Do not reject entries with absolute paths */
 #define ARCHIVE_EXTRACT_SECURE_NOABSOLUTEPATHS (0x10000)
+/* Default: Do not clear no-change flags when unlinking object */
+#define	ARCHIVE_EXTRACT_CLEAR_NOCHANGE_FFLAGS	(0x20000)
 
 __LA_DECL int archive_read_extract(struct archive *, struct archive_entry *,
 		     int flags);
