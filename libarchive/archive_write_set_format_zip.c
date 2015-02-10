@@ -692,7 +692,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			version_needed = 20;
 		}
 
-		if (zip->entry_flags | ZIP_ENTRY_FLAG_ENCRYPTED) {
+		if (zip->entry_flags & ZIP_ENTRY_FLAG_ENCRYPTED) {
 			switch (zip->entry_encryption) {
 			case ENCRYPTION_TRADITIONAL:
 				additional_size = TRAD_HEADER_SIZE;
@@ -739,7 +739,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			version_needed = 20;
 		}
 
-		if (zip->entry_flags | ZIP_ENTRY_FLAG_ENCRYPTED) {
+		if (zip->entry_flags & ZIP_ENTRY_FLAG_ENCRYPTED) {
 			switch (zip->entry_encryption) {
 			case ENCRYPTION_TRADITIONAL:
 			case ENCRYPTION_WINZIP_AES128:
@@ -857,7 +857,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	e += 4;
 
 	/* AES extra data field: WinZIP AES information, ID=0x9901 */
-	if ((zip->entry_flags | ZIP_ENTRY_FLAG_ENCRYPTED)
+	if ((zip->entry_flags & ZIP_ENTRY_FLAG_ENCRYPTED)
 	    && (zip->entry_encryption == ENCRYPTION_WINZIP_AES128
 	        || zip->entry_encryption == ENCRYPTION_WINZIP_AES256)) {
 
@@ -994,7 +994,7 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 
 	if (s == 0) return 0;
 
-	if (zip->entry_flags | ZIP_ENTRY_FLAG_ENCRYPTED) {
+	if (zip->entry_flags & ZIP_ENTRY_FLAG_ENCRYPTED) {
 		switch (zip->entry_encryption) {
 		case ENCRYPTION_TRADITIONAL:
 			/* Initialize traditoinal PKWARE encryption context. */
