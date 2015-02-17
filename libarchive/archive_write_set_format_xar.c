@@ -242,6 +242,7 @@ struct xar {
 	enum sumalg		 opt_sumalg;
 	enum enctype		 opt_compression;
 	int			 opt_compression_level;
+	uint32_t		 opt_threads;
 
 	struct chksumwork	 a_sumwrk;	/* archived checksum.	*/
 	struct chksumwork	 e_sumwrk;	/* extracted checksum.	*/
@@ -317,7 +318,7 @@ static int	compression_end_bzip2(struct archive *, struct la_zstream *);
 static int	compression_init_encoder_lzma(struct archive *,
 		    struct la_zstream *, int);
 static int	compression_init_encoder_xz(struct archive *,
-		    struct la_zstream *, int);
+		    struct la_zstream *, int, int);
 #if defined(HAVE_LZMA_H)
 static int	compression_code_lzma(struct archive *,
 		    struct la_zstream *, enum la_zaction);
@@ -380,9 +381,10 @@ archive_write_set_format_xar(struct archive *_a)
 	/* Set default checksum type. */
 	xar->opt_toc_sumalg = CKSUM_SHA1;
 	xar->opt_sumalg = CKSUM_SHA1;
-	/* Set default compression type and level. */
+	/* Set default compression type, level, and number of threads. */
 	xar->opt_compression = GZIP;
 	xar->opt_compression_level = 6;
+	xar->opt_threads = 1;
 
 	a->format_data = xar;
 
@@ -492,6 +494,21 @@ xar_options(struct archive_write *a, const char *key, const char *value)
 			return (ARCHIVE_FAILED);
 		}
 		return (ARCHIVE_OK);
+	}
+	if (strcmp(key, "threads") == 0) {
+		if (value == NULL)
+			return (ARCHIVE_FAILED);
+		xar->opt_threads = (int)strtoul(value, NULL, 10);
+		if (xar->opt_threads == 0 && errno != 0) {
+			xar->opt_threads = 1;
+			archive_set_error(&(a->archive),
+			    ARCHIVE_ERRNO_MISC,
+			    "Illegal value `%s'",
+			    value);
+			return (ARCHIVE_FAILED);
+		}
+		if (xar->opt_threads == 0)
+			xar->opt_threads = lzma_cputhreads();
 	}
 
 	/* Note: The "warn" return is just to inform the options
@@ -2848,7 +2865,7 @@ compression_init_encoder_lzma(struct archive *a,
 
 static int
 compression_init_encoder_xz(struct archive *a,
-    struct la_zstream *lastrm, int level)
+    struct la_zstream *lastrm, int level, int threads)
 {
 	static const lzma_stream lzma_init_data = LZMA_STREAM_INIT;
 	lzma_stream *strm;
@@ -2883,9 +2900,9 @@ compression_init_encoder_xz(struct archive *a,
 
 	*strm = lzma_init_data;
 #ifdef HAVE_LZMA_STREAM_ENCODER_MT
-	if (lzma_cputhreads() > 1) {
+	if (threads > 1) {
 		bzero(&mt_options, sizeof(mt_options));
-		mt_options.threads = lzma_cputhreads();
+		mt_options.threads = threads;
 		mt_options.timeout = 300;
 		mt_options.filters = lzmafilters;
 		mt_options.check = LZMA_CHECK_CRC64;
@@ -2992,10 +3009,11 @@ compression_init_encoder_lzma(struct archive *a,
 }
 static int
 compression_init_encoder_xz(struct archive *a,
-    struct la_zstream *lastrm, int level)
+    struct la_zstream *lastrm, int level, int threads)
 {
 
 	(void) level; /* UNUSED */
+	(void) threads; /* UNUSED */
 	if (lastrm->valid)
 		compression_end(a, lastrm);
 	return (compression_unsupported_encoder(a, lastrm, "xz"));
@@ -3028,7 +3046,7 @@ xar_compression_init_encoder(struct archive_write *a)
 	case XZ:
 		r = compression_init_encoder_xz(
 		    &(a->archive), &(xar->stream),
-		    xar->opt_compression_level);
+		    xar->opt_compression_level, xar->opt_threads);
 		break;
 	default:
 		r = ARCHIVE_OK;
