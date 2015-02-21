@@ -906,18 +906,21 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	archive_entry_set_atime(entry, zip_entry->atime, 0);
 
 	if ((zip->entry->mode & AE_IFMT) == AE_IFLNK) {
-		size_t linkname_length = zip_entry->compressed_size;
+		size_t linkname_length;
+
+		if (zip_entry->compressed_size > 64 * 1024) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Zip file with oversized link entry");
+			return ARCHIVE_FATAL;
+		}
+
+		linkname_length = (size_t)zip_entry->compressed_size;
 
 		archive_entry_set_size(entry, 0);
 		p = __archive_read_ahead(a, linkname_length, NULL);
 		if (p == NULL) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Truncated Zip file");
-			return ARCHIVE_FATAL;
-		}
-		if (__archive_read_consume(a, linkname_length) < 0) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "Read error skipping symlink target name");
 			return ARCHIVE_FATAL;
 		}
 
@@ -954,6 +957,12 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 			}
 		}
 		zip_entry->uncompressed_size = zip_entry->compressed_size = 0;
+
+		if (__archive_read_consume(a, linkname_length) < 0) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Read error skipping symlink target name");
+			return ARCHIVE_FATAL;
+		}
 	} else if (0 == (zip_entry->zip_flags & ZIP_LENGTH_AT_END)
 	    || zip_entry->uncompressed_size > 0) {
 		/* Set the size only if it's meaningful. */
@@ -2316,7 +2325,7 @@ read_zip64_eocd(struct archive_read *a, struct zip *zip, const char *p)
 	eocd64_size = archive_le64dec(p + 4) + 12;
 	if (eocd64_size < 56 || eocd64_size > 16384)
 		return;
-	if ((p = __archive_read_ahead(a, eocd64_size, NULL)) == NULL)
+	if ((p = __archive_read_ahead(a, (size_t)eocd64_size, NULL)) == NULL)
 		return;
 
 	/* Sanity-check the EOCD64 */
