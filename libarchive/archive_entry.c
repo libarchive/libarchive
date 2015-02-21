@@ -1739,12 +1739,13 @@ ae_strtofflags(const char *s, unsigned long *setp, unsigned long *clrp)
 	while (*start == '\t'  ||  *start == ' '  ||  *start == ',')
 		start++;
 	while (*start != '\0') {
+		size_t length;
 		/* Locate end of token. */
 		end = start;
 		while (*end != '\0'  &&  *end != '\t'  &&
 		    *end != ' '  &&  *end != ',')
 			end++;
-		size_t length = end - start;
+		length = end - start;
 		for (flag = flags; flag->name != NULL; flag++) {
 			size_t flag_length = strlen(flag->name);
 			if (length == flag_length
@@ -1806,12 +1807,13 @@ ae_wcstofflags(const wchar_t *s, unsigned long *setp, unsigned long *clrp)
 	while (*start == L'\t'  ||  *start == L' '  ||  *start == L',')
 		start++;
 	while (*start != L'\0') {
+		size_t length;
 		/* Locate end of token. */
 		end = start;
 		while (*end != L'\0'  &&  *end != L'\t'  &&
 		    *end != L' '  &&  *end != L',')
 			end++;
-		size_t length = end - start;
+		length = end - start;
 		for (flag = flags; flag->wname != NULL; flag++) {
 			size_t flag_length = wcslen(flag->wname);
 			if (length == flag_length
