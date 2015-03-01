@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Michihiro NAKAJIMA
+ * Copyright (c) 2003-2008,2015 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,40 +23,23 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
 
-DEFINE_TEST(test_option_lz4)
+DEFINE_TEST(test_read_too_many_filters)
 {
-	char *p;
+	const char *name = "test_read_too_many_filters.gz";
+	struct archive *a;
 	int r;
-	size_t s;
 
-	/* Create a file. */
-	assertMakeFile("f", 0644, "a");
-
-	/* Archive it with lz4 compression. */
-	r = systemf("echo f | %s -o --lz4 >archive.out 2>archive.err",
-	    testprog);
-	p = slurpfile(&s, "archive.err");
-	p[s] = '\0';
-	if (r != 0) {
-		if (strstr(p, "compression not available") != NULL) {
-			skipping("This version of bsdcpio was compiled "
-			    "without lz4 support");
-			return;
-		}
-		if (strstr(p, "Can't initialise filter") != NULL
-		    && !canLz4()) {
-			skipping("This version of bsdtar uses an external lz4 program "
-			    "but no such program is available on this system.");
-			return;
-		}
-		failure("--lz4 option is broken");
-		assertEqualInt(r, 0);
-		return;
+	assert((a = archive_read_new()) != NULL);
+	r = archive_read_support_filter_gzip(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("gzip reading not fully supported on this platform");
 	}
-	/* Check that the archive file has an lz4 signature. */
-	p = slurpfile(&s, "archive.out");
-	assert(s > 2);
-	assertEqualMem(p, "\x04\x22\x4d\x18", 4);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	extract_reference_file(name);
+	assertEqualIntA(a, ARCHIVE_FATAL,
+	    archive_read_open_filename(a, name, 200));
+
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

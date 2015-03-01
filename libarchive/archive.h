@@ -958,6 +958,8 @@ __LA_DECL int  archive_read_disk_set_atime_restored(struct archive *);
 #define	ARCHIVE_READDISK_MAC_COPYFILE		(0x0004)
 /* Default: Do not traverse mount points. */
 #define	ARCHIVE_READDISK_NO_TRAVERSE_MOUNTS	(0x0008)
+/* Default: Xattrs are read from disk. */
+#define	ARCHIVE_READDISK_NO_XATTR		(0x0010)
 
 __LA_DECL int  archive_read_disk_set_behavior(struct archive *,
 		    int flags);

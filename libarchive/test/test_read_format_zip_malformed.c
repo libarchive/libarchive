@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2014 Michihiro NAKAJIMA
+ * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2011 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,38 +26,36 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-DEFINE_TEST(test_option_lz4)
+static void
+test_malformed1(void)
 {
+	const char *refname = "test_read_format_zip_malformed1.zip";
+	struct archive *a;
+	struct archive_entry *ae;
 	char *p;
-	int r;
 	size_t s;
 
-	/* Create a file. */
-	assertMakeFile("f", 0644, "a");
+	extract_reference_file(refname);
 
-	/* Archive it with lz4 compression. */
-	r = systemf("echo f | %s -o --lz4 >archive.out 2>archive.err",
-	    testprog);
-	p = slurpfile(&s, "archive.err");
-	p[s] = '\0';
-	if (r != 0) {
-		if (strstr(p, "compression not available") != NULL) {
-			skipping("This version of bsdcpio was compiled "
-			    "without lz4 support");
-			return;
-		}
-		if (strstr(p, "Can't initialise filter") != NULL
-		    && !canLz4()) {
-			skipping("This version of bsdtar uses an external lz4 program "
-			    "but no such program is available on this system.");
-			return;
-		}
-		failure("--lz4 option is broken");
-		assertEqualInt(r, 0);
-		return;
-	}
-	/* Check that the archive file has an lz4 signature. */
-	p = slurpfile(&s, "archive.out");
-	assert(s > 2);
-	assertEqualMem(p, "\x04\x22\x4d\x18", 4);
+	/* Verify with seeking reader. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 10240));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+
+	/* Verify with streaming reader. */
+	p = slurpfile(&s, refname);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, p, s, 31));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_zip_malformed)
+{
+	test_malformed1();
 }

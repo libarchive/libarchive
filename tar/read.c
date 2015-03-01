@@ -237,6 +237,12 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 #endif
 	}
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	if (mode == 'x' && bsdtar->option_stdout) {
+		_setmode(1, _O_BINARY);
+	}
+#endif
+
 	for (;;) {
 		/* Support --fast-read option */
 		if (bsdtar->option_fast_read &&
@@ -258,6 +264,12 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 		}
 		if (r == ARCHIVE_FATAL)
 			break;
+		const char *p = archive_entry_pathname(entry);
+		if (p == NULL || p[0] == '\0') {
+			lafe_warnc(0, "Archive entry has empty or unreadable filename ... skipping.");
+			bsdtar->return_value = 1;
+			continue;
+		}
 
 		if (bsdtar->uid >= 0) {
 			archive_entry_set_uid(entry, bsdtar->uid);
@@ -329,11 +341,13 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 			    !yes("extract '%s'", archive_entry_pathname(entry)))
 				continue;
 
-			/*
-			 * Format here is from SUSv2, including the
-			 * deferred '\n'.
-			 */
-			if (bsdtar->verbose) {
+			if (bsdtar->verbose > 1) {
+				/* GNU tar uses -tv format with -xvv */
+				list_item_verbose(bsdtar, stderr, entry);
+				fflush(stderr);
+			} else if (bsdtar->verbose > 0) {
+				/* Format follows SUSv2, including the
+				 * deferred '\n'. */
 				safe_fprintf(stderr, "x %s",
 				    archive_entry_pathname(entry));
 				fflush(stderr);

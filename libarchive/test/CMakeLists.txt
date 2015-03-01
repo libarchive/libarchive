@@ -94,6 +94,7 @@ IF(ENABLE_TEST)
     test_read_format_7zip_encryption_data.c
     test_read_format_7zip_encryption_header.c
     test_read_format_7zip_encryption_partially.c
+    test_read_format_7zip_malformed.c
     test_read_format_ar.c
     test_read_format_cab.c
     test_read_format_cab_filename.c
@@ -103,6 +104,7 @@ IF(ENABLE_TEST)
     test_read_format_cpio_bin_be.c
     test_read_format_cpio_bin_bz2.c
     test_read_format_cpio_bin_gz.c
+    test_read_format_cpio_bin_le.c
     test_read_format_cpio_bin_lzip.c
     test_read_format_cpio_bin_lzma.c
     test_read_format_cpio_bin_xz.c
@@ -160,6 +162,7 @@ IF(ENABLE_TEST)
     test_read_format_zip_encryption_partially.c
     test_read_format_zip_filename.c
     test_read_format_zip_mac_metadata.c
+    test_read_format_zip_malformed.c
     test_read_format_zip_nested.c
     test_read_format_zip_nofiletype.c
     test_read_format_zip_padded.c
@@ -172,6 +175,7 @@ IF(ENABLE_TEST)
     test_read_pax_truncated.c
     test_read_position.c
     test_read_set_format.c
+    test_read_too_many_filters.c
     test_read_truncated.c
     test_read_truncated_filter.c
     test_sparse_basic.c

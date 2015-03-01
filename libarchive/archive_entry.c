@@ -1739,19 +1739,23 @@ ae_strtofflags(const char *s, unsigned long *setp, unsigned long *clrp)
 	while (*start == '\t'  ||  *start == ' '  ||  *start == ',')
 		start++;
 	while (*start != '\0') {
+		size_t length;
 		/* Locate end of token. */
 		end = start;
 		while (*end != '\0'  &&  *end != '\t'  &&
 		    *end != ' '  &&  *end != ',')
 			end++;
+		length = end - start;
 		for (flag = flags; flag->name != NULL; flag++) {
-			if (memcmp(start, flag->name, end - start) == 0) {
+			size_t flag_length = strlen(flag->name);
+			if (length == flag_length
+			    && memcmp(start, flag->name, length) == 0) {
 				/* Matched "noXXXX", so reverse the sense. */
 				clear |= flag->set;
 				set |= flag->clear;
 				break;
-			} else if (memcmp(start, flag->name + 2, end - start)
-			    == 0) {
+			} else if (length == flag_length - 2
+			    && memcmp(start, flag->name + 2, length) == 0) {
 				/* Matched "XXXX", so don't reverse. */
 				set |= flag->set;
 				clear |= flag->clear;
@@ -1803,19 +1807,23 @@ ae_wcstofflags(const wchar_t *s, unsigned long *setp, unsigned long *clrp)
 	while (*start == L'\t'  ||  *start == L' '  ||  *start == L',')
 		start++;
 	while (*start != L'\0') {
+		size_t length;
 		/* Locate end of token. */
 		end = start;
 		while (*end != L'\0'  &&  *end != L'\t'  &&
 		    *end != L' '  &&  *end != L',')
 			end++;
+		length = end - start;
 		for (flag = flags; flag->wname != NULL; flag++) {
-			if (wmemcmp(start, flag->wname, end - start) == 0) {
+			size_t flag_length = wcslen(flag->wname);
+			if (length == flag_length
+			    && wmemcmp(start, flag->wname, length) == 0) {
 				/* Matched "noXXXX", so reverse the sense. */
 				clear |= flag->set;
 				set |= flag->clear;
 				break;
-			} else if (wmemcmp(start, flag->wname + 2, end - start)
-			    == 0) {
+			} else if (length == flag_length - 2
+			    && wmemcmp(start, flag->wname + 2, length) == 0) {
 				/* Matched "XXXX", so don't reverse. */
 				set |= flag->set;
 				clear |= flag->clear;

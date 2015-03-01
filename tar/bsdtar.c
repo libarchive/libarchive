@@ -472,6 +472,10 @@ main(int argc, char **argv)
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_FFLAGS;
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_MAC_METADATA;
 			break;
+		case OPTION_NO_XATTR: /* Issue #131 */
+			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_XATTR;
+			bsdtar->readdisk_flags |= ARCHIVE_READDISK_NO_XATTR;
+			break;
 		case OPTION_NULL: /* GNU tar */
 			bsdtar->option_null++;
 			break;
@@ -707,6 +711,8 @@ main(int argc, char **argv)
 		only_mode(bsdtar, "--nopreserveHFSCompression", "x");
 	if (bsdtar->readdisk_flags & ARCHIVE_READDISK_HONOR_NODUMP)
 		only_mode(bsdtar, "--nodump", "cru");
+	if (bsdtar->readdisk_flags & ARCHIVE_READDISK_NO_XATTR)
+		only_mode(bsdtar, "--no-xattr", "crux");
 	if (option_o > 0) {
 		switch (bsdtar->mode) {
 		case 'c':

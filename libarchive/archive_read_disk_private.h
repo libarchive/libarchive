@@ -68,6 +68,8 @@ struct archive_read_disk {
 	int		 enable_copyfile;
 	/* Set 1 if users request to traverse mount points. */
 	int		 traverse_mount_points;
+	/* Set 1 if users want to suppress xattr information. */
+	int		 suppress_xattr;
 
 	const char * (*lookup_gname)(void *private, int64_t gid);
 	void	(*cleanup_gname)(void *private);

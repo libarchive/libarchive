@@ -56,7 +56,7 @@ struct warc_s {
 	mode_t typ;
 	unsigned int rng;
 	/* populated size */
-	size_t populz;
+	uint64_t populz;
 };
 
 static const char warcinfo[] =
@@ -92,7 +92,7 @@ typedef struct {
 	time_t rtime;
 	time_t mtime;
 	const char *cnttyp;
-	size_t cntlen;
+	uint64_t cntlen;
 } warc_essential_hdr_t;
 
 typedef struct {
@@ -270,7 +270,7 @@ _warc_data(struct archive_write *a, const void *buf, size_t len)
 
 		/* never write more bytes than announced */
 		if (len > w->populz) {
-			len = w->populz;
+			len = (size_t)w->populz;
 		}
 
 		/* now then, out we put the whole shebang */
@@ -417,7 +417,7 @@ _popul_ehdr(struct archive_string *tgt, size_t tsz, warc_essential_hdr_t hdr)
 	}
 
 	/* next one is mandatory */
-	archive_string_sprintf(tgt, "Content-Length: %zu\r\n", hdr.cntlen);
+	archive_string_sprintf(tgt, "Content-Length: %ju\r\n", (uintmax_t)hdr.cntlen);
 	/**/
 	archive_strncat(tgt, "\r\n", 2);
 
