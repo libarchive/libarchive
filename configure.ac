@@ -12,13 +12,13 @@ m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
 m4_define([BSDCPIO_VERSION_S],LIBARCHIVE_VERSION_S())
 m4_define([BSDCAT_VERSION_S],LIBARCHIVE_VERSION_S())
 
-AC_PREREQ(2.65)
+AC_PREREQ([2.69])
 
 #
 # Now starts the "real" configure script.
 #
 
-AC_INIT([libarchive],LIBARCHIVE_VERSION_S(),[libarchive-discuss@googlegroups.com])
+AC_INIT([libarchive],[LIBARCHIVE_VERSION_S()],[libarchive-discuss@googlegroups.com])
 # Make sure the srcdir contains "libarchive" directory
 AC_CONFIG_SRCDIR([libarchive])
 # Use auxiliary subscripts from this subdirectory (cleans up root)
@@ -364,6 +364,7 @@ AC_ARG_WITH([lzma],
 if test "x$with_lzma" != "xno"; then
   AC_CHECK_HEADERS([lzma.h])
   AC_CHECK_LIB(lzma,lzma_stream_decoder)
+  AC_CHECK_FUNCS([lzma_stream_encoder_mt])
 fi
 
 AC_ARG_WITH([lzo2],
@@ -472,7 +473,7 @@ fi
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
-# AC_TYPE_UID_T defaults to "int", which is incorrect for MinGW
+# la_TYPE_UID_T defaults to "int", which is incorrect for MinGW
 # and MSVC. Use a customized version.
 la_TYPE_UID_T
 AC_TYPE_MODE_T
