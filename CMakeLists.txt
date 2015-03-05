@@ -168,6 +168,7 @@ OPTION(ENABLE_OPENSSL "Enable use of OpenSSL" ON)
 OPTION(ENABLE_LZMA "Enable the use of the system found LZMA library if found" ON)
 OPTION(ENABLE_ZLIB "Enable the use of the system found ZLIB library if found" ON)
 OPTION(ENABLE_BZip2 "Enable the use of the system found BZip2 library if found" ON)
+OPTION(ENABLE_LIBXML2 "Enable the use of the system found libxml2 library if found" ON)
 OPTION(ENABLE_EXPAT "Enable the use of the system found EXPAT library if found" ON)
 OPTION(ENABLE_PCREPOSIX "Enable the use of the system found PCREPOSIX library if found" ON)
 OPTION(ENABLE_LibGCC "Enable the use of the system found LibGCC library if found" ON)
@@ -185,6 +186,7 @@ OPTION(ENABLE_ACL "Enable ACL support" ON)
 OPTION(ENABLE_ICONV "Enable iconv support" ON)
 OPTION(ENABLE_TEST "Enable unit and regression tests" ON)
 OPTION(ENABLE_COVERAGE "Enable code coverage (GCC only, automatically sets ENABLE_TEST to ON)" FALSE)
+OPTION(ENABLE_INSTALL "Enable installing of libraries" ON)
 
 SET(POSIX_REGEX_LIB "AUTO" CACHE STRING "Choose what library should provide POSIX regular expression support")
 SET(ENABLE_SAFESEH "AUTO" CACHE STRING "Enable use of /SAFESEH linker flag (MSVC only)")
@@ -968,8 +970,12 @@ ENDIF(ENABLE_ICONV)
 
 #
 # Find Libxml2
-FIND_PACKAGE(LibXml2)
 #
+IF(ENABLE_LIBXML2)
+  FIND_PACKAGE(LibXml2)
+ELSE()
+  SET(LIBXML2_FOUND FALSE)
+ENDIF()
 IF(LIBXML2_FOUND)
   CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
   INCLUDE_DIRECTORIES(${LIBXML2_INCLUDE_DIR})
@@ -994,7 +1000,11 @@ ELSE(LIBXML2_FOUND)
   #
   # Find Expat
   #
-  FIND_PACKAGE(EXPAT)
+  IF(ENABLE_EXPAT)
+    FIND_PACKAGE(EXPAT)
+  ELSE()
+    SET(EXPAT_FOUND FALSE)
+  ENDIF()
   IF(EXPAT_FOUND)
     CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
     INCLUDE_DIRECTORIES(${EXPAT_INCLUDE_DIR})
