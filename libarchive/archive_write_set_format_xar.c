@@ -507,8 +507,13 @@ xar_options(struct archive_write *a, const char *key, const char *value)
 			    value);
 			return (ARCHIVE_FAILED);
 		}
-		if (xar->opt_threads == 0)
+		if (xar->opt_threads == 0) {
+#ifdef HAVE_LZMA_STREAM_ENCODER_MT
 			xar->opt_threads = lzma_cputhreads();
+#else
+			xar->opt_threads = 1;
+#endif
+		}
 	}
 
 	/* Note: The "warn" return is just to inform the options
@@ -2875,6 +2880,8 @@ compression_init_encoder_xz(struct archive *a,
 #ifdef HAVE_LZMA_STREAM_ENCODER_MT
 	lzma_mt mt_options;
 #endif
+
+	(void)threads; /* UNUSED (if multi-threaded LZMA library not avail) */
 
 	if (lastrm->valid)
 		compression_end(a, lastrm);
