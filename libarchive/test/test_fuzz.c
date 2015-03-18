@@ -129,14 +129,15 @@ test_fuzz(const struct files *filesets)
 		}
 		srand((unsigned)time(NULL));
 
-		for (i = 0; i < 100; ++i) {
+		for (i = 0; i < 1000; ++i) {
 			FILE *f;
 			int j, numbytes, trycnt;
 
 			/* Fuzz < 1% of the bytes in the archive. */
 			memcpy(image, rawimage, size);
 			q = (int)size / 100;
-			if (!q) q = 1;
+			if (q < 4)
+				q = 4;
 			numbytes = (int)(rand() % q);
 			for (j = 0; j < numbytes; ++j)
 				image[rand() % size] = (char)rand();
@@ -160,6 +161,7 @@ test_fuzz(const struct files *filesets)
 			assertEqualInt((size_t)size, fwrite(image, 1, (size_t)size, f));
 			fclose(f);
 
+			// Try to read all headers and bodies.
 			assert((a = archive_read_new()) != NULL);
 			assertEqualIntA(a, ARCHIVE_OK,
 			    archive_read_support_filter_all(a));
@@ -175,7 +177,21 @@ test_fuzz(const struct files *filesets)
 				archive_read_close(a);
 			}
 			archive_read_free(a);
-		}
+
+			// Just list headers, skip bodies.
+			assert((a = archive_read_new()) != NULL);
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_support_filter_all(a));
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_support_format_all(a));
+
+			if (0 == archive_read_open_memory(a, image, size)) {
+				while(0 == archive_read_next_header(a, &ae)) {
+				}
+				archive_read_close(a);
+			}
+			archive_read_free(a);
+}
 		free(image);
 		free(rawimage);
 	}
@@ -214,6 +230,10 @@ DEFINE_TEST(test_fuzz_cpio)
 		NULL
 	};
 	static const char *fileset2[] = {
+		"test_read_format_cpio_bin_le.cpio",
+		NULL
+	};
+	static const char *fileset3[] = {
 		/* Test RPM unwrapper */
 		"test_read_format_cpio_svr4_gzip_rpm.rpm",
 		NULL
@@ -221,6 +241,7 @@ DEFINE_TEST(test_fuzz_cpio)
 	static const struct files filesets[] = {
 		{0, fileset1},
 		{0, fileset2},
+		{0, fileset3},
 		{1, NULL}
 	};
 	test_fuzz(filesets);

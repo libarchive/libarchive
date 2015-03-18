@@ -609,6 +609,10 @@ archive_read_disk_set_behavior(struct archive *_a, int flags)
 		a->traverse_mount_points = 0;
 	else
 		a->traverse_mount_points = 1;
+	if (flags & ARCHIVE_READDISK_NO_XATTR)
+		a->suppress_xattr = 1;
+	else
+		a->suppress_xattr = 0;
 	return (r);
 }
 

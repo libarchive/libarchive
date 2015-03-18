@@ -88,7 +88,7 @@ SET(CMAKE_REQUIRED_FLAGS)
 # Especially for early development, we want to be a little
 # aggressive about diagnosing build problems; this can get
 # relaxed somewhat in final shipping versions.
-IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
+IF (CMAKE_C_COMPILER_ID MATCHES "^GNU$")
   SET(CMAKE_REQUIRED_FLAGS "-Wall -Wformat -Wformat-security")
   #################################################################
   # Set compile flags for all build types.
@@ -96,12 +96,14 @@ IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
   #################################################################
   # Set compile flags for debug build.
   # This is added into CMAKE_C_FLAGS when CMAKE_BUILD_TYPE is "Debug"
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Werror -Wextra -Wunused")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Werror")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wextra")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wunused")
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wshadow")
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wmissing-prototypes")
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wcast-qual")
-ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$")
-IF ("CMAKE_C_COMPILER_ID" MATCHES "^Clang$")
+ENDIF (CMAKE_C_COMPILER_ID MATCHES "^GNU$")
+IF (CMAKE_C_COMPILER_ID MATCHES "^Clang$")
   SET(CMAKE_REQUIRED_FLAGS "-Wall -Wformat -Wformat-security")
   #################################################################
   # Set compile flags for all build types.
@@ -110,11 +112,13 @@ IF ("CMAKE_C_COMPILER_ID" MATCHES "^Clang$")
   # Set compile flags for debug build.
   # This is added into CMAKE_C_FLAGS when CMAKE_BUILD_TYPE is "Debug"
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g")
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Werror -Wextra -Wunused")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Werror")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wextra")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wunused")
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wshadow")
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wmissing-prototypes")
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wcast-qual")
-ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^Clang$")
+ENDIF (CMAKE_C_COMPILER_ID MATCHES "^Clang$")
 IF (MSVC)
   #################################################################
   # Set compile flags for debug build.
@@ -164,6 +168,7 @@ OPTION(ENABLE_OPENSSL "Enable use of OpenSSL" ON)
 OPTION(ENABLE_LZMA "Enable the use of the system found LZMA library if found" ON)
 OPTION(ENABLE_ZLIB "Enable the use of the system found ZLIB library if found" ON)
 OPTION(ENABLE_BZip2 "Enable the use of the system found BZip2 library if found" ON)
+OPTION(ENABLE_LIBXML2 "Enable the use of the system found libxml2 library if found" ON)
 OPTION(ENABLE_EXPAT "Enable the use of the system found EXPAT library if found" ON)
 OPTION(ENABLE_PCREPOSIX "Enable the use of the system found PCREPOSIX library if found" ON)
 OPTION(ENABLE_LibGCC "Enable the use of the system found LibGCC library if found" ON)
@@ -181,6 +186,7 @@ OPTION(ENABLE_ACL "Enable ACL support" ON)
 OPTION(ENABLE_ICONV "Enable iconv support" ON)
 OPTION(ENABLE_TEST "Enable unit and regression tests" ON)
 OPTION(ENABLE_COVERAGE "Enable code coverage (GCC only, automatically sets ENABLE_TEST to ON)" FALSE)
+OPTION(ENABLE_INSTALL "Enable installing of libraries" ON)
 
 SET(POSIX_REGEX_LIB "AUTO" CACHE STRING "Choose what library should provide POSIX regular expression support")
 SET(ENABLE_SAFESEH "AUTO" CACHE STRING "Enable use of /SAFESEH linker flag (MSVC only)")
@@ -834,16 +840,16 @@ ENDMACRO(CHECK_CRYPTO_WIN CRYPTO_LIST)
 MACRO(CHECK_ICONV LIB TRY_ICONV_CONST)
   IF(NOT HAVE_ICONV)
     CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
-    IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$" OR
-        "CMAKE_C_COMPILER_ID" MATCHES "^Clang$")
+    IF (CMAKE_C_COMPILER_ID MATCHES "^GNU$" OR
+        CMAKE_C_COMPILER_ID MATCHES "^Clang$")
       #
       # During checking iconv proto type, we should use -Werror to avoid the
       # success of iconv detection with a warnig which success is a miss
       # detection. So this needs for all build mode(even it's a release mode).
       #
       SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Werror")
-    ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$" OR
-           "CMAKE_C_COMPILER_ID" MATCHES "^Clang$")
+    ENDIF (CMAKE_C_COMPILER_ID MATCHES "^GNU$" OR
+           CMAKE_C_COMPILER_ID MATCHES "^Clang$")
     IF (MSVC)
       # NOTE: /WX option is the same as gcc's -Werror option.
       SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} /WX")
@@ -964,8 +970,12 @@ ENDIF(ENABLE_ICONV)
 
 #
 # Find Libxml2
-FIND_PACKAGE(LibXml2)
 #
+IF(ENABLE_LIBXML2)
+  FIND_PACKAGE(LibXml2)
+ELSE()
+  SET(LIBXML2_FOUND FALSE)
+ENDIF()
 IF(LIBXML2_FOUND)
   CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
   INCLUDE_DIRECTORIES(${LIBXML2_INCLUDE_DIR})
@@ -990,7 +1000,11 @@ ELSE(LIBXML2_FOUND)
   #
   # Find Expat
   #
-  FIND_PACKAGE(EXPAT)
+  IF(ENABLE_EXPAT)
+    FIND_PACKAGE(EXPAT)
+  ELSE()
+    SET(EXPAT_FOUND FALSE)
+  ENDIF()
   IF(EXPAT_FOUND)
     CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
     INCLUDE_DIRECTORIES(${EXPAT_INCLUDE_DIR})
@@ -1121,16 +1135,16 @@ ENDIF(NOT FOUND_POSIX_REGEX_LIB AND POSIX_REGEX_LIB MATCHES "^(AUTO|LIBPCREPOSIX
 # Check functions
 #
 CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
-IF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$" OR
-    "CMAKE_C_COMPILER_ID" MATCHES "^Clang$")
+IF (CMAKE_C_COMPILER_ID MATCHES "^GNU$" OR
+    CMAKE_C_COMPILER_ID MATCHES "^Clang$")
   #
   # During checking functions, we should use -fno-builtin to avoid the
   # failure of function detection which failure is an error "conflicting
   # types for built-in function" caused by using -Werror option.
   #
   SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -fno-builtin")
-ENDIF ("CMAKE_C_COMPILER_ID" MATCHES "^GNU$" OR
-       "CMAKE_C_COMPILER_ID" MATCHES "^Clang$")
+ENDIF (CMAKE_C_COMPILER_ID MATCHES "^GNU$" OR
+       CMAKE_C_COMPILER_ID MATCHES "^Clang$")
 CHECK_SYMBOL_EXISTS(_CrtSetReportMode "crtdbg.h" HAVE__CrtSetReportMode)
 CHECK_FUNCTION_EXISTS_GLIBC(arc4random_buf HAVE_ARC4RANDOM_BUF)
 CHECK_FUNCTION_EXISTS_GLIBC(chflags HAVE_CHFLAGS)
@@ -1219,6 +1233,7 @@ CHECK_FUNCTION_EXISTS(strftime HAVE_STRFTIME)
 CHECK_FUNCTION_EXISTS(vprintf HAVE_VPRINTF)
 CHECK_FUNCTION_EXISTS(wmemcmp HAVE_WMEMCMP)
 CHECK_FUNCTION_EXISTS(wmemcpy HAVE_WMEMCPY)
+CHECK_FUNCTION_EXISTS(wmemmove HAVE_WMEMMOVE)
 
 CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
 

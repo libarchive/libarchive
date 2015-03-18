@@ -36,7 +36,7 @@
 typedef	CCHmacContext archive_hmac_sha1_ctx;
 
 #elif defined(_WIN32) && !defined(__CYGWIN__)
-#include <Bcrypt.h>
+#include <bcrypt.h>
 
 typedef struct {
 	BCRYPT_ALG_HANDLE	hAlg;

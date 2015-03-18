@@ -404,6 +404,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_7zip_encryption_data.c \
 	libarchive/test/test_read_format_7zip_encryption_partially.c \
 	libarchive/test/test_read_format_7zip_encryption_header.c \
+	libarchive/test/test_read_format_7zip_malformed.c \
 	libarchive/test/test_read_format_ar.c \
 	libarchive/test/test_read_format_cab.c \
 	libarchive/test/test_read_format_cab_filename.c \
@@ -413,6 +414,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_cpio_bin_be.c \
 	libarchive/test/test_read_format_cpio_bin_bz2.c \
 	libarchive/test/test_read_format_cpio_bin_gz.c \
+	libarchive/test/test_read_format_cpio_bin_le.c \
 	libarchive/test/test_read_format_cpio_bin_lzip.c \
 	libarchive/test/test_read_format_cpio_bin_lzma.c \
 	libarchive/test/test_read_format_cpio_bin_xz.c \
@@ -470,6 +472,8 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_zip_encryption_header.c \
 	libarchive/test/test_read_format_zip_filename.c \
 	libarchive/test/test_read_format_zip_mac_metadata.c \
+	libarchive/test/test_read_format_zip_malformed.c \
+	libarchive/test/test_read_format_zip_nested.c \
 	libarchive/test/test_read_format_zip_nofiletype.c \
 	libarchive/test/test_read_format_zip_padded.c \
 	libarchive/test/test_read_format_zip_sfx.c \
@@ -481,6 +485,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_pax_truncated.c \
 	libarchive/test/test_read_position.c \
 	libarchive/test/test_read_set_format.c \
+	libarchive/test/test_read_too_many_filters.c \
 	libarchive/test/test_read_truncated.c \
 	libarchive/test/test_read_truncated_filter.c \
 	libarchive/test/test_sparse_basic.c \
@@ -673,6 +678,8 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_lzma1_2.7z.uu \
 	libarchive/test/test_read_format_7zip_lzma1_lzma2.7z.uu \
 	libarchive/test/test_read_format_7zip_lzma2.7z.uu \
+	libarchive/test/test_read_format_7zip_malformed.7z.uu \
+	libarchive/test/test_read_format_7zip_malformed2.7z.uu \
 	libarchive/test/test_read_format_7zip_ppmd.7z.uu \
 	libarchive/test/test_read_format_7zip_symbolic_name.7z.uu \
 	libarchive/test/test_read_format_ar.ar.uu \
@@ -681,6 +688,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_cab_3.cab.uu \
 	libarchive/test/test_read_format_cab_filename_cp932.cab.uu \
 	libarchive/test/test_read_format_cpio_bin_be.cpio.uu \
+	libarchive/test/test_read_format_cpio_bin_le.cpio.uu \
 	libarchive/test/test_read_format_cpio_filename_cp866.cpio.uu \
 	libarchive/test/test_read_format_cpio_filename_eucjp.cpio.uu \
 	libarchive/test/test_read_format_cpio_filename_koi8r.cpio.uu \
@@ -766,6 +774,8 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_filename_utf8_ru2.zip.uu \
 	libarchive/test/test_read_format_zip_length_at_end.zip.uu \
 	libarchive/test/test_read_format_zip_mac_metadata.zip.uu \
+	libarchive/test/test_read_format_zip_malformed1.zip.uu \
+	libarchive/test/test_read_format_zip_nested.zip.uu \
 	libarchive/test/test_read_format_zip_nofiletype.zip.uu \
 	libarchive/test/test_read_format_zip_padded1.zip.uu \
 	libarchive/test/test_read_format_zip_padded2.zip.uu \
@@ -789,6 +799,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_splitted_rar_ab.uu \
 	libarchive/test/test_read_splitted_rar_ac.uu \
 	libarchive/test/test_read_splitted_rar_ad.uu \
+	libarchive/test/test_read_too_many_filters.gz.uu \
 	libarchive/test/test_splitted_rar_seek_support_aa.uu \
 	libarchive/test/test_splitted_rar_seek_support_ab.uu \
 	libarchive/test/test_splitted_rar_seek_support_ac.uu \

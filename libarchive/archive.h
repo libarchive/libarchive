@@ -494,9 +494,9 @@ __LA_DECL int archive_read_open_file(struct archive *,
 		     const char *_filename, size_t _block_size) __LA_DEPRECATED;
 /* Read an archive that's stored in memory. */
 __LA_DECL int archive_read_open_memory(struct archive *,
-		     void * buff, size_t size);
+		     const void * buff, size_t size);
 /* A more involved version that is only used for internal testing. */
-__LA_DECL int archive_read_open_memory2(struct archive *a, void *buff,
+__LA_DECL int archive_read_open_memory2(struct archive *a, const void *buff,
 		     size_t size, size_t read_size);
 /* Read an archive that's already open, using the file descriptor. */
 __LA_DECL int archive_read_open_fd(struct archive *, int _fd,
@@ -653,6 +653,8 @@ __LA_DECL int archive_read_set_passphrase_callback(struct archive *,
 /* Default: Do not use HFS+ compression if it was not compressed. */
 /* This has no effect except on Mac OS v10.6 or later. */
 #define	ARCHIVE_EXTRACT_HFS_COMPRESSION_FORCED	(0x8000)
+/* Default: Do not reject entries with absolute paths */
+#define ARCHIVE_EXTRACT_SECURE_NOABSOLUTEPATHS (0x10000)
 
 __LA_DECL int archive_read_extract(struct archive *, struct archive_entry *,
 		     int flags);
@@ -962,6 +964,8 @@ __LA_DECL int  archive_read_disk_set_atime_restored(struct archive *);
 #define	ARCHIVE_READDISK_MAC_COPYFILE		(0x0004)
 /* Default: Do not traverse mount points. */
 #define	ARCHIVE_READDISK_NO_TRAVERSE_MOUNTS	(0x0008)
+/* Default: Xattrs are read from disk. */
+#define	ARCHIVE_READDISK_NO_XATTR		(0x0010)
 
 __LA_DECL int  archive_read_disk_set_behavior(struct archive *,
 		    int flags);

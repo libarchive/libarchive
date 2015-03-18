@@ -54,7 +54,7 @@ static int64_t	memory_read_skip(struct archive *, void *, int64_t request);
 static ssize_t	memory_read(struct archive *, void *, const void **buff);
 
 int
-archive_read_open_memory(struct archive *a, void *buff, size_t size)
+archive_read_open_memory(struct archive *a, const void *buff, size_t size)
 {
 	return archive_read_open_memory2(a, buff, size, size);
 }
@@ -65,7 +65,7 @@ archive_read_open_memory(struct archive *a, void *buff, size_t size)
  * test harnesses can exercise block operations inside the library.
  */
 int
-archive_read_open_memory2(struct archive *a, void *buff,
+archive_read_open_memory2(struct archive *a, const void *buff,
     size_t size, size_t read_size)
 {
 	struct read_memory_data *mine;

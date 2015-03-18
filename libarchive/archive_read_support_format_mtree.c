@@ -1775,6 +1775,10 @@ parse_escapes(char *src, struct mtree_entry *mentry)
 				c = '\v';
 				++src;
 				break;
+			case '\\':
+				c = '\\';
+				++src;
+				break;
 			}
 		}
 		*dest++ = c;
@@ -1919,8 +1923,7 @@ readline(struct archive_read *a, struct mtree *mtree, char **start,
 	ssize_t total_size = 0;
 	ssize_t find_off = 0;
 	const void *t;
-	const char *s;
-	void *p;
+	void *nl;
 	char *u;
 
 	/* Accumulate line in a line buffer. */
@@ -1931,11 +1934,10 @@ readline(struct archive_read *a, struct mtree *mtree, char **start,
 			return (0);
 		if (bytes_read < 0)
 			return (ARCHIVE_FATAL);
-		s = t;  /* Start of line? */
-		p = memchr(t, '\n', bytes_read);
-		/* If we found '\n', trim the read. */
-		if (p != NULL) {
-			bytes_read = 1 + ((const char *)p) - s;
+		nl = memchr(t, '\n', bytes_read);
+		/* If we found '\n', trim the read to end exactly there. */
+		if (nl != NULL) {
+			bytes_read = ((const char *)nl) - ((const char *)t) + 1;
 		}
 		if (total_size + bytes_read + 1 > limit) {
 			archive_set_error(&a->archive,
@@ -1949,38 +1951,34 @@ readline(struct archive_read *a, struct mtree *mtree, char **start,
 			    "Can't allocate working buffer");
 			return (ARCHIVE_FATAL);
 		}
+		/* Append new bytes to string. */
 		memcpy(mtree->line.s + total_size, t, bytes_read);
 		__archive_read_consume(a, bytes_read);
 		total_size += bytes_read;
-		/* Null terminate. */
 		mtree->line.s[total_size] = '\0';
-		/* If we found an unescaped '\n', clean up and return. */
+
 		for (u = mtree->line.s + find_off; *u; ++u) {
 			if (u[0] == '\n') {
+				/* Ends with unescaped newline. */
 				*start = mtree->line.s;
 				return total_size;
-			}
-			if (u[0] == '#') {
-				if (p == NULL)
+			} else if (u[0] == '#') {
+				/* Ends with comment sequence #...\n */
+				if (nl == NULL) {
+					/* But we've not found the \n yet */
 					break;
-				*start = mtree->line.s;
-				return total_size;
+				}
+			} else if (u[0] == '\\') {
+				if (u[1] == '\n') {
+					/* Trim escaped newline. */
+					total_size -= 2;
+					mtree->line.s[total_size] = '\0';
+					break;
+				} else if (u[1] != '\0') {
+					/* Skip the two-char escape sequence */
+					++u;
+				}
 			}
-			if (u[0] != '\\')
-				continue;
-			if (u[1] == '\\') {
-				++u;
-				continue;
-			}
-			if (u[1] == '\n') {
-				memmove(u, u + 1,
-				    total_size - (u - mtree->line.s) + 1);
-				--total_size;
-				++u;
-				break;
-			}
-			if (u[1] == '\0')
-				break;
 		}
 		find_off = u - mtree->line.s;
 	}

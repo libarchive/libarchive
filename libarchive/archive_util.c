@@ -257,6 +257,8 @@ __archive_errx(int retvalue, const char *msg)
 int
 __archive_mktemp(const char *tmpdir)
 {
+	static const wchar_t *prefix = L"libarchive_";
+	static const wchar_t *suffix = L"XXXXXXXXXX";
 	static const wchar_t num[] = {
 		L'0', L'1', L'2', L'3', L'4', L'5', L'6', L'7',
 		L'8', L'9', L'A', L'B', L'C', L'D', L'E', L'F',
@@ -331,8 +333,7 @@ __archive_mktemp(const char *tmpdir)
 	/*
 	 * Create a temporary file.
 	 */
-	const wchar_t *suffix = L"XXXXXXXXXX";
-	archive_wstrcat(&temp_name, L"libarchive_");
+	archive_wstrcat(&temp_name, prefix);
 	archive_wstrcat(&temp_name, suffix);
 	ep = temp_name.s + archive_strlen(&temp_name);
 	xp = ep - wcslen(suffix);

@@ -153,6 +153,7 @@ struct zip {
 	struct archive_string_conv *opt_sconv;
 	struct archive_string_conv *sconv_default;
 	enum compression requested_compression;
+	int deflate_compression_level;
 	int init_default_conversion;
 	enum encryption  encryption_type;
 
@@ -273,6 +274,24 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 			ret = ARCHIVE_OK;
 		}
 		return (ret);
+	} else if (strcmp(key, "compression-level") == 0) {
+		if (val == NULL || !(val[0] >= '0' && val[0] <= '9') || val[1] != '\0') {
+			return ARCHIVE_WARN;
+		}
+
+		if (val[0] == '0') {
+			zip->requested_compression = COMPRESSION_STORE;
+			return ARCHIVE_OK;
+		} else {
+#ifdef HAVE_ZLIB_H
+			zip->requested_compression = COMPRESSION_DEFLATE;
+			zip->deflate_compression_level = val[0] - '0';
+			return ARCHIVE_OK;
+#else
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "deflate compression not supported");
+#endif
+		}
 	} else if (strcmp(key, "encryption") == 0) {
 		if (val == NULL) {
 			zip->encryption_type = ENCRYPTION_NONE;
@@ -444,6 +463,9 @@ archive_write_set_format_zip(struct archive *_a)
 
 	/* "Unspecified" lets us choose the appropriate compression. */
 	zip->requested_compression = COMPRESSION_UNSPECIFIED;
+#ifdef HAVE_ZLIB_H
+	zip->deflate_compression_level = Z_DEFAULT_COMPRESSION;
+#endif
 	zip->crc32func = real_crc32;
 
 	/* A buffer used for both compression and encryption. */
@@ -948,7 +970,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		zip->stream.opaque = Z_NULL;
 		zip->stream.next_out = zip->buf;
 		zip->stream.avail_out = (uInt)zip->len_buf;
-		if (deflateInit2(&zip->stream, Z_DEFAULT_COMPRESSION,
+		if (deflateInit2(&zip->stream, zip->deflate_compression_level,
 		    Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY) != Z_OK) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't init deflate compressor");

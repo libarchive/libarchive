@@ -99,7 +99,7 @@ static FILE *
 create_file(char *pathname, int mode)
 {
 	FILE *f;
-	f = fopen(pathname, "w+");
+	f = fopen(pathname, "wb+");
 	if (f == NULL) {
 		/* Try creating parent dir and then creating file. */
 		char *p = strrchr(pathname, '/');
@@ -107,7 +107,7 @@ create_file(char *pathname, int mode)
 			*p = '\0';
 			create_dir(pathname, 0755);
 			*p = '/';
-			f = fopen(pathname, "w+");
+			f = fopen(pathname, "wb+");
 		}
 	}
 	return (f);
@@ -217,7 +217,7 @@ main(int argc, char **argv)
 
 	++argv; /* Skip program name */
 	for ( ;*argv != NULL; ++argv) {
-		a = fopen(*argv, "r");
+		a = fopen(*argv, "rb");
 		if (a == NULL)
 			fprintf(stderr, "Unable to open %s\n", *argv);
 		else {

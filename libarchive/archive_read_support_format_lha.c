@@ -1195,13 +1195,15 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 				archive_string_empty(&lha->filename);
 				break;
 			}
+			if (extdheader[0] == '\0')
+				goto invalid;
 			archive_strncpy(&lha->filename,
 			    (const char *)extdheader, datasize);
 			break;
 		case EXT_DIRECTORY:
-			if (datasize == 0)
+			if (datasize == 0 || extdheader[0] == '\0')
 				/* no directory name data. exit this case. */
-				break;
+				goto invalid;
 
 			archive_strncpy(&lha->dirname,
 		  	    (const char *)extdheader, datasize);
