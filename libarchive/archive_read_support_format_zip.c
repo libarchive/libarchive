@@ -2271,8 +2271,8 @@ archive_read_support_format_zip_capabilities_seekable(struct archive_read * a)
  * that later bidders can do nothing if they know they'll never
  * outbid.  But we can certainly do better...
  */
-static int read_eocd(struct zip *zip,
-	const char *p, int64_t current_offset, int64_t file_length)
+static int
+read_eocd(struct zip *zip, const char *p, int64_t current_offset)
 {
 	/* Sanity-check the EOCD we've found. */
 
@@ -2288,9 +2288,6 @@ static int read_eocd(struct zip *zip,
 	/* Central directory can't extend beyond start of EOCD record. */
 	if (archive_le32dec(p + 16) + archive_le32dec(p + 12)
 	    > current_offset)
-		return 0;
-	/* The rest of the file must be part of the header's comment. */
-	if (archive_le16dec(p + 20) + current_offset + 22 != file_length)
 		return 0;
 
 	/* Save the central directory location for later use. */
@@ -2384,7 +2381,7 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 		case 006:
 			if (memcmp(p + i, "PK\005\006", 4) == 0) {
 				int ret = read_eocd(zip, p + i,
-						current_offset + i, file_size);
+						current_offset + i);
 				if (ret > 0)
 					return (ret);
 			}
