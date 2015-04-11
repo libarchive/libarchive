@@ -715,9 +715,20 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 				zip->entry_compressed_size += additional_size;
 		}
 
-		if ((zip->flags & ZIP_FLAG_FORCE_ZIP64) /* User asked. */
-		    || (zip->entry_uncompressed_size > 0xffffffffLL)) {
-							/* Large entry. */
+		/*
+		 * Set Zip64 extension in any of the following cases
+		 * (this was suggested by discussion on info-zip-dev
+		 * mailing list):
+		 *  = Zip64 is being forced by user
+		 *  = File is over 4GiB uncompressed
+		 *    (including encryption header, if any)
+		 *  = File is over 3.75GiB and is being compressed
+		 *    (compression might make file larger)
+		 */
+		if ((zip->flags & ZIP_FLAG_FORCE_ZIP64)
+		    || (zip->entry_uncompressed_size + additional_size > 0xffffffffLL)
+		    || (zip->entry_uncompressed_size > 0xf0000000LL
+			&& zip->entry_compression != COMPRESSION_STORE)) {
 			zip->entry_uses_zip64 = 1;
 			version_needed = 45;
 		}
@@ -725,9 +736,11 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		/* We may know the size, but never the CRC. */
 		zip->entry_flags |= ZIP_ENTRY_FLAG_LENGTH_AT_END;
 	} else {
-		/* Prefer deflate if it's available, because deflate
-		 * has a clear end-of-data marker that makes
-		 * length-at-end more reliable. */
+		/* We don't know the size.  In this case, we prefer
+		 * deflate (it has a clear end-of-data marker which
+		 * makes length-at-end more reliable) and will
+		 * enable Zip64 extensions unless we're told not to.
+		 */
 		zip->entry_compression = COMPRESSION_DEFAULT;
 		zip->entry_flags |= ZIP_ENTRY_FLAG_LENGTH_AT_END;
 		if ((zip->flags & ZIP_FLAG_AVOID_ZIP64) == 0) {
