@@ -1467,7 +1467,7 @@ _archive_write_disk_data_block(struct archive *_a,
 		return (r);
 	if ((size_t)r < size) {
 		archive_set_error(&a->archive, 0,
-		    "Write request too large");
+		    "Too much data: Truncating file at %ju bytes", (uintmax_t)a->filesize);
 		return (ARCHIVE_WARN);
 	}
 #if ARCHIVE_VERSION_NUMBER < 3999000
