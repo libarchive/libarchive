@@ -722,12 +722,12 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		 *  = Zip64 is being forced by user
 		 *  = File is over 4GiB uncompressed
 		 *    (including encryption header, if any)
-		 *  = File is over 3.75GiB and is being compressed
+		 *  = File is close to 4GiB and is being compressed
 		 *    (compression might make file larger)
 		 */
 		if ((zip->flags & ZIP_FLAG_FORCE_ZIP64)
 		    || (zip->entry_uncompressed_size + additional_size > 0xffffffffLL)
-		    || (zip->entry_uncompressed_size > 0xf0000000LL
+		    || (zip->entry_uncompressed_size > 0xff000000LL
 			&& zip->entry_compression != COMPRESSION_STORE)) {
 			zip->entry_uses_zip64 = 1;
 			version_needed = 45;
