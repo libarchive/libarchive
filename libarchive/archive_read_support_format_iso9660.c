@@ -387,7 +387,7 @@ static int	archive_read_format_iso9660_read_data(struct archive_read *,
 static int	archive_read_format_iso9660_read_data_skip(struct archive_read *);
 static int	archive_read_format_iso9660_read_header(struct archive_read *,
 		    struct archive_entry *);
-static const char *build_pathname(struct archive_string *, struct file_info *);
+static const char *build_pathname(struct archive_string *, struct file_info *, int);
 static int	build_pathname_utf16be(unsigned char *, size_t, size_t *,
 		    struct file_info *);
 #if DEBUG
@@ -1225,6 +1225,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Pathname is too long");
+			return (ARCHIVE_FATAL);
 		}
 
 		r = archive_entry_copy_pathname_l(entry,
@@ -1247,9 +1248,16 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 			rd_r = ARCHIVE_WARN;
 		}
 	} else {
-		archive_string_empty(&iso9660->pathname);
-		archive_entry_set_pathname(entry,
-		    build_pathname(&iso9660->pathname, file));
+		const char *path = build_pathname(&iso9660->pathname, file, 0);
+		if (path == NULL) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Pathname is too long");
+			return (ARCHIVE_FATAL);
+		} else {
+			archive_string_empty(&iso9660->pathname);
+			archive_entry_set_pathname(entry, path);
+		}
 	}
 
 	iso9660->entry_bytes_remaining = file->size;
@@ -3169,10 +3177,17 @@ time_from_tm(struct tm *t)
 }
 
 static const char *
-build_pathname(struct archive_string *as, struct file_info *file)
+build_pathname(struct archive_string *as, struct file_info *file, int depth)
 {
+	// Plain ISO9660 only allows 8 dir levels; if we get
+	// to 1000, then something is very, very wrong.
+	if (depth > 1000) {
+		return NULL;
+	}
 	if (file->parent != NULL && archive_strlen(&file->parent->name) > 0) {
-		build_pathname(as, file->parent);
+		if (build_pathname(as, file->parent, depth + 1) == NULL) {
+			return NULL;
+		}
 		archive_strcat(as, "/");
 	}
 	if (archive_strlen(&file->name) == 0)
