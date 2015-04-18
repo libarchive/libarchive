@@ -28,7 +28,6 @@ If you see any test failures, please include the information above and also:
 * Look for the .log files in the /tmp/libarchive_test_*date-and-time* directories.  (On Mac OS, look in $TMPDIR which is different than /tmp.)
 
 Please paste the .log files you will find there directly into your report.
-```
 
 ## Problems using libarchive in a program
 
