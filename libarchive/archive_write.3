@@ -213,7 +213,7 @@ int main(int argc, const char **argv)
 {
   const char *outname;
   argv++;
-  outname = argv++;
+  outname = *argv++;
   write_archive(outname, argv);
   return 0;
 }
