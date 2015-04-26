@@ -1288,8 +1288,8 @@ archive_write_zip_close(struct archive_write *a)
 	offset_end = zip->written_bytes;
 
 	/* If central dir info is too large, write Zip64 end-of-cd */
-	if (offset_end - offset_start > 0xffffffffLL
-	    || offset_start > 0xffffffffLL
+	if (offset_end - offset_start > ARCHIVE_LITERAL_LL(0xffffffff)
+	    || offset_start > ARCHIVE_LITERAL_LL(0xffffffff)
 	    || zip->central_directory_entries > 0xffffUL
 	    || (zip->flags & ZIP_FLAG_FORCE_ZIP64)) {
 	  /* Zip64 end-of-cd record */
