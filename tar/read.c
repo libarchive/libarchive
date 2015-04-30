@@ -67,6 +67,8 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/read.c,v 1.40 2008/08/21 06:41:14 kientzle E
 
 #include "bsdtar.h"
 #include "err.h"
+#include "archive_platform.h"
+#include "archive_entry.h"
 
 struct progress_data {
 	struct bsdtar *bsdtar;
@@ -112,7 +114,7 @@ tar_mode_x(struct bsdtar *bsdtar)
 static void
 progress_func(void *cookie)
 {
-	struct progress_data *progress_data = cookie;
+	struct progress_data *progress_data = (struct progress_data*)cookie;
 	struct bsdtar *bsdtar = progress_data->bsdtar;
 	struct archive *a = progress_data->archive;
 	struct archive_entry *entry = progress_data->entry;
@@ -182,7 +184,7 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 	if (reader_options != NULL) {
 		char *p;
 		/* Set default read options. */
-		p = malloc(sizeof(IGNORE_WRONG_MODULE_NAME)
+		p = (char*)malloc(sizeof(IGNORE_WRONG_MODULE_NAME)
 		    + strlen(reader_options) + 1);
 		if (p == NULL)
 			lafe_errc(1, errno, "Out of memory");
@@ -264,8 +266,7 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 		}
 		if (r == ARCHIVE_FATAL)
 			break;
-		const char *p = archive_entry_pathname(entry);
-		if (p == NULL || p[0] == '\0') {
+		if (archive_entry_pathname(entry) == NULL || archive_entry_pathname(entry)[0] == '\0') {
 			lafe_warnc(0, "Archive entry has empty or unreadable filename ... skipping.");
 			bsdtar->return_value = 1;
 			continue;
