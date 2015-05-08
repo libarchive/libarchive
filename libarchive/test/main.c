@@ -566,10 +566,10 @@ static void strdump(const char *e, const char *p, int ewidth, int utf8)
 	while (*p != '\0') {
 		unsigned int c = 0xff & *p++;
 		switch (c) {
-		case '\a': printf("\a"); break;
-		case '\b': printf("\b"); break;
-		case '\n': printf("\n"); break;
-		case '\r': printf("\r"); break;
+		case '\a': logprintf("\\a"); break;
+		case '\b': logprintf("\\b"); break;
+		case '\n': logprintf("\\n"); break;
+		case '\r': logprintf("\\r"); break;
 		default:
 			if (c >= 32 && c < 127)
 				logprintf("%c", c);
