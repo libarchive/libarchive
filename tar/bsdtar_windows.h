@@ -29,6 +29,8 @@
 #define	BSDTAR_WINDOWS_H 1
 #include <direct.h>
 #include <windows.h>
+#include <io.h>
+#include <fcntl.h>
 
 #ifndef PRId64
 #define	PRId64 "I64"
