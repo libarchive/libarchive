@@ -119,7 +119,7 @@ struct trad_enc_ctx {
 #define LA_USED_ZIP64	(1 << 0)
 #define LA_FROM_CENTRAL_DIRECTORY (1 << 1)
 
-/* 
+/*
  * See "WinZip - AES Encryption Information"
  *     http://www.winzip.com/aes_info.htm
  */
@@ -1269,7 +1269,7 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 						buff_remaining = 0;
 					else
 						buff_remaining =
-						    zip->entry_bytes_remaining
+						    (size_t)zip->entry_bytes_remaining
 						      - zip->decrypted_bytes_remaining;
 				}
 			}

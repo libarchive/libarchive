@@ -39,9 +39,19 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/read.c,v 1.40 2008/08/21 06:41:14 kientzle E
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
+
+#ifdef HAVE_FCNTL_H
+#include <fcntl.h>
+#endif
+
 #ifdef HAVE_GRP_H
 #include <grp.h>
 #endif
+
+#ifdef HAVE_IO_H
+#include <io.h>
+#endif
+
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif
