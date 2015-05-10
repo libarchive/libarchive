@@ -231,7 +231,7 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 			/*rtm*/w->now,
 			/*mtm*/archive_entry_mtime(entry),
 			/*cty*/NULL,
-			/*len*/archive_entry_size(entry),
+			/*len*/(size_t)archive_entry_size(entry),
 		};
 		ssize_t r;
 
