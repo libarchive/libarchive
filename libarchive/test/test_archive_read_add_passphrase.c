@@ -134,6 +134,7 @@ DEFINE_TEST(test_archive_read_add_passphrase_set_callback1)
 	/* Without __archive_read_reset_passphrase call, the callback
 	 * should work fine. */
 	a = archive_read_new();
+	ar = (struct archive_read *)a;
 	assertEqualInt(ARCHIVE_OK,
 	    archive_read_set_passphrase_callback(a, NULL, callback1));
 	/* Fist call, we should get "passCallBack" as a passphrase. */
