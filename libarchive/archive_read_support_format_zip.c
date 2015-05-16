@@ -1613,6 +1613,14 @@ init_traditional_PKWARE_decryption(struct archive_read *a)
 	   the start of the data area.
 	 */
 #define ENC_HEADER_SIZE	12
+	if (0 == (zip->entry->zip_flags & ZIP_LENGTH_AT_END)
+	    && zip->entry_bytes_remaining < ENC_HEADER_SIZE) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Truncated Zip encrypted body: only %jd bytes available",
+		    (intmax_t)zip->entry_bytes_remaining);
+		return (ARCHIVE_FATAL);
+	}
+
 	p = __archive_read_ahead(a, ENC_HEADER_SIZE, NULL);
 	if (p == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
@@ -1650,7 +1658,9 @@ init_traditional_PKWARE_decryption(struct archive_read *a)
 
 	__archive_read_consume(a, ENC_HEADER_SIZE);
 	zip->tctx_valid = 1;
-	zip->entry_bytes_remaining -= ENC_HEADER_SIZE;
+	if (0 == (zip->entry->zip_flags & ZIP_LENGTH_AT_END)) {
+	    zip->entry_bytes_remaining -= ENC_HEADER_SIZE;
+	}
 	/*zip->entry_uncompressed_bytes_read += ENC_HEADER_SIZE;*/
 	zip->entry_compressed_bytes_read += ENC_HEADER_SIZE;
 	zip->decrypted_bytes_remaining = 0;
