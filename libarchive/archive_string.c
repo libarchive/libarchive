@@ -4075,7 +4075,7 @@ archive_mstring_copy_utf8(struct archive_mstring *aes, const char *utf8)
   archive_string_empty(&(aes->aes_mbs));
   archive_string_empty(&(aes->aes_wcs));
   archive_strncpy(&(aes->aes_utf8), utf8, strlen(utf8));
-  return strlen(utf8);
+  return (int)strlen(utf8);
 }
 
 int

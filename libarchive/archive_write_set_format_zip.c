@@ -692,7 +692,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			version_needed = 20;
 		}
 
-		if (zip->entry_flags | ZIP_ENTRY_FLAG_ENCRYPTED) {
+		if (zip->entry_flags & ZIP_ENTRY_FLAG_ENCRYPTED) {
 			switch (zip->entry_encryption) {
 			case ENCRYPTION_TRADITIONAL:
 				additional_size = TRAD_HEADER_SIZE;
@@ -715,9 +715,20 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 				zip->entry_compressed_size += additional_size;
 		}
 
-		if ((zip->flags & ZIP_FLAG_FORCE_ZIP64) /* User asked. */
-		    || (zip->entry_uncompressed_size > 0xffffffffLL)) {
-							/* Large entry. */
+		/*
+		 * Set Zip64 extension in any of the following cases
+		 * (this was suggested by discussion on info-zip-dev
+		 * mailing list):
+		 *  = Zip64 is being forced by user
+		 *  = File is over 4GiB uncompressed
+		 *    (including encryption header, if any)
+		 *  = File is close to 4GiB and is being compressed
+		 *    (compression might make file larger)
+		 */
+		if ((zip->flags & ZIP_FLAG_FORCE_ZIP64)
+		    || (zip->entry_uncompressed_size + additional_size > 0xffffffffLL)
+		    || (zip->entry_uncompressed_size > 0xff000000LL
+			&& zip->entry_compression != COMPRESSION_STORE)) {
 			zip->entry_uses_zip64 = 1;
 			version_needed = 45;
 		}
@@ -725,9 +736,11 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		/* We may know the size, but never the CRC. */
 		zip->entry_flags |= ZIP_ENTRY_FLAG_LENGTH_AT_END;
 	} else {
-		/* Prefer deflate if it's available, because deflate
-		 * has a clear end-of-data marker that makes
-		 * length-at-end more reliable. */
+		/* We don't know the size.  In this case, we prefer
+		 * deflate (it has a clear end-of-data marker which
+		 * makes length-at-end more reliable) and will
+		 * enable Zip64 extensions unless we're told not to.
+		 */
 		zip->entry_compression = COMPRESSION_DEFAULT;
 		zip->entry_flags |= ZIP_ENTRY_FLAG_LENGTH_AT_END;
 		if ((zip->flags & ZIP_FLAG_AVOID_ZIP64) == 0) {
@@ -739,7 +752,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			version_needed = 20;
 		}
 
-		if (zip->entry_flags | ZIP_ENTRY_FLAG_ENCRYPTED) {
+		if (zip->entry_flags & ZIP_ENTRY_FLAG_ENCRYPTED) {
 			switch (zip->entry_encryption) {
 			case ENCRYPTION_TRADITIONAL:
 			case ENCRYPTION_WINZIP_AES128:
@@ -857,7 +870,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	e += 4;
 
 	/* AES extra data field: WinZIP AES information, ID=0x9901 */
-	if ((zip->entry_flags | ZIP_ENTRY_FLAG_ENCRYPTED)
+	if ((zip->entry_flags & ZIP_ENTRY_FLAG_ENCRYPTED)
 	    && (zip->entry_encryption == ENCRYPTION_WINZIP_AES128
 	        || zip->entry_encryption == ENCRYPTION_WINZIP_AES256)) {
 
@@ -994,7 +1007,7 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 
 	if (s == 0) return 0;
 
-	if (zip->entry_flags | ZIP_ENTRY_FLAG_ENCRYPTED) {
+	if (zip->entry_flags & ZIP_ENTRY_FLAG_ENCRYPTED) {
 		switch (zip->entry_encryption) {
 		case ENCRYPTION_TRADITIONAL:
 			/* Initialize traditoinal PKWARE encryption context. */
@@ -1275,8 +1288,8 @@ archive_write_zip_close(struct archive_write *a)
 	offset_end = zip->written_bytes;
 
 	/* If central dir info is too large, write Zip64 end-of-cd */
-	if (offset_end - offset_start > 0xffffffffLL
-	    || offset_start > 0xffffffffLL
+	if (offset_end - offset_start > ARCHIVE_LITERAL_LL(0xffffffff)
+	    || offset_start > ARCHIVE_LITERAL_LL(0xffffffff)
 	    || zip->central_directory_entries > 0xffffUL
 	    || (zip->flags & ZIP_FLAG_FORCE_ZIP64)) {
 	  /* Zip64 end-of-cd record */

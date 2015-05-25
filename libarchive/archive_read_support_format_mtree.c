@@ -139,16 +139,19 @@ get_time_t_max(void)
 #if defined(TIME_T_MAX)
 	return TIME_T_MAX;
 #else
-	static time_t t;
-	time_t a;
-	if (t == 0) {
-		a = 1;
-		while (a > t) {
-			t = a;
-			a = a * 2 + 1;
-		}
+	/* ISO C allows time_t to be a floating-point type,
+	   but POSIX requires an integer type.  The following
+	   should work on any system that follows the POSIX
+	   conventions. */
+	if (((time_t)0) < ((time_t)-1)) {
+		/* Time_t is unsigned */
+		return (~(time_t)0);
+	} else {
+		/* Time_t is signed. */
+		const uintmax_t max_unsigned_time_t = (uintmax_t)(~(time_t)0);
+		const uintmax_t max_signed_time_t = max_unsigned_time_t >> 1;
+		return (time_t)max_signed_time_t;
 	}
-	return t;
 #endif
 }
 
@@ -158,20 +161,16 @@ get_time_t_min(void)
 #if defined(TIME_T_MIN)
 	return TIME_T_MIN;
 #else
-	/* 't' will hold the minimum value, which will be zero (if
-	 * time_t is unsigned) or -2^n (if time_t is signed). */
-	static int computed;
-	static time_t t;
-	time_t a;
-	if (computed == 0) {
-		a = (time_t)-1;
-		while (a < t) {
-			t = a;
-			a = a * 2;
-		}			
-		computed = 1;
+	if (((time_t)0) < ((time_t)-1)) {
+		/* Time_t is unsigned */
+		return (time_t)0;
+	} else {
+		/* Time_t is signed. */
+		const uintmax_t max_unsigned_time_t = (uintmax_t)(~(time_t)0);
+		const uintmax_t max_signed_time_t = max_unsigned_time_t >> 1;
+		const intmax_t min_signed_time_t = (intmax_t)~max_signed_time_t;
+		return (time_t)min_signed_time_t;
 	}
-	return t;
 #endif
 }
 

@@ -5,7 +5,7 @@ Questions?  Issues?
      libarchive development, including documentation, and
      links to the libarchive mailing lists.
    * To report an issue, use the issue tracker at
-     http://code.google.com/p/libarchive/issues/list
+     https://github.com/libarchive/libarchive/issues
    * To submit an enhancement to libarchive, please submit
      a pull request via GitHub.
      https://github.com/libarchive/libarchive/pulls

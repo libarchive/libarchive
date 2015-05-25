@@ -107,6 +107,7 @@ AC_USE_SYSTEM_EXTENSIONS
 AC_LIBTOOL_WIN32_DLL
 AC_PROG_LIBTOOL
 AC_CHECK_TOOL([STRIP],[strip])
+AC_PROG_MKDIR_P
 
 #
 # Options for building bsdtar.
@@ -629,7 +630,7 @@ AC_ARG_ENABLE([xattr],
 if test "x$enable_xattr" != "xno"; then
 	AC_CHECK_HEADERS([attr/xattr.h])
 	AC_CHECK_HEADERS([sys/xattr.h sys/ea.h])
-	AC_CHECK_LIB(attr,setxattr)
+	AC_SEARCH_LIBS([setxattr], [attr])
 	AC_CHECK_FUNCS([extattr_get_file extattr_list_file])
 	AC_CHECK_FUNCS([extattr_set_fd extattr_set_file])
 	AC_CHECK_FUNCS([fgetxattr flistxattr fsetxattr getxattr])
