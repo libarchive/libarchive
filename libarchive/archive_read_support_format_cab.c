@@ -385,6 +385,7 @@ archive_read_support_format_cab(struct archive *_a)
 	    NULL,
 	    archive_read_format_cab_cleanup,
 	    NULL,
+	    NULL,
 	    NULL);
 
 	if (r != ARCHIVE_OK)

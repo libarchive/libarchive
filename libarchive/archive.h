@@ -513,6 +513,10 @@ __LA_DECL int archive_read_next_header(struct archive *,
 __LA_DECL int archive_read_next_header2(struct archive *,
 		     struct archive_entry *);
 
+/* Seeks to entry header of n-th entry. */
+__LA_DECL int archive_read_seek_header(struct archive *,
+		     size_t index);
+
 /*
  * Retrieve the byte offset in UNCOMPRESSED data where last-read
  * header started.

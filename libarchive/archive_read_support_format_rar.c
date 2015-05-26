@@ -662,17 +662,18 @@ archive_read_support_format_rar(struct archive *_a)
 	rar->has_encrypted_entries = ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
 
   r = __archive_read_register_format(a,
-                                     rar,
-                                     "rar",
-                                     archive_read_format_rar_bid,
-                                     archive_read_format_rar_options,
-                                     archive_read_format_rar_read_header,
-                                     archive_read_format_rar_read_data,
-                                     archive_read_format_rar_read_data_skip,
-                                     archive_read_format_rar_seek_data,
-                                     archive_read_format_rar_cleanup,
-                                     archive_read_support_format_rar_capabilities,
-                                     archive_read_format_rar_has_encrypted_entries);
+				     rar,
+				     "rar",
+				     archive_read_format_rar_bid,
+				     archive_read_format_rar_options,
+				     archive_read_format_rar_read_header,
+				     archive_read_format_rar_read_data,
+				     archive_read_format_rar_read_data_skip,
+				     archive_read_format_rar_seek_data,
+				     archive_read_format_rar_cleanup,
+				     archive_read_support_format_rar_capabilities,
+				     archive_read_format_rar_has_encrypted_entries,
+				     NULL);
 
   if (r != ARCHIVE_OK)
     free(rar);

@@ -156,7 +156,7 @@ archive_read_support_format_warc(struct archive *_a)
 	r = __archive_read_register_format(
 		a, w, "warc",
 		_warc_bid, NULL, _warc_rdhdr, _warc_read,
-		_warc_skip, NULL, _warc_cleanup, NULL, NULL);
+		_warc_skip, NULL, _warc_cleanup, NULL, NULL, NULL);
 
 	if (r != ARCHIVE_OK) {
 		free(w);

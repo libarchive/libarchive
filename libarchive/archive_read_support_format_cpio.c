@@ -245,6 +245,7 @@ archive_read_support_format_cpio(struct archive *_a)
 	    NULL,
 	    archive_read_format_cpio_cleanup,
 	    NULL,
+	    NULL,
 	    NULL);
 
 	if (r != ARCHIVE_OK)
