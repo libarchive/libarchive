@@ -768,6 +768,8 @@ __LA_DECL int archive_write_set_format_v7tar(struct archive *);
 __LA_DECL int archive_write_set_format_warc(struct archive *);
 __LA_DECL int archive_write_set_format_xar(struct archive *);
 __LA_DECL int archive_write_set_format_zip(struct archive *);
+__LA_DECL int archive_write_set_format_filter_by_ext(struct archive *a, const char *filename);
+__LA_DECL int archive_write_set_format_filter_by_ext_def(struct archive *a, const char *filename, const char * def_ext);
 __LA_DECL int archive_write_zip_set_compression_deflate(struct archive *);
 __LA_DECL int archive_write_zip_set_compression_store(struct archive *);
 __LA_DECL int archive_write_open(struct archive *, void *,
