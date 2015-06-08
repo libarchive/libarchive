@@ -253,7 +253,7 @@ archive_compressor_xz_init_stream(struct archive_write_filter *f,
 		/* Calculate a coded dictionary size */
 		if (dict_size < (1 << 12) || dict_size > (1 << 27)) {
 			archive_set_error(f->archive, ARCHIVE_ERRNO_MISC,
-			    "Unacceptable dictionary dize for lzip: %d",
+			    "Unacceptable dictionary size for lzip: %d",
 			    dict_size);
 			return (ARCHIVE_FATAL);
 		}
