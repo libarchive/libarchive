@@ -186,7 +186,7 @@ list_archive(const char *name)
   free(mydata);
 }
 
-ssize_t
+la_ssize_t
 myread(struct archive *a, void *client_data, const void **buff)
 {
   struct mydata *mydata = client_data;

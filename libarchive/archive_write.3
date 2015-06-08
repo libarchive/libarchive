@@ -155,7 +155,7 @@ myopen(struct archive *a, void *client_data)
     return (ARCHIVE_FATAL);
 }
 
-ssize_t
+la_ssize_t
 mywrite(struct archive *a, void *client_data, const void *buff, size_t n)
 {
   struct mydata *mydata = client_data;
