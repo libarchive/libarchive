@@ -47,6 +47,13 @@
 #include <windows.h>
 #endif
 
+#if ARCHIVE_VERSION_NUMBER < 4000000
+// also defined in archive.h, don't redefine
+#if !defined(__LA_INT64_T)
+#define __LA_INT64_T la_int64_t
+#endif
+#endif
+
 /* Get a suitable 64-bit integer type. */
 #if defined(_WIN32) && !defined(__CYGWIN__) && !defined(__WATCOMC__)
 typedef __int64 la_int64_t;

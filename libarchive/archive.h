@@ -45,6 +45,14 @@
 # include <inttypes.h>
 #endif
 
+#if ARCHIVE_VERSION_NUMBER < 4000000
+// also defined in archive_entry.h, don't redefine
+#if !defined(__LA_INT64_T)
+#define __LA_INT64_T la_int64_t
+#endif
+#define __LA_SSIZE_T la_ssize_t
+#endif
+
 /* Get appropriate definitions of standard POSIX-style types. */
 /* These should match the types used in 'struct stat' */
 #if defined(_WIN32) && !defined(__CYGWIN__) && !defined(__WATCOMC__)
