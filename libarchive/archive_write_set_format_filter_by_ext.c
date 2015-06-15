@@ -68,13 +68,19 @@ struct { const char *name; int (*format)(struct archive *); int (*filter)(struct
 static 
 int cmpsuff(const char *str, const char *suffix)
 {
+  size_t length_str, length_suffix;
+
   if ((str == NULL) || (suffix == NULL))
     return -1;
-  
-  size_t length_str     = strlen(str);
-  size_t length_suffix  = strlen(suffix);
-  
-  return (length_str >= length_suffix) ? strcmp(str + (length_str - length_suffix), suffix) : -1;
+
+  length_str = strlen(str);
+  length_suffix = strlen(suffix);
+
+  if (length_str >= length_suffix) {
+    return strcmp(str + (length_str - length_suffix), suffix);
+  } else {
+    return -1;
+  }
 }
 
 int get_array_index(const char *name)
