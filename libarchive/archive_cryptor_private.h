@@ -48,6 +48,11 @@ typedef struct {
 #elif defined(_WIN32) && !defined(__CYGWIN__) && defined(HAVE_BCRYPT_H)
 #include <Bcrypt.h>
 
+/* Common in other bcrypt implementations, but missing from VS2008. */
+#ifndef BCRYPT_SUCCESS
+#define BCRYPT_SUCCESS(r) ((NTSTATUS)(r) == STATUS_SUCCESS)
+#endif
+
 #define AES_MAX_KEY_SIZE 32
 #define AES_BLOCK_SIZE 16
 typedef struct {
