@@ -108,6 +108,7 @@ __FBSDID("$FreeBSD$");
 #define kMTime			0x14
 #define kAttributes		0x15
 #define kEncodedHeader		0x17
+#define kDummy			0x19
 
 struct _7z_digests {
 	unsigned char	*defineds;
@@ -2559,6 +2560,9 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 			}
 			break;
 		}
+		case kDummy:
+			if (ll == 0)
+				break;
 		default:
 			if (header_bytes(a, ll) == NULL)
 				return (-1);
