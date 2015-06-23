@@ -83,7 +83,7 @@ int cmpsuff(const char *str, const char *suffix)
   }
 }
 
-int get_array_index(const char *name)
+static int get_array_index(const char *name)
 {
   int i;
 
