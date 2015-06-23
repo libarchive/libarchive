@@ -44,19 +44,21 @@ verify(struct archive *a) {
 
 	for (file = 0; file < 20; ++file) {
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-		wp = archive_entry_pathname_w(ae);
-		for (i = 0; wp[i] != 0; ++i) {
-			if (wp[i] == '2') {
-				failure("Unicode 'o with umlaut' expected");
-				assertEqualInt(wp[i + 4], 0xF6);
-			} else if (wp[i] == '3') {
-				failure("Unicode 'a with umlaut' expected");
-				assertEqualInt(wp[i + 4], 0xE4);
-			} else if (wp[i] == '4') {
-				failure("Unicode 'a with ring' expected");
-				assertEqualInt(wp[i + 4], 0xE5);
-			}
-		}
+		assert((wp = archive_entry_pathname_w(ae)) != NULL);
+      if (wp) {
+         for (i = 0; wp[i] != 0; ++i) {
+            if (wp[i] == '2') {
+               failure("Unicode 'o with umlaut' expected");
+               assertEqualInt(wp[i + 4], 0xF6);
+            } else if (wp[i] == '3') {
+               failure("Unicode 'a with umlaut' expected");
+               assertEqualInt(wp[i + 4], 0xE4);
+            } else if (wp[i] == '4') {
+               failure("Unicode 'a with ring' expected");
+               assertEqualInt(wp[i + 4], 0xE5);
+            }
+         }
+      }
 	}
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 }
