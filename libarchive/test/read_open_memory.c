@@ -94,7 +94,7 @@ read_open_memory_internal(struct archive *a, const void *buff,
 		return (ARCHIVE_FATAL);
 	}
 	memset(mine, 0, sizeof(*mine));
-	mine->start = mine->p = (unsigned char *)buff;
+	mine->start = mine->p = (const unsigned char *)buff;
 	mine->end = mine->start + size;
 	mine->read_size = read_size;
 	mine->copy_buff_offset = 32;
