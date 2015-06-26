@@ -506,6 +506,7 @@ __LA_DECL int archive_read_open_fd(struct archive *, int _fd,
 __LA_DECL int archive_read_open_FILE(struct archive *, FILE *_file);
 
 /* Parses and returns next entry header. */
+/* Note: DO NOT use this with an archive* created with archive_read_disk_new. */
 __LA_DECL int archive_read_next_header(struct archive *,
 		     struct archive_entry **);
 
