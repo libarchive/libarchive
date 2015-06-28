@@ -676,7 +676,7 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	return (r2 < r1 || r2 == ARCHIVE_EOF) ? r2 : r1;
 }
 
-int
+static int
 _archive_read_next_header(struct archive *_a, struct archive_entry **entryp)
 {
 	int ret;
@@ -1100,8 +1100,7 @@ _archive_read_free(struct archive *_a)
 	}
 
 	archive_string_free(&a->archive.error_string);
-	if (a->entry)
-		archive_entry_free(a->entry);
+	archive_entry_free(a->entry);
 	a->archive.magic = 0;
 	__archive_clean(&a->archive);
 	free(a->client.dataset);
