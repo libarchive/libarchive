@@ -3891,7 +3891,7 @@ archive_mstring_get_utf8(struct archive *a, struct archive_mstring *aes,
 		sc = archive_string_conversion_to_charset(a, "UTF-8", 1);
 		if (sc == NULL)
 			return (-1);/* Couldn't allocate memory for sc. */
-		r = archive_strncpy_l(&(aes->aes_mbs), aes->aes_mbs.s,
+		r = archive_strncpy_l(&(aes->aes_utf8), aes->aes_mbs.s,
 		    aes->aes_mbs.length, sc);
 		if (a == NULL)
 			free_sconv_object(sc);
