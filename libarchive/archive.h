@@ -960,7 +960,7 @@ __LA_DECL int  archive_read_disk_set_atime_restored(struct archive *);
 /* Default: Skip a mac resource fork file whose prefix is "._" because of
  * using copyfile. */
 #define	ARCHIVE_READDISK_MAC_COPYFILE		(0x0004)
-/* Default: Do not traverse mount points. */
+/* Default: Traverse mount points. */
 #define	ARCHIVE_READDISK_NO_TRAVERSE_MOUNTS	(0x0008)
 /* Default: Xattrs are read from disk. */
 #define	ARCHIVE_READDISK_NO_XATTR		(0x0010)
