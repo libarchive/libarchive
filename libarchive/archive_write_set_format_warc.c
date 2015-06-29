@@ -382,10 +382,10 @@ _popul_ehdr(struct archive_string *tgt, size_t tsz, warc_essential_hdr_t hdr)
 
 	/* record time is usually when the http is sent off,
 	 * just treat the archive writing as such for a moment */
-	xstrftime(tgt, "WARC-Date: %FT%H:%M:%SZ\r\n", hdr.rtime);
+	xstrftime(tgt, "WARC-Date: %Y-%m-%dT%H:%M:%SZ\r\n", hdr.rtime);
 
 	/* while we're at it, record the mtime */
-	xstrftime(tgt, "Last-Modified: %FT%H:%M:%SZ\r\n", hdr.mtime);
+	xstrftime(tgt, "Last-Modified: %Y-%m-%dT%H:%M:%SZ\r\n", hdr.mtime);
 
 	if (hdr.recid == NULL) {
 		/* generate one, grrrr */
