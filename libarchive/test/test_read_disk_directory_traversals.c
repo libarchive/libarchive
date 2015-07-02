@@ -549,6 +549,28 @@ test_basic(void)
 	archive_entry_free(ae);
 }
 
+
+static void
+test_foreign_path(void)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+
+	assert((ae = archive_entry_new()) != NULL);
+	assert((a = archive_read_disk_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, "/tmp/foreign_dir"));
+   assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+   assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_descend(a));
+   assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+   const char* p = archive_entry_pathname(ae);
+   const char* pu = archive_entry_pathname_utf8(ae);
+   const wchar_t* pw = archive_entry_pathname_w(ae);
+   assertA(p != NULL);
+   assertA(pu != NULL);
+   assertA(pw != NULL);
+}
+
+
 static void
 test_symlink_hybrid(void)
 {
@@ -1562,6 +1584,7 @@ test_nodump(void)
 
 DEFINE_TEST(test_read_disk_directory_traversals)
 {
+   test_foreign_path();
 	/* Basic test. */
 	test_basic();
 	/* Test hybird mode; follow symlink initially, then not. */
