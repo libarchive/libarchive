@@ -667,7 +667,7 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 		break;
 	}
 
-   __archive_reset_read_data(&a->archive);
+	__archive_reset_read_data(&a->archive);
 
 	a->data_start_node = a->client.cursor;
 	/* EOF always wins; otherwise return the worst error. */
@@ -893,11 +893,9 @@ archive_read_data(struct archive *_a, void *buff, size_t s)
 	return (bytes_read);
 }
 
-
-
- /*
-  * Reset the read_data_* variables, used for starting a new entry.
-  */
+/*
+ * Reset the read_data_* variables, used for starting a new entry.
+ */
 void __archive_reset_read_data(struct archive * a)
 {
 	a->read_data_output_offset = 0;
@@ -909,9 +907,6 @@ void __archive_reset_read_data(struct archive * a)
    a->read_data_block = NULL;
    a->read_data_offset = 0;
 }
-
-
-
 
 /*
  * Skip over all remaining data in this entry.

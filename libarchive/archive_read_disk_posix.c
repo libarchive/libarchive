@@ -1152,8 +1152,7 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 		break;
 	}
 
-   __archive_reset_read_data(&a->archive);
-
+	__archive_reset_read_data(&a->archive);
 	return (r);
 }
 
