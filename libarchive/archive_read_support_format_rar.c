@@ -1203,10 +1203,8 @@ archive_read_format_rar_seek_data(struct archive_read *a, int64_t offset,
     ret -= rar->dbo[0].start_offset;
 
     /* Always restart reading the file after a seek */
-    a->read_data_block = NULL;
-    a->read_data_offset = 0;
-    a->read_data_output_offset = 0;
-    a->read_data_remaining = 0;
+    __archive_reset_read_data(&a->archive);
+
     rar->bytes_unconsumed = 0;
     rar->offset = 0;
 
@@ -2907,8 +2905,8 @@ rar_read_ahead(struct archive_read *a, size_t min, ssize_t *avail)
   int ret;
   if (avail)
   {
-    if (a->read_data_is_posix_read && *avail > (ssize_t)a->read_data_requested)
-      *avail = a->read_data_requested;
+    if (a->archive.read_data_is_posix_read && *avail > (ssize_t)a->archive.read_data_requested)
+      *avail = a->archive.read_data_requested;
     if (*avail > rar->bytes_remaining)
       *avail = (ssize_t)rar->bytes_remaining;
     if (*avail < 0)

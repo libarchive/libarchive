@@ -166,23 +166,6 @@ struct archive_read {
 	int64_t		  skip_file_dev;
 	int64_t		  skip_file_ino;
 
-	/*
-	 * Used by archive_read_data() to track blocks and copy
-	 * data to client buffers, filling gaps with zero bytes.
-	 */
-	const char	 *read_data_block;
-	int64_t		  read_data_offset;
-	int64_t		  read_data_output_offset;
-	size_t		  read_data_remaining;
-
-	/*
-	 * Used by formats/filters to determine the amount of data
-	 * requested from a call to archive_read_data(). This is only
-	 * useful when the format/filter has seek support.
-	 */
-	char		  read_data_is_posix_read;
-	size_t		  read_data_requested;
-
 	/* Callbacks to open/read/write/close client archive streams. */
 	struct archive_read_client client;
 
