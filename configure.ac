@@ -390,14 +390,14 @@ AC_ARG_WITH([expat],
   AS_HELP_STRING([--without-expat], [Don't build support for xar through expat]))
 
 if test "x$with_xml2" != "xno"; then
-  AC_PATH_PROG([XML2_CONFIG], [xml2-config],, [${PATH}])
-  if test "x$XML2_CONFIG" != "x"; then
-    CPPFLAGS="${CPPFLAGS} `${XML2_CONFIG} --cflags`"
-    LIBS="${LIBS} `${XML2_CONFIG} --libs`"
+  PKG_PROG_PKG_CONFIG
+  PKG_CHECK_MODULES(LIBXML2_PC, [libxml-2.0], [
+    CPPFLAGS="${CPPFLAGS} ${LIBXML2_PC_CFLAGS}"
+    LIBS="${LIBS} ${LIBXML2_PC_LIBS}"
     AC_CHECK_LIB(xml2,xmlInitParser,[true],AC_MSG_FAILURE(Missing xml2 library))
-  else
+  ], [
     AC_CHECK_LIB(xml2,xmlInitParser)
-  fi
+  ])
   AC_CHECK_HEADERS([libxml/xmlreader.h libxml/xmlwriter.h])
 fi
 if test "x$ac_cv_header_libxml_xmlreader_h" != "xyes"; then
