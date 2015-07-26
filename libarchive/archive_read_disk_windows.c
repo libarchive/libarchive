@@ -288,6 +288,8 @@ static int	_archive_read_free(struct archive *);
 static int	_archive_read_close(struct archive *);
 static int	_archive_read_data_block(struct archive *,
 		    const void **, size_t *, int64_t *);
+static int	_archive_read_next_header(struct archive *,
+		    struct archive_entry **);
 static int	_archive_read_next_header2(struct archive *,
 		    struct archive_entry *);
 static const char *trivial_lookup_gname(void *, int64_t gid);
@@ -310,6 +312,7 @@ archive_read_disk_vtable(void)
 		av.archive_free = _archive_read_free;
 		av.archive_close = _archive_read_close;
 		av.archive_read_data_block = _archive_read_data_block;
+		av.archive_read_next_header = _archive_read_next_header;
 		av.archive_read_next_header2 = _archive_read_next_header2;
 		inited = 1;
 	}
@@ -393,6 +396,7 @@ archive_read_disk_new(void)
 	a->archive.magic = ARCHIVE_READ_DISK_MAGIC;
 	a->archive.state = ARCHIVE_STATE_NEW;
 	a->archive.vtable = archive_read_disk_vtable();
+	a->entry = archive_entry_new2(&a->archive);
 	a->lookup_uname = trivial_lookup_uname;
 	a->lookup_gname = trivial_lookup_gname;
 	a->enable_copyfile = 1;
@@ -422,6 +426,7 @@ _archive_read_free(struct archive *_a)
 	if (a->cleanup_uname != NULL && a->lookup_uname_data != NULL)
 		(a->cleanup_uname)(a->lookup_uname_data);
 	archive_string_free(&a->archive.error_string);
+	archive_entry_free(a->entry);
 	a->archive.magic = 0;
 	free(a);
 	return (r);
@@ -942,6 +947,17 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 			r = setup_sparse_from_disk(a, entry, t->entry_fh);
 	}
 	return (r);
+}
+
+static int
+_archive_read_next_header(struct archive *_a, struct archive_entry **entryp)
+{
+       int ret;
+       struct archive_read_disk *a = (struct archive_read_disk *)_a;
+       *entryp = NULL;
+       ret = _archive_read_next_header2(_a, a->entry);
+       *entryp = a->entry;
+       return ret;
 }
 
 static int
