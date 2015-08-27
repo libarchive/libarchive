@@ -1,4 +1,5 @@
 README for libarchive bundle.
+[![Build Status](https://travis-ci.org/kientzle/libarchive.svg?branch=master)](https://travis-ci.org/kientzle/libarchive)
 
 Questions?  Issues?
    * http://www.libarchive.org is the home for ongoing
@@ -13,15 +14,15 @@ Questions?  Issues?
 This distribution bundle includes the following components:
    * libarchive: a library for reading and writing streaming archives
    * tar: the 'bsdtar' program is a full-featured 'tar'
-          replacement built on libarchive
+     replacement built on libarchive
    * cpio: the 'bsdcpio' program is a different interface to
-          essentially the same functionality
+     essentially the same functionality
    * cat: the 'bsdcat' program is a simple replacement tool for
-          zcat, bzcat, xzcat, and such
+     zcat, bzcat, xzcat, and such
    * examples: Some small example programs that you may find useful.
    * examples/minitar: a compact sample demonstrating use of libarchive.
    * contrib:  Various items sent to me by third parties;
-          please contact the authors with any questions.
+     please contact the authors with any questions.
 
 The top-level directory contains the following information files:
    * NEWS - highlights of recent changes
@@ -34,7 +35,7 @@ The top-level directory contains the following information files:
 The following files in the top-level directory are used by the
 'configure' script:
    * Makefile.am, aclocal.m4, configure.ac
-       - used to build this distribution, only needed by maintainers
+   - used to build this distribution, only needed by maintainers
    * Makefile.in, config.h.in
 	- templates used by configure script
 
