@@ -131,7 +131,7 @@ struct archive_string_conv {
 #define UNICODE_MAX		0x10FFFF
 #define UNICODE_R_CHAR		0xFFFD	/* Replacement character. */
 /* Set U+FFFD(Replacement character) in UTF-8. */
-const static char utf8_replacement_char[] = {0xef, 0xbf, 0xbd};
+static const char utf8_replacement_char[] = {0xef, 0xbf, 0xbd};
 
 static struct archive_string_conv *find_sconv_object(struct archive *,
 	const char *, const char *);
