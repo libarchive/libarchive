@@ -395,6 +395,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_disk_entry_from_file.c \
 	libarchive/test/test_read_extract.c \
 	libarchive/test/test_read_file_nonexistent.c \
+	libarchive/test/test_read_filter_compress.c \
 	libarchive/test/test_read_filter_grzip.c \
 	libarchive/test/test_read_filter_lrzip.c \
 	libarchive/test/test_read_filter_lzop.c \
@@ -475,6 +476,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_zip_filename.c \
 	libarchive/test/test_read_format_zip_mac_metadata.c \
 	libarchive/test/test_read_format_zip_malformed.c \
+	libarchive/test/test_read_format_zip_msdos.c \
 	libarchive/test/test_read_format_zip_nested.c \
 	libarchive/test/test_read_format_zip_nofiletype.c \
 	libarchive/test/test_read_format_zip_padded.c \
