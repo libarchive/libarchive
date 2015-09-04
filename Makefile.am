@@ -496,6 +496,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_tar_large.c \
 	libarchive/test/test_ustar_filenames.c \
 	libarchive/test/test_ustar_filename_encoding.c \
+	libarchive/test/test_warn_missing_hardlink_target.c \
 	libarchive/test/test_write_disk.c \
 	libarchive/test/test_write_disk_appledouble.c \
 	libarchive/test/test_write_disk_failures.c \
