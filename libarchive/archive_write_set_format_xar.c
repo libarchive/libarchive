@@ -1883,6 +1883,11 @@ xar_free(struct archive_write *a)
 	file_free_hardlinks(xar);
 	file_free_register(xar);
 	compression_end(&(a->archive), &(xar->stream));
+	if(xar->temp_fd >= 0)
+	{
+		close(xar->temp_fd);
+		xar->temp_fd = -1;
+	}
 	free(xar);
 
 	return (ARCHIVE_OK);
