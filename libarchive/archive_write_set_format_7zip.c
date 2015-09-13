@@ -1452,6 +1452,11 @@ _7z_free(struct archive_write *a)
 
 	file_free_register(zip);
 	compression_end(&(a->archive), &(zip->stream));
+	if(zip->temp_fd >= 0)
+	{
+		close(zip->temp_fd);
+		zip->temp_fd = -1;
+	}
 	free(zip->coder.props);
 	free(zip);
 
