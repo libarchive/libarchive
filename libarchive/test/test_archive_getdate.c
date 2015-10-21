@@ -27,11 +27,13 @@ __FBSDID("$FreeBSD$");
 
 #include <time.h>
 
+#define __LIBARCHIVE_BUILD 1
+#include "archive_getdate.h"
+
 /*
  * Verify that the getdate() function works.
  */
 
-time_t __archive_get_date(time_t, const char *);
 #define get_date __archive_get_date
 
 DEFINE_TEST(test_archive_getdate)
