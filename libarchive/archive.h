@@ -51,7 +51,7 @@
  */
 #if defined(__BORLANDC__) && __BORLANDC__ >= 0x560
 # include <stdint.h>
-#elif !defined(__WATCOMC__) && !defined(_MSC_VER) && !defined(__INTERIX) && !defined(__BORLANDC__) && !defined(_SCO_DS)
+#elif !defined(__WATCOMC__) && !defined(_MSC_VER) && !defined(__INTERIX) && !defined(__BORLANDC__) && !defined(_SCO_DS) && !defined(__osf__)
 # include <inttypes.h>
 #endif
 
@@ -66,7 +66,7 @@
 typedef __int64 la_int64_t;
 # else
 # include <unistd.h>  /* ssize_t */
-#  if defined(_SCO_DS)
+#  if defined(_SCO_DS) || defined(__osf__)
 typedef long long la_int64_t;
 #  else
 typedef int64_t la_int64_t;

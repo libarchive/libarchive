@@ -57,7 +57,7 @@
 typedef __int64 la_int64_t;
 # else
 #include <unistd.h>
-#  if defined(_SCO_DS)
+#  if defined(_SCO_DS) || defined(__osf__)
 typedef long long la_int64_t;
 #  else
 typedef int64_t la_int64_t;

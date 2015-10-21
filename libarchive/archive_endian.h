@@ -53,7 +53,7 @@
 #define	inline
 #elif defined(__SUNPRO_C) && __SUNPRO_C < 0x590
 #define inline
-#elif defined(_MSC_VER)
+#elif defined(_MSC_VER) || defined(__osf__)
 #define inline __inline
 #endif
 
