@@ -148,9 +148,12 @@ get_time_t_max(void)
 		return (~(time_t)0);
 	} else {
 		/* Time_t is signed. */
-		const uintmax_t max_unsigned_time_t = (uintmax_t)(~(time_t)0);
-		const uintmax_t max_signed_time_t = max_unsigned_time_t >> 1;
-		return (time_t)max_signed_time_t;
+		/* Assume it's the same as int64_t or int32_t */
+		if (sizeof(time_t) == sizeof(int64_t)) {
+			return (time_t)INT64_MAX;
+		} else {
+			return (time_t)INT32_MAX;
+		}
 	}
 #endif
 }
@@ -166,10 +169,11 @@ get_time_t_min(void)
 		return (time_t)0;
 	} else {
 		/* Time_t is signed. */
-		const uintmax_t max_unsigned_time_t = (uintmax_t)(~(time_t)0);
-		const uintmax_t max_signed_time_t = max_unsigned_time_t >> 1;
-		const intmax_t min_signed_time_t = (intmax_t)~max_signed_time_t;
-		return (time_t)min_signed_time_t;
+		if (sizeof(time_t) == sizeof(int64_t)) {
+			return (time_t)INT64_MIN;
+		} else {
+			return (time_t)INT32_MIN;
+		}
 	}
 #endif
 }
@@ -1561,7 +1565,7 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			int64_t m;
 			int64_t my_time_t_max = get_time_t_max();
 			int64_t my_time_t_min = get_time_t_min();
-			long ns;
+			long ns = 0;
 
 			*parsed_kws |= MTREE_HAS_MTIME;
 			m = mtree_atol10(&val);
