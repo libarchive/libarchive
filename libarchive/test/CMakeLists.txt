@@ -84,6 +84,7 @@ IF(ENABLE_TEST)
     test_read_disk_entry_from_file.c
     test_read_extract.c
     test_read_file_nonexistent.c
+    test_read_filter_compress.c
     test_read_filter_grzip.c
     test_read_filter_lrzip.c
     test_read_filter_lzop.c
@@ -186,6 +187,7 @@ IF(ENABLE_TEST)
     test_tar_large.c
     test_ustar_filename_encoding.c
     test_ustar_filenames.c
+    test_warn_missing_hardlink_target.c
     test_write_disk.c
     test_write_disk_appledouble.c
     test_write_disk_failures.c
