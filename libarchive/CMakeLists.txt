@@ -42,6 +42,8 @@ SET(libarchive_SOURCES
   archive_options_private.h
   archive_pack_dev.h
   archive_pack_dev.c
+  archive_pathfnmatch.c
+  archive_pathfnmatch.h
   archive_pathmatch.c
   archive_pathmatch.h
   archive_platform.h

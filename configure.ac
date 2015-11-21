@@ -252,7 +252,7 @@ esac
 AC_HEADER_DIRENT
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS([acl/libacl.h attr/xattr.h copyfile.h ctype.h])
-AC_CHECK_HEADERS([errno.h ext2fs/ext2_fs.h fcntl.h grp.h])
+AC_CHECK_HEADERS([errno.h ext2fs/ext2_fs.h fcntl.h fnmatch.h grp.h])
 
 AC_CACHE_CHECK([whether EXT2_IOC_GETFLAGS is usable],
     [ac_cv_have_decl_EXT2_IOC_GETFLAGS],
@@ -574,7 +574,7 @@ AC_FUNC_VPRINTF
 # workarounds, we use 'void *' for 'struct SECURITY_ATTRIBUTES *'
 AC_CHECK_STDCALL_FUNC([CreateHardLinkA],[const char *, const char *, void *])
 AC_CHECK_FUNCS([arc4random_buf chflags chown chroot ctime_r dirfd])
-AC_CHECK_FUNCS([fchdir fchflags fchmod fchown fcntl fdopendir fork])
+AC_CHECK_FUNCS([fchdir fchflags fchmod fchown fcntl fdopendir fnmatch fork])
 AC_CHECK_FUNCS([fstat fstatat fstatfs fstatvfs ftruncate])
 AC_CHECK_FUNCS([futimens futimes futimesat])
 AC_CHECK_FUNCS([geteuid getpid getgrgid_r getgrnam_r])

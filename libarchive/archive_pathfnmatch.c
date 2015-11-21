@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2013-2014 Jean-Yves Migeon
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,31 +22,48 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef __LIBARCHIVE_BUILD
-#ifndef __LIBARCHIVE_TEST
-#error This header is only to be used internally to libarchive.
+#include "archive_platform.h"
+__FBSDID("$FreeBSD$");
+
+#ifdef HAVE_FNMATCH_H
+#include <fnmatch.h>
 #endif
+#ifdef HAVE_ERRNO_H
+#include <errno.h>
+#endif
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
+#ifdef HAVE_WCHAR_H
+#include <wchar.h>
 #endif
 
-#ifndef ARCHIVE_PATHMATCH_H
-#define ARCHIVE_PATHMATCH_H
+#include "archive_pathfnmatch.h"
 
-/* Don't anchor at beginning unless the pattern starts with "^" */
-#define PATHMATCH_NO_ANCHOR_START	1
-/* Don't anchor at end unless the pattern ends with "$" */
-#define PATHMATCH_NO_ANCHOR_END 	2
+/*
+ * The archive_pathfnmatch API mimics the API used for shell wildcard
+ * patterns (globbing).
+ */
 
-/* Note that "^" and "$" are not special unless you set the corresponding
- * flag above. */
+/* Main entry point. */
+int
+__archive_mtree_pathmatch(const char *p, const char *s, int flags)
+{
+	int r = fnmatch(p, s, flags | FNM_PATHNAME);
 
-int __archive_gtar_pathmatch(const char *p, const char *s, int flags);
-int __archive_gtar_pathmatch_w(const wchar_t *p, const wchar_t *s, int flags);
+	if (r == 0)
+		return 1; /* the pattern matches */
 
-#define archive_pathmatch(p, s, f)	__archive_gtar_pathmatch(p, s, f)
-#define archive_pathmatch_w(p, s, f)	__archive_gtar_pathmatch_w(p, s, f)
+	return 0;
+}
 
-#endif
+int
+__archive_mtree_pathmatch_w(const wchar_t *p, const wchar_t *s, int flags)
+{
+
+	/* not implemented */
+	errno = ENOSYS;
+	return -1;
+}

@@ -379,7 +379,7 @@ pm_w(const wchar_t *p, const wchar_t *s, int flags)
 
 /* Main entry point. */
 int
-__archive_pathmatch(const char *p, const char *s, int flags)
+__archive_gtar_pathmatch(const char *p, const char *s, int flags)
 {
 	/* Empty pattern only matches the empty string. */
 	if (p == NULL || *p == '\0')
@@ -419,7 +419,7 @@ __archive_pathmatch(const char *p, const char *s, int flags)
 }
 
 int
-__archive_pathmatch_w(const wchar_t *p, const wchar_t *s, int flags)
+__archive_gtar_pathmatch_w(const wchar_t *p, const wchar_t *s, int flags)
 {
 	/* Empty pattern only matches the empty string. */
 	if (p == NULL || *p == L'\0')
