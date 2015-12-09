@@ -1042,8 +1042,7 @@ archive_write_pax_header(struct archive_write *a,
 	 * already set (we're already generating an extended header, so
 	 * may as well include these).
 	 */
-	if (a->archive.archive_format != ARCHIVE_FORMAT_TAR_PAX_RESTRICTED ||
-	    need_extension) {
+	if (a->archive.archive_format != ARCHIVE_FORMAT_TAR_PAX_RESTRICTED) {
 
 		if (archive_entry_mtime(entry_main) < 0  ||
 		    archive_entry_mtime(entry_main) >= 0x7fffffff  ||
@@ -1072,6 +1071,9 @@ archive_write_pax_header(struct archive_write *a,
 			    "LIBARCHIVE.creationtime",
 			    archive_entry_birthtime(entry_main),
 			    archive_entry_birthtime_nsec(entry_main));
+	}
+	if (a->archive.archive_format != ARCHIVE_FORMAT_TAR_PAX_RESTRICTED ||
+	    need_extension) {
 
 		/* I use a star-compatible file flag attribute. */
 		p = archive_entry_fflags_text(entry_main);
