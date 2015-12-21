@@ -112,7 +112,7 @@ struct archive_string_conv {
 #if HAVE_ICONV
 	iconv_t				 cd;
 	iconv_t				 cd_w;/* Use at archive_mstring on
-				 	       * Windows. */
+				 	       * Windows and for locale-independent UTF-8. */
 #endif
 	/* A temporary buffer for normalization. */
 	struct archive_string		 utftmp;
@@ -1255,11 +1255,8 @@ create_sconv_object(const char *fc, const char *tc,
 			else if (strcmp(fc, "CP932") == 0)
 				sc->cd = iconv_open(tc, "SJIS");
 		}
-#if defined(_WIN32) && !defined(__CYGWIN__)
 		/*
-		 * archive_mstring on Windows directly convert multi-bytes
-		 * into archive_wstring in order not to depend on locale
-		 * so that you can do a I18N programing. This will be
+		 * For UTF-8 support (and also UTF-16/wchar_t on Windows). This will be
 		 * used only in archive_mstring_copy_mbs_len_l so far.
 		 */
 		if (flag & SCONV_FROM_CHARSET) {
@@ -1270,7 +1267,6 @@ create_sconv_object(const char *fc, const char *tc,
 					sc->cd_w = iconv_open("UTF-8", "SJIS");
 			}
 		}
-#endif /* _WIN32 && !__CYGWIN__ */
 	}
 #endif	/* HAVE_ICONV */
 
@@ -4137,6 +4133,16 @@ archive_mstring_copy_mbs_len_l(struct archive_mstring *aes,
 		aes->aes_set = AES_SET_MBS; /* Only MBS form is set now. */
 	else
 		aes->aes_set = 0;
+#if defined(HAVE_ICONV)
+	if (sc != NULL && sc->cd_w != (iconv_t)-1) {
+		iconv_t cd = sc->cd;
+		sc->cd = sc->cd_w;
+		r = archive_strncpy_l(&(aes->aes_utf8), mbs, len, sc);
+		sc->cd = cd;
+		if (r == 0)
+			aes->aes_set |= AES_SET_UTF8;
+	}
+#endif
 #endif
 	return (r);
 }
