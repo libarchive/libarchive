@@ -235,7 +235,6 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 			/*cty*/NULL,
 			/*len*/0,
 		};
-		ssize_t r;
 		rh.tgturi = archive_entry_pathname(entry);
 		rh.rtime = w->now;
 		rh.mtime = archive_entry_mtime(entry);
