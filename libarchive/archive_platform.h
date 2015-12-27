@@ -126,6 +126,15 @@
 #if !HAVE_DECL_INT64_MIN
 #define	INT64_MIN ((int64_t)(~INT64_MAX))
 #endif
+#if !HAVE_DECL_UINTMAX_MAX
+#define	UINTMAX_MAX (~(uintmax_t)0)
+#endif
+#if !HAVE_DECL_INTMAX_MAX
+#define	INTMAX_MAX ((intmax_t)(UINTMAX_MAX >> 1))
+#endif
+#if !HAVE_DECL_INTMAX_MIN
+#define	INTMAX_MIN ((intmax_t)(~INTMAX_MAX))
+#endif
 
 /*
  * If this platform has <sys/acl.h>, acl_create(), acl_init(),
