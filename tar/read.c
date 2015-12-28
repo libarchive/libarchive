@@ -352,6 +352,7 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 
 			if (bsdtar->verbose > 1) {
 				/* GNU tar uses -tv format with -xvv */
+				safe_fprintf(stderr, "x ");
 				list_item_verbose(bsdtar, stderr, entry);
 				fflush(stderr);
 			} else if (bsdtar->verbose > 0) {
