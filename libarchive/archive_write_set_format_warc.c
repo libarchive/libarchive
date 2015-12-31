@@ -182,7 +182,7 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 {
 	struct warc_s *w = a->format_data;
 	struct archive_string hdr;
-	ssize_t r;
+	ssize_t r0;
 #define MAX_HDR_SIZE 512
 
 	/* check whether warcinfo record needs outputting */
@@ -200,8 +200,8 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 		wi.mtime = w->now;
 
 		archive_string_init(&hdr);
-		r = _popul_ehdr(&hdr, MAX_HDR_SIZE, wi);
-		if (r >= 0) {
+		r0 = _popul_ehdr(&hdr, MAX_HDR_SIZE, wi);
+		if (r0 >= 0) {
 			/* jackpot! */
 			/* now also use HDR buffer for the actual warcinfo */
 			archive_strncat(&hdr, warcinfo, sizeof(warcinfo) -1);
@@ -235,15 +235,15 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 			/*cty*/NULL,
 			/*len*/0,
 		};
-		ssize_t r;
+		ssize_t r1;
 		rh.tgturi = archive_entry_pathname(entry);
 		rh.rtime = w->now;
 		rh.mtime = archive_entry_mtime(entry);
 		rh.cntlen = (size_t)archive_entry_size(entry);
 
 		archive_string_init(&hdr);
-		r = _popul_ehdr(&hdr, MAX_HDR_SIZE, rh);
-		if (r < 0) {
+		r1 = _popul_ehdr(&hdr, MAX_HDR_SIZE, rh);
+		if (r1 < 0) {
 			/* don't bother */
 			archive_set_error(
 				&a->archive,
@@ -252,7 +252,7 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 			return (ARCHIVE_WARN);
 		}
 		/* otherwise append to output stream */
-		__archive_write_output(a, hdr.s, r);
+		__archive_write_output(a, hdr.s, r1);
 		/* and let subsequent calls to _data() know about the size */
 		w->populz = rh.cntlen;
 		archive_string_free(&hdr);
