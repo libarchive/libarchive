@@ -170,8 +170,6 @@ typedef unsigned char uint8_t;
 /* Define intmax_t and uintmax_t if they are not already defined. */
 #if !defined(HAVE_INTMAX_T)
 typedef int64_t intmax_t;
-#define INTMAX_MIN INT64_MIN
-#define INTMAX_MAX INT64_MAX
 #endif
 
 #if !defined(HAVE_UINTMAX_T)
@@ -372,6 +370,14 @@ typedef uint64_t uintmax_t;
    don't. */
 #cmakedefine HAVE_DECL_INT64_MIN 1
 
+/* Define to 1 if you have the declaration of `INTMAX_MAX', and to 0 if you
+   don't. */
+#cmakedefine HAVE_DECL_INTMAX_MAX 1
+
+/* Define to 1 if you have the declaration of `INTMAX_MIN', and to 0 if you
+   don't. */
+#cmakedefine HAVE_DECL_INTMAX_MIN 1
+
 /* Define to 1 if you have the declaration of `SIZE_MAX', and to 0 if you
    don't. */
 #cmakedefine HAVE_DECL_SIZE_MAX 1
@@ -391,6 +397,10 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the declaration of `UINT64_MAX', and to 0 if you
    don't. */
 #cmakedefine HAVE_DECL_UINT64_MAX 1
+
+/* Define to 1 if you have the declaration of `UINTMAX_MAX', and to 0 if you
+   don't. */
+#cmakedefine HAVE_DECL_UINTMAX_MAX 1
 
 /* Define to 1 if you have the <direct.h> header file. */
 #cmakedefine HAVE_DIRECT_H 1
@@ -1050,6 +1060,9 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the `wmemcpy' function. */
 #cmakedefine HAVE_WMEMCPY 1
+
+/* Define to 1 if you have the `wmemmove' function. */
+#cmakedefine HAVE_WMEMMOVE 1
 
 /* Define to 1 if you have a working EXT2_IOC_GETFLAGS */
 #cmakedefine HAVE_WORKING_EXT2_IOC_GETFLAGS 1

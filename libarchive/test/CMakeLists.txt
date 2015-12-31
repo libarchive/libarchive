@@ -42,6 +42,7 @@ IF(ENABLE_TEST)
     test_archive_write_add_filter_by_name.c
     test_archive_write_set_filter_option.c
     test_archive_write_set_format_by_name.c
+    test_archive_write_set_format_filter_by_ext.c
     test_archive_write_set_format_option.c
     test_archive_write_set_option.c
     test_archive_write_set_options.c
@@ -83,6 +84,7 @@ IF(ENABLE_TEST)
     test_read_disk_entry_from_file.c
     test_read_extract.c
     test_read_file_nonexistent.c
+    test_read_filter_compress.c
     test_read_filter_grzip.c
     test_read_filter_lrzip.c
     test_read_filter_lzop.c
@@ -163,11 +165,13 @@ IF(ENABLE_TEST)
     test_read_format_zip_filename.c
     test_read_format_zip_mac_metadata.c
     test_read_format_zip_malformed.c
+    test_read_format_zip_msdos.c
     test_read_format_zip_nested.c
     test_read_format_zip_nofiletype.c
     test_read_format_zip_padded.c
     test_read_format_zip_sfx.c
     test_read_format_zip_traditional_encryption_data.c
+    test_read_format_zip_utf8_paths.c
     test_read_format_zip_winzip_aes.c
     test_read_format_zip_winzip_aes_large.c
     test_read_format_zip_zip64.c
@@ -183,6 +187,7 @@ IF(ENABLE_TEST)
     test_tar_large.c
     test_ustar_filename_encoding.c
     test_ustar_filenames.c
+    test_warn_missing_hardlink_target.c
     test_write_disk.c
     test_write_disk_appledouble.c
     test_write_disk_failures.c

@@ -182,6 +182,7 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 {
 	struct warc_s *w = a->format_data;
 	struct archive_string hdr;
+	ssize_t r;
 #define MAX_HDR_SIZE 512
 
 	/* check whether warcinfo record needs outputting */
@@ -190,12 +191,13 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 			WT_INFO,
 			/*uri*/NULL,
 			/*urn*/NULL,
-			/*rtm*/w->now,
-			/*mtm*/w->now,
+			/*rtm*/0,
+			/*mtm*/0,
 			/*cty*/"application/warc-fields",
 			/*len*/sizeof(warcinfo) - 1U,
 		};
-		ssize_t r;
+		wi.rtime = w->now;
+		wi.mtime = w->now;
 
 		archive_string_init(&hdr);
 		r = _popul_ehdr(&hdr, MAX_HDR_SIZE, wi);
@@ -226,14 +228,18 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 	if (w->typ == AE_IFREG) {
 		warc_essential_hdr_t rh = {
 			WT_RSRC,
-			/*uri*/archive_entry_pathname(entry),
+			/*uri*/NULL,
 			/*urn*/NULL,
-			/*rtm*/w->now,
-			/*mtm*/archive_entry_mtime(entry),
+			/*rtm*/0,
+			/*mtm*/0,
 			/*cty*/NULL,
-			/*len*/archive_entry_size(entry),
+			/*len*/0,
 		};
 		ssize_t r;
+		rh.tgturi = archive_entry_pathname(entry);
+		rh.rtime = w->now;
+		rh.mtime = archive_entry_mtime(entry);
+		rh.cntlen = (size_t)archive_entry_size(entry);
 
 		archive_string_init(&hdr);
 		r = _popul_ehdr(&hdr, MAX_HDR_SIZE, rh);
@@ -382,10 +388,10 @@ _popul_ehdr(struct archive_string *tgt, size_t tsz, warc_essential_hdr_t hdr)
 
 	/* record time is usually when the http is sent off,
 	 * just treat the archive writing as such for a moment */
-	xstrftime(tgt, "WARC-Date: %FT%H:%M:%SZ\r\n", hdr.rtime);
+	xstrftime(tgt, "WARC-Date: %Y-%m-%dT%H:%M:%SZ\r\n", hdr.rtime);
 
 	/* while we're at it, record the mtime */
-	xstrftime(tgt, "Last-Modified: %FT%H:%M:%SZ\r\n", hdr.mtime);
+	xstrftime(tgt, "Last-Modified: %Y-%m-%dT%H:%M:%SZ\r\n", hdr.mtime);
 
 	if (hdr.recid == NULL) {
 		/* generate one, grrrr */

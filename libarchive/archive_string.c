@@ -131,12 +131,7 @@ struct archive_string_conv {
 #define UNICODE_MAX		0x10FFFF
 #define UNICODE_R_CHAR		0xFFFD	/* Replacement character. */
 /* Set U+FFFD(Replacement character) in UTF-8. */
-#define UTF8_SET_R_CHAR(outp) do {		\
-			(outp)[0] = 0xef;	\
-			(outp)[1] = 0xbf;	\
-			(outp)[2] = 0xbd;	\
-} while (0)
-#define UTF8_R_CHAR_SIZE	3
+static const char utf8_replacement_char[] = {0xef, 0xbf, 0xbd};
 
 static struct archive_string_conv *find_sconv_object(struct archive *,
 	const char *, const char *);
@@ -2041,7 +2036,7 @@ iconv_strncat_in_locale(struct archive_string *as, const void *_p,
 			if (sc->flag & (SCONV_TO_UTF8 | SCONV_TO_UTF16)) {
 				size_t rbytes;
 				if (sc->flag & SCONV_TO_UTF8)
-					rbytes = UTF8_R_CHAR_SIZE;
+					rbytes = sizeof(utf8_replacement_char);
 				else
 					rbytes = 2;
 
@@ -2057,7 +2052,7 @@ iconv_strncat_in_locale(struct archive_string *as, const void *_p,
 					    - as->length - to_size;
 				}
 				if (sc->flag & SCONV_TO_UTF8)
-					UTF8_SET_R_CHAR(outp);
+					memcpy(outp, utf8_replacement_char, sizeof(utf8_replacement_char));
 				else if (sc->flag & SCONV_TO_UTF16BE)
 					archive_be16enc(outp, UNICODE_R_CHAR);
 				else
@@ -2206,9 +2201,7 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
     size_t length, struct archive_string_conv *sc)
 {
 	size_t remaining;
-	char *otp;
 	const uint8_t *itp;
-	size_t avail;
 	int return_value = 0; /* success */
 
 	/*
@@ -2227,46 +2220,25 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 	 * byte sequence 0xEF 0xBD 0xBD, which are code point U+FFFD,
 	 * a Replacement Character in Unicode.
 	 */
-	if (archive_string_ensure(as, as->length + length + 1) == NULL)
-		return (-1);
 
 	remaining = length;
 	itp = (const uint8_t *)_p;
-	otp = as->s + as->length;
-	avail = as->buffer_length - as->length -1;
 	while (*itp && remaining > 0) {
-		if (*itp > 127 && (sc->flag & SCONV_TO_UTF8)) {
-			if (avail < UTF8_R_CHAR_SIZE) {
-				as->length = otp - as->s;
-				if (NULL == archive_string_ensure(as,
-				    as->buffer_length + remaining +
-				    UTF8_R_CHAR_SIZE))
-					return (-1);
-				otp = as->s + as->length;
-				avail = as->buffer_length - as->length -1;
+		if (*itp > 127) {
+			// Non-ASCII: Substitute with suitable replacement
+			if (sc->flag & SCONV_TO_UTF8) {
+				if (archive_string_append(as, utf8_replacement_char, sizeof(utf8_replacement_char)) == NULL) {
+					__archive_errx(1, "Out of memory");
+				}
+			} else {
+				archive_strappend_char(as, '?');
 			}
-			/*
-		 	 * When coping a string in UTF-8, unknown character
-			 * should be U+FFFD (replacement character).
-			 */
-			UTF8_SET_R_CHAR(otp);
-			otp += UTF8_R_CHAR_SIZE;
-			avail -= UTF8_R_CHAR_SIZE;
-			itp++;
-			remaining--;
-			return_value = -1;
-		} else if (*itp > 127) {
-			*otp++ = '?';
-			itp++;
-			remaining--;
 			return_value = -1;
 		} else {
-			*otp++ = (char)*itp++;
-			remaining--;
+			archive_strappend_char(as, *itp);
 		}
+		++itp;
 	}
-	as->length = otp - as->s;
-	as->s[as->length] = '\0';
 	return (return_value);
 }
 
@@ -2492,6 +2464,9 @@ unicode_to_utf8(char *p, size_t remaining, uint32_t uc)
 {
 	char *_p = p;
 
+	/* Invalid Unicode char maps to Replacement character */
+	if (uc > UNICODE_MAX)
+		uc = UNICODE_R_CHAR;
 	/* Translate code point to UTF8 */
 	if (uc <= 0x7f) {
 		if (remaining == 0)
@@ -2508,22 +2483,13 @@ unicode_to_utf8(char *p, size_t remaining, uint32_t uc)
 		*p++ = 0xe0 | ((uc >> 12) & 0x0f);
 		*p++ = 0x80 | ((uc >> 6) & 0x3f);
 		*p++ = 0x80 | (uc & 0x3f);
-	} else if (uc <= UNICODE_MAX) {
+	} else {
 		if (remaining < 4)
 			return (0);
 		*p++ = 0xf0 | ((uc >> 18) & 0x07);
 		*p++ = 0x80 | ((uc >> 12) & 0x3f);
 		*p++ = 0x80 | ((uc >> 6) & 0x3f);
 		*p++ = 0x80 | (uc & 0x3f);
-	} else {
-		/*
-		 * Undescribed code point should be U+FFFD
-		 * (replacement character).
-		 */
-		if (remaining < UTF8_R_CHAR_SIZE)
-			return (0);
-		UTF8_SET_R_CHAR(p);
-		p += UTF8_R_CHAR_SIZE;
 	}
 	return (p - _p);
 }
@@ -3891,7 +3857,7 @@ archive_mstring_get_utf8(struct archive *a, struct archive_mstring *aes,
 		sc = archive_string_conversion_to_charset(a, "UTF-8", 1);
 		if (sc == NULL)
 			return (-1);/* Couldn't allocate memory for sc. */
-		r = archive_strncpy_l(&(aes->aes_mbs), aes->aes_mbs.s,
+		r = archive_strncpy_l(&(aes->aes_utf8), aes->aes_mbs.s,
 		    aes->aes_mbs.length, sc);
 		if (a == NULL)
 			free_sconv_object(sc);
@@ -4075,7 +4041,7 @@ archive_mstring_copy_utf8(struct archive_mstring *aes, const char *utf8)
   archive_string_empty(&(aes->aes_mbs));
   archive_string_empty(&(aes->aes_wcs));
   archive_strncpy(&(aes->aes_utf8), utf8, strlen(utf8));
-  return strlen(utf8);
+  return (int)strlen(utf8);
 }
 
 int

@@ -604,8 +604,12 @@ archive_read_format_tar_skip(struct archive_read *a)
 	/* Do not consume the hole of a sparse file. */
 	request = 0;
 	for (p = tar->sparse_list; p != NULL; p = p->next) {
-		if (!p->hole)
+		if (!p->hole) {
+			if (p->remaining >= INT64_MAX - request) {
+				return ARCHIVE_FATAL;
+			}
 			request += p->remaining;
+		}
 	}
 	if (request > tar->entry_bytes_remaining)
 		request = tar->entry_bytes_remaining;
@@ -2123,6 +2127,10 @@ gnu_add_sparse_entry(struct archive_read *a, struct tar *tar,
 	else
 		tar->sparse_list = p;
 	tar->sparse_last = p;
+	if (remaining < 0 || offset < 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC, "Malformed sparse map data");
+		return (ARCHIVE_FATAL);
+	}
 	p->offset = offset;
 	p->remaining = remaining;
 	return (ARCHIVE_OK);

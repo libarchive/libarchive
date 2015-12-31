@@ -667,16 +667,14 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 		break;
 	}
 
-	a->read_data_output_offset = 0;
-	a->read_data_remaining = 0;
-	a->read_data_is_posix_read = 0;
-	a->read_data_requested = 0;
+	__archive_reset_read_data(&a->archive);
+
 	a->data_start_node = a->client.cursor;
 	/* EOF always wins; otherwise return the worst error. */
 	return (r2 < r1 || r2 == ARCHIVE_EOF) ? r2 : r1;
 }
 
-int
+static int
 _archive_read_next_header(struct archive *_a, struct archive_entry **entryp)
 {
 	int ret;
@@ -822,7 +820,7 @@ archive_read_format_capabilities(struct archive *_a)
 ssize_t
 archive_read_data(struct archive *_a, void *buff, size_t s)
 {
-	struct archive_read *a = (struct archive_read *)_a;
+	struct archive *a = (struct archive *)_a;
 	char	*dest;
 	const void *read_buf;
 	size_t	 bytes_read;
@@ -837,7 +835,7 @@ archive_read_data(struct archive *_a, void *buff, size_t s)
 			read_buf = a->read_data_block;
 			a->read_data_is_posix_read = 1;
 			a->read_data_requested = s;
-			r = _archive_read_data_block(&a->archive, &read_buf,
+			r = archive_read_data_block(a, &read_buf,
 			    &a->read_data_remaining, &a->read_data_offset);
 			a->read_data_block = read_buf;
 			if (r == ARCHIVE_EOF)
@@ -852,7 +850,7 @@ archive_read_data(struct archive *_a, void *buff, size_t s)
 		}
 
 		if (a->read_data_offset < a->read_data_output_offset) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Encountered out-of-order sparse blocks");
 			return (ARCHIVE_RETRY);
 		}
@@ -893,6 +891,21 @@ archive_read_data(struct archive *_a, void *buff, size_t s)
 	a->read_data_is_posix_read = 0;
 	a->read_data_requested = 0;
 	return (bytes_read);
+}
+
+/*
+ * Reset the read_data_* variables, used for starting a new entry.
+ */
+void __archive_reset_read_data(struct archive * a)
+{
+	a->read_data_output_offset = 0;
+	a->read_data_remaining = 0;
+	a->read_data_is_posix_read = 0;
+	a->read_data_requested = 0;
+
+   /* extra resets, from rar.c */
+   a->read_data_block = NULL;
+   a->read_data_offset = 0;
 }
 
 /*
@@ -962,7 +975,7 @@ _archive_read_data_block(struct archive *_a,
 	if (a->format->read_data == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
 		    "Internal error: "
-		    "No format_read_data_block function registered");
+		    "No format->read_data function registered");
 		return (ARCHIVE_FATAL);
 	}
 
@@ -1100,8 +1113,7 @@ _archive_read_free(struct archive *_a)
 	}
 
 	archive_string_free(&a->archive.error_string);
-	if (a->entry)
-		archive_entry_free(a->entry);
+	archive_entry_free(a->entry);
 	a->archive.magic = 0;
 	__archive_clean(&a->archive);
 	free(a->client.dataset);
@@ -1145,7 +1157,7 @@ static const char *
 _archive_filter_name(struct archive *_a, int n)
 {
 	struct archive_read_filter *f = get_filter(_a, n);
-	return f == NULL ? NULL : f->name;
+	return f != NULL ? f->name : NULL;
 }
 
 static int64_t

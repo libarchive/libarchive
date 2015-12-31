@@ -367,6 +367,7 @@ extract(const char *filename, int do_extract, int flags)
 		exit(r);
 	}
 	for (;;) {
+		int needcr = 0;
 		r = archive_read_next_header(a, &entry);
 		if (r == ARCHIVE_EOF)
 			break;
@@ -377,16 +378,24 @@ extract(const char *filename, int do_extract, int flags)
 		}
 		if (verbose && do_extract)
 			msg("x ");
-		if (verbose || !do_extract)
+		if (verbose || !do_extract) {
 			msg(archive_entry_pathname(entry));
+			msg(" ");
+			needcr = 1;
+		}
 		if (do_extract) {
 			r = archive_write_header(ext, entry);
-			if (r != ARCHIVE_OK)
+			if (r != ARCHIVE_OK) {
 				errmsg(archive_error_string(a));
-			else
-				copy_data(a, ext);
+				needcr = 1;
+			}
+			else {
+				r = copy_data(a, ext);
+				if (r != ARCHIVE_OK)
+					needcr = 1;
+			}
 		}
-		if (verbose || !do_extract)
+		if (needcr)
 			msg("\n");
 	}
 	archive_read_close(a);
@@ -404,12 +413,12 @@ copy_data(struct archive *ar, struct archive *aw)
 
 	for (;;) {
 		r = archive_read_data_block(ar, &buff, &size, &offset);
-		if (r == ARCHIVE_EOF) {
-			errmsg(archive_error_string(ar));
+		if (r == ARCHIVE_EOF)
 			return (ARCHIVE_OK);
-		}
-		if (r != ARCHIVE_OK)
+		if (r != ARCHIVE_OK) {
+			errmsg(archive_error_string(ar));
 			return (r);
+		}
 		r = archive_write_data_block(aw, buff, size, offset);
 		if (r != ARCHIVE_OK) {
 			errmsg(archive_error_string(ar));

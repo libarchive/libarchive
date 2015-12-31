@@ -34,6 +34,7 @@ SET(libarchive_SOURCES
   archive_entry_strmode.c
   archive_entry_xattr.c
   archive_getdate.c
+  archive_getdate.h
   archive_hmac.c
   archive_hmac_private.h
   archive_match.c
@@ -134,6 +135,7 @@ SET(libarchive_SOURCES
   archive_write_set_format_by_name.c
   archive_write_set_format_cpio.c
   archive_write_set_format_cpio_newc.c
+  archive_write_set_format_filter_by_ext.c
   archive_write_set_format_gnutar.c
   archive_write_set_format_iso9660.c
   archive_write_set_format_mtree.c

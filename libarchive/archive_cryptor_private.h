@@ -31,6 +31,13 @@
 #define ARCHIVE_CRYPTOR_PRIVATE_H_INCLUDED
 
 #ifdef __APPLE__
+# include <AvailabilityMacros.h>
+# if MAC_OS_X_VERSION_MAX_ALLOWED >= 1080
+#  define ARCHIVE_CRYPTOR_USE_Apple_CommonCrypto
+# endif
+#endif
+
+#ifdef ARCHIVE_CRYPTOR_USE_Apple_CommonCrypto
 #include <CommonCrypto/CommonCryptor.h>
 #include <CommonCrypto/CommonKeyDerivation.h>
 #define AES_BLOCK_SIZE	16
@@ -47,6 +54,11 @@ typedef struct {
 
 #elif defined(_WIN32) && !defined(__CYGWIN__) && defined(HAVE_BCRYPT_H)
 #include <Bcrypt.h>
+
+/* Common in other bcrypt implementations, but missing from VS2008. */
+#ifndef BCRYPT_SUCCESS
+#define BCRYPT_SUCCESS(r) ((NTSTATUS)(r) == STATUS_SUCCESS)
+#endif
 
 #define AES_MAX_KEY_SIZE 32
 #define AES_BLOCK_SIZE 16

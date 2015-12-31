@@ -139,16 +139,22 @@ get_time_t_max(void)
 #if defined(TIME_T_MAX)
 	return TIME_T_MAX;
 #else
-	static time_t t;
-	time_t a;
-	if (t == 0) {
-		a = 1;
-		while (a > t) {
-			t = a;
-			a = a * 2 + 1;
+	/* ISO C allows time_t to be a floating-point type,
+	   but POSIX requires an integer type.  The following
+	   should work on any system that follows the POSIX
+	   conventions. */
+	if (((time_t)0) < ((time_t)-1)) {
+		/* Time_t is unsigned */
+		return (~(time_t)0);
+	} else {
+		/* Time_t is signed. */
+		/* Assume it's the same as int64_t or int32_t */
+		if (sizeof(time_t) == sizeof(int64_t)) {
+			return (time_t)INT64_MAX;
+		} else {
+			return (time_t)INT32_MAX;
 		}
 	}
-	return t;
 #endif
 }
 
@@ -158,20 +164,17 @@ get_time_t_min(void)
 #if defined(TIME_T_MIN)
 	return TIME_T_MIN;
 #else
-	/* 't' will hold the minimum value, which will be zero (if
-	 * time_t is unsigned) or -2^n (if time_t is signed). */
-	static int computed;
-	static time_t t;
-	time_t a;
-	if (computed == 0) {
-		a = (time_t)-1;
-		while (a < t) {
-			t = a;
-			a = a * 2;
-		}			
-		computed = 1;
+	if (((time_t)0) < ((time_t)-1)) {
+		/* Time_t is unsigned */
+		return (time_t)0;
+	} else {
+		/* Time_t is signed. */
+		if (sizeof(time_t) == sizeof(int64_t)) {
+			return (time_t)INT64_MIN;
+		} else {
+			return (time_t)INT32_MIN;
+		}
 	}
-	return t;
 #endif
 }
 
@@ -1562,7 +1565,7 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			int64_t m;
 			int64_t my_time_t_max = get_time_t_max();
 			int64_t my_time_t_min = get_time_t_min();
-			long ns;
+			long ns = 0;
 
 			*parsed_kws |= MTREE_HAS_MTIME;
 			m = mtree_atol10(&val);

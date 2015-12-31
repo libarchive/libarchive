@@ -100,3 +100,6 @@ build/autoconf/test-driver
 libarchive_test.log
 libarchive_test.trs
 test-suite.log
+
+.sw?
+.*.sw?

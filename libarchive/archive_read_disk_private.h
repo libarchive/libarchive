@@ -39,6 +39,9 @@ struct archive_entry;
 struct archive_read_disk {
 	struct archive	archive;
 
+	/* Reused by archive_read_next_header() */
+	struct archive_entry *entry;
+
 	/*
 	 * Symlink mode is one of 'L'ogical, 'P'hysical, or 'H'ybrid,
 	 * following an old BSD convention.  'L' follows all symlinks,

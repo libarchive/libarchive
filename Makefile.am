@@ -214,6 +214,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_write_set_format_by_name.c \
 	libarchive/archive_write_set_format_cpio.c \
 	libarchive/archive_write_set_format_cpio_newc.c \
+	libarchive/archive_write_set_format_filter_by_ext.c \
 	libarchive/archive_write_set_format_iso9660.c \
 	libarchive/archive_write_set_format_mtree.c \
 	libarchive/archive_write_set_format_pax.c \
@@ -352,6 +353,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_archive_write_add_filter_by_name.c \
 	libarchive/test/test_archive_write_set_filter_option.c \
 	libarchive/test/test_archive_write_set_format_by_name.c \
+	libarchive/test/test_archive_write_set_format_filter_by_ext.c \
 	libarchive/test/test_archive_write_set_format_option.c \
 	libarchive/test/test_archive_write_set_option.c \
 	libarchive/test/test_archive_write_set_options.c \
@@ -393,6 +395,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_disk_entry_from_file.c \
 	libarchive/test/test_read_extract.c \
 	libarchive/test/test_read_file_nonexistent.c \
+	libarchive/test/test_read_filter_compress.c \
 	libarchive/test/test_read_filter_grzip.c \
 	libarchive/test/test_read_filter_lrzip.c \
 	libarchive/test/test_read_filter_lzop.c \
@@ -473,11 +476,13 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_zip_filename.c \
 	libarchive/test/test_read_format_zip_mac_metadata.c \
 	libarchive/test/test_read_format_zip_malformed.c \
+	libarchive/test/test_read_format_zip_msdos.c \
 	libarchive/test/test_read_format_zip_nested.c \
 	libarchive/test/test_read_format_zip_nofiletype.c \
 	libarchive/test/test_read_format_zip_padded.c \
 	libarchive/test/test_read_format_zip_sfx.c \
 	libarchive/test/test_read_format_zip_traditional_encryption_data.c \
+	libarchive/test/test_read_format_zip_utf8_paths.c \
 	libarchive/test/test_read_format_zip_winzip_aes.c \
 	libarchive/test/test_read_format_zip_winzip_aes_large.c \
 	libarchive/test/test_read_format_zip_zip64.c \
@@ -493,6 +498,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_tar_large.c \
 	libarchive/test/test_ustar_filenames.c \
 	libarchive/test/test_ustar_filename_encoding.c \
+	libarchive/test/test_warn_missing_hardlink_target.c \
 	libarchive/test/test_write_disk.c \
 	libarchive/test/test_write_disk_appledouble.c \
 	libarchive/test/test_write_disk_failures.c \
@@ -572,6 +578,7 @@ libarchive_test_LDADD= $(LTLIBICONV)
 # Building it automatically provides a sanity-check on libarchive_test_SOURCES
 # above.
 libarchive/test/list.h: Makefile
+	$(MKDIR_P) libarchive/test
 	cat $(top_srcdir)/libarchive/test/test_*.c | grep DEFINE_TEST > libarchive/test/list.h
 
 libarchive_TESTS_ENVIRONMENT= LIBARCHIVE_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/libarchive/test LRZIP=NOCONFIG
@@ -783,6 +790,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_sfx.uu \
 	libarchive/test/test_read_format_zip_symlink.zip.uu \
 	libarchive/test/test_read_format_zip_traditional_encryption_data.zip.uu \
+	libarchive/test/test_read_format_zip_utf8_paths.zip.uu \
 	libarchive/test/test_read_format_zip_ux.zip.uu \
 	libarchive/test/test_read_format_zip_winzip_aes128.zip.uu \
 	libarchive/test/test_read_format_zip_winzip_aes256.zip.uu \
@@ -948,6 +956,7 @@ bsdtar_test_CPPFLAGS=\
 	$(PLATFORMCPPFLAGS)
 
 tar/test/list.h: Makefile
+	$(MKDIR_P) tar/test
 	cat $(top_srcdir)/tar/test/test_*.c | grep DEFINE_TEST > tar/test/list.h
 
 if BUILD_BSDTAR
@@ -1094,6 +1103,7 @@ bsdcpio_test_CPPFLAGS= \
 bsdcpio_test_LDADD=libarchive_fe.la
 
 cpio/test/list.h: Makefile
+	$(MKDIR_P) cpio/test
 	cat $(top_srcdir)/cpio/test/test_*.c | grep DEFINE_TEST > cpio/test/list.h
 
 if BUILD_BSDCPIO

@@ -67,6 +67,23 @@ static int64_t	memory_read_skip(struct archive *, void *, int64_t request);
 static ssize_t	memory_read(struct archive *, void *, const void **buff);
 static ssize_t	memory_write(struct archive *, void *, const void *, size_t);
 
+static int16_t le16(const void *_p) {
+	const uint8_t *p = _p;
+	return (0xff & (int16_t)p[0]) | ((0xff & (int16_t)p[1]) << 8);
+}
+
+static int32_t le32(const void *_p) {
+	const uint8_t *p = _p;
+	int32_t v = 0xffff & (int32_t)le16(_p);
+	return v + ((0xffff & (int32_t)le16(p + 2)) << 16);
+}
+
+static int64_t le64(const void *_p) {
+	const uint8_t *p = _p;
+	int64_t v = 0xffffffff & (int64_t)le32(_p);
+	return v + ((0xffffffff & (int64_t)le32(p + 4)) << 32);
+}
+
 static ssize_t
 memory_write(struct archive *a, void *_private, const void *buff, size_t size)
 {
@@ -315,6 +332,8 @@ DEFINE_TEST(test_write_format_zip_large)
 	struct archive_entry *ae;
 	struct archive *a;
 	const char *p;
+	const char *cd_start, *zip64_eocd, *zip64_locator, *eocd;
+	int64_t cd_size;
 	char *buff;
 	int64_t  filesize;
 	size_t writesize, buffsize, s;
@@ -397,7 +416,7 @@ DEFINE_TEST(test_write_format_zip_large)
 	 * Manually verify some of the final bytes of the archives.
 	 */
 	/* Collect the final bytes together */
-#define FINAL_SIZE 512	
+#define FINAL_SIZE 8192
 	buff = malloc(FINAL_SIZE);
 	buffsize = 0;
 	memory_read_open(NULL, fileblocks);
@@ -409,24 +428,46 @@ DEFINE_TEST(test_write_format_zip_large)
 	assertEqualInt(buffsize, FINAL_SIZE);
 
 	p = buff + buffsize;
-	/* TODO: Verify Zip64 end-of-cd record. */
-
-	/* Verify Zip64 locator */
-	assertEqualMem(p - 42, "PK\006\007\0\0\0\0", 8);
-	/* TODO: Verify 8 byte offset of Zip64 end-of-cd record. */
-	assertEqualMem(p - 26, "\001\0\0\0", 4);
 
 	/* Verify regular end-of-central-directory record */
-	assertEqualMem(p - 22, "PK\005\006\0\0\0\0", 8);
-	/* Number of entries (17 including 'lastfile'). */
-	assertEqualMem(p - 14, "\021\0\021\0", 4);
-	/* TODO: Check size of central directory?  Maybe verify
-	   that this matches size in Zip64 end-of-cd record? */
-	/* assertEqualMem(p - 10, ..., 4); */
+	eocd = p - 22;
+	assertEqualMem(eocd, "PK\005\006\0\0\0\0", 8);
+	assertEqualMem(eocd + 8, "\021\0\021\0", 4); /* 17 entries total */
+	cd_size = le32(eocd + 12);
 	/* Start of CD offset should be 0xffffffff */
-	assertEqualMem(p - 6, "\xff\xff\xff\xff", 4);
-	/* No Zip comment */
-	assertEqualMem(p - 2, "\0\0", 2);
+	assertEqualMem(eocd + 16, "\xff\xff\xff\xff", 4);
+	assertEqualMem(eocd + 20, "\0\0", 2);	/* No Zip comment */
+
+	/* Verify Zip64 locator */
+	zip64_locator = p - 42;
+	assertEqualMem(zip64_locator, "PK\006\007\0\0\0\0", 8);
+	zip64_eocd = p - (fileblocks->filesize - le64(zip64_locator + 8));
+	assertEqualMem(zip64_locator + 16, "\001\0\0\0", 4);
+
+	/* Verify Zip64 end-of-cd record. */
+	assert(zip64_eocd == p - 98);
+	assertEqualMem(zip64_eocd, "PK\006\006", 4);
+	assertEqualInt(44, le64(zip64_eocd + 4)); // Size of EoCD record - 12
+	assertEqualMem(zip64_eocd + 12, "\055\0", 2);  // Made by version: 45
+	assertEqualMem(zip64_eocd + 14, "\055\0", 2);  // Requires version: 45
+	assertEqualMem(zip64_eocd + 16, "\0\0\0\0", 4); // This disk
+	assertEqualMem(zip64_eocd + 20, "\0\0\0\0", 4); // Total disks
+	assertEqualInt(17, le64(zip64_eocd + 24));  // Entries on this disk
+	assertEqualInt(17, le64(zip64_eocd + 32));  // Total entries
+	cd_size = le64(zip64_eocd + 40);
+	cd_start = p - (fileblocks->filesize - le64(zip64_eocd + 48));
+
+	assert(cd_start + cd_size == zip64_eocd);
+
+	assertEqualInt(le64(zip64_eocd + 48) // Start of CD
+	    + cd_size
+	    + 56 // Size of Zip64 EOCD
+	    + 20 // Size of Zip64 locator
+	    + 22, // Size of EOCD
+	    fileblocks->filesize);
+
+	// TODO: Scan entire Central Directory, sanity-check all data
+	assertEqualMem(cd_start, "PK\001\002", 4);
 
 	fileblocks_free(fileblocks);
 	free(nulldata);
