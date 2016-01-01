@@ -182,11 +182,11 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 {
 	struct warc_s *w = a->format_data;
 	struct archive_string hdr;
-	ssize_t r;
 #define MAX_HDR_SIZE 512
 
 	/* check whether warcinfo record needs outputting */
 	if (!w->omit_warcinfo) {
+		ssize_t r;
 		warc_essential_hdr_t wi = {
 			WT_INFO,
 			/*uri*/NULL,
