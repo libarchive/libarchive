@@ -81,6 +81,9 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk_entry_from_file.c 2010
 #ifdef HAVE_LINUX_FS_H
 #include <linux/fs.h>
 #endif
+#ifdef HAVE_LINUX_VERSION_H
+#include <linux/version.h>
+#endif
 /*
  * Some Linux distributions have both linux/ext2_fs.h and ext2fs/ext2_fs.h.
  * As the include guards don't agree, the order of include is important.
@@ -1021,10 +1024,10 @@ setup_xattrs(struct archive_read_disk *a,
 
 #endif
 
-#if defined(HAVE_LINUX_FIEMAP_H)
+#if defined(HAVE_LINUX_FIEMAP_H) && (LINUX_VERSION_CODE < KERNEL_VERSION(3,8,0))
 
 /*
- * Linux sparse interface.
+ * non-SEEK_HOLE Linux sparse interface.
  *
  * The FIEMAP ioctl returns an "extent" for each physical allocation
  * on disk.  We need to process those to generate a more compact list
@@ -1036,6 +1039,11 @@ setup_xattrs(struct archive_read_disk *a,
  * It's important to return a minimal sparse file list because we want
  * to not trigger sparse file extensions if we don't have to, since
  * not all readers support them.
+ *
+ * Linux also supports SEEK_HOLE since kernel 3.1 and since 3.8 all
+ * filesystems that supported FIEMAP support SEEK_HOLE. NFS4 on Linux now
+ * supports only the more simple SEEK_HOLE method. That's why we don't
+ * use the FIEMAP method for kernels >= 3.8 any more.
  */
 
 static int
@@ -1128,7 +1136,9 @@ exit_setup_sparse:
 #elif defined(SEEK_HOLE) && defined(SEEK_DATA)
 
 /*
- * FreeBSD and Solaris sparse interface.
+ * FreeBSD and Solaris sparse interface using SEEK_HOLE and SEEK_DATA.
+ *
+ * Also used for Linux kernel >= 3.8
  */
 
 static int
