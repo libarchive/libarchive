@@ -1125,7 +1125,7 @@ exit_setup_sparse:
 	return (exit_sts);
 }
 
-#elif defined(SEEK_HOLE) && defined(SEEK_DATA) && defined(_PC_MIN_HOLE_SIZE)
+#elif defined(SEEK_HOLE) && defined(SEEK_DATA)
 
 /*
  * FreeBSD and Solaris sparse interface.
@@ -1162,8 +1162,10 @@ setup_sparse(struct archive_read_disk *a,
 	}
 
 	if (*fd >= 0) {
+#ifdef _PC_MIN_HOLE_SIZE
 		if (fpathconf(*fd, _PC_MIN_HOLE_SIZE) <= 0)
 			return (ARCHIVE_OK);
+#endif
 		initial_off = lseek(*fd, 0, SEEK_CUR);
 		if (initial_off != 0)
 			lseek(*fd, 0, SEEK_SET);
@@ -1174,8 +1176,10 @@ setup_sparse(struct archive_read_disk *a,
 		if (path == NULL)
 			path = archive_entry_pathname(entry);
 			
+#ifdef _PC_MIN_HOLE_SIZE
 		if (pathconf(path, _PC_MIN_HOLE_SIZE) <= 0)
 			return (ARCHIVE_OK);
+#endif
 		*fd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
 		if (*fd < 0) {
 			archive_set_error(&a->archive, errno,
