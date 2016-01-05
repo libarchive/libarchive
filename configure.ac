@@ -268,6 +268,7 @@ AS_VAR_IF([ac_cv_have_decl_EXT2_IOC_GETFLAGS], [yes],
 
 AC_CHECK_HEADERS([inttypes.h io.h langinfo.h limits.h])
 AC_CHECK_HEADERS([linux/fiemap.h linux/fs.h linux/magic.h linux/types.h])
+AC_CHECK_HEADERS([linux/version.h])
 AC_CHECK_HEADERS([locale.h paths.h poll.h pthread.h pwd.h])
 AC_CHECK_HEADERS([readpassphrase.h signal.h spawn.h])
 AC_CHECK_HEADERS([stdarg.h stdint.h stdlib.h string.h])
