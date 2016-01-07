@@ -36,6 +36,10 @@ DEFINE_TEST(test_leading_slash)
 	assertTextFileContents("foo\x0a", "foo/hardlink");
 	assertIsHardlink("foo/file", "foo/hardlink");
 	assertEmptyFile("test.out");
+#ifdef _WIN32
+	assertTextFileContents("bsdtar.exe: Removing leading '/' from member names\x0a", "test.err");
+#else
 	assertTextFileContents("bsdtar: Removing leading '/' from member names\x0a", "test.err");
+#endif
 }
 
