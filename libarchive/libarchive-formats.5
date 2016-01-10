@@ -55,7 +55,7 @@ It can write POSIX-standard
 .Dq ustar
 and
 .Dq pax interchange
-formats and a subset of the legacy GNU tar format.
+formats as well as v7 tar format and a subset of the legacy GNU tar format.
 .Pp
 All tar formats store each entry in one or more 512-byte records.
 The first record is used for file metadata, including filename,
@@ -150,6 +150,31 @@ Archive entries are limited to 8 gigabytes in size.
 Note that the pax interchange format has none of these restrictions.
 The ustar format is old and widely supported.
 It is recommended when compatibility is the primary concern.
+.El
+.It Cm v7
+The libarchive library can read and write the legacy v7 tar format.
+This format has the following limitations:
+.Bl -bullet -compact
+.It
+Only regular files, directories, and symbolic links can be archived.
+Block and character device nodes, FIFOs, and sockets cannot be archived.
+.It
+Path names in the archive are limited to 100 bytes.
+.It
+Symbolic links and hard links are stored in the archive with
+the name of the referenced file.
+This name is limited to 100 bytes.
+.It
+User and group information are stored as numeric IDs; there
+is no provision for storing user or group names.
+.It
+Extended attributes, file flags, and other extended
+security information cannot be stored.
+.It
+Archive entries are limited to 8 gigabytes in size.
+.El
+Generally, users should prefer the ustar format for portability
+as the v7 tar format is both less useful and less portable.
 .El
 .Pp
 The libarchive library also reads a variety of commonly-used extensions to
