@@ -171,7 +171,6 @@ IF(ENABLE_TEST)
     test_read_format_zip_padded.c
     test_read_format_zip_sfx.c
     test_read_format_zip_traditional_encryption_data.c
-    test_read_format_zip_utf8_paths.c
     test_read_format_zip_winzip_aes.c
     test_read_format_zip_winzip_aes_large.c
     test_read_format_zip_zip64.c
