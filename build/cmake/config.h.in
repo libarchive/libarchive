@@ -743,6 +743,12 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
 #cmakedefine HAVE_NDIR_H 1
 
+/* Define to 1 if you have the <nettle/aes.h> header file. */
+#cmakedefine HAVE_NETTLE_AES_H 1
+
+/* Define to 1 if you have the <nettle/hmac.h> header file. */
+#cmakedefine HAVE_NETTLE_HMAC_H 1
+
 /* Define to 1 if you have the <nettle/md5.h> header file. */
 #cmakedefine HAVE_NETTLE_MD5_H 1
 
