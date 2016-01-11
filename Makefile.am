@@ -767,6 +767,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_ustar_filename_cp866.tar.Z.uu \
 	libarchive/test/test_read_format_ustar_filename_eucjp.tar.Z.uu \
 	libarchive/test/test_read_format_ustar_filename_koi8r.tar.Z.uu \
+	libarchive/test/test_read_format_warc.warc.uu \
 	libarchive/test/test_read_format_zip.zip.uu \
 	libarchive/test/test_read_format_zip_comment_stored_1.zip.uu \
 	libarchive/test/test_read_format_zip_comment_stored_2.zip.uu \
@@ -782,6 +783,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_length_at_end.zip.uu \
 	libarchive/test/test_read_format_zip_mac_metadata.zip.uu \
 	libarchive/test/test_read_format_zip_malformed1.zip.uu \
+	libarchive/test/test_read_format_zip_msdos.zip.uu \
 	libarchive/test/test_read_format_zip_nested.zip.uu \
 	libarchive/test/test_read_format_zip_nofiletype.zip.uu \
 	libarchive/test/test_read_format_zip_padded1.zip.uu \
