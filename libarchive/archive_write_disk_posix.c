@@ -2447,6 +2447,9 @@ check_symlinks(struct archive_write_disk *a)
 				return (ARCHIVE_FAILED);
 			}
 		}
+		pn[0] = c;
+		if (pn[0] != '\0')
+			pn++; /* Advance to the next segment. */
 	}
 	pn[0] = c;
 	/* We've checked and/or cleaned the whole path, so remember it. */
