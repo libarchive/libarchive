@@ -402,7 +402,7 @@ _popul_ehdr(struct archive_string *tgt, size_t tsz, warc_essential_hdr_t hdr)
 		 * handle the minimum number following '%'.
 		 * So we have to use snprintf function here instead
 		 * of archive_string_snprintf function. */
-#if defined(_WIN32) && !defined(__CYGWIN__)
+#if defined(_WIN32) && !defined(__CYGWIN__) && !( defined(_MSC_VER) && _MSC_VER >= 1900)
 #define snprintf _snprintf
 #endif
 		snprintf(
