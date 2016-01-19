@@ -72,7 +72,7 @@ typedef struct {
 	unsigned	encr_pos;
 } archive_crypto_ctx;
 
-#elif defined(HAVE_LIBNETTLE)
+#elif defined(HAVE_LIBNETTLE) && defined(HAVE_NETTLE_AES_H)
 #if defined(HAVE_NETTLE_PBKDF2_H)
 #include <nettle/pbkdf2.h>
 #endif

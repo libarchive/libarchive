@@ -53,7 +53,7 @@ typedef struct {
 
 } archive_hmac_sha1_ctx;
 
-#elif defined(HAVE_LIBNETTLE)
+#elif defined(HAVE_LIBNETTLE) && defined(HAVE_NETTLE_HMAC_H)
 #include <nettle/hmac.h>
 
 typedef	struct hmac_sha1_ctx archive_hmac_sha1_ctx;

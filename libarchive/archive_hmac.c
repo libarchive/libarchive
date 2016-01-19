@@ -129,7 +129,7 @@ __hmac_sha1_cleanup(archive_hmac_sha1_ctx *ctx)
 	}
 }
 
-#elif defined(HAVE_LIBNETTLE)
+#elif defined(HAVE_LIBNETTLE) && defined(HAVE_NETTLE_HMAC_H)
 
 static int
 __hmac_sha1_init(archive_hmac_sha1_ctx *ctx, const uint8_t *key, size_t key_len)

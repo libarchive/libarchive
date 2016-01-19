@@ -780,8 +780,9 @@ esac
 
 if test "x$with_nettle" != "xno"; then
     AC_CHECK_HEADERS([nettle/md5.h nettle/ripemd160.h nettle/sha.h])
+    AC_CHECK_HEADERS([nettle/pbkdf2.h nettle/aes.h nettle/hmac.h])
     saved_LIBS=$LIBS
-    AC_CHECK_LIB(nettle,main)
+    AC_CHECK_LIB(nettle,nettle_sha1_init)
     CRYPTO_CHECK(MD5, NETTLE, md5)
     CRYPTO_CHECK(RMD160, NETTLE, rmd160)
     CRYPTO_CHECK(SHA1, NETTLE, sha1)
@@ -790,10 +791,9 @@ if test "x$with_nettle" != "xno"; then
     CRYPTO_CHECK(SHA512, NETTLE, sha512)
     if test "x$found_NETTLE" != "xyes"; then
       LIBS=$saved_LIBS
-    else
-      AC_CHECK_HEADERS([nettle/pbkdf2.h])
     fi
 fi
+
 if test "x$with_openssl" != "xno"; then
     AC_CHECK_HEADERS([openssl/evp.h])
     saved_LIBS=$LIBS
@@ -801,18 +801,18 @@ if test "x$with_openssl" != "xno"; then
       *mingw* | *cygwin*)
         case "$host_cpu" in
           x86_64)
-            AC_CHECK_LIB(eay64,main)
+            AC_CHECK_LIB(eay64,OPENSSL_config)
             if test "x$ac_cv_lib_eay64_main" != "xyes"; then
-              AC_CHECK_LIB(eay32,main)
+              AC_CHECK_LIB(eay32,OPENSSL_config)
             fi
             ;;
           *)
-            AC_CHECK_LIB(eay32,main)
+            AC_CHECK_LIB(eay32,OPENSSL_config)
             ;;
         esac
         ;;
       *)
-        AC_CHECK_LIB(crypto,main)
+        AC_CHECK_LIB(crypto,OPENSSL_config)
         ;;
     esac
     CRYPTO_CHECK(MD5, OPENSSL, md5)
@@ -832,7 +832,7 @@ fi
 # The two are incompatible and OpenSSL is more complete.
 AC_CHECK_HEADERS([md5.h ripemd.h sha.h sha256.h sha512.h])
 saved_LIBS=$LIBS
-AC_CHECK_LIB(md,main)
+AC_CHECK_LIB(md,MD5Init)
 CRYPTO_CHECK(MD5, LIBMD, md5)
 CRYPTO_CHECK(RMD160, LIBMD, rmd160)
 CRYPTO_CHECK(SHA1, LIBMD, sha1)

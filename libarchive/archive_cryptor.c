@@ -256,7 +256,7 @@ aes_ctr_release(archive_crypto_ctx *ctx)
 	return 0;
 }
 
-#elif defined(HAVE_LIBNETTLE)
+#elif defined(HAVE_LIBNETTLE) && defined(HAVE_NETTLE_AES_H)
 
 static int
 aes_ctr_init(archive_crypto_ctx *ctx, const uint8_t *key, size_t key_len)
