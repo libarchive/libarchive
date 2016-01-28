@@ -40,6 +40,10 @@ DEFINE_TEST(test_read_too_many_filters)
 	assertEqualIntA(a, ARCHIVE_FATAL,
 	    archive_read_open_filename(a, name, 200));
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	// Can't assert the return value here:
+	//  = Decompressing via zlib will return ARCHIVE_OK
+	//  = Decompressing via external gzip will return ARCHIVE_WARN
+	//    (Due to a dirty shutdown of the gzip program.)
+	archive_read_close(a);
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
