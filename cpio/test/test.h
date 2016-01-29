@@ -85,6 +85,8 @@
 /* Windows (including Visual Studio and MinGW but not Cygwin) */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #if !defined(__BORLANDC__)
+#undef chdir
+#define chdir _chdir
 #define strdup _strdup
 #endif
 #endif
@@ -276,6 +278,9 @@ int canGrzip(void);
 /* Return true if this platform can run the "gzip" program. */
 int canGzip(void);
 
+/* Return true if this platform can run the specified command. */
+int canRunCommand(const char *);
+
 /* Return true if this platform can run the "lrzip" program. */
 int canLrzip(void);
 
@@ -304,10 +309,18 @@ int is_LargeInode(const char *);
 /* Supports printf-style args: slurpfile(NULL, "%s/myfile", refdir); */
 char *slurpfile(size_t *, const char *fmt, ...);
 
+/* Dump block of bytes to a file. */
+void dumpfile(const char *filename, void *, size_t);
+
 /* Extracts named reference file to the current directory. */
 void extract_reference_file(const char *);
 /* Copies named reference file to the current directory. */
 void copy_reference_file(const char *);
+
+/* Extracts a list of files to the current directory.
+ * List must be NULL terminated.
+ */
+void extract_reference_files(const char **);
 
 /* Path to working directory for current test */
 extern const char *testworkdir;

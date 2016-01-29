@@ -66,6 +66,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <time.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -84,6 +85,8 @@
 /* Windows (including Visual Studio and MinGW but not Cygwin) */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #if !defined(__BORLANDC__)
+#undef chdir
+#define chdir _chdir
 #define strdup _strdup
 #endif
 #endif
@@ -201,7 +204,7 @@
   assertion_make_hardlink(__FILE__, __LINE__, newfile, oldfile)
 #define assertMakeSymlink(newfile, linkto)	\
   assertion_make_symlink(__FILE__, __LINE__, newfile, linkto)
-#define assertNodump(path)	\
+#define assertNodump(path)      \
   assertion_nodump(__FILE__, __LINE__, path)
 #define assertUmask(mask)	\
   assertion_umask(__FILE__, __LINE__, mask)
