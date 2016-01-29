@@ -130,6 +130,13 @@ __FBSDID("$FreeBSD: head/lib/libarchive/test/main.c 201247 2009-12-30 05:59:21Z 
 
 /* Path to working directory for current test */
 const char *testworkdir;
+#ifdef PROGRAM
+/* Pathname of exe to be tested. */
+const char *testprogfile;
+/* Name of exe to use in printf-formatted command strings. */
+/* On Windows, this includes leading/trailing quotes. */
+const char *testprog;
+#endif
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 static void	*GetFunctionKernel32(const char *);
@@ -1037,6 +1044,7 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 		if (expected == NULL) {
 			failure_start(pathname, line, "Can't allocate memory");
 			failure_finish(NULL);
+			free(expected);
 			return (0);
 		}
 		for (i = 0; lines[i] != NULL; ++i) {
@@ -2188,6 +2196,7 @@ dumpfile(const char *filename, void *data, size_t len)
 
 /* Read a uuencoded file from the reference directory, decode, and
  * write the result into the current directory. */
+#define VALID_UUDECODE(c) (c >= 32 && c <= 96)
 #define	UUDECODE(c) (((c) - 0x20) & 0x3f)
 void
 extract_reference_file(const char *name)
@@ -2211,7 +2220,6 @@ extract_reference_file(const char *name)
 			break;
 	}
 	/* Now, decode the rest and write it. */
-	/* Not a lot of error checking here; the input better be right. */
 	out = fopen(name, "wb");
 	while (fgets(buff, sizeof(buff), in) != NULL) {
 		char *p = buff;
@@ -2225,17 +2233,21 @@ extract_reference_file(const char *name)
 			int n = 0;
 			/* Write out 1-3 bytes from that. */
 			if (bytes > 0) {
+				assert(VALID_UUDECODE(p[0]));
+				assert(VALID_UUDECODE(p[1]));
 				n = UUDECODE(*p++) << 18;
 				n |= UUDECODE(*p++) << 12;
 				fputc(n >> 16, out);
 				--bytes;
 			}
 			if (bytes > 0) {
+				assert(VALID_UUDECODE(p[0]));
 				n |= UUDECODE(*p++) << 6;
 				fputc((n >> 8) & 0xFF, out);
 				--bytes;
 			}
 			if (bytes > 0) {
+				assert(VALID_UUDECODE(p[0]));
 				n |= UUDECODE(*p++);
 				fputc(n & 0xFF, out);
 				--bytes;
@@ -2562,7 +2574,7 @@ get_refdir(const char *d)
 failure:
 	printf("Unable to locate known reference file %s\n", KNOWNREF);
 	printf("  Checked following directories:\n%s\n", tried);
-	printf("Use -r option to specify full path to libarchive/test directory\n");
+	printf("Use -r option to specify full path to reference directory\n");
 #if defined(_WIN32) && !defined(__CYGWIN__) && defined(_DEBUG)
 	DebugBreak();
 #endif

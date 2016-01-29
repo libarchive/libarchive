@@ -132,11 +132,13 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/test/main.c,v 1.6 2008/11/05 06:40:53 kientz
 
 /* Path to working directory for current test */
 const char *testworkdir;
+#ifdef PROGRAM
 /* Pathname of exe to be tested. */
 const char *testprogfile;
 /* Name of exe to use in printf-formatted command strings. */
 /* On Windows, this includes leading/trailing quotes. */
 const char *testprog;
+#endif
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 static void	*GetFunctionKernel32(const char *);
@@ -573,10 +575,10 @@ static void strdump(const char *e, const char *p, int ewidth, int utf8)
 	while (*p != '\0') {
 		unsigned int c = 0xff & *p++;
 		switch (c) {
-		case '\a': printf("\a"); break;
-		case '\b': printf("\b"); break;
-		case '\n': printf("\n"); break;
-		case '\r': printf("\r"); break;
+		case '\a': logprintf("\\a"); break;
+		case '\b': logprintf("\\b"); break;
+		case '\n': logprintf("\\n"); break;
+		case '\r': logprintf("\\r"); break;
 		default:
 			if (c >= 32 && c < 127)
 				logprintf("%c", c);
@@ -1069,7 +1071,8 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 			free(expected);
 			return (0);
 		}
-		for (j = 0, p = buff; p < buff + buff_size; p += 1 + strlen(p)) {
+		for (j = 0, p = buff; p < buff + buff_size;
+		    p += 1 + strlen(p)) {
 			if (*p != '\0') {
 				actual[j] = p;
 				++j;
@@ -1921,6 +1924,18 @@ canGzip(void)
  * Can this platform run the lrzip program?
  */
 int
+canRunCommand(const char *cmd)
+{
+  static int tested = 0, value = 0;
+  if (!tested) {
+    tested = 1;
+    if (systemf("%s %s", cmd, redirectArgs) == 0)
+      value = 1;
+  }
+  return (value);
+}
+
+int
 canLrzip(void)
 {
 	static int tested = 0, value = 0;
@@ -2159,8 +2174,31 @@ slurpfile(size_t * sizep, const char *fmt, ...)
 	return (p);
 }
 
+/*
+ * Slurp a file into memory for ease of comparison and testing.
+ * Returns size of file in 'sizep' if non-NULL, null-terminates
+ * data in memory for ease of use.
+ */
+void
+dumpfile(const char *filename, void *data, size_t len)
+{
+	ssize_t bytes_written;
+	FILE *f;
+
+	f = fopen(filename, "wb");
+	if (f == NULL) {
+		logprintf("Can't open file %s for writing\n", filename);
+		return;
+	}
+	bytes_written = fwrite(data, 1, len, f);
+	if (bytes_written < (ssize_t)len)
+		logprintf("Can't write file %s\n", filename);
+	fclose(f);
+}
+
 /* Read a uuencoded file from the reference directory, decode, and
  * write the result into the current directory. */
+#define VALID_UUDECODE(c) (c >= 32 && c <= 96)
 #define	UUDECODE(c) (((c) - 0x20) & 0x3f)
 void
 extract_reference_file(const char *name)
@@ -2184,7 +2222,6 @@ extract_reference_file(const char *name)
 			break;
 	}
 	/* Now, decode the rest and write it. */
-	/* Not a lot of error checking here; the input better be right. */
 	out = fopen(name, "wb");
 	while (fgets(buff, sizeof(buff), in) != NULL) {
 		char *p = buff;
@@ -2198,17 +2235,21 @@ extract_reference_file(const char *name)
 			int n = 0;
 			/* Write out 1-3 bytes from that. */
 			if (bytes > 0) {
+				assert(VALID_UUDECODE(p[0]));
+				assert(VALID_UUDECODE(p[1]));
 				n = UUDECODE(*p++) << 18;
 				n |= UUDECODE(*p++) << 12;
 				fputc(n >> 16, out);
 				--bytes;
 			}
 			if (bytes > 0) {
+				assert(VALID_UUDECODE(p[0]));
 				n |= UUDECODE(*p++) << 6;
 				fputc((n >> 8) & 0xFF, out);
 				--bytes;
 			}
 			if (bytes > 0) {
+				assert(VALID_UUDECODE(p[0]));
 				n |= UUDECODE(*p++);
 				fputc(n & 0xFF, out);
 				--bytes;
@@ -2263,6 +2304,14 @@ is_LargeInode(const char *file)
 	return (ino > 0xffffffff);
 #endif
 }
+
+void
+extract_reference_files(const char **names)
+{
+	while (names && *names)
+		extract_reference_file(*names++);
+}
+
 /*
  *
  * TEST management
@@ -2334,7 +2383,7 @@ test_run(int i, const char *tmpdir)
 	case VERBOSITY_SUMMARY_ONLY: /* No per-test reports at all */
 		break;
 	case VERBOSITY_PASSFAIL: /* rest of line will include ok/FAIL marker */
-		printf("%3d: %-50s", i, tests[i].name);
+		printf("%3d: %-64s", i, tests[i].name);
 		fflush(stdout);
 		break;
 	default: /* Title of test, details will follow */
@@ -2527,6 +2576,7 @@ get_refdir(const char *d)
 failure:
 	printf("Unable to locate known reference file %s\n", KNOWNREF);
 	printf("  Checked following directories:\n%s\n", tried);
+	printf("Use -r option to specify full path to reference directory\n");
 #if defined(_WIN32) && !defined(__CYGWIN__) && defined(_DEBUG)
 	DebugBreak();
 #endif
