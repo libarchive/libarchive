@@ -605,7 +605,7 @@ archive_filter_lz4_open(struct archive_write_filter *f)
 	if (data->block_checksum)
 		archive_strcat(&as, " -BX");
 	if (data->stream_checksum == 0)
-		archive_strcat(&as, " -Sx");
+		archive_strcat(&as, " --no-frame-crc");
 	if (data->block_independence == 0)
 		archive_strcat(&as, " -BD");
 
