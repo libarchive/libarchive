@@ -45,13 +45,13 @@ DEFINE_TEST(test_option_lz4)
 			    "without lz4 support");
 			return;
 		}
-		if (strstr(p, "Can't initialise filter") != NULL
+		if (strstr(p, "Filter exited with failure") != NULL
 		    && !canLz4()) {
 			skipping("This version of bsdtar uses an external lz4 program "
 			    "but no such program is available on this system.");
 			return;
 		}
-		failure("--lz4 option is broken");
+		failure("--lz4 option is broken: %s", p);
 		assertEqualInt(r, 0);
 		return;
 	}
