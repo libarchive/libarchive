@@ -1531,7 +1531,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   /* Split file in multivolume RAR. No more need to process header. */
   if (rar->filename_save &&
     filename_size == rar->filename_save_size &&
-    !memcmp(rar->filename, rar->filename_save, filename_size + 1))
+    !strncmp(rar->filename, rar->filename_save, filename_size + 1))
   {
     __archive_read_consume(a, header_size - 7);
     rar->cursor++;
