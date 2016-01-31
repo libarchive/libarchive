@@ -231,7 +231,7 @@ __archive_write_program_open(struct archive_write_filter *f,
 		    &data->child_stdout);
 	if (child == -1) {
 		archive_set_error(f->archive, EINVAL,
-		    "Can't initialise filter");
+		    "Can't launch external program: %s", cmd);
 		return (ARCHIVE_FATAL);
 	}
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -242,7 +242,7 @@ __archive_write_program_open(struct archive_write_filter *f,
 		close(data->child_stdout);
 		data->child_stdout = -1;
 		archive_set_error(f->archive, EINVAL,
-		    "Can't initialise filter");
+		    "Can't launch external program: %s", cmd);
 		return (ARCHIVE_FATAL);
 	}
 #else
@@ -323,6 +323,7 @@ int
 __archive_write_program_write(struct archive_write_filter *f,
     struct archive_write_program_data *data, const void *buff, size_t length)
 {
+	struct private_data *private = (struct private_data *)f->data;
 	ssize_t ret;
 	const char *buf;
 
@@ -334,7 +335,7 @@ __archive_write_program_write(struct archive_write_filter *f,
 		ret = child_write(f, data, buf, length);
 		if (ret == -1 || ret == 0) {
 			archive_set_error(f->archive, EIO,
-			    "Can't write to filter");
+			    "Can't write to program: %s", private->cmd);
 			return (ARCHIVE_FATAL);
 		}
 		length -= ret;
@@ -350,6 +351,7 @@ int
 __archive_write_program_close(struct archive_write_filter *f,
     struct archive_write_program_data *data)
 {
+	struct private_data *private = (struct private_data *)f->data;
 	int ret, r1, status;
 	ssize_t bytes_read;
 
@@ -373,7 +375,7 @@ __archive_write_program_close(struct archive_write_filter *f,
 
 		if (bytes_read == -1) {
 			archive_set_error(f->archive, errno,
-			    "Read from filter failed unexpectedly.");
+			    "Error reading from program: %s", private->cmd);
 			ret = ARCHIVE_FATAL;
 			goto cleanup;
 		}
@@ -403,7 +405,7 @@ cleanup:
 
 	if (status != 0) {
 		archive_set_error(f->archive, EIO,
-		    "Filter exited with failure.");
+		    "Error closing program: %s", private->cmd);
 		ret = ARCHIVE_FATAL;
 	}
 	r1 = __archive_write_close_filter(f->next_filter);
