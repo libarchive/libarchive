@@ -45,8 +45,20 @@ DEFINE_TEST(test_option_lz4)
 			    "without lz4 support");
 			return;
 		}
-		if (strstr(p, "Can't launch") != NULL
-		    && !canLz4()) {
+		/* POSIX permits different handling of the spawnp
+		 * system call used to launch the subsidiary
+		 * program: */
+		/* Some systems fail immediately to spawn the new process. */
+		if (strstr(p, "Can't launch") != NULL && !canLz4()) {
+			skipping("This version of bsdtar uses an external lz4 program "
+			    "but no such program is available on this system.");
+			return;
+		}
+		/* Some systems successfully spawn the new process,
+		 * but fail to exec a program within that process.
+		 * This results in failure at the first attempt to
+		 * write. */
+		if (strstr(p, "Can't write") != NULL && !canLz4()) {
 			skipping("This version of bsdtar uses an external lz4 program "
 			    "but no such program is available on this system.");
 			return;
