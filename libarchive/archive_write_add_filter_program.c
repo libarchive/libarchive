@@ -68,6 +68,7 @@ struct archive_write_program_data {
 
 	char		*child_buf;
 	size_t		 child_buf_len, child_buf_avail;
+	char		*program_name;
 };
 
 struct private_data {
@@ -105,7 +106,7 @@ archive_write_add_filter_program(struct archive *_a, const char *cmd)
 	if (data->cmd == NULL)
 		goto memerr;
 
-	data->pdata = __archive_write_program_allocate();
+	data->pdata = __archive_write_program_allocate(cmd);
 	if (data->pdata == NULL)
 		goto memerr;
 
@@ -174,7 +175,7 @@ archive_compressor_program_free(struct archive_write_filter *f)
  * Allocate resources for executing an external program.
  */
 struct archive_write_program_data *
-__archive_write_program_allocate(void)
+__archive_write_program_allocate(const char *program)
 {
 	struct archive_write_program_data *data;
 
@@ -183,6 +184,7 @@ __archive_write_program_allocate(void)
 		return (data);
 	data->child_stdin = -1;
 	data->child_stdout = -1;
+	data->program_name = strdup(program);
 	return (data);
 }
 
@@ -323,7 +325,6 @@ int
 __archive_write_program_write(struct archive_write_filter *f,
     struct archive_write_program_data *data, const void *buff, size_t length)
 {
-	struct private_data *private = (struct private_data *)f->data;
 	ssize_t ret;
 	const char *buf;
 
@@ -335,7 +336,7 @@ __archive_write_program_write(struct archive_write_filter *f,
 		ret = child_write(f, data, buf, length);
 		if (ret == -1 || ret == 0) {
 			archive_set_error(f->archive, EIO,
-			    "Can't write to program: %s", private->cmd);
+			    "Can't write to program: %s", data->program_name);
 			return (ARCHIVE_FATAL);
 		}
 		length -= ret;
@@ -351,7 +352,6 @@ int
 __archive_write_program_close(struct archive_write_filter *f,
     struct archive_write_program_data *data)
 {
-	struct private_data *private = (struct private_data *)f->data;
 	int ret, r1, status;
 	ssize_t bytes_read;
 
@@ -375,7 +375,7 @@ __archive_write_program_close(struct archive_write_filter *f,
 
 		if (bytes_read == -1) {
 			archive_set_error(f->archive, errno,
-			    "Error reading from program: %s", private->cmd);
+			    "Error reading from program: %s", data->program_name);
 			ret = ARCHIVE_FATAL;
 			goto cleanup;
 		}
@@ -405,7 +405,7 @@ cleanup:
 
 	if (status != 0) {
 		archive_set_error(f->archive, EIO,
-		    "Error closing program: %s", private->cmd);
+		    "Error closing program: %s", data->program_name);
 		ret = ARCHIVE_FATAL;
 	}
 	r1 = __archive_write_close_filter(f->next_filter);

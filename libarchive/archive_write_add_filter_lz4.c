@@ -137,7 +137,7 @@ archive_write_add_filter_lz4(struct archive *_a)
 	 * We don't have lz4 library, and execute external lz4 program
 	 * instead.
 	 */
-	data->pdata = __archive_write_program_allocate();
+	data->pdata = __archive_write_program_allocate("lz4");
 	if (data->pdata == NULL) {
 		free(data);
 		archive_set_error(&a->archive, ENOMEM, "Out of memory");
