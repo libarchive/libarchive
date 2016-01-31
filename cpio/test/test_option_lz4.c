@@ -45,7 +45,7 @@ DEFINE_TEST(test_option_lz4)
 			    "without lz4 support");
 			return;
 		}
-		if (strstr(p, "Filter exited with failure") != NULL
+		if (strstr(p, "Can't launch") != NULL
 		    && !canLz4()) {
 			skipping("This version of bsdtar uses an external lz4 program "
 			    "but no such program is available on this system.");
