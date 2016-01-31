@@ -2660,7 +2660,7 @@ main(int argc, char **argv)
 			exit(1);
 		}
 		memmove(testprogdir + strlen(pwd) + 1, testprogdir,
-		    strlen(testprogdir));
+		    strlen(testprogdir) + 1);
 		memcpy(testprogdir, pwd, strlen(pwd));
 		testprogdir[strlen(pwd)] = '/';
 	}
