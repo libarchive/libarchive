@@ -218,9 +218,19 @@ create_sparse_file(const char *path, const struct sparse *s)
 {
 	char buff[1024];
 	int fd;
+	size_t total_size = 0;
+	const struct sparse *cur = s;
 
 	memset(buff, ' ', sizeof(buff));
 	assert((fd = open(path, O_CREAT | O_WRONLY, 0600)) != -1);
+
+	/* Handle holes at the end by extending the file */
+	while (cur->type != END) {
+		total_size += cur->size;
+		++cur;
+	}
+	assert(ftruncate(fd, total_size) != -1);
+
 	while (s->type != END) {
 		if (s->type == HOLE) {
 			assert(lseek(fd, s->size, SEEK_CUR) != (off_t)-1);
