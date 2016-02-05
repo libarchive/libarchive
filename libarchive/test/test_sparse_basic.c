@@ -259,7 +259,7 @@ create_sparse_file(const char *path, const struct sparse *s)
  */
 static void
 verify_sparse_file(struct archive *a, const char *path,
-    const struct sparse *sparse, int blocks)
+    const struct sparse *sparse, int blocks, int expected_data_blocks)
 {
 	struct archive_entry *ae;
 	const void *buff;
@@ -288,9 +288,10 @@ verify_sparse_file(struct archive *a, const char *path,
 		}
 		total = offset + bytes_read;
 	}
-	if (!hole && data_blocks == 1)
-		data_blocks = 0;/* There are no holes */
-	assertEqualInt(blocks, data_blocks);
+	assertEqualInt(expected_data_blocks, data_blocks);
+
+	if (blocks > 1)
+		assert(hole); /* There must be a hole if > 1 blocks were encoded */
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	archive_entry_free(ae);
@@ -435,10 +436,11 @@ DEFINE_TEST(test_sparse_basic)
 	 */
 	assert((a = archive_read_disk_new()) != NULL);
 
-	verify_sparse_file(a, "file0", sparse_file0, 5);
-	verify_sparse_file(a, "file1", sparse_file1, 2);
-	verify_sparse_file(a, "file2", sparse_file2, 20);
-	verify_sparse_file(a, "file3", sparse_file3, 0);
+	verify_sparse_file(a, "file0", sparse_file0, 5, 5);
+	verify_sparse_file(a, "file1", sparse_file1, 2, 2);
+	verify_sparse_file(a, "file2", sparse_file2, 20, 20);
+	/* Encoded non sparse; expect a data block but no sparse entries. */
+	verify_sparse_file(a, "file3", sparse_file3, 0, 1);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
