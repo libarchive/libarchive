@@ -455,3 +455,37 @@ DEFINE_TEST(test_sparse_basic)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	free(cwd);
 }
+
+DEFINE_TEST(test_fully_sparse_files)
+{
+	char *cwd;
+	struct archive *a;
+
+	const struct sparse sparse_file[] = {
+		{ HOLE, 409600 }, { END, 0 }
+	};
+	/* Check if the filesystem where CWD on can
+	 * report the number of the holes of a sparse file. */
+#ifdef PATH_MAX
+	cwd = getcwd(NULL, PATH_MAX);/* Solaris getcwd needs the size. */
+#else
+	cwd = getcwd(NULL, 0);
+#endif
+	if (!assert(cwd != NULL))
+		return;
+	if (!is_sparse_supported(cwd)) {
+		free(cwd);
+		skipping("This filesystem or platform do not support "
+		    "the reporting of the holes of a sparse file through "
+		    "API such as lseek(HOLE)");
+		return;
+	}
+
+	assert((a = archive_read_disk_new()) != NULL);
+
+	/* Fully sparse files are encoded with a zero-length "data" block. */
+	verify_sparse_file(a, "file0", sparse_file, 1, 1);
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	free(cwd);
+}
