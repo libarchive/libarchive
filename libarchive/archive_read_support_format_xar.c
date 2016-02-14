@@ -2168,7 +2168,7 @@ xml_start(struct archive_read *a, const char *name, struct xmlattr_list *list)
 	case FILE_ACL:
 		if (strcmp(name, "appleextended") == 0)
 			xar->xmlsts = FILE_ACL_APPLEEXTENDED;
-		if (strcmp(name, "default") == 0)
+		else if (strcmp(name, "default") == 0)
 			xar->xmlsts = FILE_ACL_DEFAULT;
 		else if (strcmp(name, "access") == 0)
 			xar->xmlsts = FILE_ACL_ACCESS;
