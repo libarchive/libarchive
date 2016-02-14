@@ -1939,9 +1939,6 @@ unknowntag_start(struct archive_read *a, struct xar *xar, const char *name)
 {
 	struct unknown_tag *tag;
 
-#if DEBUG
-	fprintf(stderr, "unknowntag_start:%s\n", name);
-#endif
 	tag = malloc(sizeof(*tag));
 	if (tag == NULL) {
 		archive_set_error(&a->archive, ENOMEM, "Out of memory");
@@ -1951,6 +1948,9 @@ unknowntag_start(struct archive_read *a, struct xar *xar, const char *name)
 	archive_string_init(&(tag->name));
 	archive_strcpy(&(tag->name), name);
 	if (xar->unknowntags == NULL) {
+#if DEBUG
+		fprintf(stderr, "UNKNOWNTAG_START:%s\n", name);
+#endif
 		xar->xmlsts_unknown = xar->xmlsts;
 		xar->xmlsts = UNKNOWN;
 	}
@@ -1963,9 +1963,6 @@ unknowntag_end(struct xar *xar, const char *name)
 {
 	struct unknown_tag *tag;
 
-#if DEBUG
-	fprintf(stderr, "unknowntag_end:%s\n", name);
-#endif
 	tag = xar->unknowntags;
 	if (tag == NULL || name == NULL)
 		return;
@@ -1973,8 +1970,12 @@ unknowntag_end(struct xar *xar, const char *name)
 		xar->unknowntags = tag->next;
 		archive_string_free(&(tag->name));
 		free(tag);
-		if (xar->unknowntags == NULL)
+		if (xar->unknowntags == NULL) {
+#if DEBUG
+			fprintf(stderr, "UNKNOWNTAG_END:%s\n", name);
+#endif
 			xar->xmlsts = xar->xmlsts_unknown;
+		}
 	}
 }
 
@@ -2690,9 +2691,9 @@ xml_data(void *userData, const char *s, int len)
 #if DEBUG
 	{
 		char buff[1024];
-		if (len > sizeof(buff)-1)
-			len = sizeof(buff)-1;
-		memcpy(buff, s, len);
+		if (len > (int)(sizeof(buff)-1))
+			len = (int)(sizeof(buff)-1);
+		strncpy(buff, s, len);
 		buff[len] = 0;
 		fprintf(stderr, "\tlen=%d:\"%s\"\n", len, buff);
 	}
