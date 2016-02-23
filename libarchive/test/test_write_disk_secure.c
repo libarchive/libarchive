@@ -105,6 +105,25 @@ DEFINE_TEST(test_write_disk_secure)
 	archive_entry_free(ae);
 	assert(0 == archive_write_finish_entry(a));
 
+	/* Create a nested symlink. */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "dir/nested_link_to_dir");
+	archive_entry_set_mode(ae, S_IFLNK | 0777);
+	archive_entry_set_symlink(ae, "../dir");
+	archive_write_disk_set_options(a, 0);
+	assert(0 == archive_write_header(a, ae));
+	assert(0 == archive_write_finish_entry(a));
+
+	/* But with security checks enabled, this should fail. */
+	assert(archive_entry_clear(ae) != NULL);
+	archive_entry_copy_pathname(ae, "dir/nested_link_to_dir/filed");
+	archive_entry_set_mode(ae, S_IFREG | 0777);
+	archive_write_disk_set_options(a, ARCHIVE_EXTRACT_SECURE_SYMLINKS);
+	failure("Extracting a file through a symlink should fail here.");
+	assertEqualInt(ARCHIVE_FAILED, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assert(0 == archive_write_finish_entry(a));
+
 	/*
 	 * Without security checks, extracting a dir over a link to a
 	 * dir should follow the link.
@@ -234,5 +253,8 @@ DEFINE_TEST(test_write_disk_secure)
 	assert(S_ISREG(st.st_mode));
 	failure("link_to_dir2/filec: st.st_mode=%o", st.st_mode);
 	assert((st.st_mode & 07777) == 0755);
+
+	failure("dir/filed: This file should not have been created");
+	assert(0 != lstat("dir/filed", &st));
 #endif
 }
