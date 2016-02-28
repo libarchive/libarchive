@@ -1576,6 +1576,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 #if defined(HAVE_STRUCT_STATFS_F_NAMEMAX)
 	t->current_filesystem->name_max = sfs.f_namemax;
 #else
+# if defined(_PC_NAME_MAX)
 	/* Mac OS X does not have f_namemax in struct statfs. */
 	if (tree_current_is_symblic_link_target(t)) {
 		if (tree_enter_working_dir(t) != 0) {
@@ -1585,6 +1586,9 @@ setup_current_filesystem(struct archive_read_disk *a)
 		nm = pathconf(tree_current_access_path(t), _PC_NAME_MAX);
 	} else
 		nm = fpathconf(tree_current_dir_fd(t), _PC_NAME_MAX);
+# else
+	nm = -1;
+# endif
 	if (nm == -1)
 		t->current_filesystem->name_max = NAME_MAX;
 	else
