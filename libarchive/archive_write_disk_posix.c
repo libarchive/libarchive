@@ -1620,16 +1620,6 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	}
 
 	/*
-	 * Security-related extended attributes (such as
-	 * security.capability on Linux) have to be restored last,
-	 * since they're implicitly removed by other file changes.
-	 */
-	if (a->todo & TODO_XATTR) {
-		int r2 = set_xattrs(a);
-		if (r2 < ret) ret = r2;
-	}
-
-	/*
 	 * Some flags prevent file modification; they must be restored after
 	 * file contents are written.
 	 */
@@ -1644,6 +1634,17 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	 */
 	if (a->todo & TODO_TIMES) {
 		int r2 = set_times_from_entry(a);
+		if (r2 < ret) ret = r2;
+	}
+
+	/*
+	 * Security-related extended attributes (such as
+	 * security.capability or security.ima on Linux) have to be restored last,
+	 * since they're implicitly removed by other file changes like setting
+	 * times.
+	 */
+	if (a->todo & TODO_XATTR) {
+		int r2 = set_xattrs(a);
 		if (r2 < ret) ret = r2;
 	}
 
