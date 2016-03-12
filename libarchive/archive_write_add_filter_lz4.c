@@ -565,6 +565,8 @@ drive_compressor_dependence(struct archive_write_filter *f, const char *p,
 				return (ARCHIVE_FATAL);
 			}
 		}
+		else
+			LZ4_loadDictHC(data->lz4_stream, data->in_buffer_allocated, DICT_SIZE);
 
 #if LZ4_VERSION_MAJOR >= 1 && LZ4_VERSION_MINOR >= 7
 		outsize = LZ4_compress_HC_continue(
@@ -587,6 +589,8 @@ drive_compressor_dependence(struct archive_write_filter *f, const char *p,
 				return (ARCHIVE_FATAL);
 			}
 		}
+		else
+			LZ4_loadDict(data->lz4_stream, data->in_buffer_allocated, DICT_SIZE);
 
 #if LZ4_VERSION_MAJOR >= 1 && LZ4_VERSION_MINOR >= 7
 		outsize = LZ4_compress_fast_continue(
