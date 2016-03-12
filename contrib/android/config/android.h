@@ -26,6 +26,18 @@
 #ifndef ARCHIVE_PLATFORM_H_ANDROID_INCLUDED
 #define	ARCHIVE_PLATFORM_H_ANDROID_INCLUDED
 
+#include <android/api-level.h>
+#ifdef __ANDROID_API__
+#if __ANDROID_API__ > 20
+#define HAVE_FSTATVFS 1
+#define HAVE_STATVFS 1
+#define HAVE_TIMEGM 1
+#define HAVE_SYS_XATTR_H 1
+#define HAVE_LINUX_FIEMAP_H 1
+#define HAVE_SYS_STATVFS_H 1
+#endif
+#endif
+
 #define HAVE_CHOWN 1
 #define HAVE_CHROOT 1
 #define HAVE_CTIME_R 1
@@ -60,7 +72,6 @@
 #define HAVE_FSTAT 1
 #define HAVE_FSTATAT 1
 #define HAVE_FSTATFS 1
-#define HAVE_FSTATVFS 1
 #define HAVE_FTRUNCATE 1
 #define HAVE_GETEUID 1
 #define HAVE_GETPID 1
@@ -77,7 +88,6 @@
 #define HAVE_LIBZ 1
 #define HAVE_LIMITS_H 1
 #define HAVE_LINK 1
-#define HAVE_LINUX_FIEMAP_H 1
 #define HAVE_LINUX_FS_H 1
 #define HAVE_LINUX_MAGIC_H 1
 #define HAVE_LINUX_TYPES_H 1
@@ -113,7 +123,6 @@
 #define HAVE_SIGACTION 1
 #define HAVE_SIGNAL_H 1
 #define HAVE_STATFS 1
-#define HAVE_STATVFS 1
 #define HAVE_STDARG_H 1
 #define HAVE_STDINT_H 1
 #define HAVE_STDLIB_H 1
@@ -136,15 +145,12 @@
 #define HAVE_SYS_POLL_H 1
 #define HAVE_SYS_SELECT_H 1
 #define HAVE_SYS_STATFS_H 1
-#define HAVE_SYS_STATVFS_H 1
 #define HAVE_SYS_STAT_H 1
 #define HAVE_SYS_TIME_H 1
 #define HAVE_SYS_TYPES_H 1
 #define HAVE_SYS_UTSNAME_H 1
 #define HAVE_SYS_VFS_H 1
 #define HAVE_SYS_WAIT_H 1
-#define HAVE_SYS_XATTR_H 1
-#define HAVE_TIMEGM 1
 #define HAVE_TIME_H 1
 #define HAVE_TZSET 1
 #define HAVE_UINTMAX_T 1
