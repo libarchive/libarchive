@@ -498,7 +498,7 @@ drive_compressor_independence(struct archive_write_filter *f, const char *p,
 	unsigned int outsize;
 
 #ifdef HAVE_LZ4HC_H
-	if (data->compression_level >= 4)
+	if (data->compression_level >= 3)
 #if LZ4_VERSION_MAJOR >= 1 && LZ4_VERSION_MINOR >= 7
 		outsize = LZ4_compress_HC(p, data->out + 4,
 		     (int)length, (int)data->block_size,
