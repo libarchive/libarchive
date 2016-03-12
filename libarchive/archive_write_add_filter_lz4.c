@@ -160,10 +160,20 @@ archive_filter_lz4_options(struct archive_write_filter *f,
 	struct private_data *data = (struct private_data *)f->data;
 
 	if (strcmp(key, "compression-level") == 0) {
-		if (value == NULL || !(value[0] >= '1' && value[0] <= '9') ||
+		int val;
+		if (value == NULL || !((val = value[0] - '0') >= 1 && val <= 9) ||
 		    value[1] != '\0')
 			return (ARCHIVE_WARN);
-		data->compression_level = value[0] - '0';
+
+#ifndef HAVE_LZ4HC_H
+		if(val >= 3)
+		{
+			archive_set_error(f->archive, ARCHIVE_ERRNO_PROGRAMMER,
+				"High compression not included in this build");
+			return (ARCHIVE_FATAL);
+		}
+#endif
+		data->compression_level = val;
 		return (ARCHIVE_OK);
 	}
 	if (strcmp(key, "stream-checksum") == 0) {
@@ -367,14 +377,16 @@ archive_filter_lz4_free(struct archive_write_filter *f)
 	struct private_data *data = (struct private_data *)f->data;
 
 	if (data->lz4_stream != NULL) {
-		if (data->compression_level < 3)
+#ifdef HAVE_LZ4HC_H
+		if (data->compression_level >= 3)
+			LZ4_freeHC(data->lz4_stream);
+		else
+#endif
 #if LZ4_VERSION_MINOR >= 3
 			LZ4_freeStream(data->lz4_stream);
 #else
 			LZ4_free(data->lz4_stream);
 #endif
-		else
-			LZ4_freeHC(data->lz4_stream);
 	}
 	free(data->out_buffer);
 	free(data->in_buffer_allocated);
@@ -481,13 +493,15 @@ drive_compressor_independence(struct archive_write_filter *f, const char *p,
 	struct private_data *data = (struct private_data *)f->data;
 	unsigned int outsize;
 
-	if (data->compression_level < 4)
-		outsize = LZ4_compress_limitedOutput(p, data->out + 4,
-		    (int)length, (int)data->block_size);
-	else
+#ifdef HAVE_LZ4HC_H
+	if (data->compression_level >= 4)
 		outsize = LZ4_compressHC2_limitedOutput(p, data->out + 4,
 		    (int)length, (int)data->block_size,
 		    data->compression_level);
+	else
+#endif
+		outsize = LZ4_compress_limitedOutput(p, data->out + 4,
+		    (int)length, (int)data->block_size);
 
 	if (outsize) {
 		/* The buffer is compressed. */
@@ -518,20 +532,8 @@ drive_compressor_dependence(struct archive_write_filter *f, const char *p,
 	struct private_data *data = (struct private_data *)f->data;
 	int outsize;
 
-	if (data->compression_level < 3) {
-		if (data->lz4_stream == NULL) {
-			data->lz4_stream = LZ4_createStream();
-			if (data->lz4_stream == NULL) {
-				archive_set_error(f->archive, ENOMEM,
-				    "Can't allocate data for compression"
-				    " buffer");
-				return (ARCHIVE_FATAL);
-			}
-		}
-		outsize = LZ4_compress_limitedOutput_continue(
-		    data->lz4_stream, p, data->out + 4, (int)length,
-		    (int)data->block_size);
-	} else {
+#ifdef HAVE_LZ4HC_H
+	if (data->compression_level >= 3) {
 		if (data->lz4_stream == NULL) {
 			data->lz4_stream =
 			    LZ4_createHC(data->in_buffer_allocated);
@@ -545,6 +547,21 @@ drive_compressor_dependence(struct archive_write_filter *f, const char *p,
 		outsize = LZ4_compressHC2_limitedOutput_continue(
 		    data->lz4_stream, p, data->out + 4, (int)length,
 		    (int)data->block_size, data->compression_level);
+	} else
+#endif
+	{
+		if (data->lz4_stream == NULL) {
+			data->lz4_stream = LZ4_createStream();
+			if (data->lz4_stream == NULL) {
+				archive_set_error(f->archive, ENOMEM,
+				    "Can't allocate data for compression"
+				    " buffer");
+				return (ARCHIVE_FATAL);
+			}
+		}
+		outsize = LZ4_compress_limitedOutput_continue(
+		    data->lz4_stream, p, data->out + 4, (int)length,
+		    (int)data->block_size);
 	}
 
 	if (outsize) {
@@ -569,13 +586,15 @@ drive_compressor_dependence(struct archive_write_filter *f, const char *p,
 
 	if (length == data->block_size) {
 #define DICT_SIZE	(64 * 1024)
-		if (data->compression_level < 3)
-			LZ4_saveDict(data->lz4_stream,
-			    data->in_buffer_allocated, DICT_SIZE);
-		else {
+#ifdef HAVE_LZ4HC_H
+		if (data->compression_level >= 3) {
 			LZ4_slideInputBufferHC(data->lz4_stream);
 			data->in_buffer = data->in_buffer_allocated + DICT_SIZE;
 		}
+		else
+#endif
+			LZ4_saveDict(data->lz4_stream,
+			    data->in_buffer_allocated, DICT_SIZE);
 #undef DICT_SIZE
 	}
 	return (ARCHIVE_OK);
