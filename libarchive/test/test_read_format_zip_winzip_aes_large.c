@@ -26,12 +26,6 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef HAVE_LIBZ
-static const int libz_enabled = 1;
-#else
-static const int libz_enabled = 0;
-#endif
-
 DEFINE_TEST(test_read_format_zip_winzip_aes256_large)
 {
 	const char *refname = "test_read_format_zip_winzip_aes256_large.zip";
@@ -143,7 +137,7 @@ DEFINE_TEST(test_read_format_zip_winzip_aes256_large)
 	assertEqualInt(1, archive_entry_is_data_encrypted(ae));
 	assertEqualInt(0, archive_entry_is_metadata_encrypted(ae));
 	assertEqualIntA(a, 1, archive_read_has_encrypted_entries(a));
-	if (libz_enabled) {
+	if (archive_zlib_version() != NULL) {
 		assertEqualInt(512, archive_read_data(a, buff, sizeof(buff)));
 	} else {
 		assertEqualInt(ARCHIVE_FAILED,
@@ -161,7 +155,7 @@ DEFINE_TEST(test_read_format_zip_winzip_aes256_large)
 	assertEqualInt(1, archive_entry_is_data_encrypted(ae));
 	assertEqualInt(0, archive_entry_is_metadata_encrypted(ae));
 	assertEqualIntA(a, 1, archive_read_has_encrypted_entries(a));
-	if (libz_enabled) {
+	if (archive_zlib_version() != NULL) {
 		assertEqualInt(512, archive_read_data(a, buff, sizeof(buff)));
 	} else {
 		assertEqualInt(ARCHIVE_FAILED,
@@ -179,7 +173,7 @@ DEFINE_TEST(test_read_format_zip_winzip_aes256_large)
 	assertEqualInt(1, archive_entry_is_data_encrypted(ae));
 	assertEqualInt(0, archive_entry_is_metadata_encrypted(ae));
 	assertEqualIntA(a, 1, archive_read_has_encrypted_entries(a));
-	if (libz_enabled) {
+	if (archive_zlib_version() != NULL) {
 		assertEqualInt(512, archive_read_data(a, buff, sizeof(buff)));
 	} else {
 		assertEqualInt(ARCHIVE_FAILED,
@@ -197,7 +191,7 @@ DEFINE_TEST(test_read_format_zip_winzip_aes256_large)
 	assertEqualInt(1, archive_entry_is_data_encrypted(ae));
 	assertEqualInt(0, archive_entry_is_metadata_encrypted(ae));
 	assertEqualIntA(a, 1, archive_read_has_encrypted_entries(a));
-	if (libz_enabled) {
+	if (archive_zlib_version() != NULL) {
 		assertEqualInt(512, archive_read_data(a, buff, sizeof(buff)));
 	} else {
 		assertEqualInt(ARCHIVE_FAILED,

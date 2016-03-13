@@ -162,6 +162,16 @@ __LA_DECL const char *	archive_version_string(void);
  */
 __LA_DECL const char *	archive_version_details(void);
 
+/*
+ * Returns NULL if libarchive was compiled without the associated library.
+ * Otherwise, returns the version number that libarchive was compiled
+ * against.
+ */
+__LA_DECL const char *  archive_zlib_version(void);
+__LA_DECL const char *  archive_liblzma_version(void);
+__LA_DECL const char *  archive_bzlib_version(void);
+__LA_DECL const char *  archive_liblz4_version(void);
+
 /* Declare our basic types. */
 struct archive;
 struct archive_entry;

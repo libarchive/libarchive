@@ -26,12 +26,6 @@
 #include "test.h"
 __FBSDID("$FreeBSD: head/lib/libarchive/test/test_read_format_zip.c 189482 2009-03-07 03:30:35Z kientzle $");
 
-#ifdef HAVE_LIBZ
-static const int libz_enabled = 1;
-#else
-static const int libz_enabled = 0;
-#endif
-
 /*
  * The reference file for this has been manually tweaked so that:
  *   * file2 has length-at-end but file1 does not
@@ -67,7 +61,7 @@ verify_basic(struct archive *a, int seek_checks)
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
 	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	failure("archive_read_data() returns number of bytes read");
-	if (libz_enabled) {
+	if (archive_zlib_version() != NULL) {
 		assertEqualInt(18, archive_read_data(a, buff, 19));
 		assertEqualMem(buff, "hello\nhello\nhello\n", 18);
 	} else {
@@ -87,7 +81,7 @@ verify_basic(struct archive *a, int seek_checks)
 	}
 	assert(archive_entry_size_is_set(ae));
 	assertEqualInt(18, archive_entry_size(ae));
-	if (libz_enabled) {
+	if (archive_zlib_version() != NULL) {
 		failure("file2 has a bad CRC, so read should fail and not change buff");
 		memset(buff, 'a', 19);
 		assertEqualInt(ARCHIVE_WARN, archive_read_data(a, buff, 19));
@@ -155,7 +149,7 @@ verify_info_zip_ux(struct archive *a, int seek_checks)
 	failure("zip reader should read Info-ZIP New Unix Extra Field");
 	assertEqualInt(1001, archive_entry_uid(ae));
 	assertEqualInt(1001, archive_entry_gid(ae));
-	if (libz_enabled) {
+	if (archive_zlib_version() != NULL) {
 		failure("archive_read_data() returns number of bytes read");
 		assertEqualInt(18, archive_read_data(a, buff, 19));
 		assertEqualMem(buff, "hello\nhello\nhello\n", 18);
@@ -226,7 +220,7 @@ verify_extract_length_at_end(struct archive *a, int seek_checks)
 		assertEqualInt(0, archive_entry_size(ae));
 	}
 
-	if (libz_enabled) {
+	if (archive_zlib_version() != NULL) {
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_extract(a, ae, 0));
 		assertFileContents("hello\x0A", 6, "hello.txt");
 	} else {

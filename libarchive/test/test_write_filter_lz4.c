@@ -43,14 +43,18 @@ DEFINE_TEST(test_write_filter_lz4)
 
 	assert((a = archive_write_new()) != NULL);
 	r = archive_write_add_filter_lz4(a);
-	if (r != ARCHIVE_OK) {
-		if (canLz4() && r == ARCHIVE_WARN)
-			use_prog = 1;
-		else {
+	if (archive_liblz4_version() == NULL) {
+		if (!canLz4()) {
 			skipping("lz4 writing not supported on this platform");
+			assertEqualInt(ARCHIVE_WARN, r);
 			assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 			return;
+		} else {
+			assertEqualInt(ARCHIVE_WARN, r);
+			use_prog = 1;
 		}
+	} else {
+		assertEqualInt(ARCHIVE_OK, r);
 	}
 
 	buffsize = 2000000;
@@ -280,14 +284,18 @@ test_options(const char *options)
 
 	assert((a = archive_write_new()) != NULL);
 	r = archive_write_add_filter_lz4(a);
-	if (r != ARCHIVE_OK) {
-		if (canLz4() && r == ARCHIVE_WARN)
-			use_prog = 1;
-		else {
+	if (archive_liblz4_version() == NULL) {
+		if (!canLz4()) {
 			skipping("lz4 writing not supported on this platform");
+			assertEqualInt(ARCHIVE_WARN, r);
 			assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 			return;
+		} else {
+			assertEqualInt(ARCHIVE_WARN, r);
+			use_prog = 1;
 		}
+	} else {
+		assertEqualInt(ARCHIVE_OK, r);
 	}
 
 	buffsize = 2000000;
