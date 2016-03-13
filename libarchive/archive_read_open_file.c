@@ -150,7 +150,9 @@ file_skip(struct archive *a, void *client_data, int64_t request)
 			skip = max_skip;
 	}
 
-#if HAVE_FSEEKO
+#ifdef __ANDROID__
+	if (lseek(fileno(mine->f), skip, SEEK_CUR) < 0)
+#elif HAVE_FSEEKO
 	if (fseeko(mine->f, skip, SEEK_CUR) != 0)
 #elif HAVE__FSEEKI64
 	if (_fseeki64(mine->f, skip, SEEK_CUR) != 0)
