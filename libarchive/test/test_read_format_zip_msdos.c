@@ -30,6 +30,8 @@ DEFINE_TEST(test_read_format_zip_msdos)
 	const char *refname = "test_read_format_zip_msdos.zip";
 	struct archive *a;
 	struct archive_entry *ae;
+	char *p;
+	size_t s;
 
 	extract_reference_file(refname);
 
@@ -39,8 +41,10 @@ DEFINE_TEST(test_read_format_zip_msdos)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 17));
 
+	/* 'ab' is marked as a directory in the central dir 
+	 * with MSDOS attribute info  */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualString("a/", archive_entry_pathname(ae));
+	assertEqualString("ab/", archive_entry_pathname(ae));
 	assertEqualInt(AE_IFDIR | 0775, archive_entry_mode(ae));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -52,12 +56,28 @@ DEFINE_TEST(test_read_format_zip_msdos)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	
 	/* Verify with streaming reader. */
-#if 0
 	p = slurpfile(&s, refname);
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, p, s, 31));
-	verify_basic(a, 0);
-#endif
+
+	/*
+	 * 'ab' is not marked as a directory in the local file header
+	 * (local file headers lack external attribute info), so the
+	 * streaming reader can only determine if something is a directory
+	 * by whether the name ends in '/'.
+	 */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("ab", archive_entry_pathname(ae));
+	assertEqualInt(AE_IFREG | 0664, archive_entry_mode(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("a/gru\xCC\x88n.png", archive_entry_pathname(ae));
+	assertEqualInt(AE_IFREG | 0664, archive_entry_mode(ae));
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	free(p);
 }
