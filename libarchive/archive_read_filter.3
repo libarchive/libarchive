@@ -24,11 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 14, 2014
+.Dd March 15, 2016
 .Dt ARCHIVE_READ_FILTER 3
 .Os
 .Sh NAME
 .Nm archive_read_support_filter_all ,
+.Nm archive_read_support_filter_ab ,
 .Nm archive_read_support_filter_bzip2 ,
 .Nm archive_read_support_filter_compress ,
 .Nm archive_read_support_filter_gzip ,
@@ -48,6 +49,8 @@ Streaming Archive Library (libarchive, -larchive)
 .In archive.h
 .Ft int
 .Fn archive_read_support_filter_all "struct archive *"
+.Ft int
+.Fn archive_read_support_filter_ab "struct archive *"
 .Ft int
 .Fn archive_read_support_filter_bzip2 "struct archive *"
 .Ft int
@@ -84,6 +87,7 @@ Streaming Archive Library (libarchive, -larchive)
 .Sh DESCRIPTION
 .Bl -tag -compact -width indent
 .It Xo
+.Fn archive_read_support_filter_ab ,
 .Fn archive_read_support_filter_bzip2 ,
 .Fn archive_read_support_filter_compress ,
 .Fn archive_read_support_filter_gzip ,

@@ -265,6 +265,7 @@ main(int argc, char *argv[])
 		case 'l': /* POSIX 1997 */
 			cpio->option_link = 1;
 			break;
+		case OPTION_AB:
 		case OPTION_LRZIP:
 		case OPTION_LZ4:
 		case OPTION_LZMA: /* GNU tar, others */
@@ -532,6 +533,9 @@ mode_out(struct cpio *cpio)
 		break;
 	case 'J':
 		r = archive_write_add_filter_xz(cpio->archive);
+		break;
+	case OPTION_AB:
+		r = archive_write_add_filter_ab(cpio->archive);
 		break;
 	case OPTION_LRZIP:
 		r = archive_write_add_filter_lrzip(cpio->archive);

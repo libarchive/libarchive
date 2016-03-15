@@ -270,6 +270,7 @@ typedef const char *archive_passphrase_callback(struct archive *,
 #define	ARCHIVE_FILTER_LZOP	11
 #define	ARCHIVE_FILTER_GRZIP	12
 #define	ARCHIVE_FILTER_LZ4	13
+#define	ARCHIVE_FILTER_AB	14
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
 #define	ARCHIVE_COMPRESSION_NONE	ARCHIVE_FILTER_NONE
@@ -408,6 +409,7 @@ __LA_DECL int archive_read_support_compression_xz(struct archive *)
 		__LA_DEPRECATED;
 #endif
 
+__LA_DECL int archive_read_support_filter_ab(struct archive *);
 __LA_DECL int archive_read_support_filter_all(struct archive *);
 __LA_DECL int archive_read_support_filter_bzip2(struct archive *);
 __LA_DECL int archive_read_support_filter_compress(struct archive *);
@@ -757,6 +759,7 @@ __LA_DECL int archive_write_set_compression_xz(struct archive *)
 __LA_DECL int archive_write_add_filter(struct archive *, int filter_code);
 __LA_DECL int archive_write_add_filter_by_name(struct archive *,
 		     const char *name);
+__LA_DECL int archive_write_add_filter_ab(struct archive *);
 __LA_DECL int archive_write_add_filter_b64encode(struct archive *);
 __LA_DECL int archive_write_add_filter_bzip2(struct archive *);
 __LA_DECL int archive_write_add_filter_compress(struct archive *);

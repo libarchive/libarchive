@@ -150,6 +150,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_read_private.h \
 	libarchive/archive_read_set_format.c \
 	libarchive/archive_read_set_options.c \
+	libarchive/archive_read_support_filter_ab.c \
 	libarchive/archive_read_support_filter_all.c \
 	libarchive/archive_read_support_filter_bzip2.c \
 	libarchive/archive_read_support_filter_compress.c \
@@ -196,6 +197,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_write_open_memory.c \
 	libarchive/archive_write_private.h \
 	libarchive/archive_write_add_filter.c \
+	libarchive/archive_write_add_filter_ab.c \
 	libarchive/archive_write_add_filter_b64encode.c \
 	libarchive/archive_write_add_filter_by_name.c \
 	libarchive/archive_write_add_filter_bzip2.c \

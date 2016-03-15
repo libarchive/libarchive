@@ -71,6 +71,8 @@ archive_read_support_filter_all(struct archive *a)
 	archive_read_support_filter_grzip(a);
 	/* Lz4 falls back to "lz4 -d" command-line program. */
 	archive_read_support_filter_lz4(a);
+	/* Android Backup doesn't have a fallback */
+	archive_read_support_filter_ab(a);
 
 	/* Note: We always return ARCHIVE_OK here, even if some of the
 	 * above return ARCHIVE_WARN.  The intent here is to enable

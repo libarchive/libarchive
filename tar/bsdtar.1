@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 16, 2014
+.Dd March 16, 2016
 .Dt TAR 1
 .Os
 .Sh NAME
@@ -317,6 +317,11 @@ With this option, the target of the link will be archived instead.
 .It Fl l , Fl Fl check-links
 (c and r modes only)
 Issue a warning message unless all links to each file are archived.
+.It Fl Fl ab
+(c mode only)
+Create an Android Backup file. To be used in conjunction with POSIX.1 tar format.
+In input mode, this option is ignored; Android Backup is recognized
+automatically on input.
 .It Fl Fl lrzip
 (c mode only)
 Compress the resulting archive with
@@ -505,6 +510,11 @@ Use
 as compression method.
 Supported values are bzip2, gzip, lzo (ultra fast),
 and zpaq (best, extremely slow).
+.It Cm ab:compression-level
+A decimal integer from 0 to 9 specifying the DEFLATE compression level.
+0 indicates RAW (no compression).
+.It Cm ab:version
+A decimal integer from 1 to 3 specifying the format version.
 .It Cm lrzip:compression-level
 A decimal integer from 1 to 9 specifying the lrzip compression level.
 .It Cm lz4:compression-level

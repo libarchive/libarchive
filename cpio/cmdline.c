@@ -72,6 +72,7 @@ static const struct option {
 	{ "insecure",			0, OPTION_INSECURE },
 	{ "link",			0, 'l' },
 	{ "list",			0, 't' },
+	{ "ab",				0, OPTION_AB },
 	{ "lrzip",			0, OPTION_LRZIP },
 	{ "lz4",			0, OPTION_LZ4 },
 	{ "lzma",			0, OPTION_LZMA },

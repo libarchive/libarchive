@@ -102,6 +102,7 @@ static const struct bsdtar_option {
 	{ "keep-newer-files",     0, OPTION_KEEP_NEWER_FILES },
 	{ "keep-old-files",       0, 'k' },
 	{ "list",                 0, 't' },
+	{ "ab",                   0, OPTION_AB },
 	{ "lrzip",                0, OPTION_LRZIP },
 	{ "lz4",                  0, OPTION_LZ4 },
 	{ "lzip",                 0, OPTION_LZIP },
