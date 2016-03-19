@@ -101,7 +101,7 @@ DEFINE_TEST(test_option_c)
 
 	/* Use the cpio program to create an archive. */
 	fclose(filelist);
-	r = systemf("%s -oc <filelist >basic.out 2>basic.err", testprog);
+	r = systemf("%s -R 1000:1000 -oc <filelist >basic.out 2>basic.err", testprog);
 	/* Verify that nothing went to stderr. */
 	assertTextFileContents("1 block\n", "basic.err");
 
