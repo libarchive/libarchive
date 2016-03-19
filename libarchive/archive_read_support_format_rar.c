@@ -78,17 +78,17 @@
 #define HD_ADD_SIZE_PRESENT 0x8000
 
 /* File Header Flags */
-#define FHD_SPLIT_BEFORE 0x0001
-#define FHD_SPLIT_AFTER  0x0002
-#define FHD_PASSWORD     0x0004
-#define FHD_COMMENT      0x0008
-#define FHD_SOLID        0x0010
-#define FHD_LARGE        0x0100
-#define FHD_UNICODE      0x0200
-#define FHD_SALT         0x0400
-#define FHD_VERSION      0x0800
-#define FHD_EXTTIME      0x1000
-#define FHD_EXTFLAGS     0x2000
+#define FHD_SPLIT_BEFORE 0x0001 /* File continued from previous volume */
+#define FHD_SPLIT_AFTER  0x0002 /* File continued in next volume */
+#define FHD_PASSWORD     0x0004 /* File encrypted with password  */
+#define FHD_COMMENT      0x0008 /* File comment present. RAR 3.x uses the separate comment block and does not set this flag. */
+#define FHD_SOLID        0x0010 /* Information from previous files is used (solid flag) (for RAR 2.0 and later) */
+#define FHD_LARGE        0x0100 /* HIGH_PACK_SIZE and HIGH_UNP_SIZE fields are present. These fields are used to archive only very large files (larger than 2Gb), for smaller files these fields are absent. */
+#define FHD_UNICODE      0x0200 /* FILE_NAME contains both usual and encoded Unicode name separated by zero. In this case NAME_SIZE field is equal to the length of usual name plus encoded Unicode name plus 1. If this flag is present, but FILE_NAME does not contain zero bytes, it means that file name is encoded using UTF-8. */
+#define FHD_SALT         0x0400 /* The header contains additional 8 bytes salt after the file name */
+#define FHD_VERSION      0x0800 /* Version flag. It is an old file version, a version number is appended to file name as ';n' */
+#define FHD_EXTTIME      0x1000 /* Extended time field present */
+#define FHD_EXTFLAGS     0x2000 /* This bit always is set, so the complete block size is HEAD_SIZE + PACK_SIZE (and plus HIGH_PACK_SIZE, if bit 0x100 is set) */
 
 /* File dictionary sizes */
 #define DICTIONARY_SIZE_64   0x00
@@ -1309,6 +1309,20 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   crc32_val = crc32(0, (const unsigned char *)p + 2, 7 - 2);
   __archive_read_consume(a, 7);
 
+  if ((rar->file_flags & FHD_SPLIT_BEFORE) && !rar->filename_save)
+  {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                      "Invalid RAR entry header: Missing FHD_SPLIT_AFTER for multivolume");
+    return (ARCHIVE_FATAL);
+  }
+
+  if (!(rar->file_flags & FHD_SPLIT_BEFORE) && rar->filename_save)
+  {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                      "Invalid RAR entry header: Missing FHD_SPLIT_BEFORE for multivolume");
+    return (ARCHIVE_FATAL);
+  }
+
   if (!(rar->file_flags & FHD_SOLID))
   {
     rar->compression_method = 0;
@@ -1544,7 +1558,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   }
 
   /* Split file in multivolume RAR. No more need to process header. */
-  if (rar->filename_save &&
+  if (rar->file_flags & FHD_SPLIT_BEFORE && rar->filename_save &&
     filename_size == rar->filename_save_size &&
     !memcmp(rar->filename, rar->filename_save, filename_size + 1))
   {
@@ -1569,13 +1583,24 @@ read_header(struct archive_read *a, struct archive_entry *entry,
       rar->dbo[rar->cursor].end_offset = rar->dbo[rar->cursor].start_offset +
         rar->packed_size;
     }
+    /* clear filename_save when last multivolume entry */
+    if (!(rar->file_flags & FHD_SPLIT_AFTER))
+    {
+      free(rar->filename_save);
+      rar->filename_save = NULL;
+      rar->filename_save_size = 0;
+    }
     return ret;
   }
 
-  rar->filename_save = (char*)realloc(rar->filename_save,
-                                      filename_size + 1);
-  memcpy(rar->filename_save, rar->filename, filename_size + 1);
-  rar->filename_save_size = filename_size;
+  /* Save filename for multivolume */
+  if (rar->file_flags & FHD_SPLIT_AFTER)
+  {
+    rar->filename_save = (char*)realloc(rar->filename_save,
+                                        filename_size + 1);
+    memcpy(rar->filename_save, rar->filename, filename_size + 1);
+    rar->filename_save_size = filename_size;
+  }
 
   /* Set info for seeking */
   free(rar->dbo);
