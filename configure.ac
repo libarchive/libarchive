@@ -472,6 +472,9 @@ fi
 # -larchive in that case.
 #AC_CHECK_LIB(archive,archive_version)
 
+# Checks for supported compiler flags
+AX_APPEND_COMPILE_FLAGS([-Wall -Wformat -Wformat-security])
+
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 # la_TYPE_UID_T defaults to "int", which is incorrect for MinGW
