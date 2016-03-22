@@ -2169,6 +2169,9 @@ tree_descend(struct tree *t)
 		/* Renew the current working directory. */
 		t->working_dir_fd = new_fd;
 		t->flags &= ~onWorkingDir;
+		/* clear flags to force stat/lstat refresh of the new entries */
+		t->flags &= ~hasLstat;
+		t->flags &= ~hasStat;
 	}
 	return (r);
 }
@@ -2205,6 +2208,9 @@ tree_ascend(struct tree *t)
 			te->symlink_parent_fd = -1;
 		}
 		t->depth--;
+		/* clear flags to force stat/lstat refresh of the new entries */
+		t->flags &= ~hasLstat;
+		t->flags &= ~hasStat;
 	}
 	return (r);
 }

@@ -1650,6 +1650,8 @@ tree_descend(struct tree *t)
 	t->dirname_length = archive_strlen(&t->path);
 	t->full_path_dir_length = archive_strlen(&t->full_path);
 	t->depth++;
+	t->flags &= ~hasLstat;
+	t->flags &= ~hasStat;
 	return (0);
 }
 
@@ -1664,6 +1666,8 @@ tree_ascend(struct tree *t)
 	te = t->stack;
 	t->depth--;
 	close_and_restore_time(INVALID_HANDLE_VALUE, t, &te->restore_time);
+	t->flags &= ~hasLstat;
+	t->flags &= ~hasStat;
 	return (0);
 }
 
