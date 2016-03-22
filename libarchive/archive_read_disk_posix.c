@@ -717,6 +717,7 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	int r;
 	ssize_t bytes;
 	size_t buffbytes;
+	int empty_sparse_region = 0;
 
 	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC, ARCHIVE_STATE_DATA,
 	    "archive_read_data_block");
@@ -798,6 +799,9 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	if ((int64_t)buffbytes > t->current_sparse->length)
 		buffbytes = t->current_sparse->length;
 
+	if (t->current_sparse->length == 0)
+		empty_sparse_region = 1;
+
 	/*
 	 * Skip hole.
 	 * TODO: Should we consider t->current_filesystem->xfer_align?
@@ -828,7 +832,15 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 		}
 	} else
 		bytes = 0;
-	if (bytes == 0) {
+	/*
+	 * Return an EOF unless we've read a leading empty sparse region, which
+	 * is used to represent fully-sparse files.
+	 *
+	 * TODO: it is not technically necessary to check for entry_tota == 0,
+	 * but this simplifies some unit tests that expect to only read data
+	 * regions with length > 0. Consider fixing these tests (test_sparse_basic).
+	*/
+	if (bytes == 0 && !(empty_sparse_region && t->entry_total == 0)) {
 		/* Get EOF */
 		t->entry_eof = 1;
 		r = ARCHIVE_EOF;
