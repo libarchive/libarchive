@@ -539,6 +539,28 @@ __LA_DECL void	 archive_entry_sparse_add_entry(struct archive_entry *,
 	    la_int64_t /* offset */, la_int64_t /* length */);
 
 /*
+ * To report the entry visit type. When entries are part of a tree, they
+ * can be visited at different times during the traversal: "regular" (first
+ * time they are retrieved), "before contents" (just before their content gets
+ * enumerated), and "after contents" (after all their content has been visited).
+ *
+ * This can be the case when visiting directories, where:
+ * - "regular" is the first time the directory is visited while enumerating
+ *   its parent;
+ * - "before contents" is "postdescent", when we are visiting the directory to
+ *   enumerate its children;
+ * - "after contents" is "postascent", when we are visiting it back after all its
+ *   children have been visited.
+ */
+enum visit_type {
+	VISIT_TYPE_REGULAR=1,
+	VISIT_TYPE_BEFORE_CONTENTS,
+	VISIT_TYPE_AFTER_CONTENTS
+};
+__LA_DECL enum visit_type archive_entry_visit_type(struct archive_entry *);
+__LA_DECL void archive_entry_set_visit_type(struct archive_entry *, enum visit_type);
+
+/*
  * To retrieve the xattr list, first "reset", then repeatedly ask for the
  * "next" entry.
  */

@@ -242,6 +242,7 @@ static void tree_push(struct tree *, const wchar_t *, const wchar_t *,
 #define	TREE_ERROR_FATAL	-2
 
 static int tree_next(struct tree *);
+static void entry_set_visit_type(struct archive_entry *, int);
 
 /*
  * Return information about the current entry.
@@ -530,6 +531,10 @@ archive_read_disk_set_behavior(struct archive *_a, int flags)
 		a->traverse_mount_points = 0;
 	else
 		a->traverse_mount_points = 1;
+	if (flags & ARCHIVE_READDISK_ALL_VISIT_TYPES)
+		a->report_all_visit_types = 1;
+	else
+		a->report_all_visit_types = 0;
 	return (r);
 }
 
@@ -752,6 +757,24 @@ abort_read_data:
 	return (r);
 }
 
+static void
+entry_set_visit_type(struct archive_entry *entry, int type)
+{
+
+       /* map the tree visit type to the correct archive_entry type */
+       switch (type) {
+       case TREE_REGULAR:
+	       archive_entry_set_visit_type(entry, VISIT_TYPE_REGULAR);
+	       break;
+       case TREE_POSTDESCENT:
+	       archive_entry_set_visit_type(entry, VISIT_TYPE_BEFORE_CONTENTS);
+	       break;
+       case TREE_POSTASCENT:
+	       archive_entry_set_visit_type(entry, VISIT_TYPE_AFTER_CONTENTS);
+	       break;
+       }
+}
+
 static int
 next_entry(struct archive_read_disk *a, struct tree *t,
     struct archive_entry *entry)
@@ -780,9 +803,13 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 		case 0:
 			return (ARCHIVE_EOF);
 		case TREE_POSTDESCENT:
+			/* FALLTHROUGH */
 		case TREE_POSTASCENT:
-			break;
+			if (!a->report_all_visit_types)
+				break;
+			/* FALLTHROUGH */
 		case TREE_REGULAR:
+			entry_set_visit_type(entry, t->visit_type);
 			lst = tree_current_lstat(t);
 			if (lst == NULL) {
 				archive_set_error(&a->archive, t->tree_errno,
