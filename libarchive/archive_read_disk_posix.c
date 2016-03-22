@@ -2142,7 +2142,7 @@ tree_reopen(struct tree *t, const char *path, int restore_time)
 }
 
 static int
-tree_descent(struct tree *t)
+tree_descend(struct tree *t)
 {
 	int flag, new_fd, r = 0;
 
@@ -2310,7 +2310,7 @@ tree_next(struct tree *t)
 			tree_append(t, t->stack->name.s,
 			    archive_strlen(&(t->stack->name)));
 			t->stack->flags &= ~needsDescent;
-			r = tree_descent(t);
+			r = tree_descend(t);
 			if (r != 0) {
 				tree_pop(t);
 				t->visit_type = r;

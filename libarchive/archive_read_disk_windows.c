@@ -1645,7 +1645,7 @@ failed:
 }
 
 static int
-tree_descent(struct tree *t)
+tree_descend(struct tree *t)
 {
 	t->dirname_length = archive_strlen(&t->path);
 	t->full_path_dir_length = archive_strlen(&t->full_path);
@@ -1745,7 +1745,7 @@ tree_next(struct tree *t)
 			tree_append(t, t->stack->name.s,
 			    archive_strlen(&(t->stack->name)));
 			t->stack->flags &= ~needsDescent;
-			r = tree_descent(t);
+			r = tree_descend(t);
 			if (r != 0) {
 				tree_pop(t);
 				t->visit_type = r;
