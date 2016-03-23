@@ -95,12 +95,10 @@ archive_entry_xattr_add_entry(struct archive_entry *entry,
 		;
 
 	if ((xp = (struct ae_xattr *)malloc(sizeof(struct ae_xattr))) == NULL)
-		/* XXX Error XXX */
-		return;
+		__archive_errx(1, "Out of memory");
 
 	if ((xp->name = strdup(name)) == NULL)
-		/* XXX Error XXX */
-		return;
+		__archive_errx(1, "Out of memory");
 
 	if ((xp->value = malloc(size)) != NULL) {
 		memcpy(xp->value, value, size);
