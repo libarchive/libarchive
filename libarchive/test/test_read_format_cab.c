@@ -25,12 +25,6 @@
 #include "test.h"
 __FBSDID("$FreeBSD");
 
-#ifdef HAVE_LIBZ
-static const int libz_enabled = 1;
-#else
-static const int libz_enabled = 0;
-#endif
-
 /*
 Execute the following command to rebuild the data for this program:
    tail -n +44 test_read_format_cab.c | /bin/sh
@@ -222,7 +216,7 @@ verify(const char *refname, enum comp_type comp)
 		assertEqualInt(33000, archive_entry_size(ae));
 		for (s = 0; s + sizeof(buff) < 33000; s+= sizeof(buff)) {
 			ssize_t rsize = archive_read_data(a, buff, sizeof(buff));
-			if (comp == MSZIP && rsize == ARCHIVE_FATAL && !libz_enabled) {
+			if (comp == MSZIP && rsize == ARCHIVE_FATAL && archive_zlib_version() == NULL) {
 				skipping("Skipping CAB format(MSZIP) check: %s",
 				    archive_error_string(a));
 				goto finish;
@@ -288,7 +282,7 @@ verify2(const char *refname, enum comp_type comp)
 	char buff[128];
 	char zero[128];
 
-	if (comp == MSZIP && !libz_enabled) {
+	if (comp == MSZIP && archive_zlib_version() == NULL) {
 		skipping("Skipping CAB format(MSZIP) check for %s",
 		  refname);
 		return;

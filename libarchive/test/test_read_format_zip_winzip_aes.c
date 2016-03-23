@@ -26,12 +26,6 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef HAVE_LIBZ
-static const int libz_enabled = 1;
-#else
-static const int libz_enabled = 0;
-#endif
-
 static void
 test_winzip_aes(const char *refname, int need_libz)
 {
@@ -116,7 +110,7 @@ test_winzip_aes(const char *refname, int need_libz)
 	assertEqualInt(1, archive_entry_is_data_encrypted(ae));
 	assertEqualInt(0, archive_entry_is_metadata_encrypted(ae));
 	assertEqualIntA(a, 1, archive_read_has_encrypted_entries(a));
-	if (!need_libz || libz_enabled) {
+	if (!need_libz || archive_zlib_version() != NULL) {
 		assertEqualInt(512, archive_read_data(a, buff, sizeof(buff)));
 	} else {
 		assertEqualInt(ARCHIVE_FAILED, archive_read_data(a, buff, 19));

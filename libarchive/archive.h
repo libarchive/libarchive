@@ -95,6 +95,11 @@ typedef ssize_t la_ssize_t;
 # endif
 #endif
 
+/* Large file support for Android */
+#ifdef __ANDROID__
+#include "android_lf.h"
+#endif
+
 /*
  * On Windows, define LIBARCHIVE_STATIC if you're building or using a
  * .lib.  The default here assumes you're building a DLL.  Only
@@ -161,6 +166,16 @@ __LA_DECL const char *	archive_version_string(void);
  * libarchive was compiled.
  */
 __LA_DECL const char *	archive_version_details(void);
+
+/*
+ * Returns NULL if libarchive was compiled without the associated library.
+ * Otherwise, returns the version number that libarchive was compiled
+ * against.
+ */
+__LA_DECL const char *  archive_zlib_version(void);
+__LA_DECL const char *  archive_liblzma_version(void);
+__LA_DECL const char *  archive_bzlib_version(void);
+__LA_DECL const char *  archive_liblz4_version(void);
 
 /* Declare our basic types. */
 struct archive;

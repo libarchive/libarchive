@@ -25,12 +25,6 @@
 #include "test.h"
 __FBSDID("$FreeBSD: head/lib/libarchive/test/test_compat_zip.c 196962 2009-09-08 05:02:41Z kientzle $");
 
-#ifdef HAVE_LIBZ
-static const int libz_enabled = 1;
-#else
-static const int libz_enabled = 0;
-#endif
-
 /* Copy this function for each test file and adjust it accordingly. */
 DEFINE_TEST(test_compat_zip_1)
 {
@@ -51,7 +45,7 @@ DEFINE_TEST(test_compat_zip_1)
 
 	/* Read second entry. */
 	r = archive_read_next_header(a, &ae);
-	if (r == ARCHIVE_FATAL && !libz_enabled) {
+	if (r == ARCHIVE_FATAL && archive_zlib_version() == NULL) {
 		skipping("Skipping ZIP compression check: %s",
 			archive_error_string(a));
 		goto finish;
@@ -132,7 +126,7 @@ DEFINE_TEST(test_compat_zip_3)
 
 	/* Extract under a different name. */
 	archive_entry_set_pathname(ae, "test_3.txt");
-	if(libz_enabled) {
+	if(archive_zlib_version() != NULL) {
 		char *p;
 		size_t s;
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_extract(a, ae, 0));

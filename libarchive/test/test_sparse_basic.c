@@ -218,9 +218,19 @@ create_sparse_file(const char *path, const struct sparse *s)
 {
 	char buff[1024];
 	int fd;
+	size_t total_size = 0;
+	const struct sparse *cur = s;
 
 	memset(buff, ' ', sizeof(buff));
 	assert((fd = open(path, O_CREAT | O_WRONLY, 0600)) != -1);
+
+	/* Handle holes at the end by extending the file */
+	while (cur->type != END) {
+		total_size += cur->size;
+		++cur;
+	}
+	assert(ftruncate(fd, total_size) != -1);
+
 	while (s->type != END) {
 		if (s->type == HOLE) {
 			assert(lseek(fd, s->size, SEEK_CUR) != (off_t)-1);
@@ -249,7 +259,7 @@ create_sparse_file(const char *path, const struct sparse *s)
  */
 static void
 verify_sparse_file(struct archive *a, const char *path,
-    const struct sparse *sparse, int blocks)
+    const struct sparse *sparse, int blocks, int expected_data_blocks)
 {
 	struct archive_entry *ae;
 	const void *buff;
@@ -278,9 +288,10 @@ verify_sparse_file(struct archive *a, const char *path,
 		}
 		total = offset + bytes_read;
 	}
-	if (!hole && data_blocks == 1)
-		data_blocks = 0;/* There are no holes */
-	assertEqualInt(blocks, data_blocks);
+	assertEqualInt(expected_data_blocks, data_blocks);
+
+	if (blocks > 1)
+		assert(hole); /* There must be a hole if > 1 blocks were encoded */
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	archive_entry_free(ae);
@@ -425,10 +436,11 @@ DEFINE_TEST(test_sparse_basic)
 	 */
 	assert((a = archive_read_disk_new()) != NULL);
 
-	verify_sparse_file(a, "file0", sparse_file0, 5);
-	verify_sparse_file(a, "file1", sparse_file1, 2);
-	verify_sparse_file(a, "file2", sparse_file2, 20);
-	verify_sparse_file(a, "file3", sparse_file3, 0);
+	verify_sparse_file(a, "file0", sparse_file0, 5, 5);
+	verify_sparse_file(a, "file1", sparse_file1, 2, 2);
+	verify_sparse_file(a, "file2", sparse_file2, 20, 20);
+	/* Encoded non sparse; expect a data block but no sparse entries. */
+	verify_sparse_file(a, "file3", sparse_file3, 0, 1);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
@@ -439,6 +451,40 @@ DEFINE_TEST(test_sparse_basic)
 
 	verify_sparse_file2(a, "file0", sparse_file0, 5, 0);
 	verify_sparse_file2(a, "file0", sparse_file0, 5, 1);
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	free(cwd);
+}
+
+DEFINE_TEST(test_fully_sparse_files)
+{
+	char *cwd;
+	struct archive *a;
+
+	const struct sparse sparse_file[] = {
+		{ HOLE, 409600 }, { END, 0 }
+	};
+	/* Check if the filesystem where CWD on can
+	 * report the number of the holes of a sparse file. */
+#ifdef PATH_MAX
+	cwd = getcwd(NULL, PATH_MAX);/* Solaris getcwd needs the size. */
+#else
+	cwd = getcwd(NULL, 0);
+#endif
+	if (!assert(cwd != NULL))
+		return;
+	if (!is_sparse_supported(cwd)) {
+		free(cwd);
+		skipping("This filesystem or platform do not support "
+		    "the reporting of the holes of a sparse file through "
+		    "API such as lseek(HOLE)");
+		return;
+	}
+
+	assert((a = archive_read_disk_new()) != NULL);
+
+	/* Fully sparse files are encoded with a zero-length "data" block. */
+	verify_sparse_file(a, "file0", sparse_file, 1, 1);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	free(cwd);

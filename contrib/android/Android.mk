@@ -179,9 +179,7 @@ LOCAL_MODULE := libarchive
 LOCAL_MODULE_TAGS := optional
 LOCAL_SRC_FILES := $(libarchive_src_files) $(libarchive_host_src_files)
 LOCAL_CFLAGS := -DPLATFORM_CONFIG_H=\"$(libarchive_host_config)\"
-ifneq ($(strip $(USE_MINGW)),)
-	LOCAL_C_INCLUDES := $(LOCAL_PATH)/contrib/android/include
-endif
+LOCAL_C_INCLUDES := $(LOCAL_PATH)/contrib/android/include
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/libarchive
 include $(BUILD_HOST_STATIC_LIBRARY)
 
@@ -191,9 +189,7 @@ LOCAL_MODULE_TAGS := optional
 LOCAL_CFLAGS := -DPLATFORM_CONFIG_H=\"$(libarchive_host_config)\"
 LOCAL_SHARED_LIBRARIES := libz-host
 LOCAL_WHOLE_STATIC_LIBRARIES := libarchive
-ifneq ($(strip $(USE_MINGW)),)
-	LOCAL_C_INCLUDES := $(LOCAL_PATH)/contrib/android/include
-endif
+LOCAL_C_INCLUDES := $(LOCAL_PATH)/contrib/android/include
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/libarchive
 include $(BUILD_HOST_SHARED_LIBRARY)
 
@@ -202,9 +198,7 @@ LOCAL_MODULE := libarchive_fe
 LOCAL_MODULE_TAGS := optional
 LOCAL_CFLAGS := -DPLATFORM_CONFIG_H=\"$(libarchive_host_config)\"
 LOCAL_SRC_FILES := $(libarchive_fe_src_files)
-ifneq ($(strip $(USE_MINGW)),)
-	LOCAL_C_INCLUDES := $(LOCAL_PATH)/contrib/android/include
-endif
+LOCAL_C_INCLUDES := $(LOCAL_PATH)/contrib/android/include
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/libarchive_fe
 include $(BUILD_HOST_STATIC_LIBRARY)
 
@@ -222,6 +216,7 @@ LOCAL_CFLAGS :=  -DBSDTAR_VERSION_STRING=ARCHIVE_VERSION_ONLY_STRING -DPLATFORM_
 LOCAL_SHARED_LIBRARIES := libz-host
 LOCAL_STATIC_LIBRARIES := libarchive libarchive_fe
 LOCAL_SRC_FILES := $(bsdtar_src_files)
+LOCAL_C_INCLUDES := $(LOCAL_PATH)/contrib/android/include
 include $(BUILD_HOST_EXECUTABLE)
 
 include $(CLEAR_VARS)
@@ -231,6 +226,7 @@ LOCAL_CFLAGS :=  -DBSDCPIO_VERSION_STRING=ARCHIVE_VERSION_ONLY_STRING -DPLATFORM
 LOCAL_SHARED_LIBRARIES := libz-host
 LOCAL_STATIC_LIBRARIES := libarchive libarchive_fe
 LOCAL_SRC_FILES := $(bsdcpio_src_files)
+LOCAL_C_INCLUDES := $(LOCAL_PATH)/contrib/android/include
 include $(BUILD_HOST_EXECUTABLE)
 
 include $(CLEAR_VARS)
@@ -240,6 +236,7 @@ LOCAL_CFLAGS := -DBSDCAT_VERSION_STRING=ARCHIVE_VERSION_ONLY_STRING -DPLATFORM_C
 LOCAL_SHARED_LIBRARIES := libz-host
 LOCAL_STATIC_LIBRARIES := libarchive libarchive_fe
 LOCAL_SRC_FILES := $(bsdcat_src_files)
+LOCAL_C_INCLUDES := $(LOCAL_PATH)/contrib/android/include
 include $(BUILD_HOST_EXECUTABLE)
 
 
@@ -248,8 +245,9 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := libarchive
 LOCAL_MODULE_TAGS := optional
 LOCAL_SRC_FILES := $(libarchive_src_files)
-LOCAL_STATIC_LIBRARIES := libz
+LOCAL_STATIC_LIBRARIES := libz liblz4
 LOCAL_CFLAGS := -DPLATFORM_CONFIG_H=\"$(libarchive_target_config)\"
+LOCAL_C_INCLUDES := $(LOCAL_PATH)/contrib/android/include
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/libarchive
 include $(BUILD_STATIC_LIBRARY)
 
@@ -261,6 +259,7 @@ LOCAL_C_INCLUDES :=
 LOCAL_CFLAGS := -DPLATFORM_CONFIG_H=\"$(libarchive_target_config)\"
 LOCAL_SHARED_LIBRARIES := libz
 LOCAL_WHOLE_STATIC_LIBRARIES := libarchive
+LOCAL_C_INCLUDES := $(LOCAL_PATH)/contrib/android/include
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/libarchive
 include $(BUILD_SHARED_LIBRARY)
 
@@ -269,6 +268,7 @@ LOCAL_MODULE := libarchive_fe
 LOCAL_MODULE_TAGS := optional
 LOCAL_CFLAGS := -DPLATFORM_CONFIG_H=\"$(libarchive_target_config)\"
 LOCAL_SRC_FILES := $(libarchive_fe_src_files)
+LOCAL_C_INCLUDES := $(LOCAL_PATH)/contrib/android/include
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/libarchive_fe
 include $(BUILD_STATIC_LIBRARY)
 
@@ -280,6 +280,7 @@ LOCAL_CFLAGS :=  -DBSDTAR_VERSION_STRING=ARCHIVE_VERSION_ONLY_STRING -DPLATFORM_
 LOCAL_SHARED_LIBRARIES := libz
 LOCAL_STATIC_LIBRARIES := libarchive libarchive_fe
 LOCAL_SRC_FILES := $(bsdtar_src_files)
+LOCAL_C_INCLUDES := $(LOCAL_PATH)/libarchive $(LOCAL_PATH)/libarchive_fe $(LOCAL_PATH)/contrib/android/include
 include $(BUILD_EXECUTABLE)
 
 include $(CLEAR_VARS)
@@ -289,6 +290,7 @@ LOCAL_CFLAGS :=  -DBSDCPIO_VERSION_STRING=ARCHIVE_VERSION_ONLY_STRING -DPLATFORM
 LOCAL_SHARED_LIBRARIES := libz
 LOCAL_STATIC_LIBRARIES := libarchive libarchive_fe
 LOCAL_SRC_FILES := $(bsdcpio_src_files)
+LOCAL_C_INCLUDES := $(LOCAL_PATH)/libarchive $(LOCAL_PATH)/libarchive_fe $(LOCAL_PATH)/contrib/android/include
 include $(BUILD_EXECUTABLE)
 
 include $(CLEAR_VARS)
@@ -298,6 +300,7 @@ LOCAL_CFLAGS := -DBSDCAT_VERSION_STRING=ARCHIVE_VERSION_ONLY_STRING -DPLATFORM_C
 LOCAL_SHARED_LIBRARIES := libz
 LOCAL_STATIC_LIBRARIES := libarchive libarchive_fe
 LOCAL_SRC_FILES := $(bsdcat_src_files)
+LOCAL_C_INCLUDES := $(LOCAL_PATH)/libarchive $(LOCAL_PATH)/libarchive_fe $(LOCAL_PATH)/contrib/android/include
 include $(BUILD_EXECUTABLE)
 
 endif
