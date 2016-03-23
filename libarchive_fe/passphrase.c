@@ -142,12 +142,11 @@ readpassphrase(const char *prompt, char *buf, size_t bufsiz, int flags)
 #  define _POSIX_VDISABLE       VDISABLE
 #endif
 
-static volatile sig_atomic_t signo[SIGRTMAX];
+static volatile sig_atomic_t *signo;
 
 static void
 handler(int s)
 {
-
 	signo[s] = 1;
 }
 
@@ -165,6 +164,10 @@ readpassphrase(const char *prompt, char *buf, size_t bufsiz, int flags)
 	if (bufsiz == 0) {
 		errno = EINVAL;
 		return(NULL);
+	}
+
+	if (signo == NULL) {
+		signo = calloc(SIGRTMAX, sizeof(sig_atomic_t));
 	}
 
 restart:
