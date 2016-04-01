@@ -94,6 +94,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include "archive.h"
+#include "archive_rb.h"
 #include "archive_string.h"
 #include "archive_entry.h"
 #include "archive_private.h"
@@ -160,6 +161,12 @@ struct tree_entry {
 	struct restore_time	 restore_time;
 };
 
+struct dir_entry {
+	struct archive_rb_node	 rbnode;
+	size_t			 namelen;
+	char			 name[];
+};
+
 struct filesystem {
 	int64_t		dev;
 	int		synthetic;
@@ -208,6 +215,10 @@ struct tree {
 	int			 visit_type;
 	/* Error code from last failed operation. */
 	int			 tree_errno;
+
+	/* RB tree used for sorting entries */
+	struct archive_rb_tree	   sort_tree;
+	struct archive_rb_tree_ops sort_ops;
 
 	/* Dynamically-sized buffer for holding path */
 	struct archive_string	 path;
@@ -261,6 +272,7 @@ struct tree {
 			    * reading directory entry at this time. */
 #define	needsRestoreTimes 128
 #define	onInitialDir	256 /* We are on the initial dir. */
+#define	sortEntries	512 /* Sort tree entries */
 
 static int
 tree_dir_next_posix(struct tree *t);
@@ -273,8 +285,8 @@ tree_dir_next_posix(struct tree *t);
 #endif
 
 /* Initiate/terminate a tree traversal. */
-static struct tree *tree_open(const char *, int, int);
-static struct tree *tree_reopen(struct tree *, const char *, int);
+static struct tree *tree_open(const char *, int, int, int);
+static struct tree *tree_reopen(struct tree *, const char *, int, int);
 static void tree_close(struct tree *);
 static void tree_free(struct tree *);
 static void tree_push(struct tree *, const char *, int, int64_t, int64_t,
@@ -298,8 +310,7 @@ static int tree_current_dir_fd(struct tree *);
  * instead of TREE_POSTDESCENT/TREE_POSTASCENT.  TREE_ERROR_DIR is not a
  * fatal error, but it does imply that the relevant subtree won't be
  * visited.  TREE_ERROR_FATAL is returned for an error that left the
- * traversal completely hosed.  Right now, this is only returned for
- * chdir() failures during ascent.
+ * traversal completely hosed.
  */
 #define	TREE_REGULAR		1
 #define	TREE_POSTDESCENT	2
@@ -369,6 +380,15 @@ static int	close_and_restore_time(int fd, struct tree *,
 static int	open_on_current_dir(struct tree *, const char *, int);
 static int	tree_dup(int);
 
+/* Default sorting and lookup functions for RB tree sorting and traversal */
+static int	_archive_read_disk_entry_cmp_node(const struct archive_rb_node *,
+		    const struct archive_rb_node *);
+static int	_archive_read_disk_entry_cmp_key(const struct archive_rb_node *,
+		    const void *);
+static const struct archive_rb_tree_ops default_sort_ops = {
+		.rbto_compare_nodes = _archive_read_disk_entry_cmp_node,
+		.rbto_compare_key = _archive_read_disk_entry_cmp_key
+};
 
 static struct archive_vtable *
 archive_read_disk_vtable(void)
@@ -623,6 +643,15 @@ archive_read_disk_set_behavior(struct archive *_a, int flags)
 		a->report_all_visit_types = 1;
 	else
 		a->report_all_visit_types = 0;
+	if (flags & ARCHIVE_READDISK_SORT_ENTRIES) {
+		a->sort_entries = 1;
+		if (a->tree != NULL)
+			a->tree->flags &= sortEntries;
+	} else {
+		a->sort_entries = 0;
+		if (a->tree != NULL)
+			a->tree->flags &= ~sortEntries;
+	}
 	return (r);
 }
 
@@ -1359,10 +1388,11 @@ _archive_read_disk_open(struct archive *_a, const char *pathname)
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
 
 	if (a->tree != NULL)
-		a->tree = tree_reopen(a->tree, pathname, a->restore_time);
+		a->tree = tree_reopen(a->tree, pathname, a->restore_time,
+		    a->sort_entries);
 	else
 		a->tree = tree_open(pathname, a->symlink_mode,
-		    a->restore_time);
+		    a->restore_time, a->sort_entries);
 	if (a->tree == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate tar data");
@@ -2095,11 +2125,12 @@ tree_append(struct tree *t, const char *name, size_t name_length)
 	t->restore_time.name = t->basename;
 }
 
+
 /*
  * Open a directory tree for traversal.
  */
 static struct tree *
-tree_open(const char *path, int symlink_mode, int restore_time)
+tree_open(const char *path, int symlink_mode, int restore_time, int sort_entries)
 {
 	struct tree *t;
 
@@ -2108,14 +2139,16 @@ tree_open(const char *path, int symlink_mode, int restore_time)
 	memset(t, 0, sizeof(*t));
 	archive_string_init(&t->path);
 	archive_string_ensure(&t->path, 31);
+	__archive_rb_tree_init(&t->sort_tree, &default_sort_ops);
 	t->initial_symlink_mode = symlink_mode;
-	return (tree_reopen(t, path, restore_time));
+	return (tree_reopen(t, path, restore_time, sort_entries));
 }
 
 static struct tree *
-tree_reopen(struct tree *t, const char *path, int restore_time)
+tree_reopen(struct tree *t, const char *path, int restore_time, int sort_entries)
 {
 	t->flags = (restore_time)?needsRestoreTimes:0;
+	t->flags |= (sort_entries)?sortEntries:0;
 	t->flags |= onInitialDir;
 	t->visit_type = 0;
 	t->tree_errno = 0;
@@ -2345,13 +2378,18 @@ tree_next(struct tree *t)
 	return (t->visit_type = 0);
 }
 
+/*
+ * Iterate over the dirent entries of the directory, wich will be TREE_REGULAR entries.
+ * Returns TREE_REGULAR when a new entry has been fetched, 0 when iteration is over, or
+ * a negative value on failure.
+ */
 static int
-tree_dir_next_posix(struct tree *t)
+tree_dir_iterate(struct tree *t)
 {
 	int r;
 	const char *name;
-	size_t namelen;
 
+	/* If no directory was already opened, open the current working directory. */
 	if (t->d == NULL) {
 #if defined(HAVE_READDIR_R)
 		size_t dirent_size;
@@ -2382,7 +2420,6 @@ tree_dir_next_posix(struct tree *t)
 			t->dirent = malloc(dirent_size);
 			if (t->dirent == NULL) {
 				closedir(t->d);
-				t->d = INVALID_DIR_HANDLE;
 				(void)tree_ascend(t);
 				tree_pop(t);
 				t->tree_errno = ENOMEM;
@@ -2393,7 +2430,9 @@ tree_dir_next_posix(struct tree *t)
 		}
 #endif /* HAVE_READDIR_R */
 	}
+
 	for (;;) {
+		/* Get next entry */
 		errno = 0;
 #if defined(HAVE_READDIR_R)
 		r = readdir_r(t->d, t->dirent, &t->de);
@@ -2414,27 +2453,103 @@ tree_dir_next_posix(struct tree *t)
 			r = errno;
 #endif
 			closedir(t->d);
-			t->d = INVALID_DIR_HANDLE;
 			if (r != 0) {
 				t->tree_errno = r;
 				t->visit_type = TREE_ERROR_DIR;
 				return (t->visit_type);
-			} else
-				return (0);
+			} else {
+				/* we are done, no more entries to return */
+				return 0;
+			}
 		}
+
+		/* Ignore '.' and '..' entries */
 		name = t->de->d_name;
-		namelen = D_NAMELEN(t->de);
-		t->flags &= ~hasLstat;
-		t->flags &= ~hasStat;
 		if (name[0] == '.' && name[1] == '\0')
 			continue;
 		if (name[0] == '.' && name[1] == '.' && name[2] == '\0')
 			continue;
-		tree_append(t, name, namelen);
+
 		return (t->visit_type = TREE_REGULAR);
 	}
 }
 
+static int
+tree_dir_next_posix(struct tree *t)
+{
+	int r;
+	const char *name;
+	size_t namelen;
+	struct dir_entry *e;
+
+	if (!(t->flags & sortEntries)) {
+		/* No sorting required -- get the next entry. */
+		switch (r = tree_dir_iterate(t)) {
+		case TREE_REGULAR:
+			name = t->de->d_name;
+			namelen = D_NAMELEN(t->de);
+			t->flags &= ~hasLstat;
+			t->flags &= ~hasStat;
+			tree_append(t, name, namelen);
+			return TREE_REGULAR;
+		case 0:
+			/* FALLTHROUGH */
+		default:
+			/* No more entry to return. Mark the directory as invalid. */
+			t->d = INVALID_DIR_HANDLE;
+			return 0;
+		}
+	} else {
+		/* Sort is required -- try fetching an entry from the tree first */
+		e = (struct dir_entry *)ARCHIVE_RB_TREE_MIN(&t->sort_tree);
+		if (e != NULL) {
+			__archive_rb_tree_remove_node(&t->sort_tree,
+			    (struct archive_rb_node *)e);
+			t->flags &= ~hasLstat;
+			t->flags &= ~hasStat;
+			tree_append(t, e->name, e->namelen);
+			free(e);
+			return TREE_REGULAR;
+		}
+
+		/* Tree was empty, so start sorting the opened directory */
+		t->d = INVALID_DIR_HANDLE;
+		while ((r = tree_dir_iterate(t)) == TREE_REGULAR) {
+			name = t->de->d_name;
+			namelen = D_NAMELEN(t->de);
+			e = malloc(sizeof(*e) + namelen + 1);
+			if (e == NULL) {
+				t->tree_errno = ENOMEM;
+				return (t->visit_type = TREE_ERROR_FATAL);
+			}
+			memcpy(e->name, name, namelen);
+			e->name[namelen] = '\0';
+			e->namelen = namelen;
+			__archive_rb_tree_insert_node(&t->sort_tree,
+			    (struct archive_rb_node *)e);
+		}
+
+		switch (r) {
+		case 0:
+			/* Iteration is over, return the first entry */
+			e = (struct dir_entry *)ARCHIVE_RB_TREE_MIN(&t->sort_tree);
+			if (e != NULL) {
+				__archive_rb_tree_remove_node(&t->sort_tree,
+				    (struct archive_rb_node *)e);
+				t->flags &= ~hasLstat;
+				t->flags &= ~hasStat;
+				tree_append(t, e->name, e->namelen);
+				free(e);
+				return TREE_REGULAR;
+			}
+			/* FALLTHROUGH */
+		default:
+			/* Dir was empty, or something went wrong during iteration. */
+			t->d = INVALID_DIR_HANDLE;
+			return r;
+		}
+	}
+}
 
 /*
  * Get the stat() data for the entry just returned from tree_next().
@@ -2664,3 +2779,21 @@ tree_free(struct tree *t)
 }
 
 #endif
+
+static int
+_archive_read_disk_entry_cmp_node(const struct archive_rb_node *n1,
+    const struct archive_rb_node *n2)
+{
+        const struct dir_entry *e1 = (const struct dir_entry *)n1;
+        const struct dir_entry *e2 = (const struct dir_entry *)n2;
+
+        return (strcmp(e2->name, e1->name));
+}
+
+static int
+_archive_read_disk_entry_cmp_key(const struct archive_rb_node *n, const void *key)
+{
+        const struct dir_entry *e = (const struct dir_entry *)n;
+
+        return (strcmp((const char *)key, e->name));
+}

@@ -75,6 +75,8 @@ struct archive_read_disk {
 	int		 suppress_xattr;
 	/* Set 1 if users want to have all the visit_type flags reported. */
 	int		 report_all_visit_types;
+	/* Set 1 if users want the entries to be sorted. */
+	int 		 sort_entries;
 
 	const char * (*lookup_gname)(void *private, int64_t gid);
 	void	(*cleanup_gname)(void *private);
