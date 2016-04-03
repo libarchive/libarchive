@@ -856,7 +856,7 @@ process_add_entry(struct archive_read *a, struct mtree *mtree,
 	struct mtree_entry *entry;
 	struct mtree_option *iter;
 	const char *next, *eq, *name, *end;
-	size_t len;
+	size_t name_len, len;
 	int r;
 
 	if ((entry = malloc(sizeof(*entry))) == NULL) {
@@ -877,43 +877,48 @@ process_add_entry(struct archive_read *a, struct mtree *mtree,
 	*last_entry = entry;
 
 	if (is_form_d) {
-		/*
-		 * This form places the file name as last parameter.
-		 */
-		name = line + line_len -1;
+		/* Filename is last item on line. */
+		/* Adjust line_len to trim trailing whitespace */
 		while (line_len > 0) {
-			if (*name != '\r' && *name != '\n' &&
-			    *name != '\t' && *name != ' ')
-				break;
-			name--;
-			line_len--;
-		}
-		len = 0;
-		while (line_len > 0) {
-			if (*name == '\r' || *name == '\n' ||
-			    *name == '\t' || *name == ' ') {
-				name++;
+			char last_character = line[line_len - 1];
+			if (last_character == '\r'
+			    || last_character == '\n'
+			    || last_character == '\t'
+			    || last_character == ' ') {
+				line_len--;
+			} else {
 				break;
 			}
-			name--;
-			line_len--;
-			len++;
 		}
+		/* Name starts after the last whitespace separator */
+		name = line;
+		for (int i = 0; i < line_len; i++) {
+			if (line[i] == '\r'
+			    || line[i] == '\n'
+			    || line[i] == '\t'
+			    || line[i] == ' ') {
+				name = line + i + 1;
+			}
+		}
+		name_len = line + line_len - name;
 		end = name;
 	} else {
-		len = strcspn(line, " \t\r\n");
+		/* Filename is first item on line */
+		name_len = strcspn(line, " \t\r\n");
 		name = line;
-		line += len;
+		line += name_len;
 		end = line + line_len;
 	}
+	/* name/name_len is the name within the line. */
+	/* line..end brackets the entire line except the name */
 
-	if ((entry->name = malloc(len + 1)) == NULL) {
+	if ((entry->name = malloc(name_len + 1)) == NULL) {
 		archive_set_error(&a->archive, errno, "Can't allocate memory");
 		return (ARCHIVE_FATAL);
 	}
 
-	memcpy(entry->name, name, len);
-	entry->name[len] = '\0';
+	memcpy(entry->name, name, name_len);
+	entry->name[name_len] = '\0';
 	parse_escapes(entry->name, entry);
 
 	for (iter = *global; iter != NULL; iter = iter->next) {
