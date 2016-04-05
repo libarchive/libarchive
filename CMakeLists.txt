@@ -119,6 +119,20 @@ IF (CMAKE_C_COMPILER_ID MATCHES "^Clang$")
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wmissing-prototypes")
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wcast-qual")
 ENDIF (CMAKE_C_COMPILER_ID MATCHES "^Clang$")
+IF (CMAKE_C_COMPILER_ID MATCHES "^XL$")
+  SET(CMAKE_C_COMPILER "xlc_r")
+  SET(CMAKE_REQUIRED_FLAGS "-qflag=e:e -qformat=sec")
+  #################################################################
+  # Set compile flags for all build types.
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -qflag=e:e -qformat=sec")
+  #################################################################
+  # Set compile flags for debug build.
+  # This is added into CMAKE_C_FLAGS when CMAKE_BUILD_TYPE is "Debug"
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -qhalt=w")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -qflag=w:w")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -qinfo=pro:use")
+ENDIF(CMAKE_C_COMPILER_ID MATCHES "^XL$")
 IF (MSVC)
   #################################################################
   # Set compile flags for debug build.
@@ -857,6 +871,9 @@ MACRO(CHECK_ICONV LIB TRY_ICONV_CONST)
       SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Werror")
     ENDIF (CMAKE_C_COMPILER_ID MATCHES "^GNU$" OR
            CMAKE_C_COMPILER_ID MATCHES "^Clang$")
+    IF (CMAKE_C_COMPILER_ID MATCHES "^XL$")
+      SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -qhalt=w -qflag=w:w")
+    ENDIF (CMAKE_C_COMPILER_ID MATCHES "^XL$")
     IF (MSVC)
       # NOTE: /WX option is the same as gcc's -Werror option.
       SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} /WX")
