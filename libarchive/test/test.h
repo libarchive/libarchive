@@ -145,6 +145,9 @@
 /* As above, but raw blocks of bytes. */
 #define assertEqualMem(v1, v2, l)	\
   assertion_equal_mem(__FILE__, __LINE__, (v1), #v1, (v2), #v2, (l), #l, NULL)
+/* Assert that memory is full of a specified byte */
+#define assertMemoryFilledWith(v1, l, b)					\
+  assertion_memory_filled_with(__FILE__, __LINE__, (v1), #v1, (l), #l, (b), #b, NULL)
 /* Assert two files are the same. */
 #define assertEqualFile(f1, f2)	\
   assertion_equal_file(__FILE__, __LINE__, (f1), (f2))
@@ -228,6 +231,7 @@ int assertion_empty_file(const char *, int, const char *);
 int assertion_equal_file(const char *, int, const char *, const char *);
 int assertion_equal_int(const char *, int, long long, const char *, long long, const char *, void *);
 int assertion_equal_mem(const char *, int, const void *, const char *, const void *, const char *, size_t, const char *, void *);
+int assertion_memory_filled_with(const char *, int, const void *, const char *, size_t, const char *, char, const char *, void *);
 int assertion_equal_string(const char *, int, const char *v1, const char *, const char *v2, const char *, void *, int);
 int assertion_equal_wstring(const char *, int, const wchar_t *v1, const char *, const wchar_t *v2, const char *, void *);
 int assertion_file_atime(const char *, int, const char *, long, long);
