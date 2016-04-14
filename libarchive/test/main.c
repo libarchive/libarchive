@@ -789,10 +789,11 @@ assertion_memory_filled_with(const char *file, int line,
 	const char *v1 = (const char *)_v1;
 	size_t c = 0;
 	(void)ld; /* UNUSED */
+	size_t i;
 
 	assertion_count(file, line);
 
-	for (size_t i = 0; i < l; ++i) {
+	for (i = 0; i < l; ++i) {
 		if (v1[i] == b) {
 			++c;
 		}
