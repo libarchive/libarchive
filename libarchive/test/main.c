@@ -788,8 +788,8 @@ assertion_memory_filled_with(const char *file, int line,
 {
 	const char *v1 = (const char *)_v1;
 	size_t c = 0;
-	(void)ld; /* UNUSED */
 	size_t i;
+	(void)ld; /* UNUSED */
 
 	assertion_count(file, line);
 

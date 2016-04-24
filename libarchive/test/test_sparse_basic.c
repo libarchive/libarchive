@@ -281,6 +281,7 @@ verify_sparse_file(struct archive *a, const char *path,
 	last_offset = 0;
 	while (ARCHIVE_OK == archive_read_data_block(a, &buff, &bytes_read,
 	    &offset)) {
+		const char *start = buff;
 #if DEBUG
 		fprintf(stderr, "%s: bytes_read=%d offset=%d\n", path, (int)bytes_read, (int)offset);
 #endif
@@ -298,7 +299,6 @@ verify_sparse_file(struct archive *a, const char *path,
 			++sparse;
 		}
 		/* Block that overlaps beginning of data */
-		const char *start = buff;
 		if (expected_offset < offset
 		    && expected_offset + (int64_t)sparse->size <= offset + (int64_t)bytes_read) {
 			const char *end = buff + (expected_offset - offset) + (size_t)sparse->size;
