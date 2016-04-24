@@ -31,6 +31,19 @@
 #include "archive.h"
 #include "archive_cryptor_private.h"
 
+/*
+ * On systems that do not support any recognized crypto libraries,
+ * this file will normally define no usable symbols.
+ *
+ * But some compilers and linkers choke on empty object files, so
+ * define a public symbol that will always exist.  This could
+ * be removed someday if this file gains another always-present
+ * symbol definition.
+ */
+int __libarchive_cryptor_build_hack(void) {
+	return 0;
+}
+
 #ifdef ARCHIVE_CRYPTOR_USE_Apple_CommonCrypto
 
 static int
