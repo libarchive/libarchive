@@ -362,6 +362,14 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `cygwin_conv_path' function. */
 #cmakedefine HAVE_CYGWIN_CONV_PATH 1
 
+/* Define to 1 if you have the declaration of `INT32_MAX', and to 0 if you
+   don't. */
+#cmakedefine HAVE_DECL_INT32_MAX 1
+
+/* Define to 1 if you have the declaration of `INT32_MIN', and to 0 if you
+   don't. */
+#cmakedefine HAVE_DECL_INT32_MIN 1
+
 /* Define to 1 if you have the declaration of `INT64_MAX', and to 0 if you
    don't. */
 #cmakedefine HAVE_DECL_INT64_MAX 1
