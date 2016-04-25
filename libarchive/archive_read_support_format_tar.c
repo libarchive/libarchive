@@ -204,7 +204,7 @@ static int	checksum(struct archive_read *, const void *);
 static int 	pax_attribute(struct archive_read *, struct tar *,
 		    struct archive_entry *, char *key, char *value);
 static int 	pax_header(struct archive_read *, struct tar *,
-		    struct archive_entry *, char *attr);
+		    struct archive_entry *, struct archive_string *);
 static void	pax_time(const char *, int64_t *sec, long *nanos);
 static ssize_t	readline(struct archive_read *, struct tar *, const char **,
 		    ssize_t limit, size_t *);
@@ -1415,7 +1415,7 @@ header_pax_extensions(struct archive_read *a, struct tar *tar,
 	 * and then skip any fields in the standard header that were
 	 * defined in the pax header.
 	 */
-	err2 = pax_header(a, tar, entry, tar->pax_header.s);
+	err2 = pax_header(a, tar, entry, &tar->pax_header);
 	err =  err_combine(err, err2);
 	tar->entry_padding = 0x1ff & (-tar->entry_bytes_remaining);
 	return (err);
@@ -1496,7 +1496,7 @@ header_ustar(struct archive_read *a, struct tar *tar,
  */
 static int
 pax_header(struct archive_read *a, struct tar *tar,
-    struct archive_entry *entry, char *attr)
+    struct archive_entry *entry, struct archive_string *in_as)
 {
 	size_t attr_length, l, line_length;
 	char *p;
@@ -1504,8 +1504,9 @@ pax_header(struct archive_read *a, struct tar *tar,
 	struct archive_string *as;
 	struct archive_string_conv *sconv;
 	int err, err2;
+	char *attr = in_as->s;
 
-	attr_length = strlen(attr);
+	attr_length = in_as->length;
 	tar->pax_hdrcharset_binary = 0;
 	archive_string_empty(&(tar->entry_gname));
 	archive_string_empty(&(tar->entry_linkpath));
