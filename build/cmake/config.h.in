@@ -1171,7 +1171,11 @@ typedef uint64_t uintmax_t;
 /* Define for large files, on AIX-style hosts. */
 #cmakedefine _LARGE_FILES ${_LARGE_FILES}
 
-/* Define for Windows to use Windows 2000+ APIs. */
+/* Define to control Windows SDK version */
+#ifndef NTDDI_VERSION
+#cmakedefine NTDDI_VERSION ${NTDDI_VERSION}
+#endif // NTDDI_VERSION
+
 #ifndef _WIN32_WINNT
 #cmakedefine _WIN32_WINNT ${_WIN32_WINNT}
 #endif // _WIN32_WINNT
