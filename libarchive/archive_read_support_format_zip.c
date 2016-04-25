@@ -2778,6 +2778,11 @@ zip_read_mac_metadata(struct archive_read *a, struct archive_entry *entry,
 
 	switch(rsrc->compression) {
 	case 0:  /* No compression. */
+		if (rsrc->uncompressed_size != rsrc->compressed_size) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Malformed OS X metadata entry: inconsistent size");
+			return (ARCHIVE_FATAL);
+		}
 #ifdef HAVE_ZLIB_H
 	case 8: /* Deflate compression. */
 #endif
@@ -2796,6 +2801,12 @@ zip_read_mac_metadata(struct archive_read *a, struct archive_entry *entry,
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Mac metadata is too large: %jd > 4M bytes",
 		    (intmax_t)rsrc->uncompressed_size);
+		return (ARCHIVE_WARN);
+	}
+	if (rsrc->compressed_size > (4 * 1024 * 1024)) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Mac metadata is too large: %jd > 4M bytes",
+		    (intmax_t)rsrc->compressed_size);
 		return (ARCHIVE_WARN);
 	}
 
@@ -2836,6 +2847,8 @@ zip_read_mac_metadata(struct archive_read *a, struct archive_entry *entry,
 			bytes_avail = remaining_bytes;
 		switch(rsrc->compression) {
 		case 0:  /* No compression. */
+			if ((size_t)bytes_avail > metadata_bytes)
+				bytes_avail = metadata_bytes;
 			memcpy(mp, p, bytes_avail);
 			bytes_used = (size_t)bytes_avail;
 			metadata_bytes -= bytes_used;
