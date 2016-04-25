@@ -301,7 +301,7 @@ verify_sparse_file(struct archive *a, const char *path,
 		/* Block that overlaps beginning of data */
 		if (expected_offset < offset
 		    && expected_offset + (int64_t)sparse->size <= offset + (int64_t)bytes_read) {
-			const char *end = buff + (expected_offset - offset) + (size_t)sparse->size;
+			const char *end = (const char *)buff + (expected_offset - offset) + (size_t)sparse->size;
 #if DEBUG
 			fprintf(stderr, "    overlapping hole expected_offset=%d, size=%d\n", (int)expected_offset, (int)sparse->size);
 #endif
@@ -315,7 +315,7 @@ verify_sparse_file(struct archive *a, const char *path,
 		}
 		/* Blocks completely contained in data we just read. */
 		while (expected_offset + (int64_t)sparse->size <= offset + (int64_t)bytes_read) {
-			const char *end = buff + (expected_offset - offset) + (size_t)sparse->size;
+			const char *end = (const char *)buff + (expected_offset - offset) + (size_t)sparse->size;
 			if (sparse->type == HOLE) {
 #if DEBUG
 				fprintf(stderr, "    contained hole expected_offset=%d, size=%d\n", (int)expected_offset, (int)sparse->size);
@@ -323,7 +323,7 @@ verify_sparse_file(struct archive *a, const char *path,
 
 				/* verify data corresponding to hole is '\0' */
 				if (end > (const char *)buff + bytes_read) {
-					end = buff + bytes_read;
+					end = (const char *)buff + bytes_read;
 				}
 				assertMemoryFilledWith(start, end - start, '\0');
 				start = end;
@@ -335,7 +335,7 @@ verify_sparse_file(struct archive *a, const char *path,
 #endif
 				/* verify data corresponding to hole is ' ' */
 				if (assert(expected_offset + sparse->size <= offset + bytes_read)) {
-					assert(start == buff + (size_t)(expected_offset - offset));
+					assert(start == (const char *)buff + (size_t)(expected_offset - offset));
 					assertMemoryFilledWith(start, end - start, ' ');
 				}
 				start = end;
@@ -347,7 +347,7 @@ verify_sparse_file(struct archive *a, const char *path,
 		}
 		/* Block that overlaps end of data */
 		if (expected_offset < offset + (int64_t)bytes_read) {
-			const char *end = buff + bytes_read;
+			const char *end = (const char *)buff + bytes_read;
 #if DEBUG
 			fprintf(stderr, "    trailing overlap expected_offset=%d, size=%d\n", (int)expected_offset, (int)sparse->size);
 #endif
