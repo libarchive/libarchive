@@ -204,7 +204,7 @@ OPTION(ENABLE_INSTALL "Enable installing of libraries" ON)
 
 SET(POSIX_REGEX_LIB "AUTO" CACHE STRING "Choose what library should provide POSIX regular expression support")
 SET(ENABLE_SAFESEH "AUTO" CACHE STRING "Enable use of /SAFESEH linker flag (MSVC only)")
-SET(WINDOWS_VERSION "" CACHE STRING "Set Windows version to use (Windows only)")
+SET(WINDOWS_VERSION "WIN7" CACHE STRING "Set Windows version to use (Windows only)")
 
 IF(ENABLE_COVERAGE)
 	include(LibarchiveCodeCoverage)
