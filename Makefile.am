@@ -857,7 +857,7 @@ endif
 bsdtar_DEPENDENCIES= libarchive.la libarchive_fe.la
 
 if STATIC_BSDTAR
-bsdtar_ldstatic= -static
+bsdtar_ldstatic= -all-static
 bsdtar_ccstatic= -DLIBARCHIVE_STATIC
 else
 bsdtar_ldstatic=
@@ -1012,7 +1012,7 @@ bsdcpio_DEPENDENCIES = libarchive.la libarchive_fe.la
 
 
 if STATIC_BSDCPIO
-bsdcpio_ldstatic= -static
+bsdcpio_ldstatic= -all-static
 bsdcpio_ccstatic= -DLIBARCHIVE_STATIC
 else
 bsdcpio_ldstatic=
