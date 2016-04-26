@@ -152,6 +152,9 @@ esac
 
 AM_CONDITIONAL([BUILD_BSDTAR], [ test "$build_bsdtar" = yes ])
 AM_CONDITIONAL([STATIC_BSDTAR], [ test "$static_bsdtar" = yes ])
+if test "$static_bsdtar" = yes; then
+	AC_DEFINE([STATIC_BSDTAR], [1], [bsdtar linked statically])
+fi
 
 #
 # Options for building bsdcat.
