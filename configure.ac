@@ -152,6 +152,9 @@ esac
 
 AM_CONDITIONAL([BUILD_BSDTAR], [ test "$build_bsdtar" = yes ])
 AM_CONDITIONAL([STATIC_BSDTAR], [ test "$static_bsdtar" = yes ])
+if test "$static_bsdtar" = yes; then
+	AC_DEFINE([STATIC_BSDTAR], [1], [bsdtar linked statically])
+fi
 
 #
 # Options for building bsdcat.
@@ -366,7 +369,20 @@ AC_ARG_WITH([lzma],
 if test "x$with_lzma" != "xno"; then
   AC_CHECK_HEADERS([lzma.h])
   AC_CHECK_LIB(lzma,lzma_stream_decoder)
-  AC_CHECK_FUNCS([lzma_stream_encoder_mt])
+
+  # Simply checking by AC_CHECK_LIB (or it's alternative) is not sufficient
+  # here because some pr-release (widely distributed, however) versions of xz
+  # provided the lzma_stream_encoder_mt function already.  The *_mt
+  # functionality was compiled in, but it was disabled  unless calling code
+  # explicitly declared LZMA_UNSTABLE macro (thus the AC_CHECK_LIB would
+  # succeed but the compilation would fail in the end).
+  AC_CACHE_CHECK(
+    [whether we have multithread support in lzma],
+    ac_cv_lzma_has_mt,
+    [AC_COMPILE_IFELSE([
+      AC_LANG_PROGRAM([[#include <lzma.h>]],
+                      [[lzma_stream_encoder_mt(0, 0);]])],
+      [ac_cv_lzma_has_mt=yes], [ac_cv_lzma_has_mt=no])])
 fi
 
 AC_ARG_WITH([lzo2],

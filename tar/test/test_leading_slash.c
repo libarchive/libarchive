@@ -25,6 +25,14 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef _WIN32
+# define BSDTAR_CMD "bsdtar.exe"
+#elif defined(STATIC_BSDTAR)
+# define BSDTAR_CMD "bsdtar"
+#else
+# define BSDTAR_CMD "lt-bsdtar"
+#endif
+
 DEFINE_TEST(test_leading_slash)
 {
 	const char *reffile = "test_leading_slash.tar";
@@ -36,10 +44,6 @@ DEFINE_TEST(test_leading_slash)
 	assertTextFileContents("foo\x0a", "foo/hardlink");
 	assertIsHardlink("foo/file", "foo/hardlink");
 	assertEmptyFile("test.out");
-#ifdef _WIN32
-	assertTextFileContents("bsdtar.exe: Removing leading '/' from member names\x0a", "test.err");
-#else
-	assertTextFileContents("bsdtar: Removing leading '/' from member names\x0a", "test.err");
-#endif
+	assertTextFileContents(BSDTAR_CMD ": Removing leading '/' from member names\x0a", "test.err");
 }
 
