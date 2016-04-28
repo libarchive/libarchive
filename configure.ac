@@ -4,8 +4,8 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[3.1.900a])
-m4_define([LIBARCHIVE_VERSION_N],[3001900])
+m4_define([LIBARCHIVE_VERSION_S],[3.1.901a])
+m4_define([LIBARCHIVE_VERSION_N],[3001901])
 
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
@@ -243,8 +243,9 @@ AM_CONDITIONAL([STATIC_BSDCPIO], [ test "$static_bsdcpio" = yes ])
 # Set up defines needed before including any headers
 case $host in
   *mingw* | *cygwin* )
-  AC_DEFINE([_WIN32_WINNT], 0x0500, [Define to '0x0500' for Windows 2000 APIs.])
-  AC_DEFINE([WINVER], 0x0500, [Define to '0x0500' for Windows 2000 APIs.])
+  AC_DEFINE([_WIN32_WINNT], 0x0502, [Define to '0x0502' for Windows Server 2003 APIs.])
+  AC_DEFINE([WINVER], 0x0502, [Define to '0x0502' for Windows Server 2003 APIs.])
+  AC_DEFINE([NTDDI_VERSION], 0x05020000, [Define to '0x05020000' for Windows Server 2003 APIs.])
   ;;
 esac
 
@@ -539,7 +540,8 @@ AC_TYPE_INT16_T
 AC_TYPE_UINT16_T
 AC_TYPE_UINT8_T
 
-AC_CHECK_DECLS([SIZE_MAX, INT64_MAX, INT64_MIN, UINT64_MAX, UINT32_MAX])
+AC_CHECK_DECLS([SIZE_MAX, INT32_MAX, INT32_MIN])
+AC_CHECK_DECLS([INT64_MAX, INT64_MIN, UINT64_MAX, UINT32_MAX])
 AC_CHECK_DECLS([INTMAX_MAX, INTMAX_MIN, UINTMAX_MAX])
 
 AC_CHECK_DECL([SSIZE_MAX],

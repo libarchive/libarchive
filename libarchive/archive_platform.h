@@ -117,6 +117,12 @@
 #if !HAVE_DECL_UINT32_MAX
 #define	UINT32_MAX (~(uint32_t)0)
 #endif
+#if !HAVE_DECL_INT32_MAX
+#define	INT32_MAX ((int32_t)(UINT32_MAX >> 1))
+#endif
+#if !HAVE_DECL_INT32_MIN
+#define	INT32_MIN ((int32_t)(~INT32_MAX))
+#endif
 #if !HAVE_DECL_UINT64_MAX
 #define	UINT64_MAX (~(uint64_t)0)
 #endif

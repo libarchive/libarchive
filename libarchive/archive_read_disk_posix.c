@@ -835,12 +835,8 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	/*
 	 * Return an EOF unless we've read a leading empty sparse region, which
 	 * is used to represent fully-sparse files.
-	 *
-	 * TODO: it is not technically necessary to check for entry_tota == 0,
-	 * but this simplifies some unit tests that expect to only read data
-	 * regions with length > 0. Consider fixing these tests (test_sparse_basic).
 	*/
-	if (bytes == 0 && !(empty_sparse_region && t->entry_total == 0)) {
+	if (bytes == 0 && !empty_sparse_region) {
 		/* Get EOF */
 		t->entry_eof = 1;
 		r = ARCHIVE_EOF;

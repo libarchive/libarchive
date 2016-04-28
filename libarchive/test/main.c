@@ -779,6 +779,34 @@ assertion_equal_mem(const char *file, int line,
 	return (0);
 }
 
+/* Verify that a block of memory is filled with the specified byte. */
+int
+assertion_memory_filled_with(const char *file, int line,
+    const void *_v1, const char *vd,
+    size_t l, const char *ld,
+    char b, const char *bd, void *extra)
+{
+	const char *v1 = (const char *)_v1;
+	size_t c = 0;
+	size_t i;
+	(void)ld; /* UNUSED */
+
+	assertion_count(file, line);
+
+	for (i = 0; i < l; ++i) {
+		if (v1[i] == b) {
+			++c;
+		}
+	}
+	if (c == l)
+		return (1);
+
+	failure_start(file, line, "%s (size %d) not filled with %s", vd, (int)l, bd);
+	logprintf("   Only %d bytes were correct\n", (int)c);
+	failure_finish(extra);
+	return (0);
+}
+
 /* Verify that the named file exists and is empty. */
 int
 assertion_empty_file(const char *filename, int line, const char *f1)

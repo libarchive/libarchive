@@ -33,7 +33,7 @@ DEFINE_TEST(test_error_mixed)
 	assertFileNotExists(reffile2);
 	extract_reference_file(reffile1);
 	extract_reference_file(reffile3);
-	assertEqualInt(256, systemf("%s %s %s %s >test.out 2>test.err",
+	assert(0 != systemf("%s %s %s %s >test.out 2>test.err",
 	    testprog, reffile1, reffile2, reffile3));
 
 	assertTextFileContents(
