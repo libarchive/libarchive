@@ -43,7 +43,7 @@ DEFINE_TEST(test_leading_slash)
 	/* Verify the error output contains the expected text somewhere in it */
 	if (assertFileExists("test.err")) {
 		errfile = slurpfile(&errfile_size, "test.err");
-		assert(strstr(errfile, expected_errmsg));
+		assert(strstr(errfile, expected_errmsg) != NULL);
 	}
 }
 
