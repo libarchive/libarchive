@@ -366,7 +366,17 @@ AC_ARG_WITH([lzma],
 if test "x$with_lzma" != "xno"; then
   AC_CHECK_HEADERS([lzma.h])
   AC_CHECK_LIB(lzma,lzma_stream_decoder)
-  AC_CHECK_FUNCS([lzma_stream_encoder_mt])
+  # Some pre-release (but widely distributed) versions of liblzma
+  # included a disabled version of lzma_stream_encoder_mt that
+  # fools a naive AC_CHECK_LIB or AC_CHECK_FUNC, so we need
+  # to do something more complex here:
+  AC_CACHE_CHECK(
+    [whether we have multithread support in lzma],
+    ac_cv_lzma_has_mt,
+    [AC_COMPILE_IFELSE([
+      AC_LANG_PROGRAM([[#include <lzma.h>]],
+                      [[lzma_stream_encoder_mt(0, 0);]])],
+      [ac_cv_lzma_has_mt=yes], [ac_cv_lzma_has_mt=no])])
 fi
 
 AC_ARG_WITH([lzo2],
