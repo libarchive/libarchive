@@ -2303,7 +2303,10 @@ copy_reference_file(const char *name)
 	/* Not a lot of error checking here; the input better be right. */
 	out = fopen(name, "wb");
 	while ((rbytes = fread(buff, 1, sizeof(buff), in)) > 0) {
-		fwrite(buff, 1, rbytes, out);
+		if (fwrite(buff, 1, rbytes, out) != rbytes) {
+			logprintf("Error: fwrite\n");
+			break;
+		}
 	}
 	fclose(out);
 	fclose(in);
