@@ -273,6 +273,7 @@ struct tree {
 #define	needsRestoreTimes 128
 #define	onInitialDir	256 /* We are on the initial dir. */
 #define	sortEntries	512 /* Sort tree entries */
+#define	moreEntries	1024 /* There are still entries fetched from directory */
 
 static int
 tree_dir_next_posix(struct tree *t);
@@ -2326,8 +2327,8 @@ tree_next(struct tree *t)
 	int r;
 
 	while (t->stack != NULL) {
-		/* If there's an open dir, get the next entry from there. */
-		if (t->d != INVALID_DIR_HANDLE) {
+		/* If there are still entries to get, the next one from there. */
+		if (t->flags & moreEntries) {
 			r = tree_dir_next_posix(t);
 			if (r == 0)
 				continue;
@@ -2390,7 +2391,7 @@ tree_dir_iterate(struct tree *t)
 	const char *name;
 
 	/* If no directory was already opened, open the current working directory. */
-	if (t->d == NULL) {
+	if (t->d == INVALID_DIR_HANDLE) {
 #if defined(HAVE_READDIR_R)
 		size_t dirent_size;
 #endif
@@ -2420,6 +2421,7 @@ tree_dir_iterate(struct tree *t)
 			t->dirent = malloc(dirent_size);
 			if (t->dirent == NULL) {
 				closedir(t->d);
+				t->d = INVALID_DIR_HANDLE;
 				(void)tree_ascend(t);
 				tree_pop(t);
 				t->tree_errno = ENOMEM;
@@ -2453,6 +2455,7 @@ tree_dir_iterate(struct tree *t)
 			r = errno;
 #endif
 			closedir(t->d);
+			t->d = INVALID_DIR_HANDLE;
 			if (r != 0) {
 				t->tree_errno = r;
 				t->visit_type = TREE_ERROR_DIR;
@@ -2480,6 +2483,7 @@ tree_dir_next_posix(struct tree *t)
 	int r;
 	const char *name;
 	size_t namelen;
+	struct archive_rb_node *n;
 	struct dir_entry *e;
 
 	if (!(t->flags & sortEntries)) {
@@ -2491,16 +2495,44 @@ tree_dir_next_posix(struct tree *t)
 			t->flags &= ~hasLstat;
 			t->flags &= ~hasStat;
 			tree_append(t, name, namelen);
+			t->flags |= moreEntries;
 			return TREE_REGULAR;
 		case 0:
 			/* FALLTHROUGH */
 		default:
-			/* No more entry to return. Mark the directory as invalid. */
-			t->d = INVALID_DIR_HANDLE;
+			/* No more entry to return. */
+			t->flags &= ~moreEntries;
 			return r;
 		}
 	} else {
-		/* Sort is required -- try fetching an entry from the tree first */
+		if (!(t->flags & moreEntries)) {
+			/* First time in this directory, sort its content. */
+			while ((r = tree_dir_iterate(t)) == TREE_REGULAR) {
+				name = t->de->d_name;
+				namelen = D_NAMELEN(t->de);
+				e = malloc(sizeof(*e) + namelen + 1);
+				if (e == NULL) {
+					t->tree_errno = ENOMEM;
+					return (t->visit_type = TREE_ERROR_FATAL);
+				}
+				memcpy(e->name, name, namelen);
+				e->name[namelen] = '\0';
+				e->namelen = namelen;
+				__archive_rb_tree_insert_node(&t->sort_tree,
+				    (struct archive_rb_node *)e);
+			}
+			if (r != 0) {
+				/* Iteration went wrong. Free the sort tree */
+				ARCHIVE_RB_TREE_FOREACH(n, &t->sort_tree) {
+					free(n);
+				}
+				return r;
+			}
+
+			t->flags |= moreEntries;
+		}
+
+		/* Return the min entry */
 		e = (struct dir_entry *)ARCHIVE_RB_TREE_MIN(&t->sort_tree);
 		if (e != NULL) {
 			__archive_rb_tree_remove_node(&t->sort_tree,
@@ -2510,43 +2542,10 @@ tree_dir_next_posix(struct tree *t)
 			tree_append(t, e->name, e->namelen);
 			free(e);
 			return TREE_REGULAR;
-		}
-
-		/* Tree was empty, so start sorting the opened directory */
-		t->d = INVALID_DIR_HANDLE;
-		while ((r = tree_dir_iterate(t)) == TREE_REGULAR) {
-			name = t->de->d_name;
-			namelen = D_NAMELEN(t->de);
-			e = malloc(sizeof(*e) + namelen + 1);
-			if (e == NULL) {
-				t->tree_errno = ENOMEM;
-				return (t->visit_type = TREE_ERROR_FATAL);
-			}
-			memcpy(e->name, name, namelen);
-			e->name[namelen] = '\0';
-			e->namelen = namelen;
-			__archive_rb_tree_insert_node(&t->sort_tree,
-			    (struct archive_rb_node *)e);
-		}
-
-		switch (r) {
-		case 0:
-			/* Iteration is over, return the first entry */
-			e = (struct dir_entry *)ARCHIVE_RB_TREE_MIN(&t->sort_tree);
-			if (e != NULL) {
-				__archive_rb_tree_remove_node(&t->sort_tree,
-				    (struct archive_rb_node *)e);
-				t->flags &= ~hasLstat;
-				t->flags &= ~hasStat;
-				tree_append(t, e->name, e->namelen);
-				free(e);
-				return TREE_REGULAR;
-			}
-			/* FALLTHROUGH */
-		default:
-			/* Dir was empty, or something went wrong during iteration. */
-			t->d = INVALID_DIR_HANDLE;
-			return r;
+		} else {
+			/* Tree is empty, this dir is over. */
+			t->flags &= ~moreEntries;
+			return 0;
 		}
 	}
 }
@@ -2740,6 +2739,7 @@ tree_close(struct tree *t)
 	if (t->d != INVALID_DIR_HANDLE) {
 		closedir(t->d);
 		t->d = INVALID_DIR_HANDLE;
+		t->flags &= ~moreEntries;
 	}
 	/* Release anything remaining in the stack. */
 	while (t->stack != NULL) {
