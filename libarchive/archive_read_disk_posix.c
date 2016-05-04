@@ -2497,7 +2497,7 @@ tree_dir_next_posix(struct tree *t)
 		default:
 			/* No more entry to return. Mark the directory as invalid. */
 			t->d = INVALID_DIR_HANDLE;
-			return 0;
+			return r;
 		}
 	} else {
 		/* Sort is required -- try fetching an entry from the tree first */
