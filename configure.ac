@@ -377,6 +377,9 @@ if test "x$with_lzma" != "xno"; then
       AC_LANG_PROGRAM([[#include <lzma.h>]],
                       [[lzma_stream_encoder_mt(0, 0);]])],
       [ac_cv_lzma_has_mt=yes], [ac_cv_lzma_has_mt=no])])
+  if test "x$ac_cv_lzma_has_mt" != xno; then
+	  AC_DEFINE([HAVE_LZMA_STREAM_ENCODER_MT], [1], [Define to 1 if you have the `lzma_stream_encoder_mt' function.])
+  fi
 fi
 
 AC_ARG_WITH([lzo2],
