@@ -62,6 +62,10 @@ struct pax {
 	struct sparse_block	*sparse_tail;
 	struct archive_string_conv *sconv_utf8;
 	int			 opt_binary;
+
+	unsigned flags;
+#define WRITE_SCHILY_XATTR       (1 << 0)
+#define WRITE_LIBARCHIVE_XATTR   (1 << 1)
 };
 
 static void		 add_pax_attr(struct archive_string *, const char *key,
@@ -139,6 +143,8 @@ archive_write_set_format_pax(struct archive *_a)
 		    "Can't allocate pax data");
 		return (ARCHIVE_FATAL);
 	}
+	pax->flags = WRITE_LIBARCHIVE_XATTR | WRITE_SCHILY_XATTR;
+
 	a->format_data = pax;
 	a->format_name = "pax";
 	a->format_options = archive_write_pax_options;
@@ -331,17 +337,43 @@ add_pax_attr_binary(struct archive_string *as, const char *key,
 	archive_strappend_char(as, '\n');
 }
 
+static void
+archive_write_pax_header_xattr(struct pax *pax, const char *encoded_name,
+    const void *value, size_t value_len)
+{
+	struct archive_string s;
+	char *encoded_value;
+
+	if (pax->flags & WRITE_LIBARCHIVE_XATTR) {
+		encoded_value = base64_encode((const char *)value, value_len);
+
+		if (encoded_name != NULL && encoded_value != NULL) {
+			archive_string_init(&s);
+			archive_strcpy(&s, "LIBARCHIVE.xattr.");
+			archive_strcat(&s, encoded_name);
+			add_pax_attr(&(pax->pax_header), s.s, encoded_value);
+			archive_string_free(&s);
+		}
+		free(encoded_value);
+	}
+	if (pax->flags & WRITE_SCHILY_XATTR) {
+		archive_string_init(&s);
+		archive_strcpy(&s, "SCHILY.xattr.");
+		archive_strcat(&s, encoded_name);
+		add_pax_attr_binary(&(pax->pax_header), s.s, value, value_len);
+		archive_string_free(&s);
+	}
+}
+
 static int
 archive_write_pax_header_xattrs(struct archive_write *a,
     struct pax *pax, struct archive_entry *entry)
 {
-	struct archive_string s;
 	int i = archive_entry_xattr_reset(entry);
 
 	while (i--) {
 		const char *name;
 		const void *value;
-		char *encoded_value;
 		char *url_encoded_name = NULL, *encoded_name = NULL;
 		size_t size;
 		int r;
@@ -362,16 +394,9 @@ archive_write_pax_header_xattrs(struct archive_write *a,
 			}
 		}
 
-		encoded_value = base64_encode((const char *)value, size);
+		archive_write_pax_header_xattr(pax, encoded_name,
+		    value, size);
 
-		if (encoded_name != NULL && encoded_value != NULL) {
-			archive_string_init(&s);
-			archive_strcpy(&s, "LIBARCHIVE.xattr.");
-			archive_strcat(&s, encoded_name);
-			add_pax_attr(&(pax->pax_header), s.s, encoded_value);
-			archive_string_free(&s);
-		}
-		free(encoded_value);
 	}
 	return (ARCHIVE_OK);
 }
