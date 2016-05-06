@@ -66,6 +66,9 @@ struct pax {
 
 static void		 add_pax_attr(struct archive_string *, const char *key,
 			     const char *value);
+static void		 add_pax_attr_binary(struct archive_string *,
+			     const char *key,
+			     const char *value, size_t value_len);
 static void		 add_pax_attr_int(struct archive_string *,
 			     const char *key, int64_t value);
 static void		 add_pax_attr_time(struct archive_string *,
@@ -275,6 +278,17 @@ add_pax_attr_int(struct archive_string *as, const char *key, int64_t value)
 static void
 add_pax_attr(struct archive_string *as, const char *key, const char *value)
 {
+	add_pax_attr_binary(as, key, value, strlen(value));
+}
+
+/*
+ * Add a key/value attribute to the pax header.  This function handles
+ * binary values.
+ */
+static void
+add_pax_attr_binary(struct archive_string *as, const char *key,
+		    const char *value, size_t value_len)
+{
 	int digits, i, len, next_ten;
 	char tmp[1 + 3 * sizeof(int)];	/* < 3 base-10 digits per byte */
 
@@ -282,7 +296,7 @@ add_pax_attr(struct archive_string *as, const char *key, const char *value)
 	 * PAX attributes have the following layout:
 	 *     <len> <space> <key> <=> <value> <nl>
 	 */
-	len = 1 + (int)strlen(key) + 1 + (int)strlen(value) + 1;
+	len = 1 + (int)strlen(key) + 1 + (int)value_len + 1;
 
 	/*
 	 * The <len> field includes the length of the <len> field, so
@@ -313,7 +327,7 @@ add_pax_attr(struct archive_string *as, const char *key, const char *value)
 	archive_strappend_char(as, ' ');
 	archive_strcat(as, key);
 	archive_strappend_char(as, '=');
-	archive_strcat(as, value);
+	archive_array_append(as, value, value_len);
 	archive_strappend_char(as, '\n');
 }
 
