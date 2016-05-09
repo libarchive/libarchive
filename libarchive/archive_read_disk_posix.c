@@ -273,7 +273,7 @@ struct tree {
 #define	needsRestoreTimes 128
 #define	onInitialDir	256 /* We are on the initial dir. */
 #define	sortEntries	512 /* Sort tree entries */
-#define	moreEntries	1024 /* There are still entries fetched from directory */
+#define	moreEntries	1024 /* More entries can be fetched from directory */
 
 static int
 tree_dir_next_posix(struct tree *t);
@@ -2380,9 +2380,10 @@ tree_next(struct tree *t)
 }
 
 /*
- * Iterate over the dirent entries of the directory, wich will be TREE_REGULAR entries.
- * Returns TREE_REGULAR when a new entry has been fetched, 0 when iteration is over, or
- * a negative value on failure.
+ * Iterate over the dirent entries of the directory, wich will be
+ * TREE_REGULAR entries.
+ * Returns TREE_REGULAR when a new entry has been fetched, 0 when
+ * iteration is over, or a negative value on failure.
  */
 static int
 tree_dir_iterate(struct tree *t)
@@ -2390,7 +2391,10 @@ tree_dir_iterate(struct tree *t)
 	int r;
 	const char *name;
 
-	/* If no directory was already opened, open the current working directory. */
+	/*
+	 * If no directory was already opened, open the current
+	 * working directory.
+	 */
 	if (t->d == INVALID_DIR_HANDLE) {
 #if defined(HAVE_READDIR_R)
 		size_t dirent_size;
