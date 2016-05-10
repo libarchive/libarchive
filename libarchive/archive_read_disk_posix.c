@@ -94,7 +94,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include "archive.h"
-#include "archive_rb.h"
 #include "archive_string.h"
 #include "archive_entry.h"
 #include "archive_private.h"
@@ -161,12 +160,6 @@ struct tree_entry {
 	struct restore_time	 restore_time;
 };
 
-struct dir_entry {
-	struct archive_rb_node	 rbnode;
-	size_t			 namelen;
-	char			 name[];
-};
-
 struct filesystem {
 	int64_t		dev;
 	int		synthetic;
@@ -216,9 +209,11 @@ struct tree {
 	/* Error code from last failed operation. */
 	int			 tree_errno;
 
-	/* RB tree used for sorting entries */
-	struct archive_rb_tree	   sort_tree;
-	struct archive_rb_tree_ops sort_ops;
+	/* array used for sorting entries */
+	struct dirent	       **sort_array;
+	size_t			 sort_array_min;
+	size_t			 sort_array_last;
+	size_t			 sort_array_size;
 
 	/* Dynamically-sized buffer for holding path */
 	struct archive_string	 path;
@@ -381,15 +376,10 @@ static int	close_and_restore_time(int fd, struct tree *,
 static int	open_on_current_dir(struct tree *, const char *, int);
 static int	tree_dup(int);
 
-/* Default sorting and lookup functions for RB tree sorting and traversal */
-static int	_archive_read_disk_entry_cmp_node(const struct archive_rb_node *,
-		    const struct archive_rb_node *);
-static int	_archive_read_disk_entry_cmp_key(const struct archive_rb_node *,
-		    const void *);
-static const struct archive_rb_tree_ops default_sort_ops = {
-		.rbto_compare_nodes = _archive_read_disk_entry_cmp_node,
-		.rbto_compare_key = _archive_read_disk_entry_cmp_key
-};
+/* Sort related functions for entries */
+static int	insert_entry_into_sort_array(struct tree *);
+static void 	free_sort_entries(struct tree *);
+static int	sort_array_compar(const void *, const void *);
 
 static struct archive_vtable *
 archive_read_disk_vtable(void)
@@ -2140,7 +2130,6 @@ tree_open(const char *path, int symlink_mode, int restore_time, int sort_entries
 	memset(t, 0, sizeof(*t));
 	archive_string_init(&t->path);
 	archive_string_ensure(&t->path, 31);
-	__archive_rb_tree_init(&t->sort_tree, &default_sort_ops);
 	t->initial_symlink_mode = symlink_mode;
 	return (tree_reopen(t, path, restore_time, sort_entries));
 }
@@ -2156,6 +2145,8 @@ tree_reopen(struct tree *t, const char *path, int restore_time, int sort_entries
 	t->dirname_length = 0;
 	t->depth = 0;
 	t->descend = 0;
+	t->sort_array_size = 0;
+	t->sort_array_min = 0;
 	t->current = NULL;
 	t->d = INVALID_DIR_HANDLE;
 	t->symlink_mode = t->initial_symlink_mode;
@@ -2486,19 +2477,16 @@ tree_dir_next_posix(struct tree *t)
 {
 	int r;
 	const char *name;
-	size_t namelen;
-	struct archive_rb_node *n;
-	struct dir_entry *e;
+	struct dirent *e;
 
 	if (!(t->flags & sortEntries)) {
 		/* No sorting required -- get the next entry. */
 		switch (r = tree_dir_iterate(t)) {
 		case TREE_REGULAR:
 			name = t->de->d_name;
-			namelen = D_NAMELEN(t->de);
 			t->flags &= ~hasLstat;
 			t->flags &= ~hasStat;
-			tree_append(t, name, namelen);
+			tree_append(t, name, D_NAMELEN(t->de));
 			t->flags |= moreEntries;
 			return TREE_REGULAR;
 		case 0:
@@ -2512,47 +2500,91 @@ tree_dir_next_posix(struct tree *t)
 		if (!(t->flags & moreEntries)) {
 			/* First time in this directory, sort its content. */
 			while ((r = tree_dir_iterate(t)) == TREE_REGULAR) {
-				name = t->de->d_name;
-				namelen = D_NAMELEN(t->de);
-				e = malloc(sizeof(*e) + namelen + 1);
-				if (e == NULL) {
-					t->tree_errno = ENOMEM;
-					return (t->visit_type = TREE_ERROR_FATAL);
+				if (insert_entry_into_sort_array(t) != 0) {
+					free_sort_entries(t);
+					t->visit_type = TREE_ERROR_DIR;
+					return t->visit_type;
 				}
-				memcpy(e->name, name, namelen);
-				e->name[namelen] = '\0';
-				e->namelen = namelen;
-				__archive_rb_tree_insert_node(&t->sort_tree,
-				    (struct archive_rb_node *)e);
 			}
 			if (r != 0) {
-				/* Iteration went wrong. Free the sort tree */
-				ARCHIVE_RB_TREE_FOREACH(n, &t->sort_tree) {
-					free(n);
-				}
+				/* Iteration went wrong. Free all entries */
+				free_sort_entries(t);
 				return r;
 			}
 
+			qsort(t->sort_array, t->sort_array_last,
+			    sizeof(*t->sort_array), sort_array_compar);
 			t->flags |= moreEntries;
 		}
 
 		/* Return the min entry */
-		e = (struct dir_entry *)ARCHIVE_RB_TREE_MIN(&t->sort_tree);
-		if (e != NULL) {
-			__archive_rb_tree_remove_node(&t->sort_tree,
-			    (struct archive_rb_node *)e);
+		if (t->sort_array_min < t->sort_array_last) {
+			e = t->sort_array[t->sort_array_min++];
 			t->flags &= ~hasLstat;
 			t->flags &= ~hasStat;
-			tree_append(t, e->name, e->namelen);
-			free(e);
+			tree_append(t, e->d_name, D_NAMELEN(e));
 			return TREE_REGULAR;
 		} else {
 			/* Tree is empty, this dir is over. */
+			free_sort_entries(t);
 			t->flags &= ~moreEntries;
 			return 0;
 		}
 	}
 }
+
+static int
+sort_array_compar(const void *e1, const void *e2)
+{
+	const struct dirent *d1 = *(struct dirent **)e1;
+	const struct dirent *d2 = *(struct dirent **)e2;
+
+	return strcmp(d1->d_name, d2->d_name);
+}
+
+static int
+insert_entry_into_sort_array(struct tree *t)
+{
+	struct dirent **new;
+	struct dirent *de;
+
+	de = malloc(t->dirent_allocated);
+	if (de == NULL) {
+		t->tree_errno = ENOMEM;
+		return TREE_ERROR_DIR;
+	}
+
+	/* increase sort array size if it cannot hold a new entry */
+	if (t->sort_array_size <= t->sort_array_last) {
+		t->sort_array_size += 1024;
+		new = realloc(t->sort_array,
+		    t->sort_array_size * sizeof(t->de));
+		if (new == NULL) {
+			t->tree_errno = ENOMEM;
+			return TREE_ERROR_DIR;
+		} else {
+			t->sort_array = new;
+		}
+	}
+
+	*de = *t->de;
+	t->sort_array[t->sort_array_last++] = de;
+	return 0;
+}
+
+static void
+free_sort_entries(struct tree *t)
+{
+	size_t i;
+
+	for (i = 0; i < t->sort_array_last; i++) {
+		free(t->sort_array[i]);
+	}
+	/* Start over! */
+	t->sort_array_min = 0;
+	t->sort_array_last = 0;
+}
+
 
 /*
  * Get the stat() data for the entry just returned from tree_next().
@@ -2759,6 +2791,11 @@ tree_close(struct tree *t)
 		close(t->initial_dir_fd);
 		t->initial_dir_fd = -1;
 	}
+
+	if (t->sort_array != NULL) {
+		free_sort_entries(t);
+		free(t->sort_array);
+	}
 }
 
 /*
@@ -2783,21 +2820,3 @@ tree_free(struct tree *t)
 }
 
 #endif
-
-static int
-_archive_read_disk_entry_cmp_node(const struct archive_rb_node *n1,
-    const struct archive_rb_node *n2)
-{
-        const struct dir_entry *e1 = (const struct dir_entry *)n1;
-        const struct dir_entry *e2 = (const struct dir_entry *)n2;
-
-        return (strcmp(e2->name, e1->name));
-}
-
-static int
-_archive_read_disk_entry_cmp_key(const struct archive_rb_node *n, const void *key)
-{
-        const struct dir_entry *e = (const struct dir_entry *)n;
-
-        return (strcmp((const char *)key, e->name));
-}
