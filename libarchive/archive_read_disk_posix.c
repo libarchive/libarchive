@@ -212,8 +212,10 @@ struct tree {
 	/* array used for sorting entries */
 	struct dirent	       **sort_array;
 	size_t			 sort_array_min;
-	size_t			 sort_array_last;
+	size_t			 sort_array_nentries;
 	size_t			 sort_array_size;
+	int 		       (*sort_cb_func)(const struct dirent **,
+			             const struct dirent **);
 
 	/* Dynamically-sized buffer for holding path */
 	struct archive_string	 path;
@@ -376,10 +378,11 @@ static int	close_and_restore_time(int fd, struct tree *,
 static int	open_on_current_dir(struct tree *, const char *, int);
 static int	tree_dup(int);
 
-/* Sort related functions for entries */
+/* Sort related functions for directory entries */
 static int	insert_entry_into_sort_array(struct tree *);
 static void 	free_sort_entries(struct tree *);
-static int	sort_array_compar(const void *, const void *);
+static int	default_sort_cb_func(const struct dirent **,
+		    const struct dirent **);
 
 static struct archive_vtable *
 archive_read_disk_vtable(void)
@@ -644,6 +647,17 @@ archive_read_disk_set_behavior(struct archive *_a, int flags)
 			a->tree->flags &= ~sortEntries;
 	}
 	return (r);
+}
+
+int
+archive_read_disk_set_sort_compar(struct archive *_a,
+    int (*compar)(const void *, const void *))
+{
+	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+
+	a->tree->sort_cb_func = (int (*)(const struct dirent **,
+	    const struct dirent **))compar;
+	return 0;
 }
 
 /*
@@ -2131,6 +2145,7 @@ tree_open(const char *path, int symlink_mode, int restore_time, int sort_entries
 	archive_string_init(&t->path);
 	archive_string_ensure(&t->path, 31);
 	t->initial_symlink_mode = symlink_mode;
+	t->sort_cb_func = default_sort_cb_func;
 	return (tree_reopen(t, path, restore_time, sort_entries));
 }
 
@@ -2512,13 +2527,14 @@ tree_dir_next_posix(struct tree *t)
 				return r;
 			}
 
-			qsort(t->sort_array, t->sort_array_last,
-			    sizeof(*t->sort_array), sort_array_compar);
+			qsort(t->sort_array, t->sort_array_nentries,
+			    sizeof(*t->sort_array),
+			    (int (*)(const void *, const void *))t->sort_cb_func);
 			t->flags |= moreEntries;
 		}
 
 		/* Return the min entry */
-		if (t->sort_array_min < t->sort_array_last) {
+		if (t->sort_array_min < t->sort_array_nentries) {
 			e = t->sort_array[t->sort_array_min++];
 			t->flags &= ~hasLstat;
 			t->flags &= ~hasStat;
@@ -2534,12 +2550,10 @@ tree_dir_next_posix(struct tree *t)
 }
 
 static int
-sort_array_compar(const void *e1, const void *e2)
+default_sort_cb_func(const struct dirent **d1, const struct dirent **d2)
 {
-	const struct dirent *d1 = *(struct dirent **)e1;
-	const struct dirent *d2 = *(struct dirent **)e2;
 
-	return strcmp(d1->d_name, d2->d_name);
+	return strcmp((*d1)->d_name, (*d2)->d_name);
 }
 
 static int
@@ -2555,10 +2569,10 @@ insert_entry_into_sort_array(struct tree *t)
 	}
 
 	/* increase sort array size if it cannot hold a new entry */
-	if (t->sort_array_size <= t->sort_array_last) {
+	if (t->sort_array_size <= t->sort_array_nentries) {
 		t->sort_array_size += 1024;
 		new = realloc(t->sort_array,
-		    t->sort_array_size * sizeof(t->de));
+		    t->sort_array_size * sizeof(*t->sort_array));
 		if (new == NULL) {
 			t->tree_errno = ENOMEM;
 			return TREE_ERROR_DIR;
@@ -2568,7 +2582,7 @@ insert_entry_into_sort_array(struct tree *t)
 	}
 
 	*de = *t->de;
-	t->sort_array[t->sort_array_last++] = de;
+	t->sort_array[t->sort_array_nentries++] = de;
 	return 0;
 }
 
@@ -2577,12 +2591,12 @@ free_sort_entries(struct tree *t)
 {
 	size_t i;
 
-	for (i = 0; i < t->sort_array_last; i++) {
+	for (i = 0; i < t->sort_array_nentries; i++) {
 		free(t->sort_array[i]);
 	}
 	/* Start over! */
 	t->sort_array_min = 0;
-	t->sort_array_last = 0;
+	t->sort_array_nentries = 0;
 }
 
 

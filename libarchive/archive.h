@@ -1003,6 +1003,10 @@ __LA_DECL int  archive_read_disk_set_atime_restored(struct archive *);
 __LA_DECL int  archive_read_disk_set_behavior(struct archive *,
 		    int flags);
 
+/* Set a caller-defined comparison function for entries within a directory */
+__LA_DECL int  archive_read_disk_set_sort_compar(struct archive *,
+		    int (*)(const void *, const void *));
+
 /*
  * Set archive_match object that will be used in archive_read_disk to
  * know whether an entry should be skipped. The callback function
