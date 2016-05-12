@@ -2333,7 +2333,7 @@ tree_next(struct tree *t)
 	int r;
 
 	while (t->stack != NULL) {
-		/* If there are still entries to get, obtain the next one from here */
+		/* If there are still entries to get, obtain the next one */
 		if (t->flags & moreEntries) {
 			r = tree_dir_next_posix(t);
 			if (r == 0)
