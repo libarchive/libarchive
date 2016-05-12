@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
+#include <search.h>
 #include <winioctl.h>
 
 #include "archive.h"
@@ -135,6 +136,14 @@ struct tree {
 	/* Error code from last failed operation. */
 	int			 tree_errno;
 
+	       /* array used for sorting entries */
+	WIN32_FIND_DATAW       **sort_array;
+	size_t			 sort_array_min;
+	size_t			 sort_array_nentries;
+	size_t			 sort_array_size;
+	int		       (*sort_cb_func)(const WIN32_FIND_DATAW **,
+				     const WIN32_FIND_DATAW **);
+
 	/* A full path with "\\?\" prefix. */
 	struct archive_wstring	 full_path;
 	size_t			 full_path_dir_length;
@@ -205,9 +214,11 @@ struct tree {
 #define	hasStat		16 /* The st entry is valid. */
 #define	hasLstat	32 /* The lst entry is valid. */
 #define	needsRestoreTimes 128
+#define sortEntries	256 /* Sort tree entries */
+#define moreEntries	512 /* More entries can be fetched from directory */
 
-static int
-tree_dir_next_windows(struct tree *t, const wchar_t *pattern);
+static int	tree_dir_iterate(struct tree *, const wchar_t *);
+static int	tree_dir_next_windows(struct tree *, const wchar_t *);
 
 /* Initiate/terminate a tree traversal. */
 static struct tree *tree_open(const wchar_t *, int, int);
@@ -301,7 +312,11 @@ static int	close_and_restore_time(HANDLE, struct tree *,
 static int	setup_sparse_from_disk(struct archive_read_disk *,
 		    struct archive_entry *, HANDLE);
 
-
+/* Sort related functions for directory entries */
+static int	insert_entry_into_sort_array(struct tree *);
+static void	free_sort_entries(struct tree *);
+static int	default_sort_cb_func(WIN32_FIND_DATA **d1,
+		    WIN32_FIND_DATAW **d2);
 
 static struct archive_vtable *
 archive_read_disk_vtable(void)
@@ -1706,8 +1721,8 @@ tree_next(struct tree *t)
 	int r;
 
 	while (t->stack != NULL) {
-		/* If there's an open dir, get the next entry from there. */
-		if (t->d != INVALID_HANDLE_VALUE) {
+		/* If there are still entries to get, obtain the next one */
+		if (t->flags & moreEntries) {
 			r = tree_dir_next_windows(t, NULL);
 			if (r == 0)
 				continue;
@@ -1779,11 +1794,10 @@ tree_next(struct tree *t)
 }
 
 static int
-tree_dir_next_windows(struct tree *t, const wchar_t *pattern)
+tree_dir_iterate(struct tree *t, const wchar_t *pattern)
 {
-	const wchar_t *name;
-	size_t namelen;
 	int r;
+	const wchar_t *name;
 
 	for (;;) {
 		if (pattern != NULL) {
@@ -1815,16 +1829,118 @@ tree_dir_next_windows(struct tree *t, const wchar_t *pattern)
 			return (0);
 		}
 		name = t->findData->cFileName;
-		namelen = wcslen(name);
-		t->flags &= ~hasLstat;
-		t->flags &= ~hasStat;
 		if (name[0] == L'.' && name[1] == L'\0')
 			continue;
 		if (name[0] == L'.' && name[1] == L'.' && name[2] == L'\0')
 			continue;
-		tree_append(t, name, namelen);
 		return (t->visit_type = TREE_REGULAR);
 	}
+}
+
+static int
+tree_dir_next_windows(struct tree *t, const wchar_t *pattern)
+{
+	int r;
+	const wchar_t *name;
+	WIN32_FIND_DATA *e;
+
+	if (!(t->flags & sortEntries)) {
+		/* No sorting required -- get the next entry. */
+		switch (r = tree_dir_iterate(t, pattern)) {
+		case TREE_REGULAR:
+			name = t->findData->cFileName;
+			t->flags &= ~hasLstat;
+			t->flags &= ~hasStat;
+			tree_append(t, name, strlen(name));
+			t->flags |= moreEntries;
+			return TREE_REGULAR;
+		case 0:
+			/* FALLTHROUGH */
+		default:
+			/* No more entry to return. */
+			t->flags &= ~moreEntries;
+			return r;
+		}
+	} else {
+		if (!(t->flags & moreEntries)) {
+			/* First time in this directory, sort its content. */
+			while ((r = tree_dir_iterate(t, pattern))
+			     == TREE_REGULAR) {
+				if (insert_entry_into_sort_array(t) != 0) {
+					free_sort_entries(t);
+					t->visit_type = TREE_ERROR_DIR;
+					return t->visit_type;
+				}
+			}
+			if (r != 0) {
+				/* Iteration went wrong. Free all entries */
+				free_sort_entries(t);
+				return r;
+			}
+
+			qsort(t->sort_array, t->sort_array_nentries,
+			    sizeof(*t->sort_array),
+			    (int (*)(const void *, const void *))t->sort_cb_func);
+			t->flags |= moreEntries;
+		}
+
+		/* Return the min entry */
+		if (t->sort_array_min < t->sort_array_nentries) {
+			e = t->sort_array[t->sort_array_min++];
+			t->flags &= ~hasLstat;
+			t->flags &= ~hasStat;
+			tree_append(t, e->cFileName, strlen(e->cFileName));
+			return TREE_REGULAR;
+}
+
+static int
+default_sort_cb_func(WIN32_FIND_DATA **d1, WIN32_FIND_DATAW **d2)
+{
+
+	return wcscmp((*d1)->cFileName, (*d2)->cFileName);
+}
+
+static int
+insert_entry_into_sort_array(struct tree *t)
+{
+	WIN32_FIND_DATA **new;
+	WIN32_FIND_DATA *de;
+
+	de = malloc(sizeof(*de));
+	if (de == NULL) {
+		t->tree_errno = ENOMEM;
+		return TREE_ERROR_DIR;
+	}
+
+	/* increase sort array size if it cannot hold a new entry */
+	if (t->sort_array_size <= t->sort_array_nentries) {
+		t->sort_array_size += 1024;
+		new = realloc(t->sort_array,
+		    t->sort_array_size * sizeof(*t->sort_array));
+		if (new == NULL) {
+			t->tree_errno = ENOMEM;
+			return TREE_ERROR_DIR;
+		} else {
+			t->sort_array = new;
+		}
+	}
+
+	*de = *t->de;
+	t->sort_array[t->sort_array_nentries++] = de;
+	return 0;
+}
+
+static void
+free_sort_entries(struct tree *t)
+{
+	size_t i;
+
+	for (i = 0; i < t->sort_array_nentries; i++) {
+		free(t->sort_array[i]);
+	}
+	/* Start over! */
+	t->sort_array_min = 0;
+	t->sort_array_nentries = 0;
 }
 
 #define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
