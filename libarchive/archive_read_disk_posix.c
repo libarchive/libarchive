@@ -272,8 +272,8 @@ struct tree {
 #define	sortEntries	512 /* Sort tree entries */
 #define	moreEntries	1024 /* More entries can be fetched from directory */
 
-static int
-tree_dir_next_posix(struct tree *t);
+static int	tree_dir_iterate(struct tree *);
+static int	tree_dir_next_posix(struct tree *);
 
 #ifdef HAVE_DIRENT_D_NAMLEN
 /* BSD extension; avoids need for a strlen() call. */
