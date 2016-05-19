@@ -208,6 +208,8 @@ struct tree {
 	int			 visit_type;
 	/* Error code from last failed operation. */
 	int			 tree_errno;
+	/* Last return code while iterating entries inside directory */
+	int			 tree_last_iteration;
 
 	/* array used for sorting entries */
 	struct dirent	       **sort_array;
@@ -216,6 +218,8 @@ struct tree {
 	size_t			 sort_array_size;
 	int 		       (*sort_cb_func)(const struct dirent **,
 			             const struct dirent **);
+	/* Maximum number of entries that will be sorted by libarchive */
+	size_t			 sort_entries_max;
 
 	/* Dynamically-sized buffer for holding path */
 	struct archive_string	 path;
@@ -269,8 +273,7 @@ struct tree {
 			    * reading directory entry at this time. */
 #define	needsRestoreTimes 128
 #define	onInitialDir	256 /* We are on the initial dir. */
-#define	sortEntries	512 /* Sort tree entries */
-#define	moreEntries	1024 /* More entries can be fetched from directory */
+#define	moreEntries	512 /* More entries can be fetched for current directory */
 
 static int	tree_dir_iterate(struct tree *);
 static int	tree_dir_next_posix(struct tree *);
@@ -283,8 +286,9 @@ static int	tree_dir_next_posix(struct tree *);
 #endif
 
 /* Initiate/terminate a tree traversal. */
-static struct tree *tree_open(const char *, int, int, int);
-static struct tree *tree_reopen(struct tree *, const char *, int, int);
+static struct tree *tree_open(const char *, struct archive_read_disk *);
+static struct tree *tree_reopen(struct tree *, const char *,
+		struct archive_read_disk *);
 static void tree_close(struct tree *);
 static void tree_free(struct tree *);
 static void tree_push(struct tree *, const char *, int, int64_t, int64_t,
@@ -482,6 +486,8 @@ archive_read_disk_new(void)
 	a->lookup_gname = trivial_lookup_gname;
 	a->enable_copyfile = 1;
 	a->traverse_mount_points = 1;
+	a->sort_entries_max = DEFAULT_SORT_ENTRIES_MAX;
+	a->sort_cb_func = (int (*)(const void *, const void *))default_sort_cb_func;
 	a->open_on_current_dir = open_on_current_dir;
 	a->tree_current_dir_fd = tree_current_dir_fd;
 	a->tree_enter_working_dir = tree_enter_working_dir;
@@ -638,13 +644,13 @@ archive_read_disk_set_behavior(struct archive *_a, int flags)
 	else
 		a->report_all_visit_types = 0;
 	if (flags & ARCHIVE_READDISK_SORT_ENTRIES) {
-		a->sort_entries = 1;
+		a->sort_entries_max = SIZE_MAX;
 		if (a->tree != NULL)
-			a->tree->flags &= sortEntries;
+			a->tree->sort_entries_max = SIZE_MAX;
 	} else {
-		a->sort_entries = 0;
+		a->sort_entries_max = DEFAULT_SORT_ENTRIES_MAX;
 		if (a->tree != NULL)
-			a->tree->flags &= ~sortEntries;
+			a->tree->sort_entries_max = DEFAULT_SORT_ENTRIES_MAX;
 	}
 	return (r);
 }
@@ -655,8 +661,14 @@ archive_read_disk_set_sort_compar(struct archive *_a,
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
 
-	a->tree->sort_cb_func = (int (*)(const struct dirent **,
-	    const struct dirent **))compar;
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
+	    ARCHIVE_STATE_ANY, "archive_read_disk_set_sort_compar");
+
+	a->sort_cb_func = compar;
+	if (a->tree != NULL) {
+		a->tree->sort_cb_func = (int (*)(const struct dirent **,
+		    const struct dirent **))compar;
+	}
 	return 0;
 }
 
@@ -1393,11 +1405,9 @@ _archive_read_disk_open(struct archive *_a, const char *pathname)
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
 
 	if (a->tree != NULL)
-		a->tree = tree_reopen(a->tree, pathname, a->restore_time,
-		    a->sort_entries);
+		a->tree = tree_reopen(a->tree, pathname, a);
 	else
-		a->tree = tree_open(pathname, a->symlink_mode,
-		    a->restore_time, a->sort_entries);
+		a->tree = tree_open(pathname, a);
 	if (a->tree == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate tar data");
@@ -2135,7 +2145,7 @@ tree_append(struct tree *t, const char *name, size_t name_length)
  * Open a directory tree for traversal.
  */
 static struct tree *
-tree_open(const char *path, int symlink_mode, int restore_time, int sort_entries)
+tree_open(const char *path, struct archive_read_disk *a)
 {
 	struct tree *t;
 
@@ -2144,16 +2154,17 @@ tree_open(const char *path, int symlink_mode, int restore_time, int sort_entries
 	memset(t, 0, sizeof(*t));
 	archive_string_init(&t->path);
 	archive_string_ensure(&t->path, 31);
-	t->initial_symlink_mode = symlink_mode;
-	t->sort_cb_func = default_sort_cb_func;
-	return (tree_reopen(t, path, restore_time, sort_entries));
+	t->initial_symlink_mode = a->symlink_mode;
+	t->sort_cb_func = (int (*)(const struct dirent **,
+	    const struct dirent **))a->sort_cb_func;
+	t->sort_entries_max = a->sort_entries_max;
+	return (tree_reopen(t, path, a));
 }
 
 static struct tree *
-tree_reopen(struct tree *t, const char *path, int restore_time, int sort_entries)
+tree_reopen(struct tree *t, const char *path, struct archive_read_disk *a)
 {
-	t->flags = (restore_time)?needsRestoreTimes:0;
-	t->flags |= (sort_entries)?sortEntries:0;
+	t->flags = (a->restore_time)?needsRestoreTimes:0;
 	t->flags |= onInitialDir;
 	t->visit_type = 0;
 	t->tree_errno = 0;
@@ -2487,65 +2498,92 @@ tree_dir_iterate(struct tree *t)
 	}
 }
 
+/*
+ * Get the next entry from directory. If the number of entries stored inside
+ * the sort array is below the defined maximum, keep fetching entries and store
+ * them inside the array.
+ * If we are at or above the maximum, start returning the stored entries, unsorted.
+ * If we are below maximum and we have fetched all possible entries, sort them then
+ * return them one by one.
+ */
 static int
 tree_dir_next_posix(struct tree *t)
 {
 	int r;
+	size_t i;
 	const char *name;
 	struct dirent *e;
 
-	if (!(t->flags & sortEntries)) {
-		/* No sorting required -- get the next entry. */
-		switch (r = tree_dir_iterate(t)) {
-		case TREE_REGULAR:
-			name = t->de->d_name;
-			t->flags &= ~hasLstat;
-			t->flags &= ~hasStat;
-			tree_append(t, name, D_NAMELEN(t->de));
-			t->flags |= moreEntries;
-			return TREE_REGULAR;
-		case 0:
-			/* FALLTHROUGH */
-		default:
-			/* No more entry to return. */
-			t->flags &= ~moreEntries;
-			return r;
-		}
-	} else {
-		if (!(t->flags & moreEntries)) {
-			/* First time in this directory, sort its content. */
-			while ((r = tree_dir_iterate(t)) == TREE_REGULAR) {
+	if (!(t->flags & moreEntries)) {
+		/* First time in this directory, fetch entries. */
+		for (i = 0; i < t->sort_entries_max; i++) {
+			r = tree_dir_iterate(t);
+
+			if (r == TREE_REGULAR) {
 				if (insert_entry_into_sort_array(t) != 0) {
 					free_sort_entries(t);
 					t->visit_type = TREE_ERROR_DIR;
 					return t->visit_type;
 				}
+			} else if (r == 0) {
+				/*
+				 * We are done with this directory and there are
+				 * fewer entries than max. Perform sort.
+				 */
+				qsort(t->sort_array, t->sort_array_nentries,
+				    sizeof(*t->sort_array),
+				    (int (*)(const void *, const void *))t->sort_cb_func);
+				break;
+			} else {
+				/*
+				 * Iteration went wrong. Avoid sorting as caller
+				 * might be interested by the entry that returned
+				 * an error.
+				 */
+				break;
 			}
-			if (r != 0) {
-				/* Iteration went wrong. Free all entries */
-				free_sort_entries(t);
-				return r;
-			}
-
-			qsort(t->sort_array, t->sort_array_nentries,
-			    sizeof(*t->sort_array),
-			    (int (*)(const void *, const void *))t->sort_cb_func);
-			t->flags |= moreEntries;
 		}
 
-		/* Return the min entry */
-		if (t->sort_array_min < t->sort_array_nentries) {
-			e = t->sort_array[t->sort_array_min++];
-			t->flags &= ~hasLstat;
-			t->flags &= ~hasStat;
-			tree_append(t, e->d_name, D_NAMELEN(e));
-			return TREE_REGULAR;
-		} else {
-			/* Tree is empty, this dir is over. */
-			free_sort_entries(t);
-			t->flags &= ~moreEntries;
-			return 0;
-		}
+		t->tree_last_iteration = r;
+		t->flags |= moreEntries;
+	}
+
+	if (t->sort_array_min < t->sort_array_nentries) {
+		/* there are entries stored in the array, return them first. */
+		e = t->sort_array[t->sort_array_min++];
+		t->flags &= ~hasLstat;
+		t->flags &= ~hasStat;
+		tree_append(t, e->d_name, D_NAMELEN(e));
+		return TREE_REGULAR;
+	}
+
+	if (t->tree_last_iteration != TREE_REGULAR) {
+		/*
+		 * We are done with this directory either because we finished
+		 * iterating its entries or something went wrong.
+		 */
+		free_sort_entries(t);
+		t->flags &= ~moreEntries;
+		t->visit_type = t->tree_last_iteration;
+		return t->visit_type;
+	}
+
+	/* We are not done with current dir yet, get the remaining entries. */
+	switch (r = tree_dir_iterate(t)) {
+	case TREE_REGULAR:
+		name = t->de->d_name;
+		t->flags &= ~hasLstat;
+		t->flags &= ~hasStat;
+		tree_append(t, name, D_NAMELEN(t->de));
+		return TREE_REGULAR;
+		break;
+	case 0:
+		/* FALLTHROUGH */
+	default:
+		/* No more entry to return. */
+		free_sort_entries(t);
+		t->flags &= ~moreEntries;
+		return r;
 	}
 }
 
@@ -2808,6 +2846,7 @@ tree_close(struct tree *t)
 
 	if (t->sort_array != NULL) {
 		free_sort_entries(t);
+#error DONT FORGET THE REMAINING FREE ENTRIES
 		free(t->sort_array);
 	}
 }
