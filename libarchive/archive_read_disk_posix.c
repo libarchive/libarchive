@@ -200,6 +200,7 @@ struct tree {
 	DIR			*d;
 #define	INVALID_DIR_HANDLE NULL
 	struct dirent		*de;
+	size_t			 default_dirent_size;
 #if defined(HAVE_READDIR_R)
 	struct dirent		*dirent;
 	size_t			 dirent_allocated;
@@ -216,8 +217,7 @@ struct tree {
 	size_t			 sort_array_min;
 	size_t			 sort_array_nentries;
 	size_t			 sort_array_size;
-	int 		       (*sort_cb_func)(const struct dirent **,
-			             const struct dirent **);
+	int 		       (*sort_cb_func)(const void *, const void *);
 	/* Maximum number of entries that will be sorted by libarchive */
 	size_t			 sort_entries_max;
 
@@ -384,9 +384,8 @@ static int	tree_dup(int);
 
 /* Sort related functions for directory entries */
 static int	insert_entry_into_sort_array(struct tree *);
-static void 	free_sort_entries(struct tree *);
-static int	default_sort_cb_func(const struct dirent **,
-		    const struct dirent **);
+static void 	free_sort_entries(struct tree *, int);
+static int	default_sort_cb_func(const void *, const void *);
 
 static struct archive_vtable *
 archive_read_disk_vtable(void)
@@ -487,7 +486,7 @@ archive_read_disk_new(void)
 	a->enable_copyfile = 1;
 	a->traverse_mount_points = 1;
 	a->sort_entries_max = DEFAULT_SORT_ENTRIES_MAX;
-	a->sort_cb_func = (int (*)(const void *, const void *))default_sort_cb_func;
+	a->sort_cb_func = default_sort_cb_func;
 	a->open_on_current_dir = open_on_current_dir;
 	a->tree_current_dir_fd = tree_current_dir_fd;
 	a->tree_enter_working_dir = tree_enter_working_dir;
@@ -666,8 +665,7 @@ archive_read_disk_set_sort_compar(struct archive *_a,
 
 	a->sort_cb_func = compar;
 	if (a->tree != NULL) {
-		a->tree->sort_cb_func = (int (*)(const struct dirent **,
-		    const struct dirent **))compar;
+		a->tree->sort_cb_func = compar;
 	}
 	return 0;
 }
@@ -2155,8 +2153,7 @@ tree_open(const char *path, struct archive_read_disk *a)
 	archive_string_init(&t->path);
 	archive_string_ensure(&t->path, 31);
 	t->initial_symlink_mode = a->symlink_mode;
-	t->sort_cb_func = (int (*)(const struct dirent **,
-	    const struct dirent **))a->sort_cb_func;
+	t->sort_cb_func = a->sort_cb_func;
 	t->sort_entries_max = a->sort_entries_max;
 	return (tree_reopen(t, path, a));
 }
@@ -2521,7 +2518,7 @@ tree_dir_next_posix(struct tree *t)
 
 			if (r == TREE_REGULAR) {
 				if (insert_entry_into_sort_array(t) != 0) {
-					free_sort_entries(t);
+					free_sort_entries(t, 0);
 					t->visit_type = TREE_ERROR_DIR;
 					return t->visit_type;
 				}
@@ -2531,8 +2528,7 @@ tree_dir_next_posix(struct tree *t)
 				 * fewer entries than max. Perform sort.
 				 */
 				qsort(t->sort_array, t->sort_array_nentries,
-				    sizeof(*t->sort_array),
-				    (int (*)(const void *, const void *))t->sort_cb_func);
+				    sizeof(*t->sort_array), t->sort_cb_func);
 				break;
 			} else {
 				/*
@@ -2562,7 +2558,7 @@ tree_dir_next_posix(struct tree *t)
 		 * We are done with this directory either because we finished
 		 * iterating its entries or something went wrong.
 		 */
-		free_sort_entries(t);
+		free_sort_entries(t, 0);
 		t->flags &= ~moreEntries;
 		t->visit_type = t->tree_last_iteration;
 		return t->visit_type;
@@ -2581,34 +2577,44 @@ tree_dir_next_posix(struct tree *t)
 		/* FALLTHROUGH */
 	default:
 		/* No more entry to return. */
-		free_sort_entries(t);
+		free_sort_entries(t, 0);
 		t->flags &= ~moreEntries;
 		return r;
 	}
 }
 
 static int
-default_sort_cb_func(const struct dirent **d1, const struct dirent **d2)
+default_sort_cb_func(const void *v1, const void *v2)
 {
+	const struct dirent **d1 = (const struct dirent **)v1;
+	const struct dirent **d2 = (const struct dirent **)v2;
 
 	return strcmp((*d1)->d_name, (*d2)->d_name);
 }
 
+/*
+ * Directory entries will always be sorted if there are fewer than
+ * DEFAULT_SORT_ENTRIES_MAX entries inside. So keep these allocated structures
+ * arround.
+ */
 static int
 insert_entry_into_sort_array(struct tree *t)
 {
+	int i;
 	struct dirent **new;
-	struct dirent *de;
+	struct dirent *d, *de;
+	size_t dirent_size;
 
-	de = malloc(t->dirent_allocated);
-	if (de == NULL) {
-		t->tree_errno = ENOMEM;
-		return TREE_ERROR_DIR;
-	}
+#if defined(HAVE_READDIR_R)
+	dirent_size = t->dirent_allocated;
+#else
+	dirent_size = sizeof(*de);
+#endif /* HAVE_READDIR_R */
 
 	/* increase sort array size if it cannot hold a new entry */
 	if (t->sort_array_size <= t->sort_array_nentries) {
-		t->sort_array_size += 1024;
+#define _SIZE_INC 1024
+		t->sort_array_size += _SIZE_INC;
 		new = realloc(t->sort_array,
 		    t->sort_array_size * sizeof(*t->sort_array));
 		if (new == NULL) {
@@ -2616,20 +2622,63 @@ insert_entry_into_sort_array(struct tree *t)
 			return TREE_ERROR_DIR;
 		} else {
 			t->sort_array = new;
+			memset(t->sort_array - _SIZE_INC, 0, _SIZE_INC);
 		}
+#undef _SIZE_INC
+	}
+
+	if (t->default_dirent_size < dirent_size) {
+		/*
+		 * Reallocate the default dirent structures as they are too
+		 * small. This should not happen while in the middle of a
+		 * directory as their size should be the same.
+		 */
+		if (t->sort_array_nentries != 0) {
+			t->tree_errno = EIO;
+			return TREE_ERROR_FATAL;
+		}
+
+		for (i = 0; i < DEFAULT_SORT_ENTRIES_MAX; i++) {
+			d = realloc(t->sort_array[i], dirent_size);
+			if (d == NULL) {
+				t->tree_errno = ENOMEM;
+				return TREE_ERROR_DIR;
+			} else {
+				t->sort_array[i] = d;
+			}
+		}
+		t->default_dirent_size = dirent_size;
+	}
+
+	/*
+	 * Reuse the previously allocated dirent structures for the
+	 * first DEFAULT_SORT_ENTRIES entries. Else we need to allocated a new
+	 * dirent structure to store the information.
+	 */
+	if (t->sort_array_nentries < DEFAULT_SORT_ENTRIES_MAX) {
+		de = t->sort_array[t->sort_array_nentries++];
+	} else {
+		de = malloc(dirent_size);
+		if (de == NULL) {
+			t->tree_errno = ENOMEM;
+			return TREE_ERROR_DIR;
+		}
+		t->sort_array[t->sort_array_nentries++] = de;
 	}
 
 	*de = *t->de;
-	t->sort_array[t->sort_array_nentries++] = de;
 	return 0;
 }
 
 static void
-free_sort_entries(struct tree *t)
+free_sort_entries(struct tree *t, int free_all)
 {
-	size_t i;
+	size_t i, si;
 
-	for (i = 0; i < t->sort_array_nentries; i++) {
+	/* Start from 0 if we want to free all entries */
+	si = (free_all == 1) ? 0 : DEFAULT_SORT_ENTRIES_MAX;
+
+	for (i = si; i < t->sort_array_nentries; i++) {
 		free(t->sort_array[i]);
 	}
 	/* Start over! */
@@ -2845,8 +2894,7 @@ tree_close(struct tree *t)
 	}
 
 	if (t->sort_array != NULL) {
-		free_sort_entries(t);
-#error DONT FORGET THE REMAINING FREE ENTRIES
+		free_sort_entries(t, 1);
 		free(t->sort_array);
 	}
 }
