@@ -2512,7 +2512,7 @@ tree_dir_next_posix(struct tree *t)
 
 	if (!(t->flags & moreEntries)) {
 		/* First time in this directory, fetch entries. */
-		for (i = 0; i < t->sort_entries_max; i++) {
+		for (i = 0; i <= t->sort_entries_max; i++) {
 			r = tree_dir_iterate(t);
 
 			if (r == TREE_REGULAR) {
