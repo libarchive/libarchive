@@ -135,14 +135,19 @@ struct tree {
 	int			 visit_type;
 	/* Error code from last failed operation. */
 	int			 tree_errno;
+	/* Last return code while iterating entries inside directory */
+	int			 tree_last_iteration;
+	/* Whether the first FIND_DATAW structures have been allocated */
+	int			 find_data_entries_allocated;
 
 	       /* array used for sorting entries */
 	WIN32_FIND_DATAW       **sort_array;
 	size_t			 sort_array_min;
 	size_t			 sort_array_nentries;
 	size_t			 sort_array_size;
-	int		       (*sort_cb_func)(const WIN32_FIND_DATAW **,
-				     const WIN32_FIND_DATAW **);
+	int		       (*sort_cb_func)(const void *, const void *);
+	/* Maximum number of entries that will be sorted by libarchive */
+	size_t			 sort_entries_max;
 
 	/* A full path with "\\?\" prefix. */
 	struct archive_wstring	 full_path;
@@ -214,15 +219,15 @@ struct tree {
 #define	hasStat		16 /* The st entry is valid. */
 #define	hasLstat	32 /* The lst entry is valid. */
 #define	needsRestoreTimes 128
-#define sortEntries	256 /* Sort tree entries */
-#define moreEntries	512 /* More entries can be fetched from directory */
+#define moreEntries	256 /* More entries can be fetched from directory */
 
 static int	tree_dir_iterate(struct tree *, const wchar_t *);
 static int	tree_dir_next_windows(struct tree *, const wchar_t *);
 
 /* Initiate/terminate a tree traversal. */
-static struct tree *tree_open(const wchar_t *, int, int);
-static struct tree *tree_reopen(struct tree *, const wchar_t *, int);
+static struct tree *tree_open(const wchar_t *, struct archive_read_disk *);
+static struct tree *tree_reopen(struct tree *, const wchar_t *,
+		struct archive_read_disk *);
 static void tree_close(struct tree *);
 static void tree_free(struct tree *);
 static void tree_push(struct tree *, const wchar_t *, const wchar_t *,
@@ -314,9 +319,8 @@ static int	setup_sparse_from_disk(struct archive_read_disk *,
 
 /* Sort related functions for directory entries */
 static int	insert_entry_into_sort_array(struct tree *);
-static void	free_sort_entries(struct tree *);
-static int	default_sort_cb_func(WIN32_FIND_DATA **d1,
-		    WIN32_FIND_DATAW **d2);
+static void	free_sort_entries(struct tree *, int);
+static int	default_sort_cb_func(const void *, const void *);
 
 static struct archive_vtable *
 archive_read_disk_vtable(void)
@@ -1262,9 +1266,9 @@ _archive_read_disk_open_w(struct archive *_a, const wchar_t *pathname)
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
 
 	if (a->tree != NULL)
-		a->tree = tree_reopen(a->tree, pathname, a->restore_time);
+		a->tree = tree_reopen(a->tree, pathname, a);
 	else
-		a->tree = tree_open(pathname, a->symlink_mode, a->restore_time);
+		a->tree = tree_open(pathname, a);
 	if (a->tree == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate directory traversal data");
@@ -1545,7 +1549,7 @@ tree_append(struct tree *t, const wchar_t *name, size_t name_length)
  * Open a directory tree for traversal.
  */
 static struct tree *
-tree_open(const wchar_t *path, int symlink_mode, int restore_time)
+tree_open(const wchar_t *path, struct archive_read_disk *a)
 {
 	struct tree *t;
 
@@ -1554,12 +1558,14 @@ tree_open(const wchar_t *path, int symlink_mode, int restore_time)
 	archive_string_init(&(t->full_path));
 	archive_string_init(&t->path);
 	archive_wstring_ensure(&t->path, 15);
-	t->initial_symlink_mode = symlink_mode;
-	return (tree_reopen(t, path, restore_time));
+	t->initial_symlink_mode = a->symlink_mode;
+	t->sort_cb_func = a->sort_cb_func;
+	t->sort_entries_max = a->sort_entries_max;
+	return (tree_reopen(t, path, a));
 }
 
 static struct tree *
-tree_reopen(struct tree *t, const wchar_t *path, int restore_time)
+tree_reopen(struct tree *t, const wchar_t *path, struct archive_read_disk *a)
 {
 	struct archive_wstring ws;
 	wchar_t *pathname, *p, *base;
@@ -1571,6 +1577,7 @@ tree_reopen(struct tree *t, const wchar_t *path, int restore_time)
 	t->dirname_length = 0;
 	t->depth = 0;
 	t->descend = 0;
+	t->sort_array_min = 0;
 	t->current = NULL;
 	t->d = INVALID_HANDLE_VALUE;
 	t->symlink_mode = t->initial_symlink_mode;
@@ -1841,61 +1848,88 @@ static int
 tree_dir_next_windows(struct tree *t, const wchar_t *pattern)
 {
 	int r;
+	size_t i;
 	const wchar_t *name;
 	WIN32_FIND_DATA *e;
 
-	if (!(t->flags & sortEntries)) {
-		/* No sorting required -- get the next entry. */
-		switch (r = tree_dir_iterate(t, pattern)) {
-		case TREE_REGULAR:
-			name = t->findData->cFileName;
-			t->flags &= ~hasLstat;
-			t->flags &= ~hasStat;
-			tree_append(t, name, strlen(name));
-			t->flags |= moreEntries;
-			return TREE_REGULAR;
-		case 0:
-			/* FALLTHROUGH */
-		default:
-			/* No more entry to return. */
-			t->flags &= ~moreEntries;
-			return r;
-		}
-	} else {
-		if (!(t->flags & moreEntries)) {
-			/* First time in this directory, sort its content. */
-			while ((r = tree_dir_iterate(t, pattern))
-			     == TREE_REGULAR) {
+	if (!(t->flags & moreEntries)) {
+		/* First time in this directory, fetch entries. */
+		for (i = 0; i <= t->sort_entries_max; i++) {
+			r = tree_dir_iterate(t, pattern);
+
+			if (r == TREE_REGULAR) {
 				if (insert_entry_into_sort_array(t) != 0) {
-					free_sort_entries(t);
+					free_sort_entries(t, 0);
 					t->visit_type = TREE_ERROR_DIR;
 					return t->visit_type;
 				}
+			} else if (r == 0) {
+				/*
+				 * We are done with this directory and there are
+				 * fewer entries than max. Perform sort.
+				 */
+				qsort(t->sort_array, t->sort_array_nentries,
+				    sizeof(*t->sort_array), t->sort_cb_func);
+				break;
+			} else {
+				/*
+				 * Iteration went wrong. Avoid sorting as caller
+				 * might be interested by the entry that
+				 * returned an error.
+				 */
+				break;
 			}
-			if (r != 0) {
-				/* Iteration went wrong. Free all entries */
-				free_sort_entries(t);
-				return r;
-			}
-
-			qsort(t->sort_array, t->sort_array_nentries,
-			    sizeof(*t->sort_array),
-			    (int (*)(const void *, const void *))t->sort_cb_func);
-			t->flags |= moreEntries;
 		}
 
-		/* Return the min entry */
-		if (t->sort_array_min < t->sort_array_nentries) {
-			e = t->sort_array[t->sort_array_min++];
-			t->flags &= ~hasLstat;
-			t->flags &= ~hasStat;
-			tree_append(t, e->cFileName, strlen(e->cFileName));
-			return TREE_REGULAR;
+		t->tree_last_iteration = r;
+		t->flags |= moreEntries;
+	}
+
+	if (t->sort_array_min < t->sort_array_nentries) {
+		/* there are entries stored in the array, return them first. */
+		e = t->sort_array[t->sort_array_min++];
+		name = e->cFileName;
+		t->flags &= ~hasLstat;
+		t->flags &= ~hasStat;
+		tree_append(t, name, strlen(name));
+		return TREE_REGULAR;
+	}
+
+	if (t->tree_last_iteration != TREE_REGULAR) {
+		/*
+		 * We are done with this directory either because we finished
+		 * iterating its entries or something went wrong.
+		 */
+		free_sort_entries(t, 0);
+		t->flags &= ~moreEntries;
+		t->visit_type = t->tree_last_iteration;
+		return t->visit_type;
+	}
+
+	/* We are not done with current dir yet, get the remaining entries. */
+	switch (r = tree_dir_iterate(t)) {
+	case TREE_REGULAR:
+		name = t->findData->cFileName;
+		t->flags &= ~hasLstat;
+		t->flags &= ~hasStat;
+		tree_append(t, name, strlen(name));
+		return TREE_REGULAR;
+		break;
+	case 0:
+		/* FALLTHROUGH */
+	default:
+		/* No more entry to return. */
+		free_sort_entries(t, 0);
+		t->flags &= ~moreEntries;
+		return r;
+	}
 }
 
 static int
-default_sort_cb_func(WIN32_FIND_DATA **d1, WIN32_FIND_DATAW **d2)
+default_sort_cb_func(const void *v1, const void *v2)
 {
+	const WIN32_FIND_DATA **d1 = (const WIN32_FIND_DATA **)v1;
+	const WIN32_FIND_DATA **d2 = (const WIN32_FIND_DATA **)v2;
 
 	return wcscmp((*d1)->cFileName, (*d2)->cFileName);
 }
@@ -1914,7 +1948,8 @@ insert_entry_into_sort_array(struct tree *t)
 
 	/* increase sort array size if it cannot hold a new entry */
 	if (t->sort_array_size <= t->sort_array_nentries) {
-		t->sort_array_size += 1024;
+#define _SIZE_INC 1024
+		t->sort_array_size += _SIZE_INC;
 		new = realloc(t->sort_array,
 		    t->sort_array_size * sizeof(*t->sort_array));
 		if (new == NULL) {
@@ -1922,20 +1957,65 @@ insert_entry_into_sort_array(struct tree *t)
 			return TREE_ERROR_DIR;
 		} else {
 			t->sort_array = new;
+			for (i = t->sort_array_size - _SIZE_INC;
+			    i < t->sort_array_size; i++) {
+				t->sort_array[i] = NULL;
+			}
 		}
+#undef _SIZE_INC
+	}
+
+	if (t->find_data_entries_allocated == 0) {
+		/*
+		 * Allocate the first default structures. This should never
+		 * happen while being within a directory.
+		 */
+		if (t->sort_array_nentries != 0) {
+			t->tree_errno = EIO;
+			return TREE_ERROR_FATAL;
+		}
+
+		for (i = 0; i < DEFAULT_SORT_ENTRIES_MAX; i++) {
+			d = realloc(t->sort_array[i], sizeof(*t->sort_array));
+			if (d == NULL) {
+				t->tree_errno = ENOMEM;
+				return TREE_ERROR_DIR;
+			} else {
+				t->sort_array[i] = d;
+			}
+		}
+		t->find_data_entries_allocated = 1;
+	}
+
+	/*
+	 * Reuse the previously allocated structures for the
+	 * first DEFAULT_SORT_ENTRIES entries. Else we need to allocated a new
+	 * structure to store the information.
+	 */
+	if (t->sort_array_nentries < DEFAULT_SORT_ENTRIES_MAX) {
+		de = t->sort_array[t->sort_array_nentries++];
+	} else {
+		de = malloc(sizeof(*de));
+		if (de == NULL) {
+			t->tree_errno = ENOMEM;
+			return TREE_ERROR_DIR;
+		}
+		t->sort_array[t->sort_array_nentries++] = de;
 	}
 
 	*de = *t->de;
-	t->sort_array[t->sort_array_nentries++] = de;
 	return 0;
 }
 
 static void
-free_sort_entries(struct tree *t)
+free_sort_entries(struct tree *t, int free_all)
 {
-	size_t i;
+	size_t i, si;
 
-	for (i = 0; i < t->sort_array_nentries; i++) {
+	/* Start from 0 if we want to free all entries */
+	si = (free_all == 1) ? 0 : DEFAULT_SORT_ENTRIES_MAX;
+
+	for (i = si; i < t->sort_array_nentries; i++) {
 		free(t->sort_array[i]);
 	}
 	/* Start over! */
@@ -2207,7 +2287,12 @@ tree_free(struct tree *t)
 			VirtualFree(t->ol[i].buff, 0, MEM_RELEASE);
 		CloseHandle(t->ol[i].ol.hEvent);
 	}
-	free(t);
+
+	if (t->sort_array != NULL) {
+		free_sort_entries(t, 1);
+		free(t->sort_array);
+	}
+
 }
 
 
