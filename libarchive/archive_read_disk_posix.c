@@ -2892,11 +2892,6 @@ tree_close(struct tree *t)
 		close(t->initial_dir_fd);
 		t->initial_dir_fd = -1;
 	}
-
-	if (t->sort_array != NULL) {
-		free_sort_entries(t, 1);
-		free(t->sort_array);
-	}
 }
 
 /*
@@ -2917,6 +2912,12 @@ tree_free(struct tree *t)
 	for (i = 0; i < t->max_filesystem_id; i++)
 		free(t->filesystem_table[i].allocation_ptr);
 	free(t->filesystem_table);
+
+	if (t->sort_array != NULL) {
+		free_sort_entries(t, 1);
+		free(t->sort_array);
+	}
+
 	free(t);
 }
 
