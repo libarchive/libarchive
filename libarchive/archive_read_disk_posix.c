@@ -2622,7 +2622,10 @@ insert_entry_into_sort_array(struct tree *t)
 			return TREE_ERROR_DIR;
 		} else {
 			t->sort_array = new;
-			memset(t->sort_array - _SIZE_INC, 0, _SIZE_INC);
+			for (i = t->sort_array_size - _SIZE_INC;
+			    i < t->sort_array_size; i++) {
+				t->sort_array[i] = NULL;
+			}
 		}
 #undef _SIZE_INC
 	}
