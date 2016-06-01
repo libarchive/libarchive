@@ -2168,7 +2168,6 @@ tree_reopen(struct tree *t, const char *path, struct archive_read_disk *a)
 	t->dirname_length = 0;
 	t->depth = 0;
 	t->descend = 0;
-	t->sort_array_size = 0;
 	t->sort_array_min = 0;
 	t->current = NULL;
 	t->d = INVALID_DIR_HANDLE;
