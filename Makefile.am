@@ -223,6 +223,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_write_set_format_ustar.c \
 	libarchive/archive_write_set_format_v7tar.c \
 	libarchive/archive_write_set_format_gnutar.c \
+	libarchive/archive_write_set_format_gnutar_filenames.c \
 	libarchive/archive_write_set_format_warc.c \
 	libarchive/archive_write_set_format_xar.c \
 	libarchive/archive_write_set_format_zip.c \
