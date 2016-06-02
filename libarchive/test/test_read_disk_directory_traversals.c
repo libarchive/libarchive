@@ -1560,6 +1560,221 @@ test_nodump(void)
 	archive_entry_free(ae);
 }
 
+/* Sort entries in reverse lexicographical order */
+static int
+test_sort_compar(const void *v1, const void *v2)
+{
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	const struct dirent **d1 = (const struct dirent **)v1;
+	const struct dirent **d2 = (const struct dirent **)v2;
+
+	return strcmp((*d2)->d_name, (*d1)->d_name);
+#else
+	const WIN32_FIND_DATA **d1 = (const WIN32_FIND_DATA **)v1;
+	const WIN32_FIND_DATA **d2 = (const WIN32_FIND_DATA **)v2;
+
+	return wcscmp((*d2)->cFileName, (*d1)->cFileName);
+#endif
+}
+
+static void
+test_sort(void)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	const void *p;
+	size_t size, scontent, spath;
+	int64_t offset;
+	int i;
+	char path[64];
+	char content[64];
+
+	/*
+	 * First create 32 entries: 16 regular files and 16 directories.
+	 * libarchive should sort them by default (in strcmp() order).
+	 */
+	assertMakeDir("sort1", 0755);
+	/* ensure that we do not create them in strcmp() order. */
+	for (i = 16; i >= 1; i--) {
+		sprintf(path, "sort1/file%02d", i);
+		sprintf(content, "file #%02d", i);
+		assertMakeFile(path, 0644, content);
+		sprintf(path, "sort1/dir%02d", i);
+		assertMakeDir(path, 0755);
+	}
+
+	/*
+	 * Create more than 32 entries: 17 regular files and 17 directories.
+	 * libarchive should not sort them by default unless we ask for it
+	 * explicitly.
+	 */
+	assertMakeDir("sort2", 0755);
+	for (i = 17; i >= 1; i--) {
+		sprintf(path, "sort2/file%02d", i);
+		sprintf(content, "file #%02d", i);
+		assertMakeFile(path, 0644, content);
+		sprintf(path, "sort2/dir%02d", i);
+		assertMakeDir(path, 0755);
+	}
+
+	assert((ae = archive_entry_new()) != NULL);
+	assert((a = archive_read_disk_new()) != NULL);
+
+	/*
+	 * Test1: Traversal without sorting all entries.
+	 */
+	failure("Entries should be sorted as well");
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, "sort1"));
+
+	archive_entry_clear(ae);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+	assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
+	assertEqualMem(archive_entry_pathname(ae), "sort1", 5);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_descend(a));
+
+	/* dirs come first per strcmp(). */
+	for (i = 1; i <= 16; i++) {
+		archive_entry_clear(ae);
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+		assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
+		spath = sprintf(path, "sort1/dir%02d", i);
+		assertEqualMem(archive_entry_pathname(ae), path, spath);
+	}
+
+	/* files are second. */
+	for (i = 1; i <= 16; i++) {
+		archive_entry_clear(ae);
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+		assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
+		spath = sprintf(path, "sort1/file%02d", i);
+		scontent = sprintf(content, "file #%02d", i);
+		assertEqualMem(archive_entry_pathname(ae), path, spath);
+		assertEqualInt(archive_entry_size(ae), scontent);
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_data_block(a, &p, &size, &offset));
+		assertEqualInt((int)size, scontent);
+		assertEqualInt((int)offset, 0);
+		assertEqualMem(p, content, scontent);
+		assertEqualIntA(a, ARCHIVE_EOF,
+		    archive_read_data_block(a, &p, &size, &offset));
+		assertEqualInt((int)size, 0);
+		assertEqualInt((int)offset, scontent);
+	}
+
+	/* There is no entry. */
+	failure("There should be no entry");
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
+
+	/* Close the disk object. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+
+	/*
+	 * Test2: Traversal with more than 32 entries: should be returned sorted
+	 * when asked to.
+	 */
+	failure("Entries should be sorted as well");
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, "sort2"));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_set_behavior(a,
+	    ARCHIVE_READDISK_SORT_ENTRIES));
+
+	archive_entry_clear(ae);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+	assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
+	assertEqualMem(archive_entry_pathname(ae), "sort2", 5);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_descend(a));
+
+	/* dirs come first per strcmp(). */
+	for (i = 1; i <= 17; i++) {
+		archive_entry_clear(ae);
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+		assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
+		spath = sprintf(path, "sort2/dir%02d", i);
+		assertEqualMem(archive_entry_pathname(ae), path, spath);
+	}
+
+	/* files are second. */
+	for (i = 1; i <= 17; i++) {
+		archive_entry_clear(ae);
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+		assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
+		spath = sprintf(path, "sort2/file%02d", i);
+		scontent = sprintf(content, "file #%02d", i);
+		assertEqualMem(archive_entry_pathname(ae), path, spath);
+		assertEqualInt(archive_entry_size(ae), scontent);
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_data_block(a, &p, &size, &offset));
+		assertEqualInt((int)size, scontent);
+		assertEqualInt((int)offset, 0);
+		assertEqualMem(p, content, scontent);
+		assertEqualIntA(a, ARCHIVE_EOF,
+		    archive_read_data_block(a, &p, &size, &offset));
+		assertEqualInt((int)size, 0);
+		assertEqualInt((int)offset, scontent);
+	}
+
+	/* There is no entry. */
+	failure("There should be no entry");
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
+
+	/* Close the disk object. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+
+	/*
+	 * Test3: Traversal with a caller-specified sort function: a reverse
+	 * lexicographical order.
+	 */
+	failure("Entries should be sorted as well");
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, "sort1"));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_set_sort_compar(a,
+	    test_sort_compar));
+
+	archive_entry_clear(ae);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+	assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
+	assertEqualMem(archive_entry_pathname(ae), "sort1", 5);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_descend(a));
+
+	/* files shall come first. */
+	for (i = 16; i >= 1; i--) {
+		archive_entry_clear(ae);
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+		assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
+		spath = sprintf(path, "sort1/file%02d", i);
+		scontent = sprintf(content, "file #%02d", i);
+		assertEqualMem(archive_entry_pathname(ae), path, spath);
+		assertEqualInt(archive_entry_size(ae), scontent);
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_data_block(a, &p, &size, &offset));
+		assertEqualInt((int)size, scontent);
+		assertEqualInt((int)offset, 0);
+		assertEqualMem(p, content, scontent);
+		assertEqualIntA(a, ARCHIVE_EOF,
+		    archive_read_data_block(a, &p, &size, &offset));
+		assertEqualInt((int)size, 0);
+		assertEqualInt((int)offset, scontent);
+	}
+
+	/* dirs come second. */
+	for (i = 16; i >= 1; i--) {
+		archive_entry_clear(ae);
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+		assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
+		spath = sprintf(path, "sort1/dir%02d", i);
+		assertEqualMem(archive_entry_pathname(ae), path, spath);
+	}
+
+	/* There is no entry. */
+	failure("There should be no entry");
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
+
+	/* Close the disk object. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+
+	/* Destroy the disk object. */
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	archive_entry_free(ae);
+}
+
 DEFINE_TEST(test_read_disk_directory_traversals)
 {
 	/* Basic test. */
@@ -1576,4 +1791,6 @@ DEFINE_TEST(test_read_disk_directory_traversals)
 	test_callbacks();
 	/* Test nodump. */
 	test_nodump();
+	/* Test sort. */
+	test_sort();
 }
