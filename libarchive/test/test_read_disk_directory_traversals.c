@@ -1565,15 +1565,15 @@ static int
 test_sort_compar(const void *v1, const void *v2)
 {
 #if !defined(_WIN32) || defined(__CYGWIN__)
-	const struct dirent **d1 = (const struct dirent **)v1;
-	const struct dirent **d2 = (const struct dirent **)v2;
+	struct dirent const *d1 = *(struct dirent * const *)v1;
+	struct dirent const *d2 = *(struct dirent * const *)v2;
 
-	return strcmp((*d2)->d_name, (*d1)->d_name);
+	return strcmp(d2->d_name, d1->d_name);
 #else
-	const WIN32_FIND_DATA **d1 = (const WIN32_FIND_DATA **)v1;
-	const WIN32_FIND_DATA **d2 = (const WIN32_FIND_DATA **)v2;
+	WIN32_FIND_DATA const *d1 = *(WIN32_FIND_DATA * const *)v1;
+	WIN32_FIND_DATA const *d2 = *(WIN32_FIND_DATA * const *)v2;
 
-	return wcscmp((*d2)->cFileName, (*d1)->cFileName);
+	return wcscmp(d2->cFileName, d1->cFileName);
 #endif
 }
 
