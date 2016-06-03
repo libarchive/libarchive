@@ -383,7 +383,6 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_filter_count.c \
 	libarchive/test/test_fuzz.c \
 	libarchive/test/test_gnutar_filename_encoding.c \
-	libarchive/test/test_write_format_gnutar_filenames.c
 	libarchive/test/test_link_resolver.c \
 	libarchive/test/test_open_failure.c \
 	libarchive/test/test_open_fd.c \
@@ -534,6 +533,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_format_cpio_newc.c \
 	libarchive/test/test_write_format_cpio_odc.c \
 	libarchive/test/test_write_format_gnutar.c \
+	libarchive/test/test_write_format_gnutar_filenames.c \
 	libarchive/test/test_write_format_iso9660.c \
 	libarchive/test/test_write_format_iso9660_boot.c \
 	libarchive/test/test_write_format_iso9660_empty.c \
