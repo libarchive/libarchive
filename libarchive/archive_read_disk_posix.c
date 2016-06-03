@@ -2585,10 +2585,10 @@ tree_dir_next_posix(struct tree *t)
 static int
 default_sort_cb_func(const void *v1, const void *v2)
 {
-	const struct dirent **d1 = (const struct dirent **)v1;
-	const struct dirent **d2 = (const struct dirent **)v2;
+	struct dirent const *d1 = *(struct dirent * const *)v1;
+	struct dirent const *d2 = *(struct dirent * const *)v2;
 
-	return strcmp((*d1)->d_name, (*d2)->d_name);
+	return strcmp(d1->d_name, d2->d_name);
 }
 
 /*

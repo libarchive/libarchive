@@ -1928,10 +1928,10 @@ tree_dir_next_windows(struct tree *t, const wchar_t *pattern)
 static int
 default_sort_cb_func(const void *v1, const void *v2)
 {
-	const WIN32_FIND_DATA **d1 = (const WIN32_FIND_DATA **)v1;
-	const WIN32_FIND_DATA **d2 = (const WIN32_FIND_DATA **)v2;
+	WIN32_FIND_DATA const d1 = *(WIN32_FIND_DATA * const *)v1;
+	WIN32_FIND_DATA const d2 = *(WIN32_FIND_DATA * const *)v2;
 
-	return wcscmp((*d1)->cFileName, (*d2)->cFileName);
+	return wcscmp(d1->cFileName, d2->cFileName);
 }
 
 static int
