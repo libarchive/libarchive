@@ -2599,10 +2599,9 @@ default_sort_cb_func(const void *v1, const void *v2)
 static int
 insert_entry_into_sort_array(struct tree *t)
 {
-	int i;
 	struct dirent **new;
 	struct dirent *d, *de;
-	size_t dirent_size;
+	size_t i, dirent_size;
 
 #if defined(HAVE_READDIR_R)
 	dirent_size = t->dirent_allocated;
