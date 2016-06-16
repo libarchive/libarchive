@@ -1294,7 +1294,8 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	if (zip->tctx_valid || zip->cctx_valid) {
 		if (zip->decrypted_bytes_remaining < (size_t)bytes_avail) {
 			size_t buff_remaining = zip->decrypted_buffer_size
-			    - (zip->decrypted_ptr - zip->decrypted_buffer);
+			    - (zip->decrypted_ptr - zip->decrypted_buffer)
+			    - zip->decrypted_bytes_remaining;
 
 			if (buff_remaining > (size_t)bytes_avail)
 				buff_remaining = (size_t)bytes_avail;
