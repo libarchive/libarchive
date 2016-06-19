@@ -454,7 +454,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_rar_encryption_data.c \
 	libarchive/test/test_read_format_rar_encryption_partially.c \
 	libarchive/test/test_read_format_rar_encryption_header.c \
-	libarchive/test/test_read_foramt_rar_invalid1.c \
+	libarchive/test/test_read_format_rar_invalid1.c \
 	libarchive/test/test_read_format_raw.c \
 	libarchive/test/test_read_format_tar.c \
 	libarchive/test/test_read_format_tar_concatenated.c \
