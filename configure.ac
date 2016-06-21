@@ -846,6 +846,7 @@ if test "x$with_openssl" != "xno"; then
     else
       AC_CHECK_FUNCS([PKCS5_PBKDF2_HMAC_SHA1])
     fi
+    AC_CHECK_LIB(crypto,EVP_CIPHER_CTX_init)
 fi
 
 # Probe libmd AFTER OpenSSL/libcrypto.
