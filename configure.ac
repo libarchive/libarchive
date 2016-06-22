@@ -374,8 +374,11 @@ if test "x$with_lzma" != "xno"; then
   AC_CACHE_CHECK(
     [whether we have multithread support in lzma],
     ac_cv_lzma_has_mt,
-    [AC_COMPILE_IFELSE([
-      AC_LANG_PROGRAM([[#include <lzma.h>]],
+    [AC_LINK_IFELSE([
+      AC_LANG_PROGRAM([[#include <lzma.h>]
+                       [#if LZMA_VERSION < 50020000]
+                       [#error unsupported]
+                       [#endif]],
                       [[lzma_stream_encoder_mt(0, 0);]])],
       [ac_cv_lzma_has_mt=yes], [ac_cv_lzma_has_mt=no])])
   if test "x$ac_cv_lzma_has_mt" != xno; then
