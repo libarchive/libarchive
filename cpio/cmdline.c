@@ -70,6 +70,7 @@ static const struct option {
 	{ "grzip",			0, OPTION_GRZIP },
 	{ "help",			0, 'h' },
 	{ "insecure",			0, OPTION_INSECURE },
+	{ "dereference",		0, 'L' },
 	{ "link",			0, 'l' },
 	{ "list",			0, 't' },
 	{ "lrzip",			0, OPTION_LRZIP },
