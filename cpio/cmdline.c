@@ -63,6 +63,7 @@ static const struct option {
 } cpio_longopts[] = {
 	{ "b64encode",			0, OPTION_B64ENCODE },
 	{ "create",			0, 'o' },
+	{ "dereference",		0, 'L' },
 	{ "dot",			0, 'V' },
 	{ "extract",			0, 'i' },
 	{ "file",			1, 'F' },
@@ -70,7 +71,6 @@ static const struct option {
 	{ "grzip",			0, OPTION_GRZIP },
 	{ "help",			0, 'h' },
 	{ "insecure",			0, OPTION_INSECURE },
-	{ "dereference",		0, 'L' },
 	{ "link",			0, 'l' },
 	{ "list",			0, 't' },
 	{ "lrzip",			0, OPTION_LRZIP },
