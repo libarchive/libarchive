@@ -1303,6 +1303,10 @@ CHECK_C_SOURCE_COMPILES(
   "#include <sys/sysmacros.h>\nint main() { return major(256); }"
   MAJOR_IN_SYSMACROS)
 
+CHECK_C_SOURCE_COMPILES(
+  "#include <lzma.h>\n#if LZMA_VERSION < 50020000\n#error unsupported\n#endif\nint main(void){lzma_stream_encoder_mt(0, 0); return 0;}"
+  HAVE_LZMA_STREAM_ENCODER_MT)
+
 IF(HAVE_STRERROR_R)
   SET(HAVE_DECL_STRERROR_R 1)
 ENDIF(HAVE_STRERROR_R)
