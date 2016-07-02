@@ -923,6 +923,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if `__tm_gmtoff' is a member of `struct tm'. */
 #cmakedefine HAVE_STRUCT_TM___TM_GMTOFF 1
 
+/* Define to 1 if you have `struct vfsconf'. */
+#cmakedefine HAVE_STRUCT_VFSCONF 1
+
 /* Define to 1 if you have the `symlink' function. */
 #cmakedefine HAVE_SYMLINK 1
 

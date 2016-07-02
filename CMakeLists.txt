@@ -1274,6 +1274,10 @@ CHECK_FUNCTION_EXISTS(wmemmove HAVE_WMEMMOVE)
 
 CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
 
+CHECK_C_SOURCE_COMPILES(
+  "#include <sys/types.h>\n#include <sys/mount.h>\nint main(void) { struct vfsconf v; return sizeof(v);}"
+  HAVE_STRUCT_VFSCONF)
+
 # Make sure we have the POSIX version of readdir_r, not the
 # older 2-argument version.
 CHECK_C_SOURCE_COMPILES(
