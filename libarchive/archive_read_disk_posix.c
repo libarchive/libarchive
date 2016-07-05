@@ -120,13 +120,24 @@ __FBSDID("$FreeBSD$");
  * represent filesystem objects that require further attention.
  * Non-directories are not kept in memory: they are pulled from
  * readdir(), returned to the client, then freed as soon as possible.
- * Any directory entry to be traversed gets pushed onto the stack.
+ * Any directory entry to be traversed gets enqueued in a work queue for
+ * later processing.
+ *
+ * Entries are queued when tree_push() is called (when caller wants
+ * to mark it for descent). The entry is queued as a child of current
+ * directory in a LIFO. When we are done iterating with current directory,
+ * we start descending into its first queued child and iterate over it.
+ * When done with the child, we continue descending into its
+ * pushed children. When there are no more children queued, we can start
+ * ascending back to its relative parent, until we reach a parent which
+ * still has children to process.
  *
  * There is surprisingly little information that needs to be kept for
- * each item on the stack.  Just the name, depth (represented here as the
- * string length of the parent directory's pathname), and some markers
+ * each item in the queue. Just the name, depth (represented here as the
+ * string length of the parent directory's pathname), some markers
  * indicating how to get back to the parent (via chdir("..") for a
- * regular dir or via fchdir(2) for a symlink).
+ * regular dir or via fchdir(2) for a symlink), and pointers to their
+ * parent and last child for the children's FIFO.
  */
 /*
  * TODO:
@@ -146,8 +157,9 @@ struct restore_time {
 
 struct tree_entry {
 	int			 depth;
-	struct tree_entry	*next;
-	struct tree_entry	*parent;
+	struct tree_entry	*next;   /* next entry in queue */
+	struct tree_entry	*parent; /* parent entry */
+	struct tree_entry	*last_child; /* last child enqueued */
 	struct archive_string	 name;
 	size_t			 dirname_length;
 	int64_t			 dev;
@@ -188,15 +200,14 @@ struct filesystem {
 #define	isDirLink	2  /* This entry is a symbolic link to a directory. */
 #define	needsFirstVisit	4  /* This is an initial entry. */
 #define	needsDescent	8  /* This entry needs to be previsited. */
-#define	needsOpen	16 /* This is a directory that needs to be opened. */
+#define	needsIterate	16 /* This is a directory that needs to be iterated. */
 #define	needsAscent	32 /* This entry needs to be postvisited. */
 
 /*
  * Local data for this package.
  */
 struct tree {
-	struct tree_entry	*stack;
-	struct tree_entry	*current;
+	struct tree_entry	*current;	/* current working entry */
 	DIR			*d;
 #define	INVALID_DIR_HANDLE NULL
 	struct dirent		*de;
@@ -291,8 +302,13 @@ static struct tree *tree_reopen(struct tree *, const char *,
 		struct archive_read_disk *);
 static void tree_close(struct tree *);
 static void tree_free(struct tree *);
-static void tree_push(struct tree *, const char *, int, int64_t, int64_t,
-		struct restore_time *);
+static struct tree_entry *tree_new_entry(struct tree *, const char *,
+		 int, int64_t, int64_t, struct restore_time *);
+static struct tree_entry *tree_push(struct tree *, const char *,
+		 int, int64_t, int64_t, struct restore_time *);
+static struct tree_entry *tree_first_entry(struct tree *, const char *);
+static int tree_ascend(struct tree *);
+static int tree_descend(struct tree *);
 static int tree_enter_initial_dir(struct tree *);
 static int tree_enter_working_dir(struct tree *);
 static int tree_current_dir_fd(struct tree *);
@@ -302,7 +318,7 @@ static int tree_current_dir_fd(struct tree *);
  * there is.  Note that directories are visited three times.
  * Directories are always visited first as part of enumerating their
  * parent; that is a "regular" visit.  If tree_descend() is invoked at
- * that time, the directory is added to a work list and will
+ * that time, the directory is added to a work queue and will
  * subsequently be visited two more times: once just after descending
  * into the directory ("postdescent") and again just after ascending
  * back to the parent ("postascent").
@@ -1001,7 +1017,7 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 		r = archive_match_path_excluded(a->matching, entry);
 		if (r < 0) {
 			archive_set_error(&(a->archive), errno,
-			    "Faild : %s", archive_error_string(a->matching));
+			    "Failed : %s", archive_error_string(a->matching));
 			return (r);
 		}
 		if (r) {
@@ -1089,7 +1105,7 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 
 	/* Save the times to be restored. This must be in before
 	 * calling archive_read_disk_descend() or any chance of it,
-	 * especially, invokng a callback. */
+	 * especially, invoking a callback. */
 	t->restore_time.mtime = archive_entry_mtime(entry);
 	t->restore_time.mtime_nsec = archive_entry_mtime_nsec(entry);
 	t->restore_time.atime = archive_entry_atime(entry);
@@ -1104,7 +1120,7 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 		r = archive_match_time_excluded(a->matching, entry);
 		if (r < 0) {
 			archive_set_error(&(a->archive), errno,
-			    "Faild : %s", archive_error_string(a->matching));
+			    "Failed : %s", archive_error_string(a->matching));
 			return (r);
 		}
 		if (r) {
@@ -1130,7 +1146,7 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 		r = archive_match_owner_excluded(a->matching, entry);
 		if (r < 0) {
 			archive_set_error(&(a->archive), errno,
-			    "Faild : %s", archive_error_string(a->matching));
+			    "Failed : %s", archive_error_string(a->matching));
 			return (r);
 		}
 		if (r) {
@@ -1330,6 +1346,9 @@ archive_read_disk_can_descend(struct archive *_a)
 int
 archive_read_disk_descend(struct archive *_a)
 {
+	int flag;
+	int64_t dev, ino;
+	struct tree_entry *te;
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
 	struct tree *t = a->tree;
 
@@ -1340,16 +1359,25 @@ archive_read_disk_descend(struct archive *_a)
 	if (t->visit_type != TREE_REGULAR || !t->descend)
 		return (ARCHIVE_OK);
 
-	if (tree_current_is_physical_dir(t)) {
-		tree_push(t, t->basename, t->current_filesystem_id,
-		    t->lst.st_dev, t->lst.st_ino, &t->restore_time);
-		t->stack->flags |= isDir;
-	} else if (tree_current_is_dir(t)) {
-		tree_push(t, t->basename, t->current_filesystem_id,
-		    t->st.st_dev, t->st.st_ino, &t->restore_time);
-		t->stack->flags |= isDirLink;
-	}
 	t->descend = 0;
+	if (tree_current_is_physical_dir(t)) {
+		dev = t->lst.st_dev;
+		ino = t->lst.st_ino;
+		flag = isDir;
+	} else if (tree_current_is_dir(t)) {
+		dev = t->st.st_dev;
+		ino = t->st.st_ino;
+		flag = isDirLink;
+	} else {
+		return ARCHIVE_OK;
+	}
+
+	te = tree_push(t, t->basename, t->current_filesystem_id,
+	    dev, ino, &t->restore_time);
+	if (te == NULL)
+		return ARCHIVE_FAILED;
+
+	te->flags |= flag;
 	return (ARCHIVE_OK);
 }
 
@@ -2078,26 +2106,20 @@ tree_dup(int fd)
 	return (new_fd);
 }
 
-/*
- * Add a directory path to the current stack.
- */
-static void
-tree_push(struct tree *t, const char *path, int filesystem_id,
+static struct tree_entry *
+tree_new_entry(struct tree *t, const char *path, int filesystem_id,
     int64_t dev, int64_t ino, struct restore_time *rt)
 {
 	struct tree_entry *te;
 
 	te = malloc(sizeof(*te));
+	if (te == NULL)
+		return NULL;
 	memset(te, 0, sizeof(*te));
-	te->next = t->stack;
-	te->parent = t->current;
-	if (te->parent)
-		te->depth = te->parent->depth + 1;
-	t->stack = te;
+
 	archive_string_init(&te->name);
 	te->symlink_parent_fd = -1;
 	archive_strcpy(&te->name, path);
-	te->flags = needsDescent | needsOpen | needsAscent;
 	te->filesystem_id = filesystem_id;
 	te->dev = dev;
 	te->ino = ino;
@@ -2111,30 +2133,59 @@ tree_push(struct tree *t, const char *path, int filesystem_id,
 		te->restore_time.filetype = rt->filetype;
 		te->restore_time.noatime = rt->noatime;
 	}
+	return te;
 }
 
 /*
- * Append a name to the current dir path.
+ * Enqueue a directory in the work queue. Return a pointer to the newly
+ * allocated entry.
+ */
+static struct tree_entry *
+tree_push(struct tree *t, const char *path, int filesystem_id,
+    int64_t dev, int64_t ino, struct restore_time *rt)
+{
+	struct tree_entry *te, *tep;
+
+	te = tree_new_entry(t, path, filesystem_id, dev, ino, rt);
+	if (te == NULL)
+		return NULL;
+
+	tep = te->parent = t->current;
+	te->depth = tep->depth + 1;
+	te->flags = needsDescent;
+	if (tep->last_child == NULL) {
+		/* first child entry pushed into the queue */
+		te->next = tep->next;
+		tep->next = te;
+	} else {
+		te->next = tep->last_child->next;
+		tep->last_child->next = te;
+	}
+	tep->last_child = te;
+	return te;
+}
+
+/*
+ * Update tree's current basename with the one passed as argument.
  */
 static void
-tree_append(struct tree *t, const char *name, size_t name_length)
+tree_update_basename(struct tree *t, const char *name, size_t name_length)
 {
-	size_t size_needed;
 
+	/* Clear tree's current basename from the full path */
 	t->path.s[t->dirname_length] = '\0';
 	t->path.length = t->dirname_length;
+
 	/* Strip trailing '/' from name, unless entire name is "/". */
 	while (name_length > 1 && name[name_length - 1] == '/')
 		name_length--;
 
-	/* Resize pathname buffer as needed. */
-	size_needed = name_length + t->dirname_length + 2;
-	archive_string_ensure(&t->path, size_needed);
 	/* Add a separating '/' if it's needed. */
 	if (t->dirname_length > 0 && t->path.s[archive_strlen(&t->path)-1] != '/')
 		archive_strappend_char(&t->path, '/');
-	t->basename = t->path.s + archive_strlen(&t->path);
+
 	archive_strncat(&t->path, name, name_length);
+	t->basename = t->path.s + archive_strlen(&t->path) - name_length;
 	t->restore_time.name = t->basename;
 }
 
@@ -2161,6 +2212,8 @@ tree_open(const char *path, struct archive_read_disk *a)
 static struct tree *
 tree_reopen(struct tree *t, const char *path, struct archive_read_disk *a)
 {
+	struct tree_entry *te;
+
 	t->flags = (a->restore_time)?needsRestoreTimes:0;
 	t->flags |= onInitialDir;
 	t->visit_type = 0;
@@ -2178,9 +2231,10 @@ tree_reopen(struct tree *t, const char *path, struct archive_read_disk *a)
 	t->entry_remaining_bytes = 0;
 	t->initial_filesystem_id = -1;
 
-	/* First item is set up a lot like a symlink traversal. */
-	tree_push(t, path, 0, 0, 0, NULL);
-	t->stack->flags = needsFirstVisit;
+	te = tree_first_entry(t, path);
+	if (te == NULL)
+		return NULL;
+
 	t->maxOpenCount = t->openCount = 1;
 	t->initial_dir_fd = open(".", O_RDONLY | O_CLOEXEC);
 	__archive_ensure_cloexec_flag(t->initial_dir_fd);
@@ -2188,31 +2242,60 @@ tree_reopen(struct tree *t, const char *path, struct archive_read_disk *a)
 	return (t);
 }
 
+/*
+ * First entry of the work queue is a bit special because it will be a
+ * TREE_REGULAR entry without a previously pushed parent.
+ */
+struct tree_entry *tree_first_entry(struct tree *t, const char *path)
+{
+	struct tree_entry *te;
+
+	te = tree_new_entry(t, path, 0, 0, 0, NULL);
+	if (te == NULL)
+		return NULL;
+	t->current = te;
+	te->flags = needsFirstVisit;
+	/*
+	 * it has no parent nor any child (for now), so keep these pointers
+	 * set to NULL.
+	 */
+	return te;
+}
+
+/*
+ * Descend into a directory, and if it is a link prepare a fd to ascend back
+ * to its parent for later.
+ */
 static int
 tree_descend(struct tree *t)
 {
 	int flag, new_fd, r = 0;
+	struct tree_entry *te;
 
-	t->dirname_length = archive_strlen(&t->path);
 	flag = O_RDONLY | O_CLOEXEC;
 #if defined(O_DIRECTORY)
 	flag |= O_DIRECTORY;
 #endif
-	new_fd = open_on_current_dir(t, t->stack->name.s, flag);
+	te = t->current;
+	new_fd = open_on_current_dir(t, te->name.s, flag);
 	__archive_ensure_cloexec_flag(new_fd);
 	if (new_fd < 0) {
 		t->tree_errno = errno;
 		r = TREE_ERROR_DIR;
 	} else {
+		tree_update_basename(t, te->name.s,
+		    archive_strlen(&(te->name)));
 		t->depth++;
+		t->dirname_length = archive_strlen(&t->path);
 		/* If it is a link, set up fd for the ascent. */
-		if (t->stack->flags & isDirLink) {
-			t->stack->symlink_parent_fd = t->working_dir_fd;
+		if (te->flags & isDirLink) {
+			te->symlink_parent_fd = t->working_dir_fd;
 			t->openCount++;
 			if (t->openCount > t->maxOpenCount)
 				t->maxOpenCount = t->openCount;
-		} else
+		} else {
 			close(t->working_dir_fd);
+		}
 		/* Renew the current working directory. */
 		t->working_dir_fd = new_fd;
 		t->flags &= ~onWorkingDir;
@@ -2220,19 +2303,19 @@ tree_descend(struct tree *t)
 		t->flags &= ~hasLstat;
 		t->flags &= ~hasStat;
 	}
-	return (r);
+	return r;
 }
 
 /*
- * We've finished a directory; ascend back to the parent.
+ * We've finished with a directory; ascend back to the parent.
  */
 static int
 tree_ascend(struct tree *t)
 {
 	struct tree_entry *te;
-	int new_fd, r = 0, prev_dir_fd;
+	int new_fd, prev_dir_fd;
 
-	te = t->stack;
+	te = t->current;
 	prev_dir_fd = t->working_dir_fd;
 	if (te->flags & isDirLink)
 		new_fd = te->symlink_parent_fd;
@@ -2242,24 +2325,35 @@ tree_ascend(struct tree *t)
 	}
 	if (new_fd < 0) {
 		t->tree_errno = errno;
-		r = TREE_ERROR_FATAL;
-	} else {
-		/* Renew the current working directory. */
-		t->working_dir_fd = new_fd;
-		t->flags &= ~onWorkingDir;
-		/* Current directory has been changed, we should
-		 * close an fd of previous working directory. */
-		close_and_restore_time(prev_dir_fd, t, &te->restore_time);
-		if (te->flags & isDirLink) {
-			t->openCount--;
-			te->symlink_parent_fd = -1;
-		}
-		t->depth--;
-		/* clear flags to force stat/lstat refresh of the new entries */
-		t->flags &= ~hasLstat;
-		t->flags &= ~hasStat;
+		return TREE_ERROR_FATAL;
 	}
-	return (r);
+
+	/* Renew the current working directory. */
+	t->working_dir_fd = new_fd;
+	t->flags &= ~onWorkingDir;
+	/* Current directory has been changed, we should
+	 * close an fd of previous working directory. */
+	close_and_restore_time(prev_dir_fd, t, &te->restore_time);
+	if (te->flags & isDirLink) {
+		t->openCount--;
+		te->symlink_parent_fd = -1;
+	}
+	t->depth--;
+	/* clear flags to force stat/lstat refresh of the new entries */
+	t->flags &= ~hasLstat;
+	t->flags &= ~hasStat;
+
+	/* Clear tree's current basename from the full path */
+	t->path.s[t->dirname_length] = '\0';
+	t->path.length = t->dirname_length;
+	/* Set tree state corresponding to the current entry */
+	t->dirname_length = te->dirname_length;
+	t->basename = t->path.s + t->dirname_length;
+
+	while (t->basename[0] == '/')
+		t->basename++;
+
+	return 0;
 }
 
 /*
@@ -2310,83 +2404,76 @@ tree_current_dir_fd(struct tree *t)
 }
 
 /*
- * Pop the working stack.
- */
-static void
-tree_pop(struct tree *t)
-{
-	struct tree_entry *te;
-
-	t->path.s[t->dirname_length] = '\0';
-	t->path.length = t->dirname_length;
-	if (t->stack == t->current && t->current != NULL)
-		t->current = t->current->parent;
-	te = t->stack;
-	t->stack = te->next;
-	t->dirname_length = te->dirname_length;
-	t->basename = t->path.s + t->dirname_length;
-	while (t->basename[0] == '/')
-		t->basename++;
-	archive_string_free(&te->name);
-	free(te);
-}
-
-/*
  * Get the next item in the tree traversal.
  */
 static int
 tree_next(struct tree *t)
 {
 	int r;
+	struct tree_entry *te;
 
-	while (t->stack != NULL) {
-		/* If there are still entries to get, obtain the next one */
-		if (t->flags & moreEntries) {
-			r = tree_dir_next_posix(t);
-			if (r == 0)
-				continue;
-			return (r);
-		}
-
-		if (t->stack->flags & needsFirstVisit) {
-			/* Top stack item needs a regular visit. */
-			t->current = t->stack;
-			tree_append(t, t->stack->name.s,
-			    archive_strlen(&(t->stack->name)));
-			/* t->dirname_length = t->path_length; */
-			/* tree_pop(t); */
-			t->stack->flags &= ~needsFirstVisit;
+	while (t->current != NULL) {
+		te = t->current;
+		if (te->flags & needsFirstVisit) {
+			/* First item needs a regular visit. */
+			tree_update_basename(t, te->name.s,
+			    archive_strlen(&(te->name)));
+			te->flags &= ~needsFirstVisit;
 			return (t->visit_type = TREE_REGULAR);
-		} else if (t->stack->flags & needsDescent) {
-			/* Top stack item is dir to descend into. */
-			t->current = t->stack;
-			tree_append(t, t->stack->name.s,
-			    archive_strlen(&(t->stack->name)));
-			t->stack->flags &= ~needsDescent;
+		} else if (te->flags & needsDescent) {
+			/* Next item is a dir to descend into. */
+			te->flags &= ~needsDescent;
 			r = tree_descend(t);
-			if (r != 0) {
-				tree_pop(t);
-				t->visit_type = r;
-			} else
+			if (r == 0) {
+				te->flags |= needsIterate;
 				t->visit_type = TREE_POSTDESCENT;
-			return (t->visit_type);
-		} else if (t->stack->flags & needsOpen) {
-			t->stack->flags &= ~needsOpen;
+			} else {
+				/* Failed descending. Notify caller. */
+				t->visit_type = r;
+			}
+			return t->visit_type;
+		} else if (te->flags & needsIterate) {
+			/*
+			 * Current item is a dir we just descended into.
+			 * Iterate over its entries.
+			 */
 			r = tree_dir_next_posix(t);
-			if (r == 0)
-				continue;
-			return (r);
-		} else if (t->stack->flags & needsAscent) {
-		        /* Top stack item is dir and we're done with it. */
-			r = tree_ascend(t);
-			tree_pop(t);
-			t->visit_type = r != 0 ? r : TREE_POSTASCENT;
-			return (t->visit_type);
+			if (r == TREE_REGULAR) {
+				return (t->visit_type = TREE_REGULAR);
+			}
+
+			te->flags &= ~needsIterate;
+			te->flags |= needsAscent;
+			/*
+			 * If current entry has children we have to process
+			 * them first.
+			 */
+			if (te->last_child != NULL)
+				t->current = te->next;
+
+		} else if (te->flags & needsAscent) {
+			te->flags &= ~needsAscent;
+			tree_ascend(t);
+			te->parent->next = te->next;
+			/*
+			 * If this entry was the last child of its parent,
+			 * schedule parent as next entry to process.
+			 */
+			if (te->parent->last_child == te) {
+				te->next = te->parent;
+				te->parent->last_child = NULL;
+			}
+			return (t->visit_type = TREE_POSTASCENT);
 		} else {
-			/* Top item on stack is dead. */
-			tree_pop(t);
-			t->flags &= ~hasLstat;
-			t->flags &= ~hasStat;
+			/*
+			 * Entry not used anymore, we can free it if
+			 * no child depends on it.
+			 */
+			t->current = te->next;
+			if (te->last_child == NULL) {
+				archive_string_free(&te->name);
+				free(te);
+			}
 		}
 	}
 	return (t->visit_type = 0);
@@ -2424,11 +2511,8 @@ tree_dir_iterate(struct tree *t)
 		}
 #endif /* HAVE_FDOPENDIR */
 		if (t->d == NULL) {
-			r = tree_ascend(t); /* Undo "chdir" */
-			tree_pop(t);
 			t->tree_errno = errno;
-			t->visit_type = r != 0 ? r : TREE_ERROR_DIR;
-			return (t->visit_type);
+			return TREE_ERROR_DIR;
 		}
 #if defined(HAVE_READDIR_R)
 		dirent_size = offsetof(struct dirent, d_name) +
@@ -2439,11 +2523,8 @@ tree_dir_iterate(struct tree *t)
 			if (t->dirent == NULL) {
 				closedir(t->d);
 				t->d = INVALID_DIR_HANDLE;
-				(void)tree_ascend(t);
-				tree_pop(t);
 				t->tree_errno = ENOMEM;
-				t->visit_type = TREE_ERROR_DIR;
-				return (t->visit_type);
+				return TREE_ERROR_DIR;
 			}
 			t->dirent_allocated = dirent_size;
 		}
@@ -2475,8 +2556,7 @@ tree_dir_iterate(struct tree *t)
 			t->d = INVALID_DIR_HANDLE;
 			if (r != 0) {
 				t->tree_errno = r;
-				t->visit_type = TREE_ERROR_DIR;
-				return (t->visit_type);
+				return TREE_ERROR_DIR;
 			} else {
 				/* we are done, no more entries to return */
 				return 0;
@@ -2490,7 +2570,7 @@ tree_dir_iterate(struct tree *t)
 		if (name[0] == '.' && name[1] == '.' && name[2] == '\0')
 			continue;
 
-		return (t->visit_type = TREE_REGULAR);
+		return TREE_REGULAR;
 	}
 }
 
@@ -2518,8 +2598,7 @@ tree_dir_next_posix(struct tree *t)
 			if (r == TREE_REGULAR) {
 				if (insert_entry_into_sort_array(t) != 0) {
 					free_sort_entries(t, 0);
-					t->visit_type = TREE_ERROR_DIR;
-					return t->visit_type;
+					return TREE_ERROR_DIR;
 				}
 			} else if (r == 0) {
 				/*
@@ -2548,7 +2627,7 @@ tree_dir_next_posix(struct tree *t)
 		e = t->sort_array[t->sort_array_min++];
 		t->flags &= ~hasLstat;
 		t->flags &= ~hasStat;
-		tree_append(t, e->d_name, D_NAMELEN(e));
+		tree_update_basename(t, e->d_name, D_NAMELEN(e));
 		return TREE_REGULAR;
 	}
 
@@ -2559,8 +2638,7 @@ tree_dir_next_posix(struct tree *t)
 		 */
 		free_sort_entries(t, 0);
 		t->flags &= ~moreEntries;
-		t->visit_type = t->tree_last_iteration;
-		return t->visit_type;
+		return t->tree_last_iteration;
 	}
 
 	/* We are not done with current dir yet, get the remaining entries. */
@@ -2569,7 +2647,7 @@ tree_dir_next_posix(struct tree *t)
 		name = t->de->d_name;
 		t->flags &= ~hasLstat;
 		t->flags &= ~hasStat;
-		tree_append(t, name, D_NAMELEN(t->de));
+		tree_update_basename(t, name, D_NAMELEN(t->de));
 		return TREE_REGULAR;
 		break;
 	case 0:
@@ -2866,6 +2944,7 @@ tree_current_path(struct tree *t)
 static void
 tree_close(struct tree *t)
 {
+	struct tree_entry *te;
 
 	if (t == NULL)
 		return;
@@ -2879,11 +2958,22 @@ tree_close(struct tree *t)
 		t->d = INVALID_DIR_HANDLE;
 		t->flags &= ~moreEntries;
 	}
-	/* Release anything remaining in the stack. */
-	while (t->stack != NULL) {
-		if (t->stack->flags & isDirLink)
-			close(t->stack->symlink_parent_fd);
-		tree_pop(t);
+	/* Release anything remaining in the queue. */
+	while (t->current != NULL) {
+		te = t->current;
+
+		if (te->flags & isDirLink)
+			close(te->symlink_parent_fd);
+
+		if (te->parent != NULL && te->parent->last_child == te) {
+			te->parent->next = te->next;
+			te->next = te->parent;
+			te->parent->last_child = NULL;
+		}
+
+		t->current = te->next;
+		archive_string_free(&te->name);
+		free(te);
 	}
 	if (t->working_dir_fd >= 0) {
 		close(t->working_dir_fd);
