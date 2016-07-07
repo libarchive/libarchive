@@ -116,14 +116,14 @@ static int	lzip_bidder_init(struct archive_read_filter *);
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
 /* Deprecated; remove in libarchive 4.0 */
-int
+__LA_DECL int
 archive_read_support_compression_xz(struct archive *a)
 {
 	return archive_read_support_filter_xz(a);
 }
 #endif
 
-int
+__LA_DECL int
 archive_read_support_filter_xz(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
@@ -151,14 +151,14 @@ archive_read_support_filter_xz(struct archive *_a)
 }
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
-int
+__LA_DECL int
 archive_read_support_compression_lzma(struct archive *a)
 {
 	return archive_read_support_filter_lzma(a);
 }
 #endif
 
-int
+__LA_DECL int
 archive_read_support_filter_lzma(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
@@ -189,14 +189,14 @@ archive_read_support_filter_lzma(struct archive *_a)
 
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
-int
+__LA_DECL int
 archive_read_support_compression_lzip(struct archive *a)
 {
 	return archive_read_support_filter_lzip(a);
 }
 #endif
 
-int
+__LA_DECL int
 archive_read_support_filter_lzip(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;

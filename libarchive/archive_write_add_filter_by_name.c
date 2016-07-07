@@ -60,7 +60,7 @@ struct { const char *name; int (*setter)(struct archive *); } names[] =
 	{ NULL,			NULL }
 };
 
-int
+__LA_DECL int
 archive_write_add_filter_by_name(struct archive *a, const char *name)
 {
 	int i;

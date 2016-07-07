@@ -100,7 +100,7 @@ shar_quote(struct archive_string *buf, const char *str, int in_shell)
 /*
  * Set output format to 'shar' format.
  */
-int
+__LA_DECL int
 archive_write_set_format_shar(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;
@@ -139,7 +139,7 @@ archive_write_set_format_shar(struct archive *_a)
  * In addition, this variant also attempts to restore ownership, file modes,
  * and other extended file information.
  */
-int
+__LA_DECL int
 archive_write_set_format_shar_dump(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;

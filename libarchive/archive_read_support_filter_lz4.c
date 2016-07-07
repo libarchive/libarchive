@@ -107,7 +107,7 @@ static ssize_t  lz4_filter_read_legacy_stream(struct archive_read_filter *,
 		    const void **);
 #endif
 
-int
+__LA_DECL int
 archive_read_support_filter_lz4(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;

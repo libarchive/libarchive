@@ -62,7 +62,7 @@ static ssize_t	file_read(struct archive *, void *, const void **buff);
 static int64_t	file_seek(struct archive *, void *, int64_t request, int);
 static int64_t	file_skip(struct archive *, void *, int64_t request);
 
-int
+__LA_DECL int
 archive_read_open_fd(struct archive *a, int fd, size_t block_size)
 {
 	struct stat st;

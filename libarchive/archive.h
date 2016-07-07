@@ -115,14 +115,22 @@ typedef ssize_t la_ssize_t;
 #  endif
 # else
 #  ifdef __GNUC__
-#   define __LA_DECL
+#   ifdef HAVE_GCC_VISIBILITY
+#    define __LA_DECL	__attribute__((visibility("default")))
+#   else
+#    define __LA_DECL
+#   endif
 #  else
 #   define __LA_DECL	__declspec(dllimport)
 #  endif
 # endif
 #else
 /* Static libraries or non-Windows needs no special declaration. */
-# define __LA_DECL
+# if defined(__GNUC__) && defined(HAVE_GCC_VISIBILITY)
+#  define __LA_DECL	__attribute__((visibility("default")))
+# else
+#  define __LA_DECL
+# endif
 #endif
 
 #if defined(__GNUC__) && __GNUC__ >= 3 && !defined(__MINGW32__)
@@ -1176,8 +1184,5 @@ __LA_DECL int archive_utility_string_sort(char **);
 #ifdef __cplusplus
 }
 #endif
-
-/* These are meaningless outside of this header. */
-#undef __LA_DECL
 
 #endif /* !ARCHIVE_H_INCLUDED */

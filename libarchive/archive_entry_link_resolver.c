@@ -96,7 +96,7 @@ static struct links_entry *insert_entry(struct archive_entry_linkresolver *,
 static struct links_entry *next_entry(struct archive_entry_linkresolver *,
     int);
 
-struct archive_entry_linkresolver *
+__LA_DECL struct archive_entry_linkresolver *
 archive_entry_linkresolver_new(void)
 {
 	struct archive_entry_linkresolver *res;
@@ -118,7 +118,7 @@ archive_entry_linkresolver_new(void)
 	return (res);
 }
 
-void
+__LA_DECL void
 archive_entry_linkresolver_set_strategy(struct archive_entry_linkresolver *res,
     int fmt)
 {
@@ -156,7 +156,7 @@ archive_entry_linkresolver_set_strategy(struct archive_entry_linkresolver *res,
 	}
 }
 
-void
+__LA_DECL void
 archive_entry_linkresolver_free(struct archive_entry_linkresolver *res)
 {
 	struct links_entry *le;
@@ -170,7 +170,7 @@ archive_entry_linkresolver_free(struct archive_entry_linkresolver *res)
 	free(res);
 }
 
-void
+__LA_DECL void
 archive_entry_linkify(struct archive_entry_linkresolver *res,
     struct archive_entry **e, struct archive_entry **f)
 {
@@ -417,7 +417,7 @@ grow_hash(struct archive_entry_linkresolver *res)
 	res->number_buckets = new_size;
 }
 
-struct archive_entry *
+__LA_DECL struct archive_entry *
 archive_entry_partial_links(struct archive_entry_linkresolver *res,
     unsigned int *links)
 {

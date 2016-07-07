@@ -97,7 +97,7 @@ static char		*url_encode(const char *in);
  * the pax header whenever possible.  This is the default for
  * bsdtar, for instance.
  */
-int
+__LA_DECL int
 archive_write_set_format_pax_restricted(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;
@@ -115,7 +115,7 @@ archive_write_set_format_pax_restricted(struct archive *_a)
 /*
  * Set output format to 'pax' format.
  */
-int
+__LA_DECL int
 archive_write_set_format_pax(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;

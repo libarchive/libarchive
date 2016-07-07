@@ -223,7 +223,7 @@ static char	*url_decode(const char *);
 static void	tar_flush_unconsumed(struct archive_read *, size_t *);
 
 
-int
+__LA_DECL int
 archive_read_support_format_gnutar(struct archive *a)
 {
 	archive_check_magic(a, ARCHIVE_READ_MAGIC,
@@ -232,7 +232,7 @@ archive_read_support_format_gnutar(struct archive *a)
 }
 
 
-int
+__LA_DECL int
 archive_read_support_format_tar(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;

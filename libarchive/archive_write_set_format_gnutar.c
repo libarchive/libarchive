@@ -169,7 +169,7 @@ static int	format_octal(int64_t, char *, int);
 /*
  * Set output format to 'GNU tar' format.
  */
-int
+__LA_DECL int
 archive_write_set_format_gnutar(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;

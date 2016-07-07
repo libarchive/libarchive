@@ -399,7 +399,7 @@ static size_t	x86_Convert(struct _7zip *, uint8_t *, size_t);
 static ssize_t		Bcj2_Decode(struct _7zip *, uint8_t *, size_t);
 
 
-int
+__LA_DECL int
 archive_read_support_format_7zip(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;

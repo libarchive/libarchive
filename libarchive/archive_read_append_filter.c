@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 #include "archive_private.h"
 #include "archive_read_private.h"
 
-int
+__LA_DECL int
 archive_read_append_filter(struct archive *_a, int code)
 {
   int r1, r2, number_bidders, i;
@@ -143,13 +143,13 @@ archive_read_append_filter(struct archive *_a, int code)
   return (r1 < r2) ? r1 : r2;
 }
 
-int
+__LA_DECL int
 archive_read_append_filter_program(struct archive *_a, const char *cmd)
 {
   return (archive_read_append_filter_program_signature(_a, cmd, NULL, 0));
 }
 
-int
+__LA_DECL int
 archive_read_append_filter_program_signature(struct archive *_a,
   const char *cmd, const void *signature, size_t signature_len)
 {

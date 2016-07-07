@@ -114,7 +114,7 @@ static int _gen_uuid(warc_uuid_t *tgt);
 /*
  * Set output format to ISO 28500 (aka WARC) format.
  */
-int
+__LA_DECL int
 archive_write_set_format_warc(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;

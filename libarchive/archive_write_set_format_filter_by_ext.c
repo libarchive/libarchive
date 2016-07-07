@@ -96,7 +96,7 @@ static int get_array_index(const char *name)
   
 }
 
-int
+__LA_DECL int
 archive_write_set_format_filter_by_ext(struct archive *a, const char *filename)
 {
   int names_index = get_array_index(filename);
@@ -115,7 +115,7 @@ archive_write_set_format_filter_by_ext(struct archive *a, const char *filename)
   return (ARCHIVE_FATAL);
 }
 
-int
+__LA_DECL int
 archive_write_set_format_filter_by_ext_def(struct archive *a, const char *filename, const char * def_ext)
 {
   int names_index = get_array_index(filename);

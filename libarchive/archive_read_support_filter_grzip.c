@@ -61,7 +61,7 @@ grzip_reader_free(struct archive_read_filter_bidder *self)
 	return (ARCHIVE_OK);
 }
 
-int
+__LA_DECL int
 archive_read_support_filter_grzip(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;

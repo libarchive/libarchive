@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk_set_standard_lookup.c 
 #include "archive.h"
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
-int
+__LA_DECL int
 archive_read_disk_set_standard_lookup(struct archive *a)
 {
 	archive_set_error(a, -1, "Standard lookups not available on Windows");
@@ -91,7 +91,7 @@ static const char *	lookup_uname_helper(struct name_cache *, id_t uid);
  * use the uid/gid without the lookup.  Or define your own custom functions
  * if you prefer.
  */
-int
+__LA_DECL int
 archive_read_disk_set_standard_lookup(struct archive *a)
 {
 	struct name_cache *ucache = malloc(sizeof(struct name_cache));

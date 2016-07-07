@@ -30,31 +30,31 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_virtual.c 201098 2009-12-28 02:5
 #include "archive_entry.h"
 #include "archive_private.h"
 
-int
+__LA_DECL int
 archive_filter_code(struct archive *a, int n)
 {
 	return ((a->vtable->archive_filter_code)(a, n));
 }
 
-int
+__LA_DECL int
 archive_filter_count(struct archive *a)
 {
 	return ((a->vtable->archive_filter_count)(a));
 }
 
-const char *
+__LA_DECL const char *
 archive_filter_name(struct archive *a, int n)
 {
 	return ((a->vtable->archive_filter_name)(a, n));
 }
 
-int64_t
+__LA_DECL int64_t
 archive_filter_bytes(struct archive *a, int n)
 {
 	return ((a->vtable->archive_filter_bytes)(a, n));
 }
 
-int
+__LA_DECL int
 archive_free(struct archive *a)
 {
 	if (a == NULL)
@@ -62,26 +62,26 @@ archive_free(struct archive *a)
 	return ((a->vtable->archive_free)(a));
 }
 
-int
+__LA_DECL int
 archive_write_close(struct archive *a)
 {
 	return ((a->vtable->archive_close)(a));
 }
 
-int
+__LA_DECL int
 archive_read_close(struct archive *a)
 {
 	return ((a->vtable->archive_close)(a));
 }
 
-int
+__LA_DECL int
 archive_write_fail(struct archive *a)
 {
 	a->state = ARCHIVE_STATE_FATAL;
 	return a->state;
 }
 
-int
+__LA_DECL int
 archive_write_free(struct archive *a)
 {
 	return archive_free(a);
@@ -89,14 +89,14 @@ archive_write_free(struct archive *a)
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
 /* For backwards compatibility; will be removed with libarchive 4.0. */
-int
+__LA_DECL int
 archive_write_finish(struct archive *a)
 {
 	return archive_write_free(a);
 }
 #endif
 
-int
+__LA_DECL int
 archive_read_free(struct archive *a)
 {
 	return archive_free(a);
@@ -104,33 +104,33 @@ archive_read_free(struct archive *a)
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
 /* For backwards compatibility; will be removed with libarchive 4.0. */
-int
+__LA_DECL int
 archive_read_finish(struct archive *a)
 {
 	return archive_read_free(a);
 }
 #endif
 
-int
+__LA_DECL int
 archive_write_header(struct archive *a, struct archive_entry *entry)
 {
 	++a->file_count;
 	return ((a->vtable->archive_write_header)(a, entry));
 }
 
-int
+__LA_DECL int
 archive_write_finish_entry(struct archive *a)
 {
 	return ((a->vtable->archive_write_finish_entry)(a));
 }
 
-ssize_t
+__LA_DECL ssize_t
 archive_write_data(struct archive *a, const void *buff, size_t s)
 {
 	return ((a->vtable->archive_write_data)(a, buff, s));
 }
 
-ssize_t
+__LA_DECL ssize_t
 archive_write_data_block(struct archive *a, const void *buff, size_t s, int64_t o)
 {
 	if (a->vtable->archive_write_data_block == NULL) {
@@ -142,19 +142,19 @@ archive_write_data_block(struct archive *a, const void *buff, size_t s, int64_t 
 	return ((a->vtable->archive_write_data_block)(a, buff, s, o));
 }
 
-int
+__LA_DECL int
 archive_read_next_header(struct archive *a, struct archive_entry **entry)
 {
 	return ((a->vtable->archive_read_next_header)(a, entry));
 }
 
-int
+__LA_DECL int
 archive_read_next_header2(struct archive *a, struct archive_entry *entry)
 {
 	return ((a->vtable->archive_read_next_header2)(a, entry));
 }
 
-int
+__LA_DECL int
 archive_read_data_block(struct archive *a,
     const void **buff, size_t *s, int64_t *o)
 {

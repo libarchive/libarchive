@@ -31,7 +31,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include "archive_write_private.h"
 
-int
+__LA_DECL int
 archive_write_set_passphrase(struct archive *_a, const char *p)
 {
 	struct archive_write *a = (struct archive_write *)_a;
@@ -55,7 +55,7 @@ archive_write_set_passphrase(struct archive *_a, const char *p)
 }
 
 
-int
+__LA_DECL int
 archive_write_set_passphrase_callback(struct archive *_a, void *client_data,
     archive_passphrase_callback *cb)
 {

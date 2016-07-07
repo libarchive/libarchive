@@ -443,7 +443,7 @@ static struct file_info *heap_get_entry(struct heap_queue *heap);
 #define next_entry(iso9660)		\
 	heap_get_entry(&((iso9660)->pending_files))
 
-int
+__LA_DECL int
 archive_read_support_format_iso9660(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;

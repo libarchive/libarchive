@@ -58,7 +58,7 @@ static int	file_close(struct archive *, void *);
 static int	file_open(struct archive *, void *);
 static ssize_t	file_write(struct archive *, void *, const void *buff, size_t);
 
-int
+__LA_DECL int
 archive_write_open_fd(struct archive *a, int fd)
 {
 	struct write_fd_data *mine;

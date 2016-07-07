@@ -48,21 +48,21 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_compression_xz.c 20110
 #include "archive_write_private.h"
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
-int
+__LA_DECL int
 archive_write_set_compression_lzip(struct archive *a)
 {
 	__archive_write_filters_free(a);
 	return (archive_write_add_filter_lzip(a));
 }
 
-int
+__LA_DECL int
 archive_write_set_compression_lzma(struct archive *a)
 {
 	__archive_write_filters_free(a);
 	return (archive_write_add_filter_lzma(a));
 }
 
-int
+__LA_DECL int
 archive_write_set_compression_xz(struct archive *a)
 {
 	__archive_write_filters_free(a);
@@ -163,7 +163,7 @@ common_setup(struct archive_write_filter *f)
 /*
  * Add an xz compression filter to this write handle.
  */
-int
+__LA_DECL int
 archive_write_add_filter_xz(struct archive *_a)
 {
 	struct archive_write_filter *f;
@@ -183,7 +183,7 @@ archive_write_add_filter_xz(struct archive *_a)
 /* LZMA is handled identically, we just need a different compression
  * code set.  (The liblzma setup looks at the code to determine
  * the one place that XZ and LZMA require different handling.) */
-int
+__LA_DECL int
 archive_write_add_filter_lzma(struct archive *_a)
 {
 	struct archive_write_filter *f;
@@ -200,7 +200,7 @@ archive_write_add_filter_lzma(struct archive *_a)
 	return (r);
 }
 
-int
+__LA_DECL int
 archive_write_add_filter_lzip(struct archive *_a)
 {
 	struct archive_write_filter *f;

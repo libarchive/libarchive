@@ -213,7 +213,7 @@ free_options(struct mtree_option *head)
 	}
 }
 
-int
+__LA_DECL int
 archive_read_support_format_mtree(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;

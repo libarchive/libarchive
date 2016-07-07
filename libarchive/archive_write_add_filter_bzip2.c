@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_compression_bzip2.c 20
 #include "archive_write_private.h"
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
-int
+__LA_DECL int
 archive_write_set_compression_bzip2(struct archive *a)
 {
 	__archive_write_filters_free(a);
@@ -78,7 +78,7 @@ static int archive_compressor_bzip2_write(struct archive_write_filter *,
 /*
  * Add a bzip2 compression filter to this write handle.
  */
-int
+__LA_DECL int
 archive_write_add_filter_bzip2(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;

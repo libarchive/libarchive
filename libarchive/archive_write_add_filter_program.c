@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_compression_program.c 
 #include "filter_fork.h"
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
-int
+__LA_DECL int
 archive_write_set_compression_program(struct archive *a, const char *cmd)
 {
 	__archive_write_filters_free(a);
@@ -87,7 +87,7 @@ static int archive_compressor_program_free(struct archive_write_filter *);
  * Add a filter to this write handle that passes all data through an
  * external program.
  */
-int
+__LA_DECL int
 archive_write_add_filter_program(struct archive *_a, const char *cmd)
 {
 	struct archive_write_filter *f = __archive_write_allocate_filter(_a);

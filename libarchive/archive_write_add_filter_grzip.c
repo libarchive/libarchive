@@ -49,7 +49,7 @@ static int archive_write_grzip_write(struct archive_write_filter *,
 static int archive_write_grzip_close(struct archive_write_filter *);
 static int archive_write_grzip_free(struct archive_write_filter *);
 
-int
+__LA_DECL int
 archive_write_add_filter_grzip(struct archive *_a)
 {
 	struct archive_write_filter *f = __archive_write_allocate_filter(_a);

@@ -77,19 +77,19 @@ __archive_clean(struct archive *a)
 	return (ARCHIVE_OK);
 }
 
-int
+__LA_DECL int
 archive_version_number(void)
 {
 	return (ARCHIVE_VERSION_NUMBER);
 }
 
-const char *
+__LA_DECL const char *
 archive_version_string(void)
 {
 	return (ARCHIVE_VERSION_STRING);
 }
 
-const char *
+__LA_DECL const char *
 archive_version_details(void)
 {
 	static struct archive_string str;
@@ -127,7 +127,7 @@ archive_version_details(void)
 	return str.s;
 }
 
-const char *
+__LA_DECL const char *
 archive_zlib_version(void)
 {
 #ifdef HAVE_ZLIB_H
@@ -137,7 +137,7 @@ archive_zlib_version(void)
 #endif
 }
 
-const char *
+__LA_DECL const char *
 archive_liblzma_version(void)
 {
 #ifdef HAVE_LZMA_H
@@ -147,7 +147,7 @@ archive_liblzma_version(void)
 #endif
 }
 
-const char *
+__LA_DECL const char *
 archive_bzlib_version(void)
 {
 #ifdef HAVE_BZLIB_H
@@ -157,7 +157,7 @@ archive_bzlib_version(void)
 #endif
 }
 
-const char *
+__LA_DECL const char *
 archive_liblz4_version(void)
 {
 #if defined(HAVE_LZ4_H) && defined(HAVE_LIBLZ4)
@@ -171,13 +171,13 @@ archive_liblz4_version(void)
 #endif
 }
 
-int
+__LA_DECL int
 archive_errno(struct archive *a)
 {
 	return (a->archive_error_number);
 }
 
-const char *
+__LA_DECL const char *
 archive_error_string(struct archive *a)
 {
 
@@ -187,32 +187,32 @@ archive_error_string(struct archive *a)
 		return (NULL);
 }
 
-int
+__LA_DECL int
 archive_file_count(struct archive *a)
 {
 	return (a->file_count);
 }
 
-int
+__LA_DECL int
 archive_format(struct archive *a)
 {
 	return (a->archive_format);
 }
 
-const char *
+__LA_DECL const char *
 archive_format_name(struct archive *a)
 {
 	return (a->archive_format_name);
 }
 
 
-int
+__LA_DECL int
 archive_compression(struct archive *a)
 {
 	return archive_filter_code(a, 0);
 }
 
-const char *
+__LA_DECL const char *
 archive_compression_name(struct archive *a)
 {
 	return archive_filter_name(a, 0);
@@ -222,7 +222,7 @@ archive_compression_name(struct archive *a)
 /*
  * Return a count of the number of compressed bytes processed.
  */
-int64_t
+__LA_DECL int64_t
 archive_position_compressed(struct archive *a)
 {
 	return archive_filter_bytes(a, -1);
@@ -231,13 +231,13 @@ archive_position_compressed(struct archive *a)
 /*
  * Return a count of the number of uncompressed bytes processed.
  */
-int64_t
+__LA_DECL int64_t
 archive_position_uncompressed(struct archive *a)
 {
 	return archive_filter_bytes(a, 0);
 }
 
-void
+__LA_DECL void
 archive_clear_error(struct archive *a)
 {
 	archive_string_empty(&a->error_string);
@@ -245,7 +245,7 @@ archive_clear_error(struct archive *a)
 	a->archive_error_number = 0;
 }
 
-void
+__LA_DECL void
 archive_set_error(struct archive *a, int error_number, const char *fmt, ...)
 {
 	va_list ap;
@@ -263,7 +263,7 @@ archive_set_error(struct archive *a, int error_number, const char *fmt, ...)
 	a->error = a->error_string.s;
 }
 
-void
+__LA_DECL void
 archive_copy_error(struct archive *dest, struct archive *src)
 {
 	dest->archive_error_number = src->archive_error_number;
@@ -657,7 +657,7 @@ archive_utility_string_sort_helper(char **strings, unsigned int n)
 	return (retval1 < retval2) ? retval1 : retval2;
 }
 
-int
+__LA_DECL int
 archive_utility_string_sort(char **strings)
 {
 	  unsigned int size = 0;

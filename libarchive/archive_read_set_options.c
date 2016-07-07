@@ -36,7 +36,7 @@ static int	archive_set_filter_option(struct archive *a,
 static int	archive_set_option(struct archive *a,
 		    const char *m, const char *o, const char *v);
 
-int
+__LA_DECL int
 archive_read_set_format_option(struct archive *a, const char *m, const char *o,
     const char *v)
 {
@@ -45,7 +45,7 @@ archive_read_set_format_option(struct archive *a, const char *m, const char *o,
 	    archive_set_format_option);
 }
 
-int
+__LA_DECL int
 archive_read_set_filter_option(struct archive *a, const char *m, const char *o,
     const char *v)
 {
@@ -54,7 +54,7 @@ archive_read_set_filter_option(struct archive *a, const char *m, const char *o,
 	    archive_set_filter_option);
 }
 
-int
+__LA_DECL int
 archive_read_set_option(struct archive *a, const char *m, const char *o,
     const char *v)
 {
@@ -63,7 +63,7 @@ archive_read_set_option(struct archive *a, const char *m, const char *o,
 	    archive_set_option);
 }
 
-int
+__LA_DECL int
 archive_read_set_options(struct archive *a, const char *options)
 {
 	return _archive_set_options(a, options,

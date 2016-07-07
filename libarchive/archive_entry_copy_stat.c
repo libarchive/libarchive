@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_entry_copy_stat.c 189466 2009-03
 #include "archive.h"
 #include "archive_entry.h"
 
-void
+__LA_DECL void
 archive_entry_copy_stat(struct archive_entry *entry, const struct stat *st)
 {
 #if HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC

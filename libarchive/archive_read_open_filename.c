@@ -92,14 +92,14 @@ static int64_t	file_seek(struct archive *, void *, int64_t request, int);
 static int64_t	file_skip(struct archive *, void *, int64_t request);
 static int64_t	file_skip_lseek(struct archive *, void *, int64_t request);
 
-int
+__LA_DECL int
 archive_read_open_file(struct archive *a, const char *filename,
     size_t block_size)
 {
 	return (archive_read_open_filename(a, filename, block_size));
 }
 
-int
+__LA_DECL int
 archive_read_open_filename(struct archive *a, const char *filename,
     size_t block_size)
 {
@@ -109,7 +109,7 @@ archive_read_open_filename(struct archive *a, const char *filename,
 	return archive_read_open_filenames(a, filenames, block_size);
 }
 
-int
+__LA_DECL int
 archive_read_open_filenames(struct archive *a, const char **filenames,
     size_t block_size)
 {
@@ -155,7 +155,7 @@ no_memory:
 	return (ARCHIVE_FATAL);
 }
 
-int
+__LA_DECL int
 archive_read_open_filename_w(struct archive *a, const wchar_t *wfilename,
     size_t block_size)
 {

@@ -63,7 +63,7 @@ struct { int code; int (*setter)(struct archive *); } codes[] =
 	{ 0,		NULL }
 };
 
-int
+__LA_DECL int
 archive_write_set_format(struct archive *a, int code)
 {
 	int i;

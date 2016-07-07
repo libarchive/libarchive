@@ -45,7 +45,7 @@ struct raw {
 /*
  * Set output format to 'raw' format.
  */
-int
+__LA_DECL int
 archive_write_set_format_raw(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;

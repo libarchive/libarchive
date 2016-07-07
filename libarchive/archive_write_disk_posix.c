@@ -424,7 +424,7 @@ _archive_write_disk_filter_bytes(struct archive *_a, int n)
 }
 
 
-int
+__LA_DECL int
 archive_write_disk_set_options(struct archive *_a, int flags)
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
@@ -741,7 +741,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	return (ret);
 }
 
-int
+__LA_DECL int
 archive_write_disk_set_skip_file(struct archive *_a, int64_t d, int64_t i)
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
@@ -1687,7 +1687,7 @@ finish_metadata:
 	return (ret);
 }
 
-int
+__LA_DECL int
 archive_write_disk_set_group_lookup(struct archive *_a,
     void *private_data,
     int64_t (*lookup_gid)(void *private, const char *gname, int64_t gid),
@@ -1706,7 +1706,7 @@ archive_write_disk_set_group_lookup(struct archive *_a,
 	return (ARCHIVE_OK);
 }
 
-int
+__LA_DECL int
 archive_write_disk_set_user_lookup(struct archive *_a,
     void *private_data,
     int64_t (*lookup_uid)(void *private, const char *uname, int64_t uid),
@@ -1725,7 +1725,7 @@ archive_write_disk_set_user_lookup(struct archive *_a,
 	return (ARCHIVE_OK);
 }
 
-int64_t
+__LA_DECL int64_t
 archive_write_disk_gid(struct archive *_a, const char *name, int64_t id)
 {
        struct archive_write_disk *a = (struct archive_write_disk *)_a;
@@ -1736,7 +1736,7 @@ archive_write_disk_gid(struct archive *_a, const char *name, int64_t id)
        return (id);
 }
  
-int64_t
+__LA_DECL int64_t
 archive_write_disk_uid(struct archive *_a, const char *name, int64_t id)
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
@@ -1750,7 +1750,7 @@ archive_write_disk_uid(struct archive *_a, const char *name, int64_t id)
 /*
  * Create a new archive_write_disk object and initialize it with global state.
  */
-struct archive *
+__LA_DECL struct archive *
 archive_write_disk_new(void)
 {
 	struct archive_write_disk *a;

@@ -163,7 +163,7 @@ static int	format_octal(int64_t, char *, int);
 /*
  * Set output format to 'ustar' format.
  */
-int
+__LA_DECL int
 archive_write_set_format_ustar(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;

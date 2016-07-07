@@ -2011,7 +2011,7 @@ archive_read_format_zip_options(struct archive_read *a,
 	return (ARCHIVE_WARN);
 }
 
-int
+__LA_DECL int
 archive_read_support_format_zip(struct archive *a)
 {
 	int r;
@@ -2258,7 +2258,7 @@ archive_read_format_zip_read_data_skip_streamable(struct archive_read *a)
 	}
 }
 
-int
+__LA_DECL int
 archive_read_support_format_zip_streamable(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
@@ -3014,7 +3014,7 @@ archive_read_format_zip_read_data_skip_seekable(struct archive_read *a)
 	return (ARCHIVE_OK);
 }
 
-int
+__LA_DECL int
 archive_read_support_format_zip_seekable(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;

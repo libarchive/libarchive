@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
  * sparse handling
  */
 
-void
+__LA_DECL void
 archive_entry_sparse_clear(struct archive_entry *entry)
 {
 	struct ae_sparse *sp;
@@ -49,7 +49,7 @@ archive_entry_sparse_clear(struct archive_entry *entry)
 	entry->sparse_tail = NULL;
 }
 
-void
+__LA_DECL void
 archive_entry_sparse_add_entry(struct archive_entry *entry,
 	int64_t offset, int64_t length)
 {
@@ -99,7 +99,7 @@ archive_entry_sparse_add_entry(struct archive_entry *entry,
 /*
  * returns number of the sparse entries
  */
-int
+__LA_DECL int
 archive_entry_sparse_count(struct archive_entry *entry)
 {
 	struct ae_sparse *sp;
@@ -125,7 +125,7 @@ archive_entry_sparse_count(struct archive_entry *entry)
 	return (count);
 }
 
-int
+__LA_DECL int
 archive_entry_sparse_reset(struct archive_entry * entry)
 {
 	entry->sparse_p = entry->sparse_head;
@@ -133,7 +133,7 @@ archive_entry_sparse_reset(struct archive_entry * entry)
 	return archive_entry_sparse_count(entry);
 }
 
-int
+__LA_DECL int
 archive_entry_sparse_next(struct archive_entry * entry,
 	int64_t *offset, int64_t *length)
 {

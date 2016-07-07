@@ -31,14 +31,14 @@ __FBSDID("$FreeBSD$");
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
 /* Deprecated; remove in libarchive 4.0 */
-int
+__LA_DECL int
 archive_read_support_compression_all(struct archive *a)
 {
 	return archive_read_support_filter_all(a);
 }
 #endif
 
-int
+__LA_DECL int
 archive_read_support_filter_all(struct archive *a)
 {
 	archive_check_magic(a, ARCHIVE_READ_MAGIC,

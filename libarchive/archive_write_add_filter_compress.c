@@ -115,7 +115,7 @@ static int archive_compressor_compress_close(struct archive_write_filter *);
 static int archive_compressor_compress_free(struct archive_write_filter *);
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
-int
+__LA_DECL int
 archive_write_set_compression_compress(struct archive *a)
 {
 	__archive_write_filters_free(a);
@@ -126,7 +126,7 @@ archive_write_set_compression_compress(struct archive *a)
 /*
  * Add a compress filter to this write handle.
  */
-int
+__LA_DECL int
 archive_write_add_filter_compress(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;

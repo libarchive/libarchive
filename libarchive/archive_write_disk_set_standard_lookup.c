@@ -81,7 +81,7 @@ static void	cleanup(void *);
  * walking a list of 128 items is a lot faster than calling
  * getpwnam()!
  */
-int
+__LA_DECL int
 archive_write_disk_set_standard_lookup(struct archive *a)
 {
 	struct bucket *ucache = malloc(cache_size * sizeof(struct bucket));

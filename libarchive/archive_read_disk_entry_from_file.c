@@ -126,7 +126,7 @@ static int setup_xattrs(struct archive_read_disk *,
 static int setup_sparse(struct archive_read_disk *,
     struct archive_entry *, int *fd);
 
-int
+__LA_DECL int
 archive_read_disk_entry_from_file(struct archive *_a,
     struct archive_entry *entry,
     int fd,

@@ -217,7 +217,7 @@ static int64_t	le4(const unsigned char *);
 static int	record_hardlink(struct archive_read *a,
 		    struct cpio *cpio, struct archive_entry *entry);
 
-int
+__LA_DECL int
 archive_read_support_format_cpio(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;

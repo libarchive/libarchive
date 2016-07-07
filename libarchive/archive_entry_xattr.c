@@ -69,7 +69,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_entry_xattr.c 201096 2009-12-28 
  * extended attribute handling
  */
 
-void
+__LA_DECL void
 archive_entry_xattr_clear(struct archive_entry *entry)
 {
 	struct ae_xattr	*xp;
@@ -85,7 +85,7 @@ archive_entry_xattr_clear(struct archive_entry *entry)
 	entry->xattr_head = NULL;
 }
 
-void
+__LA_DECL void
 archive_entry_xattr_add_entry(struct archive_entry *entry,
 	const char *name, const void *value, size_t size)
 {
@@ -111,7 +111,7 @@ archive_entry_xattr_add_entry(struct archive_entry *entry,
 /*
  * returns number of the extended attribute entries
  */
-int
+__LA_DECL int
 archive_entry_xattr_count(struct archive_entry *entry)
 {
 	struct ae_xattr *xp;
@@ -123,7 +123,7 @@ archive_entry_xattr_count(struct archive_entry *entry)
 	return count;
 }
 
-int
+__LA_DECL int
 archive_entry_xattr_reset(struct archive_entry * entry)
 {
 	entry->xattr_p = entry->xattr_head;
@@ -131,7 +131,7 @@ archive_entry_xattr_reset(struct archive_entry * entry)
 	return archive_entry_xattr_count(entry);
 }
 
-int
+__LA_DECL int
 archive_entry_xattr_next(struct archive_entry * entry,
 	const char **name, const void **value, size_t *size)
 {

@@ -442,7 +442,7 @@ static void	expat_data_cb(void *, const XML_Char *, int);
 static int	expat_read_toc(struct archive_read *);
 #endif
 
-int
+__LA_DECL int
 archive_read_support_format_xar(struct archive *_a)
 {
 	struct xar *xar;

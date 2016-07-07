@@ -55,7 +55,7 @@ static int archive_write_lrzip_write(struct archive_write_filter *,
 static int archive_write_lrzip_close(struct archive_write_filter *);
 static int archive_write_lrzip_free(struct archive_write_filter *);
 
-int
+__LA_DECL int
 archive_write_add_filter_lrzip(struct archive *_a)
 {
 	struct archive_write_filter *f = __archive_write_allocate_filter(_a);

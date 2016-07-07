@@ -213,7 +213,7 @@ error_nomem(struct archive_match *a)
 /*
  * Create an ARCHIVE_MATCH object.
  */
-struct archive *
+__LA_DECL struct archive *
 archive_match_new(void)
 {
 	struct archive_match *a;
@@ -236,7 +236,7 @@ archive_match_new(void)
 /*
  * Free an ARCHIVE_MATCH object.
  */
-int
+__LA_DECL int
 archive_match_free(struct archive *_a)
 {
 	struct archive_match *a;
@@ -264,7 +264,7 @@ archive_match_free(struct archive *_a)
  * Returns 0 if archive entry is not excluded.
  * Returns <0 if something error happened.
  */
-int
+__LA_DECL int
 archive_match_excluded(struct archive *_a, struct archive_entry *entry)
 {
 	struct archive_match *a;
@@ -305,7 +305,7 @@ archive_match_excluded(struct archive *_a, struct archive_entry *entry)
  * Utility functions to manage exclusion/inclusion patterns
  */
 
-int
+__LA_DECL int
 archive_match_exclude_pattern(struct archive *_a, const char *pattern)
 {
 	struct archive_match *a;
@@ -324,7 +324,7 @@ archive_match_exclude_pattern(struct archive *_a, const char *pattern)
 	return (ARCHIVE_OK);
 }
 
-int
+__LA_DECL int
 archive_match_exclude_pattern_w(struct archive *_a, const wchar_t *pattern)
 {
 	struct archive_match *a;
@@ -343,7 +343,7 @@ archive_match_exclude_pattern_w(struct archive *_a, const wchar_t *pattern)
 	return (ARCHIVE_OK);
 }
 
-int
+__LA_DECL int
 archive_match_exclude_pattern_from_file(struct archive *_a,
     const char *pathname, int nullSeparator)
 {
@@ -357,7 +357,7 @@ archive_match_exclude_pattern_from_file(struct archive *_a,
 		nullSeparator);
 }
 
-int
+__LA_DECL int
 archive_match_exclude_pattern_from_file_w(struct archive *_a,
     const wchar_t *pathname, int nullSeparator)
 {
@@ -371,7 +371,7 @@ archive_match_exclude_pattern_from_file_w(struct archive *_a,
 		nullSeparator);
 }
 
-int
+__LA_DECL int
 archive_match_include_pattern(struct archive *_a, const char *pattern)
 {
 	struct archive_match *a;
@@ -390,7 +390,7 @@ archive_match_include_pattern(struct archive *_a, const char *pattern)
 	return (ARCHIVE_OK);
 }
 
-int
+__LA_DECL int
 archive_match_include_pattern_w(struct archive *_a, const wchar_t *pattern)
 {
 	struct archive_match *a;
@@ -409,7 +409,7 @@ archive_match_include_pattern_w(struct archive *_a, const wchar_t *pattern)
 	return (ARCHIVE_OK);
 }
 
-int
+__LA_DECL int
 archive_match_include_pattern_from_file(struct archive *_a,
     const char *pathname, int nullSeparator)
 {
@@ -423,7 +423,7 @@ archive_match_include_pattern_from_file(struct archive *_a,
 		nullSeparator);
 }
 
-int
+__LA_DECL int
 archive_match_include_pattern_from_file_w(struct archive *_a,
     const wchar_t *pathname, int nullSeparator)
 {
@@ -444,7 +444,7 @@ archive_match_include_pattern_from_file_w(struct archive *_a,
  * Returns 0 if archive entry is not excluded.
  * Returns <0 if something error happened.
  */
-int
+__LA_DECL int
 archive_match_path_excluded(struct archive *_a,
     struct archive_entry *entry)
 {
@@ -473,7 +473,7 @@ archive_match_path_excluded(struct archive *_a,
 /*
  * Utilty functions to get statistic information for inclusion patterns.
  */
-int
+__LA_DECL int
 archive_match_path_unmatched_inclusions(struct archive *_a)
 {
 	struct archive_match *a;
@@ -485,7 +485,7 @@ archive_match_path_unmatched_inclusions(struct archive *_a)
 	return (a->inclusions.unmatched_count);
 }
 
-int
+__LA_DECL int
 archive_match_path_unmatched_inclusions_next(struct archive *_a,
     const char **_p)
 {
@@ -502,7 +502,7 @@ archive_match_path_unmatched_inclusions_next(struct archive *_a,
 	return (r);
 }
 
-int
+__LA_DECL int
 archive_match_path_unmatched_inclusions_next_w(struct archive *_a,
     const wchar_t **_p)
 {
@@ -885,7 +885,7 @@ match_list_unmatched_inclusions_next(struct archive_match *a,
 /*
  * Utility functions to manage inclusion timestamps.
  */
-int
+__LA_DECL int
 archive_match_include_time(struct archive *_a, int flag, time_t sec,
     long nsec)
 {
@@ -898,7 +898,7 @@ archive_match_include_time(struct archive *_a, int flag, time_t sec,
 			sec, nsec, sec, nsec);
 }
 
-int
+__LA_DECL int
 archive_match_include_date(struct archive *_a, int flag,
     const char *datestr)
 {
@@ -910,7 +910,7 @@ archive_match_include_date(struct archive *_a, int flag,
 	return set_timefilter_date((struct archive_match *)_a, flag, datestr);
 }
 
-int
+__LA_DECL int
 archive_match_include_date_w(struct archive *_a, int flag,
     const wchar_t *datestr)
 {
@@ -923,7 +923,7 @@ archive_match_include_date_w(struct archive *_a, int flag,
 	return set_timefilter_date_w((struct archive_match *)_a, flag, datestr);
 }
 
-int
+__LA_DECL int
 archive_match_include_file_time(struct archive *_a, int flag,
     const char *pathname)
 {
@@ -936,7 +936,7 @@ archive_match_include_file_time(struct archive *_a, int flag,
 			flag, pathname);
 }
 
-int
+__LA_DECL int
 archive_match_include_file_time_w(struct archive *_a, int flag,
     const wchar_t *pathname)
 {
@@ -949,7 +949,7 @@ archive_match_include_file_time_w(struct archive *_a, int flag,
 			flag, pathname);
 }
 
-int
+__LA_DECL int
 archive_match_exclude_entry(struct archive *_a, int flag,
     struct archive_entry *entry)
 {
@@ -977,7 +977,7 @@ archive_match_exclude_entry(struct archive *_a, int flag,
  * Returns 0 if archive entry is not excluded.
  * Returns <0 if something error happened.
  */
-int
+__LA_DECL int
 archive_match_time_excluded(struct archive *_a,
     struct archive_entry *entry)
 {
@@ -1581,7 +1581,7 @@ time_excluded(struct archive_match *a, struct archive_entry *entry)
  * Utility functions to manage inclusion owners
  */
 
-int
+__LA_DECL int
 archive_match_include_uid(struct archive *_a, int64_t uid)
 {
 	struct archive_match *a;
@@ -1592,7 +1592,7 @@ archive_match_include_uid(struct archive *_a, int64_t uid)
 	return (add_owner_id(a, &(a->inclusion_uids), uid));
 }
 
-int
+__LA_DECL int
 archive_match_include_gid(struct archive *_a, int64_t gid)
 {
 	struct archive_match *a;
@@ -1603,7 +1603,7 @@ archive_match_include_gid(struct archive *_a, int64_t gid)
 	return (add_owner_id(a, &(a->inclusion_gids), gid));
 }
 
-int
+__LA_DECL int
 archive_match_include_uname(struct archive *_a, const char *uname)
 {
 	struct archive_match *a;
@@ -1614,7 +1614,7 @@ archive_match_include_uname(struct archive *_a, const char *uname)
 	return (add_owner_name(a, &(a->inclusion_unames), 1, uname));
 }
 
-int
+__LA_DECL int
 archive_match_include_uname_w(struct archive *_a, const wchar_t *uname)
 {
 	struct archive_match *a;
@@ -1625,7 +1625,7 @@ archive_match_include_uname_w(struct archive *_a, const wchar_t *uname)
 	return (add_owner_name(a, &(a->inclusion_unames), 0, uname));
 }
 
-int
+__LA_DECL int
 archive_match_include_gname(struct archive *_a, const char *gname)
 {
 	struct archive_match *a;
@@ -1636,7 +1636,7 @@ archive_match_include_gname(struct archive *_a, const char *gname)
 	return (add_owner_name(a, &(a->inclusion_gnames), 1, gname));
 }
 
-int
+__LA_DECL int
 archive_match_include_gname_w(struct archive *_a, const wchar_t *gname)
 {
 	struct archive_match *a;
@@ -1654,7 +1654,7 @@ archive_match_include_gname_w(struct archive *_a, const wchar_t *gname)
  * Returns 0 if archive entry is not excluded.
  * Returns <0 if something error happened.
  */
-int
+__LA_DECL int
 archive_match_owner_excluded(struct archive *_a,
     struct archive_entry *entry)
 {

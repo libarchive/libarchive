@@ -48,7 +48,7 @@ static ssize_t	memory_write(struct archive *, void *, const void *buff, size_t);
  * the data.  The 'size' param both tells us the size of the
  * client buffer and lets us tell the client the final size.
  */
-int
+__LA_DECL int
 archive_write_open_memory(struct archive *a, void *buff, size_t buffSize, size_t *used)
 {
 	struct write_memory_data *mine;

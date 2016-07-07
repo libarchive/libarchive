@@ -583,6 +583,27 @@ AC_HEADER_TIME
 
 # Checks for library functions.
 AC_PROG_GCC_TRADITIONAL
+
+AC_MSG_CHECKING([for the symbol visibility flags and attributes])
+save_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -fvisibility=hidden"
+AC_COMPILE_IFELSE(
+ [AC_LANG_PROGRAM([[#include <stdlib.h>
+int __attribute__((visibility("default"))) foo(void);
+int foo(void) {
+	 return 0;
+}
+]],
+                  [[return foo();]])],
+ [
+  AC_MSG_RESULT([-fvisibility])
+  AC_DEFINE(HAVE_GCC_VISIBILITY,1,[Define to 1 if GCC supports the -fvisibility flag.])
+  save_CFLAGS="$CFLAGS"
+ ],
+ [AC_MSG_RESULT([none])]
+)
+CFLAGS="$save_CFLAGS"
+
 AC_HEADER_MAJOR
 AC_FUNC_FSEEKO
 AC_FUNC_MEMCMP

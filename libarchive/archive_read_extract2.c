@@ -79,7 +79,7 @@ archive_read_extract_cleanup(struct archive_read *a)
 	return (ret);
 }
 
-int
+__LA_DECL int
 archive_read_extract2(struct archive *_a, struct archive_entry *entry,
     struct archive *ad)
 {
@@ -111,7 +111,7 @@ archive_read_extract2(struct archive *_a, struct archive_entry *entry,
 	return (r);
 }
 
-void
+__LA_DECL void
 archive_read_extract_set_progress_callback(struct archive *_a,
     void (*progress_func)(void *), void *user_data)
 {

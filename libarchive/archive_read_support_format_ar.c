@@ -94,7 +94,7 @@ static int	ar_parse_gnu_filename_table(struct archive_read *a);
 static int	ar_parse_common_header(struct ar *ar, struct archive_entry *,
 		    const char *h);
 
-int
+__LA_DECL int
 archive_read_support_format_ar(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;

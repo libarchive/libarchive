@@ -94,14 +94,22 @@ typedef int64_t la_int64_t;
 #  endif
 # else
 #  ifdef __GNUC__
-#   define __LA_DECL
+#   ifdef HAVE_GCC_VISIBILITY
+#    define __LA_DECL	__attribute__((visibility("default")))
+#   else
+#    define __LA_DECL
+#   endif
 #  else
 #   define __LA_DECL	__declspec(dllimport)
 #  endif
 # endif
 #else
 /* Static libraries on all platforms and shared libraries on non-Windows. */
-# define __LA_DECL
+# if defined(__GNUC__) && defined(HAVE_GCC_VISIBILITY)
+#  define __LA_DECL	__attribute__((visibility("default")))
+# else
+#  define __LA_DECL
+# endif
 #endif
 
 #ifdef __cplusplus
@@ -635,8 +643,5 @@ __LA_DECL struct archive_entry *archive_entry_partial_links(
 #ifdef __cplusplus
 }
 #endif
-
-/* This is meaningless outside of this header. */
-#undef __LA_DECL
 
 #endif /* !ARCHIVE_ENTRY_H_INCLUDED */
