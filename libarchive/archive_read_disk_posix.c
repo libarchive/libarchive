@@ -133,8 +133,7 @@ __FBSDID("$FreeBSD$");
  * still has children to process.
  *
  * There is surprisingly little information that needs to be kept for
- * each item in the queue. Just the name, depth (represented here as the
- * string length of the parent directory's pathname), some markers
+ * each item in the queue. Just the name, depth, some markers
  * indicating how to get back to the parent (via chdir("..") for a
  * regular dir or via fchdir(2) for a symlink), and pointers to their
  * parent and last child for the children's FIFO.
@@ -2175,7 +2174,6 @@ tree_update_basename(struct tree *t, const char *name, size_t name_length)
 	/* Clear tree's current basename from the full path */
 	t->path.s[t->dirname_length] = '\0';
 	t->path.length = t->dirname_length;
-
 	/* Strip trailing '/' from name, unless entire name is "/". */
 	while (name_length > 1 && name[name_length - 1] == '/')
 		name_length--;
@@ -2246,7 +2244,8 @@ tree_reopen(struct tree *t, const char *path, struct archive_read_disk *a)
  * First entry of the work queue is a bit special because it will be a
  * TREE_REGULAR entry without a previously pushed parent.
  */
-struct tree_entry *tree_first_entry(struct tree *t, const char *path)
+struct tree_entry *
+tree_first_entry(struct tree *t, const char *path)
 {
 	struct tree_entry *te;
 
@@ -2450,7 +2449,6 @@ tree_next(struct tree *t)
 			 */
 			if (te->last_child != NULL)
 				t->current = te->next;
-
 		} else if (te->flags & needsAscent) {
 			te->flags &= ~needsAscent;
 			tree_ascend(t);
