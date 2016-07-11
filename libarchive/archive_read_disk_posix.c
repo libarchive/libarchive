@@ -2449,6 +2449,8 @@ tree_next(struct tree *t)
 			 */
 			if (te->last_child != NULL)
 				t->current = te->next;
+			if (r != 0)
+				return (t->visit_type = r);
 		} else if (te->flags & needsAscent) {
 			te->flags &= ~needsAscent;
 			tree_ascend(t);
