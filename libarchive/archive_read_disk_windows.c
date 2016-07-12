@@ -570,7 +570,32 @@ archive_read_disk_set_behavior(struct archive *_a, int flags)
 		a->report_all_visit_types = 1;
 	else
 		a->report_all_visit_types = 0;
+	if (flags & ARCHIVE_READDISK_SORT_ENTRIES) {
+		a->sort_entries_max = SIZE_MAX;
+		if (a->tree != NULL)
+			a->tree->sort_entries_max = SIZE_MAX;
+	} else {
+		a->sort_entries_max = DEFAULT_SORT_ENTRIES_MAX;
+		if (a->tree != NULL)
+			a->tree->sort_entries_max = DEFAULT_SORT_ENTRIES_MAX;
+	}
 	return (r);
+}
+
+int
+archive_read_disk_set_sort_compar(struct archive *_a,
+    int (*compar)(const void *, const void *))
+{
+        struct archive_read_disk *a = (struct archive_read_disk *)_a;
+
+        archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
+            ARCHIVE_STATE_ANY, "archive_read_disk_set_sort_compar");
+
+        a->sort_cb_func = compar;
+        if (a->tree != NULL) {
+                a->tree->sort_cb_func = compar;
+        }
+        return 0;
 }
 
 /*
