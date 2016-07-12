@@ -242,6 +242,10 @@ static struct tree_entry *tree_new_entry(struct tree *, const wchar_t *,
 		 const wchar_t *, int, int64_t, int64_t, struct restore_time *);
 static struct tree_entry *tree_push(struct tree *, const wchar_t *,
 		 const wchar_t *, int, int64_t, int64_t, struct restore_time *);
+static struct tree_entry *tree_first_entry(struct tree *,
+		 const wchar_t *, const wchar_t *);
+static int tree_ascend(struct tree*);
+static int tree_descend(struct tree *);
 
 /*
  * tree_next() returns Zero if there is no next entry, non-zero if
@@ -1791,8 +1795,9 @@ tree_next(struct tree *t)
 
 				/* Update name if a file was found */
 				if (t->d != INVALID_HANDLE_VALUE)
-					archive_wstring_copy(&te->name,
-					    t->_findData.cFileName);
+					archive_wstrncpy(&te->name,
+					    t->_findData.cFileName,
+					    wcslen(t->_findData.cFileName));
 			} else {
 				t->d = FindFirstFileW(d, &t->_findData);
 			}
@@ -1900,7 +1905,7 @@ tree_dir_next_windows(struct tree *t)
 	int r;
 	size_t i;
 	const wchar_t *name;
-	WIN32_FIND_DATA *e;
+	WIN32_FIND_DATAW *e;
 
 	if (!(t->flags & moreEntries)) {
 		/* First time in this directory, fetch entries. */
@@ -1940,7 +1945,7 @@ tree_dir_next_windows(struct tree *t)
 		name = e->cFileName;
 		t->flags &= ~hasLstat;
 		t->flags &= ~hasStat;
-		tree_update_basename(t, name, strlen(name));
+		tree_update_basename(t, name, wcstrlen(name));
 		return TREE_REGULAR;
 	}
 
@@ -1960,7 +1965,7 @@ tree_dir_next_windows(struct tree *t)
 		name = t->findData->cFileName;
 		t->flags &= ~hasLstat;
 		t->flags &= ~hasStat;
-		tree_update_basename(t, name, strlen(name));
+		tree_update_basename(t, name, wcstrlen(name));
 		return TREE_REGULAR;
 		break;
 	case 0:
@@ -1976,8 +1981,8 @@ tree_dir_next_windows(struct tree *t)
 static int
 default_sort_cb_func(const void *v1, const void *v2)
 {
-	WIN32_FIND_DATA const d1 = *(WIN32_FIND_DATA * const *)v1;
-	WIN32_FIND_DATA const d2 = *(WIN32_FIND_DATA * const *)v2;
+	WIN32_FIND_DATAW const d1 = *(WIN32_FIND_DATAW * const *)v1;
+	WIN32_FIND_DATAW const d2 = *(WIN32_FIND_DATAW * const *)v2;
 
 	return wcscmp(d1->cFileName, d2->cFileName);
 }
@@ -1985,8 +1990,8 @@ default_sort_cb_func(const void *v1, const void *v2)
 static int
 insert_entry_into_sort_array(struct tree *t)
 {
-	WIN32_FIND_DATA **new;
-	WIN32_FIND_DATA *de;
+	WIN32_FIND_DATAW **new;
+	WIN32_FIND_DATAW *de;
 
 	de = malloc(sizeof(*de));
 	if (de == NULL) {
