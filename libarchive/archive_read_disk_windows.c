@@ -1981,8 +1981,8 @@ tree_dir_next_windows(struct tree *t)
 static int
 default_sort_cb_func(const void *v1, const void *v2)
 {
-	WIN32_FIND_DATAW const d1 = *(WIN32_FIND_DATAW * const *)v1;
-	WIN32_FIND_DATAW const d2 = *(WIN32_FIND_DATAW * const *)v2;
+	WIN32_FIND_DATAW const *d1 = *(WIN32_FIND_DATAW * const *)v1;
+	WIN32_FIND_DATAW const *d2 = *(WIN32_FIND_DATAW * const *)v2;
 
 	return wcscmp(d1->cFileName, d2->cFileName);
 }
