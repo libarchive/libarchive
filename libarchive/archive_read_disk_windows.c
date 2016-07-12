@@ -229,8 +229,8 @@ struct tree {
 #define	needsRestoreTimes 128
 #define moreEntries	256 /* More entries can be fetched from directory */
 
-static int	tree_dir_iterate(struct tree *, const wchar_t *);
-static int	tree_dir_next_windows(struct tree *, const wchar_t *);
+static int	tree_dir_iterate(struct tree *);
+static int	tree_dir_next_windows(struct tree *);
 
 /* Initiate/terminate a tree traversal. */
 static struct tree *tree_open(const wchar_t *, struct archive_read_disk *);
@@ -238,8 +238,10 @@ static struct tree *tree_reopen(struct tree *, const wchar_t *,
 		struct archive_read_disk *);
 static void tree_close(struct tree *);
 static void tree_free(struct tree *);
-static void tree_push(struct tree *, const wchar_t *, const wchar_t *,
-		int, int64_t, int64_t, struct restore_time *);
+static struct tree_entry *tree_new_entry(struct tree *, const wchar_t *,
+		 const wchar_t *, int, int64_t, int64_t, struct restore_time *);
+static struct tree_entry *tree_push(struct tree *, const wchar_t *,
+		 const wchar_t *, int, int64_t, int64_t, struct restore_time *);
 
 /*
  * tree_next() returns Zero if there is no next entry, non-zero if
@@ -1521,11 +1523,11 @@ tree_new_entry(struct tree *t, const wchar_t *path, const wchar_t *full_path,
 /*
  * Add a directory path to the current stack.
  */
-static void
+static struct tree_entry *
 tree_push(struct tree *t, const wchar_t *path, const wchar_t *full_path,
     int filesystem_id, int64_t dev, int64_t ino, struct restore_time *rt)
 {
-	struct tree_entry *te;
+	struct tree_entry *te, *tep;
 
 	te = tree_new_entry(t, path, full_path, filesystem_id, dev, ino, rt);
 	if (te == NULL)
@@ -1603,7 +1605,7 @@ tree_reopen(struct tree *t, const wchar_t *path, struct archive_read_disk *a)
 	struct tree_entry *te;
 	wchar_t *pathname, *p, *base;
 
-	t->flags = (restore_time)?needsRestoreTimes:0;
+	t->flags = (a->restore_time)?needsRestoreTimes:0;
 	t->visit_type = 0;
 	t->tree_errno = 0;
 	t->full_path_dir_length = 0;
@@ -1721,7 +1723,7 @@ tree_descend(struct tree *t)
 	te = t->current;
 	tree_update_basename(t, te->name.s, archive_strlen(&(te->name)));
 	t->depth++;
-	t->dirname_length = archive_strlen(&t->name);
+	t->dirname_length = archive_strlen(&t->path);
 	t->full_path_dir_length = archive_strlen(&t->full_path);
 	t->flags &= ~hasLstat;
 	t->flags &= ~hasStat;
@@ -1780,10 +1782,10 @@ tree_next(struct tree *t)
 				archive_string_init(&pt);
 				archive_wstring_ensure(&pt,
 				    archive_strlen(&(t->full_path))
-				      + 2 + wcslen(pattern));
+				      + 2 + wcslen(d));
 				archive_wstring_copy(&pt, &(t->full_path));
 				archive_wstrappend_wchar(&pt, L'\\');
-				archive_wstrcat(&pt, pattern);
+				archive_wstrcat(&pt, d);
 				t->d = FindFirstFileW(pt.s, &t->_findData);
 				archive_wstring_free(&pt);
 
