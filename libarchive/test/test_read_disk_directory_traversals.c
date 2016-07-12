@@ -1570,8 +1570,8 @@ test_sort_compar(const void *v1, const void *v2)
 
 	return strcmp(d2->d_name, d1->d_name);
 #else
-	WIN32_FIND_DATA const *d1 = *(WIN32_FIND_DATA * const *)v1;
-	WIN32_FIND_DATA const *d2 = *(WIN32_FIND_DATA * const *)v2;
+	WIN32_FIND_DATAW const *d1 = *(WIN32_FIND_DATAW * const *)v1;
+	WIN32_FIND_DATAW const *d2 = *(WIN32_FIND_DATAW * const *)v2;
 
 	return wcscmp(d2->cFileName, d1->cFileName);
 #endif
