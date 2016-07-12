@@ -435,6 +435,8 @@ archive_read_disk_new(void)
 	a->lookup_gname = trivial_lookup_gname;
 	a->enable_copyfile = 1;
 	a->traverse_mount_points = 1;
+	a->sort_entries_max = DEFAULT_SORT_ENTRIES_MAX;
+	a->sort_cb_func = default_sort_cb_func;
 	return (&a->archive);
 }
 
