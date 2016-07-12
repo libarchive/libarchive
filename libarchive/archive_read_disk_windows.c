@@ -1945,7 +1945,7 @@ tree_dir_next_windows(struct tree *t)
 		name = e->cFileName;
 		t->flags &= ~hasLstat;
 		t->flags &= ~hasStat;
-		tree_update_basename(t, name, wcstrlen(name));
+		tree_update_basename(t, name, wcslen(name));
 		return TREE_REGULAR;
 	}
 
@@ -1965,7 +1965,7 @@ tree_dir_next_windows(struct tree *t)
 		name = t->findData->cFileName;
 		t->flags &= ~hasLstat;
 		t->flags &= ~hasStat;
-		tree_update_basename(t, name, wcstrlen(name));
+		tree_update_basename(t, name, wcslen(name));
 		return TREE_REGULAR;
 		break;
 	case 0:
