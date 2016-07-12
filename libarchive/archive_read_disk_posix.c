@@ -2678,7 +2678,7 @@ static int
 insert_entry_into_sort_array(struct tree *t)
 {
 	struct dirent **new;
-	struct dirent *d, *de;
+	struct dirent *de;
 	size_t i, dirent_size;
 
 #if defined(HAVE_READDIR_R)
@@ -2718,12 +2718,12 @@ insert_entry_into_sort_array(struct tree *t)
 		}
 
 		for (i = 0; i < DEFAULT_SORT_ENTRIES_MAX; i++) {
-			d = realloc(t->sort_array[i], dirent_size);
-			if (d == NULL) {
+			de = realloc(t->sort_array[i], dirent_size);
+			if (de == NULL) {
 				t->tree_errno = ENOMEM;
 				return TREE_ERROR_DIR;
 			} else {
-				t->sort_array[i] = d;
+				t->sort_array[i] = de;
 			}
 		}
 		t->default_dirent_size = dirent_size;
