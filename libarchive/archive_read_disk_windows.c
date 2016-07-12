@@ -1197,6 +1197,7 @@ archive_read_disk_can_descend(struct archive *_a)
 int
 archive_read_disk_descend(struct archive *_a)
 {
+	int flag;
 	int64_t dev, ino;
 	struct tree_entry *te;
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
