@@ -1992,6 +1992,7 @@ insert_entry_into_sort_array(struct tree *t)
 {
 	WIN32_FIND_DATAW **new;
 	WIN32_FIND_DATAW *de;
+	size_t i;
 
 	de = malloc(sizeof(*de));
 	if (de == NULL) {
@@ -2029,12 +2030,12 @@ insert_entry_into_sort_array(struct tree *t)
 		}
 
 		for (i = 0; i < DEFAULT_SORT_ENTRIES_MAX; i++) {
-			d = realloc(t->sort_array[i], sizeof(*t->sort_array));
-			if (d == NULL) {
+			de = realloc(t->sort_array[i], sizeof(*t->sort_array));
+			if (de == NULL) {
 				t->tree_errno = ENOMEM;
 				return TREE_ERROR_DIR;
 			} else {
-				t->sort_array[i] = d;
+				t->sort_array[i] = de;
 			}
 		}
 		t->find_data_entries_allocated = 1;
@@ -2056,7 +2057,7 @@ insert_entry_into_sort_array(struct tree *t)
 		t->sort_array[t->sort_array_nentries++] = de;
 	}
 
-	*de = *t->de;
+	*de = *t->findData;
 	return 0;
 }
 
