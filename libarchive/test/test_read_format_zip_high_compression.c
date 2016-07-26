@@ -80,6 +80,7 @@ DEFINE_TEST(test_read_format_zip_high_compression2)
 	const size_t body_size = 1024 * 1024;
 	const size_t buff_size = 2 * 1024 * 1024;
 	char *body, *body_read, *buff;
+	int n;
 
 	assert((body = malloc(body_size)) != NULL);
 	assert((body_read = malloc(body_size)) != NULL);
@@ -91,7 +92,7 @@ DEFINE_TEST(test_read_format_zip_high_compression2)
 	 * buffer is exactly 256k).
 	 */
 
-	for(int n = 1024; n < (int)body_size; n += 1024) {
+	for(n = 1024; n < (int)body_size; n += 1024) {
 		struct archive *a;
 		struct archive_entry *entry;
 		size_t used = 0;
