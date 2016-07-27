@@ -362,6 +362,14 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `cygwin_conv_path' function. */
 #cmakedefine HAVE_CYGWIN_CONV_PATH 1
 
+/* Define to 1 if you have the declaration of `INT32_MAX', and to 0 if you
+   don't. */
+#cmakedefine HAVE_DECL_INT32_MAX 1
+
+/* Define to 1 if you have the declaration of `INT32_MIN', and to 0 if you
+   don't. */
+#cmakedefine HAVE_DECL_INT32_MIN 1
+
 /* Define to 1 if you have the declaration of `INT64_MAX', and to 0 if you
    don't. */
 #cmakedefine HAVE_DECL_INT64_MAX 1
@@ -713,6 +721,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <lzma.h> header file. */
 #cmakedefine HAVE_LZMA_H 1
 
+/* Define to 1 if you have a working `lzma_stream_encoder_mt' function. */
+#cmakedefine HAVE_LZMA_STREAM_ENCODER_MT 1
+
 /* Define to 1 if you have the <lzo/lzo1x.h> header file. */
 #cmakedefine HAVE_LZO_LZO1X_H 1
 
@@ -914,6 +925,9 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if `__tm_gmtoff' is a member of `struct tm'. */
 #cmakedefine HAVE_STRUCT_TM___TM_GMTOFF 1
+
+/* Define to 1 if you have `struct vfsconf'. */
+#cmakedefine HAVE_STRUCT_VFSCONF 1
 
 /* Define to 1 if you have the `symlink' function. */
 #cmakedefine HAVE_SYMLINK 1
@@ -1163,7 +1177,11 @@ typedef uint64_t uintmax_t;
 /* Define for large files, on AIX-style hosts. */
 #cmakedefine _LARGE_FILES ${_LARGE_FILES}
 
-/* Define for Windows to use Windows 2000+ APIs. */
+/* Define to control Windows SDK version */
+#ifndef NTDDI_VERSION
+#cmakedefine NTDDI_VERSION ${NTDDI_VERSION}
+#endif // NTDDI_VERSION
+
 #ifndef _WIN32_WINNT
 #cmakedefine _WIN32_WINNT ${_WIN32_WINNT}
 #endif // _WIN32_WINNT

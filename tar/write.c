@@ -694,7 +694,10 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 		if (bsdtar->option_interactive &&
 		    !yes("copy '%s'", archive_entry_pathname(in_entry)))
 			continue;
-		if (bsdtar->verbose)
+		if (bsdtar->verbose > 1) {
+			safe_fprintf(stderr, "a ");
+			list_item_verbose(bsdtar, stderr, in_entry);
+		} else if (bsdtar->verbose > 0)
 			safe_fprintf(stderr, "a %s",
 			    archive_entry_pathname(in_entry));
 		if (need_report())
@@ -881,7 +884,7 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		else if (r != ARCHIVE_OK) {
 			lafe_warnc(archive_errno(disk),
 			    "%s", archive_error_string(disk));
-			if (r == ARCHIVE_FATAL) {
+			if (r == ARCHIVE_FATAL || r == ARCHIVE_FAILED) {
 				bsdtar->return_value = 1;
 				return;
 			} else if (r < ARCHIVE_WARN)
@@ -914,11 +917,15 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		if (edit_pathname(bsdtar, entry))
 			continue;
 
-		/* Display entry as we process it.
-		 * This format is required by SUSv2. */
-		if (bsdtar->verbose)
+		/* Display entry as we process it. */
+		if (bsdtar->verbose > 1) {
+			safe_fprintf(stderr, "a ");
+			list_item_verbose(bsdtar, stderr, entry);
+		} else if (bsdtar->verbose > 0) {
+		/* This format is required by SUSv2. */
 			safe_fprintf(stderr, "a %s",
 			    archive_entry_pathname(entry));
+		}
 
 		/* Non-regular files get archived with zero size. */
 		if (archive_entry_filetype(entry) != AE_IFREG)
@@ -962,11 +969,15 @@ write_entry(struct bsdtar *bsdtar, struct archive *a,
 
 	e = archive_write_header(a, entry);
 	if (e != ARCHIVE_OK) {
-		if (!bsdtar->verbose)
+		if (bsdtar->verbose > 1) {
+			safe_fprintf(stderr, "a ");
+			list_item_verbose(bsdtar, stderr, entry);
+			lafe_warnc(0, ": %s", archive_error_string(a));
+		} else if (bsdtar->verbose > 0) {
 			lafe_warnc(0, "%s: %s",
 			    archive_entry_pathname(entry),
 			    archive_error_string(a));
-		else
+		} else
 			fprintf(stderr, ": %s", archive_error_string(a));
 	}
 

@@ -201,3 +201,5 @@ int		cset_write_add_filters(struct creation_set *,
 
 const char * passphrase_callback(struct archive *, void *);
 void	     passphrase_free(char *);
+void	list_item_verbose(struct bsdtar *, FILE *,
+		    struct archive_entry *);

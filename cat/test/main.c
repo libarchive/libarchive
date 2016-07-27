@@ -780,6 +780,34 @@ assertion_equal_mem(const char *file, int line,
 	return (0);
 }
 
+/* Verify that a block of memory is filled with the specified byte. */
+int
+assertion_memory_filled_with(const char *file, int line,
+    const void *_v1, const char *vd,
+    size_t l, const char *ld,
+    char b, const char *bd, void *extra)
+{
+	const char *v1 = (const char *)_v1;
+	size_t c = 0;
+	size_t i;
+	(void)ld; /* UNUSED */
+
+	assertion_count(file, line);
+
+	for (i = 0; i < l; ++i) {
+		if (v1[i] == b) {
+			++c;
+		}
+	}
+	if (c == l)
+		return (1);
+
+	failure_start(file, line, "%s (size %d) not filled with %s", vd, (int)l, bd);
+	logprintf("   Only %d bytes were correct\n", (int)c);
+	failure_finish(extra);
+	return (0);
+}
+
 /* Verify that the named file exists and is empty. */
 int
 assertion_empty_file(const char *filename, int line, const char *f1)
@@ -2276,7 +2304,10 @@ copy_reference_file(const char *name)
 	/* Not a lot of error checking here; the input better be right. */
 	out = fopen(name, "wb");
 	while ((rbytes = fread(buff, 1, sizeof(buff), in)) > 0) {
-		fwrite(buff, 1, rbytes, out);
+		if (fwrite(buff, 1, rbytes, out) != rbytes) {
+			logprintf("Error: fwrite\n");
+			break;
+		}
 	}
 	fclose(out);
 	fclose(in);
@@ -2503,18 +2534,36 @@ usage(const char *program)
 static char *
 get_refdir(const char *d)
 {
-	char tried[512] = { '\0' };
-	char buff[128];
-	char *pwd, *p;
+	size_t tried_size, buff_size;
+	char *buff, *tried, *pwd = NULL, *p = NULL;
+
+#ifdef PATH_MAX
+	buff_size = PATH_MAX;
+#else
+	buff_size = 8192;
+#endif
+	buff = calloc(buff_size, 1);
+	if (buff == NULL) {
+		fprintf(stderr, "Unable to allocate memory\n");
+		exit(1);
+	}
+
+	/* Allocate a buffer to hold the various directories we checked. */
+	tried_size = buff_size * 2;
+	tried = calloc(tried_size, 1);
+	if (tried == NULL) {
+		fprintf(stderr, "Unable to allocate memory\n");
+		exit(1);
+	}
 
 	/* If a dir was specified, try that */
 	if (d != NULL) {
 		pwd = NULL;
-		snprintf(buff, sizeof(buff), "%s", d);
+		snprintf(buff, buff_size, "%s", d);
 		p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
 		if (p != NULL) goto success;
-		strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
-		strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+		strncat(tried, buff, tried_size - strlen(tried) - 1);
+		strncat(tried, "\n", tried_size - strlen(tried) - 1);
 		goto failure;
 	}
 
@@ -2528,48 +2577,48 @@ get_refdir(const char *d)
 		pwd[strlen(pwd) - 1] = '\0';
 
 	/* Look for a known file. */
-	snprintf(buff, sizeof(buff), "%s", pwd);
+	snprintf(buff, buff_size, "%s", pwd);
 	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
 	if (p != NULL) goto success;
-	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
-	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+	strncat(tried, buff, tried_size - strlen(tried) - 1);
+	strncat(tried, "\n", tried_size - strlen(tried) - 1);
 
-	snprintf(buff, sizeof(buff), "%s/test", pwd);
+	snprintf(buff, buff_size, "%s/test", pwd);
 	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
 	if (p != NULL) goto success;
-	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
-	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+	strncat(tried, buff, tried_size - strlen(tried) - 1);
+	strncat(tried, "\n", tried_size - strlen(tried) - 1);
 
 #if defined(LIBRARY)
-	snprintf(buff, sizeof(buff), "%s/%s/test", pwd, LIBRARY);
+	snprintf(buff, buff_size, "%s/%s/test", pwd, LIBRARY);
 #else
-	snprintf(buff, sizeof(buff), "%s/%s/test", pwd, PROGRAM);
+	snprintf(buff, buff_size, "%s/%s/test", pwd, PROGRAM);
 #endif
 	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
 	if (p != NULL) goto success;
-	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
-	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+	strncat(tried, buff, tried_size - strlen(tried) - 1);
+	strncat(tried, "\n", tried_size - strlen(tried) - 1);
 
 #if defined(PROGRAM_ALIAS)
-	snprintf(buff, sizeof(buff), "%s/%s/test", pwd, PROGRAM_ALIAS);
+	snprintf(buff, buff_size, "%s/%s/test", pwd, PROGRAM_ALIAS);
 	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
 	if (p != NULL) goto success;
-	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
-	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+	strncat(tried, buff, tried_size - strlen(tried) - 1);
+	strncat(tried, "\n", tried_size - strlen(tried) - 1);
 #endif
 
 	if (memcmp(pwd, "/usr/obj", 8) == 0) {
-		snprintf(buff, sizeof(buff), "%s", pwd + 8);
+		snprintf(buff, buff_size, "%s", pwd + 8);
 		p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
 		if (p != NULL) goto success;
-		strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
-		strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+		strncat(tried, buff, tried_size - strlen(tried) - 1);
+		strncat(tried, "\n", tried_size - strlen(tried) - 1);
 
-		snprintf(buff, sizeof(buff), "%s/test", pwd + 8);
+		snprintf(buff, buff_size, "%s/test", pwd + 8);
 		p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
 		if (p != NULL) goto success;
-		strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
-		strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+		strncat(tried, buff, tried_size - strlen(tried) - 1);
+		strncat(tried, "\n", tried_size - strlen(tried) - 1);
 	}
 
 failure:
@@ -2584,7 +2633,12 @@ failure:
 success:
 	free(p);
 	free(pwd);
-	return strdup(buff);
+	free(tried);
+
+	/* Copy result into a fresh buffer to reduce memory usage. */
+	p = strdup(buff);
+	free(buff);
+	return p;
 }
 
 int

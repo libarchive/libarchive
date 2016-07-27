@@ -119,6 +119,20 @@ IF (CMAKE_C_COMPILER_ID MATCHES "^Clang$")
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wmissing-prototypes")
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wcast-qual")
 ENDIF (CMAKE_C_COMPILER_ID MATCHES "^Clang$")
+IF (CMAKE_C_COMPILER_ID MATCHES "^XL$")
+  SET(CMAKE_C_COMPILER "xlc_r")
+  SET(CMAKE_REQUIRED_FLAGS "-qflag=e:e -qformat=sec")
+  #################################################################
+  # Set compile flags for all build types.
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -qflag=e:e -qformat=sec")
+  #################################################################
+  # Set compile flags for debug build.
+  # This is added into CMAKE_C_FLAGS when CMAKE_BUILD_TYPE is "Debug"
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -qhalt=w")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -qflag=w:w")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -qinfo=pro:use")
+ENDIF(CMAKE_C_COMPILER_ID MATCHES "^XL$")
 IF (MSVC)
   #################################################################
   # Set compile flags for debug build.
@@ -190,7 +204,7 @@ OPTION(ENABLE_INSTALL "Enable installing of libraries" ON)
 
 SET(POSIX_REGEX_LIB "AUTO" CACHE STRING "Choose what library should provide POSIX regular expression support")
 SET(ENABLE_SAFESEH "AUTO" CACHE STRING "Enable use of /SAFESEH linker flag (MSVC only)")
-SET(WINDOWS_VERSION "" CACHE STRING "Set Windows version to use (Windows only)")
+SET(WINDOWS_VERSION "WIN7" CACHE STRING "Set Windows version to use (Windows only)")
 
 IF(ENABLE_COVERAGE)
 	include(LibarchiveCodeCoverage)
@@ -202,22 +216,35 @@ ENDIF(ENABLE_TEST)
 
 IF(WIN32)
   IF(WINDOWS_VERSION STREQUAL "WIN8")
+    SET(NTDDI_VERSION 0x06020000)
+    SET(_WIN32_WINNT 0x0602)
     SET(WINVER 0x0602)
   ELSEIF(WINDOWS_VERSION STREQUAL "WIN7")
+    SET(NTDDI_VERSION 0x06010000)
+    SET(_WIN32_WINNT 0x0601)
     SET(WINVER 0x0601)
   ELSEIF(WINDOWS_VERSION STREQUAL "WS08")
+    SET(NTDDI_VERSION 0x06000100)
+    SET(_WIN32_WINNT 0x0600)
     SET(WINVER 0x0600)
   ELSEIF(WINDOWS_VERSION STREQUAL "VISTA")
+    SET(NTDDI_VERSION 0x06000000)
+    SET(_WIN32_WINNT 0x0600)
     SET(WINVER 0x0600)
   ELSEIF(WINDOWS_VERSION STREQUAL "WS03")
+    SET(NTDDI_VERSION 0x05020000)
+    SET(_WIN32_WINNT 0x0502)
     SET(WINVER 0x0502)
   ELSEIF(WINDOWS_VERSION STREQUAL "WINXP")
+    SET(NTDDI_VERSION 0x05010000)
+    SET(_WIN32_WINNT 0x0501)
     SET(WINVER 0x0501)
   ELSE(WINDOWS_VERSION STREQUAL "WIN8")
-    # The default is to use Windows 2000 API.
-    SET(WINVER 0x0500)
+    # Default to Windows Server 2003 API if we don't recognize the specifier
+    SET(NTDDI_VERSION 0x05020000)
+    SET(_WIN32_WINNT 0x0502)
+    SET(WINVER 0x0502)
   ENDIF(WINDOWS_VERSION STREQUAL "WIN8")
-  SET(_WIN32_WINNT ${WINVER})
 ENDIF(WIN32)
 
 IF(MSVC)
@@ -247,7 +274,7 @@ INCLUDE(CheckHeaderDirent)
 INCLUDE(CheckIncludeFile)
 INCLUDE(CheckIncludeFiles)
 INCLUDE(CheckLibraryExists)
-INCLUDE(CheckStructMember)
+INCLUDE(CheckStructHasMember)
 INCLUDE(CheckSymbolExists)
 INCLUDE(CheckTypeExists)
 INCLUDE(CheckTypeSize)
@@ -338,7 +365,7 @@ IF(DEFINED __GNUWIN32PATH AND EXISTS "${__GNUWIN32PATH}")
   #   e.g.
   #     cmake -DCMAKE_PREFIX_PATH=<your-GnuWin32-path> <path-to-source>
   #
-  # If compiling error occured in zconf.h, You may need patch to zconf.h.
+  # If compiling error occurred in zconf.h, You may need patch to zconf.h.
   #--- zconf.h.orig	2005-07-21 00:40:26.000000000
   #+++ zconf.h	2009-01-19 11:39:10.093750000
   #@@ -286,7 +286,7 @@
@@ -857,6 +884,9 @@ MACRO(CHECK_ICONV LIB TRY_ICONV_CONST)
       SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Werror")
     ENDIF (CMAKE_C_COMPILER_ID MATCHES "^GNU$" OR
            CMAKE_C_COMPILER_ID MATCHES "^Clang$")
+    IF (CMAKE_C_COMPILER_ID MATCHES "^XL$")
+      SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -qhalt=w -qflag=w:w")
+    ENDIF (CMAKE_C_COMPILER_ID MATCHES "^XL$")
     IF (MSVC)
       # NOTE: /WX option is the same as gcc's -Werror option.
       SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} /WX")
@@ -1244,6 +1274,10 @@ CHECK_FUNCTION_EXISTS(wmemmove HAVE_WMEMMOVE)
 
 CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
 
+CHECK_C_SOURCE_COMPILES(
+  "#include <sys/types.h>\n#include <sys/mount.h>\nint main(void) { struct vfsconf v; return sizeof(v);}"
+  HAVE_STRUCT_VFSCONF)
+
 # Make sure we have the POSIX version of readdir_r, not the
 # older 2-argument version.
 CHECK_C_SOURCE_COMPILES(
@@ -1269,6 +1303,10 @@ CHECK_C_SOURCE_COMPILES(
   "#include <sys/sysmacros.h>\nint main() { return major(256); }"
   MAJOR_IN_SYSMACROS)
 
+CHECK_C_SOURCE_COMPILES(
+  "#include <lzma.h>\n#if LZMA_VERSION < 50020000\n#error unsupported\n#endif\nint main(void){lzma_stream_encoder_mt(0, 0); return 0;}"
+  HAVE_LZMA_STREAM_ENCODER_MT)
+
 IF(HAVE_STRERROR_R)
   SET(HAVE_DECL_STRERROR_R 1)
 ENDIF(HAVE_STRERROR_R)
@@ -1286,6 +1324,8 @@ ENDIF(HAVE_INTTYPES_H)
 CHECK_SYMBOL_EXISTS(EFTYPE           "errno.h"    HAVE_EFTYPE)
 CHECK_SYMBOL_EXISTS(EILSEQ           "errno.h"    HAVE_EILSEQ)
 CHECK_SYMBOL_EXISTS(D_MD_ORDER       "langinfo.h" HAVE_D_MD_ORDER)
+CHECK_SYMBOL_EXISTS(INT32_MAX        "${headers}" HAVE_DECL_INT32_MAX)
+CHECK_SYMBOL_EXISTS(INT32_MIN        "${headers}" HAVE_DECL_INT32_MIN)
 CHECK_SYMBOL_EXISTS(INT64_MAX        "${headers}" HAVE_DECL_INT64_MAX)
 CHECK_SYMBOL_EXISTS(INT64_MIN        "${headers}" HAVE_DECL_INT64_MIN)
 CHECK_SYMBOL_EXISTS(INTMAX_MAX       "${headers}" HAVE_DECL_INTMAX_MAX)
@@ -1300,47 +1340,47 @@ CHECK_SYMBOL_EXISTS(SSIZE_MAX        "limits.h"   HAVE_DECL_SSIZE_MAX)
 # Check struct members
 #
 # Check for tm_gmtoff in struct tm
-CHECK_STRUCT_MEMBER("struct tm" tm_gmtoff
+CHECK_STRUCT_HAS_MEMBER("struct tm" tm_gmtoff
     "time.h" HAVE_STRUCT_TM_TM_GMTOFF)
-CHECK_STRUCT_MEMBER("struct tm" __tm_gmtoff
+CHECK_STRUCT_HAS_MEMBER("struct tm" __tm_gmtoff
     "time.h" HAVE_STRUCT_TM___TM_GMTOFF)
 
 # Check for f_namemax in struct statfs
-CHECK_STRUCT_MEMBER("struct statfs" f_namemax
+CHECK_STRUCT_HAS_MEMBER("struct statfs" f_namemax
     "sys/param.h;sys/mount.h" HAVE_STRUCT_STATFS_F_NAMEMAX)
 
 # Check for birthtime in struct stat
-CHECK_STRUCT_MEMBER("struct stat" st_birthtime
+CHECK_STRUCT_HAS_MEMBER("struct stat" st_birthtime
     "sys/types.h;sys/stat.h" HAVE_STRUCT_STAT_ST_BIRTHTIME)
 
 # Check for high-resolution timestamps in struct stat
-CHECK_STRUCT_MEMBER("struct stat" st_birthtimespec.tv_nsec
+CHECK_STRUCT_HAS_MEMBER("struct stat" st_birthtimespec.tv_nsec
     "sys/types.h;sys/stat.h" HAVE_STRUCT_STAT_ST_BIRTHTIMESPEC_TV_NSEC)
-CHECK_STRUCT_MEMBER("struct stat" st_mtimespec.tv_nsec
+CHECK_STRUCT_HAS_MEMBER("struct stat" st_mtimespec.tv_nsec
     "sys/types.h;sys/stat.h" HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC)
-CHECK_STRUCT_MEMBER("struct stat" st_mtim.tv_nsec
+CHECK_STRUCT_HAS_MEMBER("struct stat" st_mtim.tv_nsec
     "sys/types.h;sys/stat.h" HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC)
-CHECK_STRUCT_MEMBER("struct stat" st_mtime_n
+CHECK_STRUCT_HAS_MEMBER("struct stat" st_mtime_n
     "sys/types.h;sys/stat.h" HAVE_STRUCT_STAT_ST_MTIME_N)
-CHECK_STRUCT_MEMBER("struct stat" st_umtime
+CHECK_STRUCT_HAS_MEMBER("struct stat" st_umtime
     "sys/types.h;sys/stat.h" HAVE_STRUCT_STAT_ST_UMTIME)
-CHECK_STRUCT_MEMBER("struct stat" st_mtime_usec
+CHECK_STRUCT_HAS_MEMBER("struct stat" st_mtime_usec
     "sys/types.h;sys/stat.h" HAVE_STRUCT_STAT_ST_MTIME_USEC)
 # Check for block size support in struct stat
-CHECK_STRUCT_MEMBER("struct stat" st_blksize
+CHECK_STRUCT_HAS_MEMBER("struct stat" st_blksize
     "sys/types.h;sys/stat.h" HAVE_STRUCT_STAT_ST_BLKSIZE)
 # Check for st_flags in struct stat (BSD fflags)
-CHECK_STRUCT_MEMBER("struct stat" st_flags
+CHECK_STRUCT_HAS_MEMBER("struct stat" st_flags
     "sys/types.h;sys/stat.h" HAVE_STRUCT_STAT_ST_FLAGS)
 
 IF(HAVE_SYS_STATVFS_H)
-  CHECK_STRUCT_MEMBER("struct statvfs" f_iosize
+  CHECK_STRUCT_HAS_MEMBER("struct statvfs" f_iosize
     "sys/types.h;sys/statvfs.h" HAVE_STRUCT_STATVFS_F_IOSIZE)
 ENDIF()
 
 #
 #
-CHECK_STRUCT_MEMBER("struct tm" tm_sec
+CHECK_STRUCT_HAS_MEMBER("struct tm" tm_sec
     "sys/types.h;sys/time.h;time.h" TIME_WITH_SYS_TIME)
 
 #

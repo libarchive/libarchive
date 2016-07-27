@@ -4,8 +4,8 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[3.1.900a])
-m4_define([LIBARCHIVE_VERSION_N],[3001900])
+m4_define([LIBARCHIVE_VERSION_S],[3.2.1])
+m4_define([LIBARCHIVE_VERSION_N],[3002001])
 
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
@@ -27,6 +27,7 @@ AC_CONFIG_AUX_DIR([build/autoconf])
 AC_CONFIG_MACRO_DIR([build/autoconf])
 # Must follow AC_CONFIG macros above...
 AM_INIT_AUTOMAKE()
+AM_MAINTAINER_MODE([enable])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 # Libtool's "interface version" can be computed from the libarchive version.
@@ -243,15 +244,16 @@ AM_CONDITIONAL([STATIC_BSDCPIO], [ test "$static_bsdcpio" = yes ])
 # Set up defines needed before including any headers
 case $host in
   *mingw* | *cygwin* )
-  AC_DEFINE([_WIN32_WINNT], 0x0500, [Define to '0x0500' for Windows 2000 APIs.])
-  AC_DEFINE([WINVER], 0x0500, [Define to '0x0500' for Windows 2000 APIs.])
+  AC_DEFINE([_WIN32_WINNT], 0x0502, [Define to '0x0502' for Windows Server 2003 APIs.])
+  AC_DEFINE([WINVER], 0x0502, [Define to '0x0502' for Windows Server 2003 APIs.])
+  AC_DEFINE([NTDDI_VERSION], 0x05020000, [Define to '0x05020000' for Windows Server 2003 APIs.])
   ;;
 esac
 
 # Checks for header files.
 AC_HEADER_DIRENT
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS([acl/libacl.h attr/xattr.h copyfile.h ctype.h])
+AC_CHECK_HEADERS([copyfile.h ctype.h])
 AC_CHECK_HEADERS([errno.h ext2fs/ext2_fs.h fcntl.h grp.h])
 
 AC_CACHE_CHECK([whether EXT2_IOC_GETFLAGS is usable],
@@ -271,7 +273,7 @@ AC_CHECK_HEADERS([linux/fiemap.h linux/fs.h linux/magic.h linux/types.h])
 AC_CHECK_HEADERS([locale.h paths.h poll.h pthread.h pwd.h])
 AC_CHECK_HEADERS([readpassphrase.h signal.h spawn.h])
 AC_CHECK_HEADERS([stdarg.h stdint.h stdlib.h string.h])
-AC_CHECK_HEADERS([sys/acl.h sys/cdefs.h sys/extattr.h])
+AC_CHECK_HEADERS([sys/cdefs.h sys/extattr.h])
 AC_CHECK_HEADERS([sys/ioctl.h sys/mkdev.h sys/mount.h])
 AC_CHECK_HEADERS([sys/param.h sys/poll.h sys/select.h sys/statfs.h sys/statvfs.h])
 AC_CHECK_HEADERS([sys/time.h sys/utime.h sys/utsname.h sys/vfs.h])
@@ -365,7 +367,23 @@ AC_ARG_WITH([lzma],
 if test "x$with_lzma" != "xno"; then
   AC_CHECK_HEADERS([lzma.h])
   AC_CHECK_LIB(lzma,lzma_stream_decoder)
-  AC_CHECK_FUNCS([lzma_stream_encoder_mt])
+  # Some pre-release (but widely distributed) versions of liblzma
+  # included a disabled version of lzma_stream_encoder_mt that
+  # fools a naive AC_CHECK_LIB or AC_CHECK_FUNC, so we need
+  # to do something more complex here:
+  AC_CACHE_CHECK(
+    [whether we have multithread support in lzma],
+    ac_cv_lzma_has_mt,
+    [AC_LINK_IFELSE([
+      AC_LANG_PROGRAM([[#include <lzma.h>]
+                       [#if LZMA_VERSION < 50020000]
+                       [#error unsupported]
+                       [#endif]],
+                      [[lzma_stream_encoder_mt(0, 0);]])],
+      [ac_cv_lzma_has_mt=yes], [ac_cv_lzma_has_mt=no])])
+  if test "x$ac_cv_lzma_has_mt" != xno; then
+	  AC_DEFINE([HAVE_LZMA_STREAM_ENCODER_MT], [1], [Define to 1 if you have the `lzma_stream_encoder_mt' function.])
+  fi
 fi
 
 AC_ARG_WITH([lzo2],
@@ -472,6 +490,9 @@ fi
 # -larchive in that case.
 #AC_CHECK_LIB(archive,archive_version)
 
+# Checks for supported compiler flags
+AX_APPEND_COMPILE_FLAGS([-Wall -Wformat -Wformat-security])
+
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 # la_TYPE_UID_T defaults to "int", which is incorrect for MinGW
@@ -536,7 +557,8 @@ AC_TYPE_INT16_T
 AC_TYPE_UINT16_T
 AC_TYPE_UINT8_T
 
-AC_CHECK_DECLS([SIZE_MAX, INT64_MAX, INT64_MIN, UINT64_MAX, UINT32_MAX])
+AC_CHECK_DECLS([SIZE_MAX, INT32_MAX, INT32_MIN])
+AC_CHECK_DECLS([INT64_MAX, INT64_MIN, UINT64_MAX, UINT32_MAX])
 AC_CHECK_DECLS([INTMAX_MAX, INTMAX_MIN, UINTMAX_MAX])
 
 AC_CHECK_DECL([SSIZE_MAX],
@@ -594,6 +616,14 @@ AC_CHECK_FUNCS([_get_timezone _localtime64_s _mkgmtime64])
 # detects cygwin-1.7, as opposed to older versions
 AC_CHECK_FUNCS([cygwin_conv_path])
 
+# DragonFly uses vfsconf, FreeBSD xvfsconf.
+AC_CHECK_TYPES(struct vfsconf,,,
+	[#if HAVE_SYS_TYPES_H
+	#include <sys/types.h>
+	#endif
+	#include <sys/mount.h>
+	])
+
 # There are several variants of readdir_r around; we only
 # accept the POSIX-compliant version.
 AC_COMPILE_IFELSE(
@@ -626,7 +656,7 @@ AC_CHECK_MEMBER(struct dirent.d_namlen,,,
 # Check for Extended Attributes support
 AC_ARG_ENABLE([xattr],
 		AS_HELP_STRING([--disable-xattr],
-		[Enable Extended Attributes support (default: check)]))
+		[Disable Extended Attributes support (default: check)]))
 
 if test "x$enable_xattr" != "xno"; then
 	AC_CHECK_HEADERS([attr/xattr.h])
@@ -652,9 +682,10 @@ fi
 #
 AC_ARG_ENABLE([acl],
 		AS_HELP_STRING([--disable-acl],
-		[Enable ACL support (default: check)]))
+		[Disable ACL support (default: check)]))
 
 if test "x$enable_acl" != "xno"; then
+   AC_CHECK_HEADERS([acl/libacl.h])
    AC_CHECK_HEADERS([sys/acl.h])
    AC_CHECK_LIB([acl],[acl_get_file])
    AC_CHECK_FUNCS([acl_create_entry acl_init acl_set_fd acl_set_fd_np acl_set_file])
@@ -826,6 +857,7 @@ if test "x$with_openssl" != "xno"; then
     else
       AC_CHECK_FUNCS([PKCS5_PBKDF2_HMAC_SHA1])
     fi
+    AC_CHECK_LIB(crypto,EVP_CIPHER_CTX_init)
 fi
 
 # Probe libmd AFTER OpenSSL/libcrypto.

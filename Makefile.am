@@ -21,11 +21,10 @@ TESTS= libarchive_test $(bsdtar_test_programs) $(bsdcpio_test_programs) $(bsdcat
 TESTS_ENVIRONMENT= $(libarchive_TESTS_ENVIRONMENT) $(bsdtar_TESTS_ENVIRONMENT) $(bsdcpio_TESTS_ENVIRONMENT) $(bsdcat_TESTS_ENVIRONMENT)
 # Always build and test both bsdtar and bsdcpio as part of 'distcheck'
 DISTCHECK_CONFIGURE_FLAGS = --enable-bsdtar --enable-bsdcpio
-COMMON_CFLAGS=-Wall -Wformat -Wformat-security
 # The next line is commented out by default in shipping libarchive releases.
 # It is uncommented by default in trunk.
 DEV_CFLAGS=-Werror -Wextra -Wunused -Wshadow -Wmissing-prototypes -Wcast-qual -g
-AM_CFLAGS=$(COMMON_CFLAGS) $(DEV_CFLAGS)
+AM_CFLAGS=$(DEV_CFLAGS)
 PLATFORMCPPFLAGS = @PLATFORMCPPFLAGS@
 AM_CPPFLAGS=$(PLATFORMCPPFLAGS)
 
@@ -455,6 +454,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_rar_encryption_data.c \
 	libarchive/test/test_read_format_rar_encryption_partially.c \
 	libarchive/test/test_read_format_rar_encryption_header.c \
+	libarchive/test/test_read_format_rar_invalid1.c \
 	libarchive/test/test_read_format_raw.c \
 	libarchive/test/test_read_format_tar.c \
 	libarchive/test/test_read_format_tar_concatenated.c \
@@ -534,6 +534,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_format_cpio_newc.c \
 	libarchive/test/test_write_format_cpio_odc.c \
 	libarchive/test/test_write_format_gnutar.c \
+	libarchive/test/test_write_format_gnutar_filenames.c \
 	libarchive/test/test_write_format_iso9660.c \
 	libarchive/test/test_write_format_iso9660_boot.c \
 	libarchive/test/test_write_format_iso9660_empty.c \
@@ -579,7 +580,7 @@ libarchive_test_LDADD= $(LTLIBICONV)
 # above.
 libarchive/test/list.h: Makefile
 	$(MKDIR_P) libarchive/test
-	cat $(top_srcdir)/libarchive/test/test_*.c | grep DEFINE_TEST > libarchive/test/list.h
+	cat $(top_srcdir)/libarchive/test/test_*.c | grep '^DEFINE_TEST' > libarchive/test/list.h
 
 libarchive_TESTS_ENVIRONMENT= LIBARCHIVE_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/libarchive/test LRZIP=NOCONFIG
 
@@ -747,6 +748,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar_encryption_data.rar.uu \
 	libarchive/test/test_read_format_rar_encryption_header.rar.uu \
 	libarchive/test/test_read_format_rar_encryption_partially.rar.uu \
+	libarchive/test/test_read_format_rar_invalid1.rar.uu \
 	libarchive/test/test_read_format_rar_multi_lzss_blocks.rar.uu \
 	libarchive/test/test_read_format_rar_multivolume.part0001.rar.uu \
 	libarchive/test/test_read_format_rar_multivolume.part0002.rar.uu \
@@ -910,6 +912,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_format_newc.c \
 	tar/test/test_help.c \
 	tar/test/test_leading_slash.c \
+	tar/test/test_missing_file.c \
 	tar/test/test_option_C_upper.c \
 	tar/test/test_option_H_upper.c \
 	tar/test/test_option_L_upper.c \
@@ -958,7 +961,7 @@ bsdtar_test_CPPFLAGS=\
 
 tar/test/list.h: Makefile
 	$(MKDIR_P) tar/test
-	cat $(top_srcdir)/tar/test/test_*.c | grep DEFINE_TEST > tar/test/list.h
+	cat $(top_srcdir)/tar/test/test_*.c | grep '^DEFINE_TEST' > tar/test/list.h
 
 if BUILD_BSDTAR
 bsdtar_test_programs= bsdtar_test
@@ -1065,6 +1068,7 @@ bsdcpio_test_SOURCES= \
 	cpio/test/test_extract_cpio_xz.c \
 	cpio/test/test_format_newc.c \
 	cpio/test/test_gcpio_compat.c \
+	cpio/test/test_missing_file.c \
 	cpio/test/test_option_0.c \
 	cpio/test/test_option_B_upper.c \
 	cpio/test/test_option_C_upper.c \
@@ -1105,7 +1109,7 @@ bsdcpio_test_LDADD=libarchive_fe.la
 
 cpio/test/list.h: Makefile
 	$(MKDIR_P) cpio/test
-	cat $(top_srcdir)/cpio/test/test_*.c | grep DEFINE_TEST > cpio/test/list.h
+	cat $(top_srcdir)/cpio/test/test_*.c | grep '^DEFINE_TEST' > cpio/test/list.h
 
 if BUILD_BSDCPIO
 bsdcpio_test_programs= bsdcpio_test
@@ -1220,7 +1224,7 @@ bsdcat_test_CPPFLAGS= \
 bsdcat_test_LDADD=libarchive_fe.la
 
 cat/test/list.h: Makefile
-	cat $(top_srcdir)/cat/test/test_*.c | grep DEFINE_TEST > cat/test/list.h
+	cat $(top_srcdir)/cat/test/test_*.c | grep '^DEFINE_TEST' > cat/test/list.h
 
 if BUILD_BSDCAT
 bsdcat_test_programs= bsdcat_test

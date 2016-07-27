@@ -25,11 +25,69 @@
  */
 #include "test.h"
 
+/*
+ * Test archive contains the following entries with only MSDOS attributes:
+ *   'abc' -- zero-length file
+ *   'def' -- directory without trailing slash and without streaming extension
+ *   'def/foo' -- file in def
+ *   'ghi/' -- directory with trailing slash and without streaming extension
+ *   'jkl'  -- directory without trailing slash and with streaming extension
+ *   'mno/' -- directory with trailing slash and streaming extension
+ *
+ * Seeking reader should identify all of these correctly using the
+ * central directory information.
+ * Streaming reader should correctly identify everything except 'def';
+ * since the standard Zip local file header does not include any file
+ * type information, it will be mis-identified as a zero-length file.
+ */
+
+static void verify(struct archive *a, int streaming) {
+	struct archive_entry *ae;
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("abc", archive_entry_pathname(ae));
+	assertEqualInt(AE_IFREG | 0664, archive_entry_mode(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	if (streaming) {
+		/* Streaming reader has no basis for making this a dir */
+		assertEqualString("def", archive_entry_pathname(ae));
+		assertEqualInt(AE_IFREG | 0664, archive_entry_mode(ae));
+	} else {
+		/* Since 'def' is a dir, '/' should be added */
+		assertEqualString("def/", archive_entry_pathname(ae));
+		assertEqualInt(AE_IFDIR | 0775, archive_entry_mode(ae));
+	}
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("def/foo", archive_entry_pathname(ae));
+	assertEqualInt(AE_IFREG | 0664, archive_entry_mode(ae));
+
+	/* Streaming reader can tell this is a dir because it ends in '/' */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("ghi/", archive_entry_pathname(ae));
+	assertEqualInt(AE_IFDIR | 0775, archive_entry_mode(ae));
+
+	/* Streaming reader can tell this is a dir because it has xl
+	 * extension */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	/* '/' gets added because this is a dir */
+	assertEqualString("jkl/", archive_entry_pathname(ae));
+	assertEqualInt(AE_IFDIR | 0775, archive_entry_mode(ae));
+
+	/* Streaming reader can tell this is a dir because it ends in
+	 * '/' and has xl extension */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("mno/", archive_entry_pathname(ae));
+	assertEqualInt(AE_IFDIR | 0775, archive_entry_mode(ae));
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+}
+
 DEFINE_TEST(test_read_format_zip_msdos)
 {
 	const char *refname = "test_read_format_zip_msdos.zip";
 	struct archive *a;
-	struct archive_entry *ae;
 	char *p;
 	size_t s;
 
@@ -40,44 +98,19 @@ DEFINE_TEST(test_read_format_zip_msdos)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 17));
-
-	/* 'ab' is marked as a directory in the central dir 
-	 * with MSDOS attribute info  */
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualString("ab/", archive_entry_pathname(ae));
-	assertEqualInt(AE_IFDIR | 0775, archive_entry_mode(ae));
-
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualString("a/gru\xCC\x88n.png", archive_entry_pathname(ae));
-	assertEqualInt(AE_IFREG | 0664, archive_entry_mode(ae));
-
-	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	verify(a, 0);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-	
+
 	/* Verify with streaming reader. */
 	p = slurpfile(&s, refname);
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, p, s, 31));
-
-	/*
-	 * 'ab' is not marked as a directory in the local file header
-	 * (local file headers lack external attribute info), so the
-	 * streaming reader can only determine if something is a directory
-	 * by whether the name ends in '/'.
-	 */
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualString("ab", archive_entry_pathname(ae));
-	assertEqualInt(AE_IFREG | 0664, archive_entry_mode(ae));
-
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualString("a/gru\xCC\x88n.png", archive_entry_pathname(ae));
-	assertEqualInt(AE_IFREG | 0664, archive_entry_mode(ae));
-
-	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	verify(a, 1);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	
 	free(p);
 }

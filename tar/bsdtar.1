@@ -510,7 +510,7 @@ A decimal integer from 1 to 9 specifying the lrzip compression level.
 .It Cm lz4:compression-level
 A decimal integer from 1 to 9 specifying the lzop compression level.
 .It Cm lz4:stream-checksum
-Enalbe stream checksum. This is by default, use
+Enable stream checksum. This is by default, use
 .Cm lz4:!stream-checksum
 to disable.
 .It Cm lz4:block-checksum
@@ -595,9 +595,7 @@ and
 The
 .Pa passphrase
 is used to extract or create an encrypted archive.
-Currently, zip is only a format that
-.Nm
-can handle encrypted archives.
+Currently, zip is the only supported format that supports encryption.
 You shouldn't use this option unless you realize how insecure
 use of this option is.
 .It Fl Fl posix
@@ -740,9 +738,9 @@ In list mode,
 .Nm
 will produce output similar to that of
 .Xr ls 1 .
-Additional
+An additional
 .Fl v
-options will provide additional detail.
+option will also provide ls-like details in create and extract mode.
 .It Fl Fl version
 Print version of
 .Nm
@@ -1168,8 +1166,7 @@ option is specified.
 There needs to be better support for file selection on both create
 and extract.
 .Pp
-There is not yet any support for multi-volume archives or for archiving
-sparse files.
+There is not yet any support for multi-volume archives.
 .Pp
 Converting between dissimilar archive formats (such as tar and cpio) using the
 .Cm @ Ns Pa -
