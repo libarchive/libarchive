@@ -1003,9 +1003,15 @@ __LA_DECL int  archive_read_disk_set_atime_restored(struct archive *);
 #define	ARCHIVE_READDISK_NO_XATTR		(0x0010)
 /* Default: Report only "regular" visits for directories. */
 #define	ARCHIVE_READDISK_ALL_VISIT_TYPES	(0x0020)
+/* Default: Do not sort entries when traversing directories. */
+#define	ARCHIVE_READDISK_SORT_ENTRIES		(0x0040)
 
 __LA_DECL int  archive_read_disk_set_behavior(struct archive *,
 		    int flags);
+
+/* Set a caller-defined comparison function for entries within a directory */
+__LA_DECL int  archive_read_disk_set_sort_compar(struct archive *,
+		    int (*)(const void *, const void *));
 
 /*
  * Set archive_match object that will be used in archive_read_disk to
