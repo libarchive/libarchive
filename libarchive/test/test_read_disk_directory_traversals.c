@@ -1560,6 +1560,166 @@ test_nodump(void)
 	archive_entry_free(ae);
 }
 
+struct file {
+	const char *n;      /* name */
+	int t;		    /* AE_IF* type */
+	enum visit_type vt; /* VISIT_TYPE_* type */
+	struct file *p; /* parent */
+	struct file *c; /* first child */
+	struct file *r;	/* relative (same level) */
+};
+
+static void
+check_subtree_fini(struct file *f)
+{
+	struct file *c;
+
+	/*
+	 * A subtree is considered fully traversed if:
+	 * - all its directories are in AFTER_CONTENTS state;
+	 * - all its regular files are in REGULAR state.
+	 */
+	for (c = f->c; c != NULL; c = c->r) {
+		if (c->t == AE_IFDIR) {
+			assertEqualInt(c->vt, VISIT_TYPE_AFTER_CONTENTS);
+			check_subtree_fini(c);
+		} else if (c->t == AE_IFREG) {
+			assertEqualInt(c->vt, VISIT_TYPE_REGULAR);
+		} else {
+			failure("invalid type for subtree entry");
+			assert(0);
+		}
+	}
+}
+
+static void
+test_all_visit_types(void)
+{
+	int count;
+	enum visit_type type;
+	size_t i;
+	const char *path;
+	struct archive *a;
+	struct archive_entry *ae;
+	struct file *f;
+	struct file v  = { .n = "v",          .t = 0, .vt = 0 };
+	struct file d1 = { .n = "v/d1",       .t = 0, .vt = 0 };
+	struct file d2 = { .n = "v/d2",       .t = 0, .vt = 0 };
+	struct file d3 = { .n = "v/d1/d3",    .t = 0, .vt = 0 };
+	struct file d4 = { .n = "v/d2/d4",    .t = 0, .vt = 0 };
+	struct file f1 = { .n = "v/d1/f1",    .t = 0, .vt = 0 };
+	struct file f2 = { .n = "v/d2/f2",    .t = 0, .vt = 0 };
+	struct file f3 = { .n = "v/d1/d3/f3", .t = 0, .vt = 0 };
+	struct file *files[] = { &v, &d1, &d2, &d3, &d4, &f1, &f2, &f3 };
+
+	/*
+	 * Create a sample archive.
+	 */
+	assertMakeDir("v", 0755);
+	v.p = NULL; v.c = &d1; v.r = NULL;
+	assertMakeDir("v/d1", 0755);
+	d1.p = NULL; d1.c = &f1; d1.r = &d2;
+	assertMakeFile("v/d1/f1", 0644, "v/d1/f1");
+	f1.p = &d1; f1.c = NULL; f1.r = &d3;
+	assertMakeDir("v/d1/d3", 0755);
+	d3.p = &d1; d3.c = &f3; d3.r = NULL;
+	assertMakeFile("v/d1/d3/f3", 0644, "v/d1/d3/f3");
+	f3.p = &d3; f3.c = NULL; f3.r = NULL;
+	assertMakeDir("v/d2", 0755);
+	d2.p = NULL; d2.c = &f2; d2.r = NULL;
+	assertMakeFile("v/d2/f2", 0644, "v/d2/f2");
+	f2.p = &d2; f2.c = NULL; f2.r = &d4;
+	assertMakeDir("v/d2/d4", 0755);
+	d4.p = &d2; d4.c = NULL; d4.r = NULL;
+
+	assert((ae = archive_entry_new()) != NULL);
+	assert((a = archive_read_disk_new()) != NULL);
+
+	failure("Reporting all visit types should work as well");
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_set_behavior(a,
+		ARCHIVE_READDISK_ALL_VISIT_TYPES));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, "v"));
+
+	/*
+	 * Files should only be reported as VISIT_TYPE_REGULAR as they are
+	 * only visited once during traversal.
+	 * Directories should be reported at least once as VISIT_TYPE_REGULAR,
+	 * and two more times when marked for descent: once when
+	 * descending into it (VISIT_TYPE_BEFORE_CONTENTS, when libarchive is
+	 * about to read its content), and one last time when we are leaving
+	 * its subtree (VISIT_TYPE_AFTER_CONTENTS, when libarchive is done
+	 * traversing its subtree).
+	 */
+	count = 3*5 + 3;
+	while (count--) {
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_next_header(a, &ae));
+		path = archive_entry_pathname(ae);
+		for (i = 0; i < sizeof(files)/sizeof(files[0]); i++) {
+			f = files[i];
+			if (strcmp(f->n, path) == 0)
+				break;
+		}
+		failure("Entry's name must match with a file structure");
+		assert(i < sizeof(files)/sizeof(files[0]));
+
+		f->t = archive_entry_filetype(ae);
+		type = archive_entry_visit_type(ae);
+		if (type == VISIT_TYPE_REGULAR) {
+			/*
+			 * REGULAR visit: all parents should be in
+			 * BEFORE_CONTENTS state.
+			 * Entry type should be 0 because entry has not
+			 * been visited previously.
+			 */
+			assertEqualInt(f->vt, 0);
+			f->vt = VISIT_TYPE_REGULAR;
+			for (f = f->p; f != NULL; f = f->p) {
+				assertEqualInt(f->vt,
+				    VISIT_TYPE_BEFORE_CONTENTS);
+			}
+		} else if (type == VISIT_TYPE_BEFORE_CONTENTS) {
+			/*
+			 * BEFORE_CONTENTS state: check that entry was
+			 * reported as REGULAR type visit before.
+			 * No need to check that children have not been visited
+			 * yet, the VISIT_TYPE_REGULAR condition ensures this
+			 * property.
+			 */
+			assertEqualInt(f->t, AE_IFDIR);
+			assertEqualInt(f->vt, VISIT_TYPE_REGULAR);
+			f->vt = VISIT_TYPE_BEFORE_CONTENTS;
+		} else if (type == VISIT_TYPE_AFTER_CONTENTS) {
+			/* 
+			 * AFTER_CONTENTS state: the entry should be in
+			 * BEFORE_CONTENTS state.
+			 * All children should be in either a REGULAR state
+			 * (for regular files) or AFTER_CONTENTS state (for
+			 * directories).
+			 */
+			assertEqualInt(f->t, AE_IFDIR);
+			assertEqualInt(f->vt, VISIT_TYPE_BEFORE_CONTENTS);
+			f->vt = VISIT_TYPE_AFTER_CONTENTS;
+			check_subtree_fini(f);
+		} else {
+			failure("Returned visit type is invalid");
+			assert(0);
+		}
+
+		if (archive_entry_filetype(ae) == AE_IFDIR) {
+			/* Mark the current object for descent. */
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_disk_descend(a));
+		}
+	}
+	/* There is no entry. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	/* Close the disk object. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	/* Destroy the disk object. */
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_read_disk_directory_traversals)
 {
 	/* Basic test. */
@@ -1576,4 +1736,6 @@ DEFINE_TEST(test_read_disk_directory_traversals)
 	test_callbacks();
 	/* Test nodump. */
 	test_nodump();
+	/* Test reporting of all visit types. */
+	test_all_visit_types();
 }
