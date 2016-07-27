@@ -1904,7 +1904,7 @@ tree_dir_iterate(struct tree *t)
 	 * If no directory was already opened, open the current
 	 * working directory.
 	 */
-	if (t->d == INVALID_DIR_HANDLE) {
+	if (t->d == INVALID_HANDLE_VALUE) {
 		t->d = FindFirstFileW(t->full_path.s, &t->_findData);
 		if (t->d == INVALID_HANDLE_VALUE) {
 			la_dosmaperr(GetLastError());
