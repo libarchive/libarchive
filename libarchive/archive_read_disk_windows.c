@@ -1598,7 +1598,7 @@ tree_update_basename(struct tree *t, const wchar_t *name, size_t name_length)
 		archive_wstrappend_wchar(&t->path, L'/');
 
 	archive_wstrncat(&t->path, name, name_length);
-	t->basename = t->path.s + archive_strlen(&t->path);
+	t->basename = t->path.s + archive_strlen(&t->path) - name_length;
 	t->restore_time.full_path = t->basename;
 	if (t->full_path_dir_length > 0) {
 		t->full_path.s[t->full_path_dir_length] = L'\0';
@@ -1836,7 +1836,6 @@ tree_next(struct tree *t)
 			}
 
 			t->findData = &t->_findData;
-			FindClose(t->d);
 			tree_update_basename(t, te->name.s,
 			    archive_strlen(&(te->name)));
 			return (t->visit_type = TREE_REGULAR);
@@ -1901,8 +1900,22 @@ tree_dir_iterate(struct tree *t)
 	int r;
 	const wchar_t *name;
 
+	/*
+	 * If no directory was already opened, open the current
+	 * working directory.
+	 */
+	if (t->d == INVALID_DIR_HANDLE) {
+		t->d = FindFirstFileW(t->full_path.s, &t->_findData);
+		if (t->d == INVALID_HANDLE_VALUE) {
+			la_dosmaperr(GetLastError());
+			t->tree_errno = errno;
+			return TREE_ERROR_DIR;
+		}
+		t->findData = &t->_findData;
+	}
+
 	for (;;) {
-		if (!FindNextFileW(t->d, &t->_findData)) {
+		if (!FindNextFileW(t->d, t->findData)) {
 			FindClose(t->d);
 			la_dosmaperr(GetLastError());
 			r = errno;
