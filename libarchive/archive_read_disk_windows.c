@@ -1618,7 +1618,8 @@ tree_open(const wchar_t *path, struct archive_read_disk *a)
 {
 	struct tree *t;
 
-	t = malloc(sizeof(*t));
+	if ((t = malloc(sizeof(*t))) == NULL)
+		return NULL;
 	memset(t, 0, sizeof(*t));
 	archive_string_init(&(t->full_path));
 	archive_string_init(&t->path);
