@@ -2035,12 +2035,6 @@ insert_entry_into_sort_array(struct tree *t)
 	WIN32_FIND_DATAW *de;
 	size_t i;
 
-	de = malloc(sizeof(*de));
-	if (de == NULL) {
-		t->tree_errno = ENOMEM;
-		return TREE_ERROR_DIR;
-	}
-
 	/* increase sort array size if it cannot hold a new entry */
 	if (t->sort_array_size <= t->sort_array_nentries) {
 #define _SIZE_INC 1024
