@@ -1895,36 +1895,52 @@ tree_next(struct tree *t)
 static int
 tree_dir_iterate(struct tree *t, const wchar_t *pattern)
 {
-	int r;
+	DWORD r;
 	const wchar_t *name;
 
-	/*
-	 * If no directory was already opened, open the current
-	 * working directory.
-	 */
-	if (t->d == INVALID_HANDLE_VALUE) {
-		t->d = FindFirstFileW(t->full_path.s, &t->_findData);
-		if (t->d == INVALID_HANDLE_VALUE) {
-			la_dosmaperr(GetLastError());
-			t->tree_errno = errno;
-			return TREE_ERROR_DIR;
-		}
-		t->findData = &t->_findData;
-	}
-
 	for (;;) {
-		if (!FindNextFileW(t->d, t->findData)) {
+		/*
+		 * If no directory was already opened, open the
+		 * working directory andu se the pattern directly.
+		 */
+		if (t->d == INVALID_HANDLE_VALUE) {
+			struct archive_wstring pt;
+
+			/*
+			 * We should not open a directory without
+			 * having a pattern specified.
+			 */
+			if (pattern == NULL) {
+				t->tree_errno = EIO;
+				return TREE_ERROR_FATAL;
+			}
+
+			archive_string_init(&pt);
+			archive_wstring_copy(&pt, &(t->full_path));
+			archive_wstrappend_wchar(&pt, L'\\');
+			archive_wstrcat(&pt, pattern);
+			t->d = FindFirstFileW(pt.s, &t->_findData);
+			archive_wstring_free(&pt);
+
+			if (t->d == INVALID_HANDLE_VALUE) {
+				la_dosmaperr(GetLastError());
+				t->tree_errno = errno;
+				return TREE_ERROR_DIR;
+			}
+			t->findData = &t->_findData;
+		} else if (!FindNextFileW(t->d, t->findData)) {
+			r = GetLastError();
+			if (r == ERROR_NO_MORE_FILES)
+				r = 0;
+			la_dosmaperr(r);
 			FindClose(t->d);
-			la_dosmaperr(GetLastError());
-			r = errno;
 			t->d = INVALID_HANDLE_VALUE;
 			t->findData = NULL;
 			if (r != 0) {
-				t->tree_errno = r;
+				t->tree_errno = errno;
 				return TREE_ERROR_DIR;
-			} else {
-				return 0;
 			}
+			return 0;
 		}
 
 		name = t->findData->cFileName;
