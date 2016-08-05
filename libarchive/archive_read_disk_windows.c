@@ -1787,6 +1787,7 @@ tree_ascend(struct tree *t)
 
 	while (t->basename[0] == L'/')
 		t->basename++;
+
 	return 0;
 }
 
