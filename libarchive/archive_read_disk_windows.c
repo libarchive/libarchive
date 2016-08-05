@@ -1946,7 +1946,6 @@ tree_dir_next_windows(struct tree *t)
 	int r;
 	size_t i;
 	const wchar_t *name;
-	WIN32_FIND_DATAW *e;
 
 	if (!(t->flags & moreEntries)) {
 		/* First time in this directory, fetch entries. */
@@ -1982,8 +1981,8 @@ tree_dir_next_windows(struct tree *t)
 
 	if (t->sort_array_min < t->sort_array_nentries) {
 		/* there are entries stored in the array, return them first. */
-		e = t->sort_array[t->sort_array_min++];
-		name = e->cFileName;
+		t->findData = t->sort_array[t->sort_array_min++];
+		name = t->findData->cFileName;
 		t->flags &= ~hasLstat;
 		t->flags &= ~hasStat;
 		tree_update_basename(t, name, wcslen(name));
