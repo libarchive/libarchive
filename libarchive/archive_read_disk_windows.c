@@ -2358,6 +2358,7 @@ tree_close(struct tree *t)
 		FindClose(t->d);
 		t->d = INVALID_HANDLE_VALUE;
 		t->findData = NULL;
+		t->flags &= ~moreEntries;
 	}
 	/* Release anything remaining in the queue. */
 	while (t->current != NULL) {
