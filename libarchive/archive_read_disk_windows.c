@@ -229,8 +229,8 @@ struct tree {
 #define	needsRestoreTimes 128
 #define moreEntries	256 /* More entries can be fetched from directory */
 
-static int	tree_dir_iterate(struct tree *);
-static int	tree_dir_next_windows(struct tree *);
+static int tree_dir_iterate(struct tree *, const wchar_t *);
+static int tree_dir_next_windows(struct tree *, const wchar_t *);
 
 /* Initiate/terminate a tree traversal. */
 static struct tree *tree_open(const wchar_t *, struct archive_read_disk *);
@@ -1852,7 +1852,7 @@ tree_next(struct tree *t)
 			}
 			return t->visit_type;
 		} else if (te->flags & needsIterate) {
-			r = tree_dir_next_windows(t);
+			r = tree_dir_next_windows(t, L"*");
 			if (r == TREE_REGULAR) {
 				return (t->visit_type = TREE_REGULAR);
 			}
@@ -1896,7 +1896,7 @@ tree_next(struct tree *t)
 }
 
 static int
-tree_dir_iterate(struct tree *t)
+tree_dir_iterate(struct tree *t, const wchar_t *pattern)
 {
 	int r;
 	const wchar_t *name;
@@ -1941,7 +1941,7 @@ tree_dir_iterate(struct tree *t)
 }
 
 static int
-tree_dir_next_windows(struct tree *t)
+tree_dir_next_windows(struct tree *t, const wchar_t *pattern)
 {
 	int r;
 	size_t i;
@@ -1950,7 +1950,7 @@ tree_dir_next_windows(struct tree *t)
 	if (!(t->flags & moreEntries)) {
 		/* First time in this directory, fetch entries. */
 		for (i = 0; i <= t->sort_entries_max; i++) {
-			r = tree_dir_iterate(t);
+			r = tree_dir_iterate(t, pattern);
 
 			if (r == TREE_REGULAR) {
 				if (insert_entry_into_sort_array(t) != 0) {
@@ -2000,7 +2000,7 @@ tree_dir_next_windows(struct tree *t)
 	}
 
 	/* We are not done with current dir yet, get the remaining entries. */
-	switch (r = tree_dir_iterate(t)) {
+	switch (r = tree_dir_iterate(t, NULL)) {
 	case TREE_REGULAR:
 		name = t->findData->cFileName;
 		t->flags &= ~hasLstat;
