@@ -2111,12 +2111,12 @@ insert_entry_into_sort_array(struct tree *t)
 static void
 free_sort_entries(struct tree *t, int free_all)
 {
-	size_t i, si;
+	size_t i;
 
 	/* Start from 0 if we want to free all entries */
-	si = (free_all == 1) ? 0 : DEFAULT_SORT_ENTRIES_MAX;
+	i = (free_all == 1) ? 0 : DEFAULT_SORT_ENTRIES_MAX;
 
-	for (i = si; i < t->sort_array_nentries; i++) {
+	for (; i < t->sort_array_nentries; i++) {
 		free(t->sort_array[i]);
 	}
 	/* Start over! */
