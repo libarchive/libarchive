@@ -1674,14 +1674,11 @@ tree_reopen(struct tree *t, const wchar_t *path, struct archive_read_disk *a)
 
 	/* First item is set up a lot like a symlink traversal. */
 	/* printf("Looking for wildcard in %s\n", path); */
-	if ((pathname[0] == L'/' && pathname[1] == L'/' &&
-	     pathname[2] == L'?' && pathname[3] == L'/' &&
+	if ((wcsncmp(pathname, L"//?/", 4) == 0 &&
 	     (wcschr(pathname+4, L'*') || wcschr(pathname+4, L'?'))) ||
-	    (!(pathname[0] == L'/' && pathname[1] == L'/' &&
-	       pathname[2] == L'?' && pathname[3] == L'/') &&
-	       (wcschr(pathname, L'*') || wcschr(pathname, L'?')))) {
-		// It has a wildcard in it...
-		// Separate the last element.
+	    (wcsncmp(pathname, L"//?/", 4) != 0 &&
+	     (wcschr(pathname, L'*') || wcschr(pathname, L'?')))) {
+		/* It has a wildcard in it... Separate the last element. */
 		p = wcsrchr(pathname, L'/');
 		if (p != NULL) {
 			*p = L'\0';
