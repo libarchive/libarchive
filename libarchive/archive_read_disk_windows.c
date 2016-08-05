@@ -2071,7 +2071,7 @@ insert_entry_into_sort_array(struct tree *t)
 		}
 
 		for (i = 0; i < DEFAULT_SORT_ENTRIES_MAX; i++) {
-			de = realloc(t->sort_array[i], sizeof(*t->sort_array));
+			de = realloc(t->sort_array[i], sizeof(*de));
 			if (de == NULL) {
 				t->tree_errno = ENOMEM;
 				return TREE_ERROR_DIR;
