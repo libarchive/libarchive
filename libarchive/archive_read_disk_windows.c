@@ -1682,7 +1682,7 @@ tree_reopen(struct tree *t, const wchar_t *path, struct archive_read_disk *a)
 		p = wcsrchr(pathname, L'/');
 		if (p != NULL) {
 			*p = L'\0';
-			tree_update_pathnamename(t, pathname, p - pathname);
+			tree_update_basename(t, pathname, p - pathname);
 			t->dirname_length = archive_strlen(&t->path);
 			pathname = p + 1;
 		}
