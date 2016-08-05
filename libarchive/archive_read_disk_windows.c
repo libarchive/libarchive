@@ -586,16 +586,16 @@ int
 archive_read_disk_set_sort_compar(struct archive *_a,
     int (*compar)(const void *, const void *))
 {
-        struct archive_read_disk *a = (struct archive_read_disk *)_a;
+	struct archive_read_disk *a = (struct archive_read_disk *)_a;
 
-        archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
-            ARCHIVE_STATE_ANY, "archive_read_disk_set_sort_compar");
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
+	    ARCHIVE_STATE_ANY, "archive_read_disk_set_sort_compar");
 
-        a->sort_cb_func = compar;
-        if (a->tree != NULL) {
-                a->tree->sort_cb_func = compar;
-        }
-        return 0;
+	a->sort_cb_func = compar;
+	if (a->tree != NULL) {
+		a->tree->sort_cb_func = compar;
+	}
+	return 0;
 }
 
 /*
