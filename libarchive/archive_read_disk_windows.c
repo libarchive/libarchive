@@ -1635,7 +1635,7 @@ tree_reopen(struct tree *t, const wchar_t *path, struct archive_read_disk *a)
 {
 	struct archive_wstring ws;
 	struct tree_entry *te;
-	wchar_t *pathname, *p, *base;
+	wchar_t *pathname, *p;
 
 	t->flags = (a->restore_time)?needsRestoreTimes:0;
 	t->visit_type = 0;
@@ -1671,24 +1671,23 @@ tree_reopen(struct tree *t, const wchar_t *path, struct archive_read_disk *a)
 		if (*p == L'\\')
 			*p = L'/';
 	}
-	base = pathname;
 
 	/* First item is set up a lot like a symlink traversal. */
 	/* printf("Looking for wildcard in %s\n", path); */
-	if ((base[0] == L'/' && base[1] == L'/' &&
-	     base[2] == L'?' && base[3] == L'/' &&
-	     (wcschr(base+4, L'*') || wcschr(base+4, L'?'))) ||
-	    (!(base[0] == L'/' && base[1] == L'/' &&
-	       base[2] == L'?' && base[3] == L'/') &&
-	       (wcschr(base, L'*') || wcschr(base, L'?')))) {
+	if ((pathname[0] == L'/' && pathname[1] == L'/' &&
+	     pathname[2] == L'?' && pathname[3] == L'/' &&
+	     (wcschr(pathname+4, L'*') || wcschr(pathname+4, L'?'))) ||
+	    (!(pathname[0] == L'/' && pathname[1] == L'/' &&
+	       pathname[2] == L'?' && pathname[3] == L'/') &&
+	       (wcschr(pathname, L'*') || wcschr(pathname, L'?')))) {
 		// It has a wildcard in it...
 		// Separate the last element.
-		p = wcsrchr(base, L'/');
+		p = wcsrchr(pathname, L'/');
 		if (p != NULL) {
 			*p = L'\0';
-			tree_update_basename(t, base, p - base);
+			tree_update_pathnamename(t, pathname, p - pathname);
 			t->dirname_length = archive_strlen(&t->path);
-			base = p + 1;
+			pathname = p + 1;
 		}
 		p = wcsrchr(t->full_path.s, L'\\');
 		if (p != NULL) {
@@ -1697,7 +1696,7 @@ tree_reopen(struct tree *t, const wchar_t *path, struct archive_read_disk *a)
 			t->full_path_dir_length = archive_strlen(&t->full_path);
 		}
 	}
-	te = tree_first_entry(t, base, t->full_path.s);
+	te = tree_first_entry(t, pathname, t->full_path.s);
 	if (te == NULL)
 		goto failed;
 	archive_wstring_free(&ws);
