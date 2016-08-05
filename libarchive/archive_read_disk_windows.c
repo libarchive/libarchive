@@ -1801,42 +1801,42 @@ tree_next(struct tree *t)
 		te = t->current;
 		if (te->flags & needsFirstVisit) {
 			wchar_t *d = te->name.s;
-			te->flags &= ~needsFirstVisit;
 
-			if (!(d[0] == L'/' && d[1] == L'/' &&
-			      d[2] == L'?' && d[3] == L'/') &&
+			if (wcsncmp(d, L"//?/", 4) != 0 &&
 			    (wcschr(d, L'*') || wcschr(d, L'?'))) {
-				struct archive_wstring pt;
+				/*
+				 * wildcard case is special as we have to
+				 * iterate all pattern lookups first without
+				 * having to descend inside a directory
+				 * beforehand.
+				 */
+				r = tree_dir_next_windows(t, d);
+				if (r == TREE_REGULAR) {
+					tree_update_basename(t,
+					    t->findData->cFileName,
+					    wcslen(t->findData->cFileName));
+					return (t->visit_type = TREE_REGULAR);
+				}
 
-				archive_string_init(&pt);
-				archive_wstring_ensure(&pt,
-				    archive_strlen(&(t->full_path))
-				      + 2 + wcslen(d));
-				archive_wstring_copy(&pt, &(t->full_path));
-				archive_wstrappend_wchar(&pt, L'\\');
-				archive_wstrcat(&pt, d);
-				t->d = FindFirstFileW(pt.s, &t->_findData);
-				archive_wstring_free(&pt);
+				te->flags &= ~needsFirstVisit;
+				if (r == 0)
+					continue;
 
-				/* Update name if a file was found */
-				if (t->d != INVALID_HANDLE_VALUE)
-					archive_wstrncpy(&te->name,
-					    t->_findData.cFileName,
-					    wcslen(t->_findData.cFileName));
+				return (t->visit_type = r);
 			} else {
-				t->d = FindFirstFileW(d, &t->_findData);
+				te->flags &= ~needsFirstVisit;
+				HANDLE h = FindFirstFileW(d, &t->_findData);
+				if (h == INVALID_HANDLE_VALUE) {
+					la_dosmaperr(GetLastError());
+					t->tree_errno = errno;
+					return (t->visit_type = TREE_ERROR_DIR);
+				}
+				t->findData = &t->_findData;
+				FindClose(h);
+				tree_update_basename(t, te->name.s,
+				    te->name.length);
+				return (t->visit_type = TREE_REGULAR);
 			}
-
-			if (t->d == INVALID_HANDLE_VALUE) {
-				la_dosmaperr(GetLastError());
-				t->tree_errno = errno;
-				return (t->visit_type = TREE_ERROR_DIR);
-			}
-
-			t->findData = &t->_findData;
-			tree_update_basename(t, te->name.s,
-			    archive_strlen(&(te->name)));
-			return (t->visit_type = TREE_REGULAR);
 		} else if (te->flags & needsDescent) {
 			te->flags &= ~needsDescent;
 			r = tree_descend(t);
