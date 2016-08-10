@@ -6,7 +6,7 @@
 IF(ENABLE_TEST)
   SET(libarchive_test_SOURCES
     ../../test_utils/test_utils.c
-   main.c
+    main.c
     read_open_memory.c
     test.h
     test_acl_freebsd_nfs4.c
@@ -164,6 +164,7 @@ IF(ENABLE_TEST)
     test_read_format_zip_encryption_header.c
     test_read_format_zip_encryption_partially.c
     test_read_format_zip_filename.c
+    test_read_format_zip_high_compression.c
     test_read_format_zip_mac_metadata.c
     test_read_format_zip_malformed.c
     test_read_format_zip_msdos.c
