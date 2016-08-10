@@ -509,6 +509,9 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_disk_no_hfs_compression.c \
 	libarchive/test/test_write_disk_perms.c \
 	libarchive/test/test_write_disk_secure.c \
+	libarchive/test/test_write_disk_secure744.c \
+	libarchive/test/test_write_disk_secure745.c \
+	libarchive/test/test_write_disk_secure746.c \
 	libarchive/test/test_write_disk_sparse.c \
 	libarchive/test/test_write_disk_symlink.c \
 	libarchive/test/test_write_disk_times.c \
