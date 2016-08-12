@@ -52,35 +52,37 @@ static struct {
 };
 
 static const char image [] = {
-"#mtree\n"
-"\n"
+"#\t   user: libarchive\n"
+"#\t   machine: libarchive-test\n"
+"#\t   tree: /\n"
+"#\t   date: Wed Jan 14 23:27:16 GMT 2009\n"
 "# .\n"
 "/set type=file uid=1001 gid=1001 mode=644\n"
-".               time=1231975636.0 mode=755 type=dir\n"
-"    COPYING     time=1231975636.0 size=8\n"
-"    Makefile    time=1233041050.0 size=8\n"
-"    NEWS        time=1231975636.0 size=8\n"
-"    PROJECTS    time=1231975636.0 size=8\n"
-"    README      time=1231975636.0 size=8\n"
+".               type=dir mode=755 time=1231975636.0\n"
+"    COPYING     size=8 time=1231975636.0\n"
+"    Makefile    size=8 time=1233041050.0\n"
+"    NEWS        size=8 time=1231975636.0\n"
+"    PROJECTS    size=8 time=1231975636.0\n"
+"    README      size=8 time=1231975636.0\n"
 "\n"
 "# ./subdir\n"
 "/set mode=664\n"
-"subdir          time=1233504586.0 mode=755 type=dir\n"
-"    README      time=1231975636.0 uid=1002 size=8\n"
-"    config      time=1232266273.0 gid=1003 uid=1003 size=8\n"
+"subdir          type=dir mode=755 time=1233504586.0 mode=755\n"
+"    README      size=8 uid=1002 time=1231975636.0\n"
+"    config      size=8 uid=1003 gid=1003 time=1232266273.0\n"
 "# ./subdir\n"
 "..\n"
 "\n"
 "\n"
 "# ./subdir2\n"
-"subdir2         time=1233504586.0 mode=755 type=dir\n"
+"subdir2         type=dir mode=755 time=1233504586.0\n"
 "# ./subdir2\n"
 "..\n"
 "\n"
 "\n"
 "# ./subdir3\n"
-"subdir3         time=1233504586.0 mode=755 type=dir\n"
-"    mtree       nlink=2 time=1232266273.0 gid=1003 uid=1003 size=8\n"
+"subdir3         type=dir mode=755 time=1233504586.0\n"
+"    mtree       size=8 uid=1003 gid=1003 nlink=2 time=1232266273.0\n"
 "# ./subdir3\n"
 "..\n"
 "\n"
@@ -88,23 +90,33 @@ static const char image [] = {
 };
 
 static const char image_dironly [] = {
-"#mtree\n"
+"#\t   user: libarchive\n"
+"#\t   machine: libarchive-test\n"
+"#\t   tree: /\n"
+"#\t   date: Wed Jan 14 23:27:16 GMT 2009\n"
 "# .\n"
+"\n"
 "/set type=dir uid=1001 gid=1001 mode=755\n"
 ".               time=1231975636.0\n"
 "# ./subdir\n"
 "subdir          time=1233504586.0\n"
 "# ./subdir\n"
 "..\n"
+"\n"
+"\n"
 "# ./subdir2\n"
 "subdir2         time=1233504586.0\n"
 "# ./subdir2\n"
 "..\n"
+"\n"
+"\n"
 "# ./subdir3\n"
 "subdir3         time=1233504586.0\n"
 "# ./subdir3\n"
 "..\n"
+"\n"
 "..\n"
+"\n"
 };
 
 static void
@@ -118,6 +130,17 @@ test_write_format_mtree_sub(int dironly)
 	/* Create a mtree format archive. */
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_mtree_classic(a));
+
+	/* Prepare header */
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_option(
+	    a, NULL, "header-user", "libarchive"));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_option(
+	    a, NULL, "header-machine", "libarchive-test"));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_option(
+	    a, NULL, "header-tree", "/"));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_option(
+	    a, NULL, "header-date", "Wed Jan 14 23:27:16 GMT 2009"));
+
 	if (dironly)
 		assertEqualIntA(a, ARCHIVE_OK,
 			archive_write_set_format_option(a, NULL, "dironly", "1"));
