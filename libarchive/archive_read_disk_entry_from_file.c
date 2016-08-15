@@ -419,12 +419,26 @@ setup_acls(struct archive_read_disk *a,
 	if (accpath == NULL)
 		accpath = archive_entry_pathname(entry);
 
+	if (*fd < 0 && a->tree != NULL) {
+		if (a->follow_symlinks ||
+		    archive_entry_filetype(entry) != AE_IFLNK)
+			*fd = a->open_on_current_dir(a->tree,
+			    accpath, O_RDONLY | O_NONBLOCK);
+		if (*fd < 0) {
+			if (a->tree_enter_working_dir(a->tree) != 0) {
+				archive_set_error(&a->archive, errno,
+				    "Couldn't access %s", accpath);
+				return (ARCHIVE_FAILED);
+			}
+		}
+	}
+
 	archive_entry_acl_clear(entry);
 
 #ifdef ACL_TYPE_NFS4
 	/* Try NFS4 ACL first. */
 	if (*fd >= 0)
-		acl = acl_get_fd(*fd);
+		acl = acl_get_fd_np(*fd, ACL_TYPE_NFS4);
 #if HAVE_ACL_GET_LINK_NP
 	else if (!a->follow_symlinks)
 		acl = acl_get_link_np(accpath, ACL_TYPE_NFS4);
