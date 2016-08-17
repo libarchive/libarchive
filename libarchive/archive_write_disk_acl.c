@@ -145,7 +145,7 @@ set_acl(struct archive *a, int fd, const char *name,
 	gid_t		 ae_gid;
 	const char	*ae_name;
 	int		 entries;
-	int		 i, r;
+	int		 i;
 
 	ret = ARCHIVE_OK;
 	entries = archive_acl_reset(abstract_acl, ae_requested_type);
