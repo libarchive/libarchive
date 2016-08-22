@@ -862,6 +862,8 @@ static void PpmdRAR_RangeDec_CreateVTable(CPpmd7z_RangeDec *p)
 static int Ppmd7_DecodeSymbol(CPpmd7 *p, IPpmd7_RangeDec *rc)
 {
   size_t charMask[256 / sizeof(size_t)];
+  if (p->Base == 0)
+      return -1;
   if (p->MinContext->NumStats != 1)
   {
     CPpmd_State *s = Ppmd7_GetStats(p, p->MinContext);
