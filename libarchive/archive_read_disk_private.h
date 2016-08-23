@@ -73,6 +73,13 @@ struct archive_read_disk {
 	int		 traverse_mount_points;
 	/* Set 1 if users want to suppress xattr information. */
 	int		 suppress_xattr;
+	/* Set 1 if users want to have all the visit_type flags reported. */
+	int		 report_all_visit_types;
+
+	/* Maximum number of entries that should be sorted during traversal */
+	size_t		 sort_entries_max;
+	/* Sort function used during traversal */
+	int	       (*sort_cb_func)(const void *, const void *);
 
 	const char * (*lookup_gname)(void *private, int64_t gid);
 	void	(*cleanup_gname)(void *private);
@@ -93,5 +100,8 @@ struct archive_read_disk {
 			 struct archive_entry *);
 	void	*excluded_cb_data;
 };
+
+/* Maximum number of entries inside a directory that libarchive will try to sort. */
+#define  DEFAULT_SORT_ENTRIES_MAX 32
 
 #endif

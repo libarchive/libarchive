@@ -174,6 +174,9 @@ struct archive_entry {
 	struct ae_sparse *sparse_tail;
 	struct ae_sparse *sparse_p;
 
+	/* visit type flag. */
+	int visit_type;
+
 	/* Miscellaneous. */
 	char		 strmode[12];
 };

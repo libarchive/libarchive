@@ -211,6 +211,9 @@ archive_entry_clone(struct archive_entry *entry)
 	p = archive_entry_mac_metadata(entry, &s);
 	archive_entry_copy_mac_metadata(entry2, p, s);
 
+	/* Copy visit type flag over.  */
+	entry2->visit_type = entry->visit_type;
+
 	/* Copy xattr data over. */
 	xp = entry->xattr_head;
 	while (xp != NULL) {
@@ -591,6 +594,12 @@ _archive_entry_pathname_l(struct archive_entry *entry,
     const char **p, size_t *len, struct archive_string_conv *sc)
 {
 	return (archive_mstring_get_mbs_l(&entry->ae_pathname, p, len, sc));
+}
+
+enum visit_type
+archive_entry_visit_type(struct archive_entry *entry)
+{
+	return (entry->visit_type);
 }
 
 mode_t
@@ -1166,6 +1175,12 @@ archive_entry_update_pathname_utf8(struct archive_entry *entry, const char *name
 	if (errno == ENOMEM)
 		__archive_errx(1, "No memory");
 	return (0);
+}
+
+void
+archive_entry_set_visit_type(struct archive_entry *entry, enum visit_type type)
+{
+	entry->visit_type = type;
 }
 
 int
