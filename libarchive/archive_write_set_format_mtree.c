@@ -1810,10 +1810,10 @@ mtree_entry_setup_filenames(struct archive_write *a, struct mtree_entry *file,
 		if (p[0] == '/') {
 			if (p[1] == '/')
 				/* Convert '//' --> '/' */
-				strcpy(p, p+1);
+				memmove(p, p+1, len+1);
 			else if (p[1] == '.' && p[2] == '/')
 				/* Convert '/./' --> '/' */
-				strcpy(p, p+2);
+				memmove(p, p+2, len+1);
 			else if (p[1] == '.' && p[2] == '.' && p[3] == '/') {
 				/* Convert 'dir/dir1/../dir2/'
 				 *     --> 'dir/dir2/'
@@ -1825,10 +1825,10 @@ mtree_entry_setup_filenames(struct archive_write *a, struct mtree_entry *file,
 					--rp;
 				}
 				if (rp > dirname) {
-					strcpy(rp, p+3);
+					memmove(rp, p+3, len+1);
 					p = rp;
 				} else {
-					strcpy(dirname, p+4);
+					memmove(dirname, p+4, len+1);
 					p = dirname;
 				}
 			} else
