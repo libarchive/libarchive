@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 16, 2014
+.Dd March 15, 2016
 .Dt CPIO 1
 .Os
 .Sh NAME
@@ -177,6 +177,11 @@ With this option, the target of the link will be archived or copied instead.
 (p mode only)
 Create links from the target directory to the original files,
 instead of copying.
+.It Fl Fl ab
+(o mode only)
+Create an Android Backup file. To be used in conjunction with POSIX.1 tar format.
+In input mode, this option is ignored; Android Backup is recognized
+automatically on input.
 .It Fl Fl lrzip
 (o mode only)
 Compress the resulting archive with

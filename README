@@ -89,6 +89,7 @@ The library also detects and handles any of the following before evaluating the 
   * lzma, lzip, and xz compression
   * lz4 compression
   * lzop compression
+  * Android adb backup files
 
 The library can create archives in any of the following formats:
   * POSIX ustar
@@ -115,6 +116,7 @@ When creating archives, the result can be filtered with any of the following:
   * lzma, lzip, and xz compression
   * lz4 compression
   * lzop compression
+  * Android adb backup
 
 Notes about the library architecture:
 

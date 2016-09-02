@@ -73,6 +73,7 @@ get_filter_code(const char *suffix)
 		{ ".bz2",	"bzip2" },
 		{ ".gz",	"gzip" },
 		{ ".grz",	"grzip" },
+		{ ".ab",	"ab" },
 		{ ".lrz",	"lrzip" },
 		{ ".lz",	"lzip" },
 		{ ".lz4",	"lz4" },

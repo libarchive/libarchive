@@ -42,6 +42,7 @@ static
 struct { int code; int (*setter)(struct archive *); } codes[] =
 {
 	{ ARCHIVE_FILTER_NONE,		archive_write_add_filter_none },
+	{ ARCHIVE_FILTER_AB,		archive_write_add_filter_ab },
 	{ ARCHIVE_FILTER_GZIP,		archive_write_add_filter_gzip },
 	{ ARCHIVE_FILTER_BZIP2,		archive_write_add_filter_bzip2 },
 	{ ARCHIVE_FILTER_COMPRESS,	archive_write_add_filter_compress },

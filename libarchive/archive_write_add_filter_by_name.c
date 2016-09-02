@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 static
 struct { const char *name; int (*setter)(struct archive *); } names[] =
 {
+	{ "ab",			archive_write_add_filter_ab },
 	{ "b64encode",		archive_write_add_filter_b64encode },
 	{ "bzip2",		archive_write_add_filter_bzip2 },
 	{ "compress",		archive_write_add_filter_compress },
