@@ -133,8 +133,20 @@ When creating archives, the result can be filtered with any of the following:
   pass from beginning to end.  For example, this allows
   libarchive to process archives too large to store on disk
   by processing them on-the-fly as they are read from or
-  written to a network or tape drive.  Conversely, libarchive
-  does not support in-place modification or random access.
+  written to a network or tape drive.  This also makes
+  libarchive useful for tools that need to produce
+  archives on-the-fly (such as webservers that provide
+  archived contents of a users account).
+
+* In-place modification and random access to the contents
+  of an archive are not directly supported.  For some formats,
+  this is not an issue: For example, tar.gz archives are not
+  designed for random access.  In some other cases, libarchive
+  can re-open an archive and scan it from the beginning quickly
+  enough to provide the needed abilities even without true
+  random access.  Of course, some applications do require true
+  random access; those applications should consider alternatives
+  to libarchive.
 
 * The library is designed to be extended with new compression and
   archive formats.  The only requirement is that the format be
