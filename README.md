@@ -1,16 +1,24 @@
-Welcome to libarchive!
+# Welcome to libarchive!
 
 The libarchive project develops a portable, efficient C library that
 can read and write streaming archives in a variety of formats.  It
 also includes implementations of the common `tar`, `cpio`, and `zcat`
 command-line tools that use the libarchive library.
 
-Questions?  Issues?
-* http://www.libarchive.org is the home for ongoing libarchive development, including documentation, and links to the libarchive mailing lists.
-* To report an issue, use the issue tracker at  https://github.com/libarchive/libarchive/issues
-* To submit an enhancement to libarchive, please submit a pull request via GitHub: https://github.com/libarchive/libarchive/pulls
+## Questions?  Issues?
 
-This distribution bundle includes the following components:
+* http://www.libarchive.org is the home for ongoing
+  libarchive development, including documentation,
+  and links to the libarchive mailing lists.
+* To report an issue, use the issue tracker at
+  https://github.com/libarchive/libarchive/issues
+* To submit an enhancement to libarchive, please
+  submit a pull request via GitHub: https://github.com/libarchive/libarchive/pulls
+
+## Contents of the Distribution
+
+This distribution bundle includes the following major components:
+
 * **libarchive**: a library for reading and writing streaming archives
 * **tar**: the 'bsdtar' program is a full-featured 'tar' implementation built on libarchive
 * **cpio**: the 'bsdcpio' program is a different interface to essentially the same functionality
@@ -20,21 +28,24 @@ This distribution bundle includes the following components:
 * **contrib**:  Various items sent to me by third parties; please contact the authors with any questions.
 
 The top-level directory contains the following information files:
+
 * **NEWS** - highlights of recent changes
 * **COPYING** - what you can do with this
 * **INSTALL** - installation instructions
 * **README** - this file
-* **configure** - configuration script, see INSTALL for details.
 * **CMakeLists.txt** - input for "cmake" build tool, see INSTALL
+* **configure** - configuration script, see INSTALL for details.  If your copy of the source lacks a `configure` script, you can try to construct it by running the script in `build/autogen.sh` (or use `cmake`).
 
-The following files in the top-level directory are used by the
-'configure' script:
-   * Makefile.am, aclocal.m4, configure.ac
-       - used to build this distribution, only needed by maintainers
-   * Makefile.in, config.h.in
-	- templates used by configure script
+The following files in the top-level directory are used by the 'configure' script:
+* `Makefile.am`, `aclocal.m4`, `configure.ac` - used to build this distribution, only needed by maintainers
+* `Makefile.in`, `config.h.in` - templates used by configure script
 
-Guide to Documentation installed by this system:
+## Documentation
+
+In addition to the informational articles and documentation
+in the online [libarchive Wiki](https://github.com/libarchive/libarchive/wiki),
+the distribution also includes a number of manual pages:
+
  * bsdtar.1 explains the use of the bsdtar program
  * bsdcpio.1 explains the use of the bsdcpio program
  * bsdcat.1 explains the use of the bsdcat program
@@ -49,31 +60,34 @@ Guide to Documentation installed by this system:
  * cpio.5, mtree.5, and tar.5 provide detailed information about these
    popular archive formats, including hard-to-find details about
    modern cpio and tar variants.
+
 The manual pages above are provided in the 'doc' directory in
 a number of different formats.
 
-You should also read the copious comments in "archive.h" and the
+You should also read the copious comments in `archive.h` and the
 source code for the sample programs for more details.  Please let us
 know about any errors or omissions you find.
 
+## Supported Formats
+
 Currently, the library automatically detects and reads the following fomats:
-  * GNU tar format (including GNU long filenames, long link names, and sparse files)
-  * Solaris 9 extended tar format (including ACLs)
   * Old V7 tar archives
   * POSIX ustar
+  * GNU tar format (including GNU long filenames, long link names, and sparse files)
+  * Solaris 9 extended tar format (including ACLs)
   * POSIX pax interchange format
   * POSIX octet-oriented cpio
   * SVR4 ASCII cpio
   * POSIX octet-oriented cpio
   * Binary cpio (big-endian or little-endian)
   * ISO9660 CD-ROM images (with optional Rockridge or Joliet extensions)
-  * ZIP archives (with uncompressed or "deflate" compressed entries)
+  * ZIP archives (with uncompressed or "deflate" compressed entries, including support for encrypted Zip archives)
   * GNU and BSD 'ar' archives
   * 'mtree' format
   * 7-Zip archives
   * Microsoft CAB format
   * LHA and LZH archives
-  * RAR archives
+  * RAR archives (with some limitations due to RAR's proprietary status)
   * XAR archives
 
 The library also detects and handles any of the following before evaluating the archive:
@@ -112,48 +126,61 @@ When creating archives, the result can be filtered with any of the following:
   * lz4 compression
   * lzop compression
 
-Notes about the library architecture:
+## Notes about the Library Design
 
- * This is a heavily stream-oriented system.  There is no direct
-   support for in-place modification or random access.
+* This is a heavily stream-oriented system.  That means that
+  it is optimized to read or write the archive in a single
+  pass from beginning to end.  For example, this allows
+  libarchive to process archives too large to store on disk
+  by processing them on-the-fly as they are read from or
+  written to a network or tape drive.  Conversely, libarchive
+  does not support in-place modification or random access.
 
- * The library is designed to be extended with new compression and
-   archive formats.  The only requirement is that the format be
-   readable or writable as a stream and that each archive entry be
-   independent.  There are articles on the libarchive Wiki explaining
-   how to extend libarchive.
+* The library is designed to be extended with new compression and
+  archive formats.  The only requirement is that the format be
+  readable or writable as a stream and that each archive entry be
+  independent.  There are articles on the libarchive Wiki explaining
+  how to extend libarchive.
 
- * On read, compression and format are always detected automatically.
+* On read, compression and format are always detected automatically.
 
- * I've attempted to minimize static link pollution.  If you don't
-   explicitly invoke a particular feature (such as support for a
-   particular compression or format), it won't get pulled in to
-   statically-linked programs.  In particular, if you don't explicitly
-   enable a particular compression or decompression support, you won't
-   need to link against the corresponding compression or decompression
-   libraries.  This also reduces the size of statically-linked
-   binaries in environments where that matters.
+* The same API is used for all formats; in particular, it's very
+  easy for software using libarchive to transparently handle
+  any of libarchive's archiving formats.
 
- * On read, the library accepts whatever blocks you hand it.
-   Your read callback is free to pass the library a byte at a time
-   or mmap the entire archive and give it to the library at once.
-   On write, the library always produces correctly-blocked output.
+* Libarchive's automatic support for decompression can be used
+  without archiving by explicitly selecting the "raw" and "empty"
+  formats.
 
- * The object-style approach allows you to have multiple archive streams
-   open at once.  bsdtar uses this in its "@archive" extension.
+* I've attempted to minimize static link pollution.  If you don't
+  explicitly invoke a particular feature (such as support for a
+  particular compression or format), it won't get pulled in to
+  statically-linked programs.  In particular, if you don't explicitly
+  enable a particular compression or decompression support, you won't
+  need to link against the corresponding compression or decompression
+  libraries.  This also reduces the size of statically-linked
+  binaries in environments where that matters.
 
- * The archive itself is read/written using callback functions.
-   You can read an archive directly from an in-memory buffer or
-   write it to a socket, if you wish.  There are some utility
-   functions to provide easy-to-use "open file," etc, capabilities.
+* On read, the library accepts whatever blocks you hand it.
+  Your read callback is free to pass the library a byte at a time
+  or mmap the entire archive and give it to the library at once.
+  On write, the library always produces correctly-blocked output.
 
- * The read/write APIs are designed to allow individual entries
-   to be read or written to any data source:  You can create
-   a block of data in memory and add it to a tar archive without
-   first writing a temporary file.  You can also read an entry from
-   an archive and write the data directly to a socket.  If you want
-   to read/write entries to disk, there are convenience functions to
-   make this especially easy.
+* The object-style approach allows you to have multiple archive streams
+  open at once.  bsdtar uses this in its "@archive" extension.
 
- * Note: "pax interchange format" is really an extended tar format,
-   despite what the name says.
+* The archive itself is read/written using callback functions.
+  You can read an archive directly from an in-memory buffer or
+  write it to a socket, if you wish.  There are some utility
+  functions to provide easy-to-use "open file," etc, capabilities.
+
+* The read/write APIs are designed to allow individual entries
+  to be read or written to any data source:  You can create
+  a block of data in memory and add it to a tar archive without
+  first writing a temporary file.  You can also read an entry from
+  an archive and write the data directly to a socket.  If you want
+  to read/write entries to disk, there are convenience functions to
+  make this especially easy.
+
+* Note: "pax interchange format" is really an extended tar format,
+  despite what the name says.
