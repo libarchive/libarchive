@@ -128,6 +128,9 @@ When creating archives, the result can be filtered with any of the following:
 
 ## Notes about the Library Design
 
+The following notes address many of the most common
+questions we are asked about libarchive:
+
 * This is a heavily stream-oriented system.  That means that
   it is optimized to read or write the archive in a single
   pass from beginning to end.  For example, this allows
@@ -172,6 +175,22 @@ When creating archives, the result can be filtered with any of the following:
   need to link against the corresponding compression or decompression
   libraries.  This also reduces the size of statically-linked
   binaries in environments where that matters.
+
+* The library is generally _thread safe_ depending on the platform:
+  it does not define any global variables of its own.  However, some
+  platforms do not provide fully thread-safe versions of key C library
+  functions.  On those platforms, libarchive will use the non-thread-safe
+  functions.  Patches to improve this are of great interest to us.
+
+* In particular, libarchive's modules to read or write a directory
+  tree do use `chdir()` to optimize the directory traversals.  This
+  can cause problems for programs that expect to do disk access from
+  multiple threads.
+
+* The library is _not_ thread aware, however.  It does no locking
+  or thread management of any kind.  If you create a libarchive
+  object and need to access it from multiple threads, you will
+  need to provide your own locking.
 
 * On read, the library accepts whatever blocks you hand it.
   Your read callback is free to pass the library a byte at a time
