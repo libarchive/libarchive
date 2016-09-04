@@ -624,6 +624,13 @@ AC_CHECK_TYPES(struct vfsconf,,,
 	#include <sys/mount.h>
 	])
 
+AC_CHECK_TYPES(struct xvfsconf,,,
+	[#if HAVE_SYS_TYPES_H
+	#include <sys/types.h>
+	#endif
+	#include <sys/mount.h>
+	])
+
 # There are several variants of readdir_r around; we only
 # accept the POSIX-compliant version.
 AC_COMPILE_IFELSE(

@@ -929,6 +929,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have `struct vfsconf'. */
 #cmakedefine HAVE_STRUCT_VFSCONF 1
 
+/* Define to 1 if you have `struct xvfsconf'. */
+#cmakedefine HAVE_STRUCT_XVFSCONF 1
+
 /* Define to 1 if you have the `symlink' function. */
 #cmakedefine HAVE_SYMLINK 1
 
