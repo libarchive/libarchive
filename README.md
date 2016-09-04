@@ -185,7 +185,8 @@ questions we are asked about libarchive:
 * In particular, libarchive's modules to read or write a directory
   tree do use `chdir()` to optimize the directory traversals.  This
   can cause problems for programs that expect to do disk access from
-  multiple threads.
+  multiple threads.  Of course, those modules are completely
+  optional and you can use the rest of libarchive without them.
 
 * The library is _not_ thread aware, however.  It does no locking
   or thread management of any kind.  If you create a libarchive
@@ -213,5 +214,9 @@ questions we are asked about libarchive:
   to read/write entries to disk, there are convenience functions to
   make this especially easy.
 
-* Note: "pax interchange format" is really an extended tar format,
-  despite what the name says.
+* Note: The "pax interchange format" is a POSIX standard extended tar
+  format that should be used when the older _ustar_ format is not
+  appropriate.  It has many advantages over other tar formats
+  (including the legacy GNU tar format) and is widely supported by
+  current tar implementations.
+
