@@ -1722,9 +1722,8 @@ mtree_entry_setup_filenames(struct archive_write *a, struct mtree_entry *file,
     struct archive_entry *entry)
 {
 	const char *pathname;
-	char *p, *dirname, *slash;
+	char *p, *slash;
 	size_t len;
-	int ret = ARCHIVE_OK;
 
 	archive_strcpy(&file->pathname, archive_entry_pathname(entry));
 #if defined(_WIN32) || defined(__CYGWIN__)
@@ -1754,119 +1753,114 @@ mtree_entry_setup_filenames(struct archive_write *a, struct mtree_entry *file,
 #else
 	(void)a; /* UNUSED */
 #endif
-	pathname =  file->pathname.s;
+	pathname = file->pathname.s;
 	if (strcmp(pathname, ".") == 0) {
 		archive_strcpy(&file->basename, ".");
 		return (ARCHIVE_OK);
 	}
 
-	archive_strcpy(&(file->parentdir), pathname);
-
-	len = file->parentdir.length;
-	p = dirname = file->parentdir.s;
-
-	/*
-	 * Remove leading '/' and '../' elements
-	 */
-	while (*p) {
-		if (p[0] == '/') {
-			p++;
+	/* Remove leading '/' and '../' elements */
+	len = archive_strlen(&file->pathname);
+	while (*pathname) {
+		if (pathname[0] == '/') {
+			pathname++;
 			len--;
-		} else if (p[0] != '.')
+		} else if (pathname[0] != '.') {
 			break;
-		else if (p[1] == '.' && p[2] == '/') {
-			p += 3;
+		} else if (pathname[1] == '.' && pathname[2] == '/') {
+			pathname += 3;
 			len -= 3;
-		} else
+		} else {
 			break;
+		}
 	}
-	if (p != dirname) {
-		memmove(dirname, p, len+1);
-		p = dirname;
-	}
+
 	/*
-	 * Remove "/","/." and "/.." elements from tail.
+	 * Ensure that we have enough room for the './' prefix
+	 * and '\0' terminator.
 	 */
-	while (len > 0) {
-		size_t ll = len;
-
-		if (len > 0 && p[len-1] == '/') {
-			p[len-1] = '\0';
-			len--;
-		}
-		if (len > 1 && p[len-2] == '/' && p[len-1] == '.') {
-			p[len-2] = '\0';
-			len -= 2;
-		}
-		if (len > 2 && p[len-3] == '/' && p[len-2] == '.' &&
-		    p[len-1] == '.') {
-			p[len-3] = '\0';
-			len -= 3;
-		}
-		if (ll == len)
-			break;
-	}
-	while (*p) {
-		if (p[0] == '/') {
-			if (p[1] == '/')
-				/* Convert '//' --> '/' */
-				memmove(p, p+1, len+1);
-			else if (p[1] == '.' && p[2] == '/')
-				/* Convert '/./' --> '/' */
-				memmove(p, p+2, len+1);
-			else if (p[1] == '.' && p[2] == '.' && p[3] == '/') {
-				/* Convert 'dir/dir1/../dir2/'
-				 *     --> 'dir/dir2/'
-				 */
-				char *rp = p -1;
-				while (rp >= dirname) {
-					if (*rp == '/')
-						break;
-					--rp;
-				}
-				if (rp > dirname) {
-					memmove(rp, p+3, len+1);
-					p = rp;
-				} else {
-					memmove(dirname, p+4, len+1);
-					p = dirname;
-				}
-			} else
-				p++;
-		} else
-			p++;
-	}
-	p = dirname;
-	len = strlen(p);
+	archive_string_ensure(&file->parentdir, len + 2 + 1);
 
 	/*
-	 * Add "./" prefiex.
+	 * Add "./" prefix.
 	 * NOTE: If the pathname does not have a path separator, we have
 	 * to add "./" to the head of the pathename because mtree reader
 	 * will suppose that it is v1(a.k.a classic) mtree format and
 	 * change the directory unexpectedly and so it will make a wrong
 	 * path.
 	 */
-	if (strcmp(p, ".") != 0 && strncmp(p, "./", 2) != 0) {
-		struct archive_string as;
-		archive_string_init(&as);
-		archive_strcpy(&as, "./");
-		archive_strncat(&as, p, len);
-		archive_string_empty(&file->parentdir);
-		archive_string_concat(&file->parentdir, &as);
-		archive_string_free(&as);
-		p = file->parentdir.s;
-		len = archive_strlen(&file->parentdir);
+	if (strncmp(pathname, "./", 2) != 0)
+		archive_strncat(&file->parentdir, "./", 2);
+
+	p = file->parentdir.s + file->parentdir.length;
+	while (*pathname) {
+		if (strncmp(pathname, "//", 2) == 0) {
+			/* Skip '//' */
+			pathname++;
+			continue;
+		} else if (strncmp(pathname, "/./", 3) == 0) {
+			/* Skip '/./' */
+			pathname += 2;
+			continue;
+		} else if (strncmp(pathname, "/../", 4) == 0) {
+			/* Convert 'dir/dir1/../' --> 'dir/' */
+			char *rp = p - 1;
+			while (rp >= file->parentdir.s) {
+				/* roll-back last path component. */
+				if (*rp == '/')
+					break;
+				--rp;
+			}
+			if (rp > file->parentdir.s) {
+				pathname += 3;
+				p = rp;
+				continue;
+			}
+
+			/*
+			 * We are back at top, we cannot canonicalize by
+			 * going up the path string further. Leave as-is.
+			 */
+		}
+		*p++ = *pathname++;
 	}
+	len = p - file->parentdir.s;
+	file->parentdir.length = len;
+	file->parentdir.s[len] = '\0';
 
 	/*
-	 * Find out the position which points the last position of
-	 * path separator('/').
+	 * Remove "/", "/." and "/.." elements from tail.
+	 */
+	p = file->parentdir.s;
+	while (len > 0) {
+		size_t ll = len;
+
+		if (len > 0 && p[len-1] == '/')
+			len--;
+		if (len > 1 && p[len-2] == '/' && p[len-1] == '.')
+			len -= 2;
+		if (len > 2 && p[len-3] == '/' && p[len-2] == '.' &&
+		    p[len-1] == '.')
+			len -= 3;
+		if (ll == len)
+			break;
+	}
+	file->parentdir.length = len;
+	file->parentdir.s[len] = '\0';
+
+	/*
+	 * Find out the position which points to the last position of
+	 * path separator('/'). As we now string's length, use a shortcut
+	 * and start from its end.
 	 */
 	slash = NULL;
-	for (; *p != '\0'; p++) {
-		if (*p == '/')
+	p = file->parentdir.s + len;
+	while (p >= file->parentdir.s) {
+		if (*p == '/') {
 			slash = p;
+			break;
+		}
+		p--;
 	}
 	if (slash == NULL) {
 		/* The pathname doesn't have a parent directory. */
@@ -1874,14 +1868,14 @@ mtree_entry_setup_filenames(struct archive_write *a, struct mtree_entry *file,
 		archive_string_copy(&(file->basename), &(file->parentdir));
 		archive_string_empty(&(file->parentdir));
 		*file->parentdir.s = '\0';
-		return (ret);
+		return ARCHIVE_OK;
 	}
 
 	/* Make a basename from file->parentdir.s and slash */
 	*slash  = '\0';
 	file->parentdir.length = slash - file->parentdir.s;
 	archive_strcpy(&(file->basename),  slash + 1);
-	return (ret);
+	return ARCHIVE_OK;
 }
 
 static int
