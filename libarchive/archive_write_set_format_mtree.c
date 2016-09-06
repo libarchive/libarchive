@@ -1811,16 +1811,20 @@ mtree_entry_setup_filenames(struct archive_write *a, struct mtree_entry *file,
 					break;
 				--rp;
 			}
-			if (rp > file->parentdir.s) {
+
+			/*
+			 * We should only roll-back up when:
+			 *  - previous component is not "..", as it means
+			 *    we did not manage to canonicalize it
+			 *    previously;
+			 *  - we are not back at the root of the path.
+			 */
+			if (strncmp(rp, "/..", 3) != 0 &&
+			    rp > file->parentdir.s) {
 				pathname += 3;
 				p = rp;
 				continue;
 			}
-
-			/*
-			 * We are back at top, we cannot canonicalize by
-			 * going up the path string further. Leave as-is.
-			 */
 		}
 		*p++ = *pathname++;
 	}
