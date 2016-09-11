@@ -140,7 +140,17 @@ __FBSDID("$FreeBSD$");
 #define O_BINARY 0
 #endif
 #ifndef O_CLOEXEC
-#define O_CLOEXEC	0
+#define O_CLOEXEC 0
+#endif
+
+/* Ignore non-int O_NOFOLLOW constant. */
+/* gnulib's fcntl.h does this on AIX, but it seems practical everywhere */
+#if defined O_NOFOLLOW && !(INT_MIN <= O_NOFOLLOW && O_NOFOLLOW <= INT_MAX)
+#undef O_NOFOLLOW
+#endif
+
+#ifndef O_NOFOLLOW
+#define O_NOFOLLOW 0
 #endif
 
 struct fixup_entry {
@@ -2067,7 +2077,7 @@ create_filesystem_object(struct archive_write_disk *a)
 			a->deferred = 0;
 		} else if (r == 0 && a->filesize > 0) {
 			a->fd = open(a->name,
-				     O_WRONLY | O_TRUNC | O_BINARY | O_CLOEXEC);
+				     O_WRONLY | O_TRUNC | O_BINARY | O_CLOEXEC | O_NOFOLLOW);
 			__archive_ensure_cloexec_flag(a->fd);
 			if (a->fd < 0)
 				r = errno;
