@@ -2378,11 +2378,6 @@ current_fixup(struct archive_write_disk *a, const char *pathname)
 	return (a->current_fixup);
 }
 
-/* TODO: Make this work. */
-/*
- * TODO: The deep-directory support bypasses this; disable deep directory
- * support if we're doing symlink checks.
- */
 /*
  * TODO: Someday, integrate this with the deep dir support; they both
  * scan the path and both can be optimized by comparing against other
@@ -2399,7 +2394,6 @@ check_symlinks_fsobj(char *path, int *error_number, struct archive_string *error
 {
 #if !defined(HAVE_LSTAT)
 	/* Platform doesn't have lstat, so we can't look for symlinks. */
-	(void)a; /* UNUSED */
 	(void)path; /* UNUSED */
 	(void)error_number; /* UNUSED */
 	(void)error_string; /* UNUSED */
