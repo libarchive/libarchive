@@ -587,12 +587,12 @@ translate_acl(struct archive_read_disk *a,
 #ifdef ACL_TYPE_NFS4
 	acl_entry_type_t acl_type;
 	acl_flagset_t	 acl_flagset;
-	int brand, r;
+	int brand;
 #endif
 	acl_entry_t	 acl_entry;
 	acl_permset_t	 acl_permset;
 	int		 i, entry_acl_type;
-	int		 s, ae_id, ae_tag, ae_perm;
+	int		 r, s, ae_id, ae_tag, ae_perm;
 	const char	*ae_name;
 
 
