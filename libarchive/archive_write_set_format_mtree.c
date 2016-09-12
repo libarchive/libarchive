@@ -1854,7 +1854,7 @@ mtree_entry_setup_filenames(struct archive_write *a, struct mtree_entry *file,
 
 	/*
 	 * Find out the position which points to the last position of
-	 * path separator('/'). As we now string's length, use a shortcut
+	 * path separator('/'). As we know string's length, use a shortcut
 	 * and start from its end.
 	 */
 	slash = NULL;
