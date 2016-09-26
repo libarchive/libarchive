@@ -1604,8 +1604,10 @@ assertion_make_dir(const char *file, int line, const char *dirname, int mode)
 		return (1);
 #else
 	if (0 == mkdir(dirname, mode)) {
-		assertion_file_mode(file, line, dirname, mode);
-		return (1);
+		if (0 == chmod(dirname, mode)) {
+			assertion_file_mode(file, line, dirname, mode);
+			return (1);
+		}
 	}
 #endif
 	failure_start(file, line, "Could not create directory %s", dirname);
@@ -1652,6 +1654,11 @@ assertion_make_file(const char *file, int line,
 	fd = open(path, O_CREAT | O_WRONLY, mode >= 0 ? mode : 0644);
 	if (fd < 0) {
 		failure_start(file, line, "Could not create %s", path);
+		failure_finish(NULL);
+		return (0);
+	}
+	if (0 != chmod(path, mode)) {
+		failure_start(file, line, "Could not chmod %s", path);
 		failure_finish(NULL);
 		return (0);
 	}
