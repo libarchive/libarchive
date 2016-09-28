@@ -327,6 +327,9 @@ void copy_reference_file(const char *);
  */
 void extract_reference_files(const char **);
 
+/* Subtract umask from mode */
+mode_t umasked(mode_t expected_mode);
+
 /* Path to working directory for current test */
 extern const char *testworkdir;
 
