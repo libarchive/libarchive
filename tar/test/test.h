@@ -182,6 +182,8 @@
   assertion_file_nlinks(__FILE__, __LINE__, pathname, nlinks)
 #define assertFileSize(pathname, size)  \
   assertion_file_size(__FILE__, __LINE__, pathname, size)
+#define assertFileMode(pathname, mode)  \
+  assertion_file_mode(__FILE__, __LINE__, pathname, mode)
 #define assertTextFileContents(text, pathname) \
   assertion_text_file_contents(__FILE__, __LINE__, text, pathname)
 #define assertFileContainsLinesAnyOrder(pathname, lines)	\
