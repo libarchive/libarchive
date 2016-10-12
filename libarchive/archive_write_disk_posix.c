@@ -4044,10 +4044,10 @@ older(struct stat *st, struct archive_entry *entry)
 {
 	/* First, test the seconds and return if we have a definite answer. */
 	/* Definitely older. */
-	if (st->st_mtime < archive_entry_mtime(entry))
+	if ((time_t) st->st_mtime < archive_entry_mtime(entry))
 		return (1);
 	/* Definitely younger. */
-	if (st->st_mtime > archive_entry_mtime(entry))
+	if ((time_t) st->st_mtime > archive_entry_mtime(entry))
 		return (0);
 	/* If this platform supports fractional seconds, try those. */
 #if HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC
