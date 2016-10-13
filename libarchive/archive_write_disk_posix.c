@@ -110,6 +110,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl1.h>
 #endif
 
+/*
+ * Macro to cast st_mtime and time_t to an int64 so that 2 numbers can reliably be compared.
+ *
+ * It assumes that the input is an integer type of no more than 64 bits.
+ * If the number is less than zero, t must be a signed type, so it fits in
+ * int64_t. Otherwise, it's a nonnegative value so we can cast it to uint64_t
+ * without loss. But it could be a large unsigned value, so we have to clip it
+ * to INT64_MAX.*
+ */
+#define to_int64_time(t) \
+   ((t) < 0 ? (int64_t)(t) : (uint64_t)(t) > (uint64_t)INT64_MAX ? INT64_MAX : (int64_t)(t))
+
 #if __APPLE__
 #include <TargetConditionals.h>
 #if TARGET_OS_MAC && !TARGET_OS_EMBEDDED && HAVE_QUARANTINE_H
@@ -4044,10 +4056,10 @@ older(struct stat *st, struct archive_entry *entry)
 {
 	/* First, test the seconds and return if we have a definite answer. */
 	/* Definitely older. */
-	if ((time_t) st->st_mtime < archive_entry_mtime(entry))
+	if (to_int64_time(st->st_mtime) < to_int64_time(archive_entry_mtime(entry)))
 		return (1);
 	/* Definitely younger. */
-	if ((time_t) st->st_mtime > archive_entry_mtime(entry))
+	if (to_int64_time(st->st_mtime) > to_int64_time(archive_entry_mtime(entry)))
 		return (0);
 	/* If this platform supports fractional seconds, try those. */
 #if HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC
