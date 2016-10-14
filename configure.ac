@@ -12,7 +12,7 @@ m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
 m4_define([BSDCPIO_VERSION_S],LIBARCHIVE_VERSION_S())
 m4_define([BSDCAT_VERSION_S],LIBARCHIVE_VERSION_S())
 
-AC_PREREQ([2.69])
+AC_PREREQ([2.68])
 
 #
 # Now starts the "real" configure script.
