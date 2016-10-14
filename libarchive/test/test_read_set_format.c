@@ -200,6 +200,7 @@ DEFINE_TEST(test_read_append_filter_wrong_program)
 {
   struct archive_entry *ae;
   struct archive *a;
+  FILE * fp;
   int fd;
   fpos_t pos;
 
@@ -215,7 +216,7 @@ DEFINE_TEST(test_read_append_filter_wrong_program)
   fflush(stderr);
   fgetpos(stderr, &pos);
   fd = dup(fileno(stderr));
-  freopen("stderr1", "w", stderr);
+  fp = freopen("stderr1", "w", stderr); 
 
   assert((a = archive_read_new()) != NULL);
   assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_TAR));
@@ -228,11 +229,13 @@ DEFINE_TEST(test_read_append_filter_wrong_program)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
   /* restore stderr */
-  fflush(stderr);
-  dup2(fd, fileno(stderr));
-  close(fd);
-  clearerr(stderr);
-  fsetpos(stderr, &pos);
+  if (fp != NULL) {
+    fflush(stderr);
+    dup2(fd, fileno(stderr));
+    close(fd);
+    clearerr(stderr);
+    fsetpos(stderr, &pos);
+  }
 
   assertTextFileContents("bunzip2: (stdin) is not a bzip2 file.\n", "stderr1");
 }
