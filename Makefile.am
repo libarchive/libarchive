@@ -662,6 +662,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_filter_lrzip.tar.lrz.uu \
 	libarchive/test/test_read_filter_lzop.tar.lzo.uu \
 	libarchive/test/test_read_filter_lzop_multiple_parts.tar.lzo.uu \
+	libarchive/test/test_read_format_mtree_crash747.mtree.bz2.uu \
 	libarchive/test/test_read_format_7zip_bcj2_bzip2.7z.uu \
 	libarchive/test/test_read_format_7zip_bcj2_copy_1.7z.uu \
 	libarchive/test/test_read_format_7zip_bcj2_copy_2.7z.uu \
@@ -787,6 +788,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_filename_utf8_jp.zip.uu \
 	libarchive/test/test_read_format_zip_filename_utf8_ru.zip.uu \
 	libarchive/test/test_read_format_zip_filename_utf8_ru2.zip.uu \
+	libarchive/test/test_read_format_zip_high_compression.zip.uu \
 	libarchive/test/test_read_format_zip_length_at_end.zip.uu \
 	libarchive/test/test_read_format_zip_mac_metadata.zip.uu \
 	libarchive/test/test_read_format_zip_malformed1.zip.uu \

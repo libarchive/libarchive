@@ -3,18 +3,14 @@ sudo: true
 compiler:
   - gcc
   - clang
+env:
+  - BUILD_SYSTEM=cmake
+  - BUILD_SYSTEM=autotools
 before_install:
-  - sudo add-apt-repository ppa:kubuntu-ppa/backports -y
-  - sudo apt-get update -qq
+  - if [ "${BUILD_SYSTEM}" = "cmake" ]; then sudo add-apt-repository ppa:kubuntu-ppa/backports -y; fi
+  - if [ "${BUILD_SYSTEM}" = "cmake" ]; then sudo apt-get update -qq; fi
 install:
-  - sudo apt-get install -y cmake=2.8.12.2-0ubuntu1~ubuntu12.04.1~ppa2
+  - if [ "${BUILD_SYSTEM}" = "cmake" ]; then sudo apt-get install -y cmake=2.8.12.2-0ubuntu1~ubuntu12.04.1~ppa2; fi
   - sudo apt-get install -y libbz2-dev libzip-dev liblzma-dev
-before_script:
-  - BUILD_DIR=`pwd`/BUILD
-  - mkdir -p ${BUILD_DIR}
-  - cd ${BUILD_DIR}
-  - cmake ..
 script:
-  - cd ${BUILD_DIR}
-  - make
-  - make test
+  - build/ci_build.sh
