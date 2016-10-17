@@ -326,14 +326,6 @@ if test "x$with_bz2lib" != "xno"; then
   esac
 fi
 
-AC_ARG_WITH([lzmadec],
-  AS_HELP_STRING([--without-lzmadec], [Don't build support for lzma through lzmadec]))
-
-if test "x$with_lzmadec" != "xno"; then
-  AC_CHECK_HEADERS([lzmadec.h])
-  AC_CHECK_LIB(lzmadec,lzmadec_decode)
-fi
-
 AC_ARG_WITH([iconv],
   AS_HELP_STRING([--without-iconv], [Don't try to link against iconv]))
 
