@@ -1,16 +1,13 @@
 language: C
-sudo: true
+sudo: required
+dist: trusty
 compiler:
   - gcc
   - clang
 env:
   - BUILD_SYSTEM=cmake
   - BUILD_SYSTEM=autotools
-before_install:
-  - if [ "${BUILD_SYSTEM}" = "cmake" ]; then sudo add-apt-repository ppa:kubuntu-ppa/backports -y; fi
-  - if [ "${BUILD_SYSTEM}" = "cmake" ]; then sudo apt-get update -qq; fi
 install:
-  - if [ "${BUILD_SYSTEM}" = "cmake" ]; then sudo apt-get install -y cmake=2.8.12.2-0ubuntu1~ubuntu12.04.1~ppa2; fi
   - sudo apt-get install -y libbz2-dev libzip-dev liblzma-dev
 script:
   - build/ci_build.sh
