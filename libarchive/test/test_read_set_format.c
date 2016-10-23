@@ -200,9 +200,11 @@ DEFINE_TEST(test_read_append_filter_wrong_program)
 {
   struct archive_entry *ae;
   struct archive *a;
+#if !defined(_WIN32) || defined(__CYGWIN__)
   FILE * fp;
   int fd;
   fpos_t pos;
+#endif
 
   /*
    * If we have "bunzip2 -q", try using that.
@@ -212,11 +214,13 @@ DEFINE_TEST(test_read_append_filter_wrong_program)
     return;
   }
 
+#if !defined(_WIN32) || defined(__CYGWIN__)
   /* bunzip2 will write to stderr, redirect it to a file */
   fflush(stderr);
   fgetpos(stderr, &pos);
   fd = dup(fileno(stderr));
   fp = freopen("stderr1", "w", stderr); 
+#endif
 
   assert((a = archive_read_new()) != NULL);
   assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_TAR));
@@ -228,7 +232,8 @@ DEFINE_TEST(test_read_append_filter_wrong_program)
   assertEqualIntA(a, ARCHIVE_WARN, archive_read_close(a));
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
-  /* restore stderr */
+#if !defined(_WIN32) || defined(__CYGWIN__)
+  /* restore stderr and verify results */
   if (fp != NULL) {
     fflush(stderr);
     dup2(fd, fileno(stderr));
@@ -236,6 +241,6 @@ DEFINE_TEST(test_read_append_filter_wrong_program)
     clearerr(stderr);
     fsetpos(stderr, &pos);
   }
-
   assertTextFileContents("bunzip2: (stdin) is not a bzip2 file.\n", "stderr1");
+#endif
 }
