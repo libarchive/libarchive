@@ -1095,6 +1095,8 @@ __LA_DECL int	archive_match_excluded(struct archive *,
  */
 __LA_DECL int	archive_match_path_excluded(struct archive *,
 		    struct archive_entry *);
+/* Control recursive inclusion of directory content when directory is included. Default on. */
+__LA_DECL int	archive_match_set_inclusion_recursion(struct archive *, int);
 /* Add exclusion pathname pattern. */
 __LA_DECL int	archive_match_exclude_pattern(struct archive *, const char *);
 __LA_DECL int	archive_match_exclude_pattern_w(struct archive *,
