@@ -133,11 +133,12 @@ DEFINE_TEST(test_read_append_filter)
   assert((a = archive_read_new()) != NULL);
   assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_TAR));
   r = archive_read_append_filter(a, ARCHIVE_FILTER_GZIP);
-  if (r == ARCHIVE_WARN && !canGzip()) {
-    skipping("gzip reading not fully supported on this platform");
+  if (r != ARCHIVE_OK && archive_zlib_version() == NULL && !canGzip()) {
+    skipping("gzip tests require zlib or working gzip command");
     assertEqualInt(ARCHIVE_OK, archive_read_free(a));
     return;
   }
+  assertEqualIntA(a, ARCHIVE_OK, r);
   assertEqualInt(ARCHIVE_OK,
       archive_read_open_memory(a, archive, sizeof(archive)));
   assertEqualInt(ARCHIVE_OK, archive_read_next_header(a, &ae));
