@@ -25,8 +25,14 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#endif
+
 DEFINE_TEST(test_option_n)
 {
+	int status;
+
 	assertMakeDir("d1", 0755);
 	assertMakeFile("d1/file1", 0644, "d1/file1");
 
@@ -57,5 +63,92 @@ DEFINE_TEST(test_option_n)
 	assertEmptyFile("x.err");
 	assertIsDir("d1", umasked(0755));
 	assertFileNotExists("d1/file1");
+	assertChdir("..");
+
+	/*
+	 * Create a test archive with the following content:
+	 * d1/
+	 * d1/file1
+	 * d1/file2
+	 * file3
+	 * d2/file4
+	 *
+	 * Extracting uses the same code as listing and thus does not
+	 * get tested separately. This also covers the
+	 * archive_match_set_inclusion_recursion()
+	 * API.
+	 */
+	assertMakeFile("d1/file2", 0644, "d1/file2");
+	assertMakeFile("file3", 0644, "file3");
+	assertMakeDir("d2", 0755);
+	assertMakeFile("d2/file4", 0644, "d2/file4");
+	assertEqualInt(0,
+	    systemf("%s -cnf partial-archive.tar d1 d1/file1 d1/file2 file3 d2/file4 >c.out 2>c.err", testprog));
+
+/* Assert that file contents match a nul-terminated string. */
+#define assertFileContentsStr(str, pathname) assertFileContents(str, strlen(str), pathname)
+
+	/* Test 3: -t without other options */
+	assertMakeDir("test3", 0755);
+	assertChdir("test3");
+	assertEqualInt(0,
+	    systemf("%s -tf ../partial-archive.tar >c.out 2>c.err", testprog));
+	assertEmptyFile("c.err");
+	assertFileContentsStr("d1/\n"
+			      "d1/file1\n"
+			      "d1/file2\n"
+			      "file3\n"
+			      "d2/file4\n",
+			      "c.out");
+	assertChdir("..");
+
+	/* Test 4: -t without -n and some entries selected */
+	assertMakeDir("test4", 0755);
+	assertChdir("test4");
+	assertEqualInt(0,
+	    systemf("%s -tf ../partial-archive.tar d1 file3 d2/file4 >c.out 2>c.err", testprog));
+	assertEmptyFile("c.err");
+	assertFileContentsStr("d1/\n"
+			      "d1/file1\n"
+			      "d1/file2\n"
+			      "file3\n"
+			      "d2/file4\n",
+			      "c.out");
+	assertChdir("..");
+
+	/* Test 5: -t with -n and some entries selected */
+	assertMakeDir("test5", 0755);
+	assertChdir("test5");
+	assertEqualInt(0,
+	    systemf("%s -tnf ../partial-archive.tar d1 file3 d2/file4 >c.out 2>c.err", testprog));
+	assertEmptyFile("c.err");
+	assertFileContentsStr("d1/\n"
+			      "file3\n"
+			      "d2/file4\n",
+			      "c.out");
+	assertChdir("..");
+
+	/* Test 6: -t without -n and non-existant directory selected */
+	assertMakeDir("test6", 0755);
+	assertChdir("test6");
+	assertEqualInt(0,
+	    systemf("%s -tf ../partial-archive.tar d2 >c.out 2>c.err", testprog));
+	assertEmptyFile("c.err");
+	assertFileContentsStr("d2/file4\n",
+			      "c.out");
+	assertChdir("..");
+
+	/* Test 7: -t with -n and non-existant directory selected */
+	assertMakeDir("test7", 0755);
+	assertChdir("test7");
+	status = systemf("%s -tnf ../partial-archive.tar d2 >c.out 2>c.err", testprog);
+	assert(status);
+	assert(status != -1);
+	assert(WIFEXITED(status));
+	assertEqualInt(1, WEXITSTATUS(status));
+	assertFileContentsStr("bsdtar: d2: Not found in archive\n"
+			      "bsdtar: Error exit delayed from previous errors.\n",
+			      "c.err");
+	assertEmptyFile("c.out");
 	assertChdir("..");
 }
