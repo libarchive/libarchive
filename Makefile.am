@@ -33,6 +33,7 @@ AM_CPPFLAGS=$(PLATFORMCPPFLAGS)
 #
 EXTRA_DIST= \
 	CMakeLists.txt \
+	README.md \
 	build/autogen.sh \
 	build/bump-version.sh \
 	build/clean.sh \
