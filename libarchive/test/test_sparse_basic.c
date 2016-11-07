@@ -188,7 +188,7 @@ is_sparse_supported_fiemap(const char *path)
 static int
 is_sparse_supported(const char *path)
 {
-	return is_sparse_supported_fiemap(const char *path)
+	return is_sparse_supported_fiemap(path);
 }
 #endif
 #endif
@@ -235,7 +235,7 @@ is_sparse_supported(const char *path)
 	return (r >= 0);
 }
 
-#else
+#elif !defined(HAVE_LINUX_FIEMAP_H)
 
 /*
  * Other system may do not have the API such as lseek(HOLE),

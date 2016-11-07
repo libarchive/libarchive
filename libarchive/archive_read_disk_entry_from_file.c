@@ -1373,7 +1373,7 @@ exit_setup_sparse:
 	return (exit_sts);
 }
 
-#else
+#elif !defined(HAVE_LINUX_FIEMAP_H)
 
 /*
  * Generic (stub) sparse support.
