@@ -298,6 +298,17 @@ aes_ctr_release(archive_crypto_ctx *ctx)
 }
 
 #elif defined(HAVE_LIBCRYPTO)
+#ifdef HAVE_EVP_CIPHER_CTX_NEW
+#define CIPHER_CTX_PTR(acc) acc->ctx
+#define INIT_CIPHER_CTX(acc) acc->ctx = EVP_CIPHER_CTX_new()
+#define CLEANUP_CIPHER_CTX(acc) EVP_CIPHER_CTX_free(acc->ctx); \
+	acc->ctx = NULL;
+#else
+#define CIPHER_CTX_PTR(acc) &(acc->ctx)
+#define INIT_CIPHER_CTX(acc) EVP_CIPHER_CTX_init(CIPHER_CTX_PTR(acc))
+#define CLEANUP_CIPHER_CTX(acc) EVP_CIPHER_CTX_cleanup(CIPHER_CTX_PTR(acc)); \
+	memset(CIPHER_CTX_PTR(acc), 0, sizeof(EVP_CIPHER_CTX));
+#endif
 
 static int
 aes_ctr_init(archive_crypto_ctx *ctx, const uint8_t *key, size_t key_len)
@@ -314,7 +325,7 @@ aes_ctr_init(archive_crypto_ctx *ctx, const uint8_t *key, size_t key_len)
 	memcpy(ctx->key, key, key_len);
 	memset(ctx->nonce, 0, sizeof(ctx->nonce));
 	ctx->encr_pos = AES_BLOCK_SIZE;
-	EVP_CIPHER_CTX_init(&ctx->ctx);
+	INIT_CIPHER_CTX(ctx);
 	return 0;
 }
 
@@ -324,11 +335,12 @@ aes_ctr_encrypt_counter(archive_crypto_ctx *ctx)
 	int outl = 0;
 	int r;
 
-	r = EVP_EncryptInit_ex(&ctx->ctx, ctx->type, NULL, ctx->key, NULL);
+	r = EVP_EncryptInit_ex(CIPHER_CTX_PTR(ctx), ctx->type, NULL, ctx->key,
+	    NULL);
 	if (r == 0)
 		return -1;
-	r = EVP_EncryptUpdate(&ctx->ctx, ctx->encr_buf, &outl, ctx->nonce,
-	    AES_BLOCK_SIZE);
+	r = EVP_EncryptUpdate(CIPHER_CTX_PTR(ctx), ctx->encr_buf, &outl,
+  	    ctx->nonce, AES_BLOCK_SIZE);
 	if (r == 0 || outl != AES_BLOCK_SIZE)
 		return -1;
 	return 0;
@@ -337,7 +349,7 @@ aes_ctr_encrypt_counter(archive_crypto_ctx *ctx)
 static int
 aes_ctr_release(archive_crypto_ctx *ctx)
 {
-	EVP_CIPHER_CTX_cleanup(&ctx->ctx);
+	CLEANUP_CIPHER_CTX(ctx);
 	memset(ctx->key, 0, ctx->key_len);
 	memset(ctx->nonce, 0, sizeof(ctx->nonce));
 	return 0;
