@@ -173,7 +173,7 @@ __hmac_sha1_cleanup(archive_hmac_sha1_ctx *ctx)
 
 #elif defined(HAVE_LIBCRYPTO)
 #ifdef HAVE_HMAC_CTX_NEW
-#define HMAC_CTX_INIT(ctx) HMAC_CTX *tmp = HMC_CTX_new(); \
+#define HMAC_CTX_INIT(ctx) HMAC_CTX *tmp = HMAC_CTX_new(); \
 	HMAC_CTX_copy(ctx, tmp); \
 	HMAC_CTX_free(tmp);
 #define HMAC_CTX_CLEANUP(ctx) HMAC_CTX_free(ctx); ctx = NULL;
