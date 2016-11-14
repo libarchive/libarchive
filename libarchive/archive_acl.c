@@ -284,8 +284,11 @@ acl_new_entry(struct archive_acl *acl,
 	aq = NULL;
 	while (ap != NULL) {
 		if (ap->type == type && ap->tag == tag && ap->id == id) {
-			ap->permset = permset;
-			return (ap);
+			if (id != -1 || (tag != ARCHIVE_ENTRY_ACL_USER &&
+			    tag != ARCHIVE_ENTRY_ACL_GROUP)) {
+				ap->permset = permset;
+				return (ap);
+			}
 		}
 		aq = ap;
 		ap = ap->next;
