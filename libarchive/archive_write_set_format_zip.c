@@ -1655,7 +1655,7 @@ is_winzip_aes_encryption_supported(int encryption)
 	uint8_t derived_key[MAX_DERIVED_KEY_BUF_SIZE];
 	archive_crypto_ctx cctx;
 #if defined(HAVE_LIBCRYPTO) && defined(HAVE_HMAC_CTX_NEW)
-	archive_hmac_sha1_ctx *htcx;
+	archive_hmac_sha1_ctx *hctx;
 #define CTX_PTR(c) (c)
 #else
 	archive_hmac_sha1_ctx hctx;
