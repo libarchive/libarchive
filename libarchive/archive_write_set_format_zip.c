@@ -1654,7 +1654,13 @@ is_winzip_aes_encryption_supported(int encryption)
 	uint8_t salt[16 + 2];
 	uint8_t derived_key[MAX_DERIVED_KEY_BUF_SIZE];
 	archive_crypto_ctx cctx;
+#if defined(HAVE_LIBCRYPTO) && defined(HAVE_HMAC_CTX_NEW)
+	archive_hmac_sha1_ctx *htcx;
+#define CTX_PTR(c) (c)
+#else
 	archive_hmac_sha1_ctx hctx;
+#define CTX_PTR(c) (&c)
+#endif
 	int ret;
 
 	if (encryption == ENCRYPTION_WINZIP_AES128) {
@@ -1675,11 +1681,11 @@ is_winzip_aes_encryption_supported(int encryption)
 	ret = archive_encrypto_aes_ctr_init(&cctx, derived_key, key_len);
 	if (ret != 0)
 		return (0);
-	ret = archive_hmac_sha1_init(&hctx, derived_key + key_len,
+	ret = archive_hmac_sha1_init(CTX_PTR(hctx), derived_key + key_len,
 	    key_len);
 	archive_encrypto_aes_ctr_release(&cctx);
 	if (ret != 0)
 		return (0);
-	archive_hmac_sha1_cleanup(&hctx);
+	archive_hmac_sha1_cleanup(CTX_PTR(hctx));
 	return (1);
 }
