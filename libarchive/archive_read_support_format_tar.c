@@ -362,7 +362,26 @@ archive_read_format_tar_bid(struct archive_read *a, int best_bid)
 		/* Not a valid mode; bail out here. */
 		return (0);
 	}
-	/* TODO: Sanity test uid/gid/size/mtime/rdevmajor/rdevminor fields. */
+
+	/* Sanity test uid/gid/mtime fields must hold octal numbers. */
+	size_t i;
+	for (i = 0; i < sizeof(header->gid); ++i) {
+		char c = header->gid[i];
+		if (c != ' ' && c != '\0' && (c < '0' || c > '7'))
+			return 0;
+	}
+	for (i = 0; i < sizeof(header->uid); ++i) {
+		char c = header->uid[i];
+		if (c != ' ' && c != '\0' && (c < '0' || c > '7'))
+			return 0;
+	}
+	for (i = 0; i < sizeof(header->mtime); ++i) {
+		char c = header->mtime[i];
+		if (c != ' ' && c != '\0' && (c < '0' || c > '7'))
+			return 0;
+	}
+
+	/* TODO: Sanity test size/rdevmajor/rdevminor fields. */
 
 	return (bid);
 }
