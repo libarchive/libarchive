@@ -208,7 +208,7 @@ struct zip {
 #define HMAC_CTX_PTR(z) (z->hctx)
 #else
 	archive_hmac_sha1_ctx	hctx;
-#define HMAC_CTX_PTR(z) &(z->hctx)
+#define HMAC_CTX_PTR(z) (&(z->hctx))
 #endif
 	char			hctx_valid;
 

@@ -139,7 +139,13 @@ struct zip {
 	unsigned aes_vendor;
 	archive_crypto_ctx cctx;
 	char cctx_valid;
+#if defined(HAVE_LIBCRYPTO) && defined(HAVE_HMAC_CTX_NEW)
+	archive_hmac_sha1_ctx *hctx;
+#define HMAC_CTX_PTR(z) (z->hctx)
+#else
 	archive_hmac_sha1_ctx hctx;
+#define HMAC_CTX_PTR(z) (&(z->hctx))
+#endif
 	char hctx_valid;
 
 	unsigned char *file_header;
@@ -572,7 +578,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	if (zip->cctx_valid)
 		archive_encrypto_aes_ctr_release(&zip->cctx);
 	if (zip->hctx_valid)
-		archive_hmac_sha1_cleanup(&zip->hctx);
+		archive_hmac_sha1_cleanup(HMAC_CTX_PTR(zip));
 	zip->tctx_valid = zip->cctx_valid = zip->hctx_valid = 0;
 
 	if (type == AE_IFREG
@@ -1059,8 +1065,8 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 						    "Failed to encrypt file");
 						return (ARCHIVE_FAILED);
 					}
-					archive_hmac_sha1_update(&zip->hctx,
-					    zip->buf, l);
+					archive_hmac_sha1_update(
+					    HMAC_CTX_PTR(zip), zip->buf, l);
 				}
 				ret = __archive_write_output(a, zip->buf, l);
 				if (ret != ARCHIVE_OK)
@@ -1102,8 +1108,9 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 						    "Failed to encrypt file");
 						return (ARCHIVE_FAILED);
 					}
-					archive_hmac_sha1_update(&zip->hctx,
-					    zip->buf, zip->len_buf);
+					archive_hmac_sha1_update(
+						HMAC_CTX_PTR(zip), zip->buf,
+						zip->len_buf);
 				}
 				ret = __archive_write_output(a, zip->buf,
 					zip->len_buf);
@@ -1161,7 +1168,7 @@ archive_write_zip_finish_entry(struct archive_write *a)
 					    "Failed to encrypt file");
 					return (ARCHIVE_FAILED);
 				}
-				archive_hmac_sha1_update(&zip->hctx,
+				archive_hmac_sha1_update(HMAC_CTX_PTR(zip),
 				    zip->buf, remainder);
 			}
 			ret = __archive_write_output(a, zip->buf, remainder);
@@ -1181,7 +1188,7 @@ archive_write_zip_finish_entry(struct archive_write *a)
 		uint8_t hmac[20];
 		size_t hmac_len = 20;
 
-		archive_hmac_sha1_final(&zip->hctx, hmac, &hmac_len);
+		archive_hmac_sha1_final(HMAC_CTX_PTR(zip), hmac, &hmac_len);
 		ret = __archive_write_output(a, hmac, AUTH_CODE_SIZE);
 		if (ret != ARCHIVE_OK)
 			return (ret);
@@ -1360,7 +1367,7 @@ archive_write_zip_free(struct archive_write *a)
 	if (zip->cctx_valid)
 		archive_encrypto_aes_ctr_release(&zip->cctx);
 	if (zip->hctx_valid)
-		archive_hmac_sha1_cleanup(&zip->hctx);
+		archive_hmac_sha1_cleanup(HMAC_CTX_PTR(zip));
 	/* TODO: Free opt_sconv, sconv_default */
 
 	free(zip);
@@ -1617,7 +1624,7 @@ init_winzip_aes_encryption(struct archive_write *a)
 		    "Decryption is unsupported due to lack of crypto library");
 		return (ARCHIVE_FAILED);
 	}
-	ret = archive_hmac_sha1_init(&zip->hctx, derived_key + key_len,
+	ret = archive_hmac_sha1_init(HMAC_CTX_PTR(zip), derived_key + key_len,
 	    key_len);
 	if (ret != 0) {
 		archive_encrypto_aes_ctr_release(&zip->cctx);
