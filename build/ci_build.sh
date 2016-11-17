@@ -91,8 +91,8 @@ for action in ${ACTIONS}; do
 			case "${BUILD_SYSTEM}" in
 				autotools)
 					if ! make ${MAKE_ARGS} check; then
-						RET="$?"
 						cat test-suite.log
+						exit 1
 					fi
 					;;
 				cmake)
