@@ -294,6 +294,36 @@ archive_read_format_tar_cleanup(struct archive_read *a)
 	return (ARCHIVE_OK);
 }
 
+static int
+validate_number_field(const char* p_field, size_t i_size)
+{
+	unsigned char marker = (unsigned char)p_field[0];
+	/* octal? */
+	if ((marker >= '0' && marker <= '7') || marker == ' ') {
+		/* must be terminated by null or space */
+		if (p_field[i_size - 1] != '\0' && p_field[i_size - 1] != ' ') {
+			return 0;
+		}
+		/* rest must be octal digits */
+		size_t i = 0;
+		for (i = 1; i < i_size - 1; ++i) {
+			char c = p_field[i];
+			if ((c < '0' || c > '7') && c != ' ') {
+				return 0;
+			}
+		}
+		return 1;
+	}
+	/* base 256 (i.e. binary number) */
+	else if (marker == 128 || marker == 255 || marker == 0) {
+		/* nothing to check */
+		return 1;
+	}
+	/* not a number field */
+	else {
+		return 0;
+	}
+}
 
 static int
 archive_read_format_tar_bid(struct archive_read *a, int best_bid)
@@ -363,25 +393,15 @@ archive_read_format_tar_bid(struct archive_read *a, int best_bid)
 		return (0);
 	}
 
-	/* Sanity test uid/gid/mtime fields must hold octal numbers. */
-	size_t i;
-	for (i = 0; i < sizeof(header->gid); ++i) {
-		char c = header->gid[i];
-		if (c != ' ' && c != '\0' && (c < '0' || c > '7'))
-			return 0;
+	/* Sanity test uid/gid/mtime/size/rdevmajor/rdevminor fields. */
+	if (validate_number_field(header->uid, sizeof(header->uid)) == 0 ||
+		validate_number_field(header->gid, sizeof(header->gid)) == 0 ||
+		validate_number_field(header->mtime, sizeof(header->mtime)) == 0 ||
+		validate_number_field(header->size, sizeof(header->size)) == 0 ||
+		validate_number_field(header->rdevmajor, sizeof(header->rdevmajor)) == 0 ||
+		validate_number_field(header->rdevminor, sizeof(header->rdevminor)) == 0) {
+		return 0;
 	}
-	for (i = 0; i < sizeof(header->uid); ++i) {
-		char c = header->uid[i];
-		if (c != ' ' && c != '\0' && (c < '0' || c > '7'))
-			return 0;
-	}
-	for (i = 0; i < sizeof(header->mtime); ++i) {
-		char c = header->mtime[i];
-		if (c != ' ' && c != '\0' && (c < '0' || c > '7'))
-			return 0;
-	}
-
-	/* TODO: Sanity test size/rdevmajor/rdevminor fields. */
 
 	return (bid);
 }
