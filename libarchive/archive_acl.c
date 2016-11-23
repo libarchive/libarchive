@@ -94,6 +94,7 @@ archive_acl_clear(struct archive_acl *acl)
 		acl->acl_text = NULL;
 	}
 	acl->acl_p = NULL;
+	acl->acl_types = 0;
 	acl->acl_state = 0; /* Not counting. */
 }
 
