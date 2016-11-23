@@ -107,7 +107,8 @@ test_compat_gtar_1(void)
 }
 
 /*
- * test_compat_gtar_2.tar exercises reading of UID > 2097151.
+ * test_compat_gtar_2.tar exercises reading of UID = 2097152 as base256
+ * and GID = 2097152 as octal without null terminator.
  */
 static void
 test_compat_gtar_2(void)
@@ -132,7 +133,7 @@ test_compat_gtar_2(void)
 
 	/* Check UID and GID */
 	assertEqualInt(2097152, archive_entry_uid(ae));
-	assertEqualInt(1000, archive_entry_gid(ae));
+	assertEqualInt(2097152, archive_entry_gid(ae));
 
 	/* Verify the end-of-archive. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
