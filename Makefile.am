@@ -599,6 +599,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_bzip2_2.tbz.uu \
 	libarchive/test/test_compat_cpio_1.cpio.uu \
 	libarchive/test/test_compat_gtar_1.tar.uu \
+	libarchive/test/test_compat_gtar_2.tar.uu \
 	libarchive/test/test_compat_gzip_1.tgz.uu \
 	libarchive/test/test_compat_gzip_2.tgz.uu \
 	libarchive/test/test_compat_lz4_1.tar.lz4.uu \
@@ -769,6 +770,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar_subblock.rar.uu \
 	libarchive/test/test_read_format_rar_unicode.rar.uu \
 	libarchive/test/test_read_format_rar_windows.rar.uu \
+	libarchive/test/test_read_format_raw.bufr.uu \
 	libarchive/test/test_read_format_raw.data.Z.uu \
 	libarchive/test/test_read_format_raw.data.uu \
 	libarchive/test/test_read_format_tar_concatenated.tar.uu \
