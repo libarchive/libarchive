@@ -2590,6 +2590,49 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 					break;
 				}
 				tail[0] = c;
+			} else if ((flags &
+			    ARCHIVE_EXTRACT_SECURE_SYMLINKS) == 0) {
+				/*
+				 * We are not the last element and we want to
+				 * follow symlinks if they are a directory.
+				 * 
+				 * This is needed to extract hardlinks over
+				 * symlinks.
+				 */
+				r = stat(head, &st);
+				if (r != 0) {
+					tail[0] = c;
+					if (errno == ENOENT) {
+						break;
+					} else {
+						fsobj_error(a_eno, a_estr,
+						    errno,
+						    "Could not stat %s", path);
+						res = (ARCHIVE_FAILED);
+						break;
+					}
+				} else if (S_ISDIR(st.st_mode)) {
+					if (chdir(head) != 0) {
+						tail[0] = c;
+						fsobj_error(a_eno, a_estr,
+						    errno,
+						    "Could not chdir %s", path);
+						res = (ARCHIVE_FATAL);
+						break;
+					}
+					/*
+					 * Our view is now from inside
+					 * this dir:
+					 */
+					head = tail + 1;
+				} else {
+					tail[0] = c;
+					fsobj_error(a_eno, a_estr, 0,
+					    "Cannot extract through "
+					    "symlink %s", path);
+					res = ARCHIVE_FAILED;
+					break;
+				}
 			} else {
 				tail[0] = c;
 				fsobj_error(a_eno, a_estr, 0,
