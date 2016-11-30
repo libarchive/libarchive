@@ -1144,7 +1144,7 @@ __LA_DECL int	archive_match_include_date(struct archive *, int _flag,
 		    const char *_datestr);
 __LA_DECL int	archive_match_include_date_w(struct archive *, int _flag,
 		    const wchar_t *_datestr);
-/* Set inclusion time by a particluar file. */
+/* Set inclusion time by a particular file. */
 __LA_DECL int	archive_match_include_file_time(struct archive *,
 		    int _flag, const char *_pathname);
 __LA_DECL int	archive_match_include_file_time_w(struct archive *,
