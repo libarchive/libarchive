@@ -560,7 +560,7 @@ _utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 		return (-1);
 	}
 
-	/* The code point larger than 0x10FFFF is not leagal
+	/* The code point larger than 0x10FFFF is not legal
 	 * Unicode values. */
 	if (wc > 0x10FFFF)
 		return (-1);
