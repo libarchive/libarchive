@@ -1124,7 +1124,7 @@ __LA_DECL int	archive_match_time_excluded(struct archive *,
 
 /*
  * Flags to tell a matching type of time stamps. These are used for
- * following functinos.
+ * following functions.
  */
 /* Time flag: mtime to be tested. */
 #define ARCHIVE_MATCH_MTIME	(0x0100)
