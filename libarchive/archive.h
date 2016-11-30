@@ -984,12 +984,12 @@ __LA_DECL int	archive_read_disk_can_descend(struct archive *);
 __LA_DECL int	archive_read_disk_current_filesystem(struct archive *);
 __LA_DECL int	archive_read_disk_current_filesystem_is_synthetic(struct archive *);
 __LA_DECL int	archive_read_disk_current_filesystem_is_remote(struct archive *);
-/* Request that the access time of the entry visited by travesal be restored. */
+/* Request that the access time of the entry visited by traversal be restored. */
 __LA_DECL int  archive_read_disk_set_atime_restored(struct archive *);
 /*
  * Set behavior. The "flags" argument selects optional behavior.
  */
-/* Request that the access time of the entry visited by travesal be restored.
+/* Request that the access time of the entry visited by traversal be restored.
  * This is the same as archive_read_disk_set_atime_restored. */
 #define	ARCHIVE_READDISK_RESTORE_ATIME		(0x0001)
 /* Default: Do not skip an entry which has nodump flags. */
