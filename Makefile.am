@@ -370,6 +370,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_compat_lzop.c \
 	libarchive/test/test_compat_mac.c \
 	libarchive/test/test_compat_pax_libarchive_2x.c \
+	libarchive/test/test_compat_perl_archive_tar.c \
 	libarchive/test/test_compat_solaris_tar_acl.c \
 	libarchive/test/test_compat_solaris_pax_sparse.c \
 	libarchive/test/test_compat_star_acl_posix1e.c \
@@ -625,6 +626,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_mac-1.tar.Z.uu \
 	libarchive/test/test_compat_mac-2.tar.Z.uu \
 	libarchive/test/test_compat_pax_libarchive_2x.tar.Z.uu \
+	libarchive/test/test_compat_perl_archive_tar.tar.uu \
 	libarchive/test/test_compat_solaris_pax_sparse_1.pax.Z.uu \
 	libarchive/test/test_compat_solaris_pax_sparse_2.pax.Z.uu \
 	libarchive/test/test_compat_solaris_tar_acl.tar.uu \
