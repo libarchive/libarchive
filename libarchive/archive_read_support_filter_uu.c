@@ -566,7 +566,7 @@ read_more:
 				    "Insufficient compressed data");
 				return (ARCHIVE_FATAL);
 			}
-			/* Get length of undecoded bytes of curent line. */
+			/* Get length of undecoded bytes of current line. */
 			l = UUDECODE(*b++);
 			body--;
 			if (l > body) {
