@@ -203,7 +203,13 @@ struct zip {
 	/* Contexts used for AES decryption. */
 	archive_crypto_ctx	cctx;
 	char			cctx_valid;
+#if defined(HAVE_LIBCRYPTO) && defined(HAVE_HMAC_CTX_NEW)
+	archive_hmac_sha1_ctx	*hctx;
+#define HMAC_CTX_PTR(z) (z->hctx)
+#else
 	archive_hmac_sha1_ctx	hctx;
+#define HMAC_CTX_PTR(z) (&(z->hctx))
+#endif
 	char			hctx_valid;
 
 	/* Strong encryption's decryption header information. */
@@ -1058,7 +1064,8 @@ check_authentication_code(struct archive_read *a, const void *_p)
 		size_t hmac_len = 20;
 		int cmp;
 
-		archive_hmac_sha1_final(&zip->hctx, hmac, &hmac_len);
+		archive_hmac_sha1_final(HMAC_CTX_PTR(zip), hmac,
+			&hmac_len);
 		if (_p == NULL) {
 			/* Read authentication code. */
 			p = __archive_read_ahead(a, AUTH_CODE_SIZE, NULL);
@@ -1223,7 +1230,7 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 			    zip->decrypted_buffer, dec_size);
 		} else {
 			size_t dsize = dec_size;
-			archive_hmac_sha1_update(&zip->hctx,
+			archive_hmac_sha1_update(HMAC_CTX_PTR(zip),
 			    (const uint8_t *)buff, dec_size);
 			archive_decrypto_aes_ctr_update(&zip->cctx,
 			    (const uint8_t *)buff, dec_size,
@@ -1400,7 +1407,7 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	}
 	/* Calculate compressed data as much as we used.*/
 	if (zip->hctx_valid)
-		archive_hmac_sha1_update(&zip->hctx, sp, bytes_avail);
+		archive_hmac_sha1_update(HMAC_CTX_PTR(zip), sp, bytes_avail);
 	__archive_read_consume(a, bytes_avail);
 	zip->entry_bytes_remaining -= bytes_avail;
 	zip->entry_compressed_bytes_read += bytes_avail;
@@ -1796,7 +1803,8 @@ init_WinZip_AES_decryption(struct archive_read *a)
 		    "Decryption is unsupported due to lack of crypto library");
 		return (ARCHIVE_FAILED);
 	}
-	r = archive_hmac_sha1_init(&zip->hctx, derived_key + key_len, key_len);
+	r = archive_hmac_sha1_init(HMAC_CTX_PTR(zip), derived_key + key_len,
+		key_len);
 	if (r != 0) {
 		archive_decrypto_aes_ctr_release(&zip->cctx);
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -1954,7 +1962,7 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 	if (zip->cctx_valid)
 		archive_decrypto_aes_ctr_release(&zip->cctx);
 	if (zip->hctx_valid)
-		archive_hmac_sha1_cleanup(&zip->hctx);
+		archive_hmac_sha1_cleanup(HMAC_CTX_PTR(zip));
 	free(zip->iv);
 	free(zip->erd);
 	free(zip->v_data);

@@ -172,11 +172,21 @@ __hmac_sha1_cleanup(archive_hmac_sha1_ctx *ctx)
 }
 
 #elif defined(HAVE_LIBCRYPTO)
+#ifdef HAVE_HMAC_CTX_NEW
+#define HMAC_CTX_INIT(ctx) HMAC_CTX *tmp = HMAC_CTX_new(); \
+	HMAC_CTX_copy(ctx, tmp); \
+	HMAC_CTX_free(tmp);
+#define HMAC_CTX_CLEANUP(ctx) HMAC_CTX_free(ctx); ctx = NULL;
+#else
+#define HMAC_CTX_INIT HMAC_CTX_init
+#define HMAC_CTX_CLEANUP(ctx) HMAC_CTX_cleanup(ctx); \
+	memset(ctx, 0, sizeof(*ctx));
+#endif
 
 static int
 __hmac_sha1_init(archive_hmac_sha1_ctx *ctx, const uint8_t *key, size_t key_len)
 {
-	HMAC_CTX_init(ctx);
+	HMAC_CTX_INIT(ctx);
 	HMAC_Init(ctx, key, key_len, EVP_sha1());
 	return 0;
 }
@@ -199,8 +209,7 @@ __hmac_sha1_final(archive_hmac_sha1_ctx *ctx, uint8_t *out, size_t *out_len)
 static void
 __hmac_sha1_cleanup(archive_hmac_sha1_ctx *ctx)
 {
-	HMAC_CTX_cleanup(ctx);
-	memset(ctx, 0, sizeof(*ctx));
+	HMAC_CTX_CLEANUP(ctx);
 }
 
 #else
