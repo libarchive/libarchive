@@ -296,10 +296,9 @@ acl_new_entry(struct archive_acl *acl,
 	}
 
 	/* Add a new entry to the end of the list. */
-	ap = (struct archive_acl_entry *)malloc(sizeof(*ap));
+	ap = (struct archive_acl_entry *)calloc(1, sizeof(*ap));
 	if (ap == NULL)
 		return (NULL);
-	memset(ap, 0, sizeof(*ap));
 	if (aq == NULL)
 		acl->acl_head = ap;
 	else

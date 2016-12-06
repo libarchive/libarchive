@@ -2063,8 +2063,7 @@ tree_push(struct tree *t, const char *path, int filesystem_id,
 {
 	struct tree_entry *te;
 
-	te = malloc(sizeof(*te));
-	memset(te, 0, sizeof(*te));
+	te = calloc(1, sizeof(*te));
 	te->next = t->stack;
 	te->parent = t->current;
 	if (te->parent)
@@ -2122,9 +2121,8 @@ tree_open(const char *path, int symlink_mode, int restore_time)
 {
 	struct tree *t;
 
-	if ((t = malloc(sizeof(*t))) == NULL)
+	if ((t = calloc(1, sizeof(*t))) == NULL)
 		return (NULL);
-	memset(t, 0, sizeof(*t));
 	archive_string_init(&t->path);
 	archive_string_ensure(&t->path, 31);
 	t->initial_symlink_mode = symlink_mode;

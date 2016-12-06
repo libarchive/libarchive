@@ -389,10 +389,9 @@ archive_read_disk_new(void)
 {
 	struct archive_read_disk *a;
 
-	a = (struct archive_read_disk *)malloc(sizeof(*a));
+	a = (struct archive_read_disk *)calloc(1, sizeof(*a));
 	if (a == NULL)
 		return (NULL);
-	memset(a, 0, sizeof(*a));
 	a->archive.magic = ARCHIVE_READ_DISK_MAGIC;
 	a->archive.state = ARCHIVE_STATE_NEW;
 	a->archive.vtable = archive_read_disk_vtable();
@@ -1437,8 +1436,7 @@ tree_push(struct tree *t, const wchar_t *path, const wchar_t *full_path,
 {
 	struct tree_entry *te;
 
-	te = malloc(sizeof(*te));
-	memset(te, 0, sizeof(*te));
+	te = calloc(1, sizeof(*te));
 	te->next = t->stack;
 	te->parent = t->current;
 	if (te->parent)
@@ -1507,8 +1505,7 @@ tree_open(const wchar_t *path, int symlink_mode, int restore_time)
 {
 	struct tree *t;
 
-	t = malloc(sizeof(*t));
-	memset(t, 0, sizeof(*t));
+	t = calloc(1, sizeof(*t));
 	archive_string_init(&(t->full_path));
 	archive_string_init(&t->path);
 	archive_wstring_ensure(&t->path, 15);
