@@ -118,6 +118,8 @@ libarchive_la_SOURCES= \
 	libarchive/archive_hmac.c \
 	libarchive/archive_hmac_private.h \
 	libarchive/archive_match.c \
+	libarchive/archive_openssl_evp_private.h \
+	libarchive/archive_openssl_hmac_private.h \
 	libarchive/archive_options.c \
 	libarchive/archive_options_private.h \
 	libarchive/archive_pack_dev.h \
@@ -371,6 +373,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_compat_mac.c \
 	libarchive/test/test_compat_pax_libarchive_2x.c \
 	libarchive/test/test_compat_perl_archive_tar.c \
+	libarchive/test/test_compat_plexus_archiver_tar.c \
 	libarchive/test/test_compat_solaris_tar_acl.c \
 	libarchive/test/test_compat_solaris_pax_sparse.c \
 	libarchive/test/test_compat_star_acl_posix1e.c \
@@ -627,6 +630,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_mac-2.tar.Z.uu \
 	libarchive/test/test_compat_pax_libarchive_2x.tar.Z.uu \
 	libarchive/test/test_compat_perl_archive_tar.tar.uu \
+	libarchive/test/test_compat_plexus_archiver_tar.uu \
 	libarchive/test/test_compat_solaris_pax_sparse_1.pax.Z.uu \
 	libarchive/test/test_compat_solaris_pax_sparse_2.pax.Z.uu \
 	libarchive/test/test_compat_solaris_tar_acl.tar.uu \
