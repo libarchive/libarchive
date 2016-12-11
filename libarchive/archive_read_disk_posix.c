@@ -244,7 +244,7 @@ struct tree {
 	int			 initial_filesystem_id;
 	int			 current_filesystem_id;
 	int			 max_filesystem_id;
-	int			 allocated_filesytem;
+	int			 allocated_filesystem;
 
 	int			 entry_fd;
 	int			 entry_eof;
@@ -1382,7 +1382,7 @@ update_current_filesystem(struct archive_read_disk *a, int64_t dev)
 
 	for (i = 0; i < t->max_filesystem_id; i++) {
 		if (t->filesystem_table[i].dev == dev) {
-			/* There is the filesytem ID we've already generated. */
+			/* There is the filesystem ID we've already generated. */
 			t->current_filesystem_id = i;
 			t->current_filesystem = &(t->filesystem_table[i]);
 			return (ARCHIVE_OK);
@@ -1390,10 +1390,10 @@ update_current_filesystem(struct archive_read_disk *a, int64_t dev)
 	}
 
 	/*
-	 * This is the new filesytem which we have to generate a new ID for.
+	 * This is the new filesystem which we have to generate a new ID for.
 	 */
 	fid = t->max_filesystem_id++;
-	if (t->max_filesystem_id > t->allocated_filesytem) {
+	if (t->max_filesystem_id > t->allocated_filesystem) {
 		size_t s;
 		void *p;
 
@@ -1406,7 +1406,7 @@ update_current_filesystem(struct archive_read_disk *a, int64_t dev)
 			return (ARCHIVE_FATAL);
 		}
 		t->filesystem_table = (struct filesystem *)p;
-		t->allocated_filesytem = s;
+		t->allocated_filesystem = s;
 	}
 	t->current_filesystem_id = fid;
 	t->current_filesystem = &(t->filesystem_table[fid]);
