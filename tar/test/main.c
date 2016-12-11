@@ -2958,8 +2958,8 @@ main(int argc, char **argv)
 		strftime(tmpdir_timestamp, sizeof(tmpdir_timestamp),
 		    "%Y-%m-%dT%H.%M.%S",
 		    localtime(&now));
-		sprintf(tmpdir, "%s/%s.%s-%03d", tmp, progname,
-		    tmpdir_timestamp, i);
+		snprintf(tmpdir, sizeof(tmpdir), "%s/%s.%s-%03d", tmp,
+		    progname, tmpdir_timestamp, i);
 		if (assertMakeDir(tmpdir,0755))
 			break;
 		if (i >= 999) {
