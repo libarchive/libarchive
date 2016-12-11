@@ -2324,7 +2324,7 @@ extract_reference_file(const char *name)
 	for (;;) {
 		if (fgets(buff, sizeof(buff), in) == NULL) {
 			/* TODO: This is a failure. */
-			return;
+			goto done;
 		}
 		if (memcmp(buff, "begin ", 6) == 0)
 			break;
@@ -2365,6 +2365,7 @@ extract_reference_file(const char *name)
 		}
 	}
 	fclose(out);
+done:
 	fclose(in);
 }
 
