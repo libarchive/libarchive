@@ -154,9 +154,8 @@ set_writer_options(struct bsdtar *bsdtar, struct archive *a)
 		/* Prepend magic code to ignore options for
 		 * a format or filters which are not added to
 		 * the archive write object. */
-		strncpy(p, IGNORE_WRONG_MODULE_NAME,
-		    sizeof(IGNORE_WRONG_MODULE_NAME) -1);
-		strcpy(p + sizeof(IGNORE_WRONG_MODULE_NAME) -1, writer_options);
+		sprintf(p, "%s%s", IGNORE_WRONG_MODULE_NAME,
+		    writer_options);
 		r = archive_write_set_options(a, p);
 		free(p);
 		if (r < ARCHIVE_WARN)
@@ -187,9 +186,8 @@ set_reader_options(struct bsdtar *bsdtar, struct archive *a)
 		/* Prepend magic code to ignore options for
 		 * a format or filters which are not added to
 		 * the archive write object. */
-		strncpy(p, IGNORE_WRONG_MODULE_NAME,
-		    sizeof(IGNORE_WRONG_MODULE_NAME) -1);
-		strcpy(p + sizeof(IGNORE_WRONG_MODULE_NAME) -1, reader_options);
+		sprintf(p, "%s%s", IGNORE_WRONG_MODULE_NAME,
+		    reader_options);
 		r = archive_read_set_options(a, p);
 		free(p);
 		if (r < ARCHIVE_WARN)
