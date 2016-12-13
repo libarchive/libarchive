@@ -280,11 +280,17 @@ acl_new_entry(struct archive_acl *acl,
 		acl->acl_text = NULL;
 	}
 
-	/* If there's a matching entry already in the list, overwrite it. */
+	/*
+	 * If there's a matching entry already in the list, overwrite it.
+	 * NFSv4 entries may be repeated and are not overwritten.
+	 *
+	 * TODO: compare names of no id is provided (needs more rework)
+	 */
 	ap = acl->acl_head;
 	aq = NULL;
 	while (ap != NULL) {
-		if (ap->type == type && ap->tag == tag && ap->id == id) {
+		if (((type & ARCHIVE_ENTRY_ACL_TYPE_NFS4) == 0) &&
+		    ap->type == type && ap->tag == tag && ap->id == id) {
 			if (id != -1 || (tag != ARCHIVE_ENTRY_ACL_USER &&
 			    tag != ARCHIVE_ENTRY_ACL_GROUP)) {
 				ap->permset = permset;
