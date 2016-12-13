@@ -481,12 +481,12 @@ archive_write_gnutar_header(struct archive_write *a,
 		if (ret < ARCHIVE_WARN)
 			goto exit_write_header;
 		ret = __archive_write_output(a, buff, 512);
-		if(ret < ARCHIVE_WARN)
+		if (ret < ARCHIVE_WARN)
 			goto exit_write_header;
 		archive_entry_free(temp);
 		/* Write name and trailing null byte. */
 		ret = __archive_write_output(a, gnutar->linkname, length);
-		if(ret < ARCHIVE_WARN)
+		if (ret < ARCHIVE_WARN)
 			goto exit_write_header;
 		/* Pad to 512 bytes */
 		ret = __archive_write_nulls(a, 0x1ff & (-(ssize_t)length));
