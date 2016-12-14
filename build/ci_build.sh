@@ -61,7 +61,7 @@ if [ -z "${BUILD_SYSTEM}" ]; then
 	inputerror "Missing type (-t) parameter"
 fi
 if [ -z "${BUILDDIR}" ]; then
-	BUILDDIR="${CURDIR}/BUILD/${BUILD_SYSTEM}"
+	BUILDDIR="${CURDIR}/build_ci/${BUILD_SYSTEM}"
 fi
 mkdir -p "${BUILDDIR}"
 for action in ${ACTIONS}; do
