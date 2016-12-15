@@ -16,4 +16,6 @@ install:
   - if [ `uname` = "Darwin" ]; then brew install xz lzo lz4; fi
   - if [ `uname` = "Linux" ]; then sudo apt-get install -y libbz2-dev libzip-dev liblzma-dev liblzo2-dev; fi
 script:
-  - travis_wait 30 build/ci_build.sh
+  - build/ci_build.sh
+  - if [ `uname` = "Linux" ]; then build/ci_build.sh -a test; fi
+  - if [ `uname` = "Darwin" ]; then travis_wait 30 build/ci_build.sh -a test; fi

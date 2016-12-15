@@ -55,7 +55,7 @@ while getopts a:b:d:s: opt; do
 	esac
 done
 if [ -z "${ACTIONS}" ]; then
-	ACTIONS="autogen configure build test"
+	ACTIONS="autogen configure build"
 fi
 if [ -z "${BUILD_SYSTEM}" ]; then
 	inputerror "Missing type (-t) parameter"
