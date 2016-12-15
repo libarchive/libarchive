@@ -1827,7 +1827,7 @@ archive_string_conversion_set_opt(struct archive_string_conv *sc, int opt)
 	 * A filename in UTF-8 was made with libarchive 2.x in a wrong
 	 * assumption that wchar_t was Unicode.
 	 * This option enables simulating the assumption in order to read
-	 * that filname correctly.
+	 * that filename correctly.
 	 */
 	case SCONV_SET_OPT_UTF8_LIBARCHIVE2X:
 #if (defined(_WIN32) && !defined(__CYGWIN__)) \
