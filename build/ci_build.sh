@@ -55,7 +55,7 @@ while getopts a:b:d:s: opt; do
 	esac
 done
 if [ -z "${ACTIONS}" ]; then
-	ACTIONS="autogen configure build"
+	ACTIONS="autogen configure build test"
 fi
 if [ -z "${BUILD_SYSTEM}" ]; then
 	inputerror "Missing type (-t) parameter"
@@ -90,10 +90,7 @@ for action in ${ACTIONS}; do
 		test)
 			case "${BUILD_SYSTEM}" in
 				autotools)
-					if ! make ${MAKE_ARGS} check; then
-						cat test-suite.log
-						exit 1
-					fi
+					make ${MAKE_ARGS} check LOG_DRIVER="${SRCDIR}/build/ci_test_driver"
 					;;
 				cmake)
 					make ${MAKE_ARGS} test
