@@ -263,22 +263,22 @@ struct _7zip {
 	/*
 	 * Decompressor controllers.
 	 */
-	/* Decording LZMA1 and LZMA2 data. */
+	/* Decoding LZMA1 and LZMA2 data. */
 #ifdef HAVE_LZMA_H
 	lzma_stream		 lzstream;
 	int			 lzstream_valid;
 #endif
-	/* Decording bzip2 data. */
+	/* Decoding bzip2 data. */
 #if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
 	bz_stream		 bzstream;
 	int			 bzstream_valid;
 #endif
-	/* Decording deflate data. */
+	/* Decoding deflate data. */
 #ifdef HAVE_ZLIB_H
 	z_stream		 stream;
 	int			 stream_valid;
 #endif
-	/* Decording PPMd data. */
+	/* Decoding PPMd data. */
 	int			 ppmd7_stat;
 	CPpmd7			 ppmd7_context;
 	CPpmd7z_RangeDec	 range_dec;
