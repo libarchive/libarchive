@@ -140,7 +140,7 @@ static int	format_header_v7tar(struct archive_write *, char h[512],
 /*
  * Set output format to 'v7tar' format.
  */
-int
+__LA_DECL int
 archive_write_set_format_v7tar(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;

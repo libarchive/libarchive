@@ -80,7 +80,7 @@ new_read_passphrase(struct archive_read *a, const char *passphrase)
 	return (p);
 }
 
-int
+__LA_DECL int
 archive_read_add_passphrase(struct archive *_a, const char *passphrase)
 {
 	struct archive_read *a = (struct archive_read *)_a;
@@ -103,7 +103,7 @@ archive_read_add_passphrase(struct archive *_a, const char *passphrase)
 	return (ARCHIVE_OK);
 }
 
-int
+__LA_DECL int
 archive_read_set_passphrase_callback(struct archive *_a, void *client_data,
     archive_passphrase_callback *cb)
 {

@@ -66,7 +66,7 @@ static int64_t atol8(const char *, size_t);
 /*
  * Add a compress filter to this write handle.
  */
-int
+__LA_DECL int
 archive_write_add_filter_uuencode(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;

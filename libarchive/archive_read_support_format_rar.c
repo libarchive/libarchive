@@ -637,7 +637,7 @@ ppmd_read(void *p)
   return b;
 }
 
-int
+__LA_DECL int
 archive_read_support_format_rar(struct archive *_a)
 {
   struct archive_read *a = (struct archive_read *)_a;

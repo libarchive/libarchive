@@ -333,7 +333,7 @@ static int	save_xattrs(struct archive_write *, struct file *);
 static int	getalgsize(enum sumalg);
 static const char *getalgname(enum sumalg);
 
-int
+__LA_DECL int
 archive_write_set_format_xar(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;

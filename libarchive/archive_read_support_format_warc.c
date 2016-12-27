@@ -136,7 +136,7 @@ static time_t _warc_rdmtm(const char *buf, size_t bsz);
 static const char *_warc_find_eoh(const char *buf, size_t bsz);
 
 
-int
+__LA_DECL int
 archive_read_support_format_warc(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;

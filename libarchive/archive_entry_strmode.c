@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_entry_strmode.c,v 1.4 2008/06/15 
 #include "archive_entry.h"
 #include "archive_entry_private.h"
 
-const char *
+__LA_DECL const char *
 archive_entry_strmode(struct archive_entry *entry)
 {
 	static const mode_t permbits[] =

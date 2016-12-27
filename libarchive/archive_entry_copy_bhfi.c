@@ -50,7 +50,7 @@ fileTimeToUtc(const FILETIME *filetime, time_t *t, long *ns)
 	}
 }
 
-void
+__LA_DECL void
 archive_entry_copy_bhfi(struct archive_entry *entry,
 			BY_HANDLE_FILE_INFORMATION *bhfi)
 {

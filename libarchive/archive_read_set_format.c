@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 #include "archive_private.h"
 #include "archive_read_private.h"
 
-int
+__LA_DECL int
 archive_read_set_format(struct archive *_a, int code)
 {
   int r1, r2, slots, i;

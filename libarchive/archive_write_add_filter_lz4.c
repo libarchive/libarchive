@@ -92,7 +92,7 @@ static int archive_filter_lz4_write(struct archive_write_filter *,
 /*
  * Add a lz4 compression filter to this write handle.
  */
-int
+__LA_DECL int
 archive_write_add_filter_lz4(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;

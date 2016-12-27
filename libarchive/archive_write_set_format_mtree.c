@@ -1428,14 +1428,14 @@ archive_write_set_format_mtree_default(struct archive *_a, const char *fn)
 	return (ARCHIVE_OK);
 }
 
-int
+__LA_DECL int
 archive_write_set_format_mtree(struct archive *_a)
 {
 	return archive_write_set_format_mtree_default(_a,
 		"archive_write_set_format_mtree");
 }
 
-int
+__LA_DECL int
 archive_write_set_format_mtree_classic(struct archive *_a)
 {
 	int r;

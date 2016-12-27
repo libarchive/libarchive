@@ -61,7 +61,7 @@ static int	file_close(struct archive *, void *);
 static ssize_t	file_read(struct archive *, void *, const void **buff);
 static int64_t	file_skip(struct archive *, void *, int64_t request);
 
-int
+__LA_DECL int
 archive_read_open_FILE(struct archive *a, FILE *f)
 {
 	struct stat st;

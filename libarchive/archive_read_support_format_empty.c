@@ -36,7 +36,7 @@ static int	archive_read_format_empty_read_data(struct archive_read *,
 		    const void **, size_t *, int64_t *);
 static int	archive_read_format_empty_read_header(struct archive_read *,
 		    struct archive_entry *);
-int
+__LA_DECL int
 archive_read_support_format_empty(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;

@@ -52,7 +52,7 @@ static int	archive_read_format_raw_read_data_skip(struct archive_read *);
 static int	archive_read_format_raw_read_header(struct archive_read *,
 		    struct archive_entry *);
 
-int
+__LA_DECL int
 archive_read_support_format_raw(struct archive *_a)
 {
 	struct raw_info *info;

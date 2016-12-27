@@ -1047,7 +1047,7 @@ static int	zisofs_finish_entry(struct archive_write *);
 static int	zisofs_rewind_boot_file(struct archive_write *);
 static int	zisofs_free(struct archive_write *);
 
-int
+__LA_DECL int
 archive_write_set_format_iso9660(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;

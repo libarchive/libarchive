@@ -130,7 +130,7 @@ static int setup_sparse_fiemap(struct archive_read_disk *,
     struct archive_entry *, int *fd);
 #endif
 
-int
+__LA_DECL int
 archive_read_disk_entry_from_file(struct archive *_a,
     struct archive_entry *entry,
     int fd,

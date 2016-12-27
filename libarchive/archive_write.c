@@ -103,7 +103,7 @@ archive_write_vtable(void)
 /*
  * Allocate, initialize and return an archive object.
  */
-struct archive *
+__LA_DECL struct archive *
 archive_write_new(void)
 {
 	struct archive_write *a;
@@ -137,7 +137,7 @@ archive_write_new(void)
 /*
  * Set the block size.  Returns 0 if successful.
  */
-int
+__LA_DECL int
 archive_write_set_bytes_per_block(struct archive *_a, int bytes_per_block)
 {
 	struct archive_write *a = (struct archive_write *)_a;
@@ -150,7 +150,7 @@ archive_write_set_bytes_per_block(struct archive *_a, int bytes_per_block)
 /*
  * Get the current block size.  -1 if it has never been set.
  */
-int
+__LA_DECL int
 archive_write_get_bytes_per_block(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;
@@ -163,7 +163,7 @@ archive_write_get_bytes_per_block(struct archive *_a)
  * Set the size for the last block.
  * Returns 0 if successful.
  */
-int
+__LA_DECL int
 archive_write_set_bytes_in_last_block(struct archive *_a, int bytes)
 {
 	struct archive_write *a = (struct archive_write *)_a;
@@ -176,7 +176,7 @@ archive_write_set_bytes_in_last_block(struct archive *_a, int bytes)
 /*
  * Return the value set above.  -1 indicates it has not been set.
  */
-int
+__LA_DECL int
 archive_write_get_bytes_in_last_block(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;
@@ -189,7 +189,7 @@ archive_write_get_bytes_in_last_block(struct archive *_a)
  * dev/ino of a file to be rejected.  Used to prevent adding
  * an archive to itself recursively.
  */
-int
+__LA_DECL int
 archive_write_set_skip_file(struct archive *_a, int64_t d, int64_t i)
 {
 	struct archive_write *a = (struct archive_write *)_a;
@@ -454,7 +454,7 @@ archive_write_client_close(struct archive_write_filter *f)
 /*
  * Open the archive using the current settings.
  */
-int
+__LA_DECL int
 archive_write_open(struct archive *_a, void *client_data,
     archive_open_callback *opener, archive_write_callback *writer,
     archive_close_callback *closer)

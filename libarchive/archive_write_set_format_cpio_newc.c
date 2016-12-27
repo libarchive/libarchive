@@ -103,7 +103,7 @@ struct cpio {
 /*
  * Set output format to 'cpio' format.
  */
-int
+__LA_DECL int
 archive_write_set_format_cpio_newc(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;

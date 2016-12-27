@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_read_extract.c,v 1.61 2008/05/26 
 #include "archive_private.h"
 #include "archive_read_private.h"
 
-int
+__LA_DECL int
 archive_read_extract(struct archive *_a, struct archive_entry *entry, int flags)
 {
 	struct archive_read_extract *extract;

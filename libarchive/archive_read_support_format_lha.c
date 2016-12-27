@@ -253,7 +253,7 @@ static inline int lzh_decode_huffman(struct huffman *, unsigned);
 static int	lzh_decode_huffman_tree(struct huffman *, unsigned, int);
 
 
-int
+__LA_DECL int
 archive_read_support_format_lha(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;

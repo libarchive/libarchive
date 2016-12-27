@@ -56,7 +56,7 @@ struct { int code; int (*setter)(struct archive *); } codes[] =
 	{ -1,			NULL }
 };
 
-int
+__LA_DECL int
 archive_write_add_filter(struct archive *a, int code)
 {
 	int i;

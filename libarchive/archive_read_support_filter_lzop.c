@@ -101,7 +101,7 @@ static int lzop_bidder_bid(struct archive_read_filter_bidder *,
     struct archive_read_filter *);
 static int lzop_bidder_init(struct archive_read_filter *);
 
-int
+__LA_DECL int
 archive_read_support_filter_lzop(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;

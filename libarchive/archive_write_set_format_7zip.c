@@ -281,7 +281,7 @@ static int	make_header(struct archive_write *, uint64_t, uint64_t,
 static int	make_streamsInfo(struct archive_write *, uint64_t, uint64_t,
 		    	uint64_t, int, struct coder *, int, uint32_t);
 
-int
+__LA_DECL int
 archive_write_set_format_7zip(struct archive *_a)
 {
 	static const struct archive_rb_tree_ops rb_ops = {

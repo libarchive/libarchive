@@ -82,7 +82,7 @@ static const char	*ar_basename(const char *path);
 static int		 format_octal(int64_t v, char *p, int s);
 static int		 format_decimal(int64_t v, char *p, int s);
 
-int
+__LA_DECL int
 archive_write_set_format_ar_bsd(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;
@@ -98,7 +98,7 @@ archive_write_set_format_ar_bsd(struct archive *_a)
 	return (r);
 }
 
-int
+__LA_DECL int
 archive_write_set_format_ar_svr4(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;

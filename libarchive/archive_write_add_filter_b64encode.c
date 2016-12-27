@@ -77,7 +77,7 @@ static const char base64[] = {
 /*
  * Add a compress filter to this write handle.
  */
-int
+__LA_DECL int
 archive_write_add_filter_b64encode(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;

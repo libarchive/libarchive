@@ -53,7 +53,7 @@ static int64_t	memory_read_seek(struct archive *, void *, int64_t offset, int wh
 static int64_t	memory_read_skip(struct archive *, void *, int64_t request);
 static ssize_t	memory_read(struct archive *, void *, const void **buff);
 
-int
+__LA_DECL int
 archive_read_open_memory(struct archive *a, const void *buff, size_t size)
 {
 	return archive_read_open_memory2(a, buff, size, size);
@@ -64,7 +64,7 @@ archive_read_open_memory(struct archive *a, const void *buff, size_t size)
  * version is the one you really want.  This is just here so that
  * test harnesses can exercise block operations inside the library.
  */
-int
+__LA_DECL int
 archive_read_open_memory2(struct archive *a, const void *buff,
     size_t size, size_t read_size)
 {

@@ -61,13 +61,13 @@ __FBSDID("$FreeBSD$");
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
 /* Deprecated; remove in libarchive 4.0 */
-int
+__LA_DECL int
 archive_read_support_compression_program(struct archive *a, const char *cmd)
 {
 	return archive_read_support_filter_program(a, cmd);
 }
 
-int
+__LA_DECL int
 archive_read_support_compression_program_signature(struct archive *a,
     const char *cmd, const void *signature, size_t signature_len)
 {
@@ -76,7 +76,7 @@ archive_read_support_compression_program_signature(struct archive *a,
 }
 #endif
 
-int
+__LA_DECL int
 archive_read_support_filter_program(struct archive *a, const char *cmd)
 {
 	return (archive_read_support_filter_program_signature(a, cmd, NULL, 0));
@@ -145,7 +145,7 @@ set_bidder_signature(struct archive_read_filter_bidder *bidder,
 	return (ARCHIVE_OK);
 }
 
-int
+__LA_DECL int
 archive_read_support_filter_program_signature(struct archive *_a,
     const char *cmd, const void *signature, size_t signature_len)
 {

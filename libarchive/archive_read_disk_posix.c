@@ -386,7 +386,7 @@ archive_read_disk_vtable(void)
 	return (&av);
 }
 
-const char *
+__LA_DECL const char *
 archive_read_disk_gname(struct archive *_a, int64_t gid)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
@@ -398,7 +398,7 @@ archive_read_disk_gname(struct archive *_a, int64_t gid)
 	return ((*a->lookup_gname)(a->lookup_gname_data, gid));
 }
 
-const char *
+__LA_DECL const char *
 archive_read_disk_uname(struct archive *_a, int64_t uid)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
@@ -410,7 +410,7 @@ archive_read_disk_uname(struct archive *_a, int64_t uid)
 	return ((*a->lookup_uname)(a->lookup_uname_data, uid));
 }
 
-int
+__LA_DECL int
 archive_read_disk_set_gname_lookup(struct archive *_a,
     void *private_data,
     const char * (*lookup_gname)(void *private, int64_t gid),
@@ -429,7 +429,7 @@ archive_read_disk_set_gname_lookup(struct archive *_a,
 	return (ARCHIVE_OK);
 }
 
-int
+__LA_DECL int
 archive_read_disk_set_uname_lookup(struct archive *_a,
     void *private_data,
     const char * (*lookup_uname)(void *private, int64_t uid),
@@ -451,7 +451,7 @@ archive_read_disk_set_uname_lookup(struct archive *_a,
 /*
  * Create a new archive_read_disk object and initialize it with global state.
  */
-struct archive *
+__LA_DECL struct archive *
 archive_read_disk_new(void)
 {
 	struct archive_read_disk *a;
@@ -530,7 +530,7 @@ setup_symlink_mode(struct archive_read_disk *a, char symlink_mode,
 	}
 }
 
-int
+__LA_DECL int
 archive_read_disk_set_symlink_logical(struct archive *_a)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
@@ -540,7 +540,7 @@ archive_read_disk_set_symlink_logical(struct archive *_a)
 	return (ARCHIVE_OK);
 }
 
-int
+__LA_DECL int
 archive_read_disk_set_symlink_physical(struct archive *_a)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
@@ -550,7 +550,7 @@ archive_read_disk_set_symlink_physical(struct archive *_a)
 	return (ARCHIVE_OK);
 }
 
-int
+__LA_DECL int
 archive_read_disk_set_symlink_hybrid(struct archive *_a)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
@@ -560,7 +560,7 @@ archive_read_disk_set_symlink_hybrid(struct archive *_a)
 	return (ARCHIVE_OK);
 }
 
-int
+__LA_DECL int
 archive_read_disk_set_atime_restored(struct archive *_a)
 {
 #ifndef HAVE_UTIMES
@@ -586,7 +586,7 @@ archive_read_disk_set_atime_restored(struct archive *_a)
 #endif
 }
 
-int
+__LA_DECL int
 archive_read_disk_set_behavior(struct archive *_a, int flags)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
@@ -1218,7 +1218,7 @@ setup_sparse(struct archive_read_disk *a, struct archive_entry *entry)
 	return (ARCHIVE_OK);
 }
 
-int
+__LA_DECL int
 archive_read_disk_set_matching(struct archive *_a, struct archive *_ma,
     void (*_excluded_func)(struct archive *, void *, struct archive_entry *),
     void *_client_data)
@@ -1232,7 +1232,7 @@ archive_read_disk_set_matching(struct archive *_a, struct archive *_ma,
 	return (ARCHIVE_OK);
 }
 
-int
+__LA_DECL int
 archive_read_disk_set_metadata_filter_callback(struct archive *_a,
     int (*_metadata_filter_func)(struct archive *, void *,
     struct archive_entry *), void *_client_data)
@@ -1247,7 +1247,7 @@ archive_read_disk_set_metadata_filter_callback(struct archive *_a,
 	return (ARCHIVE_OK);
 }
 
-int
+__LA_DECL int
 archive_read_disk_can_descend(struct archive *_a)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
@@ -1264,7 +1264,7 @@ archive_read_disk_can_descend(struct archive *_a)
  * Called by the client to mark the directory just returned from
  * tree_next() as needing to be visited.
  */
-int
+__LA_DECL int
 archive_read_disk_descend(struct archive *_a)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
@@ -1290,7 +1290,7 @@ archive_read_disk_descend(struct archive *_a)
 	return (ARCHIVE_OK);
 }
 
-int
+__LA_DECL int
 archive_read_disk_open(struct archive *_a, const char *pathname)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
@@ -1303,7 +1303,7 @@ archive_read_disk_open(struct archive *_a, const char *pathname)
 	return (_archive_read_disk_open(_a, pathname));
 }
 
-int
+__LA_DECL int
 archive_read_disk_open_w(struct archive *_a, const wchar_t *pathname)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
@@ -1359,7 +1359,7 @@ _archive_read_disk_open(struct archive *_a, const char *pathname)
  * Return a current filesystem ID which is index of the filesystem entry
  * you've visited through archive_read_disk.
  */
-int
+__LA_DECL int
 archive_read_disk_current_filesystem(struct archive *_a)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
@@ -1423,7 +1423,7 @@ update_current_filesystem(struct archive_read_disk *a, int64_t dev)
  * Returns 1 if current filesystem is generated filesystem, 0 if it is not
  * or -1 if it is unknown.
  */
-int
+__LA_DECL int
 archive_read_disk_current_filesystem_is_synthetic(struct archive *_a)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
@@ -1438,7 +1438,7 @@ archive_read_disk_current_filesystem_is_synthetic(struct archive *_a)
  * Returns 1 if current filesystem is remote filesystem, 0 if it is not
  * or -1 if it is unknown.
  */
-int
+__LA_DECL int
 archive_read_disk_current_filesystem_is_remote(struct archive *_a)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;

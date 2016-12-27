@@ -29,7 +29,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_support_format_all.c 174991
 #include "archive.h"
 #include "archive_private.h"
 
-int
+__LA_DECL int
 archive_read_support_format_all(struct archive *a)
 {
 	archive_check_magic(a, ARCHIVE_READ_MAGIC,

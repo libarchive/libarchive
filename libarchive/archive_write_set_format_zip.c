@@ -394,7 +394,7 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 	return (ARCHIVE_WARN);
 }
 
-int
+__LA_DECL int
 archive_write_zip_set_compression_deflate(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;
@@ -422,7 +422,7 @@ archive_write_zip_set_compression_deflate(struct archive *_a)
 	return (ret);
 }
 
-int
+__LA_DECL int
 archive_write_zip_set_compression_store(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;
@@ -444,7 +444,7 @@ archive_write_zip_set_compression_store(struct archive *_a)
 	return (ret);
 }
 
-int
+__LA_DECL int
 archive_write_set_format_zip(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;

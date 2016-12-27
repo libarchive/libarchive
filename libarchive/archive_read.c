@@ -97,7 +97,7 @@ archive_read_vtable(void)
 /*
  * Allocate, initialize and return a struct archive object.
  */
-struct archive *
+__LA_DECL struct archive *
 archive_read_new(void)
 {
 	struct archive_read *a;
@@ -119,7 +119,7 @@ archive_read_new(void)
 /*
  * Record the do-not-extract-to file. This belongs in archive_read_extract.c.
  */
-void
+__LA_DECL void
 archive_read_extract_set_skip_file(struct archive *_a, int64_t d, int64_t i)
 {
 	struct archive_read *a = (struct archive_read *)_a;
@@ -135,7 +135,7 @@ archive_read_extract_set_skip_file(struct archive *_a, int64_t d, int64_t i)
 /*
  * Open the archive
  */
-int
+__LA_DECL int
 archive_read_open(struct archive *a, void *client_data,
     archive_open_callback *client_opener, archive_read_callback *client_reader,
     archive_close_callback *client_closer)
@@ -150,7 +150,7 @@ archive_read_open(struct archive *a, void *client_data,
 }
 
 
-int
+__LA_DECL int
 archive_read_open2(struct archive *a, void *client_data,
     archive_open_callback *client_opener,
     archive_read_callback *client_reader,
@@ -304,7 +304,7 @@ client_switch_proxy(struct archive_read_filter *self, unsigned int iindex)
 	return (r1 < r2) ? r1 : r2;
 }
 
-int
+__LA_DECL int
 archive_read_set_open_callback(struct archive *_a,
     archive_open_callback *client_opener)
 {
@@ -315,7 +315,7 @@ archive_read_set_open_callback(struct archive *_a,
 	return ARCHIVE_OK;
 }
 
-int
+__LA_DECL int
 archive_read_set_read_callback(struct archive *_a,
     archive_read_callback *client_reader)
 {
@@ -326,7 +326,7 @@ archive_read_set_read_callback(struct archive *_a,
 	return ARCHIVE_OK;
 }
 
-int
+__LA_DECL int
 archive_read_set_skip_callback(struct archive *_a,
     archive_skip_callback *client_skipper)
 {
@@ -337,7 +337,7 @@ archive_read_set_skip_callback(struct archive *_a,
 	return ARCHIVE_OK;
 }
 
-int
+__LA_DECL int
 archive_read_set_seek_callback(struct archive *_a,
     archive_seek_callback *client_seeker)
 {
@@ -348,7 +348,7 @@ archive_read_set_seek_callback(struct archive *_a,
 	return ARCHIVE_OK;
 }
 
-int
+__LA_DECL int
 archive_read_set_close_callback(struct archive *_a,
     archive_close_callback *client_closer)
 {
@@ -359,7 +359,7 @@ archive_read_set_close_callback(struct archive *_a,
 	return ARCHIVE_OK;
 }
 
-int
+__LA_DECL int
 archive_read_set_switch_callback(struct archive *_a,
     archive_switch_callback *client_switcher)
 {
@@ -370,13 +370,13 @@ archive_read_set_switch_callback(struct archive *_a,
 	return ARCHIVE_OK;
 }
 
-int
+__LA_DECL int
 archive_read_set_callback_data(struct archive *_a, void *client_data)
 {
 	return archive_read_set_callback_data2(_a, client_data, 0);
 }
 
-int
+__LA_DECL int
 archive_read_set_callback_data2(struct archive *_a, void *client_data,
     unsigned int iindex)
 {
@@ -409,7 +409,7 @@ archive_read_set_callback_data2(struct archive *_a, void *client_data,
 	return ARCHIVE_OK;
 }
 
-int
+__LA_DECL int
 archive_read_add_callback_data(struct archive *_a, void *client_data,
     unsigned int iindex)
 {
@@ -443,20 +443,20 @@ archive_read_add_callback_data(struct archive *_a, void *client_data,
 	return ARCHIVE_OK;
 }
 
-int
+__LA_DECL int
 archive_read_append_callback_data(struct archive *_a, void *client_data)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 	return archive_read_add_callback_data(_a, client_data, a->client.nodes);
 }
 
-int
+__LA_DECL int
 archive_read_prepend_callback_data(struct archive *_a, void *client_data)
 {
 	return archive_read_add_callback_data(_a, client_data, 0);
 }
 
-int
+__LA_DECL int
 archive_read_open1(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
@@ -747,7 +747,7 @@ choose_format(struct archive_read *a)
  * Return the file offset (within the uncompressed data stream) where
  * the last header started.
  */
-int64_t
+__LA_DECL int64_t
 archive_read_header_position(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
@@ -774,7 +774,7 @@ archive_read_header_position(struct archive *_a)
  * function does not return the number of encrypted entries but#
  * just shows that there are some.
  */
-int
+__LA_DECL int
 archive_read_has_encrypted_entries(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
@@ -799,7 +799,7 @@ archive_read_has_encrypted_entries(struct archive *_a)
  * Returns a bitmask of capabilities that are supported by the archive format reader.
  * If the reader has no special capabilities, ARCHIVE_READ_FORMAT_CAPS_NONE is returned.
  */
-int
+__LA_DECL int
 archive_read_format_capabilities(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
@@ -914,7 +914,7 @@ void __archive_reset_read_data(struct archive * a)
 /*
  * Skip over all remaining data in this entry.
  */
-int
+__LA_DECL int
 archive_read_data_skip(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
@@ -942,7 +942,7 @@ archive_read_data_skip(struct archive *_a)
 	return (r);
 }
 
-int64_t
+__LA_DECL int64_t
 archive_seek_data(struct archive *_a, int64_t offset, int whence)
 {
 	struct archive_read *a = (struct archive_read *)_a;

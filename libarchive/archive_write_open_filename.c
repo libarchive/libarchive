@@ -66,13 +66,13 @@ static int	file_open(struct archive *, void *);
 static ssize_t	file_write(struct archive *, void *, const void *buff, size_t);
 static int	open_filename(struct archive *, int, const void *);
 
-int
+__LA_DECL int
 archive_write_open_file(struct archive *a, const char *filename)
 {
 	return (archive_write_open_filename(a, filename));
 }
 
-int
+__LA_DECL int
 archive_write_open_filename(struct archive *a, const char *filename)
 {
 
@@ -82,7 +82,7 @@ archive_write_open_filename(struct archive *a, const char *filename)
 	return (open_filename(a, 1, filename));
 }
 
-int
+__LA_DECL int
 archive_write_open_filename_w(struct archive *a, const wchar_t *filename)
 {
 

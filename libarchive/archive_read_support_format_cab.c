@@ -355,7 +355,7 @@ static inline int lzx_decode_huffman(struct huffman *, unsigned);
 static int	lzx_decode_huffman_tree(struct huffman *, unsigned, int);
 
 
-int
+__LA_DECL int
 archive_read_support_format_cab(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
