@@ -199,7 +199,7 @@ struct zip {
 	struct trad_enc_ctx	tctx;
 	char			tctx_valid;
 
-	/* WinZip AES decyption. */
+	/* WinZip AES decryption. */
 	/* Contexts used for AES decryption. */
 	archive_crypto_ctx	cctx;
 	char			cctx_valid;
@@ -710,7 +710,7 @@ process_extra(struct archive_read *a, const char *p, size_t extra_length, struct
 			break;
 		}
 		case 0x9901:
-			/* WinZIp AES extra data field. */
+			/* WinZip AES extra data field. */
 			if (p[offset + 2] == 'A' && p[offset + 3] == 'E') {
 				/* Vendor version. */
 				zip_entry->aes_extra.vendor =
@@ -1518,7 +1518,7 @@ read_decryption_header(struct archive_read *a)
 	case 0x6720:/* Blowfish */
 	case 0x6721:/* Twofish */
 	case 0x6801:/* RC4 */
-		/* Suuported encryption algorithm. */
+		/* Supported encryption algorithm. */
 		break;
 	default:
 		archive_set_error(&a->archive,
@@ -1627,7 +1627,7 @@ read_decryption_header(struct archive_read *a)
 	__archive_read_consume(a, 4);
 
 	/*return (ARCHIVE_OK);
-	 * This is not fully implemnted yet.*/
+	 * This is not fully implemented yet.*/
 	archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 	    "Encrypted file is unsupported");
 	return (ARCHIVE_FAILED);
@@ -1709,7 +1709,7 @@ init_traditional_PKWARE_decryption(struct archive_read *a)
 		}
 
 		/*
-		 * Initialize ctx for Traditional PKWARE Decyption.
+		 * Initialize ctx for Traditional PKWARE Decryption.
 		 */
 		r = trad_enc_init(&zip->tctx, passphrase, strlen(passphrase),
 			p, ENC_HEADER_SIZE, &crcchk);
