@@ -1499,7 +1499,7 @@ trad_enc_update_keys(struct trad_enc_ctx *ctx, uint8_t c)
 }
 
 static uint8_t
-trad_enc_decypt_byte(struct trad_enc_ctx *ctx)
+trad_enc_decrypt_byte(struct trad_enc_ctx *ctx)
 {
 	unsigned temp = ctx->keys[2] | 2;
 	return (uint8_t)((temp * (temp ^ 1)) >> 8) & 0xff;
@@ -1515,7 +1515,7 @@ trad_enc_encrypt_update(struct trad_enc_ctx *ctx, const uint8_t *in,
 
 	for (i = 0; i < max; i++) {
 		uint8_t t = in[i];
-		out[i] = t ^ trad_enc_decypt_byte(ctx);
+		out[i] = t ^ trad_enc_decrypt_byte(ctx);
 		trad_enc_update_keys(ctx, t);
 	}
 	return i;
