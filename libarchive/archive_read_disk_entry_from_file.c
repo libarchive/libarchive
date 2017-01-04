@@ -526,6 +526,11 @@ setup_acls(struct archive_read_disk *a,
 
 	/* Only directories can have default ACLs. */
 	if (S_ISDIR(archive_entry_mode(entry))) {
+#if HAVE_ACL_GET_FD_NP
+		if (*fd >= 0)
+			acl = acl_get_fd_np(*fd, ACL_TYPE_DEFAULT);
+		else
+#endif
 		acl = acl_get_file(accpath, ACL_TYPE_DEFAULT);
 		if (acl != NULL) {
 			r = translate_acl(a, entry, acl,
