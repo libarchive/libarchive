@@ -2422,6 +2422,28 @@ extract_reference_files(const char **names)
 		extract_reference_file(*names++);
 }
 
+
+/*
+ * Tests if the char array is an absolute path.
+ */
+int
+is_absolute_path(char *testdir)
+{
+	int is_absolute  = testdir[0] != '/';
+#if defined(_WIN32) && !defined(__CYGWIN__)	
+	is_absolute  = (is_absolute && testdir[0] != '\\' &&
+	!(((testdir[0] >= 'a' && testdir[0] <= 'z') ||
+	(testdir[0] >= 'A' && testdir[0] <= 'Z')) &&
+	testdir[1] == ':' &&
+	(testdir[2] == '/' || testdir[2] == '\\')));
+#endif
+	return is_absolute;
+}
+
+
+
+
+
 /*
  *
  * TEST management
@@ -2775,15 +2797,7 @@ main(int argc, char **argv)
 		j++;
 	}
 	testprogdir[i] = '\0';
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	if (testprogdir[0] != '/' && testprogdir[0] != '\\' &&
-	    !(((testprogdir[0] >= 'a' && testprogdir[0] <= 'z') ||
-	       (testprogdir[0] >= 'A' && testprogdir[0] <= 'Z')) &&
-		testprogdir[1] == ':' &&
-		(testprogdir[2] == '/' || testprogdir[2] == '\\')))
-#else
-	if (testprogdir[0] != '/')
-#endif
+	if (is_absolute_path(testprogdir))
 	{
 		/* Fixup path for relative directories. */
 		if ((testprogdir = (char *)realloc(testprogdir,

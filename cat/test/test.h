@@ -325,6 +325,11 @@ void dumpfile(const char *filename, void *, size_t);
 
 /* Extracts named reference file to the current directory. */
 void extract_reference_file(const char *);
+
+/* Tests if the char array is an absolute path.*/
+int is_absolute_path(char *testdir);
+
+
 /* Copies named reference file to the current directory. */
 void copy_reference_file(const char *);
 
