@@ -295,13 +295,13 @@ set_acl(struct archive *a, int fd, const char *name,
 	}
 
 	/* Try restoring the ACL through 'fd' if we can. */
-#if HAVE_ACL_SET_FD
-	if (fd >= 0 && acl_type == ACL_TYPE_ACCESS && acl_set_fd(fd, acl) == 0)
+#if HAVE_ACL_SET_FD_NP
+	if (fd >= 0 && acl_set_fd_np(fd, acl, acl_type) == 0)
 		ret = ARCHIVE_OK;
 	else
 #else
-#if HAVE_ACL_SET_FD_NP
-	if (fd >= 0 && acl_set_fd_np(fd, acl, acl_type) == 0)
+#if HAVE_ACL_SET_FD
+	if (fd >= 0 && acl_type == ACL_TYPE_ACCESS && acl_set_fd(fd, acl) == 0)
 		ret = ARCHIVE_OK;
 	else
 #endif
