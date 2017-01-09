@@ -219,6 +219,12 @@ archive_wstring_append(struct archive_wstring *as, const wchar_t *p, size_t s)
 	return (as);
 }
 
+struct archive_string *
+archive_array_append(struct archive_string *as, const char *p, size_t s)
+{
+	return archive_string_append(as, p, s);
+}
+
 void
 archive_string_concat(struct archive_string *dest, struct archive_string *src)
 {
