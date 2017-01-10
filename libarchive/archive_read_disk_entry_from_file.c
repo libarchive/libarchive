@@ -575,14 +575,14 @@ setup_acls(struct archive_read_disk *a,
 	return (ARCHIVE_OK);
 }
 
-#if HAVE_SUN_ACL
 /*
- * Translate Solaris system NFSv4 ACL into libarchive internal structure.
+ * Translate system ACL permissions into libarchive internal structure
  */
 static struct {
         int archive_perm;
         int platform_perm;
 } acl_perm_map[] = {
+#if HAVE_SUN_ACL	/* Solaris NFSv4 ACL permissions */
         {ARCHIVE_ENTRY_ACL_EXECUTE, ACE_EXECUTE},
         {ARCHIVE_ENTRY_ACL_READ_DATA, ACE_READ_DATA},
         {ARCHIVE_ENTRY_ACL_LIST_DIRECTORY, ACE_LIST_DIRECTORY},
@@ -600,32 +600,11 @@ static struct {
         {ARCHIVE_ENTRY_ACL_WRITE_ACL, ACE_WRITE_ACL},
         {ARCHIVE_ENTRY_ACL_WRITE_OWNER, ACE_WRITE_OWNER},
         {ARCHIVE_ENTRY_ACL_SYNCHRONIZE, ACE_SYNCHRONIZE}
-};
-
-static struct {
-        int archive_inherit;
-        int platform_inherit;
-} acl_inherit_map[] = {
-        {ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT, ACE_FILE_INHERIT_ACE},
-	{ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT, ACE_DIRECTORY_INHERIT_ACE},
-	{ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT, ACE_NO_PROPAGATE_INHERIT_ACE},
-	{ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY, ACE_INHERIT_ONLY_ACE},
-	{ARCHIVE_ENTRY_ACL_ENTRY_SUCCESSFUL_ACCESS, ACE_SUCCESSFUL_ACCESS_ACE_FLAG},
-	{ARCHIVE_ENTRY_ACL_ENTRY_FAILED_ACCESS, ACE_FAILED_ACCESS_ACE_FLAG},
-	{ARCHIVE_ENTRY_ACL_ENTRY_INHERITED, ACE_INHERITED_ACE}
-};
-#else	/* !HAVE_SUN_ACL */
-/*
- * Translate FreeBSD system ACL into libarchive internal structure.
- */
-static struct {
-        int archive_perm;
-        int platform_perm;
-} acl_perm_map[] = {
+#else	/* POSIX.1e ACL permissions */
         {ARCHIVE_ENTRY_ACL_EXECUTE, ACL_EXECUTE},
         {ARCHIVE_ENTRY_ACL_WRITE, ACL_WRITE},
         {ARCHIVE_ENTRY_ACL_READ, ACL_READ},
-#ifdef ACL_TYPE_NFS4
+#ifdef ACL_TYPE_NFS4	/* FreeBSD NFSv4 ACL permissions */
         {ARCHIVE_ENTRY_ACL_READ_DATA, ACL_READ_DATA},
         {ARCHIVE_ENTRY_ACL_LIST_DIRECTORY, ACL_LIST_DIRECTORY},
         {ARCHIVE_ENTRY_ACL_WRITE_DATA, ACL_WRITE_DATA},
@@ -643,13 +622,26 @@ static struct {
         {ARCHIVE_ENTRY_ACL_WRITE_OWNER, ACL_WRITE_OWNER},
         {ARCHIVE_ENTRY_ACL_SYNCHRONIZE, ACL_SYNCHRONIZE}
 #endif
+#endif	/* !HAVE_SUN_ACL */
 };
 
-#ifdef ACL_TYPE_NFS4
+#if defined(ACL_TYPE_NFS4) || HAVE_SUN_ACL
+/*
+ * Translate system NFSv4 inheritance flags into libarchive internal structure
+ */
 static struct {
         int archive_inherit;
         int platform_inherit;
 } acl_inherit_map[] = {
+#if HAVE_SUN_ACL
+        {ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT, ACE_FILE_INHERIT_ACE},
+	{ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT, ACE_DIRECTORY_INHERIT_ACE},
+	{ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT, ACE_NO_PROPAGATE_INHERIT_ACE},
+	{ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY, ACE_INHERIT_ONLY_ACE},
+	{ARCHIVE_ENTRY_ACL_ENTRY_SUCCESSFUL_ACCESS, ACE_SUCCESSFUL_ACCESS_ACE_FLAG},
+	{ARCHIVE_ENTRY_ACL_ENTRY_FAILED_ACCESS, ACE_FAILED_ACCESS_ACE_FLAG},
+	{ARCHIVE_ENTRY_ACL_ENTRY_INHERITED, ACE_INHERITED_ACE}
+#else	/* !HAVE_SUN_ACL */
         {ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT, ACL_ENTRY_FILE_INHERIT},
 	{ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT, ACL_ENTRY_DIRECTORY_INHERIT},
 	{ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT, ACL_ENTRY_NO_PROPAGATE_INHERIT},
@@ -657,11 +649,14 @@ static struct {
 	{ARCHIVE_ENTRY_ACL_ENTRY_SUCCESSFUL_ACCESS, ACL_ENTRY_SUCCESSFUL_ACCESS},
 	{ARCHIVE_ENTRY_ACL_ENTRY_FAILED_ACCESS, ACL_ENTRY_FAILED_ACCESS},
 	{ARCHIVE_ENTRY_ACL_ENTRY_INHERITED, ACL_ENTRY_INHERITED}
-};
-#endif
 #endif	/* !HAVE_SUN_ACL */
+};
+#endif	/* defined(ACL_TYPE_NFS4) || HAVE_SUN_ACL */
 
 #if HAVE_SUN_ACL
+/*
+ * Translate Solaris POSIX.1e and NFSv4 ACLs into libarchive internal ACL
+ */
 static int
 translate_acl(struct archive_read_disk *a,
     struct archive_entry *entry, acl_t *acl, int default_entry_acl_type)
@@ -792,6 +787,10 @@ translate_acl(struct archive_read_disk *a,
 	return (ARCHIVE_OK);
 }
 #else	/* !HAVE_SUN_ACL */
+/*
+ * Translate POSIX.1e (Linux) and FreeBSD (both POSIX.1e and NFSv4)
+ * ACLs into libarchive internal structure
+ */
 static int
 translate_acl(struct archive_read_disk *a,
     struct archive_entry *entry, acl_t acl, int default_entry_acl_type)
