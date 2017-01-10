@@ -1,6 +1,14 @@
 language: C
-sudo: required
+sudo: false
 dist: trusty
+addons:
+  apt:
+    packages:
+      - libacl1-dev
+      - libbz2-dev
+      - liblzma-dev
+      - liblzo2-dev
+      - libzip-dev
 os:
   - linux
   - osx
@@ -16,7 +24,6 @@ matrix:
       compiler: gcc
 before_install:
   - if [ `uname` = "Darwin" ]; then brew update; fi
-  - if [ `uname` = "Linux" ]; then sudo apt-get install -y libbz2-dev libzip-dev liblzma-dev liblzo2-dev; fi
 install:
   - if [ `uname` = "Darwin" ]; then brew install xz lzo lz4; fi
 script:
