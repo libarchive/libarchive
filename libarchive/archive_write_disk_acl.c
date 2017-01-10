@@ -295,23 +295,26 @@ set_acl(struct archive *a, int fd, const char *name,
 	}
 
 	/* Try restoring the ACL through 'fd' if we can. */
+#if HAVE_ACL_SET_FD_NP || HAVE_ACL_SET_FD
 #if HAVE_ACL_SET_FD_NP
-	if (fd >= 0 && acl_set_fd_np(fd, acl, acl_type) == 0)
-		ret = ARCHIVE_OK;
-	else if (fd >= 0 && errno == EOPNOTSUPP) {
-		/* Filesystem doesn't support ACLs */
-		ret = ARCHIVE_OK;
-	} else
-#else
-#if HAVE_ACL_SET_FD
-	if (fd >= 0 && acl_type == ACL_TYPE_ACCESS && acl_set_fd(fd, acl) == 0)
-		ret = ARCHIVE_OK;
-	else if (fd >= 0 && errno == EOPNOTSUPP) {
-		/* Filesystem doesn't support ACLs */
-		ret = ARCHIVE_OK;
-	} else
+	if (fd >= 0) {
+		if (acl_set_fd_np(fd, acl, acl_type) == 0)
+#else /* HAVE_ACL_SET_FD */
+	if (fd >= 0 && acl_type == ACL_TYPE_ACCESS) {
+		if (acl_set_fd(fd, acl) == 0)
 #endif
-#endif
+			ret = ARCHIVE_OK;
+		else {
+			if (errno == EOPNOTSUPP) {
+				/* Filesystem doesn't support ACLs */
+				ret = ARCHIVE_OK;
+			} else {
+				archive_set_error(a, errno,
+				    "Failed to set %s acl on fd", tname);
+			}
+		}
+	} else
+#endif	/* HAVE_ACL_SET_FD_NP || HAVE_ACL_SET_FD */
 #if HAVE_ACL_SET_LINK_NP
 	if (acl_set_link_np(name, acl_type, acl) != 0) {
 #else
@@ -326,7 +329,7 @@ set_acl(struct archive *a, int fd, const char *name,
 			    tname);
 			ret = ARCHIVE_WARN;
 		}
-	  }
+	}
 exit_free:
 	acl_free(acl);
 	return (ret);
