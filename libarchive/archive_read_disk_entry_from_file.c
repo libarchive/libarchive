@@ -405,17 +405,26 @@ setup_mac_metadata(struct archive_read_disk *a,
 }
 #endif
 
-
-#ifdef HAVE_POSIX_ACL
+#if HAVE_POSIX_ACL || HAVE_SUN_ACL
 static int translate_acl(struct archive_read_disk *a,
-    struct archive_entry *entry, acl_t acl, int archive_entry_acl_type);
+    struct archive_entry *entry,
+#if HAVE_SUN_ACL
+    acl_t *acl,
+#else
+    acl_t acl,
+#endif
+    int archive_entry_acl_type);
 
 static int
 setup_acls(struct archive_read_disk *a,
     struct archive_entry *entry, int *fd)
 {
 	const char	*accpath;
-	acl_t		 acl;
+#if HAVE_SUN_ACL
+	acl_t		*acl;
+#else
+	acl_t		acl;
+#endif
 	int		r;
 
 	accpath = archive_entry_sourcepath(entry);
@@ -440,10 +449,12 @@ setup_acls(struct archive_read_disk *a,
 
 	acl = NULL;
 
-#ifdef ACL_TYPE_NFS4
+#if defined(ACL_TYPE_NFS4) || HAVE_SUN_ACL
 	/* Try NFSv4 ACL first. */
 	if (*fd >= 0)
-#if HAVE_ACL_GET_FD_NP
+#if HAVE_SUN_ACL
+		facl_get(*fd, 0, &acl);
+#elif HAVE_ACL_GET_FD_NP
 		acl = acl_get_fd_np(*fd, ACL_TYPE_NFS4);
 #else
 		acl = acl_get_fd(*fd);
@@ -459,12 +470,24 @@ setup_acls(struct archive_read_disk *a,
 		acl = NULL;
 #endif
 	else
+#if HAVE_SUN_ACL
+		acl_get(accpath, 0, &acl);
+#else
 		acl = acl_get_file(accpath, ACL_TYPE_NFS4);
+#endif
 
-#if HAVE_ACL_IS_TRIVIAL_NP
-	if (acl != NULL && acl_is_trivial_np(acl, &r) == 0) {
-		/* Ignore "trivial" ACLs that just mirror the file mode. */
-		if (r) {
+
+#if HAVE_ACL_IS_TRIVIAL_NP || HAVE_SUN_ACL
+	/* Ignore "trivial" ACLs that just mirror the file mode. */
+	if (acl != NULL) {
+#if HAVE_SUN_ACL
+		/* TODO: Check if ace_t is trivial like acl_is_trivial_np()  */
+		if (acl->acl_type == ACLENT_T &&
+			(acl->acl_flags & ACL_IS_TRIVIAL) != 0)
+#elif HAVE_ACL_IS_TRIVIAL_NP
+		if (acl_is_trivial_np(acl, &r) == 0 && r == 1)
+#endif
+		{
 			acl_free(acl);
 			acl = NULL;
 			/*
@@ -474,18 +497,23 @@ setup_acls(struct archive_read_disk *a,
 			return (ARCHIVE_OK);
 		}
 	}
-#endif
+#endif	/* HAVE_ACL_IS_TRIVIAL_NP || HAVE_SUN_ACL */
 	if (acl != NULL) {
 		r = translate_acl(a, entry, acl, ARCHIVE_ENTRY_ACL_TYPE_NFS4);
 		acl_free(acl);
 		if (r != ARCHIVE_OK) {
 			archive_set_error(&a->archive, errno,
+#if HAVE_SUN_ACL
+			    "Couldn't translate ACLs: %s", accpath);
+#else
 			    "Couldn't translate NFSv4 ACLs: %s", accpath);
+#endif
 		}
 		return (r);
 	}
-#endif	/* ACL_TYPE_NFS4 */
+#endif	/* defined(ACL_TYPE_NFS4) || HAVE_SUN_ACL */
 
+#if !HAVE_SUN_ACL
 	/* Retrieve access ACL from file. */
 	if (*fd >= 0)
 		acl = acl_get_fd(*fd);
@@ -513,8 +541,7 @@ setup_acls(struct archive_read_disk *a,
 #endif
 
 	if (acl != NULL) {
-		r = translate_acl(a, entry, acl,
-		    ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
+		r = translate_acl(a, entry, acl, ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
 		acl_free(acl);
 		acl = NULL;
 		if (r != ARCHIVE_OK) {
@@ -544,13 +571,53 @@ setup_acls(struct archive_read_disk *a,
 			}
 		}
 	}
+#endif	/* !HAVE_SUN_ACL */
 	return (ARCHIVE_OK);
 }
 
+#if HAVE_SUN_ACL
 /*
- * Translate system ACL into libarchive internal structure.
+ * Translate Solaris system NFSv4 ACL into libarchive internal structure.
  */
+static struct {
+        int archive_perm;
+        int platform_perm;
+} acl_perm_map[] = {
+        {ARCHIVE_ENTRY_ACL_EXECUTE, ACE_EXECUTE},
+        {ARCHIVE_ENTRY_ACL_READ_DATA, ACE_READ_DATA},
+        {ARCHIVE_ENTRY_ACL_LIST_DIRECTORY, ACE_LIST_DIRECTORY},
+        {ARCHIVE_ENTRY_ACL_WRITE_DATA, ACE_WRITE_DATA},
+        {ARCHIVE_ENTRY_ACL_ADD_FILE, ACE_ADD_FILE},
+        {ARCHIVE_ENTRY_ACL_APPEND_DATA, ACE_APPEND_DATA},
+        {ARCHIVE_ENTRY_ACL_ADD_SUBDIRECTORY, ACE_ADD_SUBDIRECTORY},
+        {ARCHIVE_ENTRY_ACL_READ_NAMED_ATTRS, ACE_READ_NAMED_ATTRS},
+        {ARCHIVE_ENTRY_ACL_WRITE_NAMED_ATTRS, ACE_WRITE_NAMED_ATTRS},
+        {ARCHIVE_ENTRY_ACL_DELETE_CHILD, ACE_DELETE_CHILD},
+        {ARCHIVE_ENTRY_ACL_READ_ATTRIBUTES, ACE_READ_ATTRIBUTES},
+        {ARCHIVE_ENTRY_ACL_WRITE_ATTRIBUTES, ACE_WRITE_ATTRIBUTES},
+        {ARCHIVE_ENTRY_ACL_DELETE, ACE_DELETE},
+        {ARCHIVE_ENTRY_ACL_READ_ACL, ACE_READ_ACL},
+        {ARCHIVE_ENTRY_ACL_WRITE_ACL, ACE_WRITE_ACL},
+        {ARCHIVE_ENTRY_ACL_WRITE_OWNER, ACE_WRITE_OWNER},
+        {ARCHIVE_ENTRY_ACL_SYNCHRONIZE, ACE_SYNCHRONIZE}
+};
 
+static struct {
+        int archive_inherit;
+        int platform_inherit;
+} acl_inherit_map[] = {
+        {ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT, ACE_FILE_INHERIT_ACE},
+	{ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT, ACE_DIRECTORY_INHERIT_ACE},
+	{ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT, ACE_NO_PROPAGATE_INHERIT_ACE},
+	{ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY, ACE_INHERIT_ONLY_ACE},
+	{ARCHIVE_ENTRY_ACL_ENTRY_SUCCESSFUL_ACCESS, ACE_SUCCESSFUL_ACCESS_ACE_FLAG},
+	{ARCHIVE_ENTRY_ACL_ENTRY_FAILED_ACCESS, ACE_FAILED_ACCESS_ACE_FLAG},
+	{ARCHIVE_ENTRY_ACL_ENTRY_INHERITED, ACE_INHERITED_ACE}
+};
+#else	/* !HAVE_SUN_ACL */
+/*
+ * Translate FreeBSD system ACL into libarchive internal structure.
+ */
 static struct {
         int archive_perm;
         int platform_perm;
@@ -592,6 +659,139 @@ static struct {
 	{ARCHIVE_ENTRY_ACL_ENTRY_INHERITED, ACL_ENTRY_INHERITED}
 };
 #endif
+#endif	/* !HAVE_SUN_ACL */
+
+#if HAVE_SUN_ACL
+static int
+translate_acl(struct archive_read_disk *a,
+    struct archive_entry *entry, acl_t *acl, int default_entry_acl_type)
+{
+	int e, i;
+	int ae_id, ae_tag, ae_perm;
+	int entry_acl_type;
+	const char *ae_name;
+	aclent_t *aclent;
+	ace_t *ace;
+
+	(void)default_entry_acl_type;
+
+	if (acl->acl_cnt <= 0)
+		return (ARCHIVE_OK);
+
+	for (e = 0; e < acl->acl_cnt; e++) {
+		ae_name = NULL;
+		ae_tag = 0;
+		ae_perm = 0;
+
+		if (acl->acl_type == ACE_T) {
+			ace = &((ace_t *)acl->acl_aclp)[e];
+			ae_id = ace->a_who;
+
+			switch(ace->a_type) {
+			case ACE_ACCESS_ALLOWED_ACE_TYPE:
+				entry_acl_type = ARCHIVE_ENTRY_ACL_TYPE_ALLOW;
+				break;
+			case ACE_ACCESS_DENIED_ACE_TYPE:
+				entry_acl_type = ARCHIVE_ENTRY_ACL_TYPE_DENY;
+				break;
+			case ACE_SYSTEM_AUDIT_ACE_TYPE:
+				entry_acl_type = ARCHIVE_ENTRY_ACL_TYPE_ACCESS;
+				break;
+			case ACE_SYSTEM_ALARM_ACE_TYPE:
+				entry_acl_type = ARCHIVE_ENTRY_ACL_TYPE_ALARM;
+				break;
+			default:
+				/* Unknown entry type, skip */
+				continue;
+			}
+
+			if ((ace->a_flags & ACE_OWNER) != 0)
+				ae_tag = ARCHIVE_ENTRY_ACL_USER_OBJ;
+			else if ((ace->a_flags & ACE_GROUP) != 0)
+				ae_tag = ARCHIVE_ENTRY_ACL_GROUP_OBJ;
+			else if ((ace->a_flags & ACE_EVERYONE) != 0)
+				ae_tag = ARCHIVE_ENTRY_ACL_EVERYONE;
+			else if ((ace->a_flags & ACE_IDENTIFIER_GROUP) != 0) {
+				ae_tag = ARCHIVE_ENTRY_ACL_GROUP;
+				ae_name = archive_read_disk_gname(&a->archive,
+				    ae_id);
+			} else {
+				ae_tag = ARCHIVE_ENTRY_ACL_USER;
+				ae_name = archive_read_disk_uname(&a->archive,
+				    ae_id);
+			}
+
+			for (i = 0; i < (int)(sizeof(acl_inherit_map) /
+			    sizeof(acl_inherit_map[0])); ++i) {
+				if ((ace->a_flags &
+				    acl_inherit_map[i].platform_inherit) != 0)
+					ae_perm |=
+					    acl_inherit_map[i].archive_inherit;
+			}
+
+			for (i = 0; i < (int)(sizeof(acl_perm_map) /
+			    sizeof(acl_perm_map[0])); ++i) {
+				if ((ace->a_access_mask &
+				    acl_perm_map[i].platform_perm) != 0)
+					ae_perm |=
+					    acl_perm_map[i].archive_perm;
+			}
+		} else {
+			aclent = &((aclent_t *)acl->acl_aclp)[e];
+			if ((aclent->a_type & ACL_DEFAULT) != 0)
+				entry_acl_type = ARCHIVE_ENTRY_ACL_TYPE_DEFAULT;
+			else
+				entry_acl_type = ARCHIVE_ENTRY_ACL_TYPE_ACCESS;
+			ae_id = aclent->a_id;
+
+			switch(aclent->a_type) {
+			case DEF_USER:
+			case USER:
+				ae_name = archive_read_disk_uname(&a->archive,
+				    ae_id);
+				ae_tag = ARCHIVE_ENTRY_ACL_USER;
+				break;
+			case DEF_GROUP:
+			case GROUP:
+				ae_name = archive_read_disk_gname(&a->archive,
+				    ae_id);
+				ae_tag = ARCHIVE_ENTRY_ACL_GROUP;
+				break;
+			case DEF_CLASS_OBJ:
+			case CLASS_OBJ:
+				ae_tag = ARCHIVE_ENTRY_ACL_MASK;
+				break;
+			case DEF_USER_OBJ:
+			case USER_OBJ:
+				ae_tag = ARCHIVE_ENTRY_ACL_USER_OBJ;
+				break;
+			case DEF_GROUP_OBJ:
+			case GROUP_OBJ:
+				ae_tag = ARCHIVE_ENTRY_ACL_GROUP_OBJ;
+				break;
+			case DEF_OTHER_OBJ:
+			case OTHER_OBJ:
+				ae_tag = ARCHIVE_ENTRY_ACL_OTHER;
+				break;
+			default:
+				/* Unknown tag type, skip */
+				continue;
+			}
+
+			if ((aclent->a_perm & 1) != 0)
+				ae_perm |= ARCHIVE_ENTRY_ACL_EXECUTE;
+			if ((aclent->a_perm & 2) != 0)
+				ae_perm |= ARCHIVE_ENTRY_ACL_WRITE;
+			if ((aclent->a_perm & 4) != 0)
+				ae_perm |= ARCHIVE_ENTRY_ACL_READ;
+		} /* default_entry_acl_type != ARCHIVE_ENTRY_ACL_TYPE_NFS4 */
+
+		archive_entry_acl_add_entry(entry, entry_acl_type,
+		    ae_perm, ae_tag, ae_id, ae_name);
+	}
+	return (ARCHIVE_OK);
+}
+#else	/* !HAVE_SUN_ACL */
 static int
 translate_acl(struct archive_read_disk *a,
     struct archive_entry *entry, acl_t acl, int default_entry_acl_type)
@@ -643,7 +843,6 @@ translate_acl(struct archive_read_disk *a,
 		return (ARCHIVE_WARN);
 	}
 #endif
-
 
 	s = acl_get_entry(acl, ACL_FIRST_ENTRY, &acl_entry);
 	if (s == -1) {
@@ -783,7 +982,8 @@ translate_acl(struct archive_read_disk *a,
 	}
 	return (ARCHIVE_OK);
 }
-#else
+#endif	/* !HAVE_SUN_ACL */
+#else	/* !HAVE_POSIX_ACL && !HAVE_SUN_ACL */
 static int
 setup_acls(struct archive_read_disk *a,
     struct archive_entry *entry, int *fd)
@@ -793,7 +993,7 @@ setup_acls(struct archive_read_disk *a,
 	(void)fd;     /* UNUSED */
 	return (ARCHIVE_OK);
 }
-#endif
+#endif	/* !HAVE_POSIX_ACL && !HAVE_SUN_ACL */
 
 #if (HAVE_FGETXATTR && HAVE_FLISTXATTR && HAVE_LISTXATTR && \
     HAVE_LLISTXATTR && HAVE_GETXATTR && HAVE_LGETXATTR) || \

@@ -1,3 +1,5 @@
+Jan 10, 2017: POSIX.1e and NFSv4 ACL support for Solaris and derivates
+
 Dec 27, 2016: NFSv4 ACL read and write support for pax
     Deprecated functions: archive_entry_acl_text(), archive_entry_acl_text_w()
 
