@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003-2010 Tim Kientzle
+ * Copyright (c) 2017 Martin Matuska
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,9 +26,12 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-#if defined(__FreeBSD__) && __FreeBSD__ >= 8
+#if HAVE_SUN_ACL || HAVE_POSIX_ACL
 #define _ACL_PRIVATE
 #include <sys/acl.h>
+#endif
+
+#if HAVE_SUN_ACL || (HAVE_POSIX_ACL && defined(ACL_TYPE_NFS4))
 
 struct myacl_t {
 	int type;
@@ -89,7 +93,6 @@ static struct myacl_t acls_reg[] = {
 	{ ARCHIVE_ENTRY_ACL_TYPE_ALLOW, ARCHIVE_ENTRY_ACL_EXECUTE,
 	  ARCHIVE_ENTRY_ACL_EVERYONE, -1, "" }
 };
-
 
 static struct myacl_t acls_dir[] = {
 	/* For this test, we need to be able to read and write the ACL. */
@@ -188,9 +191,32 @@ set_acls(struct archive_entry *ae, struct myacl_t *acls, int start, int end)
 }
 
 static int
+#ifdef HAVE_SUN_ACL
+acl_permset_to_bitmap(uint32_t a_access_mask)
+#else
 acl_permset_to_bitmap(acl_permset_t opaque_ps)
+#endif
 {
 	static struct { int machine; int portable; } perms[] = {
+#ifdef HAVE_SUN_ACL
+		{ACE_EXECUTE, ARCHIVE_ENTRY_ACL_EXECUTE},
+		{ACE_READ_DATA, ARCHIVE_ENTRY_ACL_READ_DATA},
+		{ACE_LIST_DIRECTORY, ARCHIVE_ENTRY_ACL_LIST_DIRECTORY},
+		{ACE_WRITE_DATA, ARCHIVE_ENTRY_ACL_WRITE_DATA},
+		{ACE_ADD_FILE, ARCHIVE_ENTRY_ACL_ADD_FILE},
+		{ACE_APPEND_DATA, ARCHIVE_ENTRY_ACL_APPEND_DATA},
+		{ACE_ADD_SUBDIRECTORY, ARCHIVE_ENTRY_ACL_ADD_SUBDIRECTORY},
+		{ACE_READ_NAMED_ATTRS, ARCHIVE_ENTRY_ACL_READ_NAMED_ATTRS},
+		{ACE_WRITE_NAMED_ATTRS, ARCHIVE_ENTRY_ACL_WRITE_NAMED_ATTRS},
+		{ACE_DELETE_CHILD, ARCHIVE_ENTRY_ACL_DELETE_CHILD},
+		{ACE_READ_ATTRIBUTES, ARCHIVE_ENTRY_ACL_READ_ATTRIBUTES},
+		{ACE_WRITE_ATTRIBUTES, ARCHIVE_ENTRY_ACL_WRITE_ATTRIBUTES},
+		{ACE_DELETE, ARCHIVE_ENTRY_ACL_DELETE},
+		{ACE_READ_ACL, ARCHIVE_ENTRY_ACL_READ_ACL},
+		{ACE_WRITE_ACL, ARCHIVE_ENTRY_ACL_WRITE_ACL},
+		{ACE_WRITE_OWNER, ARCHIVE_ENTRY_ACL_WRITE_OWNER},
+		{ACE_SYNCHRONIZE, ARCHIVE_ENTRY_ACL_SYNCHRONIZE}
+#else
 		{ACL_EXECUTE, ARCHIVE_ENTRY_ACL_EXECUTE},
 		{ACL_WRITE, ARCHIVE_ENTRY_ACL_WRITE},
 		{ACL_READ, ARCHIVE_ENTRY_ACL_READ},
@@ -210,51 +236,109 @@ acl_permset_to_bitmap(acl_permset_t opaque_ps)
 		{ACL_WRITE_ACL, ARCHIVE_ENTRY_ACL_WRITE_ACL},
 		{ACL_WRITE_OWNER, ARCHIVE_ENTRY_ACL_WRITE_OWNER},
 		{ACL_SYNCHRONIZE, ARCHIVE_ENTRY_ACL_SYNCHRONIZE}
+#endif
 	};
 	int i, permset = 0;
 
 	for (i = 0; i < (int)(sizeof(perms)/sizeof(perms[0])); ++i)
+#if HAVE_SUN_ACL
+		if (a_access_mask & perms[i].machine)
+#else
 		if (acl_get_perm_np(opaque_ps, perms[i].machine))
+#endif
 			permset |= perms[i].portable;
 	return permset;
 }
 
 static int
+#if HAVE_SUN_ACL
+acl_flagset_to_bitmap(uint16_t a_flags)
+#else
 acl_flagset_to_bitmap(acl_flagset_t opaque_fs)
+#endif
 {
 	static struct { int machine; int portable; } flags[] = {
+#if HAVE_SUN_ACL
+		{ACE_FILE_INHERIT_ACE, ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT},
+		{ACE_DIRECTORY_INHERIT_ACE, ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT},
+		{ACE_NO_PROPAGATE_INHERIT_ACE, ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT},
+		{ACE_INHERIT_ONLY_ACE, ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY},
+		{ACE_SUCCESSFUL_ACCESS_ACE_FLAG, ARCHIVE_ENTRY_ACL_ENTRY_SUCCESSFUL_ACCESS},
+		{ACE_FAILED_ACCESS_ACE_FLAG, ARCHIVE_ENTRY_ACL_ENTRY_FAILED_ACCESS},
+		{ACE_INHERITED_ACE, ARCHIVE_ENTRY_ACL_ENTRY_INHERITED}
+#else
 		{ACL_ENTRY_FILE_INHERIT, ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT},
 		{ACL_ENTRY_DIRECTORY_INHERIT, ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT},
 		{ACL_ENTRY_NO_PROPAGATE_INHERIT, ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT},
+		{ACL_ENTRY_SUCCESSFUL_ACCESS, ARCHIVE_ENTRY_ACL_ENTRY_SUCCESSFUL_ACCESS},
+		{ACL_ENTRY_NO_PROPAGATE_INHERIT, ARCHIVE_ENTRY_ACL_ENTRY_FAILED_ACCESS},
+
 		{ACL_ENTRY_INHERIT_ONLY, ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY},
+#endif
 	};
 	int i, flagset = 0;
 
 	for (i = 0; i < (int)(sizeof(flags)/sizeof(flags[0])); ++i)
+#if HAVE_SUN_ACL
+		if (a_flags & flags[i].machine)
+#else
 		if (acl_get_flag_np(opaque_fs, flags[i].machine))
+#endif
 			flagset |= flags[i].portable;
 	return flagset;
 }
 
 static int
+#if HAVE_SUN_ACL
+acl_match(ace_t *ace, struct myacl_t *myacl)
+#else
 acl_match(acl_entry_t aclent, struct myacl_t *myacl)
+#endif
 {
+#if !HAVE_SUN_ACL
 	gid_t g, *gp;
 	uid_t u, *up;
 	acl_tag_t tag_type;
 	acl_permset_t opaque_ps;
 	acl_flagset_t opaque_fs;
+#endif
 	int perms;
 
+#if HAVE_SUN_ACL
+	perms = acl_permset_to_bitmap(ace->a_access_mask) | acl_flagset_to_bitmap(ace->a_flags);
+#else
 	acl_get_tag_type(aclent, &tag_type);
 
 	/* translate the silly opaque permset to a bitmap */
 	acl_get_permset(aclent, &opaque_ps);
 	acl_get_flagset_np(aclent, &opaque_fs);
 	perms = acl_permset_to_bitmap(opaque_ps) | acl_flagset_to_bitmap(opaque_fs);
+#endif
 	if (perms != myacl->permset)
 		return (0);
 
+#if HAVE_SUN_ACL
+	if (ace->a_flags & ACE_OWNER) {
+		if (myacl->tag != ARCHIVE_ENTRY_ACL_USER_OBJ)
+			return (0);
+	} else if (ace->a_flags & ACE_GROUP) {
+		if (myacl->tag != ARCHIVE_ENTRY_ACL_GROUP_OBJ)
+			return (0);
+	} else if (ace->a_flags & ACE_EVERYONE) {
+		if (myacl->tag != ARCHIVE_ENTRY_ACL_EVERYONE)
+			return (0);
+	} else if (ace->a_flags & ACE_IDENTIFIER_GROUP) {
+		if (myacl->tag != ARCHIVE_ENTRY_ACL_GROUP)
+			return (0);
+		if ((gid_t)myacl->qual != ace->a_who)
+			return (0);
+	} else {
+		if (myacl->tag != ARCHIVE_ENTRY_ACL_USER)
+			return (0);
+		if ((uid_t)myacl->qual != ace->a_who)
+			return (0);
+	}
+#else	/* !HAVE_SUN_ACL */
 	switch (tag_type) {
 	case ACL_USER_OBJ:
 		if (myacl->tag != ARCHIVE_ENTRY_ACL_USER_OBJ) return (0);
@@ -287,17 +371,29 @@ acl_match(acl_entry_t aclent, struct myacl_t *myacl)
 		if (myacl->tag != ARCHIVE_ENTRY_ACL_EVERYONE) return (0);
 		break;
 	}
+#endif	/* !HAVE_SUN_ACL */
 	return (1);
 }
 
 static void
-compare_acls(acl_t acl, struct myacl_t *myacls, const char *filename, int start, int end)
+compare_acls(
+#if HAVE_SUN_ACL
+    acl_t *acl,
+#else
+    acl_t acl,
+#endif
+    struct myacl_t *myacls, const char *filename, int start, int end)
 {
 	int *marker;
-	int entry_id = ACL_FIRST_ENTRY;
 	int matched;
 	int i, n;
+#if HAVE_SUN_ACL
+	int e;
+	ace_t *acl_entry;
+#else
+	int entry_id = ACL_FIRST_ENTRY;
 	acl_entry_t acl_entry;
+#endif
 
 	n = end - start;
 	marker = malloc(sizeof(marker[0]) * (n + 1));
@@ -313,10 +409,18 @@ compare_acls(acl_t acl, struct myacl_t *myacls, const char *filename, int start,
 	 * Iterate over acls in system acl object, try to match each
 	 * one with an item in the myacls array.
 	 */
-	while (1 == acl_get_entry(acl, entry_id, &acl_entry)) {
+#if HAVE_SUN_ACL
+	for (e = 0; e < acl->acl_cnt; e++)
+#else
+	while (1 == acl_get_entry(acl, entry_id, &acl_entry))
+#endif
+	{
+#if HAVE_SUN_ACL
+		acl_entry = &((ace_t *)acl->acl_aclp)[e];
+#else
 		/* After the first time... */
 		entry_id = ACL_NEXT_ENTRY;
-
+#endif
 		/* Search for a matching entry (tag and qualifier) */
 		for (i = 0, matched = 0; i < n && !matched; i++) {
 			if (acl_match(acl_entry, &myacls[marker[i]])) {
@@ -327,7 +431,8 @@ compare_acls(acl_t acl, struct myacl_t *myacls, const char *filename, int start,
 			}
 		}
 
-		failure("ACL entry on file %s that shouldn't be there", filename);
+		failure("ACL entry on file %s that shouldn't be there",
+		    filename);
 		assert(matched == 1);
 	}
 
@@ -368,7 +473,8 @@ compare_entry_acls(struct archive_entry *ae, struct myacl_t *myacls, const char 
 	 * Iterate over acls in entry, try to match each
 	 * one with an item in the myacls array.
 	 */
-	assertEqualInt(n, archive_entry_acl_reset(ae, ARCHIVE_ENTRY_ACL_TYPE_NFS4));
+	assertEqualInt(n, archive_entry_acl_reset(ae,
+	    ARCHIVE_ENTRY_ACL_TYPE_NFS4));
 	while (ARCHIVE_OK == archive_entry_acl_next(ae,
 	    ARCHIVE_ENTRY_ACL_TYPE_NFS4, &type, &permset, &tag, &qual, &name)) {
 
@@ -403,53 +509,78 @@ compare_entry_acls(struct archive_entry *ae, struct myacl_t *myacls, const char 
 	}
 	free(marker);
 }
-#endif
+#endif	/* HAVE_SUN_ACL || (HAVE_POSIX_ACL && defined(ACL_TYPE_NFS4)) */
 
 /*
- * Verify ACL restore-to-disk.  This test is FreeBSD-specific.
+ * Verify ACL restore-to-disk.  This test is Platform-specific.
  */
 
-DEFINE_TEST(test_acl_freebsd_nfs4)
+DEFINE_TEST(test_acl_platform_nfs4)
 {
-#if !defined(__FreeBSD__)
-	skipping("FreeBSD-specific NFS4 ACL restore test");
-#elif __FreeBSD__ < 8
-	skipping("NFS4 ACLs supported only on FreeBSD 8.0 and later");
+#if !HAVE_SUN_ACL && (!HAVE_POSIX_ACL || !defined(ACL_TYPE_NFS4))
+	skipping("NFS4 ACLs are not supported on this platform");
 #else
 	char buff[64];
 	struct stat st;
 	struct archive *a;
 	struct archive_entry *ae;
 	int i, n;
+	char *func;
+#if HAVE_SUN_ACL
+	acl_t *acl;
+#else
 	acl_t acl;
+#endif
 
 	/*
 	 * First, do a quick manual set/read of ACL data to
 	 * verify that the local filesystem does support ACLs.
 	 * If it doesn't, we'll simply skip the remaining tests.
 	 */
+#if !HAVE_SUN_ACL
 	acl = acl_from_text("owner@:rwxp::allow,group@:rwp:f:allow");
+	failure("acl_from_text(): errno = %d (%s)", errno, strerror(errno));
 	assert((void *)acl != NULL);
+#endif
+
 	/* Create a test dir and try to set an ACL on it. */
 	if (!assertMakeDir("pretest", 0755)) {
+#if !HAVE_SUN_ACL
 		acl_free(acl);
+#endif
 		return;
 	}
 
+#if HAVE_SUN_ACL
+	func = "acl_get()";
+	n = acl_get("pretest", 0, &acl);
+#else
+	func = "acl_set_file()";
 	n = acl_set_file("pretest", ACL_TYPE_NFS4, acl);
 	acl_free(acl);
-	if (n != 0 && errno == EOPNOTSUPP) {
-		skipping("NFS4 ACL tests require that NFS4 ACLs"
-		    " be enabled on the filesystem");
-		return;
+#endif
+	if (n != 0) {
+#if HAVE_SUN_ACL
+		if (errno == ENOSYS)
+#else
+		if (errno == EOPNOTSUPP || errno == EINVAL)
+#endif
+		{
+			skipping("NFS4 ACL is not supported on this filesystem");
+			return;
+		}
 	}
-	if (n != 0 && errno == EINVAL) {
-		skipping("This filesystem does not support NFS4 ACLs");
-		return;
-	}
-	failure("acl_set_file(): errno = %d (%s)",
-	    errno, strerror(errno));
+	failure("%s: errno = %d (%s)", func, errno, strerror(errno));
 	assertEqualInt(0, n);
+
+#if HAVE_SUN_ACL
+	if (acl->acl_type != ACE_T) {
+		acl_free(acl);
+		skipping("NFS4 ACL is not supported on this filesystem");
+		return;
+	}
+	acl_free(acl);
+#endif
 
 	/* Create a write-to-disk object. */
 	assert(NULL != (a = archive_write_disk_new()));
@@ -496,28 +627,51 @@ DEFINE_TEST(test_acl_freebsd_nfs4)
 	/* Verify the data on disk. */
 	assertEqualInt(0, stat("testall", &st));
 	assertEqualInt(st.st_mtime, 123456);
+#if HAVE_SUN_ACL
+	n = acl_get("testall", 0, &acl);
+	failure("acl_get(): errno = %d (%s)", errno, strerror(errno));
+	assertEqualInt(0, n);
+#else
 	acl = acl_get_file("testall", ACL_TYPE_NFS4);
+	failure("acl_get_file(): errno = %d (%s)", errno, strerror(errno));
 	assert(acl != (acl_t)NULL);
+#endif
 	compare_acls(acl, acls_reg, "testall", 0, (int)(sizeof(acls_reg)/sizeof(acls_reg[0])));
 	acl_free(acl);
 
 	/* Verify single-permission dirs on disk. */
 	for (i = 0; i < (int)(sizeof(acls_dir)/sizeof(acls_dir[0])); ++i) {
-	  sprintf(buff, "dir%d", i);
-	  assertEqualInt(0, stat(buff, &st));
-	  assertEqualInt(st.st_mtime, 123456 + i);
-	  acl = acl_get_file(buff, ACL_TYPE_NFS4);
-	  assert(acl != (acl_t)NULL);
-	  compare_acls(acl, acls_dir, buff, i, i + 1);
-	  acl_free(acl);
+		sprintf(buff, "dir%d", i);
+		assertEqualInt(0, stat(buff, &st));
+		assertEqualInt(st.st_mtime, 123456 + i);
+#if HAVE_SUN_ACL
+		n = acl_get(buff, 0, &acl);
+		failure("acl_get(): errno = %d (%s)", errno, strerror(errno));
+		assertEqualInt(0, n);
+#else
+		acl = acl_get_file(buff, ACL_TYPE_NFS4);
+		failure("acl_get_file(): errno = %d (%s)", errno,
+		    strerror(errno));
+		assert(acl != (acl_t)NULL);
+#endif
+		compare_acls(acl, acls_dir, buff, i, i + 1);
+		acl_free(acl);
 	}
 
 	/* Verify "dirall" on disk. */
 	assertEqualInt(0, stat("dirall", &st));
 	assertEqualInt(st.st_mtime, 123456);
+#if HAVE_SUN_ACL
+	n = acl_get("dirall", 0, &acl);
+	failure("acl_get(): errno = %d (%s)", errno, strerror(errno));
+	assertEqualInt(0, n);
+#else
 	acl = acl_get_file("dirall", ACL_TYPE_NFS4);
+	failure("acl_get_file(): errno = %d (%s)", errno, strerror(errno));
 	assert(acl != (acl_t)NULL);
-	compare_acls(acl, acls_dir, "dirall", 0,  (int)(sizeof(acls_dir)/sizeof(acls_dir[0])));
+#endif
+	compare_acls(acl, acls_dir, "dirall", 0,
+	    (int)(sizeof(acls_dir)/sizeof(acls_dir[0])));
 	acl_free(acl);
 
 	/* Read and compare ACL via archive_read_disk */
@@ -528,7 +682,8 @@ DEFINE_TEST(test_acl_freebsd_nfs4)
 	archive_entry_set_pathname(ae, "testall");
 	assertEqualInt(ARCHIVE_OK,
 		       archive_read_disk_entry_from_file(a, ae, -1, NULL));
-	compare_entry_acls(ae, acls_reg, "testall", 0, (int)(sizeof(acls_reg)/sizeof(acls_reg[0])));
+	compare_entry_acls(ae, acls_reg, "testall", 0,
+	    (int)(sizeof(acls_reg)/sizeof(acls_reg[0])));
 	archive_entry_free(ae);
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
@@ -539,9 +694,10 @@ DEFINE_TEST(test_acl_freebsd_nfs4)
 	assert(ae != NULL);
 	archive_entry_set_pathname(ae, "dirall");
 	assertEqualInt(ARCHIVE_OK,
-		       archive_read_disk_entry_from_file(a, ae, -1, NULL));
-	compare_entry_acls(ae, acls_dir, "dirall", 0,  (int)(sizeof(acls_dir)/sizeof(acls_dir[0])));
+	archive_read_disk_entry_from_file(a, ae, -1, NULL));
+	compare_entry_acls(ae, acls_dir, "dirall", 0,
+	    (int)(sizeof(acls_dir)/sizeof(acls_dir[0])));
 	archive_entry_free(ae);
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-#endif
+#endif /* HAVE_SUN_ACL || (HAVE_POSIX_ACL && defined(ACL_TYPE_NFS4)) */
 }

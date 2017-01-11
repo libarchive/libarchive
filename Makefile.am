@@ -323,13 +323,11 @@ libarchive_test_SOURCES= \
 	libarchive/test/main.c \
 	libarchive/test/read_open_memory.c \
 	libarchive/test/test.h \
-	libarchive/test/test_acl_freebsd_nfs4.c \
-	libarchive/test/test_acl_freebsd_posix1e.c \
 	libarchive/test/test_acl_nfs4.c \
 	libarchive/test/test_acl_pax.c \
+	libarchive/test/test_acl_platform_nfs4.c \
+	libarchive/test/test_acl_platform_posix1e.c \
 	libarchive/test/test_acl_posix1e.c \
-	libarchive/test/test_acl_solaris_nfs4.c \
-	libarchive/test/test_acl_solaris_posix1e.c \
 	libarchive/test/test_acl_text.c \
 	libarchive/test/test_archive_api_feature.c \
 	libarchive/test/test_archive_clear_error.c \
