@@ -405,6 +405,11 @@ setup_mac_metadata(struct archive_read_disk *a,
 }
 #endif
 
+#if HAVE_SUN_ACL
+static int
+sun_acl_is_trivial(acl_t *, mode_t, int *trivialp);
+#endif
+
 #if HAVE_POSIX_ACL || HAVE_SUN_ACL
 static int translate_acl(struct archive_read_disk *a,
     struct archive_entry *entry,
@@ -481,9 +486,8 @@ setup_acls(struct archive_read_disk *a,
 	/* Ignore "trivial" ACLs that just mirror the file mode. */
 	if (acl != NULL) {
 #if HAVE_SUN_ACL
-		/* TODO: Check if ace_t is trivial like acl_is_trivial_np()  */
-		if (acl->acl_type == ACLENT_T &&
-			(acl->acl_flags & ACL_IS_TRIVIAL) != 0)
+		if (sun_acl_is_trivial(acl, archive_entry_mode(entry),
+		    &r) == 0 && r == 1)
 #elif HAVE_ACL_IS_TRIVIAL_NP
 		if (acl_is_trivial_np(acl, &r) == 0 && r == 1)
 #endif
@@ -654,6 +658,158 @@ static struct {
 #endif	/* defined(ACL_TYPE_NFS4) || HAVE_SUN_ACL */
 
 #if HAVE_SUN_ACL
+/*
+ * Check if acl is trivial
+ * This is a FreeBSD acl_is_trivial_np() implementation for Solaris
+ */
+static int
+sun_acl_is_trivial(acl_t *acl, mode_t mode, int *trivialp)
+{
+	uint32_t pubset, ownset;
+	uint32_t o_allow_pre, o_allow, g_allow, e_allow;
+	uint32_t o_deny, g_deny;
+	int i;
+
+	ace_t *ace;
+
+	if (acl == NULL || trivialp == NULL)
+		return (-1);
+
+	*trivialp = 0;
+
+	/* ACL_IS_TRIVIAL flag must be set for both POSIX.1e and NFSv4 ACLs */
+	if ((acl->acl_flags & ACL_IS_TRIVIAL) == 0)
+		return (0);
+
+	/*
+	 * POSIX.1e ACLs marked with ACL_IS_TRIVIAL are compatible with
+	 * FreeBSD acl_is_trivial_np(). On Solaris they have 4 entries,
+	 * incuding mask.
+	 */
+	if (acl->acl_type == ACLENT_T) {
+		if (acl->acl_cnt == 4)
+			*trivialp = 1;
+		return (0);
+	}
+
+	if (acl->acl_type != ACE_T || acl->acl_entry_size != sizeof(ace_t))
+		return (-1);
+
+	/* Continue with checking NFSv4 ACLs */
+	pubset = ACE_READ_ATTRIBUTES | ACE_READ_NAMED_ATTRS | ACE_READ_ACL |
+	    ACE_SYNCHRONIZE;
+	ownset = pubset | ACE_WRITE_ATTRIBUTES | ACE_WRITE_NAMED_ATTRS |
+	    ACE_WRITE_ACL | ACE_WRITE_OWNER;
+
+	o_allow = ownset;
+	o_allow_pre = o_deny = g_deny = 0;
+	g_allow = e_allow = pubset;
+
+	/* Permissions for everyone@ */
+	if (mode & 0004)
+		e_allow |= ACE_READ_DATA;
+	if (mode & 0002)
+		e_allow |= ACE_WRITE_DATA | ACE_APPEND_DATA;
+	if (mode & 0001)
+		e_allow |= ACE_EXECUTE;
+
+	/* Permissions for group@ */
+	if (mode & 0040)
+		g_allow |= ACE_READ_DATA;
+	else if (mode & 0004)
+		g_deny |= ACE_READ_DATA;
+	if (mode & 0020)
+		g_allow |= ACE_WRITE_DATA | ACE_APPEND_DATA;
+	else if (mode & 0002)
+		g_deny |= ACE_WRITE_DATA | ACE_APPEND_DATA;
+	if (mode & 0010)
+		g_allow |= ACE_EXECUTE;
+	else if (mode & 0001)
+		g_deny |= ACE_EXECUTE;
+
+	/* Permissions for owner@ */
+	if (mode & 0400) {
+		o_allow |= ACE_READ_DATA;
+		if (!(mode & 0040) && (mode & 0004))
+			o_allow_pre |= ACE_READ_DATA;
+	} else if ((mode & 0040) || (mode & 0004))
+		o_deny |= ACE_READ_DATA;
+	if (mode & 0200) {
+		o_allow |= ACE_WRITE_DATA | ACE_APPEND_DATA;
+		if (!(mode & 0020) && (mode & 0002))
+			o_allow_pre |= ACE_WRITE_DATA | ACE_APPEND_DATA;
+	} else if ((mode & 0020) || (mode & 0002))
+		o_deny |= ACE_WRITE_DATA | ACE_APPEND_DATA;
+	if (mode & 0100) {
+		o_allow |= ACE_EXECUTE;
+		if (!(mode & 0010) && (mode & 0001))
+			o_allow_pre |= ACE_EXECUTE;
+	} else if ((mode & 0010) || (mode & 0001))
+		o_deny |= ACE_EXECUTE;
+
+	i = 3;
+
+	if (o_allow_pre != 0)
+		i++;
+	if (o_deny != 0)
+		i++;
+	if (g_deny != 0)
+		i++;
+
+	/* Check if the acl count matches */
+	if (acl->acl_cnt != i)
+		return (0);
+
+	i = 0;
+	if (o_allow_pre != 0) {
+		ace = &((ace_t *)acl->acl_aclp)[i];
+		if (ace->a_flags != ACE_OWNER ||
+		    ace->a_type != ACE_ACCESS_ALLOWED_ACE_TYPE ||
+		    ace->a_access_mask != o_allow_pre)
+			return (0);
+		i++;
+	}
+	if (o_deny != 0) {
+		ace = &((ace_t *)acl->acl_aclp)[i];
+		if (ace->a_flags != ACE_OWNER ||
+		    ace->a_type != ACE_ACCESS_DENIED_ACE_TYPE ||
+		    ace->a_access_mask != o_deny)
+			return (0);
+		i++;
+	}
+	if (g_deny != 0) {
+		ace = &((ace_t *)acl->acl_aclp)[i];
+		if (ace->a_flags != (ACE_GROUP | ACE_IDENTIFIER_GROUP) ||
+		    ace->a_type != ACE_ACCESS_DENIED_ACE_TYPE ||
+		    ace->a_access_mask != g_deny)
+			return (0);
+		i++;
+	}
+
+	ace = &((ace_t *)acl->acl_aclp)[i];
+	if (ace->a_flags != ACE_OWNER ||
+	    ace->a_type != ACE_ACCESS_ALLOWED_ACE_TYPE ||
+	    ace->a_access_mask != o_allow)
+			return (0);
+	i++;
+
+	ace = &((ace_t *)acl->acl_aclp)[i];
+	if (ace->a_flags != (ACE_GROUP | ACE_IDENTIFIER_GROUP) ||
+	    ace->a_type != ACE_ACCESS_ALLOWED_ACE_TYPE ||
+	    ace->a_access_mask != g_allow)
+			return (0);
+	i++;
+
+	ace = &((ace_t *)acl->acl_aclp)[i];
+	if (ace->a_flags != ACE_EVERYONE ||
+	    ace->a_type != ACE_ACCESS_ALLOWED_ACE_TYPE ||
+	    ace->a_access_mask != e_allow)
+			return (0);
+
+	*trivialp = 1;
+	return (0);
+}
+
 /*
  * Translate Solaris POSIX.1e and NFSv4 ACLs into libarchive internal ACL
  */
