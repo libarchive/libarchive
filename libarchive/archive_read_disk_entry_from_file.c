@@ -665,12 +665,17 @@ static struct {
 static int
 sun_acl_is_trivial(acl_t *acl, mode_t mode, int *trivialp)
 {
-	uint32_t pubset, ownset, rperm, wperm, eperm;
-	uint32_t o_allow_pre, o_allow, g_allow, e_allow;
-	uint32_t o_deny, g_deny;
-	int i;
+	int i, p;
+	const uint32_t rperm = ACE_READ_DATA;
+	const uint32_t wperm = ACE_WRITE_DATA | ACE_APPEND_DATA;
+	const uint32_t eperm = ACE_EXECUTE;
+	const uint32_t pubset = ACE_READ_ATTRIBUTES | ACE_READ_NAMED_ATTRS |
+	    ACE_READ_ACL | ACE_SYNCHRONIZE;
+	const uint32_t ownset = pubset | ACE_WRITE_ATTRIBUTES |
+	    ACE_WRITE_NAMED_ATTRS | ACE_WRITE_ACL | ACE_WRITE_OWNER;
 
 	ace_t *ace;
+	ace_t tace[6];
 
 	if (acl == NULL || trivialp == NULL)
 		return (-1);
@@ -695,123 +700,112 @@ sun_acl_is_trivial(acl_t *acl, mode_t mode, int *trivialp)
 	if (acl->acl_type != ACE_T || acl->acl_entry_size != sizeof(ace_t))
 		return (-1);
 
-	/* Continue with checking NFSv4 ACLs */
-	pubset = ACE_READ_ATTRIBUTES | ACE_READ_NAMED_ATTRS | ACE_READ_ACL |
-	    ACE_SYNCHRONIZE;
-	ownset = pubset | ACE_WRITE_ATTRIBUTES | ACE_WRITE_NAMED_ATTRS |
-	    ACE_WRITE_ACL | ACE_WRITE_OWNER;
+	/*
+	 * Continue with checking NFSv4 ACLs
+	 *
+	 * Create list of trivial ace's to be compared
+	 */
 
-	o_allow = ownset;
-	o_allow_pre = o_deny = g_deny = 0;
-	g_allow = e_allow = pubset;
+	/* owner@ allow pre */
+	tace[0].a_flags = ACE_OWNER;
+	tace[0].a_type = ACE_ACCESS_ALLOWED_ACE_TYPE;
+	tace[0].a_access_mask = 0;
 
-	rperm = ACE_READ_DATA;
-	wperm = ACE_WRITE_DATA | ACE_APPEND_DATA;
-	eperm = ACE_EXECUTE;
+	/* owner@ deny */
+	tace[1].a_flags = ACE_OWNER;
+	tace[1].a_type = ACE_ACCESS_DENIED_ACE_TYPE;
+	tace[1].a_access_mask = 0;
 
-	if ((acl->acl_flags & ACL_IS_DIR) != 0)
-		wperm |= ACE_DELETE_CHILD;
+	/* group@ deny */
+	tace[2].a_flags = ACE_GROUP | ACE_IDENTIFIER_GROUP;
+	tace[2].a_type = ACE_ACCESS_DENIED_ACE_TYPE;
+	tace[2].a_access_mask = 0;
+
+	/* owner@ allow */
+	tace[3].a_flags = ACE_OWNER;
+	tace[3].a_type = ACE_ACCESS_ALLOWED_ACE_TYPE;
+	tace[3].a_access_mask = ownset;
+
+	/* group@ allow */
+	tace[4].a_flags = ACE_GROUP | ACE_IDENTIFIER_GROUP;
+	tace[4].a_type = ACE_ACCESS_ALLOWED_ACE_TYPE;
+	tace[4].a_access_mask = pubset;
+
+	/* everyone@ allow */
+	tace[5].a_flags = ACE_EVERYONE;
+	tace[5].a_type = ACE_ACCESS_ALLOWED_ACE_TYPE;
+	tace[5].a_access_mask = pubset;
 
 	/* Permissions for everyone@ */
 	if (mode & 0004)
-		e_allow |= rperm;
+		tace[5].a_access_mask |= rperm;
 	if (mode & 0002)
-		e_allow |= wperm;
+		tace[5].a_access_mask |= wperm;
 	if (mode & 0001)
-		e_allow |= eperm;
+		tace[5].a_access_mask |= eperm;
 
 	/* Permissions for group@ */
 	if (mode & 0040)
-		g_allow |= rperm;
+		tace[4].a_access_mask |= rperm;
 	else if (mode & 0004)
-		g_deny |= rperm;
+		tace[2].a_access_mask |= rperm;
 	if (mode & 0020)
-		g_allow |= wperm;
+		tace[4].a_access_mask |= wperm;
 	else if (mode & 0002)
-		g_deny |= wperm;
+		tace[2].a_access_mask |= wperm;
 	if (mode & 0010)
-		g_allow |= eperm;
+		tace[4].a_access_mask |= eperm;
 	else if (mode & 0001)
-		g_deny |= eperm;
+		tace[2].a_access_mask |= eperm;
 
 	/* Permissions for owner@ */
 	if (mode & 0400) {
-		o_allow |= rperm;
+		tace[3].a_access_mask |= rperm;
 		if (!(mode & 0040) && (mode & 0004))
-			o_allow_pre |= rperm;
+			tace[0].a_access_mask |= rperm;
 	} else if ((mode & 0040) || (mode & 0004))
-		o_deny |= rperm;
+		tace[1].a_access_mask |= rperm;
 	if (mode & 0200) {
-		o_allow |= wperm;
+		tace[3].a_access_mask |= wperm;
 		if (!(mode & 0020) && (mode & 0002))
-			o_allow_pre |= wperm;
+			tace[0].a_access_mask |= wperm;
 	} else if ((mode & 0020) || (mode & 0002))
-		o_deny |= wperm;
+		tace[1].a_access_mask |= wperm;
 	if (mode & 0100) {
-		o_allow |= eperm;
+		tace[3].a_access_mask |= eperm;
 		if (!(mode & 0010) && (mode & 0001))
-			o_allow_pre |= eperm;
+			tace[0].a_access_mask |= eperm;
 	} else if ((mode & 0010) || (mode & 0001))
-		o_deny |= eperm;
-
-	i = 3;
-
-	if (o_allow_pre != 0)
-		i++;
-	if (o_deny != 0)
-		i++;
-	if (g_deny != 0)
-		i++;
+		tace[1].a_access_mask |= eperm;
 
 	/* Check if the acl count matches */
-	if (acl->acl_cnt != i)
+	p = 3;
+	for (i = 0; i < 3; i++) {
+		if (tace[i].a_access_mask != 0)
+			p++;
+	}
+	if (acl->acl_cnt != p)
 		return (0);
 
-	i = 0;
-	if (o_allow_pre != 0) {
-		ace = &((ace_t *)acl->acl_aclp)[i];
-		if (ace->a_flags != ACE_OWNER ||
-		    ace->a_type != ACE_ACCESS_ALLOWED_ACE_TYPE ||
-		    ace->a_access_mask != o_allow_pre)
-			return (0);
-		i++;
+	p = 0;
+	for (i = 0; i < 6; i++) {
+		if (tace[i].a_access_mask != 0) {
+			ace = &((ace_t *)acl->acl_aclp)[p];
+			/*
+			 * Illumos added ACE_DELETE_CHILD to write perms for
+			 * directories. We have to check against that, too.
+			 */
+			if (ace->a_flags != tace[i].a_flags ||
+			    ace->a_type != tace[i].a_type ||
+			    (ace->a_access_mask != tace[i].a_access_mask &&
+			    ((acl->acl_flags & ACL_IS_DIR) == 0 ||
+			    (tace[i].a_access_mask & wperm) == 0 ||
+			    ace->a_access_mask !=
+			    (tace[i].a_access_mask | ACE_DELETE_CHILD))))
+				return (0);
+			p++;
+		}
 	}
-	if (o_deny != 0) {
-		ace = &((ace_t *)acl->acl_aclp)[i];
-		if (ace->a_flags != ACE_OWNER ||
-		    ace->a_type != ACE_ACCESS_DENIED_ACE_TYPE ||
-		    ace->a_access_mask != o_deny)
-			return (0);
-		i++;
-	}
-	if (g_deny != 0) {
-		ace = &((ace_t *)acl->acl_aclp)[i];
-		if (ace->a_flags != (ACE_GROUP | ACE_IDENTIFIER_GROUP) ||
-		    ace->a_type != ACE_ACCESS_DENIED_ACE_TYPE ||
-		    ace->a_access_mask != g_deny)
-			return (0);
-		i++;
-	}
-
-	ace = &((ace_t *)acl->acl_aclp)[i];
-	if (ace->a_flags != ACE_OWNER ||
-	    ace->a_type != ACE_ACCESS_ALLOWED_ACE_TYPE ||
-	    ace->a_access_mask != o_allow)
-			return (0);
-	i++;
-
-	ace = &((ace_t *)acl->acl_aclp)[i];
-	if (ace->a_flags != (ACE_GROUP | ACE_IDENTIFIER_GROUP) ||
-	    ace->a_type != ACE_ACCESS_ALLOWED_ACE_TYPE ||
-	    ace->a_access_mask != g_allow)
-			return (0);
-	i++;
-
-	ace = &((ace_t *)acl->acl_aclp)[i];
-	if (ace->a_flags != ACE_EVERYONE ||
-	    ace->a_type != ACE_ACCESS_ALLOWED_ACE_TYPE ||
-	    ace->a_access_mask != e_allow)
-			return (0);
 
 	*trivialp = 1;
 	return (0);
