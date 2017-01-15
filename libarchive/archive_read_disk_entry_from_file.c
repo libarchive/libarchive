@@ -665,7 +665,7 @@ static struct {
 static int
 sun_acl_is_trivial(acl_t *acl, mode_t mode, int *trivialp)
 {
-	uint32_t pubset, ownset;
+	uint32_t pubset, ownset, rperm, wperm, eperm;
 	uint32_t o_allow_pre, o_allow, g_allow, e_allow;
 	uint32_t o_deny, g_deny;
 	int i;
@@ -705,47 +705,54 @@ sun_acl_is_trivial(acl_t *acl, mode_t mode, int *trivialp)
 	o_allow_pre = o_deny = g_deny = 0;
 	g_allow = e_allow = pubset;
 
+	rperm = ACE_READ_DATA;
+	wperm = ACE_WRITE_DATA | ACE_APPEND_DATA;
+	eperm = ACE_EXECUTE;
+
+	if ((acl->acl_flags & ACL_IS_DIR) != 0)
+		wperm |= ACE_DELETE_CHILD;
+
 	/* Permissions for everyone@ */
 	if (mode & 0004)
-		e_allow |= ACE_READ_DATA;
+		e_allow |= rperm;
 	if (mode & 0002)
-		e_allow |= ACE_WRITE_DATA | ACE_APPEND_DATA;
+		e_allow |= wperm;
 	if (mode & 0001)
-		e_allow |= ACE_EXECUTE;
+		e_allow |= eperm;
 
 	/* Permissions for group@ */
 	if (mode & 0040)
-		g_allow |= ACE_READ_DATA;
+		g_allow |= rperm;
 	else if (mode & 0004)
-		g_deny |= ACE_READ_DATA;
+		g_deny |= rperm;
 	if (mode & 0020)
-		g_allow |= ACE_WRITE_DATA | ACE_APPEND_DATA;
+		g_allow |= wperm;
 	else if (mode & 0002)
-		g_deny |= ACE_WRITE_DATA | ACE_APPEND_DATA;
+		g_deny |= wperm;
 	if (mode & 0010)
-		g_allow |= ACE_EXECUTE;
+		g_allow |= eperm;
 	else if (mode & 0001)
-		g_deny |= ACE_EXECUTE;
+		g_deny |= eperm;
 
 	/* Permissions for owner@ */
 	if (mode & 0400) {
-		o_allow |= ACE_READ_DATA;
+		o_allow |= rperm;
 		if (!(mode & 0040) && (mode & 0004))
-			o_allow_pre |= ACE_READ_DATA;
+			o_allow_pre |= rperm;
 	} else if ((mode & 0040) || (mode & 0004))
-		o_deny |= ACE_READ_DATA;
+		o_deny |= rperm;
 	if (mode & 0200) {
-		o_allow |= ACE_WRITE_DATA | ACE_APPEND_DATA;
+		o_allow |= wperm;
 		if (!(mode & 0020) && (mode & 0002))
-			o_allow_pre |= ACE_WRITE_DATA | ACE_APPEND_DATA;
+			o_allow_pre |= wperm;
 	} else if ((mode & 0020) || (mode & 0002))
-		o_deny |= ACE_WRITE_DATA | ACE_APPEND_DATA;
+		o_deny |= wperm;
 	if (mode & 0100) {
-		o_allow |= ACE_EXECUTE;
+		o_allow |= eperm;
 		if (!(mode & 0010) && (mode & 0001))
-			o_allow_pre |= ACE_EXECUTE;
+			o_allow_pre |= eperm;
 	} else if ((mode & 0010) || (mode & 0001))
-		o_deny |= ACE_EXECUTE;
+		o_deny |= eperm;
 
 	i = 3;
 
