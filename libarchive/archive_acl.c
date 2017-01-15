@@ -1144,7 +1144,7 @@ archive_acl_from_text_w(struct archive_acl *acl, const wchar_t *text,
 
 	const wchar_t *s, *st;
 
-	int numfields, fields, n, r, ret;
+	int numfields, fields, n, r, sol, ret;
 	int type, types, tag, permset, id;
 	size_t len;
 	wchar_t sep;
@@ -1192,6 +1192,7 @@ archive_acl_from_text_w(struct archive_acl *acl, const wchar_t *text,
 		}
 
 		n = 0;
+		sol = 0;
 		id = -1;
 		permset = 0;
 		name.start = name.end = NULL;
@@ -1263,6 +1264,7 @@ archive_acl_from_text_w(struct archive_acl *acl, const wchar_t *text,
 				    && ismode_w(field[n + 1].start,
 				    field[n + 1].end, &permset)) {
 					/* This is Solaris-style "other:rwx" */
+					sol = 1;
 				} else if (fields == (n + 3) &&
 				    field[n + 1].start < field[n + 1].end) {
 					/* Invalid mask or other field */
@@ -1287,9 +1289,12 @@ archive_acl_from_text_w(struct archive_acl *acl, const wchar_t *text,
 				continue;
 			}
 
-			/* Without "default:" we expect mode in field 2 */
-			if (permset == 0 && !ismode_w(field[n + 2].start,
-			    field[n + 2].end, &permset)) {
+			/*
+			 * Without "default:" we expect mode in field 2
+			 * Exception: Solaris other and mask fields
+			 */
+			if (permset == 0 && !ismode_w(field[n + 2 - sol].start,
+			    field[n + 2 - sol].end, &permset)) {
 				/* Invalid mode, skip entry */
 				ret = ARCHIVE_WARN;
 				continue;
@@ -1615,7 +1620,7 @@ archive_acl_from_text_l(struct archive_acl *acl, const char *text,
 	} field[6], name;
 
 	const char *s, *st;
-	int numfields, fields, n, r, ret;
+	int numfields, fields, n, r, sol, ret;
 	int type, types, tag, permset, id;
 	size_t len;
 	char sep;
@@ -1663,6 +1668,7 @@ archive_acl_from_text_l(struct archive_acl *acl, const char *text,
 		}
 
 		n = 0;
+		sol = 0;
 		id = -1;
 		permset = 0;
 		name.start = name.end = NULL;
@@ -1734,6 +1740,7 @@ archive_acl_from_text_l(struct archive_acl *acl, const char *text,
 				    && ismode(field[n + 1].start,
 				    field[n + 1].end, &permset)) {
 					/* This is Solaris-style "other:rwx" */
+					sol = 1;
 				} else if (fields == (n + 3) &&
 				    field[n + 1].start < field[n + 1].end) {
 					/* Invalid mask or other field */
@@ -1758,9 +1765,12 @@ archive_acl_from_text_l(struct archive_acl *acl, const char *text,
 				continue;
 			}
 
-			/* Without "default:" we expect mode in field 2 */
-			if (permset == 0 && !ismode(field[n + 2].start,
-			    field[n + 2].end, &permset)) {
+			/*
+			 * Without "default:" we expect mode in field 3
+			 * Exception: Solaris other and mask fields
+			 */
+			if (permset == 0 && !ismode(field[n + 2 - sol].start,
+			    field[n + 2 - sol].end, &permset)) {
 				/* Invalid mode, skip entry */
 				ret = ARCHIVE_WARN;
 				continue;
