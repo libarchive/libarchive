@@ -454,7 +454,7 @@ setup_acls(struct archive_read_disk *a,
 
 	acl = NULL;
 
-#if defined(ACL_TYPE_NFS4) || HAVE_SUN_ACL
+#if HAVE_ACL_TYPE_NFS4 || HAVE_SUN_ACL
 	/* Try NFSv4 ACL first. */
 	if (*fd >= 0)
 #if HAVE_SUN_ACL
@@ -515,7 +515,7 @@ setup_acls(struct archive_read_disk *a,
 		}
 		return (r);
 	}
-#endif	/* defined(ACL_TYPE_NFS4) || HAVE_SUN_ACL */
+#endif	/* HAVE_ACL_TYPE_NFS4 || HAVE_SUN_ACL */
 
 #if !HAVE_SUN_ACL
 	/* Retrieve access ACL from file. */
@@ -608,7 +608,7 @@ static struct {
 	{ARCHIVE_ENTRY_ACL_EXECUTE, ACL_EXECUTE},
 	{ARCHIVE_ENTRY_ACL_WRITE, ACL_WRITE},
 	{ARCHIVE_ENTRY_ACL_READ, ACL_READ},
-#ifdef ACL_TYPE_NFS4	/* FreeBSD NFSv4 ACL permissions */
+#if HAVE_ACL_TYPE_NFS4	/* FreeBSD NFSv4 ACL permissions */
 	{ARCHIVE_ENTRY_ACL_READ_DATA, ACL_READ_DATA},
 	{ARCHIVE_ENTRY_ACL_LIST_DIRECTORY, ACL_LIST_DIRECTORY},
 	{ARCHIVE_ENTRY_ACL_WRITE_DATA, ACL_WRITE_DATA},
@@ -629,7 +629,7 @@ static struct {
 #endif	/* !HAVE_SUN_ACL */
 };
 
-#if defined(ACL_TYPE_NFS4) || HAVE_SUN_ACL
+#if HAVE_ACL_TYPE_NFS4 || HAVE_SUN_ACL
 /*
  * Translate system NFSv4 inheritance flags into libarchive internal structure
  */
@@ -655,7 +655,7 @@ static struct {
 	{ARCHIVE_ENTRY_ACL_ENTRY_INHERITED, ACL_ENTRY_INHERITED}
 #endif	/* !HAVE_SUN_ACL */
 };
-#endif	/* defined(ACL_TYPE_NFS4) || HAVE_SUN_ACL */
+#endif	/* HAVE_ACL_TYPE_NFS4 || HAVE_SUN_ACL */
 
 #if HAVE_SUN_ACL
 /*
@@ -953,7 +953,7 @@ translate_acl(struct archive_read_disk *a,
     struct archive_entry *entry, acl_t acl, int default_entry_acl_type)
 {
 	acl_tag_t	 acl_tag;
-#ifdef ACL_TYPE_NFS4
+#if HAVE_ACL_TYPE_NFS4
 	acl_entry_type_t acl_type;
 	acl_flagset_t	 acl_flagset;
 	int brand;
@@ -965,7 +965,7 @@ translate_acl(struct archive_read_disk *a,
 	const char	*ae_name;
 
 
-#ifdef ACL_TYPE_NFS4
+#if HAVE_ACL_TYPE_NFS4
 	// FreeBSD "brands" ACLs as POSIX.1e or NFSv4
 	// Make sure the "brand" on this ACL is consistent
 	// with the default_entry_acl_type bits provided.
@@ -1039,7 +1039,7 @@ translate_acl(struct archive_read_disk *a,
 		case ACL_OTHER:
 			ae_tag = ARCHIVE_ENTRY_ACL_OTHER;
 			break;
-#ifdef ACL_TYPE_NFS4
+#if HAVE_ACL_TYPE_NFS4
 		case ACL_EVERYONE:
 			ae_tag = ARCHIVE_ENTRY_ACL_EVERYONE;
 			break;
@@ -1052,7 +1052,7 @@ translate_acl(struct archive_read_disk *a,
 
 		// XXX acl_type maps to allow/deny/audit/YYYY bits
 		entry_acl_type = default_entry_acl_type;
-#ifdef ACL_TYPE_NFS4
+#if HAVE_ACL_TYPE_NFS4
 		if (default_entry_acl_type & ARCHIVE_ENTRY_ACL_TYPE_NFS4) {
 			/*
 			 * acl_get_entry_type_np() fails with non-NFSv4 ACLs

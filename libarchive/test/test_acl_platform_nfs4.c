@@ -31,7 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/acl.h>
 #endif
 
-#if HAVE_SUN_ACL || (HAVE_POSIX_ACL && defined(ACL_TYPE_NFS4))
+#if HAVE_SUN_ACL || (HAVE_POSIX_ACL && HAVE_ACL_TYPE_NFS4)
 
 struct myacl_t {
 	int type;
@@ -147,6 +147,9 @@ static struct myacl_t acls_dir[] = {
 	{ ARCHIVE_ENTRY_ACL_TYPE_ALLOW,
 	  ARCHIVE_ENTRY_ACL_READ_DATA | ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY,
 	  ARCHIVE_ENTRY_ACL_USER, 304, "user304" },
+	{ ARCHIVE_ENTRY_ACL_TYPE_ALLOW,
+	  ARCHIVE_ENTRY_ACL_READ_DATA | ARCHIVE_ENTRY_ACL_ENTRY_INHERITED,
+	  ARCHIVE_ENTRY_ACL_USER, 305, "user305" },
 #endif
 
 #if 0
@@ -198,7 +201,7 @@ acl_permset_to_bitmap(acl_permset_t opaque_ps)
 #endif
 {
 	static struct { int machine; int portable; } perms[] = {
-#ifdef HAVE_SUN_ACL
+#ifdef HAVE_SUN_ACL	/* Solaris NFSv4 ACL permissions */
 		{ACE_EXECUTE, ARCHIVE_ENTRY_ACL_EXECUTE},
 		{ACE_READ_DATA, ARCHIVE_ENTRY_ACL_READ_DATA},
 		{ACE_LIST_DIRECTORY, ARCHIVE_ENTRY_ACL_LIST_DIRECTORY},
@@ -216,7 +219,7 @@ acl_permset_to_bitmap(acl_permset_t opaque_ps)
 		{ACE_WRITE_ACL, ARCHIVE_ENTRY_ACL_WRITE_ACL},
 		{ACE_WRITE_OWNER, ARCHIVE_ENTRY_ACL_WRITE_OWNER},
 		{ACE_SYNCHRONIZE, ARCHIVE_ENTRY_ACL_SYNCHRONIZE}
-#else
+#else	/* FreeBSD NFSv4 ACL permissions */
 		{ACL_EXECUTE, ARCHIVE_ENTRY_ACL_EXECUTE},
 		{ACL_WRITE, ARCHIVE_ENTRY_ACL_WRITE},
 		{ACL_READ, ARCHIVE_ENTRY_ACL_READ},
@@ -258,7 +261,7 @@ acl_flagset_to_bitmap(acl_flagset_t opaque_fs)
 #endif
 {
 	static struct { int machine; int portable; } flags[] = {
-#if HAVE_SUN_ACL
+#if HAVE_SUN_ACL	/* Solaris NFSv4 ACL inheritance flags */
 		{ACE_FILE_INHERIT_ACE, ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT},
 		{ACE_DIRECTORY_INHERIT_ACE, ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT},
 		{ACE_NO_PROPAGATE_INHERIT_ACE, ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT},
@@ -266,13 +269,13 @@ acl_flagset_to_bitmap(acl_flagset_t opaque_fs)
 		{ACE_SUCCESSFUL_ACCESS_ACE_FLAG, ARCHIVE_ENTRY_ACL_ENTRY_SUCCESSFUL_ACCESS},
 		{ACE_FAILED_ACCESS_ACE_FLAG, ARCHIVE_ENTRY_ACL_ENTRY_FAILED_ACCESS},
 		{ACE_INHERITED_ACE, ARCHIVE_ENTRY_ACL_ENTRY_INHERITED}
-#else
+#else	/* FreeBSD NFSv4 ACL inheritance flags */
+		{ACL_ENTRY_INHERITED, ARCHIVE_ENTRY_ACL_ENTRY_INHERITED},
 		{ACL_ENTRY_FILE_INHERIT, ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT},
 		{ACL_ENTRY_DIRECTORY_INHERIT, ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT},
 		{ACL_ENTRY_NO_PROPAGATE_INHERIT, ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT},
 		{ACL_ENTRY_SUCCESSFUL_ACCESS, ARCHIVE_ENTRY_ACL_ENTRY_SUCCESSFUL_ACCESS},
 		{ACL_ENTRY_NO_PROPAGATE_INHERIT, ARCHIVE_ENTRY_ACL_ENTRY_FAILED_ACCESS},
-
 		{ACL_ENTRY_INHERIT_ONLY, ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY},
 #endif
 	};
@@ -301,6 +304,7 @@ acl_match(acl_entry_t aclent, struct myacl_t *myacl)
 	acl_tag_t tag_type;
 	acl_permset_t opaque_ps;
 	acl_flagset_t opaque_fs;
+	acl_entry_type_t entry_type;
 #endif
 	int perms;
 
@@ -308,6 +312,7 @@ acl_match(acl_entry_t aclent, struct myacl_t *myacl)
 	perms = acl_permset_to_bitmap(ace->a_access_mask) | acl_flagset_to_bitmap(ace->a_flags);
 #else
 	acl_get_tag_type(aclent, &tag_type);
+	acl_get_entry_type_np(aclent, &entry_type);
 
 	/* translate the silly opaque permset to a bitmap */
 	acl_get_permset(aclent, &opaque_ps);
@@ -318,6 +323,27 @@ acl_match(acl_entry_t aclent, struct myacl_t *myacl)
 		return (0);
 
 #if HAVE_SUN_ACL
+	switch (ace->a_type) {
+	case ACE_ACCESS_ALLOWED_ACE_TYPE:
+		if (myacl->type != ARCHIVE_ENTRY_ACL_TYPE_ALLOW)
+			return (0);
+		break;
+	case ACE_ACCESS_DENIED_ACE_TYPE:
+		if (myacl->type != ARCHIVE_ENTRY_ACL_TYPE_DENY)
+			return (0);
+		break;
+	case ACE_SYSTEM_AUDIT_ACE_TYPE:
+		if (myacl->type != ARCHIVE_ENTRY_ACL_TYPE_AUDIT)
+			return (0);
+		break;
+	case ACE_SYSTEM_ALARM_ACE_TYPE:
+		if (myacl->type != ARCHIVE_ENTRY_ACL_TYPE_ALARM)
+			return (0);
+		break;
+	default:
+		return (0);
+	}
+
 	if (ace->a_flags & ACE_OWNER) {
 		if (myacl->tag != ARCHIVE_ENTRY_ACL_USER_OBJ)
 			return (0);
@@ -339,6 +365,25 @@ acl_match(acl_entry_t aclent, struct myacl_t *myacl)
 			return (0);
 	}
 #else	/* !HAVE_SUN_ACL */
+	switch (entry_type) {
+	case ACL_ENTRY_TYPE_ALLOW:
+		if (myacl->type != ARCHIVE_ENTRY_ACL_TYPE_ALLOW)
+			return (0);
+		break;
+	case ACL_ENTRY_TYPE_DENY:
+		if (myacl->type != ARCHIVE_ENTRY_ACL_TYPE_DENY)
+			return (0);
+		break;
+	case ACL_ENTRY_TYPE_AUDIT:
+		if (myacl->type != ARCHIVE_ENTRY_ACL_TYPE_AUDIT)
+			return (0);
+	case ACL_ENTRY_TYPE_ALARM:
+		if (myacl->type != ARCHIVE_ENTRY_ACL_TYPE_ALARM)
+			return (0);
+	default:
+		return (0);
+	}
+
 	switch (tag_type) {
 	case ACL_USER_OBJ:
 		if (myacl->tag != ARCHIVE_ENTRY_ACL_USER_OBJ) return (0);
@@ -509,7 +554,7 @@ compare_entry_acls(struct archive_entry *ae, struct myacl_t *myacls, const char 
 	}
 	free(marker);
 }
-#endif	/* HAVE_SUN_ACL || (HAVE_POSIX_ACL && defined(ACL_TYPE_NFS4)) */
+#endif	/* HAVE_SUN_ACL || (HAVE_POSIX_ACL && HAVE_ACL_TYPE_NFS4) */
 
 /*
  * Verify ACL restore-to-disk.  This test is Platform-specific.
@@ -517,7 +562,7 @@ compare_entry_acls(struct archive_entry *ae, struct myacl_t *myacls, const char 
 
 DEFINE_TEST(test_acl_platform_nfs4)
 {
-#if !HAVE_SUN_ACL && (!HAVE_POSIX_ACL || !defined(ACL_TYPE_NFS4))
+#if !HAVE_SUN_ACL && (!HAVE_POSIX_ACL || !HAVE_ACL_TYPE_NFS4)
 	skipping("NFS4 ACLs are not supported on this platform");
 #else
 	char buff[64];
@@ -699,5 +744,5 @@ DEFINE_TEST(test_acl_platform_nfs4)
 	    (int)(sizeof(acls_dir)/sizeof(acls_dir[0])));
 	archive_entry_free(ae);
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-#endif /* HAVE_SUN_ACL || (HAVE_POSIX_ACL && defined(ACL_TYPE_NFS4)) */
+#endif /* HAVE_SUN_ACL || (HAVE_POSIX_ACL && HAVE_ACL_TYPE_NFS4) */
 }

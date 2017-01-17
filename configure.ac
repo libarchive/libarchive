@@ -724,6 +724,12 @@ if test "x$enable_acl" != "xno"; then
 	#endif
 	])
 
+    # Check for ACL_TYPE_NFS4
+    AC_CHECK_DECL([ACL_TYPE_NFS4],
+		[AC_DEFINE(HAVE_ACL_TYPE_NFS4, 1, [True for FreeBSD with NFSv4 ACL support])],
+		[],
+		[#include <sys/acl.h>])
+
     # MacOS has an acl.h that isn't POSIX.  It can be detected by
     # checking for ACL_USER
     AC_CHECK_DECL([ACL_USER],
