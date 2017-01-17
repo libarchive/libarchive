@@ -199,7 +199,7 @@ struct zip {
 	struct trad_enc_ctx	tctx;
 	char			tctx_valid;
 
-	/* WinZip AES decyption. */
+	/* WinZip AES decryption. */
 	/* Contexts used for AES decryption. */
 	archive_crypto_ctx	cctx;
 	char			cctx_valid;
@@ -242,7 +242,7 @@ trad_enc_update_keys(struct trad_enc_ctx *ctx, uint8_t c)
 }
 
 static uint8_t
-trad_enc_decypt_byte(struct trad_enc_ctx *ctx)
+trad_enc_decrypt_byte(struct trad_enc_ctx *ctx)
 {
 	unsigned temp = ctx->keys[2] | 2;
 	return (uint8_t)((temp * (temp ^ 1)) >> 8) & 0xff;
@@ -257,7 +257,7 @@ trad_enc_decrypt_update(struct trad_enc_ctx *ctx, const uint8_t *in,
 	max = (unsigned)((in_len < out_len)? in_len: out_len);
 
 	for (i = 0; i < max; i++) {
-		uint8_t t = in[i] ^ trad_enc_decypt_byte(ctx);
+		uint8_t t = in[i] ^ trad_enc_decrypt_byte(ctx);
 		out[i] = t;
 		trad_enc_update_keys(ctx, t);
 	}
@@ -710,7 +710,7 @@ process_extra(struct archive_read *a, const char *p, size_t extra_length, struct
 			break;
 		}
 		case 0x9901:
-			/* WinZIp AES extra data field. */
+			/* WinZip AES extra data field. */
 			if (p[offset + 2] == 'A' && p[offset + 3] == 'E') {
 				/* Vendor version. */
 				zip_entry->aes_extra.vendor =
@@ -864,29 +864,33 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		zip_entry->mode |= AE_IFREG;
 	}
 
-	if ((zip_entry->mode & AE_IFMT) == 0) {
-		/* Especially in streaming mode, we can end up
-		   here without having seen proper mode information.
-		   Guess from the filename. */
+	/* If the mode is totally empty, set some sane default. */
+	if (zip_entry->mode == 0) {
+		zip_entry->mode |= 0664;
+	}
+
+	/* Make sure that entries with a trailing '/' are marked as directories
+	 * even if the External File Attributes contains bogus values.  If this
+	 * is not a directory and there is no type, assume regularfile. */
+	if ((zip_entry->mode & AE_IFMT) != AE_IFDIR) {
+		int has_slash;
+
 		wp = archive_entry_pathname_w(entry);
 		if (wp != NULL) {
 			len = wcslen(wp);
-			if (len > 0 && wp[len - 1] == L'/')
-				zip_entry->mode |= AE_IFDIR;
-			else
-				zip_entry->mode |= AE_IFREG;
+			has_slash = len > 0 && wp[len - 1] == L'/';
 		} else {
 			cp = archive_entry_pathname(entry);
 			len = (cp != NULL)?strlen(cp):0;
-			if (len > 0 && cp[len - 1] == '/')
-				zip_entry->mode |= AE_IFDIR;
-			else
-				zip_entry->mode |= AE_IFREG;
+			has_slash = len > 0 && cp[len - 1] == '/';
 		}
-		if (zip_entry->mode == AE_IFDIR) {
-			zip_entry->mode |= 0775;
-		} else if (zip_entry->mode == AE_IFREG) {
-			zip_entry->mode |= 0664;
+		/* Correct file type as needed. */
+		if (has_slash) {
+			zip_entry->mode &= ~AE_IFMT;
+			zip_entry->mode |= AE_IFDIR;
+			zip_entry->mode |= 0111;
+		} else if ((zip_entry->mode & AE_IFMT) == 0) {
+			zip_entry->mode |= AE_IFREG;
 		}
 	}
 
@@ -1514,7 +1518,7 @@ read_decryption_header(struct archive_read *a)
 	case 0x6720:/* Blowfish */
 	case 0x6721:/* Twofish */
 	case 0x6801:/* RC4 */
-		/* Suuported encryption algorithm. */
+		/* Supported encryption algorithm. */
 		break;
 	default:
 		archive_set_error(&a->archive,
@@ -1623,7 +1627,7 @@ read_decryption_header(struct archive_read *a)
 	__archive_read_consume(a, 4);
 
 	/*return (ARCHIVE_OK);
-	 * This is not fully implemnted yet.*/
+	 * This is not fully implemented yet.*/
 	archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 	    "Encrypted file is unsupported");
 	return (ARCHIVE_FAILED);
@@ -1705,7 +1709,7 @@ init_traditional_PKWARE_decryption(struct archive_read *a)
 		}
 
 		/*
-		 * Initialize ctx for Traditional PKWARE Decyption.
+		 * Initialize ctx for Traditional PKWARE Decryption.
 		 */
 		r = trad_enc_init(&zip->tctx, passphrase, strlen(passphrase),
 			p, ENC_HEADER_SIZE, &crcchk);

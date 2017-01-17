@@ -862,7 +862,7 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 
 	/* Save the times to be restored. This must be in before
 	 * calling archive_read_disk_descend() or any chance of it,
-	 * especially, invokng a callback. */
+	 * especially, invoking a callback. */
 	t->restore_time.lastWriteTime = st->ftLastWriteTime;
 	t->restore_time.lastAccessTime = st->ftLastAccessTime;
 	t->restore_time.filetype = archive_entry_filetype(entry);
@@ -1401,7 +1401,7 @@ close_and_restore_time(HANDLE h, struct tree *t, struct restore_time *rt)
 	if (h == INVALID_HANDLE_VALUE && AE_IFLNK == rt->filetype)
 		return (0);
 
-	/* Close a file descritor.
+	/* Close a file descriptor.
 	 * It will not be used for SetFileTime() because it has been opened
 	 * by a read only mode.
 	 */

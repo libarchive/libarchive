@@ -152,6 +152,14 @@
 #endif
 
 /*
+ * If this platform has <sys/acl.h>, acl_get(), facl_get(), acl_set(),
+ * facl_set() and types aclent_t and ace_t it uses Solaris-style ACL functions
+ */
+#if HAVE_SYS_ACL_H && HAVE_ACL_GET && HAVE_FACL_GET && HAVE_ACL_SET && HAVE_FACL_SET && HAVE_ACLENT_T && HAVE_ACE_T
+#define	HAVE_SUN_ACL	1
+#endif
+
+/*
  * If we can't restore metadata using a file descriptor, then
  * for compatibility's sake, close files before trying to restore metadata.
  */

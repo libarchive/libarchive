@@ -323,11 +323,12 @@ libarchive_test_SOURCES= \
 	libarchive/test/main.c \
 	libarchive/test/read_open_memory.c \
 	libarchive/test/test.h \
-	libarchive/test/test_acl_freebsd_posix1e.c \
-	libarchive/test/test_acl_freebsd_nfs4.c \
 	libarchive/test/test_acl_nfs4.c \
 	libarchive/test/test_acl_pax.c \
+	libarchive/test/test_acl_platform_nfs4.c \
+	libarchive/test/test_acl_platform_posix1e.c \
 	libarchive/test/test_acl_posix1e.c \
+	libarchive/test/test_acl_text.c \
 	libarchive/test/test_archive_api_feature.c \
 	libarchive/test/test_archive_clear_error.c \
 	libarchive/test/test_archive_cmdline.c \
@@ -376,7 +377,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_compat_plexus_archiver_tar.c \
 	libarchive/test/test_compat_solaris_tar_acl.c \
 	libarchive/test/test_compat_solaris_pax_sparse.c \
-	libarchive/test/test_compat_star_acl_posix1e.c \
+	libarchive/test/test_compat_star_acl.c \
 	libarchive/test/test_compat_tar_hardlink.c \
 	libarchive/test/test_compat_uudecode.c \
 	libarchive/test/test_compat_uudecode_large.c \
@@ -483,6 +484,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_zip_encryption_header.c \
 	libarchive/test/test_read_format_zip_filename.c \
 	libarchive/test/test_read_format_zip_high_compression.c \
+	libarchive/test/test_read_format_zip_jar.c \
 	libarchive/test/test_read_format_zip_mac_metadata.c \
 	libarchive/test/test_read_format_zip_malformed.c \
 	libarchive/test/test_read_format_zip_msdos.c \
@@ -495,6 +497,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_zip_winzip_aes_large.c \
 	libarchive/test/test_read_format_zip_zip64.c \
 	libarchive/test/test_read_large.c \
+	libarchive/test/test_read_pax_schily_xattr.c \
 	libarchive/test/test_read_pax_truncated.c \
 	libarchive/test/test_read_position.c \
 	libarchive/test/test_read_set_format.c \
@@ -597,7 +600,8 @@ libarchive_TESTS_ENVIRONMENT= LIBARCHIVE_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/
 
 libarchive_test_EXTRA_DIST=\
 	libarchive/test/list.h \
-	libarchive/test/test_acl_pax.tar.uu \
+	libarchive/test/test_acl_pax_posix1e.tar.uu \
+	libarchive/test/test_acl_pax_nfs4.tar.uu \
 	libarchive/test/test_archive_string_conversion.txt.Z.uu \
 	libarchive/test/test_compat_bzip2_1.tbz.uu \
 	libarchive/test/test_compat_bzip2_2.tbz.uu \
@@ -634,6 +638,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_solaris_pax_sparse_1.pax.Z.uu \
 	libarchive/test/test_compat_solaris_pax_sparse_2.pax.Z.uu \
 	libarchive/test/test_compat_solaris_tar_acl.tar.uu \
+	libarchive/test/test_compat_star_acl_nfs4.tar.uu \
 	libarchive/test/test_compat_star_acl_posix1e.tar.uu \
 	libarchive/test/test_compat_tar_hardlink_1.tar.uu \
 	libarchive/test/test_compat_uudecode_large.tar.Z.uu \
@@ -801,6 +806,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_filename_utf8_ru2.zip.uu \
 	libarchive/test/test_read_format_zip_high_compression.zip.uu \
 	libarchive/test/test_read_format_zip_length_at_end.zip.uu \
+	libarchive/test/test_read_format_zip_jar.jar.uu \
 	libarchive/test/test_read_format_zip_mac_metadata.zip.uu \
 	libarchive/test/test_read_format_zip_malformed1.zip.uu \
 	libarchive/test/test_read_format_zip_msdos.zip.uu \

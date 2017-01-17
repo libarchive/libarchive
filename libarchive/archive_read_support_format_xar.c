@@ -3047,7 +3047,7 @@ xml2_read_cb(void *context, char *buffer, int len)
 	struct xar *xar;
 	const void *d;
 	size_t outbytes;
-	size_t used;
+	size_t used = 0;
 	int r;
 
 	a = (struct archive_read *)context;

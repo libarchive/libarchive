@@ -9,11 +9,12 @@ IF(ENABLE_TEST)
     main.c
     read_open_memory.c
     test.h
-    test_acl_freebsd_nfs4.c
-    test_acl_freebsd_posix1e.c
     test_acl_nfs4.c
     test_acl_pax.c
+    test_acl_platform_nfs4.c
+    test_acl_platform_posix1e.c
     test_acl_posix1e.c
+    test_acl_text.c
     test_archive_api_feature.c
     test_archive_clear_error.c
     test_archive_cmdline.c
@@ -62,7 +63,7 @@ IF(ENABLE_TEST)
     test_compat_plexus_archiver_tar.c
     test_compat_solaris_pax_sparse.c
     test_compat_solaris_tar_acl.c
-    test_compat_star_acl_posix1e.c
+    test_compat_star_acl.c
     test_compat_tar_hardlink.c
     test_compat_uudecode.c
     test_compat_uudecode_large.c
@@ -169,6 +170,7 @@ IF(ENABLE_TEST)
     test_read_format_zip_encryption_partially.c
     test_read_format_zip_filename.c
     test_read_format_zip_high_compression.c
+    test_read_format_zip_jar.c
     test_read_format_zip_mac_metadata.c
     test_read_format_zip_malformed.c
     test_read_format_zip_msdos.c
@@ -181,6 +183,7 @@ IF(ENABLE_TEST)
     test_read_format_zip_winzip_aes_large.c
     test_read_format_zip_zip64.c
     test_read_large.c
+    test_read_pax_schily_xattr.c
     test_read_pax_truncated.c
     test_read_position.c
     test_read_set_format.c
