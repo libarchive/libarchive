@@ -349,6 +349,15 @@ archive_acl_count(struct archive_acl *acl, int want_type)
 }
 
 /*
+ * Return a bitmask of stored ACL types in an ACL list
+ */
+int
+archive_acl_types(struct archive_acl *acl)
+{
+	return (acl->acl_types);
+}
+
+/*
  * Prepare for reading entries from the ACL data.  Returns a count
  * of entries matching "want_type", or zero if there are no
  * non-extended ACL entries of that type.

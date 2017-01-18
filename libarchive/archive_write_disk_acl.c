@@ -62,48 +62,47 @@ static int	set_acl(struct archive *, int fd, const char *,
 			struct archive_acl *,
 			acl_type_t, int archive_entry_acl_type, const char *tn);
 
-/*
- * XXX TODO: What about ACL types other than ACCESS and DEFAULT?
- */
 int
 archive_write_disk_set_acls(struct archive *a, int fd, const char *name,
 	 struct archive_acl *abstract_acl)
 {
-	int		 ret;
+	int		ret = ARCHIVE_OK;
+#if HAVE_SUN_ACL
+	const int	acltype_nfs4 = ACE_T;
+#elif HAVE_ACL_TYPE_NFS4
+	const int	acltype_nfs4 = ACL_TYPE_NFS4;
+#endif
 
-	if (archive_acl_count(abstract_acl,
-	    ARCHIVE_ENTRY_ACL_TYPE_POSIX1E) > 0) {
+	if ((archive_acl_types(abstract_acl)
+	    & ARCHIVE_ENTRY_ACL_TYPE_POSIX1E) != 0) {
 #if HAVE_SUN_ACL
 		/* Solaris writes POSIX.1e access and default ACLs together */
 		ret = set_acl(a, fd, name, abstract_acl, ACLENT_T,
 		    ARCHIVE_ENTRY_ACL_TYPE_POSIX1E, "posix1e");
 #else
-		ret = set_acl(a, fd, name, abstract_acl, ACL_TYPE_ACCESS,
-		    ARCHIVE_ENTRY_ACL_TYPE_ACCESS, "access");
-		if (ret != ARCHIVE_OK)
-			return (ret);
-		ret = set_acl(a, fd, name, abstract_acl, ACL_TYPE_DEFAULT,
-		    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT, "default");
+		if ((archive_acl_types(abstract_acl)
+		    & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
+			ret = set_acl(a, fd, name, abstract_acl,
+			    ACL_TYPE_ACCESS, ARCHIVE_ENTRY_ACL_TYPE_ACCESS,
+			    "access");
+			if (ret != ARCHIVE_OK)
+				return (ret);
+		}
+		if ((archive_acl_types(abstract_acl)
+		    & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) != 0)
+			ret = set_acl(a, fd, name, abstract_acl,
+			    ACL_TYPE_DEFAULT, ARCHIVE_ENTRY_ACL_TYPE_DEFAULT,
+			    "default");
 #endif
-		return (ret);
 	}
 #if HAVE_ACL_TYPE_NFS4 || HAVE_SUN_ACL
-	else if (archive_acl_count(abstract_acl,
-	    ARCHIVE_ENTRY_ACL_TYPE_NFS4) > 0) {
-#if HAVE_SUN_ACL
-		ret = set_acl(a, fd, name, abstract_acl, ACE_T,
+	else if ((archive_acl_types(abstract_acl) &
+	    ARCHIVE_ENTRY_ACL_TYPE_NFS4) != 0) {
+		ret = set_acl(a, fd, name, abstract_acl, acltype_nfs4,
 		    ARCHIVE_ENTRY_ACL_TYPE_NFS4, "nfs4");
-#else	/* !HAVE_SUN_ACL */
-		ret = set_acl(a, fd, name, abstract_acl, ACL_TYPE_NFS4,
-		    ARCHIVE_ENTRY_ACL_TYPE_NFS4, "nfs4");
-#endif	/* !HAVE_SUN_ACL */
-		return (ret);
 	}
-#endif	/* HAVE_ACL_TYPE_NFS4 && HAVE_SUN_ACL */
-	else {
-		/* No ACLs found */
-		return ARCHIVE_OK;
-	}
+#endif	/* HAVE_ACL_TYPE_NFS4 || HAVE_SUN_ACL */
+	return (ret);
 }
 
 /*
