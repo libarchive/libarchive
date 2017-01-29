@@ -608,7 +608,7 @@ IF(ENABLE_CNG)
 ELSE(ENABLE_CNG)
   UNSET(HAVE_BCRYPT_H CACHE)
 ENDIF(ENABLE_CNG)
-# Following files need windwos.h, so we should test it after windows.h test.
+# Following files need windows.h, so we should test it after windows.h test.
 LA_CHECK_INCLUDE_FILE("wincrypt.h" HAVE_WINCRYPT_H)
 LA_CHECK_INCLUDE_FILE("winioctl.h" HAVE_WINIOCTL_H)
 
