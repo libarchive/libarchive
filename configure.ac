@@ -737,6 +737,13 @@ if test "x$enable_acl" != "xno"; then
 		[],
 		[#include <sys/acl.h>])
 
+    # MacOS has ACL_TYPE_EXTENDED instead
+    AC_CHECK_DECL([ACL_TYPE_EXTENDED],
+		[AC_DEFINE(HAVE_ACL_TYPE_EXTENDED, 1, [True for MacOS ACL support])],
+		[],
+		[#include <sys/types.h>
+		#include <sys/acl.h>])
+
     # Solaris and derivates ACLs
     AC_CHECK_LIB([sec], [acl_get])
     AC_CHECK_TYPES([aclent_t], [], [], [[#include <sys/acl.h>]])

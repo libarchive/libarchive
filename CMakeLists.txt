@@ -1610,6 +1610,9 @@ IF(ENABLE_ACL)
   # MacOS has an acl.h that isn't POSIX.  It can be detected by
   # checking for ACL_USER
   CHECK_SYMBOL_EXISTS(ACL_USER "${INCLUDES}" HAVE_ACL_USER)
+  CHECK_C_SOURCE_COMPILES("#include <sys/types.h>
+#include <sys/acl.h>
+int main(void) { return ACL_TYPE_EXTENDED; }" HAVE_ACL_TYPE_EXTENDED)
 
   # Solaris and derivates ACLs
   CHECK_LIBRARY_EXISTS(sec "acl_get" "" HAVE_LIBSEC)
@@ -1641,6 +1644,7 @@ ELSE(ENABLE_ACL)
   SET(HAVE_ACL_SET_FILE FALSE)
   SET(HAVE_ACL_TYPE_NFS4 FALSE)
   SET(HAVE_ACL_USER FALSE)
+  SET(HAVE_ACL_TYPE_EXTENDED FALSE)
   SET(HAVE_ACL_GET FALSE)
   SET(HAVE_ACLENT_T FALSE)
   SET(HAVE_ACE_T FALSE)

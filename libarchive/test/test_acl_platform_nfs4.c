@@ -26,13 +26,15 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-#if HAVE_SUN_ACL || HAVE_POSIX_ACL
+#if HAVE_POSIX_ACL || HAVE_NFS4_ACL
 #define _ACL_PRIVATE
 #include <sys/acl.h>
+#if HAVE_DARWIN_ACL
+#include <membership.h>
+#endif
 #endif
 
-#if HAVE_SUN_ACL || (HAVE_POSIX_ACL && HAVE_ACL_TYPE_NFS4)
-
+#if HAVE_NFS4_ACL
 struct myacl_t {
 	int type;
 	int permset;
@@ -42,11 +44,12 @@ struct myacl_t {
 };
 
 static struct myacl_t acls_reg[] = {
+#if !HAVE_DARWIN_ACL
 	/* For this test, we need the file owner to be able to read and write the ACL. */
 	{ ARCHIVE_ENTRY_ACL_TYPE_ALLOW,
 	  ARCHIVE_ENTRY_ACL_READ_DATA | ARCHIVE_ENTRY_ACL_READ_ACL | ARCHIVE_ENTRY_ACL_WRITE_ACL | ARCHIVE_ENTRY_ACL_READ_NAMED_ATTRS | ARCHIVE_ENTRY_ACL_READ_ATTRIBUTES,
 	  ARCHIVE_ENTRY_ACL_USER_OBJ, -1, ""},
-
+#endif
 	/* An entry for each type. */
 	{ ARCHIVE_ENTRY_ACL_TYPE_ALLOW, ARCHIVE_ENTRY_ACL_EXECUTE,
 	  ARCHIVE_ENTRY_ACL_USER, 108, "user108" },
@@ -88,16 +91,53 @@ static struct myacl_t acls_reg[] = {
 //	  ARCHIVE_ENTRY_ACL_USER_OBJ, -1, "" },
 	{ ARCHIVE_ENTRY_ACL_TYPE_ALLOW, ARCHIVE_ENTRY_ACL_EXECUTE,
 	  ARCHIVE_ENTRY_ACL_GROUP, 136, "group136" },
+#if !HAVE_DARWIN_ACL
 	{ ARCHIVE_ENTRY_ACL_TYPE_ALLOW, ARCHIVE_ENTRY_ACL_EXECUTE,
 	  ARCHIVE_ENTRY_ACL_GROUP_OBJ, -1, "" },
 	{ ARCHIVE_ENTRY_ACL_TYPE_ALLOW, ARCHIVE_ENTRY_ACL_EXECUTE,
 	  ARCHIVE_ENTRY_ACL_EVERYONE, -1, "" }
+#else	/* MacOS - mode 0654 */
+	{ ARCHIVE_ENTRY_ACL_TYPE_DENY, ARCHIVE_ENTRY_ACL_EXECUTE,
+	  ARCHIVE_ENTRY_ACL_USER_OBJ, -1, "" },
+	{ ARCHIVE_ENTRY_ACL_TYPE_ALLOW,
+	    ARCHIVE_ENTRY_ACL_READ_DATA |
+	    ARCHIVE_ENTRY_ACL_WRITE_DATA |
+	    ARCHIVE_ENTRY_ACL_APPEND_DATA |
+	    ARCHIVE_ENTRY_ACL_READ_ATTRIBUTES |
+	    ARCHIVE_ENTRY_ACL_WRITE_ATTRIBUTES |
+	    ARCHIVE_ENTRY_ACL_READ_NAMED_ATTRS |
+	    ARCHIVE_ENTRY_ACL_WRITE_NAMED_ATTRS |
+	    ARCHIVE_ENTRY_ACL_READ_ACL |
+	    ARCHIVE_ENTRY_ACL_WRITE_ACL |
+	    ARCHIVE_ENTRY_ACL_WRITE_OWNER |
+	    ARCHIVE_ENTRY_ACL_SYNCHRONIZE,
+	  ARCHIVE_ENTRY_ACL_USER_OBJ, -1, "" },
+	{ ARCHIVE_ENTRY_ACL_TYPE_ALLOW,
+	    ARCHIVE_ENTRY_ACL_READ_DATA |
+	    ARCHIVE_ENTRY_ACL_EXECUTE |
+	    ARCHIVE_ENTRY_ACL_READ_ATTRIBUTES |
+	    ARCHIVE_ENTRY_ACL_READ_NAMED_ATTRS |
+	    ARCHIVE_ENTRY_ACL_READ_ACL |
+	    ARCHIVE_ENTRY_ACL_SYNCHRONIZE,
+	  ARCHIVE_ENTRY_ACL_GROUP_OBJ, -1, "" },
+	{ ARCHIVE_ENTRY_ACL_TYPE_ALLOW,
+	    ARCHIVE_ENTRY_ACL_READ_DATA |
+	    ARCHIVE_ENTRY_ACL_READ_ATTRIBUTES |
+	    ARCHIVE_ENTRY_ACL_READ_NAMED_ATTRS |
+	    ARCHIVE_ENTRY_ACL_READ_ACL |
+	    ARCHIVE_ENTRY_ACL_SYNCHRONIZE,
+	  ARCHIVE_ENTRY_ACL_EVERYONE, -1, "" }
+#endif
 };
+
+static const int acls_reg_cnt = (int)(sizeof(acls_reg)/sizeof(acls_reg[0]));
 
 static struct myacl_t acls_dir[] = {
 	/* For this test, we need to be able to read and write the ACL. */
+#if !HAVE_DARWIN_ACL
 	{ ARCHIVE_ENTRY_ACL_TYPE_ALLOW, ARCHIVE_ENTRY_ACL_READ_DATA | ARCHIVE_ENTRY_ACL_READ_ACL,
 	  ARCHIVE_ENTRY_ACL_USER_OBJ, -1, ""},
+#endif
 
 	/* An entry for each type. */
 	{ ARCHIVE_ENTRY_ACL_TYPE_ALLOW, ARCHIVE_ENTRY_ACL_LIST_DIRECTORY,
@@ -167,11 +207,46 @@ static struct myacl_t acls_dir[] = {
 	  ARCHIVE_ENTRY_ACL_USER, 501, "user501" },
 	{ ARCHIVE_ENTRY_ACL_TYPE_ALLOW, ARCHIVE_ENTRY_ACL_LIST_DIRECTORY,
 	  ARCHIVE_ENTRY_ACL_GROUP, 502, "group502" },
+#if !HAVE_DARWIN_ACL
 	{ ARCHIVE_ENTRY_ACL_TYPE_ALLOW, ARCHIVE_ENTRY_ACL_LIST_DIRECTORY,
 	  ARCHIVE_ENTRY_ACL_GROUP_OBJ, -1, "" },
 	{ ARCHIVE_ENTRY_ACL_TYPE_ALLOW, ARCHIVE_ENTRY_ACL_LIST_DIRECTORY,
 	  ARCHIVE_ENTRY_ACL_EVERYONE, -1, "" }
+#else	/* MacOS - mode 0654 */
+	{ ARCHIVE_ENTRY_ACL_TYPE_DENY, ARCHIVE_ENTRY_ACL_EXECUTE,
+	  ARCHIVE_ENTRY_ACL_USER_OBJ, -1, "" },
+	{ ARCHIVE_ENTRY_ACL_TYPE_ALLOW,
+	    ARCHIVE_ENTRY_ACL_READ_DATA |
+	    ARCHIVE_ENTRY_ACL_WRITE_DATA |
+	    ARCHIVE_ENTRY_ACL_APPEND_DATA |
+	    ARCHIVE_ENTRY_ACL_READ_ATTRIBUTES |
+	    ARCHIVE_ENTRY_ACL_WRITE_ATTRIBUTES |
+	    ARCHIVE_ENTRY_ACL_READ_NAMED_ATTRS |
+	    ARCHIVE_ENTRY_ACL_WRITE_NAMED_ATTRS |
+	    ARCHIVE_ENTRY_ACL_READ_ACL |
+	    ARCHIVE_ENTRY_ACL_WRITE_ACL |
+	    ARCHIVE_ENTRY_ACL_WRITE_OWNER |
+	    ARCHIVE_ENTRY_ACL_SYNCHRONIZE,
+	  ARCHIVE_ENTRY_ACL_USER_OBJ, -1, "" },
+	{ ARCHIVE_ENTRY_ACL_TYPE_ALLOW,
+	    ARCHIVE_ENTRY_ACL_READ_DATA |
+	    ARCHIVE_ENTRY_ACL_EXECUTE |
+	    ARCHIVE_ENTRY_ACL_READ_ATTRIBUTES |
+	    ARCHIVE_ENTRY_ACL_READ_NAMED_ATTRS |
+	    ARCHIVE_ENTRY_ACL_READ_ACL |
+	    ARCHIVE_ENTRY_ACL_SYNCHRONIZE,
+	  ARCHIVE_ENTRY_ACL_GROUP_OBJ, -1, "" },
+	{ ARCHIVE_ENTRY_ACL_TYPE_ALLOW,
+	    ARCHIVE_ENTRY_ACL_READ_DATA |
+	    ARCHIVE_ENTRY_ACL_READ_ATTRIBUTES |
+	    ARCHIVE_ENTRY_ACL_READ_NAMED_ATTRS |
+	    ARCHIVE_ENTRY_ACL_READ_ACL |
+	    ARCHIVE_ENTRY_ACL_SYNCHRONIZE,
+	  ARCHIVE_ENTRY_ACL_EVERYONE, -1, "" }
+#endif
 };
+
+static const int acls_dir_cnt = (int)(sizeof(acls_dir)/sizeof(acls_dir[0]));
 
 static void
 set_acls(struct archive_entry *ae, struct myacl_t *acls, int start, int end)
@@ -219,6 +294,24 @@ acl_permset_to_bitmap(acl_permset_t opaque_ps)
 		{ACE_WRITE_ACL, ARCHIVE_ENTRY_ACL_WRITE_ACL},
 		{ACE_WRITE_OWNER, ARCHIVE_ENTRY_ACL_WRITE_OWNER},
 		{ACE_SYNCHRONIZE, ARCHIVE_ENTRY_ACL_SYNCHRONIZE}
+#elif HAVE_DARWIN_ACL	/* MacOS NFSv4 ACL permissions */
+		{ACL_READ_DATA, ARCHIVE_ENTRY_ACL_READ_DATA},
+		{ACL_LIST_DIRECTORY, ARCHIVE_ENTRY_ACL_LIST_DIRECTORY},
+		{ACL_WRITE_DATA, ARCHIVE_ENTRY_ACL_WRITE_DATA},
+		{ACL_ADD_FILE, ARCHIVE_ENTRY_ACL_ADD_FILE},
+		{ACL_EXECUTE, ARCHIVE_ENTRY_ACL_EXECUTE},
+		{ACL_DELETE, ARCHIVE_ENTRY_ACL_DELETE},
+		{ACL_APPEND_DATA, ARCHIVE_ENTRY_ACL_APPEND_DATA},
+		{ACL_ADD_SUBDIRECTORY, ARCHIVE_ENTRY_ACL_ADD_SUBDIRECTORY},
+		{ACL_DELETE_CHILD, ARCHIVE_ENTRY_ACL_DELETE_CHILD},
+		{ACL_READ_ATTRIBUTES, ARCHIVE_ENTRY_ACL_READ_ATTRIBUTES},
+		{ACL_WRITE_ATTRIBUTES, ARCHIVE_ENTRY_ACL_WRITE_ATTRIBUTES},
+		{ACL_READ_EXTATTRIBUTES, ARCHIVE_ENTRY_ACL_READ_NAMED_ATTRS},
+		{ACL_WRITE_EXTATTRIBUTES, ARCHIVE_ENTRY_ACL_WRITE_NAMED_ATTRS},
+		{ACL_READ_SECURITY, ARCHIVE_ENTRY_ACL_READ_ACL},
+		{ACL_WRITE_SECURITY, ARCHIVE_ENTRY_ACL_WRITE_ACL},
+		{ACL_CHANGE_OWNER, ARCHIVE_ENTRY_ACL_WRITE_OWNER},
+		{ACL_SYNCHRONIZE, ARCHIVE_ENTRY_ACL_SYNCHRONIZE},
 #else	/* FreeBSD NFSv4 ACL permissions */
 		{ACL_EXECUTE, ARCHIVE_ENTRY_ACL_EXECUTE},
 		{ACL_WRITE, ARCHIVE_ENTRY_ACL_WRITE},
@@ -269,8 +362,13 @@ acl_flagset_to_bitmap(acl_flagset_t opaque_fs)
 		{ACE_SUCCESSFUL_ACCESS_ACE_FLAG, ARCHIVE_ENTRY_ACL_ENTRY_SUCCESSFUL_ACCESS},
 		{ACE_FAILED_ACCESS_ACE_FLAG, ARCHIVE_ENTRY_ACL_ENTRY_FAILED_ACCESS},
 		{ACE_INHERITED_ACE, ARCHIVE_ENTRY_ACL_ENTRY_INHERITED}
-#else	/* FreeBSD NFSv4 ACL inheritance flags */
+#elif HAVE_DARWIN_ACL	/* MacOS NFSv4 ACL inheritance flags */
 		{ACL_ENTRY_INHERITED, ARCHIVE_ENTRY_ACL_ENTRY_INHERITED},
+		{ACL_ENTRY_FILE_INHERIT, ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT},
+		{ACL_ENTRY_DIRECTORY_INHERIT, ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT},
+		{ACL_ENTRY_LIMIT_INHERIT, ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT},
+		{ACL_ENTRY_ONLY_INHERIT, ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY}
+#else	/* FreeBSD NFSv4 ACL inheritance flags */
 		{ACL_ENTRY_FILE_INHERIT, ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT},
 		{ACL_ENTRY_DIRECTORY_INHERIT, ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT},
 		{ACL_ENTRY_NO_PROPAGATE_INHERIT, ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT},
@@ -299,20 +397,28 @@ acl_match(acl_entry_t aclent, struct myacl_t *myacl)
 #endif
 {
 #if !HAVE_SUN_ACL
+#if HAVE_DARWIN_ACL
+	void *q;
+	uid_t ugid;
+	int r, idtype;
+#else
 	gid_t g, *gp;
 	uid_t u, *up;
+	acl_entry_type_t entry_type;
+#endif	/* !HAVE_DARWIN_ACL */
 	acl_tag_t tag_type;
 	acl_permset_t opaque_ps;
 	acl_flagset_t opaque_fs;
-	acl_entry_type_t entry_type;
-#endif
+#endif	/* !HAVE_SUN_ACL */
 	int perms;
 
 #if HAVE_SUN_ACL
 	perms = acl_permset_to_bitmap(ace->a_access_mask) | acl_flagset_to_bitmap(ace->a_flags);
 #else
 	acl_get_tag_type(aclent, &tag_type);
+#if !HAVE_DARWIN_ACL
 	acl_get_entry_type_np(aclent, &entry_type);
+#endif
 
 	/* translate the silly opaque permset to a bitmap */
 	acl_get_permset(aclent, &opaque_ps);
@@ -364,7 +470,43 @@ acl_match(acl_entry_t aclent, struct myacl_t *myacl)
 		if ((uid_t)myacl->qual != ace->a_who)
 			return (0);
 	}
-#else	/* !HAVE_SUN_ACL */
+#elif HAVE_DARWIN_ACL
+	r = 0;
+	switch (tag_type) {
+	case ACL_EXTENDED_ALLOW:
+		if (myacl->type != ARCHIVE_ENTRY_ACL_TYPE_ALLOW)
+			return (0);
+		break;
+	case ACL_EXTENDED_DENY:
+		if (myacl->type != ARCHIVE_ENTRY_ACL_TYPE_DENY)
+			return (0);
+		break;
+	default:
+		return (0);
+	}
+	q = acl_get_qualifier(aclent);
+	if (q == NULL)
+		return (0);
+	r = mbr_uuid_to_id((const unsigned char *)q, &ugid, &idtype);
+	if (r != 0)
+		return (0);
+	switch (idtype) {
+		case ID_TYPE_UID:
+			if (myacl->tag != ARCHIVE_ENTRY_ACL_USER)
+				return (0);
+			if ((uid_t)myacl->qual != ugid)
+				return (0);
+			break;
+		case ID_TYPE_GID:
+			if (myacl->tag != ARCHIVE_ENTRY_ACL_GROUP)
+				return (0);
+			if ((gid_t)myacl->qual != ugid)
+				return (0);
+			break;
+		default:
+			return (0);
+	}
+#else	/* !HAVE_SUN_ACL && !HAVE_DARWIN_ACL */
 	switch (entry_type) {
 	case ACL_ENTRY_TYPE_ALLOW:
 		if (myacl->type != ARCHIVE_ENTRY_ACL_TYPE_ALLOW)
@@ -416,7 +558,7 @@ acl_match(acl_entry_t aclent, struct myacl_t *myacl)
 		if (myacl->tag != ARCHIVE_ENTRY_ACL_EVERYONE) return (0);
 		break;
 	}
-#endif	/* !HAVE_SUN_ACL */
+#endif	/* !HAVE_SUN_ACL && !HAVE_DARWIN_ACL */
 	return (1);
 }
 
@@ -456,6 +598,8 @@ compare_acls(
 	 */
 #if HAVE_SUN_ACL
 	for (e = 0; e < acl->acl_cnt; e++)
+#elif HAVE_DARWIN_ACL
+	while (0 == acl_get_entry(acl, entry_id, &acl_entry))
 #else
 	while (1 == acl_get_entry(acl, entry_id, &acl_entry))
 #endif
@@ -554,7 +698,7 @@ compare_entry_acls(struct archive_entry *ae, struct myacl_t *myacls, const char 
 	}
 	free(marker);
 }
-#endif	/* HAVE_SUN_ACL || (HAVE_POSIX_ACL && HAVE_ACL_TYPE_NFS4) */
+#endif	/* HAVE_NFS4_ACL */
 
 /*
  * Verify ACL restore-to-disk.  This test is Platform-specific.
@@ -562,7 +706,7 @@ compare_entry_acls(struct archive_entry *ae, struct myacl_t *myacls, const char 
 
 DEFINE_TEST(test_acl_platform_nfs4)
 {
-#if !HAVE_SUN_ACL && (!HAVE_POSIX_ACL || !HAVE_ACL_TYPE_NFS4)
+#if !HAVE_NFS4_ACL
 	skipping("NFS4 ACLs are not supported on this platform");
 #else
 	char buff[64];
@@ -571,21 +715,48 @@ DEFINE_TEST(test_acl_platform_nfs4)
 	struct archive_entry *ae;
 	int i, n;
 	char *func;
+#if HAVE_DARWIN_ACL /* On MacOS we skip trivial ACLs in some tests */
+	const int regcnt = acls_reg_cnt - 4;
+	const int dircnt = acls_dir_cnt - 4;
+#else
+	const int regcnt = acls_reg_cnt;
+	const int dircnt = acls_dir_cnt;
+#endif
 #if HAVE_SUN_ACL
 	acl_t *acl;
-#else
+#else	/* !HAVE_SUN_ACL */
+#if HAVE_DARWIN_ACL
+	acl_entry_t aclent;
+	acl_permset_t permset;
+	const uid_t uid = 1000;
+	uuid_t uuid;
+#endif	/* HAVE_DARWIN_ACL */
 	acl_t acl;
-#endif
+#endif	/* !HAVE_SUN_ACL */
 
 	/*
 	 * First, do a quick manual set/read of ACL data to
 	 * verify that the local filesystem does support ACLs.
 	 * If it doesn't, we'll simply skip the remaining tests.
 	 */
-#if !HAVE_SUN_ACL
+#if HAVE_POSIX_ACL && HAVE_ACL_TYPE_NFS4
 	acl = acl_from_text("owner@:rwxp::allow,group@:rwp:f:allow");
 	failure("acl_from_text(): errno = %d (%s)", errno, strerror(errno));
 	assert((void *)acl != NULL);
+#elif HAVE_DARWIN_ACL
+	acl = acl_init(1);
+	assert((void *)acl != NULL);
+	assertEqualInt(0, acl_create_entry(&acl, &aclent));
+	assertEqualInt(0, acl_set_tag_type(aclent, ACL_EXTENDED_ALLOW));
+	assertEqualInt(0, acl_get_permset(aclent, &permset));
+	assertEqualInt(0, acl_add_perm(permset, ACL_READ_DATA));
+	assertEqualInt(0, acl_add_perm(permset, ACL_WRITE_DATA));
+	assertEqualInt(0, acl_add_perm(permset, ACL_APPEND_DATA));
+	assertEqualInt(0, acl_add_perm(permset, ACL_EXECUTE));
+	assertEqualInt(0, acl_set_permset(aclent, permset));
+	assertEqualInt(0, mbr_identifier_to_uuid(ID_TYPE_UID, &uid,
+	    sizeof(uid_t), uuid));
+	assertEqualInt(0, acl_set_qualifier(aclent, uuid));
 #endif
 
 	/* Create a test dir and try to set an ACL on it. */
@@ -601,7 +772,11 @@ DEFINE_TEST(test_acl_platform_nfs4)
 	n = acl_get("pretest", 0, &acl);
 #else
 	func = "acl_set_file()";
+#if HAVE_DARWIN_ACL
+	n = acl_set_file("pretest", ACL_TYPE_EXTENDED, acl);
+#else
 	n = acl_set_file("pretest", ACL_TYPE_NFS4, acl);
+#endif
 	acl_free(acl);
 #endif
 	if (n != 0) {
@@ -640,7 +815,7 @@ DEFINE_TEST(test_acl_platform_nfs4)
 	archive_entry_set_perm(ae, 0654);
 	archive_entry_set_mtime(ae, 123456, 7890);
 	archive_entry_set_size(ae, 0);
-	set_acls(ae, acls_reg, 0, (int)(sizeof(acls_reg)/sizeof(acls_reg[0])));
+	set_acls(ae, acls_reg, 0, acls_reg_cnt);
 
 	/* Write the entry to disk, including ACLs. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
@@ -650,10 +825,10 @@ DEFINE_TEST(test_acl_platform_nfs4)
 	archive_entry_set_filetype(ae, AE_IFDIR);
 	archive_entry_set_perm(ae, 0654);
 	archive_entry_set_mtime(ae, 123456, 7890);
-	set_acls(ae, acls_dir, 0, (int)(sizeof(acls_dir)/sizeof(acls_dir[0])));
+	set_acls(ae, acls_dir, 0, acls_dir_cnt);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 
-	for (i = 0; i < (int)(sizeof(acls_dir)/sizeof(acls_dir[0])); ++i) {
+	for (i = 0; i < acls_dir_cnt; ++i) {
 	  sprintf(buff, "dir%d", i);
 	  archive_entry_set_pathname(ae, buff);
 	  archive_entry_set_filetype(ae, AE_IFDIR);
@@ -677,15 +852,19 @@ DEFINE_TEST(test_acl_platform_nfs4)
 	failure("acl_get(): errno = %d (%s)", errno, strerror(errno));
 	assertEqualInt(0, n);
 #else
+#if HAVE_DARWIN_ACL
+	acl = acl_get_file("testall", ACL_TYPE_EXTENDED);
+#else
 	acl = acl_get_file("testall", ACL_TYPE_NFS4);
+#endif
 	failure("acl_get_file(): errno = %d (%s)", errno, strerror(errno));
 	assert(acl != (acl_t)NULL);
 #endif
-	compare_acls(acl, acls_reg, "testall", 0, (int)(sizeof(acls_reg)/sizeof(acls_reg[0])));
+	compare_acls(acl, acls_reg, "testall", 0, regcnt);
 	acl_free(acl);
 
 	/* Verify single-permission dirs on disk. */
-	for (i = 0; i < (int)(sizeof(acls_dir)/sizeof(acls_dir[0])); ++i) {
+	for (i = 0; i < dircnt; ++i) {
 		sprintf(buff, "dir%d", i);
 		assertEqualInt(0, stat(buff, &st));
 		assertEqualInt(st.st_mtime, 123456 + i);
@@ -694,7 +873,11 @@ DEFINE_TEST(test_acl_platform_nfs4)
 		failure("acl_get(): errno = %d (%s)", errno, strerror(errno));
 		assertEqualInt(0, n);
 #else
+#if HAVE_DARWIN_ACL
+		acl = acl_get_file(buff, ACL_TYPE_EXTENDED);
+#else
 		acl = acl_get_file(buff, ACL_TYPE_NFS4);
+#endif
 		failure("acl_get_file(): errno = %d (%s)", errno,
 		    strerror(errno));
 		assert(acl != (acl_t)NULL);
@@ -711,12 +894,15 @@ DEFINE_TEST(test_acl_platform_nfs4)
 	failure("acl_get(): errno = %d (%s)", errno, strerror(errno));
 	assertEqualInt(0, n);
 #else
+#if HAVE_DARWIN_ACL
+	acl = acl_get_file("dirall", ACL_TYPE_EXTENDED);
+#else
 	acl = acl_get_file("dirall", ACL_TYPE_NFS4);
+#endif
 	failure("acl_get_file(): errno = %d (%s)", errno, strerror(errno));
 	assert(acl != (acl_t)NULL);
 #endif
-	compare_acls(acl, acls_dir, "dirall", 0,
-	    (int)(sizeof(acls_dir)/sizeof(acls_dir[0])));
+	compare_acls(acl, acls_dir, "dirall", 0, dircnt);
 	acl_free(acl);
 
 	/* Read and compare ACL via archive_read_disk */
@@ -727,8 +913,7 @@ DEFINE_TEST(test_acl_platform_nfs4)
 	archive_entry_set_pathname(ae, "testall");
 	assertEqualInt(ARCHIVE_OK,
 		       archive_read_disk_entry_from_file(a, ae, -1, NULL));
-	compare_entry_acls(ae, acls_reg, "testall", 0,
-	    (int)(sizeof(acls_reg)/sizeof(acls_reg[0])));
+	compare_entry_acls(ae, acls_reg, "testall", 0, acls_reg_cnt);
 	archive_entry_free(ae);
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
@@ -740,9 +925,8 @@ DEFINE_TEST(test_acl_platform_nfs4)
 	archive_entry_set_pathname(ae, "dirall");
 	assertEqualInt(ARCHIVE_OK,
 	archive_read_disk_entry_from_file(a, ae, -1, NULL));
-	compare_entry_acls(ae, acls_dir, "dirall", 0,
-	    (int)(sizeof(acls_dir)/sizeof(acls_dir[0])));
+	compare_entry_acls(ae, acls_dir, "dirall", 0, acls_dir_cnt);
 	archive_entry_free(ae);
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-#endif /* HAVE_SUN_ACL || (HAVE_POSIX_ACL && HAVE_ACL_TYPE_NFS4) */
+#endif /* HAVE_NFS4_ACL */
 }

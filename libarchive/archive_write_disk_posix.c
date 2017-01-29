@@ -1702,10 +1702,25 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	 * ACLs that prevent attribute changes (including time).
 	 */
 	if (a->todo & TODO_ACLS) {
-		int r2 = archive_write_disk_set_acls(&a->archive, a->fd,
-				  archive_entry_pathname(a->entry),
-				  archive_entry_acl(a->entry));
+		int r2;
+#ifdef HAVE_DARWIN_ACL
+		/*
+		 * On Mac OS, platform ACLs are stored also in mac_metadata by
+		 * the operating system. If mac_metadata is present it takes
+		 * precedence and we skip extracting libarchive NFSv4 ACLs
+		 */
+		const void *metadata;
+		size_t metadata_size;
+		metadata = archive_entry_mac_metadata(a->entry, &metadata_size);
+		if (metadata == NULL || metadata_size == 0) {
+#endif
+		r2 = archive_write_disk_set_acls(&a->archive, a->fd,
+		    archive_entry_pathname(a->entry),
+		    archive_entry_acl(a->entry));
 		if (r2 < ret) ret = r2;
+#ifdef HAVE_DARWIN_ACL
+		}
+#endif
 	}
 
 finish_metadata:
@@ -2264,8 +2279,12 @@ _archive_write_disk_close(struct archive *_a)
 		if (p->fixup & TODO_MODE_BASE)
 			chmod(p->name, p->mode);
 		if (p->fixup & TODO_ACLS)
-			archive_write_disk_set_acls(&a->archive,
-						    -1, p->name, &p->acl);
+#ifdef HAVE_DARWIN_ACL
+			if (p->mac_metadata == NULL ||
+			    p->mac_metadata_size == 0)
+#endif
+				archive_write_disk_set_acls(&a->archive,
+				    -1, p->name, &p->acl);
 		if (p->fixup & TODO_FFLAGS)
 			set_fflags_platform(a, -1, p->name,
 			    p->mode, p->fflags_set, 0);
