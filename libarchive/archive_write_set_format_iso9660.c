@@ -2554,7 +2554,7 @@ set_date_time(unsigned char *p, time_t t)
 static void
 set_date_time_null(unsigned char *p)
 {
-	memset(p, '0', 16);
+	memset(p, (int)'0', 16);
 	p[16] = 0;
 }
 
