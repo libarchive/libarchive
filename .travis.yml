@@ -7,8 +7,8 @@ addons:
       - libacl1-dev
       - libbz2-dev
       - liblzma-dev
-      - liblzo2-dev
       - libzip-dev
+      - lzop
 os:
   - linux
   - osx
@@ -25,6 +25,6 @@ matrix:
 before_install:
   - if [ `uname` = "Darwin" ]; then brew update; fi
 install:
-  - if [ `uname` = "Darwin" ]; then brew install xz lzo lz4; fi
+  - if [ `uname` = "Darwin" ]; then brew install xz lzop lz4; fi
 script:
   - build/ci_build.sh
