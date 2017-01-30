@@ -933,6 +933,7 @@ xar_cleanup(struct archive_read *a)
 	}
 	for (i = 0; i < xar->file_queue.used; i++)
 		file_free(xar->file_queue.files[i]);
+	free(xar->file_queue.files);
 	while (xar->unknowntags != NULL) {
 		struct unknown_tag *tag;
 
