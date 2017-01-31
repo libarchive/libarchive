@@ -731,8 +731,10 @@ static int translate_guid(struct archive *a, acl_entry_t acl_entry,
 	if (q == NULL)
 		return (1);
 	r = mbr_uuid_to_id((const unsigned char *)q, &ugid, &idtype);
-	if (r != 0)
+	if (r != 0) {
+		acl_free(q);
 		return (1);
+	}
 	if (idtype == ID_TYPE_UID) {
 		*ae_tag = ARCHIVE_ENTRY_ACL_USER;
 		pwd = getpwuuid(q);
@@ -754,8 +756,10 @@ static int translate_guid(struct archive *a, acl_entry_t acl_entry,
 			*ae_name = archive_read_disk_gname(a, *ae_id);
 		}
 	} else
-		return (1);
-	return (0);
+		r = 1;
+
+	acl_free(q);
+	return (r);
 }
 
 /*
@@ -1155,6 +1159,9 @@ translate_acl(struct archive_read_disk *a,
 	acl_permset_t	 acl_permset;
 	int		 i, entry_acl_type;
 	int		 r, s, ae_id, ae_tag, ae_perm;
+#if !HAVE_DARWIN_ACL
+	void		*q;
+#endif
 	const char	*ae_name;
 
 #if HAVE_ACL_TYPE_NFS4
@@ -1217,13 +1224,23 @@ translate_acl(struct archive_read_disk *a,
 		switch (acl_tag) {
 #if !HAVE_DARWIN_ACL	/* FreeBSD, Linux */
 		case ACL_USER:
-			ae_id = (int)*(uid_t *)acl_get_qualifier(acl_entry);
-			ae_name = archive_read_disk_uname(&a->archive, ae_id);
+			q = acl_get_qualifier(acl_entry);
+			if (q != NULL) {
+				ae_id = (int)*(uid_t *)q;
+				acl_free(q);
+				ae_name = archive_read_disk_uname(&a->archive,
+				    ae_id);
+			}
 			ae_tag = ARCHIVE_ENTRY_ACL_USER;
 			break;
 		case ACL_GROUP:
-			ae_id = (int)*(gid_t *)acl_get_qualifier(acl_entry);
-			ae_name = archive_read_disk_gname(&a->archive, ae_id);
+			q = acl_get_qualifier(acl_entry);
+			if (q != NULL) {
+				ae_id = (int)*(gid_t *)q;
+				acl_free(q);
+				ae_name = archive_read_disk_gname(&a->archive,
+				    ae_id);
+			}
 			ae_tag = ARCHIVE_ENTRY_ACL_GROUP;
 			break;
 		case ACL_MASK:

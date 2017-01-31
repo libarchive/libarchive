@@ -488,6 +488,7 @@ acl_match(acl_entry_t aclent, struct myacl_t *myacl)
 	if (q == NULL)
 		return (0);
 	r = mbr_uuid_to_id((const unsigned char *)q, &ugid, &idtype);
+	acl_free(q);
 	if (r != 0)
 		return (0);
 	switch (idtype) {

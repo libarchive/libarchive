@@ -429,7 +429,7 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 	struct archive *a;
 	struct archive_entry *ae;
 	int n, fd, flags, dflags;
-	char *func;
+	char *func, *acl_text;
 	const char *acl1_text, *acl2_text, *acl3_text;
 #if HAVE_SUN_ACL
 	acl_t *acl, *acl1, *acl2, *acl3;
@@ -498,6 +498,8 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 	func = "acl_set_fd()";
 	n = acl_set_fd(fd, acl1);
 #endif
+	acl_free(acl1);
+
 	if (n != 0) {
 #if HAVE_SUN_ACL
 		if (errno == ENOSYS)
@@ -562,10 +564,9 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 	func = "acl_set_fd()";
 	n = acl_set_fd(fd, acl2);
 #endif
-	if (n != 0) {
-		acl_free(acl2);
+	acl_free(acl2);
+	if (n != 0)
 		close(fd);
-	}
 	failure("%s: errno = %d (%s)", func, errno, strerror(errno));
 	assertEqualInt(0, n);
 	close(fd);
@@ -608,8 +609,8 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 	func = "acl_set_file()";
 	n = acl_set_file("d2", ACL_TYPE_DEFAULT, acl3);
 #endif
-	if (n != 0)
-		acl_free(acl3);
+	acl_free(acl3);
+
 	failure("%s: errno = %d (%s)", func, errno, strerror(errno));
 	assertEqualInt(0, n);
 
@@ -632,15 +633,21 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 	while (ARCHIVE_OK == archive_read_next_header2(a, ae)) {
 		archive_read_disk_descend(a);
 		if (strcmp(archive_entry_pathname(ae), "./f1") == 0) {
-			assertEqualString(archive_entry_acl_to_text(ae, NULL, flags), acl1_text);
-			    
+			acl_text = archive_entry_acl_to_text(ae, NULL, flags);
+			assertEqualString(acl_text, acl1_text);
+			free(acl_text);
 		} else if (strcmp(archive_entry_pathname(ae), "./d/f1") == 0) {
-			assertEqualString(archive_entry_acl_to_text(ae, NULL, flags), acl2_text);
+			acl_text = archive_entry_acl_to_text(ae, NULL, flags);
+			assertEqualString(acl_text, acl2_text);
+			free(acl_text);
 		} else if (strcmp(archive_entry_pathname(ae), "./d2") == 0) {
-			assertEqualString(archive_entry_acl_to_text(ae, NULL, dflags), acl3_text);
+			acl_text = archive_entry_acl_to_text(ae, NULL, dflags);
+			assertEqualString(acl_text, acl3_text);
+			free(acl_text);
 		}
 	}
 
-	archive_free(a);
+	archive_entry_free(ae);
+	assertEqualInt(ARCHIVE_OK, archive_free(a));
 #endif
 }
