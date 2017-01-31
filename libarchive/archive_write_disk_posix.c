@@ -2092,6 +2092,7 @@ create_filesystem_object(struct archive_write_disk *a)
 			archive_set_error(&a->archive, error_number, "%s",
 			    error_string.s);
 			free(linkname_copy);
+			archive_string_free(&error_string);
 			/*
 			 * EPERM is more appropriate than error_number for our
 			 * callers
@@ -2104,6 +2105,7 @@ create_filesystem_object(struct archive_write_disk *a)
 			archive_set_error(&a->archive, error_number, "%s",
 			    error_string.s);
 			free(linkname_copy);
+			archive_string_free(&error_string);
 			/*
 			 * EPERM is more appropriate than error_number for our
 			 * callers
@@ -2111,6 +2113,7 @@ create_filesystem_object(struct archive_write_disk *a)
 			return (EPERM);
 		}
 		free(linkname_copy);
+		archive_string_free(&error_string);
 		r = link(linkname, a->name) ? errno : 0;
 		/*
 		 * New cpio and pax formats allow hardlink entries
