@@ -2087,6 +2087,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	register_file(iso9660, file);
 	return (file);
 fail:
+	archive_string_free(&file->name);
 	free(file);
 	return (NULL);
 }
