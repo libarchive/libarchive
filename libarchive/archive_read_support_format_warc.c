@@ -134,8 +134,8 @@ static ssize_t _warc_rdlen(const char *buf, size_t bsz);
 static time_t _warc_rdrtm(const char *buf, size_t bsz);
 static time_t _warc_rdmtm(const char *buf, size_t bsz);
 static const char *_warc_find_eoh(const char *buf, size_t bsz);
+static const char *_warc_find_eol(const char *buf, size_t bsz);
 
-
 int
 archive_read_support_format_warc(struct archive *_a)
 {
@@ -577,51 +577,32 @@ out:
 }
 
 static unsigned int
-_warc_rdver(const char buf[10], size_t bsz)
+_warc_rdver(const char *buf, size_t bsz)
 {
 	static const char magic[] = "WARC/";
-	unsigned int ver;
+	unsigned int ver = 99999U;
+	unsigned int end = 0U;
 
-	(void)bsz; /* UNUSED */
-
-	if (memcmp(buf, magic, sizeof(magic) - 1U) != 0) {
-		/* nope */
-		return 99999U;
+	if (bsz < 12 || memcmp(buf, magic, sizeof(magic) - 1U) != 0) {
+		/* buffer too small or invalid magic */
+		return ver;
 	}
 	/* looks good so far, read the version number for a laugh */
 	buf += sizeof(magic) - 1U;
-	/* most common case gets a quick-check here */
-	if (memcmp(buf, "1.0\r\n", 5U) == 0) {
-		ver = 10000U;
-	} else {
-		switch (*buf) {
-		case '0':
-		case '1':
-		case '2':
-		case '3':
-		case '4':
-		case '5':
-		case '6':
-		case '7':
-		case '8':
-			if (buf[1U] == '.') {
-				char *on;
 
-				/* set up major version */
-				ver = (buf[0U] - '0') * 10000U;
-				/* minor version, anyone? */
-				ver += (strtol(buf + 2U, &on, 10)) * 100U;
-				/* don't parse anything else */
-				if (on > buf + 2U) {
-					break;
-				}
-			}
-			/* FALLTHROUGH */
-		case '9':
-		default:
-			/* just make the version ridiculously high */
-			ver = 999999U;
-			break;
+	if (isdigit(buf[0U]) && (buf[1U] == '.') && isdigit(buf[2U])) {
+		/* we support a maximum of 2 digits in the minor version */
+		if (isdigit(buf[3U]))
+			end = 1U;
+		if (memcmp(buf + 3U + end, "\r\n", 2U) == 0) {
+			/* set up major version */
+			ver = (buf[0U] - '0') * 10000U;
+			/* set up minor version */
+			if (end == 1U) {
+				ver += (buf[2U] - '0') * 1000U;
+				ver += (buf[3U] - '0') * 100U;
+			} else
+				ver += (buf[2U] - '0') * 100U;
 		}
 	}
 	return ver;
@@ -632,32 +613,37 @@ _warc_rdtyp(const char *buf, size_t bsz)
 {
 	static const char _key[] = "\r\nWARC-Type:";
 	const char *const eob = buf + bsz;
-	const char *val;
+	const char *val, *eol;
 
 	if ((val = xmemmem(buf, bsz, _key, sizeof(_key) - 1U)) == NULL) {
 		/* no bother */
 		return WT_NONE;
 	}
-	/* overread whitespace */
 	val += sizeof(_key) - 1U;
+	if ((eol = _warc_find_eol(val, buf + bsz - val)) == NULL) {
+		/* no end of line */
+		return WT_NONE;
+	}
+
+	/* overread whitespace */
 	while (val < eob && isspace((unsigned char)*val))
 		++val;
 
 	if (val + 8U > eob) {
 		;
-	} else if (memcmp(val, "resource", 8U) == 0) {
+	} else if (memcmp(val, "resource", 8U) == 0 && val + 8U == eol) {
 		return WT_RSRC;
-	} else if (memcmp(val, "warcinfo", 8U) == 0) {
+	} else if (memcmp(val, "warcinfo", 8U) == 0 && val + 8U == eol) {
 		return WT_INFO;
-	} else if (memcmp(val, "metadata", 8U) == 0) {
+	} else if (memcmp(val, "metadata", 8U) == 0 && val + 8U == eol) {
 		return WT_META;
-	} else if (memcmp(val, "request", 7U) == 0) {
+	} else if (memcmp(val, "request", 7U) == 0 && val + 7U == eol) {
 		return WT_REQ;
-	} else if (memcmp(val, "response", 8U) == 0) {
+	} else if (memcmp(val, "response", 8U) == 0 && val + 8U == eol) {
 		return WT_RSP;
-	} else if (memcmp(val, "conversi", 8U) == 0) {
+	} else if (memcmp(val, "conversi", 8U) == 0 && val + 8U == eol) {
 		return WT_CONV;
-	} else if (memcmp(val, "continua", 8U) == 0) {
+	} else if (memcmp(val, "continua", 8U) == 0 && val + 8U == eol) {
 		return WT_CONT;
 	}
 	return WT_NONE;
@@ -686,8 +672,10 @@ _warc_rduri(const char *buf, size_t bsz)
 	if ((uri = xmemmem(val, eob - val, "://", 3U)) == NULL) {
 		/* not touching that! */
 		return res;
-	} else if ((eol = memchr(uri, '\n', eob - uri)) == NULL) {
-		/* no end of line? :O */
+	}
+
+	if ((eol = _warc_find_eol(uri, eob - uri)) == NULL) {
+		/* no end of line */
 		return res;
 	}
 
@@ -720,7 +708,7 @@ static ssize_t
 _warc_rdlen(const char *buf, size_t bsz)
 {
 	static const char _key[] = "\r\nContent-Length:";
-	const char *val;
+	const char *val, *eol;
 	char *on = NULL;
 	long int len;
 
@@ -728,14 +716,19 @@ _warc_rdlen(const char *buf, size_t bsz)
 		/* no bother */
 		return -1;
 	}
-
-	/* strtol kindly overreads whitespace for us, so use that */
 	val += sizeof(_key) - 1U;
-	len = strtol(val, &on, 10);
-	if (on == NULL || !isspace((unsigned char)*on)) {
-		/* hm, can we trust that number?  Best not. */
+	if ((eol = _warc_find_eol(val, buf + bsz - val)) == NULL) {
+		/* no end of line */
 		return -1;
 	}
+
+	/* strtol kindly overreads whitespace for us, so use that */
+	len = strtol(val, &on, 10);
+	if (on != eol) {
+		/* line must end here */
+		return -1;
+	}
+
 	return (size_t)len;
 }
 
@@ -743,7 +736,7 @@ static time_t
 _warc_rdrtm(const char *buf, size_t bsz)
 {
 	static const char _key[] = "\r\nWARC-Date:";
-	const char *val;
+	const char *val, *eol;
 	char *on = NULL;
 	time_t res;
 
@@ -751,13 +744,17 @@ _warc_rdrtm(const char *buf, size_t bsz)
 		/* no bother */
 		return (time_t)-1;
 	}
+	val += sizeof(_key) - 1U;
+	if ((eol = _warc_find_eol(val, buf + bsz - val)) == NULL ) {
+		/* no end of line */
+		return -1;
+	}
 
 	/* xstrpisotime() kindly overreads whitespace for us, so use that */
-	val += sizeof(_key) - 1U;
 	res = xstrpisotime(val, &on);
-	if (on == NULL || !isspace((unsigned char)*on)) {
-		/* hm, can we trust that number?  Best not. */
-		return (time_t)-1;
+	if (on != eol) {
+		/* line must end here */
+		return -1;
 	}
 	return res;
 }
@@ -766,7 +763,7 @@ static time_t
 _warc_rdmtm(const char *buf, size_t bsz)
 {
 	static const char _key[] = "\r\nLast-Modified:";
-	const char *val;
+	const char *val, *eol;
 	char *on = NULL;
 	time_t res;
 
@@ -774,13 +771,17 @@ _warc_rdmtm(const char *buf, size_t bsz)
 		/* no bother */
 		return (time_t)-1;
 	}
+	val += sizeof(_key) - 1U;
+	if ((eol = _warc_find_eol(val, buf + bsz - val)) == NULL ) {
+		/* no end of line */
+		return -1;
+	}
 
 	/* xstrpisotime() kindly overreads whitespace for us, so use that */
-	val += sizeof(_key) - 1U;
 	res = xstrpisotime(val, &on);
-	if (on == NULL || !isspace((unsigned char)*on)) {
-		/* hm, can we trust that number?  Best not. */
-		return (time_t)-1;
+	if (on != eol) {
+		/* line must end here */
+		return -1;
 	}
 	return res;
 }
@@ -797,4 +798,12 @@ _warc_find_eoh(const char *buf, size_t bsz)
 	return hit;
 }
 
+static const char*
+_warc_find_eol(const char *buf, size_t bsz)
+{
+	static const char _marker[] = "\r\n";
+	const char *hit = xmemmem(buf, bsz, _marker, sizeof(_marker) - 1U);
+
+	return hit;
+}
 /* archive_read_support_format_warc.c ends here */
