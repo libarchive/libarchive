@@ -198,8 +198,8 @@ _warc_bid(struct archive_read *a, int best_bid)
 
 	/* otherwise snarf the record's version number */
 	ver = _warc_rdver(hdr, nrd);
-	if (ver == 0U || ver > 10000U) {
-		/* oh oh oh, best not to wager ... */
+	if (ver < 1200U || ver > 10000U) {
+		/* we only support WARC 0.12 to 1.0 */
 		return -1;
 	}
 
@@ -254,23 +254,32 @@ start_over:
 			&a->archive, ARCHIVE_ERRNO_MISC,
 			"Bad record header");
 		return (ARCHIVE_FATAL);
-	} else if ((ver = _warc_rdver(buf, eoh - buf)) > 10000U) {
-		/* nawww, I wish they promised backward compatibility
-		 * anyhoo, in their infinite wisdom the 28500 guys might
-		 * come up with something we can't possibly handle so
-		 * best end things here */
+	}
+	ver = _warc_rdver(buf, eoh - buf);
+	/* we currently support WARC 0.12 to 1.0 */
+	if (ver == 0U) {
 		archive_set_error(
 			&a->archive, ARCHIVE_ERRNO_MISC,
-			"Unsupported record version");
+			"Invalid record version");
 		return (ARCHIVE_FATAL);
-	} else if ((cntlen = _warc_rdlen(buf, eoh - buf)) < 0) {
+	} else if (ver < 1200U || ver > 10000U) {
+		archive_set_error(
+			&a->archive, ARCHIVE_ERRNO_MISC,
+			"Unsupported record version: %u.%u",
+			ver / 10000, (ver % 10000) / 100);
+		return (ARCHIVE_FATAL);
+	}
+	cntlen = _warc_rdlen(buf, eoh - buf);
+	if (cntlen < 0) {
 		/* nightmare!  the specs say content-length is mandatory
 		 * so I don't feel overly bad stopping the reader here */
 		archive_set_error(
 			&a->archive, EINVAL,
 			"Bad content length");
 		return (ARCHIVE_FATAL);
-	} else if ((rtime = _warc_rdrtm(buf, eoh - buf)) == (time_t)-1) {
+	}
+	rtime = _warc_rdrtm(buf, eoh - buf);
+	if (rtime == (time_t)-1) {
 		/* record time is mandatory as per WARC/1.0,
 		 * so just barf here, fast and loud */
 		archive_set_error(
@@ -284,7 +293,7 @@ start_over:
 	if (ver != w->pver) {
 		/* stringify this entry's version */
 		archive_string_sprintf(&w->sver,
-			"WARC/%u.%u", ver / 10000, ver % 10000);
+			"WARC/%u.%u", ver / 10000, (ver % 10000) / 100);
 		/* remember the version */
 		w->pver = ver;
 	}
@@ -580,7 +589,7 @@ static unsigned int
 _warc_rdver(const char *buf, size_t bsz)
 {
 	static const char magic[] = "WARC/";
-	unsigned int ver = 99999U;
+	unsigned int ver = 0U;
 	unsigned int end = 0U;
 
 	if (bsz < 12 || memcmp(buf, magic, sizeof(magic) - 1U) != 0) {
@@ -594,15 +603,24 @@ _warc_rdver(const char *buf, size_t bsz)
 		/* we support a maximum of 2 digits in the minor version */
 		if (isdigit(buf[3U]))
 			end = 1U;
-		if (memcmp(buf + 3U + end, "\r\n", 2U) == 0) {
-			/* set up major version */
-			ver = (buf[0U] - '0') * 10000U;
-			/* set up minor version */
-			if (end == 1U) {
-				ver += (buf[2U] - '0') * 1000U;
-				ver += (buf[3U] - '0') * 100U;
-			} else
-				ver += (buf[2U] - '0') * 100U;
+		/* set up major version */
+		ver = (buf[0U] - '0') * 10000U;
+		/* set up minor version */
+		if (end == 1U) {
+			ver += (buf[2U] - '0') * 1000U;
+			ver += (buf[3U] - '0') * 100U;
+		} else
+			ver += (buf[2U] - '0') * 100U;
+		/*
+		 * WARC below version 0.12 has a space-separated header
+		 * WARC 0.12 and above terminates the version with a CRLF
+		 */
+		if (ver >= 1200U) {
+			if (memcmp(buf + 3U + end, "\r\n", 2U) != 0)
+				ver = 0U;
+		} else if (ver < 1200U) {
+			if (!isblank(*(buf + 3U + end)))
+				ver = 0U;
 		}
 	}
 	return ver;
@@ -612,7 +630,6 @@ static unsigned int
 _warc_rdtyp(const char *buf, size_t bsz)
 {
 	static const char _key[] = "\r\nWARC-Type:";
-	const char *const eob = buf + bsz;
 	const char *val, *eol;
 
 	if ((val = xmemmem(buf, bsz, _key, sizeof(_key) - 1U)) == NULL) {
@@ -626,25 +643,14 @@ _warc_rdtyp(const char *buf, size_t bsz)
 	}
 
 	/* overread whitespace */
-	while (val < eob && isspace((unsigned char)*val))
+	while (val < eol && isblank((unsigned char)*val))
 		++val;
 
-	if (val + 8U > eob) {
-		;
-	} else if (memcmp(val, "resource", 8U) == 0 && val + 8U == eol) {
-		return WT_RSRC;
-	} else if (memcmp(val, "warcinfo", 8U) == 0 && val + 8U == eol) {
-		return WT_INFO;
-	} else if (memcmp(val, "metadata", 8U) == 0 && val + 8U == eol) {
-		return WT_META;
-	} else if (memcmp(val, "request", 7U) == 0 && val + 7U == eol) {
-		return WT_REQ;
-	} else if (memcmp(val, "response", 8U) == 0 && val + 8U == eol) {
-		return WT_RSP;
-	} else if (memcmp(val, "conversi", 8U) == 0 && val + 8U == eol) {
-		return WT_CONV;
-	} else if (memcmp(val, "continua", 8U) == 0 && val + 8U == eol) {
-		return WT_CONT;
+	if (val + 8U == eol) {
+		if (memcmp(val, "resource", 8U) == 0)
+			return WT_RSRC;
+		else if (memcmp(val, "response", 8U) == 0)
+			return WT_RSP;
 	}
 	return WT_NONE;
 }
@@ -653,10 +659,7 @@ static warc_string_t
 _warc_rduri(const char *buf, size_t bsz)
 {
 	static const char _key[] = "\r\nWARC-Target-URI:";
-	const char *const eob = buf + bsz;
-	const char *val;
-	const char *uri;
-	const char *eol;
+	const char *val, *uri, *eol, *p;
 	warc_string_t res = {0U, NULL};
 
 	if ((val = xmemmem(buf, bsz, _key, sizeof(_key) - 1U)) == NULL) {
@@ -665,27 +668,32 @@ _warc_rduri(const char *buf, size_t bsz)
 	}
 	/* overread whitespace */
 	val += sizeof(_key) - 1U;
-	while (val < eob && isspace((unsigned char)*val))
-		++val;
-
-	/* overread URL designators */
-	if ((uri = xmemmem(val, eob - val, "://", 3U)) == NULL) {
-		/* not touching that! */
-		return res;
-	}
-
-	if ((eol = _warc_find_eol(uri, eob - uri)) == NULL) {
+	if ((eol = _warc_find_eol(val, buf + bsz - val)) == NULL) {
 		/* no end of line */
 		return res;
 	}
 
-	/* massage uri to point to after :// */
+	while (val < eol && isblank((unsigned char)*val))
+		++val;
+
+	/* overread URL designators */
+	if ((uri = xmemmem(val, eol - val, "://", 3U)) == NULL) {
+		/* not touching that! */
+		return res;
+	}
+
+	/* spaces inside uri are not allowed, CRLF should follow */
+	for (p = val; p < eol; p++) {
+		if (isspace(*p))
+			return res;
+	}
+
+	/* there must be at least space for ftp */
+	if (uri < (val + 3U))
+		return res;
+
+	/* move uri to point to after :// */
 	uri += 3U;
-	/* also massage eol to point to the first whitespace
-	 * after the last non-whitespace character before
-	 * the end of the line */
-	while (eol > uri && isspace((unsigned char)eol[-1]))
-		--eol;
 
 	/* now then, inspect the URI */
 	if (memcmp(val, "file", 4U) == 0) {
