@@ -730,7 +730,12 @@ _warc_rdlen(const char *buf, size_t bsz)
 		return -1;
 	}
 
-	/* strtol kindly overreads whitespace for us, so use that */
+	/* skip leading whitespace */
+	while (val < eol && isblank(*val))
+		val++;
+	/* there must be at least one digit */
+	if (!isdigit(*val))
+		return -1;
 	len = strtol(val, &on, 10);
 	if (on != eol) {
 		/* line must end here */
