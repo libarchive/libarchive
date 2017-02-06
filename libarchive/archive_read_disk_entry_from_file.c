@@ -882,7 +882,7 @@ sun_acl_is_trivial(acl_t *acl, mode_t mode, int *trivialp)
 	/*
 	 * POSIX.1e ACLs marked with ACL_IS_TRIVIAL are compatible with
 	 * FreeBSD acl_is_trivial_np(). On Solaris they have 4 entries,
-	 * incuding mask.
+	 * including mask.
 	 */
 	if (acl->acl_type == ACLENT_T) {
 		if (acl->acl_cnt == 4)

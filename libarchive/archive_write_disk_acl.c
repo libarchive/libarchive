@@ -101,7 +101,7 @@ archive_write_disk_set_acls(struct archive *a, int fd, const char *name,
 			    ACL_TYPE_DEFAULT, ARCHIVE_ENTRY_ACL_TYPE_DEFAULT,
 			    "default");
 #endif	/* !HAVE_SUN_ACL */
-		/* Simultaeous POSIX.1e and NFSv4 is not supported */
+		/* Simultaneous POSIX.1e and NFSv4 is not supported */
 		return (ret);
 	}
 #endif	/* !HAVE_DARWIN_ACL */
