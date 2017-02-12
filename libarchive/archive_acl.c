@@ -1462,11 +1462,8 @@ ismode_w(const wchar_t *start, const wchar_t *end, int *permset)
 static int
 is_nfs4_perms_w(const wchar_t *start, const wchar_t *end, int *permset)
 {
-	const wchar_t *p;
+	const wchar_t *p = start;
 
-	if (start >= end)
-		return (0);
-	p = start;
 	while (p < end) {
 		switch (*p++) {
 		case L'r':
@@ -1528,11 +1525,8 @@ is_nfs4_perms_w(const wchar_t *start, const wchar_t *end, int *permset)
 static int
 is_nfs4_flags_w(const wchar_t *start, const wchar_t *end, int *permset)
 {
-	const wchar_t *p;
+	const wchar_t *p = start;
 
-	if (start >= end)
-		return (0);
-	p = start;
 	while (p < end) {
 		switch(*p++) {
 		case L'f':
@@ -1940,11 +1934,8 @@ ismode(const char *start, const char *end, int *permset)
 static int
 is_nfs4_perms(const char *start, const char *end, int *permset)
 {
-	const char *p;
+	const char *p = start;
 
-	if (start >= end)
-		return (0);
-	p = start;
 	while (p < end) {
 		switch (*p++) {
 		case 'r':
@@ -2006,11 +1997,8 @@ is_nfs4_perms(const char *start, const char *end, int *permset)
 static int
 is_nfs4_flags(const char *start, const char *end, int *permset)
 {
-	const char *p;
+	const char *p = start;
 
-	if (start >= end)
-		return (0);
-	p = start;
 	while (p < end) {
 		switch(*p++) {
 		case 'f':
