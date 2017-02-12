@@ -119,9 +119,9 @@ archive_write_disk_set_acls(struct archive *a, int fd, const char *name,
 /*
  * Translate system ACL permissions into libarchive internal structure
  */
-static struct {
-	int archive_perm;
-	int platform_perm;
+static const struct {
+	const int archive_perm;
+	const int platform_perm;
 } acl_perm_map[] = {
 #if HAVE_SUN_ACL	/* Solaris NFSv4 ACL permissions */
 	{ARCHIVE_ENTRY_ACL_EXECUTE, ACE_EXECUTE},
@@ -188,9 +188,9 @@ static struct {
 /*
  * Translate system NFSv4 inheritance flags into libarchive internal structure
  */
-static struct {
-	int archive_inherit;
-	int platform_inherit;
+static const struct {
+	const int archive_inherit;
+	const int platform_inherit;
 } acl_inherit_map[] = {
 #if HAVE_SUN_ACL	/* Solaris NFSv4 inheritance flags */
 	{ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT, ACE_FILE_INHERIT_ACE},
