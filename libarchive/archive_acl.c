@@ -860,14 +860,14 @@ append_entry_w(wchar_t **wp, const wchar_t *prefix, int type,
 		for (i = 0; i < nfsv4_acl_perm_map_size; i++) {
 			if (perm & nfsv4_acl_perm_map[i].perm)
 				*(*wp)++ = nfsv4_acl_perm_map[i].wc;
-			else
+			else if ((flags & ARCHIVE_ENTRY_ACL_STYLE_COMPACT) == 0)
 				*(*wp)++ = L'-';
 		}
 		*(*wp)++ = L':';
 		for (i = 0; i < nfsv4_acl_flag_map_size; i++) {
 			if (perm & nfsv4_acl_flag_map[i].perm)
 				*(*wp)++ = nfsv4_acl_flag_map[i].wc;
-			else
+			else if ((flags & ARCHIVE_ENTRY_ACL_STYLE_COMPACT) == 0)
 				*(*wp)++ = L'-';
 		}
 		*(*wp)++ = L':';
@@ -1093,14 +1093,14 @@ append_entry(char **p, const char *prefix, int type,
 		for (i = 0; i < nfsv4_acl_perm_map_size; i++) {
 			if (perm & nfsv4_acl_perm_map[i].perm)
 				*(*p)++ = nfsv4_acl_perm_map[i].c;
-			else
+			else if ((flags & ARCHIVE_ENTRY_ACL_STYLE_COMPACT) == 0)
 				*(*p)++ = '-';
 		}
 		*(*p)++ = ':';
 		for (i = 0; i < nfsv4_acl_flag_map_size; i++) {
 			if (perm & nfsv4_acl_flag_map[i].perm)
 				*(*p)++ = nfsv4_acl_flag_map[i].c;
-			else
+			else if ((flags & ARCHIVE_ENTRY_ACL_STYLE_COMPACT) == 0)
 				*(*p)++ = '-';
 		}
 		*(*p)++ = ':';
