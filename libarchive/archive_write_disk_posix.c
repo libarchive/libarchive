@@ -2067,6 +2067,7 @@ create_filesystem_object(struct archive_write_disk *a)
 	int r;
 	/* these for check_symlinks_fsobj */
 	char *linkname_copy;	/* non-const copy of linkname */
+	struct stat st;
 	struct archive_string error_string;
 	int error_number;
 
@@ -2131,11 +2132,20 @@ create_filesystem_object(struct archive_write_disk *a)
 			a->todo = 0;
 			a->deferred = 0;
 		} else if (r == 0 && a->filesize > 0) {
-			a->fd = open(a->name, O_WRONLY | O_TRUNC | O_BINARY
-			    | O_CLOEXEC | O_NOFOLLOW);
-			__archive_ensure_cloexec_flag(a->fd);
-			if (a->fd < 0)
+#ifdef HAVE_LSTAT
+			r = lstat(a->name, &st);
+#else
+			r = stat(a->name, &st);
+#endif
+			if (r != 0)
 				r = errno;
+			else if ((st.st_mode & AE_IFMT) == AE_IFREG) {
+				a->fd = open(a->name, O_WRONLY | O_TRUNC |
+				    O_BINARY | O_CLOEXEC | O_NOFOLLOW);
+				__archive_ensure_cloexec_flag(a->fd);
+				if (a->fd < 0)
+					r = errno;
+			}
 		}
 		return (r);
 #endif
