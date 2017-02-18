@@ -321,18 +321,15 @@ setup_mac_metadata(struct archive_read_disk *a,
 	name = archive_entry_sourcepath(entry);
 	if (name == NULL)
 		name = archive_entry_pathname(entry);
+	else if (a->tree != NULL && a->tree_enter_working_dir(a->tree) != 0) {
+		archive_set_error(&a->archive, errno,
+			    "Can't change dir to read extended attributes");
+			return (ARCHIVE_FAILED);
+	}
 	if (name == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Can't open file to read extended attributes: No name");
 		return (ARCHIVE_WARN);
-	}
-
-	if (a->tree != NULL) {
-		if (a->tree_enter_working_dir(a->tree) != 0) {
-			archive_set_error(&a->archive, errno,
-				    "Couldn't change dir");
-				return (ARCHIVE_FAILED);
-		}
 	}
 
 	/* Short-circuit if there's nothing to do. */
@@ -456,19 +453,20 @@ setup_acls(struct archive_read_disk *a,
 	accpath = archive_entry_sourcepath(entry);
 	if (accpath == NULL)
 		accpath = archive_entry_pathname(entry);
-
-	if (*fd < 0 && a->tree != NULL) {
-		if (a->follow_symlinks ||
-		    archive_entry_filetype(entry) != AE_IFLNK)
-			*fd = a->open_on_current_dir(a->tree,
-			    accpath, O_RDONLY | O_NONBLOCK);
-		if (*fd < 0) {
-			if (a->tree_enter_working_dir(a->tree) != 0) {
-				archive_set_error(&a->archive, errno,
-				    "Couldn't access %s", accpath);
-				return (ARCHIVE_FAILED);
-			}
-		}
+	else if (a->tree != NULL && a->tree_enter_working_dir(a->tree) != 0) {
+		archive_set_error(&a->archive, errno,
+		    "Can't change dir to read ACLs");
+		return (ARCHIVE_WARN);
+	}
+	if (*fd < 0 && a->tree != NULL && (a->follow_symlinks ||
+	    archive_entry_filetype(entry) != AE_IFLNK)) {
+		*fd = a->open_on_current_dir(a->tree,
+		    accpath, O_RDONLY | O_NONBLOCK);
+	}
+	if (*fd < 0 && accpath == NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Can't open file to read ACLs");
+		return (ARCHIVE_WARN);
 	}
 
 	archive_entry_acl_clear(entry);
@@ -1487,19 +1485,20 @@ setup_xattrs(struct archive_read_disk *a,
 	path = archive_entry_sourcepath(entry);
 	if (path == NULL)
 		path = archive_entry_pathname(entry);
-
-	if (*fd < 0 && a->tree != NULL) {
-		if (a->follow_symlinks ||
-		    archive_entry_filetype(entry) != AE_IFLNK)
-			*fd = a->open_on_current_dir(a->tree, path,
-				O_RDONLY | O_NONBLOCK);
-		if (*fd < 0) {
-			if (a->tree_enter_working_dir(a->tree) != 0) {
-				archive_set_error(&a->archive, errno,
-				    "Couldn't access %s", path);
-				return (ARCHIVE_FAILED);
-			}
-		}
+	else if (a->tree != NULL && a->tree_enter_working_dir(a->tree) != 0) {
+		archive_set_error(&a->archive, errno,
+		    "Can't change dir to read extended attributes");
+		return (ARCHIVE_WARN);
+	}
+	if (*fd < 0 && a->tree != NULL && (a->follow_symlinks ||
+	    archive_entry_filetype(entry) != AE_IFLNK)) {
+		*fd = a->open_on_current_dir(a->tree, path,
+			O_RDONLY | O_NONBLOCK);
+	}
+	if (*fd < 0 && path == NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Can't open file to read extended attributes");
+		return (ARCHIVE_WARN);
 	}
 
 #if HAVE_FLISTXATTR
@@ -1647,19 +1646,20 @@ setup_xattrs(struct archive_read_disk *a,
 	path = archive_entry_sourcepath(entry);
 	if (path == NULL)
 		path = archive_entry_pathname(entry);
-
-	if (*fd < 0 && a->tree != NULL) {
-		if (a->follow_symlinks ||
-		    archive_entry_filetype(entry) != AE_IFLNK)
-			*fd = a->open_on_current_dir(a->tree, path,
-				O_RDONLY | O_NONBLOCK);
-		if (*fd < 0) {
-			if (a->tree_enter_working_dir(a->tree) != 0) {
-				archive_set_error(&a->archive, errno,
-				    "Couldn't access %s", path);
-				return (ARCHIVE_FAILED);
-			}
-		}
+	else if (a->tree != NULL && a->tree_enter_working_dir(a->tree) != 0) {
+		archive_set_error(&a->archive, errno,
+		    "Can't change dir to read extended attributes");
+		return (ARCHIVE_WARN);
+	}
+	if (*fd < 0 && a->tree != NULL && (a->follow_symlinks ||
+	    archive_entry_filetype(entry) != AE_IFLNK)) {
+		*fd = a->open_on_current_dir(a->tree, path,
+			O_RDONLY | O_NONBLOCK);
+	}
+	if (*fd < 0 && path == NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Can't open file to read extended attributes");
+		return (ARCHIVE_WARN);
 	}
 
 	if (*fd >= 0)
