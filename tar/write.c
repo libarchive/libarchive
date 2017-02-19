@@ -1010,7 +1010,7 @@ report_write(struct bsdtar *bsdtar, struct archive *a,
 	uncomp = archive_filter_bytes(a, 0);
 	fprintf(stderr, "In: %d files, %s bytes;",
 	    archive_file_count(a), tar_i64toa(uncomp));
-	if (comp > uncomp)
+	if (comp >= uncomp)
 		compression = 0;
 	else
 		compression = (int)((uncomp - comp) * 100 / uncomp);
