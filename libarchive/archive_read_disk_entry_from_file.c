@@ -551,8 +551,8 @@ setup_acls(struct archive_read_disk *a,
 		 * the archive entry. Otherwise extraction on non-Mac platforms
 		 * would lead to an invalid file mode.
 		 */
-		if (archive_entry_acl_count(entry,
-		    ARCHIVE_ENTRY_ACL_TYPE_NFS4) > 0)
+		if ((archive_entry_acl_types(entry) &
+		    ARCHIVE_ENTRY_ACL_TYPE_NFS4) != 0)
 			add_trivial_nfs4_acl(entry);
 #endif
 		return (r);
