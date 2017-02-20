@@ -310,7 +310,9 @@ pkgconfig_DATA = build/pkgconfig/libarchive.pc
 # Sources needed by all test programs
 test_utils_SOURCES= \
 	test_utils/test_utils.c \
-	test_utils/test_utils.h
+	test_utils/test_utils.h \
+	test_utils/lib/version.h \
+	test_utils/lib/version.c
 
 #
 #

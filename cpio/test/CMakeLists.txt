@@ -8,6 +8,7 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     ../cmdline.c
     ../../libarchive_fe/err.c
     ../../test_utils/test_utils.c
+    ../../test_utils/lib/version.c
     main.c
     test.h
     test_0.c

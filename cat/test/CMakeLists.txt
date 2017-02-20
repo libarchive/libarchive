@@ -6,6 +6,7 @@
 IF(ENABLE_CAT AND ENABLE_TEST)
   SET(bsdcat_test_SOURCES
     ../../test_utils/test_utils.c
+    ../../test_utils/lib/version.c
     main.c
     test.h
     test_0.c
