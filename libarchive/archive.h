@@ -1001,6 +1001,8 @@ __LA_DECL int  archive_read_disk_set_atime_restored(struct archive *);
 #define	ARCHIVE_READDISK_NO_TRAVERSE_MOUNTS	(0x0008)
 /* Default: Xattrs are read from disk. */
 #define	ARCHIVE_READDISK_NO_XATTR		(0x0010)
+/* Default: Report only "regular" visits for directories. */
+#define	ARCHIVE_READDISK_ALL_VISIT_TYPES	(0x0020)
 
 __LA_DECL int  archive_read_disk_set_behavior(struct archive *,
 		    int flags);
