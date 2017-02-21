@@ -6,6 +6,7 @@
 IF(ENABLE_TEST)
   SET(libarchive_test_SOURCES
     ../../test_utils/test_utils.c
+    ../../test_utils/lib/version.c
     main.c
     read_open_memory.c
     test.h
