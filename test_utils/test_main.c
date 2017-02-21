@@ -54,24 +54,6 @@
 #include <time.h>
 
 /*
- * This same file is used pretty much verbatim for all test harnesses.
- *
- * The next few lines are the only differences.
- * TODO: Move this into a separate configuration header, have all test
- * suites share one copy of this file.
- */
-__FBSDID("$FreeBSD: src/usr.bin/cpio/test/main.c,v 1.3 2008/08/24 04:58:22 kientzle Exp $");
-#define KNOWNREF	"test_option_f.cpio.uu"
-#define ENVBASE "BSDCPIO" /* Prefix for environment variables. */
-#define	PROGRAM "bsdcpio" /* Name of program being tested. */
-#define PROGRAM_ALIAS "cpio" /* Generic alias for program */
-#undef	LIBRARY		  /* Not testing a library. */
-#undef	EXTRA_DUMP	  /* How to dump extra data */
-#undef	EXTRA_ERRNO	  /* How to dump errno */
-/* How to generate extra version info. */
-#define	EXTRA_VERSION    (systemf("%s --version", testprog) ? "" : "")
-
-/*
  *
  * Windows support routines
  *
@@ -218,6 +200,12 @@ invalid_parameter_handler(const wchar_t * expression,
     unsigned int line, uintptr_t pReserved)
 {
 	/* nop */
+	// Silence unused-parameter compiler warnings.
+	(void)expression;
+	(void)function;
+	(void)file;
+	(void)line;
+	(void)pReserved;
 }
 #endif
 
@@ -1414,6 +1402,8 @@ assertion_file_mode(const char *file, int line, const char *pathname, int expect
 	failure_start(file, line, "assertFileMode not yet implemented for Windows");
 	(void)mode; /* UNUSED */
 	(void)r; /* UNUSED */
+	(void)pathname; /* UNUSED */
+	(void)expected_mode; /* UNUSED */
 #else
 	{
 		struct stat st;
@@ -1936,6 +1926,117 @@ assertion_nodump(const char *file, int line, const char *pathname)
 	return (1);
 }
 
+#ifdef PROGRAM
+static void assert_version_id(char **qq, size_t *ss)
+{
+	char *q = *qq;
+	size_t s = *ss;
+
+	/* Version number is a series of digits and periods. */
+	while (s > 0 && (*q == '.' || (*q >= '0' && *q <= '9'))) {
+		++q;
+		--s;
+	}
+
+	if (q[0] == 'd' && q[1] == 'e' && q[2] == 'v') {
+		q += 3;
+		s -= 3;
+	}
+	
+	/* Skip a single trailing a,b,c, or d. */
+	if (*q == 'a' || *q == 'b' || *q == 'c' || *q == 'd')
+		++q;
+
+	/* Version number terminated by space. */
+	failure("No space after version: ``%s''", q);
+	assert(s > 1);
+	failure("No space after version: ``%s''", q);
+	assert(*q == ' ');
+
+	++q; --s;
+
+	*qq = q;
+	*ss = s;
+}
+
+
+/*
+ * Check program version
+ */
+void assertVersion(const char *prog, const char *base)
+{
+	int r;
+	char *p, *q;
+	size_t s;
+	unsigned int prog_len = strlen(base);
+
+	r = systemf("%s --version >version.stdout 2>version.stderr", prog);
+	if (r != 0)
+		r = systemf("%s -W version >version.stdout 2>version.stderr",
+		    prog);
+
+	failure("Unable to run either %s --version or %s -W version",
+		prog, prog);
+	if (!assert(r == 0))
+		return;
+
+	/* --version should generate nothing to stdout. */
+	assertEmptyFile("version.stderr");
+
+	/* Verify format of version message. */
+	q = p = slurpfile(&s, "version.stdout");
+
+	/* Version message should start with name of program, then space. */
+	assert(s > prog_len + 1);
+	
+	failure("Version must start with '%s': ``%s''", base, p);
+	if (!assertEqualMem(q, base, prog_len)) {
+		free(p);
+		return;
+	}
+
+	q += prog_len; s -= prog_len;
+
+	assert(*q == ' ');
+	q++; s--;
+
+	assert_version_id(&q, &s);
+
+	/* Separator. */
+	failure("No `-' between program name and versions: ``%s''", p);
+	assertEqualMem(q, "- ", 2);
+	q += 2; s -= 2;
+
+	failure("Not long enough for libarchive version: ``%s''", p);
+	assert(s > 11);
+
+	failure("Libarchive version must start with `libarchive': ``%s''", p);
+	assertEqualMem(q, "libarchive ", 11);
+
+	q += 11; s -= 11;
+
+	assert_version_id(&q, &s);
+
+	/* Skip arbitrary third-party version numbers. */
+	while (s > 0 && (*q == ' ' || *q == '-' || *q == '/' || *q == '.' ||
+	    isalnum(*q))) {
+		++q;
+		--s;
+	}
+
+	/* All terminated by end-of-line. */
+	assert(s >= 1);
+
+	/* Skip an optional CR character (e.g., Windows) */
+	failure("Version output must end with \\n or \\r\\n");
+
+	if (*q == '\r') { ++q; --s; }
+	assertEqualMem(q, "\n", 1);
+
+	free(p);
+}
+#endif	/* PROGRAM */
+
 /*
  *
  *  UTILITIES for use by tests.
@@ -2422,6 +2523,134 @@ extract_reference_files(const char **names)
 	while (names && *names)
 		extract_reference_file(*names++);
 }
+
+#ifndef PROGRAM
+/* Set ACLs */
+void
+archive_test_set_acls(struct archive_entry *ae,
+    struct archive_test_acl_t *acls, int n)
+{
+	int i;
+
+	archive_entry_acl_clear(ae);
+	for (i = 0; i < n; i++) {
+		failure("type=%#010x, permset=%#010x, tag=%d, qual=%d name=%s",
+		    acls[i].type, acls[i].permset, acls[i].tag,
+		    acls[i].qual, acls[i].name);
+		assertEqualInt(ARCHIVE_OK,
+		    archive_entry_acl_add_entry(ae,
+			acls[i].type, acls[i].permset, acls[i].tag,
+			acls[i].qual, acls[i].name));
+	}
+}
+
+static int
+archive_test_acl_match(struct archive_test_acl_t *acl, int type, int permset,
+    int tag, int qual, const char *name)
+{
+	if (type != acl->type)
+		return (0);
+	if (permset != acl->permset)
+		return (0);
+	if (tag != acl->tag)
+		return (0);
+	if (tag == ARCHIVE_ENTRY_ACL_USER_OBJ)
+		return (1);
+	if (tag == ARCHIVE_ENTRY_ACL_GROUP_OBJ)
+		return (1);
+	if (tag == ARCHIVE_ENTRY_ACL_EVERYONE)
+		return (1);
+	if (tag == ARCHIVE_ENTRY_ACL_OTHER)
+		return (1);
+	if (qual != acl->qual)
+		return (0);
+	if (name == NULL) {
+		if (acl->name == NULL || acl->name[0] == '\0')
+			return (1);
+		return (0);
+	}
+	if (acl->name == NULL) {
+		if (name[0] == '\0')
+			return (1);
+		return (0);
+	}
+	return (0 == strcmp(name, acl->name));
+}
+
+/* Compare ACLs */
+void
+archive_test_compare_acls(struct archive_entry *ae,
+    struct archive_test_acl_t *acls, int cnt, int want_type, int mode)
+{
+	int *marker;
+	int i, r, n;
+	int type, permset, tag, qual;
+	int matched;
+	const char *name;
+
+	n = 0;
+	marker = malloc(sizeof(marker[0]) * cnt);
+
+	for (i = 0; i < cnt; i++) {
+		if ((acls[i].type & want_type) != 0) {
+			marker[n] = i;
+			n++;
+		}
+	}
+
+	failure("No ACL's to compare, type mask: %d", want_type);
+	assert(n > 0);
+	if (n == 0)
+		return;
+
+	while (0 == (r = archive_entry_acl_next(ae, want_type,
+			 &type, &permset, &tag, &qual, &name))) {
+		for (i = 0, matched = 0; i < n && !matched; i++) {
+			if (archive_test_acl_match(&acls[marker[i]], type,
+			    permset, tag, qual, name)) {
+				/* We found a match; remove it. */
+				marker[i] = marker[n - 1];
+				n--;
+				matched = 1;
+			}
+		}
+		if (type == ARCHIVE_ENTRY_ACL_TYPE_ACCESS
+		    && tag == ARCHIVE_ENTRY_ACL_USER_OBJ) {
+			if (!matched) printf("No match for user_obj perm\n");
+			failure("USER_OBJ permset (%02o) != user mode (%02o)",
+			    permset, 07 & (mode >> 6));
+			assert((permset << 6) == (mode & 0700));
+		} else if (type == ARCHIVE_ENTRY_ACL_TYPE_ACCESS
+		    && tag == ARCHIVE_ENTRY_ACL_GROUP_OBJ) {
+			if (!matched) printf("No match for group_obj perm\n");
+			failure("GROUP_OBJ permset %02o != group mode %02o",
+			    permset, 07 & (mode >> 3));
+			assert((permset << 3) == (mode & 0070));
+		} else if (type == ARCHIVE_ENTRY_ACL_TYPE_ACCESS
+		    && tag == ARCHIVE_ENTRY_ACL_OTHER) {
+			if (!matched) printf("No match for other perm\n");
+			failure("OTHER permset (%02o) != other mode (%02o)",
+			    permset, mode & 07);
+			assert((permset << 0) == (mode & 0007));
+		} else {
+			failure("Could not find match for ACL "
+			    "(type=%#010x,permset=%#010x,tag=%d,qual=%d,"
+			    "name=``%s'')", type, permset, tag, qual, name);
+			assert(matched == 1);
+		}
+	}
+	assertEqualInt(ARCHIVE_EOF, r);
+	if ((want_type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0)
+		assert((mode_t)(mode & 0777) == (archive_entry_mode(ae)
+		    & 0777));
+	failure("Could not find match for ACL "
+	    "(type=%#010x,permset=%#010x,tag=%d,qual=%d,name=``%s'')",
+	    acls[marker[0]].type, acls[marker[0]].permset,
+	    acls[marker[0]].tag, acls[marker[0]].qual, acls[marker[0]].name);
+	assert(n == 0); /* Number of ACLs not matched should == 0 */
+	free(marker);
+}
+#endif	/* !defined(PROGRAM) */
 
 /*
  *

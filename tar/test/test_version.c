@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2003-2017 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,13 +23,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/usr.bin/tar/test/test_version.c,v 1.2 2008/05/26 17:10:10 kientzle Exp $");
 
 /*
  * Test that --version option works and generates reasonable output.
  */
-
-#include "lib/version.h"
 
 DEFINE_TEST(test_version)
 {

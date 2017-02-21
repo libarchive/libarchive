@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2003-2017 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,8 +27,6 @@
 /*
  * Test that --version option works and generates reasonable output.
  */
-
-#include "lib/version.h"
 
 DEFINE_TEST(test_version)
 {
