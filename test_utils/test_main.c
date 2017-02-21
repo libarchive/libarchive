@@ -2526,22 +2526,31 @@ extract_reference_files(const char **names)
 
 #ifndef PROGRAM
 /* Set ACLs */
-void
-archive_test_set_acls(struct archive_entry *ae,
+int
+assertion_entry_set_acls(const char *file, int line, struct archive_entry *ae,
     struct archive_test_acl_t *acls, int n)
 {
-	int i;
+	int i, r, ret;
 
+	assertion_count(file, line);
+
+	ret = 0;
 	archive_entry_acl_clear(ae);
 	for (i = 0; i < n; i++) {
-		failure("type=%#010x, permset=%#010x, tag=%d, qual=%d name=%s",
+		r = archive_entry_acl_add_entry(ae,
 		    acls[i].type, acls[i].permset, acls[i].tag,
 		    acls[i].qual, acls[i].name);
-		assertEqualInt(ARCHIVE_OK,
-		    archive_entry_acl_add_entry(ae,
-			acls[i].type, acls[i].permset, acls[i].tag,
-			acls[i].qual, acls[i].name));
+		if (r != 0) {
+			ret = 1;
+			failure_start(file, line, "type=%#010x, ",
+			    "permset=%#010x, tag=%d, qual=%d name=%s",
+			    acls[i].type, acls[i].permset, acls[i].tag,
+			    acls[i].qual, acls[i].name);
+			failure_finish(NULL);
+		}
 	}
+
+	return (ret);
 }
 
 static int
@@ -2578,16 +2587,20 @@ archive_test_acl_match(struct archive_test_acl_t *acl, int type, int permset,
 }
 
 /* Compare ACLs */
-void
-archive_test_compare_acls(struct archive_entry *ae,
-    struct archive_test_acl_t *acls, int cnt, int want_type, int mode)
+int
+assertion_entry_compare_acls(const char *file, int line,
+    struct archive_entry *ae, struct archive_test_acl_t *acls, int cnt,
+    int want_type, int mode)
 {
 	int *marker;
-	int i, r, n;
+	int i, r, n, ret;
 	int type, permset, tag, qual;
 	int matched;
 	const char *name;
 
+	assertion_count(file, line);
+
+	ret = 0;
 	n = 0;
 	marker = malloc(sizeof(marker[0]) * cnt);
 
@@ -2598,10 +2611,11 @@ archive_test_compare_acls(struct archive_entry *ae,
 		}
 	}
 
-	failure("No ACL's to compare, type mask: %d", want_type);
-	assert(n > 0);
-	if (n == 0)
-		return;
+	if (n == 0) {
+		failure_start(file, line, "No ACL's to compare, type mask: %d",
+		    want_type);
+		return (1);
+	}
 
 	while (0 == (r = archive_entry_acl_next(ae, want_type,
 			 &type, &permset, &tag, &qual, &name))) {
@@ -2616,39 +2630,81 @@ archive_test_compare_acls(struct archive_entry *ae,
 		}
 		if (type == ARCHIVE_ENTRY_ACL_TYPE_ACCESS
 		    && tag == ARCHIVE_ENTRY_ACL_USER_OBJ) {
-			if (!matched) printf("No match for user_obj perm\n");
-			failure("USER_OBJ permset (%02o) != user mode (%02o)",
-			    permset, 07 & (mode >> 6));
-			assert((permset << 6) == (mode & 0700));
+			if (!matched) {
+				failure_start(file, line, "No match for "
+				    "user_obj perm");
+				failure_finish(NULL);
+				ret = 1;
+			}
+			if ((permset << 6) != (mode & 0700)) {
+				failure_start(file, line, "USER_OBJ permset "
+				    "(%02o) != user mode (%02o)", permset,
+				    07 & (mode >> 6));
+				failure_finish(NULL);
+				ret = 1;
+			}
 		} else if (type == ARCHIVE_ENTRY_ACL_TYPE_ACCESS
 		    && tag == ARCHIVE_ENTRY_ACL_GROUP_OBJ) {
-			if (!matched) printf("No match for group_obj perm\n");
-			failure("GROUP_OBJ permset %02o != group mode %02o",
-			    permset, 07 & (mode >> 3));
-			assert((permset << 3) == (mode & 0070));
+			if (!matched) {
+				failure_start(file, line, "No match for "
+				    "group_obj perm");
+				failure_finish(NULL);
+				ret = 1;
+			}
+			if ((permset << 3) != (mode & 0070)) {
+				failure_start(file, line, "GROUP_OBJ permset "
+				    "(%02o) != group mode (%02o)", permset,
+				    07 & (mode >> 3));
+				failure_finish(NULL);
+				ret = 1;
+			}
 		} else if (type == ARCHIVE_ENTRY_ACL_TYPE_ACCESS
 		    && tag == ARCHIVE_ENTRY_ACL_OTHER) {
-			if (!matched) printf("No match for other perm\n");
-			failure("OTHER permset (%02o) != other mode (%02o)",
-			    permset, mode & 07);
-			assert((permset << 0) == (mode & 0007));
-		} else {
-			failure("Could not find match for ACL "
-			    "(type=%#010x,permset=%#010x,tag=%d,qual=%d,"
+			if (!matched) {
+				failure_start(file, line, "No match for "
+				    "other perm");
+				failure_finish(NULL);
+				ret = 1;
+			}
+			if ((permset << 0) != (mode & 0007)) {
+				failure_start(file, line, "OTHER permset "
+				    "(%02o) != other mode (%02o)", permset,
+				    mode & 07);
+				failure_finish(NULL);
+				ret = 1;
+			}
+		} else if (matched != 1) {
+			failure_start(file, line, "Could not find match for "
+			    "ACL (type=%#010x,permset=%#010x,tag=%d,qual=%d,"
 			    "name=``%s'')", type, permset, tag, qual, name);
-			assert(matched == 1);
+			failure_finish(NULL);
+			ret = 1;
 		}
 	}
-	assertEqualInt(ARCHIVE_EOF, r);
-	if ((want_type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0)
-		assert((mode_t)(mode & 0777) == (archive_entry_mode(ae)
-		    & 0777));
-	failure("Could not find match for ACL "
-	    "(type=%#010x,permset=%#010x,tag=%d,qual=%d,name=``%s'')",
-	    acls[marker[0]].type, acls[marker[0]].permset,
-	    acls[marker[0]].tag, acls[marker[0]].qual, acls[marker[0]].name);
-	assert(n == 0); /* Number of ACLs not matched should == 0 */
+	if (r != ARCHIVE_EOF) {
+		failure_start(file, line, "Should not exit before EOF");
+		failure_finish(NULL);
+		ret = 1;
+	}
+	if ((want_type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0 &&
+	    (mode_t)(mode & 0777) != (archive_entry_mode(ae) & 0777)) {
+		failure_start(file, line, "Mode (%02o) and entry mode (%02o) "
+		    "mismatch", mode, archive_entry_mode(ae));
+		failure_finish(NULL);
+		ret = 1;
+	}
+	if (n != 0) {
+		failure_start(file, line, "Could not find match for ACL "
+		    "(type=%#010x,permset=%#010x,tag=%d,qual=%d,name=``%s'')",
+		    acls[marker[0]].type, acls[marker[0]].permset,
+		    acls[marker[0]].tag, acls[marker[0]].qual,
+		    acls[marker[0]].name);
+		failure_finish(NULL);
+		ret = 1;
+		/* Number of ACLs not matched should == 0 */
+	}
 	free(marker);
+	return (ret);
 }
 #endif	/* !defined(PROGRAM) */
 

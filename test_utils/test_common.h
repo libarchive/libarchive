@@ -245,6 +245,12 @@
   assertion_umask(__FILE__, __LINE__, mask)
 #define assertUtimes(pathname, atime, atime_nsec, mtime, mtime_nsec)	\
   assertion_utimes(__FILE__, __LINE__, pathname, atime, atime_nsec, mtime, mtime_nsec)
+#ifndef PROGRAM
+#define assertEntrySetAcls(entry, acls, count) \
+  assertion_entry_set_acls(__FILE__, __LINE__, entry, acls, count)
+#define assertEntryCompareAcls(entry, acls, count, type, mode) \
+  assertion_entry_compare_acls(__FILE__, __LINE__, entry, acls, count, type, mode)
+#endif
 
 /*
  * This would be simple with C99 variadic macros, but I don't want to
@@ -385,11 +391,11 @@ struct archive_test_acl_t {
 };
 
 /* Set ACLs */
-void archive_test_set_acls(struct archive_entry *, struct archive_test_acl_t *,
-    int);
+int assertion_entry_set_acls(const char *, int, struct archive_entry *,
+    struct archive_test_acl_t *, int);
 
 /* Compare ACLs */
-void archive_test_compare_acls(struct archive_entry *,
+int assertion_entry_compare_acls(const char *, int, struct archive_entry *,
     struct archive_test_acl_t *, int, int, int);
 
 /* Special customized read-from-memory interface. */

@@ -393,7 +393,7 @@ DEFINE_TEST(test_acl_platform_posix1e_restore)
 	archive_entry_set_pathname(ae, "test0");
 	archive_entry_set_mtime(ae, 123456, 7890);
 	archive_entry_set_size(ae, 0);
-	archive_test_set_acls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]));
+	assertEntrySetAcls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	archive_entry_free(ae);
 
