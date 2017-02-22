@@ -270,14 +270,14 @@ archive_read_disk_entry_from_file(struct archive *_a,
 #endif /* HAVE_READLINK || HAVE_READLINKAT */
 
 	r = 0;
-	if (!a->suppress_acl)
+	if ((a->flags & ARCHIVE_READDISK_NO_ACL) == 0)
 		r = setup_acls(a, entry, &fd);
-	if (!a->suppress_xattr) {
+	if ((a->flags & ARCHIVE_READDISK_NO_XATTR) == 0) {
 		r1 = setup_xattrs(a, entry, &fd);
 		if (r1 < r)
 			r = r1;
 	}
-	if (a->enable_copyfile) {
+	if (a->flags & ARCHIVE_READDISK_MAC_COPYFILE) {
 		r1 = setup_mac_metadata(a, entry, &fd);
 		if (r1 < r)
 			r = r1;
