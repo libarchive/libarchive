@@ -73,6 +73,8 @@ struct archive_read_disk {
 	int		 traverse_mount_points;
 	/* Set 1 if users want to suppress xattr information. */
 	int		 suppress_xattr;
+	/* Set 1 if users want to suppress ACL information. */
+	int		 suppress_acl;
 
 	const char * (*lookup_gname)(void *private, int64_t gid);
 	void	(*cleanup_gname)(void *private);

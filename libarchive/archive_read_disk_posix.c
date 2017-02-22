@@ -618,6 +618,10 @@ archive_read_disk_set_behavior(struct archive *_a, int flags)
 		a->suppress_xattr = 1;
 	else
 		a->suppress_xattr = 0;
+	if (flags & ARCHIVE_READDISK_NO_ACL)
+		a->suppress_acl = 1;
+	else
+		a->suppress_acl = 0;
 	return (r);
 }
 

@@ -269,7 +269,9 @@ archive_read_disk_entry_from_file(struct archive *_a,
 	}
 #endif /* HAVE_READLINK || HAVE_READLINKAT */
 
-	r = setup_acls(a, entry, &fd);
+	r = 0;
+	if (!a->suppress_acl)
+		r = setup_acls(a, entry, &fd);
 	if (!a->suppress_xattr) {
 		r1 = setup_xattrs(a, entry, &fd);
 		if (r1 < r)
