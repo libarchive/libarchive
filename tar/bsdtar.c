@@ -253,6 +253,11 @@ main(int argc, char **argv)
 		case 'a': /* GNU tar */
 			bsdtar->flags |= OPTFLAG_AUTO_COMPRESS;
 			break;
+		case OPTION_ACLS: /* GNU tar */
+			bsdtar->extract_flags |= ARCHIVE_EXTRACT_ACL;
+			bsdtar->readdisk_flags &= ~ARCHIVE_READDISK_NO_ACL;
+			bsdtar->flags |= OPTFLAG_ACLS;
+			break;
 		case 'B': /* GNU tar */
 			/* libarchive doesn't need this; just ignore it. */
 			break;
@@ -293,14 +298,16 @@ main(int argc, char **argv)
 			bsdtar->extract_flags |=
 			    ARCHIVE_EXTRACT_CLEAR_NOCHANGE_FFLAGS;
 			break;
-		case OPTION_DISABLE_COPYFILE: /* Mac OS X */
-			bsdtar->readdisk_flags &= ~ARCHIVE_READDISK_MAC_COPYFILE;
-			break;
 		case OPTION_EXCLUDE: /* GNU tar */
 			if (archive_match_exclude_pattern(
 			    bsdtar->matching, bsdtar->argument) != ARCHIVE_OK)
 				lafe_errc(1, 0,
 				    "Couldn't exclude %s\n", bsdtar->argument);
+			break;
+		case OPTION_FFLAGS:
+			bsdtar->extract_flags |= ARCHIVE_EXTRACT_FFLAGS;
+			bsdtar->readdisk_flags &= ~ARCHIVE_READDISK_NO_FFLAGS;
+			bsdtar->flags |= OPTFLAG_FFLAGS;
 			break;
 		case OPTION_FORMAT: /* GNU tar, others */
 			cset_set_format(bsdtar->cset, bsdtar->argument);
@@ -420,6 +427,11 @@ main(int argc, char **argv)
 		case 'm': /* SUSv2 */
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_TIME;
 			break;
+		case OPTION_MAC_METADATA: /* Mac OS X */
+			bsdtar->readdisk_flags |= ARCHIVE_READDISK_MAC_COPYFILE;
+			bsdtar->extract_flags |= ARCHIVE_EXTRACT_MAC_METADATA;
+			bsdtar->flags |= OPTFLAG_MAC_METADATA;
+			break;
 		case 'n': /* GNU tar */
 			bsdtar->flags |= OPTFLAG_NO_SUBDIRS;
 			break;
@@ -465,6 +477,21 @@ main(int argc, char **argv)
 			bsdtar->extract_flags |=
 			    ARCHIVE_EXTRACT_NO_HFS_COMPRESSION;
 			break;
+		case OPTION_NO_ACLS: /* GNU tar */
+			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_ACL;
+			bsdtar->readdisk_flags |= ARCHIVE_READDISK_NO_ACL;
+			bsdtar->flags |= OPTFLAG_NO_ACLS;
+			break;
+		case OPTION_NO_FFLAGS:
+			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_FFLAGS;
+			bsdtar->readdisk_flags |= ARCHIVE_READDISK_NO_FFLAGS;
+			bsdtar->flags |= OPTFLAG_NO_FFLAGS;
+			break;
+		case OPTION_NO_MAC_METADATA: /* Mac OS X */
+			bsdtar->readdisk_flags &= ~ARCHIVE_READDISK_MAC_COPYFILE;
+			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_MAC_METADATA;
+			bsdtar->flags |= OPTFLAG_NO_MAC_METADATA;
+			break;
 		case OPTION_NO_SAME_OWNER: /* GNU tar */
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_OWNER;
 			break;
@@ -475,10 +502,10 @@ main(int argc, char **argv)
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_FFLAGS;
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_MAC_METADATA;
 			break;
-		case OPTION_NO_XATTR: /* Issue #131 */
+		case OPTION_NO_XATTRS: /* GNU tar */
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_XATTR;
 			bsdtar->readdisk_flags |= ARCHIVE_READDISK_NO_XATTR;
-			bsdtar->flags |= OPTFLAG_NO_XATTR;
+			bsdtar->flags |= OPTFLAG_NO_XATTRS;
 			break;
 		case OPTION_NULL: /* GNU tar */
 			bsdtar->flags |= OPTFLAG_NULL;
@@ -655,6 +682,11 @@ main(int argc, char **argv)
 		case 'x': /* SUSv2 */
 			set_mode(bsdtar, opt);
 			break;
+		case OPTION_XATTRS: /* GNU tar */
+			bsdtar->extract_flags |= ARCHIVE_EXTRACT_XATTR;
+			bsdtar->readdisk_flags &= ~ARCHIVE_READDISK_NO_XATTR;
+			bsdtar->flags |= OPTFLAG_XATTRS;
+			break;
 		case 'y': /* FreeBSD version of GNU tar */
 			if (compression != '\0')
 				lafe_errc(1, 0,
@@ -715,8 +747,22 @@ main(int argc, char **argv)
 		only_mode(bsdtar, "--nopreserveHFSCompression", "x");
 	if (bsdtar->readdisk_flags & ARCHIVE_READDISK_HONOR_NODUMP)
 		only_mode(bsdtar, "--nodump", "cru");
-	if (bsdtar->flags & OPTFLAG_NO_XATTR)
-		only_mode(bsdtar, "--no-xattr", "crux");
+	if (bsdtar->flags & OPTFLAG_ACLS)
+		only_mode(bsdtar, "--acls", "crux");
+	if (bsdtar->flags & OPTFLAG_NO_ACLS)
+		only_mode(bsdtar, "--no-acls", "crux");
+	if (bsdtar->flags & OPTFLAG_XATTRS)
+		only_mode(bsdtar, "--xattrs", "crux");
+	if (bsdtar->flags & OPTFLAG_NO_XATTRS)
+		only_mode(bsdtar, "--no-xattrs", "crux");
+	if (bsdtar->flags & OPTFLAG_FFLAGS)
+		only_mode(bsdtar, "--fflags", "crux");
+	if (bsdtar->flags & OPTFLAG_NO_FFLAGS)
+		only_mode(bsdtar, "--no-fflags", "crux");
+	if (bsdtar->flags & OPTFLAG_MAC_METADATA)
+		only_mode(bsdtar, "--mac-metadata", "crux");
+	if (bsdtar->flags & OPTFLAG_NO_MAC_METADATA)
+		only_mode(bsdtar, "--no-mac-metadata", "crux");
 	if (bsdtar->flags & OPTFLAG_O) {
 		switch (bsdtar->mode) {
 		case 'c':
