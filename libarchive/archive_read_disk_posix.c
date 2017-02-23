@@ -896,7 +896,7 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 	} while (lst == NULL);
 
 #ifdef __APPLE__
-	if (a->enable_copyfile) {
+	if (a->flags & ARCHIVE_READDISK_MAC_COPYFILE) {
 		/* If we're using copyfile(), ignore "._XXX" files. */
 		const char *bname = strrchr(tree_current_path(t), '/');
 		if (bname == NULL)
