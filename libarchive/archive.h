@@ -1003,6 +1003,8 @@ __LA_DECL int  archive_read_disk_set_atime_restored(struct archive *);
 #define	ARCHIVE_READDISK_NO_XATTR		(0x0010)
 /* Default: ACLs are read from disk. */
 #define	ARCHIVE_READDISK_NO_ACL			(0x0020)
+/* Default: File flags are read from disk. */
+#define	ARCHIVE_READDISK_NO_FFLAGS		(0x0040)
 
 __LA_DECL int  archive_read_disk_set_behavior(struct archive *,
 		    int flags);

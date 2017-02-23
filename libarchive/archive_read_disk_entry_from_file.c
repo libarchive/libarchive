@@ -203,7 +203,7 @@ archive_read_disk_entry_from_file(struct archive *_a,
 #ifdef HAVE_STRUCT_STAT_ST_FLAGS
 	/* On FreeBSD, we get flags for free with the stat. */
 	/* TODO: Does this belong in copy_stat()? */
-	if (st->st_flags != 0)
+	if ((a->flags & ARCHIVE_READDISK_NO_FFLAGS) == 0 && st->st_flags != 0)
 		archive_entry_set_fflags(entry, st->st_flags, 0);
 #endif
 
@@ -212,7 +212,8 @@ archive_read_disk_entry_from_file(struct archive *_a,
 	/* Linux requires an extra ioctl to pull the flags.  Although
 	 * this is an extra step, it has a nice side-effect: We get an
 	 * open file descriptor which we can use in the subsequent lookups. */
-	if ((S_ISREG(st->st_mode) || S_ISDIR(st->st_mode))) {
+	if ((a->flags & ARCHIVE_READDISK_NO_FFLAGS) == 0 &&
+	    (S_ISREG(st->st_mode) || S_ISDIR(st->st_mode))) {
 		if (fd < 0) {
 			if (a->tree != NULL)
 				fd = a->open_on_current_dir(a->tree, path,
