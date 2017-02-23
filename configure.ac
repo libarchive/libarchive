@@ -381,7 +381,7 @@ fi
 AC_ARG_WITH([lzo2],
   AS_HELP_STRING([--with-lzo2], [Build with LZO support from liblzo2]))
 
-if test "x$with_lzo2" == "xyes"; then
+if test "x$with_lzo2" = "xyes"; then
   AC_CHECK_HEADERS([lzo/lzoconf.h lzo/lzo1x.h])
   AC_CHECK_LIB(lzo2,lzo1x_decompress_safe)
 fi
