@@ -1712,7 +1712,8 @@ _archive_write_disk_finish_entry(struct archive *_a)
 		const void *metadata;
 		size_t metadata_size;
 		metadata = archive_entry_mac_metadata(a->entry, &metadata_size);
-		if (metadata == NULL || metadata_size == 0) {
+		if ((a->todo & TODO_MAC_METADATA) == 0 ||
+		    metadata == NULL || metadata_size == 0) {
 #endif
 		r2 = archive_write_disk_set_acls(&a->archive, a->fd,
 		    archive_entry_pathname(a->entry),
@@ -2293,7 +2294,8 @@ _archive_write_disk_close(struct archive *_a)
 			chmod(p->name, p->mode);
 		if (p->fixup & TODO_ACLS)
 #ifdef HAVE_DARWIN_ACL
-			if (p->mac_metadata == NULL ||
+			if ((p->fixup & TODO_MAC_METADATA) == 0 ||
+			    p->mac_metadata == NULL ||
 			    p->mac_metadata_size == 0)
 #endif
 				archive_write_disk_set_acls(&a->archive,
