@@ -232,6 +232,14 @@ main(int argc, char **argv)
 	if (getenv(COPYFILE_DISABLE_VAR))
 		bsdtar->readdisk_flags &= ~ARCHIVE_READDISK_MAC_COPYFILE;
 #endif
+#if defined(__APPLE__)
+	/*
+	 * On Mac OS ACLs are archived with copyfile() (--mac-metadata)
+	 * Translation to NFSv4 ACLs has to be requested explicitly with --acls
+	 */
+	bsdtar->readdisk_flags |= ARCHIVE_READDISK_NO_ACL;
+#endif
+
 	bsdtar->matching = archive_match_new();
 	if (bsdtar->matching == NULL)
 		lafe_errc(1, errno, "Out of memory");
