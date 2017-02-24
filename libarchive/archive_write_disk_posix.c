@@ -3465,11 +3465,18 @@ set_fflags(struct archive_write_disk *a)
 #ifdef UF_APPEND
 	critical_flags |= UF_APPEND;
 #endif
-#ifdef EXT2_APPEND_FL
+#if defined(FS_APPEND_FL)
+	critical_flags |= FS_APPEND_FL;
+#elif defined(EXT2_APPEND_FL)
 	critical_flags |= EXT2_APPEND_FL;
 #endif
-#ifdef EXT2_IMMUTABLE_FL
+#if defined(FS_IMMUTABLE_FL)
+	critical_flags |= FS_IMMUTABLE_FL;
+#elif defined(EXT2_IMMUTABLE_FL)
 	critical_flags |= EXT2_IMMUTABLE_FL;
+#endif
+#ifdef FS_JOURNAL_DATA_FL
+	critical_flags |= FS_JOURNAL_DATA_FL;
 #endif
 
 	if (a->todo & TODO_FFLAGS) {
@@ -3582,7 +3589,10 @@ set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
 	return (ARCHIVE_WARN);
 }
 
-#elif defined(EXT2_IOC_GETFLAGS) && defined(EXT2_IOC_SETFLAGS) && defined(HAVE_WORKING_EXT2_IOC_GETFLAGS)
+#elif (defined(FS_IOC_GETFLAGS) && defined(FS_IOC_SETFLAGS) && \
+       defined(HAVE_WORKING_FS_IOC_GETFLAGS)) || \
+      (defined(EXT2_IOC_GETFLAGS) && defined(EXT2_IOC_SETFLAGS) && \
+       defined(HAVE_WORKING_EXT2_IOC_GETFLAGS))
 /*
  * Linux uses ioctl() to read and write file flags.
  */
@@ -3595,7 +3605,7 @@ set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
 	int newflags, oldflags;
 	int sf_mask = 0;
 
-	if (set == 0  && clear == 0)
+	if (set == 0 && clear == 0)
 		return (ARCHIVE_OK);
 	/* Only regular files and dirs can have flags. */
 	if (!S_ISREG(mode) && !S_ISDIR(mode))
@@ -3616,11 +3626,18 @@ set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
 	 * defines. (?)  The code below degrades reasonably gracefully
 	 * if sf_mask is incomplete.
 	 */
-#ifdef EXT2_IMMUTABLE_FL
+#if defined(FS_IMMUTABLE_FL)
+	sf_mask |= FS_IMMUTABLE_FL;
+#elif defined(EXT2_IMMUTABLE_FL)
 	sf_mask |= EXT2_IMMUTABLE_FL;
 #endif
-#ifdef EXT2_APPEND_FL
+#if defined(FS_APPEND_FL)
+	sf_mask |= FS_APPEND_FL;
+#elif defined(EXT2_APPEND_FL)
 	sf_mask |= EXT2_APPEND_FL;
+#endif
+#if defined(FS_JOURNAL_DATA_FL)
+	sf_mask |= FS_JOURNAL_DATA_FL;
 #endif
 	/*
 	 * XXX As above, this would be way simpler if we didn't have
@@ -3629,12 +3646,24 @@ set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
 	ret = ARCHIVE_OK;
 
 	/* Read the current file flags. */
-	if (ioctl(myfd, EXT2_IOC_GETFLAGS, &oldflags) < 0)
+	if (ioctl(myfd,
+#ifdef FS_IOC_GETFLAGS
+	    FS_IOC_GETFLAGS,
+#else
+	    EXT2_IOC_GETFLAGS,
+#endif
+	    &oldflags) < 0)
 		goto fail;
 
 	/* Try setting the flags as given. */
 	newflags = (oldflags & ~clear) | set;
-	if (ioctl(myfd, EXT2_IOC_SETFLAGS, &newflags) >= 0)
+	if (ioctl(myfd,
+#ifdef FS_IOC_SETFLAGS
+	    FS_IOC_SETFLAGS,
+#else
+	    EXT2_IOC_SETFLAGS,
+#endif
+	    &newflags) >= 0)
 		goto cleanup;
 	if (errno != EPERM)
 		goto fail;
@@ -3643,7 +3672,13 @@ set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
 	newflags &= ~sf_mask;
 	oldflags &= sf_mask;
 	newflags |= oldflags;
-	if (ioctl(myfd, EXT2_IOC_SETFLAGS, &newflags) >= 0)
+	if (ioctl(myfd,
+#ifdef FS_IOC_SETFLAGS
+	    FS_IOC_SETFLAGS,
+#else
+	    EXT2_IOC_SETFLAGS,
+#endif
+	    &newflags) >= 0)
 		goto cleanup;
 
 	/* We couldn't set the flags, so report the failure. */

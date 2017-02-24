@@ -45,6 +45,9 @@
 #if defined(HAVE_EXT2FS_EXT2_FS_H) && !defined(__CYGWIN__)
 #include <ext2fs/ext2_fs.h>     /* Linux file flags, broken on Cygwin */
 #endif
+#ifdef HAVE_LINUX_FS_H
+#include <linux/fs.h>
+#endif
 #include <limits.h>
 #include <locale.h>
 #ifdef HAVE_SIGNAL_H
@@ -1894,8 +1897,10 @@ assertion_nodump(const char *file, int line, const char *pathname)
 		failure_finish(NULL);
 		return (0);
 	}
-#elif defined(EXT2_IOC_GETFLAGS) && defined(HAVE_WORKING_EXT2_IOC_GETFLAGS)\
-	 && defined(EXT2_NODUMP_FL)
+#elif (defined(FS_IOC_GETFLAGS) && defined(HAVE_WORKING_FS_IOC_GETFLAGS) && \
+       defined(FS_NODUMP_FL)) || \
+      (defined(EXT2_IOC_GETFLAGS) && defined(HAVE_WORKING_EXT2_IOC_GETFLAGS) \
+	 && defined(EXT2_NODUMP_FL))
 	int fd, r, flags;
 
 	assertion_count(file, line);
@@ -1905,14 +1910,31 @@ assertion_nodump(const char *file, int line, const char *pathname)
 		failure_finish(NULL);
 		return (0);
 	}
-	r = ioctl(fd, EXT2_IOC_GETFLAGS, &flags);
+	r = ioctl(fd,
+#ifdef FS_IOC_GETFLAGS
+	    FS_IOC_GETFLAGS,
+#else
+	    EXT2_IOC_GETFLAGS,
+#endif
+	    &flags);
 	if (r < 0) {
 		failure_start(file, line, "Can't get flags %s\n", pathname);
 		failure_finish(NULL);
 		return (0);
 	}
+#ifdef FS_NODUMP_FL
+	flags |= FS_NODUMP_FL;
+#else
 	flags |= EXT2_NODUMP_FL;
-	r = ioctl(fd, EXT2_IOC_SETFLAGS, &flags);
+#endif
+
+	 r = ioctl(fd,
+#ifdef FS_IOC_SETFLAGS
+	    FS_IOC_SETFLAGS,
+#else
+	    EXT2_IOC_SETFLAGS,
+#endif
+	    &flags);
 	if (r < 0) {
 		failure_start(file, line, "Can't set nodump %s\n", pathname);
 		failure_finish(NULL);
@@ -2252,9 +2274,10 @@ canNodump(void)
 	return (0);
 }
 
-#elif defined(EXT2_IOC_GETFLAGS) && defined(HAVE_WORKING_EXT2_IOC_GETFLAGS)\
-	 && defined(EXT2_NODUMP_FL)
-
+#elif (defined(FS_IOC_GETFLAGS) && defined(HAVE_WORKING_FS_IOC_GETFLAGS) \
+	 && defined(FS_NODUMP_FL)) || \
+      (defined(EXT2_IOC_GETFLAGS) && defined(HAVE_WORKING_EXT2_IOC_GETFLAGS) \
+	 && defined(EXT2_NODUMP_FL))
 int
 canNodump(void)
 {
@@ -2265,22 +2288,48 @@ canNodump(void)
 	fd = open(path, O_RDONLY | O_NONBLOCK);
 	if (fd < 0)
 		return (0);
-	r = ioctl(fd, EXT2_IOC_GETFLAGS, &flags);
+	r = ioctl(fd,
+#ifdef FS_IOC_GETFLAGS
+	    FS_IOC_GETFLAGS,
+#else
+	    EXT2_IOC_GETFLAGS,
+#endif
+	    &flags);
 	if (r < 0)
 		return (0);
+#ifdef FS_NODUMP_FL
+	flags |= FS_NODUMP_FL;
+#else
 	flags |= EXT2_NODUMP_FL;
-	r = ioctl(fd, EXT2_IOC_SETFLAGS, &flags);
+#endif
+	r = ioctl(fd,
+#ifdef FS_IOC_SETFLAGS
+	    FS_IOC_SETFLAGS,
+#else
+	    EXT2_IOC_SETFLAGS,
+#endif
+	   &flags);
 	if (r < 0)
 		return (0);
 	close(fd);
 	fd = open(path, O_RDONLY | O_NONBLOCK);
 	if (fd < 0)
 		return (0);
-	r = ioctl(fd, EXT2_IOC_GETFLAGS, &flags);
+	r = ioctl(fd,
+#ifdef FS_IOC_GETFLAGS
+	    FS_IOC_GETFLAGS,
+#else
+	    EXT2_IOC_GETFLAGS,
+#endif
+	    &flags);
 	if (r < 0)
 		return (0);
 	close(fd);
+#ifdef FS_NODUMP_FL
+	if (flags & FS_NODUMP_FL)
+#else
 	if (flags & EXT2_NODUMP_FL)
+#endif
 		return (1);
 	return (0);
 }

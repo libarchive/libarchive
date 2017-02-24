@@ -981,8 +981,10 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 #if defined(HAVE_STRUCT_STAT_ST_FLAGS) && defined(UF_NODUMP)
 		if (st->st_flags & UF_NODUMP)
 			return (ARCHIVE_RETRY);
-#elif defined(EXT2_IOC_GETFLAGS) && defined(EXT2_NODUMP_FL) &&\
-      defined(HAVE_WORKING_EXT2_IOC_GETFLAGS)
+#elif (defined(FS_IOC_GETFLAGS) && defined(FS_NODUMP_FL) && \
+       defined(HAVE_WORKING_FS_IOC_GETFLAGS)) || \
+      (defined(EXT2_IOC_GETFLAGS) && defined(EXT2_NODUMP_FL) && \
+       defined(HAVE_WORKING_EXT2_IOC_GETFLAGS))
 		if (S_ISREG(st->st_mode) || S_ISDIR(st->st_mode)) {
 			int stflags;
 
@@ -991,9 +993,18 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 			    O_RDONLY | O_NONBLOCK | O_CLOEXEC);
 			__archive_ensure_cloexec_flag(t->entry_fd);
 			if (t->entry_fd >= 0) {
-				r = ioctl(t->entry_fd, EXT2_IOC_GETFLAGS,
+				r = ioctl(t->entry_fd,
+#ifdef FS_IOC_GETFLAGS
+				FS_IOC_GETFLAGS,
+#else
+				EXT2_IOC_GETFLAGS,
+#endif
 					&stflags);
+#ifdef FS_NODUMP_FL
+				if (r == 0 && (stflags & FS_NODUMP_FL) != 0)
+#else
 				if (r == 0 && (stflags & EXT2_NODUMP_FL) != 0)
+#endif
 					return (ARCHIVE_RETRY);
 			}
 		}

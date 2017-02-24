@@ -207,7 +207,8 @@ archive_read_disk_entry_from_file(struct archive *_a,
 		archive_entry_set_fflags(entry, st->st_flags, 0);
 #endif
 
-#if defined(EXT2_IOC_GETFLAGS) && defined(HAVE_WORKING_EXT2_IOC_GETFLAGS)
+#if (defined(FS_IOC_GETFLAGS) && defined(HAVE_WORKING_FS_IOC_GETFLAGS)) || \
+    (defined(EXT2_IOC_GETFLAGS) && defined(HAVE_WORKING_EXT2_IOC_GETFLAGS))
 	/* Linux requires an extra ioctl to pull the flags.  Although
 	 * this is an extra step, it has a nice side-effect: We get an
 	 * open file descriptor which we can use in the subsequent lookups. */
@@ -223,7 +224,13 @@ archive_read_disk_entry_from_file(struct archive *_a,
 		}
 		if (fd >= 0) {
 			int stflags;
-			r = ioctl(fd, EXT2_IOC_GETFLAGS, &stflags);
+			r = ioctl(fd,
+#if defined(FS_IOC_GETFLAGS)
+			    FS_IOC_GETFLAGS,
+#else
+			    EXT2_IOC_GETFLAGS,
+#endif
+			    &stflags);
 			if (r == 0 && stflags != 0)
 				archive_entry_set_fflags(entry, stflags, 0);
 		}
