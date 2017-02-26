@@ -1882,10 +1882,80 @@ assertion_utimes(const char *file, int line,
 	return (1);
 #endif /* defined(_WIN32) && !defined(__CYGWIN__) */
 }
+/* Get nodump. */
+int
+assertion_has_nodump(const char *file, int line, const char *pathname, int isset)
+{
+#if defined(HAVE_STRUCT_STAT_ST_FLAGS) && defined(UF_NODUMP)
+	struct stat sb;
+
+	assertion_count(file, line);
+
+	if (stat(pathname, &sb) < 0)
+		return (0);
+	if (sb.st_flags & UF_NODUMP) {
+		if (isset)
+			return (1);
+	} else {
+		if (!isset)
+			return (1);
+	}
+#elif (defined(FS_IOC_GETFLAGS) && defined(HAVE_WORKING_FS_IOC_GETFLAGS) && \
+       defined(FS_NODUMP_FL)) || \
+      (defined(EXT2_IOC_GETFLAGS) && defined(HAVE_WORKING_EXT2_IOC_GETFLAGS) \
+         && defined(EXT2_NODUMP_FL))
+	int fd, r, flags;
+
+	assertion_count(file, line);
+	fd = open(pathname, O_RDONLY | O_NONBLOCK);
+	if (fd < 0) {
+		failure_start(file, line, "Can't open %s\n", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+	r = ioctl(fd,
+#ifdef FS_IOC_GETFLAGS
+	    FS_IOC_GETFLAGS,
+#else
+	    EXT2_IOC_GETFLAGS,
+#endif
+	    &flags);
+	if (r < 0) {
+		failure_start(file, line, "Can't get flags %s\n", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+#ifdef FS_NODUMP_FL
+	if (flags & FS_NODUMP_FL)
+#else
+	if (flags & EXT2_NODUMP_FL)
+#endif
+	{
+		if (!isset) {
+			failure_start(file, line,
+			    "Nodump flag should not be set on %s\n", pathname);
+			failure_finish(NULL);
+			return (0);
+		}
+	} else {
+		if (isset) {
+			failure_start(file, line,
+			    "Nodump flag should be set on %s\n", pathname);
+			failure_finish(NULL);
+			return (0);
+		}
+	}
+#else
+	(void)pathname; /* UNUSED */
+	(void)isset; /* UNUSED */
+	assertion_count(file, line);
+#endif
+	return (1);
+}
 
 /* Set nodump, report failures. */
 int
-assertion_nodump(const char *file, int line, const char *pathname)
+assertion_set_nodump(const char *file, int line, const char *pathname)
 {
 #if defined(HAVE_STRUCT_STAT_ST_FLAGS) && defined(UF_NODUMP)
 	int r;

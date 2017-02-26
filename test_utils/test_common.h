@@ -239,8 +239,10 @@
   assertion_make_hardlink(__FILE__, __LINE__, newfile, oldfile)
 #define assertMakeSymlink(newfile, linkto)	\
   assertion_make_symlink(__FILE__, __LINE__, newfile, linkto)
-#define assertNodump(path)      \
-  assertion_nodump(__FILE__, __LINE__, path)
+#define assertHasNodump(path, isset)	\
+  assertion_has_nodump(__FILE__, __LINE__, path, isset)
+#define assertSetNodump(path)	\
+  assertion_set_nodump(__FILE__, __LINE__, path)
 #define assertUmask(mask)	\
   assertion_umask(__FILE__, __LINE__, mask)
 #define assertUtimes(pathname, atime, atime_nsec, mtime, mtime_nsec)	\
@@ -286,6 +288,7 @@ int assertion_file_mtime_recent(const char *, int, const char *);
 int assertion_file_nlinks(const char *, int, const char *, int);
 int assertion_file_not_exists(const char *, int, const char *);
 int assertion_file_size(const char *, int, const char *, long);
+int assertion_has_nodump(const char *, int, const char *, int);
 int assertion_is_dir(const char *, int, const char *, int);
 int assertion_is_hardlink(const char *, int, const char *, const char *);
 int assertion_is_not_hardlink(const char *, int, const char *, const char *);
@@ -295,8 +298,8 @@ int assertion_make_dir(const char *, int, const char *, int);
 int assertion_make_file(const char *, int, const char *, int, int, const void *);
 int assertion_make_hardlink(const char *, int, const char *newpath, const char *);
 int assertion_make_symlink(const char *, int, const char *newpath, const char *);
-int assertion_nodump(const char *, int, const char *);
 int assertion_non_empty_file(const char *, int, const char *);
+int assertion_set_nodump(const char *, int, const char *);
 int assertion_text_file_contents(const char *, int, const char *buff, const char *f);
 int assertion_umask(const char *, int, int);
 int assertion_utimes(const char *, int, const char *, long, long, long, long );
