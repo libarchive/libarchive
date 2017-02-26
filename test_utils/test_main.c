@@ -2326,11 +2326,10 @@ canXz(void)
 /*
  * Can this filesystem handle nodump flags.
  */
-#if defined(HAVE_STRUCT_STAT_ST_FLAGS) && defined(UF_NODUMP)
-
 int
 canNodump(void)
 {
+#if defined(HAVE_STRUCT_STAT_ST_FLAGS) && defined(UF_NODUMP)
 	const char *path = "cannodumptest";
 	struct stat sb;
 
@@ -2341,16 +2340,10 @@ canNodump(void)
 		return (0);
 	if (sb.st_flags & UF_NODUMP)
 		return (1);
-	return (0);
-}
-
 #elif (defined(FS_IOC_GETFLAGS) && defined(HAVE_WORKING_FS_IOC_GETFLAGS) \
 	 && defined(FS_NODUMP_FL)) || \
       (defined(EXT2_IOC_GETFLAGS) && defined(HAVE_WORKING_EXT2_IOC_GETFLAGS) \
 	 && defined(EXT2_NODUMP_FL))
-int
-canNodump(void)
-{
 	const char *path = "cannodumptest";
 	int fd, r, flags;
 
@@ -2401,18 +2394,9 @@ canNodump(void)
 	if (flags & EXT2_NODUMP_FL)
 #endif
 		return (1);
-	return (0);
-}
-
-#else
-
-int
-canNodump()
-{
-	return (0);
-}
-
 #endif
+	return (0);
+}
 
 /*
  * Sleep as needed; useful for verifying disk timestamp changes by
