@@ -674,7 +674,9 @@ static const struct {
 	{ARCHIVE_ENTRY_ACL_READ_ACL, ACL_READ_SECURITY},
 	{ARCHIVE_ENTRY_ACL_WRITE_ACL, ACL_WRITE_SECURITY},
 	{ARCHIVE_ENTRY_ACL_WRITE_OWNER, ACL_CHANGE_OWNER},
+#ifdef ACL_SYNCHRONIZE
 	{ARCHIVE_ENTRY_ACL_SYNCHRONIZE, ACL_SYNCHRONIZE}
+#endif
 #else	/* POSIX.1e ACL permissions */
 	{ARCHIVE_ENTRY_ACL_EXECUTE, ACL_EXECUTE},
 	{ARCHIVE_ENTRY_ACL_WRITE, ACL_WRITE},
@@ -1381,6 +1383,11 @@ translate_acl(struct archive_read_disk *a,
 			} else if (r)
 				ae_perm |= acl_perm_map[i].archive_perm;
 		}
+
+#if defined(HAVE_DARWIN_ACL) && !defined(ACL_SYNCHRONIZE)
+		/* On Mac OS X without ACL_SYNCHRONIZE assume it is set */
+		ae_perm |= ARCHIVE_ENTRY_ACL_SYNCHRONIZE;
+#endif
 
 		archive_entry_acl_add_entry(entry, entry_acl_type,
 					    ae_perm, ae_tag,
