@@ -1882,34 +1882,45 @@ assertion_utimes(const char *file, int line,
 	return (1);
 #endif /* defined(_WIN32) && !defined(__CYGWIN__) */
 }
-/* Get nodump. */
+
+/* Compare file flags */
 int
-assertion_has_nodump(const char *file, int line, const char *pathname, int isset)
+assertion_compare_fflags(const char *file, int line, const char *patha,
+    const char *pathb, int nomatch)
 {
 #if defined(HAVE_STRUCT_STAT_ST_FLAGS) && defined(UF_NODUMP)
-	struct stat sb;
+	struct stat sa, sb;
 
 	assertion_count(file, line);
 
-	if (stat(pathname, &sb) < 0)
+	if (stat(patha, &sa) < 0)
 		return (0);
-	if (sb.st_flags & UF_NODUMP) {
-		if (isset)
-			return (1);
-	} else {
-		if (!isset)
-			return (1);
+	if (stat(pathb, &sb) < 0)
+		return (0);
+	if (!nomatch && sa.st_flags != sb.st_flags) {
+		failure_start(file, line, "File flags should be identical: "
+		    "%s=%#010x %s=%#010x", patha, sa.st_flags, pathb,
+		    sb.st_flags);
+		failure_finish(NULL);
+		return (0);
+	}
+	if (nomatch && sa.st_flags == sb.st_flags) {
+		failure_start(file, line, "File flags should be different: "
+		    "%s=%#010x %s=%#010x", patha, sa.st_flags, pathb,
+		    sb.st_flags);
+		failure_finish(NULL);
+		return (0);
 	}
 #elif (defined(FS_IOC_GETFLAGS) && defined(HAVE_WORKING_FS_IOC_GETFLAGS) && \
        defined(FS_NODUMP_FL)) || \
       (defined(EXT2_IOC_GETFLAGS) && defined(HAVE_WORKING_EXT2_IOC_GETFLAGS) \
          && defined(EXT2_NODUMP_FL))
-	int fd, r, flags;
+	int fd, r, flagsa, flagsb;
 
 	assertion_count(file, line);
-	fd = open(pathname, O_RDONLY | O_NONBLOCK);
+	fd = open(patha, O_RDONLY | O_NONBLOCK);
 	if (fd < 0) {
-		failure_start(file, line, "Can't open %s\n", pathname);
+		failure_start(file, line, "Can't open %s\n", patha);
 		failure_finish(NULL);
 		return (0);
 	}
@@ -1919,35 +1930,48 @@ assertion_has_nodump(const char *file, int line, const char *pathname, int isset
 #else
 	    EXT2_IOC_GETFLAGS,
 #endif
-	    &flags);
+	    &flagsa);
+	close(fd);
 	if (r < 0) {
-		failure_start(file, line, "Can't get flags %s\n", pathname);
+		failure_start(file, line, "Can't get flags %s\n", patha);
 		failure_finish(NULL);
 		return (0);
 	}
-#ifdef FS_NODUMP_FL
-	if (flags & FS_NODUMP_FL)
+	fd = open(pathb, O_RDONLY | O_NONBLOCK);
+	if (fd < 0) {
+		failure_start(file, line, "Can't open %s\n", pathb);
+		failure_finish(NULL);
+		return (0);
+	}
+	r = ioctl(fd,
+#ifdef FS_IOC_GETFLAGS
+	    FS_IOC_GETFLAGS,
 #else
-	if (flags & EXT2_NODUMP_FL)
+	    EXT2_IOC_GETFLAGS,
 #endif
-	{
-		if (!isset) {
-			failure_start(file, line,
-			    "Nodump flag should not be set on %s\n", pathname);
-			failure_finish(NULL);
-			return (0);
-		}
-	} else {
-		if (isset) {
-			failure_start(file, line,
-			    "Nodump flag should be set on %s\n", pathname);
-			failure_finish(NULL);
-			return (0);
-		}
+	    &flagsb);
+	close(fd);
+	if (r < 0) {
+		failure_start(file, line, "Can't get flags %s\n", pathb);
+		failure_finish(NULL);
+		return (0);
+	}
+	if (!nomatch && flagsa != flagsb) {
+		failure_start(file, line, "File flags should be identical: "
+		    "%s=%#010x %s=%#010x", patha, flagsa, pathb, flagsb);
+		failure_finish(NULL);
+		return (0);
+	}
+	if (nomatch && flagsa == flagsb) {
+		failure_start(file, line, "File flags should be different: "
+		    "%s=%#010x %s=%#010x", patha, flagsa, pathb, flagsb);
+		failure_finish(NULL);
+		return (0);
 	}
 #else
-	(void)pathname; /* UNUSED */
-	(void)isset; /* UNUSED */
+	(void)patha; /* UNUSED */
+	(void)pathb; /* UNUSED */
+	(void)nomatch; /* UNUSED */
 	assertion_count(file, line);
 #endif
 	return (1);

@@ -52,23 +52,23 @@ DEFINE_TEST(test_option_fflags)
 	assertMakeDir("fflags_fflags", 0755);
 	r = systemf("%s -x -C fflags_fflags --no-same-permissions --fflags -f fflags.tar >fflags_fflags.out 2>fflags_fflags.err", testprog);
 	assertEqualInt(r, 0);
-	assertHasNodump("fflags_fflags/f", 1);
+	assertEqualFflags("f", "fflags_fflags/f");
 
 	/* Extract fflags without fflags */
 	assertMakeDir("fflags_nofflags", 0755);
 	r = systemf("%s -x -C fflags_nofflags -p --no-fflags -f fflags.tar >fflags_nofflags.out 2>fflags_nofflags.err", testprog);
 	assertEqualInt(r, 0);
-	assertHasNodump("fflags_nofflags/f", 0);
+	assertUnequalFflags("f", "fflags_nofflags/f");
 
 	/* Extract nofflags with fflags */
 	assertMakeDir("nofflags_fflags", 0755);
 	r = systemf("%s -x -C nofflags_fflags --no-same-permissions --fflags -f nofflags.tar >nofflags_fflags.out 2>nofflags_fflags.err", testprog);
 	assertEqualInt(r, 0);	
-	assertHasNodump("nofflags_fflags/f", 0);
+	assertUnequalFflags("f", "nofflags_fflags/f");
 
 	/* Extract nofflags with nofflags */
 	assertMakeDir("nofflags_nofflags", 0755);
 	r = systemf("%s -x -C nofflags_nofflags -p --no-fflags -f nofflags.tar >nofflags_nofflags.out 2>nofflags_nofflags.err", testprog);
 	assertEqualInt(r, 0);
-	assertHasNodump("nofflags_nofflags/f", 0);
+	assertUnequalFflags("f", "nofflags_nofflags/f");
 }

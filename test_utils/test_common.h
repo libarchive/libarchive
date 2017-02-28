@@ -158,6 +158,9 @@
 /* chdir() and error if it fails */
 #define assertChdir(path)  \
   assertion_chdir(__FILE__, __LINE__, path)
+/* Assert two files have the same file flags */
+#define assertEqualFflags(patha, pathb)	\
+  assertion_compare_fflags(__FILE__, __LINE__, patha, pathb, 0)
 /* Assert two integers are the same.  Reports value of each one if not. */
 #define assertEqualInt(v1,v2) \
   assertion_equal_int(__FILE__, __LINE__, (v1), #v1, (v2), #v2, NULL)
@@ -239,12 +242,13 @@
   assertion_make_hardlink(__FILE__, __LINE__, newfile, oldfile)
 #define assertMakeSymlink(newfile, linkto)	\
   assertion_make_symlink(__FILE__, __LINE__, newfile, linkto)
-#define assertHasNodump(path, isset)	\
-  assertion_has_nodump(__FILE__, __LINE__, path, isset)
 #define assertSetNodump(path)	\
   assertion_set_nodump(__FILE__, __LINE__, path)
 #define assertUmask(mask)	\
   assertion_umask(__FILE__, __LINE__, mask)
+/* Assert that two files have unequal file flags */
+#define assertUnequalFflags(patha, pathb)	\
+  assertion_compare_fflags(__FILE__, __LINE__, patha, pathb, 1)
 #define assertUtimes(pathname, atime, atime_nsec, mtime, mtime_nsec)	\
   assertion_utimes(__FILE__, __LINE__, pathname, atime, atime_nsec, mtime, mtime_nsec)
 #ifndef PROGRAM
@@ -267,6 +271,8 @@
 void failure(const char *fmt, ...);
 int assertion_assert(const char *, int, int, const char *, void *);
 int assertion_chdir(const char *, int, const char *);
+int assertion_compare_fflags(const char *, int, const char *, const char *,
+    int);
 int assertion_empty_file(const char *, int, const char *);
 int assertion_equal_file(const char *, int, const char *, const char *);
 int assertion_equal_int(const char *, int, long long, const char *, long long, const char *, void *);
@@ -288,7 +294,6 @@ int assertion_file_mtime_recent(const char *, int, const char *);
 int assertion_file_nlinks(const char *, int, const char *, int);
 int assertion_file_not_exists(const char *, int, const char *);
 int assertion_file_size(const char *, int, const char *, long);
-int assertion_has_nodump(const char *, int, const char *, int);
 int assertion_is_dir(const char *, int, const char *, int);
 int assertion_is_hardlink(const char *, int, const char *, const char *);
 int assertion_is_not_hardlink(const char *, int, const char *, const char *);
