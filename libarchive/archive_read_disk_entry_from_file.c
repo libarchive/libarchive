@@ -496,7 +496,7 @@ sunacl_get(int cmd, int *aclcnt, int fd, const char *path)
 static int translate_acl(struct archive_read_disk *a,
     struct archive_entry *entry,
 #if HAVE_SUN_ACL
-    void *acl,
+    void *aclp,
     int aclcnt,
 #else
     acl_t acl,
@@ -509,7 +509,7 @@ setup_acls(struct archive_read_disk *a,
 {
 	const char	*accpath;
 #if HAVE_SUN_ACL
-	void		*acl;
+	void		*aclp;
 	int		aclcnt;
 #else
 	acl_t		acl;
@@ -547,13 +547,17 @@ setup_acls(struct archive_read_disk *a,
 
 	archive_entry_acl_clear(entry);
 
+#if HAVE_SUN_ACL
+	aclp = NULL;
+#else
 	acl = NULL;
+#endif
 
 #if HAVE_NFS4_ACL
 	/* Try NFSv4 ACL first. */
 	if (*fd >= 0)
 #if HAVE_SUN_ACL
-		acl = sunacl_get(ACE_GETACL, &aclcnt, *fd, NULL);
+		aclp = sunacl_get(ACE_GETACL, &aclcnt, *fd, NULL);
 #elif HAVE_ACL_GET_FD_NP
 		acl = acl_get_fd_np(*fd, ARCHIVE_PLATFORM_ACL_TYPE_NFS4);
 #else
@@ -567,52 +571,59 @@ setup_acls(struct archive_read_disk *a,
 	    && (archive_entry_filetype(entry) == AE_IFLNK))
 		/* We can't get the ACL of a symlink, so we assume it can't
 		   have one. */
+#if HAVE_SUN_ACL
+		aclp = NULL;
+#else
 		acl = NULL;
 #endif
+#endif /* !HAVE_ACL_GET_LINK_NP */
 	else
 #if HAVE_SUN_ACL
 		/* Solaris reads both POSIX.1e and NFSv4 ACLs here */
-		acl = sunacl_get(ACE_GETACL, &aclcnt, 0, accpath);
+		aclp = sunacl_get(ACE_GETACL, &aclcnt, 0, accpath);
 #else
 		acl = acl_get_file(accpath, ARCHIVE_PLATFORM_ACL_TYPE_NFS4);
 #endif
 
 
-#if HAVE_ACL_IS_TRIVIAL_NP || HAVE_SUN_ACL
 	/* Ignore "trivial" ACLs that just mirror the file mode. */
-	if (acl != NULL) {
 #if HAVE_SUN_ACL
-		if (sun_acl_is_trivial(acl, aclcnt, archive_entry_mode(entry),
-		    1, S_ISDIR(archive_entry_mode(entry)), &r) == 0 && r == 1)
-#elif HAVE_ACL_IS_TRIVIAL_NP
-		if (acl_is_trivial_np(acl, &r) == 0 && r == 1)
-#endif
-		{
-#if HAVE_SUN_ACL
-			free(acl);
-#else
-			acl_free(acl);
-#endif
-			acl = NULL;
-			/*
-			 * Simultaneous NFSv4 and POSIX.1e ACLs for the same
-			 * entry are not allowed, so we should return here
-			 */
-			return (ARCHIVE_OK);
-		}
+	if (aclp != NULL && sun_acl_is_trivial(aclp, aclcnt,
+	    archive_entry_mode(entry), 1, S_ISDIR(archive_entry_mode(entry)),
+	    &r) == 0 && r == 1) {
+		free(aclp);
+		aclp = NULL;
+		return (ARCHIVE_OK);
 	}
-#endif	/* HAVE_ACL_IS_TRIVIAL_NP || HAVE_SUN_ACL */
-	if (acl != NULL) {
-		r = translate_acl(a, entry, acl,
+#elif HAVE_ACL_IS_TRIVIAL_NP
+	if (acl != NULL && acl_is_trivial_np(acl, &r) == 0 && r == 1) {
+		acl_free(acl);
+		acl = NULL;
+		return (ARCHIVE_OK);
+	}
+#endif
+
 #if HAVE_SUN_ACL
-		    aclcnt,
+	if (aclp != NULL)
+#else
+	if (acl != NULL)
+#endif
+	{
+		r = translate_acl(a, entry,
+#if HAVE_SUN_ACL
+		    aclp, aclcnt,
+#else
+		    acl,
 #endif
 		    ARCHIVE_ENTRY_ACL_TYPE_NFS4);
 #if HAVE_SUN_ACL
-		free(acl);
+		free(aclp);
+		aclp = NULL;
 #else
 		acl_free(acl);
+		acl = NULL;
 #endif
+
 		if (r != ARCHIVE_OK) {
 			archive_set_error(&a->archive, errno,
 			    "Couldn't translate NFSv4 ACLs");
@@ -638,7 +649,7 @@ setup_acls(struct archive_read_disk *a,
 	/* Retrieve access ACL from file. */
 	if (*fd >= 0)
 #if HAVE_SUN_ACL
-		acl = sunacl_get(GETACL, &aclcnt, *fd, NULL);
+		aclp = sunacl_get(GETACL, &aclcnt, *fd, NULL);
 #else
 		acl = acl_get_fd(*fd);
 #endif
@@ -650,50 +661,56 @@ setup_acls(struct archive_read_disk *a,
 	    && (archive_entry_filetype(entry) == AE_IFLNK))
 		/* We can't get the ACL of a symlink, so we assume it can't
 		   have one. */
+#if HAVE_SUN_ACL
+		aclp = NULL;
+#else
 		acl = NULL;
 #endif
+#endif /* !HAVE_ACL_GET_LINK_NP */
 	else
 #if HAVE_SUN_ACL
-		acl = sunacl_get(GETACL, &aclcnt, 0, accpath);
+		aclp = sunacl_get(GETACL, &aclcnt, 0, accpath);
 #else
 		acl = acl_get_file(accpath, ACL_TYPE_ACCESS);
 #endif
 
 
-#if HAVE_ACL_IS_TRIVIAL_NP || HAVE_SUN_ACL
 	/* Ignore "trivial" ACLs that just mirror the file mode. */
-	if (acl != NULL) {
 #if HAVE_SUN_ACL
-		if (sun_acl_is_trivial(acl, aclcnt, archive_entry_mode(entry),
-		    0, S_ISDIR(archive_entry_mode(entry)), &r) == 0 && r == 1)
-#else
-		if (acl_is_trivial_np(acl, &r) == 0)
-#endif
-		{
-			if (r) {
-#if HAVE_SUN_ACL
-				free(acl);
-#else
-				acl_free(acl);
-#endif
-				acl = NULL;
-			}
-		}
+	if (aclp != NULL && sun_acl_is_trivial(aclp, aclcnt,
+	    archive_entry_mode(entry), 0, S_ISDIR(archive_entry_mode(entry)),
+	    &r) == 0 && r == 1) {
+		free(aclp);
+		aclp = NULL;
+	}
+#elif HAVE_ACL_IS_TRIVIAL_NP
+	if (acl != NULL && acl_is_trivial_np(acl, &r) == 0 && r == 1) {
+		acl_free(acl);
+		acl = NULL;
 	}
 #endif
 
-	if (acl != NULL) {
-		r = translate_acl(a, entry, acl,
 #if HAVE_SUN_ACL
-		    aclcnt,
+	if (aclp != NULL)
+#else
+	if (acl != NULL)
+#endif
+	{
+		r = translate_acl(a, entry,
+#if HAVE_SUN_ACL
+		    aclp, aclcnt,
+#else
+		    acl,
 #endif
 		    ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
 #if HAVE_SUN_ACL
-		free(acl);
+		free(aclp);
+		aclp = NULL;
 #else
 		acl_free(acl);
-#endif
 		acl = NULL;
+#endif
+
 		if (r != ARCHIVE_OK) {
 			archive_set_error(&a->archive, errno,
 			    "Couldn't translate access ACLs");
