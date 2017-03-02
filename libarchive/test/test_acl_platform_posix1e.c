@@ -35,63 +35,6 @@ __FBSDID("$FreeBSD: head/lib/libarchive/test/test_acl_freebsd.c 189427 2009-03-0
 #define ACL_GET_PERM acl_get_perm_np
 #endif
 
-#if HAVE_SUN_ACL
-static void *
-sunacl_get(int cmd, int *aclcnt, int fd, const char *path)
-{
-	int cnt, cntcmd;
-	size_t size;
-	void *aclp;
-
-	if (cmd == GETACL) {
-		cntcmd = GETACLCNT;
-		size = sizeof(aclent_t);
-	}
-#if HAVE_SUN_NFS4_ACL
-	else if (cmd == ACE_GETACL) {
-		cntcmd = ACE_GETACLCNT;
-		size = sizeof(ace_t);
-	}
-#endif
-	else {
-		errno = EINVAL;
-		*aclcnt = -1;
-		return (NULL);
-	}
-
-	aclp = NULL;
-	cnt = -2;
-	while (cnt == -2 || (cnt == -1 && errno == ENOSPC)) {
-		if (path != NULL)
-			cnt = acl(path, cntcmd, 0, NULL);
-		else
-			cnt = facl(fd, cntcmd, 0, NULL);
-
-		if (cnt > 0) {
-			if (aclp == NULL)
-				aclp = malloc(cnt * size);
-			else
-				aclp = realloc(NULL, cnt * size);
-			if (aclp != NULL) {
-				if (path != NULL)
-					cnt = acl(path, cmd, cnt, aclp);
-				else
-					cnt = facl(fd, cmd, cnt, aclp);
-			}
-		} else {
-			if (aclp != NULL) {
-				free(aclp);
-				aclp = NULL;
-			}
-			break;
-		}
-	}
-
-	*aclcnt = cnt;
-	return (aclp);
-}
-#endif  /* HAVE_SUN_ACL */
-
 static struct archive_test_acl_t acls2[] = {
 	{ ARCHIVE_ENTRY_ACL_TYPE_ACCESS, ARCHIVE_ENTRY_ACL_EXECUTE | ARCHIVE_ENTRY_ACL_READ,
 	  ARCHIVE_ENTRY_ACL_USER_OBJ, -1, "" },
@@ -361,8 +304,6 @@ DEFINE_TEST(test_acl_platform_posix1e_restore)
 	struct stat st;
 	struct archive *a;
 	struct archive_entry *ae;
-	int n, fd;
-	char *func;
 #if HAVE_SUN_ACL
 	void *aclp;
 	int aclcnt;
@@ -370,77 +311,12 @@ DEFINE_TEST(test_acl_platform_posix1e_restore)
 	acl_t acl;
 #endif
 
-	/*
-	 * First, do a quick manual set/read of ACL data to
-	 * verify that the local filesystem does support ACLs.
-	 * If it doesn't, we'll simply skip the remaining tests.
-	 */
-#if HAVE_SUN_ACL
-	aclent_t aclp1[] = {
-	    { USER_OBJ, -1, 4 | 2 | 1 },
-	    { USER, 1, 4 | 2 },
-	    { GROUP_OBJ, -1, 4 | 2 | 1 },
-	    { GROUP, 15, 4 | 1 },
-	    { CLASS_OBJ, -1, 4 | 2 | 1 },
-	    { OTHER_OBJ, -1, 4 | 2 | 1 }
-	};
-#else
-	acl = acl_from_text("u::rwx,u:1:rw,g::rwx,g:15:rx,o::rwx,m::rwx");
-	failure("acl_from_text(): errno = %d (%s)", errno, strerror(errno));
-	assert((void *)acl != NULL);
-#endif
+	assertMakeFile("pretest", 0644, "a");
 
-	/* Create a test file and try ACL on it. */
-	fd = open("pretest", O_WRONLY | O_CREAT | O_EXCL, 0777);
-	failure("Could not create test file?!");
-	if (!assert(fd >= 0)) {
-#if !HAVE_SUN_ACL
-		acl_free(acl);
-#endif
+	if (setTestAcl("pretest") != ARCHIVE_TEST_ACL_TYPE_POSIX1E) {
+		skipping("POSIX.1e ACLs are not writable on this filesystem");
 		return;
 	}
-
-#if HAVE_SUN_ACL
-	aclp = sunacl_get(GETACL, &aclcnt, fd, NULL);
-	if (aclp == NULL)
-		close(fd);
-	if (errno == ENOSYS || errno == ENOTSUP) {
-		skipping("POSIX.1e ACLs are not supported on this filesystem");
-		return;
-	}
-	failure("facl(): errno = %d (%s)", errno, strerror(errno));
-	if (assert(aclp != NULL) == 0) {
-		free(aclp);
-		return;
-	}
-	free(aclp);
-	aclp = NULL;
-
-	func = "facl()";
-	n = facl(fd, SETACL, (int)(sizeof(aclp1)/sizeof(aclp1[0])), &aclp1);
-#else
-	func = "acl_set_fd()";
-	n = acl_set_fd(fd, acl);
-#endif
-#if !HAVE_SUN_ACL
-	acl_free(acl);
-#endif
-	if (n != 0) {
-#if HAVE_SUN_ACL
-		if (errno == ENOSYS || errno == ENOTSUP)
-#else
-		if (errno == EOPNOTSUPP || errno == EINVAL)
-#endif
-		{
-			close(fd);
-			skipping("POSIX.1e ACLs are not supported on this filesystem");
-			return;
-		}
-	}
-	failure("%s: errno = %d (%s)", func, errno, strerror(errno));
-	assertEqualInt(0, n);
-
-	close(fd);
 
 	/* Create a write-to-disk object. */
 	assert(NULL != (a = archive_write_disk_new()));

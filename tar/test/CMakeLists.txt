@@ -34,6 +34,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_option_U_upper.c
     test_option_X_upper.c
     test_option_a.c
+    test_option_acls.c
     test_option_b.c
     test_option_b64encode.c
     test_option_exclude.c
@@ -72,6 +73,11 @@ IF(ENABLE_TAR AND ENABLE_TEST)
   # Register target
   #
   ADD_EXECUTABLE(bsdtar_test ${bsdtar_test_SOURCES})
+  IF(ENABLE_ACL)
+    IF(HAVE_LIBACL)
+      TARGET_LINK_LIBRARIES(bsdtar_test ${ACL_LIBRARY})
+    ENDIF(HAVE_LIBACL)
+  ENDIF(ENABLE_ACL)
   SET_PROPERTY(TARGET bsdtar_test PROPERTY COMPILE_DEFINITIONS LIST_H)
 
   #

@@ -56,6 +56,20 @@
 #include <stdarg.h>
 #include <time.h>
 
+/* ACL support */
+#ifdef HAVE_ACL_LIBACL_H
+#include <acl/libacl.h>
+#endif
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_ACL_H
+#include <sys/acl.h>
+#endif
+#if HAVE_DARWIN_ACL
+#include <membership.h>
+#endif
+
 /*
  *
  * Windows support routines
@@ -2419,6 +2433,227 @@ canNodump(void)
 #endif
 		return (1);
 #endif
+	return (0);
+}
+
+#if HAVE_SUN_ACL
+/* Fetch ACLs on Solaris using acl() or facl() */
+void *
+sunacl_get(int cmd, int *aclcnt, int fd, const char *path)
+{
+	int cnt, cntcmd;
+	size_t size;
+	void *aclp;
+
+	if (cmd == GETACL) {
+		cntcmd = GETACLCNT;
+		size = sizeof(aclent_t);
+	}
+#if HAVE_SUN_NFS4_ACL
+	else if (cmd == ACE_GETACL) {
+		cntcmd = ACE_GETACLCNT;
+		size = sizeof(ace_t);
+	}
+#endif
+	else {
+		errno = EINVAL;
+		*aclcnt = -1;
+		return (NULL);
+	}
+
+	aclp = NULL;
+	cnt = -2;
+	while (cnt == -2 || (cnt == -1 && errno == ENOSPC)) {
+		if (path != NULL)
+			cnt = acl(path, cntcmd, 0, NULL);
+		else
+			cnt = facl(fd, cntcmd, 0, NULL);
+
+		if (cnt > 0) {
+			if (aclp == NULL)
+				aclp = malloc(cnt * size);
+			else
+				aclp = realloc(NULL, cnt * size);
+			if (aclp != NULL) {
+				if (path != NULL)
+					cnt = acl(path, cmd, cnt, aclp);
+				else
+					cnt = facl(fd, cmd, cnt, aclp);
+			}
+		} else {
+			if (aclp != NULL) {
+				free(aclp);
+				aclp = NULL;
+			}
+			break;
+		}
+	}
+
+	*aclcnt = cnt;
+	return (aclp);
+}
+#endif /* HAVE_SUN_ACL */
+
+/*
+ * Set test ACLs on a path
+ * Return values:
+ * 0: error setting ACLs
+ * ARCHIVE_TEST_ACL_TYPE_POSIX1E: POSIX.1E ACLs have been set
+ * ARCHIVE_TEST_ACL_TYPE_NFS4: NFSv4 or extended ACLs have been set
+ */
+int
+setTestAcl(const char *path)
+{
+#if HAVE_POSIX_ACL || HAVE_NFS4_ACL
+	int r = 1;
+#if !HAVE_SUN_ACL
+	acl_t acl;
+#endif
+#if HAVE_POSIX_ACL /* Linux, FreeBSD POSIX.1e */
+	const char *acltext_posix1e = "user:1:rw-,"
+	    "group:15:r-x,"
+	    "user::rwx,"
+	    "group::rwx,"
+	    "other::r-x,"
+	    "mask::rwx";
+#elif HAVE_SUN_ACL /* Solaris POSIX.1e */
+	aclent_t aclp_posix1e[] = {
+	    { USER_OBJ, -1, 4 | 2 | 1 },
+	    { USER, 1, 4 | 2 },
+	    { GROUP_OBJ, -1, 4 | 2 | 1 },
+	    { GROUP, 15, 4 | 1 },
+	    { CLASS_OBJ, -1, 4 | 2 | 1 },
+	    { OTHER_OBJ, -1, 4 | 2 | 1 }
+	};
+#endif
+#if HAVE_FREEBSD_NFS4_ACL /* FreeBSD NFS4 */
+	const char *acltext_nfs4 = "user:1:rwpaRcs::allow:1,"
+	    "group:15:rxaRcs::allow:15,"
+	    "owner@:rwpxaARWcCos::allow,"
+	    "group@:rwpxaRcs::allow,"
+	    "everyone@:rxaRcs::allow";
+#elif HAVE_SUN_NFS4_ACL /* Solaris NFS4 */
+	ace_t aclp_nfs4[] = {
+	    { 1, ACE_READ_DATA | ACE_WRITE_DATA | ACE_APPEND_DATA |
+	      ACE_READ_ATTRIBUTES | ACE_READ_NAMED_ATTRS | ACE_READ_ACL |
+	      ACE_SYNCHRONIZE, 0, ACE_ACCESS_ALLOWED_ACE_TYPE },
+	    { 15, ACE_READ_DATA | ACE_EXECUTE | ACE_READ_ATTRIBUTES |
+	      ACE_READ_NAMED_ATTRS | ACE_READ_ACL | ACE_SYNCHRONIZE,
+	      ACE_IDENTIFIER_GROUP, ACE_ACCESS_ALLOWED_ACE_TYPE },
+	    { -1, ACE_READ_DATA | ACE_WRITE_DATA | ACE_APPEND_DATA |
+	      ACE_EXECUTE | ACE_READ_ATTRIBUTES | ACE_WRITE_ATTRIBUTES |
+	      ACE_READ_NAMED_ATTRS | ACE_WRITE_NAMED_ATTRS |
+	      ACE_READ_ACL | ACE_WRITE_ACL | ACE_WRITE_OWNER | ACE_SYNCHRONIZE,
+	      ACE_OWNER, ACE_ACCESS_ALLOWED_ACE_TYPE },
+	    { -1, ACE_READ_DATA | ACE_WRITE_DATA | ACE_APPEND_DATA |
+	      ACE_EXECUTE | ACE_READ_ATTRIBUTES | ACE_READ_NAMED_ATTRS |
+	      ACE_READ_ACL | ACE_SYNCHRONIZE, ACE_GROUP | ACE_IDENTIFIER_GROUP,
+	      ACE_ACCESS_ALLOWED_ACE_TYPE },
+	    { -1, ACE_READ_DATA | ACE_EXECUTE | ACE_READ_ATTRIBUTES |
+	      ACE_READ_NAMED_ATTRS | ACE_READ_ACL | ACE_SYNCHRONIZE,
+	      ACE_EVERYONE, ACE_ACCESS_ALLOWED_ACE_TYPE }
+	};
+#elif HAVE_DARWIN_ACL /* Mac OS X */
+	acl_entry_t aclent;
+	acl_permset_t permset;
+	const uid_t uid = 1;
+	uuid_t uuid;
+	int i;
+	const acl_perm_t acl_perms[] = {
+		ACL_READ_DATA,
+		ACL_WRITE_DATA,
+		ACL_APPEND_DATA,
+		ACL_EXECUTE,
+		ACL_READ_ATTRIBUTES,
+		ACL_READ_EXTATTRIBUTES,
+		ACL_READ_SECURITY,
+#if HAVE_DECL_ACL_SYNCHRONIZE
+		ACL_SYNCHRONIZE
+#endif
+	};
+#endif /* HAVE_DARWIN_ACL */
+
+#if HAVE_FREEBSD_NFS4_ACL
+	acl = acl_from_text(acltext_nfs4);
+	failure("acl_from_text() error: %s", strerror(errno));
+	if (assert(acl != NULL) == 0)
+		return (0);
+#elif HAVE_DARWIN_ACL
+	acl = acl_init(1);
+	failure("acl_init() error: %s", strerror(errno));
+	if (assert(acl != NULL) == 0)
+		return (0);
+	r = acl_create_entry(&acl, &aclent);
+	failure("acl_create_entry() error: %s", strerror(errno));
+	if (assertEqualInt(r, 0) == 0)
+		goto testacl_free;
+	r = acl_set_tag_type(aclent, ACL_EXTENDED_ALLOW);
+	failure("acl_set_tag_type() error: %s", strerror(errno));
+	if (assertEqualInt(r, 0) == 0)
+		goto testacl_free;
+	r = acl_get_permset(aclent, &permset);
+	failure("acl_get_permset() error: %s", strerror(errno));
+	if (assertEqualInt(r, 0) == 0)
+		goto testacl_free;
+	for (i = 0; i < (int)(sizeof(acl_perms) / sizeof(acl_perms[0])); i++) {
+		r = acl_add_perm(permset, acl_perms[i]);
+		failure("acl_add_perm() error: %s", strerror(errno));
+		if (assertEqualInt(r, 0) == 0)
+			goto testacl_free;
+	}
+	r = acl_set_permset(aclent, permset);
+	failure("acl_set_permset() error: %s", strerror(errno));
+	if (assertEqualInt(r, 0) == 0)
+		goto testacl_free;
+	r = mbr_identifier_to_uuid(ID_TYPE_UID, &uid, sizeof(uid_t), uuid);
+	failure("mbr_identifier_to_uuid() error: %s", strerror(errno));
+	if (assertEqualInt(r, 0) == 0)
+		goto testacl_free;
+	r = acl_set_qualifier(aclent, uuid);
+	failure("acl_set_qualifier() error: %s", strerror(errno));
+	if (assertEqualInt(r, 0) == 0)
+		goto testacl_free;
+#endif /* HAVE_DARWIN_ACL */
+
+#if HAVE_NFS4_ACL
+#if HAVE_FREEBSD_NFS4_ACL
+	r = acl_set_file(path, ACL_TYPE_NFS4, acl);
+	acl_free(acl);
+#elif HAVE_SUN_NFS4_ACL
+	r = acl(path, ACE_SETACL,
+	    (int)(sizeof(aclp_nfs4)/sizeof(aclp_nfs4[0])), aclp_nfs4);
+#elif HAVE_DARWIN_ACL
+	r = acl_set_file(path, ACL_TYPE_EXTENDED, acl);
+	acl_free(acl);
+#endif
+	if (r == 0)
+		return (ARCHIVE_TEST_ACL_TYPE_NFS4);
+#endif	/* HAVE_NFS4_ACL */
+
+#if HAVE_POSIX_ACL || HAVE_SUN_ACL
+#if HAVE_POSIX_ACL
+	acl = acl_from_text(acltext_posix1e);
+	failure("acl_from_text() error: %s", strerror(errno));
+	if (assert(acl != NULL) == 0)
+		return (0);
+
+	r = acl_set_file(path, ACL_TYPE_ACCESS, acl);
+	acl_free(acl);
+#elif HAVE_SUN_ACL
+	r = acl(path, SETACL,
+	    (int)(sizeof(aclp_posix1e)/sizeof(aclp_posix1e[0])), aclp_posix1e);
+#endif
+	if (r == 0)
+		return (ARCHIVE_TEST_ACL_TYPE_POSIX1E);
+	else
+		return (0);
+#endif /* HAVE_POSIX_ACL || HAVE_SUN_ACL */
+#if HAVE_DARWIN_ACL
+testacl_free:
+	acl_free(acl);
+#endif
+#endif /* HAVE_POSIX_ACL || HAVE_NFS4_ACL */
+	(void)path;	/* UNUSED */
 	return (0);
 }
 

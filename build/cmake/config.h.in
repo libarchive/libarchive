@@ -773,6 +773,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `mbrtowc' function. */
 #cmakedefine HAVE_MBRTOWC 1
 
+/* Define to 1 if you have the <membership.h> header file. */
+#cmakedefine HAVE_MEMBERSHIP_H 1
+
 /* Define to 1 if you have the `memmove' function. */
 #cmakedefine HAVE_MEMMOVE 1
 

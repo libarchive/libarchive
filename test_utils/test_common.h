@@ -73,6 +73,12 @@
 #include <unistd.h>
 #endif
 #include <wchar.h>
+#ifdef HAVE_ACL_LIBACL_H
+#include <acl/libacl.h>
+#endif
+#ifdef HAVE_SYS_ACL_H
+#include <sys/acl.h>
+#endif
 #ifdef HAVE_WINDOWS_H
 #include <windows.h>
 #endif
@@ -154,6 +160,9 @@
 #if HAVE_FREEBSD_NFS4_ACL || HAVE_SUN_NFS4_ACL || HAVE_DARWIN_ACL
 #define HAVE_NFS4_ACL   1
 #endif
+
+#define	ARCHIVE_TEST_ACL_TYPE_POSIX1E	1
+#define	ARCHIVE_TEST_ACL_TYPE_NFS4	2
 
 /*
  * Redefine DEFINE_TEST for use in defining the test functions.
@@ -363,8 +372,16 @@ int canXz(void);
 /* Return true if this filesystem can handle nodump flags. */
 int canNodump(void);
 
+/* Set test ACLs */
+int setTestAcl(const char *path);
+
 /* Return true if the file has large i-node number(>0xffffffff). */
 int is_LargeInode(const char *);
+
+#if HAVE_SUN_ACL
+/* Fetch ACLs on Solaris using acl() or facl() */
+void *sunacl_get(int cmd, int *aclcnt, int fd, const char *path);
+#endif
 
 /* Suck file into string allocated via malloc(). Call free() when done. */
 /* Supports printf-style args: slurpfile(NULL, "%s/myfile", refdir); */

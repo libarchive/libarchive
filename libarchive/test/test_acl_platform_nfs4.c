@@ -248,63 +248,6 @@ static struct myacl_t acls_dir[] = {
 
 static const int acls_dir_cnt = (int)(sizeof(acls_dir)/sizeof(acls_dir[0]));
 
-#if HAVE_SUN_ACL
-static void *
-sunacl_get(int cmd, int *aclcnt, int fd, const char *path)
-{
-	int cnt, cntcmd;
-	size_t size;
-	void *aclp;
-
-	if (cmd == GETACL) {
-		cntcmd = GETACLCNT;
-		size = sizeof(aclent_t);
-	}
-#if HAVE_SUN_NFS4_ACL
-	else if (cmd == ACE_GETACL) {
-		cntcmd = ACE_GETACLCNT;
-		size = sizeof(ace_t);
-	}
-#endif
-	else {
-		errno = EINVAL;
-		*aclcnt = -1;
-		return (NULL);
-	}
-
-	aclp = NULL;
-	cnt = -2;
-	while (cnt == -2 || (cnt == -1 && errno == ENOSPC)) {
-		if (path != NULL)
-			cnt = acl(path, cntcmd, 0, NULL);
-		else
-			cnt = facl(fd, cntcmd, 0, NULL);
-
-		if (cnt > 0) {
-			if (aclp == NULL)
-				aclp = malloc(cnt * size);
-			else
-				aclp = realloc(NULL, cnt * size);
-			if (aclp != NULL) {
-				if (path != NULL)
-					cnt = acl(path, cmd, cnt, aclp);
-				else
-					cnt = facl(fd, cmd, cnt, aclp);
-			}
-		} else {
-			if (aclp != NULL) {
-				free(aclp);
-				aclp = NULL;
-			}
-			break;
-		}
-	}
-
-	*aclcnt = cnt;
-	return (aclp);
-}
-#endif /* HAVE_SUN_ACL */
-
 static void
 set_acls(struct archive_entry *ae, struct myacl_t *acls, int start, int end)
 {
@@ -777,11 +720,10 @@ DEFINE_TEST(test_acl_platform_nfs4)
 	skipping("NFS4 ACLs are not supported on this platform");
 #else
 	char buff[64];
+	int i;
 	struct stat st;
 	struct archive *a;
 	struct archive_entry *ae;
-	int i;
-	char *func;
 #if HAVE_DARWIN_ACL /* On MacOS we skip trivial ACLs in some tests */
 	const int regcnt = acls_reg_cnt - 4;
 	const int dircnt = acls_dir_cnt - 4;
@@ -793,92 +735,15 @@ DEFINE_TEST(test_acl_platform_nfs4)
 	void *aclp;
 	int aclcnt;
 #else	/* !HAVE_SUN_NFS4_ACL */
-#if HAVE_DARWIN_ACL
-	acl_entry_t aclent;
-	acl_permset_t permset;
-	const uid_t uid = 1000;
-	uuid_t uuid;
-#endif	/* HAVE_DARWIN_ACL */
-	int n;
 	acl_t acl;
-#endif	/* !HAVE_SUN_NFS4_ACL */
-
-	/*
-	 * First, do a quick manual set/read of ACL data to
-	 * verify that the local filesystem does support ACLs.
-	 * If it doesn't, we'll simply skip the remaining tests.
-	 */
-#if HAVE_FREEBSD_NFS4_ACL
-	acl = acl_from_text("owner@:rwxp::allow,group@:rwp:f:allow");
-	failure("acl_from_text(): errno = %d (%s)", errno, strerror(errno));
-	assert((void *)acl != NULL);
-#elif HAVE_DARWIN_ACL
-	acl = acl_init(1);
-	assert((void *)acl != NULL);
-	assertEqualInt(0, acl_create_entry(&acl, &aclent));
-	assertEqualInt(0, acl_set_tag_type(aclent, ACL_EXTENDED_ALLOW));
-	assertEqualInt(0, acl_get_permset(aclent, &permset));
-	assertEqualInt(0, acl_add_perm(permset, ACL_READ_DATA));
-	assertEqualInt(0, acl_add_perm(permset, ACL_WRITE_DATA));
-	assertEqualInt(0, acl_add_perm(permset, ACL_APPEND_DATA));
-	assertEqualInt(0, acl_add_perm(permset, ACL_EXECUTE));
-	assertEqualInt(0, acl_set_permset(aclent, permset));
-	assertEqualInt(0, mbr_identifier_to_uuid(ID_TYPE_UID, &uid,
-	    sizeof(uid_t), uuid));
-	assertEqualInt(0, acl_set_qualifier(aclent, uuid));
 #endif
 
-	/* Create a test dir and try to set an ACL on it. */
-	if (!assertMakeDir("pretest", 0755)) {
-#if !HAVE_SUN_NFS4_ACL
-		acl_free(acl);
-#endif
+	assertMakeFile("pretest", 0644, "a");
+
+	if (setTestAcl("pretest") != ARCHIVE_TEST_ACL_TYPE_NFS4) {
+		skipping("NFS4 ACLs are not writable on this filesystem");
 		return;
 	}
-
-#if HAVE_SUN_NFS4_ACL
-	func = "acl()";
-	aclp = sunacl_get(GETACL, &aclcnt, 0, "pretest");
-	if (aclp != NULL) {
-		skipping("NFS4 ACL is not supported on this filesystem");
-		free(aclp);
-		return;
-	}
-	free(aclp);
-	aclp = sunacl_get(ACE_GETACL, &aclcnt, 0, "pretest");
-#else
-	func = "acl_set_file()";
-#if HAVE_DARWIN_ACL
-	n = acl_set_file("pretest", ACL_TYPE_EXTENDED, acl);
-#else
-	n = acl_set_file("pretest", ACL_TYPE_NFS4, acl);
-#endif
-	acl_free(acl);
-#endif
-#if HAVE_SUN_NFS4_ACL
-	if (aclp == NULL)
-#else
-	if (n != 0)
-#endif
-	{
-#if HAVE_SUN_NFS4_ACL
-		if (errno == ENOSYS || errno == ENOTSUP)
-#else
-		if (errno == EOPNOTSUPP || errno == EINVAL)
-#endif
-		{
-			skipping("NFS4 ACL is not supported on this filesystem");
-			return;
-		}
-	}
-	failure("%s: errno = %d (%s)", func, errno, strerror(errno));
-#if HAVE_SUN_NFS4_ACL
-	assert(aclp != NULL);
-	free(aclp);
-	aclp = NULL;
-#else
-	assertEqualInt(0, n);
-#endif
 
 	/* Create a write-to-disk object. */
 	assert(NULL != (a = archive_write_disk_new()));
