@@ -737,23 +737,15 @@ if test "x$enable_acl" != "xno"; then
 	#endif
 	])
 
-    # Check for ACL_TYPE_NFS4
-    AC_CHECK_DECL([ACL_TYPE_NFS4],
-		[AC_DEFINE(HAVE_ACL_TYPE_NFS4, 1, [True for FreeBSD with NFSv4 ACL support])],
-		[],
-		[#include <sys/acl.h>])
+    # FreeBSD and POSIX
+    # MacOS has no ACL_USER in acl.h
+    AC_CHECK_DECLS([ACL_TYPE_NFS4, ACL_USER],
+		[], [],
+		[#include <sys/types.h>
+		#include <sys/acl.h>])
 
-    # MacOS has an acl.h that isn't POSIX.  It can be detected by
-    # checking for ACL_USER
-    AC_CHECK_DECL([ACL_USER],
-		[AC_DEFINE(HAVE_ACL_USER, 1, [True for systems with POSIX ACL support])],
-		[],
-		[#include <sys/acl.h>])
-
-    # MacOS has ACL_TYPE_EXTENDED instead
-    AC_CHECK_DECL([ACL_TYPE_EXTENDED],
-		[AC_DEFINE(HAVE_ACL_TYPE_EXTENDED, 1, [True for MacOS ACL support])],
-		[],
+    # FreeBSD and MacOS ACL support
+    AC_CHECK_DECLS([ACL_TYPE_EXTENDED, ACL_SYNCHRONIZE], [], [],
 		[#include <sys/types.h>
 		#include <sys/acl.h>])
 
@@ -761,8 +753,7 @@ if test "x$enable_acl" != "xno"; then
     AC_CHECK_TYPES([aclent_t], [], [], [[#include <sys/acl.h>]])
     AC_CHECK_TYPES([ace_t], [], [], [[#include <sys/acl.h>]])
     AC_CHECK_FUNCS(acl facl)
-    AC_CHECK_DECLS([GETACL, SETACL, GETACLCNT], [], [], [#include <sys/acl.h>])
-    AC_CHECK_DECLS([ACE_GETACL, ACE_SETACL, ACE_GETACLCNT], [], [], [#include <sys/acl.h>])
+    AC_CHECK_DECLS([GETACL, SETACL, GETACLCNT, ACE_GETACL, ACE_SETACL, ACE_GETACLCNT], [], [], [#include <sys/acl.h>])
 fi
 
 # Additional requirements

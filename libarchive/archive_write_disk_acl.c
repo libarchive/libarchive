@@ -63,7 +63,7 @@ archive_write_disk_set_acls(struct archive *a, int fd, const char *name,
 
 #if HAVE_DARWIN_ACL
 #define	ARCHIVE_PLATFORM_ACL_TYPE_NFS4	ACL_TYPE_EXTENDED
-#elif HAVE_ACL_TYPE_NFS4
+#elif HAVE_FREEBSD_NFS4_ACL
 #define	ARCHIVE_PLATFORM_ACL_TYPE_NFS4	ACL_TYPE_NFS4
 #endif
 
@@ -162,14 +162,14 @@ static const struct {
 	{ARCHIVE_ENTRY_ACL_READ_ACL, ACL_READ_SECURITY},
 	{ARCHIVE_ENTRY_ACL_WRITE_ACL, ACL_WRITE_SECURITY},
 	{ARCHIVE_ENTRY_ACL_WRITE_OWNER, ACL_CHANGE_OWNER},
-#ifdef ACL_SYNCHRONIZE
+#if HAVE_DECL_ACL_SYNCHRONIZE
 	{ARCHIVE_ENTRY_ACL_SYNCHRONIZE, ACL_SYNCHRONIZE}
 #endif
 #else	/* POSIX.1e ACL permissions */
 	{ARCHIVE_ENTRY_ACL_EXECUTE, ACL_EXECUTE},
 	{ARCHIVE_ENTRY_ACL_WRITE, ACL_WRITE},
 	{ARCHIVE_ENTRY_ACL_READ, ACL_READ},
-#if HAVE_ACL_TYPE_NFS4	/* FreeBSD NFSv4 ACL permissions */
+#if HAVE_FREEBSD_NFS4_ACL	/* FreeBSD NFSv4 ACL permissions */
 	{ARCHIVE_ENTRY_ACL_READ_DATA, ACL_READ_DATA},
 	{ARCHIVE_ENTRY_ACL_LIST_DIRECTORY, ACL_LIST_DIRECTORY},
 	{ARCHIVE_ENTRY_ACL_WRITE_DATA, ACL_WRITE_DATA},
@@ -246,11 +246,11 @@ set_acl(struct archive *a, int fd, const char *name,
 	acl_t		 acl;
 	acl_entry_t	 acl_entry;
 	acl_permset_t	 acl_permset;
-#if HAVE_ACL_TYPE_NFS4 || HAVE_DARWIN_ACL
+#if HAVE_FREEBSD_NFS4_ACL || HAVE_DARWIN_ACL
 	acl_flagset_t	 acl_flagset;
 #endif
 #endif	/* HAVE_SUN_ACL */
-#if HAVE_ACL_TYPE_NFS4
+#if HAVE_FREEBSD_NFS4_ACL
 	int		r;
 #endif
 	int		 ret;
@@ -457,7 +457,7 @@ set_acl(struct archive *a, int fd, const char *name,
 		case ARCHIVE_ENTRY_ACL_OTHER:
 			acl_set_tag_type(acl_entry, ACL_OTHER);
 			break;
-#if HAVE_ACL_TYPE_NFS4	/* FreeBSD only */
+#if HAVE_FREEBSD_NFS4_ACL	/* FreeBSD only */
 		case ARCHIVE_ENTRY_ACL_EVERYONE:
 			acl_set_tag_type(acl_entry, ACL_EVERYONE);
 			break;
@@ -471,7 +471,7 @@ set_acl(struct archive *a, int fd, const char *name,
 			goto exit_free;
 		}
 
-#if HAVE_ACL_TYPE_NFS4 || HAVE_SUN_ACL
+#if HAVE_FREEBSD_NFS4_ACL || HAVE_SUN_ACL
 		r = 0;
 		switch (ae_type) {
 #if HAVE_SUN_ACL
@@ -545,7 +545,7 @@ set_acl(struct archive *a, int fd, const char *name,
 			ret = ARCHIVE_FAILED;
 			goto exit_free;
 		}
-#endif	/* HAVE_ACL_TYPE_NFS4 || HAVE_SUN_ACL */
+#endif	/* HAVE_FREEBSD_NFS4_ACL || HAVE_SUN_ACL */
 
 #if HAVE_SUN_ACL
 		if (aclent != NULL) {

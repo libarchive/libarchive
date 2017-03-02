@@ -311,12 +311,14 @@ set_acls(struct archive_entry *ae, struct myacl_t *acls, int start, int end)
 	int i;
 
 	archive_entry_acl_clear(ae);
+#if !HAVE_DARWIN_ACL
 	if (start > 0) {
 		assertEqualInt(ARCHIVE_OK,
 			archive_entry_acl_add_entry(ae,
 			    acls[0].type, acls[0].permset, acls[0].tag,
 			    acls[0].qual, acls[0].name));
 	}
+#endif
 	for (i = start; i < end; i++) {
 		assertEqualInt(ARCHIVE_OK,
 		    archive_entry_acl_add_entry(ae,
@@ -368,7 +370,9 @@ acl_permset_to_bitmap(acl_permset_t opaque_ps)
 		{ACL_READ_SECURITY, ARCHIVE_ENTRY_ACL_READ_ACL},
 		{ACL_WRITE_SECURITY, ARCHIVE_ENTRY_ACL_WRITE_ACL},
 		{ACL_CHANGE_OWNER, ARCHIVE_ENTRY_ACL_WRITE_OWNER},
+#if HAVE_DECL_ACL_SYNCHRONIZE
 		{ACL_SYNCHRONIZE, ARCHIVE_ENTRY_ACL_SYNCHRONIZE},
+#endif
 #else	/* FreeBSD NFSv4 ACL permissions */
 		{ACL_EXECUTE, ARCHIVE_ENTRY_ACL_EXECUTE},
 		{ACL_WRITE, ARCHIVE_ENTRY_ACL_WRITE},
@@ -647,11 +651,13 @@ compare_acls(
 	marker = malloc(sizeof(marker[0]) * (n + 1));
 	for (i = 0; i < n; i++)
 		marker[i] = i + start;
+#if !HAVE_DARWIN_ACL
 	/* Always include the first ACE. */
 	if (start > 0) {
 	  marker[n] = 0;
 	  ++n;
 	}
+#endif
 
 	/*
 	 * Iterate over acls in system acl object, try to match each
@@ -802,7 +808,7 @@ DEFINE_TEST(test_acl_platform_nfs4)
 	 * verify that the local filesystem does support ACLs.
 	 * If it doesn't, we'll simply skip the remaining tests.
 	 */
-#if HAVE_POSIX_ACL && HAVE_ACL_TYPE_NFS4
+#if HAVE_FREEBSD_NFS4_ACL
 	acl = acl_from_text("owner@:rwxp::allow,group@:rwp:f:allow");
 	failure("acl_from_text(): errno = %d (%s)", errno, strerror(errno));
 	assert((void *)acl != NULL);

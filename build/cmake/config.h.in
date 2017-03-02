@@ -326,15 +326,6 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `acl_set_file' function. */
 #cmakedefine HAVE_ACL_SET_FILE 1
 
-/* True for FreeBSD with NFSv4 ACL support */
-#cmakedefine HAVE_ACL_TYPE_NFS4 1
-
-/* True for MacOS ACL support */
-#cmakedefine HAVE_ACL_TYPE_EXTENDED 1
-
-/* True for systems with POSIX ACL support */
-#cmakedefine HAVE_ACL_USER 1
-
 /* Define to 1 if you have the `arc4random_buf' function. */
 #cmakedefine HAVE_ARC4RANDOM_BUF 1
 
@@ -382,6 +373,22 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the declaration of `ACE_SETACL', and to 0 if you
    don't. */
 #cmakedefine HAVE_DECL_ACE_SETACL 1
+
+/* Define to 1 if you have the declaration of `ACL_SYNCHRONIZE', and to 0 if
+   you don't. */
+#cmakedefine HAVE_DECL_ACL_SYNCHRONIZE 1
+
+/* Define to 1 if you have the declaration of `ACL_TYPE_EXTENDED', and to 0 if
+   you don't. */
+#cmakedefine HAVE_DECL_ACL_TYPE_EXTENDED 1
+
+/* Define to 1 if you have the declaration of `ACL_TYPE_NFS4', and to 0 if you
+   don't. */
+#cmakedefine HAVE_DECL_ACL_TYPE_NFS4 1
+
+/* Define to 1 if you have the declaration of `ACL_USER', and to 0 if you
+   don't. */
+#cmakedefine HAVE_DECL_ACL_USER 1
 
 /* Define to 1 if you have the declaration of `INT32_MAX', and to 0 if you
    don't. */

@@ -126,7 +126,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk_entry_from_file.c 2010
 /* NFSv4 platform ACL type */
 #if HAVE_DARWIN_ACL
 #define	ARCHIVE_PLATFORM_ACL_TYPE_NFS4	ACL_TYPE_EXTENDED
-#elif HAVE_ACL_TYPE_NFS4
+#elif HAVE_FREEBSD_NFS4_ACL
 #define	ARCHIVE_PLATFORM_ACL_TYPE_NFS4	ACL_TYPE_NFS4
 #endif
 
@@ -768,14 +768,14 @@ static const struct {
 	{ARCHIVE_ENTRY_ACL_READ_ACL, ACL_READ_SECURITY},
 	{ARCHIVE_ENTRY_ACL_WRITE_ACL, ACL_WRITE_SECURITY},
 	{ARCHIVE_ENTRY_ACL_WRITE_OWNER, ACL_CHANGE_OWNER},
-#ifdef ACL_SYNCHRONIZE
+#if HAVE_DECL_ACL_SYNCHRONIZE
 	{ARCHIVE_ENTRY_ACL_SYNCHRONIZE, ACL_SYNCHRONIZE}
 #endif
 #else	/* POSIX.1e ACL permissions */
 	{ARCHIVE_ENTRY_ACL_EXECUTE, ACL_EXECUTE},
 	{ARCHIVE_ENTRY_ACL_WRITE, ACL_WRITE},
 	{ARCHIVE_ENTRY_ACL_READ, ACL_READ},
-#if HAVE_ACL_TYPE_NFS4	/* FreeBSD NFSv4 ACL permissions */
+#if HAVE_FREEBSD_NFS4_ACL	/* FreeBSD NFSv4 ACL permissions */
 	{ARCHIVE_ENTRY_ACL_READ_DATA, ACL_READ_DATA},
 	{ARCHIVE_ENTRY_ACL_LIST_DIRECTORY, ACL_LIST_DIRECTORY},
 	{ARCHIVE_ENTRY_ACL_WRITE_DATA, ACL_WRITE_DATA},
@@ -1267,11 +1267,11 @@ translate_acl(struct archive_read_disk *a,
     struct archive_entry *entry, acl_t acl, int default_entry_acl_type)
 {
 	acl_tag_t	 acl_tag;
-#if HAVE_ACL_TYPE_NFS4
+#if HAVE_FREEBSD_NFS4_ACL
 	acl_entry_type_t acl_type;
 	int brand;
 #endif
-#if HAVE_ACL_TYPE_NFS4 || HAVE_DARWIN_ACL
+#if HAVE_FREEBSD_NFS4_ACL || HAVE_DARWIN_ACL
 	acl_flagset_t	 acl_flagset;
 #endif
 	acl_entry_t	 acl_entry;
@@ -1283,7 +1283,7 @@ translate_acl(struct archive_read_disk *a,
 #endif
 	const char	*ae_name;
 
-#if HAVE_ACL_TYPE_NFS4
+#if HAVE_FREEBSD_NFS4_ACL
 	// FreeBSD "brands" ACLs as POSIX.1e or NFSv4
 	// Make sure the "brand" on this ACL is consistent
 	// with the default_entry_acl_type bits provided.
@@ -1374,7 +1374,7 @@ translate_acl(struct archive_read_disk *a,
 		case ACL_OTHER:
 			ae_tag = ARCHIVE_ENTRY_ACL_OTHER;
 			break;
-#if HAVE_ACL_TYPE_NFS4
+#if HAVE_FREEBSD_NFS4_ACL
 		case ACL_EVERYONE:
 			ae_tag = ARCHIVE_ENTRY_ACL_EVERYONE;
 			break;
@@ -1409,9 +1409,9 @@ translate_acl(struct archive_read_disk *a,
 		// XXX acl_type maps to allow/deny/audit/YYYY bits
 		entry_acl_type = default_entry_acl_type;
 #endif
-#if HAVE_ACL_TYPE_NFS4 || HAVE_DARWIN_ACL
+#if HAVE_FREEBSD_NFS4_ACL || HAVE_DARWIN_ACL
 		if (default_entry_acl_type & ARCHIVE_ENTRY_ACL_TYPE_NFS4) {
-#if HAVE_ACL_TYPE_NFS4
+#if HAVE_FREEBSD_NFS4_ACL
 			/*
 			 * acl_get_entry_type_np() fails with non-NFSv4 ACLs
 			 */
@@ -1438,7 +1438,7 @@ translate_acl(struct archive_read_disk *a,
 				    "Invalid NFSv4 ACL entry type");
 				return (ARCHIVE_WARN);
 			}
-#endif	/* HAVE_ACL_TYPE_NFS4 */
+#endif	/* HAVE_FREEBSD_NFS4_ACL */
 
 			/*
 			 * Libarchive stores "flag" (NFSv4 inheritance bits)
@@ -1463,7 +1463,7 @@ translate_acl(struct archive_read_disk *a,
 					ae_perm |= acl_inherit_map[i].archive_inherit;
 			}
 		}
-#endif	/* HAVE_ACL_TYPE_NFS4 || HAVE_DARWIN_ACL */
+#endif	/* HAVE_FREEBSD_NFS4_ACL || HAVE_DARWIN_ACL */
 
 		if (acl_get_permset(acl_entry, &acl_permset) != 0) {
 			archive_set_error(&a->archive, errno,
@@ -1484,7 +1484,7 @@ translate_acl(struct archive_read_disk *a,
 				ae_perm |= acl_perm_map[i].archive_perm;
 		}
 
-#if defined(HAVE_DARWIN_ACL) && !defined(ACL_SYNCHRONIZE)
+#if HAVE_DARWIN_ACL && !HAVE_DECL_ACL_SYNCHRONIZE
 		/* On Mac OS X without ACL_SYNCHRONIZE assume it is set */
 		ae_perm |= ARCHIVE_ENTRY_ACL_SYNCHRONIZE;
 #endif

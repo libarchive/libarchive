@@ -127,10 +127,13 @@
  * POSIX.1e draft functions used in archive_read_extract.c.
  */
 #if HAVE_SYS_ACL_H && HAVE_ACL_CREATE_ENTRY && HAVE_ACL_INIT && HAVE_ACL_SET_FILE
-#if HAVE_ACL_USER
+#if HAVE_DECL_ACL_USER
 #define	HAVE_POSIX_ACL	1
-#elif HAVE_ACL_TYPE_EXTENDED
+#elif HAVE_DECL_ACL_TYPE_EXTENDED
 #define	HAVE_DARWIN_ACL	1
+#endif
+#if HAVE_DECL_ACL_TYPE_NFS4
+#define	HAVE_FREEBSD_NFS4_ACL 1
 #endif
 #endif
 
@@ -148,7 +151,7 @@
 #endif
 
 /* Define if platform supports NFSv4 ACLs */
-#if (HAVE_POSIX_ACL && HAVE_ACL_TYPE_NFS4) || HAVE_SUN_NFS4_ACL || HAVE_DARWIN_ACL
+#if HAVE_FREEBSD_NFS4_ACL || HAVE_SUN_NFS4_ACL || HAVE_DARWIN_ACL
 #define HAVE_NFS4_ACL   1
 #endif
 
