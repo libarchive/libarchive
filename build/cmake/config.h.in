@@ -371,6 +371,18 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `cygwin_conv_path' function. */
 #cmakedefine HAVE_CYGWIN_CONV_PATH 1
 
+/* Define to 1 if you have the declaration of `ACE_GETACL', and to 0 if you
+   don't. */
+#cmakedefine HAVE_DECL_ACE_GETACL 1
+
+/* Define to 1 if you have the declaration of `ACE_GETACLCNT', and to 0 if you
+   don't. */
+#cmakedefine HAVE_DECL_ACE_GETACLCNT 1
+
+/* Define to 1 if you have the declaration of `ACE_SETACL', and to 0 if you
+   don't. */
+#cmakedefine HAVE_DECL_ACE_SETACL 1
+
 /* Define to 1 if you have the declaration of `INT32_MAX', and to 0 if you
    don't. */
 #cmakedefine HAVE_DECL_INT32_MAX 1
@@ -394,6 +406,10 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the declaration of `INTMAX_MIN', and to 0 if you
    don't. */
 #cmakedefine HAVE_DECL_INTMAX_MIN 1
+
+/* Define to 1 if you have the declaration of `SETACL', and to 0 if you don't.
+   */
+#cmakedefine HAVE_DECL_SETACL 1
 
 /* Define to 1 if you have the declaration of `SIZE_MAX', and to 0 if you
    don't. */
@@ -467,6 +483,14 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if EXTATTR_NAMESPACE_USER is defined in sys/extattr.h. */
 #cmakedefine HAVE_DECL_EXTATTR_NAMESPACE_USER 1
+
+/* Define to 1 if you have the declaration of `GETACL', and to 0 if you don't.
+   */
+#cmakedefine HAVE_DECL_GETACL 1
+
+/* Define to 1 if you have the declaration of `GETACLCNT', and to 0 if you
+   don't. */
+#cmakedefine HAVE_DECL_GETACLCNT 1
 
 /* Define to 1 if you have the `fchdir' function. */
 #cmakedefine HAVE_FCHDIR 1

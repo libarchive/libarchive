@@ -156,15 +156,20 @@
 #endif
 
 /*
- * If this platform has <sys/acl.h>, acl_get(), facl_get(), acl_set(),
+ * If this platform has <sys/acl.h>, acl(), facl() and ACLENT_T
  * facl_set() and types aclent_t and ace_t it uses Solaris-style ACL functions
  */
-#if HAVE_SYS_ACL_H && HAVE_ACL_GET && HAVE_FACL_GET && HAVE_ACL_SET && HAVE_FACL_SET && HAVE_ACLENT_T && HAVE_ACE_T
+#if HAVE_SYS_ACL_H && HAVE_ACL && HAVE_FACL && HAVE_ACLENT_T && \
+    HAVE_DECL_GETACL && HAVE_DECL_GETACLCNT && HAVE_DECL_SETACL
 #define	HAVE_SUN_ACL	1
+#if HAVE_ACE_T && HAVE_DECL_ACE_GETACL && HAVE_DECL_ACE_GETACLCNT && \
+    HAVE_DECL_ACE_SETACL
+#define HAVE_SUN_NFS4_ACL	1
+#endif
 #endif
 
 /* Define if platform supports NFSv4 ACLs */
-#if (HAVE_POSIX_ACL && HAVE_ACL_TYPE_NFS4) || HAVE_SUN_ACL || HAVE_DARWIN_ACL
+#if (HAVE_POSIX_ACL && HAVE_ACL_TYPE_NFS4) || HAVE_SUN_NFS4_ACL || HAVE_DARWIN_ACL
 #define HAVE_NFS4_ACL	1
 #endif
 

@@ -758,10 +758,11 @@ if test "x$enable_acl" != "xno"; then
 		#include <sys/acl.h>])
 
     # Solaris and derivates ACLs
-    AC_CHECK_LIB([sec], [acl_get])
     AC_CHECK_TYPES([aclent_t], [], [], [[#include <sys/acl.h>]])
     AC_CHECK_TYPES([ace_t], [], [], [[#include <sys/acl.h>]])
-    AC_CHECK_FUNCS(acl_get facl_get acl_set facl_set)
+    AC_CHECK_FUNCS(acl facl)
+    AC_CHECK_DECLS([GETACL, SETACL, GETACLCNT], [], [], [#include <sys/acl.h>])
+    AC_CHECK_DECLS([ACE_GETACL, ACE_SETACL, ACE_GETACLCNT], [], [], [#include <sys/acl.h>])
 fi
 
 # Additional requirements
