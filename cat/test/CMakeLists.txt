@@ -6,7 +6,7 @@
 IF(ENABLE_CAT AND ENABLE_TEST)
   SET(bsdcat_test_SOURCES
     ../../test_utils/test_utils.c
-    main.c
+    ../../test_utils/test_main.c
     test.h
     test_0.c
     test_empty_gz.c
@@ -29,6 +29,11 @@ IF(ENABLE_CAT AND ENABLE_TEST)
   # Register target
   #
   ADD_EXECUTABLE(bsdcat_test ${bsdcat_test_SOURCES})
+  IF(ENABLE_ACL)
+    IF(HAVE_LIBACL)
+      TARGET_LINK_LIBRARIES(bsdcat_test ${ACL_LIBRARY})
+    ENDIF(HAVE_LIBACL)
+  ENDIF(ENABLE_ACL)
   SET_PROPERTY(TARGET bsdcat_test PROPERTY COMPILE_DEFINITIONS LIST_H)
 
   #
@@ -54,6 +59,7 @@ IF(ENABLE_CAT AND ENABLE_TEST)
   INCLUDE(${CMAKE_CURRENT_BINARY_DIR}/list.h)
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
   INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/test_utils)
+  INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/cat/test)
 
   # Experimental new test handling
   ADD_CUSTOM_TARGET(run_bsdcat_test

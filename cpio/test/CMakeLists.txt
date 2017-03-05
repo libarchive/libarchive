@@ -8,7 +8,7 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     ../cmdline.c
     ../../libarchive_fe/err.c
     ../../test_utils/test_utils.c
-    main.c
+    ../../test_utils/test_main.c
     test.h
     test_0.c
     test_basic.c
@@ -62,6 +62,11 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
   # Register target
   #
   ADD_EXECUTABLE(bsdcpio_test ${bsdcpio_test_SOURCES})
+  IF(ENABLE_ACL)
+    IF(HAVE_LIBACL)
+      TARGET_LINK_LIBRARIES(bsdcpio_test ${ACL_LIBRARY})
+    ENDIF(HAVE_LIBACL)
+  ENDIF(ENABLE_ACL)
   SET_PROPERTY(TARGET bsdcpio_test PROPERTY COMPILE_DEFINITIONS LIST_H)
 
   #
@@ -87,6 +92,7 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
   INCLUDE(${CMAKE_CURRENT_BINARY_DIR}/list.h)
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
   INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/test_utils)
+  INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/cpio/test)
 
   # Experimental new test handling
   ADD_CUSTOM_TARGET(run_bsdcpio_test

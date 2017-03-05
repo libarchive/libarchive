@@ -6,7 +6,7 @@
 IF(ENABLE_TAR AND ENABLE_TEST)
   SET(bsdtar_test_SOURCES
     ../../test_utils/test_utils.c
-    main.c
+    ../../test_utils/test_main.c
     test.h
     test_0.c
     test_basic.c
@@ -34,9 +34,11 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_option_U_upper.c
     test_option_X_upper.c
     test_option_a.c
+    test_option_acls.c
     test_option_b.c
     test_option_b64encode.c
     test_option_exclude.c
+    test_option_fflags.c
     test_option_gid_gname.c
     test_option_grzip.c
     test_option_j.c
@@ -71,6 +73,11 @@ IF(ENABLE_TAR AND ENABLE_TEST)
   # Register target
   #
   ADD_EXECUTABLE(bsdtar_test ${bsdtar_test_SOURCES})
+  IF(ENABLE_ACL)
+    IF(HAVE_LIBACL)
+      TARGET_LINK_LIBRARIES(bsdtar_test ${ACL_LIBRARY})
+    ENDIF(HAVE_LIBACL)
+  ENDIF(ENABLE_ACL)
   SET_PROPERTY(TARGET bsdtar_test PROPERTY COMPILE_DEFINITIONS LIST_H)
 
   #
@@ -96,6 +103,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
   INCLUDE(${CMAKE_CURRENT_BINARY_DIR}/list.h)
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
   INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/test_utils)
+  INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/tar/test)
 
   # Experimental new test handling
   ADD_CUSTOM_TARGET(run_bsdtar_test

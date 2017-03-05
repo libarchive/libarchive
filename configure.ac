@@ -4,8 +4,8 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[3.2.2])
-m4_define([LIBARCHIVE_VERSION_N],[3002002])
+m4_define([LIBARCHIVE_VERSION_S],[3.3.2dev])
+m4_define([LIBARCHIVE_VERSION_N],[3003002])
 
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
@@ -270,6 +270,19 @@ AS_VAR_IF([ac_cv_have_decl_EXT2_IOC_GETFLAGS], [yes],
 
 AC_CHECK_HEADERS([inttypes.h io.h langinfo.h limits.h])
 AC_CHECK_HEADERS([linux/fiemap.h linux/fs.h linux/magic.h linux/types.h])
+
+AC_CACHE_CHECK([whether FS_IOC_GETFLAGS is usable],
+    [ac_cv_have_decl_FS_IOC_GETFLAGS],
+    [AC_COMPILE_IFELSE([AC_LANG_PROGRAM([@%:@include <sys/ioctl.h>
+@%:@include <linux/fs.h>],
+                                   [int x = FS_IOC_GETFLAGS])],
+                  [AS_VAR_SET([ac_cv_have_decl_FS_IOC_GETFLAGS], [yes])],
+                  [AS_VAR_SET([ac_cv_have_decl_FS_IOC_GETFLAGS], [no])])])
+
+AS_VAR_IF([ac_cv_have_decl_FS_IOC_GETFLAGS], [yes],
+    [AC_DEFINE_UNQUOTED([HAVE_WORKING_FS_IOC_GETFLAGS], [1],
+                    [Define to 1 if you have a working FS_IOC_GETFLAGS])])
+
 AC_CHECK_HEADERS([locale.h paths.h poll.h pthread.h pwd.h])
 AC_CHECK_HEADERS([readpassphrase.h signal.h spawn.h])
 AC_CHECK_HEADERS([stdarg.h stdint.h stdlib.h string.h])
@@ -378,9 +391,9 @@ if test "x$with_lzma" != "xno"; then
 fi
 
 AC_ARG_WITH([lzo2],
-  AS_HELP_STRING([--without-lzo2], [Don't build support for lzop through liblzo2]))
+  AS_HELP_STRING([--with-lzo2], [Build with LZO support from liblzo2]))
 
-if test "x$with_lzo2" != "xno"; then
+if test "x$with_lzo2" = "xyes"; then
   AC_CHECK_HEADERS([lzo/lzoconf.h lzo/lzo1x.h])
   AC_CHECK_LIB(lzo2,lzo1x_decompress_safe)
 fi
@@ -688,6 +701,7 @@ AC_ARG_ENABLE([acl],
 if test "x$enable_acl" != "xno"; then
    AC_CHECK_HEADERS([acl/libacl.h])
    AC_CHECK_HEADERS([sys/acl.h])
+   AC_CHECK_HEADERS([membership.h])
    AC_CHECK_LIB([acl],[acl_get_file])
    AC_CHECK_FUNCS([acl_create_entry acl_get_fd_np])
    AC_CHECK_FUNCS([acl_init acl_set_fd acl_set_fd_np acl_set_file])
@@ -726,12 +740,23 @@ if test "x$enable_acl" != "xno"; then
 	#endif
 	])
 
-    # MacOS has an acl.h that isn't POSIX.  It can be detected by
-    # checking for ACL_USER
-    AC_CHECK_DECL([ACL_USER],
-		[AC_DEFINE(HAVE_ACL_USER, 1, [True for systems with POSIX ACL support])],
-		[],
-		[#include <sys/acl.h>])
+    # FreeBSD and POSIX
+    # MacOS has no ACL_USER in acl.h
+    AC_CHECK_DECLS([ACL_TYPE_NFS4, ACL_USER],
+		[], [],
+		[#include <sys/types.h>
+		#include <sys/acl.h>])
+
+    # FreeBSD and MacOS ACL support
+    AC_CHECK_DECLS([ACL_TYPE_EXTENDED, ACL_SYNCHRONIZE], [], [],
+		[#include <sys/types.h>
+		#include <sys/acl.h>])
+
+    # Solaris and derivates ACLs
+    AC_CHECK_TYPES([aclent_t], [], [], [[#include <sys/acl.h>]])
+    AC_CHECK_TYPES([ace_t], [], [], [[#include <sys/acl.h>]])
+    AC_CHECK_FUNCS(acl facl)
+    AC_CHECK_DECLS([GETACL, SETACL, GETACLCNT, ACE_GETACL, ACE_SETACL, ACE_GETACLCNT], [], [], [#include <sys/acl.h>])
 fi
 
 # Additional requirements

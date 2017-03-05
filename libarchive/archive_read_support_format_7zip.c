@@ -263,22 +263,22 @@ struct _7zip {
 	/*
 	 * Decompressor controllers.
 	 */
-	/* Decording LZMA1 and LZMA2 data. */
+	/* Decoding LZMA1 and LZMA2 data. */
 #ifdef HAVE_LZMA_H
 	lzma_stream		 lzstream;
 	int			 lzstream_valid;
 #endif
-	/* Decording bzip2 data. */
+	/* Decoding bzip2 data. */
 #if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
 	bz_stream		 bzstream;
 	int			 bzstream_valid;
 #endif
-	/* Decording deflate data. */
+	/* Decoding deflate data. */
 #ifdef HAVE_ZLIB_H
 	z_stream		 stream;
 	int			 stream_valid;
 #endif
-	/* Decording PPMd data. */
+	/* Decoding PPMd data. */
 	int			 ppmd7_stat;
 	CPpmd7			 ppmd7_context;
 	CPpmd7z_RangeDec	 range_dec;
@@ -552,7 +552,7 @@ skip_sfx(struct archive_read *a, ssize_t bytes_avail)
 	/*
 	 * If bytes_avail > SFX_MIN_ADDR we do not have to call
 	 * __archive_read_seek() at this time since we have
-	 * alredy had enough data.
+	 * already had enough data.
 	 */
 	if (bytes_avail > SFX_MIN_ADDR)
 		__archive_read_consume(a, SFX_MIN_ADDR);
@@ -760,7 +760,7 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 			symsize += size;
 		}
 		if (symsize == 0) {
-			/* If there is no synname, handle it as a regular
+			/* If there is no symname, handle it as a regular
 			 * file. */
 			zip_entry->mode &= ~AE_IFMT;
 			zip_entry->mode |= AE_IFREG;
@@ -1056,10 +1056,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 #endif
 	{
 		lzma_options_delta delta_opt;
-		lzma_filter filters[LZMA_FILTERS_MAX];
-#if LZMA_VERSION < 50010000
-		lzma_filter *ff;
-#endif
+		lzma_filter filters[LZMA_FILTERS_MAX], *ff;
 		int fi = 0;
 
 		if (zip->lzstream_valid) {
@@ -1144,9 +1141,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 		else
 			filters[fi].id = LZMA_FILTER_LZMA1;
 		filters[fi].options = NULL;
-#if LZMA_VERSION < 50010000
 		ff = &filters[fi];
-#endif
 		r = lzma_properties_decode(&filters[fi], NULL,
 		    coder1->properties, (size_t)coder1->propertiesSize);
 		if (r != LZMA_OK) {
@@ -1158,9 +1153,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 		filters[fi].id = LZMA_VLI_UNKNOWN;
 		filters[fi].options = NULL;
 		r = lzma_raw_decoder(&(zip->lzstream), filters);
-#if LZMA_VERSION < 50010000
 		free(ff->options);
-#endif
 		if (r != LZMA_OK) {
 			set_error(a, r);
 			return (ARCHIVE_FAILED);
@@ -3295,7 +3288,7 @@ read_stream(struct archive_read *a, const void **buff, size_t size,
 		return (r);
 
 	/*
-	 * Skip the bytes we alrady has skipped in skip_stream().
+	 * Skip the bytes we already has skipped in skip_stream().
 	 */
 	while (skip_bytes) {
 		ssize_t skipped;
@@ -3513,7 +3506,7 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 				return (ARCHIVE_FATAL);
 			}
 
-			/* Allocate memory for the decorded data of a sub
+			/* Allocate memory for the decoded data of a sub
 			 * stream. */
 			b[i] = malloc((size_t)zip->folder_outbytes_remaining);
 			if (b[i] == NULL) {
@@ -3598,7 +3591,7 @@ skip_stream(struct archive_read *a, size_t skip_bytes)
 	if (zip->folder_index == 0) {
 		/*
 		 * Optimization for a list mode.
-		 * Avoid unncecessary decoding operations.
+		 * Avoid unnecessary decoding operations.
 		 */
 		zip->si.ci.folders[zip->entry->folderIndex].skipped_bytes
 		    += skip_bytes;

@@ -12,6 +12,8 @@
 
 ACTIONS=
 BUILD_SYSTEM="${BUILD_SYSTEM:-autotools}"
+MAKE="${MAKE:-make}"
+CMAKE="${CMAKE:-cmake}"
 CURDIR=`pwd`
 SRCDIR="${SRCDIR:-`pwd`}"
 RET=0
@@ -61,7 +63,7 @@ if [ -z "${BUILD_SYSTEM}" ]; then
 	inputerror "Missing type (-t) parameter"
 fi
 if [ -z "${BUILDDIR}" ]; then
-	BUILDDIR="${CURDIR}/BUILD/${BUILD_SYSTEM}"
+	BUILDDIR="${CURDIR}/build_ci/${BUILD_SYSTEM}"
 fi
 mkdir -p "${BUILDDIR}"
 for action in ${ACTIONS}; do
@@ -79,24 +81,21 @@ for action in ${ACTIONS}; do
 		configure)
 			case "${BUILD_SYSTEM}" in
 				autotools) "${SRCDIR}/configure" ${CONFIGURE_ARGS} ;;
-				cmake) cmake ${CONFIGURE_ARGS} "${SRCDIR}" ;;
+				cmake) ${CMAKE} ${CONFIGURE_ARGS} "${SRCDIR}" ;;
 			esac
 			RET="$?"
 		;;
 		build)
-			make ${MAKE_ARGS}
+			${MAKE} ${MAKE_ARGS}
 			RET="$?"
 		;;
 		test)
 			case "${BUILD_SYSTEM}" in
 				autotools)
-					if ! make ${MAKE_ARGS} check; then
-						cat test-suite.log
-						exit 1
-					fi
+					${MAKE} ${MAKE_ARGS} check LOG_DRIVER="${SRCDIR}/build/ci_test_driver"
 					;;
 				cmake)
-					make ${MAKE_ARGS} test
+					${MAKE} ${MAKE_ARGS} test
 					;;
 			esac
 			RET="$?"

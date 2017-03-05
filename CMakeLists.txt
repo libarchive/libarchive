@@ -44,13 +44,13 @@ SET(CMAKE_MACOSX_RPATH ON)
 #
 FILE(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/build/version _version)
 STRING(REGEX REPLACE
- "^([0-9])[0-9][0-9][0-9][0-9][0-9][0-9][a-z]?$" "\\1" _major ${_version})
+ "^([0-9])[0-9][0-9][0-9][0-9][0-9][0-9][a-z]*$" "\\1" _major ${_version})
 STRING(REGEX REPLACE
- "^[0-9]([0-9][0-9][0-9])[0-9][0-9][0-9][a-z]?$" "\\1" _minor ${_version})
+ "^[0-9]([0-9][0-9][0-9])[0-9][0-9][0-9][a-z]*$" "\\1" _minor ${_version})
 STRING(REGEX REPLACE
- "^[0-9][0-9][0-9][0-9]([0-9][0-9][0-9])[a-z]?$" "\\1" _revision ${_version})
+ "^[0-9][0-9][0-9][0-9]([0-9][0-9][0-9])[a-z]*$" "\\1" _revision ${_version})
 STRING(REGEX REPLACE
- "^[0-9][0-9][0-9][0-9][0-9][0-9][0-9]([a-z]?)$" "\\1" _quality ${_version})
+ "^[0-9][0-9][0-9][0-9][0-9][0-9][0-9]([a-z]*)$" "\\1" _quality ${_version})
 SET(_version_number ${_major}${_minor}${_revision})
 STRING(REGEX REPLACE "[0]*([^0]*[0-9])$" "\\1" _trimmed_minor ${_minor})
 STRING(REGEX REPLACE "[0]*([^0]*[0-9])$" "\\1" _trimmed_revision ${_revision})
@@ -179,13 +179,15 @@ include(CTest)
 
 OPTION(ENABLE_NETTLE "Enable use of Nettle" ON)
 OPTION(ENABLE_OPENSSL "Enable use of OpenSSL" ON)
-OPTION(ENABLE_LZMA "Enable the use of the system found LZMA library if found" ON)
-OPTION(ENABLE_ZLIB "Enable the use of the system found ZLIB library if found" ON)
-OPTION(ENABLE_BZip2 "Enable the use of the system found BZip2 library if found" ON)
-OPTION(ENABLE_LIBXML2 "Enable the use of the system found libxml2 library if found" ON)
-OPTION(ENABLE_EXPAT "Enable the use of the system found EXPAT library if found" ON)
-OPTION(ENABLE_PCREPOSIX "Enable the use of the system found PCREPOSIX library if found" ON)
-OPTION(ENABLE_LibGCC "Enable the use of the system found LibGCC library if found" ON)
+OPTION(ENABLE_LZO "Enable the use of the system LZO library if found" OFF)
+OPTION(ENABLE_LZMA "Enable the use of the system LZMA library if found" ON)
+
+OPTION(ENABLE_ZLIB "Enable the use of the system ZLIB library if found" ON)
+OPTION(ENABLE_BZip2 "Enable the use of the system BZip2 library if found" ON)
+OPTION(ENABLE_LIBXML2 "Enable the use of the system libxml2 library if found" ON)
+OPTION(ENABLE_EXPAT "Enable the use of the system EXPAT library if found" ON)
+OPTION(ENABLE_PCREPOSIX "Enable the use of the system PCREPOSIX library if found" ON)
+OPTION(ENABLE_LibGCC "Enable the use of the system LibGCC library if found" ON)
 # CNG is used for encrypt/decrypt Zip archives on Windows.
 OPTION(ENABLE_CNG "Enable the use of CNG(Crypto Next Generation)" ON)
 
@@ -460,6 +462,8 @@ ENDIF()
 IF(LIBLZMA_FOUND)
   SET(HAVE_LIBLZMA 1)
   SET(HAVE_LZMA_H 1)
+  SET(CMAKE_REQUIRED_INCLUDES ${LIBLZMA_INCLUDE_DIR})
+  SET(CMAKE_REQUIRED_LIBRARIES ${LIBLZMA_LIBRARIES})
   INCLUDE_DIRECTORIES(${LIBLZMA_INCLUDE_DIRS})
   LIST(APPEND ADDITIONAL_LIBS ${LIBLZMA_LIBRARIES})
   # Test if a macro is needed for the library.
@@ -477,15 +481,19 @@ ENDIF(LIBLZMA_FOUND)
 #
 # Find LZO2
 #
-IF (LZO2_INCLUDE_DIR)
-  # Already in cache, be silent
-  SET(LZO2_FIND_QUIETLY TRUE)
-ENDIF (LZO2_INCLUDE_DIR)
+IF(ENABLE_LZO)
+  IF (LZO2_INCLUDE_DIR)
+    # Already in cache, be silent
+    SET(LZO2_FIND_QUIETLY TRUE)
+  ENDIF (LZO2_INCLUDE_DIR)
 
-FIND_PATH(LZO2_INCLUDE_DIR lzo/lzoconf.h)
-FIND_LIBRARY(LZO2_LIBRARY NAMES lzo2 liblzo2)
-INCLUDE(FindPackageHandleStandardArgs)
-FIND_PACKAGE_HANDLE_STANDARD_ARGS(LZO2 DEFAULT_MSG LZO2_LIBRARY LZO2_INCLUDE_DIR)
+  FIND_PATH(LZO2_INCLUDE_DIR lzo/lzoconf.h)
+  FIND_LIBRARY(LZO2_LIBRARY NAMES lzo2 liblzo2)
+  INCLUDE(FindPackageHandleStandardArgs)
+  FIND_PACKAGE_HANDLE_STANDARD_ARGS(LZO2 DEFAULT_MSG LZO2_LIBRARY LZO2_INCLUDE_DIR)
+ELSE(ENABLE_LZO)
+  SET(LIBZMA_FOUND FALSE) # Override cached value
+ENDIF(ENABLE_LZO)
 IF(LZO2_FOUND)
   SET(HAVE_LIBLZO2 1)
   SET(HAVE_LZO_LZOCONF_H 1)
@@ -564,8 +572,14 @@ LA_CHECK_INCLUDE_FILE("limits.h" HAVE_LIMITS_H)
 LA_CHECK_INCLUDE_FILE("linux/types.h" HAVE_LINUX_TYPES_H)
 LA_CHECK_INCLUDE_FILE("linux/fiemap.h" HAVE_LINUX_FIEMAP_H)
 LA_CHECK_INCLUDE_FILE("linux/fs.h" HAVE_LINUX_FS_H)
+
+CHECK_C_SOURCE_COMPILES("#include <sys/ioctl.h>
+#include <linux/fs.h>
+int main(void) { return FS_IOC_GETFLAGS; }" HAVE_WORKING_FS_IOC_GETFLAGS)
+
 LA_CHECK_INCLUDE_FILE("linux/magic.h" HAVE_LINUX_MAGIC_H)
 LA_CHECK_INCLUDE_FILE("locale.h" HAVE_LOCALE_H)
+LA_CHECK_INCLUDE_FILE("membership.h" HAVE_MEMBERSHIP_H)
 LA_CHECK_INCLUDE_FILE("memory.h" HAVE_MEMORY_H)
 LA_CHECK_INCLUDE_FILE("paths.h" HAVE_PATHS_H)
 LA_CHECK_INCLUDE_FILE("poll.h" HAVE_POLL_H)
@@ -611,7 +625,7 @@ IF(ENABLE_CNG)
 ELSE(ENABLE_CNG)
   UNSET(HAVE_BCRYPT_H CACHE)
 ENDIF(ENABLE_CNG)
-# Following files need windwos.h, so we should test it after windows.h test.
+# Following files need windows.h, so we should test it after windows.h test.
 LA_CHECK_INCLUDE_FILE("wincrypt.h" HAVE_WINCRYPT_H)
 LA_CHECK_INCLUDE_FILE("winioctl.h" HAVE_WINIOCTL_H)
 
@@ -1608,10 +1622,29 @@ IF(ENABLE_ACL)
   CHECK_FUNCTION_EXISTS(acl_get_link_np HAVE_ACL_GET_LINK_NP)
   CHECK_FUNCTION_EXISTS(acl_is_trivial_np HAVE_ACL_IS_TRIVIAL_NP)
   CHECK_FUNCTION_EXISTS(acl_set_link_np HAVE_ACL_SET_LINK_NP)
+  CHECK_SYMBOL_EXISTS(ACL_TYPE_NFS4 "${INCLUDES}" HAVE_DECL_ACL_TYPE_NFS4)
 
   # MacOS has an acl.h that isn't POSIX.  It can be detected by
   # checking for ACL_USER
-  CHECK_SYMBOL_EXISTS(ACL_USER "${INCLUDES}" HAVE_ACL_USER)
+  CHECK_SYMBOL_EXISTS(ACL_USER "${INCLUDES}" HAVE_DECL_ACL_USER)
+  CHECK_C_SOURCE_COMPILES("#include <sys/types.h>
+#include <sys/acl.h>
+int main(void) { return ACL_TYPE_EXTENDED; }" HAVE_DECL_ACL_TYPE_EXTENDED)
+  CHECK_C_SOURCE_COMPILES("#include <sys/types.h>
+#include <sys/acl.h>
+int main(void) { return ACL_SYNCHRONIZE; }" HAVE_DECL_ACL_SYNCHRONIZE)
+
+  # Solaris and derivates ACLs
+  CHECK_TYPE_EXISTS(aclent_t "${INCLUDES}" HAVE_ACLENT_T)
+  CHECK_TYPE_EXISTS(ace_t "${INCLUDES}" HAVE_ACE_T)
+  CHECK_FUNCTION_EXISTS(acl HAVE_ACL)
+  CHECK_FUNCTION_EXISTS(facl HAVE_FACL)
+  CHECK_SYMBOL_EXISTS(GETACL "${INCLUDES}" HAVE_DECL_GETACL)
+  CHECK_SYMBOL_EXISTS(GETACLCNT "${INCLUDES}" HAVE_DECL_GETACLCNT)
+  CHECK_SYMBOL_EXISTS(SETACL "${INCLUDES}" HAVE_DECL_SETACL)
+  CHECK_SYMBOL_EXISTS(ACE_GETACL "${INCLUDES}" HAVE_DECL_ACE_GETACL)
+  CHECK_SYMBOL_EXISTS(ACE_GETACLCNT "${INCLUDES}" HAVE_DECL_ACE_GETACLCNT)
+  CHECK_SYMBOL_EXISTS(ACE_SETACL "${INCLUDES}" HAVE_DECL_ACE_SETACL)
 ELSE(ENABLE_ACL)
   # If someone runs cmake, then disables ACL support, we need
   # to forcibly override the cached values for these.
@@ -1626,7 +1659,20 @@ ELSE(ENABLE_ACL)
   SET(HAVE_ACL_SET_FD FALSE)
   SET(HAVE_ACL_SET_FD_NP FALSE)
   SET(HAVE_ACL_SET_FILE FALSE)
-  SET(HAVE_ACL_USER FALSE)
+  SET(HAVE_ACL_TYPE_EXTENDED FALSE)
+  SET(HAVE_ACLENT_T FALSE)
+  SET(HAVE_ACE_T FALSE)
+  SET(HAVE_DECL_ACL_TYPE_NFS4 FALSE)
+  SET(HAVE_DECL_ACL_USER FALSE)
+  SET(HAVE_DECL_ACL_SYNCHRONIZE FALSE)
+  SET(HAVE_DECL_GETACL FALSE)
+  SET(HAVE_DECL_GETACLCNT FALSE)
+  SET(HAVE_DECL_SETACL FALSE)
+  SET(HAVE_DECL_ACE_GETACL FALSE)
+  SET(HAVE_DECL_ACE_GETACLCNT FALSE)
+  SET(HAVE_DECL_ACE_SETACL FALSE)
+  SET(HAVE_ACL FALSE)
+  SET(HAVE_FACL FALSE)
 ENDIF(ENABLE_ACL)
 
 #
