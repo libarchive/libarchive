@@ -424,8 +424,7 @@ set_acl(struct archive *a, int fd, const char *name,
 			acl_set_tag_type(acl_entry, ACL_USER);
 			acl_set_qualifier(acl_entry, &ae_uid);
 #else	/* MacOS */
-			if (mbr_identifier_to_uuid(ID_TYPE_UID, &ae_uid,
-			    sizeof(uid_t), ae_uuid) != 0)
+			if (mbr_uid_to_uuid(ae_uid, ae_uuid) != 0)
 				continue;
 			if (acl_set_qualifier(acl_entry, &ae_uuid) != 0)
 				continue;
@@ -437,8 +436,7 @@ set_acl(struct archive *a, int fd, const char *name,
 			acl_set_tag_type(acl_entry, ACL_GROUP);
 			acl_set_qualifier(acl_entry, &ae_gid);
 #else	/* MacOS */
-			if (mbr_identifier_to_uuid(ID_TYPE_GID, &ae_gid,
-			    sizeof(gid_t), ae_uuid) != 0)
+			if (mbr_gid_to_uuid(ae_gid, ae_uuid) != 0)
 				continue;
 			if (acl_set_qualifier(acl_entry, &ae_uuid) != 0)
 				continue;

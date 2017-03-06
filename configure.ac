@@ -745,7 +745,7 @@ if test "x$enable_acl" != "xno"; then
 		[#include <sys/types.h>
 		#include <sys/acl.h>])
 
-    # FreeBSD and MacOS ACL support
+    # MacOS ACL support
     AC_CHECK_DECLS([ACL_TYPE_EXTENDED, ACL_SYNCHRONIZE], [], [],
 		[#include <sys/types.h>
 		#include <sys/acl.h>])

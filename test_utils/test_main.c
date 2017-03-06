@@ -2605,8 +2605,8 @@ setTestAcl(const char *path)
 	failure("acl_set_permset() error: %s", strerror(errno));
 	if (assertEqualInt(r, 0) == 0)
 		goto testacl_free;
-	r = mbr_identifier_to_uuid(ID_TYPE_UID, &uid, sizeof(uid_t), uuid);
-	failure("mbr_identifier_to_uuid() error: %s", strerror(errno));
+	r = mbr_uid_to_uuid(uid, uuid);
+	failure("mbr_uid_to_uuid() error: %s", strerror(errno));
 	if (assertEqualInt(r, 0) == 0)
 		goto testacl_free;
 	r = acl_set_qualifier(aclent, uuid);
