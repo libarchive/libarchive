@@ -40,8 +40,6 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk_entry_from_file.c 2010
 #endif
 #ifdef HAVE_DARWIN_ACL
 #include <membership.h>
-#include <grp.h>
-#include <pwd.h>
 #endif
 #ifdef HAVE_SYS_EXTATTR_H
 #include <sys/extattr.h>
@@ -856,8 +854,6 @@ static int translate_guid(struct archive *a, acl_entry_t acl_entry,
 	void *q;
 	uid_t ugid;
 	int r, idtype;
-	struct passwd *pwd;
-	struct group *grp;
 
 	q = acl_get_qualifier(acl_entry);
 	if (q == NULL)
@@ -869,24 +865,12 @@ static int translate_guid(struct archive *a, acl_entry_t acl_entry,
 	}
 	if (idtype == ID_TYPE_UID) {
 		*ae_tag = ARCHIVE_ENTRY_ACL_USER;
-		pwd = getpwuuid(q);
-		if (pwd == NULL) {
-			*ae_id = ugid;
-			*ae_name = NULL;
-		} else {
-			*ae_id = pwd->pw_uid;
-			*ae_name = archive_read_disk_uname(a, *ae_id);
-		}
+		*ae_id = ugid;
+		*ae_name = archive_read_disk_uname(a, *ae_id);
 	} else if (idtype == ID_TYPE_GID) {
 		*ae_tag = ARCHIVE_ENTRY_ACL_GROUP;
-		grp = getgruuid(q);
-		if (grp == NULL) {
-			*ae_id = ugid;
-			*ae_name = NULL;
-		} else {
-			*ae_id = grp->gr_gid;
-			*ae_name = archive_read_disk_gname(a, *ae_id);
-		}
+		*ae_id = ugid;
+		*ae_name = archive_read_disk_gname(a, *ae_id);
 	} else
 		r = 1;
 
