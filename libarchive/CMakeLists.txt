@@ -106,6 +106,7 @@ SET(libarchive_SOURCES
   archive_string_composition.h
   archive_string_sprintf.c
   archive_util.c
+  archive_version_details.c
   archive_virtual.c
   archive_write.c
   archive_write_disk_acl.c

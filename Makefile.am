@@ -186,6 +186,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_string_composition.h \
 	libarchive/archive_string_sprintf.c \
 	libarchive/archive_util.c \
+	libarchive/archive_version_details.c \
 	libarchive/archive_virtual.c \
 	libarchive/archive_write.c \
 	libarchive/archive_write_disk_acl.c \
