@@ -292,7 +292,6 @@ AC_CHECK_HEADERS([sys/param.h sys/poll.h sys/select.h sys/statfs.h sys/statvfs.h
 AC_CHECK_HEADERS([sys/time.h sys/utime.h sys/utsname.h sys/vfs.h])
 AC_CHECK_HEADERS([time.h unistd.h utime.h wchar.h wctype.h])
 AC_CHECK_HEADERS([windows.h])
-AC_CHECK_HEADERS([Bcrypt.h])
 # check windows.h first; the other headers require it.
 AC_CHECK_HEADERS([wincrypt.h winioctl.h],[],[],
 [[#ifdef HAVE_WINDOWS_H
@@ -398,6 +397,9 @@ if test "x$with_lzo2" = "xyes"; then
   AC_CHECK_HEADERS([lzo/lzoconf.h lzo/lzo1x.h])
   AC_CHECK_LIB(lzo2,lzo1x_decompress_safe)
 fi
+
+AC_ARG_WITH([cng],
+  AS_HELP_STRING([--without-cng], [Don't build support of CNG(Crypto Next Generation)]))
 
 AC_ARG_WITH([nettle],
   AS_HELP_STRING([--without-nettle], [Don't build with crypto support from Nettle]))
@@ -844,6 +846,16 @@ case "$host_os" in
 	CRYPTO_CHECK(SHA512, LIBSYSTEM, sha512)
 	;;
 esac
+
+if test "x$with_cng" != "xno"; then
+    AC_CHECK_HEADERS([bcrypt.h],[
+        LIBS="$LIBS -lbcrypt"
+    ],[],
+    [[#ifdef HAVE_WINDOWS_H
+    # include <windows.h>
+    #endif
+    ]])
+fi
 
 if test "x$with_nettle" != "xno"; then
     AC_CHECK_HEADERS([nettle/md5.h nettle/ripemd160.h nettle/sha.h])
