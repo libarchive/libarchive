@@ -369,6 +369,10 @@ static ssize_t	hfs_write_data_block(struct archive_write_disk *,
 static int	fixup_appledouble(struct archive_write_disk *, const char *);
 static int	older(struct stat *, struct archive_entry *);
 static int	restore_entry(struct archive_write_disk *);
+#ifndef ARCHIVE_ACL_SUPPORT
+static int	archive_write_disk_set_acls(struct archive *, int, const char *,
+					    struct archive_acl *);
+#endif
 static int	set_mac_metadata(struct archive_write_disk *, const char *,
 				 const void *, size_t);
 static int	set_xattrs(struct archive_write_disk *);
@@ -424,6 +428,19 @@ lazy_stat(struct archive_write_disk *a)
 	archive_set_error(&a->archive, errno, "Couldn't stat file");
 	return (ARCHIVE_WARN);
 }
+
+#ifndef ARCHIVE_ACL_SUPPORT
+static int
+archive_write_disk_set_acls(struct archive *a, int fd, const char *name,
+	 struct archive_acl *abstract_acl)
+{
+	(void)a; /* UNUSED */
+	(void)fd; /* UNUSED */
+	(void)name; /* UNUSED */
+	(void)abstract_acl; /* UNUSED */
+	return (ARCHIVE_OK);
+}
+#endif
 
 static struct archive_vtable *
 archive_write_disk_vtable(void)
@@ -1703,7 +1720,7 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	 */
 	if (a->todo & TODO_ACLS) {
 		int r2;
-#ifdef HAVE_DARWIN_ACL
+#if ARCHIVE_ACL_DARWIN
 		/*
 		 * On Mac OS, platform ACLs are stored also in mac_metadata by
 		 * the operating system. If mac_metadata is present it takes
@@ -1719,7 +1736,7 @@ _archive_write_disk_finish_entry(struct archive *_a)
 		    archive_entry_pathname(a->entry),
 		    archive_entry_acl(a->entry));
 		if (r2 < ret) ret = r2;
-#ifdef HAVE_DARWIN_ACL
+#if ARCHIVE_ACL_DARWIN
 		}
 #endif
 	}
@@ -2293,7 +2310,7 @@ _archive_write_disk_close(struct archive *_a)
 		if (p->fixup & TODO_MODE_BASE)
 			chmod(p->name, p->mode);
 		if (p->fixup & TODO_ACLS)
-#ifdef HAVE_DARWIN_ACL
+#if ARCHIVE_ACL_DARWIN
 			if ((p->fixup & TODO_MAC_METADATA) == 0 ||
 			    p->mac_metadata == NULL ||
 			    p->mac_metadata_size == 0)
