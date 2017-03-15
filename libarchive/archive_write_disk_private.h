@@ -35,12 +35,11 @@
 
 #include "archive_platform_acl.h"
 #include "archive_acl_private.h"
+#include "archive_entry.h"
 
 struct archive_write_disk;
 
-#if ARCHIVE_ACL_SUPPORT
-int
-archive_write_disk_set_acls(struct archive *, int /* fd */, const char * /* pathname */, struct archive_acl *);
-#endif
+int archive_write_disk_set_acls(struct archive *, int, const char *,
+    struct archive_acl *, __LA_MODE_T);
 
 #endif

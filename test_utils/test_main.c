@@ -67,6 +67,9 @@
 #ifdef HAVE_SYS_ACL_H
 #include <sys/acl.h>
 #endif
+#ifdef HAVE_SYS_RICHACL_H
+#include <sys/richacl.h>
+#endif
 #if HAVE_MEMBERSHIP_H
 #include <membership.h>
 #endif
@@ -2507,8 +2510,11 @@ setTestAcl(const char *path)
 {
 #if ARCHIVE_ACL_SUPPORT
 	int r = 1;
-#if !ARCHIVE_ACL_SUNOS
+#if ARCHIVE_ACL_LIBACL || ARCHIVE_ACL_FREEBSD || ARCHIVE_ACL_DARWIN
 	acl_t acl;
+#endif
+#if ARCHIVE_ACL_LIBRICHACL
+	struct richacl *richacl;
 #endif
 #if ARCHIVE_ACL_LIBACL || ARCHIVE_ACL_FREEBSD
 	const char *acltext_posix1e = "user:1:rw-,"
@@ -2533,6 +2539,15 @@ setTestAcl(const char *path)
 	    "owner@:rwpxaARWcCos::allow,"
 	    "group@:rwpxaRcs::allow,"
 	    "everyone@:rxaRcs::allow";
+#elif ARCHIVE_ACL_LIBRICHACL
+	const char *acltext_nfs4 = "owner:rwpxaARWcCoS::mask,"
+	    "group:rwpxaRcS::mask,"
+	    "other:rxaRcS::mask,"
+	    "user:1:rwpaRcS::allow,"
+	    "group:15:rxaRcS::allow,"
+	    "owner@:rwpxaARWcCoS::allow,"
+	    "group@:rwpxaRcS::allow,"
+	    "everyone@:rxaRcS::allow";
 #elif ARCHIVE_ACL_SUNOS_NFS4 /* Solaris NFS4 */
 	ace_t aclp_nfs4[] = {
 	    { 1, ACE_READ_DATA | ACE_WRITE_DATA | ACE_APPEND_DATA |
@@ -2579,6 +2594,11 @@ setTestAcl(const char *path)
 	failure("acl_from_text() error: %s", strerror(errno));
 	if (assert(acl != NULL) == 0)
 		return (0);
+#elif ARCHIVE_ACL_LIBRICHACL
+	richacl = richacl_from_text(acltext_nfs4, NULL, NULL);
+	failure("richacl_from_text() error: %s", strerror(errno));
+	if (assert(richacl != NULL) == 0)
+		return (0);
 #elif ARCHIVE_ACL_DARWIN
 	acl = acl_init(1);
 	failure("acl_init() error: %s", strerror(errno));
@@ -2620,6 +2640,9 @@ setTestAcl(const char *path)
 #if ARCHIVE_ACL_FREEBSD
 	r = acl_set_file(path, ACL_TYPE_NFS4, acl);
 	acl_free(acl);
+#elif ARCHIVE_ACL_LIBRICHACL
+	r = richacl_set_file(path, richacl);
+	richacl_free(richacl);
 #elif ARCHIVE_ACL_SUNOS_NFS4
 	r = acl(path, ACE_SETACL,
 	    (int)(sizeof(aclp_nfs4)/sizeof(aclp_nfs4[0])), aclp_nfs4);

@@ -27,8 +27,13 @@
 __FBSDID("$FreeBSD$");
 
 #if ARCHIVE_ACL_NFS4
+#if HAVE_SYS_ACL_H
 #define _ACL_PRIVATE
 #include <sys/acl.h>
+#endif
+#if HAVE_SYS_RICHACL_H
+#include <sys/richacl.h>
+#endif
 #if HAVE_MEMBERSHIP_H
 #include <membership.h>
 #endif
@@ -273,78 +278,96 @@ set_acls(struct archive_entry *ae, struct myacl_t *acls, int start, int end)
 }
 
 static int
-#ifdef ARCHIVE_ACL_SUNOS_NFS4
-acl_permset_to_bitmap(uint32_t a_access_mask)
+#if ARCHIVE_ACL_SUNOS_NFS4
+acl_permset_to_bitmap(uint32_t mask)
+#elif ARCHIVE_ACL_LIBRICHACL
+acl_permset_to_bitmap(unsigned int mask)
 #else
 acl_permset_to_bitmap(acl_permset_t opaque_ps)
 #endif
 {
-	static struct { int machine; int portable; } perms[] = {
+	static struct { int portable; int machine; } perms[] = {
 #ifdef ARCHIVE_ACL_SUNOS_NFS4	/* Solaris NFSv4 ACL permissions */
-		{ACE_EXECUTE, ARCHIVE_ENTRY_ACL_EXECUTE},
-		{ACE_READ_DATA, ARCHIVE_ENTRY_ACL_READ_DATA},
-		{ACE_LIST_DIRECTORY, ARCHIVE_ENTRY_ACL_LIST_DIRECTORY},
-		{ACE_WRITE_DATA, ARCHIVE_ENTRY_ACL_WRITE_DATA},
-		{ACE_ADD_FILE, ARCHIVE_ENTRY_ACL_ADD_FILE},
-		{ACE_APPEND_DATA, ARCHIVE_ENTRY_ACL_APPEND_DATA},
-		{ACE_ADD_SUBDIRECTORY, ARCHIVE_ENTRY_ACL_ADD_SUBDIRECTORY},
-		{ACE_READ_NAMED_ATTRS, ARCHIVE_ENTRY_ACL_READ_NAMED_ATTRS},
-		{ACE_WRITE_NAMED_ATTRS, ARCHIVE_ENTRY_ACL_WRITE_NAMED_ATTRS},
-		{ACE_DELETE_CHILD, ARCHIVE_ENTRY_ACL_DELETE_CHILD},
-		{ACE_READ_ATTRIBUTES, ARCHIVE_ENTRY_ACL_READ_ATTRIBUTES},
-		{ACE_WRITE_ATTRIBUTES, ARCHIVE_ENTRY_ACL_WRITE_ATTRIBUTES},
-		{ACE_DELETE, ARCHIVE_ENTRY_ACL_DELETE},
-		{ACE_READ_ACL, ARCHIVE_ENTRY_ACL_READ_ACL},
-		{ACE_WRITE_ACL, ARCHIVE_ENTRY_ACL_WRITE_ACL},
-		{ACE_WRITE_OWNER, ARCHIVE_ENTRY_ACL_WRITE_OWNER},
-		{ACE_SYNCHRONIZE, ARCHIVE_ENTRY_ACL_SYNCHRONIZE}
+		{ARCHIVE_ENTRY_ACL_EXECUTE, ACE_EXECUTE},
+		{ARCHIVE_ENTRY_ACL_READ_DATA, ACE_READ_DATA},
+		{ARCHIVE_ENTRY_ACL_LIST_DIRECTORY, ACE_LIST_DIRECTORY},
+		{ARCHIVE_ENTRY_ACL_WRITE_DATA, ACE_WRITE_DATA},
+		{ARCHIVE_ENTRY_ACL_ADD_FILE, ACE_ADD_FILE},
+		{ARCHIVE_ENTRY_ACL_APPEND_DATA, ACE_APPEND_DATA},
+		{ARCHIVE_ENTRY_ACL_ADD_SUBDIRECTORY, ACE_ADD_SUBDIRECTORY},
+		{ARCHIVE_ENTRY_ACL_READ_NAMED_ATTRS, ACE_READ_NAMED_ATTRS},
+		{ARCHIVE_ENTRY_ACL_WRITE_NAMED_ATTRS, ACE_WRITE_NAMED_ATTRS},
+		{ARCHIVE_ENTRY_ACL_DELETE_CHILD, ACE_DELETE_CHILD},
+		{ARCHIVE_ENTRY_ACL_READ_ATTRIBUTES, ACE_READ_ATTRIBUTES},
+		{ARCHIVE_ENTRY_ACL_WRITE_ATTRIBUTES, ACE_WRITE_ATTRIBUTES},
+		{ARCHIVE_ENTRY_ACL_DELETE, ACE_DELETE},
+		{ARCHIVE_ENTRY_ACL_READ_ACL, ACE_READ_ACL},
+		{ARCHIVE_ENTRY_ACL_WRITE_ACL, ACE_WRITE_ACL},
+		{ARCHIVE_ENTRY_ACL_WRITE_OWNER, ACE_WRITE_OWNER},
+		{ARCHIVE_ENTRY_ACL_SYNCHRONIZE, ACE_SYNCHRONIZE}
 #elif ARCHIVE_ACL_DARWIN	/* MacOS NFSv4 ACL permissions */
-		{ACL_READ_DATA, ARCHIVE_ENTRY_ACL_READ_DATA},
-		{ACL_LIST_DIRECTORY, ARCHIVE_ENTRY_ACL_LIST_DIRECTORY},
-		{ACL_WRITE_DATA, ARCHIVE_ENTRY_ACL_WRITE_DATA},
-		{ACL_ADD_FILE, ARCHIVE_ENTRY_ACL_ADD_FILE},
-		{ACL_EXECUTE, ARCHIVE_ENTRY_ACL_EXECUTE},
-		{ACL_DELETE, ARCHIVE_ENTRY_ACL_DELETE},
-		{ACL_APPEND_DATA, ARCHIVE_ENTRY_ACL_APPEND_DATA},
-		{ACL_ADD_SUBDIRECTORY, ARCHIVE_ENTRY_ACL_ADD_SUBDIRECTORY},
-		{ACL_DELETE_CHILD, ARCHIVE_ENTRY_ACL_DELETE_CHILD},
-		{ACL_READ_ATTRIBUTES, ARCHIVE_ENTRY_ACL_READ_ATTRIBUTES},
-		{ACL_WRITE_ATTRIBUTES, ARCHIVE_ENTRY_ACL_WRITE_ATTRIBUTES},
-		{ACL_READ_EXTATTRIBUTES, ARCHIVE_ENTRY_ACL_READ_NAMED_ATTRS},
-		{ACL_WRITE_EXTATTRIBUTES, ARCHIVE_ENTRY_ACL_WRITE_NAMED_ATTRS},
-		{ACL_READ_SECURITY, ARCHIVE_ENTRY_ACL_READ_ACL},
-		{ACL_WRITE_SECURITY, ARCHIVE_ENTRY_ACL_WRITE_ACL},
-		{ACL_CHANGE_OWNER, ARCHIVE_ENTRY_ACL_WRITE_OWNER},
+		{ARCHIVE_ENTRY_ACL_READ_DATA, ACL_READ_DATA},
+		{ARCHIVE_ENTRY_ACL_LIST_DIRECTORY, ACL_LIST_DIRECTORY},
+		{ARCHIVE_ENTRY_ACL_WRITE_DATA, ACL_WRITE_DATA},
+		{ARCHIVE_ENTRY_ACL_ADD_FILE, ACL_ADD_FILE},
+		{ARCHIVE_ENTRY_ACL_EXECUTE, ACL_EXECUTE},
+		{ARCHIVE_ENTRY_ACL_DELETE, ACL_DELETE},
+		{ARCHIVE_ENTRY_ACL_APPEND_DATA, ACL_APPEND_DATA},
+		{ARCHIVE_ENTRY_ACL_ADD_SUBDIRECTORY, ACL_ADD_SUBDIRECTORY},
+		{ARCHIVE_ENTRY_ACL_DELETE_CHILD, ACL_DELETE_CHILD},
+		{ARCHIVE_ENTRY_ACL_READ_ATTRIBUTES, ACL_READ_ATTRIBUTES},
+		{ARCHIVE_ENTRY_ACL_WRITE_ATTRIBUTES, ACL_WRITE_ATTRIBUTES},
+		{ARCHIVE_ENTRY_ACL_READ_NAMED_ATTRS, ACL_READ_EXTATTRIBUTES},
+		{ARCHIVE_ENTRY_ACL_WRITE_NAMED_ATTRS, ACL_WRITE_EXTATTRIBUTES},
+		{ARCHIVE_ENTRY_ACL_READ_ACL, ACL_READ_SECURITY},
+		{ARCHIVE_ENTRY_ACL_WRITE_ACL, ACL_WRITE_SECURITY},
+		{ARCHIVE_ENTRY_ACL_WRITE_OWNER, ACL_CHANGE_OWNER},
 #if HAVE_DECL_ACL_SYNCHRONIZE
-		{ACL_SYNCHRONIZE, ARCHIVE_ENTRY_ACL_SYNCHRONIZE},
+		{ARCHIVE_ENTRY_ACL_SYNCHRONIZE, ACL_SYNCHRONIZE}
 #endif
+#elif ARCHIVE_ACL_LIBRICHACL
+		{ARCHIVE_ENTRY_ACL_EXECUTE, RICHACE_EXECUTE},
+		{ARCHIVE_ENTRY_ACL_READ_DATA, RICHACE_READ_DATA},
+		{ARCHIVE_ENTRY_ACL_LIST_DIRECTORY, RICHACE_LIST_DIRECTORY},
+		{ARCHIVE_ENTRY_ACL_WRITE_DATA, RICHACE_WRITE_DATA},
+		{ARCHIVE_ENTRY_ACL_ADD_FILE, RICHACE_ADD_FILE},
+		{ARCHIVE_ENTRY_ACL_APPEND_DATA, RICHACE_APPEND_DATA},
+		{ARCHIVE_ENTRY_ACL_ADD_SUBDIRECTORY, RICHACE_ADD_SUBDIRECTORY},
+		{ARCHIVE_ENTRY_ACL_READ_NAMED_ATTRS, RICHACE_READ_NAMED_ATTRS},
+		{ARCHIVE_ENTRY_ACL_WRITE_NAMED_ATTRS, RICHACE_WRITE_NAMED_ATTRS},
+		{ARCHIVE_ENTRY_ACL_DELETE_CHILD, RICHACE_DELETE_CHILD},
+		{ARCHIVE_ENTRY_ACL_READ_ATTRIBUTES, RICHACE_READ_ATTRIBUTES},
+		{ARCHIVE_ENTRY_ACL_WRITE_ATTRIBUTES, RICHACE_WRITE_ATTRIBUTES},
+		{ARCHIVE_ENTRY_ACL_DELETE, RICHACE_DELETE},
+		{ARCHIVE_ENTRY_ACL_READ_ACL, RICHACE_READ_ACL},
+		{ARCHIVE_ENTRY_ACL_WRITE_ACL, RICHACE_WRITE_ACL},
+		{ARCHIVE_ENTRY_ACL_WRITE_OWNER, RICHACE_WRITE_OWNER},
+		{ARCHIVE_ENTRY_ACL_SYNCHRONIZE, RICHACE_SYNCHRONIZE}
 #else	/* FreeBSD NFSv4 ACL permissions */
-		{ACL_EXECUTE, ARCHIVE_ENTRY_ACL_EXECUTE},
-		{ACL_WRITE, ARCHIVE_ENTRY_ACL_WRITE},
-		{ACL_READ, ARCHIVE_ENTRY_ACL_READ},
-		{ACL_READ_DATA, ARCHIVE_ENTRY_ACL_READ_DATA},
-		{ACL_LIST_DIRECTORY, ARCHIVE_ENTRY_ACL_LIST_DIRECTORY},
-		{ACL_WRITE_DATA, ARCHIVE_ENTRY_ACL_WRITE_DATA},
-		{ACL_ADD_FILE, ARCHIVE_ENTRY_ACL_ADD_FILE},
-		{ACL_APPEND_DATA, ARCHIVE_ENTRY_ACL_APPEND_DATA},
-		{ACL_ADD_SUBDIRECTORY, ARCHIVE_ENTRY_ACL_ADD_SUBDIRECTORY},
-		{ACL_READ_NAMED_ATTRS, ARCHIVE_ENTRY_ACL_READ_NAMED_ATTRS},
-		{ACL_WRITE_NAMED_ATTRS, ARCHIVE_ENTRY_ACL_WRITE_NAMED_ATTRS},
-		{ACL_DELETE_CHILD, ARCHIVE_ENTRY_ACL_DELETE_CHILD},
-		{ACL_READ_ATTRIBUTES, ARCHIVE_ENTRY_ACL_READ_ATTRIBUTES},
-		{ACL_WRITE_ATTRIBUTES, ARCHIVE_ENTRY_ACL_WRITE_ATTRIBUTES},
-		{ACL_DELETE, ARCHIVE_ENTRY_ACL_DELETE},
-		{ACL_READ_ACL, ARCHIVE_ENTRY_ACL_READ_ACL},
-		{ACL_WRITE_ACL, ARCHIVE_ENTRY_ACL_WRITE_ACL},
-		{ACL_WRITE_OWNER, ARCHIVE_ENTRY_ACL_WRITE_OWNER},
-		{ACL_SYNCHRONIZE, ARCHIVE_ENTRY_ACL_SYNCHRONIZE}
+		{ARCHIVE_ENTRY_ACL_EXECUTE, ACL_EXECUTE},
+		{ARCHIVE_ENTRY_ACL_READ_DATA, ACL_READ_DATA},
+		{ARCHIVE_ENTRY_ACL_LIST_DIRECTORY, ACL_LIST_DIRECTORY},
+		{ARCHIVE_ENTRY_ACL_WRITE_DATA, ACL_WRITE_DATA},
+		{ARCHIVE_ENTRY_ACL_ADD_FILE, ACL_ADD_FILE},
+		{ARCHIVE_ENTRY_ACL_APPEND_DATA, ACL_APPEND_DATA},
+		{ARCHIVE_ENTRY_ACL_ADD_SUBDIRECTORY, ACL_ADD_SUBDIRECTORY},
+		{ARCHIVE_ENTRY_ACL_READ_NAMED_ATTRS, ACL_READ_NAMED_ATTRS},
+		{ARCHIVE_ENTRY_ACL_WRITE_NAMED_ATTRS, ACL_WRITE_NAMED_ATTRS},
+		{ARCHIVE_ENTRY_ACL_DELETE_CHILD, ACL_DELETE_CHILD},
+		{ARCHIVE_ENTRY_ACL_READ_ATTRIBUTES, ACL_READ_ATTRIBUTES},
+		{ARCHIVE_ENTRY_ACL_WRITE_ATTRIBUTES, ACL_WRITE_ATTRIBUTES},
+		{ARCHIVE_ENTRY_ACL_DELETE, ACL_DELETE},
+		{ARCHIVE_ENTRY_ACL_READ_ACL, ACL_READ_ACL},
+		{ARCHIVE_ENTRY_ACL_WRITE_ACL, ACL_WRITE_ACL},
+		{ARCHIVE_ENTRY_ACL_WRITE_OWNER, ACL_WRITE_OWNER},
+		{ARCHIVE_ENTRY_ACL_SYNCHRONIZE, ACL_SYNCHRONIZE}
 #endif
 	};
 	int i, permset = 0;
 
 	for (i = 0; i < (int)(sizeof(perms)/sizeof(perms[0])); ++i)
-#if ARCHIVE_ACL_SUNOS_NFS4
-		if (a_access_mask & perms[i].machine)
+#if ARCHIVE_ACL_SUNOS_NFS4 || ARCHIVE_ACL_LIBRICHACL
+		if (mask & perms[i].machine)
 #else
 		if (acl_get_perm_np(opaque_ps, perms[i].machine))
 #endif
@@ -354,47 +377,55 @@ acl_permset_to_bitmap(acl_permset_t opaque_ps)
 
 static int
 #if ARCHIVE_ACL_SUNOS_NFS4
-acl_flagset_to_bitmap(uint16_t a_flags)
+acl_flagset_to_bitmap(uint16_t flags)
+#elif ARCHIVE_ACL_LIBRICHACL
+acl_flagset_to_bitmap(int flags)
 #else
 acl_flagset_to_bitmap(acl_flagset_t opaque_fs)
 #endif
 {
-	static struct { int machine; int portable; } flags[] = {
+	static struct { int portable; int machine; } perms[] = {
 #if ARCHIVE_ACL_SUNOS_NFS4	/* Solaris NFSv4 ACL inheritance flags */
-		{ACE_FILE_INHERIT_ACE, ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT},
-		{ACE_DIRECTORY_INHERIT_ACE, ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT},
-		{ACE_NO_PROPAGATE_INHERIT_ACE, ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT},
-		{ACE_INHERIT_ONLY_ACE, ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY},
-		{ACE_SUCCESSFUL_ACCESS_ACE_FLAG, ARCHIVE_ENTRY_ACL_ENTRY_SUCCESSFUL_ACCESS},
-		{ACE_FAILED_ACCESS_ACE_FLAG, ARCHIVE_ENTRY_ACL_ENTRY_FAILED_ACCESS},
+		{ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT, ACE_FILE_INHERIT_ACE},
+		{ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT, ACE_DIRECTORY_INHERIT_ACE},
+		{ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT, ACE_NO_PROPAGATE_INHERIT_ACE},
+		{ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY, ACE_INHERIT_ONLY_ACE},
+		{ARCHIVE_ENTRY_ACL_ENTRY_SUCCESSFUL_ACCESS, ACE_SUCCESSFUL_ACCESS_ACE_FLAG},
+		{ARCHIVE_ENTRY_ACL_ENTRY_FAILED_ACCESS, ACE_FAILED_ACCESS_ACE_FLAG},
 #ifdef ACE_INHERITED_ACE
-		{ACE_INHERITED_ACE, ARCHIVE_ENTRY_ACL_ENTRY_INHERITED}
+		{ARCHIVE_ENTRY_ACL_ENTRY_INHERITED, ACE_INHERITED_ACE}
 #endif
 #elif ARCHIVE_ACL_DARWIN	/* MacOS NFSv4 ACL inheritance flags */
-		{ACL_ENTRY_INHERITED, ARCHIVE_ENTRY_ACL_ENTRY_INHERITED},
-		{ACL_ENTRY_FILE_INHERIT, ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT},
-		{ACL_ENTRY_DIRECTORY_INHERIT, ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT},
-		{ACL_ENTRY_LIMIT_INHERIT, ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT},
-		{ACL_ENTRY_ONLY_INHERIT, ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY}
+		{ARCHIVE_ENTRY_ACL_ENTRY_INHERITED, ACL_ENTRY_INHERITED},
+		{ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT, ACL_ENTRY_FILE_INHERIT},
+		{ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT, ACL_ENTRY_DIRECTORY_INHERIT},
+		{ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT, ACL_ENTRY_LIMIT_INHERIT},
+		{ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY, ACL_ENTRY_ONLY_INHERIT}
+#elif ARCHIVE_ACL_LIBRICHACL
+		{ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT, RICHACE_FILE_INHERIT_ACE},
+		{ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT, RICHACE_DIRECTORY_INHERIT_ACE},
+		{ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT, RICHACE_NO_PROPAGATE_INHERIT_ACE},
+		{ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY, RICHACE_INHERIT_ONLY_ACE},
+		{ARCHIVE_ENTRY_ACL_ENTRY_INHERITED, RICHACE_INHERITED_ACE}
 #else	/* FreeBSD NFSv4 ACL inheritance flags */
-		{ACL_ENTRY_INHERITED, ARCHIVE_ENTRY_ACL_ENTRY_INHERITED},
-		{ACL_ENTRY_FILE_INHERIT, ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT},
-		{ACL_ENTRY_DIRECTORY_INHERIT, ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT},
-		{ACL_ENTRY_NO_PROPAGATE_INHERIT, ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT},
-		{ACL_ENTRY_SUCCESSFUL_ACCESS, ARCHIVE_ENTRY_ACL_ENTRY_SUCCESSFUL_ACCESS},
-		{ACL_ENTRY_FAILED_ACCESS, ARCHIVE_ENTRY_ACL_ENTRY_FAILED_ACCESS},
-		{ACL_ENTRY_INHERIT_ONLY, ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY},
+		{ARCHIVE_ENTRY_ACL_ENTRY_INHERITED, ACL_ENTRY_INHERITED},
+		{ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT, ACL_ENTRY_FILE_INHERIT},
+		{ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT, ACL_ENTRY_DIRECTORY_INHERIT},
+		{ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT, ACL_ENTRY_NO_PROPAGATE_INHERIT},
+		{ARCHIVE_ENTRY_ACL_ENTRY_SUCCESSFUL_ACCESS, ACL_ENTRY_SUCCESSFUL_ACCESS},
+		{ARCHIVE_ENTRY_ACL_ENTRY_FAILED_ACCESS, ACL_ENTRY_FAILED_ACCESS},
+		{ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY, ACL_ENTRY_INHERIT_ONLY}
 #endif
 	};
 	int i, flagset = 0;
 
-	for (i = 0; i < (int)(sizeof(flags)/sizeof(flags[0])); ++i)
-#if ARCHIVE_ACL_SUNOS_NFS4
-		if (a_flags & flags[i].machine)
+	for (i = 0; i < (int)(sizeof(perms)/sizeof(perms[0])); ++i)
+#if ARCHIVE_ACL_SUNOS_NFS4 || ARCHIVE_ACL_LIBRICHACL
+		if (flags & perms[i].machine)
 #else
-		if (acl_get_flag_np(opaque_fs, flags[i].machine))
+		if (acl_get_flag_np(opaque_fs, perms[i].machine))
 #endif
-			flagset |= flags[i].portable;
+			flagset |= perms[i].portable;
 	return flagset;
 }
 
@@ -448,6 +479,62 @@ acl_match(ace_t *ace, struct myacl_t *myacl)
 		if (myacl->tag != ARCHIVE_ENTRY_ACL_USER)
 			return (0);
 		if ((uid_t)myacl->qual != ace->a_who)
+			return (0);
+	}
+	return (1);
+}
+#elif ARCHIVE_ACL_LIBRICHACL
+static int
+acl_match(struct richace *richace, struct myacl_t *myacl)
+{
+	int perms;
+
+	perms = acl_permset_to_bitmap(richace->e_mask) |
+	    acl_flagset_to_bitmap(richace->e_flags);
+
+	if (perms != myacl->permset)
+		return (0);
+
+	switch (richace->e_type) {
+	case RICHACE_ACCESS_ALLOWED_ACE_TYPE:
+		if (myacl->type != ARCHIVE_ENTRY_ACL_TYPE_ALLOW)
+			return (0);
+		break;
+	case RICHACE_ACCESS_DENIED_ACE_TYPE:
+		if (myacl->type != ARCHIVE_ENTRY_ACL_TYPE_DENY)
+			return (0);
+		break;
+	default:
+		return (0);
+	}
+
+	if (richace->e_flags & RICHACE_SPECIAL_WHO) {
+		switch (richace->e_id) {
+		case RICHACE_OWNER_SPECIAL_ID:
+			if (myacl->tag != ARCHIVE_ENTRY_ACL_USER_OBJ)
+				return (0);
+			break;
+		case RICHACE_GROUP_SPECIAL_ID:
+			if (myacl->tag != ARCHIVE_ENTRY_ACL_GROUP_OBJ)
+				return (0);
+			break;
+		case RICHACE_EVERYONE_SPECIAL_ID:
+			if (myacl->tag != ARCHIVE_ENTRY_ACL_EVERYONE)
+				return (0);
+			break;
+		default:
+			/* Invalid e_id */
+			return (0);
+		}
+	} else if (richace->e_flags & RICHACE_IDENTIFIER_GROUP) {
+		if (myacl->tag != ARCHIVE_ENTRY_ACL_GROUP)
+			return (0);
+		if ((gid_t)myacl->qual != richace->e_id)
+			return (0);
+	} else {
+		if (myacl->tag != ARCHIVE_ENTRY_ACL_USER)
+			return (0);
+		if ((uid_t)myacl->qual != richace->e_id)
 			return (0);
 	}
 	return (1);
@@ -593,6 +680,8 @@ compare_acls(
 #if ARCHIVE_ACL_SUNOS_NFS4
     void *aclp,
     int aclcnt,
+#elif ARCHIVE_ACL_LIBRICHACL
+    struct richacl *richacl,
 #else
     acl_t acl,
 #endif
@@ -604,6 +693,10 @@ compare_acls(
 #if ARCHIVE_ACL_SUNOS_NFS4
 	int e;
 	ace_t *acl_entry;
+#elif ARCHIVE_ACL_LIBRICHACL
+	int e;
+	struct richace *acl_entry;
+	int aclcnt;
 #else
 	int entry_id = ACL_FIRST_ENTRY;
 	acl_entry_t acl_entry;
@@ -612,6 +705,18 @@ compare_acls(
 #else
 	const int acl_get_entry_ret = 1;
 #endif
+#endif
+
+#if ARCHIVE_ACL_SUNOS_NFS4
+	if (aclp == NULL)
+		return;
+#elif ARCHIVE_ACL_LIBRICHACL
+	if (richacl == NULL)
+		return;
+	aclcnt = richacl->a_count;
+#else
+	if (acl == NULL)
+		return;
 #endif
 
 	n = end - start;
@@ -630,7 +735,7 @@ compare_acls(
 	 * Iterate over acls in system acl object, try to match each
 	 * one with an item in the myacls array.
 	 */
-#if ARCHIVE_ACL_SUNOS_NFS4
+#if ARCHIVE_ACL_SUNOS_NFS4 || ARCHIVE_ACL_LIBRICHACL
 	for (e = 0; e < aclcnt; e++)
 #else
 	while (acl_get_entry_ret == acl_get_entry(acl, entry_id, &acl_entry))
@@ -638,6 +743,8 @@ compare_acls(
 	{
 #if ARCHIVE_ACL_SUNOS_NFS4
 		acl_entry = &((ace_t *)aclp)[e];
+#elif ARCHIVE_ACL_LIBRICHACL
+		acl_entry = &(richacl->a_entries[e]);
 #else
 		/* After the first time... */
 		entry_id = ACL_NEXT_ENTRY;
@@ -756,6 +863,8 @@ DEFINE_TEST(test_acl_platform_nfs4)
 #if ARCHIVE_ACL_SUNOS_NFS4
 	void *aclp;
 	int aclcnt;
+#elif ARCHIVE_ACL_LIBRICHACL
+	struct richacl *richacl;
 #else	/* !ARCHIVE_ACL_SUNOS_NFS4 */
 	acl_t acl;
 #endif
@@ -814,21 +923,31 @@ DEFINE_TEST(test_acl_platform_nfs4)
 	assertEqualInt(st.st_mtime, 123456);
 #if ARCHIVE_ACL_SUNOS_NFS4
 	aclp = sunacl_get(ACE_GETACL, &aclcnt, 0, "testall");
-	failure("acl(): errno = %d (%s)", errno, strerror(errno));
+	failure("acl(\"%s\"): errno = %d (%s)", "testall", errno,
+	    strerror(errno));
 	assert(aclp != NULL);
+#elif ARCHIVE_ACL_LIBRICHACL
+	richacl = richacl_get_file("testall");
+	failure("richacl_get_file(\"%s\"): errno = %d (%s)", "testall", errno,
+	    strerror(errno));
+	assert(richacl != NULL);
 #else
 #if ARCHIVE_ACL_DARWIN
 	acl = acl_get_file("testall", ACL_TYPE_EXTENDED);
 #else
 	acl = acl_get_file("testall", ACL_TYPE_NFS4);
 #endif
-	failure("acl_get_file(): errno = %d (%s)", errno, strerror(errno));
+	failure("acl_get_file(\"%s\"): errno = %d (%s)", "testall", errno,
+	    strerror(errno));
 	assert(acl != (acl_t)NULL);
 #endif
 #if ARCHIVE_ACL_SUNOS_NFS4
 	compare_acls(aclp, aclcnt, acls_reg, "testall", 0, regcnt);
 	free(aclp);
 	aclp = NULL;
+#elif ARCHIVE_ACL_LIBRICHACL
+	compare_acls(richacl, acls_reg, "testall", 0, regcnt);
+	richacl_free(richacl);
 #else
 	compare_acls(acl, acls_reg, "testall", 0, regcnt);
 	acl_free(acl);
@@ -842,15 +961,25 @@ DEFINE_TEST(test_acl_platform_nfs4)
 		assertEqualInt(st.st_mtime, 123456 + i);
 #if ARCHIVE_ACL_SUNOS_NFS4
 		aclp = sunacl_get(ACE_GETACL, &aclcnt, 0, buff);
-		failure("acl(): errno = %d (%s)", errno, strerror(errno));
+		failure("acl(\"%s\"): errno = %d (%s)", buff, errno,
+		    strerror(errno));
 		assert(aclp != NULL);
+#elif ARCHIVE_ACL_LIBRICHACL
+		richacl = richacl_get_file(buff);
+		/* First and last two dir do not return a richacl */
+		if ((i == 0 || i >= dircnt - 2) && richacl == NULL &&
+		    errno == ENODATA)
+			continue;
+		failure("richacl_get_file(\"%s\"): errno = %d (%s)", buff,
+		    errno, strerror(errno));
+		assert(richacl != NULL);
 #else
 #if ARCHIVE_ACL_DARWIN
 		acl = acl_get_file(buff, ACL_TYPE_EXTENDED);
 #else
 		acl = acl_get_file(buff, ACL_TYPE_NFS4);
 #endif
-		failure("acl_get_file(): errno = %d (%s)", errno,
+		failure("acl_get_file(\"%s\"): errno = %d (%s)", buff, errno,
 		    strerror(errno));
 		assert(acl != (acl_t)NULL);
 #endif
@@ -858,6 +987,9 @@ DEFINE_TEST(test_acl_platform_nfs4)
 		compare_acls(aclp, aclcnt, acls_dir, buff, i, i + 1);
 		free(aclp);
 		aclp = NULL;
+#elif ARCHIVE_ACL_LIBRICHACL
+		compare_acls(richacl, acls_dir, buff, i, i + 1);
+		richacl_free(richacl);
 #else
 		compare_acls(acl, acls_dir, buff, i, i + 1);
 		acl_free(acl);
@@ -869,21 +1001,31 @@ DEFINE_TEST(test_acl_platform_nfs4)
 	assertEqualInt(st.st_mtime, 123456);
 #if ARCHIVE_ACL_SUNOS_NFS4
 	aclp = sunacl_get(ACE_GETACL, &aclcnt, 0, "dirall");
-	failure("acl(): errno = %d (%s)", errno, strerror(errno));
+	failure("acl(\"%s\"): errno = %d (%s)", "dirall", errno,
+	    strerror(errno));
 	assert(aclp != NULL);
+#elif ARCHIVE_ACL_LIBRICHACL
+	richacl = richacl_get_file("dirall");
+	failure("richacl_get_file(\"%s\"): errno = %d (%s)", "dirall",
+	    errno, strerror(errno));
+	assert(richacl != NULL);
 #else
 #if ARCHIVE_ACL_DARWIN
 	acl = acl_get_file("dirall", ACL_TYPE_EXTENDED);
 #else
 	acl = acl_get_file("dirall", ACL_TYPE_NFS4);
 #endif
-	failure("acl_get_file(): errno = %d (%s)", errno, strerror(errno));
+	failure("acl_get_file(\"%s\"): errno = %d (%s)", "dirall", errno,
+	    strerror(errno));
 	assert(acl != (acl_t)NULL);
 #endif
 #if ARCHIVE_ACL_SUNOS_NFS4
 	compare_acls(aclp, aclcnt, acls_dir, "dirall", 0, dircnt);
 	free(aclp);
 	aclp = NULL;
+#elif ARCHIVE_ACL_LIBRICHACL
+	compare_acls(richacl, acls_dir, "dirall", 0, dircnt);
+	richacl_free(richacl);
 #else
 	compare_acls(acl, acls_dir, "dirall", 0, dircnt);
 	acl_free(acl);

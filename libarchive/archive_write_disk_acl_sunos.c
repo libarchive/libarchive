@@ -303,9 +303,11 @@ exit_free:
 
 int
 archive_write_disk_set_acls(struct archive *a, int fd, const char *name,
-    struct archive_acl *abstract_acl)
+    struct archive_acl *abstract_acl, __LA_MODE_T mode)
 {
 	int		ret = ARCHIVE_OK;
+
+	(void)mode;	/* UNUSED */
 
 	if ((archive_acl_types(abstract_acl)
 	    & ARCHIVE_ENTRY_ACL_TYPE_POSIX1E) != 0) {

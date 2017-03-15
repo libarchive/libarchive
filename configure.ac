@@ -289,7 +289,8 @@ AC_CHECK_HEADERS([readpassphrase.h signal.h spawn.h])
 AC_CHECK_HEADERS([stdarg.h stdint.h stdlib.h string.h])
 AC_CHECK_HEADERS([sys/acl.h sys/cdefs.h sys/extattr.h])
 AC_CHECK_HEADERS([sys/ioctl.h sys/mkdev.h sys/mount.h])
-AC_CHECK_HEADERS([sys/param.h sys/poll.h sys/select.h sys/statfs.h sys/statvfs.h])
+AC_CHECK_HEADERS([sys/param.h sys/poll.h sys/richacl.h])
+AC_CHECK_HEADERS([sys/select.h sys/statfs.h sys/statvfs.h])
 AC_CHECK_HEADERS([sys/time.h sys/utime.h sys/utsname.h sys/vfs.h])
 AC_CHECK_HEADERS([time.h unistd.h utime.h wchar.h wctype.h])
 AC_CHECK_HEADERS([windows.h])
@@ -712,8 +713,30 @@ if test "x$enable_acl" != "xno"; then
       #endif
     ])
 
+    AC_CHECK_LIB([richacl], [richacl_get_file])
+
+    AC_CHECK_TYPES([[struct richace], [struct richacl]], [], [], [
+      #if HAVE_SYS_RICHACL_H
+      #include <sys/richacl.h>
+      #endif
+    ])
+
     # Solaris and derivates ACLs
     AC_CHECK_FUNCS(acl facl)
+
+    if test "x$ac_cv_lib_richacl_richacl_get_file" = "xyes" \
+	 -a "x$ac_cv_type_struct_richace" = "xyes" \
+	 -a "x$ac_cv_type_struct_richacl" = "xyes"; then
+	AC_CACHE_VAL([ac_cv_archive_acl_librichacl],
+	  [AC_CHECK_FUNCS(richacl_alloc \
+			  richacl_equiv_mode \
+			  richacl_free \
+			  richacl_get_fd \
+			  richacl_get_file \
+			  richacl_set_fd \
+			  richacl_set_file,
+	  [ac_cv_archive_acl_librichacl=yes], [ac_cv_archive_acl_librichacl=no],	  [#include <sys/richacl.h>])])
+    fi
 
     if test "x$ac_cv_func_acl" = "xyes" \
 	 -a "x$ac_cv_func_facl" = "xyes"; then
@@ -833,9 +856,21 @@ if test "x$enable_acl" != "xno"; then
 	fi
     fi
     AC_MSG_CHECKING([for ACL support])
-    if test "x$ac_cv_archive_acl_libacl" = "xyes"; then
+    if test "x$ac_cv_archive_acl_libacl" = "xyes" \
+	 -a "x$ac_cv_archive_acl_librichacl" = "xyes"; then
+	AC_MSG_RESULT([libacl (POSIX.1e) + librichacl (NFSv4)])
+	AC_DEFINE([ARCHIVE_ACL_LIBACL], [1],
+	  [Linux POSIX.1e ACL support via libacl])
+	AC_DEFINE([ARCHIVE_ACL_LIBRICHACL], [1],
+	  [Linux NFSv4 ACL support via librichacl])
+    elif test "x$ac_cv_archive_acl_libacl" = "xyes"; then
 	AC_MSG_RESULT([libacl (POSIX.1e)])
-	AC_DEFINE([ARCHIVE_ACL_LIBACL], [1], [Linux ACL support via libacl])
+	AC_DEFINE([ARCHIVE_ACL_LIBACL], [1],
+	  [Linux POSIX.1e ACL support via libacl])
+    elif test "x$ac_cv_archive_acl_librichacl" = "xyes"; then
+	AC_MSG_RESULT([librichacl (NFSv4)])
+	AC_DEFINE([ARCHIVE_ACL_LIBRICHACL], [1],
+	  [Linux NFSv4 ACL support via librichacl])
     elif test "x$ac_cv_archive_acl_darwin" = "xyes"; then
 	AC_DEFINE([ARCHIVE_ACL_DARWIN], [1], [Darwin ACL support])
 	AC_MSG_RESULT([Darwin (limited NFSv4)])
@@ -863,7 +898,9 @@ if test "x$enable_acl" != "xno"; then
 fi
 
 
-AM_CONDITIONAL([INC_LINUX_ACL], [test "x$ac_cv_archive_acl_libacl" = "xyes"])
+AM_CONDITIONAL([INC_LINUX_ACL],
+  [test "x$ac_cv_archive_acl_libacl" = "xyes" \
+     -o "x$ac_cv_archive_acl_librichacl" = "xyes"])
 AM_CONDITIONAL([INC_SUNOS_ACL], [test "x$ac_cv_archive_acl_sunos" = "xyes"])
 AM_CONDITIONAL([INC_DARWIN_ACL],
 	  [test "x$ac_cv_archive_acl_darwin" = "xyes"])

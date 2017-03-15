@@ -33,11 +33,14 @@
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
-#if HAVE_ACL_LIBACL_H && HAVE_LIBACL
+#if HAVE_ACL_LIBACL_H
 #include <acl/libacl.h>
 #endif
 #ifdef HAVE_SYS_ACL_H
 #include <sys/acl.h>
+#endif
+#if HAVE_SYS_RICHACL_H
+#include <sys/richacl.h>
 #endif
 
 #include "archive_entry.h"
@@ -49,6 +52,7 @@
 #include <acl/libacl.h>
 #endif
 
+#if ARCHIVE_ACL_LIBACL
 /*
  * Translate POSIX.1e ACLs into libarchive internal structure
  */
@@ -154,15 +158,104 @@ translate_acl(struct archive_read_disk *a,
 	}
 	return (ARCHIVE_OK);
 }
+#endif /* ARCHIVE_ACL_LIBACL */
+
+#if ARCHIVE_ACL_LIBRICHACL
+/*
+ * Translate RichACL into libarchive internal ACL
+ */
+static int
+translate_richacl(struct archive_read_disk *a, struct archive_entry *entry,
+    struct richacl *richacl)
+{
+	int ae_id, ae_tag, ae_perm;
+	int entry_acl_type, i;
+	const char *ae_name;
+
+	struct richace *richace;
+
+	richacl_for_each_entry(richace, richacl) {
+		ae_name = NULL;
+		ae_tag = 0;
+		ae_perm = 0;
+		ae_id = -1;
+
+		switch (richace->e_type) {
+		case RICHACE_ACCESS_ALLOWED_ACE_TYPE:
+			entry_acl_type = ARCHIVE_ENTRY_ACL_TYPE_ALLOW;
+			break;
+		case RICHACE_ACCESS_DENIED_ACE_TYPE:
+			entry_acl_type = ARCHIVE_ENTRY_ACL_TYPE_DENY;
+			break;
+		default: /* Unknown entry type, skip */
+			continue;
+		}
+
+		/* Unsupported */
+		if (richace->e_flags & RICHACE_UNMAPPED_WHO)
+			continue;
+
+		if (richace->e_flags & RICHACE_SPECIAL_WHO) {
+			switch (richace->e_id) {
+			case RICHACE_OWNER_SPECIAL_ID:
+				ae_tag = ARCHIVE_ENTRY_ACL_USER_OBJ;
+				break;
+			case RICHACE_GROUP_SPECIAL_ID:
+				ae_tag = ARCHIVE_ENTRY_ACL_GROUP_OBJ;
+				break;
+			case RICHACE_EVERYONE_SPECIAL_ID:
+				ae_tag = ARCHIVE_ENTRY_ACL_EVERYONE;
+				break;
+			default: /* Unknown special ID type */
+				continue;
+			}
+		} else {
+			ae_id = richace->e_id;
+			if (richace->e_flags & RICHACE_IDENTIFIER_GROUP) {
+				ae_tag = ARCHIVE_ENTRY_ACL_GROUP;
+				ae_name = archive_read_disk_gname(&a->archive,
+				    (gid_t)(richace->e_id));
+			} else {
+				ae_tag = ARCHIVE_ENTRY_ACL_USER;
+				ae_name = archive_read_disk_uname(&a->archive,
+				    (uid_t)(richace->e_id));
+			}
+		}
+		for (i = 0; i < acl_nfs4_flag_map_size; ++i) {
+			if ((richace->e_flags &
+			    acl_nfs4_flag_map[i].p_perm) != 0)
+				ae_perm |= acl_nfs4_flag_map[i].a_perm;
+		}
+		for (i = 0; i < acl_nfs4_perm_map_size; ++i) {
+			if ((richace->e_mask &
+			    acl_nfs4_perm_map[i].p_perm) != 0)
+				ae_perm |=
+				    acl_nfs4_perm_map[i].a_perm;
+		}
+
+		archive_entry_acl_add_entry(entry, entry_acl_type,
+		    ae_perm, ae_tag, ae_id, ae_name);
+	}
+	return (ARCHIVE_OK);
+}
+#endif	/* ARCHIVE_ACL_LIBRICHACL */
+
 int
 archive_read_disk_entry_setup_acls(struct archive_read_disk *a,
     struct archive_entry *entry, int *fd)
 {
 	const char	*accpath;
-	acl_t		acl;
 	int		r;
+#if ARCHIVE_ACL_LIBACL
+	acl_t		acl;
+#endif
+#if ARCHIVE_ACL_LIBRICHACL
+	struct richacl *richacl;
+	mode_t		mode;
+#endif
 
 	accpath = NULL;
+	r = ARCHIVE_OK;
 
 	/* For default ACLs we need reachable accpath */
 	if (*fd < 0 || S_ISDIR(archive_entry_mode(entry)))
@@ -185,8 +278,50 @@ archive_read_disk_entry_setup_acls(struct archive_read_disk *a,
 
 	archive_entry_acl_clear(entry);
 
+#if ARCHIVE_ACL_LIBACL
 	acl = NULL;
+#endif
+#if ARCHIVE_ACL_LIBRICHACL
+	richacl = NULL;
+#endif
 
+#if ARCHIVE_ACL_LIBRICHACL
+	/* Try NFSv4 ACL first. */
+	if (*fd >= 0)
+		richacl = richacl_get_fd(*fd);
+	else if ((!a->follow_symlinks)
+	    && (archive_entry_filetype(entry) == AE_IFLNK))
+		/* We can't get the ACL of a symlink, so we assume it can't
+		   have one */
+		richacl = NULL;
+	else
+		richacl = richacl_get_file(accpath);
+
+	/* Ignore "trivial" ACLs that just mirror the file mode. */
+	if (richacl != NULL) {
+		mode = archive_entry_mode(entry);
+		if (richacl_equiv_mode(richacl, &mode) == 0) {
+			richacl_free(richacl);
+			richacl = NULL;
+			return (ARCHIVE_OK);
+		}
+	}
+
+	if (richacl != NULL) {
+		r = translate_richacl(a, entry, richacl);
+		richacl_free(richacl);
+		richacl = NULL;
+
+		if (r != ARCHIVE_OK) {
+			archive_set_error(&a->archive, errno,
+			"Couldn't translate NFSv4 ACLs");
+		}
+
+		return (r);
+	}
+#endif	/* ARCHIVE_ACL_LIBRICHACL */
+
+#if ARCHIVE_ACL_LIBACL
 	/* Retrieve access ACL from file. */
 	if (*fd >= 0)
 		acl = acl_get_fd(*fd);
@@ -224,5 +359,6 @@ archive_read_disk_entry_setup_acls(struct archive_read_disk *a,
 			}
 		}
 	}
-	return (ARCHIVE_OK);
+#endif	/* ARCHIVE_ACL_LIBACL */
+	return (r);
 }
