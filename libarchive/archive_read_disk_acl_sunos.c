@@ -402,22 +402,10 @@ archive_read_disk_entry_setup_acls(struct archive_read_disk *a,
 
 	accpath = NULL;
 
-	if (*fd < 0)
-	{
-		accpath = archive_entry_sourcepath(entry);
-		if (accpath == NULL || (a->tree != NULL &&
-		    a->tree_enter_working_dir(a->tree) != 0))
-			accpath = archive_entry_pathname(entry);
-		if (accpath == NULL) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "Couldn't determine file path to read ACLs");
+	if (*fd < 0) {
+		accpath = archive_read_disk_entry_setup_path(a, entry, fd);
+		if (accpath == NULL)
 			return (ARCHIVE_WARN);
-		}
-		if (a->tree != NULL && (a->follow_symlinks ||
-		    archive_entry_filetype(entry) != AE_IFLNK)) {
-			*fd = a->open_on_current_dir(a->tree,
-			    accpath, O_RDONLY | O_NONBLOCK);
-		}
 	}
 
 	archive_entry_acl_clear(entry);

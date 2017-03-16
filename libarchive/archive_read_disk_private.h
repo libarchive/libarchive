@@ -88,8 +88,11 @@ struct archive_read_disk {
 	void	*excluded_cb_data;
 };
 
+const char *
+archive_read_disk_entry_setup_path(struct archive_read_disk *,
+    struct archive_entry *, int *);
+
 int
 archive_read_disk_entry_setup_acls(struct archive_read_disk *,
     struct archive_entry *, int *);
-
 #endif
