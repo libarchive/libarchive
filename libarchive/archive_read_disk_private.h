@@ -88,10 +88,8 @@ struct archive_read_disk {
 	void	*excluded_cb_data;
 };
 
-#if ARCHIVE_ACL_SUPPORT
 int
 archive_read_disk_entry_setup_acls(struct archive_read_disk *,
     struct archive_entry *, int *);
-#endif
 
 #endif

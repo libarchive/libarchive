@@ -101,10 +101,6 @@ __FBSDID("$FreeBSD");
 #define O_CLOEXEC	0
 #endif
 
-#ifndef ARCHIVE_ACL_SUPPORT
-static int archive_read_disk_entry_setup_acls(struct archive_read_disk *,
-struct archive_entry *, int *fd);
-#endif
 static int setup_mac_metadata(struct archive_read_disk *,
     struct archive_entry *, int *fd);
 static int setup_xattrs(struct archive_read_disk *,
@@ -114,6 +110,18 @@ static int setup_sparse(struct archive_read_disk *,
 #if defined(HAVE_LINUX_FIEMAP_H)
 static int setup_sparse_fiemap(struct archive_read_disk *,
     struct archive_entry *, int *fd);
+#endif
+
+#if !ARCHIVE_ACL_SUPPORT
+int
+archive_read_disk_entry_setup_acls(struct archive_read_disk *a,
+    struct archive_entry *entry, int *fd)
+{
+	(void)a;      /* UNUSED */
+	(void)entry;  /* UNUSED */
+	(void)fd;     /* UNUSED */
+	return (ARCHIVE_OK);
+}
 #endif
 
 int
@@ -474,18 +482,6 @@ setup_xattr(struct archive_read_disk *a,
 	free(value);
 	return (ARCHIVE_OK);
 }
-
-#ifndef ARCHIVE_ACL_SUPPORT
-static int
-archive_read_disk_entry_setup_acls(struct archive_read_disk *a,
-    struct archive_entry *entry, int *fd)
-{
-	(void)a;      /* UNUSED */
-	(void)entry;  /* UNUSED */
-	(void)fd;     /* UNUSED */
-	return (ARCHIVE_OK);
-}
-#endif
 
 static int
 setup_xattrs(struct archive_read_disk *a,
