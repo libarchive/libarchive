@@ -79,6 +79,9 @@
 #ifdef HAVE_SYS_ACL_H
 #include <sys/acl.h>
 #endif
+#ifdef HAVE_SYS_RICHACL_H
+#include <sys/richacl.h>
+#endif
 #ifdef HAVE_WINDOWS_H
 #include <windows.h>
 #endif
