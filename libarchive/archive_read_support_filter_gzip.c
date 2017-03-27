@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include "archive.h"
+#include "archive_entry.h"
+#include "archive_endian.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
 
@@ -56,6 +58,8 @@ struct private_data {
 	size_t		 out_block_size;
 	int64_t		 total_out;
 	unsigned long	 crc;
+	uint32_t	 mtime;
+	char		*name;
 	char		 eof; /* True = found end of compressed data. */
 };
 
@@ -123,7 +127,8 @@ archive_read_support_filter_gzip(struct archive *_a)
  * count of bits verified, suitable for use by bidder.
  */
 static ssize_t
-peek_at_header(struct archive_read_filter *filter, int *pbits)
+peek_at_header(struct archive_read_filter *filter, int *pbits,
+	       struct private_data *state)
 {
 	const unsigned char *p;
 	ssize_t avail, len;
@@ -144,7 +149,9 @@ peek_at_header(struct archive_read_filter *filter, int *pbits)
 		return (0);
 	bits += 3;
 	header_flags = p[3];
-	/* Bytes 4-7 are mod time. */
+	/* Bytes 4-7 are mod time in little endian. */
+	if (state)
+		state->mtime = archive_le32dec(p + 4);
 	/* Byte 8 is deflate flags. */
 	/* XXXX TODO: return deflate flags back to consume_header for use
 	   in initializing the decompressor. */
@@ -161,6 +168,7 @@ peek_at_header(struct archive_read_filter *filter, int *pbits)
 
 	/* Null-terminated optional filename. */
 	if (header_flags & 8) {
+		ssize_t file_start = len;
 		do {
 			++len;
 			if (avail < len)
@@ -169,6 +177,9 @@ peek_at_header(struct archive_read_filter *filter, int *pbits)
 			if (p == NULL)
 				return (0);
 		} while (p[len - 1] != 0);
+
+		if (state)
+			state->name = strdup((const char *)&p[file_start]);
 	}
 
 	/* Null-terminated optional comment. */
@@ -214,11 +225,28 @@ gzip_bidder_bid(struct archive_read_filter_bidder *self,
 
 	(void)self; /* UNUSED */
 
-	if (peek_at_header(filter, &bits_checked))
+	if (peek_at_header(filter, &bits_checked, NULL))
 		return (bits_checked);
 	return (0);
 }
 
+static int
+gzip_read_header(struct archive_read_filter *self, struct archive_entry *entry)
+{
+	struct private_data *state;
+
+	state = (struct private_data *)self->data;
+
+	/* A mtime of 0 is considered invalid/missing. */
+	if (state->mtime != 0)
+		archive_entry_set_mtime(entry, state->mtime, 0);
+
+	/* If the name is available, extract it. */
+	if (state->name)
+		archive_entry_set_pathname(entry, state->name);
+
+	return (ARCHIVE_OK);
+}
 
 #ifndef HAVE_ZLIB_H
 
@@ -272,6 +300,7 @@ gzip_bidder_init(struct archive_read_filter *self)
 	self->read = gzip_filter_read;
 	self->skip = NULL; /* not supported */
 	self->close = gzip_filter_close;
+	self->read_header = gzip_read_header;
 
 	state->in_stream = 0; /* We're not actually within a stream yet. */
 
@@ -289,7 +318,7 @@ consume_header(struct archive_read_filter *self)
 	state = (struct private_data *)self->data;
 
 	/* If this is a real header, consume it. */
-	len = peek_at_header(self->upstream, NULL);
+	len = peek_at_header(self->upstream, NULL, state);
 	if (len == 0)
 		return (ARCHIVE_EOF);
 	__archive_read_filter_consume(self->upstream, len);
@@ -469,6 +498,7 @@ gzip_filter_close(struct archive_read_filter *self)
 		}
 	}
 
+	free(state->name);
 	free(state->out_block);
 	free(state);
 	return (ret);
