@@ -105,11 +105,11 @@ translate_acl(struct archive_read_disk *a,
 #if ARCHIVE_ACL_FREEBSD_NFS4
 	int brand;
 	acl_flagset_t	 acl_flagset;
+	acl_entry_type_t acl_type;
 #endif
 	acl_tag_t	 acl_tag;
 	acl_entry_t	 acl_entry;
 	acl_permset_t	 acl_permset;
-	acl_entry_type_t acl_type;
 	int		 i, entry_acl_type, perm_map_size;
 	const acl_perm_map_t	*perm_map;
 	int		 r, s, ae_id, ae_tag, ae_perm;
