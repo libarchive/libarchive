@@ -1,4 +1,6 @@
 /*-
+ * Copyright (c) 2003-2009 Tim Kientzle
+ * Copyright (c) 2010-2012 Michihiro NAKAJIMA
  * Copyright (c) 2017 Martin Matuska
  * All rights reserved.
  *
