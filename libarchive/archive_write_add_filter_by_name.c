@@ -52,6 +52,7 @@ struct { const char *name; int (*setter)(struct archive *); } names[] =
 	{ "gzip",		archive_write_add_filter_gzip },
 	{ "lrzip",		archive_write_add_filter_lrzip },
 	{ "lz4",		archive_write_add_filter_lz4 },
+	{ "zstd",		archive_write_add_filter_zstd },
 	{ "lzip",		archive_write_add_filter_lzip },
 	{ "lzma",		archive_write_add_filter_lzma },
 	{ "lzop",		archive_write_add_filter_lzop },

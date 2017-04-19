@@ -209,6 +209,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_write_add_filter_gzip.c \
 	libarchive/archive_write_add_filter_lrzip.c \
 	libarchive/archive_write_add_filter_lz4.c \
+	libarchive/archive_write_add_filter_zstd.c \
 	libarchive/archive_write_add_filter_lzop.c \
 	libarchive/archive_write_add_filter_none.c \
 	libarchive/archive_write_add_filter_program.c \

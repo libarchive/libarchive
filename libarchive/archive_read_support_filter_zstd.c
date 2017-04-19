@@ -221,12 +221,14 @@ zstd_filter_read(struct archive_read_filter *self, const void **p)
 	/* Try to fill the output buffer. */
 	while (out.pos < out.size && !state->eof) {
 		if (!state->in_stream) {
-			if (ZSTD_isError(ZSTD_initDStream(state->dstream))) {
+			ret = ZSTD_initDStream(state->dstream);
+			if (ZSTD_isError(ret)) {
 				free(state->out_block);
 				free(state);
 				archive_set_error(&self->archive->archive,
 				    ARCHIVE_ERRNO_MISC,
-				    "Error initializing zstd decompressor");
+				    "Error initializing zstd decompressor: %s",
+				    ZSTD_getErrorName(ret));
 				return (ARCHIVE_FATAL);
 			}
 			state->in_stream = 1;
@@ -236,7 +238,7 @@ zstd_filter_read(struct archive_read_filter *self, const void **p)
 		if (in.src == NULL && avail_in <= 0) {
 			archive_set_error(&self->archive->archive,
 			    ARCHIVE_ERRNO_MISC,
-			    "truncated zstd input");
+			    "Truncated zstd input");
 			return (ARCHIVE_FATAL);
 		}
 		in.size = avail_in;
@@ -247,7 +249,8 @@ zstd_filter_read(struct archive_read_filter *self, const void **p)
 		if (ZSTD_isError(ret)) {
 			archive_set_error(&self->archive->archive,
 			    ARCHIVE_ERRNO_MISC,
-			    "zstd decompression failed");
+			    "Zstd decompression failed: %s",
+			    ZSTD_getErrorName(ret));
 			return (ARCHIVE_FATAL);
 		}
 

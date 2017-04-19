@@ -75,6 +75,7 @@ static const struct option {
 	{ "list",			0, 't' },
 	{ "lrzip",			0, OPTION_LRZIP },
 	{ "lz4",			0, OPTION_LZ4 },
+	{ "zstd",			0, OPTION_ZSTD },
 	{ "lzma",			0, OPTION_LZMA },
 	{ "lzop",			0, OPTION_LZOP },
 	{ "make-directories",		0, 'd' },
