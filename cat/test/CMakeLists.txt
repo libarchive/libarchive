@@ -21,6 +21,7 @@ IF(ENABLE_CAT AND ENABLE_TEST)
     test_expand_mixed.c
     test_expand_plain.c
     test_expand_xz.c
+    test_stdin.c
     test_help.c
     test_version.c
   )
