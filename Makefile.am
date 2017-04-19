@@ -161,6 +161,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_read_support_filter_gzip.c \
 	libarchive/archive_read_support_filter_lrzip.c \
 	libarchive/archive_read_support_filter_lz4.c \
+	libarchive/archive_read_support_filter_zstd.c \
 	libarchive/archive_read_support_filter_lzop.c \
 	libarchive/archive_read_support_filter_none.c \
 	libarchive/archive_read_support_filter_program.c \

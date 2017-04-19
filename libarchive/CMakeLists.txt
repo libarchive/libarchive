@@ -82,6 +82,7 @@ SET(libarchive_SOURCES
   archive_read_support_filter_grzip.c
   archive_read_support_filter_lrzip.c
   archive_read_support_filter_lz4.c
+  archive_read_support_filter_zstd.c
   archive_read_support_filter_lzop.c
   archive_read_support_filter_none.c
   archive_read_support_filter_program.c
