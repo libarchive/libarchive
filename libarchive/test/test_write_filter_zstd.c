@@ -56,7 +56,7 @@ DEFINE_TEST(test_write_filter_zstd)
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
 	r = archive_write_add_filter_zstd(a);
-	if (r == ARCHIVE_FATAL) {
+	if (r != ARCHIVE_OK) {
 		skipping("zstd writing not supported on this platform");
 		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 		free(buff);
