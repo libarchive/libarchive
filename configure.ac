@@ -372,7 +372,7 @@ AC_ARG_WITH([zstd],
 
 if test "x$with_zstd" != "xno"; then
   AC_CHECK_HEADERS([zstd.h])
-  AC_CHECK_LIB(zstd,ZSTD_decompress)
+  AC_CHECK_LIB(zstd,ZSTD_compressStream)
 fi
 
 AC_ARG_WITH([lzma],
