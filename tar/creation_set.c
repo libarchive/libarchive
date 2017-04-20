@@ -83,7 +83,7 @@ get_filter_code(const char *suffix)
 		{ ".xz",	"xz" },
 		{ NULL,		NULL }
 	};
-
+	
 	return get_suffix_code(filters, suffix);
 }
 
