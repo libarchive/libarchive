@@ -177,6 +177,7 @@ __LA_DECL const char *  archive_zlib_version(void);
 __LA_DECL const char *  archive_liblzma_version(void);
 __LA_DECL const char *  archive_bzlib_version(void);
 __LA_DECL const char *  archive_liblz4_version(void);
+__LA_DECL const char *  archive_libzstd_version(void);
 
 /* Declare our basic types. */
 struct archive;

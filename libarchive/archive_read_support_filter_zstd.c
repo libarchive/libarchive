@@ -60,6 +60,7 @@ struct private_data {
 	unsigned char	*out_block;
 	size_t		 out_block_size;
 	int64_t		 total_out;
+	char		 endFrame; /* True = not in the middle of a zstd frame. */
 	char		 eof; /* True = found end of compressed data. */
 	char		 in_stream;
 };
@@ -200,6 +201,8 @@ zstd_bidder_init(struct archive_read_filter *self)
 	self->close = zstd_filter_close;
 
 	state->in_stream = 0; /* We're not actually within a stream yet. */
+	state->eof = 0;
+	state->endFrame = 1; /* We could end now without corruption */
 
 	return (ARCHIVE_OK);
 }
@@ -235,11 +238,20 @@ zstd_filter_read(struct archive_read_filter *self, const void **p)
 		}
 		in.src = __archive_read_filter_ahead(self->upstream, 1,
 		    &avail_in);
-		if (in.src == NULL && avail_in <= 0) {
-			archive_set_error(&self->archive->archive,
-			    ARCHIVE_ERRNO_MISC,
-			    "Truncated zstd input");
-			return (ARCHIVE_FATAL);
+		if (avail_in < 0) {
+			return avail_in;
+		}
+		if (in.src == NULL && avail_in == 0) {
+			if (state->endFrame) {
+				/* end of stream */
+				state->eof = 1;
+				break;
+			} else {
+				archive_set_error(&self->archive->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "Truncated zstd input");
+				return (ARCHIVE_FATAL);
+			}
 		}
 		in.size = avail_in;
 		in.pos = 0;
@@ -257,10 +269,9 @@ zstd_filter_read(struct archive_read_filter *self, const void **p)
 		/* Decompressor made some progress */
 		__archive_read_filter_consume(self->upstream, in.pos);
 
-		/* Found end of the frame */
-		if (ret == 0) {
-			state->eof = 1;
-		}
+		/* Need to know if it's the end of the frame, as if input ends
+		 * at any other time it's an error */
+		state->endFrame = (ret == 0);
 	}
 
 	decompressed = out.pos;
