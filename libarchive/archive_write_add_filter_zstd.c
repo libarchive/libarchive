@@ -147,7 +147,12 @@ archive_compressor_zstd_options(struct archive_write_filter *f, const char *key,
 
 	if (strcmp(key, "compression-level") == 0) {
 		int level = atoi(value);
+#if HAVE_ZSTD_H && HAVE_LIBZSTD
 		if (level < 1 || level > ZSTD_maxCLevel()) {
+#else
+		/* If we don't have the library, hard-code the max level */
+		if (level < 1 || level > 22) {
+#endif
 			return (ARCHIVE_WARN);
 		}
 		data->compression_level = level;
