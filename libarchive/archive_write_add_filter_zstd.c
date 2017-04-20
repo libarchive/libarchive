@@ -255,13 +255,11 @@ static int
 drive_compressor(struct archive_write_filter *f,
     struct private_data *data, int finishing, const void *src, size_t length)
 {
-	int ret;
-	size_t zstdret;
 	ZSTD_inBuffer in = (ZSTD_inBuffer) { src, length, 0 };
 
 	for (;;) {
 		if (data->out.pos == data->out.size) {
-			ret = __archive_write_filter(f->next_filter,
+			const int ret = __archive_write_filter(f->next_filter,
 			    data->out.dst, data->out.size);
 			if (ret != ARCHIVE_OK)
 				return (ARCHIVE_FATAL);
@@ -272,26 +270,25 @@ drive_compressor(struct archive_write_filter *f,
 		if (!finishing && in.pos == in.size)
 			return (ARCHIVE_OK);
 
-		if (!finishing) {
-			zstdret = ZSTD_compressStream(data->cstream,
-			    &data->out, &in);
-		} else {
-			zstdret = ZSTD_endStream(data->cstream,
-			    &data->out);
-		}
+		{
+			const size_t zstdret = !finishing ?
+			    ZSTD_compressStream(data->cstream, &data->out, &in)
+			    : ZSTD_endStream(data->cstream, &data->out);
 
-		if (ZSTD_isError(zstdret)) {
-			archive_set_error(f->archive, ARCHIVE_ERRNO_MISC,
-			    "Zstd compression failed: %s",
-			    ZSTD_getErrorName(zstdret));
-			return (ARCHIVE_FATAL);
-		}
+			if (ZSTD_isError(zstdret)) {
+				archive_set_error(f->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "Zstd compression failed: %s",
+				    ZSTD_getErrorName(zstdret));
+				return (ARCHIVE_FATAL);
+			}
 
-		/* If we're finishing, 0 means nothing left to flush */
-		if (finishing && zstdret == 0) {
-			ret = __archive_write_filter(f->next_filter,
-			    data->out.dst, data->out.pos);
-			return (ret);
+			/* If we're finishing, 0 means nothing left to flush */
+			if (finishing && zstdret == 0) {
+				const int ret = __archive_write_filter(f->next_filter,
+				    data->out.dst, data->out.pos);
+				return (ret);
+			}
 		}
 	}
 }

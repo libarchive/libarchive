@@ -60,9 +60,8 @@ struct private_data {
 	unsigned char	*out_block;
 	size_t		 out_block_size;
 	int64_t		 total_out;
-	char		 endFrame; /* True = not in the middle of a zstd frame. */
+	char		 in_frame; /* True = in the middle of a zstd frame. */
 	char		 eof; /* True = found end of compressed data. */
-	char		 in_stream;
 };
 
 /* Zstd Filter. */
@@ -200,9 +199,8 @@ zstd_bidder_init(struct archive_read_filter *self)
 	self->skip = NULL; /* not supported */
 	self->close = zstd_filter_close;
 
-	state->in_stream = 0; /* We're not actually within a stream yet. */
 	state->eof = 0;
-	state->endFrame = 1; /* We could end now without corruption */
+	state->in_frame = 0;
 
 	return (ARCHIVE_OK);
 }
@@ -213,7 +211,6 @@ zstd_filter_read(struct archive_read_filter *self, const void **p)
 	struct private_data *state;
 	size_t decompressed;
 	ssize_t avail_in;
-	size_t ret;
 	ZSTD_outBuffer out;
 	ZSTD_inBuffer in;
 
@@ -223,8 +220,8 @@ zstd_filter_read(struct archive_read_filter *self, const void **p)
 
 	/* Try to fill the output buffer. */
 	while (out.pos < out.size && !state->eof) {
-		if (!state->in_stream) {
-			ret = ZSTD_initDStream(state->dstream);
+		if (!state->in_frame) {
+			const size_t ret = ZSTD_initDStream(state->dstream);
 			if (ZSTD_isError(ret)) {
 				free(state->out_block);
 				free(state);
@@ -234,7 +231,6 @@ zstd_filter_read(struct archive_read_filter *self, const void **p)
 				    ZSTD_getErrorName(ret));
 				return (ARCHIVE_FATAL);
 			}
-			state->in_stream = 1;
 		}
 		in.src = __archive_read_filter_ahead(self->upstream, 1,
 		    &avail_in);
@@ -242,7 +238,7 @@ zstd_filter_read(struct archive_read_filter *self, const void **p)
 			return avail_in;
 		}
 		if (in.src == NULL && avail_in == 0) {
-			if (state->endFrame) {
+			if (!state->in_frame) {
 				/* end of stream */
 				state->eof = 1;
 				break;
@@ -256,22 +252,24 @@ zstd_filter_read(struct archive_read_filter *self, const void **p)
 		in.size = avail_in;
 		in.pos = 0;
 
-		ret = ZSTD_decompressStream(state->dstream, &out, &in);
+		{
+			const size_t ret =
+			    ZSTD_decompressStream(state->dstream, &out, &in);
 
-		if (ZSTD_isError(ret)) {
-			archive_set_error(&self->archive->archive,
-			    ARCHIVE_ERRNO_MISC,
-			    "Zstd decompression failed: %s",
-			    ZSTD_getErrorName(ret));
-			return (ARCHIVE_FATAL);
+			if (ZSTD_isError(ret)) {
+				archive_set_error(&self->archive->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "Zstd decompression failed: %s",
+				    ZSTD_getErrorName(ret));
+				return (ARCHIVE_FATAL);
+			}
+
+			/* Decompressor made some progress */
+			__archive_read_filter_consume(self->upstream, in.pos);
+
+			/* ret guaranteed to be > 0 if frame isn't done yet */
+			state->in_frame = (ret != 0);
 		}
-
-		/* Decompressor made some progress */
-		__archive_read_filter_consume(self->upstream, in.pos);
-
-		/* Need to know if it's the end of the frame, as if input ends
-		 * at any other time it's an error */
-		state->endFrame = (ret == 0);
 	}
 
 	decompressed = out.pos;
