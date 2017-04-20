@@ -19,6 +19,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_extract_tar_lrz.c
     test_extract_tar_lz.c
     test_extract_tar_lz4.c
+    test_extract_tar_zstd.c
     test_extract_tar_lzma.c
     test_extract_tar_lzo.c
     test_extract_tar_xz.c
@@ -46,6 +47,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_option_keep_newer_files.c
     test_option_lrzip.c
     test_option_lz4.c
+    test_option_zstd.c
     test_option_lzma.c
     test_option_lzop.c
     test_option_n.c

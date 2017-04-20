@@ -20,6 +20,7 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     test_extract_cpio_lrz
     test_extract_cpio_lz
     test_extract_cpio_lz4
+    test_extract_cpio_zstd
     test_extract_cpio_lzma
     test_extract_cpio_lzo
     test_extract_cpio_xz
@@ -42,6 +43,7 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     test_option_l.c
     test_option_lrzip.c
     test_option_lz4.c
+    test_option_zstd.c
     test_option_lzma.c
     test_option_lzop.c
     test_option_m.c

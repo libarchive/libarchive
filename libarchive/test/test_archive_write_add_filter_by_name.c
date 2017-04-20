@@ -183,6 +183,11 @@ DEFINE_TEST(test_archive_write_add_filter_by_name_lz4)
 	test_filter_by_name("lz4", ARCHIVE_FILTER_LZ4, canLz4);
 }
 
+DEFINE_TEST(test_archive_write_add_filter_by_name_zstd)
+{
+	test_filter_by_name("zstd", ARCHIVE_FILTER_ZSTD, canZstd);
+}
+
 DEFINE_TEST(test_archive_write_add_filter_by_name_lzip)
 {
 	test_filter_by_name("lzip", ARCHIVE_FILTER_LZIP, cannot);
