@@ -1196,8 +1196,12 @@ archive_write_pax_header(struct archive_write *a,
 			    "GNU.sparse.major", 1);
 			add_pax_attr_int(&(pax->pax_header),
 			    "GNU.sparse.minor", 0);
+			/*
+			 * Make sure to store the original path, since
+			 * truncation to ustar limit happened already.
+			 */
 			add_pax_attr(&(pax->pax_header),
-			    "GNU.sparse.name", entry_name.s);
+			    "GNU.sparse.name", path);
 			add_pax_attr_int(&(pax->pax_header),
 			    "GNU.sparse.realsize",
 			    archive_entry_size(entry_main));
