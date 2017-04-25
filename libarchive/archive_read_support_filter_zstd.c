@@ -86,7 +86,7 @@ archive_read_support_filter_zstd(struct archive *_a)
 	struct archive_read_filter_bidder *bidder;
 
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_read_support_filter_gzip");
+	    ARCHIVE_STATE_NEW, "archive_read_support_filter_zstd");
 
 	if (__archive_read_get_bidder(a, &bidder) != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
@@ -173,23 +173,17 @@ zstd_bidder_init(struct archive_read_filter *self)
 
 	state = (struct private_data *)calloc(sizeof(*state), 1);
 	out_block = (unsigned char *)malloc(out_block_size);
-	if (state == NULL || out_block == NULL) {
-		free(out_block);
-		free(state);
-		archive_set_error(&self->archive->archive, ENOMEM,
-		    "Can't allocate data for zstd decompression");
-		return (ARCHIVE_FATAL);
-	}
 
 	self->data = state;
 
 	state->dstream = ZSTD_createDStream();
 
-	if (!state->dstream) {
+	if (state == NULL || out_block == NULL || state->dstream == NULL) {
 		free(out_block);
 		free(state);
+        ZSTD_freeDStream(state->dstream); /* supports free on NULL */
 		archive_set_error(&self->archive->archive, ENOMEM,
-		    "Can't create zstd decompressor object");
+		    "Can't allocate data for zstd decompression");
 		return (ARCHIVE_FATAL);
 	}
 
@@ -223,8 +217,6 @@ zstd_filter_read(struct archive_read_filter *self, const void **p)
 		if (!state->in_frame) {
 			const size_t ret = ZSTD_initDStream(state->dstream);
 			if (ZSTD_isError(ret)) {
-				free(state->out_block);
-				free(state);
 				archive_set_error(&self->archive->archive,
 				    ARCHIVE_ERRNO_MISC,
 				    "Error initializing zstd decompressor: %s",

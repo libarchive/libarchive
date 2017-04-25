@@ -76,14 +76,14 @@ get_filter_code(const char *suffix)
 		{ ".lrz",	"lrzip" },
 		{ ".lz",	"lzip" },
 		{ ".lz4",	"lz4" },
-		{ ".zstd",	"zstd"},
+		{ ".zst",	"zstd"},
 		{ ".lzo",	"lzop" },
 		{ ".lzma",	"lzma" },
 		{ ".uu",	"uuencode" },
 		{ ".xz",	"xz" },
 		{ NULL,		NULL }
 	};
-	
+
 	return get_suffix_code(filters, suffix);
 }
 

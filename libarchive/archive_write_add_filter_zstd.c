@@ -114,7 +114,6 @@ archive_write_add_filter_zstd(struct archive *_a)
 		archive_set_error(&a->archive, ENOMEM, "Out of memory");
 		return (ARCHIVE_FATAL);
 	}
-	data->compression_level = 0;
 	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 	    "Using external zstd program");
 	return (ARCHIVE_WARN);
