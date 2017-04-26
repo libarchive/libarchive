@@ -76,11 +76,11 @@ get_filter_code(const char *suffix)
 		{ ".lrz",	"lrzip" },
 		{ ".lz",	"lzip" },
 		{ ".lz4",	"lz4" },
-		{ ".zst",	"zstd"},
 		{ ".lzo",	"lzop" },
 		{ ".lzma",	"lzma" },
 		{ ".uu",	"uuencode" },
 		{ ".xz",	"xz" },
+		{ ".zst",	"zstd"},
 		{ NULL,		NULL }
 	};
 

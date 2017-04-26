@@ -11,18 +11,18 @@ IF(ENABLE_CAT AND ENABLE_TEST)
     test_0.c
     test_empty_gz.c
     test_empty_lz4.c
-    test_empty_zstd.c
     test_empty_xz.c
+    test_empty_zstd.c
     test_error.c
     test_error_mixed.c
     test_expand_Z.c
     test_expand_bz2.c
     test_expand_gz.c
     test_expand_lz4.c
-    test_expand_zstd.c
     test_expand_mixed.c
     test_expand_plain.c
     test_expand_xz.c
+    test_expand_zstd.c
     test_help.c
     test_version.c
   )

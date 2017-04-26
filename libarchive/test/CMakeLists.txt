@@ -54,7 +54,6 @@ IF(ENABLE_TEST)
     test_compat_gtar.c
     test_compat_gzip.c
     test_compat_lz4.c
-    test_compat_zstd.c
     test_compat_lzip.c
     test_compat_lzma.c
     test_compat_lzop.c
@@ -70,6 +69,7 @@ IF(ENABLE_TEST)
     test_compat_uudecode_large.c
     test_compat_xz.c
     test_compat_zip.c
+    test_compat_zstd.c
     test_empty_write.c
     test_entry.c
     test_entry_strmode.c
@@ -221,13 +221,13 @@ IF(ENABLE_TEST)
     test_write_filter_gzip_timestamp.c
     test_write_filter_lrzip.c
     test_write_filter_lz4.c
-    test_write_filter_zstd.c
     test_write_filter_lzip.c
     test_write_filter_lzma.c
     test_write_filter_lzop.c
     test_write_filter_program.c
     test_write_filter_uuencode.c
     test_write_filter_xz.c
+    test_write_filter_zstd.c
     test_write_format_7zip.c
     test_write_format_7zip_empty.c
     test_write_format_7zip_large.c

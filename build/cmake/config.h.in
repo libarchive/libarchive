@@ -695,9 +695,6 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `lz4' library (-llz4). */
 #cmakedefine HAVE_LIBLZ4 1
 
-/* Define to 1 if you have the `zstd' library (-lzstd). */
-#cmakedefine HAVE_LIBZSTD 1
-
 /* Define to 1 if you have the `lzma' library (-llzma). */
 #cmakedefine HAVE_LIBLZMA 1
 
@@ -727,6 +724,9 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the `z' library (-lz). */
 #cmakedefine HAVE_LIBZ 1
+
+/* Define to 1 if you have the `zstd' library (-lzstd). */
+#cmakedefine HAVE_LIBZSTD 1
 
 /* Define to 1 if you have the <limits.h> header file. */
 #cmakedefine HAVE_LIMITS_H 1
@@ -794,9 +794,6 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the <lz4.h> header file. */
 #cmakedefine HAVE_LZ4_H 1
-
-/* Define to 1 if you have the <zstd.h> header file. */
-#cmakedefine HAVE_ZSTD_H 1
 
 /* Define to 1 if you have the <lzmadec.h> header file. */
 #cmakedefine HAVE_LZMADEC_H 1
@@ -1184,6 +1181,9 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the <zlib.h> header file. */
 #cmakedefine HAVE_ZLIB_H 1
+
+/* Define to 1 if you have the <zstd.h> header file. */
+#cmakedefine HAVE_ZSTD_H 1
 
 /* Define to 1 if you have the `_ctime64_s' function. */
 #cmakedefine HAVE__CTIME64_S 1

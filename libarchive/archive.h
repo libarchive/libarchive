@@ -423,7 +423,6 @@ __LA_DECL int archive_read_support_filter_gzip(struct archive *);
 __LA_DECL int archive_read_support_filter_grzip(struct archive *);
 __LA_DECL int archive_read_support_filter_lrzip(struct archive *);
 __LA_DECL int archive_read_support_filter_lz4(struct archive *);
-__LA_DECL int archive_read_support_filter_zstd(struct archive *);
 __LA_DECL int archive_read_support_filter_lzip(struct archive *);
 __LA_DECL int archive_read_support_filter_lzma(struct archive *);
 __LA_DECL int archive_read_support_filter_lzop(struct archive *);
@@ -436,6 +435,7 @@ __LA_DECL int archive_read_support_filter_program_signature
 __LA_DECL int archive_read_support_filter_rpm(struct archive *);
 __LA_DECL int archive_read_support_filter_uu(struct archive *);
 __LA_DECL int archive_read_support_filter_xz(struct archive *);
+__LA_DECL int archive_read_support_filter_zstd(struct archive *);
 
 __LA_DECL int archive_read_support_format_7zip(struct archive *);
 __LA_DECL int archive_read_support_format_all(struct archive *);
@@ -773,7 +773,6 @@ __LA_DECL int archive_write_add_filter_grzip(struct archive *);
 __LA_DECL int archive_write_add_filter_gzip(struct archive *);
 __LA_DECL int archive_write_add_filter_lrzip(struct archive *);
 __LA_DECL int archive_write_add_filter_lz4(struct archive *);
-__LA_DECL int archive_write_add_filter_zstd(struct archive *);
 __LA_DECL int archive_write_add_filter_lzip(struct archive *);
 __LA_DECL int archive_write_add_filter_lzma(struct archive *);
 __LA_DECL int archive_write_add_filter_lzop(struct archive *);
@@ -782,6 +781,7 @@ __LA_DECL int archive_write_add_filter_program(struct archive *,
 		     const char *cmd);
 __LA_DECL int archive_write_add_filter_uuencode(struct archive *);
 __LA_DECL int archive_write_add_filter_xz(struct archive *);
+__LA_DECL int archive_write_add_filter_zstd(struct archive *);
 
 
 /* A convenience function to set the format based on the code or name. */

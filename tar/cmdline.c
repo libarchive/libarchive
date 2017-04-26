@@ -107,7 +107,6 @@ static const struct bsdtar_option {
 	{ "list",                 0, 't' },
 	{ "lrzip",                0, OPTION_LRZIP },
 	{ "lz4",                  0, OPTION_LZ4 },
-	{ "zstd",                 0, OPTION_ZSTD },
 	{ "lzip",                 0, OPTION_LZIP },
 	{ "lzma",                 0, OPTION_LZMA },
 	{ "lzop",                 0, OPTION_LZOP },
@@ -161,6 +160,7 @@ static const struct bsdtar_option {
 	{ "version",              0, OPTION_VERSION },
 	{ "xattrs",               0, OPTION_XATTRS },
 	{ "xz",                   0, 'J' },
+	{ "zstd",                 0, OPTION_ZSTD },
 	{ NULL, 0, 0 }
 };
 

@@ -82,13 +82,13 @@ SET(libarchive_SOURCES
   archive_read_support_filter_grzip.c
   archive_read_support_filter_lrzip.c
   archive_read_support_filter_lz4.c
-  archive_read_support_filter_zstd.c
   archive_read_support_filter_lzop.c
   archive_read_support_filter_none.c
   archive_read_support_filter_program.c
   archive_read_support_filter_rpm.c
   archive_read_support_filter_uu.c
   archive_read_support_filter_xz.c
+  archive_read_support_filter_zstd.c
   archive_read_support_format_7zip.c
   archive_read_support_format_all.c
   archive_read_support_format_ar.c
@@ -130,12 +130,12 @@ SET(libarchive_SOURCES
   archive_write_add_filter_gzip.c
   archive_write_add_filter_lrzip.c
   archive_write_add_filter_lz4.c
-  archive_write_add_filter_zstd.c
   archive_write_add_filter_lzop.c
   archive_write_add_filter_none.c
   archive_write_add_filter_program.c
   archive_write_add_filter_uuencode.c
   archive_write_add_filter_xz.c
+  archive_write_add_filter_zstd.c
   archive_write_set_format.c
   archive_write_set_format_7zip.c
   archive_write_set_format_ar.c

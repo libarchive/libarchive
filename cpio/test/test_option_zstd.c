@@ -34,7 +34,7 @@ DEFINE_TEST(test_option_zstd)
 	/* Create a file. */
 	assertMakeFile("f", 0644, "a");
 
-	/* Archive it with lz4 compression. */
+	/* Archive it with zstd compression. */
 	r = systemf("echo f | %s -o --zstd >archive.out 2>archive.err",
 	    testprog);
 	p = slurpfile(&s, "archive.err");
@@ -75,7 +75,7 @@ DEFINE_TEST(test_option_zstd)
 		goto done;
 	}
 	free(p);
-	/* Check that the archive file has an lz4 signature. */
+	/* Check that the archive file has an zstd signature. */
 	p = slurpfile(&s, "archive.out");
 	assert(s > 2);
 	assertEqualMem(p, "\x28\xb5\x2f\xfd", 4);

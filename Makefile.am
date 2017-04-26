@@ -161,13 +161,13 @@ libarchive_la_SOURCES= \
 	libarchive/archive_read_support_filter_gzip.c \
 	libarchive/archive_read_support_filter_lrzip.c \
 	libarchive/archive_read_support_filter_lz4.c \
-	libarchive/archive_read_support_filter_zstd.c \
 	libarchive/archive_read_support_filter_lzop.c \
 	libarchive/archive_read_support_filter_none.c \
 	libarchive/archive_read_support_filter_program.c \
 	libarchive/archive_read_support_filter_rpm.c \
 	libarchive/archive_read_support_filter_uu.c \
 	libarchive/archive_read_support_filter_xz.c \
+	libarchive/archive_read_support_filter_zstd.c \
 	libarchive/archive_read_support_format_7zip.c \
 	libarchive/archive_read_support_format_all.c \
 	libarchive/archive_read_support_format_ar.c \
@@ -209,12 +209,12 @@ libarchive_la_SOURCES= \
 	libarchive/archive_write_add_filter_gzip.c \
 	libarchive/archive_write_add_filter_lrzip.c \
 	libarchive/archive_write_add_filter_lz4.c \
-	libarchive/archive_write_add_filter_zstd.c \
 	libarchive/archive_write_add_filter_lzop.c \
 	libarchive/archive_write_add_filter_none.c \
 	libarchive/archive_write_add_filter_program.c \
 	libarchive/archive_write_add_filter_uuencode.c \
 	libarchive/archive_write_add_filter_xz.c \
+	libarchive/archive_write_add_filter_zstd.c \
 	libarchive/archive_write_set_format.c \
 	libarchive/archive_write_set_format_7zip.c \
 	libarchive/archive_write_set_format_ar.c \
@@ -389,7 +389,6 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_compat_gtar.c \
 	libarchive/test/test_compat_gzip.c \
 	libarchive/test/test_compat_lz4.c \
-	libarchive/test/test_compat_zstd.c \
 	libarchive/test/test_compat_lzip.c \
 	libarchive/test/test_compat_lzma.c \
 	libarchive/test/test_compat_lzop.c \
@@ -405,6 +404,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_compat_uudecode_large.c \
 	libarchive/test/test_compat_xz.c \
 	libarchive/test/test_compat_zip.c \
+	libarchive/test/test_compat_zstd.c \
 	libarchive/test/test_empty_write.c \
 	libarchive/test/test_entry.c \
 	libarchive/test/test_entry_strmode.c \
@@ -556,13 +556,13 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_filter_gzip_timestamp.c \
 	libarchive/test/test_write_filter_lrzip.c \
 	libarchive/test/test_write_filter_lz4.c \
-	libarchive/test/test_write_filter_zstd.c \
 	libarchive/test/test_write_filter_lzip.c \
 	libarchive/test/test_write_filter_lzma.c \
 	libarchive/test/test_write_filter_lzop.c \
 	libarchive/test/test_write_filter_program.c \
 	libarchive/test/test_write_filter_uuencode.c \
 	libarchive/test/test_write_filter_xz.c \
+	libarchive/test/test_write_filter_zstd.c \
 	libarchive/test/test_write_format_7zip.c \
 	libarchive/test/test_write_format_7zip_empty.c \
 	libarchive/test/test_write_format_7zip_large.c \
@@ -653,7 +653,6 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_lz4_B6BD.tar.lz4.uu \
 	libarchive/test/test_compat_lz4_B7.tar.lz4.uu \
 	libarchive/test/test_compat_lz4_B7BD.tar.lz4.uu \
-	libarchive/test/test_compat_zstd_1.tar.zst.uu \
 	libarchive/test/test_compat_lzip_1.tlz.uu \
 	libarchive/test/test_compat_lzip_2.tlz.uu \
 	libarchive/test/test_compat_lzma_1.tlz.uu \
@@ -682,6 +681,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_zip_5.zip.uu \
 	libarchive/test/test_compat_zip_6.zip.uu \
 	libarchive/test/test_compat_zip_7.xps.uu \
+	libarchive/test/test_compat_zstd_1.tar.zst.uu \
 	libarchive/test/test_fuzz.cab.uu \
 	libarchive/test/test_fuzz.lzh.uu \
 	libarchive/test/test_fuzz_1.iso.Z.uu \
@@ -962,10 +962,10 @@ bsdtar_test_SOURCES= \
 	tar/test/test_extract_tar_lrz.c \
 	tar/test/test_extract_tar_lz.c \
 	tar/test/test_extract_tar_lz4.c \
-	tar/test/test_extract_tar_zstd.c \
 	tar/test/test_extract_tar_lzma.c \
 	tar/test/test_extract_tar_lzo.c \
 	tar/test/test_extract_tar_xz.c \
+	tar/test/test_extract_tar_zstd.c \
 	tar/test/test_format_newc.c \
 	tar/test/test_help.c \
 	tar/test/test_leading_slash.c \
@@ -990,7 +990,6 @@ bsdtar_test_SOURCES= \
 	tar/test/test_option_keep_newer_files.c \
 	tar/test/test_option_lrzip.c \
 	tar/test/test_option_lz4.c \
-	tar/test/test_option_zstd.c \
 	tar/test/test_option_lzma.c \
 	tar/test/test_option_lzop.c \
 	tar/test/test_option_n.c \
@@ -1006,6 +1005,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_option_xattrs.c \
 	tar/test/test_option_xz.c \
 	tar/test/test_option_z.c \
+	tar/test/test_option_zstd.c \
 	tar/test/test_patterns.c \
 	tar/test/test_print_longpath.c \
 	tar/test/test_stdio.c \
@@ -1125,10 +1125,10 @@ bsdcpio_test_SOURCES= \
 	cpio/test/test_extract_cpio_lrz.c \
 	cpio/test/test_extract_cpio_lz.c \
 	cpio/test/test_extract_cpio_lz4.c \
-	cpio/test/test_extract_cpio_zstd.c \
 	cpio/test/test_extract_cpio_lzma.c \
 	cpio/test/test_extract_cpio_lzo.c \
 	cpio/test/test_extract_cpio_xz.c \
+	cpio/test/test_extract_cpio_zstd.c \
 	cpio/test/test_format_newc.c \
 	cpio/test/test_gcpio_compat.c \
 	cpio/test/test_missing_file.c \
@@ -1148,7 +1148,6 @@ bsdcpio_test_SOURCES= \
 	cpio/test/test_option_l.c \
 	cpio/test/test_option_lrzip.c \
 	cpio/test/test_option_lz4.c \
-	cpio/test/test_option_zstd.c \
 	cpio/test/test_option_lzma.c \
 	cpio/test/test_option_lzop.c \
 	cpio/test/test_option_m.c \
@@ -1160,6 +1159,7 @@ bsdcpio_test_SOURCES= \
 	cpio/test/test_option_xz.c \
 	cpio/test/test_option_y.c \
 	cpio/test/test_option_z.c \
+	cpio/test/test_option_zstd.c \
 	cpio/test/test_owner_parse.c \
 	cpio/test/test_passthrough_dotdot.c \
 	cpio/test/test_passthrough_reverse.c
@@ -1268,18 +1268,18 @@ bsdcat_test_SOURCES= \
 	cat/test/test_0.c \
 	cat/test/test_empty_gz.c \
 	cat/test/test_empty_lz4.c \
-	cat/test/test_empty_zstd.c \
 	cat/test/test_empty_xz.c \
+	cat/test/test_empty_zstd.c \
 	cat/test/test_error.c \
 	cat/test/test_error_mixed.c \
 	cat/test/test_expand_Z.c \
 	cat/test/test_expand_bz2.c \
 	cat/test/test_expand_gz.c \
 	cat/test/test_expand_lz4.c \
-	cat/test/test_expand_zstd.c \
 	cat/test/test_expand_mixed.c \
 	cat/test/test_expand_plain.c \
 	cat/test/test_expand_xz.c \
+	cat/test/test_expand_zstd.c \
 	cat/test/test_help.c \
 	cat/test/test_version.c
 

@@ -20,10 +20,10 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     test_extract_cpio_lrz
     test_extract_cpio_lz
     test_extract_cpio_lz4
-    test_extract_cpio_zstd
     test_extract_cpio_lzma
     test_extract_cpio_lzo
     test_extract_cpio_xz
+    test_extract_cpio_zstd
     test_format_newc.c
     test_gcpio_compat.c
     test_missing_file.c
@@ -43,7 +43,6 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     test_option_l.c
     test_option_lrzip.c
     test_option_lz4.c
-    test_option_zstd.c
     test_option_lzma.c
     test_option_lzop.c
     test_option_m.c
@@ -55,6 +54,7 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     test_option_xz.c
     test_option_y.c
     test_option_z.c
+    test_option_zstd.c
     test_owner_parse.c
     test_passthrough_dotdot.c
     test_passthrough_reverse.c
