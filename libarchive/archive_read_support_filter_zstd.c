@@ -119,7 +119,6 @@ zstd_bidder_bid(struct archive_read_filter_bidder *self,
 
 	/* Zstd frame magic values */
 	const unsigned zstd_magic = 0xFD2FB528U;
-	const unsigned zstd_skippable_magic = 0x184D2A50U;
 
 	(void) self; /* UNUSED */
 
@@ -128,8 +127,7 @@ zstd_bidder_bid(struct archive_read_filter_bidder *self,
 		return (0);
 
 	prefix = archive_le32dec(buffer);
-	if (prefix == zstd_magic ||
-	    (prefix & 0xFFFFFFFFU) == zstd_skippable_magic)
+	if (prefix == zstd_magic)
 		return (32);
 
 	return (0);
