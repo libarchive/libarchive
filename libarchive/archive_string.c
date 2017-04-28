@@ -200,6 +200,8 @@ static int archive_string_append_unicode(struct archive_string *,
 static struct archive_string *
 archive_string_append(struct archive_string *as, const char *p, size_t s)
 {
+	if (s == 0)
+		return (as);
 	if (archive_string_ensure(as, as->length + s + 1) == NULL)
 		return (NULL);
 	memmove(as->s + as->length, p, s);
