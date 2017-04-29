@@ -628,6 +628,7 @@ mode_out(struct cpio *cpio)
 		    blocks == 1 ? "block" : "blocks");
 	}
 	archive_write_free(cpio->archive);
+	archive_entry_linkresolver_free(cpio->linkresolver);
 }
 
 static const char *
