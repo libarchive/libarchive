@@ -1241,6 +1241,7 @@ mode_pass(struct cpio *cpio, const char *destdir)
 	}
 
 	archive_write_free(cpio->archive);
+	free(cpio->pass_destpath);
 }
 
 /*
