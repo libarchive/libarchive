@@ -165,28 +165,29 @@ zstd_bidder_init(struct archive_read_filter *self)
 	struct private_data *state;
 	const size_t out_block_size = ZSTD_DStreamOutSize();
 	void *out_block;
+	ZSTD_DStream *dstream;
 
 	self->code = ARCHIVE_FILTER_ZSTD;
 	self->name = "zstd";
 
 	state = (struct private_data *)calloc(sizeof(*state), 1);
 	out_block = (unsigned char *)malloc(out_block_size);
+	dstream = ZSTD_createDStream();
 
-	self->data = state;
-
-	state->dstream = ZSTD_createDStream();
-
-	if (state == NULL || out_block == NULL || state->dstream == NULL) {
+	if (state == NULL || out_block == NULL || dstream == NULL) {
 		free(out_block);
 		free(state);
-        ZSTD_freeDStream(state->dstream); /* supports free on NULL */
+		ZSTD_freeDStream(dstream); /* supports free on NULL */
 		archive_set_error(&self->archive->archive, ENOMEM,
 		    "Can't allocate data for zstd decompression");
 		return (ARCHIVE_FATAL);
 	}
 
+	self->data = state;
+
 	state->out_block_size = out_block_size;
 	state->out_block = out_block;
+	state->dstream = dstream;
 	self->read = zstd_filter_read;
 	self->skip = NULL; /* not supported */
 	self->close = zstd_filter_close;
