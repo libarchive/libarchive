@@ -148,6 +148,7 @@ static const struct bsdtar_option {
 	{ "strip-components",	  1, OPTION_STRIP_COMPONENTS },
 	{ "to-stdout",            0, 'O' },
 	{ "totals",		  0, OPTION_TOTALS },
+	{ "transform",            1, 's' },
 	{ "uid",		  1, OPTION_UID },
 	{ "uname",		  1, OPTION_UNAME },
 	{ "uncompress",           0, 'Z' },
