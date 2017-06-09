@@ -631,6 +631,11 @@ __LA_DECL int archive_read_add_passphrase(struct archive *, const char *);
 __LA_DECL int archive_read_set_passphrase_callback(struct archive *,
 			    void *client_data, archive_passphrase_callback *);
 
+/*
+ * Get decryption passphrase from archive.
+ */
+__LA_DECL int archive_read_get_decrypt_passphrase(struct archive *,
+			    char **);
 
 /*-
  * Convenience function to recreate the current entry (whose header

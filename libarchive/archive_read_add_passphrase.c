@@ -117,6 +117,22 @@ archive_read_set_passphrase_callback(struct archive *_a, void *client_data,
 	return (ARCHIVE_OK);
 }
 
+int
+archive_read_get_decrypt_passphrase(struct archive *_a, char **passphrase)
+{
+	struct archive_read *a = (struct archive_read *)_a;
+	
+	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
+		"archive_read_get_decrypt_passphrase");
+
+	if (a->passphrases.first == NULL) {
+		*passphrase = NULL;
+	} else {
+		*passphrase = a->passphrases.first->passphrase;
+	}
+	return (ARCHIVE_OK);
+}
+
 /*
  * Call this in advance when you start to get a passphrase for decryption
  * for a entry.
