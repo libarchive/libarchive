@@ -380,7 +380,7 @@ archive_write_ar_data(struct archive_write *a, const void *buff, size_t s)
 			    "Can't allocate strtab buffer");
 			return (ARCHIVE_FATAL);
 		}
-		strncpy(ar->strtab, buff, s);
+		memcpy(ar->strtab, buff, s);
 		ar->strtab[s] = '\0';
 		ar->has_strtab = 1;
 	}
