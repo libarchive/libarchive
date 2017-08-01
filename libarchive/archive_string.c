@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_string.c 201095 2009-12-28 02:33
  * without incurring additional memory allocations.
  */
 
-#include <assert.h>
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -215,7 +214,6 @@ archive_wstring_append(struct archive_wstring *as, const wchar_t *p, size_t s)
 {
 	if (archive_wstring_ensure(as, as->length + s + 1) == NULL)
 		return (NULL);
-	assert(p != NULL);
 	if (s)
 		wmemmove(as->s + as->length, p, s);
 	as->length += s;
