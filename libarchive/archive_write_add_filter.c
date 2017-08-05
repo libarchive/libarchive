@@ -53,6 +53,7 @@ struct { int code; int (*setter)(struct archive *); } codes[] =
 	{ ARCHIVE_FILTER_LZOP,		archive_write_add_filter_lzip },
 	{ ARCHIVE_FILTER_UU,		archive_write_add_filter_uuencode },
 	{ ARCHIVE_FILTER_XZ,		archive_write_add_filter_xz },
+	{ ARCHIVE_FILTER_B64ENCODE,	archive_write_add_filter_b64encode },
 	{ -1,			NULL }
 };
 
