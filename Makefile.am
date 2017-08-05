@@ -1268,6 +1268,7 @@ bsdcat_test_SOURCES= \
 	cat/test/test_expand_mixed.c \
 	cat/test/test_expand_plain.c \
 	cat/test/test_expand_xz.c \
+	cat/test/test_stdin.c \
 	cat/test/test_help.c \
 	cat/test/test_version.c
 

@@ -135,15 +135,16 @@ main(int argc, char **argv)
 	if (*bsdcat->argv == NULL) {
 		bsdcat_current_path = "<stdin>";
 		bsdcat_read_to_stdout(NULL);
-	} else
+	} else {
 		while (*bsdcat->argv) {
 			bsdcat_current_path = *bsdcat->argv++;
 			bsdcat_read_to_stdout(bsdcat_current_path);
 			bsdcat_next();
 		}
+		if (a != NULL)
+			archive_read_free(a);
+    }
 
-	if (a != NULL)
-		archive_read_free(a);
 
 	exit(exit_status);
 }
