@@ -122,6 +122,7 @@ decompose_alias(const char *suffix)
 		{ ".tzo",	".tar.lzo" },
 		{ ".taZ",	".tar.Z" },
 		{ ".tZ",	".tar.Z" },
+		{ ".tzst",	".tar.zst" },
 		{ NULL,		NULL }
 	};
 
