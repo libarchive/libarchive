@@ -1040,6 +1040,9 @@ atol10(const char *p, size_t char_cnt)
 	uint64_t l;
 	int digit;
 
+	if (char_cnt == 0)
+		return (0);
+
 	l = 0;
 	digit = *p - '0';
 	while (digit >= 0 && digit < 10  && char_cnt-- > 0) {
@@ -1054,7 +1057,10 @@ atol8(const char *p, size_t char_cnt)
 {
 	int64_t l;
 	int digit;
-        
+
+	if (char_cnt == 0)
+		return (0);
+
 	l = 0;
 	while (char_cnt-- > 0) {
 		if (*p >= '0' && *p <= '7')
