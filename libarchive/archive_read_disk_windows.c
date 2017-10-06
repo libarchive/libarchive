@@ -320,7 +320,7 @@ archive_read_disk_vtable(void)
 }
 
 const char *
-archive_read_disk_gname(struct archive *_a, int64_t gid)
+archive_read_disk_gname(struct archive *_a, la_int64_t gid)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
 	if (ARCHIVE_OK != __archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
@@ -332,7 +332,7 @@ archive_read_disk_gname(struct archive *_a, int64_t gid)
 }
 
 const char *
-archive_read_disk_uname(struct archive *_a, int64_t uid)
+archive_read_disk_uname(struct archive *_a, la_int64_t uid)
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
 	if (ARCHIVE_OK != __archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
@@ -346,7 +346,7 @@ archive_read_disk_uname(struct archive *_a, int64_t uid)
 int
 archive_read_disk_set_gname_lookup(struct archive *_a,
     void *private_data,
-    const char * (*lookup_gname)(void *private, int64_t gid),
+    const char * (*lookup_gname)(void *private, la_int64_t gid),
     void (*cleanup_gname)(void *private))
 {
 	struct archive_read_disk *a = (struct archive_read_disk *)_a;
