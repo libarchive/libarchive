@@ -1627,7 +1627,8 @@ __archive_read_filter_seek(struct archive_read_filter *filter, int64_t offset,
 	switch (whence) {
 	case SEEK_CUR:
 		/* Adjust the offset and use SEEK_SET instead */
-		offset += filter->position;			
+		offset += filter->position;
+		/* FALLTHROUGH */
 	case SEEK_SET:
 		cursor = 0;
 		while (1)
