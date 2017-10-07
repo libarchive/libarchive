@@ -1282,6 +1282,7 @@ bsdcat_test_SOURCES= \
 	cat/test/test_expand_xz.c \
 	cat/test/test_expand_zstd.c \
 	cat/test/test_help.c \
+	cat/test/test_stdin.c \
 	cat/test/test_version.c
 
 bsdcat_test_CPPFLAGS= \
