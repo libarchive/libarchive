@@ -201,6 +201,49 @@ DEFINE_TEST(test_write_disk_perms)
 	failure("dir_overwrite_0744: st.st_mode=%o", st.st_mode);
 	assertEqualInt(st.st_mode & 0777, 0744);
 
+	/* For dir, the owner should get left when not overwritting. */
+	assertMakeDir("dir_owner", 0744);
+	if (getuid() == 0) {
+		assertEqualInt(0, chown("dir_owner", getuid()+1, getgid()));
+		/* Check original owner. */
+		assertEqualInt(0, stat("dir_owner", &st));
+		failure("dir_owner: st.st_uid=%d", st.st_uid);
+		assertEqualInt(st.st_uid, getuid()+1);
+		/* Shouldn't edit the owner when no overwrite option is set. */
+		assert((ae = archive_entry_new()) != NULL);
+		archive_entry_copy_pathname(ae, "dir_owner");
+		archive_entry_set_mode(ae, S_IFDIR | 0744);
+		archive_entry_set_uid(ae, getuid());
+		archive_write_disk_set_options(a,
+			ARCHIVE_EXTRACT_OWNER | ARCHIVE_EXTRACT_NO_OVERWRITE);
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+		archive_entry_free(ae);
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_finish_entry(a));
+		/* Make sure they're unchanged. */
+		assertEqualInt(0, stat("dir_owner", &st));
+		failure("dir_owner: st.st_uid=%d", st.st_uid);
+		assertEqualInt(st.st_uid, getuid()+1);
+	} else {
+		/* Check original owner. */
+		assertEqualInt(0, stat("dir_owner", &st));
+		failure("dir_owner: st.st_uid=%d", st.st_uid);
+		assertEqualInt(st.st_uid, getuid());
+		/* Shouldn't fail to set owner when no overwrite option is set. */
+		assert((ae = archive_entry_new()) != NULL);
+		archive_entry_copy_pathname(ae, "dir_owner");
+		archive_entry_set_mode(ae, S_IFDIR | 0744);
+		archive_entry_set_uid(ae, getuid()+1);
+		archive_write_disk_set_options(a,
+			ARCHIVE_EXTRACT_OWNER | ARCHIVE_EXTRACT_NO_OVERWRITE);
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+		archive_entry_free(ae);
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_finish_entry(a));
+		/* Make sure they're unchanged. */
+		assertEqualInt(0, stat("dir_owner", &st));
+		failure("dir_owner: st.st_uid=%d", st.st_uid);
+		assertEqualInt(st.st_uid, getuid());
+	}
+
 	/* Write a regular file with SUID bit, but don't use _EXTRACT_PERM. */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "file_no_suid");

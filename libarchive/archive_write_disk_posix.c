@@ -1981,6 +1981,10 @@ restore_entry(struct archive_write_disk *a)
 	if ((en == EISDIR || en == EEXIST)
 	    && (a->flags & ARCHIVE_EXTRACT_NO_OVERWRITE)) {
 		/* If we're not overwriting, we're done. */
+		if (S_ISDIR(a->mode)) {
+			/* Don't overwrite any settings on existing directories. */
+			a->todo = 0;
+		}
 		archive_entry_unset_size(a->entry);
 		return (ARCHIVE_OK);
 	}
