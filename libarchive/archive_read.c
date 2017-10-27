@@ -739,10 +739,7 @@ _archive_read_seek_header(struct archive *_a, size_t index)
 		break;
 	}
 
-	a->read_data_output_offset = 0;
-	a->read_data_remaining = 0;
-	a->read_data_is_posix_read = 0;
-	a->read_data_requested = 0;
+	__archive_reset_read_data(&a->archive);
 	a->data_start_node = a->client.cursor;
 	return ret;
 }
