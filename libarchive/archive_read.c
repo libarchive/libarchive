@@ -648,8 +648,8 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	/* Record start-of-header offset in uncompressed stream. */
 	a->header_position = a->filter->position;
 
+	++_a->file_count;
 	if (a->header_position > a->max_header_position) {
-		++_a->file_count;
 		a->max_header_position = a->header_position;
 	}
 	r2 = (a->format->read_header)(a, entry);
