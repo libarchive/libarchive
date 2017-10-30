@@ -2555,6 +2555,7 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 		case kDummy:
 			if (ll == 0)
 				break;
+			__LA_FALLTHROUGH;
 		default:
 			if (header_bytes(a, ll) == NULL)
 				return (-1);
