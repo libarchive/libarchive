@@ -681,6 +681,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_zip_5.zip.uu \
 	libarchive/test/test_compat_zip_6.zip.uu \
 	libarchive/test/test_compat_zip_7.xps.uu \
+	libarchive/test/test_compat_zip_8.zip.uu \
 	libarchive/test/test_compat_zstd_1.tar.zst.uu \
 	libarchive/test/test_fuzz.cab.uu \
 	libarchive/test/test_fuzz.lzh.uu \
