@@ -923,6 +923,7 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 		t->entry_fh = CreateFileW(tree_current_access_path(t),
 		    GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, flags, NULL);
 		if (t->entry_fh == INVALID_HANDLE_VALUE) {
+			la_dosmaperr(GetLastError());
 			archive_set_error(&a->archive, errno,
 			    "Couldn't open %ls", tree_current_path(a->tree));
 			return (ARCHIVE_FAILED);
