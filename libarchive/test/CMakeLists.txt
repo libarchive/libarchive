@@ -313,13 +313,5 @@ IF(ENABLE_TEST)
   ADD_CUSTOM_TARGET(run_libarchive_test
 	COMMAND	libarchive_test -r ${CMAKE_CURRENT_SOURCE_DIR} -vv)
   ADD_DEPENDENCIES(run_all_tests run_libarchive_test)
-
-  add_custom_command(
-     TARGET libarchive_test POST_BUILD
-     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/test_compat_gtar_1.tar.uu ${CMAKE_BINARY_DIR}/bin/test_compat_gtar_1.tar.uu
-     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/test_compat_gtar_1.tar.uu
-  )
-
-
 ENDIF(ENABLE_TEST)
 
