@@ -823,6 +823,7 @@ DEFINE_TEST(test_read_format_7zip_lzma2)
 		test_bcj("test_read_format_7zip_bcj2_lzma2_1.7z");
 		test_bcj("test_read_format_7zip_bcj2_lzma2_2.7z");
 		test_delta_lzma("test_read_format_7zip_delta_lzma2.7z");
+		test_delta_lzma("test_read_format_7zip_delta16_lzma2.7z");
 	}
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

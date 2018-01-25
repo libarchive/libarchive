@@ -1041,7 +1041,6 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 #define LZMA_MEMLIMIT   (1U << 30)
 #endif
 	{
-		lzma_options_delta delta_opt;
 		lzma_filter filters[LZMA_FILTERS_MAX], *ff;
 		int fi = 0;
 
@@ -1087,10 +1086,12 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 				break;
 			case _7Z_DELTA:
 				filters[fi].id = LZMA_FILTER_DELTA;
-				memset(&delta_opt, 0, sizeof(delta_opt));
-				delta_opt.type = LZMA_DELTA_TYPE_BYTE;
-				delta_opt.dist = 1;
-				filters[fi].options = &delta_opt;
+				r = lzma_properties_decode(&filters[fi], NULL,
+				    coder2->properties, (size_t)coder2->propertiesSize);
+				if (r != LZMA_OK) {
+					set_error(a, r);
+					return (ARCHIVE_FAILED);
+				}
 				fi++;
 				break;
 			/* Following filters have not been tested yet. */
