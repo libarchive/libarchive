@@ -119,7 +119,7 @@ create_sparse_file(const char *path, const struct sparse *s)
 	assert(DeviceIoControl(handle, FSCTL_SET_SPARSE, NULL, 0,
 	    NULL, 0, &dmy, NULL) != 0);
 
-	unsigned int offsetSoFar = 0;
+	size_t offsetSoFar = 0;
 
 	while (s->type != END) {
 		if (s->type == HOLE) {
