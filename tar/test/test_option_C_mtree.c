@@ -1,6 +1,9 @@
 /*-
- * Copyright (c) 2018 Arshan Khanifar
+ * Copyright (c) 2007-2018 The FreeBSD Foundation
  * All rights reserved.
+ * 
+ * This software was developed by Arshan Khanifar <arshankhanifar@gmail.com>
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,12 +30,10 @@ __FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_option_C_mtree)
 {
-	char *buff;
 	char *p0;
 	size_t s;
 	int r;
 
-	buff = NULL;
 	p0 = NULL;
 
 	char *content = "./foo type=file uname=root gname=root mode=0755\n";
@@ -63,7 +64,6 @@ DEFINE_TEST(test_option_C_mtree)
 
 	free(p0);
 done:
-	free(buff);
 	free(p0);
 }
 
