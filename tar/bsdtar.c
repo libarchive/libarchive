@@ -124,6 +124,38 @@ static void		 only_mode(struct bsdtar *, const char *opt,
 static void		 set_mode(struct bsdtar *, char opt);
 static void		 version(void) __LA_DEAD;
 
+static char const * const vcs_files[] = {
+	/* CVS */
+	"CVS",
+	".cvsignore",
+	/* RCS */
+	"RCS",
+	/* SVN */
+	".svn",
+	/* git */
+	".git",
+	".gitignore",
+	".gitattributes",
+	".gitmodules",
+	/* Arch */
+	".arch-ids",
+	"{arch}",
+	"=RELEASE-ID",
+	"=meta-update",
+	"=update",
+	/* Bazaar */
+	".bzr",
+	".bzrignore",
+	".bzrtags",
+	/* Mercurial */
+	".hg",
+	".hgignore",
+	".hgtags",
+	/* darcs */
+	"_darcs",
+	NULL
+};
+
 /* A basic set of security flags to request from libarchive. */
 #define	SECURITY					\
 	(ARCHIVE_EXTRACT_SECURE_SYMLINKS		\
@@ -311,6 +343,16 @@ main(int argc, char **argv)
 			    bsdtar->matching, bsdtar->argument) != ARCHIVE_OK)
 				lafe_errc(1, 0,
 				    "Couldn't exclude %s\n", bsdtar->argument);
+			break;
+		case OPTION_EXCLUDE_VCS: /* GNU tar */
+			{
+				for(int i=0; vcs_files[i]; i++) {
+					if (archive_match_exclude_pattern(
+					    bsdtar->matching, vcs_files[i]) != ARCHIVE_OK)
+						lafe_errc(1, 0,
+						    "Couldn't exclude %s\n", vcs_files[i]);
+				}
+			}
 			break;
 		case OPTION_FFLAGS:
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_FFLAGS;
