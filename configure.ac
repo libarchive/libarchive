@@ -1185,6 +1185,16 @@ case "$host_os" in
 	;;
 esac
 
+dnl Visibility annotations...
+saved_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -fvisibility=hidden -Wall -Werror"
+AC_MSG_CHECKING(whether compiler supports visibility annotations)
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[void __attribute__((visibility("default"))) foo(void); void foo(void) {}]])],
+                  [CFLAGS="$saved_CFLAGS -fvisibility=hidden -D__LIBARCHIVE_ENABLE_VISIBILITY";
+                   AC_MSG_RESULT(yes)],
+                  [CFLAGS="$saved_CFLAGS"
+                   AC_MSG_RESULT(no)])
+
 # Ensure test directories are present if building out-of-tree
 AC_CONFIG_COMMANDS([mkdirs],
 		   [mkdir -p libarchive/test tar/test cat/test cpio/test])
