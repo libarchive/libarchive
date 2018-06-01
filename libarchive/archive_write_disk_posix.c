@@ -1703,18 +1703,19 @@ _archive_write_disk_finish_entry(struct archive *_a)
 		int r2 = set_ownership(a);
 		if (r2 < ret) ret = r2;
 	}
-#ifdef ARCHIVE_XATTR_DARWIN
+
 	/*
-	 * Darwin XATTRs must be performed before setting mode (and potentially
-	 * removing owner-writable for a non-root user.) Darwin ACLs have no
-	 * such restriction and are handled below in TODO_MAC_METADATA. Setting
-	 * the mode on Darwin does not clear xattrs.
+	 * HYPOTHESIS:
+	 * If we're not root, we won't be setting any security
+	 * attributes that may be wiped by the set_mode() routine
+	 * below.  We also can't set xattr on non-owner-writable files,
+	 * which may be the state after set_mode(). Perform
+	 * set_xattrs() first based on these constraints.
 	 */
-	if (a->todo & TODO_XATTR) {
+	if (a->user_uid && (a->todo & TODO_XATTR)) {
 		int r2 = set_xattrs(a);
 		if (r2 < ret) ret = r2;
 	}
-#endif
 
 	/*
 	 * set_mode must precede ACLs on systems such as Solaris and
@@ -1725,17 +1726,16 @@ _archive_write_disk_finish_entry(struct archive *_a)
 		if (r2 < ret) ret = r2;
 	}
 
-#ifndef ARCHIVE_XATTR_DARWIN
 	/*
 	 * Security-related extended attributes (such as
 	 * security.capability on Linux) have to be restored last,
 	 * since they're implicitly removed by other file changes.
+	 * We do this last only when root.
 	 */
-	if (a->todo & TODO_XATTR) {
+	if (!a->user_uid && (a->todo & TODO_XATTR)) {
 		int r2 = set_xattrs(a);
 		if (r2 < ret) ret = r2;
 	}
-#endif
 
 	/*
 	 * Some flags prevent file modification; they must be restored after
@@ -2238,8 +2238,7 @@ create_filesystem_object(struct archive_write_disk *a)
 	mode = final_mode & 0777 & ~a->user_umask;
 
 	if (a->todo & (TODO_HFS_COMPRESSION | 
-		       TODO_XATTR |
-	               TODO_MAC_METADATA)) {
+		       TODO_XATTR)) {
 		/* Always create writable such that [f]setxattr() works */
 		mode |= 0200;
 	}
