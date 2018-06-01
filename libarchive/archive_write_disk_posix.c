@@ -2223,6 +2223,13 @@ create_filesystem_object(struct archive_write_disk *a)
 	 */
 	mode = final_mode & 0777 & ~a->user_umask;
 
+	if (a->todo & (TODO_HFS_COMPRESSION | 
+		       TODO_XATTR |
+	               TODO_MAC_METADATA)) {
+		/* Always create writable such that [f]setxattr() works */
+		mode |= 0200;
+	}
+
 	switch (a->mode & AE_IFMT) {
 	default:
 		/* POSIX requires that we fall through here. */
