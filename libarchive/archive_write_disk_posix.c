@@ -1712,7 +1712,8 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	 * which may be the state after set_mode(). Perform
 	 * set_xattrs() first based on these constraints.
 	 */
-	if (a->user_uid && (a->todo & TODO_XATTR)) {
+	if (a->user_uid != 0 &&
+	    (a->todo & TODO_XATTR)) {
 		int r2 = set_xattrs(a);
 		if (r2 < ret) ret = r2;
 	}
@@ -1732,7 +1733,8 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	 * since they're implicitly removed by other file changes.
 	 * We do this last only when root.
 	 */
-	if (!a->user_uid && (a->todo & TODO_XATTR)) {
+	if (a->user_uid == 0 &&
+	    (a->todo & TODO_XATTR)) {
 		int r2 = set_xattrs(a);
 		if (r2 < ret) ret = r2;
 	}
@@ -2237,9 +2239,12 @@ create_filesystem_object(struct archive_write_disk *a)
 	 */
 	mode = final_mode & 0777 & ~a->user_umask;
 
-	if (a->todo & (TODO_HFS_COMPRESSION | 
-		       TODO_XATTR)) {
-		/* Always create writable such that [f]setxattr() works */
+	/* 
+	 * Always create writable such that [f]setxattr() works if we're not
+	 * root.
+	 */
+	if (a->user_uid != 0 &&
+	    a->todo & (TODO_HFS_COMPRESSION | TODO_XATTR)) {
 		mode |= 0200;
 	}
 
