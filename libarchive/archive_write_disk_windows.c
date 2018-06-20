@@ -1514,7 +1514,32 @@ create_filesystem_object(struct archive_write_disk *a)
 #if HAVE_SYMLINK
 		return symlink(linkname, a->name) ? errno : 0;
 #else
-		return (EPERM);
+		if (linkname != NULL) {
+			wchar_t *linkfull, *namefull;
+
+			// Not sure which is best here, this is an absolute link, always:
+			// linkfull = __la_win_permissive_name_w(linkname);
+			linkfull = linkname;
+			namefull = __la_win_permissive_name_w(a->name);
+			if (linkfull == NULL || namefull == NULL) {
+				errno = EINVAL;
+				r = -1;
+			}
+			else {
+#if !defined(SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE)
+#define SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE 0x2
+#endif
+				r = CreateSymbolicLinkW(namefull, linkfull, SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE);
+				if (r == 0) {
+					la_dosmaperr(GetLastError());
+					r = errno;
+				}
+				else
+					r = 0;
+			}
+
+			return r;
+		}
 #endif
 	}
 
