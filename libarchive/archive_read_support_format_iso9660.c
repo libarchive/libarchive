@@ -1764,20 +1764,20 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 
 	iso9660 = (struct iso9660 *)(a->format->data);
 
-	if (reclen == 0 || reclen < (dr_len = (size_t)isodirrec[DR_length_offset])) {
+	if (reclen != 0)
+		dr_len = (size_t)isodirrec[DR_length_offset];
+	/*
+	 * Sanity check that reclen is not zero and dr_len is greater than
+	 * reclen but at least 34
+	 */
+	if (reclen == 0 || reclen < dr_len || dr_len < 34) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			"Invalid directory record length");
+			"Invalid length of directory record");
 		return (NULL);
 	}
 	name_len = (size_t)isodirrec[DR_name_len_offset];
 	location = archive_le32dec(isodirrec + DR_extent_offset);
 	fsize = toi(isodirrec + DR_size_offset, DR_size_size);
-	/* Sanity check that dr_len needs at least 34. */
-	if (dr_len < 34) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Invalid length of directory record");
-		return (NULL);
-	}
 	/* Sanity check that name_len doesn't exceed dr_len. */
 	if (dr_len - 33 < name_len || name_len == 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
