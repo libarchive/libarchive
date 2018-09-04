@@ -1,3 +1,5 @@
+Sep 03, 2018: libarchive 3.3.3 released
+
 Jul 19, 2018: Avoid super-linear slowdown on malformed mtree files
 
 Jan 27, 2018: Many fixes for building with Visual Studio
