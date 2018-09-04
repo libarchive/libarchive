@@ -1153,12 +1153,7 @@ if test "x$with_openssl" != "xno"; then
     CRYPTO_CHECK(SHA256, OPENSSL, sha256)
     CRYPTO_CHECK(SHA384, OPENSSL, sha384)
     CRYPTO_CHECK(SHA512, OPENSSL, sha512)
-    if test "x$found_OPENSSL" != "xyes"; then
-      LIBS=$saved_LIBS
-    else
-      AC_CHECK_FUNCS([PKCS5_PBKDF2_HMAC_SHA1])
-    fi
-    AC_CHECK_LIB(crypto,EVP_CIPHER_CTX_init)
+    AC_CHECK_FUNCS([PKCS5_PBKDF2_HMAC_SHA1])
 fi
 
 # Probe libmd AFTER OpenSSL/libcrypto.
