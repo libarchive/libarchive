@@ -316,7 +316,7 @@ aes_ctr_init(archive_crypto_ctx *ctx, const uint8_t *key, size_t key_len)
 	memcpy(ctx->key, key, key_len);
 	memset(ctx->nonce, 0, sizeof(ctx->nonce));
 	ctx->encr_pos = AES_BLOCK_SIZE;
-#if OPENSSL_VERSION_AT_LEAST(1, 1)
+#if defined(OPENSSL_VERSION_AT_LEAST) && OPENSSL_VERSION_AT_LEAST(1, 1)
 	if (!EVP_CIPHER_CTX_reset(ctx->ctx)) {
 		EVP_CIPHER_CTX_free(ctx->ctx);
 		ctx->ctx = NULL;
