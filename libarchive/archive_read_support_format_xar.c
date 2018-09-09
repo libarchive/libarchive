@@ -967,7 +967,7 @@ move_reading_point(struct archive_read *a, uint64_t offset)
 				return ((int)step);
 			xar->offset += step;
 		} else {
-			int64_t pos = __archive_read_seek(a, offset, SEEK_SET);
+			int64_t pos = __archive_read_seek(a, xar->h_base + offset, SEEK_SET);
 			if (pos == ARCHIVE_FAILED) {
 				archive_set_error(&(a->archive),
 				    ARCHIVE_ERRNO_MISC,
