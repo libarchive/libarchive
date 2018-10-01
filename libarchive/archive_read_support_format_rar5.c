@@ -1,5 +1,5 @@
 /*-
-* Copyright (c) 2018 Grzegorz Antoniak
+* Copyright (c) 2018 Grzegorz Antoniak (http://antoniak.org)
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -90,6 +90,7 @@ struct file_header {
     int64_t last_size;           /* Used in sanity checks. */
 
     uint8_t solid : 1;           /* Is this a solid stream? */
+    uint8_t service : 1;         /* Is this file a service data? */
 
     /* Optional time fields. */
     uint64_t e_mtime;
@@ -183,6 +184,11 @@ struct comp_state {
                                     the window buffer. */
     int64_t last_write_ptr;      /* This amount of data has been stored in
                                     the output file. */
+    int64_t last_unstore_ptr;    /* Counter of bytes extracted during
+                                    unstoring. This is separate from
+                                    last_write_ptr because of how SERVICE
+                                    base blocks are handled during skipping
+                                    in solid multiarchive archives. */
     int64_t solid_offset;        /* Additional offset inside the window
                                     buffer, used in unpacking solid
                                     archives. */
@@ -270,7 +276,7 @@ struct rar5 {
      * of the archive file. This is used in header reading functions. */
     int skipped_magic;
 
-    /* Set to 1 if we're in skip mode (either by calling rar5_data_skip
+    /* Set to not zero if we're in skip mode (either by calling rar5_data_skip
      * function or when skipping over solid streams). Set to 0 when in
      * extraction mode. This is used during checksum calculation functions. */
     int skip_mode;
@@ -782,6 +788,7 @@ static void reset_file_context(struct rar5* rar) {
 
     rar->cstate.write_ptr = 0;
     rar->cstate.last_write_ptr = 0;
+    rar->cstate.last_unstore_ptr = 0;
 
     free_filters(rar);
 }
@@ -1361,6 +1368,7 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
     rar->cstate.version = c_version + 50;
 
     rar->file.solid = (compression_info & SOLID) > 0;
+    rar->file.service = 0;
 
     if(!read_var_sized(a, &host_os, NULL))
         return ARCHIVE_EOF;
@@ -1454,7 +1462,16 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
         rar->cstate.initialized = 0;
     }
 
-    return ARCHIVE_OK;
+    if(rar->generic.split_before > 0) {
+        /* If now we're standing on a header that has a 'split before' mark,
+         * it means we're standing on a 'continuation' file header. Signal
+         * the caller that if it wants to move to another file, it must call
+         * rar5_read_header() function again. */
+
+        return ARCHIVE_RETRY;
+    } else {
+        return ARCHIVE_OK;
+    }
 }
 
 static int process_head_service(struct archive_read* a, struct rar5* rar,
@@ -1465,8 +1482,11 @@ static int process_head_service(struct archive_read* a, struct rar5* rar,
     if(ret != ARCHIVE_OK)
         return ret;
 
+    rar->file.service = 1;
+
     /* But skip the data part automatically. It's no use for the user anyway.
-     * It contains only service data needed to properly unpack the archive. */
+     * It contains only service data, not even needed to properly unpack the
+     * file. */
     ret = rar5_read_data_skip(a);
     if(ret != ARCHIVE_OK)
         return ret;
@@ -1574,6 +1594,51 @@ static int process_head_main(struct archive_read* a, struct rar5* rar,
 
 static int scan_for_signature(struct archive_read* a);
 
+/* Base block processing function. A 'base block' is a RARv5 header block
+ * that tells the reader what kind of data is stored inside the block.
+ *
+ * From the birds-eye view a RAR file looks file this:
+ *
+ * <magic><base_block_1><base_block_2>...<base_block_n>
+ *
+ * There are a few types of base blocks. Those types are specified inside
+ * the 'switch' statement in this function. For example purposes, I'll write
+ * how a standard RARv5 file could look like here:
+ *
+ * <magic><MAIN><FILE><FILE><FILE><SERVICE><ENDARC>
+ *
+ * The structure above could describe an archive file with 3 files in it,
+ * one service "QuickOpen" block (that is ignored by this parser), and an
+ * end of file base block marker.
+ *
+ * If the file is stored in multiple archive files ("multiarchive"), it might
+ * look like this:
+ *
+ * .part01.rar: <magic><MAIN><FILE><ENDARC>
+ * .part02.rar: <magic><MAIN><FILE><ENDARC>
+ * .part03.rar: <magic><MAIN><FILE><ENDARC>
+ *
+ * This example could describe 3 RAR files that contain ONE archived file.
+ * Or it could describe 3 RAR files that contain 3 different files. Or 3
+ * RAR files than contain 2 files. It all depends what metadata is stored in
+ * the headers of <FILE> blocks.
+ *
+ * Each <FILE> block contains info about its size, the name of the file it's
+ * storing inside, and whether this FILE block is a continuation block of
+ * previous archive ('split before'), and is this FILE block should be
+ * continued in another archive ('split after'). By parsing the 'split before'
+ * and 'split after' flags, we're able to tell if multiple <FILE> base blocks
+ * are describing one file, or multiple files (with the same filename, for
+ * example).
+ *
+ * One thing to note is that if we're parsing the first <FILE> block, and
+ * we see 'split after' flag, then we need to jump over to another <FILE>
+ * block to be able to decompress rest of the data. To do this, we need
+ * to skip the <ENDARC> block, then switch to another file, then skip the
+ * <magic> block, <MAIN> block, and then we're standing on the proper
+ * <FILE> block.
+ */
+
 static int process_base_block(struct archive_read* a,
         struct archive_entry* entry)
 {
@@ -1583,6 +1648,14 @@ static int process_base_block(struct archive_read* a,
     size_t header_id, header_flags;
     const uint8_t* p;
     int ret;
+
+    /* Skip any unprocessed data for this file. */
+    if(rar->file.bytes_remaining) {
+        ret = rar5_read_data_skip(a);
+        if(ret != ARCHIVE_OK) {
+            return ret;
+        }
+    }
 
     /* Read the expected CRC32 checksum. */
     if(!read_u32(a, &hdr_crc)) {
@@ -1604,7 +1677,8 @@ static int process_base_block(struct archive_read* a,
 
     hdr_size = raw_hdr_size + hdr_size_len;
 
-    /* Read the whole header data into memory. */
+    /* Read the whole header data into memory, maximum memory use here is
+     * 2MB. */
     if(!read_ahead(a, hdr_size, &p)) {
         return ARCHIVE_EOF;
     }
@@ -1666,14 +1740,18 @@ static int process_base_block(struct archive_read* a,
         case HEAD_ENDARC:
             rar->main.endarc = 1;
 
+            /* After encountering an end of file marker, we need to take
+             * into consideration if this archive is continued in another
+             * file (i.e. is it part01.rar: is there a part02.rar?) */
             if(rar->main.volume) {
+                /* In case there is part02.rar, position the read pointer
+                 * in a proper place, so we can resume parsing. */
+
                 ret = scan_for_signature(a);
-
-                rar->vol.expected_vol_no = rar->main.vol_no + 1;
-
                 if(ret == ARCHIVE_FATAL) {
                     return ARCHIVE_EOF;
                 } else {
+                    rar->vol.expected_vol_no = rar->main.vol_no + 1;
                     return ARCHIVE_OK;
                 }
             } else {
@@ -1919,7 +1997,7 @@ static int parse_tables(struct archive_read* a, struct rar5* rar,
 
     enum { ESCAPE = 15 };
 
-    /* The data for table generation are compressed using a simple RLE-like
+    /* The data for table generation is compressed using a simple RLE-like
      * algorithm when storing zeroes, so we need to unpack it first. */
     for(w = 0, i = 0; w < HUFF_BC;) {
         value = (p[i] & nibble_mask) >> nibble_shift;
@@ -2324,7 +2402,7 @@ static int do_uncompress_block(struct archive_read* a, const uint8_t* p) {
             return ARCHIVE_EOF;
         }
 
-        /* Num holds a decompression 'command code'.
+        /* Num holds a decompression literal, or 'command code'.
          *
          * - Values lower than 256 are just bytes. Those codes can be stored
          *   in the output buffer directly.
@@ -2487,6 +2565,12 @@ static int scan_for_signature(struct archive_read* a) {
     const int chunk_size = 512;
     ssize_t i;
 
+    /* If we're here, it means we're on an 'unknown territory' data.
+     * There's no indication what kind of data we're reading here. It could be
+     * some text comment, any kind of binary data, digital sign, dragons, etc.
+     *
+     * We want to find a valid RARv5 magic header inside this unknown data. */
+
     /* Is it possible in libarchive to just skip everything until the
      * end of the file? If so, it would be a better approach than the
      * current implementation of this function. */
@@ -2537,7 +2621,7 @@ static int advance_multivolume(struct archive_read* a) {
             break;
         } else {
             /* Skip current base block. In order to properly skip it,
-             * we weally need to simply parse it and discard the results. */
+             * we really need to simply parse it and discard the results. */
 
             lret = skip_base_block(a);
 
@@ -2815,6 +2899,15 @@ static int push_data_ready(struct archive_read* a, struct rar5* rar,
 {
     int i;
 
+    /* Don't push if we're in skip mode. This is needed because solid
+     * streams need full processing even if we're skipping data. After fully
+     * processing the stream, we need to discard the generated bytes, because
+     * we're interested only in the side effect: building up the internal
+     * window circular buffer. This window buffer will be used later during
+     * unpacking of requested data. */
+    if(rar->skip_mode)
+        return ARCHIVE_OK;
+
     /* Sanity check. */
     if(offset != rar->file.last_offset + rar->file.last_size) {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER, "Sanity "
@@ -2851,6 +2944,48 @@ static int push_data_ready(struct archive_read* a, struct rar5* rar,
             "premature end of data_ready stack");
     return ARCHIVE_FATAL;
 }
+
+/* This function uncompresses the data that is stored in the <FILE> base
+ * block.
+ *
+ * The FILE base block looks like this:
+ *
+ * <header><huffman tables><block_1><block_2>...<block_n>
+ *
+ * The <header> is a block header, that is parsed in parse_block_header().
+ * It's a "compressed_block_header" structure, containing metadata needed
+ * to know when we should stop looking for more <block_n> blocks.
+ *
+ * <huffman tables> contain data needed to set up the huffman tables, needed
+ * for the actual decompression.
+ *
+ * Each <block_n> consists of series of literals:
+ *
+ * <literal><literal><literal>...<literal>
+ *
+ * Those literals generate the uncompression data. They operate on a circular
+ * buffer, sometimes writing raw data into it, sometimes referencing
+ * some previous data inside this buffer, and sometimes declaring a filter
+ * that will need to be executed on the data stored in the circular buffer.
+ * It all depends on the literal that is used.
+ *
+ * Sometimes blocks produce output data, sometimes they don't. For example, for
+ * some huge files that use lots of filters, sometimes a block is filled with
+ * only filter declaration literals. Such blocks won't produce any data in the
+ * circular buffer.
+ *
+ * Sometimes blocks will produce 4 bytes of data, and sometimes 1 megabyte,
+ * because a literal can reference previously decompressed data. For example,
+ * there can be a literal that says: 'append a byte 0xFE here', and after
+ * it another literal can say 'append 1 megabyte of data from circular buffer
+ * offset 0x12345'. This is how RAR format handles compressing repeated
+ * patterns.
+ *
+ * The RAR compressor creates those literals and the actual efficiency of
+ * compression depends on what those literals are. The literals can also
+ * be seen as a kind of a non-turing-complete virtual machine that simply
+ * tells the decompressor what it should do.
+ * */
 
 static int do_uncompress_file(struct archive_read* a) {
     struct rar5* rar = get_context(a);
@@ -2990,10 +3125,10 @@ static int do_unstore_file(struct archive_read* a,
 
     if(buf)    *buf = p;
     if(size)   *size = to_read;
-    if(offset) *offset = rar->cstate.last_write_ptr;
+    if(offset) *offset = rar->cstate.last_unstore_ptr;
 
     rar->file.bytes_remaining -= to_read;
-    rar->cstate.last_write_ptr += to_read;
+    rar->cstate.last_unstore_ptr += to_read;
 
     update_crc(rar, p, to_read);
     return ARCHIVE_OK;
@@ -3006,25 +3141,29 @@ static int do_unpack(struct archive_read* a, struct rar5* rar,
         STORE = 0, FASTEST = 1, FAST = 2, NORMAL = 3, GOOD = 4, BEST = 5
     };
 
-    switch(rar->cstate.method) {
-        case STORE:
-            return do_unstore_file(a, rar, buf, size, offset);
-        case FASTEST:
-            fallthrough;
-        case FAST:
-            fallthrough;
-        case NORMAL:
-            fallthrough;
-        case GOOD:
-            fallthrough;
-        case BEST:
-            return uncompress_file(a);
-        default:
-            archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                    "Compression method not supported: 0x%08x",
-                    rar->cstate.method);
+    if(rar->file.service > 0) {
+        return do_unstore_file(a, rar, buf, size, offset);
+    } else {
+        switch(rar->cstate.method) {
+            case STORE:
+                return do_unstore_file(a, rar, buf, size, offset);
+            case FASTEST:
+                fallthrough;
+            case FAST:
+                fallthrough;
+            case NORMAL:
+                fallthrough;
+            case GOOD:
+                fallthrough;
+            case BEST:
+                return uncompress_file(a);
+            default:
+                archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                        "Compression method not supported: 0x%08x",
+                        rar->cstate.method);
 
-            return ARCHIVE_FATAL;
+                return ARCHIVE_FATAL;
+        }
     }
 
 #if !defined WIN32
@@ -3145,7 +3284,7 @@ static int rar5_read_data(struct archive_read *a, const void **buff,
     int ret;
     struct rar5* rar = get_context(a);
 
-    if(rar->cstate.last_write_ptr > rar->file.unpacked_size) {
+    if(!rar->skip_mode && (rar->cstate.last_write_ptr > rar->file.unpacked_size)) {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
                 "Unpacker has written too many bytes");
         return ARCHIVE_FATAL;
@@ -3191,8 +3330,11 @@ static int rar5_read_data_skip(struct archive_read *a) {
         while(rar->file.bytes_remaining > 0) {
             /* Setting the "skip mode" will allow us to skip checksum checks
              * during data skipping. Checking the checksum of skipped data
-             * isn't really necessary and it's only slowing things down. */
-            rar->skip_mode = 1;
+             * isn't really necessary and it's only slowing things down.
+             *
+             * This is incremented instead of setting to 1 because this data
+             * skipping function can be called recursively. */
+            rar->skip_mode++;
 
             /* We're disposing 1 block of data, so we use triple NULLs in
              * arguments.
@@ -3200,15 +3342,13 @@ static int rar5_read_data_skip(struct archive_read *a) {
             ret = rar5_read_data(a, NULL, NULL, NULL);
 
             /* Turn off "skip mode". */
-            rar->skip_mode = 0;
+            rar->skip_mode--;
 
             if(ret < 0) {
                 /* Propagate any potential error conditions to the caller. */
                 return ret;
             }
         }
-
-        return ARCHIVE_OK;
     } else {
         /* In standard archives, we can just jump over the compressed stream.
          * Each file in non-solid archives starts from an empty window buffer.
@@ -3219,8 +3359,9 @@ static int rar5_read_data_skip(struct archive_read *a) {
         }
 
         rar->file.bytes_remaining = 0;
-        return ARCHIVE_OK;
     }
+
+    return ARCHIVE_OK;
 }
 
 static int64_t rar5_seek_data(struct archive_read *a, int64_t offset,
