@@ -88,6 +88,33 @@ int verify_data(const uint8_t* data_ptr, int magic, int size) {
     return 1;
 }
 
+static
+int extract_one(struct archive* a, struct archive_entry* ae, uint32_t crc) {
+    la_ssize_t fsize, read;
+    uint8_t* buf;
+    int ret = 1;
+    uint32_t computed_crc;
+
+    fsize = archive_entry_size(ae);
+    buf = malloc(fsize);
+    if(buf == NULL)
+        return 1;
+
+    read = archive_read_data(a, buf, fsize);
+    if(read != fsize) {
+        assertEqualInt(read, fsize);
+        goto fn_exit;
+    }
+
+    computed_crc = crc32(0, buf, fsize);
+    assertEqualInt(computed_crc, crc);
+    ret = 0;
+    
+fn_exit:
+    free(buf);
+    return ret;
+}
+
 DEFINE_TEST(test_read_format_rar5_stored) 
 {
     const char helloworld_txt[] = "hello libarchive test suite!\n";
@@ -211,7 +238,7 @@ DEFINE_TEST(test_read_format_rar5_multiple_files_solid)
     EPILOGUE();
 }
 
-DEFINE_TEST(test_read_format_rar5_multiarchive_skip)
+DEFINE_TEST(test_read_format_rar5_multiarchive_skip_all)
 {
     const char* reffiles[] = {
         "test_read_format_rar5_multiarchive.part01.rar",
@@ -225,64 +252,57 @@ DEFINE_TEST(test_read_format_rar5_multiarchive_skip)
         NULL
     };
 
-    /* Just skip */
-    {
-        PROLOGUE_MULTI(reffiles);
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("home/antek/temp/build/unrar5/libarchive/bin/bsdcat_test", archive_entry_pathname(ae));
+    PROLOGUE_MULTI(reffiles);
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("home/antek/temp/build/unrar5/libarchive/bin/bsdcat_test", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("home/antek/temp/build/unrar5/libarchive/bin/bsdtar_test", archive_entry_pathname(ae));
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+    EPILOGUE();
+}
 
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("home/antek/temp/build/unrar5/libarchive/bin/bsdtar_test", archive_entry_pathname(ae));
+DEFINE_TEST(test_read_format_rar5_multiarchive_skip_all_but_first)
+{
+    const char* reffiles[] = {
+        "test_read_format_rar5_multiarchive.part01.rar",
+        "test_read_format_rar5_multiarchive.part02.rar",
+        "test_read_format_rar5_multiarchive.part03.rar",
+        "test_read_format_rar5_multiarchive.part04.rar",
+        "test_read_format_rar5_multiarchive.part05.rar",
+        "test_read_format_rar5_multiarchive.part06.rar",
+        "test_read_format_rar5_multiarchive.part07.rar",
+        "test_read_format_rar5_multiarchive.part08.rar",
+        NULL
+    };
 
-        assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
-        EPILOGUE();
-    }
+    PROLOGUE_MULTI(reffiles);
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertA(0 == extract_one(a, ae, 0x35277473));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+    EPILOGUE();
+}
 
-    /* Extract first and skip the second */
-    {
-        uint8_t* mem;
-        la_ssize_t fsize;
-        
-        PROLOGUE_MULTI(reffiles);
-        assertA(0 == archive_read_next_header(a, &ae));
+DEFINE_TEST(test_read_format_rar5_multiarchive_skip_all_but_second)
+{
+    const char* reffiles[] = {
+        "test_read_format_rar5_multiarchive.part01.rar",
+        "test_read_format_rar5_multiarchive.part02.rar",
+        "test_read_format_rar5_multiarchive.part03.rar",
+        "test_read_format_rar5_multiarchive.part04.rar",
+        "test_read_format_rar5_multiarchive.part05.rar",
+        "test_read_format_rar5_multiarchive.part06.rar",
+        "test_read_format_rar5_multiarchive.part07.rar",
+        "test_read_format_rar5_multiarchive.part08.rar",
+        NULL
+    };
 
-        /* Read the whole file into memory. */
-        fsize = archive_entry_size(ae);
-        mem = malloc(fsize);
-        assertA(mem != NULL);
-        assertA(fsize == archive_read_data(a, mem, fsize));
-        assertEqualInt(crc32(0, mem, fsize), 0x35277473);
-        free(mem);
-
-        /* Skip another file. */
-        assertA(0 == archive_read_next_header(a, &ae));
-        
-        /* There's no third file, should be EOF. */
-        assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
-        EPILOGUE();
-    }
-
-    /* Skip first and extract the second */
-    {
-        uint8_t* mem;
-        la_ssize_t fsize;
-
-        PROLOGUE_MULTI(reffiles);
-        assertA(0 == archive_read_next_header(a, &ae));
-
-        /* Skip the first file, extract the second file. */
-        assertA(0 == archive_read_next_header(a, &ae));
-        fsize = archive_entry_size(ae);
-        mem = malloc(fsize);
-        assertA(mem != NULL);
-        assertA(fsize == archive_read_data(a, mem, fsize));
-        assertEqualInt(crc32(0, mem, fsize), 0xE59665F8);
-        free(mem);
-
-        /* Third file doesn't exist, and should be EOF. */
-        assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
-        EPILOGUE();
-    }
+    PROLOGUE_MULTI(reffiles);
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertA(0 == extract_one(a, ae, 0xE59665F8));
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+    EPILOGUE();
 }
 
 DEFINE_TEST(test_read_format_rar5_blake2)
@@ -329,75 +349,83 @@ DEFINE_TEST(test_read_format_rar5_arm_filter)
     EPILOGUE();
 }
 
-DEFINE_TEST(test_read_format_rar5_skip_stored)
+DEFINE_TEST(test_read_format_rar5_stored_skip_all)
 {
     const char* fname = "test_read_format_rar5_stored_manyfiles.rar";
 
-    /* Skip all 3 files first. */
-    {
-        PROLOGUE(fname);
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("make_uue.tcl", archive_entry_pathname(ae));
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("cebula.txt", archive_entry_pathname(ae));
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test.bin", archive_entry_pathname(ae));
-        assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
-        EPILOGUE();
-    }
-
-    /* Skip first, extract in part rest. */
-    {
-        char buf[6];
-        PROLOGUE(fname);
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("make_uue.tcl", archive_entry_pathname(ae));
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("cebula.txt", archive_entry_pathname(ae));
-        assertA(6 == archive_read_data(a, buf, 6));
-        assertEqualInt(0, memcmp(buf, "Cebula", 6));
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test.bin", archive_entry_pathname(ae));
-        assertA(4 == archive_read_data(a, buf, 4));
-        assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
-        EPILOGUE();
-    }
-
-    /* Extract in part first, skip rest. */
-    {
-        char buf[405];
-        PROLOGUE(fname);
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("make_uue.tcl", archive_entry_pathname(ae));
-        assertA(405 == archive_read_data(a, buf, sizeof(buf)));
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("cebula.txt", archive_entry_pathname(ae));
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test.bin", archive_entry_pathname(ae));
-        assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
-        EPILOGUE();
-    }
-
-    /* Extract in part all */
-    {
-        char buf[4];
-        PROLOGUE(fname);
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("make_uue.tcl", archive_entry_pathname(ae));
-        assertA(4 == archive_read_data(a, buf, 4));
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("cebula.txt", archive_entry_pathname(ae));
-        assertA(4 == archive_read_data(a, buf, 4));
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test.bin", archive_entry_pathname(ae));
-        assertA(4 == archive_read_data(a, buf, 4));
-        assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
-        EPILOGUE();
-    }
-
+    PROLOGUE(fname);
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("make_uue.tcl", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("cebula.txt", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test.bin", archive_entry_pathname(ae));
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+    EPILOGUE();
 }
 
-DEFINE_TEST(test_read_format_rar5_multiarchive_solid_skip)
+DEFINE_TEST(test_read_format_rar5_stored_skip_in_part)
+{
+    const char* fname = "test_read_format_rar5_stored_manyfiles.rar";
+    char buf[6];
+
+    /* Skip first, extract in part rest. */
+
+    PROLOGUE(fname);
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("make_uue.tcl", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("cebula.txt", archive_entry_pathname(ae));
+    assertA(6 == archive_read_data(a, buf, 6));
+    assertEqualInt(0, memcmp(buf, "Cebula", 6));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test.bin", archive_entry_pathname(ae));
+    assertA(4 == archive_read_data(a, buf, 4));
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+    EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_stored_skip_all_but_first)
+{
+    const char* fname = "test_read_format_rar5_stored_manyfiles.rar";
+    char buf[405];
+
+    /* Extract first, skip rest. */
+
+    PROLOGUE(fname);
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("make_uue.tcl", archive_entry_pathname(ae));
+    assertA(405 == archive_read_data(a, buf, sizeof(buf)));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("cebula.txt", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test.bin", archive_entry_pathname(ae));
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+    EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_stored_skip_all_in_part)
+{
+    const char* fname = "test_read_format_rar5_stored_manyfiles.rar";
+    char buf[4];
+
+    /* Extract in part all */
+
+    PROLOGUE(fname);
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("make_uue.tcl", archive_entry_pathname(ae));
+    assertA(4 == archive_read_data(a, buf, 4));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("cebula.txt", archive_entry_pathname(ae));
+    assertA(4 == archive_read_data(a, buf, 4));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test.bin", archive_entry_pathname(ae));
+    assertA(4 == archive_read_data(a, buf, 4));
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+    EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_multiarchive_solid_skip_all)
 {
     const char* reffiles[] = {
         "test_read_format_rar5_multiarchive_solid.part01.rar",
@@ -407,196 +435,294 @@ DEFINE_TEST(test_read_format_rar5_multiarchive_solid_skip)
         NULL
     };
 
-    /* Just skip */
-    {
-        PROLOGUE_MULTI(reffiles);
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("cebula.txt", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test1.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test2.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test3.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test4.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test5.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test6.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("elf-Linux-ARMv7-ls", archive_entry_pathname(ae));
-
-        assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
-        EPILOGUE();
-    }
-
-    /* Extract first, skip rest */
-    {
-        uint8_t buf[814];
-
-        PROLOGUE_MULTI(reffiles);
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("cebula.txt", archive_entry_pathname(ae));
-        assertEqualInt(814, archive_read_data(a, buf, 814));
-        assertEqualInt(crc32(0, buf, 814), 0x7E5EC49E);
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test1.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test2.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test3.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test4.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test5.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test6.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("elf-Linux-ARMv7-ls", archive_entry_pathname(ae));
-
-        assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
-        EPILOGUE();
-    }
-
-    /* Skip first, extract second, skip rest. */
-    {
-        uint8_t buf[1200];
-
-        PROLOGUE_MULTI(reffiles);
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("cebula.txt", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test.bin", archive_entry_pathname(ae));
-        assertEqualInt(1200, archive_entry_size(ae));
-        assertEqualInt(1200, archive_read_data(a, buf, 1200));
-        assertEqualInt(crc32(0, buf, 1200), 0x7CCA70CD);
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test1.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test2.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test3.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test4.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test5.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test6.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("elf-Linux-ARMv7-ls", archive_entry_pathname(ae));
-
-        assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
-        EPILOGUE();
-    }
-
-    /* Skip first two, extract third, skip rest. */
-    {
-        uint8_t buf[4096];
-
-        PROLOGUE_MULTI(reffiles);
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("cebula.txt", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test1.bin", archive_entry_pathname(ae));
-        assertEqualInt(4096, archive_entry_size(ae));
-        assertEqualInt(4096, archive_read_data(a, buf, 4096));
-        assertEqualInt(crc32(0, buf, 4096), 0x7E13B2C6);
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test2.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test3.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test4.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test5.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test6.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("elf-Linux-ARMv7-ls", archive_entry_pathname(ae));
-
-        assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
-        EPILOGUE();
-    }
-
-    /* Skip all but last, extract last. */
-    {
-        la_ssize_t fsize = 90808;
-        uint8_t* buf = malloc(fsize);
-
-        PROLOGUE_MULTI(reffiles);
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("cebula.txt", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test1.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test2.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test3.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test4.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test5.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("test6.bin", archive_entry_pathname(ae));
-
-        assertA(0 == archive_read_next_header(a, &ae));
-        assertEqualString("elf-Linux-ARMv7-ls", archive_entry_pathname(ae));
-        assertEqualInt(fsize, archive_entry_size(ae));
-        assertEqualInt(fsize, archive_read_data(a, buf, fsize));
-        assertEqualInt(crc32(0, buf, fsize), 0x886F91EB);
-
-        assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
-        EPILOGUE();
-        free(buf);
-    }
+    PROLOGUE_MULTI(reffiles);
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("cebula.txt", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test1.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test2.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test3.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test4.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test5.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test6.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("elf-Linux-ARMv7-ls", archive_entry_pathname(ae));
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+    EPILOGUE();
 }
 
-// TODO: skip in solid stream
+DEFINE_TEST(test_read_format_rar5_multiarchive_solid_skip_all_but_first)
+{
+    const char* reffiles[] = {
+        "test_read_format_rar5_multiarchive_solid.part01.rar",
+        "test_read_format_rar5_multiarchive_solid.part02.rar",
+        "test_read_format_rar5_multiarchive_solid.part03.rar",
+        "test_read_format_rar5_multiarchive_solid.part04.rar",
+        NULL
+    };
+
+    PROLOGUE_MULTI(reffiles);
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("cebula.txt", archive_entry_pathname(ae));
+    assertA(0 == extract_one(a, ae, 0x7E5EC49E));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test1.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test2.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test3.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test4.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test5.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test6.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("elf-Linux-ARMv7-ls", archive_entry_pathname(ae));
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+    EPILOGUE();
+}
+
+/* "skip_all_but_scnd" -> am I hitting the test name limit here after
+ * expansion of "scnd" to "second"? */
+
+DEFINE_TEST(test_read_format_rar5_multiarchive_solid_skip_all_but_scnd)
+{
+    const char* reffiles[] = {
+        "test_read_format_rar5_multiarchive_solid.part01.rar",
+        "test_read_format_rar5_multiarchive_solid.part02.rar",
+        "test_read_format_rar5_multiarchive_solid.part03.rar",
+        "test_read_format_rar5_multiarchive_solid.part04.rar",
+        NULL
+    };
+
+    PROLOGUE_MULTI(reffiles);
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("cebula.txt", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test.bin", archive_entry_pathname(ae));
+    assertA(0 == extract_one(a, ae, 0x7CCA70CD));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test1.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test2.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test3.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test4.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test5.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test6.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("elf-Linux-ARMv7-ls", archive_entry_pathname(ae));
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+    EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_multiarchive_solid_skip_all_but_third)
+{
+    const char* reffiles[] = {
+        "test_read_format_rar5_multiarchive_solid.part01.rar",
+        "test_read_format_rar5_multiarchive_solid.part02.rar",
+        "test_read_format_rar5_multiarchive_solid.part03.rar",
+        "test_read_format_rar5_multiarchive_solid.part04.rar",
+        NULL
+    };
+
+    PROLOGUE_MULTI(reffiles);
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("cebula.txt", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test1.bin", archive_entry_pathname(ae));
+    assertA(0 == extract_one(a, ae, 0x7E13B2C6));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test2.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test3.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test4.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test5.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test6.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("elf-Linux-ARMv7-ls", archive_entry_pathname(ae));
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+    EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_multiarchive_solid_skip_all_but_last)
+{
+    const char* reffiles[] = {
+        "test_read_format_rar5_multiarchive_solid.part01.rar",
+        "test_read_format_rar5_multiarchive_solid.part02.rar",
+        "test_read_format_rar5_multiarchive_solid.part03.rar",
+        "test_read_format_rar5_multiarchive_solid.part04.rar",
+        NULL
+    };
+
+    PROLOGUE_MULTI(reffiles);
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("cebula.txt", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test1.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test2.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test3.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test4.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test5.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test6.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("elf-Linux-ARMv7-ls", archive_entry_pathname(ae));
+    assertA(0 == extract_one(a, ae, 0x886F91EB));
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+    EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_solid_skip_all) 
+{
+    const char* reffile = "test_read_format_rar5_solid.rar";
+
+    /* Skip all */
+
+    PROLOGUE(reffile);
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test1.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test2.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test3.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test4.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test5.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test6.bin", archive_entry_pathname(ae));
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+    EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_solid_skip_all_but_first) 
+{
+    const char* reffile = "test_read_format_rar5_solid.rar";
+
+    /* Extract first, skip rest */
+
+    PROLOGUE(reffile);
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test.bin", archive_entry_pathname(ae));
+    assertA(0 == extract_one(a, ae, 0x7CCA70CD));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test1.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test2.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test3.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test4.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test5.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test6.bin", archive_entry_pathname(ae));
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+    EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_solid_skip_all_but_second) 
+{
+    const char* reffile = "test_read_format_rar5_solid.rar";
+
+    /* Skip first, extract second, skip rest */
+
+    PROLOGUE(reffile);
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test1.bin", archive_entry_pathname(ae));
+    assertA(0 == extract_one(a, ae, 0x7E13B2C6));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test2.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test3.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test4.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test5.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test6.bin", archive_entry_pathname(ae));
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+    EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_solid_skip_all_but_last)
+{
+    const char* reffile = "test_read_format_rar5_solid.rar";
+
+    /* Skip all but last, extract last */
+
+    PROLOGUE(reffile);
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test1.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test2.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test3.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test4.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test5.bin", archive_entry_pathname(ae));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test6.bin", archive_entry_pathname(ae));
+    assertA(0 == extract_one(a, ae, 0x36A448FF));
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+    EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_extract_win32)
+{
+    PROLOGUE("test_read_format_rar5_win32.rar");
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test.bin", archive_entry_pathname(ae));
+    assertA(0 == extract_one(a, ae, 0x7CCA70CD));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test1.bin", archive_entry_pathname(ae));
+    assertA(0 == extract_one(a, ae, 0x7E13B2C6));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test2.bin", archive_entry_pathname(ae));
+    assertA(0 == extract_one(a, ae, 0xF166AFCB));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test3.bin", archive_entry_pathname(ae));
+    assertA(0 == extract_one(a, ae, 0x9FB123D9));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test4.bin", archive_entry_pathname(ae));
+    assertA(0 == extract_one(a, ae, 0x10C43ED4));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test5.bin", archive_entry_pathname(ae));
+    assertA(0 == extract_one(a, ae, 0xB9D155F2));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test6.bin", archive_entry_pathname(ae));
+    assertA(0 == extract_one(a, ae, 0x36A448FF));
+    EPILOGUE();
+}
