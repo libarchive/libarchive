@@ -1038,14 +1038,16 @@ static int rar5_bid(struct archive_read* a, int best_bid) {
     return -1;
 }
 
-static int rar5_options(struct archive_read *a, const char *key,
-        const char *val)
-{
+static int rar5_options(struct archive_read *a, const char *key, const char *val) {
     (void) a;
     (void) key;
     (void) val;
 
-    return ARCHIVE_FATAL;
+    /* No options supported in this version. Return the ARCHIVE_WARN code to
+     * signal the options supervisor that the unpacker didn't handle setting
+     * this option. */
+
+    return ARCHIVE_WARN;
 }
 
 static void init_header(struct archive_read* a) {
