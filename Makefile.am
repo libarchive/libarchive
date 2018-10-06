@@ -94,8 +94,6 @@ include_HEADERS= libarchive/archive.h libarchive/archive_entry.h
 libarchive_la_SOURCES= \
 	libarchive/archive_acl.c \
 	libarchive/archive_acl_private.h \
-	libarchive/archive_blake2s_ref.c \
-	libarchive/archive_blake2sp_ref.c \
 	libarchive/archive_check_magic.c \
 	libarchive/archive_cmdline.c \
 	libarchive/archive_cmdline_private.h \
@@ -252,6 +250,12 @@ libarchive_la_SOURCES+= \
 	libarchive/archive_windows.c \
 	libarchive/archive_write_disk_windows.c \
 	libarchive/filter_fork_windows.c
+endif
+
+if INC_BLAKE2
+libarchive_la_SOURCES+= \
+	libarchive/archive_blake2s_ref.c \
+	libarchive/archive_blake2sp_ref.c
 endif
 
 if INC_LINUX_ACL

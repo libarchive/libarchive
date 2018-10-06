@@ -42,7 +42,12 @@
 #include "archive_entry_locale.h"
 #include "archive_ppmd7_private.h"
 #include "archive_entry_private.h"
+
+#ifdef HAVE_BLAKE2_H
+#include <blake2.h>
+#else
 #include "archive_blake2.h"
+#endif
 
 /*#define CHECK_CRC_ON_SOLID_SKIP*/
 /*#define DONT_FAIL_ON_CRC_ERROR*/
