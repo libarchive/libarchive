@@ -1251,7 +1251,10 @@ parse_file(struct archive_read *a, struct archive_entry *entry,
 			mtree->fd = open(path, O_RDONLY | O_BINARY | O_CLOEXEC);
 			__archive_ensure_cloexec_flag(mtree->fd);
 			if (mtree->fd == -1 &&
-				(errno != ENOENT ||
+                            /* On Windows, attempting to open a file with an invalid name
+                             * result in EINVAL (Error 22)
+                             */
+				((errno != ENOENT && errno != EINVAL) ||
 				 archive_strlen(&mtree->contents_name) > 0)) {
 				archive_set_error(&a->archive, errno,
 						"Can't open %s", path);
