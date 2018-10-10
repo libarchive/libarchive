@@ -56,11 +56,14 @@ DEFINE_TEST(test_write_format_iso9660)
 	/*
 	 * "file" has a bunch of attributes and 8 bytes of data.
 	 */
+        // N.B. this test can fail on Windows if the corresponding local time 
+        // is in the year 1969, as _mkgmtime64 has a minimum year of 1970. 
+        // This is set to 1970-01-02, which is in the year 1970 in all timezones.
 	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_atime(ae, 2, 20);
-	archive_entry_set_birthtime(ae, 3, 30);
-	archive_entry_set_ctime(ae, 4, 40);
-	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_set_atime(ae, 86402, 20);
+	archive_entry_set_birthtime(ae, 86403, 30);
+	archive_entry_set_ctime(ae, 86404, 40);
+	archive_entry_set_mtime(ae, 86405, 50);
 	archive_entry_copy_pathname(ae, "file");
 	archive_entry_set_mode(ae, AE_IFREG | 0755);
 	archive_entry_set_size(ae, 8);
@@ -73,10 +76,10 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * "hardlnk" has linked to "file".
 	 */
 	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_atime(ae, 2, 20);
-	archive_entry_set_birthtime(ae, 3, 30);
-	archive_entry_set_ctime(ae, 4, 40);
-	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_set_atime(ae, 86402, 20);
+	archive_entry_set_birthtime(ae, 86403, 30);
+	archive_entry_set_ctime(ae, 86404, 40);
+	archive_entry_set_mtime(ae, 86405, 50);
 	archive_entry_copy_pathname(ae, "hardlnk");
 	archive_entry_set_mode(ae, AE_IFREG | 0755);
 	archive_entry_set_hardlink(ae, "file");
@@ -88,10 +91,10 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * longname is similar but has birthtime later than mtime.
 	 */
 	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_atime(ae, 2, 20);
-	archive_entry_set_birthtime(ae, 8, 80);
-	archive_entry_set_ctime(ae, 4, 40);
-	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_set_atime(ae, 86402, 20);
+	archive_entry_set_birthtime(ae, 86408, 80);
+	archive_entry_set_ctime(ae, 86404, 40);
+	archive_entry_set_mtime(ae, 86405, 50);
 	archive_entry_copy_pathname(ae, longname);
 	archive_entry_set_mode(ae, AE_IFREG | 0666);
 	archive_entry_set_size(ae, 8);
@@ -103,9 +106,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * "symlnk has symbolic linked to longname.
 	 */
 	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_atime(ae, 2, 20);
-	archive_entry_set_ctime(ae, 4, 40);
-	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_set_atime(ae, 86402, 20);
+	archive_entry_set_ctime(ae, 86404, 40);
+	archive_entry_set_mtime(ae, 86405, 50);
 	archive_entry_copy_pathname(ae, "symlnk");
 	archive_entry_set_mode(ae, AE_IFLNK | 0555);
 	archive_entry_set_symlink(ae, longname);
@@ -124,10 +127,10 @@ DEFINE_TEST(test_write_format_iso9660)
 		else
 			strcat(dirname, dir);
 		assert((ae = archive_entry_new()) != NULL);
-		archive_entry_set_atime(ae, 2, 20);
-		archive_entry_set_birthtime(ae, 3, 30);
-		archive_entry_set_ctime(ae, 4, 40);
-		archive_entry_set_mtime(ae, 5, 50);
+		archive_entry_set_atime(ae, 86402, 20);
+		archive_entry_set_birthtime(ae, 86403, 30);
+		archive_entry_set_ctime(ae, 86404, 40);
+		archive_entry_set_mtime(ae, 86405, 50);
 		archive_entry_copy_pathname(ae, dirname);
 		archive_entry_set_mode(ae, S_IFDIR | 0755);
 		assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
@@ -136,10 +139,10 @@ DEFINE_TEST(test_write_format_iso9660)
 
 	strcat(dirname, "/file");
 	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_atime(ae, 2, 20);
-	archive_entry_set_birthtime(ae, 3, 30);
-	archive_entry_set_ctime(ae, 4, 40);
-	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_set_atime(ae, 86402, 20);
+	archive_entry_set_birthtime(ae, 86403, 30);
+	archive_entry_set_ctime(ae, 86404, 40);
+	archive_entry_set_mtime(ae, 86405, 50);
 	archive_entry_copy_pathname(ae, dirname);
 	archive_entry_set_mode(ae, S_IFREG | 0755);
 	archive_entry_set_size(ae, 8);
@@ -151,10 +154,10 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * "dir0/dir1/file1" has 8 bytes of data.
 	 */
 	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_atime(ae, 2, 20);
-	archive_entry_set_birthtime(ae, 3, 30);
-	archive_entry_set_ctime(ae, 4, 40);
-	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_set_atime(ae, 86402, 20);
+	archive_entry_set_birthtime(ae, 86403, 30);
+	archive_entry_set_ctime(ae, 86404, 40);
+	archive_entry_set_mtime(ae, 86405, 50);
 	archive_entry_copy_pathname(ae, "dir0/dir1/file1");
 	archive_entry_set_mode(ae, AE_IFREG | 0755);
 	archive_entry_set_size(ae, 8);
@@ -167,10 +170,10 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * "dir0/dir1/file2" has 8 bytes of data.
 	 */
 	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_atime(ae, 2, 20);
-	archive_entry_set_birthtime(ae, 3, 30);
-	archive_entry_set_ctime(ae, 4, 40);
-	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_set_atime(ae, 86402, 20);
+	archive_entry_set_birthtime(ae, 86403, 30);
+	archive_entry_set_ctime(ae, 86404, 40);
+	archive_entry_set_mtime(ae, 86405, 50);
 	archive_entry_copy_pathname(ae, "dir0/dir1/file2");
 	archive_entry_set_mode(ae, AE_IFREG | 0755);
 	archive_entry_set_size(ae, 8);
@@ -183,10 +186,10 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Add a wrong path "dir0/dir1/file2/wrong"
 	 */
 	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_atime(ae, 2, 20);
-	archive_entry_set_birthtime(ae, 3, 30);
-	archive_entry_set_ctime(ae, 4, 40);
-	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_set_atime(ae, 86402, 20);
+	archive_entry_set_birthtime(ae, 86403, 30);
+	archive_entry_set_ctime(ae, 86404, 40);
+	archive_entry_set_mtime(ae, 86405, 50);
 	archive_entry_copy_pathname(ae, "dir0/dir1/file2/wrong");
 	archive_entry_set_mode(ae, AE_IFREG | 0755);
 	archive_entry_set_size(ae, 8);
@@ -222,10 +225,10 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	assertEqualInt(3, archive_entry_birthtime(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	assertEqualInt(86403, archive_entry_birthtime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0", archive_entry_pathname(ae));
 	assert((S_IFDIR | 0555) == archive_entry_mode(ae));
 	assertEqualInt(2048, archive_entry_size(ae));
@@ -234,10 +237,10 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	assertEqualInt(3, archive_entry_birthtime(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	assertEqualInt(86403, archive_entry_birthtime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1", archive_entry_pathname(ae));
 	assert((S_IFDIR | 0555) == archive_entry_mode(ae));
 	assertEqualInt(2048, archive_entry_size(ae));
@@ -246,10 +249,10 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	assertEqualInt(3, archive_entry_birthtime(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	assertEqualInt(86403, archive_entry_birthtime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/dir2", archive_entry_pathname(ae));
 	assert((S_IFDIR | 0555) == archive_entry_mode(ae));
 	assertEqualInt(2048, archive_entry_size(ae));
@@ -258,10 +261,10 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	assertEqualInt(3, archive_entry_birthtime(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	assertEqualInt(86403, archive_entry_birthtime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/dir2/dir3",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0555) == archive_entry_mode(ae));
@@ -271,10 +274,10 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3/dir4"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	assertEqualInt(3, archive_entry_birthtime(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	assertEqualInt(86403, archive_entry_birthtime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/dir2/dir3/dir4",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0555) == archive_entry_mode(ae));
@@ -284,10 +287,10 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3/dir4/dir5"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	assertEqualInt(3, archive_entry_birthtime(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	assertEqualInt(86403, archive_entry_birthtime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/dir2/dir3/dir4/dir5",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0555) == archive_entry_mode(ae));
@@ -297,10 +300,10 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3/dir4/dir5/dir6"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	assertEqualInt(3, archive_entry_birthtime(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	assertEqualInt(86403, archive_entry_birthtime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/dir2/dir3/dir4/dir5/dir6",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0555) == archive_entry_mode(ae));
@@ -310,10 +313,10 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	assertEqualInt(3, archive_entry_birthtime(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	assertEqualInt(86403, archive_entry_birthtime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0555) == archive_entry_mode(ae));
@@ -323,10 +326,10 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7/dir8"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	assertEqualInt(3, archive_entry_birthtime(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	assertEqualInt(86403, archive_entry_birthtime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7/dir8",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0555) == archive_entry_mode(ae));
@@ -336,10 +339,10 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7/dir8/dir9"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	assertEqualInt(3, archive_entry_birthtime(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	assertEqualInt(86403, archive_entry_birthtime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7/dir8/dir9",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0555) == archive_entry_mode(ae));
@@ -349,10 +352,10 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7/dir8/dir9/dirA"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	assertEqualInt(3, archive_entry_birthtime(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	assertEqualInt(86403, archive_entry_birthtime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7/dir8/dir9/dirA",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0555) == archive_entry_mode(ae));
@@ -362,10 +365,10 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7/dir8/dir9/dirA/dirB"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	assertEqualInt(3, archive_entry_birthtime(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	assertEqualInt(86403, archive_entry_birthtime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7/dir8/dir9/dirA/dirB",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0555) == archive_entry_mode(ae));
@@ -375,10 +378,10 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7/dir8/dir9/dirA/dirB/dirC"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	assertEqualInt(3, archive_entry_birthtime(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	assertEqualInt(86403, archive_entry_birthtime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7/dir8/dir9/dirA/dirB/dirC",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0555) == archive_entry_mode(ae));
@@ -388,10 +391,10 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "hardlnk"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	assertEqualInt(3, archive_entry_birthtime(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	assertEqualInt(86403, archive_entry_birthtime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("hardlnk", archive_entry_pathname(ae));
 	assert((AE_IFREG | 0555) == archive_entry_mode(ae));
 	assertEqualInt(2, archive_entry_nlink(ae));
@@ -403,10 +406,10 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "file"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	assertEqualInt(3, archive_entry_birthtime(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	assertEqualInt(86403, archive_entry_birthtime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("file", archive_entry_pathname(ae));
 	assertEqualString("hardlnk", archive_entry_hardlink(ae));
 	assert((AE_IFREG | 0555) == archive_entry_mode(ae));
@@ -418,14 +421,14 @@ DEFINE_TEST(test_write_format_iso9660)
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
 	assert(archive_entry_atime_is_set(ae));
-	assertEqualInt(2, archive_entry_atime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
 	/* Birthtime > mtime above, so it doesn't get stored at all. */
 	assert(!archive_entry_birthtime_is_set(ae));
 	assertEqualInt(0, archive_entry_birthtime(ae));
 	assert(archive_entry_ctime_is_set(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
 	assert(archive_entry_mtime_is_set(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString(longname, archive_entry_pathname(ae));
 #if !defined(_WIN32) && !defined(__CYGWIN__)
 	assert((AE_IFREG | 0444) == archive_entry_mode(ae));
@@ -441,10 +444,10 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7/dir8/dir9/dirA/dirB/dirC/file"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	assertEqualInt(3, archive_entry_birthtime(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	assertEqualInt(86403, archive_entry_birthtime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7/dir8/dir9/dirA/dirB/dirC/file", archive_entry_pathname(ae));
 	assert((AE_IFREG | 0555) == archive_entry_mode(ae));
 	assertEqualInt(1, archive_entry_nlink(ae));
@@ -456,10 +459,10 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/file1"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	assertEqualInt(3, archive_entry_birthtime(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	assertEqualInt(86403, archive_entry_birthtime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/file1", archive_entry_pathname(ae));
 	assert((AE_IFREG | 0555) == archive_entry_mode(ae));
 	assertEqualInt(1, archive_entry_nlink(ae));
@@ -471,10 +474,10 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/file2"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	assertEqualInt(3, archive_entry_birthtime(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	assertEqualInt(86403, archive_entry_birthtime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/file2", archive_entry_pathname(ae));
 	assert((AE_IFREG | 0555) == archive_entry_mode(ae));
 	assertEqualInt(1, archive_entry_nlink(ae));
@@ -487,13 +490,13 @@ DEFINE_TEST(test_write_format_iso9660)
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
 	assert(archive_entry_atime_is_set(ae));
-	assertEqualInt(2, archive_entry_atime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
 	assert(!archive_entry_birthtime_is_set(ae));
 	assertEqualInt(0, archive_entry_birthtime(ae));
 	assert(archive_entry_ctime_is_set(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
 	assert(archive_entry_mtime_is_set(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("symlnk", archive_entry_pathname(ae));
 	assert((AE_IFLNK | 0555) == archive_entry_mode(ae));
 	assertEqualString(longname, archive_entry_symlink(ae));
@@ -533,9 +536,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0", archive_entry_pathname(ae));
 	assert((S_IFDIR | 0700) == archive_entry_mode(ae));
 	assertEqualInt(2048, archive_entry_size(ae));
@@ -544,9 +547,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1", archive_entry_pathname(ae));
 	assert((S_IFDIR | 0700) == archive_entry_mode(ae));
 	assertEqualInt(2048, archive_entry_size(ae));
@@ -555,9 +558,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/dir2", archive_entry_pathname(ae));
 	assert((S_IFDIR | 0700) == archive_entry_mode(ae));
 	assertEqualInt(2048, archive_entry_size(ae));
@@ -566,9 +569,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/dir2/dir3",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0700) == archive_entry_mode(ae));
@@ -578,9 +581,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3/dir4"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/dir2/dir3/dir4",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0700) == archive_entry_mode(ae));
@@ -590,9 +593,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3/dir4/dir5"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/dir2/dir3/dir4/dir5",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0700) == archive_entry_mode(ae));
@@ -602,9 +605,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3/dir4/dir5/dir6"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/dir2/dir3/dir4/dir5/dir6",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0700) == archive_entry_mode(ae));
@@ -614,9 +617,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0700) == archive_entry_mode(ae));
@@ -626,9 +629,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7/dir8"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7/dir8",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0700) == archive_entry_mode(ae));
@@ -638,9 +641,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7/dir8/dir9"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7/dir8/dir9",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0700) == archive_entry_mode(ae));
@@ -650,9 +653,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7/dir8/dir9/dirA"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7/dir8/dir9/dirA",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0700) == archive_entry_mode(ae));
@@ -662,9 +665,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7/dir8/dir9/dirA/dirB"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7/dir8/dir9/dirA/dirB",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0700) == archive_entry_mode(ae));
@@ -674,9 +677,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7/dir8/dir9/dirA/dirB/dirC"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7/dir8/dir9/dirA/dirB/dirC",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0700) == archive_entry_mode(ae));
@@ -686,9 +689,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "file"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("file", archive_entry_pathname(ae));
 	assert((AE_IFREG | 0400) == archive_entry_mode(ae));
 	assertEqualInt(8, archive_entry_size(ae));
@@ -699,9 +702,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "hardlnk"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("hardlnk", archive_entry_pathname(ae));
 	assertEqualString("file", archive_entry_hardlink(ae));
 	assert((AE_IFREG | 0400) == archive_entry_mode(ae));
@@ -714,11 +717,11 @@ DEFINE_TEST(test_write_format_iso9660)
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
 	assert(archive_entry_atime_is_set(ae));
-	assertEqualInt(5, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
 	assert(archive_entry_ctime_is_set(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
 	assert(archive_entry_mtime_is_set(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	/* Trim longname to 64 characters. */
 	longname[64] = '\0';
 	assertEqualString(longname, archive_entry_pathname(ae));
@@ -731,9 +734,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7/dir8/dir9/dirA/dirB/dirC/file"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString(
 		"dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7/dir8/dir9/dirA/dirB/dirC/file",
 		archive_entry_pathname(ae));
@@ -747,9 +750,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/file1"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/file1", archive_entry_pathname(ae));
 	assert((AE_IFREG | 0400) == archive_entry_mode(ae));
 	assertEqualInt(1, archive_entry_nlink(ae));
@@ -761,9 +764,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/file2"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("dir0/dir1/file2", archive_entry_pathname(ae));
 	assert((AE_IFREG | 0400) == archive_entry_mode(ae));
 	assertEqualInt(1, archive_entry_nlink(ae));
@@ -776,13 +779,13 @@ DEFINE_TEST(test_write_format_iso9660)
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
 	assert(archive_entry_atime_is_set(ae));
-	assertEqualInt(5, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
 	assert(!archive_entry_birthtime_is_set(ae));
 	assertEqualInt(0, archive_entry_birthtime(ae));
 	assert(archive_entry_ctime_is_set(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
 	assert(archive_entry_mtime_is_set(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assert((AE_IFREG | 0400) == archive_entry_mode(ae));
 	assertEqualInt(0, archive_entry_size(ae));
 
@@ -834,9 +837,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "rr_moved/dir7"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("RR_MOVED/DIR7", archive_entry_pathname(ae));
 	assert((S_IFDIR | 0700) == archive_entry_mode(ae));
 	assertEqualInt(2048, archive_entry_size(ae));
@@ -845,9 +848,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "rr_moved/dir7/dir8"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("RR_MOVED/DIR7/DIR8", archive_entry_pathname(ae));
 	assert((S_IFDIR | 0700) == archive_entry_mode(ae));
 	assertEqualInt(2048, archive_entry_size(ae));
@@ -856,9 +859,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "rr_moved/dir7/dir8/dir9"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("RR_MOVED/DIR7/DIR8/DIR9",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0700) == archive_entry_mode(ae));
@@ -868,9 +871,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "rr_moved/dir7/dir8/dir9/dira"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("RR_MOVED/DIR7/DIR8/DIR9/DIRA",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0700) == archive_entry_mode(ae));
@@ -880,9 +883,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "rr_moved/dir7/dir8/dir9/dira/dirB"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("RR_MOVED/DIR7/DIR8/DIR9/DIRA/DIRB",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0700) == archive_entry_mode(ae));
@@ -892,9 +895,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "rr_moved/dir7/dir8/dir9/dirA/dirB/dirC"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("RR_MOVED/DIR7/DIR8/DIR9/DIRA/DIRB/DIRC",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0700) == archive_entry_mode(ae));
@@ -904,9 +907,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("DIR0", archive_entry_pathname(ae));
 	assert((S_IFDIR | 0700) == archive_entry_mode(ae));
 	assertEqualInt(2048, archive_entry_size(ae));
@@ -915,9 +918,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("DIR0/DIR1", archive_entry_pathname(ae));
 	assert((S_IFDIR | 0700) == archive_entry_mode(ae));
 	assertEqualInt(2048, archive_entry_size(ae));
@@ -926,9 +929,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("DIR0/DIR1/DIR2", archive_entry_pathname(ae));
 	assert((S_IFDIR | 0700) == archive_entry_mode(ae));
 	assertEqualInt(2048, archive_entry_size(ae));
@@ -937,9 +940,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("DIR0/DIR1/DIR2/DIR3",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0700) == archive_entry_mode(ae));
@@ -949,9 +952,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3/dir4"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("DIR0/DIR1/DIR2/DIR3/DIR4",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0700) == archive_entry_mode(ae));
@@ -961,9 +964,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3/dir4/dir5"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("DIR0/DIR1/DIR2/DIR3/DIR4/DIR5",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0700) == archive_entry_mode(ae));
@@ -973,9 +976,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3/dir4/dir5/dir6"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("DIR0/DIR1/DIR2/DIR3/DIR4/DIR5/DIR6",
 	    archive_entry_pathname(ae));
 	assert((S_IFDIR | 0700) == archive_entry_mode(ae));
@@ -985,9 +988,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "hardlink"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("HARDLNK", archive_entry_pathname(ae));
 	assertEqualString(NULL, archive_entry_hardlink(ae));
 	assert((AE_IFREG | 0400) == archive_entry_mode(ae));
@@ -999,10 +1002,10 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "file"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_birthtime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("FILE", archive_entry_pathname(ae));
 	assertEqualString("HARDLNK", archive_entry_hardlink(ae));
 	assert((AE_IFREG | 0400) == archive_entry_mode(ae));
@@ -1016,11 +1019,11 @@ DEFINE_TEST(test_write_format_iso9660)
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
 	assert(archive_entry_atime_is_set(ae));
-	assertEqualInt(5, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
 	assert(archive_entry_ctime_is_set(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
 	assert(archive_entry_mtime_is_set(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("LONGNAME", archive_entry_pathname(ae));
 	assert((AE_IFREG | 0400) == archive_entry_mode(ae));
 	assertEqualInt(8, archive_entry_size(ae));
@@ -1031,9 +1034,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "rr_moved/dir7/dir8/dir9/dirA/dirB/dirC/file"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString(
 		"RR_MOVED/DIR7/DIR8/DIR9/DIRA/DIRB/DIRC/FILE",
 		archive_entry_pathname(ae));
@@ -1047,9 +1050,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/file1"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("DIR0/DIR1/FILE1", archive_entry_pathname(ae));
 	assert((AE_IFREG | 0400) == archive_entry_mode(ae));
 	assertEqualInt(1, archive_entry_nlink(ae));
@@ -1061,9 +1064,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/file2"
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("DIR0/DIR1/FILE2", archive_entry_pathname(ae));
 	assert((AE_IFREG | 0400) == archive_entry_mode(ae));
 	assertEqualInt(1, archive_entry_nlink(ae));
@@ -1075,9 +1078,9 @@ DEFINE_TEST(test_write_format_iso9660)
 	 * Read "dir0/dir1/dir2/dir3/dir4/dir5/dir6/dir7" as file
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(5, archive_entry_atime(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("DIR0/DIR1/DIR2/DIR3/DIR4/DIR5/DIR6/DIR7",
 	    archive_entry_pathname(ae));
 	assert((AE_IFREG | 0400) == archive_entry_mode(ae));
@@ -1088,13 +1091,13 @@ DEFINE_TEST(test_write_format_iso9660)
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
 	assert(archive_entry_atime_is_set(ae));
-	assertEqualInt(5, archive_entry_atime(ae));
+	assertEqualInt(86405, archive_entry_atime(ae));
 	assert(!archive_entry_birthtime_is_set(ae));
 	assertEqualInt(0, archive_entry_birthtime(ae));
 	assert(archive_entry_ctime_is_set(ae));
-	assertEqualInt(5, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_ctime(ae));
 	assert(archive_entry_mtime_is_set(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("SYMLNK", archive_entry_pathname(ae));
 	assert((AE_IFREG | 0400) == archive_entry_mode(ae));
 	assertEqualInt(0, archive_entry_size(ae));

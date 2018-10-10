@@ -69,13 +69,16 @@ test_format_by_name(const char *format_name, const char *compression_type,
 	/*
 	 * Write a file to it.
 	 */
+        // N.B. this test can fail on Windows if the corresponding local time 
+        // is in the year 1969, as _mkgmtime64 has a minimum year of 1970. 
+        // This is set to 1970-01-02, which is in the year 1970 in all timezones.
 	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_mtime(ae, 1, 0);
-	assertEqualInt(1, archive_entry_mtime(ae));
-	archive_entry_set_ctime(ae, 1, 0);
-	assertEqualInt(1, archive_entry_ctime(ae));
-	archive_entry_set_atime(ae, 1, 0);
-	assertEqualInt(1, archive_entry_atime(ae));
+	archive_entry_set_mtime(ae, 86400, 0);
+	assertEqualInt(86400, archive_entry_mtime(ae));
+	archive_entry_set_ctime(ae, 86400, 0);
+	assertEqualInt(86400, archive_entry_ctime(ae));
+	archive_entry_set_atime(ae, 86400, 0);
+	assertEqualInt(86400, archive_entry_atime(ae));
 	archive_entry_copy_pathname(ae, "file");
 	assertEqualString("file", archive_entry_pathname(ae));
 	archive_entry_set_mode(ae, AE_IFREG | 0755);
@@ -115,7 +118,7 @@ test_format_by_name(const char *format_name, const char *compression_type,
 		 * Read and verify the file.
 		 */
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-		assertEqualInt(1, archive_entry_mtime(ae));
+		assertEqualInt(86400, archive_entry_mtime(ae));
 		if (dot_stored & 2) {
 			assertEqualString("./file", archive_entry_pathname(ae));
 		} else {
