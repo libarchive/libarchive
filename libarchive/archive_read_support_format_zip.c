@@ -428,10 +428,25 @@ process_extra(struct archive_read *a, const char *p, size_t extra_length, struct
 	}
 
 	if (extra_length < 4) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Too-small extra data: Need at least 4 bytes, but only found %d bytes", (int)extra_length);
-		return ARCHIVE_FAILED;
+		size_t i = 0;
+		/* Some ZIP files may have trailing 0 bytes. Let's check they
+		 * are all 0 and ignore them instead of returning an error.
+		 *
+		 * This is not techincally correct, but some ZIP files look like
+		 * this and other tools support those files - so let's also
+		 * support them.
+		 */
+		for (; i < extra_length; i++) {
+			if (p[i] != 0) {
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+						"Too-small extra data: Need at least 4 bytes, but only found %d bytes", (int)extra_length);
+				return ARCHIVE_FAILED;
+			}
+		}
+
+		return ARCHIVE_OK;
 	}
+
 	while (offset <= extra_length - 4) {
 		unsigned short headerid = archive_le16dec(p + offset);
 		unsigned short datasize = archive_le16dec(p + offset + 2);
