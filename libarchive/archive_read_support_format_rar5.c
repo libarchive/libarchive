@@ -88,6 +88,7 @@ struct file_header {
 
     uint8_t solid : 1;           /* Is this a solid stream? */
     uint8_t service : 1;         /* Is this file a service data? */
+    uint8_t eof : 1;             /* Did we finish unpacking the file? */
 
     /* Optional time fields. */
     uint64_t e_mtime;
@@ -918,7 +919,7 @@ static int read_var_sized(struct archive_read* a, size_t* pvalue,
         size_t* pvalue_len)
 {
     uint64_t v;
-    uint64_t v_size;
+    uint64_t v_size = 0;
 
     const int ret = pvalue_len
                     ? read_var(a, &v, &v_size)
@@ -1218,7 +1219,7 @@ static int process_head_file_extra(struct archive_read* a,
         ssize_t extra_data_size)
 {
     size_t extra_field_size;
-    size_t extra_field_id;
+    size_t extra_field_id = 0;
     int ret = ARCHIVE_FATAL;
     size_t var_size;
 
@@ -1288,7 +1289,7 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
     size_t host_os = 0;
     size_t name_size = 0;
     uint64_t unpacked_size;
-    uint32_t mtime = 0, crc;
+    uint32_t mtime = 0, crc = 0;
     int c_method = 0, c_version = 0, is_dir;
     char name_utf8_buf[2048 * 4];
     const uint8_t* p;
@@ -1647,7 +1648,7 @@ static int process_base_block(struct archive_read* a,
 {
     struct rar5* rar = get_context(a);
     uint32_t hdr_crc, computed_crc;
-    size_t raw_hdr_size, hdr_size_len, hdr_size;
+    size_t raw_hdr_size = 0, hdr_size_len, hdr_size;
     size_t header_id = 0;
     size_t header_flags = 0;
     const uint8_t* p;
@@ -2685,6 +2686,12 @@ static int merge_block(struct archive_read* a, ssize_t block_size,
         cur_block_size =
             rar5_min(rar->file.bytes_remaining, block_size - partial_offset);
 
+        if(cur_block_size == 0) {
+            archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                    "Encountered block size == 0 during block merge");
+            return ARCHIVE_FATAL;
+        }
+
         if(!read_ahead(a, cur_block_size, &lp))
             return ARCHIVE_EOF;
 
@@ -3116,6 +3123,9 @@ static int do_unstore_file(struct archive_read* a,
     }
 
     size_t to_read = rar5_min(rar->file.bytes_remaining, 64 * 1024);
+    if(to_read == 0) {
+        return ARCHIVE_EOF;
+    }
 
     if(!read_ahead(a, to_read, &p)) {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT, "I/O error "
@@ -3283,8 +3293,13 @@ static int rar5_read_data(struct archive_read *a, const void **buff,
     }
 
     ret = use_data(rar, buff, size, offset);
-    if(ret == ARCHIVE_OK)
+    if(ret == ARCHIVE_OK) {
         return ret;
+    }
+
+    if(rar->file.eof == 1) {
+        return ARCHIVE_EOF;
+    }
 
     ret = do_unpack(a, rar, buff, size, offset);
     if(ret != ARCHIVE_OK) {
@@ -3301,6 +3316,7 @@ static int rar5_read_data(struct archive_read *a, const void **buff,
          * value in the last `archive_read_data` call to signal an error
          * to the user. */
 
+        rar->file.eof = 1;
         return verify_global_checksums(a);
     }
 
