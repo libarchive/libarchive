@@ -387,6 +387,21 @@ __LA_DECL void	archive_entry_copy_stat(struct archive_entry *, const struct stat
 __LA_DECL const void * archive_entry_mac_metadata(struct archive_entry *, size_t *);
 __LA_DECL void archive_entry_copy_mac_metadata(struct archive_entry *, const void *, size_t);
 
+/* Digest fields */
+__LA_DECL const char *archive_entry_md5digest(struct archive_entry *);
+__LA_DECL const char *archive_entry_rmd160digest(struct archive_entry *);
+__LA_DECL const char *archive_entry_sha1digest(struct archive_entry *);
+__LA_DECL const char *archive_entry_sha256digest(struct archive_entry *);
+__LA_DECL const char *archive_entry_sha384digest(struct archive_entry *);
+__LA_DECL const char *archive_entry_sha512digest(struct archive_entry *);
+
+__LA_DECL void archive_entry_set_md5digest(struct archive_entry *, const char*);
+__LA_DECL void archive_entry_set_rmd160digest(struct archive_entry *, const char*);
+__LA_DECL void archive_entry_set_sha1digest(struct archive_entry *, const char*);
+__LA_DECL void archive_entry_set_sha256digest(struct archive_entry *, const char*);
+__LA_DECL void archive_entry_set_sha384digest(struct archive_entry *, const char*);
+__LA_DECL void archive_entry_set_sha512digest(struct archive_entry *, const char*);
+
 /*
  * ACL routines.  This used to simply store and return text-format ACL
  * strings, but that proved insufficient for a number of reasons:

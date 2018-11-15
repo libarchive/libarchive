@@ -32,6 +32,7 @@
 #ifndef ARCHIVE_ENTRY_PRIVATE_H_INCLUDED
 #define	ARCHIVE_ENTRY_PRIVATE_H_INCLUDED
 
+#include "archive_private.h"
 #include "archive_acl_private.h"
 #include "archive_string.h"
 
@@ -161,6 +162,14 @@ struct archive_entry {
 	
 	void *mac_metadata;
 	size_t mac_metadata_size;
+
+	/* Digest support. */
+	char md5digest[AE_MD5DIGEST_LEN];
+	char rmd160digest[AE_RMD160DIGEST_LEN];
+	char sha1digest[AE_SHA1DIGEST_LEN];
+	char sha256digest[AE_SHA256DIGEST_LEN];
+	char sha384digest[AE_SHA384DIGEST_LEN];
+	char sha512digest[AE_SHA512DIGEST_LEN];
 
 	/* ACL support. */
 	struct archive_acl    acl;

@@ -204,6 +204,14 @@ archive_entry_clone(struct archive_entry *entry)
 
 	/* Copy encryption status */
 	entry2->encryption = entry->encryption;
+
+	/* Copy digests */
+	memcpy(entry2->md5digest, entry->md5digest, AE_MD5DIGEST_LEN);
+	memcpy(entry2->rmd160digest, entry->rmd160digest, AE_RMD160DIGEST_LEN);
+	memcpy(entry2->sha1digest, entry->sha1digest, AE_SHA1DIGEST_LEN);
+	memcpy(entry2->sha256digest, entry->sha256digest, AE_SHA256DIGEST_LEN);
+	memcpy(entry2->sha384digest, entry->sha384digest, AE_SHA384DIGEST_LEN);
+	memcpy(entry2->sha512digest, entry->sha512digest, AE_SHA512DIGEST_LEN);
 	
 	/* Copy ACL data over. */
 	archive_acl_copy(&entry2->acl, &entry->acl);
@@ -1397,6 +1405,86 @@ archive_entry_copy_mac_metadata(struct archive_entry *entry,
       abort();
     memcpy(entry->mac_metadata, p, s);
   }
+}
+
+/* Digest fields */
+const char *
+archive_entry_md5digest(struct archive_entry *entry)
+{
+	return entry->md5digest;
+}
+
+const char *
+archive_entry_rmd160digest(struct archive_entry *entry)
+{
+	return entry->rmd160digest;
+}
+
+const char *
+archive_entry_sha1digest(struct archive_entry *entry)
+{
+	return entry->sha1digest;
+}
+
+const char *
+archive_entry_sha256digest(struct archive_entry *entry)
+{
+	return entry->sha256digest;
+}
+
+const char *
+archive_entry_sha384digest(struct archive_entry *entry)
+{
+	return entry->sha384digest;
+}
+
+const char *
+archive_entry_sha512digest(struct archive_entry *entry)
+{
+	return entry->sha512digest;
+}
+
+static inline void
+copy_digest(char* dest, const char* src, size_t len)
+{
+	memcpy(dest, src, len - 1);
+	dest[len - 1] = '\0';
+}
+
+void
+archive_entry_set_md5digest(struct archive_entry *entry, const char *digest)
+{
+	copy_digest(entry->md5digest, digest, AE_MD5DIGEST_LEN);
+}
+
+void
+archive_entry_set_rmd160digest(struct archive_entry *entry, const char *digest)
+{
+	copy_digest(entry->rmd160digest, digest, AE_RMD160DIGEST_LEN);
+}
+
+void
+archive_entry_set_sha1digest(struct archive_entry *entry, const char *digest)
+{
+	copy_digest(entry->sha1digest, digest, AE_SHA1DIGEST_LEN);
+}
+
+void
+archive_entry_set_sha256digest(struct archive_entry *entry, const char *digest)
+{
+	copy_digest(entry->sha256digest, digest, AE_SHA256DIGEST_LEN);
+}
+
+void
+archive_entry_set_sha384digest(struct archive_entry *entry, const char *digest)
+{
+	copy_digest(entry->sha384digest, digest, AE_SHA384DIGEST_LEN);
+}
+
+void
+archive_entry_set_sha512digest(struct archive_entry *entry, const char *digest)
+{
+	copy_digest(entry->sha512digest, digest, AE_SHA512DIGEST_LEN);
 }
 
 /*

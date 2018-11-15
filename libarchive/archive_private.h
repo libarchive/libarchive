@@ -60,6 +60,14 @@
 #define	ARCHIVE_STATE_FATAL	0x8000U
 #define	ARCHIVE_STATE_ANY	(0xFFFFU & ~ARCHIVE_STATE_FATAL)
 
+/* length of various digest types, as null-terminated ascii strings */
+#define AE_MD5DIGEST_LEN 33
+#define AE_RMD160DIGEST_LEN 41
+#define AE_SHA1DIGEST_LEN 41
+#define AE_SHA256DIGEST_LEN 65
+#define AE_SHA384DIGEST_LEN 97
+#define AE_SHA512DIGEST_LEN 129
+
 struct archive_vtable {
 	int	(*archive_close)(struct archive *);
 	int	(*archive_free)(struct archive *);
