@@ -171,6 +171,9 @@ struct archive_entry {
 	void *mac_metadata;
 	size_t mac_metadata_size;
 
+	/* Digest support. */
+	struct ae_digest digest;
+
 	/* ACL support. */
 	struct archive_acl    acl;
 

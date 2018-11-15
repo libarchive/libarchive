@@ -208,6 +208,19 @@ archive_entry_clone(struct archive_entry *entry)
 
 	/* Copy encryption status */
 	entry2->encryption = entry->encryption;
+
+	/* Copy digests */
+#define copy_digest(_e2, _e, _t) \
+	memcpy(_e2->digest._t, _e->digest._t, sizeof(_e2->digest._t))
+
+	copy_digest(entry2, entry, md5);
+	copy_digest(entry2, entry, rmd160);
+	copy_digest(entry2, entry, sha1);
+	copy_digest(entry2, entry, sha256);
+	copy_digest(entry2, entry, sha384);
+	copy_digest(entry2, entry, sha512);
+
+#undef copy_digest
 	
 	/* Copy ACL data over. */
 	archive_acl_copy(&entry2->acl, &entry->acl);
