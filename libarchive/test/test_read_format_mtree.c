@@ -196,8 +196,56 @@ test_read_format_mtree1(void)
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
 	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
+	/* md5digest */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "dir2/md5file");
+	assertEqualString(archive_entry_md5digest(ae),
+	    "d41d8cd98f00b204e9800998ecf8427e");
+
+	/* rmd160digest */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "dir2/rmd160file");
+	assertEqualString(archive_entry_rmd160digest(ae),
+	    "da39a3ee5e6b4b0d3255bfef95601890afd80709");
+
+	/* sha1digest */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "dir2/sha1file");
+	assertEqualString(archive_entry_sha1digest(ae),
+	    "da39a3ee5e6b4b0d3255bfef95601890afd80709");
+
+	/* sha256digest */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "dir2/sha256file");
+	assertEqualString(archive_entry_sha256digest(ae),
+	    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+
+	/* sha384digest */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "dir2/sha384file");
+	assertEqualString(archive_entry_sha384digest(ae),
+	    "38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc7bf63f6e1da2"
+	    "74edebfe76f65fbd51ad2f14898b95b");
+
+	/* sha512digest */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "dir2/sha512file");
+	assertEqualString(archive_entry_sha512digest(ae),
+	    "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce4"
+	    "7d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e");
+
+	/* digest is too long */
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "dir2/digesttoolong");
+	assertEqualString(archive_entry_md5digest(ae), "");
+
+	/* digest is too short */
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "dir2/digesttooshort");
+	assertEqualString(archive_entry_md5digest(ae), "");
+
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
-	assertEqualInt(20, archive_file_count(a));
+	assertEqualInt(28, archive_file_count(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
