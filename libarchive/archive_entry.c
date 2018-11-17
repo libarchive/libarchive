@@ -1444,47 +1444,53 @@ archive_entry_sha512digest(struct archive_entry *entry)
 	return entry->sha512digest;
 }
 
-static inline void
+static int
 copy_digest(char* dest, const char* src, size_t len)
 {
+	if(strnlen(src, len) != len - 1) {
+		return ARCHIVE_WARN;
+	}
+
 	memcpy(dest, src, len - 1);
 	dest[len - 1] = '\0';
+
+	return ARCHIVE_OK;
 }
 
-void
+int
 archive_entry_set_md5digest(struct archive_entry *entry, const char *digest)
 {
-	copy_digest(entry->md5digest, digest, AE_MD5DIGEST_LEN);
+	return copy_digest(entry->md5digest, digest, AE_MD5DIGEST_LEN);
 }
 
-void
+int
 archive_entry_set_rmd160digest(struct archive_entry *entry, const char *digest)
 {
-	copy_digest(entry->rmd160digest, digest, AE_RMD160DIGEST_LEN);
+	return copy_digest(entry->rmd160digest, digest, AE_RMD160DIGEST_LEN);
 }
 
-void
+int
 archive_entry_set_sha1digest(struct archive_entry *entry, const char *digest)
 {
-	copy_digest(entry->sha1digest, digest, AE_SHA1DIGEST_LEN);
+	return copy_digest(entry->sha1digest, digest, AE_SHA1DIGEST_LEN);
 }
 
-void
+int
 archive_entry_set_sha256digest(struct archive_entry *entry, const char *digest)
 {
-	copy_digest(entry->sha256digest, digest, AE_SHA256DIGEST_LEN);
+	return copy_digest(entry->sha256digest, digest, AE_SHA256DIGEST_LEN);
 }
 
-void
+int
 archive_entry_set_sha384digest(struct archive_entry *entry, const char *digest)
 {
-	copy_digest(entry->sha384digest, digest, AE_SHA384DIGEST_LEN);
+	return copy_digest(entry->sha384digest, digest, AE_SHA384DIGEST_LEN);
 }
 
-void
+int
 archive_entry_set_sha512digest(struct archive_entry *entry, const char *digest)
 {
-	copy_digest(entry->sha512digest, digest, AE_SHA512DIGEST_LEN);
+	return copy_digest(entry->sha512digest, digest, AE_SHA512DIGEST_LEN);
 }
 
 /*

@@ -1468,20 +1468,6 @@ parse_device(dev_t *pdev, struct archive *a, char *val)
 #undef MAX_PACK_ARGS
 }
 
-static int set_digest(struct archive_read *a,
-    void (*set)(struct archive_entry*, const char*), struct archive_entry *e,
-    const char* key, const char* val, size_t length)
-{
-	if(strnlen(val, length) != length - 1) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-			"'%s' value is wrong length, ignoring", key);
-		return ARCHIVE_WARN;
-	}
-
-	set(e, val);
-	return ARCHIVE_OK;
-}
-
 /*
  * Parse a single keyword and its value.
  */
@@ -1581,8 +1567,12 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 		__LA_FALLTHROUGH;
 	case 'm':
 		if (strcmp(key, "md5") == 0 || strcmp(key, "md5digest") == 0) {
-			return set_digest(a, archive_entry_set_md5digest,
-					entry, key, val, AE_MD5DIGEST_LEN);
+			if(archive_entry_set_md5digest(entry, val) == ARCHIVE_WARN) {
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+						"'%s' value is wrong length, ignoring", key);
+				return ARCHIVE_WARN;
+			}
+			break;
 		}
 		if (strcmp(key, "mode") == 0) {
 			if (val[0] >= '0' && val[0] <= '7') {
@@ -1620,30 +1610,50 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 		}
 		if (strcmp(key, "rmd160") == 0 ||
 		    strcmp(key, "rmd160digest") == 0) {
-			return set_digest(a, archive_entry_set_rmd160digest,
-					entry, key, val, AE_RMD160DIGEST_LEN);
+			if(archive_entry_set_rmd160digest(entry, val) == ARCHIVE_WARN) {
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+						"'%s' value is wrong length, ignoring", key);
+				return ARCHIVE_WARN;
+			}
+			break;
 		}
 		__LA_FALLTHROUGH;
 	case 's':
 		if (strcmp(key, "sha1") == 0 ||
 		    strcmp(key, "sha1digest") == 0) {
-			return set_digest(a, archive_entry_set_sha1digest,
-					entry, key, val, AE_SHA1DIGEST_LEN);
+			if(archive_entry_set_sha1digest(entry, val) == ARCHIVE_WARN) {
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+						"'%s' value is wrong length, ignoring", key);
+				return ARCHIVE_WARN;
+			}
+			break;
 		}
 		if (strcmp(key, "sha256") == 0 ||
 		    strcmp(key, "sha256digest") == 0) {
-			return set_digest(a, archive_entry_set_sha256digest,
-					entry, key, val, AE_SHA256DIGEST_LEN);
+			if(archive_entry_set_sha256digest(entry, val) == ARCHIVE_WARN) {
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+						"'%s' value is wrong length, ignoring", key);
+				return ARCHIVE_WARN;
+			}
+			break;
 		}
 		if (strcmp(key, "sha384") == 0 ||
 		    strcmp(key, "sha384digest") == 0) {
-			return set_digest(a, archive_entry_set_sha384digest,
-					entry, key, val, AE_SHA384DIGEST_LEN);
+			if(archive_entry_set_sha384digest(entry, val) == ARCHIVE_WARN) {
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+						"'%s' value is wrong length, ignoring", key);
+				return ARCHIVE_WARN;
+			}
+			break;
 		}
 		if (strcmp(key, "sha512") == 0 ||
 		    strcmp(key, "sha512digest") == 0) {
-			return set_digest(a, archive_entry_set_sha512digest,
-					entry, key, val, AE_SHA512DIGEST_LEN);
+			if(archive_entry_set_sha512digest(entry, val) == ARCHIVE_WARN) {
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+						"'%s' value is wrong length, ignoring", key);
+				return ARCHIVE_WARN;
+			}
+			break;
 		}
 		if (strcmp(key, "size") == 0) {
 			archive_entry_set_size(entry, mtree_atol(&val, 10));
