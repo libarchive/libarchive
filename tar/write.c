@@ -556,8 +556,7 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 			    "%s", archive_error_string(disk));
 			if (r == ARCHIVE_FATAL)
 				bsdtar->return_value = 1;
-			else
-				archive_read_close(disk);
+			archive_read_close(disk);
 			goto next_entry;
 		}
 
