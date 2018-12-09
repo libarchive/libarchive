@@ -188,6 +188,7 @@ IF(ENABLE_TEST)
     test_read_large.c
     test_read_pax_schily_xattr.c
     test_read_pax_truncated.c
+    test_read_pax_vendor_attributes.c
     test_read_position.c
     test_read_set_format.c
     test_read_too_many_filters.c
@@ -272,6 +273,7 @@ IF(ENABLE_TEST)
     test_write_format_zip_file_zip64.c
     test_write_format_zip_large.c
     test_write_format_zip_zip64.c
+    test_write_pax_vendor_attributes.c
     test_write_open_memory.c
     test_write_read_format_zip.c
     test_xattr_platform.c

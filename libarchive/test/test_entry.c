@@ -58,9 +58,9 @@ DEFINE_TEST(test_entry)
 	unsigned long set, clear; /* For fflag testing. */
 	int type, permset, tag, qual; /* For ACL testing. */
 	const char *name; /* For ACL testing. */
-	const char *xname; /* For xattr tests. */
-	const void *xval; /* For xattr tests. */
-	size_t xsize; /* For xattr tests. */
+	const char *xname; /* For xattr / vendor tests. */
+	const void *xval; /* For xattr / vendor tests. */
+	size_t xsize; /* For xattr / vendor tests. */
 	wchar_t wc;
 	long l;
 	int i;
@@ -383,6 +383,38 @@ DEFINE_TEST(test_entry)
 	assertEqualString(xval, NULL);
 	assertEqualInt((int)xsize, 0);
 
+	/* Test vendor attributes set/get consistency */
+	archive_entry_vendor_add_entry(e, "CUSTOM.key", "custom value 1234", 18);
+	assertEqualInt(1, archive_entry_vendor_reset(e));
+	assertEqualInt(0, archive_entry_vendor_next(e, &xname, &xval, &xsize));
+	assertEqualString(xname, "CUSTOM.key");
+	assertEqualString(xval, "custom value 1234");
+	assertEqualInt((int)xsize, 18);
+	assertEqualInt(1, archive_entry_vendor_count(e));
+	assertEqualInt(ARCHIVE_WARN,
+	    archive_entry_vendor_next(e, &xname, &xval, &xsize));
+	assertEqualString(xname, NULL);
+	assertEqualString(xval, NULL);
+	assertEqualInt((int)xsize, 0);
+	archive_entry_vendor_clear(e);
+	assertEqualInt(0, archive_entry_vendor_reset(e));
+	assertEqualInt(ARCHIVE_WARN,
+	    archive_entry_vendor_next(e, &xname, &xval, &xsize));
+	assertEqualString(xname, NULL);
+	assertEqualString(xval, NULL);
+	assertEqualInt((int)xsize, 0);
+	archive_entry_vendor_add_entry(e, "CUSTOM.key1", "value1", 7);
+	assertEqualInt(1, archive_entry_vendor_reset(e));
+	archive_entry_vendor_add_entry(e, "CUSTOM.key2", "value2", 7);
+	assertEqualInt(2, archive_entry_vendor_reset(e));
+	assertEqualInt(0, archive_entry_vendor_next(e, &xname, &xval, &xsize));
+	assertEqualInt(0, archive_entry_vendor_next(e, &xname, &xval, &xsize));
+	assertEqualInt(ARCHIVE_WARN,
+	    archive_entry_vendor_next(e, &xname, &xval, &xsize));
+	assertEqualString(xname, NULL);
+	assertEqualString(xval, NULL);
+	assertEqualInt((int)xsize, 0);
+
 
 	/*
 	 * Test clone() implementation.
@@ -414,6 +446,8 @@ DEFINE_TEST(test_entry)
 	    ARCHIVE_ENTRY_ACL_READ, ARCHIVE_ENTRY_ACL_USER, 77, "user77");
 	/* Add an extended attribute. */
 	archive_entry_xattr_add_entry(e, "xattr1", "xattrvalue", 11);
+	/* Add a vendor attribute */
+	archive_entry_vendor_add_entry(e, "CUSTOM.key", "vendorvalue", 12);
 
 	/* Make a clone. */
 	e2 = archive_entry_clone(e);
@@ -495,6 +529,19 @@ DEFINE_TEST(test_entry)
 	assertEqualString(xval, NULL);
 	assertEqualInt((int)xsize, 0);
 
+	/* Verify vendor as copied */
+	assertEqualInt(1, archive_entry_vendor_reset(e2));
+	assertEqualInt(0, archive_entry_vendor_next(e2, &xname, &xval, &xsize));
+	assertEqualString(xname, "CUSTOM.key");
+	assertEqualString(xval, "vendorvalue");
+	assertEqualInt((int)xsize, 12);
+	assertEqualInt(ARCHIVE_WARN,
+	    archive_entry_vendor_next(e2, &xname, &xval, &xsize));
+	assertEqualString(xname, NULL);
+	assertEqualString(xval, NULL);
+	assertEqualInt((int)xsize, 0);
+
+
 	/* Change the original */
 	archive_entry_set_atime(e, 13580, 24690);
 	archive_entry_set_birthtime(e, 13980, 24999);
@@ -518,6 +565,7 @@ DEFINE_TEST(test_entry)
 	archive_entry_set_uname(e, "username");
 	archive_entry_acl_clear(e);
 	archive_entry_xattr_clear(e);
+	archive_entry_vendor_clear(e);
 
 	/* Clone should still have same contents. */
 	assertEqualInt(archive_entry_atime(e2), 13579);
@@ -595,6 +643,10 @@ DEFINE_TEST(test_entry)
 	/* Verify xattr was unchanged. */
 	assertEqualInt(1, archive_entry_xattr_reset(e2));
 
+	/* Verify vendor was unchanged. */
+	assertEqualInt(1, archive_entry_vendor_reset(e2));
+
+
 	/* Release clone. */
 	archive_entry_free(e2);
 
@@ -632,6 +684,8 @@ DEFINE_TEST(test_entry)
 	assertEqualInt(archive_entry_acl_count(e, ARCHIVE_ENTRY_ACL_TYPE_DEFAULT), 0);
 	/* Extended attributes should be cleared. */
 	assertEqualInt(archive_entry_xattr_count(e), 0);
+	/* Vendor attributes should be cleared */
+	assertEqualInt(archive_entry_vendor_count(e), 0);
 
 	/*
 	 * Test archive_entry_copy_stat().

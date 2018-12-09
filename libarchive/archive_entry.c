@@ -167,6 +167,7 @@ archive_entry_clear(struct archive_entry *entry)
 	archive_acl_clear(&entry->acl);
 	archive_entry_xattr_clear(entry);
 	archive_entry_sparse_clear(entry);
+	archive_entry_vendor_clear(entry);
 	free(entry->stat);
 	memset(entry, 0, sizeof(*entry));
 	return entry;
@@ -178,6 +179,7 @@ archive_entry_clone(struct archive_entry *entry)
 	struct archive_entry *entry2;
 	struct ae_xattr *xp;
 	struct ae_sparse *sp;
+	struct ae_vendor *vp;
 	size_t s;
 	const void *p;
 
@@ -226,6 +228,14 @@ archive_entry_clone(struct archive_entry *entry)
 		archive_entry_sparse_add_entry(entry2,
 		    sp->offset, sp->length);
 		sp = sp->next;
+	}
+
+	/* Copy vendor data over. */
+	vp = entry->vendor_head;
+	while (vp != NULL) {
+		archive_entry_vendor_add_entry(entry2,
+			vp->name, vp->value, vp->size);
+		vp = vp->next;
 	}
 
 	return (entry2);
