@@ -29,7 +29,7 @@
  *
  * APPNOTE.txt does not provide any provision for padding the extra
  * field, so libarchive used to error when there were unconsumed
- * bytes.  Apparently, some Zip writers do routinely zero padding
+ * bytes.  Apparently, some Zip writers do routinely put zero padding
  * in the extra field.
  *
  * The extra fields in this test (for both the local file header
@@ -54,7 +54,7 @@ static void verify(struct archive *a) {
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("a", archive_entry_pathname(ae));
 	assertEqualInt(AE_IFREG | 0664, archive_entry_mode(ae));
-	assertEqualInt(0x5c1558db, archive_entry_mtime(ae));
+	assertEqualInt(0x5c1558d2, archive_entry_mtime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualInt(0x5c1558db, archive_entry_atime(ae));
 
@@ -75,7 +75,7 @@ DEFINE_TEST(test_read_format_zip_extra_padding)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 7));
-	verify(a, 0);
+	verify(a);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
@@ -85,7 +85,7 @@ DEFINE_TEST(test_read_format_zip_extra_padding)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, p, s, 3));
-	verify(a, 1);
+	verify(a);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
