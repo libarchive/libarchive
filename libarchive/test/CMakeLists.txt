@@ -170,6 +170,7 @@ IF(ENABLE_TEST)
     test_read_format_zip_encryption_data.c
     test_read_format_zip_encryption_header.c
     test_read_format_zip_encryption_partially.c
+    test_read_format_zip_extra_padding.c
     test_read_format_zip_filename.c
     test_read_format_zip_high_compression.c
     test_read_format_zip_jar.c
