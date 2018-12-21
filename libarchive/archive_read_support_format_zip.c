@@ -180,7 +180,7 @@ struct zip {
 	char			stream_valid;
 #endif
 
-#ifdef HAVE_LZMA_H
+#if HAVE_LZMA_H && HAVE_LIBLZMA
 	lzma_stream		zipx_lzma_stream;
 	char            zipx_lzma_valid;
 #endif
@@ -1385,7 +1385,7 @@ consume_optional_marker(struct archive_read *a, struct zip *zip)
     return (ARCHIVE_OK);
 }
 
-#ifdef HAVE_LZMA_H
+#if HAVE_LZMA_H && HAVE_LIBLZMA
 static int
 zipx_xz_init(struct archive_read *a, struct zip *zip)
 {
@@ -1732,7 +1732,7 @@ zip_read_data_zipx_lzma_alone(struct archive_read *a, const void **buff,
 	/* If we're here, then we're good! */
 	return (ARCHIVE_OK);
 }
-#endif /* HAVE_LZMA_H */
+#endif /* HAVE_LZMA_H && HAVE_LIBLZMA */
 
 static int
 zipx_ppmd8_init(struct archive_read *a, struct zip *zip)
@@ -2643,7 +2643,7 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		r = zip_read_data_zipx_bzip2(a, buff, size, offset);
 		break;
 #endif
-#ifdef HAVE_LZMA_H
+#if HAVE_LZMA_H && HAVE_LIBLZMA
 	case 14: /* ZIPx LZMA compression. */
 		r = zip_read_data_zipx_lzma_alone(a, buff, size, offset);
 		break;
@@ -2729,7 +2729,7 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 		inflateEnd(&zip->stream);
 #endif
 
-#ifdef HAVA_LZMA_H
+#if HAVA_LZMA_H && HAVE_LIBLZMA
     if (zip->zipx_lzma_valid) {
 		lzma_end(&zip->zipx_lzma_stream);
 	}
