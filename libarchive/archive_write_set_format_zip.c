@@ -1430,6 +1430,9 @@ write_path(struct archive_entry *entry, struct archive_write *archive)
 	type = archive_entry_filetype(entry);
 	written_bytes = 0;
 
+	if (path == NULL)
+		return (ARCHIVE_FATAL);
+
 	ret = __archive_write_output(archive, path, strlen(path));
 	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
