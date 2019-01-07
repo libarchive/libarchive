@@ -873,7 +873,7 @@ static int read_var(struct archive_read* a, uint64_t* pvalue,
 
         /* Strip the MSB from the input byte and add the resulting number
          * to the `result`. */
-        result += (b & 0x7F) << shift;
+        result += (b & (uint64_t)0x7F) << shift;
 
         /* MSB set to 1 means we need to continue decoding process. MSB set
          * to 0 means we're done.
