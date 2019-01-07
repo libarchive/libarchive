@@ -1836,7 +1836,10 @@ static int rar5_read_header(struct archive_read *a,
 
 static void init_unpack(struct rar5* rar) {
     rar->file.calculated_crc32 = 0;
-    rar->cstate.window_mask = rar->cstate.window_size - 1;
+    if (rar->cstate.window_size)
+        rar->cstate.window_mask = rar->cstate.window_size - 1;
+    else
+        rar->cstate.window_mask = 0;
 
     if(rar->cstate.window_buf)
         free(rar->cstate.window_buf);
