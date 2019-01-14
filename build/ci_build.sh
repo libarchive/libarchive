@@ -99,6 +99,7 @@ for action in ${ACTIONS}; do
 					;;
 			esac
 			RET="$?"
+			find /tmp -path '*_test.*' -name '*.log' -print -exec cat {} \;
 		;;
 	esac
 	if [ "${RET}" != "0" ]; then
