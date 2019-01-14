@@ -10,7 +10,7 @@ task:
       image: freebsd-12-0-release-amd64
       image: freebsd-11-2-release-amd64
   install_script:
-    - sed -i.bak -e 's,pkg+http://pkg.FreeBSD.org/\${ABI}/quarterly,pkg+http://pkg.FreeBSD.org/\${ABI}/latest,' /etc/pkg/FreeBSD.conf
-    - if [ `uname` = "FreeBSD" ]; then pkg upgrade -y; pkg install -y autoconf automake libiconv libtool pkgconf expat libxml2 liblz4 zstd; fi
+    - ./build/ci/cirrus_ci.sh install
   script:
     - ./build/ci_build.sh
+    - ./build/ci/cirrus_ci.sh test
