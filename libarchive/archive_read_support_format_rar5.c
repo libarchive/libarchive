@@ -1301,7 +1301,7 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
     char name_utf8_buf[2048 * 4];
     const uint8_t* p;
 
-    memset(entry, 0, sizeof(struct archive_entry));
+    archive_entry_clear(entry);
 
     /* Do not reset file context if we're switching archives. */
     if(!rar->cstate.switch_multivolume) {
@@ -1795,8 +1795,14 @@ static int skip_base_block(struct archive_read* a) {
     int ret;
     struct rar5* rar = get_context(a);
 
-    struct archive_entry entry;
-    ret = process_base_block(a, &entry);
+    /* Create a new local archive_entry structure that will be operated on
+     * by header reader; operations on this archive_entry will be discarded.
+     */
+    struct archive_entry* entry = archive_entry_new();
+    ret = process_base_block(a, entry);
+
+    /* Discard operations on this archive_entry structure. */
+    archive_entry_free(entry);
 
     if(rar->generic.last_header_id == 2 && rar->generic.split_before > 0)
         return ARCHIVE_OK;
