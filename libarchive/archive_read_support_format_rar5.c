@@ -2679,12 +2679,20 @@ static int merge_block(struct archive_read* a, ssize_t block_size,
     if(rar->vol.push_buf)
         free((void*) rar->vol.push_buf);
 
-    rar->vol.push_buf = malloc(block_size);
+    /* Increasing the allocation block by 8 is due to bit reading functions,
+     * which are using additional 2 or 4 bytes. Allocating the block size
+     * by exact value would make bit reader perform reads from invalid memory
+     * block when reading the last byte from the buffer. */
+    rar->vol.push_buf = malloc(block_size + 8);
     if(!rar->vol.push_buf) {
         archive_set_error(&a->archive, ENOMEM, "Can't allocate memory for a "
                 "merge block buffer.");
         return ARCHIVE_FATAL;
     }
+
+    /* Valgrind complains if the extension block for bit reader is not
+     * initialized, so initialize it. */
+    memset(&rar->vol.push_buf[block_size], 0, 8);
 
     /* A single block can span across multiple multivolume archive files,
      * so we use a loop here. This loop will consume enough multivolume
