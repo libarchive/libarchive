@@ -132,6 +132,8 @@ libarchive_la_SOURCES= \
 	libarchive/archive_ppmd_private.h \
 	libarchive/archive_ppmd7.c \
 	libarchive/archive_ppmd7_private.h \
+	libarchive/archive_ppmd8.c \
+	libarchive/archive_ppmd8_private.h \
 	libarchive/archive_private.h \
 	libarchive/archive_random.c \
 	libarchive/archive_random_private.h \
