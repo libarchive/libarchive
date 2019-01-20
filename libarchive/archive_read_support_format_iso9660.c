@@ -2102,6 +2102,7 @@ parse_rockridge(struct archive_read *a, struct file_info *file,
     const unsigned char *p, const unsigned char *end)
 {
 	struct iso9660 *iso9660;
+	int entry_seen = 0;
 
 	iso9660 = (struct iso9660 *)(a->format->data);
 
@@ -2257,8 +2258,16 @@ parse_rockridge(struct archive_read *a, struct file_info *file,
 		}
 
 		p += p[2];
+		entry_seen = 1;
 	}
-	return (ARCHIVE_OK);
+
+	if (entry_seen)
+		return (ARCHIVE_OK);
+	else {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+				  "Tried to parse Rockridge extensions, but none found");
+		return (ARCHIVE_WARN);
+	}
 }
 
 static int
