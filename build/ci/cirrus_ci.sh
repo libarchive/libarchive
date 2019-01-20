@@ -19,10 +19,16 @@ then
 		set -x -e
 		brew update
 		brew install autoconf automake libtool pkg-config cmake xz lz4 zstd
-	elif [ "$UNAME" = "Linux" -a -f /etc/debian_version ]
+	elif [ "$UNAME" = "Linux" ]
 	then
-		apt-get -y update
-		apt-get -y install build-essential automake libtool bison sharutils pkgconf libacl1-dev libbz2-dev libzip-dev zlib1g-dev liblzma-dev liblz4-dev libzstd-dev lrzip cmake
+		if [ -f "/etc/debian_version" ]
+		then
+			apt-get -y update
+			apt-get -y install build-essential locales automake libtool bison sharutils pkgconf libacl1-dev libbz2-dev libzip-dev zlib1g-dev liblzma-dev liblz4-dev libzstd-dev libssl-dev lrzip cmake
+		elif [ -f "/etc/fedora-release" ]
+		then
+			dnf -y install make cmake gcc gcc-c++ kernel-devel automake libtool bison sharutils pkgconf libacl-devel librichacl-devel bzip2-devel libzip-devel zlib-devel xz-devel lz4-devel libzstd-devel openssl-devel
+		fi
 	fi
 elif [ "$1" = "test" ]
 then
@@ -31,7 +37,7 @@ then
 		set -e
 		echo "Additional NFSv4 ACL tests"
 		CURDIR=`pwd`
-		BUILDDIR="${CURDIR}/build_ci/autotools"
+		BUILDDIR="${CURDIR}/build_ci/${BUILD_SYSTEM}"
 		cd "${BUILDDIR}"
 		TMPDIR=/tmp_acl_nfsv4 ./libarchive_test -r "${CURDIR}/libarchive/test" -v test_acl_platform_nfs4
 	fi

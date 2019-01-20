@@ -4,6 +4,8 @@ env:
 
 task:
   matrix:
+    container:
+      image: fedora:29
     freebsd_instance:
       image: freebsd-12-0-release-amd64
     freebsd_instance:
