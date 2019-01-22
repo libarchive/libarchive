@@ -16,9 +16,9 @@ task:
       image: high-sierra-xcode-10.0
   matrix:
     env:
-      BUILD_SYSTEM: autotools
+      BS: autotools
     env:
-      BUILD_SYSTEM: cmake
+      BS: cmake
   install_script:
     - ./build/ci/cirrus_ci.sh install
   script:

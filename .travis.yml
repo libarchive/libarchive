@@ -16,8 +16,8 @@ compiler:
   - gcc
   - clang
 env:
-  - BUILD_SYSTEM=cmake
-  - BUILD_SYSTEM=autotools
+  - BS=cmake
+  - BS=autotools
 matrix:
   exclude:
     - os: osx
