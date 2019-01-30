@@ -2,7 +2,7 @@
 UNAME=`uname`
 if [ "$1" = "install" ]
 then
-	if [ "$UNAME" = "FreeBSD" ]
+	if [ "${UNAME}" = "FreeBSD" ]
 	then
 		set -x -e
 		sed -i.bak -e 's,pkg+http://pkg.FreeBSD.org/\${ABI}/quarterly,pkg+http://pkg.FreeBSD.org/\${ABI}/latest,' /etc/pkg/FreeBSD.conf
@@ -14,12 +14,12 @@ then
 		mount /dev/$MD /tmp_acl_nfsv4
 		chmod 1777 /tmp_acl_nfsv4
 		pkg install -y autoconf automake cmake libiconv libtool pkgconf expat libxml2 liblz4 zstd
-	elif [ "$UNAME" = "Darwin" ]
+	elif [ "${UNAME}" = "Darwin" ]
 	then
 		set -x -e
 		brew update
 		brew install autoconf automake libtool pkg-config cmake xz lz4 zstd
-	elif [ "$UNAME" = "Linux" ]
+	elif [ "${UNAME}" = "Linux" ]
 	then
 		if [ -f "/etc/debian_version" ]
 		then
@@ -32,14 +32,20 @@ then
 	fi
 elif [ "$1" = "test" ]
 then
-	if [ "$UNAME" = "FreeBSD" -a "$BUILD_SYSTEM" != "cmake" ]
+	if [ "${UNAME}" = "FreeBSD" ]
 	then
 		set -e
 		echo "Additional NFSv4 ACL tests"
 		CURDIR=`pwd`
-		BUILDDIR="${CURDIR}/build_ci/${BUILD_SYSTEM}"
-		cd "${BUILDDIR}"
-		TMPDIR=/tmp_acl_nfsv4 ./libarchive_test -r "${CURDIR}/libarchive/test" -v test_acl_platform_nfs4
+		if [ "${BS}" = "cmake" ]
+		then
+			BIN_SUBDIR="bin"
+		else
+			BIN_SUBDIR=.
+		fi
+		BUILDDIR="${CURDIR}/build_ci/${BS}"
+		cd "$BUILDDIR"
+		TMPDIR=/tmp_acl_nfsv4 ${BIN_SUBDIR}/libarchive_test -r "${CURDIR}/libarchive/test" -v test_acl_platform_nfs4
 	fi
 else
 	echo "Usage $0 install | test_nfsv4_acls"

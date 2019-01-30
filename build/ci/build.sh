@@ -94,7 +94,7 @@ for action in ${ACTIONS}; do
 		test)
 			case "${BS}" in
 				autotools)
-					${MAKE} ${MAKE_ARGS} check LOG_DRIVER="${SRCDIR}/build/ci_test_driver"
+					${MAKE} ${MAKE_ARGS} check LOG_DRIVER="${SRCDIR}/build/ci/test_driver"
 					;;
 				cmake)
 					${MAKE} ${MAKE_ARGS} test
