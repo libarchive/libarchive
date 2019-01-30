@@ -1301,7 +1301,7 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
     char name_utf8_buf[2048 * 4];
     const uint8_t* p;
 
-    memset(entry, 0, sizeof(struct archive_entry));
+    archive_entry_clear(entry);
 
     /* Do not reset file context if we're switching archives. */
     if(!rar->cstate.switch_multivolume) {
@@ -1795,8 +1795,14 @@ static int skip_base_block(struct archive_read* a) {
     int ret;
     struct rar5* rar = get_context(a);
 
-    struct archive_entry entry;
-    ret = process_base_block(a, &entry);
+    /* Create a new local archive_entry structure that will be operated on
+     * by header reader; operations on this archive_entry will be discarded.
+     */
+    struct archive_entry* entry = archive_entry_new();
+    ret = process_base_block(a, entry);
+
+    /* Discard operations on this archive_entry structure. */
+    archive_entry_free(entry);
 
     if(rar->generic.last_header_id == 2 && rar->generic.split_before > 0)
         return ARCHIVE_OK;
@@ -2679,12 +2685,20 @@ static int merge_block(struct archive_read* a, ssize_t block_size,
     if(rar->vol.push_buf)
         free((void*) rar->vol.push_buf);
 
-    rar->vol.push_buf = malloc(block_size);
+    /* Increasing the allocation block by 8 is due to bit reading functions,
+     * which are using additional 2 or 4 bytes. Allocating the block size
+     * by exact value would make bit reader perform reads from invalid memory
+     * block when reading the last byte from the buffer. */
+    rar->vol.push_buf = malloc(block_size + 8);
     if(!rar->vol.push_buf) {
         archive_set_error(&a->archive, ENOMEM, "Can't allocate memory for a "
                 "merge block buffer.");
         return ARCHIVE_FATAL;
     }
+
+    /* Valgrind complains if the extension block for bit reader is not
+     * initialized, so initialize it. */
+    memset(&rar->vol.push_buf[block_size], 0, 8);
 
     /* A single block can span across multiple multivolume archive files,
      * so we use a loop here. This loop will consume enough multivolume
