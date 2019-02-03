@@ -889,12 +889,16 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 		case TREE_REGULAR:
 			lst = tree_current_lstat(t);
 			if (lst == NULL) {
-			    if (errno == ENOENT) {
+			    if (errno == ENOENT && t->depth > 0) {
 				delayed = ARCHIVE_WARN;
 				delayed_errno = errno;
-				archive_string_sprintf(&delayed_str,
-				    "%s: File removed before we read it",
-				    tree_current_path(t));
+				if (delayed_str.length == 0) {
+					archive_string_sprintf(&delayed_str,
+					    "%s", tree_current_path(t));
+				} else {
+					archive_string_sprintf(&delayed_str,
+					    " %s", tree_current_path(t));
+				}
 			    } else {
 				archive_set_error(&a->archive, errno,
 				    "%s: Cannot stat",
@@ -1097,9 +1101,12 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 
 	if (r == ARCHIVE_OK) {
 		r = delayed;
-		if (r != ARCHIVE_OK)
+		if (r != ARCHIVE_OK) {
+			archive_string_sprintf(&delayed_str, ": %s",
+			    "File removed before we read it");
 			archive_set_error(&(a->archive), delayed_errno,
 			    "%s", delayed_str.s);
+		}
 	}
 	if (!archive_string_empty(&delayed_str))
 		archive_string_free(&delayed_str);
