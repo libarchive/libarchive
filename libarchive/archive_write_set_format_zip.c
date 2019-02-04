@@ -564,10 +564,8 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	zip->entry_uses_zip64 = 0;
 	zip->entry_crc32 = zip->crc32func(0, NULL, 0);
 	zip->entry_encryption = 0;
-	if (zip->entry != NULL) {
-		archive_entry_free(zip->entry);
-		zip->entry = NULL;
-	}
+	archive_entry_free(zip->entry);
+	zip->entry = NULL;
 
 	if (zip->cctx_valid)
 		archive_encrypto_aes_ctr_release(&zip->cctx);

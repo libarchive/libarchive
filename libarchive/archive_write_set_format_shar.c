@@ -169,8 +169,7 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 	}
 
 	/* Save the entry for the closing. */
-	if (shar->entry)
-		archive_entry_free(shar->entry);
+	archive_entry_free(shar->entry);
 	shar->entry = archive_entry_clone(entry);
 	name = archive_entry_pathname(entry);
 
