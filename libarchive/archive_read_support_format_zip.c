@@ -1408,8 +1408,7 @@ zipx_xz_init(struct archive_read *a, struct zip *zip)
 
 	zip->zipx_lzma_valid = 1;
 
-	if(zip->uncompressed_buffer)
-		free(zip->uncompressed_buffer);
+	free(zip->uncompressed_buffer);
 
 	zip->uncompressed_buffer_size = 256 * 1024;
 	zip->uncompressed_buffer =
@@ -1806,8 +1805,7 @@ zipx_ppmd8_init(struct archive_read *a, struct zip *zip)
 	__archive_ppmd8_functions.Ppmd8_Init(&zip->ppmd8, order, restore_method);
 
 	/* Allocate the buffer that will hold uncompressed data. */
-	if(zip->uncompressed_buffer)
-		free(zip->uncompressed_buffer);
+	free(zip->uncompressed_buffer);
 
 	zip->uncompressed_buffer_size = 256 * 1024;
 	zip->uncompressed_buffer =
@@ -1926,8 +1924,7 @@ zipx_bzip2_init(struct archive_read *a, struct zip *zip)
 	zip->bzstream_valid = 1;
 
 	/* (Re)allocate the buffer that will contain decompressed bytes. */
-	if(zip->uncompressed_buffer)
-		free(zip->uncompressed_buffer);
+	free(zip->uncompressed_buffer);
 
 	zip->uncompressed_buffer_size = 256 * 1024;
 	zip->uncompressed_buffer =
@@ -2741,8 +2738,7 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 	}
 #endif
 
-	if (zip->uncompressed_buffer)
-		free(zip->uncompressed_buffer);
+	free(zip->uncompressed_buffer);
 
 	if (zip->ppmd8_valid)
 		__archive_ppmd8_functions.Ppmd8_Free(&zip->ppmd8);
