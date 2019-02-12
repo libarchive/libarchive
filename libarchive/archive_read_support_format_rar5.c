@@ -588,8 +588,7 @@ static int run_filter(struct archive_read* a, struct filter_info* flt) {
     int ret;
     struct rar5* rar = get_context(a);
 
-    if(rar->cstate.filtered_buf)
-        free(rar->cstate.filtered_buf);
+    free(rar->cstate.filtered_buf);
 
     rar->cstate.filtered_buf = malloc(flt->block_length);
     if(!rar->cstate.filtered_buf) {
@@ -772,7 +771,7 @@ static void free_filters(struct rar5* rar) {
         struct filter_info* f = NULL;
 
         /* Pop_front will also decrease the collection's size. */
-        if(CDE_OK == cdeque_pop_front(d, cdeque_filter_p(&f)) && f != NULL)
+        if (CDE_OK == cdeque_pop_front(d, cdeque_filter_p(&f)))
             free(f);
     }
 
@@ -1847,11 +1846,9 @@ static void init_unpack(struct rar5* rar) {
     else
         rar->cstate.window_mask = 0;
 
-    if(rar->cstate.window_buf)
-        free(rar->cstate.window_buf);
+    free(rar->cstate.window_buf);
 
-    if(rar->cstate.filtered_buf)
-        free(rar->cstate.filtered_buf);
+    free(rar->cstate.filtered_buf);
 
     rar->cstate.window_buf = calloc(1, rar->cstate.window_size);
     rar->cstate.filtered_buf = calloc(1, rar->cstate.window_size);
@@ -3411,14 +3408,11 @@ static int64_t rar5_seek_data(struct archive_read *a, int64_t offset,
 static int rar5_cleanup(struct archive_read *a) {
     struct rar5* rar = get_context(a);
 
-    if(rar->cstate.window_buf)
-        free(rar->cstate.window_buf);
+    free(rar->cstate.window_buf);
 
-    if(rar->cstate.filtered_buf)
-        free(rar->cstate.filtered_buf);
+    free(rar->cstate.filtered_buf);
 
-    if(rar->vol.push_buf)
-        free(rar->vol.push_buf);
+    free(rar->vol.push_buf);
 
     free_filters(rar);
     cdeque_free(&rar->cstate.filters);

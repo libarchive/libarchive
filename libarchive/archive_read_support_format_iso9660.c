@@ -1724,8 +1724,7 @@ archive_read_format_iso9660_cleanup(struct archive_read *a)
 	free(iso9660->read_ce_req.reqs);
 	archive_string_free(&iso9660->pathname);
 	archive_string_free(&iso9660->previous_pathname);
-	if (iso9660->pending_files.files)
-		free(iso9660->pending_files.files);
+	free(iso9660->pending_files.files);
 #ifdef HAVE_ZLIB_H
 	free(iso9660->entry_zisofs.uncompressed_buffer);
 	free(iso9660->entry_zisofs.block_pointers);
@@ -3038,8 +3037,7 @@ heap_add_entry(struct archive_read *a, struct heap_queue *heap,
 		if (heap->allocated)
 			memcpy(new_pending_files, heap->files,
 			    heap->allocated * sizeof(new_pending_files[0]));
-		if (heap->files != NULL)
-			free(heap->files);
+		free(heap->files);
 		heap->files = new_pending_files;
 		heap->allocated = new_size;
 	}

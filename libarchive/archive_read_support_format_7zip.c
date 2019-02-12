@@ -3317,8 +3317,7 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 	 * Release the memory which the previous folder used for BCJ2.
 	 */
 	for (i = 0; i < 3; i++) {
-		if (zip->sub_stream_buff[i] != NULL)
-			free(zip->sub_stream_buff[i]);
+		free(zip->sub_stream_buff[i]);
 		zip->sub_stream_buff[i] = NULL;
 	}
 
