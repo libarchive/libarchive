@@ -1791,8 +1791,8 @@ finish_metadata:
 		a->fd = -1;
 	}
 	/* If there's an entry, we can release it now. */
-	archive_entry_free(a->entry);
-	a->entry = NULL;
+		archive_entry_free(a->entry);
+		a->entry = NULL;
 	a->archive.state = ARCHIVE_STATE_HEADER;
 	return (ret);
 }
@@ -1845,7 +1845,7 @@ archive_write_disk_gid(struct archive *_a, const char *name, la_int64_t id)
                return (a->lookup_gid)(a->lookup_gid_data, name, id);
        return (id);
 }
- 
+
 int64_t
 archive_write_disk_uid(struct archive *_a, const char *name, la_int64_t id)
 {
@@ -2237,7 +2237,7 @@ create_filesystem_object(struct archive_write_disk *a)
 	 */
 	mode = final_mode & 0777 & ~a->user_umask;
 
-	/* 
+	/*
 	 * Always create writable such that [f]setxattr() works if we're not
 	 * root.
 	 */
@@ -2396,7 +2396,7 @@ _archive_write_disk_free(struct archive *_a)
 	ret = _archive_write_disk_close(&a->archive);
 	archive_write_disk_set_group_lookup(&a->archive, NULL, NULL, NULL);
 	archive_write_disk_set_user_lookup(&a->archive, NULL, NULL, NULL);
-	archive_entry_free(a->entry);
+		archive_entry_free(a->entry);
 	archive_string_free(&a->_name_data);
 	archive_string_free(&a->archive.error_string);
 	archive_string_free(&a->path_safe);
@@ -2588,8 +2588,12 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 	 */
 	restore_pwd = open(".", O_RDONLY | O_BINARY | O_CLOEXEC);
 	__archive_ensure_cloexec_flag(restore_pwd);
-	if (restore_pwd < 0)
+	if (restore_pwd < 0) {
+		fsobj_error(a_eno, a_estr, errno,
+					"Could not open ", path);
 		return (ARCHIVE_FATAL);
+	}
+
 	head = path;
 	tail = path;
 	last = 0;
@@ -2705,7 +2709,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 				/*
 				 * We are not the last element and we want to
 				 * follow symlinks if they are a directory.
-				 * 
+				 *
 				 * This is needed to extract hardlinks over
 				 * symlinks.
 				 */
