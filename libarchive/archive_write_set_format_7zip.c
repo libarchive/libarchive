@@ -819,7 +819,7 @@ _7z_close(struct archive_write *a)
 		header_offset = header_size = 0;
 		header_crc32 = 0;
 	}
-
+	
 	length = zip->temp_offset;
 
 	/*
@@ -1474,7 +1474,7 @@ file_cmp_node(const struct archive_rb_node *n1,
 		return (memcmp(f1->utf16name, f2->utf16name, f1->name_len));
 	return (f1->name_len > f2->name_len)?1:-1;
 }
-
+        
 static int
 file_cmp_key(const struct archive_rb_node *n, const void *key)
 {
