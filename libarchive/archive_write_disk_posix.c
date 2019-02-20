@@ -2588,8 +2588,11 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 	 */
 	restore_pwd = open(".", O_RDONLY | O_BINARY | O_CLOEXEC);
 	__archive_ensure_cloexec_flag(restore_pwd);
-	if (restore_pwd < 0)
+	if (restore_pwd < 0) {
+		fsobj_error(a_eno, a_estr, errno,
+		    "Could not open ", path);
 		return (ARCHIVE_FATAL);
+	}
 	head = path;
 	tail = path;
 	last = 0;
