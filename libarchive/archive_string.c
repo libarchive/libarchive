@@ -4050,6 +4050,7 @@ archive_mstring_copy_utf8(struct archive_mstring *aes, const char *utf8)
 {
   if (utf8 == NULL) {
     aes->aes_set = 0;
+    return (0);
   }
   aes->aes_set = AES_SET_UTF8;
   archive_string_empty(&(aes->aes_mbs));
@@ -4064,6 +4065,7 @@ archive_mstring_copy_wcs_len(struct archive_mstring *aes, const wchar_t *wcs,
 {
 	if (wcs == NULL) {
 		aes->aes_set = 0;
+		return (0);
 	}
 	aes->aes_set = AES_SET_WCS; /* Only WCS form set. */
 	archive_string_empty(&(aes->aes_mbs));
