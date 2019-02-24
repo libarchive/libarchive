@@ -143,7 +143,7 @@ DEFINE_TEST(test_read_format_rar5_stored)
 DEFINE_TEST(test_read_format_rar5_compressed)
 {
     const int DATA_SIZE = 1200;
-    uint8_t buff[DATA_SIZE];
+    uint8_t buff[1200];
 
     PROLOGUE("test_read_format_rar5_compressed.rar");
 
@@ -161,7 +161,7 @@ DEFINE_TEST(test_read_format_rar5_compressed)
 DEFINE_TEST(test_read_format_rar5_multiple_files)
 {
     const int DATA_SIZE = 4096;
-    uint8_t buff[DATA_SIZE];
+    uint8_t buff[4096];
 
     PROLOGUE("test_read_format_rar5_multiple_files.rar");
 
@@ -207,7 +207,7 @@ DEFINE_TEST(test_read_format_rar5_multiple_files)
 DEFINE_TEST(test_read_format_rar5_multiple_files_solid)
 {
     const int DATA_SIZE = 4096;
-    uint8_t buff[DATA_SIZE];
+    uint8_t buff[4096];
 
     PROLOGUE("test_read_format_rar5_multiple_files_solid.rar");
 
@@ -309,7 +309,7 @@ DEFINE_TEST(test_read_format_rar5_multiarchive_skip_all_but_second)
 DEFINE_TEST(test_read_format_rar5_blake2)
 {
     const la_ssize_t proper_size = 814;
-    uint8_t buf[proper_size];
+    uint8_t buf[814];
 
     PROLOGUE("test_read_format_rar5_blake2.rar");
     assertA(0 == archive_read_next_header(a, &ae));
@@ -334,7 +334,7 @@ DEFINE_TEST(test_read_format_rar5_arm_filter)
      * test. */
 
     const la_ssize_t proper_size = 90808;
-    uint8_t buf[proper_size];
+    uint8_t buf[90808];
 
     PROLOGUE("test_read_format_rar5_arm.rar");
     assertA(0 == archive_read_next_header(a, &ae));
