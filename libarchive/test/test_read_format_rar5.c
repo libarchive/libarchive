@@ -96,7 +96,7 @@ int extract_one(struct archive* a, struct archive_entry* ae, uint32_t crc) {
     int ret = 1;
     uint32_t computed_crc;
 
-    fsize = archive_entry_size(ae);
+    fsize = (la_ssize_t) archive_entry_size(ae);
     buf = malloc(fsize);
     if(buf == NULL)
         return 1;
