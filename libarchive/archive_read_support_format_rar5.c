@@ -517,10 +517,10 @@ static int run_e8e9_filter(struct rar5* rar, struct filter_info* flt,
     const uint32_t file_size = 0x1000000;
     ssize_t i;
 
-	const int mask = (int)rar->cstate.window_mask;
+    const int mask = (int)rar->cstate.window_mask;
     circular_memcpy(rar->cstate.filtered_buf,
         rar->cstate.window_buf,
-		mask,
+        mask,
         rar->cstate.solid_offset + flt->block_start,
         rar->cstate.solid_offset + flt->block_start + flt->block_length);
 
@@ -563,7 +563,7 @@ static int run_arm_filter(struct rar5* rar, struct filter_info* flt) {
 
     circular_memcpy(rar->cstate.filtered_buf,
         rar->cstate.window_buf,
-		mask,
+        mask,
         rar->cstate.solid_offset + flt->block_start,
         rar->cstate.solid_offset + flt->block_start + flt->block_length);
 

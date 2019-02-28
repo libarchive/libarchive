@@ -1902,7 +1902,7 @@ zipx_bzip2_init(struct archive_read *a, struct zip *zip)
 {
 	int r;
 
-	/* Deallocate already existing BZ2 decompression context if it 
+	/* Deallocate already existing BZ2 decompression context if it
 	 * exists. */
 	if(zip->bzstream_valid) {
 		BZ2_bzDecompressEnd(&zip->bzstream);
