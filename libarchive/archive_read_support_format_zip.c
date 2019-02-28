@@ -1984,6 +1984,15 @@ zip_read_data_zipx_bzip2(struct archive_read *a, const void **buff,
 	}
 
 	in_bytes = zipmin(zip->entry_bytes_remaining, bytes_avail);
+	if(in_bytes < 1) {
+		/* libbz2 doesn't complain when caller feeds avail_in == 0. It will
+		 * actually return success in this case, which is undesirable. This is
+		 * why we need to make this check manually. */
+
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Truncated bzip2 file body");
+		return (ARCHIVE_FATAL);
+	}
 
 	/* Setup buffer boundaries. */
 	zip->bzstream.next_in = (char*)(uintptr_t) compressed_buff;
