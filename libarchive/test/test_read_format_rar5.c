@@ -110,13 +110,13 @@ int extract_one(struct archive* a, struct archive_entry* ae, uint32_t crc) {
     computed_crc = crc32(0, buf, fsize);
     assertEqualInt(computed_crc, crc);
     ret = 0;
-    
+
 fn_exit:
     free(buf);
     return ret;
 }
 
-DEFINE_TEST(test_read_format_rar5_stored) 
+DEFINE_TEST(test_read_format_rar5_stored)
 {
     const char helloworld_txt[] = "hello libarchive test suite!\n";
     la_ssize_t file_size = sizeof(helloworld_txt) - 1;
@@ -173,7 +173,7 @@ DEFINE_TEST(test_read_format_rar5_multiple_files)
     assertEqualInt(DATA_SIZE, archive_entry_size(ae));
     assertA(DATA_SIZE == archive_read_data(a, buff, DATA_SIZE));
     assertA(verify_data(buff, 1, DATA_SIZE));
-    
+
     assertA(0 == archive_read_next_header(a, &ae));
     assertEqualString("test2.bin", archive_entry_pathname(ae));
     assertEqualInt(DATA_SIZE, archive_entry_size(ae));
@@ -216,7 +216,7 @@ DEFINE_TEST(test_read_format_rar5_multiple_files_solid)
     assertEqualInt(DATA_SIZE, archive_entry_size(ae));
     assertA(DATA_SIZE == archive_read_data(a, buff, DATA_SIZE));
     assertA(verify_data(buff, 1, DATA_SIZE));
-    
+
     assertA(0 == archive_read_next_header(a, &ae));
     assertEqualString("test2.bin", archive_entry_pathname(ae));
     assertEqualInt(DATA_SIZE, archive_entry_size(ae));
@@ -598,7 +598,7 @@ DEFINE_TEST(test_read_format_rar5_multiarchive_solid_skip_all_but_last)
     EPILOGUE();
 }
 
-DEFINE_TEST(test_read_format_rar5_solid_skip_all) 
+DEFINE_TEST(test_read_format_rar5_solid_skip_all)
 {
     const char* reffile = "test_read_format_rar5_solid.rar";
 
@@ -623,7 +623,7 @@ DEFINE_TEST(test_read_format_rar5_solid_skip_all)
     EPILOGUE();
 }
 
-DEFINE_TEST(test_read_format_rar5_solid_skip_all_but_first) 
+DEFINE_TEST(test_read_format_rar5_solid_skip_all_but_first)
 {
     const char* reffile = "test_read_format_rar5_solid.rar";
 
@@ -649,7 +649,7 @@ DEFINE_TEST(test_read_format_rar5_solid_skip_all_but_first)
     EPILOGUE();
 }
 
-DEFINE_TEST(test_read_format_rar5_solid_skip_all_but_second) 
+DEFINE_TEST(test_read_format_rar5_solid_skip_all_but_second)
 {
     const char* reffile = "test_read_format_rar5_solid.rar";
 
