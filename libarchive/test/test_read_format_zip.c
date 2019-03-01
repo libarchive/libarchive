@@ -759,3 +759,45 @@ DEFINE_TEST(test_read_format_zip_xz_multi_blockread)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
 }
+
+DEFINE_TEST(test_read_format_zip_ppmd8_crash_1)
+{
+	const char *refname = "test_read_format_zip_ppmd8_crash_2.zipx";
+	struct archive *a;
+	struct archive_entry *ae;
+	char buf[64];
+
+	extract_reference_file(refname);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 37));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+
+	/* The file `refname` is invalid in this case, so this call should fail.
+	 * But it shouldn't crash. */
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_data(a, buf, 64));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_zip_ppmd8_crash_2)
+{
+	const char *refname = "test_read_format_zip_ppmd8_crash_2.zipx";
+	struct archive *a;
+	struct archive_entry *ae;
+	char buf[64];
+
+	extract_reference_file(refname);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 37));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+
+	/* The file `refname` is invalid in this case, so this call should fail.
+	 * But it shouldn't crash. */
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_data(a, buf, 64));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+}
