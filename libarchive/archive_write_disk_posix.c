@@ -3131,12 +3131,14 @@ create_dir(struct archive_write_disk *a, char *path)
 static int
 set_ownership(struct archive_write_disk *a)
 {
-#ifndef __CYGWIN__
-/* unfortunately, on win32 there is no 'root' user with uid 0,
-   so we just have to try the chown and see if it works */
-
-	/* If we know we can't change it, don't bother trying. */
-	if (a->user_uid != 0  &&  a->user_uid != a->uid) {
+#if !defined(__CYGWIN__) && !defined(__linux__)
+/*
+ * On Linux, a process may have the CAP_CHOWN capability.
+ * On Windows there is no 'root' user with uid 0.
+ * Elsewhere we can skip calling chown if we are not root and the desired
+ * user id does not match the current user.
+ */
+	if (a->user_uid != 0 && a->user_uid != a->uid) {
 		archive_set_error(&a->archive, errno,
 		    "Can't set UID=%jd", (intmax_t)a->uid);
 		return (ARCHIVE_WARN);
