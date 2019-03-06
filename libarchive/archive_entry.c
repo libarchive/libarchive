@@ -1698,6 +1698,7 @@ static const struct flag {
 #ifdef UF_NOUNLINK
 	{ "nouunlnk",	L"nouunlnk",		UF_NOUNLINK,	0},
 	{ "nouunlink",	L"nouunlink",		UF_NOUNLINK,	0},
+	{ "noundel",	L"noundel",		UF_NOUNLINK,	0},
 #endif
 #ifdef UF_COMPRESSED
 	{ "nocompressed",L"nocompressed",	UF_COMPRESSED,	0},
@@ -1708,9 +1709,11 @@ static const struct flag {
 #if defined(FS_UNRM_FL)
 	{ "nouunlink",	L"nouunlink",		FS_UNRM_FL,	0},
 	{ "nouunlnk",	L"nouunlnk",		FS_UNRM_FL,	0},
+	{ "noundel",	L"noundel",		FS_UNRM_FL,	0},
 #elif defined(EXT2_UNRM_FL)
 	{ "nouunlink",	L"nouunlink",		EXT2_UNRM_FL,	0},
 	{ "nouunlnk",	L"nouunlnk",		EXT2_UNRM_FL,	0},
+	{ "noundel",	L"noundel",		EXT2_UNRM_FL,	0},
 #endif
 
 #if defined(FS_BTREE_FL)
@@ -1773,13 +1776,17 @@ static const struct flag {
 #endif
 #if defined(FS_JOURNAL_DATA_FL)
 	{ "nojournal",	L"nojournal",		FS_JOURNAL_DATA_FL,	0},
+	{ "nojournal-data",L"nojournal-data",	FS_JOURNAL_DATA_FL,	0},
 #elif defined(EXT3_JOURNAL_DATA_FL)
 	{ "nojournal",	L"nojournal",		EXT3_JOURNAL_DATA_FL,	0},
+	{ "nojournal-data",L"nojournal-data",	EXT3_JOURNAL_DATA_FL,	0},
 #endif
 #if defined(FS_SECRM_FL)
 	{ "nosecuredeletion",L"nosecuredeletion",FS_SECRM_FL,		0},
+	{ "nosecdel",	L"nosecdel",		FS_SECRM_FL,		0},
 #elif defined(EXT2_SECRM_FL)
 	{ "nosecuredeletion",L"nosecuredeletion",EXT2_SECRM_FL,		0},
+	{ "nosecdel",	L"nosecdel",		EXT2_SECRM_FL,		0},
 #endif
 #if defined(FS_SYNC_FL)
 	{ "nosync",	L"nosync",		FS_SYNC_FL,		0},
