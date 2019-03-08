@@ -8,6 +8,12 @@ if [ -z "${BUILDDIR}" ]; then
 fi
 mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
+if ${COPR_BUILD-false}; then
+	export COPR_PR_WEBHOOK=https://copr.fedorainfracloud.org/webhooks/custom/23341/c81b75e1-c477-4c0f-b5b1-2f2c3803c077/libarchive/
+	exec bash "$SRCDIR"/build/ci/copr-travis-submit
+fi
+
 case "$UNAME" in
 	MSYS*)
 	if [ "${BS}" = "msbuild" ]; then

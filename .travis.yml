@@ -5,5 +5,10 @@ matrix:
     env: BS=msbuild
   - os: windows
     env: BS=mingw
+  - os: linux
+    env:
+    - COPR_BUILD=true
+    - secure: "cd0MoR4Nv3HNHuMYkqMWKrOdWEm6Opauv9Iolk7a1WDlhSkANRBFkJAUDNfrhy1SQPNYoDbs84fzEkEwYJTKl6Yq+tvy5jzByNBGEEjxM2LDqJalRw3+tbNkI5nz9HSODoHqqXRMWdRQIvEoP2Rbyv3w8NMcgNm1sWU+IkXMM4ZtGEQa3MWe+LA/2b9xONm4SLIRkTBCGfJjA9EoOwZKFi2TNjSkHvHJNK0AfIcowzqV5EBPtdr979sj2vr14mL2F+339OhnypPHljqKEQOBkqMvGywe8h3RrlPF+TSznMeYKbCaciwDUNOEhx8Hla45y9wrK7gmsMv5KDBNkSa0GBoW8TPreIXG+D/LAKtVGwOo6xgtBzSljnvIq6muKJ5mmRAmcfD6qpaTo90w5Jw4NdVaNxp7oKKPfrqVAAHrk4B2oUICDU4X7wypqC9XiP0hNLX15IpR5528Vqdgo4sBzJ+R5YB3lAoGlXuaPXnsHvXFsI0ggPyhfW3E0KQ9VrB5ih3kPSieQ+seqHPFMTLmEfXSKSC4UB27sl0/SwSVT0W/ToR+Enix0RDd00Q16gp4GFyglKJjM6Hap1JK+Y0gpiV+dYSlzPPp/Q7EVL/w9plp+uj+uwyCkKui38oVrFrpRNkSzW5jaNDLINmmBakKqg0vekQhq9tvAKvPcIuqcPI="
+
 script:
   - build/ci/travis_ci.sh

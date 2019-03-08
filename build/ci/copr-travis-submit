@@ -1,0 +1,84 @@
+#! /bin/bash
+
+# Trigger the package build in Fedora Copr.  The build in copr will build
+# against existing PR, or against already pushed commit.  This script can
+# be HTTP downloaded, and work in isolation under Travis environment.  Note
+# that this script is prepared to be easily copy-pasted to any Travis CI enabled
+# GitHub project and that the original script 'copr-travis-submit' comes from
+# the https://github.com/praiskup/copr-ci-tooling repository, so please submit
+# patches/issues against that project (and keep your copy in sync).
+
+# Copyright (C) 2019 Red Hat, Inc.
+
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+die () { echo >&2 "$*" ; exit 1 ; }
+
+# Please set COPR_PR_WEBHOOK (not encrypted) and COPR_PUSH_WEBHOOK (encrypted)
+# variables in Travis CI.
+
+TYPE=PR
+if test "$TRAVIS_PULL_REQUEST" != false; then
+    COPR_WEBHOOK=$COPR_PR_WEBHOOK
+else
+    COPR_WEBHOOK=$COPR_PUSH_WEBHOOK
+    TYPE=PUSH
+fi
+
+test -z "$COPR_WEBHOOK" && die "webhook unset"
+
+webhook_data()
+{
+    echo "{"
+    echo "  \"type\": \"$TYPE\","
+    test $TYPE = PR && \
+    echo "  \"pr_id\": \"$TRAVIS_PULL_REQUEST\","
+    echo "  \"git_hash\": \"$(git rev-parse HEAD)\""
+    echo "}"
+}
+
+echo "submitting JSON data:"
+webhook_data
+echo
+
+# Copr accepts only json content, hack.
+build_id=$(curl \
+    --silent \
+    -X POST \
+    -H "Content-Type: application/json" \
+    --data "$(webhook_data)" \
+    "$COPR_WEBHOOK"
+)
+
+echo "submitted build: https://copr.fedorainfracloud.org/coprs/build/$build_id/"
+
+set -o pipefail
+
+url="https://copr.fedorainfracloud.org/api/coprs/build_status/$build_id/"
+echo "checking $url"
+
+while :; do
+    sleep 30
+    output=$(curl -sS --fail "$url" | grep status)
+    eval "set -- $output"
+    build_status=${2//,/}
+    echo "build status: $build_status"
+
+    case $build_status in
+        failed)    exit 1 ;;
+        succeeded) exit 0 ;;
+    esac
+done
