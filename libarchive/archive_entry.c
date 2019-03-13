@@ -1641,7 +1641,6 @@ _archive_entry_acl_text_l(struct archive_entry *entry, int flags,
  * schg,schange,simmutable	SF_IMMUTABLE
  * sunlnk,sunlink		SF_NOUNLINK
  * uappnd,uappend		UF_APPEND
- * uarch,uarchive		UF_ARCHIVE
  * uchg,uchange,uimmutable	UF_IMMUTABLE
  * hidden,uhidden		UF_HIDDEN
  * offline,uoffline		UF_OFFLINE	(FreeBSD only)
@@ -1661,7 +1660,6 @@ _archive_entry_acl_text_l(struct archive_entry *entry, int flags,
  * C	no copy on write		FS_NOCOW_FL		cow
  * d	no dump				FS_NODUMP_FL		dump
  * D	synchronous directory updates	FS_DIRSYNC_FL		dirsync
- * e	extent format			FS_EXTENT_FL		extent
  * i	immutable			FS_IMMUTABLE_FL		schg
  * j	data journalling		FS_JOURNAL_DATA_FL	journal
  * P	project hierarchy		FS_PROJINHERIT_FL	projinherit
@@ -1739,10 +1737,6 @@ static const struct flag {
 #endif
 #ifdef UF_OPAQUE
 	{ "noopaque",	L"noopaque",		UF_OPAQUE,	0},
-#endif
-#ifdef UF_ARCHIVE
-	{ "nouarch",	L"nouarch",		UF_ARCHIVE,	0},
-	{ "nouarchive",	L"nouarchive",		UF_ARCHIVE,	0},
 #endif
 #ifdef UF_NOUNLINK
 	{ "nouunlnk",	L"nouunlnk",		UF_NOUNLINK,	0},
@@ -1832,9 +1826,6 @@ static const struct flag {
 	{ "notopdir",	L"notopdir",		FS_TOPDIR_FL,		0},
 #elif defined(EXT2_TOPDIR_FL)
 	{ "notopdir",	L"notopdir",		EXT2_TOPDIR_FL,		0},
-#endif
-#ifdef FS_EXTENT_FL 		/* 'e' */
-	{ "noextent",	L"noextent",		FS_EXTENT_FL,	0},
 #endif
 #ifdef FS_NOCOW_FL	/* 'C' */
 	{ "nocow",	L"nocow",		0,	FS_NOCOW_FL},
