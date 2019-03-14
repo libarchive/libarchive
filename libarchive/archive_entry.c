@@ -1634,22 +1634,22 @@ _archive_entry_acl_text_l(struct archive_entry *entry, int flags,
 
 /*
  * Supported file flags on FreeBSD and Mac OS:
- * arch,archived		SF_ARCHIVED
- * nodump			UF_NODUMP
- * opaque			UF_OPAQUE
  * sappnd,sappend		SF_APPEND
+ * arch,archived		SF_ARCHIVED
  * schg,schange,simmutable	SF_IMMUTABLE
- * sunlnk,sunlink		SF_NOUNLINK
+ * sunlnk,sunlink		SF_NOUNLINK	(FreeBSD only)
  * uappnd,uappend		UF_APPEND
- * uchg,uchange,uimmutable	UF_IMMUTABLE
- * hidden,uhidden		UF_HIDDEN
- * offline,uoffline		UF_OFFLINE	(FreeBSD only)
- * rdonly,urdonly,readonly	UF_READONLY	(FreeBSD only)
- * sparse,usparse		UF_SPARSE	(FreeBSD only)
- * system,usystem			UF_SYSTEM	(FreeBSD only)
- * reparse,ureparse		UF_REPARSE	(FreeBSD only)
- * uunlnk,uunlink		UF_NOUNLINK	(FreeBSD only)
  * compressed			UF_COMPRESSED	(Mac OS only)
+ * hidden,uhidden		UF_HIDDEN
+ * uchg,uchange,uimmutable	UF_IMMUTABLE
+ * nodump			UF_NODUMP
+ * uunlnk,uunlink		UF_NOUNLINK	(FreeBSD only)
+ * offline,uoffline		UF_OFFLINE	(FreeBSD only)
+ * opaque			UF_OPAQUE
+ * rdonly,urdonly,readonly	UF_READONLY	(FreeBSD only)
+ * reparse,ureparse		UF_REPARSE	(FreeBSD only)
+ * sparse,usparse		UF_SPARSE	(FreeBSD only)
+ * system,usystem		UF_SYSTEM	(FreeBSD only)
  *
  * See chflags(2) for more information
  *
