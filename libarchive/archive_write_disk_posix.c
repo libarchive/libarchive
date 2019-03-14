@@ -3618,8 +3618,9 @@ set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
     mode_t mode, unsigned long set, unsigned long clear)
 {
 	int r;
-
+	int sf_mask = 0;
 	(void)mode; /* UNUSED */
+
 	if (set == 0  && clear == 0)
 		return (ARCHIVE_OK);
 
@@ -3634,6 +3635,23 @@ set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
 
 	a->st.st_flags &= ~clear;
 	a->st.st_flags |= set;
+
+	/* Only super-user may change SF_* flags */
+#ifdef SF_APPEND
+	sf_mask |= SF_APPEND;
+#endif
+#ifdef SF_ARCHIVED
+	sf_mask |= SF_ARCHIVED;
+#endif
+#ifdef SF_IMMUTABLE
+	sf_mask |= SF_IMMUTABLE;
+#endif
+#ifdef SF_NOUNLINK
+	sf_mask |= SF_NOUNLINK;
+#endif
+	if (a->user_uid != 0)
+		a->st.st_flags &= ~sf_mask;
+
 #ifdef HAVE_FCHFLAGS
 	/* If platform has fchflags() and we were given an fd, use it. */
 	if (fd >= 0 && fchflags(fd, a->st.st_flags) == 0)
