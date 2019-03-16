@@ -1935,6 +1935,9 @@ _sparse_list_add_block(struct pax *pax, int64_t offset, int64_t length,
 		return (ARCHIVE_FATAL);
 	sb->next = NULL;
 	sb->is_hole = is_hole;
+	if (offset < 0 || length < 0) {
+		return (ARCHIVE_FATAL);
+	}
 	sb->offset = offset;
 	sb->remaining = length;
 	if (pax->sparse_list == NULL || pax->sparse_tail == NULL)
