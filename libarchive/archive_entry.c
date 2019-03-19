@@ -1655,7 +1655,7 @@ _archive_entry_acl_text_l(struct archive_entry *entry, int flags,
  *
  * Supported file attributes on Linux:
  * a	append only			FS_APPEND_FL		sappnd
- * A	no atime updates		FS_NOATME_FL		atime
+ * A	no atime updates		FS_NOATIME_FL		atime
  * c	compress			FS_COMPR_FL		compress
  * C	no copy on write		FS_NOCOW_FL		cow
  * d	no dump				FS_NODUMP_FL		dump
