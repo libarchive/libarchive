@@ -1667,7 +1667,7 @@ _archive_entry_acl_text_l(struct archive_entry *entry, int flags,
  * S	synchronous updates		FS_SYNC_FL		sync
  * t	no tail-merging			FS_NOTAIL_FL		tail
  * T	top of directory hierarchy	FS_TOPDIR_FL		topdir
- * u	undeletable			FS_UNRM_FL		uunlnk
+ * u	undeletable			FS_UNRM_FL		undel
  *
  * See ioctl_iflags(2) for more information
  *
@@ -1675,7 +1675,6 @@ _archive_entry_acl_text_l(struct archive_entry *entry, int flags,
  * SF_APPEND		FS_APPEND_FL		sappnd
  * SF_IMMUTABLE		FS_IMMUTABLE_FL		schg
  * UF_NODUMP		FS_NODUMP_FL		nodump
- * UF_NOUNLINK		FS_UNRM_FL		uunlnk
  */
 
 static const struct flag {
@@ -1741,7 +1740,6 @@ static const struct flag {
 #ifdef UF_NOUNLINK
 	{ "nouunlnk",	L"nouunlnk",		UF_NOUNLINK,	0},
 	{ "nouunlink",	L"nouunlink",		UF_NOUNLINK,	0},
-	{ "noundel",	L"noundel",		UF_NOUNLINK,	0},
 #endif
 #ifdef UF_COMPRESSED
 	/* Mac OS */
@@ -1773,12 +1771,8 @@ static const struct flag {
 	{ "nousystem",	L"nousystem",		UF_SYSTEM,	0},
 #endif
 #if defined(FS_UNRM_FL)		/* 'u' */
-	{ "nouunlnk",	L"nouunlnk",		FS_UNRM_FL,	0},
-	{ "nouunlink",	L"nouunlink",		FS_UNRM_FL,	0},
 	{ "noundel",	L"noundel",		FS_UNRM_FL,	0},
 #elif defined(EXT2_UNRM_FL)
-	{ "nouunlnk",	L"nouunlnk",		EXT2_UNRM_FL,	0},
-	{ "nouunlink",	L"nouunlink",		EXT2_UNRM_FL,	0},
 	{ "noundel",	L"noundel",		EXT2_UNRM_FL,	0},
 #endif
 
@@ -1799,18 +1793,18 @@ static const struct flag {
 	{ "nodirsync",	L"nodirsync",		EXT2_DIRSYNC_FL,	0},
 #endif
 #if defined(FS_JOURNAL_DATA_FL)	/* 'j' */
-	{ "nojournal",	L"nojournal",		FS_JOURNAL_DATA_FL,	0},
 	{ "nojournal-data",L"nojournal-data",	FS_JOURNAL_DATA_FL,	0},
+	{ "nojournal",	L"nojournal",		FS_JOURNAL_DATA_FL,	0},
 #elif defined(EXT3_JOURNAL_DATA_FL)
-	{ "nojournal",	L"nojournal",		EXT3_JOURNAL_DATA_FL,	0},
 	{ "nojournal-data",L"nojournal-data",	EXT3_JOURNAL_DATA_FL,	0},
+	{ "nojournal",	L"nojournal",		EXT3_JOURNAL_DATA_FL,	0},
 #endif
 #if defined(FS_SECRM_FL)	/* 's' */
-	{ "nosecuredeletion",L"nosecuredeletion",FS_SECRM_FL,		0},
 	{ "nosecdel",	L"nosecdel",		FS_SECRM_FL,		0},
+	{ "nosecuredeletion",L"nosecuredeletion",FS_SECRM_FL,		0},
 #elif defined(EXT2_SECRM_FL)
-	{ "nosecuredeletion",L"nosecuredeletion",EXT2_SECRM_FL,		0},
 	{ "nosecdel",	L"nosecdel",		EXT2_SECRM_FL,		0},
+	{ "nosecuredeletion",L"nosecuredeletion",EXT2_SECRM_FL,		0},
 #endif
 #if defined(FS_SYNC_FL)		/* 'S' */
 	{ "nosync",	L"nosync",		FS_SYNC_FL,		0},
