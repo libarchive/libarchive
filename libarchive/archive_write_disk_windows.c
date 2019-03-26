@@ -205,6 +205,7 @@ struct archive_write_disk {
 #define	MINIMUM_DIR_MODE 0700
 #define	MAXIMUM_DIR_MODE 0775
 
+static int	disk_unlink(const wchar_t *);
 static int	check_symlinks(struct archive_write_disk *);
 static int	create_filesystem_object(struct archive_write_disk *);
 static struct fixup_entry *current_fixup(struct archive_write_disk *,
@@ -579,6 +580,69 @@ la_CreateHardLinkW(wchar_t *linkname, wchar_t *target)
 #undef IS_UNC
 		ret = (*f)(linkname, target, NULL);
 	}
+	return (ret);
+}
+
+/*
+ * Create symolic link
+ *
+ * Always creates a file symbolic link.
+ * Directory symbolic links are currently not implemented.
+ */
+static int
+la_CreateSymbolicLinkW(const wchar_t *linkname, const wchar_t *target) {
+	static BOOLEAN (WINAPI *f)(LPCWSTR, LPCWSTR, DWORD);
+	static int set;
+	wchar_t *ttarget, *p;
+	DWORD flags = 0;
+	BOOL ret = 0;
+
+	if (!set) {
+		set = 1;
+		f = la_GetFunctionKernel32("CreateSymbolicLinkW");
+	}
+	if (!f)
+		return (0);
+
+	/*
+	 * When writing path targets, we need to translate slashes
+	 * to backslashes
+	 */
+	ttarget = malloc((wcslen(target) + 1) * sizeof(wchar_t));
+	if (ttarget == NULL)
+		return(0);
+
+	p = ttarget;
+
+	while(*target != L'\0') {
+		if (*target == L'/')
+			*p = L'\\';
+		else
+			*p = *target;
+		target++;
+		p++;
+	}
+	*p = L'\0';
+
+	/*
+	 * Windows won't overwrite existing links
+	 */
+	disk_unlink(linkname);
+
+#if defined(SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE)
+	flags |= SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE;
+#else
+	flags |= 0x2;
+#endif
+	ret = (*f)(linkname, ttarget, flags);
+	/*
+	 * Prior to Windows 10 calling CreateSymbolicLinkW() will fail
+	 * if SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE is set
+	 */
+	if (!ret && flags != 0) {
+		ret = (*f)(linkname, ttarget, 0);
+	}
+	free(ttarget);
 	return (ret);
 }
 
@@ -1240,7 +1304,7 @@ archive_write_disk_new(void)
 }
 
 static int
-disk_unlink(wchar_t *path)
+disk_unlink(const wchar_t *path)
 {
 	wchar_t *fullname;
 	int r;
@@ -1515,7 +1579,13 @@ create_filesystem_object(struct archive_write_disk *a)
 #if HAVE_SYMLINK
 		return symlink(linkname, a->name) ? errno : 0;
 #else
-		return (EPERM);
+		r = la_CreateSymbolicLinkW((const wchar_t *)a->name, linkname);
+		if (r == 0) {
+			la_dosmaperr(GetLastError());
+			r = errno;
+		} else
+			r = 0;
+		return (r);
 #endif
 	}
 

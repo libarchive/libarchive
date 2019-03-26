@@ -168,6 +168,32 @@ static int	 my_CreateHardLinkA(const char *, const char *);
 static int	 my_GetFileInformationByName(const char *,
 		     BY_HANDLE_FILE_INFORMATION *);
 
+typedef struct _REPARSE_DATA_BUFFER {
+	ULONG	ReparseTag;
+	USHORT ReparseDataLength;
+	USHORT	Reserved;
+	union {
+		struct {
+			USHORT	SubstituteNameOffset;
+			USHORT	SubstituteNameLength;
+			USHORT	PrintNameOffset;
+			USHORT	PrintNameLength;
+			ULONG	Flags;
+			WCHAR	PathBuffer[1];
+		} SymbolicLinkReparseBuffer;
+		struct {
+			USHORT	SubstituteNameOffset;
+			USHORT	SubstituteNameLength;
+			USHORT	PrintNameOffset;
+			USHORT	PrintNameLength;
+			WCHAR	PathBuffer[1];
+		} MountPointReparseBuffer;
+		struct {
+			UCHAR	DataBuffer[1];
+		} GenericReparseBuffer;
+	} DUMMYUNIONNAME;
+} REPARSE_DATA_BUFFER, *PREPARSE_DATA_BUFFER;
+
 static void *
 GetFunctionKernel32(const char *name)
 {
@@ -189,11 +215,52 @@ my_CreateSymbolicLinkA(const char *linkname, const char *target, int flags)
 {
 	static BOOLEAN (WINAPI *f)(LPCSTR, LPCSTR, DWORD);
 	static int set;
+	int ret, tmpflags;
+	char *tgt, *p;
 	if (!set) {
 		set = 1;
 		f = GetFunctionKernel32("CreateSymbolicLinkA");
 	}
-	return f == NULL ? 0 : (*f)(linkname, target, flags);
+	if (f == NULL)
+		return (0);
+
+	tgt = malloc(strlen(target) + 1);
+	if (tgt == NULL)
+		return (0);
+
+	/*
+	 * Translate slashes to backslashes
+	 */
+	p = tgt;
+	while(*target != '\0') {
+		if (*target == '/')
+			*p = '\\';
+		else
+			*p = *target;
+		target++;
+		p++;
+	}
+	*p = '\0';
+
+	/*
+	 * Windows can't overwrite existing links
+	 */
+	_unlink(linkname);
+#if defined(SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE)
+	tmpflags = flags | SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE;
+#else
+	tmpflags = flags | 0x2;
+#endif
+	ret = (*f)(linkname, tgt, tmpflags);
+	/*
+	 * Prior to Windows 10 the SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
+	 * is not undestood
+	 */
+	if (!ret)
+		ret = (*f)(linkname, tgt, flags);
+
+	free(tgt);
+	return (ret);
 }
 
 static int
@@ -1606,13 +1673,70 @@ is_symlink(const char *file, int line,
     const char *pathname, const char *contents)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	(void)pathname; /* UNUSED */
-	(void)contents; /* UNUSED */
-	assertion_count(file, line);
-	/* Windows sort-of has real symlinks, but they're only usable
-	 * by privileged users and are crippled even then, so there's
-	 * really not much point in bothering with this. */
-	return (0);
+	HANDLE h;
+	DWORD inbytes;
+	REPARSE_DATA_BUFFER *buf;
+	size_t len, len2;
+	wchar_t *linknamew, *contentsw;
+	int ret = 0;
+	BYTE *indata;
+	DWORD flag = FILE_FLAG_BACKUP_SEMANTICS |
+	    FILE_FLAG_OPEN_REPARSE_POINT;
+
+	if (contents == NULL)
+		return (0);
+
+	h = CreateFileA(pathname, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+	    flag, NULL);
+	if (h == INVALID_HANDLE_VALUE)
+		return (0);
+
+	indata = malloc(MAXIMUM_REPARSE_DATA_BUFFER_SIZE);
+	ret = DeviceIoControl(h, FSCTL_GET_REPARSE_POINT, NULL, 0, indata,
+	    1024, &inbytes, NULL);
+	CloseHandle(h);
+	if (ret == 0) {
+		free(indata);
+		return (0);
+	}
+
+	buf = (REPARSE_DATA_BUFFER *) indata;
+	if (buf->ReparseTag != IO_REPARSE_TAG_SYMLINK) {
+		free(indata);
+		/* File is not a symbolic link */
+		errno = EINVAL;
+		return (0);
+	}
+
+	len = buf->SymbolicLinkReparseBuffer.SubstituteNameLength;
+
+	linknamew = malloc(len + sizeof(wchar_t));
+	if (linknamew == NULL) {
+		free(indata);
+		return (0);
+	}
+
+	memcpy(linknamew, &((BYTE *)buf->SymbolicLinkReparseBuffer.PathBuffer)
+	    [buf->SymbolicLinkReparseBuffer.SubstituteNameOffset], len);
+	free(indata);
+
+	linknamew[len / sizeof(wchar_t)] = L'\0';
+
+	contentsw = malloc(len + sizeof(wchar_t));
+	if (contentsw == NULL) {
+		free(linknamew);
+		return (0);
+	}
+
+	len2 = mbsrtowcs(contentsw, &contents, (len + sizeof(wchar_t)
+	    / sizeof(wchar_t)), NULL);
+
+	if (len2 > 0 && wcscmp(linknamew, contentsw) != 0)
+		ret = 1;
+
+	free(linknamew);
+	free(contentsw);
+	return (ret);
 #else
 	char buff[300];
 	struct stat st;
