@@ -206,6 +206,7 @@ struct archive_write_disk {
 #define	MAXIMUM_DIR_MODE 0775
 
 static int	disk_unlink(const wchar_t *);
+static int	disk_rmdir(const wchar_t *);
 static int	check_symlinks(struct archive_write_disk *);
 static int	create_filesystem_object(struct archive_write_disk *);
 static struct fixup_entry *current_fixup(struct archive_write_disk *,
@@ -594,7 +595,9 @@ la_CreateSymbolicLinkW(const wchar_t *linkname, const wchar_t *target) {
 	static BOOLEAN (WINAPI *f)(LPCWSTR, LPCWSTR, DWORD);
 	static int set;
 	wchar_t *ttarget, *p;
+	DWORD attrs = 0;
 	DWORD flags = 0;
+	DWORD newflags = 0;
 	BOOL ret = 0;
 
 	if (!set) {
@@ -625,22 +628,49 @@ la_CreateSymbolicLinkW(const wchar_t *linkname, const wchar_t *target) {
 	*p = L'\0';
 
 	/*
-	 * Windows won't overwrite existing links
+	 * If the target equals ".", ".." or ends with a backslash, it always
+	 * points to a directory. In this case we can safely set the directory
+	 * flag. All other symlinks are created as file symlinks.
 	 */
-	disk_unlink(linkname);
+	if (wcscmp(ttarget, L".") == 0 || wcscmp(ttarget, L"..") == 0 ||
+		*(p - 1) == L'\\') {
+#if defined(SYMBOLIC_LINK_FLAG_DIRECTORY)
+		flags |= SYMBOLIC_LINK_FLAG_DIRECTORY;
+#else
+		flags |= 0x1;
+#endif
+		/* Now we remove trailing backslashes, if any */
+		p--;
+		while(*p == L'\\') {
+			*p = L'\0';
+			p--;
+		}
+	}
 
 #if defined(SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE)
-	flags |= SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE;
+	newflags = flags | SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE;
 #else
-	flags |= 0x2;
+	newflags = flags | 0x2;
 #endif
-	ret = (*f)(linkname, ttarget, flags);
+
+	/*
+	 * Windows won't overwrite existing links
+	 */
+	attrs = GetFileAttributesW(linkname);
+	if (attrs != INVALID_FILE_ATTRIBUTES) {
+		if (attrs & FILE_ATTRIBUTE_DIRECTORY)
+			disk_rmdir(linkname);
+		else
+			disk_unlink(linkname);
+	}
+
+	ret = (*f)(linkname, ttarget, newflags);
 	/*
 	 * Prior to Windows 10 calling CreateSymbolicLinkW() will fail
 	 * if SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE is set
 	 */
-	if (!ret && flags != 0) {
-		ret = (*f)(linkname, ttarget, 0);
+	if (!ret) {
+		ret = (*f)(linkname, ttarget, flags);
 	}
 	free(ttarget);
 	return (ret);
@@ -1319,7 +1349,7 @@ disk_unlink(const wchar_t *path)
 }
 
 static int
-disk_rmdir(wchar_t *path)
+disk_rmdir(const wchar_t *path)
 {
 	wchar_t *fullname;
 	int r;
@@ -1918,7 +1948,13 @@ check_symlinks(struct archive_write_disk *a)
 				 * so we can overwrite it with the
 				 * item being extracted.
 				 */
-				if (disk_unlink(a->name)) {
+				if (st.dwFileAttributes &
+				    FILE_ATTRIBUTE_DIRECTORY) {
+					r = disk_rmdir(a->name);
+				} else {
+					r = disk_unlink(a->name);
+				}
+				if (r) {
 					archive_set_error(&a->archive, errno,
 					    "Could not remove symlink %ls",
 					    a->name);

@@ -214,6 +214,7 @@ static int
 my_CreateSymbolicLinkA(const char *linkname, const char *target, int flags)
 {
 	static BOOLEAN (WINAPI *f)(LPCSTR, LPCSTR, DWORD);
+	DWORD attrs;
 	static int set;
 	int ret, tmpflags;
 	char *tgt, *p;
@@ -243,14 +244,40 @@ my_CreateSymbolicLinkA(const char *linkname, const char *target, int flags)
 	*p = '\0';
 
 	/*
-	 * Windows can't overwrite existing links
+	 * If the target equals ".", ".." or ends with a slash, it always
+	 * points to a directory. In this case we can set the directory flag.
 	 */
-	_unlink(linkname);
+	if (strcmp(tgt, ".") == 0 || strcmp(tgt, "..") == 0 ||
+		*(p - 1) == '\\') {
+#if defined(SYMBOLIC_LINK_FLAG_DIRECTORY)
+		flags |= SYMBOLIC_LINK_FLAG_DIRECTORY;
+#else
+		flags |= 0x1;
+#endif
+		/* Now we remove trailing backslashes */
+		p--;
+		while(*p == '\\') {
+			*p = '\0';
+			p--;
+		}
+	}
+
 #if defined(SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE)
 	tmpflags = flags | SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE;
 #else
 	tmpflags = flags | 0x2;
 #endif
+	/*
+	 * Windows won't overwrite existing links
+	 */
+	attrs = GetFileAttributesA(linkname);
+	if (attrs != INVALID_FILE_ATTRIBUTES) {
+		if (attrs & FILE_ATTRIBUTE_DIRECTORY)
+			RemoveDirectoryA(linkname);
+		else
+			DeleteFileA(linkname);
+	}
+
 	ret = (*f)(linkname, tgt, tmpflags);
 	/*
 	 * Prior to Windows 10 the SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE

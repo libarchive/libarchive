@@ -570,7 +570,7 @@ test_symlink_hybrid(void)
 	assertMakeDir("h", 0755);
 	assertChdir("h");
 	assertMakeDir("d1", 0755);
-	assertMakeSymlink("ld1", "d1");
+	assertMakeSymlink("ld1", "d1/");
 	assertMakeFile("d1/file1", 0644, "d1/file1");
 	assertMakeFile("d1/file2", 0644, "d1/file2");
 	assertMakeSymlink("d1/link1", "file1");
@@ -727,7 +727,7 @@ test_symlink_logical(void)
 	assertMakeDir("l", 0755);
 	assertChdir("l");
 	assertMakeDir("d1", 0755);
-	assertMakeSymlink("ld1", "d1");
+	assertMakeSymlink("ld1", "d1/");
 	assertMakeFile("d1/file1", 0644, "d1/file1");
 	assertMakeFile("d1/file2", 0644, "d1/file2");
 	assertMakeSymlink("d1/link1", "file1");
@@ -961,8 +961,8 @@ test_symlink_logical_loop(void)
 	assertMakeDir("d1/d2/d3", 0755);
 	assertMakeDir("d2", 0755);
 	assertMakeFile("d2/file1", 0644, "d2/file1");
-	assertMakeSymlink("d1/d2/ld1", "../../d1");
-	assertMakeSymlink("d1/d2/ld2", "../../d2");
+	assertMakeSymlink("d1/d2/ld1", "../../d1/");
+	assertMakeSymlink("d1/d2/ld2", "../../d2/");
 	assertChdir("..");
 
 	assert((ae = archive_entry_new()) != NULL);

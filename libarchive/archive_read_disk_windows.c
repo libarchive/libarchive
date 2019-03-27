@@ -299,7 +299,7 @@ static int	close_and_restore_time(HANDLE, struct tree *,
 		    struct restore_time *);
 static int	setup_sparse_from_disk(struct archive_read_disk *,
 		    struct archive_entry *, HANDLE);
-static int	la_linkname_from_handle(HANDLE, wchar_t **);
+static int	la_linkname_from_handle(HANDLE, wchar_t **, int);
 static int	la_linkname_from_pathw(const wchar_t *, wchar_t **);
 static void	entry_symlink_from_pathw(struct archive_entry *,
 		    const wchar_t *path);
@@ -337,7 +337,7 @@ typedef struct _REPARSE_DATA_BUFFER {
  * outbuf is allocated in the function
  */
 static int
-la_linkname_from_handle(HANDLE h, wchar_t **linkname)
+la_linkname_from_handle(HANDLE h, wchar_t **linkname, int isdir)
 {
 	DWORD inbytes;
 	REPARSE_DATA_BUFFER *buf;
@@ -369,7 +369,8 @@ la_linkname_from_handle(HANDLE h, wchar_t **linkname)
 		return (-1);
 	}
 
-	tbuf = malloc(len + sizeof(wchar_t));
+	/* We need an extra character here to append directory slash */
+	tbuf = malloc(len + 2 * sizeof(wchar_t));
 	if (tbuf == NULL) {
 		free(indata);
 		return (-1);
@@ -391,6 +392,17 @@ la_linkname_from_handle(HANDLE h, wchar_t **linkname)
 			*tbuf = L'/';
 		tbuf++;
 	}
+
+	/*
+	 * Directory symlinks need special treatment
+	 */
+	if (isdir && wcscmp(*linkname, L".") != 0 &&
+	    wcscmp(*linkname, L"..") != 0) {
+		if (*(tbuf - 1) != L'/') {
+			*tbuf = L'/';
+			*(tbuf + 1) = L'\0';
+		}
+	}
 	return (0);
 }
 
@@ -398,9 +410,15 @@ static int
 la_linkname_from_pathw(const wchar_t *path, wchar_t **outbuf)
 {
 	HANDLE h;
+	DWORD attrs;
 	DWORD flag = FILE_FLAG_BACKUP_SEMANTICS |
 	    FILE_FLAG_OPEN_REPARSE_POINT;
 	int ret;
+
+	attrs = GetFileAttributesW(path);
+	if (attrs == INVALID_FILE_ATTRIBUTES ||
+	    (!(attrs & FILE_ATTRIBUTE_REPARSE_POINT)))
+		return (-1);
 
 	h = CreateFileW(path, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING, flag,
 	    NULL);
@@ -408,7 +426,8 @@ la_linkname_from_pathw(const wchar_t *path, wchar_t **outbuf)
 		la_dosmaperr(GetLastError());
 		return (-1);
 	}
-	ret = la_linkname_from_handle(h, outbuf);
+	ret = la_linkname_from_handle(h, outbuf,
+	    attrs & FILE_ATTRIBUTE_DIRECTORY);
 	CloseHandle(h);
 	return (ret);
 }
