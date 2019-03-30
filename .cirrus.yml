@@ -2,7 +2,7 @@ env:
   CIRRUS_CLONE_DEPTH: 1
   ARCH: amd64
 
-task:
+main_task:
   matrix:
     container:
       image: fedora:29
@@ -19,8 +19,30 @@ task:
       BS: autotools
     env:
       BS: cmake
-  install_script:
-    - ./build/ci/cirrus_ci.sh install
-  script:
-    - ./build/ci/build.sh
-    - ./build/ci/cirrus_ci.sh test
+  prepare_script:
+  - ./build/ci/cirrus_ci.sh prepare
+  configure_script:
+  - ./build/ci/build.sh -a autogen
+  - ./build/ci/build.sh -a configure
+  build_script:
+  - ./build/ci/build.sh -a build
+  test_script:
+  - ./build/ci/build.sh -a test
+  - ./build/ci/cirrus_ci.sh test
+
+Windows_MinGW_task:
+  windows_container:
+    image: cirrusci/windowsservercore:2019
+    os_version: 2019
+  prepare_script:
+  - choco install -y mingw
+  - choco install -y cmake --installargs 'ADD_CMAKE_TO_PATH=User'
+  configure_script:
+  - refreshenv
+  - mkdir build_ci\mingw
+  - cd build_ci\mingw
+  - cmake -G "MinGW Makefiles" -D CMAKE_BUILD_TYPE="Release" ..\..
+  build_script:
+  - refreshenv
+  - cd build_ci\mingw
+  - mingw32-make

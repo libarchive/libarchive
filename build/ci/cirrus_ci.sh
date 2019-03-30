@@ -1,6 +1,6 @@
 #!/bin/sh
 UNAME=`uname`
-if [ "$1" = "install" ]
+if [ "$1" = "prepare" ]
 then
 	if [ "${UNAME}" = "FreeBSD" ]
 	then
@@ -51,6 +51,6 @@ then
 		TMPDIR=/tmp_acl_nfsv4 ${BIN_SUBDIR}/libarchive_test -r "${CURDIR}/libarchive/test" -v test_acl_platform_nfs4
 	fi
 else
-	echo "Usage $0 install | test_nfsv4_acls"
+	echo "Usage $0 prepare | test_nfsv4_acls"
 	exit 1
 fi
