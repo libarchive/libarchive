@@ -1737,7 +1737,8 @@ test_parent(void)
 	/*
 	 * Test4: Traverse lock/lock2/dir1 from inside lock.
 	 *
-	 * This test is expected to fail on platforms with no O_EXEC, because
+	 * This test is expected to fail on platforms with no O_EXEC or
+	 * equivalent (e.g. O_PATH on Linux or O_SEARCH on SunOS), because
 	 * the current traversal code can't handle the case where it can't
 	 * obtain an open fd for the initial current directory. We need to
 	 * check that condition here, because if O_EXEC _does_ exist, we don't
@@ -1751,7 +1752,7 @@ test_parent(void)
 	archive_entry_clear(ae);
 	r = archive_read_next_header2(a, ae);
 	if (r == ARCHIVE_FAILED) {
-#ifdef O_EXEC
+#if defined(O_PATH) || defined(O_SEARCH) || defined(O_EXEC)
 		assertEqualIntA(a, ARCHIVE_OK, r);
 #endif
 		/* Close the disk object. */

@@ -2164,6 +2164,17 @@ tree_open(const char *path, int symlink_mode, int restore_time)
 static struct tree *
 tree_reopen(struct tree *t, const char *path, int restore_time)
 {
+#if defined(O_PATH)
+	/* Linux */
+	const int o_flag = O_PATH;
+#elif defined(O_SEARCH)
+	/* SunOS */
+	const int o_flag = O_SEARCH;
+#elif defined(O_EXEC)
+	/* FreeBSD */
+	const int o_flag = O_EXEC;
+#endif
+
 	t->flags = (restore_time != 0)?needsRestoreTimes:0;
 	t->flags |= onInitialDir;
 	t->visit_type = 0;
@@ -2185,14 +2196,14 @@ tree_reopen(struct tree *t, const char *path, int restore_time)
 	t->stack->flags = needsFirstVisit;
 	t->maxOpenCount = t->openCount = 1;
 	t->initial_dir_fd = open(".", O_RDONLY | O_CLOEXEC);
-#ifdef O_EXEC
+#if defined(O_PATH) || defined(O_SEARCH) || defined(O_EXEC)
 	/*
 	 * Most likely reason to fail opening "." is that it's not readable,
 	 * so try again for execute. The consequences of not opening this are
 	 * unhelpful and unnecessary errors later.
 	 */
 	if (t->initial_dir_fd < 0)
-		t->initial_dir_fd = open(".", O_EXEC | O_CLOEXEC);
+		t->initial_dir_fd = open(".", o_flag | O_CLOEXEC);
 #endif
 	__archive_ensure_cloexec_flag(t->initial_dir_fd);
 	t->working_dir_fd = tree_dup(t->initial_dir_fd);
