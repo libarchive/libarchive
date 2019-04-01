@@ -83,7 +83,9 @@
 #include <sys/richacl.h>
 #endif
 #ifdef HAVE_WINDOWS_H
+#define NOCRYPT
 #include <windows.h>
+#include <winioctl.h>
 #endif
 
 /*

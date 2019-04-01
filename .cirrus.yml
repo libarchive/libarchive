@@ -30,16 +30,42 @@ main_task:
   - ./build/ci/build.sh -a test
   - ./build/ci/cirrus_ci.sh test
 
+Windows_Cygwin_task:
+  windows_container:
+    image: cirrusci/windowsservercore:2019
+    os_version: 2019
+  prepare_script:
+  - choco install -y --no-progress cygwin
+  - C:\tools\cygwin\cygwinsetup.exe -q -P make,autoconf,automake,cmake,gcc-core,binutils,libtool,pkg-config,bison,sharutils,zlib-devel,libbz2-devel,liblzma-devel,liblz4-devel,libiconv-devel,libxml2-devel,libzstd-devel,libssl-devel
+  configure_script:
+  - set BS=cmake
+  - C:\tools\cygwin\bin\bash.exe --login -c "cd '%cd%'; ./build/ci/build.sh -a configure"
+  build_script:
+  - set BS=cmake
+  - C:\tools\cygwin\bin\bash.exe --login -c "cd '%cd%'; ./build/ci/build.sh -a build"
+
 Windows_MinGW_task:
   windows_container:
     image: cirrusci/windowsservercore:2019
     os_version: 2019
   prepare_script:
-  - choco install -y mingw
-  - choco install -y cmake --installargs 'ADD_CMAKE_TO_PATH=User'
-  configure_script:
+  - choco install -y --no-progress mingw
+  - choco install -y --no-progress --installargs 'ADD_CMAKE_TO_PATH=User' cmake
+  - choco install -y --no-progress wget
   - refreshenv
   - mkdir build_ci\mingw
+  zlib_script:
+  - refreshenv
+  - mkdir build_ci\libs
+  - cd build_ci\libs
+  - wget "https://www.zlib.net/zlib-1.2.11.tar.gz"
+  - tar -x -z -f zlib-1.2.11.tar.gz
+  - cd zlib-1.2.11
+  - cmake -G "MinGW Makefiles" -D CMAKE_BUILD_TYPE="Release" .
+  - mingw32-make
+  - mingw32-make install
+  configure_script:
+  - refreshenv
   - cd build_ci\mingw
   - cmake -G "MinGW Makefiles" -D CMAKE_BUILD_TYPE="Release" ..\..
   build_script:
