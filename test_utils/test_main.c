@@ -211,13 +211,15 @@ GetFunctionKernel32(const char *name)
 }
 
 static int
-my_CreateSymbolicLinkA(const char *linkname, const char *target, int flags)
+my_CreateSymbolicLinkA(const char *linkname, const char *target,
+    int targetIsDir)
 {
 	static BOOLEAN (WINAPI *f)(LPCSTR, LPCSTR, DWORD);
 	DWORD attrs;
 	static int set;
 	int ret, tmpflags;
-	char *tgt, *p;
+	int flags = 0;
+	char *src, *tgt, *p;
 	if (!set) {
 		set = 1;
 		f = GetFunctionKernel32("CreateSymbolicLinkA");
@@ -228,10 +230,26 @@ my_CreateSymbolicLinkA(const char *linkname, const char *target, int flags)
 	tgt = malloc(strlen(target) + 1);
 	if (tgt == NULL)
 		return (0);
+	src = malloc(strlen(linkname) + 1);
+	if (src == NULL) {
+		free(tgt);
+		return (0);
+	}
 
 	/*
 	 * Translate slashes to backslashes
 	 */
+	p = src;
+	while(*linkname != '\0') {
+		if (*linkname == '/')
+			*p = '\\';
+		else
+			*p = *linkname;
+		linkname++;
+		p++;
+	}
+	*p = '\0';
+
 	p = tgt;
 	while(*target != '\0') {
 		if (*target == '/')
@@ -247,19 +265,12 @@ my_CreateSymbolicLinkA(const char *linkname, const char *target, int flags)
 	 * If the target equals ".", ".." or ends with a slash, it always
 	 * points to a directory. In this case we can set the directory flag.
 	 */
-	if (strcmp(tgt, ".") == 0 || strcmp(tgt, "..") == 0 ||
-		*(p - 1) == '\\') {
+	if (targetIsDir) {
 #if defined(SYMBOLIC_LINK_FLAG_DIRECTORY)
 		flags |= SYMBOLIC_LINK_FLAG_DIRECTORY;
 #else
 		flags |= 0x1;
 #endif
-		/* Now we remove trailing backslashes */
-		p--;
-		while(*p == '\\') {
-			*p = '\0';
-			p--;
-		}
 	}
 
 #if defined(SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE)
@@ -278,14 +289,15 @@ my_CreateSymbolicLinkA(const char *linkname, const char *target, int flags)
 			DeleteFileA(linkname);
 	}
 
-	ret = (*f)(linkname, tgt, tmpflags);
+	ret = (*f)(src, tgt, tmpflags);
 	/*
 	 * Prior to Windows 10 the SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
 	 * is not undestood
 	 */
 	if (!ret)
-		ret = (*f)(linkname, tgt, flags);
+		ret = (*f)(src, tgt, flags);
 
+	free(src);
 	free(tgt);
 	return (ret);
 }
@@ -1928,20 +1940,26 @@ assertion_make_hardlink(const char *file, int line,
 	return(0);
 }
 
-/* Create a symlink and report any failures. */
+/*
+ * Create a symlink and report any failures.
+ *
+ * Windows symlinks need to know if the target is a directory.
+ */
 int
 assertion_make_symlink(const char *file, int line,
-    const char *newpath, const char *linkto)
+    const char *newpath, const char *linkto, int targetIsDir)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	int targetIsDir = 0;  /* TODO: Fix this */
 	assertion_count(file, line);
 	if (my_CreateSymbolicLinkA(newpath, linkto, targetIsDir))
 		return (1);
 #elif HAVE_SYMLINK
+	(void)targetIsDir; /* UNUSED */
 	assertion_count(file, line);
 	if (0 == symlink(linkto, newpath))
 		return (1);
+#else
+	(void)targetIsDir; /* UNUSED */
 #endif
 	failure_start(file, line, "Could not create symlink");
 	logprintf("   New link: %s\n", newpath);

@@ -1454,28 +1454,45 @@ restore_entry(struct archive_write_disk *a)
 		en = create_filesystem_object(a);
 	} else if (en == EEXIST) {
 		mode_t st_mode;
+		mode_t lst_mode;
+		BY_HANDLE_FILE_INFORMATION lst;
 		/*
 		 * We know something is in the way, but we don't know what;
 		 * we need to find out before we go any further.
 		 */
 		int r = 0;
+		int dirlnk = 0;
+
 		/*
 		 * The SECURE_SYMLINK logic has already removed a
 		 * symlink to a dir if the client wants that.  So
 		 * follow the symlink if we're creating a dir.
-		 */
-		if (S_ISDIR(a->mode))
-			r = file_information(a, a->name, &a->st, &st_mode, 0);
-		/*
 		 * If it's not a dir (or it's a broken symlink),
 		 * then don't follow it.
+		 *
+		 * Windows distinguishes file and directory symlinks.
+		 * A file symlink may erroneously point to a directory
+		 * and a directory symlink to a file. Windows does not follow
+		 * such symlinks. We always need both source and target
+		 * information.
 		 */
-		if (r != 0 || !S_ISDIR(a->mode))
-			r = file_information(a, a->name, &a->st, &st_mode, 1);
+		r = file_information(a, a->name, &lst, &lst_mode, 1);
 		if (r != 0) {
 			archive_set_error(&a->archive, errno,
 			    "Can't stat existing object");
 			return (ARCHIVE_FAILED);
+		} else if (S_ISLNK(lst_mode)) {
+			if (lst.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+				dirlnk = 1;
+			/* In case of a symlink we need target information */
+			r = file_information(a, a->name, &a->st, &st_mode, 0);
+			if (r != 0) {
+				a->st = lst;
+				st_mode = lst_mode;
+			}
+		} else {
+			a->st = lst;
+			st_mode = lst_mode;
 		}
 
 		/*
@@ -1499,8 +1516,15 @@ restore_entry(struct archive_write_disk *a)
 		}
 
 		if (!S_ISDIR(st_mode)) {
-			/* A non-dir is in the way, unlink it. */
-			if (disk_unlink(a->name) != 0) {
+			/* Edge case: a directory symlink pointing to a file */
+			if (dirlnk) {
+				if (disk_rmdir(a->name) != 0) {
+					archive_set_error(&a->archive, errno,
+					    "Can't unlink directory symlink");
+					return (ARCHIVE_FAILED);
+				}
+			} else if (disk_unlink(a->name) != 0) {
+				/* A non-dir is in the way, unlink it. */
 				archive_set_error(&a->archive, errno,
 				    "Can't unlink already-existing object");
 				return (ARCHIVE_FAILED);
@@ -1927,6 +1951,9 @@ check_symlinks(struct archive_write_disk *a)
 	p = a->path_safe.s;
 	while ((*pn != '\0') && (*p == *pn))
 		++p, ++pn;
+	/* Skip leading backslashes */
+	while (*pn == '\\')
+		++pn;
 	c = pn[0];
 	/* Keep going until we've checked the entire name. */
 	while (pn[0] != '\0' && (pn[0] != '\\' || pn[1] != '\0')) {
@@ -1944,8 +1971,8 @@ check_symlinks(struct archive_write_disk *a)
 		} else if (S_ISLNK(st_mode)) {
 			if (c == '\0') {
 				/*
-				 * Last element is symlink; remove it
-				 * so we can overwrite it with the
+				 * Last element is a file or directory symlink.
+				 * Remove it so we can overwrite it with the
 				 * item being extracted.
 				 */
 				if (st.dwFileAttributes &
@@ -1978,7 +2005,13 @@ check_symlinks(struct archive_write_disk *a)
 				return (0);
 			} else if (a->flags & ARCHIVE_EXTRACT_UNLINK) {
 				/* User asked us to remove problems. */
-				if (disk_unlink(a->name) != 0) {
+				if (st.dwFileAttributes &
+				    FILE_ATTRIBUTE_DIRECTORY) {
+					r = disk_rmdir(a->name);
+				} else {
+					r = disk_unlink(a->name);
+				}
+				if (r != 0) {
 					archive_set_error(&a->archive, 0,
 					    "Cannot remove intervening "
 					    "symlink %ls", a->name);
@@ -1994,6 +2027,8 @@ check_symlinks(struct archive_write_disk *a)
 				return (ARCHIVE_FAILED);
 			}
 		}
+		pn[0] = c;
+		pn++;
 	}
 	pn[0] = c;
 	/* We've checked and/or cleaned the whole path, so remember it. */

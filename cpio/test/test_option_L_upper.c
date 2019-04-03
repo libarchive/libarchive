@@ -51,7 +51,7 @@ DEFINE_TEST(test_option_L_upper)
 	fprintf(filelist, "file\n");
 
 	/* Symlink to above file. */
-	assertMakeSymlink("symlink", "file");
+	assertMakeSymlink("symlink", "file", 0);
 	fprintf(filelist, "symlink\n");
 
 	fclose(filelist);

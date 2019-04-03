@@ -173,7 +173,7 @@ DEFINE_TEST(test_basic)
 
 	/* Symlink to above file. */
 	if (canSymlink()) {
-		assertMakeSymlink("symlink", "file");
+		assertMakeSymlink("symlink", "file", 0);
 		fprintf(filelist, "symlink\n");
 		if (is_LargeInode("symlink")) {
 			strncat(result,

@@ -36,8 +36,8 @@ DEFINE_TEST(test_strip_components)
 	assertMakeHardlink("l1", "d1/d2/f1");
 	assertMakeHardlink("d1/l2", "d1/d2/f1");
 	if (canSymlink()) {
-		assertMakeSymlink("s1", "d1/d2/f1");
-		assertMakeSymlink("d1/s2", "d2/f1");
+		assertMakeSymlink("s1", "d1/d2/f1", 0);
+		assertMakeSymlink("d1/s2", "d2/f1", 0);
 	}
 	assertChdir("..");
 

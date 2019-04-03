@@ -231,8 +231,8 @@
   assertion_make_file(__FILE__, __LINE__, path, mode, csize, contents)
 #define assertMakeHardlink(newfile, oldfile)	\
   assertion_make_hardlink(__FILE__, __LINE__, newfile, oldfile)
-#define assertMakeSymlink(newfile, linkto)	\
-  assertion_make_symlink(__FILE__, __LINE__, newfile, linkto)
+#define assertMakeSymlink(newfile, linkto, targetIsDir)	\
+  assertion_make_symlink(__FILE__, __LINE__, newfile, linkto, targetIsDir)
 #define assertSetNodump(path)	\
   assertion_set_nodump(__FILE__, __LINE__, path)
 #define assertUmask(mask)	\
@@ -293,7 +293,7 @@ int assertion_is_symlink(const char *, int, const char *, const char *);
 int assertion_make_dir(const char *, int, const char *, int);
 int assertion_make_file(const char *, int, const char *, int, int, const void *);
 int assertion_make_hardlink(const char *, int, const char *newpath, const char *);
-int assertion_make_symlink(const char *, int, const char *newpath, const char *);
+int assertion_make_symlink(const char *, int, const char *newpath, const char *, int);
 int assertion_non_empty_file(const char *, int, const char *);
 int assertion_set_nodump(const char *, int, const char *);
 int assertion_text_file_contents(const char *, int, const char *buff, const char *f);

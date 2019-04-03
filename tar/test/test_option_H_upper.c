@@ -39,13 +39,13 @@ DEFINE_TEST(test_option_H_upper)
 	assertMakeDir("in", 0755);
 	assertChdir("in");
 	assertMakeDir("d1", 0755);
-	assertMakeSymlink("ld1", "d1");
+	assertMakeSymlink("ld1", "d1", 1);
 	assertMakeFile("d1/file1", 0644, "d1/file1");
 	assertMakeFile("d1/file2", 0644, "d1/file2");
-	assertMakeSymlink("d1/link1", "file1");
-	assertMakeSymlink("d1/linkX", "fileX");
-	assertMakeSymlink("link2", "d1/file2");
-	assertMakeSymlink("linkY", "d1/fileY");
+	assertMakeSymlink("d1/link1", "file1", 0);
+	assertMakeSymlink("d1/linkX", "fileX", 0);
+	assertMakeSymlink("link2", "d1/file2", 0);
+	assertMakeSymlink("linkY", "d1/fileY", 0);
 	assertChdir("..");
 
 	/* Test 1: Without -H */

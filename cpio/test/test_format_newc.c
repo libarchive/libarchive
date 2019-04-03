@@ -114,7 +114,7 @@ DEFINE_TEST(test_format_newc)
 
 	/* "symlink" */
 	if (canSymlink()) {
-		assertMakeSymlink("symlink", "file1");
+		assertMakeSymlink("symlink", "file1", 0);
 		fprintf(list, "symlink\n");
 	}
 

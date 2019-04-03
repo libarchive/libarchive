@@ -42,7 +42,7 @@ make_files(void)
 
 	/* Symlink to above file. */
 	if (canSymlink())
-		assertMakeSymlink("symlink", "file");
+		assertMakeSymlink("symlink", "file", 0);
 
 	/* Directory. */
 	assertMakeDir("dir", 0775);

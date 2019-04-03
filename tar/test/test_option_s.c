@@ -36,7 +36,7 @@ DEFINE_TEST(test_option_s)
 	assertMakeFile("in/d1/bar", 0644, "bar");
 	if (canSymlink()) {
 		assertMakeFile("in/d1/realfile", 0644, "realfile");
-		assertMakeSymlink("in/d1/symlink", "realfile");
+		assertMakeSymlink("in/d1/symlink", "realfile", 0);
 	}
 	assertMakeFile("in/d1/hardlink1", 0644, "hardlinkedfile");
 	assertMakeHardlink("in/d1/hardlink2", "in/d1/hardlink1");

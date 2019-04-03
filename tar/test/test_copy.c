@@ -176,7 +176,7 @@ create_tree(void)
 			sprintf(buff, "s/%s", filenames[i]);
 			sprintf(buff2, "../f/%s", filenames[i]);
 			failure("buff=\"%s\" buff2=\"%s\"", buff, buff2);
-			assertMakeSymlink(buff, buff2);
+			assertMakeSymlink(buff, buff2, 0);
 		}
 		/* Create a dir named "d/abcdef...". */
 		buff[0] = 'd';
