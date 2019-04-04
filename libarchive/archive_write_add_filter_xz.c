@@ -392,6 +392,7 @@ archive_compressor_xz_options(struct archive_write_filter *f,
 	} else if (strcmp(key, "threads") == 0) {
 		if (value == NULL)
 			return (ARCHIVE_WARN);
+		errno = 0;
 		data->threads = (int)strtoul(value, NULL, 10);
 		if (data->threads == 0 && errno != 0) {
 			data->threads = 1;

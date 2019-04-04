@@ -498,6 +498,7 @@ xar_options(struct archive_write *a, const char *key, const char *value)
 	if (strcmp(key, "threads") == 0) {
 		if (value == NULL)
 			return (ARCHIVE_FAILED);
+		errno = 0;
 		xar->opt_threads = (int)strtoul(value, NULL, 10);
 		if (xar->opt_threads == 0 && errno != 0) {
 			xar->opt_threads = 1;
