@@ -21,8 +21,7 @@ case "$UNAME" in
 		set -x
 		cmake -G "MSYS Makefiles" -D CMAKE_C_COMPILER="${CC}" -D CMAKE_MAKE_PROGRAM="mingw32-make" -D CMAKE_BUILD_TYPE="Release" "${SRCDIR}"
 		mingw32-make
-		# The MinGW tests time out on Travis CI, disable for now
-		#mingw32-make test
+		mingw32-make test
 		set +x
 	else
 		echo "Unknown or unspecified build type: ${BS}"

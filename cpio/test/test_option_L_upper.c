@@ -30,8 +30,10 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_option_L.c,v 1.2 2008/08/24 06:21
  * tests won't run on Windows. */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #define CAT "type"
+#define SEP "\\"
 #else
 #define CAT "cat"
+#define SEP "/"
 #endif
 
 DEFINE_TEST(test_option_L_upper)
@@ -77,7 +79,8 @@ DEFINE_TEST(test_option_L_upper)
 
 	assertMakeDir("unpack", 0755);
 	assertChdir("unpack");
-	r = systemf(CAT " ../archive.out | %s -i >unpack.out 2>unpack.err", testprog);
+	r = systemf(CAT " .." SEP "archive.out | %s -i >unpack.out 2>unpack.err", testprog);
+
 	failure("Error invoking %s -i", testprog);
 	assertEqualInt(r, 0);
 	assertTextFileContents("1 block\n", "unpack.err");
@@ -92,7 +95,8 @@ DEFINE_TEST(test_option_L_upper)
 
 	assertMakeDir("unpack-L", 0755);
 	assertChdir("unpack-L");
-	r = systemf(CAT " ../archive-L.out | %s -i >unpack-L.out 2>unpack-L.err", testprog);
+	r = systemf(CAT " .." SEP "archive-L.out | %s -i >unpack-L.out 2>unpack-L.err", testprog);
+
 	failure("Error invoking %s -i < archive-L.out", testprog);
 	assertEqualInt(r, 0);
 	assertTextFileContents("1 block\n", "unpack-L.err");

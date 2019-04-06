@@ -40,7 +40,30 @@ atimeIsUpdated(void)
 {
 	const char *fn = "fs_noatime";
 	struct stat st;
+#if defined(_WIN32) && !defined(CYGWIN)
+	char *buff = NULL;
+	char *ptr;
+	int r;
 
+	r = systemf("fsutil behavior query disableLastAccess > query_atime");
+	if (r == 0) {
+		buff = slurpfile(NULL, "query_atime");
+		if (buff != NULL) {
+			ptr = buff;
+			while(*ptr != '\0' && !isdigit(*ptr)) {
+				ptr++;
+			}
+			if (*ptr == '0') {
+				free(buff);
+				return(1);
+			} else if (*ptr == '1' || *ptr == '2') {
+				free(buff);
+				return(0);
+			}
+			free(buff);
+		}
+	}
+#endif
 	if (!assertMakeFile(fn, 0666, "a"))
 		return (0);
 	if (!assertUtimes(fn, 1, 0, 1, 0))

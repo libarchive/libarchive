@@ -1717,16 +1717,30 @@ is_symlink(const char *file, int line,
 	REPARSE_DATA_BUFFER *buf;
 	size_t len, len2;
 	wchar_t *linknamew, *contentsw;
+	const char *p;
+	char *s, *pn;
 	int ret = 0;
 	BYTE *indata;
 	DWORD flag = FILE_FLAG_BACKUP_SEMANTICS |
 	    FILE_FLAG_OPEN_REPARSE_POINT;
 
-	if (contents == NULL)
-		return (0);
+	/* Replace slashes with backslashes in pathname */
+	pn = malloc((strlen(pathname) + 1) * sizeof(char));
+	p = pathname;
+	s = pn;
+	while(*p != '\0') {
+		if(*p == '/')
+			*s = '\\';
+		else
+			*s = *p;
+		p++;
+		s++;
+	}
+	*s = '\0';
 
-	h = CreateFileA(pathname, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+	h = CreateFileA(pn, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING,
 	    flag, NULL);
+	free(pn);
 	if (h == INVALID_HANDLE_VALUE)
 		return (0);
 
@@ -1745,6 +1759,11 @@ is_symlink(const char *file, int line,
 		/* File is not a symbolic link */
 		errno = EINVAL;
 		return (0);
+	}
+
+	if (contents == NULL) {
+		free(indata);
+		return (1);
 	}
 
 	len = buf->SymbolicLinkReparseBuffer.SubstituteNameLength;

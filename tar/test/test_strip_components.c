@@ -64,9 +64,10 @@ DEFINE_TEST(test_strip_components)
 	failure("d0/d1/s2 is a symlink to something that won't be extracted");
 	/* If platform supports symlinks, target/s2 is a broken symlink. */
 	/* If platform does not support symlink, target/s2 doesn't exist. */
-	assertFileNotExists("target/s2");
 	if (canSymlink())
 		assertIsSymlink("target/s2", "d2/f1");
+	else
+		assertFileNotExists("target/s2");
 	failure("d0/d1/d2 should be extracted");
 	assertIsDir("target/d2", -1);
 

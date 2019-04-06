@@ -51,14 +51,13 @@ Windows_MinGW_task:
   prepare_script:
   - choco install -y --no-progress mingw
   - choco install -y --no-progress --installargs 'ADD_CMAKE_TO_PATH=User' cmake
-  - choco install -y --no-progress wget
   - refreshenv
   - mkdir build_ci\mingw
   zlib_script:
   - refreshenv
   - mkdir build_ci\libs
   - cd build_ci\libs
-  - wget "https://www.zlib.net/zlib-1.2.11.tar.gz"
+  - curl -o zlib-1.2.11.tar.gz "https://www.zlib.net/zlib-1.2.11.tar.gz"
   - tar -x -z -f zlib-1.2.11.tar.gz
   - cd zlib-1.2.11
   - cmake -G "MinGW Makefiles" -D CMAKE_BUILD_TYPE="Release" .
@@ -72,3 +71,8 @@ Windows_MinGW_task:
   - refreshenv
   - cd build_ci\mingw
   - mingw32-make
+  test_script:
+  - refreshenv
+  - copy build_ci\libs\zlib-1.2.11\libzlib.dll build_ci\mingw\bin\
+  - cd build_ci\mingw
+  - mingw32-make test
