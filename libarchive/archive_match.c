@@ -1232,7 +1232,7 @@ set_timefilter_pathname_mbs(struct archive_match *a, int timetype,
 		archive_set_error(&(a->archive), EINVAL, "pathname is empty");
 		return (ARCHIVE_FAILED);
 	}
-	if (stat(path, &st) != 0) {
+	if (la_stat(path, &st) != 0) {
 		archive_set_error(&(a->archive), errno, "Failed to stat()");
 		return (ARCHIVE_FAILED);
 	}
