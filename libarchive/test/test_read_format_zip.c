@@ -493,9 +493,14 @@ DEFINE_TEST(test_read_format_zip_lzma_one_file)
 	struct archive *a;
 	struct archive_entry *ae;
 
+	assert((a = archive_read_new()) != NULL);
+        if (ARCHIVE_OK != archive_read_support_filter_lzma(a)) {
+                skipping("lzma reading not fully supported on this platform");
+                assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+                return;
+        }
 	extract_reference_file(refname);
 
-	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 37));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -513,9 +518,14 @@ DEFINE_TEST(test_read_format_zip_lzma_one_file_blockread)
 	struct archive *a;
 	struct archive_entry *ae;
 
+	assert((a = archive_read_new()) != NULL);
+        if (ARCHIVE_OK != archive_read_support_filter_lzma(a)) {
+                skipping("lzma reading not fully supported on this platform");
+                assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+                return;
+        }
 	extract_reference_file(refname);
 
-	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 37));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -533,9 +543,14 @@ DEFINE_TEST(test_read_format_zip_lzma_multi)
 	struct archive *a;
 	struct archive_entry *ae;
 
+	assert((a = archive_read_new()) != NULL);
+        if (ARCHIVE_OK != archive_read_support_filter_lzma(a)) {
+                skipping("lzma reading not fully supported on this platform");
+                assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+                return;
+        }
 	extract_reference_file(refname);
 
-	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 37));
 
@@ -565,9 +580,14 @@ DEFINE_TEST(test_read_format_zip_lzma_multi_blockread)
 	struct archive *a;
 	struct archive_entry *ae;
 
+	assert((a = archive_read_new()) != NULL);
+        if (ARCHIVE_OK != archive_read_support_filter_lzma(a)) {
+                skipping("lzma reading not fully supported on this platform");
+                assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+                return;
+        }
 	extract_reference_file(refname);
 
-	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 37));
 
@@ -598,9 +618,14 @@ DEFINE_TEST(test_read_format_zip_bzip2_one_file)
 	struct archive *a;
 	struct archive_entry *ae;
 
+	assert((a = archive_read_new()) != NULL);
+	if (ARCHIVE_OK != archive_read_support_filter_bzip2(a)) {
+		skipping("bzip2 is not fully supported on this platform");
+		archive_read_close(a);
+		return;
+	}
 	extract_reference_file(refname);
 
-	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 37));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -618,9 +643,14 @@ DEFINE_TEST(test_read_format_zip_bzip2_one_file_blockread)
 	struct archive *a;
 	struct archive_entry *ae;
 
+	assert((a = archive_read_new()) != NULL);
+	if (ARCHIVE_OK != archive_read_support_filter_bzip2(a)) {
+		skipping("bzip2 is not fully supported on this platform");
+		archive_read_close(a);
+		return;
+	}
 	extract_reference_file(refname);
 
-	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 37));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -638,9 +668,14 @@ DEFINE_TEST(test_read_format_zip_bzip2_multi)
 	struct archive *a;
 	struct archive_entry *ae;
 
+	assert((a = archive_read_new()) != NULL);
+	if (ARCHIVE_OK != archive_read_support_filter_bzip2(a)) {
+		skipping("bzip2 is not fully supported on this platform");
+		archive_read_close(a);
+		return;
+	}
 	extract_reference_file(refname);
 
-	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 37));
 
@@ -670,9 +705,14 @@ DEFINE_TEST(test_read_format_zip_bzip2_multi_blockread)
 	struct archive *a;
 	struct archive_entry *ae;
 
+	assert((a = archive_read_new()) != NULL);
+	if (ARCHIVE_OK != archive_read_support_filter_bzip2(a)) {
+		skipping("bzip2 is not fully supported on this platform");
+		archive_read_close(a);
+		return;
+	}
 	extract_reference_file(refname);
 
-	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 37));
 
@@ -702,9 +742,14 @@ DEFINE_TEST(test_read_format_zip_xz_multi)
 	struct archive *a;
 	struct archive_entry *ae;
 
+	assert((a = archive_read_new()) != NULL);
+        if (ARCHIVE_OK != archive_read_support_filter_lzma(a)) {
+                skipping("lzma reading not fully supported on this platform");
+                assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+                return;
+        }
 	extract_reference_file(refname);
 
-	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 37));
 
@@ -734,9 +779,14 @@ DEFINE_TEST(test_read_format_zip_xz_multi_blockread)
 	struct archive *a;
 	struct archive_entry *ae;
 
+	assert((a = archive_read_new()) != NULL);
+        if (ARCHIVE_OK != archive_read_support_filter_lzma(a)) {
+                skipping("lzma reading not fully supported on this platform");
+                assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+                return;
+        }
 	extract_reference_file(refname);
 
-	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 37));
 
@@ -789,9 +839,14 @@ DEFINE_TEST(test_read_format_zip_bz2_hang_on_invalid)
 	struct archive_entry *ae;
 	char buf[8];
 
+	assert((a = archive_read_new()) != NULL);
+	if (ARCHIVE_OK != archive_read_support_filter_bzip2(a)) {
+		skipping("bzip2 is not fully supported on this platform");
+		archive_read_close(a);
+		return;
+	}
 	extract_reference_file(refname);
 
-	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 37));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
