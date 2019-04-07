@@ -75,4 +75,5 @@ Windows_MinGW_task:
   - refreshenv
   - copy build_ci\libs\zlib-1.2.11\libzlib.dll build_ci\mingw\bin\
   - cd build_ci\mingw
+  - set SKIP_TEST_SPARSE=1
   - mingw32-make test

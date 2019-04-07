@@ -491,6 +491,7 @@ DEFINE_TEST(test_sparse_basic)
 {
 	char *cwd;
 	struct archive *a;
+	const char *skip_sparse_tests;
 	/*
 	 * The alignment of the hole of sparse files deeply depends
 	 * on filesystem. In my experience, sparse_file2 test with
@@ -553,6 +554,13 @@ DEFINE_TEST(test_sparse_basic)
 	 */
 	test_sparse_whole_file_data();
 
+	skip_sparse_tests = getenv("SKIP_TEST_SPARSE");
+	if (skip_sparse_tests != NULL) {
+		skipping("Skipping sparse tests due to SKIP_TEST_SPARSE "
+		    "environment variable");
+		return;
+	}
+
 	/* Check if the filesystem where CWD on can
 	 * report the number of the holes of a sparse file. */
 #ifdef PATH_MAX
@@ -599,10 +607,19 @@ DEFINE_TEST(test_fully_sparse_files)
 {
 	char *cwd;
 	struct archive *a;
+	const char *skip_sparse_tests;
 
 	const struct sparse sparse_file[] = {
 		{ HOLE, 409600 }, { END, 0 }
 	};
+
+	skip_sparse_tests = getenv("SKIP_TEST_SPARSE");
+	if (skip_sparse_tests != NULL) {
+		skipping("Skipping sparse tests due to SKIP_TEST_SPARSE "
+		    "environment variable");
+		return;
+	}
+
 	/* Check if the filesystem where CWD on can
 	 * report the number of the holes of a sparse file. */
 #ifdef PATH_MAX
