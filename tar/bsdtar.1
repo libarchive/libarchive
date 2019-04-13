@@ -204,6 +204,18 @@ Do not process files or directories that match the
 specified pattern.
 Note that exclusions take precedence over patterns or filenames
 specified on the command line.
+.It Fl Fl exclude-vcs
+Do not process files or directories internally used by the
+version control systems
+.Sq CVS ,
+.Sq RCS ,
+.Sq SCCS ,
+.Sq SVN ,
+.Sq Arch ,
+.Sq Bazaar ,
+.Sq Mercurial
+and
+.Sq Darcs .
 .It Fl Fl fflags
 (c, r, u, x modes only)
 Archive or extract file flags. This is the reverse of

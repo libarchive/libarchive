@@ -129,6 +129,28 @@ static void		 version(void) __LA_DEAD;
 	(ARCHIVE_EXTRACT_SECURE_SYMLINKS		\
 	 | ARCHIVE_EXTRACT_SECURE_NODOTDOT)
 
+static char const * const vcs_files[] = {
+  /* CVS */
+  "CVS", ".cvsignore",
+  /* RCS */
+  "RCS",
+  /* SCCS */
+  "SCCS",
+  /* SVN */
+  ".svn",
+  /* git */
+  ".git", ".gitignore", ".gitattributes", ".gitmodules",
+  /* Arch */
+  ".arch-ids", "{arch}", "=RELEASE-ID", "=meta-update", "=update",
+  /* Bazaar */
+  ".bzr", ".bzrignore", ".bzrtags",
+  /* Mercurial */
+  ".hg", ".hgignore", ".hgtags",
+  /* darcs */
+  "_darcs",
+  NULL
+};
+
 int
 main(int argc, char **argv)
 {
@@ -317,6 +339,15 @@ main(int argc, char **argv)
 			    bsdtar->matching, bsdtar->argument) != ARCHIVE_OK)
 				lafe_errc(1, 0,
 				    "Couldn't exclude %s\n", bsdtar->argument);
+			break;
+		case OPTION_EXCLUDE_VCS: /* GNU tar */
+			for(t=0; vcs_files[t]; t++) {
+				if (archive_match_exclude_pattern(
+				    bsdtar->matching,
+				    vcs_files[t]) != ARCHIVE_OK)
+					lafe_errc(1, 0, "Couldn't "
+					    "exclude %s\n", vcs_files[t]);
+			}
 			break;
 		case OPTION_FFLAGS:
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_FFLAGS;
