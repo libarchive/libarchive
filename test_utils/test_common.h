@@ -220,8 +220,8 @@
   assertion_is_not_hardlink(__FILE__, __LINE__, path1, path2)
 #define assertIsReg(pathname, mode)		\
   assertion_is_reg(__FILE__, __LINE__, pathname, mode)
-#define assertIsSymlink(pathname, contents)	\
-  assertion_is_symlink(__FILE__, __LINE__, pathname, contents)
+#define assertIsSymlink(pathname, contents, isdir)	\
+  assertion_is_symlink(__FILE__, __LINE__, pathname, contents, isdir)
 /* Create a directory, report error if it fails. */
 #define assertMakeDir(dirname, mode)	\
   assertion_make_dir(__FILE__, __LINE__, dirname, mode)
@@ -289,7 +289,7 @@ int assertion_is_dir(const char *, int, const char *, int);
 int assertion_is_hardlink(const char *, int, const char *, const char *);
 int assertion_is_not_hardlink(const char *, int, const char *, const char *);
 int assertion_is_reg(const char *, int, const char *, int);
-int assertion_is_symlink(const char *, int, const char *, const char *);
+int assertion_is_symlink(const char *, int, const char *, const char *, int);
 int assertion_make_dir(const char *, int, const char *, int);
 int assertion_make_file(const char *, int, const char *, int, int, const void *);
 int assertion_make_hardlink(const char *, int, const char *newpath, const char *);

@@ -63,7 +63,7 @@ DEFINE_TEST(test_option_L_upper)
 	assertTextFileContents("1 block\n", "copy.err");
 
 	failure("Regular -p without -L should preserve symlinks.");
-	assertIsSymlink("copy/symlink", NULL);
+	assertIsSymlink("copy/symlink", NULL, 0);
 
 	r = systemf(CAT " filelist | %s -pd -L copy-L >copy-L.out 2>copy-L.err", testprog);
 	assertEqualInt(r, 0);
@@ -86,7 +86,7 @@ DEFINE_TEST(test_option_L_upper)
 	assertTextFileContents("1 block\n", "unpack.err");
 	assertChdir("..");
 
-	assertIsSymlink("unpack/symlink", NULL);
+	assertIsSymlink("unpack/symlink", NULL, 0);
 
 	r = systemf(CAT " filelist | %s -oL >archive-L.out 2>archive-L.err", testprog);
 	failure("Error invoking %s -oL", testprog);

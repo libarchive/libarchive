@@ -222,7 +222,7 @@ verify_tree(size_t limit)
 			sprintf(name1, "s/%s", filenames[i]);
 			sprintf(name2, "../f/%s", filenames[i]);
 			if (strlen(name2) <= limit)
-				assertIsSymlink(name1, name2);
+				assertIsSymlink(name1, name2, 0);
 		}
 
 		/* Verify dir "d/abcdef...". */

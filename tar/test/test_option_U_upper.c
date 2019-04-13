@@ -82,7 +82,7 @@ DEFINE_TEST(test_option_U_upper)
 	assertMakeSymlink("d1", "realDir", 1);
 	r = systemf("%s -xf ../archive.tar d1/file1 >test.out 2>test.err", testprog);
 	assert(r != 0);
-	assertIsSymlink("d1", "realDir");
+	assertIsSymlink("d1", "realDir", 1);
 	assertFileNotExists("d1/file1");
 	assertEmptyFile("test.out");
 	assertNonEmptyFile("test.err");
@@ -108,7 +108,7 @@ DEFINE_TEST(test_option_U_upper)
 	assertMakeSymlink("d1", "realDir", 1);
 	assertEqualInt(0,
 	    systemf("%s -xPf ../archive.tar d1/file1 >test.out 2>test.err", testprog));
-	assertIsSymlink("d1", "realDir");
+	assertIsSymlink("d1", "realDir", 1);
 	assertFileContents("d1/file1", 8, "d1/file1");
 	assertEmptyFile("test.out");
 	assertEmptyFile("test.err");
@@ -121,7 +121,7 @@ DEFINE_TEST(test_option_U_upper)
 	assertMakeSymlink("d1", "realDir", 1);
 	assertEqualInt(0,
 	    systemf("%s -xPUf ../archive.tar d1/file1 >test.out 2>test.err", testprog));
-	assertIsSymlink("d1", "realDir");
+	assertIsSymlink("d1", "realDir", 1);
 	assertFileContents("d1/file1", 8, "d1/file1");
 	assertEmptyFile("test.out");
 	assertEmptyFile("test.err");

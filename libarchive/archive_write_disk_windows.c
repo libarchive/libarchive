@@ -558,8 +558,10 @@ la_CreateHardLinkW(wchar_t *linkname, wchar_t *target)
 		set = 1;
 		f = la_GetFunctionKernel32("CreateHardLinkW");
 	}
-	if (!f)
+	if (!f) {
+		errno = ENOTSUP;
 		return (0);
+	}
 	ret = (*f)(linkname, target, NULL);
 	if (!ret) {
 		/* Under windows 2000, it is necessary to remove
@@ -595,6 +597,7 @@ la_CreateSymbolicLinkW(const wchar_t *linkname, const wchar_t *target) {
 	static BOOLEAN (WINAPI *f)(LPCWSTR, LPCWSTR, DWORD);
 	static int set;
 	wchar_t *ttarget, *p;
+	int len;
 	DWORD attrs = 0;
 	DWORD flags = 0;
 	DWORD newflags = 0;
@@ -607,11 +610,16 @@ la_CreateSymbolicLinkW(const wchar_t *linkname, const wchar_t *target) {
 	if (!f)
 		return (0);
 
+	len = wcslen(target);
+	if (len == 0) {
+		errno = EINVAL;
+		return(0);
+	}
 	/*
 	 * When writing path targets, we need to translate slashes
 	 * to backslashes
 	 */
-	ttarget = malloc((wcslen(target) + 1) * sizeof(wchar_t));
+	ttarget = malloc((len + 1) * sizeof(wchar_t));
 	if (ttarget == NULL)
 		return(0);
 
@@ -628,23 +636,19 @@ la_CreateSymbolicLinkW(const wchar_t *linkname, const wchar_t *target) {
 	*p = L'\0';
 
 	/*
-	 * If the target equals ".", ".." or ends with a backslash, it always
-	 * points to a directory. In this case we can safely set the directory
-	 * flag. All other symlinks are created as file symlinks.
+	 * If the target equals ".", "..", ends with a backslash or a
+	 * backslash followed by "." or ".." it always points to a directory.
+	 * In this case we can safely set the directory flag.
+	 * All other symlinks are created as file symlinks.
 	 */
-	if (wcscmp(ttarget, L".") == 0 || wcscmp(ttarget, L"..") == 0 ||
-		*(p - 1) == L'\\') {
+	if (*(p - 1) == L'\\' || (*(p - 1) == L'.' && (
+	    len == 1 || *(p - 2) == L'\\' || ( *(p - 2) == L'.' && (
+	    len == 2 || *(p - 3) == L'\\'))))) {
 #if defined(SYMBOLIC_LINK_FLAG_DIRECTORY)
 		flags |= SYMBOLIC_LINK_FLAG_DIRECTORY;
 #else
 		flags |= 0x1;
 #endif
-		/* Now we remove trailing backslashes, if any */
-		p--;
-		while(*p == L'\\') {
-			*p = L'\0';
-			p--;
-		}
 	}
 
 #if defined(SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE)
@@ -1633,9 +1637,11 @@ create_filesystem_object(struct archive_write_disk *a)
 #if HAVE_SYMLINK
 		return symlink(linkname, a->name) ? errno : 0;
 #else
+		errno = 0;
 		r = la_CreateSymbolicLinkW((const wchar_t *)a->name, linkname);
 		if (r == 0) {
-			la_dosmaperr(GetLastError());
+			if (errno == 0)
+				la_dosmaperr(GetLastError());
 			r = errno;
 		} else
 			r = 0;

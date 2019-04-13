@@ -78,7 +78,7 @@ verify_files(const char *target)
 
 	/* Symlink */
 	if (canSymlink())
-		assertIsSymlink("symlink", "file");
+		assertIsSymlink("symlink", "file", 0);
 
 	/* dir */
 	failure("%s", target);

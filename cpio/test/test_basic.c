@@ -46,7 +46,7 @@ verify_files(const char *msg)
 
 	/* Symlink */
 	if (canSymlink())
-		assertIsSymlink("symlink", "file");
+		assertIsSymlink("symlink", "file", 0);
 
 	/* Another file with 1 link and different permissions. */
 	failure(msg);

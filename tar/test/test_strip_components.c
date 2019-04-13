@@ -65,7 +65,7 @@ DEFINE_TEST(test_strip_components)
 	/* If platform supports symlinks, target/s2 is a broken symlink. */
 	/* If platform does not support symlink, target/s2 doesn't exist. */
 	if (canSymlink())
-		assertIsSymlink("target/s2", "d2/f1");
+		assertIsSymlink("target/s2", "d2/f1", 0);
 	else
 		assertFileNotExists("target/s2");
 	failure("d0/d1/d2 should be extracted");
@@ -123,7 +123,7 @@ DEFINE_TEST(test_strip_components)
 	/* If platform supports symlinks, target/s2 is included. */
 	if (canSymlink()) {
 		failure("d0/d1/s2 is a symlink to something included in archive");
-		assertIsSymlink("target2/s2", "d2/f1");
+		assertIsSymlink("target2/s2", "d2/f1", 0);
 	}
 	failure("d0/d1/d2 should be archived");
 	assertIsDir("target2/d2", -1);

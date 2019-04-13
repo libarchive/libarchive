@@ -132,8 +132,8 @@ DEFINE_TEST(test_symlink_dir)
 
 	/* dest2/dir and dest2/dir4 symlinks should be followed */
 	if (canSymlink()) {
-		assertIsSymlink("dest2/dir", "real_dir");
-		assertIsSymlink("dest2/dir4", "real_dir");
+		assertIsSymlink("dest2/dir", "real_dir", 1);
+		assertIsSymlink("dest2/dir4", "real_dir", 1);
 		assertIsDir("dest2/real_dir", -1);
 	}
 
