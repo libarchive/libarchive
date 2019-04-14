@@ -299,8 +299,8 @@ static int	close_and_restore_time(HANDLE, struct tree *,
 		    struct restore_time *);
 static int	setup_sparse_from_disk(struct archive_read_disk *,
 		    struct archive_entry *, HANDLE);
-static int	la_linkname_from_handle(HANDLE, wchar_t **, int);
-static int	la_linkname_from_pathw(const wchar_t *, wchar_t **);
+static int	la_linkname_from_handle(HANDLE, wchar_t **, int *);
+static int	la_linkname_from_pathw(const wchar_t *, wchar_t **, int *);
 static void	entry_symlink_from_pathw(struct archive_entry *,
 		    const wchar_t *path);
 
@@ -337,14 +337,21 @@ typedef struct _REPARSE_DATA_BUFFER {
  * outbuf is allocated in the function
  */
 static int
-la_linkname_from_handle(HANDLE h, wchar_t **linkname, int isdir)
+la_linkname_from_handle(HANDLE h, wchar_t **linkname, int *linktype)
 {
 	DWORD inbytes;
 	REPARSE_DATA_BUFFER *buf;
+	BY_HANDLE_FILE_INFORMATION st;
 	size_t len;
 	BOOL ret;
 	BYTE *indata;
 	wchar_t *tbuf;
+
+	ret = GetFileInformationByHandle(h, &st);
+	if (ret == 0 ||
+	    (st.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0) {
+		return (-1);
+	}
 
 	indata = malloc(MAXIMUM_REPARSE_DATA_BUFFER_SIZE);
 	ret = DeviceIoControl(h, FSCTL_GET_REPARSE_POINT, NULL, 0, indata,
@@ -369,8 +376,7 @@ la_linkname_from_handle(HANDLE h, wchar_t **linkname, int isdir)
 		return (-1);
 	}
 
-	/* We need an extra character here to append directory slash */
-	tbuf = malloc(len + 2 * sizeof(wchar_t));
+	tbuf = malloc(len + 1 * sizeof(wchar_t));
 	if (tbuf == NULL) {
 		free(indata);
 		return (-1);
@@ -393,32 +399,24 @@ la_linkname_from_handle(HANDLE h, wchar_t **linkname, int isdir)
 		tbuf++;
 	}
 
-	/*
-	 * Directory symlinks need special treatment
-	 */
-	if (isdir && wcscmp(*linkname, L".") != 0 &&
-	    wcscmp(*linkname, L"..") != 0) {
-		if (*(tbuf - 1) != L'/') {
-			*tbuf = L'/';
-			*(tbuf + 1) = L'\0';
-		}
-	}
+	if ((st.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0)
+		*linktype = AE_SYMLINK_TYPE_FILE;
+	else
+		*linktype = AE_SYMLINK_TYPE_DIRECTORY;
+
 	return (0);
 }
 
+/*
+ * Returns AE_SYMLINK_TYPE_FILE, AE_SYMLINK_TYPE_DIRECTORY or -1 on error
+ */
 static int
-la_linkname_from_pathw(const wchar_t *path, wchar_t **outbuf)
+la_linkname_from_pathw(const wchar_t *path, wchar_t **outbuf, int *linktype)
 {
 	HANDLE h;
-	DWORD attrs;
-	DWORD flag = FILE_FLAG_BACKUP_SEMANTICS |
+	const DWORD flag = FILE_FLAG_BACKUP_SEMANTICS |
 	    FILE_FLAG_OPEN_REPARSE_POINT;
 	int ret;
-
-	attrs = GetFileAttributesW(path);
-	if (attrs == INVALID_FILE_ATTRIBUTES ||
-	    (!(attrs & FILE_ATTRIBUTE_REPARSE_POINT)))
-		return (-1);
 
 	h = CreateFileW(path, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING, flag,
 	    NULL);
@@ -426,9 +424,10 @@ la_linkname_from_pathw(const wchar_t *path, wchar_t **outbuf)
 		la_dosmaperr(GetLastError());
 		return (-1);
 	}
-	ret = la_linkname_from_handle(h, outbuf,
-	    attrs & FILE_ATTRIBUTE_DIRECTORY);
+
+	ret = la_linkname_from_handle(h, outbuf, linktype);
 	CloseHandle(h);
+
 	return (ret);
 }
 
@@ -436,11 +435,15 @@ static void
 entry_symlink_from_pathw(struct archive_entry *entry, const wchar_t *path)
 {
 	wchar_t *linkname = NULL;
-	int ret;
+	int ret, linktype;
 
-	ret = la_linkname_from_pathw(path, &linkname);
-	if (ret == 0)
+	ret = la_linkname_from_pathw(path, &linkname, &linktype);
+	if (ret != 0)
+		return;
+	if (linktype >= 0) {
 		archive_entry_copy_symlink_w(entry, linkname);
+		archive_entry_set_symlink_type(entry, linktype);
+	}
 	free(linkname);
 
 	return;

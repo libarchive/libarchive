@@ -1734,7 +1734,7 @@ is_symlink(const char *file, int line,
 	char *s, *pn;
 	int ret = 0;
 	BYTE *indata;
-	static DWORD flag = FILE_FLAG_BACKUP_SEMANTICS |
+	const DWORD flag = FILE_FLAG_BACKUP_SEMANTICS |
 	    FILE_FLAG_OPEN_REPARSE_POINT;
 
 	/* Replace slashes with backslashes in pathname */

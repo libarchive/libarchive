@@ -168,6 +168,7 @@ archive_entry_clear(struct archive_entry *entry)
 	archive_entry_xattr_clear(entry);
 	archive_entry_sparse_clear(entry);
 	free(entry->stat);
+	entry->ae_symlink_type = AE_SYMLINK_TYPE_UNDEFINED;
 	memset(entry, 0, sizeof(*entry));
 	return entry;
 }
@@ -201,6 +202,9 @@ archive_entry_clone(struct archive_entry *entry)
 	archive_mstring_copy(&entry2->ae_symlink, &entry->ae_symlink);
 	entry2->ae_set = entry->ae_set;
 	archive_mstring_copy(&entry2->ae_uname, &entry->ae_uname);
+
+	/* Copy symlink type */
+	entry2->ae_symlink_type = entry->ae_symlink_type;
 
 	/* Copy encryption status */
 	entry2->encryption = entry->encryption;
@@ -253,6 +257,7 @@ archive_entry_new2(struct archive *a)
 	if (entry == NULL)
 		return (NULL);
 	entry->archive = a;
+	entry->ae_symlink_type = AE_SYMLINK_TYPE_UNDEFINED;
 	return (entry);
 }
 
@@ -673,6 +678,12 @@ archive_entry_symlink(struct archive_entry *entry)
 	if (errno == ENOMEM)
 		__archive_errx(1, "No memory");
 	return (NULL);
+}
+
+int
+archive_entry_symlink_type(struct archive_entry *entry)
+{
+	return (entry->ae_symlink_type);
 }
 
 const char *
@@ -1243,6 +1254,12 @@ archive_entry_set_symlink(struct archive_entry *entry, const char *linkname)
 		entry->ae_set |= AE_SET_SYMLINK;
 	else
 		entry->ae_set &= ~AE_SET_SYMLINK;
+}
+
+void
+archive_entry_set_symlink_type(struct archive_entry *entry, int type)
+{
+	entry->ae_symlink_type = type;
 }
 
 void

@@ -1942,6 +1942,15 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 			pax_time(value, &s, &n);
 			archive_entry_set_birthtime(entry, s, n);
 		}
+		if (strcmp(key, "LIBARCHIVE.symlinktype") == 0) {
+			if (strcmp(value, "file") == 0) {
+				archive_entry_set_symlink_type(entry,
+				    AE_SYMLINK_TYPE_FILE);
+			} else if (strcmp(value, "dir") == 0) {
+				archive_entry_set_symlink_type(entry,
+				    AE_SYMLINK_TYPE_DIRECTORY);
+			}
+		}
 		if (memcmp(key, "LIBARCHIVE.xattr.", 17) == 0)
 			pax_attribute_xattr(entry, key, value);
 		break;

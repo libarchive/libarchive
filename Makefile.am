@@ -288,6 +288,7 @@ libarchive_man_MANS= \
 	libarchive/archive_entry.3 \
 	libarchive/archive_entry_acl.3 \
 	libarchive/archive_entry_linkify.3 \
+	libarchive/archive_entry_misc.3 \
 	libarchive/archive_entry_paths.3 \
 	libarchive/archive_entry_perms.3 \
 	libarchive/archive_entry_stat.3 \

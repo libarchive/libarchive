@@ -587,13 +587,14 @@ la_CreateHardLinkW(wchar_t *linkname, wchar_t *target)
 }
 
 /*
- * Create symolic link
+ * Create file or directory symolic link
  *
- * Always creates a file symbolic link.
- * Directory symbolic links are currently not implemented.
+ * If linktype is AE_SYMLINK_TYPE_UNDEFINED (or unknown), guess linktype from
+ * the link target
  */
 static int
-la_CreateSymbolicLinkW(const wchar_t *linkname, const wchar_t *target) {
+la_CreateSymbolicLinkW(const wchar_t *linkname, const wchar_t *target,
+    int linktype) {
 	static BOOLEAN (WINAPI *f)(LPCWSTR, LPCWSTR, DWORD);
 	static int set;
 	wchar_t *ttarget, *p;
@@ -636,14 +637,16 @@ la_CreateSymbolicLinkW(const wchar_t *linkname, const wchar_t *target) {
 	*p = L'\0';
 
 	/*
+	 * In case of undefined symlink type we guess it from the target.
 	 * If the target equals ".", "..", ends with a backslash or a
-	 * backslash followed by "." or ".." it always points to a directory.
-	 * In this case we can safely set the directory flag.
-	 * All other symlinks are created as file symlinks.
+	 * backslash followed by "." or ".." we assume it is a directory
+	 * symlink. In all other cases we assume a file symlink.
 	 */
-	if (*(p - 1) == L'\\' || (*(p - 1) == L'.' && (
+	if (linktype != AE_SYMLINK_TYPE_FILE && (
+		linktype == AE_SYMLINK_TYPE_DIRECTORY ||
+		*(p - 1) == L'\\' || (*(p - 1) == L'.' && (
 	    len == 1 || *(p - 2) == L'\\' || ( *(p - 2) == L'.' && (
-	    len == 2 || *(p - 3) == L'\\'))))) {
+	    len == 2 || *(p - 3) == L'\\')))))) {
 #if defined(SYMBOLIC_LINK_FLAG_DIRECTORY)
 		flags |= SYMBOLIC_LINK_FLAG_DIRECTORY;
 #else
@@ -1638,7 +1641,8 @@ create_filesystem_object(struct archive_write_disk *a)
 		return symlink(linkname, a->name) ? errno : 0;
 #else
 		errno = 0;
-		r = la_CreateSymbolicLinkW((const wchar_t *)a->name, linkname);
+		r = la_CreateSymbolicLinkW((const wchar_t *)a->name, linkname,
+		    archive_entry_symlink_type(a->entry));
 		if (r == 0) {
 			if (errno == 0)
 				la_dosmaperr(GetLastError());

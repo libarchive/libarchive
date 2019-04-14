@@ -208,6 +208,29 @@ DEFINE_TEST(test_write_disk_symlink)
 		assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
 	archive_entry_free(ae);
 
+	/* Symbolic link: d1dir -> d1 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "d1dir");
+	archive_entry_set_mode(ae, AE_IFLNK | 0642);
+	archive_entry_set_symlink_type(ae, AE_SYMLINK_TYPE_DIRECTORY);
+	archive_entry_unset_size(ae);
+	archive_entry_copy_symlink(ae, "d1");
+	assertEqualIntA(ad, 0, r = archive_write_header(ad, ae));
+	if (r >= ARCHIVE_WARN)
+		assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+	archive_entry_free(ae);
+
+	/* Symbolic link: d1file -> d1 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "d1file");
+	archive_entry_set_mode(ae, AE_IFLNK | 0642);
+	archive_entry_set_symlink_type(ae, AE_SYMLINK_TYPE_FILE);
+	archive_entry_unset_size(ae);
+	archive_entry_copy_symlink(ae, "d1");
+	assertEqualIntA(ad, 0, r = archive_write_header(ad, ae));
+	if (r >= ARCHIVE_WARN)
+		assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+	archive_entry_free(ae);
 
 	assertEqualInt(ARCHIVE_OK, archive_write_free(ad));
 
@@ -239,4 +262,8 @@ DEFINE_TEST(test_write_disk_symlink)
 	assertIsSymlink("d1slash", "d1/", 1);
 	assertIsSymlink("d1sldot", "d1/.", 1);
 	assertIsSymlink("d1slddot", "d1/..", 1);
+
+	/* Test #5: symlink_type is set */
+	assertIsSymlink("d1dir", "d1", 1);
+	assertIsSymlink("d1file", "d1", 0);
 }
