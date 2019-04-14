@@ -33,6 +33,7 @@ SET(libarchive_SOURCES
   archive_entry_sparse.c
   archive_entry_stat.c
   archive_entry_strmode.c
+  archive_entry_vendor.c
   archive_entry_xattr.c
   archive_getdate.c
   archive_getdate.h

@@ -50,6 +50,14 @@ struct ae_sparse {
 	int64_t	 length;
 };
 
+struct ae_vendor {
+	struct ae_vendor *next;
+
+	char *name;
+	void *value;
+	size_t size;
+};
+
 /*
  * Description of an archive entry.
  *
@@ -173,6 +181,10 @@ struct archive_entry {
 	struct ae_sparse *sparse_head;
 	struct ae_sparse *sparse_tail;
 	struct ae_sparse *sparse_p;
+
+	/* arbitrary pax vendor support. */
+	struct ae_vendor *vendor_head;
+	struct ae_vendor *vendor_p;
 
 	/* Miscellaneous. */
 	char		 strmode[12];

@@ -401,6 +401,35 @@ archive_write_pax_header_xattrs(struct archive_write *a,
 	return (ARCHIVE_OK);
 }
 
+static void
+archive_write_pax_header_vendor_attribute(struct pax *pax, const char *name,
+    const void *value, size_t value_len)
+{
+	struct archive_string s;
+	archive_string_init(&s);
+	archive_strcpy(&s, name);
+	add_pax_attr_binary(&(pax->pax_header), s.s, value, value_len);
+	archive_string_free(&s);
+}
+
+static int
+archive_write_pax_header_vendor_attributes(struct archive_write *a,
+    struct pax *pax, struct archive_entry *entry)
+{
+	(void) a;
+	const char *name;
+	const void *value;
+	size_t size;
+	archive_entry_vendor_reset(entry);
+	while (archive_entry_vendor_next(entry, &name, &value, &size) == ARCHIVE_OK)
+	{
+		if (archive_entry_vendor_valid_key(name)) {
+			archive_write_pax_header_vendor_attribute(pax, name, value, size);
+		}
+	}
+	return (ARCHIVE_OK);
+}
+
 static int
 get_entry_hardlink(struct archive_write *a, struct archive_entry *entry,
     const char **name, size_t *length, struct archive_string_conv *sc)
@@ -1114,6 +1143,10 @@ archive_write_pax_header(struct archive_write *a,
 	if (!need_extension && acl_types != 0)
 		need_extension = 1;
 
+	/* If there are any vendor entries, we need an extension */
+	if (!need_extension && archive_entry_vendor_count(entry_original) > 0)
+		need_extension = 1;
+
 	/*
 	 * Libarchive used to include these in extended headers for
 	 * restricted pax format, but that confused people who
@@ -1242,6 +1275,14 @@ archive_write_pax_header(struct archive_write *a,
 
 		/* Store extended attributes */
 		if (archive_write_pax_header_xattrs(a, pax, entry_original)
+		    == ARCHIVE_FATAL) {
+			archive_entry_free(entry_main);
+			archive_string_free(&entry_name);
+			return (ARCHIVE_FATAL);
+		}
+
+		/* Store vendor attributes */
+		if (archive_write_pax_header_vendor_attributes(a, pax, entry_original)
 		    == ARCHIVE_FATAL) {
 			archive_entry_free(entry_main);
 			archive_string_free(&entry_name);

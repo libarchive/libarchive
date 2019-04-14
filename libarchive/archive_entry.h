@@ -615,6 +615,26 @@ __LA_DECL int	archive_entry_sparse_next(struct archive_entry *,
 	    la_int64_t * /* offset */, la_int64_t * /* length */);
 
 /*
+ * vendor attributes
+ */
+
+__LA_DECL void	 archive_entry_vendor_clear(struct archive_entry *);
+__LA_DECL void	 archive_entry_vendor_add_entry(struct archive_entry *,
+	    const char * /* name */, const void * /* value */,
+	    size_t /* size */);
+__LA_DECL int	 archive_entry_vendor_valid_key(const char *name);
+
+/*
+ * To retrieve the vendor list, first "reset", then repeatedly ask for the
+ * "next" entry.
+ */
+
+__LA_DECL int	archive_entry_vendor_count(struct archive_entry *);
+__LA_DECL int	archive_entry_vendor_reset(struct archive_entry *);
+__LA_DECL int	archive_entry_vendor_next(struct archive_entry *,
+	    const char ** /* name */, const void ** /* value */, size_t *);
+
+/*
  * Utility to match up hardlinks.
  *
  * The 'struct archive_entry_linkresolver' is a cache of archive entries
