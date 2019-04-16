@@ -839,8 +839,6 @@ main(int argc, char **argv)
 			break;
 		}
 	}
-	if (bsdtar->flags & OPTFLAG_NO_SUBDIRS)
-		only_mode(bsdtar, "-n", "cru");
 	if (bsdtar->flags & OPTFLAG_STDOUT)
 		only_mode(bsdtar, "-O", "xt");
 	if (bsdtar->flags & OPTFLAG_UNLINK_FIRST)
@@ -889,6 +887,16 @@ main(int argc, char **argv)
 		buff[1] = bsdtar->symlink_mode;
 		only_mode(bsdtar, buff, "cru");
 	}
+
+	/*
+	 * When creating an archive from a directory tree, the directory
+	 * walking code will already avoid entering directories when
+	 * recursive inclusion of directory content is disabled, therefore
+	 * changing the matching behavior has no effect for creation modes.
+	 * It is relevant for extraction or listing.
+	 */
+	archive_match_set_inclusion_recursion(bsdtar->matching,
+					      !(bsdtar->flags & OPTFLAG_NO_SUBDIRS));
 
 	/* Filename "-" implies stdio. */
 	if (strcmp(bsdtar->filename, "-") == 0)
