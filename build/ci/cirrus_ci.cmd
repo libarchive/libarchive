@@ -64,7 +64,7 @@ IF "%1%"=="prepare" (
   ) ELSE IF "%BE%"=="mingw-gcc" (
     REFRESHENV
     CD build_ci\cmake
-    cmake -G "MinGW Makefiles" -D CMAKE_BUILD_TYPE="Release" ..\.. || EXIT /b 1
+    cmake -G "MinGW Makefiles" ..\.. || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
     REFRESHENV
     CD build_ci\cmake
