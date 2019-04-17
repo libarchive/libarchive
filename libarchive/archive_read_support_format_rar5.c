@@ -615,7 +615,7 @@ static int run_filter(struct archive_read* a, struct filter_info* flt) {
 
         default:
             archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                    "Unsupported filter type: 0x%02x", flt->type);
+                    "Unsupported filter type: 0x%x", flt->type);
             return ARCHIVE_FATAL;
     }
 
@@ -1135,7 +1135,7 @@ static int parse_file_extra_hash(struct archive_read* a, struct rar5* rar,
         *extra_data_size -= hash_size;
     } else {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                "Unsupported hash type (0x%02x)", (int) hash_type);
+                "Unsupported hash type (0x%x)", (int) hash_type);
         return ARCHIVE_FATAL;
     }
 
@@ -1271,7 +1271,7 @@ static int process_head_file_extra(struct archive_read* a,
                 /* fallthrough */
             default:
                 archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                        "Unknown extra field in file/service block: 0x%02x",
+                        "Unknown extra field in file/service block: 0x%x",
                         (int) extra_field_id);
                 return ARCHIVE_FATAL;
         }
@@ -1406,7 +1406,7 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
     } else {
         /* Unknown host OS */
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                "Unsupported Host OS: 0x%02x", (int) host_os);
+                "Unsupported Host OS: 0x%x", (int) host_os);
 
         return ARCHIVE_FATAL;
     }
@@ -1596,7 +1596,7 @@ static int process_head_main(struct archive_read* a, struct rar5* rar,
             break;
         default:
             archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                    "Unsupported extra type (0x%02x)", (int) extra_field_id);
+                    "Unsupported extra type (0x%x)", (int) extra_field_id);
             return ARCHIVE_FATAL;
     }
 
@@ -2217,7 +2217,7 @@ static int parse_block_header(struct archive_read* a, const uint8_t* p,
 
     if(calculated_cksum != hdr->block_cksum) {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                "Block checksum error: got 0x%02x, expected 0x%02x",
+                "Block checksum error: got 0x%x, expected 0x%x",
                 hdr->block_cksum, calculated_cksum);
 
         return ARCHIVE_FATAL;
@@ -2570,7 +2570,7 @@ static int do_uncompress_block(struct archive_read* a, const uint8_t* p) {
 
         /* The program counter shouldn't reach here. */
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                "Unsupported block code: 0x%02x", num);
+                "Unsupported block code: 0x%x", num);
 
         return ARCHIVE_FATAL;
     }
