@@ -103,7 +103,38 @@ struct file_header {
     uint8_t blake2sp[32];
     blake2sp_state b2state;
     char has_blake2;
+
+    /* Optional redir fields */
+    uint64_t redir_type;
+    uint64_t redir_flags;
 };
+
+enum EXTRA {
+    EX_CRYPT = 0x01,
+    EX_HASH = 0x02,
+    EX_HTIME = 0x03,
+    EX_VERSION = 0x04,
+    EX_REDIR = 0x05,
+    EX_UOWNER = 0x06,
+    EX_SUBDATA = 0x07
+};
+
+#define REDIR_SYMLINK_IS_DIR	1
+
+enum REDIR_TYPE {
+    REDIR_TYPE_NONE = 0,
+    REDIR_TYPE_UNIXSYMLINK = 1,
+    REDIR_TYPE_WINSYMLINK = 2,
+    REDIR_TYPE_JUNCTION = 3,
+    REDIR_TYPE_HARDLINK = 4,
+    REDIR_TYPE_FILECOPY = 5,
+};
+
+#define	OWNER_USER_NAME		0x01
+#define	OWNER_GROUP_NAME	0x02
+#define	OWNER_USER_UID		0x04
+#define	OWNER_GROUP_GID		0x08
+#define	OWNER_MAXNAMELEN	256
 
 enum FILTER_TYPE {
     FILTER_DELTA = 0,   /* Generic pattern. */
@@ -615,7 +646,7 @@ static int run_filter(struct archive_read* a, struct filter_info* flt) {
 
         default:
             archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                    "Unsupported filter type: 0x%02x", flt->type);
+                    "Unsupported filter type: 0x%x", flt->type);
             return ARCHIVE_FATAL;
     }
 
@@ -796,6 +827,9 @@ static void reset_file_context(struct rar5* rar) {
     rar->cstate.write_ptr = 0;
     rar->cstate.last_write_ptr = 0;
     rar->cstate.last_unstore_ptr = 0;
+
+    rar->file.redir_type = REDIR_TYPE_NONE;
+    rar->file.redir_flags = 0;
 
     free_filters(rar);
 }
@@ -1135,7 +1169,7 @@ static int parse_file_extra_hash(struct archive_read* a, struct rar5* rar,
         *extra_data_size -= hash_size;
     } else {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                "Unsupported hash type (0x%02x)", (int) hash_type);
+                "Unsupported hash type (0x%x)", (int) hash_type);
         return ARCHIVE_FATAL;
     }
 
@@ -1221,6 +1255,152 @@ static int parse_file_extra_htime(struct archive_read* a,
     return ARCHIVE_OK;
 }
 
+static int parse_file_extra_redir(struct archive_read* a,
+        struct archive_entry* e, struct rar5* rar,
+        ssize_t* extra_data_size)
+{
+	size_t value_len = 0;
+	char target_utf8_buf[2048 * 4];
+	const uint8_t* p;
+
+	if(!read_var_sized(a, &rar->file.redir_type, &value_len))
+		return ARCHIVE_EOF;
+	if(ARCHIVE_OK != consume(a, value_len))
+		return ARCHIVE_EOF;
+	*extra_data_size -= value_len;
+
+	if(!read_var_sized(a, &rar->file.redir_flags, &value_len))
+		return ARCHIVE_EOF;
+	if(ARCHIVE_OK != consume(a, value_len))
+		return ARCHIVE_EOF;
+	*extra_data_size -= value_len;
+
+	if(!read_var_sized(a, &value_len, NULL))
+		return ARCHIVE_EOF;
+        *extra_data_size -= value_len + 1;
+	if(!read_ahead(a, value_len, &p))
+		return ARCHIVE_EOF;
+
+	if(value_len > 2047) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Link target is too long");
+		return ARCHIVE_FATAL;
+	}
+	if(value_len == 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "No link target specified");
+		return ARCHIVE_FATAL;
+	}
+	memcpy(target_utf8_buf, p, value_len);
+	target_utf8_buf[value_len] = 0;
+
+	if(ARCHIVE_OK != consume(a, value_len))
+		return ARCHIVE_EOF;
+
+	switch(rar->file.redir_type) {
+		case REDIR_TYPE_UNIXSYMLINK:
+		case REDIR_TYPE_WINSYMLINK:
+			archive_entry_set_filetype(e, AE_IFLNK);
+			archive_entry_update_symlink_utf8(e, target_utf8_buf);
+			if (rar->file.redir_flags & REDIR_SYMLINK_IS_DIR) {
+				archive_entry_set_symlink_type(e,
+				    AE_SYMLINK_TYPE_DIRECTORY);
+			} else {
+				archive_entry_set_symlink_type(e,
+			    AE_SYMLINK_TYPE_FILE);
+			}
+			break;
+
+		case REDIR_TYPE_HARDLINK:
+			archive_entry_set_filetype(e, AE_IFREG);
+			archive_entry_update_hardlink_utf8(e, target_utf8_buf);
+			break;
+
+		default:
+			/* Unknown redir type */
+			if(ARCHIVE_OK != consume(a, value_len))
+				return ARCHIVE_EOF;
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Unsupported redir type: %ld",
+			    rar->file.redir_type);
+			return ARCHIVE_FATAL;
+			break;
+	}
+	return ARCHIVE_OK;
+}
+
+static int parse_file_extra_owner(struct archive_read* a,
+        struct archive_entry* e, ssize_t* extra_data_size)
+{
+	uint64_t flags = 0;
+	size_t value_len = 0;
+	size_t name_len = 0;
+	size_t id = 0;
+	char namebuf[OWNER_MAXNAMELEN];
+	const uint8_t* p;
+
+	if(!read_var_sized(a, &flags, &value_len))
+		return ARCHIVE_EOF;
+	if(ARCHIVE_OK != consume(a, value_len))
+		return ARCHIVE_EOF;
+	*extra_data_size -= value_len;
+
+	if ((flags & OWNER_USER_NAME) != 0) {
+		if(!read_var_sized(a, &value_len, NULL))
+			return ARCHIVE_EOF;
+	        *extra_data_size -= value_len + 1;
+		if(!read_ahead(a, value_len, &p))
+			return ARCHIVE_EOF;
+		if (value_len > OWNER_MAXNAMELEN)
+			name_len = OWNER_MAXNAMELEN;
+		else
+			name_len = value_len;
+		memcpy(namebuf, p, name_len);
+		namebuf[name_len] = 0;
+		if(ARCHIVE_OK != consume(a, value_len))
+			return ARCHIVE_EOF;
+
+		archive_entry_set_uname(e, namebuf);
+	}
+	if ((flags & OWNER_GROUP_NAME) != 0) {
+		if(!read_var_sized(a, &value_len, NULL))
+			return ARCHIVE_EOF;
+	        *extra_data_size -= value_len + 1;
+		if(!read_ahead(a, value_len, &p))
+			return ARCHIVE_EOF;
+		if (value_len > OWNER_MAXNAMELEN)
+			name_len = OWNER_MAXNAMELEN;
+		else
+			name_len = value_len;
+		memcpy(namebuf, p, name_len);
+		namebuf[name_len] = 0;
+		if(ARCHIVE_OK != consume(a, value_len))
+			return ARCHIVE_EOF;
+
+		archive_entry_set_gname(e, namebuf);
+	}
+	if ((flags & OWNER_USER_UID) != 0) {
+		if(!read_var_sized(a, &id, &value_len))
+			return ARCHIVE_EOF;
+		if(ARCHIVE_OK != consume(a, value_len))
+			return ARCHIVE_EOF;
+		*extra_data_size -= value_len;
+
+		archive_entry_set_uid(e, id);
+	}
+	if ((flags & OWNER_GROUP_GID) != 0) {
+		if(!read_var_sized(a, &id, &value_len))
+			return ARCHIVE_EOF;
+		if(ARCHIVE_OK != consume(a, value_len))
+			return ARCHIVE_EOF;
+		*extra_data_size -= value_len;
+
+		archive_entry_set_gid(e, id);
+	}
+	return ARCHIVE_OK;
+}
+
 static int process_head_file_extra(struct archive_read* a,
         struct archive_entry* e, struct rar5* rar,
         ssize_t extra_data_size)
@@ -1229,11 +1409,6 @@ static int process_head_file_extra(struct archive_read* a,
     size_t extra_field_id = 0;
     int ret = ARCHIVE_FATAL;
     size_t var_size;
-
-    enum EXTRA {
-        CRYPT = 0x01, HASH = 0x02, HTIME = 0x03, VERSION_ = 0x04,
-        REDIR = 0x05, UOWNER = 0x06, SUBDATA = 0x07
-    };
 
     while(extra_data_size > 0) {
         if(!read_var_sized(a, &extra_field_size, &var_size))
@@ -1253,25 +1428,27 @@ static int process_head_file_extra(struct archive_read* a,
         }
 
         switch(extra_field_id) {
-            case HASH:
+            case EX_HASH:
                 ret = parse_file_extra_hash(a, rar, &extra_data_size);
                 break;
-            case HTIME:
+            case EX_HTIME:
                 ret = parse_file_extra_htime(a, e, rar, &extra_data_size);
                 break;
-            case CRYPT:
+            case EX_REDIR:
+		ret = parse_file_extra_redir(a, e, rar, &extra_data_size);
+		break;
+            case EX_UOWNER:
+		ret = parse_file_extra_owner(a, e, &extra_data_size);
+		break;
+            case EX_CRYPT:
                 /* fallthrough */
-            case VERSION_:
+            case EX_VERSION:
                 /* fallthrough */
-            case REDIR:
-                /* fallthrough */
-            case UOWNER:
-                /* fallthrough */
-            case SUBDATA:
+            case EX_SUBDATA:
                 /* fallthrough */
             default:
                 archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                        "Unknown extra field in file/service block: 0x%02x",
+                        "Unknown extra field in file/service block: 0x%x",
                         (int) extra_field_id);
                 return ARCHIVE_FATAL;
         }
@@ -1406,7 +1583,7 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
     } else {
         /* Unknown host OS */
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                "Unsupported Host OS: 0x%02x", (int) host_os);
+                "Unsupported Host OS: 0x%x", (int) host_os);
 
         return ARCHIVE_FATAL;
     }
@@ -1453,7 +1630,8 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 
     if((file_flags & UNKNOWN_UNPACKED_SIZE) == 0) {
         rar->file.unpacked_size = (ssize_t) unpacked_size;
-        archive_entry_set_size(entry, unpacked_size);
+    	if(rar->file.redir_type == REDIR_TYPE_NONE)
+	    archive_entry_set_size(entry, unpacked_size);
     }
 
     if(file_flags & UTIME) {
@@ -1596,7 +1774,7 @@ static int process_head_main(struct archive_read* a, struct rar5* rar,
             break;
         default:
             archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                    "Unsupported extra type (0x%02x)", (int) extra_field_id);
+                    "Unsupported extra type (0x%x)", (int) extra_field_id);
             return ARCHIVE_FATAL;
     }
 
@@ -2217,7 +2395,7 @@ static int parse_block_header(struct archive_read* a, const uint8_t* p,
 
     if(calculated_cksum != hdr->block_cksum) {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                "Block checksum error: got 0x%02x, expected 0x%02x",
+                "Block checksum error: got 0x%x, expected 0x%x",
                 hdr->block_cksum, calculated_cksum);
 
         return ARCHIVE_FATAL;
@@ -2570,7 +2748,7 @@ static int do_uncompress_block(struct archive_read* a, const uint8_t* p) {
 
         /* The program counter shouldn't reach here. */
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                "Unsupported block code: 0x%02x", num);
+                "Unsupported block code: 0x%x", num);
 
         return ARCHIVE_FATAL;
     }
@@ -3195,7 +3373,7 @@ static int do_unpack(struct archive_read* a, struct rar5* rar,
                 return uncompress_file(a);
             default:
                 archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                        "Compression method not supported: 0x%08x",
+                        "Compression method not supported: 0x%x",
                         rar->cstate.method);
 
                 return ARCHIVE_FATAL;
