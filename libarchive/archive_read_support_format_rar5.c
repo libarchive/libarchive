@@ -1259,42 +1259,43 @@ static int parse_file_extra_redir(struct archive_read* a,
         struct archive_entry* e, struct rar5* rar,
         ssize_t* extra_data_size)
 {
-	size_t value_len = 0;
+	uint64_t value_size = 0;
+	size_t target_size = 0;
 	char target_utf8_buf[2048 * 4];
 	const uint8_t* p;
 
-	if(!read_var_sized(a, &rar->file.redir_type, &value_len))
+	if(!read_var(a, &rar->file.redir_type, &value_size))
 		return ARCHIVE_EOF;
-	if(ARCHIVE_OK != consume(a, value_len))
+	if(ARCHIVE_OK != consume(a, (int64_t)value_size))
 		return ARCHIVE_EOF;
-	*extra_data_size -= value_len;
+	*extra_data_size -= value_size;
 
-	if(!read_var_sized(a, &rar->file.redir_flags, &value_len))
+	if(!read_var(a, &rar->file.redir_flags, &value_size))
 		return ARCHIVE_EOF;
-	if(ARCHIVE_OK != consume(a, value_len))
+	if(ARCHIVE_OK != consume(a, (int64_t)value_size))
 		return ARCHIVE_EOF;
-	*extra_data_size -= value_len;
+	*extra_data_size -= value_size;
 
-	if(!read_var_sized(a, &value_len, NULL))
+	if(!read_var_sized(a, &target_size, NULL))
 		return ARCHIVE_EOF;
-        *extra_data_size -= value_len + 1;
-	if(!read_ahead(a, value_len, &p))
+        *extra_data_size -= target_size + 1;
+	if(!read_ahead(a, target_size, &p))
 		return ARCHIVE_EOF;
 
-	if(value_len > 2047) {
+	if(target_size > 2047) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Link target is too long");
 		return ARCHIVE_FATAL;
 	}
-	if(value_len == 0) {
+	if(target_size == 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "No link target specified");
 		return ARCHIVE_FATAL;
 	}
-	memcpy(target_utf8_buf, p, value_len);
-	target_utf8_buf[value_len] = 0;
+	memcpy(target_utf8_buf, p, target_size);
+	target_utf8_buf[target_size] = 0;
 
-	if(ARCHIVE_OK != consume(a, value_len))
+	if(ARCHIVE_OK != consume(a, (int64_t)target_size))
 		return ARCHIVE_EOF;
 
 	switch(rar->file.redir_type) {
@@ -1318,12 +1319,10 @@ static int parse_file_extra_redir(struct archive_read* a,
 
 		default:
 			/* Unknown redir type */
-			if(ARCHIVE_OK != consume(a, value_len))
-				return ARCHIVE_EOF;
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Unsupported redir type: %ld",
-			    rar->file.redir_type);
+			    "Unsupported redir type: %d",
+			    (int)rar->file.redir_type);
 			return ARCHIVE_FATAL;
 			break;
 	}
@@ -1334,69 +1333,70 @@ static int parse_file_extra_owner(struct archive_read* a,
         struct archive_entry* e, ssize_t* extra_data_size)
 {
 	uint64_t flags = 0;
-	size_t value_len = 0;
+	uint64_t value_size = 0;
+	uint64_t id = 0;
 	size_t name_len = 0;
-	size_t id = 0;
+	size_t name_size = 0;
 	char namebuf[OWNER_MAXNAMELEN];
 	const uint8_t* p;
 
-	if(!read_var_sized(a, &flags, &value_len))
+	if(!read_var(a, &flags, &value_size))
 		return ARCHIVE_EOF;
-	if(ARCHIVE_OK != consume(a, value_len))
+	if(ARCHIVE_OK != consume(a, (int64_t)value_size))
 		return ARCHIVE_EOF;
-	*extra_data_size -= value_len;
+	*extra_data_size -= value_size;
 
 	if ((flags & OWNER_USER_NAME) != 0) {
-		if(!read_var_sized(a, &value_len, NULL))
+		if(!read_var_sized(a, &name_size, NULL))
 			return ARCHIVE_EOF;
-	        *extra_data_size -= value_len + 1;
-		if(!read_ahead(a, value_len, &p))
+	        *extra_data_size -= name_size + 1;
+		if(!read_ahead(a, name_size, &p))
 			return ARCHIVE_EOF;
-		if (value_len > OWNER_MAXNAMELEN)
+		if (name_size > OWNER_MAXNAMELEN)
 			name_len = OWNER_MAXNAMELEN;
 		else
-			name_len = value_len;
+			name_len = name_size;
 		memcpy(namebuf, p, name_len);
 		namebuf[name_len] = 0;
-		if(ARCHIVE_OK != consume(a, value_len))
+		if(ARCHIVE_OK != consume(a, (int64_t)name_size))
 			return ARCHIVE_EOF;
 
 		archive_entry_set_uname(e, namebuf);
 	}
 	if ((flags & OWNER_GROUP_NAME) != 0) {
-		if(!read_var_sized(a, &value_len, NULL))
+		if(!read_var_sized(a, &name_size, NULL))
 			return ARCHIVE_EOF;
-	        *extra_data_size -= value_len + 1;
-		if(!read_ahead(a, value_len, &p))
+	        *extra_data_size -= name_size + 1;
+		if(!read_ahead(a, name_size, &p))
 			return ARCHIVE_EOF;
-		if (value_len > OWNER_MAXNAMELEN)
+		if (name_size > OWNER_MAXNAMELEN)
 			name_len = OWNER_MAXNAMELEN;
 		else
-			name_len = value_len;
+			name_len = name_size;
 		memcpy(namebuf, p, name_len);
 		namebuf[name_len] = 0;
-		if(ARCHIVE_OK != consume(a, value_len))
+		if(ARCHIVE_OK != consume(a, (int64_t)name_size))
 			return ARCHIVE_EOF;
 
 		archive_entry_set_gname(e, namebuf);
 	}
 	if ((flags & OWNER_USER_UID) != 0) {
-		if(!read_var_sized(a, &id, &value_len))
+		if(!read_var(a, &id, &value_size))
 			return ARCHIVE_EOF;
-		if(ARCHIVE_OK != consume(a, value_len))
+		if(ARCHIVE_OK != consume(a, (int64_t)value_size))
 			return ARCHIVE_EOF;
-		*extra_data_size -= value_len;
+		*extra_data_size -= value_size;
 
-		archive_entry_set_uid(e, id);
+		archive_entry_set_uid(e, (la_int64_t)id);
 	}
 	if ((flags & OWNER_GROUP_GID) != 0) {
-		if(!read_var_sized(a, &id, &value_len))
+		if(!read_var(a, &id, &value_size))
 			return ARCHIVE_EOF;
-		if(ARCHIVE_OK != consume(a, value_len))
+		if(ARCHIVE_OK != consume(a, (int64_t)value_size))
 			return ARCHIVE_EOF;
-		*extra_data_size -= value_len;
+		*extra_data_size -= value_size;
 
-		archive_entry_set_gid(e, id);
+		archive_entry_set_gid(e, (la_int64_t)id);
 	}
 	return ARCHIVE_OK;
 }
