@@ -2751,7 +2751,7 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 		inflateEnd(&zip->stream);
 #endif
 
-#if HAVA_LZMA_H && HAVE_LIBLZMA
+#if HAVE_LZMA_H && HAVE_LIBLZMA
     if (zip->zipx_lzma_valid) {
 		lzma_end(&zip->zipx_lzma_stream);
 	}
