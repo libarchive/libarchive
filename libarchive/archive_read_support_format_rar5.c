@@ -1352,8 +1352,8 @@ static int parse_file_extra_owner(struct archive_read* a,
 	        *extra_data_size -= name_size + 1;
 		if(!read_ahead(a, name_size, &p))
 			return ARCHIVE_EOF;
-		if (name_size > OWNER_MAXNAMELEN)
-			name_len = OWNER_MAXNAMELEN;
+		if (name_size >= OWNER_MAXNAMELEN)
+			name_len = OWNER_MAXNAMELEN - 1;
 		else
 			name_len = name_size;
 		memcpy(namebuf, p, name_len);
@@ -1369,8 +1369,8 @@ static int parse_file_extra_owner(struct archive_read* a,
 	        *extra_data_size -= name_size + 1;
 		if(!read_ahead(a, name_size, &p))
 			return ARCHIVE_EOF;
-		if (name_size > OWNER_MAXNAMELEN)
-			name_len = OWNER_MAXNAMELEN;
+		if (name_size >= OWNER_MAXNAMELEN)
+			name_len = OWNER_MAXNAMELEN - 1;
 		else
 			name_len = name_size;
 		memcpy(namebuf, p, name_len);
