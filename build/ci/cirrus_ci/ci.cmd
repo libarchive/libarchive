@@ -19,21 +19,18 @@ IF "%1%"=="prepare" (
     @ECHO ON
     choco install -y --no-progress mingw || EXIT /b 1
     choco install -y --no-progress --installargs 'ADD_CMAKE_TO_PATH=User' cmake || EXIT /b 1
-    MKDIR build_ci\cmake || EXIT /b 1
     @EXIT /b 0
   ) ELSE IF "%BE%"=="msvc" (
     @ECHO ON
     choco install -y --no-progress visualstudio2017community || EXIT /b 1
     choco install -y --no-progress visualstudio2017-workload-vctools || EXIT /b 1
     choco install -y --no-progress --installargs 'ADD_CMAKE_TO_PATH=User' cmake || EXIT /b 1
-    MKDIR build_ci\cmake || EXIT /b 1
   )
 ) ELSE IF "%1"=="deplibs" (
   IF "%BE%"=="cygwin-gcc" (
     ECHO Skipping on this platform
     EXIT /b 0
   )
-  REFRESHENV
   IF NOT EXIST build_ci\libs (
     MKDIR build_ci\libs
   )
@@ -62,11 +59,11 @@ IF "%1%"=="prepare" (
     SET CONFIGURE_ARGS=-DENABLE_ACL=OFF
     C:\tools\cygwin\bin\bash.exe --login -c "cd '%cd%'; ./build/ci/build.sh -a configure" || EXIT /b 1
   ) ELSE IF "%BE%"=="mingw-gcc" (
-    REFRESHENV
+    MKDIR build_ci\cmake
     CD build_ci\cmake
     cmake -G "MinGW Makefiles" ..\.. || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
-    REFRESHENV
+    MKDIR build_ci\cmake
     CD build_ci\cmake
     cmake -G "Visual Studio 15 2017" -D CMAKE_BUILD_TYPE="Release" ..\.. || EXIT /b 1
   )
@@ -75,11 +72,9 @@ IF "%1%"=="prepare" (
     SET BS=cmake
     C:\tools\cygwin\bin\bash.exe --login -c "cd '%cd%'; ./build/ci/build.sh -a build"
   ) ELSE IF "%BE%"=="mingw-gcc" (
-    REFRESHENV
     CD build_ci\cmake
     mingw32-make || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
-    REFRESHENV
     CD build_ci\cmake
     cmake --build . --target ALL_BUILD --config Release
   )
@@ -91,8 +86,7 @@ IF "%1%"=="prepare" (
     REM SET SKIP_TEST_SPARSE=1
     REM C:\tools\cygwin\bin\bash.exe --login -c "cd '%cd%'; ./build/ci/build.sh -a test"
   ) ELSE IF "%BE%"=="mingw-gcc" (
-    REFRESHENV
-    COPY build_ci\libs\zlib-1.2.11\libzlib.dll build_ci\cmake\bin\
+    COPY "C:\Program Files (x86)\zlib\bin\libzlib.dll" build_ci\cmake\bin\
     CD build_ci\cmake
     SET SKIP_TEST_SPARSE=1
     mingw32-make test

@@ -33,6 +33,9 @@
 #ifdef HAVE_ZLIB_H
 #include <zlib.h> /* crc32 */
 #endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 
 #include "archive.h"
 #ifndef HAVE_ZLIB_H
@@ -281,7 +284,7 @@ struct main_header {
     uint8_t endarc : 1;
     uint8_t notused : 5;
 
-    int vol_no;
+    unsigned int vol_no;
 };
 
 struct generic_header {
@@ -293,7 +296,7 @@ struct generic_header {
 };
 
 struct multivolume {
-    int expected_vol_no;
+    unsigned int expected_vol_no;
     uint8_t* push_buf;
 };
 
@@ -1352,8 +1355,8 @@ static int parse_file_extra_owner(struct archive_read* a,
 	        *extra_data_size -= name_size + 1;
 		if(!read_ahead(a, name_size, &p))
 			return ARCHIVE_EOF;
-		if (name_size > OWNER_MAXNAMELEN)
-			name_len = OWNER_MAXNAMELEN;
+		if (name_size >= OWNER_MAXNAMELEN)
+			name_len = OWNER_MAXNAMELEN - 1;
 		else
 			name_len = name_size;
 		memcpy(namebuf, p, name_len);
@@ -1369,8 +1372,8 @@ static int parse_file_extra_owner(struct archive_read* a,
 	        *extra_data_size -= name_size + 1;
 		if(!read_ahead(a, name_size, &p))
 			return ARCHIVE_EOF;
-		if (name_size > OWNER_MAXNAMELEN)
-			name_len = OWNER_MAXNAMELEN;
+		if (name_size >= OWNER_MAXNAMELEN)
+			name_len = OWNER_MAXNAMELEN - 1;
 		else
 			name_len = name_size;
 		memcpy(namebuf, p, name_len);
@@ -1722,8 +1725,12 @@ static int process_head_main(struct archive_read* a, struct rar5* rar,
         if(!read_var_sized(a, &v, NULL)) {
             return ARCHIVE_EOF;
         }
-
-        rar->main.vol_no = (int) v;
+	if (v > UINT_MAX) {
+	    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+	        "Invalid volume number");
+	    return ARCHIVE_FATAL;
+	}
+        rar->main.vol_no = (unsigned int) v;
     } else {
         rar->main.vol_no = 0;
     }
@@ -1941,6 +1948,11 @@ static int process_base_block(struct archive_read* a,
                 if(ret == ARCHIVE_FATAL) {
                     return ARCHIVE_EOF;
                 } else {
+		    if(rar->vol.expected_vol_no == UINT_MAX) {
+	                archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT, "Header error");
+			return ARCHIVE_FATAL;
+		    }
                     rar->vol.expected_vol_no = rar->main.vol_no + 1;
                     return ARCHIVE_OK;
                 }
