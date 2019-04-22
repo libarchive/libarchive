@@ -90,6 +90,7 @@ IF(ENABLE_TEST)
     test_read_file_nonexistent.c
     test_read_filter_compress.c
     test_read_filter_grzip.c
+    test_read_filter_gzip_large.c
     test_read_filter_lrzip.c
     test_read_filter_lzop.c
     test_read_filter_lzop_multiple_parts.c
