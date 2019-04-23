@@ -313,6 +313,13 @@ struct rar5 {
      * extraction mode. This is used during checksum calculation functions. */
     int skip_mode;
 
+    /* Set to not zero if we're in block merging mode (i.e. when switching
+     * to another file in multivolume archive, last block from 1st archive
+     * needs to be merged with 1st block from 2nd archive). This flag guards
+     * against recursive use of the merging function, which doesn't support
+     * recursive calls. */
+    int merge_mode;
+
     /* An offset to QuickOpen list. This is not supported by this unpacker,
      * because we're focusing on streaming interface. QuickOpen is designed
      * to make things quicker for non-stream interfaces, so it's not our
@@ -855,7 +862,6 @@ static int read_ahead(struct archive_read* a, size_t how_many,
 
     ssize_t avail = -1;
     *ptr = __archive_read_ahead(a, how_many, &avail);
-
     if(*ptr == NULL) {
         return 0;
     }
@@ -984,7 +990,7 @@ static int read_var_sized(struct archive_read* a, size_t* pvalue,
 }
 
 static int read_bits_32(struct rar5* rar, const uint8_t* p, uint32_t* value) {
-    uint32_t bits = p[rar->bits.in_addr] << 24;
+    uint32_t bits = ((uint32_t) p[rar->bits.in_addr]) << 24;
     bits |= p[rar->bits.in_addr + 1] << 16;
     bits |= p[rar->bits.in_addr + 2] << 8;
     bits |= p[rar->bits.in_addr + 3];
@@ -995,7 +1001,7 @@ static int read_bits_32(struct rar5* rar, const uint8_t* p, uint32_t* value) {
 }
 
 static int read_bits_16(struct rar5* rar, const uint8_t* p, uint16_t* value) {
-    int bits = (int) p[rar->bits.in_addr] << 16;
+    int bits = (int) ((uint32_t) p[rar->bits.in_addr]) << 16;
     bits |= (int) p[rar->bits.in_addr + 1] << 8;
     bits |= (int) p[rar->bits.in_addr + 2];
     bits >>= (8 - rar->bits.bit_addr);
@@ -1788,6 +1794,38 @@ static int process_head_main(struct archive_read* a, struct rar5* rar,
     return ARCHIVE_OK;
 }
 
+static int skip_unprocessed_bytes(struct archive_read* a) {
+    struct rar5* rar = get_context(a);
+    int ret;
+
+    if(rar->file.bytes_remaining) {
+        /* Use different skipping method in block merging mode than in
+         * normal mode. If merge mode is active, rar5_read_data_skip can't
+         * be used, because it could allow recursive use of merge_block()
+         * function, and this function doesn't support recursive use. */
+        if(rar->merge_mode) {
+            /* Discard whole merged block. This is valid in solid mode as
+             * well, because the code will discard blocks only if those
+             * blocks are safe to discard (i.e. they're not FILE blocks). */
+            ret = consume(a, rar->file.bytes_remaining);
+            if(ret != ARCHIVE_OK) {
+                return ret;
+            }
+
+            rar->file.bytes_remaining = 0;
+        } else {
+            /* If we're not in merge mode, use safe skipping code. This
+             * will ensure we'll handle solid archives properly. */
+            ret = rar5_read_data_skip(a);
+            if(ret != ARCHIVE_OK) {
+                return ret;
+            }
+        }
+    }
+
+    return ARCHIVE_OK;
+}
+
 static int scan_for_signature(struct archive_read* a);
 
 /* Base block processing function. A 'base block' is a RARv5 header block
@@ -1847,12 +1885,9 @@ static int process_base_block(struct archive_read* a,
     int ret;
 
     /* Skip any unprocessed data for this file. */
-    if(rar->file.bytes_remaining) {
-        ret = rar5_read_data_skip(a);
-        if(ret != ARCHIVE_OK) {
-            return ret;
-        }
-    }
+    ret = skip_unprocessed_bytes(a);
+    if(ret != ARCHIVE_OK)
+        return ret;
 
     /* Read the expected CRC32 checksum. */
     if(!read_u32(a, &hdr_crc)) {
@@ -1948,11 +1983,12 @@ static int process_base_block(struct archive_read* a,
                 if(ret == ARCHIVE_FATAL) {
                     return ARCHIVE_EOF;
                 } else {
-		    if(rar->vol.expected_vol_no == UINT_MAX) {
-	                archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_FILE_FORMAT, "Header error");
-			return ARCHIVE_FATAL;
-		    }
+                    if(rar->vol.expected_vol_no == UINT_MAX) {
+                        archive_set_error(&a->archive,
+                            ARCHIVE_ERRNO_FILE_FORMAT, "Header error");
+                            return ARCHIVE_FATAL;
+                    }
+
                     rar->vol.expected_vol_no = rar->main.vol_no + 1;
                     return ARCHIVE_OK;
                 }
@@ -1993,6 +2029,8 @@ static int skip_base_block(struct archive_read* a) {
 
     /* Discard operations on this archive_entry structure. */
     archive_entry_free(entry);
+    if(ret == ARCHIVE_FATAL)
+        return ret;
 
     if(rar->generic.last_header_id == 2 && rar->generic.split_before > 0)
         return ARCHIVE_OK;
@@ -2825,14 +2863,34 @@ static int advance_multivolume(struct archive_read* a) {
 
     while(1) {
         if(rar->main.endarc == 1) {
+            int looping = 1;
+
             rar->main.endarc = 0;
-            while(ARCHIVE_RETRY == skip_base_block(a));
+
+            while(looping) {
+                lret = skip_base_block(a);
+                switch(lret) {
+                    case ARCHIVE_RETRY:
+                        /* Continue looping. */
+                        break;
+                    case ARCHIVE_OK:
+                        /* Break loop. */
+                        looping = 0;
+                        break;
+                    default:
+                        /* Forward any errors to the caller. */
+                        return lret;
+                }
+            }
+
             break;
         } else {
             /* Skip current base block. In order to properly skip it,
              * we really need to simply parse it and discard the results. */
 
             lret = skip_base_block(a);
+            if(lret == ARCHIVE_FATAL || lret == ARCHIVE_FAILED)
+                return lret;
 
             /* The `skip_base_block` function tells us if we should continue
              * with skipping, or we should stop skipping. We're trying to skip
@@ -2865,6 +2923,13 @@ static int merge_block(struct archive_read* a, ssize_t block_size,
     ssize_t cur_block_size, partial_offset = 0;
     const uint8_t* lp;
     int ret;
+
+    if(rar->merge_mode) {
+        archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
+            "Recursive merge is not allowed");
+
+        return ARCHIVE_FATAL;
+    }
 
     /* Set a flag that we're in the switching mode. */
     rar->cstate.switch_multivolume = 1;
@@ -2937,9 +3002,12 @@ static int merge_block(struct archive_read* a, ssize_t block_size,
         /* If we don't have any bytes to read, this means we should switch
          * to another multivolume archive file. */
         if(rar->file.bytes_remaining == 0) {
+            rar->merge_mode++;
             ret = advance_multivolume(a);
-            if(ret != ARCHIVE_OK)
+            rar->merge_mode--;
+            if(ret != ARCHIVE_OK) {
                 return ret;
+            }
         }
     }
 
@@ -2967,8 +3035,6 @@ static int process_block(struct archive_read* a) {
     if(rar->cstate.block_parsing_finished) {
         ssize_t block_size;
 
-        rar->cstate.block_parsing_finished = 0;
-
         /* The header size won't be bigger than 6 bytes. */
         if(!read_ahead(a, 6, &p)) {
             /* Failed to prefetch data block header. */
@@ -2984,8 +3050,9 @@ static int process_block(struct archive_read* a) {
          * argument. */
 
         ret = parse_block_header(a, p, &block_size, &rar->last_block_hdr);
-        if(ret != ARCHIVE_OK)
+        if(ret != ARCHIVE_OK) {
             return ret;
+        }
 
         /* Skip block header. Next data is huffman tables, if present. */
         ssize_t to_skip = sizeof(struct compressed_block_header) +
@@ -3041,6 +3108,7 @@ static int process_block(struct archive_read* a) {
 
         rar->cstate.block_buf = p;
         rar->cstate.cur_block_size = cur_block_size;
+        rar->cstate.block_parsing_finished = 0;
 
         rar->bits.in_addr = 0;
         rar->bits.bit_addr = 0;
@@ -3054,6 +3122,7 @@ static int process_block(struct archive_read* a) {
             }
         }
     } else {
+        /* Block parsing not finished, reuse previous memory buffer. */
         p = rar->cstate.block_buf;
     }
 
