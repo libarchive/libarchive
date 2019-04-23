@@ -178,8 +178,11 @@ peek_at_header(struct archive_read_filter *filter, int *pbits,
 				return (0);
 		} while (p[len - 1] != 0);
 
-		if (state)
+		if (state) {
+			/* Reset the name in case of repeat header reads. */
+			free(state->name);
 			state->name = strdup((const char *)&p[file_start]);
+		}
 	}
 
 	/* Null-terminated optional comment. */
