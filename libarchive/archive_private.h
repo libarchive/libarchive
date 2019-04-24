@@ -82,6 +82,7 @@ struct archive_vtable {
 	int64_t (*archive_filter_bytes)(struct archive *, int);
 	int	(*archive_filter_code)(struct archive *, int);
 	const char * (*archive_filter_name)(struct archive *, int);
+	int (*archive_read_seek_header)(struct archive *, size_t);
 };
 
 struct archive_string_conv;
