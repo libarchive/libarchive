@@ -18,13 +18,13 @@ IF "%1%"=="prepare" (
   ) ELSE IF "%BE%"=="mingw-gcc" (
     @ECHO ON
     choco install -y --no-progress mingw || EXIT /b 1
-    choco install -y --no-progress --installargs 'ADD_CMAKE_TO_PATH=User' cmake || EXIT /b 1
+    choco install -y --no-progress --installargs 'ADD_CMAKE_TO_PATH=System' cmake || EXIT /b 1
     @EXIT /b 0
   ) ELSE IF "%BE%"=="msvc" (
     @ECHO ON
     choco install -y --no-progress visualstudio2017community || EXIT /b 1
     choco install -y --no-progress visualstudio2017-workload-vctools || EXIT /b 1
-    choco install -y --no-progress --installargs 'ADD_CMAKE_TO_PATH=User' cmake || EXIT /b 1
+    choco install -y --no-progress --installargs 'ADD_CMAKE_TO_PATH=System' cmake || EXIT /b 1
   )
 ) ELSE IF "%1"=="deplibs" (
   IF "%BE%"=="cygwin-gcc" (
@@ -41,6 +41,7 @@ IF "%1%"=="prepare" (
   IF NOT EXIST zlib-%ZLIB_VERSION% (
     tar -x -z -f zlib-%ZLIB_VERSION%.tar.gz
   )
+  SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
   CD zlib-%ZLIB_VERSION%
   IF "%BE%"=="mingw-gcc" (
     cmake -G "MinGW Makefiles" -D CMAKE_BUILD_TYPE="Release" . || EXIT /b 1
@@ -59,10 +60,12 @@ IF "%1%"=="prepare" (
     SET CONFIGURE_ARGS=-DENABLE_ACL=OFF
     C:\tools\cygwin\bin\bash.exe --login -c "cd '%cd%'; ./build/ci/build.sh -a configure" || EXIT /b 1
   ) ELSE IF "%BE%"=="mingw-gcc" (
+    SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
     MKDIR build_ci\cmake
     CD build_ci\cmake
     cmake -G "MinGW Makefiles" ..\.. || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
+    SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
     MKDIR build_ci\cmake
     CD build_ci\cmake
     cmake -G "Visual Studio 15 2017" -D CMAKE_BUILD_TYPE="Release" ..\.. || EXIT /b 1
@@ -72,9 +75,11 @@ IF "%1%"=="prepare" (
     SET BS=cmake
     C:\tools\cygwin\bin\bash.exe --login -c "cd '%cd%'; ./build/ci/build.sh -a build"
   ) ELSE IF "%BE%"=="mingw-gcc" (
+    SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
     CD build_ci\cmake
     mingw32-make || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
+    SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
     CD build_ci\cmake
     cmake --build . --target ALL_BUILD --config Release
   )
@@ -86,11 +91,13 @@ IF "%1%"=="prepare" (
     REM SET SKIP_TEST_SPARSE=1
     REM C:\tools\cygwin\bin\bash.exe --login -c "cd '%cd%'; ./build/ci/build.sh -a test"
   ) ELSE IF "%BE%"=="mingw-gcc" (
+    SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
     COPY "C:\Program Files (x86)\zlib\bin\libzlib.dll" build_ci\cmake\bin\
     CD build_ci\cmake
     SET SKIP_TEST_SPARSE=1
     mingw32-make test
   ) ELSE IF "%BE%"=="msvc" (
+    SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
     ECHO "Skipping tests on this platform"
     EXIT /b 0
     REM CD build_ci\cmake

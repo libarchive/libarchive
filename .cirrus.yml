@@ -77,10 +77,14 @@ Windows_MSVC_task:
 
 Windows_MinGW_task:
   windows_container:
-    dockerfile: build/ci/cirrus_ci/Dockerfile.mingw
+    image: cirrusci/windowsservercore:2019
     os_version: 2019
   env:
     BE: mingw-gcc
+  prepare_script:
+  - build\ci\cirrus_ci\ci.cmd prepare
+  deplibs_script:
+  - build\ci\cirrus_ci\ci.cmd deplibs
   configure_script:
   - build\ci\cirrus_ci\ci.cmd configure
   build_script:
@@ -90,10 +94,12 @@ Windows_MinGW_task:
 
 Windows_Cygwin_task:
   windows_container:
-    dockerfile: build/ci/cirrus_ci/Dockerfile.cygwin
+    image: cirrusci/windowsservercore:2019
     os_version: 2019
   env:
     BE: cygwin-gcc
+  prepare_script:
+  - build\ci\cirrus_ci\ci.cmd prepare
   configure_script:
   - build\ci\cirrus_ci\ci.cmd configure
   build_script:
