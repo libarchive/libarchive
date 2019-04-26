@@ -81,8 +81,12 @@
 
 static unsigned char rar5_signature[] = { 243, 192, 211, 128, 187, 166, 160, 161 };
 static const ssize_t rar5_signature_size = sizeof(rar5_signature);
-/* static const size_t g_unpack_buf_chunk_size = 1024; */
 static const size_t g_unpack_window_size = 0x20000;
+
+/* These could have been static const's, but they aren't, because of
+ * Visual Studio. */
+#define MAX_NAME_IN_CHARS 2048
+#define MAX_NAME_IN_BYTES (4 * MAX_NAME_IN_CHARS)
 
 struct file_header {
     ssize_t bytes_remaining;
@@ -1213,6 +1217,59 @@ static int parse_htime_item(struct archive_read* a, char unix_time,
     return ARCHIVE_OK;
 }
 
+static int parse_file_extra_version(struct archive_read* a,
+        struct archive_entry* e, ssize_t* extra_data_size)
+{
+    size_t flags = 0;
+    size_t version = 0;
+    size_t value_len = 0;
+    struct archive_string version_string;
+    struct archive_string name_utf8_string;
+
+    /* Flags are ignored. */
+    if(!read_var_sized(a, &flags, &value_len))
+        return ARCHIVE_EOF;
+
+    *extra_data_size -= value_len;
+    if(ARCHIVE_OK != consume(a, value_len))
+        return ARCHIVE_EOF;
+
+    if(!read_var_sized(a, &version, &value_len))
+        return ARCHIVE_EOF;
+
+    *extra_data_size -= value_len;
+    if(ARCHIVE_OK != consume(a, value_len))
+        return ARCHIVE_EOF;
+
+    /* extra_data_size should be zero here. */
+
+    const char* cur_filename = archive_entry_pathname_utf8(e);
+    if(cur_filename == NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
+		    "Version entry without file name");
+		return ARCHIVE_FATAL;
+    }
+
+    archive_string_init(&version_string);
+    archive_string_init(&name_utf8_string);
+
+    /* Prepare a ;123 suffix for the filename, where '123' is the version
+     * value of this file. */
+    archive_string_sprintf(&version_string, ";%ld", version);
+
+    /* Build the new filename. */
+    archive_strcat(&name_utf8_string, cur_filename);
+    archive_strcat(&name_utf8_string, version_string.s);
+
+    /* Apply the new filename into this file's context. */
+    archive_entry_update_pathname_utf8(e, name_utf8_string.s);
+
+    /* Free buffers. */
+    archive_string_free(&version_string);
+    archive_string_free(&name_utf8_string);
+    return ARCHIVE_OK;
+}
+
 static int parse_file_extra_htime(struct archive_read* a,
         struct archive_entry* e, struct rar5* rar,
         ssize_t* extra_data_size)
@@ -1270,7 +1327,7 @@ static int parse_file_extra_redir(struct archive_read* a,
 {
 	uint64_t value_size = 0;
 	size_t target_size = 0;
-	char target_utf8_buf[2048 * 4];
+	char target_utf8_buf[MAX_NAME_IN_BYTES];
 	const uint8_t* p;
 
 	if(!read_var(a, &rar->file.redir_type, &value_size))
@@ -1291,7 +1348,7 @@ static int parse_file_extra_redir(struct archive_read* a,
 	if(!read_ahead(a, target_size, &p))
 		return ARCHIVE_EOF;
 
-	if(target_size > 2047) {
+	if(target_size > (MAX_NAME_IN_CHARS - 1)) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Link target is too long");
 		return ARCHIVE_FATAL;
@@ -1327,12 +1384,7 @@ static int parse_file_extra_redir(struct archive_read* a,
 			break;
 
 		default:
-			/* Unknown redir type */
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Unsupported redir type: %d",
-			    (int)rar->file.redir_type);
-			return ARCHIVE_FATAL;
+			/* Unknown redir type, skip it. */
 			break;
 	}
 	return ARCHIVE_OK;
@@ -1444,22 +1496,21 @@ static int process_head_file_extra(struct archive_read* a,
                 ret = parse_file_extra_htime(a, e, rar, &extra_data_size);
                 break;
             case EX_REDIR:
-		ret = parse_file_extra_redir(a, e, rar, &extra_data_size);
-		break;
+                ret = parse_file_extra_redir(a, e, rar, &extra_data_size);
+                break;
             case EX_UOWNER:
-		ret = parse_file_extra_owner(a, e, &extra_data_size);
-		break;
-            case EX_CRYPT:
-                /* fallthrough */
+                ret = parse_file_extra_owner(a, e, &extra_data_size);
+                break;
             case EX_VERSION:
+                ret = parse_file_extra_version(a, e, &extra_data_size);
+                break;
+            case EX_CRYPT:
                 /* fallthrough */
             case EX_SUBDATA:
                 /* fallthrough */
             default:
-                archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                        "Unknown extra field in file/service block: 0x%x",
-                        (int) extra_field_id);
-                return ARCHIVE_FATAL;
+                /* Skip unsupported entry. */
+                return consume(a, extra_data_size);
         }
     }
 
@@ -1484,7 +1535,7 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
     uint64_t unpacked_size;
     uint32_t mtime = 0, crc = 0;
     int c_method = 0, c_version = 0, is_dir;
-    char name_utf8_buf[2048 * 4];
+    char name_utf8_buf[MAX_NAME_IN_BYTES];
     const uint8_t* p;
 
     archive_entry_clear(entry);
@@ -1603,7 +1654,7 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
     if(!read_ahead(a, name_size, &p))
         return ARCHIVE_EOF;
 
-    if(name_size > 2047) {
+    if(name_size > (MAX_NAME_IN_CHARS - 1)) {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                 "Filename is too long");
 
@@ -1622,6 +1673,8 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
     if(ARCHIVE_OK != consume(a, name_size)) {
         return ARCHIVE_EOF;
     }
+
+    archive_entry_update_pathname_utf8(entry, name_utf8_buf);
 
     if(extra_data_size > 0) {
         int ret = process_head_file_extra(a, entry, rar, extra_data_size);
@@ -1650,8 +1703,6 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
     if(file_flags & CRC32) {
         rar->file.stored_crc32 = crc;
     }
-
-    archive_entry_update_pathname_utf8(entry, name_utf8_buf);
 
     if(!rar->cstate.switch_multivolume) {
         /* Do not reinitialize unpacking state if we're switching archives. */
