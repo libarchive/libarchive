@@ -1444,6 +1444,11 @@ zipx_lzma_alone_init(struct archive_read *a, struct zip *zip)
 	} alone_header;
 #pragma pack(pop)
 
+	if(zip->zipx_lzma_valid) {
+		lzma_end(&zip->zipx_lzma_stream);
+		zip->zipx_lzma_valid = 0;
+	}
+
 	/* To unpack ZIPX's "LZMA" (id 14) stream we can use standard liblzma that
 	 * is a part of XZ Utils. The stream format stored inside ZIPX file is a
 	 * modified "lzma alone" file format, that was used by the `lzma` utility

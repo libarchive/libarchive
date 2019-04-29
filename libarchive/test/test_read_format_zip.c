@@ -878,3 +878,41 @@ DEFINE_TEST(test_read_format_zip_ppmd8_crash_2)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
 }
+
+DEFINE_TEST(test_read_format_zip_lzma_alone_leak)
+{
+	const char *refname = "test_read_format_zip_lzma_alone_leak.zipx";
+	struct archive *a;
+	struct archive_entry *ae;
+	char buf[64];
+
+	/* OSSFuzz #14470 sample file. */
+	extract_reference_file(refname);
+
+	assert((a = archive_read_new()) != NULL);
+	if(ARCHIVE_OK != archive_read_support_filter_lzma(a)) {
+		skipping("lzma reading is not fully supported on this platform");
+		archive_read_close(a);
+		return;
+	}
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 37));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+
+	/* Extraction of this file should fail, because the sample file is invalid.
+	 * But it shouldn't crash. */
+	assertEqualIntA(a, ARCHIVE_FAILED, archive_read_data(a, buf, sizeof(buf)));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+
+	/* Extraction of this file should fail, because the sample file is invalid.
+	 * But it shouldn't crash. */
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_data(a, buf, sizeof(buf)));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+
+	/* This testcase shouldn't produce any memory leaks. When running test
+	 * suite under Valgrind or ASan, the test runner won't return with
+	 * exit code 0 in case if a memory leak. */
+}
