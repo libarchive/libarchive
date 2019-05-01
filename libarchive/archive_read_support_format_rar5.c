@@ -2524,7 +2524,9 @@ static int parse_filter_data(struct rar5* rar, const uint8_t* p,
             return ARCHIVE_EOF;
         }
 
-        data += (byte >> 8) << (i * 8);
+        /* Cast to uint32_t will ensure the shift operation will not produce
+         * undefined result. */
+        data += ((uint32_t) byte >> 8) << (i * 8);
         skip_bits(rar, 8);
     }
 
@@ -2748,7 +2750,11 @@ static int do_uncompress_block(struct archive_read* a, const uint8_t* p) {
                 dist += dist_slot;
             } else {
                 dbits = dist_slot / 2 - 1;
-                dist += (2 | (dist_slot & 1)) << dbits;
+
+                /* Cast to uint32_t will make sure the shift left operation
+                 * won't produce undefined result. Then, the uint32_t type will
+                 * be implicitly casted to int. */
+                dist += (uint32_t) (2 | (dist_slot & 1)) << dbits;
             }
 
             if(dbits > 0) {

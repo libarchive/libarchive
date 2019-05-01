@@ -965,3 +965,33 @@ DEFINE_TEST(test_read_format_rar5_readtables_overflow)
 
     EPILOGUE();
 }
+
+DEFINE_TEST(test_read_format_rar5_leftshift1)
+{
+    uint8_t buf[16];
+
+    PROLOGUE("test_read_format_rar5_leftshift1.rar");
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    /* This archive is invalid. However, processing it shouldn't cause any
+     * errors related to undefined operations when using -fsanitize. */
+    assertA(ARCHIVE_FATAL == archive_read_data(a, buf, sizeof(buf)));
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+
+    EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_leftshift2)
+{
+    uint8_t buf[16];
+
+    PROLOGUE("test_read_format_rar5_leftshift2.rar");
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    /* This archive is invalid. However, processing it shouldn't cause any
+     * errors related to undefined operations when using -fsanitize. */
+    assertA(ARCHIVE_FATAL == archive_read_data(a, buf, sizeof(buf)));
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+
+    EPILOGUE();
+}
