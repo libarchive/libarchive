@@ -2298,6 +2298,13 @@ static int parse_tables(struct archive_read* a, struct rar5* rar,
     /* The data for table generation is compressed using a simple RLE-like
      * algorithm when storing zeroes, so we need to unpack it first. */
     for(w = 0, i = 0; w < HUFF_BC;) {
+        if(i >= rar->cstate.cur_block_size) {
+            /* Truncated data, can't continue. */
+            archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                    "Truncated data in huffman tables");
+            return ARCHIVE_FATAL;
+        }
+
         value = (p[i] & nibble_mask) >> nibble_shift;
 
         if(nibble_mask == 0x0F)
@@ -2344,6 +2351,13 @@ static int parse_tables(struct archive_read* a, struct rar5* rar,
 
     for(i = 0; i < HUFF_TABLE_SIZE;) {
         uint16_t num;
+
+        if((rar->bits.in_addr + 6) >= rar->cstate.cur_block_size) {
+            /* Truncated data, can't continue. */
+            archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                    "Truncated data in huffman tables (#2)");
+            return ARCHIVE_FATAL;
+        }
 
         ret = decode_number(a, &rar->cstate.bd, p, &num);
         if(ret != ARCHIVE_OK) {
