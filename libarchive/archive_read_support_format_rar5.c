@@ -2298,6 +2298,13 @@ static int parse_tables(struct archive_read* a, struct rar5* rar,
     /* The data for table generation is compressed using a simple RLE-like
      * algorithm when storing zeroes, so we need to unpack it first. */
     for(w = 0, i = 0; w < HUFF_BC;) {
+        if(i >= rar->cstate.cur_block_size) {
+            /* Truncated data, can't continue. */
+            archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                    "Truncated data in huffman tables");
+            return ARCHIVE_FATAL;
+        }
+
         value = (p[i] & nibble_mask) >> nibble_shift;
 
         if(nibble_mask == 0x0F)
@@ -2323,7 +2330,7 @@ static int parse_tables(struct archive_read* a, struct rar5* rar,
                 int k;
 
                 /* Fill zeroes. */
-                for(k = 0; k < value + 2; k++) {
+                for(k = 0; (k < value + 2) && (w < HUFF_BC); k++) {
                     bit_length[w++] = 0;
                 }
             }
@@ -2344,6 +2351,13 @@ static int parse_tables(struct archive_read* a, struct rar5* rar,
 
     for(i = 0; i < HUFF_TABLE_SIZE;) {
         uint16_t num;
+
+        if((rar->bits.in_addr + 6) >= rar->cstate.cur_block_size) {
+            /* Truncated data, can't continue. */
+            archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                    "Truncated data in huffman tables (#2)");
+            return ARCHIVE_FATAL;
+        }
 
         ret = decode_number(a, &rar->cstate.bd, p, &num);
         if(ret != ARCHIVE_OK) {
@@ -2524,7 +2538,9 @@ static int parse_filter_data(struct rar5* rar, const uint8_t* p,
             return ARCHIVE_EOF;
         }
 
-        data += (byte >> 8) << (i * 8);
+        /* Cast to uint32_t will ensure the shift operation will not produce
+         * undefined result. */
+        data += ((uint32_t) byte >> 8) << (i * 8);
         skip_bits(rar, 8);
     }
 
@@ -2748,7 +2764,11 @@ static int do_uncompress_block(struct archive_read* a, const uint8_t* p) {
                 dist += dist_slot;
             } else {
                 dbits = dist_slot / 2 - 1;
-                dist += (2 | (dist_slot & 1)) << dbits;
+
+                /* Cast to uint32_t will make sure the shift left operation
+                 * won't produce undefined result. Then, the uint32_t type will
+                 * be implicitly casted to int. */
+                dist += (uint32_t) (2 | (dist_slot & 1)) << dbits;
             }
 
             if(dbits > 0) {
