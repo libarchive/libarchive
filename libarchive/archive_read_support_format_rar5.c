@@ -495,16 +495,6 @@ static inline struct rar5* get_context(struct archive_read* a) {
 
 /* Convenience functions used by filter implementations. */
 
-static uint32_t read_filter_data(struct rar5* rar, uint32_t offset) {
-    return archive_le32dec(&rar->cstate.window_buf[offset]);
-}
-
-static void write_filter_data(struct rar5* rar, uint32_t offset,
-        uint32_t value)
-{
-    archive_le32enc(&rar->cstate.filtered_buf[offset], value);
-}
-
 static void circular_memcpy(uint8_t* dst, uint8_t* window, const int mask,
         int64_t start, int64_t end)
 {
@@ -517,6 +507,19 @@ static void circular_memcpy(uint8_t* dst, uint8_t* window, const int mask,
     } else {
         memcpy(dst, &window[start & mask], (size_t) (end - start));
     }
+}
+
+static uint32_t read_filter_data(struct rar5* rar, uint32_t offset) {
+    uint8_t linear_buf[4];
+    circular_memcpy(linear_buf, rar->cstate.window_buf, rar->cstate.window_mask,
+        offset, offset + 4);
+    return archive_le32dec(linear_buf);
+}
+
+static void write_filter_data(struct rar5* rar, uint32_t offset,
+        uint32_t value)
+{
+    archive_le32enc(&rar->cstate.filtered_buf[offset], value);
 }
 
 /* Allocates a new filter descriptor and adds it to the filter array. */
