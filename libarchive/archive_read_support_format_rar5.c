@@ -495,15 +495,6 @@ static inline struct rar5* get_context(struct archive_read* a) {
 
 /* Convenience functions used by filter implementations. */
 
-static uint32_t read_filter_data(struct rar5* rar, uint32_t offset) {
-    return archive_le32dec(&rar->cstate.window_buf[offset]);
-}
-
-static void write_filter_data(struct rar5* rar, uint32_t offset,
-        uint32_t value)
-{
-    archive_le32enc(&rar->cstate.filtered_buf[offset], value);
-}
 
 static void circular_memcpy(uint8_t* dst, uint8_t* window, const uint64_t mask,
         int64_t start, int64_t end)
@@ -517,6 +508,19 @@ static void circular_memcpy(uint8_t* dst, uint8_t* window, const uint64_t mask,
     } else {
         memcpy(dst, &window[start & mask], (size_t) (end - start));
     }
+}
+
+static uint32_t read_filter_data(struct rar5* rar, uint32_t offset) {
+    uint8_t linear_buf[4];
+    circular_memcpy(linear_buf, rar->cstate.window_buf, rar->cstate.window_mask,
+        offset, offset + 4);
+    return archive_le32dec(linear_buf);
+}
+
+static void write_filter_data(struct rar5* rar, uint32_t offset,
+        uint32_t value)
+{
+    archive_le32enc(&rar->cstate.filtered_buf[offset], value);
 }
 
 /* Allocates a new filter descriptor and adds it to the filter array. */
@@ -1570,6 +1574,11 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
         UNKNOWN_UNPACKED_SIZE = 0x0008,
     };
 
+    enum FILE_ATTRS {
+	ATTR_READONLY = 0x1, ATTR_HIDDEN = 0x2, ATTR_SYSTEM = 0x4,
+	ATTR_DIRECTORY = 0x10,
+    };
+
     enum COMP_INFO_FLAGS {
         SOLID = 0x0040,
     };
@@ -1627,17 +1636,26 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
     if(host_os == HOST_WINDOWS) {
         /* Host OS is Windows */
 
-        unsigned short mode = 0660;
+        __LA_MODE_T mode;
 
-        if(is_dir)
-            mode |= AE_IFDIR;
-        else
-            mode |= AE_IFREG;
+        if(file_attr & ATTR_DIRECTORY) {
+            mode = 0755 | AE_IFDIR;
+        } else {
+	    if (file_attr & ATTR_READONLY)
+		mode = 0444 | AE_IFREG;
+	    else
+		mode = 0644 | AE_IFREG;
+	}
 
         archive_entry_set_mode(entry, mode);
+
+	/*
+	 * TODO: implement attribute support (READONLY, HIDDEN, SYSTEM)
+	 * This requires a platform-independent extended attribute handling
+	 */
     } else if(host_os == HOST_UNIX) {
         /* Host OS is Unix */
-        archive_entry_set_mode(entry, (unsigned short) file_attr);
+        archive_entry_set_mode(entry, (__LA_MODE_T) file_attr);
     } else {
         /* Unknown host OS */
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
