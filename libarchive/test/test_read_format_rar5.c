@@ -1022,3 +1022,18 @@ DEFINE_TEST(test_read_format_rar5_truncated_huff)
 
     EPILOGUE();
 }
+
+DEFINE_TEST(test_read_format_rar5_invalid_dict_reference)
+{
+    uint8_t buf[16];
+
+    PROLOGUE("test_read_format_rar5_invalid_dict_reference.rar");
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    /* This archive is invalid. However, processing it shouldn't cause any
+     * errors related to buffer underflow when using -fsanitize. */
+    assertA(ARCHIVE_FATAL == archive_read_data(a, buf, sizeof(buf)));
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+
+    EPILOGUE();
+}
