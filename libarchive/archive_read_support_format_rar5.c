@@ -1572,6 +1572,11 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
         UNKNOWN_UNPACKED_SIZE = 0x0008,
     };
 
+    enum FILE_ATTRS {
+	ATTR_READONLY = 0x1, ATTR_HIDDEN = 0x2, ATTR_SYSTEM = 0x4,
+	ATTR_DIRECTORY = 0x10,
+    };
+
     enum COMP_INFO_FLAGS {
         SOLID = 0x0040,
     };
@@ -1629,17 +1634,26 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
     if(host_os == HOST_WINDOWS) {
         /* Host OS is Windows */
 
-        unsigned short mode = 0660;
+        __LA_MODE_T mode;
 
-        if(is_dir)
-            mode |= AE_IFDIR;
-        else
-            mode |= AE_IFREG;
+        if(file_attr & ATTR_DIRECTORY) {
+            mode = 0755 | AE_IFDIR;
+        } else {
+	    if (file_attr & ATTR_READONLY)
+		mode = 0444 | AE_IFREG;
+	    else
+		mode = 0644 | AE_IFREG;
+	}
 
         archive_entry_set_mode(entry, mode);
+
+	/*
+	 * TODO: implement attribute support (READONLY, HIDDEN, SYSTEM)
+	 * This requires a platform-independent extended attribute handling
+	 */
     } else if(host_os == HOST_UNIX) {
         /* Host OS is Unix */
-        archive_entry_set_mode(entry, (unsigned short) file_attr);
+        archive_entry_set_mode(entry, (__LA_MODE_T) file_attr);
     } else {
         /* Unknown host OS */
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
