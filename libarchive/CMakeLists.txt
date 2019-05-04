@@ -51,6 +51,8 @@ SET(libarchive_SOURCES
   archive_platform_acl.h
   archive_platform_xattr.h
   archive_ppmd_private.h
+  archive_ppmd8.c
+  archive_ppmd8_private.h
   archive_ppmd7.c
   archive_ppmd7_private.h
   archive_private.h
@@ -168,6 +170,7 @@ SET(libarchive_MANS
   archive_entry.3
   archive_entry_acl.3
   archive_entry_linkify.3
+  archive_entry_misc.3
   archive_entry_paths.3
   archive_entry_perms.3
   archive_entry_stat.3
@@ -233,6 +236,7 @@ ENDIF()
 
 # Libarchive is a shared library
 ADD_LIBRARY(archive SHARED ${libarchive_SOURCES} ${include_HEADERS})
+TARGET_INCLUDE_DIRECTORIES(archive PUBLIC .)
 TARGET_LINK_LIBRARIES(archive ${ADDITIONAL_LIBS})
 SET_TARGET_PROPERTIES(archive PROPERTIES SOVERSION ${SOVERSION})
 

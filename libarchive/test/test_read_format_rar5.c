@@ -96,7 +96,7 @@ int extract_one(struct archive* a, struct archive_entry* ae, uint32_t crc) {
     int ret = 1;
     uint32_t computed_crc;
 
-    fsize = archive_entry_size(ae);
+    fsize = (la_ssize_t) archive_entry_size(ae);
     buf = malloc(fsize);
     if(buf == NULL)
         return 1;
@@ -110,13 +110,28 @@ int extract_one(struct archive* a, struct archive_entry* ae, uint32_t crc) {
     computed_crc = crc32(0, buf, fsize);
     assertEqualInt(computed_crc, crc);
     ret = 0;
-    
+
 fn_exit:
     free(buf);
     return ret;
 }
 
-DEFINE_TEST(test_read_format_rar5_stored) 
+DEFINE_TEST(test_read_format_rar5_set_format)
+{
+    struct archive *a;
+    struct archive_entry *ae;
+    const char reffile[] = "test_read_format_rar5_stored.rar";
+
+    extract_reference_file(reffile);
+    assert((a = archive_read_new()) != NULL);
+    assertA(0 == archive_read_support_filter_all(a));
+    assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_RAR_V5));
+    assertA(0 == archive_read_open_filename(a, reffile, 10240));
+    assertA(0 == archive_read_next_header(a, &ae));
+    EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_stored)
 {
     const char helloworld_txt[] = "hello libarchive test suite!\n";
     la_ssize_t file_size = sizeof(helloworld_txt) - 1;
@@ -143,7 +158,7 @@ DEFINE_TEST(test_read_format_rar5_stored)
 DEFINE_TEST(test_read_format_rar5_compressed)
 {
     const int DATA_SIZE = 1200;
-    uint8_t buff[DATA_SIZE];
+    uint8_t buff[1200];
 
     PROLOGUE("test_read_format_rar5_compressed.rar");
 
@@ -161,7 +176,7 @@ DEFINE_TEST(test_read_format_rar5_compressed)
 DEFINE_TEST(test_read_format_rar5_multiple_files)
 {
     const int DATA_SIZE = 4096;
-    uint8_t buff[DATA_SIZE];
+    uint8_t buff[4096];
 
     PROLOGUE("test_read_format_rar5_multiple_files.rar");
 
@@ -173,7 +188,7 @@ DEFINE_TEST(test_read_format_rar5_multiple_files)
     assertEqualInt(DATA_SIZE, archive_entry_size(ae));
     assertA(DATA_SIZE == archive_read_data(a, buff, DATA_SIZE));
     assertA(verify_data(buff, 1, DATA_SIZE));
-    
+
     assertA(0 == archive_read_next_header(a, &ae));
     assertEqualString("test2.bin", archive_entry_pathname(ae));
     assertEqualInt(DATA_SIZE, archive_entry_size(ae));
@@ -207,7 +222,7 @@ DEFINE_TEST(test_read_format_rar5_multiple_files)
 DEFINE_TEST(test_read_format_rar5_multiple_files_solid)
 {
     const int DATA_SIZE = 4096;
-    uint8_t buff[DATA_SIZE];
+    uint8_t buff[4096];
 
     PROLOGUE("test_read_format_rar5_multiple_files_solid.rar");
 
@@ -216,7 +231,7 @@ DEFINE_TEST(test_read_format_rar5_multiple_files_solid)
     assertEqualInt(DATA_SIZE, archive_entry_size(ae));
     assertA(DATA_SIZE == archive_read_data(a, buff, DATA_SIZE));
     assertA(verify_data(buff, 1, DATA_SIZE));
-    
+
     assertA(0 == archive_read_next_header(a, &ae));
     assertEqualString("test2.bin", archive_entry_pathname(ae));
     assertEqualInt(DATA_SIZE, archive_entry_size(ae));
@@ -309,7 +324,7 @@ DEFINE_TEST(test_read_format_rar5_multiarchive_skip_all_but_second)
 DEFINE_TEST(test_read_format_rar5_blake2)
 {
     const la_ssize_t proper_size = 814;
-    uint8_t buf[proper_size];
+    uint8_t buf[814];
 
     PROLOGUE("test_read_format_rar5_blake2.rar");
     assertA(0 == archive_read_next_header(a, &ae));
@@ -334,7 +349,7 @@ DEFINE_TEST(test_read_format_rar5_arm_filter)
      * test. */
 
     const la_ssize_t proper_size = 90808;
-    uint8_t buf[proper_size];
+    uint8_t buf[90808];
 
     PROLOGUE("test_read_format_rar5_arm.rar");
     assertA(0 == archive_read_next_header(a, &ae));
@@ -422,6 +437,57 @@ DEFINE_TEST(test_read_format_rar5_stored_skip_all_in_part)
     assertA(0 == archive_read_next_header(a, &ae));
     assertEqualString("test.bin", archive_entry_pathname(ae));
     assertA(4 == archive_read_data(a, buf, 4));
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+    EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_multiarchive_solid_extr_all)
+{
+    const char* reffiles[] = {
+        "test_read_format_rar5_multiarchive_solid.part01.rar",
+        "test_read_format_rar5_multiarchive_solid.part02.rar",
+        "test_read_format_rar5_multiarchive_solid.part03.rar",
+        "test_read_format_rar5_multiarchive_solid.part04.rar",
+        NULL
+    };
+
+    PROLOGUE_MULTI(reffiles);
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("cebula.txt", archive_entry_pathname(ae));
+    assertA(0 == extract_one(a, ae, 0x7E5EC49E));
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test.bin", archive_entry_pathname(ae));
+    assertA(0 == extract_one(a, ae, 0x7cca70cd));
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test1.bin", archive_entry_pathname(ae));
+    assertA(0 == extract_one(a, ae, 0x7e13b2c6));
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test2.bin", archive_entry_pathname(ae));
+    assertA(0 == extract_one(a, ae, 0xf166afcb));
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test3.bin", archive_entry_pathname(ae));
+    assertA(0 == extract_one(a, ae, 0x9fb123d9));
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test4.bin", archive_entry_pathname(ae));
+    assertA(0 == extract_one(a, ae, 0x10c43ed4));
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test5.bin", archive_entry_pathname(ae));
+    assertA(0 == extract_one(a, ae, 0xb9d155f2));
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("test6.bin", archive_entry_pathname(ae));
+    assertA(0 == extract_one(a, ae, 0x36a448ff));
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("elf-Linux-ARMv7-ls", archive_entry_pathname(ae));
+    assertA(0 == extract_one(a, ae, 0x886F91EB));
+
     assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
     EPILOGUE();
 }
@@ -598,7 +664,7 @@ DEFINE_TEST(test_read_format_rar5_multiarchive_solid_skip_all_but_last)
     EPILOGUE();
 }
 
-DEFINE_TEST(test_read_format_rar5_solid_skip_all) 
+DEFINE_TEST(test_read_format_rar5_solid_skip_all)
 {
     const char* reffile = "test_read_format_rar5_solid.rar";
 
@@ -623,7 +689,7 @@ DEFINE_TEST(test_read_format_rar5_solid_skip_all)
     EPILOGUE();
 }
 
-DEFINE_TEST(test_read_format_rar5_solid_skip_all_but_first) 
+DEFINE_TEST(test_read_format_rar5_solid_skip_all_but_first)
 {
     const char* reffile = "test_read_format_rar5_solid.rar";
 
@@ -649,7 +715,7 @@ DEFINE_TEST(test_read_format_rar5_solid_skip_all_but_first)
     EPILOGUE();
 }
 
-DEFINE_TEST(test_read_format_rar5_solid_skip_all_but_second) 
+DEFINE_TEST(test_read_format_rar5_solid_skip_all_but_second)
 {
     const char* reffile = "test_read_format_rar5_solid.rar";
 
@@ -705,25 +771,37 @@ DEFINE_TEST(test_read_format_rar5_extract_win32)
 {
     PROLOGUE("test_read_format_rar5_win32.rar");
     assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("testdir", archive_entry_pathname(ae));
+    assertEqualInt(archive_entry_mode(ae), AE_IFDIR | 0755);
+    assertA(0 == extract_one(a, ae, 0));
+    assertA(0 == archive_read_next_header(a, &ae));
     assertEqualString("test.bin", archive_entry_pathname(ae));
+    assertEqualInt(archive_entry_mode(ae), AE_IFREG | 0644);
     assertA(0 == extract_one(a, ae, 0x7CCA70CD));
     assertA(0 == archive_read_next_header(a, &ae));
     assertEqualString("test1.bin", archive_entry_pathname(ae));
+    assertEqualInt(archive_entry_mode(ae), AE_IFREG | 0644);
     assertA(0 == extract_one(a, ae, 0x7E13B2C6));
     assertA(0 == archive_read_next_header(a, &ae));
+    /* Read only file */
     assertEqualString("test2.bin", archive_entry_pathname(ae));
+    assertEqualInt(archive_entry_mode(ae), AE_IFREG | 0444);
     assertA(0 == extract_one(a, ae, 0xF166AFCB));
     assertA(0 == archive_read_next_header(a, &ae));
     assertEqualString("test3.bin", archive_entry_pathname(ae));
+    assertEqualInt(archive_entry_mode(ae), AE_IFREG | 0644);
     assertA(0 == extract_one(a, ae, 0x9FB123D9));
     assertA(0 == archive_read_next_header(a, &ae));
     assertEqualString("test4.bin", archive_entry_pathname(ae));
+    assertEqualInt(archive_entry_mode(ae), AE_IFREG | 0644);
     assertA(0 == extract_one(a, ae, 0x10C43ED4));
     assertA(0 == archive_read_next_header(a, &ae));
     assertEqualString("test5.bin", archive_entry_pathname(ae));
+    assertEqualInt(archive_entry_mode(ae), AE_IFREG | 0644);
     assertA(0 == extract_one(a, ae, 0xB9D155F2));
     assertA(0 == archive_read_next_header(a, &ae));
     assertEqualString("test6.bin", archive_entry_pathname(ae));
+    assertEqualInt(archive_entry_mode(ae), AE_IFREG | 0644);
     assertA(0 == extract_one(a, ae, 0x36A448FF));
     EPILOGUE();
 }
@@ -766,5 +844,196 @@ DEFINE_TEST(test_read_format_rar5_block_by_block)
     }
 
     assertEqualInt(computed_crc, 0x7CCA70CD);
+    EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_owner)
+{
+    const int DATA_SIZE = 5;
+    uint8_t buff[5];
+
+    PROLOGUE("test_read_format_rar5_owner.rar");
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("root.txt", archive_entry_pathname(ae));
+    assertEqualString("root", archive_entry_uname(ae));
+    assertEqualString("wheel", archive_entry_gname(ae));
+    assertA((int) archive_entry_mtime(ae) > 0);
+    assertEqualInt(DATA_SIZE, archive_entry_size(ae));
+    assertA(DATA_SIZE == archive_read_data(a, buff, DATA_SIZE));
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("nobody.txt", archive_entry_pathname(ae));
+    assertEqualString("nobody", archive_entry_uname(ae));
+    assertEqualString("nogroup", archive_entry_gname(ae));
+    assertA((int) archive_entry_mtime(ae) > 0);
+    assertEqualInt(DATA_SIZE, archive_entry_size(ae));
+    assertA(DATA_SIZE == archive_read_data(a, buff, DATA_SIZE));
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("numeric.txt", archive_entry_pathname(ae));
+    assertEqualInt(9999, archive_entry_uid(ae));
+    assertEqualInt(8888, archive_entry_gid(ae));
+    assertA((int) archive_entry_mtime(ae) > 0);
+    assertEqualInt(DATA_SIZE, archive_entry_size(ae));
+    assertA(DATA_SIZE == archive_read_data(a, buff, DATA_SIZE));
+
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+
+    EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_symlink)
+{
+    const int DATA_SIZE = 5;
+    uint8_t buff[5];
+
+    PROLOGUE("test_read_format_rar5_symlink.rar");
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("file.txt", archive_entry_pathname(ae));
+    assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+    assertA((int) archive_entry_mtime(ae) > 0);
+    assertEqualInt(DATA_SIZE, archive_entry_size(ae));
+    assertA(DATA_SIZE == archive_read_data(a, buff, DATA_SIZE));
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("symlink.txt", archive_entry_pathname(ae));
+    assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
+    assertEqualString("file.txt", archive_entry_symlink(ae));
+    assertEqualInt(AE_SYMLINK_TYPE_FILE, archive_entry_symlink_type(ae));
+    assertA(0 == archive_read_data(a, NULL, archive_entry_size(ae)));
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("dirlink", archive_entry_pathname(ae));
+    assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
+    assertEqualString("dir", archive_entry_symlink(ae));
+    assertEqualInt(AE_SYMLINK_TYPE_DIRECTORY, archive_entry_symlink_type(ae));
+    assertA(0 == archive_read_data(a, NULL, archive_entry_size(ae)));
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("dir", archive_entry_pathname(ae));
+    assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
+    assertA(0 == archive_read_data(a, NULL, archive_entry_size(ae)));
+
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+
+    EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_hardlink)
+{
+    const int DATA_SIZE = 5;
+    uint8_t buff[5];
+
+    PROLOGUE("test_read_format_rar5_hardlink.rar");
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("file.txt", archive_entry_pathname(ae));
+    assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+    assertA((int) archive_entry_mtime(ae) > 0);
+    assertEqualInt(DATA_SIZE, archive_entry_size(ae));
+    assertA(DATA_SIZE == archive_read_data(a, buff, DATA_SIZE));
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("hardlink.txt", archive_entry_pathname(ae));
+    assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+    assertEqualString("file.txt", archive_entry_hardlink(ae));
+    assertA(0 == archive_read_data(a, NULL, archive_entry_size(ae)));
+
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+
+    EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_extra_field_version)
+{
+    PROLOGUE("test_read_format_rar5_extra_field_version.rar");
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("bin/2to3;1", archive_entry_pathname(ae));
+    assertA(0 == extract_one(a, ae, 0xF24181B7));
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("bin/2to3", archive_entry_pathname(ae));
+    assertA(0 == extract_one(a, ae, 0xF24181B7));
+
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+
+    EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_readtables_overflow)
+{
+    uint8_t buf[16];
+
+    PROLOGUE("test_read_format_rar5_readtables_overflow.rar");
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    /* This archive is invalid. However, processing it shouldn't cause any
+     * buffer overflow errors during reading rar5 tables. */
+    assertA(0 == archive_read_data(a, buf, sizeof(buf)));
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+
+    EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_leftshift1)
+{
+    uint8_t buf[16];
+
+    PROLOGUE("test_read_format_rar5_leftshift1.rar");
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    /* This archive is invalid. However, processing it shouldn't cause any
+     * errors related to undefined operations when using -fsanitize. */
+    assertA(ARCHIVE_FATAL == archive_read_data(a, buf, sizeof(buf)));
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+
+    EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_leftshift2)
+{
+    uint8_t buf[16];
+
+    PROLOGUE("test_read_format_rar5_leftshift2.rar");
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    /* This archive is invalid. However, processing it shouldn't cause any
+     * errors related to undefined operations when using -fsanitize. */
+    assertA(ARCHIVE_FATAL == archive_read_data(a, buf, sizeof(buf)));
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+
+    EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_truncated_huff)
+{
+    uint8_t buf[16];
+
+    PROLOGUE("test_read_format_rar5_truncated_huff.rar");
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    /* This archive is invalid. However, processing it shouldn't cause any
+     * errors related to undefined operations when using -fsanitize. */
+    assertA(ARCHIVE_FATAL == archive_read_data(a, buf, sizeof(buf)));
+    assertA(ARCHIVE_FATAL == archive_read_next_header(a, &ae));
+
+    EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_invalid_dict_reference)
+{
+    uint8_t buf[16];
+
+    PROLOGUE("test_read_format_rar5_invalid_dict_reference.rar");
+
+    assertA(0 == archive_read_next_header(a, &ae));
+    /* This archive is invalid. However, processing it shouldn't cause any
+     * errors related to buffer underflow when using -fsanitize. */
+    assertA(ARCHIVE_FATAL == archive_read_data(a, buf, sizeof(buf)));
+    assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+
     EPILOGUE();
 }

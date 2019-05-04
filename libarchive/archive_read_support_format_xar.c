@@ -798,7 +798,8 @@ xar_read_header(struct archive_read *a, struct archive_entry *entry)
 	xattr = file->xattr_list;
 	while (xattr != NULL) {
 		const void *d;
-		size_t outbytes, used;
+		size_t outbytes = 0;
+		size_t used = 0;
 
 		r = move_reading_point(a, xattr->offset);
 		if (r != ARCHIVE_OK)
@@ -847,7 +848,7 @@ xar_read_data(struct archive_read *a,
     const void **buff, size_t *size, int64_t *offset)
 {
 	struct xar *xar;
-	size_t used;
+	size_t used = 0;
 	int r;
 
 	xar = (struct xar *)(a->format->data);
@@ -1229,8 +1230,7 @@ heap_add_entry(struct archive_read *a,
 		}
 		memcpy(new_pending_files, heap->files,
 		    heap->allocated * sizeof(new_pending_files[0]));
-		if (heap->files != NULL)
-			free(heap->files);
+		free(heap->files);
 		heap->files = new_pending_files;
 		heap->allocated = new_size;
 	}

@@ -205,6 +205,8 @@ struct archive_write_disk {
 #define	MINIMUM_DIR_MODE 0700
 #define	MAXIMUM_DIR_MODE 0775
 
+static int	disk_unlink(const wchar_t *);
+static int	disk_rmdir(const wchar_t *);
 static int	check_symlinks(struct archive_write_disk *);
 static int	create_filesystem_object(struct archive_write_disk *);
 static struct fixup_entry *current_fixup(struct archive_write_disk *,
@@ -474,6 +476,11 @@ permissive_name_w(struct archive_write_disk *a)
 	{
 		archive_wstrncpy(&(a->_name_data), wsp, l);
 	}
+	else if (l > 2 && wsp[0] == L'\\' && wsp[1] == L'\\' && wsp[2] != L'\\')
+	{
+		archive_wstrncpy(&(a->_name_data), L"\\\\?\\UNC\\", 8);
+		archive_wstrncat(&(a->_name_data), wsp+2, l-2);
+	}
 	else
 	{
 		archive_wstrncpy(&(a->_name_data), L"\\\\?\\", 4);
@@ -551,8 +558,10 @@ la_CreateHardLinkW(wchar_t *linkname, wchar_t *target)
 		set = 1;
 		f = la_GetFunctionKernel32("CreateHardLinkW");
 	}
-	if (!f)
+	if (!f) {
+		errno = ENOTSUP;
 		return (0);
+	}
 	ret = (*f)(linkname, target, NULL);
 	if (!ret) {
 		/* Under windows 2000, it is necessary to remove
@@ -574,6 +583,103 @@ la_CreateHardLinkW(wchar_t *linkname, wchar_t *target)
 #undef IS_UNC
 		ret = (*f)(linkname, target, NULL);
 	}
+	return (ret);
+}
+
+/*
+ * Create file or directory symolic link
+ *
+ * If linktype is AE_SYMLINK_TYPE_UNDEFINED (or unknown), guess linktype from
+ * the link target
+ */
+static int
+la_CreateSymbolicLinkW(const wchar_t *linkname, const wchar_t *target,
+    int linktype) {
+	static BOOLEAN (WINAPI *f)(LPCWSTR, LPCWSTR, DWORD);
+	static int set;
+	wchar_t *ttarget, *p;
+	int len;
+	DWORD attrs = 0;
+	DWORD flags = 0;
+	DWORD newflags = 0;
+	BOOL ret = 0;
+
+	if (!set) {
+		set = 1;
+		f = la_GetFunctionKernel32("CreateSymbolicLinkW");
+	}
+	if (!f)
+		return (0);
+
+	len = wcslen(target);
+	if (len == 0) {
+		errno = EINVAL;
+		return(0);
+	}
+	/*
+	 * When writing path targets, we need to translate slashes
+	 * to backslashes
+	 */
+	ttarget = malloc((len + 1) * sizeof(wchar_t));
+	if (ttarget == NULL)
+		return(0);
+
+	p = ttarget;
+
+	while(*target != L'\0') {
+		if (*target == L'/')
+			*p = L'\\';
+		else
+			*p = *target;
+		target++;
+		p++;
+	}
+	*p = L'\0';
+
+	/*
+	 * In case of undefined symlink type we guess it from the target.
+	 * If the target equals ".", "..", ends with a backslash or a
+	 * backslash followed by "." or ".." we assume it is a directory
+	 * symlink. In all other cases we assume a file symlink.
+	 */
+	if (linktype != AE_SYMLINK_TYPE_FILE && (
+		linktype == AE_SYMLINK_TYPE_DIRECTORY ||
+		*(p - 1) == L'\\' || (*(p - 1) == L'.' && (
+	    len == 1 || *(p - 2) == L'\\' || ( *(p - 2) == L'.' && (
+	    len == 2 || *(p - 3) == L'\\')))))) {
+#if defined(SYMBOLIC_LINK_FLAG_DIRECTORY)
+		flags |= SYMBOLIC_LINK_FLAG_DIRECTORY;
+#else
+		flags |= 0x1;
+#endif
+	}
+
+#if defined(SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE)
+	newflags = flags | SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE;
+#else
+	newflags = flags | 0x2;
+#endif
+
+	/*
+	 * Windows won't overwrite existing links
+	 */
+	attrs = GetFileAttributesW(linkname);
+	if (attrs != INVALID_FILE_ATTRIBUTES) {
+		if (attrs & FILE_ATTRIBUTE_DIRECTORY)
+			disk_rmdir(linkname);
+		else
+			disk_unlink(linkname);
+	}
+
+	ret = (*f)(linkname, ttarget, newflags);
+	/*
+	 * Prior to Windows 10 calling CreateSymbolicLinkW() will fail
+	 * if SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE is set
+	 */
+	if (!ret) {
+		ret = (*f)(linkname, ttarget, flags);
+	}
+	free(ttarget);
 	return (ret);
 }
 
@@ -696,10 +802,8 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	a->pst = NULL;
 	a->current_fixup = NULL;
 	a->deferred = 0;
-	if (a->entry) {
-		archive_entry_free(a->entry);
-		a->entry = NULL;
-	}
+	archive_entry_free(a->entry);
+	a->entry = NULL;
 	a->entry = archive_entry_clone(entry);
 	a->fh = INVALID_HANDLE_VALUE;
 	a->fd_offset = 0;
@@ -1145,10 +1249,8 @@ _archive_write_disk_finish_entry(struct archive *_a)
 		a->fh = INVALID_HANDLE_VALUE;
 	}
 	/* If there's an entry, we can release it now. */
-	if (a->entry) {
-		archive_entry_free(a->entry);
-		a->entry = NULL;
-	}
+	archive_entry_free(a->entry);
+	a->entry = NULL;
 	a->archive.state = ARCHIVE_STATE_HEADER;
 	return (ret);
 }
@@ -1239,7 +1341,7 @@ archive_write_disk_new(void)
 }
 
 static int
-disk_unlink(wchar_t *path)
+disk_unlink(const wchar_t *path)
 {
 	wchar_t *fullname;
 	int r;
@@ -1254,7 +1356,7 @@ disk_unlink(wchar_t *path)
 }
 
 static int
-disk_rmdir(wchar_t *path)
+disk_rmdir(const wchar_t *path)
 {
 	wchar_t *fullname;
 	int r;
@@ -1359,28 +1461,45 @@ restore_entry(struct archive_write_disk *a)
 		en = create_filesystem_object(a);
 	} else if (en == EEXIST) {
 		mode_t st_mode;
+		mode_t lst_mode;
+		BY_HANDLE_FILE_INFORMATION lst;
 		/*
 		 * We know something is in the way, but we don't know what;
 		 * we need to find out before we go any further.
 		 */
 		int r = 0;
+		int dirlnk = 0;
+
 		/*
 		 * The SECURE_SYMLINK logic has already removed a
 		 * symlink to a dir if the client wants that.  So
 		 * follow the symlink if we're creating a dir.
-		 */
-		if (S_ISDIR(a->mode))
-			r = file_information(a, a->name, &a->st, &st_mode, 0);
-		/*
 		 * If it's not a dir (or it's a broken symlink),
 		 * then don't follow it.
+		 *
+		 * Windows distinguishes file and directory symlinks.
+		 * A file symlink may erroneously point to a directory
+		 * and a directory symlink to a file. Windows does not follow
+		 * such symlinks. We always need both source and target
+		 * information.
 		 */
-		if (r != 0 || !S_ISDIR(a->mode))
-			r = file_information(a, a->name, &a->st, &st_mode, 1);
+		r = file_information(a, a->name, &lst, &lst_mode, 1);
 		if (r != 0) {
 			archive_set_error(&a->archive, errno,
 			    "Can't stat existing object");
 			return (ARCHIVE_FAILED);
+		} else if (S_ISLNK(lst_mode)) {
+			if (lst.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+				dirlnk = 1;
+			/* In case of a symlink we need target information */
+			r = file_information(a, a->name, &a->st, &st_mode, 0);
+			if (r != 0) {
+				a->st = lst;
+				st_mode = lst_mode;
+			}
+		} else {
+			a->st = lst;
+			st_mode = lst_mode;
 		}
 
 		/*
@@ -1404,8 +1523,15 @@ restore_entry(struct archive_write_disk *a)
 		}
 
 		if (!S_ISDIR(st_mode)) {
-			/* A non-dir is in the way, unlink it. */
-			if (disk_unlink(a->name) != 0) {
+			/* Edge case: a directory symlink pointing to a file */
+			if (dirlnk) {
+				if (disk_rmdir(a->name) != 0) {
+					archive_set_error(&a->archive, errno,
+					    "Can't unlink directory symlink");
+					return (ARCHIVE_FAILED);
+				}
+			} else if (disk_unlink(a->name) != 0) {
+				/* A non-dir is in the way, unlink it. */
 				archive_set_error(&a->archive, errno,
 				    "Can't unlink already-existing object");
 				return (ARCHIVE_FAILED);
@@ -1514,7 +1640,16 @@ create_filesystem_object(struct archive_write_disk *a)
 #if HAVE_SYMLINK
 		return symlink(linkname, a->name) ? errno : 0;
 #else
-		return (EPERM);
+		errno = 0;
+		r = la_CreateSymbolicLinkW((const wchar_t *)a->name, linkname,
+		    archive_entry_symlink_type(a->entry));
+		if (r == 0) {
+			if (errno == 0)
+				la_dosmaperr(GetLastError());
+			r = errno;
+		} else
+			r = 0;
+		return (r);
 #endif
 	}
 
@@ -1690,8 +1825,7 @@ _archive_write_disk_free(struct archive *_a)
 	ret = _archive_write_disk_close(&a->archive);
 	archive_write_disk_set_group_lookup(&a->archive, NULL, NULL, NULL);
 	archive_write_disk_set_user_lookup(&a->archive, NULL, NULL, NULL);
-	if (a->entry)
-		archive_entry_free(a->entry);
+	archive_entry_free(a->entry);
 	archive_wstring_free(&a->_name_data);
 	archive_string_free(&a->archive.error_string);
 	archive_wstring_free(&a->path_safe);
@@ -1827,6 +1961,9 @@ check_symlinks(struct archive_write_disk *a)
 	p = a->path_safe.s;
 	while ((*pn != '\0') && (*p == *pn))
 		++p, ++pn;
+	/* Skip leading backslashes */
+	while (*pn == '\\')
+		++pn;
 	c = pn[0];
 	/* Keep going until we've checked the entire name. */
 	while (pn[0] != '\0' && (pn[0] != '\\' || pn[1] != '\0')) {
@@ -1844,11 +1981,17 @@ check_symlinks(struct archive_write_disk *a)
 		} else if (S_ISLNK(st_mode)) {
 			if (c == '\0') {
 				/*
-				 * Last element is symlink; remove it
-				 * so we can overwrite it with the
+				 * Last element is a file or directory symlink.
+				 * Remove it so we can overwrite it with the
 				 * item being extracted.
 				 */
-				if (disk_unlink(a->name)) {
+				if (st.dwFileAttributes &
+				    FILE_ATTRIBUTE_DIRECTORY) {
+					r = disk_rmdir(a->name);
+				} else {
+					r = disk_unlink(a->name);
+				}
+				if (r) {
 					archive_set_error(&a->archive, errno,
 					    "Could not remove symlink %ls",
 					    a->name);
@@ -1872,7 +2015,13 @@ check_symlinks(struct archive_write_disk *a)
 				return (0);
 			} else if (a->flags & ARCHIVE_EXTRACT_UNLINK) {
 				/* User asked us to remove problems. */
-				if (disk_unlink(a->name) != 0) {
+				if (st.dwFileAttributes &
+				    FILE_ATTRIBUTE_DIRECTORY) {
+					r = disk_rmdir(a->name);
+				} else {
+					r = disk_unlink(a->name);
+				}
+				if (r != 0) {
 					archive_set_error(&a->archive, 0,
 					    "Cannot remove intervening "
 					    "symlink %ls", a->name);
@@ -1888,6 +2037,8 @@ check_symlinks(struct archive_write_disk *a)
 				return (ARCHIVE_FAILED);
 			}
 		}
+		pn[0] = c;
+		pn++;
 	}
 	pn[0] = c;
 	/* We've checked and/or cleaned the whole path, so remember it. */
