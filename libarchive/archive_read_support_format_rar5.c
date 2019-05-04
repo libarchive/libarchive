@@ -2811,6 +2811,14 @@ static int do_uncompress_block(struct archive_read* a, const uint8_t* p) {
                         return ARCHIVE_FATAL;
                     }
 
+                    if(dist >= INT_MAX - low_dist - 1) {
+                        /* This only happens in invalid archives. */
+                        archive_set_error(&a->archive,
+                            ARCHIVE_ERRNO_FILE_FORMAT,
+                            "Distance pointer overflow");
+                        return ARCHIVE_FATAL;
+                    }
+
                     dist += low_dist;
                 } else {
                     /* dbits is one of [0,1,2,3] */
