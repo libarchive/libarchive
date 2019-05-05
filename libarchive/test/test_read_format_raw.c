@@ -114,6 +114,11 @@ DEFINE_TEST(test_read_format_raw)
 	assert(!archive_entry_ctime_is_set(ae));
 	assert(!archive_entry_mtime_is_set(ae));
 
+	/* Test EOF */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
 	/* Fourth, try with gzip which has metadata. */
 	extract_reference_file(reffile4);
 	assert((a = archive_read_new()) != NULL);
