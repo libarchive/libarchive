@@ -1277,7 +1277,7 @@ static int parse_file_extra_version(struct archive_read* a,
 
 	/* Prepare a ;123 suffix for the filename, where '123' is the version
 	 * value of this file. */
-	archive_string_sprintf(&version_string, ";%ld", version);
+	archive_string_sprintf(&version_string, ";%zu", version);
 
 	/* Build the new filename. */
 	archive_strcat(&name_utf8_string, cur_filename);
