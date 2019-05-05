@@ -972,8 +972,10 @@ DEFINE_TEST(test_read_format_rar5_readtables_overflow)
 	assertA(0 == archive_read_next_header(a, &ae));
 	/* This archive is invalid. However, processing it shouldn't cause any
 	 * buffer overflow errors during reading rar5 tables. */
-	assertA(0 == archive_read_data(a, buf, sizeof(buf)));
-	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+	assertA(archive_read_data(a, buf, sizeof(buf)) <= 0);
+
+	/* This test only cares about not returning success here. */
+	assertA(ARCHIVE_OK != archive_read_next_header(a, &ae));
 
 	EPILOGUE();
 }
@@ -987,8 +989,10 @@ DEFINE_TEST(test_read_format_rar5_leftshift1)
 	assertA(0 == archive_read_next_header(a, &ae));
 	/* This archive is invalid. However, processing it shouldn't cause any
 	 * errors related to undefined operations when using -fsanitize. */
-	assertA(ARCHIVE_FATAL == archive_read_data(a, buf, sizeof(buf)));
-	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+	assertA(archive_read_data(a, buf, sizeof(buf)) <= 0);
+
+	/* This test only cares about not returning success here. */
+	assertA(ARCHIVE_OK != archive_read_next_header(a, &ae));
 
 	EPILOGUE();
 }
@@ -1000,10 +1004,13 @@ DEFINE_TEST(test_read_format_rar5_leftshift2)
 	PROLOGUE("test_read_format_rar5_leftshift2.rar");
 
 	assertA(0 == archive_read_next_header(a, &ae));
+
 	/* This archive is invalid. However, processing it shouldn't cause any
 	 * errors related to undefined operations when using -fsanitize. */
-	assertA(ARCHIVE_FATAL == archive_read_data(a, buf, sizeof(buf)));
-	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+	assertA(archive_read_data(a, buf, sizeof(buf)) <= 0);
+
+	/* This test only cares about not returning success here. */
+	assertA(ARCHIVE_OK != archive_read_next_header(a, &ae));
 
 	EPILOGUE();
 }
@@ -1015,10 +1022,13 @@ DEFINE_TEST(test_read_format_rar5_truncated_huff)
 	PROLOGUE("test_read_format_rar5_truncated_huff.rar");
 
 	assertA(0 == archive_read_next_header(a, &ae));
+
 	/* This archive is invalid. However, processing it shouldn't cause any
 	 * errors related to undefined operations when using -fsanitize. */
-	assertA(ARCHIVE_FATAL == archive_read_data(a, buf, sizeof(buf)));
-	assertA(ARCHIVE_FATAL == archive_read_next_header(a, &ae));
+	assertA(archive_read_data(a, buf, sizeof(buf)) <= 0);
+
+	/* This test only cares about not returning success here. */
+	assertA(ARCHIVE_OK != archive_read_next_header(a, &ae));
 
 	EPILOGUE();
 }
@@ -1030,10 +1040,13 @@ DEFINE_TEST(test_read_format_rar5_invalid_dict_reference)
 	PROLOGUE("test_read_format_rar5_invalid_dict_reference.rar");
 
 	assertA(0 == archive_read_next_header(a, &ae));
+
 	/* This archive is invalid. However, processing it shouldn't cause any
 	 * errors related to buffer underflow when using -fsanitize. */
-	assertA(ARCHIVE_FATAL == archive_read_data(a, buf, sizeof(buf)));
-	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+	assertA(archive_read_data(a, buf, sizeof(buf)) <= 0);
+
+	/* This test only cares about not returning success here. */
+	assertA(ARCHIVE_OK != archive_read_next_header(a, &ae));
 
 	EPILOGUE();
 }
@@ -1045,10 +1058,31 @@ DEFINE_TEST(test_read_format_rar5_distance_overflow)
 	PROLOGUE("test_read_format_rar5_distance_overflow.rar");
 
 	assertA(0 == archive_read_next_header(a, &ae));
+
 	/* This archive is invalid. However, processing it shouldn't cause any
 	 * errors related to variable overflows when using -fsanitize. */
-	assertA(ARCHIVE_FATAL == archive_read_data(a, buf, sizeof(buf)));
-	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+	assertA(archive_read_data(a, buf, sizeof(buf)) <= 0);
+
+	/* This test only cares about not returning success here. */
+	assertA(ARCHIVE_OK != archive_read_next_header(a, &ae));
+
+	EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_nonempty_dir_stream)
+{
+	uint8_t buf[16];
+
+	PROLOGUE("test_read_format_rar5_nonempty_dir_stream.rar");
+
+	assertA(0 == archive_read_next_header(a, &ae));
+
+	/* This archive is invalid. However, processing it shouldn't cause any
+	 * errors related to buffer overflows when using -fsanitize. */
+	assertA(archive_read_data(a, buf, sizeof(buf)) <= 0);
+
+	/* This test only cares about not returning success here. */
+	assertA(ARCHIVE_OK != archive_read_next_header(a, &ae));
 
 	EPILOGUE();
 }
