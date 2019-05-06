@@ -97,6 +97,7 @@ struct file_header {
 	uint8_t solid : 1;           /* Is this a solid stream? */
 	uint8_t service : 1;         /* Is this file a service data? */
 	uint8_t eof : 1;             /* Did we finish unpacking the file? */
+	uint8_t dir : 1;             /* Is this file entry a directory? */
 
 	/* Optional time fields. */
 	uint64_t e_mtime;
@@ -1545,7 +1546,7 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 	size_t name_size = 0;
 	uint64_t unpacked_size;
 	uint32_t mtime = 0, crc = 0;
-	int c_method = 0, c_version = 0, is_dir;
+	int c_method = 0, c_version = 0;
 	char name_utf8_buf[MAX_NAME_IN_BYTES];
 	const uint8_t* p;
 
@@ -1604,7 +1605,7 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 		return ARCHIVE_FATAL;
 	}
 
-	is_dir = (int) (file_flags & DIRECTORY);
+	rar->file.dir = (uint8_t) ((file_flags & DIRECTORY) > 0);
 
 	if(!read_var_sized(a, &file_attr, NULL))
 		return ARCHIVE_EOF;
@@ -1625,7 +1626,7 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 	c_method = (int) (compression_info >> 7) & 0x7;
 	c_version = (int) (compression_info & 0x3f);
 
-	rar->cstate.window_size = is_dir ?
+	rar->cstate.window_size = (rar->file.dir > 0) ?
 		0 :
 		g_unpack_window_size << ((compression_info >> 10) & 15);
 	rar->cstate.method = c_method;
@@ -2155,11 +2156,15 @@ static void init_unpack(struct rar5* rar) {
 		rar->cstate.window_mask = 0;
 
 	free(rar->cstate.window_buf);
-
 	free(rar->cstate.filtered_buf);
 
-	rar->cstate.window_buf = calloc(1, rar->cstate.window_size);
-	rar->cstate.filtered_buf = calloc(1, rar->cstate.window_size);
+	if(rar->cstate.window_size > 0) {
+		rar->cstate.window_buf = calloc(1, rar->cstate.window_size);
+		rar->cstate.filtered_buf = calloc(1, rar->cstate.window_size);
+	} else {
+		rar->cstate.window_buf = NULL;
+		rar->cstate.filtered_buf = NULL;
+	}
 
 	rar->cstate.write_ptr = 0;
 	rar->cstate.last_write_ptr = 0;
@@ -3674,6 +3679,16 @@ static int rar5_read_data(struct archive_read *a, const void **buff,
 	int ret;
 	struct rar5* rar = get_context(a);
 
+	if(rar->file.dir > 0) {
+		/* Don't process any data if this file entry was declared
+		 * as a directory. This is needed, because entries marked as
+		 * directory doesn't have any dictionary buffer allocated, so
+		 * it's impossible to perform any decompression. */
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+				"Can't decompress an entry marked as a directory");
+		return ARCHIVE_FAILED;
+	}
+
 	if(!rar->skip_mode && (rar->cstate.last_write_ptr > rar->file.unpacked_size)) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
 				"Unpacker has written too many bytes");
@@ -3776,7 +3791,6 @@ static int rar5_cleanup(struct archive_read *a) {
 	struct rar5* rar = get_context(a);
 
 	free(rar->cstate.window_buf);
-
 	free(rar->cstate.filtered_buf);
 
 	free(rar->vol.push_buf);
