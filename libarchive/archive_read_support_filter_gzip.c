@@ -443,7 +443,7 @@ gzip_filter_read(struct archive_read_filter *self, const void **p)
 			    "truncated gzip input");
 			return (ARCHIVE_FATAL);
 		}
-		if (avail_in > UINT_MAX)
+		if (avail_in > (ssize_t)UINT_MAX)
 			avail_in = UINT_MAX;
 		state->stream.avail_in = (uInt)avail_in;
 
