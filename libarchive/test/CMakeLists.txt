@@ -165,6 +165,7 @@ IF(ENABLE_TEST)
     test_read_format_warc.c
     test_read_format_xar.c
     test_read_format_zip.c
+    test_read_format_zip_7075_utf8_paths.c
     test_read_format_zip_comment_stored.c
     test_read_format_zip_encryption_data.c
     test_read_format_zip_encryption_header.c
