@@ -40,15 +40,33 @@ verify(struct archive *a) {
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assert((p = archive_entry_pathname_utf8(ae)) != NULL);
+#if defined(__APPLE__)
+	/* Compare NFD string. */
 	assertEqualUTF8String(p, "File 2 - o\xCC\x88.txt");
+#else
+	/* Compare NFC string. */
+	assertEqualUTF8String(p, "File 2 - \xC3\xB6.txt");
+#endif
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assert((p = archive_entry_pathname_utf8(ae)) != NULL);
+#if defined(__APPLE__)
+	/* Compare NFD string. */
 	assertEqualUTF8String(p, "File 3 - a\xCC\x88.txt");
+#else
+	/* Compare NFC string. */
+	assertEqualUTF8String(p, "File 3 - \xC3\xA4.txt");
+#endif
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assert((p = archive_entry_pathname_utf8(ae)) != NULL);
+#if defined(__APPLE__)
+	/* Compare NFD string. */
 	assertEqualUTF8String(p, "File 4 - a\xCC\x8A.txt");
+#else
+	/* Compare NFC string. */
+	assertEqualUTF8String(p, "File 4 - \xC3\xA5.txt");
+#endif
 
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 }
