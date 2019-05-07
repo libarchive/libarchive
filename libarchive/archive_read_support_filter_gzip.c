@@ -409,7 +409,7 @@ gzip_filter_read(struct archive_read_filter *self, const void **p)
 {
 	struct private_data *state;
 	size_t decompressed;
-	ssize_t avail_in;
+	ssize_t avail_in, max_in;
 	int ret;
 
 	state = (struct private_data *)self->data;
@@ -443,8 +443,12 @@ gzip_filter_read(struct archive_read_filter *self, const void **p)
 			    "truncated gzip input");
 			return (ARCHIVE_FATAL);
 		}
-		if (avail_in > (ssize_t)UINT_MAX)
-			avail_in = UINT_MAX;
+		if (UINT_MAX >= SSIZE_MAX)
+			max_in = SSIZE_MAX;
+		else
+			max_in = UINT_MAX;
+		if (avail_in > max_in)
+			avail_in = max_in;
 		state->stream.avail_in = (uInt)avail_in;
 
 		/* Decompress and consume some of that data. */
