@@ -2750,6 +2750,15 @@ static int copy_string(struct archive_read* a, int len, int dist) {
 	    rar->cstate.solid_offset;
 	int i;
 
+	/* Buffer should be initialized */
+	if (rar->cstate.window_buf == NULL)
+		return ARCHIVE_FATAL;
+
+	/* We should never write or read outside buffer boundaries */
+	if (((write_ptr + len - 1) & cmask) >= rar->cstate.window_size ||
+	    ((write_ptr - dist) & cmask) < 0)
+		return ARCHIVE_FATAL;
+
 	/* The unpacker spends most of the time in this function. It would be
 	 * a good idea to introduce some optimizations here.
 	 *
