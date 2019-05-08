@@ -1047,6 +1047,19 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 	}
 
 	/*
+	 * File attributes
+	 */
+	if ((a->flags & ARCHIVE_READDISK_NO_FFLAGS) == 0) {
+		const int supported_attrs =
+		    FILE_ATTRIBUTE_READONLY |
+		    FILE_ATTRIBUTE_HIDDEN |
+		    FILE_ATTRIBUTE_SYSTEM;
+		DWORD file_attrs = st->dwFileAttributes & supported_attrs;
+		if (file_attrs != 0)
+			archive_entry_set_fflags(entry, file_attrs, 0);
+	}
+
+	/*
 	 * Invoke a meta data filter callback.
 	 */
 	if (a->metadata_filter_func) {
@@ -2299,6 +2312,19 @@ archive_read_disk_entry_from_file(struct archive *_a,
 	name = archive_read_disk_gname(_a, archive_entry_gid(entry));
 	if (name != NULL)
 		archive_entry_copy_gname(entry, name);
+
+	/*
+	 * File attributes
+	 */
+	if ((a->flags & ARCHIVE_READDISK_NO_FFLAGS) == 0) {
+		const int supported_attrs =
+		    FILE_ATTRIBUTE_READONLY |
+		    FILE_ATTRIBUTE_HIDDEN |
+		    FILE_ATTRIBUTE_SYSTEM;
+		DWORD file_attrs = fileAttributes & supported_attrs;
+		if (file_attrs != 0)
+			archive_entry_set_fflags(entry, file_attrs, 0);
+	}
 
 	/*
 	 * Can this file be sparse file ?

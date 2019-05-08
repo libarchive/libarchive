@@ -221,7 +221,10 @@ static int	restore_entry(struct archive_write_disk *);
 static int	set_acls(struct archive_write_disk *, HANDLE h,
 		    const wchar_t *, struct archive_acl *);
 static int	set_xattrs(struct archive_write_disk *);
+static int	clear_nochange_fflags(struct archive_write_disk *);
 static int	set_fflags(struct archive_write_disk *);
+static int	set_fflags_platform(const wchar_t *, unsigned long,
+		    unsigned long);
 static int	set_ownership(struct archive_write_disk *);
 static int	set_mode(struct archive_write_disk *, int mode);
 static int	set_times(struct archive_write_disk *, HANDLE, int,
@@ -964,9 +967,11 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	}
 
 	if (a->deferred & TODO_FFLAGS) {
+		unsigned long set, clear;
+
 		fe = current_fixup(a, archive_entry_pathname_w(entry));
-		fe->fixup |= TODO_FFLAGS;
-		/* TODO: Complete this.. defer fflags from below. */
+		archive_entry_fflags(entry, &set, &clear);
+		fe->fflags_set = set;
 	}
 
 	/*
@@ -1387,6 +1392,8 @@ restore_entry(struct archive_write_disk *a)
 		 * object is a dir, but that doesn't mean the old
 		 * object isn't a dir.
 		 */
+		if (a->flags & ARCHIVE_EXTRACT_CLEAR_NOCHANGE_FFLAGS)
+			(void)clear_nochange_fflags(a);
 		if (disk_unlink(a->name) == 0) {
 			/* We removed it, reset cached stat. */
 			a->pst = NULL;
@@ -1524,6 +1531,10 @@ restore_entry(struct archive_write_disk *a)
 
 		if (!S_ISDIR(st_mode)) {
 			/* Edge case: a directory symlink pointing to a file */
+			if (a->flags &
+			    ARCHIVE_EXTRACT_CLEAR_NOCHANGE_FFLAGS) {
+				(void)clear_nochange_fflags(a);
+			}
 			if (dirlnk) {
 				if (disk_rmdir(a->name) != 0) {
 					archive_set_error(&a->archive, errno,
@@ -1541,6 +1552,8 @@ restore_entry(struct archive_write_disk *a)
 			en = create_filesystem_object(a);
 		} else if (!S_ISDIR(a->mode)) {
 			/* A dir is in the way of a non-dir, rmdir it. */
+			if (a->flags & ARCHIVE_EXTRACT_CLEAR_NOCHANGE_FFLAGS)
+				(void)clear_nochange_fflags(a);
 			if (disk_rmdir(a->name) != 0) {
 				archive_set_error(&a->archive, errno,
 				    "Can't remove already-existing dir");
@@ -1798,10 +1811,15 @@ _archive_write_disk_close(struct archive *_a)
 			    p->mtime, p->mtime_nanos,
 			    p->ctime, p->ctime_nanos);
 		}
-		if (p->fixup & TODO_MODE_BASE)
-			la_chmod(p->name, p->mode);
+		if (p->fixup & TODO_MODE_BASE) {
+			/* fflags have higher priority than mode */
+			if ((p->fflags_set & FILE_ATTRIBUTE_READONLY) == 0)
+				la_chmod(p->name, p->mode);
+		}
 		if (p->fixup & TODO_ACLS)
 			set_acls(a, INVALID_HANDLE_VALUE, p->name, &p->acl);
+		if (p->fixup & TODO_FFLAGS)
+			set_fflags_platform(p->name, p->fflags_set, 0);
 		next = p->next;
 		archive_acl_clear(&p->acl);
 		free(p->name);
@@ -1918,6 +1936,7 @@ new_fixup(struct archive_write_disk *a, const wchar_t *pathname)
 	a->fixup_list = fe;
 	fe->fixup = 0;
 	fe->name = _wcsdup(pathname);
+	fe->fflags_set = 0;
 	return (fe);
 }
 
@@ -1985,6 +2004,10 @@ check_symlinks(struct archive_write_disk *a)
 				 * Remove it so we can overwrite it with the
 				 * item being extracted.
 				 */
+				if (a->flags &
+				    ARCHIVE_EXTRACT_CLEAR_NOCHANGE_FFLAGS) {
+					(void)clear_nochange_fflags(a);
+				}
 				if (st.dwFileAttributes &
 				    FILE_ATTRIBUTE_DIRECTORY) {
 					r = disk_rmdir(a->name);
@@ -2015,6 +2038,10 @@ check_symlinks(struct archive_write_disk *a)
 				return (0);
 			} else if (a->flags & ARCHIVE_EXTRACT_UNLINK) {
 				/* User asked us to remove problems. */
+				if (a->flags &
+				    ARCHIVE_EXTRACT_CLEAR_NOCHANGE_FFLAGS) {
+					(void)clear_nochange_fflags(a);
+				}
 				if (st.dwFileAttributes &
 				    FILE_ATTRIBUTE_DIRECTORY) {
 					r = disk_rmdir(a->name);
@@ -2589,10 +2616,56 @@ set_mode(struct archive_write_disk *a, int mode)
 	return (r);
 }
 
+static int set_fflags_platform(const wchar_t *name, unsigned long fflags_set,
+    unsigned long fflags_clear)
+{
+	DWORD oldflags, newflags;
+	wchar_t *fullname;
+
+	const DWORD settable_flags =
+	    FILE_ATTRIBUTE_ARCHIVE |
+	    FILE_ATTRIBUTE_HIDDEN |
+	    FILE_ATTRIBUTE_NORMAL |
+	    FILE_ATTRIBUTE_NOT_CONTENT_INDEXED |
+	    FILE_ATTRIBUTE_OFFLINE |
+	    FILE_ATTRIBUTE_READONLY |
+	    FILE_ATTRIBUTE_SYSTEM |
+	    FILE_ATTRIBUTE_TEMPORARY;
+
+	oldflags = GetFileAttributesW(name);
+	if (oldflags == (DWORD)-1 &&
+	    GetLastError() == ERROR_INVALID_NAME) {
+		fullname = __la_win_permissive_name_w(name);
+		oldflags = GetFileAttributesW(fullname);
+	}
+	if (oldflags == (DWORD)-1) {
+		la_dosmaperr(GetLastError());
+		return (ARCHIVE_WARN);
+	}
+	newflags = ((oldflags & ~fflags_clear) | fflags_set) & settable_flags;
+	if(SetFileAttributesW(name, newflags) == 0)
+		return (ARCHIVE_WARN);
+	return (ARCHIVE_OK);
+}
+
+static int
+clear_nochange_fflags(struct archive_write_disk *a)
+{
+	return (set_fflags_platform(a->name, 0, FILE_ATTRIBUTE_READONLY));
+}
+
 static int
 set_fflags(struct archive_write_disk *a)
 {
-	(void)a; /* UNUSED */
+	unsigned long	set, clear;
+
+	if (a->todo & TODO_FFLAGS) {
+		archive_entry_fflags(a->entry, &set, &clear);
+		if (set == 0  && clear == 0)
+			return (ARCHIVE_OK);
+		return (set_fflags_platform(a->name, set, clear));
+
+        }
 	return (ARCHIVE_OK);
 }
 

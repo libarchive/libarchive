@@ -1766,6 +1766,10 @@ static const struct flag {
 	{ "nohidden",	L"nohidden",		UF_HIDDEN,	0},
 	{ "nouhidden",	L"nouhidden",		UF_HIDDEN,	0},
 #endif
+#ifdef FILE_ATTRIBUTE_HIDDEN
+	{ "nohidden",	L"nohidden",	FILE_ATTRIBUTE_HIDDEN,	0},
+	{ "nouhidden",	L"nouhidden",	FILE_ATTRIBUTE_HIDDEN,	0},
+#endif
 #ifdef UF_OFFLINE
 	{ "nooffline",	L"nooffline",		UF_OFFLINE,	0},
 	{ "nouoffline",	L"nouoffline",		UF_OFFLINE,	0},
@@ -1774,6 +1778,11 @@ static const struct flag {
 	{ "nordonly",	L"nordonly",		UF_READONLY,	0},
 	{ "nourdonly",	L"nourdonly",		UF_READONLY,	0},
 	{ "noreadonly",	L"noreadonly",		UF_READONLY,	0},
+#endif
+#ifdef FILE_ATTRIBUTE_READONLY
+	{ "nordonly",	L"nordonly",	FILE_ATTRIBUTE_READONLY,	0},
+	{ "nourdonly",	L"nourdonly",	FILE_ATTRIBUTE_READONLY,	0},
+	{ "noreadonly",	L"noreadonly",	FILE_ATTRIBUTE_READONLY,	0},
 #endif
 #ifdef UF_SPARSE
 	{ "nosparse",	L"nosparse",		UF_SPARSE,	0},
@@ -1786,6 +1795,10 @@ static const struct flag {
 #ifdef UF_SYSTEM
 	{ "nosystem",	L"nosystem",		UF_SYSTEM,	0},
 	{ "nousystem",	L"nousystem",		UF_SYSTEM,	0},
+#endif
+#ifdef FILE_ATTRIBUTE_SYSTEM
+	{ "nosystem",	L"nosystem",	FILE_ATTRIBUTE_SYSTEM,	0},
+	{ "nousystem",	L"nousystem",	FILE_ATTRIBUTE_SYSTEM,	0},
 #endif
 #if defined(FS_UNRM_FL)		/* 'u' */
 	{ "noundel",	L"noundel",		FS_UNRM_FL,	0},
