@@ -1039,7 +1039,8 @@ DEFINE_TEST(test_read_format_rar5_invalid_dict_reference)
 
 	PROLOGUE("test_read_format_rar5_invalid_dict_reference.rar");
 
-	assertA(0 == archive_read_next_header(a, &ae));
+	/* This test should fail on parsing the header. */
+	assertA(archive_read_next_header(a, &ae) != ARCHIVE_OK);
 
 	/* This archive is invalid. However, processing it shouldn't cause any
 	 * errors related to buffer underflow when using -fsanitize. */
