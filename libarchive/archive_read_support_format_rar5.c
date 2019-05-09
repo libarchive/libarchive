@@ -1675,7 +1675,11 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 		__LA_MODE_T mode;
 
 		if(file_attr & ATTR_DIRECTORY) {
-			mode = 0755 | AE_IFDIR;
+			if (file_attr & ATTR_READONLY) {
+				mode = 0555 | AE_IFDIR;
+			} else {
+				mode = 0755 | AE_IFDIR;
+			}
 		} else {
 			if (file_attr & ATTR_READONLY) {
 				mode = 0444 | AE_IFREG;
@@ -1687,26 +1691,26 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 		archive_entry_set_mode(entry, mode);
 
 		if (file_attr & (ATTR_READONLY | ATTR_HIDDEN | ATTR_SYSTEM)) {
-			char *fflags_text, *p;
+			char *fflags_text, *ptr;
 			/* allocate for "rdonly,hidden,system," */
 			fflags_text = malloc(22 * sizeof(char));
 			if (fflags_text != NULL) {
-				p = fflags_text;
+				ptr = fflags_text;
 				if (file_attr & ATTR_READONLY) {
-					strcpy(p, "rdonly,");
-					p = p + 7;
+					strcpy(ptr, "rdonly,");
+					ptr = ptr + 7;
 				}
 				if (file_attr & ATTR_HIDDEN) {
-					p = strcpy(p, "hidden,");
-					p = p + 7;
+					strcpy(ptr, "hidden,");
+					ptr = ptr + 7;
 				}
 				if (file_attr & ATTR_SYSTEM) {
-					p = strcpy(p, "system,");
-					p = p + 7;
+					strcpy(ptr, "system,");
+					ptr = ptr + 7;
 				}
-				if (p > fflags_text) {
+				if (ptr > fflags_text) {
 					/* Delete trailing comma */
-					*(p - 1) = '\0';
+					*(ptr - 1) = '\0';
 					archive_entry_copy_fflags_text(entry,
 					    fflags_text);
 				}

@@ -1811,11 +1811,8 @@ _archive_write_disk_close(struct archive *_a)
 			    p->mtime, p->mtime_nanos,
 			    p->ctime, p->ctime_nanos);
 		}
-		if (p->fixup & TODO_MODE_BASE) {
-			/* fflags have higher priority than mode */
-			if ((p->fflags_set & FILE_ATTRIBUTE_READONLY) == 0)
-				la_chmod(p->name, p->mode);
-		}
+		if (p->fixup & TODO_MODE_BASE)
+			la_chmod(p->name, p->mode);
 		if (p->fixup & TODO_ACLS)
 			set_acls(a, INVALID_HANDLE_VALUE, p->name, &p->acl);
 		if (p->fixup & TODO_FFLAGS)

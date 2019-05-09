@@ -1096,7 +1096,7 @@ DEFINE_TEST(test_read_format_rar5_fileattr)
 	PROLOGUE("test_read_format_rar5_fileattr.rar");
 
 	assertA(0 == archive_read_next_header(a, &ae));
-	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assertEqualInt(archive_entry_mode(ae), 0444 | AE_IFREG);
 	assertEqualString("readonly.txt", archive_entry_pathname(ae));
 	assertEqualString("rdonly", archive_entry_fflags_text(ae));
 	archive_entry_fflags(ae, &set, &clear);
@@ -1108,7 +1108,7 @@ DEFINE_TEST(test_read_format_rar5_fileattr)
 	assertEqualInt(flag, set & flag);
 
 	assertA(0 == archive_read_next_header(a, &ae));
-	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assertEqualInt(archive_entry_mode(ae), 0644 | AE_IFREG);
 	assertEqualString("hidden.txt", archive_entry_pathname(ae));
 	assertEqualString("hidden", archive_entry_fflags_text(ae));
 	archive_entry_fflags(ae, &set, &clear);
@@ -1120,7 +1120,7 @@ DEFINE_TEST(test_read_format_rar5_fileattr)
 	assertEqualInt(flag, set & flag);
 
 	assertA(0 == archive_read_next_header(a, &ae));
-	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assertEqualInt(archive_entry_mode(ae), 0644 | AE_IFREG);
 	assertEqualString("system.txt", archive_entry_pathname(ae));
 	assertEqualString("system", archive_entry_fflags_text(ae));
 	archive_entry_fflags(ae, &set, &clear);
@@ -1132,7 +1132,7 @@ DEFINE_TEST(test_read_format_rar5_fileattr)
 	assertEqualInt(flag, set & flag);
 
 	assertA(0 == archive_read_next_header(a, &ae));
-	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assertEqualInt(archive_entry_mode(ae), 0444 | AE_IFREG);
 	assertEqualString("ro_hidden.txt", archive_entry_pathname(ae));
 	assertEqualString("rdonly,hidden", archive_entry_fflags_text(ae));
 	archive_entry_fflags(ae, &set, &clear);
@@ -1144,7 +1144,7 @@ DEFINE_TEST(test_read_format_rar5_fileattr)
 	assertEqualInt(flag, set & flag);
 
 	assertA(0 == archive_read_next_header(a, &ae));
-	assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
+	assertEqualInt(archive_entry_mode(ae), 0555 | AE_IFDIR);
 	assertEqualString("dir_readonly", archive_entry_pathname(ae));
 	assertEqualString("rdonly", archive_entry_fflags_text(ae));
 	archive_entry_fflags(ae, &set, &clear);
@@ -1156,7 +1156,7 @@ DEFINE_TEST(test_read_format_rar5_fileattr)
 	assertEqualInt(flag, set & flag);
 
 	assertA(0 == archive_read_next_header(a, &ae));
-	assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
+	assertEqualInt(archive_entry_mode(ae), 0755 | AE_IFDIR);
 	assertEqualString("dir_hidden", archive_entry_pathname(ae));
 	assertEqualString("hidden", archive_entry_fflags_text(ae));
 	archive_entry_fflags(ae, &set, &clear);
@@ -1168,7 +1168,7 @@ DEFINE_TEST(test_read_format_rar5_fileattr)
 	assertEqualInt(flag, set & flag);
 
 	assertA(0 == archive_read_next_header(a, &ae));
-	assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
+	assertEqualInt(archive_entry_mode(ae), 0755 | AE_IFDIR);
 	assertEqualString("dir_system", archive_entry_pathname(ae));
 	assertEqualString("system", archive_entry_fflags_text(ae));
 	archive_entry_fflags(ae, &set, &clear);
@@ -1180,7 +1180,7 @@ DEFINE_TEST(test_read_format_rar5_fileattr)
 	assertEqualInt(flag, set & flag);
 
 	assertA(0 == archive_read_next_header(a, &ae));
-	assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
+	assertEqualInt(archive_entry_mode(ae), 0555 | AE_IFDIR);
 	assertEqualString("dir_rohidden", archive_entry_pathname(ae));
 	assertEqualString("rdonly,hidden", archive_entry_fflags_text(ae));
 	archive_entry_fflags(ae, &set, &clear);
