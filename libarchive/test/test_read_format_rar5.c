@@ -1086,3 +1086,110 @@ DEFINE_TEST(test_read_format_rar5_nonempty_dir_stream)
 
 	EPILOGUE();
 }
+
+DEFINE_TEST(test_read_format_rar5_fileattr)
+{
+	unsigned long set, clear, flag;
+
+	flag = 0;
+
+	PROLOGUE("test_read_format_rar5_fileattr.rar");
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assertEqualString("readonly.txt", archive_entry_pathname(ae));
+	assertEqualString("rdonly", archive_entry_fflags_text(ae));
+	archive_entry_fflags(ae, &set, &clear);
+#if defined(__FreeBSD__)
+	flag = UF_READONLY;
+#elif defined(__WIN32) && !defined(CYGWIN)
+	flag = FILE_ATTRIBUTE_READONLY;
+#endif
+	assertEqualInt(flag, set & flag);
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assertEqualString("hidden.txt", archive_entry_pathname(ae));
+	assertEqualString("hidden", archive_entry_fflags_text(ae));
+	archive_entry_fflags(ae, &set, &clear);
+#if defined(__FreeBSD__)
+	flag = UF_HIDDEN;
+#elif defined(__WIN32) && !defined(CYGWIN)
+	flag = FILE_ATTRIBUTE_HIDDEN;
+#endif
+	assertEqualInt(flag, set & flag);
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assertEqualString("system.txt", archive_entry_pathname(ae));
+	assertEqualString("system", archive_entry_fflags_text(ae));
+	archive_entry_fflags(ae, &set, &clear);
+#if defined(__FreeBSD__)
+	flag = UF_SYSTEM;;
+#elif defined(__WIN32) && !defined(CYGWIN)
+	flag = FILE_ATTRIBUTE_SYSTEM;
+#endif
+	assertEqualInt(flag, set & flag);
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assertEqualString("ro_hidden.txt", archive_entry_pathname(ae));
+	assertEqualString("rdonly,hidden", archive_entry_fflags_text(ae));
+	archive_entry_fflags(ae, &set, &clear);
+#if defined(__FreeBSD__)
+	flag = UF_READONLY | UF_HIDDEN;
+#elif defined(__WIN32) && !defined(CYGWIN)
+	flag = FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_HIDDEN;
+#endif
+	assertEqualInt(flag, set & flag);
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
+	assertEqualString("dir_readonly", archive_entry_pathname(ae));
+	assertEqualString("rdonly", archive_entry_fflags_text(ae));
+	archive_entry_fflags(ae, &set, &clear);
+#if defined(__FreeBSD__)
+	flag = UF_READONLY;
+#elif defined(__WIN32) && !defined(CYGWIN)
+	flag = FILE_ATTRIBUTE_READONLY;
+#endif
+	assertEqualInt(flag, set & flag);
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
+	assertEqualString("dir_hidden", archive_entry_pathname(ae));
+	assertEqualString("hidden", archive_entry_fflags_text(ae));
+	archive_entry_fflags(ae, &set, &clear);
+#if defined(__FreeBSD__)
+	flag = UF_HIDDEN;
+#elif defined(__WIN32) && !defined(CYGWIN)
+	flag = FILE_ATTRIBUTE_HIDDEN;
+#endif
+	assertEqualInt(flag, set & flag);
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
+	assertEqualString("dir_system", archive_entry_pathname(ae));
+	assertEqualString("system", archive_entry_fflags_text(ae));
+	archive_entry_fflags(ae, &set, &clear);
+#if defined(__FreeBSD__)
+	flag = UF_SYSTEM;
+#elif defined(__WIN32) && !defined(CYGWIN)
+	flag = FILE_ATTRIBUTE_SYSTEM;
+#endif
+	assertEqualInt(flag, set & flag);
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
+	assertEqualString("dir_rohidden", archive_entry_pathname(ae));
+	assertEqualString("rdonly,hidden", archive_entry_fflags_text(ae));
+	archive_entry_fflags(ae, &set, &clear);
+#if defined(__FreeBSD__)
+	flag = UF_READONLY | UF_HIDDEN;
+#elif defined(__WIN32) && !defined(CYGWIN)
+	flag = FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_HIDDEN;
+#endif
+	assertEqualInt(flag, set & flag);
+
+	EPILOGUE();
+}

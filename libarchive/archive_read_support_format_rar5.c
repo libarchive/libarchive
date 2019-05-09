@@ -1673,7 +1673,6 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 		/* Host OS is Windows */
 
 		__LA_MODE_T mode;
-		unsigned long fflags = 0;
 
 		if(file_attr & ATTR_DIRECTORY) {
 			mode = 0755 | AE_IFDIR;
@@ -1687,38 +1686,33 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 
 		archive_entry_set_mode(entry, mode);
 
-#if defined(FILE_ATTRIBUTE_READONLY) || defined(UF_READONLY)
-		if (file_attr & ATTR_READONLY) {
-			fflags |=
-#if defined(FILE_ATTRIBUTE_READONLY)
-				FILE_ATTRIBUTE_READONLY;
-#else
-				UF_READONLY;
-#endif
+		if (file_attr & (ATTR_READONLY | ATTR_HIDDEN | ATTR_SYSTEM)) {
+			char *fflags_text, *p;
+			/* allocate for "rdonly,hidden,system," */
+			fflags_text = malloc(22 * sizeof(char));
+			if (fflags_text != NULL) {
+				p = fflags_text;
+				if (file_attr & ATTR_READONLY) {
+					strcpy(p, "rdonly,");
+					p = p + 7;
+				}
+				if (file_attr & ATTR_HIDDEN) {
+					p = strcpy(p, "hidden,");
+					p = p + 7;
+				}
+				if (file_attr & ATTR_SYSTEM) {
+					p = strcpy(p, "system,");
+					p = p + 7;
+				}
+				if (p > fflags_text) {
+					/* Delete trailing comma */
+					*(p - 1) = '\0';
+					archive_entry_copy_fflags_text(entry,
+					    fflags_text);
+				}
+				free(fflags_text);
+			}
 		}
-#endif
-#if defined(FILE_ATTRIBUTE_HIDDEN) || defined(UF_HIDDEN)
-		if (file_attr & ATTR_HIDDEN) {
-			fflags |=
-#if defined(FILE_ATTRIBUTE_HIDDEN)
-				FILE_ATTRIBUTE_HIDDEN;
-#else
-				UF_HIDDEN;	
-#endif
-		}
-#endif
-#if defined(FILE_ATTRIBUTE_SYSTEM) || defined(UF_SYSTEM)
-		if (file_attr & ATTR_SYSTEM) {
-			fflags |=
-#if defined(FILE_ATTRIBUTE_SYSTEM)
-				FILE_ATTRIBUTE_SYSTEM;
-#else
-				UF_SYSTEM;
-#endif
-		}
-#endif
-		if (fflags != 0)
-			archive_entry_set_fflags(entry, fflags, 0);
 	} else if(host_os == HOST_UNIX) {
 		/* Host OS is Unix */
 		archive_entry_set_mode(entry, (__LA_MODE_T) file_attr);
