@@ -1570,7 +1570,7 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 	size_t compression_info = 0;
 	size_t host_os = 0;
 	size_t name_size = 0;
-	uint64_t unpacked_size;
+	uint64_t unpacked_size, window_size;
 	uint32_t mtime = 0, crc = 0;
 	int c_method = 0, c_version = 0;
 	char name_utf8_buf[MAX_NAME_IN_BYTES];
@@ -1652,11 +1652,26 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 	c_method = (int) (compression_info >> 7) & 0x7;
 	c_version = (int) (compression_info & 0x3f);
 
-	rar->cstate.window_size = (rar->file.dir > 0) ?
+	/* RAR5 seems to limit the dictionary size to 64MB. */
+	window_size = (rar->file.dir > 0) ?
 		0 :
 		g_unpack_window_size << ((compression_info >> 10) & 15);
 	rar->cstate.method = c_method;
 	rar->cstate.version = c_version + 50;
+
+	/* Check if window_size is a sane value. Also, if the file is not
+	 * declared as a directory, disallow window_size == 0. */
+	if(window_size > (64 * 1024 * 1024) ||
+	    (rar->file.dir == 0 && window_size == 0))
+	{
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Declared dictionary size is not supported.");
+		return ARCHIVE_FATAL;
+	}
+
+	/* Values up to 64M should fit into ssize_t on every
+	 * architecture. */
+	rar->cstate.window_size = (ssize_t) window_size;
 
 	rar->file.solid = (compression_info & SOLID) > 0;
 	rar->file.service = 0;
