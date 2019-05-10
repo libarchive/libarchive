@@ -354,7 +354,7 @@ DEFINE_TEST(test_entry)
 	archive_entry_fflags(e, &set, &clear);
 	assertEqualInt(UF_HIDDEN, set);
 	assertEqualInt(UF_NODUMP | UF_IMMUTABLE | UF_APPEND, clear);
-#elif defined(__WIN32) && !defined(CYGWIN)
+#elif defined(_WIN32) && !defined(CYGWIN)
 	archive_entry_copy_fflags_text_w(e, L"rdonly,hidden,nosystem");
 	archive_entry_fflags(e, &set, &clear);
 	assertEqualInt(FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_HIDDEN, set);
