@@ -851,6 +851,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar5_symlink.rar.uu \
 	libarchive/test/test_read_format_rar5_win32.rar.uu \
 	libarchive/test/test_read_format_raw.bufr.uu \
+	libarchive/test/test_read_format_raw.data.gz.uu \
 	libarchive/test/test_read_format_raw.data.Z.uu \
 	libarchive/test/test_read_format_raw.data.uu \
 	libarchive/test/test_read_format_tar_concatenated.tar.uu \
