@@ -21,7 +21,7 @@ SRCDIR="${SRCDIR:-`pwd`}"
 RET=0
 
 usage () {
-	echo "Usage: $0 [-b autotools|cmake] [-a autogen|configure|build|test ] [ -a ... ] [ -d builddir ] [-s srcdir ]"
+	echo "Usage: $0 [-b autotools|cmake] [-a autogen|configure|build|dist|test] [-a ...] [-d builddir] [-s srcdir]"
 }
 inputerror () {
 	echo $1
@@ -35,6 +35,7 @@ while getopts a:b:d:s: opt; do
 				autogen) ;;
 				configure) ;;
 				build) ;;
+				dist) ;;
 				test) ;;
 				*) inputerror "Invalid action (-a)" ;;
 			esac
@@ -68,6 +69,11 @@ if [ -z "${BUILDDIR}" ]; then
 	BUILDDIR="${CURDIR}/build_ci/${BS}"
 fi
 mkdir -p "${BUILDDIR}"
+
+# Normalize SRCDIR before we change to BUILDDIR.
+cd "${SRCDIR}"
+SRCDIR=`pwd`
+
 for action in ${ACTIONS}; do
 	cd "${BUILDDIR}"
 	case "${action}" in
@@ -90,6 +96,12 @@ for action in ${ACTIONS}; do
 		build)
 			${MAKE} ${MAKE_ARGS}
 			RET="$?"
+		;;
+		dist)
+			${MAKE} ${MAKE_ARGS} dist
+			RET="$?"
+			mkdir -p "${SRCDIR}/build_ci/distsrc"
+			tar --strip-components=1 -xf ./libarchive-*.tar.gz -C "${SRCDIR}/build_ci/distsrc/"
 		;;
 		test)
 			case "${BS}" in

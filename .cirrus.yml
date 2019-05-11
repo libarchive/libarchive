@@ -62,6 +62,24 @@ Fedora_29_task:
   test_script:
   - ./build/ci/build.sh -a test
 
+Fedora_29_release_task:
+  container:
+    dockerfile: build/ci/cirrus_ci/Dockerfile.fedora29
+  matrix:
+    env:
+      BS: autotools
+    env:
+      BS: cmake
+  configure_script:
+  - ./build/ci/build.sh -a autogen
+  - ./build/ci/build.sh -a configure
+  - ./build/ci/build.sh -a dist
+  - ./build/ci/build.sh -a configure -s ./build_ci/distsrc/
+  build_script:
+  - ./build/ci/build.sh -a build -s ./build_ci/distsrc/
+  test_script:
+  - ./build/ci/build.sh -a test -s ./build_ci/distsrc/
+
 Windows_MSVC_task:
   windows_container:
     dockerfile: build/ci/cirrus_ci/Dockerfile.msvc
