@@ -103,4 +103,5 @@ DEFINE_TEST(test_read_format_zip_utf8_paths)
 	verify(a);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_free(a));
+	free(p);
 }
