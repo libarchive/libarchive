@@ -103,8 +103,20 @@ IF "%1%"=="prepare" (
     REM CD build_ci\cmake
     REM cmake --build . --target RUN_TESTS --config Release
   )
+) ELSE IF "%1%"=="install" (
+  IF "%BE%"=="cygwin-gcc" (
+    SET BS=cmake
+    C:\tools\cygwin\bin\bash.exe --login -c "cd '%cd%'; ./build/ci/build.sh -a install"
+  ) ELSE IF "%BE%"=="mingw-gcc" (
+    SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
+    CD build_ci\cmake
+    mingw32-make install DESTDIR=%cd%\destdir
+  ) ELSE IF "%BE%"=="msvc" (
+    SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
+    cmake --build . --target INSTALL --config Release
+  )
 ) ELSE (
-  ECHO "Usage: %0% prepare|deplibs|configure|build|test"
+  ECHO "Usage: %0% prepare|deplibs|configure|build|test|install"
   @EXIT /b 0
 )
 @EXIT /b 0

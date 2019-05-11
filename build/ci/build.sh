@@ -23,7 +23,7 @@ SRCDIR="${SRCDIR:-`pwd`}"
 RET=0
 
 usage () {
-	echo "Usage: $0 [-b autotools|cmake] [-a autogen|configure|build|test ] [ -a ... ] [ -d builddir ] [-s srcdir ]"
+	echo "Usage: $0 [-b autotools|cmake] [-a autogen|configure|build|test|install|distcheck ] [ -a ... ] [ -d builddir ] [-s srcdir ]"
 }
 inputerror () {
 	echo $1
@@ -38,6 +38,8 @@ while getopts a:b:d:s: opt; do
 				configure) ;;
 				build) ;;
 				test) ;;
+				install) ;;
+				distcheck) ;;
 				*) inputerror "Invalid action (-a)" ;;
 			esac
 			ACTIONS="${ACTIONS} ${OPTARG}"
@@ -78,7 +80,7 @@ if [ -n "${DEBUG}" ]; then
 	fi
 fi
 if [ -z "${ACTIONS}" ]; then
-	ACTIONS="autogen configure build test"
+	ACTIONS="autogen configure build test install"
 fi
 if [ -z "${BS}" ]; then
 	inputerror "Missing build system (-b) parameter"
@@ -121,6 +123,14 @@ for action in ${ACTIONS}; do
 			esac
 			RET="$?"
 			find ${TMPDIR:-/tmp} -path '*_test.*' -name '*.log' -print -exec cat {} \;
+		;;
+		install)
+			${MAKE} ${MAKE_ARGS} install DESTDIR="${BUILDDIR}/destdir"
+			RET="$?"
+			cd ${BUILDDIR}/destdir && ls -lR .
+		;;
+		distcheck)
+			${MAKE} ${MAKE_ARGS} distcheck
 		;;
 	esac
 	if [ "${RET}" != "0" ]; then

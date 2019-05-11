@@ -23,6 +23,8 @@ FreeBSD_task:
   test_script:
   - ./build/ci/build.sh -a test
   - ./build/ci/cirrus_ci/ci.sh test
+  install_script:
+  - ./build/ci/build.sh -a install
 
 MacOS_task:
   matrix:
@@ -45,6 +47,8 @@ MacOS_task:
   test_script:
   - ./build/ci/build.sh -a test
   - ./build/ci/cirrus_ci/ci.sh test
+  install_script:
+  - ./build/ci/build.sh -a install
 
 Fedora_29_task:
   container:
@@ -61,18 +65,19 @@ Fedora_29_task:
   - ./build/ci/build.sh -a build
   test_script:
   - ./build/ci/build.sh -a test
+  install_script:
+  - ./build/ci/build.sh -a install
 
 Fedora_29_distcheck_task:
   container:
     dockerfile: build/ci/cirrus_ci/Dockerfile.fc29.distcheck
   env:
     BS: autotools
-    MAKE_ARGS: distcheck
   configure_script:
   - ./build/ci/build.sh -a autogen
   - ./build/ci/build.sh -a configure
-  build_script:
-  - ./build/ci/build.sh -a build
+  distcheck_script:
+  - ./build/ci/build.sh -a distcheck
 
 Windows_MSVC_task:
   windows_container:
@@ -86,6 +91,8 @@ Windows_MSVC_task:
   - build\ci\cirrus_ci\ci.cmd build
   test_script:
   - build\ci\cirrus_ci\ci.cmd test
+  instal_script:
+  - build\ci\cirrus_ci\ci.cmd install
 
 Windows_MinGW_task:
   windows_container:
@@ -103,6 +110,8 @@ Windows_MinGW_task:
   - build\ci\cirrus_ci\ci.cmd build
   test_script:
   - build\ci\cirrus_ci\ci.cmd test
+  install_script:
+  - build\ci\cirrus_ci\ci.cmd install
 
 Windows_Cygwin_task:
   windows_container:
@@ -118,3 +127,5 @@ Windows_Cygwin_task:
   - build\ci\cirrus_ci\ci.cmd build
   test_script:
   - build\ci\cirrus_ci\ci.cmd test
+  install_script:
+  - build\ci\cirrus_ci\ci.cmd install
