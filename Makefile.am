@@ -723,6 +723,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_filter_lzop.tar.lzo.uu \
 	libarchive/test/test_read_filter_lzop_multiple_parts.tar.lzo.uu \
 	libarchive/test/test_read_format_mtree_crash747.mtree.bz2.uu \
+	libarchive/test/test_read_format_mtree_noprint.mtree.uu \
 	libarchive/test/test_read_format_7zip_bcj2_bzip2.7z.uu \
 	libarchive/test/test_read_format_7zip_bcj2_copy_1.7z.uu \
 	libarchive/test/test_read_format_7zip_bcj2_copy_2.7z.uu \
@@ -829,7 +830,13 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar5_arm.rar.uu \
 	libarchive/test/test_read_format_rar5_blake2.rar.uu \
 	libarchive/test/test_read_format_rar5_compressed.rar.uu \
+	libarchive/test/test_read_format_rar5_distance_overflow.rar.uu \
+	libarchive/test/test_read_format_rar5_extra_field_version.rar.uu \
+	libarchive/test/test_read_format_rar5_fileattr.rar.uu \
 	libarchive/test/test_read_format_rar5_hardlink.rar.uu \
+	libarchive/test/test_read_format_rar5_invalid_dict_reference.rar.uu \
+	libarchive/test/test_read_format_rar5_leftshift1.rar.uu \
+	libarchive/test/test_read_format_rar5_leftshift2.rar.uu \
 	libarchive/test/test_read_format_rar5_multiarchive.part01.rar.uu \
 	libarchive/test/test_read_format_rar5_multiarchive.part02.rar.uu \
 	libarchive/test/test_read_format_rar5_multiarchive.part03.rar.uu \
@@ -844,11 +851,14 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar5_multiarchive_solid.part04.rar.uu \
 	libarchive/test/test_read_format_rar5_multiple_files.rar.uu \
 	libarchive/test/test_read_format_rar5_multiple_files_solid.rar.uu \
+	libarchive/test/test_read_format_rar5_nonempty_dir_stream.rar.uu \
 	libarchive/test/test_read_format_rar5_owner.rar.uu \
+	libarchive/test/test_read_format_rar5_readtables_overflow.rar.uu \
 	libarchive/test/test_read_format_rar5_solid.rar.uu \
 	libarchive/test/test_read_format_rar5_stored.rar.uu \
 	libarchive/test/test_read_format_rar5_stored_manyfiles.rar.uu \
 	libarchive/test/test_read_format_rar5_symlink.rar.uu \
+	libarchive/test/test_read_format_rar5_truncated_huff.rar.uu \
 	libarchive/test/test_read_format_rar5_win32.rar.uu \
 	libarchive/test/test_read_format_raw.bufr.uu \
 	libarchive/test/test_read_format_raw.data.gz.uu \
@@ -881,6 +891,8 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_high_compression.zip.uu \
 	libarchive/test/test_read_format_zip_length_at_end.zip.uu \
 	libarchive/test/test_read_format_zip_lzma.zipx.uu \
+	libarchive/test/test_read_format_zip_lzma_alone_leak.zipx.uu \
+	libarchive/test/test_read_format_zip_lzma_multi.zipx.uu \
 	libarchive/test/test_read_format_zip_jar.jar.uu \
 	libarchive/test/test_read_format_zip_mac_metadata.zip.uu \
 	libarchive/test/test_read_format_zip_malformed1.zip.uu \
