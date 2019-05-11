@@ -21,7 +21,7 @@ SRCDIR="${SRCDIR:-`pwd`}"
 RET=0
 
 usage () {
-	echo "Usage: $0 [-b autotools|cmake] [-a autogen|configure|build|dist|test] [-a ...] [-d builddir] [-s srcdir]"
+	echo "Usage: $0 [-b autotools|cmake] [-a autogen|configure|build|dist|test|install] [-a ...] [-d builddir] [-s srcdir]"
 }
 inputerror () {
 	echo $1
@@ -37,6 +37,7 @@ while getopts a:b:d:s: opt; do
 				build) ;;
 				dist) ;;
 				test) ;;
+				install) ;;
 				*) inputerror "Invalid action (-a)" ;;
 			esac
 			ACTIONS="${ACTIONS} ${OPTARG}"
@@ -114,6 +115,11 @@ for action in ${ACTIONS}; do
 			esac
 			RET="$?"
 			find ${TMPDIR:-/tmp} -path '*_test.*' -name '*.log' -print -exec cat {} \;
+		;;
+		install)
+			${MAKE} ${MAKE_ARGS} install DESTDIR="${BUILDDIR}/destdir"
+			RET="$?"
+			ls -lR "${BUILDDIR}/destdir"
 		;;
 	esac
 	if [ "${RET}" != "0" ]; then

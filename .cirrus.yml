@@ -61,6 +61,8 @@ Fedora_29_task:
   - ./build/ci/build.sh -a build
   test_script:
   - ./build/ci/build.sh -a test
+  install_script:
+  - ./build/ci/build.sh -a install
 
 Fedora_29_release_task:
   container:
@@ -79,6 +81,8 @@ Fedora_29_release_task:
   - ./build/ci/build.sh -a build -s ./build_ci/distsrc/
   test_script:
   - ./build/ci/build.sh -a test -s ./build_ci/distsrc/
+  install_script:
+  - ./build/ci/build.sh -a install -s ./build_ci/distsrc/
 
 Windows_MSVC_task:
   windows_container:
