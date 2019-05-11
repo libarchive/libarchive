@@ -8,11 +8,13 @@
 # SRCDIR=		# source directory
 # CONFIGURE_ARGS=	# configure arguments
 # MAKE_ARGS=		# make arguments
+# DEBUG=		# set -g -fsanitize=address flags
 
 ACTIONS=
 if [ -n "${BUILD_SYSTEM}" ]; then
 	BS="${BUILD_SYSTEM}"
 fi
+
 BS="${BS:-autotools}"
 MAKE="${MAKE:-make}"
 CMAKE="${CMAKE:-cmake}"
@@ -58,6 +60,23 @@ while getopts a:b:d:s: opt; do
 		;;
 	esac
 done
+if [ -z "${MAKE_ARGS}" ]; then
+	if [ "${BS}" = "autotools" ]; then
+		MAKE_ARGS="V=1"
+	elif [ "${BS}" = "cmake" ]; then
+		MAKE_ARGS="VERBOSE=1"
+	fi
+fi
+if [ -n "${DEBUG}" ]; then
+	if [ -n "${CFLAGS}" ]; then
+		export CFLAGS="${CFLAGS} -g -fsanitize=address"
+	else
+		export CFLAGS="-g -fsanitize=address"
+	fi
+	if ["${BS}" = "cmake" ]; then
+		CONFIGURE_ARGS="${CONFIGURE_ARGS} -DCMAKE_C_CFLAGS=-g -fsanitize=address"
+	fi
+fi
 if [ -z "${ACTIONS}" ]; then
 	ACTIONS="autogen configure build test"
 fi

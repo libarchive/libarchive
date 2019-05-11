@@ -48,7 +48,7 @@ MacOS_task:
 
 Fedora_29_task:
   container:
-    dockerfile: build/ci/cirrus_ci/Dockerfile.fedora29
+    dockerfile: build/ci/cirrus_ci/Dockerfile.fc29
   matrix:
     env:
       BS: autotools
@@ -61,6 +61,18 @@ Fedora_29_task:
   - ./build/ci/build.sh -a build
   test_script:
   - ./build/ci/build.sh -a test
+
+Fedora_29_distcheck_task:
+  container:
+    dockerfile: build/ci/cirrus_ci/Dockerfile.fc29.distcheck
+  env:
+    BS: autotools
+    MAKE_ARGS: distcheck
+  configure_script:
+  - ./build/ci/build.sh -a autogen
+  - ./build/ci/build.sh -a configure
+  build_script:
+  - ./build/ci/build.sh -a build
 
 Windows_MSVC_task:
   windows_container:

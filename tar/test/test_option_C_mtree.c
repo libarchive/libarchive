@@ -83,6 +83,7 @@ DEFINE_TEST(test_option_C_mtree)
 	assertEqualMem(p0 + 1536, "\0\0\0\0\0\0\0\0", 8);
 done:
 	free(p0);
+	free(absolute_path);
 }
 
 
