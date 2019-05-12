@@ -131,6 +131,7 @@ for action in ${ACTIONS}; do
 		;;
 		distcheck)
 			${MAKE} ${MAKE_ARGS} distcheck
+			RET="$?"
 		;;
 	esac
 	if [ "${RET}" != "0" ]; then
