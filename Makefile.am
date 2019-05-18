@@ -518,6 +518,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_zip_encryption_data.c \
 	libarchive/test/test_read_format_zip_encryption_partially.c \
 	libarchive/test/test_read_format_zip_encryption_header.c \
+	libarchive/test/test_read_format_zip_extra_padding.c \
 	libarchive/test/test_read_format_zip_filename.c \
 	libarchive/test/test_read_format_zip_high_compression.c \
 	libarchive/test/test_read_format_zip_jar.c \
@@ -885,6 +886,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_encryption_data.zip.uu \
 	libarchive/test/test_read_format_zip_encryption_header.zip.uu \
 	libarchive/test/test_read_format_zip_encryption_partially.zip.uu \
+	libarchive/test/test_read_format_zip_extra_padding.zip.uu \
 	libarchive/test/test_read_format_zip_filename_cp866.zip.uu \
 	libarchive/test/test_read_format_zip_filename_cp932.zip.uu \
 	libarchive/test/test_read_format_zip_filename_koi8r.zip.uu \
