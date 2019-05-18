@@ -154,6 +154,7 @@ IF(ENABLE_TEST)
     test_read_format_tar.c
     test_read_format_tar_concatenated.c
     test_read_format_tar_empty_filename.c
+    test_read_format_tar_empty_with_gnulabel.c
     test_read_format_tar_empty_pax.c
     test_read_format_tar_filename.c
     test_read_format_tbz.c
