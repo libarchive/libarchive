@@ -770,6 +770,23 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 					break;
 			}
 
+			/* Make sure the CRC32 of the filename matches. */
+			if (!zip->ignore_crc32) {
+				const char *cp = archive_entry_pathname(entry);
+				if (cp) {
+					unsigned long file_crc = zip->crc32func(0, cp, strlen(cp));
+					unsigned long utf_crc = archive_le32dec(p + offset - 4);
+					if (file_crc != utf_crc) {
+#ifdef DEBUG
+						fprintf(stderr, "CRC filename mismatch; CDE is %lx, "
+						    "but UTF8 is outdated with %lx\n",
+						    file_crc, utf_crc);
+#endif
+						break;
+					}
+				}
+			}
+
 			if (archive_entry_copy_pathname_l(entry,
 			    p + offset, datasize, zip->sconv_utf8) != 0) {
 				/* Ignore the error, and fallback to the path

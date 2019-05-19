@@ -58,15 +58,10 @@ verify(struct archive *a) {
 	assertEqualUTF8String(p, "File 3 - \xC3\xA4.txt");
 #endif
 
+	/* The CRC of the filename fails, so fall back to CDE. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assert((p = archive_entry_pathname_utf8(ae)) != NULL);
-#if defined(__APPLE__)
-	/* Compare NFD string. */
-	assertEqualUTF8String(p, "File 4 - a\xCC\x8A.txt");
-#else
-	/* Compare NFC string. */
-	assertEqualUTF8String(p, "File 4 - \xC3\xA5.txt");
-#endif
+	assertEqualUTF8String(p, "File 4 - xx.txt");
 
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 }
