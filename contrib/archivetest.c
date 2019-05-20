@@ -197,7 +197,8 @@ int main(int argc, char *argv[])
 			while ((r = archive_read_data(a, buffer, 4096) > 0))
 			;
 			if (r == ARCHIVE_FATAL) {
-				v_print(v, "ERROR\n");
+				v_print(v, "ERROR\nError string: %s\n",
+				    archive_error_string(a));
 				break;
 			}
 			v_print(v, "OK");
@@ -205,10 +206,13 @@ int main(int argc, char *argv[])
 		v_print(v, "\n");
 		c++;
 	}
-	archive_read_free(a);
 
 	v_print(v, "Last return code: %s (%d)\n", errnostr(r), r);
-	if (r == ARCHIVE_EOF || r == ARCHIVE_OK)
+	if (r == ARCHIVE_EOF || r == ARCHIVE_OK) {
+		archive_read_free(a);
 		exit(0);
+	}
+	v_print(v, "Error string: %s\n", archive_error_string(a));
+	archive_read_free(a);
 	exit(2);
 }
