@@ -667,13 +667,13 @@ This option suppresses these behaviors.
 .It Fl p , Fl Fl insecure , Fl Fl preserve-permissions
 (x mode only)
 Preserve file permissions.
-Attempt to restore the full permissions, including owner, file modes, ACLs,
+Attempt to restore the full permissions, including file modes, ACLs,
 extended attributes and extended file flags, if available, for each item
-extracted from the archive. This is te reverse of
-.Fl Fl no-same-permissions
-and the default if
+extracted from the archive. This is the default behavior if
 .Nm
-is being run by root and can be partially overridden by also specifying
+is run as root.  The reverse is
+.Fl Fl no-same-permissions
+and can be partially overridden by also specifying
 .Fl Fl no-acls ,
 .Fl Fl no-fflags ,
 .Fl Fl no-mac-metadata
