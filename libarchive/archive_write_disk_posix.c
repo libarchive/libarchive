@@ -3387,6 +3387,7 @@ static int
 set_mode(struct archive_write_disk *a, int mode)
 {
 	int r = ARCHIVE_OK;
+	int r2;
 	mode &= 07777; /* Strip off file type bits. */
 
 	if (a->todo & TODO_SGID_CHECK) {
@@ -3443,16 +3444,26 @@ set_mode(struct archive_write_disk *a, int mode)
 	}
 
 	if (S_ISLNK(a->mode)) {
-#ifdef HAVE_LCHMOD
 		/*
-		 * If this is a symlink, use lchmod().  If the
+		 * If this is a symlink, use fchmod() or lchmod().  If the
 		 * platform doesn't support lchmod(), just skip it.  A
 		 * platform that doesn't provide a way to set
 		 * permissions on symlinks probably ignores
 		 * permissions on symlinks, so a failure here has no
 		 * impact.
 		 */
-		if (lchmod(a->name, mode) != 0) {
+#ifdef HAVE_FCHMOD
+		if (a->fd > 0)
+			r2 = fchmod(a->fd, mode);
+		else
+#endif
+#ifdef HAVE_LCHMOD
+		r2 = lchmod(a->name, mode);
+#else
+		/* We don't have lchmod() here and a fd is not given */
+		r2 = 0;
+#endif
+		if (r2 != 0) {
 			switch (errno) {
 			case ENOTSUP:
 			case ENOSYS:
@@ -3471,7 +3482,6 @@ set_mode(struct archive_write_disk *a, int mode)
 				r = ARCHIVE_WARN;
 			}
 		}
-#endif
 	} else if (!S_ISDIR(a->mode)) {
 		/*
 		 * If it's not a symlink and not a dir, then use
@@ -3480,21 +3490,19 @@ set_mode(struct archive_write_disk *a, int mode)
 		 * post-extract fixup, which is handled elsewhere.
 		 */
 #ifdef HAVE_FCHMOD
-		if (a->fd >= 0) {
-			if (fchmod(a->fd, mode) != 0) {
-				archive_set_error(&a->archive, errno,
-				    "Can't set permissions to 0%o", (int)mode);
-				r = ARCHIVE_WARN;
-			}
-		} else
+		if (a->fd >= 0)
+			r2 = fchmod(a->fd, mode);
+		else
 #endif
-			/* If this platform lacks fchmod(), then
-			 * we'll just use chmod(). */
-			if (chmod(a->name, mode) != 0) {
-				archive_set_error(&a->archive, errno,
-				    "Can't set permissions to 0%o", (int)mode);
-				r = ARCHIVE_WARN;
-			}
+		/* If this platform lacks fchmod(), then
+		 * we'll just use chmod(). */
+		r2 = chmod(a->name, mode);
+
+		if (r2 != 0) {
+			archive_set_error(&a->archive, errno,
+			    "Can't set permissions to 0%o", (int)mode);
+			r = ARCHIVE_WARN;
+		}
 	}
 	return (r);
 }
