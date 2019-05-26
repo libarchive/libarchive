@@ -2592,8 +2592,6 @@ fsobj_error(int *a_eno, struct archive_string *a_estr,
  * scan the path and both can be optimized by comparing against other
  * recent paths.
  */
-/* TODO: Extend this to support symlinks on Windows Vista and later. */
-
 /*
  * Checks the given path to see if any elements along it are symlinks.  Returns
  * ARCHIVE_OK if there are none, otherwise puts an error in errmsg.
