@@ -186,7 +186,6 @@ struct fixup_entry {
 	void			*mac_metadata;
 	int			 fixup; /* bitmask of what needs fixing */
 	char			*name;
-	int			 fd;
 };
 
 /*
@@ -1947,7 +1946,7 @@ edit_deep_directories(struct archive_write_disk *a)
 		return;
 
 	/* Try to record our starting dir. */
-	a->restore_pwd = open(".", O_RDONLY | O_BINARY | O_CLOEXEC);
+	a->restore_pwd = la_opendirat(AT_FDCWD, ".");
 	__archive_ensure_cloexec_flag(a->restore_pwd);
 	if (a->restore_pwd < 0)
 		return;
@@ -2380,7 +2379,7 @@ _archive_write_disk_close(struct archive *_a)
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	struct fixup_entry *next, *p;
-	int ret;
+	int fd, ret;
 
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
 	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
@@ -2391,14 +2390,15 @@ _archive_write_disk_close(struct archive *_a)
 	p = sort_dir_list(a->fixup_list);
 
 	while (p != NULL) {
+		fd = -1;
 		a->pst = NULL; /* Mark stat cache as out-of-date. */
-		if (p->fd < 0 && p->fixup &
+		if (p->fixup &
 		    (TODO_TIMES | TODO_MODE_BASE | TODO_ACLS | TODO_FFLAGS)) {
-			p->fd = open(p->name,
+			fd = open(p->name,
 			    O_WRONLY | O_BINARY | O_NOFOLLOW | O_CLOEXEC);
 		}
 		if (p->fixup & TODO_TIMES) {
-			set_times(a, p->fd, p->mode, p->name,
+			set_times(a, fd, p->mode, p->name,
 			    p->atime, p->atime_nanos,
 			    p->birthtime, p->birthtime_nanos,
 			    p->mtime, p->mtime_nanos,
@@ -2406,17 +2406,17 @@ _archive_write_disk_close(struct archive *_a)
 		}
 		if (p->fixup & TODO_MODE_BASE) {
 #ifdef HAVE_FCHMOD
-			if (p->fd >= 0)
-				fchmod(p->fd, p->mode);
+			if (fd >= 0)
+				fchmod(fd, p->mode);
 			else
 #endif
 			chmod(p->name, p->mode);
 		}
 		if (p->fixup & TODO_ACLS)
-			archive_write_disk_set_acls(&a->archive, p->fd,
+			archive_write_disk_set_acls(&a->archive, fd,
 			    p->name, &p->acl, p->mode);
 		if (p->fixup & TODO_FFLAGS)
-			set_fflags_platform(a, p->fd, p->name,
+			set_fflags_platform(a, fd, p->name,
 			    p->mode, p->fflags_set, 0);
 		if (p->fixup & TODO_MAC_METADATA)
 			set_mac_metadata(a, p->name, p->mac_metadata,
@@ -2425,8 +2425,8 @@ _archive_write_disk_close(struct archive *_a)
 		archive_acl_clear(&p->acl);
 		free(p->mac_metadata);
 		free(p->name);
-		if (p->fd >= 0)
-			close(p->fd);	
+		if (fd >= 0)
+			close(fd);
 		free(p);
 		p = next;
 	}
@@ -2561,7 +2561,6 @@ new_fixup(struct archive_write_disk *a, const char *pathname)
 	a->fixup_list = fe;
 	fe->fixup = 0;
 	fe->name = strdup(pathname);
-	fe->fd = -1;
 	return (fe);
 }
 
