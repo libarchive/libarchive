@@ -1,5 +1,5 @@
 Name:           {{{ git_name }}}
-Version:        {{{ git_version lead=3 follow=3 }}}
+Version:        {{{ git_version lead=3 follow=4 }}}
 Release:        1%{?dist}
 Summary:        A library for handling streaming archive formats
 
