@@ -826,6 +826,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar_noeof.rar.uu \
 	libarchive/test/test_read_format_rar_ppmd_lzss_conversion.rar.uu \
 	libarchive/test/test_read_format_rar_ppmd_use_after_free.rar.uu \
+	libarchive/test/test_read_format_rar_ppmd_use_after_free2.rar.uu \
 	libarchive/test/test_read_format_rar_sfx.exe.uu \
 	libarchive/test/test_read_format_rar_subblock.rar.uu \
 	libarchive/test/test_read_format_rar_unicode.rar.uu \
