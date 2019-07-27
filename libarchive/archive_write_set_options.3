@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 2, 2012
+.Dd July 27, 2019
 .Dt ARCHIVE_WRITE_OPTIONS 3
 .Os
 .Sh NAME
@@ -398,6 +398,27 @@ Specifies a filename that should not be compressed when using
 This option can be provided multiple times to suppress compression
 on many files.
 .El
+.It Format 7zip
+.Bl -tag -compact -width indent
+.It Cm compression
+The value is one of
+.Dq store ,
+.Dq deflate ,
+.Dq bzip2 ,
+.Dq lzma1 ,
+.Dq lzma2
+or
+.Dq ppmd
+to indicate how the following entries should be compressed.
+Note that this setting is ignored for directories, symbolic links,
+and other special entries.
+.It Cm compression-level
+The value is interpreted as a decimal integer specifying the
+compression level.
+Values between 0 and 9 are supported.
+The interpretation of the compression level depends on the choosen
+compression method.
+.El
 .It Format zip
 .Bl -tag -compact -width indent
 .It Cm compression
@@ -408,6 +429,15 @@ or
 to indicate how the following entries should be compressed.
 Note that this setting is ignored for directories, symbolic links,
 and other special entries.
+.It Cm compression-level
+The value is interpreted as a decimal integer specifying the
+compression level.
+Values between 0 and 9 are supported.
+A compression level of 0 switches the compression method to
+.Dq store ,
+other values will enable
+.Dq deflate
+compression with the given level.
 .It Cm experimental
 This boolean option enables or disables experimental Zip features
 that may not be compatible with other Zip implementations.
