@@ -674,7 +674,7 @@ static ssize_t
 lz4_filter_read_legacy_stream(struct archive_read_filter *self, const void **p)
 {
 	struct private_data *state = (struct private_data *)self->data;
-	int compressed;
+	uint32_t compressed;
 	const char *read_buf;
 	ssize_t ret;
 
