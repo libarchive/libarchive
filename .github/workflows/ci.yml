@@ -1,0 +1,24 @@
+name: Ubuntu
+
+on: [push, pull_request]
+
+jobs:
+  Build-and-test:
+
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@master
+    - name: Install dependencies
+      run: sudo apt-get install -y build-essential libssl-dev libacl1-dev libbz2-dev liblzma-dev libzip-dev liblz4-dev libzstd-dev lzop
+    - name: Autogen
+      run: ./build/ci/build.sh -a autogen
+    - name: Configure
+      run: ./build/ci/build.sh -a configure
+    - name: Build
+      run: ./build/ci/build.sh -a build
+    - name: Test
+      run: ./build/ci/build.sh -a test
+    - name: Install
+      run: ./build/ci/build.sh -a install
+
