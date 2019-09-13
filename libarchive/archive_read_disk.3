@@ -101,7 +101,8 @@ following values:
 Skip files and directories with the nodump file attribute (file flag) set.
 By default, the nodump file attribute is ignored.
 .It Cm ARCHIVE_READDISK_MAC_COPYFILE
-Mac OS X specific. Read metadata (ACLs and extended attributes) with
+Mac OS X specific.
+Read metadata (ACLs and extended attributes) with
 .Xr copyfile 3 .
 By default, metadata is read using
 .Xr copyfile 3 .
@@ -226,7 +227,7 @@ More information about the
 object and the overall design of the library can be found in the
 .Xr libarchive 3
 overview.
-.Sh EXAMPLE
+.Sh EXAMPLES
 The following illustrates basic usage of the library by
 showing how to use it to copy an item on disk into an archive.
 .Bd -literal -offset indent
@@ -291,11 +292,11 @@ and
 functions.
 .\"
 .Sh SEE ALSO
+.Xr tar 1 ,
 .Xr archive_read 3 ,
 .Xr archive_util 3 ,
 .Xr archive_write 3 ,
 .Xr archive_write_disk 3 ,
-.Xr tar 1 ,
 .Xr libarchive 3
 .Sh HISTORY
 The
