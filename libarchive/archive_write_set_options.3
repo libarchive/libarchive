@@ -70,7 +70,7 @@ specific write modules.
 .Fn archive_write_set_filter_option ,
 .Fn archive_write_set_format_option
 .Xc
-Specifies an option that will be passed to currently-registered
+Specifies an option that will be passed to the currently-registered
 filters (including decompression filters) or format readers.
 .Pp
 If
@@ -138,7 +138,7 @@ If either function returns
 .Cm ARCHIVE_FATAL
 will be returned
 immediately.
-Otherwise, greater of the two values will be returned.
+Otherwise, the greater of the two values will be returned.
 .\"
 .It Fn archive_write_set_options
 .Ar options
@@ -290,7 +290,7 @@ This does not impact names stored in the Rockridge or Joliet extension area.
 Default: disabled.
 .It Cm allow-period
 If enabled, allows filenames to contain trailing period characters, in violation of the ISO9660 specification.
-If disabled,trailing periods will be converted to underscore characters.
+If disabled, trailing periods will be converted to underscore characters.
 This does not impact names stored in the Rockridge or Joliet extension area.
 Default: disabled.
 .It Cm allow-pvd-lowercase
@@ -416,7 +416,7 @@ and other special entries.
 The value is interpreted as a decimal integer specifying the
 compression level.
 Values between 0 and 9 are supported.
-The interpretation of the compression level depends on the choosen
+The interpretation of the compression level depends on the chosen
 compression method.
 .El
 .It Format zip

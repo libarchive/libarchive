@@ -118,7 +118,7 @@ Streaming Archive Library (libarchive, -larchive)
 .Sh DESCRIPTION
 The
 .Dq Access Control Lists (ACLs)
-extend the standard Unix perssion model.
+extend the standard Unix permission model.
 The ACL interface of
 .Nm libarchive
 supports both POSIX.1e and NFSv4 style ACLs. Use of ACLs is restricted by
@@ -126,7 +126,7 @@ various levels of ACL support in operating systems, file systems and archive
 formats.
 .Ss POSIX.1e Access Control Lists
 A POSIX.1e ACL consists of a number of independent entries.
-Each entry specifies the permission set as bitmask of basic permissions.
+Each entry specifies the permission set as a bitmask of basic permissions.
 Valid permissions in the
 .Fa permset
 are:
@@ -147,13 +147,13 @@ The user specified by the name field.
 .It Dv ARCHIVE_ENTRY_ACL_USER_OBJ
 The owner of the file.
 .It Dv ARCHIVE_ENTRY_ACL_GROUP
-The group specied by the name field.
+The group specified by the name field.
 .It Dv ARCHIVE_ENTRY_ACL_GROUP_OBJ
-The group who owns the file.
+The group which owns the file.
 .It Dv ARCHIVE_ENTRY_ACL_MASK
 The maximum permissions to be obtained via group permissions.
 .It Dv ARCHIVE_ENTRY_ACL_OTHER
-Any principal who is not file owner or a member of the owning group.
+Any principal who is not the file owner or a member of the owning group.
 .El
 .Pp
 The principals
@@ -164,12 +164,12 @@ and
 are equivalent to user, group and other in the classic Unix permission
 model and specify non-extended ACL entries.
 .Pp
-All files with have an access ACL
+All files have an access ACL
 .Pq Dv ARCHIVE_ENTRY_ACL_TYPE_ACCESS .
 This specifies the permissions required for access to the file itself.
 Directories have an additional ACL
 .Pq Dv ARCHIVE_ENTRY_ACL_TYPE_DEFAULT ,
-which controls the initial access ACL for newly created directory entries.
+which controls the initial access ACL for newly-created directory entries.
 .Ss NFSv4 Access Control Lists
 A NFSv4 ACL consists of multiple individual entries called Access Control
 Entries (ACEs).
@@ -197,11 +197,11 @@ The user specified by the name field.
 .It Dv ARCHIVE_ENTRY_ACL_USER_OBJ
 The owner of the file.
 .It Dv ARCHIVE_ENTRY_ACL_GROUP
-The group specied by the name field.
+The group specified by the name field.
 .It Dv ARCHIVE_ENTRY_ACL_GROUP_OBJ
-The group who owns the file.
+The group which owns the file.
 .It Dv ARCHIVE_ENTRY_ACL_EVERYONE
-Any principal who is not file owner or a member of the owning group.
+Any principal who is not the file owner or a member of the owning group.
 .El
 .Pp
 Entries with the
@@ -322,7 +322,7 @@ may take one of the following values:
 .El
 Supports all formats that can be created with
 .Fn archive_entry_acl_to_text
-or respective
+or respectively
 .Fn archive_entry_acl_to_text_w .
 Existing ACL entries are preserved. To get a clean new ACL from text
 .Fn archive_entry_acl_clear
@@ -354,7 +354,7 @@ prepare reading the list of ACL entries with
 .Fn archive_entry_acl_next
 or
 .Fn archive_entry_acl_next_w .
-The function returns either 0, if no non-extended ACLs are found.
+The function returns 0 if no non-extended ACLs are found.
 In this case, the access permissions should be obtained by
 .Xr archive_entry_mode 3
 or set using
