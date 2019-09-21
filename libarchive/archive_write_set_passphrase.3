@@ -49,7 +49,7 @@ Streaming Archive Library (libarchive, -larchive)
 .Sh DESCRIPTION
 .Bl -tag -width indent
 .It Fn archive_write_set_passphrase
-Set a passphrase for writing an encryption archive.
+Set a passphrase for writing an encrypted archive.
 If
 .Ar passphrase
 is
@@ -61,8 +61,8 @@ Otherwise,
 .Cm ARCHIVE_OK
 will be returned. 
 .It Fn archive_write_set_passphrase_callback
-Register callback function that will be invoked to get a passphrase
-for encrption if the passphrase was not set by the
+Register a callback function that will be invoked to get a passphrase
+for encryption if the passphrase was not set by the
 .Fn archive_write_set_passphrase
 function.
 .El

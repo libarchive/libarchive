@@ -99,7 +99,7 @@ following values:
 .Bl -tag -compact -width "indent"
 .It Cm ARCHIVE_READDISK_HONOR_NODUMP
 Skip files and directories with the nodump file attribute (file flag) set.
-By default, the nodump file atrribute is ignored.
+By default, the nodump file attribute is ignored.
 .It Cm ARCHIVE_READDISK_MAC_COPYFILE
 Mac OS X specific. Read metadata (ACLs and extended attributes) with
 .Xr copyfile 3 .
@@ -120,7 +120,7 @@ or
 for more information on file attributes.
 .It Cm ARCHIVE_READDISK_NO_TRAVERSE_MOUNTS
 Do not traverse mount points.
-By defaut, moint points are traversed.
+By default, mount points are traversed.
 .It Cm ARCHIVE_READDISK_NO_XATTR
 Do not read extended file attributes (xattrs).
 By default, extended file attributes are read from disk.
@@ -216,7 +216,7 @@ of some other operation.
 (For example, directory traversal libraries often provide this information.)
 .Pp
 Where necessary, user and group ids are converted to user and group names
-using the currently registered lookup functions above.
+using the currently-registered lookup functions above.
 This affects the file ownership fields and ACL values in the
 .Tn struct archive_entry
 object.
