@@ -203,22 +203,28 @@ These options are used to set standard ISO9660 metadata.
 .Bl -tag -compact -width indent
 .It Cm abstract-file Ns = Ns Ar filename
 The file with the specified name will be identified in the ISO9660 metadata
-as holding the abstract for this volume.  Default: none.
+as holding the abstract for this volume.
+Default: none.
 .It Cm application-id Ns = Ns Ar filename
 The file with the specified name will be identified in the ISO9660 metadata
-as holding the application identifier for this volume.  Default: none.
+as holding the application identifier for this volume.
+Default: none.
 .It Cm biblio-file Ns = Ns Ar filename
 The file with the specified name will be identified in the ISO9660 metadata
-as holding the bibliography for this volume.  Default: none.
+as holding the bibliography for this volume.
+Default: none.
 .It Cm copyright-file Ns = Ns Ar filename
 The file with the specified name will be identified in the ISO9660 metadata
-as holding the copyright for this volume.  Default: none.
+as holding the copyright for this volume.
+Default: none.
 .It Cm publisher Ns = Ns Ar filename
 The file with the specified name will be identified in the ISO9660 metadata
-as holding the publisher information for this volume.  Default: none.
+as holding the publisher information for this volume.
+Default: none.
 .It Cm volume-id Ns = Ns Ar string
 The specified string will be used as the Volume Identifier in the ISO9660 metadata.
-It is limited to 32 bytes. Default: none.
+It is limited to 32 bytes.
+Default: none.
 .El
 .It Format iso9660 - boot support
 These options are used to make an ISO9660 image that can be directly
@@ -266,7 +272,7 @@ If the boot image is exactly 1.2MB, 1.44MB, or 2.88MB, then
 the default is
 .Cm fd ,
 otherwise the default is
-.Cm no-emulation.
+.Cm no-emulation .
 .El
 .It Format iso9660 - filename and size extensions
 Various extensions to the base ISO9660 format.
@@ -495,9 +501,9 @@ functions.
 .\"
 .Sh SEE ALSO
 .Xr tar 1 ,
-.Xr libarchive 3 ,
 .Xr archive_read_set_options 3 ,
-.Xr archive_write 3
+.Xr archive_write 3 ,
+.Xr libarchive 3
 .Sh HISTORY
 The
 .Nm libarchive
