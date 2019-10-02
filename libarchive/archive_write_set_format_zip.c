@@ -1463,7 +1463,6 @@ copy_path(struct archive_entry *entry, unsigned char *p)
 	/* Folders are recognized by a trailing slash. */
 	if ((type == AE_IFDIR) & (path[pathlen - 1] != '/')) {
 		p[pathlen] = '/';
-		p[pathlen + 1] = '\0';
 	}
 }
 
