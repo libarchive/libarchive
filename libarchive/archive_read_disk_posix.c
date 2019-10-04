@@ -694,6 +694,7 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	struct tree *t = a->tree;
 	int r;
 	ssize_t bytes;
+	int64_t sparse_bytes;
 	size_t buffbytes;
 	int empty_sparse_region = 0;
 
@@ -792,9 +793,9 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 			a->archive.state = ARCHIVE_STATE_FATAL;
 			goto abort_read_data;
 		}
-		bytes = t->current_sparse->offset - t->entry_total;
-		t->entry_remaining_bytes -= bytes;
-		t->entry_total += bytes;
+		sparse_bytes = t->current_sparse->offset - t->entry_total;
+		t->entry_remaining_bytes -= sparse_bytes;
+		t->entry_total += sparse_bytes;
 	}
 
 	/*
