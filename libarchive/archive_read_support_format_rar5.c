@@ -1179,7 +1179,7 @@ static int process_main_locator_extra_block(struct archive_read* a,
 static int parse_file_extra_hash(struct archive_read* a, struct rar5* rar,
     ssize_t* extra_data_size)
 {
-	size_t hash_type;
+	size_t hash_type = 0;
 	size_t value_len;
 
 	if(!read_var_sized(a, &hash_type, &value_len))
@@ -1305,7 +1305,7 @@ static int parse_file_extra_htime(struct archive_read* a,
     struct archive_entry* e, struct rar5* rar, ssize_t* extra_data_size)
 {
 	char unix_time = 0;
-	size_t flags;
+	size_t flags = 0;
 	size_t value_len;
 
 	enum HTIME_FLAGS {
