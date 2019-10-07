@@ -115,6 +115,8 @@ struct file_header {
 	/* Optional redir fields */
 	uint64_t redir_type;
 	uint64_t redir_flags;
+
+	ssize_t solid_window_size; /* Used in file format check. */
 };
 
 enum EXTRA {
@@ -1665,6 +1667,17 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 		g_unpack_window_size << ((compression_info >> 10) & 15);
 	rar->cstate.method = c_method;
 	rar->cstate.version = c_version + 50;
+	rar->file.solid = (compression_info & SOLID) > 0;
+
+	/* Archives which declare solid files without initializing the window
+	 * buffer first are invalid. */
+
+	if(rar->file.solid > 0 && rar->cstate.window_buf == NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+				  "Declared solid file, but no window buffer "
+				  "initialized yet.");
+		return ARCHIVE_FATAL;
+	}
 
 	/* Check if window_size is a sane value. Also, if the file is not
 	 * declared as a directory, disallow window_size == 0. */
@@ -1676,12 +1689,32 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 		return ARCHIVE_FATAL;
 	}
 
+	if(rar->file.solid > 0) {
+		/* Re-check if current window size is the same as previous
+		 * window size (for solid files only). */
+		if(rar->file.solid_window_size > 0 &&
+		    rar->file.solid_window_size != (ssize_t) window_size)
+		{
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Window size for this solid file doesn't match "
+			    "the window size used in previous solid file. ");
+			return ARCHIVE_FATAL;
+		}
+	}
+
 	/* Values up to 64M should fit into ssize_t on every
 	 * architecture. */
 	rar->cstate.window_size = (ssize_t) window_size;
+
+	if(rar->file.solid > 0 && rar->file.solid_window_size == 0) {
+		/* Solid files have to have the same window_size across
+		   whole archive. Remember the window_size parameter
+		   for first solid file found. */
+		rar->file.solid_window_size = rar->cstate.window_size;
+	}
+
 	init_window_mask(rar);
 
-	rar->file.solid = (compression_info & SOLID) > 0;
 	rar->file.service = 0;
 
 	if(!read_var_sized(a, &host_os, NULL))
