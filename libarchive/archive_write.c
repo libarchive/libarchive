@@ -486,6 +486,7 @@ archive_write_open(struct archive *_a, void *client_data,
 	ret = __archive_write_open_filter(a->filter_first);
 	if (ret < ARCHIVE_WARN) {
 		r1 = __archive_write_close_filter(a);
+		__archive_write_filters_free(_a);
 		return (r1 < ret ? r1 : ret);
 	}
 
