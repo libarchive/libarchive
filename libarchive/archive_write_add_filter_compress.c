@@ -442,14 +442,15 @@ cleanup:
 	ret2 = __archive_write_close_filter(f->next_filter);
 	if (ret > ret2)
 		ret = ret2;
-	free(state->compressed);
-	free(state);
 	return (ret);
 }
 
 static int
 archive_compressor_compress_free(struct archive_write_filter *f)
 {
-	(void)f; /* UNUSED */
+	struct private_data *state = (struct private_data *)f->data;
+
+	free(state->compressed);
+	free(state);
 	return (ARCHIVE_OK);
 }
