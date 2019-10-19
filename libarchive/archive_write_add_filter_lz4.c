@@ -366,9 +366,7 @@ archive_filter_lz4_close(struct archive_write_filter *f)
 		ret = __archive_write_filter(f->next_filter,
 			    data->out_buffer, data->out - data->out_buffer);
 	}
-
-	r1 = __archive_write_close_filter(f->next_filter);
-	return (r1 < ret ? r1 : ret);
+	return ret;
 }
 
 static int

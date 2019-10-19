@@ -426,22 +426,18 @@ static int
 archive_compressor_compress_close(struct archive_write_filter *f)
 {
 	struct private_data *state = (struct private_data *)f->data;
-	int ret, ret2;
+	int ret;
 
 	ret = output_code(f, state->cur_code);
 	if (ret != ARCHIVE_OK)
-		goto cleanup;
+		return ret;
 	ret = output_flush(f);
 	if (ret != ARCHIVE_OK)
-		goto cleanup;
+		return ret;
 
 	/* Write the last block */
 	ret = __archive_write_filter(f->next_filter,
 	    state->compressed, state->compressed_offset);
-cleanup:
-	ret2 = __archive_write_close_filter(f->next_filter);
-	if (ret > ret2)
-		ret = ret2;
 	return (ret);
 }
 

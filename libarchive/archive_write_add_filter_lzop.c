@@ -439,10 +439,7 @@ archive_write_lzop_close(struct archive_write_filter *f)
 	}
 	/* Write a zero uncompressed size as the end mark of the series of
 	 * compressed block. */
-	r = __archive_write_filter(f->next_filter, &endmark, sizeof(endmark));
-	if (r != ARCHIVE_OK)
-		return (r);
-	return (__archive_write_close_filter(f->next_filter));
+	return __archive_write_filter(f->next_filter, &endmark, sizeof(endmark));
 }
 
 #else

@@ -254,13 +254,19 @@ __archive_write_open_filter(struct archive_write_filter *f)
  * Close a filter.
  */
 int
-__archive_write_close_filter(struct archive_write_filter *f)
+__archive_write_close_filter(struct archive_write *a)
 {
-	if (f->close != NULL)
-		return (f->close)(f);
-	if (f->next_filter != NULL)
-		return (__archive_write_close_filter(f->next_filter));
-	return (ARCHIVE_OK);
+	struct archive_write_filter *f;
+	int ret, ret1;
+	ret = ARCHIVE_OK;
+	for (f = a->filter_first; f != NULL; f = f->next_filter) {
+		if (f->close != NULL) {
+			ret1 = (f->close)(f);
+			if (ret1 < ret)
+				ret = ret1;
+		}
+	}
+	return (ret);
 }
 
 int
@@ -479,7 +485,7 @@ archive_write_open(struct archive *_a, void *client_data,
 
 	ret = __archive_write_open_filter(a->filter_first);
 	if (ret < ARCHIVE_WARN) {
-		r1 = __archive_write_close_filter(a->filter_first);
+		r1 = __archive_write_close_filter(a);
 		return (r1 < ret ? r1 : ret);
 	}
 
@@ -521,7 +527,7 @@ _archive_write_close(struct archive *_a)
 	}
 
 	/* Finish the compression and close the stream. */
-	r1 = __archive_write_close_filter(a->filter_first);
+	r1 = __archive_write_close_filter(a);
 	if (r1 < r)
 		r = r1;
 
