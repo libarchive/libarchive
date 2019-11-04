@@ -65,8 +65,9 @@ test_read_format_lha_filename_UTF16_UTF8(const char *refname)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 #if defined(__APPLE__)
 	/* NFD normalization */
-	assertEqualString("U\xCC\x88O\xCC\x88A\xCC\x88u\xCC\x88o\xCC\x88a\xCC\x88/"
-	    "a\xCC\x88o\xCC\x88u\xCC\x88A\xCC\x88O\xCC\x88U\xCC\x88.txt",
+	assertEqualString("\x55\xcc\x88\x4f\xcc\x88\x41\xcc\x88\x75\xcc\x88\x6f"
+	    "\xcc\x88\x61\xcc\x88/\x61\xcc\x88\x6f\xcc\x88\x75\xcc\x88\x41\xcc\x88"
+	    "\x4f\xcc\x88\x55\xcc\x88.txt",
 	    archive_entry_pathname(ae));
 #else
 	/* NFC normalization */
@@ -80,7 +81,8 @@ test_read_format_lha_filename_UTF16_UTF8(const char *refname)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 #if defined(__APPLE__)
 	/* NFD normalization */
-	assertEqualString("U\xCC\x88O\xCC\x88A\xCC\x88u\xCC\x88o\xCC\x88a\xCC\x88/",
+	assertEqualString("\x55\xcc\x88\x4f\xcc\x88\x41\xcc\x88\x75\xcc\x88\x6f"
+	    "\xcc\x88\x61\xcc\x88/",
 	    archive_entry_pathname(ae));
 #else
 	/* NFC normalization */
