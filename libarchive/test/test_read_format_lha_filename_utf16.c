@@ -63,15 +63,30 @@ test_read_format_lha_filename_UTF16_UTF8(const char *refname)
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+#if defined(__APPLE__)
+	/* NFD normalization */
+	assertEqualString("U\xCC\x88O\xCC\x88A\xCC\x88u\xCC\x88o\xCC\x88a\xCC\x88/"
+	    "a\xCC\x88o\xCC\x88u\xCC\x88A\xCC\x88O\xCC\x88U\xCC\x88.txt",
+	    archive_entry_pathname(ae));
+#else
+	/* NFC normalization */
 	assertEqualString("\xc3\x9c\xc3\x96\xc3\x84\xc3\xbc\xc3\xb6\xc3\xa4/"
 	    "\xc3\xa4\xc3\xb6\xc3\xbc\xc3\x84\xc3\x96\xc3\x9c.txt",
 	    archive_entry_pathname(ae));
+#endif
 	assertEqualInt(12, archive_entry_size(ae));
 
 	/* Verify directory. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+#if defined(__APPLE__)
+	/* NFD normalization */
+	assertEqualString("U\xCC\x88O\xCC\x88A\xCC\x88u\xCC\x88o\xCC\x88a\xCC\x88/",
+	    archive_entry_pathname(ae));
+#else
+	/* NFC normalization */
 	assertEqualString("\xc3\x9c\xc3\x96\xc3\x84\xc3\xbc\xc3\xb6\xc3\xa4/",
 	    archive_entry_pathname(ae));
+#endif
 	assertEqualInt(0, archive_entry_size(ae));
 
 	/* End of archive. */
