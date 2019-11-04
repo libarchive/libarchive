@@ -180,8 +180,6 @@ struct lha {
 
 	struct archive_string 	 dirname;
 	struct archive_string 	 filename;
-	struct archive_wstring 	 dirname_w;
-	struct archive_wstring 	 filename_w;
 	struct archive_wstring	 ws;
 
 	unsigned char		 dos_attr;
@@ -477,7 +475,6 @@ archive_read_format_lha_read_header(struct archive_read *a,
 {
 	struct archive_string linkname;
 	struct archive_string pathname;
-	struct archive_wstring pathname_w;
 	struct lha *lha;
 	const unsigned char *p;
 	const char *signature;
@@ -562,9 +559,7 @@ archive_read_format_lha_read_header(struct archive_read *a,
 	lha->uid = 0;
 	lha->gid = 0;
 	archive_string_empty(&lha->dirname);
-	archive_wstring_empty(&lha->dirname_w);
 	archive_string_empty(&lha->filename);
-	archive_wstring_empty(&lha->filename_w);
 	lha->dos_attr = 0;
 	if (lha->opt_sconv != NULL)
 		lha->sconv = lha->opt_sconv;
@@ -601,40 +596,14 @@ archive_read_format_lha_read_header(struct archive_read *a,
 	/*
 	 * Make a pathname from a dirname and a filename.
 	 */
-	if (archive_strlen(&lha->filename_w) > 0 || archive_strlen(&lha->dirname_w) > 0) {
-		/* This archive has some unicode contents */
-		if (archive_strlen(&lha->filename_w) == 0)
-			if (-1 == archive_wstring_append_from_mbs(&lha->filename_w, lha->filename.s, archive_strlen(&lha->filename))) {
-				if (errno == ENOMEM)
-					archive_set_error(&a->archive, ENOMEM, "Can't allocate memory");
-				else
-					archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC, "Can't convert a path to a wchar_t string");
-				a->archive.state = ARCHIVE_STATE_FATAL;
-				return ARCHIVE_FATAL;
-			}
-		if (archive_strlen(&lha->dirname_w) == 0)
-			if (-1 == archive_wstring_append_from_mbs(&lha->dirname_w, lha->dirname.s, archive_strlen(&lha->dirname))) {
-				if (errno == ENOMEM)
-					archive_set_error(&a->archive, ENOMEM, "Can't allocate memory");
-				else
-					archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC, "Can't convert a path to a wchar_t string");
-				a->archive.state = ARCHIVE_STATE_FATAL;
-				return ARCHIVE_FATAL;
-			}
-	}
-
 	archive_string_concat(&lha->dirname, &lha->filename);
-	archive_wstring_concat(&lha->dirname_w, &lha->filename_w);
 	archive_string_init(&pathname);
-	archive_string_init(&pathname_w);
 	archive_string_init(&linkname);
 	archive_string_copy(&pathname, &lha->dirname);
-	archive_wstring_copy(&pathname_w, &lha->dirname_w);
 
 	if ((lha->mode & AE_IFMT) == AE_IFLNK) {
 		/*
 	 	 * Extract the symlink-name if it's included in the pathname.
-		 * Symlink-name is assumed not to exist in UNICODE filename, because UNICODE archives are created only on Windows(unlha32.dll)
 	 	 */
 		if (!lha_parse_linkname(&linkname, &pathname)) {
 			/* We couldn't get the symlink-name. */
@@ -642,7 +611,6 @@ archive_read_format_lha_read_header(struct archive_read *a,
 		    	    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Unknown symlink-name");
 			archive_string_free(&pathname);
-			archive_wstring_free(&pathname_w);
 			archive_string_free(&linkname);
 			return (ARCHIVE_FAILED);
 		}
@@ -661,9 +629,7 @@ archive_read_format_lha_read_header(struct archive_read *a,
 	/*
 	 * Set basic file parameters.
 	 */
-	if (archive_strlen(&pathname_w) > 0 ) {
-		archive_entry_copy_pathname_w(entry, pathname_w.s);
-	}else if (archive_entry_copy_pathname_l(entry, pathname.s,
+	if (archive_entry_copy_pathname_l(entry, pathname.s,
 	    pathname.length, lha->sconv) != 0) {
 		if (errno == ENOMEM) {
 			archive_set_error(&a->archive, ENOMEM,
@@ -678,7 +644,6 @@ archive_read_format_lha_read_header(struct archive_read *a,
 		err = ARCHIVE_WARN;
 	}
 	archive_string_free(&pathname);
-	archive_wstring_free(&pathname_w);
 	if (archive_strlen(&linkname) > 0) {
 		if (archive_entry_copy_symlink_l(entry, linkname.s,
 		    linkname.length, lha->sconv) != 0) {
@@ -1246,15 +1211,20 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 		case EXT_UTF16_FILENAME:
 			if (datasize == 0) {
 				/* maybe directory header */
-				archive_wstring_empty(&lha->filename_w);
+				archive_string_empty(&lha->filename);
 				break;
 			}
 			if (extdheader[0] == '\0')
 				goto invalid;
-			archive_wstrncpy(&lha->filename_w,
-				(const wchar_t *)extdheader, datasize / 2);
+			archive_string_empty(&lha->filename);
+			archive_array_append(&lha->filename,
+				(const char *)extdheader, datasize);
+			/* Setup a string conversion for a filename. */
+			lha->sconv = archive_string_conversion_from_charset(
+				&a->archive, "UTF-16LE", 1);
+			if (lha->sconv == NULL)
+				return (ARCHIVE_FATAL);
 			break;
-
 		case EXT_DIRECTORY:
 			if (datasize == 0 || extdheader[0] == '\0')
 				/* no directory name data. exit this case. */
@@ -1280,20 +1250,28 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 				/* no directory name data. exit this case. */
 				goto invalid;
 
-			archive_wstrncpy(&lha->dirname_w,
-				(const wchar_t *)extdheader, datasize / 2);
+			archive_string_empty(&lha->dirname);
+			archive_array_append(&lha->dirname,
+				(const char *)extdheader, datasize);
+			lha->sconv = archive_string_conversion_from_charset(
+				&a->archive, "UTF-16LE", 1);
+			if (lha->sconv == NULL)
+				return (ARCHIVE_FATAL);
 			/*
 			 * Convert directory delimiter from 0xFF
 			 * to '/' for local system.
 			 */
-			for (i = 0; i < lha->dirname_w.length; i++) {
-				if (lha->dirname_w.s[i] == 0xFFFF)
-					lha->dirname_w.s[i] = L'/';
+			{
+				uint16_t *utf16name = (uint16_t *)lha->dirname.s;	/* UTF-16LE character */
+				for (i = 0; i < lha->dirname.length / 2; i++) {
+					if (utf16name[i] == 0xFFFF)
+						utf16name[i] = L'/';
+				}
+				/* Is last character directory separator? */
+				if (utf16name[lha->dirname.length / 2 - 1] != L'/')
+					/* invalid directory data */
+					goto invalid;
 			}
-			/* Is last character directory separator? */
-			if (lha->dirname_w.s[lha->dirname_w.length - 1] != L'/')
-				/* invalid directory data */
-				goto invalid;
 			break;
 		case EXT_DOS_ATTR:
 			if (datasize == 2)
@@ -1646,9 +1624,7 @@ archive_read_format_lha_cleanup(struct archive_read *a)
 
 	lzh_decode_free(&(lha->strm));
 	archive_string_free(&(lha->dirname));
-	archive_wstring_free(&(lha->dirname_w));
 	archive_string_free(&(lha->filename));
-	archive_wstring_free(&(lha->filename_w));
 	archive_string_free(&(lha->uname));
 	archive_string_free(&(lha->gname));
 	archive_wstring_free(&(lha->ws));
