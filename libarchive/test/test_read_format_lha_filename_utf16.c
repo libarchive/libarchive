@@ -61,35 +61,58 @@ test_read_format_lha_filename_UTF16_UTF8(const char *refname)
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_open_filename(a, refname, 10240));
 
-	/* Verify regular file. */
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	/* Note that usual Japanese filenames are tested in other cases */
 #if defined(__APPLE__)
-	/* NFD normalization */
-	assertEqualString("\x55\xcc\x88\x4f\xcc\x88\x41\xcc\x88\x75\xcc\x88\x6f"
-	    "\xcc\x88\x61\xcc\x88/\x61\xcc\x88\x6f\xcc\x88\x75\xcc\x88\x41\xcc\x88"
-	    "\x4f\xcc\x88\x55\xcc\x88.txt",
-	    archive_entry_pathname(ae));
+ /* NFD normalization */
+ /* U:O:A:u:o:a: */
+ #define UMLAUT_DIRNAME "\x55\xcc\x88\x4f\xcc\x88\x41\xcc\x88\x75\xcc\x88\x6f"\
+	    "\xcc\x88\x61\xcc\x88/"
+ /* a:o:u:A:O:U:.txt */
+ #define UMLAUT_FNAME "\x61\xcc\x88\x6f\xcc\x88\x75\xcc\x88\x41\xcc\x88"\
+	    "\x4f\xcc\x88\x55\xcc\x88.txt"
 #else
-	/* NFC normalization */
-	assertEqualString("\xc3\x9c\xc3\x96\xc3\x84\xc3\xbc\xc3\xb6\xc3\xa4/"
-	    "\xc3\xa4\xc3\xb6\xc3\xbc\xc3\x84\xc3\x96\xc3\x9c.txt",
-	    archive_entry_pathname(ae));
+ /* NFC normalization */
+ /* U:O:A:u:o:a: */
+ #define UMLAUT_DIRNAME "\xc3\x9c\xc3\x96\xc3\x84\xc3\xbc\xc3\xb6\xc3\xa4/"
+ /* a:o:u:A:O:U:.txt */
+ #define UMLAUT_FNAME "\xc3\xa4\xc3\xb6\xc3\xbc\xc3\x84\xc3\x96\xc3\x9c.txt"
 #endif
+
+/* "Test" in Japanese Katakana */
+#define KATAKANA_FNAME "\xe3\x83\x86\xe3\x82\xb9\xe3\x83\x88.txt"
+#define KATAKANA_DIRNAME "\xe3\x83\x86\xe3\x82\xb9\xe3\x83\x88/"
+
+	/* Verify regular file. U:O:A:u:o:a:/a:o:u:A:O:U:.txt */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(UMLAUT_DIRNAME UMLAUT_FNAME, archive_entry_pathname(ae));
 	assertEqualInt(12, archive_entry_size(ae));
 
-	/* Verify directory. */
+	/* Verify directory. U:O:A:u:o:a:/ */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-#if defined(__APPLE__)
-	/* NFD normalization */
-	assertEqualString("\x55\xcc\x88\x4f\xcc\x88\x41\xcc\x88\x75\xcc\x88\x6f"
-	    "\xcc\x88\x61\xcc\x88/",
-	    archive_entry_pathname(ae));
-#else
-	/* NFC normalization */
-	assertEqualString("\xc3\x9c\xc3\x96\xc3\x84\xc3\xbc\xc3\xb6\xc3\xa4/",
-	    archive_entry_pathname(ae));
-#endif
+	assertEqualString(UMLAUT_DIRNAME, archive_entry_pathname(ae));
 	assertEqualInt(0, archive_entry_size(ae));
+
+	/* Verify regular file. U:O:A:u:o:a:/("Test" in Japanese).txt */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(UMLAUT_DIRNAME KATAKANA_FNAME,
+	    archive_entry_pathname(ae));
+	assertEqualInt(25, archive_entry_size(ae));
+
+	/* Verify regular file. ("Test" in Japanese)/a:o:u:A:O:U:.txt */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(KATAKANA_DIRNAME UMLAUT_FNAME,
+	    archive_entry_pathname(ae));
+	assertEqualInt(12, archive_entry_size(ae));
+
+	/* Verify directory. ("Test" in Japanese)/ */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(KATAKANA_DIRNAME, archive_entry_pathname(ae));
+	assertEqualInt(0, archive_entry_size(ae));
+
+	/* Verify regular file. a:o:u:A:O:U:.txt */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(UMLAUT_FNAME, archive_entry_pathname(ae));
+	assertEqualInt(12, archive_entry_size(ae));
 
 	/* End of archive. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
