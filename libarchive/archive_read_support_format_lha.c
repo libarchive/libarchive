@@ -175,7 +175,9 @@ struct lha {
 	struct archive_string 	 gname;
 	uint16_t		 header_crc;
 	uint16_t		 crc;
-	struct archive_string_conv *sconv;
+	/* dirname and filename could be in different codepages */
+	struct archive_string_conv *sconv_dir;
+	struct archive_string_conv *sconv_fname;
 	struct archive_string_conv *opt_sconv;
 
 	struct archive_string 	 dirname;
@@ -232,8 +234,8 @@ static time_t	lha_dos_time(const unsigned char *);
 static time_t	lha_win_time(uint64_t, long *);
 static unsigned char	lha_calcsum(unsigned char, const void *,
 		    int, size_t);
-static int	lha_parse_linkname(struct archive_string *,
-		    struct archive_string *);
+static int	lha_parse_linkname(struct archive_wstring *,
+		    struct archive_wstring *);
 static int	lha_read_data_none(struct archive_read *, const void **,
 		    size_t *, int64_t *);
 static int	lha_read_data_lzh(struct archive_read *, const void **,
@@ -473,13 +475,15 @@ static int
 archive_read_format_lha_read_header(struct archive_read *a,
     struct archive_entry *entry)
 {
-	struct archive_string linkname;
-	struct archive_string pathname;
+	struct archive_wstring linkname;
+	struct archive_wstring pathname;
 	struct lha *lha;
 	const unsigned char *p;
 	const char *signature;
 	int err;
-	
+	struct archive_mstring conv_buffer;
+	const wchar_t *conv_buffer_p;
+
 	lha_crc16_init();
 
 	a->archive.archive_format = ARCHIVE_FORMAT_LHA;
@@ -561,10 +565,13 @@ archive_read_format_lha_read_header(struct archive_read *a,
 	archive_string_empty(&lha->dirname);
 	archive_string_empty(&lha->filename);
 	lha->dos_attr = 0;
-	if (lha->opt_sconv != NULL)
-		lha->sconv = lha->opt_sconv;
-	else
-		lha->sconv = NULL;
+	if (lha->opt_sconv != NULL) {
+		lha->sconv_dir = lha->opt_sconv;
+		lha->sconv_fname = lha->opt_sconv;
+	} else {
+		lha->sconv_dir = NULL;
+		lha->sconv_fname = NULL;
+	}
 
 	switch (p[H_LEVEL_OFFSET]) {
 	case 0:
@@ -594,12 +601,51 @@ archive_read_format_lha_read_header(struct archive_read *a,
 		return (truncated_error(a));
 
 	/*
-	 * Make a pathname from a dirname and a filename.
-	 */
-	archive_string_concat(&lha->dirname, &lha->filename);
+	 * Make a pathname from a dirname and a filename, after converting to Unicode.
+	 * This is because codepages might differ between dirname and filename.
+	*/
 	archive_string_init(&pathname);
 	archive_string_init(&linkname);
-	archive_string_copy(&pathname, &lha->dirname);
+	archive_string_init(&conv_buffer.aes_mbs);
+	archive_string_init(&conv_buffer.aes_mbs_in_locale);
+	archive_string_init(&conv_buffer.aes_utf8);
+	archive_string_init(&conv_buffer.aes_wcs);
+	if (0 != archive_mstring_copy_mbs_len_l(&conv_buffer, lha->dirname.s, lha->dirname.length, lha->sconv_dir)) {
+		archive_set_error(&a->archive,
+			ARCHIVE_ERRNO_FILE_FORMAT,
+			"Pathname cannot be converted "
+			"from %s to Unicode.",
+			archive_string_conversion_charset_name(lha->sconv_dir));
+		return ARCHIVE_FATAL;
+	}
+	if (0 != archive_mstring_get_wcs(&a->archive, &conv_buffer, &conv_buffer_p)) {
+		archive_mstring_clean(&conv_buffer);
+		archive_wstring_free(&pathname);
+		archive_wstring_free(&linkname);
+		return ARCHIVE_FATAL;
+	}
+	archive_wstring_copy(&pathname, &conv_buffer.aes_wcs);
+
+	archive_string_empty(&conv_buffer.aes_mbs);
+	archive_string_empty(&conv_buffer.aes_mbs_in_locale);
+	archive_string_empty(&conv_buffer.aes_utf8);
+	archive_wstring_empty(&conv_buffer.aes_wcs);
+	if (0 != archive_mstring_copy_mbs_len_l(&conv_buffer, lha->filename.s, lha->filename.length, lha->sconv_fname)) {
+		archive_set_error(&a->archive,
+			ARCHIVE_ERRNO_FILE_FORMAT,
+			"Pathname cannot be converted "
+			"from %s to Unicode.",
+			archive_string_conversion_charset_name(lha->sconv_fname));
+		return ARCHIVE_FATAL;
+	}
+	if (0 != archive_mstring_get_wcs(&a->archive, &conv_buffer, &conv_buffer_p)) {
+		archive_mstring_clean(&conv_buffer);
+		archive_wstring_free(&pathname);
+		archive_wstring_free(&linkname);
+		return ARCHIVE_FATAL;
+	}
+	archive_wstring_concat(&pathname, &conv_buffer.aes_wcs);
+	archive_mstring_clean(&conv_buffer);
 
 	if ((lha->mode & AE_IFMT) == AE_IFLNK) {
 		/*
@@ -610,8 +656,8 @@ archive_read_format_lha_read_header(struct archive_read *a,
 			archive_set_error(&a->archive,
 		    	    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Unknown symlink-name");
-			archive_string_free(&pathname);
-			archive_string_free(&linkname);
+			archive_wstring_free(&pathname);
+			archive_wstring_free(&linkname);
 			return (ARCHIVE_FAILED);
 		}
 	} else {
@@ -629,39 +675,13 @@ archive_read_format_lha_read_header(struct archive_read *a,
 	/*
 	 * Set basic file parameters.
 	 */
-	if (archive_entry_copy_pathname_l(entry, pathname.s,
-	    pathname.length, lha->sconv) != 0) {
-		if (errno == ENOMEM) {
-			archive_set_error(&a->archive, ENOMEM,
-			    "Can't allocate memory for Pathname");
-			return (ARCHIVE_FATAL);
-		}
-		archive_set_error(&a->archive,
-		    ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Pathname cannot be converted "
-		    "from %s to current locale.",
-		    archive_string_conversion_charset_name(lha->sconv));
-		err = ARCHIVE_WARN;
-	}
-	archive_string_free(&pathname);
+	archive_entry_copy_pathname_w(entry, pathname.s);
+	archive_wstring_free(&pathname);
 	if (archive_strlen(&linkname) > 0) {
-		if (archive_entry_copy_symlink_l(entry, linkname.s,
-		    linkname.length, lha->sconv) != 0) {
-			if (errno == ENOMEM) {
-				archive_set_error(&a->archive, ENOMEM,
-				    "Can't allocate memory for Linkname");
-				return (ARCHIVE_FATAL);
-			}
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Linkname cannot be converted "
-			    "from %s to current locale.",
-			    archive_string_conversion_charset_name(lha->sconv));
-			err = ARCHIVE_WARN;
-		}
+		archive_entry_copy_symlink_w(entry, linkname.s);
 	} else
 		archive_entry_set_symlink(entry, NULL);
-	archive_string_free(&linkname);
+	archive_wstring_free(&linkname);
 	/*
 	 * When a header level is 0, there is a possibility that
 	 * a pathname and a symlink has '\' character, a directory
@@ -1220,9 +1240,9 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 			archive_array_append(&lha->filename,
 				(const char *)extdheader, datasize);
 			/* Setup a string conversion for a filename. */
-			lha->sconv = archive_string_conversion_from_charset(
+			lha->sconv_fname = archive_string_conversion_from_charset(
 				&a->archive, "UTF-16LE", 1);
-			if (lha->sconv == NULL)
+			if (lha->sconv_fname == NULL)
 				return (ARCHIVE_FATAL);
 			break;
 		case EXT_DIRECTORY:
@@ -1253,9 +1273,9 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 			archive_string_empty(&lha->dirname);
 			archive_array_append(&lha->dirname,
 				(const char *)extdheader, datasize);
-			lha->sconv = archive_string_conversion_from_charset(
+			lha->sconv_dir = archive_string_conversion_from_charset(
 				&a->archive, "UTF-16LE", 1);
-			if (lha->sconv == NULL)
+			if (lha->sconv_dir == NULL)
 				return (ARCHIVE_FATAL);
 			/*
 			 * Convert directory delimiter from 0xFF
@@ -1321,11 +1341,16 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 					charset = cp.s;
 					break;
 				}
-				lha->sconv =
+				lha->sconv_dir =
+				    archive_string_conversion_from_charset(
+					&(a->archive), charset, 1);
+				lha->sconv_fname =
 				    archive_string_conversion_from_charset(
 					&(a->archive), charset, 1);
 				archive_string_free(&cp);
-				if (lha->sconv == NULL)
+				if (lha->sconv_dir == NULL)
+					return (ARCHIVE_FATAL);
+				if (lha->sconv_fname == NULL)
 					return (ARCHIVE_FATAL);
 			}
 			break;
@@ -1644,19 +1669,19 @@ archive_read_format_lha_cleanup(struct archive_read *a)
  *  then a archived pathname is 'xxx/bbb|aaa/bb/cc'
  */
 static int
-lha_parse_linkname(struct archive_string *linkname,
-    struct archive_string *pathname)
+lha_parse_linkname(struct archive_wstring *linkname,
+    struct archive_wstring *pathname)
 {
-	char *	linkptr;
+	wchar_t *	linkptr;
 	size_t 	symlen;
 
-	linkptr = strchr(pathname->s, '|');
+	linkptr = wcschr(pathname->s, L'|');
 	if (linkptr != NULL) {
-		symlen = strlen(linkptr + 1);
-		archive_strncpy(linkname, linkptr+1, symlen);
+		symlen = wcslen(linkptr + 1);
+		archive_wstrncpy(linkname, linkptr+1, symlen);
 
 		*linkptr = 0;
-		pathname->length = strlen(pathname->s);
+		pathname->length = wcslen(pathname->s);
 
 		return (1);
 	}
