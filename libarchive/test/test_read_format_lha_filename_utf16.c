@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2019 Claybird
+ * Copyright (c) 2019 Martin Matuska
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
