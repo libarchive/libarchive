@@ -48,6 +48,12 @@ test_read_format_lha_filename_UTF16_UTF8(const char *refname)
 	 */
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+    if (ARCHIVE_OK != archive_read_set_options(a, "hdrcharset=CP932")) {
+        assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+        skipping("This system cannot convert character-set"
+            " from CP932 to UTF-8.");
+        return;
+    }
 	if (ARCHIVE_OK != archive_read_set_options(a, "hdrcharset=UTF-16")) {
 		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 		skipping("This system cannot convert character-set"
