@@ -1,16 +1,13 @@
-name: Ubuntu
+name: CI
 
 on: [push, pull_request]
 
 jobs:
-  Build-and-test:
-
+  Ubuntu:
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         bs: [autotools, cmake]
-    
     steps:
     - uses: actions/checkout@master
     - name: Install dependencies
@@ -36,3 +33,36 @@ jobs:
       run: ./build/ci/build.sh -a install
       env:
         BS: ${{ matrix.bs }}
+
+  Windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        be: [mingw-gcc, msvc]
+    steps:
+    - uses: actions/checkout@master
+    - name: Install dependencies
+      run: ./build/ci/github_actions/ci.cmd deplibs
+      shell: cmd
+      env:
+        BE: ${{ matrix.be }}
+    - name: Configure
+      run: ./build/ci/github_actions/ci.cmd configure
+      shell: cmd
+      env:
+        BE: ${{ matrix.be }}
+    - name: Build
+      run: ./build/ci/github_actions/ci.cmd build
+      shell: cmd
+      env:
+        BE: ${{ matrix.be }}
+    - name: Test
+      run: ./build/ci/github_actions/ci.cmd test
+      shell: cmd
+      env:
+        BE: ${{ matrix.be }}
+    - name: Install
+      run: ./build/ci/github_actions/ci.cmd install
+      shell: cmd
+      env:
+        BE: ${{ matrix.be }}

@@ -77,40 +77,6 @@ Fedora_30_distcheck_task:
   distcheck_script:
   - ./build/ci/build.sh -a distcheck
 
-Windows_MSVC_task:
-  windows_container:
-    dockerfile: build/ci/cirrus_ci/Dockerfile.msvc
-    os_version: 2019
-  env:
-    BE: msvc
-  configure_script:
-  - build\ci\cirrus_ci\ci.cmd configure
-  build_script:
-  - build\ci\cirrus_ci\ci.cmd build
-  test_script:
-  - build\ci\cirrus_ci\ci.cmd test
-  instal_script:
-  - build\ci\cirrus_ci\ci.cmd install
-
-Windows_MinGW_task:
-  windows_container:
-    image: cirrusci/windowsservercore:2019
-    os_version: 2019
-  env:
-    BE: mingw-gcc
-  prepare_script:
-  - build\ci\cirrus_ci\ci.cmd prepare
-  deplibs_script:
-  - build\ci\cirrus_ci\ci.cmd deplibs
-  configure_script:
-  - build\ci\cirrus_ci\ci.cmd configure
-  build_script:
-  - build\ci\cirrus_ci\ci.cmd build
-  test_script:
-  - build\ci\cirrus_ci\ci.cmd test
-  install_script:
-  - build\ci\cirrus_ci\ci.cmd install
-
 Windows_Cygwin_task:
   windows_container:
     image: cirrusci/windowsservercore:2019
