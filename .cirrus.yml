@@ -44,17 +44,6 @@ Fedora_30_task:
   install_script:
   - ./build/ci/build.sh -a install
 
-Fedora_30_distcheck_task:
-  container:
-    dockerfile: build/ci/cirrus_ci/Dockerfile.fc30.distcheck
-  env:
-    BS: autotools
-  configure_script:
-  - ./build/ci/build.sh -a autogen
-  - ./build/ci/build.sh -a configure
-  distcheck_script:
-  - ./build/ci/build.sh -a distcheck
-
 Windows_Cygwin_task:
   windows_container:
     image: cirrusci/windowsservercore:2019
