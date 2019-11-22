@@ -2538,7 +2538,6 @@ static int parse_tables(struct archive_read* a, struct rar5* rar,
 
 		if(num < 18) {
 			/* 16..17: repeat previous code */
-			uint16_t n;
 			if(ARCHIVE_OK != read_bits_16(rar, p, &n))
 				return ARCHIVE_EOF;
 
