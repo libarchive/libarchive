@@ -1233,6 +1233,9 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 				/* maybe directory header */
 				archive_string_empty(&lha->filename);
 				break;
+			} else if (datasize & 1) {
+				/* UTF-16 characters take always 2 or 4 bytes */
+				goto invalid;
 			}
 			if (extdheader[0] == '\0')
 				goto invalid;
@@ -1266,7 +1269,8 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 				goto invalid;
 			break;
 		case EXT_UTF16_DIRECTORY:
-			if (datasize == 0 || extdheader[0] == '\0')
+			/* UTF-16 characters take always 2 or 4 bytes */
+			if (datasize == 0 || (datasize & 1) || extdheader[0] == '\0')
 				/* no directory name data. exit this case. */
 				goto invalid;
 
@@ -1277,12 +1281,13 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 				&a->archive, "UTF-16LE", 1);
 			if (lha->sconv_dir == NULL)
 				return (ARCHIVE_FATAL);
-			/*
-			 * Convert directory delimiter from 0xFF
-			 * to '/' for local system.
-			 */
-			{
-				uint16_t *utf16name = (uint16_t *)lha->dirname.s;	/* UTF-16LE character */
+			else {
+				/*
+				 * Convert directory delimiter from 0xFF
+				 * to '/' for local system.
+				 */
+				/* UTF-16LE character */
+				uint16_t *utf16name = (uint16_t *)lha->dirname.s;
 				for (i = 0; i < lha->dirname.length / 2; i++) {
 					if (utf16name[i] == 0xFFFF)
 						utf16name[i] = L'/';
