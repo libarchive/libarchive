@@ -238,7 +238,6 @@ static int
 archive_compressor_zstd_close(struct archive_write_filter *f)
 {
 	struct private_data *data = (struct private_data *)f->data;
-	int r1, r2;
 
 	/* Finish zstd frame */
 	return drive_compressor(f, data, 1, NULL, 0);
