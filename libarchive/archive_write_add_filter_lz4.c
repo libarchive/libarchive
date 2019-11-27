@@ -343,7 +343,7 @@ static int
 archive_filter_lz4_close(struct archive_write_filter *f)
 {
 	struct private_data *data = (struct private_data *)f->data;
-	int ret, r1;
+	int ret;
 
 	/* Finish compression cycle. */
 	ret = (int)lz4_write_one_block(f, NULL, 0);
