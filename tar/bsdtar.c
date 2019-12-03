@@ -231,6 +231,9 @@ main(int argc, char **argv)
 	/* Default: Perform basic security checks. */
 	bsdtar->extract_flags |= SECURITY;
 
+	/* Default: Extract atomically if possible */
+	bsdtar->extract_flags |= ARCHIVE_EXTRACT_ATOMIC;
+
 #ifndef _WIN32
 	/* On POSIX systems, assume --same-owner and -p when run by
 	 * the root user.  This doesn't make any sense on Windows. */
