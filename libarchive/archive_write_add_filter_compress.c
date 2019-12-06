@@ -146,16 +146,11 @@ archive_write_add_filter_compress(struct archive *_a)
 static int
 archive_compressor_compress_open(struct archive_write_filter *f)
 {
-	int ret;
 	struct private_data *state;
 	size_t bs = 65536, bpb;
 
 	f->code = ARCHIVE_FILTER_COMPRESS;
 	f->name = "compress";
-
-	ret = __archive_write_open_filter(f->next_filter);
-	if (ret != ARCHIVE_OK)
-		return (ret);
 
 	state = (struct private_data *)calloc(1, sizeof(*state));
 	if (state == NULL) {

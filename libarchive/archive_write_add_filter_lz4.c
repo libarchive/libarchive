@@ -223,15 +223,10 @@ static int
 archive_filter_lz4_open(struct archive_write_filter *f)
 {
 	struct private_data *data = (struct private_data *)f->data;
-	int ret;
 	size_t required_size;
 	static size_t const bkmap[] = { 64 * 1024, 256 * 1024, 1 * 1024 * 1024,
 			   4 * 1024 * 1024 };
 	size_t pre_block_size;
-
-	ret = __archive_write_open_filter(f->next_filter);
-	if (ret != 0)
-		return (ret);
 
 	if (data->block_maximum_size < 4)
 		data->block_size = bkmap[0];

@@ -167,10 +167,6 @@ archive_compressor_bzip2_open(struct archive_write_filter *f)
 	struct private_data *data = (struct private_data *)f->data;
 	int ret;
 
-	ret = __archive_write_open_filter(f->next_filter);
-	if (ret != 0)
-		return (ret);
-
 	if (data->compressed == NULL) {
 		size_t bs = 65536, bpb;
 		if (f->archive->magic == ARCHIVE_WRITE_MAGIC) {

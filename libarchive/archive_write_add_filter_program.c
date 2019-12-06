@@ -212,11 +212,6 @@ __archive_write_program_open(struct archive_write_filter *f,
     struct archive_write_program_data *data, const char *cmd)
 {
 	pid_t child;
-	int ret;
-
-	ret = __archive_write_open_filter(f->next_filter);
-	if (ret != ARCHIVE_OK)
-		return (ret);
 
 	if (data->child_buf == NULL) {
 		data->child_buf_len = 65536;
