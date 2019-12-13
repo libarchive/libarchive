@@ -192,11 +192,6 @@ main(int argc, char **argv)
 		if (sigaction(SIGUSR1, &sa, NULL))
 			lafe_errc(1, errno, "sigaction(SIGUSR1) failed");
 #endif
-#ifdef SIGPIPE
-		/* Ignore SIGPIPE signals. */
-		sa.sa_handler = SIG_IGN;
-		sigaction(SIGPIPE, &sa, NULL);
-#endif
 	}
 #endif
 
