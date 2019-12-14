@@ -10,9 +10,9 @@ FreeBSD_task:
       BS: cmake
   matrix:
     freebsd_instance:
-      image: freebsd-12-0-release-amd64
+      image_family: freebsd-12-1
     freebsd_instance:
-      image: freebsd-11-2-release-amd64
+      image: freebsd-11-3-stable-amd64-v20190801
   prepare_script:
   - ./build/ci/cirrus_ci/ci.sh prepare
   configure_script:
