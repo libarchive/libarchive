@@ -429,6 +429,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_open_file.c \
 	libarchive/test/test_open_filename.c \
 	libarchive/test/test_pax_filename_encoding.c \
+	libarchive/test/test_pax_xattr_header.c \
 	libarchive/test/test_read_data_large.c \
 	libarchive/test/test_read_disk.c \
 	libarchive/test/test_read_disk_directory_traversals.c \
@@ -702,6 +703,9 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_fuzz.lzh.uu \
 	libarchive/test/test_fuzz_1.iso.Z.uu \
 	libarchive/test/test_pax_filename_encoding.tar.uu \
+	libarchive/test/test_pax_xattr_header_all.tar.uu \
+	libarchive/test/test_pax_xattr_header_libarchive.tar.uu \
+	libarchive/test/test_pax_xattr_header_schily.tar.uu \
 	libarchive/test/test_rar_multivolume_multiple_files.part1.rar.uu \
 	libarchive/test/test_rar_multivolume_multiple_files.part2.rar.uu \
 	libarchive/test/test_rar_multivolume_multiple_files.part3.rar.uu \
