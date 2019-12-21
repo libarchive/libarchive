@@ -63,6 +63,7 @@
 
 #if defined DEBUG
 #define DEBUG_CODE if(1)
+#define LOG(...) do { printf("rar5: " __VA_ARGS__); puts(""); } while(0)
 #else
 #define DEBUG_CODE if(0)
 #endif
@@ -1702,9 +1703,13 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 		}
 	}
 
-	/* Values up to 64M should fit into ssize_t on every
-	 * architecture. */
-	rar->cstate.window_size = (ssize_t) window_size;
+	/* If we're currently switching volumes, ignore the new definition of
+	 * window_size. */
+	if(rar->cstate.switch_multivolume == 0) {
+		/* Values up to 64M should fit into ssize_t on every
+		 * architecture. */
+		rar->cstate.window_size = (ssize_t) window_size;
+	}
 
 	if(rar->file.solid > 0 && rar->file.solid_window_size == 0) {
 		/* Solid files have to have the same window_size across
