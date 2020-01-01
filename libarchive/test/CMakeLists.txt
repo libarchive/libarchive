@@ -82,6 +82,7 @@ IF(ENABLE_TEST)
     test_open_file.c
     test_open_filename.c
     test_pax_filename_encoding.c
+    test_pax_xattr_header.c
     test_read_data_large.c
     test_read_disk.c
     test_read_disk_directory_traversals.c
@@ -101,6 +102,7 @@ IF(ENABLE_TEST)
     test_read_format_7zip_encryption_header.c
     test_read_format_7zip_encryption_partially.c
     test_read_format_7zip_malformed.c
+    test_read_format_7zip_packinfo_digests.c
     test_read_format_ar.c
     test_read_format_cab.c
     test_read_format_cab_filename.c

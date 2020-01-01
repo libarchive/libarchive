@@ -616,13 +616,14 @@ archive_read_format_lha_read_header(struct archive_read *a,
 			"Pathname cannot be converted "
 			"from %s to Unicode.",
 			archive_string_conversion_charset_name(lha->sconv_dir));
-		return ARCHIVE_FATAL;
-	}
-	if (0 != archive_mstring_get_wcs(&a->archive, &conv_buffer, &conv_buffer_p)) {
+		err = ARCHIVE_FATAL;
+	} else if (0 != archive_mstring_get_wcs(&a->archive, &conv_buffer, &conv_buffer_p))
+		err = ARCHIVE_FATAL;
+	if (err == ARCHIVE_FATAL) {
 		archive_mstring_clean(&conv_buffer);
 		archive_wstring_free(&pathname);
 		archive_wstring_free(&linkname);
-		return ARCHIVE_FATAL;
+		return (err);
 	}
 	archive_wstring_copy(&pathname, &conv_buffer.aes_wcs);
 
@@ -636,13 +637,15 @@ archive_read_format_lha_read_header(struct archive_read *a,
 			"Pathname cannot be converted "
 			"from %s to Unicode.",
 			archive_string_conversion_charset_name(lha->sconv_fname));
-		return ARCHIVE_FATAL;
+		err = ARCHIVE_FATAL;
 	}
-	if (0 != archive_mstring_get_wcs(&a->archive, &conv_buffer, &conv_buffer_p)) {
+	else if (0 != archive_mstring_get_wcs(&a->archive, &conv_buffer, &conv_buffer_p))
+		err = ARCHIVE_FATAL;
+	if (err == ARCHIVE_FATAL) {
 		archive_mstring_clean(&conv_buffer);
 		archive_wstring_free(&pathname);
 		archive_wstring_free(&linkname);
-		return ARCHIVE_FATAL;
+		return (err);
 	}
 	archive_wstring_concat(&pathname, &conv_buffer.aes_wcs);
 	archive_mstring_clean(&conv_buffer);

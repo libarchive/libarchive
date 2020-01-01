@@ -309,10 +309,6 @@ archive_compressor_xz_open(struct archive_write_filter *f)
 	struct private_data *data = f->data;
 	int ret;
 
-	ret = __archive_write_open_filter(f->next_filter);
-	if (ret != ARCHIVE_OK)
-		return (ret);
-
 	if (data->compressed == NULL) {
 		size_t bs = 65536, bpb;
 		if (f->archive->magic == ARCHIVE_WRITE_MAGIC) {

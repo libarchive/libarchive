@@ -138,11 +138,6 @@ archive_filter_uuencode_open(struct archive_write_filter *f)
 {
 	struct private_uuencode *state = (struct private_uuencode *)f->data;
 	size_t bs = 65536, bpb;
-	int ret;
-
-	ret = __archive_write_open_filter(f->next_filter);
-	if (ret != ARCHIVE_OK)
-		return (ret);
 
 	if (f->archive->magic == ARCHIVE_WRITE_MAGIC) {
 		/* Buffer size should be a multiple number of the of bytes
