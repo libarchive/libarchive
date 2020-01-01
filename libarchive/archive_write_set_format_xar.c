@@ -589,7 +589,7 @@ xar_write_header(struct archive_write *a, struct archive_entry *entry)
 	if (xar->temp_fd == -1) {
 		int algsize;
 		xar->temp_offset = 0;
-		xar->temp_fd = __archive_mktemp(NULL, NULL);
+		xar->temp_fd = __archive_mktemp(NULL);
 		if (xar->temp_fd < 0) {
 			archive_set_error(&a->archive, errno,
 			    "Couldn't create temporary file");

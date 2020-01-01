@@ -1617,7 +1617,7 @@ iso9660_write_header(struct archive_write *a, struct archive_entry *entry)
 	 * Prepare to save the contents of the file.
 	 */
 	if (iso9660->temp_fd < 0) {
-		iso9660->temp_fd = __archive_mktemp(NULL, NULL);
+		iso9660->temp_fd = __archive_mktemp(NULL);
 		if (iso9660->temp_fd < 0) {
 			archive_set_error(&a->archive, errno,
 			    "Couldn't create temporary file");

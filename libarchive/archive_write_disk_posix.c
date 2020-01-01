@@ -418,7 +418,7 @@ la_mktemp(struct archive_write_disk *a)
 	archive_string_sprintf(&a->_tmpname_data, "%sXXXXXX", a->name);
 	a->tmpname = a->_tmpname_data.s;
 
-	fd = __archive_mktemp(NULL, &a->_tmpname_data);
+	fd = __archive_mktempx(NULL, &a->_tmpname_data);
 	if (fd == -1)
 		return -1;
 
