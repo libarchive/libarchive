@@ -219,7 +219,7 @@ __archive_errx(int retvalue, const char *msg)
  * are not secure.
  */
 int
-__archive_mktempx(const char *tmpdir)
+__archive_mktemp(const char *tmpdir)
 {
 	static const wchar_t prefix[] = L"libarchive_";
 	static const wchar_t suffix[] = L"XXXXXXXXXX";
