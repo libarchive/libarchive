@@ -2520,7 +2520,6 @@ static int parse_tables(struct archive_read* a, struct rar5* rar,
 
 	for(i = 0; i < HUFF_TABLE_SIZE;) {
 		uint16_t num;
-		uint16_t n;
 
 		if((rar->bits.in_addr + 6) >= rar->cstate.cur_block_size) {
 			/* Truncated data, can't continue. */
@@ -2542,11 +2541,10 @@ static int parse_tables(struct archive_read* a, struct rar5* rar,
 			/* 0..15: store directly */
 			table[i] = (uint8_t) num;
 			i++;
-			continue;
-		}
-
-		if(num < 18) {
+		} else if(num < 18) {
 			/* 16..17: repeat previous code */
+			uint16_t n;
+
 			if(ARCHIVE_OK != read_bits_16(rar, p, &n))
 				return ARCHIVE_EOF;
 
@@ -2572,26 +2570,26 @@ static int parse_tables(struct archive_read* a, struct rar5* rar,
 				    "huffman tables");
 				return ARCHIVE_FATAL;
 			}
-
-			continue;
-		}
-
-		/* other codes: fill with zeroes `n` times */
-		if(ARCHIVE_OK != read_bits_16(rar, p, &n))
-			return ARCHIVE_EOF;
-
-		if(num == 18) {
-			n >>= 13;
-			n += 3;
-			skip_bits(rar, 3);
 		} else {
-			n >>= 9;
-			n += 11;
-			skip_bits(rar, 7);
-		}
+			/* other codes: fill with zeroes `n` times */
+			uint16_t n;
 
-		while(n-- > 0 && i < HUFF_TABLE_SIZE)
-			table[i++] = 0;
+			if(ARCHIVE_OK != read_bits_16(rar, p, &n))
+				return ARCHIVE_EOF;
+
+			if(num == 18) {
+				n >>= 13;
+				n += 3;
+				skip_bits(rar, 3);
+			} else {
+				n >>= 9;
+				n += 11;
+				skip_bits(rar, 7);
+			}
+
+			while(n-- > 0 && i < HUFF_TABLE_SIZE)
+				table[i++] = 0;
+		}
 	}
 
 	ret = create_decode_tables(&table[idx], &rar->cstate.ld, HUFF_NC);
