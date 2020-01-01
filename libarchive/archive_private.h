@@ -152,7 +152,7 @@ int	__archive_check_magic(struct archive *, unsigned int magic,
 void	__archive_errx(int retvalue, const char *msg) __LA_DEAD;
 
 void	__archive_ensure_cloexec_flag(int fd);
-int	__archive_mktemp(const char *tmpdir);
+int	__archive_mktemp(const char *tmpdir, struct archive_string *template);
 
 int	__archive_clean(struct archive *);
 

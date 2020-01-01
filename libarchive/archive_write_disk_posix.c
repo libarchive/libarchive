@@ -409,6 +409,30 @@ static ssize_t	_archive_write_disk_data_block(struct archive *, const void *,
 		    size_t, int64_t);
 
 static int
+la_mktemp(struct archive_write_disk *a)
+{
+	int oerrno, fd;
+	mode_t mode;
+
+	archive_string_empty(&a->_tmpname_data);
+	archive_string_sprintf(&a->_tmpname_data, "%sXXXXXX", a->name);
+	a->tmpname = a->_tmpname_data.s;
+
+	fd = __archive_mktemp(NULL, &a->_tmpname_data);
+	if (fd == -1)
+		return -1;
+
+	mode = a->mode & 0777 & ~a->user_umask;
+	if (fchmod(fd, mode) == -1) {
+		oerrno = errno;
+		close(fd);
+		errno = oerrno;
+		return -1;
+	}
+	return fd;
+}
+
+static int
 la_opendirat(int fd, const char *path) {
 	const int flags = O_CLOEXEC
 #if defined(O_BINARY)
@@ -2119,19 +2143,8 @@ restore_entry(struct archive_write_disk *a)
 			if ((a->flags & ARCHIVE_EXTRACT_ATOMIC) &&
 			    S_ISREG(a->st.st_mode)) {
 				/* Use a temporary file to extract */
-				mode_t mode = a->mode & 0777 & ~a->user_umask;
-				archive_string_empty(&a->_tmpname_data);
-				archive_string_sprintf(&a->_tmpname_data,
-				    "%sXXXXXX", a->name);
-				a->tmpname = a->_tmpname_data.s;
-				a->fd = mkostemp(a->tmpname, O_CLOEXEC);
-				if (a->fd == -1 || fchmod(a->fd, mode) == -1) {
-					int oerrno = errno;
-					close(a->fd);
-					errno = oerrno;
-					a->fd = -1;
-					return (ARCHIVE_FAILED);
-				}
+				if ((a->fd = la_mktemp(a)) == -1)
+					return ARCHIVE_FAILED;
 				a->pst = NULL;
 				en = 0;
 			} else {
