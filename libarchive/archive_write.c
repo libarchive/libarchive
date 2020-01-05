@@ -471,7 +471,6 @@ archive_write_client_free(struct archive_write_filter *f)
 	return (ARCHIVE_OK);
 }
 
-
 static int
 archive_write_client_close(struct archive_write_filter *f)
 {
