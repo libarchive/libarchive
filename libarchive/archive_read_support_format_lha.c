@@ -1286,17 +1286,18 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 				return (ARCHIVE_FATAL);
 			else {
 				/*
-				 * Convert directory delimiter from 0xFF
+				 * Convert directory delimiter from 0xFFFF
 				 * to '/' for local system.
 				 */
+				uint16_t dirSep = '/';	/* UTF-16LE */
 				/* UTF-16LE character */
 				uint16_t *utf16name = (uint16_t *)lha->dirname.s;
 				for (i = 0; i < lha->dirname.length / 2; i++) {
 					if (utf16name[i] == 0xFFFF)
-						utf16name[i] = L'/';
+						utf16name[i] = dirSep;
 				}
 				/* Is last character directory separator? */
-				if (utf16name[lha->dirname.length / 2 - 1] != L'/')
+				if (utf16name[lha->dirname.length / 2 - 1] != dirSep)
 					/* invalid directory data */
 					goto invalid;
 			}
