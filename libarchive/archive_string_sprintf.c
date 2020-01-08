@@ -123,9 +123,6 @@ archive_string_vsprintf(struct archive_string *as, const char *fmt,
 			long_flag = *p;
 			p++;
 			break;
-		}
-
-		switch (*p) {
 		case '%':
 			archive_strappend_char(as, '%');
 			break;
