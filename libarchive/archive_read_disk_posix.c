@@ -1110,8 +1110,7 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 			    "%s", delayed_str.s);
 		}
 	}
-	if (!archive_string_empty(&delayed_str))
-		archive_string_free(&delayed_str);
+	archive_string_free(&delayed_str);
 
 	return (r);
 }
