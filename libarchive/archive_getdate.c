@@ -698,8 +698,12 @@ Convert(time_t Month, time_t Day, time_t Year,
 	time_t		Julian;
 	int		i;
 	struct tm	*ltime;
-#ifdef HAVE_LOCALTIME_R
+#if defined(HAVE_LOCALTIME_R) || defined(HAVE__LOCALTIME64_S)
 	struct tm	tmbuf;
+#endif
+#if defined(HAVE__LOCALTIME64_S)
+	errno_t		terr;
+	__time64_t	tmptime;
 #endif
 
 	if (Year < 69)
@@ -727,8 +731,15 @@ Convert(time_t Month, time_t Day, time_t Year,
 	Julian *= DAY;
 	Julian += Timezone;
 	Julian += Hours * HOUR + Minutes * MINUTE + Seconds;
-#ifdef HAVE_LOCALTIME_R
+#if defined(HAVE_LOCALTIME_R)
 	ltime = localtime_r(&Julian, &tmbuf);
+#elif defined(HAVE__LOCALTIME64_S)
+	tmptime = Julian;
+	terr = _localtime64_s(&tmbuf, &tmptime);
+	if (terr)
+		ltime = NULL;
+	else
+		ltime = &tmbuf;
 #else
 	ltime = localtime(&Julian);
 #endif
@@ -744,18 +755,36 @@ DSTcorrect(time_t Start, time_t Future)
 	time_t		StartDay;
 	time_t		FutureDay;
 	struct tm	*ltime;
-#ifdef HAVE_LOCALTIME_R
+#if defined(HAVE_LOCALTIME_R) || defined(HAVE__LOCALTIME64_S)
 	struct tm	tmbuf;
 #endif
+#if defined(HAVE__LOCALTIME64_S)
+	errno_t		terr;
+	__time64_t	tmptime;
+#endif
 
-#ifdef HAVE_LOCALTIME_R
+#if defined(HAVE_LOCALTIME_R)
 	ltime = localtime_r(&Start, &tmbuf);
+#elif defined(HAVE__LOCALTIME64_S)
+	tmptime = Start;
+	terr = _localtime64_s(&tmbuf, &tmptime);
+	if (terr)
+		ltime = NULL;
+	else
+		ltime = &tmbuf;
 #else
 	ltime = localtime(&Start);
 #endif
 	StartDay = (ltime->tm_hour + 1) % 24;
-#ifdef HAVE_LOCALTIME_R
+#if defined(HAVE_LOCALTIME_R)
 	ltime = localtime_r(&Future, &tmbuf);
+#elif defined(HAVE__LOCALTIME64_S)
+	tmptime = Future;
+	terr = _localtime64_s(&tmbuf, &tmptime);
+	if (terr)
+		ltime = NULL;
+	else
+		ltime = &tmbuf;
 #else
 	ltime = localtime(&Future);
 #endif
@@ -770,13 +799,24 @@ RelativeDate(time_t Start, time_t zone, int dstmode,
 {
 	struct tm	*tm;
 	time_t	t, now;
-#ifdef HAVE_GMTIME_R
+#if defined(HAVE_GMTIME_R) || defined(HAVE__GMTIME64_S)
 	struct tm	tmbuf;
+#endif
+#if defined(HAVE__GMTIME64_S)
+	errno_t		terr;
+	__time64_t	tmptime;
 #endif
 
 	t = Start - zone;
-#ifdef HAVE_GMTIME_R
+#if defined(HAVE_GMTIME_R)
 	tm = gmtime_r(&t, &tmbuf);
+#elif defined(HAVE__GMTIME64_S)
+	tmptime = t;
+	terr = _gmtime64_s(&tmbuf, &tmptime);
+	if (terr)
+		tm = NULL;
+	else
+		tm = &tmbuf;
 #else
 	tm = gmtime(&t);
 #endif
@@ -795,14 +835,25 @@ RelativeMonth(time_t Start, time_t Timezone, time_t RelMonth)
 	struct tm	*tm;
 	time_t	Month;
 	time_t	Year;
-#ifdef HAVE_LOCALTIME_R
+#if defined(HAVE_LOCALTIME_R) || defined(HAVE__LOCALTIME64_S)
 	struct tm	tmbuf;
+#endif
+#if defined(HAVE__LOCALTIME64_S)
+	errno_t		terr;
+	__time64_t	tmptime;
 #endif
 
 	if (RelMonth == 0)
 		return 0;
-#ifdef HAVE_LOCALTIME_R
+#if defined(HAVE_LOCALTIME_R)
 	tm = localtime_r(&Start, &tmbuf);
+#elif defined(HAVE__LOCALTIME64_S)
+	tmptime = Start;
+	terr = _localtime64_s(&tmbuf, &tmptime);
+	if (terr)
+		tm = NULL;
+	else
+		tm = &tmbuf;
 #else
 	tm = localtime(&Start);
 #endif
@@ -942,6 +993,10 @@ __archive_get_date(time_t now, const char *p)
 	time_t		Start;
 	time_t		tod;
 	long		tzone;
+#if defined(HAVE__LOCALTIME64_S) || defined(HAVE__GMTIME64_S)
+	errno_t		terr;
+	__time64_t	tmptime;
+#endif
 
 	/* Clear out the parsed token array. */
 	memset(tokens, 0, sizeof(tokens));
@@ -950,22 +1005,36 @@ __archive_get_date(time_t now, const char *p)
 	gds = &_gds;
 
 	/* Look up the current time. */
-#ifdef HAVE_LOCALTIME_R
+#if defined(HAVE_LOCALTIME_R)
 	tm = localtime_r(&now, &local);
+#elif defined(HAVE__LOCALTIME64_S)
+	tmptime = now;
+	terr = _localtime64_s(&local, &tmptime);
+	if (terr)
+		tm = NULL;
+	else
+		tm = &local;
 #else
 	memset(&local, 0, sizeof(local));
 	tm = localtime(&now);
 #endif
 	if (tm == NULL)
 		return -1;
-#ifndef HAVE_LOCALTIME_R
+#if !defined(HAVE_LOCALTIME_R) && !defined(HAVE__LOCALTIME64_S)
 	local = *tm;
 #endif
 
 	/* Look up UTC if we can and use that to determine the current
 	 * timezone offset. */
-#ifdef HAVE_GMTIME_R
+#if defined(HAVE_GMTIME_R)
 	gmt_ptr = gmtime_r(&now, &gmt);
+#elif defined(HAVE__GMTIME64_S)
+	tmptime = now;
+	terr = _gmtime64_s(&gmt, &tmptime);
+	if (terr)
+		gmt_ptr = NULL;
+	else
+		gmt_ptr = &gmt;
 #else
 	memset(&gmt, 0, sizeof(gmt));
 	gmt_ptr = gmtime(&now);
@@ -1007,8 +1076,15 @@ __archive_get_date(time_t now, const char *p)
 	 * time components instead of the local timezone. */
 	if (gds->HaveZone && gmt_ptr != NULL) {
 		now -= gds->Timezone;
-#ifdef HAVE_GMTIME_R
+#if defined(HAVE_GMTIME_R)
 		gmt_ptr = gmtime_r(&now, &gmt);
+#elif defined(HAVE__GMTIME64_S)
+		tmptime = now;
+		terr = _gmtime64_s(&gmt, &tmptime);
+		if (terr)
+			gmt_ptr = NULL;
+		else
+			gmt_ptr = &gmt;
 #else
 		gmt_ptr = gmtime(&now);
 #endif
