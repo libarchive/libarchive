@@ -1720,6 +1720,9 @@ read_exttime(const char *p, struct rar *rar, const char *endp)
   unsigned rmode, flags, rem, j, count;
   int ttime, i;
   struct tm *tm;
+#ifdef HAVE_LOCALTIME_R
+  struct tm tmbuf;
+#endif
   time_t t;
   long nsec;
 
@@ -1753,7 +1756,11 @@ read_exttime(const char *p, struct rar *rar, const char *endp)
         rem = (((unsigned)(unsigned char)*p) << 16) | (rem >> 8);
         p++;
       }
+#ifdef HAVE_LOCALTIME_R
+      tm = localtime_r(&t, &tmbuf);
+#else
       tm = localtime(&t);
+#endif
       nsec = tm->tm_sec + rem / NS_UNIT;
       if (rmode & 4)
       {

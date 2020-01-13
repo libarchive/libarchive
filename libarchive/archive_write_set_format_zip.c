@@ -1372,10 +1372,17 @@ dos_time(const time_t unix_time)
 {
 	struct tm *t;
 	unsigned int dt;
+#ifdef HAVE_LOCALTIME_R
+	struct tm tmbuf;
+#endif
 
 	/* This will not preserve time when creating/extracting the archive
 	 * on two systems with different time zones. */
+#ifdef HAVE_LOCALTIME_R
+	t = localtime_r(&unix_time, &tmbuf);
+#else
 	t = localtime(&unix_time);
+#endif
 
 	/* MSDOS-style date/time is only between 1980-01-01 and 2107-12-31 */
 	if (t->tm_year < 1980 - 1900)

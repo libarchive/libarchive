@@ -666,6 +666,10 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 	const char		*fmt;
 	time_t			 tim;
 	static time_t		 now;
+	struct tm		*ltime;
+#ifdef HAVE_LOCALTIME_R
+	struct tm		tmbuf;
+#endif
 
 	/*
 	 * We avoid collecting the entire list in memory at once by
@@ -737,7 +741,12 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 		fmt = bsdtar->day_first ? DAY_FMT " %b  %Y" : "%b " DAY_FMT "  %Y";
 	else
 		fmt = bsdtar->day_first ? DAY_FMT " %b %H:%M" : "%b " DAY_FMT " %H:%M";
-	strftime(tmp, sizeof(tmp), fmt, localtime(&tim));
+#ifdef HAVE_LOCALTIME_R
+	ltime = localtime_r(&tim, &tmbuf);
+#else
+	ltime = localtime(&tim);
+#endif
+	strftime(tmp, sizeof(tmp), fmt, ltime);
 	fprintf(out, " %s ", tmp);
 	safe_fprintf(out, "%s", archive_entry_pathname(entry));
 
