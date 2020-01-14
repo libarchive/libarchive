@@ -212,8 +212,8 @@ struct file {
 	struct heap_data	 data;
         struct archive_string    script;
 
-	int			 virtual:1;
-	int			 dir:1;
+	signed int		 virtual:1;
+	signed int		 dir:1;
 };
 
 struct hardlink {
@@ -2107,7 +2107,7 @@ file_gen_utility_names(struct archive_write *a, struct file *file)
 	while (len > 0) {
 		size_t ll = len;
 
-		if (len > 0 && p[len-1] == '/') {
+		if (p[len-1] == '/') {
 			p[len-1] = '\0';
 			len--;
 		}

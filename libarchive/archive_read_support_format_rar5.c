@@ -211,7 +211,7 @@ struct comp_state {
 	   or just a part of it. */
 	uint8_t block_parsing_finished : 1;
 
-	int notused : 4;
+	signed int notused : 4;
 
 	int flags;                   /* Uncompression flags. */
 	int method;                  /* Uncompression algorithm method. */
