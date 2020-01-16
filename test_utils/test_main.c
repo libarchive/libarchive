@@ -2480,7 +2480,7 @@ canBzip2(void)
 	static int tested = 0, value = 0;
 	if (!tested) {
 		tested = 1;
-		if (systemf("bzip2 -d -V %s", redirectArgs) == 0)
+		if (systemf("bzip2 --help %s", redirectArgs) == 0)
 			value = 1;
 	}
 	return (value);
@@ -2510,7 +2510,7 @@ canGzip(void)
 	static int tested = 0, value = 0;
 	if (!tested) {
 		tested = 1;
-		if (systemf("gzip -V %s", redirectArgs) == 0)
+		if (systemf("gzip --help %s", redirectArgs) == 0)
 			value = 1;
 	}
 	return (value);
@@ -2552,7 +2552,7 @@ canLz4(void)
 	static int tested = 0, value = 0;
 	if (!tested) {
 		tested = 1;
-		if (systemf("lz4 -V %s", redirectArgs) == 0)
+		if (systemf("lz4 --help %s", redirectArgs) == 0)
 			value = 1;
 	}
 	return (value);
@@ -2567,7 +2567,7 @@ canZstd(void)
 	static int tested = 0, value = 0;
 	if (!tested) {
 		tested = 1;
-		if (systemf("zstd -V %s", redirectArgs) == 0)
+		if (systemf("zstd --help %s", redirectArgs) == 0)
 			value = 1;
 	}
 	return (value);
@@ -2582,7 +2582,7 @@ canLzip(void)
 	static int tested = 0, value = 0;
 	if (!tested) {
 		tested = 1;
-		if (systemf("lzip -V %s", redirectArgs) == 0)
+		if (systemf("lzip --help %s", redirectArgs) == 0)
 			value = 1;
 	}
 	return (value);
@@ -2597,7 +2597,7 @@ canLzma(void)
 	static int tested = 0, value = 0;
 	if (!tested) {
 		tested = 1;
-		if (systemf("lzma -V %s", redirectArgs) == 0)
+		if (systemf("lzma %s", redirectArgs) == 0)
 			value = 1;
 	}
 	return (value);
@@ -2612,7 +2612,7 @@ canLzop(void)
 	static int tested = 0, value = 0;
 	if (!tested) {
 		tested = 1;
-		if (systemf("lzop -V %s", redirectArgs) == 0)
+		if (systemf("lzop --help %s", redirectArgs) == 0)
 			value = 1;
 	}
 	return (value);
@@ -2627,7 +2627,7 @@ canXz(void)
 	static int tested = 0, value = 0;
 	if (!tested) {
 		tested = 1;
-		if (systemf("xz -V %s", redirectArgs) == 0)
+		if (systemf("xz --help %s", redirectArgs) == 0)
 			value = 1;
 	}
 	return (value);
@@ -3499,9 +3499,9 @@ static int
 test_run(int i, const char *tmpdir)
 {
 #ifdef PATH_MAX
-	char workdir[PATH_MAX];
+	char workdir[PATH_MAX * 2];
 #else
-	char workdir[1024];
+	char workdir[1024 * 2];
 #endif
 	char logfilename[64];
 	int failures_before = failures;
