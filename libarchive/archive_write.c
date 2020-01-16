@@ -339,6 +339,7 @@ archive_write_client_open(struct archive_write_filter *f)
 	struct archive_none *state;
 	void *buffer;
 	size_t buffer_size;
+	int ret;
 
 	f->bytes_per_block = archive_write_get_bytes_per_block(f->archive);
 	f->bytes_in_last_block =
@@ -363,7 +364,13 @@ archive_write_client_open(struct archive_write_filter *f)
 
 	if (a->client_opener == NULL)
 		return (ARCHIVE_OK);
-	return (a->client_opener(f->archive, a->client_data));
+	ret = a->client_opener(f->archive, a->client_data);
+	if (ret != ARCHIVE_OK) {
+		free(state->buffer);
+		free(state);
+		f->data = NULL;
+	}
+	return (ret);
 }
 
 static int
@@ -486,8 +493,6 @@ archive_write_client_close(struct archive_write_filter *f)
 		(*a->client_closer)(&a->archive, a->client_data);
 	free(state->buffer);
 	free(state);
-	/* Clear the close handler myself not to be called again. */
-	f->state = ARCHIVE_WRITE_FILTER_STATE_CLOSED;
 	a->client_data = NULL;
 	/* Clear passphrase. */
 	if (a->passphrase != NULL) {
@@ -495,6 +500,8 @@ archive_write_client_close(struct archive_write_filter *f)
 		free(a->passphrase);
 		a->passphrase = NULL;
 	}
+	/* Clear the close handler myself not to be called again. */
+	f->state = ARCHIVE_WRITE_FILTER_STATE_CLOSED;
 	return (ret);
 }
 

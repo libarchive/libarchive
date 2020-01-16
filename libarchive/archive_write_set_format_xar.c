@@ -212,8 +212,8 @@ struct file {
 	struct heap_data	 data;
         struct archive_string    script;
 
-	int			 virtual:1;
-	int			 dir:1;
+	signed int		 virtual:1;
+	signed int		 dir:1;
 };
 
 struct hardlink {
@@ -878,11 +878,15 @@ xmlwrite_time(struct archive_write *a, xmlTextWriterPtr writer,
 {
 	char timestr[100];
 	struct tm tm;
+#if defined(HAVE__GMTIME64_S)
+	__time64_t tmptime;
+#endif
 
 #if defined(HAVE_GMTIME_R)
 	gmtime_r(&t, &tm);
 #elif defined(HAVE__GMTIME64_S)
-	_gmtime64_s(&tm, &t);
+	tmptime = t;
+	_gmtime64_s(&tm, &tmptime);
 #else
 	memcpy(&tm, gmtime(&t), sizeof(tm));
 #endif
@@ -2103,7 +2107,7 @@ file_gen_utility_names(struct archive_write *a, struct file *file)
 	while (len > 0) {
 		size_t ll = len;
 
-		if (len > 0 && p[len-1] == '/') {
+		if (p[len-1] == '/') {
 			p[len-1] = '\0';
 			len--;
 		}

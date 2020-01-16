@@ -132,6 +132,10 @@
 #define	O_BINARY 0
 #endif
 
+#ifndef __LIBARCHIVE_TEST_COMMON
+#define __LIBARCHIVE_TEST_COMMON
+#endif
+
 #include "archive_platform_acl.h"
 #define	ARCHIVE_TEST_ACL_TYPE_POSIX1E	1
 #define	ARCHIVE_TEST_ACL_TYPE_NFS4	2
