@@ -1821,12 +1821,16 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 		int ret = process_head_file_extra(a, entry, rar,
 		    extra_data_size);
 
-		/* Sanity check. */
+		/*
+		 * TODO: rewrite or remove useless sanity check
+		 *       as extra_data_size is not passed as a pointer
+		 *
 		if(extra_data_size < 0) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
 			    "File extra data size is not zero");
 			return ARCHIVE_FATAL;
 		}
+		 */
 
 		if(ret != ARCHIVE_OK)
 			return ret;
@@ -3043,7 +3047,8 @@ static int do_uncompress_block(struct archive_read* a, const uint8_t* p) {
 			}
 
 			continue;
-		} else if(num < 262) {
+		} else {
+			/* num < 262 */
 			const int idx = num - 258;
 			const int dist = dist_cache_touch(rar, idx);
 
