@@ -2260,6 +2260,8 @@ create_filesystem_object(struct archive_write_disk *a)
 		}
 		free(linkname_copy);
 		archive_string_free(&error_string);
+		if (a->flags & ARCHIVE_EXTRACT_ATOMIC)
+			unlink(a->name);
 		r = link(linkname, a->name) ? errno : 0;
 		/*
 		 * New cpio and pax formats allow hardlink entries
