@@ -316,6 +316,19 @@ copy_basic(void)
 	assertEmptyFile("unpack.out");
 
 	verify_tree(LIMIT_NONE);
+
+	/*
+	 * Unpack a second time to make sure that things are still ok
+	 */
+	r = systemf("%s xf archive >unpack.out 2>unpack.err", testprog);
+	failure("Error invoking %s xf archive", testprog);
+	assertEqualInt(r, 0);
+
+	/* Verify that nothing went to stdout or stderr. */
+	assertEmptyFile("unpack.err");
+	assertEmptyFile("unpack.out");
+
+	verify_tree(LIMIT_NONE);
 	assertEqualInt(0, chdir(".."));
 }
 
