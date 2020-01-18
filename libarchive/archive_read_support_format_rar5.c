@@ -384,7 +384,7 @@ static int cdeque_init(struct cdeque* d, int max_capacity_power_of_2) {
 	d->cap_mask = max_capacity_power_of_2 - 1;
 	d->arr = NULL;
 
-	if((max_capacity_power_of_2 & d->cap_mask) > 0)
+	if((max_capacity_power_of_2 & d->cap_mask) != 0)
 		return CDE_PARAM;
 
 	cdeque_clear(d);
