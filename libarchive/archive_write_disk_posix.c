@@ -2140,7 +2140,7 @@ restore_entry(struct archive_write_disk *a)
 			if (a->flags & ARCHIVE_EXTRACT_CLEAR_NOCHANGE_FFLAGS)
 				(void)clear_nochange_fflags(a);
 
-			if ((a->flags & ARCHIVE_EXTRACT_ATOMIC) &&
+			if ((a->flags & ARCHIVE_EXTRACT_SAFE_WRITES) &&
 			    S_ISREG(a->st.st_mode)) {
 				/* Use a temporary file to extract */
 				if ((a->fd = la_mktemp(a)) == -1)
@@ -2260,7 +2260,12 @@ create_filesystem_object(struct archive_write_disk *a)
 		}
 		free(linkname_copy);
 		archive_string_free(&error_string);
-		if (a->flags & ARCHIVE_EXTRACT_ATOMIC)
+		/*
+		 * Unlinking and linking here is really not atomic,
+		 * but doing it right, would require us to construct
+		 * an mktemplink() function, and then use rename(2).
+		 */
+		if (a->flags & ARCHIVE_EXTRACT_SAFE_WRITES)
 			unlink(a->name);
 		r = link(linkname, a->name) ? errno : 0;
 		/*
