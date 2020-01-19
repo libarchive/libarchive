@@ -231,9 +231,6 @@ main(int argc, char **argv)
 	/* Default: Perform basic security checks. */
 	bsdtar->extract_flags |= SECURITY;
 
-	/* Default: Extract atomically if possible */
-	bsdtar->extract_flags |= ARCHIVE_EXTRACT_ATOMIC;
-
 #ifndef _WIN32
 	/* On POSIX systems, assume --same-owner and -p when run by
 	 * the root user.  This doesn't make any sense on Windows. */
@@ -545,6 +542,9 @@ main(int argc, char **argv)
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_MAC_METADATA;
 			bsdtar->flags |= OPTFLAG_NO_MAC_METADATA;
 			break;
+		case OPTION_NO_SAFE_WRITES:
+			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_ATOMIC;
+			break;
 		case OPTION_NO_SAME_OWNER: /* GNU tar */
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_OWNER;
 			break;
@@ -660,6 +660,9 @@ main(int argc, char **argv)
 			    "-s is not supported by this version of bsdtar");
 			usage();
 #endif
+			break;
+		case OPTION_SAFE_WRITES:
+			bsdtar->extract_flags |= ARCHIVE_EXTRACT_ATOMIC;
 			break;
 		case OPTION_SAME_OWNER: /* GNU tar */
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_OWNER;
