@@ -87,6 +87,7 @@ DEFINE_TEST(test_write_disk_secure)
 #endif
 
 	/* Write an absolute symlink to /tmp. */
+	archive_write_disk_set_options(a, ARCHIVE_EXTRACT_SECURE_SYMLINKS);
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "/tmp/libarchive_test-test_write_disk_secure-absolute_symlink");
 	archive_entry_set_mode(ae, S_IFLNK | 0777);
