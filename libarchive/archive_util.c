@@ -218,8 +218,8 @@ __archive_errx(int retvalue, const char *msg)
  * Also Windows version of mktemp family including _mktemp_s
  * are not secure.
  */
-int
-__archive_mktemp(const char *tmpdir)
+static int
+__archive_mktempx(const char *tmpdir, wchar_t *template)
 {
 	static const wchar_t prefix[] = L"libarchive_";
 	static const wchar_t suffix[] = L"XXXXXXXXXX";
@@ -243,64 +243,76 @@ __archive_mktemp(const char *tmpdir)
 	hProv = (HCRYPTPROV)NULL;
 	fd = -1;
 	ws = NULL;
-	archive_string_init(&temp_name);
 
-	/* Get a temporary directory. */
-	if (tmpdir == NULL) {
-		size_t l;
-		wchar_t *tmp;
+	if (template == NULL) {
+		archive_string_init(&temp_name);
 
-		l = GetTempPathW(0, NULL);
-		if (l == 0) {
-			la_dosmaperr(GetLastError());
-			goto exit_tmpfile;
-		}
-		tmp = malloc(l*sizeof(wchar_t));
-		if (tmp == NULL) {
-			errno = ENOMEM;
-			goto exit_tmpfile;
-		}
-		GetTempPathW((DWORD)l, tmp);
-		archive_wstrcpy(&temp_name, tmp);
-		free(tmp);
-	} else {
-		if (archive_wstring_append_from_mbs(&temp_name, tmpdir,
-		    strlen(tmpdir)) < 0)
-			goto exit_tmpfile;
-		if (temp_name.s[temp_name.length-1] != L'/')
-			archive_wstrappend_wchar(&temp_name, L'/');
-	}
+		/* Get a temporary directory. */
+		if (tmpdir == NULL) {
+			size_t l;
+			wchar_t *tmp;
 
-	/* Check if temp_name is a directory. */
-	attr = GetFileAttributesW(temp_name.s);
-	if (attr == (DWORD)-1) {
-		if (GetLastError() != ERROR_FILE_NOT_FOUND) {
-			la_dosmaperr(GetLastError());
-			goto exit_tmpfile;
+			l = GetTempPathW(0, NULL);
+			if (l == 0) {
+				la_dosmaperr(GetLastError());
+				goto exit_tmpfile;
+			}
+			tmp = malloc(l*sizeof(wchar_t));
+			if (tmp == NULL) {
+				errno = ENOMEM;
+				goto exit_tmpfile;
+			}
+			GetTempPathW((DWORD)l, tmp);
+			archive_wstrcpy(&temp_name, tmp);
+			free(tmp);
+		} else {
+			if (archive_wstring_append_from_mbs(&temp_name, tmpdir,
+			    strlen(tmpdir)) < 0)
+				goto exit_tmpfile;
+			if (temp_name.s[temp_name.length-1] != L'/')
+				archive_wstrappend_wchar(&temp_name, L'/');
 		}
-		ws = __la_win_permissive_name_w(temp_name.s);
-		if (ws == NULL) {
-			errno = EINVAL;
-			goto exit_tmpfile;
-		}
-		attr = GetFileAttributesW(ws);
+
+		/* Check if temp_name is a directory. */
+		attr = GetFileAttributesW(temp_name.s);
 		if (attr == (DWORD)-1) {
-			la_dosmaperr(GetLastError());
+			if (GetLastError() != ERROR_FILE_NOT_FOUND) {
+				la_dosmaperr(GetLastError());
+				goto exit_tmpfile;
+			}
+			ws = __la_win_permissive_name_w(temp_name.s);
+			if (ws == NULL) {
+				errno = EINVAL;
+				goto exit_tmpfile;
+			}
+			attr = GetFileAttributesW(ws);
+			if (attr == (DWORD)-1) {
+				la_dosmaperr(GetLastError());
+				goto exit_tmpfile;
+			}
+		}
+		if (!(attr & FILE_ATTRIBUTE_DIRECTORY)) {
+			errno = ENOTDIR;
 			goto exit_tmpfile;
 		}
-	}
-	if (!(attr & FILE_ATTRIBUTE_DIRECTORY)) {
-		errno = ENOTDIR;
-		goto exit_tmpfile;
-	}
 
-	/*
-	 * Create a temporary file.
-	 */
-	archive_wstrcat(&temp_name, prefix);
-	archive_wstrcat(&temp_name, suffix);
-	ep = temp_name.s + archive_strlen(&temp_name);
-	xp = ep - wcslen(suffix);
+		/*
+		 * Create a temporary file.
+		 */
+		archive_wstrcat(&temp_name, prefix);
+		archive_wstrcat(&temp_name, suffix);
+		ep = temp_name.s + archive_strlen(&temp_name);
+		xp = ep - wcslen(suffix);
+		template = temp_name.s;
+	} else {
+		xp = wcschr(template, L'X');
+		if (xp == NULL)	/* No X, programming error */
+			abort();
+		for (ep = xp; *ep == L'X'; ep++)
+			continue;
+		if (*ep)	/* X followed by non X, programming error */
+			abort();
+	}
 
 	if (!CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_FULL,
 		CRYPT_VERIFYCONTEXT)) {
@@ -323,20 +335,24 @@ __archive_mktemp(const char *tmpdir)
 			*p = num[((DWORD)*p) % (sizeof(num)/sizeof(num[0]))];
 
 		free(ws);
-		ws = __la_win_permissive_name_w(temp_name.s);
+		ws = __la_win_permissive_name_w(template);
 		if (ws == NULL) {
 			errno = EINVAL;
 			goto exit_tmpfile;
 		}
-		/* Specifies FILE_FLAG_DELETE_ON_CLOSE flag is to
-		 * delete this temporary file immediately when this
-		 * file closed. */
+		if (template == temp_name.s) {
+			attr = FILE_ATTRIBUTE_TEMPORARY |
+			       FILE_FLAG_DELETE_ON_CLOSE;
+		} else {
+			/* mkstemp */
+			attr = FILE_ATTRIBUTE_NORMAL;
+		}
 		h = CreateFileW(ws,
 		    GENERIC_READ | GENERIC_WRITE | DELETE,
 		    0,/* Not share */
 		    NULL,
 		    CREATE_NEW,/* Create a new file only */
-		    FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE,
+		    attr,
 		    NULL);
 		if (h == INVALID_HANDLE_VALUE) {
 			/* The same file already exists. retry with
@@ -358,8 +374,21 @@ exit_tmpfile:
 	if (hProv != (HCRYPTPROV)NULL)
 		CryptReleaseContext(hProv, 0);
 	free(ws);
-	archive_wstring_free(&temp_name);
+	if (template == temp_name.s)
+		archive_wstring_free(&temp_name);
 	return (fd);
+}
+
+int
+__archive_mktemp(const char *tmpdir)
+{
+	return __archive_mktempx(tmpdir, NULL);
+}
+
+int
+__archive_mkstemp(wchar_t *template)
+{
+	return __archive_mktempx(NULL, template);
 }
 
 #else
