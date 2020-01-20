@@ -28,8 +28,9 @@
  *
  * Based on NetBSD: rb.h,v 1.13 2009/08/16 10:57:01 yamt Exp
  */
-#ifndef ARCHIVE_RB_H_
-#define	ARCHIVE_RB_H_
+
+#ifndef ARCHIVE_RB_H_INCLUDED
+#define	ARCHIVE_RB_H_INCLUDED
 
 struct archive_rb_node {
 	struct archive_rb_node *rb_nodes[2];

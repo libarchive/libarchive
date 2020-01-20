@@ -1081,6 +1081,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_option_q.c \
 	tar/test/test_option_r.c \
 	tar/test/test_option_s.c \
+	tar/test/test_option_safe_writes.c \
 	tar/test/test_option_uid_uname.c \
 	tar/test/test_option_uuencode.c \
 	tar/test/test_option_xattrs.c \

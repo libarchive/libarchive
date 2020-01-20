@@ -211,7 +211,7 @@ struct comp_state {
 	   or just a part of it. */
 	uint8_t block_parsing_finished : 1;
 
-	int notused : 4;
+	signed int notused : 4;
 
 	int flags;                   /* Uncompression flags. */
 	int method;                  /* Uncompression algorithm method. */
@@ -384,7 +384,7 @@ static int cdeque_init(struct cdeque* d, int max_capacity_power_of_2) {
 	d->cap_mask = max_capacity_power_of_2 - 1;
 	d->arr = NULL;
 
-	if((max_capacity_power_of_2 & d->cap_mask) > 0)
+	if((max_capacity_power_of_2 & d->cap_mask) != 0)
 		return CDE_PARAM;
 
 	cdeque_clear(d);
@@ -1821,12 +1821,16 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 		int ret = process_head_file_extra(a, entry, rar,
 		    extra_data_size);
 
-		/* Sanity check. */
+		/*
+		 * TODO: rewrite or remove useless sanity check
+		 *       as extra_data_size is not passed as a pointer
+		 *
 		if(extra_data_size < 0) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
 			    "File extra data size is not zero");
 			return ARCHIVE_FATAL;
 		}
+		 */
 
 		if(ret != ARCHIVE_OK)
 			return ret;
@@ -3043,7 +3047,8 @@ static int do_uncompress_block(struct archive_read* a, const uint8_t* p) {
 			}
 
 			continue;
-		} else if(num < 262) {
+		} else {
+			/* num < 262 */
 			const int idx = num - 258;
 			const int dist = dist_cache_touch(rar, idx);
 

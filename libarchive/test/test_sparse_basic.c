@@ -472,7 +472,7 @@ verify_sparse_file2(struct archive *a, const char *path,
 }
 
 static void
-test_sparse_whole_file_data()
+test_sparse_whole_file_data(void)
 {
 	struct archive_entry *ae;
 	int64_t offset;
