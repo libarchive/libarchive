@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 3, 2019
+.Dd January 20, 2020
 .Dt TAR 1
 .Os
 .Sh NAME
@@ -209,15 +209,16 @@ specified on the command line.
 .It Fl Fl exclude-vcs
 Do not process files or directories internally used by the
 version control systems
-.Sq CVS ,
-.Sq RCS ,
-.Sq SCCS ,
-.Sq SVN ,
 .Sq Arch ,
 .Sq Bazaar ,
-.Sq Mercurial
+.Sq CVS ,
+.Sq Darcs ,
+.Sq Mercurial ,
+.Sq RCS ,
+.Sq SCCS ,
+.Sq SVN
 and
-.Sq Darcs .
+.Sq git .
 .It Fl Fl fflags
 (c, r, u, x modes only)
 Archive or extract platform-specific file attributes or file flags.
