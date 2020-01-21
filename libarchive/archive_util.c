@@ -418,33 +418,28 @@ get_tempdir(struct archive_string *temppath)
  */
 
 int
-__archive_mktempx(const char *tmpdir, struct archive_string *template)
+__archive_mktemp(const char *tmpdir)
 {
 	struct archive_string temp_name;
 	int fd = -1;
 
-	if (template == NULL) {
-		archive_string_init(template = &temp_name);
-		if (tmpdir == NULL) {
-			if (get_tempdir(&temp_name) != ARCHIVE_OK)
-				goto exit_tmpfile;
-		} else {
-			archive_strcpy(&temp_name, tmpdir);
-			if (temp_name.s[temp_name.length-1] != '/')
-				archive_strappend_char(&temp_name, '/');
-		}
-		archive_strcat(&temp_name, "libarchive_XXXXXX");
+	archive_string_init(&temp_name);
+	if (tmpdir == NULL) {
+		if (get_tempdir(&temp_name) != ARCHIVE_OK)
+			goto exit_tmpfile;
+	} else {
+		archive_strcpy(&temp_name, tmpdir);
+		if (temp_name.s[temp_name.length-1] != '/')
+			archive_strappend_char(&temp_name, '/');
 	}
-	fd = mkstemp(template->s);
+	archive_strcat(&temp_name, "libarchive_XXXXXX");
+	fd = mkstemp(temp_name.s);
 	if (fd < 0)
 		goto exit_tmpfile;
 	__archive_ensure_cloexec_flag(fd);
-
-	if (template == &temp_name)
-		unlink(temp_name.s);
+	unlink(temp_name.s);
 exit_tmpfile:
-	if (template == &temp_name)
-		archive_string_free(&temp_name);
+	archive_string_free(&temp_name);
 	return (fd);
 }
 
