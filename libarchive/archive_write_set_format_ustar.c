@@ -514,7 +514,7 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 		if (copy_length > USTAR_uname_size) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Username too long");
-			ret = ARCHIVE_FAILED;
+			ret = ARCHIVE_WARN;
 			copy_length = USTAR_uname_size;
 		}
 		memcpy(h + USTAR_uname_offset, p, copy_length);
@@ -537,7 +537,7 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 		if (strlen(p) > USTAR_gname_size) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Group name too long");
-			ret = ARCHIVE_FAILED;
+			ret = ARCHIVE_WARN;
 			copy_length = USTAR_gname_size;
 		}
 		memcpy(h + USTAR_gname_offset, p, copy_length);
