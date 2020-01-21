@@ -388,7 +388,7 @@ static const char *refdir;
  */
 static int log_console = 0;
 static FILE *logfile;
-static void
+static void __LA_PRINTFLIKE(1, 0)
 vlogprintf(const char *fmt, va_list ap)
 {
 #ifdef va_copy
@@ -406,7 +406,7 @@ vlogprintf(const char *fmt, va_list ap)
 #endif
 }
 
-static void
+static void __LA_PRINTFLIKE(1, 2)
 logprintf(const char *fmt, ...)
 {
 	va_list ap;
@@ -478,7 +478,7 @@ static struct line {
 const char *failed_filename;
 
 /* Count this failure, setup up log destination and handle initial report. */
-static void
+static void __LA_PRINTFLIKE(3, 4)
 failure_start(const char *filename, int line, const char *fmt, ...)
 {
 	va_list ap;
@@ -751,7 +751,7 @@ static void strdump(const char *e, const char *p, int ewidth, int utf8)
 		logprintf("]");
 		logprintf(" (count %d", cnt);
 		if (n < 0) {
-			logprintf(",unknown %d bytes", len);
+			logprintf(",unknown %zu bytes", len);
 		}
 		logprintf(")");
 
@@ -1167,7 +1167,7 @@ assertion_text_file_contents(const char *filename, int line, const char *buff, c
 	logprintf("  file=\"%s\"\n", fn);
 	if (n > 0) {
 		hexdump(contents, buff, n, 0);
-		logprintf("  expected\n", fn);
+		logprintf("  expected\n");
 		hexdump(buff, contents, s, 0);
 	} else {
 		logprintf("  File empty, contents should be:\n");
@@ -1497,7 +1497,7 @@ assertion_file_time(const char *file, int line,
 		}
 	} else if (filet != t || filet_nsec != nsec) {
 		failure_start(file, line,
-		    "File %s has %ctime %lld.%09lld, expected %lld.%09lld",
+		    "File %s has %ctime %lld.%09lld, expected %ld.%09ld",
 		    pathname, type, filet, filet_nsec, t, nsec);
 		failure_finish(NULL);
 		return (0);
@@ -3271,7 +3271,7 @@ assertion_entry_set_acls(const char *file, int line, struct archive_entry *ae,
 		    acls[i].qual, acls[i].name);
 		if (r != 0) {
 			ret = 1;
-			failure_start(file, line, "type=%#010x, ",
+			failure_start(file, line, "type=%#010x, "
 			    "permset=%#010x, tag=%d, qual=%d name=%s",
 			    acls[i].type, acls[i].permset, acls[i].tag,
 			    acls[i].qual, acls[i].name);
