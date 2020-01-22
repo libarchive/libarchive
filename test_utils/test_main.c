@@ -1593,8 +1593,8 @@ assertion_file_nlinks(const char *file, int line,
 	r = my_GetFileInformationByName(pathname, &bhfi);
 	if (r != 0 && bhfi.nNumberOfLinks == (DWORD)nlinks)
 		return (1);
-	failure_start(file, line, "File %s has %d links, expected %d",
-	    pathname, bhfi.nNumberOfLinks, nlinks);
+	failure_start(file, line, "File %s has %jd links, expected %d",
+	    pathname, (intmax_t)bhfi.nNumberOfLinks, nlinks);
 	failure_finish(NULL);
 	return (0);
 #else
