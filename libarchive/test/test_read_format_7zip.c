@@ -720,7 +720,6 @@ DEFINE_TEST(test_read_format_7zip)
 
 	/* Extracting with liblzma */
 	if (ARCHIVE_OK != archive_read_support_filter_xz(a)) {
-		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 		skipping("7zip:lzma decoding is not supported on this "
 		    "platform");
 	} else {
@@ -797,7 +796,6 @@ DEFINE_TEST(test_read_format_7zip_lzma1)
 
 	/* Extracting with liblzma */
 	if (ARCHIVE_OK != archive_read_support_filter_xz(a)) {
-		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 		skipping("7zip:lzma decoding is not supported on this "
 		    "platform");
 	} else {
@@ -820,7 +818,6 @@ DEFINE_TEST(test_read_format_7zip_lzma2)
 
 	/* Extracting with liblzma */
 	if (ARCHIVE_OK != archive_read_support_filter_xz(a)) {
-		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 		skipping("7zip:lzma decoding is not supported on this "
 		    "platform");
 	} else {
