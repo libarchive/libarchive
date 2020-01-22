@@ -57,7 +57,7 @@ IF "%1"=="deplibs" (
     COPY "C:\Program Files (x86)\zlib\bin\libzlib.dll" build_ci\cmake\bin\
     CD build_ci\cmake
     SET SKIP_TEST_SPARSE=1
-    mingw32-make test
+    mingw32-make test || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
     ECHO "Skipping tests on this platform"
     EXIT /b 0
