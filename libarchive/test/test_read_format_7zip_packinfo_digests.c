@@ -35,6 +35,11 @@ DEFINE_TEST(test_read_format_7zip_packinfo_digests)
 
 	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
+	if (ARCHIVE_OK != archive_read_support_filter_xz(a)) {
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		skipping("7zip:lzma decoding is not supported on this "
+		"platform");
+	}
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
