@@ -1569,14 +1569,7 @@ restore_entry(struct archive_write_disk *a)
 			    ARCHIVE_EXTRACT_CLEAR_NOCHANGE_FFLAGS) {
 				(void)clear_nochange_fflags(a);
 			}
-			if (dirlnk) {
-				/* Edge case: dir symlink pointing to a file */
-				if (disk_rmdir(a->name) != 0) {
-					archive_set_error(&a->archive, errno,
-					    "Can't unlink directory symlink");
-					return (ARCHIVE_FAILED);
-				}
-			} else if ((a->flags & ARCHIVE_EXTRACT_SAFE_WRITES) &&
+			if ((a->flags & ARCHIVE_EXTRACT_SAFE_WRITES) &&
 				S_ISREG(st_mode)) {
 				int fd = la_mktemp(a);
 
@@ -1588,17 +1581,30 @@ restore_entry(struct archive_write_disk *a)
 
 				a->pst = NULL;
 				en = 0;
-
-			} else if (disk_unlink(a->name) != 0) {
-				/* A non-dir is in the way, unlink it. */
-				archive_set_error(&a->archive, errno,
-				    "Can't unlink already-existing object");
-				return (ARCHIVE_FAILED);
+			} else {
+				if (dirlnk) {
+					/* Edge case: dir symlink pointing
+					 * to a file */
+					if (disk_rmdir(a->name) != 0) {
+						archive_set_error(&a->archive,
+						    errno, "Can't unlink "
+						    "directory symlink");
+						return (ARCHIVE_FAILED);
+					}
+				} else {
+					if (disk_unlink(a->name) != 0) {
+						/* A non-dir is in the way,
+						 * unlink it. */
+						archive_set_error(&a->archive,
+						    errno, "Can't unlink "
+						    "already-existing object");
+						return (ARCHIVE_FAILED);
+					}
+				}
 				a->pst = NULL;
 				/* Try again. */
 				en = create_filesystem_object(a);
 			}
-
 		} else if (!S_ISDIR(a->mode)) {
 			/* A dir is in the way of a non-dir, rmdir it. */
 			if (a->flags & ARCHIVE_EXTRACT_CLEAR_NOCHANGE_FFLAGS)
