@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format.c 201168 2009-1
 #include "archive.h"
 #include "archive_entry.h"
 #include "archive_private.h"
+#include "archive_write_private.h"
 
 /* A table that maps format codes to functions. */
 static const
