@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format.c 201168 2009-1
 #endif
 
 #include "archive.h"
+#include "archive_entry.h"
 #include "archive_private.h"
 
 /* A table that maps format codes to functions. */
@@ -75,4 +76,20 @@ archive_write_set_format(struct archive *a, int code)
 
 	archive_set_error(a, EINVAL, "No such format");
 	return (ARCHIVE_FATAL);
+}
+
+int
+__archive_write_handle_entry(struct archive *a, struct archive_entry *entry)
+{
+	if (archive_entry_filetype(entry) == AE_IFSOCK) {
+		archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "tar format cannot archive socket %s",
+		    archive_entry_pathname(entry));
+	} else {
+		archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "tar format cannot archive entry %s (mode=%#jo)",
+		    archive_entry_pathname(entry),
+		    (uintmax_t)archive_entry_mode(entry));
+	}
+	return ARCHIVE_FAILED;
 }

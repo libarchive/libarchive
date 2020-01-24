@@ -535,17 +535,8 @@ archive_write_gnutar_header(struct archive_write *a,
 		case AE_IFDIR: tartype = '5' ; break;
 		case AE_IFIFO: tartype = '6' ; break;
 		case AE_IFSOCK:
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "tar format cannot archive socket");
-			ret = ARCHIVE_FAILED;
-			goto exit_write_header;
 		default:
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "tar format cannot archive this (mode=0%lo)",
-			    (unsigned long)archive_entry_mode(entry));
-			ret = ARCHIVE_FAILED;
+			ret = __archive_write_handle_entry(&a->archive, entry);
 			goto exit_write_header;
 		}
 

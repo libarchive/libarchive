@@ -714,17 +714,9 @@ archive_write_pax_header(struct archive_write *a,
 			break;
 		}
 		case AE_IFSOCK:
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "tar format cannot archive socket");
-			return (ARCHIVE_FAILED);
 		default:
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "tar format cannot archive this (type=0%lo)",
-			    (unsigned long)
-			    archive_entry_filetype(entry_original));
-			return (ARCHIVE_FAILED);
+			return __archive_write_handle_entry(&a->archive,
+			    entry_original);
 		}
 	}
 
