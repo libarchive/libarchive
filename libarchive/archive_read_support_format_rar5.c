@@ -881,10 +881,10 @@ static inline int get_archive_read(struct archive* a,
 static int read_ahead(struct archive_read* a, size_t how_many,
     const uint8_t** ptr)
 {
+	ssize_t avail = -1;
 	if(!ptr)
 		return 0;
 
-	ssize_t avail = -1;
 	*ptr = __archive_read_ahead(a, how_many, &avail);
 	if(*ptr == NULL) {
 		return 0;
@@ -1150,13 +1150,13 @@ static int process_main_locator_extra_block(struct archive_read* a,
 {
 	uint64_t locator_flags;
 
-	if(!read_var(a, &locator_flags, NULL)) {
-		return ARCHIVE_EOF;
-	}
-
 	enum LOCATOR_FLAGS {
 		QLIST = 0x01, RECOVERY = 0x02,
 	};
+
+	if(!read_var(a, &locator_flags, NULL)) {
+		return ARCHIVE_EOF;
+	}
 
 	if(locator_flags & QLIST) {
 		if(!read_var(a, &rar->qlist_offset, NULL)) {
@@ -1183,6 +1183,10 @@ static int parse_file_extra_hash(struct archive_read* a, struct rar5* rar,
 	size_t hash_type = 0;
 	size_t value_len;
 
+	enum HASH_TYPE {
+		BLAKE2sp = 0x00
+	};
+
 	if(!read_var_sized(a, &hash_type, &value_len))
 		return ARCHIVE_EOF;
 
@@ -1190,10 +1194,6 @@ static int parse_file_extra_hash(struct archive_read* a, struct rar5* rar,
 	if(ARCHIVE_OK != consume(a, value_len)) {
 		return ARCHIVE_EOF;
 	}
-
-	enum HASH_TYPE {
-		BLAKE2sp = 0x00
-	};
 
 	/* The file uses BLAKE2sp checksum algorithm instead of plain old
 	 * CRC32. */
@@ -1257,6 +1257,7 @@ static int parse_file_extra_version(struct archive_read* a,
 	size_t value_len = 0;
 	struct archive_string version_string;
 	struct archive_string name_utf8_string;
+	const char* cur_filename;
 
 	/* Flags are ignored. */
 	if(!read_var_sized(a, &flags, &value_len))
@@ -1275,7 +1276,7 @@ static int parse_file_extra_version(struct archive_read* a,
 
 	/* extra_data_size should be zero here. */
 
-	const char* cur_filename = archive_entry_pathname_utf8(e);
+	cur_filename = archive_entry_pathname_utf8(e);
 	if(cur_filename == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
 		    "Version entry without file name");
@@ -1586,6 +1587,25 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 	char name_utf8_buf[MAX_NAME_IN_BYTES];
 	const uint8_t* p;
 
+	enum FILE_FLAGS {
+		DIRECTORY = 0x0001, UTIME = 0x0002, CRC32 = 0x0004,
+		UNKNOWN_UNPACKED_SIZE = 0x0008,
+	};
+
+	enum FILE_ATTRS {
+		ATTR_READONLY = 0x1, ATTR_HIDDEN = 0x2, ATTR_SYSTEM = 0x4,
+		ATTR_DIRECTORY = 0x10,
+	};
+
+	enum COMP_INFO_FLAGS {
+		SOLID = 0x0040,
+	};
+
+	enum HOST_OS {
+		HOST_WINDOWS = 0,
+		HOST_UNIX = 1,
+	};
+
 	archive_entry_clear(entry);
 
 	/* Do not reset file context if we're switching archives. */
@@ -1614,20 +1634,6 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 				"no data found in file/service block");
 		return ARCHIVE_FATAL;
 	}
-
-	enum FILE_FLAGS {
-		DIRECTORY = 0x0001, UTIME = 0x0002, CRC32 = 0x0004,
-		UNKNOWN_UNPACKED_SIZE = 0x0008,
-	};
-
-	enum FILE_ATTRS {
-		ATTR_READONLY = 0x1, ATTR_HIDDEN = 0x2, ATTR_SYSTEM = 0x4,
-		ATTR_DIRECTORY = 0x10,
-	};
-
-	enum COMP_INFO_FLAGS {
-		SOLID = 0x0040,
-	};
 
 	if(!read_var_sized(a, &file_flags, NULL))
 		return ARCHIVE_EOF;
@@ -1724,11 +1730,6 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 
 	if(!read_var_sized(a, &host_os, NULL))
 		return ARCHIVE_EOF;
-
-	enum HOST_OS {
-		HOST_WINDOWS = 0,
-		HOST_UNIX = 1,
-	};
 
 	if(host_os == HOST_WINDOWS) {
 		/* Host OS is Windows */
@@ -1895,13 +1896,27 @@ static int process_head_service(struct archive_read* a, struct rar5* rar,
 static int process_head_main(struct archive_read* a, struct rar5* rar,
     struct archive_entry* entry, size_t block_flags)
 {
-	(void) entry;
-
 	int ret;
 	size_t extra_data_size = 0;
 	size_t extra_field_size = 0;
 	size_t extra_field_id = 0;
 	size_t archive_flags = 0;
+
+	enum MAIN_FLAGS {
+		VOLUME = 0x0001,         /* multi-volume archive */
+		VOLUME_NUMBER = 0x0002,  /* volume number, first vol doesn't
+					  * have it */
+		SOLID = 0x0004,          /* solid archive */
+		PROTECT = 0x0008,        /* contains Recovery info */
+		LOCK = 0x0010,           /* readonly flag, not used */
+	};
+
+	enum MAIN_EXTRA {
+		// Just one attribute here.
+		LOCATOR = 0x01,
+	};
+
+	(void) entry;
 
 	if(block_flags & HFL_EXTRA_DATA) {
 		if(!read_var_sized(a, &extra_data_size, NULL))
@@ -1913,15 +1928,6 @@ static int process_head_main(struct archive_read* a, struct rar5* rar,
 	if(!read_var_sized(a, &archive_flags, NULL)) {
 		return ARCHIVE_EOF;
 	}
-
-	enum MAIN_FLAGS {
-		VOLUME = 0x0001,         /* multi-volume archive */
-		VOLUME_NUMBER = 0x0002,  /* volume number, first vol doesn't
-					  * have it */
-		SOLID = 0x0004,          /* solid archive */
-		PROTECT = 0x0008,        /* contains Recovery info */
-		LOCK = 0x0010,           /* readonly flag, not used */
-	};
 
 	rar->main.volume = (archive_flags & VOLUME) > 0;
 	rar->main.solid = (archive_flags & SOLID) > 0;
@@ -1973,11 +1979,6 @@ static int process_head_main(struct archive_read* a, struct rar5* rar,
 		    "Invalid extra field size");
 		return ARCHIVE_FATAL;
 	}
-
-	enum MAIN_EXTRA {
-		// Just one attribute here.
-		LOCATOR = 0x01,
-	};
 
 	switch(extra_field_id) {
 		case LOCATOR:
@@ -2092,6 +2093,12 @@ static int process_base_block(struct archive_read* a,
 	const uint8_t* p;
 	int ret;
 
+	enum HEADER_TYPE {
+		HEAD_MARK    = 0x00, HEAD_MAIN  = 0x01, HEAD_FILE   = 0x02,
+		HEAD_SERVICE = 0x03, HEAD_CRYPT = 0x04, HEAD_ENDARC = 0x05,
+		HEAD_UNKNOWN = 0xff,
+	};
+
 	/* Skip any unprocessed data for this file. */
 	ret = skip_unprocessed_bytes(a);
 	if(ret != ARCHIVE_OK)
@@ -2150,12 +2157,6 @@ static int process_base_block(struct archive_read* a,
 	rar->main.endarc = 0;
 
 	/* Those are possible header ids in RARv5. */
-	enum HEADER_TYPE {
-		HEAD_MARK    = 0x00, HEAD_MAIN  = 0x01, HEAD_FILE   = 0x02,
-		HEAD_SERVICE = 0x03, HEAD_CRYPT = 0x04, HEAD_ENDARC = 0x05,
-		HEAD_UNKNOWN = 0xff,
-	};
-
 	switch(header_id) {
 		case HEAD_MAIN:
 			ret = process_head_main(a, rar, entry, header_flags);
@@ -2540,12 +2541,10 @@ static int parse_tables(struct archive_read* a, struct rar5* rar,
 			/* 0..15: store directly */
 			table[i] = (uint8_t) num;
 			i++;
-			continue;
-		}
-
-		if(num < 18) {
+		} else if(num < 18) {
 			/* 16..17: repeat previous code */
 			uint16_t n;
+
 			if(ARCHIVE_OK != read_bits_16(rar, p, &n))
 				return ARCHIVE_EOF;
 
@@ -2571,27 +2570,26 @@ static int parse_tables(struct archive_read* a, struct rar5* rar,
 				    "huffman tables");
 				return ARCHIVE_FATAL;
 			}
-
-			continue;
-		}
-
-		/* other codes: fill with zeroes `n` times */
-		uint16_t n;
-		if(ARCHIVE_OK != read_bits_16(rar, p, &n))
-			return ARCHIVE_EOF;
-
-		if(num == 18) {
-			n >>= 13;
-			n += 3;
-			skip_bits(rar, 3);
 		} else {
-			n >>= 9;
-			n += 11;
-			skip_bits(rar, 7);
-		}
+			/* other codes: fill with zeroes `n` times */
+			uint16_t n;
 
-		while(n-- > 0 && i < HUFF_TABLE_SIZE)
-			table[i++] = 0;
+			if(ARCHIVE_OK != read_bits_16(rar, p, &n))
+				return ARCHIVE_EOF;
+
+			if(num == 18) {
+				n >>= 13;
+				n += 3;
+				skip_bits(rar, 3);
+			} else {
+				n >>= 9;
+				n += 11;
+				skip_bits(rar, 7);
+			}
+
+			while(n-- > 0 && i < HUFF_TABLE_SIZE)
+				table[i++] = 0;
+		}
 	}
 
 	ret = create_decode_tables(&table[idx], &rar->cstate.ld, HUFF_NC);
@@ -2636,6 +2634,7 @@ static int parse_tables(struct archive_read* a, struct rar5* rar,
 static int parse_block_header(struct archive_read* a, const uint8_t* p,
     ssize_t* block_size, struct compressed_block_header* hdr)
 {
+	uint8_t calculated_cksum;
 	memcpy(hdr, p, sizeof(struct compressed_block_header));
 
 	if(bf_byte_count(hdr) > 2) {
@@ -2674,7 +2673,7 @@ static int parse_block_header(struct archive_read* a, const uint8_t* p,
 
 	/* Verify the block header checksum. 0x5A is a magic value and is
 	 * always * constant. */
-	uint8_t calculated_cksum = 0x5A
+	calculated_cksum = 0x5A
 	    ^ (uint8_t) hdr->block_flags_u8
 	    ^ (uint8_t) *block_size
 	    ^ (uint8_t) (*block_size >> 8)
@@ -2748,6 +2747,7 @@ static int is_valid_filter_block_start(struct rar5* rar,
 static int parse_filter(struct archive_read* ar, const uint8_t* p) {
 	uint32_t block_start, block_length;
 	uint16_t filter_type;
+	struct filter_info* filt = NULL;
 	struct rar5* rar = get_context(ar);
 
 	/* Read the parameters from the input stream. */
@@ -2778,7 +2778,7 @@ static int parse_filter(struct archive_read* ar, const uint8_t* p) {
 	}
 
 	/* Allocate a new filter. */
-	struct filter_info* filt = add_new_filter(rar);
+	filt = add_new_filter(rar);
 	if(filt == NULL) {
 		archive_set_error(&ar->archive, ENOMEM,
 		    "Can't allocate memory for a filter descriptor.");
@@ -3319,6 +3319,8 @@ static int process_block(struct archive_read* a) {
 
 	if(rar->cstate.block_parsing_finished) {
 		ssize_t block_size;
+		ssize_t to_skip;
+		ssize_t cur_block_size;
 
 		/* The header size won't be bigger than 6 bytes. */
 		if(!read_ahead(a, 6, &p)) {
@@ -3342,7 +3344,7 @@ static int process_block(struct archive_read* a) {
 
 		/* Skip block header. Next data is huffman tables,
 		 * if present. */
-		ssize_t to_skip = sizeof(struct compressed_block_header) +
+		to_skip = sizeof(struct compressed_block_header) +
 			bf_byte_count(&rar->last_block_hdr) + 1;
 
 		if(ARCHIVE_OK != consume(a, to_skip))
@@ -3356,7 +3358,7 @@ static int process_block(struct archive_read* a) {
 		 * bigger than the actual data stored in this file. Remaining
 		 * part of the data will be in another file. */
 
-		ssize_t cur_block_size =
+		cur_block_size =
 			rar5_min(rar->file.bytes_remaining, block_size);
 
 		if(block_size > rar->file.bytes_remaining) {
@@ -3684,6 +3686,7 @@ static int uncompress_file(struct archive_read* a) {
 static int do_unstore_file(struct archive_read* a,
     struct rar5* rar, const void** buf, size_t* size, int64_t* offset)
 {
+	size_t to_read;
 	const uint8_t* p;
 
 	if(rar->file.bytes_remaining == 0 && rar->main.volume > 0 &&
@@ -3702,7 +3705,7 @@ static int do_unstore_file(struct archive_read* a,
 		}
 	}
 
-	size_t to_read = rar5_min(rar->file.bytes_remaining, 64 * 1024);
+	to_read = rar5_min(rar->file.bytes_remaining, 64 * 1024);
 	if(to_read == 0) {
 		return ARCHIVE_EOF;
 	}

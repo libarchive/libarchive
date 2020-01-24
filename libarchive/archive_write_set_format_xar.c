@@ -411,6 +411,8 @@ xar_options(struct archive_write *a, const char *key, const char *value)
 	if (strcmp(key, "checksum") == 0) {
 		if (value == NULL)
 			xar->opt_sumalg = CKSUM_NONE;
+		else if (strcmp(value, "none") == 0)
+			xar->opt_sumalg = CKSUM_NONE;
 		else if (strcmp(value, "sha1") == 0)
 			xar->opt_sumalg = CKSUM_SHA1;
 		else if (strcmp(value, "md5") == 0)
@@ -428,6 +430,8 @@ xar_options(struct archive_write *a, const char *key, const char *value)
 		const char *name = NULL;
 
 		if (value == NULL)
+			xar->opt_compression = NONE;
+		else if (strcmp(value, "none") == 0)
 			xar->opt_compression = NONE;
 		else if (strcmp(value, "gzip") == 0)
 			xar->opt_compression = GZIP;
@@ -481,6 +485,8 @@ xar_options(struct archive_write *a, const char *key, const char *value)
 	}
 	if (strcmp(key, "toc-checksum") == 0) {
 		if (value == NULL)
+			xar->opt_toc_sumalg = CKSUM_NONE;
+		else if (strcmp(value, "none") == 0)
 			xar->opt_toc_sumalg = CKSUM_NONE;
 		else if (strcmp(value, "sha1") == 0)
 			xar->opt_toc_sumalg = CKSUM_SHA1;
@@ -696,13 +702,37 @@ xar_write_data(struct archive_write *a, const void *buff, size_t s)
 		else
 			run = ARCHIVE_Z_FINISH;
 		/* Compress file data. */
-		r = compression_code(&(a->archive), &(xar->stream), run);
-		if (r != ARCHIVE_OK && r != ARCHIVE_EOF)
-			return (ARCHIVE_FATAL);
+		for (;;) {
+			r = compression_code(&(a->archive), &(xar->stream),
+			    run);
+			if (r != ARCHIVE_OK && r != ARCHIVE_EOF)
+				return (ARCHIVE_FATAL);
+			if (xar->stream.avail_out == 0 ||
+			    run == ARCHIVE_Z_FINISH) {
+				size = sizeof(xar->wbuff) -
+				    xar->stream.avail_out;
+				checksum_update(&(xar->a_sumwrk), xar->wbuff,
+				    size);
+				xar->cur_file->data.length += size;
+				if (write_to_temp(a, xar->wbuff,
+				    size) != ARCHIVE_OK)
+					return (ARCHIVE_FATAL);
+				if (r == ARCHIVE_OK) {
+					/* Output buffer was full */
+					xar->stream.next_out = xar->wbuff;
+					xar->stream.avail_out =
+					    sizeof(xar->wbuff);
+				} else {
+					/* ARCHIVE_EOF - We are done */
+					break;
+				}
+			} else {
+				/* Compressor wants more input */
+				break;
+			}
+		}
 		rsize = s - xar->stream.avail_in;
 		checksum_update(&(xar->e_sumwrk), buff, rsize);
-		size = sizeof(xar->wbuff) - xar->stream.avail_out;
-		checksum_update(&(xar->a_sumwrk), xar->wbuff, size);
 	}
 #if !defined(_WIN32) || defined(__CYGWIN__)
 	if (xar->bytes_remaining ==
@@ -739,12 +769,9 @@ xar_write_data(struct archive_write *a, const void *buff, size_t s)
 	if (xar->cur_file->data.compression == NONE) {
 		if (write_to_temp(a, buff, size) != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
-	} else {
-		if (write_to_temp(a, xar->wbuff, size) != ARCHIVE_OK)
-			return (ARCHIVE_FATAL);
+		xar->cur_file->data.length += size;
 	}
 	xar->bytes_remaining -= rsize;
-	xar->cur_file->data.length += size;
 
 	return (rsize);
 }

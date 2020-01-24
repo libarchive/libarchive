@@ -46,7 +46,7 @@ IF "%1"=="deplibs" (
   IF "%BE%"=="mingw-gcc" (
     SET PATH=C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
     CD build_ci\cmake
-    mingw32-make || EXIT /b 1
+    mingw32-make VERBOSE=1 || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
     CD build_ci\cmake
     cmake --build . --target ALL_BUILD --config Release
@@ -57,7 +57,7 @@ IF "%1"=="deplibs" (
     COPY "C:\Program Files (x86)\zlib\bin\libzlib.dll" build_ci\cmake\bin\
     CD build_ci\cmake
     SET SKIP_TEST_SPARSE=1
-    mingw32-make test
+    mingw32-make test VERBOSE=1 || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
     ECHO "Skipping tests on this platform"
     EXIT /b 0
