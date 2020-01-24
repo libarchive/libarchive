@@ -1605,8 +1605,8 @@ assertion_file_nlinks(const char *file, int line,
 	r = lstat(pathname, &st);
 	if (r == 0 && (int)st.st_nlink == nlinks)
 		return (1);
-	failure_start(file, line, "File %s has %d links, expected %d",
-	    pathname, st.st_nlink, nlinks);
+	failure_start(file, line, "File %s has %jd links, expected %d",
+	    pathname, (intmax_t)st.st_nlink, nlinks);
 	failure_finish(NULL);
 	return (0);
 #endif
